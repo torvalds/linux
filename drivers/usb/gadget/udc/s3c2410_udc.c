@@ -92,40 +92,38 @@ static struct s3c2410_udc_mach_info *udc_info;
 
 static uint32_t s3c2410_ticks = 0;
 
-static int dprintk(int level, const char *fmt, ...)
+__printf(2, 3)
+static void dprintk(int level, const char *fmt, ...)
 {
-	static char printk_buf[1024];
 	static long prevticks;
 	static int invocation;
+	struct va_format vaf;
 	va_list args;
-	int len;
 
 	if (level > USB_S3C2410_DEBUG_LEVEL)
-		return 0;
+		return;
+
+	va_start(args, fmt);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
 
 	if (s3c2410_ticks != prevticks) {
 		prevticks = s3c2410_ticks;
 		invocation = 0;
 	}
 
-	len = scnprintf(printk_buf,
-			sizeof(printk_buf), "%1lu.%02d USB: ",
-			prevticks, invocation++);
+	pr_debug("%1lu.%02d USB: %pV", prevticks, invocation++, &vaf);
 
-	va_start(args, fmt);
-	len = vscnprintf(printk_buf+len,
-			sizeof(printk_buf)-len, fmt, args);
 	va_end(args);
-
-	pr_debug("%s", printk_buf);
-	return len;
 }
 #else
-static int dprintk(int level, const char *fmt, ...)
+__printf(2, 3)
+static void dprintk(int level, const char *fmt, ...)
 {
-	return 0;
 }
 #endif
+
 static int s3c2410_udc_debugfs_seq_show(struct seq_file *m, void *p)
 {
 	u32 addr_reg, pwr_reg, ep_int_reg, usb_int_reg;
