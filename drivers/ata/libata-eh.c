@@ -1580,6 +1580,8 @@ static int ata_eh_read_log_10h(struct ata_device *dev,
 	tf->hob_lbah = buf[10];
 	tf->nsect = buf[12];
 	tf->hob_nsect = buf[13];
+	if (ata_id_has_ncq_autosense(dev->id))
+		tf->auxiliary = buf[14] << 16 | buf[15] << 8 | buf[16];
 
 	return 0;
 }
@@ -1777,6 +1779,18 @@ void ata_eh_analyze_ncq_error(struct ata_link *link)
 	memcpy(&qc->result_tf, &tf, sizeof(tf));
 	qc->result_tf.flags = ATA_TFLAG_ISADDR | ATA_TFLAG_LBA | ATA_TFLAG_LBA48;
 	qc->err_mask |= AC_ERR_DEV | AC_ERR_NCQ;
+	if (qc->result_tf.auxiliary) {
+		char sense_key, asc, ascq;
+
+		sense_key = (qc->result_tf.auxiliary >> 16) & 0xff;
+		asc = (qc->result_tf.auxiliary >> 8) & 0xff;
+		ascq = qc->result_tf.auxiliary & 0xff;
+		ata_dev_dbg(dev, "NCQ Autosense %02x/%02x/%02x\n",
+			    sense_key, asc, ascq);
+		ata_scsi_set_sense(qc->scsicmd, sense_key, asc, ascq);
+		qc->flags |= ATA_QCFLAG_SENSE_VALID;
+	}
+
 	ehc->i.err_mask &= ~AC_ERR_DEV;
 }
 
@@ -1805,6 +1819,10 @@ static unsigned int ata_eh_analyze_tf(struct ata_queued_cmd *qc,
 		qc->err_mask |= AC_ERR_HSM;
 		return ATA_EH_RESET;
 	}
+
+	/* Set by NCQ autosense */
+	if (qc->flags & ATA_QCFLAG_SENSE_VALID)
+		return 0;
 
 	if (stat & (ATA_ERR | ATA_DF))
 		qc->err_mask |= AC_ERR_DEV;
