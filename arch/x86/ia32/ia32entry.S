@@ -112,13 +112,16 @@ ENTRY(ia32_sysenter_target)
 	CFI_SIGNAL_FRAME
 	CFI_DEF_CFA	rsp,0
 	CFI_REGISTER	rsp,rbp
+
+	/*
+	 * Interrupts are off on entry.
+	 * We do not frame this tiny irq-off block with TRACE_IRQS_OFF/ON,
+	 * it is too small to ever cause noticeable irq latency.
+	 */
 	SWAPGS_UNSAFE_STACK
 	movq	PER_CPU_VAR(cpu_tss + TSS_sp0), %rsp
-	/*
-	 * No need to follow this irqs on/off section: the syscall
-	 * disabled irqs, here we enable it straight after entry:
-	 */
 	ENABLE_INTERRUPTS(CLBR_NONE)
+
 	/* Construct iret frame (ss,rsp,rflags,cs,rip) */
  	movl	%ebp,%ebp		/* zero extension */
 	pushq_cfi $__USER32_DS
@@ -314,15 +317,18 @@ ENTRY(ia32_cstar_target)
 	CFI_DEF_CFA	rsp,0
 	CFI_REGISTER	rip,rcx
 	/*CFI_REGISTER	rflags,r11*/
+
+	/*
+	 * Interrupts are off on entry.
+	 * We do not frame this tiny irq-off block with TRACE_IRQS_OFF/ON,
+	 * it is too small to ever cause noticeable irq latency.
+	 */
 	SWAPGS_UNSAFE_STACK
 	movl	%esp,%r8d
 	CFI_REGISTER	rsp,r8
 	movq	PER_CPU_VAR(kernel_stack),%rsp
-	/*
-	 * No need to follow this irqs on/off section: the syscall
-	 * disabled irqs and here we enable it straight after entry:
-	 */
 	ENABLE_INTERRUPTS(CLBR_NONE)
+
 	ALLOC_PT_GPREGS_ON_STACK 6*8 /* 6*8: space for orig_ax and iret frame */
 	SAVE_C_REGS_EXCEPT_RCX_R891011
 	movl 	%eax,%eax	/* zero extension */
@@ -449,19 +455,22 @@ ia32_badarg:
 ENTRY(ia32_syscall)
 	CFI_STARTPROC32	simple
 	CFI_SIGNAL_FRAME
-	CFI_DEF_CFA	rsp,SS+8-RIP
-	/*CFI_REL_OFFSET	ss,SS-RIP*/
-	CFI_REL_OFFSET	rsp,RSP-RIP
-	/*CFI_REL_OFFSET	rflags,EFLAGS-RIP*/
-	/*CFI_REL_OFFSET	cs,CS-RIP*/
-	CFI_REL_OFFSET	rip,RIP-RIP
+	CFI_DEF_CFA	rsp,5*8
+	/*CFI_REL_OFFSET	ss,4*8 */
+	CFI_REL_OFFSET	rsp,3*8
+	/*CFI_REL_OFFSET	rflags,2*8 */
+	/*CFI_REL_OFFSET	cs,1*8 */
+	CFI_REL_OFFSET	rip,0*8
+
+	/*
+	 * Interrupts are off on entry.
+	 * We do not frame this tiny irq-off block with TRACE_IRQS_OFF/ON,
+	 * it is too small to ever cause noticeable irq latency.
+	 */
 	PARAVIRT_ADJUST_EXCEPTION_FRAME
 	SWAPGS
-	/*
-	 * No need to follow this irqs on/off section: the syscall
-	 * disabled irqs and here we enable it straight after entry:
-	 */
 	ENABLE_INTERRUPTS(CLBR_NONE)
+
 	movl %eax,%eax
 	pushq_cfi %rax		/* store orig_ax */
 	cld
