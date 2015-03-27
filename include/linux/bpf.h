@@ -59,6 +59,7 @@ enum bpf_arg_type {
 	ARG_PTR_TO_STACK,	/* any pointer to eBPF program stack */
 	ARG_CONST_STACK_SIZE,	/* number of bytes accessed from stack */
 
+	ARG_PTR_TO_CTX,		/* pointer to context */
 	ARG_ANYTHING,		/* any (initialized) argument is ok */
 };
 

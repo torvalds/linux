@@ -1175,6 +1175,56 @@ int sk_attach_bpf(u32 ufd, struct sock *sk)
 	return 0;
 }
 
+static u64 bpf_skb_store_bytes(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
+{
+	struct sk_buff *skb = (struct sk_buff *) (long) r1;
+	unsigned int offset = (unsigned int) r2;
+	void *from = (void *) (long) r3;
+	unsigned int len = (unsigned int) r4;
+	char buf[16];
+	void *ptr;
+
+	/* bpf verifier guarantees that:
+	 * 'from' pointer points to bpf program stack
+	 * 'len' bytes of it were initialized
+	 * 'len' > 0
+	 * 'skb' is a valid pointer to 'struct sk_buff'
+	 *
+	 * so check for invalid 'offset' and too large 'len'
+	 */
+	if (offset > 0xffff || len > sizeof(buf))
+		return -EFAULT;
+
+	if (skb_cloned(skb) && !skb_clone_writable(skb, offset + len))
+		return -EFAULT;
+
+	ptr = skb_header_pointer(skb, offset, len, buf);
+	if (unlikely(!ptr))
+		return -EFAULT;
+
+	skb_postpull_rcsum(skb, ptr, len);
+
+	memcpy(ptr, from, len);
+
+	if (ptr == buf)
+		/* skb_store_bits cannot return -EFAULT here */
+		skb_store_bits(skb, offset, ptr, len);
+
+	if (skb->ip_summed == CHECKSUM_COMPLETE)
+		skb->csum = csum_add(skb->csum, csum_partial(ptr, len, 0));
+	return 0;
+}
+
+const struct bpf_func_proto bpf_skb_store_bytes_proto = {
+	.func		= bpf_skb_store_bytes,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_ANYTHING,
+	.arg3_type	= ARG_PTR_TO_STACK,
+	.arg4_type	= ARG_CONST_STACK_SIZE,
+};
+
 static const struct bpf_func_proto *
 sk_filter_func_proto(enum bpf_func_id func_id)
 {
@@ -1191,6 +1241,17 @@ sk_filter_func_proto(enum bpf_func_id func_id)
 		return &bpf_get_smp_processor_id_proto;
 	default:
 		return NULL;
+	}
+}
+
+static const struct bpf_func_proto *
+tc_cls_act_func_proto(enum bpf_func_id func_id)
+{
+	switch (func_id) {
+	case BPF_FUNC_skb_store_bytes:
+		return &bpf_skb_store_bytes_proto;
+	default:
+		return sk_filter_func_proto(func_id);
 	}
 }
 
@@ -1270,18 +1331,24 @@ static const struct bpf_verifier_ops sk_filter_ops = {
 	.convert_ctx_access = sk_filter_convert_ctx_access,
 };
 
+static const struct bpf_verifier_ops tc_cls_act_ops = {
+	.get_func_proto = tc_cls_act_func_proto,
+	.is_valid_access = sk_filter_is_valid_access,
+	.convert_ctx_access = sk_filter_convert_ctx_access,
+};
+
 static struct bpf_prog_type_list sk_filter_type __read_mostly = {
 	.ops = &sk_filter_ops,
 	.type = BPF_PROG_TYPE_SOCKET_FILTER,
 };
 
 static struct bpf_prog_type_list sched_cls_type __read_mostly = {
-	.ops = &sk_filter_ops,
+	.ops = &tc_cls_act_ops,
 	.type = BPF_PROG_TYPE_SCHED_CLS,
 };
 
 static struct bpf_prog_type_list sched_act_type __read_mostly = {
-	.ops = &sk_filter_ops,
+	.ops = &tc_cls_act_ops,
 	.type = BPF_PROG_TYPE_SCHED_ACT,
 };
 

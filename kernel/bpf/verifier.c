@@ -773,6 +773,8 @@ static int check_func_arg(struct verifier_env *env, u32 regno,
 		expected_type = CONST_IMM;
 	} else if (arg_type == ARG_CONST_MAP_PTR) {
 		expected_type = CONST_PTR_TO_MAP;
+	} else if (arg_type == ARG_PTR_TO_CTX) {
+		expected_type = PTR_TO_CTX;
 	} else {
 		verbose("unsupported arg_type %d\n", arg_type);
 		return -EFAULT;
