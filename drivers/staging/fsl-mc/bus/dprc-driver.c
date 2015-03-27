@@ -112,6 +112,41 @@ static struct fsl_mc_device *fsl_mc_device_lookup(struct dprc_obj_desc
 }
 
 /**
+ * check_plugged_state_change - Check change in an MC object's plugged state
+ *
+ * @mc_dev: pointer to the fsl-mc device for a given MC object
+ * @obj_desc: pointer to the MC object's descriptor in the MC
+ *
+ * If the plugged state has changed from unplugged to plugged, the fsl-mc
+ * device is bound to the corresponding device driver.
+ * If the plugged state has changed from plugged to unplugged, the fsl-mc
+ * device is unbound from the corresponding device driver.
+ */
+static void check_plugged_state_change(struct fsl_mc_device *mc_dev,
+				       struct dprc_obj_desc *obj_desc)
+{
+	int error;
+	uint32_t plugged_flag_at_mc =
+			(obj_desc->state & DPRC_OBJ_STATE_PLUGGED);
+
+	if (plugged_flag_at_mc !=
+	    (mc_dev->obj_desc.state & DPRC_OBJ_STATE_PLUGGED)) {
+		if (plugged_flag_at_mc) {
+			mc_dev->obj_desc.state |= DPRC_OBJ_STATE_PLUGGED;
+			error = device_attach(&mc_dev->dev);
+			if (error < 0) {
+				dev_err(&mc_dev->dev,
+					"device_attach() failed: %d\n",
+					error);
+			}
+		} else {
+			mc_dev->obj_desc.state &= ~DPRC_OBJ_STATE_PLUGGED;
+			device_release_driver(&mc_dev->dev);
+		}
+	}
+}
+
+/**
  * dprc_add_new_devices - Adds devices to the logical bus for a DPRC
  *
  * @mc_bus_dev: pointer to the fsl-mc device that represents a DPRC object
@@ -142,8 +177,10 @@ static void dprc_add_new_devices(struct fsl_mc_device *mc_bus_dev,
 		 * Check if device is already known to Linux:
 		 */
 		child_dev = fsl_mc_device_lookup(obj_desc, mc_bus_dev);
-		if (child_dev)
+		if (child_dev) {
+			check_plugged_state_change(child_dev, obj_desc);
 			continue;
+		}
 
 		error = fsl_mc_device_add(obj_desc, mc_io, &mc_bus_dev->dev,
 					  &child_dev);
