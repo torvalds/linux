@@ -2703,10 +2703,7 @@ static __always_inline int trace_recursive_lock(void)
 
 static __always_inline void trace_recursive_unlock(void)
 {
-	unsigned int val = __this_cpu_read(current_context);
-
-	val &= val & (val - 1);
-	__this_cpu_write(current_context, val);
+	__this_cpu_and(current_context, __this_cpu_read(current_context) - 1);
 }
 
 #else
