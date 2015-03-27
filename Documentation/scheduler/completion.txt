@@ -7,21 +7,21 @@ Introduction:
 -------------
 
 If you have one or more threads of execution that must wait for some process
-to have reached a point or a specific state, completions can provide a race
-free solution to this problem. Semantically they are somewhat like a
-pthread_barriers and have similar use-cases.
+to have reached a point or a specific state, completions can provide a
+race-free solution to this problem. Semantically they are somewhat like a
+pthread_barrier and have similar use-cases.
 
-Completions are a code synchronization mechanism which are preferable to any
+Completions are a code synchronization mechanism which is preferable to any
 misuse of locks. Any time you think of using yield() or some quirky
-msleep(1); loop to allow something else to proceed, you probably want to
+msleep(1) loop to allow something else to proceed, you probably want to
 look into using one of the wait_for_completion*() calls instead. The
 advantage of using completions is clear intent of the code, but also more
 efficient code as both threads can continue until the result is actually
 needed.
 
 Completions are built on top of the generic event infrastructure in Linux,
-with the event reduced to a simple flag appropriately called "done" in
-struct completion, that tells the waiting threads of execution if they
+with the event reduced to a simple flag (appropriately called "done") in
+struct completion that tells the waiting threads of execution if they
 can continue safely.
 
 As completions are scheduling related, the code is found in
@@ -73,7 +73,7 @@ the default state to "not available", that is, "done" is set to 0.
 
 The re-initialization function, reinit_completion(), simply resets the
 done element to "not available", thus again to 0, without touching the
-wait queue. Calling init_completion() on the same completion object is
+wait queue. Calling init_completion() twice on the same completion object is
 most likely a bug as it re-initializes the queue to an empty queue and
 enqueued tasks could get "lost" - use reinit_completion() in that case.
 
@@ -106,7 +106,7 @@ For a thread of execution to wait for some concurrent work to finish, it
 calls wait_for_completion() on the initialized completion structure.
 A typical usage scenario is:
 
-	structure completion setup_done;
+	struct completion setup_done;
 	init_completion(&setup_done);
 	initialize_work(...,&setup_done,...)
 
@@ -120,16 +120,16 @@ to wait_for_completion() then the waiting side simply will continue
 immediately as all dependencies are satisfied if not it will block until
 completion is signaled by complete().
 
-Note that wait_for_completion() is calling spin_lock_irq/spin_unlock_irq
+Note that wait_for_completion() is calling spin_lock_irq()/spin_unlock_irq(),
 so it can only be called safely when you know that interrupts are enabled.
-Calling it from hard-irq or irqs-off atomic contexts will result in hard
-to detect spurious enabling of interrupts.
+Calling it from hard-irq or irqs-off atomic contexts will result in
+hard-to-detect spurious enabling of interrupts.
 
 wait_for_completion():
 
 	void wait_for_completion(struct completion *done):
 
-The default behavior is to wait without a timeout and mark the task as
+The default behavior is to wait without a timeout and to mark the task as
 uninterruptible. wait_for_completion() and its variants are only safe
 in process context (as they can sleep) but not in atomic context,
 interrupt context, with disabled irqs. or preemption is disabled - see also
@@ -159,28 +159,29 @@ probably not what you want.
 	int wait_for_completion_interruptible(struct completion *done)
 
 This function marks the task TASK_INTERRUPTIBLE. If a signal was received
-while waiting it will return -ERESTARTSYS and 0 otherwise.
+while waiting it will return -ERESTARTSYS; 0 otherwise.
 
 	unsigned long wait_for_completion_timeout(struct completion *done,
 		unsigned long timeout)
 
 The task is marked as TASK_UNINTERRUPTIBLE and will wait at most 'timeout'
 (in jiffies). If timeout occurs it returns 0 else the remaining time in
-jiffies (but at least 1). Timeouts are preferably passed by msecs_to_jiffies()
-or usecs_to_jiffies(). If the returned timeout value is deliberately ignored
-a comment should probably explain why (e.g. see drivers/mfd/wm8350-core.c
-wm8350_read_auxadc())
+jiffies (but at least 1). Timeouts are preferably calculated with
+msecs_to_jiffies() or usecs_to_jiffies(). If the returned timeout value is
+deliberately ignored a comment should probably explain why (e.g. see
+drivers/mfd/wm8350-core.c wm8350_read_auxadc())
 
 	long wait_for_completion_interruptible_timeout(
 		struct completion *done, unsigned long timeout)
 
-This function passes a timeout in jiffies and marking the task as
-TASK_INTERRUPTIBLE. If a signal was received it will return -ERESTARTSYS, 0 if
-completion timed out and the remaining time in jiffies if completion occurred.
+This function passes a timeout in jiffies and marks the task as
+TASK_INTERRUPTIBLE. If a signal was received it will return -ERESTARTSYS;
+otherwise it returns 0 if the completion timed out or the remaining time in
+jiffies if completion occurred.
 
-Further variants include _killable which passes TASK_KILLABLE as the
-designated tasks state and will return -ERESTARTSYS if interrupted or
-else 0 if completion was achieved as well as a _timeout variant.
+Further variants include _killable which uses TASK_KILLABLE as the
+designated tasks state and will return -ERESTARTSYS if it is interrupted or
+else 0 if completion was achieved.  There is a _timeout variant as well:
 
 	long wait_for_completion_killable(struct completion *done)
 	long wait_for_completion_killable_timeout(struct completion *done,
@@ -232,14 +233,14 @@ try_wait_for_completion()/completion_done():
 
 The try_wait_for_completion() function will not put the thread on the wait
 queue but rather returns false if it would need to enqueue (block) the thread,
-else it consumes any posted completions and returns true.
+else it consumes one posted completion and returns true.
 
 	bool try_wait_for_completion(struct completion *done)
 
-Finally to check state of a completion without changing it in any way is
-provided by completion_done() returning false if there is any posted
-completion that was not yet consumed by waiters implying that there are
-waiters and true otherwise;
+Finally, to check the state of a completion without changing it in any way, 
+call completion_done(), which returns false if there are no posted
+completions that were not yet consumed by waiters (implying that there are
+waiters) and true otherwise;
 
 	bool completion_done(struct completion *done)
 
