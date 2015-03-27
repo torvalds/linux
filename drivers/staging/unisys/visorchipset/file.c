@@ -31,49 +31,6 @@
 static struct cdev file_cdev;
 static struct visorchannel **file_controlvm_channel;
 
-static int visorchipset_open(struct inode *inode, struct file *file);
-static int visorchipset_release(struct inode *inode, struct file *file);
-static int visorchipset_mmap(struct file *file, struct vm_area_struct *vma);
-static long visorchipset_ioctl(struct file *file, unsigned int cmd,
-				unsigned long arg);
-
-static const struct file_operations visorchipset_fops = {
-	.owner = THIS_MODULE,
-	.open = visorchipset_open,
-	.read = NULL,
-	.write = NULL,
-	.unlocked_ioctl = visorchipset_ioctl,
-	.release = visorchipset_release,
-	.mmap = visorchipset_mmap,
-};
-
-int
-visorchipset_file_init(dev_t major_dev, struct visorchannel **controlvm_channel)
-{
-	int rc = 0;
-
-	file_controlvm_channel = controlvm_channel;
-	cdev_init(&file_cdev, &visorchipset_fops);
-	file_cdev.owner = THIS_MODULE;
-	if (MAJOR(major_dev) == 0) {
-		rc = alloc_chrdev_region(&major_dev, 0, 1, MYDRVNAME);
-		/* dynamic major device number registration required */
-		if (rc < 0)
-			return rc;
-	} else {
-		/* static major device number registration required */
-		rc = register_chrdev_region(major_dev, 1, MYDRVNAME);
-		if (rc < 0)
-			return rc;
-	}
-	rc = cdev_add(&file_cdev, MKDEV(MAJOR(major_dev), 0), 1);
-	if (rc < 0) {
-		unregister_chrdev_region(major_dev, 1);
-		return rc;
-	}
-	return 0;
-}
-
 void
 visorchipset_file_cleanup(dev_t major_dev)
 {
@@ -163,4 +120,41 @@ static long visorchipset_ioctl(struct file *file, unsigned int cmd,
 	default:
 		return -EFAULT;
 	}
+}
+
+static const struct file_operations visorchipset_fops = {
+	.owner = THIS_MODULE,
+	.open = visorchipset_open,
+	.read = NULL,
+	.write = NULL,
+	.unlocked_ioctl = visorchipset_ioctl,
+	.release = visorchipset_release,
+	.mmap = visorchipset_mmap,
+};
+
+int
+visorchipset_file_init(dev_t major_dev, struct visorchannel **controlvm_channel)
+{
+	int rc = 0;
+
+	file_controlvm_channel = controlvm_channel;
+	cdev_init(&file_cdev, &visorchipset_fops);
+	file_cdev.owner = THIS_MODULE;
+	if (MAJOR(major_dev) == 0) {
+		rc = alloc_chrdev_region(&major_dev, 0, 1, MYDRVNAME);
+		/* dynamic major device number registration required */
+		if (rc < 0)
+			return rc;
+	} else {
+		/* static major device number registration required */
+		rc = register_chrdev_region(major_dev, 1, MYDRVNAME);
+		if (rc < 0)
+			return rc;
+	}
+	rc = cdev_add(&file_cdev, MKDEV(MAJOR(major_dev), 0), 1);
+	if (rc < 0) {
+		unregister_chrdev_region(major_dev, 1);
+		return rc;
+	}
+	return 0;
 }
