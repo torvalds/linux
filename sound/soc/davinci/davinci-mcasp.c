@@ -1149,7 +1149,7 @@ static int davinci_mcasp_startup(struct snd_pcm_substream *substream,
 		if (mcasp->serial_dir[i] == dir)
 			max_channels++;
 	}
-	mcasp->ruledata[dir].serializers = max_channels;
+	mcasp->ruledata[substream->stream].serializers = max_channels;
 	max_channels *= mcasp->tdm_slots;
 	/*
 	 * If the already active stream has less channels than the calculated
@@ -1172,7 +1172,7 @@ static int davinci_mcasp_startup(struct snd_pcm_substream *substream,
 	if (mcasp->bclk_master && mcasp->bclk_div == 0 && mcasp->sysclk_freq) {
 		int ret;
 
-		mcasp->ruledata[dir].mcasp = mcasp;
+		mcasp->ruledata[substream->stream].mcasp = mcasp;
 
 		ret = snd_pcm_hw_rule_add(substream->runtime, 0,
 					  SNDRV_PCM_HW_PARAM_RATE,
