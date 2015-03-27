@@ -1173,8 +1173,10 @@ void syscall_init(void)
 #ifdef CONFIG_IA32_EMULATION
 	wrmsrl(MSR_CSTAR, ia32_cstar_target);
 	/*
-	 * Always load these, in case some future 64-bit CPU supports
-	 * SYSENTER from compat mode too:
+	 * This only works on Intel CPUs.
+	 * On AMD CPUs these MSRs are 32-bit, CPU truncates MSR_IA32_SYSENTER_EIP.
+	 * This does not cause SYSENTER to jump to the wrong location, because
+	 * AMD doesn't allow SYSENTER in long mode (either 32- or 64-bit).
 	 */
 	wrmsrl_safe(MSR_IA32_SYSENTER_CS, (u64)__KERNEL_CS);
 	wrmsrl_safe(MSR_IA32_SYSENTER_ESP, 0ULL);
