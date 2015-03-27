@@ -2142,6 +2142,19 @@ i915_gem_request_unreference(struct drm_i915_gem_request *req)
 	kref_put(&req->ref, i915_gem_request_free);
 }
 
+static inline void
+i915_gem_request_unreference__unlocked(struct drm_i915_gem_request *req)
+{
+	if (req && !atomic_add_unless(&req->ref.refcount, -1, 1)) {
+		struct drm_device *dev = req->ring->dev;
+
+		mutex_lock(&dev->struct_mutex);
+		if (likely(atomic_dec_and_test(&req->ref.refcount)))
+			i915_gem_request_free(&req->ref);
+		mutex_unlock(&dev->struct_mutex);
+	}
+}
+
 static inline void i915_gem_request_assign(struct drm_i915_gem_request **pdst,
 					   struct drm_i915_gem_request *src)
 {

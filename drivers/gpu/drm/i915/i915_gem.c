@@ -2866,9 +2866,7 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	ret = __i915_wait_request(req, reset_counter, true,
 				  args->timeout_ns > 0 ? &args->timeout_ns : NULL,
 				  file->driver_priv);
-	mutex_lock(&dev->struct_mutex);
-	i915_gem_request_unreference(req);
-	mutex_unlock(&dev->struct_mutex);
+	i915_gem_request_unreference__unlocked(req);
 	return ret;
 
 out:
@@ -4071,9 +4069,7 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 	if (ret == 0)
 		queue_delayed_work(dev_priv->wq, &dev_priv->mm.retire_work, 0);
 
-	mutex_lock(&dev->struct_mutex);
-	i915_gem_request_unreference(target);
-	mutex_unlock(&dev->struct_mutex);
+	i915_gem_request_unreference__unlocked(target);
 
 	return ret;
 }
