@@ -63,5 +63,7 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 		 const struct dw_hdmi_plat_data *plat_data);
 
 void dw_hdmi_set_sample_rate(struct dw_hdmi *hdmi, unsigned int rate);
+void dw_hdmi_audio_enable(struct dw_hdmi *hdmi);
+void dw_hdmi_audio_disable(struct dw_hdmi *hdmi);
 
 #endif /* __IMX_HDMI_H__ */

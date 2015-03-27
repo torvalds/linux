@@ -18,6 +18,7 @@
 #include <linux/hdmi.h>
 #include <linux/mutex.h>
 #include <linux/of_device.h>
+#include <linux/spinlock.h>
 
 #include <drm/drm_of.h>
 #include <drm/drmP.h>
@@ -123,8 +124,12 @@ struct dw_hdmi {
 	struct i2c_adapter *ddc;
 	void __iomem *regs;
 
+	spinlock_t audio_lock;
 	struct mutex audio_mutex;
 	unsigned int sample_rate;
+	unsigned int audio_cts;
+	unsigned int audio_n;
+	bool audio_enable;
 	int ratio;
 
 	void (*write)(struct dw_hdmi *hdmi, u8 val, int offset);
@@ -346,7 +351,11 @@ static void hdmi_set_clk_regenerator(struct dw_hdmi *hdmi,
 	dev_dbg(hdmi->dev, "%s: samplerate=%ukHz ratio=%d pixelclk=%luMHz N=%d cts=%d\n",
 		__func__, sample_rate, ratio, pixel_clk, n, cts);
 
-	hdmi_set_cts_n(hdmi, cts, n);
+	spin_lock_irq(&hdmi->audio_lock);
+	hdmi->audio_n = n;
+	hdmi->audio_cts = cts;
+	hdmi_set_cts_n(hdmi, cts, hdmi->audio_enable ? n : 0);
+	spin_unlock_irq(&hdmi->audio_lock);
 }
 
 static void hdmi_init_clk_regenerator(struct dw_hdmi *hdmi)
@@ -374,6 +383,28 @@ void dw_hdmi_set_sample_rate(struct dw_hdmi *hdmi, unsigned int rate)
 	mutex_unlock(&hdmi->audio_mutex);
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_set_sample_rate);
+
+void dw_hdmi_audio_enable(struct dw_hdmi *hdmi)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&hdmi->audio_lock, flags);
+	hdmi->audio_enable = true;
+	hdmi_set_cts_n(hdmi, hdmi->audio_cts, hdmi->audio_n);
+	spin_unlock_irqrestore(&hdmi->audio_lock, flags);
+}
+EXPORT_SYMBOL_GPL(dw_hdmi_audio_enable);
+
+void dw_hdmi_audio_disable(struct dw_hdmi *hdmi)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&hdmi->audio_lock, flags);
+	hdmi->audio_enable = false;
+	hdmi_set_cts_n(hdmi, hdmi->audio_cts, 0);
+	spin_unlock_irqrestore(&hdmi->audio_lock, flags);
+}
+EXPORT_SYMBOL_GPL(dw_hdmi_audio_disable);
 
 /*
  * this submodule is responsible for the video data synchronization.
@@ -1577,6 +1608,7 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 	hdmi->encoder = encoder;
 
 	mutex_init(&hdmi->audio_mutex);
+	spin_lock_init(&hdmi->audio_lock);
 
 	of_property_read_u32(np, "reg-io-width", &val);
 
