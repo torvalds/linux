@@ -703,6 +703,14 @@ static const struct file_operations spidev_fops = {
 
 static struct class *spidev_class;
 
+#ifdef CONFIG_OF
+static const struct of_device_id spidev_dt_ids[] = {
+	{ .compatible = "rohm,dh2228fv" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, spidev_dt_ids);
+#endif
+
 /*-------------------------------------------------------------------------*/
 
 static int spidev_probe(struct spi_device *spi)
@@ -710,6 +718,17 @@ static int spidev_probe(struct spi_device *spi)
 	struct spidev_data	*spidev;
 	int			status;
 	unsigned long		minor;
+
+	/*
+	 * spidev should never be referenced in DT without a specific
+	 * compatbile string, it is a Linux implementation thing
+	 * rather than a description of the hardware.
+	 */
+	if (spi->dev.of_node && !of_match_device(spidev_dt_ids, &spi->dev)) {
+		dev_err(&spi->dev, "buggy DT: spidev listed directly in DT\n");
+		WARN_ON(spi->dev.of_node &&
+			!of_match_device(spidev_dt_ids, &spi->dev));
+	}
 
 	/* Allocate driver data */
 	spidev = kzalloc(sizeof(*spidev), GFP_KERNEL);
@@ -776,13 +795,6 @@ static int spidev_remove(struct spi_device *spi)
 
 	return 0;
 }
-
-static const struct of_device_id spidev_dt_ids[] = {
-	{ .compatible = "rohm,dh2228fv" },
-	{},
-};
-
-MODULE_DEVICE_TABLE(of, spidev_dt_ids);
 
 static struct spi_driver spidev_spi_driver = {
 	.driver = {
