@@ -210,6 +210,7 @@ static int dln2_i2c_probe(struct platform_device *pdev)
 	dln2->adapter.algo = &dln2_i2c_usb_algorithm;
 	dln2->adapter.quirks = &dln2_i2c_quirks;
 	dln2->adapter.dev.parent = dev;
+	dln2->adapter.dev.of_node = dev->of_node;
 	i2c_set_adapdata(&dln2->adapter, dln2);
 	snprintf(dln2->adapter.name, sizeof(dln2->adapter.name), "%s-%s-%d",
 		 "dln2-i2c", dev_name(pdev->dev.parent), dln2->port);
