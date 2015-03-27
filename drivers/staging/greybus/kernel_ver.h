@@ -14,6 +14,8 @@
 #ifndef __GREYBUS_KERNEL_VER_H
 #define __GREYBUS_KERNEL_VER_H
 
+#include <linux/kernel.h>
+
 #ifndef __ATTR_WO
 #define __ATTR_WO(_name) {						\
         .attr   = { .name = __stringify(_name), .mode = S_IWUSR },      \
