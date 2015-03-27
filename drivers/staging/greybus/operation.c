@@ -719,6 +719,8 @@ EXPORT_SYMBOL_GPL(gb_operation_request_send_sync);
  */
 int gb_operation_response_send(struct gb_operation *operation, int errno)
 {
+	int ret;
+
 	/* Record the result */
 	if (!gb_operation_result_set(operation, errno)) {
 		pr_err("request result already set\n");
@@ -733,10 +735,17 @@ int gb_operation_response_send(struct gb_operation *operation, int errno)
 		}
 	}
 
+	/* Reference will be dropped when message has been sent. */
+	gb_operation_get(operation);
+
 	/* Fill in the response header and send it */
 	operation->response->header->result = gb_operation_errno_map(errno);
 
-	return gb_message_send(operation->response);
+	ret = gb_message_send(operation->response);
+	if (ret)
+		gb_operation_put(operation);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(gb_operation_response_send);
 
@@ -802,8 +811,8 @@ static void gb_connection_recv_request(struct gb_connection *connection,
 	 * request handler to be the operation's callback function.
 	 *
 	 * The last thing the handler does is send a response
-	 * message. The original reference to the operation will be
-	 * dropped when the response has been sent.
+	 * message. The initial reference to the operation will be
+	 * dropped when the handler returns.
 	 */
 	operation->callback = gb_operation_request_handle;
 	if (gb_operation_result_set(operation, -EINPROGRESS))
