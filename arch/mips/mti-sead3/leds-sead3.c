@@ -4,6 +4,7 @@
  * for more details.
  *
  * Copyright (C) 2012 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2015 Imagination Technologies, Inc.
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -13,16 +14,18 @@
 #include <linux/err.h>
 #include <linux/io.h>
 
+#include <asm/mips-boards/sead3-addr.h>
+
 static void sead3_pled_set(struct led_classdev *led_cdev,
 		enum led_brightness value)
 {
-	writel(value, (void __iomem *)0xBF000210);	/* FIXME */
+	writel(value, (void __iomem *)SEAD3_CPLD_P_LED);
 }
 
 static void sead3_fled_set(struct led_classdev *led_cdev,
 		enum led_brightness value)
 {
-	writel(value, (void __iomem *)0xBF000218);	/* FIXME */
+	writel(value, (void __iomem *)SEAD3_CPLD_F_LED);
 }
 
 static struct led_classdev sead3_pled = {
