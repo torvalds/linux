@@ -525,7 +525,7 @@ static int drm_ioctl_permit(u32 flags, struct drm_file *file_priv)
 }
 
 #define DRM_IOCTL_DEF(ioctl, _func, _flags) \
-	[DRM_IOCTL_NR(ioctl)] = {.cmd = ioctl, .func = _func, .flags = _flags, .cmd_drv = 0, .name = #ioctl}
+	[DRM_IOCTL_NR(ioctl)] = {.cmd = ioctl, .func = _func, .flags = _flags, .name = #ioctl}
 
 /** Ioctl table */
 static const struct drm_ioctl_desc drm_ioctls[] = {
@@ -677,11 +677,11 @@ long drm_ioctl(struct file *filp,
 	    (nr < DRM_COMMAND_BASE + dev->driver->num_ioctls)) {
 		u32 drv_size;
 		ioctl = &dev->driver->ioctls[nr - DRM_COMMAND_BASE];
-		drv_size = _IOC_SIZE(ioctl->cmd_drv);
+		drv_size = _IOC_SIZE(ioctl->cmd);
 		usize = asize = _IOC_SIZE(cmd);
 		if (drv_size > asize)
 			asize = drv_size;
-		cmd = ioctl->cmd_drv;
+		cmd = ioctl->cmd;
 	}
 	else if ((nr >= DRM_COMMAND_END) || (nr < DRM_COMMAND_BASE)) {
 		u32 drv_size;
