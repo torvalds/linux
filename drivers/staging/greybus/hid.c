@@ -155,17 +155,20 @@ static void gb_hid_irq_handler(u8 type, struct gb_operation *op)
 	struct gb_connection *connection = op->connection;
 	struct gb_hid *ghid = connection->private;
 	struct gb_hid_input_report_request *request = op->request->payload;
+	int status;
 	int ret, size;
 
 	if (type != GB_HID_TYPE_IRQ_EVENT) {
 		dev_err(&connection->dev,
 			"unsupported unsolicited request\n");
-		return;
+		status = -EINVAL;
+		goto send_response;
 	}
 
 	if (op->request->payload_size < 2) {
 		dev_err(&connection->dev, "short report received\n");
-		return;
+		status = -EINVAL;
+		goto send_response;
 	}
 
 	/*
@@ -175,18 +178,21 @@ static void gb_hid_irq_handler(u8 type, struct gb_operation *op)
 	size = request->report[0] | request->report[1] << 8;
 	if (size < 2 || size > op->request->payload_size - 2) {
 		dev_err(&connection->dev, "bad report size: %d\n", size);
-		return;
+		status = -EINVAL;
+		goto send_response;
 	}
 
 	if (test_bit(GB_HID_STARTED, &ghid->flags))
 		hid_input_report(ghid->hid, HID_INPUT_REPORT,
 				 request->report + 2, size - 2, 1);
 
-	ret = gb_operation_response_send(op, 0);
+	status = 0;
+send_response:
+	ret = gb_operation_response_send(op, status);
 	if (ret) {
 		dev_err(&connection->dev,
 			"failed to send response status %d: %d\n",
-			0, ret);
+			status, ret);
 	}
 }
 
