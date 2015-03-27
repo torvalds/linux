@@ -5,7 +5,11 @@
  * ELF register definitions..
  */
 
-#include <arch/elf.h>
+#ifdef __arch_v32
+#include <asm/elf_v32.h>
+#else
+#include <asm/elf_v10.h>
+#endif
 
 #define R_CRIS_NONE             0
 #define R_CRIS_8                1
