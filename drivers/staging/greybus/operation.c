@@ -147,6 +147,7 @@ int gb_operation_result(struct gb_operation *operation)
 
 	return result;
 }
+EXPORT_SYMBOL_GPL(gb_operation_result);
 
 static struct gb_operation *
 gb_operation_find(struct gb_connection *connection, u16 operation_id)
@@ -463,6 +464,7 @@ bool gb_operation_response_alloc(struct gb_operation *operation,
 
 	return true;
 }
+EXPORT_SYMBOL_GPL(gb_operation_response_alloc);
 
 /*
  * Create a Greybus operation to be sent over the given connection.
@@ -589,6 +591,7 @@ void gb_operation_get(struct gb_operation *operation)
 {
 	kref_get(&operation->kref);
 }
+EXPORT_SYMBOL_GPL(gb_operation_get);
 
 /*
  * Destroy a previously created operation.
@@ -677,6 +680,7 @@ int gb_operation_request_send(struct gb_operation *operation,
 
 	return gb_message_send(operation->request);
 }
+EXPORT_SYMBOL_GPL(gb_operation_request_send);
 
 /*
  * Send a synchronous operation.  This function is expected to
@@ -901,6 +905,7 @@ void gb_operation_cancel(struct gb_operation *operation, int errno)
 	}
 	gb_operation_put(operation);
 }
+EXPORT_SYMBOL_GPL(gb_operation_cancel);
 
 /**
  * gb_operation_sync: implement a "simple" synchronous gb operation.
