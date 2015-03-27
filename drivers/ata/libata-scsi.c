@@ -804,7 +804,7 @@ static void ata_dump_status(unsigned id, struct ata_taskfile *tf)
 		if (stat & 0x10)	printk("SeekComplete ");
 		if (stat & 0x08)	printk("DataRequest ");
 		if (stat & 0x04)	printk("CorrectedError ");
-		if (stat & 0x02)	printk("Index ");
+		if (stat & 0x02)	printk("Sense ");
 		if (stat & 0x01)	printk("Error ");
 		printk("}\n");
 
