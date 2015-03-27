@@ -94,6 +94,8 @@ enum {
 	ATA_ID_SECTOR_SIZE	= 106,
 	ATA_ID_WWN		= 108,
 	ATA_ID_LOGICAL_SECTOR_SIZE	= 117,	/* and 118 */
+	ATA_ID_COMMAND_SET_3	= 119,
+	ATA_ID_COMMAND_SET_4	= 120,
 	ATA_ID_LAST_LUN		= 126,
 	ATA_ID_DLF		= 128,
 	ATA_ID_CSFO		= 129,
@@ -381,6 +383,8 @@ enum {
 	SATA_AN			= 0x05,	/* Asynchronous Notification */
 	SATA_SSP		= 0x06,	/* Software Settings Preservation */
 	SATA_DEVSLP		= 0x09,	/* Device Sleep */
+
+	SETFEATURE_SENSE_DATA = 0xC3, /* Sense Data Reporting feature */
 
 	/* feature values for SET_MAX */
 	ATA_SET_MAX_ADDR	= 0x00,
@@ -703,6 +707,20 @@ static inline bool ata_id_has_read_log_dma_ext(const u16 *id)
 	if (!(id[ATA_ID_CFS_ENABLE_2] & (1 << 15)))
 		return false;
 	return id[ATA_ID_COMMAND_SET_3] & (1 << 3);
+}
+
+static inline bool ata_id_has_sense_reporting(const u16 *id)
+{
+	if (!(id[ATA_ID_CFS_ENABLE_2] & (1 << 15)))
+		return false;
+	return id[ATA_ID_COMMAND_SET_3] & (1 << 6);
+}
+
+static inline bool ata_id_sense_reporting_enabled(const u16 *id)
+{
+	if (!(id[ATA_ID_CFS_ENABLE_2] & (1 << 15)))
+		return false;
+	return id[ATA_ID_COMMAND_SET_4] & (1 << 6);
 }
 
 /**
