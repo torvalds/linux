@@ -563,6 +563,8 @@ int br_del_if(struct net_bridge *br, struct net_device *dev)
 	 */
 	del_nbp(p);
 
+	dev_set_mtu(br->dev, br_min_mtu(br));
+
 	spin_lock_bh(&br->lock);
 	changed_addr = br_stp_recalculate_bridge_id(br);
 	spin_unlock_bh(&br->lock);

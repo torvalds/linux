@@ -105,6 +105,8 @@ static void snd_opl3_calc_pitch(unsigned char *fnum, unsigned char *blocknum,
 		int pitchbend = chan->midi_pitchbend;
 		int segment;
 
+		if (pitchbend < -0x2000)
+			pitchbend = -0x2000;
 		if (pitchbend > 0x1FFF)
 			pitchbend = 0x1FFF;
 

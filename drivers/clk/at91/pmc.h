@@ -33,6 +33,7 @@ struct at91_pmc {
 	spinlock_t lock;
 	const struct at91_pmc_caps *caps;
 	struct irq_domain *irqdomain;
+	u32 imr;
 };
 
 static inline void pmc_lock(struct at91_pmc *pmc)

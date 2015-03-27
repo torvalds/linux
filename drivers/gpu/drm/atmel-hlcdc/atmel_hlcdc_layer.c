@@ -311,7 +311,8 @@ int atmel_hlcdc_layer_disable(struct atmel_hlcdc_layer *layer)
 
 	/* Disable the layer */
 	regmap_write(regmap, desc->regs_offset + ATMEL_HLCDC_LAYER_CHDR,
-		     ATMEL_HLCDC_LAYER_RST);
+		     ATMEL_HLCDC_LAYER_RST | ATMEL_HLCDC_LAYER_A2Q |
+		     ATMEL_HLCDC_LAYER_UPDATE);
 
 	/* Clear all pending interrupts */
 	regmap_read(regmap, desc->regs_offset + ATMEL_HLCDC_LAYER_ISR, &isr);

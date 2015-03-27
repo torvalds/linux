@@ -33,6 +33,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/dma-contiguous.h>
 #include <linux/efi.h>
+#include <linux/swiotlb.h>
 
 #include <asm/fixmap.h>
 #include <asm/memory.h>
@@ -45,6 +46,7 @@
 #include "mm.h"
 
 phys_addr_t memstart_addr __read_mostly = 0;
+phys_addr_t arm64_dma_phys_limit __read_mostly;
 
 #ifdef CONFIG_BLK_DEV_INITRD
 static int __init early_initrd(char *p)
@@ -85,7 +87,7 @@ static void __init zone_sizes_init(unsigned long min, unsigned long max)
 
 	/* 4GB maximum for 32-bit only capable devices */
 	if (IS_ENABLED(CONFIG_ZONE_DMA)) {
-		max_dma = PFN_DOWN(max_zone_dma_phys());
+		max_dma = PFN_DOWN(arm64_dma_phys_limit);
 		zone_size[ZONE_DMA] = max_dma - min;
 	}
 	zone_size[ZONE_NORMAL] = max - max_dma;
@@ -156,8 +158,6 @@ early_param("mem", early_mem);
 
 void __init arm64_memblock_init(void)
 {
-	phys_addr_t dma_phys_limit = 0;
-
 	memblock_enforce_memory_limit(memory_limit);
 
 	/*
@@ -174,8 +174,10 @@ void __init arm64_memblock_init(void)
 
 	/* 4GB maximum for 32-bit only capable devices */
 	if (IS_ENABLED(CONFIG_ZONE_DMA))
-		dma_phys_limit = max_zone_dma_phys();
-	dma_contiguous_reserve(dma_phys_limit);
+		arm64_dma_phys_limit = max_zone_dma_phys();
+	else
+		arm64_dma_phys_limit = PHYS_MASK + 1;
+	dma_contiguous_reserve(arm64_dma_phys_limit);
 
 	memblock_allow_resize();
 	memblock_dump_all();
@@ -276,6 +278,8 @@ static void __init free_unused_memmap(void)
  */
 void __init mem_init(void)
 {
+	swiotlb_init(1);
+
 	set_max_mapnr(pfn_to_page(max_pfn) - mem_map);
 
 #ifndef CONFIG_SPARSEMEM_VMEMMAP

@@ -2113,17 +2113,17 @@ static const struct net_device_ops macb_netdev_ops = {
 };
 
 #if defined(CONFIG_OF)
-static struct macb_config pc302gem_config = {
+static const struct macb_config pc302gem_config = {
 	.caps = MACB_CAPS_SG_DISABLED | MACB_CAPS_GIGABIT_MODE_AVAILABLE,
 	.dma_burst_length = 16,
 };
 
-static struct macb_config sama5d3_config = {
+static const struct macb_config sama5d3_config = {
 	.caps = MACB_CAPS_SG_DISABLED | MACB_CAPS_GIGABIT_MODE_AVAILABLE,
 	.dma_burst_length = 16,
 };
 
-static struct macb_config sama5d4_config = {
+static const struct macb_config sama5d4_config = {
 	.caps = 0,
 	.dma_burst_length = 4,
 };
@@ -2154,7 +2154,7 @@ static void macb_configure_caps(struct macb *bp)
 	if (bp->pdev->dev.of_node) {
 		match = of_match_node(macb_dt_ids, bp->pdev->dev.of_node);
 		if (match && match->data) {
-			config = (const struct macb_config *)match->data;
+			config = match->data;
 
 			bp->caps = config->caps;
 			/*

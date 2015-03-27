@@ -43,9 +43,7 @@
 
 static struct team_port *team_port_get_rcu(const struct net_device *dev)
 {
-	struct team_port *port = rcu_dereference(dev->rx_handler_data);
-
-	return team_port_exists(dev) ? port : NULL;
+	return rcu_dereference(dev->rx_handler_data);
 }
 
 static struct team_port *team_port_get_rtnl(const struct net_device *dev)
@@ -1732,11 +1730,11 @@ static int team_set_mac_address(struct net_device *dev, void *p)
 	if (dev->type == ARPHRD_ETHER && !is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
-	rcu_read_lock();
-	list_for_each_entry_rcu(port, &team->port_list, list)
+	mutex_lock(&team->lock);
+	list_for_each_entry(port, &team->port_list, list)
 		if (team->ops.port_change_dev_addr)
 			team->ops.port_change_dev_addr(team, port);
-	rcu_read_unlock();
+	mutex_unlock(&team->lock);
 	return 0;
 }
 

@@ -178,6 +178,13 @@ radeon_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 	switch (msg->request & ~DP_AUX_I2C_MOT) {
 	case DP_AUX_NATIVE_WRITE:
 	case DP_AUX_I2C_WRITE:
+		/* The atom implementation only supports writes with a max payload of
+		 * 12 bytes since it uses 4 bits for the total count (header + payload)
+		 * in the parameter space.  The atom interface supports 16 byte
+		 * payloads for reads. The hw itself supports up to 16 bytes of payload.
+		 */
+		if (WARN_ON_ONCE(msg->size > 12))
+			return -E2BIG;
 		/* tx_size needs to be 4 even for bare address packets since the atom
 		 * table needs the info in tx_buf[3].
 		 */

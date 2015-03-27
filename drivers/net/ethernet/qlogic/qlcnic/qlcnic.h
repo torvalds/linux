@@ -314,7 +314,7 @@ struct qlcnic_fdt {
 #define QLCNIC_BRDCFG_START	0x4000		/* board config */
 #define QLCNIC_BOOTLD_START	0x10000		/* bootld */
 #define QLCNIC_IMAGE_START	0x43000		/* compressed image */
-#define QLCNIC_USER_START	0x3E8000	/* Firmare info */
+#define QLCNIC_USER_START	0x3E8000	/* Firmware info */
 
 #define QLCNIC_FW_VERSION_OFFSET	(QLCNIC_USER_START+0x408)
 #define QLCNIC_FW_SIZE_OFFSET		(QLCNIC_USER_START+0x40c)

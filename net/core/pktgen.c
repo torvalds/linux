@@ -1134,6 +1134,9 @@ static ssize_t pktgen_if_write(struct file *file,
 			return len;
 
 		i += len;
+		if ((value > 1) &&
+		    (!(pkt_dev->odev->priv_flags & IFF_TX_SKB_SHARING)))
+			return -ENOTSUPP;
 		pkt_dev->burst = value < 1 ? 1 : value;
 		sprintf(pg_result, "OK: burst=%d", pkt_dev->burst);
 		return count;

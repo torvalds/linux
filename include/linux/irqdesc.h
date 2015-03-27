@@ -78,6 +78,7 @@ struct irq_desc {
 #ifdef CONFIG_PM_SLEEP
 	unsigned int		nr_actions;
 	unsigned int		no_suspend_depth;
+	unsigned int		cond_suspend_depth;
 	unsigned int		force_resume_depth;
 #endif
 #ifdef CONFIG_PROC_FS
