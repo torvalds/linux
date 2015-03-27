@@ -2674,11 +2674,11 @@ void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 
 	if (async->cb_mask & events) {
+		int si_code;
+
 		wake_up_interruptible(&async->wait_head);
-		if (s->subdev_flags & SDF_CMD_READ)
-			kill_fasync(&dev->async_queue, SIGIO, POLL_IN);
-		if (s->subdev_flags & SDF_CMD_WRITE)
-			kill_fasync(&dev->async_queue, SIGIO, POLL_OUT);
+		si_code = async->cmd.flags & CMDF_WRITE ? POLL_OUT : POLL_IN;
+		kill_fasync(&dev->async_queue, SIGIO, si_code);
 	}
 }
 EXPORT_SYMBOL_GPL(comedi_event);
