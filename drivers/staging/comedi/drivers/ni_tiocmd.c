@@ -44,7 +44,6 @@ TODO:
 */
 
 #include <linux/module.h>
-#include "comedi_fc.h"
 #include "ni_tio_internal.h"
 #include "mite.h"
 
@@ -234,23 +233,23 @@ int ni_tio_cmdtest(struct comedi_device *dev,
 	sources = TRIG_NOW | TRIG_INT | TRIG_OTHER;
 	if (ni_tio_counting_mode_registers_present(counter->counter_dev))
 		sources |= TRIG_EXT;
-	err |= cfc_check_trigger_src(&cmd->start_src, sources);
+	err |= comedi_check_trigger_src(&cmd->start_src, sources);
 
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src,
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src,
 					TRIG_FOLLOW | TRIG_EXT | TRIG_OTHER);
-	err |= cfc_check_trigger_src(&cmd->convert_src,
+	err |= comedi_check_trigger_src(&cmd->convert_src,
 					TRIG_NOW | TRIG_EXT | TRIG_OTHER);
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_NONE);
 
 	if (err)
 		return 1;
 
 	/* Step 2a : make sure trigger sources are unique */
 
-	err |= cfc_check_trigger_is_unique(cmd->start_src);
-	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
-	err |= cfc_check_trigger_is_unique(cmd->convert_src);
+	err |= comedi_check_trigger_is_unique(cmd->start_src);
+	err |= comedi_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= comedi_check_trigger_is_unique(cmd->convert_src);
 
 	/* Step 2b : and mutually compatible */
 
@@ -266,7 +265,7 @@ int ni_tio_cmdtest(struct comedi_device *dev,
 	case TRIG_NOW:
 	case TRIG_INT:
 	case TRIG_OTHER:
-		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 		break;
 	case TRIG_EXT:
 		/* start_arg is the start_trigger passed to ni_tio_arm() */
@@ -274,13 +273,14 @@ int ni_tio_cmdtest(struct comedi_device *dev,
 	}
 
 	if (cmd->scan_begin_src != TRIG_EXT)
-		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 
 	if (cmd->convert_src != TRIG_EXT)
-		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->convert_arg, 0);
 
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
-	err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
+					   cmd->chanlist_len);
+	err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
