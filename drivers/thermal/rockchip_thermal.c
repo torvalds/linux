@@ -1041,7 +1041,7 @@ static int rockchip_thermal_probe(struct platform_device *pdev)
 			error);
 		goto err_disable_pclk;
 	}
-	thermal->cpu_temp_adjust = rockchip_efuse_get_temp(0);
+	thermal->cpu_temp_adjust = rockchip_efuse_get_temp_adjust(0);
 	if (thermal->chip->mode == TSADC_AUTO_MODE)
 	{
 		thermal->chip->initialize(thermal->regs, thermal->tshut_polarity);

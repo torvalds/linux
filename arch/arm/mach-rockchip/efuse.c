@@ -144,7 +144,7 @@ int secure_regs_wr_32(u64 addr_phy, u32 val)
 	return invoke_regs_wr_fn(PSCI_OS_ACCESS_REG, val_64, addr_phy, SEC_REG_WR_32);
 }
 
-static int __init rk3368_efuse_readregs(u32 addr, u32 length, u8 *buf)
+static int rk3368_efuse_readregs(u32 addr, u32 length, u8 *buf)
 {
 	int ret = length;
 		if (!length)
@@ -314,7 +314,7 @@ int rockchip_get_leakage(int ch)
 	}
 	return 0;
 }
-int rockchip_efuse_get_temp(int ch)
+int rockchip_efuse_get_temp_adjust(int ch)
 {
 	int ret = 0;
 	int temp = 0;
