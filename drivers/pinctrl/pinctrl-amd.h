@@ -217,13 +217,13 @@ static const struct pinctrl_pin_desc kerncz_pins[] = {
 	PINCTRL_PIN(177, "GPIO_177"),
 };
 
-const unsigned i2c0_pins[] = {145, 146};
-const unsigned i2c1_pins[] = {147, 148};
-const unsigned i2c2_pins[] = {113, 114};
-const unsigned i2c3_pins[] = {19, 20};
+static const unsigned i2c0_pins[] = {145, 146};
+static const unsigned i2c1_pins[] = {147, 148};
+static const unsigned i2c2_pins[] = {113, 114};
+static const unsigned i2c3_pins[] = {19, 20};
 
-const unsigned uart0_pins[] = {135, 136, 137, 138, 139};
-const unsigned uart1_pins[] = {140, 141, 142, 143, 144};
+static const unsigned uart0_pins[] = {135, 136, 137, 138, 139};
+static const unsigned uart1_pins[] = {140, 141, 142, 143, 144};
 
 static const struct amd_pingroup kerncz_groups[] = {
 	{

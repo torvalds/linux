@@ -29,7 +29,6 @@
 #include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/bitops.h>
-#include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinconf-generic.h>
 
@@ -119,8 +118,9 @@ static void amd_gpio_set_value(struct gpio_chip *gc, unsigned offset, int value)
 static int amd_gpio_set_debounce(struct gpio_chip *gc, unsigned offset,
 		unsigned debounce)
 {
-	u32 pin_reg;
 	u32 time;
+	u32 pin_reg;
+	int ret = 0;
 	unsigned long flags;
 	struct amd_gpio *gpio_dev = to_amd_gpio(gc);
 
@@ -166,7 +166,7 @@ static int amd_gpio_set_debounce(struct gpio_chip *gc, unsigned offset,
 			pin_reg |= BIT(DB_TMR_LARGE_OFF);
 		} else {
 			pin_reg &= ~DB_CNTRl_MASK;
-			return -EINVAL;
+			ret = -EINVAL;
 		}
 	} else {
 		pin_reg &= ~BIT(DB_TMR_OUT_UNIT_OFF);
@@ -177,7 +177,7 @@ static int amd_gpio_set_debounce(struct gpio_chip *gc, unsigned offset,
 	writel(pin_reg, gpio_dev->base + offset * 4);
 	spin_unlock_irqrestore(&gpio_dev->lock, flags);
 
-	return 0;
+	return ret;
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -463,14 +463,12 @@ static int amd_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	default:
 		dev_err(&gpio_dev->pdev->dev, "Invalid type value\n");
 		ret = -EINVAL;
-		goto exit;
 	}
 
 	pin_reg |= CLR_INTR_STAT << INTERRUPT_STS_OFF;
 	writel(pin_reg, gpio_dev->base + (d->hwirq)*4);
 	spin_unlock_irqrestore(&gpio_dev->lock, flags);
 
-exit:
 	return ret;
 }
 
@@ -635,8 +633,9 @@ static int amd_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 				unsigned long *configs, unsigned num_configs)
 {
 	int i;
-	u32 pin_reg;
 	u32 arg;
+	int ret = 0;
+	u32 pin_reg;
 	unsigned long flags;
 	enum pin_config_param param;
 	struct amd_gpio *gpio_dev = pinctrl_dev_get_drvdata(pctldev);
@@ -675,14 +674,14 @@ static int amd_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 		default:
 			dev_err(&gpio_dev->pdev->dev,
 				"Invalid config param %04x\n", param);
-			return -ENOTSUPP;
+			ret = -ENOTSUPP;
 		}
 
 		writel(pin_reg, gpio_dev->base + pin*4);
 	}
 	spin_unlock_irqrestore(&gpio_dev->lock, flags);
 
-	return 0;
+	return ret;
 }
 
 static int amd_pinconf_group_get(struct pinctrl_dev *pctldev,
@@ -739,7 +738,7 @@ static struct pinctrl_desc amd_pinctrl_desc = {
 static int amd_gpio_probe(struct platform_device *pdev)
 {
 	int ret = 0;
-	u32 irq_base;
+	int irq_base;
 	struct resource *res;
 	struct amd_gpio *gpio_dev;
 
