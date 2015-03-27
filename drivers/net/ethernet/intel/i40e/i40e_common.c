@@ -859,7 +859,7 @@ static enum i40e_media_type i40e_get_media_type(struct i40e_hw *hw)
 }
 
 #define I40E_PF_RESET_WAIT_COUNT_A0	200
-#define I40E_PF_RESET_WAIT_COUNT	110
+#define I40E_PF_RESET_WAIT_COUNT	200
 /**
  * i40e_pf_reset - Reset the PF
  * @hw: pointer to the hardware structure
