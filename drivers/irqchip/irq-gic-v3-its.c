@@ -1026,7 +1026,7 @@ static void its_cpu_init_collection(void)
 			 * This ITS wants a linear CPU number.
 			 */
 			target = readq_relaxed(gic_data_rdist_rd_base() + GICR_TYPER);
-			target = GICR_TYPER_CPU_NUMBER(target);
+			target = GICR_TYPER_CPU_NUMBER(target) << 16;
 		}
 
 		/* Perform collection mapping */
