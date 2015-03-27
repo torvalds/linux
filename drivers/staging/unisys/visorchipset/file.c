@@ -65,8 +65,10 @@ visorchipset_file_init(dev_t major_dev, struct visorchannel **controlvm_channel)
 			return -1;
 	}
 	rc = cdev_add(&file_cdev, MKDEV(MAJOR(major_dev), 0), 1);
-	if (rc  < 0)
+	if (rc < 0) {
+		unregister_chrdev_region(major_dev, 1);
 		return -1;
+	}
 	return 0;
 }
 
