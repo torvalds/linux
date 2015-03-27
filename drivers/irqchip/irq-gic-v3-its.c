@@ -169,7 +169,7 @@ static void its_encode_cmd(struct its_cmd_block *cmd, u8 cmd_nr)
 
 static void its_encode_devid(struct its_cmd_block *cmd, u32 devid)
 {
-	cmd->raw_cmd[0] &= ~(0xffffUL << 32);
+	cmd->raw_cmd[0] &= BIT_ULL(32) - 1;
 	cmd->raw_cmd[0] |= ((u64)devid) << 32;
 }
 
