@@ -569,7 +569,7 @@ static int pidff_upload_effect(struct input_dev *dev, struct ff_effect *effect,
 	int error;
 
 	pidff->block_load[PID_EFFECT_BLOCK_INDEX].value[0] = 0;
-	if (old && effect) {
+	if (old) {
 		pidff->block_load[PID_EFFECT_BLOCK_INDEX].value[0] =
 			pidff->pid_id[effect->id];
 	}
