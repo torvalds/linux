@@ -1,8 +1,8 @@
 /*
  * Greybus "AP" USB driver for "ES2" controller chips
  *
- * Copyright 2014 Google Inc.
- * Copyright 2014 Linaro Ltd.
+ * Copyright 2014-2015 Google Inc.
+ * Copyright 2014-2015 Linaro Ltd.
  *
  * Released under the GPLv2 only.
  */
@@ -16,13 +16,6 @@
 #include "greybus.h"
 #include "svc_msg.h"
 #include "kernel_ver.h"
-
-/*
- * Macros for making pointers explicitly opaque, such that the result
- * isn't valid but also can't be mistaken for an ERR_PTR() value.
- */
-#define conceal_urb(urb)	((void *)((uintptr_t)(urb) ^ 0xbad))
-#define reveal_urb(cookie)	((void *)((uintptr_t)(cookie) ^ 0xbad))
 
 /* Memory sizes for the buffers sent to/from the ES1 controller */
 #define ES1_SVC_MSG_SIZE	(sizeof(struct svc_msg) + SZ_64K)
@@ -262,7 +255,7 @@ static void *buffer_send(struct greybus_host_device *hd, u16 cport_id,
 		return ERR_PTR(retval);
 	}
 
-	return conceal_urb(urb);
+	return urb;
 }
 
 /*
@@ -280,7 +273,7 @@ static void buffer_cancel(void *cookie)
 	 * is valid.  For the time being, this will do.
 	 */
 	if (cookie)
-		usb_kill_urb(reveal_urb(cookie));
+		usb_kill_urb(cookie);
 }
 
 static struct greybus_host_driver es1_driver = {
