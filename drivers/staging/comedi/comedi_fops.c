@@ -652,7 +652,7 @@ static bool comedi_is_subdevice_idle(struct comedi_subdevice *s)
 {
 	unsigned runflags = comedi_get_subdevice_runflags(s);
 
-	return (runflags & COMEDI_SRF_BUSY_MASK) ? false : true;
+	return !(runflags & COMEDI_SRF_BUSY_MASK);
 }
 
 /**
