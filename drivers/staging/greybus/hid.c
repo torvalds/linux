@@ -163,6 +163,11 @@ static void gb_hid_irq_handler(u8 type, struct gb_operation *op)
 		return;
 	}
 
+	if (op->request->payload_size < 2) {
+		dev_err(&connection->dev, "short report received\n");
+		return;
+	}
+
 	size = request->report[0] | request->report[1] << 8;
 	if (!size) {
 		dev_err(&connection->dev, "bad report size: %d\n", size);
