@@ -387,17 +387,7 @@ static struct platform_driver sead3_i2c_platform_driver = {
 	.resume		= sead3_i2c_platform_resume,
 };
 
-static int __init sead3_i2c_platform_init(void)
-{
-	return platform_driver_register(&sead3_i2c_platform_driver);
-}
-module_init(sead3_i2c_platform_init);
-
-static void __exit sead3_i2c_platform_exit(void)
-{
-	platform_driver_unregister(&sead3_i2c_platform_driver);
-}
-module_exit(sead3_i2c_platform_exit);
+module_platform_driver(sead3_i2c_platform_driver);
 
 MODULE_AUTHOR("Chris Dearman, MIPS Technologies INC.");
 MODULE_DESCRIPTION("SEAD3 PIC32 I2C driver");
