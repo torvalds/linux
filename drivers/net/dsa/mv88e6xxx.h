@@ -15,6 +15,20 @@
 #define REG_GLOBAL		0x1b
 #define REG_GLOBAL2		0x1c
 
+/* ATU commands */
+
+#define ATU_BUSY			0x8000
+
+#define ATU_CMD_FLUSH_NONSTATIC_FID	(ATU_BUSY | 0x6000)
+
+/* port states */
+
+#define PSTATE_MASK		0x03
+#define PSTATE_DISABLED		0x00
+#define PSTATE_BLOCKING		0x01
+#define PSTATE_LEARNING		0x02
+#define PSTATE_FORWARDING	0x03
+
 struct mv88e6xxx_priv_state {
 	/* When using multi-chip addressing, this mutex protects
 	 * access to the indirect access registers.  (In single-chip
@@ -49,6 +63,17 @@ struct mv88e6xxx_priv_state {
 	struct mutex eeprom_mutex;
 
 	int		id; /* switch product id */
+
+	/* hw bridging */
+
+	u32 fid_mask;
+	u8 fid[DSA_MAX_PORTS];
+	u16 bridge_mask[DSA_MAX_PORTS];
+
+	unsigned long port_state_update_mask;
+	u8 port_state[DSA_MAX_PORTS];
+
+	struct work_struct bridge_work;
 };
 
 struct mv88e6xxx_hw_stat {
@@ -93,6 +118,9 @@ int mv88e6xxx_phy_write_indirect(struct dsa_switch *ds, int addr, int regnum,
 int mv88e6xxx_get_eee(struct dsa_switch *ds, int port, struct ethtool_eee *e);
 int mv88e6xxx_set_eee(struct dsa_switch *ds, int port,
 		      struct phy_device *phydev, struct ethtool_eee *e);
+int mv88e6xxx_join_bridge(struct dsa_switch *ds, int port, u32 br_port_mask);
+int mv88e6xxx_leave_bridge(struct dsa_switch *ds, int port, u32 br_port_mask);
+int mv88e6xxx_port_stp_update(struct dsa_switch *ds, int port, u8 state);
 
 extern struct dsa_switch_driver mv88e6131_switch_driver;
 extern struct dsa_switch_driver mv88e6123_61_65_switch_driver;
