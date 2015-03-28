@@ -59,6 +59,14 @@ void vgic_set_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcr);
 bool vgic_queue_irq(struct kvm_vcpu *vcpu, u8 sgi_source_id, int irq);
 void vgic_unqueue_irqs(struct kvm_vcpu *vcpu);
 
+struct kvm_exit_mmio {
+	phys_addr_t	phys_addr;
+	void		*data;
+	u32		len;
+	bool		is_write;
+	void		*private;
+};
+
 void vgic_reg_access(struct kvm_exit_mmio *mmio, u32 *reg,
 		     phys_addr_t offset, int mode);
 bool handle_mmio_raz_wi(struct kvm_vcpu *vcpu, struct kvm_exit_mmio *mmio,
@@ -98,11 +106,6 @@ static inline bool is_in_range(phys_addr_t addr, unsigned long len,
 const
 struct vgic_io_range *vgic_find_range(const struct vgic_io_range *ranges,
 				      int len, gpa_t offset);
-
-bool vgic_handle_mmio_range(struct kvm_vcpu *vcpu, struct kvm_run *run,
-			    struct kvm_exit_mmio *mmio,
-			    const struct vgic_io_range *ranges,
-			    unsigned long mmio_base);
 
 bool vgic_handle_enable_reg(struct kvm *kvm, struct kvm_exit_mmio *mmio,
 			    phys_addr_t offset, int vcpu_id, int access);

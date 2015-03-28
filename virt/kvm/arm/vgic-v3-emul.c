@@ -708,40 +708,6 @@ static const struct vgic_io_range vgic_redist_ranges[] = {
 	{},
 };
 
-/*
- * This function splits accesses between the distributor and the two
- * redistributor parts (private/SPI). As each redistributor is accessible
- * from any CPU, we have to determine the affected VCPU by taking the faulting
- * address into account. We then pass this VCPU to the handler function via
- * the private parameter.
- */
-#define SGI_BASE_OFFSET SZ_64K
-static bool vgic_v3_handle_mmio(struct kvm_vcpu *vcpu, struct kvm_run *run,
-				struct kvm_exit_mmio *mmio)
-{
-	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
-	unsigned long dbase = dist->vgic_dist_base;
-	unsigned long rdbase = dist->vgic_redist_base;
-	int nrcpus = atomic_read(&vcpu->kvm->online_vcpus);
-	int vcpu_id;
-
-	if (is_in_range(mmio->phys_addr, mmio->len, dbase, GIC_V3_DIST_SIZE)) {
-		return vgic_handle_mmio_range(vcpu, run, mmio,
-					      vgic_v3_dist_ranges, dbase);
-	}
-
-	if (!is_in_range(mmio->phys_addr, mmio->len, rdbase,
-	    GIC_V3_REDIST_SIZE * nrcpus))
-		return false;
-
-	vcpu_id = (mmio->phys_addr - rdbase) / GIC_V3_REDIST_SIZE;
-	rdbase += (vcpu_id * GIC_V3_REDIST_SIZE);
-	mmio->private = kvm_get_vcpu(vcpu->kvm, vcpu_id);
-
-	return vgic_handle_mmio_range(vcpu, run, mmio, vgic_redist_ranges,
-				      rdbase);
-}
-
 static bool vgic_v3_queue_sgi(struct kvm_vcpu *vcpu, int irq)
 {
 	if (vgic_queue_irq(vcpu, 0, irq)) {
@@ -861,7 +827,6 @@ void vgic_v3_init_emulation(struct kvm *kvm)
 {
 	struct vgic_dist *dist = &kvm->arch.vgic;
 
-	dist->vm_ops.handle_mmio = vgic_v3_handle_mmio;
 	dist->vm_ops.queue_sgi = vgic_v3_queue_sgi;
 	dist->vm_ops.add_sgi_source = vgic_v3_add_sgi_source;
 	dist->vm_ops.init_model = vgic_v3_init_model;

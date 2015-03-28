@@ -758,7 +758,6 @@ static bool call_range_handler(struct kvm_vcpu *vcpu,
 			       unsigned long offset,
 			       const struct vgic_io_range *range)
 {
-	u32 *data32 = (void *)mmio->data;
 	struct kvm_exit_mmio mmio32;
 	bool ret;
 
@@ -775,67 +774,14 @@ static bool call_range_handler(struct kvm_vcpu *vcpu,
 	mmio32.private = mmio->private;
 
 	mmio32.phys_addr = mmio->phys_addr + 4;
-	if (mmio->is_write)
-		*(u32 *)mmio32.data = data32[1];
+	mmio32.data = &((u32 *)mmio->data)[1];
 	ret = range->handle_mmio(vcpu, &mmio32, offset + 4);
-	if (!mmio->is_write)
-		data32[1] = *(u32 *)mmio32.data;
 
 	mmio32.phys_addr = mmio->phys_addr;
-	if (mmio->is_write)
-		*(u32 *)mmio32.data = data32[0];
+	mmio32.data = &((u32 *)mmio->data)[0];
 	ret |= range->handle_mmio(vcpu, &mmio32, offset);
-	if (!mmio->is_write)
-		data32[0] = *(u32 *)mmio32.data;
 
 	return ret;
-}
-
-/**
- * vgic_handle_mmio_range - handle an in-kernel MMIO access
- * @vcpu:	pointer to the vcpu performing the access
- * @run:	pointer to the kvm_run structure
- * @mmio:	pointer to the data describing the access
- * @ranges:	array of MMIO ranges in a given region
- * @mmio_base:	base address of that region
- *
- * returns true if the MMIO access could be performed
- */
-bool vgic_handle_mmio_range(struct kvm_vcpu *vcpu, struct kvm_run *run,
-			    struct kvm_exit_mmio *mmio,
-			    const struct vgic_io_range *ranges,
-			    unsigned long mmio_base)
-{
-	const struct vgic_io_range *range;
-	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
-	bool updated_state;
-	unsigned long offset;
-
-	offset = mmio->phys_addr - mmio_base;
-	range = vgic_find_range(ranges, mmio->len, offset);
-	if (unlikely(!range || !range->handle_mmio)) {
-		pr_warn("Unhandled access %d %08llx %d\n",
-			mmio->is_write, mmio->phys_addr, mmio->len);
-		return false;
-	}
-
-	spin_lock(&vcpu->kvm->arch.vgic.lock);
-	offset -= range->base;
-	if (vgic_validate_access(dist, range, offset)) {
-		updated_state = call_range_handler(vcpu, mmio, offset, range);
-	} else {
-		if (!mmio->is_write)
-			memset(mmio->data, 0, mmio->len);
-		updated_state = false;
-	}
-	spin_unlock(&vcpu->kvm->arch.vgic.lock);
-	kvm_prepare_mmio(run, mmio);
-	kvm_handle_mmio_return(vcpu, run);
-
-	if (updated_state)
-		vgic_kick_vcpus(vcpu->kvm);
-
-	return true;
 }
 
 /**
@@ -873,53 +819,30 @@ static int vgic_handle_mmio_access(struct kvm_vcpu *vcpu,
 	mmio.phys_addr = addr;
 	mmio.len = len;
 	mmio.is_write = is_write;
-	if (is_write)
-		memcpy(mmio.data, val, len);
+	mmio.data = val;
 	mmio.private = iodev->redist_vcpu;
 
 	spin_lock(&dist->lock);
 	offset -= range->base;
 	if (vgic_validate_access(dist, range, offset)) {
 		updated_state = call_range_handler(vcpu, &mmio, offset, range);
-		if (!is_write)
-			memcpy(val, mmio.data, len);
 	} else {
 		if (!is_write)
 			memset(val, 0, len);
 		updated_state = false;
 	}
 	spin_unlock(&dist->lock);
-	kvm_prepare_mmio(run, &mmio);
+	run->mmio.is_write	= is_write;
+	run->mmio.len		= len;
+	run->mmio.phys_addr	= addr;
+	memcpy(run->mmio.data, val, len);
+
 	kvm_handle_mmio_return(vcpu, run);
 
 	if (updated_state)
 		vgic_kick_vcpus(vcpu->kvm);
 
 	return 0;
-}
-
-/**
- * vgic_handle_mmio - handle an in-kernel MMIO access for the GIC emulation
- * @vcpu:      pointer to the vcpu performing the access
- * @run:       pointer to the kvm_run structure
- * @mmio:      pointer to the data describing the access
- *
- * returns true if the MMIO access has been performed in kernel space,
- * and false if it needs to be emulated in user space.
- * Calls the actual handling routine for the selected VGIC model.
- */
-bool vgic_handle_mmio(struct kvm_vcpu *vcpu, struct kvm_run *run,
-		      struct kvm_exit_mmio *mmio)
-{
-	if (!irqchip_in_kernel(vcpu->kvm))
-		return false;
-
-	/*
-	 * This will currently call either vgic_v2_handle_mmio() or
-	 * vgic_v3_handle_mmio(), which in turn will call
-	 * vgic_handle_mmio_range() defined above.
-	 */
-	return vcpu->kvm->arch.vgic.vm_ops.handle_mmio(vcpu, run, mmio);
 }
 
 static int vgic_handle_mmio_read(struct kvm_vcpu *vcpu,
