@@ -5046,8 +5046,8 @@ static void cherryview_enable_rps(struct drm_device *dev)
 		I915_WRITE(RING_MAX_IDLE(ring->mmio_base), 10);
 	I915_WRITE(GEN6_RC_SLEEP, 0);
 
-	/* TO threshold set to 1750 us ( 0x557 * 1.28 us) */
-	I915_WRITE(GEN6_RC6_THRESHOLD, 0x557);
+	/* TO threshold set to 500 us ( 0x186 * 1.28 us) */
+	I915_WRITE(GEN6_RC6_THRESHOLD, 0x186);
 
 	/* allows RC6 residency counter to work */
 	I915_WRITE(VLV_COUNTER_CONTROL,
