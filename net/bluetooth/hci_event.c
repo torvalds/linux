@@ -1066,7 +1066,6 @@ static void hci_cc_read_local_oob_ext_data(struct hci_dev *hdev,
 	hci_dev_unlock(hdev);
 }
 
-
 static void hci_cc_le_set_random_addr(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	__u8 status = *((__u8 *) skb->data);
