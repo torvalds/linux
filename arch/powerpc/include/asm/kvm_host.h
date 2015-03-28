@@ -227,7 +227,6 @@ struct kvm_arch {
 	unsigned long host_sdr1;
 	int tlbie_lock;
 	unsigned long lpcr;
-	unsigned long rmor;
 	unsigned long vrma_slb_v;
 	int hpte_setup_done;
 	u32 hpt_order;
@@ -271,7 +270,6 @@ struct kvm_arch {
  */
 struct kvmppc_vcore {
 	int n_runnable;
-	int n_busy;
 	int num_threads;
 	int entry_exit_count;
 	int n_woken;

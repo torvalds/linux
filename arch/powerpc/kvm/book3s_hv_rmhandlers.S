@@ -245,9 +245,9 @@ kvm_novcpu_exit:
 kvm_start_guest:
 
 	/* Set runlatch bit the minute you wake up from nap */
-	mfspr	r1, SPRN_CTRLF
-	ori 	r1, r1, 1
-	mtspr	SPRN_CTRLT, r1
+	mfspr	r0, SPRN_CTRLF
+	ori 	r0, r0, 1
+	mtspr	SPRN_CTRLT, r0
 
 	ld	r2,PACATOC(r13)
 
@@ -493,11 +493,9 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	cmpwi	r0,0
 	beq	20b
 
-	/* Set LPCR and RMOR. */
+	/* Set LPCR. */
 10:	ld	r8,VCORE_LPCR(r5)
 	mtspr	SPRN_LPCR,r8
-	ld	r8,KVM_RMOR(r9)
-	mtspr	SPRN_RMOR,r8
 	isync
 
 	/* Check if HDEC expires soon */
@@ -1075,7 +1073,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	bne	2f
 	mfspr	r3,SPRN_HDEC
 	cmpwi	r3,0
-	bge	ignore_hdec
+	mr	r4,r9
+	bge	fast_guest_return
 2:
 	/* See if this is an hcall we can handle in real mode */
 	cmpwi	r12,BOOK3S_INTERRUPT_SYSCALL
@@ -1083,26 +1082,21 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 
 	/* External interrupt ? */
 	cmpwi	r12, BOOK3S_INTERRUPT_EXTERNAL
-	bne+	ext_interrupt_to_host
+	bne+	guest_exit_cont
 
 	/* External interrupt, first check for host_ipi. If this is
 	 * set, we know the host wants us out so let's do it now
 	 */
 	bl	kvmppc_read_intr
 	cmpdi	r3, 0
-	bgt	ext_interrupt_to_host
+	bgt	guest_exit_cont
 
 	/* Check if any CPU is heading out to the host, if so head out too */
 	ld	r5, HSTATE_KVM_VCORE(r13)
 	lwz	r0, VCORE_ENTRY_EXIT(r5)
 	cmpwi	r0, 0x100
-	bge	ext_interrupt_to_host
-
-	/* Return to guest after delivering any pending interrupt */
 	mr	r4, r9
-	b	deliver_guest_interrupt
-
-ext_interrupt_to_host:
+	blt	deliver_guest_interrupt
 
 guest_exit_cont:		/* r9 = vcpu, r12 = trap, r13 = paca */
 	/* Save more register state  */
@@ -1763,8 +1757,10 @@ kvmppc_hisi:
  * Returns to the guest if we handle it, or continues on up to
  * the kernel if we can't (i.e. if we don't have a handler for
  * it, or if the handler returns H_TOO_HARD).
+ *
+ * r5 - r8 contain hcall args,
+ * r9 = vcpu, r10 = pc, r11 = msr, r12 = trap, r13 = paca
  */
-	.globl	hcall_try_real_mode
 hcall_try_real_mode:
 	ld	r3,VCPU_GPR(R3)(r9)
 	andi.	r0,r11,MSR_PR
@@ -2024,10 +2020,6 @@ hcall_real_table:
 	.globl	hcall_real_table_end
 hcall_real_table_end:
 
-ignore_hdec:
-	mr	r4,r9
-	b	fast_guest_return
-
 _GLOBAL(kvmppc_h_set_xdabr)
 	andi.	r0, r5, DABRX_USER | DABRX_KERNEL
 	beq	6f
@@ -2066,7 +2058,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	li	r3, 0
 	blr
 
-_GLOBAL(kvmppc_h_cede)
+_GLOBAL(kvmppc_h_cede)		/* r3 = vcpu pointer, r11 = msr, r13 = paca */
 	ori	r11,r11,MSR_EE
 	std	r11,VCPU_MSR(r3)
 	li	r0,1
@@ -2148,9 +2140,9 @@ _GLOBAL(kvmppc_h_cede)
 	 * runlatch bit before napping.
 	 */
 kvm_do_nap:
-	mfspr	r2, SPRN_CTRLF
-	clrrdi	r2, r2, 1
-	mtspr	SPRN_CTRLT, r2
+	mfspr	r0, SPRN_CTRLF
+	clrrdi	r0, r0, 1
+	mtspr	SPRN_CTRLT, r0
 
 	li	r0,1
 	stb	r0,HSTATE_HWTHREAD_REQ(r13)
@@ -2282,13 +2274,14 @@ machine_check_realmode:
 
 /*
  * Check the reason we woke from nap, and take appropriate action.
- * Returns:
+ * Returns (in r3):
  *	0 if nothing needs to be done
  *	1 if something happened that needs to be handled by the host
  *	-1 if there was a guest wakeup (IPI)
  *
  * Also sets r12 to the interrupt vector for any interrupt that needs
  * to be handled now by the host (0x500 for external interrupt), or zero.
+ * Modifies r0, r6, r7, r8.
  */
 kvmppc_check_wake_reason:
 	mfspr	r6, SPRN_SRR1
@@ -2324,6 +2317,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
  *	0 if no interrupt is pending
  *	1 if an interrupt is pending that needs to be handled by the host
  *	-1 if there was a guest wakeup IPI (which has now been cleared)
+ * Modifies r0, r6, r7, r8, returns value in r3.
  */
 kvmppc_read_intr:
 	/* see if a host IPI is pending */
