@@ -1467,7 +1467,7 @@ fusbh200_hub_descriptor (
 	int		ports = HCS_N_PORTS (fusbh200->hcs_params);
 	u16		temp;
 
-	desc->bDescriptorType = 0x29;
+	desc->bDescriptorType = USB_DT_HUB;
 	desc->bPwrOn2PwrGood = 10;	/* fusbh200 1.0, 2.3.9 says 20ms max */
 	desc->bHubContrCurrent = 0;
 
