@@ -226,6 +226,16 @@ static struct notifier_block panic_exit_notifier = {
 	.priority 		= 0
 };
 
+void uml_finishsetup(void)
+{
+	atomic_notifier_chain_register(&panic_notifier_list,
+				       &panic_exit_notifier);
+
+	uml_postsetup();
+
+	new_thread_handler();
+}
+
 /* Set during early boot */
 unsigned long task_size;
 EXPORT_SYMBOL(task_size);
@@ -325,11 +335,6 @@ int __init linux_main(int argc, char **argv)
 	if (virtmem_size < physmem_size)
 		printf("Kernel virtual memory size shrunk to %lu bytes\n",
 		       virtmem_size);
-
-	atomic_notifier_chain_register(&panic_notifier_list,
-				       &panic_exit_notifier);
-
-	uml_postsetup();
 
 	stack_protections((unsigned long) &init_thread_info);
 	os_flush_stdout();

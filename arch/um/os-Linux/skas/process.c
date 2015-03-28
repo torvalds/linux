@@ -586,7 +586,7 @@ int start_idle_thread(void *stack, jmp_buf *switch_buf)
 	n = setjmp(initial_jmpbuf);
 	switch (n) {
 	case INIT_JMP_NEW_THREAD:
-		(*switch_buf)[0].JB_IP = (unsigned long) new_thread_handler;
+		(*switch_buf)[0].JB_IP = (unsigned long) uml_finishsetup;
 		(*switch_buf)[0].JB_SP = (unsigned long) stack +
 			UM_THREAD_SIZE - sizeof(void *);
 		break;
