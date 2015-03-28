@@ -776,6 +776,12 @@ static int smtcfb_pci_probe(struct pci_dev *pdev,
 	if (err)
 		return err;
 
+	err = pci_request_region(pdev, 0, "sm7xxfb");
+	if (err < 0) {
+		dev_err(&pdev->dev, "cannot reserve framebuffer region\n");
+		goto failed_regions;
+	}
+
 	sprintf(smtcfb_fix.id, "sm%Xfb", ent->device);
 
 	sfb = smtc_alloc_fb_info(pdev);
@@ -905,6 +911,9 @@ failed_fb:
 	smtc_free_fb_info(sfb);
 
 failed_free:
+	pci_release_region(pdev, 0);
+
+failed_regions:
 	pci_disable_device(pdev);
 
 	return err;
@@ -933,6 +942,7 @@ static void smtcfb_pci_remove(struct pci_dev *pdev)
 	smtc_unmap_mmio(sfb);
 	unregister_framebuffer(&sfb->fb);
 	smtc_free_fb_info(sfb);
+	pci_release_region(pdev, 0);
 }
 
 #ifdef CONFIG_PM
