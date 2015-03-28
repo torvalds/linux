@@ -871,7 +871,8 @@ static int rk_fb_close(struct fb_info *info, int user)
 
 	if (win_id >= 0) {
 		win = dev_drv->win[win_id];
-		fb_par->state--;
+		if (fb_par->state)
+			fb_par->state--;
 		if (!fb_par->state) {
 			if (fb_par->fb_phy_base > 0)
 				info->fix.smem_start = fb_par->fb_phy_base;
@@ -2526,7 +2527,7 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 	case RK_FBIOSET_ENABLE:
 		if (copy_from_user(&enable, argp, sizeof(enable)))
 			return -EFAULT;
-				if (enable)
+				if (enable && fb_par->state)
 					fb_par->state++;
 				else
 					fb_par->state--;
@@ -2978,9 +2979,10 @@ static int rk_fb_set_par(struct fb_info *info)
 	if (rk_fb->disp_policy == DISPLAY_POLICY_BOX &&
 	    (win->area[0].format == YUV420 ||
 	     win->area[0].format == YUV420_NV21 ||
-	     win->area[0].format == YUV420_A))
+	     win->area[0].format == YUV420_A)) {
                 win->state = 1;
-
+                win->z_order = 0;
+	}
 	dev_drv->ops->set_par(dev_drv, win_id);
 
 	return 0;
