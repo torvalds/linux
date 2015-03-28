@@ -131,6 +131,8 @@ struct vhost_scsi_tpg {
 	int tv_tpg_port_count;
 	/* Used for vhost_scsi device reference to tpg_nexus, protected by tv_tpg_mutex */
 	int tv_tpg_vhost_count;
+	/* Used for enabling T10-PI with legacy devices */
+	int tv_fabric_prot_type;
 	/* list for vhost_scsi_list */
 	struct list_head tv_tpg_list;
 	/* Used to protect access for tpg_nexus */
@@ -429,6 +431,14 @@ vhost_scsi_parse_pr_out_transport_id(struct se_portal_group *se_tpg,
 
 	return sas_parse_pr_out_transport_id(se_tpg, buf, out_tid_len,
 			port_nexus_ptr);
+}
+
+static int vhost_scsi_check_prot_fabric_only(struct se_portal_group *se_tpg)
+{
+	struct vhost_scsi_tpg *tpg = container_of(se_tpg,
+				struct vhost_scsi_tpg, se_tpg);
+
+	return tpg->tv_fabric_prot_type;
 }
 
 static struct se_node_acl *
@@ -1878,6 +1888,45 @@ static void vhost_scsi_free_cmd_map_res(struct vhost_scsi_nexus *nexus,
 	}
 }
 
+static ssize_t vhost_scsi_tpg_attrib_store_fabric_prot_type(
+	struct se_portal_group *se_tpg,
+	const char *page,
+	size_t count)
+{
+	struct vhost_scsi_tpg *tpg = container_of(se_tpg,
+				struct vhost_scsi_tpg, se_tpg);
+	unsigned long val;
+	int ret = kstrtoul(page, 0, &val);
+
+	if (ret) {
+		pr_err("kstrtoul() returned %d for fabric_prot_type\n", ret);
+		return ret;
+	}
+	if (val != 0 && val != 1 && val != 3) {
+		pr_err("Invalid vhost_scsi fabric_prot_type: %lu\n", val);
+		return -EINVAL;
+	}
+	tpg->tv_fabric_prot_type = val;
+
+	return count;
+}
+
+static ssize_t vhost_scsi_tpg_attrib_show_fabric_prot_type(
+	struct se_portal_group *se_tpg,
+	char *page)
+{
+	struct vhost_scsi_tpg *tpg = container_of(se_tpg,
+				struct vhost_scsi_tpg, se_tpg);
+
+	return sprintf(page, "%d\n", tpg->tv_fabric_prot_type);
+}
+TF_TPG_ATTRIB_ATTR(vhost_scsi, fabric_prot_type, S_IRUGO | S_IWUSR);
+
+static struct configfs_attribute *vhost_scsi_tpg_attrib_attrs[] = {
+	&vhost_scsi_tpg_attrib_fabric_prot_type.attr,
+	NULL,
+};
+
 static int vhost_scsi_make_nexus(struct vhost_scsi_tpg *tpg,
 				const char *name)
 {
@@ -2290,6 +2339,7 @@ static struct target_core_fabric_ops vhost_scsi_ops = {
 	.tpg_check_demo_mode_cache	= vhost_scsi_check_true,
 	.tpg_check_demo_mode_write_protect = vhost_scsi_check_false,
 	.tpg_check_prod_mode_write_protect = vhost_scsi_check_false,
+	.tpg_check_prot_fabric_only	= vhost_scsi_check_prot_fabric_only,
 	.tpg_alloc_fabric_acl		= vhost_scsi_alloc_fabric_acl,
 	.tpg_release_fabric_acl		= vhost_scsi_release_fabric_acl,
 	.tpg_get_inst_index		= vhost_scsi_tpg_get_inst_index,
@@ -2348,7 +2398,7 @@ static int vhost_scsi_register_configfs(void)
 	 */
 	fabric->tf_cit_tmpl.tfc_wwn_cit.ct_attrs = vhost_scsi_wwn_attrs;
 	fabric->tf_cit_tmpl.tfc_tpg_base_cit.ct_attrs = vhost_scsi_tpg_attrs;
-	fabric->tf_cit_tmpl.tfc_tpg_attrib_cit.ct_attrs = NULL;
+	fabric->tf_cit_tmpl.tfc_tpg_attrib_cit.ct_attrs = vhost_scsi_tpg_attrib_attrs;
 	fabric->tf_cit_tmpl.tfc_tpg_param_cit.ct_attrs = NULL;
 	fabric->tf_cit_tmpl.tfc_tpg_np_base_cit.ct_attrs = NULL;
 	fabric->tf_cit_tmpl.tfc_tpg_nacl_base_cit.ct_attrs = NULL;
