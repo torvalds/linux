@@ -263,15 +263,15 @@ struct kvm_arch {
 
 /*
  * Struct for a virtual core.
- * Note: entry_exit_count combines an entry count in the bottom 8 bits
- * and an exit count in the next 8 bits.  This is so that we can
- * atomically increment the entry count iff the exit count is 0
- * without taking the lock.
+ * Note: entry_exit_map combines a bitmap of threads that have entered
+ * in the bottom 8 bits and a bitmap of threads that have exited in the
+ * next 8 bits.  This is so that we can atomically set the entry bit
+ * iff the exit map is 0 without taking a lock.
  */
 struct kvmppc_vcore {
 	int n_runnable;
 	int num_threads;
-	int entry_exit_count;
+	int entry_exit_map;
 	int napping_threads;
 	int first_vcpuid;
 	u16 pcpu;
@@ -296,8 +296,9 @@ struct kvmppc_vcore {
 	ulong conferring_threads;
 };
 
-#define VCORE_ENTRY_COUNT(vc)	((vc)->entry_exit_count & 0xff)
-#define VCORE_EXIT_COUNT(vc)	((vc)->entry_exit_count >> 8)
+#define VCORE_ENTRY_MAP(vc)	((vc)->entry_exit_map & 0xff)
+#define VCORE_EXIT_MAP(vc)	((vc)->entry_exit_map >> 8)
+#define VCORE_IS_EXITING(vc)	(VCORE_EXIT_MAP(vc) != 0)
 
 /* Values for vcore_state */
 #define VCORE_INACTIVE	0

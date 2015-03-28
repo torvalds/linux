@@ -115,11 +115,11 @@ long int kvmppc_rm_h_confer(struct kvm_vcpu *vcpu, int target,
 	int rv = H_SUCCESS; /* => don't yield */
 
 	set_bit(vcpu->arch.ptid, &vc->conferring_threads);
-	while ((get_tb() < stop) && (VCORE_EXIT_COUNT(vc) == 0)) {
-		threads_running = VCORE_ENTRY_COUNT(vc);
-		threads_ceded = hweight32(vc->napping_threads);
-		threads_conferring = hweight32(vc->conferring_threads);
-		if (threads_ceded + threads_conferring >= threads_running) {
+	while ((get_tb() < stop) && !VCORE_IS_EXITING(vc)) {
+		threads_running = VCORE_ENTRY_MAP(vc);
+		threads_ceded = vc->napping_threads;
+		threads_conferring = vc->conferring_threads;
+		if ((threads_ceded | threads_conferring) == threads_running) {
 			rv = H_TOO_HARD; /* => do yield */
 			break;
 		}

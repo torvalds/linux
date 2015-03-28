@@ -185,7 +185,7 @@ kvmppc_primary_no_guest:
 	or	r3, r3, r0
 	stwcx.	r3, 0, r6
 	bne	1b
-	/* order napping_threads update vs testing entry_exit_count */
+	/* order napping_threads update vs testing entry_exit_map */
 	isync
 	li	r12, 0
 	lwz	r7, VCORE_ENTRY_EXIT(r5)
@@ -406,19 +406,21 @@ kvmppc_hv_entry:
 	 * We don't have to lock against concurrent tlbies,
 	 * but we do have to coordinate across hardware threads.
 	 */
-	/* Increment entry count iff exit count is zero. */
-	ld	r5,HSTATE_KVM_VCORE(r13)
-	addi	r9,r5,VCORE_ENTRY_EXIT
-21:	lwarx	r3,0,r9
-	cmpwi	r3,0x100		/* any threads starting to exit? */
+	/* Set bit in entry map iff exit map is zero. */
+	ld	r5, HSTATE_KVM_VCORE(r13)
+	li	r7, 1
+	lbz	r6, HSTATE_PTID(r13)
+	sld	r7, r7, r6
+	addi	r9, r5, VCORE_ENTRY_EXIT
+21:	lwarx	r3, 0, r9
+	cmpwi	r3, 0x100		/* any threads starting to exit? */
 	bge	secondary_too_late	/* if so we're too late to the party */
-	addi	r3,r3,1
-	stwcx.	r3,0,r9
+	or	r3, r3, r7
+	stwcx.	r3, 0, r9
 	bne	21b
 
 	/* Primary thread switches to guest partition. */
 	ld	r9,VCORE_KVM(r5)	/* pointer to struct kvm */
-	lbz	r6,HSTATE_PTID(r13)
 	cmpwi	r6,0
 	bne	20f
 	ld	r6,KVM_SDR1(r9)
@@ -1477,13 +1479,16 @@ kvmhv_do_exit:			/* r12 = trap, r13 = paca */
 	 * We don't have to lock against tlbies but we do
 	 * have to coordinate the hardware threads.
 	 */
-	/* Increment the threads-exiting-guest count in the 0xff00
-	   bits of vcore->entry_exit_count */
-	ld	r5,HSTATE_KVM_VCORE(r13)
-	addi	r6,r5,VCORE_ENTRY_EXIT
-41:	lwarx	r3,0,r6
-	addi	r0,r3,0x100
-	stwcx.	r0,0,r6
+	/* Set our bit in the threads-exiting-guest map in the 0xff00
+	   bits of vcore->entry_exit_map */
+	ld	r5, HSTATE_KVM_VCORE(r13)
+	lbz	r4, HSTATE_PTID(r13)
+	li	r7, 0x100
+	sld	r7, r7, r4
+	addi	r6, r5, VCORE_ENTRY_EXIT
+41:	lwarx	r3, 0, r6
+	or	r0, r3, r7
+	stwcx.	r0, 0, r6
 	bne	41b
 	isync		/* order stwcx. vs. reading napping_threads */
 
@@ -1492,9 +1497,9 @@ kvmhv_do_exit:			/* r12 = trap, r13 = paca */
 	 * up to the kernel or qemu; we can't handle it in real mode.
 	 * Thus we have to do a partition switch, so we have to
 	 * collect the other threads, if we are the first thread
-	 * to take an interrupt.  To do this, we set the HDEC to 0,
-	 * which causes an HDEC interrupt in all threads within 2ns
-	 * because the HDEC register is shared between all 4 threads.
+	 * to take an interrupt.  To do this, we send a message or
+	 * IPI to all the threads that have their bit set in the entry
+	 * map in vcore->entry_exit_map (other than ourselves).
 	 * However, we don't need to bother if this is an HDEC
 	 * interrupt, since the other threads will already be on their
 	 * way here in that case.
@@ -1503,17 +1508,8 @@ kvmhv_do_exit:			/* r12 = trap, r13 = paca */
 	bge	43f
 	cmpwi	r12,BOOK3S_INTERRUPT_HV_DECREMENTER
 	beq	43f
-	li	r0,0
-	mtspr	SPRN_HDEC,r0
 
-	/*
-	 * Send an IPI to any napping threads, since an HDEC interrupt
-	 * doesn't wake CPUs up from nap.
-	 */
-	lwz	r3,VCORE_NAPPING_THREADS(r5)
-	lbz	r4,HSTATE_PTID(r13)
-	li	r0,1
-	sld	r0,r0,r4
+	srwi	r0,r7,8
 	andc.	r3,r3,r0		/* no sense IPI'ing ourselves */
 	beq	43f
 	/* Order entry/exit update vs. IPIs */
@@ -2091,12 +2087,11 @@ _GLOBAL(kvmppc_h_cede)		/* r3 = vcpu pointer, r11 = msr, r13 = paca */
 	addi	r6,r5,VCORE_NAPPING_THREADS
 31:	lwarx	r4,0,r6
 	or	r4,r4,r0
-	PPC_POPCNTW(R7,R4)
-	cmpw	r7,r8
-	bge	kvm_cede_exit
+	cmpw	r4,r8
+	beq	kvm_cede_exit
 	stwcx.	r4,0,r6
 	bne	31b
-	/* order napping_threads update vs testing entry_exit_count */
+	/* order napping_threads update vs testing entry_exit_map */
 	isync
 	li	r0,NAPPING_CEDE
 	stb	r0,HSTATE_NAPPING(r13)

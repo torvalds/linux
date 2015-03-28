@@ -1952,7 +1952,7 @@ static void kvmppc_run_core(struct kvmppc_vcore *vc)
 	/*
 	 * Initialize *vc.
 	 */
-	vc->entry_exit_count = 0;
+	vc->entry_exit_map = 0;
 	vc->preempt_tb = TB_NIL;
 	vc->in_guest = 0;
 	vc->napping_threads = 0;
@@ -2119,8 +2119,7 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	 * this thread straight away and have it join in.
 	 */
 	if (!signal_pending(current)) {
-		if (vc->vcore_state == VCORE_RUNNING &&
-		    VCORE_EXIT_COUNT(vc) == 0) {
+		if (vc->vcore_state == VCORE_RUNNING && !VCORE_IS_EXITING(vc)) {
 			kvmppc_create_dtl_entry(vcpu, vc);
 			kvmppc_start_thread(vcpu);
 			trace_kvm_guest_enter(vcpu);
