@@ -149,9 +149,10 @@ IMG_VOID RgxSuspend(IMG_VOID);
 IMG_BOOL rk33_dvfs_init(IMG_VOID);
 IMG_VOID rk33_dvfs_term(IMG_VOID);
 
+#if RK33_DVFS_SUPPORT && RK33_USE_RGX_GET_GPU_UTIL
 IMG_BOOL rk33_set_device_node(IMG_HANDLE hDevCookie);
 IMG_BOOL rk33_clear_device_node(IMG_VOID);
-
+#endif
 
 PVRSRV_ERROR IonInit(void *pvPrivateData);
 IMG_VOID IonDeinit(IMG_VOID);
