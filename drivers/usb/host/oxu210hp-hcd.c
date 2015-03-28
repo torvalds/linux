@@ -445,7 +445,7 @@ static void ehci_hub_descriptor(struct oxu_hcd *oxu,
 	int ports = HCS_N_PORTS(oxu->hcs_params);
 	u16 temp;
 
-	desc->bDescriptorType = 0x29;
+	desc->bDescriptorType = USB_DT_HUB;
 	desc->bPwrOn2PwrGood = 10;	/* oxu 1.0, 2.3.9 says 20ms max */
 	desc->bHubContrCurrent = 0;
 
