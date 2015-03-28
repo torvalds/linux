@@ -336,6 +336,14 @@ static int tcm_qla2xxx_check_demo_mode_login_only(struct se_portal_group *se_tpg
 	return tpg->tpg_attrib.demo_mode_login_only;
 }
 
+static int tcm_qla2xxx_check_prot_fabric_only(struct se_portal_group *se_tpg)
+{
+	struct tcm_qla2xxx_tpg *tpg = container_of(se_tpg,
+				struct tcm_qla2xxx_tpg, se_tpg);
+
+	return tpg->tpg_attrib.fabric_prot_type;
+}
+
 static struct se_node_acl *tcm_qla2xxx_alloc_fabric_acl(
 	struct se_portal_group *se_tpg)
 {
@@ -1091,9 +1099,44 @@ static ssize_t tcm_qla2xxx_tpg_show_dynamic_sessions(
 
 TF_TPG_BASE_ATTR_RO(tcm_qla2xxx, dynamic_sessions);
 
+static ssize_t tcm_qla2xxx_tpg_store_fabric_prot_type(
+	struct se_portal_group *se_tpg,
+	const char *page,
+	size_t count)
+{
+	struct tcm_qla2xxx_tpg *tpg = container_of(se_tpg,
+				struct tcm_qla2xxx_tpg, se_tpg);
+	unsigned long val;
+	int ret = kstrtoul(page, 0, &val);
+
+	if (ret) {
+		pr_err("kstrtoul() returned %d for fabric_prot_type\n", ret);
+		return ret;
+	}
+	if (val != 0 && val != 1 && val != 3) {
+		pr_err("Invalid qla2xxx fabric_prot_type: %lu\n", val);
+		return -EINVAL;
+	}
+	tpg->tpg_attrib.fabric_prot_type = val;
+
+	return count;
+}
+
+static ssize_t tcm_qla2xxx_tpg_show_fabric_prot_type(
+	struct se_portal_group *se_tpg,
+	char *page)
+{
+	struct tcm_qla2xxx_tpg *tpg = container_of(se_tpg,
+				struct tcm_qla2xxx_tpg, se_tpg);
+
+	return sprintf(page, "%d\n", tpg->tpg_attrib.fabric_prot_type);
+}
+TF_TPG_BASE_ATTR(tcm_qla2xxx, fabric_prot_type, S_IRUGO | S_IWUSR);
+
 static struct configfs_attribute *tcm_qla2xxx_tpg_attrs[] = {
 	&tcm_qla2xxx_tpg_enable.attr,
 	&tcm_qla2xxx_tpg_dynamic_sessions.attr,
+	&tcm_qla2xxx_tpg_fabric_prot_type.attr,
 	NULL,
 };
 
@@ -1959,6 +2002,7 @@ static struct target_core_fabric_ops tcm_qla2xxx_ops = {
 					tcm_qla2xxx_check_demo_write_protect,
 	.tpg_check_prod_mode_write_protect =
 					tcm_qla2xxx_check_prod_write_protect,
+	.tpg_check_prot_fabric_only	= tcm_qla2xxx_check_prot_fabric_only,
 	.tpg_check_demo_mode_login_only = tcm_qla2xxx_check_demo_mode_login_only,
 	.tpg_alloc_fabric_acl		= tcm_qla2xxx_alloc_fabric_acl,
 	.tpg_release_fabric_acl		= tcm_qla2xxx_release_fabric_acl,
