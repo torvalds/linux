@@ -1189,6 +1189,7 @@ config OCTEON_WDT
 	tristate "Cavium OCTEON SOC family Watchdog Timer"
 	depends on CAVIUM_OCTEON_SOC
 	default y
+	select WATCHDOG_CORE
 	select EXPORT_UASM if OCTEON_WDT = m
 	help
 	  Hardware driver for OCTEON's on chip watchdog timer.
