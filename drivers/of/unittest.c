@@ -751,14 +751,14 @@ static void __init of_selftest_match_node(void)
 	}
 }
 
-struct device test_bus = {
-	.init_name = "unittest-bus",
+static const struct platform_device_info test_bus_info = {
+	.name = "unittest-bus",
 };
 static void __init of_selftest_platform_populate(void)
 {
 	int irq, rc;
 	struct device_node *np, *child, *grandchild;
-	struct platform_device *pdev;
+	struct platform_device *pdev, *test_bus;
 	const struct of_device_id match[] = {
 		{ .compatible = "test-device", },
 		{}
@@ -787,20 +787,22 @@ static void __init of_selftest_platform_populate(void)
 	if (!np)
 		return;
 
-	rc = device_register(&test_bus);
+	test_bus = platform_device_register_full(&test_bus_info);
+	rc = PTR_ERR_OR_ZERO(test_bus);
 	selftest(!rc, "testbus registration failed; rc=%i\n", rc);
 	if (rc)
 		return;
+	test_bus->dev.of_node = np;
 
+	of_platform_populate(np, match, NULL, &test_bus->dev);
 	for_each_child_of_node(np, child) {
-		of_platform_populate(child, match, NULL, &test_bus);
 		for_each_child_of_node(child, grandchild)
 			selftest(of_find_device_by_node(grandchild),
 				 "Could not create device for node '%s'\n",
 				 grandchild->name);
 	}
 
-	of_platform_depopulate(&test_bus);
+	of_platform_depopulate(&test_bus->dev);
 	for_each_child_of_node(np, child) {
 		for_each_child_of_node(child, grandchild)
 			selftest(!of_find_device_by_node(grandchild),
@@ -808,7 +810,7 @@ static void __init of_selftest_platform_populate(void)
 				 grandchild->name);
 	}
 
-	device_unregister(&test_bus);
+	platform_device_unregister(test_bus);
 	of_node_put(np);
 }
 
