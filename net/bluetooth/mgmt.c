@@ -2113,7 +2113,8 @@ static int set_connectable(struct sock *sk, struct hci_dev *hdev, void *data,
 
 no_scan_update:
 	/* Update the advertising parameters if necessary */
-	if (hci_dev_test_flag(hdev, HCI_ADVERTISING))
+	if (hci_dev_test_flag(hdev, HCI_ADVERTISING) ||
+	    hci_dev_test_flag(hdev, HCI_ADVERTISING_INSTANCE))
 		enable_advertising(&req);
 
 	err = hci_req_run(&req, set_connectable_complete);
