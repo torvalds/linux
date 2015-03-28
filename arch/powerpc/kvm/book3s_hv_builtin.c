@@ -23,6 +23,8 @@
 #include <asm/kvm_book3s.h>
 #include <asm/archrandom.h>
 #include <asm/xics.h>
+#include <asm/dbell.h>
+#include <asm/cputhreads.h>
 
 #define KVM_CMA_CHUNK_ORDER	18
 
@@ -193,7 +195,7 @@ static inline void rm_writeb(unsigned long paddr, u8 val)
 }
 
 /*
- * Send an interrupt to another CPU.
+ * Send an interrupt or message to another CPU.
  * This can only be called in real mode.
  * The caller needs to include any barrier needed to order writes
  * to memory vs. the IPI/message.
@@ -202,7 +204,17 @@ void kvmhv_rm_send_ipi(int cpu)
 {
 	unsigned long xics_phys;
 
-	/* Poke the target */
+	/* On POWER8 for IPIs to threads in the same core, use msgsnd */
+	if (cpu_has_feature(CPU_FTR_ARCH_207S) &&
+	    cpu_first_thread_sibling(cpu) ==
+	    cpu_first_thread_sibling(raw_smp_processor_id())) {
+		unsigned long msg = PPC_DBELL_TYPE(PPC_DBELL_SERVER);
+		msg |= cpu_thread_in_core(cpu);
+		__asm__ __volatile__ (PPC_MSGSND(%0) : : "r" (msg));
+		return;
+	}
+
+	/* Else poke the target with an IPI */
 	xics_phys = paca[cpu].kvm_hstate.xics_phys;
 	rm_writeb(xics_phys + XICS_MFRR, IPI_PRIORITY);
 }

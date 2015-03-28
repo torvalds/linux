@@ -51,6 +51,7 @@
 #include <asm/hvcall.h>
 #include <asm/switch_to.h>
 #include <asm/smp.h>
+#include <asm/dbell.h>
 #include <linux/gfp.h>
 #include <linux/vmalloc.h>
 #include <linux/highmem.h>
@@ -84,9 +85,35 @@ static DECLARE_BITMAP(default_enabled_hcalls, MAX_HCALL_OPCODE/4 + 1);
 static void kvmppc_end_cede(struct kvm_vcpu *vcpu);
 static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu);
 
+static bool kvmppc_ipi_thread(int cpu)
+{
+	/* On POWER8 for IPIs to threads in the same core, use msgsnd */
+	if (cpu_has_feature(CPU_FTR_ARCH_207S)) {
+		preempt_disable();
+		if (cpu_first_thread_sibling(cpu) ==
+		    cpu_first_thread_sibling(smp_processor_id())) {
+			unsigned long msg = PPC_DBELL_TYPE(PPC_DBELL_SERVER);
+			msg |= cpu_thread_in_core(cpu);
+			smp_mb();
+			__asm__ __volatile__ (PPC_MSGSND(%0) : : "r" (msg));
+			preempt_enable();
+			return true;
+		}
+		preempt_enable();
+	}
+
+#if defined(CONFIG_PPC_ICP_NATIVE) && defined(CONFIG_SMP)
+	if (cpu >= 0 && cpu < nr_cpu_ids && paca[cpu].kvm_hstate.xics_phys) {
+		xics_wake_cpu(cpu);
+		return true;
+	}
+#endif
+
+	return false;
+}
+
 static void kvmppc_fast_vcpu_kick_hv(struct kvm_vcpu *vcpu)
 {
-	int me;
 	int cpu = vcpu->cpu;
 	wait_queue_head_t *wqp;
 
@@ -96,20 +123,12 @@ static void kvmppc_fast_vcpu_kick_hv(struct kvm_vcpu *vcpu)
 		++vcpu->stat.halt_wakeup;
 	}
 
-	me = get_cpu();
+	if (kvmppc_ipi_thread(cpu + vcpu->arch.ptid))
+		return;
 
 	/* CPU points to the first thread of the core */
-	if (cpu != me && cpu >= 0 && cpu < nr_cpu_ids) {
-#ifdef CONFIG_PPC_ICP_NATIVE
-		int real_cpu = cpu + vcpu->arch.ptid;
-		if (paca[real_cpu].kvm_hstate.xics_phys)
-			xics_wake_cpu(real_cpu);
-		else
-#endif
-		if (cpu_online(cpu))
-			smp_send_reschedule(cpu);
-	}
-	put_cpu();
+	if (cpu >= 0 && cpu < nr_cpu_ids && cpu_online(cpu))
+		smp_send_reschedule(cpu);
 }
 
 /*
@@ -1781,10 +1800,8 @@ static void kvmppc_start_thread(struct kvm_vcpu *vcpu)
 	/* Order stores to hstate.kvm_vcore etc. before store to kvm_vcpu */
 	smp_wmb();
 	tpaca->kvm_hstate.kvm_vcpu = vcpu;
-#if defined(CONFIG_PPC_ICP_NATIVE) && defined(CONFIG_SMP)
 	if (cpu != smp_processor_id())
-		xics_wake_cpu(cpu);
-#endif
+		kvmppc_ipi_thread(cpu);
 }
 
 static void kvmppc_wait_for_nap(void)
@@ -1933,7 +1950,7 @@ static void post_guest_process(struct kvmppc_vcore *vc)
  * Run a set of guest threads on a physical core.
  * Called with vc->lock held.
  */
-static void kvmppc_run_core(struct kvmppc_vcore *vc)
+static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 {
 	struct kvm_vcpu *vcpu;
 	int i;

@@ -1123,6 +1123,13 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	cmpwi	r12,BOOK3S_INTERRUPT_SYSCALL
 	beq	hcall_try_real_mode
 
+	/* Hypervisor doorbell - exit only if host IPI flag set */
+	cmpwi	r12, BOOK3S_INTERRUPT_H_DOORBELL
+	bne	3f
+	lbz	r0, HSTATE_HOST_IPI(r13)
+	beq	4f
+	b	guest_exit_cont
+3:
 	/* External interrupt ? */
 	cmpwi	r12, BOOK3S_INTERRUPT_EXTERNAL
 	bne+	guest_exit_cont
@@ -1135,7 +1142,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	bgt	guest_exit_cont
 
 	/* Check if any CPU is heading out to the host, if so head out too */
-	ld	r5, HSTATE_KVM_VCORE(r13)
+4:	ld	r5, HSTATE_KVM_VCORE(r13)
 	lwz	r0, VCORE_ENTRY_EXIT(r5)
 	cmpwi	r0, 0x100
 	mr	r4, r9
@@ -2148,7 +2155,7 @@ _GLOBAL(kvmppc_h_cede)		/* r3 = vcpu pointer, r11 = msr, r13 = paca */
 	/*
 	 * Take a nap until a decrementer or external or doobell interrupt
 	 * occurs, with PECE1 and PECE0 set in LPCR.
-	 * On POWER8, if we are ceding, also set PECEDP.
+	 * On POWER8, set PECEDH, and if we are ceding, also set PECEDP.
 	 * Also clear the runlatch bit before napping.
 	 */
 kvm_do_nap:
@@ -2161,6 +2168,7 @@ kvm_do_nap:
 	mfspr	r5,SPRN_LPCR
 	ori	r5,r5,LPCR_PECE0 | LPCR_PECE1
 BEGIN_FTR_SECTION
+	ori	r5, r5, LPCR_PECEDH
 	rlwimi	r5, r3, 0, LPCR_PECEDP
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	mtspr	SPRN_LPCR,r5
@@ -2299,7 +2307,7 @@ machine_check_realmode:
  * Returns (in r3):
  *	0 if nothing needs to be done
  *	1 if something happened that needs to be handled by the host
- *	-1 if there was a guest wakeup (IPI)
+ *	-1 if there was a guest wakeup (IPI or msgsnd)
  *
  * Also sets r12 to the interrupt vector for any interrupt that needs
  * to be handled now by the host (0x500 for external interrupt), or zero.
@@ -2330,7 +2338,15 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 
 	/* hypervisor doorbell */
 3:	li	r12, BOOK3S_INTERRUPT_H_DOORBELL
+	/* see if it's a host IPI */
 	li	r3, 1
+	lbz	r0, HSTATE_HOST_IPI(r13)
+	cmpwi	r0, 0
+	bnelr
+	/* if not, clear it and return -1 */
+	lis	r6, (PPC_DBELL_SERVER << (63-36))@h
+	PPC_MSGCLR(6)
+	li	r3, -1
 	blr
 
 /*
