@@ -3581,7 +3581,6 @@ static int octeon_usb_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct octeon_hcd *priv;
 	struct usb_hcd *hcd;
-	unsigned long flags;
 	u32 clock_rate = 48000000;
 	bool is_crystal_clock = false;
 	const char *clock_type;
