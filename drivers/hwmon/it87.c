@@ -78,9 +78,10 @@ static unsigned short force_id;
 module_param(force_id, ushort, 0);
 MODULE_PARM_DESC(force_id, "Override the detected device ID");
 
-static struct platform_device *it87_pdev;
+static struct platform_device *it87_pdev[2];
 
 #define	REG_2E	0x2e	/* The register to read/write */
+#define	REG_4E	0x4e	/* Secondary register to read/write */
 
 #define	DEV	0x07	/* Register: Logical device select */
 #define PME	0x04	/* The device with the fan registers in it */
@@ -130,7 +131,7 @@ static inline int superio_enter(int ioreg)
 	outb(0x87, ioreg);
 	outb(0x01, ioreg);
 	outb(0x55, ioreg);
-	outb(0x55, ioreg);
+	outb(ioreg == REG_4E ? 0xaa : 0x55, ioreg);
 	return 0;
 }
 
@@ -2892,7 +2893,7 @@ static struct it87_data *it87_update_device(struct device *dev)
 	return data;
 }
 
-static int __init it87_device_add(unsigned short address,
+static int __init it87_device_add(int index, unsigned short address,
 				  const struct it87_sio_data *sio_data)
 {
 	struct platform_device *pdev;
@@ -2931,7 +2932,7 @@ static int __init it87_device_add(unsigned short address,
 		goto exit_device_put;
 	}
 
-	it87_pdev = pdev;
+	it87_pdev[index] = pdev;
 	return 0;
 
 exit_device_put:
@@ -2941,30 +2942,48 @@ exit_device_put:
 
 static int __init sm_it87_init(void)
 {
-	int err;
-	unsigned short isa_address = 0;
+	int sioaddr[2] = { REG_2E, REG_4E };
 	struct it87_sio_data sio_data;
+	unsigned short isa_address;
+	bool found = false;
+	int i, err;
 
-	memset(&sio_data, 0, sizeof(struct it87_sio_data));
-	err = it87_find(REG_2E, &isa_address, &sio_data);
-	if (err)
-		return err;
 	err = platform_driver_register(&it87_driver);
 	if (err)
 		return err;
 
-	err = it87_device_add(isa_address, &sio_data);
-	if (err) {
-		platform_driver_unregister(&it87_driver);
-		return err;
+	for (i = 0; i < ARRAY_SIZE(sioaddr); i++) {
+		memset(&sio_data, 0, sizeof(struct it87_sio_data));
+		isa_address = 0;
+		err = it87_find(sioaddr[i], &isa_address, &sio_data);
+		if (err || isa_address == 0)
+			continue;
+
+		err = it87_device_add(i, isa_address, &sio_data);
+		if (err)
+			goto exit_dev_unregister;
+		found = true;
 	}
 
+	if (!found) {
+		err = -ENODEV;
+		goto exit_unregister;
+	}
 	return 0;
+
+exit_dev_unregister:
+	/* NULL check handled by platform_device_unregister */
+	platform_device_unregister(it87_pdev[0]);
+exit_unregister:
+	platform_driver_unregister(&it87_driver);
+	return err;
 }
 
 static void __exit sm_it87_exit(void)
 {
-	platform_device_unregister(it87_pdev);
+	/* NULL check handled by platform_device_unregister */
+	platform_device_unregister(it87_pdev[1]);
+	platform_device_unregister(it87_pdev[0]);
 	platform_driver_unregister(&it87_driver);
 }
 
