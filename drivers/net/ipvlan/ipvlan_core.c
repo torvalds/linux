@@ -193,7 +193,8 @@ static void ipvlan_multicast_frame(struct ipvl_port *port, struct sk_buff *skb,
 	if (skb->protocol == htons(ETH_P_PAUSE))
 		return;
 
-	list_for_each_entry(ipvlan, &port->ipvlans, pnode) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(ipvlan, &port->ipvlans, pnode) {
 		if (local && (ipvlan == in_dev))
 			continue;
 
@@ -220,6 +221,7 @@ static void ipvlan_multicast_frame(struct ipvl_port *port, struct sk_buff *skb,
 mcast_acct:
 		ipvlan_count_rx(ipvlan, len, ret == NET_RX_SUCCESS, true);
 	}
+	rcu_read_unlock();
 
 	/* Locally generated? ...Forward a copy to the main-device as
 	 * well. On the RX side we'll ignore it (wont give it to any
