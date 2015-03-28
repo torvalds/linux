@@ -13,7 +13,7 @@ CFLAGS := -Wall -O2 -flto -Wall -Werror -DGIT_VERSION='"$(GIT_VERSION)"' -I$(CUR
 
 export CC CFLAGS
 
-SUB_DIRS = pmu copyloops mm tm primitives stringloops vphn
+SUB_DIRS = pmu copyloops mm tm primitives stringloops vphn switch_endian
 
 endif
 
