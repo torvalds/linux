@@ -608,7 +608,7 @@ static inline int cvmx_usb_get_data_pid(struct cvmx_usb_pipe *pipe)
 	return 0; /* Data0 */
 }
 
-static int cvmx_fifo_setup(struct cvmx_usb_state *usb)
+static void cvmx_fifo_setup(struct cvmx_usb_state *usb)
 {
 	union cvmx_usbcx_ghwcfg3 usbcx_ghwcfg3;
 	union cvmx_usbcx_gnptxfsiz npsiz;
