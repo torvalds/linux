@@ -1882,15 +1882,50 @@ static void prepare_threads(struct kvmppc_vcore *vc)
 	}
 }
 
+static void post_guest_process(struct kvmppc_vcore *vc)
+{
+	u64 now;
+	long ret;
+	struct kvm_vcpu *vcpu, *vnext;
+
+	now = get_tb();
+	list_for_each_entry_safe(vcpu, vnext, &vc->runnable_threads,
+				 arch.run_list) {
+		/* cancel pending dec exception if dec is positive */
+		if (now < vcpu->arch.dec_expires &&
+		    kvmppc_core_pending_dec(vcpu))
+			kvmppc_core_dequeue_dec(vcpu);
+
+		trace_kvm_guest_exit(vcpu);
+
+		ret = RESUME_GUEST;
+		if (vcpu->arch.trap)
+			ret = kvmppc_handle_exit_hv(vcpu->arch.kvm_run, vcpu,
+						    vcpu->arch.run_task);
+
+		vcpu->arch.ret = ret;
+		vcpu->arch.trap = 0;
+
+		if (vcpu->arch.ceded) {
+			if (!is_kvmppc_resume_guest(ret))
+				kvmppc_end_cede(vcpu);
+			else
+				kvmppc_set_timer(vcpu);
+		}
+		if (!is_kvmppc_resume_guest(vcpu->arch.ret)) {
+			kvmppc_remove_runnable(vc, vcpu);
+			wake_up(&vcpu->arch.cpu_run);
+		}
+	}
+}
+
 /*
  * Run a set of guest threads on a physical core.
  * Called with vc->lock held.
  */
 static void kvmppc_run_core(struct kvmppc_vcore *vc)
 {
-	struct kvm_vcpu *vcpu, *vnext;
-	long ret;
-	u64 now;
+	struct kvm_vcpu *vcpu;
 	int i;
 	int srcu_idx;
 
@@ -1922,8 +1957,11 @@ static void kvmppc_run_core(struct kvmppc_vcore *vc)
 	 */
 	if ((threads_per_core > 1) &&
 	    ((vc->num_threads > threads_per_subcore) || !on_primary_thread())) {
-		list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list)
+		list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list) {
 			vcpu->arch.ret = -EBUSY;
+			kvmppc_remove_runnable(vc, vcpu);
+			wake_up(&vcpu->arch.cpu_run);
+		}
 		goto out;
 	}
 
@@ -1979,44 +2017,12 @@ static void kvmppc_run_core(struct kvmppc_vcore *vc)
 	kvm_guest_exit();
 
 	preempt_enable();
-	cond_resched();
 
 	spin_lock(&vc->lock);
-	now = get_tb();
-	list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list) {
-		/* cancel pending dec exception if dec is positive */
-		if (now < vcpu->arch.dec_expires &&
-		    kvmppc_core_pending_dec(vcpu))
-			kvmppc_core_dequeue_dec(vcpu);
-
-		trace_kvm_guest_exit(vcpu);
-
-		ret = RESUME_GUEST;
-		if (vcpu->arch.trap)
-			ret = kvmppc_handle_exit_hv(vcpu->arch.kvm_run, vcpu,
-						    vcpu->arch.run_task);
-
-		vcpu->arch.ret = ret;
-		vcpu->arch.trap = 0;
-
-		if (vcpu->arch.ceded) {
-			if (!is_kvmppc_resume_guest(ret))
-				kvmppc_end_cede(vcpu);
-			else
-				kvmppc_set_timer(vcpu);
-		}
-	}
+	post_guest_process(vc);
 
  out:
 	vc->vcore_state = VCORE_INACTIVE;
-	list_for_each_entry_safe(vcpu, vnext, &vc->runnable_threads,
-				 arch.run_list) {
-		if (!is_kvmppc_resume_guest(vcpu->arch.ret)) {
-			kvmppc_remove_runnable(vc, vcpu);
-			wake_up(&vcpu->arch.cpu_run);
-		}
-	}
-
 	trace_kvmppc_run_core(vc, 1);
 }
 
@@ -2138,7 +2144,6 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 		}
 		if (!vc->n_runnable || vcpu->arch.state != KVMPPC_VCPU_RUNNABLE)
 			break;
-		vc->runner = vcpu;
 		n_ceded = 0;
 		list_for_each_entry(v, &vc->runnable_threads, arch.run_list) {
 			if (!v->arch.pending_exceptions)
@@ -2146,10 +2151,17 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 			else
 				v->arch.ceded = 0;
 		}
-		if (n_ceded == vc->n_runnable)
+		vc->runner = vcpu;
+		if (n_ceded == vc->n_runnable) {
 			kvmppc_vcore_blocked(vc);
-		else
+		} else if (should_resched()) {
+			vc->vcore_state = VCORE_PREEMPT;
+			/* Let something else run */
+			cond_resched_lock(&vc->lock);
+			vc->vcore_state = VCORE_INACTIVE;
+		} else {
 			kvmppc_run_core(vc);
+		}
 		vc->runner = NULL;
 	}
 

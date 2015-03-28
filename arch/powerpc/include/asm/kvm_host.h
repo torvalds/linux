@@ -304,8 +304,9 @@ struct kvmppc_vcore {
 /* Values for vcore_state */
 #define VCORE_INACTIVE	0
 #define VCORE_SLEEPING	1
-#define VCORE_RUNNING	2
-#define VCORE_EXITING	3
+#define VCORE_PREEMPT	2
+#define VCORE_RUNNING	3
+#define VCORE_EXITING	4
 
 /*
  * Struct used to manage memory for a virtual processor area
