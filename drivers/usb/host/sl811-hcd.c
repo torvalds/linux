@@ -1091,7 +1091,7 @@ sl811h_hub_descriptor (
 ) {
 	u16		temp = 0;
 
-	desc->bDescriptorType = 0x29;
+	desc->bDescriptorType = USB_DT_HUB;
 	desc->bHubContrCurrent = 0;
 
 	desc->bNbrPorts = 1;
