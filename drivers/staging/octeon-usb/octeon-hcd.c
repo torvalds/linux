@@ -394,12 +394,13 @@ struct octeon_hcd {
 };
 
 /* This macro spins on a field waiting for it to reach a value */
-#define CVMX_WAIT_FOR_FIELD32(address, type, field, op, value, timeout_usec)\
+#define CVMX_WAIT_FOR_FIELD32(address, _union, field, op, value, timeout_usec)\
 	({int result;							    \
 	do {								    \
 		uint64_t done = cvmx_get_cycle() + (uint64_t)timeout_usec * \
 			octeon_get_clock_rate() / 1000000;		    \
-		type c;							    \
+		union _union c;						    \
+									    \
 		while (1) {						    \
 			c.u32 = cvmx_usb_read_csr32(usb, address);	    \
 			if (c.s.field op (value)) {			    \
@@ -418,9 +419,10 @@ struct octeon_hcd {
  * This macro logically sets a single field in a CSR. It does the sequence
  * read, modify, and write
  */
-#define USB_SET_FIELD32(address, type, field, value)		\
+#define USB_SET_FIELD32(address, _union, field, value)		\
 	do {							\
-		type c;						\
+		union _union c;					\
+								\
 		c.u32 = cvmx_usb_read_csr32(usb, address);	\
 		c.s.field = value;				\
 		cvmx_usb_write_csr32(usb, address, c.u32);	\
@@ -621,9 +623,8 @@ static void cvmx_fifo_setup(struct cvmx_usb_state *usb)
 	 * Program the USBC_GRXFSIZ register to select the size of the receive
 	 * FIFO (25%).
 	 */
-	USB_SET_FIELD32(CVMX_USBCX_GRXFSIZ(usb->index),
-			union cvmx_usbcx_grxfsiz, rxfdep,
-			usbcx_ghwcfg3.s.dfifodepth / 4);
+	USB_SET_FIELD32(CVMX_USBCX_GRXFSIZ(usb->index), cvmx_usbcx_grxfsiz,
+			rxfdep, usbcx_ghwcfg3.s.dfifodepth / 4);
 
 	/*
 	 * Program the USBC_GNPTXFSIZ register to select the size and the start
@@ -647,17 +648,15 @@ static void cvmx_fifo_setup(struct cvmx_usb_state *usb)
 
 	/* Flush all FIFOs */
 	USB_SET_FIELD32(CVMX_USBCX_GRSTCTL(usb->index),
-			union cvmx_usbcx_grstctl, txfnum, 0x10);
+			cvmx_usbcx_grstctl, txfnum, 0x10);
 	USB_SET_FIELD32(CVMX_USBCX_GRSTCTL(usb->index),
-			union cvmx_usbcx_grstctl, txfflsh, 1);
+			cvmx_usbcx_grstctl, txfflsh, 1);
 	CVMX_WAIT_FOR_FIELD32(CVMX_USBCX_GRSTCTL(usb->index),
-			      union cvmx_usbcx_grstctl,
-			      txfflsh, ==, 0, 100);
+			      cvmx_usbcx_grstctl, txfflsh, ==, 0, 100);
 	USB_SET_FIELD32(CVMX_USBCX_GRSTCTL(usb->index),
-			union cvmx_usbcx_grstctl, rxfflsh, 1);
+			cvmx_usbcx_grstctl, rxfflsh, 1);
 	CVMX_WAIT_FOR_FIELD32(CVMX_USBCX_GRSTCTL(usb->index),
-			      union cvmx_usbcx_grstctl,
-			      rxfflsh, ==, 0, 100);
+			      cvmx_usbcx_grstctl, rxfflsh, ==, 0, 100);
 }
 
 /**
@@ -926,9 +925,9 @@ retry:
 	 *    USBC_GINTMSK[PRTINT] = 1
 	 */
 	USB_SET_FIELD32(CVMX_USBCX_GINTMSK(usb->index),
-			union cvmx_usbcx_gintmsk, prtintmsk, 1);
+			cvmx_usbcx_gintmsk, prtintmsk, 1);
 	USB_SET_FIELD32(CVMX_USBCX_GINTMSK(usb->index),
-			union cvmx_usbcx_gintmsk, disconnintmsk, 1);
+			cvmx_usbcx_gintmsk, disconnintmsk, 1);
 
 	/*
 	 * 2. Program the USBC_HCFG register to select full-speed host
@@ -975,7 +974,7 @@ static void cvmx_usb_reset_port(struct cvmx_usb_state *usb)
 						  CVMX_USBCX_HPRT(usb->index));
 
 	/* Program the port reset bit to start the reset process */
-	USB_SET_FIELD32(CVMX_USBCX_HPRT(usb->index), union cvmx_usbcx_hprt,
+	USB_SET_FIELD32(CVMX_USBCX_HPRT(usb->index), cvmx_usbcx_hprt,
 			prtrst, 1);
 
 	/*
@@ -985,7 +984,7 @@ static void cvmx_usb_reset_port(struct cvmx_usb_state *usb)
 	mdelay(50);
 
 	/* Program the port reset bit to 0, USBC_HPRT[PRTRST] = 0 */
-	USB_SET_FIELD32(CVMX_USBCX_HPRT(usb->index), union cvmx_usbcx_hprt,
+	USB_SET_FIELD32(CVMX_USBCX_HPRT(usb->index), cvmx_usbcx_hprt,
 			prtrst, 0);
 
 	/*
@@ -1010,7 +1009,7 @@ static void cvmx_usb_reset_port(struct cvmx_usb_state *usb)
 static int cvmx_usb_disable(struct cvmx_usb_state *usb)
 {
 	/* Disable the port */
-	USB_SET_FIELD32(CVMX_USBCX_HPRT(usb->index), union cvmx_usbcx_hprt,
+	USB_SET_FIELD32(CVMX_USBCX_HPRT(usb->index), cvmx_usbcx_hprt,
 			prtena, 1);
 	return 0;
 }
@@ -1285,12 +1284,10 @@ static void cvmx_usb_poll_tx_fifo(struct cvmx_usb_state *usb)
 		if (cvmx_usb_fill_tx_hw(usb, &usb->periodic,
 					tx_status.s.ptxfspcavail))
 			USB_SET_FIELD32(CVMX_USBCX_GINTMSK(usb->index),
-					union cvmx_usbcx_gintmsk,
-					ptxfempmsk, 1);
+					cvmx_usbcx_gintmsk, ptxfempmsk, 1);
 		else
 			USB_SET_FIELD32(CVMX_USBCX_GINTMSK(usb->index),
-					union cvmx_usbcx_gintmsk,
-					ptxfempmsk, 0);
+					cvmx_usbcx_gintmsk, ptxfempmsk, 0);
 	}
 
 	if (usb->nonperiodic.head != usb->nonperiodic.tail) {
@@ -1301,12 +1298,10 @@ static void cvmx_usb_poll_tx_fifo(struct cvmx_usb_state *usb)
 		if (cvmx_usb_fill_tx_hw(usb, &usb->nonperiodic,
 					tx_status.s.nptxfspcavail))
 			USB_SET_FIELD32(CVMX_USBCX_GINTMSK(usb->index),
-					union cvmx_usbcx_gintmsk,
-					nptxfempmsk, 1);
+					cvmx_usbcx_gintmsk, nptxfempmsk, 1);
 		else
 			USB_SET_FIELD32(CVMX_USBCX_GINTMSK(usb->index),
-					union cvmx_usbcx_gintmsk,
-					nptxfempmsk, 0);
+					cvmx_usbcx_gintmsk, nptxfempmsk, 0);
 	}
 }
 
@@ -1401,7 +1396,7 @@ static void cvmx_usb_start_channel_control(struct cvmx_usb_state *usb,
 		bytes_to_transfer = sizeof(*header);
 		/* All Control operations start with a setup going OUT */
 		USB_SET_FIELD32(CVMX_USBCX_HCCHARX(channel, usb->index),
-				union cvmx_usbcx_hccharx, epdir,
+				cvmx_usbcx_hccharx, epdir,
 				CVMX_USB_DIRECTION_OUT);
 		/*
 		 * Setup send the control header instead of the buffer data. The
@@ -1416,11 +1411,11 @@ static void cvmx_usb_start_channel_control(struct cvmx_usb_state *usb,
 		bytes_to_transfer = 0;
 		/* All Control operations start with a setup going OUT */
 		USB_SET_FIELD32(CVMX_USBCX_HCCHARX(channel, usb->index),
-				union cvmx_usbcx_hccharx, epdir,
+				cvmx_usbcx_hccharx, epdir,
 				CVMX_USB_DIRECTION_OUT);
 
 		USB_SET_FIELD32(CVMX_USBCX_HCSPLTX(channel, usb->index),
-				union cvmx_usbcx_hcspltx, compsplt, 1);
+				cvmx_usbcx_hcspltx, compsplt, 1);
 		break;
 	case CVMX_USB_STAGE_DATA:
 		usbc_hctsiz.s.pid = cvmx_usb_get_data_pid(pipe);
@@ -1431,7 +1426,7 @@ static void cvmx_usb_start_channel_control(struct cvmx_usb_state *usb,
 				bytes_to_transfer = pipe->max_packet;
 		}
 		USB_SET_FIELD32(CVMX_USBCX_HCCHARX(channel, usb->index),
-				union cvmx_usbcx_hccharx, epdir,
+				cvmx_usbcx_hccharx, epdir,
 				((header->bRequestType & USB_DIR_IN) ?
 					CVMX_USB_DIRECTION_IN :
 					CVMX_USB_DIRECTION_OUT));
@@ -1441,18 +1436,18 @@ static void cvmx_usb_start_channel_control(struct cvmx_usb_state *usb,
 		if (!(header->bRequestType & USB_DIR_IN))
 			bytes_to_transfer = 0;
 		USB_SET_FIELD32(CVMX_USBCX_HCCHARX(channel, usb->index),
-				union cvmx_usbcx_hccharx, epdir,
+				cvmx_usbcx_hccharx, epdir,
 				((header->bRequestType & USB_DIR_IN) ?
 					CVMX_USB_DIRECTION_IN :
 					CVMX_USB_DIRECTION_OUT));
 		USB_SET_FIELD32(CVMX_USBCX_HCSPLTX(channel, usb->index),
-				union cvmx_usbcx_hcspltx, compsplt, 1);
+				cvmx_usbcx_hcspltx, compsplt, 1);
 		break;
 	case CVMX_USB_STAGE_STATUS:
 		usbc_hctsiz.s.pid = cvmx_usb_get_data_pid(pipe);
 		bytes_to_transfer = 0;
 		USB_SET_FIELD32(CVMX_USBCX_HCCHARX(channel, usb->index),
-				union cvmx_usbcx_hccharx, epdir,
+				cvmx_usbcx_hccharx, epdir,
 				((header->bRequestType & USB_DIR_IN) ?
 					CVMX_USB_DIRECTION_OUT :
 					CVMX_USB_DIRECTION_IN));
@@ -1461,12 +1456,12 @@ static void cvmx_usb_start_channel_control(struct cvmx_usb_state *usb,
 		usbc_hctsiz.s.pid = cvmx_usb_get_data_pid(pipe);
 		bytes_to_transfer = 0;
 		USB_SET_FIELD32(CVMX_USBCX_HCCHARX(channel, usb->index),
-				union cvmx_usbcx_hccharx, epdir,
+				cvmx_usbcx_hccharx, epdir,
 				((header->bRequestType & USB_DIR_IN) ?
 					CVMX_USB_DIRECTION_OUT :
 					CVMX_USB_DIRECTION_IN));
 		USB_SET_FIELD32(CVMX_USBCX_HCSPLTX(channel, usb->index),
-				union cvmx_usbcx_hcspltx, compsplt, 1);
+				cvmx_usbcx_hcspltx, compsplt, 1);
 		break;
 	}
 
@@ -1830,14 +1825,12 @@ static void cvmx_usb_start_channel(struct cvmx_usb_state *usb, int channel,
 					USB_SET_FIELD32(
 						CVMX_USBCX_HCTSIZX(channel,
 								   usb->index),
-						union cvmx_usbcx_hctsizx,
-						pid, 0);
+						cvmx_usbcx_hctsizx, pid, 0);
 				else /* Need MDATA */
 					USB_SET_FIELD32(
 						CVMX_USBCX_HCTSIZX(channel,
 								   usb->index),
-						union cvmx_usbcx_hctsizx,
-						pid, 3);
+						cvmx_usbcx_hctsizx, pid, 3);
 			}
 		}
 		break;
@@ -1853,7 +1846,7 @@ static void cvmx_usb_start_channel(struct cvmx_usb_state *usb, int channel,
 	if (cvmx_usb_pipe_needs_split(usb, pipe))
 		usb->active_split = transaction;
 	USB_SET_FIELD32(CVMX_USBCX_HCCHARX(channel, usb->index),
-			union cvmx_usbcx_hccharx, chena, 1);
+			cvmx_usbcx_hccharx, chena, 1);
 	if (usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_NO_DMA)
 		cvmx_usb_fill_tx_fifo(usb, channel);
 }
@@ -1983,7 +1976,7 @@ done:
 		}
 	}
 	USB_SET_FIELD32(CVMX_USBCX_GINTMSK(usb->index),
-			union cvmx_usbcx_gintmsk, sofmsk, need_sof);
+			cvmx_usbcx_gintmsk, sofmsk, need_sof);
 }
 
 static void octeon_usb_urb_complete_callback(struct cvmx_usb_state *usb,
@@ -3527,7 +3520,7 @@ static int octeon_usb_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			 */
 			spin_lock_irqsave(&priv->lock, flags);
 			USB_SET_FIELD32(CVMX_USBCX_HPRT(usb->index),
-					union cvmx_usbcx_hprt, prtpwr, 1);
+					cvmx_usbcx_hprt, prtpwr, 1);
 			spin_unlock_irqrestore(&priv->lock, flags);
 			return 0;
 		case USB_PORT_FEAT_RESET:
