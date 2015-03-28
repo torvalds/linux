@@ -3027,13 +3027,13 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	if (opcode != HCI_OP_NOP)
 		cancel_delayed_work(&hdev->cmd_timer);
 
+	if (ev->ncmd && !test_bit(HCI_RESET, &hdev->flags))
+		atomic_set(&hdev->cmd_cnt, 1);
+
 	hci_req_cmd_complete(hdev, opcode, status);
 
-	if (ev->ncmd && !test_bit(HCI_RESET, &hdev->flags)) {
-		atomic_set(&hdev->cmd_cnt, 1);
-		if (!skb_queue_empty(&hdev->cmd_q))
-			queue_work(hdev->workqueue, &hdev->cmd_work);
-	}
+	if (atomic_read(&hdev->cmd_cnt) && !skb_queue_empty(&hdev->cmd_q))
+		queue_work(hdev->workqueue, &hdev->cmd_work);
 }
 
 static void hci_cmd_status_evt(struct hci_dev *hdev, struct sk_buff *skb)
@@ -3122,15 +3122,15 @@ static void hci_cmd_status_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	if (opcode != HCI_OP_NOP)
 		cancel_delayed_work(&hdev->cmd_timer);
 
+	if (ev->ncmd && !test_bit(HCI_RESET, &hdev->flags))
+		atomic_set(&hdev->cmd_cnt, 1);
+
 	if (ev->status ||
 	    (hdev->sent_cmd && !bt_cb(hdev->sent_cmd)->req_event))
 		hci_req_cmd_complete(hdev, opcode, ev->status);
 
-	if (ev->ncmd && !test_bit(HCI_RESET, &hdev->flags)) {
-		atomic_set(&hdev->cmd_cnt, 1);
-		if (!skb_queue_empty(&hdev->cmd_q))
-			queue_work(hdev->workqueue, &hdev->cmd_work);
-	}
+	if (atomic_read(&hdev->cmd_cnt) && !skb_queue_empty(&hdev->cmd_q))
+		queue_work(hdev->workqueue, &hdev->cmd_work);
 }
 
 static void hci_hardware_error_evt(struct hci_dev *hdev, struct sk_buff *skb)
