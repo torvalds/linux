@@ -95,7 +95,7 @@ ifndef NO_LIBELF
   FEATURE_CHECK_LDFLAGS-libdw-dwarf-unwind := $(LIBDW_LDFLAGS) -ldw
 endif
 
-ifndef NO_LIBBABELTRACE
+ifdef LIBBABELTRACE
   # for linking with debug library, run like:
   # make DEBUG=1 LIBBABELTRACE_DIR=/opt/libbabeltrace/
   ifdef LIBBABELTRACE_DIR
@@ -598,7 +598,7 @@ else
   NO_PERF_READ_VDSOX32 := 1
 endif
 
-ifndef NO_LIBBABELTRACE
+ifdef LIBBABELTRACE
   $(call feature_check,libbabeltrace)
   ifeq ($(feature-libbabeltrace), 1)
     CFLAGS += -DHAVE_LIBBABELTRACE_SUPPORT $(LIBBABELTRACE_CFLAGS)
@@ -607,7 +607,6 @@ ifndef NO_LIBBABELTRACE
     $(call detected,CONFIG_LIBBABELTRACE)
   else
     msg := $(warning No libbabeltrace found, disables 'perf data' CTF format support, please install libbabeltrace-dev[el]/libbabeltrace-ctf-dev);
-    NO_LIBBABELTRACE := 1
   endif
 endif
 
