@@ -110,7 +110,7 @@ static struct lgdt3306a_config hauppauge_hvr2255b_config = {
 };
 
 static struct si2157_config hauppauge_hvr2255_tuner_config = {
-	.inversion = 0,
+	.inversion = 1,
 };
 
 static int si2157_attach(struct saa7164_port *port, struct i2c_adapter *adapter,
