@@ -393,8 +393,8 @@ struct octeon_hcd {
 	struct cvmx_usb_state usb;
 };
 
-/* This macro spins on a field waiting for it to reach a value */
-#define CVMX_WAIT_FOR_FIELD32(address, _union, field, op, value, timeout_usec)\
+/* This macro spins on a register waiting for it to reach a condition. */
+#define CVMX_WAIT_FOR_FIELD32(address, _union, cond, timeout_usec)	    \
 	({int result;							    \
 	do {								    \
 		uint64_t done = cvmx_get_cycle() + (uint64_t)timeout_usec * \
@@ -403,7 +403,8 @@ struct octeon_hcd {
 									    \
 		while (1) {						    \
 			c.u32 = cvmx_usb_read_csr32(usb, address);	    \
-			if (c.s.field op (value)) {			    \
+									    \
+			if (cond) {					    \
 				result = 0;				    \
 				break;					    \
 			} else if (cvmx_get_cycle() > done) {		    \
@@ -652,11 +653,11 @@ static void cvmx_fifo_setup(struct cvmx_usb_state *usb)
 	USB_SET_FIELD32(CVMX_USBCX_GRSTCTL(usb->index),
 			cvmx_usbcx_grstctl, txfflsh, 1);
 	CVMX_WAIT_FOR_FIELD32(CVMX_USBCX_GRSTCTL(usb->index),
-			      cvmx_usbcx_grstctl, txfflsh, ==, 0, 100);
+			      cvmx_usbcx_grstctl, c.s.txfflsh == 0, 100);
 	USB_SET_FIELD32(CVMX_USBCX_GRSTCTL(usb->index),
 			cvmx_usbcx_grstctl, rxfflsh, 1);
 	CVMX_WAIT_FOR_FIELD32(CVMX_USBCX_GRSTCTL(usb->index),
-			      cvmx_usbcx_grstctl, rxfflsh, ==, 0, 100);
+			      cvmx_usbcx_grstctl, c.s.rxfflsh == 0, 100);
 }
 
 /**
