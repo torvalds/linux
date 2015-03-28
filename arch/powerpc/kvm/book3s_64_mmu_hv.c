@@ -27,6 +27,7 @@
 #include <linux/srcu.h>
 #include <linux/anon_inodes.h>
 #include <linux/file.h>
+#include <linux/debugfs.h>
 
 #include <asm/tlbflush.h>
 #include <asm/kvm_ppc.h>
@@ -1488,6 +1489,141 @@ int kvm_vm_ioctl_get_htab_fd(struct kvm *kvm, struct kvm_get_htab_fd *ghf)
 	}
 
 	return ret;
+}
+
+struct debugfs_htab_state {
+	struct kvm	*kvm;
+	struct mutex	mutex;
+	unsigned long	hpt_index;
+	int		chars_left;
+	int		buf_index;
+	char		buf[64];
+};
+
+static int debugfs_htab_open(struct inode *inode, struct file *file)
+{
+	struct kvm *kvm = inode->i_private;
+	struct debugfs_htab_state *p;
+
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	if (!p)
+		return -ENOMEM;
+
+	kvm_get_kvm(kvm);
+	p->kvm = kvm;
+	mutex_init(&p->mutex);
+	file->private_data = p;
+
+	return nonseekable_open(inode, file);
+}
+
+static int debugfs_htab_release(struct inode *inode, struct file *file)
+{
+	struct debugfs_htab_state *p = file->private_data;
+
+	kvm_put_kvm(p->kvm);
+	kfree(p);
+	return 0;
+}
+
+static ssize_t debugfs_htab_read(struct file *file, char __user *buf,
+				 size_t len, loff_t *ppos)
+{
+	struct debugfs_htab_state *p = file->private_data;
+	ssize_t ret, r;
+	unsigned long i, n;
+	unsigned long v, hr, gr;
+	struct kvm *kvm;
+	__be64 *hptp;
+
+	ret = mutex_lock_interruptible(&p->mutex);
+	if (ret)
+		return ret;
+
+	if (p->chars_left) {
+		n = p->chars_left;
+		if (n > len)
+			n = len;
+		r = copy_to_user(buf, p->buf + p->buf_index, n);
+		n -= r;
+		p->chars_left -= n;
+		p->buf_index += n;
+		buf += n;
+		len -= n;
+		ret = n;
+		if (r) {
+			if (!n)
+				ret = -EFAULT;
+			goto out;
+		}
+	}
+
+	kvm = p->kvm;
+	i = p->hpt_index;
+	hptp = (__be64 *)(kvm->arch.hpt_virt + (i * HPTE_SIZE));
+	for (; len != 0 && i < kvm->arch.hpt_npte; ++i, hptp += 2) {
+		if (!(be64_to_cpu(hptp[0]) & (HPTE_V_VALID | HPTE_V_ABSENT)))
+			continue;
+
+		/* lock the HPTE so it's stable and read it */
+		preempt_disable();
+		while (!try_lock_hpte(hptp, HPTE_V_HVLOCK))
+			cpu_relax();
+		v = be64_to_cpu(hptp[0]) & ~HPTE_V_HVLOCK;
+		hr = be64_to_cpu(hptp[1]);
+		gr = kvm->arch.revmap[i].guest_rpte;
+		unlock_hpte(hptp, v);
+		preempt_enable();
+
+		if (!(v & (HPTE_V_VALID | HPTE_V_ABSENT)))
+			continue;
+
+		n = scnprintf(p->buf, sizeof(p->buf),
+			      "%6lx %.16lx %.16lx %.16lx\n",
+			      i, v, hr, gr);
+		p->chars_left = n;
+		if (n > len)
+			n = len;
+		r = copy_to_user(buf, p->buf, n);
+		n -= r;
+		p->chars_left -= n;
+		p->buf_index = n;
+		buf += n;
+		len -= n;
+		ret += n;
+		if (r) {
+			if (!ret)
+				ret = -EFAULT;
+			goto out;
+		}
+	}
+	p->hpt_index = i;
+
+ out:
+	mutex_unlock(&p->mutex);
+	return ret;
+}
+
+ssize_t debugfs_htab_write(struct file *file, const char __user *buf,
+			   size_t len, loff_t *ppos)
+{
+	return -EACCES;
+}
+
+static const struct file_operations debugfs_htab_fops = {
+	.owner	 = THIS_MODULE,
+	.open	 = debugfs_htab_open,
+	.release = debugfs_htab_release,
+	.read	 = debugfs_htab_read,
+	.write	 = debugfs_htab_write,
+	.llseek	 = generic_file_llseek,
+};
+
+void kvmppc_mmu_debugfs_init(struct kvm *kvm)
+{
+	kvm->arch.htab_dentry = debugfs_create_file("htab", 0400,
+						    kvm->arch.debugfs_dir, kvm,
+						    &debugfs_htab_fops);
 }
 
 void kvmppc_mmu_book3s_hv_init(struct kvm_vcpu *vcpu)
