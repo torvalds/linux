@@ -42,6 +42,7 @@
 #define DEBUG_SUBSYSTEM S_LOV
 
 #include "lov_cl_internal.h"
+#include "../include/lclient.h"
 
 /** \addtogroup lov
  *  @{
