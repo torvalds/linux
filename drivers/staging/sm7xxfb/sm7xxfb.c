@@ -943,6 +943,7 @@ static void smtcfb_pci_remove(struct pci_dev *pdev)
 	unregister_framebuffer(&sfb->fb);
 	smtc_free_fb_info(sfb);
 	pci_release_region(pdev, 0);
+	pci_disable_device(pdev);
 }
 
 #ifdef CONFIG_PM
