@@ -1776,7 +1776,7 @@ static void ad_initialize_port(struct port *port, int lacp_fast)
 
 		port->is_enabled = true;
 		/* private parameters */
-		port->sm_vars = 0x3;
+		port->sm_vars = AD_PORT_BEGIN | AD_PORT_LACP_ENABLED;
 		port->sm_rx_state = 0;
 		port->sm_rx_timer_counter = 0;
 		port->sm_periodic_state = 0;
