@@ -505,7 +505,7 @@ static void ipvlan_link_delete(struct net_device *dev, struct list_head *head)
 	if (ipvlan->ipv6cnt > 0 || ipvlan->ipv4cnt > 0) {
 		list_for_each_entry_safe(addr, next, &ipvlan->addrs, anode) {
 			ipvlan_ht_addr_del(addr, !dev->dismantle);
-			list_del_rcu(&addr->anode);
+			list_del(&addr->anode);
 		}
 	}
 	list_del_rcu(&ipvlan->pnode);
@@ -620,7 +620,7 @@ static int ipvlan_add_addr6(struct ipvl_dev *ipvlan, struct in6_addr *ip6_addr)
 	addr->master = ipvlan;
 	memcpy(&addr->ip6addr, ip6_addr, sizeof(struct in6_addr));
 	addr->atype = IPVL_IPV6;
-	list_add_tail_rcu(&addr->anode, &ipvlan->addrs);
+	list_add_tail(&addr->anode, &ipvlan->addrs);
 	ipvlan->ipv6cnt++;
 	/* If the interface is not up, the address will be added to the hash
 	 * list by ipvlan_open.
@@ -640,7 +640,7 @@ static void ipvlan_del_addr6(struct ipvl_dev *ipvlan, struct in6_addr *ip6_addr)
 		return;
 
 	ipvlan_ht_addr_del(addr, true);
-	list_del_rcu(&addr->anode);
+	list_del(&addr->anode);
 	ipvlan->ipv6cnt--;
 	WARN_ON(ipvlan->ipv6cnt < 0);
 	kfree_rcu(addr, rcu);
@@ -692,7 +692,7 @@ static int ipvlan_add_addr4(struct ipvl_dev *ipvlan, struct in_addr *ip4_addr)
 	addr->master = ipvlan;
 	memcpy(&addr->ip4addr, ip4_addr, sizeof(struct in_addr));
 	addr->atype = IPVL_IPV4;
-	list_add_tail_rcu(&addr->anode, &ipvlan->addrs);
+	list_add_tail(&addr->anode, &ipvlan->addrs);
 	ipvlan->ipv4cnt++;
 	/* If the interface is not up, the address will be added to the hash
 	 * list by ipvlan_open.
@@ -713,7 +713,7 @@ static void ipvlan_del_addr4(struct ipvl_dev *ipvlan, struct in_addr *ip4_addr)
 		return;
 
 	ipvlan_ht_addr_del(addr, true);
-	list_del_rcu(&addr->anode);
+	list_del(&addr->anode);
 	ipvlan->ipv4cnt--;
 	WARN_ON(ipvlan->ipv4cnt < 0);
 	if (!ipvlan->ipv4cnt)
