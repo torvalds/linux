@@ -40,6 +40,7 @@
 #include <linux/statfs.h>
 #include "../include/lprocfs_status.h"
 #include "../include/obd_class.h"
+#include "lmv_internal.h"
 
 static int lmv_numobd_seq_show(struct seq_file *m, void *v)
 {
