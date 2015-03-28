@@ -419,7 +419,8 @@ rd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 			data_direction == DMA_FROM_DEVICE ? "Read" : "Write",
 			cmd->t_task_lba, rd_size, rd_page, rd_offset);
 
-	if (cmd->prot_type && data_direction == DMA_TO_DEVICE) {
+	if (cmd->prot_type && se_dev->dev_attrib.pi_prot_type &&
+	    data_direction == DMA_TO_DEVICE) {
 		struct rd_dev_sg_table *prot_table;
 		struct scatterlist *prot_sg;
 		u32 sectors = cmd->data_length / se_dev->dev_attrib.block_size;
@@ -502,7 +503,8 @@ rd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 	}
 	sg_miter_stop(&m);
 
-	if (cmd->prot_type && data_direction == DMA_FROM_DEVICE) {
+	if (cmd->prot_type && se_dev->dev_attrib.pi_prot_type &&
+	    data_direction == DMA_FROM_DEVICE) {
 		struct rd_dev_sg_table *prot_table;
 		struct scatterlist *prot_sg;
 		u32 sectors = cmd->data_length / se_dev->dev_attrib.block_size;
