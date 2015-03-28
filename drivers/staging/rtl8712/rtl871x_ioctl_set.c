@@ -266,8 +266,7 @@ void r8712_set_802_11_infrastructure_mode(struct _adapter *padapter,
 		/* clear WIFI_STATION_STATE; WIFI_AP_STATE; WIFI_ADHOC_STATE;
 		 * WIFI_ADHOC_MASTER_STATE */
 		_clr_fwstate_(pmlmepriv, WIFI_STATION_STATE | WIFI_AP_STATE |
-			      WIFI_ADHOC_STATE | WIFI_ADHOC_MASTER_STATE |
-			      WIFI_AP_STATE);
+			      WIFI_ADHOC_STATE | WIFI_ADHOC_MASTER_STATE);
 		switch (networktype) {
 		case Ndis802_11IBSS:
 			set_fwstate(pmlmepriv, WIFI_ADHOC_STATE);
