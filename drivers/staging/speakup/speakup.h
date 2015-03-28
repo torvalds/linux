@@ -61,10 +61,12 @@ extern struct st_var_header *spk_get_var_header(enum var_id_t var_id);
 extern struct st_var_header *spk_var_header_by_name(const char *name);
 extern struct punc_var_t *spk_get_punc_var(enum var_id_t var_id);
 extern int spk_set_num_var(int val, struct st_var_header *var, int how);
-extern int spk_set_string_var(const char *page, struct st_var_header *var, int len);
+extern int spk_set_string_var(const char *page, struct st_var_header *var,
+				int len);
 extern int spk_set_mask_bits(const char *input, const int which, const int how);
 extern special_func spk_special_handler;
-extern int spk_handle_help(struct vc_data *vc, u_char type, u_char ch, u_short key);
+extern int spk_handle_help(struct vc_data *vc, u_char type, u_char ch,
+				u_short key);
 extern int synth_init(char *name);
 extern void synth_release(void);
 
