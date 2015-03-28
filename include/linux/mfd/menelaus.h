@@ -24,7 +24,6 @@ extern int menelaus_set_vaux(unsigned int mV);
 extern int menelaus_set_vdcdc(int dcdc, unsigned int mV);
 extern int menelaus_set_slot_sel(int enable);
 extern int menelaus_get_slot_pin_states(void);
-extern int menelaus_set_vcore_sw(unsigned int mV);
 extern int menelaus_set_vcore_hw(unsigned int roof_mV, unsigned int floor_mV);
 
 #define EN_VPLL_SLEEP	(1 << 7)

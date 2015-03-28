@@ -532,29 +532,6 @@ static const struct menelaus_vtg_value vcore_values[] = {
 	{ 1450, 18 },
 };
 
-int menelaus_set_vcore_sw(unsigned int mV)
-{
-	int val, ret;
-	struct i2c_client *c = the_menelaus->client;
-
-	val = menelaus_get_vtg_value(mV, vcore_values,
-				     ARRAY_SIZE(vcore_values));
-	if (val < 0)
-		return -EINVAL;
-
-	dev_dbg(&c->dev, "Setting VCORE to %d mV (val 0x%02x)\n", mV, val);
-
-	/* Set SW mode and the voltage in one go. */
-	mutex_lock(&the_menelaus->lock);
-	ret = menelaus_write_reg(MENELAUS_VCORE_CTRL1, val);
-	if (ret == 0)
-		the_menelaus->vcore_hw_mode = 0;
-	mutex_unlock(&the_menelaus->lock);
-	msleep(1);
-
-	return ret;
-}
-
 int menelaus_set_vcore_hw(unsigned int roof_mV, unsigned int floor_mV)
 {
 	int fval, rval, val, ret;
