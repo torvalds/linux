@@ -22,6 +22,7 @@
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
 #include <asm/archrandom.h>
+#include <asm/xics.h>
 
 #define KVM_CMA_CHUNK_ORDER	18
 
@@ -183,4 +184,66 @@ long kvmppc_h_random(struct kvm_vcpu *vcpu)
 		return H_SUCCESS;
 
 	return H_HARDWARE;
+}
+
+static inline void rm_writeb(unsigned long paddr, u8 val)
+{
+	__asm__ __volatile__("stbcix %0,0,%1"
+		: : "r" (val), "r" (paddr) : "memory");
+}
+
+/*
+ * Send an interrupt to another CPU.
+ * This can only be called in real mode.
+ * The caller needs to include any barrier needed to order writes
+ * to memory vs. the IPI/message.
+ */
+void kvmhv_rm_send_ipi(int cpu)
+{
+	unsigned long xics_phys;
+
+	/* Poke the target */
+	xics_phys = paca[cpu].kvm_hstate.xics_phys;
+	rm_writeb(xics_phys + XICS_MFRR, IPI_PRIORITY);
+}
+
+/*
+ * The following functions are called from the assembly code
+ * in book3s_hv_rmhandlers.S.
+ */
+static void kvmhv_interrupt_vcore(struct kvmppc_vcore *vc, int active)
+{
+	int cpu = vc->pcpu;
+
+	/* Order setting of exit map vs. msgsnd/IPI */
+	smp_mb();
+	for (; active; active >>= 1, ++cpu)
+		if (active & 1)
+			kvmhv_rm_send_ipi(cpu);
+}
+
+void kvmhv_commence_exit(int trap)
+{
+	struct kvmppc_vcore *vc = local_paca->kvm_hstate.kvm_vcore;
+	int ptid = local_paca->kvm_hstate.ptid;
+	int me, ee;
+
+	/* Set our bit in the threads-exiting-guest map in the 0xff00
+	   bits of vcore->entry_exit_map */
+	me = 0x100 << ptid;
+	do {
+		ee = vc->entry_exit_map;
+	} while (cmpxchg(&vc->entry_exit_map, ee, ee | me) != ee);
+
+	/* Are we the first here? */
+	if ((ee >> 8) != 0)
+		return;
+
+	/*
+	 * Trigger the other threads in this vcore to exit the guest.
+	 * If this is a hypervisor decrementer interrupt then they
+	 * will be already on their way out of the guest.
+	 */
+	if (trap != BOOK3S_INTERRUPT_HV_DECREMENTER)
+		kvmhv_interrupt_vcore(vc, ee & ~(1 << ptid));
 }

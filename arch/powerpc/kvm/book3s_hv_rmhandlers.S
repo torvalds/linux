@@ -264,7 +264,11 @@ kvm_novcpu_exit:
 	addi	r3, r4, VCPU_TB_RMEXIT
 	bl	kvmhv_accumulate_time
 #endif
-13:	bl	kvmhv_commence_exit
+13:	mr	r3, r12
+	stw	r12, 112-4(r1)
+	bl	kvmhv_commence_exit
+	nop
+	lwz	r12, 112-4(r1)
 	b	kvmhv_switch_to_host
 
 /*
@@ -1161,6 +1165,9 @@ mc_cont:
 
 	/* Increment exit count, poke other threads to exit */
 	bl	kvmhv_commence_exit
+	nop
+	ld	r9, HSTATE_KVM_VCPU(r13)
+	lwz	r12, VCPU_TRAP(r9)
 
 	/* Save guest CTRL register, set runlatch to 1 */
 	mfspr	r6,SPRN_CTRLF
@@ -1611,63 +1618,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 
 	ld	r0, 112+PPC_LR_STKOFF(r1)
 	addi	r1, r1, 112
-	mtlr	r0
-	blr
-
-kvmhv_commence_exit:		/* r12 = trap, r13 = paca, doesn't trash r9 */
-	mflr	r0
-	std	r0, PPC_LR_STKOFF(r1)
-	stdu	r1, -PPC_MIN_STKFRM(r1)
-
-	/* Set our bit in the threads-exiting-guest map in the 0xff00
-	   bits of vcore->entry_exit_map */
-	ld	r5, HSTATE_KVM_VCORE(r13)
-	lbz	r4, HSTATE_PTID(r13)
-	li	r7, 0x100
-	sld	r7, r7, r4
-	addi	r6, r5, VCORE_ENTRY_EXIT
-41:	lwarx	r3, 0, r6
-	or	r0, r3, r7
-	stwcx.	r0, 0, r6
-	bne	41b
-	isync		/* order stwcx. vs. reading napping_threads */
-
-	/*
-	 * At this point we have an interrupt that we have to pass
-	 * up to the kernel or qemu; we can't handle it in real mode.
-	 * Thus we have to do a partition switch, so we have to
-	 * collect the other threads, if we are the first thread
-	 * to take an interrupt.  To do this, we send a message or
-	 * IPI to all the threads that have their bit set in the entry
-	 * map in vcore->entry_exit_map (other than ourselves).
-	 * However, we don't need to bother if this is an HDEC
-	 * interrupt, since the other threads will already be on their
-	 * way here in that case.
-	 */
-	cmpwi	r3,0x100	/* Are we the first here? */
-	bge	43f
-	cmpwi	r12,BOOK3S_INTERRUPT_HV_DECREMENTER
-	beq	43f
-
-	srwi	r0,r7,8
-	andc.	r3,r3,r0		/* no sense IPI'ing ourselves */
-	beq	43f
-	/* Order entry/exit update vs. IPIs */
-	sync
-	mulli	r4,r4,PACA_SIZE		/* get paca for thread 0 */
-	subf	r6,r4,r13
-42:	andi.	r0,r3,1
-	beq	44f
-	ld	r8,HSTATE_XICS_PHYS(r6)	/* get thread's XICS reg addr */
-	li	r0,IPI_PRIORITY
-	li	r7,XICS_MFRR
-	stbcix	r0,r7,r8		/* trigger the IPI */
-44:	srdi.	r3,r3,1
-	addi	r6,r6,PACA_SIZE
-	bne	42b
-
-43:	ld	r0, PPC_MIN_STKFRM+PPC_LR_STKOFF(r1)
-	addi	r1, r1, PPC_MIN_STKFRM
 	mtlr	r0
 	blr
 
