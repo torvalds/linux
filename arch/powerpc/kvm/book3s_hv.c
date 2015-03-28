@@ -1863,6 +1863,25 @@ static void kvmppc_start_restoring_l2_cache(const struct kvmppc_vcore *vc)
 	mtspr(SPRN_MPPR, mpp_addr | PPC_MPPR_FETCH_WHOLE_TABLE);
 }
 
+static void prepare_threads(struct kvmppc_vcore *vc)
+{
+	struct kvm_vcpu *vcpu, *vnext;
+
+	list_for_each_entry_safe(vcpu, vnext, &vc->runnable_threads,
+				 arch.run_list) {
+		if (signal_pending(vcpu->arch.run_task))
+			vcpu->arch.ret = -EINTR;
+		else if (vcpu->arch.vpa.update_pending ||
+			 vcpu->arch.slb_shadow.update_pending ||
+			 vcpu->arch.dtl.update_pending)
+			vcpu->arch.ret = RESUME_GUEST;
+		else
+			continue;
+		kvmppc_remove_runnable(vc, vcpu);
+		wake_up(&vcpu->arch.cpu_run);
+	}
+}
+
 /*
  * Run a set of guest threads on a physical core.
  * Called with vc->lock held.
@@ -1872,44 +1891,29 @@ static void kvmppc_run_core(struct kvmppc_vcore *vc)
 	struct kvm_vcpu *vcpu, *vnext;
 	long ret;
 	u64 now;
-	int i, need_vpa_update;
+	int i;
 	int srcu_idx;
-	struct kvm_vcpu *vcpus_to_update[threads_per_core];
-
-	/* don't start if any threads have a signal pending */
-	need_vpa_update = 0;
-	list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list) {
-		if (signal_pending(vcpu->arch.run_task))
-			return;
-		if (vcpu->arch.vpa.update_pending ||
-		    vcpu->arch.slb_shadow.update_pending ||
-		    vcpu->arch.dtl.update_pending)
-			vcpus_to_update[need_vpa_update++] = vcpu;
-	}
 
 	/*
-	 * Initialize *vc, in particular vc->vcore_state, so we can
-	 * drop the vcore lock if necessary.
+	 * Remove from the list any threads that have a signal pending
+	 * or need a VPA update done
+	 */
+	prepare_threads(vc);
+
+	/* if the runner is no longer runnable, let the caller pick a new one */
+	if (vc->runner->arch.state != KVMPPC_VCPU_RUNNABLE)
+		return;
+
+	/*
+	 * Initialize *vc.
 	 */
 	vc->n_woken = 0;
 	vc->nap_count = 0;
 	vc->entry_exit_count = 0;
 	vc->preempt_tb = TB_NIL;
-	vc->vcore_state = VCORE_STARTING;
 	vc->in_guest = 0;
 	vc->napping_threads = 0;
 	vc->conferring_threads = 0;
-
-	/*
-	 * Updating any of the vpas requires calling kvmppc_pin_guest_page,
-	 * which can't be called with any spinlocks held.
-	 */
-	if (need_vpa_update) {
-		spin_unlock(&vc->lock);
-		for (i = 0; i < need_vpa_update; ++i)
-			kvmppc_update_vpas(vcpus_to_update[i]);
-		spin_lock(&vc->lock);
-	}
 
 	/*
 	 * Make sure we are running on primary threads, and that secondary
