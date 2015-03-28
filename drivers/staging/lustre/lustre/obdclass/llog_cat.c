@@ -692,7 +692,7 @@ int llog_cat_reverse_process(const struct lu_env *env,
 }
 EXPORT_SYMBOL(llog_cat_reverse_process);
 
-int llog_cat_set_first_idx(struct llog_handle *cathandle, int index)
+static int llog_cat_set_first_idx(struct llog_handle *cathandle, int index)
 {
 	struct llog_log_hdr *llh = cathandle->lgh_hdr;
 	int i, bitmap_size, idx;
@@ -751,7 +751,7 @@ int llog_cat_cleanup(const struct lu_env *env, struct llog_handle *cathandle,
 	return rc;
 }
 
-int cat_cancel_cb(const struct lu_env *env, struct llog_handle *cathandle,
+static int cat_cancel_cb(const struct lu_env *env, struct llog_handle *cathandle,
 		  struct llog_rec_hdr *rec, void *data)
 {
 	struct llog_logid_rec	*lir = (struct llog_logid_rec *)rec;
@@ -795,7 +795,6 @@ int cat_cancel_cb(const struct lu_env *env, struct llog_handle *cathandle,
 
 	return rc;
 }
-EXPORT_SYMBOL(cat_cancel_cb);
 
 /* helper to initialize catalog llog and process it to cancel */
 int llog_cat_init_and_process(const struct lu_env *env,
