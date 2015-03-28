@@ -774,7 +774,7 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 		sg_num--;
 	}
 
-	if (cmd->prot_type) {
+	if (cmd->prot_type && dev->dev_attrib.pi_prot_type) {
 		int rc = iblock_alloc_bip(cmd, bio_start);
 		if (rc)
 			goto fail_put_bios;
