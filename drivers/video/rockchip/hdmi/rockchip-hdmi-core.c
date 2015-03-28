@@ -217,10 +217,7 @@ static void hdmi_wq_insert(struct hdmi *hdmi)
 		/*hdmi->autoset = 0;*/
 		hdmi_wq_set_video(hdmi);
 		#ifdef CONFIG_SWITCH
-		if ((hdmi->edid.baseaudio_support &&
-		     hdmi->edid.sink_hdmi) ||
-		    rk_fb_get_display_policy() == DISPLAY_POLICY_BOX)
-			switch_set_state(&(hdmi->switchdev), 1);
+		switch_set_state(&(hdmi->switchdev), 1);
 		#endif
 		hdmi_wq_set_audio(hdmi);
 		hdmi_wq_set_output(hdmi, hdmi->mute);
@@ -242,10 +239,7 @@ static void hdmi_wq_remove(struct hdmi *hdmi)
 	if (hdmi->ops->remove)
 		hdmi->ops->remove(hdmi);
 	#ifdef CONFIG_SWITCH
-	if ((hdmi->edid.baseaudio_support &&
-	     hdmi->edid.sink_hdmi) ||
-	     rk_fb_get_display_policy() == DISPLAY_POLICY_BOX)
-		switch_set_state(&(hdmi->switchdev), 0);
+	switch_set_state(&(hdmi->switchdev), 0);
 	#endif
 	list_for_each_safe(pos, n, &hdmi->edid.modelist) {
 		list_del(pos);
