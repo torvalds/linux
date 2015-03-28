@@ -1194,11 +1194,13 @@ int vlv_force_gfx_clock(struct drm_i915_private *dev_priv, bool force_on)
 	int err;
 
 	val = I915_READ(VLV_GTLC_SURVIVABILITY_REG);
-	WARN_ON(!!(val & VLV_GFX_CLK_FORCE_ON_BIT) == force_on);
 
 #define COND (I915_READ(VLV_GTLC_SURVIVABILITY_REG) & VLV_GFX_CLK_STATUS_BIT)
 	/* Wait for a previous force-off to settle */
-	if (force_on) {
+	if (force_on && !IS_CHERRYVIEW(dev_priv->dev)) {
+		/* WARN_ON only for the Valleyview */
+		WARN_ON(!!(val & VLV_GFX_CLK_FORCE_ON_BIT) == force_on);
+
 		err = wait_for(!COND, 20);
 		if (err) {
 			DRM_ERROR("timeout waiting for GFX clock force-off (%08x)\n",
