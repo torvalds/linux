@@ -38,6 +38,7 @@
 #include <linux/vfs.h>
 #include "../include/obd_class.h"
 #include "../include/lprocfs_status.h"
+#include "mdc_internal.h"
 
 static int mdc_max_rpcs_in_flight_seq_show(struct seq_file *m, void *v)
 {
