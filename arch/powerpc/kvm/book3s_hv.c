@@ -1423,6 +1423,154 @@ static struct kvmppc_vcore *kvmppc_vcore_create(struct kvm *kvm, int core)
 	return vcore;
 }
 
+#ifdef CONFIG_KVM_BOOK3S_HV_EXIT_TIMING
+static struct debugfs_timings_element {
+	const char *name;
+	size_t offset;
+} timings[] = {
+	{"rm_entry",	offsetof(struct kvm_vcpu, arch.rm_entry)},
+	{"rm_intr",	offsetof(struct kvm_vcpu, arch.rm_intr)},
+	{"rm_exit",	offsetof(struct kvm_vcpu, arch.rm_exit)},
+	{"guest",	offsetof(struct kvm_vcpu, arch.guest_time)},
+	{"cede",	offsetof(struct kvm_vcpu, arch.cede_time)},
+};
+
+#define N_TIMINGS	(sizeof(timings) / sizeof(timings[0]))
+
+struct debugfs_timings_state {
+	struct kvm_vcpu	*vcpu;
+	unsigned int	buflen;
+	char		buf[N_TIMINGS * 100];
+};
+
+static int debugfs_timings_open(struct inode *inode, struct file *file)
+{
+	struct kvm_vcpu *vcpu = inode->i_private;
+	struct debugfs_timings_state *p;
+
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	if (!p)
+		return -ENOMEM;
+
+	kvm_get_kvm(vcpu->kvm);
+	p->vcpu = vcpu;
+	file->private_data = p;
+
+	return nonseekable_open(inode, file);
+}
+
+static int debugfs_timings_release(struct inode *inode, struct file *file)
+{
+	struct debugfs_timings_state *p = file->private_data;
+
+	kvm_put_kvm(p->vcpu->kvm);
+	kfree(p);
+	return 0;
+}
+
+static ssize_t debugfs_timings_read(struct file *file, char __user *buf,
+				    size_t len, loff_t *ppos)
+{
+	struct debugfs_timings_state *p = file->private_data;
+	struct kvm_vcpu *vcpu = p->vcpu;
+	char *s, *buf_end;
+	struct kvmhv_tb_accumulator tb;
+	u64 count;
+	loff_t pos;
+	ssize_t n;
+	int i, loops;
+	bool ok;
+
+	if (!p->buflen) {
+		s = p->buf;
+		buf_end = s + sizeof(p->buf);
+		for (i = 0; i < N_TIMINGS; ++i) {
+			struct kvmhv_tb_accumulator *acc;
+
+			acc = (struct kvmhv_tb_accumulator *)
+				((unsigned long)vcpu + timings[i].offset);
+			ok = false;
+			for (loops = 0; loops < 1000; ++loops) {
+				count = acc->seqcount;
+				if (!(count & 1)) {
+					smp_rmb();
+					tb = *acc;
+					smp_rmb();
+					if (count == acc->seqcount) {
+						ok = true;
+						break;
+					}
+				}
+				udelay(1);
+			}
+			if (!ok)
+				snprintf(s, buf_end - s, "%s: stuck\n",
+					timings[i].name);
+			else
+				snprintf(s, buf_end - s,
+					"%s: %llu %llu %llu %llu\n",
+					timings[i].name, count / 2,
+					tb_to_ns(tb.tb_total),
+					tb_to_ns(tb.tb_min),
+					tb_to_ns(tb.tb_max));
+			s += strlen(s);
+		}
+		p->buflen = s - p->buf;
+	}
+
+	pos = *ppos;
+	if (pos >= p->buflen)
+		return 0;
+	if (len > p->buflen - pos)
+		len = p->buflen - pos;
+	n = copy_to_user(buf, p->buf + pos, len);
+	if (n) {
+		if (n == len)
+			return -EFAULT;
+		len -= n;
+	}
+	*ppos = pos + len;
+	return len;
+}
+
+static ssize_t debugfs_timings_write(struct file *file, const char __user *buf,
+				     size_t len, loff_t *ppos)
+{
+	return -EACCES;
+}
+
+static const struct file_operations debugfs_timings_ops = {
+	.owner	 = THIS_MODULE,
+	.open	 = debugfs_timings_open,
+	.release = debugfs_timings_release,
+	.read	 = debugfs_timings_read,
+	.write	 = debugfs_timings_write,
+	.llseek	 = generic_file_llseek,
+};
+
+/* Create a debugfs directory for the vcpu */
+static void debugfs_vcpu_init(struct kvm_vcpu *vcpu, unsigned int id)
+{
+	char buf[16];
+	struct kvm *kvm = vcpu->kvm;
+
+	snprintf(buf, sizeof(buf), "vcpu%u", id);
+	if (IS_ERR_OR_NULL(kvm->arch.debugfs_dir))
+		return;
+	vcpu->arch.debugfs_dir = debugfs_create_dir(buf, kvm->arch.debugfs_dir);
+	if (IS_ERR_OR_NULL(vcpu->arch.debugfs_dir))
+		return;
+	vcpu->arch.debugfs_timings =
+		debugfs_create_file("timings", 0444, vcpu->arch.debugfs_dir,
+				    vcpu, &debugfs_timings_ops);
+}
+
+#else /* CONFIG_KVM_BOOK3S_HV_EXIT_TIMING */
+static void debugfs_vcpu_init(struct kvm_vcpu *vcpu, unsigned int id)
+{
+}
+#endif /* CONFIG_KVM_BOOK3S_HV_EXIT_TIMING */
+
 static struct kvm_vcpu *kvmppc_core_vcpu_create_hv(struct kvm *kvm,
 						   unsigned int id)
 {
@@ -1491,6 +1639,8 @@ static struct kvm_vcpu *kvmppc_core_vcpu_create_hv(struct kvm *kvm,
 
 	vcpu->arch.cpu_type = KVM_CPU_3S_64;
 	kvmppc_sanity_check(vcpu);
+
+	debugfs_vcpu_init(vcpu, id);
 
 	return vcpu;
 

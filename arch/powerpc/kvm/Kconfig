@@ -110,6 +110,20 @@ config KVM_BOOK3S_64_PR
 	  processor, including emulating 32-bit processors on a 64-bit
 	  host.
 
+config KVM_BOOK3S_HV_EXIT_TIMING
+	bool "Detailed timing for hypervisor real-mode code"
+	depends on KVM_BOOK3S_HV_POSSIBLE && DEBUG_FS
+	---help---
+	  Calculate time taken for each vcpu in the real-mode guest entry,
+	  exit, and interrupt handling code, plus time spent in the guest
+	  and in nap mode due to idle (cede) while other threads are still
+	  in the guest.  The total, minimum and maximum times in nanoseconds
+	  together with the number of executions are reported in debugfs in
+	  kvm/vm#/vcpu#/timings.  The overhead is of the order of 30 - 40
+	  ns per exit on POWER8.
+
+	  If unsure, say N.
+
 config KVM_BOOKE_HV
 	bool
 
