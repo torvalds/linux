@@ -217,7 +217,7 @@ struct miscdevice obd_psdev = {
 
 
 #if defined (CONFIG_PROC_FS)
-int obd_proc_version_seq_show(struct seq_file *m, void *v)
+static int obd_proc_version_seq_show(struct seq_file *m, void *v)
 {
 	seq_printf(m, "lustre: %s\nkernel: %s\nbuild:  %s\n",
 		   LUSTRE_VERSION_STRING, "patchless_client", BUILD_VERSION);
