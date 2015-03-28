@@ -1912,13 +1912,9 @@ static int r871x_mp_ioctl_hdl(struct net_device *dev,
 	bset = (u8)(p->flags & 0xFFFF);
 	len = p->length;
 	pparmbuf = NULL;
-	pparmbuf = kmalloc(len, GFP_ATOMIC);
-	if (pparmbuf == NULL) {
-		ret = -ENOMEM;
-		goto _r871x_mp_ioctl_hdl_exit;
-	}
-	if (copy_from_user(pparmbuf, p->pointer, len)) {
-		ret = -EFAULT;
+	pparmbuf = memdup_user(p->pointer, len);
+	if (IS_ERR(pparmbuf)) {
+		ret = PTR_ERR(pparmbuf);
 		goto _r871x_mp_ioctl_hdl_exit;
 	}
 	poidparam = (struct mp_ioctl_param *)pparmbuf;
