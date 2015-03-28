@@ -6446,14 +6446,12 @@ static int read_local_oob_ext_data(struct sock *sk, struct hci_dev *hdev,
 					 &cp->type, sizeof(cp->type));
 	}
 
-	hci_dev_lock(hdev);
-
 	rp_len = sizeof(*rp) + eir_len;
 	rp = kmalloc(rp_len, GFP_ATOMIC);
-	if (!rp) {
-		hci_dev_unlock(hdev);
+	if (!rp)
 		return -ENOMEM;
-	}
+
+	hci_dev_lock(hdev);
 
 	eir_len = 0;
 	switch (cp->type) {
@@ -6517,12 +6515,12 @@ static int read_local_oob_ext_data(struct sock *sk, struct hci_dev *hdev,
 		break;
 	}
 
-	rp->type = cp->type;
-	rp->eir_len = cpu_to_le16(eir_len);
-
 	hci_dev_unlock(hdev);
 
 	hci_sock_set_flag(sk, HCI_MGMT_OOB_DATA_EVENTS);
+
+	rp->type = cp->type;
+	rp->eir_len = cpu_to_le16(eir_len);
 
 	err = mgmt_cmd_complete(sk, hdev->id, MGMT_OP_READ_LOCAL_OOB_EXT_DATA,
 				MGMT_STATUS_SUCCESS, rp, sizeof(*rp) + eir_len);
