@@ -81,12 +81,13 @@ void ipvlan_ht_addr_add(struct ipvl_dev *ipvlan, struct ipvl_addr *addr)
 	hash = (addr->atype == IPVL_IPV6) ?
 	       ipvlan_get_v6_hash(&addr->ip6addr) :
 	       ipvlan_get_v4_hash(&addr->ip4addr);
-	hlist_add_head_rcu(&addr->hlnode, &port->hlhead[hash]);
+	if (hlist_unhashed(&addr->hlnode))
+		hlist_add_head_rcu(&addr->hlnode, &port->hlhead[hash]);
 }
 
 void ipvlan_ht_addr_del(struct ipvl_addr *addr, bool sync)
 {
-	hlist_del_rcu(&addr->hlnode);
+	hlist_del_init_rcu(&addr->hlnode);
 	if (sync)
 		synchronize_rcu();
 }

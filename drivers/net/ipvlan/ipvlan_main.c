@@ -622,7 +622,11 @@ static int ipvlan_add_addr6(struct ipvl_dev *ipvlan, struct in6_addr *ip6_addr)
 	addr->atype = IPVL_IPV6;
 	list_add_tail_rcu(&addr->anode, &ipvlan->addrs);
 	ipvlan->ipv6cnt++;
-	ipvlan_ht_addr_add(ipvlan, addr);
+	/* If the interface is not up, the address will be added to the hash
+	 * list by ipvlan_open.
+	 */
+	if (netif_running(ipvlan->dev))
+		ipvlan_ht_addr_add(ipvlan, addr);
 
 	return 0;
 }
@@ -690,7 +694,11 @@ static int ipvlan_add_addr4(struct ipvl_dev *ipvlan, struct in_addr *ip4_addr)
 	addr->atype = IPVL_IPV4;
 	list_add_tail_rcu(&addr->anode, &ipvlan->addrs);
 	ipvlan->ipv4cnt++;
-	ipvlan_ht_addr_add(ipvlan, addr);
+	/* If the interface is not up, the address will be added to the hash
+	 * list by ipvlan_open.
+	 */
+	if (netif_running(ipvlan->dev))
+		ipvlan_ht_addr_add(ipvlan, addr);
 	ipvlan_set_broadcast_mac_filter(ipvlan, true);
 
 	return 0;
