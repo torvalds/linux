@@ -78,7 +78,7 @@ static unsigned short force_id;
 module_param(force_id, ushort, 0);
 MODULE_PARM_DESC(force_id, "Override the detected device ID");
 
-static struct platform_device *pdev;
+static struct platform_device *it87_pdev;
 
 #define	REG	0x2e	/* The register to read/write */
 #define	DEV	0x07	/* Register: Logical device select */
@@ -2285,7 +2285,7 @@ exit:
 
 static void it87_remove_files(struct device *dev)
 {
-	struct it87_data *data = platform_get_drvdata(pdev);
+	struct it87_data *data = dev_get_drvdata(dev);
 	struct it87_sio_data *sio_data = dev_get_platdata(dev);
 	int i;
 
@@ -2888,6 +2888,7 @@ static struct it87_data *it87_update_device(struct device *dev)
 static int __init it87_device_add(unsigned short address,
 				  const struct it87_sio_data *sio_data)
 {
+	struct platform_device *pdev;
 	struct resource res = {
 		.start	= address + IT87_EC_OFFSET,
 		.end	= address + IT87_EC_OFFSET + IT87_EC_EXTENT - 1,
@@ -2923,6 +2924,7 @@ static int __init it87_device_add(unsigned short address,
 		goto exit_device_put;
 	}
 
+	it87_pdev = pdev;
 	return 0;
 
 exit_device_put:
@@ -2955,7 +2957,7 @@ static int __init sm_it87_init(void)
 
 static void __exit sm_it87_exit(void)
 {
-	platform_device_unregister(pdev);
+	platform_device_unregister(it87_pdev);
 	platform_driver_unregister(&it87_driver);
 }
 
