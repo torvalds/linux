@@ -1729,8 +1729,10 @@ static int kvmppc_grab_hwthread(int cpu)
 	tpaca = &paca[cpu];
 
 	/* Ensure the thread won't go into the kernel if it wakes */
-	tpaca->kvm_hstate.hwthread_req = 1;
 	tpaca->kvm_hstate.kvm_vcpu = NULL;
+	tpaca->kvm_hstate.napping = 0;
+	smp_wmb();
+	tpaca->kvm_hstate.hwthread_req = 1;
 
 	/*
 	 * If the thread is already executing in the kernel (e.g. handling
@@ -1773,35 +1775,43 @@ static void kvmppc_start_thread(struct kvm_vcpu *vcpu)
 	}
 	cpu = vc->pcpu + vcpu->arch.ptid;
 	tpaca = &paca[cpu];
-	tpaca->kvm_hstate.kvm_vcpu = vcpu;
 	tpaca->kvm_hstate.kvm_vcore = vc;
 	tpaca->kvm_hstate.ptid = vcpu->arch.ptid;
 	vcpu->cpu = vc->pcpu;
+	/* Order stores to hstate.kvm_vcore etc. before store to kvm_vcpu */
 	smp_wmb();
+	tpaca->kvm_hstate.kvm_vcpu = vcpu;
 #if defined(CONFIG_PPC_ICP_NATIVE) && defined(CONFIG_SMP)
-	if (cpu != smp_processor_id()) {
+	if (cpu != smp_processor_id())
 		xics_wake_cpu(cpu);
-		if (vcpu->arch.ptid)
-			++vc->n_woken;
-	}
 #endif
 }
 
-static void kvmppc_wait_for_nap(struct kvmppc_vcore *vc)
+static void kvmppc_wait_for_nap(void)
 {
-	int i;
+	int cpu = smp_processor_id();
+	int i, loops;
 
-	HMT_low();
-	i = 0;
-	while (vc->nap_count < vc->n_woken) {
-		if (++i >= 1000000) {
-			pr_err("kvmppc_wait_for_nap timeout %d %d\n",
-			       vc->nap_count, vc->n_woken);
-			break;
+	for (loops = 0; loops < 1000000; ++loops) {
+		/*
+		 * Check if all threads are finished.
+		 * We set the vcpu pointer when starting a thread
+		 * and the thread clears it when finished, so we look
+		 * for any threads that still have a non-NULL vcpu ptr.
+		 */
+		for (i = 1; i < threads_per_subcore; ++i)
+			if (paca[cpu + i].kvm_hstate.kvm_vcpu)
+				break;
+		if (i == threads_per_subcore) {
+			HMT_medium();
+			return;
 		}
-		cpu_relax();
+		HMT_low();
 	}
 	HMT_medium();
+	for (i = 1; i < threads_per_subcore; ++i)
+		if (paca[cpu + i].kvm_hstate.kvm_vcpu)
+			pr_err("KVM: CPU %d seems to be stuck\n", cpu + i);
 }
 
 /*
@@ -1942,8 +1952,6 @@ static void kvmppc_run_core(struct kvmppc_vcore *vc)
 	/*
 	 * Initialize *vc.
 	 */
-	vc->n_woken = 0;
-	vc->nap_count = 0;
 	vc->entry_exit_count = 0;
 	vc->preempt_tb = TB_NIL;
 	vc->in_guest = 0;
@@ -2002,8 +2010,7 @@ static void kvmppc_run_core(struct kvmppc_vcore *vc)
 	list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list)
 		vcpu->cpu = -1;
 	/* wait for secondary threads to finish writing their state to memory */
-	if (vc->nap_count < vc->n_woken)
-		kvmppc_wait_for_nap(vc);
+	kvmppc_wait_for_nap();
 	for (i = 0; i < threads_per_subcore; ++i)
 		kvmppc_release_hwthread(vc->pcpu + i);
 	/* prevent other vcpu threads from doing kvmppc_start_thread() now */

@@ -292,26 +292,21 @@ kvm_secondary_got_guest:
 	ld	r6, PACA_DSCR(r13)
 	std	r6, HSTATE_DSCR(r13)
 
+	/* Order load of vcore, ptid etc. after load of vcpu */
+	lwsync
 	bl	kvmppc_hv_entry
 
 	/* Back from the guest, go back to nap */
 	/* Clear our vcpu pointer so we don't come back in early */
 	li	r0, 0
-	std	r0, HSTATE_KVM_VCPU(r13)
 	/*
-	 * Make sure we clear HSTATE_KVM_VCPU(r13) before incrementing
-	 * the nap_count, because once the increment to nap_count is
-	 * visible we could be given another vcpu.
+	 * Once we clear HSTATE_KVM_VCPU(r13), the code in
+	 * kvmppc_run_core() is going to assume that all our vcpu
+	 * state is visible in memory.  This lwsync makes sure
+	 * that that is true.
 	 */
 	lwsync
-
-	/* increment the nap count and then go to nap mode */
-	ld	r4, HSTATE_KVM_VCORE(r13)
-	addi	r4, r4, VCORE_NAP_COUNT
-51:	lwarx	r3, 0, r4
-	addi	r3, r3, 1
-	stwcx.	r3, 0, r4
-	bne	51b
+	std	r0, HSTATE_KVM_VCPU(r13)
 
 /*
  * At this point we have finished executing in the guest.
