@@ -157,6 +157,8 @@ static void alps_set_abs_params_st(struct alps_data *priv,
 				   struct input_dev *dev1);
 static void alps_set_abs_params_mt(struct alps_data *priv,
 				   struct input_dev *dev1);
+static void alps_set_abs_params_v7(struct alps_data *priv,
+				   struct input_dev *dev1);
 
 /* Packet formats are described in Documentation/input/alps.txt */
 
@@ -2311,7 +2313,7 @@ static int alps_set_protocol(struct psmouse *psmouse,
 		priv->hw_init = alps_hw_init_v7;
 		priv->process_packet = alps_process_packet_v7;
 		priv->decode_fields = alps_decode_packet_v7;
-		priv->set_abs_params = alps_set_abs_params_mt;
+		priv->set_abs_params = alps_set_abs_params_v7;
 		priv->nibble_commands = alps_v3_nibble_commands;
 		priv->addr_command = PSMOUSE_CMD_RESET_WRAP;
 		priv->x_max = 0xfff;
@@ -2437,10 +2439,11 @@ static void alps_set_abs_params_st(struct alps_data *priv,
 {
 	input_set_abs_params(dev1, ABS_X, 0, priv->x_max, 0, 0);
 	input_set_abs_params(dev1, ABS_Y, 0, priv->y_max, 0, 0);
+	input_set_abs_params(dev1, ABS_PRESSURE, 0, 127, 0, 0);
 }
 
-static void alps_set_abs_params_mt(struct alps_data *priv,
-				   struct input_dev *dev1)
+static void alps_set_abs_params_mt_common(struct alps_data *priv,
+					  struct input_dev *dev1)
 {
 	input_set_abs_params(dev1, ABS_MT_POSITION_X, 0, priv->x_max, 0, 0);
 	input_set_abs_params(dev1, ABS_MT_POSITION_Y, 0, priv->y_max, 0, 0);
@@ -2448,15 +2451,29 @@ static void alps_set_abs_params_mt(struct alps_data *priv,
 	input_abs_set_res(dev1, ABS_MT_POSITION_X, priv->x_res);
 	input_abs_set_res(dev1, ABS_MT_POSITION_Y, priv->y_res);
 
-	input_mt_init_slots(dev1, MAX_TOUCHES, INPUT_MT_POINTER |
-		INPUT_MT_DROP_UNUSED | INPUT_MT_TRACK | INPUT_MT_SEMI_MT);
-
 	set_bit(BTN_TOOL_TRIPLETAP, dev1->keybit);
 	set_bit(BTN_TOOL_QUADTAP, dev1->keybit);
+}
 
-	/* V7 is real multi-touch */
-	if (priv->proto_version == ALPS_PROTO_V7)
-		clear_bit(INPUT_PROP_SEMI_MT, dev1->propbit);
+static void alps_set_abs_params_mt(struct alps_data *priv,
+				   struct input_dev *dev1)
+{
+	alps_set_abs_params_mt_common(priv, dev1);
+	input_set_abs_params(dev1, ABS_PRESSURE, 0, 127, 0, 0);
+
+	input_mt_init_slots(dev1, MAX_TOUCHES,
+			    INPUT_MT_POINTER | INPUT_MT_DROP_UNUSED |
+				INPUT_MT_TRACK | INPUT_MT_SEMI_MT);
+}
+
+static void alps_set_abs_params_v7(struct alps_data *priv,
+				   struct input_dev *dev1)
+{
+	alps_set_abs_params_mt_common(priv, dev1);
+
+	input_mt_init_slots(dev1, MAX_TOUCHES,
+			    INPUT_MT_POINTER | INPUT_MT_DROP_UNUSED |
+				INPUT_MT_TRACK);
 }
 
 int alps_init(struct psmouse *psmouse)
@@ -2489,9 +2506,6 @@ int alps_init(struct psmouse *psmouse)
 	dev1->evbit[BIT_WORD(EV_ABS)] |= BIT_MASK(EV_ABS);
 
 	priv->set_abs_params(priv, dev1);
-	/* No pressure on V7 */
-	if (priv->proto_version != ALPS_PROTO_V7)
-		input_set_abs_params(dev1, ABS_PRESSURE, 0, 127, 0, 0);
 
 	if (priv->flags & ALPS_WHEEL) {
 		dev1->evbit[BIT_WORD(EV_REL)] |= BIT_MASK(EV_REL);
