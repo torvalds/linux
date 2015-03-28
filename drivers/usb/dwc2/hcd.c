@@ -1616,7 +1616,7 @@ static int dwc2_hcd_hub_control(struct dwc2_hsotg *hsotg, u16 typereq,
 		dev_dbg(hsotg->dev, "GetHubDescriptor\n");
 		hub_desc = (struct usb_hub_descriptor *)buf;
 		hub_desc->bDescLength = 9;
-		hub_desc->bDescriptorType = 0x29;
+		hub_desc->bDescriptorType = USB_DT_HUB;
 		hub_desc->bNbrPorts = 1;
 		hub_desc->wHubCharacteristics =
 			cpu_to_le16(HUB_CHAR_COMMON_LPSM |
