@@ -607,7 +607,7 @@ static int ipvlan_add_addr6(struct ipvl_dev *ipvlan, struct in6_addr *ip6_addr)
 {
 	struct ipvl_addr *addr;
 
-	if (ipvlan_addr_busy(ipvlan, ip6_addr, true)) {
+	if (ipvlan_addr_busy(ipvlan->port, ip6_addr, true)) {
 		netif_err(ipvlan, ifup, ipvlan->dev,
 			  "Failed to add IPv6=%pI6c addr for %s intf\n",
 			  ip6_addr, ipvlan->dev->name);
@@ -635,7 +635,7 @@ static void ipvlan_del_addr6(struct ipvl_dev *ipvlan, struct in6_addr *ip6_addr)
 {
 	struct ipvl_addr *addr;
 
-	addr = ipvlan_ht_addr_lookup(ipvlan->port, ip6_addr, true);
+	addr = ipvlan_find_addr(ipvlan, ip6_addr, true);
 	if (!addr)
 		return;
 
@@ -679,7 +679,7 @@ static int ipvlan_add_addr4(struct ipvl_dev *ipvlan, struct in_addr *ip4_addr)
 {
 	struct ipvl_addr *addr;
 
-	if (ipvlan_addr_busy(ipvlan, ip4_addr, false)) {
+	if (ipvlan_addr_busy(ipvlan->port, ip4_addr, false)) {
 		netif_err(ipvlan, ifup, ipvlan->dev,
 			  "Failed to add IPv4=%pI4 on %s intf.\n",
 			  ip4_addr, ipvlan->dev->name);
@@ -708,7 +708,7 @@ static void ipvlan_del_addr4(struct ipvl_dev *ipvlan, struct in_addr *ip4_addr)
 {
 	struct ipvl_addr *addr;
 
-	addr = ipvlan_ht_addr_lookup(ipvlan->port, ip4_addr, false);
+	addr = ipvlan_find_addr(ipvlan, ip4_addr, false);
 	if (!addr)
 		return;
 

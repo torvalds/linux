@@ -92,9 +92,9 @@ void ipvlan_ht_addr_del(struct ipvl_addr *addr, bool sync)
 		synchronize_rcu();
 }
 
-bool ipvlan_addr_busy(struct ipvl_dev *ipvlan, void *iaddr, bool is_v6)
+struct ipvl_addr *ipvlan_find_addr(const struct ipvl_dev *ipvlan,
+				   const void *iaddr, bool is_v6)
 {
-	struct ipvl_port *port = ipvlan->port;
 	struct ipvl_addr *addr;
 
 	list_for_each_entry(addr, &ipvlan->addrs, anode) {
@@ -102,12 +102,21 @@ bool ipvlan_addr_busy(struct ipvl_dev *ipvlan, void *iaddr, bool is_v6)
 		    ipv6_addr_equal(&addr->ip6addr, iaddr)) ||
 		    (!is_v6 && addr->atype == IPVL_IPV4 &&
 		    addr->ip4addr.s_addr == ((struct in_addr *)iaddr)->s_addr))
+			return addr;
+	}
+	return NULL;
+}
+
+bool ipvlan_addr_busy(struct ipvl_port *port, void *iaddr, bool is_v6)
+{
+	struct ipvl_dev *ipvlan;
+
+	ASSERT_RTNL();
+
+	list_for_each_entry(ipvlan, &port->ipvlans, pnode) {
+		if (ipvlan_find_addr(ipvlan, iaddr, is_v6))
 			return true;
 	}
-
-	if (ipvlan_ht_addr_lookup(port, iaddr, is_v6))
-		return true;
-
 	return false;
 }
 
