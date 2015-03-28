@@ -2779,6 +2779,7 @@ static void alps_set_abs_params_v7(struct alps_data *priv,
 				   struct input_dev *dev1)
 {
 	alps_set_abs_params_mt_common(priv, dev1);
+	set_bit(BTN_TOOL_QUINTTAP, dev1->keybit);
 
 	input_mt_init_slots(dev1, MAX_TOUCHES,
 			    INPUT_MT_POINTER | INPUT_MT_DROP_UNUSED |
