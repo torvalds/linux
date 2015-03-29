@@ -346,12 +346,11 @@ out_cq:
 static int
 isert_create_device_ib_res(struct isert_device *device)
 {
-	struct ib_device *ib_dev = device->ib_device;
 	struct ib_device_attr *dev_attr;
-	int ret = 0;
+	int ret;
 
 	dev_attr = &device->dev_attr;
-	ret = isert_query_device(ib_dev, dev_attr);
+	ret = isert_query_device(device->ib_device, dev_attr);
 	if (ret)
 		return ret;
 
