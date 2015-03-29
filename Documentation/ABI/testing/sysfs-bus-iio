@@ -800,7 +800,7 @@ Description:
 
 What:		/sys/.../events/in_accel_x_thresh_rising_period
 What:		/sys/.../events/in_accel_x_thresh_falling_period
-hat:		/sys/.../events/in_accel_x_roc_rising_period
+What:		/sys/.../events/in_accel_x_roc_rising_period
 What:		/sys/.../events/in_accel_x_roc_falling_period
 What:		/sys/.../events/in_accel_y_thresh_rising_period
 What:		/sys/.../events/in_accel_y_thresh_falling_period
