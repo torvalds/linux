@@ -17,6 +17,10 @@
 #include <net/dsa.h>
 #include "mv88e6xxx.h"
 
+/* Switch product IDs */
+#define ID_6171	0x1710
+#define ID_6172	0x1720
+
 static char *mv88e6171_probe(struct device *host_dev, int sw_addr)
 {
 	struct mii_bus *bus = dsa_host_dev_to_mii_bus(host_dev);
@@ -27,9 +31,9 @@ static char *mv88e6171_probe(struct device *host_dev, int sw_addr)
 
 	ret = __mv88e6xxx_reg_read(bus, sw_addr, REG_PORT(0), 0x03);
 	if (ret >= 0) {
-		if ((ret & 0xfff0) == 0x1710)
+		if ((ret & 0xfff0) == ID_6171)
 			return "Marvell 88E6171";
-		if ((ret & 0xfff0) == 0x1720)
+		if ((ret & 0xfff0) == ID_6172)
 			return "Marvell 88E6172";
 	}
 
@@ -221,28 +225,6 @@ static int mv88e6171_setup_port(struct dsa_switch *ds, int p)
 		val |= 0x000c;
 	REG_WRITE(addr, 0x04, val);
 
-	/* Port Control 1: disable trunking.  Also, if this is the
-	 * CPU port, enable learn messages to be sent to this port.
-	 */
-	REG_WRITE(addr, 0x05, dsa_is_cpu_port(ds, p) ? 0x8000 : 0x0000);
-
-	/* Port based VLAN map: give each port its own address
-	 * database, allow the CPU port to talk to each of the 'real'
-	 * ports, and allow each of the 'real' ports to only talk to
-	 * the upstream port.
-	 */
-	val = (p & 0xf) << 12;
-	if (dsa_is_cpu_port(ds, p))
-		val |= ds->phys_port_mask;
-	else
-		val |= 1 << dsa_upstream_port(ds);
-	REG_WRITE(addr, 0x06, val);
-
-	/* Default VLAN ID and priority: don't set a default VLAN
-	 * ID, and set the default packet priority to zero.
-	 */
-	REG_WRITE(addr, 0x07, 0x0000);
-
 	/* Port Control 2: don't force a good FCS, set the maximum
 	 * frame size to 10240 bytes, don't let the switch add or
 	 * strip 802.1q tags, don't discard tagged or untagged frames
@@ -287,17 +269,17 @@ static int mv88e6171_setup_port(struct dsa_switch *ds, int p)
 	 */
 	REG_WRITE(addr, 0x19, 0x7654);
 
-	return 0;
+	return mv88e6xxx_setup_port_common(ds, p);
 }
 
 static int mv88e6171_setup(struct dsa_switch *ds)
 {
-	struct mv88e6xxx_priv_state *ps = (void *)(ds + 1);
 	int i;
 	int ret;
 
-	mutex_init(&ps->smi_mutex);
-	mutex_init(&ps->stats_mutex);
+	ret = mv88e6xxx_setup_common(ds);
+	if (ret < 0)
+		return ret;
 
 	ret = mv88e6171_switch_reset(ds);
 	if (ret < 0)
@@ -317,8 +299,6 @@ static int mv88e6171_setup(struct dsa_switch *ds)
 		if (ret < 0)
 			return ret;
 	}
-
-	mutex_init(&ps->phy_mutex);
 
 	return 0;
 }
@@ -410,6 +390,28 @@ static int mv88e6171_get_sset_count(struct dsa_switch *ds)
 	return ARRAY_SIZE(mv88e6171_hw_stats);
 }
 
+static int mv88e6171_get_eee(struct dsa_switch *ds, int port,
+			     struct ethtool_eee *e)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+
+	if (ps->id == ID_6172)
+		return mv88e6xxx_get_eee(ds, port, e);
+
+	return -EOPNOTSUPP;
+}
+
+static int mv88e6171_set_eee(struct dsa_switch *ds, int port,
+			     struct phy_device *phydev, struct ethtool_eee *e)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+
+	if (ps->id == ID_6172)
+		return mv88e6xxx_set_eee(ds, port, phydev, e);
+
+	return -EOPNOTSUPP;
+}
+
 struct dsa_switch_driver mv88e6171_switch_driver = {
 	.tag_protocol		= DSA_TAG_PROTO_EDSA,
 	.priv_size		= sizeof(struct mv88e6xxx_priv_state),
@@ -422,11 +424,19 @@ struct dsa_switch_driver mv88e6171_switch_driver = {
 	.get_strings		= mv88e6171_get_strings,
 	.get_ethtool_stats	= mv88e6171_get_ethtool_stats,
 	.get_sset_count		= mv88e6171_get_sset_count,
+	.set_eee		= mv88e6171_set_eee,
+	.get_eee		= mv88e6171_get_eee,
 #ifdef CONFIG_NET_DSA_HWMON
 	.get_temp               = mv88e6xxx_get_temp,
 #endif
 	.get_regs_len		= mv88e6xxx_get_regs_len,
 	.get_regs		= mv88e6xxx_get_regs,
+	.port_join_bridge       = mv88e6xxx_join_bridge,
+	.port_leave_bridge      = mv88e6xxx_leave_bridge,
+	.port_stp_update        = mv88e6xxx_port_stp_update,
+	.fdb_add		= mv88e6xxx_port_fdb_add,
+	.fdb_del		= mv88e6xxx_port_fdb_del,
+	.fdb_getnext		= mv88e6xxx_port_fdb_getnext,
 };
 
 MODULE_ALIAS("platform:mv88e6171");
