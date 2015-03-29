@@ -199,12 +199,10 @@ static int fib6_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 	}
 
 	if (frh->src_len)
-		nla_memcpy(&rule6->src.addr, tb[FRA_SRC],
-			   sizeof(struct in6_addr));
+		rule6->src.addr = nla_get_in6_addr(tb[FRA_SRC]);
 
 	if (frh->dst_len)
-		nla_memcpy(&rule6->dst.addr, tb[FRA_DST],
-			   sizeof(struct in6_addr));
+		rule6->dst.addr = nla_get_in6_addr(tb[FRA_DST]);
 
 	rule6->src.plen = frh->src_len;
 	rule6->dst.plen = frh->dst_len;

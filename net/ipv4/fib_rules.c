@@ -194,10 +194,10 @@ static int fib4_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 	}
 
 	if (frh->src_len)
-		rule4->src = nla_get_be32(tb[FRA_SRC]);
+		rule4->src = nla_get_in_addr(tb[FRA_SRC]);
 
 	if (frh->dst_len)
-		rule4->dst = nla_get_be32(tb[FRA_DST]);
+		rule4->dst = nla_get_in_addr(tb[FRA_DST]);
 
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	if (tb[FRA_FLOW]) {
@@ -260,10 +260,10 @@ static int fib4_rule_compare(struct fib_rule *rule, struct fib_rule_hdr *frh,
 		return 0;
 #endif
 
-	if (frh->src_len && (rule4->src != nla_get_be32(tb[FRA_SRC])))
+	if (frh->src_len && (rule4->src != nla_get_in_addr(tb[FRA_SRC])))
 		return 0;
 
-	if (frh->dst_len && (rule4->dst != nla_get_be32(tb[FRA_DST])))
+	if (frh->dst_len && (rule4->dst != nla_get_in_addr(tb[FRA_DST])))
 		return 0;
 
 	return 1;

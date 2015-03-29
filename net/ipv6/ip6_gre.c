@@ -1412,7 +1412,7 @@ static int ip6gre_tap_validate(struct nlattr *tb[], struct nlattr *data[])
 		goto out;
 
 	if (data[IFLA_GRE_REMOTE]) {
-		nla_memcpy(&daddr, data[IFLA_GRE_REMOTE], sizeof(struct in6_addr));
+		daddr = nla_get_in6_addr(data[IFLA_GRE_REMOTE]);
 		if (ipv6_addr_any(&daddr))
 			return -EINVAL;
 	}
@@ -1446,10 +1446,10 @@ static void ip6gre_netlink_parms(struct nlattr *data[],
 		parms->o_key = nla_get_be32(data[IFLA_GRE_OKEY]);
 
 	if (data[IFLA_GRE_LOCAL])
-		nla_memcpy(&parms->laddr, data[IFLA_GRE_LOCAL], sizeof(struct in6_addr));
+		parms->laddr = nla_get_in6_addr(data[IFLA_GRE_LOCAL]);
 
 	if (data[IFLA_GRE_REMOTE])
-		nla_memcpy(&parms->raddr, data[IFLA_GRE_REMOTE], sizeof(struct in6_addr));
+		parms->raddr = nla_get_in6_addr(data[IFLA_GRE_REMOTE]);
 
 	if (data[IFLA_GRE_TTL])
 		parms->hop_limit = nla_get_u8(data[IFLA_GRE_TTL]);

@@ -310,10 +310,8 @@ static int ipv6_nlattr_to_tuple(struct nlattr *tb[],
 	if (!tb[CTA_IP_V6_SRC] || !tb[CTA_IP_V6_DST])
 		return -EINVAL;
 
-	memcpy(&t->src.u3.ip6, nla_data(tb[CTA_IP_V6_SRC]),
-	       sizeof(u_int32_t) * 4);
-	memcpy(&t->dst.u3.ip6, nla_data(tb[CTA_IP_V6_DST]),
-	       sizeof(u_int32_t) * 4);
+	t->src.u3.in6 = nla_get_in6_addr(tb[CTA_IP_V6_SRC]);
+	t->dst.u3.in6 = nla_get_in6_addr(tb[CTA_IP_V6_DST]);
 
 	return 0;
 }

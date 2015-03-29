@@ -621,10 +621,10 @@ static void ipgre_netlink_parms(struct nlattr *data[], struct nlattr *tb[],
 		parms->o_key = nla_get_be32(data[IFLA_GRE_OKEY]);
 
 	if (data[IFLA_GRE_LOCAL])
-		parms->iph.saddr = nla_get_be32(data[IFLA_GRE_LOCAL]);
+		parms->iph.saddr = nla_get_in_addr(data[IFLA_GRE_LOCAL]);
 
 	if (data[IFLA_GRE_REMOTE])
-		parms->iph.daddr = nla_get_be32(data[IFLA_GRE_REMOTE]);
+		parms->iph.daddr = nla_get_in_addr(data[IFLA_GRE_REMOTE]);
 
 	if (data[IFLA_GRE_TTL])
 		parms->iph.ttl = nla_get_u8(data[IFLA_GRE_TTL]);

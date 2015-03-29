@@ -342,8 +342,8 @@ static int ipv4_nlattr_to_tuple(struct nlattr *tb[],
 	if (!tb[CTA_IP_V4_SRC] || !tb[CTA_IP_V4_DST])
 		return -EINVAL;
 
-	t->src.u3.ip = nla_get_be32(tb[CTA_IP_V4_SRC]);
-	t->dst.u3.ip = nla_get_be32(tb[CTA_IP_V4_DST]);
+	t->src.u3.ip = nla_get_in_addr(tb[CTA_IP_V4_SRC]);
+	t->dst.u3.ip = nla_get_in_addr(tb[CTA_IP_V4_DST]);
 
 	return 0;
 }

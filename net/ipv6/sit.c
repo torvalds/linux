@@ -1530,8 +1530,7 @@ static bool ipip6_netlink_6rd_parms(struct nlattr *data[],
 
 	if (data[IFLA_IPTUN_6RD_PREFIX]) {
 		ret = true;
-		nla_memcpy(&ip6rd->prefix, data[IFLA_IPTUN_6RD_PREFIX],
-			   sizeof(struct in6_addr));
+		ip6rd->prefix = nla_get_in6_addr(data[IFLA_IPTUN_6RD_PREFIX]);
 	}
 
 	if (data[IFLA_IPTUN_6RD_RELAY_PREFIX]) {

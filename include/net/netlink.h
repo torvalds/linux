@@ -1128,6 +1128,27 @@ static inline unsigned long nla_get_msecs(const struct nlattr *nla)
 }
 
 /**
+ * nla_get_in_addr - return payload of IPv4 address attribute
+ * @nla: IPv4 address netlink attribute
+ */
+static inline __be32 nla_get_in_addr(const struct nlattr *nla)
+{
+	return *(__be32 *) nla_data(nla);
+}
+
+/**
+ * nla_get_in6_addr - return payload of IPv6 address attribute
+ * @nla: IPv6 address netlink attribute
+ */
+static inline struct in6_addr nla_get_in6_addr(const struct nlattr *nla)
+{
+	struct in6_addr tmp;
+
+	nla_memcpy(&tmp, nla, sizeof(tmp));
+	return tmp;
+}
+
+/**
  * nla_nest_start - Start a new level of nested attributes
  * @skb: socket buffer to add attributes to
  * @attrtype: attribute type of container

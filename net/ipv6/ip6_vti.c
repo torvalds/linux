@@ -897,12 +897,10 @@ static void vti6_netlink_parms(struct nlattr *data[],
 		parms->link = nla_get_u32(data[IFLA_VTI_LINK]);
 
 	if (data[IFLA_VTI_LOCAL])
-		nla_memcpy(&parms->laddr, data[IFLA_VTI_LOCAL],
-			   sizeof(struct in6_addr));
+		parms->laddr = nla_get_in6_addr(data[IFLA_VTI_LOCAL]);
 
 	if (data[IFLA_VTI_REMOTE])
-		nla_memcpy(&parms->raddr, data[IFLA_VTI_REMOTE],
-			   sizeof(struct in6_addr));
+		parms->raddr = nla_get_in6_addr(data[IFLA_VTI_REMOTE]);
 
 	if (data[IFLA_VTI_IKEY])
 		parms->i_key = nla_get_be32(data[IFLA_VTI_IKEY]);
