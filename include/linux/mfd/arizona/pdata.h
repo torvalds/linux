@@ -94,7 +94,7 @@ struct arizona_pdata {
 	int gpio_base;
 
 	/** Pin state for GPIO pins */
-	int gpio_defaults[ARIZONA_MAX_GPIO];
+	unsigned int gpio_defaults[ARIZONA_MAX_GPIO];
 
 	/**
 	 * Maximum number of channels clocks will be generated for,
