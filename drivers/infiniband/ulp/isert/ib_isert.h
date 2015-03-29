@@ -169,8 +169,6 @@ struct isert_conn {
 	struct completion	login_req_comp;
 	struct iser_tx_desc	conn_login_tx_desc;
 	struct rdma_cm_id	*conn_cm_id;
-	struct ib_pd		*conn_pd;
-	struct ib_mr		*conn_mr;
 	struct ib_qp		*conn_qp;
 	struct isert_device	*conn_device;
 	struct mutex		conn_mutex;
@@ -211,6 +209,8 @@ struct isert_device {
 	bool			pi_capable;
 	int			refcount;
 	struct ib_device	*ib_device;
+	struct ib_pd		*pd;
+	struct ib_mr		*mr;
 	struct isert_comp	*comps;
 	int                     comps_used;
 	struct list_head	dev_node;
