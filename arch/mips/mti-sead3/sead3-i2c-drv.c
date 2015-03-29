@@ -4,6 +4,7 @@
  * for more details.
  *
  * Copyright (C) 2012 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2015 Imagination Technologies, Inc.
  */
 #include <linux/init.h>
 #include <linux/module.h>
@@ -11,6 +12,8 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
+
+#include <asm/mips-boards/sead3-addr.h>
 
 #define PIC32_I2CxCON		0x0000
 #define	 PIC32_I2CCON_ON	(1<<15)
@@ -35,14 +38,14 @@
 
 static DEFINE_SPINLOCK(pic32_bus_lock);
 
-static void __iomem *bus_xfer	= (void __iomem *)0xbf000600;
-static void __iomem *bus_status = (void __iomem *)0xbf000060;
+static void __iomem *bus_xfer	= (void __iomem *)SEAD3_PIC32_REGISTERS;
+static void __iomem *bus_status = (void __iomem *)SEAD3_PI_PIC32_USB_STATUS;
 
 #define DELAY() udelay(100)
 
 static inline unsigned int ioready(void)
 {
-	return readl(bus_status) & 1;
+	return readl(bus_status) & SEAD3_PI_PIC32_USB_STATUS_IO_RDY;
 }
 
 static inline void wait_ioready(void)
