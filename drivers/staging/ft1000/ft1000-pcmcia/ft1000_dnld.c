@@ -116,7 +116,7 @@ struct dsp_image_info {
 
 void card_bootload(struct net_device *dev)
 {
-	struct ft1000_info *info = (struct ft1000_info *)netdev_priv(dev);
+	struct ft1000_info *info = netdev_priv(dev);
 	unsigned long flags;
 	u32 *pdata;
 	u32 size;
@@ -148,7 +148,7 @@ void card_bootload(struct net_device *dev)
 
 u16 get_handshake(struct net_device *dev, u16 expected_value)
 {
-	struct ft1000_info *info = (struct ft1000_info *)netdev_priv(dev);
+	struct ft1000_info *info = netdev_priv(dev);
 	u16 handshake;
 	u32 tempx;
 	int loopcnt;
@@ -182,7 +182,7 @@ u16 get_handshake(struct net_device *dev, u16 expected_value)
 
 void put_handshake(struct net_device *dev, u16 handshake_value)
 {
-	struct ft1000_info *info = (struct ft1000_info *)netdev_priv(dev);
+	struct ft1000_info *info = netdev_priv(dev);
 	u32 tempx;
 
 	if (info->AsicID == ELECTRABUZZ_ID) {
@@ -198,7 +198,7 @@ void put_handshake(struct net_device *dev, u16 handshake_value)
 
 u16 get_request_type(struct net_device *dev)
 {
-	struct ft1000_info *info = (struct ft1000_info *)netdev_priv(dev);
+	struct ft1000_info *info = netdev_priv(dev);
 	u16 request_type;
 	u32 tempx;
 
@@ -217,7 +217,7 @@ u16 get_request_type(struct net_device *dev)
 
 long get_request_value(struct net_device *dev)
 {
-	struct ft1000_info *info = (struct ft1000_info *)netdev_priv(dev);
+	struct ft1000_info *info = netdev_priv(dev);
 	long value;
 	u16 w_val;
 
@@ -246,7 +246,7 @@ long get_request_value(struct net_device *dev)
 
 void put_request_value(struct net_device *dev, long lvalue)
 {
-	struct ft1000_info *info = (struct ft1000_info *)netdev_priv(dev);
+	struct ft1000_info *info = netdev_priv(dev);
 	u16 size;
 	u32 tempx;
 
@@ -285,7 +285,7 @@ u16 hdr_checksum(struct pseudo_hdr *pHdr)
 int card_download(struct net_device *dev, const u8 *pFileStart,
 		  size_t FileLength)
 {
-	struct ft1000_info *info = (struct ft1000_info *)netdev_priv(dev);
+	struct ft1000_info *info = netdev_priv(dev);
 	int Status = SUCCESS;
 	u32 uiState;
 	u16 handshake;
