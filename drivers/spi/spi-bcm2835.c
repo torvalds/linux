@@ -203,6 +203,22 @@ static int bcm2835_spi_transfer_one(struct spi_master *master,
 	bs->tx_len = tfr->len;
 	bs->rx_len = tfr->len;
 
+	/* fill in fifo if we have gpio-cs
+	 * note that there have been rare events where the native-CS
+	 * flapped for <1us which may change the behaviour
+	 * with gpio-cs this does not happen, so it is implemented
+	 * only for this case
+	 */
+	if (gpio_is_valid(spi->cs_gpio)) {
+		/* enable HW block, but without interrupts enabled
+		 * this would triggern an immediate interrupt
+		 */
+		bcm2835_wr(bs, BCM2835_SPI_CS,
+			   cs | BCM2835_SPI_CS_TA);
+		/* fill in tx fifo as much as possible */
+		bcm2835_wr_fifo(bs);
+	}
+
 	/*
 	 * Enable the HW block. This will immediately trigger a DONE (TX
 	 * empty) interrupt, upon which we will fill the TX FIFO with the
