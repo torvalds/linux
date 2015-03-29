@@ -1861,11 +1861,13 @@ isert_completion_rdma_read(struct iser_tx_desc *tx_desc,
 	cmd->i_state = ISTATE_RECEIVED_LAST_DATAOUT;
 	spin_unlock_bh(&cmd->istate_lock);
 
-	if (ret)
+	if (ret) {
+		target_put_sess_cmd(se_cmd->se_sess, se_cmd);
 		transport_send_check_condition_and_sense(se_cmd,
 							 se_cmd->pi_err, 0);
-	else
+	} else {
 		target_execute_cmd(se_cmd);
+	}
 }
 
 static void
