@@ -521,6 +521,17 @@ struct port_hw_cfg {		    /* port 0: 0x12c  port 1: 0x2bc */
 	 */
 	#define PORT_HW_CFG_TX_DRV_BROADCAST_MASK                     0x000F0000
 	#define PORT_HW_CFG_TX_DRV_BROADCAST_SHIFT                    16
+	/*  Set non-default values for TXFIR in SFP mode. */
+	#define PORT_HW_CFG_TX_DRV_IFIR_MASK                          0x00F00000
+	#define PORT_HW_CFG_TX_DRV_IFIR_SHIFT                         20
+
+	/*  Set non-default values for IPREDRIVER in SFP mode. */
+	#define PORT_HW_CFG_TX_DRV_IPREDRIVER_MASK                    0x0F000000
+	#define PORT_HW_CFG_TX_DRV_IPREDRIVER_SHIFT                   24
+
+	/*  Set non-default values for POST2 in SFP mode. */
+	#define PORT_HW_CFG_TX_DRV_POST2_MASK                         0xF0000000
+	#define PORT_HW_CFG_TX_DRV_POST2_SHIFT                        28
 
 	u32 reserved0[5];				    /* 0x17c */
 
