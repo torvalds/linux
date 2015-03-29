@@ -648,10 +648,12 @@ static int __ipv4_tun_to_nlattr(struct sk_buff *skb,
 	    nla_put_be64(skb, OVS_TUNNEL_KEY_ATTR_ID, output->tun_id))
 		return -EMSGSIZE;
 	if (output->ipv4_src &&
-	    nla_put_be32(skb, OVS_TUNNEL_KEY_ATTR_IPV4_SRC, output->ipv4_src))
+	    nla_put_in_addr(skb, OVS_TUNNEL_KEY_ATTR_IPV4_SRC,
+			    output->ipv4_src))
 		return -EMSGSIZE;
 	if (output->ipv4_dst &&
-	    nla_put_be32(skb, OVS_TUNNEL_KEY_ATTR_IPV4_DST, output->ipv4_dst))
+	    nla_put_in_addr(skb, OVS_TUNNEL_KEY_ATTR_IPV4_DST,
+			    output->ipv4_dst))
 		return -EMSGSIZE;
 	if (output->ipv4_tos &&
 	    nla_put_u8(skb, OVS_TUNNEL_KEY_ATTR_TOS, output->ipv4_tos))

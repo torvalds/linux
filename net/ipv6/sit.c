@@ -1683,8 +1683,8 @@ static int ipip6_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	struct ip_tunnel_parm *parm = &tunnel->parms;
 
 	if (nla_put_u32(skb, IFLA_IPTUN_LINK, parm->link) ||
-	    nla_put_be32(skb, IFLA_IPTUN_LOCAL, parm->iph.saddr) ||
-	    nla_put_be32(skb, IFLA_IPTUN_REMOTE, parm->iph.daddr) ||
+	    nla_put_in_addr(skb, IFLA_IPTUN_LOCAL, parm->iph.saddr) ||
+	    nla_put_in_addr(skb, IFLA_IPTUN_REMOTE, parm->iph.daddr) ||
 	    nla_put_u8(skb, IFLA_IPTUN_TTL, parm->iph.ttl) ||
 	    nla_put_u8(skb, IFLA_IPTUN_TOS, parm->iph.tos) ||
 	    nla_put_u8(skb, IFLA_IPTUN_PMTUDISC,
@@ -1694,10 +1694,10 @@ static int ipip6_fill_info(struct sk_buff *skb, const struct net_device *dev)
 		goto nla_put_failure;
 
 #ifdef CONFIG_IPV6_SIT_6RD
-	if (nla_put(skb, IFLA_IPTUN_6RD_PREFIX, sizeof(struct in6_addr),
-		    &tunnel->ip6rd.prefix) ||
-	    nla_put_be32(skb, IFLA_IPTUN_6RD_RELAY_PREFIX,
-			 tunnel->ip6rd.relay_prefix) ||
+	if (nla_put_in6_addr(skb, IFLA_IPTUN_6RD_PREFIX,
+			     &tunnel->ip6rd.prefix) ||
+	    nla_put_in_addr(skb, IFLA_IPTUN_6RD_RELAY_PREFIX,
+			    tunnel->ip6rd.relay_prefix) ||
 	    nla_put_u16(skb, IFLA_IPTUN_6RD_PREFIXLEN,
 			tunnel->ip6rd.prefixlen) ||
 	    nla_put_u16(skb, IFLA_IPTUN_6RD_RELAY_PREFIXLEN,

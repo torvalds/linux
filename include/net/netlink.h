@@ -4,6 +4,7 @@
 #include <linux/types.h>
 #include <linux/netlink.h>
 #include <linux/jiffies.h>
+#include <linux/in6.h>
 
 /* ========================================================================
  *         Netlink Messages and Attributes Interface (As Seen On TV)
@@ -105,6 +106,8 @@
  *   nla_put_string(skb, type, str)	add string attribute to skb
  *   nla_put_flag(skb, type)		add flag attribute to skb
  *   nla_put_msecs(skb, type, jiffies)	add msecs attribute to skb
+ *   nla_put_in_addr(skb, type, addr)	add IPv4 address attribute to skb
+ *   nla_put_in6_addr(skb, type, addr)	add IPv6 address attribute to skb
  *
  * Nested Attributes Construction:
  *   nla_nest_start(skb, type)		start a nested attribute
@@ -954,6 +957,32 @@ static inline int nla_put_msecs(struct sk_buff *skb, int attrtype,
 {
 	u64 tmp = jiffies_to_msecs(njiffies);
 	return nla_put(skb, attrtype, sizeof(u64), &tmp);
+}
+
+/**
+ * nla_put_in_addr - Add an IPv4 address netlink attribute to a socket
+ * buffer
+ * @skb: socket buffer to add attribute to
+ * @attrtype: attribute type
+ * @addr: IPv4 address
+ */
+static inline int nla_put_in_addr(struct sk_buff *skb, int attrtype,
+				  __be32 addr)
+{
+	return nla_put_be32(skb, attrtype, addr);
+}
+
+/**
+ * nla_put_in6_addr - Add an IPv6 address netlink attribute to a socket
+ * buffer
+ * @skb: socket buffer to add attribute to
+ * @attrtype: attribute type
+ * @addr: IPv6 address
+ */
+static inline int nla_put_in6_addr(struct sk_buff *skb, int attrtype,
+				   const struct in6_addr *addr)
+{
+	return nla_put(skb, attrtype, sizeof(*addr), addr);
 }
 
 /**

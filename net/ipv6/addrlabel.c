@@ -477,7 +477,7 @@ static int ip6addrlbl_fill(struct sk_buff *skb,
 
 	ip6addrlbl_putmsg(nlh, p->prefixlen, p->ifindex, lseq);
 
-	if (nla_put(skb, IFAL_ADDRESS, 16, &p->prefix) < 0 ||
+	if (nla_put_in6_addr(skb, IFAL_ADDRESS, &p->prefix) < 0 ||
 	    nla_put_u32(skb, IFAL_LABEL, p->label) < 0) {
 		nlmsg_cancel(skb, nlh);
 		return -EMSGSIZE;

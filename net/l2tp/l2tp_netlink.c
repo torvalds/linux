@@ -376,15 +376,17 @@ static int l2tp_nl_tunnel_send(struct sk_buff *skb, u32 portid, u32 seq, int fla
 	case L2TP_ENCAPTYPE_IP:
 #if IS_ENABLED(CONFIG_IPV6)
 		if (np) {
-			if (nla_put(skb, L2TP_ATTR_IP6_SADDR, sizeof(np->saddr),
-				    &np->saddr) ||
-			    nla_put(skb, L2TP_ATTR_IP6_DADDR, sizeof(sk->sk_v6_daddr),
-				    &sk->sk_v6_daddr))
+			if (nla_put_in6_addr(skb, L2TP_ATTR_IP6_SADDR,
+					     &np->saddr) ||
+			    nla_put_in6_addr(skb, L2TP_ATTR_IP6_DADDR,
+					     &sk->sk_v6_daddr))
 				goto nla_put_failure;
 		} else
 #endif
-		if (nla_put_be32(skb, L2TP_ATTR_IP_SADDR, inet->inet_saddr) ||
-		    nla_put_be32(skb, L2TP_ATTR_IP_DADDR, inet->inet_daddr))
+		if (nla_put_in_addr(skb, L2TP_ATTR_IP_SADDR,
+				    inet->inet_saddr) ||
+		    nla_put_in_addr(skb, L2TP_ATTR_IP_DADDR,
+				    inet->inet_daddr))
 			goto nla_put_failure;
 		break;
 	}

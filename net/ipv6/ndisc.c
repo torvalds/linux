@@ -1049,8 +1049,7 @@ static void ndisc_ra_useropt(struct sk_buff *ra, struct nd_opt_hdr *opt)
 
 	memcpy(ndmsg + 1, opt, opt->nd_opt_len << 3);
 
-	if (nla_put(skb, NDUSEROPT_SRCADDR, sizeof(struct in6_addr),
-		    &ipv6_hdr(ra)->saddr))
+	if (nla_put_in6_addr(skb, NDUSEROPT_SRCADDR, &ipv6_hdr(ra)->saddr))
 		goto nla_put_failure;
 	nlmsg_end(skb, nlh);
 

@@ -983,10 +983,8 @@ static int vti6_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	struct __ip6_tnl_parm *parm = &tunnel->parms;
 
 	if (nla_put_u32(skb, IFLA_VTI_LINK, parm->link) ||
-	    nla_put(skb, IFLA_VTI_LOCAL, sizeof(struct in6_addr),
-		    &parm->laddr) ||
-	    nla_put(skb, IFLA_VTI_REMOTE, sizeof(struct in6_addr),
-		    &parm->raddr) ||
+	    nla_put_in6_addr(skb, IFLA_VTI_LOCAL, &parm->laddr) ||
+	    nla_put_in6_addr(skb, IFLA_VTI_REMOTE, &parm->raddr) ||
 	    nla_put_be32(skb, IFLA_VTI_IKEY, parm->i_key) ||
 	    nla_put_be32(skb, IFLA_VTI_OKEY, parm->o_key))
 		goto nla_put_failure;

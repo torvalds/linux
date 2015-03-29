@@ -279,9 +279,9 @@ static int fib4_rule_fill(struct fib_rule *rule, struct sk_buff *skb,
 	frh->tos = rule4->tos;
 
 	if ((rule4->dst_len &&
-	     nla_put_be32(skb, FRA_DST, rule4->dst)) ||
+	     nla_put_in_addr(skb, FRA_DST, rule4->dst)) ||
 	    (rule4->src_len &&
-	     nla_put_be32(skb, FRA_SRC, rule4->src)))
+	     nla_put_in_addr(skb, FRA_SRC, rule4->src)))
 		goto nla_put_failure;
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	if (rule4->tclassid &&

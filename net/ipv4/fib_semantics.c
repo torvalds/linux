@@ -1015,7 +1015,7 @@ int fib_dump_info(struct sk_buff *skb, u32 portid, u32 seq, int event,
 	rtm->rtm_protocol = fi->fib_protocol;
 
 	if (rtm->rtm_dst_len &&
-	    nla_put_be32(skb, RTA_DST, dst))
+	    nla_put_in_addr(skb, RTA_DST, dst))
 		goto nla_put_failure;
 	if (fi->fib_priority &&
 	    nla_put_u32(skb, RTA_PRIORITY, fi->fib_priority))
@@ -1024,11 +1024,11 @@ int fib_dump_info(struct sk_buff *skb, u32 portid, u32 seq, int event,
 		goto nla_put_failure;
 
 	if (fi->fib_prefsrc &&
-	    nla_put_be32(skb, RTA_PREFSRC, fi->fib_prefsrc))
+	    nla_put_in_addr(skb, RTA_PREFSRC, fi->fib_prefsrc))
 		goto nla_put_failure;
 	if (fi->fib_nhs == 1) {
 		if (fi->fib_nh->nh_gw &&
-		    nla_put_be32(skb, RTA_GATEWAY, fi->fib_nh->nh_gw))
+		    nla_put_in_addr(skb, RTA_GATEWAY, fi->fib_nh->nh_gw))
 			goto nla_put_failure;
 		if (fi->fib_nh->nh_oif &&
 		    nla_put_u32(skb, RTA_OIF, fi->fib_nh->nh_oif))
@@ -1058,7 +1058,7 @@ int fib_dump_info(struct sk_buff *skb, u32 portid, u32 seq, int event,
 			rtnh->rtnh_ifindex = nh->nh_oif;
 
 			if (nh->nh_gw &&
-			    nla_put_be32(skb, RTA_GATEWAY, nh->nh_gw))
+			    nla_put_in_addr(skb, RTA_GATEWAY, nh->nh_gw))
 				goto nla_put_failure;
 #ifdef CONFIG_IP_ROUTE_CLASSID
 			if (nh->nh_tclassid &&

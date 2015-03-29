@@ -1541,11 +1541,11 @@ static int inet_fill_ifaddr(struct sk_buff *skb, struct in_ifaddr *ifa,
 		valid = INFINITY_LIFE_TIME;
 	}
 	if ((ifa->ifa_address &&
-	     nla_put_be32(skb, IFA_ADDRESS, ifa->ifa_address)) ||
+	     nla_put_in_addr(skb, IFA_ADDRESS, ifa->ifa_address)) ||
 	    (ifa->ifa_local &&
-	     nla_put_be32(skb, IFA_LOCAL, ifa->ifa_local)) ||
+	     nla_put_in_addr(skb, IFA_LOCAL, ifa->ifa_local)) ||
 	    (ifa->ifa_broadcast &&
-	     nla_put_be32(skb, IFA_BROADCAST, ifa->ifa_broadcast)) ||
+	     nla_put_in_addr(skb, IFA_BROADCAST, ifa->ifa_broadcast)) ||
 	    (ifa->ifa_label[0] &&
 	     nla_put_string(skb, IFA_LABEL, ifa->ifa_label)) ||
 	    nla_put_u32(skb, IFA_FLAGS, ifa->ifa_flags) ||

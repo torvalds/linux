@@ -187,9 +187,9 @@ static int vxlan_nla_put_addr(struct sk_buff *skb, int attr,
 			      const union vxlan_addr *ip)
 {
 	if (ip->sa.sa_family == AF_INET6)
-		return nla_put(skb, attr, sizeof(struct in6_addr), &ip->sin6.sin6_addr);
+		return nla_put_in6_addr(skb, attr, &ip->sin6.sin6_addr);
 	else
-		return nla_put_be32(skb, attr, ip->sin.sin_addr.s_addr);
+		return nla_put_in_addr(skb, attr, ip->sin.sin_addr.s_addr);
 }
 
 #else /* !CONFIG_IPV6 */
@@ -226,7 +226,7 @@ static int vxlan_nla_get_addr(union vxlan_addr *ip, struct nlattr *nla)
 static int vxlan_nla_put_addr(struct sk_buff *skb, int attr,
 			      const union vxlan_addr *ip)
 {
-	return nla_put_be32(skb, attr, ip->sin.sin_addr.s_addr);
+	return nla_put_in_addr(skb, attr, ip->sin.sin_addr.s_addr);
 }
 #endif
 
@@ -2807,13 +2807,13 @@ static int vxlan_fill_info(struct sk_buff *skb, const struct net_device *dev)
 
 	if (!vxlan_addr_any(&dst->remote_ip)) {
 		if (dst->remote_ip.sa.sa_family == AF_INET) {
-			if (nla_put_be32(skb, IFLA_VXLAN_GROUP,
-					 dst->remote_ip.sin.sin_addr.s_addr))
+			if (nla_put_in_addr(skb, IFLA_VXLAN_GROUP,
+					    dst->remote_ip.sin.sin_addr.s_addr))
 				goto nla_put_failure;
 #if IS_ENABLED(CONFIG_IPV6)
 		} else {
-			if (nla_put(skb, IFLA_VXLAN_GROUP6, sizeof(struct in6_addr),
-				    &dst->remote_ip.sin6.sin6_addr))
+			if (nla_put_in6_addr(skb, IFLA_VXLAN_GROUP6,
+					     &dst->remote_ip.sin6.sin6_addr))
 				goto nla_put_failure;
 #endif
 		}
@@ -2824,13 +2824,13 @@ static int vxlan_fill_info(struct sk_buff *skb, const struct net_device *dev)
 
 	if (!vxlan_addr_any(&vxlan->saddr)) {
 		if (vxlan->saddr.sa.sa_family == AF_INET) {
-			if (nla_put_be32(skb, IFLA_VXLAN_LOCAL,
-					 vxlan->saddr.sin.sin_addr.s_addr))
+			if (nla_put_in_addr(skb, IFLA_VXLAN_LOCAL,
+					    vxlan->saddr.sin.sin_addr.s_addr))
 				goto nla_put_failure;
 #if IS_ENABLED(CONFIG_IPV6)
 		} else {
-			if (nla_put(skb, IFLA_VXLAN_LOCAL6, sizeof(struct in6_addr),
-				    &vxlan->saddr.sin6.sin6_addr))
+			if (nla_put_in6_addr(skb, IFLA_VXLAN_LOCAL6,
+					     &vxlan->saddr.sin6.sin6_addr))
 				goto nla_put_failure;
 #endif
 		}
