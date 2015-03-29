@@ -2159,7 +2159,7 @@ static unsigned long code_segment_base(struct pt_regs *regs)
 	if (regs->flags & X86_VM_MASK)
 		return 0x10 * regs->cs;
 
-	if (user_mode_ignore_vm86(regs) && regs->cs != __USER_CS)
+	if (user_mode(regs) && regs->cs != __USER_CS)
 		return get_segment_base(regs->cs);
 #else
 	if (user_mode(regs) && !user_64bit_mode(regs) &&
