@@ -20,6 +20,12 @@ int kvm_vcpu_ioctl_get_cpuid2(struct kvm_vcpu *vcpu,
 			      struct kvm_cpuid_entry2 __user *entries);
 void kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx, u32 *ecx, u32 *edx);
 
+int cpuid_query_maxphyaddr(struct kvm_vcpu *vcpu);
+
+static inline int cpuid_maxphyaddr(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.maxphyaddr;
+}
 
 static inline bool guest_cpuid_has_xsave(struct kvm_vcpu *vcpu)
 {
