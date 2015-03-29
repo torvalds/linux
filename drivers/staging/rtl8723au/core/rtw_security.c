@@ -376,8 +376,7 @@ void rtw_seccalctkipmic23a(u8 *key, u8 *header, u8 *data, u32 data_len,
 			rtw_secmicappend23a(&micdata, &header[24], 6);
 		else
 			rtw_secmicappend23a(&micdata, &header[10], 6);
-	}
-	else{	/* ToDS == 0 */
+	} else {	/* ToDS == 0 */
 		rtw_secmicappend23a(&micdata, &header[4], 6);   /* DA */
 		if (header[1]&2)  /* From Ds == 1 */
 			rtw_secmicappend23a(&micdata, &header[16], 6);
@@ -678,8 +677,7 @@ int rtw_tkip_encrypt23a(struct rtw_adapter *padapter,
 					arcfour_encrypt(&mycontext, payload, payload, length);
 					arcfour_encrypt(&mycontext, payload + length, crc, 4);
 
-				}
-				else {
+				} else {
 					length = (pxmitpriv->frag_len -
 						  pattrib->hdrlen -
 						  pattrib->iv_len -
@@ -695,8 +693,7 @@ int rtw_tkip_encrypt23a(struct rtw_adapter *padapter,
 				}
 			}
 
-		}
-		else {
+		} else {
 			RT_TRACE(_module_rtl871x_security_c_, _drv_err_,
 				 "rtw_tkip_encrypt23a: stainfo == NULL!!!\n");
 			DBG_8723A("%s, psta == NUL\n", __func__);
