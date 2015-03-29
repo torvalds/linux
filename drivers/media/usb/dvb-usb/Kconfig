@@ -279,7 +279,6 @@ config DVB_USB_DW2102
 	select DVB_STV0900 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_M88RS2000 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_M88DS3103 if MEDIA_SUBDRV_AUTOSELECT
-	select MEDIA_TUNER_TS2022 if MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Say Y here to support the DvbWorld, TeVii, Prof, TechnoTrend
 	  DVB-S/S2 USB2.0 receivers.

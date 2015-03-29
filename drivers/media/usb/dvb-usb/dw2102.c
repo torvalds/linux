@@ -33,7 +33,7 @@
 #include "tda18271.h"
 #include "cxd2820r.h"
 #include "m88ds3103.h"
-#include "m88ts2022.h"
+#include "ts2020.h"
 
 /* Max transfer size done by I2C transfer functions */
 #define MAX_XFER_SIZE  64
@@ -1487,9 +1487,7 @@ static int tt_s2_4600_frontend_attach(struct dvb_usb_adapter *adap)
 	struct i2c_adapter *i2c_adapter;
 	struct i2c_client *client;
 	struct i2c_board_info info;
-	struct m88ts2022_config m88ts2022_config = {
-		.clock = 27000000,
-	};
+	struct ts2020_config ts2020_config = {};
 
 	if (dvb_usb_generic_rw(d, obuf, 3, ibuf, 1, 0) < 0)
 		err("command 0x0e transfer failed.");
@@ -1531,11 +1529,11 @@ static int tt_s2_4600_frontend_attach(struct dvb_usb_adapter *adap)
 		return -ENODEV;
 
 	/* attach tuner */
-	m88ts2022_config.fe = adap->fe_adap[0].fe;
-	strlcpy(info.type, "m88ts2022", I2C_NAME_SIZE);
+	ts2020_config.fe = adap->fe_adap[0].fe;
+	strlcpy(info.type, "ts2022", I2C_NAME_SIZE);
 	info.addr = 0x60;
-	info.platform_data = &m88ts2022_config;
-	request_module("m88ts2022");
+	info.platform_data = &ts2020_config;
+	request_module("ts2020");
 	client = i2c_new_device(i2c_adapter, &info);
 
 	if (client == NULL || client->dev.driver == NULL) {
