@@ -679,7 +679,7 @@ int rtw_tkip_encrypt23a(struct rtw_adapter *padapter,
 				 "pattrib->iv_len =%x, pattrib->icv_len =%x\n",
 				 pattrib->iv_len,
 				 pattrib->icv_len);
-			*((u32 *)crc) = cpu_to_le32(getcrc32(payload, length)); /* modified by Amy */
+			*((u32 *)crc) = cpu_to_le32(getcrc32(payload, length));
 
 			arcfour_init(&mycontext, rc4key, 16);
 			arcfour_encrypt(&mycontext, payload, payload, length);
@@ -691,7 +691,7 @@ int rtw_tkip_encrypt23a(struct rtw_adapter *padapter,
 				  pattrib->iv_len -
 				  pattrib->icv_len);
 
-			*((u32 *)crc) = cpu_to_le32(getcrc32(payload, length)); /* modified by Amy */
+			*((u32 *)crc) = cpu_to_le32(getcrc32(payload, length));
 			arcfour_init(&mycontext, rc4key, 16);
 			arcfour_encrypt(&mycontext, payload, payload, length);
 			arcfour_encrypt(&mycontext, payload + length, crc, 4);
@@ -1285,7 +1285,7 @@ int rtw_aes_encrypt23a(struct rtw_adapter *padapter,
 	/* Intermediate Buffers */
 	int curfragnum, length;
 	u32 prwskeylen;
-	u8 *pframe, *prwskey; /* *payload, *iv */
+	u8 *pframe, *prwskey;
 	u8 hw_hdr_offset = 0;
 	struct sta_info *stainfo;
 	struct pkt_attrib *pattrib = &pxmitframe->attrib;
@@ -1574,7 +1574,7 @@ int rtw_aes_decrypt23a(struct rtw_adapter *padapter,
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
 	struct sk_buff *skb = precvframe->pkt;
 	int length;
-	u8 *pframe, *prwskey; /* *payload, *iv */
+	u8 *pframe, *prwskey;
 	int res = _SUCCESS;
 
 	pframe = skb->data;
