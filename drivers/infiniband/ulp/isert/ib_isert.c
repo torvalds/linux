@@ -410,7 +410,7 @@ isert_free_device_ib_res(struct isert_device *device)
 }
 
 static void
-isert_device_try_release(struct isert_device *device)
+isert_device_put(struct isert_device *device)
 {
 	mutex_lock(&device_list_mutex);
 	device->refcount--;
@@ -424,7 +424,7 @@ isert_device_try_release(struct isert_device *device)
 }
 
 static struct isert_device *
-isert_device_find_by_ib_dev(struct rdma_cm_id *cma_id)
+isert_device_get(struct rdma_cm_id *cma_id)
 {
 	struct isert_device *device;
 	int ret;
@@ -713,19 +713,18 @@ isert_connect_request(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 		goto out_req_dma_map;
 	}
 
-	device = isert_device_find_by_ib_dev(cma_id);
+	device = isert_device_get(cma_id);
 	if (IS_ERR(device)) {
 		ret = PTR_ERR(device);
 		goto out_rsp_dma_map;
 	}
+	isert_conn->conn_device = device;
 
 	/* Set max inflight RDMA READ requests */
 	isert_conn->initiator_depth = min_t(u8,
 				event->param.conn.initiator_depth,
 				device->dev_attr.max_qp_init_rd_atom);
 	isert_dbg("Using initiator_depth: %u\n", isert_conn->initiator_depth);
-
-	isert_conn->conn_device = device;
 
 	ret = isert_conn_setup_qp(isert_conn, cma_id);
 	if (ret)
@@ -748,7 +747,7 @@ isert_connect_request(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 	return 0;
 
 out_conn_dev:
-	isert_device_try_release(device);
+	isert_device_put(device);
 out_rsp_dma_map:
 	ib_dma_unmap_single(ib_dev, isert_conn->login_rsp_dma,
 			    ISER_RX_LOGIN_SIZE, DMA_TO_DEVICE);
@@ -796,7 +795,7 @@ isert_connect_release(struct isert_conn *isert_conn)
 	kfree(isert_conn);
 
 	if (device)
-		isert_device_try_release(device);
+		isert_device_put(device);
 }
 
 static void
