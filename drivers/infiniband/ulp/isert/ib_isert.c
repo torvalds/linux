@@ -1385,13 +1385,12 @@ isert_rx_opcode(struct isert_conn *isert_conn, struct iser_rx_desc *rx_desc,
 {
 	struct iscsi_hdr *hdr = &rx_desc->iscsi_header;
 	struct iscsi_conn *conn = isert_conn->conn;
-	struct iscsi_session *sess = conn->sess;
 	struct iscsi_cmd *cmd;
 	struct isert_cmd *isert_cmd;
 	int ret = -EINVAL;
 	u8 opcode = (hdr->opcode & ISCSI_OPCODE_MASK);
 
-	if (sess->sess_ops->SessionType &&
+	if (conn->sess->sess_ops->SessionType &&
 	   (!(opcode & ISCSI_OP_TEXT) || !(opcode & ISCSI_OP_LOGOUT))) {
 		isert_err("Got illegal opcode: 0x%02x in SessionType=Discovery,"
 			  " ignoring\n", opcode);
