@@ -390,7 +390,7 @@ static int fec_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
  * read the timecounter and return the correct value on ns,
  * after converting it into a struct timespec.
  */
-static int fec_ptp_gettime(struct ptp_clock_info *ptp, struct timespec *ts)
+static int fec_ptp_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
 {
 	struct fec_enet_private *adapter =
 	    container_of(ptp, struct fec_enet_private, ptp_caps);
@@ -417,7 +417,7 @@ static int fec_ptp_gettime(struct ptp_clock_info *ptp, struct timespec *ts)
  * wall timer value.
  */
 static int fec_ptp_settime(struct ptp_clock_info *ptp,
-			   const struct timespec *ts)
+			   const struct timespec64 *ts)
 {
 	struct fec_enet_private *fep =
 	    container_of(ptp, struct fec_enet_private, ptp_caps);
@@ -584,8 +584,8 @@ void fec_ptp_init(struct platform_device *pdev)
 	fep->ptp_caps.pps = 1;
 	fep->ptp_caps.adjfreq = fec_ptp_adjfreq;
 	fep->ptp_caps.adjtime = fec_ptp_adjtime;
-	fep->ptp_caps.gettime = fec_ptp_gettime;
-	fep->ptp_caps.settime = fec_ptp_settime;
+	fep->ptp_caps.gettime64 = fec_ptp_gettime;
+	fep->ptp_caps.settime64 = fec_ptp_settime;
 	fep->ptp_caps.enable = fec_ptp_enable;
 
 	fep->cycle_speed = clk_get_rate(fep->clk_ptp);
