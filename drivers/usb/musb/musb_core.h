@@ -167,6 +167,8 @@ struct musb_io;
  * @vbus_status: returns vbus status if possible
  * @set_vbus:	forces vbus status
  * @adjust_channel_params: pre check for standard dma channel_program func
+ * @pre_root_reset_end: called before the root usb port reset flag gets cleared
+ * @post_root_reset_end: called after the root usb port reset flag gets cleared
  */
 struct musb_platform_ops {
 
@@ -210,6 +212,8 @@ struct musb_platform_ops {
 	int	(*adjust_channel_params)(struct dma_channel *channel,
 				u16 packet_sz, u8 *mode,
 				dma_addr_t *dma_addr, u32 *len);
+	void	(*pre_root_reset_end)(struct musb *musb);
+	void	(*post_root_reset_end)(struct musb *musb);
 };
 
 /*
@@ -593,6 +597,18 @@ static inline int musb_platform_exit(struct musb *musb)
 		return -EINVAL;
 
 	return musb->ops->exit(musb);
+}
+
+static inline void musb_platform_pre_root_reset_end(struct musb *musb)
+{
+	if (musb->ops->pre_root_reset_end)
+		musb->ops->pre_root_reset_end(musb);
+}
+
+static inline void musb_platform_post_root_reset_end(struct musb *musb)
+{
+	if (musb->ops->post_root_reset_end)
+		musb->ops->post_root_reset_end(musb);
 }
 
 #endif	/* __MUSB_CORE_H__ */
