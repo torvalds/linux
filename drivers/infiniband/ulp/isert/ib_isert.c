@@ -1946,10 +1946,6 @@ isert_send_completion(struct iser_tx_desc *tx_desc,
 	isert_dbg("Cmd %p iser_ib_op %d\n", isert_cmd, wr->iser_ib_op);
 
 	switch (wr->iser_ib_op) {
-	case ISER_IB_RECV:
-		isert_err("Got ISER_IB_RECV\n");
-		dump_stack();
-		break;
 	case ISER_IB_SEND:
 		isert_response_completion(tx_desc, isert_cmd,
 					  isert_conn, ib_dev);
