@@ -209,3 +209,4 @@ struct meson_pinctrl {
 #define MESON_PIN(x, b) PINCTRL_PIN(PIN(x, b), #x)
 
 extern struct meson_pinctrl_data meson8_pinctrl_data;
+extern struct meson_pinctrl_data meson8b_pinctrl_data;

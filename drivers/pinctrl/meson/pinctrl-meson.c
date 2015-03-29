@@ -545,6 +545,10 @@ static const struct of_device_id meson_pinctrl_dt_match[] = {
 		.compatible = "amlogic,meson8-pinctrl",
 		.data = &meson8_pinctrl_data,
 	},
+	{
+		.compatible = "amlogic,meson8b-pinctrl",
+		.data = &meson8b_pinctrl_data,
+	},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, meson_pinctrl_dt_match);
