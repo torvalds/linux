@@ -25,7 +25,7 @@
 #include <linux/errno.h>
 #include <linux/acpi.h>
 #include <linux/platform_device.h>
-#include <linux/pci_ids.h>
+#include <uapi/linux/pci_ids.h>
 
 #include <linux/gpio.h>
 
