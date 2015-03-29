@@ -13279,7 +13279,7 @@ static int bnx2x_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	return 0;
 }
 
-static int bnx2x_ptp_gettime(struct ptp_clock_info *ptp, struct timespec *ts)
+static int bnx2x_ptp_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
 {
 	struct bnx2x *bp = container_of(ptp, struct bnx2x, ptp_clock_info);
 	u64 ns;
@@ -13296,7 +13296,7 @@ static int bnx2x_ptp_gettime(struct ptp_clock_info *ptp, struct timespec *ts)
 }
 
 static int bnx2x_ptp_settime(struct ptp_clock_info *ptp,
-			     const struct timespec *ts)
+			     const struct timespec64 *ts)
 {
 	struct bnx2x *bp = container_of(ptp, struct bnx2x, ptp_clock_info);
 	u64 ns;
@@ -13334,8 +13334,8 @@ static void bnx2x_register_phc(struct bnx2x *bp)
 	bp->ptp_clock_info.pps = 0;
 	bp->ptp_clock_info.adjfreq = bnx2x_ptp_adjfreq;
 	bp->ptp_clock_info.adjtime = bnx2x_ptp_adjtime;
-	bp->ptp_clock_info.gettime = bnx2x_ptp_gettime;
-	bp->ptp_clock_info.settime = bnx2x_ptp_settime;
+	bp->ptp_clock_info.gettime64 = bnx2x_ptp_gettime;
+	bp->ptp_clock_info.settime64 = bnx2x_ptp_settime;
 	bp->ptp_clock_info.enable = bnx2x_ptp_enable;
 
 	bp->ptp_clock = ptp_clock_register(&bp->ptp_clock_info, &bp->pdev->dev);
