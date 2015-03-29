@@ -144,52 +144,52 @@ static struct workqueue_struct *vxlan_wq;
 static inline
 bool vxlan_addr_equal(const union vxlan_addr *a, const union vxlan_addr *b)
 {
-       if (a->sa.sa_family != b->sa.sa_family)
-               return false;
-       if (a->sa.sa_family == AF_INET6)
-               return ipv6_addr_equal(&a->sin6.sin6_addr, &b->sin6.sin6_addr);
-       else
-               return a->sin.sin_addr.s_addr == b->sin.sin_addr.s_addr;
+	if (a->sa.sa_family != b->sa.sa_family)
+		return false;
+	if (a->sa.sa_family == AF_INET6)
+		return ipv6_addr_equal(&a->sin6.sin6_addr, &b->sin6.sin6_addr);
+	else
+		return a->sin.sin_addr.s_addr == b->sin.sin_addr.s_addr;
 }
 
 static inline bool vxlan_addr_any(const union vxlan_addr *ipa)
 {
-       if (ipa->sa.sa_family == AF_INET6)
-               return ipv6_addr_any(&ipa->sin6.sin6_addr);
-       else
-               return ipa->sin.sin_addr.s_addr == htonl(INADDR_ANY);
+	if (ipa->sa.sa_family == AF_INET6)
+		return ipv6_addr_any(&ipa->sin6.sin6_addr);
+	else
+		return ipa->sin.sin_addr.s_addr == htonl(INADDR_ANY);
 }
 
 static inline bool vxlan_addr_multicast(const union vxlan_addr *ipa)
 {
-       if (ipa->sa.sa_family == AF_INET6)
-               return ipv6_addr_is_multicast(&ipa->sin6.sin6_addr);
-       else
-               return IN_MULTICAST(ntohl(ipa->sin.sin_addr.s_addr));
+	if (ipa->sa.sa_family == AF_INET6)
+		return ipv6_addr_is_multicast(&ipa->sin6.sin6_addr);
+	else
+		return IN_MULTICAST(ntohl(ipa->sin.sin_addr.s_addr));
 }
 
 static int vxlan_nla_get_addr(union vxlan_addr *ip, struct nlattr *nla)
 {
-       if (nla_len(nla) >= sizeof(struct in6_addr)) {
-               nla_memcpy(&ip->sin6.sin6_addr, nla, sizeof(struct in6_addr));
-               ip->sa.sa_family = AF_INET6;
-               return 0;
-       } else if (nla_len(nla) >= sizeof(__be32)) {
-               ip->sin.sin_addr.s_addr = nla_get_be32(nla);
-               ip->sa.sa_family = AF_INET;
-               return 0;
-       } else {
-               return -EAFNOSUPPORT;
-       }
+	if (nla_len(nla) >= sizeof(struct in6_addr)) {
+		nla_memcpy(&ip->sin6.sin6_addr, nla, sizeof(struct in6_addr));
+		ip->sa.sa_family = AF_INET6;
+		return 0;
+	} else if (nla_len(nla) >= sizeof(__be32)) {
+		ip->sin.sin_addr.s_addr = nla_get_be32(nla);
+		ip->sa.sa_family = AF_INET;
+		return 0;
+	} else {
+		return -EAFNOSUPPORT;
+	}
 }
 
 static int vxlan_nla_put_addr(struct sk_buff *skb, int attr,
-                             const union vxlan_addr *ip)
+			      const union vxlan_addr *ip)
 {
-       if (ip->sa.sa_family == AF_INET6)
-               return nla_put(skb, attr, sizeof(struct in6_addr), &ip->sin6.sin6_addr);
-       else
-               return nla_put_be32(skb, attr, ip->sin.sin_addr.s_addr);
+	if (ip->sa.sa_family == AF_INET6)
+		return nla_put(skb, attr, sizeof(struct in6_addr), &ip->sin6.sin6_addr);
+	else
+		return nla_put_be32(skb, attr, ip->sin.sin_addr.s_addr);
 }
 
 #else /* !CONFIG_IPV6 */
@@ -197,36 +197,36 @@ static int vxlan_nla_put_addr(struct sk_buff *skb, int attr,
 static inline
 bool vxlan_addr_equal(const union vxlan_addr *a, const union vxlan_addr *b)
 {
-       return a->sin.sin_addr.s_addr == b->sin.sin_addr.s_addr;
+	return a->sin.sin_addr.s_addr == b->sin.sin_addr.s_addr;
 }
 
 static inline bool vxlan_addr_any(const union vxlan_addr *ipa)
 {
-       return ipa->sin.sin_addr.s_addr == htonl(INADDR_ANY);
+	return ipa->sin.sin_addr.s_addr == htonl(INADDR_ANY);
 }
 
 static inline bool vxlan_addr_multicast(const union vxlan_addr *ipa)
 {
-       return IN_MULTICAST(ntohl(ipa->sin.sin_addr.s_addr));
+	return IN_MULTICAST(ntohl(ipa->sin.sin_addr.s_addr));
 }
 
 static int vxlan_nla_get_addr(union vxlan_addr *ip, struct nlattr *nla)
 {
-       if (nla_len(nla) >= sizeof(struct in6_addr)) {
-               return -EAFNOSUPPORT;
-       } else if (nla_len(nla) >= sizeof(__be32)) {
-               ip->sin.sin_addr.s_addr = nla_get_be32(nla);
-               ip->sa.sa_family = AF_INET;
-               return 0;
-       } else {
-               return -EAFNOSUPPORT;
-       }
+	if (nla_len(nla) >= sizeof(struct in6_addr)) {
+		return -EAFNOSUPPORT;
+	} else if (nla_len(nla) >= sizeof(__be32)) {
+		ip->sin.sin_addr.s_addr = nla_get_be32(nla);
+		ip->sa.sa_family = AF_INET;
+		return 0;
+	} else {
+		return -EAFNOSUPPORT;
+	}
 }
 
 static int vxlan_nla_put_addr(struct sk_buff *skb, int attr,
-                             const union vxlan_addr *ip)
+			      const union vxlan_addr *ip)
 {
-       return nla_put_be32(skb, attr, ip->sin.sin_addr.s_addr);
+	return nla_put_be32(skb, attr, ip->sin.sin_addr.s_addr);
 }
 #endif
 
