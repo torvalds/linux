@@ -11650,6 +11650,13 @@ static int bnx2x_get_hwinfo(struct bnx2x *bp)
 	u32 val = 0, val2 = 0;
 	int rc = 0;
 
+	/* Validate that chip access is feasible */
+	if (REG_RD(bp, MISC_REG_CHIP_NUM) == 0xffffffff) {
+		dev_err(&bp->pdev->dev,
+			"Chip read returns all Fs. Preventing probe from continuing\n");
+		return -EINVAL;
+	}
+
 	bnx2x_get_common_hwinfo(bp);
 
 	/*
