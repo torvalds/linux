@@ -1610,9 +1610,9 @@ static void rs_stay_in_table(struct iwl_lq_sta *lq_sta, bool force_search)
 static void rs_update_rate_tbl(struct iwl_mvm *mvm,
 			       struct ieee80211_sta *sta,
 			       struct iwl_lq_sta *lq_sta,
-			       struct rs_rate *rate)
+			       struct iwl_scale_tbl_info *tbl)
 {
-	rs_fill_lq_cmd(mvm, sta, lq_sta, rate);
+	rs_fill_lq_cmd(mvm, sta, lq_sta, &tbl->rate);
 	iwl_mvm_send_lq_cmd(mvm, &lq_sta->lq, false);
 }
 
@@ -2142,7 +2142,7 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 			rate->type = LQ_NONE;
 			lq_sta->search_better_tbl = 0;
 			tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
-			rs_update_rate_tbl(mvm, sta, lq_sta, &tbl->rate);
+			rs_update_rate_tbl(mvm, sta, lq_sta, tbl);
 		}
 		return;
 	}
@@ -2305,7 +2305,7 @@ lq_update:
 	/* Replace uCode's rate table for the destination station. */
 	if (update_lq) {
 		tbl->rate.index = index;
-		rs_update_rate_tbl(mvm, sta, lq_sta, &tbl->rate);
+		rs_update_rate_tbl(mvm, sta, lq_sta, tbl);
 	}
 
 	rs_stay_in_table(lq_sta, false);
@@ -2352,8 +2352,7 @@ lq_update:
 
 			rs_dump_rate(mvm, &tbl->rate,
 				     "Switch to SEARCH TABLE:");
-			rs_fill_lq_cmd(mvm, sta, lq_sta, &tbl->rate);
-			iwl_mvm_send_lq_cmd(mvm, &lq_sta->lq, false);
+			rs_update_rate_tbl(mvm, sta, lq_sta, tbl);
 		} else {
 			done_search = 1;
 		}
