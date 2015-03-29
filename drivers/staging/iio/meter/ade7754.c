@@ -550,8 +550,15 @@ static int ade7754_probe(struct spi_device *spi)
 	/* Get the device into a sane initial state */
 	ret = ade7754_initial_setup(indio_dev);
 	if (ret)
-		return ret;
-	return iio_device_register(indio_dev);
+		goto powerdown_on_error;
+	ret = iio_device_register(indio_dev);
+	if (ret)
+		goto powerdown_on_error;
+	return ret;
+
+powerdown_on_error:
+	ade7754_stop_device(&indio_dev->dev);
+	return ret;
 }
 
 /* fixme, confirm ordering in this function */
