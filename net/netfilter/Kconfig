@@ -522,7 +522,6 @@ config NFT_NAT
 	  typical Network Address Translation (NAT) packet transformations.
 
 config NFT_QUEUE
-	depends on NETFILTER_XTABLES
 	depends on NETFILTER_NETLINK_QUEUE
 	tristate "Netfilter nf_tables queue module"
 	help

@@ -8,6 +8,7 @@
  * Development of this code funded by Astaro AG (http://www.astaro.com/)
  */
 
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/list.h>
@@ -37,7 +38,7 @@ static struct nf_loginfo trace_loginfo = {
 	.type = NF_LOG_TYPE_LOG,
 	.u = {
 		.log = {
-			.level = 4,
+			.level = LOGLEVEL_WARNING,
 			.logflags = NF_LOG_MASK,
 	        },
 	},
@@ -49,10 +50,10 @@ static void __nft_trace_packet(const struct nft_pktinfo *pkt,
 {
 	struct net *net = dev_net(pkt->in ? pkt->in : pkt->out);
 
-	nf_log_packet(net, pkt->xt.family, pkt->ops->hooknum, pkt->skb, pkt->in,
-		      pkt->out, &trace_loginfo, "TRACE: %s:%s:%s:%u ",
-		      chain->table->name, chain->name, comments[type],
-		      rulenum);
+	nf_log_trace(net, pkt->xt.family, pkt->ops->hooknum, pkt->skb, pkt->in,
+		     pkt->out, &trace_loginfo, "TRACE: %s:%s:%s:%u ",
+		     chain->table->name, chain->name, comments[type],
+		     rulenum);
 }
 
 static inline void nft_trace_packet(const struct nft_pktinfo *pkt,
@@ -112,6 +113,7 @@ unsigned int
 nft_do_chain(struct nft_pktinfo *pkt, const struct nf_hook_ops *ops)
 {
 	const struct nft_chain *chain = ops->priv, *basechain = chain;
+	const struct net *net = read_pnet(&nft_base_chain(basechain)->pnet);
 	const struct nft_rule *rule;
 	const struct nft_expr *expr, *last;
 	struct nft_data data[NFT_REG_MAX + 1];
@@ -119,11 +121,7 @@ nft_do_chain(struct nft_pktinfo *pkt, const struct nf_hook_ops *ops)
 	struct nft_jumpstack jumpstack[NFT_JUMP_STACK_SIZE];
 	struct nft_stats *stats;
 	int rulenum;
-	/*
-	 * Cache cursor to avoid problems in case that the cursor is updated
-	 * while traversing the ruleset.
-	 */
-	unsigned int gencursor = ACCESS_ONCE(chain->net->nft.gencursor);
+	unsigned int gencursor = nft_genmask_cur(net);
 
 do_chain:
 	rulenum = 0;
