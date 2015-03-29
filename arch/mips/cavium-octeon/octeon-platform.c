@@ -958,6 +958,13 @@ end_led:
 		}
 	}
 
+	if (octeon_bootinfo->board_type != CVMX_BOARD_TYPE_CUST_DSR1000N) {
+		int dsr1000n_leds = fdt_path_offset(initial_boot_params,
+						    "/dsr1000n-leds");
+		if (dsr1000n_leds >= 0)
+			fdt_nop_node(initial_boot_params, dsr1000n_leds);
+	}
+
 	return 0;
 }
 
