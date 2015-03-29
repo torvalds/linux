@@ -2435,7 +2435,7 @@ static int em_sysenter(struct x86_emulate_ctxt *ctxt)
 		return emulate_gp(ctxt, 0);
 
 	ctxt->eflags &= ~(X86_EFLAGS_VM | X86_EFLAGS_IF);
-	cs_sel = (u16)msr_data & ~SELECTOR_RPL_MASK;
+	cs_sel = (u16)msr_data & ~SEGMENT_RPL_MASK;
 	ss_sel = cs_sel + 8;
 	if (efer & EFER_LMA) {
 		cs.d = 0;
@@ -2502,8 +2502,8 @@ static int em_sysexit(struct x86_emulate_ctxt *ctxt)
 			return emulate_gp(ctxt, 0);
 		break;
 	}
-	cs_sel |= SELECTOR_RPL_MASK;
-	ss_sel |= SELECTOR_RPL_MASK;
+	cs_sel |= SEGMENT_RPL_MASK;
+	ss_sel |= SEGMENT_RPL_MASK;
 
 	ops->set_segment(ctxt, cs_sel, &cs, 0, VCPU_SREG_CS);
 	ops->set_segment(ctxt, ss_sel, &ss, 0, VCPU_SREG_SS);

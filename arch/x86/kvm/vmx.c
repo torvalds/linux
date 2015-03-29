@@ -3263,8 +3263,8 @@ static void fix_pmode_seg(struct kvm_vcpu *vcpu, int seg,
 		 * default value.
 		 */
 		if (seg == VCPU_SREG_CS || seg == VCPU_SREG_SS)
-			save->selector &= ~SELECTOR_RPL_MASK;
-		save->dpl = save->selector & SELECTOR_RPL_MASK;
+			save->selector &= ~SEGMENT_RPL_MASK;
+		save->dpl = save->selector & SEGMENT_RPL_MASK;
 		save->s = 1;
 	}
 	vmx_set_segment(vcpu, save, seg);
@@ -3837,7 +3837,7 @@ static bool code_segment_valid(struct kvm_vcpu *vcpu)
 	unsigned int cs_rpl;
 
 	vmx_get_segment(vcpu, &cs, VCPU_SREG_CS);
-	cs_rpl = cs.selector & SELECTOR_RPL_MASK;
+	cs_rpl = cs.selector & SEGMENT_RPL_MASK;
 
 	if (cs.unusable)
 		return false;
@@ -3865,7 +3865,7 @@ static bool stack_segment_valid(struct kvm_vcpu *vcpu)
 	unsigned int ss_rpl;
 
 	vmx_get_segment(vcpu, &ss, VCPU_SREG_SS);
-	ss_rpl = ss.selector & SELECTOR_RPL_MASK;
+	ss_rpl = ss.selector & SEGMENT_RPL_MASK;
 
 	if (ss.unusable)
 		return true;
@@ -3887,7 +3887,7 @@ static bool data_segment_valid(struct kvm_vcpu *vcpu, int seg)
 	unsigned int rpl;
 
 	vmx_get_segment(vcpu, &var, seg);
-	rpl = var.selector & SELECTOR_RPL_MASK;
+	rpl = var.selector & SEGMENT_RPL_MASK;
 
 	if (var.unusable)
 		return true;
@@ -3914,7 +3914,7 @@ static bool tr_valid(struct kvm_vcpu *vcpu)
 
 	if (tr.unusable)
 		return false;
-	if (tr.selector & SELECTOR_TI_MASK)	/* TI = 1 */
+	if (tr.selector & SEGMENT_TI_MASK)	/* TI = 1 */
 		return false;
 	if (tr.type != 3 && tr.type != 11) /* TODO: Check if guest is in IA32e mode */
 		return false;
@@ -3932,7 +3932,7 @@ static bool ldtr_valid(struct kvm_vcpu *vcpu)
 
 	if (ldtr.unusable)
 		return true;
-	if (ldtr.selector & SELECTOR_TI_MASK)	/* TI = 1 */
+	if (ldtr.selector & SEGMENT_TI_MASK)	/* TI = 1 */
 		return false;
 	if (ldtr.type != 2)
 		return false;
@@ -3949,8 +3949,8 @@ static bool cs_ss_rpl_check(struct kvm_vcpu *vcpu)
 	vmx_get_segment(vcpu, &cs, VCPU_SREG_CS);
 	vmx_get_segment(vcpu, &ss, VCPU_SREG_SS);
 
-	return ((cs.selector & SELECTOR_RPL_MASK) ==
-		 (ss.selector & SELECTOR_RPL_MASK));
+	return ((cs.selector & SEGMENT_RPL_MASK) ==
+		 (ss.selector & SEGMENT_RPL_MASK));
 }
 
 /*
