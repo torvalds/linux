@@ -221,7 +221,10 @@ static int __init mtd_stresstest_init(void)
 		err = do_operation();
 		if (err)
 			goto out;
-		cond_resched();
+
+		err = mtdtest_relax();
+		if (err)
+			goto out;
 	}
 	pr_info("finished, %d operations done\n", op);
 

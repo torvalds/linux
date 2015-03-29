@@ -279,7 +279,10 @@ static int __init tort_init(void)
 					       " for 0xFF... pattern\n");
 					goto out;
 				}
-				cond_resched();
+
+				err = mtdtest_relax();
+				if (err)
+					goto out;
 			}
 		}
 
@@ -294,7 +297,10 @@ static int __init tort_init(void)
 			err = write_pattern(i, patt);
 			if (err)
 				goto out;
-			cond_resched();
+
+			err = mtdtest_relax();
+			if (err)
+				goto out;
 		}
 
 		/* Verify what we wrote */
@@ -314,7 +320,10 @@ static int __init tort_init(void)
 					       "0x55AA55..." : "0xAA55AA...");
 					goto out;
 				}
-				cond_resched();
+
+				err = mtdtest_relax();
+				if (err)
+					goto out;
 			}
 		}
 
