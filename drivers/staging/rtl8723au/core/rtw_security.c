@@ -31,11 +31,11 @@ struct arc4context {
 
 static void arcfour_init(struct arc4context *parc4ctx, u8 *key, u32 key_len)
 {
-	u32	t, u;
-	u32	keyindex;
-	u32	stateindex;
+	u32 t, u;
+	u32 keyindex;
+	u32 stateindex;
 	u8 *state;
-	u32	counter;
+	u32 counter;
 
 	state = parc4ctx->state;
 	parc4ctx->x = 0;
@@ -55,7 +55,8 @@ static void arcfour_init(struct arc4context *parc4ctx, u8 *key, u32 key_len)
 	}
 
 }
-static u32 arcfour_byte(	struct arc4context	*parc4ctx)
+
+static u32 arcfour_byte(struct arc4context *parc4ctx)
 {
 	u32 x;
 	u32 y;
@@ -75,16 +76,13 @@ static u32 arcfour_byte(	struct arc4context	*parc4ctx)
 	return state[(sx + sy) & 0xff];
 }
 
-static void arcfour_encrypt(	struct arc4context	*parc4ctx,
-	u8 *dest,
-	u8 *src,
-	u32 len)
+static void arcfour_encrypt(struct arc4context *parc4ctx, u8 *dest,
+			    u8 *src, u32 len)
 {
-	u32	i;
+	u32 i;
 
 	for (i = 0; i < len; i++)
 		dest[i] = src[i] ^ (unsigned char)arcfour_byte(parc4ctx);
-
 }
 
 static int bcrc32initialized;
@@ -365,7 +363,7 @@ void rtw_seccalctkipmic23a(u8 *key, u8 *header, u8 *data, u32 data_len,
 			   u8 *mic_code, u8 pri)
 {
 
-	struct mic_data	micdata;
+	struct mic_data micdata;
 	u8 priority[4]={0x0, 0x0, 0x0, 0x0};
 
 	rtw_secmicsetkey23a(&micdata, key);
@@ -601,21 +599,21 @@ static void phase2(u8 *rc4key, const u8 *tk, const u16 *p1k, u16 iv16)
 int rtw_tkip_encrypt23a(struct rtw_adapter *padapter,
 			struct xmit_frame *pxmitframe)
 {
-	u16	pnl;
-	u32	pnh;
-	u8	rc4key[16];
-	u8   ttkey[16];
-	u8	crc[4];
-	u8   hw_hdr_offset = 0;
+	u16 pnl;
+	u32 pnh;
+	u8 rc4key[16];
+	u8 ttkey[16];
+	u8 crc[4];
+	u8 hw_hdr_offset = 0;
 	struct arc4context mycontext;
-	int			curfragnum, length;
-	u32	prwskeylen;
-	u8	*pframe, *payload, *iv, *prwskey;
+	int curfragnum, length;
+	u32 prwskeylen;
+	u8 *pframe, *payload, *iv, *prwskey;
 	union pn48 dot11txpn;
-	struct	sta_info		*stainfo;
-	struct	pkt_attrib	 *pattrib = &pxmitframe->attrib;
-	struct	security_priv	*psecuritypriv = &padapter->securitypriv;
-	struct	xmit_priv		*pxmitpriv = &padapter->xmitpriv;
+	struct sta_info *stainfo;
+	struct pkt_attrib *pattrib = &pxmitframe->attrib;
+	struct security_priv *psecuritypriv = &padapter->securitypriv;
+	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	int res = _SUCCESS;
 
 	if (!pxmitframe->buf_addr)
@@ -708,17 +706,17 @@ int rtw_tkip_decrypt23a(struct rtw_adapter *padapter,
 {
 	u16 pnl;
 	u32 pnh;
-	u8   rc4key[16];
-	u8   ttkey[16];
-	u8	crc[4];
+	u8 rc4key[16];
+	u8 ttkey[16];
+	u8 crc[4];
 	struct arc4context mycontext;
-	int	length;
-	u32	prwskeylen;
-	u8	*pframe, *payload, *iv, *prwskey;
+	int length;
+	u32 prwskeylen;
+	u8 *pframe, *payload, *iv, *prwskey;
 	union pn48 dot11txpn;
-	struct	sta_info		*stainfo;
-	struct	rx_pkt_attrib *prxattrib = &precvframe->attrib;
-	struct	security_priv *psecuritypriv = &padapter->securitypriv;
+	struct sta_info *stainfo;
+	struct rx_pkt_attrib *prxattrib = &precvframe->attrib;
+	struct security_priv *psecuritypriv = &padapter->securitypriv;
 	struct sk_buff *skb = precvframe->pkt;
 	int res = _SUCCESS;
 
@@ -1136,8 +1134,8 @@ static void bitwise_xor(u8 *ina, u8 *inb, u8 *out)
 
 static int aes_cipher(u8 *key, uint hdrlen, u8 *pframe, uint plen)
 {
-	uint	qc_exists, a4_exists, i, j, payload_remainder,
-		num_blocks, payload_index;
+	uint qc_exists, a4_exists, i, j, payload_remainder,
+	     num_blocks, payload_index;
 	u8 pn_vector[6];
 	u8 mic_iv[16];
 	u8 mic_header1[16];
@@ -1353,12 +1351,11 @@ out:
 	return res;
 }
 
-static int aes_decipher(u8 *key, uint	hdrlen,
-			u8 *pframe, uint plen)
+static int aes_decipher(u8 *key, uint hdrlen, u8 *pframe, uint plen)
 {
-	static u8	message[MAX_MSG_SIZE];
-	uint	qc_exists, a4_exists, i, j, payload_remainder,
-			num_blocks, payload_index;
+	static u8 message[MAX_MSG_SIZE];
+	uint qc_exists, a4_exists, i, j, payload_remainder,
+	     num_blocks, payload_index;
 	int res = _SUCCESS;
 	u8 pn_vector[6];
 	u8 mic_iv[16];
