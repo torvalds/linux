@@ -260,6 +260,7 @@ void tipc_disc_rcv(struct net *net, struct sk_buff *buf,
 		}
 	}
 	tipc_node_unlock(node);
+	tipc_node_put(node);
 }
 
 /**
