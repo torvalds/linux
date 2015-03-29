@@ -289,8 +289,7 @@ static int bcm2835_spi_setup(struct spi_device *spi)
 
 	/* error in the case of native CS requested with CS-id > 2 */
 	dev_err(&spi->dev,
-		"setup: only three native chip-selects are supported\n"
-		);
+		"setup: only three native chip-selects are supported\n");
 	return -EINVAL;
 }
 
