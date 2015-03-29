@@ -929,9 +929,9 @@ static void mix_column(u8 *in, u8 *out)
 
 	for (i = 0; i < 4; i++) {
 		if ((in[i] & 0x80) == 0x80)
-		    add1b[i] = 0x1b;
+			add1b[i] = 0x1b;
 		else
-		    add1b[i] = 0x00;
+			add1b[i] = 0x00;
 	}
 
 	swap_halfs[0] = in[2]; /* Swap halfs */
@@ -986,21 +986,21 @@ static void aes128k128d(u8 *key, u8 *data, u8 *ciphertext)
 
 	for (round = 0; round < 11; round++) {
 		if (round == 0) {
-		    xor_128(round_key, data, ciphertext);
-		    next_key(round_key, round);
+			xor_128(round_key, data, ciphertext);
+			next_key(round_key, round);
 		} else if (round == 10) {
-		    byte_sub(ciphertext, intermediatea);
-		    shift_row(intermediatea, intermediateb);
-		    xor_128(intermediateb, round_key, ciphertext);
+			byte_sub(ciphertext, intermediatea);
+			shift_row(intermediatea, intermediateb);
+			xor_128(intermediateb, round_key, ciphertext);
 		} else { /* 1 - 9 */
-		    byte_sub(ciphertext, intermediatea);
-		    shift_row(intermediatea, intermediateb);
-		    mix_column(&intermediateb[0], &intermediatea[0]);
-		    mix_column(&intermediateb[4], &intermediatea[4]);
-		    mix_column(&intermediateb[8], &intermediatea[8]);
-		    mix_column(&intermediateb[12], &intermediatea[12]);
-		    xor_128(intermediatea, round_key, ciphertext);
-		    next_key(round_key, round);
+			byte_sub(ciphertext, intermediatea);
+			shift_row(intermediatea, intermediateb);
+			mix_column(&intermediateb[0], &intermediatea[0]);
+			mix_column(&intermediateb[4], &intermediatea[4]);
+			mix_column(&intermediateb[8], &intermediatea[8]);
+			mix_column(&intermediateb[12], &intermediatea[12]);
+			xor_128(intermediatea, round_key, ciphertext);
+			next_key(round_key, round);
 		}
 	}
 
@@ -1501,7 +1501,7 @@ static int aes_decipher(u8 *key, uint hdrlen, u8 *pframe, uint plen)
 		for (j = 0; j < 16; j++)
 			padded_buffer[j] = 0x00;
 		for (j = 0; j < payload_remainder; j++)
-		    padded_buffer[j] = message[payload_index++];
+			padded_buffer[j] = message[payload_index++];
 		bitwise_xor(aes_out, padded_buffer, chain_buffer);
 		aes128k128d(key, chain_buffer, aes_out);
 	}
@@ -1531,7 +1531,7 @@ static int aes_decipher(u8 *key, uint hdrlen, u8 *pframe, uint plen)
 				      message, pn_vector, num_blocks + 1);
 
 		for (j = 0; j < 16; j++)
-			 padded_buffer[j] = 0x00;
+			padded_buffer[j] = 0x00;
 		for (j = 0; j < payload_remainder; j++)
 			padded_buffer[j] = message[payload_index + j];
 		aes128k128d(key, ctr_preload, aes_out);
