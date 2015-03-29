@@ -797,7 +797,9 @@ isert_connect_release(struct isert_conn *isert_conn)
 
 	isert_dbg("conn %p\n", isert_conn);
 
-	if (device && device->use_fastreg)
+	BUG_ON(!device);
+
+	if (device->use_fastreg)
 		isert_conn_free_fastreg_pool(isert_conn);
 
 	isert_free_rx_descriptors(isert_conn);
@@ -814,10 +816,9 @@ isert_connect_release(struct isert_conn *isert_conn)
 	if (isert_conn->login_buf)
 		isert_free_login_buf(isert_conn);
 
-	kfree(isert_conn);
+	isert_device_put(device);
 
-	if (device)
-		isert_device_put(device);
+	kfree(isert_conn);
 }
 
 static void
