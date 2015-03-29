@@ -2258,8 +2258,8 @@ struct shmem2_region {
 	#define LINK_SFP_EEPROM_COMP_CODE_LRM	0x00004000
 
 	u32 reserved5[2];
-	u32 reserved6[PORT_MAX];
-
+	u32 link_change_count[PORT_MAX];        /* Offset 0x160-0x164 */
+	#define LINK_CHANGE_COUNT_MASK 0xff     /* Offset 0x168 */
 	/* driver version for each personality */
 	struct os_drv_ver func_os_drv_ver[E2_FUNC_MAX]; /* Offset 0x16c */
 
