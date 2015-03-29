@@ -6943,6 +6943,17 @@ T:	git git://git.rocketboards.org/linux-socfpga-next.git
 S:	Maintained
 F:	arch/nios2/
 
+NOKIA N900 POWER SUPPLY DRIVERS
+M:	Pali Rohár <pali.rohar@gmail.com>
+S:	Maintained
+F:	include/linux/power/bq2415x_charger.h
+F:	include/linux/power/bq27x00_battery.h
+F:	include/linux/power/isp1704_charger.h
+F:	drivers/power/bq2415x_charger.c
+F:	drivers/power/bq27x00_battery.c
+F:	drivers/power/isp1704_charger.c
+F:	drivers/power/rx51_battery.c
+
 NTB DRIVER
 M:	Jon Mason <jdmason@kudzu.us>
 M:	Dave Jiang <dave.jiang@intel.com>
