@@ -210,7 +210,7 @@ void rtw_wep_decrypt23a(struct rtw_adapter *padapter,
 		     struct recv_frame *precvframe)
 {
 	/*  exclude ICV */
-	u8 crc[4];
+	u32 actual_crc, expected_crc;
 	struct arc4context mycontext;
 	int length;
 	u32 keylength;
@@ -243,16 +243,14 @@ void rtw_wep_decrypt23a(struct rtw_adapter *padapter,
 	arcfour_encrypt(&mycontext, payload, payload, length);
 
 	/* calculate icv and compare the icv */
-	*((u32 *)crc) = le32_to_cpu(getcrc32(payload, length - 4));
+	actual_crc = le32_to_cpu(getcrc32(payload, length - 4));
+	expected_crc = le32_to_cpu(get_unaligned_le32(&payload[length - 4]));
 
-	if (crc[3] != payload[length - 1] || crc[2] != payload[length - 2] ||
-	    crc[1] != payload[length - 3] || crc[0] != payload[length - 4]) {
+	if (actual_crc != expected_crc) {
 		RT_TRACE(_module_rtl871x_security_c_, _drv_err_,
-			 "rtw_wep_decrypt23a:icv error crc[3](%x)!= payload[length-1](%x) || crc[2](%x)!= payload[length-2](%x) || crc[1](%x)!= payload[length-3](%x) || crc[0](%x)!= payload[length-4](%x)\n",
-			 crc[3], payload[length - 1],
-			 crc[2], payload[length - 2],
-			 crc[1], payload[length - 3],
-			 crc[0], payload[length - 4]);
+			 "rtw_wep_decrypt23a:icv CRC mismatch: "
+			 "actual: %08x, expected: %08x\n",
+			 actual_crc, expected_crc);
 	}
 }
 
@@ -714,7 +712,7 @@ int rtw_tkip_decrypt23a(struct rtw_adapter *padapter,
 	u32 pnh;
 	u8 rc4key[16];
 	u8 ttkey[16];
-	u8 crc[4];
+	u32 actual_crc, expected_crc;
 	struct arc4context mycontext;
 	int length;
 	u32 prwskeylen;
@@ -771,18 +769,14 @@ int rtw_tkip_decrypt23a(struct rtw_adapter *padapter,
 	arcfour_init(&mycontext, rc4key, 16);
 	arcfour_encrypt(&mycontext, payload, payload, length);
 
-	*((u32 *)crc) = le32_to_cpu(getcrc32(payload, length - 4));
+	actual_crc = le32_to_cpu(getcrc32(payload, length - 4));
+	expected_crc = le32_to_cpu(get_unaligned_le32(&payload[length - 4]));
 
-	if (crc[3] != payload[length - 1] ||
-	    crc[2] != payload[length - 2] ||
-	    crc[1] != payload[length - 3] ||
-	    crc[0] != payload[length - 4]) {
+	if (actual_crc != expected_crc) {
 		RT_TRACE(_module_rtl871x_security_c_, _drv_err_,
-			 "rtw_wep_decrypt23a:icv error crc[3](%x)!= payload[length-1](%x) || crc[2](%x)!= payload[length-2](%x) || crc[1](%x)!= payload[length-3](%x) || crc[0](%x)!= payload[length-4](%x)\n",
-			 crc[3], payload[length - 1],
-			 crc[2], payload[length - 2],
-			 crc[1], payload[length - 3],
-			 crc[0], payload[length - 4]);
+			 "rtw_wep_decrypt23a:icv CRC mismatch: "
+			 "actual: %08x, expected: %08x\n",
+			 actual_crc, expected_crc);
 		res = _FAIL;
 	}
 
