@@ -29,9 +29,7 @@ LEAF(swsusp_arch_suspend)
 	j swsusp_save
 END(swsusp_arch_suspend)
 
-LEAF(swsusp_arch_resume)
-	/* Avoid TLB mismatch during and after kernel resume */
-	jal local_flush_tlb_all
+LEAF(restore_image)
 	PTR_L t0, restore_pblist
 0:
 	PTR_L t1, PBE_ADDRESS(t0)   /* source */
@@ -60,4 +58,4 @@ LEAF(swsusp_arch_resume)
 	PTR_L s7, PT_R23(t0)
 	PTR_LI v0, 0x0
 	jr ra
-END(swsusp_arch_resume)
+END(restore_image)
