@@ -761,6 +761,8 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 		break;
 	case I40E_VIRTCHNL_OP_DISABLE_QUEUES:
 		adapter->aq_pending &= ~(I40EVF_FLAG_AQ_DISABLE_QUEUES);
+		i40evf_free_all_tx_resources(adapter);
+		i40evf_free_all_rx_resources(adapter);
 		break;
 	case I40E_VIRTCHNL_OP_CONFIG_VSI_QUEUES:
 		adapter->aq_pending &= ~(I40EVF_FLAG_AQ_CONFIGURE_QUEUES);
