@@ -1043,12 +1043,12 @@ static struct xfrm_state *__find_acq_core(struct net *net,
 			break;
 
 		case AF_INET6:
-			*(struct in6_addr *)x->sel.daddr.a6 = *(struct in6_addr *)daddr;
-			*(struct in6_addr *)x->sel.saddr.a6 = *(struct in6_addr *)saddr;
+			x->sel.daddr.in6 = daddr->in6;
+			x->sel.saddr.in6 = saddr->in6;
 			x->sel.prefixlen_d = 128;
 			x->sel.prefixlen_s = 128;
-			*(struct in6_addr *)x->props.saddr.a6 = *(struct in6_addr *)saddr;
-			*(struct in6_addr *)x->id.daddr.a6 = *(struct in6_addr *)daddr;
+			x->props.saddr.in6 = saddr->in6;
+			x->id.daddr.in6 = daddr->in6;
 			break;
 		}
 
