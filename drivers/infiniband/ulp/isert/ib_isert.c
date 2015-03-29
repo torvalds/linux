@@ -222,7 +222,7 @@ fail:
 static void
 isert_free_rx_descriptors(struct isert_conn *isert_conn)
 {
-	struct ib_device *ib_dev = isert_conn->conn_cm_id->device;
+	struct ib_device *ib_dev = isert_conn->conn_device->ib_device;
 	struct iser_rx_desc *rx_desc;
 	int i;
 
@@ -719,8 +719,8 @@ out:
 static void
 isert_connect_release(struct isert_conn *isert_conn)
 {
-	struct ib_device *ib_dev = isert_conn->conn_cm_id->device;
 	struct isert_device *device = isert_conn->conn_device;
+	struct ib_device *ib_dev = device->ib_device;
 
 	isert_dbg("conn %p\n", isert_conn);
 
@@ -728,7 +728,8 @@ isert_connect_release(struct isert_conn *isert_conn)
 		isert_conn_free_fastreg_pool(isert_conn);
 
 	isert_free_rx_descriptors(isert_conn);
-	rdma_destroy_id(isert_conn->conn_cm_id);
+	if (isert_conn->conn_cm_id)
+		rdma_destroy_id(isert_conn->conn_cm_id);
 
 	if (isert_conn->conn_qp) {
 		struct isert_comp *comp = isert_conn->conn_qp->recv_cq->cq_context;
@@ -878,12 +879,15 @@ isert_disconnected_handler(struct rdma_cm_id *cma_id,
 	return 0;
 }
 
-static void
+static int
 isert_connect_error(struct rdma_cm_id *cma_id)
 {
 	struct isert_conn *isert_conn = cma_id->qp->qp_context;
 
+	isert_conn->conn_cm_id = NULL;
 	isert_put_conn(isert_conn);
+
+	return -1;
 }
 
 static int
@@ -912,7 +916,7 @@ isert_cma_handler(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 	case RDMA_CM_EVENT_REJECTED:       /* FALLTHRU */
 	case RDMA_CM_EVENT_UNREACHABLE:    /* FALLTHRU */
 	case RDMA_CM_EVENT_CONNECT_ERROR:
-		isert_connect_error(cma_id);
+		ret = isert_connect_error(cma_id);
 		break;
 	default:
 		isert_err("Unhandled RDMA CMA event: %d\n", event->event);
