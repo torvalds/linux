@@ -19,6 +19,7 @@ struct inetpeer_addr_base {
 	union {
 		__be32			a4;
 		__be32			a6[4];
+		struct in6_addr		in6;
 	};
 };
 
@@ -151,7 +152,7 @@ static inline struct inet_peer *inet_getpeer_v6(struct inet_peer_base *base,
 {
 	struct inetpeer_addr daddr;
 
-	*(struct in6_addr *)daddr.addr.a6 = *v6daddr;
+	daddr.addr.in6 = *v6daddr;
 	daddr.family = AF_INET6;
 	return inet_getpeer(base, &daddr, create);
 }
