@@ -1277,9 +1277,7 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 					info->status.ampdu_ack_len);
 		}
 	} else {
-	/*
-	 * For legacy, update frame history with for each Tx retry.
-	 */
+		/* For legacy, update frame history with for each Tx retry. */
 		retries = info->status.rates[0].count - 1;
 		/* HW doesn't send more than 15 retries */
 		retries = min(retries, 15);
