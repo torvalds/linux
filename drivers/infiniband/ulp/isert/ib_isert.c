@@ -275,39 +275,31 @@ isert_free_rx_descriptors(struct isert_conn *isert_conn)
 static void isert_cq_work(struct work_struct *);
 static void isert_cq_callback(struct ib_cq *, void *);
 
-static int
-isert_create_device_ib_res(struct isert_device *device)
+static void
+isert_free_comps(struct isert_device *device)
 {
-	struct ib_device *ib_dev = device->ib_device;
-	struct ib_device_attr *dev_attr;
-	int ret = 0, i;
-	int max_cqe;
+	int i;
 
-	dev_attr = &device->dev_attr;
-	ret = isert_query_device(ib_dev, dev_attr);
-	if (ret)
-		return ret;
+	for (i = 0; i < device->comps_used; i++) {
+		struct isert_comp *comp = &device->comps[i];
 
-	max_cqe = min(ISER_MAX_CQ_LEN, dev_attr->max_cqe);
-
-	/* asign function handlers */
-	if (dev_attr->device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS &&
-	    dev_attr->device_cap_flags & IB_DEVICE_SIGNATURE_HANDOVER) {
-		device->use_fastreg = 1;
-		device->reg_rdma_mem = isert_reg_rdma;
-		device->unreg_rdma_mem = isert_unreg_rdma;
-	} else {
-		device->use_fastreg = 0;
-		device->reg_rdma_mem = isert_map_rdma;
-		device->unreg_rdma_mem = isert_unmap_cmd;
+		if (comp->cq) {
+			cancel_work_sync(&comp->work);
+			ib_destroy_cq(comp->cq);
+		}
 	}
+	kfree(device->comps);
+}
 
-	/* Check signature cap */
-	device->pi_capable = dev_attr->device_cap_flags &
-			     IB_DEVICE_SIGNATURE_HANDOVER ? true : false;
+static int
+isert_alloc_comps(struct isert_device *device,
+		  struct ib_device_attr *attr)
+{
+	int i, max_cqe, ret = 0;
 
 	device->comps_used = min(ISERT_MAX_CQ, min_t(int, num_online_cpus(),
-					device->ib_device->num_comp_vectors));
+				 device->ib_device->num_comp_vectors));
+
 	isert_info("Using %d CQs, %s supports %d vectors support "
 		   "Fast registration %d pi_capable %d\n",
 		   device->comps_used, device->ib_device->name,
@@ -321,6 +313,8 @@ isert_create_device_ib_res(struct isert_device *device)
 		return -ENOMEM;
 	}
 
+	max_cqe = min(ISER_MAX_CQ_LEN, attr->max_cqe);
+
 	for (i = 0; i < device->comps_used; i++) {
 		struct isert_comp *comp = &device->comps[i];
 
@@ -332,6 +326,7 @@ isert_create_device_ib_res(struct isert_device *device)
 					(void *)comp,
 					max_cqe, i);
 		if (IS_ERR(comp->cq)) {
+			isert_err("Unable to allocate cq\n");
 			ret = PTR_ERR(comp->cq);
 			comp->cq = NULL;
 			goto out_cq;
@@ -341,6 +336,40 @@ isert_create_device_ib_res(struct isert_device *device)
 		if (ret)
 			goto out_cq;
 	}
+
+	return 0;
+out_cq:
+	isert_free_comps(device);
+	return ret;
+}
+
+static int
+isert_create_device_ib_res(struct isert_device *device)
+{
+	struct ib_device *ib_dev = device->ib_device;
+	struct ib_device_attr *dev_attr;
+	int ret = 0;
+
+	dev_attr = &device->dev_attr;
+	ret = isert_query_device(ib_dev, dev_attr);
+	if (ret)
+		return ret;
+
+	/* asign function handlers */
+	if (dev_attr->device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS &&
+	    dev_attr->device_cap_flags & IB_DEVICE_SIGNATURE_HANDOVER) {
+		device->use_fastreg = 1;
+		device->reg_rdma_mem = isert_reg_rdma;
+		device->unreg_rdma_mem = isert_unreg_rdma;
+	} else {
+		device->use_fastreg = 0;
+		device->reg_rdma_mem = isert_map_rdma;
+		device->unreg_rdma_mem = isert_unmap_cmd;
+	}
+
+	ret = isert_alloc_comps(device, dev_attr);
+	if (ret)
+		return ret;
 
 	device->pd = ib_alloc_pd(device->ib_device);
 	if (IS_ERR(device->pd)) {
@@ -358,42 +387,27 @@ isert_create_device_ib_res(struct isert_device *device)
 		goto out_mr;
 	}
 
+	/* Check signature cap */
+	device->pi_capable = dev_attr->device_cap_flags &
+			     IB_DEVICE_SIGNATURE_HANDOVER ? true : false;
 
 	return 0;
 
 out_mr:
 	ib_dealloc_pd(device->pd);
 out_cq:
-	for (i = 0; i < device->comps_used; i++) {
-		struct isert_comp *comp = &device->comps[i];
-
-		if (comp->cq) {
-			cancel_work_sync(&comp->work);
-			ib_destroy_cq(comp->cq);
-		}
-	}
-	kfree(device->comps);
-
+	isert_free_comps(device);
 	return ret;
 }
 
 static void
 isert_free_device_ib_res(struct isert_device *device)
 {
-	int i;
-
 	isert_info("device %p\n", device);
 
 	ib_dereg_mr(device->mr);
 	ib_dealloc_pd(device->pd);
-	for (i = 0; i < device->comps_used; i++) {
-		struct isert_comp *comp = &device->comps[i];
-
-		cancel_work_sync(&comp->work);
-		ib_destroy_cq(comp->cq);
-		comp->cq = NULL;
-	}
-	kfree(device->comps);
+	isert_free_comps(device);
 }
 
 static void
