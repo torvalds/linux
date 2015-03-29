@@ -1618,6 +1618,7 @@ static struct clk_core *clk_calc_new_rates(struct clk_core *clk,
 	unsigned long min_rate;
 	unsigned long max_rate;
 	int p_index = 0;
+	long ret;
 
 	/* sanity */
 	if (IS_ERR_OR_NULL(clk))
@@ -1633,15 +1634,23 @@ static struct clk_core *clk_calc_new_rates(struct clk_core *clk,
 	/* find the closest rate and parent clk/rate */
 	if (clk->ops->determine_rate) {
 		parent_hw = parent ? parent->hw : NULL;
-		new_rate = clk->ops->determine_rate(clk->hw, rate,
-						    min_rate,
-						    max_rate,
-						    &best_parent_rate,
-						    &parent_hw);
+		ret = clk->ops->determine_rate(clk->hw, rate,
+					       min_rate,
+					       max_rate,
+					       &best_parent_rate,
+					       &parent_hw);
+		if (ret < 0)
+			return NULL;
+
+		new_rate = ret;
 		parent = parent_hw ? parent_hw->core : NULL;
 	} else if (clk->ops->round_rate) {
-		new_rate = clk->ops->round_rate(clk->hw, rate,
-						&best_parent_rate);
+		ret = clk->ops->round_rate(clk->hw, rate,
+					   &best_parent_rate);
+		if (ret < 0)
+			return NULL;
+
+		new_rate = ret;
 		if (new_rate < min_rate || new_rate > max_rate)
 			return NULL;
 	} else if (!parent || !(clk->flags & CLK_SET_RATE_PARENT)) {
