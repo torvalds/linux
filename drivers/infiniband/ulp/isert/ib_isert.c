@@ -636,6 +636,86 @@ err:
 	return ret;
 }
 
+static void
+isert_init_conn(struct isert_conn *isert_conn)
+{
+	isert_conn->state = ISER_CONN_INIT;
+	INIT_LIST_HEAD(&isert_conn->conn_accept_node);
+	init_completion(&isert_conn->conn_login_comp);
+	init_completion(&isert_conn->login_req_comp);
+	init_completion(&isert_conn->conn_wait);
+	kref_init(&isert_conn->conn_kref);
+	mutex_init(&isert_conn->conn_mutex);
+	spin_lock_init(&isert_conn->conn_lock);
+	INIT_LIST_HEAD(&isert_conn->conn_fr_pool);
+}
+
+static void
+isert_free_login_buf(struct isert_conn *isert_conn)
+{
+	struct ib_device *ib_dev = isert_conn->conn_device->ib_device;
+
+	ib_dma_unmap_single(ib_dev, isert_conn->login_rsp_dma,
+			    ISER_RX_LOGIN_SIZE, DMA_TO_DEVICE);
+	ib_dma_unmap_single(ib_dev, isert_conn->login_req_dma,
+			    ISCSI_DEF_MAX_RECV_SEG_LEN,
+			    DMA_FROM_DEVICE);
+	kfree(isert_conn->login_buf);
+}
+
+static int
+isert_alloc_login_buf(struct isert_conn *isert_conn,
+		      struct ib_device *ib_dev)
+{
+	int ret;
+
+	isert_conn->login_buf = kzalloc(ISCSI_DEF_MAX_RECV_SEG_LEN +
+					ISER_RX_LOGIN_SIZE, GFP_KERNEL);
+	if (!isert_conn->login_buf) {
+		isert_err("Unable to allocate isert_conn->login_buf\n");
+		return -ENOMEM;
+	}
+
+	isert_conn->login_req_buf = isert_conn->login_buf;
+	isert_conn->login_rsp_buf = isert_conn->login_buf +
+				    ISCSI_DEF_MAX_RECV_SEG_LEN;
+
+	isert_dbg("Set login_buf: %p login_req_buf: %p login_rsp_buf: %p\n",
+		 isert_conn->login_buf, isert_conn->login_req_buf,
+		 isert_conn->login_rsp_buf);
+
+	isert_conn->login_req_dma = ib_dma_map_single(ib_dev,
+				(void *)isert_conn->login_req_buf,
+				ISCSI_DEF_MAX_RECV_SEG_LEN, DMA_FROM_DEVICE);
+
+	ret = ib_dma_mapping_error(ib_dev, isert_conn->login_req_dma);
+	if (ret) {
+		isert_err("login_req_dma mapping error: %d\n", ret);
+		isert_conn->login_req_dma = 0;
+		goto out_login_buf;
+	}
+
+	isert_conn->login_rsp_dma = ib_dma_map_single(ib_dev,
+					(void *)isert_conn->login_rsp_buf,
+					ISER_RX_LOGIN_SIZE, DMA_TO_DEVICE);
+
+	ret = ib_dma_mapping_error(ib_dev, isert_conn->login_rsp_dma);
+	if (ret) {
+		isert_err("login_rsp_dma mapping error: %d\n", ret);
+		isert_conn->login_rsp_dma = 0;
+		goto out_req_dma_map;
+	}
+
+	return 0;
+
+out_req_dma_map:
+	ib_dma_unmap_single(ib_dev, isert_conn->login_req_dma,
+			    ISCSI_DEF_MAX_RECV_SEG_LEN, DMA_FROM_DEVICE);
+out_login_buf:
+	kfree(isert_conn->login_buf);
+	return ret;
+}
+
 static int
 isert_connect_request(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 {
@@ -643,7 +723,6 @@ isert_connect_request(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 	struct iscsi_np *np = isert_np->np;
 	struct isert_conn *isert_conn;
 	struct isert_device *device;
-	struct ib_device *ib_dev = cma_id->device;
 	int ret = 0;
 
 	spin_lock_bh(&np->np_thread_lock);
@@ -658,60 +737,15 @@ isert_connect_request(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 		 cma_id, cma_id->context);
 
 	isert_conn = kzalloc(sizeof(struct isert_conn), GFP_KERNEL);
-	if (!isert_conn) {
-		isert_err("Unable to allocate isert_conn\n");
+	if (!isert_conn)
 		return -ENOMEM;
-	}
-	isert_conn->state = ISER_CONN_INIT;
-	INIT_LIST_HEAD(&isert_conn->conn_accept_node);
-	init_completion(&isert_conn->conn_login_comp);
-	init_completion(&isert_conn->login_req_comp);
-	init_completion(&isert_conn->conn_wait);
-	kref_init(&isert_conn->conn_kref);
-	mutex_init(&isert_conn->conn_mutex);
-	spin_lock_init(&isert_conn->conn_lock);
-	INIT_LIST_HEAD(&isert_conn->conn_fr_pool);
 
+	isert_init_conn(isert_conn);
 	isert_conn->conn_cm_id = cma_id;
 
-	isert_conn->login_buf = kzalloc(ISCSI_DEF_MAX_RECV_SEG_LEN +
-					ISER_RX_LOGIN_SIZE, GFP_KERNEL);
-	if (!isert_conn->login_buf) {
-		isert_err("Unable to allocate isert_conn->login_buf\n");
-		ret = -ENOMEM;
+	ret = isert_alloc_login_buf(isert_conn, cma_id->device);
+	if (ret)
 		goto out;
-	}
-
-	isert_conn->login_req_buf = isert_conn->login_buf;
-	isert_conn->login_rsp_buf = isert_conn->login_buf +
-				    ISCSI_DEF_MAX_RECV_SEG_LEN;
-	isert_dbg("Set login_buf: %p login_req_buf: %p login_rsp_buf: %p\n",
-		 isert_conn->login_buf, isert_conn->login_req_buf,
-		 isert_conn->login_rsp_buf);
-
-	isert_conn->login_req_dma = ib_dma_map_single(ib_dev,
-				(void *)isert_conn->login_req_buf,
-				ISCSI_DEF_MAX_RECV_SEG_LEN, DMA_FROM_DEVICE);
-
-	ret = ib_dma_mapping_error(ib_dev, isert_conn->login_req_dma);
-	if (ret) {
-		isert_err("ib_dma_mapping_error failed for login_req_dma: %d\n",
-		       ret);
-		isert_conn->login_req_dma = 0;
-		goto out_login_buf;
-	}
-
-	isert_conn->login_rsp_dma = ib_dma_map_single(ib_dev,
-					(void *)isert_conn->login_rsp_buf,
-					ISER_RX_LOGIN_SIZE, DMA_TO_DEVICE);
-
-	ret = ib_dma_mapping_error(ib_dev, isert_conn->login_rsp_dma);
-	if (ret) {
-		isert_err("ib_dma_mapping_error failed for login_rsp_dma: %d\n",
-		       ret);
-		isert_conn->login_rsp_dma = 0;
-		goto out_req_dma_map;
-	}
 
 	device = isert_device_get(cma_id);
 	if (IS_ERR(device)) {
@@ -749,13 +783,7 @@ isert_connect_request(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 out_conn_dev:
 	isert_device_put(device);
 out_rsp_dma_map:
-	ib_dma_unmap_single(ib_dev, isert_conn->login_rsp_dma,
-			    ISER_RX_LOGIN_SIZE, DMA_TO_DEVICE);
-out_req_dma_map:
-	ib_dma_unmap_single(ib_dev, isert_conn->login_req_dma,
-			    ISCSI_DEF_MAX_RECV_SEG_LEN, DMA_FROM_DEVICE);
-out_login_buf:
-	kfree(isert_conn->login_buf);
+	isert_free_login_buf(isert_conn);
 out:
 	kfree(isert_conn);
 	rdma_reject(cma_id, NULL, 0);
@@ -766,7 +794,6 @@ static void
 isert_connect_release(struct isert_conn *isert_conn)
 {
 	struct isert_device *device = isert_conn->conn_device;
-	struct ib_device *ib_dev = device->ib_device;
 
 	isert_dbg("conn %p\n", isert_conn);
 
@@ -784,14 +811,9 @@ isert_connect_release(struct isert_conn *isert_conn)
 		ib_destroy_qp(isert_conn->conn_qp);
 	}
 
-	if (isert_conn->login_buf) {
-		ib_dma_unmap_single(ib_dev, isert_conn->login_rsp_dma,
-				    ISER_RX_LOGIN_SIZE, DMA_TO_DEVICE);
-		ib_dma_unmap_single(ib_dev, isert_conn->login_req_dma,
-				    ISCSI_DEF_MAX_RECV_SEG_LEN,
-				    DMA_FROM_DEVICE);
-		kfree(isert_conn->login_buf);
-	}
+	if (isert_conn->login_buf)
+		isert_free_login_buf(isert_conn);
+
 	kfree(isert_conn);
 
 	if (device)
