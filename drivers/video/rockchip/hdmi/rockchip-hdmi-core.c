@@ -23,7 +23,7 @@ struct delayed_work *hdmi_submit_work(struct hdmi *hdmi,
 {
 	struct hdmi_delayed_work *work;
 
-	DBG("%s event %04x delay %d", __func__, event, delay);
+	DBG("%s event %04x delay %d\n", __func__, event, delay);
 
 	work = kmalloc(sizeof(*work), GFP_ATOMIC);
 
@@ -59,14 +59,14 @@ static void hdmi_send_uevent(struct hdmi *hdmi, int uevent)
 
 static inline void hdmi_wq_set_output(struct hdmi *hdmi, int mute)
 {
-	DBG("%s mute %d", __func__, mute);
+	DBG("%s mute %d\n", __func__, mute);
 	if (hdmi->ops->setmute)
 		hdmi->ops->setmute(hdmi, mute);
 }
 
 static inline void hdmi_wq_set_audio(struct hdmi *hdmi)
 {
-	DBG("%s", __func__);
+	DBG("%s\n", __func__);
 	if (hdmi->ops->setaudio)
 		hdmi->ops->setaudio(hdmi, &hdmi->audio);
 }
@@ -75,7 +75,7 @@ static void hdmi_wq_set_video(struct hdmi *hdmi)
 {
 	struct hdmi_video	video;
 
-	DBG("%s", __func__);
+	DBG("%s\n", __func__);
 
 	video.vic = hdmi->vic & HDMI_VIC_MASK;
 	video.sink_hdmi = hdmi->edid.sink_hdmi;
@@ -120,6 +120,16 @@ static void hdmi_wq_set_video(struct hdmi *hdmi)
 		hdmi->ops->setvideo(hdmi, &video);
 }
 
+static inline void hdmi_destroy_modelist(struct list_head *head)
+{
+	struct list_head *pos, *n;
+
+	list_for_each_safe(pos, n, head) {
+		list_del(pos);
+		kfree(pos);
+	}
+}
+
 static void hdmi_wq_parse_edid(struct hdmi *hdmi)
 {
 	struct hdmi_edid *pedid;
@@ -129,13 +139,12 @@ static void hdmi_wq_parse_edid(struct hdmi *hdmi)
 	if (hdmi == NULL)
 		return;
 
-	DBG("%s", __func__);
+	DBG("%s\n", __func__);
 
 	pedid = &(hdmi->edid);
-	fb_destroy_modelist(&pedid->modelist);
+	hdmi_destroy_modelist(&(pedid->modelist));
 	memset(pedid, 0, sizeof(struct hdmi_edid));
 	INIT_LIST_HEAD(&pedid->modelist);
-
 	buff = kmalloc(HDMI_EDID_BLOCK_SIZE, GFP_KERNEL);
 	if (buff == NULL) {
 		dev_err(hdmi->dev,
@@ -206,7 +215,7 @@ out:
 
 static void hdmi_wq_insert(struct hdmi *hdmi)
 {
-	DBG("%s", __func__);
+	DBG("%s\n", __func__);
 	if (hdmi->ops->insert)
 		hdmi->ops->insert(hdmi);
 	hdmi_wq_parse_edid(hdmi);
@@ -235,7 +244,7 @@ static void hdmi_wq_remove(struct hdmi *hdmi)
 	struct list_head *pos, *n;
 	struct rk_screen screen;
 
-	DBG("%s", __func__);
+	DBG("%s\n", __func__);
 	if (hdmi->ops->remove)
 		hdmi->ops->remove(hdmi);
 	#ifdef CONFIG_SWITCH
@@ -324,7 +333,7 @@ static void hdmi_work_queue(struct work_struct *work)
 	case HDMI_HPD_CHANGE:
 		if (hdmi->ops->getstatus)
 			hpd = hdmi->ops->getstatus(hdmi);
-		DBG("hdmi_work_queue() - hpd is %d hotplug is %d",
+		DBG("hdmi_work_queue() - hpd is %d hotplug is %d\n",
 		    hpd, hdmi->hotplug);
 		if (hpd != hdmi->hotplug) {
 			if (hpd == HDMI_HPD_ACTIVED) {
@@ -427,7 +436,7 @@ struct hdmi *rockchip_hdmi_register(struct hdmi_property *property,
 	if (i == HDMI_MAX_ID)
 		return NULL;
 
-	DBG("hdmi_register() - video source %d display %d",
+	DBG("hdmi_register() - video source %d display %d\n",
 	    property->videosrc,  property->display);
 
 	hdmi = kmalloc(sizeof(*hdmi), GFP_KERNEL);
@@ -514,7 +523,7 @@ void rockchip_hdmi_unregister(struct hdmi *hdmi)
 		switch_dev_unregister(&(hdmi->switchdev));
 		#endif
 		hdmi_unregister_display_sysfs(hdmi);
-		fb_destroy_modelist(&hdmi->edid.modelist);
+		hdmi_destroy_modelist(&hdmi->edid.modelist);
 		kfree(hdmi->edid.audio);
 		if (hdmi->edid.specs) {
 			kfree(hdmi->edid.specs->modedb);
