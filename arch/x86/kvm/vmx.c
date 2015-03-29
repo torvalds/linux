@@ -8866,9 +8866,9 @@ static int nested_vmx_check_apicv_controls(struct kvm_vcpu *vcpu,
 
 static int nested_vmx_check_msr_switch(struct kvm_vcpu *vcpu,
 				       unsigned long count_field,
-				       unsigned long addr_field,
-				       int maxphyaddr)
+				       unsigned long addr_field)
 {
+	int maxphyaddr;
 	u64 count, addr;
 
 	if (vmcs12_read_any(vcpu, count_field, &count) ||
@@ -8878,6 +8878,7 @@ static int nested_vmx_check_msr_switch(struct kvm_vcpu *vcpu,
 	}
 	if (count == 0)
 		return 0;
+	maxphyaddr = cpuid_maxphyaddr(vcpu);
 	if (!IS_ALIGNED(addr, 16) || addr >> maxphyaddr ||
 	    (addr + count * sizeof(struct vmx_msr_entry) - 1) >> maxphyaddr) {
 		pr_warn_ratelimited(
@@ -8891,19 +8892,16 @@ static int nested_vmx_check_msr_switch(struct kvm_vcpu *vcpu,
 static int nested_vmx_check_msr_switch_controls(struct kvm_vcpu *vcpu,
 						struct vmcs12 *vmcs12)
 {
-	int maxphyaddr;
-
 	if (vmcs12->vm_exit_msr_load_count == 0 &&
 	    vmcs12->vm_exit_msr_store_count == 0 &&
 	    vmcs12->vm_entry_msr_load_count == 0)
 		return 0; /* Fast path */
-	maxphyaddr = cpuid_maxphyaddr(vcpu);
 	if (nested_vmx_check_msr_switch(vcpu, VM_EXIT_MSR_LOAD_COUNT,
-					VM_EXIT_MSR_LOAD_ADDR, maxphyaddr) ||
+					VM_EXIT_MSR_LOAD_ADDR) ||
 	    nested_vmx_check_msr_switch(vcpu, VM_EXIT_MSR_STORE_COUNT,
-					VM_EXIT_MSR_STORE_ADDR, maxphyaddr) ||
+					VM_EXIT_MSR_STORE_ADDR) ||
 	    nested_vmx_check_msr_switch(vcpu, VM_ENTRY_MSR_LOAD_COUNT,
-					VM_ENTRY_MSR_LOAD_ADDR, maxphyaddr))
+					VM_ENTRY_MSR_LOAD_ADDR))
 		return -EINVAL;
 	return 0;
 }
