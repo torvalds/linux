@@ -219,7 +219,7 @@ static struct ip6_flowlabel *fl_intern(struct net *net,
 		 * with the same label can only appear on another sock
 		 */
 		lfl = __fl_lookup(net, fl->label);
-		if (lfl != NULL) {
+		if (lfl) {
 			atomic_inc(&lfl->users);
 			spin_unlock_bh(&ip6_fl_lock);
 			return lfl;
@@ -300,7 +300,7 @@ struct ipv6_txoptions *fl6_merge_options(struct ipv6_txoptions *opt_space,
 	if (!fopt || fopt->opt_flen == 0)
 		return fl_opt;
 
-	if (fl_opt != NULL) {
+	if (fl_opt) {
 		opt_space->hopopt = fl_opt->hopopt;
 		opt_space->dst0opt = fl_opt->dst0opt;
 		opt_space->srcrt = fl_opt->srcrt;
@@ -661,7 +661,7 @@ release:
 			goto done;
 
 		fl1 = fl_intern(net, fl, freq.flr_label);
-		if (fl1 != NULL)
+		if (fl1)
 			goto recheck;
 
 		if (!freq.flr_label) {

@@ -223,7 +223,7 @@ static struct ip6_tnl *ip6gre_tunnel_lookup(struct net_device *dev,
 		}
 	}
 
-	if (cand != NULL)
+	if (cand)
 		return cand;
 
 	dev = ign->fb_tunnel_dev;
@@ -1105,7 +1105,7 @@ static int ip6gre_tunnel_ioctl(struct net_device *dev,
 		t = ip6gre_tunnel_locate(net, &p1, cmd == SIOCADDTUNNEL);
 
 		if (dev != ign->fb_tunnel_dev && cmd == SIOCCHGTUNNEL) {
-			if (t != NULL) {
+			if (t) {
 				if (t->dev != dev) {
 					err = -EEXIST;
 					break;
@@ -1313,7 +1313,7 @@ static void ip6gre_destroy_tunnels(struct net *net, struct list_head *head)
 
 			t = rtnl_dereference(ign->tunnels[prio][h]);
 
-			while (t != NULL) {
+			while (t) {
 				/* If dev is in the same netns, it has already
 				 * been added to the list by the previous loop.
 				 */

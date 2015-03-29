@@ -413,11 +413,11 @@ void inet6_destroy_sock(struct sock *sk)
 	/* Release rx options */
 
 	skb = xchg(&np->pktoptions, NULL);
-	if (skb != NULL)
+	if (skb)
 		kfree_skb(skb);
 
 	skb = xchg(&np->rxpmtu, NULL);
-	if (skb != NULL)
+	if (skb)
 		kfree_skb(skb);
 
 	/* Free flowlabels */
@@ -426,7 +426,7 @@ void inet6_destroy_sock(struct sock *sk)
 	/* Free tx options */
 
 	opt = xchg(&np->opt, NULL);
-	if (opt != NULL)
+	if (opt)
 		sock_kfree_s(sk, opt, opt->tot_len);
 }
 EXPORT_SYMBOL_GPL(inet6_destroy_sock);

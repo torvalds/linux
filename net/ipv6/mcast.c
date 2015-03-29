@@ -226,7 +226,7 @@ int ipv6_sock_mc_drop(struct sock *sk, int ifindex, const struct in6_addr *addr)
 			*lnk = mc_lst->next;
 
 			dev = __dev_get_by_index(net, mc_lst->ifindex);
-			if (dev != NULL) {
+			if (dev) {
 				struct inet6_dev *idev = __in6_dev_get(dev);
 
 				(void) ip6_mc_leave_src(sk, mc_lst, idev);
@@ -2611,7 +2611,7 @@ static struct ifmcaddr6 *igmp6_mc_get_next(struct seq_file *seq, struct ifmcaddr
 
 	im = im->next;
 	while (!im) {
-		if (likely(state->idev != NULL))
+		if (likely(state->idev))
 			read_unlock_bh(&state->idev->lock);
 
 		state->dev = next_net_device_rcu(state->dev);
@@ -2657,7 +2657,7 @@ static void igmp6_mc_seq_stop(struct seq_file *seq, void *v)
 {
 	struct igmp6_mc_iter_state *state = igmp6_mc_seq_private(seq);
 
-	if (likely(state->idev != NULL)) {
+	if (likely(state->idev)) {
 		read_unlock_bh(&state->idev->lock);
 		state->idev = NULL;
 	}
@@ -2726,10 +2726,10 @@ static inline struct ip6_sf_list *igmp6_mcf_get_first(struct seq_file *seq)
 			continue;
 		read_lock_bh(&idev->lock);
 		im = idev->mc_list;
-		if (likely(im != NULL)) {
+		if (likely(im)) {
 			spin_lock_bh(&im->mca_lock);
 			psf = im->mca_sources;
-			if (likely(psf != NULL)) {
+			if (likely(psf)) {
 				state->im = im;
 				state->idev = idev;
 				break;
@@ -2750,7 +2750,7 @@ static struct ip6_sf_list *igmp6_mcf_get_next(struct seq_file *seq, struct ip6_s
 		spin_unlock_bh(&state->im->mca_lock);
 		state->im = state->im->next;
 		while (!state->im) {
-			if (likely(state->idev != NULL))
+			if (likely(state->idev))
 				read_unlock_bh(&state->idev->lock);
 
 			state->dev = next_net_device_rcu(state->dev);
@@ -2804,11 +2804,11 @@ static void igmp6_mcf_seq_stop(struct seq_file *seq, void *v)
 	__releases(RCU)
 {
 	struct igmp6_mcf_iter_state *state = igmp6_mcf_seq_private(seq);
-	if (likely(state->im != NULL)) {
+	if (likely(state->im)) {
 		spin_unlock_bh(&state->im->mca_lock);
 		state->im = NULL;
 	}
-	if (likely(state->idev != NULL)) {
+	if (likely(state->idev)) {
 		read_unlock_bh(&state->idev->lock);
 		state->idev = NULL;
 	}

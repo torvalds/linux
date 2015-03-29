@@ -367,7 +367,7 @@ void raw6_icmp_error(struct sk_buff *skb, int nexthdr,
 
 	read_lock(&raw_v6_hashinfo.lock);
 	sk = sk_head(&raw_v6_hashinfo.ht[hash]);
-	if (sk != NULL) {
+	if (sk) {
 		/* Note: ipv6_hdr(skb) != skb->data */
 		const struct ipv6hdr *ip6h = (const struct ipv6hdr *)skb->data;
 		saddr = &ip6h->saddr;
@@ -1130,7 +1130,7 @@ static int rawv6_ioctl(struct sock *sk, int cmd, unsigned long arg)
 
 		spin_lock_bh(&sk->sk_receive_queue.lock);
 		skb = skb_peek(&sk->sk_receive_queue);
-		if (skb != NULL)
+		if (skb)
 			amount = skb_tail_pointer(skb) -
 				skb_transport_header(skb);
 		spin_unlock_bh(&sk->sk_receive_queue.lock);

@@ -118,7 +118,7 @@ static struct ip_tunnel *ipip6_tunnel_lookup(struct net *net,
 			return t;
 	}
 	t = rcu_dereference(sitn->tunnels_wc[0]);
-	if ((t != NULL) && (t->dev->flags & IFF_UP))
+	if (t && (t->dev->flags & IFF_UP))
 		return t;
 	return NULL;
 }
@@ -671,7 +671,7 @@ static int ipip6_rcv(struct sk_buff *skb)
 
 	tunnel = ipip6_tunnel_lookup(dev_net(skb->dev), skb->dev,
 				     iph->saddr, iph->daddr);
-	if (tunnel != NULL) {
+	if (tunnel) {
 		struct pcpu_sw_netstats *tstats;
 
 		if (tunnel->parms.iph.protocol != IPPROTO_IPV6 &&
@@ -733,7 +733,7 @@ static int ipip_rcv(struct sk_buff *skb)
 	iph = ip_hdr(skb);
 	tunnel = ipip6_tunnel_lookup(dev_net(skb->dev), skb->dev,
 				     iph->saddr, iph->daddr);
-	if (tunnel != NULL) {
+	if (tunnel) {
 		if (tunnel->parms.iph.protocol != IPPROTO_IPIP &&
 		    tunnel->parms.iph.protocol != 0)
 			goto drop;
@@ -1206,7 +1206,7 @@ ipip6_tunnel_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		t = ipip6_tunnel_locate(net, &p, cmd == SIOCADDTUNNEL);
 
 		if (dev != sitn->fb_tunnel_dev && cmd == SIOCCHGTUNNEL) {
-			if (t != NULL) {
+			if (t) {
 				if (t->dev != dev) {
 					err = -EEXIST;
 					break;
@@ -1795,7 +1795,7 @@ static void __net_exit sit_destroy_tunnels(struct net *net,
 			struct ip_tunnel *t;
 
 			t = rtnl_dereference(sitn->tunnels[prio][h]);
-			while (t != NULL) {
+			while (t) {
 				/* If dev is in the same netns, it has already
 				 * been added to the list by the previous loop.
 				 */

@@ -657,7 +657,7 @@ int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 				fh->nexthdr = nexthdr;
 				fh->reserved = 0;
 				fh->frag_off = htons(offset);
-				if (frag->next != NULL)
+				if (frag->next)
 					fh->frag_off |= htons(IP6_MF);
 				fh->identification = frag_id;
 				ipv6_hdr(frag)->payload_len =
