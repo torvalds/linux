@@ -30,11 +30,12 @@
 #include <linux/firmware.h>
 #include <linux/slab.h>
 #include <linux/u64_stats_sync.h>
+#include <linux/cpumask.h>
 
 #include "be_hw.h"
 #include "be_roce.h"
 
-#define DRV_VER			"10.4u"
+#define DRV_VER			"10.6.0.1"
 #define DRV_NAME		"be2net"
 #define BE_NAME			"Emulex BladeEngine2"
 #define BE3_NAME		"Emulex BladeEngine3"
@@ -183,6 +184,7 @@ struct be_eq_obj {
 	u16 spurious_intr;
 	struct napi_struct napi;
 	struct be_adapter *adapter;
+	cpumask_var_t  affinity_mask;
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
 #define BE_EQ_IDLE		0
