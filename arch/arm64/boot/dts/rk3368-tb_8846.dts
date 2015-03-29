@@ -823,8 +823,8 @@
 
 		ldo5_reg: regulator@8 {
 			regulator-name= "act_ldo5";
-			regulator-min-microvolt = <3000000>;
-			regulator-max-microvolt = <3000000>;
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
 
 		};
 
