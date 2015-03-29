@@ -3209,11 +3209,11 @@ isert_accept_np(struct iscsi_np *np, struct iscsi_conn *conn)
 {
 	struct isert_np *isert_np = np->np_context;
 	struct isert_conn *isert_conn;
-	int max_accept = 0, ret;
+	int ret;
 
 accept_wait:
 	ret = down_interruptible(&isert_np->np_sem);
-	if (ret || max_accept > 5)
+	if (ret)
 		return -ENODEV;
 
 	spin_lock_bh(&np->np_thread_lock);
@@ -3232,7 +3232,6 @@ accept_wait:
 	mutex_lock(&isert_np->np_accept_mutex);
 	if (list_empty(&isert_np->np_accept_list)) {
 		mutex_unlock(&isert_np->np_accept_mutex);
-		max_accept++;
 		goto accept_wait;
 	}
 	isert_conn = list_first_entry(&isert_np->np_accept_list,
@@ -3242,7 +3241,6 @@ accept_wait:
 
 	conn->context = isert_conn;
 	isert_conn->conn = conn;
-	max_accept = 0;
 
 	isert_set_conn_info(np, conn, isert_conn);
 
