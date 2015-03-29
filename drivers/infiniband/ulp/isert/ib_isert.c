@@ -1640,7 +1640,6 @@ static void
 isert_unreg_rdma(struct isert_cmd *isert_cmd, struct isert_conn *isert_conn)
 {
 	struct isert_rdma_wr *wr = &isert_cmd->rdma_wr;
-	LIST_HEAD(unmap_list);
 
 	isert_dbg("Cmd %p\n", isert_cmd);
 
