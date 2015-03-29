@@ -70,7 +70,7 @@ int ipv6_sock_ac_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 		return -EINVAL;
 
 	pac = sock_kmalloc(sk, sizeof(struct ipv6_ac_socklist), GFP_KERNEL);
-	if (pac == NULL)
+	if (!pac)
 		return -ENOMEM;
 	pac->acl_next = NULL;
 	pac->acl_addr = *addr;
@@ -93,7 +93,7 @@ int ipv6_sock_ac_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 	} else
 		dev = __dev_get_by_index(net, ifindex);
 
-	if (dev == NULL) {
+	if (!dev) {
 		err = -ENODEV;
 		goto error;
 	}
@@ -222,7 +222,7 @@ static struct ifacaddr6 *aca_alloc(struct rt6_info *rt,
 	struct ifacaddr6 *aca;
 
 	aca = kzalloc(sizeof(*aca), GFP_ATOMIC);
-	if (aca == NULL)
+	if (!aca)
 		return NULL;
 
 	aca->aca_addr = *addr;
@@ -268,7 +268,7 @@ int __ipv6_dev_ac_inc(struct inet6_dev *idev, const struct in6_addr *addr)
 		goto out;
 	}
 	aca = aca_alloc(rt, addr);
-	if (aca == NULL) {
+	if (!aca) {
 		ip6_rt_put(rt);
 		err = -ENOMEM;
 		goto out;
@@ -337,7 +337,7 @@ static int ipv6_dev_ac_dec(struct net_device *dev, const struct in6_addr *addr)
 {
 	struct inet6_dev *idev = __in6_dev_get(dev);
 
-	if (idev == NULL)
+	if (!idev)
 		return -ENODEV;
 	return __ipv6_dev_ac_dec(idev, addr);
 }

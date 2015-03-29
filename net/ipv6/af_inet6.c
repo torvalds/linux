@@ -164,11 +164,11 @@ lookup_protocol:
 	answer_flags = answer->flags;
 	rcu_read_unlock();
 
-	WARN_ON(answer_prot->slab == NULL);
+	WARN_ON(!answer_prot->slab);
 
 	err = -ENOBUFS;
 	sk = sk_alloc(net, PF_INET6, GFP_KERNEL, answer_prot);
-	if (sk == NULL)
+	if (!sk)
 		goto out;
 
 	sock_init_data(sock, sk);
@@ -391,7 +391,7 @@ int inet6_release(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
 
-	if (sk == NULL)
+	if (!sk)
 		return -EINVAL;
 
 	/* Free mc lists */
@@ -640,7 +640,7 @@ int inet6_sk_rebuild_header(struct sock *sk)
 
 	dst = __sk_dst_check(sk, np->dst_cookie);
 
-	if (dst == NULL) {
+	if (!dst) {
 		struct inet_sock *inet = inet_sk(sk);
 		struct in6_addr *final_p, final;
 		struct flowi6 fl6;

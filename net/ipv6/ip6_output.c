@@ -177,7 +177,7 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi6 *fl6,
 
 		if (skb_headroom(skb) < head_room) {
 			struct sk_buff *skb2 = skb_realloc_headroom(skb, head_room);
-			if (skb2 == NULL) {
+			if (!skb2) {
 				IP6_INC_STATS(net, ip6_dst_idev(skb_dst(skb)),
 					      IPSTATS_MIB_OUTDISCARDS);
 				kfree_skb(skb);
@@ -823,7 +823,7 @@ static inline int ip6_rt_check(const struct rt6key *rt_key,
 			       const struct in6_addr *addr_cache)
 {
 	return (rt_key->plen != 128 || !ipv6_addr_equal(fl_addr, &rt_key->addr)) &&
-		(addr_cache == NULL || !ipv6_addr_equal(fl_addr, addr_cache));
+		(!addr_cache || !ipv6_addr_equal(fl_addr, addr_cache));
 }
 
 static struct dst_entry *ip6_sk_dst_check(struct sock *sk,
@@ -882,7 +882,7 @@ static int ip6_dst_lookup_tail(struct sock *sk,
 #endif
 	int err;
 
-	if (*dst == NULL)
+	if (!*dst)
 		*dst = ip6_route_output(net, sk, fl6);
 
 	err = (*dst)->error;
@@ -1045,11 +1045,11 @@ static inline int ip6_ufo_append_data(struct sock *sk,
 	 * udp datagram
 	 */
 	skb = skb_peek_tail(queue);
-	if (skb == NULL) {
+	if (!skb) {
 		skb = sock_alloc_send_skb(sk,
 			hh_len + fragheaderlen + transhdrlen + 20,
 			(flags & MSG_DONTWAIT), &err);
-		if (skb == NULL)
+		if (!skb)
 			return err;
 
 		/* reserve space for Hardware header */
@@ -1107,7 +1107,7 @@ static void ip6_append_data_mtu(unsigned int *mtu,
 				unsigned int orig_mtu)
 {
 	if (!(rt->dst.flags & DST_XFRM_TUNNEL)) {
-		if (skb == NULL) {
+		if (!skb) {
 			/* first fragment, reserve header_len */
 			*mtu = orig_mtu - rt->dst.header_len;
 
@@ -1139,7 +1139,7 @@ static int ip6_setup_cork(struct sock *sk, struct inet_cork_full *cork,
 			return -EINVAL;
 
 		v6_cork->opt = kzalloc(opt->tot_len, sk->sk_allocation);
-		if (unlikely(v6_cork->opt == NULL))
+		if (unlikely(!v6_cork->opt))
 			return -ENOBUFS;
 
 		v6_cork->opt->tot_len = opt->tot_len;
@@ -1331,7 +1331,7 @@ alloc_new_skb:
 			else
 				fraggap = 0;
 			/* update mtu and maxfraglen if necessary */
-			if (skb == NULL || skb_prev == NULL)
+			if (!skb || !skb_prev)
 				ip6_append_data_mtu(&mtu, &maxfraglen,
 						    fragheaderlen, skb, rt,
 						    orig_mtu);
@@ -1383,10 +1383,10 @@ alloc_new_skb:
 					skb = sock_wmalloc(sk,
 							   alloclen + hh_len, 1,
 							   sk->sk_allocation);
-				if (unlikely(skb == NULL))
+				if (unlikely(!skb))
 					err = -ENOBUFS;
 			}
-			if (skb == NULL)
+			if (!skb)
 				goto error;
 			/*
 			 *	Fill in the control structures
@@ -1578,7 +1578,7 @@ struct sk_buff *__ip6_make_skb(struct sock *sk,
 	unsigned char proto = fl6->flowi6_proto;
 
 	skb = __skb_dequeue(queue);
-	if (skb == NULL)
+	if (!skb)
 		goto out;
 	tail_skb = &(skb_shinfo(skb)->frag_list);
 

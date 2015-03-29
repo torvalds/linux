@@ -218,7 +218,7 @@ static struct ip6_tnl *vti6_tnl_create(struct net *net, struct __ip6_tnl_parm *p
 		sprintf(name, "ip6_vti%%d");
 
 	dev = alloc_netdev(sizeof(*t), name, NET_NAME_UNKNOWN, vti6_dev_setup);
-	if (dev == NULL)
+	if (!dev)
 		goto failed;
 
 	dev_net_set(dev, net);
@@ -716,7 +716,7 @@ vti6_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		} else {
 			memset(&p, 0, sizeof(p));
 		}
-		if (t == NULL)
+		if (!t)
 			t = netdev_priv(dev);
 		vti6_parm_to_user(&p, &t->parms);
 		if (copy_to_user(ifr->ifr_ifru.ifru_data, &p, sizeof(p)))
@@ -767,7 +767,7 @@ vti6_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			err = -ENOENT;
 			vti6_parm_from_user(&p1, &p);
 			t = vti6_locate(net, &p1, 0);
-			if (t == NULL)
+			if (!t)
 				break;
 			err = -EPERM;
 			if (t->dev == ip6n->fb_tnl_dev)

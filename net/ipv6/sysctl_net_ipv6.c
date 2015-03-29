@@ -179,7 +179,7 @@ int ipv6_sysctl_register(void)
 	int err = -ENOMEM;
 
 	ip6_header = register_net_sysctl(&init_net, "net/ipv6", ipv6_rotable);
-	if (ip6_header == NULL)
+	if (!ip6_header)
 		goto out;
 
 	err = register_pernet_subsys(&ipv6_sysctl_net_ops);

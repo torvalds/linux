@@ -157,7 +157,7 @@ int ipv6_sock_mc_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 
 	mc_lst = sock_kmalloc(sk, sizeof(struct ipv6_mc_socklist), GFP_KERNEL);
 
-	if (mc_lst == NULL)
+	if (!mc_lst)
 		return -ENOMEM;
 
 	mc_lst->next = NULL;
@@ -173,7 +173,7 @@ int ipv6_sock_mc_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 	} else
 		dev = __dev_get_by_index(net, ifindex);
 
-	if (dev == NULL) {
+	if (!dev) {
 		sock_kfree_s(sk, mc_lst, sizeof(*mc_lst));
 		return -ENODEV;
 	}
@@ -823,7 +823,7 @@ static struct ifmcaddr6 *mca_alloc(struct inet6_dev *idev,
 	struct ifmcaddr6 *mc;
 
 	mc = kzalloc(sizeof(*mc), GFP_ATOMIC);
-	if (mc == NULL)
+	if (!mc)
 		return NULL;
 
 	setup_timer(&mc->mca_timer, igmp6_timer_handler, (unsigned long)mc);
@@ -860,7 +860,7 @@ int ipv6_dev_mc_inc(struct net_device *dev, const struct in6_addr *addr)
 	/* we need to take a reference on idev */
 	idev = in6_dev_get(dev);
 
-	if (idev == NULL)
+	if (!idev)
 		return -EINVAL;
 
 	write_lock_bh(&idev->lock);
@@ -1328,7 +1328,7 @@ int igmp6_event_query(struct sk_buff *skb)
 		return -EINVAL;
 
 	idev = __in6_dev_get(skb->dev);
-	if (idev == NULL)
+	if (!idev)
 		return 0;
 
 	mld = (struct mld_msg *)icmp6_hdr(skb);
@@ -1443,7 +1443,7 @@ int igmp6_event_report(struct sk_buff *skb)
 		return -EINVAL;
 
 	idev = __in6_dev_get(skb->dev);
-	if (idev == NULL)
+	if (!idev)
 		return -ENODEV;
 
 	/*
@@ -1962,7 +1962,7 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 
 	skb = sock_alloc_send_skb(sk, hlen + tlen + full_len, 1, &err);
 
-	if (skb == NULL) {
+	if (!skb) {
 		rcu_read_lock();
 		IP6_INC_STATS(net, __in6_dev_get(dev),
 			      IPSTATS_MIB_OUTDISCARDS);

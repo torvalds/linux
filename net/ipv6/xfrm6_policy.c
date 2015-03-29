@@ -370,7 +370,7 @@ static void __net_exit xfrm6_net_exit(struct net *net)
 {
 	struct ctl_table *table;
 
-	if (net->ipv6.sysctl.xfrm6_hdr == NULL)
+	if (!net->ipv6.sysctl.xfrm6_hdr)
 		return;
 
 	table = net->ipv6.sysctl.xfrm6_hdr->ctl_table_arg;

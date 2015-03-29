@@ -172,7 +172,7 @@ static bool ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 	read_lock(&raw_v6_hashinfo.lock);
 	sk = sk_head(&raw_v6_hashinfo.ht[hash]);
 
-	if (sk == NULL)
+	if (!sk)
 		goto out;
 
 	net = dev_net(skb->dev);
@@ -630,7 +630,7 @@ static int rawv6_send_hdrinc(struct sock *sk, struct msghdr *msg, int length,
 	skb = sock_alloc_send_skb(sk,
 				  length + hlen + tlen + 15,
 				  flags & MSG_DONTWAIT, &err);
-	if (skb == NULL)
+	if (!skb)
 		goto error;
 	skb_reserve(skb, hlen);
 
@@ -789,7 +789,7 @@ static int rawv6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 			fl6.flowlabel = sin6->sin6_flowinfo&IPV6_FLOWINFO_MASK;
 			if (fl6.flowlabel&IPV6_FLOWLABEL_MASK) {
 				flowlabel = fl6_sock_lookup(sk, fl6.flowlabel);
-				if (flowlabel == NULL)
+				if (!flowlabel)
 					return -EINVAL;
 			}
 		}
@@ -831,13 +831,13 @@ static int rawv6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		}
 		if ((fl6.flowlabel&IPV6_FLOWLABEL_MASK) && !flowlabel) {
 			flowlabel = fl6_sock_lookup(sk, fl6.flowlabel);
-			if (flowlabel == NULL)
+			if (!flowlabel)
 				return -EINVAL;
 		}
 		if (!(opt->opt_nflen|opt->opt_flen))
 			opt = NULL;
 	}
-	if (opt == NULL)
+	if (!opt)
 		opt = np->opt;
 	if (flowlabel)
 		opt = fl6_merge_options(&opt_space, flowlabel, opt);

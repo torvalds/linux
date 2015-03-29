@@ -550,7 +550,7 @@ void __udp6_lib_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 
 	sk = __udp6_lib_lookup(net, daddr, uh->dest,
 			       saddr, uh->source, inet6_iif(skb), udptable);
-	if (sk == NULL) {
+	if (!sk) {
 		ICMP6_INC_STATS_BH(net, __in6_dev_get(skb->dev),
 				   ICMP6_MIB_INERRORS);
 		return;
@@ -749,7 +749,7 @@ static void flush_stack(struct sock **stack, unsigned int count,
 
 	for (i = 0; i < count; i++) {
 		sk = stack[i];
-		if (likely(skb1 == NULL))
+		if (likely(!skb1))
 			skb1 = (i == final) ? skb : skb_clone(skb, GFP_ATOMIC);
 		if (!skb1) {
 			atomic_inc(&sk->sk_drops);
@@ -1207,7 +1207,7 @@ do_udp_sendmsg:
 			fl6.flowlabel = sin6->sin6_flowinfo&IPV6_FLOWINFO_MASK;
 			if (fl6.flowlabel&IPV6_FLOWLABEL_MASK) {
 				flowlabel = fl6_sock_lookup(sk, fl6.flowlabel);
-				if (flowlabel == NULL)
+				if (!flowlabel)
 					return -EINVAL;
 			}
 		}
@@ -1255,14 +1255,14 @@ do_udp_sendmsg:
 		}
 		if ((fl6.flowlabel&IPV6_FLOWLABEL_MASK) && !flowlabel) {
 			flowlabel = fl6_sock_lookup(sk, fl6.flowlabel);
-			if (flowlabel == NULL)
+			if (!flowlabel)
 				return -EINVAL;
 		}
 		if (!(opt->opt_nflen|opt->opt_flen))
 			opt = NULL;
 		connected = 0;
 	}
-	if (opt == NULL)
+	if (!opt)
 		opt = np->opt;
 	if (flowlabel)
 		opt = fl6_merge_options(&opt_space, flowlabel, opt);

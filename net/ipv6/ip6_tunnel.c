@@ -131,7 +131,7 @@ struct dst_entry *ip6_tnl_dst_check(struct ip6_tnl *t)
 	struct dst_entry *dst = t->dst_cache;
 
 	if (dst && dst->obsolete &&
-	    dst->ops->check(dst, t->dst_cookie) == NULL) {
+	    !dst->ops->check(dst, t->dst_cookie)) {
 		t->dst_cache = NULL;
 		dst_release(dst);
 		return NULL;
@@ -325,7 +325,7 @@ static struct ip6_tnl *ip6_tnl_create(struct net *net, struct __ip6_tnl_parm *p)
 
 	dev = alloc_netdev(sizeof(*t), name, NET_NAME_UNKNOWN,
 			   ip6_tnl_dev_setup);
-	if (dev == NULL)
+	if (!dev)
 		goto failed;
 
 	dev_net_set(dev, net);
@@ -496,7 +496,7 @@ ip6_tnl_err(struct sk_buff *skb, __u8 ipproto, struct inet6_skb_parm *opt,
 
 	rcu_read_lock();
 	t = ip6_tnl_lookup(dev_net(skb->dev), &ipv6h->daddr, &ipv6h->saddr);
-	if (t == NULL)
+	if (!t)
 		goto out;
 
 	tproto = ACCESS_ONCE(t->parms.proto);
@@ -1274,7 +1274,7 @@ static void ip6_tnl_link_config(struct ip6_tnl *t)
 						 &p->raddr, &p->laddr,
 						 p->link, strict);
 
-		if (rt == NULL)
+		if (!rt)
 			return;
 
 		if (rt->dst.dev) {

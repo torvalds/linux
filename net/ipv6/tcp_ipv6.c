@@ -141,7 +141,7 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 		if (fl6.flowlabel&IPV6_FLOWLABEL_MASK) {
 			struct ip6_flowlabel *flowlabel;
 			flowlabel = fl6_sock_lookup(sk, fl6.flowlabel);
-			if (flowlabel == NULL)
+			if (!flowlabel)
 				return -EINVAL;
 			fl6_sock_release(flowlabel);
 		}
@@ -247,7 +247,7 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 		goto failure;
 	}
 
-	if (saddr == NULL) {
+	if (!saddr) {
 		saddr = &fl6.saddr;
 		sk->sk_v6_rcv_saddr = *saddr;
 	}
@@ -412,7 +412,7 @@ static void tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		/* Only in fast or simultaneous open. If a fast open socket is
 		 * is already accepted it is treated as a connected one below.
 		 */
-		if (fastopen && fastopen->sk == NULL)
+		if (fastopen && !fastopen->sk)
 			break;
 
 		if (!sock_owned_by_user(sk)) {
@@ -750,7 +750,7 @@ static void tcp_v6_send_response(struct sock *sk, struct sk_buff *skb, u32 seq,
 
 	buff = alloc_skb(MAX_HEADER + sizeof(struct ipv6hdr) + tot_len,
 			 GFP_ATOMIC);
-	if (buff == NULL)
+	if (!buff)
 		return;
 
 	skb_reserve(buff, MAX_HEADER + sizeof(struct ipv6hdr) + tot_len);
@@ -1008,7 +1008,7 @@ static struct sock *tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 
 		newsk = tcp_v4_syn_recv_sock(sk, skb, req, dst);
 
-		if (newsk == NULL)
+		if (!newsk)
 			return NULL;
 
 		newtcp6sk = (struct tcp6_sock *)newsk;
@@ -1065,7 +1065,7 @@ static struct sock *tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	}
 
 	newsk = tcp_create_openreq_child(sk, req, skb);
-	if (newsk == NULL)
+	if (!newsk)
 		goto out_nonewsk;
 
 	/*

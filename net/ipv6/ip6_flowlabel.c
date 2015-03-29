@@ -205,7 +205,7 @@ static struct ip6_flowlabel *fl_intern(struct net *net,
 			fl->label = htonl(prandom_u32())&IPV6_FLOWLABEL_MASK;
 			if (fl->label) {
 				lfl = __fl_lookup(net, fl->label);
-				if (lfl == NULL)
+				if (!lfl)
 					break;
 			}
 		}
@@ -297,7 +297,7 @@ struct ipv6_txoptions *fl6_merge_options(struct ipv6_txoptions *opt_space,
 {
 	struct ipv6_txoptions *fl_opt = fl->opt;
 
-	if (fopt == NULL || fopt->opt_flen == 0)
+	if (!fopt || fopt->opt_flen == 0)
 		return fl_opt;
 
 	if (fl_opt != NULL) {
@@ -366,7 +366,7 @@ fl_create(struct net *net, struct sock *sk, struct in6_flowlabel_req *freq,
 
 	err = -ENOMEM;
 	fl = kzalloc(sizeof(*fl), GFP_KERNEL);
-	if (fl == NULL)
+	if (!fl)
 		goto done;
 
 	if (olen > 0) {
@@ -376,7 +376,7 @@ fl_create(struct net *net, struct sock *sk, struct in6_flowlabel_req *freq,
 
 		err = -ENOMEM;
 		fl->opt = kmalloc(sizeof(*fl->opt) + olen, GFP_KERNEL);
-		if (fl->opt == NULL)
+		if (!fl->opt)
 			goto done;
 
 		memset(fl->opt, 0, sizeof(*fl->opt));
@@ -596,7 +596,7 @@ int ipv6_flowlabel_opt(struct sock *sk, char __user *optval, int optlen)
 			return -EINVAL;
 
 		fl = fl_create(net, sk, &freq, optval, optlen, &err);
-		if (fl == NULL)
+		if (!fl)
 			return err;
 		sfl1 = kmalloc(sizeof(*sfl1), GFP_KERNEL);
 
@@ -616,7 +616,7 @@ int ipv6_flowlabel_opt(struct sock *sk, char __user *optval, int optlen)
 			}
 			rcu_read_unlock_bh();
 
-			if (fl1 == NULL)
+			if (!fl1)
 				fl1 = fl_lookup(net, freq.flr_label);
 			if (fl1) {
 recheck:
@@ -633,7 +633,7 @@ recheck:
 					goto release;
 
 				err = -ENOMEM;
-				if (sfl1 == NULL)
+				if (!sfl1)
 					goto release;
 				if (fl->linger > fl1->linger)
 					fl1->linger = fl->linger;
@@ -653,7 +653,7 @@ release:
 			goto done;
 
 		err = -ENOMEM;
-		if (sfl1 == NULL)
+		if (!sfl1)
 			goto done;
 
 		err = mem_check(sk);

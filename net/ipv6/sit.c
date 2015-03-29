@@ -251,7 +251,7 @@ static struct ip_tunnel *ipip6_tunnel_locate(struct net *net,
 
 	dev = alloc_netdev(sizeof(*t), name, NET_NAME_UNKNOWN,
 			   ipip6_tunnel_setup);
-	if (dev == NULL)
+	if (!dev)
 		return NULL;
 
 	dev_net_set(dev, net);
@@ -555,7 +555,7 @@ static int ipip6_err(struct sk_buff *skb, u32 info)
 				skb->dev,
 				iph->daddr,
 				iph->saddr);
-	if (t == NULL)
+	if (!t)
 		goto out;
 
 	if (type == ICMP_DEST_UNREACH && code == ICMP_FRAG_NEEDED) {
@@ -838,7 +838,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 		if (skb_dst(skb))
 			neigh = dst_neigh_lookup(skb_dst(skb), &iph6->daddr);
 
-		if (neigh == NULL) {
+		if (!neigh) {
 			net_dbg_ratelimited("nexthop == NULL\n");
 			goto tx_error;
 		}
@@ -867,7 +867,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 		if (skb_dst(skb))
 			neigh = dst_neigh_lookup(skb_dst(skb), &iph6->daddr);
 
-		if (neigh == NULL) {
+		if (!neigh) {
 			net_dbg_ratelimited("nexthop == NULL\n");
 			goto tx_error;
 		}
@@ -1158,7 +1158,7 @@ ipip6_tunnel_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 				break;
 			}
 			t = ipip6_tunnel_locate(net, &p, 0);
-			if (t == NULL)
+			if (!t)
 				t = netdev_priv(dev);
 		}
 
@@ -1242,7 +1242,7 @@ ipip6_tunnel_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 				goto done;
 			err = -ENOENT;
 			t = ipip6_tunnel_locate(net, &p, 0);
-			if (t == NULL)
+			if (!t)
 				goto done;
 			err = -EPERM;
 			if (t == netdev_priv(sitn->fb_tunnel_dev))
