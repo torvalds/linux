@@ -3058,7 +3058,7 @@ isert_setup_id(struct isert_np *isert_np)
 		goto out_id;
 	}
 
-	ret = rdma_listen(id, ISERT_RDMA_LISTEN_BACKLOG);
+	ret = rdma_listen(id, 0);
 	if (ret) {
 		isert_err("rdma_listen() failed: %d\n", ret);
 		goto out_id;
