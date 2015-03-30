@@ -75,6 +75,7 @@ static ssize_t ath10k_thermal_show_temp(struct device *dev,
 {
 	struct ath10k *ar = dev_get_drvdata(dev);
 	int ret, temperature;
+	unsigned long time_left;
 
 	mutex_lock(&ar->conf_mutex);
 
@@ -96,9 +97,9 @@ static ssize_t ath10k_thermal_show_temp(struct device *dev,
 		goto out;
 	}
 
-	ret = wait_for_completion_timeout(&ar->thermal.wmi_sync,
-					  ATH10K_THERMAL_SYNC_TIMEOUT_HZ);
-	if (ret == 0) {
+	time_left = wait_for_completion_timeout(&ar->thermal.wmi_sync,
+						ATH10K_THERMAL_SYNC_TIMEOUT_HZ);
+	if (!time_left) {
 		ath10k_warn(ar, "failed to synchronize thermal read\n");
 		ret = -ETIMEDOUT;
 		goto out;
