@@ -818,26 +818,29 @@ static void _rtl92cu_init_usb_aggregation(struct ieee80211_hw *hw)
 
 static void _rtl92cu_init_wmac_setting(struct ieee80211_hw *hw)
 {
-	u16			value16;
-
+	u16 value16;
+	u32 value32;
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 
-	mac->rx_conf = (RCR_APM | RCR_AM | RCR_ADF | RCR_AB | RCR_APPFCS |
-		      RCR_APP_ICV | RCR_AMF | RCR_HTC_LOC_CTRL |
-		      RCR_APP_MIC | RCR_APP_PHYSTS | RCR_ACRC32);
-	rtl_write_dword(rtlpriv, REG_RCR, mac->rx_conf);
+	value32 = (RCR_APM | RCR_AM | RCR_ADF | RCR_AB | RCR_APPFCS |
+		   RCR_APP_ICV | RCR_AMF | RCR_HTC_LOC_CTRL |
+		   RCR_APP_MIC | RCR_APP_PHYSTS | RCR_ACRC32);
+	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_RCR, (u8 *)(&value32));
 	/* Accept all multicast address */
 	rtl_write_dword(rtlpriv,  REG_MAR, 0xFFFFFFFF);
 	rtl_write_dword(rtlpriv,  REG_MAR + 4, 0xFFFFFFFF);
 	/* Accept all management frames */
 	value16 = 0xFFFF;
-	rtl92c_set_mgt_filter(hw, value16);
+	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_MGT_FILTER,
+				      (u8 *)(&value16));
 	/* Reject all control frame - default value is 0 */
-	rtl92c_set_ctrl_filter(hw, 0x0);
+	value16 = 0x0;
+	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_CTRL_FILTER,
+				      (u8 *)(&value16));
 	/* Accept all data frames */
 	value16 = 0xFFFF;
-	rtl92c_set_data_filter(hw, value16);
+	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_DATA_FILTER,
+				      (u8 *)(&value16));
 }
 
 static void _rtl92cu_init_beacon_parameters(struct ieee80211_hw *hw)
@@ -988,17 +991,6 @@ static void _InitPABias(struct ieee80211_hw *hw)
 	}
 }
 
-static void _update_mac_setting(struct ieee80211_hw *hw)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
-
-	mac->rx_conf = rtl_read_dword(rtlpriv, REG_RCR);
-	mac->rx_mgt_filter = rtl_read_word(rtlpriv, REG_RXFLTMAP0);
-	mac->rx_ctrl_filter = rtl_read_word(rtlpriv, REG_RXFLTMAP1);
-	mac->rx_data_filter = rtl_read_word(rtlpriv, REG_RXFLTMAP2);
-}
-
 int rtl92cu_hw_init(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -1068,7 +1060,6 @@ int rtl92cu_hw_init(struct ieee80211_hw *hw)
 	}
 	_rtl92cu_hw_configure(hw);
 	_InitPABias(hw);
-	_update_mac_setting(hw);
 	rtl92c_dm_init(hw);
 exit:
 	local_irq_restore(flags);
@@ -1999,12 +1990,15 @@ void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		}
 	case HW_VAR_MGT_FILTER:
 		rtl_write_word(rtlpriv, REG_RXFLTMAP0, *(u16 *)val);
+		mac->rx_mgt_filter = *(u16 *)val;
 		break;
 	case HW_VAR_CTRL_FILTER:
 		rtl_write_word(rtlpriv, REG_RXFLTMAP1, *(u16 *)val);
+		mac->rx_ctrl_filter = *(u16 *)val;
 		break;
 	case HW_VAR_DATA_FILTER:
 		rtl_write_word(rtlpriv, REG_RXFLTMAP2, *(u16 *)val);
+		mac->rx_data_filter = *(u16 *)val;
 		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,

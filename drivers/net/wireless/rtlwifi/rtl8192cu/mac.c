@@ -644,47 +644,6 @@ void rtl92c_set_min_space(struct ieee80211_hw *hw, bool is2T)
 	rtl_write_byte(rtlpriv, REG_AMPDU_MIN_SPACE, value);
 }
 
-u16 rtl92c_get_mgt_filter(struct ieee80211_hw *hw)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-
-	return rtl_read_word(rtlpriv, REG_RXFLTMAP0);
-}
-
-void rtl92c_set_mgt_filter(struct ieee80211_hw *hw, u16 filter)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-
-	rtl_write_word(rtlpriv, REG_RXFLTMAP0, filter);
-}
-
-u16 rtl92c_get_ctrl_filter(struct ieee80211_hw *hw)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-
-	return rtl_read_word(rtlpriv, REG_RXFLTMAP1);
-}
-
-void rtl92c_set_ctrl_filter(struct ieee80211_hw *hw, u16 filter)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-
-	rtl_write_word(rtlpriv, REG_RXFLTMAP1, filter);
-}
-
-u16 rtl92c_get_data_filter(struct ieee80211_hw *hw)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-
-	return rtl_read_word(rtlpriv,  REG_RXFLTMAP2);
-}
-
-void rtl92c_set_data_filter(struct ieee80211_hw *hw, u16 filter)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-
-	rtl_write_word(rtlpriv, REG_RXFLTMAP2, filter);
-}
 /*==============================================================*/
 
 static u8 _rtl92c_query_rxpwrpercentage(char antpower)

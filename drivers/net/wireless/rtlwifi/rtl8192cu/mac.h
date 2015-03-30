@@ -73,15 +73,6 @@ void rtl92c_init_retry_function(struct ieee80211_hw *hw);
 void rtl92c_disable_fast_edca(struct ieee80211_hw *hw);
 void rtl92c_set_min_space(struct ieee80211_hw *hw, bool is2T);
 
-/* For filter */
-u16 rtl92c_get_mgt_filter(struct ieee80211_hw *hw);
-void rtl92c_set_mgt_filter(struct ieee80211_hw *hw, u16 filter);
-u16 rtl92c_get_ctrl_filter(struct ieee80211_hw *hw);
-void rtl92c_set_ctrl_filter(struct ieee80211_hw *hw, u16 filter);
-u16 rtl92c_get_data_filter(struct ieee80211_hw *hw);
-void rtl92c_set_data_filter(struct ieee80211_hw *hw, u16 filter);
-
-
 u32 rtl92c_get_txdma_status(struct ieee80211_hw *hw);
 
 struct rx_fwinfo_92c {
