@@ -31,6 +31,38 @@
 #include "wmi-ops.h"
 #include "wow.h"
 
+/*********/
+/* Rates */
+/*********/
+
+#define RATETAB_ENT(_rate, _rateid, _flags) { \
+	.bitrate		= (_rate), \
+	.flags			= (_flags), \
+	.hw_value		= (_rateid), \
+}
+
+static struct ieee80211_rate ath10k_rates[] = {
+	/* CCK */
+	RATETAB_ENT(10,  0x82, 0),
+	RATETAB_ENT(20,  0x84, 0),
+	RATETAB_ENT(55,  0x8b, 0),
+	RATETAB_ENT(110, 0x96, 0),
+	/* OFDM */
+	RATETAB_ENT(60,  0x0c, 0),
+	RATETAB_ENT(90,  0x12, 0),
+	RATETAB_ENT(120, 0x18, 0),
+	RATETAB_ENT(180, 0x24, 0),
+	RATETAB_ENT(240, 0x30, 0),
+	RATETAB_ENT(360, 0x48, 0),
+	RATETAB_ENT(480, 0x60, 0),
+	RATETAB_ENT(540, 0x6c, 0),
+};
+
+#define ath10k_a_rates (ath10k_rates + 4)
+#define ath10k_a_rates_size (ARRAY_SIZE(ath10k_rates) - 4)
+#define ath10k_g_rates (ath10k_rates + 0)
+#define ath10k_g_rates_size (ARRAY_SIZE(ath10k_rates))
+
 /**********/
 /* Crypto */
 /**********/
@@ -5646,12 +5678,6 @@ static const struct ieee80211_ops ath10k_ops = {
 #endif
 };
 
-#define RATETAB_ENT(_rate, _rateid, _flags) { \
-	.bitrate		= (_rate), \
-	.flags			= (_flags), \
-	.hw_value		= (_rateid), \
-}
-
 #define CHAN2G(_channel, _freq, _flags) { \
 	.band			= IEEE80211_BAND_2GHZ, \
 	.hw_value		= (_channel), \
@@ -5714,31 +5740,6 @@ static const struct ieee80211_channel ath10k_5ghz_channels[] = {
 	CHAN5G(161, 5805, 0),
 	CHAN5G(165, 5825, 0),
 };
-
-/* Note: Be careful if you re-order these. There is code which depends on this
- * ordering.
- */
-static struct ieee80211_rate ath10k_rates[] = {
-	/* CCK */
-	RATETAB_ENT(10,  0x82, 0),
-	RATETAB_ENT(20,  0x84, 0),
-	RATETAB_ENT(55,  0x8b, 0),
-	RATETAB_ENT(110, 0x96, 0),
-	/* OFDM */
-	RATETAB_ENT(60,  0x0c, 0),
-	RATETAB_ENT(90,  0x12, 0),
-	RATETAB_ENT(120, 0x18, 0),
-	RATETAB_ENT(180, 0x24, 0),
-	RATETAB_ENT(240, 0x30, 0),
-	RATETAB_ENT(360, 0x48, 0),
-	RATETAB_ENT(480, 0x60, 0),
-	RATETAB_ENT(540, 0x6c, 0),
-};
-
-#define ath10k_a_rates (ath10k_rates + 4)
-#define ath10k_a_rates_size (ARRAY_SIZE(ath10k_rates) - 4)
-#define ath10k_g_rates (ath10k_rates + 0)
-#define ath10k_g_rates_size (ARRAY_SIZE(ath10k_rates))
 
 struct ath10k *ath10k_mac_create(size_t priv_size)
 {
