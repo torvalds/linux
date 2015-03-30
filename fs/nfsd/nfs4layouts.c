@@ -118,7 +118,7 @@ void nfsd4_setup_layout_type(struct svc_export *exp)
 {
 	struct super_block *sb = exp->ex_path.mnt->mnt_sb;
 
-	if (exp->ex_flags & NFSEXP_NOPNFS)
+	if (!(exp->ex_flags & NFSEXP_PNFS))
 		return;
 
 	if (sb->s_export_op->get_uuid &&

@@ -47,7 +47,7 @@
  * exported filesystem.
  */
 #define	NFSEXP_V4ROOT		0x10000
-#define NFSEXP_NOPNFS		0x20000
+#define NFSEXP_PNFS		0x20000
 
 /* All flags that we claim to support.  (Note we don't support NOACL.) */
 #define NFSEXP_ALLFLAGS		0x3FE7F
