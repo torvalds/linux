@@ -583,7 +583,7 @@ static int skcipher_recvmsg_async(struct socket *sock, struct msghdr *msg,
 			rsgl = &sreq->first_sgl;
 			list_add_tail(&rsgl->list, &sreq->list);
 		} else {
-			rsgl = kzalloc(sizeof(*rsgl), GFP_KERNEL);
+			rsgl = kmalloc(sizeof(*rsgl), GFP_KERNEL);
 			if (!rsgl) {
 				err = -ENOMEM;
 				goto free;
