@@ -57,9 +57,9 @@ static u64 persistent_ms, last_persistent_ms;
 static struct delay_timer tegra_delay_timer;
 
 #define timer_writel(value, reg) \
-	__raw_writel(value, timer_reg_base + (reg))
+	writel_relaxed(value, timer_reg_base + (reg))
 #define timer_readl(reg) \
-	__raw_readl(timer_reg_base + (reg))
+	readl_relaxed(timer_reg_base + (reg))
 
 static int tegra_timer_set_next_event(unsigned long cycles,
 					 struct clock_event_device *evt)
