@@ -14,7 +14,7 @@ document is concerned with the latter.
 HW assisted tracing is becoming increasingly useful when dealing with systems
 that have many SoCs and other components like GPU and DMA engines.  ARM has
 developed a HW assisted tracing solution by means of different components, each
-being added to a design at systhesis time to cater to specific tracing needs.
+being added to a design at synthesis time to cater to specific tracing needs.
 Compoments are generally categorised as source, link and sinks and are
 (usually) discovered using the AMBA bus.
 
