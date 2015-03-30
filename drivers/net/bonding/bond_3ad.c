@@ -2415,12 +2415,15 @@ void bond_3ad_handle_link_change(struct slave *slave, char link)
 		port->actor_admin_port_key &= ~AD_SPEED_KEY_MASKS;
 		port->actor_oper_port_key = port->actor_admin_port_key |=
 			(__get_link_speed(port) << 1);
+		if (port->actor_oper_port_key & AD_DUPLEX_KEY_MASKS)
+			port->sm_vars |= AD_PORT_LACP_ENABLED;
 	} else {
 		/* link has failed */
 		port->is_enabled = false;
 		port->actor_admin_port_key &= ~AD_DUPLEX_KEY_MASKS;
 		port->actor_oper_port_key = (port->actor_admin_port_key &=
 					     ~AD_SPEED_KEY_MASKS);
+		port->sm_vars &= ~AD_PORT_LACP_ENABLED;
 	}
 	netdev_dbg(slave->bond->dev, "Port %d changed link status to %s\n",
 		   port->actor_port_number,
