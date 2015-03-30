@@ -606,12 +606,6 @@ static struct devfreq_governor tegra_devfreq_governor = {
 	.event_handler = tegra_governor_event_handler,
 };
 
-static int __init tegra_governor_init(void)
-{
-	return devfreq_add_governor(&tegra_devfreq_governor);
-}
-subsys_initcall(tegra_governor_init);
-
 static int tegra_devfreq_probe(struct platform_device *pdev)
 {
 	struct tegra_devfreq *tegra;
@@ -755,7 +749,36 @@ static struct platform_driver tegra_devfreq_driver = {
 		.of_match_table = tegra_devfreq_of_match,
 	},
 };
-module_platform_driver(tegra_devfreq_driver);
+
+static int __init tegra_devfreq_init(void)
+{
+	int ret = 0;
+
+	ret = devfreq_add_governor(&tegra_devfreq_governor);
+	if (ret) {
+		pr_err("%s: failed to add governor: %d\n", __func__, ret);
+		return ret;
+	}
+
+	ret = platform_driver_register(&tegra_devfreq_driver);
+	if (ret)
+		devfreq_remove_governor(&tegra_devfreq_governor);
+
+	return ret;
+}
+module_init(tegra_devfreq_init)
+
+static void __exit tegra_devfreq_exit(void)
+{
+	int ret = 0;
+
+	platform_driver_unregister(&tegra_devfreq_driver);
+
+	ret = devfreq_remove_governor(&tegra_devfreq_governor);
+	if (ret)
+		pr_err("%s: failed to remove governor: %d\n", __func__, ret);
+}
+module_exit(tegra_devfreq_exit)
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Tegra devfreq driver");
