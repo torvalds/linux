@@ -468,7 +468,7 @@ static inline int kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 
 
 	pgdir = vcpu_e500->vcpu.arch.pgdir;
-	ptep = lookup_linux_ptep(pgdir, hva, &tsize_pages);
+	ptep = find_linux_pte_or_hugepte(pgdir, hva, NULL);
 	if (ptep) {
 		pte_t pte = READ_ONCE(*ptep);
 

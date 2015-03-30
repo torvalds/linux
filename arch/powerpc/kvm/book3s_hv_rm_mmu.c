@@ -131,25 +131,6 @@ static void remove_revmap_chain(struct kvm *kvm, long pte_index,
 	unlock_rmap(rmap);
 }
 
-static pte_t lookup_linux_pte_and_update(pgd_t *pgdir, unsigned long hva,
-			      int writing, unsigned long *pte_sizep)
-{
-	pte_t *ptep;
-	unsigned long ps = *pte_sizep;
-	unsigned int hugepage_shift;
-
-	ptep = find_linux_pte_or_hugepte(pgdir, hva, &hugepage_shift);
-	if (!ptep)
-		return __pte(0);
-	if (hugepage_shift)
-		*pte_sizep = 1ul << hugepage_shift;
-	else
-		*pte_sizep = PAGE_SIZE;
-	if (ps > *pte_sizep)
-		return __pte(0);
-	return kvmppc_read_update_linux_pte(ptep, writing, hugepage_shift);
-}
-
 static inline void unlock_hpte(__be64 *hpte, unsigned long hpte_v)
 {
 	asm volatile(PPC_RELEASE_BARRIER "" : : : "memory");
@@ -166,10 +147,10 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 	struct revmap_entry *rev;
 	unsigned long g_ptel;
 	struct kvm_memory_slot *memslot;
-	unsigned long pte_size;
+	unsigned hpage_shift;
 	unsigned long is_io;
 	unsigned long *rmap;
-	pte_t pte;
+	pte_t *ptep;
 	unsigned int writing;
 	unsigned long mmu_seq;
 	unsigned long rcbits;
@@ -208,22 +189,33 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 
 	/* Translate to host virtual address */
 	hva = __gfn_to_hva_memslot(memslot, gfn);
+	ptep = find_linux_pte_or_hugepte(pgdir, hva, &hpage_shift);
+	if (ptep) {
+		pte_t pte;
+		unsigned int host_pte_size;
 
-	/* Look up the Linux PTE for the backing page */
-	pte_size = psize;
-	pte = lookup_linux_pte_and_update(pgdir, hva, writing, &pte_size);
-	if (pte_present(pte) && !pte_protnone(pte)) {
-		if (writing && !pte_write(pte))
-			/* make the actual HPTE be read-only */
-			ptel = hpte_make_readonly(ptel);
-		is_io = hpte_cache_bits(pte_val(pte));
-		pa = pte_pfn(pte) << PAGE_SHIFT;
-		pa |= hva & (pte_size - 1);
-		pa |= gpa & ~PAGE_MASK;
+		if (hpage_shift)
+			host_pte_size = 1ul << hpage_shift;
+		else
+			host_pte_size = PAGE_SIZE;
+		/*
+		 * We should always find the guest page size
+		 * to <= host page size, if host is using hugepage
+		 */
+		if (host_pte_size < psize)
+			return H_PARAMETER;
+
+		pte = kvmppc_read_update_linux_pte(ptep, writing, hpage_shift);
+		if (pte_present(pte) && !pte_protnone(pte)) {
+			if (writing && !pte_write(pte))
+				/* make the actual HPTE be read-only */
+				ptel = hpte_make_readonly(ptel);
+			is_io = hpte_cache_bits(pte_val(pte));
+			pa = pte_pfn(pte) << PAGE_SHIFT;
+			pa |= hva & (host_pte_size - 1);
+			pa |= gpa & ~PAGE_MASK;
+		}
 	}
-
-	if (pte_size < psize)
-		return H_PARAMETER;
 
 	ptel &= ~(HPTE_R_PP0 - psize);
 	ptel |= pa;

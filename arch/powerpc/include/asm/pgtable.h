@@ -249,27 +249,6 @@ extern int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long addr,
 #endif
 pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
 				 unsigned *shift);
-
-static inline pte_t *lookup_linux_ptep(pgd_t *pgdir, unsigned long hva,
-				     unsigned long *pte_sizep)
-{
-	pte_t *ptep;
-	unsigned long ps = *pte_sizep;
-	unsigned int shift;
-
-	ptep = find_linux_pte_or_hugepte(pgdir, hva, &shift);
-	if (!ptep)
-		return NULL;
-	if (shift)
-		*pte_sizep = 1ul << shift;
-	else
-		*pte_sizep = PAGE_SIZE;
-
-	if (ps > *pte_sizep)
-		return NULL;
-
-	return ptep;
-}
 #endif /* __ASSEMBLY__ */
 
 #endif /* __KERNEL__ */
