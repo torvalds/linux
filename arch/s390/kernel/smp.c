@@ -818,7 +818,8 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 	pcpu_prepare_secondary(pcpu, cpu);
 	pcpu_attach_task(pcpu, tidle);
 	pcpu_start_fn(pcpu, smp_start_secondary, NULL);
-	while (!cpu_online(cpu))
+	/* Wait until cpu puts itself in the online & active maps */
+	while (!cpu_online(cpu) || !cpu_active(cpu))
 		cpu_relax();
 	return 0;
 }
