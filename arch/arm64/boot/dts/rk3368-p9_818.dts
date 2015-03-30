@@ -338,6 +338,7 @@
 			max_bat_voltagemV = <4200>;
 			sleep_enter_current = <150>;
 			sleep_exit_current = <180>;
+			support_uboot_chrg = <0>;
 		};
 	};
 };

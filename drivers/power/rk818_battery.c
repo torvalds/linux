@@ -27,6 +27,8 @@
 #include <linux/rtc.h>
 #include <linux/wakelock.h>
 
+
+
 /* if you  want to disable, don't set it as 0, just be: "static int dbg_enable;" is ok*/
 static int dbg_enable;
 #define RK818_SYS_DBG 1
@@ -202,6 +204,7 @@ struct battery_info {
 	int 	chg_v_lmt;
 	int 	chg_i_lmt;
 	int 	chg_i_cur;
+
 };
 
 struct battery_info *g_battery;
@@ -648,6 +651,7 @@ static int _set_cal_offset(struct battery_info *di, u32 value)
 
 	return 0;
 }
+
 static void _get_voltage_offset_value(struct battery_info *di)
 {
 	int vcalib0, vcalib1;
@@ -712,6 +716,7 @@ static int _voltage_to_capacity(struct battery_info *di, int voltage)
 	u32 *ocv_table;
 	int ocv_size;
 	u32 tmp;
+	int i;
 
 	ocv_table = di->platform_data->battery_ocv;
 	ocv_size = di->platform_data->ocv_size;
@@ -1061,7 +1066,14 @@ static void power_on_save(struct   battery_info *di, int voltage)
 
 }
 
-
+static int _get_full_soc(struct battery_info *di)
+{
+	printk("_get_full_soc:%d,%d\n",di->fcc,di->remain_capacity);
+	if(abs_int(di->fcc - di->remain_capacity) < di->fcc/100)
+		return 100;
+	else
+		return di->remain_capacity * 100 / di->fcc;
+}
 static int _get_soc(struct   battery_info *di)
 {
 	return di->remain_capacity * 100 / di->fcc;
@@ -1476,13 +1488,17 @@ static int _rsoc_init(struct  battery_info *di)
 		}
 #endif
 		remain_capacity = _get_remain_capacity(di);
+		
+		if (support_uboot_charge())
+			goto out;
 
 		battery_read(di->rk818, NON_ACT_TIMER_CNT_REG, &curr_shtd_time, 1);
 		battery_read(di->rk818, NON_ACT_TIMER_CNT_REG_SAVE, &last_shtd_time, 1);
 		battery_write(di->rk818, NON_ACT_TIMER_CNT_REG_SAVE, &curr_shtd_time, 1);
 		DBG("<%s>, now_shtd_time = %d, last_shtd_time = %d, otg_status = %d\n", __func__, curr_shtd_time, last_shtd_time, otg_status);
 
-		if (!support_uboot_charge()) {
+		//if (!support_uboot_charge()) {
+		{
 			_voltage_to_capacity(di, di->voltage_ocv);
 			DBG("<%s>Not first pwron, real_remain_cap = %d, ocv-remain_cp=%d\n", __func__, remain_capacity, di->temp_nac);
 
@@ -1503,7 +1519,7 @@ static int _rsoc_init(struct  battery_info *di)
 				}
 			}
 		}
-
+out:
 		di->real_soc = init_soc;
 		di->nac = remain_capacity;
 		if (di->nac <= 0)
@@ -1695,6 +1711,32 @@ static void low_waring_init(struct battery_info *di)
 	battery_write(di->rk818, VB_MOD_REG, &vb_mon_reg_init, 1);
 }
 
+static int set_low_power_interrupt(struct battery_info *di)
+{
+	int ret;
+	u8 buf;
+
+	ret = battery_read(di->rk818, RK818_VB_MON_REG, &buf, 1);
+	buf =(buf&0xE8)|(1<<3)|0x110;
+	ret = battery_write(di->rk818, RK818_VB_MON_REG, &buf, 1);
+
+	return 0;	
+	
+}
+
+//set power off voltage 3.0v
+static int set_low_power_shutdown(struct battery_info *di)
+{
+	int ret;
+	u8 buf;
+
+	ret = battery_read(di->rk818, RK818_VB_MON_REG, &buf, 1);
+	buf =(buf&0xE8)|0x10 ;
+	ret = battery_write(di->rk818, RK818_VB_MON_REG, &buf, 1);
+
+	return 0;
+}
+
 static void  fg_init(struct battery_info *di)
 {
 	u8 adc_ctrl_val;
@@ -1721,6 +1763,7 @@ static void  fg_init(struct battery_info *di)
 	power_on_save(di, di->voltage_ocv);
 	/* set sample time for cal_offset interval*/
 	ioffset_sample_time(di, SAMP_TIME_8MIN);
+	set_low_power_shutdown(di);
 	dump_gauge_register(di);
 	dump_charger_register(di);
 
@@ -2084,18 +2127,18 @@ static void voltage_to_soc_discharge_smooth(struct battery_info *di)
 		soc_time = di->fcc*3600/100/(abs_int(now_current));
 	_voltage_to_capacity(di, 3800);
 	volt_to_soc = di->temp_soc;
-	di->temp_soc = _get_soc(di);
+	di->temp_soc = _get_full_soc(di);
 
-	DBG("<%s>. 3.8v ocv_to_soc = %d\n", __func__, volt_to_soc);
-	DBG("<%s>. di->temp_soc = %d, di->real_soc = %d\n", __func__, di->temp_soc, di->real_soc);
+	printk("<%s>. 3.8v ocv_to_soc = %d\n", __func__, volt_to_soc);
+	printk("<%s>. di->temp_soc = %d, di->real_soc = %d\n", __func__, di->temp_soc, di->real_soc);
 	if ((di->voltage < 3800) || (di->voltage > 3800 && di->real_soc < volt_to_soc)) {  /* di->warnning_voltage) */
 		zero_get_soc(di);
 		return;
 
 	} else if (di->temp_soc == di->real_soc) {
-		DBG("<%s>. di->temp_soc == di->real_soc\n", __func__);
+		printk("<%s>. di->temp_soc == di->real_soc\n", __func__);
 	} else if (di->temp_soc > di->real_soc) {
-		DBG("<%s>. di->temp_soc > di->real_soc\n", __func__);
+		printk("<%s>. di->temp_soc > di->real_soc\n", __func__);
 		di->vol_smooth_time++;
 		if (di->vol_smooth_time > soc_time*3/2) {
 			di->real_soc--;
@@ -2103,15 +2146,23 @@ static void voltage_to_soc_discharge_smooth(struct battery_info *di)
 		}
 
 	} else {
-		DBG("<%s>. di->temp_soc < di->real_soc\n", __func__);
+		printk("<%s>. di->temp_soc < di->real_soc\n", __func__);
 		if (di->real_soc == (di->temp_soc + 1)) {
 			di->change_timer = di->soc_timer;
 			di->real_soc = di->temp_soc;
 		} else {
 			di->vol_smooth_time++;
-			if (di->vol_smooth_time > soc_time*3/4) {
-				di->real_soc--;
-				di->vol_smooth_time  = 0;
+			//low power speed
+			if(di->temp_soc<5){
+				if (di->vol_smooth_time > soc_time*1/4) {
+					di->real_soc--;
+					di->vol_smooth_time  = 0;
+				}
+			}else{			
+				if (di->vol_smooth_time > soc_time*3/4) {
+					di->real_soc--;
+					di->vol_smooth_time  = 0;
+				}
 			}
 		}
 	}
@@ -2325,7 +2376,7 @@ static void rk_battery_display_smooth(struct battery_info *di)
 		voltage_to_soc_discharge_smooth(di);
 		if (di->real_soc == 1) {
 			di->time2empty++;
-			if (di->time2empty >= 300)
+			if (di->time2empty >= 200)
 				di->real_soc = 0;
 		} else {
 			di->time2empty = 0;
@@ -2682,8 +2733,6 @@ static void battery_poweron_status_init(struct battery_info *di)
 	DBG(" CHARGE: NOT SUPPORT_USB_CHARGE\n");
 #endif
 }
-
-
 static void check_battery_status(struct battery_info *di)
 {
 	u8 buf;
@@ -2860,7 +2909,7 @@ static void rk_battery_work(struct work_struct *work)
 {
 	struct battery_info *di = container_of(work,
 			struct battery_info, battery_monitor_work.work);
-
+	
 	update_resume_status_relax_voltage(di);
 	wait_charge_finish_signal(di);
 	charge_finish_routine(di);
@@ -3347,7 +3396,8 @@ static int battery_suspend(struct platform_device *dev, pm_message_t state)
 	DBG("<%s>. suspend_temp_soc,=%d, suspend_charge_current=%d, suspend_cap=%d, sleep_status=%d\n",
 	    __func__, di->suspend_temp_soc, di->suspend_charge_current,
 	    di->suspend_capacity, di->sleep_status);
-
+	
+	set_low_power_interrupt(di);
 	return 0;
 }
 
@@ -3355,6 +3405,7 @@ static int battery_resume(struct platform_device *dev)
 {
 	struct battery_info *di = platform_get_drvdata(dev);
 
+	set_low_power_interrupt(di);
 	di->resume = true;
 	DBG("<%s>\n", __func__);
 	disable_vbat_low_irq(di);
@@ -3364,6 +3415,7 @@ static int battery_resume(struct platform_device *dev)
 	if (di->sleep_status == POWER_SUPPLY_STATUS_CHARGING ||
 			di->real_soc <= 5)
 		wake_lock_timeout(&di->resume_wake_lock, 5*HZ);
+
 
 	return 0;
 }
