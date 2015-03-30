@@ -1351,7 +1351,7 @@ static bool reg_pattern_test(struct ixgbe_adapter *adapter, u64 *data, int reg,
 
 	if (ixgbe_removed(adapter->hw.hw_addr)) {
 		*data = 1;
-		return 1;
+		return true;
 	}
 	for (pat = 0; pat < ARRAY_SIZE(test_pattern); pat++) {
 		before = ixgbe_read_reg(&adapter->hw, reg);
@@ -1376,7 +1376,7 @@ static bool reg_set_and_check(struct ixgbe_adapter *adapter, u64 *data, int reg,
 
 	if (ixgbe_removed(adapter->hw.hw_addr)) {
 		*data = 1;
-		return 1;
+		return true;
 	}
 	before = ixgbe_read_reg(&adapter->hw, reg);
 	ixgbe_write_reg(&adapter->hw, reg, write & mask);
