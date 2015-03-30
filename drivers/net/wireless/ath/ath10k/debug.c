@@ -380,12 +380,12 @@ unlock:
 
 static int ath10k_debug_fw_stats_request(struct ath10k *ar)
 {
-	unsigned long timeout;
+	unsigned long timeout, time_left;
 	int ret;
 
 	lockdep_assert_held(&ar->conf_mutex);
 
-	timeout = jiffies + msecs_to_jiffies(1*HZ);
+	timeout = jiffies + msecs_to_jiffies(1 * HZ);
 
 	ath10k_debug_fw_stats_reset(ar);
 
@@ -404,9 +404,10 @@ static int ath10k_debug_fw_stats_request(struct ath10k *ar)
 			return ret;
 		}
 
-		ret = wait_for_completion_timeout(&ar->debug.fw_stats_complete,
-						  1*HZ);
-		if (ret == 0)
+		time_left =
+		wait_for_completion_timeout(&ar->debug.fw_stats_complete,
+					    1 * HZ);
+		if (!time_left)
 			return -ETIMEDOUT;
 
 		spin_lock_bh(&ar->data_lock);
