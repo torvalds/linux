@@ -239,10 +239,10 @@ static bool find_guid(const char *guid_string, struct wmi_block **out)
 		if (memcmp(block->guid, guid_input, 16) == 0) {
 			if (out)
 				*out = wblock;
-			return 1;
+			return true;
 		}
 	}
-	return 0;
+	return false;
 }
 
 static acpi_status wmi_method_enable(struct wmi_block *wblock, int enable)
