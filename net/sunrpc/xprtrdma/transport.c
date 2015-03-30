@@ -157,12 +157,47 @@ static struct ctl_table sunrpc_table[] = {
 static struct rpc_xprt_ops xprt_rdma_procs;	/* forward reference */
 
 static void
+xprt_rdma_format_addresses4(struct rpc_xprt *xprt, struct sockaddr *sap)
+{
+	struct sockaddr_in *sin = (struct sockaddr_in *)sap;
+	char buf[20];
+
+	snprintf(buf, sizeof(buf), "%08x", ntohl(sin->sin_addr.s_addr));
+	xprt->address_strings[RPC_DISPLAY_HEX_ADDR] = kstrdup(buf, GFP_KERNEL);
+
+	xprt->address_strings[RPC_DISPLAY_NETID] = RPCBIND_NETID_RDMA;
+}
+
+static void
+xprt_rdma_format_addresses6(struct rpc_xprt *xprt, struct sockaddr *sap)
+{
+	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sap;
+	char buf[40];
+
+	snprintf(buf, sizeof(buf), "%pi6", &sin6->sin6_addr);
+	xprt->address_strings[RPC_DISPLAY_HEX_ADDR] = kstrdup(buf, GFP_KERNEL);
+
+	xprt->address_strings[RPC_DISPLAY_NETID] = RPCBIND_NETID_RDMA6;
+}
+
+static void
 xprt_rdma_format_addresses(struct rpc_xprt *xprt)
 {
 	struct sockaddr *sap = (struct sockaddr *)
 					&rpcx_to_rdmad(xprt).addr;
-	struct sockaddr_in *sin = (struct sockaddr_in *)sap;
-	char buf[64];
+	char buf[128];
+
+	switch (sap->sa_family) {
+	case AF_INET:
+		xprt_rdma_format_addresses4(xprt, sap);
+		break;
+	case AF_INET6:
+		xprt_rdma_format_addresses6(xprt, sap);
+		break;
+	default:
+		pr_err("rpcrdma: Unrecognized address family\n");
+		return;
+	}
 
 	(void)rpc_ntop(sap, buf, sizeof(buf));
 	xprt->address_strings[RPC_DISPLAY_ADDR] = kstrdup(buf, GFP_KERNEL);
@@ -170,16 +205,10 @@ xprt_rdma_format_addresses(struct rpc_xprt *xprt)
 	snprintf(buf, sizeof(buf), "%u", rpc_get_port(sap));
 	xprt->address_strings[RPC_DISPLAY_PORT] = kstrdup(buf, GFP_KERNEL);
 
-	xprt->address_strings[RPC_DISPLAY_PROTO] = "rdma";
-
-	snprintf(buf, sizeof(buf), "%08x", ntohl(sin->sin_addr.s_addr));
-	xprt->address_strings[RPC_DISPLAY_HEX_ADDR] = kstrdup(buf, GFP_KERNEL);
-
 	snprintf(buf, sizeof(buf), "%4hx", rpc_get_port(sap));
 	xprt->address_strings[RPC_DISPLAY_HEX_PORT] = kstrdup(buf, GFP_KERNEL);
 
-	/* netid */
-	xprt->address_strings[RPC_DISPLAY_NETID] = "rdma";
+	xprt->address_strings[RPC_DISPLAY_PROTO] = "rdma";
 }
 
 static void

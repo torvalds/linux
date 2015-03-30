@@ -50,6 +50,7 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/prefetch.h>
+#include <linux/sunrpc/addr.h>
 #include <asm/bitops.h>
 
 #include "xprt_rdma.h"
@@ -424,7 +425,7 @@ rpcrdma_conn_upcall(struct rdma_cm_id *id, struct rdma_cm_event *event)
 	struct rpcrdma_ia *ia = &xprt->rx_ia;
 	struct rpcrdma_ep *ep = &xprt->rx_ep;
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
-	struct sockaddr_in *addr = (struct sockaddr_in *) &ep->rep_remote_addr;
+	struct sockaddr *sap = (struct sockaddr *)&ep->rep_remote_addr;
 #endif
 	struct ib_qp_attr *attr = &ia->ri_qp_attr;
 	struct ib_qp_init_attr *iattr = &ia->ri_qp_init_attr;
@@ -480,9 +481,8 @@ connected:
 		wake_up_all(&ep->rep_connect_wait);
 		/*FALLTHROUGH*/
 	default:
-		dprintk("RPC:       %s: %pI4:%u (ep 0x%p): %s\n",
-			__func__, &addr->sin_addr.s_addr,
-			ntohs(addr->sin_port), ep,
+		dprintk("RPC:       %s: %pIS:%u (ep 0x%p): %s\n",
+			__func__, sap, rpc_get_port(sap), ep,
 			CONNECTION_MSG(event->event));
 		break;
 	}
@@ -491,19 +491,16 @@ connected:
 	if (connstate == 1) {
 		int ird = attr->max_dest_rd_atomic;
 		int tird = ep->rep_remote_cma.responder_resources;
-		printk(KERN_INFO "rpcrdma: connection to %pI4:%u "
-			"on %s, memreg %d slots %d ird %d%s\n",
-			&addr->sin_addr.s_addr,
-			ntohs(addr->sin_port),
+
+		pr_info("rpcrdma: connection to %pIS:%u on %s, memreg %d slots %d ird %d%s\n",
+			sap, rpc_get_port(sap),
 			ia->ri_id->device->name,
 			ia->ri_memreg_strategy,
 			xprt->rx_buf.rb_max_requests,
 			ird, ird < 4 && ird < tird / 2 ? " (low!)" : "");
 	} else if (connstate < 0) {
-		printk(KERN_INFO "rpcrdma: connection to %pI4:%u closed (%d)\n",
-			&addr->sin_addr.s_addr,
-			ntohs(addr->sin_port),
-			connstate);
+		pr_info("rpcrdma: connection to %pIS:%u closed (%d)\n",
+			sap, rpc_get_port(sap), connstate);
 	}
 #endif
 
