@@ -187,6 +187,7 @@ rpcrdma_create_chunks(struct rpc_rqst *rqst, struct xdr_buf *target,
 	struct rpcrdma_write_array *warray = NULL;
 	struct rpcrdma_write_chunk *cur_wchunk = NULL;
 	__be32 *iptr = headerp->rm_body.rm_chunks;
+	int (*map)(struct rpcrdma_xprt *, struct rpcrdma_mr_seg *, int, bool);
 
 	if (type == rpcrdma_readch || type == rpcrdma_areadch) {
 		/* a read chunk - server will RDMA Read our memory */
@@ -209,9 +210,9 @@ rpcrdma_create_chunks(struct rpc_rqst *rqst, struct xdr_buf *target,
 	if (nsegs < 0)
 		return nsegs;
 
+	map = r_xprt->rx_ia.ri_ops->ro_map;
 	do {
-		n = rpcrdma_register_external(seg, nsegs,
-						cur_wchunk != NULL, r_xprt);
+		n = map(r_xprt, seg, nsegs, cur_wchunk != NULL);
 		if (n <= 0)
 			goto out;
 		if (cur_rchunk) {	/* read */

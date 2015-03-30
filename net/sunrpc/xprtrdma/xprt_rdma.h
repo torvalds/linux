@@ -336,6 +336,8 @@ struct rpcrdma_stats {
  */
 struct rpcrdma_xprt;
 struct rpcrdma_memreg_ops {
+	int		(*ro_map)(struct rpcrdma_xprt *,
+				  struct rpcrdma_mr_seg *, int, bool);
 	size_t		(*ro_maxpages)(struct rpcrdma_xprt *);
 	const char	*ro_displayname;
 };
@@ -403,8 +405,6 @@ void rpcrdma_buffer_put(struct rpcrdma_req *);
 void rpcrdma_recv_buffer_get(struct rpcrdma_req *);
 void rpcrdma_recv_buffer_put(struct rpcrdma_rep *);
 
-int rpcrdma_register_external(struct rpcrdma_mr_seg *,
-				int, int, struct rpcrdma_xprt *);
 int rpcrdma_deregister_external(struct rpcrdma_mr_seg *,
 				struct rpcrdma_xprt *);
 
@@ -414,6 +414,8 @@ void rpcrdma_free_regbuf(struct rpcrdma_ia *,
 			 struct rpcrdma_regbuf *);
 
 unsigned int rpcrdma_max_segments(struct rpcrdma_xprt *);
+void rpcrdma_map_one(struct rpcrdma_ia *, struct rpcrdma_mr_seg *, bool);
+void rpcrdma_unmap_one(struct rpcrdma_ia *, struct rpcrdma_mr_seg *);
 
 /*
  * RPC/RDMA connection management calls - xprtrdma/rpc_rdma.c

@@ -28,7 +28,24 @@ physical_op_maxpages(struct rpcrdma_xprt *r_xprt)
 		     rpcrdma_max_segments(r_xprt));
 }
 
+/* The client's physical memory is already exposed for
+ * remote access via RDMA READ or RDMA WRITE.
+ */
+static int
+physical_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
+		int nsegs, bool writing)
+{
+	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
+
+	rpcrdma_map_one(ia, seg, writing);
+	seg->mr_rkey = ia->ri_bind_mem->rkey;
+	seg->mr_base = seg->mr_dma;
+	seg->mr_nsegs = 1;
+	return 1;
+}
+
 const struct rpcrdma_memreg_ops rpcrdma_physical_memreg_ops = {
+	.ro_map				= physical_op_map,
 	.ro_maxpages			= physical_op_maxpages,
 	.ro_displayname			= "physical",
 };
