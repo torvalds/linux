@@ -106,6 +106,10 @@ struct rpcrdma_ep {
 #define INIT_CQCOUNT(ep) atomic_set(&(ep)->rep_cqcount, (ep)->rep_cqinit)
 #define DECR_CQCOUNT(ep) atomic_sub_return(1, &(ep)->rep_cqcount)
 
+/* Force completion handler to ignore the signal
+ */
+#define RPCRDMA_IGNORE_COMPLETION	(0ULL)
+
 /* Registered buffer -- registered kmalloc'd memory for RDMA SEND/RECV
  *
  * The below structure appears at the front of a large region of kmalloc'd
@@ -206,6 +210,7 @@ struct rpcrdma_mw {
 		struct ib_fmr		*fmr;
 		struct rpcrdma_frmr	frmr;
 	} r;
+	void			(*mw_sendcompletion)(struct ib_wc *);
 	struct list_head	mw_list;
 	struct list_head	mw_all;
 };

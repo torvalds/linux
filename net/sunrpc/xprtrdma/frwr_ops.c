@@ -117,6 +117,22 @@ frwr_op_maxpages(struct rpcrdma_xprt *r_xprt)
 		     rpcrdma_max_segments(r_xprt) * ia->ri_max_frmr_depth);
 }
 
+/* If FAST_REG or LOCAL_INV failed, indicate the frmr needs to be reset. */
+static void
+frwr_sendcompletion(struct ib_wc *wc)
+{
+	struct rpcrdma_mw *r;
+
+	if (likely(wc->status == IB_WC_SUCCESS))
+		return;
+
+	/* WARNING: Only wr_id and status are reliable at this point */
+	r = (struct rpcrdma_mw *)(unsigned long)wc->wr_id;
+	dprintk("RPC:       %s: frmr %p (stale), status %d\n",
+		__func__, r, wc->status);
+	r->r.frmr.fr_state = FRMR_IS_STALE;
+}
+
 static int
 frwr_op_init(struct rpcrdma_xprt *r_xprt)
 {
@@ -148,6 +164,7 @@ frwr_op_init(struct rpcrdma_xprt *r_xprt)
 
 		list_add(&r->mw_list, &buf->rb_mws);
 		list_add(&r->mw_all, &buf->rb_all);
+		r->mw_sendcompletion = frwr_sendcompletion;
 	}
 
 	return 0;

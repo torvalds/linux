@@ -186,7 +186,7 @@ static const char * const wc_status[] = {
 	"remote access error",
 	"remote operation error",
 	"transport retry counter exceeded",
-	"RNR retrycounter exceeded",
+	"RNR retry counter exceeded",
 	"local RDD violation error",
 	"remove invalid RD request",
 	"operation aborted",
@@ -204,21 +204,17 @@ static const char * const wc_status[] = {
 static void
 rpcrdma_sendcq_process_wc(struct ib_wc *wc)
 {
-	if (likely(wc->status == IB_WC_SUCCESS))
-		return;
-
 	/* WARNING: Only wr_id and status are reliable at this point */
-	if (wc->wr_id == 0ULL) {
-		if (wc->status != IB_WC_WR_FLUSH_ERR)
+	if (wc->wr_id == RPCRDMA_IGNORE_COMPLETION) {
+		if (wc->status != IB_WC_SUCCESS &&
+		    wc->status != IB_WC_WR_FLUSH_ERR)
 			pr_err("RPC:       %s: SEND: %s\n",
 			       __func__, COMPLETION_MSG(wc->status));
 	} else {
 		struct rpcrdma_mw *r;
 
 		r = (struct rpcrdma_mw *)(unsigned long)wc->wr_id;
-		r->r.frmr.fr_state = FRMR_IS_STALE;
-		pr_err("RPC:       %s: frmr %p (stale): %s\n",
-		       __func__, r, COMPLETION_MSG(wc->status));
+		r->mw_sendcompletion(wc);
 	}
 }
 
@@ -1622,7 +1618,7 @@ rpcrdma_ep_post(struct rpcrdma_ia *ia,
 	}
 
 	send_wr.next = NULL;
-	send_wr.wr_id = 0ULL;	/* no send cookie */
+	send_wr.wr_id = RPCRDMA_IGNORE_COMPLETION;
 	send_wr.sg_list = req->rl_send_iov;
 	send_wr.num_sge = req->rl_niovs;
 	send_wr.opcode = IB_WR_SEND;
