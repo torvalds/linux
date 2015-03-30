@@ -17,6 +17,35 @@
 # define RPCDBG_FACILITY	RPCDBG_TRANS
 #endif
 
+static int
+__frwr_init(struct rpcrdma_mw *r, struct ib_pd *pd, struct ib_device *device,
+	    unsigned int depth)
+{
+	struct rpcrdma_frmr *f = &r->r.frmr;
+	int rc;
+
+	f->fr_mr = ib_alloc_fast_reg_mr(pd, depth);
+	if (IS_ERR(f->fr_mr))
+		goto out_mr_err;
+	f->fr_pgl = ib_alloc_fast_reg_page_list(device, depth);
+	if (IS_ERR(f->fr_pgl))
+		goto out_list_err;
+	return 0;
+
+out_mr_err:
+	rc = PTR_ERR(f->fr_mr);
+	dprintk("RPC:       %s: ib_alloc_fast_reg_mr status %i\n",
+		__func__, rc);
+	return rc;
+
+out_list_err:
+	rc = PTR_ERR(f->fr_pgl);
+	dprintk("RPC:       %s: ib_alloc_fast_reg_page_list status %i\n",
+		__func__, rc);
+	ib_dereg_mr(f->fr_mr);
+	return rc;
+}
+
 /* FRWR mode conveys a list of pages per chunk segment. The
  * maximum length of that list is the FRWR page list depth.
  */
@@ -27,6 +56,42 @@ frwr_op_maxpages(struct rpcrdma_xprt *r_xprt)
 
 	return min_t(unsigned int, RPCRDMA_MAX_DATA_SEGS,
 		     rpcrdma_max_segments(r_xprt) * ia->ri_max_frmr_depth);
+}
+
+static int
+frwr_op_init(struct rpcrdma_xprt *r_xprt)
+{
+	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
+	struct ib_device *device = r_xprt->rx_ia.ri_id->device;
+	unsigned int depth = r_xprt->rx_ia.ri_max_frmr_depth;
+	struct ib_pd *pd = r_xprt->rx_ia.ri_pd;
+	int i;
+
+	INIT_LIST_HEAD(&buf->rb_mws);
+	INIT_LIST_HEAD(&buf->rb_all);
+
+	i = (buf->rb_max_requests + 1) * RPCRDMA_MAX_SEGS;
+	dprintk("RPC:       %s: initalizing %d FRMRs\n", __func__, i);
+
+	while (i--) {
+		struct rpcrdma_mw *r;
+		int rc;
+
+		r = kzalloc(sizeof(*r), GFP_KERNEL);
+		if (!r)
+			return -ENOMEM;
+
+		rc = __frwr_init(r, pd, device, depth);
+		if (rc) {
+			kfree(r);
+			return rc;
+		}
+
+		list_add(&r->mw_list, &buf->rb_mws);
+		list_add(&r->mw_all, &buf->rb_all);
+	}
+
+	return 0;
 }
 
 /* Post a FAST_REG Work Request to register a memory region
@@ -149,5 +214,6 @@ const struct rpcrdma_memreg_ops rpcrdma_frwr_memreg_ops = {
 	.ro_map				= frwr_op_map,
 	.ro_unmap			= frwr_op_unmap,
 	.ro_maxpages			= frwr_op_maxpages,
+	.ro_init			= frwr_op_init,
 	.ro_displayname			= "frwr",
 };

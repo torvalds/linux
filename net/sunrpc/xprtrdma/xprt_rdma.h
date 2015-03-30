@@ -341,6 +341,7 @@ struct rpcrdma_memreg_ops {
 	int		(*ro_unmap)(struct rpcrdma_xprt *,
 				    struct rpcrdma_mr_seg *);
 	size_t		(*ro_maxpages)(struct rpcrdma_xprt *);
+	int		(*ro_init)(struct rpcrdma_xprt *);
 	const char	*ro_displayname;
 };
 
