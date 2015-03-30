@@ -1303,7 +1303,7 @@ static struct sk_buff *ath10k_wmi_tlv_op_gen_init(struct ath10k *ar)
 	cfg->gtk_offload_max_vdev = __cpu_to_le32(2);
 	cfg->num_msdu_desc = __cpu_to_le32(TARGET_TLV_NUM_MSDU_DESC);
 	cfg->max_frag_entries = __cpu_to_le32(2);
-	cfg->num_tdls_vdevs = __cpu_to_le32(1);
+	cfg->num_tdls_vdevs = __cpu_to_le32(TARGET_TLV_NUM_TDLS_VDEVS);
 	cfg->num_tdls_conn_table_entries = __cpu_to_le32(0x20);
 	cfg->beacon_tx_offload_max_vdev = __cpu_to_le32(2);
 	cfg->num_multicast_filter_entries = __cpu_to_le32(5);

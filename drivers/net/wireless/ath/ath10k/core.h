@@ -647,6 +647,7 @@ struct ath10k {
 	int max_num_peers;
 	int max_num_stations;
 	int max_num_vdevs;
+	int max_num_tdls_vdevs;
 
 	struct work_struct offchan_tx_work;
 	struct sk_buff_head offchan_tx_queue;
