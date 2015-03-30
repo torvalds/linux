@@ -49,48 +49,64 @@ static struct perf_sample synth_sample = {
 	.period	   = 1,
 };
 
+/*
+ * Assumes that the first 4095 bytes of /proc/pid/stat contains
+ * the comm and tgid.
+ */
 static pid_t perf_event__get_comm_tgid(pid_t pid, char *comm, size_t len)
 {
 	char filename[PATH_MAX];
-	char bf[BUFSIZ];
-	FILE *fp;
-	size_t size = 0;
+	char bf[4096];
+	int fd;
+	size_t size = 0, n;
 	pid_t tgid = -1;
+	char *nl, *name, *tgids;
 
 	snprintf(filename, sizeof(filename), "/proc/%d/status", pid);
 
-	fp = fopen(filename, "r");
-	if (fp == NULL) {
+	fd = open(filename, O_RDONLY);
+	if (fd < 0) {
 		pr_debug("couldn't open %s\n", filename);
 		return 0;
 	}
 
-	while (!comm[0] || (tgid < 0)) {
-		if (fgets(bf, sizeof(bf), fp) == NULL) {
-			pr_warning("couldn't get COMM and pgid, malformed %s\n",
-				   filename);
-			break;
-		}
+	n = read(fd, bf, sizeof(bf) - 1);
+	close(fd);
+	if (n <= 0) {
+		pr_warning("Couldn't get COMM and tgid for pid %d\n",
+			   pid);
+		return -1;
+	}
+	bf[n] = '\0';
 
-		if (memcmp(bf, "Name:", 5) == 0) {
-			char *name = bf + 5;
-			while (*name && isspace(*name))
-				++name;
-			size = strlen(name) - 1;
-			if (size >= len)
-				size = len - 1;
-			memcpy(comm, name, size);
-			comm[size] = '\0';
+	name = strstr(bf, "Name:");
+	tgids = strstr(bf, "Tgid:");
 
-		} else if (memcmp(bf, "Tgid:", 5) == 0) {
-			char *tgids = bf + 5;
-			while (*tgids && isspace(*tgids))
-				++tgids;
-			tgid = atoi(tgids);
-		}
+	if (name) {
+		name += 5;  /* strlen("Name:") */
+
+		while (*name && isspace(*name))
+			++name;
+
+		nl = strchr(name, '\n');
+		if (nl)
+			*nl = '\0';
+
+		size = strlen(name);
+		if (size >= len)
+			size = len - 1;
+		memcpy(comm, name, size);
+		comm[size] = '\0';
+	} else {
+		pr_debug("Name: string not found for pid %d\n", pid);
 	}
 
-	fclose(fp);
+	if (tgids) {
+		tgids += 5;  /* strlen("Tgid:") */
+		tgid = atoi(tgids);
+	} else {
+		pr_debug("Tgid: string not found for pid %d\n", pid);
+	}
 
 	return tgid;
 }
