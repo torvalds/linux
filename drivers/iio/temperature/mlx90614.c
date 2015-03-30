@@ -196,6 +196,11 @@ static int mlx90614_read_raw(struct iio_dev *indio_dev,
 
 		if (ret < 0)
 			return ret;
+
+		/* MSB is an error flag */
+		if (ret & 0x8000)
+			return -EIO;
+
 		*val = ret;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_OFFSET:
