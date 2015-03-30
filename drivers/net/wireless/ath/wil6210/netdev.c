@@ -24,6 +24,11 @@ static int wil_open(struct net_device *ndev)
 
 	wil_dbg_misc(wil, "%s()\n", __func__);
 
+	if (debug_fw) {
+		wil_err(wil, "%s() while in debug_fw mode\n", __func__);
+		return -EINVAL;
+	}
+
 	return wil_up(wil);
 }
 
