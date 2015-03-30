@@ -61,8 +61,11 @@ static struct ieee80211_rate ath10k_rates[] = {
 	{ .bitrate = 540, .hw_value = ATH10K_HW_RATE_OFDM_54M },
 };
 
-#define ath10k_a_rates (ath10k_rates + 4)
-#define ath10k_a_rates_size (ARRAY_SIZE(ath10k_rates) - 4)
+#define ATH10K_MAC_FIRST_OFDM_RATE_IDX 4
+
+#define ath10k_a_rates (ath10k_rates + ATH10K_MAC_FIRST_OFDM_RATE_IDX)
+#define ath10k_a_rates_size (ARRAY_SIZE(ath10k_rates) - \
+			     ATH10K_MAC_FIRST_OFDM_RATE_IDX)
 #define ath10k_g_rates (ath10k_rates + 0)
 #define ath10k_g_rates_size (ARRAY_SIZE(ath10k_rates))
 
@@ -2038,10 +2041,10 @@ static void ath10k_peer_assoc_h_qos(struct ath10k *ar,
 		   sta->addr, !!(arg->peer_flags & WMI_PEER_QOS));
 }
 
-static bool ath10k_mac_sta_has_11g_rates(struct ieee80211_sta *sta)
+static bool ath10k_mac_sta_has_ofdm_only(struct ieee80211_sta *sta)
 {
-	/* First 4 rates in ath10k_rates are CCK (11b) rates. */
-	return sta->supp_rates[IEEE80211_BAND_2GHZ] >> 4;
+	return sta->supp_rates[IEEE80211_BAND_2GHZ] >>
+	       ATH10K_MAC_FIRST_OFDM_RATE_IDX;
 }
 
 static void ath10k_peer_assoc_h_phymode(struct ath10k *ar,
@@ -2063,7 +2066,7 @@ static void ath10k_peer_assoc_h_phymode(struct ath10k *ar,
 				phymode = MODE_11NG_HT40;
 			else
 				phymode = MODE_11NG_HT20;
-		} else if (ath10k_mac_sta_has_11g_rates(sta)) {
+		} else if (ath10k_mac_sta_has_ofdm_only(sta)) {
 			phymode = MODE_11G;
 		} else {
 			phymode = MODE_11B;
