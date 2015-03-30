@@ -492,10 +492,10 @@ connected:
 		int ird = attr->max_dest_rd_atomic;
 		int tird = ep->rep_remote_cma.responder_resources;
 
-		pr_info("rpcrdma: connection to %pIS:%u on %s, memreg %d slots %d ird %d%s\n",
+		pr_info("rpcrdma: connection to %pIS:%u on %s, memreg '%s', %d credits, %d responders%s\n",
 			sap, rpc_get_port(sap),
 			ia->ri_id->device->name,
-			ia->ri_memreg_strategy,
+			ia->ri_ops->ro_displayname,
 			xprt->rx_buf.rb_max_requests,
 			ird, ird < 4 && ird < tird / 2 ? " (low!)" : "");
 	} else if (connstate < 0) {
@@ -650,13 +650,16 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr, int memreg)
 	 */
 	switch (memreg) {
 	case RPCRDMA_FRMR:
+		ia->ri_ops = &rpcrdma_frwr_memreg_ops;
 		break;
 	case RPCRDMA_ALLPHYSICAL:
+		ia->ri_ops = &rpcrdma_physical_memreg_ops;
 		mem_priv = IB_ACCESS_LOCAL_WRITE |
 				IB_ACCESS_REMOTE_WRITE |
 				IB_ACCESS_REMOTE_READ;
 		goto register_setup;
 	case RPCRDMA_MTHCAFMR:
+		ia->ri_ops = &rpcrdma_fmr_memreg_ops;
 		if (ia->ri_have_dma_lkey)
 			break;
 		mem_priv = IB_ACCESS_LOCAL_WRITE;
@@ -676,8 +679,8 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr, int memreg)
 		rc = -ENOMEM;
 		goto out3;
 	}
-	dprintk("RPC:       %s: memory registration strategy is %d\n",
-		__func__, memreg);
+	dprintk("RPC:       %s: memory registration strategy is '%s'\n",
+		__func__, ia->ri_ops->ro_displayname);
 
 	/* Else will do memory reg/dereg for each chunk */
 	ia->ri_memreg_strategy = memreg;

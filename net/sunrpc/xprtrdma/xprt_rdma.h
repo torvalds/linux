@@ -60,6 +60,7 @@
  * Interface Adapter -- one per transport instance
  */
 struct rpcrdma_ia {
+	const struct rpcrdma_memreg_ops	*ri_ops;
 	rwlock_t		ri_qplock;
 	struct rdma_cm_id 	*ri_id;
 	struct ib_pd		*ri_pd;
@@ -329,6 +330,17 @@ struct rpcrdma_stats {
 	unsigned long		failed_marshal_count;
 	unsigned long		bad_reply_count;
 };
+
+/*
+ * Per-registration mode operations
+ */
+struct rpcrdma_memreg_ops {
+	const char	*ro_displayname;
+};
+
+extern const struct rpcrdma_memreg_ops rpcrdma_fmr_memreg_ops;
+extern const struct rpcrdma_memreg_ops rpcrdma_frwr_memreg_ops;
+extern const struct rpcrdma_memreg_ops rpcrdma_physical_memreg_ops;
 
 /*
  * RPCRDMA transport -- encapsulates the structures above for

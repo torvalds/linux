@@ -1,6 +1,7 @@
 obj-$(CONFIG_SUNRPC_XPRT_RDMA_CLIENT) += xprtrdma.o
 
-xprtrdma-y := transport.o rpc_rdma.o verbs.o
+xprtrdma-y := transport.o rpc_rdma.o verbs.o \
+	fmr_ops.o frwr_ops.o physical_ops.o
 
 obj-$(CONFIG_SUNRPC_XPRT_RDMA_SERVER) += svcrdma.o
 
