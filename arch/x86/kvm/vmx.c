@@ -7314,21 +7314,21 @@ static bool nested_vmx_exit_handled_io(struct kvm_vcpu *vcpu,
 		else if (port < 0x10000)
 			bitmap = vmcs12->io_bitmap_b;
 		else
-			return 1;
+			return true;
 		bitmap += (port & 0x7fff) / 8;
 
 		if (last_bitmap != bitmap)
 			if (kvm_read_guest(vcpu->kvm, bitmap, &b, 1))
-				return 1;
+				return true;
 		if (b & (1 << (port & 7)))
-			return 1;
+			return true;
 
 		port++;
 		size--;
 		last_bitmap = bitmap;
 	}
 
-	return 0;
+	return false;
 }
 
 /*
@@ -7344,7 +7344,7 @@ static bool nested_vmx_exit_handled_msr(struct kvm_vcpu *vcpu,
 	gpa_t bitmap;
 
 	if (!nested_cpu_has(vmcs12, CPU_BASED_USE_MSR_BITMAPS))
-		return 1;
+		return true;
 
 	/*
 	 * The MSR_BITMAP page is divided into four 1024-byte bitmaps,
@@ -7363,10 +7363,10 @@ static bool nested_vmx_exit_handled_msr(struct kvm_vcpu *vcpu,
 	if (msr_index < 1024*8) {
 		unsigned char b;
 		if (kvm_read_guest(vcpu->kvm, bitmap + msr_index/8, &b, 1))
-			return 1;
+			return true;
 		return 1 & (b >> (msr_index & 7));
 	} else
-		return 1; /* let L1 handle the wrong parameter */
+		return true; /* let L1 handle the wrong parameter */
 }
 
 /*
@@ -7388,7 +7388,7 @@ static bool nested_vmx_exit_handled_cr(struct kvm_vcpu *vcpu,
 		case 0:
 			if (vmcs12->cr0_guest_host_mask &
 			    (val ^ vmcs12->cr0_read_shadow))
-				return 1;
+				return true;
 			break;
 		case 3:
 			if ((vmcs12->cr3_target_count >= 1 &&
@@ -7399,37 +7399,37 @@ static bool nested_vmx_exit_handled_cr(struct kvm_vcpu *vcpu,
 					vmcs12->cr3_target_value2 == val) ||
 				(vmcs12->cr3_target_count >= 4 &&
 					vmcs12->cr3_target_value3 == val))
-				return 0;
+				return false;
 			if (nested_cpu_has(vmcs12, CPU_BASED_CR3_LOAD_EXITING))
-				return 1;
+				return true;
 			break;
 		case 4:
 			if (vmcs12->cr4_guest_host_mask &
 			    (vmcs12->cr4_read_shadow ^ val))
-				return 1;
+				return true;
 			break;
 		case 8:
 			if (nested_cpu_has(vmcs12, CPU_BASED_CR8_LOAD_EXITING))
-				return 1;
+				return true;
 			break;
 		}
 		break;
 	case 2: /* clts */
 		if ((vmcs12->cr0_guest_host_mask & X86_CR0_TS) &&
 		    (vmcs12->cr0_read_shadow & X86_CR0_TS))
-			return 1;
+			return true;
 		break;
 	case 1: /* mov from cr */
 		switch (cr) {
 		case 3:
 			if (vmcs12->cpu_based_vm_exec_control &
 			    CPU_BASED_CR3_STORE_EXITING)
-				return 1;
+				return true;
 			break;
 		case 8:
 			if (vmcs12->cpu_based_vm_exec_control &
 			    CPU_BASED_CR8_STORE_EXITING)
-				return 1;
+				return true;
 			break;
 		}
 		break;
@@ -7440,14 +7440,14 @@ static bool nested_vmx_exit_handled_cr(struct kvm_vcpu *vcpu,
 		 */
 		if (vmcs12->cr0_guest_host_mask & 0xe &
 		    (val ^ vmcs12->cr0_read_shadow))
-			return 1;
+			return true;
 		if ((vmcs12->cr0_guest_host_mask & 0x1) &&
 		    !(vmcs12->cr0_read_shadow & 0x1) &&
 		    (val & 0x1))
-			return 1;
+			return true;
 		break;
 	}
-	return 0;
+	return false;
 }
 
 /*
@@ -7470,43 +7470,43 @@ static bool nested_vmx_exit_handled(struct kvm_vcpu *vcpu)
 				KVM_ISA_VMX);
 
 	if (vmx->nested.nested_run_pending)
-		return 0;
+		return false;
 
 	if (unlikely(vmx->fail)) {
 		pr_info_ratelimited("%s failed vm entry %x\n", __func__,
 				    vmcs_read32(VM_INSTRUCTION_ERROR));
-		return 1;
+		return true;
 	}
 
 	switch (exit_reason) {
 	case EXIT_REASON_EXCEPTION_NMI:
 		if (!is_exception(intr_info))
-			return 0;
+			return false;
 		else if (is_page_fault(intr_info))
 			return enable_ept;
 		else if (is_no_device(intr_info) &&
 			 !(vmcs12->guest_cr0 & X86_CR0_TS))
-			return 0;
+			return false;
 		return vmcs12->exception_bitmap &
 				(1u << (intr_info & INTR_INFO_VECTOR_MASK));
 	case EXIT_REASON_EXTERNAL_INTERRUPT:
-		return 0;
+		return false;
 	case EXIT_REASON_TRIPLE_FAULT:
-		return 1;
+		return true;
 	case EXIT_REASON_PENDING_INTERRUPT:
 		return nested_cpu_has(vmcs12, CPU_BASED_VIRTUAL_INTR_PENDING);
 	case EXIT_REASON_NMI_WINDOW:
 		return nested_cpu_has(vmcs12, CPU_BASED_VIRTUAL_NMI_PENDING);
 	case EXIT_REASON_TASK_SWITCH:
-		return 1;
+		return true;
 	case EXIT_REASON_CPUID:
 		if (kvm_register_read(vcpu, VCPU_REGS_RAX) == 0xa)
-			return 0;
-		return 1;
+			return false;
+		return true;
 	case EXIT_REASON_HLT:
 		return nested_cpu_has(vmcs12, CPU_BASED_HLT_EXITING);
 	case EXIT_REASON_INVD:
-		return 1;
+		return true;
 	case EXIT_REASON_INVLPG:
 		return nested_cpu_has(vmcs12, CPU_BASED_INVLPG_EXITING);
 	case EXIT_REASON_RDPMC:
@@ -7523,7 +7523,7 @@ static bool nested_vmx_exit_handled(struct kvm_vcpu *vcpu)
 		 * VMX instructions trap unconditionally. This allows L1 to
 		 * emulate them for its L2 guest, i.e., allows 3-level nesting!
 		 */
-		return 1;
+		return true;
 	case EXIT_REASON_CR_ACCESS:
 		return nested_vmx_exit_handled_cr(vcpu, vmcs12);
 	case EXIT_REASON_DR_ACCESS:
@@ -7534,7 +7534,7 @@ static bool nested_vmx_exit_handled(struct kvm_vcpu *vcpu)
 	case EXIT_REASON_MSR_WRITE:
 		return nested_vmx_exit_handled_msr(vcpu, vmcs12, exit_reason);
 	case EXIT_REASON_INVALID_STATE:
-		return 1;
+		return true;
 	case EXIT_REASON_MWAIT_INSTRUCTION:
 		return nested_cpu_has(vmcs12, CPU_BASED_MWAIT_EXITING);
 	case EXIT_REASON_MONITOR_INSTRUCTION:
@@ -7544,7 +7544,7 @@ static bool nested_vmx_exit_handled(struct kvm_vcpu *vcpu)
 			nested_cpu_has2(vmcs12,
 				SECONDARY_EXEC_PAUSE_LOOP_EXITING);
 	case EXIT_REASON_MCE_DURING_VMENTRY:
-		return 0;
+		return false;
 	case EXIT_REASON_TPR_BELOW_THRESHOLD:
 		return nested_cpu_has(vmcs12, CPU_BASED_TPR_SHADOW);
 	case EXIT_REASON_APIC_ACCESS:
@@ -7553,7 +7553,7 @@ static bool nested_vmx_exit_handled(struct kvm_vcpu *vcpu)
 	case EXIT_REASON_APIC_WRITE:
 	case EXIT_REASON_EOI_INDUCED:
 		/* apic_write and eoi_induced should exit unconditionally. */
-		return 1;
+		return true;
 	case EXIT_REASON_EPT_VIOLATION:
 		/*
 		 * L0 always deals with the EPT violation. If nested EPT is
@@ -7561,7 +7561,7 @@ static bool nested_vmx_exit_handled(struct kvm_vcpu *vcpu)
 		 * missing in the guest EPT table (EPT12), the EPT violation
 		 * will be injected with nested_ept_inject_page_fault()
 		 */
-		return 0;
+		return false;
 	case EXIT_REASON_EPT_MISCONFIG:
 		/*
 		 * L2 never uses directly L1's EPT, but rather L0's own EPT
@@ -7569,11 +7569,11 @@ static bool nested_vmx_exit_handled(struct kvm_vcpu *vcpu)
 		 * (EPT on EPT). So any problems with the structure of the
 		 * table is L0's fault.
 		 */
-		return 0;
+		return false;
 	case EXIT_REASON_WBINVD:
 		return nested_cpu_has2(vmcs12, SECONDARY_EXEC_WBINVD_EXITING);
 	case EXIT_REASON_XSETBV:
-		return 1;
+		return true;
 	case EXIT_REASON_XSAVES: case EXIT_REASON_XRSTORS:
 		/*
 		 * This should never happen, since it is not possible to
@@ -7583,7 +7583,7 @@ static bool nested_vmx_exit_handled(struct kvm_vcpu *vcpu)
 		 */
 		return nested_cpu_has2(vmcs12, SECONDARY_EXEC_XSAVES);
 	default:
-		return 1;
+		return true;
 	}
 }
 
