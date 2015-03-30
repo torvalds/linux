@@ -97,6 +97,11 @@ static void __init of_selftest_find_node_by_name(void)
 		 "option path test, subcase #1 failed\n");
 	of_node_put(np);
 
+	np = of_find_node_opts_by_path("/testcase-data/testcase-device1:test/option", &options);
+	selftest(np && !strcmp("test/option", options),
+		 "option path test, subcase #2 failed\n");
+	of_node_put(np);
+
 	np = of_find_node_opts_by_path("/testcase-data:testoption", NULL);
 	selftest(np, "NULL option path test failed\n");
 	of_node_put(np);

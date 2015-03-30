@@ -196,18 +196,27 @@ EXPORT_SYMBOL_GPL(rtsx_usb_ep0_write_register);
 int rtsx_usb_ep0_read_register(struct rtsx_ucr *ucr, u16 addr, u8 *data)
 {
 	u16 value;
+	u8 *buf;
+	int ret;
 
 	if (!data)
 		return -EINVAL;
-	*data = 0;
+
+	buf = kzalloc(sizeof(u8), GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
 
 	addr |= EP0_READ_REG_CMD << EP0_OP_SHIFT;
 	value = swab16(addr);
 
-	return usb_control_msg(ucr->pusb_dev,
+	ret = usb_control_msg(ucr->pusb_dev,
 			usb_rcvctrlpipe(ucr->pusb_dev, 0), RTSX_USB_REQ_REG_OP,
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			value, 0, data, 1, 100);
+			value, 0, buf, 1, 100);
+	*data = *buf;
+
+	kfree(buf);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(rtsx_usb_ep0_read_register);
 
@@ -288,18 +297,27 @@ static int rtsx_usb_get_status_with_bulk(struct rtsx_ucr *ucr, u16 *status)
 int rtsx_usb_get_card_status(struct rtsx_ucr *ucr, u16 *status)
 {
 	int ret;
+	u16 *buf;
 
 	if (!status)
 		return -EINVAL;
 
-	if (polling_pipe == 0)
+	if (polling_pipe == 0) {
+		buf = kzalloc(sizeof(u16), GFP_KERNEL);
+		if (!buf)
+			return -ENOMEM;
+
 		ret = usb_control_msg(ucr->pusb_dev,
 				usb_rcvctrlpipe(ucr->pusb_dev, 0),
 				RTSX_USB_REQ_POLL,
 				USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-				0, 0, status, 2, 100);
-	else
+				0, 0, buf, 2, 100);
+		*status = *buf;
+
+		kfree(buf);
+	} else {
 		ret = rtsx_usb_get_status_with_bulk(ucr, status);
+	}
 
 	/* usb_control_msg may return positive when success */
 	if (ret < 0)

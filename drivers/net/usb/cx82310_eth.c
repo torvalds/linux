@@ -46,8 +46,7 @@ enum cx82310_status {
 };
 
 #define CMD_PACKET_SIZE	64
-/* first command after power on can take around 8 seconds */
-#define CMD_TIMEOUT	15000
+#define CMD_TIMEOUT	100
 #define CMD_REPLY_RETRY 5
 
 #define CX82310_MTU	1514
@@ -78,8 +77,9 @@ static int cx82310_cmd(struct usbnet *dev, enum cx82310_cmd cmd, bool reply,
 	ret = usb_bulk_msg(udev, usb_sndbulkpipe(udev, CMD_EP), buf,
 			   CMD_PACKET_SIZE, &actual_len, CMD_TIMEOUT);
 	if (ret < 0) {
-		dev_err(&dev->udev->dev, "send command %#x: error %d\n",
-			cmd, ret);
+		if (cmd != CMD_GET_LINK_STATUS)
+			dev_err(&dev->udev->dev, "send command %#x: error %d\n",
+				cmd, ret);
 		goto end;
 	}
 
@@ -90,8 +90,10 @@ static int cx82310_cmd(struct usbnet *dev, enum cx82310_cmd cmd, bool reply,
 					   buf, CMD_PACKET_SIZE, &actual_len,
 					   CMD_TIMEOUT);
 			if (ret < 0) {
-				dev_err(&dev->udev->dev,
-					"reply receive error %d\n", ret);
+				if (cmd != CMD_GET_LINK_STATUS)
+					dev_err(&dev->udev->dev,
+						"reply receive error %d\n",
+						ret);
 				goto end;
 			}
 			if (actual_len > 0)
@@ -134,6 +136,8 @@ static int cx82310_bind(struct usbnet *dev, struct usb_interface *intf)
 	int ret;
 	char buf[15];
 	struct usb_device *udev = dev->udev;
+	u8 link[3];
+	int timeout = 50;
 
 	/* avoid ADSL modems - continue only if iProduct is "USB NET CARD" */
 	if (usb_string(udev, udev->descriptor.iProduct, buf, sizeof(buf)) > 0
@@ -159,6 +163,20 @@ static int cx82310_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->partial_data = (unsigned long) kmalloc(dev->hard_mtu, GFP_KERNEL);
 	if (!dev->partial_data)
 		return -ENOMEM;
+
+	/* wait for firmware to become ready (indicated by the link being up) */
+	while (--timeout) {
+		ret = cx82310_cmd(dev, CMD_GET_LINK_STATUS, true, NULL, 0,
+				  link, sizeof(link));
+		/* the command can time out during boot - it's not an error */
+		if (!ret && link[0] == 1 && link[2] == 1)
+			break;
+		msleep(500);
+	};
+	if (!timeout) {
+		dev_err(&udev->dev, "firmware not ready in time\n");
+		return -ETIMEDOUT;
+	}
 
 	/* enable ethernet mode (?) */
 	ret = cx82310_cmd(dev, CMD_ETHERNET_MODE, true, "\x01", 1, NULL, 0);
@@ -300,9 +318,18 @@ static const struct driver_info	cx82310_info = {
 	.tx_fixup	= cx82310_tx_fixup,
 };
 
+#define USB_DEVICE_CLASS(vend, prod, cl, sc, pr) \
+	.match_flags = USB_DEVICE_ID_MATCH_DEVICE | \
+		       USB_DEVICE_ID_MATCH_DEV_INFO, \
+	.idVendor = (vend), \
+	.idProduct = (prod), \
+	.bDeviceClass = (cl), \
+	.bDeviceSubClass = (sc), \
+	.bDeviceProtocol = (pr)
+
 static const struct usb_device_id products[] = {
 	{
-		USB_DEVICE_AND_INTERFACE_INFO(0x0572, 0xcb01, 0xff, 0, 0),
+		USB_DEVICE_CLASS(0x0572, 0xcb01, 0xff, 0, 0),
 		.driver_info = (unsigned long) &cx82310_info
 	},
 	{ },

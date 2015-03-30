@@ -715,13 +715,8 @@ static struct device_node *__of_find_node_by_path(struct device_node *parent,
 {
 	struct device_node *child;
 	int len;
-	const char *end;
 
-	end = strchr(path, ':');
-	if (!end)
-		end = strchrnul(path, '/');
-
-	len = end - path;
+	len = strcspn(path, "/:");
 	if (!len)
 		return NULL;
 
@@ -1893,10 +1888,8 @@ void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align))
 			name = of_get_property(of_chosen, "linux,stdout-path", NULL);
 		if (IS_ENABLED(CONFIG_PPC) && !name)
 			name = of_get_property(of_aliases, "stdout", NULL);
-		if (name) {
+		if (name)
 			of_stdout = of_find_node_opts_by_path(name, &of_stdout_options);
-			add_preferred_console("stdout-path", 0, NULL);
-		}
 	}
 
 	if (!of_aliases)

@@ -8,7 +8,7 @@
  */
 
 	/* SoC fixed clocks */
-	soc_uartclk: refclk72738khz {
+	soc_uartclk: refclk7273800hz {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <7273800>;

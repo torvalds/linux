@@ -876,11 +876,11 @@ static const struct snd_soc_dapm_widget da732x_dapm_widgets[] = {
 
 static const struct snd_soc_dapm_route da732x_dapm_routes[] = {
 	/* Inputs */
-	{"AUX1L PGA", "NULL", "AUX1L"},
-	{"AUX1R PGA", "NULL", "AUX1R"},
+	{"AUX1L PGA", NULL, "AUX1L"},
+	{"AUX1R PGA", NULL, "AUX1R"},
 	{"MIC1 PGA", NULL, "MIC1"},
-	{"MIC2 PGA", "NULL", "MIC2"},
-	{"MIC3 PGA", "NULL", "MIC3"},
+	{"MIC2 PGA", NULL, "MIC2"},
+	{"MIC3 PGA", NULL, "MIC3"},
 
 	/* Capture Path */
 	{"ADC1 Left MUX", "MIC1", "MIC1 PGA"},

@@ -2168,7 +2168,10 @@ static void vmx_set_msr_bitmap(struct kvm_vcpu *vcpu)
 {
 	unsigned long *msr_bitmap;
 
-	if (irqchip_in_kernel(vcpu->kvm) && apic_x2apic_mode(vcpu->arch.apic)) {
+	if (is_guest_mode(vcpu))
+		msr_bitmap = vmx_msr_bitmap_nested;
+	else if (irqchip_in_kernel(vcpu->kvm) &&
+		apic_x2apic_mode(vcpu->arch.apic)) {
 		if (is_long_mode(vcpu))
 			msr_bitmap = vmx_msr_bitmap_longmode_x2apic;
 		else
@@ -2476,8 +2479,7 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)
 	if (enable_ept) {
 		/* nested EPT: emulate EPT also to L1 */
 		vmx->nested.nested_vmx_secondary_ctls_high |=
-			SECONDARY_EXEC_ENABLE_EPT |
-			SECONDARY_EXEC_UNRESTRICTED_GUEST;
+			SECONDARY_EXEC_ENABLE_EPT;
 		vmx->nested.nested_vmx_ept_caps = VMX_EPT_PAGE_WALK_4_BIT |
 			 VMX_EPTP_WB_BIT | VMX_EPT_2MB_PAGE_BIT |
 			 VMX_EPT_INVEPT_BIT;
@@ -2490,6 +2492,10 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)
 		vmx->nested.nested_vmx_ept_caps |= VMX_EPT_EXTENT_GLOBAL_BIT;
 	} else
 		vmx->nested.nested_vmx_ept_caps = 0;
+
+	if (enable_unrestricted_guest)
+		vmx->nested.nested_vmx_secondary_ctls_high |=
+			SECONDARY_EXEC_UNRESTRICTED_GUEST;
 
 	/* miscellaneous data */
 	rdmsr(MSR_IA32_VMX_MISC,
@@ -9218,9 +9224,9 @@ static void prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 	}
 
 	if (cpu_has_vmx_msr_bitmap() &&
-	    exec_control & CPU_BASED_USE_MSR_BITMAPS &&
-	    nested_vmx_merge_msr_bitmap(vcpu, vmcs12)) {
-		vmcs_write64(MSR_BITMAP, __pa(vmx_msr_bitmap_nested));
+	    exec_control & CPU_BASED_USE_MSR_BITMAPS) {
+		nested_vmx_merge_msr_bitmap(vcpu, vmcs12);
+		/* MSR_BITMAP will be set by following vmx_set_efer. */
 	} else
 		exec_control &= ~CPU_BASED_USE_MSR_BITMAPS;
 

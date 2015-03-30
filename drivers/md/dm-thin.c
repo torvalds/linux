@@ -2358,17 +2358,6 @@ static int thin_bio_map(struct dm_target *ti, struct bio *bio)
 		return DM_MAPIO_REMAPPED;
 
 	case -ENODATA:
-		if (get_pool_mode(tc->pool) == PM_READ_ONLY) {
-			/*
-			 * This block isn't provisioned, and we have no way
-			 * of doing so.
-			 */
-			handle_unserviceable_bio(tc->pool, bio);
-			cell_defer_no_holder(tc, virt_cell);
-			return DM_MAPIO_SUBMITTED;
-		}
-		/* fall through */
-
 	case -EWOULDBLOCK:
 		thin_defer_cell(tc, virt_cell);
 		return DM_MAPIO_SUBMITTED;
