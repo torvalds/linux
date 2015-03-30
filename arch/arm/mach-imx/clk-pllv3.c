@@ -22,6 +22,8 @@
 
 #define PLL_NUM_OFFSET		0x10
 #define PLL_DENOM_OFFSET	0x20
+#define PLL_AV_NUM_OFFSET	0x20
+#define PLL_AV_DENOM_OFFSET	0x30
 
 #define BM_PLL_POWER		(0x1 << 12)
 #define BM_PLL_LOCK		(0x1 << 31)
@@ -48,6 +50,8 @@ struct clk_pllv3 {
 	u32		powerdown;
 	u32		div_mask;
 	u32		div_shift;
+	u32		num_offset;
+	u32		denom_offset;
 };
 
 #define to_clk_pllv3(_hw) container_of(_hw, struct clk_pllv3, hw)
@@ -205,8 +209,8 @@ static unsigned long clk_pllv3_av_recalc_rate(struct clk_hw *hw,
 					      unsigned long parent_rate)
 {
 	struct clk_pllv3 *pll = to_clk_pllv3(hw);
-	u32 mfn = readl_relaxed(pll->base + PLL_NUM_OFFSET);
-	u32 mfd = readl_relaxed(pll->base + PLL_DENOM_OFFSET);
+	u32 mfn = readl_relaxed(pll->base + pll->num_offset);
+	u32 mfd = readl_relaxed(pll->base + pll->denom_offset);
 	u32 div = readl_relaxed(pll->base) & pll->div_mask;
 	u64 temp64 = (u64)parent_rate;
 
@@ -263,8 +267,8 @@ static int clk_pllv3_av_set_rate(struct clk_hw *hw, unsigned long rate,
 	val &= ~pll->div_mask;
 	val |= div;
 	writel_relaxed(val, pll->base);
-	writel_relaxed(mfn, pll->base + PLL_NUM_OFFSET);
-	writel_relaxed(mfd, pll->base + PLL_DENOM_OFFSET);
+	writel_relaxed(mfn, pll->base + pll->num_offset);
+	writel_relaxed(mfd, pll->base + pll->denom_offset);
 
 	return clk_pllv3_wait_lock(pll);
 }
@@ -327,13 +331,19 @@ struct clk *imx_clk_pllv3(enum imx_pllv3_type type, const char *name,
 	default:
 		ops = &clk_pllv3_ops;
 	}
+
 	pll->base = base;
 	pll->div_mask = div_mask;
+	pll->powerdown = BM_PLL_POWER;
+	pll->num_offset = PLL_NUM_OFFSET;
+	pll->denom_offset = PLL_DENOM_OFFSET;
 
-	if (cpu_is_imx7d() && strcmp(name, "pll_enet_main") == 0)
+	if (cpu_is_imx7d() && type == IMX_PLLV3_ENET)
 		pll->powerdown = ENET_PLL_POWER;
-	else
-		pll->powerdown = BM_PLL_POWER;
+	else if (cpu_is_imx7d() && type == IMX_PLLV3_AV) {
+		pll->num_offset = PLL_AV_NUM_OFFSET;
+		pll->denom_offset = PLL_AV_DENOM_OFFSET;
+	}
 
 	init.name = name;
 	init.ops = ops;
