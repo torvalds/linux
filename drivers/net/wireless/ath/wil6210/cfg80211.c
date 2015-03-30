@@ -569,6 +569,9 @@ static int wil_cfg80211_add_key(struct wiphy *wiphy,
 {
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
 
+	wil_dbg_misc(wil, "%s(%pM[%d] %s)\n", __func__, mac_addr, key_index,
+		     pairwise ? "PTK" : "GTK");
+
 	/* group key is not used */
 	if (!pairwise)
 		return 0;
@@ -583,6 +586,9 @@ static int wil_cfg80211_del_key(struct wiphy *wiphy,
 				const u8 *mac_addr)
 {
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+
+	wil_dbg_misc(wil, "%s(%pM[%d] %s)\n", __func__, mac_addr, key_index,
+		     pairwise ? "PTK" : "GTK");
 
 	/* group key is not used */
 	if (!pairwise)
