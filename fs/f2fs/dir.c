@@ -334,7 +334,7 @@ void do_make_empty_dir(struct inode *inode, struct inode *parent,
 	de->name_len = cpu_to_le16(2);
 	de->ino = cpu_to_le32(parent->i_ino);
 	memcpy(d->filename[1], "..", 2);
-	set_de_type(de, inode->i_mode);
+	set_de_type(de, parent->i_mode);
 
 	test_and_set_bit_le(0, (void *)d->bitmap);
 	test_and_set_bit_le(1, (void *)d->bitmap);
