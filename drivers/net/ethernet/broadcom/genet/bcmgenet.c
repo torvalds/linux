@@ -2666,7 +2666,7 @@ static int bcmgenet_open(struct net_device *dev)
 	ret = bcmgenet_init_dma(priv);
 	if (ret) {
 		netdev_err(dev, "failed to initialize DMA\n");
-		goto err_fini_dma;
+		goto err_clk_disable;
 	}
 
 	/* Always enable ring 16 - descriptor ring */
