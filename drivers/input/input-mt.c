@@ -88,9 +88,12 @@ int input_mt_init_slots(struct input_dev *dev, unsigned int num_slots,
 			goto err_mem;
 	}
 
-	/* Mark slots as 'unused' */
+	/* Mark slots as 'inactive' */
 	for (i = 0; i < num_slots; i++)
 		input_mt_set_value(&mt->slots[i], ABS_MT_TRACKING_ID, -1);
+
+	/* Mark slots as 'unused' */
+	mt->frame = 1;
 
 	dev->mt = mt;
 	return 0;
@@ -430,6 +433,8 @@ EXPORT_SYMBOL(input_mt_assign_slots);
  * set the key on the first unused slot and return.
  *
  * If no available slot can be found, -1 is returned.
+ * Note that for this function to work properly, input_mt_sync_frame() has
+ * to be called at each frame.
  */
 int input_mt_get_slot_by_key(struct input_dev *dev, int key)
 {
@@ -444,7 +449,7 @@ int input_mt_get_slot_by_key(struct input_dev *dev, int key)
 			return s - mt->slots;
 
 	for (s = mt->slots; s != mt->slots + mt->num_slots; s++)
-		if (!input_mt_is_active(s)) {
+		if (!input_mt_is_active(s) && !input_mt_is_used(mt, s)) {
 			s->key = key;
 			return s - mt->slots;
 		}
