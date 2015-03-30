@@ -966,15 +966,13 @@ static void bcmgenet_free_cb(struct enet_cb *cb)
 
 static inline void bcmgenet_rx_ring16_int_disable(struct bcmgenet_rx_ring *ring)
 {
-	bcmgenet_intrl2_0_writel(ring->priv,
-				 UMAC_IRQ_RXDMA_BDONE | UMAC_IRQ_RXDMA_PDONE,
+	bcmgenet_intrl2_0_writel(ring->priv, UMAC_IRQ_RXDMA_DONE,
 				 INTRL2_CPU_MASK_SET);
 }
 
 static inline void bcmgenet_rx_ring16_int_enable(struct bcmgenet_rx_ring *ring)
 {
-	bcmgenet_intrl2_0_writel(ring->priv,
-				 UMAC_IRQ_RXDMA_BDONE | UMAC_IRQ_RXDMA_PDONE,
+	bcmgenet_intrl2_0_writel(ring->priv, UMAC_IRQ_RXDMA_DONE,
 				 INTRL2_CPU_MASK_CLEAR);
 }
 
@@ -994,15 +992,13 @@ static inline void bcmgenet_rx_ring_int_enable(struct bcmgenet_rx_ring *ring)
 
 static inline void bcmgenet_tx_ring16_int_disable(struct bcmgenet_tx_ring *ring)
 {
-	bcmgenet_intrl2_0_writel(ring->priv,
-				 UMAC_IRQ_TXDMA_BDONE | UMAC_IRQ_TXDMA_PDONE,
+	bcmgenet_intrl2_0_writel(ring->priv, UMAC_IRQ_TXDMA_DONE,
 				 INTRL2_CPU_MASK_SET);
 }
 
 static inline void bcmgenet_tx_ring16_int_enable(struct bcmgenet_tx_ring *ring)
 {
-	bcmgenet_intrl2_0_writel(ring->priv,
-				 UMAC_IRQ_TXDMA_BDONE | UMAC_IRQ_TXDMA_PDONE,
+	bcmgenet_intrl2_0_writel(ring->priv, UMAC_IRQ_TXDMA_DONE,
 				 INTRL2_CPU_MASK_CLEAR);
 }
 
@@ -1727,10 +1723,10 @@ static int init_umac(struct bcmgenet_priv *priv)
 	bcmgenet_intr_disable(priv);
 
 	/* Enable Rx default queue 16 interrupts */
-	int0_enable |= (UMAC_IRQ_RXDMA_BDONE | UMAC_IRQ_RXDMA_PDONE);
+	int0_enable |= UMAC_IRQ_RXDMA_DONE;
 
 	/* Enable Tx default queue 16 interrupts */
-	int0_enable |= (UMAC_IRQ_TXDMA_BDONE | UMAC_IRQ_TXDMA_PDONE);
+	int0_enable |= UMAC_IRQ_TXDMA_DONE;
 
 	/* Monitor cable plug/unplugged event for internal PHY */
 	if (phy_is_internal(priv->phydev)) {
@@ -2353,7 +2349,7 @@ static irqreturn_t bcmgenet_isr0(int irq, void *dev_id)
 	netif_dbg(priv, intr, priv->dev,
 		  "IRQ=0x%x\n", priv->irq0_stat);
 
-	if (priv->irq0_stat & (UMAC_IRQ_RXDMA_BDONE | UMAC_IRQ_RXDMA_PDONE)) {
+	if (priv->irq0_stat & UMAC_IRQ_RXDMA_DONE) {
 		rx_ring = &priv->rx_rings[DESC_INDEX];
 
 		if (likely(napi_schedule_prep(&rx_ring->napi))) {
@@ -2362,7 +2358,7 @@ static irqreturn_t bcmgenet_isr0(int irq, void *dev_id)
 		}
 	}
 
-	if (priv->irq0_stat & (UMAC_IRQ_TXDMA_BDONE | UMAC_IRQ_TXDMA_PDONE)) {
+	if (priv->irq0_stat & UMAC_IRQ_TXDMA_DONE) {
 		tx_ring = &priv->tx_rings[DESC_INDEX];
 
 		if (likely(napi_schedule_prep(&tx_ring->napi))) {
