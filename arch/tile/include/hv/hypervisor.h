@@ -961,7 +961,11 @@ typedef enum {
   HV_INQ_TILES_HFH_CACHE       = 2,
 
   /** The set of tiles that can be legally used as a LOTAR for a PTE. */
-  HV_INQ_TILES_LOTAR           = 3
+  HV_INQ_TILES_LOTAR           = 3,
+
+  /** The set of "shared" driver tiles that the hypervisor may
+   *  periodically interrupt. */
+  HV_INQ_TILES_SHARED          = 4
 } HV_InqTileSet;
 
 /** Returns specific information about various sets of tiles within the
