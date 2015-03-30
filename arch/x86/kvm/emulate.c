@@ -478,6 +478,25 @@ static void assign_masked(ulong *dest, ulong src, ulong mask)
 	*dest = (*dest & ~mask) | (src & mask);
 }
 
+static void assign_register(unsigned long *reg, u64 val, int bytes)
+{
+	/* The 4-byte case *is* correct: in 64-bit mode we zero-extend. */
+	switch (bytes) {
+	case 1:
+		*(u8 *)reg = (u8)val;
+		break;
+	case 2:
+		*(u16 *)reg = (u16)val;
+		break;
+	case 4:
+		*reg = (u32)val;
+		break;	/* 64b: zero-extend */
+	case 8:
+		*reg = val;
+		break;
+	}
+}
+
 static inline unsigned long ad_mask(struct x86_emulate_ctxt *ctxt)
 {
 	return (1UL << (ctxt->ad_bytes << 3)) - 1;
@@ -1691,21 +1710,7 @@ static int load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 
 static void write_register_operand(struct operand *op)
 {
-	/* The 4-byte case *is* correct: in 64-bit mode we zero-extend. */
-	switch (op->bytes) {
-	case 1:
-		*(u8 *)op->addr.reg = (u8)op->val;
-		break;
-	case 2:
-		*(u16 *)op->addr.reg = (u16)op->val;
-		break;
-	case 4:
-		*op->addr.reg = (u32)op->val;
-		break;	/* 64b: zero-extend */
-	case 8:
-		*op->addr.reg = op->val;
-		break;
-	}
+	return assign_register(op->addr.reg, op->val, op->bytes);
 }
 
 static int writeback(struct x86_emulate_ctxt *ctxt, struct operand *op)
@@ -1926,6 +1931,7 @@ static int em_popa(struct x86_emulate_ctxt *ctxt)
 {
 	int rc = X86EMUL_CONTINUE;
 	int reg = VCPU_REGS_RDI;
+	u32 val;
 
 	while (reg >= VCPU_REGS_RAX) {
 		if (reg == VCPU_REGS_RSP) {
@@ -1933,9 +1939,10 @@ static int em_popa(struct x86_emulate_ctxt *ctxt)
 			--reg;
 		}
 
-		rc = emulate_pop(ctxt, reg_rmw(ctxt, reg), ctxt->op_bytes);
+		rc = emulate_pop(ctxt, &val, ctxt->op_bytes);
 		if (rc != X86EMUL_CONTINUE)
 			break;
+		assign_register(reg_rmw(ctxt, reg), val, ctxt->op_bytes);
 		--reg;
 	}
 	return rc;
