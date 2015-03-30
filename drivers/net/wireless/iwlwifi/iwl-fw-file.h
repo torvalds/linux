@@ -586,12 +586,14 @@ struct iwl_fw_dbg_trigger_low_rssi {
  * @stop_tx_deauth: number of Tx deauth before to collect
  * @stop_assoc_denied: number of denied association to collect
  * @stop_assoc_timeout: number of association timeout to collect
+ * @stop_connection_loss: number of connection loss to collect
  * @start_auth_denied: number of denied authentication to start recording
  * @start_auth_timeout: number of authentication timeout to start recording
  * @start_rx_deauth: number of Rx deauth to start recording
  * @start_tx_deauth: number of Tx deauth to start recording
  * @start_assoc_denied: number of denied association to start recording
  * @start_assoc_timeout: number of association timeout to start recording
+ * @start_connection_loss: number of connection loss to start recording
  */
 struct iwl_fw_dbg_trigger_mlme {
 	u8 stop_auth_denied;
@@ -601,7 +603,8 @@ struct iwl_fw_dbg_trigger_mlme {
 
 	u8 stop_assoc_denied;
 	u8 stop_assoc_timeout;
-	__le16 reserved2;
+	u8 stop_connection_loss;
+	u8 reserved;
 
 	u8 start_auth_denied;
 	u8 start_auth_timeout;
@@ -610,7 +613,8 @@ struct iwl_fw_dbg_trigger_mlme {
 
 	u8 start_assoc_denied;
 	u8 start_assoc_timeout;
-	__le16 reserved4;
+	u8 start_connection_loss;
+	u8 reserved2;
 } __packed;
 
 /**

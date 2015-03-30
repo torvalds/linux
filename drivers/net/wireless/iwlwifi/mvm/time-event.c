@@ -187,7 +187,8 @@ static bool iwl_mvm_te_check_disconnect(struct iwl_mvm *mvm,
 		return false;
 	if (errmsg)
 		IWL_ERR(mvm, "%s\n", errmsg);
-	ieee80211_connection_loss(vif);
+
+	iwl_mvm_connection_loss(mvm, vif, errmsg);
 	return true;
 }
 
@@ -210,7 +211,8 @@ iwl_mvm_te_handle_notify_csa(struct iwl_mvm *mvm,
 		break;
 	case NL80211_IFTYPE_STATION:
 		if (!notif->status) {
-			ieee80211_connection_loss(te_data->vif);
+			iwl_mvm_connection_loss(mvm, vif,
+						"CSA TE failed to start");
 			break;
 		}
 		iwl_mvm_csa_client_absent(mvm, te_data->vif);

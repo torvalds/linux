@@ -1161,7 +1161,7 @@ static void iwl_mvm_d0i3_disconnect_iter(void *data, u8 *mac,
 
 	if (vif->type == NL80211_IFTYPE_STATION && vif->bss_conf.assoc &&
 	    mvm->d0i3_ap_sta_id == mvmvif->ap_sta_id)
-		ieee80211_connection_loss(vif);
+		iwl_mvm_connection_loss(mvm, vif, "D0i3");
 }
 
 void iwl_mvm_d0i3_enable_tx(struct iwl_mvm *mvm, __le16 *qos_seq)
