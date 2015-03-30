@@ -47,7 +47,7 @@
 #define MLX4_STATS_TRAFFIC_COUNTERS_MASK	0xfULL
 #define MLX4_STATS_TRAFFIC_DROPS_MASK		0xc0ULL
 #define MLX4_STATS_ERROR_COUNTERS_MASK		0x1ffc30ULL
-#define MLX4_STATS_PORT_COUNTERS_MASK		0x1fe00000ULL
+#define MLX4_STATS_PORT_COUNTERS_MASK		0x7fe00000ULL
 
 void mlx4_init_mac_table(struct mlx4_dev *dev, struct mlx4_mac_table *table)
 {
