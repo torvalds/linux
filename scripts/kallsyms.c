@@ -214,7 +214,6 @@ static int symbol_valid(struct sym_entry *s)
 		NULL };
 
 	static char *special_suffixes[] = {
-		"_compiled.",		/* gcc < 3.0: "gcc[0-9]_compiled." */
 		"_veneer",		/* arm */
 		NULL };
 
