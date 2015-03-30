@@ -583,15 +583,9 @@ int snd_soc_suspend(struct device *dev)
 			cpu_dai->driver->suspend(cpu_dai);
 	}
 
-	/* close any waiting streams and save state */
-	for (i = 0; i < card->num_rtd; i++) {
-		struct snd_soc_dai **codec_dais = card->rtd[i].codec_dais;
+	/* close any waiting streams */
+	for (i = 0; i < card->num_rtd; i++)
 		flush_delayed_work(&card->rtd[i].delayed_work);
-		for (j = 0; j < card->rtd[i].num_codecs; j++) {
-			codec_dais[j]->codec->dapm.suspend_bias_level =
-					codec_dais[j]->codec->dapm.bias_level;
-		}
-	}
 
 	for (i = 0; i < card->num_rtd; i++) {
 
