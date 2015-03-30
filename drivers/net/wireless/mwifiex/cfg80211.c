@@ -1954,13 +1954,13 @@ done:
 		if (mode == NL80211_IFTYPE_ADHOC)
 			bss = cfg80211_get_bss(priv->wdev.wiphy, channel,
 					       bssid, ssid, ssid_len,
-					       WLAN_CAPABILITY_IBSS,
-					       WLAN_CAPABILITY_IBSS);
+					       IEEE80211_BSS_TYPE_IBSS,
+					       IEEE80211_PRIVACY_ANY);
 		else
 			bss = cfg80211_get_bss(priv->wdev.wiphy, channel,
 					       bssid, ssid, ssid_len,
-					       WLAN_CAPABILITY_ESS,
-					       WLAN_CAPABILITY_ESS);
+					       IEEE80211_BSS_TYPE_ESS,
+					       IEEE80211_PRIVACY_ANY);
 
 		if (!bss) {
 			if (is_scanning_required) {

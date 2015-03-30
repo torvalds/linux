@@ -1157,11 +1157,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	if (!conf) {
 		sdata_info(sdata,
 			   "no channel context assigned to vif?, disconnecting\n");
-		ieee80211_queue_work(&local->hw,
-				     &ifmgd->csa_connection_drop_work);
-		mutex_unlock(&local->chanctx_mtx);
-		mutex_unlock(&local->mtx);
-		return;
+		goto drop_connection;
 	}
 
 	chanctx = container_of(conf, struct ieee80211_chanctx, conf);
@@ -1170,11 +1166,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	    !(local->hw.flags & IEEE80211_HW_CHANCTX_STA_CSA)) {
 		sdata_info(sdata,
 			   "driver doesn't support chan-switch with channel contexts\n");
-		ieee80211_queue_work(&local->hw,
-				     &ifmgd->csa_connection_drop_work);
-		mutex_unlock(&local->chanctx_mtx);
-		mutex_unlock(&local->mtx);
-		return;
+		goto drop_connection;
 	}
 
 	ch_switch.timestamp = timestamp;
@@ -1186,11 +1178,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	if (drv_pre_channel_switch(sdata, &ch_switch)) {
 		sdata_info(sdata,
 			   "preparing for channel switch failed, disconnecting\n");
-		ieee80211_queue_work(&local->hw,
-				     &ifmgd->csa_connection_drop_work);
-		mutex_unlock(&local->chanctx_mtx);
-		mutex_unlock(&local->mtx);
-		return;
+		goto drop_connection;
 	}
 
 	res = ieee80211_vif_reserve_chanctx(sdata, &csa_ie.chandef,
@@ -1199,11 +1187,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 		sdata_info(sdata,
 			   "failed to reserve channel context for channel switch, disconnecting (err=%d)\n",
 			   res);
-		ieee80211_queue_work(&local->hw,
-				     &ifmgd->csa_connection_drop_work);
-		mutex_unlock(&local->chanctx_mtx);
-		mutex_unlock(&local->mtx);
-		return;
+		goto drop_connection;
 	}
 	mutex_unlock(&local->chanctx_mtx);
 
@@ -1232,6 +1216,11 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 		mod_timer(&ifmgd->chswitch_timer,
 			  TU_TO_EXP_TIME((csa_ie.count - 1) *
 					 cbss->beacon_interval));
+	return;
+ drop_connection:
+	ieee80211_queue_work(&local->hw, &ifmgd->csa_connection_drop_work);
+	mutex_unlock(&local->chanctx_mtx);
+	mutex_unlock(&local->mtx);
 }
 
 static bool
@@ -1620,9 +1609,6 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 void ieee80211_dynamic_ps_timer(unsigned long data)
 {
 	struct ieee80211_local *local = (void *) data;
-
-	if (local->quiescing || local->suspended)
-		return;
 
 	ieee80211_queue_work(&local->hw, &local->dynamic_ps_enable_work);
 }
@@ -2969,8 +2955,12 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 
 	rate_control_rate_init(sta);
 
-	if (ifmgd->flags & IEEE80211_STA_MFP_ENABLED)
+	if (ifmgd->flags & IEEE80211_STA_MFP_ENABLED) {
 		set_sta_flag(sta, WLAN_STA_MFP);
+		sta->sta.mfp = true;
+	} else {
+		sta->sta.mfp = false;
+	}
 
 	sta->sta.wme = elems.wmm_param;
 
@@ -3419,6 +3409,26 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	if (ifmgd->csa_waiting_bcn)
 		ieee80211_chswitch_post_beacon(sdata);
 
+	/*
+	 * Update beacon timing and dtim count on every beacon appearance. This
+	 * will allow the driver to use the most updated values. Do it before
+	 * comparing this one with last received beacon.
+	 * IMPORTANT: These parameters would possibly be out of sync by the time
+	 * the driver will use them. The synchronized view is currently
+	 * guaranteed only in certain callbacks.
+	 */
+	if (local->hw.flags & IEEE80211_HW_TIMING_BEACON_ONLY) {
+		sdata->vif.bss_conf.sync_tsf =
+			le64_to_cpu(mgmt->u.beacon.timestamp);
+		sdata->vif.bss_conf.sync_device_ts =
+			rx_status->device_timestamp;
+		if (elems.tim)
+			sdata->vif.bss_conf.sync_dtim_count =
+				elems.tim->dtim_count;
+		else
+			sdata->vif.bss_conf.sync_dtim_count = 0;
+	}
+
 	if (ncrc == ifmgd->beacon_crc && ifmgd->beacon_crc_valid)
 		return;
 	ifmgd->beacon_crc = ncrc;
@@ -3445,18 +3455,6 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 			bss_conf->dtim_period = elems.tim->dtim_period ?: 1;
 		else
 			bss_conf->dtim_period = 1;
-
-		if (local->hw.flags & IEEE80211_HW_TIMING_BEACON_ONLY) {
-			sdata->vif.bss_conf.sync_tsf =
-				le64_to_cpu(mgmt->u.beacon.timestamp);
-			sdata->vif.bss_conf.sync_device_ts =
-				rx_status->device_timestamp;
-			if (elems.tim)
-				sdata->vif.bss_conf.sync_dtim_count =
-					elems.tim->dtim_count;
-			else
-				sdata->vif.bss_conf.sync_dtim_count = 0;
-		}
 
 		changed |= BSS_CHANGED_BEACON_INFO;
 		ifmgd->have_beacon = true;
@@ -3891,11 +3889,7 @@ static void ieee80211_sta_bcn_mon_timer(unsigned long data)
 {
 	struct ieee80211_sub_if_data *sdata =
 		(struct ieee80211_sub_if_data *) data;
-	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
-
-	if (local->quiescing)
-		return;
 
 	if (sdata->vif.csa_active && !ifmgd->csa_waiting_bcn)
 		return;
@@ -3911,9 +3905,6 @@ static void ieee80211_sta_conn_mon_timer(unsigned long data)
 		(struct ieee80211_sub_if_data *) data;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_local *local = sdata->local;
-
-	if (local->quiescing)
-		return;
 
 	if (sdata->vif.csa_active && !ifmgd->csa_waiting_bcn)
 		return;
@@ -3975,6 +3966,34 @@ void ieee80211_mgd_quiesce(struct ieee80211_sub_if_data *sdata)
 			ieee80211_destroy_auth_data(sdata, false);
 		cfg80211_tx_mlme_mgmt(sdata->dev, frame_buf,
 				      IEEE80211_DEAUTH_FRAME_LEN);
+	}
+
+	/* This is a bit of a hack - we should find a better and more generic
+	 * solution to this. Normally when suspending, cfg80211 will in fact
+	 * deauthenticate. However, it doesn't (and cannot) stop an ongoing
+	 * auth (not so important) or assoc (this is the problem) process.
+	 *
+	 * As a consequence, it can happen that we are in the process of both
+	 * associating and suspending, and receive an association response
+	 * after cfg80211 has checked if it needs to disconnect, but before
+	 * we actually set the flag to drop incoming frames. This will then
+	 * cause the workqueue flush to process the association response in
+	 * the suspend, resulting in a successful association just before it
+	 * tries to remove the interface from the driver, which now though
+	 * has a channel context assigned ... this results in issues.
+	 *
+	 * To work around this (for now) simply deauth here again if we're
+	 * now connected.
+	 */
+	if (ifmgd->associated && !sdata->local->wowlan) {
+		u8 bssid[ETH_ALEN];
+		struct cfg80211_deauth_request req = {
+			.reason_code = WLAN_REASON_DEAUTH_LEAVING,
+			.bssid = bssid,
+		};
+
+		memcpy(bssid, ifmgd->associated->bssid, ETH_ALEN);
+		ieee80211_mgd_deauth(sdata, &req);
 	}
 
 	sdata_unlock(sdata);
