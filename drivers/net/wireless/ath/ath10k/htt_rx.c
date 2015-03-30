@@ -637,14 +637,6 @@ static int ath10k_htt_rx_crypto_tail_len(struct ath10k *ar,
 	return 0;
 }
 
-struct rfc1042_hdr {
-	u8 llc_dsap;
-	u8 llc_ssap;
-	u8 llc_ctrl;
-	u8 snap_oui[3];
-	__be16 snap_type;
-} __packed;
-
 struct amsdu_subframe_hdr {
 	u8 dst[ETH_ALEN];
 	u8 src[ETH_ALEN];

@@ -2522,6 +2522,43 @@ static u8 ath10k_tx_h_get_vdev_id(struct ath10k *ar, struct ieee80211_vif *vif)
 	return 0;
 }
 
+static enum ath10k_hw_txrx_mode
+ath10k_tx_h_get_txmode(struct ath10k *ar, struct ieee80211_vif *vif,
+		       struct sk_buff *skb)
+{
+	const struct ieee80211_hdr *hdr = (void *)skb->data;
+	__le16 fc = hdr->frame_control;
+
+	if (!vif || vif->type == NL80211_IFTYPE_MONITOR)
+		return ATH10K_HW_TXRX_RAW;
+
+	if (ieee80211_is_mgmt(fc))
+		return ATH10K_HW_TXRX_MGMT;
+
+	/* Workaround:
+	 *
+	 * NullFunc frames are mostly used to ping if a client or AP are still
+	 * reachable and responsive. This implies tx status reports must be
+	 * accurate - otherwise either mac80211 or userspace (e.g. hostapd) can
+	 * come to a conclusion that the other end disappeared and tear down
+	 * BSS connection or it can never disconnect from BSS/client (which is
+	 * the case).
+	 *
+	 * Firmware with HTT older than 3.0 delivers incorrect tx status for
+	 * NullFunc frames to driver. However there's a HTT Mgmt Tx command
+	 * which seems to deliver correct tx reports for NullFunc frames. The
+	 * downside of using it is it ignores client powersave state so it can
+	 * end up disconnecting sleeping clients in AP mode. It should fix STA
+	 * mode though because AP don't sleep.
+	 */
+	if (ar->htt.target_version_major < 3 &&
+	    (ieee80211_is_nullfunc(fc) || ieee80211_is_qos_nullfunc(fc)) &&
+	    !test_bit(ATH10K_FW_FEATURE_HAS_WMI_MGMT_TX, ar->fw_features))
+		return ATH10K_HW_TXRX_MGMT;
+
+	return ATH10K_HW_TXRX_NATIVE_WIFI;
+}
+
 /* HTT Tx uses Native Wifi tx mode which expects 802.11 frames without QoS
  * Control in the header.
  */
@@ -2548,6 +2585,33 @@ static void ath10k_tx_h_nwifi(struct ieee80211_hw *hw, struct sk_buff *skb)
 		cb->htt.tid = HTT_DATA_TX_EXT_TID_NON_QOS_MCAST_BCAST;
 
 	hdr->frame_control &= ~__cpu_to_le16(IEEE80211_STYPE_QOS_DATA);
+}
+
+static void ath10k_tx_h_8023(struct sk_buff *skb)
+{
+	struct ieee80211_hdr *hdr;
+	struct rfc1042_hdr *rfc1042;
+	struct ethhdr *eth;
+	size_t hdrlen;
+	u8 da[ETH_ALEN];
+	u8 sa[ETH_ALEN];
+	__be16 type;
+
+	hdr = (void *)skb->data;
+	hdrlen = ieee80211_hdrlen(hdr->frame_control);
+	rfc1042 = (void *)skb->data + hdrlen;
+
+	ether_addr_copy(da, ieee80211_get_DA(hdr));
+	ether_addr_copy(sa, ieee80211_get_SA(hdr));
+	type = rfc1042->snap_type;
+
+	skb_pull(skb, hdrlen + sizeof(*rfc1042));
+	skb_push(skb, sizeof(*eth));
+
+	eth = (void *)skb->data;
+	ether_addr_copy(eth->h_dest, da);
+	ether_addr_copy(eth->h_source, sa);
+	eth->h_proto = type;
 }
 
 static void ath10k_tx_h_add_p2p_noa_ie(struct ath10k *ar,
@@ -2586,45 +2650,51 @@ static bool ath10k_mac_need_offchan_tx_work(struct ath10k *ar)
 		 ar->htt.target_version_minor >= 4);
 }
 
-static void ath10k_tx_htt(struct ath10k *ar, struct sk_buff *skb)
+static int ath10k_mac_tx_wmi_mgmt(struct ath10k *ar, struct sk_buff *skb)
 {
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	struct sk_buff_head *q = &ar->wmi_mgmt_tx_queue;
 	int ret = 0;
 
-	if (ar->htt.target_version_major >= 3) {
-		/* Since HTT 3.0 there is no separate mgmt tx command */
-		ret = ath10k_htt_tx(&ar->htt, skb);
-		goto exit;
+	spin_lock_bh(&ar->data_lock);
+
+	if (skb_queue_len(q) == ATH10K_MAX_NUM_MGMT_PENDING) {
+		ath10k_warn(ar, "wmi mgmt tx queue is full\n");
+		ret = -ENOSPC;
+		goto unlock;
 	}
 
-	if (ieee80211_is_mgmt(hdr->frame_control)) {
+	__skb_queue_tail(q, skb);
+	ieee80211_queue_work(ar->hw, &ar->wmi_mgmt_tx_work);
+
+unlock:
+	spin_unlock_bh(&ar->data_lock);
+
+	return ret;
+}
+
+static void ath10k_mac_tx(struct ath10k *ar, struct sk_buff *skb)
+{
+	struct ath10k_skb_cb *cb = ATH10K_SKB_CB(skb);
+	struct ath10k_htt *htt = &ar->htt;
+	int ret = 0;
+
+	switch (cb->txmode) {
+	case ATH10K_HW_TXRX_RAW:
+	case ATH10K_HW_TXRX_NATIVE_WIFI:
+	case ATH10K_HW_TXRX_ETHERNET:
+		ret = ath10k_htt_tx(htt, skb);
+		break;
+	case ATH10K_HW_TXRX_MGMT:
 		if (test_bit(ATH10K_FW_FEATURE_HAS_WMI_MGMT_TX,
-			     ar->fw_features)) {
-			if (skb_queue_len(&ar->wmi_mgmt_tx_queue) >=
-			    ATH10K_MAX_NUM_MGMT_PENDING) {
-				ath10k_warn(ar, "reached WMI management transmit queue limit\n");
-				ret = -EBUSY;
-				goto exit;
-			}
-
-			skb_queue_tail(&ar->wmi_mgmt_tx_queue, skb);
-			ieee80211_queue_work(ar->hw, &ar->wmi_mgmt_tx_work);
-		} else {
-			ret = ath10k_htt_mgmt_tx(&ar->htt, skb);
-		}
-	} else if (!test_bit(ATH10K_FW_FEATURE_HAS_WMI_MGMT_TX,
-			     ar->fw_features) &&
-		   ieee80211_is_nullfunc(hdr->frame_control)) {
-		/* FW does not report tx status properly for NullFunc frames
-		 * unless they are sent through mgmt tx path. mac80211 sends
-		 * those frames when it detects link/beacon loss and depends
-		 * on the tx status to be correct. */
-		ret = ath10k_htt_mgmt_tx(&ar->htt, skb);
-	} else {
-		ret = ath10k_htt_tx(&ar->htt, skb);
+			     ar->fw_features))
+			ret = ath10k_mac_tx_wmi_mgmt(ar, skb);
+		else if (ar->htt.target_version_major >= 3)
+			ret = ath10k_htt_tx(htt, skb);
+		else
+			ret = ath10k_htt_mgmt_tx(htt, skb);
+		break;
 	}
 
-exit:
 	if (ret) {
 		ath10k_warn(ar, "failed to transmit packet, dropping: %d\n",
 			    ret);
@@ -2697,7 +2767,7 @@ void ath10k_offchan_tx_work(struct work_struct *work)
 		ar->offchan_tx_skb = skb;
 		spin_unlock_bh(&ar->data_lock);
 
-		ath10k_tx_htt(ar, skb);
+		ath10k_mac_tx(ar, skb);
 
 		ret = wait_for_completion_timeout(&ar->offchan_tx_completed,
 						  3 * HZ);
@@ -2922,6 +2992,7 @@ static void ath10k_tx(struct ieee80211_hw *hw,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_vif *vif = info->control.vif;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	__le16 fc = hdr->frame_control;
 
 	/* We should disable CCK RATE due to P2P */
 	if (info->flags & IEEE80211_TX_CTL_NO_CCK_RATE)
@@ -2931,12 +3002,26 @@ static void ath10k_tx(struct ieee80211_hw *hw,
 	ATH10K_SKB_CB(skb)->htt.freq = 0;
 	ATH10K_SKB_CB(skb)->htt.tid = ath10k_tx_h_get_tid(hdr);
 	ATH10K_SKB_CB(skb)->vdev_id = ath10k_tx_h_get_vdev_id(ar, vif);
+	ATH10K_SKB_CB(skb)->txmode = ath10k_tx_h_get_txmode(ar, vif, skb);
+	ATH10K_SKB_CB(skb)->is_protected = ieee80211_has_protected(fc);
 
-	/* it makes no sense to process injected frames like that */
-	if (vif && vif->type != NL80211_IFTYPE_MONITOR) {
+	switch (ATH10K_SKB_CB(skb)->txmode) {
+	case ATH10K_HW_TXRX_MGMT:
+	case ATH10K_HW_TXRX_NATIVE_WIFI:
 		ath10k_tx_h_nwifi(hw, skb);
 		ath10k_tx_h_add_p2p_noa_ie(ar, vif, skb);
 		ath10k_tx_h_seq_no(vif, skb);
+		break;
+	case ATH10K_HW_TXRX_ETHERNET:
+		ath10k_tx_h_8023(skb);
+		break;
+	case ATH10K_HW_TXRX_RAW:
+		/* FIXME: Packet injection isn't implemented. It should be
+		 * doable with firmware 10.2 on qca988x.
+		 */
+		WARN_ON_ONCE(1);
+		ieee80211_free_txskb(hw, skb);
+		return;
 	}
 
 	if (info->flags & IEEE80211_TX_CTL_TX_OFFCHAN) {
@@ -2958,7 +3043,7 @@ static void ath10k_tx(struct ieee80211_hw *hw,
 		}
 	}
 
-	ath10k_tx_htt(ar, skb);
+	ath10k_mac_tx(ar, skb);
 }
 
 /* Must not be called with conf_mutex held as workers can use that also. */

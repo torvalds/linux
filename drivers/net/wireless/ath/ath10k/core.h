@@ -84,6 +84,8 @@ struct ath10k_skb_cb {
 	dma_addr_t paddr;
 	u8 eid;
 	u8 vdev_id;
+	enum ath10k_hw_txrx_mode txmode;
+	bool is_protected;
 
 	struct {
 		u8 tid;
