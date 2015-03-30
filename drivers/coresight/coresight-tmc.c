@@ -533,8 +533,8 @@ static ssize_t tmc_read(struct file *file, char __user *data, size_t len,
 
 	*ppos += len;
 
-	dev_dbg(drvdata->dev, "%s: %d bytes copied, %d bytes left\n",
-		__func__, len, (int) (drvdata->size - *ppos));
+	dev_dbg(drvdata->dev, "%s: %zu bytes copied, %d bytes left\n",
+		__func__, len, (int)(drvdata->size - *ppos));
 	return len;
 }
 
