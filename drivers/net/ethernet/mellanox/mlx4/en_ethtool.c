@@ -162,10 +162,32 @@ static const char main_strings[][ETH_GSTRING_LEN] = {
 	"tx_pause", "tx_pause_duration", "tx_pause_transition",
 
 	/* packet statistics */
-	"broadcast", "rx_prio_0", "rx_prio_1", "rx_prio_2", "rx_prio_3",
-	"rx_prio_4", "rx_prio_5", "rx_prio_6", "rx_prio_7", "tx_prio_0",
-	"tx_prio_1", "tx_prio_2", "tx_prio_3", "tx_prio_4", "tx_prio_5",
-	"tx_prio_6", "tx_prio_7",
+	"rx_multicast_packets",
+	"rx_broadcast_packets",
+	"rx_jabbers",
+	"rx_in_range_length_error",
+	"rx_out_range_length_error",
+	"tx_multicast_packets",
+	"tx_broadcast_packets",
+	"rx_prio_0_packets", "rx_prio_0_bytes",
+	"rx_prio_1_packets", "rx_prio_1_bytes",
+	"rx_prio_2_packets", "rx_prio_2_bytes",
+	"rx_prio_3_packets", "rx_prio_3_bytes",
+	"rx_prio_4_packets", "rx_prio_4_bytes",
+	"rx_prio_5_packets", "rx_prio_5_bytes",
+	"rx_prio_6_packets", "rx_prio_6_bytes",
+	"rx_prio_7_packets", "rx_prio_7_bytes",
+	"rx_novlan_packets", "rx_novlan_bytes",
+	"tx_prio_0_packets", "tx_prio_0_bytes",
+	"tx_prio_1_packets", "tx_prio_1_bytes",
+	"tx_prio_2_packets", "tx_prio_2_bytes",
+	"tx_prio_3_packets", "tx_prio_3_bytes",
+	"tx_prio_4_packets", "tx_prio_4_bytes",
+	"tx_prio_5_packets", "tx_prio_5_bytes",
+	"tx_prio_6_packets", "tx_prio_6_bytes",
+	"tx_prio_7_packets", "tx_prio_7_bytes",
+	"tx_novlan_packets", "tx_novlan_bytes",
+
 };
 
 static const char mlx4_en_test_names[][ETH_GSTRING_LEN]= {

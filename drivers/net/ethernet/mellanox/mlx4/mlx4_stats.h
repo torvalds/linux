@@ -11,10 +11,16 @@
 #define NUM_PRIORITY_STATS 2
 
 struct mlx4_en_pkt_stats {
-	unsigned long broadcast;
-	unsigned long rx_prio[8];
-	unsigned long tx_prio[8];
-#define NUM_PKT_STATS                17
+	unsigned long rx_multicast_packets;
+	unsigned long rx_broadcast_packets;
+	unsigned long rx_jabbers;
+	unsigned long rx_in_range_length_error;
+	unsigned long rx_out_range_length_error;
+	unsigned long tx_multicast_packets;
+	unsigned long tx_broadcast_packets;
+	unsigned long rx_prio[NUM_PRIORITIES][NUM_PRIORITY_STATS];
+	unsigned long tx_prio[NUM_PRIORITIES][NUM_PRIORITY_STATS];
+#define NUM_PKT_STATS		43
 };
 
 struct mlx4_en_port_stats {

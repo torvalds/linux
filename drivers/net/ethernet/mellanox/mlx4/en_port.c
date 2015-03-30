@@ -128,6 +128,25 @@ out:
 	return err;
 }
 
+/* Each counter set is located in struct mlx4_en_stat_out_mbox
+ * with a const offset between its prio components.
+ * This function runs over a counter set and sum all of it's prio components.
+ */
+static unsigned long en_stats_adder(__be64 *start, __be64 *next, int num)
+{
+	__be64 *curr = start;
+	unsigned long ret = 0;
+	int i;
+	int offset = next - start;
+
+	for (i = 0; i <= num; i++) {
+		ret += be64_to_cpu(*curr);
+		curr += offset;
+	}
+
+	return ret;
+}
+
 int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 {
 	struct mlx4_en_stat_out_mbox *mlx4_en_stats;
@@ -184,22 +203,25 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 		priv->port_stats.xmit_more         += ring->xmit_more;
 	}
 
+	/* net device stats */
 	stats->rx_errors = be64_to_cpu(mlx4_en_stats->PCS) +
-			   be32_to_cpu(mlx4_en_stats->RdropLength) +
 			   be32_to_cpu(mlx4_en_stats->RJBBR) +
 			   be32_to_cpu(mlx4_en_stats->RCRC) +
-			   be32_to_cpu(mlx4_en_stats->RRUNT);
-	stats->tx_errors = be32_to_cpu(mlx4_en_stats->TDROP);
-	stats->multicast = be64_to_cpu(mlx4_en_stats->MCAST_prio_0) +
-			   be64_to_cpu(mlx4_en_stats->MCAST_prio_1) +
-			   be64_to_cpu(mlx4_en_stats->MCAST_prio_2) +
-			   be64_to_cpu(mlx4_en_stats->MCAST_prio_3) +
-			   be64_to_cpu(mlx4_en_stats->MCAST_prio_4) +
-			   be64_to_cpu(mlx4_en_stats->MCAST_prio_5) +
-			   be64_to_cpu(mlx4_en_stats->MCAST_prio_6) +
-			   be64_to_cpu(mlx4_en_stats->MCAST_prio_7) +
-			   be64_to_cpu(mlx4_en_stats->MCAST_novlan);
+			   be32_to_cpu(mlx4_en_stats->RRUNT) +
+			   be64_to_cpu(mlx4_en_stats->RInRangeLengthErr) +
+			   be64_to_cpu(mlx4_en_stats->ROutRangeLengthErr) +
+			   be32_to_cpu(mlx4_en_stats->RSHORT) +
+			   en_stats_adder(&mlx4_en_stats->RGIANT_prio_0,
+					  &mlx4_en_stats->RGIANT_prio_1,
+					  NUM_PRIORITIES);
+	stats->tx_errors = en_stats_adder(&mlx4_en_stats->TGIANT_prio_0,
+					  &mlx4_en_stats->TGIANT_prio_1,
+					  NUM_PRIORITIES);
+	stats->multicast = en_stats_adder(&mlx4_en_stats->MCAST_prio_0,
+					  &mlx4_en_stats->MCAST_prio_1,
+					  NUM_PRIORITIES);
 	stats->collisions = 0;
+	stats->rx_dropped = be32_to_cpu(mlx4_en_stats->RDROP);
 	stats->rx_length_errors = be32_to_cpu(mlx4_en_stats->RdropLength);
 	stats->rx_over_errors = be32_to_cpu(mlx4_en_stats->RdropOvflw);
 	stats->rx_crc_errors = be32_to_cpu(mlx4_en_stats->RCRC);
@@ -211,33 +233,67 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 	stats->tx_fifo_errors = 0;
 	stats->tx_heartbeat_errors = 0;
 	stats->tx_window_errors = 0;
+	stats->tx_dropped = be32_to_cpu(mlx4_en_stats->TDROP);
 
-	priv->pkstats.broadcast =
-				be64_to_cpu(mlx4_en_stats->RBCAST_prio_0) +
-				be64_to_cpu(mlx4_en_stats->RBCAST_prio_1) +
-				be64_to_cpu(mlx4_en_stats->RBCAST_prio_2) +
-				be64_to_cpu(mlx4_en_stats->RBCAST_prio_3) +
-				be64_to_cpu(mlx4_en_stats->RBCAST_prio_4) +
-				be64_to_cpu(mlx4_en_stats->RBCAST_prio_5) +
-				be64_to_cpu(mlx4_en_stats->RBCAST_prio_6) +
-				be64_to_cpu(mlx4_en_stats->RBCAST_prio_7) +
-				be64_to_cpu(mlx4_en_stats->RBCAST_novlan);
-	priv->pkstats.rx_prio[0] = be64_to_cpu(mlx4_en_stats->RTOT_prio_0);
-	priv->pkstats.rx_prio[1] = be64_to_cpu(mlx4_en_stats->RTOT_prio_1);
-	priv->pkstats.rx_prio[2] = be64_to_cpu(mlx4_en_stats->RTOT_prio_2);
-	priv->pkstats.rx_prio[3] = be64_to_cpu(mlx4_en_stats->RTOT_prio_3);
-	priv->pkstats.rx_prio[4] = be64_to_cpu(mlx4_en_stats->RTOT_prio_4);
-	priv->pkstats.rx_prio[5] = be64_to_cpu(mlx4_en_stats->RTOT_prio_5);
-	priv->pkstats.rx_prio[6] = be64_to_cpu(mlx4_en_stats->RTOT_prio_6);
-	priv->pkstats.rx_prio[7] = be64_to_cpu(mlx4_en_stats->RTOT_prio_7);
-	priv->pkstats.tx_prio[0] = be64_to_cpu(mlx4_en_stats->TTOT_prio_0);
-	priv->pkstats.tx_prio[1] = be64_to_cpu(mlx4_en_stats->TTOT_prio_1);
-	priv->pkstats.tx_prio[2] = be64_to_cpu(mlx4_en_stats->TTOT_prio_2);
-	priv->pkstats.tx_prio[3] = be64_to_cpu(mlx4_en_stats->TTOT_prio_3);
-	priv->pkstats.tx_prio[4] = be64_to_cpu(mlx4_en_stats->TTOT_prio_4);
-	priv->pkstats.tx_prio[5] = be64_to_cpu(mlx4_en_stats->TTOT_prio_5);
-	priv->pkstats.tx_prio[6] = be64_to_cpu(mlx4_en_stats->TTOT_prio_6);
-	priv->pkstats.tx_prio[7] = be64_to_cpu(mlx4_en_stats->TTOT_prio_7);
+	/* RX stats */
+	priv->pkstats.rx_multicast_packets = stats->multicast;
+	priv->pkstats.rx_broadcast_packets =
+			en_stats_adder(&mlx4_en_stats->RBCAST_prio_0,
+				       &mlx4_en_stats->RBCAST_prio_1,
+				       NUM_PRIORITIES);
+	priv->pkstats.rx_jabbers = be32_to_cpu(mlx4_en_stats->RJBBR);
+	priv->pkstats.rx_in_range_length_error =
+		be64_to_cpu(mlx4_en_stats->RInRangeLengthErr);
+	priv->pkstats.rx_out_range_length_error =
+		be64_to_cpu(mlx4_en_stats->ROutRangeLengthErr);
+
+	/* Tx stats */
+	priv->pkstats.tx_multicast_packets =
+		en_stats_adder(&mlx4_en_stats->TMCAST_prio_0,
+			       &mlx4_en_stats->TMCAST_prio_1,
+			       NUM_PRIORITIES);
+	priv->pkstats.tx_broadcast_packets =
+		en_stats_adder(&mlx4_en_stats->TBCAST_prio_0,
+			       &mlx4_en_stats->TBCAST_prio_1,
+			       NUM_PRIORITIES);
+
+	priv->pkstats.rx_prio[0][0] = be64_to_cpu(mlx4_en_stats->RTOT_prio_0);
+	priv->pkstats.rx_prio[0][1] = be64_to_cpu(mlx4_en_stats->ROCT_prio_0);
+	priv->pkstats.rx_prio[1][0] = be64_to_cpu(mlx4_en_stats->RTOT_prio_1);
+	priv->pkstats.rx_prio[1][1] = be64_to_cpu(mlx4_en_stats->ROCT_prio_1);
+	priv->pkstats.rx_prio[2][0] = be64_to_cpu(mlx4_en_stats->RTOT_prio_2);
+	priv->pkstats.rx_prio[2][1] = be64_to_cpu(mlx4_en_stats->ROCT_prio_2);
+	priv->pkstats.rx_prio[3][0] = be64_to_cpu(mlx4_en_stats->RTOT_prio_3);
+	priv->pkstats.rx_prio[3][1] = be64_to_cpu(mlx4_en_stats->ROCT_prio_3);
+	priv->pkstats.rx_prio[4][0] = be64_to_cpu(mlx4_en_stats->RTOT_prio_4);
+	priv->pkstats.rx_prio[4][1] = be64_to_cpu(mlx4_en_stats->ROCT_prio_4);
+	priv->pkstats.rx_prio[5][0] = be64_to_cpu(mlx4_en_stats->RTOT_prio_5);
+	priv->pkstats.rx_prio[5][1] = be64_to_cpu(mlx4_en_stats->ROCT_prio_5);
+	priv->pkstats.rx_prio[6][0] = be64_to_cpu(mlx4_en_stats->RTOT_prio_6);
+	priv->pkstats.rx_prio[6][1] = be64_to_cpu(mlx4_en_stats->ROCT_prio_6);
+	priv->pkstats.rx_prio[7][0] = be64_to_cpu(mlx4_en_stats->RTOT_prio_7);
+	priv->pkstats.rx_prio[7][1] = be64_to_cpu(mlx4_en_stats->ROCT_prio_7);
+	priv->pkstats.rx_prio[8][0] = be64_to_cpu(mlx4_en_stats->RTOT_novlan);
+	priv->pkstats.rx_prio[8][1] = be64_to_cpu(mlx4_en_stats->ROCT_novlan);
+	priv->pkstats.tx_prio[0][0] = be64_to_cpu(mlx4_en_stats->TTOT_prio_0);
+	priv->pkstats.tx_prio[0][1] = be64_to_cpu(mlx4_en_stats->TOCT_prio_0);
+	priv->pkstats.tx_prio[1][0] = be64_to_cpu(mlx4_en_stats->TTOT_prio_1);
+	priv->pkstats.tx_prio[1][1] = be64_to_cpu(mlx4_en_stats->TOCT_prio_1);
+	priv->pkstats.tx_prio[2][0] = be64_to_cpu(mlx4_en_stats->TTOT_prio_2);
+	priv->pkstats.tx_prio[2][1] = be64_to_cpu(mlx4_en_stats->TOCT_prio_2);
+	priv->pkstats.tx_prio[3][0] = be64_to_cpu(mlx4_en_stats->TTOT_prio_3);
+	priv->pkstats.tx_prio[3][1] = be64_to_cpu(mlx4_en_stats->TOCT_prio_3);
+	priv->pkstats.tx_prio[4][0] = be64_to_cpu(mlx4_en_stats->TTOT_prio_4);
+	priv->pkstats.tx_prio[4][1] = be64_to_cpu(mlx4_en_stats->TOCT_prio_4);
+	priv->pkstats.tx_prio[5][0] = be64_to_cpu(mlx4_en_stats->TTOT_prio_5);
+	priv->pkstats.tx_prio[5][1] = be64_to_cpu(mlx4_en_stats->TOCT_prio_5);
+	priv->pkstats.tx_prio[6][0] = be64_to_cpu(mlx4_en_stats->TTOT_prio_6);
+	priv->pkstats.tx_prio[6][1] = be64_to_cpu(mlx4_en_stats->TOCT_prio_6);
+	priv->pkstats.tx_prio[7][0] = be64_to_cpu(mlx4_en_stats->TTOT_prio_7);
+	priv->pkstats.tx_prio[7][1] = be64_to_cpu(mlx4_en_stats->TOCT_prio_7);
+	priv->pkstats.tx_prio[8][0] = be64_to_cpu(mlx4_en_stats->TTOT_novlan);
+	priv->pkstats.tx_prio[8][1] = be64_to_cpu(mlx4_en_stats->TOCT_novlan);
+
 	spin_unlock_bh(&priv->stats_lock);
 
 	/* 0xffs indicates invalid value */
