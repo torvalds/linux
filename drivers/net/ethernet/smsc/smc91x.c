@@ -2205,7 +2205,6 @@ static int try_toggle_control_gpio(struct device *dev,
 {
 	struct gpio_desc *gpio = *desc;
 	enum gpiod_flags flags = value ? GPIOD_OUT_LOW : GPIOD_OUT_HIGH;
-	int res;
 
 	gpio = devm_gpiod_get_index_optional(dev, name, index, flags);
 	if (IS_ERR(gpio))
