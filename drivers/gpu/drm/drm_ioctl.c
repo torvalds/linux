@@ -524,8 +524,13 @@ static int drm_ioctl_permit(u32 flags, struct drm_file *file_priv)
 	return 0;
 }
 
-#define DRM_IOCTL_DEF(ioctl, _func, _flags) \
-	[DRM_IOCTL_NR(ioctl)] = {.cmd = ioctl, .func = _func, .flags = _flags, .name = #ioctl}
+#define DRM_IOCTL_DEF(ioctl, _func, _flags)	\
+	[DRM_IOCTL_NR(ioctl)] = {		\
+		.cmd = ioctl,			\
+		.func = _func,			\
+		.flags = _flags,		\
+		.name = #ioctl			\
+	}
 
 /** Ioctl table */
 static const struct drm_ioctl_desc drm_ioctls[] = {
