@@ -263,7 +263,7 @@ static int mlx4_en_get_sset_count(struct net_device *dev, int sset)
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct bitmap_iterator it;
 
-	bitmap_iterator_init(&it, priv->stats_bitmap, NUM_ALL_STATS);
+	bitmap_iterator_init(&it, priv->stats_bitmap.bitmap, NUM_ALL_STATS);
 
 	switch (sset) {
 	case ETH_SS_STATS:
@@ -292,7 +292,7 @@ static void mlx4_en_get_ethtool_stats(struct net_device *dev,
 	int i;
 	struct bitmap_iterator it;
 
-	bitmap_iterator_init(&it, priv->stats_bitmap, NUM_ALL_STATS);
+	bitmap_iterator_init(&it, priv->stats_bitmap.bitmap, NUM_ALL_STATS);
 
 	spin_lock_bh(&priv->stats_lock);
 
@@ -339,7 +339,7 @@ static void mlx4_en_get_strings(struct net_device *dev,
 	int i, strings = 0;
 	struct bitmap_iterator it;
 
-	bitmap_iterator_init(&it, priv->stats_bitmap, NUM_ALL_STATS);
+	bitmap_iterator_init(&it, priv->stats_bitmap.bitmap, NUM_ALL_STATS);
 
 	switch (stringset) {
 	case ETH_SS_TEST:

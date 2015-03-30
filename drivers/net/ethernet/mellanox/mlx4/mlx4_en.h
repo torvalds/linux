@@ -485,6 +485,11 @@ enum {
 #define MLX4_EN_MAC_HASH_SIZE (1 << BITS_PER_BYTE)
 #define MLX4_EN_MAC_HASH_IDX 5
 
+struct mlx4_en_stats_bitmap {
+	DECLARE_BITMAP(bitmap, NUM_ALL_STATS);
+	struct mutex mutex; /* for mutual access to stats bitmap */
+};
+
 struct mlx4_en_priv {
 	struct mlx4_en_dev *mdev;
 	struct mlx4_en_port_profile *prof;
@@ -561,7 +566,7 @@ struct mlx4_en_priv {
 	struct mlx4_en_perf_stats pstats;
 	struct mlx4_en_pkt_stats pkstats;
 	struct mlx4_en_port_stats port_stats;
-	DECLARE_BITMAP(stats_bitmap, NUM_ALL_STATS);
+	struct mlx4_en_stats_bitmap stats_bitmap;
 	struct list_head mc_list;
 	struct list_head curr_list;
 	u64 broadcast_id;
@@ -731,7 +736,7 @@ int mlx4_en_start_port(struct net_device *dev);
 void mlx4_en_stop_port(struct net_device *dev, int detach);
 
 void mlx4_en_set_stats_bitmap(struct mlx4_dev *dev,
-			      unsigned long *stats_bitmap);
+			      struct mlx4_en_stats_bitmap *stats_bitmap);
 
 void mlx4_en_free_resources(struct mlx4_en_priv *priv);
 int mlx4_en_alloc_resources(struct mlx4_en_priv *priv);

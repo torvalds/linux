@@ -2649,35 +2649,36 @@ int mlx4_en_netdev_event(struct notifier_block *this,
 }
 
 void mlx4_en_set_stats_bitmap(struct mlx4_dev *dev,
-			      unsigned long *stats_bitmap)
+			      struct mlx4_en_stats_bitmap *stats_bitmap)
 {
 	int last_i = 0;
 
-	bitmap_zero(stats_bitmap, NUM_ALL_STATS);
+	mutex_init(&stats_bitmap->mutex);
+	bitmap_zero(stats_bitmap->bitmap, NUM_ALL_STATS);
 
 	if (mlx4_is_slave(dev)) {
-		bitmap_set(stats_bitmap, last_i +
+		bitmap_set(stats_bitmap->bitmap, last_i +
 					 MLX4_FIND_NETDEV_STAT(rx_packets), 1);
-		bitmap_set(stats_bitmap, last_i +
+		bitmap_set(stats_bitmap->bitmap, last_i +
 					 MLX4_FIND_NETDEV_STAT(tx_packets), 1);
-		bitmap_set(stats_bitmap, last_i +
+		bitmap_set(stats_bitmap->bitmap, last_i +
 					 MLX4_FIND_NETDEV_STAT(rx_bytes), 1);
-		bitmap_set(stats_bitmap, last_i +
+		bitmap_set(stats_bitmap->bitmap, last_i +
 					 MLX4_FIND_NETDEV_STAT(tx_bytes), 1);
-		bitmap_set(stats_bitmap, last_i +
+		bitmap_set(stats_bitmap->bitmap, last_i +
 					 MLX4_FIND_NETDEV_STAT(rx_dropped), 1);
-		bitmap_set(stats_bitmap, last_i +
+		bitmap_set(stats_bitmap->bitmap, last_i +
 					 MLX4_FIND_NETDEV_STAT(tx_dropped), 1);
 	} else {
-		bitmap_set(stats_bitmap, last_i, NUM_MAIN_STATS);
+		bitmap_set(stats_bitmap->bitmap, last_i, NUM_MAIN_STATS);
 	}
 	last_i += NUM_MAIN_STATS;
 
-	bitmap_set(stats_bitmap, last_i, NUM_PORT_STATS);
+	bitmap_set(stats_bitmap->bitmap, last_i, NUM_PORT_STATS);
 	last_i += NUM_PORT_STATS;
 
 	if (!mlx4_is_slave(dev))
-		bitmap_set(stats_bitmap, last_i, NUM_PKT_STATS);
+		bitmap_set(stats_bitmap->bitmap, last_i, NUM_PKT_STATS);
 }
 
 int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
@@ -2913,7 +2914,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 		queue_delayed_work(mdev->workqueue, &priv->service_task,
 				   SERVICE_TASK_DELAY);
 
-	mlx4_en_set_stats_bitmap(mdev->dev, priv->stats_bitmap);
+	mlx4_en_set_stats_bitmap(mdev->dev, &priv->stats_bitmap);
 
 	return 0;
 
