@@ -84,87 +84,6 @@ static int comp_data_refs(struct btrfs_delayed_data_ref *ref2,
 	return 0;
 }
 
-/*
- * entries in the rb tree are ordered by the byte number of the extent,
- * type of the delayed backrefs and content of delayed backrefs.
- */
-static int comp_entry(struct btrfs_delayed_ref_node *ref2,
-		      struct btrfs_delayed_ref_node *ref1,
-		      bool compare_seq)
-{
-	if (ref1->bytenr < ref2->bytenr)
-		return -1;
-	if (ref1->bytenr > ref2->bytenr)
-		return 1;
-	if (ref1->is_head && ref2->is_head)
-		return 0;
-	if (ref2->is_head)
-		return -1;
-	if (ref1->is_head)
-		return 1;
-	if (ref1->type < ref2->type)
-		return -1;
-	if (ref1->type > ref2->type)
-		return 1;
-	if (ref1->no_quota > ref2->no_quota)
-		return 1;
-	if (ref1->no_quota < ref2->no_quota)
-		return -1;
-	/* merging of sequenced refs is not allowed */
-	if (compare_seq) {
-		if (ref1->seq < ref2->seq)
-			return -1;
-		if (ref1->seq > ref2->seq)
-			return 1;
-	}
-	if (ref1->type == BTRFS_TREE_BLOCK_REF_KEY ||
-	    ref1->type == BTRFS_SHARED_BLOCK_REF_KEY) {
-		return comp_tree_refs(btrfs_delayed_node_to_tree_ref(ref2),
-				      btrfs_delayed_node_to_tree_ref(ref1),
-				      ref1->type);
-	} else if (ref1->type == BTRFS_EXTENT_DATA_REF_KEY ||
-		   ref1->type == BTRFS_SHARED_DATA_REF_KEY) {
-		return comp_data_refs(btrfs_delayed_node_to_data_ref(ref2),
-				      btrfs_delayed_node_to_data_ref(ref1));
-	}
-	BUG();
-	return 0;
-}
-
-/*
- * insert a new ref into the rbtree.  This returns any existing refs
- * for the same (bytenr,parent) tuple, or NULL if the new node was properly
- * inserted.
- */
-static struct btrfs_delayed_ref_node *tree_insert(struct rb_root *root,
-						  struct rb_node *node)
-{
-	struct rb_node **p = &root->rb_node;
-	struct rb_node *parent_node = NULL;
-	struct btrfs_delayed_ref_node *entry;
-	struct btrfs_delayed_ref_node *ins;
-	int cmp;
-
-	ins = rb_entry(node, struct btrfs_delayed_ref_node, rb_node);
-	while (*p) {
-		parent_node = *p;
-		entry = rb_entry(parent_node, struct btrfs_delayed_ref_node,
-				 rb_node);
-
-		cmp = comp_entry(entry, ins, 1);
-		if (cmp < 0)
-			p = &(*p)->rb_left;
-		else if (cmp > 0)
-			p = &(*p)->rb_right;
-		else
-			return entry;
-	}
-
-	rb_link_node(node, parent_node, p);
-	rb_insert_color(node, root);
-	return NULL;
-}
-
 /* insert a new ref to head ref rbtree */
 static struct btrfs_delayed_ref_head *htree_insert(struct rb_root *root,
 						   struct rb_node *node)
@@ -277,57 +196,6 @@ static inline void drop_delayed_ref(struct btrfs_trans_handle *trans,
 		trans->delayed_ref_updates--;
 }
 
-static int merge_ref(struct btrfs_trans_handle *trans,
-		     struct btrfs_delayed_ref_root *delayed_refs,
-		     struct btrfs_delayed_ref_head *head,
-		     struct btrfs_delayed_ref_node *ref, u64 seq)
-{
-	struct rb_node *node;
-	int mod = 0;
-	int done = 0;
-
-	node = rb_next(&ref->rb_node);
-	while (!done && node) {
-		struct btrfs_delayed_ref_node *next;
-
-		next = rb_entry(node, struct btrfs_delayed_ref_node, rb_node);
-		node = rb_next(node);
-		if (seq && next->seq >= seq)
-			break;
-		if (comp_entry(ref, next, 0))
-			continue;
-
-		if (ref->action == next->action) {
-			mod = next->ref_mod;
-		} else {
-			if (ref->ref_mod < next->ref_mod) {
-				struct btrfs_delayed_ref_node *tmp;
-
-				tmp = ref;
-				ref = next;
-				next = tmp;
-				done = 1;
-			}
-			mod = -next->ref_mod;
-		}
-
-		drop_delayed_ref(trans, delayed_refs, head, next);
-		ref->ref_mod += mod;
-		if (ref->ref_mod == 0) {
-			drop_delayed_ref(trans, delayed_refs, head, ref);
-			done = 1;
-		} else {
-			/*
-			 * You can't have multiples of the same ref on a tree
-			 * block.
-			 */
-			WARN_ON(ref->type == BTRFS_TREE_BLOCK_REF_KEY ||
-				ref->type == BTRFS_SHARED_BLOCK_REF_KEY);
-		}
-	}
-	return done;
-}
-
 int btrfs_check_delayed_seq(struct btrfs_fs_info *fs_info,
 			    struct btrfs_delayed_ref_root *delayed_refs,
 			    u64 seq)
@@ -398,48 +266,6 @@ again:
 	delayed_refs->run_delayed_start = head->node.bytenr +
 		head->node.num_bytes;
 	return head;
-}
-
-/*
- * helper function to update an extent delayed ref in the
- * rbtree.  existing and update must both have the same
- * bytenr and parent
- *
- * This may free existing if the update cancels out whatever
- * operation it was doing.
- */
-static noinline void
-update_existing_ref(struct btrfs_trans_handle *trans,
-		    struct btrfs_delayed_ref_root *delayed_refs,
-		    struct btrfs_delayed_ref_head *head,
-		    struct btrfs_delayed_ref_node *existing,
-		    struct btrfs_delayed_ref_node *update)
-{
-	if (update->action != existing->action) {
-		/*
-		 * this is effectively undoing either an add or a
-		 * drop.  We decrement the ref_mod, and if it goes
-		 * down to zero we just delete the entry without
-		 * every changing the extent allocation tree.
-		 */
-		existing->ref_mod--;
-		if (existing->ref_mod == 0)
-			drop_delayed_ref(trans, delayed_refs, head, existing);
-		else
-			WARN_ON(existing->type == BTRFS_TREE_BLOCK_REF_KEY ||
-				existing->type == BTRFS_SHARED_BLOCK_REF_KEY);
-	} else {
-		WARN_ON(existing->type == BTRFS_TREE_BLOCK_REF_KEY ||
-			existing->type == BTRFS_SHARED_BLOCK_REF_KEY);
-		/*
-		 * the action on the existing ref matches
-		 * the action on the ref we're trying to add.
-		 * Bump the ref_mod by one so the backref that
-		 * is eventually added/removed has the correct
-		 * reference count
-		 */
-		existing->ref_mod += update->ref_mod;
-	}
 }
 
 /*
