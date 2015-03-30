@@ -51,7 +51,7 @@
 				screen-type = <SCREEN_MIPI>;
 				lvds-format = <LVDS_8BIT_2>;
 				out-face    = <OUT_P888>;
-				clock-frequency = <120000000>;
+				clock-frequency = <145000000>;
 				hactive = <1920>;
 				vactive = <1200>;
 				hback-porch = <16>;
