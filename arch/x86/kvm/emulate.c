@@ -5126,8 +5126,7 @@ twobyte_insn:
 	case 0x40 ... 0x4f:	/* cmov */
 		if (test_cc(ctxt->b, ctxt->eflags))
 			ctxt->dst.val = ctxt->src.val;
-		else if (ctxt->mode != X86EMUL_MODE_PROT64 ||
-			 ctxt->op_bytes != 4)
+		else if (ctxt->op_bytes != 4)
 			ctxt->dst.type = OP_NONE; /* no writeback */
 		break;
 	case 0x80 ... 0x8f: /* jnz rel, etc*/
