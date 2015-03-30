@@ -4062,6 +4062,7 @@ static int btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
 
 	while ((node = rb_first(&delayed_refs->href_root)) != NULL) {
 		struct btrfs_delayed_ref_head *head;
+		struct btrfs_delayed_ref_node *tmp;
 		bool pin_bytes = false;
 
 		head = rb_entry(node, struct btrfs_delayed_ref_head,
@@ -4077,11 +4078,10 @@ static int btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
 			continue;
 		}
 		spin_lock(&head->lock);
-		while ((node = rb_first(&head->ref_root)) != NULL) {
-			ref = rb_entry(node, struct btrfs_delayed_ref_node,
-				       rb_node);
+		list_for_each_entry_safe_reverse(ref, tmp, &head->ref_list,
+						 list) {
 			ref->in_tree = 0;
-			rb_erase(&ref->rb_node, &head->ref_root);
+			list_del(&ref->list);
 			atomic_dec(&delayed_refs->num_entries);
 			btrfs_put_delayed_ref(ref);
 		}

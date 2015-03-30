@@ -24,8 +24,24 @@
 #define BTRFS_ADD_DELAYED_EXTENT 3 /* record a full extent allocation */
 #define BTRFS_UPDATE_DELAYED_HEAD 4 /* not changing ref count on head ref */
 
+/*
+ * XXX: Qu: I really hate the design that ref_head and tree/data ref shares the
+ * same ref_node structure.
+ * Ref_head is in a higher logic level than tree/data ref, and duplicated
+ * bytenr/num_bytes in ref_node is really a waste or memory, they should be
+ * referred from ref_head.
+ * This gets more disgusting after we use list to store tree/data ref in
+ * ref_head. Must clean this mess up later.
+ */
 struct btrfs_delayed_ref_node {
+	/*
+	 * ref_head use rb tree, stored in ref_root->href.
+	 * indexed by bytenr
+	 */
 	struct rb_node rb_node;
+
+	/*data/tree ref use list, stored in ref_head->ref_list. */
+	struct list_head list;
 
 	/* the starting bytenr of the extent */
 	u64 bytenr;
@@ -83,7 +99,7 @@ struct btrfs_delayed_ref_head {
 	struct mutex mutex;
 
 	spinlock_t lock;
-	struct rb_root ref_root;
+	struct list_head ref_list;
 
 	struct rb_node href_node;
 

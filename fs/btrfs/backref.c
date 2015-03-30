@@ -574,8 +574,8 @@ static int __add_delayed_refs(struct btrfs_delayed_ref_head *head, u64 seq,
 			      struct list_head *prefs, u64 *total_refs,
 			      u64 inum)
 {
+	struct btrfs_delayed_ref_node *node;
 	struct btrfs_delayed_extent_op *extent_op = head->extent_op;
-	struct rb_node *n = &head->node.rb_node;
 	struct btrfs_key key;
 	struct btrfs_key op_key = {0};
 	int sgn;
@@ -585,12 +585,7 @@ static int __add_delayed_refs(struct btrfs_delayed_ref_head *head, u64 seq,
 		btrfs_disk_key_to_cpu(&op_key, &extent_op->key);
 
 	spin_lock(&head->lock);
-	n = rb_first(&head->ref_root);
-	while (n) {
-		struct btrfs_delayed_ref_node *node;
-		node = rb_entry(n, struct btrfs_delayed_ref_node,
-				rb_node);
-		n = rb_next(n);
+	list_for_each_entry(node, &head->ref_list, list) {
 		if (node->seq > seq)
 			continue;
 

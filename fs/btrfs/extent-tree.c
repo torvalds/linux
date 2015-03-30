@@ -2323,28 +2323,14 @@ static int run_one_delayed_ref(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-static noinline struct btrfs_delayed_ref_node *
+static inline struct btrfs_delayed_ref_node *
 select_delayed_ref(struct btrfs_delayed_ref_head *head)
 {
-	struct rb_node *node;
-	struct btrfs_delayed_ref_node *ref, *last = NULL;;
+	if (list_empty(&head->ref_list))
+		return NULL;
 
-	/*
-	 * select delayed ref of type BTRFS_ADD_DELAYED_REF first.
-	 * this prevents ref count from going down to zero when
-	 * there still are pending delayed ref.
-	 */
-	node = rb_first(&head->ref_root);
-	while (node) {
-		ref = rb_entry(node, struct btrfs_delayed_ref_node,
-				rb_node);
-		if (ref->action == BTRFS_ADD_DELAYED_REF)
-			return ref;
-		else if (last == NULL)
-			last = ref;
-		node = rb_next(node);
-	}
-	return last;
+	return list_entry(head->ref_list.next, struct btrfs_delayed_ref_node,
+			  list);
 }
 
 /*
@@ -2396,16 +2382,7 @@ static noinline int __btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 			}
 		}
 
-		/*
-		 * We need to try and merge add/drops of the same ref since we
-		 * can run into issues with relocate dropping the implicit ref
-		 * and then it being added back again before the drop can
-		 * finish.  If we merged anything we need to re-loop so we can
-		 * get a good ref.
-		 */
 		spin_lock(&locked_ref->lock);
-		btrfs_merge_delayed_refs(trans, fs_info, delayed_refs,
-					 locked_ref);
 
 		/*
 		 * locked_ref is the head node, so we have to go one
@@ -2482,7 +2459,7 @@ static noinline int __btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 			spin_unlock(&locked_ref->lock);
 			spin_lock(&delayed_refs->lock);
 			spin_lock(&locked_ref->lock);
-			if (rb_first(&locked_ref->ref_root) ||
+			if (!list_empty(&locked_ref->ref_list) ||
 			    locked_ref->extent_op) {
 				spin_unlock(&locked_ref->lock);
 				spin_unlock(&delayed_refs->lock);
@@ -2496,7 +2473,7 @@ static noinline int __btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 		} else {
 			actual_count++;
 			ref->in_tree = 0;
-			rb_erase(&ref->rb_node, &locked_ref->ref_root);
+			list_del(&ref->list);
 		}
 		atomic_dec(&delayed_refs->num_entries);
 
@@ -2905,7 +2882,6 @@ static noinline int check_delayed_ref(struct btrfs_trans_handle *trans,
 	struct btrfs_delayed_ref_node *ref;
 	struct btrfs_delayed_data_ref *data_ref;
 	struct btrfs_delayed_ref_root *delayed_refs;
-	struct rb_node *node;
 	int ret = 0;
 
 	delayed_refs = &trans->transaction->delayed_refs;
@@ -2934,11 +2910,7 @@ static noinline int check_delayed_ref(struct btrfs_trans_handle *trans,
 	spin_unlock(&delayed_refs->lock);
 
 	spin_lock(&head->lock);
-	node = rb_first(&head->ref_root);
-	while (node) {
-		ref = rb_entry(node, struct btrfs_delayed_ref_node, rb_node);
-		node = rb_next(node);
-
+	list_for_each_entry(ref, &head->ref_list, list) {
 		/* If it's a shared ref we know a cross reference exists */
 		if (ref->type != BTRFS_EXTENT_DATA_REF_KEY) {
 			ret = 1;
@@ -6448,7 +6420,7 @@ static noinline int check_ref_cleanup(struct btrfs_trans_handle *trans,
 		goto out_delayed_unlock;
 
 	spin_lock(&head->lock);
-	if (rb_first(&head->ref_root))
+	if (!list_empty(&head->ref_list))
 		goto out;
 
 	if (head->extent_op) {
