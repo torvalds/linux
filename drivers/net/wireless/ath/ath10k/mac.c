@@ -177,6 +177,7 @@ static int ath10k_install_key(struct ath10k_vif *arvif,
 {
 	struct ath10k *ar = arvif->ar;
 	int ret;
+	unsigned long time_left;
 
 	lockdep_assert_held(&ar->conf_mutex);
 
@@ -186,8 +187,8 @@ static int ath10k_install_key(struct ath10k_vif *arvif,
 	if (ret)
 		return ret;
 
-	ret = wait_for_completion_timeout(&ar->install_key_done, 3*HZ);
-	if (ret == 0)
+	time_left = wait_for_completion_timeout(&ar->install_key_done, 3 * HZ);
+	if (time_left == 0)
 		return -ETIMEDOUT;
 
 	return 0;
@@ -747,16 +748,16 @@ static void ath10k_mac_vif_beacon_cleanup(struct ath10k_vif *arvif)
 
 static inline int ath10k_vdev_setup_sync(struct ath10k *ar)
 {
-	int ret;
+	unsigned long time_left;
 
 	lockdep_assert_held(&ar->conf_mutex);
 
 	if (test_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags))
 		return -ESHUTDOWN;
 
-	ret = wait_for_completion_timeout(&ar->vdev_setup_done,
-					  ATH10K_VDEV_SETUP_TIMEOUT_HZ);
-	if (ret == 0)
+	time_left = wait_for_completion_timeout(&ar->vdev_setup_done,
+						ATH10K_VDEV_SETUP_TIMEOUT_HZ);
+	if (time_left == 0)
 		return -ETIMEDOUT;
 
 	return 0;
@@ -2863,6 +2864,7 @@ void ath10k_offchan_tx_work(struct work_struct *work)
 	const u8 *peer_addr;
 	int vdev_id;
 	int ret;
+	unsigned long time_left;
 
 	/* FW requirement: We must create a peer before FW will send out
 	 * an offchannel frame. Otherwise the frame will be stuck and
@@ -2909,9 +2911,9 @@ void ath10k_offchan_tx_work(struct work_struct *work)
 
 		ath10k_mac_tx(ar, skb);
 
-		ret = wait_for_completion_timeout(&ar->offchan_tx_completed,
-						  3 * HZ);
-		if (ret == 0)
+		time_left =
+		wait_for_completion_timeout(&ar->offchan_tx_completed, 3 * HZ);
+		if (time_left == 0)
 			ath10k_warn(ar, "timed out waiting for offchannel skb %p\n",
 				    skb);
 
