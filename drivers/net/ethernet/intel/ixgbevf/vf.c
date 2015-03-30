@@ -257,6 +257,75 @@ static s32 ixgbevf_set_uc_addr_vf(struct ixgbe_hw *hw, u32 index, u8 *addr)
 }
 
 /**
+ * ixgbevf_get_reta_locked - get the RSS redirection table (RETA) contents.
+ * @adapter: pointer to the port handle
+ * @reta: buffer to fill with RETA contents.
+ * @num_rx_queues: Number of Rx queues configured for this port
+ *
+ * The "reta" buffer should be big enough to contain 32 registers.
+ *
+ * Returns: 0 on success.
+ *          if API doesn't support this operation - (-EOPNOTSUPP).
+ */
+int ixgbevf_get_reta_locked(struct ixgbe_hw *hw, u32 *reta, int num_rx_queues)
+{
+	int err, i, j;
+	u32 msgbuf[IXGBE_VFMAILBOX_SIZE];
+	u32 *hw_reta = &msgbuf[1];
+	u32 mask = 0;
+
+	/* We have to use a mailbox for 82599 and x540 devices only.
+	 * For these devices RETA has 128 entries.
+	 * Also these VFs support up to 4 RSS queues. Therefore PF will compress
+	 * 16 RETA entries in each DWORD giving 2 bits to each entry.
+	 */
+	int dwords = IXGBEVF_82599_RETA_SIZE / 16;
+
+	/* We support the RSS querying for 82599 and x540 devices only.
+	 * Thus return an error if API doesn't support RETA querying or querying
+	 * is not supported for this device type.
+	 */
+	if (hw->api_version != ixgbe_mbox_api_12 ||
+	    hw->mac.type >= ixgbe_mac_X550_vf)
+		return -EOPNOTSUPP;
+
+	msgbuf[0] = IXGBE_VF_GET_RETA;
+
+	err = hw->mbx.ops.write_posted(hw, msgbuf, 1);
+
+	if (err)
+		return err;
+
+	err = hw->mbx.ops.read_posted(hw, msgbuf, dwords + 1);
+
+	if (err)
+		return err;
+
+	msgbuf[0] &= ~IXGBE_VT_MSGTYPE_CTS;
+
+	/* If the operation has been refused by a PF return -EPERM */
+	if (msgbuf[0] == (IXGBE_VF_GET_RETA | IXGBE_VT_MSGTYPE_NACK))
+		return -EPERM;
+
+	/* If we didn't get an ACK there must have been
+	 * some sort of mailbox error so we should treat it
+	 * as such.
+	 */
+	if (msgbuf[0] != (IXGBE_VF_GET_RETA | IXGBE_VT_MSGTYPE_ACK))
+		return IXGBE_ERR_MBX;
+
+	/* ixgbevf doesn't support more than 2 queues at the moment */
+	if (num_rx_queues > 1)
+		mask = 0x1;
+
+	for (i = 0; i < dwords; i++)
+		for (j = 0; j < 16; j++)
+			reta[i * 16 + j] = (hw_reta[i] >> (2 * j)) & mask;
+
+	return 0;
+}
+
+/**
  *  ixgbevf_set_rar_vf - set device MAC address
  *  @hw: pointer to hardware structure
  *  @index: Receive address register to write
@@ -545,6 +614,7 @@ int ixgbevf_get_queues(struct ixgbe_hw *hw, unsigned int *num_tcs,
 	/* do nothing if API doesn't support ixgbevf_get_queues */
 	switch (hw->api_version) {
 	case ixgbe_mbox_api_11:
+	case ixgbe_mbox_api_12:
 		break;
 	default:
 		return 0;
