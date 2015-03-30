@@ -75,7 +75,7 @@ void dgnc_create_driver_sysfiles(struct pci_driver *dgnc_driver)
 	rc |= driver_create_file(driverfs, &driver_attr_maxboards);
 	rc |= driver_create_file(driverfs, &driver_attr_pollrate);
 	if (rc)
-		printk(KERN_ERR "DGNC: sysfs driver_create_file failed!\n");
+		pr_err("DGNC: sysfs driver_create_file failed!\n");
 }
 
 
