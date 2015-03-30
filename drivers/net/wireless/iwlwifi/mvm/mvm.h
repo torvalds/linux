@@ -748,6 +748,7 @@ struct iwl_mvm {
 	void *d3_resume_sram;
 	u32 d3_test_pme_ptr;
 	struct ieee80211_vif *keep_vif;
+	u32 last_netdetect_scans; /* no. of scans in the last net-detect wake */
 #endif
 #endif
 

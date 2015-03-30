@@ -1726,6 +1726,10 @@ iwl_mvm_netdetect_query_results(struct iwl_mvm *mvm,
 	results->matched_profiles = le32_to_cpu(query->matched_profiles);
 	memcpy(results->matches, query->matches, sizeof(results->matches));
 
+#ifdef CPTCFG_IWLWIFI_DEBUGFS
+	mvm->last_netdetect_scans = le32_to_cpu(query->n_scans_done);
+#endif
+
 out_free_resp:
 	iwl_free_resp(&cmd);
 	return ret;
