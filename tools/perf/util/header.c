@@ -1098,6 +1098,9 @@ static void print_event_desc(struct perf_header *ph, int fd, FILE *fp)
 			}
 			fprintf(fp, " }");
 		}
+		if (evsel->attr.use_clockid)
+			fprintf(fp, ", clockid = %d", evsel->attr.clockid);
+
 
 		fputc('\n', fp);
 	}

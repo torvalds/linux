@@ -32,7 +32,11 @@ static struct {
 	bool exclude_guest;
 	bool mmap2;
 	bool cloexec;
+	bool clockid;
+	bool clockid_wrong;
 } perf_missing_features;
+
+static clockid_t clockid;
 
 static int perf_evsel__no_extra_init(struct perf_evsel *evsel __maybe_unused)
 {
@@ -761,6 +765,12 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts)
 		attr->disabled = 0;
 		attr->enable_on_exec = 0;
 	}
+
+	clockid = opts->clockid;
+	if (opts->use_clockid) {
+		attr->use_clockid = 1;
+		attr->clockid = opts->clockid;
+	}
 }
 
 static int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
@@ -1036,7 +1046,6 @@ static size_t perf_event_attr__fprintf(struct perf_event_attr *attr, FILE *fp)
 	ret += PRINT_ATTR2(exclude_user, exclude_kernel);
 	ret += PRINT_ATTR2(exclude_hv, exclude_idle);
 	ret += PRINT_ATTR2(mmap, comm);
-	ret += PRINT_ATTR2(mmap2, comm_exec);
 	ret += PRINT_ATTR2(freq, inherit_stat);
 	ret += PRINT_ATTR2(enable_on_exec, task);
 	ret += PRINT_ATTR2(watermark, precise_ip);
@@ -1044,6 +1053,9 @@ static size_t perf_event_attr__fprintf(struct perf_event_attr *attr, FILE *fp)
 	ret += PRINT_ATTR2(exclude_host, exclude_guest);
 	ret += PRINT_ATTR2N("excl.callchain_kern", exclude_callchain_kernel,
 			    "excl.callchain_user", exclude_callchain_user);
+	ret += PRINT_ATTR2(mmap2, comm_exec);
+	ret += __PRINT_ATTR("%u",,use_clockid);
+
 
 	ret += PRINT_ATTR_U32(wakeup_events);
 	ret += PRINT_ATTR_U32(wakeup_watermark);
@@ -1055,6 +1067,7 @@ static size_t perf_event_attr__fprintf(struct perf_event_attr *attr, FILE *fp)
 	ret += PRINT_ATTR_X64(branch_sample_type);
 	ret += PRINT_ATTR_X64(sample_regs_user);
 	ret += PRINT_ATTR_U32(sample_stack_user);
+	ret += PRINT_ATTR_U32(clockid);
 	ret += PRINT_ATTR_X64(sample_regs_intr);
 
 	ret += fprintf(fp, "%.60s\n", graph_dotted_line);
@@ -1085,6 +1098,12 @@ static int __perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
 	}
 
 fallback_missing_features:
+	if (perf_missing_features.clockid_wrong)
+		evsel->attr.clockid = CLOCK_MONOTONIC; /* should always work */
+	if (perf_missing_features.clockid) {
+		evsel->attr.use_clockid = 0;
+		evsel->attr.clockid = 0;
+	}
 	if (perf_missing_features.cloexec)
 		flags &= ~(unsigned long)PERF_FLAG_FD_CLOEXEC;
 	if (perf_missing_features.mmap2)
@@ -1122,6 +1141,17 @@ retry_open:
 				goto try_fallback;
 			}
 			set_rlimit = NO_CHANGE;
+
+			/*
+			 * If we succeeded but had to kill clockid, fail and
+			 * have perf_evsel__open_strerror() print us a nice
+			 * error.
+			 */
+			if (perf_missing_features.clockid ||
+			    perf_missing_features.clockid_wrong) {
+				err = -EINVAL;
+				goto out_close;
+			}
 		}
 	}
 
@@ -1155,7 +1185,17 @@ try_fallback:
 	if (err != -EINVAL || cpu > 0 || thread > 0)
 		goto out_close;
 
-	if (!perf_missing_features.cloexec && (flags & PERF_FLAG_FD_CLOEXEC)) {
+	/*
+	 * Must probe features in the order they were added to the
+	 * perf_event_attr interface.
+	 */
+	if (!perf_missing_features.clockid_wrong && evsel->attr.use_clockid) {
+		perf_missing_features.clockid_wrong = true;
+		goto fallback_missing_features;
+	} else if (!perf_missing_features.clockid && evsel->attr.use_clockid) {
+		perf_missing_features.clockid = true;
+		goto fallback_missing_features;
+	} else if (!perf_missing_features.cloexec && (flags & PERF_FLAG_FD_CLOEXEC)) {
 		perf_missing_features.cloexec = true;
 		goto fallback_missing_features;
 	} else if (!perf_missing_features.mmap2 && evsel->attr.mmap2) {
@@ -2063,9 +2103,7 @@ int perf_evsel__fprintf(struct perf_evsel *evsel,
 		if_print(exclude_hv);
 		if_print(exclude_idle);
 		if_print(mmap);
-		if_print(mmap2);
 		if_print(comm);
-		if_print(comm_exec);
 		if_print(freq);
 		if_print(inherit_stat);
 		if_print(enable_on_exec);
@@ -2076,10 +2114,17 @@ int perf_evsel__fprintf(struct perf_evsel *evsel,
 		if_print(sample_id_all);
 		if_print(exclude_host);
 		if_print(exclude_guest);
+		if_print(mmap2);
+		if_print(comm_exec);
+		if_print(use_clockid);
 		if_print(__reserved_1);
 		if_print(wakeup_events);
 		if_print(bp_type);
 		if_print(branch_sample_type);
+		if_print(sample_regs_user);
+		if_print(sample_stack_user);
+		if_print(clockid);
+		if_print(sample_regs_intr);
 	}
 out:
 	fputc('\n', fp);
@@ -2157,6 +2202,12 @@ int perf_evsel__open_strerror(struct perf_evsel *evsel, struct target *target,
 			return scnprintf(msg, size,
 	"The PMU counters are busy/taken by another profiler.\n"
 	"We found oprofile daemon running, please stop it and try again.");
+		break;
+	case EINVAL:
+		if (perf_missing_features.clockid)
+			return scnprintf(msg, size, "clockid feature not supported.");
+		if (perf_missing_features.clockid_wrong)
+			return scnprintf(msg, size, "wrong clockid (%d).", clockid);
 		break;
 	default:
 		break;
