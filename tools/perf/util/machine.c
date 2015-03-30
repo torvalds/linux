@@ -1408,29 +1408,27 @@ struct mem_info *sample__resolve_mem(struct perf_sample *sample,
 static int add_callchain_ip(struct thread *thread,
 			    struct symbol **parent,
 			    struct addr_location *root_al,
-			    bool branch_history,
+			    u8 *cpumode,
 			    u64 ip)
 {
 	struct addr_location al;
 
 	al.filtered = 0;
 	al.sym = NULL;
-	if (branch_history)
+	if (!cpumode) {
 		thread__find_cpumode_addr_location(thread, MAP__FUNCTION,
 						   ip, &al);
-	else {
-		u8 cpumode = PERF_RECORD_MISC_USER;
-
+	} else {
 		if (ip >= PERF_CONTEXT_MAX) {
 			switch (ip) {
 			case PERF_CONTEXT_HV:
-				cpumode = PERF_RECORD_MISC_HYPERVISOR;
+				*cpumode = PERF_RECORD_MISC_HYPERVISOR;
 				break;
 			case PERF_CONTEXT_KERNEL:
-				cpumode = PERF_RECORD_MISC_KERNEL;
+				*cpumode = PERF_RECORD_MISC_KERNEL;
 				break;
 			case PERF_CONTEXT_USER:
-				cpumode = PERF_RECORD_MISC_USER;
+				*cpumode = PERF_RECORD_MISC_USER;
 				break;
 			default:
 				pr_debug("invalid callchain context: "
@@ -1444,8 +1442,8 @@ static int add_callchain_ip(struct thread *thread,
 			}
 			return 0;
 		}
-		thread__find_addr_location(thread, cpumode, MAP__FUNCTION,
-				   ip, &al);
+		thread__find_addr_location(thread, *cpumode, MAP__FUNCTION,
+					   ip, &al);
 	}
 
 	if (al.sym != NULL) {
@@ -1538,6 +1536,7 @@ static int resolve_lbr_callchain_sample(struct thread *thread,
 {
 	struct ip_callchain *chain = sample->callchain;
 	int chain_nr = min(max_stack, (int)chain->nr);
+	u8 cpumode = PERF_RECORD_MISC_USER;
 	int i, j, err;
 	u64 ip;
 
@@ -1584,7 +1583,7 @@ static int resolve_lbr_callchain_sample(struct thread *thread,
 					ip = lbr_stack->entries[0].to;
 			}
 
-			err = add_callchain_ip(thread, parent, root_al, false, ip);
+			err = add_callchain_ip(thread, parent, root_al, &cpumode, ip);
 			if (err)
 				return (err < 0) ? err : 0;
 		}
@@ -1604,6 +1603,7 @@ static int thread__resolve_callchain_sample(struct thread *thread,
 	struct branch_stack *branch = sample->branch_stack;
 	struct ip_callchain *chain = sample->callchain;
 	int chain_nr = min(max_stack, (int)chain->nr);
+	u8 cpumode = PERF_RECORD_MISC_USER;
 	int i, j, err;
 	int skip_idx = -1;
 	int first_call = 0;
@@ -1669,10 +1669,10 @@ static int thread__resolve_callchain_sample(struct thread *thread,
 
 		for (i = 0; i < nr; i++) {
 			err = add_callchain_ip(thread, parent, root_al,
-					       true, be[i].to);
+					       NULL, be[i].to);
 			if (!err)
 				err = add_callchain_ip(thread, parent, root_al,
-						       true, be[i].from);
+						       NULL, be[i].from);
 			if (err == -EINVAL)
 				break;
 			if (err)
@@ -1701,7 +1701,7 @@ check_calls:
 #endif
 		ip = chain->ips[j];
 
-		err = add_callchain_ip(thread, parent, root_al, false, ip);
+		err = add_callchain_ip(thread, parent, root_al, &cpumode, ip);
 
 		if (err)
 			return (err < 0) ? err : 0;
