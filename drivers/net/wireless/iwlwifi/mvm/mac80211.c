@@ -3080,6 +3080,8 @@ static int iwl_mvm_roc(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211(mvm, "enter (%d, %d, %d)\n", channel->hw_value,
 			   duration, type);
 
+	flush_work(&mvm->roc_done_wk);
+
 	mutex_lock(&mvm->mutex);
 
 	switch (vif->type) {
