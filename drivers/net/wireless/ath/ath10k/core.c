@@ -1194,6 +1194,7 @@ EXPORT_SYMBOL(ath10k_core_start);
 int ath10k_wait_for_suspend(struct ath10k *ar, u32 suspend_opt)
 {
 	int ret;
+	unsigned long time_left;
 
 	reinit_completion(&ar->target_suspend);
 
@@ -1203,9 +1204,9 @@ int ath10k_wait_for_suspend(struct ath10k *ar, u32 suspend_opt)
 		return ret;
 	}
 
-	ret = wait_for_completion_timeout(&ar->target_suspend, 1 * HZ);
+	time_left = wait_for_completion_timeout(&ar->target_suspend, 1 * HZ);
 
-	if (ret == 0) {
+	if (!time_left) {
 		ath10k_warn(ar, "suspend timed out - target pause event never came\n");
 		return -ETIMEDOUT;
 	}
