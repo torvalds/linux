@@ -106,9 +106,18 @@ static int __ixgbe_enable_sriov(struct ixgbe_adapter *adapter)
 		adapter->flags2 &= ~(IXGBE_FLAG2_RSC_CAPABLE |
 				     IXGBE_FLAG2_RSC_ENABLED);
 
-		/* enable spoof checking for all VFs */
-		for (i = 0; i < adapter->num_vfs; i++)
+		for (i = 0; i < adapter->num_vfs; i++) {
+			/* enable spoof checking for all VFs */
 			adapter->vfinfo[i].spoofchk_enabled = true;
+
+			/* We support VF RSS querying only for 82599 and x540
+			 * devices at the moment. These devices share RSS
+			 * indirection table and RSS hash key with PF therefore
+			 * we want to disable the querying by default.
+			 */
+			adapter->vfinfo[i].rss_query_enabled = 0;
+		}
+
 		return 0;
 	}
 
@@ -1331,6 +1340,26 @@ int ixgbe_ndo_set_vf_spoofchk(struct net_device *netdev, int vf, bool setting)
 	return 0;
 }
 
+int ixgbe_ndo_set_vf_rss_query_en(struct net_device *netdev, int vf,
+				  bool setting)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+
+	/* This operation is currently supported only for 82599 and x540
+	 * devices.
+	 */
+	if (adapter->hw.mac.type < ixgbe_mac_82599EB ||
+	    adapter->hw.mac.type >= ixgbe_mac_X550)
+		return -EOPNOTSUPP;
+
+	if (vf >= adapter->num_vfs)
+		return -EINVAL;
+
+	adapter->vfinfo[vf].rss_query_enabled = setting;
+
+	return 0;
+}
+
 int ixgbe_ndo_get_vf_config(struct net_device *netdev,
 			    int vf, struct ifla_vf_info *ivi)
 {
@@ -1344,5 +1373,6 @@ int ixgbe_ndo_get_vf_config(struct net_device *netdev,
 	ivi->vlan = adapter->vfinfo[vf].pf_vlan;
 	ivi->qos = adapter->vfinfo[vf].pf_qos;
 	ivi->spoofchk = adapter->vfinfo[vf].spoofchk_enabled;
+	ivi->rss_query_en = adapter->vfinfo[vf].rss_query_enabled;
 	return 0;
 }

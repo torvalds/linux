@@ -151,6 +151,7 @@ struct vf_data_storage {
 	u16 tx_rate;
 	u16 vlan_count;
 	u8 spoofchk_enabled;
+	bool rss_query_enabled;
 	unsigned int vf_api;
 };
 
