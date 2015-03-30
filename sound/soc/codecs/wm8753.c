@@ -1447,19 +1447,12 @@ static struct snd_soc_dai_driver wm8753_dai[] = {
 },
 };
 
-static int wm8753_suspend(struct snd_soc_codec *codec)
-{
-	wm8753_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static int wm8753_resume(struct snd_soc_codec *codec)
 {
 	struct wm8753_priv *wm8753 = snd_soc_codec_get_drvdata(codec);
 
 	regcache_sync(wm8753->regmap);
 
-	wm8753_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	return 0;
 }
 
@@ -1476,7 +1469,6 @@ static int wm8753_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	wm8753_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	wm8753->dai_func = 0;
 
 	/* set the update bits */
@@ -1494,20 +1486,11 @@ static int wm8753_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-/* power down chip */
-static int wm8753_remove(struct snd_soc_codec *codec)
-{
-	wm8753_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
-
 static struct snd_soc_codec_driver soc_codec_dev_wm8753 = {
 	.probe =	wm8753_probe,
-	.remove =	wm8753_remove,
-	.suspend =	wm8753_suspend,
 	.resume =	wm8753_resume,
 	.set_bias_level = wm8753_set_bias_level,
+	.suspend_bias_off = true,
 
 	.controls = wm8753_snd_controls,
 	.num_controls = ARRAY_SIZE(wm8753_snd_controls),
