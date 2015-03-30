@@ -378,7 +378,9 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_sub_if_data *sdata,
 	sband = local->hw.wiphy->bands[band];
 	memcpy(&ht_cap, &sband->ht_cap, sizeof(ht_cap));
 
-	if (action_code == WLAN_TDLS_SETUP_REQUEST && ht_cap.ht_supported) {
+	if ((action_code == WLAN_TDLS_SETUP_REQUEST ||
+	     action_code == WLAN_PUB_ACTION_TDLS_DISCOVER_RES) &&
+	    ht_cap.ht_supported) {
 		ieee80211_apply_htcap_overrides(sdata, &ht_cap);
 
 		/* disable SMPS in TDLS initiator */
@@ -432,11 +434,14 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_sub_if_data *sdata,
 
 	/* build the VHT-cap similarly to the HT-cap */
 	memcpy(&vht_cap, &sband->vht_cap, sizeof(vht_cap));
-	if (action_code == WLAN_TDLS_SETUP_REQUEST && vht_cap.vht_supported) {
+	if ((action_code == WLAN_TDLS_SETUP_REQUEST ||
+	     action_code == WLAN_PUB_ACTION_TDLS_DISCOVER_RES) &&
+	    vht_cap.vht_supported) {
 		ieee80211_apply_vhtcap_overrides(sdata, &vht_cap);
 
 		/* the AID is present only when VHT is implemented */
-		ieee80211_tdls_add_aid(sdata, skb);
+		if (action_code == WLAN_TDLS_SETUP_REQUEST)
+			ieee80211_tdls_add_aid(sdata, skb);
 
 		pos = skb_put(skb, sizeof(struct ieee80211_vht_cap) + 2);
 		ieee80211_ie_build_vht_cap(pos, &vht_cap, vht_cap.cap);
