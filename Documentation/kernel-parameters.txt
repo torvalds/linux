@@ -943,6 +943,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			auto	selects the default scheme, which automatically
 				enables eagerfpu restore for xsaveopt.
 
+	module.async_probe [KNL]
+			Enable asynchronous probe on this module.
+
 	early_ioremap_debug [KNL]
 			Enable debug messages in early_ioremap support. This
 			is useful for tracking down temporary early mappings

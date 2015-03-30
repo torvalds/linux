@@ -201,10 +201,12 @@ extern struct klist *bus_get_device_klist(struct bus_type *bus);
  *	respective probe routines. This tells the core what to
  *	expect and prefer.
  *
- * @PROBE_SYNCHRONOUS: Default. Drivers expect their probe routines
+ * @PROBE_DEFAULT_STRATEGY: Drivers expect their probe routines
  *	to run synchronously with driver and device registration
  *	(with the exception of -EPROBE_DEFER handling - re-probing
- *	always ends up being done asynchronously).
+ *	always ends up being done asynchronously) unless user
+ *	explicitly requested asynchronous probing via module
+ *	parameter.
  * @PROBE_PREFER_ASYNCHRONOUS: Drivers for "slow" devices which
  *	probing order is not essential for booting the system may
  *	opt into executing their probes asynchronously.
@@ -216,7 +218,7 @@ extern struct klist *bus_get_device_klist(struct bus_type *bus);
  * drivers.
  */
 enum probe_type {
-	PROBE_SYNCHRONOUS,
+	PROBE_DEFAULT_STRATEGY,
 	PROBE_PREFER_ASYNCHRONOUS,
 };
 
