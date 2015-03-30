@@ -3237,7 +3237,7 @@ static void ixgbe_configure_srrctl(struct ixgbe_adapter *adapter,
  *  - X550(non-SRIOV mode): 512
  *  - X550(SRIOV mode):     64
  */
-static u32 ixgbe_rss_indir_tbl_entries(struct ixgbe_adapter *adapter)
+u32 ixgbe_rss_indir_tbl_entries(struct ixgbe_adapter *adapter)
 {
 	if (adapter->hw.mac.type < ixgbe_mac_X550)
 		return 128;
