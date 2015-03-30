@@ -492,7 +492,7 @@ static ssize_t show_fb_state(struct device *dev,
 	struct rk_lcdc_driver *dev_drv = fb_par->lcdc_drv;
 
 	int win_id = dev_drv->ops->fb_get_win_id(dev_drv, fbi->fix.id);
-	int state = dev_drv->ops->get_win_state(dev_drv, win_id);
+	int state = dev_drv->ops->get_win_state(dev_drv, win_id, 0);
 
 	return snprintf(buf, PAGE_SIZE, "%s\n", state ? "enabled" : "disabled");
 }

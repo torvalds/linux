@@ -1662,6 +1662,64 @@ static struct rk_fb_reg_win_data *rk_fb_get_win_data(struct rk_fb_reg_data
 	return win_data;
 }
 
+static int rk_fb_reg_effect(struct rk_lcdc_driver *dev_drv,
+			     struct rk_fb_reg_data *regs,
+			     int count)
+{
+	struct rk_fb *rk_fb = platform_get_drvdata(fb_pdev);
+	int i, j, wait_for_vsync = false;
+	unsigned int dsp_addr[5][4];
+	unsigned int area_support[5] = {1, 1, 1, 1, 1};
+	int win_status = 0;
+
+	if (dev_drv->ops->get_dsp_addr)
+		dev_drv->ops->get_dsp_addr(dev_drv, dsp_addr);
+
+	if (dev_drv->ops->area_support_num)
+		dev_drv->ops->area_support_num(dev_drv, area_support);
+
+	for (i = 0; i < dev_drv->lcdc_win_num; i++) {
+		if (rk_fb->disp_policy == DISPLAY_POLICY_BOX &&
+		    (!strcmp(dev_drv->win[i]->name, "hwc")))
+			continue;
+
+		for (j = 0;j < RK_WIN_MAX_AREA; j++) {
+			if ((j > 0) && (area_support[i] == 1)) {
+				continue;
+			}
+			if (dev_drv->win[i]->area[j].state == 1) {
+				u32 new_start =
+					dev_drv->win[i]->area[j].smem_start +
+					dev_drv->win[i]->area[j].y_offset;
+				u32 reg_start = dsp_addr[i][j];
+				if ((rk_fb->disp_policy ==
+					DISPLAY_POLICY_BOX) &&
+					(dev_drv->suspend_flag))
+					continue;
+				if (unlikely(new_start != reg_start)) {
+					wait_for_vsync = true;
+					dev_info(dev_drv->dev,
+						 "win%d:new_addr:0x%08x cur_addr:0x%08x--%d\n",
+						 i, new_start, reg_start, 101 - count);
+					break;
+				}
+			} else if (dev_drv->win[i]->area[j].state == 0) {
+				if (dev_drv->ops->get_win_state) {
+					win_status =
+					dev_drv->ops->get_win_state(dev_drv, i, j);
+					if (win_status)
+						wait_for_vsync = true;
+				}
+			} else {
+				pr_err("!!!win[%d]state:%d,error!!!\n",
+				       i, dev_drv->win[i]->state);
+			}
+		}
+	}
+
+	return wait_for_vsync;
+}
+
 static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 			     struct rk_fb_reg_data *regs)
 {
@@ -1672,9 +1730,7 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 	struct rk_fb_reg_win_data *win_data;
 	bool wait_for_vsync;
 	int count = 100;
-	unsigned int dsp_addr[4];
 	long timeout;
-	int win_status = 0;
 
 	/* acq_fence wait */
 	for (i = 0; i < regs->win_num; i++) {
@@ -1722,45 +1778,12 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 				ktime_compare(dev_drv->vsync_info.timestamp, timestamp) > 0,
 				msecs_to_jiffies(50));
 
-		dev_drv->ops->get_dsp_addr(dev_drv, dsp_addr);
-		wait_for_vsync = false;
-		for (i = 0; i < dev_drv->lcdc_win_num; i++) {
-                        if (rk_fb->disp_policy == DISPLAY_POLICY_BOX &&
-			    (!strcmp(dev_drv->win[i]->name, "hwc")))
-			        continue;
-			if (dev_drv->win[i]->state == 1) {
-				u32 new_start =
-				    dev_drv->win[i]->area[0].smem_start +
-				    dev_drv->win[i]->area[0].y_offset;
-				u32 reg_start = dsp_addr[i];
-
-				if ((rk_fb->disp_policy ==
-				     DISPLAY_POLICY_BOX) &&
-				    (dev_drv->suspend_flag))
-					continue;
-				if (unlikely(new_start != reg_start)) {
-					wait_for_vsync = true;
-					dev_info(dev_drv->dev,
-					       "win%d:new_addr:0x%08x cur_addr:0x%08x--%d\n",
-					       i, new_start, reg_start, 101 - count);
-					break;
-				}
-			} else if (dev_drv->win[i]->state == 0) {
-                                if (dev_drv->ops->get_win_state) {
-                                        win_status =
-                                        dev_drv->ops->get_win_state(dev_drv, i);
-                                        if (win_status)
-                                               wait_for_vsync = true;
-                                }
-			} else {
-                                pr_err("!!!win[%d]state:%d,error!!!\n",
-                                        i, dev_drv->win[i]->state);
-			}
-		}
+		wait_for_vsync = rk_fb_reg_effect(dev_drv, regs, count);
 	} while (wait_for_vsync && count--);
 #ifdef H_USE_FENCE
 	sw_sync_timeline_inc(dev_drv->timeline, 1);
 #endif
+
 	if (dev_drv->front_regs) {
 #if defined(CONFIG_ROCKCHIP_IOMMU)
 		if (dev_drv->iommu_enabled) {
@@ -2380,7 +2403,7 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 	int num_buf;	/* buffer_number */
 	int ret;
 	struct rk_fb_win_cfg_data win_data;
-	unsigned int dsp_addr[4];
+	unsigned int dsp_addr[4][4];
 	int list_stat;
 
 	int win_id = dev_drv->ops->fb_get_win_id(dev_drv, info->fix.id);
@@ -2510,7 +2533,7 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		dev_drv->ops->open(dev_drv, win_id, enable);
 		break;
 	case RK_FBIOGET_ENABLE:
-		enable = dev_drv->ops->get_win_state(dev_drv, win_id);
+		enable = dev_drv->ops->get_win_state(dev_drv, win_id, 0);
 		if (copy_to_user(argp, &enable, sizeof(enable)))
 			return -EFAULT;
 		break;
