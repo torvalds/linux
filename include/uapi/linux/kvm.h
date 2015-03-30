@@ -802,6 +802,8 @@ struct kvm_ppc_smmu_info {
 #define KVM_CAP_S390_MEM_OP 108
 #define KVM_CAP_S390_USER_STSI 109
 #define KVM_CAP_S390_SKEYS 110
+#define KVM_CAP_MIPS_FPU 111
+#define KVM_CAP_MIPS_MSA 112
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
