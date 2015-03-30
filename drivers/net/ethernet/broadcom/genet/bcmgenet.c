@@ -2173,9 +2173,12 @@ static int bcmgenet_dma_teardown(struct bcmgenet_priv *priv)
 	return ret;
 }
 
-static void __bcmgenet_fini_dma(struct bcmgenet_priv *priv)
+static void bcmgenet_fini_dma(struct bcmgenet_priv *priv)
 {
 	int i;
+
+	bcmgenet_fini_rx_napi(priv);
+	bcmgenet_fini_tx_napi(priv);
 
 	/* disable DMA */
 	bcmgenet_dma_teardown(priv);
@@ -2190,14 +2193,6 @@ static void __bcmgenet_fini_dma(struct bcmgenet_priv *priv)
 	bcmgenet_free_rx_buffers(priv);
 	kfree(priv->rx_cbs);
 	kfree(priv->tx_cbs);
-}
-
-static void bcmgenet_fini_dma(struct bcmgenet_priv *priv)
-{
-	bcmgenet_fini_rx_napi(priv);
-	bcmgenet_fini_tx_napi(priv);
-
-	__bcmgenet_fini_dma(priv);
 }
 
 /* init_edma: Initialize DMA control register */
