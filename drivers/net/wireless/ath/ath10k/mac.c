@@ -43,25 +43,44 @@
 
 static struct ieee80211_rate ath10k_rates[] = {
 	/* CCK */
-	RATETAB_ENT(10,  0x82, 0),
-	RATETAB_ENT(20,  0x84, 0),
-	RATETAB_ENT(55,  0x8b, 0),
-	RATETAB_ENT(110, 0x96, 0),
+	RATETAB_ENT(10,  0, 0),
+	RATETAB_ENT(20,  0, 0),
+	RATETAB_ENT(55,  0, 0),
+	RATETAB_ENT(110, 0, 0),
 	/* OFDM */
-	RATETAB_ENT(60,  0x0c, 0),
-	RATETAB_ENT(90,  0x12, 0),
-	RATETAB_ENT(120, 0x18, 0),
-	RATETAB_ENT(180, 0x24, 0),
-	RATETAB_ENT(240, 0x30, 0),
-	RATETAB_ENT(360, 0x48, 0),
-	RATETAB_ENT(480, 0x60, 0),
-	RATETAB_ENT(540, 0x6c, 0),
+	RATETAB_ENT(60,  0, 0),
+	RATETAB_ENT(90,  0, 0),
+	RATETAB_ENT(120, 0, 0),
+	RATETAB_ENT(180, 0, 0),
+	RATETAB_ENT(240, 0, 0),
+	RATETAB_ENT(360, 0, 0),
+	RATETAB_ENT(480, 0, 0),
+	RATETAB_ENT(540, 0, 0),
 };
 
 #define ath10k_a_rates (ath10k_rates + 4)
 #define ath10k_a_rates_size (ARRAY_SIZE(ath10k_rates) - 4)
 #define ath10k_g_rates (ath10k_rates + 0)
 #define ath10k_g_rates_size (ARRAY_SIZE(ath10k_rates))
+
+static bool ath10k_mac_bitrate_is_cck(int bitrate)
+{
+	switch (bitrate) {
+	case 10:
+	case 20:
+	case 55:
+	case 110:
+		return true;
+	}
+
+	return false;
+}
+
+static u8 ath10k_mac_bitrate_to_rate(int bitrate)
+{
+	return DIV_ROUND_UP(bitrate, 5) |
+	       (ath10k_mac_bitrate_is_cck(bitrate) ? BIT(7) : 0);
+}
 
 /**********/
 /* Crypto */
@@ -1736,6 +1755,7 @@ static void ath10k_peer_assoc_h_rates(struct ath10k *ar,
 	const struct ieee80211_supported_band *sband;
 	const struct ieee80211_rate *rates;
 	u32 ratemask;
+	u8 rate;
 	int i;
 
 	lockdep_assert_held(&ar->conf_mutex);
@@ -1750,7 +1770,8 @@ static void ath10k_peer_assoc_h_rates(struct ath10k *ar,
 		if (!(ratemask & 1))
 			continue;
 
-		rateset->rates[rateset->num_rates] = rates->hw_value;
+		rate = ath10k_mac_bitrate_to_rate(rates->bitrate);
+		rateset->rates[rateset->num_rates] = rate;
 		rateset->num_rates++;
 	}
 }
