@@ -156,11 +156,11 @@ int ath10k_htt_init(struct ath10k *ar)
 		ar->htt.t2h_msg_types_max = HTT_TLV_T2H_NUM_MSGS;
 		break;
 	case ATH10K_FW_HTT_OP_VERSION_MAIN:
-	case ATH10K_FW_HTT_OP_VERSION_UNSET:
 		ar->htt.t2h_msg_types = htt_main_t2h_msg_types;
 		ar->htt.t2h_msg_types_max = HTT_MAIN_T2H_NUM_MSGS;
 		break;
 	case ATH10K_FW_HTT_OP_VERSION_MAX:
+	case ATH10K_FW_HTT_OP_VERSION_UNSET:
 		WARN_ON(1);
 		return -EINVAL;
 	}

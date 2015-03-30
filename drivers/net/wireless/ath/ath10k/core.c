@@ -998,6 +998,29 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 		return -EINVAL;
 	}
 
+	/* Backwards compatibility for firmwares without
+	 * ATH10K_FW_IE_HTT_OP_VERSION.
+	 */
+	if (ar->htt.op_version == ATH10K_FW_HTT_OP_VERSION_UNSET) {
+		switch (ar->wmi.op_version) {
+		case ATH10K_FW_WMI_OP_VERSION_MAIN:
+			ar->htt.op_version = ATH10K_FW_HTT_OP_VERSION_MAIN;
+			break;
+		case ATH10K_FW_WMI_OP_VERSION_10_1:
+		case ATH10K_FW_WMI_OP_VERSION_10_2:
+		case ATH10K_FW_WMI_OP_VERSION_10_2_4:
+			ar->htt.op_version = ATH10K_FW_HTT_OP_VERSION_10_1;
+			break;
+		case ATH10K_FW_WMI_OP_VERSION_TLV:
+			ar->htt.op_version = ATH10K_FW_HTT_OP_VERSION_TLV;
+			break;
+		case ATH10K_FW_WMI_OP_VERSION_UNSET:
+		case ATH10K_FW_WMI_OP_VERSION_MAX:
+			WARN_ON(1);
+			return -EINVAL;
+		}
+	}
+
 	return 0;
 }
 
