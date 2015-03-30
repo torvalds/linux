@@ -16,6 +16,11 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+enum ieee80211_regd_source {
+	REGD_SOURCE_INTERNAL_DB,
+	REGD_SOURCE_CRDA,
+};
+
 extern const struct ieee80211_regdomain __rcu *cfg80211_regdomain;
 
 bool reg_is_valid_request(const char *alpha2);
@@ -46,7 +51,9 @@ void wiphy_regulatory_deregister(struct wiphy *wiphy);
 int __init regulatory_init(void);
 void regulatory_exit(void);
 
-int set_regdom(const struct ieee80211_regdomain *rd);
+int set_regdom(const struct ieee80211_regdomain *rd,
+	       enum ieee80211_regd_source regd_src);
+
 unsigned int reg_get_max_bandwidth(const struct ieee80211_regdomain *rd,
 				   const struct ieee80211_reg_rule *rule);
 
