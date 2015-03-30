@@ -822,13 +822,9 @@ static int wil_cfg80211_stop_ap(struct wiphy *wiphy,
 	wmi_pcp_stop(wil);
 
 	__wil_down(wil);
-	__wil_up(wil);
 
 	mutex_unlock(&wil->mutex);
 
-	/* some functions above might fail (e.g. __wil_up). Nevertheless, we
-	 * return success because AP has stopped
-	 */
 	return 0;
 }
 
