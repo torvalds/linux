@@ -274,6 +274,9 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Build the PKO command */
 	pko_command.u64 = 0;
+#ifdef __LITTLE_ENDIAN
+	pko_command.s.le = 1;
+#endif
 	pko_command.s.n2 = 1;	/* Don't pollute L2 with the outgoing packet */
 	pko_command.s.segs = 1;
 	pko_command.s.total_bytes = skb->len;
