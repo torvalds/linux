@@ -305,7 +305,9 @@ static int coresight_build_paths(struct coresight_device *csdev,
 
 	list_add(&csdev->path_link, path);
 
-	if (csdev->type == CORESIGHT_DEV_TYPE_SINK && csdev->activated) {
+	if ((csdev->type == CORESIGHT_DEV_TYPE_SINK ||
+	    csdev->type == CORESIGHT_DEV_TYPE_LINKSINK) &&
+	    csdev->activated) {
 		if (enable)
 			ret = coresight_enable_path(path);
 		else
