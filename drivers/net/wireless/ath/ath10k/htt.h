@@ -25,6 +25,7 @@
 #include <net/mac80211.h>
 
 #include "htc.h"
+#include "hw.h"
 #include "rx_desc.h"
 #include "hw.h"
 
