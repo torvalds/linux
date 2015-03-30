@@ -36,10 +36,20 @@
 /*********/
 
 static struct ieee80211_rate ath10k_rates[] = {
-	{ .bitrate = 10, .hw_value = ATH10K_HW_RATE_CCK_LP_1M },
-	{ .bitrate = 20, .hw_value = ATH10K_HW_RATE_CCK_LP_2M },
-	{ .bitrate = 55, .hw_value = ATH10K_HW_RATE_CCK_LP_5_5M },
-	{ .bitrate = 110, .hw_value = ATH10K_HW_RATE_CCK_LP_11M },
+	{ .bitrate = 10,
+	  .hw_value = ATH10K_HW_RATE_CCK_LP_1M },
+	{ .bitrate = 20,
+	  .hw_value = ATH10K_HW_RATE_CCK_LP_2M,
+	  .hw_value_short = ATH10K_HW_RATE_CCK_SP_2M,
+	  .flags = IEEE80211_RATE_SHORT_PREAMBLE },
+	{ .bitrate = 55,
+	  .hw_value = ATH10K_HW_RATE_CCK_LP_5_5M,
+	  .hw_value_short = ATH10K_HW_RATE_CCK_SP_5_5M,
+	  .flags = IEEE80211_RATE_SHORT_PREAMBLE },
+	{ .bitrate = 110,
+	  .hw_value = ATH10K_HW_RATE_CCK_LP_11M,
+	  .hw_value_short = ATH10K_HW_RATE_CCK_SP_11M,
+	  .flags = IEEE80211_RATE_SHORT_PREAMBLE },
 
 	{ .bitrate = 60, .hw_value = ATH10K_HW_RATE_OFDM_6M },
 	{ .bitrate = 90, .hw_value = ATH10K_HW_RATE_OFDM_9M },
@@ -73,6 +83,25 @@ static u8 ath10k_mac_bitrate_to_rate(int bitrate)
 {
 	return DIV_ROUND_UP(bitrate, 5) |
 	       (ath10k_mac_bitrate_is_cck(bitrate) ? BIT(7) : 0);
+}
+
+u8 ath10k_mac_hw_rate_to_idx(const struct ieee80211_supported_band *sband,
+			     u8 hw_rate)
+{
+	const struct ieee80211_rate *rate;
+	int i;
+
+	for (i = 0; i < sband->n_bitrates; i++) {
+		rate = &sband->bitrates[i];
+
+		if (rate->hw_value == hw_rate)
+			return i;
+		else if (rate->flags & IEEE80211_RATE_SHORT_PREAMBLE &&
+			 rate->hw_value_short == hw_rate)
+			return i;
+	}
+
+	return 0;
 }
 
 /**********/

@@ -643,44 +643,15 @@ struct amsdu_subframe_hdr {
 	__be16 len;
 } __packed;
 
-static const u8 rx_legacy_rate_idx[] = {
-	3,	/* 0x00  - 11Mbps  */
-	2,	/* 0x01  - 5.5Mbps */
-	1,	/* 0x02  - 2Mbps   */
-	0,	/* 0x03  - 1Mbps   */
-	3,	/* 0x04  - 11Mbps  */
-	2,	/* 0x05  - 5.5Mbps */
-	1,	/* 0x06  - 2Mbps   */
-	0,	/* 0x07  - 1Mbps   */
-	10,	/* 0x08  - 48Mbps  */
-	8,	/* 0x09  - 24Mbps  */
-	6,	/* 0x0A  - 12Mbps  */
-	4,	/* 0x0B  - 6Mbps   */
-	11,	/* 0x0C  - 54Mbps  */
-	9,	/* 0x0D  - 36Mbps  */
-	7,	/* 0x0E  - 18Mbps  */
-	5,	/* 0x0F  - 9Mbps   */
-};
-
 static void ath10k_htt_rx_h_rates(struct ath10k *ar,
 				  struct ieee80211_rx_status *status,
 				  struct htt_rx_desc *rxd)
 {
-	enum ieee80211_band band;
-	u8 cck, rate, rate_idx, bw, sgi, mcs, nss;
+	struct ieee80211_supported_band *sband;
+	u8 cck, rate, bw, sgi, mcs, nss;
 	u8 preamble = 0;
 	u32 info1, info2, info3;
 
-	/* Band value can't be set as undefined but freq can be 0 - use that to
-	 * determine whether band is provided.
-	 *
-	 * FIXME: Perhaps this can go away if CCK rate reporting is a little
-	 * reworked?
-	 */
-	if (!status->freq)
-		return;
-
-	band = status->band;
 	info1 = __le32_to_cpu(rxd->ppdu_start.info1);
 	info2 = __le32_to_cpu(rxd->ppdu_start.info2);
 	info3 = __le32_to_cpu(rxd->ppdu_start.info3);
@@ -689,31 +660,18 @@ static void ath10k_htt_rx_h_rates(struct ath10k *ar,
 
 	switch (preamble) {
 	case HTT_RX_LEGACY:
+		/* To get legacy rate index band is required. Since band can't
+		 * be undefined check if freq is non-zero.
+		 */
+		if (!status->freq)
+			return;
+
 		cck = info1 & RX_PPDU_START_INFO1_L_SIG_RATE_SELECT;
 		rate = MS(info1, RX_PPDU_START_INFO1_L_SIG_RATE);
-		rate_idx = 0;
+		rate &= ~RX_PPDU_START_RATE_FLAG;
 
-		if (rate < 0x08 || rate > 0x0F)
-			break;
-
-		switch (band) {
-		case IEEE80211_BAND_2GHZ:
-			if (cck)
-				rate &= ~BIT(3);
-			rate_idx = rx_legacy_rate_idx[rate];
-			break;
-		case IEEE80211_BAND_5GHZ:
-			rate_idx = rx_legacy_rate_idx[rate];
-			/* We are using same rate table registering
-			   HW - ath10k_rates[]. In case of 5GHz skip
-			   CCK rates, so -4 here */
-			rate_idx -= 4;
-			break;
-		default:
-			break;
-		}
-
-		status->rate_idx = rate_idx;
+		sband = &ar->mac.sbands[status->band];
+		status->rate_idx = ath10k_mac_hw_rate_to_idx(sband, rate);
 		break;
 	case HTT_RX_HT:
 	case HTT_RX_HT_WITH_TXBF:
