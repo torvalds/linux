@@ -4401,14 +4401,14 @@ static void ath10k_sta_rc_update_wk(struct work_struct *wk)
 	mutex_unlock(&ar->conf_mutex);
 }
 
-static int ath10k_mac_inc_num_stations(struct ath10k_vif *arvif)
+static int ath10k_mac_inc_num_stations(struct ath10k_vif *arvif,
+				       struct ieee80211_sta *sta)
 {
 	struct ath10k *ar = arvif->ar;
 
 	lockdep_assert_held(&ar->conf_mutex);
 
-	if (arvif->vdev_type != WMI_VDEV_TYPE_AP &&
-	    arvif->vdev_type != WMI_VDEV_TYPE_IBSS)
+	if (arvif->vdev_type == WMI_VDEV_TYPE_STA && !sta->tdls)
 		return 0;
 
 	if (ar->num_stations >= ar->max_num_stations)
@@ -4419,14 +4419,14 @@ static int ath10k_mac_inc_num_stations(struct ath10k_vif *arvif)
 	return 0;
 }
 
-static void ath10k_mac_dec_num_stations(struct ath10k_vif *arvif)
+static void ath10k_mac_dec_num_stations(struct ath10k_vif *arvif,
+					struct ieee80211_sta *sta)
 {
 	struct ath10k *ar = arvif->ar;
 
 	lockdep_assert_held(&ar->conf_mutex);
 
-	if (arvif->vdev_type != WMI_VDEV_TYPE_AP &&
-	    arvif->vdev_type != WMI_VDEV_TYPE_IBSS)
+	if (arvif->vdev_type == WMI_VDEV_TYPE_STA && !sta->tdls)
 		return;
 
 	ar->num_stations--;
@@ -4468,7 +4468,7 @@ static int ath10k_sta_state(struct ieee80211_hw *hw,
 			   ar->num_stations + 1, ar->max_num_stations,
 			   ar->num_peers + 1, ar->max_num_peers);
 
-		ret = ath10k_mac_inc_num_stations(arvif);
+		ret = ath10k_mac_inc_num_stations(arvif, sta);
 		if (ret) {
 			ath10k_warn(ar, "refusing to associate station: too many connected already (%d)\n",
 				    ar->max_num_stations);
@@ -4480,7 +4480,7 @@ static int ath10k_sta_state(struct ieee80211_hw *hw,
 		if (ret) {
 			ath10k_warn(ar, "failed to add peer %pM for vdev %d when adding a new sta: %i\n",
 				    sta->addr, arvif->vdev_id, ret);
-			ath10k_mac_dec_num_stations(arvif);
+			ath10k_mac_dec_num_stations(arvif, sta);
 			goto exit;
 		}
 
@@ -4493,7 +4493,7 @@ static int ath10k_sta_state(struct ieee80211_hw *hw,
 					    arvif->vdev_id, ret);
 				WARN_ON(ath10k_peer_delete(ar, arvif->vdev_id,
 							   sta->addr));
-				ath10k_mac_dec_num_stations(arvif);
+				ath10k_mac_dec_num_stations(arvif, sta);
 				goto exit;
 			}
 
@@ -4524,7 +4524,7 @@ static int ath10k_sta_state(struct ieee80211_hw *hw,
 			ath10k_warn(ar, "failed to delete peer %pM for vdev %d: %i\n",
 				    sta->addr, arvif->vdev_id, ret);
 
-		ath10k_mac_dec_num_stations(arvif);
+		ath10k_mac_dec_num_stations(arvif, sta);
 	} else if (old_state == IEEE80211_STA_AUTH &&
 		   new_state == IEEE80211_STA_ASSOC &&
 		   (vif->type == NL80211_IFTYPE_AP ||
