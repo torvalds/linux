@@ -146,10 +146,33 @@ out_err:
 	return nsegs;
 }
 
+/* After a disconnect, unmap all FMRs.
+ *
+ * This is invoked only in the transport connect worker in order
+ * to serialize with rpcrdma_register_fmr_external().
+ */
+static void
+fmr_op_reset(struct rpcrdma_xprt *r_xprt)
+{
+	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
+	struct rpcrdma_mw *r;
+	LIST_HEAD(list);
+	int rc;
+
+	list_for_each_entry(r, &buf->rb_all, mw_all)
+		list_add(&r->r.fmr->list, &list);
+
+	rc = ib_unmap_fmr(&list);
+	if (rc)
+		dprintk("RPC:       %s: ib_unmap_fmr failed %i\n",
+			__func__, rc);
+}
+
 const struct rpcrdma_memreg_ops rpcrdma_fmr_memreg_ops = {
 	.ro_map				= fmr_op_map,
 	.ro_unmap			= fmr_op_unmap,
 	.ro_maxpages			= fmr_op_maxpages,
 	.ro_init			= fmr_op_init,
+	.ro_reset			= fmr_op_reset,
 	.ro_displayname			= "fmr",
 };

@@ -46,6 +46,18 @@ out_list_err:
 	return rc;
 }
 
+static void
+__frwr_release(struct rpcrdma_mw *r)
+{
+	int rc;
+
+	rc = ib_dereg_mr(r->r.frmr.fr_mr);
+	if (rc)
+		dprintk("RPC:       %s: ib_dereg_mr status %i\n",
+			__func__, rc);
+	ib_free_fast_reg_page_list(r->r.frmr.fr_pgl);
+}
+
 /* FRWR mode conveys a list of pages per chunk segment. The
  * maximum length of that list is the FRWR page list depth.
  */
@@ -210,10 +222,49 @@ out_err:
 	return nsegs;
 }
 
+/* After a disconnect, a flushed FAST_REG_MR can leave an FRMR in
+ * an unusable state. Find FRMRs in this state and dereg / reg
+ * each.  FRMRs that are VALID and attached to an rpcrdma_req are
+ * also torn down.
+ *
+ * This gives all in-use FRMRs a fresh rkey and leaves them INVALID.
+ *
+ * This is invoked only in the transport connect worker in order
+ * to serialize with rpcrdma_register_frmr_external().
+ */
+static void
+frwr_op_reset(struct rpcrdma_xprt *r_xprt)
+{
+	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
+	struct ib_device *device = r_xprt->rx_ia.ri_id->device;
+	unsigned int depth = r_xprt->rx_ia.ri_max_frmr_depth;
+	struct ib_pd *pd = r_xprt->rx_ia.ri_pd;
+	struct rpcrdma_mw *r;
+	int rc;
+
+	list_for_each_entry(r, &buf->rb_all, mw_all) {
+		if (r->r.frmr.fr_state == FRMR_IS_INVALID)
+			continue;
+
+		__frwr_release(r);
+		rc = __frwr_init(r, pd, device, depth);
+		if (rc) {
+			dprintk("RPC:       %s: mw %p left %s\n",
+				__func__, r,
+				(r->r.frmr.fr_state == FRMR_IS_STALE ?
+					"stale" : "valid"));
+			continue;
+		}
+
+		r->r.frmr.fr_state = FRMR_IS_INVALID;
+	}
+}
+
 const struct rpcrdma_memreg_ops rpcrdma_frwr_memreg_ops = {
 	.ro_map				= frwr_op_map,
 	.ro_unmap			= frwr_op_unmap,
 	.ro_maxpages			= frwr_op_maxpages,
 	.ro_init			= frwr_op_init,
+	.ro_reset			= frwr_op_reset,
 	.ro_displayname			= "frwr",
 };
