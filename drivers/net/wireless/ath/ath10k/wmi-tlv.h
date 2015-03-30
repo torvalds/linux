@@ -1523,6 +1523,59 @@ struct wmi_tlv_wow_del_pattern_cmd {
 	__le32 pattern_type;
 } __packed;
 
+/* TDLS Options */
+enum wmi_tlv_tdls_options {
+	WMI_TLV_TDLS_OFFCHAN_EN = BIT(0),
+	WMI_TLV_TDLS_BUFFER_STA_EN = BIT(1),
+	WMI_TLV_TDLS_SLEEP_STA_EN = BIT(2),
+};
+
+struct wmi_tdls_set_state_cmd {
+	__le32 vdev_id;
+	__le32 state;
+	__le32 notification_interval_ms;
+	__le32 tx_discovery_threshold;
+	__le32 tx_teardown_threshold;
+	__le32 rssi_teardown_threshold;
+	__le32 rssi_delta;
+	__le32 tdls_options;
+	__le32 tdls_peer_traffic_ind_window;
+	__le32 tdls_peer_traffic_response_timeout_ms;
+	__le32 tdls_puapsd_mask;
+	__le32 tdls_puapsd_inactivity_time_ms;
+	__le32 tdls_puapsd_rx_frame_threshold;
+} __packed;
+
+struct wmi_tdls_peer_update_cmd {
+	__le32 vdev_id;
+	struct wmi_mac_addr peer_macaddr;
+	__le32 peer_state;
+} __packed;
+
+enum {
+	WMI_TLV_TDLS_PEER_QOS_AC_VO = BIT(0),
+	WMI_TLV_TDLS_PEER_QOS_AC_VI = BIT(1),
+	WMI_TLV_TDLS_PEER_QOS_AC_BK = BIT(2),
+	WMI_TLV_TDLS_PEER_QOS_AC_BE = BIT(3),
+};
+
+#define WMI_TLV_TDLS_PEER_SP_MASK	0x60
+#define WMI_TLV_TDLS_PEER_SP_LSB	5
+
+struct wmi_tdls_peer_capab {
+	__le32 peer_qos;
+	__le32 buff_sta_support;
+	__le32 off_chan_support;
+	__le32 peer_curr_operclass;
+	__le32 self_curr_operclass;
+	__le32 peer_chan_len;
+	__le32 peer_operclass_len;
+	u8 peer_operclass[WMI_TDLS_MAX_SUPP_OPER_CLASSES];
+	__le32 is_peer_responder;
+	__le32 pref_offchan_num;
+	__le32 pref_offchan_bw;
+} __packed;
+
 void ath10k_wmi_tlv_attach(struct ath10k *ar);
 
 #endif

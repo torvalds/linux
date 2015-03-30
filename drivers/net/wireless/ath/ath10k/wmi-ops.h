@@ -166,6 +166,13 @@ struct wmi_ops {
 					       int pattern_offset);
 	struct sk_buff *(*gen_wow_del_pattern)(struct ath10k *ar, u32 vdev_id,
 					       u32 pattern_id);
+	struct sk_buff *(*gen_update_fw_tdls_state)(struct ath10k *ar,
+						    u32 vdev_id,
+						    enum wmi_tdls_state state);
+	struct sk_buff *(*gen_tdls_peer_update)(struct ath10k *ar,
+						const struct wmi_tdls_peer_update_cmd_arg *arg,
+						const struct wmi_tdls_peer_capab_arg *cap,
+						const struct wmi_channel_arg *chan);
 };
 
 int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb, u32 cmd_id);
@@ -1189,4 +1196,40 @@ ath10k_wmi_wow_del_pattern(struct ath10k *ar, u32 vdev_id, u32 pattern_id)
 	cmd_id = ar->wmi.cmd->wow_del_wake_pattern_cmdid;
 	return ath10k_wmi_cmd_send(ar, skb, cmd_id);
 }
+
+static inline int
+ath10k_wmi_update_fw_tdls_state(struct ath10k *ar, u32 vdev_id,
+				enum wmi_tdls_state state)
+{
+	struct sk_buff *skb;
+
+	if (!ar->wmi.ops->gen_update_fw_tdls_state)
+		return -EOPNOTSUPP;
+
+	skb = ar->wmi.ops->gen_update_fw_tdls_state(ar, vdev_id, state);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	return ath10k_wmi_cmd_send(ar, skb, ar->wmi.cmd->tdls_set_state_cmdid);
+}
+
+static inline int
+ath10k_wmi_tdls_peer_update(struct ath10k *ar,
+			    const struct wmi_tdls_peer_update_cmd_arg *arg,
+			    const struct wmi_tdls_peer_capab_arg *cap,
+			    const struct wmi_channel_arg *chan)
+{
+	struct sk_buff *skb;
+
+	if (!ar->wmi.ops->gen_tdls_peer_update)
+		return -EOPNOTSUPP;
+
+	skb = ar->wmi.ops->gen_tdls_peer_update(ar, arg, cap, chan);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	return ath10k_wmi_cmd_send(ar, skb,
+				   ar->wmi.cmd->tdls_peer_update_cmdid);
+}
+
 #endif
