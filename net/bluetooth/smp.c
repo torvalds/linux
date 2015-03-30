@@ -3017,7 +3017,7 @@ static struct sk_buff *smp_alloc_skb_cb(struct l2cap_chan *chan,
 		return ERR_PTR(-ENOMEM);
 
 	skb->priority = HCI_PRIO_MAX;
-	bt_cb(skb)->chan = chan;
+	bt_cb(skb)->l2cap.chan = chan;
 
 	return skb;
 }

@@ -269,6 +269,9 @@ struct l2cap_ctrl {
 	__u16	reqseq;
 	__u16	txseq;
 	__u8	retries;
+	__le16  psm;
+	bdaddr_t bdaddr;
+	struct l2cap_chan *chan;
 };
 
 struct hci_dev;
@@ -284,10 +287,7 @@ struct bt_skb_cb {
 	__u8 req_start:1;
 	u8 req_event;
 	hci_req_complete_t req_complete;
-	struct l2cap_chan *chan;
-	struct l2cap_ctrl control;
-	bdaddr_t bdaddr;
-	__le16 psm;
+	struct l2cap_ctrl l2cap;
 };
 #define bt_cb(skb) ((struct bt_skb_cb *)((skb)->cb))
 
