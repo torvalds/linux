@@ -351,7 +351,7 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_activity_calibgender
 What:		/sys/bus/iio/devices/iio:deviceX/in_energy_calibgender
 What:		/sys/bus/iio/devices/iio:deviceX/in_distance_calibgender
 What:		/sys/bus/iio/devices/iio:deviceX/in_velocity_calibgender
-KernelVersion:	3.20
+KernelVersion:	4.0
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Gender of the user (e.g.: male, female) used by some pedometers
@@ -362,7 +362,7 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_activity_calibgender_available
 What:		/sys/bus/iio/devices/iio:deviceX/in_energy_calibgender_available
 What:		/sys/bus/iio/devices/iio:deviceX/in_distance_calibgender_available
 What:		/sys/bus/iio/devices/iio:deviceX/in_velocity_calibgender_available
-KernelVersion:	3.20
+KernelVersion:	4.0
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Lists all available gender values (e.g.: male, female).
@@ -379,7 +379,7 @@ Description:
 		type.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_energy_calibweight
-KernelVersion:	3.20
+KernelVersion:	4.0
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Weight of the user (in kg). It is needed by some pedometers
@@ -947,7 +947,7 @@ Description:
 		this type.
 
 What:		/sys/.../events/in_steps_change_en
-KernelVersion:	3.20
+KernelVersion:	4.0
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Event generated when channel passes a threshold on the absolute
@@ -956,7 +956,7 @@ Description:
 		in_steps_change_value.
 
 What:		/sys/.../events/in_steps_change_value
-KernelVersion:	3.20
+KernelVersion:	4.0
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Specifies the value of change threshold that the
@@ -1131,7 +1131,7 @@ Description:
 
 What:		/sys/.../iio:deviceX/in_energy_input
 What:		/sys/.../iio:deviceX/in_energy_raw
-KernelVersion:	3.20
+KernelVersion:	4.0
 Contact:	linux-iio@vger.kernel.org
 Description:
 		This attribute is used to read the energy value reported by the
@@ -1140,7 +1140,7 @@ Description:
 
 What:		/sys/.../iio:deviceX/in_distance_input
 What:		/sys/.../iio:deviceX/in_distance_raw
-KernelVersion:	3.20
+KernelVersion:	4.0
 Contact:	linux-iio@vger.kernel.org
 Description:
 		This attribute is used to read the distance covered by the user
@@ -1205,7 +1205,7 @@ Description:
 		seconds.
 
 What:		/sys/.../iio:deviceX/in_velocity_sqrt(x^2+y^2+z^2)_integration_time
-KernelVersion:	3.20
+KernelVersion:	4.0
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Number of seconds in which to compute speed.
@@ -1267,7 +1267,7 @@ Description:
 		Units after application of scale are m/s.
 
 What:		/sys/.../iio:deviceX/in_steps_debounce_count
-KernelVersion:	3.20
+KernelVersion:	4.0
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Specifies the number of steps that must occur within
@@ -1275,7 +1275,7 @@ Description:
 		consumer is making steps.
 
 What:		/sys/.../iio:deviceX/in_steps_debounce_time
-KernelVersion:	3.20
+KernelVersion:	4.0
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Specifies number of seconds in which we compute the steps
