@@ -128,6 +128,7 @@ static const char * const iio_chan_info_postfix[] = {
 	[IIO_CHAN_INFO_CALIBWEIGHT] = "calibweight",
 	[IIO_CHAN_INFO_DEBOUNCE_COUNT] = "debounce_count",
 	[IIO_CHAN_INFO_DEBOUNCE_TIME] = "debounce_time",
+	[IIO_CHAN_INFO_CALIBEMISSIVITY] = "calibemissivity",
 };
 
 /**

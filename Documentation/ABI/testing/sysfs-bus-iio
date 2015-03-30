@@ -1364,3 +1364,14 @@ Description:
 		hwfifo_watermak_min but not equal to any of the values in this
 		list, the driver will chose an appropriate value for the
 		hardware fifo watermark level.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_temp_calibemissivity
+What:		/sys/bus/iio/devices/iio:deviceX/in_tempX_calibemissivity
+What:		/sys/bus/iio/devices/iio:deviceX/in_temp_object_calibemissivity
+What:		/sys/bus/iio/devices/iio:deviceX/in_tempX_object_calibemissivity
+KernelVersion:	4.1
+Contact:	linux-iio@vger.kernel.org
+Description:
+		The emissivity ratio of the surface in the field of view of the
+		contactless temperature sensor.  Emissivity varies from 0 to 1,
+		with 1 being the emissivity of a black body.
