@@ -9,7 +9,4 @@ obj-$(CONFIG_USB_LIBCOMPOSITE)	+= libcomposite.o
 libcomposite-y			:= usbstring.o config.o epautoconf.o
 libcomposite-y			+= composite.o functions.o configfs.o u_f.o
 
-usb_f_accessory-y               := f_accessory.o
-obj-$(CONFIG_USB_F_ACC)         += usb_f_accessory.o
-
 obj-$(CONFIG_USB_GADGET)	+= udc/ function/ legacy/
