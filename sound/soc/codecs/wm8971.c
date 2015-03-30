@@ -629,18 +629,6 @@ static struct snd_soc_dai_driver wm8971_dai = {
 	.ops = &wm8971_dai_ops,
 };
 
-static int wm8971_suspend(struct snd_soc_codec *codec)
-{
-	wm8971_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static int wm8971_resume(struct snd_soc_codec *codec)
-{
-	wm8971_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	return 0;
-}
-
 static int wm8971_probe(struct snd_soc_codec *codec)
 {
 	struct wm8971_priv *wm8971 = snd_soc_codec_get_drvdata(codec);
@@ -648,8 +636,6 @@ static int wm8971_probe(struct snd_soc_codec *codec)
 	INIT_DELAYED_WORK(&wm8971->charge_work, wm8971_charge_work);
 
 	wm8971_reset(codec);
-
-	wm8971_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* set the update bits */
 	snd_soc_update_bits(codec, WM8971_LDAC, 0x0100, 0x0100);
@@ -664,21 +650,10 @@ static int wm8971_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-
-/* power down chip */
-static int wm8971_remove(struct snd_soc_codec *codec)
-{
-	wm8971_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
-
 static struct snd_soc_codec_driver soc_codec_dev_wm8971 = {
 	.probe =	wm8971_probe,
-	.remove =	wm8971_remove,
-	.suspend =	wm8971_suspend,
-	.resume =	wm8971_resume,
 	.set_bias_level = wm8971_set_bias_level,
+	.suspend_bias_off = true,
 
 	.controls = wm8971_snd_controls,
 	.num_controls = ARRAY_SIZE(wm8971_snd_controls),
