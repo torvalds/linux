@@ -740,7 +740,19 @@ opportunistic_sysret_failed:
 	SWAPGS
 	jmp restore_args
 
-retint_restore_args:	/* return to kernel space */
+/* Returning to kernel space */
+#ifdef CONFIG_PREEMPT
+	/* Interrupts are off */
+	/* Check if we need preemption */
+ENTRY(retint_kernel)
+	cmpl	$0,PER_CPU_VAR(__preempt_count)
+	jnz	retint_restore_args
+	bt	$9,EFLAGS(%rsp)	/* interrupts were off? */
+	jnc	retint_restore_args
+	call	preempt_schedule_irq
+	jmp	exit_intr
+#endif
+retint_restore_args:
 	DISABLE_INTERRUPTS(CLBR_ANY)
 	/*
 	 * The iretq could re-enable interrupts:
@@ -830,17 +842,6 @@ retint_signal:
 	GET_THREAD_INFO(%rcx)
 	jmp retint_with_reschedule
 
-#ifdef CONFIG_PREEMPT
-	/* Returning to kernel space. Check if we need preemption */
-	/* rcx:	 threadinfo. interrupts off. */
-ENTRY(retint_kernel)
-	cmpl $0,PER_CPU_VAR(__preempt_count)
-	jnz  retint_restore_args
-	bt   $9,EFLAGS(%rsp)	/* interrupts off? */
-	jnc  retint_restore_args
-	call preempt_schedule_irq
-	jmp exit_intr
-#endif
 	CFI_ENDPROC
 END(common_interrupt)
 
