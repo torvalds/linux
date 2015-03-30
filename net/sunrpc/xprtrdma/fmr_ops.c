@@ -17,6 +17,19 @@
 # define RPCDBG_FACILITY	RPCDBG_TRANS
 #endif
 
+/* Maximum scatter/gather per FMR */
+#define RPCRDMA_MAX_FMR_SGES	(64)
+
+/* FMR mode conveys up to 64 pages of payload per chunk segment.
+ */
+static size_t
+fmr_op_maxpages(struct rpcrdma_xprt *r_xprt)
+{
+	return min_t(unsigned int, RPCRDMA_MAX_DATA_SEGS,
+		     rpcrdma_max_segments(r_xprt) * RPCRDMA_MAX_FMR_SGES);
+}
+
 const struct rpcrdma_memreg_ops rpcrdma_fmr_memreg_ops = {
+	.ro_maxpages			= fmr_op_maxpages,
 	.ro_displayname			= "fmr",
 };

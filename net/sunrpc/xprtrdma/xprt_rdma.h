@@ -334,7 +334,9 @@ struct rpcrdma_stats {
 /*
  * Per-registration mode operations
  */
+struct rpcrdma_xprt;
 struct rpcrdma_memreg_ops {
+	size_t		(*ro_maxpages)(struct rpcrdma_xprt *);
 	const char	*ro_displayname;
 };
 
@@ -411,6 +413,8 @@ struct rpcrdma_regbuf *rpcrdma_alloc_regbuf(struct rpcrdma_ia *,
 void rpcrdma_free_regbuf(struct rpcrdma_ia *,
 			 struct rpcrdma_regbuf *);
 
+unsigned int rpcrdma_max_segments(struct rpcrdma_xprt *);
+
 /*
  * RPC/RDMA connection management calls - xprtrdma/rpc_rdma.c
  */
@@ -422,7 +426,6 @@ void rpcrdma_reply_handler(struct rpcrdma_rep *);
  * RPC/RDMA protocol calls - xprtrdma/rpc_rdma.c
  */
 int rpcrdma_marshal_req(struct rpc_rqst *);
-size_t rpcrdma_max_payload(struct rpcrdma_xprt *);
 
 /* Temporary NFS request map cache. Created in svc_rdma.c  */
 extern struct kmem_cache *svc_rdma_map_cachep;

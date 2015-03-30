@@ -19,6 +19,16 @@
 # define RPCDBG_FACILITY	RPCDBG_TRANS
 #endif
 
+/* PHYSICAL memory registration conveys one page per chunk segment.
+ */
+static size_t
+physical_op_maxpages(struct rpcrdma_xprt *r_xprt)
+{
+	return min_t(unsigned int, RPCRDMA_MAX_DATA_SEGS,
+		     rpcrdma_max_segments(r_xprt));
+}
+
 const struct rpcrdma_memreg_ops rpcrdma_physical_memreg_ops = {
+	.ro_maxpages			= physical_op_maxpages,
 	.ro_displayname			= "physical",
 };
