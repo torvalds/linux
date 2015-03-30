@@ -335,7 +335,7 @@ static inline bool hpte_read_permission(unsigned long pp, unsigned long key)
 {
 	if (key)
 		return PP_RWRX <= pp && pp <= PP_RXRX;
-	return 1;
+	return true;
 }
 
 static inline bool hpte_write_permission(unsigned long pp, unsigned long key)
@@ -373,7 +373,7 @@ static inline bool slot_is_aligned(struct kvm_memory_slot *memslot,
 	unsigned long mask = (pagesize >> PAGE_SHIFT) - 1;
 
 	if (pagesize <= PAGE_SIZE)
-		return 1;
+		return true;
 	return !(memslot->base_gfn & mask) && !(memslot->npages & mask);
 }
 
