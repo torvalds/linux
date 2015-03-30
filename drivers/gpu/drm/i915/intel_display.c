@@ -5667,65 +5667,80 @@ bool intel_connector_get_hw_state(struct intel_connector *connector)
 	return encoder->get_hw_state(encoder, &pipe);
 }
 
-static int pipe_required_fdi_lanes(struct drm_device *dev, enum pipe pipe)
+static int pipe_required_fdi_lanes(struct intel_crtc_state *crtc_state)
 {
-	struct intel_crtc *crtc =
-		to_intel_crtc(intel_get_crtc_for_pipe(dev, pipe));
-
-	if (crtc->base.state->enable &&
-	    crtc->config->has_pch_encoder)
-		return crtc->config->fdi_lanes;
+	if (crtc_state->base.enable && crtc_state->has_pch_encoder)
+		return crtc_state->fdi_lanes;
 
 	return 0;
 }
 
-static bool ironlake_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
+static int ironlake_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
 				     struct intel_crtc_state *pipe_config)
 {
+	struct drm_atomic_state *state = pipe_config->base.state;
+	struct intel_crtc *other_crtc;
+	struct intel_crtc_state *other_crtc_state;
+
 	DRM_DEBUG_KMS("checking fdi config on pipe %c, lanes %i\n",
 		      pipe_name(pipe), pipe_config->fdi_lanes);
 	if (pipe_config->fdi_lanes > 4) {
 		DRM_DEBUG_KMS("invalid fdi lane config on pipe %c: %i lanes\n",
 			      pipe_name(pipe), pipe_config->fdi_lanes);
-		return false;
+		return -EINVAL;
 	}
 
 	if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 		if (pipe_config->fdi_lanes > 2) {
 			DRM_DEBUG_KMS("only 2 lanes on haswell, required: %i lanes\n",
 				      pipe_config->fdi_lanes);
-			return false;
+			return -EINVAL;
 		} else {
-			return true;
+			return 0;
 		}
 	}
 
 	if (INTEL_INFO(dev)->num_pipes == 2)
-		return true;
+		return 0;
 
 	/* Ivybridge 3 pipe is really complicated */
 	switch (pipe) {
 	case PIPE_A:
-		return true;
+		return 0;
 	case PIPE_B:
-		if (pipe_config->fdi_lanes > 2 &&
-		    pipe_required_fdi_lanes(dev, PIPE_C) > 0) {
+		if (pipe_config->fdi_lanes <= 2)
+			return 0;
+
+		other_crtc = to_intel_crtc(intel_get_crtc_for_pipe(dev, PIPE_C));
+		other_crtc_state =
+			intel_atomic_get_crtc_state(state, other_crtc);
+		if (IS_ERR(other_crtc_state))
+			return PTR_ERR(other_crtc_state);
+
+		if (pipe_required_fdi_lanes(other_crtc_state) > 0) {
 			DRM_DEBUG_KMS("invalid shared fdi lane config on pipe %c: %i lanes\n",
 				      pipe_name(pipe), pipe_config->fdi_lanes);
-			return false;
+			return -EINVAL;
 		}
-		return true;
+		return 0;
 	case PIPE_C:
 		if (pipe_config->fdi_lanes > 2) {
 			DRM_DEBUG_KMS("only 2 lanes on pipe %c: required %i lanes\n",
 				      pipe_name(pipe), pipe_config->fdi_lanes);
-			return false;
+			return -EINVAL;
 		}
-		if (pipe_required_fdi_lanes(dev, PIPE_B) > 2) {
+
+		other_crtc = to_intel_crtc(intel_get_crtc_for_pipe(dev, PIPE_B));
+		other_crtc_state =
+			intel_atomic_get_crtc_state(state, other_crtc);
+		if (IS_ERR(other_crtc_state))
+			return PTR_ERR(other_crtc_state);
+
+		if (pipe_required_fdi_lanes(other_crtc_state) > 2) {
 			DRM_DEBUG_KMS("fdi link B uses too many lanes to enable link C\n");
-			return false;
+			return -EINVAL;
 		}
-		return true;
+		return 0;
 	default:
 		BUG();
 	}
@@ -5737,8 +5752,8 @@ static int ironlake_fdi_compute_config(struct intel_crtc *intel_crtc,
 {
 	struct drm_device *dev = intel_crtc->base.dev;
 	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
-	int lane, link_bw, fdi_dotclock;
-	bool setup_ok, needs_recompute = false;
+	int lane, link_bw, fdi_dotclock, ret;
+	bool needs_recompute = false;
 
 retry:
 	/* FDI is a binary signal running at ~2.7GHz, encoding
@@ -5760,9 +5775,9 @@ retry:
 	intel_link_compute_m_n(pipe_config->pipe_bpp, lane, fdi_dotclock,
 			       link_bw, &pipe_config->fdi_m_n);
 
-	setup_ok = ironlake_check_fdi_lanes(intel_crtc->base.dev,
-					    intel_crtc->pipe, pipe_config);
-	if (!setup_ok && pipe_config->pipe_bpp > 6*3) {
+	ret = ironlake_check_fdi_lanes(intel_crtc->base.dev,
+				       intel_crtc->pipe, pipe_config);
+	if (ret == -EINVAL && pipe_config->pipe_bpp > 6*3) {
 		pipe_config->pipe_bpp -= 2*3;
 		DRM_DEBUG_KMS("fdi link bw constraint, reducing pipe bpp to %i\n",
 			      pipe_config->pipe_bpp);
@@ -5775,7 +5790,7 @@ retry:
 	if (needs_recompute)
 		return RETRY;
 
-	return setup_ok ? 0 : -EINVAL;
+	return ret;
 }
 
 static void hsw_compute_ips_config(struct intel_crtc *crtc,
