@@ -35,27 +35,22 @@
 /* Rates */
 /*********/
 
-#define RATETAB_ENT(_rate, _rateid, _flags) { \
-	.bitrate		= (_rate), \
-	.flags			= (_flags), \
-	.hw_value		= (_rateid), \
-}
-
 static struct ieee80211_rate ath10k_rates[] = {
 	/* CCK */
-	RATETAB_ENT(10,  0, 0),
-	RATETAB_ENT(20,  0, 0),
-	RATETAB_ENT(55,  0, 0),
-	RATETAB_ENT(110, 0, 0),
+	{ .bitrate = 10 },
+	{ .bitrate = 20 },
+	{ .bitrate = 55 },
+	{ .bitrate = 110 },
+
 	/* OFDM */
-	RATETAB_ENT(60,  0, 0),
-	RATETAB_ENT(90,  0, 0),
-	RATETAB_ENT(120, 0, 0),
-	RATETAB_ENT(180, 0, 0),
-	RATETAB_ENT(240, 0, 0),
-	RATETAB_ENT(360, 0, 0),
-	RATETAB_ENT(480, 0, 0),
-	RATETAB_ENT(540, 0, 0),
+	{ .bitrate = 60 },
+	{ .bitrate = 90 },
+	{ .bitrate = 120 },
+	{ .bitrate = 180 },
+	{ .bitrate = 240 },
+	{ .bitrate = 360 },
+	{ .bitrate = 480 },
+	{ .bitrate = 540 },
 };
 
 #define ath10k_a_rates (ath10k_rates + 4)
