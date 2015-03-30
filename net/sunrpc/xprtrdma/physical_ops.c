@@ -50,7 +50,8 @@ physical_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 {
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
 
-	rpcrdma_map_one(ia, seg, writing);
+	rpcrdma_map_one(ia->ri_id->device, seg,
+			rpcrdma_data_dir(writing));
 	seg->mr_rkey = ia->ri_bind_mem->rkey;
 	seg->mr_base = seg->mr_dma;
 	seg->mr_nsegs = 1;
@@ -62,7 +63,12 @@ physical_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 static int
 physical_op_unmap(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg)
 {
-	rpcrdma_unmap_one(&r_xprt->rx_ia, seg);
+	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
+
+	read_lock(&ia->ri_qplock);
+	rpcrdma_unmap_one(ia->ri_id->device, seg);
+	read_unlock(&ia->ri_qplock);
+
 	return 1;
 }
 

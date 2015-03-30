@@ -424,8 +424,49 @@ void rpcrdma_free_regbuf(struct rpcrdma_ia *,
 			 struct rpcrdma_regbuf *);
 
 unsigned int rpcrdma_max_segments(struct rpcrdma_xprt *);
-void rpcrdma_map_one(struct rpcrdma_ia *, struct rpcrdma_mr_seg *, bool);
-void rpcrdma_unmap_one(struct rpcrdma_ia *, struct rpcrdma_mr_seg *);
+
+/*
+ * Wrappers for chunk registration, shared by read/write chunk code.
+ */
+
+void rpcrdma_mapping_error(struct rpcrdma_mr_seg *);
+
+static inline enum dma_data_direction
+rpcrdma_data_dir(bool writing)
+{
+	return writing ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
+}
+
+static inline void
+rpcrdma_map_one(struct ib_device *device, struct rpcrdma_mr_seg *seg,
+		enum dma_data_direction direction)
+{
+	seg->mr_dir = direction;
+	seg->mr_dmalen = seg->mr_len;
+
+	if (seg->mr_page)
+		seg->mr_dma = ib_dma_map_page(device,
+				seg->mr_page, offset_in_page(seg->mr_offset),
+				seg->mr_dmalen, seg->mr_dir);
+	else
+		seg->mr_dma = ib_dma_map_single(device,
+				seg->mr_offset,
+				seg->mr_dmalen, seg->mr_dir);
+
+	if (ib_dma_mapping_error(device, seg->mr_dma))
+		rpcrdma_mapping_error(seg);
+}
+
+static inline void
+rpcrdma_unmap_one(struct ib_device *device, struct rpcrdma_mr_seg *seg)
+{
+	if (seg->mr_page)
+		ib_dma_unmap_page(device,
+				  seg->mr_dma, seg->mr_dmalen, seg->mr_dir);
+	else
+		ib_dma_unmap_single(device,
+				    seg->mr_dma, seg->mr_dmalen, seg->mr_dir);
+}
 
 /*
  * RPC/RDMA connection management calls - xprtrdma/rpc_rdma.c

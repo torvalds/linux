@@ -1436,6 +1436,14 @@ rpcrdma_recv_buffer_put(struct rpcrdma_rep *rep)
  * Wrappers for internal-use kmalloc memory registration, used by buffer code.
  */
 
+void
+rpcrdma_mapping_error(struct rpcrdma_mr_seg *seg)
+{
+	dprintk("RPC:       map_one: offset %p iova %llx len %zu\n",
+		seg->mr_offset,
+		(unsigned long long)seg->mr_dma, seg->mr_dmalen);
+}
+
 static int
 rpcrdma_register_internal(struct rpcrdma_ia *ia, void *va, int len,
 				struct ib_mr **mrp, struct ib_sge *iov)
@@ -1558,42 +1566,6 @@ rpcrdma_free_regbuf(struct rpcrdma_ia *ia, struct rpcrdma_regbuf *rb)
 		rpcrdma_deregister_internal(ia, rb->rg_mr, &rb->rg_iov);
 		kfree(rb);
 	}
-}
-
-/*
- * Wrappers for chunk registration, shared by read/write chunk code.
- */
-
-void
-rpcrdma_map_one(struct rpcrdma_ia *ia, struct rpcrdma_mr_seg *seg, bool writing)
-{
-	seg->mr_dir = writing ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
-	seg->mr_dmalen = seg->mr_len;
-	if (seg->mr_page)
-		seg->mr_dma = ib_dma_map_page(ia->ri_id->device,
-				seg->mr_page, offset_in_page(seg->mr_offset),
-				seg->mr_dmalen, seg->mr_dir);
-	else
-		seg->mr_dma = ib_dma_map_single(ia->ri_id->device,
-				seg->mr_offset,
-				seg->mr_dmalen, seg->mr_dir);
-	if (ib_dma_mapping_error(ia->ri_id->device, seg->mr_dma)) {
-		dprintk("RPC:       %s: mr_dma %llx mr_offset %p mr_dma_len %zu\n",
-			__func__,
-			(unsigned long long)seg->mr_dma,
-			seg->mr_offset, seg->mr_dmalen);
-	}
-}
-
-void
-rpcrdma_unmap_one(struct rpcrdma_ia *ia, struct rpcrdma_mr_seg *seg)
-{
-	if (seg->mr_page)
-		ib_dma_unmap_page(ia->ri_id->device,
-				seg->mr_dma, seg->mr_dmalen, seg->mr_dir);
-	else
-		ib_dma_unmap_single(ia->ri_id->device,
-				seg->mr_dma, seg->mr_dmalen, seg->mr_dir);
 }
 
 /*

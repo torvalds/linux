@@ -85,6 +85,8 @@ fmr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	   int nsegs, bool writing)
 {
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
+	struct ib_device *device = ia->ri_id->device;
+	enum dma_data_direction direction = rpcrdma_data_dir(writing);
 	struct rpcrdma_mr_seg *seg1 = seg;
 	struct rpcrdma_mw *mw = seg1->rl_mw;
 	u64 physaddrs[RPCRDMA_MAX_DATA_SEGS];
@@ -97,7 +99,7 @@ fmr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	if (nsegs > RPCRDMA_MAX_FMR_SGES)
 		nsegs = RPCRDMA_MAX_FMR_SGES;
 	for (i = 0; i < nsegs;) {
-		rpcrdma_map_one(ia, seg, writing);
+		rpcrdma_map_one(device, seg, direction);
 		physaddrs[i] = seg->mr_dma;
 		len += seg->mr_len;
 		++seg;
@@ -123,7 +125,7 @@ out_maperr:
 		__func__, len, (unsigned long long)seg1->mr_dma,
 		pageoff, i, rc);
 	while (i--)
-		rpcrdma_unmap_one(ia, --seg);
+		rpcrdma_unmap_one(device, --seg);
 	return rc;
 }
 
@@ -135,14 +137,16 @@ fmr_op_unmap(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg)
 {
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
 	struct rpcrdma_mr_seg *seg1 = seg;
+	struct ib_device *device;
 	int rc, nsegs = seg->mr_nsegs;
 	LIST_HEAD(l);
 
 	list_add(&seg1->rl_mw->r.fmr->list, &l);
 	rc = ib_unmap_fmr(&l);
 	read_lock(&ia->ri_qplock);
+	device = ia->ri_id->device;
 	while (seg1->mr_nsegs--)
-		rpcrdma_unmap_one(ia, seg++);
+		rpcrdma_unmap_one(device, seg++);
 	read_unlock(&ia->ri_qplock);
 	if (rc)
 		goto out_err;

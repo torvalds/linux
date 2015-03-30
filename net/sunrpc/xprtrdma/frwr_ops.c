@@ -178,6 +178,8 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	    int nsegs, bool writing)
 {
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
+	struct ib_device *device = ia->ri_id->device;
+	enum dma_data_direction direction = rpcrdma_data_dir(writing);
 	struct rpcrdma_mr_seg *seg1 = seg;
 	struct rpcrdma_mw *mw = seg1->rl_mw;
 	struct rpcrdma_frmr *frmr = &mw->r.frmr;
@@ -197,7 +199,7 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	if (nsegs > ia->ri_max_frmr_depth)
 		nsegs = ia->ri_max_frmr_depth;
 	for (page_no = i = 0; i < nsegs;) {
-		rpcrdma_map_one(ia, seg, writing);
+		rpcrdma_map_one(device, seg, direction);
 		pa = seg->mr_dma;
 		for (seg_len = seg->mr_len; seg_len > 0; seg_len -= PAGE_SIZE) {
 			frmr->fr_pgl->page_list[page_no++] = pa;
@@ -247,7 +249,7 @@ out_senderr:
 	ib_update_fast_reg_key(mr, --key);
 	frmr->fr_state = FRMR_IS_INVALID;
 	while (i--)
-		rpcrdma_unmap_one(ia, --seg);
+		rpcrdma_unmap_one(device, --seg);
 	return rc;
 }
 
@@ -261,6 +263,7 @@ frwr_op_unmap(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg)
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
 	struct ib_send_wr invalidate_wr, *bad_wr;
 	int rc, nsegs = seg->mr_nsegs;
+	struct ib_device *device;
 
 	seg1->rl_mw->r.frmr.fr_state = FRMR_IS_INVALID;
 
@@ -271,8 +274,9 @@ frwr_op_unmap(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg)
 	DECR_CQCOUNT(&r_xprt->rx_ep);
 
 	read_lock(&ia->ri_qplock);
+	device = ia->ri_id->device;
 	while (seg1->mr_nsegs--)
-		rpcrdma_unmap_one(ia, seg++);
+		rpcrdma_unmap_one(device, seg++);
 	rc = ib_post_send(ia->ri_id->qp, &invalidate_wr, &bad_wr);
 	read_unlock(&ia->ri_qplock);
 	if (rc)
