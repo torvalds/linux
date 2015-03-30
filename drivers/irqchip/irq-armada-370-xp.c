@@ -295,6 +295,7 @@ static struct irq_chip armada_370_xp_irq_chip = {
 #ifdef CONFIG_SMP
 	.irq_set_affinity = armada_xp_set_affinity,
 #endif
+	.flags		= IRQCHIP_SKIP_SET_WAKE | IRQCHIP_MASK_ON_SUSPEND,
 };
 
 static int armada_370_xp_mpic_irq_map(struct irq_domain *h,
