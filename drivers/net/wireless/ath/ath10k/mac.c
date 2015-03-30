@@ -104,6 +104,18 @@ u8 ath10k_mac_hw_rate_to_idx(const struct ieee80211_supported_band *sband,
 	return 0;
 }
 
+u8 ath10k_mac_bitrate_to_idx(const struct ieee80211_supported_band *sband,
+			     u32 bitrate)
+{
+	int i;
+
+	for (i = 0; i < sband->n_bitrates; i++)
+		if (sband->bitrates[i].bitrate == bitrate)
+			return i;
+
+	return 0;
+}
+
 /**********/
 /* Crypto */
 /**********/
