@@ -1059,6 +1059,10 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 		}
 	}
 
+	if (mask & BIT(NL80211_STA_FLAG_WME) &&
+	    local->hw.queues >= IEEE80211_NUM_ACS)
+		sta->sta.wme = set & BIT(NL80211_STA_FLAG_WME);
+
 	/* auth flags will be set later for TDLS stations */
 	if (!test_sta_flag(sta, WLAN_STA_TDLS_PEER)) {
 		ret = sta_apply_auth_flags(local, sta, mask, set);
@@ -1072,10 +1076,6 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 		else
 			clear_sta_flag(sta, WLAN_STA_SHORT_PREAMBLE);
 	}
-
-	if (mask & BIT(NL80211_STA_FLAG_WME) &&
-	    local->hw.queues >= IEEE80211_NUM_ACS)
-		sta->sta.wme = set & BIT(NL80211_STA_FLAG_WME);
 
 	if (mask & BIT(NL80211_STA_FLAG_MFP)) {
 		sta->sta.mfp = !!(set & BIT(NL80211_STA_FLAG_MFP));
