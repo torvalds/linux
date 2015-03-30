@@ -419,13 +419,19 @@ int driver_probe_device(struct device_driver *drv, struct device *dev)
 
 bool driver_allows_async_probing(struct device_driver *drv)
 {
-	if (drv->probe_type == PROBE_PREFER_ASYNCHRONOUS)
+	switch (drv->probe_type) {
+	case PROBE_PREFER_ASYNCHRONOUS:
 		return true;
 
-	if (drv->owner && drv->owner->async_probe_requested)
-		return true;
+	case PROBE_FORCE_SYNCHRONOUS:
+		return false;
 
-	return false;
+	default:
+		if (drv->owner && drv->owner->async_probe_requested)
+			return true;
+
+		return false;
+	}
 }
 
 struct device_attach_data {
