@@ -68,7 +68,7 @@ static void moan_device(const char *str, struct pci_dev *dev)
 	       "Please send the output of lspci -vv, this\n"
 	       "message (0x%04x,0x%04x,0x%04x,0x%04x), the\n"
 	       "manufacturer and name of serial board or\n"
-	       "modem board to rmk+serial@arm.linux.org.uk.\n",
+	       "modem board to <linux-serial@vger.kernel.org>.\n",
 	       pci_name(dev), str, dev->vendor, dev->device,
 	       dev->subsystem_vendor, dev->subsystem_device);
 }
