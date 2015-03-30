@@ -442,7 +442,7 @@ struct rk_lcdc_drv_ops {
 	int (*post_dspbuf)(struct rk_lcdc_driver *dev_drv, u32 rgb_mst,
 			   int format, u16 xact, u16 yact, u16 xvir);
 
-	int (*get_win_state) (struct rk_lcdc_driver *dev_drv, int layer_id);
+	int (*get_win_state) (struct rk_lcdc_driver *dev_drv, int layer_id, int area_id);
 	int (*ovl_mgr) (struct rk_lcdc_driver *dev_drv, int swap, bool set);	/*overlay manager*/
 	int (*fps_mgr) (struct rk_lcdc_driver *dev_drv, int fps, bool set);
 	int (*fb_get_win_id) (struct rk_lcdc_driver *dev_drv, const char *id);	/*find layer for fb*/
@@ -459,7 +459,7 @@ struct rk_lcdc_drv_ops {
 	int (*dpi_open) (struct rk_lcdc_driver *dev_drv, bool open);
 	int (*dpi_win_sel) (struct rk_lcdc_driver *dev_drv, int layer_id);
 	int (*dpi_status) (struct rk_lcdc_driver *dev_drv);
-	int (*get_dsp_addr)(struct rk_lcdc_driver *dev_drv,unsigned int *dsp_addr);
+	int (*get_dsp_addr)(struct rk_lcdc_driver *dev_drv, unsigned int dsp_addr[][4]);
 	int (*set_dsp_cabc) (struct rk_lcdc_driver *dev_drv, int mode, int calc, int up, int down, int global);
 	int (*set_dsp_bcsh_hue) (struct rk_lcdc_driver *dev_drv,int sin_hue, int cos_hue);
 	int (*set_dsp_bcsh_bcs)(struct rk_lcdc_driver *dev_drv,bcsh_bcs_mode mode,int value);
@@ -474,6 +474,7 @@ struct rk_lcdc_drv_ops {
 			     struct overscan *overscan);
 	int (*dsp_black) (struct rk_lcdc_driver *dev_drv, int enable);
 	int (*backlight_close)(struct rk_lcdc_driver *dev_drv, int enable);
+	int (*area_support_num)(struct rk_lcdc_driver *dev_drv, unsigned int *area_support);
 };
 
 struct rk_fb_area_par {

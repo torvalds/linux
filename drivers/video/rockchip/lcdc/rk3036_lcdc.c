@@ -1011,7 +1011,8 @@ static int rk3036_lcdc_get_win_id(struct rk_lcdc_driver *dev_drv,
 }
 
 static int rk3036_lcdc_get_win_state(struct rk_lcdc_driver *dev_drv,
-				     int win_id)
+				     int win_id,
+				     int area_id)
 {
 	return dev_drv->win[win_id]->state;
 }
@@ -1450,14 +1451,14 @@ static int rk3036_lcdc_poll_vblank(struct rk_lcdc_driver *dev_drv)
 }
 
 static int rk3036_lcdc_get_dsp_addr(struct rk_lcdc_driver *dev_drv,
-				    unsigned int *dsp_addr)
+				    unsigned int dsp_addr[][4])
 {
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
 
 	if (lcdc_dev->clk_on) {
-		dsp_addr[0] = lcdc_readl(lcdc_dev, WIN0_YRGB_MST);
-		dsp_addr[1] = lcdc_readl(lcdc_dev, WIN1_MST);
+		dsp_addr[0][0] = lcdc_readl(lcdc_dev, WIN0_YRGB_MST);
+		dsp_addr[1][0] = lcdc_readl(lcdc_dev, WIN1_MST);
 	}
 	return 0;
 }
