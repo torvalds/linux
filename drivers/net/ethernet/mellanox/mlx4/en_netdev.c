@@ -49,11 +49,6 @@
 #include "mlx4_en.h"
 #include "en_port.h"
 
-#define MLX4_STATS_TRAFFIC_COUNTERS_MASK	0xfULL
-#define MLX4_STATS_TRAFFIC_DROPS_MASK		0xc0ULL
-#define MLX4_STATS_ERROR_COUNTERS_MASK		0x1ffc30ULL
-#define MLX4_STATS_PORT_COUNTERS_MASK		0x7fe00000ULL
-
 int mlx4_en_setup_tc(struct net_device *dev, u8 up)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
@@ -2653,19 +2648,36 @@ int mlx4_en_netdev_event(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-void mlx4_en_set_stats_bitmap(struct mlx4_dev *dev, u64 *stats_bitmap)
+void mlx4_en_set_stats_bitmap(struct mlx4_dev *dev,
+			      unsigned long *stats_bitmap)
 {
-	if (!mlx4_is_mfunc(dev)) {
-		*stats_bitmap = 0;
-		return;
+	int last_i = 0;
+
+	bitmap_zero(stats_bitmap, NUM_ALL_STATS);
+
+	if (mlx4_is_slave(dev)) {
+		bitmap_set(stats_bitmap, last_i +
+					 MLX4_FIND_NETDEV_STAT(rx_packets), 1);
+		bitmap_set(stats_bitmap, last_i +
+					 MLX4_FIND_NETDEV_STAT(tx_packets), 1);
+		bitmap_set(stats_bitmap, last_i +
+					 MLX4_FIND_NETDEV_STAT(rx_bytes), 1);
+		bitmap_set(stats_bitmap, last_i +
+					 MLX4_FIND_NETDEV_STAT(tx_bytes), 1);
+		bitmap_set(stats_bitmap, last_i +
+					 MLX4_FIND_NETDEV_STAT(rx_dropped), 1);
+		bitmap_set(stats_bitmap, last_i +
+					 MLX4_FIND_NETDEV_STAT(tx_dropped), 1);
+	} else {
+		bitmap_set(stats_bitmap, last_i, NUM_MAIN_STATS);
 	}
+	last_i += NUM_MAIN_STATS;
 
-	*stats_bitmap = (MLX4_STATS_TRAFFIC_COUNTERS_MASK |
-			 MLX4_STATS_TRAFFIC_DROPS_MASK |
-			 MLX4_STATS_PORT_COUNTERS_MASK);
+	bitmap_set(stats_bitmap, last_i, NUM_PORT_STATS);
+	last_i += NUM_PORT_STATS;
 
-	if (mlx4_is_master(dev))
-		*stats_bitmap |= MLX4_STATS_ERROR_COUNTERS_MASK;
+	if (!mlx4_is_slave(dev))
+		bitmap_set(stats_bitmap, last_i, NUM_PKT_STATS);
 }
 
 int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
@@ -2901,7 +2913,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 		queue_delayed_work(mdev->workqueue, &priv->service_task,
 				   SERVICE_TASK_DELAY);
 
-	mlx4_en_set_stats_bitmap(mdev->dev, &priv->stats_bitmap);
+	mlx4_en_set_stats_bitmap(mdev->dev, priv->stats_bitmap);
 
 	return 0;
 
