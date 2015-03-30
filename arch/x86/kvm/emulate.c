@@ -962,6 +962,22 @@ FASTOP2(xadd);
 
 FASTOP2R(cmp, cmp_r);
 
+static int em_bsf_c(struct x86_emulate_ctxt *ctxt)
+{
+	/* If src is zero, do not writeback, but update flags */
+	if (ctxt->src.val == 0)
+		ctxt->dst.type = OP_NONE;
+	return fastop(ctxt, em_bsf);
+}
+
+static int em_bsr_c(struct x86_emulate_ctxt *ctxt)
+{
+	/* If src is zero, do not writeback, but update flags */
+	if (ctxt->src.val == 0)
+		ctxt->dst.type = OP_NONE;
+	return fastop(ctxt, em_bsr);
+}
+
 static u8 test_cc(unsigned int condition, unsigned long flags)
 {
 	u8 rc;
@@ -4188,7 +4204,8 @@ static const struct opcode twobyte_table[256] = {
 	N, N,
 	G(BitOp, group8),
 	F(DstMem | SrcReg | ModRM | BitOp | Lock | PageTable, em_btc),
-	F(DstReg | SrcMem | ModRM, em_bsf), F(DstReg | SrcMem | ModRM, em_bsr),
+	I(DstReg | SrcMem | ModRM, em_bsf_c),
+	I(DstReg | SrcMem | ModRM, em_bsr_c),
 	D(DstReg | SrcMem8 | ModRM | Mov), D(DstReg | SrcMem16 | ModRM | Mov),
 	/* 0xC0 - 0xC7 */
 	F2bv(DstMem | SrcReg | ModRM | SrcWrite | Lock, em_xadd),
