@@ -92,9 +92,9 @@ static inline bool iwl_has_secure_boot(u32 hw_rev,
 {
 	/* return 1 only for family 8000 B0 */
 	if ((family == IWL_DEVICE_FAMILY_8000) && (hw_rev & 0xC))
-		return 1;
+		return true;
 
-	return 0;
+	return false;
 }
 
 /*
