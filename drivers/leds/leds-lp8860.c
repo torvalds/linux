@@ -488,6 +488,6 @@ static struct i2c_driver lp8860_driver = {
 };
 module_i2c_driver(lp8860_driver);
 
-MODULE_DESCRIPTION("Texas Instruments LP8860 LED drvier");
+MODULE_DESCRIPTION("Texas Instruments LP8860 LED driver");
 MODULE_AUTHOR("Dan Murphy <dmurphy@ti.com>");
 MODULE_LICENSE("GPL");
