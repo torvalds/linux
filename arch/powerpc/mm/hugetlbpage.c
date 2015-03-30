@@ -1014,12 +1014,11 @@ pte_t *__find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
 			 * A hugepage collapse is captured by pmd_none, because
 			 * it mark the pmd none and do a hpte invalidate.
 			 *
-			 * A hugepage split is captured by pmd_trans_splitting
-			 * because we mark the pmd trans splitting and do a
-			 * hpte invalidate
-			 *
+			 * We don't worry about pmd_trans_splitting here, The
+			 * caller if it needs to handle the splitting case
+			 * should check for that.
 			 */
-			if (pmd_none(pmd) || pmd_trans_splitting(pmd))
+			if (pmd_none(pmd))
 				return NULL;
 
 			if (pmd_huge(pmd) || pmd_large(pmd)) {

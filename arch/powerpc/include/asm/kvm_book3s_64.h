@@ -281,11 +281,9 @@ static inline int hpte_cache_flags_ok(unsigned long ptel, unsigned long io_type)
 
 /*
  * If it's present and writable, atomically set dirty and referenced bits and
- * return the PTE, otherwise return 0. If we find a transparent hugepage
- * and if it is marked splitting we return 0;
+ * return the PTE, otherwise return 0.
  */
-static inline pte_t kvmppc_read_update_linux_pte(pte_t *ptep, int writing,
-						 unsigned int hugepage)
+static inline pte_t kvmppc_read_update_linux_pte(pte_t *ptep, int writing)
 {
 	pte_t old_pte, new_pte = __pte(0);
 
@@ -301,12 +299,6 @@ static inline pte_t kvmppc_read_update_linux_pte(pte_t *ptep, int writing,
 			cpu_relax();
 			continue;
 		}
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-		/* If hugepage and is trans splitting return None */
-		if (unlikely(hugepage &&
-			     pmd_trans_splitting(pte_pmd(old_pte))))
-			return __pte(0);
-#endif
 		/* If pte is not present return None */
 		if (unlikely(!(pte_val(old_pte) & _PAGE_PRESENT)))
 			return __pte(0);

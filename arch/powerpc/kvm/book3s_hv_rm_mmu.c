@@ -219,7 +219,7 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 				local_irq_restore(flags);
 			return H_PARAMETER;
 		}
-		pte = kvmppc_read_update_linux_pte(ptep, writing, hpage_shift);
+		pte = kvmppc_read_update_linux_pte(ptep, writing);
 		if (pte_present(pte) && !pte_protnone(pte)) {
 			if (writing && !pte_write(pte))
 				/* make the actual HPTE be read-only */
