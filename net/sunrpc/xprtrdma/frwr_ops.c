@@ -260,11 +260,25 @@ frwr_op_reset(struct rpcrdma_xprt *r_xprt)
 	}
 }
 
+static void
+frwr_op_destroy(struct rpcrdma_buffer *buf)
+{
+	struct rpcrdma_mw *r;
+
+	while (!list_empty(&buf->rb_all)) {
+		r = list_entry(buf->rb_all.next, struct rpcrdma_mw, mw_all);
+		list_del(&r->mw_all);
+		__frwr_release(r);
+		kfree(r);
+	}
+}
+
 const struct rpcrdma_memreg_ops rpcrdma_frwr_memreg_ops = {
 	.ro_map				= frwr_op_map,
 	.ro_unmap			= frwr_op_unmap,
 	.ro_maxpages			= frwr_op_maxpages,
 	.ro_init			= frwr_op_init,
 	.ro_reset			= frwr_op_reset,
+	.ro_destroy			= frwr_op_destroy,
 	.ro_displayname			= "frwr",
 };

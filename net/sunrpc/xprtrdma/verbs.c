@@ -1199,47 +1199,6 @@ rpcrdma_destroy_req(struct rpcrdma_ia *ia, struct rpcrdma_req *req)
 	kfree(req);
 }
 
-static void
-rpcrdma_destroy_fmrs(struct rpcrdma_buffer *buf)
-{
-	struct rpcrdma_mw *r;
-	int rc;
-
-	while (!list_empty(&buf->rb_all)) {
-		r = list_entry(buf->rb_all.next, struct rpcrdma_mw, mw_all);
-		list_del(&r->mw_all);
-		list_del(&r->mw_list);
-
-		rc = ib_dealloc_fmr(r->r.fmr);
-		if (rc)
-			dprintk("RPC:       %s: ib_dealloc_fmr failed %i\n",
-				__func__, rc);
-
-		kfree(r);
-	}
-}
-
-static void
-rpcrdma_destroy_frmrs(struct rpcrdma_buffer *buf)
-{
-	struct rpcrdma_mw *r;
-	int rc;
-
-	while (!list_empty(&buf->rb_all)) {
-		r = list_entry(buf->rb_all.next, struct rpcrdma_mw, mw_all);
-		list_del(&r->mw_all);
-		list_del(&r->mw_list);
-
-		rc = ib_dereg_mr(r->r.frmr.fr_mr);
-		if (rc)
-			dprintk("RPC:       %s: ib_dereg_mr failed %i\n",
-				__func__, rc);
-		ib_free_fast_reg_page_list(r->r.frmr.fr_pgl);
-
-		kfree(r);
-	}
-}
-
 void
 rpcrdma_buffer_destroy(struct rpcrdma_buffer *buf)
 {
@@ -1260,16 +1219,7 @@ rpcrdma_buffer_destroy(struct rpcrdma_buffer *buf)
 			rpcrdma_destroy_req(ia, buf->rb_send_bufs[i]);
 	}
 
-	switch (ia->ri_memreg_strategy) {
-	case RPCRDMA_FRMR:
-		rpcrdma_destroy_frmrs(buf);
-		break;
-	case RPCRDMA_MTHCAFMR:
-		rpcrdma_destroy_fmrs(buf);
-		break;
-	default:
-		break;
-	}
+	ia->ri_ops->ro_destroy(buf);
 
 	kfree(buf->rb_pool);
 }

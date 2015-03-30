@@ -64,11 +64,17 @@ physical_op_reset(struct rpcrdma_xprt *r_xprt)
 {
 }
 
+static void
+physical_op_destroy(struct rpcrdma_buffer *buf)
+{
+}
+
 const struct rpcrdma_memreg_ops rpcrdma_physical_memreg_ops = {
 	.ro_map				= physical_op_map,
 	.ro_unmap			= physical_op_unmap,
 	.ro_maxpages			= physical_op_maxpages,
 	.ro_init			= physical_op_init,
 	.ro_reset			= physical_op_reset,
+	.ro_destroy			= physical_op_destroy,
 	.ro_displayname			= "physical",
 };
