@@ -128,6 +128,7 @@ struct ndis_tcp_ip_checksum_info;
 struct hv_netvsc_packet {
 	/* Bookkeeping stuff */
 	u32 status;
+	bool part_of_skb;
 
 	struct hv_device *device;
 	bool is_data_pkt;
@@ -150,7 +151,7 @@ struct hv_netvsc_packet {
 	/* Points to the send/receive buffer where the ethernet frame is */
 	void *data;
 	u32 page_buf_cnt;
-	struct hv_page_buffer page_buf[0];
+	struct hv_page_buffer *page_buf;
 };
 
 struct netvsc_device_info {
