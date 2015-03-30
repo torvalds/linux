@@ -1848,6 +1848,9 @@ static int serial_imx_suspend(struct platform_device *dev, pm_message_t state)
 
 	uart_suspend_port(&imx_reg, &sport->port);
 
+	if (sport->port.irq_wake)
+		disable_irq(sport->port.irq);
+
 	/* Save necessary regs */
 	sport->saved_reg[0] = readl(sport->port.membase + UCR1);
 	sport->saved_reg[1] = readl(sport->port.membase + UCR2);
@@ -1883,6 +1886,11 @@ static int serial_imx_resume(struct platform_device *dev)
 	val = readl(sport->port.membase + UCR3);
 	val &= ~UCR3_AWAKEN;
 	writel(val, sport->port.membase + UCR3);
+	val = readl(sport->port.membase + USR1);
+	if (val & USR1_AWAKE)
+		writel(USR1_AWAKE, sport->port.membase + USR1);
+	if (sport->port.irq_wake)
+		enable_irq(sport->port.irq);
 
 	uart_resume_port(&imx_reg, &sport->port);
 
