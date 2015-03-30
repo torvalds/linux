@@ -59,9 +59,8 @@ static unsigned char f2fs_type_by_mode[S_IFMT >> S_SHIFT] = {
 	[S_IFLNK >> S_SHIFT]	= F2FS_FT_SYMLINK,
 };
 
-void set_de_type(struct f2fs_dir_entry *de, struct inode *inode)
+void set_de_type(struct f2fs_dir_entry *de, umode_t mode)
 {
-	umode_t mode = inode->i_mode;
 	de->file_type = f2fs_type_by_mode[(mode & S_IFMT) >> S_SHIFT];
 }
 
@@ -282,7 +281,7 @@ void f2fs_set_link(struct inode *dir, struct f2fs_dir_entry *de,
 	lock_page(page);
 	f2fs_wait_on_page_writeback(page, type);
 	de->ino = cpu_to_le32(inode->i_ino);
-	set_de_type(de, inode);
+	set_de_type(de, inode->i_mode);
 	f2fs_dentry_kunmap(dir, page);
 	set_page_dirty(page);
 	dir->i_mtime = dir->i_ctime = CURRENT_TIME;
@@ -328,14 +327,14 @@ void do_make_empty_dir(struct inode *inode, struct inode *parent,
 	de->hash_code = 0;
 	de->ino = cpu_to_le32(inode->i_ino);
 	memcpy(d->filename[0], ".", 1);
-	set_de_type(de, inode);
+	set_de_type(de, inode->i_mode);
 
 	de = &d->dentry[1];
 	de->hash_code = 0;
 	de->name_len = cpu_to_le16(2);
 	de->ino = cpu_to_le32(parent->i_ino);
 	memcpy(d->filename[1], "..", 2);
-	set_de_type(de, inode);
+	set_de_type(de, inode->i_mode);
 
 	test_and_set_bit_le(0, (void *)d->bitmap);
 	test_and_set_bit_le(1, (void *)d->bitmap);
@@ -432,7 +431,7 @@ error:
 void update_parent_metadata(struct inode *dir, struct inode *inode,
 						unsigned int current_depth)
 {
-	if (is_inode_flag_set(F2FS_I(inode), FI_NEW_INODE)) {
+	if (inode && is_inode_flag_set(F2FS_I(inode), FI_NEW_INODE)) {
 		if (S_ISDIR(inode->i_mode)) {
 			inc_nlink(dir);
 			set_inode_flag(F2FS_I(dir), FI_UPDATE_DIR);
@@ -447,7 +446,7 @@ void update_parent_metadata(struct inode *dir, struct inode *inode,
 		set_inode_flag(F2FS_I(dir), FI_UPDATE_DIR);
 	}
 
-	if (is_inode_flag_set(F2FS_I(inode), FI_INC_LINK))
+	if (inode && is_inode_flag_set(F2FS_I(inode), FI_INC_LINK))
 		clear_inode_flag(F2FS_I(inode), FI_INC_LINK);
 }
 
@@ -471,7 +470,7 @@ next:
 	goto next;
 }
 
-void f2fs_update_dentry(struct inode *inode, struct f2fs_dentry_ptr *d,
+void f2fs_update_dentry(nid_t ino, umode_t mode, struct f2fs_dentry_ptr *d,
 				const struct qstr *name, f2fs_hash_t name_hash,
 				unsigned int bit_pos)
 {
@@ -483,8 +482,8 @@ void f2fs_update_dentry(struct inode *inode, struct f2fs_dentry_ptr *d,
 	de->hash_code = name_hash;
 	de->name_len = cpu_to_le16(name->len);
 	memcpy(d->filename[bit_pos], name->name, name->len);
-	de->ino = cpu_to_le32(inode->i_ino);
-	set_de_type(de, inode);
+	de->ino = cpu_to_le32(ino);
+	set_de_type(de, mode);
 	for (i = 0; i < slots; i++)
 		test_and_set_bit_le(bit_pos + i, (void *)d->bitmap);
 }
@@ -494,7 +493,7 @@ void f2fs_update_dentry(struct inode *inode, struct f2fs_dentry_ptr *d,
  * f2fs_unlock_op().
  */
 int __f2fs_add_link(struct inode *dir, const struct qstr *name,
-						struct inode *inode)
+				struct inode *inode, nid_t ino, umode_t mode)
 {
 	unsigned int bit_pos;
 	unsigned int level;
@@ -507,11 +506,11 @@ int __f2fs_add_link(struct inode *dir, const struct qstr *name,
 	struct f2fs_dentry_block *dentry_blk = NULL;
 	struct f2fs_dentry_ptr d;
 	int slots = GET_DENTRY_SLOTS(namelen);
-	struct page *page;
+	struct page *page = NULL;
 	int err = 0;
 
 	if (f2fs_has_inline_dentry(dir)) {
-		err = f2fs_add_inline_entry(dir, name, inode);
+		err = f2fs_add_inline_entry(dir, name, inode, ino, mode);
 		if (!err || err != -EAGAIN)
 			return err;
 		else
@@ -561,26 +560,31 @@ start:
 add_dentry:
 	f2fs_wait_on_page_writeback(dentry_page, DATA);
 
-	down_write(&F2FS_I(inode)->i_sem);
-	page = init_inode_metadata(inode, dir, name, NULL);
-	if (IS_ERR(page)) {
-		err = PTR_ERR(page);
-		goto fail;
+	if (inode) {
+		down_write(&F2FS_I(inode)->i_sem);
+		page = init_inode_metadata(inode, dir, name, NULL);
+		if (IS_ERR(page)) {
+			err = PTR_ERR(page);
+			goto fail;
+		}
 	}
 
 	make_dentry_ptr(&d, (void *)dentry_blk, 1);
-	f2fs_update_dentry(inode, &d, name, dentry_hash, bit_pos);
+	f2fs_update_dentry(ino, mode, &d, name, dentry_hash, bit_pos);
 
 	set_page_dirty(dentry_page);
 
-	/* we don't need to mark_inode_dirty now */
-	F2FS_I(inode)->i_pino = dir->i_ino;
-	update_inode(inode, page);
-	f2fs_put_page(page, 1);
+	if (inode) {
+		/* we don't need to mark_inode_dirty now */
+		F2FS_I(inode)->i_pino = dir->i_ino;
+		update_inode(inode, page);
+		f2fs_put_page(page, 1);
+	}
 
 	update_parent_metadata(dir, inode, current_depth);
 fail:
-	up_write(&F2FS_I(inode)->i_sem);
+	if (inode)
+		up_write(&F2FS_I(inode)->i_sem);
 
 	if (is_inode_flag_set(F2FS_I(dir), FI_UPDATE_DIR)) {
 		update_inode_page(dir);

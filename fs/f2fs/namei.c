@@ -187,6 +187,44 @@ struct dentry *f2fs_get_parent(struct dentry *child)
 	return d_obtain_alias(f2fs_iget(child->d_inode->i_sb, ino));
 }
 
+static int __recover_dot_dentries(struct inode *dir, nid_t pino)
+{
+	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
+	struct qstr dot = QSTR_INIT(".", 1);
+	struct qstr dotdot = QSTR_INIT("..", 2);
+	struct f2fs_dir_entry *de;
+	struct page *page;
+	int err = 0;
+
+	f2fs_lock_op(sbi);
+
+	de = f2fs_find_entry(dir, &dot, &page);
+	if (de) {
+		f2fs_dentry_kunmap(dir, page);
+		f2fs_put_page(page, 0);
+	} else {
+		err = __f2fs_add_link(dir, &dot, NULL, dir->i_ino, S_IFDIR);
+		if (err)
+			goto out;
+	}
+
+	de = f2fs_find_entry(dir, &dotdot, &page);
+	if (de) {
+		f2fs_dentry_kunmap(dir, page);
+		f2fs_put_page(page, 0);
+	} else {
+		err = __f2fs_add_link(dir, &dotdot, NULL, pino, S_IFDIR);
+	}
+out:
+	if (!err) {
+		clear_inode_flag(F2FS_I(dir), FI_INLINE_DOTS);
+		mark_inode_dirty(dir);
+	}
+
+	f2fs_unlock_op(sbi);
+	return err;
+}
+
 static struct dentry *f2fs_lookup(struct inode *dir, struct dentry *dentry,
 		unsigned int flags)
 {
@@ -206,6 +244,16 @@ static struct dentry *f2fs_lookup(struct inode *dir, struct dentry *dentry,
 		inode = f2fs_iget(dir->i_sb, ino);
 		if (IS_ERR(inode))
 			return ERR_CAST(inode);
+
+		if (f2fs_has_inline_dots(inode)) {
+			int err;
+
+			err = __recover_dot_dentries(inode, dir->i_ino);
+			if (err) {
+				iget_failed(inode);
+				return ERR_PTR(err);
+			}
+		}
 	}
 
 	return d_splice_alias(inode, dentry);
