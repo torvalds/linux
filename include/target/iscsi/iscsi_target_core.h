@@ -62,6 +62,7 @@
 #define TA_CACHE_CORE_NPS		0
 /* T10 protection information disabled by default */
 #define TA_DEFAULT_T10_PI		0
+#define TA_DEFAULT_FABRIC_PROT_TYPE	0
 
 #define ISCSI_IOV_DATA_BUFFER		5
 
@@ -772,6 +773,7 @@ struct iscsi_tpg_attrib {
 	u32			demo_mode_discovery;
 	u32			default_erl;
 	u8			t10_pi;
+	u32			fabric_prot_type;
 	struct iscsi_portal_group *tpg;
 };
 
