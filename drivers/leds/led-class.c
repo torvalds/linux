@@ -212,6 +212,31 @@ static const struct dev_pm_ops leds_class_dev_pm_ops = {
 	.resume         = led_resume,
 };
 
+static int match_name(struct device *dev, const void *data)
+{
+	if (!dev_name(dev))
+		return 0;
+	return !strcmp(dev_name(dev), (char *)data);
+}
+
+static int led_classdev_next_name(const char *init_name, char *name,
+				  size_t len)
+{
+	unsigned int i = 0;
+	int ret = 0;
+
+	strlcpy(name, init_name, len);
+
+	while (class_find_device(leds_class, NULL, name, match_name) &&
+	       (ret < len))
+		ret = snprintf(name, len, "%s_%u", init_name, ++i);
+
+	if (ret >= len)
+		return -ENOMEM;
+
+	return i;
+}
+
 /**
  * led_classdev_register - register a new object of led_classdev class.
  * @parent: The device to register.
@@ -219,11 +244,21 @@ static const struct dev_pm_ops leds_class_dev_pm_ops = {
  */
 int led_classdev_register(struct device *parent, struct led_classdev *led_cdev)
 {
+	char name[64];
+	int ret;
+
+	ret = led_classdev_next_name(led_cdev->name, name, sizeof(name));
+	if (ret < 0)
+		return ret;
+
 	led_cdev->dev = device_create_with_groups(leds_class, parent, 0,
-					led_cdev, led_cdev->groups,
-					"%s", led_cdev->name);
+					led_cdev, led_cdev->groups, name);
 	if (IS_ERR(led_cdev->dev))
 		return PTR_ERR(led_cdev->dev);
+
+	if (ret)
+		dev_info(parent, "Led %s renamed to %s due to name collision",
+				led_cdev->name, dev_name(led_cdev->dev));
 
 #ifdef CONFIG_LEDS_TRIGGERS
 	init_rwsem(&led_cdev->trigger_lock);
