@@ -622,11 +622,6 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr, int memreg)
 			dprintk("RPC:       %s: FRMR registration "
 				"not supported by HCA\n", __func__);
 			memreg = RPCRDMA_MTHCAFMR;
-		} else {
-			/* Mind the ia limit on FRMR page list depth */
-			ia->ri_max_frmr_depth = min_t(unsigned int,
-				RPCRDMA_MAX_DATA_SEGS,
-				devattr->max_fast_reg_page_list_len);
 		}
 	}
 	if (memreg == RPCRDMA_MTHCAFMR) {
@@ -741,49 +736,11 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 
 	ep->rep_attr.event_handler = rpcrdma_qp_async_error_upcall;
 	ep->rep_attr.qp_context = ep;
-	/* send_cq and recv_cq initialized below */
 	ep->rep_attr.srq = NULL;
 	ep->rep_attr.cap.max_send_wr = cdata->max_requests;
-	switch (ia->ri_memreg_strategy) {
-	case RPCRDMA_FRMR: {
-		int depth = 7;
-
-		/* Add room for frmr register and invalidate WRs.
-		 * 1. FRMR reg WR for head
-		 * 2. FRMR invalidate WR for head
-		 * 3. N FRMR reg WRs for pagelist
-		 * 4. N FRMR invalidate WRs for pagelist
-		 * 5. FRMR reg WR for tail
-		 * 6. FRMR invalidate WR for tail
-		 * 7. The RDMA_SEND WR
-		 */
-
-		/* Calculate N if the device max FRMR depth is smaller than
-		 * RPCRDMA_MAX_DATA_SEGS.
-		 */
-		if (ia->ri_max_frmr_depth < RPCRDMA_MAX_DATA_SEGS) {
-			int delta = RPCRDMA_MAX_DATA_SEGS -
-				    ia->ri_max_frmr_depth;
-
-			do {
-				depth += 2; /* FRMR reg + invalidate */
-				delta -= ia->ri_max_frmr_depth;
-			} while (delta > 0);
-
-		}
-		ep->rep_attr.cap.max_send_wr *= depth;
-		if (ep->rep_attr.cap.max_send_wr > devattr->max_qp_wr) {
-			cdata->max_requests = devattr->max_qp_wr / depth;
-			if (!cdata->max_requests)
-				return -EINVAL;
-			ep->rep_attr.cap.max_send_wr = cdata->max_requests *
-						       depth;
-		}
-		break;
-	}
-	default:
-		break;
-	}
+	rc = ia->ri_ops->ro_open(ia, ep, cdata);
+	if (rc)
+		return rc;
 	ep->rep_attr.cap.max_recv_wr = cdata->max_requests;
 	ep->rep_attr.cap.max_send_sge = (cdata->padding ? 4 : 2);
 	ep->rep_attr.cap.max_recv_sge = 1;

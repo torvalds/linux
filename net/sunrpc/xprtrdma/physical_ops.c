@@ -19,6 +19,13 @@
 # define RPCDBG_FACILITY	RPCDBG_TRANS
 #endif
 
+static int
+physical_op_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep,
+		 struct rpcrdma_create_data_internal *cdata)
+{
+	return 0;
+}
+
 /* PHYSICAL memory registration conveys one page per chunk segment.
  */
 static size_t
@@ -72,6 +79,7 @@ physical_op_destroy(struct rpcrdma_buffer *buf)
 const struct rpcrdma_memreg_ops rpcrdma_physical_memreg_ops = {
 	.ro_map				= physical_op_map,
 	.ro_unmap			= physical_op_unmap,
+	.ro_open			= physical_op_open,
 	.ro_maxpages			= physical_op_maxpages,
 	.ro_init			= physical_op_init,
 	.ro_reset			= physical_op_reset,

@@ -58,6 +58,53 @@ __frwr_release(struct rpcrdma_mw *r)
 	ib_free_fast_reg_page_list(r->r.frmr.fr_pgl);
 }
 
+static int
+frwr_op_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep,
+	     struct rpcrdma_create_data_internal *cdata)
+{
+	struct ib_device_attr *devattr = &ia->ri_devattr;
+	int depth, delta;
+
+	ia->ri_max_frmr_depth =
+			min_t(unsigned int, RPCRDMA_MAX_DATA_SEGS,
+			      devattr->max_fast_reg_page_list_len);
+	dprintk("RPC:       %s: device's max FR page list len = %u\n",
+		__func__, ia->ri_max_frmr_depth);
+
+	/* Add room for frmr register and invalidate WRs.
+	 * 1. FRMR reg WR for head
+	 * 2. FRMR invalidate WR for head
+	 * 3. N FRMR reg WRs for pagelist
+	 * 4. N FRMR invalidate WRs for pagelist
+	 * 5. FRMR reg WR for tail
+	 * 6. FRMR invalidate WR for tail
+	 * 7. The RDMA_SEND WR
+	 */
+	depth = 7;
+
+	/* Calculate N if the device max FRMR depth is smaller than
+	 * RPCRDMA_MAX_DATA_SEGS.
+	 */
+	if (ia->ri_max_frmr_depth < RPCRDMA_MAX_DATA_SEGS) {
+		delta = RPCRDMA_MAX_DATA_SEGS - ia->ri_max_frmr_depth;
+		do {
+			depth += 2; /* FRMR reg + invalidate */
+			delta -= ia->ri_max_frmr_depth;
+		} while (delta > 0);
+	}
+
+	ep->rep_attr.cap.max_send_wr *= depth;
+	if (ep->rep_attr.cap.max_send_wr > devattr->max_qp_wr) {
+		cdata->max_requests = devattr->max_qp_wr / depth;
+		if (!cdata->max_requests)
+			return -EINVAL;
+		ep->rep_attr.cap.max_send_wr = cdata->max_requests *
+					       depth;
+	}
+
+	return 0;
+}
+
 /* FRWR mode conveys a list of pages per chunk segment. The
  * maximum length of that list is the FRWR page list depth.
  */
@@ -276,6 +323,7 @@ frwr_op_destroy(struct rpcrdma_buffer *buf)
 const struct rpcrdma_memreg_ops rpcrdma_frwr_memreg_ops = {
 	.ro_map				= frwr_op_map,
 	.ro_unmap			= frwr_op_unmap,
+	.ro_open			= frwr_op_open,
 	.ro_maxpages			= frwr_op_maxpages,
 	.ro_init			= frwr_op_init,
 	.ro_reset			= frwr_op_reset,
