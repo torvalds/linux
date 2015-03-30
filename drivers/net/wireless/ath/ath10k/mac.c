@@ -1730,12 +1730,18 @@ static void ath10k_peer_assoc_h_basic(struct ath10k *ar,
 				      struct wmi_peer_assoc_complete_arg *arg)
 {
 	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
+	u32 aid;
 
 	lockdep_assert_held(&ar->conf_mutex);
 
+	if (vif->type == NL80211_IFTYPE_STATION)
+		aid = vif->bss_conf.aid;
+	else
+		aid = sta->aid;
+
 	ether_addr_copy(arg->addr, sta->addr);
 	arg->vdev_id = arvif->vdev_id;
-	arg->peer_aid = sta->aid;
+	arg->peer_aid = aid;
 	arg->peer_flags |= WMI_PEER_AUTH;
 	arg->peer_listen_intval = ath10k_peer_assoc_h_listen_intval(ar, vif);
 	arg->peer_num_spatial_streams = 1;
