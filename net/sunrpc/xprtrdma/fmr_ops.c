@@ -79,8 +79,35 @@ out_maperr:
 	return rc;
 }
 
+/* Use the ib_unmap_fmr() verb to prevent further remote
+ * access via RDMA READ or RDMA WRITE.
+ */
+static int
+fmr_op_unmap(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg)
+{
+	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
+	struct rpcrdma_mr_seg *seg1 = seg;
+	int rc, nsegs = seg->mr_nsegs;
+	LIST_HEAD(l);
+
+	list_add(&seg1->rl_mw->r.fmr->list, &l);
+	rc = ib_unmap_fmr(&l);
+	read_lock(&ia->ri_qplock);
+	while (seg1->mr_nsegs--)
+		rpcrdma_unmap_one(ia, seg++);
+	read_unlock(&ia->ri_qplock);
+	if (rc)
+		goto out_err;
+	return nsegs;
+
+out_err:
+	dprintk("RPC:       %s: ib_unmap_fmr status %i\n", __func__, rc);
+	return nsegs;
+}
+
 const struct rpcrdma_memreg_ops rpcrdma_fmr_memreg_ops = {
 	.ro_map				= fmr_op_map,
+	.ro_unmap			= fmr_op_unmap,
 	.ro_maxpages			= fmr_op_maxpages,
 	.ro_displayname			= "fmr",
 };

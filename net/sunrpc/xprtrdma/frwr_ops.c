@@ -110,8 +110,44 @@ out_senderr:
 	return rc;
 }
 
+/* Post a LOCAL_INV Work Request to prevent further remote access
+ * via RDMA READ or RDMA WRITE.
+ */
+static int
+frwr_op_unmap(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg)
+{
+	struct rpcrdma_mr_seg *seg1 = seg;
+	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
+	struct ib_send_wr invalidate_wr, *bad_wr;
+	int rc, nsegs = seg->mr_nsegs;
+
+	seg1->rl_mw->r.frmr.fr_state = FRMR_IS_INVALID;
+
+	memset(&invalidate_wr, 0, sizeof(invalidate_wr));
+	invalidate_wr.wr_id = (unsigned long)(void *)seg1->rl_mw;
+	invalidate_wr.opcode = IB_WR_LOCAL_INV;
+	invalidate_wr.ex.invalidate_rkey = seg1->rl_mw->r.frmr.fr_mr->rkey;
+	DECR_CQCOUNT(&r_xprt->rx_ep);
+
+	read_lock(&ia->ri_qplock);
+	while (seg1->mr_nsegs--)
+		rpcrdma_unmap_one(ia, seg++);
+	rc = ib_post_send(ia->ri_id->qp, &invalidate_wr, &bad_wr);
+	read_unlock(&ia->ri_qplock);
+	if (rc)
+		goto out_err;
+	return nsegs;
+
+out_err:
+	/* Force rpcrdma_buffer_get() to retry */
+	seg1->rl_mw->r.frmr.fr_state = FRMR_IS_STALE;
+	dprintk("RPC:       %s: ib_post_send status %i\n", __func__, rc);
+	return nsegs;
+}
+
 const struct rpcrdma_memreg_ops rpcrdma_frwr_memreg_ops = {
 	.ro_map				= frwr_op_map,
+	.ro_unmap			= frwr_op_unmap,
 	.ro_maxpages			= frwr_op_maxpages,
 	.ro_displayname			= "frwr",
 };
