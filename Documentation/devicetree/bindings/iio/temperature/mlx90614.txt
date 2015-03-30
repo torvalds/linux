@@ -1,0 +1,15 @@
+* Melexis MLX90614 contactless IR temperature sensor
+
+http://melexis.com/Infrared-Thermometer-Sensors/Infrared-Thermometer-Sensors/MLX90614-615.aspx
+
+Required properties:
+
+  - compatible: should be "melexis,mlx90614"
+  - reg: the I2C address of the sensor
+
+Example:
+
+mlx90614@5a {
+	compatible = "melexis,mlx90614";
+	reg = <0x5a>;
+};
