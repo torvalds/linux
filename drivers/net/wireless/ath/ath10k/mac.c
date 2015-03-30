@@ -5198,20 +5198,18 @@ exit:
 
 /* Helper table for legacy fixed_rate/bitrate_mask */
 static const u8 cck_ofdm_rate[] = {
-	/* CCK */
-	3, /* 1Mbps */
-	2, /* 2Mbps */
-	1, /* 5.5Mbps */
-	0, /* 11Mbps */
-	/* OFDM */
-	3, /* 6Mbps */
-	7, /* 9Mbps */
-	2, /* 12Mbps */
-	6, /* 18Mbps */
-	1, /* 24Mbps */
-	5, /* 36Mbps */
-	0, /* 48Mbps */
-	4, /* 54Mbps */
+	ATH10K_HW_RATE_CCK_LP_1M,
+	ATH10K_HW_RATE_CCK_LP_2M,
+	ATH10K_HW_RATE_CCK_LP_5_5M,
+	ATH10K_HW_RATE_CCK_LP_11M,
+	ATH10K_HW_RATE_OFDM_6M,
+	ATH10K_HW_RATE_OFDM_9M,
+	ATH10K_HW_RATE_OFDM_12M,
+	ATH10K_HW_RATE_OFDM_18M,
+	ATH10K_HW_RATE_OFDM_24M,
+	ATH10K_HW_RATE_OFDM_36M,
+	ATH10K_HW_RATE_OFDM_48M,
+	ATH10K_HW_RATE_OFDM_54M,
 };
 
 /* Check if only one bit set */
