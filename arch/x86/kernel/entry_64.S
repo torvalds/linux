@@ -658,13 +658,12 @@ ret_from_intr:
 	CFI_ADJUST_CFA_OFFSET	RBP
 
 exit_intr:
-	GET_THREAD_INFO(%rcx)
 	testl $3,CS(%rsp)
 	je retint_kernel
-
 	/* Interrupt came from user space */
+
+	GET_THREAD_INFO(%rcx)
 	/*
-	 * Has a correct top of stack.
 	 * %rcx: thread info. Interrupts off.
 	 */
 retint_with_reschedule:
