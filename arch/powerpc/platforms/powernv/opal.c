@@ -931,6 +931,25 @@ void opal_free_sg_list(struct opal_sg_list *sg)
 	}
 }
 
+int opal_error_code(int rc)
+{
+	switch (rc) {
+	case OPAL_SUCCESS:		return 0;
+
+	case OPAL_PARAMETER:		return -EINVAL;
+	case OPAL_ASYNC_COMPLETION:	return -EINPROGRESS;
+	case OPAL_BUSY_EVENT:		return -EBUSY;
+	case OPAL_NO_MEM:		return -ENOMEM;
+
+	case OPAL_UNSUPPORTED:		return -EIO;
+	case OPAL_HARDWARE:		return -EIO;
+	case OPAL_INTERNAL_ERROR:	return -EIO;
+	default:
+		pr_err("%s: unexpected OPAL error %d\n", __func__, rc);
+		return -EIO;
+	}
+}
+
 EXPORT_SYMBOL_GPL(opal_poll_events);
 EXPORT_SYMBOL_GPL(opal_rtc_read);
 EXPORT_SYMBOL_GPL(opal_rtc_write);
