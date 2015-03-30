@@ -808,10 +808,7 @@ static int iwl_mvm_scan_lmac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 {
 	struct iwl_host_cmd hcmd = {
 		.id = SCAN_OFFLOAD_REQUEST_CMD,
-		.len = { sizeof(struct iwl_scan_req_lmac) +
-			 sizeof(struct iwl_scan_channel_cfg_lmac) *
-				mvm->fw->ucode_capa.n_scan_channels +
-			 sizeof(struct iwl_scan_probe_req), },
+		.len = { iwl_mvm_scan_size(mvm), },
 		.data = { mvm->scan_cmd, },
 		.dataflags = { IWL_HCMD_DFL_NOCOPY, },
 	};
@@ -925,10 +922,7 @@ static int iwl_mvm_sched_scan_lmac(struct iwl_mvm *mvm,
 {
 	struct iwl_host_cmd hcmd = {
 		.id = SCAN_OFFLOAD_REQUEST_CMD,
-		.len = { sizeof(struct iwl_scan_req_lmac) +
-			 sizeof(struct iwl_scan_channel_cfg_lmac) *
-				mvm->fw->ucode_capa.n_scan_channels +
-			 sizeof(struct iwl_scan_probe_req), },
+		.len = { iwl_mvm_scan_size(mvm), },
 		.data = { mvm->scan_cmd, },
 		.dataflags = { IWL_HCMD_DFL_NOCOPY, },
 	};
