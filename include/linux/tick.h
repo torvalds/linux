@@ -36,6 +36,12 @@ extern void tick_irq_enter(void);
 static inline void tick_irq_enter(void) { }
 #endif
 
+#if defined(CONFIG_GENERIC_CLOCKEVENTS_BROADCAST) && defined(CONFIG_TICK_ONESHOT)
+extern void hotplug_cpu__broadcast_tick_pull(int dead_cpu);
+#else
+static inline void hotplug_cpu__broadcast_tick_pull(int dead_cpu) { }
+#endif
+
 #ifdef CONFIG_NO_HZ_COMMON
 extern int tick_nohz_tick_stopped(void);
 extern void tick_nohz_idle_enter(void);
