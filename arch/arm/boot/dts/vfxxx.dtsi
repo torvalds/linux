@@ -377,6 +377,7 @@
 			src: src@4006e000 {
 				compatible = "fsl,vf610-src", "syscon";
 				reg = <0x4006e000 0x1000>;
+				interrupts = <96 IRQ_TYPE_LEVEL_HIGH>;
 			};
 		};
 
@@ -411,6 +412,7 @@
 				snvsrtc: snvs-rtc-lp@34 {
 					compatible = "fsl,sec-v4.0-mon-rtc-lp";
 					reg = <0x34 0x58>;
+					interrupts = <100 IRQ_TYPE_LEVEL_HIGH>;
 					clocks = <&clks VF610_CLK_SNVS>;
 					clock-names = "snvs-rtc";
 				};
