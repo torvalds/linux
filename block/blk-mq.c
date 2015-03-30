@@ -2174,7 +2174,7 @@ int blk_mq_alloc_tag_set(struct blk_mq_tag_set *set)
 	if (set->queue_depth < set->reserved_tags + BLK_MQ_TAG_MIN)
 		return -EINVAL;
 
-	if (!set->nr_hw_queues || !set->ops->queue_rq || !set->ops->map_queue)
+	if (!set->ops->queue_rq || !set->ops->map_queue)
 		return -EINVAL;
 
 	if (set->queue_depth > BLK_MQ_MAX_DEPTH) {
