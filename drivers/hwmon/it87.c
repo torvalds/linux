@@ -458,7 +458,7 @@ struct it87_sio_data {
  * The structure is dynamically allocated.
  */
 struct it87_data {
-	struct device *hwmon_dev;
+	const struct attribute_group *groups[7];
 	enum chips type;
 	u16 features;
 	u8 peci_mask;
@@ -1739,14 +1739,6 @@ static SENSOR_DEVICE_ATTR(in8_label, S_IRUGO, show_label, NULL, 2);
 /* AVCC3 */
 static SENSOR_DEVICE_ATTR(in9_label, S_IRUGO, show_label, NULL, 0);
 
-static ssize_t show_name(struct device *dev, struct device_attribute
-			 *devattr, char *buf)
-{
-	struct it87_data *data = dev_get_drvdata(dev);
-	return sprintf(buf, "%s\n", data->name);
-}
-static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
-
 static umode_t it87_in_is_visible(struct kobject *kobj,
 				  struct attribute *attr, int index)
 {
@@ -1887,10 +1879,10 @@ static umode_t it87_is_visible(struct kobject *kobj,
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct it87_data *data = dev_get_drvdata(dev);
 
-	if ((index == 3 || index == 4) && !data->has_vid)
+	if ((index == 2 || index == 3) && !data->has_vid)
 		return 0;
 
-	if (index > 4 && !(data->in_internal & (1 << (index - 5))))
+	if (index > 3 && !(data->in_internal & (1 << (index - 4))))
 		return 0;
 
 	return attr->mode;
@@ -1899,10 +1891,9 @@ static umode_t it87_is_visible(struct kobject *kobj,
 static struct attribute *it87_attributes[] = {
 	&dev_attr_alarms.attr,
 	&sensor_dev_attr_intrusion0_alarm.dev_attr.attr,
-	&dev_attr_name.attr,
-	&dev_attr_vrm.attr,				/* 3 */
-	&dev_attr_cpu0_vid.attr,			/* 4 */
-	&sensor_dev_attr_in3_label.dev_attr.attr,	/* 5 .. 8 */
+	&dev_attr_vrm.attr,				/* 2 */
+	&dev_attr_cpu0_vid.attr,			/* 3 */
+	&sensor_dev_attr_in3_label.dev_attr.attr,	/* 4 .. 7 */
 	&sensor_dev_attr_in7_label.dev_attr.attr,
 	&sensor_dev_attr_in8_label.dev_attr.attr,
 	&sensor_dev_attr_in9_label.dev_attr.attr,
@@ -2460,16 +2451,6 @@ exit:
 	return err;
 }
 
-static void it87_remove_files(struct device *dev)
-{
-	sysfs_remove_group(&dev->kobj, &it87_group);
-	sysfs_remove_group(&dev->kobj, &it87_group_in);
-	sysfs_remove_group(&dev->kobj, &it87_group_temp);
-	sysfs_remove_group(&dev->kobj, &it87_group_fan);
-	sysfs_remove_group(&dev->kobj, &it87_group_pwm);
-	sysfs_remove_group(&dev->kobj, &it87_group_auto_pwm);
-}
-
 /* Called when we have found a new IT87. */
 static void it87_init_device(struct platform_device *pdev)
 {
@@ -2646,7 +2627,7 @@ static int it87_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct it87_sio_data *sio_data = dev_get_platdata(dev);
 	int enable_pwm_interface;
-	int err = 0;
+	struct device *hwmon_dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if (!devm_request_region(&pdev->dev, res->start, IT87_EC_EXTENT,
@@ -2666,7 +2647,6 @@ static int it87_probe(struct platform_device *pdev)
 	data->features = it87_devices[sio_data->type].features;
 	data->peci_mask = it87_devices[sio_data->type].peci_mask;
 	data->old_peci_mask = it87_devices[sio_data->type].old_peci_mask;
-	data->name = it87_devices[sio_data->type].name;
 	/*
 	 * IT8705F Datasheet 0.4.1, 3h == Version G.
 	 * IT8712F Datasheet 0.9.1, section 8.3.5 indicates 8h == Version J.
@@ -2742,59 +2722,25 @@ static int it87_probe(struct platform_device *pdev)
 		data->vid = sio_data->vid_value;
 	}
 
-	/* Register sysfs hooks */
-	err = sysfs_create_group(&dev->kobj, &it87_group);
-	if (err)
-		return err;
-
-	err = sysfs_create_group(&dev->kobj, &it87_group_in);
-	if (err)
-		goto error;
-
-	err = sysfs_create_group(&dev->kobj, &it87_group_temp);
-	if (err)
-		goto error;
-
-	err = sysfs_create_group(&dev->kobj, &it87_group_fan);
-	if (err)
-		goto error;
+	/* Prepare for sysfs hooks */
+	data->groups[0] = &it87_group;
+	data->groups[1] = &it87_group_in;
+	data->groups[2] = &it87_group_temp;
+	data->groups[3] = &it87_group_fan;
 
 	if (enable_pwm_interface) {
 		data->has_pwm = (1 << ARRAY_SIZE(IT87_REG_PWM)) - 1;
 		data->has_pwm &= ~sio_data->skip_pwm;
 
-		err = sysfs_create_group(&dev->kobj, &it87_group_pwm);
-		if (err)
-			goto error;
-		if (has_old_autopwm(data)) {
-			err = sysfs_create_group(&dev->kobj,
-						 &it87_group_auto_pwm);
-			if (err)
-				goto error;
-		}
+		data->groups[4] = &it87_group_pwm;
+		if (has_old_autopwm(data))
+			data->groups[5] = &it87_group_auto_pwm;
 	}
 
-	data->hwmon_dev = hwmon_device_register(dev);
-	if (IS_ERR(data->hwmon_dev)) {
-		err = PTR_ERR(data->hwmon_dev);
-		goto error;
-	}
-
-	return 0;
-
-error:
-	it87_remove_files(dev);
-	return err;
-}
-
-static int it87_remove(struct platform_device *pdev)
-{
-	struct it87_data *data = platform_get_drvdata(pdev);
-
-	hwmon_device_unregister(data->hwmon_dev);
-	it87_remove_files(&pdev->dev);
-
-	return 0;
+	hwmon_dev = devm_hwmon_device_register_with_groups(dev,
+					it87_devices[sio_data->type].name,
+					data, data->groups);
+	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
 static struct platform_driver it87_driver = {
@@ -2802,7 +2748,6 @@ static struct platform_driver it87_driver = {
 		.name	= DRVNAME,
 	},
 	.probe	= it87_probe,
-	.remove	= it87_remove,
 };
 
 static int __init it87_device_add(int index, unsigned short address,
