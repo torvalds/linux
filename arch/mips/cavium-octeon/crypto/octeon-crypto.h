@@ -33,7 +33,7 @@ do {							\
 	__asm__ __volatile__ (				\
 	"dmtc2 %[rt],0x0048+" STR(index)		\
 	:						\
-	: [rt] "d" (value));				\
+	: [rt] "d" (cpu_to_be64(value)));		\
 } while (0)
 
 /*
@@ -48,7 +48,7 @@ do {							\
 	: [rt] "=d" (__value)				\
 	: );						\
 							\
-	__value;					\
+	be64_to_cpu(__value);				\
 })
 
 /*
@@ -59,7 +59,7 @@ do {							\
 	__asm__ __volatile__ (				\
 	"dmtc2 %[rt],0x0040+" STR(index)		\
 	:						\
-	: [rt] "d" (value));				\
+	: [rt] "d" (cpu_to_be64(value)));		\
 } while (0)
 
 /*
@@ -70,7 +70,7 @@ do {							\
 	__asm__ __volatile__ (				\
 	"dmtc2 %[rt],0x4047"				\
 	:						\
-	: [rt] "d" (value));				\
+	: [rt] "d" (cpu_to_be64(value)));		\
 } while (0)
 
 /*
