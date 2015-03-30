@@ -133,6 +133,9 @@ pin multiplexing nodes:
 
 function		- the mux function to select
 groups			- the list of groups to select with this function
+			  (either this or "pins" must be specified)
+pins			- the list of pins to select with this function (either
+			  this or "groups" must be specified)
 
 Example:
 
@@ -147,6 +150,10 @@ state_1_node_a {
 		function = "spi0";
 		groups = "spi0pins";
 	};
+};
+state_2_node_a {
+	function = "i2c0";
+	pins = "mfio29", "mfio30";
 };
 
 == Generic pin configuration node content ==
