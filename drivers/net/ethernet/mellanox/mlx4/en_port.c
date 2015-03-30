@@ -131,6 +131,7 @@ out:
 int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 {
 	struct mlx4_en_stat_out_mbox *mlx4_en_stats;
+	struct mlx4_en_stat_out_flow_control_mbox *flowstats;
 	struct mlx4_en_priv *priv = netdev_priv(mdev->pndev[port]);
 	struct net_device_stats *stats = &priv->stats;
 	struct mlx4_cmd_mailbox *mailbox;
@@ -237,6 +238,55 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 	priv->pkstats.tx_prio[5] = be64_to_cpu(mlx4_en_stats->TTOT_prio_5);
 	priv->pkstats.tx_prio[6] = be64_to_cpu(mlx4_en_stats->TTOT_prio_6);
 	priv->pkstats.tx_prio[7] = be64_to_cpu(mlx4_en_stats->TTOT_prio_7);
+	spin_unlock_bh(&priv->stats_lock);
+
+	/* 0xffs indicates invalid value */
+	memset(mailbox->buf, 0xff, sizeof(*flowstats) * MLX4_NUM_PRIORITIES);
+
+	if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_FLOWSTATS_EN) {
+		memset(mailbox->buf, 0,
+		       sizeof(*flowstats) * MLX4_NUM_PRIORITIES);
+		err = mlx4_cmd_box(mdev->dev, 0, mailbox->dma,
+				   in_mod | MLX4_DUMP_ETH_STATS_FLOW_CONTROL,
+				   0, MLX4_CMD_DUMP_ETH_STATS,
+				   MLX4_CMD_TIME_CLASS_B, MLX4_CMD_WRAPPED);
+		if (err)
+			goto out;
+	}
+
+	flowstats = mailbox->buf;
+
+	spin_lock_bh(&priv->stats_lock);
+
+	for (i = 0; i < MLX4_NUM_PRIORITIES; i++)	{
+		priv->rx_priority_flowstats[i].rx_pause =
+			be64_to_cpu(flowstats[i].rx_pause);
+		priv->rx_priority_flowstats[i].rx_pause_duration =
+			be64_to_cpu(flowstats[i].rx_pause_duration);
+		priv->rx_priority_flowstats[i].rx_pause_transition =
+			be64_to_cpu(flowstats[i].rx_pause_transition);
+		priv->tx_priority_flowstats[i].tx_pause =
+			be64_to_cpu(flowstats[i].tx_pause);
+		priv->tx_priority_flowstats[i].tx_pause_duration =
+			be64_to_cpu(flowstats[i].tx_pause_duration);
+		priv->tx_priority_flowstats[i].tx_pause_transition =
+			be64_to_cpu(flowstats[i].tx_pause_transition);
+	}
+
+	/* if pfc is not in use, all priorities counters have the same value */
+	priv->rx_flowstats.rx_pause =
+		be64_to_cpu(flowstats[0].rx_pause);
+	priv->rx_flowstats.rx_pause_duration =
+		be64_to_cpu(flowstats[0].rx_pause_duration);
+	priv->rx_flowstats.rx_pause_transition =
+		be64_to_cpu(flowstats[0].rx_pause_transition);
+	priv->tx_flowstats.tx_pause =
+		be64_to_cpu(flowstats[0].tx_pause);
+	priv->tx_flowstats.tx_pause_duration =
+		be64_to_cpu(flowstats[0].tx_pause_duration);
+	priv->tx_flowstats.tx_pause_transition =
+		be64_to_cpu(flowstats[0].tx_pause_transition);
+
 	spin_unlock_bh(&priv->stats_lock);
 
 out:

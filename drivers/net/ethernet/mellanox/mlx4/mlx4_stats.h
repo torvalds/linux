@@ -42,8 +42,58 @@ struct mlx4_en_perf_stats {
 };
 
 #define NUM_MAIN_STATS	21
+
+#define MLX4_NUM_PRIORITIES	8
+
+struct mlx4_en_flow_stats_rx {
+	u64 rx_pause;
+	u64 rx_pause_duration;
+	u64 rx_pause_transition;
+#define NUM_FLOW_STATS_RX	3
+#define NUM_FLOW_PRIORITY_STATS_RX	(NUM_FLOW_STATS_RX * \
+					 MLX4_NUM_PRIORITIES)
+};
+
+struct mlx4_en_flow_stats_tx {
+	u64 tx_pause;
+	u64 tx_pause_duration;
+	u64 tx_pause_transition;
+#define NUM_FLOW_STATS_TX	3
+#define NUM_FLOW_PRIORITY_STATS_TX	(NUM_FLOW_STATS_TX * \
+					 MLX4_NUM_PRIORITIES)
+};
+
+#define NUM_FLOW_STATS (NUM_FLOW_STATS_RX + NUM_FLOW_STATS_TX + \
+			NUM_FLOW_PRIORITY_STATS_TX + \
+			NUM_FLOW_PRIORITY_STATS_RX)
+
+struct mlx4_en_stat_out_flow_control_mbox {
+	/* Total number of PAUSE frames received from the far-end port */
+	__be64 rx_pause;
+	/* Total number of microseconds that far-end port requested to pause
+	* transmission of packets
+	*/
+	__be64 rx_pause_duration;
+	/* Number of received transmission from XOFF state to XON state */
+	__be64 rx_pause_transition;
+	/* Total number of PAUSE frames sent from the far-end port */
+	__be64 tx_pause;
+	/* Total time in microseconds that transmission of packets has been
+	* paused
+	*/
+	__be64 tx_pause_duration;
+	/* Number of transmitter transitions from XOFF state to XON state */
+	__be64 tx_pause_transition;
+	/* Reserverd */
+	__be64 reserved[2];
+};
+
+enum {
+	MLX4_DUMP_ETH_STATS_FLOW_CONTROL = 1 << 12
+};
+
 #define NUM_ALL_STATS	(NUM_MAIN_STATS + NUM_PORT_STATS + NUM_PKT_STATS + \
-			 NUM_PERF_STATS)
+			 NUM_FLOW_STATS + NUM_PERF_STATS)
 
 #define MLX4_FIND_NETDEV_STAT(n) (offsetof(struct net_device_stats, n) / \
 				  sizeof(((struct net_device_stats *)0)->n))

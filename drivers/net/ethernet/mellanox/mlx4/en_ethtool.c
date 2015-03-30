@@ -119,6 +119,48 @@ static const char main_strings[][ETH_GSTRING_LEN] = {
 	"queue_stopped", "wake_queue", "tx_timeout", "rx_alloc_failed",
 	"rx_csum_good", "rx_csum_none", "rx_csum_complete", "tx_chksum_offload",
 
+	/* priority flow control statistics rx */
+	"rx_pause_prio_0", "rx_pause_duration_prio_0",
+	"rx_pause_transition_prio_0",
+	"rx_pause_prio_1", "rx_pause_duration_prio_1",
+	"rx_pause_transition_prio_1",
+	"rx_pause_prio_2", "rx_pause_duration_prio_2",
+	"rx_pause_transition_prio_2",
+	"rx_pause_prio_3", "rx_pause_duration_prio_3",
+	"rx_pause_transition_prio_3",
+	"rx_pause_prio_4", "rx_pause_duration_prio_4",
+	"rx_pause_transition_prio_4",
+	"rx_pause_prio_5", "rx_pause_duration_prio_5",
+	"rx_pause_transition_prio_5",
+	"rx_pause_prio_6", "rx_pause_duration_prio_6",
+	"rx_pause_transition_prio_6",
+	"rx_pause_prio_7", "rx_pause_duration_prio_7",
+	"rx_pause_transition_prio_7",
+
+	/* flow control statistics rx */
+	"rx_pause", "rx_pause_duration", "rx_pause_transition",
+
+	/* priority flow control statistics tx */
+	"tx_pause_prio_0", "tx_pause_duration_prio_0",
+	"tx_pause_transition_prio_0",
+	"tx_pause_prio_1", "tx_pause_duration_prio_1",
+	"tx_pause_transition_prio_1",
+	"tx_pause_prio_2", "tx_pause_duration_prio_2",
+	"tx_pause_transition_prio_2",
+	"tx_pause_prio_3", "tx_pause_duration_prio_3",
+	"tx_pause_transition_prio_3",
+	"tx_pause_prio_4", "tx_pause_duration_prio_4",
+	"tx_pause_transition_prio_4",
+	"tx_pause_prio_5", "tx_pause_duration_prio_5",
+	"tx_pause_transition_prio_5",
+	"tx_pause_prio_6", "tx_pause_duration_prio_6",
+	"tx_pause_transition_prio_6",
+	"tx_pause_prio_7", "tx_pause_duration_prio_7",
+	"tx_pause_transition_prio_7",
+
+	/* flow control statistics tx */
+	"tx_pause", "tx_pause_duration", "tx_pause_transition",
+
 	/* packet statistics */
 	"broadcast", "rx_prio_0", "rx_prio_1", "rx_prio_2", "rx_prio_3",
 	"rx_prio_4", "rx_prio_5", "rx_prio_6", "rx_prio_7", "tx_prio_0",
@@ -304,6 +346,26 @@ static void mlx4_en_get_ethtool_stats(struct net_device *dev,
 		if (bitmap_iterator_test(&it))
 			data[index++] = ((unsigned long *)&priv->port_stats)[i];
 
+	for (i = 0; i < NUM_FLOW_PRIORITY_STATS_RX;
+	     i++, bitmap_iterator_inc(&it))
+		if (bitmap_iterator_test(&it))
+			data[index++] =
+				((u64 *)&priv->rx_priority_flowstats)[i];
+
+	for (i = 0; i < NUM_FLOW_STATS_RX; i++, bitmap_iterator_inc(&it))
+		if (bitmap_iterator_test(&it))
+			data[index++] = ((u64 *)&priv->rx_flowstats)[i];
+
+	for (i = 0; i < NUM_FLOW_PRIORITY_STATS_TX;
+	     i++, bitmap_iterator_inc(&it))
+		if (bitmap_iterator_test(&it))
+			data[index++] =
+				((u64 *)&priv->tx_priority_flowstats)[i];
+
+	for (i = 0; i < NUM_FLOW_STATS_TX; i++, bitmap_iterator_inc(&it))
+		if (bitmap_iterator_test(&it))
+			data[index++] = ((u64 *)&priv->tx_flowstats)[i];
+
 	for (i = 0; i < NUM_PKT_STATS; i++, bitmap_iterator_inc(&it))
 		if (bitmap_iterator_test(&it))
 			data[index++] = ((unsigned long *)&priv->pkstats)[i];
@@ -359,6 +421,12 @@ static void mlx4_en_get_strings(struct net_device *dev,
 				       main_strings[strings]);
 
 		for (i = 0; i < NUM_PORT_STATS; i++, strings++,
+		     bitmap_iterator_inc(&it))
+			if (bitmap_iterator_test(&it))
+				strcpy(data + (index++) * ETH_GSTRING_LEN,
+				       main_strings[strings]);
+
+		for (i = 0; i < NUM_FLOW_STATS; i++, strings++,
 		     bitmap_iterator_inc(&it))
 			if (bitmap_iterator_test(&it))
 				strcpy(data + (index++) * ETH_GSTRING_LEN,
@@ -910,6 +978,12 @@ static int mlx4_en_set_pauseparam(struct net_device *dev,
 				    priv->prof->rx_ppp);
 	if (err)
 		en_err(priv, "Failed setting pause params\n");
+	else
+		mlx4_en_update_pfc_stats_bitmap(mdev->dev, &priv->stats_bitmap,
+						priv->prof->rx_ppp,
+						priv->prof->rx_pause,
+						priv->prof->tx_ppp,
+						priv->prof->tx_pause);
 
 	return err;
 }
