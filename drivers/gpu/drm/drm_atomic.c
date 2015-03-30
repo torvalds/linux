@@ -173,6 +173,9 @@ EXPORT_SYMBOL(drm_atomic_state_clear);
  */
 void drm_atomic_state_free(struct drm_atomic_state *state)
 {
+	if (!state)
+		return;
+
 	drm_atomic_state_clear(state);
 
 	DRM_DEBUG_ATOMIC("Freeing atomic state %p\n", state);
