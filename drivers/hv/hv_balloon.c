@@ -1155,7 +1155,7 @@ static void balloon_up(struct work_struct *dummy)
 	floor = compute_balloon_floor();
 
 	/* Refuse to balloon below the floor, keep the 2M granularity. */
-	if (val.freeram - num_pages < floor) {
+	if (val.freeram < num_pages || val.freeram - num_pages < floor) {
 		num_pages = val.freeram > floor ? (val.freeram - floor) : 0;
 		num_pages -= num_pages % PAGES_IN_2M;
 	}
