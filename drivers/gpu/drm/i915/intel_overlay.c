@@ -172,8 +172,8 @@ struct intel_overlay {
 	struct intel_crtc *crtc;
 	struct drm_i915_gem_object *vid_bo;
 	struct drm_i915_gem_object *old_vid_bo;
-	int active;
-	int pfit_active;
+	bool active;
+	bool pfit_active;
 	u32 pfit_vscale_ratio; /* shifted-point number, (1<<12) == 1.0 */
 	u32 color_key;
 	u32 brightness, contrast, saturation;
@@ -242,7 +242,7 @@ static int intel_overlay_on(struct intel_overlay *overlay)
 	int ret;
 
 	WARN_ON(overlay->active);
-	overlay->active = 1;
+	overlay->active = true;
 
 	WARN_ON(IS_I830(dev) && !(dev_priv->quirks & QUIRK_PIPEA_FORCE));
 
@@ -318,7 +318,7 @@ static void intel_overlay_off_tail(struct intel_overlay *overlay)
 
 	overlay->crtc->overlay = NULL;
 	overlay->crtc = NULL;
-	overlay->active = 0;
+	overlay->active = false;
 }
 
 /* overlay needs to be disabled in OCMD reg */
@@ -1131,10 +1131,10 @@ int intel_overlay_put_image(struct drm_device *dev, void *data,
 		/* line too wide, i.e. one-line-mode */
 		if (mode->hdisplay > 1024 &&
 		    intel_panel_fitter_pipe(dev) == crtc->pipe) {
-			overlay->pfit_active = 1;
+			overlay->pfit_active = true;
 			update_pfit_vscale_ratio(overlay);
 		} else
-			overlay->pfit_active = 0;
+			overlay->pfit_active = false;
 	}
 
 	ret = check_overlay_dst(overlay, put_image_rec);
