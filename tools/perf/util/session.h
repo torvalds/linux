@@ -26,6 +26,7 @@ struct perf_session {
 	u64			one_mmap_offset;
 	struct ordered_events	ordered_events;
 	struct perf_data_file	*file;
+	struct perf_tool	*tool;
 };
 
 #define PRINT_IP_OPT_IP		(1<<0)
