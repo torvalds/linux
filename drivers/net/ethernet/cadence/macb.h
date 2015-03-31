@@ -11,7 +11,7 @@
 #define _MACB_H
 
 #define MACB_GREGS_NBR 16
-#define MACB_GREGS_VERSION 1
+#define MACB_GREGS_VERSION 2
 #define MACB_MAX_QUEUES 8
 
 /* MACB register offsets */
@@ -754,6 +754,8 @@ struct macb_or_gem_ops {
 struct macb_config {
 	u32			caps;
 	unsigned int		dma_burst_length;
+	int	(*clk_init)(struct platform_device *pdev, struct clk **pclk,
+			    struct clk **hclk, struct clk **tx_clk);
 	int	(*init)(struct platform_device *pdev);
 };
 
@@ -785,6 +787,7 @@ struct macb {
 	size_t			rx_buffer_size;
 
 	unsigned int		num_queues;
+	unsigned int		queue_mask;
 	struct macb_queue	queues[MACB_MAX_QUEUES];
 
 	spinlock_t		lock;
@@ -828,6 +831,11 @@ struct macb {
 static inline bool macb_is_gem(struct macb *bp)
 {
 	return !!(bp->caps & MACB_CAPS_MACB_IS_GEM);
+}
+
+static inline bool macb_is_gem_hw(void __iomem *addr)
+{
+	return !!(MACB_BFEXT(IDNUM, readl_relaxed(addr + MACB_MID)) >= 0x2);
 }
 
 #endif /* _MACB_H */
