@@ -55,7 +55,7 @@ static inline cpumask_t cpu_thread_mask_to_cores(const struct cpumask *threads)
 
 static inline int cpu_nr_cores(void)
 {
-	return NR_CPUS >> threads_shift;
+	return nr_cpu_ids >> threads_shift;
 }
 
 static inline cpumask_t cpu_online_cores_map(void)
