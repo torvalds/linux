@@ -1027,7 +1027,7 @@ static unsigned long single_24x7_request(u8 domain, u32 offset, u16 ix,
 			virt_to_phys(result_buffer),  H24x7_DATA_BUFFER_SIZE);
 
 	if (ret) {
-		pr_err_ratelimited("hcall failed: %d %#x %#x %d => "
+		pr_devel_ratelimited("hcall failed: %d %#x %#x %d => "
 				"0x%lx (%ld) detail=0x%x failing ix=%x\n",
 				domain, offset, ix, lpar, ret, ret,
 				result_buffer->detailed_rc,
