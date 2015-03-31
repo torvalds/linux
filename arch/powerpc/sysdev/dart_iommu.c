@@ -395,20 +395,17 @@ void __init iommu_init_early_dart(struct pci_controller_ops *controller_ops)
 	if (dart_is_u4)
 		ppc_md.dma_set_mask = dart_dma_set_mask;
 
-	if (controller_ops) {
-		controller_ops->dma_dev_setup = pci_dma_dev_setup_dart;
-		controller_ops->dma_bus_setup = pci_dma_bus_setup_dart;
-	}
+	controller_ops->dma_dev_setup = pci_dma_dev_setup_dart;
+	controller_ops->dma_bus_setup = pci_dma_bus_setup_dart;
+
 	/* Setup pci_dma ops */
 	set_pci_dma_ops(&dma_iommu_ops);
 	return;
 
  bail:
 	/* If init failed, use direct iommu and null setup functions */
-	if (controller_ops) {
-		controller_ops->dma_dev_setup = NULL;
-		controller_ops->dma_bus_setup = NULL;
-	}
+	controller_ops->dma_dev_setup = NULL;
+	controller_ops->dma_bus_setup = NULL;
 
 	/* Setup pci_dma ops */
 	set_pci_dma_ops(&dma_direct_ops);
