@@ -2329,7 +2329,7 @@ static void rtllib_rx_auth_resp(struct rtllib_device *ieee, struct sk_buff *skb)
 				  errcode);
 
 		netdev_info(ieee->dev,
-				"Authentication respose status code 0x%x", errcode);
+			    "Authentication respose status code 0x%x", errcode);
 		rtllib_associate_abort(ieee);
 		return;
 	}
@@ -2337,8 +2337,7 @@ static void rtllib_rx_auth_resp(struct rtllib_device *ieee, struct sk_buff *skb)
 	if (ieee->open_wep || !challenge) {
 		ieee->state = RTLLIB_ASSOCIATING_AUTHENTICATED;
 		ieee->softmac_stats.rx_auth_rs_ok++;
-		if (!(ieee->pHTInfo->IOTAction &
-		    HT_IOT_ACT_PURE_N_MODE)) {
+		if (!(ieee->pHTInfo->IOTAction & HT_IOT_ACT_PURE_N_MODE)) {
 			if (!ieee->GetNmodeSupportBySecCfg(ieee->dev)) {
 				if (IsHTHalfNmodeAPs(ieee)) {
 					bSupportNmode = true;
@@ -2353,27 +2352,22 @@ static void rtllib_rx_auth_resp(struct rtllib_device *ieee, struct sk_buff *skb)
 		 * encryption issue */
 		if (bSupportNmode) {
 			ieee->SetWirelessMode(ieee->dev,
-			   ieee->current_network.mode);
+					      ieee->current_network.mode);
 		} else {
 			/*TODO*/
-			ieee->SetWirelessMode(ieee->dev,
-					      IEEE_G);
+			ieee->SetWirelessMode(ieee->dev, IEEE_G);
 		}
 
-		if (ieee->current_network.mode ==
-		    IEEE_N_24G && bHalfSupportNmode) {
-			netdev_info(ieee->dev,
-				    "======>enter half N mode\n");
-			ieee->bHalfWirelessN24GMode =
-						 true;
-		} else
-			ieee->bHalfWirelessN24GMode =
-						 false;
-
+		if ((ieee->current_network.mode == IEEE_N_24G) &&
+		    bHalfSupportNmode) {
+			netdev_info(ieee->dev, "======>enter half N mode\n");
+			ieee->bHalfWirelessN24GMode = true;
+		} else {
+			ieee->bHalfWirelessN24GMode = false;
+		}
 		rtllib_associate_step2(ieee);
 	} else {
-		rtllib_auth_challenge(ieee, challenge,
-				      chlen);
+		rtllib_auth_challenge(ieee, challenge,  chlen);
 	}
 }
 
