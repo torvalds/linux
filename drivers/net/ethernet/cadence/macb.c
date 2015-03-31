@@ -2161,9 +2161,13 @@ static void macb_probe_queues(void __iomem *mem,
 	*queue_mask = 0x1;
 	*num_queues = 1;
 
-	/* is it macb or gem ? */
+	/* is it macb or gem ?
+	 *
+	 * We need to read directly from the hardware here because
+	 * we are early in the probe process and don't have the
+	 * MACB_CAPS_MACB_IS_GEM flag positioned
+	 */
 	mid = readl_relaxed(mem + MACB_MID);
-
 	if (MACB_BFEXT(IDNUM, mid) < 0x2)
 		return;
 
