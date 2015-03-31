@@ -983,7 +983,7 @@ static int bfin_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	return 0;
 }
 
-static int bfin_ptp_gettime(struct ptp_clock_info *ptp, struct timespec *ts)
+static int bfin_ptp_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
 {
 	u64 ns;
 	u32 remainder;
@@ -1003,7 +1003,7 @@ static int bfin_ptp_gettime(struct ptp_clock_info *ptp, struct timespec *ts)
 }
 
 static int bfin_ptp_settime(struct ptp_clock_info *ptp,
-			   const struct timespec *ts)
+			   const struct timespec64 *ts)
 {
 	u64 ns;
 	unsigned long flags;
@@ -1039,8 +1039,8 @@ static struct ptp_clock_info bfin_ptp_caps = {
 	.pps		= 0,
 	.adjfreq	= bfin_ptp_adjfreq,
 	.adjtime	= bfin_ptp_adjtime,
-	.gettime	= bfin_ptp_gettime,
-	.settime	= bfin_ptp_settime,
+	.gettime64	= bfin_ptp_gettime,
+	.settime64	= bfin_ptp_settime,
 	.enable		= bfin_ptp_enable,
 };
 

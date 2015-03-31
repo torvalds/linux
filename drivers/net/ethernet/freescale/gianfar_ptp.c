@@ -322,7 +322,8 @@ static int ptp_gianfar_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	return 0;
 }
 
-static int ptp_gianfar_gettime(struct ptp_clock_info *ptp, struct timespec *ts)
+static int ptp_gianfar_gettime(struct ptp_clock_info *ptp,
+			       struct timespec64 *ts)
 {
 	u64 ns;
 	u32 remainder;
@@ -341,7 +342,7 @@ static int ptp_gianfar_gettime(struct ptp_clock_info *ptp, struct timespec *ts)
 }
 
 static int ptp_gianfar_settime(struct ptp_clock_info *ptp,
-			       const struct timespec *ts)
+			       const struct timespec64 *ts)
 {
 	u64 ns;
 	unsigned long flags;
@@ -418,8 +419,8 @@ static struct ptp_clock_info ptp_gianfar_caps = {
 	.pps		= 1,
 	.adjfreq	= ptp_gianfar_adjfreq,
 	.adjtime	= ptp_gianfar_adjtime,
-	.gettime	= ptp_gianfar_gettime,
-	.settime	= ptp_gianfar_settime,
+	.gettime64	= ptp_gianfar_gettime,
+	.settime64	= ptp_gianfar_settime,
 	.enable		= ptp_gianfar_enable,
 };
 
@@ -440,7 +441,7 @@ static int gianfar_ptp_probe(struct platform_device *dev)
 {
 	struct device_node *node = dev->dev.of_node;
 	struct etsects *etsects;
-	struct timespec now;
+	struct timespec64 now;
 	int err = -ENOMEM;
 	u32 tmr_ctrl;
 	unsigned long flags;
@@ -495,7 +496,7 @@ static int gianfar_ptp_probe(struct platform_device *dev)
 		pr_err("ioremap ptp registers failed\n");
 		goto no_ioremap;
 	}
-	getnstimeofday(&now);
+	getnstimeofday64(&now);
 	ptp_gianfar_settime(&etsects->caps, &now);
 
 	tmr_ctrl =
