@@ -1283,12 +1283,12 @@ struct drm_display_mode *drm_pick_cmdline_mode(struct drm_fb_helper_connector *f
 						      int width, int height)
 {
 	struct drm_cmdline_mode *cmdline_mode;
-	struct drm_display_mode *mode = NULL;
+	struct drm_display_mode *mode;
 	bool prefer_non_interlace;
 
 	cmdline_mode = &fb_helper_conn->connector->cmdline_mode;
 	if (cmdline_mode->specified == false)
-		return mode;
+		return NULL;
 
 	/* attempt to find a matching mode in the list of modes
 	 *  we have gotten so far, if not add a CVT mode that conforms
@@ -1297,7 +1297,7 @@ struct drm_display_mode *drm_pick_cmdline_mode(struct drm_fb_helper_connector *f
 		goto create_mode;
 
 	prefer_non_interlace = !cmdline_mode->interlace;
- again:
+again:
 	list_for_each_entry(mode, &fb_helper_conn->connector->modes, head) {
 		/* check width/height */
 		if (mode->hdisplay != cmdline_mode->xres ||
