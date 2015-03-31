@@ -111,15 +111,13 @@ static int e1000e_phc_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
 	struct e1000_adapter *adapter = container_of(ptp, struct e1000_adapter,
 						     ptp_clock_info);
 	unsigned long flags;
-	u32 remainder;
 	u64 ns;
 
 	spin_lock_irqsave(&adapter->systim_lock, flags);
 	ns = timecounter_read(&adapter->tc);
 	spin_unlock_irqrestore(&adapter->systim_lock, flags);
 
-	ts->tv_sec = div_u64_rem(ns, NSEC_PER_SEC, &remainder);
-	ts->tv_nsec = remainder;
+	*ts = ns_to_timespec64(ns);
 
 	return 0;
 }

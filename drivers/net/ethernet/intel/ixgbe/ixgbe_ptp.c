@@ -284,15 +284,13 @@ static int ixgbe_ptp_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
 	struct ixgbe_adapter *adapter =
 		container_of(ptp, struct ixgbe_adapter, ptp_caps);
 	u64 ns;
-	u32 remainder;
 	unsigned long flags;
 
 	spin_lock_irqsave(&adapter->tmreg_lock, flags);
 	ns = timecounter_read(&adapter->tc);
 	spin_unlock_irqrestore(&adapter->tmreg_lock, flags);
 
-	ts->tv_sec = div_u64_rem(ns, 1000000000ULL, &remainder);
-	ts->tv_nsec = remainder;
+	*ts = ns_to_timespec64(ns);
 
 	return 0;
 }
@@ -313,8 +311,7 @@ static int ixgbe_ptp_settime(struct ptp_clock_info *ptp,
 	u64 ns;
 	unsigned long flags;
 
-	ns = ts->tv_sec * 1000000000ULL;
-	ns += ts->tv_nsec;
+	ns = timespec64_to_ns(ts);
 
 	/* reset the timecounter */
 	spin_lock_irqsave(&adapter->tmreg_lock, flags);

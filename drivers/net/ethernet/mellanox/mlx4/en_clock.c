@@ -170,15 +170,13 @@ static int mlx4_en_phc_gettime(struct ptp_clock_info *ptp,
 	struct mlx4_en_dev *mdev = container_of(ptp, struct mlx4_en_dev,
 						ptp_clock_info);
 	unsigned long flags;
-	u32 remainder;
 	u64 ns;
 
 	write_lock_irqsave(&mdev->clock_lock, flags);
 	ns = timecounter_read(&mdev->clock);
 	write_unlock_irqrestore(&mdev->clock_lock, flags);
 
-	ts->tv_sec = div_u64_rem(ns, NSEC_PER_SEC, &remainder);
-	ts->tv_nsec = remainder;
+	*ts = ns_to_timespec64(ns);
 
 	return 0;
 }

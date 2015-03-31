@@ -170,7 +170,6 @@ static int cpts_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 static int cpts_ptp_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
 {
 	u64 ns;
-	u32 remainder;
 	unsigned long flags;
 	struct cpts *cpts = container_of(ptp, struct cpts, info);
 
@@ -178,8 +177,7 @@ static int cpts_ptp_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
 	ns = timecounter_read(&cpts->tc);
 	spin_unlock_irqrestore(&cpts->lock, flags);
 
-	ts->tv_sec = div_u64_rem(ns, 1000000000, &remainder);
-	ts->tv_nsec = remainder;
+	*ts = ns_to_timespec64(ns);
 
 	return 0;
 }
@@ -191,8 +189,7 @@ static int cpts_ptp_settime(struct ptp_clock_info *ptp,
 	unsigned long flags;
 	struct cpts *cpts = container_of(ptp, struct cpts, info);
 
-	ns = ts->tv_sec * 1000000000ULL;
-	ns += ts->tv_nsec;
+	ns = timespec64_to_ns(ts);
 
 	spin_lock_irqsave(&cpts->lock, flags);
 	timecounter_init(&cpts->tc, &cpts->cc, ns);
