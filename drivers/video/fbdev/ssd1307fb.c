@@ -38,6 +38,11 @@
 #define	SSD1307FB_SET_COM_PINS_CONFIG	0xda
 #define	SSD1307FB_SET_VCOMH		0xdb
 
+#define REFRESHRATE 1
+
+static u_int refreshrate = REFRESHRATE;
+module_param(refreshrate, uint, 0);
+
 struct ssd1307fb_par;
 
 struct ssd1307fb_deviceinfo {
@@ -263,11 +268,6 @@ static void ssd1307fb_deferred_io(struct fb_info *info,
 	ssd1307fb_update_display(info->par);
 }
 
-static struct fb_deferred_io ssd1307fb_defio = {
-	.delay		= HZ,
-	.deferred_io	= ssd1307fb_deferred_io,
-};
-
 static int ssd1307fb_init(struct ssd1307fb_par *par)
 {
 	int ret;
@@ -466,6 +466,7 @@ static int ssd1307fb_probe(struct i2c_client *client,
 {
 	struct fb_info *info;
 	struct device_node *node = client->dev.of_node;
+	struct fb_deferred_io *ssd1307fb_defio;
 	u32 vmem_size;
 	struct ssd1307fb_par *par;
 	u8 *vmem;
@@ -536,10 +537,20 @@ static int ssd1307fb_probe(struct i2c_client *client,
 		goto fb_alloc_error;
 	}
 
+	ssd1307fb_defio = devm_kzalloc(&client->dev, sizeof(struct fb_deferred_io), GFP_KERNEL);
+	if (!ssd1307fb_defio) {
+		dev_err(&client->dev, "Couldn't allocate deferred io.\n");
+		ret = -ENOMEM;
+		goto fb_alloc_error;
+	}
+
+	ssd1307fb_defio->delay = HZ / refreshrate;
+	ssd1307fb_defio->deferred_io = ssd1307fb_deferred_io;
+
 	info->fbops = &ssd1307fb_ops;
 	info->fix = ssd1307fb_fix;
 	info->fix.line_length = par->width / 8;
-	info->fbdefio = &ssd1307fb_defio;
+	info->fbdefio = ssd1307fb_defio;
 
 	info->var = ssd1307fb_var;
 	info->var.xres = par->width;
