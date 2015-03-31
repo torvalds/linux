@@ -1480,7 +1480,7 @@ int iwl_mvm_fw_dbg_collect_desc(struct iwl_mvm *mvm,
 void iwl_mvm_free_fw_dump_desc(struct iwl_mvm *mvm);
 int iwl_mvm_fw_dbg_collect_trig(struct iwl_mvm *mvm,
 				struct iwl_fw_dbg_trigger_tlv *trigger,
-				const char *str, size_t len);
+				const char *fmt, ...) __printf(3, 4);
 unsigned int iwl_mvm_get_wd_timeout(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif,
 				    bool tdls, bool cmd_q);
@@ -1527,7 +1527,7 @@ iwl_fw_dbg_trigger_simple_stop(struct iwl_mvm *mvm,
 	if (!iwl_fw_dbg_trigger_check_stop(mvm, vif, trigger))
 		return;
 
-	iwl_mvm_fw_dbg_collect_trig(mvm, trigger, NULL, 0);
+	iwl_mvm_fw_dbg_collect_trig(mvm, trigger, NULL);
 }
 
 #endif /* __IWL_MVM_H__ */

@@ -362,7 +362,7 @@ int iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 				iwl_fw_dbg_trigger_check_stop(mvm, mvmsta->vif,
 							      trig);
 			if (trig_check && rx_status->signal < rssi)
-				iwl_mvm_fw_dbg_collect_trig(mvm, trig, NULL, 0);
+				iwl_mvm_fw_dbg_collect_trig(mvm, trig, NULL);
 		}
 	}
 
@@ -552,7 +552,7 @@ iwl_mvm_rx_stats_check_trigger(struct iwl_mvm *mvm, struct iwl_rx_packet *pkt)
 	if (le32_to_cpup((__le32 *) (pkt->data + trig_offset)) < trig_thold)
 		return;
 
-	iwl_mvm_fw_dbg_collect_trig(mvm, trig, NULL, 0);
+	iwl_mvm_fw_dbg_collect_trig(mvm, trig, NULL);
 }
 
 void iwl_mvm_handle_rx_statistics(struct iwl_mvm *mvm,

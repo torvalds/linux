@@ -689,7 +689,6 @@ static inline void iwl_mvm_rx_check_trigger(struct iwl_mvm *mvm,
 {
 	struct iwl_fw_dbg_trigger_tlv *trig;
 	struct iwl_fw_dbg_trigger_cmd *cmds_trig;
-	char buf[32];
 	int i;
 
 	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_FW_NOTIF))
@@ -709,9 +708,9 @@ static inline void iwl_mvm_rx_check_trigger(struct iwl_mvm *mvm,
 		if (cmds_trig->cmds[i].cmd_id != pkt->hdr.cmd)
 			continue;
 
-		memset(buf, 0, sizeof(buf));
-		snprintf(buf, sizeof(buf), "CMD 0x%02x received", pkt->hdr.cmd);
-		iwl_mvm_fw_dbg_collect_trig(mvm, trig, buf, sizeof(buf));
+		iwl_mvm_fw_dbg_collect_trig(mvm, trig,
+					    "CMD 0x%02x received",
+					    pkt->hdr.cmd);
 		break;
 	}
 }

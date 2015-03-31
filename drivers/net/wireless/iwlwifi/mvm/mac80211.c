@@ -3961,19 +3961,16 @@ static void iwl_mvm_mac_event_callback(struct ieee80211_hw *hw,
 				       struct ieee80211_vif *vif,
 				       const struct ieee80211_event *event)
 {
-#define CHECK_MLME_TRIGGER(_mvm, _trig, _buf, _cnt, _str...)	\
+#define CHECK_MLME_TRIGGER(_mvm, _trig, _buf, _cnt, _fmt...)	\
 	do {							\
 		if ((_cnt) && --(_cnt))				\
 			break;					\
-		snprintf(_buf, sizeof(_buf), ##_str);		\
-		iwl_mvm_fw_dbg_collect_trig(_mvm, _trig, _buf,	\
-					    sizeof(_buf));	\
+		iwl_mvm_fw_dbg_collect_trig(_mvm, _trig, _fmt);\
 	} while (0)
 
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_fw_dbg_trigger_tlv *trig;
 	struct iwl_fw_dbg_trigger_mlme *trig_mlme;
-	char buf[32];
 
 	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_MLME))
 		return;
@@ -3985,8 +3982,6 @@ static void iwl_mvm_mac_event_callback(struct ieee80211_hw *hw,
 	trig_mlme = (void *)trig->data;
 	if (!iwl_fw_dbg_trigger_check_stop(mvm, vif, trig))
 		return;
-
-	memset(buf, 0, sizeof(buf));
 
 	if (event->u.mlme.data == ASSOC_EVENT) {
 		if (event->u.mlme.status == MLME_DENIED)

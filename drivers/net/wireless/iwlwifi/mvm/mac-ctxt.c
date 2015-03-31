@@ -1412,7 +1412,7 @@ static void iwl_mvm_beacon_loss_iterator(void *_data, u8 *mac,
 
 	if (rx_missed_bcon_since_rx >= stop_trig_missed_bcon_since_rx ||
 	    rx_missed_bcon >= stop_trig_missed_bcon)
-		iwl_mvm_fw_dbg_collect_trig(mvm, trigger, NULL, 0);
+		iwl_mvm_fw_dbg_collect_trig(mvm, trigger, NULL);
 }
 
 int iwl_mvm_rx_missed_beacons_notif(struct iwl_mvm *mvm,
