@@ -216,7 +216,7 @@ static int intel_overlay_do_wait_request(struct intel_overlay *overlay,
 	struct intel_engine_cs *ring = &dev_priv->ring[RCS];
 	int ret;
 
-	BUG_ON(overlay->last_flip_req);
+	WARN_ON(overlay->last_flip_req);
 	i915_gem_request_assign(&overlay->last_flip_req,
 					     ring->outstanding_lazy_request);
 	ret = i915_add_request(ring);
@@ -241,7 +241,7 @@ static int intel_overlay_on(struct intel_overlay *overlay)
 	struct intel_engine_cs *ring = &dev_priv->ring[RCS];
 	int ret;
 
-	BUG_ON(overlay->active);
+	WARN_ON(overlay->active);
 	overlay->active = 1;
 
 	WARN_ON(IS_I830(dev) && !(dev_priv->quirks & QUIRK_PIPEA_FORCE));
@@ -270,7 +270,7 @@ static int intel_overlay_continue(struct intel_overlay *overlay,
 	u32 tmp;
 	int ret;
 
-	BUG_ON(!overlay->active);
+	WARN_ON(!overlay->active);
 
 	if (load_polyphase_filter)
 		flip_addr |= OFC_UPDATE;
@@ -309,7 +309,8 @@ static void intel_overlay_off_tail(struct intel_overlay *overlay)
 	struct drm_i915_gem_object *obj = overlay->vid_bo;
 
 	/* never have the overlay hw on without showing a frame */
-	BUG_ON(!overlay->vid_bo);
+	if (WARN_ON(!obj))
+		return;
 
 	i915_gem_object_ggtt_unpin(obj);
 	drm_gem_object_unreference(&obj->base);
@@ -329,7 +330,7 @@ static int intel_overlay_off(struct intel_overlay *overlay)
 	u32 flip_addr = overlay->flip_addr;
 	int ret;
 
-	BUG_ON(!overlay->active);
+	WARN_ON(!overlay->active);
 
 	/* According to intel docs the overlay hw may hang (when switching
 	 * off) without loading the filter coeffs. It is however unclear whether
@@ -712,9 +713,8 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	u32 swidth, swidthsw, sheight, ostride;
 	enum pipe pipe = overlay->crtc->pipe;
 
-	BUG_ON(!mutex_is_locked(&dev->struct_mutex));
-	BUG_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
-	BUG_ON(!overlay);
+	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
 
 	ret = intel_overlay_release_old_vid(overlay);
 	if (ret != 0)
@@ -824,8 +824,8 @@ int intel_overlay_switch_off(struct intel_overlay *overlay)
 	struct drm_device *dev = overlay->dev;
 	int ret;
 
-	BUG_ON(!mutex_is_locked(&dev->struct_mutex));
-	BUG_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
+	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
 
 	ret = intel_overlay_recover_from_interrupt(overlay);
 	if (ret != 0)
@@ -1432,7 +1432,7 @@ void intel_cleanup_overlay(struct drm_device *dev)
 	/* The bo's should be free'd by the generic code already.
 	 * Furthermore modesetting teardown happens beforehand so the
 	 * hardware should be off already */
-	BUG_ON(dev_priv->overlay->active);
+	WARN_ON(dev_priv->overlay->active);
 
 	drm_gem_object_unreference_unlocked(&dev_priv->overlay->reg_bo->base);
 	kfree(dev_priv->overlay);
