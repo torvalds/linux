@@ -326,7 +326,6 @@ static int ptp_gianfar_gettime(struct ptp_clock_info *ptp,
 			       struct timespec64 *ts)
 {
 	u64 ns;
-	u32 remainder;
 	unsigned long flags;
 	struct etsects *etsects = container_of(ptp, struct etsects, caps);
 
@@ -336,8 +335,8 @@ static int ptp_gianfar_gettime(struct ptp_clock_info *ptp,
 
 	spin_unlock_irqrestore(&etsects->lock, flags);
 
-	ts->tv_sec = div_u64_rem(ns, 1000000000, &remainder);
-	ts->tv_nsec = remainder;
+	*ts = ns_to_timespec64(ns);
+
 	return 0;
 }
 
@@ -348,8 +347,7 @@ static int ptp_gianfar_settime(struct ptp_clock_info *ptp,
 	unsigned long flags;
 	struct etsects *etsects = container_of(ptp, struct etsects, caps);
 
-	ns = ts->tv_sec * 1000000000ULL;
-	ns += ts->tv_nsec;
+	ns = timespec64_to_ns(ts);
 
 	spin_lock_irqsave(&etsects->lock, flags);
 
