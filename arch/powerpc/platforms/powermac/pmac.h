@@ -39,4 +39,8 @@ extern void low_cpu_die(void) __attribute__((noreturn));
 extern int pmac_nvram_init(void);
 extern void pmac_pic_init(void);
 
+#ifdef CONFIG_PPC64
+extern int pmac_pci_probe_mode(struct pci_bus *bus);
+#endif
+
 #endif /* __PMAC_H__ */

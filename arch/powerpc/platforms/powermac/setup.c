@@ -637,24 +637,6 @@ static int __init pmac_probe(void)
 	return 1;
 }
 
-#ifdef CONFIG_PPC64
-/* Move that to pci.c */
-static int pmac_pci_probe_mode(struct pci_bus *bus)
-{
-	struct device_node *node = pci_bus_to_OF_node(bus);
-
-	/* We need to use normal PCI probing for the AGP bus,
-	 * since the device for the AGP bridge isn't in the tree.
-	 * Same for the PCIe host on U4 and the HT host bridge.
-	 */
-	if (bus->self == NULL && (of_device_is_compatible(node, "u3-agp") ||
-				  of_device_is_compatible(node, "u4-pcie") ||
-				  of_device_is_compatible(node, "u3-ht")))
-		return PCI_PROBE_NORMAL;
-	return PCI_PROBE_DEVTREE;
-}
-#endif /* CONFIG_PPC64 */
-
 define_machine(powermac) {
 	.name			= "PowerMac",
 	.probe			= pmac_probe,
