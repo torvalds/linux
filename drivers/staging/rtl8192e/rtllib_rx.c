@@ -2623,7 +2623,6 @@ static inline void rtllib_process_probe_response(
 	}
 free_network:
 	kfree(network);
-	return;
 }
 
 void rtllib_rx_mgt(struct rtllib_device *ieee,

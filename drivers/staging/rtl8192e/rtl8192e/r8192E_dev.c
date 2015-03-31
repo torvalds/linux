@@ -2137,7 +2137,6 @@ void rtl8192_halt_adapter(struct net_device *dev, bool reset)
 		skb_queue_purge(&priv->rtllib->skb_aggQ[i]);
 
 	skb_queue_purge(&priv->skb_queue);
-	return;
 }
 
 void rtl8192_update_ratr_table(struct net_device *dev)
@@ -2415,5 +2414,4 @@ void ActUpdateChannelAccessSetting(struct net_device *dev,
 	enum wireless_mode WirelessMode,
 	struct channel_access_setting *ChnlAccessSetting)
 {
-	return;
 }

@@ -741,8 +741,6 @@ static void rtl8192_prepare_beacon(struct r8192_priv *priv)
 	priv->ops->tx_fill_descriptor(dev, pdesc, tcb_desc, pnewskb);
 	__skb_queue_tail(&ring->queue, pnewskb);
 	pdesc->OWN = 1;
-
-	return;
 }
 
 static void rtl8192_stop_beacon(struct net_device *dev)
@@ -856,7 +854,6 @@ static void rtl8192_refresh_supportrate(struct r8192_priv *priv)
 	} else {
 		memset(ieee->Regdot11HTOperationalRateSet, 0, 16);
 	}
-	return;
 }
 
 static u8 rtl8192_getSupportedWireleeMode(struct net_device *dev)
@@ -1901,8 +1898,6 @@ void rtl8192_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
 						 priv->rtllib->tx_headroom);
 		priv->rtllib->stats.tx_packets++;
 	}
-
-	return;
 }
 
 int rtl8192_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -1985,8 +1980,6 @@ void rtl8192_tx_cmd(struct net_device *dev, struct sk_buff *skb)
 
 	__skb_queue_tail(&ring->queue, skb);
 	spin_unlock_irqrestore(&priv->irq_th_lock, flags);
-
-	return;
 }
 
 short rtl8192_tx(struct net_device *dev, struct sk_buff *skb)

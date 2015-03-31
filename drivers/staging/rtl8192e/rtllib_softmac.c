@@ -2228,7 +2228,6 @@ static void rtllib_process_action(struct rtllib_device *ieee, struct sk_buff *sk
 	default:
 		break;
 	}
-	return;
 }
 
 inline int rtllib_rx_assoc_resp(struct rtllib_device *ieee, struct sk_buff *skb,
