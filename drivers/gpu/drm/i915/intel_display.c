@@ -5893,7 +5893,7 @@ static int i945_get_display_clock_speed(struct drm_device *dev)
 
 static int i915_get_display_clock_speed(struct drm_device *dev)
 {
-	return 333000;
+	return 333333;
 }
 
 static int i9xx_misc_get_display_clock_speed(struct drm_device *dev)
@@ -5909,19 +5909,19 @@ static int pnv_get_display_clock_speed(struct drm_device *dev)
 
 	switch (gcfgc & GC_DISPLAY_CLOCK_MASK) {
 	case GC_DISPLAY_CLOCK_267_MHZ_PNV:
-		return 267000;
+		return 266667;
 	case GC_DISPLAY_CLOCK_333_MHZ_PNV:
-		return 333000;
+		return 333333;
 	case GC_DISPLAY_CLOCK_444_MHZ_PNV:
-		return 444000;
+		return 444444;
 	case GC_DISPLAY_CLOCK_200_MHZ_PNV:
 		return 200000;
 	default:
 		DRM_ERROR("Unknown pnv display core clock 0x%04x\n", gcfgc);
 	case GC_DISPLAY_CLOCK_133_MHZ_PNV:
-		return 133000;
+		return 133333;
 	case GC_DISPLAY_CLOCK_167_MHZ_PNV:
-		return 167000;
+		return 166667;
 	}
 }
 
@@ -5932,11 +5932,11 @@ static int i915gm_get_display_clock_speed(struct drm_device *dev)
 	pci_read_config_word(dev->pdev, GCFGC, &gcfgc);
 
 	if (gcfgc & GC_LOW_FREQUENCY_ENABLE)
-		return 133000;
+		return 133333;
 	else {
 		switch (gcfgc & GC_DISPLAY_CLOCK_MASK) {
 		case GC_DISPLAY_CLOCK_333_MHZ:
-			return 333000;
+			return 333333;
 		default:
 		case GC_DISPLAY_CLOCK_190_200_MHZ:
 			return 190000;
@@ -5946,7 +5946,7 @@ static int i915gm_get_display_clock_speed(struct drm_device *dev)
 
 static int i865_get_display_clock_speed(struct drm_device *dev)
 {
-	return 266000;
+	return 266667;
 }
 
 static int i855_get_display_clock_speed(struct drm_device *dev)
@@ -5962,7 +5962,7 @@ static int i855_get_display_clock_speed(struct drm_device *dev)
 	case GC_CLOCK_166_250:
 		return 250000;
 	case GC_CLOCK_100_133:
-		return 133000;
+		return 133333;
 	}
 
 	/* Shouldn't happen */
@@ -5971,7 +5971,7 @@ static int i855_get_display_clock_speed(struct drm_device *dev)
 
 static int i830_get_display_clock_speed(struct drm_device *dev)
 {
-	return 133000;
+	return 133333;
 }
 
 static void
