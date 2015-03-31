@@ -1821,6 +1821,7 @@ static int __init it87_find(unsigned short *address,
 	int err;
 	u16 chip_type;
 	const char *board_vendor, *board_name;
+	const struct it87_devices *config;
 
 	err = superio_enter();
 	if (err)
@@ -1905,8 +1906,10 @@ static int __init it87_find(unsigned short *address,
 		it87_devices[sio_data->type].suffix,
 		*address, sio_data->revision);
 
+	config = &it87_devices[sio_data->type];
+
 	/* in7 (VSB or VCCH5V) is always internal on some chips */
-	if (it87_devices[sio_data->type].features & FEAT_IN7_INTERNAL)
+	if (has_in7_internal(config))
 		sio_data->internal |= (1 << 1);
 
 	/* in8 (Vbat) is always internal */
@@ -1916,7 +1919,7 @@ static int __init it87_find(unsigned short *address,
 	if (sio_data->type != it8603)
 		sio_data->skip_in |= (1 << 9);
 
-	if (!(it87_devices[sio_data->type].features & FEAT_VID))
+	if (!has_vid(config))
 		sio_data->skip_vid = 1;
 
 	/* Read GPIO config and VID value from LDN 7 (GPIO) */
