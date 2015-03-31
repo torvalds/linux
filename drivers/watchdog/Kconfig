@@ -526,6 +526,16 @@ config MEDIATEK_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called mtk_wdt.
 
+config DIGICOLOR_WATCHDOG
+	tristate "Conexant Digicolor SoCs watchdog support"
+	depends on ARCH_DIGICOLOR
+	select WATCHDOG_CORE
+	help
+	  Say Y here to include support for the watchdog timer
+	  in Conexant Digicolor SoCs.
+	  To compile this driver as a module, choose M here: the
+	  module will be called digicolor_wdt.
+
 # AVR32 Architecture
 
 config AT32AP700X_WDT
