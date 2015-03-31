@@ -1311,8 +1311,11 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 
 	atomic_set(&vcpu->arch.sie_block->cpuflags, CPUSTAT_ZARCH |
 						    CPUSTAT_SM |
-						    CPUSTAT_STOPPED |
-						    CPUSTAT_GED);
+						    CPUSTAT_STOPPED);
+
+	if (test_kvm_facility(vcpu->kvm, 8))
+		atomic_set_mask(CPUSTAT_GED, &vcpu->arch.sie_block->cpuflags);
+
 	kvm_s390_vcpu_setup_model(vcpu);
 
 	vcpu->arch.sie_block->ecb   = 6;
