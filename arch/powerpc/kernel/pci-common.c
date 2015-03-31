@@ -1448,9 +1448,8 @@ EXPORT_SYMBOL_GPL(pcibios_finish_adding_to_bus);
 
 int pcibios_enable_device(struct pci_dev *dev, int mask)
 {
-	if (ppc_md.pcibios_enable_device_hook)
-		if (!ppc_md.pcibios_enable_device_hook(dev))
-			return -EINVAL;
+	if (!pcibios_enable_device_hook(dev))
+		return -EINVAL;
 
 	return pci_enable_resources(dev, mask);
 }

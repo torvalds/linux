@@ -27,6 +27,10 @@ struct pci_controller_ops {
 	void		(*dma_bus_setup)(struct pci_bus *bus);
 
 	int		(*probe_mode)(struct pci_bus *);
+
+	/* Called when pci_enable_device() is called. Returns true to
+	 * allow assignment/enabling of the device. */
+	bool		(*enable_device_hook)(struct pci_dev *);
 };
 
 /*
@@ -308,6 +312,17 @@ static inline int pci_probe_mode(struct pci_bus *bus)
 	if (ppc_md.pci_probe_mode)
 		return ppc_md.pci_probe_mode(bus);
 	return PCI_PROBE_NORMAL;
+}
+
+static inline bool pcibios_enable_device_hook(struct pci_dev *dev)
+{
+	struct pci_controller *phb = pci_bus_to_host(dev->bus);
+
+	if (phb->controller_ops.enable_device_hook)
+		return phb->controller_ops.enable_device_hook(dev);
+	if (ppc_md.pcibios_enable_device_hook)
+		return ppc_md.pcibios_enable_device_hook(dev);
+	return true;
 }
 
 #endif	/* __KERNEL__ */
