@@ -1945,6 +1945,7 @@ static int omap_sham_probe(struct platform_device *pdev)
 	dd->flags |= dd->pdata->flags;
 
 	pm_runtime_enable(dev);
+	pm_runtime_irq_safe(dev);
 	pm_runtime_get_sync(dev);
 	rev = omap_sham_read(dd, SHA_REG_REV(dd));
 	pm_runtime_put_sync(&pdev->dev);
