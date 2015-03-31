@@ -434,8 +434,8 @@ static void qat_hal_reset_timestamp(struct icp_qat_fw_loader_handle *handle)
 	SET_GLB_CSR(handle, MISC_CONTROL, misc_ctl | MC_TIMESTAMP_ENABLE);
 }
 
-#define ESRAM_AUTO_TINIT (1<<2)
-#define ESRAM_AUTO_TINIT_DONE (1<<3)
+#define ESRAM_AUTO_TINIT	BIT(2)
+#define ESRAM_AUTO_TINIT_DONE	BIT(3)
 #define ESRAM_AUTO_INIT_USED_CYCLES (1640)
 #define ESRAM_AUTO_INIT_CSR_OFFSET 0xC1C
 static int qat_hal_init_esram(struct icp_qat_fw_loader_handle *handle)
