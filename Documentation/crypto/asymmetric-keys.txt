@@ -33,7 +33,7 @@ merely be an interface to the TPM driver.
 
 Also provided is the concept of a data parser.  Data parsers are responsible
 for extracting information from the blobs of data passed to the instantiation
-function.  The first data parser that recognises the blob gets to set the
+function.  The first data parser that recognizes the blob gets to set the
 subtype of the key and define the operations that can be done on that key.
 
 A data parser may interpret the data blob as containing the bits representing a
@@ -166,7 +166,7 @@ Asymmetric keys have a subtype that defines the set of operations that can be
 performed on that key and that determines what data is attached as the key
 payload.  The payload format is entirely at the whim of the subtype.
 
-The subtype is selected by the key data parser and the parser must initialise
+The subtype is selected by the key data parser and the parser must initialize
 the data required for it.  The asymmetric key retains a reference on the
 subtype module.
 
@@ -279,13 +279,13 @@ mandatory:
      The instantiation data is in a blob pointed to by data and is datalen in
      size.  The parse() function is not permitted to change these two values at
      all, and shouldn't change any of the other values _unless_ they are
-     recognise the blob format and will not return -EBADMSG to indicate it is
+     recognize the blob format and will not return -EBADMSG to indicate it is
      not theirs.
 
      If the parser is happy with the blob, it should propose a description for
      the key and attach it to ->description, ->type_data[0] should be set to
      point to the subtype to be used, ->payload should be set to point to the
-     initialised data for that subtype, ->type_data[1] should point to a hex
+     initialized data for that subtype, ->type_data[1] should point to a hex
      fingerprint and quotalen should be updated to indicate how much quota this
      key should account for.
 
@@ -295,8 +295,8 @@ mandatory:
      the subtype pointed to by ->type_data[0] will be put.
 
 
-     If the data format is not recognised, -EBADMSG should be returned.  If it
-     is recognised, but the key cannot for some reason be set up, some other
+     If the data format is not recognized, -EBADMSG should be returned.  If it
+     is recognized, but the key cannot for some reason be set up, some other
      negative error code should be returned.  On success, 0 should be returned.
 
      The key's fingerprint string may be partially matched upon.  For a
