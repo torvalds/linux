@@ -1,7 +1,7 @@
 /*
  * ALSA SoC IMX MQS driver
  *
- * Copyright (C) 2014 Freescale Semiconductor, Inc.
+ * Copyright (C) 2014-2015 Freescale Semiconductor, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -44,6 +44,8 @@ static int fsl_mqs_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = dai->codec;
 	struct fsl_mqs *mqs_priv = snd_soc_codec_get_drvdata(codec);
 	int div, res;
+
+	mqs_priv->mclk_rate = clk_get_rate(mqs_priv->mclk);
 
 	mqs_priv->bclk = snd_soc_params_to_bclk(params);
 	mqs_priv->lrclk = params_rate(params);
@@ -183,8 +185,6 @@ static int fsl_mqs_probe(struct platform_device *pdev)
 				PTR_ERR(mqs_priv->mclk));
 		goto out;
 	}
-
-	mqs_priv->mclk_rate = clk_get_rate(mqs_priv->mclk);
 
 	dev_set_drvdata(&pdev->dev, mqs_priv);
 
