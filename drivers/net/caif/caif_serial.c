@@ -70,7 +70,6 @@ struct ser_device {
 	struct tty_struct *tty;
 	bool tx_started;
 	unsigned long state;
-	char *tty_name;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_tty_dir;
 	struct debugfs_blob_wrapper tx_blob;
