@@ -23,6 +23,7 @@
 #include <semaphore.h>
 #include <pthread.h>
 #include <math.h>
+#include <api/fs/fs.h>
 
 #define PR_SET_NAME		15               /* Set process name */
 #define MAX_CPUS		4096
@@ -124,7 +125,7 @@ struct perf_sched {
 	struct perf_tool tool;
 	const char	 *sort_order;
 	unsigned long	 nr_tasks;
-	struct task_desc *pid_to_task[MAX_PID];
+	struct task_desc **pid_to_task;
 	struct task_desc **tasks;
 	const struct trace_sched_handler *tp_handler;
 	pthread_mutex_t	 start_work_mutex;
@@ -326,8 +327,14 @@ static struct task_desc *register_pid(struct perf_sched *sched,
 				      unsigned long pid, const char *comm)
 {
 	struct task_desc *task;
+	static int pid_max;
 
-	BUG_ON(pid >= MAX_PID);
+	if (sched->pid_to_task == NULL) {
+		if (sysctl__read_int("kernel/pid_max", &pid_max) < 0)
+			pid_max = MAX_PID;
+		BUG_ON((sched->pid_to_task = calloc(pid_max, sizeof(struct task_desc *))) == NULL);
+	}
+	BUG_ON(pid >= (unsigned long)pid_max);
 
 	task = sched->pid_to_task[pid];
 
