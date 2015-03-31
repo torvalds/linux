@@ -1876,7 +1876,7 @@ static void fsi_handler_init(struct fsi_priv *fsi,
 	}
 }
 
-static struct fsi_core fsi1_core = {
+static const struct fsi_core fsi1_core = {
 	.ver	= 1,
 
 	/* Interrupt */
@@ -1885,7 +1885,7 @@ static struct fsi_core fsi1_core = {
 	.imsk	= IMSK,
 };
 
-static struct fsi_core fsi2_core = {
+static const struct fsi_core fsi2_core = {
 	.ver	= 2,
 
 	/* Interrupt */
@@ -1903,7 +1903,7 @@ static const struct of_device_id fsi_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, fsi_of_match);
 
-static struct platform_device_id fsi_id_table[] = {
+static const struct platform_device_id fsi_id_table[] = {
 	{ "sh_fsi",	(kernel_ulong_t)&fsi1_core },
 	{ "sh_fsi2",	(kernel_ulong_t)&fsi2_core },
 	{},
