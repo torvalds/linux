@@ -583,6 +583,15 @@ config I2C_IOP3XX
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-iop3xx.
 
+config I2C_JZ4780
+	tristate "JZ4780 I2C controller interface support"
+	depends on MACH_JZ4780 || COMPILE_TEST
+	help
+	 If you say yes to this option, support will be included for the
+	 Ingenic JZ4780 I2C controller.
+
+	 If you don't know what to do here, say N.
+
 config I2C_KEMPLD
 	tristate "Kontron COM I2C Controller"
 	depends on MFD_KEMPLD
