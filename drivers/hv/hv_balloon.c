@@ -1081,11 +1081,12 @@ static void free_balloon_pages(struct hv_dynmem_device *dm,
 
 
 
-static int alloc_balloon_pages(struct hv_dynmem_device *dm, int num_pages,
-			       struct dm_balloon_response *bl_resp,
-			       int alloc_unit)
+static unsigned int alloc_balloon_pages(struct hv_dynmem_device *dm,
+					unsigned int num_pages,
+					struct dm_balloon_response *bl_resp,
+					int alloc_unit)
 {
-	int i = 0;
+	unsigned int i = 0;
 	struct page *pg;
 
 	if (num_pages < alloc_unit)
@@ -1132,8 +1133,8 @@ static int alloc_balloon_pages(struct hv_dynmem_device *dm, int num_pages,
 
 static void balloon_up(struct work_struct *dummy)
 {
-	int num_pages = dm_device.balloon_wrk.num_pages;
-	int num_ballooned = 0;
+	unsigned int num_pages = dm_device.balloon_wrk.num_pages;
+	unsigned int num_ballooned = 0;
 	struct dm_balloon_response *bl_resp;
 	int alloc_unit;
 	int ret;
