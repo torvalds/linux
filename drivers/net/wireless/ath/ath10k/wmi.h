@@ -554,6 +554,7 @@ struct wmi_cmd_map {
 	u32 vdev_set_wmm_params_cmdid;
 	u32 tdls_set_state_cmdid;
 	u32 tdls_peer_update_cmdid;
+	u32 adaptive_qcs_cmdid;
 };
 
 /*

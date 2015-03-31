@@ -1576,6 +1576,10 @@ struct wmi_tdls_peer_capab {
 	__le32 pref_offchan_bw;
 } __packed;
 
+struct wmi_tlv_adaptive_qcs {
+	__le32 enable;
+} __packed;
+
 void ath10k_wmi_tlv_attach(struct ath10k *ar);
 
 #endif
