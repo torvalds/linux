@@ -531,7 +531,7 @@ static struct phy *exynos5_usbdrd_phy_xlate(struct device *dev,
 {
 	struct exynos5_usbdrd_phy *phy_drd = dev_get_drvdata(dev);
 
-	if (WARN_ON(args->args[0] > EXYNOS5_DRDPHYS_NUM))
+	if (WARN_ON(args->args[0] >= EXYNOS5_DRDPHYS_NUM))
 		return ERR_PTR(-ENODEV);
 
 	return phy_drd->phys[args->args[0]].phy;

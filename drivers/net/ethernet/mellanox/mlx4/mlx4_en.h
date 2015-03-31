@@ -453,7 +453,7 @@ struct mlx4_en_port_stats {
 	unsigned long rx_chksum_none;
 	unsigned long rx_chksum_complete;
 	unsigned long tx_chksum_offload;
-#define NUM_PORT_STATS		9
+#define NUM_PORT_STATS		10
 };
 
 struct mlx4_en_perf_stats {

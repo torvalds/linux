@@ -211,7 +211,7 @@ do {								\
 
 extern unsigned long mmap_rnd_mask;
 
-#define STACK_RND_MASK	(mmap_rnd_mask)
+#define STACK_RND_MASK	(test_thread_flag(TIF_31BIT) ? 0x7ff : mmap_rnd_mask)
 
 #define ARCH_DLINFO							    \
 do {									    \

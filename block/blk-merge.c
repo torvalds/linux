@@ -592,7 +592,7 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 	if (q->queue_flags & (1 << QUEUE_FLAG_SG_GAPS)) {
 		struct bio_vec *bprev;
 
-		bprev = &rq->biotail->bi_io_vec[bio->bi_vcnt - 1];
+		bprev = &rq->biotail->bi_io_vec[rq->biotail->bi_vcnt - 1];
 		if (bvec_gap_to_prev(bprev, bio->bi_io_vec[0].bv_offset))
 			return false;
 	}

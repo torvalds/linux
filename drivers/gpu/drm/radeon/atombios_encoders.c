@@ -1626,7 +1626,6 @@ radeon_atom_encoder_dpms_dig(struct drm_encoder *encoder, int mode)
 	struct radeon_connector *radeon_connector = NULL;
 	struct radeon_connector_atom_dig *radeon_dig_connector = NULL;
 	bool travis_quirk = false;
-	int encoder_mode;
 
 	if (connector) {
 		radeon_connector = to_radeon_connector(connector);
@@ -1722,13 +1721,6 @@ radeon_atom_encoder_dpms_dig(struct drm_encoder *encoder, int mode)
 		}
 		break;
 	}
-
-	encoder_mode = atombios_get_encoder_mode(encoder);
-	if (connector && (radeon_audio != 0) &&
-	    ((encoder_mode == ATOM_ENCODER_MODE_HDMI) ||
-	     (ENCODER_MODE_IS_DP(encoder_mode) &&
-	      drm_detect_monitor_audio(radeon_connector_edid(connector)))))
-		radeon_audio_dpms(encoder, mode);
 }
 
 static void
@@ -1737,10 +1729,19 @@ radeon_atom_encoder_dpms(struct drm_encoder *encoder, int mode)
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
+	int encoder_mode = atombios_get_encoder_mode(encoder);
 
 	DRM_DEBUG_KMS("encoder dpms %d to mode %d, devices %08x, active_devices %08x\n",
 		  radeon_encoder->encoder_id, mode, radeon_encoder->devices,
 		  radeon_encoder->active_device);
+
+	if (connector && (radeon_audio != 0) &&
+	    ((encoder_mode == ATOM_ENCODER_MODE_HDMI) ||
+	     (ENCODER_MODE_IS_DP(encoder_mode) &&
+	      drm_detect_monitor_audio(radeon_connector_edid(connector)))))
+		radeon_audio_dpms(encoder, mode);
+
 	switch (radeon_encoder->encoder_id) {
 	case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
@@ -2170,12 +2171,6 @@ radeon_atom_encoder_mode_set(struct drm_encoder *encoder,
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY3:
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
 		/* handled in dpms */
-		encoder_mode = atombios_get_encoder_mode(encoder);
-		if (connector && (radeon_audio != 0) &&
-		    ((encoder_mode == ATOM_ENCODER_MODE_HDMI) ||
-		     (ENCODER_MODE_IS_DP(encoder_mode) &&
-		      drm_detect_monitor_audio(radeon_connector_edid(connector)))))
-			radeon_audio_mode_set(encoder, adjusted_mode);
 		break;
 	case ENCODER_OBJECT_ID_INTERNAL_DDI:
 	case ENCODER_OBJECT_ID_INTERNAL_DVO1:
@@ -2197,6 +2192,13 @@ radeon_atom_encoder_mode_set(struct drm_encoder *encoder,
 	}
 
 	atombios_apply_encoder_quirks(encoder, adjusted_mode);
+
+	encoder_mode = atombios_get_encoder_mode(encoder);
+	if (connector && (radeon_audio != 0) &&
+	    ((encoder_mode == ATOM_ENCODER_MODE_HDMI) ||
+	     (ENCODER_MODE_IS_DP(encoder_mode) &&
+	      drm_detect_monitor_audio(radeon_connector_edid(connector)))))
+		radeon_audio_mode_set(encoder, adjusted_mode);
 }
 
 static bool

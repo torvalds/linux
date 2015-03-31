@@ -94,10 +94,10 @@ static void nft_trace_packet(const struct nft_pktinfo *pkt,
 {
 	struct net *net = dev_net(pkt->in ? pkt->in : pkt->out);
 
-	nf_log_packet(net, pkt->xt.family, pkt->ops->hooknum, pkt->skb, pkt->in,
-		      pkt->out, &trace_loginfo, "TRACE: %s:%s:%s:%u ",
-		      chain->table->name, chain->name, comments[type],
-		      rulenum);
+	nf_log_trace(net, pkt->xt.family, pkt->ops->hooknum, pkt->skb, pkt->in,
+		     pkt->out, &trace_loginfo, "TRACE: %s:%s:%s:%u ",
+		     chain->table->name, chain->name, comments[type],
+		     rulenum);
 }
 
 unsigned int
