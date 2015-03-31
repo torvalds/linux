@@ -1172,14 +1172,20 @@ static u64 h_24x7_get_value(struct perf_event *event)
 	return ct;
 }
 
-static void h_24x7_event_read(struct perf_event *event)
+static void update_event_count(struct perf_event *event, u64 now)
 {
 	s64 prev;
+
+	prev = local64_xchg(&event->hw.prev_count, now);
+	local64_add(now - prev, &event->count);
+}
+
+static void h_24x7_event_read(struct perf_event *event)
+{
 	u64 now;
 
 	now = h_24x7_get_value(event);
-	prev = local64_xchg(&event->hw.prev_count, now);
-	local64_add(now - prev, &event->count);
+	update_event_count(event, now);
 }
 
 static void h_24x7_event_start(struct perf_event *event, int flags)
