@@ -1714,8 +1714,8 @@ void iwl_mvm_sta_modify_disable_tx_ap(struct iwl_mvm *mvm,
 	mvm_sta->disable_tx = disable;
 
 	/*
-	 * Tell mac80211 to start/stop queueing tx for this station,
-	 * but don't stop queueing if there are still pending frames
+	 * Tell mac80211 to start/stop queuing tx for this station,
+	 * but don't stop queuing if there are still pending frames
 	 * for this station.
 	 */
 	if (disable || !atomic_read(&mvm->pending_frames[mvm_sta->sta_id]))

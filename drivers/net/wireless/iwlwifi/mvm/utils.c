@@ -122,7 +122,7 @@ int iwl_mvm_send_cmd_pdu(struct iwl_mvm *mvm, u8 id,
 }
 
 /*
- * We assume that the caller set the status to the sucess value
+ * We assume that the caller set the status to the success value
  */
 int iwl_mvm_send_cmd_status(struct iwl_mvm *mvm, struct iwl_host_cmd *cmd,
 			    u32 *status)
@@ -737,7 +737,7 @@ int iwl_mvm_send_lq_cmd(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq, bool init)
 }
 
 /**
- * iwl_mvm_update_smps - Get a requst to change the SMPS mode
+ * iwl_mvm_update_smps - Get a request to change the SMPS mode
  * @req_type: The part of the driver who call for a change.
  * @smps_requests: The request to change the SMPS mode.
  *

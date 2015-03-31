@@ -119,7 +119,7 @@ void iwl_mvm_roc_done_wk(struct work_struct *wk)
 
 	/*
 	 * Flush the offchannel queue -- this is called when the time
-	 * event finishes or is cancelled, so that frames queued for it
+	 * event finishes or is canceled, so that frames queued for it
 	 * won't get stuck on the queue and be transmitted in the next
 	 * time event.
 	 * We have to send the command asynchronously since this cannot
@@ -778,7 +778,7 @@ void iwl_mvm_stop_roc(struct iwl_mvm *mvm)
 	 * Iterate over the list of aux roc time events and find the time
 	 * event that is associated with a BSS interface.
 	 * This assumes that a BSS interface can have only a single time
-	 * event at any given time and this time event coresponds to a ROC
+	 * event at any given time and this time event corresponds to a ROC
 	 * request
 	 */
 	list_for_each_entry(te_data, &mvm->aux_roc_te_list, list) {

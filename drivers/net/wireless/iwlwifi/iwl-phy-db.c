@@ -125,7 +125,7 @@ struct iwl_phy_db_chg_txp {
 } __packed;
 
 /*
- * phy db - Receieve phy db chunk after calibrations
+ * phy db - Receive phy db chunk after calibrations
  */
 struct iwl_calib_res_notif_phy_db {
 	__le16 type;

@@ -183,7 +183,7 @@ struct iwl_fw_error_dump_info {
  * struct iwl_fw_error_dump_fw_mon - FW monitor data
  * @fw_mon_wr_ptr: the position of the write pointer in the cyclic buffer
  * @fw_mon_base_ptr: base pointer of the data
- * @fw_mon_cycle_cnt: number of wrap arounds
+ * @fw_mon_cycle_cnt: number of wraparounds
  * @reserved: for future use
  * @data: captured data
  */

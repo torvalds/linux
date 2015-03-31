@@ -3221,7 +3221,7 @@ static void rs_fill_lq_cmd(struct iwl_mvm *mvm,
 	lq_cmd->agg_frame_cnt_limit = mvmsta->max_agg_bufsize;
 
 	/*
-	 * In case of low latency, tell the firwmare to leave a frame in the
+	 * In case of low latency, tell the firmware to leave a frame in the
 	 * Tx Fifo so that it can start a transaction in the same TxOP. This
 	 * basically allows the firmware to send bursts.
 	 */
@@ -3722,7 +3722,7 @@ void iwl_mvm_rate_control_unregister(void)
 
 /**
  * iwl_mvm_tx_protection - Gets LQ command, change it to enable/disable
- * Tx protection, according to this rquest and previous requests,
+ * Tx protection, according to this request and previous requests,
  * and send the LQ command.
  * @mvmsta: The station
  * @enable: Enable Tx protection?

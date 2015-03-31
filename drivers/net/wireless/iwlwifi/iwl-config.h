@@ -228,7 +228,7 @@ struct iwl_pwr_tx_backoff {
 
 /**
  * struct iwl_cfg
- * @name: Offical name of the device
+ * @name: Official name of the device
  * @fw_name_pre: Firmware filename prefix. The api version and extension
  *	(.ucode) will be added to filename before loading from disk. The
  *	filename is constructed as fw_name_pre<api>.ucode.

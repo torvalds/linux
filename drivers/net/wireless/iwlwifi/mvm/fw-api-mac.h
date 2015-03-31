@@ -255,7 +255,7 @@ struct iwl_mac_data_p2p_dev {
 /**
  * enum iwl_mac_filter_flags - MAC context filter flags
  * @MAC_FILTER_IN_PROMISC: accept all data frames
- * @MAC_FILTER_IN_CONTROL_AND_MGMT: pass all mangement and
+ * @MAC_FILTER_IN_CONTROL_AND_MGMT: pass all management and
  *	control frames to the host
  * @MAC_FILTER_ACCEPT_GRP: accept multicast frames
  * @MAC_FILTER_DIS_DECRYPT: don't decrypt unicast frames

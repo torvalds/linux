@@ -103,7 +103,7 @@ struct iwl_ssid_ie {
  * @SCAN_COMP_STATUS_ERR_COEX: medium was lost ot WiMax
  * @SCAN_COMP_STATUS_P2P_ACTION_OK: P2P public action frame TX was successful
  *	(not an error!)
- * @SCAN_COMP_STATUS_ITERATION_END: indicates end of one repeatition the driver
+ * @SCAN_COMP_STATUS_ITERATION_END: indicates end of one repetition the driver
  *	asked for
  * @SCAN_COMP_STATUS_ERR_ALLOC_TE: scan could not allocate time events
 */
@@ -187,11 +187,11 @@ enum scan_framework_client {
  * struct iwl_scan_offload_cmd - SCAN_REQUEST_FIXED_PART_API_S_VER_6
  * @scan_flags:		see enum iwl_scan_flags
  * @channel_count:	channels in channel list
- * @quiet_time:		dwell time, in milisiconds, on quiet channel
+ * @quiet_time:		dwell time, in milliseconds, on quiet channel
  * @quiet_plcp_th:	quiet channel num of packets threshold
  * @good_CRC_th:	passive to active promotion threshold
  * @rx_chain:		RXON rx chain.
- * @max_out_time:	max TUs to be out of assoceated channel
+ * @max_out_time:	max TUs to be out of associated channel
  * @suspend_time:	pause scan this TUs when returning to service channel
  * @flags:		RXON flags
  * @filter_flags:	RXONfilter
@@ -232,7 +232,7 @@ enum iwl_scan_offload_channel_flags {
  *	see enum iwl_scan_offload_channel_flags.
  * __le16 channel_number: channel number 1-13 etc.
  * __le16 iter_count: repetition count for the channel.
- * __le32 iter_interval: interval between two innteration on one channel.
+ * __le32 iter_interval: interval between two iterations on one channel.
  * u8 active_dwell.
  * u8 passive_dwell.
  */
@@ -275,8 +275,8 @@ enum iwl_scan_offload_band_selection {
 /**
  * iwl_scan_offload_profile - SCAN_OFFLOAD_PROFILE_S
  * @ssid_index:		index to ssid list in fixed part
- * @unicast_cipher:	encryption olgorithm to match - bitmap
- * @aut_alg:		authentication olgorithm to match - bitmap
+ * @unicast_cipher:	encryption algorithm to match - bitmap
+ * @aut_alg:		authentication algorithm to match - bitmap
  * @network_type:	enum iwl_scan_offload_network_type
  * @band_selection:	enum iwl_scan_offload_band_selection
  * @client_bitmap:	clients waiting for match - enum scan_framework_client
@@ -748,7 +748,7 @@ enum iwl_umac_scan_general_flags {
  * @flags:		bitmap - 0-19:	directed scan to i'th ssid.
  * @channel_num:	channel number 1-13 etc.
  * @iter_count:		repetition count for the channel.
- * @iter_interval:	interval between two scan interations on one channel.
+ * @iter_interval:	interval between two scan iterations on one channel.
  */
 struct iwl_scan_channel_cfg_umac {
 	__le32 flags;
