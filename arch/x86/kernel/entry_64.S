@@ -654,7 +654,6 @@ ret_from_intr:
 	CFI_DEF_CFA_REGISTER	rsp
 	CFI_ADJUST_CFA_OFFSET	RBP
 
-exit_intr:
 	testl $3,CS(%rsp)
 	je retint_kernel
 	/* Interrupt came from user space */
@@ -741,12 +740,12 @@ retint_kernel:
 #ifdef CONFIG_PREEMPT
 	/* Interrupts are off */
 	/* Check if we need preemption */
-	cmpl	$0,PER_CPU_VAR(__preempt_count)
-	jnz	1f
 	bt	$9,EFLAGS(%rsp)	/* interrupts were off? */
 	jnc	1f
+0:	cmpl	$0,PER_CPU_VAR(__preempt_count)
+	jnz	1f
 	call	preempt_schedule_irq
-	jmp	exit_intr
+	jmp	0b
 1:
 #endif
 	/*
