@@ -398,9 +398,6 @@ void __init iommu_init_early_dart(struct pci_controller_ops *controller_ops)
 	if (controller_ops) {
 		controller_ops->dma_dev_setup = pci_dma_dev_setup_dart;
 		controller_ops->dma_bus_setup = pci_dma_bus_setup_dart;
-	} else {
-		ppc_md.pci_dma_dev_setup = pci_dma_dev_setup_dart;
-		ppc_md.pci_dma_bus_setup = pci_dma_bus_setup_dart;
 	}
 	/* Setup pci_dma ops */
 	set_pci_dma_ops(&dma_iommu_ops);
@@ -412,8 +409,6 @@ void __init iommu_init_early_dart(struct pci_controller_ops *controller_ops)
 		controller_ops->dma_dev_setup = NULL;
 		controller_ops->dma_bus_setup = NULL;
 	}
-	ppc_md.pci_dma_dev_setup = NULL;
-	ppc_md.pci_dma_bus_setup = NULL;
 
 	/* Setup pci_dma ops */
 	set_pci_dma_ops(&dma_direct_ops);

@@ -12,11 +12,6 @@
 #include <linux/ioport.h>
 #include <asm-generic/pci-bridge.h>
 
-/* Return values for pci_controller_ops.probe_mode function */
-#define PCI_PROBE_NONE		-1	/* Don't look at this bus at all */
-#define PCI_PROBE_NORMAL	0	/* Do normal PCI probing */
-#define PCI_PROBE_DEVTREE	1	/* Instantiate from device tree */
-
 struct device_node;
 
 /*
@@ -283,85 +278,6 @@ static inline int pcibios_vaddr_is_ioport(void __iomem *address)
 	return 0;
 }
 #endif	/* CONFIG_PCI */
-
-/*
- * Shims to prefer pci_controller version over ppc_md where available.
- */
-static inline void pci_dma_dev_setup(struct pci_dev *dev)
-{
-	struct pci_controller *phb = pci_bus_to_host(dev->bus);
-
-	if (phb->controller_ops.dma_dev_setup)
-		phb->controller_ops.dma_dev_setup(dev);
-	else if (ppc_md.pci_dma_dev_setup)
-		ppc_md.pci_dma_dev_setup(dev);
-}
-
-static inline void pci_dma_bus_setup(struct pci_bus *bus)
-{
-	struct pci_controller *phb = pci_bus_to_host(bus);
-
-	if (phb->controller_ops.dma_bus_setup)
-		phb->controller_ops.dma_bus_setup(bus);
-	else if (ppc_md.pci_dma_bus_setup)
-		ppc_md.pci_dma_bus_setup(bus);
-}
-
-static inline int pci_probe_mode(struct pci_bus *bus)
-{
-	struct pci_controller *phb = pci_bus_to_host(bus);
-
-	if (phb->controller_ops.probe_mode)
-		return phb->controller_ops.probe_mode(bus);
-	if (ppc_md.pci_probe_mode)
-		return ppc_md.pci_probe_mode(bus);
-	return PCI_PROBE_NORMAL;
-}
-
-static inline bool pcibios_enable_device_hook(struct pci_dev *dev)
-{
-	struct pci_controller *phb = pci_bus_to_host(dev->bus);
-
-	if (phb->controller_ops.enable_device_hook)
-		return phb->controller_ops.enable_device_hook(dev);
-	if (ppc_md.pcibios_enable_device_hook)
-		return ppc_md.pcibios_enable_device_hook(dev);
-	return true;
-}
-
-static inline resource_size_t pci_window_alignment(struct pci_bus *bus,
-						   unsigned long type)
-{
-	struct pci_controller *phb = pci_bus_to_host(bus);
-
-	if (phb->controller_ops.window_alignment)
-		return phb->controller_ops.window_alignment(bus, type);
-	if (ppc_md.pcibios_window_alignment)
-		return ppc_md.pcibios_window_alignment(bus, type);
-
-	/*
-	 * PCI core will figure out the default
-	 * alignment: 4KiB for I/O and 1MiB for
-	 * memory window.
-	 */
-	return 1;
-}
-
-static inline void pcibios_reset_secondary_bus_shim(struct pci_dev *dev)
-{
-	struct pci_controller *phb = pci_bus_to_host(dev->bus);
-
-	if (phb->controller_ops.reset_secondary_bus)
-		phb->controller_ops.reset_secondary_bus(dev);
-	else if (ppc_md.pcibios_reset_secondary_bus)
-		ppc_md.pcibios_reset_secondary_bus(dev);
-	else
-		/*
-		 * Fallback to the generic function if no
-		 * platform-specific one is provided
-		 */
-		pci_reset_secondary_bus(dev);
-}
 
 #endif	/* __KERNEL__ */
 #endif	/* _ASM_POWERPC_PCI_BRIDGE_H */
