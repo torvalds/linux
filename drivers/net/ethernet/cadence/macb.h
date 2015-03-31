@@ -11,7 +11,7 @@
 #define _MACB_H
 
 #define MACB_GREGS_NBR 16
-#define MACB_GREGS_VERSION 1
+#define MACB_GREGS_VERSION 2
 #define MACB_MAX_QUEUES 8
 
 /* MACB register offsets */
