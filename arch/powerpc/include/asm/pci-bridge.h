@@ -31,6 +31,9 @@ struct pci_controller_ops {
 	/* Called when pci_enable_device() is called. Returns true to
 	 * allow assignment/enabling of the device. */
 	bool		(*enable_device_hook)(struct pci_dev *);
+
+	/* Called during PCI resource reassignment */
+	resource_size_t (*window_alignment)(struct pci_bus *, unsigned long type);
 };
 
 /*
@@ -323,6 +326,24 @@ static inline bool pcibios_enable_device_hook(struct pci_dev *dev)
 	if (ppc_md.pcibios_enable_device_hook)
 		return ppc_md.pcibios_enable_device_hook(dev);
 	return true;
+}
+
+static inline resource_size_t pci_window_alignment(struct pci_bus *bus,
+						   unsigned long type)
+{
+	struct pci_controller *phb = pci_bus_to_host(bus);
+
+	if (phb->controller_ops.window_alignment)
+		return phb->controller_ops.window_alignment(bus, type);
+	if (ppc_md.pcibios_window_alignment)
+		return ppc_md.pcibios_window_alignment(bus, type);
+
+	/*
+	 * PCI core will figure out the default
+	 * alignment: 4KiB for I/O and 1MiB for
+	 * memory window.
+	 */
+	return 1;
 }
 
 #endif	/* __KERNEL__ */
