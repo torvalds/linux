@@ -142,6 +142,15 @@ static struct attribute_group event_long_desc_group = {
 
 static struct kmem_cache *hv_page_cache;
 
+/*
+ * request_buffer and result_buffer are not required to be 4k aligned,
+ * but are not allowed to cross any 4k boundary. Aligning them to 4k is
+ * the simplest way to ensure that.
+ */
+#define H24x7_DATA_BUFFER_SIZE	4096
+DEFINE_PER_CPU(char, hv_24x7_reqb[H24x7_DATA_BUFFER_SIZE]) __aligned(4096);
+DEFINE_PER_CPU(char, hv_24x7_resb[H24x7_DATA_BUFFER_SIZE]) __aligned(4096);
+
 static char *event_name(struct hv_24x7_event_data *ev, int *len)
 {
 	*len = be16_to_cpu(ev->event_name_len) - 2;
@@ -976,31 +985,16 @@ static const struct attribute_group *attr_groups[] = {
 	NULL,
 };
 
-DEFINE_PER_CPU(char, hv_24x7_reqb[4096]) __aligned(4096);
-DEFINE_PER_CPU(char, hv_24x7_resb[4096]) __aligned(4096);
-
 static unsigned long single_24x7_request(u8 domain, u32 offset, u16 ix,
-					 u16 lpar, u64 *res,
+					 u16 lpar, u64 *count,
 					 bool success_expected)
 {
 	unsigned long ret;
 
-	/*
-	 * request_buffer and result_buffer are not required to be 4k aligned,
-	 * but are not allowed to cross any 4k boundary. Aligning them to 4k is
-	 * the simplest way to ensure that.
-	 */
-	struct reqb {
-		struct hv_24x7_request_buffer buf;
-		struct hv_24x7_request req;
-	} __packed *request_buffer;
-
-	struct {
-		struct hv_24x7_data_result_buffer buf;
-		struct hv_24x7_result res;
-		struct hv_24x7_result_element elem;
-		__be64 result;
-	} __packed *result_buffer;
+	struct hv_24x7_request_buffer *request_buffer;
+	struct hv_24x7_data_result_buffer *result_buffer;
+	struct hv_24x7_result *resb;
+	struct hv_24x7_request *req;
 
 	BUILD_BUG_ON(sizeof(*request_buffer) > 4096);
 	BUILD_BUG_ON(sizeof(*result_buffer) > 4096);
@@ -1011,38 +1005,41 @@ static unsigned long single_24x7_request(u8 domain, u32 offset, u16 ix,
 	memset(request_buffer, 0, 4096);
 	memset(result_buffer, 0, 4096);
 
-	*request_buffer = (struct reqb) {
-		.buf = {
-			.interface_version = HV_24X7_IF_VERSION_CURRENT,
-			.num_requests = 1,
-		},
-		.req = {
-			.performance_domain = domain,
-			.data_size = cpu_to_be16(8),
-			.data_offset = cpu_to_be32(offset),
-			.starting_lpar_ix = cpu_to_be16(lpar),
-			.max_num_lpars = cpu_to_be16(1),
-			.starting_ix = cpu_to_be16(ix),
-			.max_ix = cpu_to_be16(1),
-		}
-	};
+	request_buffer->interface_version = HV_24X7_IF_VERSION_CURRENT;
+	request_buffer->num_requests = 1;
 
+	req = &request_buffer->requests[0];
+
+	req->performance_domain = domain;
+	req->data_size = cpu_to_be16(8);
+	req->data_offset = cpu_to_be32(offset);
+	req->starting_lpar_ix = cpu_to_be16(lpar),
+	req->max_num_lpars = cpu_to_be16(1);
+	req->starting_ix = cpu_to_be16(ix);
+	req->max_ix = cpu_to_be16(1);
+
+	/*
+	 * NOTE: Due to variable number of array elements in request and
+	 *	 result buffer(s), sizeof() is not reliable. Use the actual
+	 *	 allocated buffer size, H24x7_DATA_BUFFER_SIZE.
+	 */
 	ret = plpar_hcall_norets(H_GET_24X7_DATA,
-			virt_to_phys(request_buffer), sizeof(*request_buffer),
-			virt_to_phys(result_buffer),  sizeof(*result_buffer));
+			virt_to_phys(request_buffer), H24x7_DATA_BUFFER_SIZE,
+			virt_to_phys(result_buffer),  H24x7_DATA_BUFFER_SIZE);
 
 	if (ret) {
 		if (success_expected)
 			pr_err_ratelimited("hcall failed: %d %#x %#x %d => "
 				"0x%lx (%ld) detail=0x%x failing ix=%x\n",
 				domain, offset, ix, lpar, ret, ret,
-				result_buffer->buf.detailed_rc,
-				result_buffer->buf.failing_request_ix);
+				result_buffer->detailed_rc,
+				result_buffer->failing_request_ix);
 		goto out;
 	}
 
-	*res = be64_to_cpu(result_buffer->result);
+	resb = &result_buffer->results[0];
 
+	*count = be64_to_cpu(resb->elements[0].element_data[0]);
 out:
 	return ret;
 }
