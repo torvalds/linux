@@ -8,6 +8,7 @@
  */
 #include "stih407-pinctrl.dtsi"
 #include <dt-bindings/mfd/st-lpc.h>
+#include <dt-bindings/phy/phy.h>
 #include <dt-bindings/reset-controller/stih407-resets.h>
 / {
 	#address-cells = <1>;
@@ -470,6 +471,50 @@
 			interrupts = <GIC_SPI 130 IRQ_TYPE_EDGE_RISING>;
 			clocks = <&clk_s_d3_flexgen CLK_LPC_1>;
 			st,lpc-mode = <ST_LPC_MODE_RTC>;
+		};
+
+		sata0: sata@9b20000 {
+			compatible = "st,ahci";
+			reg = <0x9b20000 0x1000>;
+
+			interrupts = <GIC_SPI 159 IRQ_TYPE_NONE>;
+			interrupt-names = "hostc";
+
+			phys = <&phy_port0 PHY_TYPE_SATA>;
+			phy-names = "ahci_phy";
+
+			resets = <&powerdown STIH407_SATA0_POWERDOWN>,
+				 <&softreset STIH407_SATA0_SOFTRESET>,
+				 <&softreset STIH407_SATA0_PWR_SOFTRESET>;
+			reset-names = "pwr-dwn", "sw-rst", "pwr-rst";
+
+			clock-names = "ahci_clk";
+			clocks = <&clk_s_c0_flexgen CLK_ICN_REG>;
+
+			status = "disabled";
+		};
+
+		sata1: sata@9b28000 {
+			compatible = "st,ahci";
+			reg = <0x9b28000 0x1000>;
+
+			interrupts = <GIC_SPI 170 IRQ_TYPE_NONE>;
+			interrupt-names = "hostc";
+
+			phys = <&phy_port1 PHY_TYPE_SATA>;
+			phy-names = "ahci_phy";
+
+			resets = <&powerdown STIH407_SATA1_POWERDOWN>,
+				 <&softreset STIH407_SATA1_SOFTRESET>,
+				 <&softreset STIH407_SATA1_PWR_SOFTRESET>;
+			reset-names = "pwr-dwn",
+				      "sw-rst",
+				      "pwr-rst";
+
+			clock-names = "ahci_clk";
+			clocks = <&clk_s_c0_flexgen CLK_ICN_REG>;
+
+			status = "disabled";
 		};
 	};
 };
