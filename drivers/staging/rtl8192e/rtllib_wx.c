@@ -113,8 +113,6 @@ static inline char *rtl819x_translate_scan(struct rtllib_device *ieee,
 
 	/* Add frequency/channel */
 	iwe.cmd = SIOCGIWFREQ;
-/*	iwe.u.freq.m = rtllib_frequency(network->channel, network->mode);
-	iwe.u.freq.e = 3; */
 	iwe.u.freq.m = network->channel;
 	iwe.u.freq.e = 0;
 	iwe.u.freq.i = 0;

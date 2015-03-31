@@ -2208,13 +2208,6 @@ static inline int rtllib_network_init(
 	struct rtllib_network *network,
 	struct rtllib_rx_stats *stats)
 {
-
-	/*
-	network->qos_data.active = 0;
-	network->qos_data.supported = 0;
-	network->qos_data.param_count = 0;
-	network->qos_data.old_param_count = 0;
-	*/
 	memset(&network->qos_data, 0, sizeof(struct rtllib_qos_data));
 
 	/* Pull out fixed field data */

@@ -2195,8 +2195,7 @@ rtl8192_InitializeVariables(struct net_device  *dev)
 
 	priv->rtllib->softmac_features  = IEEE_SOFTMAC_SCAN |
 		IEEE_SOFTMAC_ASSOCIATE | IEEE_SOFTMAC_PROBERQ |
-		IEEE_SOFTMAC_PROBERS | IEEE_SOFTMAC_TX_QUEUE /* |
-		IEEE_SOFTMAC_BEACONS*/;
+		IEEE_SOFTMAC_PROBERS | IEEE_SOFTMAC_TX_QUEUE;
 
 	priv->rtllib->tx_headroom = sizeof(struct tx_fwinfo_8190pci);
 
