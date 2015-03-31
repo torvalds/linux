@@ -247,6 +247,91 @@ static int change_protocol(struct rc_dev *dev, u64 *rc_type)
 }
 
 /**
+ * ir_raw_gen_manchester() - Encode data with Manchester (bi-phase) modulation.
+ * @ev:		Pointer to pointer to next free event. *@ev is incremented for
+ *		each raw event filled.
+ * @max:	Maximum number of raw events to fill.
+ * @timings:	Manchester modulation timings.
+ * @n:		Number of bits of data.
+ * @data:	Data bits to encode.
+ *
+ * Encodes the @n least significant bits of @data using Manchester (bi-phase)
+ * modulation with the timing characteristics described by @timings, writing up
+ * to @max raw IR events using the *@ev pointer.
+ *
+ * Returns:	0 on success.
+ *		-ENOBUFS if there isn't enough space in the array to fit the
+ *		full encoded data. In this case all @max events will have been
+ *		written.
+ */
+int ir_raw_gen_manchester(struct ir_raw_event **ev, unsigned int max,
+			  const struct ir_raw_timings_manchester *timings,
+			  unsigned int n, unsigned int data)
+{
+	bool need_pulse;
+	unsigned int i;
+	int ret = -ENOBUFS;
+
+	i = 1 << (n - 1);
+
+	if (timings->leader) {
+		if (!max--)
+			return ret;
+		if (timings->pulse_space_start) {
+			init_ir_raw_event_duration((*ev)++, 1, timings->leader);
+
+			if (!max--)
+				return ret;
+			init_ir_raw_event_duration((*ev), 0, timings->leader);
+		} else {
+			init_ir_raw_event_duration((*ev), 1, timings->leader);
+		}
+		i >>= 1;
+	} else {
+		/* continue existing signal */
+		--(*ev);
+	}
+	/* from here on *ev will point to the last event rather than the next */
+
+	while (n && i > 0) {
+		need_pulse = !(data & i);
+		if (timings->invert)
+			need_pulse = !need_pulse;
+		if (need_pulse == !!(*ev)->pulse) {
+			(*ev)->duration += timings->clock;
+		} else {
+			if (!max--)
+				goto nobufs;
+			init_ir_raw_event_duration(++(*ev), need_pulse,
+						   timings->clock);
+		}
+
+		if (!max--)
+			goto nobufs;
+		init_ir_raw_event_duration(++(*ev), !need_pulse,
+					   timings->clock);
+		i >>= 1;
+	}
+
+	if (timings->trailer_space) {
+		if (!(*ev)->pulse)
+			(*ev)->duration += timings->trailer_space;
+		else if (!max--)
+			goto nobufs;
+		else
+			init_ir_raw_event_duration(++(*ev), 0,
+						   timings->trailer_space);
+	}
+
+	ret = 0;
+nobufs:
+	/* point to the next event rather than last event before returning */
+	++(*ev);
+	return ret;
+}
+EXPORT_SYMBOL(ir_raw_gen_manchester);
+
+/**
  * ir_raw_encode_scancode() - Encode a scancode as raw events
  *
  * @protocols:		permitted protocols
