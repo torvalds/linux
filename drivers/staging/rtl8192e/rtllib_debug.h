@@ -83,6 +83,6 @@ do {	\
 		pr_info("Assertion failed! %s,%s,%s,line=%d\n", \
 		#expr, __FILE__, __func__, __LINE__);	  \
 	}	\
-} while (0);
+} while (0)
 
 #endif
