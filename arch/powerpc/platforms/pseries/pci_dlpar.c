@@ -32,6 +32,8 @@
 #include <asm/firmware.h>
 #include <asm/eeh.h>
 
+#include "pseries.h"
+
 static struct pci_bus *
 find_bus_among_children(struct pci_bus *bus,
                         struct device_node *dn)
@@ -75,6 +77,7 @@ struct pci_controller *init_phb_dynamic(struct device_node *dn)
 		return NULL;
 	rtas_setup_phb(phb);
 	pci_process_bridge_OF_ranges(phb, dn, 0);
+	phb->controller_ops = pseries_pci_controller_ops;
 
 	pci_devs_phb_init_dynamic(phb);
 
