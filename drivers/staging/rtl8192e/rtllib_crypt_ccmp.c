@@ -140,7 +140,8 @@ static void ccmp_init_blocks(struct crypto_tfm *tfm,
 	 * Flag (Include authentication header, M=3 (8-octet MIC),
 	 *       L=1 (2-octet Dlen))
 	 * Nonce: 0x00 | A2 | PN
-	 * Dlen */
+	 * Dlen
+	 */
 	b0[0] = 0x59;
 	b0[1] = qc;
 	memcpy(b0 + 2, hdr->addr2, ETH_ALEN);

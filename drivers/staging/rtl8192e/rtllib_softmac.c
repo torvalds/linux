@@ -68,7 +68,8 @@ static void rtllib_MFIE_Brate(struct rtllib_device *ieee, u8 **tag_p)
 	}
 
 	/* We may add an option for custom rates that specific HW
-	 * might support */
+	 * might support
+	 */
 	*tag_p = tag;
 }
 
@@ -89,7 +90,8 @@ static void rtllib_MFIE_Grate(struct rtllib_device *ieee, u8 **tag_p)
 		*tag++ = RTLLIB_BASIC_RATE_MASK | RTLLIB_OFDM_RATE_54MB;
 	}
 	/* We may add an option for custom rates that specific HW might
-	 * support */
+	 * support
+	 */
 	*tag_p = tag;
 }
 
@@ -133,8 +135,7 @@ static void enqueue_mgmt(struct rtllib_device *ieee, struct sk_buff *skb)
 
 	nh = (ieee->mgmt_queue_head + 1) % MGMT_QUEUE_NUM;
 
-/*
- * if the queue is full but we have newer frames then
+/* if the queue is full but we have newer frames then
  * just overwrites the oldest.
  *
  * if (nh == ieee->mgmt_queue_tail)
@@ -273,10 +274,11 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct rtllib_device *ieee)
 		if (!ieee->check_nic_enough_desc(ieee->dev, tcb_desc->queue_index) ||
 		    (skb_queue_len(&ieee->skb_waitQ[tcb_desc->queue_index]) != 0) ||
 		    (ieee->queue_stop)) {
-			/* insert the skb packet to the management queue */
-			/* as for the completion function, it does not need
+			/* insert the skb packet to the management queue
+			 *
+			 * as for the completion function, it does not need
 			 * to check it any more.
-			 * */
+			 */
 			netdev_info(ieee->dev,
 			       "%s():insert to waitqueue, queue_index:%d!\n",
 			       __func__, tcb_desc->queue_index);
@@ -417,10 +419,7 @@ static void rtllib_send_beacon_cb(unsigned long _ieee)
 	spin_unlock_irqrestore(&ieee->beacon_lock, flags);
 }
 
-/*
- * Description:
- *	      Enable network monitor mode, all rx packets will be received.
- */
+/* Enables network monitor mode, all rx packets will be received. */
 void rtllib_EnableNetMonitorMode(struct net_device *dev,
 		bool bInitState)
 {
@@ -432,10 +431,8 @@ void rtllib_EnableNetMonitorMode(struct net_device *dev,
 }
 
 
-/*
- *      Description:
- *	      Disable network network monitor mode, only packets destinated to
- *	      us will be received.
+/* Disables network monitor mode. Only packets destinated to
+ * us will be received.
  */
 void rtllib_DisableNetMonitorMode(struct net_device *dev,
 		bool bInitState)
@@ -448,9 +445,7 @@ void rtllib_DisableNetMonitorMode(struct net_device *dev,
 }
 
 
-/*
- * Description:
- * This enables the specialized promiscuous mode required by Intel.
+/* Enables the specialized promiscuous mode required by Intel.
  * In this mode, Intel intends to hear traffics from/to other STAs in the
  * same BSS. Therefore we don't have to disable checking BSSID and we only need
  * to allow all dest. BUT: if we enable checking BSSID then we can't recv
@@ -474,10 +469,8 @@ void rtllib_EnableIntelPromiscuousMode(struct net_device *dev,
 EXPORT_SYMBOL(rtllib_EnableIntelPromiscuousMode);
 
 
-/*
- * Description:
- *	      This disables the specialized promiscuous mode required by Intel.
- *	      See MgntEnableIntelPromiscuousMode for detail.
+/* Disables the specialized promiscuous mode required by Intel.
+ * See MgntEnableIntelPromiscuousMode for detail.
  */
 void rtllib_DisableIntelPromiscuousMode(struct net_device *dev,
 		bool bInitState)
@@ -1709,8 +1702,8 @@ inline void rtllib_softmac_new_net(struct rtllib_device *ieee,
 		   (!apset && ssidset && ssidbroad && ssidmatch) ||
 		   (ieee->is_roaming && ssidset && ssidbroad && ssidmatch)) {
 			/* if the essid is hidden replace it with the
-			* essid provided by the user.
-			*/
+			 * essid provided by the user.
+			 */
 			if (!ssidbroad) {
 				strncpy(tmp_ssid, ieee->current_network.ssid,
 					IW_ESSID_MAX_SIZE);
@@ -2008,7 +2001,8 @@ static short rtllib_sta_ps_sleep(struct rtllib_device *ieee, u64 *time)
 	timeout = ieee->current_network.beacon_interval;
 	ieee->current_network.dtim_data = RTLLIB_DTIM_INVALID;
 	/* there's no need to nofity AP that I find you buffered
-	 * with broadcast packet */
+	 * with broadcast packet
+	 */
 	if (dtim & (RTLLIB_DTIM_UCAST & ieee->ps))
 		return 2;
 
@@ -2348,8 +2342,7 @@ static void rtllib_rx_auth_resp(struct rtllib_device *ieee, struct sk_buff *skb)
 				}
 			}
 		}
-		/* Dummy wirless mode setting to avoid
-		 * encryption issue */
+		/* Dummy wirless mode setting to avoid encryption issue */
 		if (bSupportNmode) {
 			ieee->SetWirelessMode(ieee->dev,
 					      ieee->current_network.mode);
@@ -2395,8 +2388,8 @@ inline int rtllib_rx_deauth(struct rtllib_device *ieee, struct sk_buff *skb)
 		return 0;
 
 	/* FIXME for now repeat all the association procedure
-	* both for disassociation and deauthentication
-	*/
+	 * both for disassociation and deauthentication
+	 */
 	if ((ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE) &&
 	    ieee->state == RTLLIB_LINKED &&
 	    (ieee->iw_mode == IW_MODE_INFRA)) {
@@ -2499,16 +2492,17 @@ void rtllib_softmac_xmit(struct rtllib_txb *txb, struct rtllib_device *ieee)
 		ieee->stats.multicast++;
 
 	/* if xmit available, just xmit it immediately, else just insert it to
-	 * the wait queue */
+	 * the wait queue
+	 */
 	for (i = 0; i < txb->nr_frags; i++) {
 		queue_len = skb_queue_len(&ieee->skb_waitQ[queue_index]);
 		if ((queue_len  != 0) ||
 		    (!ieee->check_nic_enough_desc(ieee->dev, queue_index)) ||
 		    (ieee->queue_stop)) {
-			/* insert the skb packet to the wait queue */
-			/* as for the completion function, it does not need
+			/* insert the skb packet to the wait queue
+			 * as for the completion function, it does not need
 			 * to check it any more.
-			 * */
+			 */
 			if (queue_len < 200)
 				skb_queue_tail(&ieee->skb_waitQ[queue_index],
 					       txb->fragments[i]);
@@ -2886,18 +2880,18 @@ static void rtllib_associate_retry_wq(void *data)
 		goto exit;
 
 	/* until we do not set the state to RTLLIB_NOLINK
-	* there are no possibility to have someone else trying
-	* to start an association procedure (we get here with
-	* ieee->state = RTLLIB_ASSOCIATING).
-	* When we set the state to RTLLIB_NOLINK it is possible
-	* that the RX path run an attempt to associate, but
-	* both rtllib_softmac_check_all_nets and the
-	* RX path works with ieee->lock held so there are no
-	* problems. If we are still disassociated then start a scan.
-	* the lock here is necessary to ensure no one try to start
-	* an association procedure when we have just checked the
-	* state and we are going to start the scan.
-	*/
+	 * there are no possibility to have someone else trying
+	 * to start an association procedure (we get here with
+	 * ieee->state = RTLLIB_ASSOCIATING).
+	 * When we set the state to RTLLIB_NOLINK it is possible
+	 * that the RX path run an attempt to associate, but
+	 * both rtllib_softmac_check_all_nets and the
+	 * RX path works with ieee->lock held so there are no
+	 * problems. If we are still disassociated then start a scan.
+	 * the lock here is necessary to ensure no one try to start
+	 * an association procedure when we have just checked the
+	 * state and we are going to start the scan.
+	 */
 	ieee->beinretry = true;
 	ieee->state = RTLLIB_NOLINK;
 
@@ -3185,7 +3179,8 @@ void rtllib_softmac_free(struct rtllib_device *ieee)
 static int rtllib_wpa_enable(struct rtllib_device *ieee, int value)
 {
 	/* This is called when wpa_supplicant loads and closes the driver
-	 * interface. */
+	 * interface.
+	 */
 	netdev_info(ieee->dev, "%s WPA\n", value ? "enabling" : "disabling");
 	ieee->wpa_enabled = value;
 	memset(ieee->ap_mac_addr, 0, 6);
@@ -3490,7 +3485,8 @@ static int rtllib_wpa_set_encryption(struct rtllib_device *ieee,
 	 * generate new IEEE 802.11 authentication which may end up in looping
 	 * with IEEE 802.1X.  If your hardware requires a reset after WEP
 	 * configuration (for example... Prism2), implement the reset_port in
-	 * the callbacks structures used to initialize the 802.11 stack. */
+	 * the callbacks structures used to initialize the 802.11 stack.
+	 */
 	if (ieee->reset_on_keychange &&
 	    ieee->iw_mode != IW_MODE_INFRA &&
 	    ieee->reset_port &&

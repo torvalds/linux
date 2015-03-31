@@ -304,7 +304,7 @@ static u32 phy_FwRFSerialRead(struct net_device *dev,
 	}
 	return read_nic_dword(dev, RF_DATA);
 
-}	/* phy_FwRFSerialRead */
+}
 
 static void phy_FwRFSerialWrite(struct net_device *dev,
 				enum rf90_radio_path eRFPath,
@@ -325,7 +325,7 @@ static void phy_FwRFSerialWrite(struct net_device *dev,
 	}
 	write_nic_dword(dev, QPNR, Data);
 
-}	/* phy_FwRFSerialWrite */
+}
 
 
 void rtl8192_phy_configmac(struct net_device *dev)

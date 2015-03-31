@@ -1221,11 +1221,10 @@ static iw_handler r8192_wx_handlers[] = {
 	IW_IOCTL(SIOCSIWENCODEEXT) = r8192_wx_set_enc_ext,
 };
 
-/*
- * the following rule need to be following,
+/* the following rule need to be following,
  * Odd : get (world access),
  * even : set (root access)
- * */
+ */
 static const struct iw_priv_args r8192_private_args[] = {
 	{
 		SIOCIWFIRSTPRIV + 0x0,

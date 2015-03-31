@@ -241,7 +241,8 @@ static inline char *rtl819x_translate_scan(struct rtllib_device *ieee,
 	}
 
 	/* Add EXTRA: Age to display seconds since last beacon/probe response
-	 * for given network. */
+	 * for given network.
+	 */
 	iwe.cmd = IWEVCUSTOM;
 	p = custom;
 	p += snprintf(p, MAX_CUSTOM_LEN - (p - custom),
@@ -337,7 +338,8 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 			RTLLIB_DEBUG_WX("Disabling encryption.\n");
 
 		/* Check all the keys to see if any are still configured,
-		 * and if no key index was provided, de-init them all */
+		 * and if no key index was provided, de-init them all
+		 */
 		for (i = 0; i < NUM_WEP_KEYS; i++) {
 			if (ieee->crypt_info.crypt[i] != NULL) {
 				if (key_provided)
@@ -364,7 +366,8 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 	if (*crypt != NULL && (*crypt)->ops != NULL &&
 	    strcmp((*crypt)->ops->name, "R-WEP") != 0) {
 		/* changing to use WEP; deinit previously used algorithm
-		 * on this key */
+		 * on this key
+		 */
 		lib80211_crypt_delayed_deinit(&ieee->crypt_info, crypt);
 	}
 
@@ -412,7 +415,8 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 				       (*crypt)->priv);
 		sec.flags |= (1 << key);
 		/* This ensures a key will be activated if no key is
-		 * explicitly set */
+		 * explicitly set
+		 */
 		if (key == sec.active_key)
 			sec.flags |= SEC_ACTIVE_KEY;
 		ieee->crypt_info.tx_keyidx = key;
@@ -451,7 +455,8 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 			   "OPEN" : "SHARED KEY");
 
 	/* For now we just support WEP, so only set that security level...
-	 * TODO: When WPA is added this is one place that needs to change */
+	 * TODO: When WPA is added this is one place that needs to change
+	 */
 	sec.flags |= SEC_LEVEL;
 	sec.level = SEC_LEVEL_1; /* 40 and 104 bit WEP */
 
@@ -462,7 +467,8 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 	 * generate new IEEE 802.11 authentication which may end up in looping
 	 * with IEEE 802.1X.  If your hardware requires a reset after WEP
 	 * configuration (for example... Prism2), implement the reset_port in
-	 * the callbacks structures used to initialize the 802.11 stack. */
+	 * the callbacks structures used to initialize the 802.11 stack.
+	 */
 	if (ieee->reset_on_keychange &&
 	    ieee->iw_mode != IW_MODE_INFRA &&
 	    ieee->reset_port && ieee->reset_port(dev)) {
@@ -791,8 +797,7 @@ int rtllib_wx_set_auth(struct rtllib_device *ieee,
 	case IW_AUTH_CIPHER_PAIRWISE:
 	case IW_AUTH_CIPHER_GROUP:
 	case IW_AUTH_KEY_MGMT:
-		/*
-		 * Host AP driver does not use these parameters and allows
+		/* Host AP driver does not use these parameters and allows
 		 * wpa_supplicant to control them internally.
 		 */
 		break;

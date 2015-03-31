@@ -165,7 +165,7 @@ static void cmdpkt_beacontimerinterrupt_819xusb(struct net_device *dev)
 
 static void cmpk_handle_interrupt_status(struct net_device *dev, u8 *pmsg)
 {
-	struct cmpk_intr_sta rx_intr_status;	/* */
+	struct cmpk_intr_sta rx_intr_status;
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	DMESG("---> cmpk_Handle_Interrupt_Status()\n");

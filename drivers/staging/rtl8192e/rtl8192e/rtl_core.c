@@ -2332,7 +2332,8 @@ static void rtl8192_rx_normal(struct net_device *dev)
 			goto done;
 		new_skb = dev_alloc_skb(priv->rxbuffersize);
 		/* if allocation of new skb failed - drop current packet
-		* and reuse skb */
+		 * and reuse skb
+		 */
 		if (unlikely(!new_skb))
 			goto done;
 
