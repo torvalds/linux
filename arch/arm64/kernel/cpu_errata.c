@@ -70,7 +70,8 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 	/* Cortex-A57 r0p0 - r1p2 */
 		.desc = "ARM erratum 832075",
 		.capability = ARM64_WORKAROUND_DEVICE_LOAD_ACQUIRE,
-		MIDR_RANGE(MIDR_CORTEX_A57, 0x00, 0x12),
+		MIDR_RANGE(MIDR_CORTEX_A57, 0x00,
+			   (1 << MIDR_VARIANT_SHIFT) | 2),
 	},
 #endif
 #ifdef CONFIG_ARM64_ERRATUM_845719
