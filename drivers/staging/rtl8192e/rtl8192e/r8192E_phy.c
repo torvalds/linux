@@ -940,13 +940,11 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 			}
 
 			if (CurrentCmd && CurrentCmd->CmdID == CmdID_End) {
-				if ((*stage) == 2) {
+				if ((*stage) == 2)
 					return true;
-				} else {
-					(*stage)++;
-					(*step) = 0;
-					continue;
-				}
+				(*stage)++;
+				(*step) = 0;
+				continue;
 			}
 
 			if (!CurrentCmd)

@@ -2540,13 +2540,12 @@ static void rtllib_resume_tx(struct rtllib_device *ieee)
 		if (ieee->queue_stop) {
 			ieee->tx_pending.frag = i;
 			return;
-		} else {
-
-			ieee->softmac_data_hard_start_xmit(
-				ieee->tx_pending.txb->fragments[i],
-				ieee->dev, ieee->rate);
-			ieee->stats.tx_packets++;
 		}
+
+		ieee->softmac_data_hard_start_xmit(
+			ieee->tx_pending.txb->fragments[i],
+			ieee->dev, ieee->rate);
+		ieee->stats.tx_packets++;
 	}
 
 	rtllib_txb_free(ieee->tx_pending.txb);

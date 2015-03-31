@@ -311,6 +311,11 @@ bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 	   u8 *Addr, u8 TID, enum tr_select TxRxSelect, bool bAddNewTs)
 {
 	u8	UP = 0;
+	union tspec_body TSpec;
+	union qos_tsinfo *pTSInfo = &TSpec.f.TSInfo;
+	struct list_head *pUnusedList;
+	struct list_head *pAddmitList;
+	enum direction_value Dir;
 
 	if (is_multicast_ether_addr(Addr)) {
 		RTLLIB_DEBUG(RTLLIB_DL_ERR,
@@ -348,75 +353,70 @@ bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 	}
 
 	*ppTS = SearchAdmitTRStream(ieee, Addr, UP, TxRxSelect);
-	if (*ppTS != NULL) {
+	if (*ppTS != NULL)
 		return true;
-	} else {
-		if (!bAddNewTs) {
-			RTLLIB_DEBUG(RTLLIB_DL_TS,
-				     "add new TS failed(tid:%d)\n", UP);
-			return false;
-		} else {
-			union tspec_body TSpec;
-			union qos_tsinfo *pTSInfo = &TSpec.f.TSInfo;
-			struct list_head *pUnusedList =
-				(TxRxSelect == TX_DIR) ?
+
+	if (!bAddNewTs) {
+		RTLLIB_DEBUG(RTLLIB_DL_TS,
+			     "add new TS failed(tid:%d)\n", UP);
+		return false;
+	}
+
+	pUnusedList = (TxRxSelect == TX_DIR) ?
 				(&ieee->Tx_TS_Unused_List) :
 				(&ieee->Rx_TS_Unused_List);
 
-			struct list_head *pAddmitList =
-				(TxRxSelect == TX_DIR) ?
+	pAddmitList = (TxRxSelect == TX_DIR) ?
 				(&ieee->Tx_TS_Admit_List) :
 				(&ieee->Rx_TS_Admit_List);
 
-			enum direction_value Dir =
-				 (ieee->iw_mode == IW_MODE_MASTER) ?
-				 ((TxRxSelect == TX_DIR) ? DIR_DOWN : DIR_UP) :
-				 ((TxRxSelect == TX_DIR) ? DIR_UP : DIR_DOWN);
-			RTLLIB_DEBUG(RTLLIB_DL_TS, "to add Ts\n");
-			if (!list_empty(pUnusedList)) {
-				(*ppTS) = list_entry(pUnusedList->next,
-					  struct ts_common_info, List);
-				list_del_init(&(*ppTS)->List);
-				if (TxRxSelect == TX_DIR) {
-					struct tx_ts_record *tmp =
-						container_of(*ppTS,
-						struct tx_ts_record,
-						TsCommonInfo);
-					ResetTxTsEntry(tmp);
-				} else {
-					struct rx_ts_record *tmp =
-						 container_of(*ppTS,
-						 struct rx_ts_record,
-						 TsCommonInfo);
-					ResetRxTsEntry(tmp);
-				}
+	Dir = (ieee->iw_mode == IW_MODE_MASTER) ?
+				((TxRxSelect == TX_DIR) ? DIR_DOWN : DIR_UP) :
+				((TxRxSelect == TX_DIR) ? DIR_UP : DIR_DOWN);
 
-				RTLLIB_DEBUG(RTLLIB_DL_TS,
-					     "to init current TS, UP:%d, Dir:%d, addr: %pM ppTs=%p\n",
-					     UP, Dir, Addr, *ppTS);
-				pTSInfo->field.ucTrafficType = 0;
-				pTSInfo->field.ucTSID = UP;
-				pTSInfo->field.ucDirection = Dir;
-				pTSInfo->field.ucAccessPolicy = 1;
-				pTSInfo->field.ucAggregation = 0;
-				pTSInfo->field.ucPSB = 0;
-				pTSInfo->field.ucUP = UP;
-				pTSInfo->field.ucTSInfoAckPolicy = 0;
-				pTSInfo->field.ucSchedule = 0;
-
-				MakeTSEntry(*ppTS, Addr, &TSpec, NULL, 0, 0);
-				AdmitTS(ieee, *ppTS, 0);
-				list_add_tail(&((*ppTS)->List), pAddmitList);
-
-				return true;
-			} else {
-				RTLLIB_DEBUG(RTLLIB_DL_ERR,
-					     "ERR!!in function %s() There is not enough dir=%d(0=up down=1) TS record to be used!!",
-					     __func__, Dir);
-				return false;
-			}
+	RTLLIB_DEBUG(RTLLIB_DL_TS, "to add Ts\n");
+	if (!list_empty(pUnusedList)) {
+		(*ppTS) = list_entry(pUnusedList->next,
+			  struct ts_common_info, List);
+		list_del_init(&(*ppTS)->List);
+		if (TxRxSelect == TX_DIR) {
+			struct tx_ts_record *tmp =
+				container_of(*ppTS,
+				struct tx_ts_record,
+				TsCommonInfo);
+			ResetTxTsEntry(tmp);
+		} else {
+			struct rx_ts_record *tmp =
+				 container_of(*ppTS,
+				 struct rx_ts_record,
+				 TsCommonInfo);
+			ResetRxTsEntry(tmp);
 		}
+
+		RTLLIB_DEBUG(RTLLIB_DL_TS,
+			     "to init current TS, UP:%d, Dir:%d, addr: %pM ppTs=%p\n",
+			     UP, Dir, Addr, *ppTS);
+		pTSInfo->field.ucTrafficType = 0;
+		pTSInfo->field.ucTSID = UP;
+		pTSInfo->field.ucDirection = Dir;
+		pTSInfo->field.ucAccessPolicy = 1;
+		pTSInfo->field.ucAggregation = 0;
+		pTSInfo->field.ucPSB = 0;
+		pTSInfo->field.ucUP = UP;
+		pTSInfo->field.ucTSInfoAckPolicy = 0;
+		pTSInfo->field.ucSchedule = 0;
+
+		MakeTSEntry(*ppTS, Addr, &TSpec, NULL, 0, 0);
+		AdmitTS(ieee, *ppTS, 0);
+		list_add_tail(&((*ppTS)->List), pAddmitList);
+
+		return true;
 	}
+
+	RTLLIB_DEBUG(RTLLIB_DL_ERR,
+		     "ERR!!in function %s() There is not enough dir=%d(0=up down=1) TS record to be used!!",
+		     __func__, Dir);
+	return false;
 }
 
 static void RemoveTsEntry(struct rtllib_device *ieee, struct ts_common_info *pTs,

@@ -783,74 +783,74 @@ static u8 parse_subframe(struct rtllib_device *ieee, struct sk_buff *skb,
 		memcpy(rxb->dst, dst, ETH_ALEN);
 		rxb->subframes[0]->dev = ieee->dev;
 		return 1;
-	} else {
-		rxb->nr_subframes = 0;
-		memcpy(rxb->src, src, ETH_ALEN);
-		memcpy(rxb->dst, dst, ETH_ALEN);
-		while (skb->len > ETHERNET_HEADER_SIZE) {
-			/* Offset 12 denote 2 mac address */
-			nSubframe_Length = *((u16 *)(skb->data + 12));
-			nSubframe_Length = (nSubframe_Length >> 8) +
-					   (nSubframe_Length << 8);
+	}
 
-			if (skb->len < (ETHERNET_HEADER_SIZE + nSubframe_Length)) {
-				netdev_info(ieee->dev,
-					    "%s: A-MSDU parse error!! pRfd->nTotalSubframe : %d\n",
-					    __func__, rxb->nr_subframes);
-				netdev_info(ieee->dev,
-					    "%s: A-MSDU parse error!! Subframe Length: %d\n",
-					    __func__, nSubframe_Length);
-				netdev_info(ieee->dev,
-					    "nRemain_Length is %d and nSubframe_Length is : %d\n",
-					    skb->len, nSubframe_Length);
-				netdev_info(ieee->dev,
-					    "The Packet SeqNum is %d\n",
-					    SeqNum);
-				return 0;
-			}
+	rxb->nr_subframes = 0;
+	memcpy(rxb->src, src, ETH_ALEN);
+	memcpy(rxb->dst, dst, ETH_ALEN);
+	while (skb->len > ETHERNET_HEADER_SIZE) {
+		/* Offset 12 denote 2 mac address */
+		nSubframe_Length = *((u16 *)(skb->data + 12));
+		nSubframe_Length = (nSubframe_Length >> 8) +
+				   (nSubframe_Length << 8);
 
-			/* move the data point to data content */
-			skb_pull(skb, ETHERNET_HEADER_SIZE);
-
-			/* altered by clark 3/30/2010
-			 * The struct buffer size of the skb indicated to upper layer
-			 * must be less than 5000, or the defraged IP datagram
-			 * in the IP layer will exceed "ipfrag_high_tresh" and be
-			 * discarded. so there must not use the function
-			 * "skb_copy" and "skb_clone" for "skb".
-			 */
-
-			/* Allocate new skb for releasing to upper layer */
-			sub_skb = dev_alloc_skb(nSubframe_Length + 12);
-			if (!sub_skb)
-				return 0;
-			skb_reserve(sub_skb, 12);
-			data_ptr = (u8 *)skb_put(sub_skb, nSubframe_Length);
-			memcpy(data_ptr, skb->data, nSubframe_Length);
-
-			sub_skb->dev = ieee->dev;
-			rxb->subframes[rxb->nr_subframes++] = sub_skb;
-			if (rxb->nr_subframes >= MAX_SUBFRAME_COUNT) {
-				RTLLIB_DEBUG_RX("ParseSubframe(): Too many Subframes! Packets dropped!\n");
-				break;
-			}
-			skb_pull(skb, nSubframe_Length);
-
-			if (skb->len != 0) {
-				nPadding_Length = 4 - ((nSubframe_Length +
-						  ETHERNET_HEADER_SIZE) % 4);
-				if (nPadding_Length == 4)
-					nPadding_Length = 0;
-
-				if (skb->len < nPadding_Length)
-					return 0;
-
-				skb_pull(skb, nPadding_Length);
-			}
+		if (skb->len < (ETHERNET_HEADER_SIZE + nSubframe_Length)) {
+			netdev_info(ieee->dev,
+				    "%s: A-MSDU parse error!! pRfd->nTotalSubframe : %d\n",
+				    __func__, rxb->nr_subframes);
+			netdev_info(ieee->dev,
+				    "%s: A-MSDU parse error!! Subframe Length: %d\n",
+				    __func__, nSubframe_Length);
+			netdev_info(ieee->dev,
+				    "nRemain_Length is %d and nSubframe_Length is : %d\n",
+				    skb->len, nSubframe_Length);
+			netdev_info(ieee->dev,
+				    "The Packet SeqNum is %d\n",
+				    SeqNum);
+			return 0;
 		}
 
-		return rxb->nr_subframes;
+		/* move the data point to data content */
+		skb_pull(skb, ETHERNET_HEADER_SIZE);
+
+		/* altered by clark 3/30/2010
+		 * The struct buffer size of the skb indicated to upper layer
+		 * must be less than 5000, or the defraged IP datagram
+		 * in the IP layer will exceed "ipfrag_high_tresh" and be
+		 * discarded. so there must not use the function
+		 * "skb_copy" and "skb_clone" for "skb".
+		 */
+
+		/* Allocate new skb for releasing to upper layer */
+		sub_skb = dev_alloc_skb(nSubframe_Length + 12);
+		if (!sub_skb)
+			return 0;
+		skb_reserve(sub_skb, 12);
+		data_ptr = (u8 *)skb_put(sub_skb, nSubframe_Length);
+		memcpy(data_ptr, skb->data, nSubframe_Length);
+
+		sub_skb->dev = ieee->dev;
+		rxb->subframes[rxb->nr_subframes++] = sub_skb;
+		if (rxb->nr_subframes >= MAX_SUBFRAME_COUNT) {
+			RTLLIB_DEBUG_RX("ParseSubframe(): Too many Subframes! Packets dropped!\n");
+			break;
+		}
+		skb_pull(skb, nSubframe_Length);
+
+		if (skb->len != 0) {
+			nPadding_Length = 4 - ((nSubframe_Length +
+					  ETHERNET_HEADER_SIZE) % 4);
+			if (nPadding_Length == 4)
+				nPadding_Length = 0;
+
+			if (skb->len < nPadding_Length)
+				return 0;
+
+			skb_pull(skb, nPadding_Length);
+		}
 	}
+
+	return rxb->nr_subframes;
 }
 
 

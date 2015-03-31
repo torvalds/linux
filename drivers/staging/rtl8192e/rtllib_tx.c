@@ -413,6 +413,8 @@ static void rtllib_query_protectionmode(struct rtllib_device *ieee,
 					struct cb_desc *tcb_desc,
 					struct sk_buff *skb)
 {
+	struct rt_hi_throughput *pHTInfo;
+
 	tcb_desc->bRTSSTBC			= false;
 	tcb_desc->bRTSUseShortGI		= false;
 	tcb_desc->bCTSEnable			= false;
@@ -435,50 +437,50 @@ static void rtllib_query_protectionmode(struct rtllib_device *ieee,
 			tcb_desc->rts_rate = MGN_24M;
 		}
 		return;
-	} else {
-		struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
+	}
 
-		while (true) {
-			if (pHTInfo->IOTAction & HT_IOT_ACT_FORCED_CTS2SELF) {
-				tcb_desc->bCTSEnable	= true;
-				tcb_desc->rts_rate  =	MGN_24M;
-				tcb_desc->bRTSEnable = true;
-				break;
-			} else if (pHTInfo->IOTAction & (HT_IOT_ACT_FORCED_RTS |
-				   HT_IOT_ACT_PURE_N_MODE)) {
-				tcb_desc->bRTSEnable = true;
-				tcb_desc->rts_rate  =	MGN_24M;
-				break;
-			}
-			if (ieee->current_network.buseprotection) {
-				tcb_desc->bRTSEnable = true;
-				tcb_desc->bCTSEnable = true;
-				tcb_desc->rts_rate = MGN_24M;
-				break;
-			}
-			if (pHTInfo->bCurrentHTSupport  && pHTInfo->bEnableHT) {
-				u8 HTOpMode = pHTInfo->CurrentOpMode;
+	pHTInfo = ieee->pHTInfo;
 
-				if ((pHTInfo->bCurBW40MHz && (HTOpMode == 2 ||
-				     HTOpMode == 3)) ||
-				     (!pHTInfo->bCurBW40MHz && HTOpMode == 3)) {
-					tcb_desc->rts_rate = MGN_24M;
-					tcb_desc->bRTSEnable = true;
-					break;
-				}
-			}
-			if (skb->len > ieee->rts) {
-				tcb_desc->rts_rate = MGN_24M;
-				tcb_desc->bRTSEnable = true;
-				break;
-			}
-			if (tcb_desc->bAMPDUEnable) {
-				tcb_desc->rts_rate = MGN_24M;
-				tcb_desc->bRTSEnable = false;
-				break;
-			}
-			goto NO_PROTECTION;
+	while (true) {
+		if (pHTInfo->IOTAction & HT_IOT_ACT_FORCED_CTS2SELF) {
+			tcb_desc->bCTSEnable	= true;
+			tcb_desc->rts_rate  =	MGN_24M;
+			tcb_desc->bRTSEnable = true;
+			break;
+		} else if (pHTInfo->IOTAction & (HT_IOT_ACT_FORCED_RTS |
+			   HT_IOT_ACT_PURE_N_MODE)) {
+			tcb_desc->bRTSEnable = true;
+			tcb_desc->rts_rate  =	MGN_24M;
+			break;
 		}
+		if (ieee->current_network.buseprotection) {
+			tcb_desc->bRTSEnable = true;
+			tcb_desc->bCTSEnable = true;
+			tcb_desc->rts_rate = MGN_24M;
+			break;
+		}
+		if (pHTInfo->bCurrentHTSupport  && pHTInfo->bEnableHT) {
+			u8 HTOpMode = pHTInfo->CurrentOpMode;
+
+			if ((pHTInfo->bCurBW40MHz && (HTOpMode == 2 ||
+			     HTOpMode == 3)) ||
+			     (!pHTInfo->bCurBW40MHz && HTOpMode == 3)) {
+				tcb_desc->rts_rate = MGN_24M;
+				tcb_desc->bRTSEnable = true;
+				break;
+			}
+		}
+		if (skb->len > ieee->rts) {
+			tcb_desc->rts_rate = MGN_24M;
+			tcb_desc->bRTSEnable = true;
+			break;
+		}
+		if (tcb_desc->bAMPDUEnable) {
+			tcb_desc->rts_rate = MGN_24M;
+			tcb_desc->bRTSEnable = false;
+			break;
+		}
+		goto NO_PROTECTION;
 	}
 	if (ieee->current_network.capability & WLAN_CAPABILITY_SHORT_PREAMBLE)
 		tcb_desc->bUseShortPreamble = true;

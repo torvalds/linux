@@ -2025,6 +2025,7 @@ bool rtl8192_rx_query_status_desc(struct net_device *dev,
 				  struct sk_buff *skb)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
+	struct rx_fwinfo *pDrvInfo = NULL;
 
 	stats->bICV = pdesc->ICV;
 	stats->bCRC = pdesc->CRC32;
@@ -2046,51 +2047,49 @@ bool rtl8192_rx_query_status_desc(struct net_device *dev,
 				priv->stats.rxcrcerrmid++;
 		}
 		return false;
-	} else {
-		struct rx_fwinfo *pDrvInfo = NULL;
-
-		stats->RxDrvInfoSize = pdesc->RxDrvInfoSize;
-		stats->RxBufShift = ((pdesc->Shift)&0x03);
-		stats->Decrypted = !pdesc->SWDec;
-
-		pDrvInfo = (struct rx_fwinfo *)(skb->data + stats->RxBufShift);
-
-		stats->rate = HwRateToMRate90((bool)pDrvInfo->RxHT,
-					     (u8)pDrvInfo->RxRate);
-		stats->bShortPreamble = pDrvInfo->SPLCP;
-
-		rtl8192_UpdateReceivedRateHistogramStatistics(dev, stats);
-
-		stats->bIsAMPDU = (pDrvInfo->PartAggr == 1);
-		stats->bFirstMPDU = (pDrvInfo->PartAggr == 1) &&
-				    (pDrvInfo->FirstAGGR == 1);
-
-		stats->TimeStampLow = pDrvInfo->TSFL;
-		stats->TimeStampHigh = read_nic_dword(dev, TSFR+4);
-
-		rtl819x_UpdateRxPktTimeStamp(dev, stats);
-
-		if ((stats->RxBufShift + stats->RxDrvInfoSize) > 0)
-			stats->bShift = 1;
-
-		stats->RxIs40MHzPacket = pDrvInfo->BW;
-
-		rtl8192_TranslateRxSignalStuff(dev, skb, stats, pdesc,
-					       pDrvInfo);
-
-		if (pDrvInfo->FirstAGGR == 1 || pDrvInfo->PartAggr == 1)
-			RT_TRACE(COMP_RXDESC,
-				 "pDrvInfo->FirstAGGR = %d, pDrvInfo->PartAggr = %d\n",
-				 pDrvInfo->FirstAGGR, pDrvInfo->PartAggr);
-		skb_trim(skb, skb->len - 4/*sCrcLng*/);
-
-
-		stats->packetlength = stats->Length-4;
-		stats->fraglength = stats->packetlength;
-		stats->fragoffset = 0;
-		stats->ntotalfrag = 1;
-		return true;
 	}
+
+	stats->RxDrvInfoSize = pdesc->RxDrvInfoSize;
+	stats->RxBufShift = ((pdesc->Shift)&0x03);
+	stats->Decrypted = !pdesc->SWDec;
+
+	pDrvInfo = (struct rx_fwinfo *)(skb->data + stats->RxBufShift);
+
+	stats->rate = HwRateToMRate90((bool)pDrvInfo->RxHT,
+				     (u8)pDrvInfo->RxRate);
+	stats->bShortPreamble = pDrvInfo->SPLCP;
+
+	rtl8192_UpdateReceivedRateHistogramStatistics(dev, stats);
+
+	stats->bIsAMPDU = (pDrvInfo->PartAggr == 1);
+	stats->bFirstMPDU = (pDrvInfo->PartAggr == 1) &&
+			    (pDrvInfo->FirstAGGR == 1);
+
+	stats->TimeStampLow = pDrvInfo->TSFL;
+	stats->TimeStampHigh = read_nic_dword(dev, TSFR+4);
+
+	rtl819x_UpdateRxPktTimeStamp(dev, stats);
+
+	if ((stats->RxBufShift + stats->RxDrvInfoSize) > 0)
+		stats->bShift = 1;
+
+	stats->RxIs40MHzPacket = pDrvInfo->BW;
+
+	rtl8192_TranslateRxSignalStuff(dev, skb, stats, pdesc,
+				       pDrvInfo);
+
+	if (pDrvInfo->FirstAGGR == 1 || pDrvInfo->PartAggr == 1)
+		RT_TRACE(COMP_RXDESC,
+			 "pDrvInfo->FirstAGGR = %d, pDrvInfo->PartAggr = %d\n",
+			 pDrvInfo->FirstAGGR, pDrvInfo->PartAggr);
+	skb_trim(skb, skb->len - 4/*sCrcLng*/);
+
+
+	stats->packetlength = stats->Length-4;
+	stats->fraglength = stats->packetlength;
+	stats->fragoffset = 0;
+	stats->ntotalfrag = 1;
+	return true;
 }
 
 void rtl8192_halt_adapter(struct net_device *dev, bool reset)
@@ -2314,8 +2313,7 @@ bool rtl8192_HalRxCheckStuck(struct net_device *dev)
 	  (priv->undecorated_smoothed_pwdb >= RateAdaptiveTH_Low_20M)))) {
 		if (rx_chk_cnt < 2)
 			return bStuck;
-		else
-			rx_chk_cnt = 0;
+		rx_chk_cnt = 0;
 	} else if ((((priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20) &&
 		  (priv->undecorated_smoothed_pwdb < RateAdaptiveTH_Low_40M)) ||
 		((priv->CurrentChannelBW == HT_CHANNEL_WIDTH_20) &&
@@ -2323,13 +2321,11 @@ bool rtl8192_HalRxCheckStuck(struct net_device *dev)
 		priv->undecorated_smoothed_pwdb >= VeryLowRSSI) {
 		if (rx_chk_cnt < 4)
 			return bStuck;
-		else
-			rx_chk_cnt = 0;
+		rx_chk_cnt = 0;
 	} else {
 		if (rx_chk_cnt < 8)
 			return bStuck;
-		else
-			rx_chk_cnt = 0;
+		rx_chk_cnt = 0;
 	}
 
 

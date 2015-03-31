@@ -116,11 +116,10 @@ void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType,
 				RT_TRACE(COMP_ERR, "%s(): RF is OFF.\n",
 					__func__);
 				return;
-			} else {
-				down(&priv->rtllib->ips_sem);
-				IPSLeave(dev);
-				up(&priv->rtllib->ips_sem);
 			}
+			down(&priv->rtllib->ips_sem);
+			IPSLeave(dev);
+			up(&priv->rtllib->ips_sem);
 		}
 	}
 	priv->rtllib->is_set_key = true;
