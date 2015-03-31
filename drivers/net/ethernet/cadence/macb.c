@@ -2180,7 +2180,7 @@ static void macb_probe_queues(void __iomem *mem,
 static int macb_init(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
-	unsigned int hw_q, queue_mask, q, num_queues;
+	unsigned int hw_q, q;
 	struct macb *bp = netdev_priv(dev);
 	struct macb_queue *queue;
 	int err;
@@ -2226,10 +2226,8 @@ static int macb_init(struct platform_device *pdev)
 	 * register mapping but we don't want to test the queue index then
 	 * compute the corresponding register offset at run time.
 	 */
-	macb_probe_queues(bp->regs, &queue_mask, &num_queues);
-
 	for (hw_q = 0, q = 0; hw_q < MACB_MAX_QUEUES; ++hw_q) {
-		if (!(queue_mask & (1 << hw_q)))
+		if (!(bp->queue_mask & (1 << hw_q)))
 			continue;
 
 		queue = &bp->queues[q];
@@ -2715,6 +2713,7 @@ static int macb_probe(struct platform_device *pdev)
 	bp->dev = dev;
 	bp->regs = mem;
 	bp->num_queues = num_queues;
+	bp->queue_mask = queue_mask;
 	spin_lock_init(&bp->lock);
 
 	platform_set_drvdata(pdev, dev);

@@ -785,6 +785,7 @@ struct macb {
 	size_t			rx_buffer_size;
 
 	unsigned int		num_queues;
+	unsigned int		queue_mask;
 	struct macb_queue	queues[MACB_MAX_QUEUES];
 
 	spinlock_t		lock;
