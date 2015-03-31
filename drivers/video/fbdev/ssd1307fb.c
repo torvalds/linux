@@ -489,7 +489,8 @@ static int ssd1307fb_probe(struct i2c_client *client,
 
 	vmem_size = par->width * par->height / 8;
 
-	vmem = devm_kzalloc(&client->dev, vmem_size, GFP_KERNEL);
+	vmem = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
+					get_order(vmem_size));
 	if (!vmem) {
 		dev_err(&client->dev, "Couldn't allocate graphical memory.\n");
 		ret = -ENOMEM;
@@ -573,6 +574,7 @@ static int ssd1307fb_remove(struct i2c_client *client)
 	if (par->ops->remove)
 		par->ops->remove(par);
 	fb_deferred_io_cleanup(info);
+	__free_pages(__va(info->fix.smem_start), get_order(info->fix.smem_len));
 	framebuffer_release(info);
 
 	return 0;
