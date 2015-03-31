@@ -1318,8 +1318,8 @@ static struct sk_buff *ath10k_wmi_tlv_op_gen_init(struct ath10k *ar)
 	cfg->num_peers = __cpu_to_le32(TARGET_TLV_NUM_PEERS);
 
 	if (test_bit(WMI_SERVICE_RX_FULL_REORDER, ar->wmi.svc_map)) {
-		cfg->num_offload_peers = __cpu_to_le32(3);
-		cfg->num_offload_reorder_bufs = __cpu_to_le32(3);
+		cfg->num_offload_peers = __cpu_to_le32(TARGET_TLV_NUM_VDEVS);
+		cfg->num_offload_reorder_bufs = __cpu_to_le32(TARGET_TLV_NUM_VDEVS);
 	} else {
 		cfg->num_offload_peers = __cpu_to_le32(0);
 		cfg->num_offload_reorder_bufs = __cpu_to_le32(0);
@@ -1336,8 +1336,8 @@ static struct sk_buff *ath10k_wmi_tlv_op_gen_init(struct ath10k *ar)
 	cfg->rx_timeout_pri[3] = __cpu_to_le32(0x28);
 	cfg->rx_decap_mode = __cpu_to_le32(1);
 	cfg->scan_max_pending_reqs = __cpu_to_le32(4);
-	cfg->bmiss_offload_max_vdev = __cpu_to_le32(3);
-	cfg->roam_offload_max_vdev = __cpu_to_le32(3);
+	cfg->bmiss_offload_max_vdev = __cpu_to_le32(TARGET_TLV_NUM_VDEVS);
+	cfg->roam_offload_max_vdev = __cpu_to_le32(TARGET_TLV_NUM_VDEVS);
 	cfg->roam_offload_max_ap_profiles = __cpu_to_le32(8);
 	cfg->num_mcast_groups = __cpu_to_le32(0);
 	cfg->num_mcast_table_elems = __cpu_to_le32(0);
