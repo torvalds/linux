@@ -2438,7 +2438,7 @@ static int rtm_to_fib6_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 	cfg->fc_nlinfo.nl_net = sock_net(skb->sk);
 
 	if (tb[RTA_GATEWAY]) {
-		nla_memcpy(&cfg->fc_gateway, tb[RTA_GATEWAY], 16);
+		cfg->fc_gateway = nla_get_in6_addr(tb[RTA_GATEWAY]);
 		cfg->fc_flags |= RTF_GATEWAY;
 	}
 
@@ -2461,7 +2461,7 @@ static int rtm_to_fib6_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 	}
 
 	if (tb[RTA_PREFSRC])
-		nla_memcpy(&cfg->fc_prefsrc, tb[RTA_PREFSRC], 16);
+		cfg->fc_prefsrc = nla_get_in6_addr(tb[RTA_PREFSRC]);
 
 	if (tb[RTA_OIF])
 		cfg->fc_ifindex = nla_get_u32(tb[RTA_OIF]);
@@ -2519,7 +2519,7 @@ beginning:
 
 			nla = nla_find(attrs, attrlen, RTA_GATEWAY);
 			if (nla) {
-				nla_memcpy(&r_cfg.fc_gateway, nla, 16);
+				r_cfg.fc_gateway = nla_get_in6_addr(nla);
 				r_cfg.fc_flags |= RTF_GATEWAY;
 			}
 		}
@@ -2669,19 +2669,19 @@ static int rt6_fill_node(struct net *net,
 		rtm->rtm_flags |= RTM_F_CLONED;
 
 	if (dst) {
-		if (nla_put(skb, RTA_DST, 16, dst))
+		if (nla_put_in6_addr(skb, RTA_DST, dst))
 			goto nla_put_failure;
 		rtm->rtm_dst_len = 128;
 	} else if (rtm->rtm_dst_len)
-		if (nla_put(skb, RTA_DST, 16, &rt->rt6i_dst.addr))
+		if (nla_put_in6_addr(skb, RTA_DST, &rt->rt6i_dst.addr))
 			goto nla_put_failure;
 #ifdef CONFIG_IPV6_SUBTREES
 	if (src) {
-		if (nla_put(skb, RTA_SRC, 16, src))
+		if (nla_put_in6_addr(skb, RTA_SRC, src))
 			goto nla_put_failure;
 		rtm->rtm_src_len = 128;
 	} else if (rtm->rtm_src_len &&
-		   nla_put(skb, RTA_SRC, 16, &rt->rt6i_src.addr))
+		   nla_put_in6_addr(skb, RTA_SRC, &rt->rt6i_src.addr))
 		goto nla_put_failure;
 #endif
 	if (iif) {
@@ -2705,14 +2705,14 @@ static int rt6_fill_node(struct net *net,
 	} else if (dst) {
 		struct in6_addr saddr_buf;
 		if (ip6_route_get_saddr(net, rt, dst, 0, &saddr_buf) == 0 &&
-		    nla_put(skb, RTA_PREFSRC, 16, &saddr_buf))
+		    nla_put_in6_addr(skb, RTA_PREFSRC, &saddr_buf))
 			goto nla_put_failure;
 	}
 
 	if (rt->rt6i_prefsrc.plen) {
 		struct in6_addr saddr_buf;
 		saddr_buf = rt->rt6i_prefsrc.addr;
-		if (nla_put(skb, RTA_PREFSRC, 16, &saddr_buf))
+		if (nla_put_in6_addr(skb, RTA_PREFSRC, &saddr_buf))
 			goto nla_put_failure;
 	}
 
@@ -2720,7 +2720,7 @@ static int rt6_fill_node(struct net *net,
 		goto nla_put_failure;
 
 	if (rt->rt6i_flags & RTF_GATEWAY) {
-		if (nla_put(skb, RTA_GATEWAY, 16, &rt->rt6i_gateway) < 0)
+		if (nla_put_in6_addr(skb, RTA_GATEWAY, &rt->rt6i_gateway) < 0)
 			goto nla_put_failure;
 	}
 

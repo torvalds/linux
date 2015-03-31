@@ -456,10 +456,10 @@ static void vti_netlink_parms(struct nlattr *data[],
 		parms->o_key = nla_get_be32(data[IFLA_VTI_OKEY]);
 
 	if (data[IFLA_VTI_LOCAL])
-		parms->iph.saddr = nla_get_be32(data[IFLA_VTI_LOCAL]);
+		parms->iph.saddr = nla_get_in_addr(data[IFLA_VTI_LOCAL]);
 
 	if (data[IFLA_VTI_REMOTE])
-		parms->iph.daddr = nla_get_be32(data[IFLA_VTI_REMOTE]);
+		parms->iph.daddr = nla_get_in_addr(data[IFLA_VTI_REMOTE]);
 
 }
 
@@ -505,8 +505,8 @@ static int vti_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	nla_put_u32(skb, IFLA_VTI_LINK, p->link);
 	nla_put_be32(skb, IFLA_VTI_IKEY, p->i_key);
 	nla_put_be32(skb, IFLA_VTI_OKEY, p->o_key);
-	nla_put_be32(skb, IFLA_VTI_LOCAL, p->iph.saddr);
-	nla_put_be32(skb, IFLA_VTI_REMOTE, p->iph.daddr);
+	nla_put_in_addr(skb, IFLA_VTI_LOCAL, p->iph.saddr);
+	nla_put_in_addr(skb, IFLA_VTI_REMOTE, p->iph.daddr);
 
 	return 0;
 }

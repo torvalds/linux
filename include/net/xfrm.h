@@ -1025,7 +1025,7 @@ xfrm_addr_any(const xfrm_address_t *addr, unsigned short family)
 	case AF_INET:
 		return addr->a4 == 0;
 	case AF_INET6:
-		return ipv6_addr_any((struct in6_addr *)&addr->a6);
+		return ipv6_addr_any(&addr->in6);
 	}
 	return 0;
 }
@@ -1238,8 +1238,8 @@ void xfrm_flowi_addr_get(const struct flowi *fl,
 		memcpy(&daddr->a4, &fl->u.ip4.daddr, sizeof(daddr->a4));
 		break;
 	case AF_INET6:
-		*(struct in6_addr *)saddr->a6 = fl->u.ip6.saddr;
-		*(struct in6_addr *)daddr->a6 = fl->u.ip6.daddr;
+		saddr->in6 = fl->u.ip6.saddr;
+		daddr->in6 = fl->u.ip6.daddr;
 		break;
 	}
 }

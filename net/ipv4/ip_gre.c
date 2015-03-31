@@ -621,10 +621,10 @@ static void ipgre_netlink_parms(struct nlattr *data[], struct nlattr *tb[],
 		parms->o_key = nla_get_be32(data[IFLA_GRE_OKEY]);
 
 	if (data[IFLA_GRE_LOCAL])
-		parms->iph.saddr = nla_get_be32(data[IFLA_GRE_LOCAL]);
+		parms->iph.saddr = nla_get_in_addr(data[IFLA_GRE_LOCAL]);
 
 	if (data[IFLA_GRE_REMOTE])
-		parms->iph.daddr = nla_get_be32(data[IFLA_GRE_REMOTE]);
+		parms->iph.daddr = nla_get_in_addr(data[IFLA_GRE_REMOTE]);
 
 	if (data[IFLA_GRE_TTL])
 		parms->iph.ttl = nla_get_u8(data[IFLA_GRE_TTL]);
@@ -776,8 +776,8 @@ static int ipgre_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	    nla_put_be16(skb, IFLA_GRE_OFLAGS, tnl_flags_to_gre_flags(p->o_flags)) ||
 	    nla_put_be32(skb, IFLA_GRE_IKEY, p->i_key) ||
 	    nla_put_be32(skb, IFLA_GRE_OKEY, p->o_key) ||
-	    nla_put_be32(skb, IFLA_GRE_LOCAL, p->iph.saddr) ||
-	    nla_put_be32(skb, IFLA_GRE_REMOTE, p->iph.daddr) ||
+	    nla_put_in_addr(skb, IFLA_GRE_LOCAL, p->iph.saddr) ||
+	    nla_put_in_addr(skb, IFLA_GRE_REMOTE, p->iph.daddr) ||
 	    nla_put_u8(skb, IFLA_GRE_TTL, p->iph.ttl) ||
 	    nla_put_u8(skb, IFLA_GRE_TOS, p->iph.tos) ||
 	    nla_put_u8(skb, IFLA_GRE_PMTUDISC,

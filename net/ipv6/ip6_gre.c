@@ -1412,7 +1412,7 @@ static int ip6gre_tap_validate(struct nlattr *tb[], struct nlattr *data[])
 		goto out;
 
 	if (data[IFLA_GRE_REMOTE]) {
-		nla_memcpy(&daddr, data[IFLA_GRE_REMOTE], sizeof(struct in6_addr));
+		daddr = nla_get_in6_addr(data[IFLA_GRE_REMOTE]);
 		if (ipv6_addr_any(&daddr))
 			return -EINVAL;
 	}
@@ -1446,10 +1446,10 @@ static void ip6gre_netlink_parms(struct nlattr *data[],
 		parms->o_key = nla_get_be32(data[IFLA_GRE_OKEY]);
 
 	if (data[IFLA_GRE_LOCAL])
-		nla_memcpy(&parms->laddr, data[IFLA_GRE_LOCAL], sizeof(struct in6_addr));
+		parms->laddr = nla_get_in6_addr(data[IFLA_GRE_LOCAL]);
 
 	if (data[IFLA_GRE_REMOTE])
-		nla_memcpy(&parms->raddr, data[IFLA_GRE_REMOTE], sizeof(struct in6_addr));
+		parms->raddr = nla_get_in6_addr(data[IFLA_GRE_REMOTE]);
 
 	if (data[IFLA_GRE_TTL])
 		parms->hop_limit = nla_get_u8(data[IFLA_GRE_TTL]);
@@ -1622,8 +1622,8 @@ static int ip6gre_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	    nla_put_be16(skb, IFLA_GRE_OFLAGS, p->o_flags) ||
 	    nla_put_be32(skb, IFLA_GRE_IKEY, p->i_key) ||
 	    nla_put_be32(skb, IFLA_GRE_OKEY, p->o_key) ||
-	    nla_put(skb, IFLA_GRE_LOCAL, sizeof(struct in6_addr), &p->laddr) ||
-	    nla_put(skb, IFLA_GRE_REMOTE, sizeof(struct in6_addr), &p->raddr) ||
+	    nla_put_in6_addr(skb, IFLA_GRE_LOCAL, &p->laddr) ||
+	    nla_put_in6_addr(skb, IFLA_GRE_REMOTE, &p->raddr) ||
 	    nla_put_u8(skb, IFLA_GRE_TTL, p->hop_limit) ||
 	    /*nla_put_u8(skb, IFLA_GRE_TOS, t->priority) ||*/
 	    nla_put_u8(skb, IFLA_GRE_ENCAP_LIMIT, p->encap_limit) ||

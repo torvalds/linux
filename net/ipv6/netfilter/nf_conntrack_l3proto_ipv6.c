@@ -290,10 +290,8 @@ ipv6_getorigdst(struct sock *sk, int optval, void __user *user, int *len)
 static int ipv6_tuple_to_nlattr(struct sk_buff *skb,
 				const struct nf_conntrack_tuple *tuple)
 {
-	if (nla_put(skb, CTA_IP_V6_SRC, sizeof(u_int32_t) * 4,
-		    &tuple->src.u3.ip6) ||
-	    nla_put(skb, CTA_IP_V6_DST, sizeof(u_int32_t) * 4,
-		    &tuple->dst.u3.ip6))
+	if (nla_put_in6_addr(skb, CTA_IP_V6_SRC, &tuple->src.u3.in6) ||
+	    nla_put_in6_addr(skb, CTA_IP_V6_DST, &tuple->dst.u3.in6))
 		goto nla_put_failure;
 	return 0;
 
@@ -312,10 +310,8 @@ static int ipv6_nlattr_to_tuple(struct nlattr *tb[],
 	if (!tb[CTA_IP_V6_SRC] || !tb[CTA_IP_V6_DST])
 		return -EINVAL;
 
-	memcpy(&t->src.u3.ip6, nla_data(tb[CTA_IP_V6_SRC]),
-	       sizeof(u_int32_t) * 4);
-	memcpy(&t->dst.u3.ip6, nla_data(tb[CTA_IP_V6_DST]),
-	       sizeof(u_int32_t) * 4);
+	t->src.u3.in6 = nla_get_in6_addr(tb[CTA_IP_V6_SRC]);
+	t->dst.u3.in6 = nla_get_in6_addr(tb[CTA_IP_V6_DST]);
 
 	return 0;
 }

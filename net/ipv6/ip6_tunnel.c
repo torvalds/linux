@@ -1640,12 +1640,10 @@ static void ip6_tnl_netlink_parms(struct nlattr *data[],
 		parms->link = nla_get_u32(data[IFLA_IPTUN_LINK]);
 
 	if (data[IFLA_IPTUN_LOCAL])
-		nla_memcpy(&parms->laddr, data[IFLA_IPTUN_LOCAL],
-			   sizeof(struct in6_addr));
+		parms->laddr = nla_get_in6_addr(data[IFLA_IPTUN_LOCAL]);
 
 	if (data[IFLA_IPTUN_REMOTE])
-		nla_memcpy(&parms->raddr, data[IFLA_IPTUN_REMOTE],
-			   sizeof(struct in6_addr));
+		parms->raddr = nla_get_in6_addr(data[IFLA_IPTUN_REMOTE]);
 
 	if (data[IFLA_IPTUN_TTL])
 		parms->hop_limit = nla_get_u8(data[IFLA_IPTUN_TTL]);
@@ -1739,10 +1737,8 @@ static int ip6_tnl_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	struct __ip6_tnl_parm *parm = &tunnel->parms;
 
 	if (nla_put_u32(skb, IFLA_IPTUN_LINK, parm->link) ||
-	    nla_put(skb, IFLA_IPTUN_LOCAL, sizeof(struct in6_addr),
-		    &parm->laddr) ||
-	    nla_put(skb, IFLA_IPTUN_REMOTE, sizeof(struct in6_addr),
-		    &parm->raddr) ||
+	    nla_put_in6_addr(skb, IFLA_IPTUN_LOCAL, &parm->laddr) ||
+	    nla_put_in6_addr(skb, IFLA_IPTUN_REMOTE, &parm->raddr) ||
 	    nla_put_u8(skb, IFLA_IPTUN_TTL, parm->hop_limit) ||
 	    nla_put_u8(skb, IFLA_IPTUN_ENCAP_LIMIT, parm->encap_limit) ||
 	    nla_put_be32(skb, IFLA_IPTUN_FLOWINFO, parm->flowinfo) ||

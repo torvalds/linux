@@ -171,11 +171,11 @@ static inline bool vxlan_addr_multicast(const union vxlan_addr *ipa)
 static int vxlan_nla_get_addr(union vxlan_addr *ip, struct nlattr *nla)
 {
 	if (nla_len(nla) >= sizeof(struct in6_addr)) {
-		nla_memcpy(&ip->sin6.sin6_addr, nla, sizeof(struct in6_addr));
+		ip->sin6.sin6_addr = nla_get_in6_addr(nla);
 		ip->sa.sa_family = AF_INET6;
 		return 0;
 	} else if (nla_len(nla) >= sizeof(__be32)) {
-		ip->sin.sin_addr.s_addr = nla_get_be32(nla);
+		ip->sin.sin_addr.s_addr = nla_get_in_addr(nla);
 		ip->sa.sa_family = AF_INET;
 		return 0;
 	} else {
@@ -187,9 +187,9 @@ static int vxlan_nla_put_addr(struct sk_buff *skb, int attr,
 			      const union vxlan_addr *ip)
 {
 	if (ip->sa.sa_family == AF_INET6)
-		return nla_put(skb, attr, sizeof(struct in6_addr), &ip->sin6.sin6_addr);
+		return nla_put_in6_addr(skb, attr, &ip->sin6.sin6_addr);
 	else
-		return nla_put_be32(skb, attr, ip->sin.sin_addr.s_addr);
+		return nla_put_in_addr(skb, attr, ip->sin.sin_addr.s_addr);
 }
 
 #else /* !CONFIG_IPV6 */
@@ -215,7 +215,7 @@ static int vxlan_nla_get_addr(union vxlan_addr *ip, struct nlattr *nla)
 	if (nla_len(nla) >= sizeof(struct in6_addr)) {
 		return -EAFNOSUPPORT;
 	} else if (nla_len(nla) >= sizeof(__be32)) {
-		ip->sin.sin_addr.s_addr = nla_get_be32(nla);
+		ip->sin.sin_addr.s_addr = nla_get_in_addr(nla);
 		ip->sa.sa_family = AF_INET;
 		return 0;
 	} else {
@@ -226,7 +226,7 @@ static int vxlan_nla_get_addr(union vxlan_addr *ip, struct nlattr *nla)
 static int vxlan_nla_put_addr(struct sk_buff *skb, int attr,
 			      const union vxlan_addr *ip)
 {
-	return nla_put_be32(skb, attr, ip->sin.sin_addr.s_addr);
+	return nla_put_in_addr(skb, attr, ip->sin.sin_addr.s_addr);
 }
 #endif
 
@@ -2602,27 +2602,25 @@ static int vxlan_newlink(struct net *src_net, struct net_device *dev,
 	/* Unless IPv6 is explicitly requested, assume IPv4 */
 	dst->remote_ip.sa.sa_family = AF_INET;
 	if (data[IFLA_VXLAN_GROUP]) {
-		dst->remote_ip.sin.sin_addr.s_addr = nla_get_be32(data[IFLA_VXLAN_GROUP]);
+		dst->remote_ip.sin.sin_addr.s_addr = nla_get_in_addr(data[IFLA_VXLAN_GROUP]);
 	} else if (data[IFLA_VXLAN_GROUP6]) {
 		if (!IS_ENABLED(CONFIG_IPV6))
 			return -EPFNOSUPPORT;
 
-		nla_memcpy(&dst->remote_ip.sin6.sin6_addr, data[IFLA_VXLAN_GROUP6],
-			   sizeof(struct in6_addr));
+		dst->remote_ip.sin6.sin6_addr = nla_get_in6_addr(data[IFLA_VXLAN_GROUP6]);
 		dst->remote_ip.sa.sa_family = AF_INET6;
 		use_ipv6 = true;
 	}
 
 	if (data[IFLA_VXLAN_LOCAL]) {
-		vxlan->saddr.sin.sin_addr.s_addr = nla_get_be32(data[IFLA_VXLAN_LOCAL]);
+		vxlan->saddr.sin.sin_addr.s_addr = nla_get_in_addr(data[IFLA_VXLAN_LOCAL]);
 		vxlan->saddr.sa.sa_family = AF_INET;
 	} else if (data[IFLA_VXLAN_LOCAL6]) {
 		if (!IS_ENABLED(CONFIG_IPV6))
 			return -EPFNOSUPPORT;
 
 		/* TODO: respect scope id */
-		nla_memcpy(&vxlan->saddr.sin6.sin6_addr, data[IFLA_VXLAN_LOCAL6],
-			   sizeof(struct in6_addr));
+		vxlan->saddr.sin6.sin6_addr = nla_get_in6_addr(data[IFLA_VXLAN_LOCAL6]);
 		vxlan->saddr.sa.sa_family = AF_INET6;
 		use_ipv6 = true;
 	}
@@ -2807,13 +2805,13 @@ static int vxlan_fill_info(struct sk_buff *skb, const struct net_device *dev)
 
 	if (!vxlan_addr_any(&dst->remote_ip)) {
 		if (dst->remote_ip.sa.sa_family == AF_INET) {
-			if (nla_put_be32(skb, IFLA_VXLAN_GROUP,
-					 dst->remote_ip.sin.sin_addr.s_addr))
+			if (nla_put_in_addr(skb, IFLA_VXLAN_GROUP,
+					    dst->remote_ip.sin.sin_addr.s_addr))
 				goto nla_put_failure;
 #if IS_ENABLED(CONFIG_IPV6)
 		} else {
-			if (nla_put(skb, IFLA_VXLAN_GROUP6, sizeof(struct in6_addr),
-				    &dst->remote_ip.sin6.sin6_addr))
+			if (nla_put_in6_addr(skb, IFLA_VXLAN_GROUP6,
+					     &dst->remote_ip.sin6.sin6_addr))
 				goto nla_put_failure;
 #endif
 		}
@@ -2824,13 +2822,13 @@ static int vxlan_fill_info(struct sk_buff *skb, const struct net_device *dev)
 
 	if (!vxlan_addr_any(&vxlan->saddr)) {
 		if (vxlan->saddr.sa.sa_family == AF_INET) {
-			if (nla_put_be32(skb, IFLA_VXLAN_LOCAL,
-					 vxlan->saddr.sin.sin_addr.s_addr))
+			if (nla_put_in_addr(skb, IFLA_VXLAN_LOCAL,
+					    vxlan->saddr.sin.sin_addr.s_addr))
 				goto nla_put_failure;
 #if IS_ENABLED(CONFIG_IPV6)
 		} else {
-			if (nla_put(skb, IFLA_VXLAN_LOCAL6, sizeof(struct in6_addr),
-				    &vxlan->saddr.sin6.sin6_addr))
+			if (nla_put_in6_addr(skb, IFLA_VXLAN_LOCAL6,
+					     &vxlan->saddr.sin6.sin6_addr))
 				goto nla_put_failure;
 #endif
 		}

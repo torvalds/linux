@@ -322,8 +322,8 @@ getorigdst(struct sock *sk, int optval, void __user *user, int *len)
 static int ipv4_tuple_to_nlattr(struct sk_buff *skb,
 				const struct nf_conntrack_tuple *tuple)
 {
-	if (nla_put_be32(skb, CTA_IP_V4_SRC, tuple->src.u3.ip) ||
-	    nla_put_be32(skb, CTA_IP_V4_DST, tuple->dst.u3.ip))
+	if (nla_put_in_addr(skb, CTA_IP_V4_SRC, tuple->src.u3.ip) ||
+	    nla_put_in_addr(skb, CTA_IP_V4_DST, tuple->dst.u3.ip))
 		goto nla_put_failure;
 	return 0;
 
@@ -342,8 +342,8 @@ static int ipv4_nlattr_to_tuple(struct nlattr *tb[],
 	if (!tb[CTA_IP_V4_SRC] || !tb[CTA_IP_V4_DST])
 		return -EINVAL;
 
-	t->src.u3.ip = nla_get_be32(tb[CTA_IP_V4_SRC]);
-	t->dst.u3.ip = nla_get_be32(tb[CTA_IP_V4_DST]);
+	t->src.u3.ip = nla_get_in_addr(tb[CTA_IP_V4_SRC]);
+	t->dst.u3.ip = nla_get_in_addr(tb[CTA_IP_V4_DST]);
 
 	return 0;
 }

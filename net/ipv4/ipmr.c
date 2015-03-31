@@ -2281,8 +2281,8 @@ static int ipmr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
 		rtm->rtm_protocol = RTPROT_MROUTED;
 	rtm->rtm_flags    = 0;
 
-	if (nla_put_be32(skb, RTA_SRC, c->mfc_origin) ||
-	    nla_put_be32(skb, RTA_DST, c->mfc_mcastgrp))
+	if (nla_put_in_addr(skb, RTA_SRC, c->mfc_origin) ||
+	    nla_put_in_addr(skb, RTA_DST, c->mfc_mcastgrp))
 		goto nla_put_failure;
 	err = __ipmr_fill_mroute(mrt, skb, c, rtm);
 	/* do not break the dump if cache is unresolved */

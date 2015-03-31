@@ -897,12 +897,10 @@ static void vti6_netlink_parms(struct nlattr *data[],
 		parms->link = nla_get_u32(data[IFLA_VTI_LINK]);
 
 	if (data[IFLA_VTI_LOCAL])
-		nla_memcpy(&parms->laddr, data[IFLA_VTI_LOCAL],
-			   sizeof(struct in6_addr));
+		parms->laddr = nla_get_in6_addr(data[IFLA_VTI_LOCAL]);
 
 	if (data[IFLA_VTI_REMOTE])
-		nla_memcpy(&parms->raddr, data[IFLA_VTI_REMOTE],
-			   sizeof(struct in6_addr));
+		parms->raddr = nla_get_in6_addr(data[IFLA_VTI_REMOTE]);
 
 	if (data[IFLA_VTI_IKEY])
 		parms->i_key = nla_get_be32(data[IFLA_VTI_IKEY]);
@@ -983,10 +981,8 @@ static int vti6_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	struct __ip6_tnl_parm *parm = &tunnel->parms;
 
 	if (nla_put_u32(skb, IFLA_VTI_LINK, parm->link) ||
-	    nla_put(skb, IFLA_VTI_LOCAL, sizeof(struct in6_addr),
-		    &parm->laddr) ||
-	    nla_put(skb, IFLA_VTI_REMOTE, sizeof(struct in6_addr),
-		    &parm->raddr) ||
+	    nla_put_in6_addr(skb, IFLA_VTI_LOCAL, &parm->laddr) ||
+	    nla_put_in6_addr(skb, IFLA_VTI_REMOTE, &parm->raddr) ||
 	    nla_put_be32(skb, IFLA_VTI_IKEY, parm->i_key) ||
 	    nla_put_be32(skb, IFLA_VTI_OKEY, parm->o_key))
 		goto nla_put_failure;
