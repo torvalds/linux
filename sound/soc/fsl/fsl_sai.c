@@ -394,11 +394,14 @@ static int fsl_sai_hw_params(struct snd_pcm_substream *substream,
 	unsigned int channels = params_channels(params);
 	u32 word_width = snd_pcm_format_width(params_format(params));
 	u32 val_cr4 = 0, val_cr5 = 0;
+	u32 slot_width = word_width;
 	int ret;
 
 	if (!sai->is_slave_mode) {
+		slot_width = sai->slot_width;
 		ret = fsl_sai_set_bclk(cpu_dai, tx,
-				sai->slots * word_width * params_rate(params));
+				sai->slots * slot_width * params_rate(params));
+
 		if (ret)
 			return ret;
 
@@ -410,14 +413,13 @@ static int fsl_sai_hw_params(struct snd_pcm_substream *substream,
 
 			sai->mclk_streams |= BIT(substream->stream);
 		}
-
 	}
 
 	if (!sai->is_dsp_mode)
-		val_cr4 |= FSL_SAI_CR4_SYWD(word_width);
+		val_cr4 |= FSL_SAI_CR4_SYWD(slot_width);
 
-	val_cr5 |= FSL_SAI_CR5_WNW(word_width);
-	val_cr5 |= FSL_SAI_CR5_W0W(word_width);
+	val_cr5 |= FSL_SAI_CR5_WNW(slot_width);
+	val_cr5 |= FSL_SAI_CR5_W0W(slot_width);
 
 	if (sai->is_lsb_first)
 		val_cr5 |= FSL_SAI_CR5_FBT(0);
@@ -769,6 +771,7 @@ static int fsl_sai_probe(struct platform_device *pdev)
 	}
 
 	sai->slots = 2;
+	sai->slot_width = 32;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
