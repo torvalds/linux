@@ -284,6 +284,15 @@ struct ath10k_sta {
 #endif
 };
 
+struct ath10k_chanctx {
+	/* Used to story copy of chanctx_conf to avoid inconsistencies. Ideally
+	 * mac80211 should allow some sort of explicit locking to guarantee
+	 * that the publicly available chanctx_conf can be accessed safely at
+	 * all times.
+	 */
+	struct ieee80211_chanctx_conf conf;
+};
+
 #define ATH10K_VDEV_SETUP_TIMEOUT_HZ (5*HZ)
 
 enum ath10k_beacon_state {
@@ -607,6 +616,7 @@ struct ath10k {
 	struct cfg80211_chan_def chandef;
 
 	unsigned long long free_vdev_map;
+	struct ath10k_vif *monitor_arvif;
 	bool monitor;
 	int monitor_vdev_id;
 	bool monitor_started;
