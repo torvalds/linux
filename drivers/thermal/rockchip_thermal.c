@@ -27,6 +27,7 @@
 #include <linux/regmap.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
+#include <linux/rockchip/common.h>
 #include "../../arch/arm/mach-rockchip/efuse.h"
 
 #if 0
@@ -119,6 +120,7 @@ struct rockchip_thermal_data {
 	int gpu_temp_adjust;
 	int cpu_temp;
 	bool logout;
+	bool b_suspend;
 
 	void __iomem *regs;
 
@@ -849,7 +851,10 @@ int rockchip_tsadc_get_temp(int chn, int voltage)
 	}
 	else
 	{
-		return rockchip_thermal_user_mode_get_temp(thermal, chn, voltage);
+		if(thermal->b_suspend)
+			return INVALID_TEMP;
+		else
+			return rockchip_thermal_user_mode_get_temp(thermal, chn, voltage);
 	}
 }
 EXPORT_SYMBOL(rockchip_tsadc_get_temp);
@@ -1138,6 +1143,7 @@ static int __maybe_unused rockchip_thermal_suspend(struct device *dev)
 	struct rockchip_thermal_data *thermal = platform_get_drvdata(pdev);
 	int i;
 
+	thermal->b_suspend = true;
 	if (thermal->chip->mode == TSADC_AUTO_MODE)
 	{
 		for (i = 0; i < ARRAY_SIZE(thermal->sensors); i++)
@@ -1185,6 +1191,8 @@ static int __maybe_unused rockchip_thermal_resume(struct device *dev)
 		for (i = 0; i < ARRAY_SIZE(thermal->sensors); i++)
 			rockchip_thermal_toggle_sensor(&thermal->sensors[i], true);
 	}
+
+	thermal->b_suspend = false;
 	return 0;
 }
 
