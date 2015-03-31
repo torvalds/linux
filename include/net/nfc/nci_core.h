@@ -138,6 +138,10 @@ struct nci_conn_info {
 #define NCI_HCI_INVALID_HOST               0x80
 
 #define NCI_HCI_MAX_CUSTOM_GATES   50
+/*
+ * According to specification 102 622 chapter 4.4 Pipes,
+ * the pipe identifier is 7 bits long.
+ */
 #define NCI_HCI_MAX_PIPES          127
 
 struct nci_hci_gate {
