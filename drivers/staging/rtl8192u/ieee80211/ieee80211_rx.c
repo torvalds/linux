@@ -1704,7 +1704,7 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 #ifdef CONFIG_IEEE80211_DEBUG
 				p += snprintf(p, sizeof(rates_str) -
 					      (p - rates_str), "%02X ",
-					      network->rates[i]);
+					      network->rates_ex[i]);
 #endif
 				if (ieee80211_is_ofdm_rate
 				    (info_element->data[i])) {
