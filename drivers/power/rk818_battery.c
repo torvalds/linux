@@ -1068,7 +1068,6 @@ static void power_on_save(struct   battery_info *di, int voltage)
 
 static int _get_full_soc(struct battery_info *di)
 {
-	printk("_get_full_soc:%d,%d\n",di->fcc,di->remain_capacity);
 	if(abs_int(di->fcc - di->remain_capacity) < di->fcc/100)
 		return 100;
 	else
@@ -2129,16 +2128,16 @@ static void voltage_to_soc_discharge_smooth(struct battery_info *di)
 	volt_to_soc = di->temp_soc;
 	di->temp_soc = _get_full_soc(di);
 
-	printk("<%s>. 3.8v ocv_to_soc = %d\n", __func__, volt_to_soc);
-	printk("<%s>. di->temp_soc = %d, di->real_soc = %d\n", __func__, di->temp_soc, di->real_soc);
+	DBG("<%s>. 3.8v ocv_to_soc = %d\n", __func__, volt_to_soc);
+	DBG("<%s>. di->temp_soc = %d, di->real_soc = %d\n", __func__, di->temp_soc, di->real_soc);
 	if ((di->voltage < 3800) || (di->voltage > 3800 && di->real_soc < volt_to_soc)) {  /* di->warnning_voltage) */
 		zero_get_soc(di);
 		return;
 
 	} else if (di->temp_soc == di->real_soc) {
-		printk("<%s>. di->temp_soc == di->real_soc\n", __func__);
+		DBG("<%s>. di->temp_soc == di->real_soc\n", __func__);
 	} else if (di->temp_soc > di->real_soc) {
-		printk("<%s>. di->temp_soc > di->real_soc\n", __func__);
+		DBG("<%s>. di->temp_soc > di->real_soc\n", __func__);
 		di->vol_smooth_time++;
 		if (di->vol_smooth_time > soc_time*3/2) {
 			di->real_soc--;
@@ -2146,7 +2145,7 @@ static void voltage_to_soc_discharge_smooth(struct battery_info *di)
 		}
 
 	} else {
-		printk("<%s>. di->temp_soc < di->real_soc\n", __func__);
+		DBG("<%s>. di->temp_soc < di->real_soc\n", __func__);
 		if (di->real_soc == (di->temp_soc + 1)) {
 			di->change_timer = di->soc_timer;
 			di->real_soc = di->temp_soc;
