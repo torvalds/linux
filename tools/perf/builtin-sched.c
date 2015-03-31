@@ -451,10 +451,12 @@ static int self_open_counters(void)
 	fd = sys_perf_event_open(&attr, 0, -1, -1,
 				 perf_event_open_cloexec_flag());
 
-	if (fd < 0)
+	if (fd < 0) {
 		pr_err("Error: sys_perf_event_open() syscall returned "
 		       "with %d (%s)\n", fd,
 		       strerror_r(errno, sbuf, sizeof(sbuf)));
+		exit(EXIT_FAILURE);
+	}
 	return fd;
 }
 
