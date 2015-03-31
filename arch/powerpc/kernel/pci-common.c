@@ -114,12 +114,7 @@ resource_size_t pcibios_window_alignment(struct pci_bus *bus,
 
 void pcibios_reset_secondary_bus(struct pci_dev *dev)
 {
-	if (ppc_md.pcibios_reset_secondary_bus) {
-		ppc_md.pcibios_reset_secondary_bus(dev);
-		return;
-	}
-
-	pci_reset_secondary_bus(dev);
+	pcibios_reset_secondary_bus_shim(dev);
 }
 
 static resource_size_t pcibios_io_size(const struct pci_controller *hose)

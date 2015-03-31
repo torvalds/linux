@@ -34,6 +34,7 @@ struct pci_controller_ops {
 
 	/* Called during PCI resource reassignment */
 	resource_size_t (*window_alignment)(struct pci_bus *, unsigned long type);
+	void		(*reset_secondary_bus)(struct pci_dev *dev);
 };
 
 /*
@@ -344,6 +345,22 @@ static inline resource_size_t pci_window_alignment(struct pci_bus *bus,
 	 * memory window.
 	 */
 	return 1;
+}
+
+static inline void pcibios_reset_secondary_bus_shim(struct pci_dev *dev)
+{
+	struct pci_controller *phb = pci_bus_to_host(dev->bus);
+
+	if (phb->controller_ops.reset_secondary_bus)
+		phb->controller_ops.reset_secondary_bus(dev);
+	else if (ppc_md.pcibios_reset_secondary_bus)
+		ppc_md.pcibios_reset_secondary_bus(dev);
+	else
+		/*
+		 * Fallback to the generic function if no
+		 * platform-specific one is provided
+		 */
+		pci_reset_secondary_bus(dev);
 }
 
 #endif	/* __KERNEL__ */
