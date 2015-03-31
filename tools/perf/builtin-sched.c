@@ -170,6 +170,7 @@ struct perf_sched {
 	u64		 cpu_last_switched[MAX_CPUS];
 	struct rb_root	 atom_root, sorted_atom_root;
 	struct list_head sort_list, cmp_pid;
+	bool force;
 };
 
 static u64 get_nsecs(void)
@@ -437,24 +438,43 @@ static u64 get_cpu_usage_nsec_parent(void)
 	return sum;
 }
 
-static int self_open_counters(void)
+static int self_open_counters(struct perf_sched *sched, unsigned long cur_task)
 {
 	struct perf_event_attr attr;
-	char sbuf[STRERR_BUFSIZE];
+	char sbuf[STRERR_BUFSIZE], info[STRERR_BUFSIZE];
 	int fd;
+	struct rlimit limit;
+	bool need_privilege = false;
 
 	memset(&attr, 0, sizeof(attr));
 
 	attr.type = PERF_TYPE_SOFTWARE;
 	attr.config = PERF_COUNT_SW_TASK_CLOCK;
 
+force_again:
 	fd = sys_perf_event_open(&attr, 0, -1, -1,
 				 perf_event_open_cloexec_flag());
 
 	if (fd < 0) {
+		if (errno == EMFILE) {
+			if (sched->force) {
+				BUG_ON(getrlimit(RLIMIT_NOFILE, &limit) == -1);
+				limit.rlim_cur += sched->nr_tasks - cur_task;
+				if (limit.rlim_cur > limit.rlim_max) {
+					limit.rlim_max = limit.rlim_cur;
+					need_privilege = true;
+				}
+				if (setrlimit(RLIMIT_NOFILE, &limit) == -1) {
+					if (need_privilege && errno == EPERM)
+						strcpy(info, "Need privilege\n");
+				} else
+					goto force_again;
+			} else
+				strcpy(info, "Have a try with -f option\n");
+		}
 		pr_err("Error: sys_perf_event_open() syscall returned "
-		       "with %d (%s)\n", fd,
-		       strerror_r(errno, sbuf, sizeof(sbuf)));
+		       "with %d (%s)\n%s", fd,
+		       strerror_r(errno, sbuf, sizeof(sbuf)), info);
 		exit(EXIT_FAILURE);
 	}
 	return fd;
@@ -542,7 +562,7 @@ static void create_tasks(struct perf_sched *sched)
 		BUG_ON(parms == NULL);
 		parms->task = task = sched->tasks[i];
 		parms->sched = sched;
-		parms->fd = self_open_counters();
+		parms->fd = self_open_counters(sched, i);
 		sem_init(&task->sleep_sem, 0, 0);
 		sem_init(&task->ready_for_work, 0, 0);
 		sem_init(&task->work_done_sem, 0, 0);
@@ -1700,6 +1720,7 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
+	OPT_BOOLEAN('f', "force", &sched.force, "don't complain, do it"),
 	OPT_END()
 	};
 	const struct option sched_options[] = {
