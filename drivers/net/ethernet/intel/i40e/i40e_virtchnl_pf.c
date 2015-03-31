@@ -57,6 +57,8 @@ static inline bool i40e_vc_isvalid_vsi_id(struct i40e_vf *vf, u8 vsi_id)
 {
 	struct i40e_pf *pf = vf->pf;
 
+	if (vsi_id > pf->num_alloc_vsi)
+		return false;
 	return pf->vsi[vsi_id]->vf_id == vf->vf_id;
 }
 
