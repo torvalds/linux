@@ -771,6 +771,8 @@ cifs_get_inode_info(struct inode **inode, const char *full_path,
 				cifs_buf_release(srchinf->ntwrk_buf_start);
 			}
 			kfree(srchinf);
+			if (rc)
+				goto cgii_exit;
 	} else
 		goto cgii_exit;
 
