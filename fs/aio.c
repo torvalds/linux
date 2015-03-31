@@ -1422,13 +1422,6 @@ rw_common:
 
 		len = ret;
 
-		/* XXX: move/kill - rw_verify_area()? */
-		/* This matches the pread()/pwrite() logic */
-		if (req->ki_pos < 0) {
-			ret = -EINVAL;
-			break;
-		}
-
 		if (rw == WRITE)
 			file_start_write(file);
 
