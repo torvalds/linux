@@ -283,8 +283,8 @@ static void __net_exit ipmr_rules_exit(struct net *net)
 		list_del(&mrt->list);
 		ipmr_free_table(mrt);
 	}
-	rtnl_unlock();
 	fib_rules_unregister(net->ipv4.mr_rules_ops);
+	rtnl_unlock();
 }
 #else
 #define ipmr_for_each_table(mrt, net) \

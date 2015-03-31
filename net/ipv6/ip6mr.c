@@ -267,8 +267,8 @@ static void __net_exit ip6mr_rules_exit(struct net *net)
 		list_del(&mrt->list);
 		ip6mr_free_table(mrt);
 	}
-	rtnl_unlock();
 	fib_rules_unregister(net->ipv6.mr6_rules_ops);
+	rtnl_unlock();
 }
 #else
 #define ip6mr_for_each_table(mrt, net) \
