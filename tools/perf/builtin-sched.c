@@ -28,7 +28,7 @@
 #define MAX_CPUS		4096
 #define COMM_LEN		20
 #define SYM_LEN			129
-#define MAX_PID			65536
+#define MAX_PID			1024000
 
 struct sched_atom;
 
