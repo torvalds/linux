@@ -161,6 +161,7 @@ static char *event_desc(struct hv_24x7_event_data *ev, int *len)
 {
 	unsigned nl = be16_to_cpu(ev->event_name_len);
 	__be16 *desc_len = (__be16 *)(ev->remainder + nl - 2);
+
 	*len = be16_to_cpu(*desc_len) - 2;
 	return (char *)ev->remainder + nl;
 }
@@ -171,6 +172,7 @@ static char *event_long_desc(struct hv_24x7_event_data *ev, int *len)
 	__be16 *desc_len_ = (__be16 *)(ev->remainder + nl - 2);
 	unsigned desc_len = be16_to_cpu(*desc_len_);
 	__be16 *long_desc_len = (__be16 *)(ev->remainder + nl + desc_len - 2);
+
 	*len = be16_to_cpu(*long_desc_len) - 2;
 	return (char *)ev->remainder + nl + desc_len;
 }
@@ -248,14 +250,12 @@ static unsigned long h_get_24x7_catalog_page_(unsigned long phys_4096,
 					      unsigned long index)
 {
 	pr_devel("h_get_24x7_catalog_page(0x%lx, %lu, %lu)",
-			phys_4096,
-			version,
-			index);
+			phys_4096, version, index);
+
 	WARN_ON(!IS_ALIGNED(phys_4096, 4096));
+
 	return plpar_hcall_norets(H_GET_24X7_CATALOG_PAGE,
-			phys_4096,
-			version,
-			index);
+			phys_4096, version, index);
 }
 
 static unsigned long h_get_24x7_catalog_page(char page[],
@@ -309,6 +309,7 @@ static ssize_t device_show_string(struct device *dev,
 	struct dev_ext_attribute *d;
 
 	d = container_of(attr, struct dev_ext_attribute, attr);
+
 	return sprintf(buf, "%s\n", (char *)d->var);
 }
 
@@ -323,6 +324,7 @@ static struct attribute *device_str_attr_create_(char *name, char *str)
 	attr->attr.attr.name = name;
 	attr->attr.attr.mode = 0444;
 	attr->attr.show = device_show_string;
+
 	return &attr->attr.attr;
 }
 
@@ -395,7 +397,6 @@ static struct attribute *event_to_attr(unsigned ix,
 	else
 		a_ev_name = kasprintf(GFP_KERNEL, "%.*s%s__%d",
 				(int)event_name_len, ev_name, ev_suffix, nonce);
-
 
 	if (!a_ev_name)
 		goto out_val;
@@ -881,6 +882,7 @@ static ssize_t catalog_read(struct file *filp, struct kobject *kobj,
 	uint64_t catalog_version_num = 0;
 	void *page = kmem_cache_alloc(hv_page_cache, GFP_USER);
 	struct hv_24x7_catalog_page_0 *page_0 = page;
+
 	if (!page)
 		return -ENOMEM;
 
@@ -1077,7 +1079,6 @@ static unsigned long single_24x7_request(struct perf_event *event, u64 *count)
 	}
 
 	resb = &result_buffer->results[0];
-
 	*count = be64_to_cpu(resb->elements[0].element_data[0]);
 out:
 	return ret;
@@ -1175,6 +1176,7 @@ static void h_24x7_event_read(struct perf_event *event)
 {
 	s64 prev;
 	u64 now;
+
 	now = h_24x7_get_value(event);
 	prev = local64_xchg(&event->hw.prev_count, now);
 	local64_add(now - prev, &event->count);
