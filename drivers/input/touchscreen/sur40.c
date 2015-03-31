@@ -380,6 +380,11 @@ static void sur40_process_video(struct sur40_state *sur40)
 
 	/* get a new buffer from the list */
 	spin_lock(&sur40->qlock);
+	if (list_empty(&sur40->buf_list)) {
+		dev_dbg(sur40->dev, "buffer queue empty\n");
+		spin_unlock(&sur40->qlock);
+		return;
+	}
 	new_buf = list_entry(sur40->buf_list.next, struct sur40_buffer, list);
 	list_del(&new_buf->list);
 	spin_unlock(&sur40->qlock);
