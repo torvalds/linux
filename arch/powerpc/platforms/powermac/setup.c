@@ -473,7 +473,7 @@ static void __init pmac_init_early(void)
 	udbg_adb_init(!!strstr(boot_command_line, "btextdbg"));
 
 #ifdef CONFIG_PPC64
-	iommu_init_early_dart(NULL);
+	iommu_init_early_dart(&pmac_pci_controller_ops);
 #endif
 
 	/* SMP Init has to be done early as we need to patch up
@@ -656,12 +656,10 @@ define_machine(powermac) {
 	.feature_call		= pmac_do_feature_call,
 	.progress		= udbg_progress,
 #ifdef CONFIG_PPC64
-	.pci_probe_mode		= pmac_pci_probe_mode,
 	.power_save		= power4_idle,
 	.enable_pmcs		= power4_enable_pmcs,
 #endif /* CONFIG_PPC64 */
 #ifdef CONFIG_PPC32
-	.pcibios_enable_device_hook = pmac_pci_enable_device_hook,
 	.pcibios_after_init	= pmac_pcibios_after_init,
 	.phys_mem_access_prot	= pci_phys_mem_access_prot,
 #endif

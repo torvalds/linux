@@ -27,6 +27,8 @@
 #include <asm/grackle.h>
 #include <asm/ppc-pci.h>
 
+#include "pmac.h"
+
 #undef DEBUG
 
 #ifdef DEBUG
@@ -798,6 +800,7 @@ static int __init pmac_add_bridge(struct device_node *dev)
 		return -ENOMEM;
 	hose->first_busno = bus_range ? bus_range[0] : 0;
 	hose->last_busno = bus_range ? bus_range[1] : 0xff;
+	hose->controller_ops = pmac_pci_controller_ops;
 
 	disp_name = NULL;
 
@@ -942,7 +945,7 @@ void __init pmac_pci_init(void)
 }
 
 #ifdef CONFIG_PPC32
-bool pmac_pci_enable_device_hook(struct pci_dev *dev)
+static bool pmac_pci_enable_device_hook(struct pci_dev *dev)
 {
 	struct device_node* node;
 	int updatecfg = 0;
@@ -1225,7 +1228,7 @@ static void fixup_u4_pcie(struct pci_dev* dev)
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_APPLE, PCI_DEVICE_ID_APPLE_U4_PCIE, fixup_u4_pcie);
 
 #ifdef CONFIG_PPC64
-int pmac_pci_probe_mode(struct pci_bus *bus)
+static int pmac_pci_probe_mode(struct pci_bus *bus)
 {
 	struct device_node *node = pci_bus_to_OF_node(bus);
 
@@ -1240,3 +1243,13 @@ int pmac_pci_probe_mode(struct pci_bus *bus)
 	return PCI_PROBE_DEVTREE;
 }
 #endif /* CONFIG_PPC64 */
+
+struct pci_controller_ops pmac_pci_controller_ops = {
+#ifdef CONFIG_PPC64
+	.probe_mode		= pmac_pci_probe_mode,
+#endif
+#ifdef CONFIG_PPC32
+	.enable_device_hook	= pmac_pci_enable_device_hook,
+#endif
+};
+
