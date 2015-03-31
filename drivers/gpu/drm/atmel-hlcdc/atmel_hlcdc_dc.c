@@ -569,14 +569,8 @@ static int atmel_hlcdc_dc_drm_suspend(struct device *dev)
 		return 0;
 
 	drm_modeset_lock_all(drm_dev);
-	list_for_each_entry(crtc, &drm_dev->mode_config.crtc_list, head) {
-		struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
-		if (crtc->enabled) {
-			crtc_funcs->disable(crtc);
-			/* save enable state for resume */
-			crtc->enabled = true;
-		}
-	}
+	list_for_each_entry(crtc, &drm_dev->mode_config.crtc_list, head)
+		atmel_hlcdc_crtc_suspend(crtc);
 	drm_modeset_unlock_all(drm_dev);
 	return 0;
 }
@@ -590,13 +584,8 @@ static int atmel_hlcdc_dc_drm_resume(struct device *dev)
 		return 0;
 
 	drm_modeset_lock_all(drm_dev);
-	list_for_each_entry(crtc, &drm_dev->mode_config.crtc_list, head) {
-		struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
-		if (crtc->enabled) {
-			crtc->enabled = false;
-			crtc_funcs->enable(crtc);
-		}
-	}
+	list_for_each_entry(crtc, &drm_dev->mode_config.crtc_list, head)
+		atmel_hlcdc_crtc_resume(crtc);
 	drm_modeset_unlock_all(drm_dev);
 	return 0;
 }
