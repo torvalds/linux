@@ -2132,9 +2132,12 @@ static const struct net_device_ops macb_netdev_ops = {
  * Configure peripheral capacities according to device tree
  * and integration options used
  */
-static void macb_configure_caps(struct macb *bp)
+static void macb_configure_caps(struct macb *bp, const struct macb_config *dt_conf)
 {
 	u32 dcfg;
+
+	if (dt_conf)
+		bp->caps = dt_conf->caps;
 
 	if (MACB_BFEXT(IDNUM, macb_readl(bp, MID)) == 0x2)
 		bp->caps |= MACB_CAPS_MACB_IS_GEM;
@@ -2312,9 +2315,6 @@ static int macb_init(struct platform_device *pdev)
 		val |= MACB_BIT(CLKEN);
 
 	macb_or_gem_writel(bp, USRIO, val);
-
-	/* setup capacities */
-	macb_configure_caps(bp);
 
 	/* Set MII management clock divider */
 	val = macb_mdc_clk_div(bp);
@@ -2720,6 +2720,20 @@ static int macb_probe(struct platform_device *pdev)
 	bp->queue_mask = queue_mask;
 	spin_lock_init(&bp->lock);
 
+	if (np) {
+		const struct of_device_id *match;
+
+		match = of_match_node(macb_dt_ids, np);
+		if (match && match->data) {
+			macb_config = match->data;
+			bp->dma_burst_length = macb_config->dma_burst_length;
+			init = macb_config->init;
+		}
+	}
+
+	/* setup capacities */
+	macb_configure_caps(bp, macb_config);
+
 	platform_set_drvdata(pdev, dev);
 
 	dev->irq = platform_get_irq(pdev, 0);
@@ -2741,20 +2755,6 @@ static int macb_probe(struct platform_device *pdev)
 			bp->phy_interface = PHY_INTERFACE_MODE_MII;
 	} else {
 		bp->phy_interface = err;
-	}
-
-	if (np) {
-		const struct of_device_id *match;
-
-		match = of_match_node(macb_dt_ids, np);
-		if (match)
-			macb_config = match->data;
-	}
-
-	if (macb_config) {
-		bp->caps = macb_config->caps;
-		bp->dma_burst_length = macb_config->dma_burst_length;
-		init = macb_config->init;
 	}
 
 	/* IP specific init */
