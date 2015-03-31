@@ -105,7 +105,13 @@
 
 			macb0: ethernet@f0028000 {
 				phy-mode = "rgmii";
+				#address-cells = <1>;
+				#size-cells = <0>;
 				status = "okay";
+
+				ethernet-phy@7 {
+					reg = <0x7>;
+				};
 			};
 
 			pwm0: pwm@f002c000 {
