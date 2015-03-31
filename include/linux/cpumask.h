@@ -290,11 +290,11 @@ static inline void cpumask_clear_cpu(int cpu, struct cpumask *dstp)
  * @cpumask: the cpumask pointer
  *
  * Returns 1 if @cpu is set in @cpumask, else returns 0
- *
- * No static inline type checking - see Subtlety (1) above.
  */
-#define cpumask_test_cpu(cpu, cpumask) \
-	test_bit(cpumask_check(cpu), cpumask_bits((cpumask)))
+static inline int cpumask_test_cpu(int cpu, const struct cpumask *cpumask)
+{
+	return test_bit(cpumask_check(cpu), cpumask_bits((cpumask)));
+}
 
 /**
  * cpumask_test_and_set_cpu - atomically test and set a cpu in a cpumask
