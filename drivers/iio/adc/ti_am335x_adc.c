@@ -37,6 +37,7 @@ struct tiadc_device {
 	u8 channel_step[8];
 	int buffer_en_ch_steps;
 	u16 data[8];
+	u32 open_delay[8], sample_delay[8], step_avg[8];
 };
 
 static unsigned int tiadc_readl(struct tiadc_device *adc, unsigned int reg)
@@ -85,6 +86,7 @@ static u32 get_adc_step_bit(struct tiadc_device *adc_dev, int chan)
 static void tiadc_step_config(struct iio_dev *indio_dev)
 {
 	struct tiadc_device *adc_dev = iio_priv(indio_dev);
+	struct device *dev = adc_dev->mfd_tscadc->dev;
 	unsigned int stepconfig;
 	int i, steps = 0;
 
@@ -98,20 +100,47 @@ static void tiadc_step_config(struct iio_dev *indio_dev)
 	 * needs to be given to ADC to digitalize data.
 	 */
 
-	if (iio_buffer_enabled(indio_dev))
-		stepconfig = STEPCONFIG_AVG_16 | STEPCONFIG_FIFO1
-					| STEPCONFIG_MODE_SWCNT;
-	else
-		stepconfig = STEPCONFIG_AVG_16 | STEPCONFIG_FIFO1;
 
 	for (i = 0; i < adc_dev->channels; i++) {
 		int chan;
 
 		chan = adc_dev->channel_line[i];
+
+		if (adc_dev->step_avg[i] > STEPCONFIG_AVG_16) {
+			dev_warn(dev, "chan %d step_avg truncating to %d\n",
+				 chan, STEPCONFIG_AVG_16);
+			adc_dev->step_avg[i] = STEPCONFIG_AVG_16;
+		}
+
+		if (adc_dev->step_avg[i])
+			stepconfig =
+			STEPCONFIG_AVG(ffs(adc_dev->step_avg[i]) - 1) |
+			STEPCONFIG_FIFO1;
+		else
+			stepconfig = STEPCONFIG_FIFO1;
+
+		if (iio_buffer_enabled(indio_dev))
+			stepconfig |= STEPCONFIG_MODE_SWCNT;
+
 		tiadc_writel(adc_dev, REG_STEPCONFIG(steps),
 				stepconfig | STEPCONFIG_INP(chan));
+
+		if (adc_dev->open_delay[i] > STEPDELAY_OPEN_MASK) {
+			dev_warn(dev, "chan %d open delay truncating to 0x3FFFF\n",
+				 chan);
+			adc_dev->open_delay[i] = STEPDELAY_OPEN_MASK;
+		}
+
+		if (adc_dev->sample_delay[i] > 0xFF) {
+			dev_warn(dev, "chan %d sample delay truncating to 0xFF\n",
+				 chan);
+			adc_dev->sample_delay[i] = 0xFF;
+		}
+
 		tiadc_writel(adc_dev, REG_STEPDELAY(steps),
-				STEPCONFIG_OPENDLY);
+				STEPDELAY_OPEN(adc_dev->open_delay[i]) |
+				STEPDELAY_SAMPLE(adc_dev->sample_delay[i]));
+
 		adc_dev->channel_step[i] = steps;
 		steps++;
 	}
@@ -406,8 +435,21 @@ static int tiadc_parse_dt(struct platform_device *pdev,
 
 	of_property_for_each_u32(node, "ti,adc-channels", prop, cur, val) {
 		adc_dev->channel_line[channels] = val;
+
+		/* Set Default values for optional DT parameters */
+		adc_dev->open_delay[channels] = STEPCONFIG_OPENDLY;
+		adc_dev->sample_delay[channels] = STEPCONFIG_SAMPLEDLY;
+		adc_dev->step_avg[channels] = 16;
+
 		channels++;
 	}
+
+	of_property_read_u32_array(node, "ti,chan-step-avg",
+				   adc_dev->step_avg, channels);
+	of_property_read_u32_array(node, "ti,chan-step-opendelay",
+				   adc_dev->open_delay, channels);
+	of_property_read_u32_array(node, "ti,chan-step-sampledelay",
+				   adc_dev->sample_delay, channels);
 
 	adc_dev->channels = channels;
 	return 0;
