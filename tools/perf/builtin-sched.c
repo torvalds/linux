@@ -334,7 +334,12 @@ static struct task_desc *register_pid(struct perf_sched *sched,
 			pid_max = MAX_PID;
 		BUG_ON((sched->pid_to_task = calloc(pid_max, sizeof(struct task_desc *))) == NULL);
 	}
-	BUG_ON(pid >= (unsigned long)pid_max);
+	if (pid >= (unsigned long)pid_max) {
+		BUG_ON((sched->pid_to_task = realloc(sched->pid_to_task, (pid + 1) *
+			sizeof(struct task_desc *))) == NULL);
+		while (pid >= (unsigned long)pid_max)
+			sched->pid_to_task[pid_max++] = NULL;
+	}
 
 	task = sched->pid_to_task[pid];
 
