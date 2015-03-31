@@ -473,7 +473,7 @@ static void __init pmac_init_early(void)
 	udbg_adb_init(!!strstr(boot_command_line, "btextdbg"));
 
 #ifdef CONFIG_PPC64
-	iommu_init_early_dart();
+	iommu_init_early_dart(NULL);
 #endif
 
 	/* SMP Init has to be done early as we need to patch up

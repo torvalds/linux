@@ -203,7 +203,7 @@ static void __init maple_init_early(void)
 {
 	DBG(" -> maple_init_early\n");
 
-	iommu_init_early_dart();
+	iommu_init_early_dart(NULL);
 
 	DBG(" <- maple_init_early\n");
 }

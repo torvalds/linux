@@ -369,7 +369,7 @@ static int dart_dma_set_mask(struct device *dev, u64 dma_mask)
 	return 0;
 }
 
-void __init iommu_init_early_dart(void)
+void __init iommu_init_early_dart(struct pci_controller_ops *controller_ops)
 {
 	struct device_node *dn;
 
@@ -395,15 +395,23 @@ void __init iommu_init_early_dart(void)
 	if (dart_is_u4)
 		ppc_md.dma_set_mask = dart_dma_set_mask;
 
-	ppc_md.pci_dma_dev_setup = pci_dma_dev_setup_dart;
-	ppc_md.pci_dma_bus_setup = pci_dma_bus_setup_dart;
-
+	if (controller_ops) {
+		controller_ops->dma_dev_setup = pci_dma_dev_setup_dart;
+		controller_ops->dma_bus_setup = pci_dma_bus_setup_dart;
+	} else {
+		ppc_md.pci_dma_dev_setup = pci_dma_dev_setup_dart;
+		ppc_md.pci_dma_bus_setup = pci_dma_bus_setup_dart;
+	}
 	/* Setup pci_dma ops */
 	set_pci_dma_ops(&dma_iommu_ops);
 	return;
 
  bail:
 	/* If init failed, use direct iommu and null setup functions */
+	if (controller_ops) {
+		controller_ops->dma_dev_setup = NULL;
+		controller_ops->dma_bus_setup = NULL;
+	}
 	ppc_md.pci_dma_dev_setup = NULL;
 	ppc_md.pci_dma_bus_setup = NULL;
 
