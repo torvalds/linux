@@ -346,7 +346,7 @@ static struct task_desc *register_pid(struct perf_sched *sched,
 
 	sched->pid_to_task[pid] = task;
 	sched->nr_tasks++;
-	sched->tasks = realloc(sched->tasks, sched->nr_tasks * sizeof(struct task_task *));
+	sched->tasks = realloc(sched->tasks, sched->nr_tasks * sizeof(struct task_desc *));
 	BUG_ON(!sched->tasks);
 	sched->tasks[task->nr] = task;
 
