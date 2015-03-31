@@ -19,6 +19,7 @@ struct device_node;
  */
 struct pci_controller_ops {
 	void		(*dma_dev_setup)(struct pci_dev *dev);
+	void		(*dma_bus_setup)(struct pci_bus *bus);
 };
 
 /*
@@ -279,6 +280,16 @@ static inline void pci_dma_dev_setup(struct pci_dev *dev)
 		phb->controller_ops.dma_dev_setup(dev);
 	else if (ppc_md.pci_dma_dev_setup)
 		ppc_md.pci_dma_dev_setup(dev);
+}
+
+static inline void pci_dma_bus_setup(struct pci_bus *bus)
+{
+	struct pci_controller *phb = pci_bus_to_host(bus);
+
+	if (phb->controller_ops.dma_bus_setup)
+		phb->controller_ops.dma_bus_setup(bus);
+	else if (ppc_md.pci_dma_bus_setup)
+		ppc_md.pci_dma_bus_setup(bus);
 }
 
 #endif	/* __KERNEL__ */

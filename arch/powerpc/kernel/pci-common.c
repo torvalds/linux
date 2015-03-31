@@ -953,8 +953,7 @@ void pcibios_setup_bus_self(struct pci_bus *bus)
 		ppc_md.pcibios_fixup_bus(bus);
 
 	/* Setup bus DMA mappings */
-	if (ppc_md.pci_dma_bus_setup)
-		ppc_md.pci_dma_bus_setup(bus);
+	pci_dma_bus_setup(bus);
 }
 
 static void pcibios_setup_device(struct pci_dev *dev)
