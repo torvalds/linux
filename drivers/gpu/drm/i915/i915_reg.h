@@ -673,7 +673,6 @@ enum skl_disp_power_wells {
 #define VLV_CZ_CLOCK_TO_MILLI_SEC		100000
 #define VLV_RP_UP_EI_THRESHOLD			90
 #define VLV_RP_DOWN_EI_THRESHOLD		70
-#define VLV_INT_COUNT_FOR_DOWN_EI		5
 
 /* vlv2 north clock has */
 #define CCK_FUSE_REG				0x8
@@ -1306,6 +1305,9 @@ enum skl_disp_power_wells {
 #define   ERR_INT_PIPE_CRC_DONE(pipe)	(1<<(2 + pipe*3))
 #define   ERR_INT_FIFO_UNDERRUN_A	(1<<0)
 #define   ERR_INT_FIFO_UNDERRUN(pipe)	(1<<(pipe*3))
+
+#define GEN8_FAULT_TLB_DATA0		0x04b10
+#define GEN8_FAULT_TLB_DATA1		0x04b14
 
 #define FPGA_DBG		0x42300
 #define   FPGA_DBG_RM_NOCLAIM	(1<<31)
@@ -6220,8 +6222,8 @@ enum skl_disp_power_wells {
 
 #define GEN6_GT_GFX_RC6p			0x13810C
 #define GEN6_GT_GFX_RC6pp			0x138110
-#define VLV_RENDER_C0_COUNT_REG		0x138118
-#define VLV_MEDIA_C0_COUNT_REG			0x13811C
+#define VLV_RENDER_C0_COUNT			0x138118
+#define VLV_MEDIA_C0_COUNT			0x13811C
 
 #define GEN6_PCODE_MAILBOX			0x138124
 #define   GEN6_PCODE_READY			(1<<31)

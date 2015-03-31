@@ -2840,6 +2840,7 @@ static void skl_compute_wm_pipe_parameters(struct drm_crtc *crtc,
 		}
 		p->plane[0].horiz_pixels = intel_crtc->config->pipe_src_w;
 		p->plane[0].vert_pixels = intel_crtc->config->pipe_src_h;
+		p->plane[0].rotation = crtc->primary->state->rotation;
 
 		fb = crtc->cursor->state->fb;
 		if (fb) {
@@ -2897,7 +2898,21 @@ static bool skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 
 	if (p_params->tiling == I915_FORMAT_MOD_Y_TILED ||
 	    p_params->tiling == I915_FORMAT_MOD_Yf_TILED) {
-		uint32_t y_tile_minimum = plane_blocks_per_line * 4;
+		uint32_t min_scanlines = 4;
+		uint32_t y_tile_minimum;
+		if (intel_rotation_90_or_270(p_params->rotation)) {
+			switch (p_params->bytes_per_pixel) {
+			case 1:
+				min_scanlines = 16;
+				break;
+			case 2:
+				min_scanlines = 8;
+				break;
+			case 8:
+				WARN(1, "Unsupported pixel depth for rotation");
+			}
+		}
+		y_tile_minimum = plane_blocks_per_line * min_scanlines;
 		selected_result = max(method2, y_tile_minimum);
 	} else {
 		if ((ddb_allocation / plane_blocks_per_line) >= 1)
@@ -3357,6 +3372,7 @@ skl_update_sprite_wm(struct drm_plane *plane, struct drm_crtc *crtc,
 	 */
 	if (fb)
 		intel_plane->wm.tiling = fb->modifier[0];
+	intel_plane->wm.rotation = plane->state->rotation;
 
 	skl_update_wm(crtc);
 }
@@ -3855,9 +3871,9 @@ static void gen6_set_rps_thresholds(struct drm_i915_private *dev_priv, u8 val)
 		break;
 	}
 	/* Max/min bins are special */
-	if (val == dev_priv->rps.min_freq_softlimit)
+	if (val <= dev_priv->rps.min_freq_softlimit)
 		new_power = LOW_POWER;
-	if (val == dev_priv->rps.max_freq_softlimit)
+	if (val >= dev_priv->rps.max_freq_softlimit)
 		new_power = HIGH_POWER;
 	if (new_power == dev_priv->rps.power)
 		return;
@@ -3922,11 +3938,10 @@ static u32 gen6_rps_pm_mask(struct drm_i915_private *dev_priv, u8 val)
 	u32 mask = 0;
 
 	if (val > dev_priv->rps.min_freq_softlimit)
-		mask |= GEN6_PM_RP_DOWN_THRESHOLD | GEN6_PM_RP_DOWN_TIMEOUT;
+		mask |= GEN6_PM_RP_DOWN_EI_EXPIRED | GEN6_PM_RP_DOWN_THRESHOLD | GEN6_PM_RP_DOWN_TIMEOUT;
 	if (val < dev_priv->rps.max_freq_softlimit)
-		mask |= GEN6_PM_RP_UP_THRESHOLD;
+		mask |= GEN6_PM_RP_UP_EI_EXPIRED | GEN6_PM_RP_UP_THRESHOLD;
 
-	mask |= dev_priv->pm_rps_events & (GEN6_PM_RP_DOWN_EI_EXPIRED | GEN6_PM_RP_UP_EI_EXPIRED);
 	mask &= dev_priv->pm_rps_events;
 
 	return gen6_sanitize_rps_pm_mask(dev_priv, ~mask);
@@ -3940,8 +3955,8 @@ static void gen6_set_rps(struct drm_device *dev, u8 val)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
-	WARN_ON(val > dev_priv->rps.max_freq_softlimit);
-	WARN_ON(val < dev_priv->rps.min_freq_softlimit);
+	WARN_ON(val > dev_priv->rps.max_freq);
+	WARN_ON(val < dev_priv->rps.min_freq);
 
 	/* min/max delay may still have been modified so be sure to
 	 * write the limits value.
@@ -3979,8 +3994,8 @@ static void valleyview_set_rps(struct drm_device *dev, u8 val)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
-	WARN_ON(val > dev_priv->rps.max_freq_softlimit);
-	WARN_ON(val < dev_priv->rps.min_freq_softlimit);
+	WARN_ON(val > dev_priv->rps.max_freq);
+	WARN_ON(val < dev_priv->rps.min_freq);
 
 	if (WARN_ONCE(IS_CHERRYVIEW(dev) && (val & 1),
 		      "Odd GPU freq value\n"))
@@ -4007,10 +4022,11 @@ static void valleyview_set_rps(struct drm_device *dev, u8 val)
 static void vlv_set_rps_idle(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
+	u32 val = dev_priv->rps.idle_freq;
 
 	/* CHV and latest VLV don't need to force the gfx clock */
 	if (IS_CHERRYVIEW(dev) || dev->pdev->revision >= 0xd) {
-		valleyview_set_rps(dev_priv->dev, dev_priv->rps.min_freq_softlimit);
+		valleyview_set_rps(dev_priv->dev, val);
 		return;
 	}
 
@@ -4018,7 +4034,7 @@ static void vlv_set_rps_idle(struct drm_i915_private *dev_priv)
 	 * When we are idle.  Drop to min voltage state.
 	 */
 
-	if (dev_priv->rps.cur_freq <= dev_priv->rps.min_freq_softlimit)
+	if (dev_priv->rps.cur_freq <= val)
 		return;
 
 	/* Mask turbo interrupt so that they will not come in between */
@@ -4027,10 +4043,9 @@ static void vlv_set_rps_idle(struct drm_i915_private *dev_priv)
 
 	vlv_force_gfx_clock(dev_priv, true);
 
-	dev_priv->rps.cur_freq = dev_priv->rps.min_freq_softlimit;
+	dev_priv->rps.cur_freq = val;
 
-	vlv_punit_write(dev_priv, PUNIT_REG_GPU_FREQ_REQ,
-					dev_priv->rps.min_freq_softlimit);
+	vlv_punit_write(dev_priv, PUNIT_REG_GPU_FREQ_REQ, val);
 
 	if (wait_for(((vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS))
 				& GENFREQSTATUS) == 0, 100))
@@ -4038,8 +4053,19 @@ static void vlv_set_rps_idle(struct drm_i915_private *dev_priv)
 
 	vlv_force_gfx_clock(dev_priv, false);
 
-	I915_WRITE(GEN6_PMINTRMSK,
-		   gen6_rps_pm_mask(dev_priv, dev_priv->rps.cur_freq));
+	I915_WRITE(GEN6_PMINTRMSK, gen6_rps_pm_mask(dev_priv, val));
+}
+
+void gen6_rps_busy(struct drm_i915_private *dev_priv)
+{
+	mutex_lock(&dev_priv->rps.hw_lock);
+	if (dev_priv->rps.enabled) {
+		if (dev_priv->pm_rps_events & (GEN6_PM_RP_DOWN_EI_EXPIRED | GEN6_PM_RP_UP_EI_EXPIRED))
+			gen6_rps_reset_ei(dev_priv);
+		I915_WRITE(GEN6_PMINTRMSK,
+			   gen6_rps_pm_mask(dev_priv, dev_priv->rps.cur_freq));
+	}
+	mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
 void gen6_rps_idle(struct drm_i915_private *dev_priv)
@@ -4051,17 +4077,23 @@ void gen6_rps_idle(struct drm_i915_private *dev_priv)
 		if (IS_VALLEYVIEW(dev))
 			vlv_set_rps_idle(dev_priv);
 		else
-			gen6_set_rps(dev_priv->dev, dev_priv->rps.min_freq_softlimit);
+			gen6_set_rps(dev_priv->dev, dev_priv->rps.idle_freq);
 		dev_priv->rps.last_adj = 0;
+		I915_WRITE(GEN6_PMINTRMSK, 0xffffffff);
 	}
 	mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
 void gen6_rps_boost(struct drm_i915_private *dev_priv)
 {
+	u32 val;
+
 	mutex_lock(&dev_priv->rps.hw_lock);
-	if (dev_priv->rps.enabled) {
-		intel_set_rps(dev_priv->dev, dev_priv->rps.max_freq_softlimit);
+	val = dev_priv->rps.max_freq_softlimit;
+	if (dev_priv->rps.enabled &&
+	    dev_priv->mm.busy &&
+	    dev_priv->rps.cur_freq < val) {
+		intel_set_rps(dev_priv->dev, val);
 		dev_priv->rps.last_adj = 0;
 	}
 	mutex_unlock(&dev_priv->rps.hw_lock);
@@ -4208,6 +4240,8 @@ static void gen6_init_rps_frequencies(struct drm_device *dev)
 					dev_priv->rps.min_freq,
 					dev_priv->rps.max_freq);
 	}
+
+	dev_priv->rps.idle_freq = dev_priv->rps.min_freq;
 
 	/* Preserve min/max settings in case of re-init */
 	if (dev_priv->rps.max_freq_softlimit == 0)
@@ -4375,7 +4409,7 @@ static void gen8_enable_rps(struct drm_device *dev)
 	/* 6: Ring frequency + overclocking (our driver does this later */
 
 	dev_priv->rps.power = HIGH_POWER; /* force a reset */
-	gen6_set_rps(dev_priv->dev, dev_priv->rps.min_freq_softlimit);
+	gen6_set_rps(dev_priv->dev, dev_priv->rps.idle_freq);
 
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 }
@@ -4469,7 +4503,7 @@ static void gen6_enable_rps(struct drm_device *dev)
 	}
 
 	dev_priv->rps.power = HIGH_POWER; /* force a reset */
-	gen6_set_rps(dev_priv->dev, dev_priv->rps.min_freq_softlimit);
+	gen6_set_rps(dev_priv->dev, dev_priv->rps.idle_freq);
 
 	rc6vids = 0;
 	ret = sandybridge_pcode_read(dev_priv, GEN6_PCODE_READ_RC6VIDS, &rc6vids);
@@ -4834,6 +4868,8 @@ static void valleyview_init_gt_powersave(struct drm_device *dev)
 			 intel_gpu_freq(dev_priv, dev_priv->rps.min_freq),
 			 dev_priv->rps.min_freq);
 
+	dev_priv->rps.idle_freq = dev_priv->rps.min_freq;
+
 	/* Preserve min/max settings in case of re-init */
 	if (dev_priv->rps.max_freq_softlimit == 0)
 		dev_priv->rps.max_freq_softlimit = dev_priv->rps.max_freq;
@@ -4908,6 +4944,8 @@ static void cherryview_init_gt_powersave(struct drm_device *dev)
 		   dev_priv->rps.rp1_freq |
 		   dev_priv->rps.min_freq) & 1,
 		  "Odd GPU freq values\n");
+
+	dev_priv->rps.idle_freq = dev_priv->rps.min_freq;
 
 	/* Preserve min/max settings in case of re-init */
 	if (dev_priv->rps.max_freq_softlimit == 0)
@@ -5686,6 +5724,13 @@ static void intel_gen6_powersave_work(struct work_struct *work)
 		gen6_enable_rps(dev);
 		__gen6_update_ring_freq(dev);
 	}
+
+	WARN_ON(dev_priv->rps.max_freq < dev_priv->rps.min_freq);
+	WARN_ON(dev_priv->rps.idle_freq > dev_priv->rps.max_freq);
+
+	WARN_ON(dev_priv->rps.efficient_freq < dev_priv->rps.min_freq);
+	WARN_ON(dev_priv->rps.efficient_freq > dev_priv->rps.max_freq);
+
 	dev_priv->rps.enabled = true;
 
 	gen6_enable_rps_interrupts(dev);

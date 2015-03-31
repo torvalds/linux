@@ -286,7 +286,7 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 	struct intel_connector *intel_connector =
 		&lvds_encoder->attached_connector->base;
 	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
-	struct intel_crtc *intel_crtc = lvds_encoder->base.new_crtc;
+	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->base.crtc);
 	unsigned int lvds_bpp;
 
 	/* Should never happen!! */
@@ -535,6 +535,7 @@ static const struct drm_connector_funcs intel_lvds_connector_funcs = {
 	.atomic_get_property = intel_connector_atomic_get_property,
 	.destroy = intel_lvds_destroy,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 };
 
 static const struct drm_encoder_funcs intel_lvds_enc_funcs = {

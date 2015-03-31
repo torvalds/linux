@@ -4968,6 +4968,12 @@ static int release_extent_buffer(struct extent_buffer *eb)
 
 		/* Should be safe to release our pages at this point */
 		btrfs_release_extent_buffer_page(eb);
+#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
+		if (unlikely(test_bit(EXTENT_BUFFER_DUMMY, &eb->bflags))) {
+			__free_extent_buffer(eb);
+			return 1;
+		}
+#endif
 		call_rcu(&eb->rcu_head, btrfs_release_extent_buffer_rcu);
 		return 1;
 	}

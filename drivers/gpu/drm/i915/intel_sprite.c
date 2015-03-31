@@ -179,7 +179,7 @@ static void intel_update_primary_plane(struct intel_crtc *crtc)
 static void
 skl_update_plane(struct drm_plane *drm_plane, struct drm_crtc *crtc,
 		 struct drm_framebuffer *fb,
-		 struct drm_i915_gem_object *obj, int crtc_x, int crtc_y,
+		 int crtc_x, int crtc_y,
 		 unsigned int crtc_w, unsigned int crtc_h,
 		 uint32_t x, uint32_t y,
 		 uint32_t src_w, uint32_t src_h)
@@ -187,23 +187,16 @@ skl_update_plane(struct drm_plane *drm_plane, struct drm_crtc *crtc,
 	struct drm_device *dev = drm_plane->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_plane *intel_plane = to_intel_plane(drm_plane);
+	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	const int pipe = intel_plane->pipe;
 	const int plane = intel_plane->plane + 1;
 	u32 plane_ctl, stride_div;
 	int pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
+	const struct drm_intel_sprite_colorkey *key = &intel_plane->ckey;
+	unsigned long surf_addr;
 
-	plane_ctl = I915_READ(PLANE_CTL(pipe, plane));
-
-	/* Mask out pixel format bits in case we change it */
-	plane_ctl &= ~PLANE_CTL_FORMAT_MASK;
-	plane_ctl &= ~PLANE_CTL_ORDER_RGBX;
-	plane_ctl &= ~PLANE_CTL_YUV422_ORDER_MASK;
-	plane_ctl &= ~PLANE_CTL_TILED_MASK;
-	plane_ctl &= ~PLANE_CTL_ALPHA_MASK;
-	plane_ctl &= ~PLANE_CTL_ROTATE_MASK;
-
-	/* Trickle feed has to be enabled */
-	plane_ctl &= ~PLANE_CTL_TRICKLE_FEED_DISABLE;
+	plane_ctl = PLANE_CTL_ENABLE |
+		PLANE_CTL_PIPE_CSC_ENABLE;
 
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_RGB565:
@@ -264,9 +257,6 @@ skl_update_plane(struct drm_plane *drm_plane, struct drm_crtc *crtc,
 	if (drm_plane->state->rotation == BIT(DRM_ROTATE_180))
 		plane_ctl |= PLANE_CTL_ROTATE_180;
 
-	plane_ctl |= PLANE_CTL_ENABLE;
-	plane_ctl |= PLANE_CTL_PIPE_CSC_ENABLE;
-
 	intel_update_sprite_watermarks(drm_plane, crtc, src_w, src_h,
 				       pixel_size, true,
 				       src_w != crtc_w || src_h != crtc_h);
@@ -280,12 +270,25 @@ skl_update_plane(struct drm_plane *drm_plane, struct drm_crtc *crtc,
 	crtc_w--;
 	crtc_h--;
 
+	if (key->flags) {
+		I915_WRITE(PLANE_KEYVAL(pipe, plane), key->min_value);
+		I915_WRITE(PLANE_KEYMAX(pipe, plane), key->max_value);
+		I915_WRITE(PLANE_KEYMSK(pipe, plane), key->channel_mask);
+	}
+
+	if (key->flags & I915_SET_COLORKEY_DESTINATION)
+		plane_ctl |= PLANE_CTL_KEY_ENABLE_DESTINATION;
+	else if (key->flags & I915_SET_COLORKEY_SOURCE)
+		plane_ctl |= PLANE_CTL_KEY_ENABLE_SOURCE;
+
+	surf_addr = intel_plane_obj_offset(intel_plane, obj);
+
 	I915_WRITE(PLANE_OFFSET(pipe, plane), (y << 16) | x);
 	I915_WRITE(PLANE_STRIDE(pipe, plane), fb->pitches[0] / stride_div);
 	I915_WRITE(PLANE_POS(pipe, plane), (crtc_y << 16) | crtc_x);
 	I915_WRITE(PLANE_SIZE(pipe, plane), (crtc_h << 16) | crtc_w);
 	I915_WRITE(PLANE_CTL(pipe, plane), plane_ctl);
-	I915_WRITE(PLANE_SURF(pipe, plane), i915_gem_obj_ggtt_offset(obj));
+	I915_WRITE(PLANE_SURF(pipe, plane), surf_addr);
 	POSTING_READ(PLANE_SURF(pipe, plane));
 }
 
@@ -298,71 +301,13 @@ skl_disable_plane(struct drm_plane *drm_plane, struct drm_crtc *crtc)
 	const int pipe = intel_plane->pipe;
 	const int plane = intel_plane->plane + 1;
 
-	I915_WRITE(PLANE_CTL(pipe, plane),
-		   I915_READ(PLANE_CTL(pipe, plane)) & ~PLANE_CTL_ENABLE);
+	I915_WRITE(PLANE_CTL(pipe, plane), 0);
 
 	/* Activate double buffered register update */
-	I915_WRITE(PLANE_CTL(pipe, plane), 0);
-	POSTING_READ(PLANE_CTL(pipe, plane));
+	I915_WRITE(PLANE_SURF(pipe, plane), 0);
+	POSTING_READ(PLANE_SURF(pipe, plane));
 
 	intel_update_sprite_watermarks(drm_plane, crtc, 0, 0, 0, false, false);
-}
-
-static int
-skl_update_colorkey(struct drm_plane *drm_plane,
-		    struct drm_intel_sprite_colorkey *key)
-{
-	struct drm_device *dev = drm_plane->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_plane *intel_plane = to_intel_plane(drm_plane);
-	const int pipe = intel_plane->pipe;
-	const int plane = intel_plane->plane;
-	u32 plane_ctl;
-
-	I915_WRITE(PLANE_KEYVAL(pipe, plane), key->min_value);
-	I915_WRITE(PLANE_KEYMAX(pipe, plane), key->max_value);
-	I915_WRITE(PLANE_KEYMSK(pipe, plane), key->channel_mask);
-
-	plane_ctl = I915_READ(PLANE_CTL(pipe, plane));
-	plane_ctl &= ~PLANE_CTL_KEY_ENABLE_MASK;
-	if (key->flags & I915_SET_COLORKEY_DESTINATION)
-		plane_ctl |= PLANE_CTL_KEY_ENABLE_DESTINATION;
-	else if (key->flags & I915_SET_COLORKEY_SOURCE)
-		plane_ctl |= PLANE_CTL_KEY_ENABLE_SOURCE;
-	I915_WRITE(PLANE_CTL(pipe, plane), plane_ctl);
-
-	POSTING_READ(PLANE_CTL(pipe, plane));
-
-	return 0;
-}
-
-static void
-skl_get_colorkey(struct drm_plane *drm_plane,
-		 struct drm_intel_sprite_colorkey *key)
-{
-	struct drm_device *dev = drm_plane->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_plane *intel_plane = to_intel_plane(drm_plane);
-	const int pipe = intel_plane->pipe;
-	const int plane = intel_plane->plane;
-	u32 plane_ctl;
-
-	key->min_value = I915_READ(PLANE_KEYVAL(pipe, plane));
-	key->max_value = I915_READ(PLANE_KEYMAX(pipe, plane));
-	key->channel_mask = I915_READ(PLANE_KEYMSK(pipe, plane));
-
-	plane_ctl = I915_READ(PLANE_CTL(pipe, plane));
-
-	switch (plane_ctl & PLANE_CTL_KEY_ENABLE_MASK) {
-	case PLANE_CTL_KEY_ENABLE_DESTINATION:
-		key->flags = I915_SET_COLORKEY_DESTINATION;
-		break;
-	case PLANE_CTL_KEY_ENABLE_SOURCE:
-		key->flags = I915_SET_COLORKEY_SOURCE;
-		break;
-	default:
-		key->flags = I915_SET_COLORKEY_NONE;
-	}
 }
 
 static void
@@ -407,7 +352,7 @@ chv_update_csc(struct intel_plane *intel_plane, uint32_t format)
 static void
 vlv_update_plane(struct drm_plane *dplane, struct drm_crtc *crtc,
 		 struct drm_framebuffer *fb,
-		 struct drm_i915_gem_object *obj, int crtc_x, int crtc_y,
+		 int crtc_x, int crtc_y,
 		 unsigned int crtc_w, unsigned int crtc_h,
 		 uint32_t x, uint32_t y,
 		 uint32_t src_w, uint32_t src_h)
@@ -416,19 +361,15 @@ vlv_update_plane(struct drm_plane *dplane, struct drm_crtc *crtc,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_plane *intel_plane = to_intel_plane(dplane);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	int pipe = intel_plane->pipe;
 	int plane = intel_plane->plane;
 	u32 sprctl;
 	unsigned long sprsurf_offset, linear_offset;
 	int pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
+	const struct drm_intel_sprite_colorkey *key = &intel_plane->ckey;
 
-	sprctl = I915_READ(SPCNTR(pipe, plane));
-
-	/* Mask out pixel format bits in case we change it */
-	sprctl &= ~SP_PIXFORMAT_MASK;
-	sprctl &= ~SP_YUV_BYTE_ORDER_MASK;
-	sprctl &= ~SP_TILED;
-	sprctl &= ~SP_ROTATE_180;
+	sprctl = SP_ENABLE;
 
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_YUYV:
@@ -482,8 +423,6 @@ vlv_update_plane(struct drm_plane *dplane, struct drm_crtc *crtc,
 	if (obj->tiling_mode != I915_TILING_NONE)
 		sprctl |= SP_TILED;
 
-	sprctl |= SP_ENABLE;
-
 	intel_update_sprite_watermarks(dplane, crtc, src_w, src_h,
 				       pixel_size, true,
 				       src_w != crtc_w || src_h != crtc_h);
@@ -510,6 +449,15 @@ vlv_update_plane(struct drm_plane *dplane, struct drm_crtc *crtc,
 	}
 
 	intel_update_primary_plane(intel_crtc);
+
+	if (key->flags) {
+		I915_WRITE(SPKEYMINVAL(pipe, plane), key->min_value);
+		I915_WRITE(SPKEYMAXVAL(pipe, plane), key->max_value);
+		I915_WRITE(SPKEYMSK(pipe, plane), key->channel_mask);
+	}
+
+	if (key->flags & I915_SET_COLORKEY_SOURCE)
+		sprctl |= SP_SOURCE_KEY;
 
 	if (IS_CHERRYVIEW(dev) && pipe == PIPE_B)
 		chv_update_csc(intel_plane, fb->pixel_format);
@@ -544,8 +492,8 @@ vlv_disable_plane(struct drm_plane *dplane, struct drm_crtc *crtc)
 
 	intel_update_primary_plane(intel_crtc);
 
-	I915_WRITE(SPCNTR(pipe, plane), I915_READ(SPCNTR(pipe, plane)) &
-		   ~SP_ENABLE);
+	I915_WRITE(SPCNTR(pipe, plane), 0);
+
 	/* Activate double buffered register update */
 	I915_WRITE(SPSURF(pipe, plane), 0);
 
@@ -554,61 +502,11 @@ vlv_disable_plane(struct drm_plane *dplane, struct drm_crtc *crtc)
 	intel_update_sprite_watermarks(dplane, crtc, 0, 0, 0, false, false);
 }
 
-static int
-vlv_update_colorkey(struct drm_plane *dplane,
-		    struct drm_intel_sprite_colorkey *key)
-{
-	struct drm_device *dev = dplane->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_plane *intel_plane = to_intel_plane(dplane);
-	int pipe = intel_plane->pipe;
-	int plane = intel_plane->plane;
-	u32 sprctl;
-
-	if (key->flags & I915_SET_COLORKEY_DESTINATION)
-		return -EINVAL;
-
-	I915_WRITE(SPKEYMINVAL(pipe, plane), key->min_value);
-	I915_WRITE(SPKEYMAXVAL(pipe, plane), key->max_value);
-	I915_WRITE(SPKEYMSK(pipe, plane), key->channel_mask);
-
-	sprctl = I915_READ(SPCNTR(pipe, plane));
-	sprctl &= ~SP_SOURCE_KEY;
-	if (key->flags & I915_SET_COLORKEY_SOURCE)
-		sprctl |= SP_SOURCE_KEY;
-	I915_WRITE(SPCNTR(pipe, plane), sprctl);
-
-	POSTING_READ(SPKEYMSK(pipe, plane));
-
-	return 0;
-}
-
-static void
-vlv_get_colorkey(struct drm_plane *dplane,
-		 struct drm_intel_sprite_colorkey *key)
-{
-	struct drm_device *dev = dplane->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_plane *intel_plane = to_intel_plane(dplane);
-	int pipe = intel_plane->pipe;
-	int plane = intel_plane->plane;
-	u32 sprctl;
-
-	key->min_value = I915_READ(SPKEYMINVAL(pipe, plane));
-	key->max_value = I915_READ(SPKEYMAXVAL(pipe, plane));
-	key->channel_mask = I915_READ(SPKEYMSK(pipe, plane));
-
-	sprctl = I915_READ(SPCNTR(pipe, plane));
-	if (sprctl & SP_SOURCE_KEY)
-		key->flags = I915_SET_COLORKEY_SOURCE;
-	else
-		key->flags = I915_SET_COLORKEY_NONE;
-}
 
 static void
 ivb_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		 struct drm_framebuffer *fb,
-		 struct drm_i915_gem_object *obj, int crtc_x, int crtc_y,
+		 int crtc_x, int crtc_y,
 		 unsigned int crtc_w, unsigned int crtc_h,
 		 uint32_t x, uint32_t y,
 		 uint32_t src_w, uint32_t src_h)
@@ -617,19 +515,14 @@ ivb_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_plane->pipe;
+	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
+	enum pipe pipe = intel_plane->pipe;
 	u32 sprctl, sprscale = 0;
 	unsigned long sprsurf_offset, linear_offset;
 	int pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
+	const struct drm_intel_sprite_colorkey *key = &intel_plane->ckey;
 
-	sprctl = I915_READ(SPRCTL(pipe));
-
-	/* Mask out pixel format bits in case we change it */
-	sprctl &= ~SPRITE_PIXFORMAT_MASK;
-	sprctl &= ~SPRITE_RGB_ORDER_RGBX;
-	sprctl &= ~SPRITE_YUV_BYTE_ORDER_MASK;
-	sprctl &= ~SPRITE_TILED;
-	sprctl &= ~SPRITE_ROTATE_180;
+	sprctl = SPRITE_ENABLE;
 
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_XBGR8888:
@@ -668,8 +561,6 @@ ivb_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	else
 		sprctl |= SPRITE_TRICKLE_FEED_DISABLE;
 
-	sprctl |= SPRITE_ENABLE;
-
 	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		sprctl |= SPRITE_PIPE_CSC_ENABLE;
 
@@ -705,6 +596,17 @@ ivb_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	}
 
 	intel_update_primary_plane(intel_crtc);
+
+	if (key->flags) {
+		I915_WRITE(SPRKEYVAL(pipe), key->min_value);
+		I915_WRITE(SPRKEYMAX(pipe), key->max_value);
+		I915_WRITE(SPRKEYMSK(pipe), key->channel_mask);
+	}
+
+	if (key->flags & I915_SET_COLORKEY_DESTINATION)
+		sprctl |= SPRITE_DEST_KEY;
+	else if (key->flags & I915_SET_COLORKEY_SOURCE)
+		sprctl |= SPRITE_SOURCE_KEY;
 
 	I915_WRITE(SPRSTRIDE(pipe), fb->pitches[0]);
 	I915_WRITE(SPRPOS(pipe), (crtc_y << 16) | crtc_x);
@@ -747,73 +649,12 @@ ivb_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 	I915_WRITE(SPRSURF(pipe), 0);
 
 	intel_flush_primary_plane(dev_priv, intel_crtc->plane);
-
-	/*
-	 * Avoid underruns when disabling the sprite.
-	 * FIXME remove once watermark updates are done properly.
-	 */
-	intel_crtc->atomic.wait_vblank = true;
-	intel_crtc->atomic.update_sprite_watermarks |= (1 << drm_plane_index(plane));
-}
-
-static int
-ivb_update_colorkey(struct drm_plane *plane,
-		    struct drm_intel_sprite_colorkey *key)
-{
-	struct drm_device *dev = plane->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_plane *intel_plane;
-	u32 sprctl;
-	int ret = 0;
-
-	intel_plane = to_intel_plane(plane);
-
-	I915_WRITE(SPRKEYVAL(intel_plane->pipe), key->min_value);
-	I915_WRITE(SPRKEYMAX(intel_plane->pipe), key->max_value);
-	I915_WRITE(SPRKEYMSK(intel_plane->pipe), key->channel_mask);
-
-	sprctl = I915_READ(SPRCTL(intel_plane->pipe));
-	sprctl &= ~(SPRITE_SOURCE_KEY | SPRITE_DEST_KEY);
-	if (key->flags & I915_SET_COLORKEY_DESTINATION)
-		sprctl |= SPRITE_DEST_KEY;
-	else if (key->flags & I915_SET_COLORKEY_SOURCE)
-		sprctl |= SPRITE_SOURCE_KEY;
-	I915_WRITE(SPRCTL(intel_plane->pipe), sprctl);
-
-	POSTING_READ(SPRKEYMSK(intel_plane->pipe));
-
-	return ret;
-}
-
-static void
-ivb_get_colorkey(struct drm_plane *plane, struct drm_intel_sprite_colorkey *key)
-{
-	struct drm_device *dev = plane->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_plane *intel_plane;
-	u32 sprctl;
-
-	intel_plane = to_intel_plane(plane);
-
-	key->min_value = I915_READ(SPRKEYVAL(intel_plane->pipe));
-	key->max_value = I915_READ(SPRKEYMAX(intel_plane->pipe));
-	key->channel_mask = I915_READ(SPRKEYMSK(intel_plane->pipe));
-	key->flags = 0;
-
-	sprctl = I915_READ(SPRCTL(intel_plane->pipe));
-
-	if (sprctl & SPRITE_DEST_KEY)
-		key->flags = I915_SET_COLORKEY_DESTINATION;
-	else if (sprctl & SPRITE_SOURCE_KEY)
-		key->flags = I915_SET_COLORKEY_SOURCE;
-	else
-		key->flags = I915_SET_COLORKEY_NONE;
 }
 
 static void
 ilk_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		 struct drm_framebuffer *fb,
-		 struct drm_i915_gem_object *obj, int crtc_x, int crtc_y,
+		 int crtc_x, int crtc_y,
 		 unsigned int crtc_w, unsigned int crtc_h,
 		 uint32_t x, uint32_t y,
 		 uint32_t src_w, uint32_t src_h)
@@ -822,19 +663,14 @@ ilk_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	int pipe = intel_plane->pipe;
 	unsigned long dvssurf_offset, linear_offset;
 	u32 dvscntr, dvsscale;
 	int pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
+	const struct drm_intel_sprite_colorkey *key = &intel_plane->ckey;
 
-	dvscntr = I915_READ(DVSCNTR(pipe));
-
-	/* Mask out pixel format bits in case we change it */
-	dvscntr &= ~DVS_PIXFORMAT_MASK;
-	dvscntr &= ~DVS_RGB_ORDER_XBGR;
-	dvscntr &= ~DVS_YUV_BYTE_ORDER_MASK;
-	dvscntr &= ~DVS_TILED;
-	dvscntr &= ~DVS_ROTATE_180;
+	dvscntr = DVS_ENABLE;
 
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_XBGR8888:
@@ -870,7 +706,6 @@ ilk_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	if (IS_GEN6(dev))
 		dvscntr |= DVS_TRICKLE_FEED_DISABLE; /* must disable */
-	dvscntr |= DVS_ENABLE;
 
 	intel_update_sprite_watermarks(plane, crtc, src_w, src_h,
 				       pixel_size, true,
@@ -902,6 +737,17 @@ ilk_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	intel_update_primary_plane(intel_crtc);
 
+	if (key->flags) {
+		I915_WRITE(DVSKEYVAL(pipe), key->min_value);
+		I915_WRITE(DVSKEYMAX(pipe), key->max_value);
+		I915_WRITE(DVSKEYMSK(pipe), key->channel_mask);
+	}
+
+	if (key->flags & I915_SET_COLORKEY_DESTINATION)
+		dvscntr |= DVS_DEST_KEY;
+	else if (key->flags & I915_SET_COLORKEY_SOURCE)
+		dvscntr |= DVS_SOURCE_KEY;
+
 	I915_WRITE(DVSSTRIDE(pipe), fb->pitches[0]);
 	I915_WRITE(DVSPOS(pipe), (crtc_y << 16) | crtc_x);
 
@@ -930,20 +776,14 @@ ilk_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 
 	intel_update_primary_plane(intel_crtc);
 
-	I915_WRITE(DVSCNTR(pipe), I915_READ(DVSCNTR(pipe)) & ~DVS_ENABLE);
+	I915_WRITE(DVSCNTR(pipe), 0);
 	/* Disable the scaler */
 	I915_WRITE(DVSSCALE(pipe), 0);
+
 	/* Flush double buffered register updates */
 	I915_WRITE(DVSSURF(pipe), 0);
 
 	intel_flush_primary_plane(dev_priv, intel_crtc->plane);
-
-	/*
-	 * Avoid underruns when disabling the sprite.
-	 * FIXME remove once watermark updates are done properly.
-	 */
-	intel_crtc->atomic.wait_vblank = true;
-	intel_crtc->atomic.update_sprite_watermarks |= (1 << drm_plane_index(plane));
 }
 
 /**
@@ -1014,67 +854,9 @@ intel_pre_disable_primary(struct drm_crtc *crtc)
 	hsw_disable_ips(intel_crtc);
 }
 
-static int
-ilk_update_colorkey(struct drm_plane *plane,
-		    struct drm_intel_sprite_colorkey *key)
-{
-	struct drm_device *dev = plane->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_plane *intel_plane;
-	u32 dvscntr;
-	int ret = 0;
-
-	intel_plane = to_intel_plane(plane);
-
-	I915_WRITE(DVSKEYVAL(intel_plane->pipe), key->min_value);
-	I915_WRITE(DVSKEYMAX(intel_plane->pipe), key->max_value);
-	I915_WRITE(DVSKEYMSK(intel_plane->pipe), key->channel_mask);
-
-	dvscntr = I915_READ(DVSCNTR(intel_plane->pipe));
-	dvscntr &= ~(DVS_SOURCE_KEY | DVS_DEST_KEY);
-	if (key->flags & I915_SET_COLORKEY_DESTINATION)
-		dvscntr |= DVS_DEST_KEY;
-	else if (key->flags & I915_SET_COLORKEY_SOURCE)
-		dvscntr |= DVS_SOURCE_KEY;
-	I915_WRITE(DVSCNTR(intel_plane->pipe), dvscntr);
-
-	POSTING_READ(DVSKEYMSK(intel_plane->pipe));
-
-	return ret;
-}
-
-static void
-ilk_get_colorkey(struct drm_plane *plane, struct drm_intel_sprite_colorkey *key)
-{
-	struct drm_device *dev = plane->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_plane *intel_plane;
-	u32 dvscntr;
-
-	intel_plane = to_intel_plane(plane);
-
-	key->min_value = I915_READ(DVSKEYVAL(intel_plane->pipe));
-	key->max_value = I915_READ(DVSKEYMAX(intel_plane->pipe));
-	key->channel_mask = I915_READ(DVSKEYMSK(intel_plane->pipe));
-	key->flags = 0;
-
-	dvscntr = I915_READ(DVSCNTR(intel_plane->pipe));
-
-	if (dvscntr & DVS_DEST_KEY)
-		key->flags = I915_SET_COLORKEY_DESTINATION;
-	else if (dvscntr & DVS_SOURCE_KEY)
-		key->flags = I915_SET_COLORKEY_SOURCE;
-	else
-		key->flags = I915_SET_COLORKEY_NONE;
-}
-
 static bool colorkey_enabled(struct intel_plane *intel_plane)
 {
-	struct drm_intel_sprite_colorkey key;
-
-	intel_plane->get_colorkey(&intel_plane->base, &key);
-
-	return key.flags != I915_SET_COLORKEY_NONE;
+	return intel_plane->ckey.flags != I915_SET_COLORKEY_NONE;
 }
 
 static int
@@ -1257,11 +1039,18 @@ finish:
 		if (!intel_crtc->primary_enabled && !state->hides_primary)
 			intel_crtc->atomic.post_enable_primary = true;
 
-		/* Update watermarks on tiling changes. */
-		if (!plane->state->fb || !state->base.fb ||
-		    plane->state->fb->modifier[0] !=
-		    state->base.fb->modifier[0])
+		if (intel_wm_need_update(plane, &state->base))
 			intel_crtc->atomic.update_wm = true;
+
+		if (!state->visible) {
+			/*
+			 * Avoid underruns when disabling the sprite.
+			 * FIXME remove once watermark updates are done properly.
+			 */
+			intel_crtc->atomic.wait_vblank = true;
+			intel_crtc->atomic.update_sprite_watermarks |=
+				(1 << drm_plane_index(plane));
+		}
 	}
 
 	return 0;
@@ -1275,7 +1064,6 @@ intel_commit_sprite_plane(struct drm_plane *plane,
 	struct intel_crtc *intel_crtc;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct drm_framebuffer *fb = state->base.fb;
-	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	int crtc_x, crtc_y;
 	unsigned int crtc_w, crtc_h;
 	uint32_t src_x, src_y, src_w, src_h;
@@ -1283,8 +1071,7 @@ intel_commit_sprite_plane(struct drm_plane *plane,
 	crtc = crtc ? crtc : plane->crtc;
 	intel_crtc = to_intel_crtc(crtc);
 
-	plane->fb = state->base.fb;
-	intel_plane->obj = obj;
+	plane->fb = fb;
 
 	if (intel_crtc->active) {
 		intel_crtc->primary_enabled = !state->hides_primary;
@@ -1298,7 +1085,7 @@ intel_commit_sprite_plane(struct drm_plane *plane,
 			src_y = state->src.y1;
 			src_w = drm_rect_width(&state->src);
 			src_h = drm_rect_height(&state->src);
-			intel_plane->update_plane(plane, crtc, fb, obj,
+			intel_plane->update_plane(plane, crtc, fb,
 						  crtc_x, crtc_y, crtc_w, crtc_h,
 						  src_x, src_y, src_w, src_h);
 		} else {
@@ -1319,6 +1106,10 @@ int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 	if ((set->flags & (I915_SET_COLORKEY_DESTINATION | I915_SET_COLORKEY_SOURCE)) == (I915_SET_COLORKEY_DESTINATION | I915_SET_COLORKEY_SOURCE))
 		return -EINVAL;
 
+	if (IS_VALLEYVIEW(dev) &&
+	    set->flags & I915_SET_COLORKEY_DESTINATION)
+		return -EINVAL;
+
 	drm_modeset_lock_all(dev);
 
 	plane = drm_plane_find(dev, set->plane_id);
@@ -1328,31 +1119,15 @@ int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 	}
 
 	intel_plane = to_intel_plane(plane);
-	ret = intel_plane->update_colorkey(plane, set);
+	intel_plane->ckey = *set;
 
-out_unlock:
-	drm_modeset_unlock_all(dev);
-	return ret;
-}
-
-int intel_sprite_get_colorkey(struct drm_device *dev, void *data,
-			      struct drm_file *file_priv)
-{
-	struct drm_intel_sprite_colorkey *get = data;
-	struct drm_plane *plane;
-	struct intel_plane *intel_plane;
-	int ret = 0;
-
-	drm_modeset_lock_all(dev);
-
-	plane = drm_plane_find(dev, get->plane_id);
-	if (!plane) {
-		ret = -ENOENT;
-		goto out_unlock;
-	}
-
-	intel_plane = to_intel_plane(plane);
-	intel_plane->get_colorkey(plane, get);
+	/*
+	 * The only way this could fail would be due to
+	 * the current plane state being unsupportable already,
+	 * and we dont't consider that an error for the
+	 * colorkey ioctl. So just ignore any error.
+	 */
+	intel_plane_restore(plane);
 
 out_unlock:
 	drm_modeset_unlock_all(dev);
@@ -1445,8 +1220,6 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 		intel_plane->max_downscale = 16;
 		intel_plane->update_plane = ilk_update_plane;
 		intel_plane->disable_plane = ilk_disable_plane;
-		intel_plane->update_colorkey = ilk_update_colorkey;
-		intel_plane->get_colorkey = ilk_get_colorkey;
 
 		if (IS_GEN6(dev)) {
 			plane_formats = snb_plane_formats;
@@ -1470,16 +1243,12 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 		if (IS_VALLEYVIEW(dev)) {
 			intel_plane->update_plane = vlv_update_plane;
 			intel_plane->disable_plane = vlv_disable_plane;
-			intel_plane->update_colorkey = vlv_update_colorkey;
-			intel_plane->get_colorkey = vlv_get_colorkey;
 
 			plane_formats = vlv_plane_formats;
 			num_plane_formats = ARRAY_SIZE(vlv_plane_formats);
 		} else {
 			intel_plane->update_plane = ivb_update_plane;
 			intel_plane->disable_plane = ivb_disable_plane;
-			intel_plane->update_colorkey = ivb_update_colorkey;
-			intel_plane->get_colorkey = ivb_get_colorkey;
 
 			plane_formats = snb_plane_formats;
 			num_plane_formats = ARRAY_SIZE(snb_plane_formats);
@@ -1494,8 +1263,6 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 		intel_plane->max_downscale = 1;
 		intel_plane->update_plane = skl_update_plane;
 		intel_plane->disable_plane = skl_disable_plane;
-		intel_plane->update_colorkey = skl_update_colorkey;
-		intel_plane->get_colorkey = skl_get_colorkey;
 
 		plane_formats = skl_plane_formats;
 		num_plane_formats = ARRAY_SIZE(skl_plane_formats);

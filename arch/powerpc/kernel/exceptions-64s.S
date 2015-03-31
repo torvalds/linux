@@ -1408,7 +1408,7 @@ machine_check_handle_early:
 	bne	9f			/* continue in V mode if we are. */
 
 5:
-#ifdef CONFIG_KVM_BOOK3S_64_HV
+#ifdef CONFIG_KVM_BOOK3S_64_HANDLER
 	/*
 	 * We are coming from kernel context. Check if we are coming from
 	 * guest. if yes, then we can continue. We will fall through

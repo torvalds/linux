@@ -2,6 +2,7 @@
 #define _ASM_METAG_IO_H
 
 #include <linux/types.h>
+#include <asm/pgtable-bits.h>
 
 #define IO_SPACE_LIMIT  0
 

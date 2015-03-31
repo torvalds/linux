@@ -951,18 +951,29 @@ intel_hdmi_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-static bool hdmi_12bpc_possible(struct intel_crtc *crtc)
+static bool hdmi_12bpc_possible(struct intel_crtc_state *crtc_state)
 {
-	struct drm_device *dev = crtc->base.dev;
+	struct drm_device *dev = crtc_state->base.crtc->dev;
+	struct drm_atomic_state *state;
 	struct intel_encoder *encoder;
+	struct drm_connector_state *connector_state;
 	int count = 0, count_hdmi = 0;
+	int i;
 
 	if (HAS_GMCH_DISPLAY(dev))
 		return false;
 
-	for_each_intel_encoder(dev, encoder) {
-		if (encoder->new_crtc != crtc)
+	state = crtc_state->base.state;
+
+	for (i = 0; i < state->num_connector; i++) {
+		if (!state->connectors[i])
 			continue;
+
+		connector_state = state->connector_states[i];
+		if (connector_state->crtc != crtc_state->base.crtc)
+			continue;
+
+		encoder = to_intel_encoder(connector_state->best_encoder);
 
 		count_hdmi += encoder->type == INTEL_OUTPUT_HDMI;
 		count++;
@@ -1020,7 +1031,7 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 	 */
 	if (pipe_config->pipe_bpp > 8*3 && pipe_config->has_hdmi_sink &&
 	    clock_12bpc <= portclock_limit &&
-	    hdmi_12bpc_possible(encoder->new_crtc)) {
+	    hdmi_12bpc_possible(pipe_config)) {
 		DRM_DEBUG_KMS("picking bpc to 12 for HDMI output\n");
 		desired_bpp = 12*3;
 
@@ -1618,6 +1629,7 @@ static const struct drm_connector_funcs intel_hdmi_connector_funcs = {
 	.atomic_get_property = intel_connector_atomic_get_property,
 	.destroy = intel_hdmi_destroy,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 };
 
 static const struct drm_connector_helper_funcs intel_hdmi_connector_helper_funcs = {

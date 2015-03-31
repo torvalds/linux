@@ -277,6 +277,7 @@ void gen6_reset_rps_interrupts(struct drm_device *dev)
 	I915_WRITE(reg, dev_priv->pm_rps_events);
 	I915_WRITE(reg, dev_priv->pm_rps_events);
 	POSTING_READ(reg);
+	dev_priv->rps.pm_iir = 0;
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
@@ -330,12 +331,10 @@ void gen6_disable_rps_interrupts(struct drm_device *dev)
 	__gen6_disable_pm_irq(dev_priv, dev_priv->pm_rps_events);
 	I915_WRITE(gen6_pm_ier(dev_priv), I915_READ(gen6_pm_ier(dev_priv)) &
 				~dev_priv->pm_rps_events);
-	I915_WRITE(gen6_pm_iir(dev_priv), dev_priv->pm_rps_events);
-	I915_WRITE(gen6_pm_iir(dev_priv), dev_priv->pm_rps_events);
-
-	dev_priv->rps.pm_iir = 0;
 
 	spin_unlock_irq(&dev_priv->irq_lock);
+
+	synchronize_irq(dev->irq);
 }
 
 /**
@@ -997,129 +996,73 @@ static void notify_ring(struct drm_device *dev,
 	wake_up_all(&ring->irq_queue);
 }
 
-static u32 vlv_c0_residency(struct drm_i915_private *dev_priv,
-			    struct intel_rps_ei *rps_ei)
+static void vlv_c0_read(struct drm_i915_private *dev_priv,
+			struct intel_rps_ei *ei)
 {
-	u32 cz_ts, cz_freq_khz;
-	u32 render_count, media_count;
-	u32 elapsed_render, elapsed_media, elapsed_time;
-	u32 residency = 0;
-
-	cz_ts = vlv_punit_read(dev_priv, PUNIT_REG_CZ_TIMESTAMP);
-	cz_freq_khz = DIV_ROUND_CLOSEST(dev_priv->mem_freq * 1000, 4);
-
-	render_count = I915_READ(VLV_RENDER_C0_COUNT_REG);
-	media_count = I915_READ(VLV_MEDIA_C0_COUNT_REG);
-
-	if (rps_ei->cz_clock == 0) {
-		rps_ei->cz_clock = cz_ts;
-		rps_ei->render_c0 = render_count;
-		rps_ei->media_c0 = media_count;
-
-		return dev_priv->rps.cur_freq;
-	}
-
-	elapsed_time = cz_ts - rps_ei->cz_clock;
-	rps_ei->cz_clock = cz_ts;
-
-	elapsed_render = render_count - rps_ei->render_c0;
-	rps_ei->render_c0 = render_count;
-
-	elapsed_media = media_count - rps_ei->media_c0;
-	rps_ei->media_c0 = media_count;
-
-	/* Convert all the counters into common unit of milli sec */
-	elapsed_time /= VLV_CZ_CLOCK_TO_MILLI_SEC;
-	elapsed_render /=  cz_freq_khz;
-	elapsed_media /= cz_freq_khz;
-
-	/*
-	 * Calculate overall C0 residency percentage
-	 * only if elapsed time is non zero
-	 */
-	if (elapsed_time) {
-		residency =
-			((max(elapsed_render, elapsed_media) * 100)
-				/ elapsed_time);
-	}
-
-	return residency;
+	ei->cz_clock = vlv_punit_read(dev_priv, PUNIT_REG_CZ_TIMESTAMP);
+	ei->render_c0 = I915_READ(VLV_RENDER_C0_COUNT);
+	ei->media_c0 = I915_READ(VLV_MEDIA_C0_COUNT);
 }
 
-/**
- * vlv_calc_delay_from_C0_counters - Increase/Decrease freq based on GPU
- * busy-ness calculated from C0 counters of render & media power wells
- * @dev_priv: DRM device private
- *
- */
-static int vlv_calc_delay_from_C0_counters(struct drm_i915_private *dev_priv)
+static bool vlv_c0_above(struct drm_i915_private *dev_priv,
+			 const struct intel_rps_ei *old,
+			 const struct intel_rps_ei *now,
+			 int threshold)
 {
-	u32 residency_C0_up = 0, residency_C0_down = 0;
-	int new_delay, adj;
+	u64 time, c0;
 
-	dev_priv->rps.ei_interrupt_count++;
+	if (old->cz_clock == 0)
+		return false;
 
-	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
+	time = now->cz_clock - old->cz_clock;
+	time *= threshold * dev_priv->mem_freq;
 
-
-	if (dev_priv->rps.up_ei.cz_clock == 0) {
-		vlv_c0_residency(dev_priv, &dev_priv->rps.up_ei);
-		vlv_c0_residency(dev_priv, &dev_priv->rps.down_ei);
-		return dev_priv->rps.cur_freq;
-	}
-
-
-	/*
-	 * To down throttle, C0 residency should be less than down threshold
-	 * for continous EI intervals. So calculate down EI counters
-	 * once in VLV_INT_COUNT_FOR_DOWN_EI
+	/* Workload can be split between render + media, e.g. SwapBuffers
+	 * being blitted in X after being rendered in mesa. To account for
+	 * this we need to combine both engines into our activity counter.
 	 */
-	if (dev_priv->rps.ei_interrupt_count == VLV_INT_COUNT_FOR_DOWN_EI) {
+	c0 = now->render_c0 - old->render_c0;
+	c0 += now->media_c0 - old->media_c0;
+	c0 *= 100 * VLV_CZ_CLOCK_TO_MILLI_SEC * 4 / 1000;
 
-		dev_priv->rps.ei_interrupt_count = 0;
+	return c0 >= time;
+}
 
-		residency_C0_down = vlv_c0_residency(dev_priv,
-						     &dev_priv->rps.down_ei);
-	} else {
-		residency_C0_up = vlv_c0_residency(dev_priv,
-						   &dev_priv->rps.up_ei);
+void gen6_rps_reset_ei(struct drm_i915_private *dev_priv)
+{
+	vlv_c0_read(dev_priv, &dev_priv->rps.down_ei);
+	dev_priv->rps.up_ei = dev_priv->rps.down_ei;
+}
+
+static u32 vlv_wa_c0_ei(struct drm_i915_private *dev_priv, u32 pm_iir)
+{
+	struct intel_rps_ei now;
+	u32 events = 0;
+
+	if ((pm_iir & (GEN6_PM_RP_DOWN_EI_EXPIRED | GEN6_PM_RP_UP_EI_EXPIRED)) == 0)
+		return 0;
+
+	vlv_c0_read(dev_priv, &now);
+	if (now.cz_clock == 0)
+		return 0;
+
+	if (pm_iir & GEN6_PM_RP_DOWN_EI_EXPIRED) {
+		if (!vlv_c0_above(dev_priv,
+				  &dev_priv->rps.down_ei, &now,
+				  VLV_RP_DOWN_EI_THRESHOLD))
+			events |= GEN6_PM_RP_DOWN_THRESHOLD;
+		dev_priv->rps.down_ei = now;
 	}
 
-	new_delay = dev_priv->rps.cur_freq;
-
-	adj = dev_priv->rps.last_adj;
-	/* C0 residency is greater than UP threshold. Increase Frequency */
-	if (residency_C0_up >= VLV_RP_UP_EI_THRESHOLD) {
-		if (adj > 0)
-			adj *= 2;
-		else
-			adj = 1;
-
-		if (dev_priv->rps.cur_freq < dev_priv->rps.max_freq_softlimit)
-			new_delay = dev_priv->rps.cur_freq + adj;
-
-		/*
-		 * For better performance, jump directly
-		 * to RPe if we're below it.
-		 */
-		if (new_delay < dev_priv->rps.efficient_freq)
-			new_delay = dev_priv->rps.efficient_freq;
-
-	} else if (!dev_priv->rps.ei_interrupt_count &&
-			(residency_C0_down < VLV_RP_DOWN_EI_THRESHOLD)) {
-		if (adj < 0)
-			adj *= 2;
-		else
-			adj = -1;
-		/*
-		 * This means, C0 residency is less than down threshold over
-		 * a period of VLV_INT_COUNT_FOR_DOWN_EI. So, reduce the freq
-		 */
-		if (dev_priv->rps.cur_freq > dev_priv->rps.min_freq_softlimit)
-			new_delay = dev_priv->rps.cur_freq + adj;
+	if (pm_iir & GEN6_PM_RP_UP_EI_EXPIRED) {
+		if (vlv_c0_above(dev_priv,
+				 &dev_priv->rps.up_ei, &now,
+				 VLV_RP_UP_EI_THRESHOLD))
+			events |= GEN6_PM_RP_UP_THRESHOLD;
+		dev_priv->rps.up_ei = now;
 	}
 
-	return new_delay;
+	return events;
 }
 
 static void gen6_pm_rps_work(struct work_struct *work)
@@ -1149,6 +1092,8 @@ static void gen6_pm_rps_work(struct work_struct *work)
 
 	mutex_lock(&dev_priv->rps.hw_lock);
 
+	pm_iir |= vlv_wa_c0_ei(dev_priv, pm_iir);
+
 	adj = dev_priv->rps.last_adj;
 	if (pm_iir & GEN6_PM_RP_UP_THRESHOLD) {
 		if (adj > 0)
@@ -1171,8 +1116,6 @@ static void gen6_pm_rps_work(struct work_struct *work)
 		else
 			new_delay = dev_priv->rps.min_freq_softlimit;
 		adj = 0;
-	} else if (pm_iir & GEN6_PM_RP_UP_EI_EXPIRED) {
-		new_delay = vlv_calc_delay_from_C0_counters(dev_priv);
 	} else if (pm_iir & GEN6_PM_RP_DOWN_THRESHOLD) {
 		if (adj < 0)
 			adj *= 2;
@@ -4299,7 +4242,7 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	/* Let's track the enabled rps events */
 	if (IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv))
 		/* WaGsvRC0ResidencyMethod:vlv */
-		dev_priv->pm_rps_events = GEN6_PM_RP_UP_EI_EXPIRED;
+		dev_priv->pm_rps_events = GEN6_PM_RP_DOWN_EI_EXPIRED | GEN6_PM_RP_UP_EI_EXPIRED;
 	else
 		dev_priv->pm_rps_events = GEN6_PM_RPS_EVENTS;
 

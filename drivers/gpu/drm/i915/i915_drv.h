@@ -56,7 +56,7 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20150313"
+#define DRIVER_DATE		"20150327"
 
 #undef WARN_ON
 /* Many gcc seem to no see through this and fall over :( */
@@ -427,6 +427,8 @@ struct drm_i915_error_state {
 	u32 forcewake;
 	u32 error; /* gen6+ */
 	u32 err_int; /* gen7 */
+	u32 fault_data0; /* gen8, gen9 */
+	u32 fault_data1; /* gen8, gen9 */
 	u32 done_reg;
 	u32 gac_eco;
 	u32 gam_ecochk;
@@ -544,7 +546,7 @@ struct drm_i915_display_funcs {
 	 * Returns true on success, false on failure.
 	 */
 	bool (*find_dpll)(const struct intel_limit *limit,
-			  struct intel_crtc *crtc,
+			  struct intel_crtc_state *crtc_state,
 			  int target, int refclk,
 			  struct dpll *match_clock,
 			  struct dpll *best_clock);
@@ -553,7 +555,7 @@ struct drm_i915_display_funcs {
 				 struct drm_crtc *crtc,
 				 uint32_t sprite_width, uint32_t sprite_height,
 				 int pixel_size, bool enable, bool scaled);
-	void (*modeset_global_resources)(struct drm_device *dev);
+	void (*modeset_global_resources)(struct drm_atomic_state *state);
 	/* Returns the active state of the crtc, and if the crtc is active,
 	 * fills out the pipe-config with the hw state. */
 	bool (*get_pipe_config)(struct intel_crtc *,
@@ -1025,12 +1027,11 @@ struct intel_gen6_power_mgmt {
 	u8 max_freq_softlimit;	/* Max frequency permitted by the driver */
 	u8 max_freq;		/* Maximum frequency, RP0 if not overclocking */
 	u8 min_freq;		/* AKA RPn. Minimum frequency */
+	u8 idle_freq;		/* Frequency to request when we are idle */
 	u8 efficient_freq;	/* AKA RPe. Pre-determined balanced frequency */
 	u8 rp1_freq;		/* "less than" RP0 power/freqency */
 	u8 rp0_freq;		/* Non-overclocked max frequency. */
 	u32 cz_freq;
-
-	u32 ei_interrupt_count;
 
 	int last_adj;
 	enum { LOW_POWER, BETWEEN, HIGH_POWER } power;
@@ -2442,7 +2443,6 @@ extern int i915_resume_legacy(struct drm_device *dev);
 struct i915_params {
 	int modeset;
 	int panel_ignore_lid;
-	unsigned int powersave;
 	int semaphores;
 	unsigned int lvds_downclock;
 	int lvds_channel_mode;
@@ -2462,6 +2462,7 @@ struct i915_params {
 	bool enable_hangcheck;
 	bool fastboot;
 	bool prefault_disable;
+	bool load_detect_test;
 	bool reset;
 	bool disable_display;
 	bool disable_vtd_wa;
@@ -2601,12 +2602,6 @@ int i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 int i915_gem_wait_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 void i915_gem_load(struct drm_device *dev);
-unsigned long i915_gem_shrink(struct drm_i915_private *dev_priv,
-			      long target,
-			      unsigned flags);
-#define I915_SHRINK_PURGEABLE 0x1
-#define I915_SHRINK_UNBOUND 0x2
-#define I915_SHRINK_BOUND 0x4
 void *i915_gem_object_alloc(struct drm_device *dev);
 void i915_gem_object_free(struct drm_i915_gem_object *obj);
 void i915_gem_object_init(struct drm_i915_gem_object *obj,
@@ -2623,20 +2618,16 @@ void i915_gem_vma_destroy(struct i915_vma *vma);
 #define PIN_GLOBAL 0x4
 #define PIN_OFFSET_BIAS 0x8
 #define PIN_OFFSET_MASK (~4095)
-int __must_check i915_gem_object_pin_view(struct drm_i915_gem_object *obj,
-					  struct i915_address_space *vm,
-					  uint32_t alignment,
-					  uint64_t flags,
-					  const struct i915_ggtt_view *view);
-static inline
-int __must_check i915_gem_object_pin(struct drm_i915_gem_object *obj,
-				     struct i915_address_space *vm,
-				     uint32_t alignment,
-				     uint64_t flags)
-{
-	return i915_gem_object_pin_view(obj, vm, alignment, flags,
-						&i915_ggtt_view_normal);
-}
+int __must_check
+i915_gem_object_pin(struct drm_i915_gem_object *obj,
+		    struct i915_address_space *vm,
+		    uint32_t alignment,
+		    uint64_t flags);
+int __must_check
+i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
+			 const struct i915_ggtt_view *view,
+			 uint32_t alignment,
+			 uint64_t flags);
 
 int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 		  u32 flags);
@@ -2776,8 +2767,10 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write);
 int __must_check
 i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 				     u32 alignment,
-				     struct intel_engine_cs *pipelined);
-void i915_gem_object_unpin_from_display_plane(struct drm_i915_gem_object *obj);
+				     struct intel_engine_cs *pipelined,
+				     const struct i915_ggtt_view *view);
+void i915_gem_object_unpin_from_display_plane(struct drm_i915_gem_object *obj,
+					      const struct i915_ggtt_view *view);
 int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj,
 				int align);
 int i915_gem_open(struct drm_device *dev, struct drm_file *file);
@@ -2800,60 +2793,46 @@ struct dma_buf *i915_gem_prime_export(struct drm_device *dev,
 
 void i915_gem_restore_fences(struct drm_device *dev);
 
-unsigned long i915_gem_obj_offset_view(struct drm_i915_gem_object *o,
-				       struct i915_address_space *vm,
-				       enum i915_ggtt_view_type view);
-static inline
-unsigned long i915_gem_obj_offset(struct drm_i915_gem_object *o,
-				  struct i915_address_space *vm)
+unsigned long
+i915_gem_obj_ggtt_offset_view(struct drm_i915_gem_object *o,
+			      const struct i915_ggtt_view *view);
+unsigned long
+i915_gem_obj_offset(struct drm_i915_gem_object *o,
+		    struct i915_address_space *vm);
+static inline unsigned long
+i915_gem_obj_ggtt_offset(struct drm_i915_gem_object *o)
 {
-	return i915_gem_obj_offset_view(o, vm, I915_GGTT_VIEW_NORMAL);
+	return i915_gem_obj_ggtt_offset_view(o, &i915_ggtt_view_normal);
 }
+
 bool i915_gem_obj_bound_any(struct drm_i915_gem_object *o);
-bool i915_gem_obj_bound_view(struct drm_i915_gem_object *o,
-			     struct i915_address_space *vm,
-			     enum i915_ggtt_view_type view);
-static inline
+bool i915_gem_obj_ggtt_bound_view(struct drm_i915_gem_object *o,
+				  const struct i915_ggtt_view *view);
 bool i915_gem_obj_bound(struct drm_i915_gem_object *o,
-			struct i915_address_space *vm)
-{
-	return i915_gem_obj_bound_view(o, vm, I915_GGTT_VIEW_NORMAL);
-}
+			struct i915_address_space *vm);
 
 unsigned long i915_gem_obj_size(struct drm_i915_gem_object *o,
 				struct i915_address_space *vm);
-struct i915_vma *i915_gem_obj_to_vma_view(struct drm_i915_gem_object *obj,
-					  struct i915_address_space *vm,
-					  const struct i915_ggtt_view *view);
-static inline
-struct i915_vma *i915_gem_obj_to_vma(struct drm_i915_gem_object *obj,
-				     struct i915_address_space *vm)
-{
-	return i915_gem_obj_to_vma_view(obj, vm, &i915_ggtt_view_normal);
-}
-
 struct i915_vma *
-i915_gem_obj_lookup_or_create_vma_view(struct drm_i915_gem_object *obj,
-				       struct i915_address_space *vm,
-				       const struct i915_ggtt_view *view);
+i915_gem_obj_to_vma(struct drm_i915_gem_object *obj,
+		    struct i915_address_space *vm);
+struct i915_vma *
+i915_gem_obj_to_ggtt_view(struct drm_i915_gem_object *obj,
+			  const struct i915_ggtt_view *view);
 
-static inline
 struct i915_vma *
 i915_gem_obj_lookup_or_create_vma(struct drm_i915_gem_object *obj,
-				  struct i915_address_space *vm)
-{
-	return i915_gem_obj_lookup_or_create_vma_view(obj, vm,
-						&i915_ggtt_view_normal);
-}
+				  struct i915_address_space *vm);
+struct i915_vma *
+i915_gem_obj_lookup_or_create_ggtt_vma(struct drm_i915_gem_object *obj,
+				       const struct i915_ggtt_view *view);
 
-struct i915_vma *i915_gem_obj_to_ggtt(struct drm_i915_gem_object *obj);
-static inline bool i915_gem_obj_is_pinned(struct drm_i915_gem_object *obj) {
-	struct i915_vma *vma;
-	list_for_each_entry(vma, &obj->vma_list, vma_link)
-		if (vma->pin_count > 0)
-			return true;
-	return false;
+static inline struct i915_vma *
+i915_gem_obj_to_ggtt(struct drm_i915_gem_object *obj)
+{
+	return i915_gem_obj_to_ggtt_view(obj, &i915_ggtt_view_normal);
 }
+bool i915_gem_obj_is_pinned(struct drm_i915_gem_object *obj);
 
 /* Some GGTT VM helpers */
 #define i915_obj_to_ggtt(obj) \
@@ -2876,13 +2855,7 @@ i915_vm_to_ppgtt(struct i915_address_space *vm)
 
 static inline bool i915_gem_obj_ggtt_bound(struct drm_i915_gem_object *obj)
 {
-	return i915_gem_obj_bound(obj, i915_obj_to_ggtt(obj));
-}
-
-static inline unsigned long
-i915_gem_obj_ggtt_offset(struct drm_i915_gem_object *obj)
-{
-	return i915_gem_obj_offset(obj, i915_obj_to_ggtt(obj));
+	return i915_gem_obj_ggtt_bound_view(obj, &i915_ggtt_view_normal);
 }
 
 static inline unsigned long
@@ -2906,7 +2879,13 @@ i915_gem_object_ggtt_unbind(struct drm_i915_gem_object *obj)
 	return i915_vma_unbind(i915_gem_obj_to_ggtt(obj));
 }
 
-void i915_gem_object_ggtt_unpin(struct drm_i915_gem_object *obj);
+void i915_gem_object_ggtt_unpin_view(struct drm_i915_gem_object *obj,
+				     const struct i915_ggtt_view *view);
+static inline void
+i915_gem_object_ggtt_unpin(struct drm_i915_gem_object *obj)
+{
+	i915_gem_object_ggtt_unpin_view(obj, &i915_ggtt_view_normal);
+}
 
 /* i915_gem_context.c */
 int __must_check i915_gem_context_init(struct drm_device *dev);
@@ -2977,6 +2956,17 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 					       u32 stolen_offset,
 					       u32 gtt_offset,
 					       u32 size);
+
+/* i915_gem_shrinker.c */
+unsigned long i915_gem_shrink(struct drm_i915_private *dev_priv,
+			      long target,
+			      unsigned flags);
+#define I915_SHRINK_PURGEABLE 0x1
+#define I915_SHRINK_UNBOUND 0x2
+#define I915_SHRINK_BOUND 0x4
+unsigned long i915_gem_shrink_all(struct drm_i915_private *dev_priv);
+void i915_gem_shrinker_init(struct drm_i915_private *dev_priv);
+
 
 /* i915_gem_tiling.c */
 static inline bool i915_gem_object_needs_bit17_swizzle(struct drm_i915_gem_object *obj)

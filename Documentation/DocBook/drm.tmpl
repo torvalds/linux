@@ -4184,13 +4184,24 @@ int num_ioctls;</synopsis>
       <sect2>
         <title>Buffer Object Eviction</title>
 	<para>
-	  This section documents the interface function for evicting buffer
+	  This section documents the interface functions for evicting buffer
 	  objects to make space available in the virtual gpu address spaces.
 	  Note that this is mostly orthogonal to shrinking buffer objects
 	  caches, which has the goal to make main memory (shared with the gpu
 	  through the unified memory architecture) available.
 	</para>
 !Idrivers/gpu/drm/i915/i915_gem_evict.c
+      </sect2>
+      <sect2>
+        <title>Buffer Object Memory Shrinking</title>
+	<para>
+	  This section documents the interface function for shrinking memory
+	  usage of buffer object caches. Shrinking is used to make main memory
+	  available.  Note that this is mostly orthogonal to evicting buffer
+	  objects, which has the goal to make space in gpu virtual address
+	  spaces.
+	</para>
+!Idrivers/gpu/drm/i915/i915_gem_shrinker.c
       </sect2>
     </sect1>
 
