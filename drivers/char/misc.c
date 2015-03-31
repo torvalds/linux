@@ -140,12 +140,17 @@ static int misc_open(struct inode * inode, struct file * file)
 			goto fail;
 	}
 
+	/*
+	 * Place the miscdevice in the file's
+	 * private_data so it can be used by the
+	 * file operations, including f_op->open below
+	 */
+	file->private_data = c;
+
 	err = 0;
 	replace_fops(file, new_fops);
-	if (file->f_op->open) {
-		file->private_data = c;
+	if (file->f_op->open)
 		err = file->f_op->open(inode,file);
-	}
 fail:
 	mutex_unlock(&misc_mtx);
 	return err;
