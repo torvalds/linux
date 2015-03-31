@@ -1407,32 +1407,12 @@ static ssize_t fuse_direct_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	return __fuse_direct_read(&io, to, &iocb->ki_pos);
 }
 
-static ssize_t __fuse_direct_write(struct fuse_io_priv *io,
-				   struct iov_iter *iter,
-				   loff_t *ppos)
-{
-	struct file *file = io->file;
-	struct inode *inode = file_inode(file);
-	size_t count = iov_iter_count(iter);
-	ssize_t res;
-
-
-	res = generic_write_checks(file, ppos, &count, 0);
-	if (!res) {
-		iov_iter_truncate(iter, count);
-		res = fuse_direct_io(io, iter, ppos, FUSE_DIO_WRITE);
-	}
-
-	fuse_invalidate_attr(inode);
-
-	return res;
-}
-
 static ssize_t fuse_direct_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
 	struct fuse_io_priv io = { .async = 0, .file = file };
+	size_t count = iov_iter_count(from);
 	ssize_t res;
 
 	if (is_bad_inode(inode))
@@ -1440,7 +1420,12 @@ static ssize_t fuse_direct_write_iter(struct kiocb *iocb, struct iov_iter *from)
 
 	/* Don't allow parallel writes to the same file */
 	mutex_lock(&inode->i_mutex);
-	res = __fuse_direct_write(&io, from, &iocb->ki_pos);
+	res = generic_write_checks(file, &iocb->ki_pos, &count, 0);
+	if (!res) {
+		iov_iter_truncate(from, count);
+		res = fuse_direct_io(&io, from, &iocb->ki_pos, FUSE_DIO_WRITE);
+	}
+	fuse_invalidate_attr(inode);
 	if (res > 0)
 		fuse_write_update_size(inode, iocb->ki_pos);
 	mutex_unlock(&inode->i_mutex);
@@ -2855,10 +2840,17 @@ fuse_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter,
 	if (io->async && is_sync_kiocb(iocb))
 		io->done = &wait;
 
-	if (rw == WRITE)
-		ret = __fuse_direct_write(io, iter, &pos);
-	else
+	if (rw == WRITE) {
+		ret = generic_write_checks(file, &pos, &count, 0);
+		if (!ret) {
+			iov_iter_truncate(iter, count);
+			ret = fuse_direct_io(io, iter, &pos, FUSE_DIO_WRITE);
+		}
+
+		fuse_invalidate_attr(inode);
+	} else {
 		ret = __fuse_direct_read(io, iter, &pos);
+	}
 
 	if (io->async) {
 		fuse_aio_complete(io, ret < 0 ? ret : 0, -1);
