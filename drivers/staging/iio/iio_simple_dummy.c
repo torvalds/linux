@@ -588,7 +588,7 @@ static int iio_dummy_probe(int index)
 	 * for chip specific state information.
 	 */
 	indio_dev = iio_device_alloc(sizeof(*st));
-	if (indio_dev == NULL) {
+	if (!indio_dev) {
 		ret = -ENOMEM;
 		goto error_ret;
 	}
