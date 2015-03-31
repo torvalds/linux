@@ -620,6 +620,8 @@ static int ssd1307fb_remove(struct i2c_client *client)
 	struct fb_info *info = i2c_get_clientdata(client);
 	struct ssd1307fb_par *par = info->par;
 
+	ssd1307fb_write_cmd(par->client, SSD1307FB_DISPLAY_OFF);
+
 	unregister_framebuffer(info);
 	if (par->device_info->need_pwm) {
 		pwm_disable(par->pwm);
