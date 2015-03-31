@@ -5886,6 +5886,11 @@ static int valleyview_get_display_clock_speed(struct drm_device *dev)
 	return DIV_ROUND_CLOSEST(dev_priv->hpll_freq << 1, divider + 1);
 }
 
+static int ilk_get_display_clock_speed(struct drm_device *dev)
+{
+	return 450000;
+}
+
 static int i945_get_display_clock_speed(struct drm_device *dev)
 {
 	return 400000;
@@ -13498,6 +13503,9 @@ static void intel_init_display(struct drm_device *dev)
 	if (IS_VALLEYVIEW(dev))
 		dev_priv->display.get_display_clock_speed =
 			valleyview_get_display_clock_speed;
+	else if (IS_GEN5(dev))
+		dev_priv->display.get_display_clock_speed =
+			ilk_get_display_clock_speed;
 	else if (IS_I945G(dev) || (IS_G33(dev) && !IS_PINEVIEW_M(dev)))
 		dev_priv->display.get_display_clock_speed =
 			i945_get_display_clock_speed;
