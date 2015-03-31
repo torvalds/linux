@@ -103,7 +103,7 @@ static int arizona_gpio_probe(struct platform_device *pdev)
 
 	arizona_gpio = devm_kzalloc(&pdev->dev, sizeof(*arizona_gpio),
 				    GFP_KERNEL);
-	if (arizona_gpio == NULL)
+	if (!arizona_gpio)
 		return -ENOMEM;
 
 	arizona_gpio->arizona = arizona;

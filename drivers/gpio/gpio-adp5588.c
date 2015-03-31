@@ -367,7 +367,7 @@ static int adp5588_gpio_probe(struct i2c_client *client,
 	struct gpio_chip *gc;
 	int ret, i, revid;
 
-	if (pdata == NULL) {
+	if (!pdata) {
 		dev_err(&client->dev, "missing platform data\n");
 		return -ENODEV;
 	}
@@ -379,7 +379,7 @@ static int adp5588_gpio_probe(struct i2c_client *client,
 	}
 
 	dev = devm_kzalloc(&client->dev, sizeof(*dev), GFP_KERNEL);
-	if (dev == NULL)
+	if (!dev)
 		return -ENOMEM;
 
 	dev->client = client;
