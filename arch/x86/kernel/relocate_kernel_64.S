@@ -123,7 +123,7 @@ identity_mapped:
 	 * Set cr4 to a known state:
 	 *  - physical address extension enabled
 	 */
-	movq	$X86_CR4_PAE, %rax
+	movl	$X86_CR4_PAE, %eax
 	movq	%rax, %cr4
 
 	jmp 1f
@@ -246,17 +246,17 @@ swap_pages:
 	movq	%rsi, %rax
 
 	movq	%r10, %rdi
-	movq	$512,   %rcx
+	movl	$512, %ecx
 	rep ; movsq
 
 	movq	%rax, %rdi
 	movq	%rdx, %rsi
-	movq	$512,   %rcx
+	movl	$512, %ecx
 	rep ; movsq
 
 	movq	%rdx, %rdi
 	movq	%r10, %rsi
-	movq	$512,   %rcx
+	movl	$512, %ecx
 	rep ; movsq
 
 	lea	PAGE_SIZE(%rax), %rsi
