@@ -99,11 +99,11 @@
 #define RSND_RATES SNDRV_PCM_RATE_8000_96000
 #define RSND_FMTS (SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S16_LE)
 
-static struct rsnd_of_data rsnd_of_data_gen1 = {
+static const struct rsnd_of_data rsnd_of_data_gen1 = {
 	.flags = RSND_GEN1,
 };
 
-static struct rsnd_of_data rsnd_of_data_gen2 = {
+static const struct rsnd_of_data rsnd_of_data_gen2 = {
 	.flags = RSND_GEN2,
 };
 
