@@ -124,7 +124,7 @@ static int iio_trig_periodic_rtc_probe(struct platform_device *dev)
 	int i, ret;
 
 	for (i = 0;; i++) {
-		if (pdata[i] == NULL)
+		if (!pdata[i])
 			break;
 		trig = iio_trigger_alloc("periodic%s", pdata[i]);
 		if (!trig) {
@@ -142,7 +142,7 @@ static int iio_trig_periodic_rtc_probe(struct platform_device *dev)
 		trig->ops = &iio_prtc_trigger_ops;
 		/* RTC access */
 		trig_info->rtc = rtc_class_open(pdata[i]);
-		if (trig_info->rtc == NULL) {
+		if (!trig_info->rtc) {
 			ret = -EINVAL;
 			goto error_free_trig_info;
 		}
