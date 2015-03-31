@@ -505,16 +505,247 @@ static void clk_unprepare_unused_subtree(struct clk_core *clk)
 	}
 }
 
+/***        clk api        ***/
+
+static void clk_core_unprepare(struct clk_core *clk)
+{
+	if (!clk)
+		return;
+
+	if (WARN_ON(clk->prepare_count == 0))
+		return;
+
+	if (--clk->prepare_count > 0)
+		return;
+
+	WARN_ON(clk->enable_count > 0);
+
+	trace_clk_unprepare(clk);
+
+	if (clk->ops->unprepare)
+		clk->ops->unprepare(clk->hw);
+
+	trace_clk_unprepare_complete(clk);
+	clk_core_unprepare(clk->parent);
+}
+
+/**
+ * clk_unprepare - undo preparation of a clock source
+ * @clk: the clk being unprepared
+ *
+ * clk_unprepare may sleep, which differentiates it from clk_disable.  In a
+ * simple case, clk_unprepare can be used instead of clk_disable to gate a clk
+ * if the operation may sleep.  One example is a clk which is accessed over
+ * I2c.  In the complex case a clk gate operation may require a fast and a slow
+ * part.  It is this reason that clk_unprepare and clk_disable are not mutually
+ * exclusive.  In fact clk_disable must be called before clk_unprepare.
+ */
+void clk_unprepare(struct clk *clk)
+{
+	if (IS_ERR_OR_NULL(clk))
+		return;
+
+	clk_prepare_lock();
+	clk_core_unprepare(clk->core);
+	clk_prepare_unlock();
+}
+EXPORT_SYMBOL_GPL(clk_unprepare);
+
+static int clk_core_prepare(struct clk_core *clk)
+{
+	int ret = 0;
+
+	if (!clk)
+		return 0;
+
+	if (clk->prepare_count == 0) {
+		ret = clk_core_prepare(clk->parent);
+		if (ret)
+			return ret;
+
+		trace_clk_prepare(clk);
+
+		if (clk->ops->prepare)
+			ret = clk->ops->prepare(clk->hw);
+
+		trace_clk_prepare_complete(clk);
+
+		if (ret) {
+			clk_core_unprepare(clk->parent);
+			return ret;
+		}
+	}
+
+	clk->prepare_count++;
+
+	return 0;
+}
+
+/**
+ * clk_prepare - prepare a clock source
+ * @clk: the clk being prepared
+ *
+ * clk_prepare may sleep, which differentiates it from clk_enable.  In a simple
+ * case, clk_prepare can be used instead of clk_enable to ungate a clk if the
+ * operation may sleep.  One example is a clk which is accessed over I2c.  In
+ * the complex case a clk ungate operation may require a fast and a slow part.
+ * It is this reason that clk_prepare and clk_enable are not mutually
+ * exclusive.  In fact clk_prepare must be called before clk_enable.
+ * Returns 0 on success, -EERROR otherwise.
+ */
+int clk_prepare(struct clk *clk)
+{
+	int ret;
+
+	if (!clk)
+		return 0;
+
+	clk_prepare_lock();
+	ret = clk_core_prepare(clk->core);
+	clk_prepare_unlock();
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(clk_prepare);
+
+static void clk_core_disable(struct clk_core *clk)
+{
+	if (!clk)
+		return;
+
+	if (WARN_ON(clk->enable_count == 0))
+		return;
+
+	if (--clk->enable_count > 0)
+		return;
+
+	trace_clk_disable(clk);
+
+	if (clk->ops->disable)
+		clk->ops->disable(clk->hw);
+
+	trace_clk_disable_complete(clk);
+
+	clk_core_disable(clk->parent);
+}
+
+static void __clk_disable(struct clk *clk)
+{
+	if (!clk)
+		return;
+
+	clk_core_disable(clk->core);
+}
+
+/**
+ * clk_disable - gate a clock
+ * @clk: the clk being gated
+ *
+ * clk_disable must not sleep, which differentiates it from clk_unprepare.  In
+ * a simple case, clk_disable can be used instead of clk_unprepare to gate a
+ * clk if the operation is fast and will never sleep.  One example is a
+ * SoC-internal clk which is controlled via simple register writes.  In the
+ * complex case a clk gate operation may require a fast and a slow part.  It is
+ * this reason that clk_unprepare and clk_disable are not mutually exclusive.
+ * In fact clk_disable must be called before clk_unprepare.
+ */
+void clk_disable(struct clk *clk)
+{
+	unsigned long flags;
+
+	if (IS_ERR_OR_NULL(clk))
+		return;
+
+	flags = clk_enable_lock();
+	__clk_disable(clk);
+	clk_enable_unlock(flags);
+}
+EXPORT_SYMBOL_GPL(clk_disable);
+
+static int clk_core_enable(struct clk_core *clk)
+{
+	int ret = 0;
+
+	if (!clk)
+		return 0;
+
+	if (WARN_ON(clk->prepare_count == 0))
+		return -ESHUTDOWN;
+
+	if (clk->enable_count == 0) {
+		ret = clk_core_enable(clk->parent);
+
+		if (ret)
+			return ret;
+
+		trace_clk_enable(clk);
+
+		if (clk->ops->enable)
+			ret = clk->ops->enable(clk->hw);
+
+		trace_clk_enable_complete(clk);
+
+		if (ret) {
+			clk_core_disable(clk->parent);
+			return ret;
+		}
+	}
+
+	clk->enable_count++;
+	return 0;
+}
+
+static int __clk_enable(struct clk *clk)
+{
+	if (!clk)
+		return 0;
+
+	return clk_core_enable(clk->core);
+}
+
+/**
+ * clk_enable - ungate a clock
+ * @clk: the clk being ungated
+ *
+ * clk_enable must not sleep, which differentiates it from clk_prepare.  In a
+ * simple case, clk_enable can be used instead of clk_prepare to ungate a clk
+ * if the operation will never sleep.  One example is a SoC-internal clk which
+ * is controlled via simple register writes.  In the complex case a clk ungate
+ * operation may require a fast and a slow part.  It is this reason that
+ * clk_enable and clk_prepare are not mutually exclusive.  In fact clk_prepare
+ * must be called before clk_enable.  Returns 0 on success, -EERROR
+ * otherwise.
+ */
+int clk_enable(struct clk *clk)
+{
+	unsigned long flags;
+	int ret;
+
+	flags = clk_enable_lock();
+	ret = __clk_enable(clk);
+	clk_enable_unlock(flags);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(clk_enable);
+
 /* caller must hold prepare_lock */
 static void clk_disable_unused_subtree(struct clk_core *clk)
 {
-	struct clk_core *child;
+	struct clk_core *child, *parent = NULL;
 	unsigned long flags;
 
 	lockdep_assert_held(&prepare_lock);
 
 	hlist_for_each_entry(child, &clk->children, child_node)
 		clk_disable_unused_subtree(child);
+
+	if (clk->flags & CLK_SET_PARENT_ON) {
+		parent = clk->parent;
+		WARN(!parent, "%s no parent found but has CLK_SET_PARENT_ON claimed\n", clk->name);
+		clk_core_prepare(parent);
+		clk_core_enable(parent);
+	}
 
 	flags = clk_enable_lock();
 
@@ -540,6 +771,11 @@ static void clk_disable_unused_subtree(struct clk_core *clk)
 
 unlock_out:
 	clk_enable_unlock(flags);
+	if (clk->flags & CLK_SET_PARENT_ON) {
+		clk_core_disable(parent);
+		clk_core_unprepare(parent);
+	}
+	return;
 }
 
 static bool clk_ignore_unused;
@@ -900,230 +1136,6 @@ long __clk_mux_determine_rate_closest(struct clk_hw *hw, unsigned long rate,
 }
 EXPORT_SYMBOL_GPL(__clk_mux_determine_rate_closest);
 
-/***        clk api        ***/
-
-static void clk_core_unprepare(struct clk_core *clk)
-{
-	if (!clk)
-		return;
-
-	if (WARN_ON(clk->prepare_count == 0))
-		return;
-
-	if (--clk->prepare_count > 0)
-		return;
-
-	WARN_ON(clk->enable_count > 0);
-
-	trace_clk_unprepare(clk);
-
-	if (clk->ops->unprepare)
-		clk->ops->unprepare(clk->hw);
-
-	trace_clk_unprepare_complete(clk);
-	clk_core_unprepare(clk->parent);
-}
-
-/**
- * clk_unprepare - undo preparation of a clock source
- * @clk: the clk being unprepared
- *
- * clk_unprepare may sleep, which differentiates it from clk_disable.  In a
- * simple case, clk_unprepare can be used instead of clk_disable to gate a clk
- * if the operation may sleep.  One example is a clk which is accessed over
- * I2c.  In the complex case a clk gate operation may require a fast and a slow
- * part.  It is this reason that clk_unprepare and clk_disable are not mutually
- * exclusive.  In fact clk_disable must be called before clk_unprepare.
- */
-void clk_unprepare(struct clk *clk)
-{
-	if (IS_ERR_OR_NULL(clk))
-		return;
-
-	clk_prepare_lock();
-	clk_core_unprepare(clk->core);
-	clk_prepare_unlock();
-}
-EXPORT_SYMBOL_GPL(clk_unprepare);
-
-static int clk_core_prepare(struct clk_core *clk)
-{
-	int ret = 0;
-
-	if (!clk)
-		return 0;
-
-	if (clk->prepare_count == 0) {
-		ret = clk_core_prepare(clk->parent);
-		if (ret)
-			return ret;
-
-		trace_clk_prepare(clk);
-
-		if (clk->ops->prepare)
-			ret = clk->ops->prepare(clk->hw);
-
-		trace_clk_prepare_complete(clk);
-
-		if (ret) {
-			clk_core_unprepare(clk->parent);
-			return ret;
-		}
-	}
-
-	clk->prepare_count++;
-
-	return 0;
-}
-
-/**
- * clk_prepare - prepare a clock source
- * @clk: the clk being prepared
- *
- * clk_prepare may sleep, which differentiates it from clk_enable.  In a simple
- * case, clk_prepare can be used instead of clk_enable to ungate a clk if the
- * operation may sleep.  One example is a clk which is accessed over I2c.  In
- * the complex case a clk ungate operation may require a fast and a slow part.
- * It is this reason that clk_prepare and clk_enable are not mutually
- * exclusive.  In fact clk_prepare must be called before clk_enable.
- * Returns 0 on success, -EERROR otherwise.
- */
-int clk_prepare(struct clk *clk)
-{
-	int ret;
-
-	if (!clk)
-		return 0;
-
-	clk_prepare_lock();
-	ret = clk_core_prepare(clk->core);
-	clk_prepare_unlock();
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(clk_prepare);
-
-static void clk_core_disable(struct clk_core *clk)
-{
-	if (!clk)
-		return;
-
-	if (WARN_ON(clk->enable_count == 0))
-		return;
-
-	if (--clk->enable_count > 0)
-		return;
-
-	trace_clk_disable(clk);
-
-	if (clk->ops->disable)
-		clk->ops->disable(clk->hw);
-
-	trace_clk_disable_complete(clk);
-
-	clk_core_disable(clk->parent);
-}
-
-static void __clk_disable(struct clk *clk)
-{
-	if (!clk)
-		return;
-
-	clk_core_disable(clk->core);
-}
-
-/**
- * clk_disable - gate a clock
- * @clk: the clk being gated
- *
- * clk_disable must not sleep, which differentiates it from clk_unprepare.  In
- * a simple case, clk_disable can be used instead of clk_unprepare to gate a
- * clk if the operation is fast and will never sleep.  One example is a
- * SoC-internal clk which is controlled via simple register writes.  In the
- * complex case a clk gate operation may require a fast and a slow part.  It is
- * this reason that clk_unprepare and clk_disable are not mutually exclusive.
- * In fact clk_disable must be called before clk_unprepare.
- */
-void clk_disable(struct clk *clk)
-{
-	unsigned long flags;
-
-	if (IS_ERR_OR_NULL(clk))
-		return;
-
-	flags = clk_enable_lock();
-	__clk_disable(clk);
-	clk_enable_unlock(flags);
-}
-EXPORT_SYMBOL_GPL(clk_disable);
-
-static int clk_core_enable(struct clk_core *clk)
-{
-	int ret = 0;
-
-	if (!clk)
-		return 0;
-
-	if (WARN_ON(clk->prepare_count == 0))
-		return -ESHUTDOWN;
-
-	if (clk->enable_count == 0) {
-		ret = clk_core_enable(clk->parent);
-
-		if (ret)
-			return ret;
-
-		trace_clk_enable(clk);
-
-		if (clk->ops->enable)
-			ret = clk->ops->enable(clk->hw);
-
-		trace_clk_enable_complete(clk);
-
-		if (ret) {
-			clk_core_disable(clk->parent);
-			return ret;
-		}
-	}
-
-	clk->enable_count++;
-	return 0;
-}
-
-static int __clk_enable(struct clk *clk)
-{
-	if (!clk)
-		return 0;
-
-	return clk_core_enable(clk->core);
-}
-
-/**
- * clk_enable - ungate a clock
- * @clk: the clk being ungated
- *
- * clk_enable must not sleep, which differentiates it from clk_prepare.  In a
- * simple case, clk_enable can be used instead of clk_prepare to ungate a clk
- * if the operation will never sleep.  One example is a SoC-internal clk which
- * is controlled via simple register writes.  In the complex case a clk ungate
- * operation may require a fast and a slow part.  It is this reason that
- * clk_enable and clk_prepare are not mutually exclusive.  In fact clk_prepare
- * must be called before clk_enable.  Returns 0 on success, -EERROR
- * otherwise.
- */
-int clk_enable(struct clk *clk)
-{
-	unsigned long flags;
-	int ret;
-
-	flags = clk_enable_lock();
-	ret = __clk_enable(clk);
-	clk_enable_unlock(flags);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(clk_enable);
-
 static unsigned long clk_core_round_rate_nolock(struct clk_core *clk,
 						unsigned long rate,
 						unsigned long min_rate,
@@ -1458,7 +1470,7 @@ static struct clk_core *__clk_set_parent_before(struct clk_core *clk,
 	struct clk_core *old_parent = clk->parent;
 
 	/*
-	 * Migrate prepare state between parents and prevent race with
+	 * 1. Migrate prepare state between parents and prevent race with
 	 * clk_enable().
 	 *
 	 * If the clock is not prepared, then a race with
@@ -1473,12 +1485,20 @@ static struct clk_core *__clk_set_parent_before(struct clk_core *clk,
 	 * hardware and software states.
 	 *
 	 * See also: Comment for clk_set_parent() below.
+	 *
+	 * 2. enable two parents clock for .set_parent() operation if finding
+	 * flag CLK_SET_PARENT_ON
 	 */
-	if (clk->prepare_count) {
+	if (clk->prepare_count || clk->flags & CLK_SET_PARENT_ON) {
 		clk_core_prepare(parent);
 		flags = clk_enable_lock();
 		clk_core_enable(parent);
-		clk_core_enable(clk);
+		if (clk->prepare_count) {
+			clk_core_enable(clk);
+		} else {
+			clk_core_prepare(old_parent);
+			clk_core_enable(old_parent);
+		}
 		clk_enable_unlock(flags);
 	}
 
@@ -1500,12 +1520,17 @@ static void __clk_set_parent_after(struct clk_core *core,
 	 * Finish the migration of prepare state and undo the changes done
 	 * for preventing a race with clk_enable().
 	 */
-	if (core->prepare_count) {
+	if (core->prepare_count || core->flags & CLK_SET_PARENT_ON) {
 		flags = clk_enable_lock();
-		clk_core_disable(core);
 		clk_core_disable(old_parent);
-		clk_enable_unlock(flags);
 		clk_core_unprepare(old_parent);
+		if (core->prepare_count) {
+			clk_core_disable(core);
+		} else {
+			clk_core_disable(parent);
+			clk_core_unprepare(parent);
+		}
+		clk_enable_unlock(flags);
 	}
 }
 
@@ -1531,13 +1556,19 @@ static int __clk_set_parent(struct clk_core *clk, struct clk_core *parent,
 		clk_reparent(clk, old_parent);
 		clk_enable_unlock(flags);
 
-		if (clk->prepare_count) {
+		if (clk->prepare_count || clk->flags & CLK_SET_PARENT_ON) {
 			flags = clk_enable_lock();
-			clk_core_disable(clk);
 			clk_core_disable(parent);
-			clk_enable_unlock(flags);
 			clk_core_unprepare(parent);
+			if (clk->prepare_count) {
+				clk_core_disable(clk);
+			} else {
+				clk_core_disable(old_parent);
+				clk_core_unprepare(old_parent);
+			}
+			clk_enable_unlock(flags);
 		}
+
 		return ret;
 	}
 
@@ -1751,14 +1782,17 @@ static void clk_change_rate(struct clk_core *clk)
 	unsigned long old_rate;
 	unsigned long best_parent_rate = 0;
 	bool skip_set_rate = false;
-	struct clk_core *old_parent;
+	struct clk_core *old_parent, *parent = NULL;
 
 	old_rate = clk->rate;
 
-	if (clk->new_parent)
+	if (clk->new_parent) {
+		parent = clk->new_parent;
 		best_parent_rate = clk->new_parent->rate;
-	else if (clk->parent)
+	} else if (clk->parent) {
+		parent = clk->parent;
 		best_parent_rate = clk->parent->rate;
+	}
 
 	if (clk->new_parent && clk->new_parent != clk->parent) {
 		old_parent = __clk_set_parent_before(clk, clk->new_parent);
@@ -1778,6 +1812,10 @@ static void clk_change_rate(struct clk_core *clk)
 	}
 
 	trace_clk_set_rate(clk, clk->new_rate);
+	if (clk->flags & CLK_SET_PARENT_ON && parent) {
+		clk_core_prepare(parent);
+		clk_core_enable(parent);
+	}
 
 	if (!skip_set_rate && clk->ops->set_rate)
 		clk->ops->set_rate(clk->hw, clk->new_rate, best_parent_rate);
@@ -1785,6 +1823,11 @@ static void clk_change_rate(struct clk_core *clk)
 	trace_clk_set_rate_complete(clk, clk->new_rate);
 
 	clk->rate = clk_recalc(clk, best_parent_rate);
+
+	if (clk->flags & CLK_SET_PARENT_ON && parent) {
+		clk_core_disable(parent);
+		clk_core_unprepare(parent);
+	}
 
 	if (clk->notifier_count && old_rate != clk->rate)
 		__clk_notify(clk, POST_RATE_CHANGE, old_rate, clk->rate);
