@@ -966,9 +966,7 @@ static void rs_throttle(struct tty_struct * tty)
 	struct serial_state *info = tty->driver_data;
 	unsigned long flags;
 #ifdef SERIAL_DEBUG_THROTTLE
-	char	buf[64];
-
-	printk("throttle %s: %d....\n", tty_name(tty, buf),
+	printk("throttle %s: %d....\n", tty_name(tty),
 	       tty->ldisc.chars_in_buffer(tty));
 #endif
 
@@ -991,9 +989,7 @@ static void rs_unthrottle(struct tty_struct * tty)
 	struct serial_state *info = tty->driver_data;
 	unsigned long flags;
 #ifdef SERIAL_DEBUG_THROTTLE
-	char	buf[64];
-
-	printk("unthrottle %s: %d....\n", tty_name(tty, buf),
+	printk("unthrottle %s: %d....\n", tty_name(tty),
 	       tty->ldisc.chars_in_buffer(tty));
 #endif
 
