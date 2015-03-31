@@ -1146,7 +1146,7 @@ static u64 h_24x7_get_value(struct perf_event *event)
 	return ct;
 }
 
-static void h_24x7_event_update(struct perf_event *event)
+static void h_24x7_event_read(struct perf_event *event)
 {
 	s64 prev;
 	u64 now;
@@ -1163,7 +1163,7 @@ static void h_24x7_event_start(struct perf_event *event, int flags)
 
 static void h_24x7_event_stop(struct perf_event *event, int flags)
 {
-	h_24x7_event_update(event);
+	h_24x7_event_read(event);
 }
 
 static int h_24x7_event_add(struct perf_event *event, int flags)
@@ -1184,7 +1184,7 @@ static struct pmu h_24x7_pmu = {
 	.del         = h_24x7_event_stop,
 	.start       = h_24x7_event_start,
 	.stop        = h_24x7_event_stop,
-	.read        = h_24x7_event_update,
+	.read        = h_24x7_event_read,
 };
 
 static int hv_24x7_init(void)
