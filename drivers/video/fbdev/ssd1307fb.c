@@ -235,6 +235,16 @@ static ssize_t ssd1307fb_write(struct fb_info *info, const char __user *buf,
 	return count;
 }
 
+static int ssd1307fb_blank(int blank_mode, struct fb_info *info)
+{
+	struct ssd1307fb_par *par = info->par;
+
+	if (blank_mode != FB_BLANK_UNBLANK)
+		return ssd1307fb_write_cmd(par->client, SSD1307FB_DISPLAY_OFF);
+	else
+		return ssd1307fb_write_cmd(par->client, SSD1307FB_DISPLAY_ON);
+}
+
 static void ssd1307fb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 {
 	struct ssd1307fb_par *par = info->par;
@@ -260,6 +270,7 @@ static struct fb_ops ssd1307fb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_read	= fb_sys_read,
 	.fb_write	= ssd1307fb_write,
+	.fb_blank	= ssd1307fb_blank,
 	.fb_fillrect	= ssd1307fb_fillrect,
 	.fb_copyarea	= ssd1307fb_copyarea,
 	.fb_imageblit	= ssd1307fb_imageblit,
