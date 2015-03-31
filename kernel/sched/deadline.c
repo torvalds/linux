@@ -514,7 +514,7 @@ static enum hrtimer_restart dl_task_timer(struct hrtimer *timer)
 	unsigned long flags;
 	struct rq *rq;
 
-	rq = task_rq_lock(current, &flags);
+	rq = task_rq_lock(p, &flags);
 
 	/*
 	 * We need to take care of several possible races here:
@@ -569,7 +569,7 @@ static enum hrtimer_restart dl_task_timer(struct hrtimer *timer)
 		push_dl_task(rq);
 #endif
 unlock:
-	task_rq_unlock(rq, current, &flags);
+	task_rq_unlock(rq, p, &flags);
 
 	return HRTIMER_NORESTART;
 }
