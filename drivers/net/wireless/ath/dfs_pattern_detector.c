@@ -41,7 +41,8 @@ struct radar_types {
 
 /* percentage on ppb threshold to trigger detection */
 #define MIN_PPB_THRESH	50
-#define PPB_THRESH(PPB) ((PPB * MIN_PPB_THRESH + 50) / 100)
+#define PPB_THRESH_RATE(PPB, RATE) ((PPB * RATE + 100 - RATE) / 100)
+#define PPB_THRESH(PPB) PPB_THRESH_RATE(PPB, MIN_PPB_THRESH)
 #define PRF2PRI(PRF) ((1000000 + PRF / 2) / PRF)
 /* percentage of pulse width tolerance */
 #define WIDTH_TOLERANCE 5
@@ -105,17 +106,23 @@ static const struct radar_types fcc_radar_types = {
 	.radar_types		= fcc_radar_ref_types,
 };
 
-#define JP_PATTERN FCC_PATTERN
+#define JP_PATTERN(ID, WMIN, WMAX, PMIN, PMAX, PRF, PPB, RATE, CHIRP)	\
+{								\
+	ID, WIDTH_LOWER(WMIN), WIDTH_UPPER(WMAX),		\
+	PMIN - PRI_TOLERANCE,					\
+	PMAX * PRF + PRI_TOLERANCE, PRF, PPB * PRF,		\
+	PPB_THRESH_RATE(PPB, RATE), PRI_TOLERANCE, CHIRP	\
+}
 static const struct radar_detector_specs jp_radar_ref_types[] = {
-	JP_PATTERN(0, 0, 1, 1428, 1428, 1, 18, false),
-	JP_PATTERN(1, 2, 3, 3846, 3846, 1, 18, false),
-	JP_PATTERN(2, 0, 1, 1388, 1388, 1, 18, false),
-	JP_PATTERN(3, 1, 2, 4000, 4000, 1, 18, false),
-	JP_PATTERN(4, 0, 5, 150, 230, 1, 23, false),
-	JP_PATTERN(5, 6, 10, 200, 500, 1, 16, false),
-	JP_PATTERN(6, 11, 20, 200, 500, 1, 12, false),
-	JP_PATTERN(7, 50, 100, 1000, 2000, 1, 20, false),
-	JP_PATTERN(5, 0, 1, 333, 333, 1, 9, false),
+	JP_PATTERN(0, 0, 1, 1428, 1428, 1, 18, 50, false),
+	JP_PATTERN(1, 2, 3, 3846, 3846, 1, 18, 50, false),
+	JP_PATTERN(2, 0, 1, 1388, 1388, 1, 18, 50, false),
+	JP_PATTERN(3, 1, 2, 4000, 4000, 1, 18, 50, false),
+	JP_PATTERN(4, 0, 5, 150, 230, 1, 23, 50, false),
+	JP_PATTERN(5, 6, 10, 200, 500, 1, 16, 50, false),
+	JP_PATTERN(6, 11, 20, 200, 500, 1, 12, 50, false),
+	JP_PATTERN(7, 50, 100, 1000, 2000, 1, 20, 50, false),
+	JP_PATTERN(5, 0, 1, 333, 333, 1, 9, 50, false),
 };
 
 static const struct radar_types jp_radar_types = {
