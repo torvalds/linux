@@ -137,7 +137,7 @@ static void __init sun5i_timer_init(struct device_node *node)
 	int ret, irq;
 	u32 val;
 
-	timer_base = of_iomap(node, 0);
+	timer_base = of_io_request_and_map(node, 0, of_node_full_name(node));
 	if (!timer_base)
 		panic("Can't map registers");
 
