@@ -151,14 +151,15 @@ static void uninit_mqd_sdma(struct mqd_manager *mm, void *mqd,
 static int load_mqd(struct mqd_manager *mm, void *mqd, uint32_t pipe_id,
 			uint32_t queue_id, uint32_t __user *wptr)
 {
-	return kfd2kgd->hqd_load(mm->dev->kgd, mqd, pipe_id, queue_id, wptr);
+	return mm->dev->kfd2kgd->hqd_load
+		(mm->dev->kgd, mqd, pipe_id, queue_id, wptr);
 }
 
 static int load_mqd_sdma(struct mqd_manager *mm, void *mqd,
 			uint32_t pipe_id, uint32_t queue_id,
 			uint32_t __user *wptr)
 {
-	return kfd2kgd->hqd_sdma_load(mm->dev->kgd, mqd);
+	return mm->dev->kfd2kgd->hqd_sdma_load(mm->dev->kgd, mqd);
 }
 
 static int update_mqd(struct mqd_manager *mm, void *mqd,
@@ -245,7 +246,7 @@ static int destroy_mqd(struct mqd_manager *mm, void *mqd,
 			unsigned int timeout, uint32_t pipe_id,
 			uint32_t queue_id)
 {
-	return kfd2kgd->hqd_destroy(mm->dev->kgd, type, timeout,
+	return mm->dev->kfd2kgd->hqd_destroy(mm->dev->kgd, type, timeout,
 					pipe_id, queue_id);
 }
 
@@ -258,7 +259,7 @@ static int destroy_mqd_sdma(struct mqd_manager *mm, void *mqd,
 				unsigned int timeout, uint32_t pipe_id,
 				uint32_t queue_id)
 {
-	return kfd2kgd->hqd_sdma_destroy(mm->dev->kgd, mqd, timeout);
+	return mm->dev->kfd2kgd->hqd_sdma_destroy(mm->dev->kgd, mqd, timeout);
 }
 
 static bool is_occupied(struct mqd_manager *mm, void *mqd,
@@ -266,7 +267,7 @@ static bool is_occupied(struct mqd_manager *mm, void *mqd,
 			uint32_t queue_id)
 {
 
-	return kfd2kgd->hqd_is_occupied(mm->dev->kgd, queue_address,
+	return mm->dev->kfd2kgd->hqd_is_occupied(mm->dev->kgd, queue_address,
 					pipe_id, queue_id);
 
 }
@@ -275,7 +276,7 @@ static bool is_occupied_sdma(struct mqd_manager *mm, void *mqd,
 			uint64_t queue_address,	uint32_t pipe_id,
 			uint32_t queue_id)
 {
-	return kfd2kgd->hqd_sdma_is_occupied(mm->dev->kgd, mqd);
+	return mm->dev->kfd2kgd->hqd_sdma_is_occupied(mm->dev->kgd, mqd);
 }
 
 /*
