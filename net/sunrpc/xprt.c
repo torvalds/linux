@@ -1331,7 +1331,6 @@ static void xprt_init(struct rpc_xprt *xprt, struct net *net)
  */
 struct rpc_xprt *xprt_create_transport(struct xprt_create *args)
 {
-	int err;
 	struct rpc_xprt	*xprt;
 	struct xprt_class *t;
 
@@ -1372,11 +1371,7 @@ found:
 		return ERR_PTR(-ENOMEM);
 	}
 
-	err = rpc_xprt_debugfs_register(xprt);
-	if (err) {
-		xprt_destroy(xprt);
-		return ERR_PTR(err);
-	}
+	rpc_xprt_debugfs_register(xprt);
 
 	dprintk("RPC:       created transport %p with %u slots\n", xprt,
 			xprt->max_reqs);
