@@ -287,8 +287,7 @@ void of_scan_pci_bridge(struct pci_dev *dev)
 	pr_debug("    bus name: %s\n", bus->name);
 
 	mode = PCI_PROBE_NORMAL;
-	if (ppc_md.pci_probe_mode)
-		mode = ppc_md.pci_probe_mode(bus);
+	mode = pci_probe_mode(bus);
 	pr_debug("    probe mode: %d\n", mode);
 
 	if (mode == PCI_PROBE_DEVTREE)

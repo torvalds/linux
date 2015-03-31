@@ -12,6 +12,11 @@
 #include <linux/ioport.h>
 #include <asm-generic/pci-bridge.h>
 
+/* Return values for pci_controller_ops.probe_mode function */
+#define PCI_PROBE_NONE		-1	/* Don't look at this bus at all */
+#define PCI_PROBE_NORMAL	0	/* Do normal PCI probing */
+#define PCI_PROBE_DEVTREE	1	/* Instantiate from device tree */
+
 struct device_node;
 
 /*
@@ -20,6 +25,8 @@ struct device_node;
 struct pci_controller_ops {
 	void		(*dma_dev_setup)(struct pci_dev *dev);
 	void		(*dma_bus_setup)(struct pci_bus *bus);
+
+	int		(*probe_mode)(struct pci_bus *);
 };
 
 /*
@@ -290,6 +297,17 @@ static inline void pci_dma_bus_setup(struct pci_bus *bus)
 		phb->controller_ops.dma_bus_setup(bus);
 	else if (ppc_md.pci_dma_bus_setup)
 		ppc_md.pci_dma_bus_setup(bus);
+}
+
+static inline int pci_probe_mode(struct pci_bus *bus)
+{
+	struct pci_controller *phb = pci_bus_to_host(bus);
+
+	if (phb->controller_ops.probe_mode)
+		return phb->controller_ops.probe_mode(bus);
+	if (ppc_md.pci_probe_mode)
+		return ppc_md.pci_probe_mode(bus);
+	return PCI_PROBE_NORMAL;
 }
 
 #endif	/* __KERNEL__ */

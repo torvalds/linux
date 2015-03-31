@@ -78,8 +78,7 @@ void pcibios_add_pci_devices(struct pci_bus * bus)
 	eeh_add_device_tree_early(PCI_DN(dn));
 
 	mode = PCI_PROBE_NORMAL;
-	if (ppc_md.pci_probe_mode)
-		mode = ppc_md.pci_probe_mode(bus);
+	mode = pci_probe_mode(bus);
 
 	if (mode == PCI_PROBE_DEVTREE) {
 		/* use ofdt-based probe */
