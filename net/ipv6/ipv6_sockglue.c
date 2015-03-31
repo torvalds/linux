@@ -85,7 +85,7 @@ int ip6_ra_control(struct sock *sk, int sel)
 			return 0;
 		}
 	}
-	if (new_ra == NULL) {
+	if (!new_ra) {
 		write_unlock_bh(&ip6_ra_lock);
 		return -ENOBUFS;
 	}
@@ -145,7 +145,7 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 	int retv = -ENOPROTOOPT;
 	bool needs_rtnl = setsockopt_needs_rtnl(optname);
 
-	if (optval == NULL)
+	if (!optval)
 		val = 0;
 	else {
 		if (optlen >= sizeof(int)) {
@@ -392,7 +392,7 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 		 */
 		if (optlen == 0)
 			optval = NULL;
-		else if (optval == NULL)
+		else if (!optval)
 			goto e_inval;
 		else if (optlen < sizeof(struct ipv6_opt_hdr) ||
 			 optlen & 0x7 || optlen > 8 * 255)
@@ -443,7 +443,7 @@ sticky_done:
 
 		if (optlen == 0)
 			goto e_inval;
-		else if (optlen < sizeof(struct in6_pktinfo) || optval == NULL)
+		else if (optlen < sizeof(struct in6_pktinfo) || !optval)
 			goto e_inval;
 
 		if (copy_from_user(&pkt, optval, sizeof(struct in6_pktinfo))) {
@@ -482,7 +482,7 @@ sticky_done:
 
 		opt = sock_kmalloc(sk, sizeof(*opt) + optlen, GFP_KERNEL);
 		retv = -ENOBUFS;
-		if (opt == NULL)
+		if (!opt)
 			break;
 
 		memset(opt, 0, sizeof(*opt));

@@ -221,7 +221,7 @@ resubmit:
 
 	raw = raw6_local_deliver(skb, nexthdr);
 	ipprot = rcu_dereference(inet6_protos[nexthdr]);
-	if (ipprot != NULL) {
+	if (ipprot) {
 		int ret;
 
 		if (ipprot->flags & INET6_PROTO_FINAL) {

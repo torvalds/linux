@@ -218,7 +218,7 @@ static struct ip6_tnl *vti6_tnl_create(struct net *net, struct __ip6_tnl_parm *p
 		sprintf(name, "ip6_vti%%d");
 
 	dev = alloc_netdev(sizeof(*t), name, NET_NAME_UNKNOWN, vti6_dev_setup);
-	if (dev == NULL)
+	if (!dev)
 		goto failed;
 
 	dev_net_set(dev, net);
@@ -305,7 +305,7 @@ static int vti6_rcv(struct sk_buff *skb)
 
 	rcu_read_lock();
 	t = vti6_tnl_lookup(dev_net(skb->dev), &ipv6h->saddr, &ipv6h->daddr);
-	if (t != NULL) {
+	if (t) {
 		if (t->parms.proto != IPPROTO_IPV6 && t->parms.proto != 0) {
 			rcu_read_unlock();
 			goto discard;
@@ -716,7 +716,7 @@ vti6_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		} else {
 			memset(&p, 0, sizeof(p));
 		}
-		if (t == NULL)
+		if (!t)
 			t = netdev_priv(dev);
 		vti6_parm_to_user(&p, &t->parms);
 		if (copy_to_user(ifr->ifr_ifru.ifru_data, &p, sizeof(p)))
@@ -736,7 +736,7 @@ vti6_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		vti6_parm_from_user(&p1, &p);
 		t = vti6_locate(net, &p1, cmd == SIOCADDTUNNEL);
 		if (dev != ip6n->fb_tnl_dev && cmd == SIOCCHGTUNNEL) {
-			if (t != NULL) {
+			if (t) {
 				if (t->dev != dev) {
 					err = -EEXIST;
 					break;
@@ -767,7 +767,7 @@ vti6_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			err = -ENOENT;
 			vti6_parm_from_user(&p1, &p);
 			t = vti6_locate(net, &p1, 0);
-			if (t == NULL)
+			if (!t)
 				break;
 			err = -EPERM;
 			if (t->dev == ip6n->fb_tnl_dev)
@@ -1027,7 +1027,7 @@ static void __net_exit vti6_destroy_tunnels(struct vti6_net *ip6n)
 
 	for (h = 0; h < HASH_SIZE; h++) {
 		t = rtnl_dereference(ip6n->tnls_r_l[h]);
-		while (t != NULL) {
+		while (t) {
 			unregister_netdevice_queue(t->dev, &list);
 			t = rtnl_dereference(t->next);
 		}

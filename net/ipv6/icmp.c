@@ -160,8 +160,7 @@ static bool is_ineligible(const struct sk_buff *skb)
 		tp = skb_header_pointer(skb,
 			ptr+offsetof(struct icmp6hdr, icmp6_type),
 			sizeof(_type), &_type);
-		if (tp == NULL ||
-		    !(*tp & ICMPV6_INFOMSG_MASK))
+		if (!tp || !(*tp & ICMPV6_INFOMSG_MASK))
 			return true;
 	}
 	return false;
@@ -231,7 +230,7 @@ static bool opt_unrec(struct sk_buff *skb, __u32 offset)
 
 	offset += skb_network_offset(skb);
 	op = skb_header_pointer(skb, offset, sizeof(_optval), &_optval);
-	if (op == NULL)
+	if (!op)
 		return true;
 	return (*op & 0xC0) == 0x80;
 }
@@ -244,7 +243,7 @@ int icmpv6_push_pending_frames(struct sock *sk, struct flowi6 *fl6,
 	int err = 0;
 
 	skb = skb_peek(&sk->sk_write_queue);
-	if (skb == NULL)
+	if (!skb)
 		goto out;
 
 	icmp6h = icmp6_hdr(skb);
@@ -479,7 +478,7 @@ static void icmp6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info)
 	security_skb_classify_flow(skb, flowi6_to_flowi(&fl6));
 
 	sk = icmpv6_xmit_lock(net);
-	if (sk == NULL)
+	if (!sk)
 		return;
 	sk->sk_mark = mark;
 	np = inet6_sk(sk);
@@ -582,7 +581,7 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	security_skb_classify_flow(skb, flowi6_to_flowi(&fl6));
 
 	sk = icmpv6_xmit_lock(net);
-	if (sk == NULL)
+	if (!sk)
 		return;
 	sk->sk_mark = mark;
 	np = inet6_sk(sk);
@@ -839,7 +838,7 @@ static int __net_init icmpv6_sk_init(struct net *net)
 
 	net->ipv6.icmp_sk =
 		kzalloc(nr_cpu_ids * sizeof(struct sock *), GFP_KERNEL);
-	if (net->ipv6.icmp_sk == NULL)
+	if (!net->ipv6.icmp_sk)
 		return -ENOMEM;
 
 	for_each_possible_cpu(i) {

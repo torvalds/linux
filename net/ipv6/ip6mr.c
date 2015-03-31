@@ -173,7 +173,7 @@ static int ip6mr_rule_action(struct fib_rule *rule, struct flowi *flp,
 	}
 
 	mrt = ip6mr_get_table(rule->fr_net, rule->table);
-	if (mrt == NULL)
+	if (!mrt)
 		return -EAGAIN;
 	res->mrt = mrt;
 	return 0;
@@ -237,7 +237,7 @@ static int __net_init ip6mr_rules_init(struct net *net)
 	INIT_LIST_HEAD(&net->ipv6.mr6_tables);
 
 	mrt = ip6mr_new_table(net, RT6_TABLE_DFLT);
-	if (mrt == NULL) {
+	if (!mrt) {
 		err = -ENOMEM;
 		goto err1;
 	}
@@ -305,11 +305,11 @@ static struct mr6_table *ip6mr_new_table(struct net *net, u32 id)
 	unsigned int i;
 
 	mrt = ip6mr_get_table(net, id);
-	if (mrt != NULL)
+	if (mrt)
 		return mrt;
 
 	mrt = kzalloc(sizeof(*mrt), GFP_KERNEL);
-	if (mrt == NULL)
+	if (!mrt)
 		return NULL;
 	mrt->id = id;
 	write_pnet(&mrt->net, net);
@@ -408,7 +408,7 @@ static void *ip6mr_vif_seq_start(struct seq_file *seq, loff_t *pos)
 	struct mr6_table *mrt;
 
 	mrt = ip6mr_get_table(net, RT6_TABLE_DFLT);
-	if (mrt == NULL)
+	if (!mrt)
 		return ERR_PTR(-ENOENT);
 
 	iter->mrt = mrt;
@@ -492,7 +492,7 @@ static void *ipmr_mfc_seq_start(struct seq_file *seq, loff_t *pos)
 	struct mr6_table *mrt;
 
 	mrt = ip6mr_get_table(net, RT6_TABLE_DFLT);
-	if (mrt == NULL)
+	if (!mrt)
 		return ERR_PTR(-ENOENT);
 
 	it->mrt = mrt;
@@ -665,7 +665,7 @@ static int pim6_rcv(struct sk_buff *skb)
 		dev_hold(reg_dev);
 	read_unlock(&mrt_lock);
 
-	if (reg_dev == NULL)
+	if (!reg_dev)
 		goto drop;
 
 	skb->mac_header = skb->network_header;
@@ -743,7 +743,7 @@ static struct net_device *ip6mr_reg_vif(struct net *net, struct mr6_table *mrt)
 		sprintf(name, "pim6reg%u", mrt->id);
 
 	dev = alloc_netdev(0, name, NET_NAME_UNKNOWN, reg_vif_setup);
-	if (dev == NULL)
+	if (!dev)
 		return NULL;
 
 	dev_net_set(dev, net);
@@ -1072,7 +1072,7 @@ skip:
 static struct mfc6_cache *ip6mr_cache_alloc(void)
 {
 	struct mfc6_cache *c = kmem_cache_zalloc(mrt_cachep, GFP_KERNEL);
-	if (c == NULL)
+	if (!c)
 		return NULL;
 	c->mfc_un.res.minvif = MAXMIFS;
 	return c;
@@ -1081,7 +1081,7 @@ static struct mfc6_cache *ip6mr_cache_alloc(void)
 static struct mfc6_cache *ip6mr_cache_alloc_unres(void)
 {
 	struct mfc6_cache *c = kmem_cache_zalloc(mrt_cachep, GFP_ATOMIC);
-	if (c == NULL)
+	if (!c)
 		return NULL;
 	skb_queue_head_init(&c->mfc_un.unres.unresolved);
 	c->mfc_un.unres.expires = jiffies + 10 * HZ;
@@ -1198,7 +1198,7 @@ static int ip6mr_cache_report(struct mr6_table *mrt, struct sk_buff *pkt,
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
 
-	if (mrt->mroute6_sk == NULL) {
+	if (!mrt->mroute6_sk) {
 		kfree_skb(skb);
 		return -EINVAL;
 	}
@@ -1493,7 +1493,7 @@ static int ip6mr_mfc_add(struct net *net, struct mr6_table *mrt,
 		return -EINVAL;
 
 	c = ip6mr_cache_alloc();
-	if (c == NULL)
+	if (!c)
 		return -ENOMEM;
 
 	c->mf6c_origin = mfc->mf6cc_origin.sin6_addr;
@@ -1663,7 +1663,7 @@ int ip6_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, uns
 	struct mr6_table *mrt;
 
 	mrt = ip6mr_get_table(net, raw6_sk(sk)->ip6mr_table ? : RT6_TABLE_DFLT);
-	if (mrt == NULL)
+	if (!mrt)
 		return -ENOENT;
 
 	if (optname != MRT6_INIT) {
@@ -1812,7 +1812,7 @@ int ip6_mroute_getsockopt(struct sock *sk, int optname, char __user *optval,
 	struct mr6_table *mrt;
 
 	mrt = ip6mr_get_table(net, raw6_sk(sk)->ip6mr_table ? : RT6_TABLE_DFLT);
-	if (mrt == NULL)
+	if (!mrt)
 		return -ENOENT;
 
 	switch (optname) {
@@ -1859,7 +1859,7 @@ int ip6mr_ioctl(struct sock *sk, int cmd, void __user *arg)
 	struct mr6_table *mrt;
 
 	mrt = ip6mr_get_table(net, raw6_sk(sk)->ip6mr_table ? : RT6_TABLE_DFLT);
-	if (mrt == NULL)
+	if (!mrt)
 		return -ENOENT;
 
 	switch (cmd) {
@@ -1933,7 +1933,7 @@ int ip6mr_compat_ioctl(struct sock *sk, unsigned int cmd, void __user *arg)
 	struct mr6_table *mrt;
 
 	mrt = ip6mr_get_table(net, raw6_sk(sk)->ip6mr_table ? : RT6_TABLE_DFLT);
-	if (mrt == NULL)
+	if (!mrt)
 		return -ENOENT;
 
 	switch (cmd) {
@@ -2003,7 +2003,7 @@ static int ip6mr_forward2(struct net *net, struct mr6_table *mrt,
 	struct dst_entry *dst;
 	struct flowi6 fl6;
 
-	if (vif->dev == NULL)
+	if (!vif->dev)
 		goto out_free;
 
 #ifdef CONFIG_IPV6_PIMSM_V2
@@ -2192,7 +2192,7 @@ int ip6_mr_input(struct sk_buff *skb)
 	read_lock(&mrt_lock);
 	cache = ip6mr_cache_find(mrt,
 				 &ipv6_hdr(skb)->saddr, &ipv6_hdr(skb)->daddr);
-	if (cache == NULL) {
+	if (!cache) {
 		int vif = ip6mr_find_vif(mrt, skb->dev);
 
 		if (vif >= 0)
@@ -2204,7 +2204,7 @@ int ip6_mr_input(struct sk_buff *skb)
 	/*
 	 *	No usable cache entry
 	 */
-	if (cache == NULL) {
+	if (!cache) {
 		int vif;
 
 		vif = ip6mr_find_vif(mrt, skb->dev);
@@ -2243,13 +2243,13 @@ static int __ip6mr_fill_mroute(struct mr6_table *mrt, struct sk_buff *skb,
 	    nla_put_u32(skb, RTA_IIF, mrt->vif6_table[c->mf6c_parent].dev->ifindex) < 0)
 		return -EMSGSIZE;
 	mp_attr = nla_nest_start(skb, RTA_MULTIPATH);
-	if (mp_attr == NULL)
+	if (!mp_attr)
 		return -EMSGSIZE;
 
 	for (ct = c->mfc_un.res.minvif; ct < c->mfc_un.res.maxvif; ct++) {
 		if (MIF_EXISTS(mrt, ct) && c->mfc_un.res.ttls[ct] < 255) {
 			nhp = nla_reserve_nohdr(skb, sizeof(*nhp));
-			if (nhp == NULL) {
+			if (!nhp) {
 				nla_nest_cancel(skb, mp_attr);
 				return -EMSGSIZE;
 			}
@@ -2282,7 +2282,7 @@ int ip6mr_get_route(struct net *net,
 	struct rt6_info *rt = (struct rt6_info *)skb_dst(skb);
 
 	mrt = ip6mr_get_table(net, RT6_TABLE_DFLT);
-	if (mrt == NULL)
+	if (!mrt)
 		return -ENOENT;
 
 	read_lock(&mrt_lock);
@@ -2307,7 +2307,7 @@ int ip6mr_get_route(struct net *net,
 		}
 
 		dev = skb->dev;
-		if (dev == NULL || (vif = ip6mr_find_vif(mrt, dev)) < 0) {
+		if (!dev || (vif = ip6mr_find_vif(mrt, dev)) < 0) {
 			read_unlock(&mrt_lock);
 			return -ENODEV;
 		}
@@ -2359,7 +2359,7 @@ static int ip6mr_fill_mroute(struct mr6_table *mrt, struct sk_buff *skb,
 	int err;
 
 	nlh = nlmsg_put(skb, portid, seq, cmd, sizeof(*rtm), flags);
-	if (nlh == NULL)
+	if (!nlh)
 		return -EMSGSIZE;
 
 	rtm = nlmsg_data(nlh);
@@ -2424,7 +2424,7 @@ static void mr6_netlink_event(struct mr6_table *mrt, struct mfc6_cache *mfc,
 
 	skb = nlmsg_new(mr6_msgsize(mfc->mf6c_parent >= MAXMIFS, mrt->maxvif),
 			GFP_ATOMIC);
-	if (skb == NULL)
+	if (!skb)
 		goto errout;
 
 	err = ip6mr_fill_mroute(mrt, skb, 0, 0, mfc, cmd, 0);
