@@ -63,6 +63,11 @@ u8 ath10k_mac_hw_rate_to_idx(const struct ieee80211_supported_band *sband,
 u8 ath10k_mac_bitrate_to_idx(const struct ieee80211_supported_band *sband,
 			     u32 bitrate);
 
+void ath10k_mac_tx_lock(struct ath10k *ar, int reason);
+void ath10k_mac_tx_unlock(struct ath10k *ar, int reason);
+void ath10k_mac_vif_tx_lock(struct ath10k_vif *arvif, int reason);
+void ath10k_mac_vif_tx_unlock(struct ath10k_vif *arvif, int reason);
+
 static inline struct ath10k_vif *ath10k_vif_to_arvif(struct ieee80211_vif *vif)
 {
 	return (struct ath10k_vif *)vif->drv_priv;
