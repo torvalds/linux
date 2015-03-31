@@ -250,6 +250,22 @@ static int i40e_put_lump(struct i40e_lump_tracking *pile, u16 index, u16 id)
 }
 
 /**
+ * i40e_find_vsi_from_id - searches for the vsi with the given id
+ * @pf - the pf structure to search for the vsi
+ * @id - id of the vsi it is searching for
+ **/
+struct i40e_vsi *i40e_find_vsi_from_id(struct i40e_pf *pf, u16 id)
+{
+	int i;
+
+	for (i = 0; i < pf->num_alloc_vsi; i++)
+		if (pf->vsi[i] && (pf->vsi[i]->id == id))
+			return pf->vsi[i];
+
+	return NULL;
+}
+
+/**
  * i40e_service_event_schedule - Schedule the service task to wake up
  * @pf: board private structure
  *
