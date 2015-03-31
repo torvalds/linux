@@ -120,7 +120,7 @@ do {								\
 /*
  * Despite its name it doesn't necessarily has to be a full barrier.
  * It should only guarantee that a STORE before the critical section
- * can not be reordered with a LOAD inside this section.
+ * can not be reordered with LOADs and STOREs inside this section.
  * spin_lock() is the one-way barrier, this LOAD can not escape out
  * of the region. So the default implementation simply ensures that
  * a STORE can not move into the critical section, smp_wmb() should
