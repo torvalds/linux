@@ -3202,6 +3202,8 @@ static int btrfs_clone(struct inode *src, struct inode *inode,
 	key.offset = off;
 
 	while (1) {
+		u64 next_key_min_offset;
+
 		/*
 		 * note the key will change type as we walk through the
 		 * tree.
@@ -3282,7 +3284,7 @@ process_slot:
 			} else if (key.offset >= off + len) {
 				break;
 			}
-
+			next_key_min_offset = key.offset + datal;
 			size = btrfs_item_size_nr(leaf, slot);
 			read_extent_buffer(leaf, buf,
 					   btrfs_item_ptr_offset(leaf, slot),
@@ -3497,7 +3499,7 @@ process_slot:
 				break;
 		}
 		btrfs_release_path(path);
-		key.offset++;
+		key.offset = next_key_min_offset;
 	}
 	ret = 0;
 
