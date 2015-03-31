@@ -985,6 +985,21 @@ static const struct attribute_group *attr_groups[] = {
 	NULL,
 };
 
+static void log_24x7_hcall(struct hv_24x7_request_buffer *request_buffer,
+			struct hv_24x7_data_result_buffer *result_buffer,
+			unsigned long ret)
+{
+	struct hv_24x7_request *req;
+
+	req = &request_buffer->requests[0];
+	pr_notice_ratelimited("hcall failed: [%d %#x %#x %d] => "
+			"ret 0x%lx (%ld) detail=0x%x failing ix=%x\n",
+			req->performance_domain, req->data_offset,
+			req->starting_ix, req->starting_lpar_ix, ret, ret,
+			result_buffer->detailed_rc,
+			result_buffer->failing_request_ix);
+}
+
 static unsigned long single_24x7_request(struct perf_event *event, u64 *count)
 {
 	u16 idx;
@@ -1032,12 +1047,7 @@ static unsigned long single_24x7_request(struct perf_event *event, u64 *count)
 			virt_to_phys(result_buffer),  H24x7_DATA_BUFFER_SIZE);
 
 	if (ret) {
-		pr_devel_ratelimited("hcall failed: %d %#x %#x %d => "
-				"0x%lx (%ld) detail=0x%x failing ix=%x\n",
-				req->performance_domain, req->data_offset,
-				idx, req->starting_lpar_ix, ret, ret,
-				result_buffer->detailed_rc,
-				result_buffer->failing_request_ix);
+		log_24x7_hcall(request_buffer, result_buffer, ret);
 		goto out;
 	}
 
