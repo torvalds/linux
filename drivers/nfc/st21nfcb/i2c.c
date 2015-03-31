@@ -109,7 +109,7 @@ static int st21nfcb_nci_i2c_write(void *phy_id, struct sk_buff *skb)
 		return phy->ndlc->hard_fault;
 
 	r = i2c_master_send(client, skb->data, skb->len);
-	if (r == -EREMOTEIO) {  /* Retry, chip was in standby */
+	if (r < 0) {  /* Retry, chip was in standby */
 		usleep_range(1000, 4000);
 		r = i2c_master_send(client, skb->data, skb->len);
 	}
@@ -148,7 +148,7 @@ static int st21nfcb_nci_i2c_read(struct st21nfcb_i2c_phy *phy,
 	struct i2c_client *client = phy->i2c_dev;
 
 	r = i2c_master_recv(client, buf, ST21NFCB_NCI_I2C_MIN_SIZE);
-	if (r == -EREMOTEIO) {  /* Retry, chip was in standby */
+	if (r < 0) {  /* Retry, chip was in standby */
 		usleep_range(1000, 4000);
 		r = i2c_master_recv(client, buf, ST21NFCB_NCI_I2C_MIN_SIZE);
 	}
