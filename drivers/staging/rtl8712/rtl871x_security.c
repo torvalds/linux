@@ -153,7 +153,7 @@ static u32 getcrc32(u8 *buf, u32 len)
 	u8 *p;
 	u32  crc;
 
-	if (bcrc32initialized == 0)
+	if (!bcrc32initialized)
 		crc32_init();
 	crc = 0xffffffff; /* preload shift register, per CRC-32 spec */
 	for (p = buf; len > 0; ++p, --len)
