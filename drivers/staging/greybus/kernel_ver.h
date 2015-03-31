@@ -78,6 +78,8 @@ static inline void gb_gpiochip_remove(struct gpio_chip *chip)
  * it here.
  */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,11,0)
+#include <linux/sysfs.h>
+
 #define ATTRIBUTE_GROUPS(name)					\
 static const struct attribute_group name##_group = {		\
 	.attrs = name##_attrs,					\
@@ -85,6 +87,37 @@ static const struct attribute_group name##_group = {		\
 static const struct attribute_group *name##_groups[] = {	\
 	&name##_group,						\
 	NULL,							\
+}
+
+static inline int sysfs_create_groups(struct kobject *kobj,
+				      const struct attribute_group **groups)
+{
+	int error = 0;
+	int i;
+
+	if (!groups)
+		return 0;
+
+	for (i = 0; groups[i]; i++) {
+		error = sysfs_create_group(kobj, groups[i]);
+		if (error) {
+			while (--i >= 0)
+				sysfs_remove_group(kobj, groups[i]);
+			break;
+		}
+	}
+	return error;
+}
+
+static inline void sysfs_remove_groups(struct kobject *kobj,
+				       const struct attribute_group **groups)
+{
+	int i;
+
+	if (!groups)
+		return;
+	for (i = 0; groups[i]; i++)
+		sysfs_remove_group(kobj, groups[i]);
 }
 #endif
 
