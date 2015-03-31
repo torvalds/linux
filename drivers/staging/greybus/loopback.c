@@ -12,6 +12,7 @@
 #include <linux/kthread.h>
 #include <linux/delay.h>
 #include <linux/random.h>
+#include <linux/sizes.h>
 #include "greybus.h"
 
 struct gb_loopback_stats {
