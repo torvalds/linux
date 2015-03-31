@@ -30,6 +30,7 @@ static LIST_HEAD(ir_raw_client_list);
 static DEFINE_MUTEX(ir_raw_handler_lock);
 static LIST_HEAD(ir_raw_handler_list);
 static u64 available_protocols;
+static u64 encode_protocols;
 
 static int ir_raw_event_thread(void *data)
 {
@@ -236,6 +237,18 @@ ir_raw_get_allowed_protocols(void)
 	u64 protocols;
 	mutex_lock(&ir_raw_handler_lock);
 	protocols = available_protocols;
+	mutex_unlock(&ir_raw_handler_lock);
+	return protocols;
+}
+
+/* used internally by the sysfs interface */
+u64
+ir_raw_get_encode_protocols(void)
+{
+	u64 protocols;
+
+	mutex_lock(&ir_raw_handler_lock);
+	protocols = encode_protocols;
 	mutex_unlock(&ir_raw_handler_lock);
 	return protocols;
 }
@@ -450,6 +463,8 @@ int ir_raw_handler_register(struct ir_raw_handler *ir_raw_handler)
 		list_for_each_entry(raw, &ir_raw_client_list, list)
 			ir_raw_handler->raw_register(raw->dev);
 	available_protocols |= ir_raw_handler->protocols;
+	if (ir_raw_handler->encode)
+		encode_protocols |= ir_raw_handler->protocols;
 	mutex_unlock(&ir_raw_handler_lock);
 
 	return 0;
@@ -466,6 +481,8 @@ void ir_raw_handler_unregister(struct ir_raw_handler *ir_raw_handler)
 		list_for_each_entry(raw, &ir_raw_client_list, list)
 			ir_raw_handler->raw_unregister(raw->dev);
 	available_protocols &= ~ir_raw_handler->protocols;
+	if (ir_raw_handler->encode)
+		encode_protocols &= ~ir_raw_handler->protocols;
 	mutex_unlock(&ir_raw_handler_lock);
 }
 EXPORT_SYMBOL(ir_raw_handler_unregister);
