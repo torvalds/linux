@@ -834,11 +834,8 @@ static int hdmi_phy_configure(struct dw_hdmi *hdmi, unsigned char prep,
 		    phy_config[i].mpixelclock)
 			break;
 
-	/* RESISTANCE TERM 133Ohm Cfg */
 	hdmi_phy_i2c_write(hdmi, phy_config[i].term, 0x19);  /* TXTERM */
-	/* PREEMP Cgf 0.00 */
 	hdmi_phy_i2c_write(hdmi, phy_config[i].sym_ctr, 0x09); /* CKSYMTXCTRL */
-	/* TX/CK LVL 10 */
 	hdmi_phy_i2c_write(hdmi, phy_config[i].vlev_ctr, 0x0E); /* VLEVCTRL */
 
 	/* REMOVE CLK TERM */
