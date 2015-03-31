@@ -727,11 +727,11 @@ EXPORT_SYMBOL_GPL(rc_keydown_notimeout);
 /**
  * rc_validate_filter() - checks that the scancode and mask are valid and
  *			  provides sensible defaults
- * @protocol:	the protocol for the filter
+ * @dev:	the struct rc_dev descriptor of the device
  * @filter:	the scancode and mask
  * @return:	0 or -EINVAL if the filter is not valid
  */
-static int rc_validate_filter(enum rc_type protocol,
+static int rc_validate_filter(struct rc_dev *dev,
 			      struct rc_scancode_filter *filter)
 {
 	static u32 masks[] = {
@@ -754,6 +754,7 @@ static int rc_validate_filter(enum rc_type protocol,
 		[RC_TYPE_SHARP] = 0x1fff,
 	};
 	u32 s = filter->data;
+	enum rc_type protocol = dev->wakeup_protocol;
 
 	switch (protocol) {
 	case RC_TYPE_NECX:
@@ -778,6 +779,13 @@ static int rc_validate_filter(enum rc_type protocol,
 
 	filter->data &= masks[protocol];
 	filter->mask &= masks[protocol];
+
+	/*
+	 * If we have to raw encode the IR for wakeup, we cannot have a mask
+	 */
+	if (dev->encode_wakeup &&
+	    filter->mask != 0 && filter->mask != masks[protocol])
+		return -EINVAL;
 
 	return 0;
 }
@@ -1044,7 +1052,6 @@ static int parse_protocol_change(u64 *protocols, const char *buf)
 }
 
 static void ir_raw_load_modules(u64 *protocols)
-
 {
 	u64 available;
 	int i, ret;
@@ -1292,8 +1299,7 @@ static ssize_t store_filter(struct device *device,
 		 * and the filter is valid for that protocol
 		 */
 		if (dev->wakeup_protocol != RC_TYPE_UNKNOWN)
-			ret = rc_validate_filter(dev->wakeup_protocol,
-						 &new_filter);
+			ret = rc_validate_filter(dev, &new_filter);
 		else
 			ret = -EINVAL;
 
@@ -1460,6 +1466,16 @@ static ssize_t store_wakeup_protocols(struct device *device,
 		if (i == ARRAY_SIZE(proto_variant_names)) {
 			rc = -EINVAL;
 			goto out;
+		}
+
+		if (dev->encode_wakeup) {
+			u64 mask = 1ULL << protocol;
+
+			ir_raw_load_modules(&mask);
+			if (!mask) {
+				rc = -EINVAL;
+				goto out;
+			}
 		}
 	}
 
