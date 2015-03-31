@@ -119,6 +119,9 @@ static int rockchip_drm_fbdev_create(struct drm_fb_helper *helper,
 	DRM_DEBUG_KMS("FB [%dx%d]-%d kvaddr=%p offset=%ld size=%d\n",
 		      fb->width, fb->height, fb->depth, rk_obj->kvaddr,
 		      offset, size);
+
+	fbi->skip_vt_switch = true;
+
 	return 0;
 
 err_drm_framebuffer_unref:
