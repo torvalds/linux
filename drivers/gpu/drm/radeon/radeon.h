@@ -507,7 +507,7 @@ struct radeon_bo {
 	pid_t				pid;
 
 	struct radeon_mn		*mn;
-	struct interval_tree_node	mn_it;
+	struct list_head		mn_list;
 };
 #define gem_to_radeon_bo(gobj) container_of((gobj), struct radeon_bo, gem_base)
 
