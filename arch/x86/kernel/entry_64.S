@@ -269,8 +269,11 @@ system_call_fastpath:
  * Has incompletely filled pt_regs.
  */
 	LOCKDEP_SYS_EXIT
+	/*
+	 * We do not frame this tiny irq-off block with TRACE_IRQS_OFF/ON,
+	 * it is too small to ever cause noticeable irq latency.
+	 */
 	DISABLE_INTERRUPTS(CLBR_NONE)
-	TRACE_IRQS_OFF
 
 	/*
 	 * We must check ti flags with interrupts (or at least preemption)
@@ -284,10 +287,7 @@ system_call_fastpath:
 	jnz int_ret_from_sys_call_irqs_off	/* Go to the slow path */
 
 	CFI_REMEMBER_STATE
-	/*
-	 * sysretq will re-enable interrupts:
-	 */
-	TRACE_IRQS_ON
+
 	RESTORE_C_REGS_EXCEPT_RCX_R11
 	movq	RIP(%rsp),%rcx
 	CFI_REGISTER	rip,rcx
@@ -298,6 +298,7 @@ system_call_fastpath:
 	 * 64bit SYSRET restores rip from rcx,
 	 * rflags from r11 (but RF and VM bits are forced to 0),
 	 * cs and ss are loaded from MSRs.
+	 * Restoration of rflags re-enables interrupts.
 	 */
 	USERGS_SYSRET64
 
@@ -346,8 +347,8 @@ tracesys_phase2:
  */
 GLOBAL(int_ret_from_sys_call)
 	DISABLE_INTERRUPTS(CLBR_NONE)
+int_ret_from_sys_call_irqs_off: /* jumps come here from the irqs-off SYSRET path */
 	TRACE_IRQS_OFF
-int_ret_from_sys_call_irqs_off:
 	movl $_TIF_ALLWORK_MASK,%edi
 	/* edi:	mask to check */
 GLOBAL(int_with_check)
