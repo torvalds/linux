@@ -28,6 +28,7 @@
 #include "txrx.h"
 #include "testmode.h"
 #include "wmi.h"
+#include "wmi-tlv.h"
 #include "wmi-ops.h"
 #include "wow.h"
 
@@ -2919,6 +2920,83 @@ void ath10k_mac_vif_tx_unlock(struct ath10k_vif *arvif, int reason)
 	ieee80211_wake_queue(ar->hw, arvif->vdev_id);
 }
 
+static void ath10k_mac_vif_handle_tx_pause(struct ath10k_vif *arvif,
+					   enum wmi_tlv_tx_pause_id pause_id,
+					   enum wmi_tlv_tx_pause_action action)
+{
+	struct ath10k *ar = arvif->ar;
+
+	lockdep_assert_held(&ar->htt.tx_lock);
+
+	switch (pause_id) {
+	case WMI_TLV_TX_PAUSE_ID_MCC:
+	case WMI_TLV_TX_PAUSE_ID_P2P_CLI_NOA:
+	case WMI_TLV_TX_PAUSE_ID_P2P_GO_PS:
+	case WMI_TLV_TX_PAUSE_ID_AP_PS:
+	case WMI_TLV_TX_PAUSE_ID_IBSS_PS:
+		switch (action) {
+		case WMI_TLV_TX_PAUSE_ACTION_STOP:
+			ath10k_mac_vif_tx_lock(arvif, pause_id);
+			break;
+		case WMI_TLV_TX_PAUSE_ACTION_WAKE:
+			ath10k_mac_vif_tx_unlock(arvif, pause_id);
+			break;
+		default:
+			ath10k_warn(ar, "received unknown tx pause action %d on vdev %i, ignoring\n",
+				    action, arvif->vdev_id);
+			break;
+		}
+		break;
+	case WMI_TLV_TX_PAUSE_ID_AP_PEER_PS:
+	case WMI_TLV_TX_PAUSE_ID_AP_PEER_UAPSD:
+	case WMI_TLV_TX_PAUSE_ID_STA_ADD_BA:
+	case WMI_TLV_TX_PAUSE_ID_HOST:
+	default:
+		/* FIXME: Some pause_ids aren't vdev specific. Instead they
+		 * target peer_id and tid. Implementing these could improve
+		 * traffic scheduling fairness across multiple connected
+		 * stations in AP/IBSS modes.
+		 */
+		ath10k_dbg(ar, ATH10K_DBG_MAC,
+			   "mac ignoring unsupported tx pause vdev %i id %d\n",
+			   arvif->vdev_id, pause_id);
+		break;
+	}
+}
+
+struct ath10k_mac_tx_pause {
+	u32 vdev_id;
+	enum wmi_tlv_tx_pause_id pause_id;
+	enum wmi_tlv_tx_pause_action action;
+};
+
+static void ath10k_mac_handle_tx_pause_iter(void *data, u8 *mac,
+					    struct ieee80211_vif *vif)
+{
+	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
+	struct ath10k_mac_tx_pause *arg = data;
+
+	ath10k_mac_vif_handle_tx_pause(arvif, arg->pause_id, arg->action);
+}
+
+void ath10k_mac_handle_tx_pause(struct ath10k *ar, u32 vdev_id,
+				enum wmi_tlv_tx_pause_id pause_id,
+				enum wmi_tlv_tx_pause_action action)
+{
+	struct ath10k_mac_tx_pause arg = {
+		.vdev_id = vdev_id,
+		.pause_id = pause_id,
+		.action = action,
+	};
+
+	spin_lock_bh(&ar->htt.tx_lock);
+	ieee80211_iterate_active_interfaces_atomic(ar->hw,
+						   IEEE80211_IFACE_ITER_RESUME_ALL,
+						   ath10k_mac_handle_tx_pause_iter,
+						   &arg);
+	spin_unlock_bh(&ar->htt.tx_lock);
+}
+
 static u8 ath10k_tx_h_get_tid(struct ieee80211_hdr *hdr)
 {
 	if (ieee80211_is_mgmt(hdr->frame_control))
@@ -4174,6 +4252,14 @@ err:
 	return ret;
 }
 
+static void ath10k_mac_vif_tx_unlock_all(struct ath10k_vif *arvif)
+{
+	int i;
+
+	for (i = 0; i < BITS_PER_LONG; i++)
+		ath10k_mac_vif_tx_unlock(arvif, i);
+}
+
 static void ath10k_remove_interface(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif)
 {
@@ -4239,6 +4325,10 @@ static void ath10k_remove_interface(struct ieee80211_hw *hw,
 		if (ret)
 			ath10k_warn(ar, "failed to recalc monitor: %d\n", ret);
 	}
+
+	spin_lock_bh(&ar->htt.tx_lock);
+	ath10k_mac_vif_tx_unlock_all(arvif);
+	spin_unlock_bh(&ar->htt.tx_lock);
 
 	mutex_unlock(&ar->conf_mutex);
 }

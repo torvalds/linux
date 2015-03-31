@@ -1580,6 +1580,48 @@ struct wmi_tlv_adaptive_qcs {
 	__le32 enable;
 } __packed;
 
+/**
+ * wmi_tlv_tx_pause_id - firmware tx queue pause reason types
+ *
+ * @WMI_TLV_TX_PAUSE_ID_MCC: used for by multi-channel firmware scheduler.
+ *		Only vdev_map is valid.
+ * @WMI_TLV_TX_PAUSE_ID_AP_PEER_PS: peer in AP mode is asleep.
+ *		Only peer_id is valid.
+ * @WMI_TLV_TX_PAUSE_ID_AP_PEER_UAPSD: Only peer_id and tid_map are valid.
+ * @WMI_TLV_TX_PAUSE_ID_P2P_CLI_NOA: Only vdev_map is valid.
+ * @WMI_TLV_TX_PAUSE_ID_P2P_GO_PS: Only vdev_map is valid.
+ * @WMI_TLV_TX_PAUSE_ID_STA_ADD_BA: Only peer_id and tid_map are valid.
+ * @WMI_TLV_TX_PAUSE_ID_AP_PS: When all peers are asleep in AP mode. Only
+ *		vdev_map is valid.
+ * @WMI_TLV_TX_PAUSE_ID_IBSS_PS: When all peers are asleep in IBSS mode. Only
+ *		vdev_map is valid.
+ * @WMI_TLV_TX_PAUSE_ID_HOST: Host itself requested tx pause.
+ */
+enum wmi_tlv_tx_pause_id {
+	WMI_TLV_TX_PAUSE_ID_MCC = 1,
+	WMI_TLV_TX_PAUSE_ID_AP_PEER_PS = 2,
+	WMI_TLV_TX_PAUSE_ID_AP_PEER_UAPSD = 3,
+	WMI_TLV_TX_PAUSE_ID_P2P_CLI_NOA = 4,
+	WMI_TLV_TX_PAUSE_ID_P2P_GO_PS = 5,
+	WMI_TLV_TX_PAUSE_ID_STA_ADD_BA = 6,
+	WMI_TLV_TX_PAUSE_ID_AP_PS = 7,
+	WMI_TLV_TX_PAUSE_ID_IBSS_PS = 8,
+	WMI_TLV_TX_PAUSE_ID_HOST = 21,
+};
+
+enum wmi_tlv_tx_pause_action {
+	WMI_TLV_TX_PAUSE_ACTION_STOP,
+	WMI_TLV_TX_PAUSE_ACTION_WAKE,
+};
+
+struct wmi_tlv_tx_pause_ev {
+	__le32 pause_id;
+	__le32 action;
+	__le32 vdev_map;
+	__le32 peer_id;
+	__le32 tid_map;
+} __packed;
+
 void ath10k_wmi_tlv_attach(struct ath10k *ar);
 
 #endif

@@ -23,6 +23,9 @@
 
 #define WEP_KEYID_SHIFT 6
 
+enum wmi_tlv_tx_pause_id;
+enum wmi_tlv_tx_pause_action;
+
 struct ath10k_generic_iter {
 	struct ath10k *ar;
 	int ret;
@@ -55,8 +58,12 @@ bool ath10k_mac_is_peer_wep_key_set(struct ath10k *ar, const u8 *addr,
 				    u8 keyidx);
 int ath10k_mac_vif_chan(struct ieee80211_vif *vif,
 			struct cfg80211_chan_def *def);
+
 void ath10k_mac_handle_beacon(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_mac_handle_beacon_miss(struct ath10k *ar, u32 vdev_id);
+void ath10k_mac_handle_tx_pause(struct ath10k *ar, u32 vdev_id,
+				enum wmi_tlv_tx_pause_id pause_id,
+				enum wmi_tlv_tx_pause_action action);
 
 u8 ath10k_mac_hw_rate_to_idx(const struct ieee80211_supported_band *sband,
 			     u8 hw_rate);

@@ -16,6 +16,7 @@
  */
 #include "core.h"
 #include "debug.h"
+#include "mac.h"
 #include "hw.h"
 #include "mac.h"
 #include "wmi.h"
@@ -70,6 +71,8 @@ static const struct wmi_tlv_policy wmi_tlv_policies[] = {
 		= { .min_len = sizeof(struct wmi_tlv_roam_ev) },
 	[WMI_TLV_TAG_STRUCT_WOW_EVENT_INFO]
 		= { .min_len = sizeof(struct wmi_tlv_wow_event_info) },
+	[WMI_TLV_TAG_STRUCT_TX_PAUSE_EVENT]
+		= { .min_len = sizeof(struct wmi_tlv_tx_pause_ev) },
 };
 
 static int
@@ -339,6 +342,48 @@ static int ath10k_wmi_tlv_event_p2p_noa(struct ath10k *ar,
 		   vdev_id, noa->num_descriptors);
 
 	ath10k_p2p_noa_update_by_vdev_id(ar, vdev_id, noa);
+	kfree(tb);
+	return 0;
+}
+
+static int ath10k_wmi_tlv_event_tx_pause(struct ath10k *ar,
+					 struct sk_buff *skb)
+{
+	const void **tb;
+	const struct wmi_tlv_tx_pause_ev *ev;
+	int ret, vdev_id;
+	u32 pause_id, action, vdev_map, peer_id, tid_map;
+
+	tb = ath10k_wmi_tlv_parse_alloc(ar, skb->data, skb->len, GFP_ATOMIC);
+	if (IS_ERR(tb)) {
+		ret = PTR_ERR(tb);
+		ath10k_warn(ar, "failed to parse tlv: %d\n", ret);
+		return ret;
+	}
+
+	ev = tb[WMI_TLV_TAG_STRUCT_TX_PAUSE_EVENT];
+	if (!ev) {
+		kfree(tb);
+		return -EPROTO;
+	}
+
+	pause_id = __le32_to_cpu(ev->pause_id);
+	action = __le32_to_cpu(ev->action);
+	vdev_map = __le32_to_cpu(ev->vdev_map);
+	peer_id = __le32_to_cpu(ev->peer_id);
+	tid_map = __le32_to_cpu(ev->tid_map);
+
+	ath10k_dbg(ar, ATH10K_DBG_WMI,
+		   "wmi tlv tx pause pause_id %u action %u vdev_map 0x%08x peer_id %u tid_map 0x%08x\n",
+		   pause_id, action, vdev_map, peer_id, tid_map);
+
+	for (vdev_id = 0; vdev_map; vdev_id++) {
+		if (!(vdev_map & BIT(vdev_id)))
+			continue;
+
+		vdev_map &= ~BIT(vdev_id);
+		ath10k_mac_handle_tx_pause(ar, vdev_id, pause_id, action);
+	}
 
 	kfree(tb);
 	return 0;
@@ -467,6 +512,9 @@ static void ath10k_wmi_tlv_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	case WMI_TLV_P2P_NOA_EVENTID:
 		ath10k_wmi_tlv_event_p2p_noa(ar, skb);
+		break;
+	case WMI_TLV_TX_PAUSE_EVENTID:
+		ath10k_wmi_tlv_event_tx_pause(ar, skb);
 		break;
 	default:
 		ath10k_warn(ar, "Unknown eventid: %d\n", id);
