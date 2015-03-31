@@ -301,13 +301,11 @@ bool init_firmware(struct net_device *dev)
 		file_length = pfirmware->firmware_buf_size[init_step];
 
 		rt_status = fw_download_code(dev, mapped_file, file_length);
-		if (!rt_status) {
+		if (!rt_status)
 			goto download_firmware_fail;
-		}
 
-		if (!firmware_check_ready(dev, init_step)) {
+		if (!firmware_check_ready(dev, init_step))
 			goto download_firmware_fail;
-		}
 	}
 
 	RT_TRACE(COMP_FIRMWARE, "Firmware Download Success\n");
