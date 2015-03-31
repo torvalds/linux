@@ -12100,6 +12100,7 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 				connector->encoder = connector->new_encoder;
 		} else {
 			connector_state->crtc = NULL;
+			connector_state->best_encoder = NULL;
 		}
 	}
 	for_each_intel_crtc(dev, crtc) {
