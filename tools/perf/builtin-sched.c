@@ -472,6 +472,7 @@ static u64 get_cpu_usage_nsec_self(int fd)
 struct sched_thread_parms {
 	struct task_desc  *task;
 	struct perf_sched *sched;
+	int fd;
 };
 
 static void *thread_func(void *ctx)
@@ -482,13 +483,12 @@ static void *thread_func(void *ctx)
 	u64 cpu_usage_0, cpu_usage_1;
 	unsigned long i, ret;
 	char comm2[22];
-	int fd;
+	int fd = parms->fd;
 
 	zfree(&parms);
 
 	sprintf(comm2, ":%s", this_task->comm);
 	prctl(PR_SET_NAME, comm2);
-	fd = self_open_counters();
 	if (fd < 0)
 		return NULL;
 again:
@@ -540,6 +540,7 @@ static void create_tasks(struct perf_sched *sched)
 		BUG_ON(parms == NULL);
 		parms->task = task = sched->tasks[i];
 		parms->sched = sched;
+		parms->fd = self_open_counters();
 		sem_init(&task->sleep_sem, 0, 0);
 		sem_init(&task->ready_for_work, 0, 0);
 		sem_init(&task->work_done_sem, 0, 0);
