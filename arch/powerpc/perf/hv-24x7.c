@@ -986,8 +986,7 @@ static const struct attribute_group *attr_groups[] = {
 };
 
 static unsigned long single_24x7_request(u8 domain, u32 offset, u16 ix,
-					 u16 lpar, u64 *count,
-					 bool success_expected)
+					 u16 lpar, u64 *count)
 {
 	unsigned long ret;
 
@@ -1028,8 +1027,7 @@ static unsigned long single_24x7_request(u8 domain, u32 offset, u16 ix,
 			virt_to_phys(result_buffer),  H24x7_DATA_BUFFER_SIZE);
 
 	if (ret) {
-		if (success_expected)
-			pr_err_ratelimited("hcall failed: %d %#x %#x %d => "
+		pr_err_ratelimited("hcall failed: %d %#x %#x %d => "
 				"0x%lx (%ld) detail=0x%x failing ix=%x\n",
 				domain, offset, ix, lpar, ret, ret,
 				result_buffer->detailed_rc,
@@ -1044,8 +1042,7 @@ out:
 	return ret;
 }
 
-static unsigned long event_24x7_request(struct perf_event *event, u64 *res,
-		bool success_expected)
+static unsigned long event_24x7_request(struct perf_event *event, u64 *res)
 {
 	u16 idx;
 	unsigned domain = event_get_domain(event);
@@ -1059,8 +1056,7 @@ static unsigned long event_24x7_request(struct perf_event *event, u64 *res,
 				event_get_offset(event),
 				idx,
 				event_get_lpar(event),
-				res,
-				success_expected);
+				res);
 }
 
 static int h_24x7_event_init(struct perf_event *event)
@@ -1130,7 +1126,7 @@ static int h_24x7_event_init(struct perf_event *event)
 	}
 
 	/* see if the event complains */
-	if (event_24x7_request(event, &ct, false)) {
+	if (event_24x7_request(event, &ct)) {
 		pr_devel("test hcall failed\n");
 		return -EIO;
 	}
@@ -1142,7 +1138,7 @@ static u64 h_24x7_get_value(struct perf_event *event)
 {
 	unsigned long ret;
 	u64 ct;
-	ret = event_24x7_request(event, &ct, true);
+	ret = event_24x7_request(event, &ct);
 	if (ret)
 		/* We checked this in event init, shouldn't fail here... */
 		return 0;
