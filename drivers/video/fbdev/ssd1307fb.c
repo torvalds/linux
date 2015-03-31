@@ -515,7 +515,7 @@ static int ssd1307fb_probe(struct i2c_client *client,
 	info->var.blue.offset = 0;
 
 	info->screen_base = (u8 __force __iomem *)vmem;
-	info->fix.smem_start = (unsigned long)vmem;
+	info->fix.smem_start = __pa(vmem);
 	info->fix.smem_len = vmem_size;
 
 	fb_deferred_io_init(info);
