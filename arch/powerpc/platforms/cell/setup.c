@@ -54,6 +54,7 @@
 #include <asm/cell-regs.h>
 #include <asm/io-workarounds.h>
 
+#include "cell.h"
 #include "interrupt.h"
 #include "pervasive.h"
 #include "ras.h"
@@ -130,6 +131,8 @@ static int cell_setup_phb(struct pci_controller *phb)
 	model = of_get_property(np, "model", NULL);
 	if (model == NULL || strcmp(np->name, "pci"))
 		return 0;
+
+	phb->controller_ops = cell_pci_controller_ops;
 
 	/* Setup workarounds for spider */
 	if (strcmp(model, "Spider"))
@@ -279,3 +282,5 @@ define_machine(cell) {
 	.init_IRQ       	= cell_init_irq,
 	.pci_setup_phb		= cell_setup_phb,
 };
+
+struct pci_controller_ops cell_pci_controller_ops;
