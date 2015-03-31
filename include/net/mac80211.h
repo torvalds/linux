@@ -301,14 +301,83 @@ enum ieee80211_bss_change {
 #define IEEE80211_BSS_ARP_ADDR_LIST_LEN 4
 
 /**
- * enum ieee80211_rssi_event - RSSI threshold event
- * An indicator for when RSSI goes below/above a certain threshold.
- * @RSSI_EVENT_HIGH: AP's rssi crossed the high threshold set by the driver.
- * @RSSI_EVENT_LOW: AP's rssi crossed the low threshold set by the driver.
+ * enum ieee80211_event_type - event to be notified to the low level driver
+ * @RSSI_EVENT: AP's rssi crossed the a threshold set by the driver.
+ * @MLME_EVENT: event related to MLME
  */
-enum ieee80211_rssi_event {
+enum ieee80211_event_type {
+	RSSI_EVENT,
+	MLME_EVENT,
+};
+
+/**
+ * enum ieee80211_rssi_event_data - relevant when event type is %RSSI_EVENT
+ * @RSSI_EVENT_HIGH: AP's rssi went below the threshold set by the driver.
+ * @RSSI_EVENT_LOW: AP's rssi went above the threshold set by the driver.
+ */
+enum ieee80211_rssi_event_data {
 	RSSI_EVENT_HIGH,
 	RSSI_EVENT_LOW,
+};
+
+/**
+ * enum ieee80211_rssi_event - data attached to an %RSSI_EVENT
+ * @data: See &enum ieee80211_rssi_event_data
+ */
+struct ieee80211_rssi_event {
+	enum ieee80211_rssi_event_data data;
+};
+
+/**
+ * enum ieee80211_mlme_event_data - relevant when event type is %MLME_EVENT
+ * @AUTH_EVENT: the MLME operation is authentication
+ * @ASSOC_EVENT: the MLME operation is association
+ * @DEAUTH_RX_EVENT: deauth received..
+ * @DEAUTH_TX_EVENT: deauth sent.
+ */
+enum ieee80211_mlme_event_data {
+	AUTH_EVENT,
+	ASSOC_EVENT,
+	DEAUTH_RX_EVENT,
+	DEAUTH_TX_EVENT,
+};
+
+/**
+ * enum ieee80211_mlme_event_status - relevant when event type is %MLME_EVENT
+ * @MLME_SUCCESS: the MLME operation completed successfully.
+ * @MLME_DENIED: the MLME operation was denied by the peer.
+ * @MLME_TIMEOUT: the MLME operation timed out.
+ */
+enum ieee80211_mlme_event_status {
+	MLME_SUCCESS,
+	MLME_DENIED,
+	MLME_TIMEOUT,
+};
+
+/**
+ * enum ieee80211_mlme_event - data attached to an %MLME_EVENT
+ * @data: See &enum ieee80211_mlme_event_data
+ * @status: See &enum ieee80211_mlme_event_status
+ * @reason: the reason code if applicable
+ */
+struct ieee80211_mlme_event {
+	enum ieee80211_mlme_event_data data;
+	enum ieee80211_mlme_event_status status;
+	u16 reason;
+};
+
+/**
+ * struct ieee80211_event - event to be sent to the driver
+ * @type The event itself. See &enum ieee80211_event_type.
+ * @rssi: relevant if &type is %RSSI_EVENT
+ * @mlme: relevant if &type is %AUTH_EVENT
+ */
+struct ieee80211_event {
+	enum ieee80211_event_type type;
+	union {
+		struct ieee80211_rssi_event rssi;
+		struct ieee80211_mlme_event mlme;
+	} u;
 };
 
 /**
@@ -337,12 +406,15 @@ enum ieee80211_rssi_event {
  *	HW flag %IEEE80211_HW_TIMING_BEACON_ONLY is set, then this can
  *	only come from a beacon, but might not become valid until after
  *	association when a beacon is received (which is notified with the
- *	%BSS_CHANGED_DTIM flag.)
+ *	%BSS_CHANGED_DTIM flag.). See also sync_dtim_count important notice.
  * @sync_device_ts: the device timestamp corresponding to the sync_tsf,
  *	the driver/device can use this to calculate synchronisation
- *	(see @sync_tsf)
+ *	(see @sync_tsf). See also sync_dtim_count important notice.
  * @sync_dtim_count: Only valid when %IEEE80211_HW_TIMING_BEACON_ONLY
  *	is requested, see @sync_tsf/@sync_device_ts.
+ *	IMPORTANT: These three sync_* parameters would possibly be out of sync
+ *	by the time the driver will use them. The synchronized view is currently
+ *	guaranteed only in certain callbacks.
  * @beacon_int: beacon interval
  * @assoc_capability: capabilities taken from assoc resp
  * @basic_rates: bitmap of basic rates, each bit stands for an
@@ -1279,6 +1351,19 @@ static inline bool ieee80211_vif_is_mesh(struct ieee80211_vif *vif)
 struct ieee80211_vif *wdev_to_ieee80211_vif(struct wireless_dev *wdev);
 
 /**
+ * ieee80211_vif_to_wdev - return a wdev struct from a vif
+ * @vif: the vif to get the wdev for
+ *
+ * This can be used by mac80211 drivers with direct cfg80211 APIs
+ * (like the vendor commands) that needs to get the wdev for a vif.
+ *
+ * Note that this function may return %NULL if the given wdev isn't
+ * associated with a vif that the driver knows about (e.g. monitor
+ * or AP_VLAN interfaces.)
+ */
+struct wireless_dev *ieee80211_vif_to_wdev(struct ieee80211_vif *vif);
+
+/**
  * enum ieee80211_key_flags - key flags
  *
  * These flags are used for communication about keys between the driver
@@ -1472,7 +1557,8 @@ struct ieee80211_sta_rates {
  * @supp_rates: Bitmap of supported rates (per band)
  * @ht_cap: HT capabilities of this STA; restricted to our own capabilities
  * @vht_cap: VHT capabilities of this STA; restricted to our own capabilities
- * @wme: indicates whether the STA supports QoS/WME.
+ * @wme: indicates whether the STA supports QoS/WME (if local devices does,
+ *	otherwise always false)
  * @drv_priv: data area for driver use, will always be aligned to
  *	sizeof(void *), size is determined in hw information.
  * @uapsd_queues: bitmap of queues configured for uapsd. Only valid
@@ -1488,6 +1574,7 @@ struct ieee80211_sta_rates {
  * @tdls: indicates whether the STA is a TDLS peer
  * @tdls_initiator: indicates the STA is an initiator of the TDLS link. Only
  *	valid if the STA is a TDLS peer in the first place.
+ * @mfp: indicates whether the STA uses management frame protection or not.
  */
 struct ieee80211_sta {
 	u32 supp_rates[IEEE80211_NUM_BANDS];
@@ -1504,6 +1591,7 @@ struct ieee80211_sta {
 	struct ieee80211_sta_rates __rcu *rates;
 	bool tdls;
 	bool tdls_initiator;
+	bool mfp;
 
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));
@@ -2844,8 +2932,9 @@ enum ieee80211_reconfig_type {
  * @set_bitrate_mask: Set a mask of rates to be used for rate control selection
  *	when transmitting a frame. Currently only legacy rates are handled.
  *	The callback can sleep.
- * @rssi_callback: Notify driver when the average RSSI goes above/below
- *	thresholds that were registered previously. The callback can sleep.
+ * @event_callback: Notify driver about any event in mac80211. See
+ *	&enum ieee80211_event_type for the different types.
+ *	The callback can sleep.
  *
  * @release_buffered_frames: Release buffered frames according to the given
  *	parameters. In the case where the driver buffers some frames for
@@ -3141,9 +3230,9 @@ struct ieee80211_ops {
 	bool (*tx_frames_pending)(struct ieee80211_hw *hw);
 	int (*set_bitrate_mask)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 				const struct cfg80211_bitrate_mask *mask);
-	void (*rssi_callback)(struct ieee80211_hw *hw,
-			      struct ieee80211_vif *vif,
-			      enum ieee80211_rssi_event rssi_event);
+	void (*event_callback)(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
+			       const struct ieee80211_event *event);
 
 	void (*allow_buffered_frames)(struct ieee80211_hw *hw,
 				      struct ieee80211_sta *sta,
@@ -4343,11 +4432,31 @@ void ieee80211_sched_scan_stopped(struct ieee80211_hw *hw);
  *	haven't been re-added to the driver yet.
  * @IEEE80211_IFACE_ITER_RESUME_ALL: During resume, iterate over all
  *	interfaces, even if they haven't been re-added to the driver yet.
+ * @IEEE80211_IFACE_ITER_ACTIVE: Iterate only active interfaces (netdev is up).
  */
 enum ieee80211_interface_iteration_flags {
 	IEEE80211_IFACE_ITER_NORMAL	= 0,
 	IEEE80211_IFACE_ITER_RESUME_ALL	= BIT(0),
+	IEEE80211_IFACE_ITER_ACTIVE	= BIT(1),
 };
+
+/**
+ * ieee80211_iterate_interfaces - iterate interfaces
+ *
+ * This function iterates over the interfaces associated with a given
+ * hardware and calls the callback for them. This includes active as well as
+ * inactive interfaces. This function allows the iterator function to sleep.
+ * Will iterate over a new interface during add_interface().
+ *
+ * @hw: the hardware struct of which the interfaces should be iterated over
+ * @iter_flags: iteration flags, see &enum ieee80211_interface_iteration_flags
+ * @iterator: the iterator function to call
+ * @data: first argument of the iterator function
+ */
+void ieee80211_iterate_interfaces(struct ieee80211_hw *hw, u32 iter_flags,
+				  void (*iterator)(void *data, u8 *mac,
+						   struct ieee80211_vif *vif),
+				  void *data);
 
 /**
  * ieee80211_iterate_active_interfaces - iterate active interfaces
@@ -4364,11 +4473,16 @@ enum ieee80211_interface_iteration_flags {
  * @iterator: the iterator function to call
  * @data: first argument of the iterator function
  */
-void ieee80211_iterate_active_interfaces(struct ieee80211_hw *hw,
-					 u32 iter_flags,
-					 void (*iterator)(void *data, u8 *mac,
-						struct ieee80211_vif *vif),
-					 void *data);
+static inline void
+ieee80211_iterate_active_interfaces(struct ieee80211_hw *hw, u32 iter_flags,
+				    void (*iterator)(void *data, u8 *mac,
+						     struct ieee80211_vif *vif),
+				    void *data)
+{
+	ieee80211_iterate_interfaces(hw,
+				     iter_flags | IEEE80211_IFACE_ITER_ACTIVE,
+				     iterator, data);
+}
 
 /**
  * ieee80211_iterate_active_interfaces_atomic - iterate active interfaces

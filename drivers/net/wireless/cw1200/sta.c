@@ -1240,8 +1240,8 @@ static void cw1200_do_join(struct cw1200_common *priv)
 
 	bssid = priv->vif->bss_conf.bssid;
 
-	bss = cfg80211_get_bss(priv->hw->wiphy, priv->channel,
-			bssid, NULL, 0, 0, 0);
+	bss = cfg80211_get_bss(priv->hw->wiphy, priv->channel, bssid, NULL, 0,
+			       IEEE80211_BSS_TYPE_ANY, IEEE80211_PRIVACY_ANY);
 
 	if (!bss && !conf->ibss_joined) {
 		wsm_unlock_tx(priv);

@@ -628,6 +628,7 @@ DECLARE_EVENT_CLASS(station_add_change,
 		__field(u8, plink_state)
 		__field(u8, uapsd_queues)
 		__array(u8, ht_capa, (int)sizeof(struct ieee80211_ht_cap))
+		__array(char, vlan, IFNAMSIZ)
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
@@ -645,16 +646,19 @@ DECLARE_EVENT_CLASS(station_add_change,
 		if (params->ht_capa)
 			memcpy(__entry->ht_capa, params->ht_capa,
 			       sizeof(struct ieee80211_ht_cap));
+		memset(__entry->vlan, 0, sizeof(__entry->vlan));
+		if (params->vlan)
+			memcpy(__entry->vlan, params->vlan->name, IFNAMSIZ);
 	),
 	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", station mac: " MAC_PR_FMT
 		  ", station flags mask: %u, station flags set: %u, "
 		  "station modify mask: %u, listen interval: %d, aid: %u, "
-		  "plink action: %u, plink state: %u, uapsd queues: %u",
+		  "plink action: %u, plink state: %u, uapsd queues: %u, vlan:%s",
 		  WIPHY_PR_ARG, NETDEV_PR_ARG, MAC_PR_ARG(sta_mac),
 		  __entry->sta_flags_mask, __entry->sta_flags_set,
 		  __entry->sta_modify_mask, __entry->listen_interval,
 		  __entry->aid, __entry->plink_action, __entry->plink_state,
-		  __entry->uapsd_queues)
+		  __entry->uapsd_queues, __entry->vlan)
 );
 
 DEFINE_EVENT(station_add_change, rdev_add_station,
@@ -2637,28 +2641,30 @@ DEFINE_EVENT(wiphy_only_evt, cfg80211_sched_scan_stopped,
 TRACE_EVENT(cfg80211_get_bss,
 	TP_PROTO(struct wiphy *wiphy, struct ieee80211_channel *channel,
 		 const u8 *bssid, const u8 *ssid, size_t ssid_len,
-		 u16 capa_mask, u16 capa_val),
-	TP_ARGS(wiphy, channel, bssid, ssid, ssid_len, capa_mask, capa_val),
+		 enum ieee80211_bss_type bss_type,
+		 enum ieee80211_privacy privacy),
+	TP_ARGS(wiphy, channel, bssid, ssid, ssid_len, bss_type, privacy),
 	TP_STRUCT__entry(
 		WIPHY_ENTRY
 		CHAN_ENTRY
 		MAC_ENTRY(bssid)
 		__dynamic_array(u8, ssid, ssid_len)
-		__field(u16, capa_mask)
-		__field(u16, capa_val)
+		__field(enum ieee80211_bss_type, bss_type)
+		__field(enum ieee80211_privacy, privacy)
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
 		CHAN_ASSIGN(channel);
 		MAC_ASSIGN(bssid, bssid);
 		memcpy(__get_dynamic_array(ssid), ssid, ssid_len);
-		__entry->capa_mask = capa_mask;
-		__entry->capa_val = capa_val;
+		__entry->bss_type = bss_type;
+		__entry->privacy = privacy;
 	),
-	TP_printk(WIPHY_PR_FMT ", " CHAN_PR_FMT ", " MAC_PR_FMT ", buf: %#.2x, "
-		  "capa_mask: %d, capa_val: %u", WIPHY_PR_ARG, CHAN_PR_ARG,
-		  MAC_PR_ARG(bssid), ((u8 *)__get_dynamic_array(ssid))[0],
-		  __entry->capa_mask, __entry->capa_val)
+	TP_printk(WIPHY_PR_FMT ", " CHAN_PR_FMT ", " MAC_PR_FMT
+		  ", buf: %#.2x, bss_type: %d, privacy: %d",
+		  WIPHY_PR_ARG, CHAN_PR_ARG, MAC_PR_ARG(bssid),
+		  ((u8 *)__get_dynamic_array(ssid))[0], __entry->bss_type,
+		  __entry->privacy)
 );
 
 TRACE_EVENT(cfg80211_inform_bss_width_frame,

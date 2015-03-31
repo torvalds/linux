@@ -17,10 +17,11 @@
 #include "rc80211_minstrel.h"
 #include "rc80211_minstrel_ht.h"
 
+#define AVG_AMPDU_SIZE	16
 #define AVG_PKT_SIZE	1200
 
 /* Number of bits for an average sized packet */
-#define MCS_NBITS (AVG_PKT_SIZE << 3)
+#define MCS_NBITS ((AVG_PKT_SIZE * AVG_AMPDU_SIZE) << 3)
 
 /* Number of symbols for a packet with (bps) bits per symbol */
 #define MCS_NSYMS(bps) DIV_ROUND_UP(MCS_NBITS, (bps))
@@ -33,7 +34,8 @@
 	)
 
 /* Transmit duration for the raw data part of an average sized packet */
-#define MCS_DURATION(streams, sgi, bps) MCS_SYMBOL_TIME(sgi, MCS_NSYMS((streams) * (bps)))
+#define MCS_DURATION(streams, sgi, bps) \
+	(MCS_SYMBOL_TIME(sgi, MCS_NSYMS((streams) * (bps))) / AVG_AMPDU_SIZE)
 
 #define BW_20			0
 #define BW_40			1

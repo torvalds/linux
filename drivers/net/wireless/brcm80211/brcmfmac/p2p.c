@@ -2246,11 +2246,13 @@ static void brcmf_p2p_delete_p2pdev(struct brcmf_p2p_info *p2p,
  *
  * @wiphy: wiphy device of new interface.
  * @name: name of the new interface.
+ * @name_assign_type: origin of the interface name
  * @type: nl80211 interface type.
  * @flags: not used.
  * @params: contains mac address for P2P device.
  */
 struct wireless_dev *brcmf_p2p_add_vif(struct wiphy *wiphy, const char *name,
+				       unsigned char name_assign_type,
 				       enum nl80211_iftype type, u32 *flags,
 				       struct vif_params *params)
 {
@@ -2310,6 +2312,7 @@ struct wireless_dev *brcmf_p2p_add_vif(struct wiphy *wiphy, const char *name,
 	}
 
 	strncpy(ifp->ndev->name, name, sizeof(ifp->ndev->name) - 1);
+	ifp->ndev->name_assign_type = name_assign_type;
 	err = brcmf_net_attach(ifp, true);
 	if (err) {
 		brcmf_err("Registering netdevice failed\n");
