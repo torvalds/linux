@@ -1911,7 +1911,7 @@ static resource_size_t pnv_pci_window_alignment(struct pci_bus *bus,
 /* Prevent enabling devices for which we couldn't properly
  * assign a PE
  */
-static int pnv_pci_enable_device_hook(struct pci_dev *dev)
+static bool pnv_pci_enable_device_hook(struct pci_dev *dev)
 {
 	struct pci_controller *hose = pci_bus_to_host(dev->bus);
 	struct pnv_phb *phb = hose->private_data;
@@ -1923,13 +1923,13 @@ static int pnv_pci_enable_device_hook(struct pci_dev *dev)
 	 * PEs isn't ready.
 	 */
 	if (!phb->initialized)
-		return 0;
+		return true;
 
 	pdn = pci_get_pdn(dev);
 	if (!pdn || pdn->pe_number == IODA_INVALID_PE)
-		return -EINVAL;
+		return false;
 
-	return 0;
+	return true;
 }
 
 static u32 pnv_ioda_bdfn_to_pe(struct pnv_phb *phb, struct pci_bus *bus,
