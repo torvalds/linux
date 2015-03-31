@@ -1487,6 +1487,7 @@ static int perf_sched__read_events(struct perf_sched *sched)
 	struct perf_data_file file = {
 		.path = input_name,
 		.mode = PERF_DATA_MODE_READ,
+		.force = sched->force,
 	};
 	int rc = -1;
 
