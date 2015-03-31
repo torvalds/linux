@@ -2129,7 +2129,7 @@ static const struct net_device_ops macb_netdev_ops = {
 };
 
 /*
- * Configure peripheral capacities according to device tree
+ * Configure peripheral capabilities according to device tree
  * and integration options used
  */
 static void macb_configure_caps(struct macb *bp, const struct macb_config *dt_conf)
@@ -2731,7 +2731,7 @@ static int macb_probe(struct platform_device *pdev)
 		}
 	}
 
-	/* setup capacities */
+	/* setup capabilities */
 	macb_configure_caps(bp, macb_config);
 
 	platform_set_drvdata(pdev, dev);
