@@ -829,16 +829,32 @@ static void sc16is7xx_set_termios(struct uart_port *port,
 }
 
 static int sc16is7xx_config_rs485(struct uart_port *port,
-				   struct serial_rs485 *rs485)
+				  struct serial_rs485 *rs485)
 {
-	if (port->rs485.flags & SER_RS485_ENABLED)
-		sc16is7xx_port_update(port, SC16IS7XX_EFCR_REG,
-				      SC16IS7XX_EFCR_AUTO_RS485_BIT,
-				      SC16IS7XX_EFCR_AUTO_RS485_BIT);
-	else
-		sc16is7xx_port_update(port, SC16IS7XX_EFCR_REG,
-				      SC16IS7XX_EFCR_AUTO_RS485_BIT,
-				      0);
+	const u32 mask = SC16IS7XX_EFCR_AUTO_RS485_BIT |
+			 SC16IS7XX_EFCR_RTS_INVERT_BIT;
+	u32 efcr = 0;
+
+	if (rs485->flags & SER_RS485_ENABLED) {
+		bool rts_during_rx, rts_during_tx;
+
+		rts_during_rx = rs485->flags & SER_RS485_RTS_AFTER_SEND;
+		rts_during_tx = rs485->flags & SER_RS485_RTS_ON_SEND;
+
+		efcr |= SC16IS7XX_EFCR_AUTO_RS485_BIT;
+
+		if (!rts_during_rx && rts_during_tx)
+			/* default */;
+		else if (rts_during_rx && !rts_during_tx)
+			efcr |= SC16IS7XX_EFCR_RTS_INVERT_BIT;
+		else
+			dev_err(port->dev,
+				"unsupported RTS signalling on_send:%d after_send:%d - exactly one of RS485 RTS flags should be set\n",
+				rts_during_tx, rts_during_rx);
+	}
+
+	sc16is7xx_port_update(port, SC16IS7XX_EFCR_REG, mask, efcr);
+
 	port->rs485 = *rs485;
 
 	return 0;
