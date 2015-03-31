@@ -340,6 +340,7 @@ static int st21nfcb_hci_connectivity_event_received(struct nci_dev *ndev,
 		       transaction->aid_len + 4, transaction->params_len);
 
 		r = nfc_se_transaction(ndev->nfc_dev, host, transaction);
+		break;
 	default:
 		return 1;
 	}
