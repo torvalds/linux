@@ -542,14 +542,12 @@ static int st21nfcb_hci_network_init(struct nci_dev *ndev)
 
 	r = nci_hci_dev_session_init(ndev);
 	if (r != NCI_HCI_ANY_OK)
-		goto exit;
+		goto free_dest_params;
 
 	r = nci_nfcee_mode_set(ndev, ndev->hci_dev->conn_info->id,
 			       NCI_NFCEE_ENABLE);
 	if (r != NCI_STATUS_OK)
-		goto exit;
-
-	return 0;
+		goto free_dest_params;
 
 free_dest_params:
 	kfree(dest_params);
