@@ -171,6 +171,41 @@ static void nvt_set_ioaddr(struct nvt_dev *nvt, unsigned long *ioaddr)
 	}
 }
 
+static void nvt_write_wakeup_codes(struct rc_dev *dev,
+				   const u8 *wbuf, int count)
+{
+	u8 tolerance, config;
+	struct nvt_dev *nvt = dev->priv;
+	int i;
+
+	/* hardcode the tolerance to 10% */
+	tolerance = DIV_ROUND_UP(count, 10);
+
+	spin_lock(&nvt->lock);
+
+	nvt_clear_cir_wake_fifo(nvt);
+	nvt_cir_wake_reg_write(nvt, count, CIR_WAKE_FIFO_CMP_DEEP);
+	nvt_cir_wake_reg_write(nvt, tolerance, CIR_WAKE_FIFO_CMP_TOL);
+
+	config = nvt_cir_wake_reg_read(nvt, CIR_WAKE_IRCON);
+
+	/* enable writes to wake fifo */
+	nvt_cir_wake_reg_write(nvt, config | CIR_WAKE_IRCON_MODE1,
+			       CIR_WAKE_IRCON);
+
+	if (count)
+		pr_info("Wake samples (%d) =", count);
+	else
+		pr_info("Wake sample fifo cleared");
+
+	for (i = 0; i < count; i++)
+		nvt_cir_wake_reg_write(nvt, wbuf[i], CIR_WAKE_WR_FIFO_DATA);
+
+	nvt_cir_wake_reg_write(nvt, config, CIR_WAKE_IRCON);
+
+	spin_unlock(&nvt->lock);
+}
+
 static ssize_t wakeup_data_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
@@ -209,9 +244,7 @@ static ssize_t wakeup_data_store(struct device *dev,
 				 const char *buf, size_t len)
 {
 	struct rc_dev *rc_dev = to_rc_dev(dev);
-	struct nvt_dev *nvt = rc_dev->priv;
-	unsigned long flags;
-	u8 tolerance, config, wake_buf[WAKEUP_MAX_SIZE];
+	u8 wake_buf[WAKEUP_MAX_SIZE];
 	char **argv;
 	int i, count;
 	unsigned int val;
@@ -240,27 +273,7 @@ static ssize_t wakeup_data_store(struct device *dev,
 			wake_buf[i] |= BUF_PULSE_BIT;
 	}
 
-	/* hardcode the tolerance to 10% */
-	tolerance = DIV_ROUND_UP(count, 10);
-
-	spin_lock_irqsave(&nvt->lock, flags);
-
-	nvt_clear_cir_wake_fifo(nvt);
-	nvt_cir_wake_reg_write(nvt, count, CIR_WAKE_FIFO_CMP_DEEP);
-	nvt_cir_wake_reg_write(nvt, tolerance, CIR_WAKE_FIFO_CMP_TOL);
-
-	config = nvt_cir_wake_reg_read(nvt, CIR_WAKE_IRCON);
-
-	/* enable writes to wake fifo */
-	nvt_cir_wake_reg_write(nvt, config | CIR_WAKE_IRCON_MODE1,
-			       CIR_WAKE_IRCON);
-
-	for (i = 0; i < count; i++)
-		nvt_cir_wake_reg_write(nvt, wake_buf[i], CIR_WAKE_WR_FIFO_DATA);
-
-	nvt_cir_wake_reg_write(nvt, config, CIR_WAKE_IRCON);
-
-	spin_unlock_irqrestore(&nvt->lock, flags);
+	nvt_write_wakeup_codes(rc_dev, wake_buf, count);
 
 	ret = len;
 out:
@@ -655,6 +668,62 @@ static int nvt_set_tx_carrier(struct rc_dev *dev, u32 carrier)
 		nvt_cir_reg_read(nvt, CIR_CP), nvt_cir_reg_read(nvt, CIR_CC));
 
 	return 0;
+}
+
+static int nvt_ir_raw_set_wakeup_filter(struct rc_dev *dev,
+					struct rc_scancode_filter *sc_filter)
+{
+	u8 buf_val;
+	int i, ret, count;
+	unsigned int val;
+	struct ir_raw_event *raw;
+	u8 wake_buf[WAKEUP_MAX_SIZE];
+	bool complete;
+
+	/* Require mask to be set */
+	if (!sc_filter->mask)
+		return 0;
+
+	raw = kmalloc_array(WAKEUP_MAX_SIZE, sizeof(*raw), GFP_KERNEL);
+	if (!raw)
+		return -ENOMEM;
+
+	ret = ir_raw_encode_scancode(dev->wakeup_protocol, sc_filter->data,
+				     raw, WAKEUP_MAX_SIZE);
+	complete = (ret != -ENOBUFS);
+	if (!complete)
+		ret = WAKEUP_MAX_SIZE;
+	else if (ret < 0)
+		goto out_raw;
+
+	/* Inspect the ir samples */
+	for (i = 0, count = 0; i < ret && count < WAKEUP_MAX_SIZE; ++i) {
+		/* NS to US */
+		val = DIV_ROUND_UP(raw[i].duration, 1000L) / SAMPLE_PERIOD;
+
+		/* Split too large values into several smaller ones */
+		while (val > 0 && count < WAKEUP_MAX_SIZE) {
+			/* Skip last value for better comparison tolerance */
+			if (complete && i == ret - 1 && val < BUF_LEN_MASK)
+				break;
+
+			/* Clamp values to BUF_LEN_MASK at most */
+			buf_val = (val > BUF_LEN_MASK) ? BUF_LEN_MASK : val;
+
+			wake_buf[count] = buf_val;
+			val -= buf_val;
+			if ((raw[i]).pulse)
+				wake_buf[count] |= BUF_PULSE_BIT;
+			count++;
+		}
+	}
+
+	nvt_write_wakeup_codes(dev, wake_buf, count);
+	ret = 0;
+out_raw:
+	kfree(raw);
+
+	return ret;
 }
 
 /*
@@ -1058,10 +1127,13 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 	rdev->priv = nvt;
 	rdev->driver_type = RC_DRIVER_IR_RAW;
 	rdev->allowed_protocols = RC_BIT_ALL_IR_DECODER;
+	rdev->allowed_wakeup_protocols = RC_BIT_ALL_IR_ENCODER;
+	rdev->encode_wakeup = true;
 	rdev->open = nvt_open;
 	rdev->close = nvt_close;
 	rdev->tx_ir = nvt_tx_ir;
 	rdev->s_tx_carrier = nvt_set_tx_carrier;
+	rdev->s_wakeup_filter = nvt_ir_raw_set_wakeup_filter;
 	rdev->input_name = "Nuvoton w836x7hg Infrared Remote Transceiver";
 	rdev->input_phys = "nuvoton/cir0";
 	rdev->input_id.bustype = BUS_HOST;
