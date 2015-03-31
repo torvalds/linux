@@ -753,12 +753,12 @@ static void dw_hdmi_phy_sel_interface_control(struct dw_hdmi *hdmi, u8 enable)
 static int hdmi_phy_configure(struct dw_hdmi *hdmi, unsigned char prep,
 			      unsigned char res, int cscon)
 {
-	unsigned res_idx, i;
+	unsigned res_idx;
 	u8 val, msec;
-	const struct dw_hdmi_plat_data *plat_data = hdmi->plat_data;
-	const struct dw_hdmi_mpll_config *mpll_config = plat_data->mpll_cfg;
-	const struct dw_hdmi_curr_ctrl *curr_ctrl = plat_data->cur_ctr;
-	const struct dw_hdmi_phy_config *phy_config = plat_data->phy_config;
+	const struct dw_hdmi_plat_data *pdata = hdmi->plat_data;
+	const struct dw_hdmi_mpll_config *mpll_config = pdata->mpll_cfg;
+	const struct dw_hdmi_curr_ctrl *curr_ctrl = pdata->cur_ctr;
+	const struct dw_hdmi_phy_config *phy_config = pdata->phy_config;
 
 	if (prep)
 		return -EINVAL;
@@ -775,6 +775,30 @@ static int hdmi_phy_configure(struct dw_hdmi *hdmi, unsigned char prep,
 		res_idx = DW_HDMI_RES_12;
 		break;
 	default:
+		return -EINVAL;
+	}
+
+	/* PLL/MPLL Cfg - always match on final entry */
+	for (; mpll_config->mpixelclock != ~0UL; mpll_config++)
+		if (hdmi->hdmi_data.video_mode.mpixelclock <=
+		    mpll_config->mpixelclock)
+			break;
+
+	for (; curr_ctrl->mpixelclock != ~0UL; curr_ctrl++)
+		if (hdmi->hdmi_data.video_mode.mpixelclock <=
+		    curr_ctrl->mpixelclock)
+			break;
+
+	for (; phy_config->mpixelclock != ~0UL; phy_config++)
+		if (hdmi->hdmi_data.video_mode.mpixelclock <=
+		    phy_config->mpixelclock)
+			break;
+
+	if (mpll_config->mpixelclock == ~0UL ||
+	    curr_ctrl->mpixelclock == ~0UL ||
+	    phy_config->mpixelclock == ~0UL) {
+		dev_err(hdmi->dev, "Pixel clock %d - unsupported by HDMI\n",
+			hdmi->hdmi_data.video_mode.mpixelclock);
 		return -EINVAL;
 	}
 
@@ -803,40 +827,18 @@ static int hdmi_phy_configure(struct dw_hdmi *hdmi, unsigned char prep,
 		    HDMI_PHY_I2CM_SLAVE_ADDR);
 	hdmi_phy_test_clear(hdmi, 0);
 
-	/* PLL/MPLL Cfg - always match on final entry */
-	for (i = 0; mpll_config[i].mpixelclock != (~0UL); i++)
-		if (hdmi->hdmi_data.video_mode.mpixelclock <=
-		    mpll_config[i].mpixelclock)
-			break;
-
-	hdmi_phy_i2c_write(hdmi, mpll_config[i].res[res_idx].cpce, 0x06);
-	hdmi_phy_i2c_write(hdmi, mpll_config[i].res[res_idx].gmp, 0x15);
-
-	for (i = 0; curr_ctrl[i].mpixelclock != (~0UL); i++)
-		if (hdmi->hdmi_data.video_mode.mpixelclock <=
-		    curr_ctrl[i].mpixelclock)
-			break;
-
-	if (curr_ctrl[i].mpixelclock == (~0UL)) {
-		dev_err(hdmi->dev, "Pixel clock %d - unsupported by HDMI\n",
-			hdmi->hdmi_data.video_mode.mpixelclock);
-		return -EINVAL;
-	}
+	hdmi_phy_i2c_write(hdmi, mpll_config->res[res_idx].cpce, 0x06);
+	hdmi_phy_i2c_write(hdmi, mpll_config->res[res_idx].gmp, 0x15);
 
 	/* CURRCTRL */
-	hdmi_phy_i2c_write(hdmi, curr_ctrl[i].curr[res_idx], 0x10);
+	hdmi_phy_i2c_write(hdmi, curr_ctrl->curr[res_idx], 0x10);
 
 	hdmi_phy_i2c_write(hdmi, 0x0000, 0x13);  /* PLLPHBYCTRL */
 	hdmi_phy_i2c_write(hdmi, 0x0006, 0x17);
 
-	for (i = 0; phy_config[i].mpixelclock != (~0UL); i++)
-		if (hdmi->hdmi_data.video_mode.mpixelclock <=
-		    phy_config[i].mpixelclock)
-			break;
-
-	hdmi_phy_i2c_write(hdmi, phy_config[i].term, 0x19);  /* TXTERM */
-	hdmi_phy_i2c_write(hdmi, phy_config[i].sym_ctr, 0x09); /* CKSYMTXCTRL */
-	hdmi_phy_i2c_write(hdmi, phy_config[i].vlev_ctr, 0x0E); /* VLEVCTRL */
+	hdmi_phy_i2c_write(hdmi, phy_config->term, 0x19);  /* TXTERM */
+	hdmi_phy_i2c_write(hdmi, phy_config->sym_ctr, 0x09); /* CKSYMTXCTRL */
+	hdmi_phy_i2c_write(hdmi, phy_config->vlev_ctr, 0x0E); /* VLEVCTRL */
 
 	/* REMOVE CLK TERM */
 	hdmi_phy_i2c_write(hdmi, 0x8000, 0x05);  /* CKCALCTRL */
