@@ -7,6 +7,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/backlight.h>
 #include <linux/kernel.h>
 #include <linux/i2c.h>
 #include <linux/fb.h>
@@ -37,6 +38,8 @@
 #define	SSD1307FB_SET_PRECHARGE_PERIOD	0xd9
 #define	SSD1307FB_SET_COM_PINS_CONFIG	0xda
 #define	SSD1307FB_SET_VCOMH		0xdb
+
+#define MAX_CONTRAST 255
 
 #define REFRESHRATE 1
 
@@ -424,6 +427,43 @@ static int ssd1307fb_init(struct ssd1307fb_par *par)
 	return 0;
 }
 
+static int ssd1307fb_update_bl(struct backlight_device *bdev)
+{
+	struct ssd1307fb_par *par = bl_get_data(bdev);
+	int ret;
+	int brightness = bdev->props.brightness;
+
+	par->contrast = brightness;
+
+	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_CONTRAST);
+	if (ret < 0)
+		return ret;
+	ret = ssd1307fb_write_cmd(par->client, par->contrast);
+	if (ret < 0)
+		return ret;
+	return 0;
+}
+
+static int ssd1307fb_get_brightness(struct backlight_device *bdev)
+{
+	struct ssd1307fb_par *par = bl_get_data(bdev);
+
+	return par->contrast;
+}
+
+static int ssd1307fb_check_fb(struct backlight_device *bdev,
+				   struct fb_info *info)
+{
+	return (info->bl_dev == bdev);
+}
+
+static const struct backlight_ops ssd1307fb_bl_ops = {
+	.options	= BL_CORE_SUSPENDRESUME,
+	.update_status	= ssd1307fb_update_bl,
+	.get_brightness	= ssd1307fb_get_brightness,
+	.check_fb	= ssd1307fb_check_fb,
+};
+
 static struct ssd1307fb_deviceinfo ssd1307fb_ssd1305_deviceinfo = {
 	.default_vcomh = 0x34,
 	.default_dclk_div = 1,
@@ -464,6 +504,8 @@ MODULE_DEVICE_TABLE(of, ssd1307fb_of_match);
 static int ssd1307fb_probe(struct i2c_client *client,
 			   const struct i2c_device_id *id)
 {
+	struct backlight_device *bl;
+	char bl_name[12];
 	struct fb_info *info;
 	struct device_node *node = client->dev.of_node;
 	struct fb_deferred_io *ssd1307fb_defio;
@@ -599,10 +641,24 @@ static int ssd1307fb_probe(struct i2c_client *client,
 		goto panel_init_error;
 	}
 
+	snprintf(bl_name, sizeof(bl_name), "ssd1307fb%d", info->node);
+	bl = backlight_device_register(bl_name, &client->dev, par,
+				       &ssd1307fb_bl_ops, NULL);
+	bl->props.brightness = par->contrast;
+	bl->props.max_brightness = MAX_CONTRAST;
+	info->bl_dev = bl;
+
+	if (IS_ERR(bl)) {
+		dev_err(&client->dev, "unable to register backlight device: %ld\n",
+			PTR_ERR(bl));
+		goto bl_init_error;
+	}
 	dev_info(&client->dev, "fb%d: %s framebuffer device registered, using %d bytes of video memory\n", info->node, info->fix.id, vmem_size);
 
 	return 0;
 
+bl_init_error:
+	unregister_framebuffer(info);
 panel_init_error:
 	if (par->device_info->need_pwm) {
 		pwm_disable(par->pwm);
@@ -621,6 +677,8 @@ static int ssd1307fb_remove(struct i2c_client *client)
 	struct ssd1307fb_par *par = info->par;
 
 	ssd1307fb_write_cmd(par->client, SSD1307FB_DISPLAY_OFF);
+
+	backlight_device_unregister(info->bl_dev);
 
 	unregister_framebuffer(info);
 	if (par->device_info->need_pwm) {
