@@ -495,6 +495,8 @@ void intel_dvo_init(struct drm_device *dev)
 		struct i2c_adapter *i2c;
 		int gpio;
 		bool dvoinit;
+		enum pipe pipe;
+		uint32_t dpll[2];
 
 		/* Allow the I2C driver info to specify the GPIO to be used in
 		 * special cases, but otherwise default to what's defined
@@ -520,7 +522,22 @@ void intel_dvo_init(struct drm_device *dev)
 		 */
 		intel_gmbus_force_bit(i2c, true);
 
+		/* ns2501 requires the DVO 2x clock before it will
+		 * respond to i2c accesses, so make sure we have
+		 * have the clock enabled before we attempt to
+		 * initialize the device.
+		 */
+		for_each_pipe(dev_priv, pipe) {
+			dpll[pipe] = I915_READ(DPLL(pipe));
+			I915_WRITE(DPLL(pipe), dpll[pipe] | DPLL_DVO_2X_MODE);
+		}
+
 		dvoinit = dvo->dev_ops->init(&intel_dvo->dev, i2c);
+
+		/* restore the DVO 2x clock state to original */
+		for_each_pipe(dev_priv, pipe) {
+			I915_WRITE(DPLL(pipe), dpll[pipe]);
+		}
 
 		intel_gmbus_force_bit(i2c, false);
 
