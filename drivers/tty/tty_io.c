@@ -235,7 +235,7 @@ static void tty_del_file(struct file *file)
 /**
  *	tty_name	-	return tty naming
  *	@tty: tty structure
- *	@buf: buffer for output
+ *	@buf: unused
  *
  *	Convert a tty structure into a name. The name reflects the kernel
  *	naming policy and if udev is in use may not reflect user space
@@ -246,10 +246,8 @@ static void tty_del_file(struct file *file)
 const char *tty_name(const struct tty_struct *tty, char *buf)
 {
 	if (!tty) /* Hmm.  NULL pointer.  That's fun. */
-		strcpy(buf, "NULL tty");
-	else
-		strcpy(buf, tty->name);
-	return buf;
+		return "NULL tty";
+	return tty->name;
 }
 
 EXPORT_SYMBOL(tty_name);
