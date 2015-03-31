@@ -437,7 +437,7 @@ void evergreen_dp_enable(struct drm_encoder *encoder, bool enable)
 		WREG32(EVERGREEN_DP_SEC_TIMESTAMP + dig->afmt->offset,
 		       EVERGREEN_DP_SEC_TIMESTAMP_MODE(1));
 
-		if (radeon_connector->con_priv) {
+		if (!ASIC_IS_DCE6(rdev) && radeon_connector->con_priv) {
 			dig_connector = radeon_connector->con_priv;
 			val = RREG32(EVERGREEN_DP_SEC_AUD_N + dig->afmt->offset);
 			val &= ~EVERGREEN_DP_SEC_N_BASE_MULTIPLE(0xf);

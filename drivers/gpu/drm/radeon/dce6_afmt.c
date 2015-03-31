@@ -295,28 +295,3 @@ void dce6_dp_audio_set_dto(struct radeon_device *rdev,
 		WREG32(DCCG_AUDIO_DTO1_MODULE, clock);
 	}
 }
-
-void dce6_dp_enable(struct drm_encoder *encoder, bool enable)
-{
-	struct drm_device *dev = encoder->dev;
-	struct radeon_device *rdev = dev->dev_private;
-	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
-	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
-
-	if (!dig || !dig->afmt)
-		return;
-
-	if (enable) {
-		WREG32(EVERGREEN_DP_SEC_TIMESTAMP + dig->afmt->offset,
-		       EVERGREEN_DP_SEC_TIMESTAMP_MODE(1));
-		WREG32(EVERGREEN_DP_SEC_CNTL + dig->afmt->offset,
-		       EVERGREEN_DP_SEC_ASP_ENABLE |		/* Audio packet transmission */
-		       EVERGREEN_DP_SEC_ATP_ENABLE |		/* Audio timestamp packet transmission */
-		       EVERGREEN_DP_SEC_AIP_ENABLE |		/* Audio infoframe packet transmission */
-		       EVERGREEN_DP_SEC_STREAM_ENABLE);	/* Master enable for secondary stream engine */
-	} else {
-		WREG32(EVERGREEN_DP_SEC_CNTL + dig->afmt->offset, 0);
-	}
-
-	dig->afmt->enabled = enable;
-}
