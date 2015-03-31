@@ -155,7 +155,6 @@ static int arizona_gpio_remove(struct platform_device *pdev)
 
 static struct platform_driver arizona_gpio_driver = {
 	.driver.name	= "arizona-gpio",
-	.driver.owner	= THIS_MODULE,
 	.probe		= arizona_gpio_probe,
 	.remove		= arizona_gpio_remove,
 };
