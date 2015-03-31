@@ -1689,105 +1689,6 @@ static void intel_disable_ddi(struct intel_encoder *intel_encoder)
 	}
 }
 
-static int skl_get_cdclk_freq(struct drm_i915_private *dev_priv)
-{
-	uint32_t lcpll1 = I915_READ(LCPLL1_CTL);
-	uint32_t cdctl = I915_READ(CDCLK_CTL);
-	uint32_t linkrate;
-
-	if (!(lcpll1 & LCPLL_PLL_ENABLE)) {
-		WARN(1, "LCPLL1 not enabled\n");
-		return 24000; /* 24MHz is the cd freq with NSSC ref */
-	}
-
-	if ((cdctl & CDCLK_FREQ_SEL_MASK) == CDCLK_FREQ_540)
-		return 540000;
-
-	linkrate = (I915_READ(DPLL_CTRL1) &
-		    DPLL_CRTL1_LINK_RATE_MASK(SKL_DPLL0)) >> 1;
-
-	if (linkrate == DPLL_CRTL1_LINK_RATE_2160 ||
-	    linkrate == DPLL_CRTL1_LINK_RATE_1080) {
-		/* vco 8640 */
-		switch (cdctl & CDCLK_FREQ_SEL_MASK) {
-		case CDCLK_FREQ_450_432:
-			return 432000;
-		case CDCLK_FREQ_337_308:
-			return 308570;
-		case CDCLK_FREQ_675_617:
-			return 617140;
-		default:
-			WARN(1, "Unknown cd freq selection\n");
-		}
-	} else {
-		/* vco 8100 */
-		switch (cdctl & CDCLK_FREQ_SEL_MASK) {
-		case CDCLK_FREQ_450_432:
-			return 450000;
-		case CDCLK_FREQ_337_308:
-			return 337500;
-		case CDCLK_FREQ_675_617:
-			return 675000;
-		default:
-			WARN(1, "Unknown cd freq selection\n");
-		}
-	}
-
-	/* error case, do as if DPLL0 isn't enabled */
-	return 24000;
-}
-
-static int bdw_get_cdclk_freq(struct drm_i915_private *dev_priv)
-{
-	uint32_t lcpll = I915_READ(LCPLL_CTL);
-	uint32_t freq = lcpll & LCPLL_CLK_FREQ_MASK;
-
-	if (lcpll & LCPLL_CD_SOURCE_FCLK)
-		return 800000;
-	else if (I915_READ(FUSE_STRAP) & HSW_CDCLK_LIMIT)
-		return 450000;
-	else if (freq == LCPLL_CLK_FREQ_450)
-		return 450000;
-	else if (freq == LCPLL_CLK_FREQ_54O_BDW)
-		return 540000;
-	else if (freq == LCPLL_CLK_FREQ_337_5_BDW)
-		return 337500;
-	else
-		return 675000;
-}
-
-static int hsw_get_cdclk_freq(struct drm_i915_private *dev_priv)
-{
-	struct drm_device *dev = dev_priv->dev;
-	uint32_t lcpll = I915_READ(LCPLL_CTL);
-	uint32_t freq = lcpll & LCPLL_CLK_FREQ_MASK;
-
-	if (lcpll & LCPLL_CD_SOURCE_FCLK)
-		return 800000;
-	else if (I915_READ(FUSE_STRAP) & HSW_CDCLK_LIMIT)
-		return 450000;
-	else if (freq == LCPLL_CLK_FREQ_450)
-		return 450000;
-	else if (IS_HSW_ULT(dev))
-		return 337500;
-	else
-		return 540000;
-}
-
-int intel_ddi_get_cdclk_freq(struct drm_i915_private *dev_priv)
-{
-	struct drm_device *dev = dev_priv->dev;
-
-	if (IS_SKYLAKE(dev))
-		return skl_get_cdclk_freq(dev_priv);
-
-	if (IS_BROADWELL(dev))
-		return bdw_get_cdclk_freq(dev_priv);
-
-	/* Haswell */
-	return hsw_get_cdclk_freq(dev_priv);
-}
-
 static void hsw_ddi_pll_enable(struct drm_i915_private *dev_priv,
 			       struct intel_shared_dpll *pll)
 {
@@ -1974,7 +1875,7 @@ void intel_ddi_pll_init(struct drm_device *dev)
 		hsw_shared_dplls_init(dev_priv);
 
 	DRM_DEBUG_KMS("CDCLK running at %dKHz\n",
-		      intel_ddi_get_cdclk_freq(dev_priv));
+		      dev_priv->display.get_display_clock_speed(dev));
 
 	if (IS_SKYLAKE(dev)) {
 		if (!(I915_READ(LCPLL1_CTL) & LCPLL_PLL_ENABLE))

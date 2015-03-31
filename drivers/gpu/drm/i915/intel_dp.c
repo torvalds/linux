@@ -717,7 +717,7 @@ static uint32_t hsw_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 	if (intel_dig_port->port == PORT_A) {
 		if (index)
 			return 0;
-		return DIV_ROUND_CLOSEST(intel_ddi_get_cdclk_freq(dev_priv), 2000);
+		return DIV_ROUND_CLOSEST(dev_priv->display.get_display_clock_speed(dev), 2000);
 	} else if (dev_priv->pch_id == INTEL_PCH_LPT_DEVICE_ID_TYPE) {
 		/* Workaround for non-ULT HSW */
 		switch (index) {

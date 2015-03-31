@@ -485,7 +485,8 @@ static int i915_audio_component_get_cdclk_freq(struct device *dev)
 		return -ENODEV;
 
 	intel_display_power_get(dev_priv, POWER_DOMAIN_AUDIO);
-	ret = intel_ddi_get_cdclk_freq(dev_priv);
+	ret = dev_priv->display.get_display_clock_speed(dev_priv->dev);
+
 	intel_display_power_put(dev_priv, POWER_DOMAIN_AUDIO);
 
 	return ret;
