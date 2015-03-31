@@ -694,13 +694,24 @@ out:
  */
 static void ufs_qcom_advertise_quirks(struct ufs_hba *hba)
 {
+	struct ufs_qcom_host *host = hba->priv;
 
+	if (host->hw_ver.major == 0x1)
+		hba->quirks |= UFSHCD_QUIRK_DELAY_BEFORE_DME_CMDS;
 
-	/*
-	 * TBD
-	 * here we should be advertising controller quirks according to
-	 * controller version.
-	 */
+	if (host->hw_ver.major >= 0x2) {
+		if (!ufs_qcom_cap_qunipro(host))
+			/* Legacy UniPro mode still need following quirks */
+			hba->quirks |= UFSHCD_QUIRK_DELAY_BEFORE_DME_CMDS;
+	}
+}
+
+static void ufs_qcom_set_caps(struct ufs_hba *hba)
+{
+	struct ufs_qcom_host *host = hba->priv;
+
+	if (host->hw_ver.major >= 0x2)
+		host->caps = UFS_QCOM_CAP_QUNIPRO;
 }
 
 static int ufs_qcom_get_bus_vote(struct ufs_qcom_host *host,
@@ -938,6 +949,7 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 	if (err)
 		goto out_disable_phy;
 
+	ufs_qcom_set_caps(hba);
 	ufs_qcom_advertise_quirks(hba);
 
 	hba->caps |= UFSHCD_CAP_CLK_GATING | UFSHCD_CAP_CLK_SCALING;

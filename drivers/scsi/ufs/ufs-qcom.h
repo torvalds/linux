@@ -158,6 +158,16 @@ struct ufs_hw_version {
 	u8 major;
 };
 struct ufs_qcom_host {
+
+	/*
+	 * Set this capability if host controller supports the QUniPro mode
+	 * and if driver wants the Host controller to operate in QUniPro mode.
+	 * Note: By default this capability will be kept enabled if host
+	 * controller supports the QUniPro mode.
+	 */
+	#define UFS_QCOM_CAP_QUNIPRO	UFS_BIT(0)
+	u32 caps;
+
 	struct phy *generic_phy;
 	struct ufs_hba *hba;
 	struct ufs_qcom_bus_vote bus_vote;
@@ -174,5 +184,13 @@ struct ufs_qcom_host {
 #define ufs_qcom_is_link_off(hba) ufshcd_is_link_off(hba)
 #define ufs_qcom_is_link_active(hba) ufshcd_is_link_active(hba)
 #define ufs_qcom_is_link_hibern8(hba) ufshcd_is_link_hibern8(hba)
+
+static inline bool ufs_qcom_cap_qunipro(struct ufs_qcom_host *host)
+{
+	if (host->caps & UFS_QCOM_CAP_QUNIPRO)
+		return true;
+	else
+		return false;
+}
 
 #endif /* UFS_QCOM_H_ */
