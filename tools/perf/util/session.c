@@ -110,6 +110,8 @@ struct perf_session *perf_session__new(struct perf_data_file *file,
 
 	session->repipe = repipe;
 	machines__init(&session->machines);
+	ordered_events__init(&session->ordered_events, &session->machines,
+			     session->evlist, tool, ordered_events__deliver_event);
 
 	if (file) {
 		if (perf_data_file__open(file))
@@ -139,9 +141,6 @@ struct perf_session *perf_session__new(struct perf_data_file *file,
 	    tool->ordered_events && !perf_evlist__sample_id_all(session->evlist)) {
 		dump_printf("WARNING: No sample_id_all support, falling back to unordered processing\n");
 		tool->ordered_events = false;
-	} else {
-		ordered_events__init(&session->ordered_events, &session->machines,
-				     session->evlist, tool, ordered_events__deliver_event);
 	}
 
 	return session;
