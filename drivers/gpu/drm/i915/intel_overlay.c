@@ -242,13 +242,13 @@ static int intel_overlay_on(struct intel_overlay *overlay)
 	int ret;
 
 	WARN_ON(overlay->active);
-	overlay->active = true;
-
 	WARN_ON(IS_I830(dev) && !(dev_priv->quirks & QUIRK_PIPEA_FORCE));
 
 	ret = intel_ring_begin(ring, 4);
 	if (ret)
 		return ret;
+
+	overlay->active = true;
 
 	intel_ring_emit(ring, MI_OVERLAY_FLIP | MI_OVERLAY_ON);
 	intel_ring_emit(ring, overlay->flip_addr | OFC_UPDATE);
