@@ -661,17 +661,17 @@ static const struct of_device_id arch_timer_mem_of_match[] __initconst = {
 };
 
 static bool __init
-arch_timer_probed(int type, const struct of_device_id *matches)
+arch_timer_needs_probing(int type, const struct of_device_id *matches)
 {
 	struct device_node *dn;
-	bool probed = true;
+	bool needs_probing = false;
 
 	dn = of_find_matching_node(NULL, matches);
 	if (dn && of_device_is_available(dn) && !(arch_timers_present & type))
-		probed = false;
+		needs_probing = true;
 	of_node_put(dn);
 
-	return probed;
+	return needs_probing;
 }
 
 static void __init arch_timer_common_init(void)
@@ -680,9 +680,9 @@ static void __init arch_timer_common_init(void)
 
 	/* Wait until both nodes are probed if we have two timers */
 	if ((arch_timers_present & mask) != mask) {
-		if (!arch_timer_probed(ARCH_MEM_TIMER, arch_timer_mem_of_match))
+		if (arch_timer_needs_probing(ARCH_MEM_TIMER, arch_timer_mem_of_match))
 			return;
-		if (!arch_timer_probed(ARCH_CP15_TIMER, arch_timer_of_match))
+		if (arch_timer_needs_probing(ARCH_CP15_TIMER, arch_timer_of_match))
 			return;
 	}
 
