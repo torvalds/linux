@@ -2169,6 +2169,7 @@ struct wmi_start_scan_arg {
 	u32 max_scan_time;
 	u32 probe_delay;
 	u32 scan_ctrl_flags;
+	u32 burst_duration_ms;
 
 	u32 ie_len;
 	u32 n_channels;

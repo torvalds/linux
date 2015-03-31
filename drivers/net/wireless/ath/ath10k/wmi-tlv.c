@@ -1406,7 +1406,7 @@ ath10k_wmi_tlv_op_gen_start_scan(struct ath10k *ar,
 	cmd = (void *)tlv->value;
 
 	ath10k_wmi_put_start_scan_common(&cmd->common, arg);
-	cmd->burst_duration_ms = __cpu_to_le32(0);
+	cmd->burst_duration_ms = __cpu_to_le32(arg->burst_duration_ms);
 	cmd->num_channels = __cpu_to_le32(arg->n_channels);
 	cmd->num_ssids = __cpu_to_le32(arg->n_ssids);
 	cmd->num_bssids = __cpu_to_le32(arg->n_bssids);

@@ -5435,6 +5435,7 @@ static int ath10k_remain_on_channel(struct ieee80211_hw *hw,
 	arg.max_scan_time = scan_time_msec;
 	arg.scan_ctrl_flags |= WMI_SCAN_FLAG_PASSIVE;
 	arg.scan_ctrl_flags |= WMI_SCAN_FILTER_PROBE_REQ;
+	arg.burst_duration_ms = duration;
 
 	ret = ath10k_start_scan(ar, &arg);
 	if (ret) {
