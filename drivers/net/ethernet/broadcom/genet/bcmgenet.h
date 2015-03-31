@@ -293,6 +293,7 @@ struct bcmgenet_mib_counters {
 #define UMAC_IRQ_PHY_DET_F		(1 << 3)
 #define UMAC_IRQ_LINK_UP		(1 << 4)
 #define UMAC_IRQ_LINK_DOWN		(1 << 5)
+#define UMAC_IRQ_LINK_EVENT		(UMAC_IRQ_LINK_UP | UMAC_IRQ_LINK_DOWN)
 #define UMAC_IRQ_UMAC			(1 << 6)
 #define UMAC_IRQ_UMAC_TSV		(1 << 7)
 #define UMAC_IRQ_TBUF_UNDERRUN		(1 << 8)
@@ -303,9 +304,13 @@ struct bcmgenet_mib_counters {
 #define UMAC_IRQ_RXDMA_MBDONE		(1 << 13)
 #define UMAC_IRQ_RXDMA_PDONE		(1 << 14)
 #define UMAC_IRQ_RXDMA_BDONE		(1 << 15)
+#define UMAC_IRQ_RXDMA_DONE		(UMAC_IRQ_RXDMA_PDONE | \
+					 UMAC_IRQ_RXDMA_BDONE)
 #define UMAC_IRQ_TXDMA_MBDONE		(1 << 16)
 #define UMAC_IRQ_TXDMA_PDONE		(1 << 17)
 #define UMAC_IRQ_TXDMA_BDONE		(1 << 18)
+#define UMAC_IRQ_TXDMA_DONE		(UMAC_IRQ_TXDMA_PDONE | \
+					 UMAC_IRQ_TXDMA_BDONE)
 /* Only valid for GENETv3+ */
 #define UMAC_IRQ_MDIO_DONE		(1 << 23)
 #define UMAC_IRQ_MDIO_ERROR		(1 << 24)

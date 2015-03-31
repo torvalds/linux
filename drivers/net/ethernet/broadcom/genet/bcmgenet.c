@@ -966,15 +966,13 @@ static void bcmgenet_free_cb(struct enet_cb *cb)
 
 static inline void bcmgenet_rx_ring16_int_disable(struct bcmgenet_rx_ring *ring)
 {
-	bcmgenet_intrl2_0_writel(ring->priv,
-				 UMAC_IRQ_RXDMA_BDONE | UMAC_IRQ_RXDMA_PDONE,
+	bcmgenet_intrl2_0_writel(ring->priv, UMAC_IRQ_RXDMA_DONE,
 				 INTRL2_CPU_MASK_SET);
 }
 
 static inline void bcmgenet_rx_ring16_int_enable(struct bcmgenet_rx_ring *ring)
 {
-	bcmgenet_intrl2_0_writel(ring->priv,
-				 UMAC_IRQ_RXDMA_BDONE | UMAC_IRQ_RXDMA_PDONE,
+	bcmgenet_intrl2_0_writel(ring->priv, UMAC_IRQ_RXDMA_DONE,
 				 INTRL2_CPU_MASK_CLEAR);
 }
 
@@ -994,15 +992,13 @@ static inline void bcmgenet_rx_ring_int_enable(struct bcmgenet_rx_ring *ring)
 
 static inline void bcmgenet_tx_ring16_int_disable(struct bcmgenet_tx_ring *ring)
 {
-	bcmgenet_intrl2_0_writel(ring->priv,
-				 UMAC_IRQ_TXDMA_BDONE | UMAC_IRQ_TXDMA_PDONE,
+	bcmgenet_intrl2_0_writel(ring->priv, UMAC_IRQ_TXDMA_DONE,
 				 INTRL2_CPU_MASK_SET);
 }
 
 static inline void bcmgenet_tx_ring16_int_enable(struct bcmgenet_tx_ring *ring)
 {
-	bcmgenet_intrl2_0_writel(ring->priv,
-				 UMAC_IRQ_TXDMA_BDONE | UMAC_IRQ_TXDMA_PDONE,
+	bcmgenet_intrl2_0_writel(ring->priv, UMAC_IRQ_TXDMA_DONE,
 				 INTRL2_CPU_MASK_CLEAR);
 }
 
@@ -1727,16 +1723,16 @@ static int init_umac(struct bcmgenet_priv *priv)
 	bcmgenet_intr_disable(priv);
 
 	/* Enable Rx default queue 16 interrupts */
-	int0_enable |= (UMAC_IRQ_RXDMA_BDONE | UMAC_IRQ_RXDMA_PDONE);
+	int0_enable |= UMAC_IRQ_RXDMA_DONE;
 
 	/* Enable Tx default queue 16 interrupts */
-	int0_enable |= (UMAC_IRQ_TXDMA_BDONE | UMAC_IRQ_TXDMA_PDONE);
+	int0_enable |= UMAC_IRQ_TXDMA_DONE;
 
 	/* Monitor cable plug/unplugged event for internal PHY */
 	if (phy_is_internal(priv->phydev)) {
-		int0_enable |= (UMAC_IRQ_LINK_DOWN | UMAC_IRQ_LINK_UP);
+		int0_enable |= UMAC_IRQ_LINK_EVENT;
 	} else if (priv->ext_phy) {
-		int0_enable |= (UMAC_IRQ_LINK_DOWN | UMAC_IRQ_LINK_UP);
+		int0_enable |= UMAC_IRQ_LINK_EVENT;
 	} else if (priv->phy_interface == PHY_INTERFACE_MODE_MOCA) {
 		reg = bcmgenet_bp_mc_get(priv);
 		reg |= BIT(priv->hw_params->bp_in_en_shift);
@@ -2177,9 +2173,12 @@ static int bcmgenet_dma_teardown(struct bcmgenet_priv *priv)
 	return ret;
 }
 
-static void __bcmgenet_fini_dma(struct bcmgenet_priv *priv)
+static void bcmgenet_fini_dma(struct bcmgenet_priv *priv)
 {
 	int i;
+
+	bcmgenet_fini_rx_napi(priv);
+	bcmgenet_fini_tx_napi(priv);
 
 	/* disable DMA */
 	bcmgenet_dma_teardown(priv);
@@ -2194,14 +2193,6 @@ static void __bcmgenet_fini_dma(struct bcmgenet_priv *priv)
 	bcmgenet_free_rx_buffers(priv);
 	kfree(priv->rx_cbs);
 	kfree(priv->tx_cbs);
-}
-
-static void bcmgenet_fini_dma(struct bcmgenet_priv *priv)
-{
-	bcmgenet_fini_rx_napi(priv);
-	bcmgenet_fini_tx_napi(priv);
-
-	__bcmgenet_fini_dma(priv);
 }
 
 /* init_edma: Initialize DMA control register */
@@ -2280,10 +2271,10 @@ static void bcmgenet_irq_task(struct work_struct *work)
 
 	/* Link UP/DOWN event */
 	if ((priv->hw_params->flags & GENET_HAS_MDIO_INTR) &&
-	    (priv->irq0_stat & (UMAC_IRQ_LINK_UP|UMAC_IRQ_LINK_DOWN))) {
+	    (priv->irq0_stat & UMAC_IRQ_LINK_EVENT)) {
 		phy_mac_interrupt(priv->phydev,
-				  priv->irq0_stat & UMAC_IRQ_LINK_UP);
-		priv->irq0_stat &= ~(UMAC_IRQ_LINK_UP|UMAC_IRQ_LINK_DOWN);
+				  !!(priv->irq0_stat & UMAC_IRQ_LINK_UP));
+		priv->irq0_stat &= ~UMAC_IRQ_LINK_EVENT;
 	}
 }
 
@@ -2353,7 +2344,7 @@ static irqreturn_t bcmgenet_isr0(int irq, void *dev_id)
 	netif_dbg(priv, intr, priv->dev,
 		  "IRQ=0x%x\n", priv->irq0_stat);
 
-	if (priv->irq0_stat & (UMAC_IRQ_RXDMA_BDONE | UMAC_IRQ_RXDMA_PDONE)) {
+	if (priv->irq0_stat & UMAC_IRQ_RXDMA_DONE) {
 		rx_ring = &priv->rx_rings[DESC_INDEX];
 
 		if (likely(napi_schedule_prep(&rx_ring->napi))) {
@@ -2362,7 +2353,7 @@ static irqreturn_t bcmgenet_isr0(int irq, void *dev_id)
 		}
 	}
 
-	if (priv->irq0_stat & (UMAC_IRQ_TXDMA_BDONE | UMAC_IRQ_TXDMA_PDONE)) {
+	if (priv->irq0_stat & UMAC_IRQ_TXDMA_DONE) {
 		tx_ring = &priv->tx_rings[DESC_INDEX];
 
 		if (likely(napi_schedule_prep(&tx_ring->napi))) {
@@ -2373,8 +2364,7 @@ static irqreturn_t bcmgenet_isr0(int irq, void *dev_id)
 
 	if (priv->irq0_stat & (UMAC_IRQ_PHY_DET_R |
 				UMAC_IRQ_PHY_DET_F |
-				UMAC_IRQ_LINK_UP |
-				UMAC_IRQ_LINK_DOWN |
+				UMAC_IRQ_LINK_EVENT |
 				UMAC_IRQ_HFB_SM |
 				UMAC_IRQ_HFB_MM |
 				UMAC_IRQ_MPD_R)) {
@@ -2675,7 +2665,7 @@ static int bcmgenet_open(struct net_device *dev)
 	ret = bcmgenet_init_dma(priv);
 	if (ret) {
 		netdev_err(dev, "failed to initialize DMA\n");
-		goto err_fini_dma;
+		goto err_clk_disable;
 	}
 
 	/* Always enable ring 16 - descriptor ring */
