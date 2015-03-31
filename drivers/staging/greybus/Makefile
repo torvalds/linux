@@ -22,6 +22,7 @@ gb-phy-y :=	gpb.o		\
 # Prefix all modules with gb-
 gb-vibrator-y := vibrator.o
 gb-battery-y := battery.o
+gb-loopback-y := loopback.o
 gb-es1-y := es1.o
 gb-es2-y := es2.o
 
@@ -29,6 +30,7 @@ obj-m += greybus.o
 obj-m += gb-phy.o
 obj-m += gb-vibrator.o
 obj-m += gb-battery.o
+obj-m += gb-loopback.o
 obj-m += gb-es1.o
 obj-m += gb-es2.o
 
