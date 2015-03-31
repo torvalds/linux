@@ -688,8 +688,7 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 	nr_events *= 2;
 
 	/* Prevent overflows */
-	if ((nr_events > (0x10000000U / sizeof(struct io_event))) ||
-	    (nr_events > (0x10000000U / sizeof(struct kiocb)))) {
+	if (nr_events > (0x10000000U / sizeof(struct io_event))) {
 		pr_debug("ENOMEM: nr_events too high\n");
 		return ERR_PTR(-EINVAL);
 	}
