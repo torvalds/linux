@@ -111,6 +111,8 @@ struct spi_imx_data {
 	u32 rxt_wml;
 	struct completion dma_rx_completion;
 	struct completion dma_tx_completion;
+	struct dma_slave_config rx_config;
+	struct dma_slave_config tx_config;
 
 	const struct spi_imx_devtype_data *devtype_data;
 	int chipselect[0];
@@ -761,6 +763,7 @@ static int spi_imx_setupxfer(struct spi_device *spi,
 {
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(spi->master);
 	struct spi_imx_config config;
+	int ret;
 
 	config.bpw = t ? t->bits_per_word : spi->bits_per_word;
 	config.speed_hz  = t ? t->speed_hz : spi->max_speed_hz;
@@ -776,12 +779,35 @@ static int spi_imx_setupxfer(struct spi_device *spi,
 	if (config.bpw <= 8) {
 		spi_imx->rx = spi_imx_buf_rx_u8;
 		spi_imx->tx = spi_imx_buf_tx_u8;
+		spi_imx->tx_config.dst_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
+		spi_imx->rx_config.src_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
 	} else if (config.bpw <= 16) {
 		spi_imx->rx = spi_imx_buf_rx_u16;
 		spi_imx->tx = spi_imx_buf_tx_u16;
+		spi_imx->tx_config.dst_addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
+		spi_imx->rx_config.src_addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
 	} else {
 		spi_imx->rx = spi_imx_buf_rx_u32;
 		spi_imx->tx = spi_imx_buf_tx_u32;
+		spi_imx->tx_config.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+		spi_imx->rx_config.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	}
+
+	if (spi_imx->bitbang.master->can_dma &&
+	    spi_imx_can_dma(spi_imx->bitbang.master, spi, t)) {
+		ret = dmaengine_slave_config(spi_imx->bitbang.master->dma_tx,
+						&spi_imx->tx_config);
+		if (ret) {
+			dev_err(&spi->dev, "error in TX dma configuration.\n");
+			return ret;
+		}
+
+		ret = dmaengine_slave_config(spi_imx->bitbang.master->dma_rx,
+						&spi_imx->rx_config);
+		if (ret) {
+			dev_err(&spi->dev, "error in RX dma configuration.\n");
+			return ret;
+		}
 	}
 
 	spi_imx->devtype_data->config(spi_imx, &config);
@@ -810,7 +836,6 @@ static int spi_imx_sdma_init(struct device *dev, struct spi_imx_data *spi_imx,
 			     struct spi_master *master,
 			     const struct resource *res)
 {
-	struct dma_slave_config slave_config = {};
 	int ret;
 
 	/* use pio mode for i.mx6dl chip TKT238285 */
@@ -825,11 +850,11 @@ static int spi_imx_sdma_init(struct device *dev, struct spi_imx_data *spi_imx,
 		goto err;
 	}
 
-	slave_config.direction = DMA_MEM_TO_DEV;
-	slave_config.dst_addr = res->start + MXC_CSPITXDATA;
-	slave_config.dst_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
-	slave_config.dst_maxburst = spi_imx_get_fifosize(spi_imx) / 4;
-	ret = dmaengine_slave_config(master->dma_tx, &slave_config);
+	spi_imx->tx_config.direction = DMA_MEM_TO_DEV;
+	spi_imx->tx_config.dst_addr = res->start + MXC_CSPITXDATA;
+	spi_imx->tx_config.dst_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
+	spi_imx->tx_config.dst_maxburst = spi_imx_get_fifosize(spi_imx) / 4;
+	ret = dmaengine_slave_config(master->dma_tx, &spi_imx->tx_config);
 	if (ret) {
 		dev_err(dev, "error in TX dma configuration.\n");
 		goto err;
@@ -843,11 +868,11 @@ static int spi_imx_sdma_init(struct device *dev, struct spi_imx_data *spi_imx,
 		goto err;
 	}
 
-	slave_config.direction = DMA_DEV_TO_MEM;
-	slave_config.src_addr = res->start + MXC_CSPIRXDATA;
-	slave_config.src_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
-	slave_config.src_maxburst = spi_imx_get_fifosize(spi_imx) / 2;
-	ret = dmaengine_slave_config(master->dma_rx, &slave_config);
+	spi_imx->rx_config.direction = DMA_DEV_TO_MEM;
+	spi_imx->rx_config.src_addr = res->start + MXC_CSPIRXDATA;
+	spi_imx->rx_config.src_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
+	spi_imx->rx_config.src_maxburst = spi_imx_get_fifosize(spi_imx) / 2;
+	ret = dmaengine_slave_config(master->dma_rx, &spi_imx->rx_config);
 	if (ret) {
 		dev_err(dev, "error in RX dma configuration.\n");
 		goto err;
@@ -1010,6 +1035,7 @@ static int spi_imx_transfer(struct spi_device *spi,
 	    spi_imx_can_dma(spi_imx->bitbang.master, spi, transfer)) {
 		spi_imx->usedma = true;
 		ret = spi_imx_dma_transfer(spi_imx, transfer);
+		spi_imx->usedma = false; /* clear the dma flag */
 		if (ret != -EAGAIN)
 			return ret;
 	}
