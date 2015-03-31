@@ -126,26 +126,27 @@ ENTRY(ia32_sysenter_target)
 	movl	%ebp, %ebp
 	movl	%eax, %eax
 
-	/* Construct iret frame (ss,rsp,rflags,cs,rip) */
-	pushq_cfi $__USER32_DS
-	/*CFI_REL_OFFSET ss,0*/
-	pushq_cfi %rbp
-	CFI_REL_OFFSET rsp,0
-	pushfq_cfi
-	/*CFI_REL_OFFSET rflags,0*/
-	movl	ASM_THREAD_INFO(TI_sysenter_return, %rsp, 3*8), %r10d
+	movl	ASM_THREAD_INFO(TI_sysenter_return, %rsp, 0), %r10d
 	CFI_REGISTER rip,r10
-	pushq_cfi $__USER32_CS
-	/*CFI_REL_OFFSET cs,0*/
-	/* Store thread_info->sysenter_return in rip stack slot */
-	pushq_cfi %r10
-	CFI_REL_OFFSET rip,0
-	/* Store orig_ax */
-	pushq_cfi %rax
-	/* Construct the rest of "struct pt_regs" */
+
+	/* Construct struct pt_regs on stack */
+	pushq_cfi	$__USER32_DS		/* pt_regs->ss */
+	pushq_cfi	%rbp			/* pt_regs->sp */
+	CFI_REL_OFFSET	rsp,0
+	pushfq_cfi				/* pt_regs->flags */
+	pushq_cfi	$__USER32_CS		/* pt_regs->cs */
+	pushq_cfi	%r10 /* pt_regs->ip = thread_info->sysenter_return */
+	CFI_REL_OFFSET	rip,0
+	pushq_cfi_reg	rax			/* pt_regs->orig_ax */
+	pushq_cfi_reg	rdi			/* pt_regs->di */
+	pushq_cfi_reg	rsi			/* pt_regs->si */
+	pushq_cfi_reg	rdx			/* pt_regs->dx */
+	pushq_cfi_reg	rcx			/* pt_regs->cx */
+	pushq_cfi_reg	rax			/* pt_regs->ax */
 	cld
-	ALLOC_PT_GPREGS_ON_STACK
-	SAVE_C_REGS_EXCEPT_R891011
+	sub	$(10*8),%rsp /* pt_regs->r8-11,bp,bx,r12-15 not saved */
+	CFI_ADJUST_CFA_OFFSET 10*8
+
 	/*
 	 * no need to do an access_ok check here because rbp has been
 	 * 32bit zero extended
@@ -334,20 +335,24 @@ ENTRY(ia32_cstar_target)
 	/* Zero-extending 32-bit regs, do not remove */
 	movl	%eax,%eax
 
-	ALLOC_PT_GPREGS_ON_STACK 6*8 /* 6*8: space for orig_ax and iret frame */
-	SAVE_C_REGS_EXCEPT_RCX_R891011
-	movq	%rax,ORIG_RAX(%rsp)
-	movq	%rcx,RIP(%rsp)
-	CFI_REL_OFFSET rip,RIP
-	movq	%rbp,RCX(%rsp) /* this lies slightly to ptrace */
+	/* Construct struct pt_regs on stack */
+	pushq_cfi	$__USER32_DS		/* pt_regs->ss */
+	pushq_cfi	%r8			/* pt_regs->sp */
+	CFI_REL_OFFSET rsp,0
+	pushq_cfi	%r11			/* pt_regs->flags */
+	pushq_cfi	$__USER32_CS		/* pt_regs->cs */
+	pushq_cfi	%rcx			/* pt_regs->ip */
+	CFI_REL_OFFSET rip,0
+	pushq_cfi_reg	rax			/* pt_regs->orig_ax */
+	pushq_cfi_reg	rdi			/* pt_regs->di */
+	pushq_cfi_reg	rsi			/* pt_regs->si */
+	pushq_cfi_reg	rdx			/* pt_regs->dx */
+	pushq_cfi_reg	rbp			/* pt_regs->cx */
 	movl	%ebp,%ecx
-	movq	$__USER32_CS,CS(%rsp)
-	movq	$__USER32_DS,SS(%rsp)
-	movq	%r11,EFLAGS(%rsp)
-	/*CFI_REL_OFFSET rflags,EFLAGS*/
-	movq	%r8,RSP(%rsp)
-	CFI_REL_OFFSET rsp,RSP
-	/* iret stack frame is complete now */
+	pushq_cfi_reg	rax			/* pt_regs->ax */
+	sub	$(10*8),%rsp /* pt_regs->r8-11,bp,bx,r12-15 not saved */
+	CFI_ADJUST_CFA_OFFSET 10*8
+
 	/*
 	 * no need to do an access_ok check here because r8 has been
 	 * 32bit zero extended
@@ -478,12 +483,17 @@ ENTRY(ia32_syscall)
 	/* Zero-extending 32-bit regs, do not remove */
 	movl	%eax,%eax
 
-	pushq_cfi %rax		/* store orig_ax */
+	/* Construct struct pt_regs on stack (iret frame is already on stack) */
+	pushq_cfi_reg	rax			/* pt_regs->orig_ax */
+	pushq_cfi_reg	rdi			/* pt_regs->di */
+	pushq_cfi_reg	rsi			/* pt_regs->si */
+	pushq_cfi_reg	rdx			/* pt_regs->dx */
+	pushq_cfi_reg	rcx			/* pt_regs->cx */
+	pushq_cfi_reg	rax			/* pt_regs->ax */
 	cld
-	/* note the registers are not zero extended to the sf.
-	   this could be a problem. */
-	ALLOC_PT_GPREGS_ON_STACK
-	SAVE_C_REGS_EXCEPT_R891011
+	sub	$(10*8),%rsp /* pt_regs->r8-11,bp,bx,r12-15 not saved */
+	CFI_ADJUST_CFA_OFFSET 10*8
+
 	orl $TS_COMPAT, ASM_THREAD_INFO(TI_status, %rsp, SIZEOF_PTREGS)
 	testl $_TIF_WORK_SYSCALL_ENTRY, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
 	jnz ia32_tracesys
