@@ -25,7 +25,6 @@
 #include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
-#include <linux/spinlock.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/at86rf230.h>
 #include <linux/regmap.h>
@@ -96,8 +95,6 @@ struct at86rf230_local {
 	unsigned long cal_timeout;
 	s8 max_frame_retries;
 	bool is_tx;
-	/* spinlock for is_tx protection */
-	spinlock_t lock;
 	u8 tx_retry;
 	struct sk_buff *tx_skb;
 	struct at86rf230_state_change tx;
@@ -460,6 +457,7 @@ at86rf230_async_error_recover(void *context)
 	struct at86rf230_state_change *ctx = context;
 	struct at86rf230_local *lp = ctx->lp;
 
+	lp->is_tx = 0;
 	at86rf230_async_state_change(lp, ctx, STATE_RX_AACK_ON, NULL, false);
 	ieee802154_wake_queue(lp->hw);
 }
@@ -878,10 +876,8 @@ at86rf230_rx_trac_check(void *context)
 static void
 at86rf230_irq_trx_end(struct at86rf230_local *lp)
 {
-	spin_lock(&lp->lock);
 	if (lp->is_tx) {
 		lp->is_tx = 0;
-		spin_unlock(&lp->lock);
 
 		if (lp->tx_aret)
 			at86rf230_async_state_change(lp, &lp->irq,
@@ -894,7 +890,6 @@ at86rf230_irq_trx_end(struct at86rf230_local *lp)
 						     at86rf230_tx_complete,
 						     true);
 	} else {
-		spin_unlock(&lp->lock);
 		at86rf230_async_read_reg(lp, RG_TRX_STATE, &lp->irq,
 					 at86rf230_rx_trac_check, true);
 	}
@@ -964,9 +959,7 @@ at86rf230_write_frame(void *context)
 	u8 *buf = ctx->buf;
 	int rc;
 
-	spin_lock(&lp->lock);
 	lp->is_tx = 1;
-	spin_unlock(&lp->lock);
 
 	buf[0] = CMD_FB | CMD_WRITE;
 	buf[1] = skb->len + 2;
@@ -1698,7 +1691,6 @@ static int at86rf230_probe(struct spi_device *spi)
 	if (rc < 0)
 		goto free_dev;
 
-	spin_lock_init(&lp->lock);
 	init_completion(&lp->state_complete);
 
 	spi_set_drvdata(spi, lp);

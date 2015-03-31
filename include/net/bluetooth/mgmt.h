@@ -539,6 +539,38 @@ struct mgmt_rp_read_adv_features {
 	__u8   instance[0];
 } __packed;
 
+#define MGMT_OP_ADD_ADVERTISING		0x003E
+struct mgmt_cp_add_advertising {
+	__u8	instance;
+	__le32	flags;
+	__le16	duration;
+	__le16	timeout;
+	__u8	adv_data_len;
+	__u8	scan_rsp_len;
+	__u8	data[0];
+} __packed;
+#define MGMT_ADD_ADVERTISING_SIZE	11
+struct mgmt_rp_add_advertising {
+	__u8	instance;
+} __packed;
+
+#define MGMT_ADV_FLAG_CONNECTABLE	BIT(0)
+#define MGMT_ADV_FLAG_DISCOV		BIT(1)
+#define MGMT_ADV_FLAG_LIMITED_DISCOV	BIT(2)
+#define MGMT_ADV_FLAG_MANAGED_FLAGS	BIT(3)
+#define MGMT_ADV_FLAG_TX_POWER		BIT(4)
+#define MGMT_ADV_FLAG_APPEARANCE	BIT(5)
+#define MGMT_ADV_FLAG_LOCAL_NAME	BIT(6)
+
+#define MGMT_OP_REMOVE_ADVERTISING	0x003F
+struct mgmt_cp_remove_advertising {
+	__u8	instance;
+} __packed;
+#define MGMT_REMOVE_ADVERTISING_SIZE	1
+struct mgmt_rp_remove_advertising {
+	__u8	instance;
+} __packed;
+
 #define MGMT_EV_CMD_COMPLETE		0x0001
 struct mgmt_ev_cmd_complete {
 	__le16	opcode;
@@ -741,4 +773,14 @@ struct mgmt_ev_local_oob_data_updated {
 	__u8    type;
 	__le16	eir_len;
 	__u8	eir[0];
+} __packed;
+
+#define MGMT_EV_ADVERTISING_ADDED	0x0023
+struct mgmt_ev_advertising_added {
+	__u8    instance;
+} __packed;
+
+#define MGMT_EV_ADVERTISING_REMOVED	0x0024
+struct mgmt_ev_advertising_removed {
+	__u8    instance;
 } __packed;

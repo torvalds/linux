@@ -28,6 +28,54 @@
 
 #include "hci_debugfs.h"
 
+#define DEFINE_QUIRK_ATTRIBUTE(__name, __quirk)				      \
+static ssize_t __name ## _read(struct file *file,			      \
+				char __user *user_buf,			      \
+				size_t count, loff_t *ppos)		      \
+{									      \
+	struct hci_dev *hdev = file->private_data;			      \
+	char buf[3];							      \
+									      \
+	buf[0] = test_bit(__quirk, &hdev->quirks) ? 'Y' : 'N';		      \
+	buf[1] = '\n';							      \
+	buf[2] = '\0';							      \
+	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);	      \
+}									      \
+									      \
+static ssize_t __name ## _write(struct file *file,			      \
+				 const char __user *user_buf,		      \
+				 size_t count, loff_t *ppos)		      \
+{									      \
+	struct hci_dev *hdev = file->private_data;			      \
+	char buf[32];							      \
+	size_t buf_size = min(count, (sizeof(buf) - 1));		      \
+	bool enable;							      \
+									      \
+	if (test_bit(HCI_UP, &hdev->flags))				      \
+		return -EBUSY;						      \
+									      \
+	if (copy_from_user(buf, user_buf, buf_size))			      \
+		return -EFAULT;						      \
+									      \
+	buf[buf_size] = '\0';						      \
+	if (strtobool(buf, &enable))					      \
+		return -EINVAL;						      \
+									      \
+	if (enable == test_bit(__quirk, &hdev->quirks))			      \
+		return -EALREADY;					      \
+									      \
+	change_bit(__quirk, &hdev->quirks);				      \
+									      \
+	return count;							      \
+}									      \
+									      \
+static const struct file_operations __name ## _fops = {			      \
+	.open		= simple_open,					      \
+	.read		= __name ## _read,				      \
+	.write		= __name ## _write,				      \
+	.llseek		= default_llseek,				      \
+}									      \
+
 static int features_show(struct seq_file *f, void *ptr)
 {
 	struct hci_dev *hdev = f->private;
@@ -997,6 +1045,11 @@ static int adv_max_interval_get(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(adv_max_interval_fops, adv_max_interval_get,
 			adv_max_interval_set, "%llu\n");
 
+DEFINE_QUIRK_ATTRIBUTE(quirk_strict_duplicate_filter,
+		       HCI_QUIRK_STRICT_DUPLICATE_FILTER);
+DEFINE_QUIRK_ATTRIBUTE(quirk_simultaneous_discovery,
+		       HCI_QUIRK_SIMULTANEOUS_DISCOVERY);
+
 void hci_debugfs_create_le(struct hci_dev *hdev)
 {
 	debugfs_create_file("identity", 0400, hdev->debugfs, hdev,
@@ -1041,6 +1094,13 @@ void hci_debugfs_create_le(struct hci_dev *hdev)
 			    &adv_max_interval_fops);
 	debugfs_create_u16("discov_interleaved_timeout", 0644, hdev->debugfs,
 			   &hdev->discov_interleaved_timeout);
+
+	debugfs_create_file("quirk_strict_duplicate_filter", 0644,
+			    hdev->debugfs, hdev,
+			    &quirk_strict_duplicate_filter_fops);
+	debugfs_create_file("quirk_simultaneous_discovery", 0644,
+			    hdev->debugfs, hdev,
+			    &quirk_simultaneous_discovery_fops);
 }
 
 void hci_debugfs_create_conn(struct hci_conn *conn)

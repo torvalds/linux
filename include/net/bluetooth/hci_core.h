@@ -155,6 +155,17 @@ struct oob_data {
 	u8 rand256[16];
 };
 
+struct adv_info {
+	struct delayed_work timeout_exp;
+	__u8	instance;
+	__u32	flags;
+	__u16	timeout;
+	__u16	adv_data_len;
+	__u8	adv_data[HCI_MAX_AD_LENGTH];
+	__u16	scan_rsp_len;
+	__u8	scan_rsp_data[HCI_MAX_AD_LENGTH];
+};
+
 #define HCI_MAX_SHORT_NAME_LENGTH	10
 
 /* Default LE RPA expiry time, 15 minutes */
@@ -364,6 +375,8 @@ struct hci_dev {
 	__u8			scan_rsp_data[HCI_MAX_AD_LENGTH];
 	__u8			scan_rsp_data_len;
 
+	struct adv_info		adv_instance;
+
 	__u8			irk[16];
 	__u32			rpa_timeout;
 	struct delayed_work	rpa_expired;
@@ -548,6 +561,11 @@ static inline void hci_discovery_filter_clear(struct hci_dev *hdev)
 	hdev->discovery.uuids = NULL;
 	hdev->discovery.scan_start = 0;
 	hdev->discovery.scan_duration = 0;
+}
+
+static inline void adv_info_init(struct hci_dev *hdev)
+{
+	memset(&hdev->adv_instance, 0, sizeof(struct adv_info));
 }
 
 bool hci_discovery_active(struct hci_dev *hdev);
