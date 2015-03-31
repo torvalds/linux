@@ -23,8 +23,6 @@ extern void pci_setup_phb_io_dynamic(struct pci_controller *hose, int primary);
 
 extern struct list_head hose_list;
 
-extern void find_and_init_phbs(void);
-
 extern struct pci_dev *isa_bridge_pcidev;	/* may be NULL if no ISA bus */
 
 /** Bus Unit ID macros; get low and hi 32-bits of the 64-bit BUID */
@@ -81,7 +79,6 @@ static inline const char *eeh_driver_name(struct pci_dev *pdev)
 #endif /* CONFIG_EEH */
 
 #else /* CONFIG_PCI */
-static inline void find_and_init_phbs(void) { }
 static inline void init_pci_config_tokens(void) { }
 #endif /* !CONFIG_PCI */
 
