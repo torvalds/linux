@@ -77,14 +77,14 @@ struct adf_ctl_drv_info {
 	struct class *drv_class;
 };
 
-static struct adf_ctl_drv_info adt_ctl_drv;
+static struct adf_ctl_drv_info adf_ctl_drv;
 
 static void adf_chr_drv_destroy(void)
 {
-	device_destroy(adt_ctl_drv.drv_class, MKDEV(adt_ctl_drv.major, 0));
-	cdev_del(&adt_ctl_drv.drv_cdev);
-	class_destroy(adt_ctl_drv.drv_class);
-	unregister_chrdev_region(MKDEV(adt_ctl_drv.major, 0), 1);
+	device_destroy(adf_ctl_drv.drv_class, MKDEV(adf_ctl_drv.major, 0));
+	cdev_del(&adf_ctl_drv.drv_cdev);
+	class_destroy(adf_ctl_drv.drv_class);
+	unregister_chrdev_region(MKDEV(adf_ctl_drv.major, 0), 1);
 }
 
 static int adf_chr_drv_create(void)
@@ -97,20 +97,20 @@ static int adf_chr_drv_create(void)
 		return -EFAULT;
 	}
 
-	adt_ctl_drv.drv_class = class_create(THIS_MODULE, DEVICE_NAME);
-	if (IS_ERR(adt_ctl_drv.drv_class)) {
+	adf_ctl_drv.drv_class = class_create(THIS_MODULE, DEVICE_NAME);
+	if (IS_ERR(adf_ctl_drv.drv_class)) {
 		pr_err("QAT: class_create failed for adf_ctl\n");
 		goto err_chrdev_unreg;
 	}
-	adt_ctl_drv.major = MAJOR(dev_id);
-	cdev_init(&adt_ctl_drv.drv_cdev, &adf_ctl_ops);
-	if (cdev_add(&adt_ctl_drv.drv_cdev, dev_id, 1)) {
+	adf_ctl_drv.major = MAJOR(dev_id);
+	cdev_init(&adf_ctl_drv.drv_cdev, &adf_ctl_ops);
+	if (cdev_add(&adf_ctl_drv.drv_cdev, dev_id, 1)) {
 		pr_err("QAT: cdev add failed\n");
 		goto err_class_destr;
 	}
 
-	drv_device = device_create(adt_ctl_drv.drv_class, NULL,
-				   MKDEV(adt_ctl_drv.major, 0),
+	drv_device = device_create(adf_ctl_drv.drv_class, NULL,
+				   MKDEV(adf_ctl_drv.major, 0),
 				   NULL, DEVICE_NAME);
 	if (IS_ERR(drv_device)) {
 		pr_err("QAT: failed to create device\n");
@@ -118,9 +118,9 @@ static int adf_chr_drv_create(void)
 	}
 	return 0;
 err_cdev_del:
-	cdev_del(&adt_ctl_drv.drv_cdev);
+	cdev_del(&adf_ctl_drv.drv_cdev);
 err_class_destr:
-	class_destroy(adt_ctl_drv.drv_class);
+	class_destroy(adf_ctl_drv.drv_class);
 err_chrdev_unreg:
 	unregister_chrdev_region(dev_id, 1);
 	return -EFAULT;
