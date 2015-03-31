@@ -343,7 +343,7 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 
 	gb->connection = connection;
 	connection->private = gb;
-	retval = sysfs_update_group(&connection->dev.kobj, &loopback_group);
+	retval = sysfs_create_groups(&connection->dev.kobj, loopback_groups);
 	if (retval)
 		goto error;
 
@@ -372,7 +372,7 @@ static void gb_loopback_connection_exit(struct gb_connection *connection)
 
 	if (!IS_ERR_OR_NULL(gb->task))
 		kthread_stop(gb->task);
-	sysfs_remove_group(&connection->dev.kobj, &loopback_group);
+	sysfs_remove_groups(&connection->dev.kobj, loopback_groups);
 	kfree(gb);
 }
 
