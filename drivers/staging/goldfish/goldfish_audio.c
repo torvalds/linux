@@ -28,6 +28,7 @@
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <linux/goldfish.h>
+#include <linux/acpi.h>
 
 MODULE_AUTHOR("Google, Inc.");
 MODULE_DESCRIPTION("Android QEMU Audio Driver");
@@ -351,12 +352,19 @@ static const struct of_device_id goldfish_audio_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, goldfish_audio_of_match);
 
+static const struct acpi_device_id goldfish_audio_acpi_match[] = {
+	{ "GFSH0005", 0 },
+	{ },
+};
+MODULE_DEVICE_TABLE(acpi, goldfish_audio_acpi_match);
+
 static struct platform_driver goldfish_audio_driver = {
 	.probe		= goldfish_audio_probe,
 	.remove		= goldfish_audio_remove,
 	.driver = {
 		.name = "goldfish_audio",
 		.of_match_table = goldfish_audio_of_match,
+		.acpi_match_table = ACPI_PTR(goldfish_audio_acpi_match),
 	}
 };
 
