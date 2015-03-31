@@ -1166,7 +1166,7 @@ static void rtllib_rx_check_leave_lps(struct rtllib_device *ieee, u8 unicast, u8
 {
 	if (unicast) {
 
-		if ((ieee->state == RTLLIB_LINKED)) {
+		if (ieee->state == RTLLIB_LINKED) {
 			if (((ieee->LinkDetectInfo.NumRxUnicastOkInPeriod +
 			    ieee->LinkDetectInfo.NumTxOkInPeriod) > 8) ||
 			    (ieee->LinkDetectInfo.NumRxUnicastOkInPeriod > 2)) {

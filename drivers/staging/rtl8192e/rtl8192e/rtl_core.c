@@ -608,7 +608,7 @@ static int rtl8192_qos_handle_probe_response(struct r8192_priv *priv,
 	if (priv->rtllib->state != RTLLIB_LINKED)
 		return ret;
 
-	if ((priv->rtllib->iw_mode != IW_MODE_INFRA))
+	if (priv->rtllib->iw_mode != IW_MODE_INFRA)
 		return ret;
 
 	if (network->flags & NETWORK_HAS_QOS_MASK) {
@@ -669,7 +669,7 @@ static int rtl8192_qos_association_resp(struct r8192_priv *priv,
 	if (priv->rtllib->state != RTLLIB_LINKED)
 		return 0;
 
-	if ((priv->rtllib->iw_mode != IW_MODE_INFRA))
+	if (priv->rtllib->iw_mode != IW_MODE_INFRA)
 		return 0;
 
 	spin_lock_irqsave(&priv->rtllib->lock, flags);

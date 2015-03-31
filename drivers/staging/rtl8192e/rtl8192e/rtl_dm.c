@@ -498,7 +498,7 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 					write_nic_byte(dev, FW_Busy_Flag, 0);
 					return;
 				}
-				if ((priv->rtllib->eRFPowerState != eRfOn)) {
+				if (priv->rtllib->eRFPowerState != eRfOn) {
 					RT_TRACE(COMP_POWER_TRACKING,
 						 "we are in power save, so return\n");
 					write_nic_byte(dev, Pw_Track_Flag, 0);
@@ -1824,7 +1824,7 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 	if ((priv->undecorated_smoothed_pwdb > dm_digtable.rssi_low_thresh) &&
 		(priv->undecorated_smoothed_pwdb < dm_digtable.rssi_high_thresh))
 		return;
-	if ((priv->undecorated_smoothed_pwdb <= dm_digtable.rssi_low_thresh)) {
+	if (priv->undecorated_smoothed_pwdb <= dm_digtable.rssi_low_thresh) {
 		if (dm_digtable.dig_state == DM_STA_DIG_OFF &&
 			(priv->reset_count == reset_cnt))
 			return;
@@ -1850,7 +1850,7 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 		return;
 	}
 
-	if ((priv->undecorated_smoothed_pwdb >= dm_digtable.rssi_high_thresh)) {
+	if (priv->undecorated_smoothed_pwdb >= dm_digtable.rssi_high_thresh) {
 		u8 reset_flag = 0;
 
 		if (dm_digtable.dig_state == DM_STA_DIG_ON &&
@@ -1998,7 +1998,7 @@ static void dm_pd_th(struct net_device *dev)
 		if (dm_digtable.CurSTAConnectState == DIG_STA_CONNECT) {
 			if (dm_digtable.rssi_val >= dm_digtable.rssi_high_power_highthresh)
 				dm_digtable.curpd_thstate = DIG_PD_AT_HIGH_POWER;
-			else if ((dm_digtable.rssi_val <= dm_digtable.rssi_low_thresh))
+			else if (dm_digtable.rssi_val <= dm_digtable.rssi_low_thresh)
 				dm_digtable.curpd_thstate = DIG_PD_AT_LOW_POWER;
 			else if ((dm_digtable.rssi_val >= dm_digtable.rssi_high_thresh) &&
 					(dm_digtable.rssi_val < dm_digtable.rssi_high_power_lowthresh))
@@ -2055,9 +2055,9 @@ static	void dm_cs_ratio(struct net_device *dev)
 
 	if (dm_digtable.PreSTAConnectState == dm_digtable.CurSTAConnectState) {
 		if (dm_digtable.CurSTAConnectState == DIG_STA_CONNECT) {
-			if ((dm_digtable.rssi_val <= dm_digtable.rssi_low_thresh))
+			if (dm_digtable.rssi_val <= dm_digtable.rssi_low_thresh)
 				dm_digtable.curcs_ratio_state = DIG_CS_RATIO_LOWER;
-			else if ((dm_digtable.rssi_val >= dm_digtable.rssi_high_thresh))
+			else if (dm_digtable.rssi_val >= dm_digtable.rssi_high_thresh)
 				dm_digtable.curcs_ratio_state = DIG_CS_RATIO_HIGHER;
 			else
 				dm_digtable.curcs_ratio_state = dm_digtable.precs_ratio_state;
