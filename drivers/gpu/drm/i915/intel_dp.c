@@ -696,15 +696,13 @@ static uint32_t ilk_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = intel_dig_port->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (index)
 		return 0;
 
 	if (intel_dig_port->port == PORT_A) {
-		if (IS_GEN6(dev) || IS_GEN7(dev))
-			return 200; /* SNB & IVB eDP input clock at 400Mhz */
-		else
-			return 225; /* eDP input clock at 450Mhz */
+		return DIV_ROUND_UP(dev_priv->display.get_display_clock_speed(dev), 2000);
 	} else {
 		return DIV_ROUND_UP(intel_pch_rawclk(dev), 2);
 	}
