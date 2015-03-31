@@ -1989,6 +1989,7 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 		hose->last_busno = 0xff;
 	}
 	hose->private_data = phb;
+	hose->controller_ops = pnv_pci_controller_ops;
 	phb->hub_id = hub_id;
 	phb->opal_id = phb_id;
 	phb->type = ioda_type;
@@ -2102,9 +2103,9 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	 * the child P2P bridges) can form individual PE.
 	 */
 	ppc_md.pcibios_fixup = pnv_pci_ioda_fixup;
-	ppc_md.pcibios_enable_device_hook = pnv_pci_enable_device_hook;
-	ppc_md.pcibios_window_alignment = pnv_pci_window_alignment;
-	ppc_md.pcibios_reset_secondary_bus = pnv_pci_reset_secondary_bus;
+	pnv_pci_controller_ops.enable_device_hook = pnv_pci_enable_device_hook;
+	pnv_pci_controller_ops.window_alignment = pnv_pci_window_alignment;
+	pnv_pci_controller_ops.reset_secondary_bus = pnv_pci_reset_secondary_bus;
 	pci_add_flags(PCI_REASSIGN_ALL_RSRC);
 
 	/* Reset IODA tables to a clean state */
