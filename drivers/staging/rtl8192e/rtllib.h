@@ -68,9 +68,6 @@
 
 #define skb_tail_pointer_rsl(skb) skb_tail_pointer(skb)
 
-#define EXPORT_SYMBOL_RSL(x) EXPORT_SYMBOL(x)
-
-
 #define queue_delayed_work_rsl(x, y, z) queue_delayed_work(x, y, z)
 #define INIT_DELAYED_WORK_RSL(x, y, z) INIT_DELAYED_WORK(x, y)
 
