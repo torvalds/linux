@@ -754,6 +754,8 @@ struct macb_or_gem_ops {
 struct macb_config {
 	u32			caps;
 	unsigned int		dma_burst_length;
+	int	(*clk_init)(struct platform_device *pdev, struct clk **pclk,
+			    struct clk **hclk, struct clk **tx_clk);
 	int	(*init)(struct platform_device *pdev);
 };
 
