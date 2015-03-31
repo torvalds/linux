@@ -328,6 +328,13 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 {
 	struct eeh_pe *pe, *parent;
 
+	/* Check if the PE number is valid */
+	if (!eeh_has_flag(EEH_VALID_PE_ZERO) && !edev->pe_config_addr) {
+		pr_err("%s: Invalid PE#0 for edev 0x%x on PHB#%d\n",
+		       __func__, edev->config_addr, edev->phb->global_number);
+		return -EINVAL;
+	}
+
 	/*
 	 * Search the PE has been existing or not according
 	 * to the PE address. If that has been existing, the
@@ -336,12 +343,6 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 	 */
 	pe = eeh_pe_get(edev);
 	if (pe && !(pe->type & EEH_PE_INVALID)) {
-		if (!edev->pe_config_addr) {
-			pr_err("%s: PE with addr 0x%x already exists\n",
-				__func__, edev->config_addr);
-			return -EEXIST;
-		}
-
 		/* Mark the PE as type of PCI bus */
 		pe->type = EEH_PE_BUS;
 		edev->pe = pe;
