@@ -239,7 +239,7 @@ EXPORT_SYMBOL_GPL(adf_disable_aer);
 int adf_init_aer(void)
 {
 	device_reset_wq = create_workqueue("qat_device_reset_wq");
-	return (device_reset_wq == NULL) ? -EFAULT : 0;
+	return !device_reset_wq ? -EFAULT : 0;
 }
 
 void adf_exit_aer(void)
