@@ -1258,6 +1258,23 @@ static const struct file_operations smi_stats_proc_ops = {
 	.release	= single_release,
 };
 
+static int strcmp_nospace(char *s1, char *s2)
+{
+	while (*s1 && *s2) {
+		while (isspace(*s1))
+			s1++;
+		while (isspace(*s2))
+			s2++;
+		if (*s1 > *s2)
+			return 1;
+		if (*s1 < *s2)
+			return -1;
+		s1++;
+		s2++;
+	}
+	return 0;
+}
+
 static struct ssif_addr_info *ssif_info_find(unsigned short addr,
 					     char *adapter_name,
 					     bool match_null_name)
@@ -1272,8 +1289,10 @@ restart:
 					/* One is NULL and one is not */
 					continue;
 				}
-				if (strcmp(info->adapter_name, adapter_name))
-					/* Names to not match */
+				if (adapter_name &&
+				    strcmp_nospace(info->adapter_name,
+						   adapter_name))
+					/* Names do not match */
 					continue;
 			}
 			found = info;
@@ -1407,7 +1426,7 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	} else {
  no_support:
 		/* Assume no multi-part or PEC support */
-		pr_info(PFX "Error fetching SSIF: %d %d %2.2x, your system probably doesn't support this command so  using defaults\n",
+		pr_info(PFX "Error fetching SSIF: %d %d %2.2x, your system probably doesn't support this command so using defaults\n",
 		       rv, len, resp[2]);
 
 		ssif_info->max_xmit_msg_size = 32;
