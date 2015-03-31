@@ -572,7 +572,7 @@ exit:
 	return r;
 }
 
-static int st21nfca_get_iso14443_3_uid(struct nfc_hci_dev *hdev, u8 *gate,
+static int st21nfca_get_iso14443_3_uid(struct nfc_hci_dev *hdev, u8 *uid,
 				       int *len)
 {
 	int r;
@@ -588,7 +588,7 @@ static int st21nfca_get_iso14443_3_uid(struct nfc_hci_dev *hdev, u8 *gate,
 		goto exit;
 	}
 
-	memcpy(gate, uid_skb->data, uid_skb->len);
+	memcpy(uid, uid_skb->data, uid_skb->len);
 	*len = uid_skb->len;
 exit:
 	kfree_skb(uid_skb);
