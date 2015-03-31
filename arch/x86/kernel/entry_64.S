@@ -749,7 +749,6 @@ retint_kernel:
 	jmp	exit_intr
 1:
 #endif
-	DISABLE_INTERRUPTS(CLBR_ANY)
 	/*
 	 * The iretq could re-enable interrupts:
 	 */
