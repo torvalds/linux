@@ -1000,15 +1000,52 @@ static void log_24x7_hcall(struct hv_24x7_request_buffer *request_buffer,
 			result_buffer->failing_request_ix);
 }
 
-static unsigned long single_24x7_request(struct perf_event *event, u64 *count)
+/*
+ * Add the given @event to the next slot in the 24x7 request_buffer.
+ *
+ * Note that H_GET_24X7_DATA hcall allows reading several counters'
+ * values in a single HCALL. We expect the caller to add events to the
+ * request buffer one by one, make the HCALL and process the results.
+ */
+static int add_event_to_24x7_request(struct perf_event *event,
+				struct hv_24x7_request_buffer *request_buffer)
 {
 	u16 idx;
+	int i;
+	struct hv_24x7_request *req;
+
+	if (request_buffer->num_requests > 254) {
+		pr_devel("Too many requests for 24x7 HCALL %d\n",
+				request_buffer->num_requests);
+		return -EINVAL;
+	}
+
+	if (is_physical_domain(event_get_domain(event)))
+		idx = event_get_core(event);
+	else
+		idx = event_get_vcpu(event);
+
+	i = request_buffer->num_requests++;
+	req = &request_buffer->requests[i];
+
+	req->performance_domain = event_get_domain(event);
+	req->data_size = cpu_to_be16(8);
+	req->data_offset = cpu_to_be32(event_get_offset(event));
+	req->starting_lpar_ix = cpu_to_be16(event_get_lpar(event)),
+	req->max_num_lpars = cpu_to_be16(1);
+	req->starting_ix = cpu_to_be16(idx);
+	req->max_ix = cpu_to_be16(1);
+
+	return 0;
+}
+
+static unsigned long single_24x7_request(struct perf_event *event, u64 *count)
+{
 	unsigned long ret;
 
 	struct hv_24x7_request_buffer *request_buffer;
 	struct hv_24x7_data_result_buffer *result_buffer;
 	struct hv_24x7_result *resb;
-	struct hv_24x7_request *req;
 
 	BUILD_BUG_ON(sizeof(*request_buffer) > 4096);
 	BUILD_BUG_ON(sizeof(*result_buffer) > 4096);
@@ -1019,23 +1056,11 @@ static unsigned long single_24x7_request(struct perf_event *event, u64 *count)
 	memset(request_buffer, 0, 4096);
 	memset(result_buffer, 0, 4096);
 
-	if (is_physical_domain(event_get_domain(event)))
-		idx = event_get_core(event);
-	else
-		idx = event_get_vcpu(event);
-
 	request_buffer->interface_version = HV_24X7_IF_VERSION_CURRENT;
-	request_buffer->num_requests = 1;
 
-	req = &request_buffer->requests[0];
-
-	req->performance_domain = event_get_domain(event);
-	req->data_size = cpu_to_be16(8);
-	req->data_offset = cpu_to_be32(event_get_offset(event));
-	req->starting_lpar_ix = cpu_to_be16(event_get_lpar(event)),
-	req->max_num_lpars = cpu_to_be16(1);
-	req->starting_ix = cpu_to_be16(idx);
-	req->max_ix = cpu_to_be16(1);
+	ret = add_event_to_24x7_request(event, request_buffer);
+	if (ret)
+		return ret;
 
 	/*
 	 * NOTE: Due to variable number of array elements in request and
