@@ -290,7 +290,6 @@ static int igb_ptp_gettime_82576(struct ptp_clock_info *ptp,
 					       ptp_caps);
 	unsigned long flags;
 	u64 ns;
-	u32 remainder;
 
 	spin_lock_irqsave(&igb->tmreg_lock, flags);
 
@@ -298,8 +297,7 @@ static int igb_ptp_gettime_82576(struct ptp_clock_info *ptp,
 
 	spin_unlock_irqrestore(&igb->tmreg_lock, flags);
 
-	ts->tv_sec = div_u64_rem(ns, 1000000000, &remainder);
-	ts->tv_nsec = remainder;
+	*ts = ns_to_timespec64(ns);
 
 	return 0;
 }
@@ -328,8 +326,7 @@ static int igb_ptp_settime_82576(struct ptp_clock_info *ptp,
 	unsigned long flags;
 	u64 ns;
 
-	ns = ts->tv_sec * 1000000000ULL;
-	ns += ts->tv_nsec;
+	ns = timespec64_to_ns(ts);
 
 	spin_lock_irqsave(&igb->tmreg_lock, flags);
 
