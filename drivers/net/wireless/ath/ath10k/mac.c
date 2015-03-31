@@ -5395,6 +5395,7 @@ static int ath10k_remain_on_channel(struct ieee80211_hw *hw,
 	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
 	struct wmi_start_scan_arg arg;
 	int ret = 0;
+	u32 scan_time_msec;
 
 	mutex_lock(&ar->conf_mutex);
 
@@ -5421,7 +5422,7 @@ static int ath10k_remain_on_channel(struct ieee80211_hw *hw,
 	if (ret)
 		goto exit;
 
-	duration = max(duration, WMI_SCAN_CHAN_MIN_TIME_MSEC);
+	scan_time_msec = ar->hw->wiphy->max_remain_on_channel_duration * 2;
 
 	memset(&arg, 0, sizeof(arg));
 	ath10k_wmi_start_scan_init(ar, &arg);
@@ -5429,9 +5430,9 @@ static int ath10k_remain_on_channel(struct ieee80211_hw *hw,
 	arg.scan_id = ATH10K_SCAN_ID;
 	arg.n_channels = 1;
 	arg.channels[0] = chan->center_freq;
-	arg.dwell_time_active = duration;
-	arg.dwell_time_passive = duration;
-	arg.max_scan_time = 2 * duration;
+	arg.dwell_time_active = scan_time_msec;
+	arg.dwell_time_passive = scan_time_msec;
+	arg.max_scan_time = scan_time_msec;
 	arg.scan_ctrl_flags |= WMI_SCAN_FLAG_PASSIVE;
 	arg.scan_ctrl_flags |= WMI_SCAN_FILTER_PROBE_REQ;
 
@@ -5455,6 +5456,9 @@ static int ath10k_remain_on_channel(struct ieee80211_hw *hw,
 		ret = -ETIMEDOUT;
 		goto exit;
 	}
+
+	ieee80211_queue_delayed_work(ar->hw, &ar->scan.timeout,
+				     msecs_to_jiffies(duration));
 
 	ret = 0;
 exit:
