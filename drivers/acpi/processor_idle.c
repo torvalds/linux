@@ -978,7 +978,7 @@ static int acpi_processor_setup_cpuidle_states(struct acpi_processor *pr)
 		return -EINVAL;
 
 	drv->safe_state_index = -1;
-	for (i = 0; i < CPUIDLE_STATE_MAX; i++) {
+	for (i = CPUIDLE_DRIVER_STATE_START; i < CPUIDLE_STATE_MAX; i++) {
 		drv->states[i].name[0] = '\0';
 		drv->states[i].desc[0] = '\0';
 	}
