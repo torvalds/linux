@@ -331,10 +331,11 @@ tracesys_phase2:
 	andl $__SYSCALL_MASK,%eax
 	cmpl $__NR_syscall_max,%eax
 #endif
-	ja   int_ret_from_sys_call	/* RAX(%rsp) is already set */
+	ja	1f	/* return -ENOSYS (already in pt_regs->ax) */
 	movq %r10,%rcx	/* fixup for C */
 	call *sys_call_table(,%rax,8)
 	movq %rax,RAX(%rsp)
+1:
 	/* Use IRET because user could have changed pt_regs->foo */
 
 /*
