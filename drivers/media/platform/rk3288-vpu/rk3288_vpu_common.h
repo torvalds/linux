@@ -213,6 +213,9 @@ struct rk3288_vpu_vp8d_run {
  * @scaling_matrix:	Pointer to a buffer containing scaling matrix.
  * @slice_param:	Pointer to a buffer containing slice parameters array.
  * @decode_param:	Pointer to a buffer containing decode parameters.
+ * @dpb:		Array of DPB entries reordered to keep POC order.
+ * @dpb_map:		Map of indices used in ref_pic_list_* into indices to
+ *			reordered DPB array.
  */
 struct rk3288_vpu_h264d_run {
 	const struct v4l2_ctrl_h264_sps *sps;
@@ -220,6 +223,8 @@ struct rk3288_vpu_h264d_run {
 	const struct v4l2_ctrl_h264_scaling_matrix *scaling_matrix;
 	const struct v4l2_ctrl_h264_slice_param *slice_param;
 	const struct v4l2_ctrl_h264_decode_param *decode_param;
+	struct v4l2_h264_dpb_entry dpb[16];
+	u8 dpb_map[16];
 };
 
 /**

@@ -226,7 +226,7 @@ static void rk3288_vpu_h264d_prepare_table(struct rk3288_vpu_ctx *ctx)
 						ctx->run.h264d.scaling_matrix;
 	const struct v4l2_ctrl_h264_decode_param *dec_param =
 						ctx->run.h264d.decode_param;
-	const struct v4l2_h264_dpb_entry *dpb = dec_param->dpb;
+	const struct v4l2_h264_dpb_entry *dpb = ctx->run.h264d.dpb;
 	int i;
 
 	/*
@@ -367,7 +367,8 @@ static void rk3288_vpu_h264d_set_ref(struct rk3288_vpu_ctx *ctx)
 {
 	const struct v4l2_ctrl_h264_decode_param *dec_param =
 						ctx->run.h264d.decode_param;
-	const struct v4l2_h264_dpb_entry *dpb = dec_param->dpb;
+	const struct v4l2_h264_dpb_entry *dpb = ctx->run.h264d.dpb;
+	const u8 *dpb_map = ctx->run.h264d.dpb_map;
 	struct rk3288_vpu_dev *vpu = ctx->dev;
 	u32 dpb_longterm = 0;
 	u32 dpb_valid = 0;
@@ -419,17 +420,17 @@ static void rk3288_vpu_h264d_set_ref(struct rk3288_vpu_ctx *ctx)
 	reg_num = 0;
 	for (i = 0; i < 15; i += 3) {
 		reg = VDPU_REG_BD_REF_PIC_BINIT_RLIST_F0(
-				dec_param->ref_pic_list_b0[i + 0])
+				dpb_map[dec_param->ref_pic_list_b0[i + 0]])
 			| VDPU_REG_BD_REF_PIC_BINIT_RLIST_F1(
-				dec_param->ref_pic_list_b0[i + 1])
+				dpb_map[dec_param->ref_pic_list_b0[i + 1]])
 			| VDPU_REG_BD_REF_PIC_BINIT_RLIST_F2(
-				dec_param->ref_pic_list_b0[i + 2])
+				dpb_map[dec_param->ref_pic_list_b0[i + 2]])
 			| VDPU_REG_BD_REF_PIC_BINIT_RLIST_B0(
-				dec_param->ref_pic_list_b1[i + 0])
+				dpb_map[dec_param->ref_pic_list_b1[i + 0]])
 			| VDPU_REG_BD_REF_PIC_BINIT_RLIST_B1(
-				dec_param->ref_pic_list_b1[i + 1])
+				dpb_map[dec_param->ref_pic_list_b1[i + 1]])
 			| VDPU_REG_BD_REF_PIC_BINIT_RLIST_B2(
-				dec_param->ref_pic_list_b1[i + 2]);
+				dpb_map[dec_param->ref_pic_list_b1[i + 2]]);
 		vdpu_write_relaxed(vpu, reg, VDPU_REG_BD_REF_PIC(reg_num++));
 	}
 
@@ -439,17 +440,17 @@ static void rk3288_vpu_h264d_set_ref(struct rk3288_vpu_ctx *ctx)
 	 * of P forward picture list.
 	 */
 	reg = VDPU_REG_BD_P_REF_PIC_BINIT_RLIST_F15(
-			dec_param->ref_pic_list_b0[15])
+			dpb_map[dec_param->ref_pic_list_b0[15]])
 		| VDPU_REG_BD_P_REF_PIC_BINIT_RLIST_B15(
-			dec_param->ref_pic_list_b1[15])
+			dpb_map[dec_param->ref_pic_list_b1[15]])
 		| VDPU_REG_BD_P_REF_PIC_PINIT_RLIST_F0(
-			dec_param->ref_pic_list_p0[0])
+			dpb_map[dec_param->ref_pic_list_p0[0]])
 		| VDPU_REG_BD_P_REF_PIC_PINIT_RLIST_F1(
-			dec_param->ref_pic_list_p0[1])
+			dpb_map[dec_param->ref_pic_list_p0[1]])
 		| VDPU_REG_BD_P_REF_PIC_PINIT_RLIST_F2(
-			dec_param->ref_pic_list_p0[2])
+			dpb_map[dec_param->ref_pic_list_p0[2]])
 		| VDPU_REG_BD_P_REF_PIC_PINIT_RLIST_F3(
-			dec_param->ref_pic_list_p0[3]);
+			dpb_map[dec_param->ref_pic_list_p0[3]]);
 	vdpu_write_relaxed(vpu, reg, VDPU_REG_BD_P_REF_PIC);
 
 	/*
@@ -459,17 +460,17 @@ static void rk3288_vpu_h264d_set_ref(struct rk3288_vpu_ctx *ctx)
 	reg_num = 0;
 	for (i = 4; i < RK3288_VPU_H264_NUM_DPB; i += 6) {
 		reg = VDPU_REG_FWD_PIC_PINIT_RLIST_F0(
-				dec_param->ref_pic_list_p0[i + 0])
+				dpb_map[dec_param->ref_pic_list_p0[i + 0]])
 			| VDPU_REG_FWD_PIC_PINIT_RLIST_F1(
-				dec_param->ref_pic_list_p0[i + 1])
+				dpb_map[dec_param->ref_pic_list_p0[i + 1]])
 			| VDPU_REG_FWD_PIC_PINIT_RLIST_F2(
-				dec_param->ref_pic_list_p0[i + 2])
+				dpb_map[dec_param->ref_pic_list_p0[i + 2]])
 			| VDPU_REG_FWD_PIC_PINIT_RLIST_F3(
-				dec_param->ref_pic_list_p0[i + 3])
+				dpb_map[dec_param->ref_pic_list_p0[i + 3]])
 			| VDPU_REG_FWD_PIC_PINIT_RLIST_F4(
-				dec_param->ref_pic_list_p0[i + 4])
+				dpb_map[dec_param->ref_pic_list_p0[i + 4]])
 			| VDPU_REG_FWD_PIC_PINIT_RLIST_F5(
-				dec_param->ref_pic_list_p0[i + 5]);
+				dpb_map[dec_param->ref_pic_list_p0[i + 5]]);
 		vdpu_write_relaxed(vpu, reg, VDPU_REG_FWD_PIC(reg_num++));
 	}
 

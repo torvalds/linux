@@ -625,6 +625,99 @@ static int vidioc_streamoff(struct file *file, void *priv,
 	return ret;
 }
 
+static void rk3288_vpu_dec_set_dpb(struct rk3288_vpu_ctx *ctx,
+					    struct v4l2_ctrl *ctrl)
+{
+	struct v4l2_ctrl_h264_decode_param *dec_param = ctrl->p_new.p;
+	const struct v4l2_h264_dpb_entry *new_dpb_entry;
+	u8 *dpb_map = ctx->run.h264d.dpb_map;
+	struct v4l2_h264_dpb_entry *cur_dpb_entry;
+	DECLARE_BITMAP(used, ARRAY_SIZE(ctx->run.h264d.dpb)) = { 0, };
+	DECLARE_BITMAP(new, ARRAY_SIZE(dec_param->dpb)) = { 0, };
+	int i, j;
+
+	BUILD_BUG_ON(ARRAY_SIZE(ctx->run.h264d.dpb) !=
+						ARRAY_SIZE(dec_param->dpb));
+
+	/* Disable all entries by default. */
+	for (j = 0; j < ARRAY_SIZE(ctx->run.h264d.dpb); ++j) {
+		cur_dpb_entry = &ctx->run.h264d.dpb[j];
+
+		cur_dpb_entry->flags &= ~V4L2_H264_DPB_ENTRY_FLAG_ACTIVE;
+	}
+
+	/* Try to match new DPB entries with existing ones by their POCs. */
+	for (i = 0; i < ARRAY_SIZE(dec_param->dpb); ++i) {
+		new_dpb_entry = &dec_param->dpb[i];
+
+		if (!(new_dpb_entry->flags & V4L2_H264_DPB_ENTRY_FLAG_ACTIVE))
+			continue;
+
+		/*
+		 * To cut off some comparisons, iterate only on target DPB
+		 * entries which are not used yet.
+		 */
+		for_each_clear_bit(j, used, ARRAY_SIZE(ctx->run.h264d.dpb)) {
+			cur_dpb_entry = &ctx->run.h264d.dpb[j];
+
+			if (new_dpb_entry->top_field_order_cnt ==
+					cur_dpb_entry->top_field_order_cnt &&
+			    new_dpb_entry->bottom_field_order_cnt ==
+					cur_dpb_entry->bottom_field_order_cnt) {
+				memcpy(cur_dpb_entry, new_dpb_entry,
+					sizeof(*cur_dpb_entry));
+				set_bit(j, used);
+				dpb_map[i] = j;
+				break;
+			}
+		}
+
+		if (j == ARRAY_SIZE(ctx->run.h264d.dpb))
+			set_bit(i, new);
+	}
+
+	/* For entries that could not be matched, use remaining free slots. */
+	for_each_set_bit(i, new, ARRAY_SIZE(dec_param->dpb)) {
+		new_dpb_entry = &dec_param->dpb[i];
+
+		j = find_first_zero_bit(used, ARRAY_SIZE(ctx->run.h264d.dpb));
+		/*
+		 * Both arrays are of the same sizes, so there is no way
+		 * we can end up with no space in target array, unless
+		 * something is buggy.
+		 */
+		if (WARN_ON(j >= ARRAY_SIZE(ctx->run.h264d.dpb)))
+			return;
+
+		cur_dpb_entry = &ctx->run.h264d.dpb[j];
+		memcpy(cur_dpb_entry, new_dpb_entry, sizeof(*cur_dpb_entry));
+		set_bit(j, used);
+		dpb_map[i] = j;
+	}
+
+	/*
+	 * Verify that reference picture lists are in range, since they
+	 * will be indexing dpb_map[] when programming the hardware.
+	 *
+	 * Fallback to 0 should be safe, as we will get at most corrupt
+	 * decoding result, without any serious side effects. Moreover,
+	 * even if entry 0 is unused, the hardware programming code will
+	 * handle this properly.
+	 */
+	for (i = 0; i < ARRAY_SIZE(dec_param->ref_pic_list_b0); ++i)
+		if (dec_param->ref_pic_list_b0[i]
+		    >= ARRAY_SIZE(ctx->run.h264d.dpb_map))
+			dec_param->ref_pic_list_b0[i] = 0;
+	for (i = 0; i < ARRAY_SIZE(dec_param->ref_pic_list_b1); ++i)
+		if (dec_param->ref_pic_list_b1[i]
+		    >= ARRAY_SIZE(ctx->run.h264d.dpb_map))
+			dec_param->ref_pic_list_b1[i] = 0;
+	for (i = 0; i < ARRAY_SIZE(dec_param->ref_pic_list_p0); ++i)
+		if (dec_param->ref_pic_list_p0[i]
+		    >= ARRAY_SIZE(ctx->run.h264d.dpb_map))
+			dec_param->ref_pic_list_p0[i] = 0;
+}
+
 static int rk3288_vpu_dec_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct rk3288_vpu_ctx *ctx = ctrl_to_ctx(ctrl);
@@ -640,9 +733,14 @@ static int rk3288_vpu_dec_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_MPEG_VIDEO_H264_PPS:
 	case V4L2_CID_MPEG_VIDEO_H264_SCALING_MATRIX:
 	case V4L2_CID_MPEG_VIDEO_H264_SLICE_PARAM:
-	case V4L2_CID_MPEG_VIDEO_H264_DECODE_PARAM:
 	case V4L2_CID_MPEG_VIDEO_VP8_FRAME_HDR:
 		/* These controls are used directly. */
+		break;
+
+	case V4L2_CID_MPEG_VIDEO_H264_DECODE_PARAM:
+		if (ctrl->store)
+			break;
+		rk3288_vpu_dec_set_dpb(ctx, ctrl);
 		break;
 
 	default:
