@@ -119,7 +119,7 @@ static int lis3l02dq_get_buffer_element(struct iio_dev *indio_dev,
 				       indio_dev->masklength);
 
 	rx_array = kcalloc(4, scan_count, GFP_KERNEL);
-	if (rx_array == NULL)
+	if (!rx_array)
 		return -ENOMEM;
 	ret = lis3l02dq_read_all(indio_dev, rx_array);
 	if (ret < 0) {
@@ -142,7 +142,7 @@ static irqreturn_t lis3l02dq_trigger_handler(int irq, void *p)
 	char *data;
 
 	data = kmalloc(indio_dev->scan_bytes, GFP_KERNEL);
-	if (data == NULL)
+	if (!data)
 		goto done;
 
 	if (!bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength))
@@ -412,7 +412,7 @@ int lis3l02dq_configure_buffer(struct iio_dev *indio_dev)
 						 "lis3l02dq_consumer%d",
 						 indio_dev->id);
 
-	if (indio_dev->pollfunc == NULL) {
+	if (!indio_dev->pollfunc) {
 		ret = -ENOMEM;
 		goto error_iio_sw_rb_free;
 	}
