@@ -18,6 +18,21 @@
 
 #include <linux/ftrace_event.h>
 
+#ifndef TRACE_SYSTEM_VAR
+#define TRACE_SYSTEM_VAR TRACE_SYSTEM
+#endif
+
+#define __app__(x, y) str__##x##y
+#define __app(x, y) __app__(x, y)
+
+#define TRACE_SYSTEM_STRING __app(TRACE_SYSTEM_VAR,__trace_system_name)
+
+#define TRACE_MAKE_SYSTEM_STR()				\
+	static const char TRACE_SYSTEM_STRING[] =	\
+		__stringify(TRACE_SYSTEM)
+
+TRACE_MAKE_SYSTEM_STR();
+
 /*
  * DECLARE_EVENT_CLASS can be used to add a generic function
  * handlers for events. That is, if all events have the same
@@ -104,7 +119,6 @@
 	__TRACE_EVENT_PERF_PERM(name, expr)
 
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
-
 
 /*
  * Stage 2 of the trace events.
@@ -692,7 +706,7 @@ static inline void ftrace_test_probe_##call(void)			\
 _TRACE_PERF_PROTO(call, PARAMS(proto));					\
 static const char print_fmt_##call[] = print;				\
 static struct ftrace_event_class __used __refdata event_class_##call = { \
-	.system			= __stringify(TRACE_SYSTEM),		\
+	.system			= TRACE_SYSTEM_STRING,			\
 	.define_fields		= ftrace_define_fields_##call,		\
 	.fields			= LIST_HEAD_INIT(event_class_##call.fields),\
 	.raw_init		= trace_event_raw_init,			\
@@ -735,6 +749,7 @@ __attribute__((section("_ftrace_events"))) *__event_##call = &event_##call
 
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 
+#undef TRACE_SYSTEM_VAR
 
 #ifdef CONFIG_PERF_EVENTS
 

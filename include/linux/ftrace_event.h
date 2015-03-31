@@ -202,7 +202,7 @@ enum trace_reg {
 struct ftrace_event_call;
 
 struct ftrace_event_class {
-	char			*system;
+	const char		*system;
 	void			*probe;
 #ifdef CONFIG_PERF_EVENTS
 	void			*perf_probe;
