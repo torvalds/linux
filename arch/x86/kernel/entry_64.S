@@ -57,10 +57,6 @@
 	.section .entry.text, "ax"
 
 
-#ifndef CONFIG_PREEMPT
-#define retint_kernel retint_restore_args
-#endif
-
 #ifdef CONFIG_PARAVIRT
 ENTRY(native_usergs_sysret64)
 	swapgs
@@ -741,18 +737,18 @@ opportunistic_sysret_failed:
 	jmp restore_args
 
 /* Returning to kernel space */
+retint_kernel:
 #ifdef CONFIG_PREEMPT
 	/* Interrupts are off */
 	/* Check if we need preemption */
-ENTRY(retint_kernel)
 	cmpl	$0,PER_CPU_VAR(__preempt_count)
-	jnz	retint_restore_args
+	jnz	1f
 	bt	$9,EFLAGS(%rsp)	/* interrupts were off? */
-	jnc	retint_restore_args
+	jnc	1f
 	call	preempt_schedule_irq
 	jmp	exit_intr
+1:
 #endif
-retint_restore_args:
 	DISABLE_INTERRUPTS(CLBR_ANY)
 	/*
 	 * The iretq could re-enable interrupts:
