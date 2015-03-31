@@ -151,6 +151,12 @@ struct ufs_qcom_bus_vote {
 	struct device_attribute max_bus_bw;
 };
 
+/* Host controller hardware version: major.minor.step */
+struct ufs_hw_version {
+	u16 step;
+	u16 minor;
+	u8 major;
+};
 struct ufs_qcom_host {
 	struct phy *generic_phy;
 	struct ufs_hba *hba;
@@ -161,6 +167,8 @@ struct ufs_qcom_host {
 	struct clk *rx_l1_sync_clk;
 	struct clk *tx_l1_sync_clk;
 	bool is_lane_clks_enabled;
+
+	struct ufs_hw_version hw_ver;
 };
 
 #define ufs_qcom_is_link_off(hba) ufshcd_is_link_off(hba)

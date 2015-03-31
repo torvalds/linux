@@ -214,8 +214,6 @@ static int ufs_qcom_power_up_sequence(struct ufs_hba *hba)
 	struct ufs_qcom_host *host = hba->priv;
 	struct phy *phy = host->generic_phy;
 	int ret = 0;
-	u8 major;
-	u16 minor, step;
 	bool is_rate_B = (UFS_QCOM_LIMIT_HS_RATE == PA_HS_MODE_B)
 							? true : false;
 
@@ -224,8 +222,6 @@ static int ufs_qcom_power_up_sequence(struct ufs_hba *hba)
 	/* provide 1ms delay to let the reset pulse propagate */
 	usleep_range(1000, 1100);
 
-	ufs_qcom_get_controller_revision(hba, &major, &minor, &step);
-	ufs_qcom_phy_save_controller_version(phy, major, minor, step);
 	ret = ufs_qcom_phy_calibrate_phy(phy, is_rate_B);
 	if (ret) {
 		dev_err(hba->dev, "%s: ufs_qcom_phy_calibrate_phy() failed, ret = %d\n",
@@ -698,10 +694,7 @@ out:
  */
 static void ufs_qcom_advertise_quirks(struct ufs_hba *hba)
 {
-	u8 major;
-	u16 minor, step;
 
-	ufs_qcom_get_controller_revision(hba, &major, &minor, &step);
 
 	/*
 	 * TBD
@@ -928,6 +921,13 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 	err = ufs_qcom_bus_register(host);
 	if (err)
 		goto out_host_free;
+
+	ufs_qcom_get_controller_revision(hba, &host->hw_ver.major,
+		&host->hw_ver.minor, &host->hw_ver.step);
+
+	/* update phy revision information before calling phy_init() */
+	ufs_qcom_phy_save_controller_version(host->generic_phy,
+		host->hw_ver.major, host->hw_ver.minor, host->hw_ver.step);
 
 	phy_init(host->generic_phy);
 	err = phy_power_on(host->generic_phy);
