@@ -690,15 +690,9 @@ do {								\
 #define RTLLIB_DEBUG_DATA(level, data, datalen)	\
 	do {							\
 		if ((rtllib_debug_level & (level)) == (level)) {	\
-			int i;					\
-			u8 *pdata = (u8 *)data;			\
 			printk(KERN_DEBUG "rtllib: %s()\n", __func__);	\
-			for (i = 0; i < (int)(datalen); i++)	{	\
-				printk("%2.2x ", pdata[i]);		\
-				if ((i+1)%16 == 0)			\
-					printk("\n");	\
-			}				\
-			printk("\n");			\
+			print_hex_dump_bytes(KERN_DEBUG, DUMP_PREFIX_NONE, \
+					     data, datalen); \
 		}					\
 	} while (0)
 
