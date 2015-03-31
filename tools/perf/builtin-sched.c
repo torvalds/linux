@@ -607,13 +607,13 @@ static void wait_for_tasks(struct perf_sched *sched)
 	cpu_usage_1 = get_cpu_usage_nsec_parent();
 	if (!sched->runavg_cpu_usage)
 		sched->runavg_cpu_usage = sched->cpu_usage;
-	sched->runavg_cpu_usage = (sched->runavg_cpu_usage * 9 + sched->cpu_usage) / 10;
+	sched->runavg_cpu_usage = (sched->runavg_cpu_usage * (sched->replay_repeat - 1) + sched->cpu_usage) / sched->replay_repeat;
 
 	sched->parent_cpu_usage = cpu_usage_1 - cpu_usage_0;
 	if (!sched->runavg_parent_cpu_usage)
 		sched->runavg_parent_cpu_usage = sched->parent_cpu_usage;
-	sched->runavg_parent_cpu_usage = (sched->runavg_parent_cpu_usage * 9 +
-					 sched->parent_cpu_usage)/10;
+	sched->runavg_parent_cpu_usage = (sched->runavg_parent_cpu_usage * (sched->replay_repeat - 1) +
+					 sched->parent_cpu_usage)/sched->replay_repeat;
 
 	ret = pthread_mutex_lock(&sched->start_work_mutex);
 	BUG_ON(ret);
@@ -645,7 +645,7 @@ static void run_one_test(struct perf_sched *sched)
 	sched->sum_fluct += fluct;
 	if (!sched->run_avg)
 		sched->run_avg = delta;
-	sched->run_avg = (sched->run_avg * 9 + delta) / 10;
+	sched->run_avg = (sched->run_avg * (sched->replay_repeat - 1) + delta) / sched->replay_repeat;
 
 	printf("#%-3ld: %0.3f, ", sched->nr_runs, (double)delta / 1000000.0);
 
