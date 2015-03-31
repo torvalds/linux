@@ -2139,10 +2139,9 @@ static void macb_configure_caps(struct macb *bp, const struct macb_config *dt_co
 	if (dt_conf)
 		bp->caps = dt_conf->caps;
 
-	if (MACB_BFEXT(IDNUM, macb_readl(bp, MID)) >= 0x2)
+	if (macb_is_gem_hw(bp->regs)) {
 		bp->caps |= MACB_CAPS_MACB_IS_GEM;
 
-	if (macb_is_gem(bp)) {
 		dcfg = gem_readl(bp, DCFG1);
 		if (GEM_BFEXT(IRQCOR, dcfg) == 0)
 			bp->caps |= MACB_CAPS_ISR_CLEAR_ON_WRITE;
@@ -2159,7 +2158,6 @@ static void macb_probe_queues(void __iomem *mem,
 			      unsigned int *num_queues)
 {
 	unsigned int hw_q;
-	u32 mid;
 
 	*queue_mask = 0x1;
 	*num_queues = 1;
@@ -2170,8 +2168,7 @@ static void macb_probe_queues(void __iomem *mem,
 	 * we are early in the probe process and don't have the
 	 * MACB_CAPS_MACB_IS_GEM flag positioned
 	 */
-	mid = readl_relaxed(mem + MACB_MID);
-	if (MACB_BFEXT(IDNUM, mid) < 0x2)
+	if (!macb_is_gem_hw(mem))
 		return;
 
 	/* bit 0 is never set but queue 0 always exists */

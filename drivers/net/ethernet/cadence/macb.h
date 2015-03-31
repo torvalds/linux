@@ -833,4 +833,9 @@ static inline bool macb_is_gem(struct macb *bp)
 	return !!(bp->caps & MACB_CAPS_MACB_IS_GEM);
 }
 
+static inline bool macb_is_gem_hw(void __iomem *addr)
+{
+	return !!(MACB_BFEXT(IDNUM, readl_relaxed(addr + MACB_MID)) >= 0x2);
+}
+
 #endif /* _MACB_H */
