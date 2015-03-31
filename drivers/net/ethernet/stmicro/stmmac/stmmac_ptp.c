@@ -111,7 +111,6 @@ static int stmmac_get_time(struct ptp_clock_info *ptp, struct timespec64 *ts)
 	    container_of(ptp, struct stmmac_priv, ptp_clock_ops);
 	unsigned long flags;
 	u64 ns;
-	u32 reminder;
 
 	spin_lock_irqsave(&priv->ptp_lock, flags);
 
@@ -119,8 +118,7 @@ static int stmmac_get_time(struct ptp_clock_info *ptp, struct timespec64 *ts)
 
 	spin_unlock_irqrestore(&priv->ptp_lock, flags);
 
-	ts->tv_sec = div_u64_rem(ns, 1000000000ULL, &reminder);
-	ts->tv_nsec = reminder;
+	*ts = ns_to_timespec64(ns);
 
 	return 0;
 }
