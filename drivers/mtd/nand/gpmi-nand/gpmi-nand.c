@@ -77,6 +77,12 @@ static const struct gpmi_devdata gpmi_devdata_imx6sx = {
 	.max_chain_delay = 12,
 };
 
+static const struct gpmi_devdata gpmi_devdata_imx7d = {
+	.type = IS_MX7D,
+	.bch_max_ecc_strength = 62,
+	.max_chain_delay = 12,
+};
+
 static irqreturn_t bch_irq(int irq, void *cookie)
 {
 	struct gpmi_nand_data *this = cookie;
@@ -577,6 +583,10 @@ static char *extra_clks_for_mx6q[GPMI_CLK_MAX] = {
 	"gpmi_apb", "gpmi_bch", "gpmi_bch_apb", "per1_bch",
 };
 
+static char *extra_clks_for_mx7d[GPMI_CLK_MAX] = {
+	"gpmi_bch_apb",
+};
+
 static int gpmi_get_clks(struct gpmi_nand_data *this)
 {
 	struct resources *r = &this->resources;
@@ -594,6 +604,8 @@ static int gpmi_get_clks(struct gpmi_nand_data *this)
 	/* Get extra clocks */
 	if (GPMI_IS_MX6(this))
 		extra_clks = extra_clks_for_mx6q;
+	if (GPMI_IS_MX7(this))
+		extra_clks = extra_clks_for_mx7d;
 	if (!extra_clks)
 		return 0;
 
@@ -610,7 +622,7 @@ static int gpmi_get_clks(struct gpmi_nand_data *this)
 		r->clock[i] = clk;
 	}
 
-	if (GPMI_IS_MX6(this))
+	if (GPMI_IS_MX6(this) || GPMI_IS_MX7(this))
 		/*
 		 * Set the default value for the gpmi clock.
 		 *
@@ -1871,7 +1883,7 @@ static int gpmi_init_last(struct gpmi_nand_data *this)
 	 *  (1) the chip is imx6, and
 	 *  (2) the size of the ECC parity is byte aligned.
 	 */
-	if (GPMI_IS_MX6(this) &&
+	if ((GPMI_IS_MX6(this) || GPMI_IS_MX7(this)) &&
 		((bch_geo->gf_len * bch_geo->ecc_strength) % 8) == 0) {
 		ecc->read_subpage = gpmi_ecc_read_subpage;
 		chip->options |= NAND_SUBPAGE_READ;
@@ -1982,7 +1994,10 @@ static const struct of_device_id gpmi_nand_id_table[] = {
 	}, {
 		.compatible = "fsl,imx6sx-gpmi-nand",
 		.data = &gpmi_devdata_imx6sx,
-	}, {}
+	}, {
+		.compatible = "fsl,imx7d-gpmi-nand",
+		.data = &gpmi_devdata_imx7d,
+	}
 };
 MODULE_DEVICE_TABLE(of, gpmi_nand_id_table);
 
