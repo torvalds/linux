@@ -3767,7 +3767,7 @@ static int rk3368_lcdc_fps_mgr(struct rk_lcdc_driver *dev_drv, int fps,
 	pixclock = div_u64(1000000000000llu, clk_get_rate(lcdc_dev->dclk));
 	lcdc_dev->pixclock = pixclock;
 	dev_drv->pixclock = lcdc_dev->pixclock;
-	fps = rk_fb_calc_fps(lcdc_dev->screen, pixclock);
+	fps = rk_fb_calc_fps(screen, pixclock);
 	screen->ft = 1000 / fps;	/*one frame time in ms */
 
 	if (set)
