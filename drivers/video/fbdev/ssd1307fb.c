@@ -424,6 +424,12 @@ static int ssd1307fb_init(struct ssd1307fb_par *par)
 	return 0;
 }
 
+static struct ssd1307fb_deviceinfo ssd1307fb_ssd1305_deviceinfo = {
+	.default_vcomh = 0x34,
+	.default_dclk_div = 1,
+	.default_dclk_frq = 7,
+};
+
 static struct ssd1307fb_deviceinfo ssd1307fb_ssd1306_deviceinfo = {
 	.default_vcomh = 0x20,
 	.default_dclk_div = 1,
@@ -439,6 +445,10 @@ static struct ssd1307fb_deviceinfo ssd1307fb_ssd1307_deviceinfo = {
 };
 
 static const struct of_device_id ssd1307fb_of_match[] = {
+	{
+		.compatible = "solomon,ssd1305fb-i2c",
+		.data = (void *)&ssd1307fb_ssd1305_deviceinfo,
+	},
 	{
 		.compatible = "solomon,ssd1306fb-i2c",
 		.data = (void *)&ssd1307fb_ssd1306_deviceinfo,
@@ -612,6 +622,7 @@ static int ssd1307fb_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ssd1307fb_i2c_id[] = {
+	{ "ssd1305fb", 0 },
 	{ "ssd1306fb", 0 },
 	{ "ssd1307fb", 0 },
 	{ }
