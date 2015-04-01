@@ -36,10 +36,6 @@
 	};
 };
 
-&pll1 {
-	clock-mult = <15>;
-};
-
 &uart0 {
 	status = "okay";
 };
