@@ -122,19 +122,19 @@ nfsd4_block_decode_layoutupdate(__be32 *p, u32 len, struct iomap **iomapp,
 
 		p = xdr_decode_hyper(p, &bex.foff);
 		if (bex.foff & (block_size - 1)) {
-			dprintk("%s: unaligned offset %lld\n",
+			dprintk("%s: unaligned offset 0x%llx\n",
 				__func__, bex.foff);
 			goto fail;
 		}
 		p = xdr_decode_hyper(p, &bex.len);
 		if (bex.len & (block_size - 1)) {
-			dprintk("%s: unaligned length %lld\n",
+			dprintk("%s: unaligned length 0x%llx\n",
 				__func__, bex.foff);
 			goto fail;
 		}
 		p = xdr_decode_hyper(p, &bex.soff);
 		if (bex.soff & (block_size - 1)) {
-			dprintk("%s: unaligned disk offset %lld\n",
+			dprintk("%s: unaligned disk offset 0x%llx\n",
 				__func__, bex.soff);
 			goto fail;
 		}

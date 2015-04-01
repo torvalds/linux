@@ -303,9 +303,7 @@ static int rpc_client_register(struct rpc_clnt *clnt,
 	struct super_block *pipefs_sb;
 	int err;
 
-	err = rpc_clnt_debugfs_register(clnt);
-	if (err)
-		return err;
+	rpc_clnt_debugfs_register(clnt);
 
 	pipefs_sb = rpc_get_sb_net(net);
 	if (pipefs_sb) {
