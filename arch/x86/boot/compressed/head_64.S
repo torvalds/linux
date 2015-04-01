@@ -165,7 +165,7 @@ ENTRY(startup_32)
 	/* After gdt is loaded */
 	xorl	%eax, %eax
 	lldt	%ax
-	movl    $0x20, %eax
+	movl    $__BOOT_TSS, %eax
 	ltr	%ax
 
 	/*
