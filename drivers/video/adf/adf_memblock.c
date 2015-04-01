@@ -151,7 +151,7 @@ struct dma_buf *adf_memblock_export(phys_addr_t base, size_t size, int flags)
 		return ERR_PTR(-ENOMEM);
 
 	pdata->base = base;
-	buf = dma_buf_export(pdata, &adf_memblock_ops, size, flags);
+	buf = dma_buf_export(pdata, &adf_memblock_ops, size, flags, NULL);
 	if (IS_ERR(buf))
 		kfree(pdata);
 
