@@ -2,7 +2,6 @@
 #include <linux/compiler.h>
 #include <linux/string.h>
 #include "ordered-events.h"
-#include "evlist.h"
 #include "session.h"
 #include "asm/bug.h"
 #include "debug.h"
@@ -167,7 +166,7 @@ int ordered_events__queue(struct ordered_events *oe, union perf_event *event,
 		pr_oe_time(oe->last_flush, "last flush, last_flush_type %d\n",
 			   oe->last_flush_type);
 
-		oe->evlist->stats.nr_unordered_events++;
+		oe->nr_unordered_events++;
 	}
 
 	oevent = ordered_events__new_event(oe, timestamp, event);
@@ -187,7 +186,6 @@ static int __ordered_events__flush(struct ordered_events *oe)
 {
 	struct list_head *head = &oe->events;
 	struct ordered_event *tmp, *iter;
-	struct perf_sample sample;
 	u64 limit = oe->next_flush;
 	u64 last_ts = oe->last ? oe->last->timestamp : 0ULL;
 	bool show_progress = limit == ULLONG_MAX;
@@ -206,15 +204,9 @@ static int __ordered_events__flush(struct ordered_events *oe)
 
 		if (iter->timestamp > limit)
 			break;
-
-		ret = perf_evlist__parse_sample(oe->evlist, iter->event, &sample);
+		ret = oe->deliver(oe, iter);
 		if (ret)
-			pr_err("Can't parse sample, err = %d\n", ret);
-		else {
-			ret = oe->deliver(oe, iter, &sample);
-			if (ret)
-				return ret;
-		}
+			return ret;
 
 		ordered_events__delete(oe, iter);
 		oe->last_flush = iter->timestamp;
@@ -292,18 +284,13 @@ int ordered_events__flush(struct ordered_events *oe, enum oe_flush how)
 	return err;
 }
 
-void ordered_events__init(struct ordered_events *oe, struct machines *machines,
-			  struct perf_evlist *evlist, struct perf_tool *tool,
-			  ordered_events__deliver_t deliver)
+void ordered_events__init(struct ordered_events *oe, ordered_events__deliver_t deliver)
 {
 	INIT_LIST_HEAD(&oe->events);
 	INIT_LIST_HEAD(&oe->cache);
 	INIT_LIST_HEAD(&oe->to_free);
 	oe->max_alloc_size = (u64) -1;
 	oe->cur_alloc_size = 0;
-	oe->evlist	   = evlist;
-	oe->machines	   = machines;
-	oe->tool	   = tool;
 	oe->deliver	   = deliver;
 }
 

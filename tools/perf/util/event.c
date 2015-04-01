@@ -49,70 +49,103 @@ static struct perf_sample synth_sample = {
 	.period	   = 1,
 };
 
-static pid_t perf_event__get_comm_tgid(pid_t pid, char *comm, size_t len)
+/*
+ * Assumes that the first 4095 bytes of /proc/pid/stat contains
+ * the comm, tgid and ppid.
+ */
+static int perf_event__get_comm_ids(pid_t pid, char *comm, size_t len,
+				    pid_t *tgid, pid_t *ppid)
 {
 	char filename[PATH_MAX];
-	char bf[BUFSIZ];
-	FILE *fp;
-	size_t size = 0;
-	pid_t tgid = -1;
+	char bf[4096];
+	int fd;
+	size_t size = 0, n;
+	char *nl, *name, *tgids, *ppids;
+
+	*tgid = -1;
+	*ppid = -1;
 
 	snprintf(filename, sizeof(filename), "/proc/%d/status", pid);
 
-	fp = fopen(filename, "r");
-	if (fp == NULL) {
+	fd = open(filename, O_RDONLY);
+	if (fd < 0) {
 		pr_debug("couldn't open %s\n", filename);
-		return 0;
+		return -1;
 	}
 
-	while (!comm[0] || (tgid < 0)) {
-		if (fgets(bf, sizeof(bf), fp) == NULL) {
-			pr_warning("couldn't get COMM and pgid, malformed %s\n",
-				   filename);
-			break;
-		}
+	n = read(fd, bf, sizeof(bf) - 1);
+	close(fd);
+	if (n <= 0) {
+		pr_warning("Couldn't get COMM, tigd and ppid for pid %d\n",
+			   pid);
+		return -1;
+	}
+	bf[n] = '\0';
 
-		if (memcmp(bf, "Name:", 5) == 0) {
-			char *name = bf + 5;
-			while (*name && isspace(*name))
-				++name;
-			size = strlen(name) - 1;
-			if (size >= len)
-				size = len - 1;
-			memcpy(comm, name, size);
-			comm[size] = '\0';
+	name = strstr(bf, "Name:");
+	tgids = strstr(bf, "Tgid:");
+	ppids = strstr(bf, "PPid:");
 
-		} else if (memcmp(bf, "Tgid:", 5) == 0) {
-			char *tgids = bf + 5;
-			while (*tgids && isspace(*tgids))
-				++tgids;
-			tgid = atoi(tgids);
-		}
+	if (name) {
+		name += 5;  /* strlen("Name:") */
+
+		while (*name && isspace(*name))
+			++name;
+
+		nl = strchr(name, '\n');
+		if (nl)
+			*nl = '\0';
+
+		size = strlen(name);
+		if (size >= len)
+			size = len - 1;
+		memcpy(comm, name, size);
+		comm[size] = '\0';
+	} else {
+		pr_debug("Name: string not found for pid %d\n", pid);
 	}
 
-	fclose(fp);
+	if (tgids) {
+		tgids += 5;  /* strlen("Tgid:") */
+		*tgid = atoi(tgids);
+	} else {
+		pr_debug("Tgid: string not found for pid %d\n", pid);
+	}
 
-	return tgid;
+	if (ppids) {
+		ppids += 5;  /* strlen("PPid:") */
+		*ppid = atoi(ppids);
+	} else {
+		pr_debug("PPid: string not found for pid %d\n", pid);
+	}
+
+	return 0;
 }
 
-static pid_t perf_event__prepare_comm(union perf_event *event, pid_t pid,
-					 struct machine *machine)
+static int perf_event__prepare_comm(union perf_event *event, pid_t pid,
+				    struct machine *machine,
+				    pid_t *tgid, pid_t *ppid)
 {
 	size_t size;
-	pid_t tgid;
+
+	*ppid = -1;
 
 	memset(&event->comm, 0, sizeof(event->comm));
 
-	if (machine__is_host(machine))
-		tgid = perf_event__get_comm_tgid(pid, event->comm.comm,
-						 sizeof(event->comm.comm));
-	else
-		tgid = machine->pid;
+	if (machine__is_host(machine)) {
+		if (perf_event__get_comm_ids(pid, event->comm.comm,
+					     sizeof(event->comm.comm),
+					     tgid, ppid) != 0) {
+			return -1;
+		}
+	} else {
+		*tgid = machine->pid;
+	}
 
-	if (tgid < 0)
-		goto out;
+	if (*tgid < 0)
+		return -1;
 
-	event->comm.pid = tgid;
+	event->comm.pid = *tgid;
 	event->comm.header.type = PERF_RECORD_COMM;
 
 	size = strlen(event->comm.comm) + 1;
@@ -122,8 +155,8 @@ static pid_t perf_event__prepare_comm(union perf_event *event, pid_t pid,
 				(sizeof(event->comm.comm) - size) +
 				machine->id_hdr_size);
 	event->comm.tid = pid;
-out:
-	return tgid;
+
+	return 0;
 }
 
 static pid_t perf_event__synthesize_comm(struct perf_tool *tool,
@@ -131,27 +164,27 @@ static pid_t perf_event__synthesize_comm(struct perf_tool *tool,
 					 perf_event__handler_t process,
 					 struct machine *machine)
 {
-	pid_t tgid = perf_event__prepare_comm(event, pid, machine);
+	pid_t tgid, ppid;
 
-	if (tgid == -1)
-		goto out;
+	if (perf_event__prepare_comm(event, pid, machine, &tgid, &ppid) != 0)
+		return -1;
 
 	if (process(tool, event, &synth_sample, machine) != 0)
 		return -1;
 
-out:
 	return tgid;
 }
 
 static int perf_event__synthesize_fork(struct perf_tool *tool,
-				       union perf_event *event, pid_t pid,
-				       pid_t tgid, perf_event__handler_t process,
+				       union perf_event *event,
+				       pid_t pid, pid_t tgid, pid_t ppid,
+				       perf_event__handler_t process,
 				       struct machine *machine)
 {
 	memset(&event->fork, 0, sizeof(event->fork) + machine->id_hdr_size);
 
-	event->fork.ppid = tgid;
-	event->fork.ptid = tgid;
+	event->fork.ppid = ppid;
+	event->fork.ptid = ppid;
 	event->fork.pid  = tgid;
 	event->fork.tid  = pid;
 	event->fork.header.type = PERF_RECORD_FORK;
@@ -343,7 +376,7 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 	char filename[PATH_MAX];
 	DIR *tasks;
 	struct dirent dirent, *next;
-	pid_t tgid;
+	pid_t tgid, ppid;
 
 	/* special case: only send one comm event using passed in pid */
 	if (!full) {
@@ -378,12 +411,12 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 		if (*end)
 			continue;
 
-		tgid = perf_event__prepare_comm(comm_event, _pid, machine);
-		if (tgid == -1)
+		if (perf_event__prepare_comm(comm_event, _pid, machine,
+					     &tgid, &ppid) != 0)
 			return -1;
 
 		if (perf_event__synthesize_fork(tool, fork_event, _pid, tgid,
-						process, machine) < 0)
+						ppid, process, machine) < 0)
 			return -1;
 		/*
 		 * Send the prepared comm event
