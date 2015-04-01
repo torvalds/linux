@@ -7045,11 +7045,17 @@ dhd_reboot_callback(struct notifier_block *this, unsigned long code, void *unuse
 	return NOTIFY_DONE;
 }
 
+#include <linux/rfkill-wlan.h>
+extern int get_wifi_chip_type(void);
 extern char WIFI_MODULE_NAME[];
 extern char RKWIFI_DRV_VERSION[];
 
 int rockchip_wifi_init_module_rkwifi(void)
 {
+#ifdef CONFIG_WIFI_LOAD_DRIVER_WHEN_KERNEL_BOOTUP
+    int type = get_wifi_chip_type();
+    if (type > WIFI_AP6XXX_SERIES) return 0;
+#endif
     printk("=======================================================\n");
     printk("==== Launching Wi-Fi driver! (Powered by Rockchip) ====\n");
     printk("=======================================================\n");
@@ -7060,14 +7066,23 @@ int rockchip_wifi_init_module_rkwifi(void)
 
 void rockchip_wifi_exit_module_rkwifi(void)
 {
+#ifdef CONFIG_WIFI_LOAD_DRIVER_WHEN_KERNEL_BOOTUP
+    int type = get_wifi_chip_type();    
+    if (type > WIFI_AP6XXX_SERIES) return;
+#endif
     printk("=======================================================\n");
     printk("== Dis-launching Wi-Fi driver! (Powered by Rockchip) ==\n");
     printk("=======================================================\n");
     dhd_module_exit();
 }
 
+#ifdef CONFIG_WIFI_LOAD_DRIVER_WHEN_KERNEL_BOOTUP
+late_initcall(rockchip_wifi_init_module_rkwifi);
+module_exit(rockchip_wifi_exit_module_rkwifi);
+#else
 EXPORT_SYMBOL(rockchip_wifi_init_module_rkwifi);
 EXPORT_SYMBOL(rockchip_wifi_exit_module_rkwifi);
+#endif
 //#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
 //#if defined(CONFIG_DEFERRED_INITCALLS)
 //deferred_module_init(dhd_module_init);

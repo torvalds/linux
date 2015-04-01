@@ -153,6 +153,9 @@ static int wifi_driver_insmod = 0;
 static int wifi_init_exit_module(int enable)
 {
     int ret = 0;
+
+#ifdef CONFIG_WIFI_LOAD_DRIVER_WHEN_KERNEL_BOOTUP
+#else
     int type = get_wifi_chip_type();
 //#ifdef CONFIG_RKWIFI
     if (type < WIFI_AP6XXX_SERIES) {
@@ -181,7 +184,7 @@ static int wifi_init_exit_module(int enable)
         return ret;
     }
 //#endif
-
+#endif
     return ret;
 }
 
@@ -215,6 +218,9 @@ static struct class *rkwifi_class = NULL;
 static CLASS_ATTR(chip, 0664, wifi_chip_read, NULL);
 static CLASS_ATTR(power, 0660, NULL, wifi_power_write);
 static CLASS_ATTR(driver, 0660, NULL, wifi_driver_write);
+#ifdef CONFIG_WIFI_LOAD_DRIVER_WHEN_KERNEL_BOOTUP
+static CLASS_ATTR(preload, 0660, NULL, NULL);
+#endif
 
 int rkwifi_sysif_init(void)
 {
@@ -234,6 +240,9 @@ int rkwifi_sysif_init(void)
     ret =  class_create_file(rkwifi_class, &class_attr_chip);
     ret =  class_create_file(rkwifi_class, &class_attr_power);
     ret =  class_create_file(rkwifi_class, &class_attr_driver);
+#ifdef CONFIG_WIFI_LOAD_DRIVER_WHEN_KERNEL_BOOTUP
+    ret =  class_create_file(rkwifi_class, &class_attr_preload);
+#endif
     sema_init(&driver_sem, 1);
     
     return 0;
@@ -245,6 +254,9 @@ void rkwifi_sysif_exit(void)
     class_remove_file(rkwifi_class, &class_attr_chip);
     class_remove_file(rkwifi_class, &class_attr_power);
     class_remove_file(rkwifi_class, &class_attr_driver);
+#ifdef CONFIG_WIFI_LOAD_DRIVER_WHEN_KERNEL_BOOTUP
+    class_remove_file(rkwifi_class, &class_attr_preload);
+#endif
     class_destroy(rkwifi_class);
     
     rkwifi_class = NULL;

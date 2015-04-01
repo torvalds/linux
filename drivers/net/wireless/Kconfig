@@ -25,6 +25,12 @@ if WLAN
 #	  bool "rda 5990p"
 #	  ---help---
 #	    rda5990P fm bt wifi
+
+config WIFI_LOAD_DRIVER_WHEN_KERNEL_BOOTUP
+    bool "Wifi load driver when kernel bootup"
+    default y
+    ---help---
+      Wifi driver will be load (use late_initcall) when kernel bootup
 	    
 menuconfig RTL_WIRELESS_SOLUTION
     bool "Realtek Wireless Device Driver Support"
