@@ -471,6 +471,7 @@ struct kvm_vcpu_arch {
 	atomic_t nmi_queued;  /* unprocessed asynchronous NMIs */
 	unsigned nmi_pending; /* NMI queued after currently running handler */
 	bool nmi_injected;    /* Trying to inject an NMI this entry */
+	bool smi_pending;    /* SMI queued after currently running handler */
 
 	struct mtrr_state_type mtrr_state;
 	u64 pat;
@@ -1115,6 +1116,8 @@ enum {
 #define HF_NMI_MASK		(1 << 3)
 #define HF_IRET_MASK		(1 << 4)
 #define HF_GUEST_MASK		(1 << 5) /* VCPU is in guest-mode */
+#define HF_SMM_MASK		(1 << 6)
+#define HF_SMM_INSIDE_NMI_MASK	(1 << 7)
 
 /*
  * Hardware virtualization extension instructions may fault if a

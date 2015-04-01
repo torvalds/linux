@@ -106,6 +106,8 @@ struct kvm_ioapic_state {
 #define KVM_IRQCHIP_IOAPIC       2
 #define KVM_NR_IRQCHIPS          3
 
+#define KVM_RUN_X86_SMM		 (1 << 0)
+
 /* for KVM_GET_REGS and KVM_SET_REGS */
 struct kvm_regs {
 	/* out (KVM_GET_REGS) / in (KVM_SET_REGS) */
@@ -281,6 +283,7 @@ struct kvm_reinject_control {
 #define KVM_VCPUEVENT_VALID_NMI_PENDING	0x00000001
 #define KVM_VCPUEVENT_VALID_SIPI_VECTOR	0x00000002
 #define KVM_VCPUEVENT_VALID_SHADOW	0x00000004
+#define KVM_VCPUEVENT_VALID_SMM		0x00000008
 
 /* Interrupt shadow states */
 #define KVM_X86_SHADOW_INT_MOV_SS	0x01
@@ -309,7 +312,13 @@ struct kvm_vcpu_events {
 	} nmi;
 	__u32 sipi_vector;
 	__u32 flags;
-	__u32 reserved[10];
+	struct {
+		__u8 smm;
+		__u8 pending;
+		__u8 smm_inside_nmi;
+		__u8 latched_init;
+	} smi;
+	__u32 reserved[9];
 };
 
 /* for KVM_GET/SET_DEBUGREGS */

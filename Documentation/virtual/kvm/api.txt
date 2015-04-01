@@ -820,11 +820,21 @@ struct kvm_vcpu_events {
 	} nmi;
 	__u32 sipi_vector;
 	__u32 flags;
+	struct {
+		__u8 smm;
+		__u8 pending;
+		__u8 smm_inside_nmi;
+		__u8 latched_init;
+	} smi;
 };
 
-KVM_VCPUEVENT_VALID_SHADOW may be set in the flags field to signal that
-interrupt.shadow contains a valid state. Otherwise, this field is undefined.
+Only two fields are defined in the flags field:
 
+- KVM_VCPUEVENT_VALID_SHADOW may be set in the flags field to signal that
+  interrupt.shadow contains a valid state.
+
+- KVM_VCPUEVENT_VALID_SMM may be set in the flags field to signal that
+  smi contains a valid state.
 
 4.32 KVM_SET_VCPU_EVENTS
 
@@ -841,16 +851,19 @@ vcpu.
 See KVM_GET_VCPU_EVENTS for the data structure.
 
 Fields that may be modified asynchronously by running VCPUs can be excluded
-from the update. These fields are nmi.pending and sipi_vector. Keep the
-corresponding bits in the flags field cleared to suppress overwriting the
-current in-kernel state. The bits are:
+from the update. These fields are nmi.pending, sipi_vector, smi.smm,
+smi.pending. Keep the corresponding bits in the flags field cleared to
+suppress overwriting the current in-kernel state. The bits are:
 
 KVM_VCPUEVENT_VALID_NMI_PENDING - transfer nmi.pending to the kernel
 KVM_VCPUEVENT_VALID_SIPI_VECTOR - transfer sipi_vector
+KVM_VCPUEVENT_VALID_SMM         - transfer the smi sub-struct.
 
 If KVM_CAP_INTR_SHADOW is available, KVM_VCPUEVENT_VALID_SHADOW can be set in
 the flags field to signal that interrupt.shadow contains a valid state and
 shall be written into the VCPU.
+
+KVM_VCPUEVENT_VALID_SMM can only be set if KVM_CAP_X86_SMM is available.
 
 
 4.33 KVM_GET_DEBUGREGS
@@ -2979,6 +2992,16 @@ len must be a multiple of sizeof(struct kvm_s390_irq). It must be > 0
 and it must not exceed (max_vcpus + 32) * sizeof(struct kvm_s390_irq),
 which is the maximum number of possibly pending cpu-local interrupts.
 
+4.90 KVM_SMI
+
+Capability: KVM_CAP_X86_SMM
+Architectures: x86
+Type: vcpu ioctl
+Parameters: none
+Returns: 0 on success, -1 on error
+
+Queues an SMI on the thread's vcpu.
+
 5. The kvm_run structure
 ------------------------
 
@@ -3014,7 +3037,12 @@ an interrupt can be injected now with KVM_INTERRUPT.
 The value of the current interrupt flag.  Only valid if in-kernel
 local APIC is not used.
 
-	__u8 padding2[2];
+	__u16 flags;
+
+More architecture-specific flags detailing state of the VCPU that may
+affect the device's behavior.  The only currently defined flag is
+KVM_RUN_X86_SMM, which is valid on x86 machines and is set if the
+VCPU is in system management mode.
 
 	/* in (pre_kvm_run), out (post_kvm_run) */
 	__u64 cr8;

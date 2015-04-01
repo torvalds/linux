@@ -159,6 +159,11 @@ static inline bool kvm_lowest_prio_delivery(struct kvm_lapic_irq *irq)
 			irq->msi_redir_hint);
 }
 
+static inline int kvm_lapic_latched_init(struct kvm_vcpu *vcpu)
+{
+	return kvm_vcpu_has_lapic(vcpu) && test_bit(KVM_APIC_INIT, &vcpu->arch.apic->pending_events);
+}
+
 bool kvm_apic_pending_eoi(struct kvm_vcpu *vcpu, int vector);
 
 void wait_lapic_expire(struct kvm_vcpu *vcpu);
