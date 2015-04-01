@@ -36,23 +36,6 @@
 			};
 		};
 
-		/*
-		 * This INTC is actually connected to DW APB GPIO
-		 * which acts as a wire between MB INTC and CPU INTC.
-		 * GPIO INTC is configured in platform init code
-		 * and here we mimic direct connection from MB INTC to
-		 * CPU INTC, thus we set "interrupts = <7>" instead of
-		 * "interrupts = <12>"
-		 */
-		mb_intc: dw-apb-ictl@0x12000 {
-			#interrupt-cells = <1>;
-			compatible = "snps,dw-apb-ictl";
-			reg = < 0x12000 0x200 >;
-			interrupt-controller;
-			interrupt-parent = <&cpu_intc>;
-			interrupts = < 7 >;
-		};
-
 		ethernet@0x18000 {
 			#interrupt-cells = <1>;
 			compatible = "snps,dwmac";
