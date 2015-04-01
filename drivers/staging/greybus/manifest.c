@@ -26,6 +26,8 @@ static const char *get_descriptor_type_string(u8 type)
 		return "interface";
 	case GREYBUS_TYPE_CPORT:
 		return "cport";
+	case GREYBUS_TYPE_BUNDLE:
+		return "bundle";
 	case GREYBUS_TYPE_CLASS:
 		return "class";
 	default:

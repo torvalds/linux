@@ -17,11 +17,12 @@
 
 enum greybus_descriptor_type {
 	GREYBUS_TYPE_INVALID		= 0x00,
-	GREYBUS_TYPE_MODULE		= 0x01,
+	GREYBUS_TYPE_INTERFACE		= 0x01,
 	GREYBUS_TYPE_STRING		= 0x02,
-	GREYBUS_TYPE_INTERFACE		= 0x03,
+	GREYBUS_TYPE_BUNDLE		= 0x03,
 	GREYBUS_TYPE_CPORT		= 0x04,
 	GREYBUS_TYPE_CLASS		= 0x05,
+	GREYBUS_TYPE_MODULE		= 0x06,
 };
 
 enum greybus_protocol {
@@ -109,6 +110,30 @@ struct greybus_descriptor_interface {
 };
 
 /*
+ * An bundle descriptor defines an identification number and a class type for
+ * each bundle.
+ *
+ * @id: Uniquely identifies a bundle within a interface, its sole purpose is to
+ * allow CPort descriptors to specify which bundle they are associated with.
+ * The first bundle will have id 0, second will have 1 and so on.
+ *
+ * The largest CPort id associated with an bundle (defined by a
+ * CPort descriptor in the manifest) is used to determine how to
+ * encode the device id and module number in UniPro packets
+ * that use the bundle.
+ *
+ * @class_type: It is used by kernel to know the functionality provided by the
+ * bundle and will be matched against drivers functinality while probing greybus
+ * driver. It should contain one of the values defined in
+ * 'enum greybus_class_type'.
+ *
+ */
+struct greybus_descriptor_bundle {
+	__u8	id;	/* interface-relative id (0..) */
+	__u8	class_type;
+};
+
+/*
  * A CPort descriptor indicates the id of the bundle within the
  * module it's associated with, along with the CPort id used to
  * address the CPort.  The protocol id defines the format of messages
@@ -139,6 +164,7 @@ struct greybus_descriptor {
 		struct greybus_descriptor_module	module;
 		struct greybus_descriptor_string	string;
 		struct greybus_descriptor_interface	interface;
+		struct greybus_descriptor_bundle	bundle;
 		struct greybus_descriptor_cport		cport;
 		struct greybus_descriptor_class		class;
 	};
