@@ -755,10 +755,10 @@ static int hdmi_phy_configure(struct dw_hdmi *hdmi, unsigned char prep,
 {
 	unsigned res_idx, i;
 	u8 val, msec;
-	const struct dw_hdmi_mpll_config *mpll_config =
-						hdmi->plat_data->mpll_cfg;
-	const struct dw_hdmi_curr_ctrl *curr_ctrl = hdmi->plat_data->cur_ctr;
-	const struct dw_hdmi_sym_term *sym_term =  hdmi->plat_data->sym_term;
+	const struct dw_hdmi_plat_data *plat_data = hdmi->plat_data;
+	const struct dw_hdmi_mpll_config *mpll_config = plat_data->mpll_cfg;
+	const struct dw_hdmi_curr_ctrl *curr_ctrl = plat_data->cur_ctr;
+	const struct dw_hdmi_sym_term *sym_term = plat_data->sym_term;
 
 	if (prep)
 		return -EINVAL;
