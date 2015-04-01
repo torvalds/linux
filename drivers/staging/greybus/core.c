@@ -34,10 +34,10 @@ EXPORT_SYMBOL_GPL(greybus_disabled);
 static int greybus_module_match(struct device *dev, struct device_driver *drv)
 {
 	struct greybus_driver *driver = to_greybus_driver(drv);
-	struct gb_interface *intf = to_gb_interface(dev);
-	const struct greybus_interface_id *id;
+	struct gb_bundle *bundle = to_gb_bundle(dev);
+	const struct greybus_bundle_id *id;
 
-	id = gb_interface_match_id(intf, driver->id_table);
+	id = gb_bundle_match_id(bundle, driver->id_table);
 	if (id)
 		return 1;
 	/* FIXME - Dynamic ids? */
@@ -97,16 +97,16 @@ struct bus_type greybus_bus_type = {
 static int greybus_probe(struct device *dev)
 {
 	struct greybus_driver *driver = to_greybus_driver(dev->driver);
-	struct gb_interface *intf = to_gb_interface(dev);
-	const struct greybus_interface_id *id;
+	struct gb_bundle *bundle = to_gb_bundle(dev);
+	const struct greybus_bundle_id *id;
 	int retval;
 
 	/* match id */
-	id = gb_interface_match_id(intf, driver->id_table);
+	id = gb_bundle_match_id(bundle, driver->id_table);
 	if (!id)
 		return -ENODEV;
 
-	retval = driver->probe(intf, id);
+	retval = driver->probe(bundle, id);
 	if (retval)
 		return retval;
 
@@ -116,9 +116,9 @@ static int greybus_probe(struct device *dev)
 static int greybus_remove(struct device *dev)
 {
 	struct greybus_driver *driver = to_greybus_driver(dev->driver);
-	struct gb_interface *intf = to_gb_interface(dev);
+	struct gb_bundle *bundle = to_gb_bundle(dev);
 
-	driver->disconnect(intf);
+	driver->disconnect(bundle);
 	return 0;
 }
 

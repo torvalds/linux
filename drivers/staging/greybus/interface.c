@@ -40,40 +40,6 @@ ATTRIBUTE_GROUPS(interface);
 /* XXX This could be per-host device */
 static DEFINE_SPINLOCK(gb_interfaces_lock);
 
-static int gb_interface_match_one_id(struct gb_interface *intf,
-				     const struct greybus_interface_id *id)
-{
-	if ((id->match_flags & GREYBUS_ID_MATCH_VENDOR) &&
-	    (id->vendor != intf->vendor))
-		return 0;
-
-	if ((id->match_flags & GREYBUS_ID_MATCH_PRODUCT) &&
-	    (id->product != intf->product))
-		return 0;
-
-	if ((id->match_flags & GREYBUS_ID_MATCH_SERIAL) &&
-	    (id->unique_id != intf->unique_id))
-		return 0;
-
-	return 1;
-}
-
-const struct greybus_interface_id *
-gb_interface_match_id(struct gb_interface *intf,
-		      const struct greybus_interface_id *id)
-{
-	if (id == NULL)
-		return NULL;
-
-	for (; id->vendor || id->product || id->unique_id ||
-			id->driver_info; id++) {
-		if (gb_interface_match_one_id(intf, id))
-			return id;
-	}
-
-	return NULL;
-}
-
 // FIXME, odds are you don't want to call this function, rework the caller to
 // not need it please.
 struct gb_interface *gb_interface_find(struct greybus_host_device *hd,

@@ -120,14 +120,14 @@ void greybus_remove_hd(struct greybus_host_device *hd);
 struct greybus_driver {
 	const char *name;
 
-	int (*probe)(struct gb_interface *intf,
-		     const struct greybus_interface_id *id);
-	void (*disconnect)(struct gb_interface *intf);
+	int (*probe)(struct gb_bundle *bundle,
+		     const struct greybus_bundle_id *id);
+	void (*disconnect)(struct gb_bundle *bundle);
 
-	int (*suspend)(struct gb_interface *intf, pm_message_t message);
-	int (*resume)(struct gb_interface *intf);
+	int (*suspend)(struct gb_bundle *bundle, pm_message_t message);
+	int (*resume)(struct gb_bundle *bundle);
 
-	const struct greybus_interface_id *id_table;
+	const struct greybus_bundle_id *id_table;
 
 	struct device_driver driver;
 };

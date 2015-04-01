@@ -22,8 +22,18 @@ static ssize_t device_id_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(device_id);
 
+static ssize_t class_type_show(struct device *dev, struct device_attribute *attr,
+			      char *buf)
+{
+	struct gb_bundle *bundle = to_gb_bundle(dev);
+
+	return sprintf(buf, "%d\n", bundle->class_type);
+}
+static DEVICE_ATTR_RO(class_type);
+
 static struct attribute *bundle_attrs[] = {
 	&dev_attr_device_id.attr,
+	&dev_attr_class_type.attr,
 	NULL,
 };
 
@@ -40,6 +50,44 @@ struct device_type greybus_bundle_type = {
 	.name =		"greybus_bundle",
 	.release =	gb_bundle_release,
 };
+
+static int gb_bundle_match_one_id(struct gb_bundle *bundle,
+				     const struct greybus_bundle_id *id)
+{
+	if ((id->match_flags & GREYBUS_ID_MATCH_VENDOR) &&
+	    (id->vendor != bundle->intf->vendor))
+		return 0;
+
+	if ((id->match_flags & GREYBUS_ID_MATCH_PRODUCT) &&
+	    (id->product != bundle->intf->product))
+		return 0;
+
+	if ((id->match_flags & GREYBUS_ID_MATCH_SERIAL) &&
+	    (id->unique_id != bundle->intf->unique_id))
+		return 0;
+
+	if ((id->match_flags & GREYBUS_ID_MATCH_CLASS_TYPE) &&
+	    (id->class_type != bundle->class_type))
+		return 0;
+
+	return 1;
+}
+
+const struct greybus_bundle_id *
+gb_bundle_match_id(struct gb_bundle *bundle,
+		   const struct greybus_bundle_id *id)
+{
+	if (id == NULL)
+		return NULL;
+
+	for (; id->vendor || id->product || id->unique_id || id->class_type ||
+	       id->driver_info; id++) {
+		if (gb_bundle_match_one_id(bundle, id))
+			return id;
+	}
+
+	return NULL;
+}
 
 
 /* XXX This could be per-host device or per-module */
