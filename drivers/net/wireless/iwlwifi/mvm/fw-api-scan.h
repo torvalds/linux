@@ -274,50 +274,18 @@ struct iwl_scan_offload_profile_cfg {
 } __packed;
 
 /**
- * iwl_scan_offload_schedule - schedule of scan offload
+ * iwl_scan_schedule_lmac - schedule of scan offload
  * @delay:		delay between iterations, in seconds.
  * @iterations:		num of scan iterations
  * @full_scan_mul:	number of partial scans before each full scan
  */
-struct iwl_scan_offload_schedule {
+struct iwl_scan_schedule_lmac {
 	__le16 delay;
 	u8 iterations;
 	u8 full_scan_mul;
-} __packed;
+} __packed; /* SCAN_SCHEDULE_API_S */
 
-/*
- * iwl_scan_offload_flags
- *
- * IWL_SCAN_OFFLOAD_FLAG_PASS_ALL: pass all results - no filtering.
- * IWL_SCAN_OFFLOAD_FLAG_CACHED_CHANNEL: add cached channels to partial scan.
- * IWL_SCAN_OFFLOAD_FLAG_EBS_QUICK_MODE: EBS duration is 100mSec - typical
- *	beacon period. Finding channel activity in this mode is not guaranteed.
- * IWL_SCAN_OFFLOAD_FLAG_EBS_ACCURATE_MODE: EBS duration is 200mSec.
- *	Assuming beacon period is 100ms finding channel activity is guaranteed.
- */
-enum iwl_scan_offload_flags {
-	IWL_SCAN_OFFLOAD_FLAG_PASS_ALL		= BIT(0),
-	IWL_SCAN_OFFLOAD_FLAG_CACHED_CHANNEL	= BIT(2),
-	IWL_SCAN_OFFLOAD_FLAG_EBS_QUICK_MODE	= BIT(5),
-	IWL_SCAN_OFFLOAD_FLAG_EBS_ACCURATE_MODE	= BIT(6),
-};
-
-/**
- * iwl_scan_offload_req - scan offload request command
- * @flags:		bitmap - enum iwl_scan_offload_flags.
- * @watchdog:		maximum scan duration in TU.
- * @delay:		delay in seconds before first iteration.
- * @schedule_line:	scan offload schedule, for fast and regular scan.
- */
-struct iwl_scan_offload_req {
-	__le16 flags;
-	__le16 watchdog;
-	__le16 delay;
-	__le16 reserved;
-	struct iwl_scan_offload_schedule schedule_line[2];
-} __packed;
-
-enum iwl_scan_offload_compleate_status {
+enum iwl_scan_offload_complete_status {
 	IWL_SCAN_OFFLOAD_COMPLETED	= 1,
 	IWL_SCAN_OFFLOAD_ABORTED	= 2,
 };
@@ -508,7 +476,7 @@ struct iwl_scan_req_lmac {
 	/* SCAN_REQ_PERIODIC_PARAMS_API_S */
 	__le32 iter_num;
 	__le32 delay;
-	struct iwl_scan_offload_schedule schedule[2];
+	struct iwl_scan_schedule_lmac schedule[2];
 	struct iwl_scan_channel_opt channel_opt[2];
 	u8 data[];
 } __packed;
