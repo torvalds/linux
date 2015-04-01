@@ -114,6 +114,30 @@ static const struct file_operations features_fops = {
 	.release	= single_release,
 };
 
+static int device_id_show(struct seq_file *f, void *ptr)
+{
+	struct hci_dev *hdev = f->private;
+
+	hci_dev_lock(hdev);
+	seq_printf(f, "%4.4x:%4.4x:%4.4x:%4.4x\n", hdev->devid_source,
+		  hdev->devid_vendor, hdev->devid_product, hdev->devid_version);
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int device_id_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, device_id_show, inode->i_private);
+}
+
+static const struct file_operations device_id_fops = {
+	.open		= device_id_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 static int device_list_show(struct seq_file *f, void *ptr)
 {
 	struct hci_dev *hdev = f->private;
@@ -335,6 +359,8 @@ void hci_debugfs_create_common(struct hci_dev *hdev)
 	debugfs_create_u16("hci_revision", 0444, hdev->debugfs, &hdev->hci_rev);
 	debugfs_create_u8("hardware_error", 0444, hdev->debugfs,
 			  &hdev->hw_error_code);
+	debugfs_create_file("device_id", 0444, hdev->debugfs, hdev,
+			    &device_id_fops);
 
 	debugfs_create_file("device_list", 0444, hdev->debugfs, hdev,
 			    &device_list_fops);
