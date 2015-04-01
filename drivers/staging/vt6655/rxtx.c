@@ -116,7 +116,7 @@ void
 s_vGenerateTxParameter(
 	struct vnt_private *pDevice,
 	unsigned char byPktType,
-	void *pTxBufHead,
+	struct vnt_tx_fifo_head *,
 	void *pvRrvTime,
 	void *pvRTS,
 	void *pvCTS,
@@ -944,7 +944,7 @@ void
 s_vGenerateTxParameter(
 	struct vnt_private *pDevice,
 	unsigned char byPktType,
-	void *pTxBufHead,
+	struct vnt_tx_fifo_head *tx_buffer_head,
 	void *pvRrvTime,
 	void *pvRTS,
 	void *pvCTS,
@@ -955,21 +955,18 @@ s_vGenerateTxParameter(
 	unsigned short wCurrentRate
 )
 {
-	unsigned short wFifoCtl;
+	u16 fifo_ctl = le16_to_cpu(tx_buffer_head->fifo_ctl);
 	bool bDisCRC = false;
 	unsigned char byFBOption = AUTO_FB_NONE;
 
-	PSTxBufHead pFifoHead = (PSTxBufHead)pTxBufHead;
+	tx_buffer_head->current_rate = cpu_to_le16(wCurrentRate);
 
-	pFifoHead->wReserved = wCurrentRate;
-	wFifoCtl = pFifoHead->wFIFOCtl;
-
-	if (wFifoCtl & FIFOCTL_CRCDIS)
+	if (fifo_ctl & FIFOCTL_CRCDIS)
 		bDisCRC = true;
 
-	if (wFifoCtl & FIFOCTL_AUTO_FB_0)
+	if (fifo_ctl & FIFOCTL_AUTO_FB_0)
 		byFBOption = AUTO_FB_0;
-	else if (wFifoCtl & FIFOCTL_AUTO_FB_1)
+	else if (fifo_ctl & FIFOCTL_AUTO_FB_1)
 		byFBOption = AUTO_FB_1;
 
 	if (!pvRrvTime)
