@@ -70,10 +70,11 @@ static void hidp_session_terminate(struct hidp_session *s);
 
 static void hidp_copy_session(struct hidp_session *session, struct hidp_conninfo *ci)
 {
+	u32 valid_flags = 0;
 	memset(ci, 0, sizeof(*ci));
 	bacpy(&ci->bdaddr, &session->bdaddr);
 
-	ci->flags = session->flags;
+	ci->flags = session->flags & valid_flags;
 	ci->state = BT_CONNECTED;
 
 	if (session->input) {
@@ -1312,6 +1313,7 @@ int hidp_connection_add(struct hidp_connadd_req *req,
 			struct socket *ctrl_sock,
 			struct socket *intr_sock)
 {
+	u32 valid_flags = 0;
 	struct hidp_session *session;
 	struct l2cap_conn *conn;
 	struct l2cap_chan *chan;
@@ -1320,6 +1322,9 @@ int hidp_connection_add(struct hidp_connadd_req *req,
 	ret = hidp_verify_sockets(ctrl_sock, intr_sock);
 	if (ret)
 		return ret;
+
+	if (req->flags & ~valid_flags)
+		return -EINVAL;
 
 	chan = l2cap_pi(ctrl_sock->sk)->chan;
 	conn = NULL;
@@ -1351,7 +1356,11 @@ out_conn:
 
 int hidp_connection_del(struct hidp_conndel_req *req)
 {
+	u32 valid_flags = BIT(HIDP_VIRTUAL_CABLE_UNPLUG);
 	struct hidp_session *session;
+
+	if (req->flags & ~valid_flags)
+		return -EINVAL;
 
 	session = hidp_session_find(&req->bdaddr);
 	if (!session)
