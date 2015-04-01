@@ -643,31 +643,44 @@ static int i915_gem_request_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *ring;
-	struct drm_i915_gem_request *gem_request;
-	int ret, count, i;
+	struct drm_i915_gem_request *rq;
+	int ret, any, i;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
-	count = 0;
+	any = 0;
 	for_each_ring(ring, dev_priv, i) {
-		if (list_empty(&ring->request_list))
+		int count;
+
+		count = 0;
+		list_for_each_entry(rq, &ring->request_list, list)
+			count++;
+		if (count == 0)
 			continue;
 
-		seq_printf(m, "%s requests:\n", ring->name);
-		list_for_each_entry(gem_request,
-				    &ring->request_list,
-				    list) {
-			seq_printf(m, "    %x @ %d\n",
-				   gem_request->seqno,
-				   (int) (jiffies - gem_request->emitted_jiffies));
+		seq_printf(m, "%s requests: %d\n", ring->name, count);
+		list_for_each_entry(rq, &ring->request_list, list) {
+			struct task_struct *task;
+
+			rcu_read_lock();
+			task = NULL;
+			if (rq->pid)
+				task = pid_task(rq->pid, PIDTYPE_PID);
+			seq_printf(m, "    %x @ %d: %s [%d]\n",
+				   rq->seqno,
+				   (int) (jiffies - rq->emitted_jiffies),
+				   task ? task->comm : "<unknown>",
+				   task ? task->pid : -1);
+			rcu_read_unlock();
 		}
-		count++;
+
+		any++;
 	}
 	mutex_unlock(&dev->struct_mutex);
 
-	if (count == 0)
+	if (any == 0)
 		seq_puts(m, "No requests\n");
 
 	return 0;
