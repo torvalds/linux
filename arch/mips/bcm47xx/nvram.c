@@ -11,6 +11,7 @@
  * option) any later version.
  */
 
+#include <linux/io.h>
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -203,7 +204,7 @@ int bcm47xx_nvram_getenv(const char *name, char *val, size_t val_len)
 		if (eq - var == strlen(name) &&
 		    strncmp(var, name, eq - var) == 0)
 			return snprintf(val, val_len, "%s", value);
-		}
+	}
 	return -ENOENT;
 }
 EXPORT_SYMBOL(bcm47xx_nvram_getenv);
