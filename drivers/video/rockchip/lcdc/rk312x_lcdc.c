@@ -1937,8 +1937,15 @@ static int rk312x_lcdc_early_resume(struct rk_lcdc_driver *dev_drv)
 	lcdc_cfg_done(lcdc_dev);
 
 	if (dev_drv->iommu_enabled) {
-		if (dev_drv->mmu_dev)
+		if (dev_drv->mmu_dev) {
+			/*
+			 * At here, maybe win is enabled and buffer address
+			 * is not a vaild iommu mapped addr, incase crash,
+			 * delay 30ms to ensure H/W switch done.
+			 */
+			mdelay(30);
 			rockchip_iovmm_activate(dev_drv->dev);
+		}
 	}
 
 	spin_unlock(&lcdc_dev->reg_lock);
