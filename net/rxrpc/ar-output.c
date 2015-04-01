@@ -548,7 +548,7 @@ static int rxrpc_send_data(struct kiocb *iocb,
 	copied = 0;
 	if (len > iov_iter_count(&msg->msg_iter))
 		len = iov_iter_count(&msg->msg_iter);
-	while (len) {
+	do {
 		int copy;
 
 		if (!skb) {
@@ -689,7 +689,7 @@ static int rxrpc_send_data(struct kiocb *iocb,
 			rxrpc_queue_packet(call, skb, !iov_iter_count(&msg->msg_iter) && !more);
 			skb = NULL;
 		}
-	}
+	} while (len > 0);
 
 success:
 	ret = copied;
