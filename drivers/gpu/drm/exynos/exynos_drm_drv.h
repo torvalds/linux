@@ -206,6 +206,7 @@ struct exynos_drm_crtc_ops {
  *	we can refer to the crtc to current hardware interrupt occurred through
  *	this pipe value.
  * @dpms: store the crtc dpms value
+ * @event: vblank event that is currently queued for flip
  * @ops: pointer to callbacks for exynos drm specific functionality
  * @ctx: A pointer to the crtc's implementation specific context
  */
@@ -215,7 +216,7 @@ struct exynos_drm_crtc {
 	unsigned int			pipe;
 	unsigned int			dpms;
 	wait_queue_head_t		pending_flip_queue;
-	atomic_t			pending_flip;
+	struct drm_pending_vblank_event	*event;
 	struct exynos_drm_crtc_ops	*ops;
 	void				*ctx;
 };
@@ -244,9 +245,6 @@ struct drm_exynos_file_private {
  */
 struct exynos_drm_private {
 	struct drm_fb_helper *fb_helper;
-
-	/* list head for new event to be added. */
-	struct list_head pageflip_event_list;
 
 	/*
 	 * created crtc object would be contained at this array and
