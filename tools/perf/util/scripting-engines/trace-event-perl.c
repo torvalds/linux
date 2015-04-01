@@ -360,10 +360,9 @@ static void perl_process_event_generic(union perf_event *event,
 static void perl_process_event(union perf_event *event,
 			       struct perf_sample *sample,
 			       struct perf_evsel *evsel,
-			       struct thread *thread,
-			       struct addr_location *al __maybe_unused)
+			       struct addr_location *al)
 {
-	perl_process_tracepoint(sample, evsel, thread);
+	perl_process_tracepoint(sample, evsel, al->thread);
 	perl_process_event_generic(event, sample, evsel);
 }
 

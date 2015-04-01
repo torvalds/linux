@@ -446,9 +446,9 @@ static void print_sample_bts(union perf_event *event,
 }
 
 static void process_event(union perf_event *event, struct perf_sample *sample,
-			  struct perf_evsel *evsel, struct thread *thread,
-			  struct addr_location *al)
+			  struct perf_evsel *evsel, struct addr_location *al)
 {
+	struct thread *thread = al->thread;
 	struct perf_event_attr *attr = &evsel->attr;
 
 	if (output[attr->type].fields == 0)
@@ -573,7 +573,7 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 	if (cpu_list && !test_bit(sample->cpu, cpu_bitmap))
 		return 0;
 
-	scripting_ops->process_event(event, sample, evsel, al.thread, &al);
+	scripting_ops->process_event(event, sample, evsel, &al);
 
 	return 0;
 }
