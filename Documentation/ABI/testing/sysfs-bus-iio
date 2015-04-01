@@ -254,6 +254,7 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_pressureY_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_pressure_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_humidityrelative_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_magn_offset
+What:		/sys/bus/iio/devices/iio:deviceX/in_rot_offset
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -297,6 +298,7 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_pressureY_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_pressure_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_humidityrelative_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_velocity_sqrt(x^2+y^2+z^2)_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_illuminance_scale
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -337,6 +339,7 @@ what		/sys/bus/iio/devices/iio:deviceX/in_illuminance0_calibscale
 what		/sys/bus/iio/devices/iio:deviceX/in_proximity0_calibscale
 What:		/sys/bus/iio/devices/iio:deviceX/in_pressureY_calibscale
 What:		/sys/bus/iio/devices/iio:deviceX/in_pressure_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_illuminance_calibscale
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -348,7 +351,7 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_activity_calibgender
 What:		/sys/bus/iio/devices/iio:deviceX/in_energy_calibgender
 What:		/sys/bus/iio/devices/iio:deviceX/in_distance_calibgender
 What:		/sys/bus/iio/devices/iio:deviceX/in_velocity_calibgender
-KernelVersion:	3.20
+KernelVersion:	4.0
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Gender of the user (e.g.: male, female) used by some pedometers
@@ -359,7 +362,7 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_activity_calibgender_available
 What:		/sys/bus/iio/devices/iio:deviceX/in_energy_calibgender_available
 What:		/sys/bus/iio/devices/iio:deviceX/in_distance_calibgender_available
 What:		/sys/bus/iio/devices/iio:deviceX/in_velocity_calibgender_available
-KernelVersion:	3.20
+KernelVersion:	4.0
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Lists all available gender values (e.g.: male, female).
@@ -376,7 +379,7 @@ Description:
 		type.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_energy_calibweight
-KernelVersion:	3.20
+KernelVersion:	4.0
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Weight of the user (in kg). It is needed by some pedometers
@@ -797,7 +800,7 @@ Description:
 
 What:		/sys/.../events/in_accel_x_thresh_rising_period
 What:		/sys/.../events/in_accel_x_thresh_falling_period
-hat:		/sys/.../events/in_accel_x_roc_rising_period
+What:		/sys/.../events/in_accel_x_roc_rising_period
 What:		/sys/.../events/in_accel_x_roc_falling_period
 What:		/sys/.../events/in_accel_y_thresh_rising_period
 What:		/sys/.../events/in_accel_y_thresh_falling_period
@@ -944,7 +947,7 @@ Description:
 		this type.
 
 What:		/sys/.../events/in_steps_change_en
-KernelVersion:	3.20
+KernelVersion:	4.0
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Event generated when channel passes a threshold on the absolute
@@ -953,7 +956,7 @@ Description:
 		in_steps_change_value.
 
 What:		/sys/.../events/in_steps_change_value
-KernelVersion:	3.20
+KernelVersion:	4.0
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Specifies the value of change threshold that the
@@ -1128,7 +1131,7 @@ Description:
 
 What:		/sys/.../iio:deviceX/in_energy_input
 What:		/sys/.../iio:deviceX/in_energy_raw
-KernelVersion:	3.20
+KernelVersion:	4.0
 Contact:	linux-iio@vger.kernel.org
 Description:
 		This attribute is used to read the energy value reported by the
@@ -1137,7 +1140,7 @@ Description:
 
 What:		/sys/.../iio:deviceX/in_distance_input
 What:		/sys/.../iio:deviceX/in_distance_raw
-KernelVersion:	3.20
+KernelVersion:	4.0
 Contact:	linux-iio@vger.kernel.org
 Description:
 		This attribute is used to read the distance covered by the user
@@ -1167,9 +1170,13 @@ Description:
 		values should behave in the same way as a distance, i.e. lower
 		values indicate something is closer to the sensor.
 
+What:		/sys/.../iio:deviceX/in_illuminance_input
+What:		/sys/.../iio:deviceX/in_illuminance_raw
 What:		/sys/.../iio:deviceX/in_illuminanceY_input
 What:		/sys/.../iio:deviceX/in_illuminanceY_raw
 What:		/sys/.../iio:deviceX/in_illuminanceY_mean_raw
+What:		/sys/.../iio:deviceX/in_illuminance_ir_raw
+What:		/sys/.../iio:deviceX/in_illuminance_clear_raw
 KernelVersion:	3.4
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -1198,7 +1205,7 @@ Description:
 		seconds.
 
 What:		/sys/.../iio:deviceX/in_velocity_sqrt(x^2+y^2+z^2)_integration_time
-KernelVersion:	3.20
+KernelVersion:	4.0
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Number of seconds in which to compute speed.
@@ -1260,7 +1267,7 @@ Description:
 		Units after application of scale are m/s.
 
 What:		/sys/.../iio:deviceX/in_steps_debounce_count
-KernelVersion:	3.20
+KernelVersion:	4.0
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Specifies the number of steps that must occur within
@@ -1268,8 +1275,92 @@ Description:
 		consumer is making steps.
 
 What:		/sys/.../iio:deviceX/in_steps_debounce_time
-KernelVersion:	3.20
+KernelVersion:	4.0
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Specifies number of seconds in which we compute the steps
 		that occur in order to decide if the consumer is making steps.
+
+What:		/sys/bus/iio/devices/iio:deviceX/buffer/watermark
+KernelVersion:	4.2
+Contact:	linux-iio@vger.kernel.org
+Description:
+		A single positive integer specifying the maximum number of scan
+		elements to wait for.
+		Poll will block until the watermark is reached.
+		Blocking read will wait until the minimum between the requested
+		read amount or the low water mark is available.
+		Non-blocking read will retrieve the available samples from the
+		buffer even if there are less samples then watermark level. This
+		allows the application to block on poll with a timeout and read
+		the available samples after the timeout expires and thus have a
+		maximum delay guarantee.
+
+What:		/sys/bus/iio/devices/iio:deviceX/buffer/hwfifo_enabled
+KernelVersion: 4.2
+Contact:	linux-iio@vger.kernel.org
+Description:
+		A read-only boolean value that indicates if the hardware fifo is
+		currently enabled or disabled. If the device does not have a
+		hardware fifo this entry is not present.
+		The hardware fifo is enabled when the buffer is enabled if the
+		current hardware fifo watermark level is set and other current
+		device settings allows it (e.g. if a trigger is set that samples
+		data differently that the hardware fifo does then hardware fifo
+		will not enabled).
+		If the hardware fifo is enabled and the level of the hardware
+		fifo reaches the hardware fifo watermark level the device will
+		flush its hardware fifo to the device buffer. Doing a non
+		blocking read on the device when no samples are present in the
+		device buffer will also force a flush.
+		When the hardware fifo is enabled there is no need to use a
+		trigger to use buffer mode since the watermark settings
+		guarantees that the hardware fifo is flushed to the device
+		buffer.
+
+What:		/sys/bus/iio/devices/iio:deviceX/buffer/hwfifo_watermark
+KernelVersion: 4.2
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Read-only entry that contains a single integer specifying the
+		current watermark level for the hardware fifo. If the device
+		does not have a hardware fifo this entry is not present.
+		The watermark level for the hardware fifo is set by the driver
+		based on the value set by the user in buffer/watermark but
+		taking into account hardware limitations (e.g. most hardware
+		buffers are limited to 32-64 samples, some hardware buffers
+		watermarks are fixed or have minimum levels).  A value of 0
+		means that the hardware watermark is unset.
+
+What:		/sys/bus/iio/devices/iio:deviceX/buffer/hwfifo_watermark_min
+KernelVersion: 4.2
+Contact:       linux-iio@vger.kernel.org
+Description:
+		A single positive integer specifying the minimum watermark level
+		for the hardware fifo of this device. If the device does not
+		have a hardware fifo this entry is not present.
+		If the user sets buffer/watermark to a value less than this one,
+		then the hardware watermark will remain unset.
+
+What:	       /sys/bus/iio/devices/iio:deviceX/buffer/hwfifo_watermark_max
+KernelVersion: 4.2
+Contact:       linux-iio@vger.kernel.org
+Description:
+		A single positive integer specifying the maximum watermark level
+		for the hardware fifo of this device. If the device does not
+		have a hardware fifo this entry is not present.
+		If the user sets buffer/watermark to a value greater than this
+		one, then the hardware watermark will be capped at this value.
+
+What:	       /sys/bus/iio/devices/iio:deviceX/buffer/hwfifo_watermark_available
+KernelVersion: 4.2
+Contact:       linux-iio@vger.kernel.org
+Description:
+		A list of positive integers specifying the available watermark
+		levels for the hardware fifo. This entry is optional and if it
+		is not present it means that all the values between
+		hwfifo_watermark_min and hwfifo_watermark_max are supported.
+		If the user sets buffer/watermark to a value greater than
+		hwfifo_watermak_min but not equal to any of the values in this
+		list, the driver will chose an appropriate value for the
+		hardware fifo watermark level.

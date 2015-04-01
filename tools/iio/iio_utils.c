@@ -20,6 +20,11 @@
 
 const char *iio_dir = "/sys/bus/iio/devices/";
 
+static char * const iio_direction[] = {
+	"in",
+	"out",
+};
+
 /**
  * iioutils_break_up_name() - extract generic name from full channel name
  * @full_name: the full channel name
@@ -30,10 +35,19 @@ int iioutils_break_up_name(const char *full_name,
 {
 	char *current;
 	char *w, *r;
-	char *working;
+	char *working, *prefix = "";
+	int i;
 
-	current = strdup(full_name);
+	for (i = 0; i < sizeof(iio_direction) / sizeof(iio_direction[0]); i++)
+		if (!strncmp(full_name, iio_direction[i],
+			     strlen(iio_direction[i]))) {
+			prefix = iio_direction[i];
+			break;
+		}
+
+	current = strdup(full_name + strlen(prefix) + 1);
 	working = strtok(current, "_\0");
+
 	w = working;
 	r = working;
 
@@ -45,7 +59,7 @@ int iioutils_break_up_name(const char *full_name,
 		r++;
 	}
 	*w = '\0';
-	*generic_name = strdup(working);
+	asprintf(generic_name, "%s_%s", prefix, working);
 	free(current);
 
 	return 0;

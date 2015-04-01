@@ -129,9 +129,9 @@ error_ret:
 	return ret ? ret : num_read;
 }
 
-static bool sca3000_ring_buf_data_available(struct iio_buffer *r)
+static size_t sca3000_ring_buf_data_available(struct iio_buffer *r)
 {
-	return r->stufftoread;
+	return r->stufftoread ? r->watermark : 0;
 }
 
 /**
