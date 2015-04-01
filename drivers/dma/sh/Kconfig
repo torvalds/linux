@@ -64,3 +64,12 @@ config RCAR_DMAC
 	help
 	  This driver supports the general purpose DMA controller found in the
 	  Renesas R-Car second generation SoCs.
+
+config RENESAS_USB_DMAC
+	tristate "Renesas USB-DMA Controller"
+	depends on ARCH_SHMOBILE || COMPILE_TEST
+	select RENESAS_DMA
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  This driver supports the USB-DMA controller found in the Renesas
+	  SoCs.
