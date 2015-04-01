@@ -1,6 +1,8 @@
+CFLAGS = -O2
+
 all:
-	gcc -O2 mq_open_tests.c -o mq_open_tests -lrt
-	gcc -O2 -o mq_perf_tests mq_perf_tests.c -lrt -lpthread -lpopt
+	$(CC) $(CFLAGS) mq_open_tests.c -o mq_open_tests -lrt
+	$(CC) $(CFLAGS) -o mq_perf_tests mq_perf_tests.c -lrt -lpthread -lpopt
 
 include ../lib.mk
 
