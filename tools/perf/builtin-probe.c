@@ -56,6 +56,7 @@ static struct {
 	bool mod_events;
 	bool uprobes;
 	bool quiet;
+	bool target_used;
 	int nevents;
 	struct perf_probe_event events[MAX_PROBES];
 	struct strlist *dellist;
@@ -82,6 +83,7 @@ static int parse_probe_event(const char *str)
 		pev->target = strdup(params.target);
 		if (!pev->target)
 			return -ENOMEM;
+		params.target_used = true;
 	}
 
 	/* Parse a perf-probe command into event */
@@ -107,6 +109,7 @@ static int set_target(const char *ptr)
 		params.target = strdup(ptr);
 		if (!params.target)
 			return -ENOMEM;
+		params.target_used = false;
 
 		found = 1;
 		buf = ptr + (strlen(ptr) - 3);
@@ -207,6 +210,7 @@ static int opt_set_target(const struct option *opt, const char *str,
 		}
 		free(params.target);
 		params.target = tmp;
+		params.target_used = false;
 		ret = 0;
 	}
 
@@ -491,6 +495,12 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 	}
 
 	if (params.nevents) {
+		/* Ensure the last given target is used */
+		if (params.target && !params.target_used) {
+			pr_warning("  Error: -x/-m must follow the probe definitions.\n");
+			usage_with_options(probe_usage, options);
+		}
+
 		ret = add_perf_probe_events(params.events, params.nevents,
 					    params.max_probe_points,
 					    params.force_add);
