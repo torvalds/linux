@@ -549,8 +549,6 @@ static int rxrpc_send_data(struct kiocb *iocb,
 	if (len > iov_iter_count(&msg->msg_iter))
 		len = iov_iter_count(&msg->msg_iter);
 	do {
-		int copy;
-
 		if (!skb) {
 			size_t size, chunk, max, space;
 
@@ -616,23 +614,25 @@ static int rxrpc_send_data(struct kiocb *iocb,
 		sp = rxrpc_skb(skb);
 
 		/* append next segment of data to the current buffer */
-		copy = skb_tailroom(skb);
-		ASSERTCMP(copy, >, 0);
-		if (copy > len)
-			copy = len;
-		if (copy > sp->remain)
-			copy = sp->remain;
+		if (len > 0) {
+			int copy = skb_tailroom(skb);
+			ASSERTCMP(copy, >, 0);
+			if (copy > len)
+				copy = len;
+			if (copy > sp->remain)
+				copy = sp->remain;
 
-		_debug("add");
-		ret = skb_add_data(skb, &msg->msg_iter, copy);
-		_debug("added");
-		if (ret < 0)
-			goto efault;
-		sp->remain -= copy;
-		skb->mark += copy;
-		copied += copy;
+			_debug("add");
+			ret = skb_add_data(skb, &msg->msg_iter, copy);
+			_debug("added");
+			if (ret < 0)
+				goto efault;
+			sp->remain -= copy;
+			skb->mark += copy;
+			copied += copy;
 
-		len -= copy;
+			len -= copy;
+		}
 
 		/* check for the far side aborting the call or a network error
 		 * occurring */
