@@ -139,36 +139,28 @@ static int nvram_init(void)
 	struct mtd_info *mtd;
 	struct nvram_header header;
 	size_t bytes_read;
-	int err, i;
+	int err;
 
 	mtd = get_mtd_device_nm("nvram");
 	if (IS_ERR(mtd))
 		return -ENODEV;
 
-	for (i = 0; i < ARRAY_SIZE(nvram_sizes); i++) {
-		loff_t from = mtd->size - nvram_sizes[i];
+	err = mtd_read(mtd, 0, sizeof(header), &bytes_read, (uint8_t *)&header);
+	if (!err && header.magic == NVRAM_MAGIC) {
+		u8 *dst = (uint8_t *)nvram_buf;
+		size_t len = header.len;
 
-		if (from < 0)
-			continue;
-
-		err = mtd_read(mtd, from, sizeof(header), &bytes_read,
-			       (uint8_t *)&header);
-		if (!err && header.magic == NVRAM_MAGIC) {
-			u8 *dst = (uint8_t *)nvram_buf;
-			size_t len = header.len;
-
-			if (header.len > NVRAM_SPACE) {
-				pr_err("nvram on flash (%i bytes) is bigger than the reserved space in memory, will just copy the first %i bytes\n",
-				       header.len, NVRAM_SPACE);
-				len = NVRAM_SPACE;
-			}
-
-			err = mtd_read(mtd, from, len, &bytes_read, dst);
-			if (err)
-				return err;
-
-			return 0;
+		if (header.len > NVRAM_SPACE) {
+			pr_err("nvram on flash (%i bytes) is bigger than the reserved space in memory, will just copy the first %i bytes\n",
+				header.len, NVRAM_SPACE);
+			len = NVRAM_SPACE;
 		}
+
+		err = mtd_read(mtd, 0, len, &bytes_read, dst);
+		if (err)
+			return err;
+
+		return 0;
 	}
 #endif
 
