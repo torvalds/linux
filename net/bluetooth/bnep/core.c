@@ -525,6 +525,7 @@ static struct device_type bnep_type = {
 
 int bnep_add_connection(struct bnep_connadd_req *req, struct socket *sock)
 {
+	u32 valid_flags = 0;
 	struct net_device *dev;
 	struct bnep_session *s, *ss;
 	u8 dst[ETH_ALEN], src[ETH_ALEN];
@@ -534,6 +535,9 @@ int bnep_add_connection(struct bnep_connadd_req *req, struct socket *sock)
 
 	if (!l2cap_is_socket(sock))
 		return -EBADFD;
+
+	if (req->flags & ~valid_flags)
+		return -EINVAL;
 
 	baswap((void *) dst, &l2cap_pi(sock->sk)->chan->dst);
 	baswap((void *) src, &l2cap_pi(sock->sk)->chan->src);
@@ -611,10 +615,14 @@ failed:
 
 int bnep_del_connection(struct bnep_conndel_req *req)
 {
+	u32 valid_flags = 0;
 	struct bnep_session *s;
 	int  err = 0;
 
 	BT_DBG("");
+
+	if (req->flags & ~valid_flags)
+		return -EINVAL;
 
 	down_read(&bnep_session_sem);
 
@@ -631,10 +639,12 @@ int bnep_del_connection(struct bnep_conndel_req *req)
 
 static void __bnep_copy_ci(struct bnep_conninfo *ci, struct bnep_session *s)
 {
+	u32 valid_flags = 0;
+
 	memset(ci, 0, sizeof(*ci));
 	memcpy(ci->dst, s->eh.h_source, ETH_ALEN);
 	strcpy(ci->device, s->dev->name);
-	ci->flags = s->flags;
+	ci->flags = s->flags & valid_flags;
 	ci->state = s->state;
 	ci->role  = s->role;
 }
