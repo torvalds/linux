@@ -3375,7 +3375,6 @@ static phys_addr_t amd_iommu_iova_to_phys(struct iommu_domain *dom,
 {
 	struct protection_domain *domain = dom->priv;
 	unsigned long offset_mask, pte_pgsize;
-	phys_addr_t paddr;
 	u64 *pte, __pte;
 
 	if (domain->mode == PAGE_MODE_NONE)
@@ -3386,15 +3385,10 @@ static phys_addr_t amd_iommu_iova_to_phys(struct iommu_domain *dom,
 	if (!pte || !IOMMU_PTE_PRESENT(*pte))
 		return 0;
 
-	if (PM_PTE_LEVEL(*pte) == 0)
-		offset_mask = PAGE_SIZE - 1;
-	else
-		offset_mask = PTE_PAGE_SIZE(*pte) - 1;
+	offset_mask = pte_pgsize - 1;
+	__pte	    = *pte & PM_ADDR_MASK;
 
-	__pte = *pte & PM_ADDR_MASK;
-	paddr = (__pte & ~offset_mask) | (iova & offset_mask);
-
-	return paddr;
+	return (__pte & ~offset_mask) | (iova & offset_mask);
 }
 
 static bool amd_iommu_capable(enum iommu_cap cap)
