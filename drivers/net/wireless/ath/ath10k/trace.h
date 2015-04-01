@@ -46,7 +46,7 @@ static inline void trace_ ## name(proto) {}
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM ath10k
 
-#define ATH10K_MSG_MAX 200
+#define ATH10K_MSG_MAX 400
 
 DECLARE_EVENT_CLASS(ath10k_log_event,
 	TP_PROTO(struct ath10k *ar, struct va_format *vaf),
