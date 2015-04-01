@@ -373,7 +373,6 @@ static inline u64 virtio_cread64(struct virtio_device *vdev,
 				 unsigned int offset)
 {
 	u64 ret;
-	vdev->config->get(vdev, offset, &ret, sizeof(ret));
 	__virtio_cread_many(vdev, offset, &ret, 1, sizeof(ret));
 	return virtio64_to_cpu(vdev, (__force __virtio64)ret);
 }
