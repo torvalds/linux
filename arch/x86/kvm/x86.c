@@ -2900,6 +2900,17 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 #endif
 		r = 1;
 		break;
+	case KVM_CAP_X86_SMM:
+		/* SMBASE is usually relocated above 1M on modern chipsets,
+		 * and SMM handlers might indeed rely on 4G segment limits,
+		 * so do not report SMM to be available if real mode is
+		 * emulated via vm86 mode.  Still, do not go to great lengths
+		 * to avoid userspace's usage of the feature, because it is a
+		 * fringe case that is not enabled except via specific settings
+		 * of the module parameters.
+		 */
+		r = kvm_x86_ops->cpu_has_high_real_mode_segbase();
+		break;
 	case KVM_CAP_COALESCED_MMIO:
 		r = KVM_COALESCED_MMIO_PAGE_OFFSET;
 		break;
@@ -4299,6 +4310,10 @@ static void kvm_init_msr_list(void)
 
 	for (i = j = 0; i < ARRAY_SIZE(emulated_msrs); i++) {
 		switch (emulated_msrs[i]) {
+		case MSR_IA32_SMBASE:
+			if (!kvm_x86_ops->cpu_has_high_real_mode_segbase())
+				continue;
+			break;
 		default:
 			break;
 		}
