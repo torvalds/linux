@@ -146,9 +146,7 @@ static void svc_management(struct svc_function_unipro_management *management,
 				management->link_up.interface_id);
 			return;
 		}
-		ret = gb_bundle_init(intf,
-				management->link_up.interface_id,
-				management->link_up.device_id);
+		ret = gb_bundles_init(intf, management->link_up.device_id);
 		if (ret) {
 			dev_err(hd->parent,
 				"error %d initializing bundles for interface %hhu\n",

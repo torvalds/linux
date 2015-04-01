@@ -31,7 +31,8 @@ struct gb_bundle {
 struct gb_bundle *gb_bundle_create(struct gb_interface *intf, u8 bundle_id,
 				   u8 class_type);
 void gb_bundle_destroy(struct gb_interface *intf);
-int gb_bundle_init(struct gb_interface *intf, u8 module_id, u8 device_id);
+int gb_bundle_init(struct gb_bundle *bundle, u8 device_id);
+int gb_bundles_init(struct gb_interface *intf, u8 device_id);
 
 struct gb_bundle *gb_bundle_find(struct gb_interface *intf, u8 bundle_id);
 void gb_bundle_bind_protocols(void);

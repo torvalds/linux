@@ -146,16 +146,11 @@ void gb_bundle_destroy(struct gb_interface *intf)
 	}
 }
 
-int gb_bundle_init(struct gb_interface *intf, u8 bundle_id, u8 device_id)
+int gb_bundle_init(struct gb_bundle *bundle, u8 device_id)
 {
-	struct gb_bundle *bundle;
+	struct gb_interface *intf = bundle->intf;
 	int ret;
 
-	bundle = gb_bundle_find(intf, bundle_id);
-	if (!bundle) {
-		dev_err(intf->hd->parent, "bundle %hhu not found\n", bundle_id);
-		return -ENOENT;
-	}
 	bundle->device_id = device_id;
 
 	ret = svc_set_route_send(bundle, intf->hd);
@@ -173,6 +168,24 @@ int gb_bundle_init(struct gb_interface *intf, u8 bundle_id, u8 device_id)
 	}
 
 	return 0;
+}
+
+int gb_bundles_init(struct gb_interface *intf, u8 device_id)
+{
+	struct gb_bundle *bundle;
+	int ret = 0;
+
+	list_for_each_entry(bundle, &intf->bundles, links) {
+		ret = gb_bundle_init(bundle, device_id);
+		if (ret) {
+			dev_err(intf->hd->parent,
+				"Failed to initialize bundle %hhu\n",
+				bundle->id);
+			break;
+		}
+	}
+
+	return ret;
 }
 
 struct gb_bundle *gb_bundle_find(struct gb_interface *intf, u8 bundle_id)
