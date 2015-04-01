@@ -22,7 +22,6 @@ enum greybus_descriptor_type {
 	GREYBUS_TYPE_BUNDLE		= 0x03,
 	GREYBUS_TYPE_CPORT		= 0x04,
 	GREYBUS_TYPE_CLASS		= 0x05,
-	GREYBUS_TYPE_MODULE		= 0x06,
 };
 
 enum greybus_protocol {
@@ -67,19 +66,6 @@ enum greybus_class_type {
 	GREYBUS_CLASS_CAMERA		= 0x0d,
 	GREYBUS_CLASS_SENSOR		= 0x0e,
 	GREYBUS_CLASS_VENDOR		= 0xff,
-};
-
-/*
- * A module descriptor describes information about a module as a
- * whole, *not* the functions within it.
- */
-struct greybus_descriptor_module {
-	__le16	vendor;
-	__le16	product;
-	__le16	version;	// TODO - remove after Dec demo.
-	__u8	vendor_stringid;
-	__u8	product_stringid;
-	__le64	unique_id;
 };
 
 /*
@@ -158,7 +144,6 @@ struct greybus_descriptor_header {
 struct greybus_descriptor {
 	struct greybus_descriptor_header		header;
 	union {
-		struct greybus_descriptor_module	module;
 		struct greybus_descriptor_string	string;
 		struct greybus_descriptor_interface	interface;
 		struct greybus_descriptor_bundle	bundle;

@@ -18,8 +18,6 @@ static const char *get_descriptor_type_string(u8 type)
 	switch(type) {
 	case GREYBUS_TYPE_INVALID:
 		return "invalid";
-	case GREYBUS_TYPE_MODULE:
-		return "module";
 	case GREYBUS_TYPE_STRING:
 		return "string";
 	case GREYBUS_TYPE_INTERFACE:
@@ -99,9 +97,6 @@ static int identify_descriptor(struct gb_interface *intf,
 	expected_size = sizeof(*desc_header);
 
 	switch (desc_header->type) {
-	case GREYBUS_TYPE_MODULE:
-		expected_size += sizeof(struct greybus_descriptor_module);
-		break;
 	case GREYBUS_TYPE_STRING:
 		expected_size += sizeof(struct greybus_descriptor_string);
 		expected_size += desc->string.length;
