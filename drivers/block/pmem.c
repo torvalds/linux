@@ -134,8 +134,7 @@ static struct pmem_device *pmem_alloc(struct device *dev, struct resource *res)
 
 	err = -EINVAL;
 	if (!request_mem_region(pmem->phys_addr, pmem->size, "pmem")) {
-		dev_warn(dev, "could not reserve region [0x%llx:0x%zx]\n",
-			   pmem->phys_addr, pmem->size);
+		dev_warn(dev, "could not reserve region [0x%pa:0x%zx]\n", &pmem->phys_addr, pmem->size);
 		goto out_free_dev;
 	}
 
