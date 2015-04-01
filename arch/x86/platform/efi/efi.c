@@ -85,12 +85,20 @@ static efi_status_t __init phys_efi_set_virtual_address_map(
 	efi_memory_desc_t *virtual_map)
 {
 	efi_status_t status;
+	unsigned long flags;
+	pgd_t *save_pgd;
 
-	efi_call_phys_prolog();
+	save_pgd = efi_call_phys_prolog();
+
+	/* Disable interrupts around EFI calls: */
+	local_irq_save(flags);
 	status = efi_call_phys(efi_phys.set_virtual_address_map,
 			       memory_map_size, descriptor_size,
 			       descriptor_version, virtual_map);
-	efi_call_phys_epilog();
+	local_irq_restore(flags);
+
+	efi_call_phys_epilog(save_pgd);
+
 	return status;
 }
 
@@ -491,7 +499,8 @@ void __init efi_init(void)
 	if (efi_memmap_init())
 		return;
 
-	print_efi_memmap();
+	if (efi_enabled(EFI_DBG))
+		print_efi_memmap();
 }
 
 void __init efi_late_init(void)
@@ -939,6 +948,8 @@ static int __init arch_parse_efi_cmdline(char *str)
 {
 	if (parse_option_str(str, "old_map"))
 		set_bit(EFI_OLD_MEMMAP, &efi.flags);
+	if (parse_option_str(str, "debug"))
+		set_bit(EFI_DBG, &efi.flags);
 
 	return 0;
 }
