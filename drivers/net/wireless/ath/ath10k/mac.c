@@ -4720,6 +4720,13 @@ static int ath10k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	key->hw_key_idx = key->keyidx;
 
+	if (is_wep) {
+		if (cmd == SET_KEY)
+			arvif->wep_keys[key->keyidx] = key;
+		else
+			arvif->wep_keys[key->keyidx] = NULL;
+	}
+
 	/* the peer should not disappear in mid-way (unless FW goes awry) since
 	 * we already hold conf_mutex. we just make sure its there now. */
 	spin_lock_bh(&ar->data_lock);
@@ -4745,11 +4752,6 @@ static int ath10k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		flags |= WMI_KEY_GROUP;
 
 	if (is_wep) {
-		if (cmd == SET_KEY)
-			arvif->wep_keys[key->keyidx] = key;
-		else
-			arvif->wep_keys[key->keyidx] = NULL;
-
 		if (cmd == DISABLE_KEY)
 			ath10k_clear_vdev_key(arvif, key);
 
