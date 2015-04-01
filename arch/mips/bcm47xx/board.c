@@ -247,8 +247,8 @@ static __init const struct bcm47xx_board_type *bcm47xx_board_get_nvram(void)
 	}
 
 	if (bcm47xx_nvram_getenv("hardware_version", buf1, sizeof(buf1)) >= 0 &&
-	    bcm47xx_nvram_getenv("boardtype", buf2, sizeof(buf2)) >= 0) {
-		for (e2 = bcm47xx_board_list_boot_hw; e2->value1; e2++) {
+	    bcm47xx_nvram_getenv("boardnum", buf2, sizeof(buf2)) >= 0) {
+		for (e2 = bcm47xx_board_list_hw_version_num; e2->value1; e2++) {
 			if (!strstarts(buf1, e2->value1) &&
 			    !strcmp(buf2, e2->value2))
 				return &e2->board;
