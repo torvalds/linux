@@ -152,11 +152,13 @@ struct rxrpc_local {
 	struct work_struct	destroyer;	/* endpoint destroyer */
 	struct work_struct	acceptor;	/* incoming call processor */
 	struct work_struct	rejecter;	/* packet reject writer */
+	struct work_struct	event_processor; /* endpoint event processor */
 	struct list_head	services;	/* services listening on this endpoint */
 	struct list_head	link;		/* link in endpoint list */
 	struct rw_semaphore	defrag_sem;	/* control re-enablement of IP DF bit */
 	struct sk_buff_head	accept_queue;	/* incoming calls awaiting acceptance */
 	struct sk_buff_head	reject_queue;	/* packets awaiting rejection */
+	struct sk_buff_head	event_queue;	/* endpoint event packets awaiting processing */
 	spinlock_t		lock;		/* access lock */
 	rwlock_t		services_lock;	/* lock for services list */
 	atomic_t		usage;
