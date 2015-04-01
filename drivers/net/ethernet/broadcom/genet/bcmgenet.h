@@ -508,6 +508,7 @@ enum bcmgenet_version {
 #define GENET_HAS_40BITS	(1 << 0)
 #define GENET_HAS_EXT		(1 << 1)
 #define GENET_HAS_MDIO_INTR	(1 << 2)
+#define GENET_HAS_MOCA_LINK_DET	(1 << 3)
 
 /* BCMGENET hardware parameters, keep this structure nicely aligned
  * since it is going to be used in hot paths
