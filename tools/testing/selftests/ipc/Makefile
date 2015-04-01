@@ -12,11 +12,7 @@ endif
 CFLAGS += -I../../../../usr/include/
 
 all:
-ifeq ($(ARCH),x86)
-	gcc $(CFLAGS) msgque.c -o msgque_test
-else
-	echo "Not an x86 target, can't build msgque selftest"
-endif
+	$(CC) $(CFLAGS) msgque.c -o msgque_test
 
 TEST_PROGS := msgque_test
 
