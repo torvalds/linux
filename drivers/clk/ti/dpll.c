@@ -390,18 +390,18 @@ static void __init of_ti_dpll_setup(struct device_node *node,
 #endif
 	} else {
 		dd->idlest_reg = ti_clk_get_reg_addr(node, 1);
-		if (!dd->idlest_reg)
+		if (IS_ERR(dd->idlest_reg))
 			goto cleanup;
 
 		dd->mult_div1_reg = ti_clk_get_reg_addr(node, 2);
 	}
 
-	if (!dd->control_reg || !dd->mult_div1_reg)
+	if (IS_ERR(dd->control_reg) || IS_ERR(dd->mult_div1_reg))
 		goto cleanup;
 
 	if (dd->autoidle_mask) {
 		dd->autoidle_reg = ti_clk_get_reg_addr(node, 3);
-		if (!dd->autoidle_reg)
+		if (IS_ERR(dd->autoidle_reg))
 			goto cleanup;
 	}
 
