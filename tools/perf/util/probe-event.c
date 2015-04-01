@@ -1906,6 +1906,7 @@ void clear_perf_probe_event(struct perf_probe_event *pev)
 
 	free(pev->event);
 	free(pev->group);
+	free(pev->target);
 	clear_perf_probe_point(&pev->point);
 
 	for (i = 0; i < pev->nargs; i++) {
@@ -2654,7 +2655,7 @@ struct __event_package {
 };
 
 int add_perf_probe_events(struct perf_probe_event *pevs, int npevs,
-			  int max_tevs, const char *target, bool force_add)
+			  int max_tevs, bool force_add)
 {
 	int i, j, ret;
 	struct __event_package *pkgs;
@@ -2678,7 +2679,7 @@ int add_perf_probe_events(struct perf_probe_event *pevs, int npevs,
 		ret  = convert_to_probe_trace_events(pkgs[i].pev,
 						     &pkgs[i].tevs,
 						     max_tevs,
-						     target);
+						     pkgs[i].pev->target);
 		if (ret < 0)
 			goto end;
 		pkgs[i].ntevs = ret;

@@ -78,6 +78,11 @@ static int parse_probe_event(const char *str)
 	}
 
 	pev->uprobes = params.uprobes;
+	if (params.target) {
+		pev->target = strdup(params.target);
+		if (!pev->target)
+			return -ENOMEM;
+	}
 
 	/* Parse a perf-probe command into event */
 	ret = parse_perf_probe_command(str, pev);
@@ -178,7 +183,7 @@ static int opt_set_target(const struct option *opt, const char *str,
 	int ret = -ENOENT;
 	char *tmp;
 
-	if  (str && !params.target) {
+	if  (str) {
 		if (!strcmp(opt->long_name, "exec"))
 			params.uprobes = true;
 #ifdef HAVE_DWARF_SUPPORT
@@ -200,6 +205,7 @@ static int opt_set_target(const struct option *opt, const char *str,
 			if (!tmp)
 				return -ENOMEM;
 		}
+		free(params.target);
 		params.target = tmp;
 		ret = 0;
 	}
@@ -487,7 +493,6 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (params.nevents) {
 		ret = add_perf_probe_events(params.events, params.nevents,
 					    params.max_probe_points,
-					    params.target,
 					    params.force_add);
 		if (ret < 0) {
 			pr_err_with_code("  Error: Failed to add events.", ret);
