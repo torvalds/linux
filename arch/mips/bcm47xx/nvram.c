@@ -20,7 +20,7 @@
 #include <linux/bcm47xx_nvram.h>
 
 #define NVRAM_MAGIC			0x48534C46	/* 'FLSH' */
-#define NVRAM_SPACE			0x8000
+#define NVRAM_SPACE			0x10000
 #define NVRAM_MAX_GPIO_ENTRIES		32
 #define NVRAM_MAX_GPIO_VALUE_LEN	30
 
