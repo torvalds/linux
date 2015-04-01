@@ -17,6 +17,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <linux/clk.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
@@ -66,6 +67,7 @@ struct irqc_priv {
 	struct platform_device *pdev;
 	struct irq_chip irq_chip;
 	struct irq_domain *irq_domain;
+	struct clk *clk;
 };
 
 static void irqc_dbg(struct irqc_irq *i, char *str)
@@ -116,6 +118,21 @@ static int irqc_irq_set_type(struct irq_data *d, unsigned int type)
 	tmp &= ~0x3f;
 	tmp |= value;
 	iowrite32(tmp, p->iomem + IRQC_CONFIG(hw_irq));
+	return 0;
+}
+
+static int irqc_irq_set_wake(struct irq_data *d, unsigned int on)
+{
+	struct irqc_priv *p = irq_data_get_irq_chip_data(d);
+
+	if (!p->clk)
+		return 0;
+
+	if (on)
+		clk_enable(p->clk);
+	else
+		clk_disable(p->clk);
+
 	return 0;
 }
 
@@ -181,6 +198,12 @@ static int irqc_probe(struct platform_device *pdev)
 	p->pdev = pdev;
 	platform_set_drvdata(pdev, p);
 
+	p->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(p->clk)) {
+		dev_warn(&pdev->dev, "unable to get clock\n");
+		p->clk = NULL;
+	}
+
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
 
@@ -224,7 +247,8 @@ static int irqc_probe(struct platform_device *pdev)
 	irq_chip->irq_mask = irqc_irq_disable;
 	irq_chip->irq_unmask = irqc_irq_enable;
 	irq_chip->irq_set_type = irqc_irq_set_type;
-	irq_chip->flags	= IRQCHIP_SKIP_SET_WAKE | IRQCHIP_MASK_ON_SUSPEND;
+	irq_chip->irq_set_wake = irqc_irq_set_wake;
+	irq_chip->flags	= IRQCHIP_MASK_ON_SUSPEND;
 
 	p->irq_domain = irq_domain_add_simple(pdev->dev.of_node,
 					      p->number_of_irqs,
