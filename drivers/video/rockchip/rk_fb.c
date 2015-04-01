@@ -2031,6 +2031,8 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 	dev_drv->front_regs = regs;
 
 	mutex_unlock(&dev_drv->front_lock);
+
+	trace_buffer_dump(&fb_pdev->dev, dev_drv);
 }
 
 static void rk_fb_update_regs_handler(struct kthread_work *work)

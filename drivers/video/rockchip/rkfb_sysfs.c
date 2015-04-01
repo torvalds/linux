@@ -23,6 +23,7 @@
  */
 
 #include <linux/fb.h>
+#include <linux/namei.h>
 #include <linux/sysfs.h>
 #include <linux/device.h>
 #include <linux/uaccess.h>
@@ -37,6 +38,16 @@
 #include <linux/rockchip_ion.h>
 #endif
 #include "bmp_helper.h"
+
+struct rkfb_sys_trace {
+	int num_frames;
+	int count_frame;
+	int mask_win;
+	int mask_area;
+	bool is_bmp;
+	bool is_append;
+};
+#define DUMP_BUF_PATH		"/data/dmp_buf"
 
 static char *get_format_str(enum data_format format)
 {
@@ -73,7 +84,7 @@ static char *get_format_str(enum data_format format)
 	case FBDC_RGBX_888:
 		return "FBDC_RGBX_888";
 	default:
-		return "invalid";        
+		return "invalid";
 	}
 }
 
@@ -119,27 +130,58 @@ static void fill_buffer(void *handle, void *vaddr, int size)
 		vfs_write(filp, vaddr, size, &filp->f_pos);
 }
 
-static int dump_win(struct rk_fb *rk_fb, struct rk_fb_reg_area_data *area_data,
-		    u8 data_format, int win_id, int area_id, bool is_bmp)
+static int dump_win(struct ion_client *ion_client,
+		    struct ion_handle *ion_handle, phys_addr_t phys_addr,
+		    int width, int height, u8 data_format, uint32_t frameid,
+		    int win_id, int area_id, bool is_bmp, bool is_append)
 {
 	void __iomem *vaddr = NULL;
 	struct file *filp;
 	mm_segment_t old_fs;
 	char name[100];
-	struct ion_handle *ion_handle = area_data->ion_handle;
-	int width = area_data->xvir;
-	int height = area_data->yvir;
+	int flags;
+	int bits;
+
+	switch (data_format) {
+	case XRGB888:
+	case XBGR888:
+	case ARGB888:
+	case ABGR888:
+	case FBDC_RGBX_888:
+		bits = 32;
+		break;
+	case YUV444_A:
+	case YUV444:
+	case RGB888:
+	case FBDC_ARGB_888:
+		bits = 24;
+		break;
+	case RGB565:
+	case FBDC_RGB_565:
+	case YUV422:
+	case YUV422_A:
+		bits = 16;
+		break;
+	case YUV420_A:
+	case YUV420:
+	case YUV420_NV21:
+		bits = 12;
+		break;
+	default:
+		return 0;
+	}
 
 	if (ion_handle) {
-		vaddr = ion_map_kernel(rk_fb->ion_client, ion_handle);
-	} else if (area_data->smem_start && area_data->smem_start != -1) {
+		vaddr = ion_map_kernel(ion_client, ion_handle);
+	} else if (phys_addr) {
 		unsigned long start;
 		unsigned int nr_pages;
 		struct page **pages;
 		int i = 0;
 
-		start = area_data->smem_start;
-		nr_pages = width * height * 3 / 2 / PAGE_SIZE;
+		start = phys_addr;
+		nr_pages = roundup(width * height * (bits >> 3), PAGE_SIZE);
+		nr_pages /= PAGE_SIZE;
 		pages = kzalloc(sizeof(struct page) * nr_pages,GFP_KERNEL);
 		while (i < nr_pages) {
 			pages[i] = phys_to_page(start);
@@ -150,22 +192,27 @@ static int dump_win(struct rk_fb *rk_fb, struct rk_fb_reg_area_data *area_data,
 			     pgprot_writecombine(PAGE_KERNEL));
 		if (!vaddr) {
 			pr_err("failed to vmap phy addr %lx\n",
-			       area_data->smem_start);
+			       start);
 			return -1;
 		}
 	} else {
-		return -1;
+		return 0;
 	}
 
-	snprintf(name, 100, "/data/win%d_%d_%dx%d_%s.%s", win_id, area_id,
-		 width, height, get_format_str(data_format),
-		 is_bmp ? "bmp" : "bin");
+	flags = O_RDWR | O_CREAT | O_NONBLOCK;
+	if (is_append) {
+		snprintf(name, 100, "%s/append_win%d_%d_%dx%d_%s.%s",
+			 DUMP_BUF_PATH, win_id, area_id, width, height,
+			 get_format_str(data_format), is_bmp ? "bmp" : "bin");
+		flags |= O_APPEND;
+	} else {
+		snprintf(name, 100, "%s/frame%d_win%d_%d_%dx%d_%s.%s",
+			 DUMP_BUF_PATH, frameid, win_id, area_id, width, height,
+			 get_format_str(data_format), is_bmp ? "bmp" : "bin");
+	}
 
-	pr_info("dump win == > /data/win%d_%d_%dx%d_%s.%s\n", win_id, area_id,
-	        width, height, get_format_str(data_format),
-	        is_bmp ? "bmp" : "bin");
-
-	filp = filp_open(name, O_RDWR | O_CREAT, 0x664);
+	pr_info("dump win == > %s\n", name);
+	filp = filp_open(name, flags, 0x600);
 	if (!filp)
 		printk("fail to create %s\n", name);
 
@@ -176,26 +223,87 @@ static int dump_win(struct rk_fb *rk_fb, struct rk_fb_reg_area_data *area_data,
 		bmpencoder(vaddr, width, height,
 			   data_format, filp, fill_buffer);
 	else
-		fill_buffer(filp, vaddr, width * height * 4);
+		fill_buffer(filp, vaddr, width * height * bits >> 3);
 
 	set_fs(old_fs);
 
-	if (ion_handle) {
-		ion_unmap_kernel(rk_fb->ion_client, ion_handle);
-
-		ion_handle_put(ion_handle);
-	} else if (vaddr) {
+	if (ion_handle)
+		ion_unmap_kernel(ion_client, ion_handle);
+	else if (vaddr)
 		vunmap(vaddr);
-	}
 
 	filp_close(filp, NULL);
 
 	return 0;
 }
 
-static ssize_t set_dump_info(struct device *dev, struct device_attribute *attr,
-			     const char *buf, size_t count)
+static ssize_t show_dump_buffer(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	ssize_t size;
 
+	size = snprintf(buf, PAGE_SIZE,
+			"bmp       -- dump buffer to bmp image\n"
+			"bin       -- dump buffer to bin image\n"
+			"multi    --  each dump will create new file\n"
+			"win=num   -- mask win to dump, default mask all\n"
+			"             win=1, will dump win1 buffer\n"
+			"             win=23, will dump win2 area3 buffer\n"
+			"trace=num -- trace num frames buffer dump\n"
+			"             this option will block buffer switch\n"
+			"             so recommend use with bin and win=xx\n"
+			"\nExample:\n"
+			"echo bmp > dump_buf; -- dump current buf to bmp file\n"
+			"echo bin > dump_buf; -- dump current buf to bin file\n"
+			"echo trace=50:win=1:win=23 > dump_buf\n"
+			"         -- dump 50 frames, dump win1 and win2 area3\n"
+			"         -- dump all buffer to single file\n"
+			"You can found dump files at %s\n"
+			, DUMP_BUF_PATH);
+
+	return size;
+}
+
+void trace_buffer_dump(struct device *dev, struct rk_lcdc_driver *dev_drv)
+{
+	struct rk_fb *rk_fb = dev_get_drvdata(dev);
+	struct rk_fb_reg_data *front_regs;
+	struct rk_fb_reg_win_data *win_data;
+	struct rk_fb_reg_area_data *area_data;
+	struct rkfb_sys_trace *trace = dev_drv->trace_buf;
+	int i,j;
+
+	if (!trace)
+		return;
+	if (trace->num_frames <= trace->count_frame)
+		return;
+
+	if (!dev_drv->front_regs)
+		return;
+	front_regs = dev_drv->front_regs;
+
+	for (i = 0; i < front_regs->win_num; i++) {
+		if (trace->mask_win && !(trace->mask_win & (1 << i)))
+			continue;
+		for (j = 0; j < RK_WIN_MAX_AREA; j++) {
+			win_data = &front_regs->reg_win_data[i];
+			area_data = &win_data->reg_area_data[j];
+			if (trace->mask_area && !(trace->mask_area & (1 << j)))
+				continue;
+
+			dump_win(rk_fb->ion_client, area_data->ion_handle,
+				 area_data->smem_start,
+				 area_data->xvir, area_data->yvir,
+				 area_data->data_format, trace->count_frame,
+				 i, j, trace->is_bmp, trace->is_append);
+		}
+	}
+	trace->count_frame++;
+}
+
+static ssize_t set_dump_buffer(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
 {
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_fb_par *fb_par = (struct rk_fb_par *)fbi->par;
@@ -204,49 +312,156 @@ static ssize_t set_dump_info(struct device *dev, struct device_attribute *attr,
 	struct rk_fb_reg_data *front_regs;
 	struct rk_fb_reg_win_data *win_data;
 	struct rk_fb_reg_area_data *area_data;
-	bool is_img;
+	struct rkfb_sys_trace *trace;
+	struct dentry *dentry;
+	struct path path;
+	int err = 0;
+	int num_frames = 0;
+	int mask_win = 0;
+	int mask_area = 0;
+	bool is_bmp = false;
+	bool is_append = true;
+	char *p;
 	int i, j;
 
 	if (!rk_fb->ion_client)
 		return 0;
 
-	front_regs = kmalloc(sizeof(*front_regs), GFP_KERNEL);
-	if (!front_regs)
-		return -ENOMEM;
-
-	mutex_lock(&dev_drv->front_lock);
-
-	if (!dev_drv->front_regs) {
-		mutex_unlock(&dev_drv->front_lock);
-		return 0;
+	if (!dev_drv->trace_buf) {
+		dev_drv->trace_buf = devm_kmalloc(dev_drv->dev,
+						  sizeof(struct rkfb_sys_trace),
+						  GFP_KERNEL);
+		if (!dev_drv->trace_buf)
+			return -ENOMEM;
 	}
-	memcpy(front_regs, dev_drv->front_regs, sizeof(*front_regs));
-	for (i = 0; i < front_regs->win_num; i++) {
-		for (j = 0; j < RK_WIN_MAX_AREA; j++) {
-			win_data = &front_regs->reg_win_data[i];
-			area_data = &win_data->reg_area_data[j];
-			if (area_data->ion_handle) {
-				ion_handle_get(area_data->ion_handle);
+	trace = dev_drv->trace_buf;
+	/*
+	 * Stop buffer trace.
+	 */
+	trace->num_frames = 0;
+
+	while ((p = strsep((char **)&buf, ":")) != NULL) {
+		if (!*p)
+			continue;
+		if (!strncmp(p, "trace=", 6)) {
+			if (kstrtoint(p + 6, 0, &num_frames))
+				dev_err(dev, "can't found trace frames\n");
+			continue;
+		}
+		if (!strncmp(p, "win=", 4)) {
+			int win;
+
+			if (kstrtoint(p + 4, 0, &win))
+				dev_err(dev, "can't found trace frames\n");
+			if (win < 10)
+			       mask_win |= 1 << win;
+			else {
+				mask_win |= 1 << (win / 10);
+				mask_area |= 1 << (win % 10);
+			}
+
+			continue;
+		}
+		if (!strncmp(p, "bmp", 3)) {
+			is_bmp = true;
+			is_append = false;
+			continue;
+		}
+		if (!strncmp(p, "bin", 3)) {
+			is_bmp = false;
+			continue;
+		}
+		if (!strncmp(p, "multi", 5)) {
+			is_append = true;
+			is_bmp = false;
+			continue;
+		}
+
+		dev_err(dev, "unknown option %s\n", p);
+	}
+
+	dentry = kern_path_create(AT_FDCWD, DUMP_BUF_PATH, &path,
+				  LOOKUP_DIRECTORY);
+	if (!IS_ERR(dentry)) {
+		err = vfs_mkdir(path.dentry->d_inode, dentry, 700);
+		if (err)
+			dev_err(dev, "can't create %s err%d\n",
+				DUMP_BUF_PATH, err);
+		done_path_create(&path, dentry);
+	} else if (PTR_ERR(dentry) != -EEXIST) {
+		dev_err(dev, "can't create PATH %s err%d\n",
+				DUMP_BUF_PATH, err);
+		return PTR_ERR(dentry);
+	}
+
+	if (!num_frames) {
+		mutex_lock(&dev_drv->front_lock);
+
+		if (!dev_drv->front_regs) {
+			u16 xact, yact;
+			int data_format;
+			u32 dsp_addr;
+
+			mutex_unlock(&dev_drv->front_lock);
+
+			if (dev_drv->ops->get_dspbuf_info)
+				dev_drv->ops->get_dspbuf_info(dev_drv, &xact,
+						&yact, &data_format, &dsp_addr);
+
+			dump_win(NULL, NULL, dsp_addr, xact, yact, data_format,
+				 0, 0, 0, is_bmp, false);
+			goto out;
+		}
+		front_regs = kmalloc(sizeof(*front_regs), GFP_KERNEL);
+		if (!front_regs)
+			return -ENOMEM;
+		memcpy(front_regs, dev_drv->front_regs, sizeof(*front_regs));
+
+		for (i = 0; i < front_regs->win_num; i++) {
+			if (mask_win && !(mask_win & (1 << i)))
+				continue;
+			for (j = 0; j < RK_WIN_MAX_AREA; j++) {
+				if (mask_area && !(mask_area & (1 << j)))
+					continue;
+				win_data = &front_regs->reg_win_data[i];
+				area_data = &win_data->reg_area_data[j];
+				if (area_data->ion_handle)
+					ion_handle_get(area_data->ion_handle);
 			}
 		}
-	}
-	mutex_unlock(&dev_drv->front_lock);
 
-	if (strncmp(buf, "bin", 3))
-		is_img = true;
-	else
-		is_img = false;
-
-	for (i = 0; i < front_regs->win_num; i++) {
-		for (j = 0; j < RK_WIN_MAX_AREA; j++) {
-			win_data = &front_regs->reg_win_data[i];
-			if (dump_win(rk_fb, &win_data->reg_area_data[j],
-				     win_data->reg_area_data[i].data_format,i,
-				     j, is_img))
+		for (i = 0; i < front_regs->win_num; i++) {
+			if (mask_win && !(mask_win & (1 << i)))
 				continue;
+			for (j = 0; j < RK_WIN_MAX_AREA; j++) {
+				if (mask_area && !(mask_area & (1 << j)))
+					continue;
+
+				win_data = &front_regs->reg_win_data[i];
+				area_data = &win_data->reg_area_data[j];
+
+				dump_win(rk_fb->ion_client, area_data->ion_handle,
+					 area_data->smem_start,
+					 area_data->xvir, area_data->yvir,
+					 area_data->data_format, trace->count_frame,
+					 i, j, trace->is_bmp, trace->is_append);
+				if (area_data->ion_handle)
+					ion_handle_put(area_data->ion_handle);
+			}
 		}
+
+		kfree(front_regs);
+
+		mutex_unlock(&dev_drv->front_lock);
+	} else {
+		trace->num_frames = num_frames;
+		trace->count_frame = 0;
+		trace->is_bmp = is_bmp;
+		trace->is_append = is_append;
+		trace->mask_win = mask_win;
+		trace->mask_area = mask_area;
 	}
-	kfree(front_regs);
+out:
 
 	return count;
 }
@@ -534,7 +749,6 @@ static ssize_t set_cabc_lut(struct device *dev, struct device_attribute *attr,
 
 	return count;
 }
-
 
 static ssize_t show_dsp_lut(struct device *dev,
 			    struct device_attribute *attr, char *buf)
@@ -833,7 +1047,8 @@ static ssize_t set_scale(struct device *dev, struct device_attribute *attr,
 static struct device_attribute rkfb_attrs[] = {
 	__ATTR(phys_addr, S_IRUGO, show_phys, NULL),
 	__ATTR(virt_addr, S_IRUGO, show_virt, NULL),
-	__ATTR(disp_info, S_IRUGO | S_IWUSR, show_disp_info, set_dump_info),
+	__ATTR(disp_info, S_IRUGO, show_disp_info, NULL),
+	__ATTR(dump_buf, S_IRUGO | S_IWUSR, show_dump_buffer, set_dump_buffer),
 	__ATTR(screen_info, S_IRUGO, show_screen_info, NULL),
 	__ATTR(dual_mode, S_IRUGO, show_dual_mode, NULL),
 	__ATTR(enable, S_IRUGO | S_IWUSR, show_fb_state, set_fb_state),

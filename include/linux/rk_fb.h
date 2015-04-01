@@ -654,6 +654,7 @@ struct rk_lcdc_driver {
 	u8  reserved_fb;
 	/*1:hdmi switch uncomplete,0:complete*/
 	bool hdmi_switch;
+	void *trace_buf;
 };
 
 struct rk_fb_par {
@@ -693,8 +694,6 @@ struct rk_fb {
 #if defined(CONFIG_ION_ROCKCHIP)
        struct ion_client *ion_client;
 #endif
-
-
 };
 
 extern int rk_fb_trsm_ops_register(struct rk_fb_trsm_ops *ops, int type);
@@ -729,4 +728,7 @@ extern struct device *rk_fb_get_sysmmu_device_by_compatible(const char *compt);
 extern void rk_fb_platform_set_sysmmu(struct device *sysmmu,
                                       struct device *dev);
 int rk_fb_get_display_policy(void);
+int rk_fb_pixel_width(int data_format);
+void trace_buffer_dump(struct device *dev,
+			      struct rk_lcdc_driver *dev_drv);
 #endif
