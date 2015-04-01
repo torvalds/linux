@@ -282,6 +282,12 @@
 #define PTE_PAGE_SIZE(pte) \
 	(1ULL << (1 + ffz(((pte) | 0xfffULL))))
 
+/*
+ * Takes a page-table level and returns the default page-size for this level
+ */
+#define PTE_LEVEL_PAGE_SIZE(level)			\
+	(1ULL << (12 + (9 * (level))))
+
 #define IOMMU_PTE_P  (1ULL << 0)
 #define IOMMU_PTE_TV (1ULL << 1)
 #define IOMMU_PTE_U  (1ULL << 59)
