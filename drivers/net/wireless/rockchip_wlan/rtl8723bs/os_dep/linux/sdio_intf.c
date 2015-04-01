@@ -1039,15 +1039,17 @@ int rtw_sdio_set_power(int on)
 #endif //CONFIG_PLATFORM_INTEL_BYT
 
 #include "wifi_version.h"
-
+#include <linux/rfkill-wlan.h>
 extern int rockchip_wifi_power(int on);
 extern int rockchip_wifi_set_carddetect(int val);
-
-
-
+extern int get_wifi_chip_type(void);
 
 int rockchip_wifi_init_module_rtkwifi(void)
 {
+#ifdef CONFIG_WIFI_LOAD_DRIVER_WHEN_KERNEL_BOOTUP
+    int type = get_wifi_chip_type();
+    if (type < WIFI_AP6XXX_SERIES || type == WIFI_ESP8089) return 0;
+#endif
     printk("\n");
     printk("=======================================================\n");
     printk("==== Launching Wi-Fi driver! (Powered by Rockchip) ====\n");
@@ -1061,6 +1063,10 @@ int rockchip_wifi_init_module_rtkwifi(void)
 
 void rockchip_wifi_exit_module_rtkwifi(void)
 {
+#ifdef CONFIG_WIFI_LOAD_DRIVER_WHEN_KERNEL_BOOTUP
+    int type = get_wifi_chip_type();
+    if (type < WIFI_AP6XXX_SERIES || type == WIFI_ESP8089) return;
+#endif
     printk("\n");
     printk("=======================================================\n");
     printk("==== Dislaunching Wi-Fi driver! (Powered by Rockchip) ====\n");
@@ -1073,12 +1079,12 @@ void rockchip_wifi_exit_module_rtkwifi(void)
     rockchip_wifi_power(0);
 }
 
-#ifdef CONFIG_RTL8723BS
+#ifdef CONFIG_WIFI_LOAD_DRIVER_WHEN_KERNEL_BOOTUP
+late_initcall(rockchip_wifi_init_module_rtkwifi);
+module_exit(rockchip_wifi_exit_module_rtkwifi);
+#else
 EXPORT_SYMBOL(rockchip_wifi_init_module_rtkwifi);
 EXPORT_SYMBOL(rockchip_wifi_exit_module_rtkwifi);
-#else
-module_init(rockchip_wifi_init_module_rtkwifi);
-module_exit(rockchip_wifi_exit_module_rtkwifi);
 #endif
 //module_init(rtw_drv_entry);
 //module_exit(rtw_drv_halt);
