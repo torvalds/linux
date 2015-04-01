@@ -2931,7 +2931,6 @@ static void *alloc_coherent(struct device *dev, size_t size,
 
 	dma_mask  = dev->coherent_dma_mask;
 	flag     &= ~(__GFP_DMA | __GFP_HIGHMEM | __GFP_DMA32);
-	flag     |= __GFP_ZERO;
 
 	virt_addr = (void *)__get_free_pages(flag, get_order(size));
 	if (!virt_addr)
