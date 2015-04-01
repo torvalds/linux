@@ -289,6 +289,11 @@
 #define VIDISD14C_ALPHA1_B_LIMIT		0xf
 #define VIDISD14C_ALPHA1_B(_x)			((_x) << 0)
 
+#define VIDW_ALPHA				0x021c
+#define VIDW_ALPHA_R(_x)			((_x) << 16)
+#define VIDW_ALPHA_G(_x)			((_x) << 8)
+#define VIDW_ALPHA_B(_x)			((_x) << 0)
+
 /* Video buffer addresses */
 #define VIDW_BUF_START(_buff)			(0xA0 + ((_buff) * 8))
 #define VIDW_BUF_START1(_buff)			(0xA4 + ((_buff) * 8))

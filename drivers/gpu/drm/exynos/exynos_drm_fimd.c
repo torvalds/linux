@@ -54,6 +54,9 @@
 /* size control register for hardware windows 1 ~ 2. */
 #define VIDOSD_D(win)		(VIDOSD_BASE + 0x0C + (win) * 16)
 
+#define VIDWnALPHA0(win)	(VIDW_ALPHA + 0x00 + (win) * 8)
+#define VIDWnALPHA1(win)	(VIDW_ALPHA + 0x04 + (win) * 8)
+
 #define VIDWx_BUF_START(win, buf)	(VIDW_BUF_START(buf) + (win) * 8)
 #define VIDWx_BUF_END(win, buf)		(VIDW_BUF_END(buf) + (win) * 8)
 #define VIDWx_BUF_SIZE(win, buf)	(VIDW_BUF_SIZE(buf) + (win) * 4)
@@ -620,6 +623,24 @@ static void fimd_win_set_pixfmt(struct fimd_context *ctx, unsigned int win)
 	}
 
 	writel(val, ctx->regs + WINCON(win));
+
+	/* hardware window 0 doesn't support alpha channel. */
+	if (win != 0) {
+		/* OSD alpha */
+		val = VIDISD14C_ALPHA0_R(0xf) |
+			VIDISD14C_ALPHA0_G(0xf) |
+			VIDISD14C_ALPHA0_B(0xf) |
+			VIDISD14C_ALPHA1_R(0xf) |
+			VIDISD14C_ALPHA1_G(0xf) |
+			VIDISD14C_ALPHA1_B(0xf);
+
+		writel(val, ctx->regs + VIDOSD_C(win));
+
+		val = VIDW_ALPHA_R(0xf) | VIDW_ALPHA_G(0xf) |
+			VIDW_ALPHA_G(0xf);
+		writel(val, ctx->regs + VIDWnALPHA0(win));
+		writel(val, ctx->regs + VIDWnALPHA1(win));
+	}
 }
 
 static void fimd_win_set_colkey(struct fimd_context *ctx, unsigned int win)
@@ -667,7 +688,7 @@ static void fimd_win_commit(struct exynos_drm_crtc *crtc, int zpos)
 	struct fimd_context *ctx = crtc->ctx;
 	struct fimd_win_data *win_data;
 	int win = zpos;
-	unsigned long val, alpha, size;
+	unsigned long val, size;
 	unsigned int last_x;
 	unsigned int last_y;
 
@@ -743,16 +764,6 @@ static void fimd_win_commit(struct exynos_drm_crtc *crtc, int zpos)
 
 	DRM_DEBUG_KMS("osd pos: tx = %d, ty = %d, bx = %d, by = %d\n",
 			win_data->offset_x, win_data->offset_y, last_x, last_y);
-
-	/* hardware window 0 doesn't support alpha channel. */
-	if (win != 0) {
-		/* OSD alpha */
-		alpha = VIDISD14C_ALPHA1_R(0xf) |
-			VIDISD14C_ALPHA1_G(0xf) |
-			VIDISD14C_ALPHA1_B(0xf);
-
-		writel(alpha, ctx->regs + VIDOSD_C(win));
-	}
 
 	/* OSD size */
 	if (win != 3 && win != 4) {
