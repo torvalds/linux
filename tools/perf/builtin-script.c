@@ -549,14 +549,6 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 				struct machine *machine)
 {
 	struct addr_location al;
-	struct thread *thread = machine__findnew_thread(machine, sample->pid,
-							sample->tid);
-
-	if (thread == NULL) {
-		pr_debug("problem processing %d event, skipping it.\n",
-			 event->header.type);
-		return -1;
-	}
 
 	if (debug_mode) {
 		if (sample->time < last_timestamp) {
@@ -581,7 +573,7 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 	if (cpu_list && !test_bit(sample->cpu, cpu_bitmap))
 		return 0;
 
-	scripting_ops->process_event(event, sample, evsel, thread, &al);
+	scripting_ops->process_event(event, sample, evsel, al.thread, &al);
 
 	return 0;
 }
