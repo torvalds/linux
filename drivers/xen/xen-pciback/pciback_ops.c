@@ -185,20 +185,23 @@ static
 int xen_pcibk_disable_msi(struct xen_pcibk_device *pdev,
 			  struct pci_dev *dev, struct xen_pci_op *op)
 {
-	struct xen_pcibk_dev_data *dev_data;
-
 	if (unlikely(verbose_request))
 		printk(KERN_DEBUG DRV_NAME ": %s: disable MSI\n",
 		       pci_name(dev));
-	pci_disable_msi(dev);
 
+	if (dev->msi_enabled) {
+		struct xen_pcibk_dev_data *dev_data;
+
+		pci_disable_msi(dev);
+
+		dev_data = pci_get_drvdata(dev);
+		if (dev_data)
+			dev_data->ack_intr = 1;
+	}
 	op->value = dev->irq ? xen_pirq_from_irq(dev->irq) : 0;
 	if (unlikely(verbose_request))
 		printk(KERN_DEBUG DRV_NAME ": %s: MSI: %d\n", pci_name(dev),
 			op->value);
-	dev_data = pci_get_drvdata(dev);
-	if (dev_data)
-		dev_data->ack_intr = 1;
 	return 0;
 }
 
@@ -264,23 +267,27 @@ static
 int xen_pcibk_disable_msix(struct xen_pcibk_device *pdev,
 			   struct pci_dev *dev, struct xen_pci_op *op)
 {
-	struct xen_pcibk_dev_data *dev_data;
 	if (unlikely(verbose_request))
 		printk(KERN_DEBUG DRV_NAME ": %s: disable MSI-X\n",
 			pci_name(dev));
-	pci_disable_msix(dev);
 
+	if (dev->msix_enabled) {
+		struct xen_pcibk_dev_data *dev_data;
+
+		pci_disable_msix(dev);
+
+		dev_data = pci_get_drvdata(dev);
+		if (dev_data)
+			dev_data->ack_intr = 1;
+	}
 	/*
 	 * SR-IOV devices (which don't have any legacy IRQ) have
 	 * an undefined IRQ value of zero.
 	 */
 	op->value = dev->irq ? xen_pirq_from_irq(dev->irq) : 0;
 	if (unlikely(verbose_request))
-		printk(KERN_DEBUG DRV_NAME ": %s: MSI-X: %d\n", pci_name(dev),
-			op->value);
-	dev_data = pci_get_drvdata(dev);
-	if (dev_data)
-		dev_data->ack_intr = 1;
+		printk(KERN_DEBUG DRV_NAME ": %s: MSI-X: %d\n",
+		       pci_name(dev), op->value);
 	return 0;
 }
 #endif
