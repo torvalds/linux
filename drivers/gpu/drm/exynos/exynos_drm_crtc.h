@@ -28,12 +28,6 @@ void exynos_drm_crtc_disable_vblank(struct drm_device *dev, int pipe);
 void exynos_drm_crtc_finish_pageflip(struct drm_device *dev, int pipe);
 void exynos_drm_crtc_complete_scanout(struct drm_framebuffer *fb);
 
-void exynos_drm_crtc_plane_mode_set(struct drm_crtc *crtc,
-			struct exynos_drm_plane *plane);
-void exynos_drm_crtc_plane_commit(struct drm_crtc *crtc, int zpos);
-void exynos_drm_crtc_plane_enable(struct drm_crtc *crtc, int zpos);
-void exynos_drm_crtc_plane_disable(struct drm_crtc *crtc, int zpos);
-
 /* This function gets pipe value to crtc device matched with out_type. */
 int exynos_drm_crtc_get_pipe_from_type(struct drm_device *drm_dev,
 					unsigned int out_type);
