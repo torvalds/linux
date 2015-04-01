@@ -14,6 +14,8 @@
 
 */
 
+#define pr_fmt(fmt) "xen-blkback: " fmt
+
 #include <stdarg.h>
 #include <linux/module.h>
 #include <linux/kthread.h>
@@ -426,14 +428,14 @@ static int xen_vbd_create(struct xen_blkif *blkif, blkif_vdev_t handle,
 				 FMODE_READ : FMODE_WRITE, NULL);
 
 	if (IS_ERR(bdev)) {
-		DPRINTK("xen_vbd_create: device %08x could not be opened.\n",
+		pr_warn("xen_vbd_create: device %08x could not be opened\n",
 			vbd->pdevice);
 		return -ENOENT;
 	}
 
 	vbd->bdev = bdev;
 	if (vbd->bdev->bd_disk == NULL) {
-		DPRINTK("xen_vbd_create: device %08x doesn't exist.\n",
+		pr_warn("xen_vbd_create: device %08x doesn't exist\n",
 			vbd->pdevice);
 		xen_vbd_free(vbd);
 		return -ENOENT;
@@ -452,7 +454,7 @@ static int xen_vbd_create(struct xen_blkif *blkif, blkif_vdev_t handle,
 	if (q && blk_queue_secdiscard(q))
 		vbd->discard_secure = true;
 
-	DPRINTK("Successful creation of handle=%04x (dom=%u)\n",
+	pr_debug("Successful creation of handle=%04x (dom=%u)\n",
 		handle, blkif->domid);
 	return 0;
 }
@@ -460,7 +462,7 @@ static int xen_blkbk_remove(struct xenbus_device *dev)
 {
 	struct backend_info *be = dev_get_drvdata(&dev->dev);
 
-	DPRINTK("");
+	pr_debug("%s %p %d\n", __func__, dev, dev->otherend_id);
 
 	if (be->major || be->minor)
 		xenvbd_sysfs_delif(dev);
@@ -566,6 +568,10 @@ static int xen_blkbk_probe(struct xenbus_device *dev,
 	int err;
 	struct backend_info *be = kzalloc(sizeof(struct backend_info),
 					  GFP_KERNEL);
+
+	/* match the pr_debug in xen_blkbk_remove */
+	pr_debug("%s %p %d\n", __func__, dev, dev->otherend_id);
+
 	if (!be) {
 		xenbus_dev_fatal(dev, -ENOMEM,
 				 "allocating backend structure");
@@ -597,7 +603,7 @@ static int xen_blkbk_probe(struct xenbus_device *dev,
 	return 0;
 
 fail:
-	DPRINTK("failed");
+	pr_warn("%s failed\n", __func__);
 	xen_blkbk_remove(dev);
 	return err;
 }
@@ -621,7 +627,7 @@ static void backend_changed(struct xenbus_watch *watch,
 	unsigned long handle;
 	char *device_type;
 
-	DPRINTK("");
+	pr_debug("%s %p %d\n", __func__, dev, dev->otherend_id);
 
 	err = xenbus_scanf(XBT_NIL, dev->nodename, "physical-device", "%x:%x",
 			   &major, &minor);
@@ -640,7 +646,7 @@ static void backend_changed(struct xenbus_watch *watch,
 
 	if (be->major | be->minor) {
 		if (be->major != major || be->minor != minor)
-			pr_warn(DRV_PFX "changing physical device (from %x:%x to %x:%x) not supported.\n",
+			pr_warn("changing physical device (from %x:%x to %x:%x) not supported.\n",
 				be->major, be->minor, major, minor);
 		return;
 	}
@@ -701,13 +707,12 @@ static void frontend_changed(struct xenbus_device *dev,
 	struct backend_info *be = dev_get_drvdata(&dev->dev);
 	int err;
 
-	DPRINTK("%s", xenbus_strstate(frontend_state));
+	pr_debug("%s %p %s\n", __func__, dev, xenbus_strstate(frontend_state));
 
 	switch (frontend_state) {
 	case XenbusStateInitialising:
 		if (dev->state == XenbusStateClosed) {
-			pr_info(DRV_PFX "%s: prepare for reconnect\n",
-				dev->nodename);
+			pr_info("%s: prepare for reconnect\n", dev->nodename);
 			xenbus_switch_state(dev, XenbusStateInitWait);
 		}
 		break;
@@ -774,7 +779,7 @@ static void connect(struct backend_info *be)
 	int err;
 	struct xenbus_device *dev = be->dev;
 
-	DPRINTK("%s", dev->otherend);
+	pr_debug("%s %s\n", __func__, dev->otherend);
 
 	/* Supply the information about the device the frontend needs */
 again:
@@ -860,7 +865,7 @@ static int connect_ring(struct backend_info *be)
 	char protocol[64] = "";
 	int err;
 
-	DPRINTK("%s", dev->otherend);
+	pr_debug("%s %s\n", __func__, dev->otherend);
 
 	err = xenbus_gather(XBT_NIL, dev->otherend, "ring-ref", "%lu",
 			    &ring_ref, "event-channel", "%u", &evtchn, NULL);
@@ -895,7 +900,7 @@ static int connect_ring(struct backend_info *be)
 	be->blkif->vbd.feature_gnt_persistent = pers_grants;
 	be->blkif->vbd.overflow_max_grants = 0;
 
-	pr_info(DRV_PFX "ring-ref %ld, event-channel %d, protocol %d (%s) %s\n",
+	pr_info("ring-ref %ld, event-channel %d, protocol %d (%s) %s\n",
 		ring_ref, evtchn, be->blkif->blk_protocol, protocol,
 		pers_grants ? "persistent grants" : "");
 
