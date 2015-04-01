@@ -421,6 +421,12 @@ static void vop_enable(struct drm_crtc *crtc)
 	if (vop->is_enabled)
 		return;
 
+	ret = pm_runtime_get_sync(vop->dev);
+	if (ret < 0) {
+		dev_err(vop->dev, "failed to get pm runtime: %d\n", ret);
+		return;
+	}
+
 	ret = clk_enable(vop->hclk);
 	if (ret < 0) {
 		dev_err(vop->dev, "failed to enable hclk - %d\n", ret);
@@ -517,6 +523,7 @@ static void vop_disable(struct drm_crtc *crtc)
 	clk_disable(vop->dclk);
 	clk_disable(vop->aclk);
 	clk_disable(vop->hclk);
+	pm_runtime_put(vop->dev);
 }
 
 /*
