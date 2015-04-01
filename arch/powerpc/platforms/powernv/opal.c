@@ -693,6 +693,15 @@ static void __init opal_dump_region_init(void)
 			"rc = %d\n", rc);
 }
 
+static void opal_flash_init(struct device_node *opal_node)
+{
+	struct device_node *np;
+
+	for_each_child_of_node(opal_node, np)
+		if (of_device_is_compatible(np, "ibm,opal-flash"))
+			of_platform_device_create(np, NULL, NULL);
+}
+
 static void opal_ipmi_init(struct device_node *opal_node)
 {
 	struct device_node *np;
@@ -817,7 +826,7 @@ static int __init opal_init(void)
 		/* Setup error log interface */
 		rc = opal_elog_init();
 		/* Setup code update interface */
-		opal_flash_init();
+		opal_flash_update_init();
 		/* Setup platform dump extract interface */
 		opal_platform_dump_init();
 		/* Setup system parameters interface */
@@ -828,6 +837,8 @@ static int __init opal_init(void)
 
 	/* Initialize OPAL IPMI backend */
 	opal_ipmi_init(opal_node);
+
+	opal_flash_init(opal_node);
 
 	return 0;
 }
@@ -867,6 +878,9 @@ void opal_shutdown(void)
 EXPORT_SYMBOL_GPL(opal_invalid_call);
 EXPORT_SYMBOL_GPL(opal_ipmi_send);
 EXPORT_SYMBOL_GPL(opal_ipmi_recv);
+EXPORT_SYMBOL_GPL(opal_flash_read);
+EXPORT_SYMBOL_GPL(opal_flash_write);
+EXPORT_SYMBOL_GPL(opal_flash_erase);
 
 /* Convert a region of vmalloc memory to an opal sg list */
 struct opal_sg_list *opal_vmalloc_to_sg_list(void *vmalloc_addr,

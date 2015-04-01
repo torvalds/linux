@@ -546,7 +546,7 @@ static struct attribute_group image_op_attr_group = {
 	.attrs = image_op_attrs,
 };
 
-void __init opal_flash_init(void)
+void __init opal_flash_update_init(void)
 {
 	int ret;
 

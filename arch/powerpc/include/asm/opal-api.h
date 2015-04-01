@@ -150,7 +150,10 @@
 #define OPAL_IPMI_SEND				107
 #define OPAL_IPMI_RECV				108
 #define OPAL_I2C_REQUEST			109
-#define OPAL_LAST				109
+#define OPAL_FLASH_READ				110
+#define OPAL_FLASH_WRITE			111
+#define OPAL_FLASH_ERASE			112
+#define OPAL_LAST				112
 
 /* Device tree flags */
 
