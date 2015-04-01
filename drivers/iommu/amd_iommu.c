@@ -2467,7 +2467,7 @@ static int device_change_notifier(struct notifier_block *nb,
 		dev->archdata.dma_ops = &amd_iommu_dma_ops;
 
 		break;
-	case BUS_NOTIFY_DEL_DEVICE:
+	case BUS_NOTIFY_REMOVED_DEVICE:
 
 		iommu_uninit_device(dev);
 
