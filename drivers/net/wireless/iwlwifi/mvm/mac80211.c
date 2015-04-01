@@ -3911,6 +3911,7 @@ static int iwl_mvm_mac_get_survey(struct ieee80211_hw *hw, int idx,
 			    mvm->radio_stats.on_time_scan;
 	do_div(survey->time_scan, USEC_PER_MSEC);
 
+	ret = 0;
  out:
 	mutex_unlock(&mvm->mutex);
 	return ret;
