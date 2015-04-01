@@ -106,6 +106,7 @@
 #include <linux/init.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/if_ether.h>
+#include <linux/inetdevice.h>
 
 #include <net/sock.h>
 #include <net/ip.h>
@@ -270,6 +271,40 @@ static int mplsip_rcv(struct sk_buff *skb)
 }
 #endif
 
+static int ipip_tunnel_is_fan(struct ip_tunnel *tunnel)
+{
+	return tunnel->parms.i_flags & TUNNEL_FAN;
+}
+
+/*
+ * Determine fan tunnel endpoint to send packet to, based on the inner IP
+ * address.  For an overlay (inner) address Y.A.B.C, the transformation is
+ * F.G.A.B, where "F" and "G" are the first two octets of the underlay
+ * network (the network portion of a /16), "A" and "B" are the low order
+ * two octets of the underlay network host (the host portion of a /16),
+ * and "Y" is a configured first octet of the overlay network.
+ *
+ * E.g., underlay host 10.88.3.4 with an overlay of 99 would host overlay
+ * subnet 99.3.4.0/24.  An overlay network datagram from 99.3.4.5 to
+ * 99.6.7.8, would be directed to underlay host 10.88.6.7, which hosts
+ * overlay network 99.6.7.0/24.
+ */
+static int ipip_build_fan_iphdr(struct ip_tunnel *tunnel, struct sk_buff *skb, struct iphdr *iph)
+{
+	unsigned int overlay;
+	u32 daddr, underlay;
+
+	daddr = ntohl(ip_hdr(skb)->daddr);
+	overlay = daddr >> 24;
+	underlay = tunnel->fan.map[overlay];
+	if (!underlay)
+		return -EINVAL;
+
+	*iph = tunnel->parms.iph;
+	iph->daddr = htonl(underlay | ((daddr >> 8) & 0x0000ffff));
+	return 0;
+}
+
 /*
  *	This function assumes it is being called from dev_queue_xmit()
  *	and that skb is filled properly by that function.
@@ -280,6 +315,7 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb,
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	const struct iphdr  *tiph = &tunnel->parms.iph;
 	u8 ipproto;
+	struct iphdr fiph;
 
 	switch (skb->protocol) {
 	case htons(ETH_P_IP):
@@ -299,6 +335,14 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb,
 
 	if (iptunnel_handle_offloads(skb, SKB_GSO_IPXIP4))
 		goto tx_error;
+
+	if (ipip_tunnel_is_fan(tunnel)) {
+		if (ipip_build_fan_iphdr(tunnel, skb, &fiph))
+			goto tx_error;
+		tiph = &fiph;
+	} else {
+		tiph = &tunnel->parms.iph;
+	}
 
 	skb_set_inner_ipproto(skb, ipproto);
 
@@ -494,6 +538,69 @@ static bool ipip_netlink_encap_parms(struct nlattr *data[],
 	return ret;
 }
 
+static void ipip_fan_free_map(struct ip_tunnel *t)
+{
+	memset(&t->fan.map, 0, sizeof(t->fan.map));
+}
+
+static int ipip_fan_set_map(struct ip_tunnel *t, struct ip_tunnel_fan_map *map)
+{
+	u32 overlay, overlay_mask, underlay, underlay_mask;
+
+	if ((map->underlay_prefix && map->underlay_prefix != 16) ||
+	    (map->overlay_prefix && map->overlay_prefix != 8))
+		return -EINVAL;
+
+	overlay = ntohl(map->overlay);
+	overlay_mask = ntohl(inet_make_mask(map->overlay_prefix));
+
+	underlay = ntohl(map->underlay);
+	underlay_mask = ntohl(inet_make_mask(map->underlay_prefix));
+
+	if ((overlay & ~overlay_mask) || (underlay & ~underlay_mask))
+		return -EINVAL;
+
+	if (!(overlay & overlay_mask) && (underlay & underlay_mask))
+		return -EINVAL;
+
+	t->parms.i_flags |= TUNNEL_FAN;
+
+	/* Special case: overlay 0 and underlay 0 clears all mappings */
+	if (!overlay && !underlay) {
+		ipip_fan_free_map(t);
+		return 0;
+	}
+
+	overlay >>= (32 - map->overlay_prefix);
+	t->fan.map[overlay] = underlay;
+
+	return 0;
+}
+	
+
+static int ipip_netlink_fan(struct nlattr *data[], struct ip_tunnel *t,
+			    struct ip_tunnel_parm *parms)
+{
+	struct ip_tunnel_fan_map *map;
+	struct nlattr *attr;
+	int rem, rv;
+
+	if (!data[IFLA_IPTUN_FAN_MAP])
+		return 0;
+
+	if (parms->iph.daddr)
+		return -EINVAL;
+
+	nla_for_each_nested(attr, data[IFLA_IPTUN_FAN_MAP], rem) {
+		map = nla_data(attr);
+		rv = ipip_fan_set_map(t, map);
+		if (rv)
+			return rv;
+	}
+
+	return 0;
+}
+
 static int ipip_newlink(struct net *src_net, struct net_device *dev,
 			struct nlattr *tb[], struct nlattr *data[],
 			struct netlink_ext_ack *extack)
@@ -502,15 +609,19 @@ static int ipip_newlink(struct net *src_net, struct net_device *dev,
 	struct ip_tunnel_parm p;
 	struct ip_tunnel_encap ipencap;
 	__u32 fwmark = 0;
+	int err;
 
 	if (ipip_netlink_encap_parms(data, &ipencap)) {
-		int err = ip_tunnel_encap_setup(t, &ipencap);
+		err = ip_tunnel_encap_setup(t, &ipencap);
 
 		if (err < 0)
 			return err;
 	}
 
 	ipip_netlink_parms(data, &p, &t->collect_md, &fwmark);
+	err = ipip_netlink_fan(data, t, &p);
+	if (err < 0)
+		return err;
 	return ip_tunnel_newlink(dev, tb, &p, fwmark);
 }
 
@@ -523,9 +634,10 @@ static int ipip_changelink(struct net_device *dev, struct nlattr *tb[],
 	struct ip_tunnel_encap ipencap;
 	bool collect_md;
 	__u32 fwmark = t->fwmark;
+	int err;
 
 	if (ipip_netlink_encap_parms(data, &ipencap)) {
-		int err = ip_tunnel_encap_setup(t, &ipencap);
+		err = ip_tunnel_encap_setup(t, &ipencap);
 
 		if (err < 0)
 			return err;
@@ -534,6 +646,9 @@ static int ipip_changelink(struct net_device *dev, struct nlattr *tb[],
 	ipip_netlink_parms(data, &p, &collect_md, &fwmark);
 	if (collect_md)
 		return -EINVAL;
+	err = ipip_netlink_fan(data, t, &p);
+	if (err < 0)
+		return err;
 
 	if (((dev->flags & IFF_POINTOPOINT) && !p.iph.daddr) ||
 	    (!(dev->flags & IFF_POINTOPOINT) && p.iph.daddr))
@@ -571,6 +686,8 @@ static size_t ipip_get_size(const struct net_device *dev)
 		nla_total_size(0) +
 		/* IFLA_IPTUN_FWMARK */
 		nla_total_size(4) +
+		/* IFLA_IPTUN_FAN_MAP */
+		nla_total_size(sizeof(struct ip_tunnel_fan_map)) * 256 +
 		0;
 }
 
@@ -603,6 +720,29 @@ static int ipip_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	if (tunnel->collect_md)
 		if (nla_put_flag(skb, IFLA_IPTUN_COLLECT_METADATA))
 			goto nla_put_failure;
+	if (tunnel->parms.i_flags & TUNNEL_FAN) {
+		struct nlattr *fan_nest;
+		int i;
+
+		fan_nest = nla_nest_start(skb, IFLA_IPTUN_FAN_MAP);
+		if (!fan_nest)
+			goto nla_put_failure;
+		for (i = 0; i < 256; i++) {
+			if (tunnel->fan.map[i]) {
+				struct ip_tunnel_fan_map map;
+
+				map.underlay = htonl(tunnel->fan.map[i]);
+				map.underlay_prefix = 16;
+				map.overlay = htonl(i << 24);
+				map.overlay_prefix = 8;
+				if (nla_put(skb, IFLA_FAN_MAPPING,
+					    sizeof(map), &map))
+					goto nla_put_failure;
+			}
+		}
+		nla_nest_end(skb, fan_nest);
+	}
+
 	return 0;
 
 nla_put_failure:
@@ -623,6 +763,9 @@ static const struct nla_policy ipip_policy[IFLA_IPTUN_MAX + 1] = {
 	[IFLA_IPTUN_ENCAP_DPORT]	= { .type = NLA_U16 },
 	[IFLA_IPTUN_COLLECT_METADATA]	= { .type = NLA_FLAG },
 	[IFLA_IPTUN_FWMARK]		= { .type = NLA_U32 },
+
+	[__IFLA_IPTUN_VENDOR_BREAK ... IFLA_IPTUN_MAX]	= { .type = NLA_BINARY },
+	[IFLA_IPTUN_FAN_MAP]		= { .type = NLA_NESTED },
 };
 
 static struct rtnl_link_ops ipip_link_ops __read_mostly = {
@@ -671,6 +814,23 @@ static struct pernet_operations ipip_net_ops = {
 	.size = sizeof(struct ip_tunnel_net),
 };
 
+#ifdef CONFIG_SYSCTL
+static struct ctl_table_header *ipip_fan_header;
+static unsigned int ipip_fan_version = 3;
+
+static struct ctl_table ipip_fan_sysctls[] = {
+	{
+		.procname	= "version",
+		.data		= &ipip_fan_version,
+		.maxlen		= sizeof(ipip_fan_version),
+		.mode		= 0444,
+		.proc_handler	= proc_dointvec,
+	},
+	{},
+};
+
+#endif /* CONFIG_SYSCTL */
+
 static int __init ipip_init(void)
 {
 	int err;
@@ -696,9 +856,22 @@ static int __init ipip_init(void)
 	if (err < 0)
 		goto rtnl_link_failed;
 
+#ifdef CONFIG_SYSCTL
+	ipip_fan_header = register_net_sysctl(&init_net, "net/fan",
+					      ipip_fan_sysctls);
+	if (!ipip_fan_header) {
+		err = -ENOMEM;
+		goto sysctl_failed;
+	}
+#endif /* CONFIG_SYSCTL */
+
 out:
 	return err;
 
+#ifdef CONFIG_SYSCTL
+sysctl_failed:
+	rtnl_link_unregister(&ipip_link_ops);
+#endif /* CONFIG_SYSCTL */
 rtnl_link_failed:
 #if IS_ENABLED(CONFIG_MPLS)
 	xfrm4_tunnel_deregister(&mplsip_handler, AF_INET);
@@ -713,6 +886,9 @@ xfrm_tunnel_ipip_failed:
 
 static void __exit ipip_fini(void)
 {
+#ifdef CONFIG_SYSCTL
+	unregister_net_sysctl_table(ipip_fan_header);
+#endif /* CONFIG_SYSCTL */
 	rtnl_link_unregister(&ipip_link_ops);
 	if (xfrm4_tunnel_deregister(&ipip_handler, AF_INET))
 		pr_info("%s: can't deregister tunnel\n", __func__);
