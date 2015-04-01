@@ -5240,7 +5240,8 @@ static void init_emulate_ctxt(struct kvm_vcpu *vcpu)
 		     (cs_l && is_long_mode(vcpu))	? X86EMUL_MODE_PROT64 :
 		     cs_db				? X86EMUL_MODE_PROT32 :
 							  X86EMUL_MODE_PROT16;
-	ctxt->guest_mode = is_guest_mode(vcpu);
+	BUILD_BUG_ON(HF_GUEST_MASK != X86EMUL_GUEST_MASK);
+	ctxt->emul_flags = vcpu->arch.hflags;
 
 	init_decode_cache(ctxt);
 	vcpu->arch.emulate_regs_need_sync_from_vcpu = false;
@@ -5408,6 +5409,11 @@ static bool retry_instruction(struct x86_emulate_ctxt *ctxt,
 
 static int complete_emulated_mmio(struct kvm_vcpu *vcpu);
 static int complete_emulated_pio(struct kvm_vcpu *vcpu);
+
+void kvm_set_hflags(struct kvm_vcpu *vcpu, unsigned emul_flags)
+{
+	vcpu->arch.hflags = emul_flags;
+}
 
 static int kvm_vcpu_check_hw_bp(unsigned long addr, u32 type, u32 dr7,
 				unsigned long *db)
@@ -5608,6 +5614,8 @@ restart:
 		unsigned long rflags = kvm_x86_ops->get_rflags(vcpu);
 		toggle_interruptibility(vcpu, ctxt->interruptibility);
 		vcpu->arch.emulate_regs_need_sync_to_vcpu = false;
+		if (vcpu->arch.hflags != ctxt->emul_flags)
+			kvm_set_hflags(vcpu, ctxt->emul_flags);
 		kvm_rip_write(vcpu, ctxt->eip);
 		if (r == EMULATE_DONE)
 			kvm_vcpu_check_singlestep(vcpu, rflags, &r);

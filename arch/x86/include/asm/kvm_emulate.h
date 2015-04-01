@@ -262,6 +262,9 @@ enum x86emul_mode {
 	X86EMUL_MODE_PROT64,	/* 64-bit (long) mode.    */
 };
 
+/* These match some of the HF_* flags defined in kvm_host.h  */
+#define X86EMUL_GUEST_MASK           (1 << 5) /* VCPU is in guest-mode */
+
 struct x86_emulate_ctxt {
 	const struct x86_emulate_ops *ops;
 
@@ -273,8 +276,8 @@ struct x86_emulate_ctxt {
 
 	/* interruptibility state, as a result of execution of STI or MOV SS */
 	int interruptibility;
+	int emul_flags;
 
-	bool guest_mode; /* guest running a nested guest */
 	bool perm_ok; /* do not check permissions if true */
 	bool ud;	/* inject an #UD if host doesn't support insn */
 
