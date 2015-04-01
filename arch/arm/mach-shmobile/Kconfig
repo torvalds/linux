@@ -105,13 +105,6 @@ config ARCH_SH73A0
 	select SH_INTC
 	select RENESAS_INTC_IRQPIN
 
-config ARCH_R8A73A4
-	bool "R-Mobile APE6 (R8A73A40)"
-	select ARCH_RMOBILE
-	select ARCH_WANT_OPTIONAL_GPIOLIB
-	select ARM_GIC
-	select RENESAS_IRQC
-
 config ARCH_R8A7740
 	bool "R-Mobile A1 (R8A77400)"
 	select ARCH_RMOBILE
@@ -132,24 +125,6 @@ config ARCH_R8A7779
 	select ARM_GIC
 
 comment "Renesas ARM SoCs Board Type"
-
-config MACH_APE6EVM
-	bool "APE6EVM board"
-	depends on ARCH_R8A73A4
-	select SMSC_PHY if SMSC911X
-	select USE_OF
-
-config MACH_APE6EVM_REFERENCE
-	bool "APE6EVM board - Reference Device Tree Implementation"
-	depends on ARCH_R8A73A4
-	select SMSC_PHY if SMSC911X
-	select USE_OF
-	---help---
-	   Use reference implementation of APE6EVM board support
-	   which makes a greater use of device tree at the expense
-	   of not supporting a number of devices.
-
-	   This is intended to aid developers
 
 config MACH_ARMADILLO800EVA
 	bool "Armadillo-800 EVA board"

@@ -35,8 +35,6 @@ Boards:
     compatible = "renesas,alt", "renesas,r8a7794"
   - APE6-EVM
     compatible = "renesas,ape6evm", "renesas,r8a73a4"
-  - APE6-EVM - Reference Device Tree Implementation
-    compatible = "renesas,ape6evm-reference", "renesas,r8a73a4"
   - Atmark Techno Armadillo-800 EVA
     compatible = "renesas,armadillo800eva"
   - BOCK-W
