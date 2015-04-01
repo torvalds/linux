@@ -40,20 +40,6 @@ struct bcm47xx_board_type_list1 bcm47xx_board_list_model_name[] __initconst = {
 	{ {0}, NULL},
 };
 
-/* model_no */
-static const
-struct bcm47xx_board_type_list1 bcm47xx_board_list_model_no[] __initconst = {
-	{{BCM47XX_BOARD_ASUS_WL700GE, "Asus WL700"}, "WL700"},
-	{ {0}, NULL},
-};
-
-/* machine_name */
-static const
-struct bcm47xx_board_type_list1 bcm47xx_board_list_machine_name[] __initconst = {
-	{{BCM47XX_BOARD_LINKSYS_WRTSL54GS, "Linksys WRTSL54GS"}, "WRTSL54GS"},
-	{ {0}, NULL},
-};
-
 /* hardware_version */
 static const
 struct bcm47xx_board_type_list1 bcm47xx_board_list_hardware_version[] __initconst = {
@@ -202,6 +188,18 @@ struct bcm47xx_board_type_list2 bcm47xx_board_list_board_type_rev[] __initconst 
 	{ {0}, NULL},
 };
 
+/*
+ * Some devices don't use any common NVRAM entry for identification and they
+ * have only one model specific variable.
+ * They don't deserve own arrays, let's group them there using key-value array.
+ */
+static const
+struct bcm47xx_board_type_list2 bcm47xx_board_list_key_value[] __initconst = {
+	{{BCM47XX_BOARD_ASUS_WL700GE, "Asus WL700"}, "model_no", "WL700"},
+	{{BCM47XX_BOARD_LINKSYS_WRTSL54GS, "Linksys WRTSL54GS"}, "machine_name", "WRTSL54GS"},
+	{ {0}, NULL},
+};
+
 static const
 struct bcm47xx_board_type bcm47xx_board_unknown[] __initconst = {
 	{BCM47XX_BOARD_UNKNOWN, "Unknown Board"},
@@ -221,20 +219,6 @@ static __init const struct bcm47xx_board_type *bcm47xx_board_get_nvram(void)
 	if (bcm47xx_nvram_getenv("model_name", buf1, sizeof(buf1)) >= 0) {
 		for (e1 = bcm47xx_board_list_model_name; e1->value1; e1++) {
 			if (!strcmp(buf1, e1->value1))
-				return &e1->board;
-		}
-	}
-
-	if (bcm47xx_nvram_getenv("model_no", buf1, sizeof(buf1)) >= 0) {
-		for (e1 = bcm47xx_board_list_model_no; e1->value1; e1++) {
-			if (strstarts(buf1, e1->value1))
-				return &e1->board;
-		}
-	}
-
-	if (bcm47xx_nvram_getenv("machine_name", buf1, sizeof(buf1)) >= 0) {
-		for (e1 = bcm47xx_board_list_machine_name; e1->value1; e1++) {
-			if (strstarts(buf1, e1->value1))
 				return &e1->board;
 		}
 	}
@@ -314,6 +298,14 @@ static __init const struct bcm47xx_board_type *bcm47xx_board_get_nvram(void)
 				return &e2->board;
 		}
 	}
+
+	for (e2 = bcm47xx_board_list_key_value; e2->value1; e2++) {
+		if (bcm47xx_nvram_getenv(e2->value1, buf1, sizeof(buf1)) >= 0) {
+			if (!strcmp(buf1, e2->value2))
+				return &e2->board;
+		}
+	}
+
 	return bcm47xx_board_unknown;
 }
 
