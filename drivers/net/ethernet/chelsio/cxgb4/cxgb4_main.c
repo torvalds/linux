@@ -5110,9 +5110,14 @@ static int adap_init0(struct adapter *adap)
 	enum dev_state state;
 	u32 params[7], val[7];
 	struct fw_caps_config_cmd caps_cmd;
-	struct fw_devlog_cmd devlog_cmd;
-	u32 devlog_meminfo;
 	int reset = 1;
+
+	/* Grab Firmware Device Log parameters as early as possible so we have
+	 * access to it for debugging, etc.
+	 */
+	ret = t4_init_devlog_params(adap);
+	if (ret < 0)
+		return ret;
 
 	/* Contact FW, advertising Master capability */
 	ret = t4_fw_hello(adap, adap->mbox, adap->mbox, MASTER_MAY, &state);
@@ -5190,30 +5195,6 @@ static int adap_init0(struct adapter *adap)
 	ret = get_vpd_params(adap, &adap->params.vpd);
 	if (ret < 0)
 		goto bye;
-
-	/* Read firmware device log parameters.  We really need to find a way
-	 * to get these parameters initialized with some default values (which
-	 * are likely to be correct) for the case where we either don't
-	 * attache to the firmware or it's crashed when we probe the adapter.
-	 * That way we'll still be able to perform early firmware startup
-	 * debugging ...  If the request to get the Firmware's Device Log
-	 * parameters fails, we'll live so we don't make that a fatal error.
-	 */
-	memset(&devlog_cmd, 0, sizeof(devlog_cmd));
-	devlog_cmd.op_to_write = htonl(FW_CMD_OP_V(FW_DEVLOG_CMD) |
-				       FW_CMD_REQUEST_F | FW_CMD_READ_F);
-	devlog_cmd.retval_len16 = htonl(FW_LEN16(devlog_cmd));
-	ret = t4_wr_mbox(adap, adap->mbox, &devlog_cmd, sizeof(devlog_cmd),
-			 &devlog_cmd);
-	if (ret == 0) {
-		devlog_meminfo =
-			ntohl(devlog_cmd.memtype_devlog_memaddr16_devlog);
-		adap->params.devlog.memtype =
-			FW_DEVLOG_CMD_MEMTYPE_DEVLOG_G(devlog_meminfo);
-		adap->params.devlog.start =
-			FW_DEVLOG_CMD_MEMADDR16_DEVLOG_G(devlog_meminfo) << 4;
-		adap->params.devlog.size = ntohl(devlog_cmd.memsize_devlog);
-	}
 
 	/*
 	 * Find out what ports are available to us.  Note that we need to do
