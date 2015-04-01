@@ -1634,6 +1634,7 @@ static void ath10k_htt_rx_frm_tx_compl(struct ath10k *ar,
 		tx_done.no_ack = true;
 		break;
 	case HTT_DATA_TX_STATUS_OK:
+		tx_done.success = true;
 		break;
 	case HTT_DATA_TX_STATUS_DISCARD:
 	case HTT_DATA_TX_STATUS_POSTPONE:
@@ -1983,6 +1984,7 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 
 		switch (status) {
 		case HTT_MGMT_TX_STATUS_OK:
+			tx_done.success = true;
 			break;
 		case HTT_MGMT_TX_STATUS_RETRY:
 			tx_done.no_ack = true;

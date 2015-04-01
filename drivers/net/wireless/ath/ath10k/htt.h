@@ -1297,6 +1297,7 @@ struct htt_tx_done {
 	u32 msdu_id;
 	bool discard;
 	bool no_ack;
+	bool success;
 };
 
 struct htt_peer_map_event {
