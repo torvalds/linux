@@ -5584,6 +5584,8 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		I915_WRITE(PEG_BAND_GAP_DATA, (temp & ~0xf) | 0xd);
 	}
 
+	i915_debugfs_connector_add(connector);
+
 	return true;
 }
 
