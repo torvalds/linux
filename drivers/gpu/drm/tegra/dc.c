@@ -1571,8 +1571,30 @@ static int tegra_dc_show_regs(struct seq_file *s, void *data)
 	return 0;
 }
 
+static int tegra_dc_show_crc(struct seq_file *s, void *data)
+{
+	struct drm_info_node *node = s->private;
+	struct tegra_dc *dc = node->info_ent->data;
+	u32 value;
+
+	value = DC_COM_CRC_CONTROL_ACTIVE_DATA | DC_COM_CRC_CONTROL_ENABLE;
+	tegra_dc_writel(dc, value, DC_COM_CRC_CONTROL);
+	tegra_dc_commit(dc);
+
+	drm_crtc_wait_one_vblank(&dc->base);
+	drm_crtc_wait_one_vblank(&dc->base);
+
+	value = tegra_dc_readl(dc, DC_COM_CRC_CHECKSUM);
+	seq_printf(s, "%08x\n", value);
+
+	tegra_dc_writel(dc, 0, DC_COM_CRC_CONTROL);
+
+	return 0;
+}
+
 static struct drm_info_list debugfs_files[] = {
 	{ "regs", tegra_dc_show_regs, 0, NULL },
+	{ "crc", tegra_dc_show_crc, 0, NULL },
 };
 
 static int tegra_dc_debugfs_init(struct tegra_dc *dc, struct drm_minor *minor)
