@@ -758,7 +758,7 @@ static int hdmi_phy_configure(struct dw_hdmi *hdmi, unsigned char prep,
 	const struct dw_hdmi_plat_data *plat_data = hdmi->plat_data;
 	const struct dw_hdmi_mpll_config *mpll_config = plat_data->mpll_cfg;
 	const struct dw_hdmi_curr_ctrl *curr_ctrl = plat_data->cur_ctr;
-	const struct dw_hdmi_sym_term *sym_term = plat_data->sym_term;
+	const struct dw_hdmi_phy_config *phy_config = plat_data->phy_config;
 
 	if (prep)
 		return -EINVAL;
@@ -829,18 +829,18 @@ static int hdmi_phy_configure(struct dw_hdmi *hdmi, unsigned char prep,
 	hdmi_phy_i2c_write(hdmi, 0x0000, 0x13);  /* PLLPHBYCTRL */
 	hdmi_phy_i2c_write(hdmi, 0x0006, 0x17);
 
-	for (i = 0; sym_term[i].mpixelclock != (~0UL); i++)
+	for (i = 0; phy_config[i].mpixelclock != (~0UL); i++)
 		if (hdmi->hdmi_data.video_mode.mpixelclock <=
-		    sym_term[i].mpixelclock)
+		    phy_config[i].mpixelclock)
 			break;
 
 	/* RESISTANCE TERM 133Ohm Cfg */
-	hdmi_phy_i2c_write(hdmi, sym_term[i].term, 0x19);  /* TXTERM */
+	hdmi_phy_i2c_write(hdmi, phy_config[i].term, 0x19);  /* TXTERM */
 	/* PREEMP Cgf 0.00 */
-	hdmi_phy_i2c_write(hdmi, sym_term[i].sym_ctr, 0x09);  /* CKSYMTXCTRL */
-
+	hdmi_phy_i2c_write(hdmi, phy_config[i].sym_ctr, 0x09); /* CKSYMTXCTRL */
 	/* TX/CK LVL 10 */
-	hdmi_phy_i2c_write(hdmi, 0x01ad, 0x0E);  /* VLEVCTRL */
+	hdmi_phy_i2c_write(hdmi, phy_config[i].vlev_ctr, 0x0E); /* VLEVCTRL */
+
 	/* REMOVE CLK TERM */
 	hdmi_phy_i2c_write(hdmi, 0x8000, 0x05);  /* CKCALCTRL */
 
