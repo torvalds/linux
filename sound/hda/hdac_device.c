@@ -91,7 +91,7 @@ int snd_hdac_device_init(struct hdac_device *codec, struct hdac_bus *bus,
 
 	codec->power_caps = snd_hdac_read_parm(codec, fg, AC_PAR_POWER_STATE);
 	/* reread ssid if not set by parameter */
-	if (codec->subsystem_id == -1)
+	if (codec->subsystem_id == -1 || codec->subsystem_id == 0)
 		snd_hdac_read(codec, fg, AC_VERB_GET_SUBSYSTEM_ID, 0,
 			      &codec->subsystem_id);
 
