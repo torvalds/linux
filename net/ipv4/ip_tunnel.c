@@ -1133,6 +1133,11 @@ err_register_netdevice:
 }
 EXPORT_SYMBOL_GPL(ip_tunnel_newlink);
 
+static int ip_tunnel_is_fan(struct ip_tunnel *tunnel)
+{
+	return tunnel->parms.i_flags & TUNNEL_FAN;
+}
+
 int ip_tunnel_changelink(struct net_device *dev, struct nlattr *tb[],
 			 struct ip_tunnel_parm *p, __u32 fwmark)
 {
@@ -1142,7 +1147,7 @@ int ip_tunnel_changelink(struct net_device *dev, struct nlattr *tb[],
 	struct ip_tunnel_net *itn = net_generic(net, tunnel->ip_tnl_net_id);
 
 	if (dev == itn->fb_tunnel_dev)
-		return -EINVAL;
+		return ip_tunnel_is_fan(tunnel) ? 0 : -EINVAL;
 
 	t = ip_tunnel_find(itn, p, dev->type);
 

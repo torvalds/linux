@@ -77,6 +77,10 @@ enum {
 	IFLA_IPTUN_ENCAP_DPORT,
 	IFLA_IPTUN_COLLECT_METADATA,
 	IFLA_IPTUN_FWMARK,
+
+	__IFLA_IPTUN_VENDOR_BREAK, /* Ensure new entries do not hit the below. */
+	IFLA_IPTUN_FAN_MAP = 33,
+
 	__IFLA_IPTUN_MAX,
 };
 #define IFLA_IPTUN_MAX	(__IFLA_IPTUN_MAX - 1)
@@ -179,5 +183,21 @@ enum {
 
 #define TUNNEL_OPTIONS_PRESENT \
 		(TUNNEL_GENEVE_OPT | TUNNEL_VXLAN_OPT | TUNNEL_ERSPAN_OPT)
+#define TUNNEL_FAN		__cpu_to_be16(0x8000)
+
+enum {
+	IFLA_FAN_UNSPEC,
+	IFLA_FAN_MAPPING,
+	__IFLA_FAN_MAX,
+};
+
+#define IFLA_FAN_MAX (__IFLA_FAN_MAX - 1)
+
+struct ip_tunnel_fan_map {
+	__be32		underlay;
+	__be32		overlay;
+	__u16		underlay_prefix;
+	__u16		overlay_prefix;
+};
 
 #endif /* _UAPI_IF_TUNNEL_H_ */

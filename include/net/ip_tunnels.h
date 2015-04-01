@@ -100,6 +100,19 @@ struct ip_tunnel_prl_entry {
 };
 
 struct metadata_dst;
+/* A fan overlay /8 (250.0.0.0/8, for example) maps to exactly one /16
+ * underlay (10.88.0.0/16, for example).  Multiple local addresses within
+ * the /16 may be used, but a particular overlay may not span
+ * multiple underlay subnets.
+ *
+ * We store one underlay, indexed by the overlay's high order octet.
+ */
+#define FAN_OVERLAY_CNT		256
+
+struct ip_tunnel_fan {
+/*	u32 __rcu	*map;*/
+	u32		map[FAN_OVERLAY_CNT];
+};
 
 struct ip_tunnel {
 	struct ip_tunnel __rcu	*next;
@@ -137,6 +150,7 @@ struct ip_tunnel {
 #endif
 	struct ip_tunnel_prl_entry __rcu *prl;	/* potential router list */
 	unsigned int		prl_count;	/* # of entries in PRL */
+	struct ip_tunnel_fan	fan;
 	unsigned int		ip_tnl_net_id;
 	struct gro_cells	gro_cells;
 	__u32			fwmark;
