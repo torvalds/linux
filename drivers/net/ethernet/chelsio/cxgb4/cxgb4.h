@@ -1136,6 +1136,8 @@ int cxgb4_t4_bar2_sge_qregs(struct adapter *adapter,
 
 unsigned int qtimer_val(const struct adapter *adap,
 			const struct sge_rspq *q);
+
+int t4_init_devlog_params(struct adapter *adapter);
 int t4_init_sge_params(struct adapter *adapter);
 int t4_init_tp_params(struct adapter *adap);
 int t4_filter_field_shift(const struct adapter *adap, int filter_sel);
