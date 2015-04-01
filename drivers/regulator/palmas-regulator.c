@@ -1572,6 +1572,10 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 	if (!pmic)
 		return -ENOMEM;
 
+	if (of_device_is_compatible(node, "ti,tps659038-pmic"))
+		palmas_generic_regs_info[PALMAS_REG_REGEN2].ctrl_addr =
+							TPS659038_REGEN2_CTRL;
+
 	pmic->dev = &pdev->dev;
 	pmic->palmas = palmas;
 	palmas->pmic = pmic;

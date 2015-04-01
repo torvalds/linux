@@ -177,6 +177,17 @@ restart_entry:
 	lhi	%r1,1
 	sigp	%r1,%r0,SIGP_SET_ARCHITECTURE
 	sam64
+#ifdef CONFIG_SMP
+	larl	%r1,smp_cpu_mt_shift
+	icm	%r1,15,0(%r1)
+	jz	smt_done
+	llgfr	%r1,%r1
+smt_loop:
+	sigp	%r1,%r0,SIGP_SET_MULTI_THREADING
+	brc	8,smt_done			/* accepted */
+	brc	2,smt_loop			/* busy, try again */
+smt_done:
+#endif
 	larl	%r1,.Lnew_pgm_check_psw
 	lpswe	0(%r1)
 pgm_check_entry:
