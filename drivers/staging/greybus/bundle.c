@@ -80,7 +80,8 @@ void gb_bundle_bind_protocols(void)
  * bundle.  Returns a pointer to the new bundle or a null
  * pointer if a failure occurs due to memory exhaustion.
  */
-struct gb_bundle *gb_bundle_create(struct gb_interface *intf, u8 interface_id)
+struct gb_bundle *gb_bundle_create(struct gb_interface *intf, u8 bundle_id,
+				   u8 class_type)
 {
 	struct gb_bundle *bundle;
 	int retval;
@@ -90,7 +91,8 @@ struct gb_bundle *gb_bundle_create(struct gb_interface *intf, u8 interface_id)
 		return NULL;
 
 	bundle->intf = intf;
-	bundle->id = interface_id;
+	bundle->id = bundle_id;
+	bundle->class_type = class_type;
 	INIT_LIST_HEAD(&bundle->connections);
 
 	/* Invalid device id to start with */
@@ -103,12 +105,12 @@ struct gb_bundle *gb_bundle_create(struct gb_interface *intf, u8 interface_id)
 	bundle->dev.type = &greybus_bundle_type;
 	bundle->dev.groups = bundle_groups;
 	device_initialize(&bundle->dev);
-	dev_set_name(&bundle->dev, "%s:%d", dev_name(&intf->dev), interface_id);
+	dev_set_name(&bundle->dev, "%s:%d", dev_name(&intf->dev), bundle_id);
 
 	retval = device_add(&bundle->dev);
 	if (retval) {
 		pr_err("failed to add bundle device for id 0x%02hhx\n",
-			interface_id);
+			bundle_id);
 		put_device(&bundle->dev);
 		kfree(bundle);
 		return NULL;

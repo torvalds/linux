@@ -17,6 +17,7 @@ struct gb_bundle {
 	struct device		dev;
 	struct gb_interface	*intf;
 	u8			id;
+	u8			class_type;
 	u8			device_id;
 	struct list_head	connections;
 
@@ -27,7 +28,8 @@ struct gb_bundle {
 #define GB_DEVICE_ID_BAD	0xff
 
 /* Greybus "private" definitions" */
-struct gb_bundle *gb_bundle_create(struct gb_interface *intf, u8 module_id);
+struct gb_bundle *gb_bundle_create(struct gb_interface *intf, u8 bundle_id,
+				   u8 class_type);
 void gb_bundle_destroy(struct gb_interface *intf);
 int gb_bundle_init(struct gb_interface *intf, u8 module_id, u8 device_id);
 

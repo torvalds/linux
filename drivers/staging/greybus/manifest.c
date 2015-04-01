@@ -108,6 +108,9 @@ static int identify_descriptor(struct gb_interface *intf,
 		break;
 	case GREYBUS_TYPE_INTERFACE:
 		break;
+	case GREYBUS_TYPE_BUNDLE:
+		expected_size += sizeof(struct greybus_descriptor_bundle);
+		break;
 	case GREYBUS_TYPE_CPORT:
 		expected_size += sizeof(struct greybus_descriptor_cport);
 		break;
@@ -237,7 +240,7 @@ static u32 gb_manifest_parse_cports(struct gb_interface *intf,
 /*
  * Find bundle descriptors in the manifest and set up their data
  * structures.  Returns the number of bundles set up for the
- * given module.
+ * given interface.
  */
 static u32 gb_manifest_parse_bundles(struct gb_interface *intf)
 {
@@ -245,13 +248,13 @@ static u32 gb_manifest_parse_bundles(struct gb_interface *intf)
 
 	while (true) {
 		struct manifest_desc *descriptor;
-		struct greybus_descriptor_interface *desc_interface;
+		struct greybus_descriptor_bundle *desc_bundle;
 		struct gb_bundle *bundle;
 		bool found = false;
 
 		/* Find an bundle descriptor */
 		list_for_each_entry(descriptor, &intf->manifest_descs, links) {
-			if (descriptor->type == GREYBUS_TYPE_INTERFACE) {
+			if (descriptor->type == GREYBUS_TYPE_BUNDLE) {
 				found = true;
 				break;
 			}
@@ -260,8 +263,9 @@ static u32 gb_manifest_parse_bundles(struct gb_interface *intf)
 			break;
 
 		/* Found one.  Set up its bundle structure*/
-		desc_interface = descriptor->data;
-		bundle = gb_bundle_create(intf, desc_interface->id);
+		desc_bundle = descriptor->data;
+		bundle = gb_bundle_create(intf, desc_bundle->id,
+					  desc_bundle->class_type);
 		if (!bundle)
 			return 0;	/* Error */
 
