@@ -174,7 +174,6 @@ struct exynos_drm_display {
  *	hardware overlay is updated.
  * @win_mode_set: copy drm overlay info to hw specific overlay info.
  * @win_commit: apply hardware specific overlay data to registers.
- * @win_enable: enable hardware specific overlay.
  * @win_disable: disable hardware specific overlay.
  * @te_handler: trigger to transfer video image at the tearing effect
  *	synchronization signal if there is a page flip request.
@@ -192,7 +191,6 @@ struct exynos_drm_crtc_ops {
 	void (*win_mode_set)(struct exynos_drm_crtc *crtc,
 				struct exynos_drm_plane *plane);
 	void (*win_commit)(struct exynos_drm_crtc *crtc, int zpos);
-	void (*win_enable)(struct exynos_drm_crtc *crtc, int zpos);
 	void (*win_disable)(struct exynos_drm_crtc *crtc, int zpos);
 	void (*te_handler)(struct exynos_drm_crtc *crtc);
 };
