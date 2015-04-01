@@ -49,10 +49,33 @@ static const struct gmbus_pin gmbus_pins[] = {
 	[GMBUS_PIN_DPD] = { "dpd", GPIOF },
 };
 
+static const struct gmbus_pin gmbus_pins_bxt[] = {
+	[GMBUS_PIN_1_BXT] = { "dpb", PCH_GPIOB },
+	[GMBUS_PIN_2_BXT] = { "dpc", PCH_GPIOC },
+	[GMBUS_PIN_3_BXT] = { "misc", PCH_GPIOD },
+};
+
+/* pin is expected to be valid */
+static const struct gmbus_pin *get_gmbus_pin(struct drm_i915_private *dev_priv,
+					     unsigned int pin)
+{
+	if (IS_BROXTON(dev_priv))
+		return &gmbus_pins_bxt[pin];
+	else
+		return &gmbus_pins[pin];
+}
+
 bool intel_gmbus_is_valid_pin(struct drm_i915_private *dev_priv,
 			      unsigned int pin)
 {
-	return pin < ARRAY_SIZE(gmbus_pins) && gmbus_pins[pin].reg;
+	unsigned int size;
+
+	if (IS_BROXTON(dev_priv))
+		size = ARRAY_SIZE(gmbus_pins_bxt);
+	else
+		size = ARRAY_SIZE(gmbus_pins);
+
+	return pin < size && get_gmbus_pin(dev_priv, pin)->reg;
 }
 
 /* Intel GPIO access functions */
@@ -196,7 +219,8 @@ intel_gpio_setup(struct intel_gmbus *bus, unsigned int pin)
 
 	algo = &bus->bit_algo;
 
-	bus->gpio_reg = dev_priv->gpio_mmio_base + gmbus_pins[pin].reg;
+	bus->gpio_reg = dev_priv->gpio_mmio_base +
+		get_gmbus_pin(dev_priv, pin)->reg;
 
 	bus->adapter.algo_data = algo;
 	algo->setsda = set_data;
@@ -550,7 +574,7 @@ int intel_setup_gmbus(struct drm_device *dev)
 		snprintf(bus->adapter.name,
 			 sizeof(bus->adapter.name),
 			 "i915 gmbus %s",
-			 gmbus_pins[pin].name);
+			 get_gmbus_pin(dev_priv, pin)->name);
 
 		bus->adapter.dev.parent = &dev->pdev->dev;
 		bus->dev_priv = dev_priv;

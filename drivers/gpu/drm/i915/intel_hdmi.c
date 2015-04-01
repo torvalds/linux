@@ -1681,15 +1681,23 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 
 	switch (port) {
 	case PORT_B:
-		intel_hdmi->ddc_bus = GMBUS_PIN_DPB;
+		if (IS_BROXTON(dev_priv))
+			intel_hdmi->ddc_bus = GMBUS_PIN_1_BXT;
+		else
+			intel_hdmi->ddc_bus = GMBUS_PIN_DPB;
 		intel_encoder->hpd_pin = HPD_PORT_B;
 		break;
 	case PORT_C:
-		intel_hdmi->ddc_bus = GMBUS_PIN_DPC;
+		if (IS_BROXTON(dev_priv))
+			intel_hdmi->ddc_bus = GMBUS_PIN_2_BXT;
+		else
+			intel_hdmi->ddc_bus = GMBUS_PIN_DPC;
 		intel_encoder->hpd_pin = HPD_PORT_C;
 		break;
 	case PORT_D:
-		if (IS_CHERRYVIEW(dev))
+		if (WARN_ON(IS_BROXTON(dev_priv)))
+			intel_hdmi->ddc_bus = GMBUS_PIN_DISABLED;
+		else if (IS_CHERRYVIEW(dev_priv))
 			intel_hdmi->ddc_bus = GMBUS_PIN_DPD_CHV;
 		else
 			intel_hdmi->ddc_bus = GMBUS_PIN_DPD;
