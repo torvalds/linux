@@ -53,8 +53,6 @@ Boards:
     compatible = "renesas,kzm9d", "renesas,emev2"
   - Kyoto Microcomputer Co. KZM-A9-GT
     compatible = "renesas,kzm9g", "renesas,sh73a0"
-  - Kyoto Microcomputer Co. KZM-A9-GT - Reference Device Tree Implementation
-    compatible = "renesas,kzm9g-reference", "renesas,sh73a0"
   - Lager (RTP0RC7790SEB00010S)
     compatible = "renesas,lager", "renesas,r8a7790"
   - Marzen
