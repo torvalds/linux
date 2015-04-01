@@ -20,6 +20,43 @@
 #define VIRTIO_PCI_NO_LEGACY
 #include "virtio_pci_common.h"
 
+/*
+ * Type-safe wrappers for io accesses.
+ * Use these to enforce at compile time the following spec requirement:
+ *
+ * The driver MUST access each field using the “natural” access
+ * method, i.e. 32-bit accesses for 32-bit fields, 16-bit accesses
+ * for 16-bit fields and 8-bit accesses for 8-bit fields.
+ */
+static inline u8 vp_ioread8(u8 __iomem *addr)
+{
+	return ioread8(addr);
+}
+static inline u16 vp_ioread16 (u16 __iomem *addr)
+{
+	return ioread16(addr);
+}
+
+static inline u32 vp_ioread32(u32 __iomem *addr)
+{
+	return ioread32(addr);
+}
+
+static inline void vp_iowrite8(u8 value, u8 __iomem *addr)
+{
+	iowrite8(value, addr);
+}
+
+static inline void vp_iowrite16(u16 value, u16 __iomem *addr)
+{
+	iowrite16(value, addr);
+}
+
+static inline void vp_iowrite32(u32 value, u32 __iomem *addr)
+{
+	iowrite32(value, addr);
+}
+
 static void __iomem *map_capability(struct pci_dev *dev, int off,
 				    size_t minlen,
 				    u32 align,
