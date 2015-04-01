@@ -2422,16 +2422,6 @@ static int device_change_notifier(struct notifier_block *nb,
 	dev_data = get_dev_data(dev);
 
 	switch (action) {
-	case BUS_NOTIFY_UNBOUND_DRIVER:
-
-		domain = domain_for_device(dev);
-
-		if (!domain)
-			goto out;
-		if (dev_data->passthrough)
-			break;
-		detach_device(dev);
-		break;
 	case BUS_NOTIFY_ADD_DEVICE:
 
 		iommu_init_device(dev);
