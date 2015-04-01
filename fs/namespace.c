@@ -1348,6 +1348,7 @@ static inline void namespace_lock(void)
 enum umount_tree_flags {
 	UMOUNT_SYNC = 1,
 	UMOUNT_PROPAGATE = 2,
+	UMOUNT_CONNECTED = 4,
 };
 /*
  * mount_lock must be held
@@ -1386,7 +1387,10 @@ static void umount_tree(struct mount *mnt, enum umount_tree_flags how)
 		if (how & UMOUNT_SYNC)
 			p->mnt.mnt_flags |= MNT_SYNC_UMOUNT;
 
-		disconnect = !IS_MNT_LOCKED_AND_LAZY(p);
+		disconnect = !(((how & UMOUNT_CONNECTED) &&
+				mnt_has_parent(p) &&
+				(p->mnt_parent->mnt.mnt_flags & MNT_UMOUNT)) ||
+			       IS_MNT_LOCKED_AND_LAZY(p));
 
 		pin_insert_group(&p->mnt_umount, &p->mnt_parent->mnt,
 				 disconnect ? &unmounted : NULL);
@@ -1529,7 +1533,7 @@ void __detach_mounts(struct dentry *dentry)
 				umount_mnt(p);
 			}
 		}
-		else umount_tree(mnt, 0);
+		else umount_tree(mnt, UMOUNT_CONNECTED);
 	}
 	unlock_mount_hash();
 	put_mountpoint(mp);
