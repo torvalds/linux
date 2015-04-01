@@ -34,6 +34,7 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/uaccess.h>
+#include <linux/uio.h>
 #include <net/9p/9p.h>
 #include <linux/parser.h>
 #include <net/9p/client.h>
@@ -555,7 +556,7 @@ out_err:
  */
 
 static int p9_check_zc_errors(struct p9_client *c, struct p9_req_t *req,
-			      char *uidata, int in_hdrlen, int kern_buf)
+			      struct iov_iter *uidata, int in_hdrlen)
 {
 	int err;
 	int ecode;
@@ -591,16 +592,11 @@ static int p9_check_zc_errors(struct p9_client *c, struct p9_req_t *req,
 		ename = &req->rc->sdata[req->rc->offset];
 		if (len > inline_len) {
 			/* We have error in external buffer */
-			if (kern_buf) {
-				memcpy(ename + inline_len, uidata,
-				       len - inline_len);
-			} else {
-				err = copy_from_user(ename + inline_len,
-						     uidata, len - inline_len);
-				if (err) {
-					err = -EFAULT;
-					goto out_err;
-				}
+			err = copy_from_iter(ename + inline_len,
+					     len - inline_len, uidata);
+			if (err != len - inline_len) {
+				err = -EFAULT;
+				goto out_err;
 			}
 		}
 		ename = NULL;
@@ -806,8 +802,8 @@ reterr:
  * p9_client_zc_rpc - issue a request and wait for a response
  * @c: client session
  * @type: type of request
- * @uidata: user bffer that should be ued for zero copy read
- * @uodata: user buffer that shoud be user for zero copy write
+ * @uidata: destination for zero copy read
+ * @uodata: source for zero copy write
  * @inlen: read buffer size
  * @olen: write buffer size
  * @hdrlen: reader header size, This is the size of response protocol data
@@ -816,9 +812,10 @@ reterr:
  * Returns request structure (which client must free using p9_free_req)
  */
 static struct p9_req_t *p9_client_zc_rpc(struct p9_client *c, int8_t type,
-					 char *uidata, char *uodata,
+					 struct iov_iter *uidata,
+					 struct iov_iter *uodata,
 					 int inlen, int olen, int in_hdrlen,
-					 int kern_buf, const char *fmt, ...)
+					 const char *fmt, ...)
 {
 	va_list ap;
 	int sigpending, err;
@@ -841,12 +838,8 @@ static struct p9_req_t *p9_client_zc_rpc(struct p9_client *c, int8_t type,
 	} else
 		sigpending = 0;
 
-	/* If we are called with KERNEL_DS force kern_buf */
-	if (segment_eq(get_fs(), KERNEL_DS))
-		kern_buf = 1;
-
 	err = c->trans_mod->zc_request(c, req, uidata, uodata,
-				       inlen, olen, in_hdrlen, kern_buf);
+				       inlen, olen, in_hdrlen);
 	if (err < 0) {
 		if (err == -EIO)
 			c->status = Disconnected;
@@ -876,7 +869,7 @@ static struct p9_req_t *p9_client_zc_rpc(struct p9_client *c, int8_t type,
 	if (err < 0)
 		goto reterr;
 
-	err = p9_check_zc_errors(c, req, uidata, in_hdrlen, kern_buf);
+	err = p9_check_zc_errors(c, req, uidata, in_hdrlen);
 	trace_9p_client_res(c, type, req->rc->tag, err);
 	if (!err)
 		return req;
@@ -1545,11 +1538,24 @@ p9_client_read(struct p9_fid *fid, char *data, char __user *udata, u64 offset,
 								u32 count)
 {
 	char *dataptr;
-	int kernel_buf = 0;
 	struct p9_req_t *req;
 	struct p9_client *clnt;
 	int err, rsize, non_zc = 0;
+	struct iov_iter to;
+	union {
+		struct kvec kv;
+		struct iovec iov;
+	} v;
 
+	if (data) {
+		v.kv.iov_base = data;
+		v.kv.iov_len = count;
+		iov_iter_kvec(&to, ITER_KVEC | READ, &v.kv, 1, count);
+	} else {
+		v.iov.iov_base = udata;
+		v.iov.iov_len = count;
+		iov_iter_init(&to, READ, &v.iov, 1, count);
+	}
 
 	p9_debug(P9_DEBUG_9P, ">>> TREAD fid %d offset %llu %d\n",
 		   fid->fid, (unsigned long long) offset, count);
@@ -1565,18 +1571,12 @@ p9_client_read(struct p9_fid *fid, char *data, char __user *udata, u64 offset,
 
 	/* Don't bother zerocopy for small IO (< 1024) */
 	if (clnt->trans_mod->zc_request && rsize > 1024) {
-		char *indata;
-		if (data) {
-			kernel_buf = 1;
-			indata = data;
-		} else
-			indata = (__force char *)udata;
 		/*
 		 * response header len is 11
 		 * PDU Header(7) + IO Size (4)
 		 */
-		req = p9_client_zc_rpc(clnt, P9_TREAD, indata, NULL, rsize, 0,
-				       11, kernel_buf, "dqd", fid->fid,
+		req = p9_client_zc_rpc(clnt, P9_TREAD, &to, NULL, rsize, 0,
+				       11, "dqd", fid->fid,
 				       offset, rsize);
 	} else {
 		non_zc = 1;
@@ -1596,16 +1596,9 @@ p9_client_read(struct p9_fid *fid, char *data, char __user *udata, u64 offset,
 
 	p9_debug(P9_DEBUG_9P, "<<< RREAD count %d\n", count);
 
-	if (non_zc) {
-		if (data) {
-			memmove(data, dataptr, count);
-		} else {
-			err = copy_to_user(udata, dataptr, count);
-			if (err) {
-				err = -EFAULT;
-				goto free_and_error;
-			}
-		}
+	if (non_zc && copy_to_iter(dataptr, count, &to) != count) {
+		err = -EFAULT;
+		goto free_and_error;
 	}
 	p9_free_req(clnt, req);
 	return count;
@@ -1622,9 +1615,23 @@ p9_client_write(struct p9_fid *fid, char *data, const char __user *udata,
 							u64 offset, u32 count)
 {
 	int err, rsize;
-	int kernel_buf = 0;
 	struct p9_client *clnt;
 	struct p9_req_t *req;
+	struct iov_iter from;
+	union {
+		struct kvec kv;
+		struct iovec iov;
+	} v;
+
+	if (data) {
+		v.kv.iov_base = data;
+		v.kv.iov_len = count;
+		iov_iter_kvec(&from, ITER_KVEC | WRITE, &v.kv, 1, count);
+	} else {
+		v.iov.iov_base = udata;
+		v.iov.iov_len = count;
+		iov_iter_init(&from, WRITE, &v.iov, 1, count);
+	}
 
 	p9_debug(P9_DEBUG_9P, ">>> TWRITE fid %d offset %llu count %d\n",
 				fid->fid, (unsigned long long) offset, count);
@@ -1640,22 +1647,12 @@ p9_client_write(struct p9_fid *fid, char *data, const char __user *udata,
 
 	/* Don't bother zerocopy for small IO (< 1024) */
 	if (clnt->trans_mod->zc_request && rsize > 1024) {
-		char *odata;
-		if (data) {
-			kernel_buf = 1;
-			odata = data;
-		} else
-			odata = (char *)udata;
-		req = p9_client_zc_rpc(clnt, P9_TWRITE, NULL, odata, 0, rsize,
-				       P9_ZC_HDR_SZ, kernel_buf, "dqd",
+		req = p9_client_zc_rpc(clnt, P9_TWRITE, NULL, &from, 0, rsize,
+				       P9_ZC_HDR_SZ, "dqd",
 				       fid->fid, offset, rsize);
 	} else {
-		if (data)
-			req = p9_client_rpc(clnt, P9_TWRITE, "dqD", fid->fid,
-					    offset, rsize, data);
-		else
-			req = p9_client_rpc(clnt, P9_TWRITE, "dqU", fid->fid,
-					    offset, rsize, udata);
+		req = p9_client_rpc(clnt, P9_TWRITE, "dqV", fid->fid,
+					    offset, rsize, &from);
 	}
 	if (IS_ERR(req)) {
 		err = PTR_ERR(req);
@@ -2068,6 +2065,10 @@ int p9_client_readdir(struct p9_fid *fid, char *data, u32 count, u64 offset)
 	struct p9_client *clnt;
 	struct p9_req_t *req;
 	char *dataptr;
+	struct kvec kv = {.iov_base = data, .iov_len = count};
+	struct iov_iter to;
+
+	iov_iter_kvec(&to, READ | ITER_KVEC, &kv, 1, count);
 
 	p9_debug(P9_DEBUG_9P, ">>> TREADDIR fid %d offset %llu count %d\n",
 				fid->fid, (unsigned long long) offset, count);
@@ -2088,8 +2089,8 @@ int p9_client_readdir(struct p9_fid *fid, char *data, u32 count, u64 offset)
 		 * response header len is 11
 		 * PDU Header(7) + IO Size (4)
 		 */
-		req = p9_client_zc_rpc(clnt, P9_TREADDIR, data, NULL, rsize, 0,
-				       11, 1, "dqd", fid->fid, offset, rsize);
+		req = p9_client_zc_rpc(clnt, P9_TREADDIR, &to, NULL, rsize, 0,
+				       11, "dqd", fid->fid, offset, rsize);
 	} else {
 		non_zc = 1;
 		req = p9_client_rpc(clnt, P9_TREADDIR, "dqd", fid->fid,
