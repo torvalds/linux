@@ -686,6 +686,13 @@ static int br_nf_forward_finish(struct sk_buff *skb)
 	struct net_device *in;
 
 	if (!IS_ARP(skb) && !IS_VLAN_ARP(skb)) {
+		int frag_max_size;
+
+		if (skb->protocol == htons(ETH_P_IP)) {
+			frag_max_size = IPCB(skb)->frag_max_size;
+			BR_INPUT_SKB_CB(skb)->frag_max_size = frag_max_size;
+		}
+
 		in = nf_bridge->physindev;
 		if (nf_bridge->mask & BRNF_PKT_TYPE) {
 			skb->pkt_type = PACKET_OTHERHOST;
@@ -745,8 +752,14 @@ static unsigned int br_nf_forward_ip(const struct nf_hook_ops *ops,
 		nf_bridge->mask |= BRNF_PKT_TYPE;
 	}
 
-	if (pf == NFPROTO_IPV4 && br_parse_ip_options(skb))
-		return NF_DROP;
+	if (pf == NFPROTO_IPV4) {
+		int frag_max = BR_INPUT_SKB_CB(skb)->frag_max_size;
+
+		if (br_parse_ip_options(skb))
+			return NF_DROP;
+
+		IPCB(skb)->frag_max_size = frag_max;
+	}
 
 	nf_bridge->physoutdev = skb->dev;
 	if (pf == NFPROTO_IPV4)
