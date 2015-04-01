@@ -1574,8 +1574,7 @@ struct drm_i915_private {
 
 	struct i915_virtual_gpu vgpu;
 
-	struct intel_gmbus gmbus[GMBUS_NUM_PORTS];
-
+	struct intel_gmbus gmbus[GMBUS_NUM_PINS];
 
 	/** gmbus_mutex protects against concurrent usage of the single hw gmbus
 	 * controller on different i2c buses. */

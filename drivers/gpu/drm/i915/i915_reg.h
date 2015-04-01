@@ -1797,7 +1797,7 @@ enum skl_disp_power_wells {
 #define   GMBUS_PIN_DPB		5 /* SDVO, HDMIB */
 #define   GMBUS_PIN_DPD		6 /* HDMID */
 #define   GMBUS_PIN_RESERVED	7 /* 7 reserved */
-#define   GMBUS_NUM_PORTS	(GMBUS_PIN_DPD - GMBUS_PIN_SSC + 1)
+#define   GMBUS_NUM_PINS	7 /* including 0 */
 #define GMBUS1			0x5104 /* command/status */
 #define   GMBUS_SW_CLR_INT	(1<<31)
 #define   GMBUS_SW_RDY		(1<<30)
