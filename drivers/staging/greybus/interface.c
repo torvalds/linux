@@ -197,7 +197,7 @@ static void gb_interface_destroy(struct gb_interface *intf)
 /**
  * gb_add_interface
  *
- * Pass in a buffer that _should_ contain a Greybus module manifest
+ * Pass in a buffer that _should_ contain a Greybus manifest
  * and register a greybus device structure with the kernel core.
  */
 void gb_add_interface(struct greybus_host_device *hd, u8 interface_id, u8 *data,

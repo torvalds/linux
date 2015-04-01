@@ -1,5 +1,5 @@
 /*
- * Greybus module manifest definition
+ * Greybus manifest definition
  *
  * See "Greybus Application Protocol" document (version 0.1) for
  * details on these values and structures.
@@ -94,19 +94,16 @@ struct greybus_descriptor_string {
 };
 
 /*
- * An interface descriptor simply defines a module-unique id for
- * each interface present on a module.  Its sole purpose is to allow
- * CPort descriptors to specify which interface they are associated
- * with.  Normally there's only one interface, with id 0.  The
- * second one must have id 1, and so on consecutively.
- *
- * The largest CPort id associated with an interface (defined by a
- * CPort descriptor in the manifest) is used to determine how to
- * encode the device id and module number in UniPro packets
- * that use the interface.
+ * An interface descriptor describes information about an interface as a whole,
+ * *not* the functions within it.
  */
 struct greybus_descriptor_interface {
-	__u8	id;	/* module-relative id (0..) */
+	__le16	vendor;
+	__le16	product;
+	__le16	version;	// TODO - remove after Dec demo.
+	__u8	vendor_stringid;
+	__u8	product_stringid;
+	__le64	unique_id;
 };
 
 /*

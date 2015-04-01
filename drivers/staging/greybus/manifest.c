@@ -1,5 +1,5 @@
 /*
- * Greybus module manifest parsing
+ * Greybus manifest parsing
  *
  * Copyright 2014-2015 Google Inc.
  * Copyright 2014-2015 Linaro Ltd.
@@ -40,7 +40,7 @@ static const char *get_descriptor_type_string(u8 type)
  * We scan the manifest once to identify where all the descriptors
  * are.  The result is a list of these manifest_desc structures.  We
  * then pick through them for what we're looking for (starting with
- * the module descriptor).  As each is processed we remove it from
+ * the interface descriptor).  As each is processed we remove it from
  * the list.  When we're done the list should (probably) be empty.
  */
 struct manifest_desc {
@@ -107,6 +107,7 @@ static int identify_descriptor(struct gb_interface *intf,
 		expected_size += desc->string.length;
 		break;
 	case GREYBUS_TYPE_INTERFACE:
+		expected_size += sizeof(struct greybus_descriptor_interface);
 		break;
 	case GREYBUS_TYPE_BUNDLE:
 		expected_size += sizeof(struct greybus_descriptor_bundle);
@@ -282,28 +283,28 @@ static u32 gb_manifest_parse_bundles(struct gb_interface *intf)
 	return count;
 }
 
-static bool gb_manifest_parse_module(struct gb_interface *intf,
-				     struct manifest_desc *module_desc)
+static bool gb_manifest_parse_interface(struct gb_interface *intf,
+					struct manifest_desc *interface_desc)
 {
-	struct greybus_descriptor_module *desc_module = module_desc->data;
+	struct greybus_descriptor_interface *desc_intf = interface_desc->data;
 
 	/* Handle the strings first--they can fail */
-	intf->vendor_string = gb_string_get(intf, desc_module->vendor_stringid);
+	intf->vendor_string = gb_string_get(intf, desc_intf->vendor_stringid);
 	if (IS_ERR(intf->vendor_string))
 		return false;
 
 	intf->product_string = gb_string_get(intf,
-					     desc_module->product_stringid);
+					     desc_intf->product_stringid);
 	if (IS_ERR(intf->product_string)) {
 		goto out_free_vendor_string;
 	}
 
-	intf->vendor = le16_to_cpu(desc_module->vendor);
-	intf->product = le16_to_cpu(desc_module->product);
-	intf->unique_id = le64_to_cpu(desc_module->unique_id);
+	intf->vendor = le16_to_cpu(desc_intf->vendor);
+	intf->product = le16_to_cpu(desc_intf->product);
+	intf->unique_id = le64_to_cpu(desc_intf->unique_id);
 
-	/* Release the module descriptor, now that we're done with it */
-	release_manifest_descriptor(module_desc);
+	/* Release the interface descriptor, now that we're done with it */
+	release_manifest_descriptor(interface_desc);
 
 	/* An interface must have at least one bundle descriptor */
 	if (!gb_manifest_parse_bundles(intf)) {
@@ -323,7 +324,7 @@ out_free_vendor_string:
 }
 
 /*
- * Parse a buffer containing a module manifest.
+ * Parse a buffer containing a Interface manifest.
  *
  * If we find anything wrong with the content/format of the buffer
  * we reject it.
@@ -335,7 +336,7 @@ out_free_vendor_string:
  * the descriptors it contains, keeping track for each its type
  * and the location size of its data in the buffer.
  *
- * Next we scan the descriptors, looking for a module descriptor;
+ * Next we scan the descriptors, looking for a interface descriptor;
  * there must be exactly one of those.  When found, we record the
  * information it contains, and then remove that descriptor (and any
  * string descriptors it refers to) from further consideration.
@@ -351,7 +352,7 @@ bool gb_manifest_parse(struct gb_interface *intf, void *data, size_t size)
 	struct greybus_manifest_header *header;
 	struct greybus_descriptor *desc;
 	struct manifest_desc *descriptor;
-	struct manifest_desc *module_desc = NULL;
+	struct manifest_desc *interface_desc = NULL;
 	u16 manifest_size;
 	u32 found = 0;
 	bool result;
@@ -399,28 +400,28 @@ bool gb_manifest_parse(struct gb_interface *intf, void *data, size_t size)
 		size -= desc_size;
 	}
 
-	/* There must be a single module descriptor */
+	/* There must be a single interface descriptor */
 	list_for_each_entry(descriptor, &intf->manifest_descs, links) {
-		if (descriptor->type == GREYBUS_TYPE_MODULE)
+		if (descriptor->type == GREYBUS_TYPE_INTERFACE)
 			if (!found++)
-				module_desc = descriptor;
+				interface_desc = descriptor;
 	}
 	if (found != 1) {
-		pr_err("manifest must have 1 module descriptor (%u found)\n",
+		pr_err("manifest must have 1 interface descriptor (%u found)\n",
 			found);
 		result = false;
 		goto out;
 	}
 
-	/* Parse the module manifest, starting with the module descriptor */
-	result = gb_manifest_parse_module(intf, module_desc);
+	/* Parse the manifest, starting with the interface descriptor */
+	result = gb_manifest_parse_interface(intf, interface_desc);
 
 	/*
 	 * We really should have no remaining descriptors, but we
 	 * don't know what newer format manifests might leave.
 	 */
 	if (result && !list_empty(&intf->manifest_descs))
-		pr_info("excess descriptors in module manifest\n");
+		pr_info("excess descriptors in interface manifest\n");
 out:
 	release_manifest_descriptors(intf);
 

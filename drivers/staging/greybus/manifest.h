@@ -1,5 +1,5 @@
 /*
- * Greybus module manifest parsing
+ * Greybus manifest parsing
  *
  * Copyright 2014 Google Inc.
  * Copyright 2014 Linaro Ltd.
