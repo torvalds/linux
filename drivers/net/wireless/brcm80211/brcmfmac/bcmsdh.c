@@ -29,6 +29,7 @@
 #include <linux/mmc/host.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/brcmfmac-sdio.h>
+#include <linux/pm_runtime.h>
 #include <linux/suspend.h>
 #include <linux/errno.h>
 #include <linux/module.h>
@@ -1006,6 +1007,7 @@ static int brcmf_sdiod_remove(struct brcmf_sdio_dev *sdiodev)
 	sg_free_table(&sdiodev->sgtable);
 	sdiodev->sbwad = 0;
 
+	pm_runtime_allow(sdiodev->func[1]->card->host->parent);
 	return 0;
 }
 
@@ -1074,7 +1076,7 @@ static int brcmf_sdiod_probe(struct brcmf_sdio_dev *sdiodev)
 		ret = -ENODEV;
 		goto out;
 	}
-
+	pm_runtime_forbid(host->parent);
 out:
 	if (ret)
 		brcmf_sdiod_remove(sdiodev);
@@ -1096,6 +1098,8 @@ static const struct sdio_device_id brcmf_sdmmc_ids[] = {
 	BRCMF_SDIO_DEVICE(SDIO_DEVICE_ID_BROADCOM_43341),
 	BRCMF_SDIO_DEVICE(SDIO_DEVICE_ID_BROADCOM_43362),
 	BRCMF_SDIO_DEVICE(SDIO_DEVICE_ID_BROADCOM_4335_4339),
+	BRCMF_SDIO_DEVICE(SDIO_DEVICE_ID_BROADCOM_43430),
+	BRCMF_SDIO_DEVICE(SDIO_DEVICE_ID_BROADCOM_4345),
 	BRCMF_SDIO_DEVICE(SDIO_DEVICE_ID_BROADCOM_4354),
 	{ /* end: all zeroes */ }
 };
@@ -1194,7 +1198,7 @@ static void brcmf_ops_sdio_remove(struct sdio_func *func)
 	brcmf_dbg(SDIO, "sdio device ID: 0x%04x\n", func->device);
 	brcmf_dbg(SDIO, "Function: %d\n", func->num);
 
-	if (func->num != 1 && func->num != 2)
+	if (func->num != 1)
 		return;
 
 	bus_if = dev_get_drvdata(&func->dev);

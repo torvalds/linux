@@ -4866,7 +4866,7 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 	switch (dev->dev->bus_type) {
 #ifdef CONFIG_B43_BCMA
 	case B43_BUS_BCMA:
-		bcma_core_pci_irq_ctl(dev->dev->bdev->bus,
+		bcma_host_pci_irq_ctl(dev->dev->bdev->bus,
 				      dev->dev->bdev, true);
 		bcma_host_pci_up(dev->dev->bdev->bus);
 		break;

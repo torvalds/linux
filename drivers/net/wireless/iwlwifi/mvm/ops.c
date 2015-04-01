@@ -82,7 +82,6 @@
 #include "rs.h"
 #include "fw-api-scan.h"
 #include "time-event.h"
-#include "iwl-fw-error-dump.h"
 
 #define DRV_DESCRIPTION	"The new Intel(R) wireless AGN driver for Linux"
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
@@ -234,6 +233,7 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 		   iwl_mvm_rx_ant_coupling_notif, true),
 
 	RX_HANDLER(TIME_EVENT_NOTIFICATION, iwl_mvm_rx_time_event_notif, false),
+	RX_HANDLER(MCC_CHUB_UPDATE_CMD, iwl_mvm_rx_chub_update_mcc, true),
 
 	RX_HANDLER(EOSP_NOTIFICATION, iwl_mvm_rx_eosp_notif, false),
 
@@ -358,6 +358,7 @@ static const char *const iwl_mvm_cmd_strings[REPLY_MAX] = {
 	CMD(TDLS_CHANNEL_SWITCH_CMD),
 	CMD(TDLS_CHANNEL_SWITCH_NOTIFICATION),
 	CMD(TDLS_CONFIG_CMD),
+	CMD(MCC_UPDATE_CMD),
 };
 #undef CMD
 
@@ -871,8 +872,8 @@ static void iwl_mvm_fw_error_dump_wk(struct work_struct *work)
 
 	/* start recording again if the firmware is not crashed */
 	WARN_ON_ONCE((!test_bit(STATUS_FW_ERROR, &mvm->trans->status)) &&
-		      mvm->fw->dbg_dest_tlv &&
-		      iwl_mvm_start_fw_dbg_conf(mvm, mvm->fw_dbg_conf));
+		     mvm->fw->dbg_dest_tlv &&
+		     iwl_mvm_start_fw_dbg_conf(mvm, mvm->fw_dbg_conf));
 
 	mutex_unlock(&mvm->mutex);
 
@@ -1270,6 +1271,10 @@ static void iwl_mvm_d0i3_exit_work(struct work_struct *wk)
 	iwl_free_resp(&get_status_cmd);
 out:
 	iwl_mvm_d0i3_enable_tx(mvm, qos_seq);
+
+	/* the FW might have updated the regdomain */
+	iwl_mvm_update_changed_regdom(mvm);
+
 	iwl_mvm_unref(mvm, IWL_MVM_REF_EXIT_WORK);
 	mutex_unlock(&mvm->mutex);
 }

@@ -99,7 +99,35 @@ static void iwl_mvm_bound_iface_iterator(void *_data, u8 *mac,
 
 /*
  * Aging and idle timeouts for the different possible scenarios
- * in SF_FULL_ON state.
+ * in default configuration
+ */
+static const
+__le32 sf_full_timeout_def[SF_NUM_SCENARIO][SF_NUM_TIMEOUT_TYPES] = {
+	{
+		cpu_to_le32(SF_SINGLE_UNICAST_AGING_TIMER_DEF),
+		cpu_to_le32(SF_SINGLE_UNICAST_IDLE_TIMER_DEF)
+	},
+	{
+		cpu_to_le32(SF_AGG_UNICAST_AGING_TIMER_DEF),
+		cpu_to_le32(SF_AGG_UNICAST_IDLE_TIMER_DEF)
+	},
+	{
+		cpu_to_le32(SF_MCAST_AGING_TIMER_DEF),
+		cpu_to_le32(SF_MCAST_IDLE_TIMER_DEF)
+	},
+	{
+		cpu_to_le32(SF_BA_AGING_TIMER_DEF),
+		cpu_to_le32(SF_BA_IDLE_TIMER_DEF)
+	},
+	{
+		cpu_to_le32(SF_TX_RE_AGING_TIMER_DEF),
+		cpu_to_le32(SF_TX_RE_IDLE_TIMER_DEF)
+	},
+};
+
+/*
+ * Aging and idle timeouts for the different possible scenarios
+ * in single BSS MAC configuration.
  */
 static const __le32 sf_full_timeout[SF_NUM_SCENARIO][SF_NUM_TIMEOUT_TYPES] = {
 	{
@@ -124,7 +152,8 @@ static const __le32 sf_full_timeout[SF_NUM_SCENARIO][SF_NUM_TIMEOUT_TYPES] = {
 	},
 };
 
-static void iwl_mvm_fill_sf_command(struct iwl_sf_cfg_cmd *sf_cmd,
+static void iwl_mvm_fill_sf_command(struct iwl_mvm *mvm,
+				    struct iwl_sf_cfg_cmd *sf_cmd,
 				    struct ieee80211_sta *sta)
 {
 	int i, j, watermark;
@@ -163,24 +192,38 @@ static void iwl_mvm_fill_sf_command(struct iwl_sf_cfg_cmd *sf_cmd,
 					cpu_to_le32(SF_LONG_DELAY_AGING_TIMER);
 		}
 	}
-	BUILD_BUG_ON(sizeof(sf_full_timeout) !=
-		     sizeof(__le32) * SF_NUM_SCENARIO * SF_NUM_TIMEOUT_TYPES);
 
-	memcpy(sf_cmd->full_on_timeouts, sf_full_timeout,
-	       sizeof(sf_full_timeout));
+	if (sta || IWL_UCODE_API(mvm->fw->ucode_ver) < 13) {
+		BUILD_BUG_ON(sizeof(sf_full_timeout) !=
+			     sizeof(__le32) * SF_NUM_SCENARIO *
+			     SF_NUM_TIMEOUT_TYPES);
+
+		memcpy(sf_cmd->full_on_timeouts, sf_full_timeout,
+		       sizeof(sf_full_timeout));
+	} else {
+		BUILD_BUG_ON(sizeof(sf_full_timeout_def) !=
+			     sizeof(__le32) * SF_NUM_SCENARIO *
+			     SF_NUM_TIMEOUT_TYPES);
+
+		memcpy(sf_cmd->full_on_timeouts, sf_full_timeout_def,
+		       sizeof(sf_full_timeout_def));
+	}
+
 }
 
 static int iwl_mvm_sf_config(struct iwl_mvm *mvm, u8 sta_id,
 			     enum iwl_sf_state new_state)
 {
 	struct iwl_sf_cfg_cmd sf_cmd = {
-		.state = cpu_to_le32(new_state),
+		.state = cpu_to_le32(SF_FULL_ON),
 	};
 	struct ieee80211_sta *sta;
 	int ret = 0;
 
-	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_SF_NO_DUMMY_NOTIF &&
-	    mvm->cfg->disable_dummy_notification)
+	if (IWL_UCODE_API(mvm->fw->ucode_ver) < 13)
+		sf_cmd.state = cpu_to_le32(new_state);
+
+	if (mvm->cfg->disable_dummy_notification)
 		sf_cmd.state |= cpu_to_le32(SF_CFG_DUMMY_NOTIF_OFF);
 
 	/*
@@ -192,6 +235,8 @@ static int iwl_mvm_sf_config(struct iwl_mvm *mvm, u8 sta_id,
 
 	switch (new_state) {
 	case SF_UNINIT:
+		if (IWL_UCODE_API(mvm->fw->ucode_ver) >= 13)
+			iwl_mvm_fill_sf_command(mvm, &sf_cmd, NULL);
 		break;
 	case SF_FULL_ON:
 		if (sta_id == IWL_MVM_STATION_COUNT) {
@@ -206,11 +251,11 @@ static int iwl_mvm_sf_config(struct iwl_mvm *mvm, u8 sta_id,
 			rcu_read_unlock();
 			return -EINVAL;
 		}
-		iwl_mvm_fill_sf_command(&sf_cmd, sta);
+		iwl_mvm_fill_sf_command(mvm, &sf_cmd, sta);
 		rcu_read_unlock();
 		break;
 	case SF_INIT_OFF:
-		iwl_mvm_fill_sf_command(&sf_cmd, NULL);
+		iwl_mvm_fill_sf_command(mvm, &sf_cmd, NULL);
 		break;
 	default:
 		WARN_ONCE(1, "Invalid state: %d. not sending Smart Fifo cmd\n",

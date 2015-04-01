@@ -4959,7 +4959,7 @@ static int brcms_b_up_prep(struct brcms_hardware *wlc_hw)
 	 * Configure pci/pcmcia here instead of in brcms_c_attach()
 	 * to allow mfg hotswap:  down, hotswap (chip power cycle), up.
 	 */
-	bcma_core_pci_irq_ctl(wlc_hw->d11core->bus, wlc_hw->d11core,
+	bcma_host_pci_irq_ctl(wlc_hw->d11core->bus, wlc_hw->d11core,
 			      true);
 
 	/*

@@ -233,6 +233,7 @@ static int rt2800usb_autorun_detect(struct rt2x00_dev *rt2x00dev)
 {
 	__le32 *reg;
 	u32 fw_mode;
+	int ret;
 
 	reg = kmalloc(sizeof(*reg), GFP_KERNEL);
 	if (reg == NULL)
@@ -242,11 +243,14 @@ static int rt2800usb_autorun_detect(struct rt2x00_dev *rt2x00dev)
 	 * magic value USB_MODE_AUTORUN (0x11) to the device, thus the
 	 * returned value would be invalid.
 	 */
-	rt2x00usb_vendor_request(rt2x00dev, USB_DEVICE_MODE,
-				 USB_VENDOR_REQUEST_IN, 0, USB_MODE_AUTORUN,
-				 reg, sizeof(*reg), REGISTER_TIMEOUT_FIRMWARE);
+	ret = rt2x00usb_vendor_request(rt2x00dev, USB_DEVICE_MODE,
+				       USB_VENDOR_REQUEST_IN, 0,
+				       USB_MODE_AUTORUN, reg, sizeof(*reg),
+				       REGISTER_TIMEOUT_FIRMWARE);
 	fw_mode = le32_to_cpu(*reg);
 	kfree(reg);
+	if (ret < 0)
+		return ret;
 
 	if ((fw_mode & 0x00000003) == 2)
 		return 1;
@@ -289,6 +293,7 @@ static int rt2800usb_write_firmware(struct rt2x00_dev *rt2x00dev,
 	if (retval) {
 		rt2x00_info(rt2x00dev,
 			    "Firmware loading not required - NIC in AutoRun mode\n");
+		__clear_bit(REQUIRE_FIRMWARE, &rt2x00dev->cap_flags);
 	} else {
 		rt2x00usb_register_multiwrite(rt2x00dev, FIRMWARE_IMAGE_BASE,
 					      data + offset, length);
@@ -374,7 +379,6 @@ static int rt2800usb_enable_radio(struct rt2x00_dev *rt2x00dev)
 static void rt2800usb_disable_radio(struct rt2x00_dev *rt2x00dev)
 {
 	rt2800_disable_radio(rt2x00dev);
-	rt2x00usb_disable_radio(rt2x00dev);
 }
 
 static int rt2800usb_set_state(struct rt2x00_dev *rt2x00dev,
@@ -1040,6 +1044,7 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x07d1, 0x3c17) },
 	{ USB_DEVICE(0x2001, 0x3317) },
 	{ USB_DEVICE(0x2001, 0x3c1b) },
+	{ USB_DEVICE(0x2001, 0x3c25) },
 	/* Draytek */
 	{ USB_DEVICE(0x07fa, 0x7712) },
 	/* DVICO */

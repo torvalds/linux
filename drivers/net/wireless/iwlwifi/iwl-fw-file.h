@@ -240,10 +240,9 @@ enum iwl_ucode_tlv_flag {
 /**
  * enum iwl_ucode_tlv_api - ucode api
  * @IWL_UCODE_TLV_API_BT_COEX_SPLIT: new API for BT Coex
- * @IWL_UCODE_TLV_API_DISABLE_STA_TX: ucode supports tx_disable bit.
- * @IWL_UCODE_TLV_API_SF_NO_DUMMY_NOTIF: ucode supports disabling dummy notif.
  * @IWL_UCODE_TLV_API_FRAGMENTED_SCAN: This ucode supports active dwell time
  *	longer than the passive one, which is essential for fragmented scan.
+ * @IWL_UCODE_TLV_API_WIFI_MCC_UPDATE: ucode supports MCC updates with source.
  * IWL_UCODE_TLV_API_HDC_PHASE_0: ucode supports finer configuration of LTR
  * @IWL_UCODE_TLV_API_BASIC_DWELL: use only basic dwell time in scan command,
  *	regardless of the band or the number of the probes. FW will calculate
@@ -258,9 +257,8 @@ enum iwl_ucode_tlv_flag {
  */
 enum iwl_ucode_tlv_api {
 	IWL_UCODE_TLV_API_BT_COEX_SPLIT         = BIT(3),
-	IWL_UCODE_TLV_API_DISABLE_STA_TX	= BIT(5),
-	IWL_UCODE_TLV_API_SF_NO_DUMMY_NOTIF	= BIT(7),
 	IWL_UCODE_TLV_API_FRAGMENTED_SCAN	= BIT(8),
+	IWL_UCODE_TLV_API_WIFI_MCC_UPDATE	= BIT(9),
 	IWL_UCODE_TLV_API_HDC_PHASE_0		= BIT(10),
 	IWL_UCODE_TLV_API_BASIC_DWELL		= BIT(13),
 	IWL_UCODE_TLV_API_SCD_CFG		= BIT(15),
@@ -292,6 +290,7 @@ enum iwl_ucode_tlv_api {
  * @IWL_UCODE_TLV_CAPA_HOTSPOT_SUPPORT: supports Hot Spot Command
  * @IWL_UCODE_TLV_CAPA_RADIO_BEACON_STATS: support radio and beacon statistics
  * @IWL_UCODE_TLV_CAPA_BT_COEX_PLCR: enabled BT Coex packet level co-running
+ * @IWL_UCODE_TLV_CAPA_BT_COEX_RRC: supports BT Coex RRC
  */
 enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_D0I3_SUPPORT			= BIT(0),
@@ -308,6 +307,7 @@ enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_HOTSPOT_SUPPORT		= BIT(18),
 	IWL_UCODE_TLV_CAPA_RADIO_BEACON_STATS		= BIT(22),
 	IWL_UCODE_TLV_CAPA_BT_COEX_PLCR			= BIT(28),
+	IWL_UCODE_TLV_CAPA_BT_COEX_RRC			= BIT(30),
 };
 
 /* The default calibrate table size if not specified by firmware file */

@@ -67,6 +67,8 @@
 
 #define MWIFIEX_MP_AGGR_BUF_SIZE_16K	(16384)
 #define MWIFIEX_MP_AGGR_BUF_SIZE_32K	(32768)
+/* we leave one block of 256 bytes for DMA alignment*/
+#define MWIFIEX_MP_AGGR_BUF_SIZE_MAX    (65280)
 
 /* Misc. Config Register : Auto Re-enable interrupts */
 #define AUTO_RE_ENABLE_INT              BIT(4)
@@ -458,8 +460,8 @@ static const struct mwifiex_sdio_device mwifiex_sdio_sd8897 = {
 	.max_ports = 32,
 	.mp_agg_pkt_limit = 16,
 	.tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_4K,
-	.mp_tx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_32K,
-	.mp_rx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_32K,
+	.mp_tx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_MAX,
+	.mp_rx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_MAX,
 	.supports_sdio_new_mode = true,
 	.has_control_mask = false,
 	.can_dump_fw = true,
@@ -571,9 +573,9 @@ mp_tx_aggr_port_limit_reached(struct sdio_mmc_card *card)
 
 /* Prepare to copy current packet from card to SDIO Rx aggregation buffer */
 static inline void mp_rx_aggr_setup(struct sdio_mmc_card *card,
-				    struct sk_buff *skb, u8 port)
+				    u16 rx_len, u8 port)
 {
-	card->mpa_rx.buf_len += skb->len;
+	card->mpa_rx.buf_len += rx_len;
 
 	if (!card->mpa_rx.pkt_cnt)
 		card->mpa_rx.start_port = port;
@@ -586,8 +588,8 @@ static inline void mp_rx_aggr_setup(struct sdio_mmc_card *card,
 		else
 			card->mpa_rx.ports |= 1 << (card->mpa_rx.pkt_cnt + 1);
 	}
-	card->mpa_rx.skb_arr[card->mpa_rx.pkt_cnt] = skb;
-	card->mpa_rx.len_arr[card->mpa_rx.pkt_cnt] = skb->len;
+	card->mpa_rx.skb_arr[card->mpa_rx.pkt_cnt] = NULL;
+	card->mpa_rx.len_arr[card->mpa_rx.pkt_cnt] = rx_len;
 	card->mpa_rx.pkt_cnt++;
 }
 #endif /* _MWIFIEX_SDIO_H */

@@ -197,6 +197,8 @@ iwl_mvm_te_handle_notify_csa(struct iwl_mvm *mvm,
 			     struct iwl_time_event_notif *notif)
 {
 	if (!le32_to_cpu(notif->status)) {
+		if (te_data->vif->type == NL80211_IFTYPE_STATION)
+			ieee80211_connection_loss(te_data->vif);
 		IWL_DEBUG_TE(mvm, "CSA time event failed to start\n");
 		iwl_mvm_te_clear_data(mvm, te_data);
 		return;
@@ -261,17 +263,23 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 			     "TE ended - current time %lu, estimated end %lu\n",
 			     jiffies, te_data->end_jiffies);
 
-		if (te_data->vif->type == NL80211_IFTYPE_P2P_DEVICE) {
+		switch (te_data->vif->type) {
+		case NL80211_IFTYPE_P2P_DEVICE:
 			ieee80211_remain_on_channel_expired(mvm->hw);
 			iwl_mvm_roc_finished(mvm);
+			break;
+		case NL80211_IFTYPE_STATION:
+			/*
+			 * By now, we should have finished association
+			 * and know the dtim period.
+			 */
+			iwl_mvm_te_check_disconnect(mvm, te_data->vif,
+				"No association and the time event is over already...");
+			break;
+		default:
+			break;
 		}
 
-		/*
-		 * By now, we should have finished association
-		 * and know the dtim period.
-		 */
-		iwl_mvm_te_check_disconnect(mvm, te_data->vif,
-			"No association and the time event is over already...");
 		iwl_mvm_te_clear_data(mvm, te_data);
 	} else if (le32_to_cpu(notif->action) & TE_V2_NOTIF_HOST_EVENT_START) {
 		te_data->running = true;

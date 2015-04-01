@@ -289,7 +289,7 @@ dpd_add_pulse(struct dfs_pattern_detector *dpd, struct pulse_event *event)
 				"count=%d, count_false=%d\n",
 				event->freq, pd->rs->type_id,
 				ps->pri, ps->count, ps->count_falses);
-			channel_detector_reset(dpd, cd);
+			pd->reset(pd, dpd->last_pulse_ts);
 			return true;
 		}
 	}

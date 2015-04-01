@@ -1065,6 +1065,37 @@ static inline bool rs_rate_column_match(struct rs_rate *a,
 		&& ant_match;
 }
 
+static inline enum rs_column rs_get_column_from_rate(struct rs_rate *rate)
+{
+	if (is_legacy(rate)) {
+		if (rate->ant == ANT_A)
+			return RS_COLUMN_LEGACY_ANT_A;
+
+		if (rate->ant == ANT_B)
+			return RS_COLUMN_LEGACY_ANT_B;
+
+		goto err;
+	}
+
+	if (is_siso(rate)) {
+		if (rate->ant == ANT_A || rate->stbc || rate->bfer)
+			return rate->sgi ? RS_COLUMN_SISO_ANT_A_SGI :
+				RS_COLUMN_SISO_ANT_A;
+
+		if (rate->ant == ANT_B)
+			return rate->sgi ? RS_COLUMN_SISO_ANT_B_SGI :
+				RS_COLUMN_SISO_ANT_B;
+
+		goto err;
+	}
+
+	if (is_mimo(rate))
+		return rate->sgi ? RS_COLUMN_MIMO2_SGI : RS_COLUMN_MIMO2;
+
+err:
+	return RS_COLUMN_INVALID;
+}
+
 static u8 rs_get_tid(struct ieee80211_hdr *hdr)
 {
 	u8 tid = IWL_MAX_TID_COUNT;
@@ -1106,17 +1137,43 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		return;
 	}
 
-#ifdef CONFIG_MAC80211_DEBUGFS
-	/* Disable last tx check if we are debugging with fixed rate */
-	if (lq_sta->pers.dbg_fixed_rate) {
-		IWL_DEBUG_RATE(mvm, "Fixed rate. avoid rate scaling\n");
-		return;
-	}
-#endif
 	/* This packet was aggregated but doesn't carry status info */
 	if ((info->flags & IEEE80211_TX_CTL_AMPDU) &&
 	    !(info->flags & IEEE80211_TX_STAT_AMPDU))
 		return;
+
+	rs_rate_from_ucode_rate(tx_resp_hwrate, info->band, &tx_resp_rate);
+
+#ifdef CONFIG_MAC80211_DEBUGFS
+	/* Disable last tx check if we are debugging with fixed rate but
+	 * update tx stats */
+	if (lq_sta->pers.dbg_fixed_rate) {
+		int index = tx_resp_rate.index;
+		enum rs_column column;
+		int attempts, success;
+
+		column = rs_get_column_from_rate(&tx_resp_rate);
+		if (WARN_ONCE(column == RS_COLUMN_INVALID,
+			      "Can't map rate 0x%x to column",
+			      tx_resp_hwrate))
+			return;
+
+		if (info->flags & IEEE80211_TX_STAT_AMPDU) {
+			attempts = info->status.ampdu_len;
+			success = info->status.ampdu_ack_len;
+		} else {
+			attempts = info->status.rates[0].count;
+			success = !!(info->flags & IEEE80211_TX_STAT_ACK);
+		}
+
+		lq_sta->pers.tx_stats[column][index].total += attempts;
+		lq_sta->pers.tx_stats[column][index].success += success;
+
+		IWL_DEBUG_RATE(mvm, "Fixed rate 0x%x success %d attempts %d\n",
+			       tx_resp_hwrate, success, attempts);
+		return;
+	}
+#endif
 
 	if (time_after(jiffies,
 		       (unsigned long)(lq_sta->last_tx +
@@ -1142,7 +1199,6 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	table = &lq_sta->lq;
 	lq_hwrate = le32_to_cpu(table->rs_table[0]);
 	rs_rate_from_ucode_rate(lq_hwrate, info->band, &lq_rate);
-	rs_rate_from_ucode_rate(tx_resp_hwrate, info->band, &tx_resp_rate);
 
 	/* Here we actually compare this rate to the latest LQ command */
 	if (!rs_rate_equal(&tx_resp_rate, &lq_rate, allow_ant_mismatch)) {
@@ -3343,16 +3399,16 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 			(is_legacy(rate)) ? "legacy" :
 			is_vht(rate) ? "VHT" : "HT");
 	if (!is_legacy(rate)) {
-		desc += sprintf(buff+desc, " %s",
+		desc += sprintf(buff + desc, " %s",
 		   (is_siso(rate)) ? "SISO" : "MIMO2");
-		   desc += sprintf(buff+desc, " %s",
-				   (is_ht20(rate)) ? "20MHz" :
-				   (is_ht40(rate)) ? "40MHz" :
-				   (is_ht80(rate)) ? "80Mhz" : "BAD BW");
-		   desc += sprintf(buff+desc, " %s %s %s\n",
-				   (rate->sgi) ? "SGI" : "NGI",
-				   (rate->ldpc) ? "LDPC" : "BCC",
-				   (lq_sta->is_agg) ? "AGG on" : "");
+		desc += sprintf(buff + desc, " %s",
+				(is_ht20(rate)) ? "20MHz" :
+				(is_ht40(rate)) ? "40MHz" :
+				(is_ht80(rate)) ? "80Mhz" : "BAD BW");
+		desc += sprintf(buff + desc, " %s %s %s\n",
+				(rate->sgi) ? "SGI" : "NGI",
+				(rate->ldpc) ? "LDPC" : "BCC",
+				(lq_sta->is_agg) ? "AGG on" : "");
 	}
 	desc += sprintf(buff+desc, "last tx rate=0x%X\n",
 			lq_sta->last_rate_n_flags);
@@ -3373,13 +3429,13 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 	ss_params = le32_to_cpu(lq_sta->lq.ss_params);
 	desc += sprintf(buff+desc, "single stream params: %s%s%s%s\n",
 			(ss_params & LQ_SS_PARAMS_VALID) ?
-			"VALID," : "INVALID",
+			"VALID" : "INVALID",
 			(ss_params & LQ_SS_BFER_ALLOWED) ?
-			"BFER," : "",
+			", BFER" : "",
 			(ss_params & LQ_SS_STBC_1SS_ALLOWED) ?
-			"STBC," : "",
+			", STBC" : "",
 			(ss_params & LQ_SS_FORCE) ?
-			"FORCE" : "");
+			", FORCE" : "");
 	desc += sprintf(buff+desc,
 			"Start idx [0]=0x%x [1]=0x%x [2]=0x%x [3]=0x%x\n",
 			lq_sta->lq.initial_rate_index[0],

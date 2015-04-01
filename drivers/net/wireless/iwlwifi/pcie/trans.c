@@ -682,6 +682,43 @@ static int iwl_pcie_load_section(struct iwl_trans *trans, u8 section_num,
 	return ret;
 }
 
+/*
+ * Driver Takes the ownership on secure machine before FW load
+ * and prevent race with the BT load.
+ * W/A for ROM bug. (should be remove in the next Si step)
+ */
+static int iwl_pcie_rsa_race_bug_wa(struct iwl_trans *trans)
+{
+	u32 val, loop = 1000;
+
+	/* Check the RSA semaphore is accessible - if not, we are in trouble */
+	val = iwl_read_prph(trans, PREG_AUX_BUS_WPROT_0);
+	if (val & (BIT(1) | BIT(17))) {
+		IWL_ERR(trans,
+			"can't access the RSA semaphore it is write protected\n");
+		return 0;
+	}
+
+	/* take ownership on the AUX IF */
+	iwl_write_prph(trans, WFPM_CTRL_REG, WFPM_AUX_CTL_AUX_IF_MAC_OWNER_MSK);
+	iwl_write_prph(trans, AUX_MISC_MASTER1_EN, AUX_MISC_MASTER1_EN_SBE_MSK);
+
+	do {
+		iwl_write_prph(trans, AUX_MISC_MASTER1_SMPHR_STATUS, 0x1);
+		val = iwl_read_prph(trans, AUX_MISC_MASTER1_SMPHR_STATUS);
+		if (val == 0x1) {
+			iwl_write_prph(trans, RSA_ENABLE, 0);
+			return 0;
+		}
+
+		udelay(10);
+		loop--;
+	} while (loop > 0);
+
+	IWL_ERR(trans, "Failed to take ownership on secure machine\n");
+	return -EIO;
+}
+
 static int iwl_pcie_load_cpu_sections_8000b(struct iwl_trans *trans,
 					    const struct fw_img *image,
 					    int cpu,
@@ -900,6 +937,11 @@ static int iwl_pcie_load_given_ucode_8000b(struct iwl_trans *trans,
 
 	if (trans->dbg_dest_tlv)
 		iwl_pcie_apply_destination(trans);
+
+	/* TODO: remove in the next Si step */
+	ret = iwl_pcie_rsa_race_bug_wa(trans);
+	if (ret)
+		return ret;
 
 	/* configure the ucode to be ready to get the secured image */
 	/* release CPU reset */
@@ -1462,6 +1504,60 @@ static int iwl_trans_pcie_write_mem(struct iwl_trans *trans, u32 addr,
 	return ret;
 }
 
+static void iwl_trans_pcie_freeze_txq_timer(struct iwl_trans *trans,
+					    unsigned long txqs,
+					    bool freeze)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	int queue;
+
+	for_each_set_bit(queue, &txqs, BITS_PER_LONG) {
+		struct iwl_txq *txq = &trans_pcie->txq[queue];
+		unsigned long now;
+
+		spin_lock_bh(&txq->lock);
+
+		now = jiffies;
+
+		if (txq->frozen == freeze)
+			goto next_queue;
+
+		IWL_DEBUG_TX_QUEUES(trans, "%s TXQ %d\n",
+				    freeze ? "Freezing" : "Waking", queue);
+
+		txq->frozen = freeze;
+
+		if (txq->q.read_ptr == txq->q.write_ptr)
+			goto next_queue;
+
+		if (freeze) {
+			if (unlikely(time_after(now,
+						txq->stuck_timer.expires))) {
+				/*
+				 * The timer should have fired, maybe it is
+				 * spinning right now on the lock.
+				 */
+				goto next_queue;
+			}
+			/* remember how long until the timer fires */
+			txq->frozen_expiry_remainder =
+				txq->stuck_timer.expires - now;
+			del_timer(&txq->stuck_timer);
+			goto next_queue;
+		}
+
+		/*
+		 * Wake a non-empty queue -> arm timer with the
+		 * remainder before it froze
+		 */
+		mod_timer(&txq->stuck_timer,
+			  now + txq->frozen_expiry_remainder);
+
+next_queue:
+		spin_unlock_bh(&txq->lock);
+	}
+}
+
 #define IWL_FLUSH_WAIT_MS	2000
 
 static int iwl_trans_pcie_wait_txq_empty(struct iwl_trans *trans, u32 txq_bm)
@@ -1713,7 +1809,7 @@ static ssize_t iwl_dbgfs_tx_queue_read(struct file *file,
 	int ret;
 	size_t bufsz;
 
-	bufsz = sizeof(char) * 64 * trans->cfg->base_params->num_of_queues;
+	bufsz = sizeof(char) * 75 * trans->cfg->base_params->num_of_queues;
 
 	if (!trans_pcie->txq)
 		return -EAGAIN;
@@ -1726,11 +1822,11 @@ static ssize_t iwl_dbgfs_tx_queue_read(struct file *file,
 		txq = &trans_pcie->txq[cnt];
 		q = &txq->q;
 		pos += scnprintf(buf + pos, bufsz - pos,
-				"hwq %.2d: read=%u write=%u use=%d stop=%d need_update=%d%s\n",
+				"hwq %.2d: read=%u write=%u use=%d stop=%d need_update=%d frozen=%d%s\n",
 				cnt, q->read_ptr, q->write_ptr,
 				!!test_bit(cnt, trans_pcie->queue_used),
 				 !!test_bit(cnt, trans_pcie->queue_stopped),
-				 txq->need_update,
+				 txq->need_update, txq->frozen,
 				 (cnt == trans_pcie->cmd_queue ? " HCMD" : ""));
 	}
 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
@@ -1961,24 +2057,25 @@ static const struct {
 	{ .start = 0x00a01c7c, .end = 0x00a01c7c },
 	{ .start = 0x00a01c28, .end = 0x00a01c54 },
 	{ .start = 0x00a01c5c, .end = 0x00a01c5c },
-	{ .start = 0x00a01c84, .end = 0x00a01c84 },
+	{ .start = 0x00a01c60, .end = 0x00a01cdc },
 	{ .start = 0x00a01ce0, .end = 0x00a01d0c },
 	{ .start = 0x00a01d18, .end = 0x00a01d20 },
 	{ .start = 0x00a01d2c, .end = 0x00a01d30 },
 	{ .start = 0x00a01d40, .end = 0x00a01d5c },
 	{ .start = 0x00a01d80, .end = 0x00a01d80 },
-	{ .start = 0x00a01d98, .end = 0x00a01d98 },
+	{ .start = 0x00a01d98, .end = 0x00a01d9c },
+	{ .start = 0x00a01da8, .end = 0x00a01da8 },
+	{ .start = 0x00a01db8, .end = 0x00a01df4 },
 	{ .start = 0x00a01dc0, .end = 0x00a01dfc },
 	{ .start = 0x00a01e00, .end = 0x00a01e2c },
 	{ .start = 0x00a01e40, .end = 0x00a01e60 },
+	{ .start = 0x00a01e68, .end = 0x00a01e6c },
+	{ .start = 0x00a01e74, .end = 0x00a01e74 },
 	{ .start = 0x00a01e84, .end = 0x00a01e90 },
 	{ .start = 0x00a01e9c, .end = 0x00a01ec4 },
-	{ .start = 0x00a01ed0, .end = 0x00a01ed0 },
-	{ .start = 0x00a01f00, .end = 0x00a01f14 },
-	{ .start = 0x00a01f44, .end = 0x00a01f58 },
-	{ .start = 0x00a01f80, .end = 0x00a01fa8 },
-	{ .start = 0x00a01fb0, .end = 0x00a01fbc },
-	{ .start = 0x00a01ff8, .end = 0x00a01ffc },
+	{ .start = 0x00a01ed0, .end = 0x00a01ee0 },
+	{ .start = 0x00a01f00, .end = 0x00a01f1c },
+	{ .start = 0x00a01f44, .end = 0x00a01ffc },
 	{ .start = 0x00a02000, .end = 0x00a02048 },
 	{ .start = 0x00a02068, .end = 0x00a020f0 },
 	{ .start = 0x00a02100, .end = 0x00a02118 },
@@ -2305,6 +2402,7 @@ static const struct iwl_trans_ops trans_ops_pcie = {
 	.dbgfs_register = iwl_trans_pcie_dbgfs_register,
 
 	.wait_tx_queue_empty = iwl_trans_pcie_wait_txq_empty,
+	.freeze_txq_timer = iwl_trans_pcie_freeze_txq_timer,
 
 	.write8 = iwl_trans_pcie_write8,
 	.write32 = iwl_trans_pcie_write32,
@@ -2423,9 +2521,44 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	 * "dash" value). To keep hw_rev backwards compatible - we'll store it
 	 * in the old format.
 	 */
-	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000)
+	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000) {
+		unsigned long flags;
+		int ret;
+
 		trans->hw_rev = (trans->hw_rev & 0xfff0) |
 				(CSR_HW_REV_STEP(trans->hw_rev << 2) << 2);
+
+		/*
+		 * in-order to recognize C step driver should read chip version
+		 * id located at the AUX bus MISC address space.
+		 */
+		iwl_set_bit(trans, CSR_GP_CNTRL,
+			    CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+		udelay(2);
+
+		ret = iwl_poll_bit(trans, CSR_GP_CNTRL,
+				   CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
+				   CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
+				   25000);
+		if (ret < 0) {
+			IWL_DEBUG_INFO(trans, "Failed to wake up the nic\n");
+			goto out_pci_disable_msi;
+		}
+
+		if (iwl_trans_grab_nic_access(trans, false, &flags)) {
+			u32 hw_step;
+
+			hw_step = __iwl_read_prph(trans, WFPM_CTRL_REG);
+			hw_step |= ENABLE_WFPM;
+			__iwl_write_prph(trans, WFPM_CTRL_REG, hw_step);
+			hw_step = __iwl_read_prph(trans, AUX_MISC_REG);
+			hw_step = (hw_step >> HW_STEP_LOCATION_BITS) & 0xF;
+			if (hw_step == 0x3)
+				trans->hw_rev = (trans->hw_rev & 0xFFFFFFF3) |
+						(SILICON_C_STEP << 2);
+			iwl_trans_release_nic_access(trans, &flags);
+		}
+	}
 
 	trans->hw_id = (pdev->device << 16) + pdev->subsystem_device;
 	snprintf(trans->hw_id_str, sizeof(trans->hw_id_str),

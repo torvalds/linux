@@ -90,6 +90,10 @@ mwifiex_process_cmdresp_error(struct mwifiex_private *priv,
 	case HostCmd_CMD_MAC_CONTROL:
 		break;
 
+	case HostCmd_CMD_SDIO_SP_RX_AGGR_CFG:
+		dev_err(priv->adapter->dev, "SDIO RX single-port aggregation Not support\n");
+		break;
+
 	default:
 		break;
 	}
@@ -943,6 +947,20 @@ static int mwifiex_ret_cfg_data(struct mwifiex_private *priv,
 	return 0;
 }
 
+/** This Function handles the command response of sdio rx aggr */
+static int mwifiex_ret_sdio_rx_aggr_cfg(struct mwifiex_private *priv,
+					struct host_cmd_ds_command *resp)
+{
+	struct mwifiex_adapter *adapter = priv->adapter;
+	struct host_cmd_sdio_sp_rx_aggr_cfg *cfg =
+				&resp->params.sdio_rx_aggr_cfg;
+
+	adapter->sdio_rx_aggr_enable = cfg->enable;
+	adapter->sdio_rx_block_size = le16_to_cpu(cfg->block_size);
+
+	return 0;
+}
+
 /*
  * This function handles the command responses.
  *
@@ -1123,6 +1141,9 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		ret = mwifiex_ret_tdls_oper(priv, resp);
 		break;
 	case HostCmd_CMD_CHAN_REPORT_REQUEST:
+		break;
+	case HostCmd_CMD_SDIO_SP_RX_AGGR_CFG:
+		ret = mwifiex_ret_sdio_rx_aggr_cfg(priv, resp);
 		break;
 	default:
 		dev_err(adapter->dev, "CMD_RESP: unknown cmd response %#x\n",
