@@ -1147,6 +1147,9 @@ static int acpi_ec_add(struct acpi_device *device)
 
 	ret = ec_install_handlers(ec);
 
+	/* Reprobe devices depending on the EC */
+	acpi_walk_dep_device_list(ec->handle);
+
 	/* EC is fully operational, allow queries */
 	clear_bit(EC_FLAGS_QUERY_PENDING, &ec->flags);
 
