@@ -122,12 +122,12 @@ static int torture_lock_busted_write_lock(void)
 
 static void torture_lock_busted_write_delay(struct torture_random_state *trsp)
 {
-	const unsigned long longdelay_us = 100;
+	const unsigned long longdelay_ms = 100;
 
 	/* We want a long delay occasionally to force massive contention.  */
 	if (!(torture_random(trsp) %
-	      (cxt.nrealwriters_stress * 2000 * longdelay_us)))
-		mdelay(longdelay_us);
+	      (cxt.nrealwriters_stress * 2000 * longdelay_ms)))
+		mdelay(longdelay_ms);
 #ifdef CONFIG_PREEMPT
 	if (!(torture_random(trsp) % (cxt.nrealwriters_stress * 20000)))
 		preempt_schedule();  /* Allow test to be preempted. */
@@ -160,14 +160,14 @@ static int torture_spin_lock_write_lock(void) __acquires(torture_spinlock)
 static void torture_spin_lock_write_delay(struct torture_random_state *trsp)
 {
 	const unsigned long shortdelay_us = 2;
-	const unsigned long longdelay_us = 100;
+	const unsigned long longdelay_ms = 100;
 
 	/* We want a short delay mostly to emulate likely code, and
 	 * we want a long delay occasionally to force massive contention.
 	 */
 	if (!(torture_random(trsp) %
-	      (cxt.nrealwriters_stress * 2000 * longdelay_us)))
-		mdelay(longdelay_us);
+	      (cxt.nrealwriters_stress * 2000 * longdelay_ms)))
+		mdelay(longdelay_ms);
 	if (!(torture_random(trsp) %
 	      (cxt.nrealwriters_stress * 2 * shortdelay_us)))
 		udelay(shortdelay_us);
