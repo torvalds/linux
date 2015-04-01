@@ -49,11 +49,11 @@ const struct greybus_interface_id *
 			      const struct greybus_interface_id *id);
 
 struct gb_interface *gb_interface_find(struct greybus_host_device *hd,
-				       u8 module_id);
+				       u8 interface_id);
 
-void gb_add_interface(struct greybus_host_device *hd, u8 module_id,
-		      u8 *data, int size);
-void gb_remove_interface(struct greybus_host_device *hd, u8 module_id);
+void gb_add_interface(struct greybus_host_device *hd, u8 interface_id, u8 *data,
+		      int size);
+void gb_remove_interface(struct greybus_host_device *hd, u8 interface_id);
 void gb_remove_interfaces(struct greybus_host_device *hd);
 
 

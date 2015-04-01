@@ -52,13 +52,12 @@ struct svc_function_unipro_set_route {
 };
 
 struct svc_function_unipro_link_up {
-	__u8	module_id;
-	__u8	interface_id;
+	__u8	interface_id;	/* Interface id within the Endo */
 	__u8	device_id;
 };
 
 struct svc_function_ap_id {
-	__u8	module_id;
+	__u8	interface_id;
 	__u8	device_id;
 };
 
@@ -82,13 +81,9 @@ enum svc_function_hotplug_event {
 	SVC_HOTUNPLUG_EVENT	= 0x01,
 };
 
-/* XXX
- * Does a hotplug come from module insertion, or from detection of each
- * interface (UniPro device) in a module?  Assume the former for now.
- */
 struct svc_function_hotplug {
 	__u8	hotplug_event;	/* enum svc_function_hotplug_event */
-	__u8	module_id;
+	__u8	interface_id;	/* Interface id within the Endo */
 	__u8	data[0];
 };
 
@@ -121,7 +116,7 @@ struct svc_function_power_battery_status_request {
  */
 struct svc_function_power {
 	__u8	power_type;	/* enum svc_function_power_type */
-	__u8	module_id;
+	__u8	interface_id;
 	union {
 		struct svc_function_power_battery_status		status;
 		struct svc_function_power_battery_status_request	request;

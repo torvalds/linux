@@ -24,5 +24,6 @@ struct gb_module *gb_module_find_or_create(struct greybus_host_device *hd,
 					   u8 module_id);
 void gb_module_remove(struct gb_module *module);
 
+u8 get_module_id(u8 interface_id);
 
 #endif /* __MODULE_H */

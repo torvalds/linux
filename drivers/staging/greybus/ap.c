@@ -140,10 +140,10 @@ static void svc_management(struct svc_function_unipro_management *management,
 		hd->device_id = management->ap_id.device_id;
 		break;
 	case SVC_MANAGEMENT_LINK_UP:
-		intf = gb_interface_find(hd, management->link_up.module_id);
+		intf = gb_interface_find(hd, management->link_up.interface_id);
 		if (!intf) {
-			dev_err(hd->parent, "Module ID %d not found\n",
-				management->link_up.module_id);
+			dev_err(hd->parent, "Interface ID %d not found\n",
+				management->link_up.interface_id);
 			return;
 		}
 		ret = gb_bundle_init(intf,
@@ -151,9 +151,8 @@ static void svc_management(struct svc_function_unipro_management *management,
 				management->link_up.device_id);
 		if (ret) {
 			dev_err(hd->parent,
-				"error %d initializing interface %hhu bundle %hhu\n",
-				ret, management->link_up.module_id,
-				management->link_up.interface_id);
+				"error %d initializing bundles for interface %hhu\n",
+				ret, management->link_up.interface_id);
 			return;
 		}
 		break;
@@ -165,11 +164,11 @@ static void svc_management(struct svc_function_unipro_management *management,
 static void svc_hotplug(struct svc_function_hotplug *hotplug,
 			int payload_length, struct greybus_host_device *hd)
 {
-	u8 module_id = hotplug->module_id;
+	u8 interface_id = hotplug->interface_id;
 
 	switch (hotplug->hotplug_event) {
 	case SVC_HOTPLUG_EVENT:
-		/* Add a new module to the system */
+		/* Add a new interface to the system */
 		if (payload_length < 0x03) {
 			/* Hotplug message is at least 3 bytes big */
 			dev_err(hd->parent,
@@ -177,13 +176,13 @@ static void svc_hotplug(struct svc_function_hotplug *hotplug,
 				payload_length);
 			return;
 		}
-		dev_dbg(hd->parent, "module id %d added\n", module_id);
-		gb_add_interface(hd, module_id, hotplug->data,
+		dev_dbg(hd->parent, "interface id %d added\n", interface_id);
+		gb_add_interface(hd, interface_id, hotplug->data,
 				 payload_length - 0x02);
 		break;
 
 	case SVC_HOTUNPLUG_EVENT:
-		/* Remove a module from the system */
+		/* Remove a interface from the system */
 		if (payload_length != 0x02) {
 			/* Hotunplug message is only 2 bytes big */
 			dev_err(hd->parent,
@@ -191,8 +190,8 @@ static void svc_hotplug(struct svc_function_hotplug *hotplug,
 				payload_length);
 			return;
 		}
-		dev_dbg(hd->parent, "module id %d removed\n", module_id);
-		gb_remove_interface(hd, module_id);
+		dev_dbg(hd->parent, "interface id %d removed\n", interface_id);
+		gb_remove_interface(hd, interface_id);
 		break;
 
 	default:
@@ -206,7 +205,7 @@ static void svc_hotplug(struct svc_function_hotplug *hotplug,
 static void svc_power(struct svc_function_power *power,
 		      int payload_length, struct greybus_host_device *hd)
 {
-	u8 module_id = power->module_id;
+	u8 interface_id = power->interface_id;
 
 	/*
 	 * The AP is only allowed to get a Battery Status message, not a Battery
@@ -230,8 +229,8 @@ static void svc_power(struct svc_function_power *power,
 		return;
 	}
 
-	dev_dbg(hd->parent, "power status for module id %d is %d\n",
-		module_id, power->status.status);
+	dev_dbg(hd->parent, "power status for interface id %d is %d\n",
+		interface_id, power->status.status);
 
 	// FIXME - do something with the power information, like update our
 	// battery information...

@@ -77,12 +77,12 @@ gb_interface_match_id(struct gb_interface *intf,
 // FIXME, odds are you don't want to call this function, rework the caller to
 // not need it please.
 struct gb_interface *gb_interface_find(struct greybus_host_device *hd,
-				       u8 module_id)
+				       u8 interface_id)
 {
 	struct gb_interface *intf;
 
 	list_for_each_entry(intf, &hd->interfaces, links)
-		if (intf->module->module_id == module_id)
+		if (intf->interface_id == interface_id)
 			return intf;
 
 	return NULL;
@@ -105,28 +105,28 @@ struct device_type greybus_interface_type = {
  * phone.  An interface is the physical connection on that module.  A
  * module may have more than one interface.
  *
- * Create a gb_interface structure to represent a discovered module.
- * The position within the Endo is encoded in the "module_id" argument.
+ * Create a gb_interface structure to represent a discovered interface.
+ * The position of interface within the Endo is encoded in "interface_id"
+ * argument.
+ *
  * Returns a pointer to the new interfce or a null pointer if a
  * failure occurs due to memory exhaustion.
  */
 static struct gb_interface *gb_interface_create(struct greybus_host_device *hd,
-						u8 module_id)
+						u8 interface_id)
 {
 	struct gb_module *module;
 	struct gb_interface *intf;
 	int retval;
-	u8 interface_id = module_id;
 
-	// FIXME we need an interface id here to check for this properly!
 	intf = gb_interface_find(hd, interface_id);
 	if (intf) {
-		dev_err(hd->parent, "Duplicate module id %d will not be created\n",
-			module_id);
+		dev_err(hd->parent, "Duplicate interface with interface-id: %d will not be created\n",
+			interface_id);
 		return NULL;
 	}
 
-	module = gb_module_find_or_create(hd, module_id);
+	module = gb_module_find_or_create(hd, get_module_id(interface_id));
 	if (!module)
 		return NULL;
 
@@ -136,6 +136,7 @@ static struct gb_interface *gb_interface_create(struct greybus_host_device *hd,
 
 	intf->hd = hd;		/* XXX refcount? */
 	intf->module = module;
+	intf->interface_id = interface_id;
 	INIT_LIST_HEAD(&intf->bundles);
 	INIT_LIST_HEAD(&intf->manifest_descs);
 
@@ -149,8 +150,8 @@ static struct gb_interface *gb_interface_create(struct greybus_host_device *hd,
 
 	retval = device_add(&intf->dev);
 	if (retval) {
-		pr_err("failed to add module device for id 0x%02hhx\n",
-			module_id);
+		pr_err("failed to add interface device for id 0x%02hhx\n",
+		       interface_id);
 		goto free_intf;
 	}
 
@@ -199,12 +200,12 @@ static void gb_interface_destroy(struct gb_interface *intf)
  * Pass in a buffer that _should_ contain a Greybus module manifest
  * and register a greybus device structure with the kernel core.
  */
-void gb_add_interface(struct greybus_host_device *hd, u8 module_id,
-		      u8 *data, int size)
+void gb_add_interface(struct greybus_host_device *hd, u8 interface_id, u8 *data,
+		      int size)
 {
 	struct gb_interface *intf;
 
-	intf = gb_interface_create(hd, module_id);
+	intf = gb_interface_create(hd, interface_id);
 	if (!intf) {
 		dev_err(hd->parent, "failed to create interface\n");
 		return;
@@ -234,14 +235,15 @@ err_parse:
 	gb_interface_destroy(intf);
 }
 
-void gb_remove_interface(struct greybus_host_device *hd, u8 module_id)
+void gb_remove_interface(struct greybus_host_device *hd, u8 interface_id)
 {
-	struct gb_interface *intf = gb_interface_find(hd, module_id);
+	struct gb_interface *intf = gb_interface_find(hd, interface_id);
 
 	if (intf)
 		gb_interface_destroy(intf);
 	else
-		dev_err(hd->parent, "interface id %d not found\n", module_id);
+		dev_err(hd->parent, "interface id %d not found\n",
+			interface_id);
 }
 
 void gb_remove_interfaces(struct greybus_host_device *hd)
