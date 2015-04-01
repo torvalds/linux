@@ -1305,10 +1305,18 @@ int vnt_generate_fifo_header(struct vnt_private *priv, u32 dma_idx,
 			    priv->hw->conf.chandef.chan->hw_value);
 	}
 
-	if (current_rate > RATE_11M)
-		pkt_type = (u8)priv->byPacketType;
-	else
+	if (current_rate > RATE_11M) {
+		if (info->band == IEEE80211_BAND_5GHZ) {
+			pkt_type = PK_TYPE_11A;
+		} else {
+			if (tx_rate->flags & IEEE80211_TX_RC_USE_CTS_PROTECT)
+				pkt_type = PK_TYPE_11GB;
+			else
+				pkt_type = PK_TYPE_11GA;
+		}
+	} else {
 		pkt_type = PK_TYPE_11B;
+	}
 
 	/*Set fifo controls */
 	if (pkt_type == PK_TYPE_11A)
