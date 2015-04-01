@@ -178,16 +178,10 @@ static int exynos_disable_plane(struct drm_plane *plane)
 	return 0;
 }
 
-static void exynos_plane_destroy(struct drm_plane *plane)
-{
-	exynos_disable_plane(plane);
-	drm_plane_cleanup(plane);
-}
-
 static struct drm_plane_funcs exynos_plane_funcs = {
 	.update_plane	= exynos_update_plane,
 	.disable_plane	= exynos_disable_plane,
-	.destroy	= exynos_plane_destroy,
+	.destroy	= drm_plane_cleanup,
 };
 
 static void exynos_plane_attach_zpos_property(struct drm_plane *plane,
