@@ -108,6 +108,7 @@
 #define CON_DRIVER_FLAG_MODULE 1
 #define CON_DRIVER_FLAG_INIT   2
 #define CON_DRIVER_FLAG_ATTR   4
+#define CON_DRIVER_FLAG_ZOMBIE 8
 
 struct con_driver {
 	const struct consw *con;
@@ -154,6 +155,7 @@ static int set_vesa_blanking(char __user *p);
 static void set_cursor(struct vc_data *vc);
 static void hide_cursor(struct vc_data *vc);
 static void console_callback(struct work_struct *ignored);
+static void con_driver_unregister_callback(struct work_struct *ignored);
 static void blank_screen_t(unsigned long dummy);
 static void set_palette(struct vc_data *vc);
 
@@ -183,6 +185,7 @@ static int blankinterval = 10*60;
 core_param(consoleblank, blankinterval, int, 0444);
 
 static DECLARE_WORK(console_work, console_callback);
+static DECLARE_WORK(con_driver_unregister_work, con_driver_unregister_callback);
 
 /*
  * fg_console is the current virtual console,
@@ -3605,7 +3608,8 @@ static int do_register_con_driver(const struct consw *csw, int first, int last)
 	for (i = 0; i < MAX_NR_CON_DRIVER; i++) {
 		con_driver = &registered_con_driver[i];
 
-		if (con_driver->con == NULL) {
+		if (con_driver->con == NULL &&
+		    !(con_driver->flag & CON_DRIVER_FLAG_ZOMBIE)) {
 			con_driver->con = csw;
 			con_driver->desc = desc;
 			con_driver->node = i;
@@ -3667,16 +3671,20 @@ int do_unregister_con_driver(const struct consw *csw)
 		struct con_driver *con_driver = &registered_con_driver[i];
 
 		if (con_driver->con == csw) {
-			vtconsole_deinit_device(con_driver);
-			device_destroy(vtconsole_class,
-				       MKDEV(0, con_driver->node));
+			/*
+			 * Defer the removal of the sysfs entries since that
+			 * will acquire the kernfs s_active lock and we can't
+			 * acquire this lock while holding the console lock:
+			 * the unbind sysfs entry imposes already the opposite
+			 * order. Reset con already here to prevent any later
+			 * lookup to succeed and mark this slot as zombie, so
+			 * it won't get reused until we complete the removal
+			 * in the deferred work.
+			 */
 			con_driver->con = NULL;
-			con_driver->desc = NULL;
-			con_driver->dev = NULL;
-			con_driver->node = 0;
-			con_driver->flag = 0;
-			con_driver->first = 0;
-			con_driver->last = 0;
+			con_driver->flag = CON_DRIVER_FLAG_ZOMBIE;
+			schedule_work(&con_driver_unregister_work);
+
 			return 0;
 		}
 	}
@@ -3684,6 +3692,39 @@ int do_unregister_con_driver(const struct consw *csw)
 	return -ENODEV;
 }
 EXPORT_SYMBOL_GPL(do_unregister_con_driver);
+
+static void con_driver_unregister_callback(struct work_struct *ignored)
+{
+	int i;
+
+	console_lock();
+
+	for (i = 0; i < MAX_NR_CON_DRIVER; i++) {
+		struct con_driver *con_driver = &registered_con_driver[i];
+
+		if (!(con_driver->flag & CON_DRIVER_FLAG_ZOMBIE))
+			continue;
+
+		console_unlock();
+
+		vtconsole_deinit_device(con_driver);
+		device_destroy(vtconsole_class, MKDEV(0, con_driver->node));
+
+		console_lock();
+
+		if (WARN_ON_ONCE(con_driver->con))
+			con_driver->con = NULL;
+		con_driver->desc = NULL;
+		con_driver->dev = NULL;
+		con_driver->node = 0;
+		WARN_ON_ONCE(con_driver->flag != CON_DRIVER_FLAG_ZOMBIE);
+		con_driver->flag = 0;
+		con_driver->first = 0;
+		con_driver->last = 0;
+	}
+
+	console_unlock();
+}
 
 /*
  *	If we support more console drivers, this function is used
