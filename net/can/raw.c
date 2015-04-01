@@ -74,6 +74,11 @@ MODULE_ALIAS("can-proto-1");
  * storing the single filter in dfilter, to avoid using dynamic memory.
  */
 
+struct uniqframe {
+	ktime_t tstamp;
+	const struct sk_buff *skb;
+};
+
 struct raw_sock {
 	struct sock sk;
 	int bound;
@@ -86,6 +91,7 @@ struct raw_sock {
 	struct can_filter dfilter; /* default/single filter */
 	struct can_filter *filter; /* pointer to filter(s) */
 	can_err_mask_t err_mask;
+	struct uniqframe __percpu *uniq;
 };
 
 /*
@@ -122,6 +128,15 @@ static void raw_rcv(struct sk_buff *oskb, void *data)
 	/* do not pass non-CAN2.0 frames to a legacy socket */
 	if (!ro->fd_frames && oskb->len != CAN_MTU)
 		return;
+
+	/* eliminate multiple filter matches for the same skb */
+	if (this_cpu_ptr(ro->uniq)->skb == oskb &&
+	    ktime_equal(this_cpu_ptr(ro->uniq)->tstamp, oskb->tstamp)) {
+		return;
+	} else {
+		this_cpu_ptr(ro->uniq)->skb = oskb;
+		this_cpu_ptr(ro->uniq)->tstamp = oskb->tstamp;
+	}
 
 	/* clone the given skb to be able to enqueue it into the rcv queue */
 	skb = skb_clone(oskb, GFP_ATOMIC);
@@ -297,6 +312,11 @@ static int raw_init(struct sock *sk)
 	ro->recv_own_msgs    = 0;
 	ro->fd_frames        = 0;
 
+	/* alloc_percpu provides zero'ed memory */
+	ro->uniq = alloc_percpu(struct uniqframe);
+	if (unlikely(!ro->uniq))
+		return -ENOMEM;
+
 	/* set notifier */
 	ro->notifier.notifier_call = raw_notifier;
 
@@ -339,6 +359,7 @@ static int raw_release(struct socket *sock)
 	ro->ifindex = 0;
 	ro->bound   = 0;
 	ro->count   = 0;
+	free_percpu(ro->uniq);
 
 	sock_orphan(sk);
 	sock->sk = NULL;
