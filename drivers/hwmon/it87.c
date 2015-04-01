@@ -232,10 +232,10 @@ static const u8 IT87_REG_TEMP_OFFSET[] = { 0x56, 0x57, 0x59 };
 static const u8 IT87_REG_PWM[]         = { 0x15, 0x16, 0x17, 0x7f, 0xa7, 0xaf };
 static const u8 IT87_REG_PWM_DUTY[]    = { 0x63, 0x6b, 0x73, 0x7b, 0xa3, 0xab };
 
-#define IT87_REG_VIN(nr)       (0x20 + (nr))
-#define IT87_REG_TEMP(nr)      (0x29 + (nr))
+static const u8 IT87_REG_VIN[]	= { 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26,
+				    0x27, 0x28, 0x2f };
 
-#define IT87_REG_AVCC3		0x2f
+#define IT87_REG_TEMP(nr)      (0x29 + (nr))
 
 #define IT87_REG_VIN_MAX(nr)   (0x30 + (nr) * 2)
 #define IT87_REG_VIN_MIN(nr)   (0x31 + (nr) * 2)
@@ -679,18 +679,22 @@ static struct it87_data *it87_update_device(struct device *dev)
 			it87_write_value(data, IT87_REG_CONFIG,
 				it87_read_value(data, IT87_REG_CONFIG) | 0x40);
 		}
-		for (i = 0; i <= 7; i++) {
+		for (i = 0; i < ARRAY_SIZE(IT87_REG_VIN); i++) {
+			if (!(data->has_in & (1 << i)))
+				continue;
+
 			data->in[i][0] =
-				it87_read_value(data, IT87_REG_VIN(i));
+				it87_read_value(data, IT87_REG_VIN[i]);
+
+			/* VBAT and AVCC don't have limit registers */
+			if (i >= 8)
+				continue;
+
 			data->in[i][1] =
 				it87_read_value(data, IT87_REG_VIN_MIN(i));
 			data->in[i][2] =
 				it87_read_value(data, IT87_REG_VIN_MAX(i));
 		}
-		/* in8 (battery) has no limit registers */
-		data->in[8][0] = it87_read_value(data, IT87_REG_VIN(8));
-		if (has_avcc3(data))
-			data->in[9][0] = it87_read_value(data, IT87_REG_AVCC3);
 
 		for (i = 0; i < 6; i++) {
 			/* Skip disabled fans */
