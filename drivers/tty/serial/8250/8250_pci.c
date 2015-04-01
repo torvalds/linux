@@ -1690,88 +1690,71 @@ static int pci_fintek_setup(struct serial_private *priv,
 			    struct uart_8250_port *port, int idx)
 {
 	struct pci_dev *pdev = priv->dev;
-	unsigned long iobase;
 	u8 config_base;
-	u32 bar_data[3];
+	u16 iobase;
 
-	/*
-	 * Find each UARTs offset in PCI configuraion space
-	 */
-	switch (idx) {
-	case 0:
-		config_base = 0x40;
+	config_base = 0x40 + 0x08 * idx;
+
+	/* Get the io address from configuration space */
+	pci_read_config_word(pdev, config_base + 4, &iobase);
+
+	dev_dbg(&pdev->dev, "%s: idx=%d iobase=0x%x", __func__, idx, iobase);
+
+	port->port.iotype = UPIO_PORT;
+	port->port.iobase = iobase;
+
+	return 0;
+}
+
+static int pci_fintek_init(struct pci_dev *dev)
+{
+	unsigned long iobase;
+	u32 max_port, i;
+	u32 bar_data[3];
+	u8 config_base;
+
+	switch (dev->device) {
+	case 0x1104: /* 4 ports */
+	case 0x1108: /* 8 ports */
+		max_port = dev->device & 0xff;
 		break;
-	case 1:
-		config_base = 0x48;
-		break;
-	case 2:
-		config_base = 0x50;
-		break;
-	case 3:
-		config_base = 0x58;
-		break;
-	case 4:
-		config_base = 0x60;
-		break;
-	case 5:
-		config_base = 0x68;
-		break;
-	case 6:
-		config_base = 0x70;
-		break;
-	case 7:
-		config_base = 0x78;
-		break;
-	case 8:
-		config_base = 0x80;
-		break;
-	case 9:
-		config_base = 0x88;
-		break;
-	case 10:
-		config_base = 0x90;
-		break;
-	case 11:
-		config_base = 0x98;
+	case 0x1112: /* 12 ports */
+		max_port = 12;
 		break;
 	default:
-		/* Unknown number of ports, get out of here */
 		return -EINVAL;
 	}
 
 	/* Get the io address dispatch from the BIOS */
-	pci_read_config_dword(pdev, 0x24, &bar_data[0]);
-	pci_read_config_dword(pdev, 0x20, &bar_data[1]);
-	pci_read_config_dword(pdev, 0x1c, &bar_data[2]);
+	pci_read_config_dword(dev, 0x24, &bar_data[0]);
+	pci_read_config_dword(dev, 0x20, &bar_data[1]);
+	pci_read_config_dword(dev, 0x1c, &bar_data[2]);
 
-	/* Calculate Real IO Port */
-	iobase = (bar_data[idx/4] & 0xffffffe0) + (idx % 4) * 8;
+	for (i = 0; i < max_port; ++i) {
+		/* UART0 configuration offset start from 0x40 */
+		config_base = 0x40 + 0x08 * i;
 
-	dev_dbg(&pdev->dev, "%s: idx=%d iobase=0x%lx config_base=0x%2x\n",
-		__func__, idx, iobase, config_base);
+		/* Calculate Real IO Port */
+		iobase = (bar_data[i / 4] & 0xffffffe0) + (i % 4) * 8;
 
-	/* Enable UART I/O port */
-	pci_write_config_byte(pdev, config_base + 0x00, 0x01);
+		/* Enable UART I/O port */
+		pci_write_config_byte(dev, config_base + 0x00, 0x01);
 
-	/* Select 128-byte FIFO and 8x FIFO threshold */
-	pci_write_config_byte(pdev, config_base + 0x01, 0x33);
+		/* Select 128-byte FIFO and 8x FIFO threshold */
+		pci_write_config_byte(dev, config_base + 0x01, 0x33);
 
-	/* LSB UART */
-	pci_write_config_byte(pdev, config_base + 0x04, (u8)(iobase & 0xff));
+		/* LSB UART */
+		pci_write_config_byte(dev, config_base + 0x04,
+				(u8)(iobase & 0xff));
 
-	/* MSB UART */
-	pci_write_config_byte(pdev, config_base + 0x05, (u8)((iobase & 0xff00) >> 8));
+		/* MSB UART */
+		pci_write_config_byte(dev, config_base + 0x05,
+				(u8)((iobase & 0xff00) >> 8));
 
-	/* irq number, this usually fails, but the spec says to do it anyway. */
-	pci_write_config_byte(pdev, config_base + 0x06, pdev->irq);
+		pci_write_config_byte(dev, config_base + 0x06, dev->irq);
+	}
 
-	port->port.iotype = UPIO_PORT;
-	port->port.iobase = iobase;
-	port->port.mapbase = 0;
-	port->port.membase = NULL;
-	port->port.regshift = 0;
-
-	return 0;
+	return max_port;
 }
 
 static int skip_tx_en_setup(struct serial_private *priv,
@@ -2814,6 +2797,7 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
 		.setup		= pci_fintek_setup,
+		.init		= pci_fintek_init,
 	},
 	{
 		.vendor		= 0x1c29,
@@ -2821,6 +2805,7 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
 		.setup		= pci_fintek_setup,
+		.init		= pci_fintek_init,
 	},
 	{
 		.vendor		= 0x1c29,
@@ -2828,6 +2813,7 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
 		.setup		= pci_fintek_setup,
+		.init		= pci_fintek_init,
 	},
 
 	/*
