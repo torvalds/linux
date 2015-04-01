@@ -3678,6 +3678,7 @@ static int ath10k_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 static int ath10k_start(struct ieee80211_hw *hw)
 {
 	struct ath10k *ar = hw->priv;
+	u32 burst_enable;
 	int ret = 0;
 
 	/*
@@ -3737,6 +3738,15 @@ static int ath10k_start(struct ieee80211_hw *hw)
 		if (ret) {
 			ath10k_warn(ar, "failed to enable adaptive qcs: %d\n",
 				    ret);
+			goto err_core_stop;
+		}
+	}
+
+	if (test_bit(WMI_SERVICE_BURST, ar->wmi.svc_map)) {
+		burst_enable = ar->wmi.pdev_param->burst_enable;
+		ret = ath10k_wmi_pdev_set_param(ar, burst_enable, 0);
+		if (ret) {
+			ath10k_warn(ar, "failed to disable burst: %d\n", ret);
 			goto err_core_stop;
 		}
 	}
