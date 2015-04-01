@@ -2,6 +2,7 @@ CC = $(CROSS_COMPILE)gcc
 CFLAGS += -D_FILE_OFFSET_BITS=64
 CFLAGS += -I../../../../include/uapi/
 CFLAGS += -I../../../../include/
+CFLAGS += -I../../../../usr/include/
 
 all:
 	$(CC) $(CFLAGS) memfd_test.c -o memfd_test
