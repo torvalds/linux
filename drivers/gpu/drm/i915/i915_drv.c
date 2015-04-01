@@ -1095,6 +1095,7 @@ static void vlv_save_gunit_s0ix_state(struct drm_i915_private *dev_priv)
 	/* Gunit-Display CZ domain, 0x182028-0x1821CF */
 	s->gu_ctl0		= I915_READ(VLV_GU_CTL0);
 	s->gu_ctl1		= I915_READ(VLV_GU_CTL1);
+	s->pcbr			= I915_READ(VLV_PCBR);
 	s->clock_gate_dis2	= I915_READ(VLV_GUNIT_CLOCK_GATE2);
 
 	/*
@@ -1189,6 +1190,7 @@ static void vlv_restore_gunit_s0ix_state(struct drm_i915_private *dev_priv)
 	/* Gunit-Display CZ domain, 0x182028-0x1821CF */
 	I915_WRITE(VLV_GU_CTL0,			s->gu_ctl0);
 	I915_WRITE(VLV_GU_CTL1,			s->gu_ctl1);
+	I915_WRITE(VLV_PCBR,			s->pcbr);
 	I915_WRITE(VLV_GUNIT_CLOCK_GATE2,	s->clock_gate_dis2);
 }
 
