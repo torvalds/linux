@@ -7093,9 +7093,9 @@ static int alloc_reserved_tree_block(struct btrfs_trans_handle *trans,
 	ret = btrfs_insert_empty_item(trans, fs_info->extent_root, path,
 				      ins, size);
 	if (ret) {
+		btrfs_free_path(path);
 		btrfs_free_and_pin_reserved_extent(root, ins->objectid,
 						   root->nodesize);
-		btrfs_free_path(path);
 		return ret;
 	}
 
