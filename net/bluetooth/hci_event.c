@@ -3124,6 +3124,12 @@ static void hci_cmd_status_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	if (ev->ncmd && !test_bit(HCI_RESET, &hdev->flags))
 		atomic_set(&hdev->cmd_cnt, 1);
 
+	/* Indicate request completion if the command failed. Also, if
+	 * we're not waiting for a special event and we get a success
+	 * command status we should try to flag the request as completed
+	 * (since for this kind of commands there will not be a command
+	 * complete event).
+	 */
 	if (ev->status ||
 	    (hdev->sent_cmd && !bt_cb(hdev->sent_cmd)->req.event))
 		hci_req_cmd_complete(hdev, opcode, ev->status);
