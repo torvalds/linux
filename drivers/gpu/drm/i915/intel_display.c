@@ -10625,16 +10625,24 @@ static bool encoders_cloneable(const struct intel_encoder *a,
 			  b->cloneable & (1 << a->type));
 }
 
-static bool check_single_encoder_cloning(struct intel_crtc *crtc,
+static bool check_single_encoder_cloning(struct drm_atomic_state *state,
+					 struct intel_crtc *crtc,
 					 struct intel_encoder *encoder)
 {
-	struct drm_device *dev = crtc->base.dev;
 	struct intel_encoder *source_encoder;
+	struct drm_connector_state *connector_state;
+	int i;
 
-	for_each_intel_encoder(dev, source_encoder) {
-		if (source_encoder->new_crtc != crtc)
+	for (i = 0; i < state->num_connector; i++) {
+		if (!state->connectors[i])
 			continue;
 
+		connector_state = state->connector_states[i];
+		if (connector_state->crtc != &crtc->base)
+			continue;
+
+		source_encoder =
+			to_intel_encoder(connector_state->best_encoder);
 		if (!encoders_cloneable(encoder, source_encoder))
 			return false;
 	}
@@ -10642,16 +10650,23 @@ static bool check_single_encoder_cloning(struct intel_crtc *crtc,
 	return true;
 }
 
-static bool check_encoder_cloning(struct intel_crtc *crtc)
+static bool check_encoder_cloning(struct drm_atomic_state *state,
+				  struct intel_crtc *crtc)
 {
-	struct drm_device *dev = crtc->base.dev;
 	struct intel_encoder *encoder;
+	struct drm_connector_state *connector_state;
+	int i;
 
-	for_each_intel_encoder(dev, encoder) {
-		if (encoder->new_crtc != crtc)
+	for (i = 0; i < state->num_connector; i++) {
+		if (!state->connectors[i])
 			continue;
 
-		if (!check_single_encoder_cloning(crtc, encoder))
+		connector_state = state->connector_states[i];
+		if (connector_state->crtc != &crtc->base)
+			continue;
+
+		encoder = to_intel_encoder(connector_state->best_encoder);
+		if (!check_single_encoder_cloning(state, crtc, encoder))
 			return false;
 	}
 
@@ -10731,7 +10746,7 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 	int i;
 	bool retry = true;
 
-	if (!check_encoder_cloning(to_intel_crtc(crtc))) {
+	if (!check_encoder_cloning(state, to_intel_crtc(crtc))) {
 		DRM_DEBUG_KMS("rejecting invalid cloning configuration\n");
 		return ERR_PTR(-EINVAL);
 	}
