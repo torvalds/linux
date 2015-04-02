@@ -219,7 +219,12 @@ static bool fix_pwm_polarity;
 #define IT87_REG_FAN_DIV       0x0b
 #define IT87_REG_FAN_16BIT     0x0c
 
-/* Monitors: 9 voltage (0 to 7, battery), 6 temp (1 to 6), 3 fan (1 to 3) */
+/*
+ * Monitors:
+ * - up to 13 voltage (0 to 7, battery, avcc, 10 to 12)
+ * - up to 6 temp (1 to 6)
+ * - up to 6 fan (1 to 6)
+ */
 
 static const u8 IT87_REG_FAN[]         = { 0x0d, 0x0e, 0x0f, 0x80, 0x82, 0x4c };
 static const u8 IT87_REG_FAN_MIN[]     = { 0x10, 0x11, 0x12, 0x84, 0x86, 0x4e };
@@ -233,7 +238,7 @@ static const u8 IT87_REG_PWM[]         = { 0x15, 0x16, 0x17, 0x7f, 0xa7, 0xaf };
 static const u8 IT87_REG_PWM_DUTY[]    = { 0x63, 0x6b, 0x73, 0x7b, 0xa3, 0xab };
 
 static const u8 IT87_REG_VIN[]	= { 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26,
-				    0x27, 0x28, 0x2f };
+				    0x27, 0x28, 0x2f, 0x2c, 0x2d, 0x2e };
 
 #define IT87_REG_TEMP(nr)      (0x29 + (nr))
 
@@ -478,7 +483,7 @@ struct it87_data {
 	u16 in_scaled;		/* Internal voltage sensors are scaled */
 	u16 in_internal;	/* Bitfield, internal sensors (for labels) */
 	u16 has_in;		/* Bitfield, voltage sensors enabled */
-	u8 in[10][3];		/* [nr][0]=in, [1]=min, [2]=max */
+	u8 in[13][3];		/* [nr][0]=in, [1]=min, [2]=max */
 	u8 has_fan;		/* Bitfield, fans enabled */
 	u16 fan[6][2];		/* Register values, [nr][0]=fan, [1]=min */
 	u8 has_temp;		/* Bitfield, temp sensors enabled */
@@ -861,6 +866,9 @@ static SENSOR_DEVICE_ATTR_2(in7_max, S_IRUGO | S_IWUSR, show_in, set_in,
 
 static SENSOR_DEVICE_ATTR_2(in8_input, S_IRUGO, show_in, NULL, 8, 0);
 static SENSOR_DEVICE_ATTR_2(in9_input, S_IRUGO, show_in, NULL, 9, 0);
+static SENSOR_DEVICE_ATTR_2(in10_input, S_IRUGO, show_in, NULL, 10, 0);
+static SENSOR_DEVICE_ATTR_2(in11_input, S_IRUGO, show_in, NULL, 11, 0);
+static SENSOR_DEVICE_ATTR_2(in12_input, S_IRUGO, show_in, NULL, 12, 0);
 
 /* Up to 6 temperatures */
 static ssize_t show_temp(struct device *dev, struct device_attribute *attr,
@@ -1764,7 +1772,7 @@ static umode_t it87_in_is_visible(struct kobject *kobj,
 	int i = index / 5;	/* voltage index */
 	int a = index % 5;	/* attribute index */
 
-	if (index >= 40) {	/* in8, in9 only have input attributes */
+	if (index >= 40) {	/* in8 and higher only have input attributes */
 		i = index - 40 + 8;
 		a = 0;
 	}
@@ -1828,8 +1836,10 @@ static struct attribute *it87_attributes_in[] = {
 	&sensor_dev_attr_in7_beep.dev_attr.attr,	/* 39 */
 
 	&sensor_dev_attr_in8_input.dev_attr.attr,	/* 40 */
-
 	&sensor_dev_attr_in9_input.dev_attr.attr,	/* 41 */
+	&sensor_dev_attr_in10_input.dev_attr.attr,	/* 41 */
+	&sensor_dev_attr_in11_input.dev_attr.attr,	/* 41 */
+	&sensor_dev_attr_in12_input.dev_attr.attr,	/* 41 */
 };
 
 static const struct attribute_group it87_group_in = {
@@ -2738,12 +2748,21 @@ static int it87_probe(struct platform_device *pdev)
 	if (has_six_temp(data)) {
 		u8 reg = it87_read_value(data, IT87_REG_TEMP456_ENABLE);
 
+		/* Check for additional temperature sensors */
 		if ((reg & 0x03) >= 0x02)
 			data->has_temp |= (1 << 3);
 		if (((reg >> 2) & 0x03) >= 0x02)
 			data->has_temp |= (1 << 4);
 		if (((reg >> 4) & 0x03) >= 0x02)
 			data->has_temp |= (1 << 5);
+
+		/* Check for additional voltage sensors */
+		if ((reg & 0x03) == 0x01)
+			data->has_in |= (1 << 10);
+		if (((reg >> 2) & 0x03) == 0x01)
+			data->has_in |= (1 << 11);
+		if (((reg >> 4) & 0x03) == 0x01)
+			data->has_in |= (1 << 12);
 	}
 
 	data->has_beep = !!sio_data->beep_pin;
