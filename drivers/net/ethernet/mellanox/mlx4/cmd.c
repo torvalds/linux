@@ -48,6 +48,7 @@
 
 #include "mlx4.h"
 #include "fw.h"
+#include "fw_qos.h"
 
 #define CMD_POLL_TOKEN 0xffff
 #define INBOX_MASK	0xffffffffffffff00ULL
@@ -1808,7 +1809,8 @@ static int mlx4_master_immediate_activate_vlan_qos(struct mlx4_priv *priv,
 
 	if (vp_oper->state.default_vlan == vp_admin->default_vlan &&
 	    vp_oper->state.default_qos == vp_admin->default_qos &&
-	    vp_oper->state.link_state == vp_admin->link_state)
+	    vp_oper->state.link_state == vp_admin->link_state &&
+	    vp_oper->state.qos_vport == vp_admin->qos_vport)
 		return 0;
 
 	if (!(priv->mfunc.master.slave_state[slave].active &&
@@ -1866,6 +1868,7 @@ static int mlx4_master_immediate_activate_vlan_qos(struct mlx4_priv *priv,
 	vp_oper->state.default_vlan = vp_admin->default_vlan;
 	vp_oper->state.default_qos = vp_admin->default_qos;
 	vp_oper->state.link_state = vp_admin->link_state;
+	vp_oper->state.qos_vport = vp_admin->qos_vport;
 
 	if (vp_admin->link_state == IFLA_VF_LINK_STATE_DISABLE)
 		work->flags |= MLX4_VF_IMMED_VLAN_FLAG_LINK_DISABLE;
@@ -1874,6 +1877,7 @@ static int mlx4_master_immediate_activate_vlan_qos(struct mlx4_priv *priv,
 	work->port = port;
 	work->slave = slave;
 	work->qos = vp_oper->state.default_qos;
+	work->qos_vport = vp_oper->state.qos_vport;
 	work->vlan_id = vp_oper->state.default_vlan;
 	work->vlan_ix = vp_oper->vlan_idx;
 	work->priv = priv;
@@ -2339,6 +2343,9 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 				INIT_LIST_HEAD(&s_state->mcast_filters[port]);
 				admin_vport->default_vlan = MLX4_VGT;
 				oper_vport->default_vlan = MLX4_VGT;
+				admin_vport->qos_vport =
+						MLX4_VPP_DEFAULT_VPORT;
+				oper_vport->qos_vport = MLX4_VPP_DEFAULT_VPORT;
 				vf_oper->vport[port].vlan_idx = NO_INDX;
 				vf_oper->vport[port].mac_idx = NO_INDX;
 			}

@@ -44,6 +44,9 @@
 /* Default supported priorities for VPP allocation */
 #define MLX4_DEFAULT_QOS_PRIO (0)
 
+/* Derived from FW feature definition, 0 is the default vport fo all QPs */
+#define MLX4_VPP_DEFAULT_VPORT (0)
+
 struct mlx4_vport_qos_param {
 	u32 bw_share;
 	u32 max_avg_bw;

@@ -498,6 +498,7 @@ struct mlx4_vport_state {
 	u32 tx_rate;
 	bool spoofchk;
 	u32 link_state;
+	u8 qos_vport;
 };
 
 struct mlx4_vf_admin_state {
@@ -636,6 +637,7 @@ struct mlx4_vf_immed_vlan_work {
 	int			orig_vlan_ix;
 	u8			port;
 	u8			qos;
+	u8                      qos_vport;
 	u16			vlan_id;
 	u16			orig_vlan_id;
 };
