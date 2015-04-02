@@ -1116,7 +1116,10 @@ static int mlx4_en_config_rss_qp(struct mlx4_en_priv *priv, int qpn,
 	/* Cancel FCS removal if FW allows */
 	if (mdev->dev->caps.flags & MLX4_DEV_CAP_FLAG_FCS_KEEP) {
 		context->param3 |= cpu_to_be32(1 << 29);
-		ring->fcs_del = ETH_FCS_LEN;
+		if (priv->dev->features & NETIF_F_RXFCS)
+			ring->fcs_del = 0;
+		else
+			ring->fcs_del = ETH_FCS_LEN;
 	} else
 		ring->fcs_del = 0;
 

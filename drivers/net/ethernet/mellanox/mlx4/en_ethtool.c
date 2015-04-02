@@ -1939,6 +1939,32 @@ static int mlx4_en_get_module_eeprom(struct net_device *dev,
 	return 0;
 }
 
+static int mlx4_en_set_phys_id(struct net_device *dev,
+			       enum ethtool_phys_id_state state)
+{
+	int err;
+	u16 beacon_duration;
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_dev *mdev = priv->mdev;
+
+	if (!(mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_PORT_BEACON))
+		return -EOPNOTSUPP;
+
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		beacon_duration = PORT_BEACON_MAX_LIMIT;
+		break;
+	case ETHTOOL_ID_INACTIVE:
+		beacon_duration = 0;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	err = mlx4_SET_PORT_BEACON(mdev->dev, priv->port, beacon_duration);
+	return err;
+}
+
 const struct ethtool_ops mlx4_en_ethtool_ops = {
 	.get_drvinfo = mlx4_en_get_drvinfo,
 	.get_settings = mlx4_en_get_settings,
@@ -1948,6 +1974,7 @@ const struct ethtool_ops mlx4_en_ethtool_ops = {
 	.get_sset_count = mlx4_en_get_sset_count,
 	.get_ethtool_stats = mlx4_en_get_ethtool_stats,
 	.self_test = mlx4_en_self_test,
+	.set_phys_id = mlx4_en_set_phys_id,
 	.get_wol = mlx4_en_get_wol,
 	.set_wol = mlx4_en_set_wol,
 	.get_msglevel = mlx4_en_get_msglevel,

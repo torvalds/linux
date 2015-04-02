@@ -35,6 +35,7 @@
 #include <linux/math64.h>
 
 #include "mlx4_en.h"
+#include "fw_qos.h"
 
 /* Definitions for QCN
  */

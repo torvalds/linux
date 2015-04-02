@@ -49,9 +49,9 @@ enum {
 extern void __buggy_use_of_MLX4_GET(void);
 extern void __buggy_use_of_MLX4_PUT(void);
 
-static bool enable_qos;
+static bool enable_qos = true;
 module_param(enable_qos, bool, 0444);
-MODULE_PARM_DESC(enable_qos, "Enable Quality of Service support in the HCA (default: off)");
+MODULE_PARM_DESC(enable_qos, "Enable Enhanced QoS support (default: on)");
 
 #define MLX4_GET(dest, source, offset)				      \
 	do {							      \
@@ -105,6 +105,7 @@ static void dump_dev_cap_flags(struct mlx4_dev *dev, u64 flags)
 		[41] = "Unicast VEP steering support",
 		[42] = "Multicast VEP steering support",
 		[48] = "Counters support",
+		[52] = "RSS IP fragments support",
 		[53] = "Port ETS Scheduler support",
 		[55] = "Port link type sensing support",
 		[59] = "Port management change event support",
@@ -146,7 +147,11 @@ static void dump_dev_cap_flags2(struct mlx4_dev *dev, u64 flags)
 		[21] = "Port Remap support",
 		[22] = "QCN support",
 		[23] = "QP rate limiting support",
-		[24] = "Ethernet Flow control statistics support"
+		[24] = "Ethernet Flow control statistics support",
+		[25] = "Granular QoS per VF support",
+		[26] = "Port ETS Scheduler support",
+		[27] = "Port beacon support",
+		[28] = "RX-ALL support",
 	};
 	int i;
 
@@ -644,6 +649,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 #define QUERY_DEV_CAP_RSS_OFFSET		0x2e
 #define QUERY_DEV_CAP_MAX_RDMA_OFFSET		0x2f
 #define QUERY_DEV_CAP_RSZ_SRQ_OFFSET		0x33
+#define QUERY_DEV_CAP_PORT_BEACON_OFFSET	0x34
 #define QUERY_DEV_CAP_ACK_DELAY_OFFSET		0x35
 #define QUERY_DEV_CAP_MTU_WIDTH_OFFSET		0x36
 #define QUERY_DEV_CAP_VL_PORT_OFFSET		0x37
@@ -783,6 +789,9 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	if (field & 0x80)
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_FS_EN;
 	dev_cap->fs_log_max_ucast_qp_range_size = field & 0x1f;
+	MLX4_GET(field, outbox, QUERY_DEV_CAP_PORT_BEACON_OFFSET);
+	if (field & 0x80)
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_PORT_BEACON;
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_FLOW_STEERING_IPOIB_OFFSET);
 	if (field & 0x80)
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_DMFS_IPOIB;
@@ -870,6 +879,8 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	MLX4_GET(size, outbox, QUERY_DEV_CAP_MAX_DESC_SZ_RQ_OFFSET);
 	dev_cap->max_rq_desc_sz = size;
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_CQ_EQ_CACHE_LINE_STRIDE);
+	if (field & (1 << 4))
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_QOS_VPP;
 	if (field & (1 << 5))
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_ETH_PROT_CTRL;
 	if (field & (1 << 6))
@@ -883,6 +894,8 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_CONFIG_DEV_OFFSET);
 	if (field & 0x20)
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_CONFIG_DEV;
+	if (field & (1 << 2))
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_IGNORE_FCS;
 	MLX4_GET(dev_cap->reserved_lkey, outbox,
 		 QUERY_DEV_CAP_RSVD_LKEY_OFFSET);
 	MLX4_GET(field32, outbox, QUERY_DEV_CAP_ETH_BACKPL_OFFSET);
@@ -896,6 +909,8 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_VXLAN);
 	if (field & 1<<3)
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_VXLAN_OFFLOADS;
+	if (field & (1 << 5))
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_ETS_CFG;
 	MLX4_GET(dev_cap->max_icm_sz, outbox,
 		 QUERY_DEV_CAP_MAX_ICM_SZ_OFFSET);
 	if (dev_cap->flags & MLX4_DEV_CAP_FLAG_COUNTERS)
@@ -1138,6 +1153,9 @@ int mlx4_QUERY_DEV_CAP_wrapper(struct mlx4_dev *dev, int slave,
 	}
 	for (; slave_port < dev->caps.num_ports; ++slave_port)
 		flags &= ~(MLX4_DEV_CAP_FLAG_WOL_PORT1 << slave_port);
+
+	/* Not exposing RSS IP fragments to guests */
+	flags &= ~MLX4_DEV_CAP_FLAG_RSS_IP_FRAG;
 	MLX4_PUT(outbox->buf, flags, QUERY_DEV_CAP_EXT_FLAGS_OFFSET);
 
 	MLX4_GET(field, outbox->buf, QUERY_DEV_CAP_VL_PORT_OFFSET);
@@ -1150,10 +1168,15 @@ int mlx4_QUERY_DEV_CAP_wrapper(struct mlx4_dev *dev, int slave,
 	field &= 0x7f;
 	MLX4_PUT(outbox->buf, field, QUERY_DEV_CAP_CQ_TS_SUPPORT_OFFSET);
 
-	/* For guests, disable vxlan tunneling */
+	/* For guests, disable vxlan tunneling and QoS support */
 	MLX4_GET(field, outbox->buf, QUERY_DEV_CAP_VXLAN);
-	field &= 0xf7;
+	field &= 0xd7;
 	MLX4_PUT(outbox->buf, field, QUERY_DEV_CAP_VXLAN);
+
+	/* For guests, disable port BEACON */
+	MLX4_GET(field, outbox->buf, QUERY_DEV_CAP_PORT_BEACON_OFFSET);
+	field &= 0x7f;
+	MLX4_PUT(outbox->buf, field, QUERY_DEV_CAP_PORT_BEACON_OFFSET);
 
 	/* For guests, report Blueflame disabled */
 	MLX4_GET(field, outbox->buf, QUERY_DEV_CAP_BF_OFFSET);
@@ -1194,6 +1217,16 @@ int mlx4_QUERY_DEV_CAP_wrapper(struct mlx4_dev *dev, int slave,
 	/* turn off QP max-rate limiting for guests */
 	field16 = 0;
 	MLX4_PUT(outbox->buf, field16, QUERY_DEV_CAP_QP_RATE_LIMIT_NUM_OFFSET);
+
+	/* turn off QoS per VF support for guests */
+	MLX4_GET(field, outbox->buf, QUERY_DEV_CAP_CQ_EQ_CACHE_LINE_STRIDE);
+	field &= 0xef;
+	MLX4_PUT(outbox->buf, field, QUERY_DEV_CAP_CQ_EQ_CACHE_LINE_STRIDE);
+
+	/* turn off ignore FCS feature for guests */
+	MLX4_GET(field, outbox->buf, QUERY_DEV_CAP_CONFIG_DEV_OFFSET);
+	field &= 0xfb;
+	MLX4_PUT(outbox->buf, field, QUERY_DEV_CAP_CONFIG_DEV_OFFSET);
 
 	return 0;
 }
@@ -1694,12 +1727,16 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 		*(inbox + INIT_HCA_FLAGS_OFFSET / 4) |= cpu_to_be32(1 << 3);
 
 	/* Enable QoS support if module parameter set */
-	if (enable_qos)
+	if (dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_ETS_CFG && enable_qos)
 		*(inbox + INIT_HCA_FLAGS_OFFSET / 4) |= cpu_to_be32(1 << 2);
 
 	/* enable counters */
 	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_COUNTERS)
 		*(inbox + INIT_HCA_FLAGS_OFFSET / 4) |= cpu_to_be32(1 << 4);
+
+	/* Enable RSS spread to fragmented IP packets when supported */
+	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_RSS_IP_FRAG)
+		*(inbox + INIT_HCA_FLAGS_OFFSET / 4) |= cpu_to_be32(1 << 13);
 
 	/* CX3 is capable of extending CQEs/EQEs from 32 to 64 bytes */
 	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_64B_EQE) {
@@ -1889,6 +1926,10 @@ int mlx4_QUERY_HCA(struct mlx4_dev *dev,
 		else
 			param->steering_mode = MLX4_STEERING_MODE_A0;
 	}
+
+	if (dword_field & (1 << 13))
+		param->rss_ip_frags = 1;
+
 	/* steering attributes */
 	if (param->steering_mode == MLX4_STEERING_MODE_DEVICE_MANAGED) {
 		MLX4_GET(param->mc_base, outbox, INIT_HCA_FS_BASE_OFFSET);
