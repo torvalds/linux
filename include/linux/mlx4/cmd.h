@@ -191,6 +191,7 @@ enum {
 	/* Set port opcode modifiers */
 	MLX4_SET_PORT_IB_OPCODE		= 0x0,
 	MLX4_SET_PORT_ETH_OPCODE	= 0x1,
+	MLX4_SET_PORT_BEACON_OPCODE	= 0x4,
 };
 
 enum {

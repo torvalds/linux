@@ -835,6 +835,12 @@ static int mlx4_common_set_port(struct mlx4_dev *dev, int slave, u32 in_mod,
 				MLX4_CMD_NATIVE);
 	}
 
+	/* Slaves are not allowed to SET_PORT beacon (LED) blink */
+	if (op_mod == MLX4_SET_PORT_BEACON_OPCODE) {
+		mlx4_warn(dev, "denying SET_PORT Beacon slave:%d\n", slave);
+		return -EPERM;
+	}
+
 	/* For IB, we only consider:
 	 * - The capability mask, which is set to the aggregate of all
 	 *   slave function capabilities
@@ -1063,6 +1069,26 @@ int mlx4_SET_PORT_VXLAN(struct mlx4_dev *dev, u8 port, u8 steering, int enable)
 	return err;
 }
 EXPORT_SYMBOL(mlx4_SET_PORT_VXLAN);
+
+int mlx4_SET_PORT_BEACON(struct mlx4_dev *dev, u8 port, u16 time)
+{
+	int err;
+	struct mlx4_cmd_mailbox *mailbox;
+
+	mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+
+	*((__be32 *)mailbox->buf) = cpu_to_be32(time);
+
+	err = mlx4_cmd(dev, mailbox->dma, port, MLX4_SET_PORT_BEACON_OPCODE,
+		       MLX4_CMD_SET_PORT, MLX4_CMD_TIME_CLASS_B,
+		       MLX4_CMD_NATIVE);
+
+	mlx4_free_cmd_mailbox(dev, mailbox);
+	return err;
+}
+EXPORT_SYMBOL(mlx4_SET_PORT_BEACON);
 
 int mlx4_SET_MCAST_FLTR_wrapper(struct mlx4_dev *dev, int slave,
 				struct mlx4_vhcr *vhcr,
