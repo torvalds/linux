@@ -509,11 +509,14 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 	struct tid_ampdu_tx *tid_tx;
 	int ret = 0;
 
+	trace_api_start_tx_ba_session(pubsta, tid);
+
 	if (WARN(sta->reserved_tid == tid,
 		 "Requested to start BA session on reserved tid=%d", tid))
 		return -EINVAL;
 
-	trace_api_start_tx_ba_session(pubsta, tid);
+	if (!pubsta->ht_cap.ht_supported)
+		return -EINVAL;
 
 	if (WARN_ON_ONCE(!local->ops->ampdu_action))
 		return -EINVAL;
@@ -793,6 +796,7 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u8 tid)
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 	struct tid_ampdu_tx *tid_tx;
+	bool send_delba = false;
 
 	trace_api_stop_tx_ba_cb(sdata, ra, tid);
 
@@ -824,13 +828,17 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u8 tid)
 	}
 
 	if (tid_tx->stop_initiator == WLAN_BACK_INITIATOR && tid_tx->tx_stop)
-		ieee80211_send_delba(sta->sdata, ra, tid,
-			WLAN_BACK_INITIATOR, WLAN_REASON_QSTA_NOT_USE);
+		send_delba = true;
 
 	ieee80211_remove_tid_tx(sta, tid);
 
  unlock_sta:
 	spin_unlock_bh(&sta->lock);
+
+	if (send_delba)
+		ieee80211_send_delba(sdata, ra, tid,
+			WLAN_BACK_INITIATOR, WLAN_REASON_QSTA_NOT_USE);
+
 	mutex_unlock(&sta->ampdu_mlme.mtx);
  unlock:
 	mutex_unlock(&local->sta_mtx);

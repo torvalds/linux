@@ -1,5 +1,5 @@
 /*
- * Linux network driver for Brocade Converged Network Adapter.
+ * Linux network driver for QLogic BR-series Converged Network Adapter.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License (GPL) Version 2 as
@@ -11,9 +11,10 @@
  * General Public License for more details.
  */
 /*
- * Copyright (c) 2006-2010 Brocade Communications Systems, Inc.
+ * Copyright (c) 2006-2014 Brocade Communications Systems, Inc.
+ * Copyright (c) 2014-2015 QLogic Corporation
  * All rights reserved
- * www.brocade.com
+ * www.qlogic.com
  */
 
 #ifndef __CNA_H__
@@ -37,8 +38,8 @@
 
 extern char bfa_version[];
 
-#define CNA_FW_FILE_CT	"ctfw-3.2.3.0.bin"
-#define CNA_FW_FILE_CT2	"ct2fw-3.2.3.0.bin"
+#define CNA_FW_FILE_CT	"ctfw-3.2.5.1.bin"
+#define CNA_FW_FILE_CT2	"ct2fw-3.2.5.1.bin"
 #define FC_SYMNAME_MAX	256	/*!< max name server symbolic name size */
 
 #pragma pack(1)

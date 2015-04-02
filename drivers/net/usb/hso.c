@@ -1477,6 +1477,7 @@ static void tiocmget_intr_callback(struct urb *urb)
 	struct uart_icount *icount;
 	struct hso_serial_state_notification *serial_state_notification;
 	struct usb_device *usb;
+	struct usb_interface *interface;
 	int if_num;
 
 	/* Sanity checks */
@@ -1494,7 +1495,9 @@ static void tiocmget_intr_callback(struct urb *urb)
 	BUG_ON((serial->parent->port_spec & HSO_PORT_MASK) != HSO_PORT_MODEM);
 
 	usb = serial->parent->usb;
-	if_num = serial->parent->interface->altsetting->desc.bInterfaceNumber;
+	interface = serial->parent->interface;
+
+	if_num = interface->cur_altsetting->desc.bInterfaceNumber;
 
 	/* wIndex should be the USB interface number of the port to which the
 	 * notification applies, which should always be the Modem port.
@@ -1675,6 +1678,7 @@ static int hso_serial_tiocmset(struct tty_struct *tty,
 	unsigned long flags;
 	int if_num;
 	struct hso_serial *serial = tty->driver_data;
+	struct usb_interface *interface;
 
 	/* sanity check */
 	if (!serial) {
@@ -1685,7 +1689,8 @@ static int hso_serial_tiocmset(struct tty_struct *tty,
 	if ((serial->parent->port_spec & HSO_PORT_MASK) != HSO_PORT_MODEM)
 		return -EINVAL;
 
-	if_num = serial->parent->interface->altsetting->desc.bInterfaceNumber;
+	interface = serial->parent->interface;
+	if_num = interface->cur_altsetting->desc.bInterfaceNumber;
 
 	spin_lock_irqsave(&serial->serial_lock, flags);
 	if (set & TIOCM_RTS)
@@ -2808,7 +2813,7 @@ static int hso_get_config_data(struct usb_interface *interface)
 {
 	struct usb_device *usbdev = interface_to_usbdev(interface);
 	u8 *config_data = kmalloc(17, GFP_KERNEL);
-	u32 if_num = interface->altsetting->desc.bInterfaceNumber;
+	u32 if_num = interface->cur_altsetting->desc.bInterfaceNumber;
 	s32 result;
 
 	if (!config_data)
@@ -2886,7 +2891,7 @@ static int hso_probe(struct usb_interface *interface,
 		return -ENODEV;
 	}
 
-	if_num = interface->altsetting->desc.bInterfaceNumber;
+	if_num = interface->cur_altsetting->desc.bInterfaceNumber;
 
 	/* Get the interface/port specification from either driver_info or from
 	 * the device itself */

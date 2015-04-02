@@ -508,25 +508,25 @@ COMPAT_SYSCALL_DEFINE5(getsockopt, int, fd, int, level, int, optname,
 struct compat_group_req {
 	__u32				 gr_interface;
 	struct __kernel_sockaddr_storage gr_group
-		__attribute__ ((aligned(4)));
+		__aligned(4);
 } __packed;
 
 struct compat_group_source_req {
 	__u32				 gsr_interface;
 	struct __kernel_sockaddr_storage gsr_group
-		__attribute__ ((aligned(4)));
+		__aligned(4);
 	struct __kernel_sockaddr_storage gsr_source
-		__attribute__ ((aligned(4)));
+		__aligned(4);
 } __packed;
 
 struct compat_group_filter {
 	__u32				 gf_interface;
 	struct __kernel_sockaddr_storage gf_group
-		__attribute__ ((aligned(4)));
+		__aligned(4);
 	__u32				 gf_fmode;
 	__u32				 gf_numsrc;
 	struct __kernel_sockaddr_storage gf_slist[1]
-		__attribute__ ((aligned(4)));
+		__aligned(4);
 } __packed;
 
 #define __COMPAT_GF0_SIZE (sizeof(struct compat_group_filter) - \

@@ -449,7 +449,7 @@ static void macb_update_stats(struct macb *bp)
 	WARN_ON((unsigned long)(end - p - 1) != (MACB_TPF - MACB_PFR) / 4);
 
 	for(; p < end; p++, reg++)
-		*p += __raw_readl(reg);
+		*p += readl_relaxed(reg);
 }
 
 static int macb_halt_tx(struct macb *bp)
@@ -1585,7 +1585,11 @@ static void macb_configure_dma(struct macb *bp)
 		if (bp->dma_burst_length)
 			dmacfg = GEM_BFINS(FBLDO, bp->dma_burst_length, dmacfg);
 		dmacfg |= GEM_BIT(TXPBMS) | GEM_BF(RXBMS, -1L);
-		dmacfg &= ~GEM_BIT(ENDIA);
+		dmacfg &= ~GEM_BIT(ENDIA_PKT);
+		/* Tell the chip to byteswap descriptors on big-endian hosts */
+#ifdef __BIG_ENDIAN
+		dmacfg |= GEM_BIT(ENDIA_DESC);
+#endif
 		if (bp->dev->features & NETIF_F_HW_CSUM)
 			dmacfg |= GEM_BIT(TXCOEN);
 		else
@@ -1832,14 +1836,14 @@ static void gem_update_stats(struct macb *bp)
 
 	for (i = 0; i < GEM_STATS_LEN; ++i, ++p) {
 		u32 offset = gem_statistics[i].offset;
-		u64 val = __raw_readl(bp->regs + offset);
+		u64 val = readl_relaxed(bp->regs + offset);
 
 		bp->ethtool_stats[i] += val;
 		*p += val;
 
 		if (offset == GEM_OCTTXL || offset == GEM_OCTRXL) {
 			/* Add GEM_OCTTXH, GEM_OCTRXH */
-			val = __raw_readl(bp->regs + offset + 4);
+			val = readl_relaxed(bp->regs + offset + 4);
 			bp->ethtool_stats[i] += ((u64)val) << 32;
 			*(++p) += val;
 		}
@@ -2191,12 +2195,14 @@ static void macb_probe_queues(void __iomem *mem,
 	*num_queues = 1;
 
 	/* is it macb or gem ? */
-	mid = __raw_readl(mem + MACB_MID);
+	mid = readl_relaxed(mem + MACB_MID);
+
 	if (MACB_BFEXT(IDNUM, mid) != 0x2)
 		return;
 
 	/* bit 0 is never set but queue 0 always exists */
-	*queue_mask = __raw_readl(mem + GEM_DCFG6) & 0xff;
+	*queue_mask = readl_relaxed(mem + GEM_DCFG6) & 0xff;
+
 	*queue_mask |= 0x1;
 
 	for (hw_q = 1; hw_q < MACB_MAX_QUEUES; ++hw_q)

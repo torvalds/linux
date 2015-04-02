@@ -229,16 +229,8 @@ struct sta_info *sta_info_get_by_idx(struct ieee80211_sub_if_data *sdata,
  */
 void sta_info_free(struct ieee80211_local *local, struct sta_info *sta)
 {
-	int i;
-
 	if (sta->rate_ctrl)
 		rate_control_free_sta(sta);
-
-	if (sta->tx_lat) {
-		for (i = 0; i < IEEE80211_NUM_TIDS; i++)
-			kfree(sta->tx_lat[i].bins);
-		kfree(sta->tx_lat);
-	}
 
 	sta_dbg(sta->sdata, "Destroyed STA %pM\n", sta->sta.addr);
 
@@ -295,41 +287,11 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 	struct timespec uptime;
-	struct ieee80211_tx_latency_bin_ranges *tx_latency;
 	int i;
 
 	sta = kzalloc(sizeof(*sta) + local->hw.sta_data_size, gfp);
 	if (!sta)
 		return NULL;
-
-	rcu_read_lock();
-	tx_latency = rcu_dereference(local->tx_latency);
-	/* init stations Tx latency statistics && TID bins */
-	if (tx_latency) {
-		sta->tx_lat = kzalloc(IEEE80211_NUM_TIDS *
-				      sizeof(struct ieee80211_tx_latency_stat),
-				      GFP_ATOMIC);
-		if (!sta->tx_lat) {
-			rcu_read_unlock();
-			goto free;
-		}
-
-		if (tx_latency->n_ranges) {
-			for (i = 0; i < IEEE80211_NUM_TIDS; i++) {
-				/* size of bins is size of the ranges +1 */
-				sta->tx_lat[i].bin_count =
-					tx_latency->n_ranges + 1;
-				sta->tx_lat[i].bins =
-					kcalloc(sta->tx_lat[i].bin_count,
-						sizeof(u32), GFP_ATOMIC);
-				if (!sta->tx_lat[i].bins) {
-					rcu_read_unlock();
-					goto free;
-				}
-			}
-		}
-	}
-	rcu_read_unlock();
 
 	spin_lock_init(&sta->lock);
 	spin_lock_init(&sta->ps_lock);
@@ -359,8 +321,10 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	for (i = 0; i < ARRAY_SIZE(sta->chain_signal_avg); i++)
 		ewma_init(&sta->chain_signal_avg[i], 1024, 8);
 
-	if (sta_prepare_rate_control(local, sta, gfp))
-		goto free;
+	if (sta_prepare_rate_control(local, sta, gfp)) {
+		kfree(sta);
+		return NULL;
+	}
 
 	for (i = 0; i < IEEE80211_NUM_TIDS; i++) {
 		/*
@@ -405,16 +369,8 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	}
 
 	sta_dbg(sdata, "Allocated STA %pM\n", sta->sta.addr);
-	return sta;
 
-free:
-	if (sta->tx_lat) {
-		for (i = 0; i < IEEE80211_NUM_TIDS; i++)
-			kfree(sta->tx_lat[i].bins);
-		kfree(sta->tx_lat);
-	}
-	kfree(sta);
-	return NULL;
+	return sta;
 }
 
 static int sta_info_insert_check(struct sta_info *sta)
@@ -1275,7 +1231,7 @@ static void ieee80211_send_null_response(struct ieee80211_sub_if_data *sdata,
 	}
 
 	info->band = chanctx_conf->def.chan->band;
-	ieee80211_xmit(sdata, skb);
+	ieee80211_xmit(sdata, sta, skb);
 	rcu_read_unlock();
 }
 

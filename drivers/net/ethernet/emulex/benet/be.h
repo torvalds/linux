@@ -238,10 +238,17 @@ struct be_tx_stats {
 	struct u64_stats_sync sync_compl;
 };
 
+/* Structure to hold some data of interest obtained from a TX CQE */
+struct be_tx_compl_info {
+	u8 status;		/* Completion status */
+	u16 end_index;		/* Completed TXQ Index */
+};
+
 struct be_tx_obj {
 	u32 db_offset;
 	struct be_queue_info q;
 	struct be_queue_info cq;
+	struct be_tx_compl_info txcp;
 	/* Remember the skbs that were transmitted */
 	struct sk_buff *sent_skb_list[TX_Q_LEN];
 	struct be_tx_stats stats;
@@ -415,6 +422,39 @@ struct rss_info {
 	u8 rsstable[RSS_INDIR_TABLE_LEN];
 	u8 rss_queue[RSS_INDIR_TABLE_LEN];
 	u8 rss_hkey[RSS_HASH_KEY_LEN];
+};
+
+/* Macros to read/write the 'features' word of be_wrb_params structure.
+ */
+#define	BE_WRB_F_BIT(name)			BE_WRB_F_##name##_BIT
+#define	BE_WRB_F_MASK(name)			BIT_MASK(BE_WRB_F_##name##_BIT)
+
+#define	BE_WRB_F_GET(word, name)	\
+	(((word) & (BE_WRB_F_MASK(name))) >> BE_WRB_F_BIT(name))
+
+#define	BE_WRB_F_SET(word, name, val)	\
+	((word) |= (((val) << BE_WRB_F_BIT(name)) & BE_WRB_F_MASK(name)))
+
+/* Feature/offload bits */
+enum {
+	BE_WRB_F_CRC_BIT,		/* Ethernet CRC */
+	BE_WRB_F_IPCS_BIT,		/* IP csum */
+	BE_WRB_F_TCPCS_BIT,		/* TCP csum */
+	BE_WRB_F_UDPCS_BIT,		/* UDP csum */
+	BE_WRB_F_LSO_BIT,		/* LSO */
+	BE_WRB_F_LSO6_BIT,		/* LSO6 */
+	BE_WRB_F_VLAN_BIT,		/* VLAN */
+	BE_WRB_F_VLAN_SKIP_HW_BIT	/* Skip VLAN tag (workaround) */
+};
+
+/* The structure below provides a HW-agnostic abstraction of WRB params
+ * retrieved from a TX skb. This is in turn passed to chip specific routines
+ * during transmit, to set the corresponding params in the WRB.
+ */
+struct be_wrb_params {
+	u32 features;	/* Feature bits */
+	u16 vlan_tag;	/* VLAN tag */
+	u16 lso_mss;	/* MSS for LSO */
 };
 
 struct be_adapter {

@@ -1318,6 +1318,7 @@ u8 mwifiex_chan_type_to_sec_chan_offset(enum nl80211_channel_type chan_type);
 
 struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 					      const char *name,
+					      unsigned char name_assign_type,
 					      enum nl80211_iftype type,
 					      u32 *flags,
 					      struct vif_params *params);

@@ -727,48 +727,86 @@ static u16 skb_ip_proto(struct sk_buff *skb)
 		ip_hdr(skb)->protocol : ipv6_hdr(skb)->nexthdr;
 }
 
-static void wrb_fill_hdr(struct be_adapter *adapter, struct be_eth_hdr_wrb *hdr,
-			 struct sk_buff *skb, u32 wrb_cnt, u32 len,
-			 bool skip_hw_vlan)
+static inline bool be_is_txq_full(struct be_tx_obj *txo)
 {
-	u16 vlan_tag, proto;
+	return atomic_read(&txo->q.used) + BE_MAX_TX_FRAG_COUNT >= txo->q.len;
+}
 
-	memset(hdr, 0, sizeof(*hdr));
+static inline bool be_can_txq_wake(struct be_tx_obj *txo)
+{
+	return atomic_read(&txo->q.used) < txo->q.len / 2;
+}
 
-	SET_TX_WRB_HDR_BITS(crc, hdr, 1);
+static inline bool be_is_tx_compl_pending(struct be_tx_obj *txo)
+{
+	return atomic_read(&txo->q.used) > txo->pend_wrb_cnt;
+}
+
+static void be_get_wrb_params_from_skb(struct be_adapter *adapter,
+				       struct sk_buff *skb,
+				       struct be_wrb_params *wrb_params)
+{
+	u16 proto;
 
 	if (skb_is_gso(skb)) {
-		SET_TX_WRB_HDR_BITS(lso, hdr, 1);
-		SET_TX_WRB_HDR_BITS(lso_mss, hdr, skb_shinfo(skb)->gso_size);
+		BE_WRB_F_SET(wrb_params->features, LSO, 1);
+		wrb_params->lso_mss = skb_shinfo(skb)->gso_size;
 		if (skb_is_gso_v6(skb) && !lancer_chip(adapter))
-			SET_TX_WRB_HDR_BITS(lso6, hdr, 1);
+			BE_WRB_F_SET(wrb_params->features, LSO6, 1);
 	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		if (skb->encapsulation) {
-			SET_TX_WRB_HDR_BITS(ipcs, hdr, 1);
+			BE_WRB_F_SET(wrb_params->features, IPCS, 1);
 			proto = skb_inner_ip_proto(skb);
 		} else {
 			proto = skb_ip_proto(skb);
 		}
 		if (proto == IPPROTO_TCP)
-			SET_TX_WRB_HDR_BITS(tcpcs, hdr, 1);
+			BE_WRB_F_SET(wrb_params->features, TCPCS, 1);
 		else if (proto == IPPROTO_UDP)
-			SET_TX_WRB_HDR_BITS(udpcs, hdr, 1);
+			BE_WRB_F_SET(wrb_params->features, UDPCS, 1);
 	}
 
 	if (skb_vlan_tag_present(skb)) {
-		SET_TX_WRB_HDR_BITS(vlan, hdr, 1);
-		vlan_tag = be_get_tx_vlan_tag(adapter, skb);
-		SET_TX_WRB_HDR_BITS(vlan_tag, hdr, vlan_tag);
+		BE_WRB_F_SET(wrb_params->features, VLAN, 1);
+		wrb_params->vlan_tag = be_get_tx_vlan_tag(adapter, skb);
 	}
 
-	SET_TX_WRB_HDR_BITS(num_wrb, hdr, wrb_cnt);
-	SET_TX_WRB_HDR_BITS(len, hdr, len);
+	BE_WRB_F_SET(wrb_params->features, CRC, 1);
+}
 
-	/* Hack to skip HW VLAN tagging needs evt = 1, compl = 0
-	 * When this hack is not needed, the evt bit is set while ringing DB
+static void wrb_fill_hdr(struct be_adapter *adapter,
+			 struct be_eth_hdr_wrb *hdr,
+			 struct be_wrb_params *wrb_params,
+			 struct sk_buff *skb)
+{
+	memset(hdr, 0, sizeof(*hdr));
+
+	SET_TX_WRB_HDR_BITS(crc, hdr,
+			    BE_WRB_F_GET(wrb_params->features, CRC));
+	SET_TX_WRB_HDR_BITS(ipcs, hdr,
+			    BE_WRB_F_GET(wrb_params->features, IPCS));
+	SET_TX_WRB_HDR_BITS(tcpcs, hdr,
+			    BE_WRB_F_GET(wrb_params->features, TCPCS));
+	SET_TX_WRB_HDR_BITS(udpcs, hdr,
+			    BE_WRB_F_GET(wrb_params->features, UDPCS));
+
+	SET_TX_WRB_HDR_BITS(lso, hdr,
+			    BE_WRB_F_GET(wrb_params->features, LSO));
+	SET_TX_WRB_HDR_BITS(lso6, hdr,
+			    BE_WRB_F_GET(wrb_params->features, LSO6));
+	SET_TX_WRB_HDR_BITS(lso_mss, hdr, wrb_params->lso_mss);
+
+	/* Hack to skip HW VLAN tagging needs evt = 1, compl = 0. When this
+	 * hack is not needed, the evt bit is set while ringing DB.
 	 */
-	if (skip_hw_vlan)
-		SET_TX_WRB_HDR_BITS(event, hdr, 1);
+	SET_TX_WRB_HDR_BITS(event, hdr,
+			    BE_WRB_F_GET(wrb_params->features, VLAN_SKIP_HW));
+	SET_TX_WRB_HDR_BITS(vlan, hdr,
+			    BE_WRB_F_GET(wrb_params->features, VLAN));
+	SET_TX_WRB_HDR_BITS(vlan_tag, hdr, wrb_params->vlan_tag);
+
+	SET_TX_WRB_HDR_BITS(num_wrb, hdr, skb_wrb_cnt(skb));
+	SET_TX_WRB_HDR_BITS(len, hdr, skb->len);
 }
 
 static void unmap_tx_frag(struct device *dev, struct be_eth_wrb *wrb,
@@ -788,66 +826,63 @@ static void unmap_tx_frag(struct device *dev, struct be_eth_wrb *wrb,
 	}
 }
 
-/* Returns the number of WRBs used up by the skb */
-static u32 be_xmit_enqueue(struct be_adapter *adapter, struct be_tx_obj *txo,
-			   struct sk_buff *skb, bool skip_hw_vlan)
+/* Grab a WRB header for xmit */
+static u16 be_tx_get_wrb_hdr(struct be_tx_obj *txo)
 {
-	u32 i, copied = 0, wrb_cnt = skb_wrb_cnt(skb);
-	struct device *dev = &adapter->pdev->dev;
+	u16 head = txo->q.head;
+
+	queue_head_inc(&txo->q);
+	return head;
+}
+
+/* Set up the WRB header for xmit */
+static void be_tx_setup_wrb_hdr(struct be_adapter *adapter,
+				struct be_tx_obj *txo,
+				struct be_wrb_params *wrb_params,
+				struct sk_buff *skb, u16 head)
+{
+	u32 num_frags = skb_wrb_cnt(skb);
 	struct be_queue_info *txq = &txo->q;
-	struct be_eth_hdr_wrb *hdr;
-	bool map_single = false;
-	struct be_eth_wrb *wrb;
-	dma_addr_t busaddr;
-	u16 head = txq->head;
+	struct be_eth_hdr_wrb *hdr = queue_index_node(txq, head);
 
-	hdr = queue_head_node(txq);
-	wrb_fill_hdr(adapter, hdr, skb, wrb_cnt, skb->len, skip_hw_vlan);
+	wrb_fill_hdr(adapter, hdr, wrb_params, skb);
 	be_dws_cpu_to_le(hdr, sizeof(*hdr));
-
-	queue_head_inc(txq);
-
-	if (skb->len > skb->data_len) {
-		int len = skb_headlen(skb);
-
-		busaddr = dma_map_single(dev, skb->data, len, DMA_TO_DEVICE);
-		if (dma_mapping_error(dev, busaddr))
-			goto dma_err;
-		map_single = true;
-		wrb = queue_head_node(txq);
-		wrb_fill(wrb, busaddr, len);
-		queue_head_inc(txq);
-		copied += len;
-	}
-
-	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		const struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[i];
-
-		busaddr = skb_frag_dma_map(dev, frag, 0,
-					   skb_frag_size(frag), DMA_TO_DEVICE);
-		if (dma_mapping_error(dev, busaddr))
-			goto dma_err;
-		wrb = queue_head_node(txq);
-		wrb_fill(wrb, busaddr, skb_frag_size(frag));
-		queue_head_inc(txq);
-		copied += skb_frag_size(frag);
-	}
 
 	BUG_ON(txo->sent_skb_list[head]);
 	txo->sent_skb_list[head] = skb;
 	txo->last_req_hdr = head;
-	atomic_add(wrb_cnt, &txq->used);
-	txo->last_req_wrb_cnt = wrb_cnt;
-	txo->pend_wrb_cnt += wrb_cnt;
+	atomic_add(num_frags, &txq->used);
+	txo->last_req_wrb_cnt = num_frags;
+	txo->pend_wrb_cnt += num_frags;
+}
 
-	be_tx_stats_update(txo, skb);
-	return wrb_cnt;
+/* Setup a WRB fragment (buffer descriptor) for xmit */
+static void be_tx_setup_wrb_frag(struct be_tx_obj *txo, dma_addr_t busaddr,
+				 int len)
+{
+	struct be_eth_wrb *wrb;
+	struct be_queue_info *txq = &txo->q;
 
-dma_err:
-	/* Bring the queue back to the state it was in before this
-	 * routine was invoked.
-	 */
+	wrb = queue_head_node(txq);
+	wrb_fill(wrb, busaddr, len);
+	queue_head_inc(txq);
+}
+
+/* Bring the queue back to the state it was in before be_xmit_enqueue() routine
+ * was invoked. The producer index is restored to the previous packet and the
+ * WRBs of the current packet are unmapped. Invoked to handle tx setup errors.
+ */
+static void be_xmit_restore(struct be_adapter *adapter,
+			    struct be_tx_obj *txo, u16 head, bool map_single,
+			    u32 copied)
+{
+	struct device *dev;
+	struct be_eth_wrb *wrb;
+	struct be_queue_info *txq = &txo->q;
+
+	dev = &adapter->pdev->dev;
 	txq->head = head;
+
 	/* skip the first wrb (hdr); it's not mapped */
 	queue_head_inc(txq);
 	while (copied) {
@@ -855,10 +890,60 @@ dma_err:
 		unmap_tx_frag(dev, wrb, map_single);
 		map_single = false;
 		copied -= le32_to_cpu(wrb->frag_len);
-		adapter->drv_stats.dma_map_errors++;
 		queue_head_inc(txq);
 	}
+
 	txq->head = head;
+}
+
+/* Enqueue the given packet for transmit. This routine allocates WRBs for the
+ * packet, dma maps the packet buffers and sets up the WRBs. Returns the number
+ * of WRBs used up by the packet.
+ */
+static u32 be_xmit_enqueue(struct be_adapter *adapter, struct be_tx_obj *txo,
+			   struct sk_buff *skb,
+			   struct be_wrb_params *wrb_params)
+{
+	u32 i, copied = 0, wrb_cnt = skb_wrb_cnt(skb);
+	struct device *dev = &adapter->pdev->dev;
+	struct be_queue_info *txq = &txo->q;
+	bool map_single = false;
+	u16 head = txq->head;
+	dma_addr_t busaddr;
+	int len;
+
+	head = be_tx_get_wrb_hdr(txo);
+
+	if (skb->len > skb->data_len) {
+		len = skb_headlen(skb);
+
+		busaddr = dma_map_single(dev, skb->data, len, DMA_TO_DEVICE);
+		if (dma_mapping_error(dev, busaddr))
+			goto dma_err;
+		map_single = true;
+		be_tx_setup_wrb_frag(txo, busaddr, len);
+		copied += len;
+	}
+
+	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+		const struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[i];
+		len = skb_frag_size(frag);
+
+		busaddr = skb_frag_dma_map(dev, frag, 0, len, DMA_TO_DEVICE);
+		if (dma_mapping_error(dev, busaddr))
+			goto dma_err;
+		be_tx_setup_wrb_frag(txo, busaddr, len);
+		copied += len;
+	}
+
+	be_tx_setup_wrb_hdr(adapter, txo, wrb_params, skb, head);
+
+	be_tx_stats_update(txo, skb);
+	return wrb_cnt;
+
+dma_err:
+	adapter->drv_stats.dma_map_errors++;
+	be_xmit_restore(adapter, txo, head, map_single, copied);
 	return 0;
 }
 
@@ -869,7 +954,8 @@ static inline int qnq_async_evt_rcvd(struct be_adapter *adapter)
 
 static struct sk_buff *be_insert_vlan_in_pkt(struct be_adapter *adapter,
 					     struct sk_buff *skb,
-					     bool *skip_hw_vlan)
+					     struct be_wrb_params
+					     *wrb_params)
 {
 	u16 vlan_tag = 0;
 
@@ -886,8 +972,7 @@ static struct sk_buff *be_insert_vlan_in_pkt(struct be_adapter *adapter,
 		/* f/w workaround to set skip_hw_vlan = 1, informs the F/W to
 		 * skip VLAN insertion
 		 */
-		if (skip_hw_vlan)
-			*skip_hw_vlan = true;
+		BE_WRB_F_SET(wrb_params->features, VLAN_SKIP_HW, 1);
 	}
 
 	if (vlan_tag) {
@@ -905,8 +990,7 @@ static struct sk_buff *be_insert_vlan_in_pkt(struct be_adapter *adapter,
 						vlan_tag);
 		if (unlikely(!skb))
 			return skb;
-		if (skip_hw_vlan)
-			*skip_hw_vlan = true;
+		BE_WRB_F_SET(wrb_params->features, VLAN_SKIP_HW, 1);
 	}
 
 	return skb;
@@ -946,7 +1030,8 @@ static int be_ipv6_tx_stall_chk(struct be_adapter *adapter, struct sk_buff *skb)
 
 static struct sk_buff *be_lancer_xmit_workarounds(struct be_adapter *adapter,
 						  struct sk_buff *skb,
-						  bool *skip_hw_vlan)
+						  struct be_wrb_params
+						  *wrb_params)
 {
 	struct vlan_ethhdr *veh = (struct vlan_ethhdr *)skb->data;
 	unsigned int eth_hdr_len;
@@ -970,7 +1055,7 @@ static struct sk_buff *be_lancer_xmit_workarounds(struct be_adapter *adapter,
 	 */
 	if (be_pvid_tagging_enabled(adapter) &&
 	    veh->h_vlan_proto == htons(ETH_P_8021Q))
-		*skip_hw_vlan = true;
+		BE_WRB_F_SET(wrb_params->features, VLAN_SKIP_HW, 1);
 
 	/* HW has a bug wherein it will calculate CSUM for VLAN
 	 * pkts even though it is disabled.
@@ -978,7 +1063,7 @@ static struct sk_buff *be_lancer_xmit_workarounds(struct be_adapter *adapter,
 	 */
 	if (skb->ip_summed != CHECKSUM_PARTIAL &&
 	    skb_vlan_tag_present(skb)) {
-		skb = be_insert_vlan_in_pkt(adapter, skb, skip_hw_vlan);
+		skb = be_insert_vlan_in_pkt(adapter, skb, wrb_params);
 		if (unlikely(!skb))
 			goto err;
 	}
@@ -1000,7 +1085,7 @@ static struct sk_buff *be_lancer_xmit_workarounds(struct be_adapter *adapter,
 	 */
 	if (be_ipv6_tx_stall_chk(adapter, skb) &&
 	    be_vlan_tag_tx_chk(adapter, skb)) {
-		skb = be_insert_vlan_in_pkt(adapter, skb, skip_hw_vlan);
+		skb = be_insert_vlan_in_pkt(adapter, skb, wrb_params);
 		if (unlikely(!skb))
 			goto err;
 	}
@@ -1014,7 +1099,7 @@ err:
 
 static struct sk_buff *be_xmit_workarounds(struct be_adapter *adapter,
 					   struct sk_buff *skb,
-					   bool *skip_hw_vlan)
+					   struct be_wrb_params *wrb_params)
 {
 	/* Lancer, SH-R ASICs have a bug wherein Packets that are 32 bytes or
 	 * less may cause a transmit stall on that port. So the work-around is
@@ -1026,7 +1111,7 @@ static struct sk_buff *be_xmit_workarounds(struct be_adapter *adapter,
 	}
 
 	if (BEx_chip(adapter) || lancer_chip(adapter)) {
-		skb = be_lancer_xmit_workarounds(adapter, skb, skip_hw_vlan);
+		skb = be_lancer_xmit_workarounds(adapter, skb, wrb_params);
 		if (!skb)
 			return NULL;
 	}
@@ -1060,24 +1145,26 @@ static void be_xmit_flush(struct be_adapter *adapter, struct be_tx_obj *txo)
 
 static netdev_tx_t be_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
-	bool skip_hw_vlan = false, flush = !skb->xmit_more;
 	struct be_adapter *adapter = netdev_priv(netdev);
 	u16 q_idx = skb_get_queue_mapping(skb);
 	struct be_tx_obj *txo = &adapter->tx_obj[q_idx];
-	struct be_queue_info *txq = &txo->q;
+	struct be_wrb_params wrb_params = { 0 };
+	bool flush = !skb->xmit_more;
 	u16 wrb_cnt;
 
-	skb = be_xmit_workarounds(adapter, skb, &skip_hw_vlan);
+	skb = be_xmit_workarounds(adapter, skb, &wrb_params);
 	if (unlikely(!skb))
 		goto drop;
 
-	wrb_cnt = be_xmit_enqueue(adapter, txo, skb, skip_hw_vlan);
+	be_get_wrb_params_from_skb(adapter, skb, &wrb_params);
+
+	wrb_cnt = be_xmit_enqueue(adapter, txo, skb, &wrb_params);
 	if (unlikely(!wrb_cnt)) {
 		dev_kfree_skb_any(skb);
 		goto drop;
 	}
 
-	if ((atomic_read(&txq->used) + BE_MAX_TX_FRAG_COUNT) >= txq->len) {
+	if (be_is_txq_full(txo)) {
 		netif_stop_subqueue(netdev, q_idx);
 		tx_stats(txo)->tx_stops++;
 	}
@@ -1991,18 +2078,23 @@ static void be_post_rx_frags(struct be_rx_obj *rxo, gfp_t gfp, u32 frags_needed)
 	}
 }
 
-static struct be_eth_tx_compl *be_tx_compl_get(struct be_queue_info *tx_cq)
+static struct be_tx_compl_info *be_tx_compl_get(struct be_tx_obj *txo)
 {
-	struct be_eth_tx_compl *txcp = queue_tail_node(tx_cq);
+	struct be_queue_info *tx_cq = &txo->cq;
+	struct be_tx_compl_info *txcp = &txo->txcp;
+	struct be_eth_tx_compl *compl = queue_tail_node(tx_cq);
 
-	if (txcp->dw[offsetof(struct amap_eth_tx_compl, valid) / 32] == 0)
+	if (compl->dw[offsetof(struct amap_eth_tx_compl, valid) / 32] == 0)
 		return NULL;
 
+	/* Ensure load ordering of valid bit dword and other dwords below */
 	rmb();
-	be_dws_le_to_cpu(txcp, sizeof(*txcp));
+	be_dws_le_to_cpu(compl, sizeof(*compl));
 
-	txcp->dw[offsetof(struct amap_eth_tx_compl, valid) / 32] = 0;
+	txcp->status = GET_TX_COMPL_BITS(status, compl);
+	txcp->end_index = GET_TX_COMPL_BITS(wrb_index, compl);
 
+	compl->dw[offsetof(struct amap_eth_tx_compl, valid) / 32] = 0;
 	queue_tail_inc(tx_cq);
 	return txcp;
 }
@@ -2123,9 +2215,9 @@ static void be_tx_compl_clean(struct be_adapter *adapter)
 {
 	u16 end_idx, notified_idx, cmpl = 0, timeo = 0, num_wrbs = 0;
 	struct device *dev = &adapter->pdev->dev;
-	struct be_tx_obj *txo;
+	struct be_tx_compl_info *txcp;
 	struct be_queue_info *txq;
-	struct be_eth_tx_compl *txcp;
+	struct be_tx_obj *txo;
 	int i, pending_txqs;
 
 	/* Stop polling for compls when HW has been silent for 10ms */
@@ -2136,10 +2228,10 @@ static void be_tx_compl_clean(struct be_adapter *adapter)
 			cmpl = 0;
 			num_wrbs = 0;
 			txq = &txo->q;
-			while ((txcp = be_tx_compl_get(&txo->cq))) {
-				end_idx = GET_TX_COMPL_BITS(wrb_index, txcp);
-				num_wrbs += be_tx_compl_process(adapter, txo,
-								end_idx);
+			while ((txcp = be_tx_compl_get(txo))) {
+				num_wrbs +=
+					be_tx_compl_process(adapter, txo,
+							    txcp->end_index);
 				cmpl++;
 			}
 			if (cmpl) {
@@ -2147,7 +2239,7 @@ static void be_tx_compl_clean(struct be_adapter *adapter)
 				atomic_sub(num_wrbs, &txq->used);
 				timeo = 0;
 			}
-			if (atomic_read(&txq->used) == txo->pend_wrb_cnt)
+			if (!be_is_tx_compl_pending(txo))
 				pending_txqs--;
 		}
 
@@ -2498,7 +2590,7 @@ loop_continue:
 	return work_done;
 }
 
-static inline void be_update_tx_err(struct be_tx_obj *txo, u32 status)
+static inline void be_update_tx_err(struct be_tx_obj *txo, u8 status)
 {
 	switch (status) {
 	case BE_TX_COMP_HDR_PARSE_ERR:
@@ -2513,7 +2605,7 @@ static inline void be_update_tx_err(struct be_tx_obj *txo, u32 status)
 	}
 }
 
-static inline void lancer_update_tx_err(struct be_tx_obj *txo, u32 status)
+static inline void lancer_update_tx_err(struct be_tx_obj *txo, u8 status)
 {
 	switch (status) {
 	case LANCER_TX_COMP_LSO_ERR:
@@ -2538,22 +2630,18 @@ static inline void lancer_update_tx_err(struct be_tx_obj *txo, u32 status)
 static void be_process_tx(struct be_adapter *adapter, struct be_tx_obj *txo,
 			  int idx)
 {
-	struct be_eth_tx_compl *txcp;
 	int num_wrbs = 0, work_done = 0;
-	u32 compl_status;
-	u16 last_idx;
+	struct be_tx_compl_info *txcp;
 
-	while ((txcp = be_tx_compl_get(&txo->cq))) {
-		last_idx = GET_TX_COMPL_BITS(wrb_index, txcp);
-		num_wrbs += be_tx_compl_process(adapter, txo, last_idx);
+	while ((txcp = be_tx_compl_get(txo))) {
+		num_wrbs += be_tx_compl_process(adapter, txo, txcp->end_index);
 		work_done++;
 
-		compl_status = GET_TX_COMPL_BITS(status, txcp);
-		if (compl_status) {
+		if (txcp->status) {
 			if (lancer_chip(adapter))
-				lancer_update_tx_err(txo, compl_status);
+				lancer_update_tx_err(txo, txcp->status);
 			else
-				be_update_tx_err(txo, compl_status);
+				be_update_tx_err(txo, txcp->status);
 		}
 	}
 
@@ -2564,7 +2652,7 @@ static void be_process_tx(struct be_adapter *adapter, struct be_tx_obj *txo,
 		/* As Tx wrbs have been freed up, wake up netdev queue
 		 * if it was stopped due to lack of tx wrbs.  */
 		if (__netif_subqueue_stopped(adapter->netdev, idx) &&
-		    atomic_read(&txo->q.used) < txo->q.len / 2) {
+		    be_can_txq_wake(txo)) {
 			netif_wake_subqueue(adapter->netdev, idx);
 		}
 

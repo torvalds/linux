@@ -234,6 +234,14 @@ void __ieee80211_start_rx_ba_session(struct sta_info *sta,
 	int i, ret = -EOPNOTSUPP;
 	u16 status = WLAN_STATUS_REQUEST_DECLINED;
 
+	if (!sta->sta.ht_cap.ht_supported) {
+		ht_dbg(sta->sdata,
+		       "STA %pM erroneously requests BA session on tid %d w/o QoS\n",
+		       sta->sta.addr, tid);
+		/* send a response anyway, it's an error case if we get here */
+		goto end_no_lock;
+	}
+
 	if (test_sta_flag(sta, WLAN_STA_BLOCK_BA)) {
 		ht_dbg(sta->sdata,
 		       "Suspend in progress - Denying ADDBA request (%pM tid %d)\n",

@@ -1411,6 +1411,8 @@ static int vnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(err < 0)) {
 		netdev_info(dev, "TX trigger error %d\n", err);
 		d->hdr.state = VIO_DESC_FREE;
+		skb = port->tx_bufs[txi].skb;
+		port->tx_bufs[txi].skb = NULL;
 		dev->stats.tx_carrier_errors++;
 		goto out_dropped;
 	}

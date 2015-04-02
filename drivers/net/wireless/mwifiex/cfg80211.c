@@ -1954,13 +1954,13 @@ done:
 		if (mode == NL80211_IFTYPE_ADHOC)
 			bss = cfg80211_get_bss(priv->wdev.wiphy, channel,
 					       bssid, ssid, ssid_len,
-					       WLAN_CAPABILITY_IBSS,
-					       WLAN_CAPABILITY_IBSS);
+					       IEEE80211_BSS_TYPE_IBSS,
+					       IEEE80211_PRIVACY_ANY);
 		else
 			bss = cfg80211_get_bss(priv->wdev.wiphy, channel,
 					       bssid, ssid, ssid_len,
-					       WLAN_CAPABILITY_ESS,
-					       WLAN_CAPABILITY_ESS);
+					       IEEE80211_BSS_TYPE_ESS,
+					       IEEE80211_PRIVACY_ANY);
 
 		if (!bss) {
 			if (is_scanning_required) {
@@ -2399,10 +2399,11 @@ mwifiex_setup_ht_caps(struct ieee80211_sta_ht_cap *ht_info,
 
 #define MWIFIEX_MAX_WQ_LEN  30
 /*
- *  create a new virtual interface with the given name
+ *  create a new virtual interface with the given name and name assign type
  */
 struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 					      const char *name,
+					      unsigned char name_assign_type,
 					      enum nl80211_iftype type,
 					      u32 *flags,
 					      struct vif_params *params)
@@ -2523,7 +2524,7 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 	}
 
 	dev = alloc_netdev_mqs(sizeof(struct mwifiex_private *), name,
-			       NET_NAME_UNKNOWN, ether_setup,
+			       name_assign_type, ether_setup,
 			       IEEE80211_NUM_ACS, 1);
 	if (!dev) {
 		wiphy_err(wiphy, "no memory available for netdevice\n");
