@@ -1623,7 +1623,7 @@ static void xgene_dma_init_hw(struct xgene_dma *pdma)
 		 XGENE_DMA_DEV_ID_RD(val), XGENE_DMA_MAX_CHANNEL);
 }
 
-int xgene_dma_init_ring_mngr(struct xgene_dma *pdma)
+static int xgene_dma_init_ring_mngr(struct xgene_dma *pdma)
 {
 	if (ioread32(pdma->csr_ring + XGENE_DMA_RING_CLKEN) &&
 	    (!ioread32(pdma->csr_ring + XGENE_DMA_RING_SRST)))
