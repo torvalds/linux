@@ -672,7 +672,7 @@ int dev_get_iflink(const struct net_device *dev)
 	if (dev->netdev_ops && dev->netdev_ops->ndo_get_iflink)
 		return dev->netdev_ops->ndo_get_iflink(dev);
 
-	return dev->iflink;
+	return dev->ifindex;
 }
 EXPORT_SYMBOL(dev_get_iflink);
 
@@ -6331,8 +6331,6 @@ int register_netdevice(struct net_device *dev)
 	spin_lock_init(&dev->addr_list_lock);
 	netdev_set_addr_lockdep_class(dev);
 
-	dev->iflink = -1;
-
 	ret = dev_get_valid_name(net, dev, dev->name);
 	if (ret < 0)
 		goto out;
@@ -6361,9 +6359,6 @@ int register_netdevice(struct net_device *dev)
 		dev->ifindex = dev_new_index(net);
 	else if (__dev_get_by_index(net, dev->ifindex))
 		goto err_uninit;
-
-	if (dev_get_iflink(dev) == -1)
-		dev->iflink = dev->ifindex;
 
 	/* Transfer changeable features to wanted_features and enable
 	 * software offloads (GSO and GRO).
@@ -7077,12 +7072,8 @@ int dev_change_net_namespace(struct net_device *dev, struct net *net, const char
 	dev_net_set(dev, net);
 
 	/* If there is an ifindex conflict assign a new one */
-	if (__dev_get_by_index(net, dev->ifindex)) {
-		int iflink = (dev_get_iflink(dev) == dev->ifindex);
+	if (__dev_get_by_index(net, dev->ifindex))
 		dev->ifindex = dev_new_index(net);
-		if (iflink)
-			dev->iflink = dev->ifindex;
-	}
 
 	/* Send a netdev-add uevent to the new namespace */
 	kobject_uevent(&dev->dev.kobj, KOBJ_ADD);

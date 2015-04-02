@@ -1538,7 +1538,7 @@ struct net_device {
 	netdev_features_t	mpls_features;
 
 	int			ifindex;
-	int			iflink;
+	int			group;
 
 	struct net_device_stats	stats;
 
@@ -1741,7 +1741,6 @@ struct net_device {
 #endif
 	struct phy_device *phydev;
 	struct lock_class_key *qdisc_tx_busylock;
-	int group;
 	struct pm_qos_request	pm_qos_req;
 };
 #define to_net_dev(d) container_of(d, struct net_device, dev)
