@@ -162,9 +162,10 @@ iwl_mvm_scan_rate_n_flags(struct iwl_mvm *mvm, enum ieee80211_band band,
  * request.
  */
 static void iwl_mvm_scan_fill_ssids(struct iwl_ssid_ie *cmd_ssid,
-				    struct iwl_mvm_scan_params *params)
+				    struct iwl_mvm_scan_params *params,
+				    u32 *ssid_bitmap)
 {
-	int fw_idx, req_idx;
+	int fw_idx, req_idx, i;
 
 	for (req_idx = params->n_ssids - 1, fw_idx = 0; req_idx >= 0;
 	     req_idx--, fw_idx++) {
@@ -174,6 +175,9 @@ static void iwl_mvm_scan_fill_ssids(struct iwl_ssid_ie *cmd_ssid,
 		       params->ssids[req_idx].ssid,
 		       params->ssids[req_idx].ssid_len);
 	}
+
+	for (i = 0; i < params->n_ssids; i++)
+		*ssid_bitmap |= BIT(i);
 }
 
 /*
@@ -834,7 +838,6 @@ static int iwl_mvm_scan_lmac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	struct iwl_scan_req_lmac *cmd = mvm->scan_cmd;
 	struct iwl_scan_probe_req *preq;
 	u32 flags = 0, ssid_bitmap = 0;
-	int i;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -870,7 +873,10 @@ static int iwl_mvm_scan_lmac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	cmd->filter_flags = cpu_to_le32(MAC_FILTER_ACCEPT_GRP |
 					MAC_FILTER_IN_BEACON);
 	iwl_mvm_scan_fill_tx_cmd(mvm, cmd->tx_cmd, params->no_cck);
-	iwl_mvm_scan_fill_ssids(cmd->direct_scan, params);
+	iwl_mvm_scan_fill_ssids(cmd->direct_scan, params, &ssid_bitmap);
+
+	/* this API uses bits 1-20 instead of 0-19 */
+	ssid_bitmap <<= 1;
 
 	cmd->schedule[0].delay = cpu_to_le16(params->interval);
 	cmd->schedule[0].iterations = 1;
@@ -894,9 +900,6 @@ static int iwl_mvm_scan_lmac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		cmd->channel_opt[1].non_ebs_ratio =
 			cpu_to_le16(IWL_SPARSE_EBS_SCAN_RATIO);
 	}
-
-	for (i = 1; i <= params->n_ssids; i++)
-		ssid_bitmap |= BIT(i);
 
 	iwl_mvm_lmac_scan_cfg_channels(mvm, params->channels,
 				       params->n_channels, ssid_bitmap, cmd);
@@ -1260,7 +1263,7 @@ static int iwl_mvm_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			mvm->fw->ucode_capa.n_scan_channels;
 	u32 uid, flags;
 	u32 ssid_bitmap = 0;
-	int uid_idx, i;
+	int uid_idx;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -1295,8 +1298,7 @@ static int iwl_mvm_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	cmd->n_channels = params->n_channels;
 
-	for (i = 0; i < params->n_ssids; i++)
-		ssid_bitmap |= BIT(i);
+	iwl_mvm_scan_fill_ssids(sec_part->direct_scan, params, &ssid_bitmap);
 
 	iwl_mvm_umac_scan_cfg_channels(mvm, params->channels,
 				       params->n_channels, ssid_bitmap, cmd);
@@ -1308,8 +1310,6 @@ static int iwl_mvm_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		params->flags & NL80211_SCAN_FLAG_RANDOM_ADDR ?
 			params->mac_addr : NULL,
 		params->mac_addr_mask);
-
-	iwl_mvm_scan_fill_ssids(sec_part->direct_scan, params);
 
 	return 0;
 }
