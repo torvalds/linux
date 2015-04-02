@@ -254,8 +254,8 @@ void tipc_node_link_up(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 	active[0] = active[1] = l_ptr;
 exit:
 	/* Leave room for changeover header when returning 'mtu' to users: */
-	n_ptr->act_mtus[0] = active[0]->max_pkt - INT_H_SIZE;
-	n_ptr->act_mtus[1] = active[1]->max_pkt - INT_H_SIZE;
+	n_ptr->act_mtus[0] = active[0]->mtu - INT_H_SIZE;
+	n_ptr->act_mtus[1] = active[1]->mtu - INT_H_SIZE;
 }
 
 /**
@@ -319,11 +319,10 @@ void tipc_node_link_down(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 
 	/* Leave room for changeover header when returning 'mtu' to users: */
 	if (active[0]) {
-		n_ptr->act_mtus[0] = active[0]->max_pkt - INT_H_SIZE;
-		n_ptr->act_mtus[1] = active[1]->max_pkt - INT_H_SIZE;
+		n_ptr->act_mtus[0] = active[0]->mtu - INT_H_SIZE;
+		n_ptr->act_mtus[1] = active[1]->mtu - INT_H_SIZE;
 		return;
 	}
-
 	/* Loopback link went down? No fragmentation needed from now on. */
 	if (n_ptr->addr == tn->own_addr) {
 		n_ptr->act_mtus[0] = MAX_MSG_SIZE;
