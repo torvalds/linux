@@ -99,21 +99,25 @@ static notrace cycle_t vread_pvclock(int *mode)
 		 * __getcpu() calls (Gleb).
 		 */
 
-		pvti = get_pvti(cpu);
+		/* Make sure migrate_count will change if we leave the VCPU. */
+		do {
+			pvti = get_pvti(cpu);
+			migrate_count = pvti->migrate_count;
 
-		migrate_count = pvti->migrate_count;
+			cpu1 = cpu;
+			cpu = __getcpu() & VGETCPU_CPU_MASK;
+		} while (unlikely(cpu != cpu1));
 
 		version = __pvclock_read_cycles(&pvti->pvti, &ret, &flags);
 
 		/*
 		 * Test we're still on the cpu as well as the version.
-		 * We could have been migrated just after the first
-		 * vgetcpu but before fetching the version, so we
-		 * wouldn't notice a version change.
+		 * - We must read TSC of pvti's VCPU.
+		 * - KVM doesn't follow the versioning protocol, so data could
+		 *   change before version if we left the VCPU.
 		 */
-		cpu1 = __getcpu() & VGETCPU_CPU_MASK;
-	} while (unlikely(cpu != cpu1 ||
-			  (pvti->pvti.version & 1) ||
+		smp_rmb();
+	} while (unlikely((pvti->pvti.version & 1) ||
 			  pvti->pvti.version != version ||
 			  pvti->migrate_count != migrate_count));
 
