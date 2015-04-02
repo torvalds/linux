@@ -395,10 +395,13 @@ sysenter_past_esp:
 	/*CFI_REL_OFFSET cs, 0*/
 	/*
 	 * Push current_thread_info()->sysenter_return to the stack.
-	 * A tiny bit of offset fixup is necessary - 4*4 means the 4 words
-	 * pushed above; +8 corresponds to copy_thread's esp0 setting.
+	 * A tiny bit of offset fixup is necessary: TI_sysenter_return
+	 * is relative to thread_info, which is at the bottom of the
+	 * kernel stack page.  4*4 means the 4 words pushed above;
+	 * TOP_OF_KERNEL_STACK_PADDING takes us to the top of the stack;
+	 * and THREAD_SIZE takes us to the bottom.
 	 */
-	pushl_cfi ((TI_sysenter_return)-THREAD_SIZE+TOP_OF_KERNEL_STACK_PADDING+4*4)(%esp)
+	pushl_cfi ((TI_sysenter_return) - THREAD_SIZE + TOP_OF_KERNEL_STACK_PADDING + 4*4)(%esp)
 	CFI_REL_OFFSET eip, 0
 
 	pushl_cfi %eax
