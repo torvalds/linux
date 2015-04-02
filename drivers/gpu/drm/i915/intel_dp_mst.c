@@ -150,14 +150,14 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder)
 	enum port port = intel_dig_port->port;
 	int ret;
 	uint32_t temp;
-	struct intel_connector *found = NULL, *intel_connector;
+	struct intel_connector *found = NULL, *connector;
 	int slots;
 	struct drm_crtc *crtc = encoder->base.crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
-	for_each_intel_connector(dev, intel_connector) {
-		if (intel_connector->new_encoder == encoder) {
-			found = intel_connector;
+	for_each_intel_connector(dev, connector) {
+		if (connector->base.state->best_encoder == &encoder->base) {
+			found = connector;
 			break;
 		}
 	}
