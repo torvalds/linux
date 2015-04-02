@@ -15,6 +15,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <sound/soc.h>
+#include <sound/pcm_params.h>
 
 #define SUPPORT_RATE_NUM    10
 
@@ -51,11 +52,26 @@ static int imx_mqs_startup(struct snd_pcm_substream *substream)
 	return 0;
 }
 
+static int imx_mqs_hw_params(struct snd_pcm_substream *substream,
+				     struct snd_pcm_hw_params *params)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_card *card = rtd->card;
+	int ret;
+
+	ret = snd_soc_dai_set_tdm_slot(cpu_dai, 0, 0, 2, params_width(params));
+	if (ret) {
+		dev_err(card->dev, "failed to set cpu dai tdm slot: %d\n", ret);
+		return ret;
+	}
+	return 0;
+}
+
 static struct snd_soc_ops imx_mqs_ops = {
 	.startup = imx_mqs_startup,
+	.hw_params = imx_mqs_hw_params,
 };
-
-
 
 static struct snd_soc_dai_link imx_mqs_dai = {
 	.name = "HiFi",
