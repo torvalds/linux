@@ -11581,10 +11581,11 @@ intel_modeset_compute_config(struct drm_crtc *crtc,
 	return intel_atomic_get_crtc_state(state, to_intel_crtc(crtc));;
 }
 
-static int __intel_set_mode_setup_plls(struct drm_device *dev,
+static int __intel_set_mode_setup_plls(struct drm_atomic_state *state,
 				       unsigned modeset_pipes,
 				       unsigned disable_pipes)
 {
+	struct drm_device *dev = state->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	unsigned clear_pipes = modeset_pipes | disable_pipes;
 	struct intel_crtc *intel_crtc;
@@ -11598,9 +11599,15 @@ static int __intel_set_mode_setup_plls(struct drm_device *dev,
 		goto done;
 
 	for_each_intel_crtc_masked(dev, modeset_pipes, intel_crtc) {
-		struct intel_crtc_state *state = intel_crtc->new_config;
+		struct intel_crtc_state *crtc_state =
+			intel_atomic_get_crtc_state(state, intel_crtc);
+
+		/* Modeset pipes should have a new state by now */
+		if (WARN_ON(IS_ERR(crtc_state)))
+			continue;
+
 		ret = dev_priv->display.crtc_compute_clock(intel_crtc,
-							   state);
+							   crtc_state);
 		if (ret) {
 			intel_shared_dpll_abort_config(dev_priv);
 			goto done;
@@ -11658,7 +11665,7 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 		prepare_pipes &= ~disable_pipes;
 	}
 
-	ret = __intel_set_mode_setup_plls(dev, modeset_pipes, disable_pipes);
+	ret = __intel_set_mode_setup_plls(state, modeset_pipes, disable_pipes);
 	if (ret)
 		goto done;
 
