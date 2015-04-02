@@ -354,8 +354,8 @@ GLOBAL(int_with_check)
 	movl TI_flags(%rcx),%edx
 	andl %edi,%edx
 	jnz   int_careful
-	andl    $~TS_COMPAT,TI_status(%rcx)
-	jmp   retint_swapgs
+	andl	$~TS_COMPAT,TI_status(%rcx)
+	jmp	syscall_return
 
 	/* Either reschedule or signal or syscall exit tracking needed. */
 	/* First do a reschedule test. */
@@ -399,8 +399,85 @@ int_restore_rest:
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
 	jmp int_with_check
+
+syscall_return:
+	/* The IRETQ could re-enable interrupts: */
+	DISABLE_INTERRUPTS(CLBR_ANY)
+	TRACE_IRQS_IRETQ
+
+	/*
+	 * Try to use SYSRET instead of IRET if we're returning to
+	 * a completely clean 64-bit userspace context.
+	 */
+	movq RCX(%rsp),%rcx
+	cmpq %rcx,RIP(%rsp)		/* RCX == RIP */
+	jne opportunistic_sysret_failed
+
+	/*
+	 * On Intel CPUs, SYSRET with non-canonical RCX/RIP will #GP
+	 * in kernel space.  This essentially lets the user take over
+	 * the kernel, since userspace controls RSP.  It's not worth
+	 * testing for canonicalness exactly -- this check detects any
+	 * of the 17 high bits set, which is true for non-canonical
+	 * or kernel addresses.  (This will pessimize vsyscall=native.
+	 * Big deal.)
+	 *
+	 * If virtual addresses ever become wider, this will need
+	 * to be updated to remain correct on both old and new CPUs.
+	 */
+	.ifne __VIRTUAL_MASK_SHIFT - 47
+	.error "virtual address width changed -- SYSRET checks need update"
+	.endif
+	shr $__VIRTUAL_MASK_SHIFT, %rcx
+	jnz opportunistic_sysret_failed
+
+	cmpq $__USER_CS,CS(%rsp)	/* CS must match SYSRET */
+	jne opportunistic_sysret_failed
+
+	movq R11(%rsp),%r11
+	cmpq %r11,EFLAGS(%rsp)		/* R11 == RFLAGS */
+	jne opportunistic_sysret_failed
+
+	/*
+	 * SYSRET can't restore RF.  SYSRET can restore TF, but unlike IRET,
+	 * restoring TF results in a trap from userspace immediately after
+	 * SYSRET.  This would cause an infinite loop whenever #DB happens
+	 * with register state that satisfies the opportunistic SYSRET
+	 * conditions.  For example, single-stepping this user code:
+	 *
+	 *           movq $stuck_here,%rcx
+	 *           pushfq
+	 *           popq %r11
+	 *   stuck_here:
+	 *
+	 * would never get past 'stuck_here'.
+	 */
+	testq $(X86_EFLAGS_RF|X86_EFLAGS_TF), %r11
+	jnz opportunistic_sysret_failed
+
+	/* nothing to check for RSP */
+
+	cmpq $__USER_DS,SS(%rsp)	/* SS must match SYSRET */
+	jne opportunistic_sysret_failed
+
+	/*
+	 * We win!  This label is here just for ease of understanding
+	 * perf profiles.  Nothing jumps here.
+	 */
+syscall_return_via_sysret:
+	CFI_REMEMBER_STATE
+	/* r11 is already restored (see code above) */
+	RESTORE_C_REGS_EXCEPT_R11
+	movq RSP(%rsp),%rsp
+	USERGS_SYSRET64
+	CFI_RESTORE_STATE
+
+opportunistic_sysret_failed:
+	SWAPGS
+	jmp	restore_c_regs_and_iret
 	CFI_ENDPROC
 END(system_call)
+
 
 	.macro FORK_LIKE func
 ENTRY(stub_\func)
@@ -673,76 +750,8 @@ retint_swapgs:		/* return to user-space */
 	DISABLE_INTERRUPTS(CLBR_ANY)
 	TRACE_IRQS_IRETQ
 
-	/*
-	 * Try to use SYSRET instead of IRET if we're returning to
-	 * a completely clean 64-bit userspace context.
-	 */
-	movq RCX(%rsp),%rcx
-	cmpq %rcx,RIP(%rsp)		/* RCX == RIP */
-	jne opportunistic_sysret_failed
-
-	/*
-	 * On Intel CPUs, sysret with non-canonical RCX/RIP will #GP
-	 * in kernel space.  This essentially lets the user take over
-	 * the kernel, since userspace controls RSP.  It's not worth
-	 * testing for canonicalness exactly -- this check detects any
-	 * of the 17 high bits set, which is true for non-canonical
-	 * or kernel addresses.  (This will pessimize vsyscall=native.
-	 * Big deal.)
-	 *
-	 * If virtual addresses ever become wider, this will need
-	 * to be updated to remain correct on both old and new CPUs.
-	 */
-	.ifne __VIRTUAL_MASK_SHIFT - 47
-	.error "virtual address width changed -- sysret checks need update"
-	.endif
-	shr $__VIRTUAL_MASK_SHIFT, %rcx
-	jnz opportunistic_sysret_failed
-
-	cmpq $__USER_CS,CS(%rsp)	/* CS must match SYSRET */
-	jne opportunistic_sysret_failed
-
-	movq R11(%rsp),%r11
-	cmpq %r11,EFLAGS(%rsp)		/* R11 == RFLAGS */
-	jne opportunistic_sysret_failed
-
-	/*
-	 * SYSRET can't restore RF.  SYSRET can restore TF, but unlike IRET,
-	 * restoring TF results in a trap from userspace immediately after
-	 * SYSRET.  This would cause an infinite loop whenever #DB happens
-	 * with register state that satisfies the opportunistic SYSRET
-	 * conditions.  For example, single-stepping this user code:
-	 *
-	 *           movq $stuck_here,%rcx
-	 *           pushfq
-	 *           popq %r11
-	 *   stuck_here:
-	 *
-	 * would never get past 'stuck_here'.
-	 */
-	testq $(X86_EFLAGS_RF|X86_EFLAGS_TF), %r11
-	jnz opportunistic_sysret_failed
-
-	/* nothing to check for RSP */
-
-	cmpq $__USER_DS,SS(%rsp)	/* SS must match SYSRET */
-	jne opportunistic_sysret_failed
-
-	/*
-	 * We win!  This label is here just for ease of understanding
-	 * perf profiles.  Nothing jumps here.
-	 */
-irq_return_via_sysret:
-	CFI_REMEMBER_STATE
-	/* r11 is already restored (see code above) */
-	RESTORE_C_REGS_EXCEPT_R11
-	movq RSP(%rsp),%rsp
-	USERGS_SYSRET64
-	CFI_RESTORE_STATE
-
-opportunistic_sysret_failed:
 	SWAPGS
-	jmp restore_args
+	jmp	restore_c_regs_and_iret
 
 /* Returning to kernel space */
 retint_kernel:
@@ -761,7 +770,12 @@ retint_kernel:
 	 * The iretq could re-enable interrupts:
 	 */
 	TRACE_IRQS_IRETQ
-restore_args:
+
+/*
+ * At this label, code paths which return to kernel and to user,
+ * which come from interrupts/exception and from syscalls, merge.
+ */
+restore_c_regs_and_iret:
 	RESTORE_C_REGS
 	REMOVE_PT_GPREGS_FROM_STACK 8
 
