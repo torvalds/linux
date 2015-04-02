@@ -363,6 +363,8 @@ struct dvb_frontend *ts2020_attach(struct dvb_frontend *fe,
 {
 	struct i2c_client *client;
 	struct i2c_board_info board_info;
+
+	/* This is only used by ts2020_probe() so can be on the stack */
 	struct ts2020_config pdata;
 
 	memcpy(&pdata, config, sizeof(pdata));
