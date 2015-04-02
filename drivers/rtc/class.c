@@ -117,10 +117,6 @@ static int rtc_resume(struct device *dev)
 		return 0;
 	}
 
-	if (rtc_valid_tm(&tm) != 0) {
-		pr_debug("%s:  bogus resume time\n", dev_name(&rtc->dev));
-		return 0;
-	}
 	new_rtc.tv_sec = rtc_tm_to_time64(&tm);
 	new_rtc.tv_nsec = 0;
 
