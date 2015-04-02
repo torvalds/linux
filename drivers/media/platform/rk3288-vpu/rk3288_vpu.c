@@ -102,7 +102,8 @@ static void rk3288_vpu_try_run(struct rk3288_vpu_dev *dev)
 
 	spin_lock_irqsave(&dev->irqlock, flags);
 
-	if (list_empty(&dev->ready_ctxs))
+	if (list_empty(&dev->ready_ctxs) ||
+	    test_bit(VPU_SUSPENDED, &dev->state))
 		/* Nothing to do. */
 		goto out;
 
@@ -716,6 +717,32 @@ static const struct of_device_id of_rk3288_vpu_match[] = {
 MODULE_DEVICE_TABLE(of, of_rk3288_vpu_match);
 #endif
 
+#ifdef CONFIG_PM_SLEEP
+static int rk3288_vpu_suspend(struct device *dev)
+{
+	struct rk3288_vpu_dev *vpu = dev_get_drvdata(dev);
+
+	set_bit(VPU_SUSPENDED, &vpu->state);
+	wait_event(vpu->run_wq, vpu->current_ctx == NULL);
+
+	return 0;
+}
+
+static int rk3288_vpu_resume(struct device *dev)
+{
+	struct rk3288_vpu_dev *vpu = dev_get_drvdata(dev);
+
+	clear_bit(VPU_SUSPENDED, &vpu->state);
+	rk3288_vpu_try_run(vpu);
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops rk3288_vpu_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(rk3288_vpu_suspend, rk3288_vpu_resume)
+};
+
 static struct platform_driver rk3288_vpu_driver = {
 	.probe = rk3288_vpu_probe,
 	.remove = rk3288_vpu_remove,
@@ -724,6 +751,7 @@ static struct platform_driver rk3288_vpu_driver = {
 		   .name = RK3288_VPU_NAME,
 		   .owner = THIS_MODULE,
 		   .of_match_table = of_match_ptr(of_rk3288_vpu_match),
+		   .pm = &rk3288_vpu_pm_ops,
 	},
 };
 module_platform_driver(rk3288_vpu_driver);

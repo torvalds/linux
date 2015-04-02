@@ -121,9 +121,12 @@ struct rk3288_vpu_buf {
  * enum rk3288_vpu_state - bitwise flags indicating hardware state.
  * @VPU_RUNNING:	The hardware has been programmed for operation
  *			and is running at the moment.
+ * @VPU_SUSPENDED:	System is entering sleep state and no more runs
+ *			should be executed on hardware.
  */
 enum rk3288_vpu_state {
 	VPU_RUNNING	= BIT(0),
+	VPU_SUSPENDED	= BIT(1),
 };
 
 /**
