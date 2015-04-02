@@ -2183,13 +2183,6 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 
 		return;
 	}
-	/* Else we have enough samples; calculate estimate of
-	 * actual average throughput */
-	if (window->average_tpt != ((window->success_ratio *
-			tbl->expected_tpt[index] + 64) / 128)) {
-		window->average_tpt = ((window->success_ratio *
-					tbl->expected_tpt[index] + 64) / 128);
-	}
 
 	/* If we are searching for better modulation mode, check success. */
 	if (lq_sta->search_better_tbl) {
