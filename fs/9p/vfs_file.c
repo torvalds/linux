@@ -453,40 +453,6 @@ v9fs_file_read(struct file *filp, char __user *udata, size_t count,
 	return ret;
 }
 
-ssize_t
-v9fs_file_write_internal(struct inode *inode, struct p9_fid *fid,
-			 const char __user *data, size_t count,
-			 loff_t *offset, int invalidate)
-{
-	loff_t origin = *offset;
-	struct iovec iov = {.iov_base = (void __user *)data, .iov_len = count};
-	struct iov_iter from;
-	int total, err = 0;
-
-	p9_debug(P9_DEBUG_VFS, "data %p count %d offset %x\n",
-		 data, (int)count, (int)*offset);
-
-	iov_iter_init(&from, WRITE, &iov, 1, count);
-
-	total = p9_client_write(fid, origin, &from, &err);
-	if (invalidate && (total > 0)) {
-		loff_t i_size;
-		unsigned long pg_start, pg_end;
-		pg_start = origin >> PAGE_CACHE_SHIFT;
-		pg_end = (origin + total - 1) >> PAGE_CACHE_SHIFT;
-		if (inode->i_mapping && inode->i_mapping->nrpages)
-			invalidate_inode_pages2_range(inode->i_mapping,
-						      pg_start, pg_end);
-		*offset += total;
-		i_size = i_size_read(inode);
-		if (*offset > i_size) {
-			inode_add_bytes(inode, *offset - i_size);
-			i_size_write(inode, *offset);
-		}
-	}
-	return total ? total : err;
-}
-
 /**
  * v9fs_file_write - write to a file
  * @filp: file pointer to write
@@ -501,27 +467,44 @@ v9fs_file_write(struct file *filp, const char __user * data,
 {
 	ssize_t retval = 0;
 	loff_t origin = *offset;
+	struct iovec iov = {.iov_base = (void __user *)data, .iov_len = count};
+	struct iov_iter from;
+	int err = 0;
 
+	iov_iter_init(&from, WRITE, &iov, 1, count);
 
 	retval = generic_write_checks(filp, &origin, &count, 0);
 	if (retval)
-		goto out;
+		return retval;
 
-	retval = -EINVAL;
-	if ((ssize_t) count < 0)
-		goto out;
+	iov_iter_truncate(&from, count);
+
+	p9_debug(P9_DEBUG_VFS, "data %p count %d offset %x\n",
+		 data, (int)count, (int)*offset);
+
 	retval = 0;
 	if (!count)
-		goto out;
+		return 0;
 
-	retval = v9fs_file_write_internal(file_inode(filp),
-					filp->private_data,
-					data, count, &origin, 1);
-	/* update offset on successful write */
-	if (retval > 0)
-		*offset = origin;
-out:
-	return retval;
+	retval = p9_client_write(filp->private_data, origin, &from, &err);
+	if (retval > 0) {
+		struct inode *inode = file_inode(filp);
+		loff_t i_size;
+		unsigned long pg_start, pg_end;
+		pg_start = origin >> PAGE_CACHE_SHIFT;
+		pg_end = (origin + retval - 1) >> PAGE_CACHE_SHIFT;
+		if (inode->i_mapping && inode->i_mapping->nrpages)
+			invalidate_inode_pages2_range(inode->i_mapping,
+						      pg_start, pg_end);
+		*offset += retval;
+		i_size = i_size_read(inode);
+		if (*offset > i_size) {
+			inode_add_bytes(inode, *offset - i_size);
+			i_size_write(inode, *offset);
+		}
+		return retval;
+	}
+	return err;
 }
 
 
