@@ -106,12 +106,12 @@
 #define APCI1564_COUNTER(x)			((x) * 0x20)
 
 struct apci1564_private {
-	unsigned long eeprom;		/* base address of EEPROM register */
-	unsigned long timer;		/* base address of 12-bit timer */
-	unsigned long counters;		/* base address of 32-bit counters */
-	unsigned int mode1;		/* riding-edge/high level channels */
-	unsigned int mode2;		/* falling-edge/low level channels */
-	unsigned int ctrl;		/* interrupt mode OR (edge) . AND (level) */
+	unsigned long eeprom;	/* base address of EEPROM register */
+	unsigned long timer;	/* base address of 12-bit timer */
+	unsigned long counters;	/* base address of 32-bit counters */
+	unsigned int mode1;	/* riding-edge/high level channels */
+	unsigned int mode2;	/* falling-edge/low level channels */
+	unsigned int ctrl;	/* interrupt mode OR (edge) . AND (level) */
 	struct task_struct *tsk_current;
 };
 
