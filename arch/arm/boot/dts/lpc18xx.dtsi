@@ -78,6 +78,16 @@
 			status = "disabled";
 		};
 
+		mac: ethernet@40010000 {
+			compatible = "nxp,lpc1850-dwmac", "snps,dwmac-3.611", "snps,dwmac";
+			reg = <0x40010000 0x2000>;
+			interrupts = <5>;
+			interrupt-names	= "macirq";
+			clocks = <&ccu1 CLK_CPU_ETHERNET>;
+			clock-names = "stmmaceth";
+			status = "disabled";
+		};
+
 		creg: syscon@40043000 {
 			compatible = "nxp,lpc1850-creg", "syscon", "simple-mfd";
 			reg = <0x40043000 0x1000>;
