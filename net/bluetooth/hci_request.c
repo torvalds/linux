@@ -34,7 +34,8 @@ void hci_req_init(struct hci_request *req, struct hci_dev *hdev)
 	req->err = 0;
 }
 
-int hci_req_run(struct hci_request *req, hci_req_complete_t complete)
+static int req_run(struct hci_request *req, hci_req_complete_t complete,
+		   hci_req_complete_skb_t complete_skb)
 {
 	struct hci_dev *hdev = req->hdev;
 	struct sk_buff *skb;
@@ -56,6 +57,7 @@ int hci_req_run(struct hci_request *req, hci_req_complete_t complete)
 
 	skb = skb_peek_tail(&req->cmd_q);
 	bt_cb(skb)->req.complete = complete;
+	bt_cb(skb)->req.complete_skb = complete_skb;
 
 	spin_lock_irqsave(&hdev->cmd_q.lock, flags);
 	skb_queue_splice_tail(&req->cmd_q, &hdev->cmd_q);
@@ -64,6 +66,16 @@ int hci_req_run(struct hci_request *req, hci_req_complete_t complete)
 	queue_work(hdev->workqueue, &hdev->cmd_work);
 
 	return 0;
+}
+
+int hci_req_run(struct hci_request *req, hci_req_complete_t complete)
+{
+	return req_run(req, complete, NULL);
+}
+
+int hci_req_run_skb(struct hci_request *req, hci_req_complete_skb_t complete)
+{
+	return req_run(req, NULL, complete);
 }
 
 struct sk_buff *hci_prepare_cmd(struct hci_dev *hdev, u16 opcode, u32 plen,

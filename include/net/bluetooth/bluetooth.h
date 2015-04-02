@@ -277,11 +277,14 @@ struct l2cap_ctrl {
 struct hci_dev;
 
 typedef void (*hci_req_complete_t)(struct hci_dev *hdev, u8 status, u16 opcode);
+typedef void (*hci_req_complete_skb_t)(struct hci_dev *hdev, u8 status,
+				       u16 opcode, struct sk_buff *skb);
 
 struct req_ctrl {
 	bool start;
 	u8 event;
 	hci_req_complete_t complete;
+	hci_req_complete_skb_t complete_skb;
 };
 
 struct bt_skb_cb {
