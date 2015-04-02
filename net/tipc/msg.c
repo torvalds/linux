@@ -355,7 +355,7 @@ bool tipc_msg_bundle(struct sk_buff *bskb, struct sk_buff *skb, u32 mtu)
 	start = align(bsz);
 	pad = start - bsz;
 
-	if (unlikely(msg_user(msg) == CHANGEOVER_PROTOCOL))
+	if (unlikely(msg_user(msg) == TUNNEL_PROTOCOL))
 		return false;
 	if (unlikely(msg_user(msg) == BCAST_PROTOCOL))
 		return false;
@@ -433,7 +433,7 @@ bool tipc_msg_make_bundle(struct sk_buff **skb, u32 mtu, u32 dnode)
 
 	if (msg_user(msg) == MSG_FRAGMENTER)
 		return false;
-	if (msg_user(msg) == CHANGEOVER_PROTOCOL)
+	if (msg_user(msg) == TUNNEL_PROTOCOL)
 		return false;
 	if (msg_user(msg) == BCAST_PROTOCOL)
 		return false;

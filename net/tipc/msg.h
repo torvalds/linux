@@ -72,7 +72,7 @@ struct plist;
 #define  MSG_BUNDLER          6
 #define  LINK_PROTOCOL        7
 #define  CONN_MANAGER         8
-#define  CHANGEOVER_PROTOCOL  10
+#define  TUNNEL_PROTOCOL      10
 #define  NAME_DISTRIBUTOR     11
 #define  MSG_FRAGMENTER       12
 #define  LINK_CONFIG          13
@@ -512,8 +512,8 @@ static inline void msg_set_nameupper(struct tipc_msg *m, u32 n)
 /*
  * Changeover tunnel message types
  */
-#define DUPLICATE_MSG		0
-#define ORIGINAL_MSG		1
+#define SYNCH_MSG		0
+#define FAILOVER_MSG		1
 
 /*
  * Config protocol message types
@@ -556,9 +556,9 @@ static inline void msg_set_node_capabilities(struct tipc_msg *m, u32 n)
 
 static inline bool msg_dup(struct tipc_msg *m)
 {
-	if (likely(msg_user(m) != CHANGEOVER_PROTOCOL))
+	if (likely(msg_user(m) != TUNNEL_PROTOCOL))
 		return false;
-	if (msg_type(m) != DUPLICATE_MSG)
+	if (msg_type(m) != SYNCH_MSG)
 		return false;
 	return true;
 }

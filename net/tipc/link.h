@@ -58,9 +58,10 @@
 
 /* Link endpoint execution states
  */
-#define LINK_STARTED    0x0001
-#define LINK_STOPPED    0x0002
-#define LINK_SYNCHING   0x0004
+#define LINK_STARTED     0x0001
+#define LINK_STOPPED     0x0002
+#define LINK_SYNCHING    0x0004
+#define LINK_FAILINGOVER 0x0008
 
 /* Starting value for maximum packet size negotiation on unicast links
  * (unless bearer MTU is less)
@@ -122,9 +123,8 @@ struct tipc_stats {
  * @backlog_limit: backlog queue congestion thresholds (indexed by importance)
  * @exp_msg_count: # of tunnelled messages expected during link changeover
  * @reset_checkpoint: seq # of last acknowledged message at time of link reset
- * @max_pkt: current maximum packet size for this link
- * @max_pkt_target: desired maximum packet size for this link
- * @max_pkt_probes: # of probes based on current (max_pkt, max_pkt_target)
+ * @mtu: current maximum packet size for this link
+ * @advertised_mtu: advertised own mtu when link is being established
  * @transmitq: queue for sent, non-acked messages
  * @backlogq: queue for messages waiting to be sent
  * @next_out_no: next sequence number to use for outbound messages
@@ -167,16 +167,16 @@ struct tipc_link {
 	struct tipc_msg *pmsg;
 	u32 priority;
 	char net_plane;
+	u16 synch_point;
 
-	/* Changeover */
-	u32 exp_msg_count;
-	u32 reset_checkpoint;
-	u32 synch_point;
+	/* Failover */
+	u16 failover_pkts;
+	u16 failover_checkpt;
+	struct sk_buff *failover_skb;
 
 	/* Max packet negotiation */
-	u32 max_pkt;
-	u32 max_pkt_target;
-	u32 max_pkt_probes;
+	u16 mtu;
+	u16 advertised_mtu;
 
 	/* Sending */
 	struct sk_buff_head transmq;
@@ -201,7 +201,6 @@ struct tipc_link {
 	struct sk_buff_head wakeupq;
 
 	/* Fragmentation/reassembly */
-	u32 long_msg_seq_no;
 	struct sk_buff *reasm_buf;
 
 	/* Statistics */
@@ -232,7 +231,7 @@ int tipc_link_xmit(struct net *net, struct sk_buff_head *list, u32 dest,
 int __tipc_link_xmit(struct net *net, struct tipc_link *link,
 		     struct sk_buff_head *list);
 void tipc_link_proto_xmit(struct tipc_link *l_ptr, u32 msg_typ, int prob,
-			  u32 gap, u32 tolerance, u32 priority, u32 acked_mtu);
+			  u32 gap, u32 tolerance, u32 priority);
 void tipc_link_push_packets(struct tipc_link *l_ptr);
 u32 tipc_link_defer_pkt(struct sk_buff_head *list, struct sk_buff *buf);
 void tipc_link_set_queue_limits(struct tipc_link *l_ptr, u32 window);
