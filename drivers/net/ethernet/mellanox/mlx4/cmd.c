@@ -1464,6 +1464,15 @@ static struct mlx4_cmd_info cmd_info[] = {
 		.wrapper = mlx4_CMD_EPERM_wrapper,
 	},
 	{
+		.opcode = MLX4_CMD_SET_VPORT_QOS,
+		.has_inbox = false,
+		.has_outbox = true,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_CMD_EPERM_wrapper,
+	},
+	{
 		.opcode = MLX4_CMD_CONF_SPECIAL_QP,
 		.has_inbox = false,
 		.has_outbox = false,

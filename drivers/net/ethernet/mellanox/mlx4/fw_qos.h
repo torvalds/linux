@@ -41,6 +41,12 @@
 #define MLX4_NUM_UP 8
 #define MLX4_NUM_TC 8
 
+struct mlx4_vport_qos_param {
+	u32 bw_share;
+	u32 max_avg_bw;
+	u8 enable;
+};
+
 /**
  * mlx4_SET_PORT_PRIO2TC - This routine maps user priorities to traffic
  * classes of a given port and device.
@@ -99,5 +105,35 @@ int mlx4_ALLOCATE_VPP_get(struct mlx4_dev *dev, u8 port,
  * Returns 0 on success or a negative mlx4_core errno code.
  **/
 int mlx4_ALLOCATE_VPP_set(struct mlx4_dev *dev, u8 port, u8 *vpp_p_up);
+
+/**
+ * mlx4_SET_VPORT_QOS_get - Query QoS proporties of a Vport.
+ * Each priority allowed for the Vport is assigned with a share of the BW,
+ * and a BW limitation. This commands query the current QoS values.
+ *
+ * @dev: mlx4_dev.
+ * @port: Physical port number.
+ * @vport: Vport id.
+ * @out_param: Array of mlx4_vport_qos_param that will contain the values.
+ *
+ * Returns 0 on success or a negative mlx4_core errno code.
+ **/
+int mlx4_SET_VPORT_QOS_get(struct mlx4_dev *dev, u8 port, u8 vport,
+			   struct mlx4_vport_qos_param *out_param);
+
+/**
+ * mlx4_SET_VPORT_QOS_set - Set QoS proporties of a Vport.
+ * QoS parameters can be modified at any time, but must be initialized
+ * before any QP is associated with the VPort.
+ *
+ * @dev: mlx4_dev.
+ * @port: Physical port number.
+ * @vport: Vport id.
+ * @out_param: Array of mlx4_vport_qos_param which holds the requested values.
+ *
+ * Returns 0 on success or a negative mlx4_core errno code.
+ **/
+int mlx4_SET_VPORT_QOS_set(struct mlx4_dev *dev, u8 port, u8 vport,
+			   struct mlx4_vport_qos_param *in_param);
 
 #endif /* MLX4_FW_QOS_H */
