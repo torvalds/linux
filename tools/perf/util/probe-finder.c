@@ -460,7 +460,8 @@ static int convert_variable_fields(Dwarf_Die *vr_die, const char *varname,
 			       " nor array.\n", varname);
 			return -EINVAL;
 		}
-		if (field->ref) {
+		/* While prcessing unnamed field, we don't care about this */
+		if (field->ref && dwarf_diename(vr_die)) {
 			pr_err("Semantic error: %s must be referred by '.'\n",
 			       field->name);
 			return -EINVAL;
@@ -490,6 +491,11 @@ static int convert_variable_fields(Dwarf_Die *vr_die, const char *varname,
 		}
 	}
 	ref->offset += (long)offs;
+
+	/* If this member is unnamed, we need to reuse this field */
+	if (!dwarf_diename(die_mem))
+		return convert_variable_fields(die_mem, varname, field,
+						&ref, die_mem);
 
 next:
 	/* Converting next field */
