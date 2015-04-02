@@ -395,7 +395,9 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 		src = datablock_addr(dn.node_page, dn.ofs_in_node);
 		dest = datablock_addr(page, dn.ofs_in_node);
 
-		if (src != dest && dest != NEW_ADDR && dest != NULL_ADDR) {
+		if (src != dest && dest != NEW_ADDR && dest != NULL_ADDR &&
+			dest >= MAIN_BLKADDR(sbi) && dest < MAX_BLKADDR(sbi)) {
+
 			if (src == NULL_ADDR) {
 				err = reserve_new_block(&dn);
 				/* We should not get -ENOSPC */
