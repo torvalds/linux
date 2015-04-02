@@ -299,6 +299,11 @@ struct ipoib_neigh_table {
 	struct completion		deleted;
 };
 
+struct ipoib_qp_state_validate {
+	struct work_struct work;
+	struct ipoib_dev_priv   *priv;
+};
+
 /*
  * Device private locking: network stack tx_lock protects members used
  * in TX fast path, lock protects everything else.  lock nests inside

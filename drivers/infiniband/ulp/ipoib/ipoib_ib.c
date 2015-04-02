@@ -327,6 +327,51 @@ static void ipoib_dma_unmap_tx(struct ib_device *ca,
 	}
 }
 
+/*
+ * As the result of a completion error the QP Can be transferred to SQE states.
+ * The function checks if the (send)QP is in SQE state and
+ * moves it back to RTS state, that in order to have it functional again.
+ */
+static void ipoib_qp_state_validate_work(struct work_struct *work)
+{
+	struct ipoib_qp_state_validate *qp_work =
+		container_of(work, struct ipoib_qp_state_validate, work);
+
+	struct ipoib_dev_priv *priv = qp_work->priv;
+	struct ib_qp_attr qp_attr;
+	struct ib_qp_init_attr query_init_attr;
+	int ret;
+
+	ret = ib_query_qp(priv->qp, &qp_attr, IB_QP_STATE, &query_init_attr);
+	if (ret) {
+		ipoib_warn(priv, "%s: Failed to query QP ret: %d\n",
+			   __func__, ret);
+		goto free_res;
+	}
+	pr_info("%s: QP: 0x%x is in state: %d\n",
+		__func__, priv->qp->qp_num, qp_attr.qp_state);
+
+	/* currently support only in SQE->RTS transition*/
+	if (qp_attr.qp_state == IB_QPS_SQE) {
+		qp_attr.qp_state = IB_QPS_RTS;
+
+		ret = ib_modify_qp(priv->qp, &qp_attr, IB_QP_STATE);
+		if (ret) {
+			pr_warn("failed(%d) modify QP:0x%x SQE->RTS\n",
+				ret, priv->qp->qp_num);
+			goto free_res;
+		}
+		pr_info("%s: QP: 0x%x moved from IB_QPS_SQE to IB_QPS_RTS\n",
+			__func__, priv->qp->qp_num);
+	} else {
+		pr_warn("QP (%d) will stay in state: %d\n",
+			priv->qp->qp_num, qp_attr.qp_state);
+	}
+
+free_res:
+	kfree(qp_work);
+}
+
 static void ipoib_ib_handle_tx_wc(struct net_device *dev, struct ib_wc *wc)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
@@ -358,10 +403,22 @@ static void ipoib_ib_handle_tx_wc(struct net_device *dev, struct ib_wc *wc)
 		netif_wake_queue(dev);
 
 	if (wc->status != IB_WC_SUCCESS &&
-	    wc->status != IB_WC_WR_FLUSH_ERR)
+	    wc->status != IB_WC_WR_FLUSH_ERR) {
+		struct ipoib_qp_state_validate *qp_work;
 		ipoib_warn(priv, "failed send event "
 			   "(status=%d, wrid=%d vend_err %x)\n",
 			   wc->status, wr_id, wc->vendor_err);
+		qp_work = kzalloc(sizeof(*qp_work), GFP_ATOMIC);
+		if (!qp_work) {
+			ipoib_warn(priv, "%s Failed alloc ipoib_qp_state_validate for qp: 0x%x\n",
+				   __func__, priv->qp->qp_num);
+			return;
+		}
+
+		INIT_WORK(&qp_work->work, ipoib_qp_state_validate_work);
+		qp_work->priv = priv;
+		queue_work(priv->wq, &qp_work->work);
+	}
 }
 
 static int poll_tx(struct ipoib_dev_priv *priv)
