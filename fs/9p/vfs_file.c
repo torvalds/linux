@@ -374,23 +374,19 @@ out_err:
  */
 
 static ssize_t
-v9fs_file_read(struct file *filp, char __user *udata, size_t count,
-	       loff_t * offset)
+v9fs_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
-	struct p9_fid *fid = filp->private_data;
-	struct iovec iov = {.iov_base = udata, .iov_len = count};
-	struct iov_iter to;
+	struct p9_fid *fid = iocb->ki_filp->private_data;
 	int ret, err;
 
-	iov_iter_init(&to, READ, &iov, 1, count);
+	p9_debug(P9_DEBUG_VFS, "count %zu offset %lld\n",
+		 iov_iter_count(to), iocb->ki_pos);
 
-	p9_debug(P9_DEBUG_VFS, "count %zu offset %lld\n", count, *offset);
-
-	ret = p9_client_read(fid, *offset, &to, &err);
+	ret = p9_client_read(fid, iocb->ki_pos, to, &err);
 	if (!ret)
 		return err;
 
-	*offset += ret;
+	iocb->ki_pos += ret;
 	return ret;
 }
 
@@ -403,33 +399,26 @@ v9fs_file_read(struct file *filp, char __user *udata, size_t count,
  *
  */
 static ssize_t
-v9fs_file_write(struct file *filp, const char __user * data,
-		size_t count, loff_t *offset)
+v9fs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
+	struct file *file = iocb->ki_filp;
 	ssize_t retval = 0;
-	loff_t origin = *offset;
-	struct iovec iov = {.iov_base = (void __user *)data, .iov_len = count};
-	struct iov_iter from;
+	loff_t origin = iocb->ki_pos;
+	size_t count = iov_iter_count(from);
 	int err = 0;
 
-	iov_iter_init(&from, WRITE, &iov, 1, count);
-
-	retval = generic_write_checks(filp, &origin, &count, 0);
+	retval = generic_write_checks(file, &origin, &count, 0);
 	if (retval)
 		return retval;
 
-	iov_iter_truncate(&from, count);
+	iov_iter_truncate(from, count);
 
-	p9_debug(P9_DEBUG_VFS, "data %p count %d offset %x\n",
-		 data, (int)count, (int)*offset);
-
-	retval = 0;
 	if (!count)
 		return 0;
 
-	retval = p9_client_write(filp->private_data, origin, &from, &err);
+	retval = p9_client_write(file->private_data, origin, from, &err);
 	if (retval > 0) {
-		struct inode *inode = file_inode(filp);
+		struct inode *inode = file_inode(file);
 		loff_t i_size;
 		unsigned long pg_start, pg_end;
 		pg_start = origin >> PAGE_CACHE_SHIFT;
@@ -437,17 +426,17 @@ v9fs_file_write(struct file *filp, const char __user * data,
 		if (inode->i_mapping && inode->i_mapping->nrpages)
 			invalidate_inode_pages2_range(inode->i_mapping,
 						      pg_start, pg_end);
-		*offset += retval;
+		origin += retval;
 		i_size = i_size_read(inode);
-		if (*offset > i_size) {
-			inode_add_bytes(inode, *offset - i_size);
-			i_size_write(inode, *offset);
+		iocb->ki_pos = origin;
+		if (origin > i_size) {
+			inode_add_bytes(inode, origin - i_size);
+			i_size_write(inode, origin);
 		}
 		return retval;
 	}
 	return err;
 }
-
 
 static int v9fs_file_fsync(struct file *filp, loff_t start, loff_t end,
 			   int datasync)
@@ -584,11 +573,10 @@ out_unlock:
  *
  */
 static ssize_t
-v9fs_mmap_file_read(struct file *filp, char __user *data, size_t count,
-		      loff_t *offset)
+v9fs_mmap_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
 	/* TODO: Check if there are dirty pages */
-	return v9fs_file_read(filp, data, count, offset);
+	return v9fs_file_read_iter(iocb, to);
 }
 
 /**
@@ -600,14 +588,13 @@ v9fs_mmap_file_read(struct file *filp, char __user *data, size_t count,
  *
  */
 static ssize_t
-v9fs_mmap_file_write(struct file *filp, const char __user *data,
-		       size_t count, loff_t *offset)
+v9fs_mmap_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	/*
 	 * TODO: invalidate mmaps on filp's inode between
 	 * offset and offset+count
 	 */
-	return v9fs_file_write(filp, data, count, offset);
+	return v9fs_file_write_iter(iocb, from);
 }
 
 static void v9fs_mmap_vm_close(struct vm_area_struct *vma)
@@ -679,8 +666,10 @@ const struct file_operations v9fs_cached_file_operations_dotl = {
 
 const struct file_operations v9fs_file_operations = {
 	.llseek = generic_file_llseek,
-	.read = v9fs_file_read,
-	.write = v9fs_file_write,
+	.read = new_sync_read,
+	.write = new_sync_write,
+	.read_iter = v9fs_file_read_iter,
+	.write_iter = v9fs_file_write_iter,
 	.open = v9fs_file_open,
 	.release = v9fs_dir_release,
 	.lock = v9fs_file_lock,
@@ -690,8 +679,10 @@ const struct file_operations v9fs_file_operations = {
 
 const struct file_operations v9fs_file_operations_dotl = {
 	.llseek = generic_file_llseek,
-	.read = v9fs_file_read,
-	.write = v9fs_file_write,
+	.read = new_sync_read,
+	.write = new_sync_write,
+	.read_iter = v9fs_file_read_iter,
+	.write_iter = v9fs_file_write_iter,
 	.open = v9fs_file_open,
 	.release = v9fs_dir_release,
 	.lock = v9fs_file_lock_dotl,
@@ -702,8 +693,10 @@ const struct file_operations v9fs_file_operations_dotl = {
 
 const struct file_operations v9fs_mmap_file_operations = {
 	.llseek = generic_file_llseek,
-	.read = v9fs_mmap_file_read,
-	.write = v9fs_mmap_file_write,
+	.read = new_sync_read,
+	.write = new_sync_write,
+	.read_iter = v9fs_mmap_file_read_iter,
+	.write_iter = v9fs_mmap_file_write_iter,
 	.open = v9fs_file_open,
 	.release = v9fs_dir_release,
 	.lock = v9fs_file_lock,
@@ -713,8 +706,10 @@ const struct file_operations v9fs_mmap_file_operations = {
 
 const struct file_operations v9fs_mmap_file_operations_dotl = {
 	.llseek = generic_file_llseek,
-	.read = v9fs_mmap_file_read,
-	.write = v9fs_mmap_file_write,
+	.read = new_sync_read,
+	.write = new_sync_write,
+	.read_iter = v9fs_mmap_file_read_iter,
+	.write_iter = v9fs_mmap_file_write_iter,
 	.open = v9fs_file_open,
 	.release = v9fs_dir_release,
 	.lock = v9fs_file_lock_dotl,
