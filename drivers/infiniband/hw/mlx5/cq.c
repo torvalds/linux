@@ -697,8 +697,6 @@ static int create_cq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
 
 	cq->mcq.set_ci_db  = cq->db.db;
 	cq->mcq.arm_db     = cq->db.db + 1;
-	*cq->mcq.set_ci_db = 0;
-	*cq->mcq.arm_db    = 0;
 	cq->mcq.cqe_sz = cqe_size;
 
 	err = alloc_cq_buf(dev, &cq->buf, entries, cqe_size);

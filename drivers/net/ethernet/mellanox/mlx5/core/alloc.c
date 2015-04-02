@@ -171,6 +171,9 @@ static int mlx5_alloc_db_from_pgdir(struct mlx5_db_pgdir *pgdir,
 	db->db      = pgdir->db_page + offset / sizeof(*pgdir->db_page);
 	db->dma     = pgdir->db_dma  + offset;
 
+	db->db[0] = 0;
+	db->db[1] = 0;
+
 	return 0;
 }
 
