@@ -21,18 +21,6 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
-	aliases {
-		ethernet0 = &gmac0;
-		ethernet1 = &gmac1;
-		ethernet2 = &gmac2;
-		serial0 = &uart0;
-		serial1 = &uart1;
-		timer0 = &timer0;
-		timer1 = &timer1;
-		timer2 = &timer2;
-		timer3 = &timer3;
-	};
-
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;

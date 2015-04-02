@@ -40,9 +40,9 @@
 				};
 			};
 		};
-
-		serial0@ffc02000 {
-			status = "okay";
-		};
 	};
+};
+
+&uart1 {
+	status = "okay";
 };
