@@ -2527,6 +2527,11 @@ static void __dasd_process_request_queue(struct dasd_block *block)
 			__blk_end_request_all(req, -EIO);
 		return;
 	}
+
+	/* if device ist stopped do not fetch new requests */
+	if (basedev->stopped)
+		return;
+
 	/* Now we try to fetch requests from the request queue */
 	while ((req = blk_peek_request(queue))) {
 		if (basedev->features & DASD_FEATURE_READONLY &&
