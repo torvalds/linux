@@ -18,16 +18,9 @@
 extern void __init at91_map_io(void);
 extern void __init at91_alt_map_io(void);
 
- /* Timer */
-extern void at91rm9200_timer_init(void);
-
 /* idle */
 extern void at91rm9200_idle(void);
 extern void at91sam9_idle(void);
-
-/* Matrix */
-extern void at91_ioremap_matrix(u32 base_addr);
-
 
 #ifdef CONFIG_PM
 extern void __init at91rm9200_pm_init(void);
