@@ -289,7 +289,6 @@ int db_export__sample(struct db_export *dbe, union perf_event *event,
 		.event = event,
 		.sample = sample,
 		.evsel = evsel,
-		.thread = thread,
 		.al = al,
 	};
 	struct thread *main_thread;

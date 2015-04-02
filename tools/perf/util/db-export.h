@@ -34,7 +34,6 @@ struct export_sample {
 	union perf_event	*event;
 	struct perf_sample	*sample;
 	struct perf_evsel	*evsel;
-	struct thread		*thread;
 	struct addr_location	*al;
 	u64			db_id;
 	u64			comm_db_id;

@@ -679,7 +679,7 @@ static int python_export_sample(struct db_export *dbe,
 	tuple_set_u64(t, 0, es->db_id);
 	tuple_set_u64(t, 1, es->evsel->db_id);
 	tuple_set_u64(t, 2, es->al->machine->db_id);
-	tuple_set_u64(t, 3, es->thread->db_id);
+	tuple_set_u64(t, 3, es->al->thread->db_id);
 	tuple_set_u64(t, 4, es->comm_db_id);
 	tuple_set_u64(t, 5, es->dso_db_id);
 	tuple_set_u64(t, 6, es->sym_db_id);
