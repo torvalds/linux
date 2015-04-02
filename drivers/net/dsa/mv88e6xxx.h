@@ -140,8 +140,11 @@ int mv88e6xxx_reg_write(struct dsa_switch *ds, int addr, int reg, u16 val);
 int mv88e6xxx_config_prio(struct dsa_switch *ds);
 int mv88e6xxx_set_addr_direct(struct dsa_switch *ds, u8 *addr);
 int mv88e6xxx_set_addr_indirect(struct dsa_switch *ds, u8 *addr);
-int mv88e6xxx_phy_read(struct dsa_switch *ds, int addr, int regnum);
-int mv88e6xxx_phy_write(struct dsa_switch *ds, int addr, int regnum, u16 val);
+int mv88e6xxx_phy_read(struct dsa_switch *ds, int port, int regnum);
+int mv88e6xxx_phy_write(struct dsa_switch *ds, int port, int regnum, u16 val);
+int mv88e6xxx_phy_read_indirect(struct dsa_switch *ds, int port, int regnum);
+int mv88e6xxx_phy_write_indirect(struct dsa_switch *ds, int port, int regnum,
+				 u16 val);
 void mv88e6xxx_ppu_state_init(struct dsa_switch *ds);
 int mv88e6xxx_phy_read_ppu(struct dsa_switch *ds, int addr, int regnum);
 int mv88e6xxx_phy_write_ppu(struct dsa_switch *ds, int addr,

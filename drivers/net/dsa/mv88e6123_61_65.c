@@ -277,48 +277,6 @@ static int mv88e6123_61_65_setup(struct dsa_switch *ds)
 	return 0;
 }
 
-static int mv88e6123_61_65_port_to_phy_addr(struct dsa_switch *ds, int port)
-{
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-
-	if (port >= 0 && port < ps->num_ports)
-		return port;
-	return -EINVAL;
-}
-
-static int
-mv88e6123_61_65_phy_read(struct dsa_switch *ds, int port, int regnum)
-{
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	int addr = mv88e6123_61_65_port_to_phy_addr(ds, port);
-	int ret;
-
-	if (addr < 0)
-		return addr;
-
-	mutex_lock(&ps->phy_mutex);
-	ret = mv88e6xxx_phy_read(ds, addr, regnum);
-	mutex_unlock(&ps->phy_mutex);
-	return ret;
-}
-
-static int
-mv88e6123_61_65_phy_write(struct dsa_switch *ds,
-			      int port, int regnum, u16 val)
-{
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	int addr = mv88e6123_61_65_port_to_phy_addr(ds, port);
-	int ret;
-
-	if (addr < 0)
-		return addr;
-
-	mutex_lock(&ps->phy_mutex);
-	ret = mv88e6xxx_phy_write(ds, addr, regnum, val);
-	mutex_unlock(&ps->phy_mutex);
-	return ret;
-}
-
 static struct mv88e6xxx_hw_stat mv88e6123_61_65_hw_stats[] = {
 	{ "in_good_octets", 8, 0x00, },
 	{ "in_bad_octets", 4, 0x02, },
@@ -381,8 +339,8 @@ struct dsa_switch_driver mv88e6123_61_65_switch_driver = {
 	.probe			= mv88e6123_61_65_probe,
 	.setup			= mv88e6123_61_65_setup,
 	.set_addr		= mv88e6xxx_set_addr_indirect,
-	.phy_read		= mv88e6123_61_65_phy_read,
-	.phy_write		= mv88e6123_61_65_phy_write,
+	.phy_read		= mv88e6xxx_phy_read,
+	.phy_write		= mv88e6xxx_phy_write,
 	.poll_link		= mv88e6xxx_poll_link,
 	.get_strings		= mv88e6123_61_65_get_strings,
 	.get_ethtool_stats	= mv88e6123_61_65_get_ethtool_stats,
