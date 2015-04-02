@@ -2212,6 +2212,9 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 	}
 
 	if (mlx4_is_master(dev)) {
+		struct mlx4_vf_oper_state *vf_oper;
+		struct mlx4_vf_admin_state *vf_admin;
+
 		priv->mfunc.master.slave_state =
 			kzalloc(dev->num_slaves *
 				sizeof(struct mlx4_slave_state), GFP_KERNEL);
@@ -2231,6 +2234,8 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 			goto err_comm_oper;
 
 		for (i = 0; i < dev->num_slaves; ++i) {
+			vf_admin = &priv->mfunc.master.vf_admin[i];
+			vf_oper = &priv->mfunc.master.vf_oper[i];
 			s_state = &priv->mfunc.master.slave_state[i];
 			s_state->last_cmd = MLX4_COMM_CMD_RESET;
 			mutex_init(&priv->mfunc.master.gen_eqe_mutex[i]);
@@ -2242,6 +2247,9 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 				     &priv->mfunc.comm[i].slave_read);
 			mmiowb();
 			for (port = 1; port <= MLX4_MAX_PORTS; port++) {
+				struct mlx4_vport_state *admin_vport;
+				struct mlx4_vport_state *oper_vport;
+
 				s_state->vlan_filter[port] =
 					kzalloc(sizeof(struct mlx4_vlan_fltr),
 						GFP_KERNEL);
@@ -2250,11 +2258,14 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 						kfree(s_state->vlan_filter[port]);
 					goto err_slaves;
 				}
+
+				admin_vport = &vf_admin->vport[port];
+				oper_vport = &vf_oper->vport[port].state;
 				INIT_LIST_HEAD(&s_state->mcast_filters[port]);
-				priv->mfunc.master.vf_admin[i].vport[port].default_vlan = MLX4_VGT;
-				priv->mfunc.master.vf_oper[i].vport[port].state.default_vlan = MLX4_VGT;
-				priv->mfunc.master.vf_oper[i].vport[port].vlan_idx = NO_INDX;
-				priv->mfunc.master.vf_oper[i].vport[port].mac_idx = NO_INDX;
+				admin_vport->default_vlan = MLX4_VGT;
+				oper_vport->default_vlan = MLX4_VGT;
+				vf_oper->vport[port].vlan_idx = NO_INDX;
+				vf_oper->vport[port].mac_idx = NO_INDX;
 			}
 			spin_lock_init(&s_state->lock);
 		}
