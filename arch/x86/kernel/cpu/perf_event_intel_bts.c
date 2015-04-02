@@ -159,7 +159,7 @@ bts_config_buffer(struct bts_buffer *buf)
 			thresh = end;
 	}
 
-	ds->bts_buffer_base = (u64)page_address(page) + phys->displacement;
+	ds->bts_buffer_base = (u64)(long)page_address(page) + phys->displacement;
 	ds->bts_index = ds->bts_buffer_base + index;
 	ds->bts_absolute_maximum = ds->bts_buffer_base + end;
 	ds->bts_interrupt_threshold = !buf->snapshot

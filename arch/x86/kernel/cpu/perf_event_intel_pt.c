@@ -409,8 +409,8 @@ static void pt_topa_dump(struct pt_buffer *buf)
 	list_for_each_entry(topa, &buf->tables, list) {
 		int i;
 
-		pr_debug("# table @%p (%p), off %llx size %zx\n", topa->table,
-			 (void *)topa->phys, topa->offset, topa->size);
+		pr_debug("# table @%p (%016Lx), off %llx size %zx\n", topa->table,
+			 topa->phys, topa->offset, topa->size);
 		for (i = 0; i < TENTS_PER_PAGE; i++) {
 			pr_debug("# entry @%p (%lx sz %u %c%c%c) raw=%16llx\n",
 				 &topa->table[i],
