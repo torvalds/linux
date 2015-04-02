@@ -161,41 +161,32 @@ static void v9fs_invalidate_page(struct page *page, unsigned int offset,
 
 static int v9fs_vfs_writepage_locked(struct page *page)
 {
-	char *buffer;
-	int retval, len;
-	loff_t offset, size;
-	mm_segment_t old_fs;
-	struct v9fs_inode *v9inode;
 	struct inode *inode = page->mapping->host;
+	struct v9fs_inode *v9inode = V9FS_I(inode);
+	loff_t size = i_size_read(inode);
+	struct iov_iter from;
+	struct bio_vec bvec;
+	int err, len;
 
-	v9inode = V9FS_I(inode);
-	size = i_size_read(inode);
 	if (page->index == size >> PAGE_CACHE_SHIFT)
 		len = size & ~PAGE_CACHE_MASK;
 	else
 		len = PAGE_CACHE_SIZE;
 
-	set_page_writeback(page);
+	bvec.bv_page = page;
+	bvec.bv_offset = 0;
+	bvec.bv_len = len;
+	iov_iter_bvec(&from, ITER_BVEC | WRITE, &bvec, 1, len);
 
-	buffer = kmap(page);
-	offset = page_offset(page);
-
-	old_fs = get_fs();
-	set_fs(get_ds());
 	/* We should have writeback_fid always set */
 	BUG_ON(!v9inode->writeback_fid);
 
-	retval = v9fs_file_write_internal(inode,
-					  v9inode->writeback_fid,
-					  (__force const char __user *)buffer,
-					  len, &offset, 0);
-	if (retval > 0)
-		retval = 0;
+	set_page_writeback(page);
 
-	set_fs(old_fs);
-	kunmap(page);
+	p9_client_write(v9inode->writeback_fid, page_offset(page), &from, &err);
+
 	end_page_writeback(page);
-	return retval;
+	return err;
 }
 
 static int v9fs_vfs_writepage(struct page *page, struct writeback_control *wbc)
