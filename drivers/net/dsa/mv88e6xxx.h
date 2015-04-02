@@ -11,6 +11,42 @@
 #ifndef __MV88E6XXX_H
 #define __MV88E6XXX_H
 
+/* switch product IDs */
+
+#define ID_6085		0x04a0
+#define ID_6095		0x0950
+
+#define ID_6123		0x1210
+#define ID_6123_A1	0x1212
+#define ID_6123_A2	0x1213
+
+#define ID_6131		0x1060
+#define ID_6131_B2	0x1066
+
+#define ID_6152		0x1a40
+#define ID_6155		0x1a50
+
+#define ID_6161		0x1610
+#define ID_6161_A1	0x1612
+#define ID_6161_A2	0x1613
+
+#define ID_6165		0x1650
+#define ID_6165_A1	0x1652
+#define ID_6165_A2	0x1653
+
+#define ID_6171		0x1710
+#define ID_6172		0x1720
+#define ID_6176		0x1760
+
+#define ID_6182		0x1a60
+#define ID_6185		0x1a70
+
+#define ID_6352		0x3520
+#define ID_6352_A0	0x3521
+#define ID_6352_A1	0x3522
+
+/* Registers */
+
 #define REG_PORT(p)		(0x10 + (p))
 #define REG_GLOBAL		0x1b
 #define REG_GLOBAL2		0x1c

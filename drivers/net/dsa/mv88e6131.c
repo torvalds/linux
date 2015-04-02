@@ -17,12 +17,6 @@
 #include <net/dsa.h>
 #include "mv88e6xxx.h"
 
-/* Switch product IDs */
-#define ID_6085		0x04a0
-#define ID_6095		0x0950
-#define ID_6131		0x1060
-#define ID_6131_B2	0x1066
-
 static char *mv88e6131_probe(struct device *host_dev, int sw_addr)
 {
 	struct mii_bus *bus = dsa_host_dev_to_mii_bus(host_dev);
