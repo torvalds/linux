@@ -287,6 +287,17 @@
 			clocks = <&ccu1 CLK_CPU_SCU>;
 		};
 
+		i2c0: i2c@400a1000 {
+			compatible = "nxp,lpc1788-i2c";
+			reg = <0x400a1000 0x1000>;
+			interrupts = <18>;
+			clocks = <&ccu1 CLK_APB1_I2C0>;
+			resets = <&rgu 48>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
 		can1: can@400a4000 {
 			compatible = "bosch,c_can";
 			reg = <0x400a4000 0x1000>;
@@ -355,6 +366,17 @@
 				&dmamux 14 2 2>;
 			dma-names = "rx", "tx", "tx", "rx",
 				    "tx", "rx", "rx", "tx";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c1: i2c@400e0000 {
+			compatible = "nxp,lpc1788-i2c";
+			reg = <0x400e0000 0x1000>;
+			interrupts = <19>;
+			clocks = <&ccu1 CLK_APB3_I2C1>;
+			resets = <&rgu 49>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
