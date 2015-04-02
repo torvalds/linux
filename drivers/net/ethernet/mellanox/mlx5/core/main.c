@@ -507,6 +507,87 @@ static int mlx5_core_disable_hca(struct mlx5_core_dev *dev)
 	return 0;
 }
 
+int mlx5_vector2eqn(struct mlx5_core_dev *dev, int vector, int *eqn, int *irqn)
+{
+	struct mlx5_eq_table *table = &dev->priv.eq_table;
+	struct mlx5_eq *eq, *n;
+	int err = -ENOENT;
+
+	spin_lock(&table->lock);
+	list_for_each_entry_safe(eq, n, &table->comp_eqs_list, list) {
+		if (eq->index == vector) {
+			*eqn = eq->eqn;
+			*irqn = eq->irqn;
+			err = 0;
+			break;
+		}
+	}
+	spin_unlock(&table->lock);
+
+	return err;
+}
+EXPORT_SYMBOL(mlx5_vector2eqn);
+
+static void free_comp_eqs(struct mlx5_core_dev *dev)
+{
+	struct mlx5_eq_table *table = &dev->priv.eq_table;
+	struct mlx5_eq *eq, *n;
+
+	spin_lock(&table->lock);
+	list_for_each_entry_safe(eq, n, &table->comp_eqs_list, list) {
+		list_del(&eq->list);
+		spin_unlock(&table->lock);
+		if (mlx5_destroy_unmap_eq(dev, eq))
+			mlx5_core_warn(dev, "failed to destroy EQ 0x%x\n",
+				       eq->eqn);
+		kfree(eq);
+		spin_lock(&table->lock);
+	}
+	spin_unlock(&table->lock);
+}
+
+static int alloc_comp_eqs(struct mlx5_core_dev *dev)
+{
+	struct mlx5_eq_table *table = &dev->priv.eq_table;
+	char name[MLX5_MAX_EQ_NAME];
+	struct mlx5_eq *eq;
+	int ncomp_vec;
+	int nent;
+	int err;
+	int i;
+
+	INIT_LIST_HEAD(&table->comp_eqs_list);
+	ncomp_vec = table->num_comp_vectors;
+	nent = MLX5_COMP_EQ_SIZE;
+	for (i = 0; i < ncomp_vec; i++) {
+		eq = kzalloc(sizeof(*eq), GFP_KERNEL);
+		if (!eq) {
+			err = -ENOMEM;
+			goto clean;
+		}
+
+		snprintf(name, MLX5_MAX_EQ_NAME, "mlx5_comp%d", i);
+		err = mlx5_create_map_eq(dev, eq,
+					 i + MLX5_EQ_VEC_COMP_BASE, nent, 0,
+					 name, &dev->priv.uuari.uars[0]);
+		if (err) {
+			kfree(eq);
+			goto clean;
+		}
+		mlx5_core_dbg(dev, "allocated completion EQN %d\n", eq->eqn);
+		eq->index = i;
+		spin_lock(&table->lock);
+		list_add_tail(&eq->list, &table->comp_eqs_list);
+		spin_unlock(&table->lock);
+	}
+
+	return 0;
+
+clean:
+	free_comp_eqs(dev);
+	return err;
+}
+
 static int mlx5_dev_init(struct mlx5_core_dev *dev, struct pci_dev *pdev)
 {
 	struct mlx5_priv *priv = &dev->priv;
@@ -643,6 +724,12 @@ static int mlx5_dev_init(struct mlx5_core_dev *dev, struct pci_dev *pdev)
 		goto err_free_uar;
 	}
 
+	err = alloc_comp_eqs(dev);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to alloc completion EQs\n");
+		goto err_stop_eqs;
+	}
+
 	MLX5_INIT_DOORBELL_LOCK(&priv->cq_uar_lock);
 
 	mlx5_init_cq_table(dev);
@@ -651,6 +738,9 @@ static int mlx5_dev_init(struct mlx5_core_dev *dev, struct pci_dev *pdev)
 	mlx5_init_mr_table(dev);
 
 	return 0;
+
+err_stop_eqs:
+	mlx5_stop_eqs(dev);
 
 err_free_uar:
 	mlx5_free_uuars(dev, &priv->uuari);
@@ -703,6 +793,7 @@ static void mlx5_dev_cleanup(struct mlx5_core_dev *dev)
 	mlx5_cleanup_srq_table(dev);
 	mlx5_cleanup_qp_table(dev);
 	mlx5_cleanup_cq_table(dev);
+	free_comp_eqs(dev);
 	mlx5_stop_eqs(dev);
 	mlx5_free_uuars(dev, &priv->uuari);
 	mlx5_eq_cleanup(dev);

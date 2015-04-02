@@ -780,7 +780,7 @@ struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev, int entries,
 	cq->cqe_size = cqe_size;
 	cqb->ctx.cqe_sz_flags = cqe_sz_to_mlx_sz(cqe_size) << 5;
 	cqb->ctx.log_sz_usr_page = cpu_to_be32((ilog2(entries) << 24) | index);
-	err = mlx5_vector2eqn(dev, vector, &eqn, &irqn);
+	err = mlx5_vector2eqn(dev->mdev, vector, &eqn, &irqn);
 	if (err)
 		goto err_cqb;
 
