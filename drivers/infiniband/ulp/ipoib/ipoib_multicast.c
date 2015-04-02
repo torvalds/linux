@@ -226,7 +226,23 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 			spin_unlock_irq(&priv->lock);
 			return -EAGAIN;
 		}
-		priv->mcast_mtu = IPOIB_UD_MTU(ib_mtu_enum_to_int(priv->broadcast->mcmember.mtu));
+		/*update priv member according to the new mcast*/
+		priv->broadcast->mcmember.qkey = mcmember->qkey;
+		priv->broadcast->mcmember.mtu = mcmember->mtu;
+		priv->broadcast->mcmember.traffic_class = mcmember->traffic_class;
+		priv->broadcast->mcmember.rate = mcmember->rate;
+		priv->broadcast->mcmember.sl = mcmember->sl;
+		priv->broadcast->mcmember.flow_label = mcmember->flow_label;
+		priv->broadcast->mcmember.hop_limit = mcmember->hop_limit;
+		/* assume if the admin and the mcast are the same both can be changed */
+		if (priv->mcast_mtu == priv->admin_mtu)
+			priv->admin_mtu =
+			priv->mcast_mtu =
+			IPOIB_UD_MTU(ib_mtu_enum_to_int(priv->broadcast->mcmember.mtu));
+		else
+			priv->mcast_mtu =
+			IPOIB_UD_MTU(ib_mtu_enum_to_int(priv->broadcast->mcmember.mtu));
+
 		priv->qkey = be32_to_cpu(priv->broadcast->mcmember.qkey);
 		spin_unlock_irq(&priv->lock);
 		priv->tx_wr.wr.ud.remote_qkey = priv->qkey;
