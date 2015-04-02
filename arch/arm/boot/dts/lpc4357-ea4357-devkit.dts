@@ -34,9 +34,48 @@
 		device_type = "memory";
 		reg = <0x28000000 0x2000000>; /* 32 MB */
 	};
+
+	/* vmmc is controlled by sdmmc host internally */
+	vmmc: vmmc_fixed {
+		compatible = "regulator-fixed";
+		regulator-name = "vmmc-supply";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
 };
 
 &pinctrl {
+	sdmmc_pins: sdmmc-pins {
+		sdmmc_clk_cfg {
+			pins = "pc_0";
+			function = "sdmmc";
+			slew-rate = <1>;
+			bias-pull-down;
+		};
+
+		sdmmc_cmd_dat0_3_cfg {
+			pins = "pc_4", "pc_5", "pc_6", "pc_7", "pc_10";
+			function = "sdmmc";
+			slew-rate = <1>;
+			bias-disable;
+			input-enable;
+			input-schmitt-disable;
+		};
+
+		sdmmc_cd_cfg {
+			pins = "pc_8";
+			function = "sdmmc";
+			bias-pull-down;
+			input-enable;
+		};
+
+		sdmmc_pow_cfg {
+			pins = "pc_9";
+			function = "sdmmc";
+			bias-pull-down;
+		};
+	};
+
 	uart0_pins: uart0-pins {
 		uart0_rx_cfg {
 			pins = "pf_11";
@@ -52,6 +91,14 @@
 			bias-pull-down;
 		};
 	};
+};
+
+&mmcsd {
+	status = "okay";
+	bus-width = <4>;
+	vmmc-supply = <&vmmc>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdmmc_pins>;
 };
 
 &uart0 {
