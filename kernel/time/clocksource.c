@@ -472,8 +472,11 @@ static u32 clocksource_max_adjustment(struct clocksource *cs)
  * @max_cyc:	maximum cycle value before potential overflow (does not include
  *		any safety margin)
  *
- * NOTE: This function includes a safety margin of 50%, so that bad clock values
- * can be detected.
+ * NOTE: This function includes a safety margin of 50%, in other words, we
+ * return half the number of nanoseconds the hardware counter can technically
+ * cover. This is done so that we can potentially detect problems caused by
+ * delayed timers or bad hardware, which might result in time intervals that
+ * are larger then what the math used can handle without overflows.
  */
 u64 clocks_calc_max_nsecs(u32 mult, u32 shift, u32 maxadj, u64 mask, u64 *max_cyc)
 {
