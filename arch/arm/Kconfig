@@ -1127,6 +1127,7 @@ config ARM_ERRATA_742231
 config ARM_ERRATA_643719
 	bool "ARM errata: LoUIS bit field in CLIDR register is incorrect"
 	depends on CPU_V7 && SMP
+	default y
 	help
 	  This option enables the workaround for the 643719 Cortex-A9 (prior to
 	  r1p0) erratum. On affected cores the LoUIS bit field of the CLIDR
