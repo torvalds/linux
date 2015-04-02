@@ -221,11 +221,6 @@ struct res_fs_rule {
 	int			qpn;
 };
 
-static int mlx4_is_eth(struct mlx4_dev *dev, int port)
-{
-	return dev->caps.port_mask[port] == MLX4_PORT_TYPE_IB ? 0 : 1;
-}
-
 static void *res_tracker_lookup(struct rb_root *root, u64 res_id)
 {
 	struct rb_node *node = root->rb_node;
