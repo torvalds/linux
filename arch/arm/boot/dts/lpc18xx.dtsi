@@ -215,6 +215,14 @@
 			};
 		};
 
+		rtc: rtc@40046000 {
+			compatible = "nxp,lpc1850-rtc", "nxp,lpc1788-rtc";
+			reg = <0x40046000 0x1000>;
+			interrupts = <47>;
+			clocks = <&creg_clk 0>, <&ccu1 CLK_CPU_BUS>;
+			clock-names = "rtc", "reg";
+		};
+
 		cgu: clock-controller@40050000 {
 			compatible = "nxp,lpc1850-cgu";
 			reg = <0x40050000 0x1000>;
