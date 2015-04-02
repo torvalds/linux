@@ -5,7 +5,7 @@
  *
  * Copyright (C) 2012 MIPS Technologies, Inc.  All rights reserved.
  */
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
@@ -46,8 +46,4 @@ static int __init ehci_init(void)
 	return platform_device_register(&ehci_device);
 }
 
-module_init(ehci_init);
-
-MODULE_AUTHOR("Chris Dearman <chris@mips.com>");
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("EHCI probe driver for SEAD3");
+device_initcall(ehci_init);
