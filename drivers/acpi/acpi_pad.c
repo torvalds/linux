@@ -41,8 +41,6 @@ static unsigned long power_saving_mwait_eax;
 
 static unsigned char tsc_detected_unstable;
 static unsigned char tsc_marked_unstable;
-static unsigned char lapic_detected_unstable;
-static unsigned char lapic_marked_unstable;
 
 static void power_saving_mwait_init(void)
 {
@@ -82,13 +80,10 @@ static void power_saving_mwait_init(void)
 		 */
 		if (!boot_cpu_has(X86_FEATURE_NONSTOP_TSC))
 			tsc_detected_unstable = 1;
-		if (!boot_cpu_has(X86_FEATURE_ARAT))
-			lapic_detected_unstable = 1;
 		break;
 	default:
-		/* TSC & LAPIC could halt in idle */
+		/* TSC could halt in idle */
 		tsc_detected_unstable = 1;
-		lapic_detected_unstable = 1;
 	}
 #endif
 }
@@ -177,28 +172,17 @@ static int power_saving_thread(void *data)
 				mark_tsc_unstable("TSC halts in idle");
 				tsc_marked_unstable = 1;
 			}
-			if (lapic_detected_unstable && !lapic_marked_unstable) {
-				int i;
-				/* LAPIC could halt in idle, so notify users */
-				for_each_online_cpu(i)
-					clockevents_notify(
-						CLOCK_EVT_NOTIFY_BROADCAST_ON,
-						&i);
-				lapic_marked_unstable = 1;
-			}
+			clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ON, &cpu);
+
 			local_irq_disable();
 			cpu = smp_processor_id();
-			if (lapic_marked_unstable)
-				clockevents_notify(
-					CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &cpu);
+			clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &cpu);
 			stop_critical_timings();
 
 			mwait_idle_with_hints(power_saving_mwait_eax, 1);
 
 			start_critical_timings();
-			if (lapic_marked_unstable)
-				clockevents_notify(
-					CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &cpu);
+			clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &cpu);
 			local_irq_enable();
 
 			if (time_before(expire_time, jiffies)) {
