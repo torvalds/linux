@@ -37,6 +37,7 @@
 #include <asm/uaccess.h>
 #include <linux/idr.h>
 #include <linux/uio.h>
+#include <linux/slab.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 
@@ -286,6 +287,7 @@ static int v9fs_file_getlock(struct file *filp, struct file_lock *fl)
 			fl->fl_end = glock.start + glock.length - 1;
 		fl->fl_pid = glock.proc_id;
 	}
+	kfree(glock.client_id);
 	return res;
 }
 
