@@ -90,7 +90,9 @@
 			s2mps11,buck4-ramp-enable = <1>;
 
 			interrupt-parent = <&gpx3>;
-			interrupts = <2 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <2 IRQ_TYPE_EDGE_FALLING>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&s2mps11_irq>;
 
 			s2mps11_osc: clocks {
 				#clock-cells = <1>;
@@ -375,4 +377,13 @@
 
 &cci {
 	status = "disabled";
+};
+
+&pinctrl_0 {
+	s2mps11_irq: s2mps11-irq {
+		samsung,pins = "gpx3-2";
+		samsung,pin-function = <0xf>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <0>;
+	};
 };
