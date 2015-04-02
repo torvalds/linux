@@ -58,9 +58,10 @@
 
 /* Link endpoint execution states
  */
-#define LINK_STARTED    0x0001
-#define LINK_STOPPED    0x0002
-#define LINK_SYNCHING   0x0004
+#define LINK_STARTED     0x0001
+#define LINK_STOPPED     0x0002
+#define LINK_SYNCHING    0x0004
+#define LINK_FAILINGOVER 0x0008
 
 /* Starting value for maximum packet size negotiation on unicast links
  * (unless bearer MTU is less)
@@ -167,11 +168,12 @@ struct tipc_link {
 	struct tipc_msg *pmsg;
 	u32 priority;
 	char net_plane;
+	u16 synch_point;
 
-	/* Changeover */
-	u32 exp_msg_count;
-	u32 reset_checkpoint;
-	u32 synch_point;
+	/* Failover */
+	u16 failover_pkts;
+	u16 failover_checkpt;
+	struct sk_buff *failover_skb;
 
 	/* Max packet negotiation */
 	u32 max_pkt;
@@ -201,7 +203,6 @@ struct tipc_link {
 	struct sk_buff_head wakeupq;
 
 	/* Fragmentation/reassembly */
-	u32 long_msg_seq_no;
 	struct sk_buff *reasm_buf;
 
 	/* Statistics */
