@@ -25,6 +25,7 @@
 #include <linux/proc_fs.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_ipv6.h>
+#include <linux/netfilter_bridge.h>
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_queue.h>
 #include <linux/list.h>
@@ -396,14 +397,18 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 					 htonl(br_port_get_rcu(indev)->br->dev->ifindex)))
 				goto nla_put_failure;
 		} else {
+			int physinif;
+
 			/* Case 2: indev is bridge group, we need to look for
 			 * physical device (when called from ipv4) */
 			if (nla_put_be32(skb, NFQA_IFINDEX_INDEV,
 					 htonl(indev->ifindex)))
 				goto nla_put_failure;
-			if (entskb->nf_bridge && entskb->nf_bridge->physindev &&
+
+			physinif = nf_bridge_get_physinif(entskb);
+			if (physinif &&
 			    nla_put_be32(skb, NFQA_IFINDEX_PHYSINDEV,
-					 htonl(entskb->nf_bridge->physindev->ifindex)))
+					 htonl(physinif)))
 				goto nla_put_failure;
 		}
 #endif
@@ -426,14 +431,18 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 					 htonl(br_port_get_rcu(outdev)->br->dev->ifindex)))
 				goto nla_put_failure;
 		} else {
+			int physoutif;
+
 			/* Case 2: outdev is bridge group, we need to look for
 			 * physical output device (when called from ipv4) */
 			if (nla_put_be32(skb, NFQA_IFINDEX_OUTDEV,
 					 htonl(outdev->ifindex)))
 				goto nla_put_failure;
-			if (entskb->nf_bridge && entskb->nf_bridge->physoutdev &&
+
+			physoutif = nf_bridge_get_physoutif(entskb);
+			if (physoutif &&
 			    nla_put_be32(skb, NFQA_IFINDEX_PHYSOUTDEV,
-					 htonl(entskb->nf_bridge->physoutdev->ifindex)))
+					 htonl(physoutif)))
 				goto nla_put_failure;
 		}
 #endif
@@ -765,11 +774,12 @@ dev_cmp(struct nf_queue_entry *entry, unsigned long ifindex)
 			return 1;
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	if (entry->skb->nf_bridge) {
-		if (entry->skb->nf_bridge->physindev &&
-		    entry->skb->nf_bridge->physindev->ifindex == ifindex)
-			return 1;
-		if (entry->skb->nf_bridge->physoutdev &&
-		    entry->skb->nf_bridge->physoutdev->ifindex == ifindex)
+		int physinif, physoutif;
+
+		physinif = nf_bridge_get_physinif(entry->skb);
+		physoutif = nf_bridge_get_physoutif(entry->skb);
+
+		if (physinif == ifindex || physoutif == ifindex)
 			return 1;
 	}
 #endif

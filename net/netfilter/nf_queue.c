@@ -10,6 +10,7 @@
 #include <linux/proc_fs.h>
 #include <linux/skbuff.h>
 #include <linux/netfilter.h>
+#include <linux/netfilter_bridge.h>
 #include <linux/seq_file.h>
 #include <linux/rcupdate.h>
 #include <net/protocol.h>
@@ -54,12 +55,14 @@ void nf_queue_entry_release_refs(struct nf_queue_entry *entry)
 		dev_put(entry->outdev);
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	if (entry->skb->nf_bridge) {
-		struct nf_bridge_info *nf_bridge = entry->skb->nf_bridge;
+		struct net_device *physdev;
 
-		if (nf_bridge->physindev)
-			dev_put(nf_bridge->physindev);
-		if (nf_bridge->physoutdev)
-			dev_put(nf_bridge->physoutdev);
+		physdev = nf_bridge_get_physindev(entry->skb);
+		if (physdev)
+			dev_put(physdev);
+		physdev = nf_bridge_get_physoutdev(entry->skb);
+		if (physdev)
+			dev_put(physdev);
 	}
 #endif
 	/* Drop reference to owner of hook which queued us. */
@@ -79,13 +82,12 @@ bool nf_queue_entry_get_refs(struct nf_queue_entry *entry)
 		dev_hold(entry->outdev);
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	if (entry->skb->nf_bridge) {
-		struct nf_bridge_info *nf_bridge = entry->skb->nf_bridge;
 		struct net_device *physdev;
 
-		physdev = nf_bridge->physindev;
+		physdev = nf_bridge_get_physindev(entry->skb);
 		if (physdev)
 			dev_hold(physdev);
-		physdev = nf_bridge->physoutdev;
+		physdev = nf_bridge_get_physoutdev(entry->skb);
 		if (physdev)
 			dev_hold(physdev);
 	}
