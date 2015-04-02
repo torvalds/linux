@@ -48,11 +48,11 @@
 #include "mlx5_core.h"
 
 #define DRIVER_NAME "mlx5_core"
-#define DRIVER_VERSION "2.2-1"
-#define DRIVER_RELDATE	"Feb 2014"
+#define DRIVER_VERSION "3.0"
+#define DRIVER_RELDATE  "January 2015"
 
 MODULE_AUTHOR("Eli Cohen <eli@mellanox.com>");
-MODULE_DESCRIPTION("Mellanox ConnectX-IB HCA core library");
+MODULE_DESCRIPTION("Mellanox Connect-IB, ConnectX-4 core driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(DRIVER_VERSION);
 
