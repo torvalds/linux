@@ -22,10 +22,10 @@
 #include <sound/jack.h>
 #include <sound/pcm_params.h>
 
-#include "sst-dsp.h"
-#include "sst-haswell-ipc.h"
+#include "../common/sst-dsp.h"
+#include "../haswell/sst-haswell-ipc.h"
 
-#include "../codecs/rt286.h"
+#include "../../codecs/rt286.h"
 
 static struct snd_soc_jack broadwell_headset;
 /* Headset jack detection DAPM pins */

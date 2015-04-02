@@ -21,10 +21,10 @@
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
 
-#include "sst-dsp.h"
-#include "sst-haswell-ipc.h"
+#include "../common/sst-dsp.h"
+#include "../haswell/sst-haswell-ipc.h"
 
-#include "../codecs/rt5640.h"
+#include "../../codecs/rt5640.h"
 
 /* Haswell ULT platforms have a Headphone and Mic jack */
 static const struct snd_soc_dapm_widget haswell_widgets[] = {

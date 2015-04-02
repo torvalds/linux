@@ -24,7 +24,7 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/jack.h>
-#include "../codecs/max98090.h"
+#include "../../codecs/max98090.h"
 
 struct byt_max98090_private {
 	struct snd_soc_jack jack;
