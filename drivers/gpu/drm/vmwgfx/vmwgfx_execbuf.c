@@ -1850,7 +1850,7 @@ static int vmw_cmd_check_not_3d(struct vmw_private *dev_priv,
 	uint32_t size_remaining = *size;
 	uint32_t cmd_id;
 
-	cmd_id = le32_to_cpu(((uint32_t *)buf)[0]);
+	cmd_id = ((uint32_t *)buf)[0];
 	switch (cmd_id) {
 	case SVGA_CMD_UPDATE:
 		*size = sizeof(uint32_t) + sizeof(SVGAFifoCmdUpdate);
@@ -2066,14 +2066,14 @@ static int vmw_cmd_check(struct vmw_private *dev_priv,
 	const struct vmw_cmd_entry *entry;
 	bool gb = dev_priv->capabilities & SVGA_CAP_GBOBJECTS;
 
-	cmd_id = le32_to_cpu(((uint32_t *)buf)[0]);
+	cmd_id = ((uint32_t *)buf)[0];
 	/* Handle any none 3D commands */
 	if (unlikely(cmd_id < SVGA_CMD_MAX))
 		return vmw_cmd_check_not_3d(dev_priv, sw_context, buf, size);
 
 
-	cmd_id = le32_to_cpu(header->id);
-	*size = le32_to_cpu(header->size) + sizeof(SVGA3dCmdHeader);
+	cmd_id = header->id;
+	*size = header->size + sizeof(SVGA3dCmdHeader);
 
 	cmd_id -= SVGA_3D_CMD_BASE;
 	if (unlikely(*size > size_remaining))
@@ -2499,11 +2499,11 @@ static int vmw_execbuf_submit_cmdbuf(struct vmw_private *dev_priv,
  * If the function is interrupted by a signal while sleeping, it will return
  * -ERESTARTSYS casted to a pointer error value.
  */
-void *vmw_execbuf_cmdbuf(struct vmw_private *dev_priv,
-			 void __user *user_commands,
-			 void *kernel_commands,
-			 u32 command_size,
-			 struct vmw_cmdbuf_header **header)
+static void *vmw_execbuf_cmdbuf(struct vmw_private *dev_priv,
+				void __user *user_commands,
+				void *kernel_commands,
+				u32 command_size,
+				struct vmw_cmdbuf_header **header)
 {
 	size_t cmdbuf_size;
 	int ret;

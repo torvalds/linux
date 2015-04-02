@@ -142,7 +142,7 @@ static int vmw_setup_otable_base(struct vmw_private *dev_priv,
 	cmd->header.id = SVGA_3D_CMD_SET_OTABLE_BASE64;
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.type = type;
-	cmd->body.baseAddress = cpu_to_le64(mob->pt_root_page >> PAGE_SHIFT);
+	cmd->body.baseAddress = mob->pt_root_page >> PAGE_SHIFT;
 	cmd->body.sizeInBytes = otable->size;
 	cmd->body.validSizeInBytes = 0;
 	cmd->body.ptDepth = mob->pt_level;
@@ -430,15 +430,15 @@ out_unreserve:
  * *@addr according to the page table entry size.
  */
 #if (VMW_PPN_SIZE == 8)
-static void vmw_mob_assign_ppn(__le32 **addr, dma_addr_t val)
+static void vmw_mob_assign_ppn(u32 **addr, dma_addr_t val)
 {
-	*((__le64 *) *addr) = cpu_to_le64(val >> PAGE_SHIFT);
+	*((u64 *) *addr) = val >> PAGE_SHIFT;
 	*addr += 2;
 }
 #else
-static void vmw_mob_assign_ppn(__le32 **addr, dma_addr_t val)
+static void vmw_mob_assign_ppn(u32 **addr, dma_addr_t val)
 {
-	*(*addr)++ = cpu_to_le32(val >> PAGE_SHIFT);
+	*(*addr)++ = val >> PAGE_SHIFT;
 }
 #endif
 
@@ -460,7 +460,7 @@ static unsigned long vmw_mob_build_pt(struct vmw_piter *data_iter,
 	unsigned long pt_size = num_data_pages * VMW_PPN_SIZE;
 	unsigned long num_pt_pages = DIV_ROUND_UP(pt_size, PAGE_SIZE);
 	unsigned long pt_page;
-	__le32 *addr, *save_addr;
+	u32 *addr, *save_addr;
 	unsigned long i;
 	struct page *page;
 
@@ -641,7 +641,7 @@ int vmw_mob_bind(struct vmw_private *dev_priv,
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.mobid = mob_id;
 	cmd->body.ptDepth = mob->pt_level;
-	cmd->body.base = cpu_to_le64(mob->pt_root_page >> PAGE_SHIFT);
+	cmd->body.base = mob->pt_root_page >> PAGE_SHIFT;
 	cmd->body.sizeInBytes = num_data_pages * PAGE_SIZE;
 
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));

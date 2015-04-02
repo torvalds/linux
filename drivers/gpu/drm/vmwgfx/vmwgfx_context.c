@@ -135,9 +135,9 @@ static void vmw_hw_context_destroy(struct vmw_resource *res)
 		return;
 	}
 
-	cmd->header.id = cpu_to_le32(SVGA_3D_CMD_CONTEXT_DESTROY);
-	cmd->header.size = cpu_to_le32(sizeof(cmd->body));
-	cmd->body.cid = cpu_to_le32(res->id);
+	cmd->header.id = SVGA_3D_CMD_CONTEXT_DESTROY;
+	cmd->header.size = sizeof(cmd->body);
+	cmd->body.cid = res->id;
 
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));
 	vmw_fifo_resource_dec(dev_priv);
@@ -215,9 +215,9 @@ static int vmw_context_init(struct vmw_private *dev_priv,
 		return -ENOMEM;
 	}
 
-	cmd->header.id = cpu_to_le32(SVGA_3D_CMD_CONTEXT_DEFINE);
-	cmd->header.size = cpu_to_le32(sizeof(cmd->body));
-	cmd->body.cid = cpu_to_le32(res->id);
+	cmd->header.id = SVGA_3D_CMD_CONTEXT_DEFINE;
+	cmd->header.size = sizeof(cmd->body);
+	cmd->body.cid = res->id;
 
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));
 	vmw_fifo_resource_inc(dev_priv);

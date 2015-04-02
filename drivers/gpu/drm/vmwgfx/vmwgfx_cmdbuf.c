@@ -695,10 +695,10 @@ static bool vmw_cmdbuf_try_alloc(struct vmw_cmdbuf_man *man,
  * no space available ATM, it turns on IRQ handling and sleeps waiting for it to
  * become available.
  */
-int vmw_cmdbuf_alloc_space(struct vmw_cmdbuf_man *man,
-			   struct drm_mm_node *node,
-			   size_t size,
-			   bool interruptible)
+static int vmw_cmdbuf_alloc_space(struct vmw_cmdbuf_man *man,
+				  struct drm_mm_node *node,
+				  size_t size,
+				  bool interruptible)
 {
 	struct vmw_cmdbuf_alloc_info info;
 

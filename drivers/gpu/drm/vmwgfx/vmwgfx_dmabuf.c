@@ -225,7 +225,7 @@ int vmw_dmabuf_unpin(struct vmw_private *dev_priv,
 	if (unlikely(ret != 0))
 		return ret;
 
-	ret = ttm_bo_reserve(bo, interruptible, false, false, 0);
+	ret = ttm_bo_reserve(bo, interruptible, false, false, NULL);
 	if (unlikely(ret != 0))
 		goto err;
 

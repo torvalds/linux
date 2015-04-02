@@ -476,11 +476,11 @@ int vmw_kms_ldu_do_dmabuf_dirty(struct vmw_private *dev_priv,
 
 	memset(cmd, 0, fifo_size);
 	for (i = 0; i < num_clips; i++, clips += increment) {
-		cmd[i].header = cpu_to_le32(SVGA_CMD_UPDATE);
-		cmd[i].body.x = cpu_to_le32(clips->x1);
-		cmd[i].body.y = cpu_to_le32(clips->y1);
-		cmd[i].body.width = cpu_to_le32(clips->x2 - clips->x1);
-		cmd[i].body.height = cpu_to_le32(clips->y2 - clips->y1);
+		cmd[i].header = SVGA_CMD_UPDATE;
+		cmd[i].body.x = clips->x1;
+		cmd[i].body.y = clips->y1;
+		cmd[i].body.width = clips->x2 - clips->x1;
+		cmd[i].body.height = clips->y2 - clips->y1;
 	}
 
 	vmw_fifo_commit(dev_priv, fifo_size);

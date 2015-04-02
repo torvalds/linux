@@ -450,8 +450,8 @@ static bool vmw_sou_screen_object_flippable(struct vmw_private *dev_priv,
  * Update the implicit fb to the current fb of this crtc.
  * Must be called with the mode_config mutex held.
  */
-void vmw_sou_update_implicit_fb(struct vmw_private *dev_priv,
-				struct drm_crtc *crtc)
+static void vmw_sou_update_implicit_fb(struct vmw_private *dev_priv,
+				       struct drm_crtc *crtc)
 {
 	struct vmw_screen_object_unit *sou = vmw_crtc_to_sou(crtc);
 

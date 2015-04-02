@@ -71,12 +71,12 @@ int vmw_cursor_update_image(struct vmw_private *dev_priv,
 
 	memcpy(&cmd[1], image, image_size);
 
-	cmd->cmd = cpu_to_le32(SVGA_CMD_DEFINE_ALPHA_CURSOR);
-	cmd->cursor.id = cpu_to_le32(0);
-	cmd->cursor.width = cpu_to_le32(width);
-	cmd->cursor.height = cpu_to_le32(height);
-	cmd->cursor.hotspotX = cpu_to_le32(hotspotX);
-	cmd->cursor.hotspotY = cpu_to_le32(hotspotY);
+	cmd->cmd = SVGA_CMD_DEFINE_ALPHA_CURSOR;
+	cmd->cursor.id = 0;
+	cmd->cursor.width = width;
+	cmd->cursor.height = height;
+	cmd->cursor.hotspotX = hotspotX;
+	cmd->cursor.hotspotY = hotspotY;
 
 	vmw_fifo_commit(dev_priv, cmd_size);
 
@@ -123,7 +123,7 @@ err_unreserve:
 void vmw_cursor_update_position(struct vmw_private *dev_priv,
 				bool show, int x, int y)
 {
-	__le32 __iomem *fifo_mem = dev_priv->mmio_virt;
+	u32 __iomem *fifo_mem = dev_priv->mmio_virt;
 	uint32_t count;
 
 	iowrite32(show ? 1 : 0, fifo_mem + SVGA_FIFO_CURSOR_ON);
@@ -1017,14 +1017,14 @@ static const struct drm_mode_config_funcs vmw_kms_funcs = {
 	.fb_create = vmw_kms_fb_create,
 };
 
-int vmw_kms_generic_present(struct vmw_private *dev_priv,
-		    struct drm_file *file_priv,
-		    struct vmw_framebuffer *vfb,
-		    struct vmw_surface *surface,
-		    uint32_t sid,
-		    int32_t destX, int32_t destY,
-		    struct drm_vmw_rect *clips,
-		    uint32_t num_clips)
+static int vmw_kms_generic_present(struct vmw_private *dev_priv,
+				   struct drm_file *file_priv,
+				   struct vmw_framebuffer *vfb,
+				   struct vmw_surface *surface,
+				   uint32_t sid,
+				   int32_t destX, int32_t destY,
+				   struct drm_vmw_rect *clips,
+				   uint32_t num_clips)
 {
 	return vmw_kms_sou_do_surface_dirty(dev_priv, vfb, NULL, clips,
 					    &surface->res, destX, destY,
@@ -1785,7 +1785,7 @@ int vmw_kms_helper_buffer_prepare(struct vmw_private *dev_priv,
 	struct ttm_buffer_object *bo = &buf->base;
 	int ret;
 
-	ttm_bo_reserve(bo, false, false, interruptible, 0);
+	ttm_bo_reserve(bo, false, false, interruptible, NULL);
 	ret = vmw_validate_single_buffer(dev_priv, bo, interruptible,
 					 validate_as_mob);
 	if (ret)

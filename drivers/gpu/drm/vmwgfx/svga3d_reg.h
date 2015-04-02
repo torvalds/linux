@@ -35,7 +35,7 @@
 #include "svga_reg.h"
 
 typedef uint32 PPN;
-typedef __le64 PPN64;
+typedef u64 PPN64;
 
 /*
  * 3D Hardware Version

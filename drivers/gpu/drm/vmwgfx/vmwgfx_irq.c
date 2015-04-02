@@ -72,7 +72,7 @@ static bool vmw_fifo_idle(struct vmw_private *dev_priv, uint32_t seqno)
 void vmw_update_seqno(struct vmw_private *dev_priv,
 			 struct vmw_fifo_state *fifo_state)
 {
-	__le32 __iomem *fifo_mem = dev_priv->mmio_virt;
+	u32 __iomem *fifo_mem = dev_priv->mmio_virt;
 	uint32_t seqno = ioread32(fifo_mem + SVGA_FIFO_FENCE);
 
 	if (dev_priv->last_read_seqno != seqno) {
@@ -178,7 +178,7 @@ int vmw_fallback_wait(struct vmw_private *dev_priv,
 	}
 	finish_wait(&dev_priv->fence_queue, &__wait);
 	if (ret == 0 && fifo_idle) {
-		__le32 __iomem *fifo_mem = dev_priv->mmio_virt;
+		u32 __iomem *fifo_mem = dev_priv->mmio_virt;
 		iowrite32(signal_seq, fifo_mem + SVGA_FIFO_FENCE);
 	}
 	wake_up_all(&dev_priv->fence_queue);

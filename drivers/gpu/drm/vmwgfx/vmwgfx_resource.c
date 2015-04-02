@@ -121,6 +121,7 @@ static void vmw_resource_release(struct kref *kref)
 	int id;
 	struct idr *idr = &dev_priv->res_idr[res->func->res_type];
 
+	write_lock(&dev_priv->resource_lock);
 	res->avail = false;
 	list_del_init(&res->lru_head);
 	write_unlock(&dev_priv->resource_lock);
@@ -156,20 +157,17 @@ static void vmw_resource_release(struct kref *kref)
 		kfree(res);
 
 	write_lock(&dev_priv->resource_lock);
-
 	if (id != -1)
 		idr_remove(idr, id);
+	write_unlock(&dev_priv->resource_lock);
 }
 
 void vmw_resource_unreference(struct vmw_resource **p_res)
 {
 	struct vmw_resource *res = *p_res;
-	struct vmw_private *dev_priv = res->dev_priv;
 
 	*p_res = NULL;
-	write_lock(&dev_priv->resource_lock);
 	kref_put(&res->kref, vmw_resource_release);
-	write_unlock(&dev_priv->resource_lock);
 }
 
 
@@ -260,17 +258,16 @@ void vmw_resource_activate(struct vmw_resource *res,
 	write_unlock(&dev_priv->resource_lock);
 }
 
-struct vmw_resource *vmw_resource_lookup(struct vmw_private *dev_priv,
-					 struct idr *idr, int id)
+static struct vmw_resource *vmw_resource_lookup(struct vmw_private *dev_priv,
+						struct idr *idr, int id)
 {
 	struct vmw_resource *res;
 
 	read_lock(&dev_priv->resource_lock);
 	res = idr_find(idr, id);
-	if (res && res->avail)
-		kref_get(&res->kref);
-	else
+	if (!res || !res->avail || !kref_get_unless_zero(&res->kref))
 		res = NULL;
+
 	read_unlock(&dev_priv->resource_lock);
 
 	if (unlikely(res == NULL))
@@ -1306,7 +1303,7 @@ vmw_resource_backoff_reservation(struct ttm_validate_buffer *val_buf)
  * @res:            The resource to evict.
  * @interruptible:  Whether to wait interruptible.
  */
-int vmw_resource_do_evict(struct vmw_resource *res, bool interruptible)
+static int vmw_resource_do_evict(struct vmw_resource *res, bool interruptible)
 {
 	struct ttm_validate_buffer val_buf;
 	const struct vmw_res_func *func = res->func;

@@ -220,7 +220,7 @@ static void vmw_surface_define_encode(const struct vmw_surface *srf,
 	cmd->header.size = cmd_len;
 	cmd->body.sid = srf->res.id;
 	cmd->body.surfaceFlags = srf->flags;
-	cmd->body.format = cpu_to_le32(srf->format);
+	cmd->body.format = srf->format;
 	for (i = 0; i < DRM_VMW_MAX_SURFACE_FACES; ++i)
 		cmd->body.face[i].numMipLevels = srf->mip_levels[i];
 
@@ -1054,7 +1054,7 @@ static int vmw_gb_surface_create(struct vmw_resource *res)
 	cmd->header.size = cmd_len;
 	cmd->body.sid = srf->res.id;
 	cmd->body.surfaceFlags = srf->flags;
-	cmd->body.format = cpu_to_le32(srf->format);
+	cmd->body.format = srf->format;
 	cmd->body.numMipLevels = srf->mip_levels[0];
 	cmd->body.multisampleCount = srf->multisample_count;
 	cmd->body.autogenFilter = srf->autogen_filter;

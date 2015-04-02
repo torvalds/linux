@@ -178,8 +178,8 @@ struct vmw_marker_queue {
 
 struct vmw_fifo_state {
 	unsigned long reserved_size;
-	__le32 *dynamic_buffer;
-	__le32 *static_buffer;
+	u32 *dynamic_buffer;
+	u32 *static_buffer;
 	unsigned long static_buffer_size;
 	bool using_bounce_buffer;
 	uint32_t capabilities;
@@ -405,7 +405,7 @@ struct vmw_private {
 	uint32_t stdu_max_height;
 	uint32_t initial_width;
 	uint32_t initial_height;
-	__le32 __iomem *mmio_virt;
+	u32 __iomem *mmio_virt;
 	int mmio_mtrr;
 	uint32_t capabilities;
 	uint32_t max_gmr_ids;

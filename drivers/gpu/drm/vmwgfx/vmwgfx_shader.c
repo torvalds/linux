@@ -407,11 +407,11 @@ out:
 }
 
 
-struct vmw_resource *vmw_shader_alloc(struct vmw_private *dev_priv,
-				      struct vmw_dma_buffer *buffer,
-				      size_t shader_size,
-				      size_t offset,
-				      SVGA3dShaderType shader_type)
+static struct vmw_resource *vmw_shader_alloc(struct vmw_private *dev_priv,
+					     struct vmw_dma_buffer *buffer,
+					     size_t shader_size,
+					     size_t offset,
+					     SVGA3dShaderType shader_type)
 {
 	struct vmw_shader *shader;
 	struct vmw_resource *res;
