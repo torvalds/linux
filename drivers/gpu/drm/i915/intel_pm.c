@@ -3178,7 +3178,7 @@ static void skl_flush_wm_values(struct drm_i915_private *dev_priv,
 {
 	struct drm_device *dev = dev_priv->dev;
 	struct skl_ddb_allocation *cur_ddb, *new_ddb;
-	bool reallocated[I915_MAX_PIPES] = {false, false, false};
+	bool reallocated[I915_MAX_PIPES] = {};
 	struct intel_crtc *crtc;
 	enum pipe pipe;
 
