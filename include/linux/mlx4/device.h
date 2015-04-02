@@ -209,6 +209,7 @@ enum {
 	MLX4_DEV_CAP_FLAG2_QOS_VPP		= 1LL <<  25,
 	MLX4_DEV_CAP_FLAG2_ETS_CFG		= 1LL <<  26,
 	MLX4_DEV_CAP_FLAG2_PORT_BEACON		= 1LL <<  27,
+	MLX4_DEV_CAP_FLAG2_IGNORE_FCS		= 1LL <<  28,
 };
 
 enum {
@@ -1313,6 +1314,8 @@ int mlx4_SET_PORT_general(struct mlx4_dev *dev, u8 port, int mtu,
 int mlx4_SET_PORT_qpn_calc(struct mlx4_dev *dev, u8 port, u32 base_qpn,
 			   u8 promisc);
 int mlx4_SET_PORT_BEACON(struct mlx4_dev *dev, u8 port, u16 time);
+int mlx4_SET_PORT_fcs_check(struct mlx4_dev *dev, u8 port,
+			    u8 ignore_fcs_value);
 int mlx4_SET_PORT_VXLAN(struct mlx4_dev *dev, u8 port, u8 steering, int enable);
 int mlx4_find_cached_mac(struct mlx4_dev *dev, u8 port, u64 mac, int *idx);
 int mlx4_find_cached_vlan(struct mlx4_dev *dev, u8 port, u16 vid, int *idx);

@@ -763,9 +763,11 @@ enum {
 
 
 struct mlx4_set_port_general_context {
-	u8 reserved[3];
+	u16 reserved1;
+	u8 v_ignore_fcs;
 	u8 flags;
-	u16 reserved2;
+	u8 ignore_fcs;
+	u8 reserved2;
 	__be16 mtu;
 	u8 pptx;
 	u8 pfctx;
