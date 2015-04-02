@@ -68,6 +68,16 @@
 	};
 
 	soc {
+		mmcsd: mmcsd@40004000 {
+			compatible = "snps,dw-mshc";
+			reg = <0x40004000 0x1000>;
+			interrupts = <6>;
+			num-slots = <1>;
+			clocks = <&ccu2 CLK_SDIO>, <&ccu1 CLK_CPU_SDIO>;
+			clock-names = "ciu", "biu";
+			status = "disabled";
+		};
+
 		cgu: clock-controller@40050000 {
 			compatible = "nxp,lpc1850-cgu";
 			reg = <0x40050000 0x1000>;
