@@ -885,6 +885,8 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 	mlx4_warn(dev, "Timestamping is not supported in slave mode\n");
 
 	slave_adjust_steering_mode(dev, &dev_cap, &hca_param);
+	mlx4_dbg(dev, "RSS support for IP fragments is %s\n",
+		 hca_param.rss_ip_frags ? "on" : "off");
 
 	if (func_cap.extra_flags & MLX4_QUERY_FUNC_FLAGS_BF_RES_QP &&
 	    dev->caps.bf_reg_size)

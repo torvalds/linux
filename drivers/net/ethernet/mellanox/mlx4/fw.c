@@ -105,6 +105,7 @@ static void dump_dev_cap_flags(struct mlx4_dev *dev, u64 flags)
 		[41] = "Unicast VEP steering support",
 		[42] = "Multicast VEP steering support",
 		[48] = "Counters support",
+		[52] = "RSS IP fragments support",
 		[53] = "Port ETS Scheduler support",
 		[55] = "Port link type sensing support",
 		[59] = "Port management change event support",
@@ -1138,6 +1139,9 @@ int mlx4_QUERY_DEV_CAP_wrapper(struct mlx4_dev *dev, int slave,
 	}
 	for (; slave_port < dev->caps.num_ports; ++slave_port)
 		flags &= ~(MLX4_DEV_CAP_FLAG_WOL_PORT1 << slave_port);
+
+	/* Not exposing RSS IP fragments to guests */
+	flags &= ~MLX4_DEV_CAP_FLAG_RSS_IP_FRAG;
 	MLX4_PUT(outbox->buf, flags, QUERY_DEV_CAP_EXT_FLAGS_OFFSET);
 
 	MLX4_GET(field, outbox->buf, QUERY_DEV_CAP_VL_PORT_OFFSET);
@@ -1701,6 +1705,10 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_COUNTERS)
 		*(inbox + INIT_HCA_FLAGS_OFFSET / 4) |= cpu_to_be32(1 << 4);
 
+	/* Enable RSS spread to fragmented IP packets when supported */
+	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_RSS_IP_FRAG)
+		*(inbox + INIT_HCA_FLAGS_OFFSET / 4) |= cpu_to_be32(1 << 13);
+
 	/* CX3 is capable of extending CQEs/EQEs from 32 to 64 bytes */
 	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_64B_EQE) {
 		*(inbox + INIT_HCA_EQE_CQE_OFFSETS / 4) |= cpu_to_be32(1 << 29);
@@ -1889,6 +1897,10 @@ int mlx4_QUERY_HCA(struct mlx4_dev *dev,
 		else
 			param->steering_mode = MLX4_STEERING_MODE_A0;
 	}
+
+	if (dword_field & (1 << 13))
+		param->rss_ip_frags = 1;
+
 	/* steering attributes */
 	if (param->steering_mode == MLX4_STEERING_MODE_DEVICE_MANAGED) {
 		MLX4_GET(param->mc_base, outbox, INIT_HCA_FS_BASE_OFFSET);
