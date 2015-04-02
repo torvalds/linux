@@ -514,6 +514,9 @@ int cx18_s_input(struct file *file, void *fh, unsigned int inp)
 {
 	struct cx18_open_id *id = fh2id(fh);
 	struct cx18 *cx = id->cx;
+	v4l2_std_id std = V4L2_STD_ALL;
+	const struct cx18_card_video_input *card_input =
+				cx->card->video_inputs + inp;
 
 	if (inp >= cx->nof_inputs)
 		return -EINVAL;
@@ -529,6 +532,11 @@ int cx18_s_input(struct file *file, void *fh, unsigned int inp)
 	cx->active_input = inp;
 	/* Set the audio input to whatever is appropriate for the input type. */
 	cx->audio_input = cx->card->video_inputs[inp].audio_index;
+	if (card_input->video_type == V4L2_INPUT_TYPE_TUNER)
+		std = cx->tuner_std;
+	cx->streams[CX18_ENC_STREAM_TYPE_MPG].video_dev.tvnorms = std;
+	cx->streams[CX18_ENC_STREAM_TYPE_YUV].video_dev.tvnorms = std;
+	cx->streams[CX18_ENC_STREAM_TYPE_VBI].video_dev.tvnorms = std;
 
 	/* prevent others from messing with the streams until
 	   we're finished changing inputs. */

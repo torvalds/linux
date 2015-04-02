@@ -304,6 +304,7 @@ static void cx18_stream_init(struct cx18 *cx, int type)
 		/* Assume the previous pixel default */
 		s->pixelformat = V4L2_PIX_FMT_HM12;
 		s->vb_bytes_per_frame = cx->cxhdl.height * 720 * 3 / 2;
+		s->vb_bytes_per_line = 720;
 	}
 }
 
@@ -372,7 +373,10 @@ static int cx18_prep_dev(struct cx18 *cx, int type)
 	s->video_dev.v4l2_dev = &cx->v4l2_dev;
 	s->video_dev.fops = &cx18_v4l2_enc_fops;
 	s->video_dev.release = video_device_release_empty;
-	s->video_dev.tvnorms = V4L2_STD_ALL;
+	if (cx->card->video_inputs->video_type == CX18_CARD_INPUT_VID_TUNER)
+		s->video_dev.tvnorms = cx->tuner_std;
+	else
+		s->video_dev.tvnorms = V4L2_STD_ALL;
 	s->video_dev.lock = &cx->serialize_lock;
 	cx18_set_funcs(&s->video_dev);
 	return 0;
