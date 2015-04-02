@@ -1204,14 +1204,14 @@ static int atmel_pmecc_nand_init_params(struct platform_device *pdev,
 		goto err;
 	}
 
-	regs_rom = platform_get_resource(pdev, IORESOURCE_MEM, 3);
-	host->pmecc_rom_base = devm_ioremap_resource(&pdev->dev, regs_rom);
-	if (IS_ERR(host->pmecc_rom_base)) {
-		if (!host->has_no_lookup_table)
-			/* Don't display the information again */
+	if (!host->has_no_lookup_table) {
+		regs_rom = platform_get_resource(pdev, IORESOURCE_MEM, 3);
+		host->pmecc_rom_base = devm_ioremap_resource(&pdev->dev,
+								regs_rom);
+		if (IS_ERR(host->pmecc_rom_base)) {
 			dev_err(host->dev, "Can not get I/O resource for ROM, will build a lookup table in runtime!\n");
-
-		host->has_no_lookup_table = true;
+			host->has_no_lookup_table = true;
+		}
 	}
 
 	if (host->has_no_lookup_table) {
