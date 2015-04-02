@@ -389,7 +389,6 @@ static int ip_tunnel_bind_dev(struct net_device *dev)
 		hlen = tdev->hard_header_len + tdev->needed_headroom;
 		mtu = tdev->mtu;
 	}
-	dev->iflink = tunnel->parms.link;
 
 	dev->needed_headroom = t_hlen + hlen;
 	mtu -= (dev->hard_header_len + t_hlen);
@@ -979,6 +978,14 @@ struct net *ip_tunnel_get_link_net(const struct net_device *dev)
 	return tunnel->net;
 }
 EXPORT_SYMBOL(ip_tunnel_get_link_net);
+
+int ip_tunnel_get_iflink(const struct net_device *dev)
+{
+	struct ip_tunnel *tunnel = netdev_priv(dev);
+
+	return tunnel->parms.link;
+}
+EXPORT_SYMBOL(ip_tunnel_get_iflink);
 
 int ip_tunnel_init_net(struct net *net, int ip_tnl_net_id,
 				  struct rtnl_link_ops *ops, char *devname)

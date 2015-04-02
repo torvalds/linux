@@ -456,6 +456,7 @@ static const struct net_device_ops ipgre_netdev_ops = {
 	.ndo_do_ioctl		= ipgre_tunnel_ioctl,
 	.ndo_change_mtu		= ip_tunnel_change_mtu,
 	.ndo_get_stats64	= ip_tunnel_get_stats64,
+	.ndo_get_iflink		= ip_tunnel_get_iflink,
 };
 
 #define GRE_FEATURES (NETIF_F_SG |		\
@@ -686,6 +687,7 @@ static const struct net_device_ops gre_tap_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_change_mtu		= ip_tunnel_change_mtu,
 	.ndo_get_stats64	= ip_tunnel_get_stats64,
+	.ndo_get_iflink		= ip_tunnel_get_iflink,
 };
 
 static void ipgre_tap_setup(struct net_device *dev)
