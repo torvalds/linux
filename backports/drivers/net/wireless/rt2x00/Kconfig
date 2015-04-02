@@ -278,9 +278,9 @@ config BACKPORT_RT2X00_LIB_CRYPTO
 	depends on !RT2X00_LIB_CRYPTO
 
 config BACKPORT_RT2X00_LIB_LEDS
-	bool
+	bool "Enable the LEDS on rt2x00 drivers"
 	depends on !RT2X00_LIB_LEDS
-	default y if (RT2X00_LIB=y && LEDS_CLASS=y) || (RT2X00_LIB=m && LEDS_CLASS!=n)
+	default y 
 
 config BACKPORT_RT2X00_LIB_DEBUGFS
 	bool "Ralink debugfs support"
