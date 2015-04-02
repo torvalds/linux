@@ -13,7 +13,7 @@
 
 #include <asm/mips-boards/sead3int.h>
 
-struct resource ehci_resources[] = {
+static struct resource ehci_resources[] = {
 	{
 		.start			= 0x1b200000,
 		.end			= 0x1b200fff,
@@ -24,7 +24,7 @@ struct resource ehci_resources[] = {
 	}
 };
 
-u64 sead3_usbdev_dma_mask = DMA_BIT_MASK(32);
+static u64 sead3_usbdev_dma_mask = DMA_BIT_MASK(32);
 
 static struct platform_device ehci_device = {
 	.name		= "sead3-ehci",
