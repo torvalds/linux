@@ -156,6 +156,14 @@
 			clocks = <&ccu1 CLK_CPU_SCU>;
 		};
 
+		can1: can@400a4000 {
+			compatible = "bosch,c_can";
+			reg = <0x400a4000 0x1000>;
+			interrupts = <43>;
+			clocks = <&ccu1 CLK_APB1_CAN1>;
+			status = "disabled";
+		};
+
 		uart2: serial@400c1000 {
 			compatible = "nxp,lpc1850-uart", "ns16550a";
 			reg = <0x400c1000 0x1000>;
@@ -200,6 +208,14 @@
 			clock-names = "sspclk", "apb_pclk";
 			#address-cells = <1>;
 			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		can0: can@400e2000 {
+			compatible = "bosch,c_can";
+			reg = <0x400e2000 0x1000>;
+			interrupts = <51>;
+			clocks = <&ccu1 CLK_APB3_CAN0>;
 			status = "disabled";
 		};
 
