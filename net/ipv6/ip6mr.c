@@ -718,8 +718,14 @@ static netdev_tx_t reg_vif_xmit(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
+static int reg_vif_get_iflink(const struct net_device *dev)
+{
+	return 0;
+}
+
 static const struct net_device_ops reg_vif_netdev_ops = {
 	.ndo_start_xmit	= reg_vif_xmit,
+	.ndo_get_iflink = reg_vif_get_iflink,
 };
 
 static void reg_vif_setup(struct net_device *dev)
@@ -752,7 +758,6 @@ static struct net_device *ip6mr_reg_vif(struct net *net, struct mr6_table *mrt)
 		free_netdev(dev);
 		return NULL;
 	}
-	dev->iflink = 0;
 
 	if (dev_open(dev))
 		goto failure;
@@ -992,7 +997,7 @@ static int mif6_add(struct net *net, struct mr6_table *mrt,
 	v->pkt_out = 0;
 	v->link = dev->ifindex;
 	if (v->flags & MIFF_REGISTER)
-		v->link = dev->iflink;
+		v->link = dev_get_iflink(dev);
 
 	/* And finish update writing critical data */
 	write_lock_bh(&mrt_lock);

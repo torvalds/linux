@@ -473,8 +473,14 @@ static netdev_tx_t reg_vif_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
+static int reg_vif_get_iflink(const struct net_device *dev)
+{
+	return 0;
+}
+
 static const struct net_device_ops reg_vif_netdev_ops = {
 	.ndo_start_xmit	= reg_vif_xmit,
+	.ndo_get_iflink = reg_vif_get_iflink,
 };
 
 static void reg_vif_setup(struct net_device *dev)
@@ -509,7 +515,6 @@ static struct net_device *ipmr_reg_vif(struct net *net, struct mr_table *mrt)
 		free_netdev(dev);
 		return NULL;
 	}
-	dev->iflink = 0;
 
 	rcu_read_lock();
 	in_dev = __in_dev_get_rcu(dev);
@@ -801,7 +806,7 @@ static int vif_add(struct net *net, struct mr_table *mrt,
 	v->pkt_out = 0;
 	v->link = dev->ifindex;
 	if (v->flags & (VIFF_TUNNEL | VIFF_REGISTER))
-		v->link = dev->iflink;
+		v->link = dev_get_iflink(dev);
 
 	/* And finish update writing critical data */
 	write_lock_bh(&mrt_lock);
