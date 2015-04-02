@@ -1047,6 +1047,7 @@ static int read_events(struct perf_kvm_stat *kvm)
 	struct perf_data_file file = {
 		.path = kvm->file_name,
 		.mode = PERF_DATA_MODE_READ,
+		.force = kvm->force,
 	};
 
 	kvm->tool = eops;
@@ -1204,6 +1205,7 @@ kvm_events_report(struct perf_kvm_stat *kvm, int argc, const char **argv)
 			    " time (sort by avg time)"),
 		OPT_STRING('p', "pid", &kvm->opts.target.pid, "pid",
 			   "analyze events only for given process id(s)"),
+		OPT_BOOLEAN('f', "force", &kvm->force, "don't complain, do it"),
 		OPT_END()
 	};
 
