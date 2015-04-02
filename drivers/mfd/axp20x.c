@@ -290,6 +290,29 @@ static struct resource axp288_adc_resources[] = {
 	},
 };
 
+static struct resource axp288_extcon_resources[] = {
+	{
+		.start = AXP288_IRQ_VBUS_FALL,
+		.end   = AXP288_IRQ_VBUS_FALL,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = AXP288_IRQ_VBUS_RISE,
+		.end   = AXP288_IRQ_VBUS_RISE,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = AXP288_IRQ_MV_CHNG,
+		.end   = AXP288_IRQ_MV_CHNG,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = AXP288_IRQ_BC_USB_CHNG,
+		.end   = AXP288_IRQ_BC_USB_CHNG,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
 static struct resource axp288_charger_resources[] = {
 	{
 		.start = AXP288_IRQ_OV,
@@ -343,6 +366,11 @@ static struct mfd_cell axp288_cells[] = {
 		.name = "axp288_adc",
 		.num_resources = ARRAY_SIZE(axp288_adc_resources),
 		.resources = axp288_adc_resources,
+	},
+	{
+		.name = "axp288_extcon",
+		.num_resources = ARRAY_SIZE(axp288_extcon_resources),
+		.resources = axp288_extcon_resources,
 	},
 	{
 		.name = "axp288_charger",
