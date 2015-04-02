@@ -44,12 +44,13 @@ static char *mv88e6131_probe(struct device *host_dev, int sw_addr)
 
 static int mv88e6131_switch_reset(struct dsa_switch *ds)
 {
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int i;
 	int ret;
 	unsigned long timeout;
 
 	/* Set all ports to the disabled state. */
-	for (i = 0; i < 11; i++) {
+	for (i = 0; i < ps->num_ports; i++) {
 		ret = REG_READ(REG_PORT(i), 0x04);
 		REG_WRITE(REG_PORT(i), 0x04, ret & 0xfffc);
 	}
@@ -255,6 +256,7 @@ static int mv88e6131_setup_port(struct dsa_switch *ds, int p)
 
 static int mv88e6131_setup(struct dsa_switch *ds)
 {
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int i;
 	int ret;
 
@@ -263,6 +265,21 @@ static int mv88e6131_setup(struct dsa_switch *ds)
 		return ret;
 
 	mv88e6xxx_ppu_state_init(ds);
+
+	switch (ps->id) {
+	case ID_6085:
+		ps->num_ports = 10;
+		break;
+	case ID_6095:
+		ps->num_ports = 11;
+		break;
+	case ID_6131:
+	case ID_6131_B2:
+		ps->num_ports = 8;
+		break;
+	default:
+		return -ENODEV;
+	}
 
 	ret = mv88e6131_switch_reset(ds);
 	if (ret < 0)
@@ -274,7 +291,7 @@ static int mv88e6131_setup(struct dsa_switch *ds)
 	if (ret < 0)
 		return ret;
 
-	for (i = 0; i < 11; i++) {
+	for (i = 0; i < ps->num_ports; i++) {
 		ret = mv88e6131_setup_port(ds, i);
 		if (ret < 0)
 			return ret;
@@ -283,17 +300,24 @@ static int mv88e6131_setup(struct dsa_switch *ds)
 	return 0;
 }
 
-static int mv88e6131_port_to_phy_addr(int port)
+static int mv88e6131_port_to_phy_addr(struct dsa_switch *ds, int port)
 {
-	if (port >= 0 && port <= 11)
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+
+	if (port >= 0 && port < ps->num_ports)
 		return port;
-	return -1;
+
+	return -EINVAL;
 }
 
 static int
 mv88e6131_phy_read(struct dsa_switch *ds, int port, int regnum)
 {
-	int addr = mv88e6131_port_to_phy_addr(port);
+	int addr = mv88e6131_port_to_phy_addr(ds, port);
+
+	if (addr < 0)
+		return addr;
+
 	return mv88e6xxx_phy_read_ppu(ds, addr, regnum);
 }
 
@@ -301,7 +325,11 @@ static int
 mv88e6131_phy_write(struct dsa_switch *ds,
 			      int port, int regnum, u16 val)
 {
-	int addr = mv88e6131_port_to_phy_addr(port);
+	int addr = mv88e6131_port_to_phy_addr(ds, port);
+
+	if (addr < 0)
+		return addr;
+
 	return mv88e6xxx_phy_write_ppu(ds, addr, regnum, val);
 }
 
