@@ -89,6 +89,8 @@ double rapl_joule_counter_range;
 unsigned int do_core_perf_limit_reasons;
 unsigned int do_gfx_perf_limit_reasons;
 unsigned int do_ring_perf_limit_reasons;
+unsigned int crystal_hz;
+unsigned long long tsc_hz;
 
 #define RAPL_PKG		(1 << 0)
 					/* 0x610 MSR_PKG_POWER_LIMIT */
@@ -2496,6 +2498,41 @@ void process_cpuid()
 			do_ptm ? "" : "No ",
 			has_epb ? "" : "No ");
 
+	if (max_level > 0x15) {
+		unsigned int eax_crystal;
+		unsigned int ebx_tsc;
+
+		/*
+		 * CPUID 15H TSC/Crystal ratio, possibly Crystal Hz
+		 */
+		eax_crystal = ebx_tsc = crystal_hz = edx = 0;
+		__get_cpuid(0x15, &eax_crystal, &ebx_tsc, &crystal_hz, &edx);
+
+		if (ebx_tsc != 0) {
+
+			if (debug && (ebx != 0))
+				fprintf(stderr, "CPUID(0x15): eax_crystal: %d ebx_tsc: %d ecx_crystal_hz: %d\n",
+					eax_crystal, ebx_tsc, crystal_hz);
+
+			if (crystal_hz == 0)
+				switch(model) {
+				case 0x4E:	/* SKL */
+				case 0x5E:	/* SKL */
+					crystal_hz = 24000000;	/* 24 MHz */
+					break;
+				default:
+					crystal_hz = 0;
+			}
+
+			if (crystal_hz) {
+				tsc_hz =  (unsigned long long) crystal_hz * ebx_tsc / eax_crystal;
+				if (debug)
+					fprintf(stderr, "TSC: %lld MHz (%d Hz * %d / %d / 1000000)\n",
+						tsc_hz / 1000000, crystal_hz, ebx_tsc,  eax_crystal);
+			}
+		}
+	}
+
 	do_nhm_platform_info = do_nhm_cstates = do_smi = probe_nhm_msrs(family, model);
 	do_snb_cstates = has_snb_msrs(family, model);
 	do_pc2 = do_snb_cstates && (pkg_cstate_limit >= PCL__2);
@@ -2834,7 +2871,7 @@ int get_and_dump_counters(void)
 }
 
 void print_version() {
-	fprintf(stderr, "turbostat version 4.3 24 Mar, 2015"
+	fprintf(stderr, "turbostat version 4.4 2 Apr, 2015"
 		" - Len Brown <lenb@kernel.org>\n");
 }
 
