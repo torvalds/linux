@@ -44,24 +44,20 @@ static u64 notrace omap_32k_read_sched_clock(void)
 }
 
 /**
- * omap_read_persistent_clock -  Return time from a persistent clock.
+ * omap_read_persistent_clock64 -  Return time from a persistent clock.
  *
  * Reads the time from a source which isn't disabled during PM, the
  * 32k sync timer.  Convert the cycles elapsed since last read into
- * nsecs and adds to a monotonically increasing timespec.
+ * nsecs and adds to a monotonically increasing timespec64.
  */
-static struct timespec persistent_ts;
+static struct timespec64 persistent_ts;
 static cycles_t cycles;
 static unsigned int persistent_mult, persistent_shift;
-static DEFINE_SPINLOCK(read_persistent_clock_lock);
 
-static void omap_read_persistent_clock(struct timespec *ts)
+static void omap_read_persistent_clock64(struct timespec64 *ts)
 {
 	unsigned long long nsecs;
 	cycles_t last_cycles;
-	unsigned long flags;
-
-	spin_lock_irqsave(&read_persistent_clock_lock, flags);
 
 	last_cycles = cycles;
 	cycles = sync32k_cnt_reg ? readl_relaxed(sync32k_cnt_reg) : 0;
@@ -69,11 +65,17 @@ static void omap_read_persistent_clock(struct timespec *ts)
 	nsecs = clocksource_cyc2ns(cycles - last_cycles,
 					persistent_mult, persistent_shift);
 
-	timespec_add_ns(&persistent_ts, nsecs);
+	timespec64_add_ns(&persistent_ts, nsecs);
 
 	*ts = persistent_ts;
+}
 
-	spin_unlock_irqrestore(&read_persistent_clock_lock, flags);
+static void omap_read_persistent_clock(struct timespec *ts)
+{
+	struct timespec64 ts64;
+
+	omap_read_persistent_clock64(&ts64);
+	*ts = timespec64_to_timespec(ts64);
 }
 
 /**
