@@ -150,12 +150,11 @@ int mv88e6xxx_phy_read_ppu(struct dsa_switch *ds, int addr, int regnum);
 int mv88e6xxx_phy_write_ppu(struct dsa_switch *ds, int addr,
 			    int regnum, u16 val);
 void mv88e6xxx_poll_link(struct dsa_switch *ds);
-void mv88e6xxx_get_strings(struct dsa_switch *ds,
-			   int nr_stats, struct mv88e6xxx_hw_stat *stats,
-			   int port, uint8_t *data);
-void mv88e6xxx_get_ethtool_stats(struct dsa_switch *ds,
-				 int nr_stats, struct mv88e6xxx_hw_stat *stats,
-				 int port, uint64_t *data);
+void mv88e6xxx_get_strings(struct dsa_switch *ds, int port, uint8_t *data);
+void mv88e6xxx_get_ethtool_stats(struct dsa_switch *ds, int port,
+				 uint64_t *data);
+int mv88e6xxx_get_sset_count(struct dsa_switch *ds);
+int mv88e6xxx_get_sset_count_basic(struct dsa_switch *ds);
 int mv88e6xxx_get_regs_len(struct dsa_switch *ds, int port);
 void mv88e6xxx_get_regs(struct dsa_switch *ds, int port,
 			struct ethtool_regs *regs, void *_p);

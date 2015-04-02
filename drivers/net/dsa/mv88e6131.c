@@ -299,59 +299,6 @@ mv88e6131_phy_write(struct dsa_switch *ds,
 	return mv88e6xxx_phy_write_ppu(ds, addr, regnum, val);
 }
 
-static struct mv88e6xxx_hw_stat mv88e6131_hw_stats[] = {
-	{ "in_good_octets", 8, 0x00, },
-	{ "in_bad_octets", 4, 0x02, },
-	{ "in_unicast", 4, 0x04, },
-	{ "in_broadcasts", 4, 0x06, },
-	{ "in_multicasts", 4, 0x07, },
-	{ "in_pause", 4, 0x16, },
-	{ "in_undersize", 4, 0x18, },
-	{ "in_fragments", 4, 0x19, },
-	{ "in_oversize", 4, 0x1a, },
-	{ "in_jabber", 4, 0x1b, },
-	{ "in_rx_error", 4, 0x1c, },
-	{ "in_fcs_error", 4, 0x1d, },
-	{ "out_octets", 8, 0x0e, },
-	{ "out_unicast", 4, 0x10, },
-	{ "out_broadcasts", 4, 0x13, },
-	{ "out_multicasts", 4, 0x12, },
-	{ "out_pause", 4, 0x15, },
-	{ "excessive", 4, 0x11, },
-	{ "collisions", 4, 0x1e, },
-	{ "deferred", 4, 0x05, },
-	{ "single", 4, 0x14, },
-	{ "multiple", 4, 0x17, },
-	{ "out_fcs_error", 4, 0x03, },
-	{ "late", 4, 0x1f, },
-	{ "hist_64bytes", 4, 0x08, },
-	{ "hist_65_127bytes", 4, 0x09, },
-	{ "hist_128_255bytes", 4, 0x0a, },
-	{ "hist_256_511bytes", 4, 0x0b, },
-	{ "hist_512_1023bytes", 4, 0x0c, },
-	{ "hist_1024_max_bytes", 4, 0x0d, },
-};
-
-static void
-mv88e6131_get_strings(struct dsa_switch *ds, int port, uint8_t *data)
-{
-	mv88e6xxx_get_strings(ds, ARRAY_SIZE(mv88e6131_hw_stats),
-			      mv88e6131_hw_stats, port, data);
-}
-
-static void
-mv88e6131_get_ethtool_stats(struct dsa_switch *ds,
-				  int port, uint64_t *data)
-{
-	mv88e6xxx_get_ethtool_stats(ds, ARRAY_SIZE(mv88e6131_hw_stats),
-				    mv88e6131_hw_stats, port, data);
-}
-
-static int mv88e6131_get_sset_count(struct dsa_switch *ds)
-{
-	return ARRAY_SIZE(mv88e6131_hw_stats);
-}
-
 struct dsa_switch_driver mv88e6131_switch_driver = {
 	.tag_protocol		= DSA_TAG_PROTO_DSA,
 	.priv_size		= sizeof(struct mv88e6xxx_priv_state),
@@ -361,9 +308,9 @@ struct dsa_switch_driver mv88e6131_switch_driver = {
 	.phy_read		= mv88e6131_phy_read,
 	.phy_write		= mv88e6131_phy_write,
 	.poll_link		= mv88e6xxx_poll_link,
-	.get_strings		= mv88e6131_get_strings,
-	.get_ethtool_stats	= mv88e6131_get_ethtool_stats,
-	.get_sset_count		= mv88e6131_get_sset_count,
+	.get_strings		= mv88e6xxx_get_strings,
+	.get_ethtool_stats	= mv88e6xxx_get_ethtool_stats,
+	.get_sset_count		= mv88e6xxx_get_sset_count,
 };
 
 MODULE_ALIAS("platform:mv88e6085");

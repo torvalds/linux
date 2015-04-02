@@ -484,9 +484,62 @@ static void mv88e6xxx_stats_read(struct dsa_switch *ds, int stat, u32 *val)
 	*val = _val | ret;
 }
 
-void mv88e6xxx_get_strings(struct dsa_switch *ds,
-			   int nr_stats, struct mv88e6xxx_hw_stat *stats,
-			   int port, uint8_t *data)
+static struct mv88e6xxx_hw_stat mv88e6xxx_hw_stats[] = {
+	{ "in_good_octets", 8, 0x00, },
+	{ "in_bad_octets", 4, 0x02, },
+	{ "in_unicast", 4, 0x04, },
+	{ "in_broadcasts", 4, 0x06, },
+	{ "in_multicasts", 4, 0x07, },
+	{ "in_pause", 4, 0x16, },
+	{ "in_undersize", 4, 0x18, },
+	{ "in_fragments", 4, 0x19, },
+	{ "in_oversize", 4, 0x1a, },
+	{ "in_jabber", 4, 0x1b, },
+	{ "in_rx_error", 4, 0x1c, },
+	{ "in_fcs_error", 4, 0x1d, },
+	{ "out_octets", 8, 0x0e, },
+	{ "out_unicast", 4, 0x10, },
+	{ "out_broadcasts", 4, 0x13, },
+	{ "out_multicasts", 4, 0x12, },
+	{ "out_pause", 4, 0x15, },
+	{ "excessive", 4, 0x11, },
+	{ "collisions", 4, 0x1e, },
+	{ "deferred", 4, 0x05, },
+	{ "single", 4, 0x14, },
+	{ "multiple", 4, 0x17, },
+	{ "out_fcs_error", 4, 0x03, },
+	{ "late", 4, 0x1f, },
+	{ "hist_64bytes", 4, 0x08, },
+	{ "hist_65_127bytes", 4, 0x09, },
+	{ "hist_128_255bytes", 4, 0x0a, },
+	{ "hist_256_511bytes", 4, 0x0b, },
+	{ "hist_512_1023bytes", 4, 0x0c, },
+	{ "hist_1024_max_bytes", 4, 0x0d, },
+	/* Not all devices have the following counters */
+	{ "sw_in_discards", 4, 0x110, },
+	{ "sw_in_filtered", 2, 0x112, },
+	{ "sw_out_filtered", 2, 0x113, },
+
+};
+
+static bool have_sw_in_discards(struct dsa_switch *ds)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+
+	switch (ps->id) {
+	case ID_6095: case ID_6161: case ID_6165:
+	case ID_6171: case ID_6172: case ID_6176:
+	case ID_6182: case ID_6185: case ID_6352:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static void _mv88e6xxx_get_strings(struct dsa_switch *ds,
+				   int nr_stats,
+				   struct mv88e6xxx_hw_stat *stats,
+				   int port, uint8_t *data)
 {
 	int i;
 
@@ -496,9 +549,10 @@ void mv88e6xxx_get_strings(struct dsa_switch *ds,
 	}
 }
 
-void mv88e6xxx_get_ethtool_stats(struct dsa_switch *ds,
-				 int nr_stats, struct mv88e6xxx_hw_stat *stats,
-				 int port, uint64_t *data)
+static void _mv88e6xxx_get_ethtool_stats(struct dsa_switch *ds,
+					 int nr_stats,
+					 struct mv88e6xxx_hw_stat *stats,
+					 int port, uint64_t *data)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int ret;
@@ -544,6 +598,39 @@ void mv88e6xxx_get_ethtool_stats(struct dsa_switch *ds,
 	}
 error:
 	mutex_unlock(&ps->stats_mutex);
+}
+
+/* All the statistics in the table */
+void
+mv88e6xxx_get_strings(struct dsa_switch *ds, int port, uint8_t *data)
+{
+	if (have_sw_in_discards(ds))
+		_mv88e6xxx_get_strings(ds, ARRAY_SIZE(mv88e6xxx_hw_stats),
+				       mv88e6xxx_hw_stats, port, data);
+	else
+		_mv88e6xxx_get_strings(ds, ARRAY_SIZE(mv88e6xxx_hw_stats) - 3,
+				       mv88e6xxx_hw_stats, port, data);
+}
+
+int mv88e6xxx_get_sset_count(struct dsa_switch *ds)
+{
+	if (have_sw_in_discards(ds))
+		return ARRAY_SIZE(mv88e6xxx_hw_stats);
+	return ARRAY_SIZE(mv88e6xxx_hw_stats) - 3;
+}
+
+void
+mv88e6xxx_get_ethtool_stats(struct dsa_switch *ds,
+			    int port, uint64_t *data)
+{
+	if (have_sw_in_discards(ds))
+		_mv88e6xxx_get_ethtool_stats(
+			ds, ARRAY_SIZE(mv88e6xxx_hw_stats),
+			mv88e6xxx_hw_stats, port, data);
+	else
+		_mv88e6xxx_get_ethtool_stats(
+			ds, ARRAY_SIZE(mv88e6xxx_hw_stats) - 3,
+			mv88e6xxx_hw_stats, port, data);
 }
 
 int mv88e6xxx_get_regs_len(struct dsa_switch *ds, int port)
