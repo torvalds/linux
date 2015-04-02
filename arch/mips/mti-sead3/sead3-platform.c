@@ -5,7 +5,6 @@
  *
  * Copyright (C) 2012 MIPS Technologies, Inc.  All rights reserved.
  */
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/irqchip/mips-gic.h>
 #include <linux/serial_8250.h>
@@ -48,8 +47,4 @@ static int __init uart8250_init(void)
 	return platform_device_register(&uart8250_device);
 }
 
-module_init(uart8250_init);
-
-MODULE_AUTHOR("Chris Dearman <chris@mips.com>");
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("8250 UART probe driver for SEAD3");
+device_initcall(uart8250_init);
