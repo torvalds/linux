@@ -249,7 +249,7 @@ static int nbd_send_req(struct nbd_device *nbd, struct request *req)
 	if (result <= 0) {
 		dev_err(disk_to_dev(nbd->disk),
 			"Send control failed (result %d)\n", result);
-		goto error_out;
+		return -EIO;
 	}
 
 	if (nbd_cmd(req) == NBD_CMD_WRITE) {
@@ -270,14 +270,11 @@ static int nbd_send_req(struct nbd_device *nbd, struct request *req)
 				dev_err(disk_to_dev(nbd->disk),
 					"Send data failed (result %d)\n",
 					result);
-				goto error_out;
+				return -EIO;
 			}
 		}
 	}
 	return 0;
-
-error_out:
-	return -EIO;
 }
 
 static struct request *nbd_find_request(struct nbd_device *nbd,
