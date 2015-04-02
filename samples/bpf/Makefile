@@ -17,6 +17,7 @@ sockex2-objs := bpf_load.o libbpf.o sockex2_user.o
 always := $(hostprogs-y)
 always += sockex1_kern.o
 always += sockex2_kern.o
+always += tcbpf1_kern.o
 
 HOSTCFLAGS += -I$(objtree)/usr/include
 

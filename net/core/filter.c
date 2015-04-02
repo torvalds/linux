@@ -1175,7 +1175,9 @@ int sk_attach_bpf(u32 ufd, struct sock *sk)
 	return 0;
 }
 
-static u64 bpf_skb_store_bytes(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
+#define BPF_RECOMPUTE_CSUM(flags)	((flags) & 1)
+
+static u64 bpf_skb_store_bytes(u64 r1, u64 r2, u64 r3, u64 r4, u64 flags)
 {
 	struct sk_buff *skb = (struct sk_buff *) (long) r1;
 	unsigned int offset = (unsigned int) r2;
@@ -1192,7 +1194,7 @@ static u64 bpf_skb_store_bytes(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
 	 *
 	 * so check for invalid 'offset' and too large 'len'
 	 */
-	if (offset > 0xffff || len > sizeof(buf))
+	if (unlikely(offset > 0xffff || len > sizeof(buf)))
 		return -EFAULT;
 
 	if (skb_cloned(skb) && !skb_clone_writable(skb, offset + len))
@@ -1202,7 +1204,8 @@ static u64 bpf_skb_store_bytes(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
 	if (unlikely(!ptr))
 		return -EFAULT;
 
-	skb_postpull_rcsum(skb, ptr, len);
+	if (BPF_RECOMPUTE_CSUM(flags))
+		skb_postpull_rcsum(skb, ptr, len);
 
 	memcpy(ptr, from, len);
 
@@ -1210,7 +1213,7 @@ static u64 bpf_skb_store_bytes(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
 		/* skb_store_bits cannot return -EFAULT here */
 		skb_store_bits(skb, offset, ptr, len);
 
-	if (skb->ip_summed == CHECKSUM_COMPLETE)
+	if (BPF_RECOMPUTE_CSUM(flags) && skb->ip_summed == CHECKSUM_COMPLETE)
 		skb->csum = csum_add(skb->csum, csum_partial(ptr, len, 0));
 	return 0;
 }
@@ -1223,6 +1226,99 @@ const struct bpf_func_proto bpf_skb_store_bytes_proto = {
 	.arg2_type	= ARG_ANYTHING,
 	.arg3_type	= ARG_PTR_TO_STACK,
 	.arg4_type	= ARG_CONST_STACK_SIZE,
+	.arg5_type	= ARG_ANYTHING,
+};
+
+#define BPF_HEADER_FIELD_SIZE(flags)	((flags) & 0x0f)
+#define BPF_IS_PSEUDO_HEADER(flags)	((flags) & 0x10)
+
+static u64 bpf_l3_csum_replace(u64 r1, u64 offset, u64 from, u64 to, u64 flags)
+{
+	struct sk_buff *skb = (struct sk_buff *) (long) r1;
+	__sum16 sum, *ptr;
+
+	if (unlikely(offset > 0xffff))
+		return -EFAULT;
+
+	if (skb_cloned(skb) && !skb_clone_writable(skb, offset + sizeof(sum)))
+		return -EFAULT;
+
+	ptr = skb_header_pointer(skb, offset, sizeof(sum), &sum);
+	if (unlikely(!ptr))
+		return -EFAULT;
+
+	switch (BPF_HEADER_FIELD_SIZE(flags)) {
+	case 2:
+		csum_replace2(ptr, from, to);
+		break;
+	case 4:
+		csum_replace4(ptr, from, to);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (ptr == &sum)
+		/* skb_store_bits guaranteed to not return -EFAULT here */
+		skb_store_bits(skb, offset, ptr, sizeof(sum));
+
+	return 0;
+}
+
+const struct bpf_func_proto bpf_l3_csum_replace_proto = {
+	.func		= bpf_l3_csum_replace,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_ANYTHING,
+	.arg3_type	= ARG_ANYTHING,
+	.arg4_type	= ARG_ANYTHING,
+	.arg5_type	= ARG_ANYTHING,
+};
+
+static u64 bpf_l4_csum_replace(u64 r1, u64 offset, u64 from, u64 to, u64 flags)
+{
+	struct sk_buff *skb = (struct sk_buff *) (long) r1;
+	u32 is_pseudo = BPF_IS_PSEUDO_HEADER(flags);
+	__sum16 sum, *ptr;
+
+	if (unlikely(offset > 0xffff))
+		return -EFAULT;
+
+	if (skb_cloned(skb) && !skb_clone_writable(skb, offset + sizeof(sum)))
+		return -EFAULT;
+
+	ptr = skb_header_pointer(skb, offset, sizeof(sum), &sum);
+	if (unlikely(!ptr))
+		return -EFAULT;
+
+	switch (BPF_HEADER_FIELD_SIZE(flags)) {
+	case 2:
+		inet_proto_csum_replace2(ptr, skb, from, to, is_pseudo);
+		break;
+	case 4:
+		inet_proto_csum_replace4(ptr, skb, from, to, is_pseudo);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (ptr == &sum)
+		/* skb_store_bits guaranteed to not return -EFAULT here */
+		skb_store_bits(skb, offset, ptr, sizeof(sum));
+
+	return 0;
+}
+
+const struct bpf_func_proto bpf_l4_csum_replace_proto = {
+	.func		= bpf_l4_csum_replace,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_ANYTHING,
+	.arg3_type	= ARG_ANYTHING,
+	.arg4_type	= ARG_ANYTHING,
+	.arg5_type	= ARG_ANYTHING,
 };
 
 static const struct bpf_func_proto *
@@ -1250,6 +1346,10 @@ tc_cls_act_func_proto(enum bpf_func_id func_id)
 	switch (func_id) {
 	case BPF_FUNC_skb_store_bytes:
 		return &bpf_skb_store_bytes_proto;
+	case BPF_FUNC_l3_csum_replace:
+		return &bpf_l3_csum_replace_proto;
+	case BPF_FUNC_l4_csum_replace:
+		return &bpf_l4_csum_replace_proto;
 	default:
 		return sk_filter_func_proto(func_id);
 	}
