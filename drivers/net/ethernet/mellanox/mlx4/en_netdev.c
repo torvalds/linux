@@ -2210,13 +2210,11 @@ static int mlx4_en_set_features(struct net_device *netdev,
 		en_info(priv, "Turn %s TX vlan strip offload\n",
 			(features & NETIF_F_HW_VLAN_CTAG_TX) ? "ON" : "OFF");
 
-	if (features & NETIF_F_LOOPBACK)
-		priv->ctrl_flags |= cpu_to_be32(MLX4_WQE_CTRL_FORCE_LOOPBACK);
-	else
-		priv->ctrl_flags &=
-			cpu_to_be32(~MLX4_WQE_CTRL_FORCE_LOOPBACK);
-
-	mlx4_en_update_loopback_state(netdev, features);
+	if (DEV_FEATURE_CHANGED(netdev, features, NETIF_F_LOOPBACK)) {
+		en_info(priv, "Turn %s loopback\n",
+			(features & NETIF_F_LOOPBACK) ? "ON" : "OFF");
+		mlx4_en_update_loopback_state(netdev, features);
+	}
 
 	return 0;
 
