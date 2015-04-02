@@ -660,6 +660,23 @@ __setup("netdev=", netdev_boot_setup);
 *******************************************************************************/
 
 /**
+ *	dev_get_iflink	- get 'iflink' value of a interface
+ *	@dev: targeted interface
+ *
+ *	Indicates the ifindex the interface is linked to.
+ *	Physical interfaces have the same 'ifindex' and 'iflink' values.
+ */
+
+int dev_get_iflink(const struct net_device *dev)
+{
+	if (dev->netdev_ops && dev->netdev_ops->ndo_get_iflink)
+		return dev->netdev_ops->ndo_get_iflink(dev);
+
+	return dev->iflink;
+}
+EXPORT_SYMBOL(dev_get_iflink);
+
+/**
  *	__dev_get_by_name	- find a device by its name
  *	@net: the applicable net namespace
  *	@name: name to find
@@ -6345,7 +6362,7 @@ int register_netdevice(struct net_device *dev)
 	else if (__dev_get_by_index(net, dev->ifindex))
 		goto err_uninit;
 
-	if (dev->iflink == -1)
+	if (dev_get_iflink(dev) == -1)
 		dev->iflink = dev->ifindex;
 
 	/* Transfer changeable features to wanted_features and enable
@@ -7061,7 +7078,7 @@ int dev_change_net_namespace(struct net_device *dev, struct net *net, const char
 
 	/* If there is an ifindex conflict assign a new one */
 	if (__dev_get_by_index(net, dev->ifindex)) {
-		int iflink = (dev->iflink == dev->ifindex);
+		int iflink = (dev_get_iflink(dev) == dev->ifindex);
 		dev->ifindex = dev_new_index(net);
 		if (iflink)
 			dev->iflink = dev->ifindex;
