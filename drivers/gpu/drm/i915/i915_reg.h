@@ -2748,6 +2748,20 @@ enum skl_disp_power_wells {
 #define   EDP_PSR_DEBUG_MASK_MEMUP	(1<<26)
 #define   EDP_PSR_DEBUG_MASK_HPD	(1<<25)
 
+#define EDP_PSR2_CTL			0x6f900
+#define   EDP_PSR2_ENABLE		(1<<31)
+#define   EDP_SU_TRACK_ENABLE		(1<<30)
+#define   EDP_MAX_SU_DISABLE_TIME(t)	((t)<<20)
+#define   EDP_MAX_SU_DISABLE_TIME_MASK	(0x1f<<20)
+#define   EDP_PSR2_TP2_TIME_500		(0<<8)
+#define   EDP_PSR2_TP2_TIME_100		(1<<8)
+#define   EDP_PSR2_TP2_TIME_2500	(2<<8)
+#define   EDP_PSR2_TP2_TIME_50		(3<<8)
+#define   EDP_PSR2_TP2_TIME_MASK	(3<<8)
+#define   EDP_PSR2_FRAME_BEFORE_SU_SHIFT 4
+#define   EDP_PSR2_FRAME_BEFORE_SU_MASK	(0xf<<4)
+#define   EDP_PSR2_IDLE_MASK		0xf
+
 /* VGA port control */
 #define ADPA			0x61100
 #define PCH_ADPA                0xe1100

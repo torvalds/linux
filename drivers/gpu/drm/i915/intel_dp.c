@@ -3785,6 +3785,21 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 			dev_priv->psr.sink_support = true;
 			DRM_DEBUG_KMS("Detected EDP PSR Panel.\n");
 		}
+
+		if (INTEL_INFO(dev)->gen >= 9 &&
+			(intel_dp->psr_dpcd[0] & DP_PSR2_IS_SUPPORTED)) {
+			uint8_t frame_sync_cap;
+
+			dev_priv->psr.sink_support = true;
+			intel_dp_dpcd_read_wake(&intel_dp->aux,
+					DP_SINK_DEVICE_AUX_FRAME_SYNC_CAP,
+					&frame_sync_cap, 1);
+			dev_priv->psr.aux_frame_sync = frame_sync_cap ? true : false;
+			/* PSR2 needs frame sync as well */
+			dev_priv->psr.psr2_support = dev_priv->psr.aux_frame_sync;
+			DRM_DEBUG_KMS("PSR2 %s on sink",
+				dev_priv->psr.psr2_support ? "supported" : "not supported");
+		}
 	}
 
 	/* Training Pattern 3 support, both source and sink */

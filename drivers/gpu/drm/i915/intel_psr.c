@@ -117,6 +117,19 @@ static void vlv_psr_setup_vsc(struct intel_dp *intel_dp)
 	I915_WRITE(VLV_VSCSDP(pipe), val);
 }
 
+static void skl_psr_setup_su_vsc(struct intel_dp *intel_dp)
+{
+	struct edp_vsc_psr psr_vsc;
+
+	/* Prepare VSC Header for SU as per EDP 1.4 spec, Table 6.11 */
+	memset(&psr_vsc, 0, sizeof(psr_vsc));
+	psr_vsc.sdp_header.HB0 = 0;
+	psr_vsc.sdp_header.HB1 = 0x7;
+	psr_vsc.sdp_header.HB2 = 0x3;
+	psr_vsc.sdp_header.HB3 = 0xb;
+	intel_psr_write_vsc(intel_dp, &psr_vsc);
+}
+
 static void hsw_psr_setup_vsc(struct intel_dp *intel_dp)
 {
 	struct edp_vsc_psr psr_vsc;
@@ -165,6 +178,12 @@ static void hsw_psr_enable_sink(struct intel_dp *intel_dp)
 		drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG,
 				   DP_PSR_ENABLE & ~DP_PSR_MAIN_LINK_ACTIVE);
 
+	/* Enable AUX frame sync at sink */
+	if (dev_priv->psr.aux_frame_sync)
+		drm_dp_dpcd_writeb(&intel_dp->aux,
+				DP_SINK_DEVICE_AUX_FRAME_SYNC_CONF,
+				DP_AUX_FRAME_SYNC_ENABLE);
+
 	aux_data_reg = (INTEL_INFO(dev)->gen >= 9) ?
 				DPA_AUX_CH_DATA1 : EDP_PSR_AUX_DATA1(dev);
 	aux_ctl_reg = (INTEL_INFO(dev)->gen >= 9) ?
@@ -183,8 +202,10 @@ static void hsw_psr_enable_sink(struct intel_dp *intel_dp)
 		val |= DP_AUX_CH_CTL_TIME_OUT_1600us;
 		val &= ~DP_AUX_CH_CTL_MESSAGE_SIZE_MASK;
 		val |= (sizeof(aux_msg) << DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT);
-		/* Use hardcoded data values for PSR */
+		/* Use hardcoded data values for PSR, frame sync and GTC */
 		val &= ~DP_AUX_CH_CTL_PSR_DATA_AUX_REG_SKL;
+		val &= ~DP_AUX_CH_CTL_FS_DATA_AUX_REG_SKL;
+		val &= ~DP_AUX_CH_CTL_GTC_DATA_AUX_REG_SKL;
 		I915_WRITE(aux_ctl_reg, val);
 	} else {
 		I915_WRITE(aux_ctl_reg,
@@ -232,6 +253,7 @@ static void hsw_psr_enable_source(struct intel_dp *intel_dp)
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+
 	uint32_t max_sleep_time = 0x1f;
 	/* Lately it was identified that depending on panel idle frame count
 	 * calculated at HW can be off by 1. So let's use what came
@@ -255,6 +277,10 @@ static void hsw_psr_enable_source(struct intel_dp *intel_dp)
 		   max_sleep_time << EDP_PSR_MAX_SLEEP_TIME_SHIFT |
 		   idle_frames << EDP_PSR_IDLE_FRAME_SHIFT |
 		   EDP_PSR_ENABLE);
+
+	if (dev_priv->psr.psr2_support)
+		I915_WRITE(EDP_PSR2_CTL, EDP_PSR2_ENABLE |
+				EDP_SU_TRACK_ENABLE | EDP_PSR2_TP2_TIME_100);
 }
 
 static bool intel_psr_match_conditions(struct intel_dp *intel_dp)
@@ -332,6 +358,7 @@ void intel_psr_enable(struct intel_dp *intel_dp)
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *crtc = to_intel_crtc(intel_dig_port->base.base.crtc);
 
 	if (!HAS_PSR(dev)) {
 		DRM_DEBUG_KMS("PSR not supported on this platform\n");
@@ -363,6 +390,15 @@ void intel_psr_enable(struct intel_dp *intel_dp)
 
 	if (HAS_DDI(dev)) {
 		hsw_psr_setup_vsc(intel_dp);
+
+		if (dev_priv->psr.psr2_support) {
+			/* PSR2 is restricted to work with panel resolutions upto 3200x2000 */
+			if (crtc->config->pipe_src_w > 3200 ||
+				crtc->config->pipe_src_h > 2000)
+				dev_priv->psr.psr2_support = false;
+			else
+				skl_psr_setup_su_vsc(intel_dp);
+		}
 
 		/* Avoid continuous PSR exit by masking memup and hpd */
 		I915_WRITE(EDP_PSR_DEBUG_CTL(dev), EDP_PSR_DEBUG_MASK_MEMUP |
