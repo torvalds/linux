@@ -63,6 +63,8 @@
 #define MC_BIST_STATUS_REG(reg_addr, idx) ((reg_addr) + (idx) * 4)
 #define EDC_BIST_STATUS_REG(reg_addr, idx) ((reg_addr) + (idx) * 4)
 
+#define PCIE_FW_REG(reg_addr, idx) ((reg_addr) + (idx) * 4)
+
 #define SGE_PF_KDOORBELL_A 0x0
 
 #define QID_S    15
@@ -707,6 +709,7 @@
 #define PFNUM_V(x) ((x) << PFNUM_S)
 
 #define PCIE_FW_A 0x30b8
+#define PCIE_FW_PF_A 0x30bc
 
 #define PCIE_CORE_UTL_SYSTEM_BUS_AGENT_STATUS_A 0x5908
 
