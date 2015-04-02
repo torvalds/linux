@@ -263,6 +263,20 @@ static void veth_poll_controller(struct net_device *dev)
 }
 #endif	/* CONFIG_NET_POLL_CONTROLLER */
 
+static int veth_get_iflink(const struct net_device *dev)
+{
+	struct veth_priv *priv = netdev_priv(dev);
+	struct net_device *peer;
+	int iflink;
+
+	rcu_read_lock();
+	peer = rcu_dereference(priv->peer);
+	iflink = peer ? peer->ifindex : 0;
+	rcu_read_unlock();
+
+	return iflink;
+}
+
 static const struct net_device_ops veth_netdev_ops = {
 	.ndo_init            = veth_dev_init,
 	.ndo_open            = veth_open,
@@ -275,6 +289,7 @@ static const struct net_device_ops veth_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= veth_poll_controller,
 #endif
+	.ndo_get_iflink		= veth_get_iflink,
 };
 
 #define VETH_FEATURES (NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_ALL_TSO |    \
