@@ -180,6 +180,33 @@ static void nvram_read_alpha2(const char *prefix, const char *name,
 	memcpy(val, buf, 2);
 }
 
+/* This is one-function-only macro, it uses local "sprom" variable! */
+#define ENTRY(_revmask, _type, _prefix, _name, _val, _allset, _fallback) \
+	if (_revmask & BIT(sprom->revision)) \
+		nvram_read_ ## _type(_prefix, NULL, _name, &sprom->_val, \
+				     _allset, _fallback)
+/*
+ * Special version of filling function that can be safely called for any SPROM
+ * revision. For every NVRAM to SPROM mapping it contains bitmask of revisions
+ * for which the mapping is valid.
+ * It obviously requires some hexadecimal/bitmasks knowledge, but allows
+ * writing cleaner code (easy revisions handling).
+ * Note that while SPROM revision 0 was never used, we still keep BIT(0)
+ * reserved for it, just to keep numbering sane.
+ */
+static void bcm47xx_sprom_fill_auto(struct ssb_sprom *sprom,
+				    const char *prefix, bool fallback)
+{
+	const char *pre = prefix;
+	bool fb = fallback;
+
+	ENTRY(0xfffffffe, u16, pre, "boardrev", board_rev, 0, true);
+	ENTRY(0xfffffffe, u16, pre, "boardnum", board_num, 0, fb);
+
+	/* TODO: Move more mappings here */
+}
+#undef ENTRY /* It's specififc, uses local variable, don't use it (again). */
+
 static void bcm47xx_fill_sprom_r1234589(struct ssb_sprom *sprom,
 					const char *prefix, bool fallback)
 {
@@ -714,9 +741,6 @@ static void bcm47xx_fill_sprom_ethernet(struct ssb_sprom *sprom,
 static void bcm47xx_fill_board_data(struct ssb_sprom *sprom, const char *prefix,
 				    bool fallback)
 {
-	nvram_read_u16(prefix, NULL, "boardrev", &sprom->board_rev, 0, true);
-	nvram_read_u16(prefix, NULL, "boardnum", &sprom->board_num, 0,
-		       fallback);
 	nvram_read_u16(prefix, NULL, "boardtype", &sprom->board_type, 0, true);
 	nvram_read_u32_2(prefix, "boardflags", &sprom->boardflags_lo,
 			 &sprom->boardflags_hi, fallback);
@@ -787,6 +811,8 @@ void bcm47xx_fill_sprom(struct ssb_sprom *sprom, const char *prefix,
 		bcm47xx_fill_sprom_r12389(sprom, prefix, fallback);
 		bcm47xx_fill_sprom_r1(sprom, prefix, fallback);
 	}
+
+	bcm47xx_sprom_fill_auto(sprom, prefix, fallback);
 }
 
 #ifdef CONFIG_BCM47XX_SSB
