@@ -341,6 +341,15 @@ do {							    \
 	}						       \
 } while (0)
 
+static inline int obd_check_dev(struct obd_device *obd)
+{
+	if (!obd) {
+		CERROR("NULL device\n");
+		return -ENODEV;
+	}
+	return 0;
+}
+
 /* ensure obd_setup and !obd_stopping */
 #define OBD_CHECK_DEV_ACTIVE(obd)			       \
 do {							    \
@@ -594,7 +603,9 @@ static inline int obd_precleanup(struct obd_device *obd,
 	int rc;
 	DECLARE_LU_VARS(ldt, d);
 
-	OBD_CHECK_DEV(obd);
+	rc = obd_check_dev(obd);
+	if (rc)
+		return rc;
 	ldt = obd->obd_type->typ_lu;
 	d = obd->obd_lu_dev;
 	if (ldt != NULL && d != NULL) {
@@ -620,7 +631,9 @@ static inline int obd_cleanup(struct obd_device *obd)
 	int rc;
 	DECLARE_LU_VARS(ldt, d);
 
-	OBD_CHECK_DEV(obd);
+	rc = obd_check_dev(obd);
+	if (rc)
+		return rc;
 
 	ldt = obd->obd_type->typ_lu;
 	d = obd->obd_lu_dev;
@@ -668,7 +681,9 @@ obd_process_config(struct obd_device *obd, int datalen, void *data)
 	int rc;
 	DECLARE_LU_VARS(ldt, d);
 
-	OBD_CHECK_DEV(obd);
+	rc = obd_check_dev(obd);
+	if (rc)
+		return rc;
 
 	obd->obd_process_conf = 1;
 	ldt = obd->obd_type->typ_lu;
@@ -1280,7 +1295,9 @@ static inline int obd_notify(struct obd_device *obd,
 {
 	int rc;
 
-	OBD_CHECK_DEV(obd);
+	rc = obd_check_dev(obd);
+	if (rc)
+		return rc;
 
 	/* the check for async_recov is a complete hack - I'm hereby
 	   overloading the meaning to also mean "this was called from
@@ -1381,7 +1398,11 @@ static inline int obd_health_check(const struct lu_env *env,
 static inline int obd_register_observer(struct obd_device *obd,
 					struct obd_device *observer)
 {
-	OBD_CHECK_DEV(obd);
+	int rc;
+
+	rc = obd_check_dev(obd);
+	if (rc)
+		return rc;
 	down_write(&obd->obd_observer_link_sem);
 	if (obd->obd_observer && observer) {
 		up_write(&obd->obd_observer_link_sem);
