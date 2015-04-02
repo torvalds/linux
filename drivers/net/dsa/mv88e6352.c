@@ -47,12 +47,13 @@ static char *mv88e6352_probe(struct device *host_dev, int sw_addr)
 
 static int mv88e6352_switch_reset(struct dsa_switch *ds)
 {
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	unsigned long timeout;
 	int ret;
 	int i;
 
 	/* Set all ports to the disabled state. */
-	for (i = 0; i < 7; i++) {
+	for (i = 0; i < ps->num_ports; i++) {
 		ret = REG_READ(REG_PORT(i), 0x04);
 		REG_WRITE(REG_PORT(i), 0x04, ret & 0xfffc);
 	}
@@ -82,6 +83,7 @@ static int mv88e6352_switch_reset(struct dsa_switch *ds)
 
 static int mv88e6352_setup_global(struct dsa_switch *ds)
 {
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int ret;
 	int i;
 
@@ -152,7 +154,7 @@ static int mv88e6352_setup_global(struct dsa_switch *ds)
 	/* Disable ingress rate limiting by resetting all ingress
 	 * rate limit registers to their initial state.
 	 */
-	for (i = 0; i < 7; i++)
+	for (i = 0; i < ps->num_ports; i++)
 		REG_WRITE(REG_GLOBAL2, 0x09, 0x9000 | (i << 8));
 
 	/* Initialise cross-chip port VLAN table to reset defaults. */
@@ -367,6 +369,8 @@ static int mv88e6352_setup(struct dsa_switch *ds)
 	if (ret < 0)
 		return ret;
 
+	ps->num_ports = 7;
+
 	mutex_init(&ps->eeprom_mutex);
 
 	ret = mv88e6352_switch_reset(ds);
@@ -379,7 +383,7 @@ static int mv88e6352_setup(struct dsa_switch *ds)
 	if (ret < 0)
 		return ret;
 
-	for (i = 0; i < 7; i++) {
+	for (i = 0; i < ps->num_ports; i++) {
 		ret = mv88e6352_setup_port(ds, i);
 		if (ret < 0)
 			return ret;
