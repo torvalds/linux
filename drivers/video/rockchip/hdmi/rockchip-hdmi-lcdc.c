@@ -511,6 +511,7 @@ static void hdmi_sort_modelist(struct hdmi_edid *edid, int feature)
 
 	edid->modelist = head_new;
 	edid->modelist.prev->next = &edid->modelist;
+	edid->modelist.next->prev = &edid->modelist;
 }
 
 /**
