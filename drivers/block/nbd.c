@@ -285,7 +285,7 @@ static struct request *nbd_find_request(struct nbd_device *nbd,
 
 	err = wait_event_interruptible(nbd->active_wq, nbd->active_req != xreq);
 	if (unlikely(err))
-		goto out;
+		return ERR_PTR(err);
 
 	spin_lock(&nbd->queue_lock);
 	list_for_each_entry_safe(req, tmp, &nbd->queue_head, queuelist) {
@@ -297,10 +297,7 @@ static struct request *nbd_find_request(struct nbd_device *nbd,
 	}
 	spin_unlock(&nbd->queue_lock);
 
-	err = -ENOENT;
-
-out:
-	return ERR_PTR(err);
+	return ERR_PTR(-ENOENT);
 }
 
 static inline int sock_recv_bvec(struct nbd_device *nbd, struct bio_vec *bvec)
