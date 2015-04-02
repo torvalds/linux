@@ -129,48 +129,52 @@ static const struct file_operations tasks_fops = {
 	.release	= tasks_release,
 };
 
-int
+void
 rpc_clnt_debugfs_register(struct rpc_clnt *clnt)
 {
-	int len, err;
+	int len;
 	char name[24]; /* enough for "../../rpc_xprt/ + 8 hex digits + NULL */
+	struct rpc_xprt *xprt;
 
 	/* Already registered? */
-	if (clnt->cl_debugfs)
-		return 0;
+	if (clnt->cl_debugfs || !rpc_clnt_dir)
+		return;
 
 	len = snprintf(name, sizeof(name), "%x", clnt->cl_clid);
 	if (len >= sizeof(name))
-		return -EINVAL;
+		return;
 
 	/* make the per-client dir */
 	clnt->cl_debugfs = debugfs_create_dir(name, rpc_clnt_dir);
 	if (!clnt->cl_debugfs)
-		return -ENOMEM;
+		return;
 
 	/* make tasks file */
-	err = -ENOMEM;
 	if (!debugfs_create_file("tasks", S_IFREG | S_IRUSR, clnt->cl_debugfs,
 				 clnt, &tasks_fops))
 		goto out_err;
 
-	err = -EINVAL;
 	rcu_read_lock();
+	xprt = rcu_dereference(clnt->cl_xprt);
+	/* no "debugfs" dentry? Don't bother with the symlink. */
+	if (!xprt->debugfs) {
+		rcu_read_unlock();
+		return;
+	}
 	len = snprintf(name, sizeof(name), "../../rpc_xprt/%s",
-			rcu_dereference(clnt->cl_xprt)->debugfs->d_name.name);
+			xprt->debugfs->d_name.name);
 	rcu_read_unlock();
+
 	if (len >= sizeof(name))
 		goto out_err;
 
-	err = -ENOMEM;
 	if (!debugfs_create_symlink("xprt", clnt->cl_debugfs, name))
 		goto out_err;
 
-	return 0;
+	return;
 out_err:
 	debugfs_remove_recursive(clnt->cl_debugfs);
 	clnt->cl_debugfs = NULL;
-	return err;
 }
 
 void
@@ -226,33 +230,33 @@ static const struct file_operations xprt_info_fops = {
 	.release	= xprt_info_release,
 };
 
-int
+void
 rpc_xprt_debugfs_register(struct rpc_xprt *xprt)
 {
 	int len, id;
 	static atomic_t	cur_id;
 	char		name[9]; /* 8 hex digits + NULL term */
 
+	if (!rpc_xprt_dir)
+		return;
+
 	id = (unsigned int)atomic_inc_return(&cur_id);
 
 	len = snprintf(name, sizeof(name), "%x", id);
 	if (len >= sizeof(name))
-		return -EINVAL;
+		return;
 
 	/* make the per-client dir */
 	xprt->debugfs = debugfs_create_dir(name, rpc_xprt_dir);
 	if (!xprt->debugfs)
-		return -ENOMEM;
+		return;
 
 	/* make tasks file */
 	if (!debugfs_create_file("info", S_IFREG | S_IRUSR, xprt->debugfs,
 				 xprt, &xprt_info_fops)) {
 		debugfs_remove_recursive(xprt->debugfs);
 		xprt->debugfs = NULL;
-		return -ENOMEM;
 	}
-
-	return 0;
 }
 
 void
@@ -266,14 +270,17 @@ void __exit
 sunrpc_debugfs_exit(void)
 {
 	debugfs_remove_recursive(topdir);
+	topdir = NULL;
+	rpc_clnt_dir = NULL;
+	rpc_xprt_dir = NULL;
 }
 
-int __init
+void __init
 sunrpc_debugfs_init(void)
 {
 	topdir = debugfs_create_dir("sunrpc", NULL);
 	if (!topdir)
-		goto out;
+		return;
 
 	rpc_clnt_dir = debugfs_create_dir("rpc_clnt", topdir);
 	if (!rpc_clnt_dir)
@@ -283,10 +290,9 @@ sunrpc_debugfs_init(void)
 	if (!rpc_xprt_dir)
 		goto out_remove;
 
-	return 0;
+	return;
 out_remove:
 	debugfs_remove_recursive(topdir);
 	topdir = NULL;
-out:
-	return -ENOMEM;
+	rpc_clnt_dir = NULL;
 }

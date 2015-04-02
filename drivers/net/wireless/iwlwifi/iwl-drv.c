@@ -1319,6 +1319,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 				op->name, err);
 #endif
 	}
+	kfree(pieces);
 	return;
 
  try_again:

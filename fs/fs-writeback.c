@@ -53,6 +53,18 @@ struct wb_writeback_work {
 	struct completion *done;	/* set if the caller waits */
 };
 
+/*
+ * If an inode is constantly having its pages dirtied, but then the
+ * updates stop dirtytime_expire_interval seconds in the past, it's
+ * possible for the worst case time between when an inode has its
+ * timestamps updated and when they finally get written out to be two
+ * dirtytime_expire_intervals.  We set the default to 12 hours (in
+ * seconds), which means most of the time inodes will have their
+ * timestamps written to disk after 12 hours, but in the worst case a
+ * few inodes might not their timestamps updated for 24 hours.
+ */
+unsigned int dirtytime_expire_interval = 12 * 60 * 60;
+
 /**
  * writeback_in_progress - determine whether there is writeback in progress
  * @bdi: the device's backing_dev_info structure.
@@ -275,8 +287,8 @@ static int move_expired_inodes(struct list_head *delaying_queue,
 
 	if ((flags & EXPIRE_DIRTY_ATIME) == 0)
 		older_than_this = work->older_than_this;
-	else if ((work->reason == WB_REASON_SYNC) == 0) {
-		expire_time = jiffies - (HZ * 86400);
+	else if (!work->for_sync) {
+		expire_time = jiffies - (dirtytime_expire_interval * HZ);
 		older_than_this = &expire_time;
 	}
 	while (!list_empty(delaying_queue)) {
@@ -458,6 +470,7 @@ static void requeue_inode(struct inode *inode, struct bdi_writeback *wb,
 		 */
 		redirty_tail(inode, wb);
 	} else if (inode->i_state & I_DIRTY_TIME) {
+		inode->dirtied_when = jiffies;
 		list_move(&inode->i_wb_list, &wb->b_dirty_time);
 	} else {
 		/* The inode is clean. Remove from writeback lists. */
@@ -505,12 +518,17 @@ __writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 	spin_lock(&inode->i_lock);
 
 	dirty = inode->i_state & I_DIRTY;
-	if (((dirty & (I_DIRTY_SYNC | I_DIRTY_DATASYNC)) &&
-	     (inode->i_state & I_DIRTY_TIME)) ||
-	    (inode->i_state & I_DIRTY_TIME_EXPIRED)) {
-		dirty |= I_DIRTY_TIME | I_DIRTY_TIME_EXPIRED;
-		trace_writeback_lazytime(inode);
-	}
+	if (inode->i_state & I_DIRTY_TIME) {
+		if ((dirty & (I_DIRTY_SYNC | I_DIRTY_DATASYNC)) ||
+		    unlikely(inode->i_state & I_DIRTY_TIME_EXPIRED) ||
+		    unlikely(time_after(jiffies,
+					(inode->dirtied_time_when +
+					 dirtytime_expire_interval * HZ)))) {
+			dirty |= I_DIRTY_TIME | I_DIRTY_TIME_EXPIRED;
+			trace_writeback_lazytime(inode);
+		}
+	} else
+		inode->i_state &= ~I_DIRTY_TIME_EXPIRED;
 	inode->i_state &= ~dirty;
 
 	/*
@@ -1131,6 +1149,56 @@ void wakeup_flusher_threads(long nr_pages, enum wb_reason reason)
 	rcu_read_unlock();
 }
 
+/*
+ * Wake up bdi's periodically to make sure dirtytime inodes gets
+ * written back periodically.  We deliberately do *not* check the
+ * b_dirtytime list in wb_has_dirty_io(), since this would cause the
+ * kernel to be constantly waking up once there are any dirtytime
+ * inodes on the system.  So instead we define a separate delayed work
+ * function which gets called much more rarely.  (By default, only
+ * once every 12 hours.)
+ *
+ * If there is any other write activity going on in the file system,
+ * this function won't be necessary.  But if the only thing that has
+ * happened on the file system is a dirtytime inode caused by an atime
+ * update, we need this infrastructure below to make sure that inode
+ * eventually gets pushed out to disk.
+ */
+static void wakeup_dirtytime_writeback(struct work_struct *w);
+static DECLARE_DELAYED_WORK(dirtytime_work, wakeup_dirtytime_writeback);
+
+static void wakeup_dirtytime_writeback(struct work_struct *w)
+{
+	struct backing_dev_info *bdi;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(bdi, &bdi_list, bdi_list) {
+		if (list_empty(&bdi->wb.b_dirty_time))
+			continue;
+		bdi_wakeup_thread(bdi);
+	}
+	rcu_read_unlock();
+	schedule_delayed_work(&dirtytime_work, dirtytime_expire_interval * HZ);
+}
+
+static int __init start_dirtytime_writeback(void)
+{
+	schedule_delayed_work(&dirtytime_work, dirtytime_expire_interval * HZ);
+	return 0;
+}
+__initcall(start_dirtytime_writeback);
+
+int dirtytime_interval_handler(struct ctl_table *table, int write,
+			       void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	int ret;
+
+	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	if (ret == 0 && write)
+		mod_delayed_work(system_wq, &dirtytime_work, 0);
+	return ret;
+}
+
 static noinline void block_dump___mark_inode_dirty(struct inode *inode)
 {
 	if (inode->i_ino || strcmp(inode->i_sb->s_id, "bdev")) {
@@ -1269,8 +1337,13 @@ void __mark_inode_dirty(struct inode *inode, int flags)
 			}
 
 			inode->dirtied_when = jiffies;
-			list_move(&inode->i_wb_list, dirtytime ?
-				  &bdi->wb.b_dirty_time : &bdi->wb.b_dirty);
+			if (dirtytime)
+				inode->dirtied_time_when = jiffies;
+			if (inode->i_state & (I_DIRTY_INODE | I_DIRTY_PAGES))
+				list_move(&inode->i_wb_list, &bdi->wb.b_dirty);
+			else
+				list_move(&inode->i_wb_list,
+					  &bdi->wb.b_dirty_time);
 			spin_unlock(&bdi->wb.list_lock);
 			trace_writeback_dirty_inode_enqueue(inode);
 
