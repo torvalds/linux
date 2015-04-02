@@ -25,11 +25,11 @@ static char *mv88e6171_probe(struct device *host_dev, int sw_addr)
 	if (bus == NULL)
 		return NULL;
 
-	ret = __mv88e6xxx_reg_read(bus, sw_addr, REG_PORT(0), 0x03);
+	ret = __mv88e6xxx_reg_read(bus, sw_addr, REG_PORT(0), PORT_SWITCH_ID);
 	if (ret >= 0) {
-		if ((ret & 0xfff0) == ID_6171)
+		if ((ret & 0xfff0) == PORT_SWITCH_ID_6171)
 			return "Marvell 88E6171";
-		if ((ret & 0xfff0) == ID_6172)
+		if ((ret & 0xfff0) == PORT_SWITCH_ID_6172)
 			return "Marvell 88E6172";
 	}
 
@@ -263,7 +263,7 @@ static int mv88e6171_get_eee(struct dsa_switch *ds, int port,
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 
-	if (ps->id == ID_6172)
+	if (ps->id == PORT_SWITCH_ID_6172)
 		return mv88e6xxx_get_eee(ds, port, e);
 
 	return -EOPNOTSUPP;
@@ -274,7 +274,7 @@ static int mv88e6171_set_eee(struct dsa_switch *ds, int port,
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 
-	if (ps->id == ID_6172)
+	if (ps->id == PORT_SWITCH_ID_6172)
 		return mv88e6xxx_set_eee(ds, port, phydev, e);
 
 	return -EOPNOTSUPP;

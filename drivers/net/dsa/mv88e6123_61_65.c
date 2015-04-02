@@ -25,27 +25,27 @@ static char *mv88e6123_61_65_probe(struct device *host_dev, int sw_addr)
 	if (bus == NULL)
 		return NULL;
 
-	ret = __mv88e6xxx_reg_read(bus, sw_addr, REG_PORT(0), 0x03);
+	ret = __mv88e6xxx_reg_read(bus, sw_addr, REG_PORT(0), PORT_SWITCH_ID);
 	if (ret >= 0) {
-		if (ret == ID_6123_A1)
+		if (ret == PORT_SWITCH_ID_6123_A1)
 			return "Marvell 88E6123 (A1)";
-		if (ret == ID_6123_A2)
+		if (ret == PORT_SWITCH_ID_6123_A2)
 			return "Marvell 88E6123 (A2)";
-		if ((ret & 0xfff0) == ID_6123)
+		if ((ret & 0xfff0) == PORT_SWITCH_ID_6123)
 			return "Marvell 88E6123";
 
-		if (ret == ID_6161_A1)
+		if (ret == PORT_SWITCH_ID_6161_A1)
 			return "Marvell 88E6161 (A1)";
-		if (ret == ID_6161_A2)
+		if (ret == PORT_SWITCH_ID_6161_A2)
 			return "Marvell 88E6161 (A2)";
-		if ((ret & 0xfff0) == ID_6161)
+		if ((ret & 0xfff0) == PORT_SWITCH_ID_6161)
 			return "Marvell 88E6161";
 
-		if (ret == ID_6165_A1)
+		if (ret == PORT_SWITCH_ID_6165_A1)
 			return "Marvell 88E6165 (A1)";
-		if (ret == ID_6165_A2)
+		if (ret == PORT_SWITCH_ID_6165_A2)
 			return "Marvell 88e6165 (A2)";
-		if ((ret & 0xfff0) == ID_6165)
+		if ((ret & 0xfff0) == PORT_SWITCH_ID_6165)
 			return "Marvell 88E6165";
 	}
 
@@ -247,11 +247,11 @@ static int mv88e6123_61_65_setup(struct dsa_switch *ds)
 		return ret;
 
 	switch (ps->id) {
-	case ID_6123:
+	case PORT_SWITCH_ID_6123:
 		ps->num_ports = 3;
 		break;
-	case ID_6161:
-	case ID_6165:
+	case PORT_SWITCH_ID_6161:
+	case PORT_SWITCH_ID_6165:
 		ps->num_ports = 6;
 		break;
 	default:

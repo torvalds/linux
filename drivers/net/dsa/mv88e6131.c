@@ -25,17 +25,17 @@ static char *mv88e6131_probe(struct device *host_dev, int sw_addr)
 	if (bus == NULL)
 		return NULL;
 
-	ret = __mv88e6xxx_reg_read(bus, sw_addr, REG_PORT(0), 0x03);
+	ret = __mv88e6xxx_reg_read(bus, sw_addr, REG_PORT(0), PORT_SWITCH_ID);
 	if (ret >= 0) {
 		int ret_masked = ret & 0xfff0;
 
-		if (ret_masked == ID_6085)
+		if (ret_masked == PORT_SWITCH_ID_6085)
 			return "Marvell 88E6085";
-		if (ret_masked == ID_6095)
+		if (ret_masked == PORT_SWITCH_ID_6095)
 			return "Marvell 88E6095/88E6095F";
-		if (ret == ID_6131_B2)
+		if (ret == PORT_SWITCH_ID_6131_B2)
 			return "Marvell 88E6131 (B2)";
-		if (ret_masked == ID_6131)
+		if (ret_masked == PORT_SWITCH_ID_6131)
 			return "Marvell 88E6131";
 	}
 
@@ -135,7 +135,7 @@ static int mv88e6131_setup_port(struct dsa_switch *ds, int p)
 	 * (100 Mb/s on 6085) full duplex.
 	 */
 	if (dsa_is_cpu_port(ds, p) || ds->dsa_port_mask & (1 << p))
-		if (ps->id == ID_6085)
+		if (ps->id == PORT_SWITCH_ID_6085)
 			REG_WRITE(addr, 0x01, 0x003d); /* 100 Mb/s */
 		else
 			REG_WRITE(addr, 0x01, 0x003e); /* 1000 Mb/s */
@@ -162,7 +162,7 @@ static int mv88e6131_setup_port(struct dsa_switch *ds, int p)
 		/* On 6085, unknown multicast forward is controlled
 		 * here rather than in Port Control 2 register.
 		 */
-		if (ps->id == ID_6085)
+		if (ps->id == PORT_SWITCH_ID_6085)
 			val |= 0x0008;
 	}
 	if (ds->dsa_port_mask & (1 << p))
@@ -181,7 +181,7 @@ static int mv88e6131_setup_port(struct dsa_switch *ds, int p)
 	 * If this is the upstream port for this switch, enable
 	 * forwarding of unknown multicast addresses.
 	 */
-	if (ps->id == ID_6085)
+	if (ps->id == PORT_SWITCH_ID_6085)
 		/* on 6085, bits 3:0 are reserved, bit 6 control ARP
 		 * mirroring, and multicast forward is handled in
 		 * Port Control register.
@@ -233,14 +233,14 @@ static int mv88e6131_setup(struct dsa_switch *ds)
 	mv88e6xxx_ppu_state_init(ds);
 
 	switch (ps->id) {
-	case ID_6085:
+	case PORT_SWITCH_ID_6085:
 		ps->num_ports = 10;
 		break;
-	case ID_6095:
+	case PORT_SWITCH_ID_6095:
 		ps->num_ports = 11;
 		break;
-	case ID_6131:
-	case ID_6131_B2:
+	case PORT_SWITCH_ID_6131:
+	case PORT_SWITCH_ID_6131_B2:
 		ps->num_ports = 8;
 		break;
 	default:
