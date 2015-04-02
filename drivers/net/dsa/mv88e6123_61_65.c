@@ -27,25 +27,25 @@ static char *mv88e6123_61_65_probe(struct device *host_dev, int sw_addr)
 
 	ret = __mv88e6xxx_reg_read(bus, sw_addr, REG_PORT(0), 0x03);
 	if (ret >= 0) {
-		if (ret == 0x1212)
+		if (ret == ID_6123_A1)
 			return "Marvell 88E6123 (A1)";
-		if (ret == 0x1213)
+		if (ret == ID_6123_A2)
 			return "Marvell 88E6123 (A2)";
-		if ((ret & 0xfff0) == 0x1210)
+		if ((ret & 0xfff0) == ID_6123)
 			return "Marvell 88E6123";
 
-		if (ret == 0x1612)
+		if (ret == ID_6161_A1)
 			return "Marvell 88E6161 (A1)";
-		if (ret == 0x1613)
+		if (ret == ID_6161_A2)
 			return "Marvell 88E6161 (A2)";
-		if ((ret & 0xfff0) == 0x1610)
+		if ((ret & 0xfff0) == ID_6161)
 			return "Marvell 88E6161";
 
-		if (ret == 0x1652)
+		if (ret == ID_6165_A1)
 			return "Marvell 88E6165 (A1)";
-		if (ret == 0x1653)
+		if (ret == ID_6165_A2)
 			return "Marvell 88e6165 (A2)";
-		if ((ret & 0xfff0) == 0x1650)
+		if ((ret & 0xfff0) == ID_6165)
 			return "Marvell 88E6165";
 	}
 
@@ -54,12 +54,13 @@ static char *mv88e6123_61_65_probe(struct device *host_dev, int sw_addr)
 
 static int mv88e6123_61_65_switch_reset(struct dsa_switch *ds)
 {
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int i;
 	int ret;
 	unsigned long timeout;
 
 	/* Set all ports to the disabled state. */
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < ps->num_ports; i++) {
 		ret = REG_READ(REG_PORT(i), 0x04);
 		REG_WRITE(REG_PORT(i), 0x04, ret & 0xfffc);
 	}
@@ -271,12 +272,25 @@ static int mv88e6123_61_65_setup_port(struct dsa_switch *ds, int p)
 
 static int mv88e6123_61_65_setup(struct dsa_switch *ds)
 {
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int i;
 	int ret;
 
 	ret = mv88e6xxx_setup_common(ds);
 	if (ret < 0)
 		return ret;
+
+	switch (ps->id) {
+	case ID_6123:
+		ps->num_ports = 3;
+		break;
+	case ID_6161:
+	case ID_6165:
+		ps->num_ports = 6;
+		break;
+	default:
+		return -ENODEV;
+	}
 
 	ret = mv88e6123_61_65_switch_reset(ds);
 	if (ret < 0)
@@ -288,7 +302,7 @@ static int mv88e6123_61_65_setup(struct dsa_switch *ds)
 	if (ret < 0)
 		return ret;
 
-	for (i = 0; i < 6; i++) {
+	for (i = 0; i < ps->num_ports; i++) {
 		ret = mv88e6123_61_65_setup_port(ds, i);
 		if (ret < 0)
 			return ret;
@@ -297,19 +311,24 @@ static int mv88e6123_61_65_setup(struct dsa_switch *ds)
 	return 0;
 }
 
-static int mv88e6123_61_65_port_to_phy_addr(int port)
+static int mv88e6123_61_65_port_to_phy_addr(struct dsa_switch *ds, int port)
 {
-	if (port >= 0 && port <= 4)
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+
+	if (port >= 0 && port < ps->num_ports)
 		return port;
-	return -1;
+	return -EINVAL;
 }
 
 static int
 mv88e6123_61_65_phy_read(struct dsa_switch *ds, int port, int regnum)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	int addr = mv88e6123_61_65_port_to_phy_addr(port);
+	int addr = mv88e6123_61_65_port_to_phy_addr(ds, port);
 	int ret;
+
+	if (addr < 0)
+		return addr;
 
 	mutex_lock(&ps->phy_mutex);
 	ret = mv88e6xxx_phy_read(ds, addr, regnum);
@@ -322,8 +341,11 @@ mv88e6123_61_65_phy_write(struct dsa_switch *ds,
 			      int port, int regnum, u16 val)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	int addr = mv88e6123_61_65_port_to_phy_addr(port);
+	int addr = mv88e6123_61_65_port_to_phy_addr(ds, port);
 	int ret;
+
+	if (addr < 0)
+		return addr;
 
 	mutex_lock(&ps->phy_mutex);
 	ret = mv88e6xxx_phy_write(ds, addr, regnum, val);
