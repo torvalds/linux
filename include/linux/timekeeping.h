@@ -214,12 +214,18 @@ static inline u64 ktime_get_boot_ns(void)
 	return ktime_to_ns(ktime_get_boottime());
 }
 
+static inline u64 ktime_get_tai_ns(void)
+{
+	return ktime_to_ns(ktime_get_clocktai());
+}
+
 static inline u64 ktime_get_raw_ns(void)
 {
 	return ktime_to_ns(ktime_get_raw());
 }
 
 extern u64 ktime_get_mono_fast_ns(void);
+extern u64 ktime_get_raw_fast_ns(void);
 
 /*
  * Timespec interfaces utilizing the ktime based ones

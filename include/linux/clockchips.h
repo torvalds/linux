@@ -39,6 +39,8 @@ enum clock_event_mode {
 	CLOCK_EVT_MODE_PERIODIC,
 	CLOCK_EVT_MODE_ONESHOT,
 	CLOCK_EVT_MODE_RESUME,
+
+	/* Legacy ->set_mode() callback doesn't support below modes */
 };
 
 /*
@@ -81,7 +83,11 @@ enum clock_event_mode {
  * @mode:		operating mode assigned by the management code
  * @features:		features
  * @retries:		number of forced programming retries
- * @set_mode:		set mode function
+ * @set_mode:		legacy set mode function, only for modes <= CLOCK_EVT_MODE_RESUME.
+ * @set_mode_periodic:	switch mode to periodic, if !set_mode
+ * @set_mode_oneshot:	switch mode to oneshot, if !set_mode
+ * @set_mode_shutdown:	switch mode to shutdown, if !set_mode
+ * @set_mode_resume:	resume clkevt device, if !set_mode
  * @broadcast:		function to broadcast events
  * @min_delta_ticks:	minimum delta value in ticks stored for reconfiguration
  * @max_delta_ticks:	maximum delta value in ticks stored for reconfiguration
@@ -108,9 +114,20 @@ struct clock_event_device {
 	unsigned int		features;
 	unsigned long		retries;
 
-	void			(*broadcast)(const struct cpumask *mask);
+	/*
+	 * Mode transition callback(s): Only one of the two groups should be
+	 * defined:
+	 * - set_mode(), only for modes <= CLOCK_EVT_MODE_RESUME.
+	 * - set_mode_{shutdown|periodic|oneshot|resume}().
+	 */
 	void			(*set_mode)(enum clock_event_mode mode,
 					    struct clock_event_device *);
+	int			(*set_mode_periodic)(struct clock_event_device *);
+	int			(*set_mode_oneshot)(struct clock_event_device *);
+	int			(*set_mode_shutdown)(struct clock_event_device *);
+	int			(*set_mode_resume)(struct clock_event_device *);
+
+	void			(*broadcast)(const struct cpumask *mask);
 	void			(*suspend)(struct clock_event_device *);
 	void			(*resume)(struct clock_event_device *);
 	unsigned long		min_delta_ticks;
