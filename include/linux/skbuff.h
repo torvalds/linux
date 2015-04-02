@@ -171,6 +171,7 @@ struct nf_bridge_info {
 		BRNF_PROTO_8021Q,
 		BRNF_PROTO_PPPOE
 	} orig_proto;
+	bool			pkt_otherhost;
 	unsigned int		mask;
 	struct net_device	*physindev;
 	struct net_device	*physoutdev;

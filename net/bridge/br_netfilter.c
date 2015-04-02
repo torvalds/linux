@@ -282,9 +282,9 @@ static int br_nf_pre_routing_finish_ipv6(struct sk_buff *skb)
 	struct nf_bridge_info *nf_bridge = nf_bridge_info_get(skb);
 	struct rtable *rt;
 
-	if (nf_bridge->mask & BRNF_PKT_TYPE) {
+	if (nf_bridge->pkt_otherhost) {
 		skb->pkt_type = PACKET_OTHERHOST;
-		nf_bridge->mask ^= BRNF_PKT_TYPE;
+		nf_bridge->pkt_otherhost = false;
 	}
 	nf_bridge->mask ^= BRNF_NF_BRIDGE_PREROUTING;
 
@@ -415,9 +415,9 @@ static int br_nf_pre_routing_finish(struct sk_buff *skb)
 	frag_max_size = IPCB(skb)->frag_max_size;
 	BR_INPUT_SKB_CB(skb)->frag_max_size = frag_max_size;
 
-	if (nf_bridge->mask & BRNF_PKT_TYPE) {
+	if (nf_bridge->pkt_otherhost) {
 		skb->pkt_type = PACKET_OTHERHOST;
-		nf_bridge->mask ^= BRNF_PKT_TYPE;
+		nf_bridge->pkt_otherhost = false;
 	}
 	nf_bridge->mask ^= BRNF_NF_BRIDGE_PREROUTING;
 	if (dnat_took_place(skb)) {
@@ -503,7 +503,7 @@ static struct net_device *setup_pre_routing(struct sk_buff *skb)
 
 	if (skb->pkt_type == PACKET_OTHERHOST) {
 		skb->pkt_type = PACKET_HOST;
-		nf_bridge->mask |= BRNF_PKT_TYPE;
+		nf_bridge->pkt_otherhost = true;
 	}
 
 	nf_bridge->mask |= BRNF_NF_BRIDGE_PREROUTING;
@@ -711,9 +711,9 @@ static int br_nf_forward_finish(struct sk_buff *skb)
 		}
 
 		in = nf_bridge->physindev;
-		if (nf_bridge->mask & BRNF_PKT_TYPE) {
+		if (nf_bridge->pkt_otherhost) {
 			skb->pkt_type = PACKET_OTHERHOST;
-			nf_bridge->mask ^= BRNF_PKT_TYPE;
+			nf_bridge->pkt_otherhost = false;
 		}
 		nf_bridge_update_protocol(skb);
 	} else {
@@ -769,7 +769,7 @@ static unsigned int br_nf_forward_ip(const struct nf_hook_ops *ops,
 
 	if (skb->pkt_type == PACKET_OTHERHOST) {
 		skb->pkt_type = PACKET_HOST;
-		nf_bridge->mask |= BRNF_PKT_TYPE;
+		nf_bridge->pkt_otherhost = true;
 	}
 
 	if (pf == NFPROTO_IPV4) {
@@ -927,7 +927,7 @@ static unsigned int br_nf_post_routing(const struct nf_hook_ops *ops,
 	 * about the value of skb->pkt_type. */
 	if (skb->pkt_type == PACKET_OTHERHOST) {
 		skb->pkt_type = PACKET_HOST;
-		nf_bridge->mask |= BRNF_PKT_TYPE;
+		nf_bridge->pkt_otherhost = true;
 	}
 
 	nf_bridge_pull_encap_header(skb);
