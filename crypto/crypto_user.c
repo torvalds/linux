@@ -316,7 +316,7 @@ static int crypto_del_alg(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (atomic_read(&alg->cra_refcnt) != 1)
 		return -EBUSY;
 
-	return crypto_unregister_instance(alg);
+	return crypto_unregister_instance((struct crypto_instance *)alg);
 }
 
 static struct crypto_alg *crypto_user_skcipher_alg(const char *name, u32 type,
