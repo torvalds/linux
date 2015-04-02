@@ -111,6 +111,19 @@ static inline __be16 pppoe_proto(const struct sk_buff *skb)
 	 pppoe_proto(skb) == htons(PPP_IPV6) && \
 	 brnf_filter_pppoe_tagged)
 
+/* largest possible L2 header, see br_nf_dev_queue_xmit() */
+#define NF_BRIDGE_MAX_MAC_HEADER_LENGTH (PPPOE_SES_HLEN + ETH_HLEN)
+
+#if IS_ENABLED(CONFIG_NF_DEFRAG_IPV4)
+struct brnf_frag_data {
+	char mac[NF_BRIDGE_MAX_MAC_HEADER_LENGTH];
+	u8 encap_size;
+	u8 size;
+};
+
+static DEFINE_PER_CPU(struct brnf_frag_data, brnf_frag_data_storage);
+#endif
+
 static inline struct rtable *bridge_parent_rtable(const struct net_device *dev)
 {
 	struct net_bridge_port *port;
@@ -187,14 +200,6 @@ static inline void nf_bridge_pull_encap_header_rcsum(struct sk_buff *skb)
 
 	skb_pull_rcsum(skb, len);
 	skb->network_header += len;
-}
-
-static inline void nf_bridge_save_header(struct sk_buff *skb)
-{
-	int header_size = ETH_HLEN + nf_bridge_encap_header_len(skb);
-
-	skb_copy_from_linear_data_offset(skb, -header_size,
-					 skb->nf_bridge->data, header_size);
 }
 
 /* When handing a packet over to the IP layer
@@ -318,7 +323,7 @@ static int br_nf_pre_routing_finish_bridge(struct sk_buff *skb)
 			 */
 			skb_copy_from_linear_data_offset(skb,
 							 -(ETH_HLEN-ETH_ALEN),
-							 skb->nf_bridge->data,
+							 nf_bridge->neigh_header,
 							 ETH_HLEN-ETH_ALEN);
 			/* tell br_dev_xmit to continue with forwarding */
 			nf_bridge->mask |= BRNF_BRIDGED_DNAT;
@@ -810,29 +815,21 @@ static unsigned int br_nf_forward_arp(const struct nf_hook_ops *ops,
 }
 
 #if IS_ENABLED(CONFIG_NF_DEFRAG_IPV4)
-static bool nf_bridge_copy_header(struct sk_buff *skb)
-{
-	int err;
-	unsigned int header_size;
-
-	nf_bridge_update_protocol(skb);
-	header_size = ETH_HLEN + nf_bridge_encap_header_len(skb);
-	err = skb_cow_head(skb, header_size);
-	if (err)
-		return false;
-
-	skb_copy_to_linear_data_offset(skb, -header_size,
-				       skb->nf_bridge->data, header_size);
-	__skb_push(skb, nf_bridge_encap_header_len(skb));
-	return true;
-}
-
 static int br_nf_push_frag_xmit(struct sk_buff *skb)
 {
-	if (!nf_bridge_copy_header(skb)) {
+	struct brnf_frag_data *data;
+	int err;
+
+	data = this_cpu_ptr(&brnf_frag_data_storage);
+	err = skb_cow_head(skb, data->size);
+
+	if (err) {
 		kfree_skb(skb);
 		return 0;
 	}
+
+	skb_copy_to_linear_data_offset(skb, -data->size, data->mac, data->size);
+	__skb_push(skb, data->encap_size);
 
 	return br_dev_queue_push_xmit(skb);
 }
@@ -851,14 +848,27 @@ static int br_nf_dev_queue_xmit(struct sk_buff *skb)
 	 * boundaries by preserving frag_list rather than refragmenting.
 	 */
 	if (skb->len + mtu_reserved > skb->dev->mtu) {
+		struct brnf_frag_data *data;
+
 		frag_max_size = BR_INPUT_SKB_CB(skb)->frag_max_size;
 		if (br_parse_ip_options(skb))
 			/* Drop invalid packet */
 			return NF_DROP;
 		IPCB(skb)->frag_max_size = frag_max_size;
+
+		nf_bridge_update_protocol(skb);
+
+		data = this_cpu_ptr(&brnf_frag_data_storage);
+		data->encap_size = nf_bridge_encap_header_len(skb);
+		data->size = ETH_HLEN + data->encap_size;
+
+		skb_copy_from_linear_data_offset(skb, -data->size, data->mac,
+						 data->size);
+
 		ret = ip_fragment(skb, br_nf_push_frag_xmit);
-	} else
+	} else {
 		ret = br_dev_queue_push_xmit(skb);
+	}
 
 	return ret;
 }
@@ -906,7 +916,6 @@ static unsigned int br_nf_post_routing(const struct nf_hook_ops *ops,
 	}
 
 	nf_bridge_pull_encap_header(skb);
-	nf_bridge_save_header(skb);
 	if (pf == NFPROTO_IPV4)
 		skb->protocol = htons(ETH_P_IP);
 	else
@@ -951,8 +960,11 @@ static void br_nf_pre_routing_finish_bridge_slow(struct sk_buff *skb)
 	skb_pull(skb, ETH_HLEN);
 	nf_bridge->mask &= ~BRNF_BRIDGED_DNAT;
 
-	skb_copy_to_linear_data_offset(skb, -(ETH_HLEN-ETH_ALEN),
-				       skb->nf_bridge->data, ETH_HLEN-ETH_ALEN);
+	BUILD_BUG_ON(sizeof(nf_bridge->neigh_header) != (ETH_HLEN - ETH_ALEN));
+
+	skb_copy_to_linear_data_offset(skb, -(ETH_HLEN - ETH_ALEN),
+				       nf_bridge->neigh_header,
+				       ETH_HLEN - ETH_ALEN);
 	skb->dev = nf_bridge->physindev;
 	br_handle_frame_finish(skb);
 }
