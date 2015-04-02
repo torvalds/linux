@@ -726,7 +726,8 @@ static int mlx4_cmd_wait(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 		 * specific command/input_mod/opcode_mod/fw-status to be debug.
 		 */
 		if (op == MLX4_CMD_SET_PORT && in_modifier == 1 &&
-		    op_modifier == 0 && context->fw_status == CMD_STAT_BAD_SIZE)
+		    op_modifier == MLX4_SET_PORT_IB_OPCODE &&
+		    context->fw_status == CMD_STAT_BAD_SIZE)
 			mlx4_dbg(dev, "command 0x%x failed: fw status = 0x%x\n",
 				 op, context->fw_status);
 		else

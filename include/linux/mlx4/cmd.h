@@ -188,7 +188,13 @@ enum {
 };
 
 enum {
-	/* set port opcode modifiers */
+	/* Set port opcode modifiers */
+	MLX4_SET_PORT_IB_OPCODE		= 0x0,
+	MLX4_SET_PORT_ETH_OPCODE	= 0x1,
+};
+
+enum {
+	/* Set port Ethernet input modifiers */
 	MLX4_SET_PORT_GENERAL   = 0x0,
 	MLX4_SET_PORT_RQP_CALC  = 0x1,
 	MLX4_SET_PORT_MAC_TABLE = 0x2,
