@@ -1457,7 +1457,7 @@ static struct drm_connector_helper_funcs dw_hdmi_connector_helper_funcs = {
 	.best_encoder = dw_hdmi_connector_best_encoder,
 };
 
-struct drm_bridge_funcs dw_hdmi_bridge_funcs = {
+static struct drm_bridge_funcs dw_hdmi_bridge_funcs = {
 	.enable = dw_hdmi_bridge_enable,
 	.disable = dw_hdmi_bridge_disable,
 	.pre_enable = dw_hdmi_bridge_nop,
