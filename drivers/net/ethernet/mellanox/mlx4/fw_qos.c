@@ -34,6 +34,13 @@
 
 #include <linux/export.h>
 #include "fw_qos.h"
+#include "fw.h"
+
+enum {
+	/* allocate vpp opcode modifiers */
+	MLX4_ALLOCATE_VPP_ALLOCATE	= 0x0,
+	MLX4_ALLOCATE_VPP_QUERY		= 0x1
+};
 
 struct mlx4_set_port_prio2tc_context {
 	u8 prio2tc[4];
@@ -48,6 +55,12 @@ struct mlx4_port_scheduler_tc_cfg_be {
 
 struct mlx4_set_port_scheduler_context {
 	struct mlx4_port_scheduler_tc_cfg_be tc[MLX4_NUM_TC];
+};
+
+/* Granular Qos (per VF) section */
+struct mlx4_alloc_vpp_param {
+	__be32 availible_vpp;
+	__be32 vpp_p_up[MLX4_NUM_UP];
 };
 
 int mlx4_SET_PORT_PRIO2TC(struct mlx4_dev *dev, u8 port, u8 *prio2tc)
@@ -123,3 +136,65 @@ int mlx4_SET_PORT_SCHEDULER(struct mlx4_dev *dev, u8 port, u8 *tc_tx_bw,
 	return err;
 }
 EXPORT_SYMBOL(mlx4_SET_PORT_SCHEDULER);
+
+int mlx4_ALLOCATE_VPP_get(struct mlx4_dev *dev, u8 port,
+			  u16 *availible_vpp, u8 *vpp_p_up)
+{
+	int i;
+	int err;
+	struct mlx4_cmd_mailbox *mailbox;
+	struct mlx4_alloc_vpp_param *out_param;
+
+	mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+
+	out_param = mailbox->buf;
+
+	err = mlx4_cmd_box(dev, 0, mailbox->dma, port,
+			   MLX4_ALLOCATE_VPP_QUERY,
+			   MLX4_CMD_ALLOCATE_VPP,
+			   MLX4_CMD_TIME_CLASS_A,
+			   MLX4_CMD_NATIVE);
+	if (err)
+		goto out;
+
+	/* Total number of supported VPPs */
+	*availible_vpp = (u16)be32_to_cpu(out_param->availible_vpp);
+
+	for (i = 0; i < MLX4_NUM_UP; i++)
+		vpp_p_up[i] = (u8)be32_to_cpu(out_param->vpp_p_up[i]);
+
+out:
+	mlx4_free_cmd_mailbox(dev, mailbox);
+
+	return err;
+}
+EXPORT_SYMBOL(mlx4_ALLOCATE_VPP_get);
+
+int mlx4_ALLOCATE_VPP_set(struct mlx4_dev *dev, u8 port, u8 *vpp_p_up)
+{
+	int i;
+	int err;
+	struct mlx4_cmd_mailbox *mailbox;
+	struct mlx4_alloc_vpp_param *in_param;
+
+	mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+
+	in_param = mailbox->buf;
+
+	for (i = 0; i < MLX4_NUM_UP; i++)
+		in_param->vpp_p_up[i] = cpu_to_be32(vpp_p_up[i]);
+
+	err = mlx4_cmd(dev, mailbox->dma, port,
+		       MLX4_ALLOCATE_VPP_ALLOCATE,
+		       MLX4_CMD_ALLOCATE_VPP,
+		       MLX4_CMD_TIME_CLASS_A,
+		       MLX4_CMD_NATIVE);
+
+	mlx4_free_cmd_mailbox(dev, mailbox);
+	return err;
+}
+EXPORT_SYMBOL(mlx4_ALLOCATE_VPP_set);
