@@ -4706,7 +4706,7 @@ static void vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 	vmx->vcpu.arch.regs[VCPU_REGS_RDX] = get_rdx_init_val();
 	kvm_set_cr8(&vmx->vcpu, 0);
 	apic_base_msr.data = APIC_DEFAULT_PHYS_BASE | MSR_IA32_APICBASE_ENABLE;
-	if (kvm_vcpu_is_bsp(&vmx->vcpu))
+	if (kvm_vcpu_is_reset_bsp(&vmx->vcpu))
 		apic_base_msr.data |= MSR_IA32_APICBASE_BSP;
 	apic_base_msr.host_initiated = true;
 	kvm_set_apic_base(&vmx->vcpu, &apic_base_msr);

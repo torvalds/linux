@@ -1261,7 +1261,7 @@ static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
 
 	svm->vcpu.arch.apic_base = APIC_DEFAULT_PHYS_BASE |
 				   MSR_IA32_APICBASE_ENABLE;
-	if (kvm_vcpu_is_bsp(&svm->vcpu))
+	if (kvm_vcpu_is_reset_bsp(&svm->vcpu))
 		svm->vcpu.arch.apic_base |= MSR_IA32_APICBASE_BSP;
 
 	svm_init_osvw(&svm->vcpu);

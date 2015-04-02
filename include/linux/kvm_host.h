@@ -982,9 +982,14 @@ static inline int kvm_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 #endif /* CONFIG_HAVE_KVM_EVENTFD */
 
 #ifdef CONFIG_KVM_APIC_ARCHITECTURE
-static inline bool kvm_vcpu_is_bsp(struct kvm_vcpu *vcpu)
+static inline bool kvm_vcpu_is_reset_bsp(struct kvm_vcpu *vcpu)
 {
 	return vcpu->kvm->bsp_vcpu_id == vcpu->vcpu_id;
+}
+
+static inline bool kvm_vcpu_is_bsp(struct kvm_vcpu *vcpu)
+{
+	return (vcpu->arch.apic_base & MSR_IA32_APICBASE_BSP) != 0;
 }
 
 bool kvm_vcpu_compatible(struct kvm_vcpu *vcpu);
