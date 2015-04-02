@@ -25,64 +25,31 @@ static char *mv88e6123_61_65_probe(struct device *host_dev, int sw_addr)
 	if (bus == NULL)
 		return NULL;
 
-	ret = __mv88e6xxx_reg_read(bus, sw_addr, REG_PORT(0), 0x03);
+	ret = __mv88e6xxx_reg_read(bus, sw_addr, REG_PORT(0), PORT_SWITCH_ID);
 	if (ret >= 0) {
-		if (ret == 0x1212)
+		if (ret == PORT_SWITCH_ID_6123_A1)
 			return "Marvell 88E6123 (A1)";
-		if (ret == 0x1213)
+		if (ret == PORT_SWITCH_ID_6123_A2)
 			return "Marvell 88E6123 (A2)";
-		if ((ret & 0xfff0) == 0x1210)
+		if ((ret & 0xfff0) == PORT_SWITCH_ID_6123)
 			return "Marvell 88E6123";
 
-		if (ret == 0x1612)
+		if (ret == PORT_SWITCH_ID_6161_A1)
 			return "Marvell 88E6161 (A1)";
-		if (ret == 0x1613)
+		if (ret == PORT_SWITCH_ID_6161_A2)
 			return "Marvell 88E6161 (A2)";
-		if ((ret & 0xfff0) == 0x1610)
+		if ((ret & 0xfff0) == PORT_SWITCH_ID_6161)
 			return "Marvell 88E6161";
 
-		if (ret == 0x1652)
+		if (ret == PORT_SWITCH_ID_6165_A1)
 			return "Marvell 88E6165 (A1)";
-		if (ret == 0x1653)
+		if (ret == PORT_SWITCH_ID_6165_A2)
 			return "Marvell 88e6165 (A2)";
-		if ((ret & 0xfff0) == 0x1650)
+		if ((ret & 0xfff0) == PORT_SWITCH_ID_6165)
 			return "Marvell 88E6165";
 	}
 
 	return NULL;
-}
-
-static int mv88e6123_61_65_switch_reset(struct dsa_switch *ds)
-{
-	int i;
-	int ret;
-	unsigned long timeout;
-
-	/* Set all ports to the disabled state. */
-	for (i = 0; i < 8; i++) {
-		ret = REG_READ(REG_PORT(i), 0x04);
-		REG_WRITE(REG_PORT(i), 0x04, ret & 0xfffc);
-	}
-
-	/* Wait for transmit queues to drain. */
-	usleep_range(2000, 4000);
-
-	/* Reset the switch. */
-	REG_WRITE(REG_GLOBAL, 0x04, 0xc400);
-
-	/* Wait up to one second for reset to complete. */
-	timeout = jiffies + 1 * HZ;
-	while (time_before(jiffies, timeout)) {
-		ret = REG_READ(REG_GLOBAL, 0x00);
-		if ((ret & 0xc800) == 0xc800)
-			break;
-
-		usleep_range(1000, 2000);
-	}
-	if (time_after(jiffies, timeout))
-		return -ETIMEDOUT;
-
-	return 0;
 }
 
 static int mv88e6123_61_65_setup_global(struct dsa_switch *ds)
@@ -271,6 +238,7 @@ static int mv88e6123_61_65_setup_port(struct dsa_switch *ds, int p)
 
 static int mv88e6123_61_65_setup(struct dsa_switch *ds)
 {
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int i;
 	int ret;
 
@@ -278,7 +246,19 @@ static int mv88e6123_61_65_setup(struct dsa_switch *ds)
 	if (ret < 0)
 		return ret;
 
-	ret = mv88e6123_61_65_switch_reset(ds);
+	switch (ps->id) {
+	case PORT_SWITCH_ID_6123:
+		ps->num_ports = 3;
+		break;
+	case PORT_SWITCH_ID_6161:
+	case PORT_SWITCH_ID_6165:
+		ps->num_ports = 6;
+		break;
+	default:
+		return -ENODEV;
+	}
+
+	ret = mv88e6xxx_switch_reset(ds, false);
 	if (ret < 0)
 		return ret;
 
@@ -288,7 +268,7 @@ static int mv88e6123_61_65_setup(struct dsa_switch *ds)
 	if (ret < 0)
 		return ret;
 
-	for (i = 0; i < 6; i++) {
+	for (i = 0; i < ps->num_ports; i++) {
 		ret = mv88e6123_61_65_setup_port(ds, i);
 		if (ret < 0)
 			return ret;
@@ -297,108 +277,18 @@ static int mv88e6123_61_65_setup(struct dsa_switch *ds)
 	return 0;
 }
 
-static int mv88e6123_61_65_port_to_phy_addr(int port)
-{
-	if (port >= 0 && port <= 4)
-		return port;
-	return -1;
-}
-
-static int
-mv88e6123_61_65_phy_read(struct dsa_switch *ds, int port, int regnum)
-{
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	int addr = mv88e6123_61_65_port_to_phy_addr(port);
-	int ret;
-
-	mutex_lock(&ps->phy_mutex);
-	ret = mv88e6xxx_phy_read(ds, addr, regnum);
-	mutex_unlock(&ps->phy_mutex);
-	return ret;
-}
-
-static int
-mv88e6123_61_65_phy_write(struct dsa_switch *ds,
-			      int port, int regnum, u16 val)
-{
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	int addr = mv88e6123_61_65_port_to_phy_addr(port);
-	int ret;
-
-	mutex_lock(&ps->phy_mutex);
-	ret = mv88e6xxx_phy_write(ds, addr, regnum, val);
-	mutex_unlock(&ps->phy_mutex);
-	return ret;
-}
-
-static struct mv88e6xxx_hw_stat mv88e6123_61_65_hw_stats[] = {
-	{ "in_good_octets", 8, 0x00, },
-	{ "in_bad_octets", 4, 0x02, },
-	{ "in_unicast", 4, 0x04, },
-	{ "in_broadcasts", 4, 0x06, },
-	{ "in_multicasts", 4, 0x07, },
-	{ "in_pause", 4, 0x16, },
-	{ "in_undersize", 4, 0x18, },
-	{ "in_fragments", 4, 0x19, },
-	{ "in_oversize", 4, 0x1a, },
-	{ "in_jabber", 4, 0x1b, },
-	{ "in_rx_error", 4, 0x1c, },
-	{ "in_fcs_error", 4, 0x1d, },
-	{ "out_octets", 8, 0x0e, },
-	{ "out_unicast", 4, 0x10, },
-	{ "out_broadcasts", 4, 0x13, },
-	{ "out_multicasts", 4, 0x12, },
-	{ "out_pause", 4, 0x15, },
-	{ "excessive", 4, 0x11, },
-	{ "collisions", 4, 0x1e, },
-	{ "deferred", 4, 0x05, },
-	{ "single", 4, 0x14, },
-	{ "multiple", 4, 0x17, },
-	{ "out_fcs_error", 4, 0x03, },
-	{ "late", 4, 0x1f, },
-	{ "hist_64bytes", 4, 0x08, },
-	{ "hist_65_127bytes", 4, 0x09, },
-	{ "hist_128_255bytes", 4, 0x0a, },
-	{ "hist_256_511bytes", 4, 0x0b, },
-	{ "hist_512_1023bytes", 4, 0x0c, },
-	{ "hist_1024_max_bytes", 4, 0x0d, },
-	{ "sw_in_discards", 4, 0x110, },
-	{ "sw_in_filtered", 2, 0x112, },
-	{ "sw_out_filtered", 2, 0x113, },
-};
-
-static void
-mv88e6123_61_65_get_strings(struct dsa_switch *ds, int port, uint8_t *data)
-{
-	mv88e6xxx_get_strings(ds, ARRAY_SIZE(mv88e6123_61_65_hw_stats),
-			      mv88e6123_61_65_hw_stats, port, data);
-}
-
-static void
-mv88e6123_61_65_get_ethtool_stats(struct dsa_switch *ds,
-				  int port, uint64_t *data)
-{
-	mv88e6xxx_get_ethtool_stats(ds, ARRAY_SIZE(mv88e6123_61_65_hw_stats),
-				    mv88e6123_61_65_hw_stats, port, data);
-}
-
-static int mv88e6123_61_65_get_sset_count(struct dsa_switch *ds)
-{
-	return ARRAY_SIZE(mv88e6123_61_65_hw_stats);
-}
-
 struct dsa_switch_driver mv88e6123_61_65_switch_driver = {
 	.tag_protocol		= DSA_TAG_PROTO_EDSA,
 	.priv_size		= sizeof(struct mv88e6xxx_priv_state),
 	.probe			= mv88e6123_61_65_probe,
 	.setup			= mv88e6123_61_65_setup,
 	.set_addr		= mv88e6xxx_set_addr_indirect,
-	.phy_read		= mv88e6123_61_65_phy_read,
-	.phy_write		= mv88e6123_61_65_phy_write,
+	.phy_read		= mv88e6xxx_phy_read,
+	.phy_write		= mv88e6xxx_phy_write,
 	.poll_link		= mv88e6xxx_poll_link,
-	.get_strings		= mv88e6123_61_65_get_strings,
-	.get_ethtool_stats	= mv88e6123_61_65_get_ethtool_stats,
-	.get_sset_count		= mv88e6123_61_65_get_sset_count,
+	.get_strings		= mv88e6xxx_get_strings,
+	.get_ethtool_stats	= mv88e6xxx_get_ethtool_stats,
+	.get_sset_count		= mv88e6xxx_get_sset_count,
 #ifdef CONFIG_NET_DSA_HWMON
 	.get_temp		= mv88e6xxx_get_temp,
 #endif
