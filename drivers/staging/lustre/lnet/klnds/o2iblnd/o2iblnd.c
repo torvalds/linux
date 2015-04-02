@@ -559,8 +559,9 @@ static kib_conn_t *kiblnd_get_conn_by_idx(lnet_ni_t *ni, int index)
 				conn = list_entry(ctmp, kib_conn_t,
 						      ibc_list);
 				kiblnd_conn_addref(conn);
-				read_unlock_irqrestore(&kiblnd_data.kib_global_lock,
-						       flags);
+				read_unlock_irqrestore(
+					&kiblnd_data.kib_global_lock,
+					flags);
 				return conn;
 			}
 		}
@@ -879,7 +880,8 @@ void kiblnd_destroy_conn(kib_conn_t *conn)
 
 	if (conn->ibc_rxs != NULL) {
 		LIBCFS_FREE(conn->ibc_rxs,
-			    IBLND_RX_MSGS(conn->ibc_version) * sizeof(kib_rx_t));
+			    IBLND_RX_MSGS(conn->ibc_version)
+			      * sizeof(kib_rx_t));
 	}
 
 	if (conn->ibc_connvars != NULL)
@@ -936,7 +938,8 @@ int kiblnd_close_stale_conns_locked(kib_peer_t *peer,
 		    conn->ibc_incarnation == incarnation)
 			continue;
 
-		CDEBUG(D_NET, "Closing stale conn -> %s version: %x, incarnation:%#llx(%x, %#llx)\n",
+		CDEBUG(D_NET,
+		       "Closing stale conn -> %s version: %x, incarnation:%#llx(%x, %#llx)\n",
 		       libcfs_nid2str(peer->ibp_nid),
 		       conn->ibc_version, conn->ibc_incarnation,
 		       version, incarnation);
@@ -1079,7 +1082,6 @@ void kiblnd_query(lnet_ni_t *ni, lnet_nid_t nid, unsigned long *when)
 	CDEBUG(D_NET, "Peer %s %p, alive %ld secs ago\n",
 	       libcfs_nid2str(nid), peer,
 	       last_alive ? cfs_duration_sec(now - last_alive) : -1);
-	return;
 }
 
 void kiblnd_free_pages(kib_pages_t *p)
@@ -1166,7 +1168,8 @@ void kiblnd_map_rx_descs(kib_conn_t *conn)
 		rx->rx_msg = (kib_msg_t *)(((char *)page_address(pg)) + pg_off);
 
 		rx->rx_msgaddr = kiblnd_dma_map_single(conn->ibc_hdev->ibh_ibdev,
-						       rx->rx_msg, IBLND_MSG_SIZE,
+						       rx->rx_msg,
+						       IBLND_MSG_SIZE,
 						       DMA_FROM_DEVICE);
 		LASSERT(!kiblnd_dma_mapping_error(conn->ibc_hdev->ibh_ibdev,
 						   rx->rx_msgaddr));
@@ -1446,8 +1449,9 @@ static void kiblnd_fini_fmr_poolset(kib_fmr_poolset_t *fps)
 	}
 }
 
-static int kiblnd_init_fmr_poolset(kib_fmr_poolset_t *fps, int cpt, kib_net_t *net,
-				   int pool_size, int flush_trigger)
+static int kiblnd_init_fmr_poolset(kib_fmr_poolset_t *fps, int cpt,
+				   kib_net_t *net, int pool_size,
+				   int flush_trigger)
 {
 	kib_fmr_pool_t *fpo;
 	int	     rc;
@@ -1557,7 +1561,8 @@ int kiblnd_fmr_pool_map(kib_fmr_poolset_t *fps, __u64 *pages, int npages,
 
 	if (fps->fps_increasing) {
 		spin_unlock(&fps->fps_lock);
-		CDEBUG(D_NET, "Another thread is allocating new FMR pool, waiting for her to complete\n");
+		CDEBUG(D_NET,
+			"Another thread is allocating new FMR pool, waiting for her to complete\n");
 		schedule();
 		goto again;
 
@@ -2395,7 +2400,8 @@ out:
 }
 
 /* DUMMY */
-static int kiblnd_dummy_callback(struct rdma_cm_id *cmid, struct rdma_cm_event *event)
+static int kiblnd_dummy_callback(struct rdma_cm_id *cmid,
+				 struct rdma_cm_event *event)
 {
 	return 0;
 }
@@ -2676,9 +2682,8 @@ static void kiblnd_base_shutdown(void)
 	case IBLND_INIT_ALL:
 	case IBLND_INIT_DATA:
 		LASSERT(kiblnd_data.kib_peers != NULL);
-		for (i = 0; i < kiblnd_data.kib_peer_hash_size; i++) {
+		for (i = 0; i < kiblnd_data.kib_peer_hash_size; i++)
 			LASSERT(list_empty(&kiblnd_data.kib_peers[i]));
-		}
 		LASSERT(list_empty(&kiblnd_data.kib_connd_zombies));
 		LASSERT(list_empty(&kiblnd_data.kib_connd_conns));
 
@@ -2697,7 +2702,8 @@ static void kiblnd_base_shutdown(void)
 		i = 2;
 		while (atomic_read(&kiblnd_data.kib_nthreads) != 0) {
 			i++;
-			CDEBUG(((i & (-i)) == i) ? D_WARNING : D_NET, /* power of 2? */
+			/* power of 2 ? */
+			CDEBUG(((i & (-i)) == i) ? D_WARNING : D_NET,
 			       "Waiting for %d threads to terminate\n",
 			       atomic_read(&kiblnd_data.kib_nthreads));
 			set_current_state(TASK_UNINTERRUPTIBLE);
@@ -2796,7 +2802,6 @@ void kiblnd_shutdown(lnet_ni_t *ni)
 out:
 	if (list_empty(&kiblnd_data.kib_devs))
 		kiblnd_base_shutdown();
-	return;
 }
 
 static int kiblnd_base_startup(void)
@@ -2808,7 +2813,8 @@ static int kiblnd_base_startup(void)
 	LASSERT(kiblnd_data.kib_init == IBLND_INIT_NOTHING);
 
 	try_module_get(THIS_MODULE);
-	memset(&kiblnd_data, 0, sizeof(kiblnd_data)); /* zero pointers, flags etc */
+	/* zero pointers, flags etc */
+	memset(&kiblnd_data, 0, sizeof(kiblnd_data));
 
 	rwlock_init(&kiblnd_data.kib_global_lock);
 
@@ -2819,9 +2825,8 @@ static int kiblnd_base_startup(void)
 	LIBCFS_ALLOC(kiblnd_data.kib_peers,
 		     sizeof(struct list_head) *
 			    kiblnd_data.kib_peer_hash_size);
-	if (kiblnd_data.kib_peers == NULL) {
+	if (kiblnd_data.kib_peers == NULL)
 		goto failed;
-	}
 	for (i = 0; i < kiblnd_data.kib_peer_hash_size; i++)
 		INIT_LIST_HEAD(&kiblnd_data.kib_peers[i]);
 
@@ -2912,6 +2917,7 @@ static int kiblnd_start_schedulers(struct kib_sched_info *sched)
 	for (i = 0; i < nthrs; i++) {
 		long	id;
 		char	name[20];
+
 		id = KIB_THREAD_ID(sched->ibs_cpt, sched->ibs_nthreads + i);
 		snprintf(name, sizeof(name), "kiblnd_sd_%02ld_%02ld",
 			 KIB_THREAD_CPT(id), KIB_THREAD_TID(id));
@@ -2928,7 +2934,8 @@ static int kiblnd_start_schedulers(struct kib_sched_info *sched)
 	return rc;
 }
 
-static int kiblnd_dev_start_threads(kib_dev_t *dev, int newdev, __u32 *cpts, int ncpts)
+static int kiblnd_dev_start_threads(kib_dev_t *dev, int newdev, __u32 *cpts,
+				    int ncpts)
 {
 	int	cpt;
 	int	rc;
@@ -3089,10 +3096,12 @@ static int __init kiblnd_module_init(void)
 	int    rc;
 
 	CLASSERT(sizeof(kib_msg_t) <= IBLND_MSG_SIZE);
-	CLASSERT(offsetof(kib_msg_t, ibm_u.get.ibgm_rd.rd_frags[IBLND_MAX_RDMA_FRAGS])
-		  <= IBLND_MSG_SIZE);
-	CLASSERT(offsetof(kib_msg_t, ibm_u.putack.ibpam_rd.rd_frags[IBLND_MAX_RDMA_FRAGS])
-		  <= IBLND_MSG_SIZE);
+	CLASSERT(offsetof(kib_msg_t,
+		ibm_u.get.ibgm_rd.rd_frags[IBLND_MAX_RDMA_FRAGS])
+		<= IBLND_MSG_SIZE);
+	CLASSERT(offsetof(kib_msg_t,
+		ibm_u.putack.ibpam_rd.rd_frags[IBLND_MAX_RDMA_FRAGS])
+		<= IBLND_MSG_SIZE);
 
 	rc = kiblnd_tunables_init();
 	if (rc != 0)
