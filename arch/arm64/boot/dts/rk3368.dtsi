@@ -296,7 +296,7 @@
 
 	sram: sram@ff8c0000 {
 		compatible = "mmio-sram";
-		reg = <0x0 0xff8c0000 0x0 0x10000>; /* 64k */
+		reg = <0x0 0xff8c0000 0x0 0xf000>; /* 60K (reserved 4K for mailbox)*/
 		map-exec;
 	};
 
@@ -546,6 +546,24 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart4_xfer &uart4_cts &uart4_rts>;
 		status = "disabled";
+	};
+
+	mbox: mbox@ff6b0000 {
+		compatible = "rockchip,rk3368-mailbox";
+		reg = <0x0 0xff6b0000 0x0 0x1000>,
+		      <0x0 0xff8cf000 0x0 0x1000>; /* the end 4k of sram */
+		interrupts = <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 149 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clk_gates12 1>;
+		clock-names = "pclk_mailbox";
+		#mbox-cells = <1>;
+	};
+
+	mbox_scpi: mbox-scpi {
+		compatible = "rockchip,mbox-scpi";
+		mboxes = <&mbox 0 &mbox 1>;
 	};
 
 	rockchip_clocks_init: clocks-init{
