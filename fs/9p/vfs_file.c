@@ -36,6 +36,7 @@
 #include <linux/utsname.h>
 #include <asm/uaccess.h>
 #include <linux/idr.h>
+#include <linux/uio.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 
@@ -457,24 +458,20 @@ v9fs_file_write_internal(struct inode *inode, struct p9_fid *fid,
 			 const char __user *data, size_t count,
 			 loff_t *offset, int invalidate)
 {
-	int n;
-	loff_t i_size;
-	size_t total = 0;
 	loff_t origin = *offset;
-	unsigned long pg_start, pg_end;
+	struct iovec iov = {.iov_base = (void __user *)data, .iov_len = count};
+	struct iov_iter from;
+	int total, err = 0;
 
 	p9_debug(P9_DEBUG_VFS, "data %p count %d offset %x\n",
 		 data, (int)count, (int)*offset);
 
-	do {
-		n = p9_client_write(fid, NULL, data+total, origin+total, count);
-		if (n <= 0)
-			break;
-		count -= n;
-		total += n;
-	} while (count > 0);
+	iov_iter_init(&from, WRITE, &iov, 1, count);
 
+	total = p9_client_write(fid, origin, &from, &err);
 	if (invalidate && (total > 0)) {
+		loff_t i_size;
+		unsigned long pg_start, pg_end;
 		pg_start = origin >> PAGE_CACHE_SHIFT;
 		pg_end = (origin + total - 1) >> PAGE_CACHE_SHIFT;
 		if (inode->i_mapping && inode->i_mapping->nrpages)
@@ -487,10 +484,7 @@ v9fs_file_write_internal(struct inode *inode, struct p9_fid *fid,
 			i_size_write(inode, *offset);
 		}
 	}
-	if (n < 0)
-		return n;
-
-	return total;
+	return total ? total : err;
 }
 
 /**

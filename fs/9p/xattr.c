@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/sched.h>
+#include <linux/uio.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 
@@ -120,8 +121,11 @@ int v9fs_xattr_set(struct dentry *dentry, const char *name,
 int v9fs_fid_xattr_set(struct p9_fid *fid, const char *name,
 		   const void *value, size_t value_len, int flags)
 {
-	u64 offset = 0;
-	int retval, msize, write_count;
+	struct kvec kvec = {.iov_base = (void *)value, .iov_len = value_len};
+	struct iov_iter from;
+	int retval;
+
+	iov_iter_kvec(&from, WRITE | ITER_KVEC, &kvec, 1, value_len);
 
 	p9_debug(P9_DEBUG_VFS, "name = %s value_len = %zu flags = %d\n",
 		 name, value_len, flags);
@@ -135,29 +139,11 @@ int v9fs_fid_xattr_set(struct p9_fid *fid, const char *name,
 	 * On success fid points to xattr
 	 */
 	retval = p9_client_xattrcreate(fid, name, value_len, flags);
-	if (retval < 0) {
+	if (retval < 0)
 		p9_debug(P9_DEBUG_VFS, "p9_client_xattrcreate failed %d\n",
 			 retval);
-		goto err;
-	}
-	msize = fid->clnt->msize;
-	while (value_len) {
-		if (value_len > (msize - P9_IOHDRSZ))
-			write_count = msize - P9_IOHDRSZ;
-		else
-			write_count = value_len;
-		write_count = p9_client_write(fid, ((char *)value)+offset,
-					NULL, offset, write_count);
-		if (write_count < 0) {
-			/* error in xattr write */
-			retval = write_count;
-			goto err;
-		}
-		offset += write_count;
-		value_len -= write_count;
-	}
-	retval = 0;
-err:
+	else
+		p9_client_write(fid, 0, &from, &retval);
 	p9_client_clunk(fid);
 	return retval;
 }

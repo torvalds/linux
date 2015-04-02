@@ -1611,69 +1611,53 @@ error:
 EXPORT_SYMBOL(p9_client_read);
 
 int
-p9_client_write(struct p9_fid *fid, char *data, const char __user *udata,
-							u64 offset, u32 count)
+p9_client_write(struct p9_fid *fid, u64 offset, struct iov_iter *from, int *err)
 {
-	int err, rsize;
-	struct p9_client *clnt;
+	struct p9_client *clnt = fid->clnt;
 	struct p9_req_t *req;
-	struct iov_iter from;
-	union {
-		struct kvec kv;
-		struct iovec iov;
-	} v;
+	int total = 0;
 
-	if (data) {
-		v.kv.iov_base = data;
-		v.kv.iov_len = count;
-		iov_iter_kvec(&from, ITER_KVEC | WRITE, &v.kv, 1, count);
-	} else {
-		v.iov.iov_base = udata;
-		v.iov.iov_len = count;
-		iov_iter_init(&from, WRITE, &v.iov, 1, count);
+	p9_debug(P9_DEBUG_9P, ">>> TWRITE fid %d offset %llu count %zd\n",
+				fid->fid, (unsigned long long) offset,
+				iov_iter_count(from));
+
+	while (iov_iter_count(from)) {
+		int count = iov_iter_count(from);
+		int rsize = fid->iounit;
+		if (!rsize || rsize > clnt->msize-P9_IOHDRSZ)
+			rsize = clnt->msize - P9_IOHDRSZ;
+
+		if (count < rsize)
+			rsize = count;
+
+		/* Don't bother zerocopy for small IO (< 1024) */
+		if (clnt->trans_mod->zc_request && rsize > 1024) {
+			req = p9_client_zc_rpc(clnt, P9_TWRITE, NULL, from, 0,
+					       rsize, P9_ZC_HDR_SZ, "dqd",
+					       fid->fid, offset, rsize);
+		} else {
+			req = p9_client_rpc(clnt, P9_TWRITE, "dqV", fid->fid,
+						    offset, rsize, from);
+		}
+		if (IS_ERR(req)) {
+			*err = PTR_ERR(req);
+			break;
+		}
+
+		*err = p9pdu_readf(req->rc, clnt->proto_version, "d", &count);
+		if (*err) {
+			trace_9p_protocol_dump(clnt, req->rc);
+			p9_free_req(clnt, req);
+		}
+
+		p9_debug(P9_DEBUG_9P, "<<< RWRITE count %d\n", count);
+
+		p9_free_req(clnt, req);
+		iov_iter_advance(from, count);
+		total += count;
+		offset += count;
 	}
-
-	p9_debug(P9_DEBUG_9P, ">>> TWRITE fid %d offset %llu count %d\n",
-				fid->fid, (unsigned long long) offset, count);
-	err = 0;
-	clnt = fid->clnt;
-
-	rsize = fid->iounit;
-	if (!rsize || rsize > clnt->msize-P9_IOHDRSZ)
-		rsize = clnt->msize - P9_IOHDRSZ;
-
-	if (count < rsize)
-		rsize = count;
-
-	/* Don't bother zerocopy for small IO (< 1024) */
-	if (clnt->trans_mod->zc_request && rsize > 1024) {
-		req = p9_client_zc_rpc(clnt, P9_TWRITE, NULL, &from, 0, rsize,
-				       P9_ZC_HDR_SZ, "dqd",
-				       fid->fid, offset, rsize);
-	} else {
-		req = p9_client_rpc(clnt, P9_TWRITE, "dqV", fid->fid,
-					    offset, rsize, &from);
-	}
-	if (IS_ERR(req)) {
-		err = PTR_ERR(req);
-		goto error;
-	}
-
-	err = p9pdu_readf(req->rc, clnt->proto_version, "d", &count);
-	if (err) {
-		trace_9p_protocol_dump(clnt, req->rc);
-		goto free_and_error;
-	}
-
-	p9_debug(P9_DEBUG_9P, "<<< RWRITE count %d\n", count);
-
-	p9_free_req(clnt, req);
-	return count;
-
-free_and_error:
-	p9_free_req(clnt, req);
-error:
-	return err;
+	return total;
 }
 EXPORT_SYMBOL(p9_client_write);
 
