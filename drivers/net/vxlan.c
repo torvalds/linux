@@ -989,7 +989,7 @@ out:
 
 /* Watch incoming packets to learn mapping between Ethernet address
  * and Tunnel endpoint.
- * Return true if packet is bogus and should be droppped.
+ * Return true if packet is bogus and should be dropped.
  */
 static bool vxlan_snoop(struct net_device *dev,
 			union vxlan_addr *src_ip, const u8 *src_mac)
@@ -1085,7 +1085,7 @@ void vxlan_sock_release(struct vxlan_sock *vs)
 EXPORT_SYMBOL_GPL(vxlan_sock_release);
 
 /* Update multicast group membership when first VNI on
- * multicast asddress is brought up
+ * multicast address is brought up
  */
 static int vxlan_igmp_join(struct vxlan_dev *vxlan)
 {
@@ -1229,7 +1229,7 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 		 * this as a malformed packet. This behavior diverges from
 		 * VXLAN RFC (RFC7348) which stipulates that bits in reserved
 		 * in reserved fields are to be ignored. The approach here
-		 * maintains compatbility with previous stack code, and also
+		 * maintains compatibility with previous stack code, and also
 		 * is more robust and provides a little more security in
 		 * adding extensions to VXLAN.
 		 */
