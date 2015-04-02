@@ -629,7 +629,7 @@ static void fsl_re_free_chan_resources(struct dma_chan *chan)
 		dev_err(re_chan->dev, "chan resource cannot be cleaned!\n");
 }
 
-int fsl_re_chan_probe(struct platform_device *ofdev,
+static int fsl_re_chan_probe(struct platform_device *ofdev,
 		      struct device_node *np, u8 q, u32 off)
 {
 	struct device *dev, *chandev;
