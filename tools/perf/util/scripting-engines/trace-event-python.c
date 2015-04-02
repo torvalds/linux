@@ -852,8 +852,7 @@ static void python_process_event(union perf_event *event,
 	/* Reserve for future process_hw/sw/raw APIs */
 	default:
 		if (tables->db_export_mode)
-			db_export__sample(&tables->dbe, event, sample, evsel,
-					  al->thread, al);
+			db_export__sample(&tables->dbe, event, sample, evsel, al);
 		else
 			python_process_general_event(sample, evsel, al);
 	}
