@@ -1187,16 +1187,6 @@ unsigned long gfn_to_hva_prot(struct kvm *kvm, gfn_t gfn, bool *writable)
 	return gfn_to_hva_memslot_prot(slot, gfn, writable);
 }
 
-static int kvm_read_hva(void *data, void __user *hva, int len)
-{
-	return __copy_from_user(data, hva, len);
-}
-
-static int kvm_read_hva_atomic(void *data, void __user *hva, int len)
-{
-	return __copy_from_user_inatomic(data, hva, len);
-}
-
 static int get_user_page_nowait(struct task_struct *tsk, struct mm_struct *mm,
 	unsigned long start, int write, struct page **page)
 {
@@ -1548,7 +1538,7 @@ int kvm_read_guest_page(struct kvm *kvm, gfn_t gfn, void *data, int offset,
 	addr = gfn_to_hva_prot(kvm, gfn, NULL);
 	if (kvm_is_error_hva(addr))
 		return -EFAULT;
-	r = kvm_read_hva(data, (void __user *)addr + offset, len);
+	r = __copy_from_user(data, (void __user *)addr + offset, len);
 	if (r)
 		return -EFAULT;
 	return 0;
@@ -1587,7 +1577,7 @@ int kvm_read_guest_atomic(struct kvm *kvm, gpa_t gpa, void *data,
 	if (kvm_is_error_hva(addr))
 		return -EFAULT;
 	pagefault_disable();
-	r = kvm_read_hva_atomic(data, (void __user *)addr + offset, len);
+	r = __copy_from_user_inatomic(data, (void __user *)addr + offset, len);
 	pagefault_enable();
 	if (r)
 		return -EFAULT;
