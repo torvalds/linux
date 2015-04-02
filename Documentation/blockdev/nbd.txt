@@ -19,3 +19,13 @@ The nbd kernel module need only be installed on the client
 system, as the nbd-server is completely in userspace. In fact,
 the nbd-server has been successfully ported to other operating
 systems, including Windows.
+
+A) NBD parameters
+-----------------
+
+max_part
+	Number of partitions per device (default: 0).
+
+nbds_max
+	Number of block devices that should be initialized (default: 16).
+
