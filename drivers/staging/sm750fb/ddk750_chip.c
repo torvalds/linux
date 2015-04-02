@@ -245,7 +245,8 @@ unsigned int ddk750_getVMSize(void)
 	case MISC_CTRL_LOCALMEM_SIZE_64M:
 		data = MB(64); break; /* 64 Mega byte */
 	default:
-		data = 0;break;
+		data = 0;
+		break;
 	}
 	return data;
 
