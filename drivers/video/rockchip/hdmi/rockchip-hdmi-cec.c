@@ -85,7 +85,7 @@ static void cecsendimageview(void)
 
 	 cecframe.opcode	= CECOP_IMAGE_VIEW_ON;
 	 cecframe.srcdestaddr	= MAKE_SRCDEST(cec_dev->address_logic,
-					       CEC_LOGADDR_UNREGORBC);
+					       CEC_LOGADDR_TV);
 	 cecframe.argcount	= 0;
 	 cecsendframe(&cecframe);
 }
@@ -394,14 +394,27 @@ static void cecenumeration(void)
 				CEC_LOGADDR_PLAYBACK2,
 				CEC_LOGADDR_PLAYBACK3};
 	int i;
+	int trynum;
+	int rtvalue;
+	int availablecnt;
 
 	if (!cec_dev)
 		return;
 
 	for (i = 0; i < 3; i++) {
-		if (cecsendping(logicaddress[i])) {
+		rtvalue = 0;
+		availablecnt = 0;
+		for (trynum = 0; trynum < 3; trynum++) {
+			rtvalue = cecsendping(logicaddress[i]);
+			if (rtvalue == 1) {
+				availablecnt++;
+				CECDBG("availablecnt: %d\n", availablecnt);
+			 }
+			 mdelay(5);
+		}
+		if (availablecnt > 1) {
 			cec_dev->address_logic = logicaddress[i];
-			CECDBG("Logic Address is 0x%x\n",
+			CECDBG("logic address is 0x%x\n",
 			       cec_dev->address_logic);
 			break;
 		}
