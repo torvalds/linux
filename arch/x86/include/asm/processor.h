@@ -209,21 +209,21 @@ struct x86_hw_tss {
 	unsigned short		back_link, __blh;
 	unsigned long		sp0;
 	unsigned short		ss0, __ss0h;
+	unsigned long		sp1;
 
 	/*
-	 * We don't use ring 1, so sp1 and ss1 are convenient scratch
-	 * spaces in the same cacheline as sp0.  We use them to cache
-	 * some MSR values to avoid unnecessary wrmsr instructions.
+	 * We don't use ring 1, so ss1 is a convenient scratch space in
+	 * the same cacheline as sp0.  We use ss1 to cache the value in
+	 * MSR_IA32_SYSENTER_CS.  When we context switch
+	 * MSR_IA32_SYSENTER_CS, we first check if the new value being
+	 * written matches ss1, and, if it's not, then we wrmsr the new
+	 * value and update ss1.
 	 *
-	 * We use SYSENTER_ESP to find sp0 and for the NMI emergency
-	 * stack, but we need to context switch it because we do
-	 * horrible things to the kernel stack in vm86 mode.
-	 *
-	 * We use SYSENTER_CS to disable sysenter in vm86 mode to avoid
-	 * corrupting the stack if we went through the sysenter path
-	 * from vm86 mode.
+	 * The only reason we context switch MSR_IA32_SYSENTER_CS is
+	 * that we set it to zero in vm86 tasks to avoid corrupting the
+	 * stack if we were to go through the sysenter path from vm86
+	 * mode.
 	 */
-	unsigned long		sp1;	/* MSR_IA32_SYSENTER_ESP */
 	unsigned short		ss1;	/* MSR_IA32_SYSENTER_CS */
 
 	unsigned short		__ss1h;

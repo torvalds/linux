@@ -976,15 +976,16 @@ void enable_sep_cpu(void)
 		goto out;
 
 	/*
-	 * The struct::SS1 and tss_struct::SP1 fields are not used by the hardware,
-	 * we cache the SYSENTER CS and ESP values there for easy access:
+	 * We cache MSR_IA32_SYSENTER_CS's value in the TSS's ss1 field --
+	 * see the big comment in struct x86_hw_tss's definition.
 	 */
 
 	tss->x86_tss.ss1 = __KERNEL_CS;
 	wrmsr(MSR_IA32_SYSENTER_CS, tss->x86_tss.ss1, 0);
 
-	tss->x86_tss.sp1 = (unsigned long)tss + offsetofend(struct tss_struct, SYSENTER_stack);
-	wrmsr(MSR_IA32_SYSENTER_ESP, tss->x86_tss.sp1, 0);
+	wrmsr(MSR_IA32_SYSENTER_ESP,
+	      (unsigned long)tss + offsetofend(struct tss_struct, SYSENTER_stack),
+	      0);
 
 	wrmsr(MSR_IA32_SYSENTER_EIP, (unsigned long)ia32_sysenter_target, 0);
 
