@@ -32,6 +32,7 @@
 #include <net/sock.h>
 #include <linux/net.h>
 #include <linux/kthread.h>
+#include <linux/types.h>
 
 #include <asm/uaccess.h>
 #include <asm/types.h>
@@ -54,7 +55,7 @@ struct nbd_device {
 	struct mutex tx_lock;
 	struct gendisk *disk;
 	int blksize;
-	u64 bytesize;
+	loff_t bytesize;
 	pid_t pid; /* pid of nbd-client, if attached */
 	int xmit_timeout;
 	int disconnect; /* a disconnect has been requested by user */
