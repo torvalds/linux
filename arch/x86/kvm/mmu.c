@@ -3511,10 +3511,12 @@ static bool can_do_async_pf(struct kvm_vcpu *vcpu)
 static bool try_async_pf(struct kvm_vcpu *vcpu, bool prefault, gfn_t gfn,
 			 gva_t gva, pfn_t *pfn, bool write, bool *writable)
 {
+	struct kvm_memory_slot *slot;
 	bool async;
 
-	*pfn = gfn_to_pfn_async(vcpu->kvm, gfn, &async, write, writable);
-
+	slot = gfn_to_memslot(vcpu->kvm, gfn);
+	async = false;
+	*pfn = __gfn_to_pfn_memslot(slot, gfn, false, &async, write, writable);
 	if (!async)
 		return false; /* *pfn has correct page already */
 
@@ -3528,8 +3530,7 @@ static bool try_async_pf(struct kvm_vcpu *vcpu, bool prefault, gfn_t gfn,
 			return true;
 	}
 
-	*pfn = gfn_to_pfn_prot(vcpu->kvm, gfn, write, writable);
-
+	*pfn = __gfn_to_pfn_memslot(slot, gfn, false, NULL, write, writable);
 	return false;
 }
 

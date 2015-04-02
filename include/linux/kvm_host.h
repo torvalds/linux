@@ -539,13 +539,13 @@ void kvm_release_page_dirty(struct page *page);
 void kvm_set_page_accessed(struct page *page);
 
 pfn_t gfn_to_pfn_atomic(struct kvm *kvm, gfn_t gfn);
-pfn_t gfn_to_pfn_async(struct kvm *kvm, gfn_t gfn, bool *async,
-		       bool write_fault, bool *writable);
 pfn_t gfn_to_pfn(struct kvm *kvm, gfn_t gfn);
 pfn_t gfn_to_pfn_prot(struct kvm *kvm, gfn_t gfn, bool write_fault,
 		      bool *writable);
 pfn_t gfn_to_pfn_memslot(struct kvm_memory_slot *slot, gfn_t gfn);
 pfn_t gfn_to_pfn_memslot_atomic(struct kvm_memory_slot *slot, gfn_t gfn);
+pfn_t __gfn_to_pfn_memslot(struct kvm_memory_slot *slot, gfn_t gfn, bool atomic,
+			   bool *async, bool write_fault, bool *writable);
 
 void kvm_release_pfn_clean(pfn_t pfn);
 void kvm_set_pfn_dirty(pfn_t pfn);
