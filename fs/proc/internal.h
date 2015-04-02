@@ -202,6 +202,7 @@ struct pde_opener {
 	int closing;
 	struct completion *c;
 };
+extern const struct inode_operations proc_link_inode_operations;
 
 extern const struct inode_operations proc_pid_link_inode_operations;
 

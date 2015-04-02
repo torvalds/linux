@@ -409,7 +409,7 @@ void userspace(struct uml_pt_regs *regs)
 		if (WIFSTOPPED(status)) {
 			int sig = WSTOPSIG(status);
 
-			ptrace(PTRACE_GETSIGINFO, pid, 0, &si);
+			ptrace(PTRACE_GETSIGINFO, pid, 0, (struct siginfo *)&si);
 
 			switch (sig) {
 			case SIGSEGV:
@@ -417,7 +417,7 @@ void userspace(struct uml_pt_regs *regs)
 				    !ptrace_faultinfo) {
 					get_skas_faultinfo(pid,
 							   &regs->faultinfo);
-					(*sig_info[SIGSEGV])(SIGSEGV, &si,
+					(*sig_info[SIGSEGV])(SIGSEGV, (struct siginfo *)&si,
 							     regs);
 				}
 				else handle_segv(pid, regs);
@@ -426,14 +426,14 @@ void userspace(struct uml_pt_regs *regs)
 			        handle_trap(pid, regs, local_using_sysemu);
 				break;
 			case SIGTRAP:
-				relay_signal(SIGTRAP, &si, regs);
+				relay_signal(SIGTRAP, (struct siginfo *)&si, regs);
 				break;
 			case SIGVTALRM:
 				now = os_nsecs();
 				if (now < nsecs)
 					break;
 				block_signals();
-				(*sig_info[sig])(sig, &si, regs);
+				(*sig_info[sig])(sig, (struct siginfo *)&si, regs);
 				unblock_signals();
 				nsecs = timer.it_value.tv_sec *
 					UM_NSEC_PER_SEC +
@@ -447,7 +447,7 @@ void userspace(struct uml_pt_regs *regs)
 			case SIGFPE:
 			case SIGWINCH:
 				block_signals();
-				(*sig_info[sig])(sig, &si, regs);
+				(*sig_info[sig])(sig, (struct siginfo *)&si, regs);
 				unblock_signals();
 				break;
 			default:
