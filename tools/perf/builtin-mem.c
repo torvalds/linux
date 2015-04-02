@@ -15,6 +15,7 @@ struct perf_mem {
 	char const		*input_name;
 	bool			hide_unresolved;
 	bool			dump_raw;
+	bool			force;
 	int			operation;
 	const char		*cpu_list;
 	DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
@@ -120,6 +121,7 @@ static int report_raw_events(struct perf_mem *mem)
 	struct perf_data_file file = {
 		.path = input_name,
 		.mode = PERF_DATA_MODE_READ,
+		.force = mem->force,
 	};
 	int err = -EINVAL;
 	int ret;
@@ -290,6 +292,7 @@ int cmd_mem(int argc, const char **argv, const char *prefix __maybe_unused)
 		   "separator",
 		   "separator for columns, no spaces will be added"
 		   " between columns '.' is reserved."),
+	OPT_BOOLEAN('f', "force", &mem.force, "don't complain, do it"),
 	OPT_END()
 	};
 	const char *const mem_subcommands[] = { "record", "report", NULL };
