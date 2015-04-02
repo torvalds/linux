@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -243,8 +243,9 @@ static int alloc_system_page(struct mlx5_core_dev *dev, u16 func_id)
 	struct page *page;
 	u64 addr;
 	int err;
+	int nid = dev_to_node(&dev->pdev->dev);
 
-	page = alloc_page(GFP_HIGHUSER);
+	page = alloc_pages_node(nid, GFP_HIGHUSER, 0);
 	if (!page) {
 		mlx5_core_warn(dev, "failed to allocate page\n");
 		return -ENOMEM;
