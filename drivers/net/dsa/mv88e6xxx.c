@@ -1161,6 +1161,46 @@ int mv88e6xxx_setup_common(struct dsa_switch *ds)
 	return 0;
 }
 
+int mv88e6xxx_switch_reset(struct dsa_switch *ds, bool ppu_active)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	u16 is_reset = (ppu_active ? 0x8800 : 0xc800);
+	unsigned long timeout;
+	int ret;
+	int i;
+
+	/* Set all ports to the disabled state. */
+	for (i = 0; i < ps->num_ports; i++) {
+		ret = REG_READ(REG_PORT(i), 0x04);
+		REG_WRITE(REG_PORT(i), 0x04, ret & 0xfffc);
+	}
+
+	/* Wait for transmit queues to drain. */
+	usleep_range(2000, 4000);
+
+	/* Reset the switch. Keep the PPU active if requested. The PPU
+	 * needs to be active to support indirect phy register access
+	 * through global registers 0x18 and 0x19.
+	 */
+	if (ppu_active)
+		REG_WRITE(REG_GLOBAL, 0x04, 0xc000);
+	else
+		REG_WRITE(REG_GLOBAL, 0x04, 0xc400);
+
+	/* Wait up to one second for reset to complete. */
+	timeout = jiffies + 1 * HZ;
+	while (time_before(jiffies, timeout)) {
+		ret = REG_READ(REG_GLOBAL, 0x00);
+		if ((ret & is_reset) == is_reset)
+			break;
+		usleep_range(1000, 2000);
+	}
+	if (time_after(jiffies, timeout))
+		return -ETIMEDOUT;
+
+	return 0;
+}
+
 static int __init mv88e6xxx_init(void)
 {
 #if IS_ENABLED(CONFIG_NET_DSA_MV88E6131)

@@ -45,42 +45,6 @@ static char *mv88e6352_probe(struct device *host_dev, int sw_addr)
 	return NULL;
 }
 
-static int mv88e6352_switch_reset(struct dsa_switch *ds)
-{
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	unsigned long timeout;
-	int ret;
-	int i;
-
-	/* Set all ports to the disabled state. */
-	for (i = 0; i < ps->num_ports; i++) {
-		ret = REG_READ(REG_PORT(i), 0x04);
-		REG_WRITE(REG_PORT(i), 0x04, ret & 0xfffc);
-	}
-
-	/* Wait for transmit queues to drain. */
-	usleep_range(2000, 4000);
-
-	/* Reset the switch. Keep PPU active (bit 14, undocumented).
-	 * The PPU needs to be active to support indirect phy register
-	 * accesses through global registers 0x18 and 0x19.
-	 */
-	REG_WRITE(REG_GLOBAL, 0x04, 0xc000);
-
-	/* Wait up to one second for reset to complete. */
-	timeout = jiffies + 1 * HZ;
-	while (time_before(jiffies, timeout)) {
-		ret = REG_READ(REG_GLOBAL, 0x00);
-		if ((ret & 0x8800) == 0x8800)
-			break;
-		usleep_range(1000, 2000);
-	}
-	if (time_after(jiffies, timeout))
-		return -ETIMEDOUT;
-
-	return 0;
-}
-
 static int mv88e6352_setup_global(struct dsa_switch *ds)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
@@ -373,7 +337,7 @@ static int mv88e6352_setup(struct dsa_switch *ds)
 
 	mutex_init(&ps->eeprom_mutex);
 
-	ret = mv88e6352_switch_reset(ds);
+	ret = mv88e6xxx_switch_reset(ds, true);
 	if (ret < 0)
 		return ret;
 

@@ -52,40 +52,6 @@ static char *mv88e6123_61_65_probe(struct device *host_dev, int sw_addr)
 	return NULL;
 }
 
-static int mv88e6123_61_65_switch_reset(struct dsa_switch *ds)
-{
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	int i;
-	int ret;
-	unsigned long timeout;
-
-	/* Set all ports to the disabled state. */
-	for (i = 0; i < ps->num_ports; i++) {
-		ret = REG_READ(REG_PORT(i), 0x04);
-		REG_WRITE(REG_PORT(i), 0x04, ret & 0xfffc);
-	}
-
-	/* Wait for transmit queues to drain. */
-	usleep_range(2000, 4000);
-
-	/* Reset the switch. */
-	REG_WRITE(REG_GLOBAL, 0x04, 0xc400);
-
-	/* Wait up to one second for reset to complete. */
-	timeout = jiffies + 1 * HZ;
-	while (time_before(jiffies, timeout)) {
-		ret = REG_READ(REG_GLOBAL, 0x00);
-		if ((ret & 0xc800) == 0xc800)
-			break;
-
-		usleep_range(1000, 2000);
-	}
-	if (time_after(jiffies, timeout))
-		return -ETIMEDOUT;
-
-	return 0;
-}
-
 static int mv88e6123_61_65_setup_global(struct dsa_switch *ds)
 {
 	int ret;
@@ -292,7 +258,7 @@ static int mv88e6123_61_65_setup(struct dsa_switch *ds)
 		return -ENODEV;
 	}
 
-	ret = mv88e6123_61_65_switch_reset(ds);
+	ret = mv88e6xxx_switch_reset(ds, false);
 	if (ret < 0)
 		return ret;
 
