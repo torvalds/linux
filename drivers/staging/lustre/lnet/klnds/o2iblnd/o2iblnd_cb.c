@@ -41,19 +41,19 @@
 #include "o2iblnd.h"
 
 static void
-kiblnd_tx_done (lnet_ni_t *ni, kib_tx_t *tx)
+kiblnd_tx_done(lnet_ni_t *ni, kib_tx_t *tx)
 {
 	lnet_msg_t *lntmsg[2];
 	kib_net_t  *net = ni->ni_data;
 	int	 rc;
 	int	 i;
 
-	LASSERT (net != NULL);
-	LASSERT (!in_interrupt());
-	LASSERT (!tx->tx_queued);	       /* mustn't be queued for sending */
-	LASSERT (tx->tx_sending == 0);	  /* mustn't be awaiting sent callback */
-	LASSERT (!tx->tx_waiting);	      /* mustn't be awaiting peer response */
-	LASSERT (tx->tx_pool != NULL);
+	LASSERT(net != NULL);
+	LASSERT(!in_interrupt());
+	LASSERT(!tx->tx_queued);	       /* mustn't be queued for sending */
+	LASSERT(tx->tx_sending == 0);	  /* mustn't be awaiting sent callback */
+	LASSERT(!tx->tx_waiting);	      /* mustn't be awaiting peer response */
+	LASSERT(tx->tx_pool != NULL);
 
 	kiblnd_unmap_tx(ni, tx);
 
@@ -63,7 +63,7 @@ kiblnd_tx_done (lnet_ni_t *ni, kib_tx_t *tx)
 	rc = tx->tx_status;
 
 	if (tx->tx_conn != NULL) {
-		LASSERT (ni == tx->tx_conn->ibc_peer->ibp_ni);
+		LASSERT(ni == tx->tx_conn->ibc_peer->ibp_ni);
 
 		kiblnd_conn_decref(tx->tx_conn);
 		tx->tx_conn = NULL;
@@ -84,12 +84,12 @@ kiblnd_tx_done (lnet_ni_t *ni, kib_tx_t *tx)
 }
 
 void
-kiblnd_txlist_done (lnet_ni_t *ni, struct list_head *txlist, int status)
+kiblnd_txlist_done(lnet_ni_t *ni, struct list_head *txlist, int status)
 {
 	kib_tx_t *tx;
 
-	while (!list_empty (txlist)) {
-		tx = list_entry (txlist->next, kib_tx_t, tx_list);
+	while(!list_empty (txlist)) {
+		tx = list_entry(txlist->next, kib_tx_t, tx_list);
 
 		list_del(&tx->tx_list);
 		/* complete now */
@@ -113,16 +113,16 @@ kiblnd_get_idle_tx(lnet_ni_t *ni, lnet_nid_t target)
 		return NULL;
 	tx = container_of(node, kib_tx_t, tx_list);
 
-	LASSERT (tx->tx_nwrq == 0);
-	LASSERT (!tx->tx_queued);
-	LASSERT (tx->tx_sending == 0);
-	LASSERT (!tx->tx_waiting);
-	LASSERT (tx->tx_status == 0);
-	LASSERT (tx->tx_conn == NULL);
-	LASSERT (tx->tx_lntmsg[0] == NULL);
-	LASSERT (tx->tx_lntmsg[1] == NULL);
-	LASSERT (tx->tx_u.pmr == NULL);
-	LASSERT (tx->tx_nfrags == 0);
+	LASSERT(tx->tx_nwrq == 0);
+	LASSERT(!tx->tx_queued);
+	LASSERT(tx->tx_sending == 0);
+	LASSERT(!tx->tx_waiting);
+	LASSERT(tx->tx_status == 0);
+	LASSERT(tx->tx_conn == NULL);
+	LASSERT(tx->tx_lntmsg[0] == NULL);
+	LASSERT(tx->tx_lntmsg[1] == NULL);
+	LASSERT(tx->tx_u.pmr == NULL);
+	LASSERT(tx->tx_nfrags == 0);
 
 	return tx;
 }
@@ -143,7 +143,7 @@ kiblnd_drop_rx(kib_rx_t *rx)
 }
 
 int
-kiblnd_post_rx (kib_rx_t *rx, int credit)
+kiblnd_post_rx(kib_rx_t *rx, int credit)
 {
 	kib_conn_t	 *conn = rx->rx_conn;
 	kib_net_t	  *net = conn->ibc_peer->ibp_ni->ni_data;
@@ -151,14 +151,14 @@ kiblnd_post_rx (kib_rx_t *rx, int credit)
 	struct ib_mr       *mr;
 	int		 rc;
 
-	LASSERT (net != NULL);
-	LASSERT (!in_interrupt());
-	LASSERT (credit == IBLND_POSTRX_NO_CREDIT ||
-		 credit == IBLND_POSTRX_PEER_CREDIT ||
-		 credit == IBLND_POSTRX_RSRVD_CREDIT);
+	LASSERT(net != NULL);
+	LASSERT(!in_interrupt());
+	LASSERT(credit == IBLND_POSTRX_NO_CREDIT ||
+		credit == IBLND_POSTRX_PEER_CREDIT ||
+		credit == IBLND_POSTRX_RSRVD_CREDIT);
 
 	mr = kiblnd_find_dma_mr(conn->ibc_hdev, rx->rx_msgaddr, IBLND_MSG_SIZE);
-	LASSERT (mr != NULL);
+	LASSERT(mr != NULL);
 
 	rx->rx_sge.lkey   = mr->lkey;
 	rx->rx_sge.addr   = rx->rx_msgaddr;
@@ -169,8 +169,8 @@ kiblnd_post_rx (kib_rx_t *rx, int credit)
 	rx->rx_wrq.num_sge = 1;
 	rx->rx_wrq.wr_id = kiblnd_ptr2wreqid(rx, IBLND_WID_RX);
 
-	LASSERT (conn->ibc_state >= IBLND_CONN_INIT);
-	LASSERT (rx->rx_nob >= 0);	      /* not posted */
+	LASSERT(conn->ibc_state >= IBLND_CONN_INIT);
+	LASSERT(rx->rx_nob >= 0);	      /* not posted */
 
 	if (conn->ibc_state > IBLND_CONN_ESTABLISHED) {
 		kiblnd_drop_rx(rx);	     /* No more posts for this rx */
@@ -217,8 +217,8 @@ kiblnd_find_waiting_tx_locked(kib_conn_t *conn, int txtype, __u64 cookie)
 	list_for_each(tmp, &conn->ibc_active_txs) {
 		kib_tx_t *tx = list_entry(tmp, kib_tx_t, tx_list);
 
-		LASSERT (!tx->tx_queued);
-		LASSERT (tx->tx_sending != 0 || tx->tx_waiting);
+		LASSERT(!tx->tx_queued);
+		LASSERT(tx->tx_sending != 0 || tx->tx_waiting);
 
 		if (tx->tx_cookie != cookie)
 			continue;
@@ -293,7 +293,7 @@ kiblnd_send_completion(kib_conn_t *conn, int type, int status, __u64 cookie)
 }
 
 static void
-kiblnd_handle_rx (kib_rx_t *rx)
+kiblnd_handle_rx(kib_rx_t *rx)
 {
 	kib_msg_t    *msg = rx->rx_msg;
 	kib_conn_t   *conn = rx->rx_conn;
@@ -304,11 +304,11 @@ kiblnd_handle_rx (kib_rx_t *rx)
 	int	   rc2;
 	int	   post_credit;
 
-	LASSERT (conn->ibc_state >= IBLND_CONN_ESTABLISHED);
+	LASSERT(conn->ibc_state >= IBLND_CONN_ESTABLISHED);
 
-	CDEBUG (D_NET, "Received %x[%d] from %s\n",
-		msg->ibm_type, credits,
-		libcfs_nid2str(conn->ibc_peer->ibp_nid));
+	CDEBUG(D_NET, "Received %x[%d] from %s\n",
+	       msg->ibm_type, credits,
+	       libcfs_nid2str(conn->ibc_peer->ibp_nid));
 
 	if (credits != 0) {
 		/* Have I received credits that will let me send? */
@@ -377,8 +377,8 @@ kiblnd_handle_rx (kib_rx_t *rx)
 		break;
 
 	case IBLND_MSG_PUT_NAK:
-		CWARN ("PUT_NACK from %s\n",
-		       libcfs_nid2str(conn->ibc_peer->ibp_nid));
+		CWARN("PUT_NACK from %s\n",
+		      libcfs_nid2str(conn->ibc_peer->ibp_nid));
 		post_credit = IBLND_POSTRX_RSRVD_CREDIT;
 		kiblnd_handle_completion(conn, IBLND_MSG_PUT_REQ,
 					 msg->ibm_u.completion.ibcm_status,
@@ -402,7 +402,7 @@ kiblnd_handle_rx (kib_rx_t *rx)
 			break;
 		}
 
-		LASSERT (tx->tx_waiting);
+		LASSERT(tx->tx_waiting);
 		/* CAVEAT EMPTOR: I could be racing with tx_complete, but...
 		 * (a) I can overwrite tx_msg since my peer has received it!
 		 * (b) tx_waiting set tells tx_complete() it's not done. */
