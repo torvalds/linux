@@ -39,6 +39,7 @@
 #include "cx18-cards.h"
 #include "cx18-av-core.h"
 #include <media/tveeprom.h>
+#include <media/v4l2-event.h>
 
 u16 cx18_service2vbi(int type)
 {
@@ -1117,6 +1118,8 @@ static const struct v4l2_ioctl_ops cx18_ioctl_ops = {
 	.vidioc_querybuf                = cx18_querybuf,
 	.vidioc_qbuf                    = cx18_qbuf,
 	.vidioc_dqbuf                   = cx18_dqbuf,
+	.vidioc_subscribe_event		= v4l2_ctrl_subscribe_event,
+	.vidioc_unsubscribe_event	= v4l2_event_unsubscribe,
 };
 
 void cx18_set_funcs(struct video_device *vdev)
