@@ -335,6 +335,7 @@ struct perf_attr_details {
 	bool freq;
 	bool verbose;
 	bool event_group;
+	bool force;
 };
 
 int perf_evsel__fprintf(struct perf_evsel *evsel,
