@@ -528,6 +528,14 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 		dev->caps.alloc_res_qp_mask =
 			(dev->caps.bf_reg_size ? MLX4_RESERVE_ETH_BF_QP : 0) |
 			MLX4_RESERVE_A0_QP;
+
+		if (!(dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_ETS_CFG) &&
+		    dev->caps.flags & MLX4_DEV_CAP_FLAG_SET_ETH_SCHED) {
+			mlx4_warn(dev, "Old device ETS support detected\n");
+			mlx4_warn(dev, "Consider upgrading device FW.\n");
+			dev->caps.flags2 |= MLX4_DEV_CAP_FLAG2_ETS_CFG;
+		}
+
 	} else {
 		dev->caps.alloc_res_qp_mask = 0;
 	}

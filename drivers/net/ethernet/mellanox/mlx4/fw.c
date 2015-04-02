@@ -149,6 +149,7 @@ static void dump_dev_cap_flags2(struct mlx4_dev *dev, u64 flags)
 		[23] = "QP rate limiting support",
 		[24] = "Ethernet Flow control statistics support",
 		[25] = "Granular QoS per VF support",
+		[26] = "Port ETS Scheduler support",
 	};
 	int i;
 
@@ -900,6 +901,8 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_VXLAN);
 	if (field & 1<<3)
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_VXLAN_OFFLOADS;
+	if (field & (1 << 5))
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_ETS_CFG;
 	MLX4_GET(dev_cap->max_icm_sz, outbox,
 		 QUERY_DEV_CAP_MAX_ICM_SZ_OFFSET);
 	if (dev_cap->flags & MLX4_DEV_CAP_FLAG_COUNTERS)
@@ -1157,9 +1160,9 @@ int mlx4_QUERY_DEV_CAP_wrapper(struct mlx4_dev *dev, int slave,
 	field &= 0x7f;
 	MLX4_PUT(outbox->buf, field, QUERY_DEV_CAP_CQ_TS_SUPPORT_OFFSET);
 
-	/* For guests, disable vxlan tunneling */
+	/* For guests, disable vxlan tunneling and QoS support */
 	MLX4_GET(field, outbox->buf, QUERY_DEV_CAP_VXLAN);
-	field &= 0xf7;
+	field &= 0xd7;
 	MLX4_PUT(outbox->buf, field, QUERY_DEV_CAP_VXLAN);
 
 	/* For guests, report Blueflame disabled */
