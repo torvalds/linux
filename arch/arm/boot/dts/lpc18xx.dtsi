@@ -78,6 +78,12 @@
 			status = "disabled";
 		};
 
+		creg: syscon@40043000 {
+			compatible = "nxp,lpc1850-creg", "syscon", "simple-mfd";
+			reg = <0x40043000 0x1000>;
+			clocks = <&ccu1 CLK_CPU_CREG>;
+		};
+
 		cgu: clock-controller@40050000 {
 			compatible = "nxp,lpc1850-cgu";
 			reg = <0x40050000 0x1000>;
