@@ -340,6 +340,7 @@ struct kvm_pmu {
 enum {
 	KVM_DEBUGREG_BP_ENABLED = 1,
 	KVM_DEBUGREG_WONT_EXIT = 2,
+	KVM_DEBUGREG_RELOAD = 4,
 };
 
 struct kvm_vcpu_arch {
