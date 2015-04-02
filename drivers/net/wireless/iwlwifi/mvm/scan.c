@@ -446,7 +446,7 @@ static int iwl_ssid_exist(u8 *ssid, u8 ssid_len, struct iwl_ssid_ie *ssid_list)
 }
 
 static void iwl_scan_offload_build_ssid(struct iwl_mvm_scan_params *params,
-					struct iwl_ssid_ie *direct_scan,
+					struct iwl_ssid_ie *ssid,
 					u32 *ssid_bitmap)
 {
 	int i, j;
@@ -457,31 +457,34 @@ static void iwl_scan_offload_build_ssid(struct iwl_mvm_scan_params *params,
 	 * iwl_config_sched_scan_profiles() uses the order of these ssids to
 	 * config match list.
 	 */
-	for (i = 0; i < params->n_match_sets && i < PROBE_OPTION_MAX; i++) {
+	for (i = 0, j = params->n_match_sets - 1;
+	     j >= 0 && i < PROBE_OPTION_MAX;
+	     i++, j--) {
 		/* skip empty SSID matchsets */
-		if (!params->match_sets[i].ssid.ssid_len)
+		if (!params->match_sets[j].ssid.ssid_len)
 			continue;
-		direct_scan[i].id = WLAN_EID_SSID;
-		direct_scan[i].len = params->match_sets[i].ssid.ssid_len;
-		memcpy(direct_scan[i].ssid, params->match_sets[i].ssid.ssid,
-		       direct_scan[i].len);
+		ssid[i].id = WLAN_EID_SSID;
+		ssid[i].len = params->match_sets[j].ssid.ssid_len;
+		memcpy(ssid[i].ssid, params->match_sets[j].ssid.ssid,
+		       ssid[i].len);
 	}
 
 	/* add SSIDs from scan SSID list */
 	*ssid_bitmap = 0;
-	for (j = 0; j < params->n_ssids && i < PROBE_OPTION_MAX; j++) {
+	for (j = params->n_ssids - 1;
+	     j >= 0 && i < PROBE_OPTION_MAX;
+	     i++, j--) {
 		index = iwl_ssid_exist(params->ssids[j].ssid,
 				       params->ssids[j].ssid_len,
-				       direct_scan);
+				       ssid);
 		if (index < 0) {
 			if (!params->ssids[j].ssid_len)
 				continue;
-			direct_scan[i].id = WLAN_EID_SSID;
-			direct_scan[i].len = params->ssids[j].ssid_len;
-			memcpy(direct_scan[i].ssid, params->ssids[j].ssid,
-			       direct_scan[i].len);
+			ssid[i].id = WLAN_EID_SSID;
+			ssid[i].len = params->ssids[j].ssid_len;
+			memcpy(ssid[i].ssid, params->ssids[j].ssid,
+			       ssid[i].len);
 			*ssid_bitmap |= BIT(i + 1);
-			i++;
 		} else {
 			*ssid_bitmap |= BIT(index + 1);
 		}
