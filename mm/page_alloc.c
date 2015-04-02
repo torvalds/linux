@@ -960,7 +960,7 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
 
 	trace_mm_page_free(page, order);
 	kmemcheck_free_shadow(page, order);
-	kasan_free_pages(page, order);
+	kasan_poison_free_pages(page, order);
 
 	if (PageAnon(page))
 		page->mapping = NULL;

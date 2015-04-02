@@ -344,6 +344,32 @@ static noinline void __init kasan_stack_oob(void)
 	*(volatile char *)p;
 }
 
+#ifdef CONFIG_SLAB
+static noinline void __init kasan_quarantine_cache(void)
+{
+	struct kmem_cache *cache = kmem_cache_create(
+			"test", 137, 8, GFP_KERNEL, NULL);
+	int i;
+
+	for (i = 0; i <  100; i++) {
+		void *p = kmem_cache_alloc(cache, GFP_KERNEL);
+
+		kmem_cache_free(cache, p);
+		p = kmalloc(sizeof(u64), GFP_KERNEL);
+		kfree(p);
+	}
+	kmem_cache_shrink(cache);
+	for (i = 0; i <  100; i++) {
+		u64 *p = kmem_cache_alloc(cache, GFP_KERNEL);
+
+		kmem_cache_free(cache, p);
+		p = kmalloc(sizeof(u64), GFP_KERNEL);
+		kfree(p);
+	}
+	kmem_cache_destroy(cache);
+}
+#endif
+
 static int __init kmalloc_tests_init(void)
 {
 	kmalloc_oob_right();
@@ -367,6 +393,9 @@ static int __init kmalloc_tests_init(void)
 	kmem_cache_oob();
 	kasan_stack_oob();
 	kasan_global_oob();
+#ifdef CONFIG_SLAB
+	kasan_quarantine_cache();
+#endif
 	return -EAGAIN;
 }
 
