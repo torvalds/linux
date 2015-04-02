@@ -252,15 +252,21 @@ static int v9fs_launder_page(struct page *page)
 static ssize_t
 v9fs_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter, loff_t pos)
 {
-	/*
-	 * FIXME
-	 * Now that we do caching with cache mode enabled, We need
-	 * to support direct IO
-	 */
-	p9_debug(P9_DEBUG_VFS, "v9fs_direct_IO: v9fs_direct_IO (%pD) off/no(%lld/%lu) EINVAL\n",
-		 iocb->ki_filp,
-		 (long long)pos, iter->nr_segs);
+	struct file *file = iocb->ki_filp;
+	if (rw == WRITE) {
+		ssize_t written;
+		int err = 0;
 
+		written = p9_client_write(file->private_data, pos, iter, &err);
+		if (written) {
+			struct inode *inode = file_inode(file);
+			loff_t i_size = i_size_read(inode);
+			if (pos + written > i_size)
+				inode_add_bytes(inode, pos + written - i_size);
+			return written;
+		}
+		return err;
+	}
 	return -EINVAL;
 }
 
