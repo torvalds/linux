@@ -286,7 +286,7 @@ static int mxc_rtc_read_time(struct device *dev, struct rtc_time *tm)
 /*
  * This function sets the internal RTC time based on tm in Gregorian date.
  */
-static int mxc_rtc_set_mmss(struct device *dev, unsigned long time)
+static int mxc_rtc_set_mmss(struct device *dev, time64_t time)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
@@ -297,9 +297,9 @@ static int mxc_rtc_set_mmss(struct device *dev, unsigned long time)
 	if (is_imx1_rtc(pdata)) {
 		struct rtc_time tm;
 
-		rtc_time_to_tm(time, &tm);
+		rtc_time64_to_tm(time, &tm);
 		tm.tm_year = 70;
-		rtc_tm_to_time(&tm, &time);
+		time = rtc_tm_to_time64(&tm);
 	}
 
 	/* Avoid roll-over from reading the different registers */
@@ -347,7 +347,7 @@ static int mxc_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 static struct rtc_class_ops mxc_rtc_ops = {
 	.release		= mxc_rtc_release,
 	.read_time		= mxc_rtc_read_time,
-	.set_mmss		= mxc_rtc_set_mmss,
+	.set_mmss64		= mxc_rtc_set_mmss,
 	.read_alarm		= mxc_rtc_read_alarm,
 	.set_alarm		= mxc_rtc_set_alarm,
 	.alarm_irq_enable	= mxc_rtc_alarm_irq_enable,
