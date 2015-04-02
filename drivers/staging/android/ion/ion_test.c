@@ -280,3 +280,4 @@ static void __exit ion_test_exit(void)
 
 module_init(ion_test_init);
 module_exit(ion_test_exit);
+MODULE_LICENSE("GPL v2");
