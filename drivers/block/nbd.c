@@ -110,14 +110,11 @@ static void nbd_end_request(struct nbd_device *nbd, struct request *req)
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 
+/*
+ * Forcibly shutdown the socket causing all listeners to error
+ */
 static void sock_shutdown(struct nbd_device *nbd, int lock)
 {
-	/* Forcibly shutdown the socket causing all listeners
-	 * to error
-	 *
-	 * FIXME: This code is duplicated from sys_shutdown, but
-	 * there should be a more generic interface rather than
-	 * calling socket ops directly here */
 	if (lock)
 		mutex_lock(&nbd->tx_lock);
 	if (nbd->sock) {
