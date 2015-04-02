@@ -2195,15 +2195,19 @@ static int mlx4_en_set_features(struct net_device *netdev,
 		netdev_features_t features)
 {
 	struct mlx4_en_priv *priv = netdev_priv(netdev);
+	bool reset = false;
 	int ret = 0;
+
+	if (DEV_FEATURE_CHANGED(netdev, features, NETIF_F_RXFCS)) {
+		en_info(priv, "Turn %s RX-FCS\n",
+			(features & NETIF_F_RXFCS) ? "ON" : "OFF");
+		reset = true;
+	}
 
 	if (DEV_FEATURE_CHANGED(netdev, features, NETIF_F_HW_VLAN_CTAG_RX)) {
 		en_info(priv, "Turn %s RX vlan strip offload\n",
 			(features & NETIF_F_HW_VLAN_CTAG_RX) ? "ON" : "OFF");
-		ret = mlx4_en_reset_config(netdev, priv->hwtstamp_config,
-					   features);
-		if (ret)
-			return ret;
+		reset = true;
 	}
 
 	if (DEV_FEATURE_CHANGED(netdev, features, NETIF_F_HW_VLAN_CTAG_TX))
@@ -2216,8 +2220,14 @@ static int mlx4_en_set_features(struct net_device *netdev,
 		mlx4_en_update_loopback_state(netdev, features);
 	}
 
-	return 0;
+	if (reset) {
+		ret = mlx4_en_reset_config(netdev, priv->hwtstamp_config,
+					   features);
+		if (ret)
+			return ret;
+	}
 
+	return 0;
 }
 
 static int mlx4_en_set_vf_mac(struct net_device *dev, int queue, u8 *mac)
@@ -2901,6 +2911,9 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	dev->hw_features |= NETIF_F_LOOPBACK |
 			NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX;
 
+	if (mdev->dev->caps.flags & MLX4_DEV_CAP_FLAG_FCS_KEEP)
+		dev->hw_features |= NETIF_F_RXFCS;
+
 	if (mdev->dev->caps.steering_mode ==
 	    MLX4_STEERING_MODE_DEVICE_MANAGED &&
 	    mdev->dev->caps.dmfs_high_steer_mode != MLX4_STEERING_DMFS_A0_STATIC)
@@ -2997,7 +3010,8 @@ int mlx4_en_reset_config(struct net_device *dev,
 
 	if (priv->hwtstamp_config.tx_type == ts_config.tx_type &&
 	    priv->hwtstamp_config.rx_filter == ts_config.rx_filter &&
-	    !DEV_FEATURE_CHANGED(dev, features, NETIF_F_HW_VLAN_CTAG_RX))
+	    !DEV_FEATURE_CHANGED(dev, features, NETIF_F_HW_VLAN_CTAG_RX) &&
+	    !DEV_FEATURE_CHANGED(dev, features, NETIF_F_RXFCS))
 		return 0; /* Nothing to change */
 
 	if (DEV_FEATURE_CHANGED(dev, features, NETIF_F_HW_VLAN_CTAG_RX) &&
@@ -3034,6 +3048,13 @@ int mlx4_en_reset_config(struct net_device *dev,
 			dev->features |= NETIF_F_HW_VLAN_CTAG_RX;
 		else
 			dev->features &= ~NETIF_F_HW_VLAN_CTAG_RX;
+	}
+
+	if (DEV_FEATURE_CHANGED(dev, features, NETIF_F_RXFCS)) {
+		if (features & NETIF_F_RXFCS)
+			dev->features |= NETIF_F_RXFCS;
+		else
+			dev->features &= ~NETIF_F_RXFCS;
 	}
 
 	/* RX vlan offload and RX time-stamping can't co-exist !
