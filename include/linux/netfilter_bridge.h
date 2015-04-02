@@ -20,12 +20,10 @@ enum nf_br_hook_priorities {
 #define BRNF_PKT_TYPE			0x01
 #define BRNF_BRIDGED_DNAT		0x02
 #define BRNF_NF_BRIDGE_PREROUTING	0x08
-#define BRNF_8021Q			0x10
-#define BRNF_PPPoE			0x20
 
 static inline unsigned int nf_bridge_mtu_reduction(const struct sk_buff *skb)
 {
-	if (unlikely(skb->nf_bridge->mask & BRNF_PPPoE))
+	if (skb->nf_bridge->orig_proto == BRNF_PROTO_PPPOE)
 		return PPPOE_SES_HLEN;
 	return 0;
 }
