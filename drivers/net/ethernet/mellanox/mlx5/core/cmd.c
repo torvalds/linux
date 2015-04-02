@@ -1319,6 +1319,45 @@ ex_err:
 	return err;
 }
 
+static int alloc_cmd_page(struct mlx5_core_dev *dev, struct mlx5_cmd *cmd)
+{
+	struct device *ddev = &dev->pdev->dev;
+
+	cmd->cmd_alloc_buf = dma_zalloc_coherent(ddev, MLX5_ADAPTER_PAGE_SIZE,
+						 &cmd->alloc_dma, GFP_KERNEL);
+	if (!cmd->cmd_alloc_buf)
+		return -ENOMEM;
+
+	/* make sure it is aligned to 4K */
+	if (!((uintptr_t)cmd->cmd_alloc_buf & (MLX5_ADAPTER_PAGE_SIZE - 1))) {
+		cmd->cmd_buf = cmd->cmd_alloc_buf;
+		cmd->dma = cmd->alloc_dma;
+		cmd->alloc_size = MLX5_ADAPTER_PAGE_SIZE;
+		return 0;
+	}
+
+	dma_free_coherent(ddev, MLX5_ADAPTER_PAGE_SIZE, cmd->cmd_alloc_buf,
+			  cmd->alloc_dma);
+	cmd->cmd_alloc_buf = dma_zalloc_coherent(ddev,
+						 2 * MLX5_ADAPTER_PAGE_SIZE - 1,
+						 &cmd->alloc_dma, GFP_KERNEL);
+	if (!cmd->cmd_alloc_buf)
+		return -ENOMEM;
+
+	cmd->cmd_buf = PTR_ALIGN(cmd->cmd_alloc_buf, MLX5_ADAPTER_PAGE_SIZE);
+	cmd->dma = ALIGN(cmd->alloc_dma, MLX5_ADAPTER_PAGE_SIZE);
+	cmd->alloc_size = 2 * MLX5_ADAPTER_PAGE_SIZE - 1;
+	return 0;
+}
+
+static void free_cmd_page(struct mlx5_core_dev *dev, struct mlx5_cmd *cmd)
+{
+	struct device *ddev = &dev->pdev->dev;
+
+	dma_free_coherent(ddev, cmd->alloc_size, cmd->cmd_alloc_buf,
+			  cmd->alloc_dma);
+}
+
 int mlx5_cmd_init(struct mlx5_core_dev *dev)
 {
 	int size = sizeof(struct mlx5_cmd_prot_block);
@@ -1341,17 +1380,9 @@ int mlx5_cmd_init(struct mlx5_core_dev *dev)
 	if (!cmd->pool)
 		return -ENOMEM;
 
-	cmd->cmd_buf = (void *)__get_free_pages(GFP_ATOMIC, 0);
-	if (!cmd->cmd_buf) {
-		err = -ENOMEM;
+	err = alloc_cmd_page(dev, cmd);
+	if (err)
 		goto err_free_pool;
-	}
-	cmd->dma = dma_map_single(&dev->pdev->dev, cmd->cmd_buf, PAGE_SIZE,
-				  DMA_BIDIRECTIONAL);
-	if (dma_mapping_error(&dev->pdev->dev, cmd->dma)) {
-		err = -ENOMEM;
-		goto err_free;
-	}
 
 	cmd_l = ioread32be(&dev->iseg->cmdq_addr_l_sz) & 0xff;
 	cmd->log_sz = cmd_l >> 4 & 0xf;
@@ -1360,13 +1391,13 @@ int mlx5_cmd_init(struct mlx5_core_dev *dev)
 		dev_err(&dev->pdev->dev, "firmware reports too many outstanding commands %d\n",
 			1 << cmd->log_sz);
 		err = -EINVAL;
-		goto err_map;
+		goto err_free_page;
 	}
 
 	if (cmd->log_sz + cmd->log_stride > MLX5_ADAPTER_PAGE_SHIFT) {
 		dev_err(&dev->pdev->dev, "command queue size overflow\n");
 		err = -EINVAL;
-		goto err_map;
+		goto err_free_page;
 	}
 
 	cmd->checksum_disabled = 1;
@@ -1378,7 +1409,7 @@ int mlx5_cmd_init(struct mlx5_core_dev *dev)
 		dev_err(&dev->pdev->dev, "driver does not support command interface version. driver %d, firmware %d\n",
 			CMD_IF_REV, cmd->cmdif_rev);
 		err = -ENOTSUPP;
-		goto err_map;
+		goto err_free_page;
 	}
 
 	spin_lock_init(&cmd->alloc_lock);
@@ -1394,7 +1425,7 @@ int mlx5_cmd_init(struct mlx5_core_dev *dev)
 	if (cmd_l & 0xfff) {
 		dev_err(&dev->pdev->dev, "invalid command queue address\n");
 		err = -ENOMEM;
-		goto err_map;
+		goto err_free_page;
 	}
 
 	iowrite32be(cmd_h, &dev->iseg->cmdq_addr_h);
@@ -1410,7 +1441,7 @@ int mlx5_cmd_init(struct mlx5_core_dev *dev)
 	err = create_msg_cache(dev);
 	if (err) {
 		dev_err(&dev->pdev->dev, "failed to create command cache\n");
-		goto err_map;
+		goto err_free_page;
 	}
 
 	set_wqname(dev);
@@ -1435,11 +1466,8 @@ err_wq:
 err_cache:
 	destroy_msg_cache(dev);
 
-err_map:
-	dma_unmap_single(&dev->pdev->dev, cmd->dma, PAGE_SIZE,
-			 DMA_BIDIRECTIONAL);
-err_free:
-	free_pages((unsigned long)cmd->cmd_buf, 0);
+err_free_page:
+	free_cmd_page(dev, cmd);
 
 err_free_pool:
 	pci_pool_destroy(cmd->pool);
@@ -1455,9 +1483,7 @@ void mlx5_cmd_cleanup(struct mlx5_core_dev *dev)
 	clean_debug_files(dev);
 	destroy_workqueue(cmd->wq);
 	destroy_msg_cache(dev);
-	dma_unmap_single(&dev->pdev->dev, cmd->dma, PAGE_SIZE,
-			 DMA_BIDIRECTIONAL);
-	free_pages((unsigned long)cmd->cmd_buf, 0);
+	free_cmd_page(dev, cmd);
 	pci_pool_destroy(cmd->pool);
 }
 EXPORT_SYMBOL(mlx5_cmd_cleanup);
