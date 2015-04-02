@@ -554,6 +554,30 @@ out_register:
 	return slave;
 }
 
+static ssize_t mtd_partition_offset_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct mtd_info *mtd = dev_get_drvdata(dev);
+	struct mtd_part *part = PART(mtd);
+	return snprintf(buf, PAGE_SIZE, "%lld\n", part->offset);
+}
+
+static DEVICE_ATTR(offset, S_IRUGO, mtd_partition_offset_show, NULL);
+
+static const struct attribute *mtd_partition_attrs[] = {
+	&dev_attr_offset.attr,
+	NULL
+};
+
+static int mtd_add_partition_attrs(struct mtd_part *new)
+{
+	int ret = sysfs_create_files(&new->mtd.dev.kobj, mtd_partition_attrs);
+	if (ret)
+		printk(KERN_WARNING
+		       "mtd: failed to create partition attrs, err=%d\n", ret);
+	return ret;
+}
+
 int mtd_add_partition(struct mtd_info *master, const char *name,
 		      long long offset, long long length)
 {
@@ -603,6 +627,8 @@ int mtd_add_partition(struct mtd_info *master, const char *name,
 
 	add_mtd_device(&new->mtd);
 
+	mtd_add_partition_attrs(new);
+
 	return ret;
 err_inv:
 	mutex_unlock(&mtd_partitions_mutex);
@@ -620,6 +646,8 @@ int mtd_del_partition(struct mtd_info *master, int partno)
 	list_for_each_entry_safe(slave, next, &mtd_partitions, list)
 		if ((slave->master == master) &&
 		    (slave->mtd.index == partno)) {
+			sysfs_remove_files(&slave->mtd.dev.kobj,
+					   mtd_partition_attrs);
 			ret = del_mtd_device(&slave->mtd);
 			if (ret < 0)
 				break;
@@ -663,6 +691,7 @@ int add_mtd_partitions(struct mtd_info *master,
 		mutex_unlock(&mtd_partitions_mutex);
 
 		add_mtd_device(&slave->mtd);
+		mtd_add_partition_attrs(slave);
 
 		cur_offset = slave->offset + slave->mtd.size;
 	}
