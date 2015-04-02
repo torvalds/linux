@@ -1236,7 +1236,8 @@ static int cmd_exec(struct mlx5_core_dev *dev, void *in, int in_size, void *out,
 		goto out_out;
 	}
 
-	err = mlx5_copy_from_msg(out, outb, out_size);
+	if (!callback)
+		err = mlx5_copy_from_msg(out, outb, out_size);
 
 out_out:
 	if (!callback)
