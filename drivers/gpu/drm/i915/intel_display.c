@@ -10658,23 +10658,30 @@ static bool check_encoder_cloning(struct intel_crtc *crtc)
 	return true;
 }
 
-static bool check_digital_port_conflicts(struct drm_device *dev)
+static bool check_digital_port_conflicts(struct drm_atomic_state *state)
 {
-	struct intel_connector *connector;
+	struct drm_device *dev = state->dev;
+	struct intel_encoder *encoder;
+	struct drm_connector_state *connector_state;
 	unsigned int used_ports = 0;
+	int i;
 
 	/*
 	 * Walk the connector list instead of the encoder
 	 * list to detect the problem on ddi platforms
 	 * where there's just one encoder per digital port.
 	 */
-	for_each_intel_connector(dev, connector) {
-		struct intel_encoder *encoder = connector->new_encoder;
-
-		if (!encoder)
+	for (i = 0; i < state->num_connector; i++) {
+		if (!state->connectors[i])
 			continue;
 
-		WARN_ON(!encoder->new_crtc);
+		connector_state = state->connector_states[i];
+		if (!connector_state->best_encoder)
+			continue;
+
+		encoder = to_intel_encoder(connector_state->best_encoder);
+
+		WARN_ON(!connector_state->crtc);
 
 		switch (encoder->type) {
 			unsigned int port_mask;
@@ -10716,7 +10723,6 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 			  struct drm_display_mode *mode,
 			  struct drm_atomic_state *state)
 {
-	struct drm_device *dev = crtc->dev;
 	struct intel_encoder *encoder;
 	struct intel_connector *connector;
 	struct drm_connector_state *connector_state;
@@ -10730,7 +10736,7 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (!check_digital_port_conflicts(dev)) {
+	if (!check_digital_port_conflicts(state)) {
 		DRM_DEBUG_KMS("rejecting conflicting digital port configuration\n");
 		return ERR_PTR(-EINVAL);
 	}
