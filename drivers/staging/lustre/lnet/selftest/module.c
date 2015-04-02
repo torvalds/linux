@@ -87,7 +87,6 @@ lnet_selftest_fini(void)
 	default:
 		LBUG();
 	}
-	return;
 }
 
 static int
