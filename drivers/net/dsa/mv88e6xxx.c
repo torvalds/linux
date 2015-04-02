@@ -701,53 +701,54 @@ static int _mv88e6xxx_phy_write_indirect(struct dsa_switch *ds, int addr,
 
 int mv88e6xxx_get_eee(struct dsa_switch *ds, int port, struct ethtool_eee *e)
 {
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int reg;
 
-	reg = mv88e6xxx_phy_read_indirect(ds, port, 16);
+	mutex_lock(&ps->phy_mutex);
+
+	reg = _mv88e6xxx_phy_read_indirect(ds, port, 16);
 	if (reg < 0)
-		return -EOPNOTSUPP;
+		goto out;
 
 	e->eee_enabled = !!(reg & 0x0200);
 	e->tx_lpi_enabled = !!(reg & 0x0100);
 
-	reg = REG_READ(REG_PORT(port), 0);
-	e->eee_active = !!(reg & 0x0040);
-
-	return 0;
-}
-
-static int mv88e6xxx_eee_enable_set(struct dsa_switch *ds, int port,
-				    bool eee_enabled, bool tx_lpi_enabled)
-{
-	int reg, nreg;
-
-	reg = _mv88e6xxx_phy_read_indirect(ds, port, 16);
+	reg = mv88e6xxx_reg_read(ds, REG_PORT(port), 0);
 	if (reg < 0)
-		return reg;
+		goto out;
 
-	nreg = reg & ~0x0300;
-	if (eee_enabled)
-		nreg |= 0x0200;
-	if (tx_lpi_enabled)
-		nreg |= 0x0100;
+	e->eee_active = !!(reg & 0x0040);
+	reg = 0;
 
-	if (nreg != reg)
-		return _mv88e6xxx_phy_write_indirect(ds, port, 16, nreg);
-
-	return 0;
+out:
+	mutex_unlock(&ps->phy_mutex);
+	return reg;
 }
 
 int mv88e6xxx_set_eee(struct dsa_switch *ds, int port,
 		      struct phy_device *phydev, struct ethtool_eee *e)
 {
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	int reg;
 	int ret;
 
-	ret = mv88e6xxx_eee_enable_set(ds, port, e->eee_enabled,
-				       e->tx_lpi_enabled);
-	if (ret)
-		return -EOPNOTSUPP;
+	mutex_lock(&ps->phy_mutex);
 
-	return 0;
+	ret = _mv88e6xxx_phy_read_indirect(ds, port, 16);
+	if (ret < 0)
+		goto out;
+
+	reg = ret & ~0x0300;
+	if (e->eee_enabled)
+		reg |= 0x0200;
+	if (e->tx_lpi_enabled)
+		reg |= 0x0100;
+
+	ret = _mv88e6xxx_phy_write_indirect(ds, port, 16, reg);
+out:
+	mutex_unlock(&ps->phy_mutex);
+
+	return ret;
 }
 
 static int _mv88e6xxx_atu_cmd(struct dsa_switch *ds, int fid, u16 cmd)
