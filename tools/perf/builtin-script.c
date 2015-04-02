@@ -1515,6 +1515,9 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 			.ordering_requires_timestamps = true,
 		},
 	};
+	struct perf_data_file file = {
+		.mode = PERF_DATA_MODE_READ,
+	};
 	const struct option options[] = {
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
@@ -1542,7 +1545,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "When printing symbols do not display call chain"),
 	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
 		    "Look for files with symbols relative to this directory"),
-	OPT_CALLBACK('f', "fields", NULL, "str",
+	OPT_CALLBACK('F', "fields", NULL, "str",
 		     "comma separated output fields prepend with 'type:'. "
 		     "Valid types: hw,sw,trace,raw. "
 		     "Fields: comm,tid,pid,time,cpu,event,trace,ip,sym,dso,"
@@ -1566,6 +1569,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "Show the fork/comm/exit events"),
 	OPT_BOOLEAN('\0', "show-mmap-events", &script.show_mmap_events,
 		    "Show the mmap events"),
+	OPT_BOOLEAN('f', "force", &file.force, "don't complain, do it"),
 	OPT_END()
 	};
 	const char * const script_subcommands[] = { "record", "report", NULL };
@@ -1576,9 +1580,6 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		"perf script [<options>] <script> [<record-options>] <command>",
 		"perf script [<options>] <top-script> [script-args]",
 		NULL
-	};
-	struct perf_data_file file = {
-		.mode = PERF_DATA_MODE_READ,
 	};
 
 	setup_scripting();
