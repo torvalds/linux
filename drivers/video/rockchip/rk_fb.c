@@ -3416,7 +3416,7 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi)
 		win = dev_drv->win[win_id];
 
 	if (!strcmp(fbi->fix.id, "fb0")) {
-		fb_mem_size = get_fb_size();
+		fb_mem_size = get_fb_size(dev_drv->reserved_fb);
 #if defined(CONFIG_ION_ROCKCHIP)
 		if (rk_fb_alloc_buffer_by_ion(fbi, win, fb_mem_size) < 0)
 			return -ENOMEM;

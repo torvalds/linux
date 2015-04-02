@@ -30,7 +30,7 @@ int rk_fb_set_prmry_screen(struct rk_screen *screen)
 	return 0;
 }
 
-size_t get_fb_size(void)
+size_t get_fb_size(u8 reserved_fb)
 {
 	size_t size = 0;
 	u32 xres = 0;
@@ -44,12 +44,15 @@ size_t get_fb_size(void)
 
 	/* align as 64 bytes(16*4) in an odd number of times */
 	xres = ALIGN_64BYTE_ODD_TIMES(xres, ALIGN_PIXEL_64BYTE_RGB8888);
-
-	#if defined(CONFIG_THREE_FB_BUFFER)
+        if (reserved_fb == 1) {
+                size = (xres * yres << 2);/*one buffer*/
+        } else {
+#if defined(CONFIG_THREE_FB_BUFFER)
 		size = (xres * yres << 2) * 3;	/* three buffer */
-	#else
+#else
 		size = (xres * yres << 2) << 1; /* two buffer */
-	#endif
+#endif
+	}
 	return ALIGN(size, SZ_1M);
 }
 
