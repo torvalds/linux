@@ -640,6 +640,7 @@ static size_t omap_sham_append_sg(struct omap_sham_reqctx *ctx)
 
 	while (ctx->sg) {
 		vaddr = kmap_atomic(sg_page(ctx->sg));
+		vaddr += ctx->sg->offset;
 
 		count = omap_sham_append_buffer(ctx,
 				vaddr + ctx->offset,
