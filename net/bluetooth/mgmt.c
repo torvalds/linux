@@ -3783,10 +3783,70 @@ failed:
 	return err;
 }
 
+static void read_local_oob_data_complete(struct hci_dev *hdev, u8 status,
+				         u16 opcode, struct sk_buff *skb)
+{
+	struct mgmt_rp_read_local_oob_data mgmt_rp;
+	size_t rp_size = sizeof(mgmt_rp);
+	struct mgmt_pending_cmd *cmd;
+
+	BT_DBG("%s status %u", hdev->name, status);
+
+	cmd = pending_find(MGMT_OP_READ_LOCAL_OOB_DATA, hdev);
+	if (!cmd)
+		return;
+
+	if (status || !skb) {
+		mgmt_cmd_status(cmd->sk, hdev->id, MGMT_OP_READ_LOCAL_OOB_DATA,
+				status ? mgmt_status(status) : MGMT_STATUS_FAILED);
+		goto remove;
+	}
+
+	memset(&mgmt_rp, 0, sizeof(mgmt_rp));
+
+	if (opcode == HCI_OP_READ_LOCAL_OOB_DATA) {
+		struct hci_rp_read_local_oob_data *rp = (void *) skb->data;
+
+		if (skb->len < sizeof(*rp)) {
+			mgmt_cmd_status(cmd->sk, hdev->id,
+					MGMT_OP_READ_LOCAL_OOB_DATA,
+					MGMT_STATUS_FAILED);
+			goto remove;
+		}
+
+		memcpy(mgmt_rp.hash192, rp->hash, sizeof(rp->hash));
+		memcpy(mgmt_rp.rand192, rp->rand, sizeof(rp->rand));
+
+		rp_size -= sizeof(mgmt_rp.hash256) + sizeof(mgmt_rp.rand256);
+	} else {
+		struct hci_rp_read_local_oob_ext_data *rp = (void *) skb->data;
+
+		if (skb->len < sizeof(*rp)) {
+			mgmt_cmd_status(cmd->sk, hdev->id,
+					MGMT_OP_READ_LOCAL_OOB_DATA,
+					MGMT_STATUS_FAILED);
+			goto remove;
+		}
+
+		memcpy(mgmt_rp.hash192, rp->hash192, sizeof(rp->hash192));
+		memcpy(mgmt_rp.rand192, rp->rand192, sizeof(rp->rand192));
+
+		memcpy(mgmt_rp.hash256, rp->hash256, sizeof(rp->hash256));
+		memcpy(mgmt_rp.rand256, rp->rand256, sizeof(rp->rand256));
+	}
+
+	mgmt_cmd_complete(cmd->sk, hdev->id, MGMT_OP_READ_LOCAL_OOB_DATA,
+			  MGMT_STATUS_SUCCESS, &mgmt_rp, rp_size);
+
+remove:
+	mgmt_pending_remove(cmd);
+}
+
 static int read_local_oob_data(struct sock *sk, struct hci_dev *hdev,
 			       void *data, u16 data_len)
 {
 	struct mgmt_pending_cmd *cmd;
+	struct hci_request req;
 	int err;
 
 	BT_DBG("%s", hdev->name);
@@ -3817,12 +3877,14 @@ static int read_local_oob_data(struct sock *sk, struct hci_dev *hdev,
 		goto unlock;
 	}
 
-	if (bredr_sc_enabled(hdev))
-		err = hci_send_cmd(hdev, HCI_OP_READ_LOCAL_OOB_EXT_DATA,
-				   0, NULL);
-	else
-		err = hci_send_cmd(hdev, HCI_OP_READ_LOCAL_OOB_DATA, 0, NULL);
+	hci_req_init(&req, hdev);
 
+	if (bredr_sc_enabled(hdev))
+		hci_req_add(&req, HCI_OP_READ_LOCAL_OOB_EXT_DATA, 0, NULL);
+	else
+		hci_req_add(&req, HCI_OP_READ_LOCAL_OOB_DATA, 0, NULL);
+
+	err = hci_req_run_skb(&req, read_local_oob_data_complete);
 	if (err < 0)
 		mgmt_pending_remove(cmd);
 
@@ -7918,43 +7980,6 @@ void mgmt_set_local_name_complete(struct hci_dev *hdev, u8 *name, u8 status)
 
 	mgmt_generic_event(MGMT_EV_LOCAL_NAME_CHANGED, hdev, &ev, sizeof(ev),
 			   cmd ? cmd->sk : NULL);
-}
-
-void mgmt_read_local_oob_data_complete(struct hci_dev *hdev, u8 *hash192,
-				       u8 *rand192, u8 *hash256, u8 *rand256,
-				       u8 status)
-{
-	struct mgmt_pending_cmd *cmd;
-
-	BT_DBG("%s status %u", hdev->name, status);
-
-	cmd = pending_find(MGMT_OP_READ_LOCAL_OOB_DATA, hdev);
-	if (!cmd)
-		return;
-
-	if (status) {
-		mgmt_cmd_status(cmd->sk, hdev->id, MGMT_OP_READ_LOCAL_OOB_DATA,
-			        mgmt_status(status));
-	} else {
-		struct mgmt_rp_read_local_oob_data rp;
-		size_t rp_size = sizeof(rp);
-
-		memcpy(rp.hash192, hash192, sizeof(rp.hash192));
-		memcpy(rp.rand192, rand192, sizeof(rp.rand192));
-
-		if (bredr_sc_enabled(hdev) && hash256 && rand256) {
-			memcpy(rp.hash256, hash256, sizeof(rp.hash256));
-			memcpy(rp.rand256, rand256, sizeof(rp.rand256));
-		} else {
-			rp_size -= sizeof(rp.hash256) + sizeof(rp.rand256);
-		}
-
-		mgmt_cmd_complete(cmd->sk, hdev->id,
-				  MGMT_OP_READ_LOCAL_OOB_DATA, 0,
-				  &rp, rp_size);
-	}
-
-	mgmt_pending_remove(cmd);
 }
 
 static inline bool has_uuid(u8 *uuid, u16 uuid_count, u8 (*uuids)[16])
