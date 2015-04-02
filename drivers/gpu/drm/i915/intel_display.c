@@ -5160,36 +5160,48 @@ static int valleyview_calc_cdclk(struct drm_i915_private *dev_priv,
 }
 
 /* compute the max pixel clock for new configuration */
-static int intel_mode_max_pixclk(struct drm_i915_private *dev_priv)
+static int intel_mode_max_pixclk(struct drm_atomic_state *state)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = state->dev;
 	struct intel_crtc *intel_crtc;
+	struct intel_crtc_state *crtc_state;
 	int max_pixclk = 0;
 
 	for_each_intel_crtc(dev, intel_crtc) {
-		if (intel_crtc->new_enabled)
-			max_pixclk = max(max_pixclk,
-					 intel_crtc->new_config->base.adjusted_mode.crtc_clock);
+		crtc_state = intel_atomic_get_crtc_state(state, intel_crtc);
+		if (IS_ERR(crtc_state))
+			return PTR_ERR(crtc_state);
+
+		if (!crtc_state->base.enable)
+			continue;
+
+		max_pixclk = max(max_pixclk,
+				 crtc_state->base.adjusted_mode.crtc_clock);
 	}
 
 	return max_pixclk;
 }
 
-static void valleyview_modeset_global_pipes(struct drm_device *dev,
+static int valleyview_modeset_global_pipes(struct drm_atomic_state *state,
 					    unsigned *prepare_pipes)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(state->dev);
 	struct intel_crtc *intel_crtc;
-	int max_pixclk = intel_mode_max_pixclk(dev_priv);
+	int max_pixclk = intel_mode_max_pixclk(state);
+
+	if (max_pixclk < 0)
+		return max_pixclk;
 
 	if (valleyview_calc_cdclk(dev_priv, max_pixclk) ==
 	    dev_priv->vlv_cdclk_freq)
-		return;
+		return 0;
 
 	/* disable/enable all currently active pipes while we change cdclk */
-	for_each_intel_crtc(dev, intel_crtc)
+	for_each_intel_crtc(state->dev, intel_crtc)
 		if (intel_crtc->base.state->enable)
 			*prepare_pipes |= (1 << intel_crtc->pipe);
+
+	return 0;
 }
 
 static void vlv_program_pfi_credits(struct drm_i915_private *dev_priv)
@@ -5232,8 +5244,18 @@ static void valleyview_modeset_global_resources(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int max_pixclk = intel_mode_max_pixclk(dev_priv);
-	int req_cdclk = valleyview_calc_cdclk(dev_priv, max_pixclk);
+	int max_pixclk = intel_mode_max_pixclk(state);
+	int req_cdclk;
+
+	/* The only reason this can fail is if we fail to add the crtc_state
+	 * to the atomic state. But that can't happen since the call to
+	 * intel_mode_max_pixclk() in valleyview_modeset_global_pipes() (which
+	 * can't have failed otherwise the mode set would be aborted) added all
+	 * the states already. */
+	if (WARN_ON(max_pixclk < 0))
+		return;
+
+	req_cdclk = valleyview_calc_cdclk(dev_priv, max_pixclk);
 
 	if (req_cdclk != dev_priv->vlv_cdclk_freq) {
 		/*
@@ -11550,6 +11572,8 @@ intel_modeset_compute_config(struct drm_crtc *crtc,
 		if (IS_ERR(pipe_config))
 			return pipe_config;
 
+		pipe_config->base.enable = true;
+
 		intel_dump_pipe_config(to_intel_crtc(crtc), pipe_config,
 				       "[modeset]");
 	}
@@ -11598,6 +11622,7 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_display_mode *saved_mode;
+	struct drm_atomic_state *state = pipe_config->base.state;
 	struct intel_crtc_state *crtc_state_copy = NULL;
 	struct intel_crtc *intel_crtc;
 	int ret = 0;
@@ -11625,7 +11650,9 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 	 * adjusted_mode bits in the crtc directly.
 	 */
 	if (IS_VALLEYVIEW(dev)) {
-		valleyview_modeset_global_pipes(dev, &prepare_pipes);
+		ret = valleyview_modeset_global_pipes(state, &prepare_pipes);
+		if (ret)
+			goto done;
 
 		/* may have added more to prepare_pipes than we should */
 		prepare_pipes &= ~disable_pipes;
@@ -11669,7 +11696,7 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 	 * update the the output configuration. */
 	intel_modeset_update_state(dev, prepare_pipes);
 
-	modeset_update_crtc_power_domains(pipe_config->base.state);
+	modeset_update_crtc_power_domains(state);
 
 	/* Set up the DPLL and any encoders state that needs to adjust or depend
 	 * on the DPLL.
