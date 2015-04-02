@@ -791,12 +791,13 @@ err:
 	return -1;
 }
 
-int bt_convert__perf2ctf(const char *input, const char *path)
+int bt_convert__perf2ctf(const char *input, const char *path, bool force)
 {
 	struct perf_session *session;
 	struct perf_data_file file = {
 		.path = input,
 		.mode = PERF_DATA_MODE_READ,
+		.force = force,
 	};
 	struct convert c = {
 		.tool = {
