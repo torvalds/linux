@@ -340,6 +340,23 @@ static ssize_t arm_ccn_pmu_event_show(struct device *dev,
 	if (event->mask)
 		res += snprintf(buf + res, PAGE_SIZE - res, ",mask=0x%x",
 				event->mask);
+
+	/* Arguments required by an event */
+	switch (event->type) {
+	case CCN_TYPE_CYCLES:
+		break;
+	case CCN_TYPE_XP:
+		res += snprintf(buf + res, PAGE_SIZE - res,
+				",xp=?,port=?,vc=?,dir=?");
+		if (event->event == CCN_EVENT_WATCHPOINT)
+			res += snprintf(buf + res, PAGE_SIZE - res,
+					",cmp_l=?,cmp_h=?,mask=?");
+		break;
+	default:
+		res += snprintf(buf + res, PAGE_SIZE - res, ",node=?");
+		break;
+	}
+
 	res += snprintf(buf + res, PAGE_SIZE - res, "\n");
 
 	return res;

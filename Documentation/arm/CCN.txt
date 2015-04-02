@@ -45,7 +45,7 @@ Example of perf tool use:
 / # perf list | grep ccn
   ccn/cycles/                                        [Kernel PMU event]
 <...>
-  ccn/xp_valid_flit/                                 [Kernel PMU event]
+  ccn/xp_valid_flit,xp=?,port=?,vc=?,dir=?/          [Kernel PMU event]
 <...>
 
 / # perf stat -a -e ccn/cycles/,ccn/xp_valid_flit,xp=1,port=0,vc=1,dir=1/ \
