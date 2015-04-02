@@ -434,11 +434,6 @@ struct ipoib_neigh {
 #define IPOIB_UD_MTU(ib_mtu)		(ib_mtu - IPOIB_ENCAP_LEN)
 #define IPOIB_UD_BUF_SIZE(ib_mtu)	(ib_mtu + IB_GRH_BYTES)
 
-static inline int ipoib_ud_need_sg(unsigned int ib_mtu)
-{
-	return IPOIB_UD_BUF_SIZE(ib_mtu) > PAGE_SIZE;
-}
-
 void ipoib_neigh_dtor(struct ipoib_neigh *neigh);
 static inline void ipoib_neigh_put(struct ipoib_neigh *neigh)
 {

@@ -94,39 +94,9 @@ void ipoib_free_ah(struct kref *kref)
 static void ipoib_ud_dma_unmap_rx(struct ipoib_dev_priv *priv,
 				  u64 mapping[IPOIB_UD_RX_SG])
 {
-	if (ipoib_ud_need_sg(priv->max_ib_mtu)) {
-		ib_dma_unmap_single(priv->ca, mapping[0], IPOIB_UD_HEAD_SIZE,
-				    DMA_FROM_DEVICE);
-		ib_dma_unmap_page(priv->ca, mapping[1], PAGE_SIZE,
-				  DMA_FROM_DEVICE);
-	} else
-		ib_dma_unmap_single(priv->ca, mapping[0],
-				    IPOIB_UD_BUF_SIZE(priv->max_ib_mtu),
-				    DMA_FROM_DEVICE);
-}
-
-static void ipoib_ud_skb_put_frags(struct ipoib_dev_priv *priv,
-				   struct sk_buff *skb,
-				   unsigned int length)
-{
-	if (ipoib_ud_need_sg(priv->max_ib_mtu)) {
-		skb_frag_t *frag = &skb_shinfo(skb)->frags[0];
-		unsigned int size;
-		/*
-		 * There is only two buffers needed for max_payload = 4K,
-		 * first buf size is IPOIB_UD_HEAD_SIZE
-		 */
-		skb->tail += IPOIB_UD_HEAD_SIZE;
-		skb->len  += length;
-
-		size = length - IPOIB_UD_HEAD_SIZE;
-
-		skb_frag_size_set(frag, size);
-		skb->data_len += size;
-		skb->truesize += PAGE_SIZE;
-	} else
-		skb_put(skb, length);
-
+	ib_dma_unmap_single(priv->ca, mapping[0],
+			    IPOIB_UD_BUF_SIZE(priv->max_ib_mtu),
+			    DMA_FROM_DEVICE);
 }
 
 static int ipoib_ib_post_receive(struct net_device *dev, int id)
@@ -156,18 +126,11 @@ static struct sk_buff *ipoib_alloc_rx_skb(struct net_device *dev, int id)
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct sk_buff *skb;
 	int buf_size;
-	int tailroom;
 	u64 *mapping;
 
-	if (ipoib_ud_need_sg(priv->max_ib_mtu)) {
-		buf_size = IPOIB_UD_HEAD_SIZE;
-		tailroom = 128; /* reserve some tailroom for IP/TCP headers */
-	} else {
-		buf_size = IPOIB_UD_BUF_SIZE(priv->max_ib_mtu);
-		tailroom = 0;
-	}
+	buf_size = IPOIB_UD_BUF_SIZE(priv->max_ib_mtu);
 
-	skb = dev_alloc_skb(buf_size + tailroom + 4);
+	skb = dev_alloc_skb(buf_size + IPOIB_ENCAP_LEN);
 	if (unlikely(!skb))
 		return NULL;
 
@@ -184,23 +147,8 @@ static struct sk_buff *ipoib_alloc_rx_skb(struct net_device *dev, int id)
 	if (unlikely(ib_dma_mapping_error(priv->ca, mapping[0])))
 		goto error;
 
-	if (ipoib_ud_need_sg(priv->max_ib_mtu)) {
-		struct page *page = alloc_page(GFP_ATOMIC);
-		if (!page)
-			goto partial_error;
-		skb_fill_page_desc(skb, 0, page, 0, PAGE_SIZE);
-		mapping[1] =
-			ib_dma_map_page(priv->ca, page,
-					0, PAGE_SIZE, DMA_FROM_DEVICE);
-		if (unlikely(ib_dma_mapping_error(priv->ca, mapping[1])))
-			goto partial_error;
-	}
-
 	priv->rx_ring[id].skb = skb;
 	return skb;
-
-partial_error:
-	ib_dma_unmap_single(priv->ca, mapping[0], buf_size, DMA_FROM_DEVICE);
 error:
 	dev_kfree_skb_any(skb);
 	return NULL;
@@ -278,7 +226,8 @@ static void ipoib_ib_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 		       wc->byte_len, wc->slid);
 
 	ipoib_ud_dma_unmap_rx(priv, mapping);
-	ipoib_ud_skb_put_frags(priv, skb, wc->byte_len);
+
+	skb_put(skb, wc->byte_len);
 
 	/* First byte of dgid signals multicast when 0xff */
 	dgid = &((struct ib_grh *)skb->data)->dgid;
@@ -295,6 +244,8 @@ static void ipoib_ib_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 	skb->protocol = ((struct ipoib_header *) skb->data)->proto;
 	skb_reset_mac_header(skb);
 	skb_pull(skb, IPOIB_ENCAP_LEN);
+
+	skb->truesize = SKB_TRUESIZE(skb->len);
 
 	++dev->stats.rx_packets;
 	dev->stats.rx_bytes += skb->len;
