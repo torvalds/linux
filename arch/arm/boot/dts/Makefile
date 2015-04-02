@@ -375,6 +375,7 @@ dtb-$(CONFIG_SOC_IMX7D) += \
 	imx7d-sdb.dtb \
 	imx7d-sdb-epdc.dtb \
 	imx7d-sdb-gpmi-weim.dtb \
+	imx7d-sdb-qspi.dtb \
 	imx7d-sdb-touch.dtb \
 	imx7d-sdb-m4.dtb
 dtb-$(CONFIG_SOC_LS1021A) += \
