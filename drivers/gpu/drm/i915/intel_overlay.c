@@ -175,7 +175,8 @@ struct intel_overlay {
 	bool active;
 	bool pfit_active;
 	u32 pfit_vscale_ratio; /* shifted-point number, (1<<12) == 1.0 */
-	u32 color_key;
+	u32 color_key:24;
+	u32 color_key_enabled:1;
 	u32 brightness, contrast, saturation;
 	u32 old_xscale, old_yscale;
 	/* register access */
@@ -630,31 +631,36 @@ static void update_colorkey(struct intel_overlay *overlay,
 			    struct overlay_registers __iomem *regs)
 {
 	u32 key = overlay->color_key;
+	u32 flags;
+
+	flags = 0;
+	if (overlay->color_key_enabled)
+		flags |= DST_KEY_ENABLE;
 
 	switch (overlay->crtc->base.primary->fb->bits_per_pixel) {
 	case 8:
-		iowrite32(0, &regs->DCLRKV);
-		iowrite32(CLK_RGB8I_MASK | DST_KEY_ENABLE, &regs->DCLRKM);
+		key = 0;
+		flags |= CLK_RGB8I_MASK;
 		break;
 
 	case 16:
 		if (overlay->crtc->base.primary->fb->depth == 15) {
-			iowrite32(RGB15_TO_COLORKEY(key), &regs->DCLRKV);
-			iowrite32(CLK_RGB15_MASK | DST_KEY_ENABLE,
-				  &regs->DCLRKM);
+			key = RGB15_TO_COLORKEY(key);
+			flags |= CLK_RGB15_MASK;
 		} else {
-			iowrite32(RGB16_TO_COLORKEY(key), &regs->DCLRKV);
-			iowrite32(CLK_RGB16_MASK | DST_KEY_ENABLE,
-				  &regs->DCLRKM);
+			key = RGB16_TO_COLORKEY(key);
+			flags |= CLK_RGB16_MASK;
 		}
 		break;
 
 	case 24:
 	case 32:
-		iowrite32(key, &regs->DCLRKV);
-		iowrite32(CLK_RGB24_MASK | DST_KEY_ENABLE, &regs->DCLRKM);
+		flags |= CLK_RGB24_MASK;
 		break;
 	}
+
+	iowrite32(key, &regs->DCLRKV);
+	iowrite32(flags, &regs->DCLRKM);
 }
 
 static u32 overlay_cmd_reg(struct put_image_params *params)
@@ -1329,6 +1335,7 @@ int intel_overlay_attrs(struct drm_device *dev, void *data,
 			I915_WRITE(OGAMC5, attrs->gamma5);
 		}
 	}
+	overlay->color_key_enabled = (attrs->flags & I915_OVERLAY_DISABLE_DEST_COLORKEY) == 0;
 
 	ret = 0;
 out_unlock:
@@ -1392,6 +1399,7 @@ void intel_setup_overlay(struct drm_device *dev)
 
 	/* init all values */
 	overlay->color_key = 0x0101fe;
+	overlay->color_key_enabled = true;
 	overlay->brightness = -19;
 	overlay->contrast = 75;
 	overlay->saturation = 146;
