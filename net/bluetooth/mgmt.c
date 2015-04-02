@@ -6526,13 +6526,26 @@ static int read_local_oob_ext_data(struct sock *sk, struct hci_dev *hdev,
 			goto complete;
 		}
 
+		/* This should return the active RPA, but since the RPA
+		 * is only programmed on demand, it is really hard to fill
+		 * this in at the moment. For now disallow retrieving
+		 * local out-of-band data when privacy is in use.
+		 *
+		 * Returning the identity address will not help here since
+		 * pairing happens before the identity resolving key is
+		 * known and thus the connection establishment happens
+		 * based on the RPA and not the identity address.
+		 */
 		if (hci_dev_test_flag(hdev, HCI_PRIVACY)) {
-			memcpy(addr, &hdev->rpa, 6);
-			addr[6] = 0x01;
-		} else if (hci_dev_test_flag(hdev, HCI_FORCE_STATIC_ADDR) ||
-			   !bacmp(&hdev->bdaddr, BDADDR_ANY) ||
-			   (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED) &&
-			    bacmp(&hdev->static_addr, BDADDR_ANY))) {
+			hci_dev_unlock(hdev);
+			status = MGMT_STATUS_REJECTED;
+			goto complete;
+		}
+
+		if (hci_dev_test_flag(hdev, HCI_FORCE_STATIC_ADDR) ||
+		   !bacmp(&hdev->bdaddr, BDADDR_ANY) ||
+		   (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED) &&
+		    bacmp(&hdev->static_addr, BDADDR_ANY))) {
 			memcpy(addr, &hdev->static_addr, 6);
 			addr[6] = 0x01;
 		} else {
