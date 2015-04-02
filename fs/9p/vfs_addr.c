@@ -251,21 +251,20 @@ static ssize_t
 v9fs_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter, loff_t pos)
 {
 	struct file *file = iocb->ki_filp;
-	if (rw == WRITE) {
-		ssize_t written;
-		int err = 0;
-
-		written = p9_client_write(file->private_data, pos, iter, &err);
-		if (written) {
+	ssize_t n;
+	int err = 0;
+	if (rw & WRITE) {
+		n = p9_client_write(file->private_data, pos, iter, &err);
+		if (n) {
 			struct inode *inode = file_inode(file);
 			loff_t i_size = i_size_read(inode);
-			if (pos + written > i_size)
-				inode_add_bytes(inode, pos + written - i_size);
-			return written;
+			if (pos + n > i_size)
+				inode_add_bytes(inode, pos + n - i_size);
 		}
-		return err;
+	} else {
+		n = p9_client_read(file->private_data, pos, iter, &err);
 	}
-	return -EINVAL;
+	return n ? n : err;
 }
 
 static int v9fs_write_begin(struct file *filp, struct address_space *mapping,

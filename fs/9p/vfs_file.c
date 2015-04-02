@@ -575,44 +575,6 @@ out_unlock:
 	return VM_FAULT_NOPAGE;
 }
 
-static ssize_t
-v9fs_direct_read(struct file *filp, char __user *udata, size_t count,
-		 loff_t *offsetp)
-{
-	loff_t size, offset;
-	struct inode *inode;
-	struct address_space *mapping;
-
-	offset = *offsetp;
-	mapping = filp->f_mapping;
-	inode = mapping->host;
-	if (!count)
-		return 0;
-	size = i_size_read(inode);
-	if (offset < size)
-		filemap_write_and_wait_range(mapping, offset,
-					     offset + count - 1);
-
-	return v9fs_file_read(filp, udata, count, offsetp);
-}
-
-/**
- * v9fs_cached_file_read - read from a file
- * @filp: file pointer to read
- * @data: user data buffer to read data into
- * @count: size of buffer
- * @offset: offset at which to read data
- *
- */
-static ssize_t
-v9fs_cached_file_read(struct file *filp, char __user *data, size_t count,
-		      loff_t *offset)
-{
-	if (filp->f_flags & O_DIRECT)
-		return v9fs_direct_read(filp, data, count, offset);
-	return new_sync_read(filp, data, count, offset);
-}
-
 /**
  * v9fs_mmap_file_read - read from a file
  * @filp: file pointer to read
@@ -690,7 +652,7 @@ static const struct vm_operations_struct v9fs_mmap_file_vm_ops = {
 
 const struct file_operations v9fs_cached_file_operations = {
 	.llseek = generic_file_llseek,
-	.read = v9fs_cached_file_read,
+	.read = new_sync_read,
 	.write = new_sync_write,
 	.read_iter = generic_file_read_iter,
 	.write_iter = generic_file_write_iter,
@@ -703,7 +665,7 @@ const struct file_operations v9fs_cached_file_operations = {
 
 const struct file_operations v9fs_cached_file_operations_dotl = {
 	.llseek = generic_file_llseek,
-	.read = v9fs_cached_file_read,
+	.read = new_sync_read,
 	.write = new_sync_write,
 	.read_iter = generic_file_read_iter,
 	.write_iter = generic_file_write_iter,
