@@ -51,12 +51,11 @@
  */
 static int v9fs_fid_readpage(struct p9_fid *fid, struct page *page)
 {
-	int retval;
-	loff_t offset;
-	char *buffer;
-	struct inode *inode;
+	struct inode *inode = page->mapping->host;
+	struct bio_vec bvec = {.bv_page = page, .bv_len = PAGE_SIZE};
+	struct iov_iter to;
+	int retval, err;
 
-	inode = page->mapping->host;
 	p9_debug(P9_DEBUG_VFS, "\n");
 
 	BUG_ON(!PageLocked(page));
@@ -65,16 +64,16 @@ static int v9fs_fid_readpage(struct p9_fid *fid, struct page *page)
 	if (retval == 0)
 		return retval;
 
-	buffer = kmap(page);
-	offset = page_offset(page);
+	iov_iter_bvec(&to, ITER_BVEC | READ, &bvec, 1, PAGE_SIZE);
 
-	retval = v9fs_fid_readn(fid, buffer, NULL, PAGE_CACHE_SIZE, offset);
-	if (retval < 0) {
+	retval = p9_client_read(fid, page_offset(page), &to, &err);
+	if (err) {
 		v9fs_uncache_page(inode, page);
+		retval = err;
 		goto done;
 	}
 
-	memset(buffer + retval, 0, PAGE_CACHE_SIZE - retval);
+	zero_user(page, retval, PAGE_SIZE - retval);
 	flush_dcache_page(page);
 	SetPageUptodate(page);
 
@@ -82,7 +81,6 @@ static int v9fs_fid_readpage(struct p9_fid *fid, struct page *page)
 	retval = 0;
 
 done:
-	kunmap(page);
 	unlock_page(page);
 	return retval;
 }

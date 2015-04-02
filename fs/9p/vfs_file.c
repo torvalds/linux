@@ -365,63 +365,6 @@ out_err:
 }
 
 /**
- * v9fs_fid_readn - read from a fid
- * @fid: fid to read
- * @data: data buffer to read data into
- * @udata: user data buffer to read data into
- * @count: size of buffer
- * @offset: offset at which to read data
- *
- */
-ssize_t
-v9fs_fid_readn(struct p9_fid *fid, char *data, char __user *udata, u32 count,
-	       u64 offset)
-{
-	int n, total, size;
-
-	p9_debug(P9_DEBUG_VFS, "fid %d offset %llu count %d\n",
-		 fid->fid, (long long unsigned)offset, count);
-	n = 0;
-	total = 0;
-	size = fid->iounit ? fid->iounit : fid->clnt->msize - P9_IOHDRSZ;
-	do {
-		n = p9_client_read(fid, data, udata, offset, count);
-		if (n <= 0)
-			break;
-
-		if (data)
-			data += n;
-		if (udata)
-			udata += n;
-
-		offset += n;
-		count -= n;
-		total += n;
-	} while (count > 0 && n == size);
-
-	if (n < 0)
-		total = n;
-
-	return total;
-}
-
-/**
- * v9fs_file_readn - read from a file
- * @filp: file pointer to read
- * @data: data buffer to read data into
- * @udata: user data buffer to read data into
- * @count: size of buffer
- * @offset: offset at which to read data
- *
- */
-ssize_t
-v9fs_file_readn(struct file *filp, char *data, char __user *udata, u32 count,
-	       u64 offset)
-{
-	return v9fs_fid_readn(filp->private_data, data, udata, count, offset);
-}
-
-/**
  * v9fs_file_read - read from a file
  * @filp: file pointer to read
  * @udata: user data buffer to read data into
@@ -434,22 +377,20 @@ static ssize_t
 v9fs_file_read(struct file *filp, char __user *udata, size_t count,
 	       loff_t * offset)
 {
-	int ret;
-	struct p9_fid *fid;
-	size_t size;
+	struct p9_fid *fid = filp->private_data;
+	struct iovec iov = {.iov_base = udata, .iov_len = count};
+	struct iov_iter to;
+	int ret, err;
+
+	iov_iter_init(&to, READ, &iov, 1, count);
 
 	p9_debug(P9_DEBUG_VFS, "count %zu offset %lld\n", count, *offset);
-	fid = filp->private_data;
 
-	size = fid->iounit ? fid->iounit : fid->clnt->msize - P9_IOHDRSZ;
-	if (count > size)
-		ret = v9fs_file_readn(filp, NULL, udata, count, *offset);
-	else
-		ret = p9_client_read(fid, NULL, udata, *offset, count);
+	ret = p9_client_read(fid, *offset, &to, &err);
+	if (!ret)
+		return err;
 
-	if (ret > 0)
-		*offset += ret;
-
+	*offset += ret;
 	return ret;
 }
 

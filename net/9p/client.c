@@ -1534,79 +1534,77 @@ error:
 EXPORT_SYMBOL(p9_client_unlinkat);
 
 int
-p9_client_read(struct p9_fid *fid, char *data, char __user *udata, u64 offset,
-								u32 count)
+p9_client_read(struct p9_fid *fid, u64 offset, struct iov_iter *to, int *err)
 {
-	char *dataptr;
+	struct p9_client *clnt = fid->clnt;
 	struct p9_req_t *req;
-	struct p9_client *clnt;
-	int err, rsize, non_zc = 0;
-	struct iov_iter to;
-	union {
-		struct kvec kv;
-		struct iovec iov;
-	} v;
-
-	if (data) {
-		v.kv.iov_base = data;
-		v.kv.iov_len = count;
-		iov_iter_kvec(&to, ITER_KVEC | READ, &v.kv, 1, count);
-	} else {
-		v.iov.iov_base = udata;
-		v.iov.iov_len = count;
-		iov_iter_init(&to, READ, &v.iov, 1, count);
-	}
+	int total = 0;
 
 	p9_debug(P9_DEBUG_9P, ">>> TREAD fid %d offset %llu %d\n",
-		   fid->fid, (unsigned long long) offset, count);
-	err = 0;
-	clnt = fid->clnt;
+		   fid->fid, (unsigned long long) offset, (int)iov_iter_count(to));
 
-	rsize = fid->iounit;
-	if (!rsize || rsize > clnt->msize-P9_IOHDRSZ)
-		rsize = clnt->msize - P9_IOHDRSZ;
+	while (iov_iter_count(to)) {
+		int count = iov_iter_count(to);
+		int rsize, non_zc = 0;
+		char *dataptr;
+			
+		rsize = fid->iounit;
+		if (!rsize || rsize > clnt->msize-P9_IOHDRSZ)
+			rsize = clnt->msize - P9_IOHDRSZ;
 
-	if (count < rsize)
-		rsize = count;
+		if (count < rsize)
+			rsize = count;
 
-	/* Don't bother zerocopy for small IO (< 1024) */
-	if (clnt->trans_mod->zc_request && rsize > 1024) {
-		/*
-		 * response header len is 11
-		 * PDU Header(7) + IO Size (4)
-		 */
-		req = p9_client_zc_rpc(clnt, P9_TREAD, &to, NULL, rsize, 0,
-				       11, "dqd", fid->fid,
-				       offset, rsize);
-	} else {
-		non_zc = 1;
-		req = p9_client_rpc(clnt, P9_TREAD, "dqd", fid->fid, offset,
-				    rsize);
+		/* Don't bother zerocopy for small IO (< 1024) */
+		if (clnt->trans_mod->zc_request && rsize > 1024) {
+			/*
+			 * response header len is 11
+			 * PDU Header(7) + IO Size (4)
+			 */
+			req = p9_client_zc_rpc(clnt, P9_TREAD, to, NULL, rsize,
+					       0, 11, "dqd", fid->fid,
+					       offset, rsize);
+		} else {
+			non_zc = 1;
+			req = p9_client_rpc(clnt, P9_TREAD, "dqd", fid->fid, offset,
+					    rsize);
+		}
+		if (IS_ERR(req)) {
+			*err = PTR_ERR(req);
+			break;
+		}
+
+		*err = p9pdu_readf(req->rc, clnt->proto_version,
+				   "D", &count, &dataptr);
+		if (*err) {
+			trace_9p_protocol_dump(clnt, req->rc);
+			p9_free_req(clnt, req);
+			break;
+		}
+
+		p9_debug(P9_DEBUG_9P, "<<< RREAD count %d\n", count);
+		if (!count) {
+			p9_free_req(clnt, req);
+			break;
+		}
+
+		if (non_zc) {
+			int n = copy_to_iter(dataptr, count, to);
+			total += n;
+			offset += n;
+			if (n != count) {
+				*err = -EFAULT;
+				p9_free_req(clnt, req);
+				break;
+			}
+		} else {
+			iov_iter_advance(to, count);
+			total += count;
+			offset += count;
+		}
+		p9_free_req(clnt, req);
 	}
-	if (IS_ERR(req)) {
-		err = PTR_ERR(req);
-		goto error;
-	}
-
-	err = p9pdu_readf(req->rc, clnt->proto_version, "D", &count, &dataptr);
-	if (err) {
-		trace_9p_protocol_dump(clnt, req->rc);
-		goto free_and_error;
-	}
-
-	p9_debug(P9_DEBUG_9P, "<<< RREAD count %d\n", count);
-
-	if (non_zc && copy_to_iter(dataptr, count, &to) != count) {
-		err = -EFAULT;
-		goto free_and_error;
-	}
-	p9_free_req(clnt, req);
-	return count;
-
-free_and_error:
-	p9_free_req(clnt, req);
-error:
-	return err;
+	return total;
 }
 EXPORT_SYMBOL(p9_client_read);
 
