@@ -71,7 +71,7 @@ static void __ipoib_mcast_schedule_join_thread(struct ipoib_dev_priv *priv,
 					       struct ipoib_mcast *mcast,
 					       bool delay)
 {
-	if (!test_bit(IPOIB_MCAST_RUN, &priv->flags))
+	if (!test_bit(IPOIB_FLAG_OPER_UP, &priv->flags))
 		return;
 
 	/*
@@ -519,7 +519,7 @@ void ipoib_mcast_join_task(struct work_struct *work)
 	struct ipoib_mcast *mcast = NULL;
 	int create = 1;
 
-	if (!test_bit(IPOIB_MCAST_RUN, &priv->flags))
+	if (!test_bit(IPOIB_FLAG_OPER_UP, &priv->flags))
 		return;
 
 	if (ib_query_port(priv->ca, priv->port, &port_attr) ||
@@ -629,7 +629,6 @@ int ipoib_mcast_start_thread(struct net_device *dev)
 	ipoib_dbg_mcast(priv, "starting multicast thread\n");
 
 	spin_lock_irqsave(&priv->lock, flags);
-	set_bit(IPOIB_MCAST_RUN, &priv->flags);
 	__ipoib_mcast_schedule_join_thread(priv, NULL, 0);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -644,7 +643,6 @@ int ipoib_mcast_stop_thread(struct net_device *dev)
 	ipoib_dbg_mcast(priv, "stopping multicast thread\n");
 
 	spin_lock_irqsave(&priv->lock, flags);
-	clear_bit(IPOIB_MCAST_RUN, &priv->flags);
 	cancel_delayed_work(&priv->mcast_task);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
