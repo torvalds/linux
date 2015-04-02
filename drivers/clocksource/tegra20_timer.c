@@ -141,14 +141,6 @@ static void tegra_read_persistent_clock64(struct timespec64 *ts)
 	*ts = persistent_ts;
 }
 
-static void tegra_read_persistent_clock(struct timespec *ts)
-{
-	struct timespec ts64;
-
-	tegra_read_persistent_clock64(&ts64);
-	*ts = timespec64_to_timespec(ts64);
-}
-
 static unsigned long tegra_delay_timer_read_counter_long(void)
 {
 	return readl(timer_reg_base + TIMERUS_CNTR_1US);
@@ -259,7 +251,7 @@ static void __init tegra20_init_rtc(struct device_node *np)
 	else
 		clk_prepare_enable(clk);
 
-	register_persistent_clock(NULL, tegra_read_persistent_clock);
+	register_persistent_clock(NULL, tegra_read_persistent_clock64);
 }
 CLOCKSOURCE_OF_DECLARE(tegra20_rtc, "nvidia,tegra20-rtc", tegra20_init_rtc);
 

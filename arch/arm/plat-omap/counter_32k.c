@@ -70,14 +70,6 @@ static void omap_read_persistent_clock64(struct timespec64 *ts)
 	*ts = persistent_ts;
 }
 
-static void omap_read_persistent_clock(struct timespec *ts)
-{
-	struct timespec64 ts64;
-
-	omap_read_persistent_clock64(&ts64);
-	*ts = timespec64_to_timespec(ts64);
-}
-
 /**
  * omap_init_clocksource_32k - setup and register counter 32k as a
  * kernel clocksource
@@ -118,7 +110,7 @@ int __init omap_init_clocksource_32k(void __iomem *vbase)
 	}
 
 	sched_clock_register(omap_32k_read_sched_clock, 32, 32768);
-	register_persistent_clock(NULL, omap_read_persistent_clock);
+	register_persistent_clock(NULL, omap_read_persistent_clock64);
 	pr_info("OMAP clocksource: 32k_counter at 32768 Hz\n");
 
 	return 0;
