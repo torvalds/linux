@@ -28,9 +28,9 @@
 #include <linux/firmware.h>
 #include <linux/pm_runtime.h>
 
-#include "sst-dsp.h"
-#include "sst-dsp-priv.h"
-#include "sst-haswell-ipc.h"
+#include "../common/sst-dsp.h"
+#include "../common/sst-dsp-priv.h"
+#include "../haswell/sst-haswell-ipc.h"
 
 #include <trace/events/hswadsp.h>
 

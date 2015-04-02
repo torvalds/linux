@@ -34,8 +34,8 @@
 #include <sound/asound.h>
 
 #include "sst-haswell-ipc.h"
-#include "sst-dsp.h"
-#include "sst-dsp-priv.h"
+#include "../common/sst-dsp.h"
+#include "../common/sst-dsp-priv.h"
 
 /* Global Message - Generic */
 #define IPC_GLB_TYPE_SHIFT	24

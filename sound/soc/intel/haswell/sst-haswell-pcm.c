@@ -29,9 +29,9 @@
 #include <sound/tlv.h>
 #include <sound/compress_driver.h>
 
-#include "sst-haswell-ipc.h"
-#include "sst-dsp-priv.h"
-#include "sst-dsp.h"
+#include "../haswell/sst-haswell-ipc.h"
+#include "../common/sst-dsp-priv.h"
+#include "../common/sst-dsp.h"
 
 #define HSW_PCM_COUNT		6
 #define HSW_VOLUME_MAX		0x7FFFFFFF	/* 0dB */
