@@ -173,29 +173,18 @@ static void set_alarm_or_time(struct device *dev, int time_alarm, u32 time)
  * This function updates the RTC alarm registers and then clears all the
  * interrupt status bits.
  */
-static int rtc_update_alarm(struct device *dev, struct rtc_time *alrm)
+static void rtc_update_alarm(struct device *dev, struct rtc_time *alrm)
 {
-	struct rtc_time alarm_tm, now_tm;
-	unsigned long now, time;
+	unsigned long time;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
 	void __iomem *ioaddr = pdata->ioaddr;
 
-	now = get_alarm_or_time(dev, MXC_RTC_TIME);
-	rtc_time_to_tm(now, &now_tm);
-	alarm_tm.tm_year = now_tm.tm_year;
-	alarm_tm.tm_mon = now_tm.tm_mon;
-	alarm_tm.tm_mday = now_tm.tm_mday;
-	alarm_tm.tm_hour = alrm->tm_hour;
-	alarm_tm.tm_min = alrm->tm_min;
-	alarm_tm.tm_sec = alrm->tm_sec;
-	rtc_tm_to_time(&alarm_tm, &time);
+	rtc_tm_to_time(alrm, &time);
 
 	/* clear all the interrupt status bits */
 	writew(readw(ioaddr + RTC_RTCISR), ioaddr + RTC_RTCISR);
 	set_alarm_or_time(dev, MXC_RTC_ALARM, time);
-
-	return 0;
 }
 
 static void mxc_rtc_irq_enable(struct device *dev, unsigned int bit,
@@ -346,11 +335,8 @@ static int mxc_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
-	int ret;
 
-	ret = rtc_update_alarm(dev, &alrm->time);
-	if (ret)
-		return ret;
+	rtc_update_alarm(dev, &alrm->time);
 
 	memcpy(&pdata->g_rtc_alarm, &alrm->time, sizeof(struct rtc_time));
 	mxc_rtc_irq_enable(dev, RTC_ALM_BIT, alrm->enabled);
