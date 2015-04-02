@@ -99,10 +99,9 @@ static struct list_head *crypto_more_spawns(struct crypto_alg *alg,
 	return &n->list == stack ? top : &n->inst->alg.cra_users;
 }
 
-static void crypto_remove_spawn(struct crypto_spawn *spawn,
-				struct list_head *list)
+static void crypto_remove_instance(struct crypto_instance *inst,
+				   struct list_head *list)
 {
-	struct crypto_instance *inst = spawn->inst;
 	struct crypto_template *tmpl = inst->tmpl;
 
 	if (crypto_is_dead(&inst->alg))
@@ -167,7 +166,7 @@ void crypto_remove_spawns(struct crypto_alg *alg, struct list_head *list,
 		if (spawn->alg)
 			list_move(&spawn->list, &spawn->alg->cra_users);
 		else
-			crypto_remove_spawn(spawn, list);
+			crypto_remove_instance(spawn->inst, list);
 	}
 }
 EXPORT_SYMBOL_GPL(crypto_remove_spawns);
@@ -554,28 +553,20 @@ EXPORT_SYMBOL_GPL(crypto_register_instance);
 
 int crypto_unregister_instance(struct crypto_alg *alg)
 {
-	int err;
 	struct crypto_instance *inst = (void *)alg;
-	struct crypto_template *tmpl = inst->tmpl;
-	LIST_HEAD(users);
+	LIST_HEAD(list);
 
 	if (!(alg->cra_flags & CRYPTO_ALG_INSTANCE))
 		return -EINVAL;
 
-	BUG_ON(atomic_read(&alg->cra_refcnt) != 1);
-
 	down_write(&crypto_alg_sem);
 
-	hlist_del_init(&inst->list);
-	err = crypto_remove_alg(alg, &users);
+	crypto_remove_spawns(alg, &list, NULL);
+	crypto_remove_instance(inst, &list);
 
 	up_write(&crypto_alg_sem);
 
-	if (err)
-		return err;
-
-	tmpl->free(inst);
-	crypto_remove_final(&users);
+	crypto_remove_final(&list);
 
 	return 0;
 }
