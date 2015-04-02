@@ -640,8 +640,10 @@ static void neigh_add_path(struct sk_buff *skb, u8 *daddr,
 
 		if (!path->query && path_rec_start(dev, path))
 			goto err_path;
-
-		__skb_queue_tail(&neigh->queue, skb);
+		if (skb_queue_len(&neigh->queue) < IPOIB_MAX_PATH_REC_QUEUE)
+			__skb_queue_tail(&neigh->queue, skb);
+		else
+			goto err_drop;
 	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -676,7 +678,12 @@ static void unicast_arp_send(struct sk_buff *skb, struct net_device *dev,
 			new_path = 1;
 		}
 		if (path) {
-			__skb_queue_tail(&path->queue, skb);
+			if (skb_queue_len(&path->queue) < IPOIB_MAX_PATH_REC_QUEUE) {
+				__skb_queue_tail(&path->queue, skb);
+			} else {
+				++dev->stats.tx_dropped;
+				dev_kfree_skb_any(skb);
+			}
 
 			if (!path->query && path_rec_start(dev, path)) {
 				spin_unlock_irqrestore(&priv->lock, flags);
