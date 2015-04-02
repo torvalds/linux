@@ -582,8 +582,7 @@ int mtd_add_partition(struct mtd_info *master, const char *name,
 		      long long offset, long long length)
 {
 	struct mtd_partition part;
-	struct mtd_part *p, *new;
-	uint64_t start, end;
+	struct mtd_part *new;
 	int ret = 0;
 
 	/* the direct offset is expected */
@@ -607,21 +606,7 @@ int mtd_add_partition(struct mtd_info *master, const char *name,
 	if (IS_ERR(new))
 		return PTR_ERR(new);
 
-	start = offset;
-	end = offset + length;
-
 	mutex_lock(&mtd_partitions_mutex);
-	list_for_each_entry(p, &mtd_partitions, list)
-		if (p->master == master) {
-			if ((start >= p->offset) &&
-			    (start < (p->offset + p->mtd.size)))
-				goto err_inv;
-
-			if ((end >= p->offset) &&
-			    (end < (p->offset + p->mtd.size)))
-				goto err_inv;
-		}
-
 	list_add(&new->list, &mtd_partitions);
 	mutex_unlock(&mtd_partitions_mutex);
 
@@ -630,10 +615,6 @@ int mtd_add_partition(struct mtd_info *master, const char *name,
 	mtd_add_partition_attrs(new);
 
 	return ret;
-err_inv:
-	mutex_unlock(&mtd_partitions_mutex);
-	free_partition(new);
-	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(mtd_add_partition);
 
