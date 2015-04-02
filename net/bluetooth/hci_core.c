@@ -141,13 +141,16 @@ static const struct file_operations dut_mode_fops = {
 
 /* ---- HCI requests ---- */
 
-static void hci_req_sync_complete(struct hci_dev *hdev, u8 result, u16 opcode)
+static void hci_req_sync_complete(struct hci_dev *hdev, u8 result, u16 opcode,
+				  struct sk_buff *skb)
 {
 	BT_DBG("%s result 0x%2.2x", hdev->name, result);
 
 	if (hdev->req_status == HCI_REQ_PEND) {
 		hdev->req_result = result;
 		hdev->req_status = HCI_REQ_DONE;
+		if (skb)
+			hdev->req_skb = skb_get(skb);
 		wake_up_interruptible(&hdev->req_wait_q);
 	}
 }
@@ -164,18 +167,10 @@ static void hci_req_cancel(struct hci_dev *hdev, int err)
 }
 
 static struct sk_buff *hci_get_cmd_complete(struct hci_dev *hdev, u16 opcode,
-					    u8 event)
+					    u8 event, struct sk_buff *skb)
 {
 	struct hci_ev_cmd_complete *ev;
 	struct hci_event_hdr *hdr;
-	struct sk_buff *skb;
-
-	hci_dev_lock(hdev);
-
-	skb = hdev->recv_evt;
-	hdev->recv_evt = NULL;
-
-	hci_dev_unlock(hdev);
 
 	if (!skb)
 		return ERR_PTR(-ENODATA);
@@ -223,6 +218,7 @@ struct sk_buff *__hci_cmd_sync_ev(struct hci_dev *hdev, u16 opcode, u32 plen,
 {
 	DECLARE_WAITQUEUE(wait, current);
 	struct hci_request req;
+	struct sk_buff *skb;
 	int err = 0;
 
 	BT_DBG("%s", hdev->name);
@@ -236,7 +232,7 @@ struct sk_buff *__hci_cmd_sync_ev(struct hci_dev *hdev, u16 opcode, u32 plen,
 	add_wait_queue(&hdev->req_wait_q, &wait);
 	set_current_state(TASK_INTERRUPTIBLE);
 
-	err = hci_req_run(&req, hci_req_sync_complete);
+	err = hci_req_run_skb(&req, hci_req_sync_complete);
 	if (err < 0) {
 		remove_wait_queue(&hdev->req_wait_q, &wait);
 		set_current_state(TASK_RUNNING);
@@ -265,13 +261,17 @@ struct sk_buff *__hci_cmd_sync_ev(struct hci_dev *hdev, u16 opcode, u32 plen,
 	}
 
 	hdev->req_status = hdev->req_result = 0;
+	skb = hdev->req_skb;
+	hdev->req_skb = NULL;
 
 	BT_DBG("%s end: err %d", hdev->name, err);
 
-	if (err < 0)
+	if (err < 0) {
+		kfree_skb(skb);
 		return ERR_PTR(err);
+	}
 
-	return hci_get_cmd_complete(hdev, opcode, event);
+	return hci_get_cmd_complete(hdev, opcode, event, skb);
 }
 EXPORT_SYMBOL(__hci_cmd_sync_ev);
 
@@ -303,7 +303,7 @@ static int __hci_req_sync(struct hci_dev *hdev,
 	add_wait_queue(&hdev->req_wait_q, &wait);
 	set_current_state(TASK_INTERRUPTIBLE);
 
-	err = hci_req_run(&req, hci_req_sync_complete);
+	err = hci_req_run_skb(&req, hci_req_sync_complete);
 	if (err < 0) {
 		hdev->req_status = 0;
 

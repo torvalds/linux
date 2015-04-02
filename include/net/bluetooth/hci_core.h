@@ -334,6 +334,7 @@ struct hci_dev {
 	wait_queue_head_t	req_wait_q;
 	__u32			req_status;
 	__u32			req_result;
+	struct sk_buff		*req_skb;
 
 	void			*smp_data;
 	void			*smp_bredr_data;
