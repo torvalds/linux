@@ -139,6 +139,13 @@ int do_timer(int clock_id, int flags)
 
 	err = timer_create(clock_id, &se, &tm1);
 	if (err) {
+		if ((clock_id == CLOCK_REALTIME_ALARM) ||
+		    (clock_id == CLOCK_BOOTTIME_ALARM)) {
+			printf("%-22s %s missing CAP_WAKE_ALARM?    : [UNSUPPORTED]\n",
+					clockstring(clock_id),
+					flags ? "ABSTIME":"RELTIME");
+			return 0;
+		}
 		printf("%s - timer_create() failed\n", clockstring(clock_id));
 		return -1;
 	}
