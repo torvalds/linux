@@ -759,6 +759,9 @@ int rockchip_iommu_tlb_invalidate(struct device *dev)
 	unsigned long flags;
 	struct iommu_drvdata *data = dev_get_drvdata(dev->archdata.iommu);
 
+	if (strstr(data->dbgname, "vpu") || strstr(data->dbgname, "hevc"))
+			return 0;
+
 	spin_lock_irqsave(&data->data_lock, flags);
 
 	if (rockchip_is_iommu_active(data)) {
