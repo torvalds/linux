@@ -7123,6 +7123,8 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu)
 	vcpu->arch.dr7 = DR7_FIXED_1;
 	kvm_update_dr7(vcpu);
 
+	vcpu->arch.cr2 = 0;
+
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
 	vcpu->arch.apf.msr_val = 0;
 	vcpu->arch.st.msr_val = 0;
