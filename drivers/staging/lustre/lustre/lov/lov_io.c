@@ -403,7 +403,7 @@ static int lov_io_iter_init(const struct lu_env *env,
 			continue;
 		}
 
-		end = lov_offset_mod(end, +1);
+		end = lov_offset_mod(end, 1);
 		sub = lov_sub_get(env, lio, stripe);
 		if (!IS_ERR(sub)) {
 			lov_io_sub_inherit(sub->sub_io, lio, stripe,
@@ -925,7 +925,7 @@ int lov_io_init_empty(const struct lu_env *env, struct cl_object *obj,
 		break;
 	case CIT_FSYNC:
 	case CIT_SETATTR:
-		result = +1;
+		result = 1;
 		break;
 	case CIT_WRITE:
 		result = -EBADF;
