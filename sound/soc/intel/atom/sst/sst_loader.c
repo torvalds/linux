@@ -37,7 +37,7 @@
 #include <asm/platform_sst_audio.h>
 #include "../sst-mfld-platform.h"
 #include "sst.h"
-#include "../common/sst-dsp.h"
+#include "../../common/sst-dsp.h"
 
 void memcpy32_toio(void __iomem *dst, const void *src, int count)
 {

@@ -34,7 +34,7 @@
 #include <asm/platform_sst_audio.h>
 #include "../sst-mfld-platform.h"
 #include "sst.h"
-#include "../common/sst-dsp.h"
+#include "../../common/sst-dsp.h"
 
 int sst_shim_write(void __iomem *addr, int offset, int value)
 {

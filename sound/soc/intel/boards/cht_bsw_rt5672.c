@@ -24,7 +24,7 @@
 #include <sound/soc.h>
 #include <sound/jack.h>
 #include "../../codecs/rt5670.h"
-#include "../sst-atom-controls.h"
+#include "../atom/sst-atom-controls.h"
 
 /* The platform clock #3 outputs 19.2Mhz clock to codec as I2S MCLK */
 #define CHT_PLAT_CLK_3_HZ	19200000

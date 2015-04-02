@@ -39,7 +39,7 @@
 #include <acpi/actypes.h>
 #include <acpi/acpi_bus.h>
 #include "../sst-mfld-platform.h"
-#include "../common/sst-dsp.h"
+#include "../../common/sst-dsp.h"
 #include "sst.h"
 
 struct sst_machines {
