@@ -648,6 +648,7 @@ struct rk_lcdc_driver {
 	int uboot_logo;
 	int bcsh_init_status;
 	bool cabc_pwm_pol;
+	u8  reserved_fb;
 };
 
 struct rk_fb_par {

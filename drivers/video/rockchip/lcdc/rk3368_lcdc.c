@@ -4632,6 +4632,7 @@ static int rk3368_lcdc_probe(struct platform_device *pdev)
 	dev_drv->id = lcdc_dev->id;
 	dev_drv->ops = &lcdc_drv_ops;
 	dev_drv->lcdc_win_num = ARRAY_SIZE(lcdc_win);
+	dev_drv->reserved_fb = 1;/*only need reserved 1 buffer*/
 	spin_lock_init(&lcdc_dev->reg_lock);
 
 	lcdc_dev->irq = platform_get_irq(pdev, 0);
