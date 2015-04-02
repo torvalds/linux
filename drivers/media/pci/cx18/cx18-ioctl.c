@@ -451,34 +451,29 @@ static int cx18_cropcap(struct file *file, void *fh,
 
 	if (cropcap->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
-	cropcap->bounds.top = cropcap->bounds.left = 0;
-	cropcap->bounds.width = 720;
-	cropcap->bounds.height = cx->is_50hz ? 576 : 480;
 	cropcap->pixelaspect.numerator = cx->is_50hz ? 59 : 10;
 	cropcap->pixelaspect.denominator = cx->is_50hz ? 54 : 11;
-	cropcap->defrect = cropcap->bounds;
 	return 0;
 }
 
-static int cx18_s_crop(struct file *file, void *fh, const struct v4l2_crop *crop)
-{
-	struct cx18_open_id *id = fh2id(fh);
-	struct cx18 *cx = id->cx;
-
-	if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-	CX18_DEBUG_WARN("VIDIOC_S_CROP not implemented\n");
-	return -EINVAL;
-}
-
-static int cx18_g_crop(struct file *file, void *fh, struct v4l2_crop *crop)
+static int cx18_g_selection(struct file *file, void *fh,
+			    struct v4l2_selection *sel)
 {
 	struct cx18 *cx = fh2id(fh)->cx;
 
-	if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (sel->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
-	CX18_DEBUG_WARN("VIDIOC_G_CROP not implemented\n");
-	return -EINVAL;
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+		sel->r.top = sel->r.left = 0;
+		sel->r.width = 720;
+		sel->r.height = cx->is_50hz ? 576 : 480;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
 }
 
 static int cx18_enum_fmt_vid_cap(struct file *file, void *fh,
@@ -1090,8 +1085,7 @@ static const struct v4l2_ioctl_ops cx18_ioctl_ops = {
 	.vidioc_enumaudio               = cx18_enumaudio,
 	.vidioc_enum_input              = cx18_enum_input,
 	.vidioc_cropcap                 = cx18_cropcap,
-	.vidioc_s_crop                  = cx18_s_crop,
-	.vidioc_g_crop                  = cx18_g_crop,
+	.vidioc_g_selection             = cx18_g_selection,
 	.vidioc_g_input                 = cx18_g_input,
 	.vidioc_s_input                 = cx18_s_input,
 	.vidioc_g_frequency             = cx18_g_frequency,
