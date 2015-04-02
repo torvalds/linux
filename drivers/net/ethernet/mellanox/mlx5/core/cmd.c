@@ -125,7 +125,10 @@ static u8 alloc_token(struct mlx5_cmd *cmd)
 	u8 token;
 
 	spin_lock(&cmd->token_lock);
-	token = cmd->token++ % 255 + 1;
+	cmd->token++;
+	if (cmd->token == 0)
+		cmd->token++;
+	token = cmd->token;
 	spin_unlock(&cmd->token_lock);
 
 	return token;
