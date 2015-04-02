@@ -9171,7 +9171,6 @@ retry:
 
 	intel_crtc = to_intel_crtc(crtc);
 	intel_crtc->new_enabled = true;
-	intel_crtc->new_config = intel_crtc->config;
 	old->dpms_mode = connector->dpms;
 	old->load_detect_temp = true;
 	old->release_fb = NULL;
@@ -9227,10 +9226,6 @@ retry:
 
  fail:
 	intel_crtc->new_enabled = crtc->state->enable;
-	if (intel_crtc->new_enabled)
-		intel_crtc->new_config = intel_crtc->config;
-	else
-		intel_crtc->new_config = NULL;
 fail_unlock:
 	if (state) {
 		drm_atomic_state_free(state);
@@ -9276,7 +9271,6 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 		to_intel_connector(connector)->new_encoder = NULL;
 		intel_encoder->new_crtc = NULL;
 		intel_crtc->new_enabled = false;
-		intel_crtc->new_config = NULL;
 
 		connector_state->best_encoder = NULL;
 		connector_state->crtc = NULL;
@@ -10416,11 +10410,6 @@ static void intel_modeset_update_staged_output_state(struct drm_device *dev)
 
 	for_each_intel_crtc(dev, crtc) {
 		crtc->new_enabled = crtc->base.state->enable;
-
-		if (crtc->new_enabled)
-			crtc->new_config = crtc->config;
-		else
-			crtc->new_config = NULL;
 	}
 }
 
@@ -10981,9 +10970,6 @@ intel_modeset_update_state(struct drm_device *dev, unsigned prepare_pipes)
 	/* Double check state. */
 	for_each_intel_crtc(dev, intel_crtc) {
 		WARN_ON(intel_crtc->base.state->enable != intel_crtc_in_use(&intel_crtc->base));
-		WARN_ON(intel_crtc->new_config &&
-			intel_crtc->new_config != intel_crtc->config);
-		WARN_ON(intel_crtc->base.state->enable != !!intel_crtc->new_config);
 	}
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
@@ -11646,9 +11632,6 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 
 	*saved_mode = crtc->mode;
 
-	if (modeset_pipes)
-		to_intel_crtc(crtc)->new_config = pipe_config;
-
 	/*
 	 * See if the config requires any additional preparation, e.g.
 	 * to adjust global state with pipes off.  We need to do this
@@ -11741,9 +11724,6 @@ done:
 		       sizeof *crtc_state_copy);
 		intel_crtc->config = crtc_state_copy;
 		intel_crtc->base.state = &crtc_state_copy->base;
-
-		if (modeset_pipes)
-			intel_crtc->new_config = intel_crtc->config;
 	} else {
 		kfree(crtc_state_copy);
 	}
@@ -11922,11 +11902,6 @@ static void intel_set_config_restore_state(struct drm_device *dev,
 	count = 0;
 	for_each_intel_crtc(dev, crtc) {
 		crtc->new_enabled = config->save_crtc_enabled[count++];
-
-		if (crtc->new_enabled)
-			crtc->new_config = crtc->config;
-		else
-			crtc->new_config = NULL;
 	}
 
 	count = 0;
@@ -12153,11 +12128,6 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 				      crtc->new_enabled ? "en" : "dis");
 			config->mode_changed = true;
 		}
-
-		if (crtc->new_enabled)
-			crtc->new_config = crtc->config;
-		else
-			crtc->new_config = NULL;
 	}
 
 	return 0;
@@ -12184,7 +12154,6 @@ static void disable_crtc_nofb(struct intel_crtc *crtc)
 	}
 
 	crtc->new_enabled = false;
-	crtc->new_config = NULL;
 }
 
 static int intel_crtc_set_config(struct drm_mode_set *set)

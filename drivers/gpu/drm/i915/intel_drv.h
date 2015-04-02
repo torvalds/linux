@@ -471,7 +471,6 @@ struct intel_crtc {
 
 	struct intel_initial_plane_config plane_config;
 	struct intel_crtc_state *config;
-	struct intel_crtc_state *new_config;
 	bool new_enabled;
 
 	/* reset counter value when the last flip was submitted */
