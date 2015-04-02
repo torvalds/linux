@@ -208,8 +208,12 @@ static unsigned long clk_pllv3_av_recalc_rate(struct clk_hw *hw,
 	u32 mfn = readl_relaxed(pll->base + PLL_NUM_OFFSET);
 	u32 mfd = readl_relaxed(pll->base + PLL_DENOM_OFFSET);
 	u32 div = readl_relaxed(pll->base) & pll->div_mask;
+	u64 temp64 = (u64)parent_rate;
 
-	return (parent_rate * div) + ((parent_rate / mfd) * mfn);
+	temp64 *= mfn;
+	do_div(temp64, mfd);
+
+	return (parent_rate * div) + (u32)temp64;
 }
 
 static long clk_pllv3_av_round_rate(struct clk_hw *hw, unsigned long rate,
