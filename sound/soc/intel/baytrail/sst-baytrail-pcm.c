@@ -20,8 +20,8 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include "sst-baytrail-ipc.h"
-#include "sst-dsp-priv.h"
-#include "sst-dsp.h"
+#include "../common/sst-dsp-priv.h"
+#include "../common/sst-dsp.h"
 
 #define BYT_PCM_COUNT		2
 

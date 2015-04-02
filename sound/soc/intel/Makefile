@@ -10,10 +10,7 @@ obj-$(CONFIG_SND_MFLD_MACHINE) += snd-soc-mfld-machine.o
 
 # Platform Support
 obj-$(CONFIG_SND_SOC_INTEL_HASWELL) += haswell/
-snd-soc-sst-baytrail-pcm-objs := \
-	sst-baytrail-ipc.o sst-baytrail-pcm.o sst-baytrail-dsp.o
-
-obj-$(CONFIG_SND_SOC_INTEL_BAYTRAIL) += snd-soc-sst-baytrail-pcm.o
+obj-$(CONFIG_SND_SOC_INTEL_BAYTRAIL) += baytrail/
 
 # Machine support
 obj-$(CONFIG_SND_SOC_INTEL_SST) += boards/

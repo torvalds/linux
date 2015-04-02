@@ -29,8 +29,8 @@
 #include <asm/div64.h>
 
 #include "sst-baytrail-ipc.h"
-#include "sst-dsp.h"
-#include "sst-dsp-priv.h"
+#include "../common/sst-dsp.h"
+#include "../common/sst-dsp-priv.h"
 
 /* IPC message timeout */
 #define IPC_TIMEOUT_MSECS	300
