@@ -432,6 +432,14 @@ config UPROBE_EVENT
 	  This option is required if you plan to use perf-probe subcommand
 	  of perf tools on user space applications.
 
+config BPF_EVENTS
+	depends on BPF_SYSCALL
+	depends on KPROBE_EVENT
+	bool
+	default y
+	help
+	  This allows the user to attach BPF programs to kprobe events.
+
 config PROBE_EVENTS
 	def_bool n
 
