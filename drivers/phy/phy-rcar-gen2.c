@@ -23,7 +23,7 @@
 #define USBHS_LPSTS			0x02
 #define USBHS_UGCTRL			0x80
 #define USBHS_UGCTRL2			0x84
-#define USBHS_UGSTS			0x88	/* The manuals have 0x90 */
+#define USBHS_UGSTS			0x88	/* From technical update */
 
 /* Low Power Status register (LPSTS) */
 #define USBHS_LPSTS_SUSPM		0x4000
@@ -41,7 +41,7 @@
 #define USBHS_UGCTRL2_USB0SEL_HS_USB	0x00000030
 
 /* USB General status register (UGSTS) */
-#define USBHS_UGSTS_LOCK		0x00000300 /* The manuals have 0x3 */
+#define USBHS_UGSTS_LOCK		0x00000100 /* From technical update */
 
 #define PHYS_PER_CHANNEL	2
 
