@@ -1362,6 +1362,7 @@ static struct mlx5_interface mlx5_ib_interface = {
 	.add            = mlx5_ib_add,
 	.remove         = mlx5_ib_remove,
 	.event          = mlx5_ib_event,
+	.protocol	= MLX5_INTERFACE_PROTOCOL_IB,
 };
 
 static int __init mlx5_ib_init(void)
