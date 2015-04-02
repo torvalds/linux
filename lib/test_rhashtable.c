@@ -44,7 +44,6 @@ static const struct rhashtable_params test_rht_params = {
 	.key_offset = offsetof(struct test_obj, value),
 	.key_len = sizeof(int),
 	.hashfn = jhash,
-	.max_size = 2, /* we expand/shrink manually here */
 	.nulls_base = (3U << RHT_BASE_SHIFT),
 };
 
