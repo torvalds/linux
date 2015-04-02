@@ -1254,6 +1254,7 @@ struct trace {
 	bool			show_comm;
 	bool			show_tool_stats;
 	bool			trace_syscalls;
+	bool			force;
 	int			trace_pgfaults;
 };
 
@@ -2345,6 +2346,7 @@ static int trace__replay(struct trace *trace)
 	struct perf_data_file file = {
 		.path  = input_name,
 		.mode  = PERF_DATA_MODE_READ,
+		.force = trace->force,
 	};
 	struct perf_session *session;
 	struct perf_evsel *evsel;
@@ -2693,6 +2695,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_CALLBACK_DEFAULT('F', "pf", &trace.trace_pgfaults, "all|maj|min",
 		     "Trace pagefaults", parse_pagefaults, "maj"),
 	OPT_BOOLEAN(0, "syscalls", &trace.trace_syscalls, "Trace syscalls"),
+	OPT_BOOLEAN('f', "force", &trace.force, "don't complain, do it"),
 	OPT_END()
 	};
 	const char * const trace_subcommands[] = { "record", NULL };
