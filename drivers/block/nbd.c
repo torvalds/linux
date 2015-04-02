@@ -38,6 +38,28 @@
 
 #include <linux/nbd.h>
 
+struct nbd_device {
+	int flags;
+	int harderror;		/* Code of hard error			*/
+	struct socket * sock;	/* If == NULL, device is not ready, yet	*/
+	int magic;
+
+	spinlock_t queue_lock;
+	struct list_head queue_head;	/* Requests waiting result */
+	struct request *active_req;
+	wait_queue_head_t active_wq;
+	struct list_head waiting_queue;	/* Requests to be sent */
+	wait_queue_head_t waiting_wq;
+
+	struct mutex tx_lock;
+	struct gendisk *disk;
+	int blksize;
+	u64 bytesize;
+	pid_t pid; /* pid of nbd-client, if attached */
+	int xmit_timeout;
+	int disconnect; /* a disconnect has been requested by user */
+};
+
 #define NBD_MAGIC 0x68797548
 
 #ifdef NDEBUG
