@@ -3230,9 +3230,8 @@ static int add_std_chmaps(struct hda_codec *codec)
 			struct snd_pcm_chmap *chmap;
 			const struct snd_pcm_chmap_elem *elem;
 
-			if (pcm->own_chmap)
-				continue;
-			if (!pcm || !hinfo->substreams)
+			if (!pcm || pcm->own_chmap ||
+			    !hinfo->substreams)
 				continue;
 			elem = hinfo->chmap ? hinfo->chmap : snd_pcm_std_chmaps;
 			err = snd_pcm_add_chmap_ctls(pcm->pcm, str, elem,
