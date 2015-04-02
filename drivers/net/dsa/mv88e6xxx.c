@@ -434,6 +434,19 @@ void mv88e6xxx_poll_link(struct dsa_switch *ds)
 	}
 }
 
+static bool mv88e6xxx_6352_family(struct dsa_switch *ds)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+
+	switch (ps->id) {
+	case PORT_SWITCH_ID_6352:
+	case PORT_SWITCH_ID_6172:
+	case PORT_SWITCH_ID_6176:
+		return true;
+	}
+	return false;
+}
+
 static int mv88e6xxx_stats_wait(struct dsa_switch *ds)
 {
 	int ret;
@@ -451,6 +464,9 @@ static int mv88e6xxx_stats_wait(struct dsa_switch *ds)
 static int mv88e6xxx_stats_snapshot(struct dsa_switch *ds, int port)
 {
 	int ret;
+
+	if (mv88e6xxx_6352_family(ds))
+		port = (port + 1) << 5;
 
 	/* Snapshot the hardware statistics counters for this port. */
 	REG_WRITE(REG_GLOBAL, GLOBAL_STATS_OP,
