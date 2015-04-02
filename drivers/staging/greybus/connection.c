@@ -252,7 +252,7 @@ void gb_connection_destroy(struct gb_connection *connection)
 	gb_connection_hd_cport_id_free(connection);
 	gb_protocol_put(connection->protocol);
 
-	device_del(&connection->dev);
+	device_unregister(&connection->dev);
 }
 
 int gb_connection_init(struct gb_connection *connection)

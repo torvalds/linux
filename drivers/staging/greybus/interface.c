@@ -173,6 +173,8 @@ put_module:
  */
 static void gb_interface_destroy(struct gb_interface *intf)
 {
+	struct gb_module *module;
+
 	if (WARN_ON(!intf))
 		return;
 
@@ -184,10 +186,11 @@ static void gb_interface_destroy(struct gb_interface *intf)
 
 	kfree(intf->product_string);
 	kfree(intf->vendor_string);
-	put_device(&intf->module->dev);
 	/* kref_put(module->hd); */
 
-	device_del(&intf->dev);
+	module = intf->module;
+	device_unregister(&intf->dev);
+	gb_module_remove(module);
 }
 
 /**

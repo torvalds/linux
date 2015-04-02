@@ -101,6 +101,7 @@ static struct gb_module *gb_module_create(struct greybus_host_device *hd,
 		return NULL;
 
 	module->module_id = module_id;
+	module->refcount = 1;
 	module->dev.parent = hd->parent;
 	module->dev.bus = &greybus_bus_type;
 	module->dev.type = &greybus_module_type;
@@ -127,9 +128,20 @@ struct gb_module *gb_module_find_or_create(struct greybus_host_device *hd,
 	struct gb_module *module;
 
 	module = gb_module_find(module_id);
-	if (module)
+	if (module) {
+		module->refcount++;
 		return module;
+	}
 
 	return gb_module_create(hd, module_id);
+}
+
+void gb_module_remove(struct gb_module *module)
+{
+	if (!module)
+		return;
+
+	if (!--module->refcount)
+		device_unregister(&module->dev);
 }
 
