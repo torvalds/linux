@@ -1201,6 +1201,40 @@ int mv88e6xxx_switch_reset(struct dsa_switch *ds, bool ppu_active)
 	return 0;
 }
 
+int mv88e6xxx_phy_page_read(struct dsa_switch *ds, int port, int page, int reg)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	int ret;
+
+	mutex_lock(&ps->phy_mutex);
+	ret = mv88e6xxx_phy_write_indirect(ds, port, 0x16, page);
+	if (ret < 0)
+		goto error;
+	ret = mv88e6xxx_phy_read_indirect(ds, port, reg);
+error:
+	mv88e6xxx_phy_write_indirect(ds, port, 0x16, 0x0);
+	mutex_unlock(&ps->phy_mutex);
+	return ret;
+}
+
+int mv88e6xxx_phy_page_write(struct dsa_switch *ds, int port, int page,
+			     int reg, int val)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	int ret;
+
+	mutex_lock(&ps->phy_mutex);
+	ret = mv88e6xxx_phy_write_indirect(ds, port, 0x16, page);
+	if (ret < 0)
+		goto error;
+
+	ret = mv88e6xxx_phy_write_indirect(ds, port, reg, val);
+error:
+	mv88e6xxx_phy_write_indirect(ds, port, 0x16, 0x0);
+	mutex_unlock(&ps->phy_mutex);
+	return ret;
+}
+
 static int __init mv88e6xxx_init(void)
 {
 #if IS_ENABLED(CONFIG_NET_DSA_MV88E6131)
