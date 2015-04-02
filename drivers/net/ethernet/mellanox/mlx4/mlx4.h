@@ -50,6 +50,7 @@
 #include <linux/mlx4/driver.h>
 #include <linux/mlx4/doorbell.h>
 #include <linux/mlx4/cmd.h>
+#include "fw_qos.h"
 
 #define DRV_NAME	"mlx4_core"
 #define PFX		DRV_NAME ": "
@@ -553,6 +554,11 @@ struct mlx4_slave_event_eq {
 	struct mlx4_eqe event_eqe[SLAVE_EVENT_EQ_SIZE];
 };
 
+struct mlx4_qos_manager {
+	int num_of_qos_vfs;
+	DECLARE_BITMAP(priority_bm, MLX4_NUM_UP);
+};
+
 struct mlx4_master_qp0_state {
 	int proxy_qp0_active;
 	int qp0_active;
@@ -577,6 +583,7 @@ struct mlx4_mfunc_master_ctx {
 	struct mlx4_eqe		cmd_eqe;
 	struct mlx4_slave_event_eq slave_eq;
 	struct mutex		gen_eqe_mutex[MLX4_MFUNC_MAX];
+	struct mlx4_qos_manager qos_ctl[MLX4_MAX_PORTS + 1];
 };
 
 struct mlx4_mfunc {

@@ -1883,6 +1883,63 @@ static int mlx4_master_immediate_activate_vlan_qos(struct mlx4_priv *priv,
 	return 0;
 }
 
+static void mlx4_set_default_port_qos(struct mlx4_dev *dev, int port)
+{
+	struct mlx4_qos_manager *port_qos_ctl;
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	port_qos_ctl = &priv->mfunc.master.qos_ctl[port];
+	bitmap_zero(port_qos_ctl->priority_bm, MLX4_NUM_UP);
+
+	/* Enable only default prio at PF init routine */
+	set_bit(MLX4_DEFAULT_QOS_PRIO, port_qos_ctl->priority_bm);
+}
+
+static void mlx4_allocate_port_vpps(struct mlx4_dev *dev, int port)
+{
+	int i;
+	int err;
+	int num_vfs;
+	u16 availible_vpp;
+	u8 vpp_param[MLX4_NUM_UP];
+	struct mlx4_qos_manager *port_qos;
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	err = mlx4_ALLOCATE_VPP_get(dev, port, &availible_vpp, vpp_param);
+	if (err) {
+		mlx4_info(dev, "Failed query availible VPPs\n");
+		return;
+	}
+
+	port_qos = &priv->mfunc.master.qos_ctl[port];
+	num_vfs = (availible_vpp /
+		   bitmap_weight(port_qos->priority_bm, MLX4_NUM_UP));
+
+	for (i = 0; i < MLX4_NUM_UP; i++) {
+		if (test_bit(i, port_qos->priority_bm))
+			vpp_param[i] = num_vfs;
+	}
+
+	err = mlx4_ALLOCATE_VPP_set(dev, port, vpp_param);
+	if (err) {
+		mlx4_info(dev, "Failed allocating VPPs\n");
+		return;
+	}
+
+	/* Query actual allocated VPP, just to make sure */
+	err = mlx4_ALLOCATE_VPP_get(dev, port, &availible_vpp, vpp_param);
+	if (err) {
+		mlx4_info(dev, "Failed query availible VPPs\n");
+		return;
+	}
+
+	port_qos->num_of_qos_vfs = num_vfs;
+	mlx4_dbg(dev, "Port %d Availible VPPs %d\n", port, availible_vpp);
+
+	for (i = 0; i < MLX4_NUM_UP; i++)
+		mlx4_dbg(dev, "Port %d UP %d Allocated %d VPPs\n", port, i,
+			 vpp_param[i]);
+}
 
 static int mlx4_master_activate_admin_state(struct mlx4_priv *priv, int slave)
 {
@@ -2286,6 +2343,15 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 				vf_oper->vport[port].mac_idx = NO_INDX;
 			}
 			spin_lock_init(&s_state->lock);
+		}
+
+		if (dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_QOS_VPP) {
+			for (port = 1; port <= dev->caps.num_ports; port++) {
+				if (mlx4_is_eth(dev, port)) {
+					mlx4_set_default_port_qos(dev, port);
+					mlx4_allocate_port_vpps(dev, port);
+				}
+			}
 		}
 
 		memset(&priv->mfunc.master.cmd_eqe, 0, dev->caps.eqe_size);

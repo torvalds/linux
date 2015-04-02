@@ -41,6 +41,9 @@
 #define MLX4_NUM_UP 8
 #define MLX4_NUM_TC 8
 
+/* Default supported priorities for VPP allocation */
+#define MLX4_DEFAULT_QOS_PRIO (0)
+
 struct mlx4_vport_qos_param {
 	u32 bw_share;
 	u32 max_avg_bw;
