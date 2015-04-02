@@ -1188,6 +1188,14 @@ void __weak read_boot_clock(struct timespec *ts)
 	ts->tv_nsec = 0;
 }
 
+void __weak read_boot_clock64(struct timespec64 *ts64)
+{
+	struct timespec ts;
+
+	read_boot_clock(&ts);
+	*ts64 = timespec_to_timespec64(ts);
+}
+
 /*
  * timekeeping_init - Initializes the clocksource and common timekeeping values
  */
@@ -1209,8 +1217,7 @@ void __init timekeeping_init(void)
 	} else if (now.tv_sec || now.tv_nsec)
 		persistent_clock_exist = true;
 
-	read_boot_clock(&ts);
-	boot = timespec_to_timespec64(ts);
+	read_boot_clock64(&boot);
 	if (!timespec64_valid_strict(&boot)) {
 		pr_warn("WARNING: Boot clock returned invalid value!\n"
 			"         Check your CMOS/BIOS settings.\n");
