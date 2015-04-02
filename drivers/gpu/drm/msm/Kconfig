@@ -9,6 +9,7 @@ config DRM_MSM
 	select DRM_PANEL
 	select SHMEM
 	select TMPFS
+	select QCOM_SCM
 	default y
 	help
 	  DRM/KMS driver for MSM/snapdragon.

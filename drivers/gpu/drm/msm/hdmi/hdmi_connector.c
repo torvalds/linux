@@ -141,6 +141,7 @@ static int hpd_enable(struct hdmi_connector *hdmi_connector)
 	struct hdmi_phy *phy = hdmi->phy;
 	uint32_t hpd_ctrl;
 	int i, ret;
+	unsigned long flags;
 
 	for (i = 0; i < config->hpd_reg_cnt; i++) {
 		ret = regulator_enable(hdmi->hpd_regs[i]);
@@ -192,6 +193,7 @@ static int hpd_enable(struct hdmi_connector *hdmi_connector)
 			HDMI_HPD_INT_CTRL_INT_EN);
 
 	/* set timeout to 4.1ms (max) for hardware debounce */
+	spin_lock_irqsave(&hdmi->reg_lock, flags);
 	hpd_ctrl = hdmi_read(hdmi, REG_HDMI_HPD_CTRL);
 	hpd_ctrl |= HDMI_HPD_CTRL_TIMEOUT(0x1fff);
 
@@ -200,6 +202,7 @@ static int hpd_enable(struct hdmi_connector *hdmi_connector)
 			~HDMI_HPD_CTRL_ENABLE & hpd_ctrl);
 	hdmi_write(hdmi, REG_HDMI_HPD_CTRL,
 			HDMI_HPD_CTRL_ENABLE | hpd_ctrl);
+	spin_unlock_irqrestore(&hdmi->reg_lock, flags);
 
 	return 0;
 
@@ -250,7 +253,6 @@ hotplug_work(struct work_struct *work)
 void hdmi_connector_irq(struct drm_connector *connector)
 {
 	struct hdmi_connector *hdmi_connector = to_hdmi_connector(connector);
-	struct msm_drm_private *priv = connector->dev->dev_private;
 	struct hdmi *hdmi = hdmi_connector->hdmi;
 	uint32_t hpd_int_status, hpd_int_ctrl;
 
@@ -274,7 +276,7 @@ void hdmi_connector_irq(struct drm_connector *connector)
 			hpd_int_ctrl |= HDMI_HPD_INT_CTRL_INT_CONNECT;
 		hdmi_write(hdmi, REG_HDMI_HPD_INT_CTRL, hpd_int_ctrl);
 
-		queue_work(priv->wq, &hdmi_connector->hpd_work);
+		queue_work(hdmi->workq, &hdmi_connector->hpd_work);
 	}
 }
 
@@ -350,6 +352,7 @@ static int hdmi_connector_get_modes(struct drm_connector *connector)
 
 	hdmi_write(hdmi, REG_HDMI_CTRL, hdmi_ctrl);
 
+	hdmi->hdmi_mode = drm_detect_hdmi_monitor(edid);
 	drm_mode_connector_update_edid_property(connector, edid);
 
 	if (edid) {
