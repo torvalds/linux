@@ -32,7 +32,7 @@
 #include <asm/platform_sst_audio.h>
 #include "../sst-mfld-platform.h"
 #include "sst.h"
-#include "../sst-dsp.h"
+#include "../common/sst-dsp.h"
 
 MODULE_AUTHOR("Vinod Koul <vinod.koul@intel.com>");
 MODULE_AUTHOR("Harsha Priya <priya.harsha@intel.com>");
