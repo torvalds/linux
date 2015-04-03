@@ -239,7 +239,7 @@ static int bnep_rx_control(struct bnep_session *s, void *data, int len)
 			pkt[0] = BNEP_CONTROL;
 			pkt[1] = BNEP_CMD_NOT_UNDERSTOOD;
 			pkt[2] = cmd;
-			bnep_send(s, pkt, sizeof(pkt));
+			err = bnep_send(s, pkt, sizeof(pkt));
 		}
 		break;
 	}
