@@ -1192,17 +1192,17 @@ emul:
 				 */
 				return mips_dsemul(xcp, ir, contpc);
 			} else if (likely) {	/* branch not taken */
-					/*
-					 * branch likely nullifies
-					 * dslot if not taken
-					 */
-					xcp->cp0_epc += dec_insn.pc_inc;
-					contpc += dec_insn.pc_inc;
-					/*
-					 * else continue & execute
-					 * dslot as normal insn
-					 */
-				}
+				/*
+				 * branch likely nullifies
+				 * dslot if not taken
+				 */
+				xcp->cp0_epc += dec_insn.pc_inc;
+				contpc += dec_insn.pc_inc;
+				/*
+				 * else continue & execute
+				 * dslot as normal insn
+				 */
+			}
 			break;
 
 		default:
