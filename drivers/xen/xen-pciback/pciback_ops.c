@@ -144,7 +144,12 @@ int xen_pcibk_enable_msi(struct xen_pcibk_device *pdev,
 	if (unlikely(verbose_request))
 		printk(KERN_DEBUG DRV_NAME ": %s: enable MSI\n", pci_name(dev));
 
-	status = pci_enable_msi(dev);
+	if (dev->msi_enabled)
+		status = -EALREADY;
+	else if (dev->msix_enabled)
+		status = -ENXIO;
+	else
+		status = pci_enable_msi(dev);
 
 	if (status) {
 		pr_warn_ratelimited("%s: error enabling MSI for guest %u: err %d\n",
