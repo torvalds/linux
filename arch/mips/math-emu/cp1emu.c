@@ -908,6 +908,7 @@ static inline void cop1_ctc(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 {
 	u32 fcr31 = ctx->fcr31;
 	u32 value;
+	u32 mask;
 
 	if (MIPSInst_RT(ir) == 0)
 		value = 0;
@@ -919,9 +920,9 @@ static inline void cop1_ctc(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 		pr_debug("%p gpr[%d]->csr=%08x\n",
 			 (void *)xcp->cp0_epc, MIPSInst_RT(ir), value);
 
-		/* Don't write unsupported bits.  */
-		fcr31 = value &
-			~(FPU_CSR_RSVD | FPU_CSR_ABS2008 | FPU_CSR_NAN2008);
+		/* Preserve read-only bits.  */
+		mask = current_cpu_data.fpu_msk31;
+		fcr31 = (value & ~mask) | (fcr31 & mask);
 		break;
 
 	case FPCREG_FENR:

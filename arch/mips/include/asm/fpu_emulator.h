@@ -88,8 +88,6 @@ static inline void fpu_emulator_init_fpu(void)
 	struct task_struct *t = current;
 	int i;
 
-	t->thread.fpu.fcr31 = 0;
-
 	for (i = 0; i < 32; i++)
 		set_fpr64(&t->thread.fpu.fpr[i], 0, SIGNALLING_NAN);
 }
