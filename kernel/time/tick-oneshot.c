@@ -28,6 +28,22 @@ int tick_program_event(ktime_t expires, int force)
 {
 	struct clock_event_device *dev = __this_cpu_read(tick_cpu_device.evtdev);
 
+	if (unlikely(expires.tv64 == KTIME_MAX)) {
+		/*
+		 * We don't need the clock event device any more, stop it.
+		 */
+		clockevents_set_state(dev, CLOCK_EVT_STATE_ONESHOT_STOPPED);
+		return 0;
+	}
+
+	if (unlikely(dev->state == CLOCK_EVT_STATE_ONESHOT_STOPPED)) {
+		/*
+		 * We need the clock event again, configure it in ONESHOT mode
+		 * before using it.
+		 */
+		clockevents_set_state(dev, CLOCK_EVT_STATE_ONESHOT);
+	}
+
 	return clockevents_program_event(dev, expires, force);
 }
 

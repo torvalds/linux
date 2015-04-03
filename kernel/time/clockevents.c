@@ -331,6 +331,10 @@ int clockevents_program_event(struct clock_event_device *dev, ktime_t expires,
 	if (dev->state == CLOCK_EVT_STATE_SHUTDOWN)
 		return 0;
 
+	/* We must be in ONESHOT state here */
+	WARN_ONCE(dev->state != CLOCK_EVT_STATE_ONESHOT, "Current state: %d\n",
+		  dev->state);
+
 	/* Shortcut for clockevent devices that can deal with ktime. */
 	if (dev->features & CLOCK_EVT_FEAT_KTIME)
 		return dev->set_next_ktime(expires, dev);

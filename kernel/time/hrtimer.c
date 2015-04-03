@@ -550,8 +550,7 @@ hrtimer_force_reprogram(struct hrtimer_cpu_base *cpu_base, int skip_equal)
 	if (cpu_base->hang_detected)
 		return;
 
-	if (cpu_base->expires_next.tv64 != KTIME_MAX)
-		tick_program_event(cpu_base->expires_next, 1);
+	tick_program_event(cpu_base->expires_next, 1);
 }
 
 /*
@@ -1237,8 +1236,7 @@ retry:
 	raw_spin_unlock(&cpu_base->lock);
 
 	/* Reprogramming necessary ? */
-	if (expires_next.tv64 == KTIME_MAX ||
-	    !tick_program_event(expires_next, 0)) {
+	if (!tick_program_event(expires_next, 0)) {
 		cpu_base->hang_detected = 0;
 		return;
 	}
