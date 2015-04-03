@@ -16,6 +16,7 @@ enum fwnode_type {
 	FWNODE_INVALID = 0,
 	FWNODE_OF,
 	FWNODE_ACPI,
+	FWNODE_PDATA,
 };
 
 struct fwnode_handle {

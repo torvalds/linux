@@ -10,10 +10,96 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/property.h>
-#include <linux/export.h>
 #include <linux/acpi.h>
+#include <linux/export.h>
+#include <linux/kernel.h>
 #include <linux/of.h>
+#include <linux/property.h>
+
+/**
+ * device_add_property_set - Add a collection of properties to a device object.
+ * @dev: Device to add properties to.
+ * @pset: Collection of properties to add.
+ *
+ * Associate a collection of device properties represented by @pset with @dev
+ * as its secondary firmware node.
+ */
+void device_add_property_set(struct device *dev, struct property_set *pset)
+{
+	if (pset)
+		pset->fwnode.type = FWNODE_PDATA;
+
+	set_secondary_fwnode(dev, &pset->fwnode);
+}
+EXPORT_SYMBOL_GPL(device_add_property_set);
+
+static inline bool is_pset(struct fwnode_handle *fwnode)
+{
+	return fwnode && fwnode->type == FWNODE_PDATA;
+}
+
+static inline struct property_set *to_pset(struct fwnode_handle *fwnode)
+{
+	return is_pset(fwnode) ?
+		container_of(fwnode, struct property_set, fwnode) : NULL;
+}
+
+static struct property_entry *pset_prop_get(struct property_set *pset,
+					    const char *name)
+{
+	struct property_entry *prop;
+
+	if (!pset || !pset->properties)
+		return NULL;
+
+	for (prop = pset->properties; prop->name; prop++)
+		if (!strcmp(name, prop->name))
+			return prop;
+
+	return NULL;
+}
+
+static int pset_prop_read_array(struct property_set *pset, const char *name,
+				enum dev_prop_type type, void *val, size_t nval)
+{
+	struct property_entry *prop;
+	unsigned int item_size;
+
+	prop = pset_prop_get(pset, name);
+	if (!prop)
+		return -ENODATA;
+
+	if (prop->type != type)
+		return -EPROTO;
+
+	if (!val)
+		return prop->nval;
+
+	if (prop->nval < nval)
+		return -EOVERFLOW;
+
+	switch (type) {
+	case DEV_PROP_U8:
+		item_size = sizeof(u8);
+		break;
+	case DEV_PROP_U16:
+		item_size = sizeof(u16);
+		break;
+	case DEV_PROP_U32:
+		item_size = sizeof(u32);
+		break;
+	case DEV_PROP_U64:
+		item_size = sizeof(u64);
+		break;
+	case DEV_PROP_STRING:
+		item_size = sizeof(const char *);
+		break;
+	default:
+		return -EINVAL;
+	}
+	memcpy(val, prop->value.raw_data, nval * item_size);
+	return 0;
+}
 
 static inline struct fwnode_handle *dev_fwnode(struct device *dev)
 {
@@ -46,7 +132,7 @@ bool fwnode_property_present(struct fwnode_handle *fwnode, const char *propname)
 	else if (is_acpi_node(fwnode))
 		return !acpi_dev_prop_get(acpi_node(fwnode), propname, NULL);
 
-	return false;
+	return !!pset_prop_get(to_pset(fwnode), propname);
 }
 EXPORT_SYMBOL_GPL(fwnode_property_present);
 
@@ -205,7 +291,8 @@ EXPORT_SYMBOL_GPL(device_property_read_string);
 		_ret_ = acpi_dev_prop_read(acpi_node(_fwnode_), _propname_, \
 					   _proptype_, _val_, _nval_); \
 	else \
-		_ret_ = -ENXIO; \
+		_ret_ = pset_prop_read_array(to_pset(_fwnode_), _propname_, \
+					     _proptype_, _val_, _nval_); \
 	_ret_; \
 })
 
@@ -344,7 +431,8 @@ int fwnode_property_read_string_array(struct fwnode_handle *fwnode,
 		return acpi_dev_prop_read(acpi_node(fwnode), propname,
 					  DEV_PROP_STRING, val, nval);
 
-	return -ENXIO;
+	return pset_prop_read_array(to_pset(fwnode), propname,
+				    DEV_PROP_STRING, val, nval);
 }
 EXPORT_SYMBOL_GPL(fwnode_property_read_string_array);
 
