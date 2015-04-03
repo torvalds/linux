@@ -7029,7 +7029,7 @@ EXPORT_SYMBOL_GPL(fx_init);
 
 static void fx_free(struct kvm_vcpu *vcpu)
 {
-	fpu_free(&vcpu->arch.guest_fpu);
+	fpstate_free(&vcpu->arch.guest_fpu);
 }
 
 void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
