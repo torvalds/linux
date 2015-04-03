@@ -103,8 +103,7 @@ ALT_UP(	mov	r3, r0, lsr #26)		@ move LoUU into position
 	moveqs	r3, #1 << 1			@   fix LoUIS value (and set flags state to 'ne')
 #endif
 	reteq	lr				@ return if level == 0
-	mov	r10, #0				@ r10 (starting level) = 0
-	b	flush_levels			@ start flushing cache levels
+	b	start_flush_levels		@ start flushing cache levels
 ENDPROC(v7_flush_dcache_louis)
 
 /*
@@ -122,6 +121,7 @@ ENTRY(v7_flush_dcache_all)
 	mov	r3, r0, lsr #23			@ move LoC into position
 	ands	r3, r3, #7 << 1			@ extract LoC*2 from clidr
 	beq	finished			@ if loc is 0, then no need to clean
+start_flush_levels:
 	mov	r10, #0				@ start clean at cache level 0
 flush_levels:
 	add	r2, r10, r10, lsr #1		@ work out 3x current cache level
