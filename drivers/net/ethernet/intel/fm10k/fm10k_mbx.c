@@ -126,6 +126,18 @@ static u16 fm10k_fifo_head_drop(struct fm10k_mbx_fifo *fifo)
 }
 
 /**
+ *  fm10k_fifo_drop_all - Drop all messages in FIFO
+ *  @fifo: pointer to FIFO
+ *
+ *  This function resets the head pointer to drop all messages in the FIFO,
+ *  and ensure the FIFO is empty.
+ **/
+static void fm10k_fifo_drop_all(struct fm10k_mbx_fifo *fifo)
+{
+	fifo->head = fifo->tail;
+}
+
+/**
  *  fm10k_mbx_index_len - Convert a head/tail index into a length value
  *  @mbx: pointer to mailbox
  *  @head: head index
@@ -1370,9 +1382,11 @@ static void fm10k_mbx_disconnect(struct fm10k_hw *hw,
 		timeout -= FM10K_MBX_POLL_DELAY;
 	} while ((timeout > 0) && (mbx->state != FM10K_STATE_CLOSED));
 
-	/* in case we didn't close just force the mailbox into shutdown */
+	/* in case we didn't close, just force the mailbox into shutdown and
+	 * drop all left over messages in the FIFO.
+	 */
 	fm10k_mbx_connect_reset(mbx);
-	fm10k_mbx_update_max_size(mbx, 0);
+	fm10k_fifo_drop_all(&mbx->tx);
 
 	fm10k_write_reg(hw, mbx->mbmem_reg, 0);
 }
