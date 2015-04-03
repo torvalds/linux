@@ -277,6 +277,7 @@ void (*ddr_bandwidth_get)(struct ddr_bw_info *ddr_bw_ch0,
 int (*ddr_change_freq)(uint32_t nMHz) = NULL;
 long (*ddr_round_rate)(uint32_t nMHz) = NULL;
 void (*ddr_set_auto_self_refresh)(bool en) = NULL;
+int (*ddr_recalc_rate)(void) = NULL;
 
 extern struct ion_platform_data ion_pdata;
 extern void __init ion_reserve(struct ion_platform_data *data);

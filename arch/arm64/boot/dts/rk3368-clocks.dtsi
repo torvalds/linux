@@ -784,7 +784,7 @@
 						rockchip,flags = <(CLK_GET_RATE_NOCACHE |
 									CLK_SET_RATE_NO_REPARENT)>;
 						rockchip,clkops-idx =
-							<CLKOPS_RATE_DDR_DIV4>;
+							<CLKOPS_RATE_RK3368_DDR>;
 					};
 
 					/* 3:2 reserved */

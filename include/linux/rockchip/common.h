@@ -36,6 +36,7 @@ extern void (*ddr_bandwidth_get)(struct ddr_bw_info *ddr_bw_ch0,
 extern int (*ddr_change_freq)(uint32_t mhz);
 extern long (*ddr_round_rate)(uint32_t mhz);
 extern void (*ddr_set_auto_self_refresh)(bool en);
+extern int (*ddr_recalc_rate)(void);
 
 int rockchip_cpu_kill(unsigned int cpu);
 void rockchip_cpu_die(unsigned int cpu);
