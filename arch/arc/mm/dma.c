@@ -66,6 +66,18 @@ void *dma_alloc_coherent(struct device *dev, size_t size,
 	/* This is bus address, platform dependent */
 	*dma_handle = (dma_addr_t)paddr;
 
+	/*
+	 * Evict any existing L1 and/or L2 lines for the backing page
+	 * in case it was used earlier as a normal "cached" page.
+	 * Yeah this bit us - STAR 9000898266
+	 *
+	 * Although core does call flush_cache_vmap(), it gets kvaddr hence
+	 * can't be used to efficiently flush L1 and/or L2 which need paddr
+	 * Currently flush_cache_vmap nukes the L1 cache completely which
+	 * will be optimized as a separate commit
+	 */
+	dma_cache_wback_inv((unsigned long)paddr, size);
+
 	return kvaddr;
 }
 EXPORT_SYMBOL(dma_alloc_coherent);
