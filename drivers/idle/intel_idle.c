@@ -55,7 +55,7 @@
 
 #include <linux/kernel.h>
 #include <linux/cpuidle.h>
-#include <linux/clockchips.h>
+#include <linux/tick.h>
 #include <trace/events/power.h>
 #include <linux/sched.h>
 #include <linux/notifier.h>
@@ -665,13 +665,12 @@ static void intel_idle_freeze(struct cpuidle_device *dev,
 
 static void __setup_broadcast_timer(void *arg)
 {
-	unsigned long reason = (unsigned long)arg;
-	int cpu = smp_processor_id();
+	unsigned long on = (unsigned long)arg;
 
-	reason = reason ?
-		CLOCK_EVT_NOTIFY_BROADCAST_ON : CLOCK_EVT_NOTIFY_BROADCAST_OFF;
-
-	clockevents_notify(reason, &cpu);
+	if (on)
+		tick_broadcast_enable();
+	else
+		tick_broadcast_disable();
 }
 
 static int cpu_hotplug_notify(struct notifier_block *n,
