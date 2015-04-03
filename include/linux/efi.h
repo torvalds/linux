@@ -85,7 +85,8 @@ typedef	struct {
 #define EFI_MEMORY_MAPPED_IO		11
 #define EFI_MEMORY_MAPPED_IO_PORT_SPACE	12
 #define EFI_PAL_CODE			13
-#define EFI_MAX_MEMORY_TYPE		14
+#define EFI_PERSISTENT_MEMORY		14
+#define EFI_MAX_MEMORY_TYPE		15
 
 /* Attribute values: */
 #define EFI_MEMORY_UC		((u64)0x0000000000000001ULL)	/* uncached */
