@@ -20,6 +20,7 @@
 
 #include <asm/bugs.h>
 #include <asm/cpu.h>
+#include <asm/cpu-features.h>
 #include <asm/cpu-type.h>
 #include <asm/fpu.h>
 #include <asm/mipsregs.h>
@@ -31,11 +32,30 @@
 #include <asm/spram.h>
 #include <asm/uaccess.h>
 
+/*
+ * Set the FIR feature flags for the FPU emulator.
+ */
+static void cpu_set_nofpu_id(struct cpuinfo_mips *c)
+{
+	u32 value;
+
+	value = 0;
+	if (c->isa_level & (MIPS_CPU_ISA_M32R1 | MIPS_CPU_ISA_M64R1 |
+			    MIPS_CPU_ISA_M32R2 | MIPS_CPU_ISA_M64R2 |
+			    MIPS_CPU_ISA_M32R6 | MIPS_CPU_ISA_M64R6))
+		value |= MIPS_FPIR_D | MIPS_FPIR_S;
+	if (c->isa_level & (MIPS_CPU_ISA_M32R2 | MIPS_CPU_ISA_M64R2 |
+			    MIPS_CPU_ISA_M32R6 | MIPS_CPU_ISA_M64R6))
+		value |= MIPS_FPIR_F64 | MIPS_FPIR_L | MIPS_FPIR_W;
+	c->fpu_id = value;
+}
+
 static int mips_fpu_disabled;
 
 static int __init fpu_disable(char *s)
 {
-	cpu_data[0].options &= ~MIPS_CPU_FPU;
+	boot_cpu_data.options &= ~MIPS_CPU_FPU;
+	cpu_set_nofpu_id(&boot_cpu_data);
 	mips_fpu_disabled = 1;
 
 	return 1;
@@ -1382,7 +1402,8 @@ void cpu_probe(void)
 			if (c->fpu_id & MIPS_FPIR_FREP)
 				c->options |= MIPS_CPU_FRE;
 		}
-	}
+	} else
+		cpu_set_nofpu_id(c);
 
 	if (cpu_has_mips_r2_r6) {
 		c->srsets = ((read_c0_srsctl() >> 26) & 0x0f) + 1;

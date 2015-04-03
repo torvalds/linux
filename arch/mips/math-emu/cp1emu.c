@@ -45,6 +45,7 @@
 #include <asm/signal.h>
 #include <asm/uaccess.h>
 
+#include <asm/cpu-info.h>
 #include <asm/processor.h>
 #include <asm/fpu_emulator.h>
 #include <asm/fpu.h>
@@ -853,7 +854,7 @@ static inline void cop1_cfc(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 			 (void *)xcp->cp0_epc,
 			 MIPSInst_RT(ir), value);
 	} else if (MIPSInst_RD(ir) == FPCREG_RID)
-		value = 0;
+		value = current_cpu_data.fpu_id;
 	else
 		value = 0;
 	if (MIPSInst_RT(ir))
