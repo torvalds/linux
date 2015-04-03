@@ -15,7 +15,7 @@
  */
 
 #include <asm/firmware.h>
-#include <linux/clockchips.h>
+#include <linux/tick.h>
 #include <linux/cpuidle.h>
 #include <linux/cpu_pm.h>
 #include <linux/kernel.h>
@@ -44,7 +44,7 @@ static int tegra114_idle_power_down(struct cpuidle_device *dev,
 	tegra_set_cpu_in_lp2();
 	cpu_pm_enter();
 
-	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &dev->cpu);
+	tick_broadcast_enter();
 
 	call_firmware_op(prepare_idle);
 
@@ -52,7 +52,7 @@ static int tegra114_idle_power_down(struct cpuidle_device *dev,
 	if (call_firmware_op(do_idle, 0) == -ENOSYS)
 		cpu_suspend(0, tegra30_sleep_cpu_secondary_finish);
 
-	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &dev->cpu);
+	tick_broadcast_exit();
 
 	cpu_pm_exit();
 	tegra_clear_cpu_in_lp2();
