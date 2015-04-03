@@ -97,7 +97,7 @@
 			reg = <0x452000 0x100>;
 		};
 
-		irq0_intc: interrupt-controller@f040a780 {
+		irq0_intc: interrupt-controller@40a780 {
 			compatible = "brcm,bcm7120-l2-intc";
 			interrupt-parent = <&gic>;
 			#interrupt-cells = <1>;
