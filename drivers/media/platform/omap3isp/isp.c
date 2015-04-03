@@ -304,7 +304,6 @@ static struct clk *isp_xclk_src_get(struct of_phandle_args *clkspec, void *data)
 
 static int isp_xclk_init(struct isp_device *isp)
 {
-	struct isp_platform_data *pdata = isp->pdata;
 	struct device_node *np = isp->dev->of_node;
 	struct clk_init_data init;
 	unsigned int i;
@@ -335,26 +334,6 @@ static int isp_xclk_init(struct isp_device *isp)
 		xclk->clk = clk_register(NULL, &xclk->hw);
 		if (IS_ERR(xclk->clk))
 			return PTR_ERR(xclk->clk);
-
-		/* When instantiated from DT we don't need to register clock
-		 * aliases.
-		 */
-		if (np)
-			continue;
-
-		if (!pdata || (pdata->xclks[i].con_id == NULL &&
-			       pdata->xclks[i].dev_id == NULL))
-			continue;
-
-		xclk->lookup = kzalloc(sizeof(*xclk->lookup), GFP_KERNEL);
-		if (xclk->lookup == NULL)
-			return -ENOMEM;
-
-		xclk->lookup->con_id = pdata->xclks[i].con_id;
-		xclk->lookup->dev_id = pdata->xclks[i].dev_id;
-		xclk->lookup->clk = xclk->clk;
-
-		clkdev_add(xclk->lookup);
 	}
 
 	if (np)
@@ -376,9 +355,6 @@ static void isp_xclk_cleanup(struct isp_device *isp)
 
 		if (!IS_ERR(xclk->clk))
 			clk_unregister(xclk->clk);
-
-		if (xclk->lookup)
-			clkdev_drop(xclk->lookup);
 	}
 }
 

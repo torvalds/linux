@@ -150,13 +150,7 @@ struct isp_platform_subdev {
 	struct isp_bus_cfg *bus;
 };
 
-struct isp_platform_xclk {
-	const char *dev_id;
-	const char *con_id;
-};
-
 struct isp_platform_data {
-	struct isp_platform_xclk xclks[2];
 	struct isp_platform_subdev *subdevs;
 	void (*set_constraints)(struct isp_device *isp, bool enable);
 };
