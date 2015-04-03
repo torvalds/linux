@@ -1,5 +1,5 @@
 /* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -1126,7 +1126,7 @@ static struct rtnl_link_stats64 *fm10k_get_stats64(struct net_device *netdev,
 	}
 
 	for (i = 0; i < interface->num_tx_queues; i++) {
-		ring = ACCESS_ONCE(interface->rx_ring[i]);
+		ring = ACCESS_ONCE(interface->tx_ring[i]);
 
 		if (!ring)
 			continue;
