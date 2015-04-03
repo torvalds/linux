@@ -329,8 +329,18 @@ void xen_blkbk_unmap_purged_grants(struct work_struct *work)
 	struct gnttab_unmap_grant_ref unmap[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	struct page *pages[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	struct persistent_gnt *persistent_gnt;
-	int ret, segs_to_unmap = 0;
+	int segs_to_unmap = 0;
 	struct xen_blkif *blkif = container_of(work, typeof(*blkif), persistent_purge_work);
+	struct gntab_unmap_queue_data unmap_data;
+	struct completion unmap_completion;
+
+	init_completion(&unmap_completion);
+
+	unmap_data.data = &unmap_completion;
+	unmap_data.done = &free_persistent_gnts_unmap_callback;
+	unmap_data.pages = pages;
+	unmap_data.unmap_ops = unmap;
+	unmap_data.kunmap_ops = NULL;
 
 	while(!list_empty(&blkif->persistent_purge_list)) {
 		persistent_gnt = list_first_entry(&blkif->persistent_purge_list,
@@ -346,17 +356,19 @@ void xen_blkbk_unmap_purged_grants(struct work_struct *work)
 		pages[segs_to_unmap] = persistent_gnt->page;
 
 		if (++segs_to_unmap == BLKIF_MAX_SEGMENTS_PER_REQUEST) {
-			ret = gnttab_unmap_refs(unmap, NULL, pages,
-				segs_to_unmap);
-			BUG_ON(ret);
+			unmap_data.count = segs_to_unmap;
+			gnttab_unmap_refs_async(&unmap_data);
+			wait_for_completion(&unmap_completion);
+
 			put_free_pages(blkif, pages, segs_to_unmap);
 			segs_to_unmap = 0;
 		}
 		kfree(persistent_gnt);
 	}
 	if (segs_to_unmap > 0) {
-		ret = gnttab_unmap_refs(unmap, NULL, pages, segs_to_unmap);
-		BUG_ON(ret);
+		unmap_data.count = segs_to_unmap;
+		gnttab_unmap_refs_async(&unmap_data);
+		wait_for_completion(&unmap_completion);
 		put_free_pages(blkif, pages, segs_to_unmap);
 	}
 }
