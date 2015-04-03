@@ -261,7 +261,19 @@ static int __init ion_test_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int ion_test_remove(struct platform_device *pdev)
+{
+	struct ion_test_device *testdev;
+
+	testdev = platform_get_drvdata(pdev);
+	if (!testdev)
+		return -ENODATA;
+
+	return misc_deregister(&testdev->misc);
+}
+
 static struct platform_driver ion_test_platform_driver = {
+	.remove = ion_test_remove,
 	.driver = {
 		.name = "ion-test",
 	},
