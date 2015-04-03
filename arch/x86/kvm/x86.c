@@ -6600,7 +6600,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	int r;
 	sigset_t sigsaved;
 
-	if (!tsk_used_math(current) && init_fpu(current))
+	if (!tsk_used_math(current) && fpstate_alloc_init(current))
 		return -ENOMEM;
 
 	if (vcpu->sigset_active)

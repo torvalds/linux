@@ -247,6 +247,37 @@ void fpu_finit(struct fpu *fpu)
 EXPORT_SYMBOL_GPL(fpu_finit);
 
 /*
+ * Allocate the backing store for the current task's FPU registers
+ * and initialize the registers themselves as well.
+ *
+ * Can fail.
+ */
+int fpstate_alloc_init(struct task_struct *curr)
+{
+	int ret;
+
+	if (WARN_ON_ONCE(curr != current))
+		return -EINVAL;
+	if (WARN_ON_ONCE(curr->flags & PF_USED_MATH))
+		return -EINVAL;
+
+	/*
+	 * Memory allocation at the first usage of the FPU and other state.
+	 */
+	ret = fpu_alloc(&curr->thread.fpu);
+	if (ret)
+		return ret;
+
+	fpu_finit(&curr->thread.fpu);
+
+	/* Safe to do for the current task: */
+	curr->flags |= PF_USED_MATH;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(fpstate_alloc_init);
+
+/*
  * The _current_ task is using the FPU for the first time
  * so initialize it and set the mxcsr to its default
  * value at reset if we support XMM instructions and then

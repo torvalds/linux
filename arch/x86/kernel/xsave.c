@@ -349,7 +349,7 @@ int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 	if (!access_ok(VERIFY_READ, buf, size))
 		return -EACCES;
 
-	if (!used_math() && init_fpu(tsk))
+	if (!used_math() && fpstate_alloc_init(tsk))
 		return -1;
 
 	if (!static_cpu_has(X86_FEATURE_FPU))

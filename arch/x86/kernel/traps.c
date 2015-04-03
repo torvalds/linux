@@ -846,7 +846,7 @@ void math_state_restore(void)
 		/*
 		 * does a slab alloc which can sleep
 		 */
-		if (init_fpu(tsk)) {
+		if (fpstate_alloc_init(tsk)) {
 			/*
 			 * ran out of memory!
 			 */

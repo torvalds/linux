@@ -159,7 +159,7 @@ void flush_thread(void)
 	} else {
 		if (!tsk_used_math(tsk)) {
 			/* kthread execs. TODO: cleanup this horror. */
-			if (WARN_ON(init_fpu(tsk)))
+		if (WARN_ON(fpstate_alloc_init(tsk)))
 				force_sig(SIGKILL, tsk);
 			user_fpu_begin();
 		}
