@@ -13,6 +13,7 @@
 
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include "mt8173-pinfunc.h"
 
 / {
 	compatible = "mediatek,mt8173";
@@ -104,6 +105,25 @@
 		#size-cells = <2>;
 		compatible = "simple-bus";
 		ranges;
+
+		syscfg_pctl_a: syscfg_pctl_a@10005000 {
+			compatible = "mediatek,mt8173-pctl-a-syscfg", "syscon";
+			reg = <0 0x10005000 0 0x1000>;
+		};
+
+		pio: pinctrl@0x10005000 {
+			compatible = "mediatek,mt8173-pinctrl";
+			reg = <0 0x1000B000 0 0x1000>;
+			mediatek,pctl-regmap = <&syscfg_pctl_a>;
+			pins-are-numbered;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupts = <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>,
+						<GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>,
+						<GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
+		};
 
 		sysirq: intpol-controller@10200620 {
 			compatible = "mediatek,mt8173-sysirq",
