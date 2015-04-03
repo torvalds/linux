@@ -327,7 +327,7 @@ static u16 fm10k_mbx_validate_msg_size(struct fm10k_mbx_info *mbx, u16 len)
 	} while (total_len < len);
 
 	/* message extends out of pushed section, but fits in FIFO */
-	if ((len < total_len) && (msg_len <= mbx->rx.size))
+	if ((len < total_len) && (msg_len <= mbx->max_size))
 		return 0;
 
 	/* return length of invalid section */
@@ -1063,8 +1063,11 @@ static void fm10k_mbx_reset_work(struct fm10k_mbx_info *mbx)
  *  @mbx: pointer to mailbox
  *  @size: new value for max_size
  *
- *  This function will update the max_size value and drop any outgoing messages
- *  from the head of the Tx FIFO that are larger than max_size.
+ *  This function updates the max_size value and drops any outgoing messages
+ *  at the head of the Tx FIFO if they are larger than max_size. It does not
+ *  drop all messages, as this is too difficult to parse and remove them from
+ *  the FIFO. Instead, rely on the checking to ensure that messages larger
+ *  than max_size aren't pushed into the memory buffer.
  **/
 static void fm10k_mbx_update_max_size(struct fm10k_mbx_info *mbx, u16 size)
 {
