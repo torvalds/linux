@@ -360,7 +360,7 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	.set	mips1
 	SET_HARDFLOAT
 	cfc1	a1, fcr31
-	li	a2, ~(0x3f << 12)
+	li	a2, ~FPU_CSR_ALL_X
 	and	a2, a1
 	ctc1	a2, fcr31
 	.set	pop
