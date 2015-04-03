@@ -178,11 +178,10 @@ static void lapic_timer_state_broadcast(struct acpi_processor *pr,
 	int state = cx - pr->power.states;
 
 	if (state >= pr->power.timer_broadcast_on_state) {
-		unsigned long reason;
-
-		reason = broadcast ?  CLOCK_EVT_NOTIFY_BROADCAST_ENTER :
-			CLOCK_EVT_NOTIFY_BROADCAST_EXIT;
-		clockevents_notify(reason, &pr->id);
+		if (broadcast)
+			tick_broadcast_enter();
+		else
+			tick_broadcast_exit();
 	}
 }
 
