@@ -182,7 +182,7 @@ static int ipgre_err(struct sk_buff *skb, u32 info,
 	t = ip_tunnel_lookup(itn, skb->dev->ifindex, tpi->flags,
 			     iph->daddr, iph->saddr, tpi->key);
 
-	if (t == NULL)
+	if (!t)
 		return PACKET_REJECT;
 
 	if (t->parms.iph.daddr == 0 ||
@@ -423,7 +423,7 @@ static int ipgre_open(struct net_device *dev)
 			return -EADDRNOTAVAIL;
 		dev = rt->dst.dev;
 		ip_rt_put(rt);
-		if (__in_dev_get_rtnl(dev) == NULL)
+		if (!__in_dev_get_rtnl(dev))
 			return -EADDRNOTAVAIL;
 		t->mlink = dev->ifindex;
 		ip_mc_inc_group(__in_dev_get_rtnl(dev), t->parms.iph.daddr);

@@ -505,7 +505,7 @@ void tcp_init_metrics(struct sock *sk)
 	struct tcp_metrics_block *tm;
 	u32 val, crtt = 0; /* cached RTT scaled by 8 */
 
-	if (dst == NULL)
+	if (!dst)
 		goto reset;
 
 	dst_confirm(dst);

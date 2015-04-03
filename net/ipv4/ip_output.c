@@ -182,7 +182,7 @@ static inline int ip_finish_output2(struct sk_buff *skb)
 		struct sk_buff *skb2;
 
 		skb2 = skb_realloc_headroom(skb, LL_RESERVED_SPACE(dev));
-		if (skb2 == NULL) {
+		if (!skb2) {
 			kfree_skb(skb);
 			return -ENOMEM;
 		}
@@ -257,7 +257,7 @@ static int ip_finish_output(struct sk_buff *skb)
 {
 #if defined(CONFIG_NETFILTER) && defined(CONFIG_XFRM)
 	/* Policy lookup after SNAT yielded a new policy */
-	if (skb_dst(skb)->xfrm != NULL) {
+	if (skb_dst(skb)->xfrm) {
 		IPCB(skb)->flags |= IPSKB_REROUTED;
 		return dst_output(skb);
 	}
@@ -376,12 +376,12 @@ int ip_queue_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl)
 	inet_opt = rcu_dereference(inet->inet_opt);
 	fl4 = &fl->u.ip4;
 	rt = skb_rtable(skb);
-	if (rt != NULL)
+	if (rt)
 		goto packet_routed;
 
 	/* Make sure we can route this packet. */
 	rt = (struct rtable *)__sk_dst_check(sk, 0);
-	if (rt == NULL) {
+	if (!rt) {
 		__be32 daddr;
 
 		/* Use correct destination address if we have options. */
@@ -587,7 +587,7 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 					ip_options_fragment(frag);
 				offset += skb->len - hlen;
 				iph->frag_off = htons(offset>>3);
-				if (frag->next != NULL)
+				if (frag->next)
 					iph->frag_off |= htons(IP_MF);
 				/* Ready, complete checksum */
 				ip_send_check(iph);
@@ -790,12 +790,13 @@ static inline int ip_ufo_append_data(struct sock *sk,
 	 * device, so create one single skb packet containing complete
 	 * udp datagram
 	 */
-	if ((skb = skb_peek_tail(queue)) == NULL) {
+	skb = skb_peek_tail(queue);
+	if (!skb) {
 		skb = sock_alloc_send_skb(sk,
 			hh_len + fragheaderlen + transhdrlen + 20,
 			(flags & MSG_DONTWAIT), &err);
 
-		if (skb == NULL)
+		if (!skb)
 			return err;
 
 		/* reserve space for Hardware header */
@@ -961,10 +962,10 @@ alloc_new_skb:
 					skb = sock_wmalloc(sk,
 							   alloclen + hh_len + 15, 1,
 							   sk->sk_allocation);
-				if (unlikely(skb == NULL))
+				if (unlikely(!skb))
 					err = -ENOBUFS;
 			}
-			if (skb == NULL)
+			if (!skb)
 				goto error;
 
 			/*
@@ -1088,10 +1089,10 @@ static int ip_setup_cork(struct sock *sk, struct inet_cork *cork,
 	 */
 	opt = ipc->opt;
 	if (opt) {
-		if (cork->opt == NULL) {
+		if (!cork->opt) {
 			cork->opt = kmalloc(sizeof(struct ip_options) + 40,
 					    sk->sk_allocation);
-			if (unlikely(cork->opt == NULL))
+			if (unlikely(!cork->opt))
 				return -ENOBUFS;
 		}
 		memcpy(cork->opt, &opt->opt, sizeof(struct ip_options) + opt->opt.optlen);
@@ -1198,7 +1199,8 @@ ssize_t	ip_append_page(struct sock *sk, struct flowi4 *fl4, struct page *page,
 		return -EMSGSIZE;
 	}
 
-	if ((skb = skb_peek_tail(&sk->sk_write_queue)) == NULL)
+	skb = skb_peek_tail(&sk->sk_write_queue);
+	if (!skb)
 		return -EINVAL;
 
 	cork->length += size;
@@ -1329,7 +1331,8 @@ struct sk_buff *__ip_make_skb(struct sock *sk,
 	__be16 df = 0;
 	__u8 ttl;
 
-	if ((skb = __skb_dequeue(queue)) == NULL)
+	skb = __skb_dequeue(queue);
+	if (!skb)
 		goto out;
 	tail_skb = &(skb_shinfo(skb)->frag_list);
 

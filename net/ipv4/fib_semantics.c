@@ -390,7 +390,7 @@ void rtmsg_fib(int event, __be32 key, struct fib_alias *fa,
 	int err = -ENOBUFS;
 
 	skb = nlmsg_new(fib_nlmsg_size(fa->fa_info), GFP_KERNEL);
-	if (skb == NULL)
+	if (!skb)
 		goto errout;
 
 	err = fib_dump_info(skb, info->portid, seq, event, tb_id,
@@ -503,7 +503,7 @@ int fib_nh_match(struct fib_config *cfg, struct fib_info *fi)
 	}
 
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
-	if (cfg->fc_mp == NULL)
+	if (!cfg->fc_mp)
 		return 0;
 
 	rtnh = cfg->fc_mp;
@@ -646,7 +646,7 @@ static int fib_check_nh(struct fib_config *cfg, struct fib_info *fi,
 		rcu_read_lock();
 		err = -ENODEV;
 		in_dev = inetdev_by_index(net, nh->nh_oif);
-		if (in_dev == NULL)
+		if (!in_dev)
 			goto out;
 		err = -ENETDOWN;
 		if (!(in_dev->dev->flags & IFF_UP))
@@ -803,7 +803,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 	}
 
 	fi = kzalloc(sizeof(*fi)+nhs*sizeof(struct fib_nh), GFP_KERNEL);
-	if (fi == NULL)
+	if (!fi)
 		goto failure;
 	fib_info_cnt++;
 	if (cfg->fc_mx) {
@@ -921,7 +921,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 		nh->nh_scope = RT_SCOPE_NOWHERE;
 		nh->nh_dev = dev_get_by_index(net, fi->fib_nh->nh_oif);
 		err = -ENODEV;
-		if (nh->nh_dev == NULL)
+		if (!nh->nh_dev)
 			goto failure;
 	} else {
 		change_nexthops(fi) {
@@ -995,7 +995,7 @@ int fib_dump_info(struct sk_buff *skb, u32 portid, u32 seq, int event,
 	struct rtmsg *rtm;
 
 	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*rtm), flags);
-	if (nlh == NULL)
+	if (!nlh)
 		return -EMSGSIZE;
 
 	rtm = nlmsg_data(nlh);
@@ -1045,12 +1045,12 @@ int fib_dump_info(struct sk_buff *skb, u32 portid, u32 seq, int event,
 		struct nlattr *mp;
 
 		mp = nla_nest_start(skb, RTA_MULTIPATH);
-		if (mp == NULL)
+		if (!mp)
 			goto nla_put_failure;
 
 		for_nexthops(fi) {
 			rtnh = nla_reserve_nohdr(skb, sizeof(*rtnh));
-			if (rtnh == NULL)
+			if (!rtnh)
 				goto nla_put_failure;
 
 			rtnh->rtnh_flags = nh->nh_flags & 0xFF;
@@ -1093,7 +1093,7 @@ int fib_sync_down_addr(struct net *net, __be32 local)
 	struct hlist_head *head = &fib_info_laddrhash[hash];
 	struct fib_info *fi;
 
-	if (fib_info_laddrhash == NULL || local == 0)
+	if (!fib_info_laddrhash || local == 0)
 		return 0;
 
 	hlist_for_each_entry(fi, head, fib_lhash) {
@@ -1182,7 +1182,7 @@ void fib_select_default(struct fib_result *res)
 
 		fib_alias_accessed(fa);
 
-		if (fi == NULL) {
+		if (!fi) {
 			if (next_fi != res->fi)
 				break;
 		} else if (!fib_detect_death(fi, order, &last_resort,
@@ -1195,7 +1195,7 @@ void fib_select_default(struct fib_result *res)
 		order++;
 	}
 
-	if (order <= 0 || fi == NULL) {
+	if (order <= 0 || !fi) {
 		tb->tb_default = -1;
 		goto out;
 	}
@@ -1251,7 +1251,7 @@ int fib_sync_up(struct net_device *dev)
 				alive++;
 				continue;
 			}
-			if (nexthop_nh->nh_dev == NULL ||
+			if (!nexthop_nh->nh_dev ||
 			    !(nexthop_nh->nh_dev->flags & IFF_UP))
 				continue;
 			if (nexthop_nh->nh_dev != dev ||
