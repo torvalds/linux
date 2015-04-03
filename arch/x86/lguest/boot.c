@@ -868,7 +868,8 @@ static void __init lguest_init_IRQ(void)
 		/* Some systems map "vectors" to interrupts weirdly.  Not us! */
 		__this_cpu_write(vector_irq[i], i - FIRST_EXTERNAL_VECTOR);
 		if (i != SYSCALL_VECTOR)
-			set_intr_gate(i, interrupt[i - FIRST_EXTERNAL_VECTOR]);
+			set_intr_gate(i, irq_entries_start +
+					8 * (i - FIRST_EXTERNAL_VECTOR));
 	}
 
 	/*

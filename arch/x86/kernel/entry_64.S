@@ -608,43 +608,22 @@ ENTRY(ret_from_fork)
 END(ret_from_fork)
 
 /*
- * Build the entry stubs and pointer table with some assembler magic.
- * We pack 7 stubs into a single 32-byte chunk, which will fit in a
- * single cache line on all modern x86 implementations.
+ * Build the entry stubs with some assembler magic.
+ * We pack 1 stub into every 8-byte block.
  */
-	.section .init.rodata,"a"
-ENTRY(interrupt)
-	.section .entry.text
-	.p2align 5
-	.p2align CONFIG_X86_L1_CACHE_SHIFT
+	.align 8
 ENTRY(irq_entries_start)
 	INTR_FRAME
-vector=FIRST_EXTERNAL_VECTOR
-.rept (FIRST_SYSTEM_VECTOR-FIRST_EXTERNAL_VECTOR+6)/7
-	.balign 32
-  .rept	7
-    .if vector < FIRST_SYSTEM_VECTOR
-      .if vector <> FIRST_EXTERNAL_VECTOR
+    vector=FIRST_EXTERNAL_VECTOR
+    .rept (FIRST_SYSTEM_VECTOR - FIRST_EXTERNAL_VECTOR)
+	pushq_cfi $(~vector+0x80)	/* Note: always in signed byte range */
+    vector=vector+1
+	jmp	common_interrupt
 	CFI_ADJUST_CFA_OFFSET -8
-      .endif
-1:	pushq_cfi $(~vector+0x80)	/* Note: always in signed byte range */
-      .if ((vector-FIRST_EXTERNAL_VECTOR)%7) <> 6
-	jmp 2f
-      .endif
-      .previous
-	.quad 1b
-      .section .entry.text
-vector=vector+1
-    .endif
-  .endr
-2:	jmp common_interrupt
-.endr
+	.align	8
+    .endr
 	CFI_ENDPROC
 END(irq_entries_start)
-
-.previous
-END(interrupt)
-.previous
 
 /*
  * Interrupt entry/exit.
