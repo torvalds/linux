@@ -276,8 +276,10 @@ void locks_release_private(struct file_lock *fl)
 	}
 
 	if (fl->fl_lmops) {
-		if (fl->fl_lmops->lm_put_owner)
-			fl->fl_lmops->lm_put_owner(fl);
+		if (fl->fl_lmops->lm_put_owner) {
+			fl->fl_lmops->lm_put_owner(fl->fl_owner);
+			fl->fl_owner = NULL;
+		}
 		fl->fl_lmops = NULL;
 	}
 }
@@ -333,7 +335,7 @@ void locks_copy_conflock(struct file_lock *new, struct file_lock *fl)
 
 	if (fl->fl_lmops) {
 		if (fl->fl_lmops->lm_get_owner)
-			fl->fl_lmops->lm_get_owner(new, fl);
+			fl->fl_lmops->lm_get_owner(fl->fl_owner);
 	}
 }
 EXPORT_SYMBOL(locks_copy_conflock);
