@@ -26,7 +26,6 @@
 
 #include <linux/fs.h>
 #include <linux/pagemap.h>
-#include <linux/jbd2.h>
 #include <linux/time.h>
 #include <linux/fcntl.h>
 #include <linux/stat.h>

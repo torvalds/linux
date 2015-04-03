@@ -14,7 +14,6 @@
 
 #include <linux/time.h>
 #include <linux/fs.h>
-#include <linux/jbd2.h>
 #include <linux/stat.h>
 #include <linux/string.h>
 #include <linux/quotaops.h>

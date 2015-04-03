@@ -22,10 +22,8 @@
  */
 
 #include <linux/fs.h>
-#include <linux/jbd2.h>
 #include <linux/buffer_head.h>
 #include <linux/slab.h>
-#include <linux/rbtree.h>
 #include "ext4.h"
 #include "xattr.h"
 

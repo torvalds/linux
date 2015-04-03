@@ -18,7 +18,6 @@
  */
 
 #include <linux/fs.h>
-#include <linux/jbd2.h>
 #include <linux/namei.h>
 #include "ext4.h"
 #include "xattr.h"

@@ -8,7 +8,6 @@
  */
 
 #include <linux/fs.h>
-#include <linux/jbd2.h>
 #include <linux/capability.h>
 #include <linux/time.h>
 #include <linux/compat.h>

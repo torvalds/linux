@@ -20,7 +20,6 @@
 
 #include <linux/fs.h>
 #include <linux/time.h>
-#include <linux/jbd2.h>
 #include <linux/highuid.h>
 #include <linux/pagemap.h>
 #include <linux/quotaops.h>
@@ -36,7 +35,6 @@
 #include <linux/kernel.h>
 #include <linux/printk.h>
 #include <linux/slab.h>
-#include <linux/ratelimit.h>
 #include <linux/aio.h>
 #include <linux/bitops.h>
 

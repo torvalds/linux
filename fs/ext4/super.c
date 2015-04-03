@@ -21,7 +21,6 @@
 #include <linux/fs.h>
 #include <linux/time.h>
 #include <linux/vmalloc.h>
-#include <linux/jbd2.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/blkdev.h>
