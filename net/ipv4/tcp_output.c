@@ -641,7 +641,7 @@ static unsigned int tcp_synack_options(struct sock *sk,
 		if (unlikely(!ireq->tstamp_ok))
 			remaining -= TCPOLEN_SACKPERM_ALIGNED;
 	}
-	if (foc != NULL && foc->len >= 0) {
+	if (foc && foc->len >= 0) {
 		u32 need = TCPOLEN_EXP_FASTOPEN_BASE + foc->len;
 		need = (need + 3) & ~3U;  /* Align to 32 bits */
 		if (remaining >= need) {
@@ -2224,7 +2224,7 @@ void tcp_send_loss_probe(struct sock *sk)
 	int mss = tcp_current_mss(sk);
 	int err = -1;
 
-	if (tcp_send_head(sk) != NULL) {
+	if (tcp_send_head(sk)) {
 		err = tcp_write_xmit(sk, mss, TCP_NAGLE_OFF, 2, GFP_ATOMIC);
 		goto rearm_timer;
 	}
@@ -2758,7 +2758,7 @@ begin_fwd:
 			if (!tcp_can_forward_retransmit(sk))
 				break;
 			/* Backtrack if necessary to non-L'ed skb */
-			if (hole != NULL) {
+			if (hole) {
 				skb = hole;
 				hole = NULL;
 			}
@@ -2811,7 +2811,7 @@ void tcp_send_fin(struct sock *sk)
 	 */
 	mss_now = tcp_current_mss(sk);
 
-	if (tcp_send_head(sk) != NULL) {
+	if (tcp_send_head(sk)) {
 		TCP_SKB_CB(skb)->tcp_flags |= TCPHDR_FIN;
 		TCP_SKB_CB(skb)->end_seq++;
 		tp->write_seq++;
@@ -3015,7 +3015,7 @@ static void tcp_connect_init(struct sock *sk)
 		(sysctl_tcp_timestamps ? TCPOLEN_TSTAMP_ALIGNED : 0);
 
 #ifdef CONFIG_TCP_MD5SIG
-	if (tp->af_specific->md5_lookup(sk, sk) != NULL)
+	if (tp->af_specific->md5_lookup(sk, sk))
 		tp->tcp_header_len += TCPOLEN_MD5SIG_ALIGNED;
 #endif
 
@@ -3376,8 +3376,8 @@ int tcp_write_wakeup(struct sock *sk)
 	if (sk->sk_state == TCP_CLOSE)
 		return -1;
 
-	if ((skb = tcp_send_head(sk)) != NULL &&
-	    before(TCP_SKB_CB(skb)->seq, tcp_wnd_end(tp))) {
+	skb = tcp_send_head(sk);
+	if (skb && before(TCP_SKB_CB(skb)->seq, tcp_wnd_end(tp))) {
 		int err;
 		unsigned int mss = tcp_current_mss(sk);
 		unsigned int seg_size = tcp_wnd_end(tp) - TCP_SKB_CB(skb)->seq;

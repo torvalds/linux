@@ -1305,7 +1305,7 @@ struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	/* Copy over the MD5 key from the original socket */
 	key = tcp_md5_do_lookup(sk, (union tcp_md5_addr *)&newinet->inet_daddr,
 				AF_INET);
-	if (key != NULL) {
+	if (key) {
 		/*
 		 * We're using one, so create a matching key
 		 * on the newsk structure. If we fail to get
@@ -1797,7 +1797,7 @@ void tcp_v4_destroy_sock(struct sock *sk)
 	if (inet_csk(sk)->icsk_bind_hash)
 		inet_put_port(sk);
 
-	BUG_ON(tp->fastopen_rsk != NULL);
+	BUG_ON(tp->fastopen_rsk);
 
 	/* If socket is aborted during connect operation */
 	tcp_free_fastopen_req(tp);

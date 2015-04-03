@@ -257,7 +257,7 @@ static int ip_finish_output(struct sk_buff *skb)
 {
 #if defined(CONFIG_NETFILTER) && defined(CONFIG_XFRM)
 	/* Policy lookup after SNAT yielded a new policy */
-	if (skb_dst(skb)->xfrm != NULL) {
+	if (skb_dst(skb)->xfrm) {
 		IPCB(skb)->flags |= IPSKB_REROUTED;
 		return dst_output(skb);
 	}
@@ -376,7 +376,7 @@ int ip_queue_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl)
 	inet_opt = rcu_dereference(inet->inet_opt);
 	fl4 = &fl->u.ip4;
 	rt = skb_rtable(skb);
-	if (rt != NULL)
+	if (rt)
 		goto packet_routed;
 
 	/* Make sure we can route this packet. */
@@ -587,7 +587,7 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 					ip_options_fragment(frag);
 				offset += skb->len - hlen;
 				iph->frag_off = htons(offset>>3);
-				if (frag->next != NULL)
+				if (frag->next)
 					iph->frag_off |= htons(IP_MF);
 				/* Ready, complete checksum */
 				ip_send_check(iph);

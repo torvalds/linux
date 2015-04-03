@@ -1591,7 +1591,7 @@ static int __mkroute_input(struct sk_buff *skb,
 
 	fnhe = find_exception(&FIB_RES_NH(*res), daddr);
 	if (do_cache) {
-		if (fnhe != NULL)
+		if (fnhe)
 			rth = rcu_dereference(fnhe->fnhe_rth_input);
 		else
 			rth = rcu_dereference(FIB_RES_NH(*res).nh_rth_input);

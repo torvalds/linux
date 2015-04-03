@@ -1290,7 +1290,7 @@ __be32 inet_confirm_addr(struct net *net, struct in_device *in_dev,
 	__be32 addr = 0;
 	struct net_device *dev;
 
-	if (in_dev != NULL)
+	if (in_dev)
 		return confirm_addr_indev(in_dev, dst, local, scope);
 
 	rcu_read_lock();

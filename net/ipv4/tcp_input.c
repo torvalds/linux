@@ -1256,7 +1256,7 @@ static u8 tcp_sacktag_one(struct sock *sk,
 		fack_count += pcount;
 
 		/* Lost marker hint past SACKed? Tweak RFC3517 cnt */
-		if (!tcp_is_fack(tp) && (tp->lost_skb_hint != NULL) &&
+		if (!tcp_is_fack(tp) && tp->lost_skb_hint &&
 		    before(start_seq, TCP_SKB_CB(tp->lost_skb_hint)->seq))
 			tp->lost_cnt_hint += pcount;
 
@@ -1535,7 +1535,7 @@ static struct sk_buff *tcp_sacktag_walk(struct sk_buff *skb, struct sock *sk,
 		if (!before(TCP_SKB_CB(skb)->seq, end_seq))
 			break;
 
-		if ((next_dup != NULL) &&
+		if (next_dup  &&
 		    before(TCP_SKB_CB(skb)->seq, next_dup->end_seq)) {
 			in_sack = tcp_match_skb_to_sack(sk, skb,
 							next_dup->start_seq,
@@ -1551,7 +1551,7 @@ static struct sk_buff *tcp_sacktag_walk(struct sk_buff *skb, struct sock *sk,
 		if (in_sack <= 0) {
 			tmp = tcp_shift_skb_data(sk, skb, state,
 						 start_seq, end_seq, dup_sack);
-			if (tmp != NULL) {
+			if (tmp) {
 				if (tmp != skb) {
 					skb = tmp;
 					continue;
@@ -5321,7 +5321,7 @@ void tcp_finish_connect(struct sock *sk, struct sk_buff *skb)
 
 	tcp_set_state(sk, TCP_ESTABLISHED);
 
-	if (skb != NULL) {
+	if (skb) {
 		icsk->icsk_af_ops->sk_rx_dst_set(sk, skb);
 		security_inet_conn_established(sk, skb);
 	}
@@ -5690,7 +5690,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 	}
 
 	req = tp->fastopen_rsk;
-	if (req != NULL) {
+	if (req) {
 		WARN_ON_ONCE(sk->sk_state != TCP_SYN_RECV &&
 		    sk->sk_state != TCP_FIN_WAIT1);
 
@@ -5780,7 +5780,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		 * ACK we have received, this would have acknowledged
 		 * our SYNACK so stop the SYNACK timer.
 		 */
-		if (req != NULL) {
+		if (req) {
 			/* Return RST if ack_seq is invalid.
 			 * Note that RFC793 only says to generate a
 			 * DUPACK for it but for TCP Fast Open it seems

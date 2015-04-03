@@ -639,7 +639,8 @@ int ip_defrag(struct sk_buff *skb, u32 user)
 	IP_INC_STATS_BH(net, IPSTATS_MIB_REASMREQDS);
 
 	/* Lookup (or create) queue header */
-	if ((qp = ip_find(net, ip_hdr(skb), user)) != NULL) {
+	qp = ip_find(net, ip_hdr(skb), user);
+	if (qp) {
 		int ret;
 
 		spin_lock(&qp->q.lock);

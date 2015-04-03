@@ -316,7 +316,7 @@ static struct mr_table *ipmr_new_table(struct net *net, u32 id)
 	unsigned int i;
 
 	mrt = ipmr_get_table(net, id);
-	if (mrt != NULL)
+	if (mrt)
 		return mrt;
 
 	mrt = kzalloc(sizeof(*mrt), GFP_KERNEL);

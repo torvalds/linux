@@ -243,7 +243,7 @@ static int gre_gro_complete(struct sk_buff *skb, int nhoff)
 
 	rcu_read_lock();
 	ptype = gro_find_complete_by_type(type);
-	if (ptype != NULL)
+	if (ptype)
 		err = ptype->callbacks.gro_complete(skb, nhoff + grehlen);
 
 	rcu_read_unlock();

@@ -502,7 +502,7 @@ int cipso_v4_doi_add(struct cipso_v4_doi *doi_def,
 	atomic_set(&doi_def->refcount, 1);
 
 	spin_lock(&cipso_v4_doi_list_lock);
-	if (cipso_v4_doi_search(doi_def->doi) != NULL) {
+	if (cipso_v4_doi_search(doi_def->doi)) {
 		spin_unlock(&cipso_v4_doi_list_lock);
 		ret_val = -EEXIST;
 		goto doi_add_return;
@@ -513,7 +513,7 @@ int cipso_v4_doi_add(struct cipso_v4_doi *doi_def,
 
 doi_add_return:
 	audit_buf = netlbl_audit_start(AUDIT_MAC_CIPSOV4_ADD, audit_info);
-	if (audit_buf != NULL) {
+	if (audit_buf) {
 		const char *type_str;
 		switch (doi_type) {
 		case CIPSO_V4_MAP_TRANS:
@@ -617,7 +617,7 @@ int cipso_v4_doi_remove(u32 doi, struct netlbl_audit *audit_info)
 
 doi_remove_return:
 	audit_buf = netlbl_audit_start(AUDIT_MAC_CIPSOV4_DEL, audit_info);
-	if (audit_buf != NULL) {
+	if (audit_buf) {
 		audit_log_format(audit_buf,
 				 " cipso_doi=%u res=%u",
 				 doi, ret_val == 0 ? 1 : 0);

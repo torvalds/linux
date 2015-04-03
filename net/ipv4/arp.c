@@ -569,7 +569,7 @@ struct sk_buff *arp_create(int type, int ptype, __be32 dest_ip,
 		break;
 #endif
 	default:
-		if (target_hw != NULL)
+		if (target_hw)
 			memcpy(arp_ptr, target_hw, dev->addr_len);
 		else
 			memset(arp_ptr, 0, dev->addr_len);

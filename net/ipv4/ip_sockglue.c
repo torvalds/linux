@@ -387,7 +387,7 @@ void ip_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
 				   skb_network_header(skb);
 	serr->port = port;
 
-	if (skb_pull(skb, payload - skb->data) != NULL) {
+	if (skb_pull(skb, payload - skb->data)) {
 		skb_reset_transport_header(skb);
 		if (sock_queue_err_skb(sk, skb) == 0)
 			return;

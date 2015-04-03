@@ -391,9 +391,9 @@ static void put_child(struct key_vector *tn, unsigned long i,
 	BUG_ON(i >= child_length(tn));
 
 	/* update emptyChildren, overflow into fullChildren */
-	if (!n && chi != NULL)
+	if (!n && chi)
 		empty_child_inc(tn);
-	if (n != NULL && !chi)
+	if (n && !chi)
 		empty_child_dec(tn);
 
 	/* update fullChildren */

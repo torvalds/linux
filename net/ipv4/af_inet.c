@@ -1269,7 +1269,7 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 		if (udpfrag) {
 			iph->id = htons(id);
 			iph->frag_off = htons(offset >> 3);
-			if (skb->next != NULL)
+			if (skb->next)
 				iph->frag_off |= htons(IP_MF);
 			offset += skb->len - nhoff - ihl;
 		} else {

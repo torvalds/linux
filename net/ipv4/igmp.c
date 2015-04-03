@@ -2370,7 +2370,7 @@ void ip_mc_drop_socket(struct sock *sk)
 		inet->mc_list = iml->next_rcu;
 		in_dev = inetdev_by_index(net, iml->multi.imr_ifindex);
 		(void) ip_mc_leave_src(sk, iml, in_dev);
-		if (in_dev != NULL)
+		if (in_dev)
 			ip_mc_dec_group(in_dev, iml->multi.imr_multiaddr.s_addr);
 		/* decrease mem now to avoid the memleak warning */
 		atomic_sub(sizeof(*iml), &sk->sk_omem_alloc);
@@ -2590,10 +2590,10 @@ static inline struct ip_sf_list *igmp_mcf_get_first(struct seq_file *seq)
 		if (unlikely(!idev))
 			continue;
 		im = rcu_dereference(idev->mc_list);
-		if (likely(im != NULL)) {
+		if (likely(im)) {
 			spin_lock_bh(&im->lock);
 			psf = im->sources;
-			if (likely(psf != NULL)) {
+			if (likely(psf)) {
 				state->im = im;
 				state->idev = idev;
 				break;
@@ -2663,7 +2663,7 @@ static void igmp_mcf_seq_stop(struct seq_file *seq, void *v)
 	__releases(rcu)
 {
 	struct igmp_mcf_iter_state *state = igmp_mcf_seq_private(seq);
-	if (likely(state->im != NULL)) {
+	if (likely(state->im)) {
 		spin_unlock_bh(&state->im->lock);
 		state->im = NULL;
 	}
