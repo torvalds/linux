@@ -30,10 +30,11 @@ static inline union ieee754sp ieee754sp_nan_fdp(int xs, u64 xm)
 
 union ieee754sp ieee754sp_fdp(union ieee754dp x)
 {
+	union ieee754sp y;
 	u32 rm;
 
 	COMPXDP;
-	union ieee754sp nan;
+	COMPYSP;
 
 	EXPLODEXDP;
 
@@ -46,10 +47,11 @@ union ieee754sp ieee754sp_fdp(union ieee754dp x)
 		return ieee754sp_nanxcpt(ieee754sp_nan_fdp(xs, xm));
 
 	case IEEE754_CLASS_QNAN:
-		nan = ieee754sp_nan_fdp(xs, xm);
-		if (!ieee754sp_isnan(nan))
-			nan = ieee754sp_indef();
-		return nan;
+		y = ieee754sp_nan_fdp(xs, xm);
+		EXPLODEYSP;
+		if (!ieee754_class_nan(yc))
+			y = ieee754sp_indef();
+		return y;
 
 	case IEEE754_CLASS_INF:
 		return ieee754sp_inf(xs);
