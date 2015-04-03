@@ -1170,6 +1170,12 @@ fpu_emul:
 					       &fault_addr);
 
 		/*
+		 * We can't allow the emulated instruction to leave any of
+		 * the cause bits set in $fcr31.
+		 */
+		current->thread.fpu.fcr31 &= ~FPU_CSR_ALL_X;
+
+		/*
 		 * this is a tricky issue - lose_fpu() uses LL/SC atomics
 		 * if FPU is owned and effectively cancels user level LL/SC.
 		 * So, it could be logical to don't restore FPU ownership here.

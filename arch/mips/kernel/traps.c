@@ -761,6 +761,12 @@ static int simulate_fp(struct pt_regs *regs, unsigned int opcode,
 	sig = fpu_emulator_cop1Handler(regs, &current->thread.fpu, 1,
 				       &fault_addr);
 
+	/*
+	 * We can't allow the emulated instruction to leave any of
+	 * the cause bits set in $fcr31.
+	 */
+	current->thread.fpu.fcr31 &= ~FPU_CSR_ALL_X;
+
 	/* If something went wrong, signal */
 	process_fpemu_return(sig, fault_addr);
 
@@ -807,7 +813,7 @@ asmlinkage void do_fpe(struct pt_regs *regs, unsigned long fcr31)
 
 		/*
 		 * We can't allow the emulated instruction to leave any of
-		 * the cause bit set in $fcr31.
+		 * the cause bits set in $fcr31.
 		 */
 		current->thread.fpu.fcr31 &= ~FPU_CSR_ALL_X;
 
@@ -1384,6 +1390,13 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 			sig = fpu_emulator_cop1Handler(regs,
 						       &current->thread.fpu,
 						       0, &fault_addr);
+
+			/*
+			 * We can't allow the emulated instruction to leave
+			 * any of the cause bits set in $fcr31.
+			 */
+			current->thread.fpu.fcr31 &= ~FPU_CSR_ALL_X;
+
 			if (!process_fpemu_return(sig, fault_addr) && !err)
 				mt_ase_fp_affinity();
 		}
