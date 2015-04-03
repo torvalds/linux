@@ -795,7 +795,10 @@ typedef u16 (*select_queue_fallback_t)(struct net_device *dev,
  * netdev_tx_t (*ndo_start_xmit)(struct sk_buff *skb,
  *                               struct net_device *dev);
  *	Called when a packet needs to be transmitted.
- *	Must return NETDEV_TX_OK , NETDEV_TX_BUSY.
+ *	Returns NETDEV_TX_OK.  Can return NETDEV_TX_BUSY, but you should stop
+ *	the queue before that can happen; it's for obsolete devices and weird
+ *	corner cases, but the stack really does a non-trivial amount
+ *	of useless work if you return NETDEV_TX_BUSY.
  *        (can also return NETDEV_TX_LOCKED iff NETIF_F_LLTX)
  *	Required can not be NULL.
  *
