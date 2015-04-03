@@ -39,6 +39,8 @@
 /* ... GDT has it cleared */
 #define SEGMENT_GDT		0x0
 
+#define GDT_ENTRY_INVALID_SEG	0
+
 #ifdef CONFIG_X86_32
 /*
  * The layout of the per-CPU GDT under Linux:
