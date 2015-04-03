@@ -30,7 +30,8 @@
 
 #define SX9500_DRIVER_NAME		"sx9500"
 #define SX9500_IRQ_NAME			"sx9500_event"
-#define SX9500_GPIO_NAME		"sx9500_gpio"
+
+#define SX9500_GPIO_NAME		"interrupt"
 
 /* Register definitions. */
 #define SX9500_REG_IRQ_SRC		0x00
