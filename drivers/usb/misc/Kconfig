@@ -258,6 +258,7 @@ config USB_LINK_LAYER_TEST
 
 config USB_CHAOSKEY
 	tristate "ChaosKey random number generator driver support"
+	depends on HW_RANDOM
 	help
 	  Say Y here if you want to connect an AltusMetrum ChaosKey to
 	  your computer's USB port. The ChaosKey is a hardware random
