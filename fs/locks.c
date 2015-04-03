@@ -964,8 +964,6 @@ static int __posix_lock_file(struct inode *inode, struct file_lock *request, str
 	 */
 	if (request->fl_type != F_UNLCK) {
 		list_for_each_entry(fl, &ctx->flc_posix, fl_list) {
-			if (!IS_POSIX(fl))
-				continue;
 			if (!posix_locks_conflict(request, fl))
 				continue;
 			if (conflock)
