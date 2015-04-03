@@ -158,7 +158,7 @@ static void mxcsr_feature_mask_init(void)
 	mxcsr_feature_mask &= mask;
 }
 
-static void init_thread_xstate(void)
+static void fpstate_xstate_init_size(void)
 {
 	/*
 	 * Note that xstate_size might be overwriten later during
@@ -216,11 +216,11 @@ void fpu__cpu_init(void)
 	write_cr0(cr0);
 
 	/*
-	 * init_thread_xstate is only called once to avoid overriding
-	 * xstate_size during boot time or during CPU hotplug.
+	 * fpstate_xstate_init_size() is only called once, to avoid overriding
+	 * 'xstate_size' during (secondary CPU) bootup or during CPU hotplug.
 	 */
 	if (xstate_size == 0)
-		init_thread_xstate();
+		fpstate_xstate_init_size();
 
 	mxcsr_feature_mask_init();
 	xsave_init();
