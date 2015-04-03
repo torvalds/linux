@@ -264,9 +264,8 @@
 	mfc_pd: power-domain@10044060 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10044060 0x20>;
-		clocks = <&clock CLK_FIN_PLL>, <&clock CLK_MOUT_SW_ACLK333>,
-			<&clock CLK_MOUT_USER_ACLK333>;
-		clock-names = "oscclk", "pclk0", "clk0";
+		clocks = <&clock CLK_FIN_PLL>, <&clock CLK_MOUT_USER_ACLK333>;
+		clock-names = "oscclk", "clk0";
 		#power-domain-cells = <0>;
 	};
 
@@ -280,16 +279,12 @@
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x100440C0 0x20>;
 		#power-domain-cells = <0>;
-		clocks = <&clock CLK_FIN_PLL>, <&clock CLK_MOUT_SW_ACLK200>,
+		clocks = <&clock CLK_FIN_PLL>,
 			 <&clock CLK_MOUT_USER_ACLK200_DISP1>,
-			 <&clock CLK_MOUT_SW_ACLK300>,
 			 <&clock CLK_MOUT_USER_ACLK300_DISP1>,
-			 <&clock CLK_MOUT_SW_ACLK400>,
 			 <&clock CLK_MOUT_USER_ACLK400_DISP1>,
 			 <&clock CLK_FIMD1>, <&clock CLK_MIXER>;
-		clock-names = "oscclk", "pclk0", "clk0",
-			      "pclk1", "clk1", "pclk2", "clk2",
-			      "asb0", "asb1";
+		clock-names = "oscclk", "clk0", "clk1", "clk2", "asb0", "asb1";
 	};
 
 	pinctrl_0: pinctrl@13400000 {
