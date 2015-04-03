@@ -935,8 +935,9 @@ static void rockchip_iommu_detach_device(struct iommu_domain *domain, struct dev
 	}
 
 	if (rockchip_iommu_disable(data)) {
-		dev_dbg(dev->archdata.iommu,"%s: Detached IOMMU with pgtable %08lx\n",
-			__func__, (unsigned long)virt_to_phys(priv->pgtable));
+		if (!(strstr(data->dbgname, "vpu") || strstr(data->dbgname, "hevc")))
+			dev_dbg(dev->archdata.iommu,"%s: Detached IOMMU with pgtable %08lx\n",
+				__func__, (unsigned long)virt_to_phys(priv->pgtable));
 		data->domain = NULL;
 		list_del_init(&data->node);
 
@@ -974,8 +975,9 @@ static int rockchip_iommu_attach_device(struct iommu_domain *domain, struct devi
 		dev_dbg(dev->archdata.iommu,"%s: IOMMU with pgtable 0x%x already attached\n",
 			__func__, (unsigned int)virt_to_phys(priv->pgtable));
 	} else {
-		dev_info(dev->archdata.iommu,"%s: Attached new IOMMU with pgtable 0x%x\n",
-			__func__, (unsigned int)virt_to_phys(priv->pgtable));
+		if (!(strstr(data->dbgname, "vpu") || strstr(data->dbgname, "hevc")))
+			dev_info(dev->archdata.iommu,"%s: Attached new IOMMU with pgtable 0x%x\n",
+				__func__, (unsigned int)virt_to_phys(priv->pgtable));
 	}
 
 	return ret;
