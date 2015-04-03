@@ -527,6 +527,20 @@ ssize_t new_sync_write(struct file *filp, const char __user *buf, size_t len, lo
 
 EXPORT_SYMBOL(new_sync_write);
 
+ssize_t __vfs_write(struct file *file, const char __user *p, size_t count,
+		    loff_t *pos)
+{
+	if (file->f_op->write)
+		return file->f_op->write(file, p, count, pos);
+	else if (file->f_op->aio_write)
+		return do_sync_write(file, p, count, pos);
+	else if (file->f_op->write_iter)
+		return new_sync_write(file, p, count, pos);
+	else
+		return -EINVAL;
+}
+EXPORT_SYMBOL(__vfs_write);
+
 ssize_t __kernel_write(struct file *file, const char *buf, size_t count, loff_t *pos)
 {
 	mm_segment_t old_fs;
@@ -541,12 +555,7 @@ ssize_t __kernel_write(struct file *file, const char *buf, size_t count, loff_t 
 	p = (__force const char __user *)buf;
 	if (count > MAX_RW_COUNT)
 		count =  MAX_RW_COUNT;
-	if (file->f_op->write)
-		ret = file->f_op->write(file, p, count, pos);
-	else if (file->f_op->aio_write)
-		ret = do_sync_write(file, p, count, pos);
-	else
-		ret = new_sync_write(file, p, count, pos);
+	ret = __vfs_write(file, p, count, pos);
 	set_fs(old_fs);
 	if (ret > 0) {
 		fsnotify_modify(file);
@@ -573,12 +582,7 @@ ssize_t vfs_write(struct file *file, const char __user *buf, size_t count, loff_
 	if (ret >= 0) {
 		count = ret;
 		file_start_write(file);
-		if (file->f_op->write)
-			ret = file->f_op->write(file, buf, count, pos);
-		else if (file->f_op->aio_write)
-			ret = do_sync_write(file, buf, count, pos);
-		else
-			ret = new_sync_write(file, buf, count, pos);
+		ret = __vfs_write(file, buf, count, pos);
 		if (ret > 0) {
 			fsnotify_modify(file);
 			add_wchar(current, ret);
