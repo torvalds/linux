@@ -1043,6 +1043,14 @@ static u8 create_instance_adv_data(struct hci_dev *hdev, u8 instance, u8 *ptr)
 		}
 	}
 
+	if (instance) {
+		memcpy(ptr, hdev->adv_instance.adv_data,
+		       hdev->adv_instance.adv_data_len);
+
+		ad_len += hdev->adv_instance.adv_data_len;
+		ptr += hdev->adv_instance.adv_data_len;
+	}
+
 	/* Provide Tx Power only if we can provide a valid value for it */
 	if (hdev->adv_tx_power != HCI_TX_POWER_INVALID &&
 	    (instance_flags & MGMT_ADV_FLAG_TX_POWER)) {
@@ -1052,12 +1060,6 @@ static u8 create_instance_adv_data(struct hci_dev *hdev, u8 instance, u8 *ptr)
 
 		ad_len += 3;
 		ptr += 3;
-	}
-
-	if (instance) {
-		memcpy(ptr, hdev->adv_instance.adv_data,
-		       hdev->adv_instance.adv_data_len);
-		ad_len += hdev->adv_instance.adv_data_len;
 	}
 
 	return ad_len;
