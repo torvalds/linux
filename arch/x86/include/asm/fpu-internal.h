@@ -569,16 +569,7 @@ static inline unsigned short get_fpu_mxcsr(struct task_struct *tsk)
 	}
 }
 
-static inline int fpu_alloc(struct fpu *fpu)
-{
-	if (fpu->state)
-		return 0;
-	fpu->state = kmem_cache_alloc(task_xstate_cachep, GFP_KERNEL);
-	if (!fpu->state)
-		return -ENOMEM;
-	WARN_ON((unsigned long)fpu->state & 15);
-	return 0;
-}
+extern int fpu_alloc(struct fpu *fpu);
 
 static inline void fpu_free(struct fpu *fpu)
 {

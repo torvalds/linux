@@ -246,6 +246,18 @@ void fpu_finit(struct fpu *fpu)
 }
 EXPORT_SYMBOL_GPL(fpu_finit);
 
+int fpu_alloc(struct fpu *fpu)
+{
+	if (fpu->state)
+		return 0;
+	fpu->state = kmem_cache_alloc(task_xstate_cachep, GFP_KERNEL);
+	if (!fpu->state)
+		return -ENOMEM;
+	WARN_ON((unsigned long)fpu->state & 15);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(fpu_alloc);
+
 /*
  * Allocate the backing store for the current task's FPU registers
  * and initialize the registers themselves as well.
