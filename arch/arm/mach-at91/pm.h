@@ -15,11 +15,13 @@
 
 #include <mach/at91_ramc.h>
 
-#ifdef CONFIG_PM
-extern void at91_pm_set_standby(void (*at91_standby)(void));
-#else
-static inline void at91_pm_set_standby(void (*at91_standby)(void)) { }
-#endif
+#define	AT91_PM_MEMTYPE_MASK	0x0f
+
+#define	AT91_PM_MODE_OFFSET	4
+#define	AT91_PM_MODE_MASK	0x01
+#define	AT91_PM_MODE(x)		(((x) & AT91_PM_MODE_MASK) << AT91_PM_MODE_OFFSET)
+
+#define	AT91_PM_SLOW_CLOCK	0x01
 
 /*
  * The AT91RM9200 goes into self-refresh mode with this command, and will
@@ -31,6 +33,7 @@ static inline void at91_pm_set_standby(void (*at91_standby)(void)) { }
  * still in self-refresh is "not recommended", but seems to work.
  */
 
+#ifndef __ASSEMBLY__
 static inline void at91rm9200_standby(void)
 {
 	u32 lpr = at91_ramc_read(0, AT91RM9200_SDRAMC_LPR);
@@ -44,7 +47,7 @@ static inline void at91rm9200_standby(void)
 		"    mcr    p15, 0, %0, c7, c0, 4\n\t"
 		"    str    %5, [%1, %2]"
 		:
-		: "r" (0), "r" (AT91_BASE_SYS), "r" (AT91RM9200_SDRAMC_LPR),
+		: "r" (0), "r" (at91_ramc_base[0]), "r" (AT91RM9200_SDRAMC_LPR),
 		  "r" (1), "r" (AT91RM9200_SDRAMC_SRR),
 		  "r" (lpr));
 }
@@ -111,4 +114,5 @@ static inline void at91sam9_sdram_standby(void)
 		at91_ramc_write(1, AT91_SDRAMC_LPR, saved_lpr1);
 }
 
+#endif
 #endif
