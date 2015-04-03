@@ -100,12 +100,9 @@ EXPORT_SYMBOL_GPL(nf_queue_entry_get_refs);
  * through nf_reinject().
  */
 int nf_queue(struct sk_buff *skb,
-		      struct nf_hook_ops *elem,
-		      u_int8_t pf, unsigned int hook,
-		      struct net_device *indev,
-		      struct net_device *outdev,
-		      int (*okfn)(struct sk_buff *),
-		      unsigned int queuenum)
+	     struct nf_hook_ops *elem,
+	     struct nf_hook_state *state,
+	     unsigned int queuenum)
 {
 	int status = -ENOENT;
 	struct nf_queue_entry *entry = NULL;
@@ -121,7 +118,7 @@ int nf_queue(struct sk_buff *skb,
 		goto err_unlock;
 	}
 
-	afinfo = nf_get_afinfo(pf);
+	afinfo = nf_get_afinfo(state->pf);
 	if (!afinfo)
 		goto err_unlock;
 
@@ -134,11 +131,11 @@ int nf_queue(struct sk_buff *skb,
 	*entry = (struct nf_queue_entry) {
 		.skb	= skb,
 		.elem	= elem,
-		.pf	= pf,
-		.hook	= hook,
-		.indev	= indev,
-		.outdev	= outdev,
-		.okfn	= okfn,
+		.pf	= state->pf,
+		.hook	= state->hook,
+		.indev	= state->in,
+		.outdev	= state->out,
+		.okfn	= state->okfn,
 		.size	= sizeof(*entry) + afinfo->route_key_size,
 	};
 
@@ -171,6 +168,7 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 	struct sk_buff *skb = entry->skb;
 	struct nf_hook_ops *elem = entry->elem;
 	const struct nf_afinfo *afinfo;
+	struct nf_hook_state state;
 	int err;
 
 	rcu_read_lock();
@@ -189,12 +187,17 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 			verdict = NF_DROP;
 	}
 
+	state.hook = entry->hook;
+	state.thresh = INT_MIN;
+	state.pf = entry->pf;
+	state.in = entry->indev;
+	state.out = entry->outdev;
+	state.okfn = entry->okfn;
+
 	if (verdict == NF_ACCEPT) {
 	next_hook:
 		verdict = nf_iterate(&nf_hooks[entry->pf][entry->hook],
-				     skb, entry->hook,
-				     entry->indev, entry->outdev, &elem,
-				     entry->okfn, INT_MIN);
+				     skb, &state, &elem);
 	}
 
 	switch (verdict & NF_VERDICT_MASK) {
@@ -205,9 +208,8 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 		local_bh_enable();
 		break;
 	case NF_QUEUE:
-		err = nf_queue(skb, elem, entry->pf, entry->hook,
-				entry->indev, entry->outdev, entry->okfn,
-				verdict >> NF_VERDICT_QBITS);
+		err = nf_queue(skb, elem, &state,
+			       verdict >> NF_VERDICT_QBITS);
 		if (err < 0) {
 			if (err == -ECANCELED)
 				goto next_hook;
