@@ -84,18 +84,24 @@ static int pdc_wdt_stop(struct watchdog_device *wdt_dev)
 	return 0;
 }
 
+static void __pdc_wdt_set_timeout(struct pdc_wdt_dev *wdt)
+{
+	unsigned long clk_rate = clk_get_rate(wdt->wdt_clk);
+	unsigned int val;
+
+	val = readl(wdt->base + PDC_WDT_CONFIG) & ~PDC_WDT_CONFIG_DELAY_MASK;
+	val |= order_base_2(wdt->wdt_dev.timeout * clk_rate) - 1;
+	writel(val, wdt->base + PDC_WDT_CONFIG);
+}
+
 static int pdc_wdt_set_timeout(struct watchdog_device *wdt_dev,
 			       unsigned int new_timeout)
 {
-	unsigned int val;
 	struct pdc_wdt_dev *wdt = watchdog_get_drvdata(wdt_dev);
-	unsigned long clk_rate = clk_get_rate(wdt->wdt_clk);
 
 	wdt->wdt_dev.timeout = new_timeout;
 
-	val = readl(wdt->base + PDC_WDT_CONFIG) & ~PDC_WDT_CONFIG_DELAY_MASK;
-	val |= order_base_2(new_timeout * clk_rate) - 1;
-	writel(val, wdt->base + PDC_WDT_CONFIG);
+	__pdc_wdt_set_timeout(wdt);
 
 	return 0;
 }
@@ -105,6 +111,8 @@ static int pdc_wdt_start(struct watchdog_device *wdt_dev)
 {
 	unsigned int val;
 	struct pdc_wdt_dev *wdt = watchdog_get_drvdata(wdt_dev);
+
+	__pdc_wdt_set_timeout(wdt);
 
 	val = readl(wdt->base + PDC_WDT_CONFIG);
 	val |= PDC_WDT_CONFIG_ENABLE;
