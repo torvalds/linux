@@ -7015,10 +7015,8 @@ static int cpuset_cpu_inactive(struct notifier_block *nfb, unsigned long action,
 
 			rcu_read_unlock_sched();
 
-			if (overflow) {
-				trace_printk("hotplug failed for cpu %lu", cpu);
+			if (overflow)
 				return notifier_from_errno(-EBUSY);
-			}
 		}
 		cpuset_update_active_cpus(false);
 		break;
