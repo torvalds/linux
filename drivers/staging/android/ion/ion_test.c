@@ -272,6 +272,7 @@ static int ion_test_remove(struct platform_device *pdev)
 	return misc_deregister(&testdev->misc);
 }
 
+static struct platform_device *ion_test_pdev;
 static struct platform_driver ion_test_platform_driver = {
 	.remove = ion_test_remove,
 	.driver = {
@@ -281,13 +282,18 @@ static struct platform_driver ion_test_platform_driver = {
 
 static int __init ion_test_init(void)
 {
-	platform_device_register_simple("ion-test", -1, NULL, 0);
+	ion_test_pdev = platform_device_register_simple("ion-test",
+							-1, NULL, 0);
+	if (!ion_test_pdev)
+		return -ENODEV;
+
 	return platform_driver_probe(&ion_test_platform_driver, ion_test_probe);
 }
 
 static void __exit ion_test_exit(void)
 {
 	platform_driver_unregister(&ion_test_platform_driver);
+	platform_device_unregister(ion_test_pdev);
 }
 
 module_init(ion_test_init);
