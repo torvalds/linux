@@ -322,7 +322,7 @@ smb2_get_data_area_len(int *off, int *len, struct smb2_hdr *hdr)
 
 	/* return pointer to beginning of data area, ie offset from SMB start */
 	if ((*off != 0) && (*len != 0))
-		return hdr->ProtocolId + *off;
+		return (char *)(&hdr->ProtocolId[0]) + *off;
 	else
 		return NULL;
 }

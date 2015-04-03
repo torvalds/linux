@@ -684,7 +684,8 @@ smb2_clone_range(const unsigned int xid,
 
 			/* No need to change MaxChunks since already set to 1 */
 			chunk_sizes_updated = true;
-		}
+		} else
+			goto cchunk_out;
 	}
 
 cchunk_out:
