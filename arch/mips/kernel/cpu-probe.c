@@ -193,7 +193,7 @@ static inline unsigned long cpu_get_fpu_id(void)
 }
 
 /*
- * Check the CPU has an FPU the official way.
+ * Check if the CPU has an external FPU.
  */
 static inline int __cpu_has_fpu(void)
 {
