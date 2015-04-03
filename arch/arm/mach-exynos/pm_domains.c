@@ -62,6 +62,7 @@ static int exynos_pd_power(struct generic_pm_domain *domain, bool power_on)
 		for (i = 0; i < MAX_CLK_PER_DOMAIN; i++) {
 			if (IS_ERR(pd->clk[i]))
 				break;
+			pd->pclk[i] = clk_get_parent(pd->clk[i]);
 			if (clk_set_parent(pd->clk[i], pd->oscclk))
 				pr_err("%s: error setting oscclk as parent to clock %d\n",
 						pd->name, i);
@@ -90,6 +91,9 @@ static int exynos_pd_power(struct generic_pm_domain *domain, bool power_on)
 		for (i = 0; i < MAX_CLK_PER_DOMAIN; i++) {
 			if (IS_ERR(pd->clk[i]))
 				break;
+
+			if (IS_ERR(pd->clk[i]))
+				continue; /* Skip on first power up */
 			if (clk_set_parent(pd->clk[i], pd->pclk[i]))
 				pr_err("%s: error setting parent to clock%d\n",
 						pd->name, i);
@@ -182,13 +186,11 @@ static __init int exynos4_pm_init_power_domain(void)
 			pd->clk[i] = clk_get(dev, clk_name);
 			if (IS_ERR(pd->clk[i]))
 				break;
-			snprintf(clk_name, sizeof(clk_name), "pclk%d", i);
-			pd->pclk[i] = clk_get(dev, clk_name);
-			if (IS_ERR(pd->pclk[i])) {
-				clk_put(pd->clk[i]);
-				pd->clk[i] = ERR_PTR(-EINVAL);
-				break;
-			}
+			/*
+			 * Skip setting parent on first power up.
+			 * The parent at this time may not be useful at all.
+			 */
+			pd->pclk[i] = ERR_PTR(-EINVAL);
 		}
 
 		if (IS_ERR(pd->clk[0]))
