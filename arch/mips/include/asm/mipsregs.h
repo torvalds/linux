@@ -120,10 +120,6 @@
 /*
  * FPU Status Register Values
  */
-/*
- * Status Register Values
- */
-
 #define FPU_CSR_FLUSH	0x01000000	/* flush denormalised results to 0 */
 #define FPU_CSR_COND	0x00800000	/* $fcc0 */
 #define FPU_CSR_COND0	0x00800000	/* $fcc0 */
@@ -425,8 +421,6 @@
 
 /*
  * Bitfields and bit numbers in the coprocessor 0 IntCtl register. (MIPSR2)
- *
- * Refer to your MIPS R4xx0 manual, chapter 5 for explanation.
  */
 #define INTCTLB_IPFDC		23
 #define INTCTLF_IPFDC		(_ULCAST_(7) << INTCTLB_IPFDC)
