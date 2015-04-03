@@ -48,11 +48,22 @@ enum tick_broadcast_mode {
 	TICK_BROADCAST_FORCE,
 };
 
+enum tick_broadcast_state {
+	TICK_BROADCAST_EXIT,
+	TICK_BROADCAST_ENTER,
+};
+
 #ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
 extern void tick_broadcast_control(enum tick_broadcast_mode mode);
 #else
 static inline void tick_broadcast_control(enum tick_broadcast_mode mode) { }
 #endif /* BROADCAST */
+
+#if defined(CONFIG_GENERIC_CLOCKEVENTS_BROADCAST) && defined(CONFIG_TICK_ONESHOT)
+extern int tick_broadcast_oneshot_control(enum tick_broadcast_state state);
+#else
+static inline int tick_broadcast_oneshot_control(enum tick_broadcast_state state) { return 0; }
+#endif
 
 static inline void tick_broadcast_enable(void)
 {
@@ -65,6 +76,14 @@ static inline void tick_broadcast_disable(void)
 static inline void tick_broadcast_force(void)
 {
 	tick_broadcast_control(TICK_BROADCAST_FORCE);
+}
+static inline int tick_broadcast_enter(void)
+{
+	return tick_broadcast_oneshot_control(TICK_BROADCAST_ENTER);
+}
+static inline void tick_broadcast_exit(void)
+{
+	tick_broadcast_oneshot_control(TICK_BROADCAST_EXIT);
 }
 
 #ifdef CONFIG_NO_HZ_COMMON
