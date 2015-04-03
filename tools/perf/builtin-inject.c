@@ -443,6 +443,7 @@ int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 			 "be more verbose (show build ids, etc)"),
 		OPT_STRING(0, "kallsyms", &symbol_conf.kallsyms_name, "file",
 			   "kallsyms pathname"),
+		OPT_BOOLEAN('f', "force", &file.force, "don't complain, do it"),
 		OPT_END()
 	};
 	const char * const inject_usage[] = {

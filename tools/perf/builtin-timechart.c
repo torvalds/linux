@@ -67,6 +67,7 @@ struct timechart {
 				skip_eagain;
 	u64			min_time,
 				merge_dist;
+	bool			force;
 };
 
 struct per_pidcomm;
@@ -1598,6 +1599,7 @@ static int __cmd_timechart(struct timechart *tchart, const char *output_name)
 	struct perf_data_file file = {
 		.path = input_name,
 		.mode = PERF_DATA_MODE_READ,
+		.force = tchart->force,
 	};
 
 	struct perf_session *session = perf_session__new(&file, false,
@@ -1956,6 +1958,7 @@ int cmd_timechart(int argc, const char **argv,
 	OPT_CALLBACK(0, "io-merge-dist", &tchart.merge_dist, "time",
 		     "merge events that are merge-dist us apart",
 		     parse_time),
+	OPT_BOOLEAN('f', "force", &tchart.force, "don't complain, do it"),
 	OPT_END()
 	};
 	const char * const timechart_subcommands[] = { "record", NULL };

@@ -446,9 +446,9 @@ static void print_sample_bts(union perf_event *event,
 }
 
 static void process_event(union perf_event *event, struct perf_sample *sample,
-			  struct perf_evsel *evsel, struct thread *thread,
-			  struct addr_location *al)
+			  struct perf_evsel *evsel, struct addr_location *al)
 {
+	struct thread *thread = al->thread;
 	struct perf_event_attr *attr = &evsel->attr;
 
 	if (output[attr->type].fields == 0)
@@ -549,14 +549,6 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 				struct machine *machine)
 {
 	struct addr_location al;
-	struct thread *thread = machine__findnew_thread(machine, sample->pid,
-							sample->tid);
-
-	if (thread == NULL) {
-		pr_debug("problem processing %d event, skipping it.\n",
-			 event->header.type);
-		return -1;
-	}
 
 	if (debug_mode) {
 		if (sample->time < last_timestamp) {
@@ -581,7 +573,7 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 	if (cpu_list && !test_bit(sample->cpu, cpu_bitmap))
 		return 0;
 
-	scripting_ops->process_event(event, sample, evsel, thread, &al);
+	scripting_ops->process_event(event, sample, evsel, &al);
 
 	return 0;
 }
@@ -1523,6 +1515,9 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 			.ordering_requires_timestamps = true,
 		},
 	};
+	struct perf_data_file file = {
+		.mode = PERF_DATA_MODE_READ,
+	};
 	const struct option options[] = {
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
@@ -1550,7 +1545,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "When printing symbols do not display call chain"),
 	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
 		    "Look for files with symbols relative to this directory"),
-	OPT_CALLBACK('f', "fields", NULL, "str",
+	OPT_CALLBACK('F', "fields", NULL, "str",
 		     "comma separated output fields prepend with 'type:'. "
 		     "Valid types: hw,sw,trace,raw. "
 		     "Fields: comm,tid,pid,time,cpu,event,trace,ip,sym,dso,"
@@ -1574,6 +1569,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "Show the fork/comm/exit events"),
 	OPT_BOOLEAN('\0', "show-mmap-events", &script.show_mmap_events,
 		    "Show the mmap events"),
+	OPT_BOOLEAN('f', "force", &file.force, "don't complain, do it"),
 	OPT_END()
 	};
 	const char * const script_subcommands[] = { "record", "report", NULL };
@@ -1584,9 +1580,6 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		"perf script [<options>] <script> [<record-options>] <command>",
 		"perf script [<options>] <top-script> [script-args]",
 		NULL
-	};
-	struct perf_data_file file = {
-		.mode = PERF_DATA_MODE_READ,
 	};
 
 	setup_scripting();
