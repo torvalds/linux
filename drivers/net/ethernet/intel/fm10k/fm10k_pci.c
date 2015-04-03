@@ -1511,7 +1511,7 @@ void fm10k_up(struct fm10k_intfc *interface)
 	/* enable transmits */
 	netif_tx_start_all_queues(interface->netdev);
 
-	/* kick off the service timer */
+	/* kick off the service timer now */
 	hw->mac.get_host_state = 1;
 	mod_timer(&interface->service_timer, jiffies);
 }
@@ -1550,8 +1550,6 @@ void fm10k_down(struct fm10k_intfc *interface)
 
 	/* disable polling routines */
 	fm10k_napi_disable_all(interface);
-
-	del_timer_sync(&interface->service_timer);
 
 	/* capture stats one last time before stopping interface */
 	fm10k_update_stats(interface);
@@ -1677,6 +1675,9 @@ static int fm10k_sw_init(struct fm10k_intfc *interface,
 	setup_timer(&interface->service_timer, &fm10k_service_timer,
 		    (unsigned long)interface);
 	INIT_WORK(&interface->service_task, fm10k_service_task);
+
+	/* kick off service timer now, even when interface is down */
+	mod_timer(&interface->service_timer, (HZ * 2) + jiffies);
 
 	/* Intitialize timestamp data */
 	fm10k_ts_init(interface);
@@ -1893,6 +1894,8 @@ static void fm10k_remove(struct pci_dev *pdev)
 {
 	struct fm10k_intfc *interface = pci_get_drvdata(pdev);
 	struct net_device *netdev = interface->netdev;
+
+	del_timer_sync(&interface->service_timer);
 
 	set_bit(__FM10K_SERVICE_DISABLE, &interface->state);
 	cancel_work_sync(&interface->service_task);
