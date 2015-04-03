@@ -1076,7 +1076,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		own_fpu(1);	/* Restore FPU state. */
 
 		/* Signal if something went wrong. */
-		process_fpemu_return(res, fault_addr);
+		process_fpemu_return(res, fault_addr, 0);
 
 		if (res == 0)
 			break;
@@ -1511,7 +1511,7 @@ fpu_emul:
 		own_fpu(1);	/* restore FPU state */
 
 		/* If something went wrong, signal */
-		process_fpemu_return(res, fault_addr);
+		process_fpemu_return(res, fault_addr, 0);
 
 		if (res == 0)
 			goto success;

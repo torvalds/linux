@@ -898,8 +898,9 @@ static inline int mipsr2_find_op_func(struct pt_regs *regs, u32 inst,
  * mipsr2_decoder: Decode and emulate a MIPS R2 instruction
  * @regs: Process register set
  * @inst: Instruction to decode and emulate
+ * @fcr31: Floating Point Control and Status Register returned
  */
-int mipsr2_decoder(struct pt_regs *regs, u32 inst)
+int mipsr2_decoder(struct pt_regs *regs, u32 inst, unsigned long *fcr31)
 {
 	int err = 0;
 	unsigned long vaddr;
@@ -1168,6 +1169,7 @@ fpu_emul:
 
 		err = fpu_emulator_cop1Handler(regs, &current->thread.fpu, 0,
 					       &fault_addr);
+		*fcr31 = current->thread.fpu.fcr31;
 
 		/*
 		 * We can't allow the emulated instruction to leave any of
