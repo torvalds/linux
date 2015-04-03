@@ -655,13 +655,6 @@ int clockevents_notify(unsigned long reason, void *arg)
 	raw_spin_lock_irqsave(&clockevents_lock, flags);
 
 	switch (reason) {
-	case CLOCK_EVT_NOTIFY_BROADCAST_ENTER:
-		tick_broadcast_enter();
-		break;
-	case CLOCK_EVT_NOTIFY_BROADCAST_EXIT:
-		tick_broadcast_exit();
-		break;
-
 	case CLOCK_EVT_NOTIFY_CPU_DYING:
 		tick_handover_do_timer(arg);
 		break;
