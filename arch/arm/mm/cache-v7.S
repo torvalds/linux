@@ -97,10 +97,9 @@ ALT_UP(	mov	r3, r0, lsr #26)		@ move LoUU into position
 #ifdef CONFIG_ARM_ERRATA_643719
 ALT_SMP(mrc	p15, 0, r2, c0, c0, 0)		@ read main ID register
 ALT_UP(	ret	lr)				@ LoUU is zero, so nothing to do
-	movw	r1, #:lower16:0x410fc090	@ ID of ARM Cortex A9 r0p?
-	movt	r1, #:upper16:0x410fc090
-	bic	r2, r2, #0x0000000f             @ clear minor revision number
-	teq	r2, r1                          @ test for errata affected core and if so...
+	movw	r1, #:lower16:(0x410fc090 >> 4)	@ ID of ARM Cortex A9 r0p?
+	movt	r1, #:upper16:(0x410fc090 >> 4)
+	teq	r1, r2, lsr #4			@ test for errata affected core and if so...
 	moveq	r3, #1 << 1			@   fix LoUIS value
 	beq	start_flush_levels		@   start flushing cache levels
 #endif
