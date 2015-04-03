@@ -269,9 +269,9 @@ union ieee754dp ieee754dp_dump(char *s, union ieee754dp x);
 #define IEEE754_SPCVAL_PMAX	9	/* +max norm */
 #define IEEE754_SPCVAL_NMAX	10	/* -max norm */
 #define IEEE754_SPCVAL_PMIN	11	/* +min norm */
-#define IEEE754_SPCVAL_NMIN	12	/* +min norm */
+#define IEEE754_SPCVAL_NMIN	12	/* -min norm */
 #define IEEE754_SPCVAL_PMIND	13	/* +min denorm */
-#define IEEE754_SPCVAL_NMIND	14	/* +min denorm */
+#define IEEE754_SPCVAL_NMIND	14	/* -min denorm */
 #define IEEE754_SPCVAL_P1E31	15	/* + 1.0e31 */
 #define IEEE754_SPCVAL_P1E63	16	/* + 1.0e63 */
 
