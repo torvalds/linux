@@ -36,7 +36,8 @@ int ieee754sp_cmp(union ieee754sp x, union ieee754sp y, int cmp, int sig)
 	ieee754_clearcx();	/* Even clear inexact flag here */
 
 	if (ieee754sp_isnan(x) || ieee754sp_isnan(y)) {
-		if (sig || xc == IEEE754_CLASS_SNAN || yc == IEEE754_CLASS_SNAN)
+		if (sig ||
+		    xc == IEEE754_CLASS_SNAN || yc == IEEE754_CLASS_SNAN)
 			ieee754_setcx(IEEE754_INVALID_OPERATION);
 		if (cmp & IEEE754_CUN)
 			return 1;
