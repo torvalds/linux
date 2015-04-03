@@ -119,9 +119,13 @@ EXPORT_SYMBOL(__kernel_fpu_end);
 
 /*
  * Save the FPU state (initialize it if necessary):
+ *
+ * This only ever gets called for the current task.
  */
 void fpu__save(struct task_struct *tsk)
 {
+	WARN_ON(tsk != current);
+
 	preempt_disable();
 	if (__thread_has_fpu(tsk)) {
 		if (use_eager_fpu()) {
