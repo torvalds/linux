@@ -12,12 +12,8 @@ struct nf_queue_entry {
 	unsigned int		id;
 
 	struct nf_hook_ops	*elem;
-	u_int8_t		pf;
+	struct nf_hook_state	state;
 	u16			size; /* sizeof(entry) + saved route keys */
-	unsigned int		hook;
-	struct net_device	*indev;
-	struct net_device	*outdev;
-	int			(*okfn)(struct sk_buff *);
 
 	/* extra space to store route keys */
 };
