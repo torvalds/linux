@@ -965,11 +965,11 @@ static int toshiba_usb_rapid_charge_get(struct toshiba_acpi_dev *dev,
 	status = tci_raw(dev, in, out);
 	sci_close(dev);
 	if (ACPI_FAILURE(status) || out[0] == TOS_FAILURE) {
-		pr_err("ACPI call to get USB S&C battery level failed\n");
+		pr_err("ACPI call to get USB Rapid Charge failed\n");
 		return -EIO;
 	} else if (out[0] == TOS_NOT_SUPPORTED ||
 		   out[0] == TOS_INPUT_DATA_ERROR) {
-		pr_info("USB Sleep and Charge not supported\n");
+		pr_info("USB Rapid Charge not supported\n");
 		return -ENODEV;
 	}
 
@@ -993,10 +993,10 @@ static int toshiba_usb_rapid_charge_set(struct toshiba_acpi_dev *dev,
 	status = tci_raw(dev, in, out);
 	sci_close(dev);
 	if (ACPI_FAILURE(status) || out[0] == TOS_FAILURE) {
-		pr_err("ACPI call to set USB S&C battery level failed\n");
+		pr_err("ACPI call to set USB Rapid Charge failed\n");
 		return -EIO;
 	} else if (out[0] == TOS_NOT_SUPPORTED) {
-		pr_info("USB Sleep and Charge not supported\n");
+		pr_info("USB Rapid Charge not supported\n");
 		return -ENODEV;
 	} else if (out[0] == TOS_INPUT_DATA_ERROR) {
 		return -EIO;
@@ -1015,10 +1015,10 @@ static int toshiba_usb_sleep_music_get(struct toshiba_acpi_dev *dev, u32 *state)
 	result = sci_read(dev, SCI_USB_SLEEP_MUSIC, state);
 	sci_close(dev);
 	if (result == TOS_FAILURE) {
-		pr_err("ACPI call to set USB S&C mode failed\n");
+		pr_err("ACPI call to get Sleep and Music failed\n");
 		return -EIO;
 	} else if (result == TOS_NOT_SUPPORTED) {
-		pr_info("USB Sleep and Charge not supported\n");
+		pr_info("Sleep and Music not supported\n");
 		return -ENODEV;
 	} else if (result == TOS_INPUT_DATA_ERROR) {
 		return -EIO;
@@ -1037,10 +1037,10 @@ static int toshiba_usb_sleep_music_set(struct toshiba_acpi_dev *dev, u32 state)
 	result = sci_write(dev, SCI_USB_SLEEP_MUSIC, state);
 	sci_close(dev);
 	if (result == TOS_FAILURE) {
-		pr_err("ACPI call to set USB S&C mode failed\n");
+		pr_err("ACPI call to set Sleep and Music failed\n");
 		return -EIO;
 	} else if (result == TOS_NOT_SUPPORTED) {
-		pr_info("USB Sleep and Charge not supported\n");
+		pr_info("Sleep and Music not supported\n");
 		return -ENODEV;
 	} else if (result == TOS_INPUT_DATA_ERROR) {
 		return -EIO;
