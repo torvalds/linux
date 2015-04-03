@@ -360,7 +360,7 @@ void fm10k_update_stats(struct fm10k_intfc *interface)
 
 	hw->mac.ops.update_hw_stats(hw, &interface->stats);
 
-	for (i = 0; i < FM10K_MAX_QUEUES_PF; i++) {
+	for (i = 0; i < hw->mac.max_queues; i++) {
 		struct fm10k_hw_stats_q *q = &interface->stats.q[i];
 
 		tx_bytes_nic += q->tx_bytes.count;

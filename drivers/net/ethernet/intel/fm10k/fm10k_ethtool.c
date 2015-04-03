@@ -98,12 +98,11 @@ static const struct fm10k_stats fm10k_gstrings_stats[] = {
 
 #define FM10K_GLOBAL_STATS_LEN ARRAY_SIZE(fm10k_gstrings_stats)
 
-#define FM10K_QUEUE_STATS_LEN \
-	  (MAX_QUEUES * 2 * (sizeof(struct fm10k_queue_stats) / sizeof(u64)))
+#define FM10K_QUEUE_STATS_LEN(_n) \
+	( (_n) * 2 * (sizeof(struct fm10k_queue_stats) / sizeof(u64)))
 
-#define FM10K_STATS_LEN (FM10K_GLOBAL_STATS_LEN + \
-			 FM10K_NETDEV_STATS_LEN + \
-			 FM10K_QUEUE_STATS_LEN)
+#define FM10K_STATIC_STATS_LEN (FM10K_GLOBAL_STATS_LEN + \
+				FM10K_NETDEV_STATS_LEN)
 
 static const char fm10k_gstrings_test[][ETH_GSTRING_LEN] = {
 	"Mailbox test (on/offline)"
@@ -155,11 +154,16 @@ static void fm10k_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 
 static int fm10k_get_sset_count(struct net_device *dev, int sset)
 {
+	struct fm10k_intfc *interface = netdev_priv(dev);
+	struct fm10k_hw *hw = &interface->hw;
+	int stats_len = FM10K_STATIC_STATS_LEN;
+
 	switch (sset) {
 	case ETH_SS_TEST:
 		return FM10K_TEST_LEN;
 	case ETH_SS_STATS:
-		return FM10K_STATS_LEN;
+		stats_len += FM10K_QUEUE_STATS_LEN(hw->mac.max_queues);
+		return stats_len;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -369,7 +373,7 @@ static void fm10k_get_drvinfo(struct net_device *dev,
 	strncpy(info->bus_info, pci_name(interface->pdev),
 		sizeof(info->bus_info) - 1);
 
-	info->n_stats = FM10K_STATS_LEN;
+	info->n_stats = fm10k_get_sset_count(dev, ETH_SS_STATS);
 
 	info->regdump_len = fm10k_get_regs_len(dev);
 }
