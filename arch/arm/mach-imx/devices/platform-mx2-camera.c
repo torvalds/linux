@@ -27,11 +27,6 @@
 		.irqemmaprp = soc ## _INT_EMMAPRP,			\
 	}
 
-#ifdef CONFIG_SOC_IMX25
-const struct imx_mx2_camera_data imx25_mx2_camera_data __initconst =
-	imx_mx2_camera_data_entry_single(MX25, "imx25-camera");
-#endif /* ifdef CONFIG_SOC_IMX25 */
-
 #ifdef CONFIG_SOC_IMX27
 const struct imx_mx2_camera_data imx27_mx2_camera_data __initconst =
 	imx_mx2_camera_data_entry_single_emma(MX27, "imx27-camera");
