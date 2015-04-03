@@ -39,7 +39,7 @@ static void change_volume(struct urb *urb_out, int volume[],
 		for (; p < buf_end; ++p) {
 			short pv = le16_to_cpu(*p);
 			int val = (pv * volume[chn & 1]) >> 8;
-			pv = clamp(val, 0x7fff, -0x8000);
+			pv = clamp(val, -0x8000, 0x7fff);
 			*p = cpu_to_le16(pv);
 			++chn;
 		}
@@ -54,7 +54,7 @@ static void change_volume(struct urb *urb_out, int volume[],
 
 			val = p[0] + (p[1] << 8) + ((signed char)p[2] << 16);
 			val = (val * volume[chn & 1]) >> 8;
-			val = clamp(val, 0x7fffff, -0x800000);
+			val = clamp(val, -0x800000, 0x7fffff);
 			p[0] = val;
 			p[1] = val >> 8;
 			p[2] = val >> 16;
@@ -126,7 +126,7 @@ static void add_monitor_signal(struct urb *urb_out, unsigned char *signal,
 			short pov = le16_to_cpu(*po);
 			short piv = le16_to_cpu(*pi);
 			int val = pov + ((piv * volume) >> 8);
-			pov = clamp(val, 0x7fff, -0x8000);
+			pov = clamp(val, -0x8000, 0x7fff);
 			*po = cpu_to_le16(pov);
 		}
 	}

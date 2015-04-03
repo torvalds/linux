@@ -591,11 +591,6 @@ static void handle_rx(struct vhost_net *net)
 			 * TODO: support TSO.
 			 */
 			iov_iter_advance(&msg.msg_iter, vhost_hlen);
-		} else {
-			/* It'll come from socket; we'll need to patch
-			 * ->num_buffers over if VIRTIO_NET_F_MRG_RXBUF
-			 */
-			iov_iter_advance(&fixup, sizeof(hdr));
 		}
 		err = sock->ops->recvmsg(NULL, sock, &msg,
 					 sock_len, MSG_DONTWAIT | MSG_TRUNC);
@@ -609,17 +604,25 @@ static void handle_rx(struct vhost_net *net)
 			continue;
 		}
 		/* Supply virtio_net_hdr if VHOST_NET_F_VIRTIO_NET_HDR */
-		if (unlikely(vhost_hlen) &&
-		    copy_to_iter(&hdr, sizeof(hdr), &fixup) != sizeof(hdr)) {
-			vq_err(vq, "Unable to write vnet_hdr at addr %p\n",
-			       vq->iov->iov_base);
-			break;
+		if (unlikely(vhost_hlen)) {
+			if (copy_to_iter(&hdr, sizeof(hdr),
+					 &fixup) != sizeof(hdr)) {
+				vq_err(vq, "Unable to write vnet_hdr "
+				       "at addr %p\n", vq->iov->iov_base);
+				break;
+			}
+		} else {
+			/* Header came from socket; we'll need to patch
+			 * ->num_buffers over if VIRTIO_NET_F_MRG_RXBUF
+			 */
+			iov_iter_advance(&fixup, sizeof(hdr));
 		}
 		/* TODO: Should check and handle checksum. */
 
 		num_buffers = cpu_to_vhost16(vq, headcount);
 		if (likely(mergeable) &&
-		    copy_to_iter(&num_buffers, 2, &fixup) != 2) {
+		    copy_to_iter(&num_buffers, sizeof num_buffers,
+				 &fixup) != sizeof num_buffers) {
 			vq_err(vq, "Failed num_buffers write");
 			vhost_discard_vq_desc(vq, headcount);
 			break;

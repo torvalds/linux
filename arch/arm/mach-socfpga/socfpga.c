@@ -23,6 +23,7 @@
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+#include <asm/cacheflush.h>
 
 #include "core.h"
 
@@ -72,6 +73,10 @@ void __init socfpga_sysmgr_init(void)
 	if (of_property_read_u32(np, "cpu1-start-addr",
 			(u32 *) &socfpga_cpu1start_addr))
 		pr_err("SMP: Need cpu1-start-addr in device tree.\n");
+
+	/* Ensure that socfpga_cpu1start_addr is visible to other CPUs */
+	smp_wmb();
+	sync_cache_w(&socfpga_cpu1start_addr);
 
 	sys_manager_base_addr = of_iomap(np, 0);
 
