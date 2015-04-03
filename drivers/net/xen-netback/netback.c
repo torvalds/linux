@@ -1781,7 +1781,7 @@ int xenvif_map_frontend_rings(struct xenvif_queue *queue,
 	int err = -ENOMEM;
 
 	err = xenbus_map_ring_valloc(xenvif_to_xenbus_device(queue->vif),
-				     tx_ring_ref, &addr);
+				     &tx_ring_ref, 1, &addr);
 	if (err)
 		goto err;
 
@@ -1789,7 +1789,7 @@ int xenvif_map_frontend_rings(struct xenvif_queue *queue,
 	BACK_RING_INIT(&queue->tx, txs, PAGE_SIZE);
 
 	err = xenbus_map_ring_valloc(xenvif_to_xenbus_device(queue->vif),
-				     rx_ring_ref, &addr);
+				     &rx_ring_ref, 1, &addr);
 	if (err)
 		goto err;
 

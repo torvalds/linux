@@ -1486,6 +1486,7 @@ static int setup_netfront(struct xenbus_device *dev,
 {
 	struct xen_netif_tx_sring *txs;
 	struct xen_netif_rx_sring *rxs;
+	grant_ref_t gref;
 	int err;
 
 	queue->tx_ring_ref = GRANT_INVALID_REF;
@@ -1502,10 +1503,10 @@ static int setup_netfront(struct xenbus_device *dev,
 	SHARED_RING_INIT(txs);
 	FRONT_RING_INIT(&queue->tx, txs, PAGE_SIZE);
 
-	err = xenbus_grant_ring(dev, virt_to_mfn(txs));
+	err = xenbus_grant_ring(dev, txs, 1, &gref);
 	if (err < 0)
 		goto grant_tx_ring_fail;
-	queue->tx_ring_ref = err;
+	queue->tx_ring_ref = gref;
 
 	rxs = (struct xen_netif_rx_sring *)get_zeroed_page(GFP_NOIO | __GFP_HIGH);
 	if (!rxs) {
@@ -1516,10 +1517,10 @@ static int setup_netfront(struct xenbus_device *dev,
 	SHARED_RING_INIT(rxs);
 	FRONT_RING_INIT(&queue->rx, rxs, PAGE_SIZE);
 
-	err = xenbus_grant_ring(dev, virt_to_mfn(rxs));
+	err = xenbus_grant_ring(dev, rxs, 1, &gref);
 	if (err < 0)
 		goto grant_rx_ring_fail;
-	queue->rx_ring_ref = err;
+	queue->rx_ring_ref = gref;
 
 	if (feature_split_evtchn)
 		err = setup_netfront_split(queue);

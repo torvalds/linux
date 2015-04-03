@@ -714,6 +714,7 @@ static int scsifront_alloc_ring(struct vscsifrnt_info *info)
 {
 	struct xenbus_device *dev = info->dev;
 	struct vscsiif_sring *sring;
+	grant_ref_t gref;
 	int err = -ENOMEM;
 
 	/***** Frontend to Backend ring start *****/
@@ -726,14 +727,14 @@ static int scsifront_alloc_ring(struct vscsifrnt_info *info)
 	SHARED_RING_INIT(sring);
 	FRONT_RING_INIT(&info->ring, sring, PAGE_SIZE);
 
-	err = xenbus_grant_ring(dev, virt_to_mfn(sring));
+	err = xenbus_grant_ring(dev, sring, 1, &gref);
 	if (err < 0) {
 		free_page((unsigned long)sring);
 		xenbus_dev_fatal(dev, err,
 			"fail to grant shared ring (Front to Back)");
 		return err;
 	}
-	info->ring_ref = err;
+	info->ring_ref = gref;
 
 	err = xenbus_alloc_evtchn(dev, &info->evtchn);
 	if (err) {

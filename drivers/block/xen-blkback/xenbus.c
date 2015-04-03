@@ -193,7 +193,7 @@ fail:
 	return ERR_PTR(-ENOMEM);
 }
 
-static int xen_blkif_map(struct xen_blkif *blkif, unsigned long shared_page,
+static int xen_blkif_map(struct xen_blkif *blkif, grant_ref_t gref,
 			 unsigned int evtchn)
 {
 	int err;
@@ -202,7 +202,8 @@ static int xen_blkif_map(struct xen_blkif *blkif, unsigned long shared_page,
 	if (blkif->irq)
 		return 0;
 
-	err = xenbus_map_ring_valloc(blkif->be->dev, shared_page, &blkif->blk_ring);
+	err = xenbus_map_ring_valloc(blkif->be->dev, &gref, 1,
+				     &blkif->blk_ring);
 	if (err < 0)
 		return err;
 
