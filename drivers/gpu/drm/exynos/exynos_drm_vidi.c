@@ -117,17 +117,13 @@ static void vidi_disable_vblank(struct exynos_drm_crtc *crtc)
 		ctx->vblank_on = false;
 }
 
-static void vidi_win_commit(struct exynos_drm_crtc *crtc, int zpos)
+static void vidi_win_commit(struct exynos_drm_crtc *crtc, unsigned int win)
 {
 	struct vidi_context *ctx = crtc->ctx;
 	struct exynos_drm_plane *plane;
-	int win = zpos;
 
 	if (ctx->suspended)
 		return;
-
-	if (win == DEFAULT_ZPOS)
-		win = ctx->default_win;
 
 	if (win < 0 || win >= WINDOWS_NR)
 		return;
@@ -142,14 +138,10 @@ static void vidi_win_commit(struct exynos_drm_crtc *crtc, int zpos)
 		schedule_work(&ctx->work);
 }
 
-static void vidi_win_disable(struct exynos_drm_crtc *crtc, int zpos)
+static void vidi_win_disable(struct exynos_drm_crtc *crtc, unsigned int win)
 {
 	struct vidi_context *ctx = crtc->ctx;
 	struct exynos_drm_plane *plane;
-	int win = zpos;
-
-	if (win == DEFAULT_ZPOS)
-		win = ctx->default_win;
 
 	if (win < 0 || win >= WINDOWS_NR)
 		return;
@@ -472,7 +464,8 @@ static int vidi_bind(struct device *dev, struct device *master, void *data)
 	struct drm_device *drm_dev = data;
 	struct exynos_drm_plane *exynos_plane;
 	enum drm_plane_type type;
-	int zpos, ret;
+	unsigned int zpos;
+	int ret;
 
 	vidi_ctx_initialize(ctx, drm_dev);
 
@@ -480,7 +473,7 @@ static int vidi_bind(struct device *dev, struct device *master, void *data)
 		type = (zpos == ctx->default_win) ? DRM_PLANE_TYPE_PRIMARY :
 						DRM_PLANE_TYPE_OVERLAY;
 		ret = exynos_plane_init(drm_dev, &ctx->planes[zpos],
-					1 << ctx->pipe, type);
+					1 << ctx->pipe, type, zpos);
 		if (ret)
 			return ret;
 	}

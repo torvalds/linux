@@ -378,7 +378,7 @@ static void decon_win_set_colkey(struct decon_context *ctx, unsigned int win)
  * @protect: 1 to protect (disable updates)
  */
 static void decon_shadow_protect_win(struct decon_context *ctx,
-							int win, bool protect)
+				     unsigned int win, bool protect)
 {
 	u32 bits, val;
 
@@ -392,21 +392,18 @@ static void decon_shadow_protect_win(struct decon_context *ctx,
 	writel(val, ctx->regs + SHADOWCON);
 }
 
-static void decon_win_commit(struct exynos_drm_crtc *crtc, int zpos)
+static void decon_win_commit(struct exynos_drm_crtc *crtc, unsigned int win)
 {
 	struct decon_context *ctx = crtc->ctx;
 	struct drm_display_mode *mode = &crtc->base.mode;
 	struct exynos_drm_plane *plane;
-	int padding, win = zpos;
+	int padding;
 	unsigned long val, alpha;
 	unsigned int last_x;
 	unsigned int last_y;
 
 	if (ctx->suspended)
 		return;
-
-	if (win == DEFAULT_ZPOS)
-		win = ctx->default_win;
 
 	if (win < 0 || win >= WINDOWS_NR)
 		return;
@@ -513,15 +510,11 @@ static void decon_win_commit(struct exynos_drm_crtc *crtc, int zpos)
 	plane->enabled = true;
 }
 
-static void decon_win_disable(struct exynos_drm_crtc *crtc, int zpos)
+static void decon_win_disable(struct exynos_drm_crtc *crtc, unsigned int win)
 {
 	struct decon_context *ctx = crtc->ctx;
 	struct exynos_drm_plane *plane;
-	int win = zpos;
 	u32 val;
-
-	if (win == DEFAULT_ZPOS)
-		win = ctx->default_win;
 
 	if (win < 0 || win >= WINDOWS_NR)
 		return;
@@ -764,7 +757,8 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 	struct drm_device *drm_dev = data;
 	struct exynos_drm_plane *exynos_plane;
 	enum drm_plane_type type;
-	int zpos, ret;
+	unsigned int zpos;
+	int ret;
 
 	ret = decon_ctx_initialize(ctx, drm_dev);
 	if (ret) {
@@ -776,7 +770,7 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 		type = (zpos == ctx->default_win) ? DRM_PLANE_TYPE_PRIMARY :
 						DRM_PLANE_TYPE_OVERLAY;
 		ret = exynos_plane_init(drm_dev, &ctx->planes[zpos],
-					1 << ctx->pipe, type);
+					1 << ctx->pipe, type, zpos);
 		if (ret)
 			return ret;
 	}

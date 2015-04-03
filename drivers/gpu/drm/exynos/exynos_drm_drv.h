@@ -21,7 +21,6 @@
 #define MAX_CRTC	3
 #define MAX_PLANE	5
 #define MAX_FB_BUFFER	4
-#define DEFAULT_ZPOS	-1
 
 #define to_exynos_crtc(x)	container_of(x, struct exynos_drm_crtc, base)
 #define to_exynos_plane(x)	container_of(x, struct exynos_drm_plane, base)
@@ -104,7 +103,7 @@ struct exynos_drm_plane {
 	unsigned int pitch;
 	uint32_t pixel_format;
 	dma_addr_t dma_addr[MAX_FB_BUFFER];
-	int zpos;
+	unsigned int zpos;
 	unsigned int index_color;
 
 	bool default_win:1;
@@ -189,8 +188,8 @@ struct exynos_drm_crtc_ops {
 	int (*enable_vblank)(struct exynos_drm_crtc *crtc);
 	void (*disable_vblank)(struct exynos_drm_crtc *crtc);
 	void (*wait_for_vblank)(struct exynos_drm_crtc *crtc);
-	void (*win_commit)(struct exynos_drm_crtc *crtc, int zpos);
-	void (*win_disable)(struct exynos_drm_crtc *crtc, int zpos);
+	void (*win_commit)(struct exynos_drm_crtc *crtc, unsigned int zpos);
+	void (*win_disable)(struct exynos_drm_crtc *crtc, unsigned int zpos);
 	void (*te_handler)(struct exynos_drm_crtc *crtc);
 };
 

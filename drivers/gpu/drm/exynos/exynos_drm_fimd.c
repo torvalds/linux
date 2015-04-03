@@ -597,7 +597,7 @@ static void fimd_win_set_colkey(struct fimd_context *ctx, unsigned int win)
  * @protect: 1 to protect (disable updates)
  */
 static void fimd_shadow_protect_win(struct fimd_context *ctx,
-							int win, bool protect)
+				    unsigned int win, bool protect)
 {
 	u32 reg, bits, val;
 
@@ -617,20 +617,16 @@ static void fimd_shadow_protect_win(struct fimd_context *ctx,
 	writel(val, ctx->regs + reg);
 }
 
-static void fimd_win_commit(struct exynos_drm_crtc *crtc, int zpos)
+static void fimd_win_commit(struct exynos_drm_crtc *crtc, unsigned int win)
 {
 	struct fimd_context *ctx = crtc->ctx;
 	struct exynos_drm_plane *plane;
-	int win = zpos;
 	dma_addr_t dma_addr;
 	unsigned long val, size, offset;
 	unsigned int last_x, last_y, buf_offsize, line_size;
 
 	if (ctx->suspended)
 		return;
-
-	if (win == DEFAULT_ZPOS)
-		win = ctx->default_win;
 
 	if (win < 0 || win >= WINDOWS_NR)
 		return;
@@ -737,14 +733,10 @@ static void fimd_win_commit(struct exynos_drm_crtc *crtc, int zpos)
 		atomic_set(&ctx->win_updated, 1);
 }
 
-static void fimd_win_disable(struct exynos_drm_crtc *crtc, int zpos)
+static void fimd_win_disable(struct exynos_drm_crtc *crtc, unsigned int win)
 {
 	struct fimd_context *ctx = crtc->ctx;
 	struct exynos_drm_plane *plane;
-	int win = zpos;
-
-	if (win == DEFAULT_ZPOS)
-		win = ctx->default_win;
 
 	if (win < 0 || win >= WINDOWS_NR)
 		return;
@@ -1007,7 +999,8 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 	struct exynos_drm_private *priv = drm_dev->dev_private;
 	struct exynos_drm_plane *exynos_plane;
 	enum drm_plane_type type;
-	int zpos, ret;
+	unsigned int zpos;
+	int ret;
 
 	ctx->drm_dev = drm_dev;
 	ctx->pipe = priv->pipe++;
@@ -1016,7 +1009,7 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 		type = (zpos == ctx->default_win) ? DRM_PLANE_TYPE_PRIMARY :
 						DRM_PLANE_TYPE_OVERLAY;
 		ret = exynos_plane_init(drm_dev, &ctx->planes[zpos],
-					1 << ctx->pipe, type);
+					1 << ctx->pipe, type, zpos);
 		if (ret)
 			return ret;
 	}

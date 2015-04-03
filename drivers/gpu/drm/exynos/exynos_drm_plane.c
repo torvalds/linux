@@ -207,7 +207,8 @@ static struct drm_plane_funcs exynos_plane_funcs = {
 	.set_property	= exynos_plane_set_property,
 };
 
-static void exynos_plane_attach_zpos_property(struct drm_plane *plane)
+static void exynos_plane_attach_zpos_property(struct drm_plane *plane,
+					      unsigned int zpos)
 {
 	struct drm_device *dev = plane->dev;
 	struct exynos_drm_private *dev_priv = dev->dev_private;
@@ -223,12 +224,13 @@ static void exynos_plane_attach_zpos_property(struct drm_plane *plane)
 		dev_priv->plane_zpos_property = prop;
 	}
 
-	drm_object_attach_property(&plane->base, prop, 0);
+	drm_object_attach_property(&plane->base, prop, zpos);
 }
 
 int exynos_plane_init(struct drm_device *dev,
 		      struct exynos_drm_plane *exynos_plane,
-		      unsigned long possible_crtcs, enum drm_plane_type type)
+		      unsigned long possible_crtcs, enum drm_plane_type type,
+		      unsigned int zpos)
 {
 	int err;
 
@@ -240,10 +242,10 @@ int exynos_plane_init(struct drm_device *dev,
 		return err;
 	}
 
-	if (type == DRM_PLANE_TYPE_PRIMARY)
-		exynos_plane->zpos = DEFAULT_ZPOS;
-	else
-		exynos_plane_attach_zpos_property(&exynos_plane->base);
+	exynos_plane->zpos = zpos;
+
+	if (type == DRM_PLANE_TYPE_OVERLAY)
+		exynos_plane_attach_zpos_property(&exynos_plane->base, zpos);
 
 	return 0;
 }
