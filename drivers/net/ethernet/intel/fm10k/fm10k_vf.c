@@ -1,5 +1,5 @@
 /* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -123,6 +123,10 @@ static s32 fm10k_init_hw_vf(struct fm10k_hw *hw)
 
 	/* record maximum queue count */
 	hw->mac.max_queues = i;
+
+	/* fetch default VLAN */
+	hw->mac.default_vid = (fm10k_read_reg(hw, FM10K_TXQCTL(0)) &
+			       FM10K_TXQCTL_VID_MASK) >> FM10K_TXQCTL_VID_SHIFT;
 
 	return 0;
 }
