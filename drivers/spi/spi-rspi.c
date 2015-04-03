@@ -727,7 +727,7 @@ static int rspi_rz_transfer_one(struct spi_master *master,
 static int qspi_trigger_transfer_out_int(struct rspi_data *rspi, const u8 *tx,
 					u8 *rx, unsigned int len)
 {
-	unsigned int i, n, ret;
+	int i, n, ret;
 	int error;
 
 	while (len > 0) {
