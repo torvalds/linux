@@ -14,7 +14,7 @@
 #include <linux/cpuidle.h>
 #include <linux/cpu_pm.h>
 #include <linux/export.h>
-#include <linux/clockchips.h>
+#include <linux/tick.h>
 
 #include <asm/cpuidle.h>
 #include <asm/proc-fns.h>
@@ -184,8 +184,7 @@ fail:
  */
 static void omap_setup_broadcast_timer(void *arg)
 {
-	int cpu = smp_processor_id();
-	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ON, &cpu);
+	tick_broadcast_enable();
 }
 
 static struct cpuidle_driver omap4_idle_driver = {
