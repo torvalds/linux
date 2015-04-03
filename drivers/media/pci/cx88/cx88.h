@@ -327,7 +327,6 @@ struct cx88_buffer {
 	/* cx88 specific */
 	unsigned int           bpl;
 	struct cx88_riscmem    risc;
-	u32                    count;
 };
 
 struct cx88_dmaqueue {
