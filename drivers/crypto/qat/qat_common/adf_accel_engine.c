@@ -78,19 +78,22 @@ int adf_ae_fw_load(struct adf_accel_dev *accel_dev)
 	return 0;
 
 out_err:
-	release_firmware(loader_data->uof_fw);
+	adf_ae_fw_release(accel_dev);
 	return -EFAULT;
 }
 
-int adf_ae_fw_release(struct adf_accel_dev *accel_dev)
+void adf_ae_fw_release(struct adf_accel_dev *accel_dev)
 {
 	struct adf_fw_loader_data *loader_data = accel_dev->fw_loader;
 
-	release_firmware(loader_data->uof_fw);
 	qat_uclo_del_uof_obj(loader_data->fw_loader);
 	qat_hal_deinit(loader_data->fw_loader);
+
+	if (loader_data->uof_fw)
+		release_firmware(loader_data->uof_fw);
+
+	loader_data->uof_fw = NULL;
 	loader_data->fw_loader = NULL;
-	return 0;
 }
 
 int adf_ae_start(struct adf_accel_dev *accel_dev)
@@ -165,6 +168,9 @@ int adf_ae_init(struct adf_accel_dev *accel_dev)
 
 int adf_ae_shutdown(struct adf_accel_dev *accel_dev)
 {
+	struct adf_fw_loader_data *loader_data = accel_dev->fw_loader;
+
+	qat_hal_deinit(loader_data->fw_loader);
 	kfree(accel_dev->fw_loader);
 	accel_dev->fw_loader = NULL;
 	return 0;

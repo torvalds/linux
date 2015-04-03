@@ -160,7 +160,6 @@ int adf_dev_init(struct adf_accel_dev *accel_dev)
 	if (adf_ae_fw_load(accel_dev)) {
 		dev_err(&GET_DEV(accel_dev),
 			"Failed to load acceleration FW\n");
-		adf_ae_fw_release(accel_dev);
 		return -EFAULT;
 	}
 	set_bit(ADF_STATUS_AE_UCODE_LOADED, &accel_dev->status);
@@ -359,12 +358,8 @@ void adf_dev_shutdown(struct adf_accel_dev *accel_dev)
 	}
 
 	if (test_bit(ADF_STATUS_AE_UCODE_LOADED, &accel_dev->status)) {
-		if (adf_ae_fw_release(accel_dev))
-			dev_err(&GET_DEV(accel_dev),
-				"Failed to release the ucode\n");
-		else
-			clear_bit(ADF_STATUS_AE_UCODE_LOADED,
-				  &accel_dev->status);
+		adf_ae_fw_release(accel_dev);
+		clear_bit(ADF_STATUS_AE_UCODE_LOADED, &accel_dev->status);
 	}
 
 	if (test_bit(ADF_STATUS_AE_INITIALISED, &accel_dev->status)) {
