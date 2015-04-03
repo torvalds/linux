@@ -42,6 +42,31 @@ extern void hotplug_cpu__broadcast_tick_pull(int dead_cpu);
 static inline void hotplug_cpu__broadcast_tick_pull(int dead_cpu) { }
 #endif
 
+enum tick_broadcast_mode {
+	TICK_BROADCAST_OFF,
+	TICK_BROADCAST_ON,
+	TICK_BROADCAST_FORCE,
+};
+
+#ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
+extern void tick_broadcast_control(enum tick_broadcast_mode mode);
+#else
+static inline void tick_broadcast_control(enum tick_broadcast_mode mode) { }
+#endif /* BROADCAST */
+
+static inline void tick_broadcast_enable(void)
+{
+	tick_broadcast_control(TICK_BROADCAST_ON);
+}
+static inline void tick_broadcast_disable(void)
+{
+	tick_broadcast_control(TICK_BROADCAST_OFF);
+}
+static inline void tick_broadcast_force(void)
+{
+	tick_broadcast_control(TICK_BROADCAST_FORCE);
+}
+
 #ifdef CONFIG_NO_HZ_COMMON
 extern int tick_nohz_tick_stopped(void);
 extern void tick_nohz_idle_enter(void);
