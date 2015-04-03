@@ -155,7 +155,6 @@ static int gb_hid_irq_handler(u8 type, struct gb_operation *op)
 	struct gb_connection *connection = op->connection;
 	struct gb_hid *ghid = connection->private;
 	struct gb_hid_input_report_request *request = op->request->payload;
-	int size;
 
 	if (type != GB_HID_TYPE_IRQ_EVENT) {
 		dev_err(&connection->dev,
@@ -163,24 +162,9 @@ static int gb_hid_irq_handler(u8 type, struct gb_operation *op)
 		return -EINVAL;
 	}
 
-	if (op->request->payload_size < 2) {
-		dev_err(&connection->dev, "short report received\n");
-		return -EINVAL;
-	}
-
-	/*
-	 * FIXME: add report size to Greybus HID protocol if we need to parse
-	 *        it here.
-	 */
-	size = request->report[0] | request->report[1] << 8;
-	if (size < 2 || size > op->request->payload_size - 2) {
-		dev_err(&connection->dev, "bad report size: %d\n", size);
-		return -EINVAL;
-	}
-
 	if (test_bit(GB_HID_STARTED, &ghid->flags))
 		hid_input_report(ghid->hid, HID_INPUT_REPORT,
-				 request->report + 2, size - 2, 1);
+				 request->report, op->request->payload_size, 1);
 
 	return 0;
 }
