@@ -203,11 +203,11 @@ static struct kmem_cache *flctx_cache __read_mostly;
 static struct kmem_cache *filelock_cache __read_mostly;
 
 static struct file_lock_context *
-locks_get_lock_context(struct inode *inode)
+locks_get_lock_context(struct inode *inode, int type)
 {
 	struct file_lock_context *new;
 
-	if (likely(inode->i_flctx))
+	if (likely(inode->i_flctx) || type == F_UNLCK)
 		goto out;
 
 	new = kmem_cache_alloc(flctx_cache, GFP_KERNEL);
@@ -877,9 +877,12 @@ static int flock_lock_file(struct file *filp, struct file_lock *request)
 	bool found = false;
 	LIST_HEAD(dispose);
 
-	ctx = locks_get_lock_context(inode);
-	if (!ctx)
-		return -ENOMEM;
+	ctx = locks_get_lock_context(inode, request->fl_type);
+	if (!ctx) {
+		if (request->fl_type != F_UNLCK)
+			return -ENOMEM;
+		return (request->fl_flags & FL_EXISTS) ? -ENOENT : 0;
+	}
 
 	if (!(request->fl_flags & FL_ACCESS) && (request->fl_type != F_UNLCK)) {
 		new_fl = locks_alloc_lock();
@@ -945,9 +948,9 @@ static int __posix_lock_file(struct inode *inode, struct file_lock *request, str
 	bool added = false;
 	LIST_HEAD(dispose);
 
-	ctx = locks_get_lock_context(inode);
+	ctx = locks_get_lock_context(inode, request->fl_type);
 	if (!ctx)
-		return -ENOMEM;
+		return (request->fl_type == F_UNLCK) ? 0 : -ENOMEM;
 
 	/*
 	 * We may need two file_lock structures for this operation,
@@ -1609,7 +1612,8 @@ generic_add_lease(struct file *filp, long arg, struct file_lock **flp, void **pr
 	lease = *flp;
 	trace_generic_add_lease(inode, lease);
 
-	ctx = locks_get_lock_context(inode);
+	/* Note that arg is never F_UNLCK here */
+	ctx = locks_get_lock_context(inode, arg);
 	if (!ctx)
 		return -ENOMEM;
 
