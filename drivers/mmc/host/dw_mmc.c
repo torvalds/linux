@@ -1024,11 +1024,13 @@ static void __dw_mci_start_request(struct dw_mci *host,
 
 	if (cmd->opcode == SD_SWITCH_VOLTAGE) {
 		/*
-		 * Databook says to fail after 2ms w/ no response; give an
-		 * extra jiffy just in case we're about to roll over.
+		 * Databook says to fail after 2ms w/ no response, but evidence
+		 * shows that sometimes the cmd11 interrupt takes over 130ms.
+		 * We'll set to 500ms, plus an extra jiffy just in case jiffies
+		 * is just about to roll over.
 		 */
 		mod_timer(&host->cmd11_timer,
-			  jiffies + msecs_to_jiffies(2) + 1);
+			  jiffies + msecs_to_jiffies(500) + 1);
 	}
 
 	if (mrq->stop)
