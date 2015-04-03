@@ -689,8 +689,13 @@
 /*
  * Coprocessor 1 (FPU) register names
  */
-#define CP1_REVISION   $0
-#define CP1_STATUS     $31
+#define CP1_REVISION	$0
+#define CP1_UFR		$1
+#define CP1_UNFR	$4
+#define CP1_FCCR	$25
+#define CP1_FEXR	$26
+#define CP1_FENR	$28
+#define CP1_STATUS	$31
 
 
 /*
@@ -706,18 +711,58 @@
 #define MIPS_FPIR_FREP		(_ULCAST_(1) << 29)
 
 /*
+ * Bits in the MIPS32/64 coprocessor 1 (FPU) condition codes register.
+ */
+#define MIPS_FCCR_CONDX_S	0
+#define MIPS_FCCR_CONDX		(_ULCAST_(255) << MIPS_FCCR_CONDX_S)
+#define MIPS_FCCR_COND0_S	0
+#define MIPS_FCCR_COND0		(_ULCAST_(1) << MIPS_FCCR_COND0_S)
+#define MIPS_FCCR_COND1_S	1
+#define MIPS_FCCR_COND1		(_ULCAST_(1) << MIPS_FCCR_COND1_S)
+#define MIPS_FCCR_COND2_S	2
+#define MIPS_FCCR_COND2		(_ULCAST_(1) << MIPS_FCCR_COND2_S)
+#define MIPS_FCCR_COND3_S	3
+#define MIPS_FCCR_COND3		(_ULCAST_(1) << MIPS_FCCR_COND3_S)
+#define MIPS_FCCR_COND4_S	4
+#define MIPS_FCCR_COND4		(_ULCAST_(1) << MIPS_FCCR_COND4_S)
+#define MIPS_FCCR_COND5_S	5
+#define MIPS_FCCR_COND5		(_ULCAST_(1) << MIPS_FCCR_COND5_S)
+#define MIPS_FCCR_COND6_S	6
+#define MIPS_FCCR_COND6		(_ULCAST_(1) << MIPS_FCCR_COND6_S)
+#define MIPS_FCCR_COND7_S	7
+#define MIPS_FCCR_COND7		(_ULCAST_(1) << MIPS_FCCR_COND7_S)
+
+/*
+ * Bits in the MIPS32/64 coprocessor 1 (FPU) enables register.
+ */
+#define MIPS_FENR_FS_S		2
+#define MIPS_FENR_FS		(_ULCAST_(1) << MIPS_FENR_FS_S)
+
+/*
  * FPU Status Register Values
  */
-#define FPU_CSR_FLUSH	0x01000000	/* flush denormalised results to 0 */
-#define FPU_CSR_COND	0x00800000	/* $fcc0 */
-#define FPU_CSR_COND0	0x00800000	/* $fcc0 */
-#define FPU_CSR_COND1	0x02000000	/* $fcc1 */
-#define FPU_CSR_COND2	0x04000000	/* $fcc2 */
-#define FPU_CSR_COND3	0x08000000	/* $fcc3 */
-#define FPU_CSR_COND4	0x10000000	/* $fcc4 */
-#define FPU_CSR_COND5	0x20000000	/* $fcc5 */
-#define FPU_CSR_COND6	0x40000000	/* $fcc6 */
-#define FPU_CSR_COND7	0x80000000	/* $fcc7 */
+#define FPU_CSR_COND_S	23					/* $fcc0 */
+#define FPU_CSR_COND	(_ULCAST_(1) << FPU_CSR_COND_S)
+
+#define FPU_CSR_FS_S	24		/* flush denormalised results to 0 */
+#define FPU_CSR_FS	(_ULCAST_(1) << FPU_CSR_FS_S)
+
+#define FPU_CSR_CONDX_S	25					/* $fcc[7:1] */
+#define FPU_CSR_CONDX	(_ULCAST_(127) << FPU_CSR_CONDX_S)
+#define FPU_CSR_COND1_S	25					/* $fcc1 */
+#define FPU_CSR_COND1	(_ULCAST_(1) << FPU_CSR_COND1_S)
+#define FPU_CSR_COND2_S	26					/* $fcc2 */
+#define FPU_CSR_COND2	(_ULCAST_(1) << FPU_CSR_COND2_S)
+#define FPU_CSR_COND3_S	27					/* $fcc3 */
+#define FPU_CSR_COND3	(_ULCAST_(1) << FPU_CSR_COND3_S)
+#define FPU_CSR_COND4_S	28					/* $fcc4 */
+#define FPU_CSR_COND4	(_ULCAST_(1) << FPU_CSR_COND4_S)
+#define FPU_CSR_COND5_S	29					/* $fcc5 */
+#define FPU_CSR_COND5	(_ULCAST_(1) << FPU_CSR_COND5_S)
+#define FPU_CSR_COND6_S	30					/* $fcc6 */
+#define FPU_CSR_COND6	(_ULCAST_(1) << FPU_CSR_COND6_S)
+#define FPU_CSR_COND7_S	31					/* $fcc7 */
+#define FPU_CSR_COND7	(_ULCAST_(1) << FPU_CSR_COND7_S)
 
 /*
  * Bits 18 - 20 of the FPU Status Register will be read as 0,

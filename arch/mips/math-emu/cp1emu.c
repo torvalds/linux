@@ -64,11 +64,14 @@ static int fpux_emu(struct pt_regs *,
 /* Control registers */
 
 #define FPCREG_RID	0	/* $0  = revision id */
+#define FPCREG_FCCR	25	/* $25 = fccr */
+#define FPCREG_FEXR	26	/* $26 = fexr */
+#define FPCREG_FENR	28	/* $28 = fenr */
 #define FPCREG_CSR	31	/* $31 = csr */
 
 /* convert condition code register number to csr bit */
 const unsigned int fpucondbit[8] = {
-	FPU_CSR_COND0,
+	FPU_CSR_COND,
 	FPU_CSR_COND1,
 	FPU_CSR_COND2,
 	FPU_CSR_COND3,
@@ -846,17 +849,53 @@ do {									\
 static inline void cop1_cfc(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 			    mips_instruction ir)
 {
-	u32 value;
+	u32 fcr31 = ctx->fcr31;
+	u32 value = 0;
 
-	if (MIPSInst_RD(ir) == FPCREG_CSR) {
-		value = ctx->fcr31;
+	switch (MIPSInst_RD(ir)) {
+	case FPCREG_CSR:
+		value = fcr31;
 		pr_debug("%p gpr[%d]<-csr=%08x\n",
-			 (void *)xcp->cp0_epc,
-			 MIPSInst_RT(ir), value);
-	} else if (MIPSInst_RD(ir) == FPCREG_RID)
+			 (void *)xcp->cp0_epc, MIPSInst_RT(ir), value);
+		break;
+
+	case FPCREG_FENR:
+		if (!cpu_has_mips_r)
+			break;
+		value = (fcr31 >> (FPU_CSR_FS_S - MIPS_FENR_FS_S)) &
+			MIPS_FENR_FS;
+		value |= fcr31 & (FPU_CSR_ALL_E | FPU_CSR_RM);
+		pr_debug("%p gpr[%d]<-enr=%08x\n",
+			 (void *)xcp->cp0_epc, MIPSInst_RT(ir), value);
+		break;
+
+	case FPCREG_FEXR:
+		if (!cpu_has_mips_r)
+			break;
+		value = fcr31 & (FPU_CSR_ALL_X | FPU_CSR_ALL_S);
+		pr_debug("%p gpr[%d]<-exr=%08x\n",
+			 (void *)xcp->cp0_epc, MIPSInst_RT(ir), value);
+		break;
+
+	case FPCREG_FCCR:
+		if (!cpu_has_mips_r)
+			break;
+		value = (fcr31 >> (FPU_CSR_COND_S - MIPS_FCCR_COND0_S)) &
+			MIPS_FCCR_COND0;
+		value |= (fcr31 >> (FPU_CSR_COND1_S - MIPS_FCCR_COND1_S)) &
+			 (MIPS_FCCR_CONDX & ~MIPS_FCCR_COND0);
+		pr_debug("%p gpr[%d]<-ccr=%08x\n",
+			 (void *)xcp->cp0_epc, MIPSInst_RT(ir), value);
+		break;
+
+	case FPCREG_RID:
 		value = current_cpu_data.fpu_id;
-	else
-		value = 0;
+		break;
+
+	default:
+		break;
+	}
+
 	if (MIPSInst_RT(ir))
 		xcp->regs[MIPSInst_RT(ir)] = value;
 }
@@ -867,6 +906,7 @@ static inline void cop1_cfc(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 static inline void cop1_ctc(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 			    mips_instruction ir)
 {
+	u32 fcr31 = ctx->fcr31;
 	u32 value;
 
 	if (MIPSInst_RT(ir) == 0)
@@ -874,16 +914,52 @@ static inline void cop1_ctc(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 	else
 		value = xcp->regs[MIPSInst_RT(ir)];
 
-	/* we only have one writable control reg
-	 */
-	if (MIPSInst_RD(ir) == FPCREG_CSR) {
+	switch (MIPSInst_RD(ir)) {
+	case FPCREG_CSR:
 		pr_debug("%p gpr[%d]->csr=%08x\n",
-			 (void *)xcp->cp0_epc,
-			 MIPSInst_RT(ir), value);
+			 (void *)xcp->cp0_epc, MIPSInst_RT(ir), value);
 
 		/* Don't write reserved bits.  */
-		ctx->fcr31 = value & ~FPU_CSR_RSVD;
+		fcr31 = value & ~FPU_CSR_RSVD;
+		break;
+
+	case FPCREG_FENR:
+		if (!cpu_has_mips_r)
+			break;
+		pr_debug("%p gpr[%d]->enr=%08x\n",
+			 (void *)xcp->cp0_epc, MIPSInst_RT(ir), value);
+		fcr31 &= ~(FPU_CSR_FS | FPU_CSR_ALL_E | FPU_CSR_RM);
+		fcr31 |= (value << (FPU_CSR_FS_S - MIPS_FENR_FS_S)) &
+			 FPU_CSR_FS;
+		fcr31 |= value & (FPU_CSR_ALL_E | FPU_CSR_RM);
+		break;
+
+	case FPCREG_FEXR:
+		if (!cpu_has_mips_r)
+			break;
+		pr_debug("%p gpr[%d]->exr=%08x\n",
+			 (void *)xcp->cp0_epc, MIPSInst_RT(ir), value);
+		fcr31 &= ~(FPU_CSR_ALL_X | FPU_CSR_ALL_S);
+		fcr31 |= value & (FPU_CSR_ALL_X | FPU_CSR_ALL_S);
+		break;
+
+	case FPCREG_FCCR:
+		if (!cpu_has_mips_r)
+			break;
+		pr_debug("%p gpr[%d]->ccr=%08x\n",
+			 (void *)xcp->cp0_epc, MIPSInst_RT(ir), value);
+		fcr31 &= ~(FPU_CSR_CONDX | FPU_CSR_COND);
+		fcr31 |= (value << (FPU_CSR_COND_S - MIPS_FCCR_COND0_S)) &
+			 FPU_CSR_COND;
+		fcr31 |= (value << (FPU_CSR_COND1_S - MIPS_FCCR_COND1_S)) &
+			 FPU_CSR_CONDX;
+		break;
+
+	default:
+		break;
 	}
+
+	ctx->fcr31 = fcr31;
 }
 
 /*
