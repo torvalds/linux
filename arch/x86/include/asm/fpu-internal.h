@@ -569,14 +569,9 @@ static inline unsigned short get_fpu_mxcsr(struct task_struct *tsk)
 	}
 }
 
-static bool fpu_allocated(struct fpu *fpu)
-{
-	return fpu->state != NULL;
-}
-
 static inline int fpu_alloc(struct fpu *fpu)
 {
-	if (fpu_allocated(fpu))
+	if (fpu->state)
 		return 0;
 	fpu->state = kmem_cache_alloc(task_xstate_cachep, GFP_KERNEL);
 	if (!fpu->state)
