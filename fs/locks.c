@@ -592,11 +592,15 @@ posix_owner_key(struct file_lock *fl)
 
 static void locks_insert_global_blocked(struct file_lock *waiter)
 {
+	lockdep_assert_held(&blocked_lock_lock);
+
 	hash_add(blocked_hash, &waiter->fl_link, posix_owner_key(waiter));
 }
 
 static void locks_delete_global_blocked(struct file_lock *waiter)
 {
+	lockdep_assert_held(&blocked_lock_lock);
+
 	hash_del(&waiter->fl_link);
 }
 
@@ -837,6 +841,8 @@ static int posix_locks_deadlock(struct file_lock *caller_fl,
 				struct file_lock *block_fl)
 {
 	int i = 0;
+
+	lockdep_assert_held(&blocked_lock_lock);
 
 	/*
 	 * This deadlock detector can't reasonably detect deadlocks with
