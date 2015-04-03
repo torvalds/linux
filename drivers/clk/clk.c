@@ -1788,6 +1788,9 @@ static void clk_change_rate(struct clk_core *clk)
 	if (clk->notifier_count && old_rate != clk->rate)
 		__clk_notify(clk, POST_RATE_CHANGE, old_rate, clk->rate);
 
+	if (clk->flags & CLK_RECALC_NEW_RATES)
+		(void)clk_calc_new_rates(clk, clk->new_rate);
+
 	/*
 	 * Use safe iteration, as change_rate can actually swap parents
 	 * for certain clock types.
