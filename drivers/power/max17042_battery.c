@@ -268,6 +268,7 @@ static inline void max17042_override_por(struct regmap *map,
 static inline void max10742_unlock_model(struct max17042_chip *chip)
 {
 	struct regmap *map = chip->regmap;
+
 	regmap_write(map, MAX17042_MLOCKReg1, MODEL_UNLOCK1);
 	regmap_write(map, MAX17042_MLOCKReg2, MODEL_UNLOCK2);
 }
@@ -285,6 +286,7 @@ static inline void max17042_write_model_data(struct max17042_chip *chip,
 {
 	struct regmap *map = chip->regmap;
 	int i;
+
 	for (i = 0; i < size; i++)
 		regmap_write(map, addr + i,
 			chip->pdata->config_data->cell_char_tbl[i]);
