@@ -1306,8 +1306,7 @@ static void i40e_fcoe_tx_map(struct i40e_ring *tx_ring,
 	/* MACLEN is ether header length in words not bytes */
 	td_offset |= (maclen >> 1) << I40E_TX_DESC_LENGTH_MACLEN_SHIFT;
 
-	return i40e_tx_map(tx_ring, skb, first, tx_flags, hdr_len,
-			   td_cmd, td_offset);
+	i40e_tx_map(tx_ring, skb, first, tx_flags, hdr_len, td_cmd, td_offset);
 }
 
 /**

@@ -1565,8 +1565,11 @@ static int i40e_clean_rx_irq_ps(struct i40e_ring *rx_ring, int budget)
 		if (likely(!skb)) {
 			skb = netdev_alloc_skb_ip_align(rx_ring->netdev,
 							rx_ring->rx_hdr_len);
-			if (!skb)
+			if (!skb) {
 				rx_ring->rx_stats.alloc_buff_failed++;
+				break;
+			}
+
 			/* initialize queue mapping */
 			skb_record_rx_queue(skb, rx_ring->queue_index);
 			/* we are reusing so sync this buffer for CPU use */
@@ -2053,6 +2056,19 @@ static int i40e_tx_prepare_vlan_flags(struct sk_buff *skb,
 {
 	__be16 protocol = skb->protocol;
 	u32  tx_flags = 0;
+
+	if (protocol == htons(ETH_P_8021Q) &&
+	    !(tx_ring->netdev->features & NETIF_F_HW_VLAN_CTAG_TX)) {
+		/* When HW VLAN acceleration is turned off by the user the
+		 * stack sets the protocol to 8021q so that the driver
+		 * can take any steps required to support the SW only
+		 * VLAN handling.  In our case the driver doesn't need
+		 * to take any further steps so just set the protocol
+		 * to the encapsulated ethertype.
+		 */
+		skb->protocol = vlan_get_protocol(skb);
+		goto out;
+	}
 
 	/* if we have a HW VLAN tag being added, default to the HW one */
 	if (skb_vlan_tag_present(skb)) {

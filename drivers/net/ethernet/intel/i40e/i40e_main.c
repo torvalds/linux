@@ -38,8 +38,8 @@ static const char i40e_driver_string[] =
 #define DRV_KERN "-k"
 
 #define DRV_VERSION_MAJOR 1
-#define DRV_VERSION_MINOR 2
-#define DRV_VERSION_BUILD 43
+#define DRV_VERSION_MINOR 3
+#define DRV_VERSION_BUILD 1
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -247,6 +247,22 @@ static int i40e_put_lump(struct i40e_lump_tracking *pile, u16 index, u16 id)
 		pile->search_hint = index;
 
 	return count;
+}
+
+/**
+ * i40e_find_vsi_from_id - searches for the vsi with the given id
+ * @pf - the pf structure to search for the vsi
+ * @id - id of the vsi it is searching for
+ **/
+struct i40e_vsi *i40e_find_vsi_from_id(struct i40e_pf *pf, u16 id)
+{
+	int i;
+
+	for (i = 0; i < pf->num_alloc_vsi; i++)
+		if (pf->vsi[i] && (pf->vsi[i]->id == id))
+			return pf->vsi[i];
+
+	return NULL;
 }
 
 /**
@@ -1969,7 +1985,7 @@ void i40e_vlan_stripping_enable(struct i40e_vsi *vsi)
 				    I40E_AQ_VSI_PVLAN_EMOD_STR_BOTH;
 
 	ctxt.seid = vsi->seid;
-	memcpy(&ctxt.info, &vsi->info, sizeof(vsi->info));
+	ctxt.info = vsi->info;
 	ret = i40e_aq_update_vsi_params(&vsi->back->hw, &ctxt, NULL);
 	if (ret) {
 		dev_info(&vsi->back->pdev->dev,
@@ -1998,7 +2014,7 @@ void i40e_vlan_stripping_disable(struct i40e_vsi *vsi)
 				    I40E_AQ_VSI_PVLAN_EMOD_NOTHING;
 
 	ctxt.seid = vsi->seid;
-	memcpy(&ctxt.info, &vsi->info, sizeof(vsi->info));
+	ctxt.info = vsi->info;
 	ret = i40e_aq_update_vsi_params(&vsi->back->hw, &ctxt, NULL);
 	if (ret) {
 		dev_info(&vsi->back->pdev->dev,
@@ -2282,7 +2298,7 @@ int i40e_vsi_add_pvid(struct i40e_vsi *vsi, u16 vid)
 				    I40E_AQ_VSI_PVLAN_EMOD_STR;
 
 	ctxt.seid = vsi->seid;
-	memcpy(&ctxt.info, &vsi->info, sizeof(vsi->info));
+	ctxt.info = vsi->info;
 	aq_ret = i40e_aq_update_vsi_params(&vsi->back->hw, &ctxt, NULL);
 	if (aq_ret) {
 		dev_info(&vsi->back->pdev->dev,
@@ -3197,6 +3213,9 @@ static irqreturn_t i40e_intr(int irq, void *data)
 	if (icr0 & I40E_PFINT_ICR0_HMC_ERR_MASK) {
 		icr0 &= ~I40E_PFINT_ICR0_HMC_ERR_MASK;
 		dev_info(&pf->pdev->dev, "HMC error interrupt\n");
+		dev_info(&pf->pdev->dev, "HMC error info 0x%x, HMC error data 0x%x\n",
+			 rd32(hw, I40E_PFHMC_ERRORINFO),
+			 rd32(hw, I40E_PFHMC_ERRORDATA));
 	}
 
 	if (icr0 & I40E_PFINT_ICR0_TIMESYNC_MASK) {
@@ -4392,7 +4411,7 @@ static int i40e_vsi_config_tc(struct i40e_vsi *vsi, u8 enabled_tc)
 	ctxt.pf_num = vsi->back->hw.pf_id;
 	ctxt.vf_num = 0;
 	ctxt.uplink_seid = vsi->uplink_seid;
-	memcpy(&ctxt.info, &vsi->info, sizeof(vsi->info));
+	ctxt.info = vsi->info;
 	i40e_vsi_setup_queue_map(vsi, &ctxt, enabled_tc, false);
 
 	/* Update the VSI after updating the VSI queue-mapping information */
@@ -5220,9 +5239,8 @@ static int i40e_handle_lldp_event(struct i40e_pf *pf,
 		goto exit;
 	}
 
-	memset(&tmp_dcbx_cfg, 0, sizeof(tmp_dcbx_cfg));
 	/* Store the old configuration */
-	memcpy(&tmp_dcbx_cfg, &hw->local_dcbx_config, sizeof(tmp_dcbx_cfg));
+	tmp_dcbx_cfg = hw->local_dcbx_config;
 
 	/* Reset the old DCBx configuration data */
 	memset(&hw->local_dcbx_config, 0, sizeof(hw->local_dcbx_config));
@@ -5782,11 +5800,9 @@ static void i40e_handle_link_event(struct i40e_pf *pf,
 	struct i40e_hw *hw = &pf->hw;
 	struct i40e_aqc_get_link_status *status =
 		(struct i40e_aqc_get_link_status *)&e->desc.params.raw;
-	struct i40e_link_status *hw_link_info = &hw->phy.link_info;
 
 	/* save off old link status information */
-	memcpy(&pf->hw.phy.link_info_old, hw_link_info,
-	       sizeof(pf->hw.phy.link_info_old));
+	hw->phy.link_info_old = hw->phy.link_info;
 
 	/* Do a new status request to re-enable LSE reporting
 	 * and load new status information into the hw struct
@@ -6608,7 +6624,6 @@ static void i40e_sync_vxlan_filters_subtask(struct i40e_pf *pf)
 {
 	struct i40e_hw *hw = &pf->hw;
 	i40e_status ret;
-	u8 filter_index;
 	__be16 port;
 	int i;
 
@@ -6621,22 +6636,20 @@ static void i40e_sync_vxlan_filters_subtask(struct i40e_pf *pf)
 		if (pf->pending_vxlan_bitmap & (1 << i)) {
 			pf->pending_vxlan_bitmap &= ~(1 << i);
 			port = pf->vxlan_ports[i];
-			ret = port ?
-			      i40e_aq_add_udp_tunnel(hw, ntohs(port),
+			if (port)
+				ret = i40e_aq_add_udp_tunnel(hw, ntohs(port),
 						     I40E_AQC_TUNNEL_TYPE_VXLAN,
-						     &filter_index, NULL)
-			      : i40e_aq_del_udp_tunnel(hw, i, NULL);
+						     NULL, NULL);
+			else
+				ret = i40e_aq_del_udp_tunnel(hw, i, NULL);
 
 			if (ret) {
-				dev_info(&pf->pdev->dev, "Failed to execute AQ command for %s port %d with index %d\n",
-					 port ? "adding" : "deleting",
-					 ntohs(port), port ? i : i);
-
+				dev_info(&pf->pdev->dev,
+					 "%s vxlan port %d, index %d failed, err %d, aq_err %d\n",
+					 port ? "add" : "delete",
+					 ntohs(port), i, ret,
+					 pf->hw.aq.asq_last_status);
 				pf->vxlan_ports[i] = 0;
-			} else {
-				dev_info(&pf->pdev->dev, "%s port %d with AQ command with index %d\n",
-					 port ? "Added" : "Deleted",
-					 ntohs(port), port ? i : filter_index);
 			}
 		}
 	}
@@ -7829,7 +7842,8 @@ static void i40e_add_vxlan_port(struct net_device *netdev,
 
 	/* Check if port already exists */
 	if (idx < I40E_MAX_PF_UDP_OFFLOAD_PORTS) {
-		netdev_info(netdev, "Port %d already offloaded\n", ntohs(port));
+		netdev_info(netdev, "vxlan port %d already offloaded\n",
+			    ntohs(port));
 		return;
 	}
 
@@ -7837,7 +7851,7 @@ static void i40e_add_vxlan_port(struct net_device *netdev,
 	next_idx = i40e_get_vxlan_port_idx(pf, 0);
 
 	if (next_idx == I40E_MAX_PF_UDP_OFFLOAD_PORTS) {
-		netdev_info(netdev, "Maximum number of UDP ports reached, not adding port %d\n",
+		netdev_info(netdev, "maximum number of vxlan UDP ports reached, not adding port %d\n",
 			    ntohs(port));
 		return;
 	}
@@ -7845,8 +7859,9 @@ static void i40e_add_vxlan_port(struct net_device *netdev,
 	/* New port: add it and mark its index in the bitmap */
 	pf->vxlan_ports[next_idx] = port;
 	pf->pending_vxlan_bitmap |= (1 << next_idx);
-
 	pf->flags |= I40E_FLAG_VXLAN_FILTER_SYNC;
+
+	dev_info(&pf->pdev->dev, "adding vxlan port %d\n", ntohs(port));
 }
 
 /**
@@ -7874,12 +7889,13 @@ static void i40e_del_vxlan_port(struct net_device *netdev,
 		 * and make it pending
 		 */
 		pf->vxlan_ports[idx] = 0;
-
 		pf->pending_vxlan_bitmap |= (1 << idx);
-
 		pf->flags |= I40E_FLAG_VXLAN_FILTER_SYNC;
+
+		dev_info(&pf->pdev->dev, "deleting vxlan port %d\n",
+			 ntohs(port));
 	} else {
-		netdev_warn(netdev, "Port %d was not found, not deleting\n",
+		netdev_warn(netdev, "vxlan port %d was not found, not deleting\n",
 			    ntohs(port));
 	}
 }
@@ -8269,7 +8285,7 @@ static int i40e_add_vsi(struct i40e_vsi *vsi)
 				 ret, pf->hw.aq.asq_last_status);
 			return -ENOENT;
 		}
-		memcpy(&vsi->info, &ctxt.info, sizeof(ctxt.info));
+		vsi->info = ctxt.info;
 		vsi->info.valid_sections = 0;
 
 		vsi->seid = ctxt.seid;
@@ -8403,7 +8419,7 @@ static int i40e_add_vsi(struct i40e_vsi *vsi)
 			ret = -ENOENT;
 			goto err;
 		}
-		memcpy(&vsi->info, &ctxt.info, sizeof(ctxt.info));
+		vsi->info = ctxt.info;
 		vsi->info.valid_sections = 0;
 		vsi->seid = ctxt.seid;
 		vsi->id = ctxt.vsi_number;
@@ -10210,6 +10226,8 @@ static int i40e_suspend(struct pci_dev *pdev, pm_message_t state)
 	set_bit(__I40E_DOWN, &pf->state);
 	del_timer_sync(&pf->service_timer);
 	cancel_work_sync(&pf->service_task);
+	i40e_fdir_teardown(pf);
+
 	rtnl_lock();
 	i40e_prep_for_reset(pf);
 	rtnl_unlock();
