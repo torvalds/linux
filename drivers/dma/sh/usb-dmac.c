@@ -285,13 +285,13 @@ static int usb_dmac_desc_alloc(struct usb_dmac_chan *chan, unsigned int sg_len,
 
 static void usb_dmac_desc_free(struct usb_dmac_chan *chan)
 {
-	struct usb_dmac_desc *desc;
+	struct usb_dmac_desc *desc, *_desc;
 	LIST_HEAD(list);
 
 	list_splice_init(&chan->desc_freed, &list);
 	list_splice_init(&chan->desc_got, &list);
 
-	list_for_each_entry(desc, &list, node) {
+	list_for_each_entry_safe(desc, _desc, &list, node) {
 		list_del(&desc->node);
 		kfree(desc);
 	}
