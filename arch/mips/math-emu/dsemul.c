@@ -96,7 +96,7 @@ int mips_dsemul(struct pt_regs *regs, mips_instruction ir, unsigned long cpc)
 
 	flush_cache_sigtramp((unsigned long)&fr->emul);
 
-	return SIGILL;		/* force out of emulation loop */
+	return 0;
 }
 
 int do_dsemulret(struct pt_regs *xcp)
