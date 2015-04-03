@@ -708,6 +708,8 @@
 #define MIPS_FPIR_W		(_ULCAST_(1) << 20)
 #define MIPS_FPIR_L		(_ULCAST_(1) << 21)
 #define MIPS_FPIR_F64		(_ULCAST_(1) << 22)
+#define MIPS_FPIR_HAS2008	(_ULCAST_(1) << 23)
+#define MIPS_FPIR_UFRP		(_ULCAST_(1) << 28)
 #define MIPS_FPIR_FREP		(_ULCAST_(1) << 29)
 
 /*
@@ -765,10 +767,13 @@
 #define FPU_CSR_COND7	(_ULCAST_(1) << FPU_CSR_COND7_S)
 
 /*
- * Bits 18 - 20 of the FPU Status Register will be read as 0,
+ * Bits 22:20 of the FPU Status Register will be read as 0,
  * and should be written as zero.
  */
-#define FPU_CSR_RSVD	0x001c0000
+#define FPU_CSR_RSVD	(_ULCAST_(7) << 20)
+
+#define FPU_CSR_ABS2008	(_ULCAST_(1) << 19)
+#define FPU_CSR_NAN2008	(_ULCAST_(1) << 18)
 
 /*
  * X the exception cause indicator

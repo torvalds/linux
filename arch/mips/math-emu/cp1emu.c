@@ -919,8 +919,9 @@ static inline void cop1_ctc(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 		pr_debug("%p gpr[%d]->csr=%08x\n",
 			 (void *)xcp->cp0_epc, MIPSInst_RT(ir), value);
 
-		/* Don't write reserved bits.  */
-		fcr31 = value & ~FPU_CSR_RSVD;
+		/* Don't write unsupported bits.  */
+		fcr31 = value &
+			~(FPU_CSR_RSVD | FPU_CSR_ABS2008 | FPU_CSR_NAN2008);
 		break;
 
 	case FPCREG_FENR:

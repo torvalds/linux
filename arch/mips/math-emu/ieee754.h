@@ -130,15 +130,17 @@ enum {
  * The control status register
  */
 struct _ieee754_csr {
-	__BITFIELD_FIELD(unsigned pad0:7,
-	__BITFIELD_FIELD(unsigned nod:1,	/* set 1 for no denormalised numbers */
-	__BITFIELD_FIELD(unsigned c:1,		/* condition */
-	__BITFIELD_FIELD(unsigned pad1:5,
+	__BITFIELD_FIELD(unsigned fcc:7,	/* condition[7:1] */
+	__BITFIELD_FIELD(unsigned nod:1,	/* set 1 for no denormals */
+	__BITFIELD_FIELD(unsigned c:1,		/* condition[0] */
+	__BITFIELD_FIELD(unsigned pad0:3,
+	__BITFIELD_FIELD(unsigned abs2008:1,	/* IEEE 754-2008 ABS/NEG.fmt */
+	__BITFIELD_FIELD(unsigned nan2008:1,	/* IEEE 754-2008 NaN mode */
 	__BITFIELD_FIELD(unsigned cx:6,		/* exceptions this operation */
 	__BITFIELD_FIELD(unsigned mx:5,		/* exception enable  mask */
 	__BITFIELD_FIELD(unsigned sx:5,		/* exceptions total */
 	__BITFIELD_FIELD(unsigned rm:2,		/* current rounding mode */
-	;))))))))
+	;))))))))))
 };
 #define ieee754_csr (*(struct _ieee754_csr *)(&current->thread.fpu.fcr31))
 
