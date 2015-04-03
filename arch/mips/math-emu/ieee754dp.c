@@ -30,7 +30,7 @@ int ieee754dp_class(union ieee754dp x)
 	return xc;
 }
 
-int ieee754dp_isnan(union ieee754dp x)
+static inline int ieee754dp_isnan(union ieee754dp x)
 {
 	return ieee754_class_nan(ieee754dp_class(x));
 }
