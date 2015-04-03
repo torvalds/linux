@@ -32,7 +32,7 @@
 #include <linux/acpi.h>
 #include <linux/dmi.h>
 #include <linux/sched.h>       /* need_resched() */
-#include <linux/clockchips.h>
+#include <linux/tick.h>
 #include <linux/cpuidle.h>
 #include <linux/syscore_ops.h>
 #include <acpi/processor.h>
@@ -157,12 +157,11 @@ static void lapic_timer_check_state(int state, struct acpi_processor *pr,
 static void __lapic_timer_propagate_broadcast(void *arg)
 {
 	struct acpi_processor *pr = (struct acpi_processor *) arg;
-	unsigned long reason;
 
-	reason = pr->power.timer_broadcast_on_state < INT_MAX ?
-		CLOCK_EVT_NOTIFY_BROADCAST_ON : CLOCK_EVT_NOTIFY_BROADCAST_OFF;
-
-	clockevents_notify(reason, &pr->id);
+	if (pr->power.timer_broadcast_on_state < INT_MAX)
+		tick_broadcast_enable();
+	else
+		tick_broadcast_disable();
 }
 
 static void lapic_timer_propagate_broadcast(struct acpi_processor *pr)
