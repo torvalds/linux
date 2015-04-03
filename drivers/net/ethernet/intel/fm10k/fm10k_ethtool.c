@@ -118,6 +118,7 @@ enum fm10k_self_test_types {
 
 static void fm10k_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 {
+	struct fm10k_intfc *interface = netdev_priv(dev);
 	char *p = (char *)data;
 	int i;
 
@@ -138,7 +139,7 @@ static void fm10k_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 			p += ETH_GSTRING_LEN;
 		}
 
-		for (i = 0; i < MAX_QUEUES; i++) {
+		for (i = 0; i < interface->hw.mac.max_queues; i++) {
 			sprintf(p, "tx_queue_%u_packets", i);
 			p += ETH_GSTRING_LEN;
 			sprintf(p, "tx_queue_%u_bytes", i);
@@ -188,7 +189,7 @@ static void fm10k_get_ethtool_stats(struct net_device *netdev,
 			sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 	}
 
-	for (i = 0; i < MAX_QUEUES; i++) {
+	for (i = 0; i < interface->hw.mac.max_queues; i++) {
 		struct fm10k_ring *ring;
 		u64 *queue_stat;
 
