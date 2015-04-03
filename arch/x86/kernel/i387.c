@@ -290,7 +290,7 @@ static int fpu__unlazy_stopped(struct task_struct *child)
 	if (WARN_ON_ONCE(child == current))
 		return -EINVAL;
 
-	if (tsk_used_math(child)) {
+	if (child->flags & PF_USED_MATH) {
 		task_disable_lazy_fpu_restore(child);
 		return 0;
 	}
@@ -304,7 +304,9 @@ static int fpu__unlazy_stopped(struct task_struct *child)
 
 	fpu_finit(&child->thread.fpu);
 
-	set_stopped_child_used_math(child);
+	/* Safe to do for stopped child tasks: */
+	child->flags |= PF_USED_MATH;
+
 	return 0;
 }
 
