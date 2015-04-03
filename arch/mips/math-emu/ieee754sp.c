@@ -32,7 +32,7 @@ int ieee754sp_class(union ieee754sp x)
 
 int ieee754sp_isnan(union ieee754sp x)
 {
-	return ieee754sp_class(x) >= IEEE754_CLASS_SNAN;
+	return ieee754_class_nan(ieee754sp_class(x));
 }
 
 static inline int ieee754sp_issnan(union ieee754sp x)
