@@ -807,7 +807,7 @@ static void fm10k_napi_enable_all(struct fm10k_intfc *interface)
 	}
 }
 
-static irqreturn_t fm10k_msix_clean_rings(int irq, void *data)
+static irqreturn_t fm10k_msix_clean_rings(int __always_unused irq, void *data)
 {
 	struct fm10k_q_vector *q_vector = data;
 
@@ -817,7 +817,7 @@ static irqreturn_t fm10k_msix_clean_rings(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t fm10k_msix_mbx_vf(int irq, void *data)
+static irqreturn_t fm10k_msix_mbx_vf(int __always_unused irq, void *data)
 {
 	struct fm10k_intfc *interface = data;
 	struct fm10k_hw *hw = &interface->hw;
@@ -985,7 +985,7 @@ static void fm10k_reset_drop_on_empty(struct fm10k_intfc *interface, u32 eicr)
 	}
 }
 
-static irqreturn_t fm10k_msix_mbx_pf(int irq, void *data)
+static irqreturn_t fm10k_msix_mbx_pf(int __always_unused irq, void *data)
 {
 	struct fm10k_intfc *interface = data;
 	struct fm10k_hw *hw = &interface->hw;
@@ -1090,7 +1090,7 @@ static s32 fm10k_mbx_mac_addr(struct fm10k_hw *hw, u32 **results,
 }
 
 static s32 fm10k_1588_msg_vf(struct fm10k_hw *hw, u32 **results,
-			     struct fm10k_mbx_info *mbx)
+			     struct fm10k_mbx_info __always_unused *mbx)
 {
 	struct fm10k_intfc *interface;
 	u64 timestamp;
@@ -1110,7 +1110,7 @@ static s32 fm10k_1588_msg_vf(struct fm10k_hw *hw, u32 **results,
 
 /* generic error handler for mailbox issues */
 static s32 fm10k_mbx_error(struct fm10k_hw *hw, u32 **results,
-			   struct fm10k_mbx_info *mbx)
+			   struct fm10k_mbx_info __always_unused *mbx)
 {
 	struct fm10k_intfc *interface;
 	struct pci_dev *pdev;
@@ -1186,7 +1186,7 @@ static s32 fm10k_lport_map(struct fm10k_hw *hw, u32 **results,
 }
 
 static s32 fm10k_update_pvid(struct fm10k_hw *hw, u32 **results,
-			     struct fm10k_mbx_info *mbx)
+			     struct fm10k_mbx_info __always_unused *mbx)
 {
 	struct fm10k_intfc *interface;
 	u16 glort, pvid;
@@ -1227,7 +1227,7 @@ static s32 fm10k_update_pvid(struct fm10k_hw *hw, u32 **results,
 }
 
 static s32 fm10k_1588_msg_pf(struct fm10k_hw *hw, u32 **results,
-			     struct fm10k_mbx_info *mbx)
+			     struct fm10k_mbx_info __always_unused *mbx)
 {
 	struct fm10k_swapi_1588_timestamp timestamp;
 	struct fm10k_iov_data *iov_data;
@@ -2005,7 +2005,8 @@ static int fm10k_resume(struct pci_dev *pdev)
  * a sleep state.  The fm10k hardware does not support wake on lan so the
  * driver simply needs to shut down the device so it is in a low power state.
  **/
-static int fm10k_suspend(struct pci_dev *pdev, pm_message_t state)
+static int fm10k_suspend(struct pci_dev *pdev,
+			 pm_message_t __always_unused state)
 {
 	struct fm10k_intfc *interface = pci_get_drvdata(pdev);
 	struct net_device *netdev = interface->netdev;

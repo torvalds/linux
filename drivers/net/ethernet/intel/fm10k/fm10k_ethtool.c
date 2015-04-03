@@ -116,8 +116,7 @@ enum fm10k_self_test_types {
 	FM10K_TEST_MAX = FM10K_TEST_LEN
 };
 
-static void fm10k_get_strings(struct net_device *dev, u32 stringset,
-			      u8 *data)
+static void fm10k_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 {
 	char *p = (char *)data;
 	int i;
@@ -166,7 +165,8 @@ static int fm10k_get_sset_count(struct net_device *dev, int sset)
 }
 
 static void fm10k_get_ethtool_stats(struct net_device *netdev,
-				    struct ethtool_stats *stats, u64 *data)
+				    struct ethtool_stats __always_unused *stats,
+				    u64 *data)
 {
 	const int stat_count = sizeof(struct fm10k_queue_stats) / sizeof(u64);
 	struct fm10k_intfc *interface = netdev_priv(netdev);
@@ -644,7 +644,7 @@ static int fm10k_get_rss_hash_opts(struct fm10k_intfc *interface,
 }
 
 static int fm10k_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
-			   u32 *rule_locs)
+			   u32 __always_unused *rule_locs)
 {
 	struct fm10k_intfc *interface = netdev_priv(dev);
 	int ret = -EOPNOTSUPP;
@@ -850,7 +850,7 @@ static void fm10k_self_test(struct net_device *dev,
 		eth_test->flags |= ETH_TEST_FL_FAILED;
 }
 
-static u32 fm10k_get_reta_size(struct net_device *netdev)
+static u32 fm10k_get_reta_size(struct net_device __always_unused *netdev)
 {
 	return FM10K_RETA_SIZE * FM10K_RETA_ENTRIES_PER_REG;
 }
@@ -910,7 +910,7 @@ static int fm10k_set_reta(struct net_device *netdev, const u32 *indir)
 	return 0;
 }
 
-static u32 fm10k_get_rssrk_size(struct net_device *netdev)
+static u32 fm10k_get_rssrk_size(struct net_device __always_unused *netdev)
 {
 	return FM10K_RSSRK_SIZE * FM10K_RSSRK_ENTRIES_PER_REG;
 }
