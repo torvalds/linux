@@ -20,6 +20,7 @@ enum fwnode_type {
 
 struct fwnode_handle {
 	enum fwnode_type type;
+	struct fwnode_handle *secondary;
 };
 
 #endif

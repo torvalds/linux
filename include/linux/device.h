@@ -940,6 +940,9 @@ extern void unlock_device_hotplug(void);
 extern int lock_device_hotplug_sysfs(void);
 extern int device_offline(struct device *dev);
 extern int device_online(struct device *dev);
+extern void set_primary_fwnode(struct device *dev, struct fwnode_handle *fwnode);
+extern void set_secondary_fwnode(struct device *dev, struct fwnode_handle *fwnode);
+
 /*
  * Root device objects for grouping under /sys/devices
  */
