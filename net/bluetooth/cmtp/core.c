@@ -314,7 +314,7 @@ static int cmtp_session(void *arg)
 
 	down_write(&cmtp_session_sem);
 
-	if (!(session->flags & (1 << CMTP_LOOPBACK)))
+	if (!(session->flags & BIT(CMTP_LOOPBACK)))
 		cmtp_detach_device(session);
 
 	fput(session->sock->file);
@@ -390,7 +390,7 @@ int cmtp_add_connection(struct cmtp_connadd_req *req, struct socket *sock)
 		goto unlink;
 	}
 
-	if (!(session->flags & (1 << CMTP_LOOPBACK))) {
+	if (!(session->flags & BIT(CMTP_LOOPBACK))) {
 		err = cmtp_attach_device(session);
 		if (err < 0) {
 			atomic_inc(&session->terminate);
