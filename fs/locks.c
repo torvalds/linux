@@ -223,14 +223,7 @@ locks_get_lock_context(struct inode *inode, int type)
 	 * Assign the pointer if it's not already assigned. If it is, then
 	 * free the context we just allocated.
 	 */
-	spin_lock(&inode->i_lock);
-	if (likely(!inode->i_flctx)) {
-		inode->i_flctx = new;
-		new = NULL;
-	}
-	spin_unlock(&inode->i_lock);
-
-	if (new)
+	if (cmpxchg(&inode->i_flctx, NULL, new))
 		kmem_cache_free(flctx_cache, new);
 out:
 	return inode->i_flctx;
