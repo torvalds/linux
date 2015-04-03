@@ -1115,17 +1115,18 @@ emul:
 			likely = 0;
 			switch (MIPSInst_RT(ir) & 3) {
 			case bcfl_op:
-				likely = 1;
+				if (cpu_has_mips_2_3_4_5_r)
+					likely = 1;
+				/* Fall through */
 			case bcf_op:
 				cond = !cond;
 				break;
 			case bctl_op:
-				likely = 1;
+				if (cpu_has_mips_2_3_4_5_r)
+					likely = 1;
+				/* Fall through */
 			case bct_op:
 				break;
-			default:
-				/* thats an illegal instruction */
-				return SIGILL;
 			}
 
 			set_delay_slot(xcp);
@@ -1165,36 +1166,34 @@ emul:
 
 				switch (MIPSInst_OPCODE(ir)) {
 				case lwc1_op:
-					goto emul;
-
 				case swc1_op:
 					goto emul;
 
 				case ldc1_op:
 				case sdc1_op:
-					if (cpu_has_mips_2_3_4_5 ||
-					    cpu_has_mips64)
+					if (cpu_has_mips_2_3_4_5_r)
 						goto emul;
 
 					return SIGILL;
-					goto emul;
 
 				case cop1_op:
 					goto emul;
 
 				case cop1x_op:
-					if (cpu_has_mips_4_5 || cpu_has_mips64 || cpu_has_mips32r2)
+					if (cpu_has_mips_4_5_64_r2_r6)
 						/* its one of ours */
 						goto emul;
 
 					return SIGILL;
 
 				case spec_op:
-					if (!cpu_has_mips_4_5_r)
-						return SIGILL;
+					switch (MIPSInst_FUNC(ir)) {
+					case movc_op:
+						if (cpu_has_mips_4_5_r)
+							goto emul;
 
-					if (MIPSInst_FUNC(ir) == movc_op)
-						goto emul;
+						return SIGILL;
+					}
 					break;
 				}
 
@@ -1228,7 +1227,7 @@ emul:
 		break;
 
 	case cop1x_op:
-		if (!cpu_has_mips_4_5 && !cpu_has_mips64 && !cpu_has_mips32r2)
+		if (!cpu_has_mips_4_5_64_r2_r6)
 			return SIGILL;
 
 		sig = fpux_emu(xcp, ctx, ir, fault_addr);
@@ -1561,7 +1560,7 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 
 			/* unary  ops */
 		case fsqrt_op:
-			if (!cpu_has_mips_4_5_r)
+			if (!cpu_has_mips_2_3_4_5_r)
 				return SIGILL;
 
 			handler.u = ieee754sp_sqrt;
@@ -1573,14 +1572,14 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 		 * achieve full IEEE-754 accuracy - however this emulator does.
 		 */
 		case frsqrt_op:
-			if (!cpu_has_mips_4_5_r2_r6)
+			if (!cpu_has_mips_4_5_64_r2_r6)
 				return SIGILL;
 
 			handler.u = fpemu_sp_rsqrt;
 			goto scopuop;
 
 		case frecip_op:
-			if (!cpu_has_mips_4_5_r2_r6)
+			if (!cpu_has_mips_4_5_64_r2_r6)
 				return SIGILL;
 
 			handler.u = fpemu_sp_recip;
@@ -1682,7 +1681,7 @@ copcsr:
 		case ftrunc_op:
 		case fceil_op:
 		case ffloor_op:
-			if (!cpu_has_mips_2_3_4_5 && !cpu_has_mips64)
+			if (!cpu_has_mips_2_3_4_5_r)
 				return SIGILL;
 
 			oldrm = ieee754_csr.rm;
@@ -1694,7 +1693,7 @@ copcsr:
 			goto copcsr;
 
 		case fcvtl_op:
-			if (!cpu_has_mips_3_4_5 && !cpu_has_mips64)
+			if (!cpu_has_mips_3_4_5_64_r2_r6)
 				return SIGILL;
 
 			SPFROMREG(fs, MIPSInst_FS(ir));
@@ -1706,7 +1705,7 @@ copcsr:
 		case ftruncl_op:
 		case fceill_op:
 		case ffloorl_op:
-			if (!cpu_has_mips_3_4_5 && !cpu_has_mips64)
+			if (!cpu_has_mips_3_4_5_64_r2_r6)
 				return SIGILL;
 
 			oldrm = ieee754_csr.rm;
@@ -1775,13 +1774,13 @@ copcsr:
 		 * achieve full IEEE-754 accuracy - however this emulator does.
 		 */
 		case frsqrt_op:
-			if (!cpu_has_mips_4_5_r2_r6)
+			if (!cpu_has_mips_4_5_64_r2_r6)
 				return SIGILL;
 
 			handler.u = fpemu_dp_rsqrt;
 			goto dcopuop;
 		case frecip_op:
-			if (!cpu_has_mips_4_5_r2_r6)
+			if (!cpu_has_mips_4_5_64_r2_r6)
 				return SIGILL;
 
 			handler.u = fpemu_dp_recip;
@@ -1871,7 +1870,7 @@ dcopuop:
 			goto copcsr;
 
 		case fcvtl_op:
-			if (!cpu_has_mips_3_4_5 && !cpu_has_mips64)
+			if (!cpu_has_mips_3_4_5_64_r2_r6)
 				return SIGILL;
 
 			DPFROMREG(fs, MIPSInst_FS(ir));
@@ -1883,7 +1882,7 @@ dcopuop:
 		case ftruncl_op:
 		case fceill_op:
 		case ffloorl_op:
-			if (!cpu_has_mips_3_4_5 && !cpu_has_mips64)
+			if (!cpu_has_mips_3_4_5_64_r2_r6)
 				return SIGILL;
 
 			oldrm = ieee754_csr.rm;
@@ -1942,7 +1941,7 @@ dcopuop:
 
 	case l_fmt:
 
-		if (!cpu_has_mips_3_4_5 && !cpu_has_mips64)
+		if (!cpu_has_mips_3_4_5_64_r2_r6)
 			return SIGILL;
 
 		DIFROMREG(bits, MIPSInst_FS(ir));
@@ -2006,7 +2005,7 @@ dcopuop:
 		SITOREG(rv.w, MIPSInst_FD(ir));
 		break;
 	case l_fmt:
-		if (!cpu_has_mips_3_4_5 && !cpu_has_mips64)
+		if (!cpu_has_mips_3_4_5_64_r2_r6)
 			return SIGILL;
 
 		DITOREG(rv.l, MIPSInst_FD(ir));

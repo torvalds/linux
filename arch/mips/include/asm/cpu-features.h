@@ -221,8 +221,11 @@
 #define cpu_has_mips_4_5_r	(cpu_has_mips_4 | cpu_has_mips_5_r)
 #define cpu_has_mips_5_r	(cpu_has_mips_5 | cpu_has_mips_r)
 
-#define cpu_has_mips_4_5_r2_r6	(cpu_has_mips_4_5 | cpu_has_mips_r2 | \
-				 cpu_has_mips_r6)
+#define cpu_has_mips_3_4_5_64_r2_r6					\
+				(cpu_has_mips_3 | cpu_has_mips_4_5_64_r2_r6)
+#define cpu_has_mips_4_5_64_r2_r6					\
+				(cpu_has_mips_4_5 | cpu_has_mips64r1 |	\
+				 cpu_has_mips_r2 | cpu_has_mips_r6)
 
 #define cpu_has_mips32	(cpu_has_mips32r1 | cpu_has_mips32r2 | cpu_has_mips32r6)
 #define cpu_has_mips64	(cpu_has_mips64r1 | cpu_has_mips64r2 | cpu_has_mips64r6)

@@ -1349,19 +1349,18 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 
 	case 3:
 		/*
-		 * Old (MIPS I and MIPS II) processors will set this code
-		 * for COP1X opcode instructions that replaced the original
-		 * COP3 space.	We don't limit COP1 space instructions in
-		 * the emulator according to the CPU ISA, so we want to
-		 * treat COP1X instructions consistently regardless of which
-		 * code the CPU chose.	Therefore we redirect this trap to
-		 * the FP emulator too.
-		 *
-		 * Then some newer FPU-less processors use this code
-		 * erroneously too, so they are covered by this choice
-		 * as well.
+		 * The COP3 opcode space and consequently the CP0.Status.CU3
+		 * bit and the CP0.Cause.CE=3 encoding have been removed as
+		 * of the MIPS III ISA.  From the MIPS IV and MIPS32r2 ISAs
+		 * up the space has been reused for COP1X instructions, that
+		 * are enabled by the CP0.Status.CU1 bit and consequently
+		 * use the CP0.Cause.CE=1 encoding for Coprocessor Unusable
+		 * exceptions.  Some FPU-less processors that implement one
+		 * of these ISAs however use this code erroneously for COP1X
+		 * instructions.  Therefore we redirect this trap to the FP
+		 * emulator too.
 		 */
-		if (raw_cpu_has_fpu) {
+		if (raw_cpu_has_fpu || !cpu_has_mips_4_5_64_r2_r6) {
 			force_sig(SIGILL, current);
 			break;
 		}
