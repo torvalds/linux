@@ -239,13 +239,13 @@ static struct drm_crtc_funcs exynos_crtc_funcs = {
 };
 
 struct exynos_drm_crtc *exynos_drm_crtc_create(struct drm_device *drm_dev,
+					       struct drm_plane *plane,
 					       int pipe,
 					       enum exynos_drm_output_type type,
 					       struct exynos_drm_crtc_ops *ops,
 					       void *ctx)
 {
 	struct exynos_drm_crtc *exynos_crtc;
-	struct drm_plane *plane;
 	struct exynos_drm_private *private = drm_dev->dev_private;
 	struct drm_crtc *crtc;
 	int ret;
@@ -262,12 +262,6 @@ struct exynos_drm_crtc *exynos_drm_crtc_create(struct drm_device *drm_dev,
 	exynos_crtc->type = type;
 	exynos_crtc->ops = ops;
 	exynos_crtc->ctx = ctx;
-	plane = exynos_plane_init(drm_dev, 1 << pipe,
-				  DRM_PLANE_TYPE_PRIMARY);
-	if (IS_ERR(plane)) {
-		ret = PTR_ERR(plane);
-		goto err_plane;
-	}
 
 	crtc = &exynos_crtc->base;
 
@@ -284,7 +278,6 @@ struct exynos_drm_crtc *exynos_drm_crtc_create(struct drm_device *drm_dev,
 
 err_crtc:
 	plane->funcs->destroy(plane);
-err_plane:
 	kfree(exynos_crtc);
 	return ERR_PTR(ret);
 }

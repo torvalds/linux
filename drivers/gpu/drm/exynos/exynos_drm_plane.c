@@ -92,7 +92,6 @@ void exynos_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
 			  uint32_t src_w, uint32_t src_h)
 {
 	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
-	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 	unsigned int actual_w;
 	unsigned int actual_h;
 
@@ -139,9 +138,6 @@ void exynos_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
 			exynos_plane->crtc_width, exynos_plane->crtc_height);
 
 	plane->crtc = crtc;
-
-	if (exynos_crtc->ops->win_mode_set)
-		exynos_crtc->ops->win_mode_set(exynos_crtc, exynos_plane);
 }
 
 int
@@ -184,11 +180,8 @@ static int exynos_disable_plane(struct drm_plane *plane)
 
 static void exynos_plane_destroy(struct drm_plane *plane)
 {
-	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
-
 	exynos_disable_plane(plane);
 	drm_plane_cleanup(plane);
-	kfree(exynos_plane);
 }
 
 static int exynos_plane_set_property(struct drm_plane *plane,
@@ -233,24 +226,18 @@ static void exynos_plane_attach_zpos_property(struct drm_plane *plane)
 	drm_object_attach_property(&plane->base, prop, 0);
 }
 
-struct drm_plane *exynos_plane_init(struct drm_device *dev,
-				    unsigned long possible_crtcs,
-				    enum drm_plane_type type)
+int exynos_plane_init(struct drm_device *dev,
+		      struct exynos_drm_plane *exynos_plane,
+		      unsigned long possible_crtcs, enum drm_plane_type type)
 {
-	struct exynos_drm_plane *exynos_plane;
 	int err;
-
-	exynos_plane = kzalloc(sizeof(struct exynos_drm_plane), GFP_KERNEL);
-	if (!exynos_plane)
-		return ERR_PTR(-ENOMEM);
 
 	err = drm_universal_plane_init(dev, &exynos_plane->base, possible_crtcs,
 				       &exynos_plane_funcs, formats,
 				       ARRAY_SIZE(formats), type);
 	if (err) {
 		DRM_ERROR("failed to initialize plane\n");
-		kfree(exynos_plane);
-		return ERR_PTR(err);
+		return err;
 	}
 
 	if (type == DRM_PLANE_TYPE_PRIMARY)
@@ -258,5 +245,5 @@ struct drm_plane *exynos_plane_init(struct drm_device *dev,
 	else
 		exynos_plane_attach_zpos_property(&exynos_plane->base);
 
-	return &exynos_plane->base;
+	return 0;
 }

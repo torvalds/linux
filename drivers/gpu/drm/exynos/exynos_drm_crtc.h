@@ -18,6 +18,7 @@
 #include "exynos_drm_drv.h"
 
 struct exynos_drm_crtc *exynos_drm_crtc_create(struct drm_device *drm_dev,
+					       struct drm_plane *plane,
 					       int pipe,
 					       enum exynos_drm_output_type type,
 					       struct exynos_drm_crtc_ops *ops,

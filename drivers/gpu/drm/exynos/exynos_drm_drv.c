@@ -55,7 +55,6 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 {
 	struct exynos_drm_private *private;
 	int ret;
-	int nr;
 
 	private = kzalloc(sizeof(struct exynos_drm_private), GFP_KERNEL);
 	if (!private)
@@ -80,19 +79,6 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 	drm_mode_config_init(dev);
 
 	exynos_drm_mode_config_init(dev);
-
-	for (nr = 0; nr < MAX_PLANE; nr++) {
-		struct drm_plane *plane;
-		unsigned long possible_crtcs = (1 << MAX_CRTC) - 1;
-
-		plane = exynos_plane_init(dev, possible_crtcs,
-					  DRM_PLANE_TYPE_OVERLAY);
-		if (!IS_ERR(plane))
-			continue;
-
-		ret = PTR_ERR(plane);
-		goto err_mode_config_cleanup;
-	}
 
 	/* setup possible_clones. */
 	exynos_drm_encoder_setup(dev);
