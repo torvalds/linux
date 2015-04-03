@@ -26,7 +26,7 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 #include <linux/cpu.h>
-#include <linux/clockchips.h>
+#include <linux/tick.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
 #include <asm/mwait.h>
@@ -172,9 +172,8 @@ static int power_saving_thread(void *data)
 				mark_tsc_unstable("TSC halts in idle");
 				tsc_marked_unstable = 1;
 			}
-			clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ON, &cpu);
-
 			local_irq_disable();
+			tick_broadcast_enable();
 			cpu = smp_processor_id();
 			clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &cpu);
 			stop_critical_timings();
