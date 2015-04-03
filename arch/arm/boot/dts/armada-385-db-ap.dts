@@ -125,6 +125,13 @@
 				status = "okay";
 			};
 
+			pinctrl@18000 {
+				xhci0_vbus_pins: xhci0-vbus-pins {
+					marvell,pins = "mpp44";
+					marvell,function = "gpio";
+				};
+			};
+
 			ethernet@30000 {
 				status = "okay";
 				phy = <&phy2>;
@@ -162,6 +169,11 @@
 				marvell,nand-enable-arbiter;
 				nand-on-flash-bbt;
 			};
+
+			usb3@f0000 {
+				status = "okay";
+				usb-phy = <&usb3_phy>;
+			};
 		};
 
 		pcie-controller {
@@ -186,5 +198,21 @@
 				status = "okay";
 			};
 		};
+	};
+
+	usb3_phy: usb3_phy {
+		compatible = "usb-nop-xceiv";
+		vcc-supply = <&reg_xhci0_vbus>;
+	};
+
+	reg_xhci0_vbus: xhci0-vbus {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&xhci0_vbus_pins>;
+		regulator-name = "xhci0-vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&gpio1 12 GPIO_ACTIVE_HIGH>;
 	};
 };

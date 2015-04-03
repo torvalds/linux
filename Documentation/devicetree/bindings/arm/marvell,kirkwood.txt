@@ -42,6 +42,7 @@ board. Currently known boards are:
 "lacie,cloudbox"
 "lacie,inetspace_v2"
 "lacie,laplug"
+"lacie,nas2big"
 "lacie,netspace_lite_v2"
 "lacie,netspace_max_v2"
 "lacie,netspace_mini_v2"

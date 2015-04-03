@@ -73,6 +73,11 @@
 		};
 	};
 
+	pmu {
+		compatible = "arm,cortex-a9-pmu";
+		interrupts-extended = <&mpic 3>;
+	};
+
 	soc {
 		#address-cells = <2>;
 		#size-cells = <1>;
