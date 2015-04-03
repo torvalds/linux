@@ -775,7 +775,7 @@ MODULE_DEVICE_TABLE(acpi, sx9500_acpi_match);
 
 static const struct i2c_device_id sx9500_id[] = {
 	{"sx9500", 0},
-	{}
+	{ },
 };
 MODULE_DEVICE_TABLE(i2c, sx9500_id);
 
