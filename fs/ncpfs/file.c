@@ -249,8 +249,6 @@ static int ncp_release(struct inode *inode, struct file *file) {
 const struct file_operations ncp_file_operations =
 {
 	.llseek		= generic_file_llseek,
-	.read		= new_sync_read,
-	.write		= new_sync_write,
 	.read_iter	= ncp_file_read_iter,
 	.write_iter	= ncp_file_write_iter,
 	.unlocked_ioctl	= ncp_ioctl,

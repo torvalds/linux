@@ -2953,9 +2953,7 @@ out:
 
 static const struct file_operations fuse_file_operations = {
 	.llseek		= fuse_file_llseek,
-	.read		= new_sync_read,
 	.read_iter	= fuse_file_read_iter,
-	.write		= new_sync_write,
 	.write_iter	= fuse_file_write_iter,
 	.mmap		= fuse_file_mmap,
 	.open		= fuse_open,
@@ -2973,9 +2971,7 @@ static const struct file_operations fuse_file_operations = {
 
 static const struct file_operations fuse_direct_io_file_operations = {
 	.llseek		= fuse_file_llseek,
-	.read		= new_sync_read,
 	.read_iter	= fuse_direct_read_iter,
-	.write		= new_sync_write,
 	.write_iter	= fuse_direct_write_iter,
 	.mmap		= fuse_direct_mmap,
 	.open		= fuse_open,

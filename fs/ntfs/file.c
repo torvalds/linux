@@ -2048,10 +2048,8 @@ static int ntfs_file_fsync(struct file *filp, loff_t start, loff_t end,
 
 const struct file_operations ntfs_file_ops = {
 	.llseek		= generic_file_llseek,
-	.read		= new_sync_read,
 	.read_iter	= generic_file_read_iter,
 #ifdef NTFS_RW
-	.write		= new_sync_write,
 	.write_iter	= ntfs_file_write_iter,
 	.fsync		= ntfs_file_fsync,
 #endif /* NTFS_RW */

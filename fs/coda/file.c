@@ -219,8 +219,6 @@ int coda_fsync(struct file *coda_file, loff_t start, loff_t end, int datasync)
 
 const struct file_operations coda_file_operations = {
 	.llseek		= generic_file_llseek,
-	.read		= new_sync_read,
-	.write		= new_sync_write,
 	.read_iter	= coda_file_read_iter,
 	.write_iter	= coda_file_write_iter,
 	.mmap		= coda_file_mmap,

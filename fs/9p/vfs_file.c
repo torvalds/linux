@@ -641,8 +641,6 @@ static const struct vm_operations_struct v9fs_mmap_file_vm_ops = {
 
 const struct file_operations v9fs_cached_file_operations = {
 	.llseek = generic_file_llseek,
-	.read = new_sync_read,
-	.write = new_sync_write,
 	.read_iter = generic_file_read_iter,
 	.write_iter = generic_file_write_iter,
 	.open = v9fs_file_open,
@@ -654,8 +652,6 @@ const struct file_operations v9fs_cached_file_operations = {
 
 const struct file_operations v9fs_cached_file_operations_dotl = {
 	.llseek = generic_file_llseek,
-	.read = new_sync_read,
-	.write = new_sync_write,
 	.read_iter = generic_file_read_iter,
 	.write_iter = generic_file_write_iter,
 	.open = v9fs_file_open,
@@ -668,8 +664,6 @@ const struct file_operations v9fs_cached_file_operations_dotl = {
 
 const struct file_operations v9fs_file_operations = {
 	.llseek = generic_file_llseek,
-	.read = new_sync_read,
-	.write = new_sync_write,
 	.read_iter = v9fs_file_read_iter,
 	.write_iter = v9fs_file_write_iter,
 	.open = v9fs_file_open,
@@ -681,8 +675,6 @@ const struct file_operations v9fs_file_operations = {
 
 const struct file_operations v9fs_file_operations_dotl = {
 	.llseek = generic_file_llseek,
-	.read = new_sync_read,
-	.write = new_sync_write,
 	.read_iter = v9fs_file_read_iter,
 	.write_iter = v9fs_file_write_iter,
 	.open = v9fs_file_open,
@@ -695,8 +687,6 @@ const struct file_operations v9fs_file_operations_dotl = {
 
 const struct file_operations v9fs_mmap_file_operations = {
 	.llseek = generic_file_llseek,
-	.read = new_sync_read,
-	.write = new_sync_write,
 	.read_iter = v9fs_mmap_file_read_iter,
 	.write_iter = v9fs_mmap_file_write_iter,
 	.open = v9fs_file_open,
@@ -708,8 +698,6 @@ const struct file_operations v9fs_mmap_file_operations = {
 
 const struct file_operations v9fs_mmap_file_operations_dotl = {
 	.llseek = generic_file_llseek,
-	.read = new_sync_read,
-	.write = new_sync_write,
 	.read_iter = v9fs_mmap_file_read_iter,
 	.write_iter = v9fs_mmap_file_write_iter,
 	.open = v9fs_file_open,

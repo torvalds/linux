@@ -177,8 +177,6 @@ static long cuse_file_compat_ioctl(struct file *file, unsigned int cmd,
 
 static const struct file_operations cuse_frontend_fops = {
 	.owner			= THIS_MODULE,
-	.read			= new_sync_read,
-	.write			= new_sync_write,
 	.read_iter		= cuse_read_iter,
 	.write_iter		= cuse_write_iter,
 	.open			= cuse_open,

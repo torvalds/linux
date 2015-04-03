@@ -764,7 +764,6 @@ static const struct file_operations __maybe_unused port_fops = {
 
 static const struct file_operations zero_fops = {
 	.llseek		= zero_lseek,
-	.read		= new_sync_read,
 	.write		= write_zero,
 	.read_iter	= read_iter_zero,
 	.aio_write	= aio_write_zero,
@@ -776,7 +775,6 @@ static const struct file_operations zero_fops = {
 
 static const struct file_operations full_fops = {
 	.llseek		= full_lseek,
-	.read		= new_sync_read,
 	.read_iter	= read_iter_zero,
 	.write		= write_full,
 };

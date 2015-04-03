@@ -28,7 +28,6 @@ typedef ssize_t (*iter_fn_t)(struct kiocb *, struct iov_iter *);
 
 const struct file_operations generic_ro_fops = {
 	.llseek		= generic_file_llseek,
-	.read		= new_sync_read,
 	.read_iter	= generic_file_read_iter,
 	.mmap		= generic_file_readonly_mmap,
 	.splice_read	= generic_file_splice_read,
@@ -428,7 +427,7 @@ ssize_t do_sync_read(struct file *filp, char __user *buf, size_t len, loff_t *pp
 
 EXPORT_SYMBOL(do_sync_read);
 
-ssize_t new_sync_read(struct file *filp, char __user *buf, size_t len, loff_t *ppos)
+static ssize_t new_sync_read(struct file *filp, char __user *buf, size_t len, loff_t *ppos)
 {
 	struct iovec iov = { .iov_base = buf, .iov_len = len };
 	struct kiocb kiocb;
@@ -444,8 +443,6 @@ ssize_t new_sync_read(struct file *filp, char __user *buf, size_t len, loff_t *p
 	*ppos = kiocb.ki_pos;
 	return ret;
 }
-
-EXPORT_SYMBOL(new_sync_read);
 
 ssize_t __vfs_read(struct file *file, char __user *buf, size_t count,
 		   loff_t *pos)
@@ -505,7 +502,7 @@ ssize_t do_sync_write(struct file *filp, const char __user *buf, size_t len, lof
 
 EXPORT_SYMBOL(do_sync_write);
 
-ssize_t new_sync_write(struct file *filp, const char __user *buf, size_t len, loff_t *ppos)
+static ssize_t new_sync_write(struct file *filp, const char __user *buf, size_t len, loff_t *ppos)
 {
 	struct iovec iov = { .iov_base = (void __user *)buf, .iov_len = len };
 	struct kiocb kiocb;
@@ -521,8 +518,6 @@ ssize_t new_sync_write(struct file *filp, const char __user *buf, size_t len, lo
 	*ppos = kiocb.ki_pos;
 	return ret;
 }
-
-EXPORT_SYMBOL(new_sync_write);
 
 ssize_t __vfs_write(struct file *file, const char __user *p, size_t count,
 		    loff_t *pos)

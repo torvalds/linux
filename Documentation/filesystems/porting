@@ -471,3 +471,12 @@ in your dentry operations instead.
 [mandatory]
 	f_dentry is gone; use f_path.dentry, or, better yet, see if you can avoid
 	it entirely.
+--
+[mandatory]
+	never call ->read() and ->write() directly; use __vfs_{read,write} or
+	wrappers; instead of checking for ->write or ->read being NULL, look for
+	FMODE_CAN_{WRITE,READ} in file->f_mode.
+--
+[mandatory]
+	do _not_ use new_sync_{read,write} for ->read/->write; leave it NULL
+	instead.
