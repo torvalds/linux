@@ -655,16 +655,6 @@ int clockevents_notify(unsigned long reason, void *arg)
 	raw_spin_lock_irqsave(&clockevents_lock, flags);
 
 	switch (reason) {
-	case CLOCK_EVT_NOTIFY_BROADCAST_ON:
-		tick_broadcast_enable();
-		break;
-	case CLOCK_EVT_NOTIFY_BROADCAST_OFF:
-		tick_broadcast_disable();
-		break;
-	case CLOCK_EVT_NOTIFY_BROADCAST_FORCE:
-		tick_broadcast_force();
-		break;
-
 	case CLOCK_EVT_NOTIFY_BROADCAST_ENTER:
 	case CLOCK_EVT_NOTIFY_BROADCAST_EXIT:
 		ret = tick_broadcast_oneshot_control(reason);
