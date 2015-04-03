@@ -84,6 +84,8 @@ static const struct fm10k_stats fm10k_gstrings_global_stats[] = {
 	FM10K_STAT("mbx_rx_dwords", hw.mbx.rx_dwords),
 	FM10K_STAT("mbx_rx_parse_err", hw.mbx.rx_parse_err),
 
+	FM10K_STAT("tx_hang_count", tx_timeout_count),
+
 	FM10K_STAT("tx_hwtstamp_timeouts", tx_hwtstamp_timeouts),
 };
 
