@@ -395,7 +395,7 @@ int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 
 		if (__copy_from_user(&fpu->state->xsave, buf_fx, state_size) ||
 		    __copy_from_user(&env, buf, sizeof(env))) {
-			fpu_finit(fpu);
+			fpstate_init(fpu);
 			err = -1;
 		} else {
 			sanitize_restored_xstate(tsk, &env, xstate_bv, fx_only);

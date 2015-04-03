@@ -7011,7 +7011,7 @@ int fx_init(struct kvm_vcpu *vcpu)
 	if (err)
 		return err;
 
-	fpu_finit(&vcpu->arch.guest_fpu);
+	fpstate_init(&vcpu->arch.guest_fpu);
 	if (cpu_has_xsaves)
 		vcpu->arch.guest_fpu.state->xsave.xsave_hdr.xcomp_bv =
 			host_xcr0 | XSTATE_COMPACTION_ENABLED;

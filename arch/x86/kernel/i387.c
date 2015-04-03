@@ -225,7 +225,7 @@ void fpu_init(void)
 	eager_fpu_init();
 }
 
-void fpu_finit(struct fpu *fpu)
+void fpstate_init(struct fpu *fpu)
 {
 	if (!cpu_has_fpu) {
 		finit_soft_fpu(&fpu->state->soft);
@@ -244,7 +244,7 @@ void fpu_finit(struct fpu *fpu)
 		fp->fos = 0xffff0000u;
 	}
 }
-EXPORT_SYMBOL_GPL(fpu_finit);
+EXPORT_SYMBOL_GPL(fpstate_init);
 
 int fpstate_alloc(struct fpu *fpu)
 {
@@ -284,7 +284,7 @@ int fpstate_alloc_init(struct task_struct *curr)
 	if (ret)
 		return ret;
 
-	fpu_finit(&curr->thread.fpu);
+	fpstate_init(&curr->thread.fpu);
 
 	/* Safe to do for the current task: */
 	curr->flags |= PF_USED_MATH;
@@ -318,7 +318,7 @@ static int fpu__unlazy_stopped(struct task_struct *child)
 	if (ret)
 		return ret;
 
-	fpu_finit(&child->thread.fpu);
+	fpstate_init(&child->thread.fpu);
 
 	/* Safe to do for stopped child tasks: */
 	child->flags |= PF_USED_MATH;
