@@ -602,7 +602,7 @@ static inline void fpu_copy(struct task_struct *dst, struct task_struct *src)
 		struct fpu *dfpu = &dst->thread.fpu;
 		struct fpu *sfpu = &src->thread.fpu;
 
-		unlazy_fpu(src);
+		fpu__save(src);
 		memcpy(dfpu->state, sfpu->state, xstate_size);
 	}
 }

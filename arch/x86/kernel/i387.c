@@ -117,7 +117,7 @@ void __kernel_fpu_end(void)
 }
 EXPORT_SYMBOL(__kernel_fpu_end);
 
-void unlazy_fpu(struct task_struct *tsk)
+void fpu__save(struct task_struct *tsk)
 {
 	preempt_disable();
 	if (__thread_has_fpu(tsk)) {
@@ -130,7 +130,7 @@ void unlazy_fpu(struct task_struct *tsk)
 	}
 	preempt_enable();
 }
-EXPORT_SYMBOL(unlazy_fpu);
+EXPORT_SYMBOL(fpu__save);
 
 unsigned int mxcsr_feature_mask __read_mostly = 0xffffffffu;
 unsigned int xstate_size;
@@ -251,7 +251,7 @@ int init_fpu(struct task_struct *tsk)
 
 	if (tsk_used_math(tsk)) {
 		if (cpu_has_fpu && tsk == current)
-			unlazy_fpu(tsk);
+			fpu__save(tsk);
 		task_disable_lazy_fpu_restore(tsk);
 		return 0;
 	}
