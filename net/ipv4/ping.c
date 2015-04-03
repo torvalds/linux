@@ -516,7 +516,7 @@ void ping_err(struct sk_buff *skb, int offset, u32 info)
 		 ntohs(icmph->un.echo.sequence));
 
 	sk = ping_lookup(net, skb, ntohs(icmph->un.echo.id));
-	if (sk == NULL) {
+	if (!sk) {
 		pr_debug("no socket, dropping\n");
 		return;	/* No socket for error */
 	}

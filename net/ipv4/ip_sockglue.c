@@ -351,7 +351,7 @@ int ip_ra_control(struct sock *sk, unsigned char on,
 			return 0;
 		}
 	}
-	if (new_ra == NULL) {
+	if (!new_ra) {
 		spin_unlock_bh(&ip_ra_lock);
 		return -ENOBUFS;
 	}
@@ -482,7 +482,7 @@ int ip_recv_error(struct sock *sk, struct msghdr *msg, int len, int *addr_len)
 
 	err = -EAGAIN;
 	skb = sock_dequeue_err_skb(sk);
-	if (skb == NULL)
+	if (!skb)
 		goto out;
 
 	copied = skb->len;

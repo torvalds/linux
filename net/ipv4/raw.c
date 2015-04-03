@@ -363,7 +363,7 @@ static int raw_send_hdrinc(struct sock *sk, struct flowi4 *fl4,
 	skb = sock_alloc_send_skb(sk,
 				  length + hlen + tlen + 15,
 				  flags & MSG_DONTWAIT, &err);
-	if (skb == NULL)
+	if (!skb)
 		goto error;
 	skb_reserve(skb, hlen);
 

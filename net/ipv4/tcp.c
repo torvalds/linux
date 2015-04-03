@@ -1047,7 +1047,7 @@ static int tcp_sendmsg_fastopen(struct sock *sk, struct msghdr *msg,
 
 	tp->fastopen_req = kzalloc(sizeof(struct tcp_fastopen_request),
 				   sk->sk_allocation);
-	if (unlikely(tp->fastopen_req == NULL))
+	if (unlikely(!tp->fastopen_req))
 		return -ENOBUFS;
 	tp->fastopen_req->data = msg;
 	tp->fastopen_req->size = size;

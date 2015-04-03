@@ -149,7 +149,7 @@ static struct sk_buff **gre_gro_receive(struct sk_buff **head,
 
 	rcu_read_lock();
 	ptype = gro_find_receive_by_type(type);
-	if (ptype == NULL)
+	if (!ptype)
 		goto out_unlock;
 
 	grehlen = GRE_HEADER_SECTION;
