@@ -57,7 +57,7 @@ static const struct fm10k_stats fm10k_gstrings_net_stats[] = {
 	.stat_offset = offsetof(struct fm10k_intfc, _stat) \
 }
 
-static const struct fm10k_stats fm10k_gstrings_stats[] = {
+static const struct fm10k_stats fm10k_gstrings_global_stats[] = {
 	FM10K_STAT("tx_restart_queue", restart_queue),
 	FM10K_STAT("tx_busy", tx_busy),
 	FM10K_STAT("tx_csum_errors", tx_csum_errors),
@@ -71,15 +71,6 @@ static const struct fm10k_stats fm10k_gstrings_stats[] = {
 	FM10K_STAT("rx_drops_nic", rx_drops_nic),
 	FM10K_STAT("rx_overrun_pf", rx_overrun_pf),
 	FM10K_STAT("rx_overrun_vf", rx_overrun_vf),
-
-	FM10K_STAT("timeout", stats.timeout.count),
-	FM10K_STAT("ur", stats.ur.count),
-	FM10K_STAT("ca", stats.ca.count),
-	FM10K_STAT("um", stats.um.count),
-	FM10K_STAT("xec", stats.xec.count),
-	FM10K_STAT("vlan_drop", stats.vlan_drop.count),
-	FM10K_STAT("loopback_drop", stats.loopback_drop.count),
-	FM10K_STAT("nodesc_drop", stats.nodesc_drop.count),
 
 	FM10K_STAT("swapi_status", hw.swapi.status),
 	FM10K_STAT("mac_rules_used", hw.swapi.mac.used),
@@ -96,7 +87,19 @@ static const struct fm10k_stats fm10k_gstrings_stats[] = {
 	FM10K_STAT("tx_hwtstamp_timeouts", tx_hwtstamp_timeouts),
 };
 
-#define FM10K_GLOBAL_STATS_LEN ARRAY_SIZE(fm10k_gstrings_stats)
+static const struct fm10k_stats fm10k_gstrings_pf_stats[] = {
+	FM10K_STAT("timeout", stats.timeout.count),
+	FM10K_STAT("ur", stats.ur.count),
+	FM10K_STAT("ca", stats.ca.count),
+	FM10K_STAT("um", stats.um.count),
+	FM10K_STAT("xec", stats.xec.count),
+	FM10K_STAT("vlan_drop", stats.vlan_drop.count),
+	FM10K_STAT("loopback_drop", stats.loopback_drop.count),
+	FM10K_STAT("nodesc_drop", stats.nodesc_drop.count),
+};
+
+#define FM10K_GLOBAL_STATS_LEN ARRAY_SIZE(fm10k_gstrings_global_stats)
+#define FM10K_PF_STATS_LEN ARRAY_SIZE(fm10k_gstrings_pf_stats)
 
 #define FM10K_QUEUE_STATS_LEN(_n) \
 	( (_n) * 2 * (sizeof(struct fm10k_queue_stats) / sizeof(u64)))
@@ -133,10 +136,17 @@ static void fm10k_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 			p += ETH_GSTRING_LEN;
 		}
 		for (i = 0; i < FM10K_GLOBAL_STATS_LEN; i++) {
-			memcpy(p, fm10k_gstrings_stats[i].stat_string,
+			memcpy(p, fm10k_gstrings_global_stats[i].stat_string,
 			       ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
+
+		if (interface->hw.mac.type != fm10k_mac_vf)
+			for (i = 0; i < FM10K_PF_STATS_LEN; i++) {
+				memcpy(p, fm10k_gstrings_pf_stats[i].stat_string,
+				       ETH_GSTRING_LEN);
+				p += ETH_GSTRING_LEN;
+			}
 
 		for (i = 0; i < interface->hw.mac.max_queues; i++) {
 			sprintf(p, "tx_queue_%u_packets", i);
@@ -163,6 +173,10 @@ static int fm10k_get_sset_count(struct net_device *dev, int sset)
 		return FM10K_TEST_LEN;
 	case ETH_SS_STATS:
 		stats_len += FM10K_QUEUE_STATS_LEN(hw->mac.max_queues);
+
+		if (hw->mac.type != fm10k_mac_vf)
+			stats_len += FM10K_PF_STATS_LEN;
+
 		return stats_len;
 	default:
 		return -EOPNOTSUPP;
@@ -188,10 +202,19 @@ static void fm10k_get_ethtool_stats(struct net_device *netdev,
 	}
 
 	for (i = 0; i < FM10K_GLOBAL_STATS_LEN; i++) {
-		p = (char *)interface + fm10k_gstrings_stats[i].stat_offset;
-		*(data++) = (fm10k_gstrings_stats[i].sizeof_stat ==
+		p = (char *)interface +
+		    fm10k_gstrings_global_stats[i].stat_offset;
+		*(data++) = (fm10k_gstrings_global_stats[i].sizeof_stat ==
 			sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 	}
+
+	if (interface->hw.mac.type != fm10k_mac_vf)
+		for (i = 0; i < FM10K_PF_STATS_LEN; i++) {
+			p = (char *)interface +
+			    fm10k_gstrings_pf_stats[i].stat_offset;
+			*(data++) = (fm10k_gstrings_pf_stats[i].sizeof_stat ==
+				     sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
+		}
 
 	for (i = 0; i < interface->hw.mac.max_queues; i++) {
 		struct fm10k_ring *ring;
