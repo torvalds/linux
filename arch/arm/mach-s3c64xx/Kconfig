@@ -189,6 +189,7 @@ endchoice
 config SMDK6410_WM1190_EV1
 	bool "Support Wolfson Microelectronics 1190-EV1 PMIC card"
 	depends on MACH_SMDK6410
+	depends on I2C=y
 	select MFD_WM8350_I2C
 	select REGULATOR
 	select REGULATOR_WM8350
@@ -203,6 +204,7 @@ config SMDK6410_WM1190_EV1
 config SMDK6410_WM1192_EV1
 	bool "Support Wolfson Microelectronics 1192-EV1 PMIC card"
 	depends on MACH_SMDK6410
+	depends on I2C=y
 	select MFD_WM831X
 	select MFD_WM831X_I2C
 	select REGULATOR
@@ -269,8 +271,8 @@ config MACH_SMARTQ7
 
 config MACH_WLF_CRAGG_6410
 	bool "Wolfson Cragganmore 6410"
+	depends on I2C=y
 	select CPU_S3C6410
-	select I2C
 	select LEDS_GPIO_REGISTER
 	select S3C64XX_DEV_SPI0
 	select S3C64XX_SETUP_FB_24BPP
