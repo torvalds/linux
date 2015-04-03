@@ -4797,12 +4797,6 @@ static long ext4_zero_range(struct file *file, loff_t offset,
 	else
 		max_blocks -= lblk;
 
-	flags = EXT4_GET_BLOCKS_CREATE_UNWRIT_EXT |
-		EXT4_GET_BLOCKS_CONVERT_UNWRITTEN |
-		EXT4_EX_NOCACHE;
-	if (mode & FALLOC_FL_KEEP_SIZE)
-		flags |= EXT4_GET_BLOCKS_KEEP_SIZE;
-
 	mutex_lock(&inode->i_mutex);
 
 	/*
@@ -4819,15 +4813,28 @@ static long ext4_zero_range(struct file *file, loff_t offset,
 		ret = inode_newsize_ok(inode, new_size);
 		if (ret)
 			goto out_mutex;
-		/*
-		 * If we have a partial block after EOF we have to allocate
-		 * the entire block.
-		 */
-		if (partial_end)
-			max_blocks += 1;
 	}
 
+	flags = EXT4_GET_BLOCKS_CREATE_UNWRIT_EXT;
+	if (mode & FALLOC_FL_KEEP_SIZE)
+		flags |= EXT4_GET_BLOCKS_KEEP_SIZE;
+
+	/* Preallocate the range including the unaligned edges */
+	if (partial_begin || partial_end) {
+		ret = ext4_alloc_file_blocks(file,
+				round_down(offset, 1 << blkbits) >> blkbits,
+				(round_up((offset + len), 1 << blkbits) -
+				 round_down(offset, 1 << blkbits)) >> blkbits,
+				new_size, flags, mode);
+		if (ret)
+			goto out_mutex;
+
+	}
+
+	/* Zero range excluding the unaligned edges */
 	if (max_blocks > 0) {
+		flags |= (EXT4_GET_BLOCKS_CONVERT_UNWRITTEN |
+			  EXT4_EX_NOCACHE);
 
 		/* Now release the pages and zero block aligned part of pages*/
 		truncate_pagecache_range(inode, start, end - 1);
