@@ -2579,8 +2579,10 @@ static void dw_mci_cmd11_timer(unsigned long arg)
 {
 	struct dw_mci *host = (struct dw_mci *)arg;
 
-	if (host->state != STATE_SENDING_CMD11)
-		dev_info(host->dev, "Unexpected CMD11 timeout\n");
+	if (host->state != STATE_SENDING_CMD11) {
+		dev_warn(host->dev, "Unexpected CMD11 timeout\n");
+		return;
+	}
 
 	host->cmd_status = SDMMC_INT_RTO;
 	set_bit(EVENT_CMD_COMPLETE, &host->pending_events);
