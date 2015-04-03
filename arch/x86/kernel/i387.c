@@ -283,27 +283,30 @@ EXPORT_SYMBOL_GPL(fpstate_alloc_init);
  * value at reset if we support XMM instructions and then
  * remember the current task has used the FPU.
  */
-static int init_fpu(struct task_struct *tsk)
+static int fpu__unlazy_stopped(struct task_struct *child)
 {
 	int ret;
 
-	if (tsk_used_math(tsk)) {
-		if (cpu_has_fpu && tsk == current)
-			fpu__save(tsk);
-		task_disable_lazy_fpu_restore(tsk);
+	if (WARN_ON_ONCE(child == current))
+		return -EINVAL;
+
+	if (tsk_used_math(child)) {
+		if (cpu_has_fpu && child == current)
+			fpu__save(child);
+		task_disable_lazy_fpu_restore(child);
 		return 0;
 	}
 
 	/*
 	 * Memory allocation at the first usage of the FPU and other state.
 	 */
-	ret = fpu_alloc(&tsk->thread.fpu);
+	ret = fpu_alloc(&child->thread.fpu);
 	if (ret)
 		return ret;
 
-	fpu_finit(&tsk->thread.fpu);
+	fpu_finit(&child->thread.fpu);
 
-	set_stopped_child_used_math(tsk);
+	set_stopped_child_used_math(child);
 	return 0;
 }
 
@@ -331,7 +334,7 @@ int xfpregs_get(struct task_struct *target, const struct user_regset *regset,
 	if (!cpu_has_fxsr)
 		return -ENODEV;
 
-	ret = init_fpu(target);
+	ret = fpu__unlazy_stopped(target);
 	if (ret)
 		return ret;
 
@@ -350,7 +353,7 @@ int xfpregs_set(struct task_struct *target, const struct user_regset *regset,
 	if (!cpu_has_fxsr)
 		return -ENODEV;
 
-	ret = init_fpu(target);
+	ret = fpu__unlazy_stopped(target);
 	if (ret)
 		return ret;
 
@@ -384,7 +387,7 @@ int xstateregs_get(struct task_struct *target, const struct user_regset *regset,
 	if (!cpu_has_xsave)
 		return -ENODEV;
 
-	ret = init_fpu(target);
+	ret = fpu__unlazy_stopped(target);
 	if (ret)
 		return ret;
 
@@ -414,7 +417,7 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
 	if (!cpu_has_xsave)
 		return -ENODEV;
 
-	ret = init_fpu(target);
+	ret = fpu__unlazy_stopped(target);
 	if (ret)
 		return ret;
 
@@ -577,7 +580,7 @@ int fpregs_get(struct task_struct *target, const struct user_regset *regset,
 	struct user_i387_ia32_struct env;
 	int ret;
 
-	ret = init_fpu(target);
+	ret = fpu__unlazy_stopped(target);
 	if (ret)
 		return ret;
 
@@ -608,7 +611,7 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 	struct user_i387_ia32_struct env;
 	int ret;
 
-	ret = init_fpu(target);
+	ret = fpu__unlazy_stopped(target);
 	if (ret)
 		return ret;
 
