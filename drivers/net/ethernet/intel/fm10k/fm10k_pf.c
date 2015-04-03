@@ -676,7 +676,8 @@ static s32 fm10k_iov_assign_resources_pf(struct fm10k_hw *hw, u16 num_vfs,
 	/* loop through unallocated rings assigning them back to PF */
 	for (i = FM10K_MAX_QUEUES_PF; i < vf_q_idx; i++) {
 		fm10k_write_reg(hw, FM10K_TXDCTL(i), 0);
-		fm10k_write_reg(hw, FM10K_TXQCTL(i), FM10K_TXQCTL_PF | vid);
+		fm10k_write_reg(hw, FM10K_TXQCTL(i), FM10K_TXQCTL_PF |
+				FM10K_TXQCTL_UNLIMITED_BW | vid);
 		fm10k_write_reg(hw, FM10K_RXQCTL(i), FM10K_RXQCTL_PF);
 	}
 
