@@ -281,9 +281,9 @@ exit:
 	pwrpriv->ps_processing = false;
 }
 
-static void pwr_state_check_handler(void *FunctionContext)
+static void pwr_state_check_handler(unsigned long data)
 {
-	struct adapter *padapter = FunctionContext;
+	struct adapter *padapter = (struct adapter *)data;
 	rtw_ps_cmd(padapter);
 }
 
@@ -544,7 +544,9 @@ void rtw_init_pwrctrl_priv(struct adapter *padapter)
 
 	pwrctrlpriv->btcoex_rfon = false;
 
-	_init_timer(&(pwrctrlpriv->pwr_state_check_timer), padapter->pnetdev, pwr_state_check_handler, (u8 *)padapter);
+	setup_timer(&pwrctrlpriv->pwr_state_check_timer,
+		    pwr_state_check_handler,
+		    (unsigned long)padapter);
 }
 
 inline void rtw_set_ips_deny(struct adapter *padapter, u32 ms)

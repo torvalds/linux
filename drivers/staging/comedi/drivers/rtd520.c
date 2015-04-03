@@ -94,11 +94,10 @@
  */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
 #include "comedi_fc.h"
 #include "plx9080.h"
@@ -579,7 +578,7 @@ static int rtd_ai_rinsn(struct comedi_device *dev,
 
 		/* read data */
 		d = readw(devpriv->las1 + LAS1_ADC_FIFO);
-		d = d >> 3;	/* low 3 bits are marker lines */
+		d >>= 3;	/* low 3 bits are marker lines */
 
 		/* convert bipolar data to comedi unsigned data */
 		if (comedi_range_is_bipolar(s, range))
@@ -616,7 +615,7 @@ static int ai_read_n(struct comedi_device *dev, struct comedi_subdevice *s,
 		}
 
 		d = readw(devpriv->las1 + LAS1_ADC_FIFO);
-		d = d >> 3;	/* low 3 bits are marker lines */
+		d >>= 3;	/* low 3 bits are marker lines */
 
 		/* convert bipolar data to comedi unsigned data */
 		if (comedi_range_is_bipolar(s, range))
@@ -838,7 +837,6 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 
 	if (err)
 		return 3;
-
 
 	/* step 4: fix up any arguments */
 
@@ -1181,8 +1179,8 @@ static void rtd_pci_latency_quirk(struct comedi_device *dev,
 	pci_read_config_byte(pcidev, PCI_LATENCY_TIMER, &pci_latency);
 	if (pci_latency < 32) {
 		dev_info(dev->class_dev,
-			"PCI latency changed from %d to %d\n",
-			pci_latency, 32);
+			 "PCI latency changed from %d to %d\n",
+			 pci_latency, 32);
 		pci_write_config_byte(pcidev, PCI_LATENCY_TIMER, 32);
 	}
 }
@@ -1299,12 +1297,8 @@ static void rtd_detach(struct comedi_device *dev)
 		/* Shut down any board ops by resetting it */
 		if (dev->mmio && devpriv->lcfg)
 			rtd_reset(dev);
-		if (dev->irq) {
-			writel(readl(devpriv->lcfg + PLX_INTRCS_REG) &
-				~(ICS_PLIE | ICS_DMA0_E | ICS_DMA1_E),
-				devpriv->lcfg + PLX_INTRCS_REG);
+		if (dev->irq)
 			free_irq(dev->irq, dev);
-		}
 		if (dev->mmio)
 			iounmap(dev->mmio);
 		if (devpriv->las1)

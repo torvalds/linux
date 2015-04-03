@@ -6,7 +6,7 @@ void Dot11d_Init(struct ieee80211_device *ieee)
 {
 	PRT_DOT11D_INFO pDot11dInfo = GET_DOT11D_INFO(ieee);
 
-	pDot11dInfo->bEnabled = 0;
+	pDot11dInfo->bEnabled = false;
 
 	pDot11dInfo->State = DOT11D_STATE_NONE;
 	pDot11dInfo->CountryIeLen = 0;

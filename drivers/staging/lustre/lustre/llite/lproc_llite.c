@@ -59,7 +59,7 @@ static int ll_blksize_seq_show(struct seq_file *m, void *v)
 				cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
 				OBD_STATFS_NODELAY);
 	if (!rc)
-	      rc = seq_printf(m, "%u\n", osfs.os_bsize);
+		seq_printf(m, "%u\n", osfs.os_bsize);
 
 	return rc;
 }
@@ -82,8 +82,9 @@ static int ll_kbytestotal_seq_show(struct seq_file *m, void *v)
 		while (blk_size >>= 1)
 			result <<= 1;
 
-		rc = seq_printf(m, "%llu\n", result);
+		seq_printf(m, "%llu\n", result);
 	}
+
 	return rc;
 }
 LPROC_SEQ_FOPS_RO(ll_kbytestotal);
@@ -105,8 +106,9 @@ static int ll_kbytesfree_seq_show(struct seq_file *m, void *v)
 		while (blk_size >>= 1)
 			result <<= 1;
 
-		rc = seq_printf(m, "%llu\n", result);
+		seq_printf(m, "%llu\n", result);
 	}
+
 	return rc;
 }
 LPROC_SEQ_FOPS_RO(ll_kbytesfree);
@@ -128,8 +130,9 @@ static int ll_kbytesavail_seq_show(struct seq_file *m, void *v)
 		while (blk_size >>= 1)
 			result <<= 1;
 
-		rc = seq_printf(m, "%llu\n", result);
+		seq_printf(m, "%llu\n", result);
 	}
+
 	return rc;
 }
 LPROC_SEQ_FOPS_RO(ll_kbytesavail);
@@ -145,7 +148,8 @@ static int ll_filestotal_seq_show(struct seq_file *m, void *v)
 				cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
 				OBD_STATFS_NODELAY);
 	if (!rc)
-		 rc = seq_printf(m, "%llu\n", osfs.os_files);
+		seq_printf(m, "%llu\n", osfs.os_files);
+
 	return rc;
 }
 LPROC_SEQ_FOPS_RO(ll_filestotal);
@@ -161,7 +165,8 @@ static int ll_filesfree_seq_show(struct seq_file *m, void *v)
 				cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
 				OBD_STATFS_NODELAY);
 	if (!rc)
-		 rc = seq_printf(m, "%llu\n", osfs.os_ffree);
+		seq_printf(m, "%llu\n", osfs.os_ffree);
+
 	return rc;
 }
 LPROC_SEQ_FOPS_RO(ll_filesfree);
@@ -169,16 +174,15 @@ LPROC_SEQ_FOPS_RO(ll_filesfree);
 static int ll_client_type_seq_show(struct seq_file *m, void *v)
 {
 	struct ll_sb_info *sbi = ll_s2sbi((struct super_block *)m->private);
-	int rc;
 
 	LASSERT(sbi != NULL);
 
 	if (sbi->ll_flags & LL_SBI_RMT_CLIENT)
-		rc = seq_printf(m, "remote client\n");
+		seq_puts(m, "remote client\n");
 	else
-		rc = seq_printf(m, "local client\n");
+		seq_puts(m, "local client\n");
 
-	return rc;
+	return 0;
 }
 LPROC_SEQ_FOPS_RO(ll_client_type);
 
@@ -187,7 +191,8 @@ static int ll_fstype_seq_show(struct seq_file *m, void *v)
 	struct super_block *sb = (struct super_block *)m->private;
 
 	LASSERT(sb != NULL);
-	return seq_printf(m, "%s\n", sb->s_type->name);
+	seq_printf(m, "%s\n", sb->s_type->name);
+	return 0;
 }
 LPROC_SEQ_FOPS_RO(ll_fstype);
 
@@ -196,7 +201,8 @@ static int ll_sb_uuid_seq_show(struct seq_file *m, void *v)
 	struct super_block *sb = (struct super_block *)m->private;
 
 	LASSERT(sb != NULL);
-	return seq_printf(m, "%s\n", ll_s2sbi(sb)->ll_sb_uuid.uuid);
+	seq_printf(m, "%s\n", ll_s2sbi(sb)->ll_sb_uuid.uuid);
+	return 0;
 }
 LPROC_SEQ_FOPS_RO(ll_sb_uuid);
 
@@ -353,17 +359,18 @@ static int ll_max_cached_mb_seq_show(struct seq_file *m, void *v)
 
 	max_cached_mb = cache->ccc_lru_max >> shift;
 	unused_mb = atomic_read(&cache->ccc_lru_left) >> shift;
-	return seq_printf(m,
-			"users: %d\n"
-			"max_cached_mb: %d\n"
-			"used_mb: %d\n"
-			"unused_mb: %d\n"
-			"reclaim_count: %u\n",
-			atomic_read(&cache->ccc_users),
-			max_cached_mb,
-			max_cached_mb - unused_mb,
-			unused_mb,
-			cache->ccc_lru_shrinkers);
+	seq_printf(m,
+		   "users: %d\n"
+		   "max_cached_mb: %d\n"
+		   "used_mb: %d\n"
+		   "unused_mb: %d\n"
+		   "reclaim_count: %u\n",
+		   atomic_read(&cache->ccc_users),
+		   max_cached_mb,
+		   max_cached_mb - unused_mb,
+		   unused_mb,
+		   cache->ccc_lru_shrinkers);
+	return 0;
 }
 
 static ssize_t ll_max_cached_mb_seq_write(struct file *file,
@@ -467,7 +474,8 @@ static int ll_checksum_seq_show(struct seq_file *m, void *v)
 	struct super_block *sb = m->private;
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
 
-	return seq_printf(m, "%u\n", (sbi->ll_flags & LL_SBI_CHECKSUM) ? 1 : 0);
+	seq_printf(m, "%u\n", (sbi->ll_flags & LL_SBI_CHECKSUM) ? 1 : 0);
+	return 0;
 }
 
 static ssize_t ll_checksum_seq_write(struct file *file,
@@ -503,7 +511,8 @@ static int ll_max_rw_chunk_seq_show(struct seq_file *m, void *v)
 {
 	struct super_block *sb = m->private;
 
-	return seq_printf(m, "%lu\n", ll_s2sbi(sb)->ll_max_rw_chunk);
+	seq_printf(m, "%lu\n", ll_s2sbi(sb)->ll_max_rw_chunk);
+	return 0;
 }
 
 static ssize_t ll_max_rw_chunk_seq_write(struct file *file,
@@ -525,15 +534,14 @@ static int ll_rd_track_id(struct seq_file *m, enum stats_track_type type)
 {
 	struct super_block *sb = m->private;
 
-	if (ll_s2sbi(sb)->ll_stats_track_type == type) {
-		return seq_printf(m, "%d\n",
-				ll_s2sbi(sb)->ll_stats_track_id);
+	if (ll_s2sbi(sb)->ll_stats_track_type == type)
+		seq_printf(m, "%d\n", ll_s2sbi(sb)->ll_stats_track_id);
+	else if (ll_s2sbi(sb)->ll_stats_track_type == STATS_TRACK_ALL)
+		seq_puts(m, "0 (all)\n");
+	else
+		seq_puts(m, "untracked\n");
 
-	} else if (ll_s2sbi(sb)->ll_stats_track_type == STATS_TRACK_ALL) {
-		return seq_printf(m, "0 (all)\n");
-	} else {
-		return seq_printf(m, "untracked\n");
-	}
+	return 0;
 }
 
 static int ll_wr_track_id(const char __user *buffer, unsigned long count,
@@ -601,7 +609,8 @@ static int ll_statahead_max_seq_show(struct seq_file *m, void *v)
 	struct super_block *sb = m->private;
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
 
-	return seq_printf(m, "%u\n", sbi->ll_sa_max);
+	seq_printf(m, "%u\n", sbi->ll_sa_max);
+	return 0;
 }
 
 static ssize_t ll_statahead_max_seq_write(struct file *file,
@@ -631,8 +640,8 @@ static int ll_statahead_agl_seq_show(struct seq_file *m, void *v)
 	struct super_block *sb = m->private;
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
 
-	return seq_printf(m, "%u\n",
-			sbi->ll_flags & LL_SBI_AGL_ENABLED ? 1 : 0);
+	seq_printf(m, "%u\n", sbi->ll_flags & LL_SBI_AGL_ENABLED ? 1 : 0);
+	return 0;
 }
 
 static ssize_t ll_statahead_agl_seq_write(struct file *file,
@@ -661,13 +670,14 @@ static int ll_statahead_stats_seq_show(struct seq_file *m, void *v)
 	struct super_block *sb = m->private;
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
 
-	return seq_printf(m,
-			"statahead total: %u\n"
-			"statahead wrong: %u\n"
-			"agl total: %u\n",
-			atomic_read(&sbi->ll_sa_total),
-			atomic_read(&sbi->ll_sa_wrong),
-			atomic_read(&sbi->ll_agl_total));
+	seq_printf(m,
+		   "statahead total: %u\n"
+		   "statahead wrong: %u\n"
+		   "agl total: %u\n",
+		   atomic_read(&sbi->ll_sa_total),
+		   atomic_read(&sbi->ll_sa_wrong),
+		   atomic_read(&sbi->ll_agl_total));
+	return 0;
 }
 LPROC_SEQ_FOPS_RO(ll_statahead_stats);
 
@@ -676,8 +686,8 @@ static int ll_lazystatfs_seq_show(struct seq_file *m, void *v)
 	struct super_block *sb = m->private;
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
 
-	return seq_printf(m, "%u\n",
-			(sbi->ll_flags & LL_SBI_LAZYSTATFS) ? 1 : 0);
+	seq_printf(m, "%u\n", sbi->ll_flags & LL_SBI_LAZYSTATFS ? 1 : 0);
+	return 0;
 }
 
 static ssize_t ll_lazystatfs_seq_write(struct file *file,
@@ -712,11 +722,12 @@ static int ll_max_easize_seq_show(struct seq_file *m, void *v)
 	if (rc)
 		return rc;
 
-	return seq_printf(m, "%u\n", ealen);
+	seq_printf(m, "%u\n", ealen);
+	return 0;
 }
 LPROC_SEQ_FOPS_RO(ll_max_easize);
 
-static int ll_defult_easize_seq_show(struct seq_file *m, void *v)
+static int ll_default_easize_seq_show(struct seq_file *m, void *v)
 {
 	struct super_block *sb = m->private;
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
@@ -727,9 +738,10 @@ static int ll_defult_easize_seq_show(struct seq_file *m, void *v)
 	if (rc)
 		return rc;
 
-	return seq_printf(m, "%u\n", ealen);
+	seq_printf(m, "%u\n", ealen);
+	return 0;
 }
-LPROC_SEQ_FOPS_RO(ll_defult_easize);
+LPROC_SEQ_FOPS_RO(ll_default_easize);
 
 static int ll_max_cookiesize_seq_show(struct seq_file *m, void *v)
 {
@@ -742,11 +754,12 @@ static int ll_max_cookiesize_seq_show(struct seq_file *m, void *v)
 	if (rc)
 		return rc;
 
-	return seq_printf(m, "%u\n", cookielen);
+	seq_printf(m, "%u\n", cookielen);
+	return 0;
 }
 LPROC_SEQ_FOPS_RO(ll_max_cookiesize);
 
-static int ll_defult_cookiesize_seq_show(struct seq_file *m, void *v)
+static int ll_default_cookiesize_seq_show(struct seq_file *m, void *v)
 {
 	struct super_block *sb = m->private;
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
@@ -757,9 +770,10 @@ static int ll_defult_cookiesize_seq_show(struct seq_file *m, void *v)
 	if (rc)
 		return rc;
 
-	return seq_printf(m, "%u\n", cookielen);
+	seq_printf(m, "%u\n", cookielen);
+	return 0;
 }
-LPROC_SEQ_FOPS_RO(ll_defult_cookiesize);
+LPROC_SEQ_FOPS_RO(ll_default_cookiesize);
 
 static int ll_sbi_flags_seq_show(struct seq_file *m, void *v)
 {
@@ -789,11 +803,10 @@ static int ll_xattr_cache_seq_show(struct seq_file *m, void *v)
 {
 	struct super_block *sb = m->private;
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
-	int rc;
 
-	rc = seq_printf(m, "%u\n", sbi->ll_xattr_cache_enabled);
+	seq_printf(m, "%u\n", sbi->ll_xattr_cache_enabled);
 
-	return rc;
+	return 0;
 }
 
 static ssize_t ll_xattr_cache_seq_write(struct file *file,
@@ -849,9 +862,9 @@ static struct lprocfs_vars lprocfs_llite_obd_vars[] = {
 	{ "statahead_stats",  &ll_statahead_stats_fops, NULL, 0 },
 	{ "lazystatfs",       &ll_lazystatfs_fops, NULL },
 	{ "max_easize",       &ll_max_easize_fops, NULL, 0 },
-	{ "default_easize",   &ll_defult_easize_fops, NULL, 0 },
+	{ "default_easize",   &ll_default_easize_fops, NULL, 0 },
 	{ "max_cookiesize",   &ll_max_cookiesize_fops, NULL, 0 },
-	{ "default_cookiesize", &ll_defult_cookiesize_fops, NULL, 0 },
+	{ "default_cookiesize", &ll_default_cookiesize_fops, NULL, 0 },
 	{ "sbi_flags",	      &ll_sbi_flags_fops, NULL, 0 },
 	{ "xattr_cache",      &ll_xattr_cache_fops, NULL, 0 },
 	{ NULL }

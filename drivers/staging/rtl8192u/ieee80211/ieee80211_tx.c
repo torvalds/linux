@@ -32,7 +32,6 @@
 ******************************************************************************/
 
 #include <linux/compiler.h>
-//#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/if_arp.h>
 #include <linux/in6.h>
@@ -554,16 +553,16 @@ static void ieee80211_txrate_selectmode(struct ieee80211_device *ieee,
 #ifdef TO_DO_LIST
 	if(!IsDataFrame(pFrame))
 	{
-		pTcb->bTxDisableRateFallBack = TRUE;
-		pTcb->bTxUseDriverAssingedRate = TRUE;
+		pTcb->bTxDisableRateFallBack = true;
+		pTcb->bTxUseDriverAssingedRate = true;
 		pTcb->RATRIndex = 7;
 		return;
 	}
 
 	if(pMgntInfo->ForcedDataRate!= 0)
 	{
-		pTcb->bTxDisableRateFallBack = TRUE;
-		pTcb->bTxUseDriverAssingedRate = TRUE;
+		pTcb->bTxDisableRateFallBack = true;
+		pTcb->bTxUseDriverAssingedRate = true;
 		return;
 	}
 #endif

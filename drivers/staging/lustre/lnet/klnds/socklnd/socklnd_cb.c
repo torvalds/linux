@@ -1374,9 +1374,9 @@ ksocknal_sched_cansleep(ksock_sched_t *sched)
 
 	spin_lock_bh(&sched->kss_lock);
 
-	rc = (!ksocknal_data.ksnd_shuttingdown &&
+	rc = !ksocknal_data.ksnd_shuttingdown &&
 	      list_empty(&sched->kss_rx_conns) &&
-	      list_empty(&sched->kss_tx_conns));
+	      list_empty(&sched->kss_tx_conns);
 
 	spin_unlock_bh(&sched->kss_lock);
 	return rc;

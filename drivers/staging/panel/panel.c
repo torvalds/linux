@@ -335,11 +335,11 @@ static unsigned char lcd_bits[LCD_PORTS][LCD_BITS][BIT_STATES];
  * LCD types
  */
 #define LCD_TYPE_NONE		0
-#define LCD_TYPE_OLD		1
-#define LCD_TYPE_KS0074		2
-#define LCD_TYPE_HANTRONIX	3
-#define LCD_TYPE_NEXCOM		4
-#define LCD_TYPE_CUSTOM		5
+#define LCD_TYPE_CUSTOM		1
+#define LCD_TYPE_OLD		2
+#define LCD_TYPE_KS0074		3
+#define LCD_TYPE_HANTRONIX	4
+#define LCD_TYPE_NEXCOM		5
 
 /*
  * keypad types
@@ -473,8 +473,6 @@ static struct pardevice *pprt;
 
 static int keypad_initialized;
 
-static char init_in_progress;
-
 static void (*lcd_write_cmd)(int);
 static void (*lcd_write_data)(int);
 static void (*lcd_clear_fast)(void);
@@ -502,7 +500,7 @@ MODULE_PARM_DESC(keypad_type,
 static int lcd_type = NOT_SET;
 module_param(lcd_type, int, 0000);
 MODULE_PARM_DESC(lcd_type,
-		 "LCD type: 0=none, 1=old //, 2=serial ks0074, 3=hantronix //, 4=nexcom //, 5=compiled-in");
+		 "LCD type: 0=none, 1=compiled-in, 2=old, 3=serial ks0074, 4=hantronix, 5=nexcom");
 
 static int lcd_height = NOT_SET;
 module_param(lcd_height, int, 0000);
@@ -1718,9 +1716,6 @@ static struct miscdevice keypad_dev = {
 
 static void keypad_send_key(const char *string, int max_len)
 {
-	if (init_in_progress)
-		return;
-
 	/* send the key to the device only if a process is attached to it. */
 	if (!atomic_read(&keypad_available)) {
 		while (max_len-- && keypad_buflen < KEYPAD_BUFFER && *string) {
@@ -2010,10 +2005,8 @@ static void init_scan_timer(void)
 	if (scan_timer.function != NULL)
 		return;		/* already started */
 
-	init_timer(&scan_timer);
+	setup_timer(&scan_timer, (void *)&panel_scan_timer, 0);
 	scan_timer.expires = jiffies + INPUT_POLL_TIME;
-	scan_timer.data = 0;
-	scan_timer.function = (void *)&panel_scan_timer;
 	add_timer(&scan_timer);
 }
 
@@ -2236,6 +2229,7 @@ static void panel_attach(struct parport *port)
 		if (misc_register(&keypad_dev))
 			goto err_lcd_unreg;
 	}
+	register_reboot_notifier(&panel_notifier);
 	return;
 
 err_lcd_unreg:
@@ -2256,6 +2250,8 @@ static void panel_detach(struct parport *port)
 		       __func__, port->number, parport);
 		return;
 	}
+
+	unregister_reboot_notifier(&panel_notifier);
 
 	if (keypad.enabled && keypad_initialized) {
 		misc_deregister(&keypad_dev);
@@ -2281,7 +2277,7 @@ static struct parport_driver panel_driver = {
 /* init function */
 static int __init panel_init_module(void)
 {
-	int selected_keypad_type = NOT_SET;
+	int selected_keypad_type = NOT_SET, err;
 
 	/* take care of an eventual profile */
 	switch (profile) {
@@ -2324,26 +2320,6 @@ static int __init panel_init_module(void)
 	}
 
 	/*
-	 * Init lcd struct with load-time values to preserve exact current
-	 * functionality (at least for now).
-	 */
-	lcd.height = lcd_height;
-	lcd.width = lcd_width;
-	lcd.bwidth = lcd_bwidth;
-	lcd.hwidth = lcd_hwidth;
-	lcd.charset = lcd_charset;
-	lcd.proto = lcd_proto;
-	lcd.pins.e = lcd_e_pin;
-	lcd.pins.rs = lcd_rs_pin;
-	lcd.pins.rw = lcd_rw_pin;
-	lcd.pins.cl = lcd_cl_pin;
-	lcd.pins.da = lcd_da_pin;
-	lcd.pins.bl = lcd_bl_pin;
-
-	/* Leave it for now, just in case */
-	lcd.esc_seq.len = -1;
-
-	/*
 	 * Overwrite selection with module param values (both keypad and lcd),
 	 * where the deprecated params have lower prio.
 	 */
@@ -2361,6 +2337,28 @@ static int __init panel_init_module(void)
 
 	lcd.enabled = (selected_lcd_type > 0);
 
+	if (lcd.enabled) {
+		/*
+		 * Init lcd struct with load-time values to preserve exact
+		 * current functionality (at least for now).
+		 */
+		lcd.height = lcd_height;
+		lcd.width = lcd_width;
+		lcd.bwidth = lcd_bwidth;
+		lcd.hwidth = lcd_hwidth;
+		lcd.charset = lcd_charset;
+		lcd.proto = lcd_proto;
+		lcd.pins.e = lcd_e_pin;
+		lcd.pins.rs = lcd_rs_pin;
+		lcd.pins.rw = lcd_rw_pin;
+		lcd.pins.cl = lcd_cl_pin;
+		lcd.pins.da = lcd_da_pin;
+		lcd.pins.bl = lcd_bl_pin;
+
+		/* Leave it for now, just in case */
+		lcd.esc_seq.len = -1;
+	}
+
 	switch (selected_keypad_type) {
 	case KEYPAD_TYPE_OLD:
 		keypad_profile = old_keypad_profile;
@@ -2376,27 +2374,17 @@ static int __init panel_init_module(void)
 		break;
 	}
 
-	/* tells various subsystems about the fact that we are initializing */
-	init_in_progress = 1;
-
-	if (parport_register_driver(&panel_driver)) {
-		pr_err("could not register with parport. Aborting.\n");
-		return -EIO;
-	}
-
 	if (!lcd.enabled && !keypad.enabled) {
-		/* no device enabled, let's release the parport */
-		if (pprt) {
-			parport_release(pprt);
-			parport_unregister_device(pprt);
-			pprt = NULL;
-		}
-		parport_unregister_driver(&panel_driver);
+		/* no device enabled, let's exit */
 		pr_err("driver version " PANEL_VERSION " disabled.\n");
 		return -ENODEV;
 	}
 
-	register_reboot_notifier(&panel_notifier);
+	err = parport_register_driver(&panel_driver);
+	if (err) {
+		pr_err("could not register with parport. Aborting.\n");
+		return err;
+	}
 
 	if (pprt)
 		pr_info("driver version " PANEL_VERSION
@@ -2405,15 +2393,11 @@ static int __init panel_init_module(void)
 	else
 		pr_info("driver version " PANEL_VERSION
 			" not yet registered\n");
-	/* tells various subsystems about the fact that initialization
-	   is finished */
-	init_in_progress = 0;
 	return 0;
 }
 
 static void __exit panel_cleanup_module(void)
 {
-	unregister_reboot_notifier(&panel_notifier);
 
 	if (scan_timer.function != NULL)
 		del_timer_sync(&scan_timer);

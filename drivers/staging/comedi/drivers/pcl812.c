@@ -118,7 +118,7 @@
 
 #include "comedi_isadma.h"
 #include "comedi_fc.h"
-#include "8253.h"
+#include "comedi_8254.h"
 
 /* hardware types of the cards */
 #define boardPCL812PG	      0	/* and ACL-8112PG */
@@ -513,29 +513,12 @@ struct pcl812_private {
 	unsigned char mode_reg_int;	/*  there is stored INT number for some card */
 	unsigned int ai_poll_ptr;	/*  how many sampes transfer poll */
 	unsigned int max_812_ai_mode0_rangewait;	/*  setling time for gain */
-	unsigned int divisor1;
-	unsigned int divisor2;
 	unsigned int use_diff:1;
 	unsigned int use_mpc508:1;
 	unsigned int use_ext_trg:1;
 	unsigned int ai_dma:1;
 	unsigned int ai_eos:1;
 };
-
-static void pcl812_start_pacer(struct comedi_device *dev, bool load_timers)
-{
-	struct pcl812_private *devpriv = dev->private;
-	unsigned long timer_base = dev->iobase + PCL812_TIMER_BASE;
-
-	i8254_set_mode(timer_base, 0, 2, I8254_MODE2 | I8254_BINARY);
-	i8254_set_mode(timer_base, 0, 1, I8254_MODE2 | I8254_BINARY);
-	udelay(1);
-
-	if (load_timers) {
-		i8254_write(timer_base, 0, 2, devpriv->divisor2);
-		i8254_write(timer_base, 0, 1, devpriv->divisor1);
-	}
-}
 
 static void pcl812_ai_setup_dma(struct comedi_device *dev,
 				struct comedi_subdevice *s,
@@ -650,7 +633,6 @@ static int pcl812_ai_cmdtest(struct comedi_device *dev,
 	struct pcl812_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int flags;
-	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -703,11 +685,9 @@ static int pcl812_ai_cmdtest(struct comedi_device *dev,
 	/* step 4: fix up any arguments */
 
 	if (cmd->convert_src == TRIG_TIMER) {
-		arg = cmd->convert_arg;
-		i8253_cascade_ns_to_timer(I8254_OSC_BASE_2MHZ,
-					  &devpriv->divisor1,
-					  &devpriv->divisor2,
-					  &arg, cmd->flags);
+		unsigned int arg = cmd->convert_arg;
+
+		comedi_8254_cascade_ns_to_timer(dev->pacer, &arg, cmd->flags);
 		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
 	}
 
@@ -724,8 +704,6 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int ctrl = 0;
 	unsigned int i;
-
-	pcl812_start_pacer(dev, false);
 
 	pcl812_ai_set_chan_range(dev, cmd->chanlist[0], 1);
 
@@ -760,7 +738,8 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	switch (cmd->convert_src) {
 	case TRIG_TIMER:
-		pcl812_start_pacer(dev, true);
+		comedi_8254_update_divisors(dev->pacer);
+		comedi_8254_pacer_enable(dev->pacer, 1, 2, true);
 		break;
 	}
 
@@ -918,7 +897,7 @@ static int pcl812_ai_cancel(struct comedi_device *dev,
 
 	outb(devpriv->mode_reg_int | PCL812_CTRL_DISABLE_TRIG,
 	     dev->iobase + PCL812_CTRL_REG);
-	pcl812_start_pacer(dev, false);
+	comedi_8254_pacer_enable(dev->pacer, 1, 2, false);
 	pcl812_ai_clear_eoc(dev);
 	return 0;
 }
@@ -1009,10 +988,6 @@ static void pcl812_reset(struct comedi_device *dev)
 	outb(devpriv->mode_reg_int | PCL812_CTRL_DISABLE_TRIG,
 	     dev->iobase + PCL812_CTRL_REG);
 	pcl812_ai_clear_eoc(dev);
-
-	/* stop pacer */
-	if (board->IRQbits)
-		pcl812_start_pacer(dev, false);
 
 	/*
 	 * Invalidate last_ai_chanspec then set analog input to
@@ -1162,11 +1137,19 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	if ((1 << it->options[1]) & board->IRQbits) {
-		ret = request_irq(it->options[1], pcl812_interrupt, 0,
-				  dev->board_name, dev);
-		if (ret == 0)
-			dev->irq = it->options[1];
+	if (board->IRQbits) {
+		dev->pacer = comedi_8254_init(dev->iobase + PCL812_TIMER_BASE,
+					      I8254_OSC_BASE_2MHZ,
+					      I8254_IO8, 0);
+		if (!dev->pacer)
+			return -ENOMEM;
+
+		if ((1 << it->options[1]) & board->IRQbits) {
+			ret = request_irq(it->options[1], pcl812_interrupt, 0,
+					  dev->board_name, dev);
+			if (ret == 0)
+				dev->irq = it->options[1];
+		}
 	}
 
 	/* we need an IRQ to do DMA on channel 3 or 1 */

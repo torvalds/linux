@@ -22,11 +22,10 @@
  */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 #include "comedi_fc.h"
 #include "addi_tcw.h"
 #include "addi_watchdog.h"
@@ -107,12 +106,12 @@
 #define APCI1564_COUNTER(x)			((x) * 0x20)
 
 struct apci1564_private {
-	unsigned long eeprom;		/* base address of EEPROM register */
-	unsigned long timer;		/* base address of 12-bit timer */
-	unsigned long counters;		/* base address of 32-bit counters */
-	unsigned int mode1;		/* riding-edge/high level channels */
-	unsigned int mode2;		/* falling-edge/low level channels */
-	unsigned int ctrl;		/* interrupt mode OR (edge) . AND (level) */
+	unsigned long eeprom;	/* base address of EEPROM register */
+	unsigned long timer;	/* base address of 12-bit timer */
+	unsigned long counters;	/* base address of 32-bit counters */
+	unsigned int mode1;	/* riding-edge/high level channels */
+	unsigned int mode2;	/* falling-edge/low level channels */
+	unsigned int ctrl;	/* interrupt mode OR (edge) . AND (level) */
 	struct task_struct *tsk_current;
 };
 
@@ -407,7 +406,7 @@ static int apci1564_cos_cmd(struct comedi_device *dev,
 
 	if (!devpriv->ctrl) {
 		dev_warn(dev->class_dev,
-			"Interrupts disabled due to mode configuration!\n");
+			 "Interrupts disabled due to mode configuration!\n");
 		return -EINVAL;
 	}
 
@@ -430,7 +429,7 @@ static int apci1564_cos_cancel(struct comedi_device *dev,
 }
 
 static int apci1564_auto_attach(struct comedi_device *dev,
-				      unsigned long context_unused)
+				unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct apci1564_private *devpriv;

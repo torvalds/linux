@@ -22,10 +22,9 @@
  */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/interrupt.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 #include "comedi_fc.h"
 #include "amcc_s5933.h"
 #include "z8536.h"
@@ -249,8 +248,8 @@ static irqreturn_t apci1500_interrupt(int irq, void *d)
 	 *
 	 *    Mask     Meaning
 	 * ----------  ------------------------------------------
-	 * 0x00000001  Event 1 has occured
-	 * 0x00000010  Event 2 has occured
+	 * 0x00000001  Event 1 has occurred
+	 * 0x00000010  Event 2 has occurred
 	 * 0x00000100  Counter/timer 1 has run down (not implemented)
 	 * 0x00001000  Counter/timer 2 has run down (not implemented)
 	 * 0x00010000  Counter 3 has run down (not implemented)

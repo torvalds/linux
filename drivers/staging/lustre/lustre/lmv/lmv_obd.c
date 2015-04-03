@@ -43,7 +43,7 @@
 #include <asm/div64.h>
 #include <linux/seq_file.h>
 #include <linux/namei.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "../include/lustre/lustre_idl.h"
 #include "../include/obd_support.h"
@@ -487,7 +487,7 @@ static int lmv_add_target(struct obd_device *obd, struct obd_uuid *uuidp,
 		__u32 oldsize = 0;
 
 		while (newsize < index + 1)
-			newsize = newsize << 1;
+			newsize <<= 1;
 		OBD_ALLOC(newtgts, sizeof(*newtgts) * newsize);
 		if (newtgts == NULL) {
 			lmv_init_unlock(lmv);

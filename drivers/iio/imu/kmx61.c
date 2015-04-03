@@ -169,19 +169,18 @@ static const u16 kmx61_uscale_table[] = {9582, 19163, 38326};
 static const struct {
 	int val;
 	int val2;
-	u8 odr_bits;
-} kmx61_samp_freq_table[] = { {12, 500000, 0x00},
-			{25, 0, 0x01},
-			{50, 0, 0x02},
-			{100, 0, 0x03},
-			{200, 0, 0x04},
-			{400, 0, 0x05},
-			{800, 0, 0x06},
-			{1600, 0, 0x07},
-			{0, 781000, 0x08},
-			{1, 563000, 0x09},
-			{3, 125000, 0x0A},
-			{6, 250000, 0x0B} };
+} kmx61_samp_freq_table[] = { {12, 500000},
+			{25, 0},
+			{50, 0},
+			{100, 0},
+			{200, 0},
+			{400, 0},
+			{800, 0},
+			{1600, 0},
+			{0, 781000},
+			{1, 563000},
+			{3, 125000},
+			{6, 250000} };
 
 static const struct {
 	int val;
@@ -302,23 +301,9 @@ static int kmx61_convert_freq_to_bit(int val, int val2)
 	for (i = 0; i < ARRAY_SIZE(kmx61_samp_freq_table); i++)
 		if (val == kmx61_samp_freq_table[i].val &&
 		    val2 == kmx61_samp_freq_table[i].val2)
-			return kmx61_samp_freq_table[i].odr_bits;
+			return i;
 	return -EINVAL;
 }
-
-static int kmx61_convert_bit_to_freq(u8 odr_bits, int *val, int *val2)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(kmx61_samp_freq_table); i++)
-		if (odr_bits == kmx61_samp_freq_table[i].odr_bits) {
-			*val = kmx61_samp_freq_table[i].val;
-			*val2 = kmx61_samp_freq_table[i].val2;
-			return 0;
-		}
-	return -EINVAL;
-}
-
 
 static int kmx61_convert_wake_up_odr_to_bit(int val, int val2)
 {
@@ -478,7 +463,7 @@ static int kmx61_set_odr(struct kmx61_data *data, int val, int val2, u8 device)
 
 static int kmx61_get_odr(struct kmx61_data *data, int *val, int *val2,
 			 u8 device)
-{	int i;
+{
 	u8 lodr_bits;
 
 	if (device & KMX61_ACC)
@@ -490,13 +475,13 @@ static int kmx61_get_odr(struct kmx61_data *data, int *val, int *val2,
 	else
 		return -EINVAL;
 
-	for (i = 0; i < ARRAY_SIZE(kmx61_samp_freq_table); i++)
-		if (lodr_bits == kmx61_samp_freq_table[i].odr_bits) {
-			*val = kmx61_samp_freq_table[i].val;
-			*val2 = kmx61_samp_freq_table[i].val2;
-			return 0;
-		}
-	return -EINVAL;
+	if (lodr_bits >= ARRAY_SIZE(kmx61_samp_freq_table))
+		return -EINVAL;
+
+	*val = kmx61_samp_freq_table[lodr_bits].val;
+	*val2 = kmx61_samp_freq_table[lodr_bits].val2;
+
+	return 0;
 }
 
 static int kmx61_set_range(struct kmx61_data *data, u8 range)
@@ -580,8 +565,11 @@ static int kmx61_chip_init(struct kmx61_data *data)
 	}
 	data->odr_bits = ret;
 
-	/* set output data rate for wake up (motion detection) function */
-	ret = kmx61_convert_bit_to_freq(data->odr_bits, &val, &val2);
+	/*
+	 * set output data rate for wake up (motion detection) function
+	 * to match data rate for accelerometer sampling
+	 */
+	ret = kmx61_get_odr(data, &val, &val2, KMX61_ACC);
 	if (ret < 0)
 		return ret;
 
@@ -1267,15 +1255,11 @@ static int kmx61_gpio_probe(struct i2c_client *client, struct kmx61_data *data)
 	dev = &client->dev;
 
 	/* data ready gpio interrupt pin */
-	gpio = devm_gpiod_get_index(dev, KMX61_GPIO_NAME, 0);
+	gpio = devm_gpiod_get_index(dev, KMX61_GPIO_NAME, 0, GPIOD_IN);
 	if (IS_ERR(gpio)) {
 		dev_err(dev, "acpi gpio get index failed\n");
 		return PTR_ERR(gpio);
 	}
-
-	ret = gpiod_direction_input(gpio);
-	if (ret)
-		return ret;
 
 	ret = gpiod_to_irq(gpio);
 

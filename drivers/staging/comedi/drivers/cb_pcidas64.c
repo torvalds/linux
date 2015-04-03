@@ -81,13 +81,11 @@ TODO:
 */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
-#include "8253.h"
 #include "8255.h"
 #include "plx9080.h"
 #include "comedi_fc.h"
@@ -1474,9 +1472,8 @@ static int alloc_and_init_dma_members(struct comedi_device *dev)
 		devpriv->ai_buffer[i] =
 			pci_alloc_consistent(pcidev, DMA_BUFFER_SIZE,
 					     &devpriv->ai_buffer_bus_addr[i]);
-		if (devpriv->ai_buffer[i] == NULL)
+		if (!devpriv->ai_buffer[i])
 			return -ENOMEM;
-
 	}
 	for (i = 0; i < AO_DMA_RING_COUNT; i++) {
 		if (ao_cmd_is_supported(thisboard)) {
@@ -1484,9 +1481,8 @@ static int alloc_and_init_dma_members(struct comedi_device *dev)
 				pci_alloc_consistent(pcidev, DMA_BUFFER_SIZE,
 						     &devpriv->
 						      ao_buffer_bus_addr[i]);
-			if (devpriv->ao_buffer[i] == NULL)
+			if (!devpriv->ao_buffer[i])
 				return -ENOMEM;
-
 		}
 	}
 	/*  allocate dma descriptors */
@@ -1494,7 +1490,7 @@ static int alloc_and_init_dma_members(struct comedi_device *dev)
 		pci_alloc_consistent(pcidev, sizeof(struct plx_dma_desc) *
 				     ai_dma_ring_count(thisboard),
 				     &devpriv->ai_dma_desc_bus_addr);
-	if (devpriv->ai_dma_desc == NULL)
+	if (!devpriv->ai_dma_desc)
 		return -ENOMEM;
 
 	if (ao_cmd_is_supported(thisboard)) {
@@ -1503,7 +1499,7 @@ static int alloc_and_init_dma_members(struct comedi_device *dev)
 					     sizeof(struct plx_dma_desc) *
 					     AO_DMA_RING_COUNT,
 					     &devpriv->ao_dma_desc_bus_addr);
-		if (devpriv->ao_dma_desc == NULL)
+		if (!devpriv->ao_dma_desc)
 			return -ENOMEM;
 	}
 	/*  initialize dma descriptors */
@@ -1704,8 +1700,7 @@ static void i2c_write(struct comedi_device *dev, unsigned int address,
 
 	/*  get acknowledge */
 	if (i2c_read_ack(dev) != 0) {
-		dev_err(dev->class_dev, "%s failed: no acknowledge\n",
-			__func__);
+		dev_err(dev->class_dev, "failed: no acknowledge\n");
 		i2c_stop(dev);
 		return;
 	}
@@ -1713,8 +1708,7 @@ static void i2c_write(struct comedi_device *dev, unsigned int address,
 	for (i = 0; i < length; i++) {
 		i2c_write_byte(dev, data[i]);
 		if (i2c_read_ack(dev) != 0) {
-			dev_err(dev->class_dev, "%s failed: no acknowledge\n",
-				__func__);
+			dev_err(dev->class_dev, "failed: no acknowledge\n");
 			i2c_stop(dev);
 			return;
 		}
@@ -1841,7 +1835,6 @@ static int ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	}
 
 	for (n = 0; n < insn->n; n++) {
-
 		/*  clear adc buffer (inside loop for 4020 sake) */
 		writew(0, devpriv->main_iobase + ADC_BUFFER_CLEAR_REG);
 
@@ -1903,7 +1896,6 @@ static int ai_config_block_size(struct comedi_device *dev, unsigned int *data)
 		retval = set_ai_fifo_size(dev, fifo_size);
 		if (retval < 0)
 			return retval;
-
 	}
 
 	block_size = ai_fifo_size(dev) / fifo->num_segments * bytes_in_sample;
@@ -2001,7 +1993,8 @@ static unsigned int get_divisor(unsigned int ns, unsigned int flags)
 static void check_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd)
 {
 	const struct pcidas64_board *thisboard = dev->board_ptr;
-	unsigned int convert_divisor = 0, scan_divisor;
+	unsigned long long convert_divisor = 0;
+	unsigned int scan_divisor;
 	static const int min_convert_divisor = 3;
 	static const int max_convert_divisor =
 		max_counter_value + min_convert_divisor;
@@ -2027,7 +2020,6 @@ static void check_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd)
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		scan_divisor = get_divisor(cmd->scan_begin_arg, cmd->flags);
 		if (cmd->convert_src == TRIG_TIMER) {
-			/*  XXX check for integer overflows */
 			min_scan_divisor = convert_divisor * cmd->chanlist_len;
 			max_scan_divisor =
 				(convert_divisor * cmd->chanlist_len - 1) +
@@ -2637,8 +2629,9 @@ static int ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		bits |= ADC_START_TRIG_EXT_BITS;
 		if (cmd->start_arg & CR_INVERT)
 			bits |= ADC_START_TRIG_FALLING_BIT;
-	} else if (cmd->start_src == TRIG_NOW)
+	} else if (cmd->start_src == TRIG_NOW) {
 		bits |= ADC_START_TRIG_SOFT_BITS;
+	}
 	if (use_hw_sample_counter(cmd))
 		bits |= ADC_SAMPLE_COUNTER_EN_BIT;
 	writew(bits, devpriv->main_iobase + ADC_CONTROL0_REG);
@@ -2827,8 +2820,9 @@ static void handle_ai_interrupt(struct comedi_device *dev,
 		if (devpriv->ai_cmd_running) {
 			spin_unlock_irqrestore(&dev->spinlock, flags);
 			pio_drain_ai_fifo(dev);
-		} else
+		} else {
 			spin_unlock_irqrestore(&dev->spinlock, flags);
+		}
 	}
 	/*  if we are have all the data, then quit */
 	if ((cmd->stop_src == TRIG_COUNT &&
@@ -2978,7 +2972,7 @@ static void handle_ao_interrupt(struct comedi_device *dev,
 	unsigned long flags;
 
 	/* board might not support ao, in which case write_subdev is NULL */
-	if (s == NULL)
+	if (!s)
 		return;
 	async = s->async;
 	cmd = &async->cmd;
@@ -3817,8 +3811,9 @@ static int setup_subdevices(struct comedi_device *dev)
 		s->maxdata = 1;
 		s->range_table = &range_digital;
 		s->insn_bits = di_rbits;
-	} else
+	} else {
 		s->type = COMEDI_SUBD_UNUSED;
+	}
 
 	/*  digital output */
 	if (thisboard->layout == LAYOUT_64XX) {
@@ -3829,8 +3824,9 @@ static int setup_subdevices(struct comedi_device *dev)
 		s->maxdata = 1;
 		s->range_table = &range_digital;
 		s->insn_bits = do_wbits;
-	} else
+	} else {
 		s->type = COMEDI_SUBD_UNUSED;
+	}
 
 	/* 8255 */
 	s = &dev->subdevices[4];
@@ -3858,8 +3854,9 @@ static int setup_subdevices(struct comedi_device *dev)
 		s->range_table = &range_digital;
 		s->insn_config = dio_60xx_config_insn;
 		s->insn_bits = dio_60xx_wbits;
-	} else
+	} else {
 		s->type = COMEDI_SUBD_UNUSED;
+	}
 
 	/*  caldac */
 	s = &dev->subdevices[6];
@@ -3898,8 +3895,9 @@ static int setup_subdevices(struct comedi_device *dev)
 			ad8402_write(dev, i, s->maxdata / 2);
 			s->readback[i] = s->maxdata / 2;
 		}
-	} else
+	} else {
 		s->type = COMEDI_SUBD_UNUSED;
+	}
 
 	/* serial EEPROM, if present */
 	s = &dev->subdevices[8];
@@ -3909,8 +3907,9 @@ static int setup_subdevices(struct comedi_device *dev)
 		s->n_chan = 128;
 		s->maxdata = 0xffff;
 		s->insn_read = eeprom_read_insn;
-	} else
+	} else {
 		s->type = COMEDI_SUBD_UNUSED;
+	}
 
 	/*  user counter subd XXX */
 	s = &dev->subdevices[9];

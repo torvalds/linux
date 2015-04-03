@@ -77,7 +77,7 @@
 
 #include "comedi_isadma.h"
 #include "comedi_fc.h"
-#include "8253.h"
+#include "comedi_8254.h"
 #include "8255.h"
 
 #define DAS16_DMA_SIZE 0xff00	/*  size in bytes of allocated dma buffer */
@@ -663,18 +663,12 @@ static int das16_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 	/*  step 4: fix up arguments */
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		arg = cmd->scan_begin_arg;
-		i8253_cascade_ns_to_timer(devpriv->clockbase,
-					  &devpriv->divisor1,
-					  &devpriv->divisor2,
-					  &arg, cmd->flags);
+		comedi_8254_cascade_ns_to_timer(dev->pacer, &arg, cmd->flags);
 		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
 		arg = cmd->convert_arg;
-		i8253_cascade_ns_to_timer(devpriv->clockbase,
-					  &devpriv->divisor1,
-					  &devpriv->divisor2,
-					  &arg, cmd->flags);
+		comedi_8254_cascade_ns_to_timer(dev->pacer, &arg, cmd->flags);
 		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
 	}
 	if (err)
@@ -693,17 +687,9 @@ static int das16_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 static unsigned int das16_set_pacer(struct comedi_device *dev, unsigned int ns,
 				    unsigned int flags)
 {
-	struct das16_private_struct *devpriv = dev->private;
-	unsigned long timer_base = dev->iobase + DAS16_TIMER_BASE_REG;
-
-	i8253_cascade_ns_to_timer(devpriv->clockbase,
-				  &devpriv->divisor1, &devpriv->divisor2,
-				  &ns, flags);
-
-	i8254_set_mode(timer_base, 0, 1, I8254_MODE2 | I8254_BINARY);
-	i8254_set_mode(timer_base, 0, 2, I8254_MODE2 | I8254_BINARY);
-	i8254_write(timer_base, 0, 1, devpriv->divisor1);
-	i8254_write(timer_base, 0, 2, devpriv->divisor2);
+	comedi_8254_cascade_ns_to_timer(dev->pacer, &ns, flags);
+	comedi_8254_update_divisors(dev->pacer);
+	comedi_8254_pacer_enable(dev->pacer, 1, 2, true);
 
 	return ns;
 }
@@ -722,7 +708,7 @@ static int das16_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	if (cmd->flags & CMDF_PRIORITY) {
 		dev_err(dev->class_dev,
-			 "isa dma transfers cannot be performed with CMDF_PRIORITY, aborting\n");
+			"isa dma transfers cannot be performed with CMDF_PRIORITY, aborting\n");
 		return -1;
 	}
 
@@ -935,7 +921,6 @@ static void das16_reset(struct comedi_device *dev)
 	outb(0, dev->iobase + DAS16_STATUS_REG);
 	outb(0, dev->iobase + DAS16_CTRL_REG);
 	outb(0, dev->iobase + DAS16_PACER_REG);
-	outb(0, dev->iobase + DAS16_TIMER_BASE_REG + i8254_control_reg);
 }
 
 static void das16_alloc_dma(struct comedi_device *dev, unsigned int dma_chan)
@@ -950,9 +935,8 @@ static void das16_alloc_dma(struct comedi_device *dev, unsigned int dma_chan)
 	devpriv->dma = comedi_isadma_alloc(dev, 2, dma_chan, dma_chan,
 					   DAS16_DMA_SIZE, COMEDI_ISADMA_READ);
 	if (devpriv->dma) {
-		init_timer(&devpriv->timer);
-		devpriv->timer.function = das16_timer_interrupt;
-		devpriv->timer.data = (unsigned long)dev;
+		setup_timer(&devpriv->timer, das16_timer_interrupt,
+			    (unsigned long)dev);
 	}
 }
 
@@ -1039,6 +1023,7 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	const struct das16_board *board = dev->board_ptr;
 	struct das16_private_struct *devpriv;
 	struct comedi_subdevice *s;
+	unsigned int osc_base;
 	unsigned int status;
 	int ret;
 
@@ -1078,20 +1063,20 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -EINVAL;
 
 	/*  get master clock speed */
+	osc_base = I8254_OSC_BASE_1MHZ;
 	if (devpriv->can_burst) {
 		status = inb(dev->iobase + DAS1600_STATUS_REG);
-
 		if (status & DAS1600_STATUS_CLK_10MHZ)
-			devpriv->clockbase = I8254_OSC_BASE_10MHZ;
-		else
-			devpriv->clockbase = I8254_OSC_BASE_1MHZ;
+			osc_base = I8254_OSC_BASE_10MHZ;
 	} else {
 		if (it->options[3])
-			devpriv->clockbase = I8254_OSC_BASE_1MHZ /
-					     it->options[3];
-		else
-			devpriv->clockbase = I8254_OSC_BASE_1MHZ;
+			osc_base = I8254_OSC_BASE_1MHZ / it->options[3];
 	}
+
+	dev->pacer = comedi_8254_init(dev->iobase + DAS16_TIMER_BASE_REG,
+				      osc_base, I8254_IO8, 0);
+	if (!dev->pacer)
+		return -ENOMEM;
 
 	das16_alloc_dma(dev, it->options[2]);
 

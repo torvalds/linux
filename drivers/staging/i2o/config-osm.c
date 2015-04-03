@@ -19,7 +19,7 @@
 #include <linux/namei.h>
 #include <linux/fs.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define OSM_NAME	"config-osm"
 #define OSM_VERSION	"1.323"

@@ -201,7 +201,7 @@ int ni_tio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	unsigned long flags;
 
 	spin_lock_irqsave(&counter->lock, flags);
-	if (counter->mite_chan == NULL) {
+	if (!counter->mite_chan) {
 		dev_err(counter->counter_dev->dev->class_dev,
 			"commands only supported with DMA.  ");
 		dev_err(counter->counter_dev->dev->class_dev,
@@ -329,7 +329,7 @@ static int should_ack_gate(struct ni_gpct *counter)
 	case ni_gpct_variant_e_series:
 		spin_lock_irqsave(&counter->lock, flags);
 		{
-			if (counter->mite_chan == NULL ||
+			if (!counter->mite_chan ||
 			    counter->mite_chan->dir != COMEDI_INPUT ||
 			    (mite_done(counter->mite_chan))) {
 				retval = 1;
@@ -366,7 +366,7 @@ static void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter,
 	if (gxx_status & GI_GATE_ERROR(cidx)) {
 		ack |= GI_GATE_ERROR_CONFIRM(cidx);
 		if (gate_error) {
-			/*660x don't support automatic acknowledgement
+			/*660x don't support automatic acknowledgment
 			  of gate interrupt via dma read/write
 			   and report bogus gate errors */
 			if (counter->counter_dev->variant !=
@@ -443,7 +443,7 @@ void ni_tio_handle_interrupt(struct ni_gpct *counter,
 		break;
 	}
 	spin_lock_irqsave(&counter->lock, flags);
-	if (counter->mite_chan == NULL) {
+	if (!counter->mite_chan) {
 		spin_unlock_irqrestore(&counter->lock, flags);
 		return;
 	}

@@ -30,13 +30,12 @@
 
 static struct cdev file_cdev;
 static struct visorchannel **file_controlvm_channel;
-static dev_t majordev = -1; /**< indicates major num for device */
-static BOOL registered = FALSE;
 
 static int visorchipset_open(struct inode *inode, struct file *file);
 static int visorchipset_release(struct inode *inode, struct file *file);
 static int visorchipset_mmap(struct file *file, struct vm_area_struct *vma);
-long visorchipset_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
+static long visorchipset_ioctl(struct file *file, unsigned int cmd,
+				unsigned long arg);
 
 static const struct file_operations visorchipset_fops = {
 	.owner = THIS_MODULE,
@@ -54,50 +53,30 @@ visorchipset_file_init(dev_t major_dev, struct visorchannel **controlvm_channel)
 	int rc = 0;
 
 	file_controlvm_channel = controlvm_channel;
-	majordev = major_dev;
 	cdev_init(&file_cdev, &visorchipset_fops);
 	file_cdev.owner = THIS_MODULE;
-	if (MAJOR(majordev) == 0) {
+	if (MAJOR(major_dev) == 0) {
 		/* dynamic major device number registration required */
-		if (alloc_chrdev_region(&majordev, 0, 1, MYDRVNAME) < 0) {
-			ERRDRV("Unable to allocate+register char device %s",
-			       MYDRVNAME);
+		if (alloc_chrdev_region(&major_dev, 0, 1, MYDRVNAME) < 0)
 			return -1;
-		}
-		registered = TRUE;
-		INFODRV("New major number %d registered\n", MAJOR(majordev));
 	} else {
 		/* static major device number registration required */
-		if (register_chrdev_region(majordev, 1, MYDRVNAME) < 0) {
-			ERRDRV("Unable to register char device %s", MYDRVNAME);
+		if (register_chrdev_region(major_dev, 1, MYDRVNAME) < 0)
 			return -1;
-		}
-		registered = TRUE;
-		INFODRV("Static major number %d registered\n", MAJOR(majordev));
 	}
-	rc = cdev_add(&file_cdev, MKDEV(MAJOR(majordev), 0), 1);
-	if (rc  < 0) {
-		ERRDRV("failed to create char device: (status=%d)\n", rc);
+	rc = cdev_add(&file_cdev, MKDEV(MAJOR(major_dev), 0), 1);
+	if (rc  < 0)
 		return -1;
-	}
-	INFODRV("Registered char device for %s (major=%d)",
-		MYDRVNAME, MAJOR(majordev));
 	return 0;
 }
 
 void
-visorchipset_file_cleanup(void)
+visorchipset_file_cleanup(dev_t major_dev)
 {
 	if (file_cdev.ops != NULL)
 		cdev_del(&file_cdev);
 	file_cdev.ops = NULL;
-	if (registered) {
-		if (MAJOR(majordev) >= 0) {
-			unregister_chrdev_region(majordev, 1);
-			majordev = MKDEV(0, 0);
-		}
-		registered = FALSE;
-	}
+	unregister_chrdev_region(major_dev, 1);
 }
 
 static int
@@ -105,7 +84,6 @@ visorchipset_open(struct inode *inode, struct file *file)
 {
 	unsigned minor_number = iminor(inode);
 
-	DEBUGDRV("%s", __func__);
 	if (minor_number != 0)
 		return -ENODEV;
 	file->private_data = NULL;
@@ -115,7 +93,6 @@ visorchipset_open(struct inode *inode, struct file *file)
 static int
 visorchipset_release(struct inode *inode, struct file *file)
 {
-	DEBUGDRV("%s", __func__);
 	return 0;
 }
 
@@ -127,16 +104,13 @@ visorchipset_mmap(struct file *file, struct vm_area_struct *vma)
 	GUEST_PHYSICAL_ADDRESS addr = 0;
 
 	/* sv_enable_dfp(); */
-	DEBUGDRV("%s", __func__);
-	if (offset & (PAGE_SIZE - 1)) {
-		ERRDRV("%s virtual address NOT page-aligned!", __func__);
+	if (offset & (PAGE_SIZE - 1))
 		return -ENXIO;	/* need aligned offsets */
-	}
+
 	switch (offset) {
 	case VISORCHIPSET_MMAP_CONTROLCHANOFFSET:
 		vma->vm_flags |= VM_IO;
 		if (*file_controlvm_channel == NULL) {
-			ERRDRV("%s no controlvm channel yet", __func__);
 			return -ENXIO;
 		}
 		visorchannel_read(*file_controlvm_channel,
@@ -144,33 +118,29 @@ visorchipset_mmap(struct file *file, struct vm_area_struct *vma)
 				 gp_control_channel),
 			&addr, sizeof(addr));
 		if (addr == 0) {
-			ERRDRV("%s control channel address is 0", __func__);
 			return -ENXIO;
 		}
 		physaddr = (ulong)addr;
-		DEBUGDRV("mapping physical address = 0x%lx", physaddr);
 		if (remap_pfn_range(vma, vma->vm_start,
 				    physaddr >> PAGE_SHIFT,
 				    vma->vm_end - vma->vm_start,
 				    /*pgprot_noncached */
 				    (vma->vm_page_prot))) {
-			ERRDRV("%s remap_pfn_range failed", __func__);
 			return -EAGAIN;
 		}
 		break;
 	default:
 		return -ENOSYS;
 	}
-	DEBUGDRV("%s success!", __func__);
 	return 0;
 }
 
-long visorchipset_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static long visorchipset_ioctl(struct file *file, unsigned int cmd,
+				unsigned long arg)
 {
 	s64 adjustment;
 	s64 vrtc_offset;
 
-	DBGINF("entered visorchipset_ioctl, cmd=%d", cmd);
 	switch (cmd) {
 	case VMCALL_QUERY_GUEST_VIRTUAL_TIME_OFFSET:
 		/* get the physical rtc offset */
@@ -179,19 +149,14 @@ long visorchipset_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		    ((void __user *)arg, &vrtc_offset, sizeof(vrtc_offset))) {
 			return -EFAULT;
 		}
-		DBGINF("insde visorchipset_ioctl, cmd=%d, vrtc_offset=%lld",
-		       cmd, vrtc_offset);
 		return SUCCESS;
 	case VMCALL_UPDATE_PHYSICAL_TIME:
 		if (copy_from_user
 		    (&adjustment, (void __user *)arg, sizeof(adjustment))) {
 			return -EFAULT;
 		}
-		DBGINF("insde visorchipset_ioctl, cmd=%d, adjustment=%lld", cmd,
-		       adjustment);
 		return issue_vmcall_update_physical_time(adjustment);
 	default:
-		LOGERR("visorchipset_ioctl received invalid command");
 		return -EFAULT;
 	}
 }

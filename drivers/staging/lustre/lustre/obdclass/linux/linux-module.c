@@ -217,23 +217,25 @@ struct miscdevice obd_psdev = {
 
 
 #if defined (CONFIG_PROC_FS)
-int obd_proc_version_seq_show(struct seq_file *m, void *v)
+static int obd_proc_version_seq_show(struct seq_file *m, void *v)
 {
-	return seq_printf(m, "lustre: %s\nkernel: %s\nbuild:  %s\n",
-			LUSTRE_VERSION_STRING, "patchless_client",
-			BUILD_VERSION);
+	seq_printf(m, "lustre: %s\nkernel: %s\nbuild:  %s\n",
+		   LUSTRE_VERSION_STRING, "patchless_client", BUILD_VERSION);
+	return 0;
 }
 LPROC_SEQ_FOPS_RO(obd_proc_version);
 
 int obd_proc_pinger_seq_show(struct seq_file *m, void *v)
 {
-	return seq_printf(m, "%s\n", "on");
+	seq_printf(m, "%s\n", "on");
+	return 0;
 }
 LPROC_SEQ_FOPS_RO(obd_proc_pinger);
 
 static int obd_proc_health_seq_show(struct seq_file *m, void *v)
 {
-	int rc = 0, i;
+	bool healthy = true;
+	int i;
 
 	if (libcfs_catastrophe)
 		seq_printf(m, "LBUG\n");
@@ -255,25 +257,27 @@ static int obd_proc_health_seq_show(struct seq_file *m, void *v)
 
 		if (obd_health_check(NULL, obd)) {
 			seq_printf(m, "device %s reported unhealthy\n",
-				      obd->obd_name);
-			rc++;
+				   obd->obd_name);
+			healthy = false;
 		}
 		class_decref(obd, __func__, current);
 		read_lock(&obd_dev_lock);
 	}
 	read_unlock(&obd_dev_lock);
 
-	if (rc == 0)
-		return seq_printf(m, "healthy\n");
+	if (healthy)
+		seq_puts(m, "healthy\n");
+	else
+		seq_puts(m, "NOT HEALTHY\n");
 
-	seq_printf(m, "NOT HEALTHY\n");
 	return 0;
 }
 LPROC_SEQ_FOPS_RO(obd_proc_health);
 
 static int obd_proc_jobid_var_seq_show(struct seq_file *m, void *v)
 {
-	return seq_printf(m, "%s\n", obd_jobid_var);
+	seq_printf(m, "%s\n", obd_jobid_var);
+	return 0;
 }
 
 static ssize_t obd_proc_jobid_var_seq_write(struct file *file,
@@ -299,7 +303,8 @@ LPROC_SEQ_FOPS(obd_proc_jobid_var);
 
 static int obd_proc_jobid_name_seq_show(struct seq_file *m, void *v)
 {
-	return seq_printf(m, "%s\n", obd_jobid_var);
+	seq_printf(m, "%s\n", obd_jobid_var);
+	return 0;
 }
 
 static ssize_t obd_proc_jobid_name_seq_write(struct file *file,
@@ -378,10 +383,11 @@ static int obd_device_list_seq_show(struct seq_file *p, void *v)
 	else
 		status = "--";
 
-	return seq_printf(p, "%3d %s %s %s %s %d\n",
-			  (int)index, status, obd->obd_type->typ_name,
-			  obd->obd_name, obd->obd_uuid.uuid,
-			  atomic_read(&obd->obd_refcount));
+	seq_printf(p, "%3d %s %s %s %s %d\n",
+		   (int)index, status, obd->obd_type->typ_name,
+		   obd->obd_name, obd->obd_uuid.uuid,
+		   atomic_read(&obd->obd_refcount));
+	return 0;
 }
 
 struct seq_operations obd_device_list_sops = {

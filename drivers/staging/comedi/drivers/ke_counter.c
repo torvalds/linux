@@ -28,9 +28,8 @@
  */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
 /*
  * PCI BAR 0 Register I/O map

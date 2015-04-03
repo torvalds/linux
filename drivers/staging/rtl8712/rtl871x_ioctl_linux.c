@@ -46,6 +46,8 @@
 #include <linux/semaphore.h>
 #include <net/iw_handler.h>
 #include <linux/if_arp.h>
+#include <linux/etherdevice.h>
+
 
 #define RTL_IOCTL_WPA_SUPPLICANT	(SIOCIWFIRSTPRIV + 0x1E)
 
@@ -112,7 +114,7 @@ void r8712_indicate_wx_disassoc_event(struct _adapter *padapter)
 	union iwreq_data wrqu;
 
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-	memset(wrqu.ap_addr.sa_data, 0, ETH_ALEN);
+	eth_zero_addr(wrqu.ap_addr.sa_data);
 	wireless_send_event(padapter->pnetdev, SIOCGIWAP, &wrqu, NULL);
 }
 
@@ -129,7 +131,8 @@ static inline void handle_pairwise_key(struct sta_info *psta,
 		memcpy(psta->tkiprxmickey. skey, &(param->u.crypt.
 			key[24]), 8);
 		padapter->securitypriv. busetkipkey = false;
-		_set_timer(&padapter->securitypriv.tkip_timer, 50);
+		mod_timer(&padapter->securitypriv.tkip_timer,
+			  jiffies + msecs_to_jiffies(50));
 	}
 	r8712_setstakey_cmd(padapter, (unsigned char *)psta, true);
 }
@@ -153,8 +156,8 @@ static inline void handle_group_key(struct ieee_param *param,
 		if (padapter->registrypriv.power_mgnt > PS_MODE_ACTIVE) {
 			if (padapter->registrypriv.power_mgnt != padapter->
 			    pwrctrlpriv.pwr_mode)
-				_set_timer(&(padapter->mlmepriv.dhcp_timer),
-					   60000);
+				mod_timer(&padapter->mlmepriv.dhcp_timer,
+					  jiffies + msecs_to_jiffies(60000));
 		}
 	}
 }
@@ -182,7 +185,7 @@ static inline char *translate_scan(struct _adapter *padapter,
 	/* AP MAC address */
 	iwe.cmd = SIOCGIWAP;
 	iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
-	memcpy(iwe.u.ap_addr.sa_data, pnetwork->network.MacAddress, ETH_ALEN);
+	ether_addr_copy(iwe.u.ap_addr.sa_data, pnetwork->network.MacAddress);
 	start = iwe_stream_add_event(info, start, stop, &iwe, IW_EV_ADDR_LEN);
 	/* Add the ESSID */
 	iwe.cmd = SIOCGIWESSID;
@@ -851,8 +854,7 @@ static int r871x_wx_set_pmkid(struct net_device *dev,
 			    strIssueBssid, ETH_ALEN)) {
 				/* BSSID is matched, the same AP => Remove
 				 * this PMKID information and reset it. */
-				memset(psecuritypriv->PMKIDList[j].Bssid,
-					0x00, ETH_ALEN);
+				eth_zero_addr(psecuritypriv->PMKIDList[j].Bssid);
 				psecuritypriv->PMKIDList[j].bUsed = false;
 				break;
 			}
@@ -1115,9 +1117,9 @@ static int r8711_wx_get_wap(struct net_device *dev,
 	wrqu->ap_addr.sa_family = ARPHRD_ETHER;
 	if (check_fwstate(pmlmepriv, _FW_LINKED | WIFI_ADHOC_MASTER_STATE |
 				     WIFI_AP_STATE))
-		memcpy(wrqu->ap_addr.sa_data, pcur_bss->MacAddress, ETH_ALEN);
+		ether_addr_copy(wrqu->ap_addr.sa_data, pcur_bss->MacAddress);
 	else
-		memset(wrqu->ap_addr.sa_data, 0, ETH_ALEN);
+		eth_zero_addr(wrqu->ap_addr.sa_data);
 	return 0;
 }
 
@@ -1910,13 +1912,9 @@ static int r871x_mp_ioctl_hdl(struct net_device *dev,
 	bset = (u8)(p->flags & 0xFFFF);
 	len = p->length;
 	pparmbuf = NULL;
-	pparmbuf = kmalloc(len, GFP_ATOMIC);
-	if (pparmbuf == NULL) {
-		ret = -ENOMEM;
-		goto _r871x_mp_ioctl_hdl_exit;
-	}
-	if (copy_from_user(pparmbuf, p->pointer, len)) {
-		ret = -EFAULT;
+	pparmbuf = memdup_user(p->pointer, len);
+	if (IS_ERR(pparmbuf)) {
+		ret = PTR_ERR(pparmbuf);
 		goto _r871x_mp_ioctl_hdl_exit;
 	}
 	poidparam = (struct mp_ioctl_param *)pparmbuf;

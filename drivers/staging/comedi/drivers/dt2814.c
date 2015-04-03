@@ -56,7 +56,6 @@ addition, the clock does not seem to be very accurate.
 #define DT2814_CHANMASK 0x0f
 
 struct dt2814_private {
-
 	int ntrig;
 	int curadchan;
 };
@@ -193,7 +192,6 @@ static int dt2814_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	outb(chan | DT2814_ENB | (trigvar << 5), dev->iobase + DT2814_CSR);
 
 	return 0;
-
 }
 
 static irqreturn_t dt2814_interrupt(int irq, void *d)

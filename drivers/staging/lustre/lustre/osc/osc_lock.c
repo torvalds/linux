@@ -1010,7 +1010,7 @@ static int osc_lock_enqueue_wait(const struct lu_env *env,
 	struct cl_lock_descr    *descr   = &lock->cll_descr;
 	struct cl_object_header *hdr     = cl_object_header(descr->cld_obj);
 	struct cl_lock	  *scan;
-	struct cl_lock	  *conflict= NULL;
+	struct cl_lock	  *conflict = NULL;
 	int lockless		     = osc_lock_is_lockless(olck);
 	int rc			   = 0;
 

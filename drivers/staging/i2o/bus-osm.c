@@ -69,7 +69,8 @@ static ssize_t i2o_bus_store_scan(struct device *d,
 	struct i2o_device *i2o_dev = to_i2o_device(d);
 	int rc;
 
-	if ((rc = i2o_bus_scan(i2o_dev)))
+	rc = i2o_bus_scan(i2o_dev);
+	if (rc)
 		osm_warn("bus scan failed %d\n", rc);
 
 	return count;

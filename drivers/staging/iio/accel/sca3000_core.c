@@ -870,7 +870,7 @@ static ssize_t sca3000_query_free_fall_mode(struct device *dev,
 					    struct device_attribute *attr,
 					    char *buf)
 {
-	int ret, len;
+	int ret;
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct sca3000_state *st = iio_priv(indio_dev);
 	int val;
@@ -881,9 +881,7 @@ static ssize_t sca3000_query_free_fall_mode(struct device *dev,
 	mutex_unlock(&st->lock);
 	if (ret < 0)
 		return ret;
-	len = sprintf(buf, "%d\n",
-		      !!(val & SCA3000_FREE_FALL_DETECT));
-	return len;
+	return sprintf(buf, "%d\n", !!(val & SCA3000_FREE_FALL_DETECT));
 }
 
 /**

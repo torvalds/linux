@@ -764,7 +764,7 @@ static int dt282x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	if (cmd->scan_begin_src == TRIG_FOLLOW) {
 		outw(devpriv->supcsr | DT2821_SUPCSR_STRIG,
-			dev->iobase + DT2821_SUPCSR_REG);
+		     dev->iobase + DT2821_SUPCSR_REG);
 	} else {
 		devpriv->supcsr |= DT2821_SUPCSR_XTRIG;
 		outw(devpriv->supcsr, dev->iobase + DT2821_SUPCSR_REG);
@@ -874,7 +874,6 @@ static int dt282x_ao_cmdtest(struct comedi_device *dev,
 		return 4;
 
 	return 0;
-
 }
 
 static int dt282x_ao_inttrig(struct comedi_device *dev,

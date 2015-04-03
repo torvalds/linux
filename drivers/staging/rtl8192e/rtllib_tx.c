@@ -185,7 +185,8 @@ int rtllib_encrypt_fragment(struct rtllib_device *ieee, struct sk_buff *frag,
 	crypt = ieee->crypt_info.crypt[ieee->crypt_info.tx_keyidx];
 
 	if (!(crypt && crypt->ops)) {
-		printk(KERN_INFO "=========>%s(), crypt is null\n", __func__);
+		netdev_info(ieee->dev, "=========>%s(), crypt is null\n",
+			    __func__);
 		return -1;
 	}
 	/* To encrypt, frame format is:
@@ -202,8 +203,8 @@ int rtllib_encrypt_fragment(struct rtllib_device *ieee, struct sk_buff *frag,
 
 	atomic_dec(&crypt->refcnt);
 	if (res < 0) {
-		printk(KERN_INFO "%s: Encryption failed: len=%d.\n",
-		       ieee->dev->name, frag->len);
+		netdev_info(ieee->dev, "%s: Encryption failed: len=%d.\n",
+			    ieee->dev->name, frag->len);
 		ieee->ieee_stats.tx_discards++;
 		return -1;
 	}
@@ -311,7 +312,7 @@ static void rtllib_tx_query_agg_cap(struct rtllib_device *ieee,
 	if (pHTInfo->bCurrentAMPDUEnable) {
 		if (!GetTs(ieee, (struct ts_common_info **)(&pTxTs), hdr->addr1,
 		    skb->priority, TX_DIR, true)) {
-			printk(KERN_INFO "%s: can't get TS\n", __func__);
+			netdev_info(ieee->dev, "%s: can't get TS\n", __func__);
 			return;
 		}
 		if (pTxTs->TxAdmittedBARecord.bValid == false) {
@@ -549,6 +550,17 @@ static int wme_downgrade_ac(struct sk_buff *skb)
 	}
 }
 
+static u8 rtllib_current_rate(struct rtllib_device *ieee)
+{
+	if (ieee->mode & IEEE_MODE_MASK)
+		return ieee->rate;
+
+	if (ieee->HTCurrentOperaRate)
+		return ieee->HTCurrentOperaRate;
+	else
+		return ieee->rate & 0x7F;
+}
+
 int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 {
 	struct rtllib_device *ieee = (struct rtllib_device *)
@@ -582,16 +594,15 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 	   IEEE_SOFTMAC_TX_QUEUE)) ||
 	   ((!ieee->softmac_data_hard_start_xmit &&
 	   (ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE)))) {
-		printk(KERN_WARNING "%s: No xmit handler.\n",
-		       ieee->dev->name);
+		netdev_warn(ieee->dev, "No xmit handler.\n");
 		goto success;
 	}
 
 
 	if (likely(ieee->raw_tx == 0)) {
 		if (unlikely(skb->len < SNAP_SIZE + sizeof(u16))) {
-			printk(KERN_WARNING "%s: skb too small (%d).\n",
-			ieee->dev->name, skb->len);
+			netdev_warn(ieee->dev, "skb too small (%d).\n",
+				    skb->len);
 			goto success;
 		}
 		/* Save source and destination addresses */
@@ -604,9 +615,8 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 		if (ieee->iw_mode == IW_MODE_MONITOR) {
 			txb = rtllib_alloc_txb(1, skb->len, GFP_ATOMIC);
 			if (unlikely(!txb)) {
-				printk(KERN_WARNING "%s: Could not allocate "
-				       "TXB\n",
-				ieee->dev->name);
+				netdev_warn(ieee->dev,
+					    "Could not allocate TXB\n");
 				goto failed;
 			}
 
@@ -636,8 +646,8 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 					}
 				}
 			} else if (ETH_P_ARP == ether_type) {
-				printk(KERN_INFO "=================>DHCP "
-				       "Protocol start tx ARP pkt!!\n");
+				netdev_info(ieee->dev,
+					    "=================>DHCP Protocol start tx ARP pkt!!\n");
 				bdhcp = true;
 				ieee->LPSDelayCnt =
 					 ieee->current_network.tim.tim_count;
@@ -717,10 +727,11 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 
 		/* in case we are a client verify acm is not set for this ac */
 		while (unlikely(ieee->wmm_acm & (0x01 << skb->priority))) {
-			printk(KERN_INFO "skb->priority = %x\n", skb->priority);
+			netdev_info(ieee->dev, "skb->priority = %x\n",
+				    skb->priority);
 			if (wme_downgrade_ac(skb))
 				break;
-			printk(KERN_INFO "converted skb->priority = %x\n",
+			netdev_info(ieee->dev, "converted skb->priority = %x\n",
 			       skb->priority);
 		 }
 			qos_ctl |= skb->priority;
@@ -760,8 +771,7 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 		txb = rtllib_alloc_txb(nr_frags, frag_size +
 				       ieee->tx_headroom, GFP_ATOMIC);
 		if (unlikely(!txb)) {
-			printk(KERN_WARNING "%s: Could not allocate TXB\n",
-			ieee->dev->name);
+			netdev_warn(ieee->dev, "Could not allocate TXB\n");
 			goto failed;
 		}
 		txb->encrypted = encrypt;
@@ -858,15 +868,14 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 		}
 	} else {
 		if (unlikely(skb->len < sizeof(struct rtllib_hdr_3addr))) {
-			printk(KERN_WARNING "%s: skb too small (%d).\n",
-			ieee->dev->name, skb->len);
+			netdev_warn(ieee->dev, "skb too small (%d).\n",
+				    skb->len);
 			goto success;
 		}
 
 		txb = rtllib_alloc_txb(1, skb->len, GFP_ATOMIC);
 		if (!txb) {
-			printk(KERN_WARNING "%s: Could not allocate TXB\n",
-			ieee->dev->name);
+			netdev_warn(ieee->dev, "Could not allocate TXB\n");
 			goto failed;
 		}
 
@@ -906,8 +915,7 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			if (tcb_desc->bMulticast ||  tcb_desc->bBroadcast)
 				tcb_desc->data_rate = ieee->basic_rate;
 			else
-				tcb_desc->data_rate = CURRENT_RATE(ieee->mode,
-					ieee->rate, ieee->HTCurrentOperaRate);
+				tcb_desc->data_rate = rtllib_current_rate(ieee);
 
 			if (bdhcp) {
 				if (ieee->pHTInfo->IOTAction &

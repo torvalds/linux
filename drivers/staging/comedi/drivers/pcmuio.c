@@ -568,7 +568,7 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		} else if (it->options[2]) {
 			/* request the irq for the 2nd asic */
 			ret = request_irq(it->options[2], pcmuio_interrupt, 0,
-					dev->board_name, dev);
+					  dev->board_name, dev);
 			if (ret == 0)
 				devpriv->irq2 = it->options[2];
 		}
@@ -588,7 +588,7 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->insn_bits	= pcmuio_dio_insn_bits;
 		s->insn_config	= pcmuio_dio_insn_config;
 
-		/* subdevices 0 and 2 can suppport interrupts */
+		/* subdevices 0 and 2 can support interrupts */
 		if ((i == 0 && dev->irq) || (i == 2 && devpriv->irq2)) {
 			/* setup the interrupt subdevice */
 			dev->read_subdev = s;

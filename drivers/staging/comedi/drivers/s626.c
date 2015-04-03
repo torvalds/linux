@@ -61,12 +61,11 @@
 
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
 #include "comedi_fc.h"
 #include "s626.h"
@@ -231,9 +230,9 @@ static void s626_debi_replace(struct comedi_device *dev, unsigned int addr,
 /* **************  EEPROM ACCESS FUNCTIONS  ************** */
 
 static int s626_i2c_handshake_eoc(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn,
-				 unsigned long context)
+				  struct comedi_subdevice *s,
+				  struct comedi_insn *insn,
+				  unsigned long context)
 {
 	bool status;
 
@@ -294,7 +293,7 @@ static uint8_t s626_i2c_read(struct comedi_device *dev, uint8_t addr)
 	 *  Byte0 = Not sent.
 	 */
 	if (s626_i2c_handshake(dev, S626_I2C_B2(S626_I2C_ATTRSTART,
-					   (devpriv->i2c_adrs | 1)) |
+						(devpriv->i2c_adrs | 1)) |
 				    S626_I2C_B1(S626_I2C_ATTRSTOP, 0) |
 				    S626_I2C_B0(S626_I2C_ATTRNOP, 0)))
 		/* Abort function and declare error if handshake failed. */
@@ -517,8 +516,8 @@ static int s626_send_dac(struct comedi_device *dev, uint32_t val)
 /*
  * Private helper function: Write setpoint to an application DAC channel.
  */
-static int s626_set_dac(struct comedi_device *dev, uint16_t chan,
-			 int16_t dacdata)
+static int s626_set_dac(struct comedi_device *dev,
+			uint16_t chan, int16_t dacdata)
 {
 	struct s626_private *devpriv = dev->private;
 	uint16_t signmask;
@@ -583,8 +582,8 @@ static int s626_set_dac(struct comedi_device *dev, uint16_t chan,
 	return s626_send_dac(dev, val);
 }
 
-static int s626_write_trim_dac(struct comedi_device *dev, uint8_t logical_chan,
-				uint8_t dac_data)
+static int s626_write_trim_dac(struct comedi_device *dev,
+			       uint8_t logical_chan, uint8_t dac_data)
 {
 	struct s626_private *devpriv = dev->private;
 	uint32_t chan;
@@ -641,7 +640,7 @@ static int s626_load_trim_dacs(struct comedi_device *dev)
 	/* Copy TrimDac setpoint values from EEPROM to TrimDacs. */
 	for (i = 0; i < ARRAY_SIZE(s626_trimchan); i++) {
 		ret = s626_write_trim_dac(dev, i,
-				    s626_i2c_read(dev, s626_trimadrs[i]));
+					  s626_i2c_read(dev, s626_trimadrs[i]));
 		if (ret)
 			return ret;
 	}
@@ -1576,7 +1575,7 @@ static void s626_reset_adc(struct comedi_device *dev, uint8_t *ppl)
 	       dev->mmio + S626_P_RPSADDR1);
 
 	/* Construct RPS program in rps_buf DMA buffer */
-	if (cmd != NULL && cmd->scan_begin_src != TRIG_FOLLOW) {
+	if (cmd->scan_begin_src != TRIG_FOLLOW) {
 		/* Wait for Start trigger. */
 		*rps++ = S626_RPS_PAUSE | S626_RPS_SIGADC;
 		*rps++ = S626_RPS_CLRSIGNAL | S626_RPS_SIGADC;
@@ -1665,7 +1664,7 @@ static void s626_reset_adc(struct comedi_device *dev, uint8_t *ppl)
 			*rps++ = jmp_adrs;
 		}
 
-		if (cmd != NULL && cmd->convert_src != TRIG_NOW) {
+		if (cmd->convert_src != TRIG_NOW) {
 			/* Wait for Start trigger. */
 			*rps++ = S626_RPS_PAUSE | S626_RPS_SIGADC;
 			*rps++ = S626_RPS_CLRSIGNAL | S626_RPS_SIGADC;
@@ -2033,10 +2032,6 @@ static int s626_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/* reset ai_cmd_running flag */
 	devpriv->ai_cmd_running = 0;
-
-	/* test if cmd is valid */
-	if (cmd == NULL)
-		return -EINVAL;
 
 	s626_ai_load_polllist(ppl, cmd);
 	devpriv->ai_cmd_running = 1;
@@ -2733,7 +2728,7 @@ static int s626_initialize(struct comedi_device *dev)
 }
 
 static int s626_auto_attach(struct comedi_device *dev,
-				      unsigned long context_unused)
+			    unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct s626_private *devpriv;

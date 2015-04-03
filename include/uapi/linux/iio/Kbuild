@@ -1,0 +1,3 @@
+# UAPI Header export list
+header-y += events.h
+header-y += types.h

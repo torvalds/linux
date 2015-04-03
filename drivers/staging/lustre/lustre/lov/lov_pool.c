@@ -71,7 +71,7 @@ void lov_pool_putref(struct pool_desc *pool)
 	}
 }
 
-void lov_pool_putref_locked(struct pool_desc *pool)
+static void lov_pool_putref_locked(struct pool_desc *pool)
 {
 	CDEBUG(D_INFO, "pool %p\n", pool);
 	LASSERT(atomic_read(&pool->pool_refcount) > 1);

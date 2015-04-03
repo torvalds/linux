@@ -136,10 +136,10 @@ rtw_alloc_stainfo23a(struct sta_priv *pstapriv, const u8 *hwaddr, gfp_t gfp)
 	index = wifi_mac_hash(hwaddr);
 
 	RT_TRACE(_module_rtl871x_sta_mgt_c_, _drv_info_,
-		 ("rtw_alloc_stainfo23a: index  = %x", index));
+		 "rtw_alloc_stainfo23a: index  = %x\n", index);
 	if (index >= NUM_STA) {
 		RT_TRACE(_module_rtl871x_sta_mgt_c_, _drv_err_,
-			 ("ERROR => rtw_alloc_stainfo23a: index >= NUM_STA"));
+			 "ERROR => rtw_alloc_stainfo23a: index >= NUM_STA\n");
 		psta = NULL;
 		goto exit;
 	}
@@ -160,8 +160,8 @@ rtw_alloc_stainfo23a(struct sta_priv *pstapriv, const u8 *hwaddr, gfp_t gfp)
 			&wRxSeqInitialValue, 2);
 
 	RT_TRACE(_module_rtl871x_sta_mgt_c_, _drv_info_,
-		 ("alloc number_%d stainfo  with hwaddr = %pM\n",
-		 pstapriv->asoc_sta_count, hwaddr));
+		 "alloc number_%d stainfo  with hwaddr = %pM\n",
+		 pstapriv->asoc_sta_count, hwaddr);
 
 	init_addba_retry_timer23a(psta);
 
@@ -249,10 +249,8 @@ int rtw_free_stainfo23a(struct rtw_adapter *padapter, struct sta_info *psta)
 
 	list_del_init(&psta->hash_list);
 	RT_TRACE(_module_rtl871x_sta_mgt_c_, _drv_err_,
-		("\n free number_%d stainfo  with hwaddr = 0x%.2x 0x%.2x 0x%.2x 0x%.2x 0x%.2x 0x%.2x\n",
-			pstapriv->asoc_sta_count, psta->hwaddr[0],
-			psta->hwaddr[1], psta->hwaddr[2], psta->hwaddr[3],
-			psta->hwaddr[4], psta->hwaddr[5]));
+		 "free number_%d stainfo  with hwaddr = %pM\n",
+		 pstapriv->asoc_sta_count, psta->hwaddr);
 	pstapriv->asoc_sta_count--;
 
 	/*  re-init sta_info; 20061114  will be init in alloc_stainfo */
@@ -397,7 +395,7 @@ int rtw_init_bcmc_stainfo23a(struct rtw_adapter *padapter)
 	if (psta == NULL) {
 		res = _FAIL;
 		RT_TRACE(_module_rtl871x_sta_mgt_c_, _drv_err_,
-			 ("rtw_alloc_stainfo23a fail"));
+			 "rtw_alloc_stainfo23a fail\n");
 		return res;
 	}
 	/*  default broadcast & multicast use macid 1 */

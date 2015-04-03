@@ -481,6 +481,9 @@ static int mdc_unpack_acl(struct ptlrpc_request *req, struct lustre_md *md)
 		return -EPROTO;
 
 	acl = posix_acl_from_xattr(&init_user_ns, buf, body->aclsize);
+	if (acl == NULL)
+		return 0;
+
 	if (IS_ERR(acl)) {
 		rc = PTR_ERR(acl);
 		CERROR("convert xattr to acl: %d\n", rc);
@@ -2707,14 +2710,12 @@ static struct md_ops mdc_md_ops = {
 
 static int __init mdc_init(void)
 {
-	int rc;
 	struct lprocfs_static_vars lvars = { NULL };
 
 	lprocfs_mdc_init_vars(&lvars);
 
-	rc = class_register_type(&mdc_obd_ops, &mdc_md_ops, lvars.module_vars,
+	return class_register_type(&mdc_obd_ops, &mdc_md_ops, lvars.module_vars,
 				 LUSTRE_MDC_NAME, NULL);
-	return rc;
 }
 
 static void /*__exit*/ mdc_exit(void)

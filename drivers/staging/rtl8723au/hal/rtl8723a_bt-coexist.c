@@ -1554,7 +1554,8 @@ static void bthci_ResetBtSec(struct rtw_adapter *padapter, struct bt_security *p
 		pBtSec->bUsedHwEncrypt = true;
 	else
 		pBtSec->bUsedHwEncrypt = false;
-	RT_TRACE(_module_rtl871x_security_c_, _drv_info_, ("%s: bUsedHwEncrypt =%d\n", __func__, pBtSec->bUsedHwEncrypt));
+	RT_TRACE(_module_rtl871x_security_c_, _drv_info_,
+		 "%s: bUsedHwEncrypt =%d\n", __func__, pBtSec->bUsedHwEncrypt);
 
 	pBtSec->RSNIE.Octet = pBtSec->RSNIEBuf;
 }
@@ -3208,7 +3209,7 @@ bthci_CmdDisconnectPhysicalLink(struct rtw_adapter *padapter,
 	pBtDbg->dbgHciInfo.hciCmdCntDisconnectPhyLink++;
 
 	PLH = *((u8 *)pHciCmd->Data);
-	PhysLinkDisconnectReason = (*((u8 *)pHciCmd->Data+1));
+	PhysLinkDisconnectReason = *((u8 *)pHciCmd->Data+1);
 	RTPRINT(FIOCTL, IOCTL_BT_HCICMD, ("HCI_DISCONNECT_PHYSICAL_LINK  PhyHandle = 0x%x, Reason = 0x%x\n",
 		PLH, PhysLinkDisconnectReason));
 
@@ -4518,8 +4519,8 @@ bthci_StateConnecting(struct rtw_adapter *padapter,
 		RTPRINT(FIOCTL, IOCTL_STATE, ("STATE_CMD_MAC_CONNECT_COMPLETE\n"));
 
 		if (pBTInfo->BtAsocEntry[EntryNum].AMPRole == AMP_BTAP_JOINER) {
-			RT_TRACE(_module_rtl871x_security_c_,
-				 _drv_info_, ("StateConnecting \n"));
+			RT_TRACE(_module_rtl871x_security_c_, _drv_info_,
+				 "StateConnecting\n");
 		}
 		break;
 	case STATE_CMD_DISCONNECT_PHY_LINK:
@@ -5796,7 +5797,7 @@ static void
 btdm_1AntUpdateHalRAMask(struct rtw_adapter *padapter, u32 mac_id, u32 filter)
 {
 	u8 init_rate = 0;
-	u8 raid;
+	u8 raid, arg;
 	u32 mask;
 	u8 shortGIrate = false;
 	int supportRateNum = 0;
@@ -5860,26 +5861,16 @@ btdm_1AntUpdateHalRAMask(struct rtw_adapter *padapter, u32 mac_id, u32 filter)
 	mask &= ~filter;
 	init_rate = get_highest_rate_idx23a(mask)&0x3f;
 
-	if (pHalData->fw_ractrl) {
-		u8 arg = 0;
+	arg = mac_id&0x1f;/* MACID */
+	arg |= BIT(7);
+	if (true == shortGIrate)
+		arg |= BIT(5);
 
-		arg = mac_id&0x1f;/* MACID */
-		arg |= BIT(7);
-		if (true == shortGIrate)
-			arg |= BIT(5);
+	RTPRINT(FBT, BT_TRACE,
+		("[BTCoex], Update FW RAID entry, MASK = 0x%08x, "
+		 "arg = 0x%02x\n", mask, arg));
 
-		RTPRINT(FBT, BT_TRACE,
-			("[BTCoex], Update FW RAID entry, MASK = 0x%08x, "
-			 "arg = 0x%02x\n", mask, arg));
-
-		rtl8723a_set_raid_cmd(padapter, mask, arg);
-	} else {
-		if (shortGIrate)
-			init_rate |= BIT(6);
-
-		rtl8723au_write8(padapter, REG_INIDATA_RATE_SEL + mac_id,
-				 init_rate);
-	}
+	rtl8723a_set_raid_cmd(padapter, mask, arg);
 
 	psta->init_rate = init_rate;
 	pdmpriv->INIDATA_RATE[mac_id] = init_rate;
@@ -11206,15 +11197,17 @@ void rtl8723a_BT_init_hal_vars(struct rtw_adapter *padapter)
 	pHalData->bt_coexist.bt_radiosharedtype = pHalData->EEPROMBluetoothRadioShared;
 
 	RT_TRACE(_module_hal_init_c_, _drv_info_,
-		 ("BT Coexistance = 0x%x\n", rtl8723a_BT_coexist(padapter)));
+		 "BT Coexistance = 0x%x\n", rtl8723a_BT_coexist(padapter));
 
 	if (rtl8723a_BT_coexist(padapter)) {
 		if (pHalData->bt_coexist.BT_Ant_Num == Ant_x2) {
 			BTDM_SetBtCoexCurrAntNum(padapter, 2);
-			RT_TRACE(_module_hal_init_c_, _drv_info_, ("BlueTooth BT_Ant_Num = Antx2\n"));
+			RT_TRACE(_module_hal_init_c_, _drv_info_,
+				 "BlueTooth BT_Ant_Num = Antx2\n");
 		} else if (pHalData->bt_coexist.BT_Ant_Num == Ant_x1) {
 			BTDM_SetBtCoexCurrAntNum(padapter, 1);
-			RT_TRACE(_module_hal_init_c_, _drv_info_, ("BlueTooth BT_Ant_Num = Antx1\n"));
+			RT_TRACE(_module_hal_init_c_, _drv_info_,
+				 "BlueTooth BT_Ant_Num = Antx1\n");
 		}
 		pHalData->bt_coexist.bBTBusyTraffic = false;
 		pHalData->bt_coexist.bBTTrafficModeSet = false;
@@ -11223,8 +11216,8 @@ void rtl8723a_BT_init_hal_vars(struct rtw_adapter *padapter)
 		pHalData->bt_coexist.PreviousState = 0;
 
 		RT_TRACE(_module_hal_init_c_, _drv_info_,
-			 ("bt_radiosharedType = 0x%x\n",
-			 pHalData->bt_coexist.bt_radiosharedtype));
+			 "bt_radiosharedType = 0x%x\n",
+			 pHalData->bt_coexist.bt_radiosharedtype);
 	}
 }
 

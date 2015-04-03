@@ -442,7 +442,7 @@ cfs_wi_startup(void)
 }
 
 void
-cfs_wi_shutdown (void)
+cfs_wi_shutdown(void)
 {
 	struct cfs_wi_sched	*sched;
 

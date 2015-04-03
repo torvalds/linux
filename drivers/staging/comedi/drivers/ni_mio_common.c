@@ -670,8 +670,8 @@ static inline void ni_set_bitfield(struct comedi_device *dev, int reg,
 		ni_writeb(dev, devpriv->g0_g1_select_reg, G0_G1_Select);
 		break;
 	default:
-		dev_err(dev->class_dev,
-			"%s called with invalid register %d\n", __func__, reg);
+		dev_err(dev->class_dev, "called with invalid register %d\n",
+			reg);
 		break;
 	}
 	mmiowb();
@@ -755,7 +755,7 @@ static int ni_request_ai_mite_channel(struct comedi_device *dev)
 	BUG_ON(devpriv->ai_mite_chan);
 	devpriv->ai_mite_chan =
 	    mite_request_channel(devpriv->mite, devpriv->ai_mite_ring);
-	if (devpriv->ai_mite_chan == NULL) {
+	if (!devpriv->ai_mite_chan) {
 		spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 		dev_err(dev->class_dev,
 			"failed to reserve mite dma channel for analog input\n");
@@ -776,7 +776,7 @@ static int ni_request_ao_mite_channel(struct comedi_device *dev)
 	BUG_ON(devpriv->ao_mite_chan);
 	devpriv->ao_mite_chan =
 	    mite_request_channel(devpriv->mite, devpriv->ao_mite_ring);
-	if (devpriv->ao_mite_chan == NULL) {
+	if (!devpriv->ao_mite_chan) {
 		spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 		dev_err(dev->class_dev,
 			"failed to reserve mite dma channel for analog outut\n");
@@ -802,7 +802,7 @@ static int ni_request_gpct_mite_channel(struct comedi_device *dev,
 	mite_chan =
 	    mite_request_channel(devpriv->mite,
 				 devpriv->gpct_mite_ring[gpct_index]);
-	if (mite_chan == NULL) {
+	if (!mite_chan) {
 		spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 		dev_err(dev->class_dev,
 			"failed to reserve mite dma channel for counter\n");
@@ -828,7 +828,7 @@ static int ni_request_cdo_mite_channel(struct comedi_device *dev)
 	BUG_ON(devpriv->cdo_mite_chan);
 	devpriv->cdo_mite_chan =
 	    mite_request_channel(devpriv->mite, devpriv->cdo_mite_ring);
-	if (devpriv->cdo_mite_chan == NULL) {
+	if (!devpriv->cdo_mite_chan) {
 		spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 		dev_err(dev->class_dev,
 			"failed to reserve mite dma channel for correlated digital output\n");
@@ -1068,7 +1068,7 @@ static int ni_ai_drain_dma(struct comedi_device *dev)
 			udelay(5);
 		}
 		if (i == timeout) {
-			dev_err(dev->class_dev, "%s timed out\n", __func__);
+			dev_err(dev->class_dev, "timed out\n");
 			dev_err(dev->class_dev,
 				"mite_bytes_in_transit=%i, AI_Status1_Register=0x%x\n",
 				mite_bytes_in_transit(devpriv->ai_mite_chan),
@@ -1360,7 +1360,7 @@ static void get_last_sample_611x(struct comedi_device *dev)
 	/* Check if there's a single sample stuck in the FIFO */
 	if (ni_readb(dev, XXX_Status) & 0x80) {
 		dl = ni_readl(dev, ADC_FIFO_Data_611x);
-		data = (dl & 0xffff);
+		data = dl & 0xffff;
 		comedi_buf_write_samples(s, &data, 1);
 	}
 }
@@ -1657,7 +1657,7 @@ static int ni_ai_setup_MITE_dma(struct comedi_device *dev)
 	comedi_buf_write_alloc(s, s->async->prealloc_bufsz);
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
-	if (devpriv->ai_mite_chan == NULL) {
+	if (!devpriv->ai_mite_chan) {
 		spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 		return -EIO;
 	}
@@ -1700,8 +1700,9 @@ static int ni_ao_setup_MITE_dma(struct comedi_device *dev)
 			mite_prep_dma(devpriv->ao_mite_chan, 16, 32);
 		}
 		mite_dma_arm(devpriv->ao_mite_chan);
-	} else
+	} else {
 		retval = -EIO;
+	}
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 
 	return retval;
@@ -1870,7 +1871,7 @@ static void ni_m_series_load_channelgain_list(struct comedi_device *dev,
 		chan = CR_CHAN(list[0]);
 		range = CR_RANGE(list[0]);
 		range_code = ni_gainlkup[board->gainlkup][range];
-		dither = ((list[0] & CR_ALT_FILTER) != 0);
+		dither = (list[0] & CR_ALT_FILTER) != 0;
 		bypass_bits = MSeries_AI_Bypass_Config_FIFO_Bit;
 		bypass_bits |= chan;
 		bypass_bits |=
@@ -1894,7 +1895,7 @@ static void ni_m_series_load_channelgain_list(struct comedi_device *dev,
 		chan = CR_CHAN(list[i]);
 		aref = CR_AREF(list[i]);
 		range = CR_RANGE(list[i]);
-		dither = ((list[i] & CR_ALT_FILTER) != 0);
+		dither = (list[i] & CR_ALT_FILTER) != 0;
 
 		range_code = ni_gainlkup[board->gainlkup][range];
 		devpriv->ai_offset[i] = 0;
@@ -2020,7 +2021,7 @@ static void ni_load_channelgain_list(struct comedi_device *dev,
 			chan = CR_CHAN(list[i]);
 		aref = CR_AREF(list[i]);
 		range = CR_RANGE(list[i]);
-		dither = ((list[i] & CR_ALT_FILTER) != 0);
+		dither = (list[i] & CR_ALT_FILTER) != 0;
 
 		/* fix the external/internal range differences */
 		range = ni_gainlkup[board->gainlkup][range];
@@ -2116,8 +2117,7 @@ static int ni_ai_insn_read(struct comedi_device *dev,
 				}
 			}
 			if (i == NI_TIMEOUT) {
-				dev_err(dev->class_dev, "%s timeout\n",
-					__func__);
+				dev_err(dev->class_dev, "timeout\n");
 				return -ETIME;
 			}
 			d += signbits;
@@ -2140,8 +2140,7 @@ static int ni_ai_insn_read(struct comedi_device *dev,
 				}
 			}
 			if (i == NI_TIMEOUT) {
-				dev_err(dev->class_dev, "%s timeout\n",
-					__func__);
+				dev_err(dev->class_dev, "timeout\n");
 				return -ETIME;
 			}
 			data[n] = (((dl >> 16) & 0xFFFF) + signbits) & 0xFFFF;
@@ -2156,8 +2155,7 @@ static int ni_ai_insn_read(struct comedi_device *dev,
 					break;
 			}
 			if (i == NI_TIMEOUT) {
-				dev_err(dev->class_dev, "%s timeout\n",
-					__func__);
+				dev_err(dev->class_dev, "timeout\n");
 				return -ETIME;
 			}
 			if (devpriv->is_m_series) {
@@ -2529,7 +2527,7 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		start_stop_select |=
 		    AI_START_Select(1 + CR_CHAN(cmd->scan_begin_arg));
 		ni_stc_writew(dev, start_stop_select,
-				    AI_START_STOP_Select_Register);
+			      AI_START_STOP_Select_Register);
 		break;
 	}
 
@@ -2572,7 +2570,6 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 
 	if (dev->irq) {
-
 		/* interrupt on FIFO, errors, SC_TC */
 		interrupt_a_enable |= AI_Error_Interrupt_Enable |
 		    AI_SC_TC_Interrupt_Enable;
@@ -2808,8 +2805,7 @@ static int ni_m_series_ao_config_chanlist(struct comedi_device *dev,
 			break;
 		default:
 			dev_err(dev->class_dev,
-				"%s: bug! unhandled ao reference voltage\n",
-				__func__);
+				"bug! unhandled ao reference voltage\n");
 			break;
 		}
 		switch (krange->max + krange->min) {
@@ -2821,8 +2817,7 @@ static int ni_m_series_ao_config_chanlist(struct comedi_device *dev,
 			break;
 		default:
 			dev_err(dev->class_dev,
-				"%s: bug! unhandled ao offset voltage\n",
-				__func__);
+				"bug! unhandled ao offset voltage\n");
 			break;
 		}
 		if (timed)
@@ -3694,8 +3689,7 @@ static int ni_serial_hw_readwrite8(struct comedi_device *dev,
 		udelay((devpriv->serial_interval_ns + 999) / 1000);
 		if (--count < 0) {
 			dev_err(dev->class_dev,
-				"%s: SPI serial I/O didn't finish in time!\n",
-				__func__);
+				"SPI serial I/O didn't finish in time!\n");
 			err = -ETIME;
 			goto Error;
 		}
@@ -3705,7 +3699,7 @@ static int ni_serial_hw_readwrite8(struct comedi_device *dev,
 	   DIO_Serial_IO_In_Progress_St goes high one bit too early. */
 	udelay((devpriv->serial_interval_ns + 999) / 1000);
 
-	if (data_in != NULL)
+	if (data_in)
 		*data_in = ni_stc_readw(dev, DIO_Serial_Input_Register);
 
 Error:
@@ -3817,8 +3811,6 @@ static int ni_serial_insn_config(struct comedi_device *dev,
 			      Clock_and_FOUT_Register);
 		return 1;
 
-		break;
-
 	case INSN_CONFIG_BIDIRECTIONAL_DATA:
 
 		if (devpriv->serial_interval_ns == 0)
@@ -3833,8 +3825,7 @@ static int ni_serial_insn_config(struct comedi_device *dev,
 			err = ni_serial_sw_readwrite8(dev, s, byte_out,
 						      &byte_in);
 		} else {
-			dev_err(dev->class_dev, "%s: serial disabled!\n",
-				__func__);
+			dev_err(dev->class_dev, "serial disabled!\n");
 			return -EINVAL;
 		}
 		if (err < 0)
@@ -3846,7 +3837,6 @@ static int ni_serial_insn_config(struct comedi_device *dev,
 	default:
 		return -EINVAL;
 	}
-
 }
 
 static void init_ao_67xx(struct comedi_device *dev, struct comedi_subdevice *s)
@@ -4520,8 +4510,7 @@ static unsigned ni_old_get_pfi_routing(struct comedi_device *dev,
 	case 9:
 		return NI_PFI_OUTPUT_G_GATE0;
 	default:
-		dev_err(dev->class_dev,
-			"%s: bug, unhandled case in switch.\n", __func__);
+		dev_err(dev->class_dev, "bug, unhandled case in switch.\n");
 		break;
 	}
 	return 0;
@@ -4673,7 +4662,7 @@ static int cs5529_wait_for_idle(struct comedi_device *dev)
 			return -EIO;
 	}
 	if (i == timeout) {
-		dev_err(dev->class_dev, "%s timeout\n", __func__);
+		dev_err(dev->class_dev, "timeout\n");
 		return -ETIME;
 	}
 	return 0;
@@ -4908,7 +4897,7 @@ static int ni_mseries_set_pll_master_clock(struct comedi_device *dev,
 					       &devpriv->clock_ns);
 	if (retval < 0) {
 		dev_err(dev->class_dev,
-			"%s: bug, failed to find pll parameters\n", __func__);
+			"bug, failed to find pll parameters\n");
 		return retval;
 	}
 
@@ -4966,14 +4955,14 @@ static int ni_set_master_clock(struct comedi_device *dev,
 					      RTSI_Trig_Direction_Register);
 				if (period_ns == 0) {
 					dev_err(dev->class_dev,
-						"%s: we don't handle an unspecified clock period correctly yet, returning error\n",
-						__func__);
+						"we don't handle an unspecified clock period correctly yet, returning error\n");
 					return -EINVAL;
 				}
 				devpriv->clock_ns = period_ns;
 				devpriv->clock_source = source;
-			} else
+			} else {
 				return -EINVAL;
+			}
 		}
 	}
 	return 3;
@@ -5057,8 +5046,7 @@ static unsigned ni_get_rtsi_routing(struct comedi_device *dev, unsigned chan)
 	} else {
 		if (chan == old_RTSI_clock_channel)
 			return NI_RTSI_OUTPUT_RTSI_OSC;
-		dev_err(dev->class_dev, "%s: bug! should never get here?\n",
-			__func__);
+		dev_err(dev->class_dev, "bug! should never get here?\n");
 		return 0;
 	}
 }

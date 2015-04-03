@@ -299,6 +299,9 @@ int lov_prep_getattr_set(struct obd_export *exp, struct obd_info *oinfo,
 		struct lov_request *req;
 
 		loi = oinfo->oi_md->lsm_oinfo[i];
+		if (lov_oinfo_is_dummy(loi))
+			continue;
+
 		if (!lov_check_and_wait_active(lov, loi->loi_ost_idx)) {
 			CDEBUG(D_HA, "lov idx %d inactive\n", loi->loi_ost_idx);
 			if (oinfo->oi_oa->o_valid & OBD_MD_FLEPOCH) {
@@ -384,6 +387,9 @@ int lov_prep_destroy_set(struct obd_export *exp, struct obd_info *oinfo,
 		struct lov_request *req;
 
 		loi = lsm->lsm_oinfo[i];
+		if (lov_oinfo_is_dummy(loi))
+			continue;
+
 		if (!lov_check_and_wait_active(lov, loi->loi_ost_idx)) {
 			CDEBUG(D_HA, "lov idx %d inactive\n", loi->loi_ost_idx);
 			continue;
@@ -496,6 +502,9 @@ int lov_prep_setattr_set(struct obd_export *exp, struct obd_info *oinfo,
 	for (i = 0; i < oinfo->oi_md->lsm_stripe_count; i++) {
 		struct lov_oinfo *loi = oinfo->oi_md->lsm_oinfo[i];
 		struct lov_request *req;
+
+		if (lov_oinfo_is_dummy(loi))
+			continue;
 
 		if (!lov_check_and_wait_active(lov, loi->loi_ost_idx)) {
 			CDEBUG(D_HA, "lov idx %d inactive\n", loi->loi_ost_idx);

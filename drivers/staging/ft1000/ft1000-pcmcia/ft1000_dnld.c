@@ -276,8 +276,8 @@ u16 hdr_checksum(struct pseudo_hdr *pHdr)
 	u16 *usPtr = (u16 *)pHdr;
 	u16 chksum;
 
-	chksum = ((((((usPtr[0] ^ usPtr[1]) ^ usPtr[2]) ^ usPtr[3]) ^
-		    usPtr[4]) ^ usPtr[5]) ^ usPtr[6]);
+	chksum = (((((usPtr[0] ^ usPtr[1]) ^ usPtr[2]) ^ usPtr[3]) ^
+		    usPtr[4]) ^ usPtr[5]) ^ usPtr[6];
 
 	return chksum;
 }
@@ -713,10 +713,10 @@ int card_download(struct net_device *dev, const u8 *pFileStart,
 
 				/* Get buffer for provisioning data */
 				pbuffer =
-					kmalloc((usHdrLength + sizeof(struct pseudo_hdr)),
+					kmalloc(usHdrLength + sizeof(struct pseudo_hdr),
 						GFP_ATOMIC);
 				if (pbuffer) {
-					memcpy(pbuffer, (void *)pUcFile,
+					memcpy(pbuffer, pUcFile,
 					       (u32) (usHdrLength +
 						      sizeof(struct pseudo_hdr)));
 					/* link provisioning data */

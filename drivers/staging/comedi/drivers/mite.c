@@ -47,9 +47,8 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
-#include <linux/pci.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
 #include "comedi_fc.h"
 #include "mite.h"
@@ -186,10 +185,10 @@ struct mite_dma_descriptor_ring *mite_alloc_ring(struct mite_struct *mite)
 	struct mite_dma_descriptor_ring *ring =
 	    kmalloc(sizeof(struct mite_dma_descriptor_ring), GFP_KERNEL);
 
-	if (ring == NULL)
-		return ring;
+	if (!ring)
+		return NULL;
 	ring->hw_dev = get_device(&mite->pcidev->dev);
-	if (ring->hw_dev == NULL) {
+	if (!ring->hw_dev) {
 		kfree(ring);
 		return NULL;
 	}

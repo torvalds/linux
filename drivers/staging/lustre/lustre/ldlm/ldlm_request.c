@@ -307,7 +307,7 @@ int ldlm_blocking_ast_nocheck(struct ldlm_lock *lock)
 	int do_ast;
 
 	lock->l_flags |= LDLM_FL_CBPENDING;
-	do_ast = (!lock->l_readers && !lock->l_writers);
+	do_ast = !lock->l_readers && !lock->l_writers;
 	unlock_res_and_lock(lock);
 
 	if (do_ast) {
@@ -1779,7 +1779,6 @@ int ldlm_cancel_resource_local(struct ldlm_resource *res,
 		if (opaque != NULL && lock->l_ast_data != opaque) {
 			LDLM_ERROR(lock, "data %p doesn't match opaque %p",
 				   lock->l_ast_data, opaque);
-			//LBUG();
 			continue;
 		}
 

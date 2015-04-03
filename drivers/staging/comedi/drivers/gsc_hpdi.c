@@ -41,11 +41,10 @@
  */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
 #include "plx9080.h"
 #include "comedi_fc.h"
@@ -433,7 +432,6 @@ static int gsc_hpdi_cmd_test(struct comedi_device *dev,
 		return 5;
 
 	return 0;
-
 }
 
 /* setup dma descriptors so a link completes every 'len' bytes */

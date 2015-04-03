@@ -72,7 +72,7 @@ static int typed_conns = 1;
 module_param(typed_conns, int, 0444);
 MODULE_PARM_DESC(typed_conns, "use different sockets for bulk");
 
-static int min_bulk = (1<<10);
+static int min_bulk = 1<<10;
 module_param(min_bulk, int, 0644);
 MODULE_PARM_DESC(min_bulk, "smallest 'large' message");
 
@@ -122,7 +122,7 @@ static int nonblk_zcack = 1;
 module_param(nonblk_zcack, int, 0644);
 MODULE_PARM_DESC(nonblk_zcack, "always send ZC-ACK on non-blocking connection");
 
-static unsigned int zc_min_payload = (16 << 10);
+static unsigned int zc_min_payload = 16 << 10;
 module_param(zc_min_payload, int, 0644);
 MODULE_PARM_DESC(zc_min_payload, "minimum payload size to zero copy");
 
@@ -182,7 +182,7 @@ int ksocknal_tunables_init(void)
 #endif
 
 	if (*ksocknal_tunables.ksnd_zc_min_payload < (2 << 10))
-		*ksocknal_tunables.ksnd_zc_min_payload = (2 << 10);
+		*ksocknal_tunables.ksnd_zc_min_payload = 2 << 10;
 
 	return 0;
 };

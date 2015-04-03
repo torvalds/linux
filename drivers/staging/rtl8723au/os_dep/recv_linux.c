@@ -81,19 +81,19 @@ int rtw_recv_indicatepkt23a(struct rtw_adapter *padapter,
 	skb = precv_frame->pkt;
 	if (!skb) {
 		RT_TRACE(_module_recv_osdep_c_, _drv_err_,
-			 ("rtw_recv_indicatepkt23a():skb == NULL!!!!\n"));
+			 "rtw_recv_indicatepkt23a():skb == NULL!!!!\n");
 		goto _recv_indicatepkt_drop;
 	}
 
 	RT_TRACE(_module_recv_osdep_c_, _drv_info_,
-		 ("rtw_recv_indicatepkt23a():skb != NULL !!!\n"));
+		 "rtw_recv_indicatepkt23a():skb != NULL !!!\n");
 	RT_TRACE(_module_recv_osdep_c_, _drv_info_,
-		 ("rtw_recv_indicatepkt23a():precv_frame->hdr.rx_data =%p\n",
-		  precv_frame->pkt->data));
+		 "rtw_recv_indicatepkt23a():precv_frame->hdr.rx_data =%p\n",
+		 precv_frame->pkt->data);
 	RT_TRACE(_module_recv_osdep_c_, _drv_info_,
-		 ("\n skb->head =%p skb->data =%p skb->tail =%p skb->end =%p skb->len =%d\n",
-		  skb->head, skb->data,
-		  skb_tail_pointer(skb), skb_end_pointer(skb), skb->len));
+		 "skb->head =%p skb->data =%p skb->tail =%p skb->end =%p skb->len =%d\n",
+		 skb->head, skb->data,
+		 skb_tail_pointer(skb), skb_end_pointer(skb), skb->len);
 
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == true) {
 		struct sk_buff *pskb2 = NULL;
@@ -148,7 +148,7 @@ _recv_indicatepkt_end:
 	rtw_free_recvframe23a(precv_frame);
 
 	RT_TRACE(_module_recv_osdep_c_, _drv_info_,
-		 ("\n rtw_recv_indicatepkt23a :after netif_rx!!!!\n"));
+		 "rtw_recv_indicatepkt23a :after netif_rx!!!!\n");
 	return _SUCCESS;
 
 _recv_indicatepkt_drop:

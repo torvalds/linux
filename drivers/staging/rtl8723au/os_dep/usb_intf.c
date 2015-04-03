@@ -159,7 +159,7 @@ static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 
 	if (rtw_init_intf_priv(pdvobjpriv) == _FAIL) {
 		RT_TRACE(_module_os_intfs_c_, _drv_err_,
-			 ("\n Can't INIT rtw_init_intf_priv\n"));
+			 "Can't INIT rtw_init_intf_priv\n");
 		goto free_dvobj;
 	}
 	/* 3 misc */
@@ -213,7 +213,7 @@ static void usb_dvobj_deinit(struct usb_interface *usb_intf)
 
 void rtl8723a_usb_intf_stop(struct rtw_adapter *padapter)
 {
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+usb_intf_stop\n"));
+	RT_TRACE(_module_hci_intfs_c_, _drv_err_, "+usb_intf_stop\n");
 
 	/* disable_hw_interrupt */
 	if (!padapter->bSurpriseRemoved) {
@@ -221,7 +221,7 @@ void rtl8723a_usb_intf_stop(struct rtw_adapter *padapter)
 		 * TODO:
 		 */
 		RT_TRACE(_module_hci_intfs_c_, _drv_err_,
-			 ("SurpriseRemoved == false\n"));
+			 "SurpriseRemoved == false\n");
 	}
 
 	/* cancel in irp */
@@ -231,13 +231,14 @@ void rtl8723a_usb_intf_stop(struct rtw_adapter *padapter)
 	rtl8723au_write_port_cancel(padapter);
 
 	/* todo:cancel other irps */
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("-usb_intf_stop\n"));
+	RT_TRACE(_module_hci_intfs_c_, _drv_err_, "-usb_intf_stop\n");
 }
 
 static void rtw_dev_unload(struct rtw_adapter *padapter)
 {
 	struct submit_ctx *pack_tx_ops = &padapter->xmitpriv.ack_tx_ops;
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+rtw_dev_unload\n"));
+
+	RT_TRACE(_module_hci_intfs_c_, _drv_err_, "+rtw_dev_unload\n");
 
 	if (padapter->bup) {
 		DBG_8723A("===> rtw_dev_unload\n");
@@ -261,10 +262,10 @@ static void rtw_dev_unload(struct rtw_adapter *padapter)
 		padapter->bup = false;
 	} else {
 		RT_TRACE(_module_hci_intfs_c_, _drv_err_,
-			 ("r871x_dev_unload():padapter->bup == false\n"));
+			 "r871x_dev_unload():padapter->bup == false\n");
 	}
 	DBG_8723A("<=== rtw_dev_unload\n");
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("-rtw_dev_unload\n"));
+	RT_TRACE(_module_hci_intfs_c_, _drv_err_, "-rtw_dev_unload\n");
 }
 
 static int rtw_suspend(struct usb_interface *pusb_intf, pm_message_t message)
@@ -435,7 +436,7 @@ static struct rtw_adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	/* step 5. */
 	if (rtw_init_drv_sw23a(padapter) == _FAIL) {
 		RT_TRACE(_module_hci_intfs_c_, _drv_err_,
-			 ("Initialize driver software resource Failed!\n"));
+			 "Initialize driver software resource Failed!\n");
 		goto free_hal_data;
 	}
 
@@ -533,13 +534,13 @@ static int rtw_drv_init(struct usb_interface *pusb_intf,
 	struct dvobj_priv *dvobj;
 	int status = _FAIL;
 
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+rtw_drv_init\n"));
+	RT_TRACE(_module_hci_intfs_c_, _drv_err_, "+rtw_drv_init\n");
 
 	/* Initialize dvobj_priv */
 	dvobj = usb_dvobj_init(pusb_intf);
 	if (!dvobj) {
 		RT_TRACE(_module_hci_intfs_c_, _drv_err_,
-			 ("initialize device object priv Failed!\n"));
+			 "initialize device object priv Failed!\n");
 		goto exit;
 	}
 
@@ -554,7 +555,7 @@ static int rtw_drv_init(struct usb_interface *pusb_intf,
 	if (status != _SUCCESS)
 		goto free_if1;
 	RT_TRACE(_module_hci_intfs_c_, _drv_err_,
-		 ("-871x_drv - drv_init, success!\n"));
+		 "-871x_drv - drv_init, success!\n");
 
 	status = _SUCCESS;
 
@@ -586,7 +587,7 @@ static void rtw_disconnect(struct usb_interface *pusb_intf)
 
 	usb_set_intfdata(pusb_intf, NULL);
 
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+dev_remove()\n"));
+	RT_TRACE(_module_hci_intfs_c_, _drv_err_, "+dev_remove()\n");
 
 	rtw_pm_set_ips23a(padapter, IPS_NONE);
 	rtw_pm_set_lps23a(padapter, PS_MODE_ACTIVE);
@@ -597,21 +598,19 @@ static void rtw_disconnect(struct usb_interface *pusb_intf)
 
 	usb_dvobj_deinit(pusb_intf);
 
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("-dev_remove()\n"));
+	RT_TRACE(_module_hci_intfs_c_, _drv_err_, "-dev_remove()\n");
 	DBG_8723A("-r871xu_dev_remove, done\n");
-
-	return;
 }
 
 static int __init rtw_drv_entry(void)
 {
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+rtw_drv_entry\n"));
+	RT_TRACE(_module_hci_intfs_c_, _drv_err_, "+rtw_drv_entry\n");
 	return usb_register(usb_drv);
 }
 
 static void __exit rtw_drv_halt(void)
 {
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+rtw_drv_halt\n"));
+	RT_TRACE(_module_hci_intfs_c_, _drv_err_, "+rtw_drv_halt\n");
 	DBG_8723A("+rtw_drv_halt\n");
 
 	usb_deregister(usb_drv);

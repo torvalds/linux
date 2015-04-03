@@ -53,7 +53,7 @@ comedi_nonfree_firmware tarball available from http://www.comedi.org
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
 #include "comedi_fc.h"
 #include "mite.h"
@@ -304,7 +304,7 @@ static int ni_pcidio_request_di_mite_channel(struct comedi_device *dev)
 	devpriv->di_mite_chan =
 	    mite_request_channel_in_range(devpriv->mite,
 					  devpriv->di_mite_ring, 1, 2);
-	if (devpriv->di_mite_chan == NULL) {
+	if (!devpriv->di_mite_chan) {
 		spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 		dev_err(dev->class_dev, "failed to reserve mite dma channel\n");
 		return -EBUSY;
@@ -354,8 +354,9 @@ static int setup_mite_dma(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (devpriv->di_mite_chan) {
 		mite_prep_dma(devpriv->di_mite_chan, 32, 32);
 		mite_dma_arm(devpriv->di_mite_chan);
-	} else
+	} else {
 		retval = -EIO;
+	}
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 
 	return retval;
@@ -924,7 +925,7 @@ static int nidio_auto_attach(struct comedi_device *dev,
 		return ret;
 
 	devpriv->di_mite_ring = mite_alloc_ring(devpriv->mite);
-	if (devpriv->di_mite_ring == NULL)
+	if (!devpriv->di_mite_ring)
 		return -ENOMEM;
 
 	if (board->uses_firmware) {

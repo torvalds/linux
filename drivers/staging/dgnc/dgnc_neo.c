@@ -11,22 +11,6 @@
  * but WITHOUT ANY WARRANTY, EXPRESS OR IMPLIED; without even the
  * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
  * PURPOSE.  See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- *
- *	NOTE TO LINUX KERNEL HACKERS:  DO NOT REFORMAT THIS CODE!
- *
- *	This is shared code between Digi's CVS archive and the
- *	Linux Kernel sources.
- *	Changing the source just for reformatting needlessly breaks
- *	our CVS diff history.
- *
- *	Send any bug fixes/changes to:  Eng.Linux at digi dot com.
- *	Thank you.
- *
  */
 
 
@@ -119,7 +103,7 @@ static inline void neo_set_cts_flow_control(struct channel_t *ch)
 
 	/* Turn on auto CTS flow control */
 #if 1
-	ier |= (UART_17158_IER_CTSDSR);
+	ier |= UART_17158_IER_CTSDSR;
 #else
 	ier &= ~(UART_17158_IER_CTSDSR);
 #endif
@@ -127,7 +111,7 @@ static inline void neo_set_cts_flow_control(struct channel_t *ch)
 	efr |= (UART_17158_EFR_ECB | UART_17158_EFR_CTSDSR);
 
 	/* Turn off auto Xon flow control */
-	efr &= ~(UART_17158_EFR_IXON);
+	efr &= ~UART_17158_EFR_IXON;
 
 	/* Why? Becuz Exar's spec says we have to zero it out before setting it */
 	writeb(0, &ch->ch_neo_uart->efr);
@@ -155,15 +139,15 @@ static inline void neo_set_rts_flow_control(struct channel_t *ch)
 
 	/* Turn on auto RTS flow control */
 #if 1
-	ier |= (UART_17158_IER_RTSDTR);
+	ier |= UART_17158_IER_RTSDTR;
 #else
 	ier &= ~(UART_17158_IER_RTSDTR);
 #endif
 	efr |= (UART_17158_EFR_ECB | UART_17158_EFR_RTSDTR);
 
 	/* Turn off auto Xoff flow control */
-	ier &= ~(UART_17158_IER_XOFF);
-	efr &= ~(UART_17158_EFR_IXOFF);
+	ier &= ~UART_17158_IER_XOFF;
+	efr &= ~UART_17158_EFR_IXOFF;
 
 	/* Why? Becuz Exar's spec says we have to zero it out before setting it */
 	writeb(0, &ch->ch_neo_uart->efr);
@@ -185,7 +169,7 @@ static inline void neo_set_rts_flow_control(struct channel_t *ch)
 	 * RTS/DTR# output pin (MCR bit-0 or 1 to logic 1 after
 	 * it is enabled.
 	 */
-	ch->ch_mostat |= (UART_MCR_RTS);
+	ch->ch_mostat |= UART_MCR_RTS;
 
 	neo_pci_posting_flush(ch->ch_bd);
 }
@@ -197,8 +181,8 @@ static inline void neo_set_ixon_flow_control(struct channel_t *ch)
 	unsigned char efr = readb(&ch->ch_neo_uart->efr);
 
 	/* Turn off auto CTS flow control */
-	ier &= ~(UART_17158_IER_CTSDSR);
-	efr &= ~(UART_17158_EFR_CTSDSR);
+	ier &= ~UART_17158_IER_CTSDSR;
+	efr &= ~UART_17158_EFR_CTSDSR;
 
 	/* Turn on auto Xon flow control */
 	efr |= (UART_17158_EFR_ECB | UART_17158_EFR_IXON);
@@ -234,11 +218,11 @@ static inline void neo_set_ixoff_flow_control(struct channel_t *ch)
 	unsigned char efr = readb(&ch->ch_neo_uart->efr);
 
 	/* Turn off auto RTS flow control */
-	ier &= ~(UART_17158_IER_RTSDTR);
-	efr &= ~(UART_17158_EFR_RTSDTR);
+	ier &= ~UART_17158_IER_RTSDTR;
+	efr &= ~UART_17158_EFR_RTSDTR;
 
 	/* Turn on auto Xoff flow control */
-	ier |= (UART_17158_IER_XOFF);
+	ier |= UART_17158_IER_XOFF;
 	efr |= (UART_17158_EFR_ECB | UART_17158_EFR_IXOFF);
 
 	/* Why? Becuz Exar's spec says we have to zero it out before setting it */
@@ -272,11 +256,11 @@ static inline void neo_set_no_input_flow_control(struct channel_t *ch)
 	unsigned char efr = readb(&ch->ch_neo_uart->efr);
 
 	/* Turn off auto RTS flow control */
-	ier &= ~(UART_17158_IER_RTSDTR);
-	efr &= ~(UART_17158_EFR_RTSDTR);
+	ier &= ~UART_17158_IER_RTSDTR;
+	efr &= ~UART_17158_EFR_RTSDTR;
 
 	/* Turn off auto Xoff flow control */
-	ier &= ~(UART_17158_IER_XOFF);
+	ier &= ~UART_17158_IER_XOFF;
 	if (ch->ch_c_iflag & IXON)
 		efr &= ~(UART_17158_EFR_IXOFF);
 	else
@@ -312,12 +296,12 @@ static inline void neo_set_no_output_flow_control(struct channel_t *ch)
 	unsigned char efr = readb(&ch->ch_neo_uart->efr);
 
 	/* Turn off auto CTS flow control */
-	ier &= ~(UART_17158_IER_CTSDSR);
-	efr &= ~(UART_17158_EFR_CTSDSR);
+	ier &= ~UART_17158_IER_CTSDSR;
+	efr &= ~UART_17158_EFR_CTSDSR;
 
 	/* Turn off auto Xon flow control */
 	if (ch->ch_c_iflag & IXOFF)
-		efr &= ~(UART_17158_EFR_IXON);
+		efr &= ~UART_17158_EFR_IXON;
 	else
 		efr &= ~(UART_17158_EFR_ECB | UART_17158_EFR_IXON);
 
@@ -407,7 +391,7 @@ static inline void neo_parse_isr(struct dgnc_board *brd, uint port)
 	if (!brd || brd->magic != DGNC_BOARD_MAGIC)
 		return;
 
-	if (port > brd->maxports)
+	if (port >= brd->maxports)
 		return;
 
 	ch = brd->channels[port];
@@ -537,7 +521,7 @@ static inline void neo_parse_lsr(struct dgnc_board *brd, uint port)
 	if (!brd || brd->magic != DGNC_BOARD_MAGIC)
 		return;
 
-	if (port > brd->maxports)
+	if (port >= brd->maxports)
 		return;
 
 	ch = brd->channels[port];
@@ -1019,7 +1003,7 @@ static irqreturn_t neo_intr(int irq, void *voidbrd)
 			 */
 
 			/* Verify the port is in range. */
-			if (port > brd->nasync)
+			if (port >= brd->nasync)
 				continue;
 
 			ch = brd->channels[port];
@@ -1203,7 +1187,7 @@ static void neo_copy_data_from_uart_to_queue(struct channel_t *ch)
 		 * IBM pSeries platform.
 		 * 15 bytes max appears to be the magic number.
 		 */
-		n = min((uint) n, (uint) 12);
+		n = min_t(uint, n, 12);
 
 		/*
 		 * Since we are grabbing the linestatus register, which
@@ -1436,16 +1420,13 @@ static void neo_copy_data_from_queue_to_uart(struct channel_t *ch)
 	spin_lock_irqsave(&ch->ch_lock, flags);
 
 	/* No data to write to the UART */
-	if (ch->ch_w_tail == ch->ch_w_head) {
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-		return;
-	}
+	if (ch->ch_w_tail == ch->ch_w_head)
+		goto exit_unlock;
 
 	/* If port is "stopped", don't send any data to the UART */
-	if ((ch->ch_flags & CH_FORCED_STOP) || (ch->ch_flags & CH_BREAK_SENDING)) {
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-		return;
-	}
+	if ((ch->ch_flags & CH_FORCED_STOP) ||
+		 (ch->ch_flags & CH_BREAK_SENDING))
+		goto exit_unlock;
 
 	/*
 	 * If FIFOs are disabled. Send data directly to txrx register
@@ -1486,27 +1467,23 @@ static void neo_copy_data_from_queue_to_uart(struct channel_t *ch)
 			ch->ch_w_tail &= WQUEUEMASK;
 			ch->ch_txcount++;
 		}
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-		return;
+
+		goto exit_unlock;
 	}
 
 	/*
 	 * We have to do it this way, because of the EXAR TXFIFO count bug.
 	 */
 	if ((ch->ch_bd->dvid & 0xf0) < UART_XR17E158_DVID) {
-		if (!(ch->ch_flags & (CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM))) {
-			spin_unlock_irqrestore(&ch->ch_lock, flags);
-			return;
-		}
+		if (!(ch->ch_flags & (CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM)))
+			goto exit_unlock;
 
 		len_written = 0;
 
 		n = readb(&ch->ch_neo_uart->tfifo);
 
-		if ((unsigned int) n > ch->ch_t_tlevel) {
-			spin_unlock_irqrestore(&ch->ch_lock, flags);
-			return;
-		}
+		if ((unsigned int) n > ch->ch_t_tlevel)
+			goto exit_unlock;
 
 		n = UART_17158_TX_FIFOSIZE - ch->ch_t_tlevel;
 	} else {
@@ -1570,6 +1547,7 @@ static void neo_copy_data_from_queue_to_uart(struct channel_t *ch)
 		ch->ch_flags &= ~(CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM);
 	}
 
+exit_unlock:
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
 }
 

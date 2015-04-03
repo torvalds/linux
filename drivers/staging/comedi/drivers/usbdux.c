@@ -633,8 +633,8 @@ static int receive_dux_commands(struct comedi_device *dev, unsigned int command)
 
 	for (i = 0; i < RETRIES; i++) {
 		ret = usb_bulk_msg(usb, usb_rcvbulkpipe(usb, 8),
-				      devpriv->insn_buf, SIZEINSNBUF,
-				      &nrec, BULK_TIMEOUT);
+				   devpriv->insn_buf, SIZEINSNBUF,
+				   &nrec, BULK_TIMEOUT);
 		if (ret < 0)
 			return ret;
 		if (le16_to_cpu(devpriv->insn_buf[0]) == command)
@@ -1041,7 +1041,6 @@ static int usbdux_dio_insn_bits(struct comedi_device *dev,
 				struct comedi_insn *insn,
 				unsigned int *data)
 {
-
 	struct usbdux_private *devpriv = dev->private;
 	int ret;
 

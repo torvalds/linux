@@ -622,8 +622,8 @@ static int kiblnd_get_completion_vector(kib_conn_t *conn, int cpt)
 		return 0;
 
 	/* hash NID to CPU id in this partition... */
-	off = do_div(nid, cpus_weight(*mask));
-	for_each_cpu_mask(i, *mask) {
+	off = do_div(nid, cpumask_weight(mask));
+	for_each_cpu(i, mask) {
 		if (off-- == 0)
 			return i % vectors;
 	}
@@ -1847,13 +1847,11 @@ static void kiblnd_destroy_pmr_pool(kib_pool_t *pool)
 {
 	kib_pmr_pool_t *ppo = container_of(pool, kib_pmr_pool_t, ppo_pool);
 	kib_phys_mr_t  *pmr;
+	kib_phys_mr_t *tmp;
 
 	LASSERT(pool->po_allocated == 0);
 
-	while (!list_empty(&pool->po_free_list)) {
-		pmr = list_entry(pool->po_free_list.next,
-				     kib_phys_mr_t, pmr_list);
-
+	list_for_each_entry_safe(pmr, tmp, &pool->po_free_list, pmr_list) {
 		LASSERT(pmr->pmr_mr == NULL);
 		list_del(&pmr->pmr_list);
 
@@ -2911,7 +2909,7 @@ static int kiblnd_start_schedulers(struct kib_sched_info *sched)
 	} else {
 		LASSERT(sched->ibs_nthreads <= sched->ibs_nthreads_max);
 		/* increase one thread if there is new interface */
-		nthrs = (sched->ibs_nthreads < sched->ibs_nthreads_max);
+		nthrs = sched->ibs_nthreads < sched->ibs_nthreads_max;
 	}
 
 	for (i = 0; i < nthrs; i++) {

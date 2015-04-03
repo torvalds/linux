@@ -113,13 +113,15 @@ static struct vesa_mode vesa_mode_table[] = {
 
 static struct screen_info smtc_scr_info;
 
+static char *mode_option;
+
 /* process command line options, get vga parameter */
-static int __init sm7xx_vga_setup(char *options)
+static void __init sm7xx_vga_setup(char *options)
 {
 	int i;
 
 	if (!options || !*options)
-		return -EINVAL;
+		return;
 
 	smtc_scr_info.lfb_width = 0;
 	smtc_scr_info.lfb_height = 0;
@@ -133,13 +135,10 @@ static int __init sm7xx_vga_setup(char *options)
 			smtc_scr_info.lfb_height =
 						vesa_mode_table[i].lfb_height;
 			smtc_scr_info.lfb_depth  = vesa_mode_table[i].lfb_depth;
-			return 0;
+			return;
 		}
 	}
-
-	return -1;
 }
-__setup("vga=", sm7xx_vga_setup);
 
 static void sm712_setpalette(int regno, unsigned red, unsigned green,
 			     unsigned blue, struct fb_info *info)
@@ -923,6 +922,8 @@ static const struct pci_device_id smtcfb_pci_table[] = {
 	{0,}
 };
 
+MODULE_DEVICE_TABLE(pci, smtcfb_pci_table);
+
 static void smtcfb_pci_remove(struct pci_dev *pdev)
 {
 	struct smtcfb_info *sfb;
@@ -1017,7 +1018,29 @@ static struct pci_driver smtcfb_driver = {
 	.driver.pm  = SM7XX_PM_OPS,
 };
 
-module_pci_driver(smtcfb_driver);
+static int __init sm712fb_init(void)
+{
+#ifndef MODULE
+	char *option = NULL;
+
+	if (fb_get_options("sm712fb", &option))
+		return -ENODEV;
+	if (option && *option)
+		mode_option = option;
+#endif
+	sm7xx_vga_setup(mode_option);
+
+	return pci_register_driver(&smtcfb_driver);
+}
+
+module_init(sm712fb_init);
+
+static void __exit sm712fb_exit(void)
+{
+	pci_unregister_driver(&smtcfb_driver);
+}
+
+module_exit(sm712fb_exit);
 
 MODULE_AUTHOR("Siliconmotion ");
 MODULE_DESCRIPTION("Framebuffer driver for SMI Graphic Cards");

@@ -181,7 +181,7 @@ static const char *ll_eopcode2str(__u32 opcode)
 	return ll_eopcode_table[opcode].opname;
 }
 
-#if defined (CONFIG_PROC_FS)
+#if defined(CONFIG_PROC_FS)
 static void ptlrpc_lprocfs_register(struct proc_dir_entry *root, char *dir,
 				    char *name,
 				    struct proc_dir_entry **procroot_ret,
@@ -267,7 +267,8 @@ ptlrpc_lprocfs_req_history_len_seq_show(struct seq_file *m, void *v)
 	ptlrpc_service_for_each_part(svcpt, i, svc)
 		total += svcpt->scp_hist_nrqbds;
 
-	return seq_printf(m, "%d\n", total);
+	seq_printf(m, "%d\n", total);
+	return 0;
 }
 LPROC_SEQ_FOPS_RO(ptlrpc_lprocfs_req_history_len);
 
@@ -282,7 +283,8 @@ ptlrpc_lprocfs_req_history_max_seq_show(struct seq_file *m, void *n)
 	ptlrpc_service_for_each_part(svcpt, i, svc)
 		total += svc->srv_hist_nrqbds_cpt_max;
 
-	return seq_printf(m, "%d\n", total);
+	seq_printf(m, "%d\n", total);
+	return 0;
 }
 
 static ssize_t
@@ -327,8 +329,8 @@ ptlrpc_lprocfs_threads_min_seq_show(struct seq_file *m, void *n)
 {
 	struct ptlrpc_service *svc = m->private;
 
-	return seq_printf(m, "%d\n",
-			svc->srv_nthrs_cpt_init * svc->srv_ncpts);
+	seq_printf(m, "%d\n", svc->srv_nthrs_cpt_init * svc->srv_ncpts);
+	return 0;
 }
 
 static ssize_t
@@ -371,7 +373,8 @@ ptlrpc_lprocfs_threads_started_seq_show(struct seq_file *m, void *n)
 	ptlrpc_service_for_each_part(svcpt, i, svc)
 		total += svcpt->scp_nthrs_running;
 
-	return seq_printf(m, "%d\n", total);
+	seq_printf(m, "%d\n", total);
+	return 0;
 }
 LPROC_SEQ_FOPS_RO(ptlrpc_lprocfs_threads_started);
 
@@ -380,8 +383,8 @@ ptlrpc_lprocfs_threads_max_seq_show(struct seq_file *m, void *n)
 {
 	struct ptlrpc_service *svc = m->private;
 
-	return seq_printf(m, "%d\n",
-			svc->srv_nthrs_cpt_limit * svc->srv_ncpts);
+	seq_printf(m, "%d\n", svc->srv_nthrs_cpt_limit * svc->srv_ncpts);
+	return 0;
 }
 
 static ssize_t
@@ -1026,7 +1029,8 @@ LPROC_SEQ_FOPS_RO(ptlrpc_lprocfs_timeouts);
 static int ptlrpc_lprocfs_hp_ratio_seq_show(struct seq_file *m, void *v)
 {
 	struct ptlrpc_service *svc = m->private;
-	return seq_printf(m, "%d", svc->srv_hpreq_ratio);
+	seq_printf(m, "%d", svc->srv_hpreq_ratio);
+	return 0;
 }
 
 static ssize_t ptlrpc_lprocfs_hp_ratio_seq_write(struct file *file,
@@ -1083,7 +1087,7 @@ void ptlrpc_lprocfs_register_service(struct proc_dir_entry *entry,
 		 .data	     = svc},
 		{NULL}
 	};
-	static struct file_operations req_history_fops = {
+	static const struct file_operations req_history_fops = {
 		.owner       = THIS_MODULE,
 		.open	= ptlrpc_lprocfs_svc_req_history_open,
 		.read	= seq_read,
@@ -1324,13 +1328,12 @@ int lprocfs_rd_pinger_recov(struct seq_file *m, void *n)
 {
 	struct obd_device *obd = m->private;
 	struct obd_import *imp = obd->u.cli.cl_import;
-	int rc;
 
 	LPROCFS_CLIMP_CHECK(obd);
-	rc = seq_printf(m, "%d\n", !imp->imp_no_pinger_recover);
+	seq_printf(m, "%d\n", !imp->imp_no_pinger_recover);
 	LPROCFS_CLIMP_EXIT(obd);
 
-	return rc;
+	return 0;
 }
 EXPORT_SYMBOL(lprocfs_rd_pinger_recov);
 

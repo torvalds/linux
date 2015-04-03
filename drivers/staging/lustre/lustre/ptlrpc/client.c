@@ -285,14 +285,27 @@ static void ptlrpc_at_adj_net_latency(struct ptlrpc_request *req,
 	time_t now = get_seconds();
 
 	LASSERT(req->rq_import);
-	at = &req->rq_import->imp_at;
+
+	if (service_time > now - req->rq_sent + 3) {
+		/* bz16408, however, this can also happen if early reply
+		 * is lost and client RPC is expired and resent, early reply
+		 * or reply of original RPC can still be fit in reply buffer
+		 * of resent RPC, now client is measuring time from the
+		 * resent time, but server sent back service time of original
+		 * RPC.
+		 */
+		CDEBUG((lustre_msg_get_flags(req->rq_reqmsg) & MSG_RESENT) ?
+		       D_ADAPTTO : D_WARNING,
+		       "Reported service time %u > total measured time "
+		       CFS_DURATION_T"\n", service_time,
+		       cfs_time_sub(now, req->rq_sent));
+		return;
+	}
 
 	/* Network latency is total time less server processing time */
-	nl = max_t(int, now - req->rq_sent - service_time, 0) + 1/*st rounding*/;
-	if (service_time > now - req->rq_sent + 3 /* bz16408 */)
-		CWARN("Reported service time %u > total measured time "
-		      CFS_DURATION_T"\n", service_time,
-		      cfs_time_sub(now, req->rq_sent));
+	nl = max_t(int, now - req->rq_sent -
+			service_time, 0) + 1; /* st rounding */
+	at = &req->rq_import->imp_at;
 
 	oldnl = at_measured(&at->iat_net_latency, nl);
 	if (oldnl != 0)
@@ -468,7 +481,6 @@ void ptlrpc_add_rqs_to_pool(struct ptlrpc_request_pool *pool, int num_rq)
 		list_add_tail(&req->rq_list, &pool->prp_req_list);
 	}
 	spin_unlock(&pool->prp_lock);
-	return;
 }
 EXPORT_SYMBOL(ptlrpc_add_rqs_to_pool);
 
@@ -1439,12 +1451,11 @@ static int ptlrpc_send_new_req(struct ptlrpc_request *req)
 		if (req->rq_err) {
 			req->rq_status = rc;
 			return 1;
-		} else {
-			spin_lock(&req->rq_lock);
-			req->rq_wait_ctx = 1;
-			spin_unlock(&req->rq_lock);
-			return 0;
 		}
+		spin_lock(&req->rq_lock);
+		req->rq_wait_ctx = 1;
+		spin_unlock(&req->rq_lock);
+		return 0;
 	}
 
 	CDEBUG(D_RPCTRACE, "Sending RPC pname:cluuid:pid:xid:nid:opc %s:%s:%d:%llu:%s:%d\n",
@@ -2192,7 +2203,7 @@ int ptlrpc_set_wait(struct ptlrpc_request_set *set)
 	if (set->set_interpret != NULL) {
 		int (*interpreter)(struct ptlrpc_request_set *set, void *, int) =
 			set->set_interpret;
-		rc = interpreter (set, set->set_arg, rc);
+		rc = interpreter(set, set->set_arg, rc);
 	} else {
 		struct ptlrpc_set_cbdata *cbdata, *n;
 		int err;

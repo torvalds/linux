@@ -255,20 +255,20 @@ void r8712_stop_drv_threads(struct _adapter *padapter)
 
 static void start_drv_timers(struct _adapter *padapter)
 {
-	_set_timer(&padapter->mlmepriv.sitesurveyctrl.sitesurvey_ctrl_timer,
-		   5000);
-	_set_timer(&padapter->mlmepriv.wdg_timer, 2000);
+	mod_timer(&padapter->mlmepriv.sitesurveyctrl.sitesurvey_ctrl_timer,
+		  jiffies + msecs_to_jiffies(5000));
+	mod_timer(&padapter->mlmepriv.wdg_timer,
+		  jiffies + msecs_to_jiffies(2000));
 }
 
 void r8712_stop_drv_timers(struct _adapter *padapter)
 {
-	_cancel_timer_ex(&padapter->mlmepriv.assoc_timer);
-	_cancel_timer_ex(&padapter->securitypriv.tkip_timer);
-	_cancel_timer_ex(&padapter->mlmepriv.scan_to_timer);
-	_cancel_timer_ex(&padapter->mlmepriv.dhcp_timer);
-	_cancel_timer_ex(&padapter->mlmepriv.wdg_timer);
-	_cancel_timer_ex(&padapter->mlmepriv.sitesurveyctrl.
-			 sitesurvey_ctrl_timer);
+	del_timer_sync(&padapter->mlmepriv.assoc_timer);
+	del_timer_sync(&padapter->securitypriv.tkip_timer);
+	del_timer_sync(&padapter->mlmepriv.scan_to_timer);
+	del_timer_sync(&padapter->mlmepriv.dhcp_timer);
+	del_timer_sync(&padapter->mlmepriv.wdg_timer);
+	del_timer_sync(&padapter->mlmepriv.sitesurveyctrl.sitesurvey_ctrl_timer);
 }
 
 static u8 init_default_value(struct _adapter *padapter)
@@ -322,8 +322,8 @@ u8 r8712_init_drv_sw(struct _adapter *padapter)
 	_r8712_init_recv_priv(&padapter->recvpriv, padapter);
 	memset((unsigned char *)&padapter->securitypriv, 0,
 	       sizeof(struct security_priv));
-	_init_timer(&(padapter->securitypriv.tkip_timer), padapter->pnetdev,
-		    r8712_use_tkipkey_handler, padapter);
+	setup_timer(&padapter->securitypriv.tkip_timer,
+		    r8712_use_tkipkey_handler, (unsigned long)padapter);
 	_r8712_init_sta_priv(&padapter->stapriv);
 	padapter->stapriv.padapter = padapter;
 	r8712_init_bcmc_stainfo(padapter);

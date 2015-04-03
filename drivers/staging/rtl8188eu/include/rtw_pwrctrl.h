@@ -233,9 +233,8 @@ struct pwrctrl_priv {
 #define RTW_PWR_STATE_CHK_INTERVAL 2000
 
 #define _rtw_set_pwr_state_check_timer(pwrctrlpriv, ms) \
-	do { \
-		_set_timer(&(pwrctrlpriv)->pwr_state_check_timer, (ms)); \
-	} while (0)
+	mod_timer(&pwrctrlpriv->pwr_state_check_timer,	\
+		  jiffies + msecs_to_jiffies(ms))
 
 #define rtw_set_pwr_state_check_timer(pwrctrl)			\
 	_rtw_set_pwr_state_check_timer((pwrctrl),		\

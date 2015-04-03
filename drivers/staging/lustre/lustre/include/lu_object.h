@@ -192,7 +192,7 @@ struct lu_object_conf {
  */
 typedef int (*lu_printer_t)(const struct lu_env *env,
 			    void *cookie, const char *format, ...)
-	__attribute__ ((format (printf, 3, 4)));
+	__printf(3, 4);
 
 /**
  * Operations specific for particular lu_object.

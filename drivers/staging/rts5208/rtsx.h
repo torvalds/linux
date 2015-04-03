@@ -46,9 +46,6 @@
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_host.h>
 
-#include "trace.h"
-#include "general.h"
-
 #define CR_DRIVER_NAME		"rts5208"
 
 #define pci_get_bus_and_slot(bus, devfn)	\
@@ -180,5 +177,15 @@ static inline void get_current_time(u8 *timeval_buf, int buf_len)
 enum xfer_buf_dir	{TO_XFER_BUF, FROM_XFER_BUF};
 
 int rtsx_read_pci_cfg_byte(u8 bus, u8 dev, u8 func, u8 offset, u8 *val);
+
+#define _MSG_TRACE
+
+#include "trace.h"
+#include "rtsx_chip.h"
+#include "rtsx_transport.h"
+#include "rtsx_scsi.h"
+#include "rtsx_card.h"
+#include "rtsx_sys.h"
+#include "general.h"
 
 #endif  /* __REALTEK_RTSX_H */
