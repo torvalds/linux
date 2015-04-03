@@ -113,6 +113,13 @@ s32 fm10k_iov_mbx(struct fm10k_intfc *interface)
 	/* lock the mailbox for transmit and receive */
 	fm10k_mbx_lock(interface);
 
+	/* Most VF messages sent to the PF cause the PF to respond by
+	 * requesting from the SM mailbox. This means that too many VF
+	 * messages processed at once could cause a mailbox timeout on the PF.
+	 * To prevent this, store a pointer to the next VF mbx to process. Use
+	 * that as the start of the loop so that we don't starve whichever VF
+	 * got ignored on the previous run.
+	 */
 process_mbx:
 	for (i = iov_data->next_vf_mbx ? : iov_data->num_vfs; i--;) {
 		struct fm10k_vf_info *vf_info = &iov_data->vf_info[i];
@@ -137,6 +144,10 @@ process_mbx:
 		mbx->ops.process(hw, mbx);
 	}
 
+	/* if we stopped processing mailboxes early, update next_vf_mbx.
+	 * Otherwise, reset next_vf_mbx, and restart loop so that we process
+	 * the remaining mailboxes we skipped at the start.
+	 */
 	if (i >= 0) {
 		iov_data->next_vf_mbx = i + 1;
 	} else if (iov_data->next_vf_mbx) {
