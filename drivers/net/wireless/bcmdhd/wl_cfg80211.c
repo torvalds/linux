@@ -7380,6 +7380,9 @@ static void wl_free_wdev(struct bcm_cfg80211 *cfg)
 	}
 	wiphy = wdev->wiphy;
 
+	wdev->wiphy->wowlan = NULL;
+	wdev->wiphy->wowlan_config = NULL;
+
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 13, 0)) || defined(WL_VENDOR_EXT_SUPPORT)
 	wl_cfgvendor_detach(wdev->wiphy);
 #endif /* if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 13, 0)) || defined(WL_VENDOR_EXT_SUPPORT) */
