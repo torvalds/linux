@@ -412,7 +412,6 @@ err_icm:
 
 EXPORT_SYMBOL_GPL(mlx4_qp_alloc);
 
-#define MLX4_UPDATE_QP_SUPPORTED_ATTRS MLX4_UPDATE_QP_SMAC
 int mlx4_update_qp(struct mlx4_dev *dev, u32 qpn,
 		   enum mlx4_update_qp_attr attr,
 		   struct mlx4_update_qp_params *params)

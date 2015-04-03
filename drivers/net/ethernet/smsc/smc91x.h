@@ -39,14 +39,7 @@
  * Define your architecture specific bus configuration parameters here.
  */
 
-#if defined(CONFIG_ARCH_LUBBOCK) ||\
-    defined(CONFIG_MACH_MAINSTONE) ||\
-    defined(CONFIG_MACH_ZYLONITE) ||\
-    defined(CONFIG_MACH_LITTLETON) ||\
-    defined(CONFIG_MACH_ZYLONITE2) ||\
-    defined(CONFIG_ARCH_VIPER) ||\
-    defined(CONFIG_MACH_STARGATE2) ||\
-    defined(CONFIG_ARCH_VERSATILE)
+#if defined(CONFIG_ARM)
 
 #include <asm/mach-types.h>
 
@@ -74,95 +67,8 @@
 /* We actually can't write halfwords properly if not word aligned */
 static inline void SMC_outw(u16 val, void __iomem *ioaddr, int reg)
 {
-	if ((machine_is_mainstone() || machine_is_stargate2()) && reg & 2) {
-		unsigned int v = val << 16;
-		v |= readl(ioaddr + (reg & ~2)) & 0xffff;
-		writel(v, ioaddr + (reg & ~2));
-	} else {
-		writew(val, ioaddr + reg);
-	}
-}
-
-#elif defined(CONFIG_SA1100_PLEB)
-/* We can only do 16-bit reads and writes in the static memory space. */
-#define SMC_CAN_USE_8BIT	1
-#define SMC_CAN_USE_16BIT	1
-#define SMC_CAN_USE_32BIT	0
-#define SMC_IO_SHIFT		0
-#define SMC_NOWAIT		1
-
-#define SMC_inb(a, r)		readb((a) + (r))
-#define SMC_insb(a, r, p, l)	readsb((a) + (r), p, (l))
-#define SMC_inw(a, r)		readw((a) + (r))
-#define SMC_insw(a, r, p, l)	readsw((a) + (r), p, l)
-#define SMC_outb(v, a, r)	writeb(v, (a) + (r))
-#define SMC_outsb(a, r, p, l)	writesb((a) + (r), p, (l))
-#define SMC_outw(v, a, r)	writew(v, (a) + (r))
-#define SMC_outsw(a, r, p, l)	writesw((a) + (r), p, l)
-
-#define SMC_IRQ_FLAGS		(-1)
-
-#elif defined(CONFIG_SA1100_ASSABET)
-
-#include <mach/neponset.h>
-
-/* We can only do 8-bit reads and writes in the static memory space. */
-#define SMC_CAN_USE_8BIT	1
-#define SMC_CAN_USE_16BIT	0
-#define SMC_CAN_USE_32BIT	0
-#define SMC_NOWAIT		1
-
-/* The first two address lines aren't connected... */
-#define SMC_IO_SHIFT		2
-
-#define SMC_inb(a, r)		readb((a) + (r))
-#define SMC_outb(v, a, r)	writeb(v, (a) + (r))
-#define SMC_insb(a, r, p, l)	readsb((a) + (r), p, (l))
-#define SMC_outsb(a, r, p, l)	writesb((a) + (r), p, (l))
-#define SMC_IRQ_FLAGS		(-1)	/* from resource */
-
-#elif	defined(CONFIG_MACH_LOGICPD_PXA270) ||	\
-	defined(CONFIG_MACH_NOMADIK_8815NHK)
-
-#define SMC_CAN_USE_8BIT	0
-#define SMC_CAN_USE_16BIT	1
-#define SMC_CAN_USE_32BIT	0
-#define SMC_IO_SHIFT		0
-#define SMC_NOWAIT		1
-
-#define SMC_inw(a, r)		readw((a) + (r))
-#define SMC_outw(v, a, r)	writew(v, (a) + (r))
-#define SMC_insw(a, r, p, l)	readsw((a) + (r), p, l)
-#define SMC_outsw(a, r, p, l)	writesw((a) + (r), p, l)
-
-#elif	defined(CONFIG_ARCH_INNOKOM) || \
-	defined(CONFIG_ARCH_PXA_IDP) || \
-	defined(CONFIG_ARCH_RAMSES) || \
-	defined(CONFIG_ARCH_PCM027)
-
-#define SMC_CAN_USE_8BIT	1
-#define SMC_CAN_USE_16BIT	1
-#define SMC_CAN_USE_32BIT	1
-#define SMC_IO_SHIFT		0
-#define SMC_NOWAIT		1
-#define SMC_USE_PXA_DMA		1
-
-#define SMC_inb(a, r)		readb((a) + (r))
-#define SMC_inw(a, r)		readw((a) + (r))
-#define SMC_inl(a, r)		readl((a) + (r))
-#define SMC_outb(v, a, r)	writeb(v, (a) + (r))
-#define SMC_outl(v, a, r)	writel(v, (a) + (r))
-#define SMC_insl(a, r, p, l)	readsl((a) + (r), p, l)
-#define SMC_outsl(a, r, p, l)	writesl((a) + (r), p, l)
-#define SMC_insw(a, r, p, l)	readsw((a) + (r), p, l)
-#define SMC_outsw(a, r, p, l)	writesw((a) + (r), p, l)
-#define SMC_IRQ_FLAGS		(-1)	/* from resource */
-
-/* We actually can't write halfwords properly if not word aligned */
-static inline void
-SMC_outw(u16 val, void __iomem *ioaddr, int reg)
-{
-	if (reg & 2) {
+	if ((machine_is_mainstone() || machine_is_stargate2() ||
+	     machine_is_pxa_idp()) && reg & 2) {
 		unsigned int v = val << 16;
 		v |= readl(ioaddr + (reg & ~2)) & 0xffff;
 		writel(v, ioaddr + (reg & ~2));
@@ -236,20 +142,6 @@ SMC_outw(u16 val, void __iomem *ioaddr, int reg)
 
 #define RPC_LSA_DEFAULT         RPC_LED_100_10
 #define RPC_LSB_DEFAULT         RPC_LED_TX_RX
-
-#elif defined(CONFIG_ARCH_MSM)
-
-#define SMC_CAN_USE_8BIT	0
-#define SMC_CAN_USE_16BIT	1
-#define SMC_CAN_USE_32BIT	0
-#define SMC_NOWAIT		1
-
-#define SMC_inw(a, r)		readw((a) + (r))
-#define SMC_outw(v, a, r)	writew(v, (a) + (r))
-#define SMC_insw(a, r, p, l)	readsw((a) + (r), p, l)
-#define SMC_outsw(a, r, p, l)	writesw((a) + (r), p, l)
-
-#define SMC_IRQ_FLAGS		IRQF_TRIGGER_HIGH
 
 #elif defined(CONFIG_COLDFIRE)
 

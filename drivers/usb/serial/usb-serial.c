@@ -687,6 +687,21 @@ static void serial_port_dtr_rts(struct tty_port *port, int on)
 		drv->dtr_rts(p, on);
 }
 
+static ssize_t port_number_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct usb_serial_port *port = to_usb_serial_port(dev);
+
+	return sprintf(buf, "%u\n", port->port_number);
+}
+static DEVICE_ATTR_RO(port_number);
+
+static struct attribute *usb_serial_port_attrs[] = {
+	&dev_attr_port_number.attr,
+	NULL
+};
+ATTRIBUTE_GROUPS(usb_serial_port);
+
 static const struct tty_port_operations serial_port_ops = {
 	.carrier_raised		= serial_port_carrier_raised,
 	.dtr_rts		= serial_port_dtr_rts,
@@ -902,6 +917,7 @@ static int usb_serial_probe(struct usb_interface *interface,
 		port->dev.driver = NULL;
 		port->dev.bus = &usb_serial_bus_type;
 		port->dev.release = &usb_serial_port_release;
+		port->dev.groups = usb_serial_port_groups;
 		device_initialize(&port->dev);
 	}
 
@@ -940,8 +956,9 @@ static int usb_serial_probe(struct usb_interface *interface,
 		port = serial->port[i];
 		if (kfifo_alloc(&port->write_fifo, PAGE_SIZE, GFP_KERNEL))
 			goto probe_error;
-		buffer_size = max_t(int, serial->type->bulk_out_size,
-						usb_endpoint_maxp(endpoint));
+		buffer_size = serial->type->bulk_out_size;
+		if (!buffer_size)
+			buffer_size = usb_endpoint_maxp(endpoint);
 		port->bulk_out_size = buffer_size;
 		port->bulk_out_endpointAddress = endpoint->bEndpointAddress;
 

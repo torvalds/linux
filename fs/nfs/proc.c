@@ -139,7 +139,7 @@ nfs_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 	nfs_fattr_init(fattr);
 	status = rpc_call_sync(NFS_CLIENT(inode), &msg, 0);
 	if (status == 0)
-		nfs_setattr_update_inode(inode, sattr);
+		nfs_setattr_update_inode(inode, sattr, fattr);
 	dprintk("NFS reply setattr: %d\n", status);
 	return status;
 }
@@ -609,10 +609,8 @@ static int nfs_proc_pgio_rpc_prepare(struct rpc_task *task,
 
 static int nfs_write_done(struct rpc_task *task, struct nfs_pgio_header *hdr)
 {
-	struct inode *inode = hdr->inode;
-
 	if (task->tk_status >= 0)
-		nfs_post_op_update_inode_force_wcc(inode, hdr->res.fattr);
+		nfs_writeback_update_inode(hdr);
 	return 0;
 }
 

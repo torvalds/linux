@@ -59,6 +59,8 @@ struct dw8250_data {
 	u8			usr_reg;
 	int			last_mcr;
 	int			line;
+	int			msr_mask_on;
+	int			msr_mask_off;
 	struct clk		*clk;
 	struct clk		*pclk;
 	struct reset_control	*rst;
@@ -79,6 +81,12 @@ static inline int dw8250_modify_msr(struct uart_port *p, int offset, int value)
 	if (offset == UART_MSR && d->last_mcr & UART_MCR_AFE) {
 		value |= UART_MSR_CTS;
 		value &= ~UART_MSR_DCTS;
+	}
+
+	/* Override any modem control signals if needed */
+	if (offset == UART_MSR) {
+		value |= d->msr_mask_on;
+		value &= ~d->msr_mask_off;
 	}
 
 	return value;
@@ -333,6 +341,30 @@ static int dw8250_probe_of(struct uart_port *p,
 	id = of_alias_get_id(np, "serial");
 	if (id >= 0)
 		p->line = id;
+
+	if (of_property_read_bool(np, "dcd-override")) {
+		/* Always report DCD as active */
+		data->msr_mask_on |= UART_MSR_DCD;
+		data->msr_mask_off |= UART_MSR_DDCD;
+	}
+
+	if (of_property_read_bool(np, "dsr-override")) {
+		/* Always report DSR as active */
+		data->msr_mask_on |= UART_MSR_DSR;
+		data->msr_mask_off |= UART_MSR_DDSR;
+	}
+
+	if (of_property_read_bool(np, "cts-override")) {
+		/* Always report DSR as active */
+		data->msr_mask_on |= UART_MSR_DSR;
+		data->msr_mask_off |= UART_MSR_DDSR;
+	}
+
+	if (of_property_read_bool(np, "ri-override")) {
+		/* Always report Ring indicator as inactive */
+		data->msr_mask_off |= UART_MSR_RI;
+		data->msr_mask_off |= UART_MSR_TERI;
+	}
 
 	/* clock got configured through clk api, all done */
 	if (p->uartclk)

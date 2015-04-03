@@ -256,11 +256,13 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 	u32 ring = RADEON_CS_RING_GFX;
 	s32 priority = 0;
 
+	INIT_LIST_HEAD(&p->validated);
+
 	if (!cs->num_chunks) {
 		return 0;
 	}
+
 	/* get chunks */
-	INIT_LIST_HEAD(&p->validated);
 	p->idx = 0;
 	p->ib.sa_bo = NULL;
 	p->const_ib.sa_bo = NULL;

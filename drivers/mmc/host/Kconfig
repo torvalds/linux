@@ -393,14 +393,6 @@ config MMC_SDHCI_MSM
 
 	  If unsure, say N.
 
-config MMC_MSM
-	tristate "Qualcomm SDCC Controller Support"
-	depends on MMC && (ARCH_MSM7X00A || ARCH_MSM7X30 || ARCH_QSD8X50)
-	help
-	  This provides support for the SD/MMC cell found in the
-	  MSM and QSD SOCs from Qualcomm. The controller also has
-	  support for SDIO devices.
-
 config MMC_MXC
 	tristate "Freescale i.MX21/27/31 or MPC512x Multimedia Card support"
 	depends on ARCH_MXC || PPC_MPC512x

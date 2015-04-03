@@ -3162,8 +3162,8 @@ static void adjust_link(struct net_device *dev)
 	struct phy_device *phydev = priv->phydev;
 
 	if (unlikely(phydev->link != priv->oldlink ||
-		     phydev->duplex != priv->oldduplex ||
-		     phydev->speed != priv->oldspeed))
+		     (phydev->link && (phydev->duplex != priv->oldduplex ||
+				       phydev->speed != priv->oldspeed))))
 		gfar_update_link_state(priv);
 }
 

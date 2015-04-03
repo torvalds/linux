@@ -91,6 +91,10 @@ static const char version[] =
 
 #include "smc91x.h"
 
+#if defined(CONFIG_ASSABET_NEPONSET)
+#include <mach/neponset.h>
+#endif
+
 #ifndef SMC_NOWAIT
 # define SMC_NOWAIT		0
 #endif
@@ -2355,8 +2359,9 @@ static int smc_drv_probe(struct platform_device *pdev)
 	ret = smc_request_attrib(pdev, ndev);
 	if (ret)
 		goto out_release_io;
-#if defined(CONFIG_SA1100_ASSABET)
-	neponset_ncr_set(NCR_ENET_OSC_EN);
+#if defined(CONFIG_ASSABET_NEPONSET)
+	if (machine_is_assabet() && machine_has_neponset())
+		neponset_ncr_set(NCR_ENET_OSC_EN);
 #endif
 	platform_set_drvdata(pdev, ndev);
 	ret = smc_enable_device(pdev);

@@ -1062,7 +1062,7 @@ source_ok:
 	if (decnet_debug_level & 16)
 		printk(KERN_DEBUG
 		       "dn_route_output_slow: initial checks complete."
-		       " dst=%o4x src=%04x oif=%d try_hard=%d\n",
+		       " dst=%04x src=%04x oif=%d try_hard=%d\n",
 		       le16_to_cpu(fld.daddr), le16_to_cpu(fld.saddr),
 		       fld.flowidn_oif, try_hard);
 
