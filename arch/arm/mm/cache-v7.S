@@ -93,17 +93,18 @@ ENTRY(v7_flush_dcache_louis)
 ALT_SMP(mov	r3, r0, lsr #20)		@ move LoUIS into position
 ALT_UP(	mov	r3, r0, lsr #26)		@ move LoUU into position
 	ands	r3, r3, #7 << 1 		@ extract LoU*2 field from clidr
+	bne	start_flush_levels		@ LoU != 0, start flushing
 #ifdef CONFIG_ARM_ERRATA_643719
-	ALT_SMP(mrceq	p15, 0, r2, c0, c0, 0)	@ read main ID register
-	ALT_UP(reteq	lr)			@ LoUU is zero, so nothing to do
-	movweq	r1, #:lower16:0x410fc090	@ ID of ARM Cortex A9 r0p?
-	movteq	r1, #:upper16:0x410fc090
-	biceq	r2, r2, #0x0000000f             @ clear minor revision number
-	teqeq	r2, r1                          @ test for errata affected core and if so...
-	moveqs	r3, #1 << 1			@   fix LoUIS value (and set flags state to 'ne')
+ALT_SMP(mrc	p15, 0, r2, c0, c0, 0)		@ read main ID register
+ALT_UP(	ret	lr)				@ LoUU is zero, so nothing to do
+	movw	r1, #:lower16:0x410fc090	@ ID of ARM Cortex A9 r0p?
+	movt	r1, #:upper16:0x410fc090
+	bic	r2, r2, #0x0000000f             @ clear minor revision number
+	teq	r2, r1                          @ test for errata affected core and if so...
+	moveq	r3, #1 << 1			@   fix LoUIS value
+	beq	start_flush_levels		@   start flushing cache levels
 #endif
-	reteq	lr				@ return if level == 0
-	b	start_flush_levels		@ start flushing cache levels
+	ret	lr
 ENDPROC(v7_flush_dcache_louis)
 
 /*
