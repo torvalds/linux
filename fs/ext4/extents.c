@@ -4848,19 +4848,6 @@ static long ext4_zero_range(struct file *file, loff_t offset,
 					     flags, mode);
 		if (ret)
 			goto out_dio;
-		/*
-		 * Remove entire range from the extent status tree.
-		 *
-		 * ext4_es_remove_extent(inode, lblk, max_blocks) is
-		 * NOT sufficient.  I'm not sure why this is the case,
-		 * but let's be conservative and remove the extent
-		 * status tree for the entire inode.  There should be
-		 * no outstanding delalloc extents thanks to the
-		 * filemap_write_and_wait_range() call above.
-		 */
-		ret = ext4_es_remove_extent(inode, 0, EXT_MAX_BLOCKS);
-		if (ret)
-			goto out_dio;
 	}
 	if (!partial_begin && !partial_end)
 		goto out_dio;
