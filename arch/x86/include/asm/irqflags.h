@@ -136,10 +136,6 @@ static inline notrace unsigned long arch_local_irq_save(void)
 #define USERGS_SYSRET32				\
 	swapgs;					\
 	sysretl
-#define ENABLE_INTERRUPTS_SYSEXIT32		\
-	swapgs;					\
-	sti;					\
-	sysexit
 
 #else
 #define INTERRUPT_RETURN		iret
