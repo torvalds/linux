@@ -1,5 +1,5 @@
 /* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -63,7 +63,6 @@ static const struct fm10k_stats fm10k_gstrings_stats[] = {
 	FM10K_STAT("tx_csum_errors", tx_csum_errors),
 	FM10K_STAT("rx_alloc_failed", alloc_failed),
 	FM10K_STAT("rx_csum_errors", rx_csum_errors),
-	FM10K_STAT("rx_errors", rx_errors),
 
 	FM10K_STAT("tx_packets_nic", tx_packets_nic),
 	FM10K_STAT("tx_bytes_nic", tx_bytes_nic),

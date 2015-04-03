@@ -1,5 +1,5 @@
 /* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -357,7 +357,6 @@ void fm10k_update_stats(struct fm10k_intfc *interface)
 	net_stats->rx_packets = pkts;
 	interface->alloc_failed = alloc_failed;
 	interface->rx_csum_errors = rx_csum_errors;
-	interface->rx_errors = rx_errors;
 
 	hw->mac.ops.update_hw_stats(hw, &interface->stats);
 
@@ -378,7 +377,7 @@ void fm10k_update_stats(struct fm10k_intfc *interface)
 	interface->rx_drops_nic = rx_drops_nic;
 
 	/* Fill out the OS statistics structure */
-	net_stats->rx_errors = interface->stats.xec.count;
+	net_stats->rx_errors = rx_errors;
 	net_stats->rx_dropped = interface->stats.nodesc_drop.count;
 }
 
