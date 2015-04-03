@@ -249,6 +249,7 @@ static void md_make_request(struct request_queue *q, struct bio *bio)
 	const int rw = bio_data_dir(bio);
 	struct mddev *mddev = q->queuedata;
 	unsigned int sectors;
+	int cpu;
 
 	if (mddev == NULL || mddev->pers == NULL
 	    || !mddev->ready) {
@@ -284,7 +285,10 @@ static void md_make_request(struct request_queue *q, struct bio *bio)
 	sectors = bio_sectors(bio);
 	mddev->pers->make_request(mddev, bio);
 
-	generic_start_io_acct(rw, sectors, &mddev->gendisk->part0);
+	cpu = part_stat_lock();
+	part_stat_inc(cpu, &mddev->gendisk->part0, ios[rw]);
+	part_stat_add(cpu, &mddev->gendisk->part0, sectors[rw], sectors);
+	part_stat_unlock();
 
 	if (atomic_dec_and_test(&mddev->active_io) && mddev->suspended)
 		wake_up(&mddev->sb_wait);
