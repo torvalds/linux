@@ -47,22 +47,6 @@ ENTRY(xen_iret)
 ENDPATCH(xen_iret)
 RELOC(xen_iret, 1b+1)
 
-/*
- * sysexit is not used for 64-bit processes, so it's only ever used to
- * return to 32-bit compat userspace.
- */
-ENTRY(xen_sysexit)
-	pushq $__USER32_DS
-	pushq %rcx
-	pushq $X86_EFLAGS_IF
-	pushq $__USER32_CS
-	pushq %rdx
-
-	pushq $0
-1:	jmp hypercall_iret
-ENDPATCH(xen_sysexit)
-RELOC(xen_sysexit, 1b+1)
-
 ENTRY(xen_sysret64)
 	/*
 	 * We're already on the usermode stack at this point, but
