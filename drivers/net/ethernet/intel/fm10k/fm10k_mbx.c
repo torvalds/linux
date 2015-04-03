@@ -326,8 +326,7 @@ static u16 fm10k_mbx_validate_msg_size(struct fm10k_mbx_info *mbx, u16 len)
  *  fm10k_mbx_write_copy - pulls data off of Tx FIFO and places it in mbmem
  *  @mbx: pointer to mailbox
  *
- *  This function will take a section of the Rx FIFO and copy it into the
-		mbx->tail--;
+ *  This function will take a section of the Tx FIFO and copy it into the
  *  mailbox memory.  The offset in mbmem is based on the lower bits of the
  *  tail and len determines the length to copy.
  **/
