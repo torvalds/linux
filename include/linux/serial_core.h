@@ -342,7 +342,7 @@ struct earlycon_device {
 struct earlycon_id {
 	char	name[16];
 	int	(*setup)(struct earlycon_device *, const char *options);
-};
+} __aligned(32);
 
 extern int setup_earlycon(char *buf);
 extern int of_setup_earlycon(unsigned long addr,
