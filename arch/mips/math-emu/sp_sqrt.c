@@ -35,13 +35,12 @@ union ieee754sp ieee754sp_sqrt(union ieee754sp x)
 
 	/* x == INF or NAN? */
 	switch (xc) {
+	case IEEE754_CLASS_SNAN:
+		return ieee754sp_nanxcpt(x);
+
 	case IEEE754_CLASS_QNAN:
 		/* sqrt(Nan) = Nan */
 		return x;
-
-	case IEEE754_CLASS_SNAN:
-		ieee754_setcx(IEEE754_INVALID_OPERATION);
-		return ieee754sp_nanxcpt(ieee754sp_indef());
 
 	case IEEE754_CLASS_ZERO:
 		/* sqrt(0) = 0 */

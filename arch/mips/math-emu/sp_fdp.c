@@ -43,8 +43,7 @@ union ieee754sp ieee754sp_fdp(union ieee754dp x)
 
 	switch (xc) {
 	case IEEE754_CLASS_SNAN:
-		ieee754_setcx(IEEE754_INVALID_OPERATION);
-		return ieee754sp_nanxcpt(ieee754sp_indef());
+		return ieee754sp_nanxcpt(ieee754sp_nan_fdp(xs, xm));
 
 	case IEEE754_CLASS_QNAN:
 		nan = ieee754sp_nan_fdp(xs, xm);

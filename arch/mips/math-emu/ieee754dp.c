@@ -42,18 +42,16 @@ static inline int ieee754dp_issnan(union ieee754dp x)
 }
 
 
+/*
+ * Raise the Invalid Operation IEEE 754 exception
+ * and convert the signaling NaN supplied to a quiet NaN.
+ */
 union ieee754dp __cold ieee754dp_nanxcpt(union ieee754dp r)
 {
-	assert(ieee754dp_isnan(r));
+	assert(ieee754dp_issnan(r));
 
-	if (!ieee754dp_issnan(r))	/* QNAN does not cause invalid op !! */
-		return r;
-
-	/* If not enabled convert to a quiet NaN.  */
-	if (!ieee754_setandtestcx(IEEE754_INVALID_OPERATION))
-		return ieee754dp_indef();
-
-	return r;
+	ieee754_setcx(IEEE754_INVALID_OPERATION);
+	return ieee754dp_indef();
 }
 
 static u64 ieee754dp_get_rounding(int sn, u64 xm)
