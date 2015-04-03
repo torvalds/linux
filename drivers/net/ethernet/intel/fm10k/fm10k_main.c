@@ -41,6 +41,9 @@ MODULE_DESCRIPTION("Intel(R) Ethernet Switch Host Interface Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 
+/* single workqueue for entire fm10k driver */
+struct workqueue_struct *fm10k_workqueue = NULL;
+
 /**
  * fm10k_init_module - Driver Registration Routine
  *
@@ -51,6 +54,10 @@ static int __init fm10k_init_module(void)
 {
 	pr_info("%s - version %s\n", fm10k_driver_string, fm10k_driver_version);
 	pr_info("%s\n", fm10k_copyright);
+
+	/* create driver workqueue */
+	if (!fm10k_workqueue)
+		fm10k_workqueue = create_workqueue("fm10k");
 
 	fm10k_dbg_init();
 
@@ -69,6 +76,11 @@ static void __exit fm10k_exit_module(void)
 	fm10k_unregister_pci_driver();
 
 	fm10k_dbg_exit();
+
+	/* destroy driver workqueue */
+	flush_workqueue(fm10k_workqueue);
+	destroy_workqueue(fm10k_workqueue);
+	fm10k_workqueue = NULL;
 }
 module_exit(fm10k_exit_module);
 

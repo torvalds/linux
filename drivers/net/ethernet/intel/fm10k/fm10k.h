@@ -235,6 +235,9 @@ struct fm10k_vxlan_port {
 	__be16			port;
 };
 
+/* one work queue for entire driver */
+extern struct workqueue_struct *fm10k_workqueue;
+
 struct fm10k_intfc {
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	struct net_device *netdev;

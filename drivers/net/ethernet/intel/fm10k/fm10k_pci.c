@@ -94,7 +94,7 @@ void fm10k_service_event_schedule(struct fm10k_intfc *interface)
 {
 	if (!test_bit(__FM10K_SERVICE_DISABLE, &interface->state) &&
 	    !test_and_set_bit(__FM10K_SERVICE_SCHED, &interface->state))
-		schedule_work(&interface->service_task);
+		queue_work(fm10k_workqueue, &interface->service_task);
 }
 
 static void fm10k_service_event_complete(struct fm10k_intfc *interface)
