@@ -191,7 +191,6 @@ static void fm10k_reset_subtask(struct fm10k_intfc *interface)
 	interface->flags &= ~FM10K_FLAG_RESET_REQUESTED;
 
 	netdev_err(interface->netdev, "Reset interface\n");
-	interface->tx_timeout_count++;
 
 	fm10k_reinit(interface);
 }
