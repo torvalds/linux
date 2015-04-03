@@ -7665,6 +7665,23 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 	new = id_to_memslot(kvm->memslots, mem->slot);
 
 	/*
+	 * Dirty logging tracks sptes in 4k granularity, meaning that large
+	 * sptes have to be split.  If live migration is successful, the guest
+	 * in the source machine will be destroyed and large sptes will be
+	 * created in the destination. However, if the guest continues to run
+	 * in the source machine (for example if live migration fails), small
+	 * sptes will remain around and cause bad performance.
+	 *
+	 * Scan sptes if dirty logging has been stopped, dropping those
+	 * which can be collapsed into a single large-page spte.  Later
+	 * page faults will create the large-page sptes.
+	 */
+	if ((change != KVM_MR_DELETE) &&
+		(old->flags & KVM_MEM_LOG_DIRTY_PAGES) &&
+		!(new->flags & KVM_MEM_LOG_DIRTY_PAGES))
+		kvm_mmu_zap_collapsible_sptes(kvm, new);
+
+	/*
 	 * Set up write protection and/or dirty logging for the new slot.
 	 *
 	 * For KVM_MR_DELETE and KVM_MR_MOVE, the shadow pages of old slot have
