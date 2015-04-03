@@ -84,7 +84,7 @@ extern void do_trap_or_bp(struct pt_regs *regs, unsigned int code,
 
 #ifndef CONFIG_MIPSR2_TO_R6_EMULATOR
 static int mipsr2_emulation;
-static __maybe_unused int mipsr2_decoder(struct pt_regs *regs, u32 inst) { return 0; };
+static inline int mipsr2_decoder(struct pt_regs *regs, u32 inst) { return 0; };
 #else
 /* MIPS R2 Emulator ON/OFF */
 extern int mipsr2_emulation;
