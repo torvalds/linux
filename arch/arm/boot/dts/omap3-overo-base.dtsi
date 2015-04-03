@@ -27,7 +27,6 @@
 		ti,model = "overo";
 
 		ti,mcbsp = <&mcbsp2>;
-		ti,codec = <&twl_audio>;
 	};
 
 	/* HS USB Port 2 Power */

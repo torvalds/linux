@@ -658,7 +658,6 @@
 			reg = <0x48820000 0x80>;
 			interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "timer5";
-			ti,timer-dsp;
 		};
 
 		timer6: timer@48822000 {
@@ -666,8 +665,6 @@
 			reg = <0x48822000 0x80>;
 			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "timer6";
-			ti,timer-dsp;
-			ti,timer-pwm;
 		};
 
 		timer7: timer@48824000 {
@@ -675,7 +672,6 @@
 			reg = <0x48824000 0x80>;
 			interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "timer7";
-			ti,timer-dsp;
 		};
 
 		timer8: timer@48826000 {
@@ -683,8 +679,6 @@
 			reg = <0x48826000 0x80>;
 			interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "timer8";
-			ti,timer-dsp;
-			ti,timer-pwm;
 		};
 
 		timer9: timer@4803e000 {
@@ -706,7 +700,6 @@
 			reg = <0x48088000 0x80>;
 			interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "timer11";
-			ti,timer-pwm;
 		};
 
 		timer13: timer@48828000 {

@@ -9,8 +9,22 @@
 
 /dts-v1/;
 
-#include "omap34xx-hs.dtsi"
+#include "omap34xx.dtsi"
 #include <dt-bindings/input/input.h>
+
+/*
+ * Default secure signed bootloader (Nokia X-Loader) does not enable L3 firewall
+ * for omap AES HW crypto support. When linux kernel try to access memory of AES
+ * blocks then kernel receive "Unhandled fault: external abort on non-linefetch"
+ * and crash. Until somebody fix omap-aes.c and omap_hwmod_3xxx_data.c code (no
+ * crash anymore) omap AES support will be disabled for all Nokia N900 devices.
+ * There is "unofficial" version of bootloader which enables AES in L3 firewall
+ * but it is not widely used and to prevent kernel crash rather AES is disabled.
+ * There is also no runtime detection code if AES is disabled in L3 firewall...
+ */
+&aes {
+	status = "disabled";
+};
 
 / {
 	model = "Nokia N900";
