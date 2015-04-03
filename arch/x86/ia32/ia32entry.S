@@ -186,28 +186,55 @@ sysenter_dispatch:
 	testl	$_TIF_ALLWORK_MASK, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
 	jnz	sysexit_audit
 sysexit_from_sys_call:
+	/*
+	 * NB: SYSEXIT is not obviously safe for 64-bit kernels -- an
+	 * NMI between STI and SYSEXIT has poorly specified behavior,
+	 * and and NMI followed by an IRQ with usergs is fatal.  So
+	 * we just pretend we're using SYSEXIT but we really use
+	 * SYSRETL instead.
+	 *
+	 * This code path is still called 'sysexit' because it pairs
+	 * with 'sysenter' and it uses the SYSENTER calling convention.
+	 */
 	andl    $~TS_COMPAT,ASM_THREAD_INFO(TI_status, %rsp, SIZEOF_PTREGS)
-	/* clear IF, that popfq doesn't enable interrupts early */
-	andl	$~0x200,EFLAGS(%rsp)
-	movl	RIP(%rsp),%edx		/* User %eip */
-	CFI_REGISTER rip,rdx
+	movl	RIP(%rsp),%ecx		/* User %eip */
+	CFI_REGISTER rip,rcx
 	RESTORE_RSI_RDI
-	/* pop everything except ss,rsp,rflags slots */
-	REMOVE_PT_GPREGS_FROM_STACK 3*8
+	xorl	%edx,%edx		/* avoid info leaks */
 	xorq	%r8,%r8
 	xorq	%r9,%r9
 	xorq	%r10,%r10
-	xorq	%r11,%r11
-	popfq_cfi
+	movl	EFLAGS(%rsp),%r11d	/* User eflags */
 	/*CFI_RESTORE rflags*/
-	popq_cfi %rcx				/* User %esp */
-	CFI_REGISTER rsp,rcx
 	TRACE_IRQS_ON
+
 	/*
-	 * 32bit SYSEXIT restores eip from edx, esp from ecx.
-	 * cs and ss are loaded from MSRs.
+	 * SYSRETL works even on Intel CPUs.  Use it in preference to SYSEXIT,
+	 * since it avoids a dicey window with interrupts enabled.
 	 */
-	ENABLE_INTERRUPTS_SYSEXIT32
+	movl	RSP(%rsp),%esp
+
+	/*
+	 * USERGS_SYSRET32 does:
+	 *  gsbase = user's gs base
+	 *  eip = ecx
+	 *  rflags = r11
+	 *  cs = __USER32_CS
+	 *  ss = __USER_DS
+	 *
+	 * The prologue set RIP(%rsp) to VDSO32_SYSENTER_RETURN, which does:
+	 *
+	 *  pop %ebp
+	 *  pop %edx
+	 *  pop %ecx
+	 *
+	 * Therefore, we invoke SYSRETL with EDX and R8-R10 zeroed to
+	 * avoid info leaks.  R11 ends up with VDSO32_SYSENTER_RETURN's
+	 * address (already known to user code), and R12-R15 are
+	 * callee-saved and therefore don't contain any interesting
+	 * kernel data.
+	 */
+	USERGS_SYSRET32
 
 	CFI_RESTORE_STATE
 
