@@ -840,6 +840,52 @@ do {									\
 #define DPTOREG(dp, x)	DITOREG((dp).bits, x)
 
 /*
+ * Emulate a CFC1 instruction.
+ */
+static inline void cop1_cfc(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
+			    mips_instruction ir)
+{
+	u32 value;
+
+	if (MIPSInst_RD(ir) == FPCREG_CSR) {
+		value = ctx->fcr31;
+		pr_debug("%p gpr[%d]<-csr=%08x\n",
+			 (void *)xcp->cp0_epc,
+			 MIPSInst_RT(ir), value);
+	} else if (MIPSInst_RD(ir) == FPCREG_RID)
+		value = 0;
+	else
+		value = 0;
+	if (MIPSInst_RT(ir))
+		xcp->regs[MIPSInst_RT(ir)] = value;
+}
+
+/*
+ * Emulate a CTC1 instruction.
+ */
+static inline void cop1_ctc(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
+			    mips_instruction ir)
+{
+	u32 value;
+
+	if (MIPSInst_RT(ir) == 0)
+		value = 0;
+	else
+		value = xcp->regs[MIPSInst_RT(ir)];
+
+	/* we only have one writable control reg
+	 */
+	if (MIPSInst_RD(ir) == FPCREG_CSR) {
+		pr_debug("%p gpr[%d]->csr=%08x\n",
+			 (void *)xcp->cp0_epc,
+			 MIPSInst_RT(ir), value);
+
+		/* Don't write reserved bits.  */
+		ctx->fcr31 = value & ~FPU_CSR_RSVD;
+	}
+}
+
+/*
  * Emulate the single floating point instruction pointed at by EPC.
  * Two instructions if the instruction is in a branch delay slot.
  */
@@ -853,7 +899,6 @@ static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 	int likely, pc_inc;
 	u32 __user *wva;
 	u64 __user *dva;
-	u32 value;
 	u32 wval;
 	u64 dval;
 	int sig;
@@ -1046,37 +1091,12 @@ emul:
 
 		case cfc_op:
 			/* cop control register rd -> gpr[rt] */
-			if (MIPSInst_RD(ir) == FPCREG_CSR) {
-				value = ctx->fcr31;
-				pr_debug("%p gpr[%d]<-csr=%08x\n",
-					 (void *) (xcp->cp0_epc),
-					 MIPSInst_RT(ir), value);
-			}
-			else if (MIPSInst_RD(ir) == FPCREG_RID)
-				value = 0;
-			else
-				value = 0;
-			if (MIPSInst_RT(ir))
-				xcp->regs[MIPSInst_RT(ir)] = value;
+			cop1_cfc(xcp, ctx, ir);
 			break;
 
 		case ctc_op:
 			/* copregister rd <- rt */
-			if (MIPSInst_RT(ir) == 0)
-				value = 0;
-			else
-				value = xcp->regs[MIPSInst_RT(ir)];
-
-			/* we only have one writable control reg
-			 */
-			if (MIPSInst_RD(ir) == FPCREG_CSR) {
-				pr_debug("%p gpr[%d]->csr=%08x\n",
-					 (void *) (xcp->cp0_epc),
-					 MIPSInst_RT(ir), value);
-
-				/* Don't write reserved bits.  */
-				ctx->fcr31 = value & ~FPU_CSR_RSVD;
-			}
+			cop1_ctc(xcp, ctx, ir);
 			if ((ctx->fcr31 >> 5) & ctx->fcr31 & FPU_CSR_ALL_E) {
 				return SIGFPE;
 			}
