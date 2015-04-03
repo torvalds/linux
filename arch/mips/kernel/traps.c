@@ -12,6 +12,7 @@
  * Copyright (C) 2000, 2001, 2012 MIPS Technologies, Inc.  All rights reserved.
  * Copyright (C) 2014, Imagination Technologies Ltd.
  */
+#include <linux/bitops.h>
 #include <linux/bug.h>
 #include <linux/compiler.h>
 #include <linux/context_tracking.h>
@@ -817,7 +818,15 @@ asmlinkage void do_fpe(struct pt_regs *regs, unsigned long fcr31)
 		process_fpemu_return(sig, fault_addr);
 
 		goto out;
-	} else if (fcr31 & FPU_CSR_INV_X)
+	}
+
+	/*
+	 * Inexact can happen together with Overflow or Underflow.
+	 * Respect the mask to deliver the correct exception.
+	 */
+	fcr31 &= (fcr31 & FPU_CSR_ALL_E) <<
+		 (ffs(FPU_CSR_ALL_X) - ffs(FPU_CSR_ALL_E));
+	if (fcr31 & FPU_CSR_INV_X)
 		info.si_code = FPE_FLTINV;
 	else if (fcr31 & FPU_CSR_DIV_X)
 		info.si_code = FPE_FLTDIV;
