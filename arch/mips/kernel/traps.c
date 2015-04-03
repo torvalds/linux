@@ -879,9 +879,9 @@ void do_trap_or_bp(struct pt_regs *regs, unsigned int code,
 		break;
 	case BRK_MEMU:
 		/*
-		 * Address errors may be deliberately induced by the FPU
-		 * emulator to retake control of the CPU after executing the
-		 * instruction in the delay slot of an emulated branch.
+		 * This breakpoint code is used by the FPU emulator to retake
+		 * control of the CPU after executing the instruction from the
+		 * delay slot of an emulated branch.
 		 *
 		 * Terminate if exception was recognized as a delay slot return
 		 * otherwise handle as normal.
