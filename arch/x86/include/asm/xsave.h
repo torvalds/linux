@@ -51,7 +51,6 @@ extern struct xsave_struct *init_xstate_buf;
 
 extern void xsave_init(void);
 extern void update_regset_xstate_info(unsigned int size, u64 xstate_mask);
-extern int init_fpu(struct task_struct *child);
 
 /* These macros all use (%edi)/(%rdi) as the single memory argument. */
 #define XSAVE		".byte " REX_PREFIX "0x0f,0xae,0x27"
