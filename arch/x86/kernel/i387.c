@@ -283,7 +283,7 @@ EXPORT_SYMBOL_GPL(fpstate_alloc_init);
  * value at reset if we support XMM instructions and then
  * remember the current task has used the FPU.
  */
-int init_fpu(struct task_struct *tsk)
+static int init_fpu(struct task_struct *tsk)
 {
 	int ret;
 
@@ -306,7 +306,6 @@ int init_fpu(struct task_struct *tsk)
 	set_stopped_child_used_math(tsk);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(init_fpu);
 
 /*
  * The xstateregs_active() routine is the same as the fpregs_active() routine,
