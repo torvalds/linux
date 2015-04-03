@@ -457,11 +457,10 @@ void tick_freeze(void)
 	raw_spin_lock(&tick_freeze_lock);
 
 	tick_freeze_depth++;
-	if (tick_freeze_depth == num_online_cpus()) {
+	if (tick_freeze_depth == num_online_cpus())
 		timekeeping_suspend();
-	} else {
+	else
 		tick_suspend_local();
-	}
 
 	raw_spin_unlock(&tick_freeze_lock);
 }
