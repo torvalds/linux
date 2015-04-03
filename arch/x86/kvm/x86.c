@@ -7007,7 +7007,7 @@ int fx_init(struct kvm_vcpu *vcpu)
 {
 	int err;
 
-	err = fpu_alloc(&vcpu->arch.guest_fpu);
+	err = fpstate_alloc(&vcpu->arch.guest_fpu);
 	if (err)
 		return err;
 

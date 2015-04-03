@@ -569,7 +569,7 @@ static inline unsigned short get_fpu_mxcsr(struct task_struct *tsk)
 	}
 }
 
-extern int fpu_alloc(struct fpu *fpu);
+extern int fpstate_alloc(struct fpu *fpu);
 
 static inline void fpu_free(struct fpu *fpu)
 {

@@ -246,17 +246,21 @@ void fpu_finit(struct fpu *fpu)
 }
 EXPORT_SYMBOL_GPL(fpu_finit);
 
-int fpu_alloc(struct fpu *fpu)
+int fpstate_alloc(struct fpu *fpu)
 {
 	if (fpu->state)
 		return 0;
+
 	fpu->state = kmem_cache_alloc(task_xstate_cachep, GFP_KERNEL);
 	if (!fpu->state)
 		return -ENOMEM;
+
+	/* The CPU requires the FPU state to be aligned to 16 byte boundaries: */
 	WARN_ON((unsigned long)fpu->state & 15);
+
 	return 0;
 }
-EXPORT_SYMBOL_GPL(fpu_alloc);
+EXPORT_SYMBOL_GPL(fpstate_alloc);
 
 /*
  * Allocate the backing store for the current task's FPU registers
@@ -276,7 +280,7 @@ int fpstate_alloc_init(struct task_struct *curr)
 	/*
 	 * Memory allocation at the first usage of the FPU and other state.
 	 */
-	ret = fpu_alloc(&curr->thread.fpu);
+	ret = fpstate_alloc(&curr->thread.fpu);
 	if (ret)
 		return ret;
 
@@ -310,7 +314,7 @@ static int fpu__unlazy_stopped(struct task_struct *child)
 	/*
 	 * Memory allocation at the first usage of the FPU and other state.
 	 */
-	ret = fpu_alloc(&child->thread.fpu);
+	ret = fpstate_alloc(&child->thread.fpu);
 	if (ret)
 		return ret;
 
