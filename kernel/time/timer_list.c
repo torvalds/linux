@@ -258,6 +258,12 @@ print_tickdevice(struct seq_file *m, struct tick_device *td, int cpu)
 			SEQ_printf(m, "\n");
 		}
 
+		if (dev->set_state_oneshot_stopped) {
+			SEQ_printf(m, " oneshot stopped: ");
+			print_name_offset(m, dev->set_state_oneshot_stopped);
+			SEQ_printf(m, "\n");
+		}
+
 		if (dev->tick_resume) {
 			SEQ_printf(m, " resume:   ");
 			print_name_offset(m, dev->tick_resume);
