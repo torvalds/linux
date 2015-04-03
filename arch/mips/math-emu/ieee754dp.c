@@ -49,14 +49,9 @@ union ieee754dp __cold ieee754dp_nanxcpt(union ieee754dp r)
 	if (!ieee754dp_issnan(r))	/* QNAN does not cause invalid op !! */
 		return r;
 
-	if (!ieee754_setandtestcx(IEEE754_INVALID_OPERATION)) {
-		/* not enabled convert to a quiet NaN */
-		DPMANT(r) &= (~DP_MBIT(DP_FBITS-1));
-		if (ieee754dp_isnan(r))
-			return r;
-		else
-			return ieee754dp_indef();
-	}
+	/* If not enabled convert to a quiet NaN.  */
+	if (!ieee754_setandtestcx(IEEE754_INVALID_OPERATION))
+		return ieee754dp_indef();
 
 	return r;
 }

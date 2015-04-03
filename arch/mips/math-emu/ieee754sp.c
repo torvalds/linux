@@ -49,14 +49,9 @@ union ieee754sp __cold ieee754sp_nanxcpt(union ieee754sp r)
 	if (!ieee754sp_issnan(r))	/* QNAN does not cause invalid op !! */
 		return r;
 
-	if (!ieee754_setandtestcx(IEEE754_INVALID_OPERATION)) {
-		/* not enabled convert to a quiet NaN */
-		SPMANT(r) &= (~SP_MBIT(SP_FBITS-1));
-		if (ieee754sp_isnan(r))
-			return r;
-		else
-			return ieee754sp_indef();
-	}
+	/* If not enabled convert to a quiet NaN.  */
+	if (!ieee754_setandtestcx(IEEE754_INVALID_OPERATION))
+		return ieee754sp_indef();
 
 	return r;
 }
