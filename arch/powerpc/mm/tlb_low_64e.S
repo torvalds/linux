@@ -398,18 +398,18 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_SMT)
 	rldicl	r15,r16,64-PUD_SHIFT+3,64-PUD_INDEX_SIZE-3
 	clrrdi	r15,r15,3
 	cmpdi	cr0,r14,0
-	bge	tlb_miss_fault_e6500	/* Bad pgd entry or hugepage; bail */
+	bge	tlb_miss_huge_e6500	/* Bad pgd entry or hugepage; bail */
 	ldx	r14,r14,r15		/* grab pud entry */
 
 	rldicl	r15,r16,64-PMD_SHIFT+3,64-PMD_INDEX_SIZE-3
 	clrrdi	r15,r15,3
 	cmpdi	cr0,r14,0
-	bge	tlb_miss_fault_e6500
+	bge	tlb_miss_huge_e6500
 	ldx	r14,r14,r15		/* Grab pmd entry */
 
 	mfspr	r10,SPRN_MAS0
 	cmpdi	cr0,r14,0
-	bge	tlb_miss_fault_e6500
+	bge	tlb_miss_huge_e6500
 
 	/* Now we build the MAS for a 2M indirect page:
 	 *
@@ -428,6 +428,7 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_SMT)
 	clrrdi	r15,r16,21		/* make EA 2M-aligned */
 	mtspr	SPRN_MAS2,r15
 
+tlb_miss_huge_done_e6500:
 	lbz	r15,TCD_ESEL_NEXT(r11)
 	lbz	r16,TCD_ESEL_MAX(r11)
 	lbz	r14,TCD_ESEL_FIRST(r11)
@@ -455,6 +456,50 @@ END_FTR_SECTION_IFSET(CPU_FTR_SMT)
 	TLB_MISS_STATS_X(MMSTAT_TLB_MISS_NORM_OK)
 	tlb_epilog_bolted
 	rfi
+
+tlb_miss_huge_e6500:
+	beq	tlb_miss_fault_e6500
+	li	r10,1
+	andi.	r15,r14,HUGEPD_SHIFT_MASK@l /* r15 = psize */
+	rldimi	r14,r10,63,0		/* Set PD_HUGE */
+	xor	r14,r14,r15		/* Clear size bits */
+	ldx	r14,0,r14
+
+	/*
+	 * Now we build the MAS for a huge page.
+	 *
+	 * MAS 0   :	ESEL needs to be filled by software round-robin
+	 *		 - can be handled by indirect code
+	 * MAS 1   :	Need to clear IND and set TSIZE
+	 * MAS 2,3+7:	Needs to be redone similar to non-tablewalk handler
+	 */
+
+	subi	r15,r15,10		/* Convert psize to tsize */
+	mfspr	r10,SPRN_MAS1
+	rlwinm	r10,r10,0,~MAS1_IND
+	rlwimi	r10,r15,MAS1_TSIZE_SHIFT,MAS1_TSIZE_MASK
+	mtspr	SPRN_MAS1,r10
+
+	li	r10,-0x400
+	sld	r15,r10,r15		/* Generate mask based on size */
+	and	r10,r16,r15
+	rldicr	r15,r14,64-(PTE_RPN_SHIFT-PAGE_SHIFT),63-PAGE_SHIFT
+	rlwimi	r10,r14,32-19,27,31	/* Insert WIMGE */
+	clrldi	r15,r15,PAGE_SHIFT	/* Clear crap at the top */
+	rlwimi	r15,r14,32-8,22,25	/* Move in U bits */
+	mtspr	SPRN_MAS2,r10
+	andi.	r10,r14,_PAGE_DIRTY
+	rlwimi	r15,r14,32-2,26,31	/* Move in BAP bits */
+
+	/* Mask out SW and UW if !DIRTY (XXX optimize this !) */
+	bne	1f
+	li	r10,MAS3_SW|MAS3_UW
+	andc	r15,r15,r10
+1:
+	mtspr	SPRN_MAS7_MAS3,r15
+
+	mfspr	r10,SPRN_MAS0
+	b	tlb_miss_huge_done_e6500
 
 tlb_miss_kernel_e6500:
 	ld	r14,PACA_KERNELPGD(r13)
