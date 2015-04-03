@@ -150,7 +150,6 @@ static int power_saving_thread(void *data)
 	sched_setscheduler(current, SCHED_RR, &param);
 
 	while (!kthread_should_stop()) {
-		int cpu;
 		unsigned long expire_time;
 
 		try_to_freeze();
@@ -174,14 +173,13 @@ static int power_saving_thread(void *data)
 			}
 			local_irq_disable();
 			tick_broadcast_enable();
-			cpu = smp_processor_id();
-			clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &cpu);
+			tick_broadcast_enter();
 			stop_critical_timings();
 
 			mwait_idle_with_hints(power_saving_mwait_eax, 1);
 
 			start_critical_timings();
-			clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &cpu);
+			tick_broadcast_exit();
 			local_irq_enable();
 
 			if (time_before(expire_time, jiffies)) {
