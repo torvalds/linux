@@ -901,10 +901,9 @@ void do_trap_or_bp(struct pt_regs *regs, unsigned int code,
 
 asmlinkage void do_bp(struct pt_regs *regs)
 {
+	unsigned long epc = msk_isa16_mode(exception_epc(regs));
 	unsigned int opcode, bcode;
 	enum ctx_state prev_state;
-	unsigned long epc;
-	u16 instr[2];
 	mm_segment_t seg;
 
 	seg = get_fs();
@@ -913,26 +912,28 @@ asmlinkage void do_bp(struct pt_regs *regs)
 
 	prev_state = exception_enter();
 	if (get_isa16_mode(regs->cp0_epc)) {
-		/* Calculate EPC. */
-		epc = exception_epc(regs);
-		if (cpu_has_mmips) {
-			if ((__get_user(instr[0], (u16 __user *)msk_isa16_mode(epc)) ||
-			    (__get_user(instr[1], (u16 __user *)msk_isa16_mode(epc + 2)))))
+		u16 instr[2];
+
+		if (__get_user(instr[0], (u16 __user *)epc))
+			goto out_sigsegv;
+
+		if (!cpu_has_mmips) {
+			/* MIPS16e mode */
+			bcode = (instr[0] >> 5) & 0x3f;
+		} else if (mm_insn_16bit(instr[0])) {
+			/* 16-bit microMIPS BREAK */
+			bcode = instr[0] & 0xf;
+		} else {
+			/* 32-bit microMIPS BREAK */
+			if (__get_user(instr[1], (u16 __user *)(epc + 2)))
 				goto out_sigsegv;
 			opcode = (instr[0] << 16) | instr[1];
-		} else {
-			/* MIPS16e mode */
-			if (__get_user(instr[0],
-				       (u16 __user *)msk_isa16_mode(epc)))
-				goto out_sigsegv;
-			bcode = (instr[0] >> 5) & 0x3f;
-			do_trap_or_bp(regs, bcode, "Break");
-			goto out;
+			bcode = (opcode >> 6) & ((1 << 20) - 1);
 		}
 	} else {
-		if (__get_user(opcode,
-			       (unsigned int __user *) exception_epc(regs)))
+		if (__get_user(opcode, (unsigned int __user *)epc))
 			goto out_sigsegv;
+		bcode = (opcode >> 6) & ((1 << 20) - 1);
 	}
 
 	/*
@@ -941,7 +942,6 @@ asmlinkage void do_bp(struct pt_regs *regs)
 	 * Gas is bug-compatible, but not always, grrr...
 	 * We handle both cases with a simple heuristics.  --macro
 	 */
-	bcode = ((opcode >> 6) & ((1 << 20) - 1));
 	if (bcode >= (1 << 10))
 		bcode >>= 10;
 
