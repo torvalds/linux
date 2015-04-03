@@ -187,7 +187,7 @@ static inline int mipsr6_emul(struct pt_regs *regs, u32 ir)
 }
 
 /**
- * movt_func - Emulate a MOVT instruction
+ * movf_func - Emulate a MOVF instruction
  * @regs: Process register set
  * @ir: Instruction
  *
@@ -200,9 +200,12 @@ static int movf_func(struct pt_regs *regs, u32 ir)
 
 	csr = current->thread.fpu.fcr31;
 	cond = fpucondbit[MIPSInst_RT(ir) >> 2];
+
 	if (((csr & cond) == 0) && MIPSInst_RD(ir))
 		regs->regs[MIPSInst_RD(ir)] = regs->regs[MIPSInst_RS(ir)];
+
 	MIPS_R2_STATS(movs);
+
 	return 0;
 }
 
