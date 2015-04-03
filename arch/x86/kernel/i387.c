@@ -291,8 +291,6 @@ static int fpu__unlazy_stopped(struct task_struct *child)
 		return -EINVAL;
 
 	if (tsk_used_math(child)) {
-		if (cpu_has_fpu && child == current)
-			fpu__save(child);
 		task_disable_lazy_fpu_restore(child);
 		return 0;
 	}
