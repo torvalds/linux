@@ -1023,14 +1023,23 @@ static void __dw_mci_start_request(struct dw_mci *host,
 	dw_mci_start_command(host, cmd, cmdflags);
 
 	if (cmd->opcode == SD_SWITCH_VOLTAGE) {
+		unsigned long irqflags;
+
 		/*
 		 * Databook says to fail after 2ms w/ no response, but evidence
 		 * shows that sometimes the cmd11 interrupt takes over 130ms.
 		 * We'll set to 500ms, plus an extra jiffy just in case jiffies
 		 * is just about to roll over.
+		 *
+		 * We do this whole thing under spinlock and only if the
+		 * command hasn't already completed (indicating the the irq
+		 * already ran so we don't want the timeout).
 		 */
-		mod_timer(&host->cmd11_timer,
-			  jiffies + msecs_to_jiffies(500) + 1);
+		spin_lock_irqsave(&host->irq_lock, irqflags);
+		if (!test_bit(EVENT_CMD_COMPLETE, &host->pending_events))
+			mod_timer(&host->cmd11_timer,
+				jiffies + msecs_to_jiffies(500) + 1);
+		spin_unlock_irqrestore(&host->irq_lock, irqflags);
 	}
 
 	if (mrq->stop)
@@ -2160,11 +2169,20 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 		/* Check volt switch first, since it can look like an error */
 		if ((host->state == STATE_SENDING_CMD11) &&
 		    (pending & SDMMC_INT_VOLT_SWITCH)) {
-			del_timer(&host->cmd11_timer);
+			unsigned long irqflags;
 
 			mci_writel(host, RINTSTS, SDMMC_INT_VOLT_SWITCH);
 			pending &= ~SDMMC_INT_VOLT_SWITCH;
+
+			/*
+			 * Hold the lock; we know cmd11_timer can't be kicked
+			 * off after the lock is released, so safe to delete.
+			 */
+			spin_lock_irqsave(&host->irq_lock, irqflags);
 			dw_mci_cmd_interrupt(host, pending);
+			spin_unlock_irqrestore(&host->irq_lock, irqflags);
+
+			del_timer(&host->cmd11_timer);
 		}
 
 		if (pending & DW_MCI_CMD_ERROR_FLAGS) {
