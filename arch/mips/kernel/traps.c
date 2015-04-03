@@ -925,7 +925,7 @@ asmlinkage void do_bp(struct pt_regs *regs)
 			if (__get_user(instr[0],
 				       (u16 __user *)msk_isa16_mode(epc)))
 				goto out_sigsegv;
-			bcode = (instr[0] >> 6) & 0x3f;
+			bcode = (instr[0] >> 5) & 0x3f;
 			do_trap_or_bp(regs, bcode, "Break");
 			goto out;
 		}
