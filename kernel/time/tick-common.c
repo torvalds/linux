@@ -482,7 +482,7 @@ void tick_unfreeze(void)
 	if (tick_freeze_depth == num_online_cpus())
 		timekeeping_resume();
 	else
-		tick_resume();
+		tick_resume_local();
 
 	tick_freeze_depth--;
 
