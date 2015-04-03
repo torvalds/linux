@@ -341,10 +341,10 @@
  *
  * Refer to your MIPS R4xx0 manual, chapter 5 for explanation.
  */
-#define	 CAUSEB_EXCCODE		2
-#define	 CAUSEF_EXCCODE		(_ULCAST_(31)  <<  2)
-#define	 CAUSEB_IP		8
-#define	 CAUSEF_IP		(_ULCAST_(255) <<  8)
+#define CAUSEB_EXCCODE		2
+#define CAUSEF_EXCCODE		(_ULCAST_(31)  <<  2)
+#define CAUSEB_IP		8
+#define CAUSEF_IP		(_ULCAST_(255) <<  8)
 #define	 CAUSEB_IP0		8
 #define	 CAUSEF_IP0		(_ULCAST_(1)   <<  8)
 #define	 CAUSEB_IP1		9
@@ -361,18 +361,18 @@
 #define	 CAUSEF_IP6		(_ULCAST_(1)   << 14)
 #define	 CAUSEB_IP7		15
 #define	 CAUSEF_IP7		(_ULCAST_(1)   << 15)
-#define	 CAUSEB_FDCI		21
-#define	 CAUSEF_FDCI		(_ULCAST_(1)   << 21)
-#define	 CAUSEB_IV		23
-#define	 CAUSEF_IV		(_ULCAST_(1)   << 23)
-#define	 CAUSEB_PCI		26
-#define	 CAUSEF_PCI		(_ULCAST_(1)   << 26)
-#define	 CAUSEB_CE		28
-#define	 CAUSEF_CE		(_ULCAST_(3)   << 28)
-#define	 CAUSEB_TI		30
-#define	 CAUSEF_TI		(_ULCAST_(1)   << 30)
-#define	 CAUSEB_BD		31
-#define	 CAUSEF_BD		(_ULCAST_(1)   << 31)
+#define CAUSEB_FDCI		21
+#define CAUSEF_FDCI		(_ULCAST_(1)   << 21)
+#define CAUSEB_IV		23
+#define CAUSEF_IV		(_ULCAST_(1)   << 23)
+#define CAUSEB_PCI		26
+#define CAUSEF_PCI		(_ULCAST_(1)   << 26)
+#define CAUSEB_CE		28
+#define CAUSEF_CE		(_ULCAST_(3)   << 28)
+#define CAUSEB_TI		30
+#define CAUSEF_TI		(_ULCAST_(1)   << 30)
+#define CAUSEB_BD		31
+#define CAUSEF_BD		(_ULCAST_(1)   << 31)
 
 /*
  * Bits in the coprocessor 0 config register.
