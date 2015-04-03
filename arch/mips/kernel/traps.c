@@ -1033,22 +1033,21 @@ asmlinkage void do_ri(struct pt_regs *regs)
 	 * as quickly as possible.
 	 */
 	if (mipsr2_emulation && cpu_has_mips_r6 &&
-	    likely(user_mode(regs))) {
-		if (likely(get_user(opcode, epc) >= 0)) {
-			status = mipsr2_decoder(regs, opcode);
-			switch (status) {
-			case 0:
-			case SIGEMT:
-				task_thread_info(current)->r2_emul_return = 1;
-				return;
-			case SIGILL:
-				goto no_r2_instr;
-			default:
-				process_fpemu_return(status,
-						     &current->thread.cp0_baduaddr);
-				task_thread_info(current)->r2_emul_return = 1;
-				return;
-			}
+	    likely(user_mode(regs)) &&
+	    likely(get_user(opcode, epc) >= 0)) {
+		status = mipsr2_decoder(regs, opcode);
+		switch (status) {
+		case 0:
+		case SIGEMT:
+			task_thread_info(current)->r2_emul_return = 1;
+			return;
+		case SIGILL:
+			goto no_r2_instr;
+		default:
+			process_fpemu_return(status,
+					     &current->thread.cp0_baduaddr);
+			task_thread_info(current)->r2_emul_return = 1;
+			return;
 		}
 	}
 
