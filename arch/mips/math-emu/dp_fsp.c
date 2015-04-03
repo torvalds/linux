@@ -44,7 +44,7 @@ union ieee754dp ieee754dp_fsp(union ieee754sp x)
 		return ieee754dp_nanxcpt(ieee754dp_indef());
 
 	case IEEE754_CLASS_QNAN:
-		return ieee754dp_nanxcpt(ieee754dp_nan_fsp(xs, xm));
+		return ieee754dp_nan_fsp(xs, xm);
 
 	case IEEE754_CLASS_INF:
 		return ieee754dp_inf(xs);

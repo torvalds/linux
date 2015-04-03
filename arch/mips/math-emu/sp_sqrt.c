@@ -37,7 +37,7 @@ union ieee754sp ieee754sp_sqrt(union ieee754sp x)
 	switch (xc) {
 	case IEEE754_CLASS_QNAN:
 		/* sqrt(Nan) = Nan */
-		return ieee754sp_nanxcpt(x);
+		return x;
 
 	case IEEE754_CLASS_SNAN:
 		ieee754_setcx(IEEE754_INVALID_OPERATION);
@@ -51,7 +51,7 @@ union ieee754sp ieee754sp_sqrt(union ieee754sp x)
 		if (xs) {
 			/* sqrt(-Inf) = Nan */
 			ieee754_setcx(IEEE754_INVALID_OPERATION);
-			return ieee754sp_nanxcpt(ieee754sp_indef());
+			return ieee754sp_indef();
 		}
 		/* sqrt(+Inf) = Inf */
 		return x;
@@ -61,7 +61,7 @@ union ieee754sp ieee754sp_sqrt(union ieee754sp x)
 		if (xs) {
 			/* sqrt(-x) = Nan */
 			ieee754_setcx(IEEE754_INVALID_OPERATION);
-			return ieee754sp_nanxcpt(ieee754sp_indef());
+			return ieee754sp_indef();
 		}
 		break;
 	}

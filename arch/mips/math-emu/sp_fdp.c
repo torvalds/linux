@@ -50,7 +50,7 @@ union ieee754sp ieee754sp_fdp(union ieee754dp x)
 		nan = ieee754sp_nan_fdp(xs, xm);
 		if (!ieee754sp_isnan(nan))
 			nan = ieee754sp_indef();
-		return ieee754sp_nanxcpt(nan);
+		return nan;
 
 	case IEEE754_CLASS_INF:
 		return ieee754sp_inf(xs);
