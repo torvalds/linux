@@ -117,6 +117,9 @@ void __kernel_fpu_end(void)
 }
 EXPORT_SYMBOL(__kernel_fpu_end);
 
+/*
+ * Save the FPU state (initialize it if necessary):
+ */
 void fpu__save(struct task_struct *tsk)
 {
 	preempt_disable();
@@ -130,7 +133,7 @@ void fpu__save(struct task_struct *tsk)
 	}
 	preempt_enable();
 }
-EXPORT_SYMBOL(fpu__save);
+EXPORT_SYMBOL_GPL(fpu__save);
 
 unsigned int mxcsr_feature_mask __read_mostly = 0xffffffffu;
 unsigned int xstate_size;
