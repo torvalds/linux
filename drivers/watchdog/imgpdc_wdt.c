@@ -42,7 +42,7 @@
 #define PDC_WDT_MIN_TIMEOUT		1
 #define PDC_WDT_DEF_TIMEOUT		64
 
-static int heartbeat = PDC_WDT_DEF_TIMEOUT;
+static int heartbeat;
 module_param(heartbeat, int, 0);
 MODULE_PARM_DESC(heartbeat, "Watchdog heartbeats in seconds "
 	"(default=" __MODULE_STRING(PDC_WDT_DEF_TIMEOUT) ")");
@@ -190,15 +190,11 @@ static int pdc_wdt_probe(struct platform_device *pdev)
 	pdc_wdt->wdt_dev.info = &pdc_wdt_info;
 	pdc_wdt->wdt_dev.ops = &pdc_wdt_ops;
 	pdc_wdt->wdt_dev.max_timeout = 1 << PDC_WDT_CONFIG_DELAY_MASK;
+	pdc_wdt->wdt_dev.timeout = PDC_WDT_DEF_TIMEOUT;
 	pdc_wdt->wdt_dev.parent = &pdev->dev;
 	watchdog_set_drvdata(&pdc_wdt->wdt_dev, pdc_wdt);
 
-	ret = watchdog_init_timeout(&pdc_wdt->wdt_dev, heartbeat, &pdev->dev);
-	if (ret < 0) {
-		pdc_wdt->wdt_dev.timeout = pdc_wdt->wdt_dev.max_timeout;
-		dev_warn(&pdev->dev,
-			 "Initial timeout out of range! setting max timeout\n");
-	}
+	watchdog_init_timeout(&pdc_wdt->wdt_dev, heartbeat, &pdev->dev);
 
 	pdc_wdt_stop(&pdc_wdt->wdt_dev);
 
