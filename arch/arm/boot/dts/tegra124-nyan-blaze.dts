@@ -2,28 +2,24 @@
 
 #include "tegra124-nyan.dtsi"
 
-#include "tegra124-nyan-big-emc.dtsi"
+#include "tegra124-nyan-blaze-emc.dtsi"
 
 / {
-	model = "Acer Chromebook 13 CB5-311";
-	compatible = "google,nyan-big", "nvidia,tegra124";
+	model = "HP Chromebook 14";
+	compatible = "google,nyan-blaze", "google,nyan", "nvidia,tegra124";
 
 	panel: panel {
-		compatible = "auo,b133xtn01";
+		compatible = "samsung,ltn140at29-301";
 
 		backlight = <&backlight>;
 		ddc-i2c-bus = <&dpaux>;
 	};
 
-	sdhci@0,700b0400 { /* SD Card on this bus */
-		wp-gpios = <&gpio TEGRA_GPIO(Q, 4) GPIO_ACTIVE_LOW>;
-	};
-
 	sound {
-		compatible = "nvidia,tegra-audio-max98090-nyan-big",
+		compatible = "nvidia,tegra-audio-max98090-nyan-blaze",
 			     "nvidia,tegra-audio-max98090-nyan",
 			     "nvidia,tegra-audio-max98090";
-		nvidia,model = "GoogleNyanBig";
+		nvidia,model = "GoogleNyanBlaze";
 	};
 
 	pinmux@0,70000868 {
@@ -441,18 +437,18 @@
 			usb_vbus_en0_pn4 {
 				nvidia,pins = "usb_vbus_en0_pn4";
 				nvidia,function = "usb";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_UP>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
-				nvidia,open-drain = <TEGRA_PIN_ENABLE>;
+				nvidia,open-drain = <TEGRA_PIN_DISABLE>;
 			};
 			usb_vbus_en1_pn5 {
 				nvidia,pins = "usb_vbus_en1_pn5";
 				nvidia,function = "usb";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_UP>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
-				nvidia,open-drain = <TEGRA_PIN_ENABLE>;
+				nvidia,open-drain = <TEGRA_PIN_DISABLE>;
 			};
 			hdmi_int_pn7 {
 				nvidia,pins = "hdmi_int_pn7";
