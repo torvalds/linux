@@ -332,20 +332,23 @@ out_bc:
 	tick_install_broadcast_device(newdev);
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
 /*
  * Transfer the do_timer job away from a dying cpu.
  *
- * Called with interrupts disabled.
+ * Called with interrupts disabled. Not locking required. If
+ * tick_do_timer_cpu is owned by this cpu, nothing can change it.
  */
-void tick_handover_do_timer(int *cpup)
+void tick_handover_do_timer(void)
 {
-	if (*cpup == tick_do_timer_cpu) {
+	if (tick_do_timer_cpu == smp_processor_id()) {
 		int cpu = cpumask_first(cpu_online_mask);
 
 		tick_do_timer_cpu = (cpu < nr_cpu_ids) ? cpu :
 			TICK_DO_TIMER_NONE;
 	}
 }
+#endif
 
 /*
  * Shutdown an event device on a given cpu:
