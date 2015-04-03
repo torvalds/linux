@@ -1423,7 +1423,7 @@ static void xen_pvh_set_cr_flags(int cpu)
 		return;
 	/*
 	 * For BSP, PSE PGE are set in probe_page_size_mask(), for APs
-	 * set them here. For all, OSFXSR OSXMMEXCPT are set in fpu_init.
+	 * set them here. For all, OSFXSR OSXMMEXCPT are set in fpu__cpu_init().
 	*/
 	if (cpu_has_pse)
 		cr4_set_bits_and_update_boot(X86_CR4_PSE);

@@ -183,11 +183,13 @@ static void init_thread_xstate(void)
 }
 
 /*
- * Called at bootup to set up the initial FPU state that is later cloned
- * into all processes.
+ * Called on the boot CPU at bootup to set up the initial FPU state that
+ * is later cloned into all processes.
+ *
+ * Also called on secondary CPUs to set up the FPU state of their
+ * idle threads.
  */
-
-void fpu_init(void)
+void fpu__cpu_init(void)
 {
 	unsigned long cr0;
 	unsigned long cr4_mask = 0;

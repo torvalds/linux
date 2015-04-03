@@ -39,7 +39,7 @@ int ia32_setup_frame(int sig, struct ksignal *ksig,
 #endif
 
 extern unsigned int mxcsr_feature_mask;
-extern void fpu_init(void);
+extern void fpu__cpu_init(void);
 extern void eager_fpu_init(void);
 
 DECLARE_PER_CPU(struct task_struct *, fpu_owner_task);
