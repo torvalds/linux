@@ -77,7 +77,7 @@ static const struct fm10k_stats fm10k_gstrings_global_stats[] = {
 	FM10K_STAT("mac_rules_avail", hw.swapi.mac.avail),
 
 	FM10K_STAT("mbx_tx_busy", hw.mbx.tx_busy),
-	FM10K_STAT("mbx_tx_dropped", hw.mbx.tx_dropped),
+	FM10K_STAT("mbx_tx_oversized", hw.mbx.tx_dropped),
 	FM10K_STAT("mbx_tx_messages", hw.mbx.tx_messages),
 	FM10K_STAT("mbx_tx_dwords", hw.mbx.tx_dwords),
 	FM10K_STAT("mbx_rx_messages", hw.mbx.rx_messages),
