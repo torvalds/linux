@@ -2565,15 +2565,10 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 			       : (fl->fl_type == F_WRLCK) ? "WRITE" : "READ ");
 	}
 	if (inode) {
-#ifdef WE_CAN_BREAK_LSLK_NOW
-		seq_printf(f, "%d %s:%ld ", fl_pid,
-				inode->i_sb->s_id, inode->i_ino);
-#else
-		/* userspace relies on this representation of dev_t ;-( */
+		/* userspace relies on this representation of dev_t */
 		seq_printf(f, "%d %02x:%02x:%ld ", fl_pid,
 				MAJOR(inode->i_sb->s_dev),
 				MINOR(inode->i_sb->s_dev), inode->i_ino);
-#endif
 	} else {
 		seq_printf(f, "%d <none>:0 ", fl_pid);
 	}
