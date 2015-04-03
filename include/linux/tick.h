@@ -20,6 +20,7 @@ extern void tick_suspend_local(void);
 /* Should be core only, but XEN resume magic and ARM BL switcher require it */
 extern void tick_resume_local(void);
 extern void tick_handover_do_timer(void);
+extern void tick_cleanup_dead_cpu(int cpu);
 #else /* CONFIG_GENERIC_CLOCKEVENTS */
 static inline void tick_init(void) { }
 static inline void tick_freeze(void) { }
@@ -27,6 +28,7 @@ static inline void tick_unfreeze(void) { }
 static inline void tick_suspend_local(void) { }
 static inline void tick_resume_local(void) { }
 static inline void tick_handover_do_timer(void) { }
+static inline void tick_cleanup_dead_cpu(int cpu) { }
 #endif /* !CONFIG_GENERIC_CLOCKEVENTS */
 
 #ifdef CONFIG_TICK_ONESHOT

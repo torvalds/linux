@@ -410,14 +410,14 @@ void tick_set_periodic_handler(struct clock_event_device *dev, int broadcast)
 		dev->event_handler = tick_handle_periodic_broadcast;
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
 /*
  * Remove a CPU from broadcasting
  */
-void tick_shutdown_broadcast(unsigned int *cpup)
+void tick_shutdown_broadcast(unsigned int cpu)
 {
 	struct clock_event_device *bc;
 	unsigned long flags;
-	unsigned int cpu = *cpup;
 
 	raw_spin_lock_irqsave(&tick_broadcast_lock, flags);
 
@@ -432,6 +432,7 @@ void tick_shutdown_broadcast(unsigned int *cpup)
 
 	raw_spin_unlock_irqrestore(&tick_broadcast_lock, flags);
 }
+#endif
 
 void tick_suspend_broadcast(void)
 {
@@ -672,21 +673,6 @@ static void broadcast_shutdown_local(struct clock_event_device *bc,
 	clockevents_set_state(dev, CLOCK_EVT_STATE_SHUTDOWN);
 }
 
-void hotplug_cpu__broadcast_tick_pull(int deadcpu)
-{
-	struct clock_event_device *bc;
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&tick_broadcast_lock, flags);
-	bc = tick_broadcast_device.evtdev;
-
-	if (bc && broadcast_needs_cpu(bc, deadcpu)) {
-		/* This moves the broadcast assignment to this CPU: */
-		clockevents_program_event(bc, bc->next_event, 1);
-	}
-	raw_spin_unlock_irqrestore(&tick_broadcast_lock, flags);
-}
-
 /**
  * tick_broadcast_oneshot_control - Enter/exit broadcast oneshot mode
  * @state:	The target state (enter/exit)
@@ -908,14 +894,28 @@ void tick_broadcast_switch_to_oneshot(void)
 	raw_spin_unlock_irqrestore(&tick_broadcast_lock, flags);
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
+void hotplug_cpu__broadcast_tick_pull(int deadcpu)
+{
+	struct clock_event_device *bc;
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&tick_broadcast_lock, flags);
+	bc = tick_broadcast_device.evtdev;
+
+	if (bc && broadcast_needs_cpu(bc, deadcpu)) {
+		/* This moves the broadcast assignment to this CPU: */
+		clockevents_program_event(bc, bc->next_event, 1);
+	}
+	raw_spin_unlock_irqrestore(&tick_broadcast_lock, flags);
+}
 
 /*
  * Remove a dead CPU from broadcasting
  */
-void tick_shutdown_broadcast_oneshot(unsigned int *cpup)
+void tick_shutdown_broadcast_oneshot(unsigned int cpu)
 {
 	unsigned long flags;
-	unsigned int cpu = *cpup;
 
 	raw_spin_lock_irqsave(&tick_broadcast_lock, flags);
 
@@ -929,6 +929,7 @@ void tick_shutdown_broadcast_oneshot(unsigned int *cpup)
 
 	raw_spin_unlock_irqrestore(&tick_broadcast_lock, flags);
 }
+#endif
 
 /*
  * Check, whether the broadcast device is in one shot mode

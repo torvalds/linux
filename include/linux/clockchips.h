@@ -8,12 +8,6 @@
 #ifndef _LINUX_CLOCKCHIPS_H
 #define _LINUX_CLOCKCHIPS_H
 
-/* Clock event notification values */
-enum clock_event_nofitiers {
-	CLOCK_EVT_NOTIFY_ADD,
-	CLOCK_EVT_NOTIFY_CPU_DEAD,
-};
-
 #ifdef CONFIG_GENERIC_CLOCKEVENTS
 
 # include <linux/clocksource.h>

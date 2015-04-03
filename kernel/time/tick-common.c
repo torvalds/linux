@@ -348,7 +348,6 @@ void tick_handover_do_timer(void)
 			TICK_DO_TIMER_NONE;
 	}
 }
-#endif
 
 /*
  * Shutdown an event device on a given cpu:
@@ -357,9 +356,9 @@ void tick_handover_do_timer(void)
  * access the hardware device itself.
  * We just set the mode and remove it from the lists.
  */
-void tick_shutdown(unsigned int *cpup)
+void tick_shutdown(unsigned int cpu)
 {
-	struct tick_device *td = &per_cpu(tick_cpu_device, *cpup);
+	struct tick_device *td = &per_cpu(tick_cpu_device, cpu);
 	struct clock_event_device *dev = td->evtdev;
 
 	td->mode = TICKDEV_MODE_PERIODIC;
@@ -375,6 +374,7 @@ void tick_shutdown(unsigned int *cpup)
 		td->evtdev = NULL;
 	}
 }
+#endif
 
 /**
  * tick_suspend_local - Suspend the local tick device

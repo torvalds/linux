@@ -642,49 +642,40 @@ void clockevents_resume(void)
 			dev->resume(dev);
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
 /**
- * clockevents_notify - notification about relevant events
- * Returns 0 on success, any other value on error
+ * tick_cleanup_dead_cpu - Cleanup the tick and clockevents of a dead cpu
  */
-int clockevents_notify(unsigned long reason, void *arg)
+void tick_cleanup_dead_cpu(int cpu)
 {
 	struct clock_event_device *dev, *tmp;
 	unsigned long flags;
-	int cpu, ret = 0;
 
 	raw_spin_lock_irqsave(&clockevents_lock, flags);
 
-	switch (reason) {
-	case CLOCK_EVT_NOTIFY_CPU_DEAD:
-		tick_shutdown_broadcast_oneshot(arg);
-		tick_shutdown_broadcast(arg);
-		tick_shutdown(arg);
-		/*
-		 * Unregister the clock event devices which were
-		 * released from the users in the notify chain.
-		 */
-		list_for_each_entry_safe(dev, tmp, &clockevents_released, list)
+	tick_shutdown_broadcast_oneshot(cpu);
+	tick_shutdown_broadcast(cpu);
+	tick_shutdown(cpu);
+	/*
+	 * Unregister the clock event devices which were
+	 * released from the users in the notify chain.
+	 */
+	list_for_each_entry_safe(dev, tmp, &clockevents_released, list)
+		list_del(&dev->list);
+	/*
+	 * Now check whether the CPU has left unused per cpu devices
+	 */
+	list_for_each_entry_safe(dev, tmp, &clockevent_devices, list) {
+		if (cpumask_test_cpu(cpu, dev->cpumask) &&
+		    cpumask_weight(dev->cpumask) == 1 &&
+		    !tick_is_broadcast_device(dev)) {
+			BUG_ON(dev->state != CLOCK_EVT_STATE_DETACHED);
 			list_del(&dev->list);
-		/*
-		 * Now check whether the CPU has left unused per cpu devices
-		 */
-		cpu = *((int *)arg);
-		list_for_each_entry_safe(dev, tmp, &clockevent_devices, list) {
-			if (cpumask_test_cpu(cpu, dev->cpumask) &&
-			    cpumask_weight(dev->cpumask) == 1 &&
-			    !tick_is_broadcast_device(dev)) {
-				BUG_ON(dev->state != CLOCK_EVT_STATE_DETACHED);
-				list_del(&dev->list);
-			}
 		}
-		break;
-	default:
-		break;
 	}
 	raw_spin_unlock_irqrestore(&clockevents_lock, flags);
-	return ret;
 }
-EXPORT_SYMBOL_GPL(clockevents_notify);
+#endif
 
 #ifdef CONFIG_SYSFS
 struct bus_type clockevents_subsys = {
