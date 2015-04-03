@@ -640,7 +640,11 @@ static int __init no_387(char *s)
 
 __setup("no387", no_387);
 
-void fpu_detect(struct cpuinfo_x86 *c)
+/*
+ * Set the X86_FEATURE_FPU CPU-capability bit based on
+ * trying to execute an actual sequence of FPU instructions:
+ */
+void fpu__detect(struct cpuinfo_x86 *c)
 {
 	unsigned long cr0;
 	u16 fsw, fcw;
