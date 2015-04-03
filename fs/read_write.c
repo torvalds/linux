@@ -450,19 +450,16 @@ EXPORT_SYMBOL(new_sync_read);
 ssize_t __vfs_read(struct file *file, char __user *buf, size_t count,
 		   loff_t *pos)
 {
-	ssize_t ret;
-
 	if (file->f_op->read)
-		ret = file->f_op->read(file, buf, count, pos);
+		return file->f_op->read(file, buf, count, pos);
 	else if (file->f_op->aio_read)
-		ret = do_sync_read(file, buf, count, pos);
+		return do_sync_read(file, buf, count, pos);
 	else if (file->f_op->read_iter)
-		ret = new_sync_read(file, buf, count, pos);
+		return new_sync_read(file, buf, count, pos);
 	else
-		ret = -EINVAL;
-
-	return ret;
+		return -EINVAL;
 }
+EXPORT_SYMBOL(__vfs_read);
 
 ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
 {
