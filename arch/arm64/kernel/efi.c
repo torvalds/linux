@@ -354,3 +354,12 @@ void efi_virtmap_unload(void)
 	efi_set_pgd(current->active_mm);
 	preempt_enable();
 }
+
+/*
+ * UpdateCapsule() depends on the system being shutdown via
+ * ResetSystem().
+ */
+bool efi_poweroff_required(void)
+{
+	return efi_enabled(EFI_RUNTIME_SERVICES);
+}

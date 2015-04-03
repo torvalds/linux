@@ -856,7 +856,7 @@
 			};
 
 			usb1: gadget@fff78000 {
-				compatible = "atmel,at91rm9200-udc";
+				compatible = "atmel,at91sam9263-udc";
 				reg = <0xfff78000 0x4000>;
 				interrupts = <24 IRQ_TYPE_LEVEL_HIGH 2>;
 				clocks = <&udc_clk>, <&udpck>;

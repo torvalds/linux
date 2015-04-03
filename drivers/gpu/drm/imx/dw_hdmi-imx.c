@@ -70,7 +70,9 @@ static const struct dw_hdmi_curr_ctrl imx_cur_ctr[] = {
 		118800000, { 0x091c, 0x091c, 0x06dc },
 	}, {
 		216000000, { 0x06dc, 0x0b5c, 0x091c },
-	}
+	}, {
+		~0UL, { 0x0000, 0x0000, 0x0000 },
+	},
 };
 
 static const struct dw_hdmi_sym_term imx_sym_term[] = {
@@ -136,11 +138,34 @@ static struct drm_encoder_funcs dw_hdmi_imx_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
+static enum drm_mode_status imx6q_hdmi_mode_valid(struct drm_connector *con,
+						  struct drm_display_mode *mode)
+{
+	if (mode->clock < 13500)
+		return MODE_CLOCK_LOW;
+	if (mode->clock > 266000)
+		return MODE_CLOCK_HIGH;
+
+	return MODE_OK;
+}
+
+static enum drm_mode_status imx6dl_hdmi_mode_valid(struct drm_connector *con,
+						   struct drm_display_mode *mode)
+{
+	if (mode->clock < 13500)
+		return MODE_CLOCK_LOW;
+	if (mode->clock > 270000)
+		return MODE_CLOCK_HIGH;
+
+	return MODE_OK;
+}
+
 static struct dw_hdmi_plat_data imx6q_hdmi_drv_data = {
-	.mpll_cfg = imx_mpll_cfg,
-	.cur_ctr  = imx_cur_ctr,
-	.sym_term = imx_sym_term,
-	.dev_type = IMX6Q_HDMI,
+	.mpll_cfg   = imx_mpll_cfg,
+	.cur_ctr    = imx_cur_ctr,
+	.sym_term   = imx_sym_term,
+	.dev_type   = IMX6Q_HDMI,
+	.mode_valid = imx6q_hdmi_mode_valid,
 };
 
 static struct dw_hdmi_plat_data imx6dl_hdmi_drv_data = {
@@ -148,6 +173,7 @@ static struct dw_hdmi_plat_data imx6dl_hdmi_drv_data = {
 	.cur_ctr  = imx_cur_ctr,
 	.sym_term = imx_sym_term,
 	.dev_type = IMX6DL_HDMI,
+	.mode_valid = imx6dl_hdmi_mode_valid,
 };
 
 static const struct of_device_id dw_hdmi_imx_dt_ids[] = {
