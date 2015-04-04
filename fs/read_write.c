@@ -410,23 +410,6 @@ int rw_verify_area(int read_write, struct file *file, const loff_t *ppos, size_t
 	return count > MAX_RW_COUNT ? MAX_RW_COUNT : count;
 }
 
-ssize_t do_sync_read(struct file *filp, char __user *buf, size_t len, loff_t *ppos)
-{
-	struct iovec iov = { .iov_base = buf, .iov_len = len };
-	struct kiocb kiocb;
-	ssize_t ret;
-
-	init_sync_kiocb(&kiocb, filp);
-	kiocb.ki_pos = *ppos;
-
-	ret = filp->f_op->aio_read(&kiocb, &iov, 1, kiocb.ki_pos);
-	BUG_ON(ret == -EIOCBQUEUED);
-	*ppos = kiocb.ki_pos;
-	return ret;
-}
-
-EXPORT_SYMBOL(do_sync_read);
-
 static ssize_t new_sync_read(struct file *filp, char __user *buf, size_t len, loff_t *ppos)
 {
 	struct iovec iov = { .iov_base = buf, .iov_len = len };
@@ -449,8 +432,6 @@ ssize_t __vfs_read(struct file *file, char __user *buf, size_t count,
 {
 	if (file->f_op->read)
 		return file->f_op->read(file, buf, count, pos);
-	else if (file->f_op->aio_read)
-		return do_sync_read(file, buf, count, pos);
 	else if (file->f_op->read_iter)
 		return new_sync_read(file, buf, count, pos);
 	else
@@ -485,23 +466,6 @@ ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
 
 EXPORT_SYMBOL(vfs_read);
 
-ssize_t do_sync_write(struct file *filp, const char __user *buf, size_t len, loff_t *ppos)
-{
-	struct iovec iov = { .iov_base = (void __user *)buf, .iov_len = len };
-	struct kiocb kiocb;
-	ssize_t ret;
-
-	init_sync_kiocb(&kiocb, filp);
-	kiocb.ki_pos = *ppos;
-
-	ret = filp->f_op->aio_write(&kiocb, &iov, 1, kiocb.ki_pos);
-	BUG_ON(ret == -EIOCBQUEUED);
-	*ppos = kiocb.ki_pos;
-	return ret;
-}
-
-EXPORT_SYMBOL(do_sync_write);
-
 static ssize_t new_sync_write(struct file *filp, const char __user *buf, size_t len, loff_t *ppos)
 {
 	struct iovec iov = { .iov_base = (void __user *)buf, .iov_len = len };
@@ -524,8 +488,6 @@ ssize_t __vfs_write(struct file *file, const char __user *p, size_t count,
 {
 	if (file->f_op->write)
 		return file->f_op->write(file, p, count, pos);
-	else if (file->f_op->aio_write)
-		return do_sync_write(file, p, count, pos);
 	else if (file->f_op->write_iter)
 		return new_sync_write(file, p, count, pos);
 	else
