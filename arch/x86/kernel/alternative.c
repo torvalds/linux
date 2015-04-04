@@ -325,6 +325,9 @@ done:
 
 static void __init_or_module optimize_nops(struct alt_instr *a, u8 *instr)
 {
+	if (instr[0] != 0x90)
+		return;
+
 	add_nops(instr + (a->instrlen - a->padlen), a->padlen);
 
 	DUMP_BYTES(instr, a->instrlen, "%p: [%d:%d) optimized NOPs: ",
