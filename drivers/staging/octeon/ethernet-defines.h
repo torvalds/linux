@@ -27,12 +27,6 @@
 
 /*
  * A few defines are used to control the operation of this driver:
- *  CONFIG_CAVIUM_RESERVE32
- *      This kernel config options controls the amount of memory configured
- *      in a wired TLB entry for all processes to share. If this is set, the
- *      driver will use this memory instead of kernel memory for pools. This
- *      allows 32bit userspace application to access the buffers, but also
- *      requires all received packets to be copied.
  *  USE_SKBUFFS_IN_HW
  *      Tells the driver to populate the packet buffers with kernel skbuffs.
  *      This allows the driver to receive packets without copying them. It also
@@ -59,10 +53,6 @@
 
 
 #define OCTEON_ETHERNET_VERSION "1.9"
-
-#ifndef CONFIG_CAVIUM_RESERVE32
-#define CONFIG_CAVIUM_RESERVE32 0
-#endif
 
 #define USE_SKBUFFS_IN_HW           1
 #ifdef CONFIG_NETFILTER
