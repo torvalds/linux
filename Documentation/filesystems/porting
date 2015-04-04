@@ -480,3 +480,6 @@ in your dentry operations instead.
 [mandatory]
 	do _not_ use new_sync_{read,write} for ->read/->write; leave it NULL
 	instead.
+--
+[mandatory]
+	->aio_read/->aio_write are gone.  Use ->read_iter/->write_iter.
