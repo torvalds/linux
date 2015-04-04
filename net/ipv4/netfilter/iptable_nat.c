@@ -35,8 +35,7 @@ static unsigned int iptable_nat_do_chain(const struct nf_hook_ops *ops,
 {
 	struct net *net = nf_ct_net(ct);
 
-	return ipt_do_table(skb, ops->hooknum, state->in, state->out,
-			    net->ipv4.nat_table);
+	return ipt_do_table(skb, ops->hooknum, state, net->ipv4.nat_table);
 }
 
 static unsigned int iptable_nat_ipv4_fn(const struct nf_hook_ops *ops,
