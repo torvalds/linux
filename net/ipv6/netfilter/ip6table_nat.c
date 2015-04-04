@@ -37,8 +37,7 @@ static unsigned int ip6table_nat_do_chain(const struct nf_hook_ops *ops,
 {
 	struct net *net = nf_ct_net(ct);
 
-	return ip6t_do_table(skb, ops->hooknum, state->in, state->out,
-			     net->ipv6.ip6table_nat);
+	return ip6t_do_table(skb, ops->hooknum, state, net->ipv6.ip6table_nat);
 }
 
 static unsigned int ip6table_nat_fn(const struct nf_hook_ops *ops,

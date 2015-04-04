@@ -32,7 +32,7 @@ static const struct xt_table packet_mangler = {
 };
 
 static unsigned int
-ip6t_mangle_out(struct sk_buff *skb, const struct net_device *out)
+ip6t_mangle_out(struct sk_buff *skb, const struct nf_hook_state *state)
 {
 	unsigned int ret;
 	struct in6_addr saddr, daddr;
@@ -57,8 +57,8 @@ ip6t_mangle_out(struct sk_buff *skb, const struct net_device *out)
 	/* flowlabel and prio (includes version, which shouldn't change either */
 	flowlabel = *((u_int32_t *)ipv6_hdr(skb));
 
-	ret = ip6t_do_table(skb, NF_INET_LOCAL_OUT, NULL, out,
-			    dev_net(out)->ipv6.ip6table_mangle);
+	ret = ip6t_do_table(skb, NF_INET_LOCAL_OUT, state,
+			    dev_net(state->out)->ipv6.ip6table_mangle);
 
 	if (ret != NF_DROP && ret != NF_STOLEN &&
 	    (!ipv6_addr_equal(&ipv6_hdr(skb)->saddr, &saddr) ||
@@ -80,12 +80,12 @@ ip6table_mangle_hook(const struct nf_hook_ops *ops, struct sk_buff *skb,
 		     const struct nf_hook_state *state)
 {
 	if (ops->hooknum == NF_INET_LOCAL_OUT)
-		return ip6t_mangle_out(skb, state->out);
+		return ip6t_mangle_out(skb, state);
 	if (ops->hooknum == NF_INET_POST_ROUTING)
-		return ip6t_do_table(skb, ops->hooknum, state->in, state->out,
+		return ip6t_do_table(skb, ops->hooknum, state,
 				     dev_net(state->out)->ipv6.ip6table_mangle);
 	/* INPUT/FORWARD */
-	return ip6t_do_table(skb, ops->hooknum, state->in, state->out,
+	return ip6t_do_table(skb, ops->hooknum, state,
 			     dev_net(state->in)->ipv6.ip6table_mangle);
 }
 

@@ -41,7 +41,7 @@ ip6table_security_hook(const struct nf_hook_ops *ops, struct sk_buff *skb,
 {
 	const struct net *net = dev_net(state->in ? state->in : state->out);
 
-	return ip6t_do_table(skb, ops->hooknum, state->in, state->out,
+	return ip6t_do_table(skb, ops->hooknum, state,
 			     net->ipv6.ip6table_security);
 }
 

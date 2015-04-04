@@ -317,8 +317,7 @@ ip6t_next_entry(const struct ip6t_entry *entry)
 unsigned int
 ip6t_do_table(struct sk_buff *skb,
 	      unsigned int hook,
-	      const struct net_device *in,
-	      const struct net_device *out,
+	      const struct nf_hook_state *state,
 	      struct xt_table *table)
 {
 	static const char nulldevname[IFNAMSIZ] __attribute__((aligned(sizeof(long))));
@@ -333,8 +332,8 @@ ip6t_do_table(struct sk_buff *skb,
 	unsigned int addend;
 
 	/* Initialization */
-	indev = in ? in->name : nulldevname;
-	outdev = out ? out->name : nulldevname;
+	indev = state->in ? state->in->name : nulldevname;
+	outdev = state->out ? state->out->name : nulldevname;
 	/* We handle fragments by dealing with the first fragment as
 	 * if it was a normal packet.  All other fragments are treated
 	 * normally, except that they will NEVER match rules that ask
@@ -342,8 +341,8 @@ ip6t_do_table(struct sk_buff *skb,
 	 * rule is also a fragment-specific rule, non-fragments won't
 	 * match it. */
 	acpar.hotdrop = false;
-	acpar.in      = in;
-	acpar.out     = out;
+	acpar.in      = state->in;
+	acpar.out     = state->out;
 	acpar.family  = NFPROTO_IPV6;
 	acpar.hooknum = hook;
 
@@ -393,7 +392,7 @@ ip6t_do_table(struct sk_buff *skb,
 #if IS_ENABLED(CONFIG_NETFILTER_XT_TARGET_TRACE)
 		/* The packet is traced: log it */
 		if (unlikely(skb->nf_trace))
-			trace_packet(skb, hook, in, out,
+			trace_packet(skb, hook, state->in, state->out,
 				     table->name, private, e);
 #endif
 		/* Standard target? */
