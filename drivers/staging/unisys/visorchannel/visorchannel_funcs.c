@@ -405,9 +405,8 @@ signalremove_inner(struct visorchannel *channel, u32 queue, void *msg)
 		return FALSE;	/* no signals to remove */
 
 	sig_hdr.tail = (sig_hdr.tail + 1) % sig_hdr.max_slots;
-	if (!sig_read_data(channel, queue, &sig_hdr, sig_hdr.tail, msg)) {
+	if (!sig_read_data(channel, queue, &sig_hdr, sig_hdr.tail, msg))
 		return FALSE;
-	}
 	sig_hdr.num_received++;
 
 	/* For each data field in SIGNAL_QUEUE_HEADER that was modified,
@@ -470,9 +469,8 @@ signalinsert_inner(struct visorchannel *channel, u32 queue, void *msg)
 	mb(); /* required for channel synch */
 	if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, head))
 		return FALSE;
-	if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, num_sent)) {
+	if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, num_sent))
 		return FALSE;
-	}
 
 	return TRUE;
 }
