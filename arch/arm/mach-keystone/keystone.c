@@ -93,9 +93,6 @@ static long long __init keystone_init_meminfo(void)
 	/* Populate the arch idmap hook */
 	arch_virt_to_idmap = keystone_virt_to_idmap;
 
-	pr_info("Switching to high address space at 0x%llx\n",
-	        (u64)PHYS_OFFSET + (u64)offset);
-
 	return offset;
 }
 

@@ -1424,6 +1424,9 @@ void __init early_paging_init(const struct machine_desc *mdesc,
 	if (offset == 0)
 		return;
 
+	pr_info("Switching physical address space to 0x%08llx\n",
+		(u64)PHYS_OFFSET + offset);
+
 	/* Re-set the phys pfn offset, and the pv offset */
 	__pv_offset += offset;
 	__pv_phys_pfn_offset += PFN_DOWN(offset);
