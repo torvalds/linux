@@ -268,7 +268,7 @@ static void __init psurge_quad_init(void)
 	mdelay(33);
 }
 
-static int __init smp_psurge_probe(void)
+static void __init smp_psurge_probe(void)
 {
 	int i, ncpus;
 	struct device_node *dn;
@@ -766,7 +766,7 @@ static void __init smp_core99_setup(int ncpus)
 		powersave_nap = 0;
 }
 
-static int __init smp_core99_probe(void)
+static void __init smp_core99_probe(void)
 {
 	struct device_node *cpus;
 	int ncpus = 0;
@@ -781,7 +781,7 @@ static int __init smp_core99_probe(void)
 
 	/* Nothing more to do if less than 2 of them */
 	if (ncpus <= 1)
-		return 1;
+		return;
 
 	/* We need to perform some early initialisations before we can start
 	 * setting up SMP as we are running before initcalls
@@ -797,8 +797,6 @@ static int __init smp_core99_probe(void)
 
 	/* Collect l2cr and l3cr values from CPU 0 */
 	core99_init_caches(0);
-
-	return ncpus;
 }
 
 static int smp_core99_kick_cpu(int nr)
