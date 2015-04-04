@@ -44,6 +44,38 @@
 static int number_spi_ports;
 static int need_retrain[2] = { 0, 0 };
 
+static void cvm_oct_spxx_int_pr(union cvmx_spxx_int_reg spx_int_reg, int index)
+{
+	if (spx_int_reg.s.spf)
+		pr_err("SPI%d: SRX Spi4 interface down\n", index);
+	if (spx_int_reg.s.calerr)
+		pr_err("SPI%d: SRX Spi4 Calendar table parity error\n", index);
+	if (spx_int_reg.s.syncerr)
+		pr_err("SPI%d: SRX Consecutive Spi4 DIP4 errors have exceeded SPX_ERR_CTL[ERRCNT]\n",
+		       index);
+	if (spx_int_reg.s.diperr)
+		pr_err("SPI%d: SRX Spi4 DIP4 error\n", index);
+	if (spx_int_reg.s.tpaovr)
+		pr_err("SPI%d: SRX Selected port has hit TPA overflow\n",
+		       index);
+	if (spx_int_reg.s.rsverr)
+		pr_err("SPI%d: SRX Spi4 reserved control word detected\n",
+		       index);
+	if (spx_int_reg.s.drwnng)
+		pr_err("SPI%d: SRX Spi4 receive FIFO drowning/overflow\n",
+		       index);
+	if (spx_int_reg.s.clserr)
+		pr_err("SPI%d: SRX Spi4 packet closed on non-16B alignment without EOP\n",
+		       index);
+	if (spx_int_reg.s.spiovr)
+		pr_err("SPI%d: SRX Spi4 async FIFO overflow\n", index);
+	if (spx_int_reg.s.abnorm)
+		pr_err("SPI%d: SRX Abnormal packet termination (ERR bit)\n",
+		       index);
+	if (spx_int_reg.s.prtnxa)
+		pr_err("SPI%d: SRX Port out of range\n", index);
+}
+
 static irqreturn_t cvm_oct_spi_rml_interrupt(int cpl, void *dev_id)
 {
 	irqreturn_t return_status = IRQ_NONE;
@@ -59,30 +91,8 @@ static irqreturn_t cvm_oct_spi_rml_interrupt(int cpl, void *dev_id)
 		spx_int_reg.u64 = cvmx_read_csr(CVMX_SPXX_INT_REG(1));
 		cvmx_write_csr(CVMX_SPXX_INT_REG(1), spx_int_reg.u64);
 		if (!need_retrain[1]) {
-
 			spx_int_reg.u64 &= cvmx_read_csr(CVMX_SPXX_INT_MSK(1));
-			if (spx_int_reg.s.spf)
-				pr_err("SPI1: SRX Spi4 interface down\n");
-			if (spx_int_reg.s.calerr)
-				pr_err("SPI1: SRX Spi4 Calendar table parity error\n");
-			if (spx_int_reg.s.syncerr)
-				pr_err("SPI1: SRX Consecutive Spi4 DIP4 errors have exceeded SPX_ERR_CTL[ERRCNT]\n");
-			if (spx_int_reg.s.diperr)
-				pr_err("SPI1: SRX Spi4 DIP4 error\n");
-			if (spx_int_reg.s.tpaovr)
-				pr_err("SPI1: SRX Selected port has hit TPA overflow\n");
-			if (spx_int_reg.s.rsverr)
-				pr_err("SPI1: SRX Spi4 reserved control word detected\n");
-			if (spx_int_reg.s.drwnng)
-				pr_err("SPI1: SRX Spi4 receive FIFO drowning/overflow\n");
-			if (spx_int_reg.s.clserr)
-				pr_err("SPI1: SRX Spi4 packet closed on non-16B alignment without EOP\n");
-			if (spx_int_reg.s.spiovr)
-				pr_err("SPI1: SRX Spi4 async FIFO overflow\n");
-			if (spx_int_reg.s.abnorm)
-				pr_err("SPI1: SRX Abnormal packet termination (ERR bit)\n");
-			if (spx_int_reg.s.prtnxa)
-				pr_err("SPI1: SRX Port out of range\n");
+			cvm_oct_spxx_int_pr(spx_int_reg, 1);
 		}
 
 		stx_int_reg.u64 = cvmx_read_csr(CVMX_STXX_INT_REG(1));
@@ -123,30 +133,8 @@ static irqreturn_t cvm_oct_spi_rml_interrupt(int cpl, void *dev_id)
 		spx_int_reg.u64 = cvmx_read_csr(CVMX_SPXX_INT_REG(0));
 		cvmx_write_csr(CVMX_SPXX_INT_REG(0), spx_int_reg.u64);
 		if (!need_retrain[0]) {
-
 			spx_int_reg.u64 &= cvmx_read_csr(CVMX_SPXX_INT_MSK(0));
-			if (spx_int_reg.s.spf)
-				pr_err("SPI0: SRX Spi4 interface down\n");
-			if (spx_int_reg.s.calerr)
-				pr_err("SPI0: SRX Spi4 Calendar table parity error\n");
-			if (spx_int_reg.s.syncerr)
-				pr_err("SPI0: SRX Consecutive Spi4 DIP4 errors have exceeded SPX_ERR_CTL[ERRCNT]\n");
-			if (spx_int_reg.s.diperr)
-				pr_err("SPI0: SRX Spi4 DIP4 error\n");
-			if (spx_int_reg.s.tpaovr)
-				pr_err("SPI0: SRX Selected port has hit TPA overflow\n");
-			if (spx_int_reg.s.rsverr)
-				pr_err("SPI0: SRX Spi4 reserved control word detected\n");
-			if (spx_int_reg.s.drwnng)
-				pr_err("SPI0: SRX Spi4 receive FIFO drowning/overflow\n");
-			if (spx_int_reg.s.clserr)
-				pr_err("SPI0: SRX Spi4 packet closed on non-16B alignment without EOP\n");
-			if (spx_int_reg.s.spiovr)
-				pr_err("SPI0: SRX Spi4 async FIFO overflow\n");
-			if (spx_int_reg.s.abnorm)
-				pr_err("SPI0: SRX Abnormal packet termination (ERR bit)\n");
-			if (spx_int_reg.s.prtnxa)
-				pr_err("SPI0: SRX Port out of range\n");
+			cvm_oct_spxx_int_pr(spx_int_reg, 0);
 		}
 
 		stx_int_reg.u64 = cvmx_read_csr(CVMX_STXX_INT_REG(0));
