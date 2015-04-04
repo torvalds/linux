@@ -343,9 +343,9 @@ __v7_setup:
 	and	r10, r0, #0xff000000		@ ARM?
 	teq	r10, #0x41000000
 	bne	3f
-	and	r5, r0, #0x00f00000		@ variant
+	and	r3, r0, #0x00f00000		@ variant
 	and	r6, r0, #0x0000000f		@ revision
-	orr	r6, r6, r5, lsr #20-4		@ combine variant and revision
+	orr	r6, r6, r3, lsr #20-4		@ combine variant and revision
 	ubfx	r0, r0, #4, #12			@ primary part number
 
 	/* Cortex-A8 Errata */
@@ -354,7 +354,7 @@ __v7_setup:
 	bne	2f
 #if defined(CONFIG_ARM_ERRATA_430973) && !defined(CONFIG_ARCH_MULTIPLATFORM)
 
-	teq	r5, #0x00100000			@ only present in r1p*
+	teq	r3, #0x00100000			@ only present in r1p*
 	mrceq	p15, 0, r10, c1, c0, 1		@ read aux control register
 	orreq	r10, r10, #(1 << 6)		@ set IBE to 1
 	mcreq	p15, 0, r10, c1, c0, 1		@ write aux control register
@@ -395,7 +395,7 @@ __v7_setup:
 	mcreq	p15, 0, r10, c15, c0, 1		@ write diagnostic register
 #endif
 #ifdef CONFIG_ARM_ERRATA_743622
-	teq	r5, #0x00200000			@ only present in r2p*
+	teq	r3, #0x00200000			@ only present in r2p*
 	mrceq	p15, 0, r10, c15, c0, 1		@ read diagnostic register
 	orreq	r10, r10, #1 << 6		@ set bit #6
 	mcreq	p15, 0, r10, c15, c0, 1		@ write diagnostic register
@@ -425,10 +425,10 @@ __v7_setup:
 	mcr	p15, 0, r10, c7, c5, 0		@ I+BTB cache invalidate
 #ifdef CONFIG_MMU
 	mcr	p15, 0, r10, c8, c7, 0		@ invalidate I + D TLBs
-	v7_ttb_setup r10, r4, r8, r5		@ TTBCR, TTBRx setup
-	ldr	r5, =PRRR			@ PRRR
+	v7_ttb_setup r10, r4, r5, r8, r3	@ TTBCR, TTBRx setup
+	ldr	r3, =PRRR			@ PRRR
 	ldr	r6, =NMRR			@ NMRR
-	mcr	p15, 0, r5, c10, c2, 0		@ write PRRR
+	mcr	p15, 0, r3, c10, c2, 0		@ write PRRR
 	mcr	p15, 0, r6, c10, c2, 1		@ write NMRR
 #endif
 	dsb					@ Complete invalidations
@@ -437,22 +437,22 @@ __v7_setup:
 	and	r0, r0, #(0xf << 12)		@ ThumbEE enabled field
 	teq	r0, #(1 << 12)			@ check if ThumbEE is present
 	bne	1f
-	mov	r5, #0
-	mcr	p14, 6, r5, c1, c0, 0		@ Initialize TEEHBR to 0
+	mov	r3, #0
+	mcr	p14, 6, r3, c1, c0, 0		@ Initialize TEEHBR to 0
 	mrc	p14, 6, r0, c0, c0, 0		@ load TEECR
 	orr	r0, r0, #1			@ set the 1st bit in order to
 	mcr	p14, 6, r0, c0, c0, 0		@ stop userspace TEEHBR access
 1:
 #endif
-	adr	r5, v7_crval
-	ldmia	r5, {r5, r6}
+	adr	r3, v7_crval
+	ldmia	r3, {r3, r6}
  ARM_BE8(orr	r6, r6, #1 << 25)		@ big-endian page tables
 #ifdef CONFIG_SWP_EMULATE
-	orr     r5, r5, #(1 << 10)              @ set SW bit in "clear"
+	orr     r3, r3, #(1 << 10)              @ set SW bit in "clear"
 	bic     r6, r6, #(1 << 10)              @ clear it in "mmuset"
 #endif
    	mrc	p15, 0, r0, c1, c0, 0		@ read control register
-	bic	r0, r0, r5			@ clear bits them
+	bic	r0, r0, r3			@ clear bits them
 	orr	r0, r0, r6			@ set them
  THUMB(	orr	r0, r0, #1 << 30	)	@ Thumb exceptions
 	ret	lr				@ return to head.S:__ret
