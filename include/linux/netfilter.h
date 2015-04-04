@@ -44,11 +44,19 @@ int netfilter_init(void);
 struct sk_buff;
 
 struct nf_hook_ops;
+
+struct nf_hook_state {
+	unsigned int hook;
+	int thresh;
+	u_int8_t pf;
+	struct net_device *in;
+	struct net_device *out;
+	int (*okfn)(struct sk_buff *);
+};
+
 typedef unsigned int nf_hookfn(const struct nf_hook_ops *ops,
 			       struct sk_buff *skb,
-			       const struct net_device *in,
-			       const struct net_device *out,
-			       int (*okfn)(struct sk_buff *));
+			       const struct nf_hook_state *state);
 
 struct nf_hook_ops {
 	struct list_head list;
@@ -118,9 +126,7 @@ static inline bool nf_hooks_active(u_int8_t pf, unsigned int hook)
 }
 #endif
 
-int nf_hook_slow(u_int8_t pf, unsigned int hook, struct sk_buff *skb,
-		 struct net_device *indev, struct net_device *outdev,
-		 int (*okfn)(struct sk_buff *), int thresh);
+int nf_hook_slow(struct sk_buff *skb, struct nf_hook_state *state);
 
 /**
  *	nf_hook_thresh - call a netfilter hook
@@ -135,8 +141,18 @@ static inline int nf_hook_thresh(u_int8_t pf, unsigned int hook,
 				 struct net_device *outdev,
 				 int (*okfn)(struct sk_buff *), int thresh)
 {
-	if (nf_hooks_active(pf, hook))
-		return nf_hook_slow(pf, hook, skb, indev, outdev, okfn, thresh);
+	if (nf_hooks_active(pf, hook)) {
+		struct nf_hook_state state = {
+			.hook = hook,
+			.thresh = thresh,
+			.pf = pf,
+			.in = indev,
+			.out = outdev,
+			.okfn = okfn
+		};
+
+		return nf_hook_slow(skb, &state);
+	}
 	return 1;
 }
 

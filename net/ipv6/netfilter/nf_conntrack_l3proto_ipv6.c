@@ -97,9 +97,7 @@ static int ipv6_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,
 
 static unsigned int ipv6_helper(const struct nf_hook_ops *ops,
 				struct sk_buff *skb,
-				const struct net_device *in,
-				const struct net_device *out,
-				int (*okfn)(struct sk_buff *))
+				const struct nf_hook_state *state)
 {
 	struct nf_conn *ct;
 	const struct nf_conn_help *help;
@@ -135,9 +133,7 @@ static unsigned int ipv6_helper(const struct nf_hook_ops *ops,
 
 static unsigned int ipv6_confirm(const struct nf_hook_ops *ops,
 				 struct sk_buff *skb,
-				 const struct net_device *in,
-				 const struct net_device *out,
-				 int (*okfn)(struct sk_buff *))
+				 const struct nf_hook_state *state)
 {
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
@@ -171,25 +167,21 @@ out:
 
 static unsigned int ipv6_conntrack_in(const struct nf_hook_ops *ops,
 				      struct sk_buff *skb,
-				      const struct net_device *in,
-				      const struct net_device *out,
-				      int (*okfn)(struct sk_buff *))
+				      const struct nf_hook_state *state)
 {
-	return nf_conntrack_in(dev_net(in), PF_INET6, ops->hooknum, skb);
+	return nf_conntrack_in(dev_net(state->in), PF_INET6, ops->hooknum, skb);
 }
 
 static unsigned int ipv6_conntrack_local(const struct nf_hook_ops *ops,
 					 struct sk_buff *skb,
-					 const struct net_device *in,
-					 const struct net_device *out,
-					 int (*okfn)(struct sk_buff *))
+					 const struct nf_hook_state *state)
 {
 	/* root is playing with raw sockets. */
 	if (skb->len < sizeof(struct ipv6hdr)) {
 		net_notice_ratelimited("ipv6_conntrack_local: packet too short\n");
 		return NF_ACCEPT;
 	}
-	return nf_conntrack_in(dev_net(out), PF_INET6, ops->hooknum, skb);
+	return nf_conntrack_in(dev_net(state->out), PF_INET6, ops->hooknum, skb);
 }
 
 static struct nf_hook_ops ipv6_conntrack_ops[] __read_mostly = {
