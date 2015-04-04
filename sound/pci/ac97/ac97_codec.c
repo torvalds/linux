@@ -2902,7 +2902,8 @@ static int apply_quirk_str(struct snd_ac97 *ac97, const char *typestr)
  * Return: Zero if successful, or a negative error code on failure.
  */
 
-int snd_ac97_tune_hardware(struct snd_ac97 *ac97, struct ac97_quirk *quirk, const char *override)
+int snd_ac97_tune_hardware(struct snd_ac97 *ac97,
+			   const struct ac97_quirk *quirk, const char *override)
 {
 	int result;
 
