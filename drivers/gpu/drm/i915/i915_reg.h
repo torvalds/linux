@@ -6269,17 +6269,12 @@ enum skl_disp_power_wells {
 #define CHV_POWER_SS1_SIG2		0xa72c
 #define   CHV_EU311_PG_ENABLE		(1<<1)
 
-#define GEN9_SLICE0_PGCTL_ACK		0x804c
-#define GEN9_SLICE1_PGCTL_ACK		0x8050
-#define GEN9_SLICE2_PGCTL_ACK		0x8054
+#define GEN9_SLICE_PGCTL_ACK(slice)	(0x804c + (slice)*0x4)
 #define   GEN9_PGCTL_SLICE_ACK		(1 << 0)
+#define   GEN9_PGCTL_SS_ACK(subslice)	(1 << (2 + (subslice)*2))
 
-#define GEN9_SLICE0_SS01_EU_PGCTL_ACK	0x805c
-#define GEN9_SLICE0_SS23_EU_PGCTL_ACK	0x8060
-#define GEN9_SLICE1_SS01_EU_PGCTL_ACK	0x8064
-#define GEN9_SLICE1_SS23_EU_PGCTL_ACK	0x8068
-#define GEN9_SLICE2_SS01_EU_PGCTL_ACK	0x806c
-#define GEN9_SLICE2_SS23_EU_PGCTL_ACK	0x8070
+#define GEN9_SS01_EU_PGCTL_ACK(slice)	(0x805c + (slice)*0x8)
+#define GEN9_SS23_EU_PGCTL_ACK(slice)	(0x8060 + (slice)*0x8)
 #define   GEN9_PGCTL_SSA_EU08_ACK	(1 << 0)
 #define   GEN9_PGCTL_SSA_EU19_ACK	(1 << 2)
 #define   GEN9_PGCTL_SSA_EU210_ACK	(1 << 4)

@@ -4514,19 +4514,22 @@ static void gen9_sseu_device_status(struct drm_device *dev,
 				    struct sseu_dev_status *stat)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	const int s_max = 3, ss_max = 4;
+	int s_max = 3, ss_max = 4;
 	int s, ss;
 	u32 s_reg[s_max], eu_reg[2*s_max], eu_mask[2];
 
-	s_reg[0] = I915_READ(GEN9_SLICE0_PGCTL_ACK);
-	s_reg[1] = I915_READ(GEN9_SLICE1_PGCTL_ACK);
-	s_reg[2] = I915_READ(GEN9_SLICE2_PGCTL_ACK);
-	eu_reg[0] = I915_READ(GEN9_SLICE0_SS01_EU_PGCTL_ACK);
-	eu_reg[1] = I915_READ(GEN9_SLICE0_SS23_EU_PGCTL_ACK);
-	eu_reg[2] = I915_READ(GEN9_SLICE1_SS01_EU_PGCTL_ACK);
-	eu_reg[3] = I915_READ(GEN9_SLICE1_SS23_EU_PGCTL_ACK);
-	eu_reg[4] = I915_READ(GEN9_SLICE2_SS01_EU_PGCTL_ACK);
-	eu_reg[5] = I915_READ(GEN9_SLICE2_SS23_EU_PGCTL_ACK);
+	/* BXT has a single slice and at most 3 subslices. */
+	if (IS_BROXTON(dev)) {
+		s_max = 1;
+		ss_max = 3;
+	}
+
+	for (s = 0; s < s_max; s++) {
+		s_reg[s] = I915_READ(GEN9_SLICE_PGCTL_ACK(s));
+		eu_reg[2*s] = I915_READ(GEN9_SS01_EU_PGCTL_ACK(s));
+		eu_reg[2*s + 1] = I915_READ(GEN9_SS23_EU_PGCTL_ACK(s));
+	}
+
 	eu_mask[0] = GEN9_PGCTL_SSA_EU08_ACK |
 		     GEN9_PGCTL_SSA_EU19_ACK |
 		     GEN9_PGCTL_SSA_EU210_ACK |
@@ -4537,15 +4540,27 @@ static void gen9_sseu_device_status(struct drm_device *dev,
 		     GEN9_PGCTL_SSB_EU311_ACK;
 
 	for (s = 0; s < s_max; s++) {
+		unsigned int ss_cnt = 0;
+
 		if ((s_reg[s] & GEN9_PGCTL_SLICE_ACK) == 0)
 			/* skip disabled slice */
 			continue;
 
 		stat->slice_total++;
-		stat->subslice_per_slice = INTEL_INFO(dev)->subslice_per_slice;
-		stat->subslice_total += stat->subslice_per_slice;
+
+		if (IS_SKYLAKE(dev))
+			ss_cnt = INTEL_INFO(dev)->subslice_per_slice;
+
 		for (ss = 0; ss < ss_max; ss++) {
 			unsigned int eu_cnt;
+
+			if (IS_BROXTON(dev) &&
+			    !(s_reg[s] & (GEN9_PGCTL_SS_ACK(ss))))
+				/* skip disabled subslice */
+				continue;
+
+			if (IS_BROXTON(dev))
+				ss_cnt++;
 
 			eu_cnt = 2 * hweight32(eu_reg[2*s + ss/2] &
 					       eu_mask[ss%2]);
@@ -4553,6 +4568,10 @@ static void gen9_sseu_device_status(struct drm_device *dev,
 			stat->eu_per_subslice = max(stat->eu_per_subslice,
 						    eu_cnt);
 		}
+
+		stat->subslice_total += ss_cnt;
+		stat->subslice_per_slice = max(stat->subslice_per_slice,
+					       ss_cnt);
 	}
 }
 
@@ -4587,7 +4606,7 @@ static int i915_sseu_status(struct seq_file *m, void *unused)
 	memset(&stat, 0, sizeof(stat));
 	if (IS_CHERRYVIEW(dev)) {
 		cherryview_sseu_device_status(dev, &stat);
-	} else if (IS_SKYLAKE(dev)) {
+	} else if (INTEL_INFO(dev)->gen >= 9) {
 		gen9_sseu_device_status(dev, &stat);
 	}
 	seq_printf(m, "  Enabled Slice Total: %u\n",
