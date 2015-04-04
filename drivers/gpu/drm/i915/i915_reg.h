@@ -1554,9 +1554,7 @@ enum skl_disp_power_wells {
 #define   GEN9_F2_SS_DIS_SHIFT		20
 #define   GEN9_F2_SS_DIS_MASK		(0xf << GEN9_F2_SS_DIS_SHIFT)
 
-#define GEN8_EU_DISABLE0		0x9134
-#define GEN8_EU_DISABLE1		0x9138
-#define GEN8_EU_DISABLE2		0x913c
+#define GEN9_EU_DISABLE(slice)		(0x9134 + (slice)*0x4)
 
 #define GEN6_BSD_SLEEP_PSMI_CONTROL	0x12050
 #define   GEN6_BSD_SLEEP_MSG_DISABLE	(1 << 0)

@@ -611,9 +611,21 @@ static void gen9_sseu_info_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_device_info *info;
-	const int s_max = 3, ss_max = 4, eu_max = 8;
+	int s_max = 3, ss_max = 4, eu_max = 8;
 	int s, ss;
-	u32 fuse2, eu_disable[s_max], s_enable, ss_disable;
+	u32 fuse2, s_enable, ss_disable, eu_disable;
+	u8 eu_mask = 0xff;
+
+	/*
+	 * BXT has a single slice. BXT also has at most 6 EU per subslice,
+	 * and therefore only the lowest 6 bits of the 8-bit EU disable
+	 * fields are valid.
+	*/
+	if (IS_BROXTON(dev)) {
+		s_max = 1;
+		eu_max = 6;
+		eu_mask = 0x3f;
+	}
 
 	info = (struct intel_device_info *)&dev_priv->info;
 	fuse2 = I915_READ(GEN8_FUSE2);
@@ -621,10 +633,6 @@ static void gen9_sseu_info_init(struct drm_device *dev)
 		   GEN8_F2_S_ENA_SHIFT;
 	ss_disable = (fuse2 & GEN9_F2_SS_DIS_MASK) >>
 		     GEN9_F2_SS_DIS_SHIFT;
-
-	eu_disable[0] = I915_READ(GEN8_EU_DISABLE0);
-	eu_disable[1] = I915_READ(GEN8_EU_DISABLE1);
-	eu_disable[2] = I915_READ(GEN8_EU_DISABLE2);
 
 	info->slice_total = hweight32(s_enable);
 	/*
@@ -644,25 +652,26 @@ static void gen9_sseu_info_init(struct drm_device *dev)
 			/* skip disabled slice */
 			continue;
 
+		eu_disable = I915_READ(GEN9_EU_DISABLE(s));
 		for (ss = 0; ss < ss_max; ss++) {
-			u32 n_disabled;
+			int eu_per_ss;
 
 			if (ss_disable & (0x1 << ss))
 				/* skip disabled subslice */
 				continue;
 
-			n_disabled = hweight8(eu_disable[s] >>
-					      (ss * eu_max));
+			eu_per_ss = eu_max - hweight8((eu_disable >> (ss*8)) &
+						      eu_mask);
 
 			/*
 			 * Record which subslice(s) has(have) 7 EUs. we
 			 * can tune the hash used to spread work among
 			 * subslices if they are unbalanced.
 			 */
-			if (eu_max - n_disabled == 7)
+			if (eu_per_ss == 7)
 				info->subslice_7eu[s] |= 1 << ss;
 
-			info->eu_total += eu_max - n_disabled;
+			info->eu_total += eu_per_ss;
 		}
 	}
 
@@ -670,7 +679,8 @@ static void gen9_sseu_info_init(struct drm_device *dev)
 	 * SKL is expected to always have a uniform distribution
 	 * of EU across subslices with the exception that any one
 	 * EU in any one subslice may be fused off for die
-	 * recovery.
+	 * recovery. BXT is expected to be perfectly uniform in EU
+	 * distribution.
 	*/
 	info->eu_per_subslice = info->subslice_total ?
 				DIV_ROUND_UP(info->eu_total,
@@ -678,11 +688,14 @@ static void gen9_sseu_info_init(struct drm_device *dev)
 	/*
 	 * SKL supports slice power gating on devices with more than
 	 * one slice, and supports EU power gating on devices with
-	 * more than one EU pair per subslice.
+	 * more than one EU pair per subslice. BXT supports subslice
+	 * power gating on devices with more than one subslice, and
+	 * supports EU power gating on devices with more than one EU
+	 * pair per subslice.
 	*/
-	info->has_slice_pg = (info->slice_total > 1) ? 1 : 0;
-	info->has_subslice_pg = 0;
-	info->has_eu_pg = (info->eu_per_subslice > 2) ? 1 : 0;
+	info->has_slice_pg = (IS_SKYLAKE(dev) && (info->slice_total > 1));
+	info->has_subslice_pg = (IS_BROXTON(dev) && (info->subslice_total > 1));
+	info->has_eu_pg = (info->eu_per_subslice > 2);
 }
 
 /*
@@ -747,7 +760,7 @@ static void intel_device_info_runtime_init(struct drm_device *dev)
 	/* Initialize slice/subslice/EU info */
 	if (IS_CHERRYVIEW(dev))
 		cherryview_sseu_info_init(dev);
-	else if (IS_SKYLAKE(dev))
+	else if (INTEL_INFO(dev)->gen >= 9)
 		gen9_sseu_info_init(dev);
 
 	DRM_DEBUG_DRIVER("slice total: %u\n", info->slice_total);
