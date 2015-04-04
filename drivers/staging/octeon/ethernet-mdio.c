@@ -120,10 +120,10 @@ static void cvm_oct_note_carrier(struct octeon_ethernet *priv,
 				 cvmx_helper_link_info_t li)
 {
 	if (li.s.link_up) {
-		pr_notice_ratelimited("%s: %u Mbps %s duplex, port %d\n",
+		pr_notice_ratelimited("%s: %u Mbps %s duplex, port %d, queue %d\n",
 				      netdev_name(priv->netdev), li.s.speed,
 				      (li.s.full_duplex) ? "Full" : "Half",
-				      priv->port);
+				      priv->port, priv->queue);
 	} else {
 		pr_notice_ratelimited("%s: Link down\n",
 				      netdev_name(priv->netdev));
