@@ -203,11 +203,10 @@ int cvm_oct_free_work(void *work_queue_entry)
 		if (unlikely(!segment_ptr.s.i))
 			cvmx_fpa_free(cvm_oct_get_buffer_ptr(segment_ptr),
 				      segment_ptr.s.pool,
-				      DONT_WRITEBACK(CVMX_FPA_PACKET_POOL_SIZE /
-						     128));
+				      CVMX_FPA_PACKET_POOL_SIZE / 128);
 		segment_ptr = next_ptr;
 	}
-	cvmx_fpa_free(work, CVMX_FPA_WQE_POOL, DONT_WRITEBACK(1));
+	cvmx_fpa_free(work, CVMX_FPA_WQE_POOL, 1);
 
 	return 0;
 }

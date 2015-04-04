@@ -54,7 +54,7 @@ static int cvm_oct_fill_hw_skbuff(int pool, int size, int elements)
 			break;
 		skb_reserve(skb, 256 - (((unsigned long)skb->data) & 0x7f));
 		*(struct sk_buff **)(skb->data - sizeof(void *)) = skb;
-		cvmx_fpa_free(skb->data, pool, DONT_WRITEBACK(size / 128));
+		cvmx_fpa_free(skb->data, pool, size / 128);
 		freed--;
 	}
 	return elements - freed;

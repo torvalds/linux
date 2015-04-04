@@ -54,14 +54,6 @@
 
 #define USE_ASYNC_IOBDMA            (CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE > 0)
 
-/*
- * Use this to have all FPA frees also tell the L2 not to write data
- * to memory.
- */
-#define DONT_WRITEBACK(x)           (x)
-/* Use this to not have FPA frees control L2 */
-/*#define DONT_WRITEBACK(x)         0   */
-
 /* Maximum number of SKBs to try to free per xmit packet. */
 #define MAX_OUT_QUEUE_DEPTH 1000
 

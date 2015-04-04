@@ -400,8 +400,7 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 			cvmx_fau_atomic_add32(FAU_NUM_PACKET_BUFFERS_TO_FREE,
 					      1);
 
-			cvmx_fpa_free(work, CVMX_FPA_WQE_POOL,
-				      DONT_WRITEBACK(1));
+			cvmx_fpa_free(work, CVMX_FPA_WQE_POOL, 1);
 		} else {
 			cvm_oct_free_work(work);
 		}
