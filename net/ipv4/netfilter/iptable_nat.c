@@ -41,38 +41,34 @@ static unsigned int iptable_nat_do_chain(const struct nf_hook_ops *ops,
 
 static unsigned int iptable_nat_ipv4_fn(const struct nf_hook_ops *ops,
 					struct sk_buff *skb,
-					const struct net_device *in,
-					const struct net_device *out,
-					int (*okfn)(struct sk_buff *))
+					const struct nf_hook_state *state)
 {
-	return nf_nat_ipv4_fn(ops, skb, in, out, iptable_nat_do_chain);
+	return nf_nat_ipv4_fn(ops, skb, state->in, state->out,
+			      iptable_nat_do_chain);
 }
 
 static unsigned int iptable_nat_ipv4_in(const struct nf_hook_ops *ops,
 					struct sk_buff *skb,
-					const struct net_device *in,
-					const struct net_device *out,
-					int (*okfn)(struct sk_buff *))
+					const struct nf_hook_state *state)
 {
-	return nf_nat_ipv4_in(ops, skb, in, out, iptable_nat_do_chain);
+	return nf_nat_ipv4_in(ops, skb, state->in, state->out,
+			      iptable_nat_do_chain);
 }
 
 static unsigned int iptable_nat_ipv4_out(const struct nf_hook_ops *ops,
 					 struct sk_buff *skb,
-					 const struct net_device *in,
-					 const struct net_device *out,
-					 int (*okfn)(struct sk_buff *))
+					 const struct nf_hook_state *state)
 {
-	return nf_nat_ipv4_out(ops, skb, in, out, iptable_nat_do_chain);
+	return nf_nat_ipv4_out(ops, skb, state->in, state->out,
+			       iptable_nat_do_chain);
 }
 
 static unsigned int iptable_nat_ipv4_local_fn(const struct nf_hook_ops *ops,
 					      struct sk_buff *skb,
-					      const struct net_device *in,
-					      const struct net_device *out,
-					      int (*okfn)(struct sk_buff *))
+					      const struct nf_hook_state *state)
 {
-	return nf_nat_ipv4_local_fn(ops, skb, in, out, iptable_nat_do_chain);
+	return nf_nat_ipv4_local_fn(ops, skb, state->in, state->out,
+				    iptable_nat_do_chain);
 }
 
 static struct nf_hook_ops nf_nat_ipv4_ops[] __read_mostly = {

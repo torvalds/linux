@@ -81,18 +81,16 @@ ipt_mangle_out(struct sk_buff *skb, const struct net_device *out)
 static unsigned int
 iptable_mangle_hook(const struct nf_hook_ops *ops,
 		     struct sk_buff *skb,
-		     const struct net_device *in,
-		     const struct net_device *out,
-		     int (*okfn)(struct sk_buff *))
+		     const struct nf_hook_state *state)
 {
 	if (ops->hooknum == NF_INET_LOCAL_OUT)
-		return ipt_mangle_out(skb, out);
+		return ipt_mangle_out(skb, state->out);
 	if (ops->hooknum == NF_INET_POST_ROUTING)
-		return ipt_do_table(skb, ops->hooknum, in, out,
-				    dev_net(out)->ipv4.iptable_mangle);
+		return ipt_do_table(skb, ops->hooknum, state->in, state->out,
+				    dev_net(state->out)->ipv4.iptable_mangle);
 	/* PREROUTING/INPUT/FORWARD: */
-	return ipt_do_table(skb, ops->hooknum, in, out,
-			    dev_net(in)->ipv4.iptable_mangle);
+	return ipt_do_table(skb, ops->hooknum, state->in, state->out,
+			    dev_net(state->in)->ipv4.iptable_mangle);
 }
 
 static struct nf_hook_ops *mangle_ops __read_mostly;

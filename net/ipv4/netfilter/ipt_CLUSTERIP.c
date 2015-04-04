@@ -504,14 +504,12 @@ static void arp_print(struct arp_payload *payload)
 static unsigned int
 arp_mangle(const struct nf_hook_ops *ops,
 	   struct sk_buff *skb,
-	   const struct net_device *in,
-	   const struct net_device *out,
-	   int (*okfn)(struct sk_buff *))
+	   const struct nf_hook_state *state)
 {
 	struct arphdr *arp = arp_hdr(skb);
 	struct arp_payload *payload;
 	struct clusterip_config *c;
-	struct net *net = dev_net(in ? in : out);
+	struct net *net = dev_net(state->in ? state->in : state->out);
 
 	/* we don't care about non-ethernet and non-ipv4 ARP */
 	if (arp->ar_hrd != htons(ARPHRD_ETHER) ||
@@ -536,10 +534,10 @@ arp_mangle(const struct nf_hook_ops *ops,
 	 * addresses on different interfacs.  However, in the CLUSTERIP case
 	 * this wouldn't work, since we didn't subscribe the mcast group on
 	 * other interfaces */
-	if (c->dev != out) {
+	if (c->dev != state->out) {
 		pr_debug("not mangling arp reply on different "
 			 "interface: cip'%s'-skb'%s'\n",
-			 c->dev->name, out->name);
+			 c->dev->name, state->out->name);
 		clusterip_config_put(c);
 		return NF_ACCEPT;
 	}

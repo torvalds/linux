@@ -93,21 +93,19 @@ static inline void nft_bridge_set_pktinfo_ipv6(struct nft_pktinfo *pkt,
 static unsigned int
 nft_do_chain_bridge(const struct nf_hook_ops *ops,
 		    struct sk_buff *skb,
-		    const struct net_device *in,
-		    const struct net_device *out,
-		    int (*okfn)(struct sk_buff *))
+		    const struct nf_hook_state *state)
 {
 	struct nft_pktinfo pkt;
 
 	switch (eth_hdr(skb)->h_proto) {
 	case htons(ETH_P_IP):
-		nft_bridge_set_pktinfo_ipv4(&pkt, ops, skb, in, out);
+		nft_bridge_set_pktinfo_ipv4(&pkt, ops, skb, state->in, state->out);
 		break;
 	case htons(ETH_P_IPV6):
-		nft_bridge_set_pktinfo_ipv6(&pkt, ops, skb, in, out);
+		nft_bridge_set_pktinfo_ipv6(&pkt, ops, skb, state->in, state->out);
 		break;
 	default:
-		nft_set_pktinfo(&pkt, ops, skb, in, out);
+		nft_set_pktinfo(&pkt, ops, skb, state->in, state->out);
 		break;
 	}
 
