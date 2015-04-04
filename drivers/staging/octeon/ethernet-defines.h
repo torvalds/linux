@@ -52,8 +52,6 @@
 #define REUSE_SKBUFFS_WITHOUT_FREE  1
 #endif
 
-/* Enable Random Early Dropping under load */
-#define USE_RED                     1
 #define USE_ASYNC_IOBDMA            (CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE > 0)
 
 /*

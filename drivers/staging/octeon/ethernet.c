@@ -180,10 +180,7 @@ static void cvm_oct_configure_common_hw(void)
 	}
 #endif
 
-	if (USE_RED)
-		cvmx_helper_setup_red(num_packet_buffers / 4,
-				      num_packet_buffers / 8);
-
+	cvmx_helper_setup_red(num_packet_buffers / 4, num_packet_buffers / 8);
 }
 
 /**
