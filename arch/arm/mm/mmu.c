@@ -1396,8 +1396,7 @@ pgtables_remap lpae_pgtables_remap_asm;
  * early_paging_init() recreates boot time page table setup, allowing machines
  * to switch over to a high (>4G) address space on LPAE systems
  */
-void __init early_paging_init(const struct machine_desc *mdesc,
-			      struct proc_info_list *procinfo)
+void __init early_paging_init(const struct machine_desc *mdesc)
 {
 	pgtables_remap *lpae_pgtables_remap;
 	unsigned long pa_pgd;
@@ -1465,8 +1464,7 @@ void __init early_paging_init(const struct machine_desc *mdesc,
 
 #else
 
-void __init early_paging_init(const struct machine_desc *mdesc,
-			      struct proc_info_list *procinfo)
+void __init early_paging_init(const struct machine_desc *mdesc)
 {
 	long long offset;
 
