@@ -29,7 +29,7 @@
 #include <linux/phy.h>
 #include <linux/ratelimit.h>
 #include <linux/of_mdio.h>
-
+#include <generated/utsrelease.h>
 #include <net/dst.h>
 
 #include <asm/octeon/octeon.h>
@@ -45,8 +45,8 @@
 static void cvm_oct_get_drvinfo(struct net_device *dev,
 				struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, "cavium-ethernet", sizeof(info->driver));
-	strlcpy(info->version, OCTEON_ETHERNET_VERSION, sizeof(info->version));
+	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
+	strlcpy(info->version, UTS_RELEASE, sizeof(info->version));
 	strlcpy(info->bus_info, "Builtin", sizeof(info->bus_info));
 }
 

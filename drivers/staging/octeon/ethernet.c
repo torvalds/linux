@@ -681,7 +681,6 @@ static int cvm_oct_probe(struct platform_device *pdev)
 	struct device_node *pip;
 
 	octeon_mdiobus_force_mod_depencency();
-	pr_notice("cavium-ethernet %s\n", OCTEON_ETHERNET_VERSION);
 
 	pip = pdev->dev.of_node;
 	if (!pip) {

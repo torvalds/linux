@@ -43,9 +43,6 @@
 
 #include <asm/octeon/cvmx-config.h>
 
-
-#define OCTEON_ETHERNET_VERSION "1.9"
-
 #ifdef CONFIG_NETFILTER
 #define REUSE_SKBUFFS_WITHOUT_FREE  0
 #else
