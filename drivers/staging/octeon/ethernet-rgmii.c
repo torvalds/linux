@@ -48,6 +48,37 @@ static DEFINE_SPINLOCK(global_register_lock);
 
 static int number_rgmii_ports;
 
+static void cvm_oct_set_hw_preamble(struct octeon_ethernet *priv, bool enable)
+{
+	union cvmx_gmxx_rxx_frm_ctl gmxx_rxx_frm_ctl;
+	union cvmx_ipd_sub_port_fcs ipd_sub_port_fcs;
+	union cvmx_gmxx_rxx_int_reg gmxx_rxx_int_reg;
+	int interface = INTERFACE(priv->port);
+	int index = INDEX(priv->port);
+
+	/* Set preamble checking. */
+	gmxx_rxx_frm_ctl.u64 = cvmx_read_csr(CVMX_GMXX_RXX_FRM_CTL(index,
+								   interface));
+	gmxx_rxx_frm_ctl.s.pre_chk = enable;
+	cvmx_write_csr(CVMX_GMXX_RXX_FRM_CTL(index, interface),
+		       gmxx_rxx_frm_ctl.u64);
+
+	/* Set FCS stripping. */
+	ipd_sub_port_fcs.u64 = cvmx_read_csr(CVMX_IPD_SUB_PORT_FCS);
+	if (enable)
+		ipd_sub_port_fcs.s.port_bit |= 1ull << priv->port;
+	else
+		ipd_sub_port_fcs.s.port_bit &=
+					0xffffffffull ^ (1ull << priv->port);
+	cvmx_write_csr(CVMX_IPD_SUB_PORT_FCS, ipd_sub_port_fcs.u64);
+
+	/* Clear any error bits. */
+	gmxx_rxx_int_reg.u64 = cvmx_read_csr(CVMX_GMXX_RXX_INT_REG(index,
+								   interface));
+	cvmx_write_csr(CVMX_GMXX_RXX_INT_REG(index, interface),
+		       gmxx_rxx_int_reg.u64);
+}
+
 static void cvm_oct_rgmii_poll(struct net_device *dev)
 {
 	struct octeon_ethernet *priv = netdev_priv(dev);
@@ -88,7 +119,6 @@ static void cvm_oct_rgmii_poll(struct net_device *dev)
 			    cvmx_read_csr(CVMX_GMXX_RXX_INT_REG
 					  (index, interface));
 			if (gmxx_rxx_int_reg.s.pcterr) {
-
 				/*
 				 * We are getting preamble errors at
 				 * 10Mbps.  Most likely the PHY is
@@ -97,30 +127,7 @@ static void cvm_oct_rgmii_poll(struct net_device *dev)
 				 * packets we need to disable preamble
 				 * checking and do it in software.
 				 */
-				union cvmx_gmxx_rxx_frm_ctl gmxx_rxx_frm_ctl;
-				union cvmx_ipd_sub_port_fcs ipd_sub_port_fcs;
-
-				/* Disable preamble checking */
-				gmxx_rxx_frm_ctl.u64 =
-				    cvmx_read_csr(CVMX_GMXX_RXX_FRM_CTL
-						  (index, interface));
-				gmxx_rxx_frm_ctl.s.pre_chk = 0;
-				cvmx_write_csr(CVMX_GMXX_RXX_FRM_CTL
-					       (index, interface),
-					       gmxx_rxx_frm_ctl.u64);
-
-				/* Disable FCS stripping */
-				ipd_sub_port_fcs.u64 =
-				    cvmx_read_csr(CVMX_IPD_SUB_PORT_FCS);
-				ipd_sub_port_fcs.s.port_bit &=
-				    0xffffffffull ^ (1ull << priv->port);
-				cvmx_write_csr(CVMX_IPD_SUB_PORT_FCS,
-					       ipd_sub_port_fcs.u64);
-
-				/* Clear any error bits */
-				cvmx_write_csr(CVMX_GMXX_RXX_INT_REG
-					       (index, interface),
-					       gmxx_rxx_int_reg.u64);
+				cvm_oct_set_hw_preamble(priv, false);
 				printk_ratelimited("%s: Using 10Mbps with software preamble removal\n",
 						   dev->name);
 			}
@@ -137,30 +144,9 @@ static void cvm_oct_rgmii_poll(struct net_device *dev)
 	   preamble checking, FCS stripping, and clear error bits on
 	   every speed change. If errors occur during 10Mbps operation
 	   the above code will change this stuff */
-	if (USE_10MBPS_PREAMBLE_WORKAROUND) {
+	if (USE_10MBPS_PREAMBLE_WORKAROUND)
+		cvm_oct_set_hw_preamble(priv, true);
 
-		union cvmx_gmxx_rxx_frm_ctl gmxx_rxx_frm_ctl;
-		union cvmx_ipd_sub_port_fcs ipd_sub_port_fcs;
-		union cvmx_gmxx_rxx_int_reg gmxx_rxx_int_reg;
-		int interface = INTERFACE(priv->port);
-		int index = INDEX(priv->port);
-
-		/* Enable preamble checking */
-		gmxx_rxx_frm_ctl.u64 =
-		    cvmx_read_csr(CVMX_GMXX_RXX_FRM_CTL(index, interface));
-		gmxx_rxx_frm_ctl.s.pre_chk = 1;
-		cvmx_write_csr(CVMX_GMXX_RXX_FRM_CTL(index, interface),
-			       gmxx_rxx_frm_ctl.u64);
-		/* Enable FCS stripping */
-		ipd_sub_port_fcs.u64 = cvmx_read_csr(CVMX_IPD_SUB_PORT_FCS);
-		ipd_sub_port_fcs.s.port_bit |= 1ull << priv->port;
-		cvmx_write_csr(CVMX_IPD_SUB_PORT_FCS, ipd_sub_port_fcs.u64);
-		/* Clear any error bits */
-		gmxx_rxx_int_reg.u64 =
-		    cvmx_read_csr(CVMX_GMXX_RXX_INT_REG(index, interface));
-		cvmx_write_csr(CVMX_GMXX_RXX_INT_REG(index, interface),
-			       gmxx_rxx_int_reg.u64);
-	}
 	if (priv->phydev == NULL) {
 		link_info = cvmx_helper_link_autoconf(priv->port);
 		priv->link_info = link_info.u64;
