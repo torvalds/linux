@@ -2998,7 +2998,7 @@ static void  nbu2ss_ep_fifo_flush(struct usb_ep *_ep)
 	}
 
 	ep = container_of(_ep, struct nbu2ss_ep, ep);
-	if (!_ep) {
+	if (!ep) {
 		pr_err("udc: %s, bad ep\n", __func__);
 		return;
 	}
