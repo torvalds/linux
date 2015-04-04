@@ -177,7 +177,7 @@ ncp_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	void *bouncebuffer;
 
 	ncp_dbg(1, "enter %pD2\n", file);
-	errno = generic_write_checks(file, &pos, &count, 0);
+	errno = generic_write_checks(file, &pos, &count);
 	if (errno)
 		return errno;
 	iov_iter_truncate(from, count);

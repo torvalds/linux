@@ -345,7 +345,7 @@ static ssize_t ntfs_prepare_file_for_write(struct kiocb *iocb,
 			"0x%llx, count 0x%zx.", vi->i_ino,
 			(unsigned)le32_to_cpu(ni->type),
 			(unsigned long long)iocb->ki_pos, count);
-	err = generic_write_checks(file, &iocb->ki_pos, &count, S_ISBLK(vi->i_mode));
+	err = generic_write_checks(file, &iocb->ki_pos, &count);
 	if (unlikely(err))
 		goto out;
 	iov_iter_truncate(from, count);

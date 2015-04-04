@@ -409,7 +409,7 @@ v9fs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	size_t count = iov_iter_count(from);
 	int err = 0;
 
-	retval = generic_write_checks(file, &origin, &count, 0);
+	retval = generic_write_checks(file, &origin, &count);
 	if (retval)
 		return retval;
 

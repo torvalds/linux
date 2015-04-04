@@ -2580,7 +2580,7 @@ ssize_t cifs_user_writev(struct kiocb *iocb, struct iov_iter *from)
 	 */
 
 	len = iov_iter_count(from);
-	rc = generic_write_checks(file, &iocb->ki_pos, &len, 0);
+	rc = generic_write_checks(file, &iocb->ki_pos, &len);
 	if (rc)
 		return rc;
 
@@ -2684,7 +2684,7 @@ cifs_writev(struct kiocb *iocb, struct iov_iter *from)
 	mutex_lock(&inode->i_mutex);
 
 	count = iov_iter_count(from);
-	rc = generic_write_checks(file, &iocb->ki_pos, &count, 0);
+	rc = generic_write_checks(file, &iocb->ki_pos, &count);
 	if (rc)
 		goto out;
 

@@ -171,7 +171,7 @@ ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		}
 	}
 
-	ret = generic_write_checks(file, &iocb->ki_pos, &length, 0);
+	ret = generic_write_checks(file, &iocb->ki_pos, &length);
 	if (ret)
 		goto out;
 

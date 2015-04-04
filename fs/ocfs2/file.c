@@ -2374,8 +2374,7 @@ relock:
 	/* communicate with ocfs2_dio_end_io */
 	ocfs2_iocb_set_rw_locked(iocb, rw_level);
 
-	ret = generic_write_checks(file, ppos, &count,
-				   S_ISBLK(inode->i_mode));
+	ret = generic_write_checks(file, ppos, &count);
 	if (ret)
 		goto out_dio;
 

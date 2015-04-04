@@ -977,7 +977,7 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter,
 	dfprintk(FILE, "NFS: direct write(%pD2, %zd@%Ld)\n",
 		file, count, (long long) pos);
 
-	result = generic_write_checks(file, &pos, &count, 0);
+	result = generic_write_checks(file, &pos, &count);
 	if (result)
 		goto out;
 

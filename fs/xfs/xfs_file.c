@@ -554,7 +554,7 @@ xfs_file_aio_write_checks(
 	int			error = 0;
 
 restart:
-	error = generic_write_checks(file, pos, count, S_ISBLK(inode->i_mode));
+	error = generic_write_checks(file, pos, count);
 	if (error)
 		return error;
 

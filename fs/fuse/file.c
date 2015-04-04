@@ -1167,7 +1167,7 @@ static ssize_t fuse_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	/* We can write back this queue in page reclaim */
 	current->backing_dev_info = inode_to_bdi(inode);
 
-	err = generic_write_checks(file, &pos, &count, S_ISBLK(inode->i_mode));
+	err = generic_write_checks(file, &pos, &count);
 	if (err)
 		goto out;
 
@@ -1420,7 +1420,7 @@ static ssize_t fuse_direct_write_iter(struct kiocb *iocb, struct iov_iter *from)
 
 	/* Don't allow parallel writes to the same file */
 	mutex_lock(&inode->i_mutex);
-	res = generic_write_checks(file, &iocb->ki_pos, &count, 0);
+	res = generic_write_checks(file, &iocb->ki_pos, &count);
 	if (!res) {
 		iov_iter_truncate(from, count);
 		res = fuse_direct_io(&io, from, &iocb->ki_pos, FUSE_DIO_WRITE);
@@ -2841,7 +2841,7 @@ fuse_direct_IO(struct kiocb *iocb, struct iov_iter *iter, loff_t offset)
 		io->done = &wait;
 
 	if (iov_iter_rw(iter) == WRITE) {
-		ret = generic_write_checks(file, &pos, &count, 0);
+		ret = generic_write_checks(file, &pos, &count);
 		if (!ret) {
 			iov_iter_truncate(iter, count);
 			ret = fuse_direct_io(io, iter, &pos, FUSE_DIO_WRITE);

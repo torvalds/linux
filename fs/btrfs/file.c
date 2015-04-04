@@ -1747,7 +1747,7 @@ static ssize_t btrfs_file_write_iter(struct kiocb *iocb,
 	mutex_lock(&inode->i_mutex);
 
 	current->backing_dev_info = inode_to_bdi(inode);
-	err = generic_write_checks(file, &pos, &count, S_ISBLK(inode->i_mode));
+	err = generic_write_checks(file, &pos, &count);
 	if (err) {
 		mutex_unlock(&inode->i_mutex);
 		goto out;
