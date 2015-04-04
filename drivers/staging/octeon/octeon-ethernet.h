@@ -89,6 +89,8 @@ extern int cvm_oct_common_init(struct net_device *dev);
 extern void cvm_oct_common_uninit(struct net_device *dev);
 void cvm_oct_adjust_link(struct net_device *dev);
 int cvm_oct_common_stop(struct net_device *dev);
+int cvm_oct_common_open(struct net_device *dev,
+			void (*link_poll)(struct net_device *), bool poll_now);
 
 extern int always_use_pow;
 extern int pow_send_group;

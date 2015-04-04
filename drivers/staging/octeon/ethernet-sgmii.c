@@ -79,38 +79,7 @@ static void cvm_oct_sgmii_poll(struct net_device *dev)
 
 int cvm_oct_sgmii_open(struct net_device *dev)
 {
-	union cvmx_gmxx_prtx_cfg gmx_cfg;
-	struct octeon_ethernet *priv = netdev_priv(dev);
-	int interface = INTERFACE(priv->port);
-	int index = INDEX(priv->port);
-	cvmx_helper_link_info_t link_info;
-	int rv;
-
-	rv = cvm_oct_phy_setup_device(dev);
-	if (rv)
-		return rv;
-
-	gmx_cfg.u64 = cvmx_read_csr(CVMX_GMXX_PRTX_CFG(index, interface));
-	gmx_cfg.s.en = 1;
-	cvmx_write_csr(CVMX_GMXX_PRTX_CFG(index, interface), gmx_cfg.u64);
-
-	if (octeon_is_simulation())
-		return 0;
-
-	if (priv->phydev) {
-		int r = phy_read_status(priv->phydev);
-
-		if (r == 0 && priv->phydev->link == 0)
-			netif_carrier_off(dev);
-		cvm_oct_adjust_link(dev);
-	} else {
-		link_info = cvmx_helper_link_get(priv->port);
-		if (!link_info.s.link_up)
-			netif_carrier_off(dev);
-		priv->poll = cvm_oct_sgmii_poll;
-		cvm_oct_sgmii_poll(dev);
-	}
-	return 0;
+	return cvm_oct_common_open(dev, cvm_oct_sgmii_poll, true);
 }
 
 int cvm_oct_sgmii_stop(struct net_device *dev)

@@ -298,37 +298,7 @@ static irqreturn_t cvm_oct_rgmii_rml_interrupt(int cpl, void *dev_id)
 
 int cvm_oct_rgmii_open(struct net_device *dev)
 {
-	union cvmx_gmxx_prtx_cfg gmx_cfg;
-	struct octeon_ethernet *priv = netdev_priv(dev);
-	int interface = INTERFACE(priv->port);
-	int index = INDEX(priv->port);
-	cvmx_helper_link_info_t link_info;
-	int rv;
-
-	rv = cvm_oct_phy_setup_device(dev);
-	if (rv)
-		return rv;
-
-	gmx_cfg.u64 = cvmx_read_csr(CVMX_GMXX_PRTX_CFG(index, interface));
-	gmx_cfg.s.en = 1;
-	cvmx_write_csr(CVMX_GMXX_PRTX_CFG(index, interface), gmx_cfg.u64);
-
-	if (!octeon_is_simulation()) {
-		if (priv->phydev) {
-			int r = phy_read_status(priv->phydev);
-
-			if (r == 0 && priv->phydev->link == 0)
-				netif_carrier_off(dev);
-			cvm_oct_adjust_link(dev);
-		} else {
-			link_info = cvmx_helper_link_get(priv->port);
-			if (!link_info.s.link_up)
-				netif_carrier_off(dev);
-			priv->poll = cvm_oct_rgmii_poll;
-		}
-	}
-
-	return 0;
+	return cvm_oct_common_open(dev, cvm_oct_rgmii_poll, false);
 }
 
 int cvm_oct_rgmii_stop(struct net_device *dev)
