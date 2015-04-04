@@ -419,25 +419,27 @@ END(stub_\func)
 
 ENTRY(stub_execve)
 	CFI_STARTPROC
-	addq $8, %rsp
-	DEFAULT_FRAME 0
-	SAVE_EXTRA_REGS
-	call sys_execve
-	movq %rax,RAX(%rsp)
-	RESTORE_EXTRA_REGS
-	jmp int_ret_from_sys_call
+	DEFAULT_FRAME 0, 8
+	call	sys_execve
+return_from_execve:
+	testl	%eax, %eax
+	jz	1f
+	/* exec failed, can use fast SYSRET code path in this case */
+	ret
+1:
+	/* must use IRET code path (pt_regs->cs may have changed) */
+	addq	$8, %rsp
+	ZERO_EXTRA_REGS
+	movq	%rax,RAX(%rsp)
+	jmp	int_ret_from_sys_call
 	CFI_ENDPROC
 END(stub_execve)
 
 ENTRY(stub_execveat)
 	CFI_STARTPROC
-	addq $8, %rsp
-	DEFAULT_FRAME 0
-	SAVE_EXTRA_REGS
-	call sys_execveat
-	movq %rax,RAX(%rsp)
-	RESTORE_EXTRA_REGS
-	jmp int_ret_from_sys_call
+	DEFAULT_FRAME 0, 8
+	call	sys_execveat
+	jmp	return_from_execve
 	CFI_ENDPROC
 END(stub_execveat)
 
@@ -472,25 +474,17 @@ END(stub_x32_rt_sigreturn)
 
 ENTRY(stub_x32_execve)
 	CFI_STARTPROC
-	addq $8, %rsp
-	DEFAULT_FRAME 0
-	SAVE_EXTRA_REGS
-	call compat_sys_execve
-	movq %rax,RAX(%rsp)
-	RESTORE_EXTRA_REGS
-	jmp int_ret_from_sys_call
+	DEFAULT_FRAME 0, 8
+	call	compat_sys_execve
+	jmp	return_from_execve
 	CFI_ENDPROC
 END(stub_x32_execve)
 
 ENTRY(stub_x32_execveat)
 	CFI_STARTPROC
-	addq $8, %rsp
-	DEFAULT_FRAME 0
-	SAVE_EXTRA_REGS
-	call compat_sys_execveat
-	movq %rax,RAX(%rsp)
-	RESTORE_EXTRA_REGS
-	jmp int_ret_from_sys_call
+	DEFAULT_FRAME 0, 8
+	call	compat_sys_execveat
+	jmp	return_from_execve
 	CFI_ENDPROC
 END(stub_x32_execveat)
 
