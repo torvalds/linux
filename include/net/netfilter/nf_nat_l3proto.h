@@ -77,40 +77,32 @@ int nf_nat_icmpv6_reply_translation(struct sk_buff *skb, struct nf_conn *ct,
 				    unsigned int hooknum, unsigned int hdrlen);
 
 unsigned int nf_nat_ipv6_in(const struct nf_hook_ops *ops, struct sk_buff *skb,
-			    const struct net_device *in,
-			    const struct net_device *out,
+			    const struct nf_hook_state *state,
 			    unsigned int (*do_chain)(const struct nf_hook_ops *ops,
 						     struct sk_buff *skb,
-						     const struct net_device *in,
-						     const struct net_device *out,
+						     const struct nf_hook_state *state,
 						     struct nf_conn *ct));
 
 unsigned int nf_nat_ipv6_out(const struct nf_hook_ops *ops, struct sk_buff *skb,
-			     const struct net_device *in,
-			     const struct net_device *out,
+			     const struct nf_hook_state *state,
 			     unsigned int (*do_chain)(const struct nf_hook_ops *ops,
 						      struct sk_buff *skb,
-						      const struct net_device *in,
-						      const struct net_device *out,
+						      const struct nf_hook_state *state,
 						      struct nf_conn *ct));
 
 unsigned int nf_nat_ipv6_local_fn(const struct nf_hook_ops *ops,
 				  struct sk_buff *skb,
-				  const struct net_device *in,
-				  const struct net_device *out,
+				  const struct nf_hook_state *state,
 				  unsigned int (*do_chain)(const struct nf_hook_ops *ops,
 							   struct sk_buff *skb,
-							   const struct net_device *in,
-							   const struct net_device *out,
+							   const struct nf_hook_state *state,
 							   struct nf_conn *ct));
 
 unsigned int nf_nat_ipv6_fn(const struct nf_hook_ops *ops, struct sk_buff *skb,
-			    const struct net_device *in,
-			    const struct net_device *out,
+			    const struct nf_hook_state *state,
 			    unsigned int (*do_chain)(const struct nf_hook_ops *ops,
 						     struct sk_buff *skb,
-						     const struct net_device *in,
-						     const struct net_device *out,
+						     const struct nf_hook_state *state,
 						     struct nf_conn *ct));
 
 #endif /* _NF_NAT_L3PROTO_H */
