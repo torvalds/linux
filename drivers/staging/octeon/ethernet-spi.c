@@ -104,6 +104,32 @@ static void cvm_oct_stxx_int_pr(union cvmx_stxx_int_reg stx_int_reg, int index)
 		       index, 0);
 }
 
+static irqreturn_t cvm_oct_spi_spx_int(int index)
+{
+	union cvmx_spxx_int_reg spx_int_reg;
+	union cvmx_stxx_int_reg stx_int_reg;
+
+	spx_int_reg.u64 = cvmx_read_csr(CVMX_SPXX_INT_REG(index));
+	cvmx_write_csr(CVMX_SPXX_INT_REG(index), spx_int_reg.u64);
+	if (!need_retrain[index]) {
+		spx_int_reg.u64 &= cvmx_read_csr(CVMX_SPXX_INT_MSK(index));
+		cvm_oct_spxx_int_pr(spx_int_reg, index);
+	}
+
+	stx_int_reg.u64 = cvmx_read_csr(CVMX_STXX_INT_REG(index));
+	cvmx_write_csr(CVMX_STXX_INT_REG(index), stx_int_reg.u64);
+	if (!need_retrain[index]) {
+		stx_int_reg.u64 &= cvmx_read_csr(CVMX_STXX_INT_MSK(index));
+		cvm_oct_stxx_int_pr(stx_int_reg, index);
+	}
+
+	cvmx_write_csr(CVMX_SPXX_INT_MSK(index), 0);
+	cvmx_write_csr(CVMX_STXX_INT_MSK(index), 0);
+	need_retrain[index] = 1;
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t cvm_oct_spi_rml_interrupt(int cpl, void *dev_id)
 {
 	irqreturn_t return_status = IRQ_NONE;
@@ -111,54 +137,11 @@ static irqreturn_t cvm_oct_spi_rml_interrupt(int cpl, void *dev_id)
 
 	/* Check and see if this interrupt was caused by the GMX block */
 	rsl_int_blocks.u64 = cvmx_read_csr(CVMX_NPI_RSL_INT_BLOCKS);
-	if (rsl_int_blocks.s.spx1) {	/* 19 - SPX1_INT_REG & STX1_INT_REG */
+	if (rsl_int_blocks.s.spx1) /* 19 - SPX1_INT_REG & STX1_INT_REG */
+		return_status = cvm_oct_spi_spx_int(1);
 
-		union cvmx_spxx_int_reg spx_int_reg;
-		union cvmx_stxx_int_reg stx_int_reg;
-
-		spx_int_reg.u64 = cvmx_read_csr(CVMX_SPXX_INT_REG(1));
-		cvmx_write_csr(CVMX_SPXX_INT_REG(1), spx_int_reg.u64);
-		if (!need_retrain[1]) {
-			spx_int_reg.u64 &= cvmx_read_csr(CVMX_SPXX_INT_MSK(1));
-			cvm_oct_spxx_int_pr(spx_int_reg, 1);
-		}
-
-		stx_int_reg.u64 = cvmx_read_csr(CVMX_STXX_INT_REG(1));
-		cvmx_write_csr(CVMX_STXX_INT_REG(1), stx_int_reg.u64);
-		if (!need_retrain[1]) {
-			stx_int_reg.u64 &= cvmx_read_csr(CVMX_STXX_INT_MSK(1));
-			cvm_oct_stxx_int_pr(stx_int_reg, 1);
-		}
-
-		cvmx_write_csr(CVMX_SPXX_INT_MSK(1), 0);
-		cvmx_write_csr(CVMX_STXX_INT_MSK(1), 0);
-		need_retrain[1] = 1;
-		return_status = IRQ_HANDLED;
-	}
-
-	if (rsl_int_blocks.s.spx0) {	/* 18 - SPX0_INT_REG & STX0_INT_REG */
-		union cvmx_spxx_int_reg spx_int_reg;
-		union cvmx_stxx_int_reg stx_int_reg;
-
-		spx_int_reg.u64 = cvmx_read_csr(CVMX_SPXX_INT_REG(0));
-		cvmx_write_csr(CVMX_SPXX_INT_REG(0), spx_int_reg.u64);
-		if (!need_retrain[0]) {
-			spx_int_reg.u64 &= cvmx_read_csr(CVMX_SPXX_INT_MSK(0));
-			cvm_oct_spxx_int_pr(spx_int_reg, 0);
-		}
-
-		stx_int_reg.u64 = cvmx_read_csr(CVMX_STXX_INT_REG(0));
-		cvmx_write_csr(CVMX_STXX_INT_REG(0), stx_int_reg.u64);
-		if (!need_retrain[0]) {
-			stx_int_reg.u64 &= cvmx_read_csr(CVMX_STXX_INT_MSK(0));
-			cvm_oct_stxx_int_pr(stx_int_reg, 0);
-		}
-
-		cvmx_write_csr(CVMX_SPXX_INT_MSK(0), 0);
-		cvmx_write_csr(CVMX_STXX_INT_MSK(0), 0);
-		need_retrain[0] = 1;
-		return_status = IRQ_HANDLED;
-	}
+	if (rsl_int_blocks.s.spx0) /* 18 - SPX0_INT_REG & STX0_INT_REG */
+		return_status = cvm_oct_spi_spx_int(0);
 
 	return return_status;
 }
