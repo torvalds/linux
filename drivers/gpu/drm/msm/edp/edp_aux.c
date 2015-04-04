@@ -157,7 +157,7 @@ ssize_t edp_aux_transfer(struct drm_dp_aux *drm_aux, struct drm_dp_aux_msg *msg)
 		 */
 		edp_write(aux->base + REG_EDP_AUX_TRANS_CTRL, 0);
 		msm_edp_aux_ctrl(aux, 1);
-		pr_err("%s: aux timeout, %lu\n", __func__, time_left);
+		pr_err("%s: aux timeout,\n", __func__);
 		ret = -ETIMEDOUT;
 		goto unlock_exit;
 	}
