@@ -1161,7 +1161,12 @@ static void alps_report_bare_ps2_packet(struct psmouse *psmouse,
 	struct alps_data *priv = psmouse->private;
 	struct input_dev *dev;
 
-	if (unlikely(IS_ERR_OR_NULL(priv->dev3))) {
+	/* Figure out which device to use to report the bare packet */
+	if (priv->proto_version == ALPS_PROTO_V2 &&
+	    (priv->flags & ALPS_DUALPOINT)) {
+		/* On V2 devices the DualPoint Stick reports bare packets */
+		dev = priv->dev2;
+	} else if (unlikely(IS_ERR_OR_NULL(priv->dev3))) {
 		/* Register dev3 mouse if we received PS/2 packet first time */
 		if (!IS_ERR(priv->dev3))
 			psmouse_queue_work(psmouse, &priv->dev3_register_work,
