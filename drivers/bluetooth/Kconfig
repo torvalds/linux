@@ -103,6 +103,15 @@ config BT_HCIUART_INTEL
 
 	  Say Y here to compile support for Intel protocol.
 
+config BT_HCIUART_BCM
+	bool "Broadcom protocol support"
+	depends on BT_HCIUART
+	help
+	  The Broadcom protocol support enables Bluetooth HCI over serial
+	  port interface for Broadcom Bluetooth controllers.
+
+	  Say Y here to compile support for Broadcom protocol.
+
 config BT_HCIBCM203X
 	tristate "HCI BCM203x USB driver"
 	depends on USB

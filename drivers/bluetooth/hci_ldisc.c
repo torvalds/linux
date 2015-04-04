@@ -295,6 +295,11 @@ static int hci_uart_setup(struct hci_dev *hdev)
 		hdev->set_bdaddr = intel_set_bdaddr;
 		break;
 #endif
+#ifdef CONFIG_BT_HCIUART_BCM
+	case 15:
+		hdev->set_bdaddr = bcm_set_bdaddr;
+		break;
+#endif
 	}
 
 done:
