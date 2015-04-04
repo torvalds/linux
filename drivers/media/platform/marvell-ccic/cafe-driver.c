@@ -339,17 +339,21 @@ static int cafe_smbus_setup(struct cafe_camera *cam)
 	adap = kzalloc(sizeof(*adap), GFP_KERNEL);
 	if (adap == NULL)
 		return -ENOMEM;
-	cam->mcam.i2c_adapter = adap;
-	cafe_smbus_enable_irq(cam);
 	adap->owner = THIS_MODULE;
 	adap->algo = &cafe_smbus_algo;
 	strcpy(adap->name, "cafe_ccic");
 	adap->dev.parent = &cam->pdev->dev;
 	i2c_set_adapdata(adap, cam);
 	ret = i2c_add_adapter(adap);
-	if (ret)
+	if (ret) {
 		printk(KERN_ERR "Unable to register cafe i2c adapter\n");
-	return ret;
+		kfree(adap);
+		return ret;
+	}
+
+	cam->mcam.i2c_adapter = adap;
+	cafe_smbus_enable_irq(cam);
+	return 0;
 }
 
 static void cafe_smbus_shutdown(struct cafe_camera *cam)
