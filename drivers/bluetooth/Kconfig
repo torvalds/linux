@@ -94,6 +94,15 @@ config BT_HCIUART_3WIRE
 
 	  Say Y here to compile support for Three-wire UART protocol.
 
+config BT_HCIUART_INTEL
+	bool "Intel protocol support"
+	depends on BT_HCIUART
+	help
+	  The Intel protocol support enables Bluetooth HCI over serial
+	  port interface for Intel Bluetooth controllers.
+
+	  Say Y here to compile support for Intel protocol.
+
 config BT_HCIBCM203X
 	tristate "HCI BCM203x USB driver"
 	depends on USB

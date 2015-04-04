@@ -290,6 +290,11 @@ static int hci_uart_setup(struct hci_dev *hdev)
 	ver = (struct hci_rp_read_local_version *)skb->data;
 
 	switch (le16_to_cpu(ver->manufacturer)) {
+#ifdef CONFIG_BT_HCIUART_INTEL
+	case 2:
+		hdev->set_bdaddr = intel_set_bdaddr;
+		break;
+#endif
 	}
 
 done:
