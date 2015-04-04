@@ -39,7 +39,6 @@
 #include "ethernet-mdio.h"
 #include "ethernet-util.h"
 
-#include <asm/octeon/cvmx-helper-board.h>
 #include <asm/octeon/cvmx-gmxx-defs.h>
 #include <asm/octeon/cvmx-smix-defs.h>
 
@@ -116,8 +115,8 @@ int cvm_oct_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	return phy_mii_ioctl(priv->phydev, rq, cmd);
 }
 
-static void cvm_oct_note_carrier(struct octeon_ethernet *priv,
-				 cvmx_helper_link_info_t li)
+void cvm_oct_note_carrier(struct octeon_ethernet *priv,
+			  cvmx_helper_link_info_t li)
 {
 	if (li.s.link_up) {
 		pr_notice_ratelimited("%s: %u Mbps %s duplex, port %d, queue %d\n",

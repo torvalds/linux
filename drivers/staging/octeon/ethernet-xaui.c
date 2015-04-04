@@ -55,26 +55,12 @@ static void cvm_oct_xaui_poll(struct net_device *dev)
 
 	/* Tell Linux */
 	if (link_info.s.link_up) {
-
 		if (!netif_carrier_ok(dev))
 			netif_carrier_on(dev);
-		if (priv->queue != -1)
-			printk_ratelimited
-				("%s: %u Mbps %s duplex, port %2d, queue %2d\n",
-				 dev->name, link_info.s.speed,
-				 (link_info.s.full_duplex) ? "Full" : "Half",
-				 priv->port, priv->queue);
-		else
-			printk_ratelimited
-				("%s: %u Mbps %s duplex, port %2d, POW\n",
-				 dev->name, link_info.s.speed,
-				 (link_info.s.full_duplex) ? "Full" : "Half",
-				 priv->port);
-	} else {
-		if (netif_carrier_ok(dev))
-			netif_carrier_off(dev);
-		printk_ratelimited("%s: Link down\n", dev->name);
+	} else if (netif_carrier_ok(dev)) {
+		netif_carrier_off(dev);
 	}
+	cvm_oct_note_carrier(priv, link_info);
 }
 
 int cvm_oct_xaui_open(struct net_device *dev)
