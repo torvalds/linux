@@ -41,31 +41,9 @@
 
 #include <asm/octeon/cvmx-gmxx-defs.h>
 
-static void cvm_oct_sgmii_poll(struct net_device *dev)
-{
-	struct octeon_ethernet *priv = netdev_priv(dev);
-	cvmx_helper_link_info_t link_info;
-
-	link_info = cvmx_helper_link_get(priv->port);
-	if (link_info.u64 == priv->link_info)
-		return;
-
-	link_info = cvmx_helper_link_autoconf(priv->port);
-	priv->link_info = link_info.u64;
-
-	/* Tell Linux */
-	if (link_info.s.link_up) {
-		if (!netif_carrier_ok(dev))
-			netif_carrier_on(dev);
-	} else if (netif_carrier_ok(dev)) {
-		netif_carrier_off(dev);
-	}
-	cvm_oct_note_carrier(priv, link_info);
-}
-
 int cvm_oct_sgmii_open(struct net_device *dev)
 {
-	return cvm_oct_common_open(dev, cvm_oct_sgmii_poll, true);
+	return cvm_oct_common_open(dev, cvm_oct_link_poll, true);
 }
 
 int cvm_oct_sgmii_init(struct net_device *dev)

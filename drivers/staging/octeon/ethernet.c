@@ -541,6 +541,27 @@ int cvm_oct_common_open(struct net_device *dev,
 	return 0;
 }
 
+void cvm_oct_link_poll(struct net_device *dev)
+{
+	struct octeon_ethernet *priv = netdev_priv(dev);
+	cvmx_helper_link_info_t link_info;
+
+	link_info = cvmx_helper_link_get(priv->port);
+	if (link_info.u64 == priv->link_info)
+		return;
+
+	link_info = cvmx_helper_link_autoconf(priv->port);
+	priv->link_info = link_info.u64;
+
+	if (link_info.s.link_up) {
+		if (!netif_carrier_ok(dev))
+			netif_carrier_on(dev);
+	} else if (netif_carrier_ok(dev)) {
+		netif_carrier_off(dev);
+	}
+	cvm_oct_note_carrier(priv, link_info);
+}
+
 static const struct net_device_ops cvm_oct_npi_netdev_ops = {
 	.ndo_init		= cvm_oct_common_init,
 	.ndo_uninit		= cvm_oct_common_uninit,
