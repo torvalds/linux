@@ -183,104 +183,63 @@ static void cvm_oct_rgmii_poll(struct net_device *dev)
 	}
 }
 
+static int cmv_oct_rgmii_gmx_interrupt(int interface)
+{
+	int index;
+	int count = 0;
+
+	/* Loop through every port of this interface */
+	for (index = 0;
+	     index < cvmx_helper_ports_on_interface(interface);
+	     index++) {
+		union cvmx_gmxx_rxx_int_reg gmx_rx_int_reg;
+
+		/* Read the GMX interrupt status bits */
+		gmx_rx_int_reg.u64 = cvmx_read_csr(CVMX_GMXX_RXX_INT_REG
+					  (index, interface));
+		gmx_rx_int_reg.u64 &= cvmx_read_csr(CVMX_GMXX_RXX_INT_EN
+					  (index, interface));
+
+		/* Poll the port if inband status changed */
+		if (gmx_rx_int_reg.s.phy_dupx || gmx_rx_int_reg.s.phy_link ||
+		    gmx_rx_int_reg.s.phy_spd) {
+			struct net_device *dev =
+				    cvm_oct_device[cvmx_helper_get_ipd_port
+						   (interface, index)];
+			struct octeon_ethernet *priv = netdev_priv(dev);
+
+			if (dev && !atomic_read(&cvm_oct_poll_queue_stopping))
+				queue_work(cvm_oct_poll_queue,
+					   &priv->port_work);
+
+			gmx_rx_int_reg.u64 = 0;
+			gmx_rx_int_reg.s.phy_dupx = 1;
+			gmx_rx_int_reg.s.phy_link = 1;
+			gmx_rx_int_reg.s.phy_spd = 1;
+			cvmx_write_csr(CVMX_GMXX_RXX_INT_REG(index, interface),
+				       gmx_rx_int_reg.u64);
+			count++;
+		}
+	}
+	return count;
+}
+
 static irqreturn_t cvm_oct_rgmii_rml_interrupt(int cpl, void *dev_id)
 {
 	union cvmx_npi_rsl_int_blocks rsl_int_blocks;
-	int index;
-	irqreturn_t return_status = IRQ_NONE;
+	int count = 0;
 
 	rsl_int_blocks.u64 = cvmx_read_csr(CVMX_NPI_RSL_INT_BLOCKS);
 
 	/* Check and see if this interrupt was caused by the GMX0 block */
-	if (rsl_int_blocks.s.gmx0) {
-
-		int interface = 0;
-		/* Loop through every port of this interface */
-		for (index = 0;
-		     index < cvmx_helper_ports_on_interface(interface);
-		     index++) {
-
-			/* Read the GMX interrupt status bits */
-			union cvmx_gmxx_rxx_int_reg gmx_rx_int_reg;
-
-			gmx_rx_int_reg.u64 =
-			    cvmx_read_csr(CVMX_GMXX_RXX_INT_REG
-					  (index, interface));
-			gmx_rx_int_reg.u64 &=
-			    cvmx_read_csr(CVMX_GMXX_RXX_INT_EN
-					  (index, interface));
-			/* Poll the port if inband status changed */
-			if (gmx_rx_int_reg.s.phy_dupx
-			    || gmx_rx_int_reg.s.phy_link
-			    || gmx_rx_int_reg.s.phy_spd) {
-
-				struct net_device *dev =
-				    cvm_oct_device[cvmx_helper_get_ipd_port
-						   (interface, index)];
-				struct octeon_ethernet *priv = netdev_priv(dev);
-
-				if (dev &&
-				!atomic_read(&cvm_oct_poll_queue_stopping))
-					queue_work(cvm_oct_poll_queue,
-						&priv->port_work);
-
-				gmx_rx_int_reg.u64 = 0;
-				gmx_rx_int_reg.s.phy_dupx = 1;
-				gmx_rx_int_reg.s.phy_link = 1;
-				gmx_rx_int_reg.s.phy_spd = 1;
-				cvmx_write_csr(CVMX_GMXX_RXX_INT_REG
-					       (index, interface),
-					       gmx_rx_int_reg.u64);
-				return_status = IRQ_HANDLED;
-			}
-		}
-	}
+	if (rsl_int_blocks.s.gmx0)
+		count += cmv_oct_rgmii_gmx_interrupt(0);
 
 	/* Check and see if this interrupt was caused by the GMX1 block */
-	if (rsl_int_blocks.s.gmx1) {
+	if (rsl_int_blocks.s.gmx1)
+		count += cmv_oct_rgmii_gmx_interrupt(1);
 
-		int interface = 1;
-		/* Loop through every port of this interface */
-		for (index = 0;
-		     index < cvmx_helper_ports_on_interface(interface);
-		     index++) {
-
-			/* Read the GMX interrupt status bits */
-			union cvmx_gmxx_rxx_int_reg gmx_rx_int_reg;
-
-			gmx_rx_int_reg.u64 =
-			    cvmx_read_csr(CVMX_GMXX_RXX_INT_REG
-					  (index, interface));
-			gmx_rx_int_reg.u64 &=
-			    cvmx_read_csr(CVMX_GMXX_RXX_INT_EN
-					  (index, interface));
-			/* Poll the port if inband status changed */
-			if (gmx_rx_int_reg.s.phy_dupx
-			    || gmx_rx_int_reg.s.phy_link
-			    || gmx_rx_int_reg.s.phy_spd) {
-
-				struct net_device *dev =
-				    cvm_oct_device[cvmx_helper_get_ipd_port
-						   (interface, index)];
-				struct octeon_ethernet *priv = netdev_priv(dev);
-
-				if (dev &&
-				!atomic_read(&cvm_oct_poll_queue_stopping))
-					queue_work(cvm_oct_poll_queue,
-						&priv->port_work);
-
-				gmx_rx_int_reg.u64 = 0;
-				gmx_rx_int_reg.s.phy_dupx = 1;
-				gmx_rx_int_reg.s.phy_link = 1;
-				gmx_rx_int_reg.s.phy_spd = 1;
-				cvmx_write_csr(CVMX_GMXX_RXX_INT_REG
-					       (index, interface),
-					       gmx_rx_int_reg.u64);
-				return_status = IRQ_HANDLED;
-			}
-		}
-	}
-	return return_status;
+	return count ? IRQ_HANDLED : IRQ_NONE;
 }
 
 int cvm_oct_rgmii_open(struct net_device *dev)
