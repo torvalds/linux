@@ -148,7 +148,8 @@ ssize_t edp_aux_transfer(struct drm_dp_aux *drm_aux, struct drm_dp_aux_msg *msg)
 		goto unlock_exit;
 
 	DBG("wait_for_completion");
-	time_left = wait_for_completion_timeout(&aux->msg_comp, 300);
+	time_left = wait_for_completion_timeout(&aux->msg_comp,
+						msecs_to_jiffies(300));
 	if (!time_left) {
 		/*
 		 * Clear GO and reset AUX channel
