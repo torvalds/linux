@@ -93,11 +93,8 @@ static inline int cvm_oct_check_rcv_error(cvmx_wqe_t *work)
 		 * instead of 60+4FCS.  Note these packets still get
 		 * counted as frame errors.
 		 */
-	} else
-	    if (USE_10MBPS_PREAMBLE_WORKAROUND
-		&& ((work->word2.snoip.err_code == 5)
-		    || (work->word2.snoip.err_code == 7))) {
-
+	} else if (work->word2.snoip.err_code == 5 ||
+		   work->word2.snoip.err_code == 7) {
 		/*
 		 * We received a packet with either an alignment error
 		 * or a FCS error. This may be signalling that we are

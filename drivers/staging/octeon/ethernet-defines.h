@@ -68,11 +68,6 @@
 #define USE_ASYNC_IOBDMA            (CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE > 0)
 
 /*
- * Allow SW based preamble removal at 10Mbps to workaround PHYs giving
- * us bad preambles.
- */
-#define USE_10MBPS_PREAMBLE_WORKAROUND 1
-/*
  * Use this to have all FPA frees also tell the L2 not to write data
  * to memory.
  */
