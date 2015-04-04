@@ -411,7 +411,7 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 dont_put_skbuff_in_hw:
 
 	/* Check if we can use the hardware checksumming */
-	if (USE_HW_TCPUDP_CHECKSUM && (skb->protocol == htons(ETH_P_IP)) &&
+	if ((skb->protocol == htons(ETH_P_IP)) &&
 	    (ip_hdr(skb)->version == 4) && (ip_hdr(skb)->ihl == 5) &&
 	    ((ip_hdr(skb)->frag_off == 0) || (ip_hdr(skb)->frag_off == htons(1 << 14)))
 	    && ((ip_hdr(skb)->protocol == IPPROTO_TCP)

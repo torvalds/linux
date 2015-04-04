@@ -31,10 +31,6 @@
  *      Tells the driver to populate the packet buffers with kernel skbuffs.
  *      This allows the driver to receive packets without copying them. It also
  *      means that 32bit userspace can't access the packet buffers.
- *  USE_HW_TCPUDP_CHECKSUM
- *      Controls if the Octeon TCP/UDP checksum engine is used for packet
- *      output. If this is zero, the kernel will perform the checksum in
- *      software.
  *  USE_ASYNC_IOBDMA
  *      Use asynchronous IO access to hardware. This uses Octeon's asynchronous
  *      IOBDMAs to issue IO accesses without stalling. Set this to zero
@@ -60,8 +56,6 @@
 #else
 #define REUSE_SKBUFFS_WITHOUT_FREE  1
 #endif
-
-#define USE_HW_TCPUDP_CHECKSUM      1
 
 /* Enable Random Early Dropping under load */
 #define USE_RED                     1
