@@ -842,10 +842,8 @@ static hda_nid_t path_power_update(struct hda_codec *codec,
 			snd_hda_codec_write(codec, nid, 0,
 					    AC_VERB_SET_POWER_STATE, state);
 			changed = nid;
-			/* here we assume that widget attributes (e.g. amp,
-			 * pinctl connection) don't change with local power
-			 * state change.  If not, need to sync the cache.
-			 */
+			if (state == AC_PWRST_D0)
+				snd_hdac_regmap_sync_node(&codec->core, nid);
 		}
 	}
 	return changed;

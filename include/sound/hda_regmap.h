@@ -202,4 +202,16 @@ snd_hdac_regmap_update_amp_stereo(struct hdac_device *codec, hda_nid_t nid,
 	return snd_hdac_regmap_update_raw(codec, cmd, mask, val);
 }
 
+/**
+ * snd_hdac_regmap_sync_node - sync the widget node attributes
+ * @codec: HD-audio codec
+ * @nid: NID to sync
+ */
+static inline void
+snd_hdac_regmap_sync_node(struct hdac_device *codec, hda_nid_t nid)
+{
+	regcache_mark_dirty(codec->regmap);
+	regcache_sync_region(codec->regmap, nid << 20, ((nid + 1) << 20) - 1);
+}
+
 #endif /* __SOUND_HDA_REGMAP_H */
