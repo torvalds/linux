@@ -40,7 +40,7 @@
 #include "ethernet-util.h"
 
 #include <asm/octeon/cvmx-helper-board.h>
-
+#include <asm/octeon/cvmx-gmxx-defs.h>
 #include <asm/octeon/cvmx-smix-defs.h>
 
 static void cvm_oct_get_drvinfo(struct net_device *dev,
@@ -150,7 +150,14 @@ void cvm_oct_adjust_link(struct net_device *dev)
 int cvm_oct_common_stop(struct net_device *dev)
 {
 	struct octeon_ethernet *priv = netdev_priv(dev);
+	int interface = INTERFACE(priv->port);
 	cvmx_helper_link_info_t link_info;
+	union cvmx_gmxx_prtx_cfg gmx_cfg;
+	int index = INDEX(priv->port);
+
+	gmx_cfg.u64 = cvmx_read_csr(CVMX_GMXX_PRTX_CFG(index, interface));
+	gmx_cfg.s.en = 0;
+	cvmx_write_csr(CVMX_GMXX_PRTX_CFG(index, interface), gmx_cfg.u64);
 
 	priv->poll = NULL;
 

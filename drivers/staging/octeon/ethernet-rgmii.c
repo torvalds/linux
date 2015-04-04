@@ -301,19 +301,6 @@ int cvm_oct_rgmii_open(struct net_device *dev)
 	return cvm_oct_common_open(dev, cvm_oct_rgmii_poll, false);
 }
 
-int cvm_oct_rgmii_stop(struct net_device *dev)
-{
-	union cvmx_gmxx_prtx_cfg gmx_cfg;
-	struct octeon_ethernet *priv = netdev_priv(dev);
-	int interface = INTERFACE(priv->port);
-	int index = INDEX(priv->port);
-
-	gmx_cfg.u64 = cvmx_read_csr(CVMX_GMXX_PRTX_CFG(index, interface));
-	gmx_cfg.s.en = 0;
-	cvmx_write_csr(CVMX_GMXX_PRTX_CFG(index, interface), gmx_cfg.u64);
-	return cvm_oct_common_stop(dev);
-}
-
 static void cvm_oct_rgmii_immediate_poll(struct work_struct *work)
 {
 	struct octeon_ethernet *priv =
