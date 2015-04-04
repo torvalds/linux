@@ -314,7 +314,6 @@ int cvm_oct_rgmii_init(struct net_device *dev)
 	int r;
 
 	cvm_oct_common_init(dev);
-	dev->netdev_ops->ndo_stop(dev);
 	INIT_WORK(&priv->port_work, cvm_oct_rgmii_immediate_poll);
 	/*
 	 * Due to GMX errata in CN3XXX series chips, it is necessary

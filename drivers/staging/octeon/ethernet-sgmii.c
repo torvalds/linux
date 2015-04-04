@@ -85,7 +85,6 @@ int cvm_oct_sgmii_open(struct net_device *dev)
 int cvm_oct_sgmii_init(struct net_device *dev)
 {
 	cvm_oct_common_init(dev);
-	dev->netdev_ops->ndo_stop(dev);
 
 	/* FIXME: Need autoneg logic */
 	return 0;

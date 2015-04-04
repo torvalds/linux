@@ -488,6 +488,9 @@ int cvm_oct_common_init(struct net_device *dev)
 	memset(dev->netdev_ops->ndo_get_stats(dev), 0,
 	       sizeof(struct net_device_stats));
 
+	if (dev->netdev_ops->ndo_stop)
+		dev->netdev_ops->ndo_stop(dev);
+
 	return 0;
 }
 
