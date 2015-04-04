@@ -33,7 +33,7 @@ static unsigned int nf_route_table_hook(const struct nf_hook_ops *ops,
 	u32 mark, flowlabel;
 
 	/* malformed packet, drop it */
-	if (nft_set_pktinfo_ipv6(&pkt, ops, skb, state->in, state->out) < 0)
+	if (nft_set_pktinfo_ipv6(&pkt, ops, skb, state) < 0)
 		return NF_DROP;
 
 	/* save source/dest address, mark, hoplimit, flowlabel, priority */

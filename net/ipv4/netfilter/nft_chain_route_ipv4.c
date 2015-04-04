@@ -37,7 +37,7 @@ static unsigned int nf_route_table_hook(const struct nf_hook_ops *ops,
 	    ip_hdrlen(skb) < sizeof(struct iphdr))
 		return NF_ACCEPT;
 
-	nft_set_pktinfo_ipv4(&pkt, ops, skb, state->in, state->out);
+	nft_set_pktinfo_ipv4(&pkt, ops, skb, state);
 
 	mark = skb->mark;
 	iph = ip_hdr(skb);
