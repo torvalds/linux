@@ -68,7 +68,7 @@ static phys_addr_t keystone_virt_to_idmap(unsigned long x)
 	return (phys_addr_t)(x) - CONFIG_PAGE_OFFSET + KEYSTONE_LOW_PHYS_START;
 }
 
-static long long __init keystone_init_meminfo(void)
+static long long __init keystone_pv_fixup(void)
 {
 	long long offset;
 	phys_addr_t mem_start, mem_end;
@@ -108,5 +108,5 @@ DT_MACHINE_START(KEYSTONE, "Keystone")
 	.smp		= smp_ops(keystone_smp_ops),
 	.init_machine	= keystone_init,
 	.dt_compat	= keystone_match,
-	.init_meminfo   = keystone_init_meminfo,
+	.pv_fixup	= keystone_pv_fixup,
 MACHINE_END

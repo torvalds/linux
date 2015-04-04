@@ -1404,7 +1404,7 @@ void __init early_paging_init(const struct machine_desc *mdesc,
 	phys_addr_t phys;
 	int i;
 
-	if (!(mdesc->init_meminfo))
+	if (!mdesc->pv_fixup)
 		return;
 
 	/* remap kernel code and data */
@@ -1420,7 +1420,7 @@ void __init early_paging_init(const struct machine_desc *mdesc,
 	pudk = pud_offset(pgdk, map_start);
 	pmdk = pmd_offset(pudk, map_start);
 
-	offset = mdesc->init_meminfo();
+	offset = mdesc->pv_fixup();
 	if (offset == 0)
 		return;
 
@@ -1514,10 +1514,10 @@ void __init early_paging_init(const struct machine_desc *mdesc,
 {
 	long long offset;
 
-	if (!mdesc->init_meminfo)
+	if (!mdesc->pv_fixup)
 		return;
 
-	offset = mdesc->init_meminfo();
+	offset = mdesc->pv_fixup();
 	if (offset == 0)
 		return;
 
