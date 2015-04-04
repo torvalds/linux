@@ -45,12 +45,22 @@
 	.popsection
 .endm
 
+#define old_len			141b-140b
+#define new_len1		144f-143f
+#define new_len2		145f-144f
+
+/*
+ * max without conditionals. Idea adapted from:
+ * http://graphics.stanford.edu/~seander/bithacks.html#IntegerMinOrMax
+ */
+#define alt_max_short(a, b)	((a) ^ (((a) ^ (b)) & -(-((a) < (b)))))
+
 .macro ALTERNATIVE_2 oldinstr, newinstr1, feature1, newinstr2, feature2
 140:
 	\oldinstr
 141:
-	.skip -(((144f-143f)-(141b-140b)) > 0) * ((144f-143f)-(141b-140b)),0x90
-	.skip -(((145f-144f)-(144f-143f)-(141b-140b)) > 0) * ((145f-144f)-(144f-143f)-(141b-140b)),0x90
+	.skip -((alt_max_short(new_len1, new_len2) - (old_len)) > 0) * \
+		(alt_max_short(new_len1, new_len2) - (old_len)),0x90
 142:
 
 	.pushsection .altinstructions,"a"

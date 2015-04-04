@@ -369,11 +369,11 @@ void __init_or_module apply_alternatives(struct alt_instr *start,
 			continue;
 		}
 
-		DPRINTK("feat: %d*32+%d, old: (%p, len: %d), repl: (%p, len: %d)",
+		DPRINTK("feat: %d*32+%d, old: (%p, len: %d), repl: (%p, len: %d), pad: %d",
 			a->cpuid >> 5,
 			a->cpuid & 0x1f,
 			instr, a->instrlen,
-			replacement, a->replacementlen);
+			replacement, a->replacementlen, a->padlen);
 
 		DUMP_BYTES(instr, a->instrlen, "%p: old_insn: ", instr);
 		DUMP_BYTES(replacement, a->replacementlen, "%p: rpl_insn: ", replacement);
