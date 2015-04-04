@@ -49,6 +49,7 @@
 #define HCI_UART_CREATE_AMP	2
 #define HCI_UART_INIT_PENDING	3
 #define HCI_UART_EXT_CONFIG	4
+#define HCI_UART_VND_DETECT	5
 
 struct hci_uart;
 
