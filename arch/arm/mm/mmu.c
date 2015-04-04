@@ -1387,7 +1387,7 @@ static void __init map_lowmem(void)
 	}
 }
 
-#ifdef CONFIG_ARM_LPAE
+#if defined(CONFIG_ARM_LPAE) && defined(CONFIG_ARM_PATCH_PHYS_VIRT)
 /*
  * early_paging_init() recreates boot time page table setup, allowing machines
  * to switch over to a high (>4G) address space on LPAE systems
@@ -1397,6 +1397,7 @@ void __init early_paging_init(const struct machine_desc *mdesc,
 {
 	pmdval_t pmdprot = procinfo->__cpu_mm_mmu_flags;
 	unsigned long map_start, map_end;
+	long long offset;
 	pgd_t *pgd0, *pgdk;
 	pud_t *pud0, *pudk, *pud_start;
 	pmd_t *pmd0, *pmdk;
@@ -1419,7 +1420,13 @@ void __init early_paging_init(const struct machine_desc *mdesc,
 	pudk = pud_offset(pgdk, map_start);
 	pmdk = pmd_offset(pudk, map_start);
 
-	mdesc->init_meminfo();
+	offset = mdesc->init_meminfo();
+	if (offset == 0)
+		return;
+
+	/* Re-set the phys pfn offset, and the pv offset */
+	__pv_offset += offset;
+	__pv_phys_pfn_offset += PFN_DOWN(offset);
 
 	/* Run the patch stub to update the constants */
 	fixup_pv_table(&__pv_table_begin,
@@ -1502,8 +1509,19 @@ void __init early_paging_init(const struct machine_desc *mdesc,
 void __init early_paging_init(const struct machine_desc *mdesc,
 			      struct proc_info_list *procinfo)
 {
-	if (mdesc->init_meminfo)
-		mdesc->init_meminfo();
+	long long offset;
+
+	if (!mdesc->init_meminfo)
+		return;
+
+	offset = mdesc->init_meminfo();
+	if (offset == 0)
+		return;
+
+	pr_crit("Physical address space modification is only to support Keystone2.\n");
+	pr_crit("Please enable ARM_LPAE and ARM_PATCH_PHYS_VIRT support to use this\n");
+	pr_crit("feature. Your kernel may crash now, have a good day.\n");
+	add_taint(TAINT_CPU_OUT_OF_SPEC, LOCKDEP_STILL_OK);
 }
 
 #endif
