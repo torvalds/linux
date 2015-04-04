@@ -566,6 +566,16 @@ config ARCH_MMP
 	help
 	  Support for Marvell's PXA168/PXA910(MMP) and MMP2 processor line.
 
+config ARCH_NINTENDO3DS
+	bool "Nintendo 3DS"
+	select ARM_GIC
+	select CPU_V6K
+	select HAVE_ARM_SCU if SMP
+	select HAVE_ARM_TWD if SMP
+	select HAVE_SMP
+	help
+	  Support for the Nintendo 3DS game console.
+
 config ARCH_KS8695
 	bool "Micrel/Kendin KS8695"
 	select ARCH_REQUIRE_GPIOLIB
@@ -904,6 +914,8 @@ source "arch/arm/mach-mediatek/Kconfig"
 source "arch/arm/mach-mxs/Kconfig"
 
 source "arch/arm/mach-netx/Kconfig"
+
+source "arch/arm/mach-nintendo3ds/Kconfig"
 
 source "arch/arm/mach-nomadik/Kconfig"
 

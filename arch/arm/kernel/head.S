@@ -91,6 +91,54 @@ ENTRY(stext)
 	@ ensure svc mode and all interrupts masked
 	safe_svcmode_maskall r9
 
+
+/* WOOOOOOOOOOOOO NINTENDO 3DS */
+
+		w0t:
+			mov r0, #0x00FF00 @ GREEN
+			bl fill_screen
+			b w0t
+
+
+.equ FB_TOP_LEFT1, (0x20184E60)
+.equ FB_TOP_LEFT2, (0x201CB370)
+.equ FB_DIFF,      (FB_TOP_LEFT2-FB_TOP_LEFT1)
+.equ FB_TOP_SIZE,  (0x46500)
+.equ RED,	 0xFF0000
+.equ GREEN,  0x00FF00
+.equ BLUE,   0x0000FF
+.equ CYAN,   0x00FFFF
+.equ BLACK,  0x000000
+.equ WHITE,  0xFFFFFF
+		
+	.global fill_screen
+	@ r0 = color
+	fill_screen:
+		and r3, r0, #0xFF
+		lsr r4, r0, #8
+		and r4, r4, #0xFF
+		lsr r5, r0, #16
+		and r5, r5, #0xFF
+
+		ldr r0, =FB_TOP_SIZE
+		ldr r1,	=FB_TOP_LEFT1
+		ldr r7, =FB_DIFF
+		add r2, r1, r0 @limit_addr
+		mov r6, r1 @ ptr
+	_fill_for:
+		strb r3, [r6, #0]
+		strb r4, [r6, #1]
+		strb r5, [r6, #2]
+		add r8, r6, r7
+		strb r3, [r8, #0]
+		strb r4, [r8, #1]
+		strb r5, [r8, #2]
+		add r6, r6, #3
+		cmp r6, r2
+		blt _fill_for
+		bx lr
+	
+
 	mrc	p15, 0, r9, c0, c0		@ get processor id
 	bl	__lookup_processor_type		@ r5=procinfo r9=cpuid
 	movs	r10, r5				@ invalid processor (r5=0)?

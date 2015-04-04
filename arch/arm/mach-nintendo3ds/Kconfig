@@ -1,0 +1,23 @@
+menu "Nintendo 3DS model type"
+	depends on ARCH_NINTENDO3DS
+
+if ARCH_NINTENDO3DS
+
+config MACH_NINTENDO3DS_CTR
+	bool "Old Nintendo 3DS (CTR)"
+
+config MACH_NINTENDO3DS_SPR
+	bool "Old Nintendo 3DS XL/LL (SPR)"
+
+config MACH_NINTENDO3DS_FTR
+	bool "Nintendo 2DS (FTR)"
+
+config MACH_NINTENDO3DS_KTR
+	bool "New Nintendo 3DS (KTR)"
+
+config MACH_NINTENDO3DS_RED
+	bool "New Nintendo 3DS XL/LL (RED)"
+
+endif
+
+endmenu
