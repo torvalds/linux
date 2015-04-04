@@ -89,8 +89,3 @@ int cvm_oct_sgmii_init(struct net_device *dev)
 	/* FIXME: Need autoneg logic */
 	return 0;
 }
-
-void cvm_oct_sgmii_uninit(struct net_device *dev)
-{
-	cvm_oct_common_uninit(dev);
-}

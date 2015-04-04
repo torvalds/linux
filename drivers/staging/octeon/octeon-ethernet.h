@@ -73,13 +73,11 @@ extern void cvm_oct_rgmii_uninit(struct net_device *dev);
 extern int cvm_oct_rgmii_open(struct net_device *dev);
 
 extern int cvm_oct_sgmii_init(struct net_device *dev);
-extern void cvm_oct_sgmii_uninit(struct net_device *dev);
 extern int cvm_oct_sgmii_open(struct net_device *dev);
 
 extern int cvm_oct_spi_init(struct net_device *dev);
 extern void cvm_oct_spi_uninit(struct net_device *dev);
 extern int cvm_oct_xaui_init(struct net_device *dev);
-extern void cvm_oct_xaui_uninit(struct net_device *dev);
 extern int cvm_oct_xaui_open(struct net_device *dev);
 
 extern int cvm_oct_common_init(struct net_device *dev);

@@ -92,8 +92,3 @@ int cvm_oct_xaui_init(struct net_device *dev)
 
 	return 0;
 }
-
-void cvm_oct_xaui_uninit(struct net_device *dev)
-{
-	cvm_oct_common_uninit(dev);
-}

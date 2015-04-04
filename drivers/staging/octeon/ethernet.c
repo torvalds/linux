@@ -556,7 +556,7 @@ static const struct net_device_ops cvm_oct_npi_netdev_ops = {
 };
 static const struct net_device_ops cvm_oct_xaui_netdev_ops = {
 	.ndo_init		= cvm_oct_xaui_init,
-	.ndo_uninit		= cvm_oct_xaui_uninit,
+	.ndo_uninit		= cvm_oct_common_uninit,
 	.ndo_open		= cvm_oct_xaui_open,
 	.ndo_stop		= cvm_oct_common_stop,
 	.ndo_start_xmit		= cvm_oct_xmit,
@@ -571,7 +571,7 @@ static const struct net_device_ops cvm_oct_xaui_netdev_ops = {
 };
 static const struct net_device_ops cvm_oct_sgmii_netdev_ops = {
 	.ndo_init		= cvm_oct_sgmii_init,
-	.ndo_uninit		= cvm_oct_sgmii_uninit,
+	.ndo_uninit		= cvm_oct_common_uninit,
 	.ndo_open		= cvm_oct_sgmii_open,
 	.ndo_stop		= cvm_oct_common_stop,
 	.ndo_start_xmit		= cvm_oct_xmit,
