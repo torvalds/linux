@@ -115,6 +115,7 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 
 		for (x = 0; x < WIDTH; x++) {
 			u8 ch = 0;
+
 			for (i = 0; i < 8*WIDTH; i += WIDTH) {
 				ch >>= 1;
 				if (vmem16[(y*8*WIDTH)+i+x])
