@@ -3564,6 +3564,7 @@ static void alc_headset_mode_unplugged(struct hda_codec *codec)
 
 	switch (codec->core.vendor_id) {
 	case 0x10ec0255:
+	case 0x10ec0256:
 		alc_process_coef_fw(codec, coef0255);
 		break;
 	case 0x10ec0233:
@@ -3619,6 +3620,7 @@ static void alc_headset_mode_mic_in(struct hda_codec *codec, hda_nid_t hp_pin,
 
 	switch (codec->core.vendor_id) {
 	case 0x10ec0255:
+	case 0x10ec0256:
 		alc_write_coef_idx(codec, 0x45, 0xc489);
 		snd_hda_set_pin_ctl_cache(codec, hp_pin, 0);
 		alc_process_coef_fw(codec, coef0255);
@@ -3688,6 +3690,7 @@ static void alc_headset_mode_default(struct hda_codec *codec)
 
 	switch (codec->core.vendor_id) {
 	case 0x10ec0255:
+	case 0x10ec0256:
 		alc_process_coef_fw(codec, coef0255);
 		break;
 	case 0x10ec0233:
@@ -3742,6 +3745,7 @@ static void alc_headset_mode_ctia(struct hda_codec *codec)
 
 	switch (codec->core.vendor_id) {
 	case 0x10ec0255:
+	case 0x10ec0256:
 		alc_process_coef_fw(codec, coef0255);
 		break;
 	case 0x10ec0233:
@@ -3796,6 +3800,7 @@ static void alc_headset_mode_omtp(struct hda_codec *codec)
 
 	switch (codec->core.vendor_id) {
 	case 0x10ec0255:
+	case 0x10ec0256:
 		alc_process_coef_fw(codec, coef0255);
 		break;
 	case 0x10ec0233:
@@ -3841,6 +3846,7 @@ static void alc_determine_headset_type(struct hda_codec *codec)
 
 	switch (codec->core.vendor_id) {
 	case 0x10ec0255:
+	case 0x10ec0256:
 		alc_process_coef_fw(codec, coef0255);
 		msleep(300);
 		val = alc_read_coef_idx(codec, 0x46);
@@ -5174,6 +5180,16 @@ static const struct snd_hda_pin_quirk alc269_pin_fixup_tbl[] = {
 		{0x17, 0x40000000},
 		{0x1d, 0x40700001},
 		{0x21, 0x02211050}),
+	SND_HDA_PIN_QUIRK(0x10ec0256, 0x1028, "Dell", ALC255_FIXUP_DELL1_MIC_NO_PRESENCE,
+		{0x12, 0x90a60140},
+		{0x13, 0x40000000},
+		{0x14, 0x90170110},
+		{0x19, 0x411111f0},
+		{0x1a, 0x411111f0},
+		{0x1b, 0x411111f0},
+		{0x1d, 0x40700001},
+		{0x1e, 0x411111f0},
+		{0x21, 0x02211020}),
 	SND_HDA_PIN_QUIRK(0x10ec0280, 0x103c, "HP", ALC280_FIXUP_HP_GPIO4,
 		{0x12, 0x90a60130},
 		{0x13, 0x40000000},

@@ -364,12 +364,21 @@ system_call_fastpath:
  * Has incomplete stack frame and undefined top of stack.
  */
 ret_from_sys_call:
-	testl $_TIF_ALLWORK_MASK,TI_flags+THREAD_INFO(%rsp,RIP-ARGOFFSET)
-	jnz int_ret_from_sys_call_fixup	/* Go the the slow path */
-
 	LOCKDEP_SYS_EXIT
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
+
+	/*
+	 * We must check ti flags with interrupts (or at least preemption)
+	 * off because we must *never* return to userspace without
+	 * processing exit work that is enqueued if we're preempted here.
+	 * In particular, returning to userspace with any of the one-shot
+	 * flags (TIF_NOTIFY_RESUME, TIF_USER_RETURN_NOTIFY, etc) set is
+	 * very bad.
+	 */
+	testl $_TIF_ALLWORK_MASK,TI_flags+THREAD_INFO(%rsp,RIP-ARGOFFSET)
+	jnz int_ret_from_sys_call_fixup	/* Go the the slow path */
+
 	CFI_REMEMBER_STATE
 	/*
 	 * sysretq will re-enable interrupts:
@@ -386,7 +395,7 @@ ret_from_sys_call:
 
 int_ret_from_sys_call_fixup:
 	FIXUP_TOP_OF_STACK %r11, -ARGOFFSET
-	jmp int_ret_from_sys_call
+	jmp int_ret_from_sys_call_irqs_off
 
 	/* Do syscall tracing */
 tracesys:
@@ -432,6 +441,7 @@ tracesys_phase2:
 GLOBAL(int_ret_from_sys_call)
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
+int_ret_from_sys_call_irqs_off:
 	movl $_TIF_ALLWORK_MASK,%edi
 	/* edi:	mask to check */
 GLOBAL(int_with_check)

@@ -212,6 +212,30 @@ void nf_log_packet(struct net *net,
 }
 EXPORT_SYMBOL(nf_log_packet);
 
+void nf_log_trace(struct net *net,
+		  u_int8_t pf,
+		  unsigned int hooknum,
+		  const struct sk_buff *skb,
+		  const struct net_device *in,
+		  const struct net_device *out,
+		  const struct nf_loginfo *loginfo, const char *fmt, ...)
+{
+	va_list args;
+	char prefix[NF_LOG_PREFIXLEN];
+	const struct nf_logger *logger;
+
+	rcu_read_lock();
+	logger = rcu_dereference(net->nf.nf_loggers[pf]);
+	if (logger) {
+		va_start(args, fmt);
+		vsnprintf(prefix, sizeof(prefix), fmt, args);
+		va_end(args);
+		logger->logfn(net, pf, hooknum, skb, in, out, loginfo, prefix);
+	}
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL(nf_log_trace);
+
 #define S_SIZE (1024 - (sizeof(unsigned int) + 1))
 
 struct nf_log_buf {
