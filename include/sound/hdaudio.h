@@ -22,6 +22,17 @@ struct hdac_widget_tree;
 extern struct bus_type snd_hda_bus_type;
 
 /*
+ * generic arrays
+ */
+struct snd_array {
+	unsigned int used;
+	unsigned int alloced;
+	unsigned int elem_size;
+	unsigned int alloc_align;
+	void *list;
+};
+
+/*
  * HD-audio codec base device
  */
 struct hdac_device {
@@ -61,6 +72,13 @@ struct hdac_device {
 
 	/* sysfs */
 	struct hdac_widget_tree *widgets;
+
+	/* regmap */
+	struct regmap *regmap;
+	struct snd_array vendor_verbs;
+	bool lazy_cache:1;	/* don't wake up for writes */
+	bool caps_overwriting:1; /* caps overwrite being in process */
+	bool cache_coef:1;	/* cache COEF read/write too */
 };
 
 /* device/driver type used for matching */
@@ -90,11 +108,33 @@ int snd_hdac_exec_verb(struct hdac_device *codec, unsigned int cmd,
 		       unsigned int flags, unsigned int *res);
 int snd_hdac_read(struct hdac_device *codec, hda_nid_t nid,
 		  unsigned int verb, unsigned int parm, unsigned int *res);
-int snd_hdac_read_parm(struct hdac_device *codec, hda_nid_t nid, int parm);
+int _snd_hdac_read_parm(struct hdac_device *codec, hda_nid_t nid, int parm,
+			unsigned int *res);
+int snd_hdac_read_parm_uncached(struct hdac_device *codec, hda_nid_t nid,
+				int parm);
+int snd_hdac_override_parm(struct hdac_device *codec, hda_nid_t nid,
+			   unsigned int parm, unsigned int val);
 int snd_hdac_get_connections(struct hdac_device *codec, hda_nid_t nid,
 			     hda_nid_t *conn_list, int max_conns);
 int snd_hdac_get_sub_nodes(struct hdac_device *codec, hda_nid_t nid,
 			   hda_nid_t *start_id);
+
+/**
+ * snd_hdac_read_parm - read a codec parameter
+ * @codec: the codec object
+ * @nid: NID to read a parameter
+ * @parm: parameter to read
+ *
+ * Returns -1 for error.  If you need to distinguish the error more
+ * strictly, use _snd_hdac_read_parm() directly.
+ */
+static inline int snd_hdac_read_parm(struct hdac_device *codec, hda_nid_t nid,
+				     int parm)
+{
+	unsigned int val;
+
+	return _snd_hdac_read_parm(codec, nid, parm, &val) < 0 ? -1 : val;
+}
 
 #ifdef CONFIG_PM
 void snd_hdac_power_up(struct hdac_device *codec);
@@ -176,6 +216,28 @@ static inline void snd_hdac_codec_link_up(struct hdac_device *codec)
 static inline void snd_hdac_codec_link_down(struct hdac_device *codec)
 {
 	clear_bit(codec->addr, &codec->bus->codec_powered);
+}
+
+/*
+ * generic array helpers
+ */
+void *snd_array_new(struct snd_array *array);
+void snd_array_free(struct snd_array *array);
+static inline void snd_array_init(struct snd_array *array, unsigned int size,
+				  unsigned int align)
+{
+	array->elem_size = size;
+	array->alloc_align = align;
+}
+
+static inline void *snd_array_elem(struct snd_array *array, unsigned int idx)
+{
+	return array->list + idx * array->elem_size;
+}
+
+static inline unsigned int snd_array_index(struct snd_array *array, void *ptr)
+{
+	return (unsigned long)(ptr - array->list) / array->elem_size;
 }
 
 #endif /* __SOUND_HDAUDIO_H */

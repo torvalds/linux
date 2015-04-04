@@ -302,6 +302,7 @@ static void cxt_fixup_headphone_mic(struct hda_codec *codec,
 	switch (action) {
 	case HDA_FIXUP_ACT_PRE_PROBE:
 		spec->parse_flags |= HDA_PINCFG_HEADPHONE_MIC;
+		snd_hdac_regmap_add_vendor_verb(&codec->core, 0x410);
 		break;
 	case HDA_FIXUP_ACT_PROBE:
 		spec->gen.cap_sync_hook = cxt_update_headset_mode_hook;
@@ -409,15 +410,11 @@ static void olpc_xo_automic(struct hda_codec *codec,
 			    struct hda_jack_callback *jack)
 {
 	struct conexant_spec *spec = codec->spec;
-	int saved_cached_write = codec->cached_write;
 
-	codec->cached_write = 1;
 	/* in DC mode, we don't handle automic */
 	if (!spec->dc_enable)
 		snd_hda_gen_mic_autoswitch(codec, jack);
 	olpc_xo_update_mic_pins(codec);
-	snd_hda_codec_flush_cache(codec);
-	codec->cached_write = saved_cached_write;
 	if (spec->dc_enable)
 		olpc_xo_update_mic_boost(codec);
 }

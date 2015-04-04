@@ -842,10 +842,8 @@ static hda_nid_t path_power_update(struct hda_codec *codec,
 			snd_hda_codec_write(codec, nid, 0,
 					    AC_VERB_SET_POWER_STATE, state);
 			changed = nid;
-			/* here we assume that widget attributes (e.g. amp,
-			 * pinctl connection) don't change with local power
-			 * state change.  If not, need to sync the cache.
-			 */
+			if (state == AC_PWRST_D0)
+				snd_hdac_regmap_sync_node(&codec->core, nid);
 		}
 	}
 	return changed;
@@ -3381,11 +3379,6 @@ static int cap_put_caller(struct snd_kcontrol *kcontrol,
 	imux = &spec->input_mux;
 	adc_idx = kcontrol->id.index;
 	mutex_lock(&codec->control_mutex);
-	/* we use the cache-only update at first since multiple input paths
-	 * may shared the same amp; by updating only caches, the redundant
-	 * writes to hardware can be reduced.
-	 */
-	codec->cached_write = 1;
 	for (i = 0; i < imux->num_items; i++) {
 		path = get_input_path(codec, adc_idx, i);
 		if (!path || !path->ctls[type])
@@ -3393,12 +3386,9 @@ static int cap_put_caller(struct snd_kcontrol *kcontrol,
 		kcontrol->private_value = path->ctls[type];
 		err = func(kcontrol, ucontrol);
 		if (err < 0)
-			goto error;
+			break;
 	}
- error:
-	codec->cached_write = 0;
 	mutex_unlock(&codec->control_mutex);
-	snd_hda_codec_flush_cache(codec); /* flush the updates */
 	if (err >= 0 && spec->cap_sync_hook)
 		spec->cap_sync_hook(codec, kcontrol, ucontrol);
 	return err;
@@ -5760,8 +5750,6 @@ int snd_hda_gen_init(struct hda_codec *codec)
 
 	snd_hda_apply_verbs(codec);
 
-	codec->cached_write = 1;
-
 	init_multi_out(codec);
 	init_extra_out(codec);
 	init_multi_io(codec);
@@ -5777,7 +5765,7 @@ int snd_hda_gen_init(struct hda_codec *codec)
 	/* call init functions of standard auto-mute helpers */
 	update_automute_all(codec);
 
-	snd_hda_codec_flush_cache(codec);
+	regcache_sync(codec->core.regmap);
 
 	if (spec->vmaster_mute.sw_kctl && spec->vmaster_mute.hook)
 		snd_hda_sync_vmaster_hook(&spec->vmaster_mute);

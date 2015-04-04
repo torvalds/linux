@@ -222,6 +222,10 @@ static int si3054_init(struct hda_codec *codec)
 	unsigned wait_count;
 	u16 val;
 
+	if (snd_hdac_regmap_add_vendor_verb(&codec->core,
+					    SI3054_VERB_WRITE_NODE))
+		return -ENOMEM;
+
 	snd_hda_codec_write(codec, AC_NODE_ROOT, 0, AC_VERB_SET_CODEC_RESET, 0);
 	snd_hda_codec_write(codec, codec->core.mfg, 0, AC_VERB_SET_STREAM_FORMAT, 0);
 	SET_REG(codec, SI3054_LINE_RATE, 9600);

@@ -32,6 +32,10 @@ static int dump_coef = -1;
 module_param(dump_coef, int, 0644);
 MODULE_PARM_DESC(dump_coef, "Dump processing coefficients in codec proc file (-1=auto, 0=disable, 1=enable)");
 
+/* always use noncached version */
+#define param_read(codec, nid, parm) \
+	snd_hdac_read_parm_uncached(&(codec)->core, nid, parm)
+
 static char *bits_names(unsigned int bits, char *names[], int size)
 {
 	int i, n;
@@ -119,9 +123,8 @@ static void print_amp_caps(struct snd_info_buffer *buffer,
 			   struct hda_codec *codec, hda_nid_t nid, int dir)
 {
 	unsigned int caps;
-	caps = snd_hda_param_read(codec, nid,
-				  dir == HDA_OUTPUT ?
-				    AC_PAR_AMP_OUT_CAP : AC_PAR_AMP_IN_CAP);
+	caps = param_read(codec, nid, dir == HDA_OUTPUT ?
+			  AC_PAR_AMP_OUT_CAP : AC_PAR_AMP_IN_CAP);
 	if (caps == -1 || caps == 0) {
 		snd_iprintf(buffer, "N/A\n");
 		return;
@@ -225,8 +228,8 @@ static void print_pcm_formats(struct snd_info_buffer *buffer,
 static void print_pcm_caps(struct snd_info_buffer *buffer,
 			   struct hda_codec *codec, hda_nid_t nid)
 {
-	unsigned int pcm = snd_hda_param_read(codec, nid, AC_PAR_PCM);
-	unsigned int stream = snd_hda_param_read(codec, nid, AC_PAR_STREAM);
+	unsigned int pcm = param_read(codec, nid, AC_PAR_PCM);
+	unsigned int stream = param_read(codec, nid, AC_PAR_STREAM);
 	if (pcm == -1 || stream == -1) {
 		snd_iprintf(buffer, "N/A\n");
 		return;
@@ -273,7 +276,7 @@ static void print_pin_caps(struct snd_info_buffer *buffer,
 	static char *jack_conns[4] = { "Jack", "N/A", "Fixed", "Both" };
 	unsigned int caps, val;
 
-	caps = snd_hda_param_read(codec, nid, AC_PAR_PIN_CAP);
+	caps = param_read(codec, nid, AC_PAR_PIN_CAP);
 	snd_iprintf(buffer, "  Pincap 0x%08x:", caps);
 	if (caps & AC_PINCAP_IN)
 		snd_iprintf(buffer, " IN");
@@ -401,8 +404,7 @@ static void print_pin_ctls(struct snd_info_buffer *buffer,
 static void print_vol_knob(struct snd_info_buffer *buffer,
 			   struct hda_codec *codec, hda_nid_t nid)
 {
-	unsigned int cap = snd_hda_param_read(codec, nid,
-					      AC_PAR_VOL_KNB_CAP);
+	unsigned int cap = param_read(codec, nid, AC_PAR_VOL_KNB_CAP);
 	snd_iprintf(buffer, "  Volume-Knob: delta=%d, steps=%d, ",
 		    (cap >> 7) & 1, cap & 0x7f);
 	cap = snd_hda_codec_read(codec, nid, 0,
@@ -487,7 +489,7 @@ static void print_power_state(struct snd_info_buffer *buffer,
 		[ilog2(AC_PWRST_EPSS)]		= "EPSS",
 	};
 
-	int sup = snd_hda_param_read(codec, nid, AC_PAR_POWER_STATE);
+	int sup = param_read(codec, nid, AC_PAR_POWER_STATE);
 	int pwr = snd_hda_codec_read(codec, nid, 0,
 				     AC_VERB_GET_POWER_STATE, 0);
 	if (sup != -1)
@@ -531,8 +533,7 @@ static void print_proc_caps(struct snd_info_buffer *buffer,
 			    struct hda_codec *codec, hda_nid_t nid)
 {
 	unsigned int i, ncoeff, oldindex;
-	unsigned int proc_caps = snd_hda_param_read(codec, nid,
-						    AC_PAR_PROC_CAP);
+	unsigned int proc_caps = param_read(codec, nid, AC_PAR_PROC_CAP);
 	ncoeff = (proc_caps & AC_PCAP_NUM_COEF) >> AC_PCAP_NUM_COEF_SHIFT;
 	snd_iprintf(buffer, "  Processing caps: benign=%d, ncoeff=%d\n",
 		    proc_caps & AC_PCAP_BENIGN, ncoeff);
@@ -597,7 +598,7 @@ static void print_gpio(struct snd_info_buffer *buffer,
 		       struct hda_codec *codec, hda_nid_t nid)
 {
 	unsigned int gpio =
-		snd_hda_param_read(codec, codec->core.afg, AC_PAR_GPIO_CAP);
+		param_read(codec, codec->core.afg, AC_PAR_GPIO_CAP);
 	unsigned int enable, direction, wake, unsol, sticky, data;
 	int i, max;
 	snd_iprintf(buffer, "GPIO: io=%d, o=%d, i=%d, "
@@ -727,8 +728,7 @@ static void print_codec_info(struct snd_info_entry *entry,
 
 	for (i = 0; i < nodes; i++, nid++) {
 		unsigned int wid_caps =
-			snd_hda_param_read(codec, nid,
-					   AC_PAR_AUDIO_WIDGET_CAP);
+			param_read(codec, nid, AC_PAR_AUDIO_WIDGET_CAP);
 		unsigned int wid_type = get_wcaps_type(wid_caps);
 		hda_nid_t *conn = NULL;
 		int conn_len = 0;

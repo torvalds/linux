@@ -75,6 +75,9 @@ static int hda_codec_driver_probe(struct device *dev)
 	err = codec_refresh_name(codec, codec->preset->name);
 	if (err < 0)
 		goto error;
+	err = snd_hdac_regmap_init(&codec->core);
+	if (err < 0)
+		goto error;
 
 	if (!try_module_get(owner)) {
 		err = -EINVAL;
@@ -98,6 +101,7 @@ static int hda_codec_driver_probe(struct device *dev)
 		snd_hda_codec_register(codec);
 	}
 
+	codec->core.lazy_cache = true;
 	return 0;
 
  error_module:
