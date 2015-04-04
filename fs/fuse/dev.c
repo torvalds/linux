@@ -1363,8 +1363,7 @@ static int fuse_dev_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static ssize_t fuse_dev_read(struct kiocb *iocb, const struct iovec *iov,
-			      unsigned long nr_segs, loff_t pos)
+static ssize_t fuse_dev_read(struct kiocb *iocb, struct iov_iter *to)
 {
 	struct fuse_copy_state cs;
 	struct file *file = iocb->ki_filp;
@@ -1372,9 +1371,12 @@ static ssize_t fuse_dev_read(struct kiocb *iocb, const struct iovec *iov,
 	if (!fc)
 		return -EPERM;
 
-	fuse_copy_init(&cs, fc, 1, iov, nr_segs);
+	if (!iter_is_iovec(to))
+		return -EINVAL;
 
-	return fuse_dev_do_read(fc, file, &cs, iov_length(iov, nr_segs));
+	fuse_copy_init(&cs, fc, 1, to->iov, to->nr_segs);
+
+	return fuse_dev_do_read(fc, file, &cs, iov_iter_count(to));
 }
 
 static ssize_t fuse_dev_splice_read(struct file *in, loff_t *ppos,
@@ -1970,17 +1972,19 @@ static ssize_t fuse_dev_do_write(struct fuse_conn *fc,
 	return err;
 }
 
-static ssize_t fuse_dev_write(struct kiocb *iocb, const struct iovec *iov,
-			      unsigned long nr_segs, loff_t pos)
+static ssize_t fuse_dev_write(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct fuse_copy_state cs;
 	struct fuse_conn *fc = fuse_get_conn(iocb->ki_filp);
 	if (!fc)
 		return -EPERM;
 
-	fuse_copy_init(&cs, fc, 0, iov, nr_segs);
+	if (!iter_is_iovec(from))
+		return -EINVAL;
 
-	return fuse_dev_do_write(fc, &cs, iov_length(iov, nr_segs));
+	fuse_copy_init(&cs, fc, 0, from->iov, from->nr_segs);
+
+	return fuse_dev_do_write(fc, &cs, iov_iter_count(from));
 }
 
 static ssize_t fuse_dev_splice_write(struct pipe_inode_info *pipe,
@@ -2232,11 +2236,9 @@ const struct file_operations fuse_dev_operations = {
 	.owner		= THIS_MODULE,
 	.open		= fuse_dev_open,
 	.llseek		= no_llseek,
-	.read		= do_sync_read,
-	.aio_read	= fuse_dev_read,
+	.read_iter	= fuse_dev_read,
 	.splice_read	= fuse_dev_splice_read,
-	.write		= do_sync_write,
-	.aio_write	= fuse_dev_write,
+	.write_iter	= fuse_dev_write,
 	.splice_write	= fuse_dev_splice_write,
 	.poll		= fuse_dev_poll,
 	.release	= fuse_dev_release,
