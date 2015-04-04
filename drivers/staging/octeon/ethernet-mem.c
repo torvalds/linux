@@ -160,7 +160,7 @@ int cvm_oct_mem_fill_fpa(int pool, int size, int elements)
 {
 	int freed;
 
-	if (USE_SKBUFFS_IN_HW && pool == CVMX_FPA_PACKET_POOL)
+	if (pool == CVMX_FPA_PACKET_POOL)
 		freed = cvm_oct_fill_hw_skbuff(pool, size, elements);
 	else
 		freed = cvm_oct_fill_hw_memory(pool, size, elements);
@@ -169,7 +169,7 @@ int cvm_oct_mem_fill_fpa(int pool, int size, int elements)
 
 void cvm_oct_mem_empty_fpa(int pool, int size, int elements)
 {
-	if (USE_SKBUFFS_IN_HW && pool == CVMX_FPA_PACKET_POOL)
+	if (pool == CVMX_FPA_PACKET_POOL)
 		cvm_oct_free_hw_skbuff(pool, size, elements);
 	else
 		cvm_oct_free_hw_memory(pool, size, elements);

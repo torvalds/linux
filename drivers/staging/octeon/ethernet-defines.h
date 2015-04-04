@@ -27,10 +27,6 @@
 
 /*
  * A few defines are used to control the operation of this driver:
- *  USE_SKBUFFS_IN_HW
- *      Tells the driver to populate the packet buffers with kernel skbuffs.
- *      This allows the driver to receive packets without copying them. It also
- *      means that 32bit userspace can't access the packet buffers.
  *  USE_ASYNC_IOBDMA
  *      Use asynchronous IO access to hardware. This uses Octeon's asynchronous
  *      IOBDMAs to issue IO accesses without stalling. Set this to zero
@@ -50,7 +46,6 @@
 
 #define OCTEON_ETHERNET_VERSION "1.9"
 
-#define USE_SKBUFFS_IN_HW           1
 #ifdef CONFIG_NETFILTER
 #define REUSE_SKBUFFS_WITHOUT_FREE  0
 #else

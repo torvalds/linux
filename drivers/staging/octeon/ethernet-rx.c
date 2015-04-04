@@ -230,7 +230,7 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 		}
 		rx_count++;
 
-		skb_in_hw = USE_SKBUFFS_IN_HW && work->word2.s.bufs == 1;
+		skb_in_hw = work->word2.s.bufs == 1;
 		if (likely(skb_in_hw)) {
 			skb = *pskb;
 			prefetch(&skb->head);
@@ -391,7 +391,7 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 		 * Check to see if the skbuff and work share the same
 		 * packet buffer.
 		 */
-		if (USE_SKBUFFS_IN_HW && likely(packet_not_copied)) {
+		if (likely(packet_not_copied)) {
 			/*
 			 * This buffer needs to be replaced, increment
 			 * the number of buffers we need to free by
