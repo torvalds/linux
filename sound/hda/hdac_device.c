@@ -9,6 +9,7 @@
 #include <linux/export.h>
 #include <linux/pm_runtime.h>
 #include <sound/hdaudio.h>
+#include <sound/hda_regmap.h>
 #include "local.h"
 
 static void setup_fg_nodes(struct hdac_device *codec);
@@ -234,7 +235,22 @@ int snd_hdac_read(struct hdac_device *codec, hda_nid_t nid,
 EXPORT_SYMBOL_GPL(snd_hdac_read);
 
 /**
- * snd_hdac_read_parm - read a codec parameter
+ * _snd_hdac_read_parm - read a parmeter
+ *
+ * This function returns zero or an error unlike snd_hdac_read_parm().
+ */
+int _snd_hdac_read_parm(struct hdac_device *codec, hda_nid_t nid, int parm,
+			unsigned int *res)
+{
+	unsigned int cmd;
+
+	cmd = snd_hdac_regmap_encode_verb(nid, AC_VERB_PARAMETERS) | parm;
+	return snd_hdac_regmap_read_raw(codec, cmd, res);
+}
+EXPORT_SYMBOL_GPL(_snd_hdac_read_parm);
+
+/**
+ * snd_hdac_read_parm_uncached - read a codec parameter without caching
  * @codec: the codec object
  * @nid: NID to read a parameter
  * @parm: parameter to read
@@ -242,15 +258,42 @@ EXPORT_SYMBOL_GPL(snd_hdac_read);
  * Returns -1 for error.  If you need to distinguish the error more
  * strictly, use snd_hdac_read() directly.
  */
-int snd_hdac_read_parm(struct hdac_device *codec, hda_nid_t nid, int parm)
+int snd_hdac_read_parm_uncached(struct hdac_device *codec, hda_nid_t nid,
+				int parm)
 {
 	int val;
 
-	if (snd_hdac_read(codec, nid, AC_VERB_PARAMETERS, parm, &val))
-		return -1;
+	if (codec->regmap)
+		regcache_cache_bypass(codec->regmap, true);
+	val = snd_hdac_read_parm(codec, nid, parm);
+	if (codec->regmap)
+		regcache_cache_bypass(codec->regmap, false);
 	return val;
 }
-EXPORT_SYMBOL_GPL(snd_hdac_read_parm);
+EXPORT_SYMBOL_GPL(snd_hdac_read_parm_uncached);
+
+/**
+ * snd_hdac_override_parm - override read-only parameters
+ * @codec: the codec object
+ * @nid: NID for the parameter
+ * @parm: the parameter to change
+ * @val: the parameter value to overwrite
+ */
+int snd_hdac_override_parm(struct hdac_device *codec, hda_nid_t nid,
+			   unsigned int parm, unsigned int val)
+{
+	unsigned int verb = (AC_VERB_PARAMETERS << 8) | (nid << 20) | parm;
+	int err;
+
+	if (!codec->regmap)
+		return -EINVAL;
+
+	codec->caps_overwriting = true;
+	err = snd_hdac_regmap_write_raw(codec, verb, val);
+	codec->caps_overwriting = false;
+	return err;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_override_parm);
 
 /**
  * snd_hdac_get_sub_nodes - get start NID and number of subtree nodes
@@ -259,13 +302,14 @@ EXPORT_SYMBOL_GPL(snd_hdac_read_parm);
  * @start_id: the pointer to store the starting NID
  *
  * Returns the number of subtree nodes or zero if not found.
+ * This function reads parameters always without caching.
  */
 int snd_hdac_get_sub_nodes(struct hdac_device *codec, hda_nid_t nid,
 			   hda_nid_t *start_id)
 {
 	unsigned int parm;
 
-	parm = snd_hdac_read_parm(codec, nid, AC_PAR_NODE_COUNT);
+	parm = snd_hdac_read_parm_uncached(codec, nid, AC_PAR_NODE_COUNT);
 	if (parm == -1) {
 		*start_id = 0;
 		return 0;

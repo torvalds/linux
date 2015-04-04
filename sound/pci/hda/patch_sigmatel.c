@@ -1050,12 +1050,9 @@ static const struct hda_verb stac92hd71bxx_core_init[] = {
 	{}
 };
 
-static const struct hda_verb stac92hd71bxx_unmute_core_init[] = {
+static const hda_nid_t stac92hd71bxx_unmute_nids[] = {
 	/* unmute right and left channels for nodes 0x0f, 0xa, 0x0d */
-	{ 0x0f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{ 0x0a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{ 0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{}
+	0x0f, 0x0a, 0x0d, 0
 };
 
 static const struct hda_verb stac925x_core_init[] = {
@@ -4269,6 +4266,10 @@ static int stac_parse_auto_config(struct hda_codec *codec)
 
 	if (spec->aloopback_ctl &&
 	    snd_hda_get_bool_hint(codec, "loopback") == 1) {
+		unsigned int wr_verb =
+			spec->aloopback_ctl->private_value >> 16;
+		if (snd_hdac_regmap_add_vendor_verb(&codec->core, wr_verb))
+			return -ENOMEM;
 		if (!snd_hda_gen_add_kctl(&spec->gen, NULL, spec->aloopback_ctl))
 			return -ENOMEM;
 	}
@@ -4688,7 +4689,7 @@ static int patch_stac92hd95(struct hda_codec *codec)
 static int patch_stac92hd71bxx(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec;
-	const struct hda_verb *unmute_init = stac92hd71bxx_unmute_core_init;
+	const hda_nid_t *unmute_nids = stac92hd71bxx_unmute_nids;
 	int err;
 
 	err = alloc_stac_spec(codec);
@@ -4713,7 +4714,7 @@ static int patch_stac92hd71bxx(struct hda_codec *codec)
 	switch (codec->core.vendor_id) {
 	case 0x111d76b6: /* 4 Port without Analog Mixer */
 	case 0x111d76b7:
-		unmute_init++;
+		unmute_nids++;
 		break;
 	case 0x111d7608: /* 5 Port with Analog Mixer */
 		if ((codec->core.revision_id & 0xf) == 0 ||
@@ -4721,7 +4722,7 @@ static int patch_stac92hd71bxx(struct hda_codec *codec)
 			spec->stream_delay = 40; /* 40 milliseconds */
 
 		/* disable VSW */
-		unmute_init++;
+		unmute_nids++;
 		snd_hda_codec_set_pincfg(codec, 0x0f, 0x40f000f0);
 		snd_hda_codec_set_pincfg(codec, 0x19, 0x40f000f3);
 		break;
@@ -4735,8 +4736,12 @@ static int patch_stac92hd71bxx(struct hda_codec *codec)
 	if (get_wcaps_type(get_wcaps(codec, 0x28)) == AC_WID_VOL_KNB)
 		snd_hda_add_verbs(codec, stac92hd71bxx_core_init);
 
-	if (get_wcaps(codec, 0xa) & AC_WCAP_IN_AMP)
-		snd_hda_sequence_write_cache(codec, unmute_init);
+	if (get_wcaps(codec, 0xa) & AC_WCAP_IN_AMP) {
+		const hda_nid_t *p;
+		for (p = unmute_nids; *p; p++)
+			snd_hda_codec_amp_init_stereo(codec, *p, HDA_INPUT, 0,
+						      0xff, 0x00);
+	}
 
 	spec->aloopback_ctl = &stac92hd71bxx_loopback;
 	spec->aloopback_mask = 0x50;
