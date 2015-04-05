@@ -2872,6 +2872,10 @@ const struct nft_set_ext_type nft_set_ext_types[] = {
 		.len	= sizeof(unsigned long),
 		.align	= __alignof__(unsigned long),
 	},
+	[NFT_SET_EXT_USERDATA]		= {
+		.len	= sizeof(struct nft_userdata),
+		.align	= __alignof__(struct nft_userdata),
+	},
 };
 EXPORT_SYMBOL_GPL(nft_set_ext_types);
 
@@ -2884,6 +2888,8 @@ static const struct nla_policy nft_set_elem_policy[NFTA_SET_ELEM_MAX + 1] = {
 	[NFTA_SET_ELEM_DATA]		= { .type = NLA_NESTED },
 	[NFTA_SET_ELEM_FLAGS]		= { .type = NLA_U32 },
 	[NFTA_SET_ELEM_TIMEOUT]		= { .type = NLA_U64 },
+	[NFTA_SET_ELEM_USERDATA]	= { .type = NLA_BINARY,
+					    .len = NFT_USERDATA_MAXLEN },
 };
 
 static const struct nla_policy nft_set_elem_list_policy[NFTA_SET_ELEM_LIST_MAX + 1] = {
@@ -2961,6 +2967,15 @@ static int nf_tables_fill_setelem(struct sk_buff *skb,
 
 		if (nla_put_be64(skb, NFTA_SET_ELEM_EXPIRATION,
 				 cpu_to_be64(jiffies_to_msecs(expires))))
+			goto nla_put_failure;
+	}
+
+	if (nft_set_ext_exists(ext, NFT_SET_EXT_USERDATA)) {
+		struct nft_userdata *udata;
+
+		udata = nft_set_ext_userdata(ext);
+		if (nla_put(skb, NFTA_SET_ELEM_USERDATA,
+			    udata->len + 1, udata->data))
 			goto nla_put_failure;
 	}
 
@@ -3232,11 +3247,13 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 	struct nft_set_ext *ext;
 	struct nft_set_elem elem;
 	struct nft_set_binding *binding;
+	struct nft_userdata *udata;
 	struct nft_data data;
 	enum nft_registers dreg;
 	struct nft_trans *trans;
 	u64 timeout;
 	u32 flags;
+	u8 ulen;
 	int err;
 
 	err = nla_parse_nested(nla, NFTA_SET_ELEM_MAX, attr,
@@ -3325,6 +3342,18 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 		nft_set_ext_add(&tmpl, NFT_SET_EXT_DATA);
 	}
 
+	/* The full maximum length of userdata can exceed the maximum
+	 * offset value (U8_MAX) for following extensions, therefor it
+	 * must be the last extension added.
+	 */
+	ulen = 0;
+	if (nla[NFTA_SET_ELEM_USERDATA] != NULL) {
+		ulen = nla_len(nla[NFTA_SET_ELEM_USERDATA]);
+		if (ulen > 0)
+			nft_set_ext_add_length(&tmpl, NFT_SET_EXT_USERDATA,
+					       ulen);
+	}
+
 	err = -ENOMEM;
 	elem.priv = nft_set_elem_init(set, &tmpl, &elem.key, &data,
 				      timeout, GFP_KERNEL);
@@ -3334,6 +3363,11 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 	ext = nft_set_elem_ext(set, elem.priv);
 	if (flags)
 		*nft_set_ext_flags(ext) = flags;
+	if (ulen > 0) {
+		udata = nft_set_ext_userdata(ext);
+		udata->len = ulen - 1;
+		nla_memcpy(&udata->data, nla[NFTA_SET_ELEM_USERDATA], ulen);
+	}
 
 	trans = nft_trans_elem_alloc(ctx, NFT_MSG_NEWSETELEM, set);
 	if (trans == NULL)
