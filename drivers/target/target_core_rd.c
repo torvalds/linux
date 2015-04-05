@@ -382,6 +382,36 @@ static struct rd_dev_sg_table *rd_get_prot_table(struct rd_dev *rd_dev, u32 page
 	return NULL;
 }
 
+typedef sense_reason_t (*dif_verify)(struct se_cmd *, sector_t, unsigned int,
+				     unsigned int, struct scatterlist *, int);
+
+static sense_reason_t rd_do_prot_rw(struct se_cmd *cmd, dif_verify dif_verify)
+{
+	struct se_device *se_dev = cmd->se_dev;
+	struct rd_dev *dev = RD_DEV(se_dev);
+	struct rd_dev_sg_table *prot_table;
+	struct scatterlist *prot_sg;
+	u32 sectors = cmd->data_length / se_dev->dev_attrib.block_size;
+	u32 prot_offset, prot_page;
+	u64 tmp;
+	sense_reason_t rc;
+
+	tmp = cmd->t_task_lba * se_dev->prot_length;
+	prot_offset = do_div(tmp, PAGE_SIZE);
+	prot_page = tmp;
+
+	prot_table = rd_get_prot_table(dev, prot_page);
+	if (!prot_table)
+		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+
+	prot_sg = &prot_table->sg_table[prot_page -
+					prot_table->page_start_offset];
+
+	rc = dif_verify(cmd, cmd->t_task_lba, sectors, 0, prot_sg, prot_offset);
+
+	return rc;
+}
+
 static sense_reason_t
 rd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 	      enum dma_data_direction data_direction)
@@ -421,23 +451,7 @@ rd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 
 	if (cmd->prot_type && se_dev->dev_attrib.pi_prot_type &&
 	    data_direction == DMA_TO_DEVICE) {
-		struct rd_dev_sg_table *prot_table;
-		struct scatterlist *prot_sg;
-		u32 sectors = cmd->data_length / se_dev->dev_attrib.block_size;
-		u32 prot_offset, prot_page;
-
-		tmp = cmd->t_task_lba * se_dev->prot_length;
-		prot_offset = do_div(tmp, PAGE_SIZE);
-		prot_page = tmp;
-
-		prot_table = rd_get_prot_table(dev, prot_page);
-		if (!prot_table)
-			return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-
-		prot_sg = &prot_table->sg_table[prot_page - prot_table->page_start_offset];
-
-		rc = sbc_dif_verify_write(cmd, cmd->t_task_lba, sectors, 0,
-					  prot_sg, prot_offset);
+		rc = rd_do_prot_rw(cmd, sbc_dif_verify_write);
 		if (rc)
 			return rc;
 	}
@@ -505,23 +519,7 @@ rd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 
 	if (cmd->prot_type && se_dev->dev_attrib.pi_prot_type &&
 	    data_direction == DMA_FROM_DEVICE) {
-		struct rd_dev_sg_table *prot_table;
-		struct scatterlist *prot_sg;
-		u32 sectors = cmd->data_length / se_dev->dev_attrib.block_size;
-		u32 prot_offset, prot_page;
-
-		tmp = cmd->t_task_lba * se_dev->prot_length;
-		prot_offset = do_div(tmp, PAGE_SIZE);
-		prot_page = tmp;
-
-		prot_table = rd_get_prot_table(dev, prot_page);
-		if (!prot_table)
-			return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-
-		prot_sg = &prot_table->sg_table[prot_page - prot_table->page_start_offset];
-
-		rc = sbc_dif_verify_read(cmd, cmd->t_task_lba, sectors, 0,
-					 prot_sg, prot_offset);
+		rc = rd_do_prot_rw(cmd, sbc_dif_verify_read);
 		if (rc)
 			return rc;
 	}
