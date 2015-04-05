@@ -756,14 +756,7 @@ static const struct hci_uart_proto h5p = {
 
 int __init h5_init(void)
 {
-	int err = hci_uart_register_proto(&h5p);
-
-	if (!err)
-		BT_INFO("HCI Three-wire UART (H5) protocol initialized");
-	else
-		BT_ERR("HCI Three-wire UART (H5) protocol init failed");
-
-	return err;
+	return hci_uart_register_proto(&h5p);
 }
 
 int __exit h5_deinit(void)

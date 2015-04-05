@@ -218,14 +218,7 @@ static const struct hci_uart_proto athp = {
 
 int __init ath_init(void)
 {
-	int err = hci_uart_register_proto(&athp);
-
-	if (!err)
-		BT_INFO("HCIATH3K protocol initialized");
-	else
-		BT_ERR("HCIATH3K protocol registration failed");
-
-	return err;
+	return hci_uart_register_proto(&athp);
 }
 
 int __exit ath_deinit(void)

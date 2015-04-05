@@ -60,6 +60,8 @@ int hci_uart_register_proto(const struct hci_uart_proto *p)
 
 	hup[p->id] = p;
 
+	BT_INFO("HCI UART protocol %s registered", p->name);
+
 	return 0;
 }
 

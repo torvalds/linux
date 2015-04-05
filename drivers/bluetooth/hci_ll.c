@@ -518,14 +518,7 @@ static const struct hci_uart_proto llp = {
 
 int __init ll_init(void)
 {
-	int err = hci_uart_register_proto(&llp);
-
-	if (!err)
-		BT_INFO("HCILL protocol initialized");
-	else
-		BT_ERR("HCILL protocol registration failed");
-
-	return err;
+	return hci_uart_register_proto(&llp);
 }
 
 int __exit ll_deinit(void)

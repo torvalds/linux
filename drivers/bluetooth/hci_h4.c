@@ -152,14 +152,7 @@ static const struct hci_uart_proto h4p = {
 
 int __init h4_init(void)
 {
-	int err = hci_uart_register_proto(&h4p);
-
-	if (!err)
-		BT_INFO("HCI H4 protocol initialized");
-	else
-		BT_ERR("HCI H4 protocol registration failed");
-
-	return err;
+	return hci_uart_register_proto(&h4p);
 }
 
 int __exit h4_deinit(void)
