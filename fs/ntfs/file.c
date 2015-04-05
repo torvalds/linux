@@ -328,25 +328,28 @@ err_out:
 	return err;
 }
 
-static ssize_t ntfs_prepare_file_for_write(struct file *file, loff_t *ppos,
-		size_t *count)
+static ssize_t ntfs_prepare_file_for_write(struct kiocb *iocb,
+		struct iov_iter *from)
 {
 	loff_t pos;
 	s64 end, ll;
 	ssize_t err;
 	unsigned long flags;
+	struct file *file = iocb->ki_filp;
 	struct inode *vi = file_inode(file);
 	ntfs_inode *base_ni, *ni = NTFS_I(vi);
 	ntfs_volume *vol = ni->vol;
+	size_t count = iov_iter_count(from);
 
 	ntfs_debug("Entering for i_ino 0x%lx, attribute type 0x%x, pos "
-			"0x%llx, count 0x%lx.", vi->i_ino,
+			"0x%llx, count 0x%zx.", vi->i_ino,
 			(unsigned)le32_to_cpu(ni->type),
-			(unsigned long long)*ppos, (unsigned long)*count);
-	/* We can write back this queue in page reclaim. */
-	current->backing_dev_info = inode_to_bdi(vi);
-	err = generic_write_checks(file, ppos, count, S_ISBLK(vi->i_mode));
+			(unsigned long long)iocb->ki_pos, count);
+	err = generic_write_checks(file, &iocb->ki_pos, &count, S_ISBLK(vi->i_mode));
 	if (unlikely(err))
+		goto out;
+	iov_iter_truncate(from, count);
+	if (count == 0)
 		goto out;
 	/*
 	 * All checks have passed.  Before we start doing any writing we want
@@ -379,8 +382,6 @@ static ssize_t ntfs_prepare_file_for_write(struct file *file, loff_t *ppos,
 		err = -EOPNOTSUPP;
 		goto out;
 	}
-	if (*count == 0)
-		goto out;
 	base_ni = ni;
 	if (NInoAttr(ni))
 		base_ni = ni->ext.base_ntfs_ino;
@@ -392,9 +393,9 @@ static ssize_t ntfs_prepare_file_for_write(struct file *file, loff_t *ppos,
 	 * cannot fail either so there is no need to check the return code.
 	 */
 	file_update_time(file);
-	pos = *ppos;
+	pos = iocb->ki_pos;
 	/* The first byte after the last cluster being written to. */
-	end = (pos + *count + vol->cluster_size_mask) &
+	end = (pos + iov_iter_count(from) + vol->cluster_size_mask) &
 			~(u64)vol->cluster_size_mask;
 	/*
 	 * If the write goes beyond the allocated size, extend the allocation
@@ -422,7 +423,7 @@ static ssize_t ntfs_prepare_file_for_write(struct file *file, loff_t *ppos,
 						"partially extended.",
 						vi->i_ino, (unsigned)
 						le32_to_cpu(ni->type));
-				*count = ll - pos;
+				iov_iter_truncate(from, ll - pos);
 			}
 		} else {
 			err = ll;
@@ -438,7 +439,7 @@ static ssize_t ntfs_prepare_file_for_write(struct file *file, loff_t *ppos,
 						vi->i_ino, (unsigned)
 						le32_to_cpu(ni->type),
 						(int)-err);
-				*count = ll - pos;
+				iov_iter_truncate(from, ll - pos);
 			} else {
 				if (err != -ENOSPC)
 					ntfs_error(vi->i_sb, "Cannot perform "
@@ -1930,60 +1931,36 @@ again:
 }
 
 /**
- * ntfs_file_write_iter_nolock - write data to a file
- * @iocb:	IO state structure (file, offset, etc.)
- * @from:	iov_iter with data to write
- *
- * Basically the same as __generic_file_write_iter() except that it ends
- * up calling ntfs_perform_write() instead of generic_perform_write() and that
- * O_DIRECT is not implemented.
- */
-static ssize_t ntfs_file_write_iter_nolock(struct kiocb *iocb,
-		struct iov_iter *from)
-{
-	struct file *file = iocb->ki_filp;
-	loff_t pos = iocb->ki_pos;
-	ssize_t written = 0;
-	ssize_t err;
-	size_t count = iov_iter_count(from);
-
-	err = ntfs_prepare_file_for_write(file, &pos, &count);
-	if (count && !err) {
-		iov_iter_truncate(from, count);
-		written = ntfs_perform_write(file, from, pos);
-		if (likely(written >= 0))
-			iocb->ki_pos = pos + written;
-	}
-	current->backing_dev_info = NULL;
-	return written ? written : err;
-}
-
-/**
  * ntfs_file_write_iter - simple wrapper for ntfs_file_write_iter_nolock()
  * @iocb:	IO state structure
  * @from:	iov_iter with data to write
  *
  * Basically the same as generic_file_write_iter() except that it ends up
- * calling ntfs_file_write_iter_nolock() instead of
- * __generic_file_write_iter().
+ * up calling ntfs_perform_write() instead of generic_perform_write() and that
+ * O_DIRECT is not implemented.
  */
 static ssize_t ntfs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *vi = file_inode(file);
-	ssize_t ret;
+	ssize_t written = 0;
+	ssize_t err;
 
 	mutex_lock(&vi->i_mutex);
-	ret = ntfs_file_write_iter_nolock(iocb, from);
+	/* We can write back this queue in page reclaim. */
+	current->backing_dev_info = inode_to_bdi(vi);
+	err = ntfs_prepare_file_for_write(iocb, from);
+	if (iov_iter_count(from) && !err)
+		written = ntfs_perform_write(file, from, iocb->ki_pos);
+	current->backing_dev_info = NULL;
 	mutex_unlock(&vi->i_mutex);
-	if (ret > 0) {
-		ssize_t err;
-
-		err = generic_write_sync(file, iocb->ki_pos - ret, ret);
+	if (likely(written > 0)) {
+		err = generic_write_sync(file, iocb->ki_pos, written);
 		if (err < 0)
-			ret = err;
+			written = 0;
 	}
-	return ret;
+	iocb->ki_pos += written;
+	return written ? written : err;
 }
 
 /**
