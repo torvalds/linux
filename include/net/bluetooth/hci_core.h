@@ -185,7 +185,6 @@ struct amp_assoc {
 
 #define HCI_MAX_PAGES	3
 
-#define NUM_REASSEMBLY 4
 struct hci_dev {
 	struct list_head list;
 	struct mutex	lock;
@@ -327,7 +326,6 @@ struct hci_dev {
 	struct sk_buff_head	cmd_q;
 
 	struct sk_buff		*sent_cmd;
-	struct sk_buff		*reassembly[NUM_REASSEMBLY];
 
 	struct mutex		req_lock;
 	wait_queue_head_t	req_wait_q;
@@ -1012,7 +1010,6 @@ int hci_remove_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr,
 void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb);
 
 int hci_recv_frame(struct hci_dev *hdev, struct sk_buff *skb);
-int hci_recv_stream_fragment(struct hci_dev *hdev, const void *data, int count);
 
 void hci_init_sysfs(struct hci_dev *hdev);
 void hci_conn_init_sysfs(struct hci_conn *conn);
