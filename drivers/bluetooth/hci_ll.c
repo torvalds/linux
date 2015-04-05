@@ -505,7 +505,7 @@ static struct sk_buff *ll_dequeue(struct hci_uart *hu)
 	return skb_dequeue(&ll->txq);
 }
 
-static struct hci_uart_proto llp = {
+static const struct hci_uart_proto llp = {
 	.id		= HCI_UART_LL,
 	.open		= ll_open,
 	.close		= ll_close,

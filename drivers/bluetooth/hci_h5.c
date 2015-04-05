@@ -743,7 +743,7 @@ static int h5_flush(struct hci_uart *hu)
 	return 0;
 }
 
-static struct hci_uart_proto h5p = {
+static const struct hci_uart_proto h5p = {
 	.id		= HCI_UART_3WIRE,
 	.open		= h5_open,
 	.close		= h5_close,

@@ -75,7 +75,7 @@ struct hci_uart {
 	struct work_struct	init_ready;
 	struct work_struct	write_work;
 
-	struct hci_uart_proto	*proto;
+	const struct hci_uart_proto *proto;
 	void			*priv;
 
 	struct sk_buff		*tx_skb;
@@ -91,8 +91,8 @@ struct hci_uart {
 #define HCI_UART_SENDING	1
 #define HCI_UART_TX_WAKEUP	2
 
-int hci_uart_register_proto(struct hci_uart_proto *p);
-int hci_uart_unregister_proto(struct hci_uart_proto *p);
+int hci_uart_register_proto(const struct hci_uart_proto *p);
+int hci_uart_unregister_proto(const struct hci_uart_proto *p);
 int hci_uart_tx_wakeup(struct hci_uart *hu);
 int hci_uart_init_ready(struct hci_uart *hu);
 

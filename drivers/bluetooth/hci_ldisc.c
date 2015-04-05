@@ -48,9 +48,9 @@
 
 #define VERSION "2.2"
 
-static struct hci_uart_proto *hup[HCI_UART_MAX_PROTO];
+static const struct hci_uart_proto *hup[HCI_UART_MAX_PROTO];
 
-int hci_uart_register_proto(struct hci_uart_proto *p)
+int hci_uart_register_proto(const struct hci_uart_proto *p)
 {
 	if (p->id >= HCI_UART_MAX_PROTO)
 		return -EINVAL;
@@ -63,7 +63,7 @@ int hci_uart_register_proto(struct hci_uart_proto *p)
 	return 0;
 }
 
-int hci_uart_unregister_proto(struct hci_uart_proto *p)
+int hci_uart_unregister_proto(const struct hci_uart_proto *p)
 {
 	if (p->id >= HCI_UART_MAX_PROTO)
 		return -EINVAL;
@@ -76,7 +76,7 @@ int hci_uart_unregister_proto(struct hci_uart_proto *p)
 	return 0;
 }
 
-static struct hci_uart_proto *hci_uart_get_proto(unsigned int id)
+static const struct hci_uart_proto *hci_uart_get_proto(unsigned int id)
 {
 	if (id >= HCI_UART_MAX_PROTO)
 		return NULL;
@@ -506,7 +506,7 @@ static int hci_uart_register_dev(struct hci_uart *hu)
 
 static int hci_uart_set_proto(struct hci_uart *hu, int id)
 {
-	struct hci_uart_proto *p;
+	const struct hci_uart_proto *p;
 	int err;
 
 	p = hci_uart_get_proto(id);

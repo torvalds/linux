@@ -205,7 +205,7 @@ static int ath_recv(struct hci_uart *hu, const void *data, int count)
 	return count;
 }
 
-static struct hci_uart_proto athp = {
+static const struct hci_uart_proto athp = {
 	.id = HCI_UART_ATH3K,
 	.open = ath_open,
 	.close = ath_close,
