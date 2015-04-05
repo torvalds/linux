@@ -239,8 +239,14 @@ int __init nf_tables_core_module_init(void)
 	if (err < 0)
 		goto err6;
 
+	err = nft_dynset_module_init();
+	if (err < 0)
+		goto err7;
+
 	return 0;
 
+err7:
+	nft_payload_module_exit();
 err6:
 	nft_byteorder_module_exit();
 err5:
@@ -257,6 +263,7 @@ err1:
 
 void nf_tables_core_module_exit(void)
 {
+	nft_dynset_module_exit();
 	nft_payload_module_exit();
 	nft_byteorder_module_exit();
 	nft_bitwise_module_exit();

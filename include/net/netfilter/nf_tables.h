@@ -196,6 +196,7 @@ struct nft_set_estimate {
 };
 
 struct nft_set_ext;
+struct nft_expr;
 
 /**
  *	struct nft_set_ops - nf_tables set operations
@@ -218,6 +219,15 @@ struct nft_set_ops {
 	bool				(*lookup)(const struct nft_set *set,
 						  const struct nft_data *key,
 						  const struct nft_set_ext **ext);
+	bool				(*update)(struct nft_set *set,
+						  const struct nft_data *key,
+						  void *(*new)(struct nft_set *,
+							       const struct nft_expr *,
+							       struct nft_data []),
+						  const struct nft_expr *expr,
+						  struct nft_data data[],
+						  const struct nft_set_ext **ext);
+
 	int				(*insert)(const struct nft_set *set,
 						  const struct nft_set_elem *elem);
 	void				(*activate)(const struct nft_set *set,
@@ -466,6 +476,11 @@ static inline struct nft_set_ext *nft_set_elem_ext(const struct nft_set *set,
 	return elem + set->ops->elemsize;
 }
 
+void *nft_set_elem_init(const struct nft_set *set,
+			const struct nft_set_ext_tmpl *tmpl,
+			const struct nft_data *key,
+			const struct nft_data *data,
+			u64 timeout, gfp_t gfp);
 void nft_set_elem_destroy(const struct nft_set *set, void *elem);
 
 /**
@@ -844,6 +859,8 @@ static inline u8 nft_genmask_cur(const struct net *net)
 	/* Use ACCESS_ONCE() to prevent refetching the value for atomicity */
 	return 1 << ACCESS_ONCE(net->nft.gencursor);
 }
+
+#define NFT_GENMASK_ANY		((1 << 0) | (1 << 1))
 
 /*
  * Set element transaction helpers

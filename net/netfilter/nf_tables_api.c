@@ -3183,11 +3183,11 @@ static struct nft_trans *nft_trans_elem_alloc(struct nft_ctx *ctx,
 	return trans;
 }
 
-static void *nft_set_elem_init(const struct nft_set *set,
-			       const struct nft_set_ext_tmpl *tmpl,
-			       const struct nft_data *key,
-			       const struct nft_data *data,
-			       u64 timeout, gfp_t gfp)
+void *nft_set_elem_init(const struct nft_set *set,
+			const struct nft_set_ext_tmpl *tmpl,
+			const struct nft_data *key,
+			const struct nft_data *data,
+			u64 timeout, gfp_t gfp)
 {
 	struct nft_set_ext *ext;
 	void *elem;

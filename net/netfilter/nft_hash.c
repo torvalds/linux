@@ -90,6 +90,42 @@ static bool nft_hash_lookup(const struct nft_set *set,
 	return !!he;
 }
 
+static bool nft_hash_update(struct nft_set *set, const struct nft_data *key,
+			    void *(*new)(struct nft_set *,
+					 const struct nft_expr *,
+					 struct nft_data []),
+			    const struct nft_expr *expr,
+			    struct nft_data data[],
+			    const struct nft_set_ext **ext)
+{
+	struct nft_hash *priv = nft_set_priv(set);
+	struct nft_hash_elem *he;
+	struct nft_hash_cmp_arg arg = {
+		.genmask = NFT_GENMASK_ANY,
+		.set	 = set,
+		.key	 = key,
+	};
+
+	he = rhashtable_lookup_fast(&priv->ht, &arg, nft_hash_params);
+	if (he != NULL)
+		goto out;
+
+	he = new(set, expr, data);
+	if (he == NULL)
+		goto err1;
+	if (rhashtable_lookup_insert_key(&priv->ht, &arg, &he->node,
+					 nft_hash_params))
+		goto err2;
+out:
+	*ext = &he->ext;
+	return true;
+
+err2:
+	nft_set_elem_destroy(set, he);
+err1:
+	return false;
+}
+
 static int nft_hash_insert(const struct nft_set *set,
 			   const struct nft_set_elem *elem)
 {
@@ -335,6 +371,7 @@ static struct nft_set_ops nft_hash_ops __read_mostly = {
 	.deactivate	= nft_hash_deactivate,
 	.remove		= nft_hash_remove,
 	.lookup		= nft_hash_lookup,
+	.update		= nft_hash_update,
 	.walk		= nft_hash_walk,
 	.features	= NFT_SET_MAP | NFT_SET_TIMEOUT,
 	.owner		= THIS_MODULE,

@@ -515,6 +515,33 @@ enum nft_lookup_attributes {
 };
 #define NFTA_LOOKUP_MAX		(__NFTA_LOOKUP_MAX - 1)
 
+enum nft_dynset_ops {
+	NFT_DYNSET_OP_ADD,
+	NFT_DYNSET_OP_UPDATE,
+};
+
+/**
+ * enum nft_dynset_attributes - dynset expression attributes
+ *
+ * @NFTA_DYNSET_SET_NAME: name of set the to add data to (NLA_STRING)
+ * @NFTA_DYNSET_SET_ID: uniquely identifier of the set in the transaction (NLA_U32)
+ * @NFTA_DYNSET_OP: operation (NLA_U32)
+ * @NFTA_DYNSET_SREG_KEY: source register of the key (NLA_U32)
+ * @NFTA_DYNSET_SREG_DATA: source register of the data (NLA_U32)
+ * @NFTA_DYNSET_TIMEOUT: timeout value for the new element (NLA_U64)
+ */
+enum nft_dynset_attributes {
+	NFTA_DYNSET_UNSPEC,
+	NFTA_DYNSET_SET_NAME,
+	NFTA_DYNSET_SET_ID,
+	NFTA_DYNSET_OP,
+	NFTA_DYNSET_SREG_KEY,
+	NFTA_DYNSET_SREG_DATA,
+	NFTA_DYNSET_TIMEOUT,
+	__NFTA_DYNSET_MAX,
+};
+#define NFTA_DYNSET_MAX		(__NFTA_DYNSET_MAX - 1)
+
 /**
  * enum nft_payload_bases - nf_tables payload expression offset bases
  *
