@@ -46,8 +46,6 @@
 
 #include "hci_uart.h"
 
-#define VERSION "1.2"
-
 struct h4_struct {
 	struct sk_buff *rx_skb;
 	struct sk_buff_head txq;

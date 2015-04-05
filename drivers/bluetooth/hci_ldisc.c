@@ -46,7 +46,7 @@
 
 #include "hci_uart.h"
 
-#define VERSION "2.2"
+#define VERSION "2.3"
 
 static const struct hci_uart_proto *hup[HCI_UART_MAX_PROTO];
 

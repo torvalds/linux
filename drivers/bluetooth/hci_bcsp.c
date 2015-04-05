@@ -47,8 +47,6 @@
 
 #include "hci_uart.h"
 
-#define VERSION "0.3"
-
 static bool txcrc = 1;
 static bool hciextn = 1;
 
