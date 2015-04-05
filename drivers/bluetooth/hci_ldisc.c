@@ -429,7 +429,8 @@ static void hci_uart_tty_wakeup(struct tty_struct *tty)
  *
  * Return Value:    None
  */
-static void hci_uart_tty_receive(struct tty_struct *tty, const u8 *data, char *flags, int count)
+static void hci_uart_tty_receive(struct tty_struct *tty, const u8 *data,
+				 char *flags, int count)
 {
 	struct hci_uart *hu = tty->disc_data;
 
@@ -557,8 +558,8 @@ static int hci_uart_set_flags(struct hci_uart *hu, unsigned long flags)
  *
  * Return Value:    Command dependent
  */
-static int hci_uart_tty_ioctl(struct tty_struct *tty, struct file * file,
-					unsigned int cmd, unsigned long arg)
+static int hci_uart_tty_ioctl(struct tty_struct *tty, struct file *file,
+			      unsigned int cmd, unsigned long arg)
 {
 	struct hci_uart *hu = tty->disc_data;
 	int err = 0;
@@ -614,19 +615,19 @@ static int hci_uart_tty_ioctl(struct tty_struct *tty, struct file * file,
  * We don't provide read/write/poll interface for user space.
  */
 static ssize_t hci_uart_tty_read(struct tty_struct *tty, struct file *file,
-					unsigned char __user *buf, size_t nr)
+				 unsigned char __user *buf, size_t nr)
 {
 	return 0;
 }
 
 static ssize_t hci_uart_tty_write(struct tty_struct *tty, struct file *file,
-					const unsigned char *data, size_t count)
+				  const unsigned char *data, size_t count)
 {
 	return 0;
 }
 
 static unsigned int hci_uart_tty_poll(struct tty_struct *tty,
-					struct file *filp, poll_table *wait)
+				      struct file *filp, poll_table *wait)
 {
 	return 0;
 }
