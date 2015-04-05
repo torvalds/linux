@@ -1030,18 +1030,19 @@ static SENSOR_DEVICE_ATTR(temp2_type, S_IRUGO | S_IWUSR, show_temp_type,
 static SENSOR_DEVICE_ATTR(temp3_type, S_IRUGO | S_IWUSR, show_temp_type,
 			  set_temp_type, 2);
 
-/* 3 Fans */
+/* 6 Fans */
 
 static int pwm_mode(const struct it87_data *data, int nr)
 {
-	int ctrl = data->fan_main_ctrl & BIT(nr);
+	if (data->type != it8603 && nr < 3 && !(data->fan_main_ctrl & BIT(nr)))
+		return 0;				/* Full speed */
+	if (data->pwm_ctrl[nr] & 0x80)
+		return 2;				/* Automatic mode */
+	if ((data->type == it8603 || nr >= 3) &&
+	    data->pwm_duty[nr] == pwm_to_reg(data, 0xff))
+		return 0;			/* Full speed */
 
-	if (ctrl == 0 && data->type != it8603)		/* Full speed */
-		return 0;
-	if (data->pwm_ctrl[nr] & 0x80)			/* Automatic mode */
-		return 2;
-	else						/* Manual mode */
-		return 1;
+	return 1;				/* Manual mode */
 }
 
 static ssize_t show_fan(struct device *dev, struct device_attribute *attr,
@@ -1242,21 +1243,30 @@ static ssize_t set_pwm_enable(struct device *dev, struct device_attribute *attr,
 			return -EINVAL;
 	}
 
-	/* IT8603E does not have on/off mode */
-	if (val == 0 && data->type == it8603)
-		return -EINVAL;
-
 	mutex_lock(&data->update_lock);
 
 	if (val == 0) {
-		int tmp;
-		/* make sure the fan is on when in on/off mode */
-		tmp = it87_read_value(data, IT87_REG_FAN_CTL);
-		it87_write_value(data, IT87_REG_FAN_CTL, tmp | BIT(nr));
-		/* set on/off mode */
-		data->fan_main_ctrl &= ~BIT(nr);
-		it87_write_value(data, IT87_REG_FAN_MAIN_CTRL,
-				 data->fan_main_ctrl);
+		if (nr < 3 && data->type != it8603) {
+			int tmp;
+			/* make sure the fan is on when in on/off mode */
+			tmp = it87_read_value(data, IT87_REG_FAN_CTL);
+			it87_write_value(data, IT87_REG_FAN_CTL, tmp | BIT(nr));
+			/* set on/off mode */
+			data->fan_main_ctrl &= ~BIT(nr);
+			it87_write_value(data, IT87_REG_FAN_MAIN_CTRL,
+					 data->fan_main_ctrl);
+		} else {
+			/* No on/off mode, set maximum pwm value */
+			data->pwm_duty[nr] = pwm_to_reg(data, 0xff);
+			it87_write_value(data, IT87_REG_PWM_DUTY[nr],
+					 data->pwm_duty[nr]);
+			/* and set manual mode */
+			data->pwm_ctrl[nr] = has_newer_autopwm(data) ?
+					     data->pwm_temp_map[nr] :
+					     data->pwm_duty[nr];
+			it87_write_value(data, IT87_REG_PWM[nr],
+					 data->pwm_ctrl[nr]);
+		}
 	} else {
 		if (val == 1)				/* Manual mode */
 			data->pwm_ctrl[nr] = has_newer_autopwm(data) ?
@@ -1266,7 +1276,7 @@ static ssize_t set_pwm_enable(struct device *dev, struct device_attribute *attr,
 			data->pwm_ctrl[nr] = 0x80 | data->pwm_temp_map[nr];
 		it87_write_value(data, IT87_REG_PWM[nr], data->pwm_ctrl[nr]);
 
-		if (data->type != it8603) {
+		if (data->type != it8603 && nr < 3) {
 			/* set SmartGuardian mode */
 			data->fan_main_ctrl |= BIT(nr);
 			it87_write_value(data, IT87_REG_FAN_MAIN_CTRL,
