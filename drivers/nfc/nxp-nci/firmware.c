@@ -234,8 +234,10 @@ int nxp_nci_fw_download(struct nci_dev *ndev, const char *firmware_name)
 		goto fw_download_exit;
 
 	r = info->phy_ops->set_mode(info->phy_id, NXP_NCI_MODE_FW);
-	if (r < 0)
+	if (r < 0) {
+		release_firmware(fw_info->fw);
 		goto fw_download_exit;
+	}
 
 	info->mode = NXP_NCI_MODE_FW;
 
