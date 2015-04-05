@@ -49,8 +49,6 @@
 #define VERSION "1.2"
 
 struct h4_struct {
-	unsigned long rx_state;
-	unsigned long rx_count;
 	struct sk_buff_head txq;
 };
 
