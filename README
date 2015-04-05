@@ -15,7 +15,7 @@ WHAT IS LINUX?
   loading, shared copy-on-write executables, proper memory management,
   and multistack networking including IPv4 and IPv6.
 
-  It is distributed under the GNU General Public License - see the
+  It is distributed under the BSD 2-clause license - see the
   accompanying COPYING file for more details. 
 
 ON WHAT HARDWARE DOES IT RUN?
