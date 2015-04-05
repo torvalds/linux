@@ -60,7 +60,7 @@ struct hci_uart_proto {
 	int (*open)(struct hci_uart *hu);
 	int (*close)(struct hci_uart *hu);
 	int (*flush)(struct hci_uart *hu);
-	int (*recv)(struct hci_uart *hu, void *data, int len);
+	int (*recv)(struct hci_uart *hu, const void *data, int len);
 	int (*enqueue)(struct hci_uart *hu, struct sk_buff *skb);
 	int (*setup)(struct hci_uart *hu);
 	struct sk_buff *(*dequeue)(struct hci_uart *hu);

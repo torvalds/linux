@@ -441,7 +441,7 @@ static void hci_uart_tty_receive(struct tty_struct *tty, const u8 *data,
 		return;
 
 	spin_lock(&hu->rx_lock);
-	hu->proto->recv(hu, (void *) data, count);
+	hu->proto->recv(hu, data, count);
 
 	if (hu->hdev)
 		hu->hdev->stat.byte_rx += count;

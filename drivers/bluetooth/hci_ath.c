@@ -188,7 +188,7 @@ static struct sk_buff *ath_dequeue(struct hci_uart *hu)
 }
 
 /* Recv data */
-static int ath_recv(struct hci_uart *hu, void *data, int count)
+static int ath_recv(struct hci_uart *hu, const void *data, int count)
 {
 	int ret;
 

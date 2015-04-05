@@ -113,7 +113,7 @@ static int h4_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 }
 
 /* Recv data */
-static int h4_recv(struct hci_uart *hu, void *data, int count)
+static int h4_recv(struct hci_uart *hu, const void *data, int count)
 {
 	int ret;
 
