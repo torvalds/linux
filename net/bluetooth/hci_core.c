@@ -3320,7 +3320,7 @@ int hci_recv_frame(struct hci_dev *hdev, struct sk_buff *skb)
 }
 EXPORT_SYMBOL(hci_recv_frame);
 
-static int hci_reassembly(struct hci_dev *hdev, int type, void *data,
+static int hci_reassembly(struct hci_dev *hdev, int type, const void *data,
 			  int count, __u8 index)
 {
 	int len = 0;
@@ -3430,7 +3430,7 @@ static int hci_reassembly(struct hci_dev *hdev, int type, void *data,
 
 #define STREAM_REASSEMBLY 0
 
-int hci_recv_stream_fragment(struct hci_dev *hdev, void *data, int count)
+int hci_recv_stream_fragment(struct hci_dev *hdev, const void *data, int count)
 {
 	int type;
 	int rem = 0;
@@ -3439,7 +3439,7 @@ int hci_recv_stream_fragment(struct hci_dev *hdev, void *data, int count)
 		struct sk_buff *skb = hdev->reassembly[STREAM_REASSEMBLY];
 
 		if (!skb) {
-			struct { char type; } *pkt;
+			const struct { char type; } *pkt;
 
 			/* Start of the frame */
 			pkt = data;
