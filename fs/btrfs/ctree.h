@@ -1261,9 +1261,12 @@ struct btrfs_io_ctl {
 	struct page *page;
 	struct page **pages;
 	struct btrfs_root *root;
+	struct inode *inode;
 	unsigned long size;
 	int index;
 	int num_pages;
+	int entries;
+	int bitmaps;
 	unsigned check_crcs:1;
 };
 
@@ -1332,6 +1335,9 @@ struct btrfs_block_group_cache {
 
 	/* For dirty block groups */
 	struct list_head dirty_list;
+	struct list_head io_list;
+
+	struct btrfs_io_ctl io_ctl;
 };
 
 /* delayed seq elem */
