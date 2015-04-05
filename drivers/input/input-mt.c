@@ -365,27 +365,35 @@ static void input_mt_set_slots(struct input_mt *mt,
 			       int *slots, int num_pos)
 {
 	struct input_mt_slot *s;
-	int *w = mt->red, *p;
+	int *w = mt->red, j;
 
-	for (p = slots; p != slots + num_pos; p++)
-		*p = -1;
+	for (j = 0; j != num_pos; j++)
+		slots[j] = -1;
 
 	for (s = mt->slots; s != mt->slots + mt->num_slots; s++) {
 		if (!input_mt_is_active(s))
 			continue;
-		for (p = slots; p != slots + num_pos; p++)
-			if (*w++ < 0)
-				*p = s - mt->slots;
+
+		for (j = 0; j != num_pos; j++) {
+			if (w[j] < 0) {
+				slots[j] = s - mt->slots;
+				break;
+			}
+		}
+
+		w += num_pos;
 	}
 
 	for (s = mt->slots; s != mt->slots + mt->num_slots; s++) {
 		if (input_mt_is_active(s))
 			continue;
-		for (p = slots; p != slots + num_pos; p++)
-			if (*p < 0) {
-				*p = s - mt->slots;
+
+		for (j = 0; j != num_pos; j++) {
+			if (slots[j] < 0) {
+				slots[j] = s - mt->slots;
 				break;
 			}
+		}
 	}
 }
 
