@@ -1149,12 +1149,13 @@ int msm_edp_ctrl_init(struct msm_edp *edp)
 	ctrl->aux = msm_edp_aux_init(dev, ctrl->base, &ctrl->drm_aux);
 	if (!ctrl->aux || !ctrl->drm_aux) {
 		pr_err("%s:failed to init aux\n", __func__);
-		return ret;
+		return -ENOMEM;
 	}
 
 	ctrl->phy = msm_edp_phy_init(dev, ctrl->base);
 	if (!ctrl->phy) {
 		pr_err("%s:failed to init phy\n", __func__);
+		ret = -ENOMEM;
 		goto err_destory_aux;
 	}
 
