@@ -2811,12 +2811,13 @@ int nf_tables_bind_set(const struct nft_ctx *ctx, struct nft_set *set,
 	if (!list_empty(&set->bindings) && set->flags & NFT_SET_ANONYMOUS)
 		return -EBUSY;
 
-	if (set->flags & NFT_SET_MAP) {
+	if (binding->flags & NFT_SET_MAP) {
 		/* If the set is already bound to the same chain all
 		 * jumps are already validated for that chain.
 		 */
 		list_for_each_entry(i, &set->bindings, list) {
-			if (i->chain == binding->chain)
+			if (binding->flags & NFT_SET_MAP &&
+			    i->chain == binding->chain)
 				goto bind;
 		}
 
@@ -3311,6 +3312,9 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 				.table	= ctx->table,
 				.chain	= (struct nft_chain *)binding->chain,
 			};
+
+			if (!(binding->flags & NFT_SET_MAP))
+				continue;
 
 			err = nft_validate_data_load(&bind_ctx, dreg,
 						     &data, d2.type);
@@ -4063,7 +4067,8 @@ static int nf_tables_check_loops(const struct nft_ctx *ctx,
 			continue;
 
 		list_for_each_entry(binding, &set->bindings, list) {
-			if (binding->chain != chain)
+			if (!(binding->flags & NFT_SET_MAP) ||
+			    binding->chain != chain)
 				continue;
 
 			iter.skip 	= 0;

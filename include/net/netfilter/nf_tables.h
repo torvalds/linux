@@ -316,6 +316,7 @@ static inline unsigned long nft_set_gc_interval(const struct nft_set *set)
  *
  *	@list: set bindings list node
  *	@chain: chain containing the rule bound to the set
+ *	@flags: set action flags
  *
  *	A set binding contains all information necessary for validation
  *	of new elements added to a bound set.
@@ -323,6 +324,7 @@ static inline unsigned long nft_set_gc_interval(const struct nft_set *set)
 struct nft_set_binding {
 	struct list_head		list;
 	const struct nft_chain		*chain;
+	u32				flags;
 };
 
 int nf_tables_bind_set(const struct nft_ctx *ctx, struct nft_set *set,
