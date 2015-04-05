@@ -51,7 +51,6 @@
 struct h4_struct {
 	unsigned long rx_state;
 	unsigned long rx_count;
-	struct sk_buff *rx_skb;
 	struct sk_buff_head txq;
 };
 
@@ -94,8 +93,6 @@ static int h4_close(struct hci_uart *hu)
 	BT_DBG("hu %p", hu);
 
 	skb_queue_purge(&h4->txq);
-
-	kfree_skb(h4->rx_skb);
 
 	hu->priv = NULL;
 	kfree(h4);
