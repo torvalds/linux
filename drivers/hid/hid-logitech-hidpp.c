@@ -1220,6 +1220,7 @@ static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	connected = hidpp_is_connected(hidpp);
 	if (id->group != HID_GROUP_LOGITECH_DJ_DEVICE) {
 		if (!connected) {
+			ret = -ENODEV;
 			hid_err(hdev, "Device not connected");
 			hid_device_io_stop(hdev);
 			goto hid_parse_fail;
