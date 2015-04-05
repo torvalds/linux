@@ -2,7 +2,7 @@
 
 #define VRAM_BASE             (0x18000000)
 #define FB_TOP_SIZE           (400*240*3)
-#define FB_BOT_SIZE           (340*240*3)
+#define FB_BOT_SIZE           (320*240*3)
 #define FB_TOP_LEFT1          (VRAM_BASE)
 #define FB_TOP_LEFT2          (FB_TOP_LEFT1  + FB_TOP_SIZE)
 #define FB_TOP_RIGHT1         (FB_TOP_LEFT2  + FB_TOP_SIZE)
@@ -10,7 +10,7 @@
 #define FB_BOT_1              (FB_TOP_RIGHT2 + FB_TOP_SIZE)
 #define FB_BOT_2              (FB_BOT_1      + FB_BOT_SIZE)
 #define SCREEN_TOP_W  (400)
-#define SCREEN_BOT_W  (340)
+#define SCREEN_BOT_W  (320)
 #define SCREEN_TOP_H  (240)
 #define SCREEN_BOT_H  (240)
 

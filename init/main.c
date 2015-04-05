@@ -90,50 +90,57 @@
 /*********  NINTENDO 3DS DEBUGGING *********/
 
 #undef pr_notice
-#define pr_notice(fmt, ...) set_stringf(fmt, ##__VA_ARGS__)
+#define pr_notice(fmt, ...) shared_3ds_printf(fmt, ##__VA_ARGS__)
 #undef pr_warn
-#define pr_warn(fmt, ...) set_stringf(fmt, ##__VA_ARGS__)
+#define pr_warn(fmt, ...) shared_3ds_printf(fmt, ##__VA_ARGS__)
 #undef pr_info
-#define pr_info(fmt, ...) set_stringf(fmt, ##__VA_ARGS__)
+#define pr_info(fmt, ...) shared_3ds_printf(fmt, ##__VA_ARGS__)
 #undef pr_err
-#define pr_err(fmt, ...) set_stringf(fmt, ##__VA_ARGS__)
+#define pr_err(fmt, ...) shared_3ds_printf(fmt, ##__VA_ARGS__)
 #undef pr_crit
-#define pr_crit(fmt, ...) set_stringf(fmt, ##__VA_ARGS__)
+#define pr_crit(fmt, ...) shared_3ds_printf(fmt, ##__VA_ARGS__)
 #undef printk
-#define printk(fmt, ...) set_stringf(fmt, ##__VA_ARGS__)
+#define printk(fmt, ...) shared_3ds_printf(fmt, ##__VA_ARGS__)
 
-#define N3DS_BUF_SIZE (64)
-volatile unsigned char shared_3ds_buf[N3DS_BUF_SIZE] = { 0 }; // @0xC033CB10
+volatile unsigned char shared_3ds_char = 0; // @0xC033CB10
 
-static void set_string(const char *str)
+static void shared_3ds_putch(char c)
 {
-	strncpy((char *)shared_3ds_buf, str, sizeof(shared_3ds_buf));
+	shared_3ds_char = c;
 	// Clean and Invalidate Entire Data Cache
-	// Data Memory Barrier
+	// Data Synchronization Barrier
 	asm volatile (
-		"mov r8, #0\n\t"
-		"mcr p15, 0, r8, c7, c14, 0\n\t"
-		"mcr p15, 0, r8, c7, c10, 5\n\t"
-		: : : "r8"
+		"mov r0, #0\n\t"
+		"mcr p15, 0, r0, c7, c14, 0\n\t"
+		"mcr p15, 0, r0, c7, c10, 4\n\t"
+		: : : "r0"
 	);
 	do {
 		// Invalidate Entire Data Cache
 		asm volatile (
-			"mov r8, #0\n\t"
-			"mcr p15, 0, r8, c7, c6, 0\n\t"
-			: : : "r8"
+			"mov r0, #0\n\t"
+			"mcr p15, 0, r0, c7, c6, 0\n\t"
+			: : : "r0"
 		);
-	} while (shared_3ds_buf[0] != 0);
+	} while (shared_3ds_char != 0);
 }
 
-void set_stringf(const char *str, ...)
+static void shared_3ds_print(const char *str)
 {
-	char dest[N3DS_BUF_SIZE];
+	while (*str) {
+		shared_3ds_putch(*str);
+		str++;
+	}
+}
+
+void shared_3ds_printf(const char *str, ...)
+{
+	char dest[1020];
 	va_list argptr;
 	va_start(argptr, str);
-	vsnprintf(dest, N3DS_BUF_SIZE, str, argptr);
+	vsnprintf(dest, 1020, str, argptr);
 	va_end(argptr);
-	set_string(dest);
+	shared_3ds_print(dest);
 }
 
 /*********  END NINTENDO 3DS DEBUGGING *********/
@@ -589,7 +596,6 @@ asmlinkage __visible void __init start_kernel(void)
 	char *command_line;
 	char *after_dashes;
 
-
 	/*
 	 * Need to run as early as possible, to initialize the
 	 * lockdep hash:
@@ -598,7 +604,6 @@ asmlinkage __visible void __init start_kernel(void)
 	set_task_stack_end_magic(&init_task);
 	smp_setup_processor_id();
 	debug_objects_early_init();
-
 
 	/*
 	 * Set up the the initial canary ASAP:
@@ -614,7 +619,6 @@ asmlinkage __visible void __init start_kernel(void)
  * Interrupts are still disabled. Do necessary setups, then
  * enable them
  */
-
 	boot_cpu_init();
 	page_address_init();
 	pr_notice("%s", linux_banner);

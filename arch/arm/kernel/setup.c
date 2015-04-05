@@ -61,19 +61,19 @@
 #include "atags.h"
 
 /*********  NINTENDO 3DS DEBUGGING *********/
-extern void set_stringf(const char *str, ...);
+extern void shared_3ds_printf(const char *str, ...);
 #undef pr_notice
-#define pr_notice(fmt, ...) set_stringf(fmt, ##__VA_ARGS__)
+#define pr_notice(fmt, ...) shared_3ds_printf(fmt, ##__VA_ARGS__)
 #undef pr_warn
-#define pr_warn(fmt, ...) set_stringf(fmt, ##__VA_ARGS__)
+#define pr_warn(fmt, ...) shared_3ds_printf(fmt, ##__VA_ARGS__)
 #undef pr_info
-#define pr_info(fmt, ...) set_stringf(fmt, ##__VA_ARGS__)
+#define pr_info(fmt, ...) shared_3ds_printf(fmt, ##__VA_ARGS__)
 #undef pr_err
-#define pr_err(fmt, ...) set_stringf(fmt, ##__VA_ARGS__)
+#define pr_err(fmt, ...) shared_3ds_printf(fmt, ##__VA_ARGS__)
 #undef pr_crit
-#define pr_crit(fmt, ...) set_stringf(fmt, ##__VA_ARGS__)
+#define pr_crit(fmt, ...) shared_3ds_printf(fmt, ##__VA_ARGS__)
 #undef printk
-#define printk(fmt, ...) set_stringf(fmt, ##__VA_ARGS__)
+#define printk(fmt, ...) shared_3ds_printf(fmt, ##__VA_ARGS__)
 /*********  END NINTENDO 3DS DEBUGGING *********/
 
 #if defined(CONFIG_FPE_NWFPE) || defined(CONFIG_FPE_FASTFPE)
