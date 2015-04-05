@@ -1,6 +1,6 @@
 config R8712U
 	tristate "RealTek RTL8712U (RTL8192SU) Wireless LAN NIC driver"
-	depends on WLAN && USB
+	depends on BACKPORT_WLAN && USB
 	select WIRELESS_EXT
 	select WEXT_PRIV
 	select FW_LOADER

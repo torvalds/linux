@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm 3.10.72 Kernel Configuration
+# Linux/arm 3.10.73 Kernel Configuration
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -3711,6 +3711,7 @@ CONFIG_USBIP_HOST=m
 # CONFIG_ECHO is not set
 # CONFIG_COMEDI is not set
 # CONFIG_ASUS_OLED is not set
+CONFIG_R8712U=m
 CONFIG_RTS5139=m
 CONFIG_RTS5139_DEBUG=y
 # CONFIG_TRANZPORT is not set
