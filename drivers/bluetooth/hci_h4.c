@@ -161,3 +161,101 @@ int __exit h4_deinit(void)
 {
 	return hci_uart_unregister_proto(&h4p);
 }
+
+struct sk_buff *h4_recv_buf(struct hci_dev *hdev, struct sk_buff *skb,
+			    const unsigned char *buffer, int count)
+{
+	while (count) {
+		int len;
+
+		if (!skb) {
+			switch (buffer[0]) {
+			case HCI_ACLDATA_PKT:
+				skb = bt_skb_alloc(HCI_MAX_FRAME_SIZE,
+						   GFP_ATOMIC);
+				if (!skb)
+					return ERR_PTR(-ENOMEM);
+
+				bt_cb(skb)->pkt_type = HCI_ACLDATA_PKT;
+				bt_cb(skb)->expect = HCI_ACL_HDR_SIZE;
+				break;
+			case HCI_SCODATA_PKT:
+				skb = bt_skb_alloc(HCI_MAX_SCO_SIZE,
+						   GFP_ATOMIC);
+				if (!skb)
+					return ERR_PTR(-ENOMEM);
+
+				bt_cb(skb)->pkt_type = HCI_SCODATA_PKT;
+				bt_cb(skb)->expect = HCI_SCO_HDR_SIZE;
+				break;
+			case HCI_EVENT_PKT:
+				skb = bt_skb_alloc(HCI_MAX_EVENT_SIZE,
+						   GFP_ATOMIC);
+				if (!skb)
+					return ERR_PTR(-ENOMEM);
+
+				bt_cb(skb)->pkt_type = HCI_EVENT_PKT;
+				bt_cb(skb)->expect = HCI_EVENT_HDR_SIZE;
+				break;
+			default:
+				return ERR_PTR(-EILSEQ);
+			}
+
+			count -= 1;
+			buffer += 1;
+		}
+
+		len = min_t(uint, bt_cb(skb)->expect, count);
+		memcpy(skb_put(skb, len), buffer, len);
+
+		count -= len;
+		buffer += len;
+		bt_cb(skb)->expect -= len;
+
+		switch (bt_cb(skb)->pkt_type) {
+		case HCI_ACLDATA_PKT:
+			if (skb->len == HCI_ACL_HDR_SIZE) {
+				__le16 dlen = hci_acl_hdr(skb)->dlen;
+
+				/* Complete ACL header */
+				bt_cb(skb)->expect = __le16_to_cpu(dlen);
+
+				if (skb_tailroom(skb) < bt_cb(skb)->expect) {
+					kfree_skb(skb);
+					return ERR_PTR(-EMSGSIZE);
+				}
+			}
+			break;
+		case HCI_SCODATA_PKT:
+			if (skb->len == HCI_SCO_HDR_SIZE) {
+				/* Complete SCO header */
+				bt_cb(skb)->expect = hci_sco_hdr(skb)->dlen;
+
+				if (skb_tailroom(skb) < bt_cb(skb)->expect) {
+					kfree_skb(skb);
+					return ERR_PTR(-EMSGSIZE);
+				}
+			}
+			break;
+		case HCI_EVENT_PKT:
+			if (skb->len == HCI_EVENT_HDR_SIZE) {
+				/* Complete event header */
+				bt_cb(skb)->expect = hci_event_hdr(skb)->plen;
+
+				if (skb_tailroom(skb) < bt_cb(skb)->expect) {
+					kfree_skb(skb);
+					return ERR_PTR(-EMSGSIZE);
+				}
+			}
+			break;
+		}
+
+		if (bt_cb(skb)->expect == 0) {
+			/* Complete frame */
+			hci_recv_frame(hdev, skb);
+			skb = NULL;
+		}
+	}
+
+	return skb;
+}

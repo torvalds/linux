@@ -99,6 +99,9 @@ int hci_uart_init_ready(struct hci_uart *hu);
 #ifdef CONFIG_BT_HCIUART_H4
 int h4_init(void);
 int h4_deinit(void);
+
+struct sk_buff *h4_recv_buf(struct hci_dev *hdev, struct sk_buff *skb,
+			    const unsigned char *buffer, int count);
 #endif
 
 #ifdef CONFIG_BT_HCIUART_BCSP
