@@ -1286,7 +1286,7 @@ struct dentry *lustre_mount(struct file_system_type *fs_type, int flags,
 	return mount_nodev(fs_type, flags, &lmd2, lustre_fill_super);
 }
 
-void lustre_kill_super(struct super_block *sb)
+static void lustre_kill_super(struct super_block *sb)
 {
 	struct lustre_sb_info *lsi = s2lsi(sb);
 
