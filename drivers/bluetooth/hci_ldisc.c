@@ -362,7 +362,7 @@ static int hci_uart_tty_open(struct tty_struct *tty)
  */
 static void hci_uart_tty_close(struct tty_struct *tty)
 {
-	struct hci_uart *hu = (void *)tty->disc_data;
+	struct hci_uart *hu = tty->disc_data;
 	struct hci_dev *hdev;
 
 	BT_DBG("tty %p", tty);
@@ -401,7 +401,7 @@ static void hci_uart_tty_close(struct tty_struct *tty)
  */
 static void hci_uart_tty_wakeup(struct tty_struct *tty)
 {
-	struct hci_uart *hu = (void *)tty->disc_data;
+	struct hci_uart *hu = tty->disc_data;
 
 	BT_DBG("");
 
@@ -431,7 +431,7 @@ static void hci_uart_tty_wakeup(struct tty_struct *tty)
  */
 static void hci_uart_tty_receive(struct tty_struct *tty, const u8 *data, char *flags, int count)
 {
-	struct hci_uart *hu = (void *)tty->disc_data;
+	struct hci_uart *hu = tty->disc_data;
 
 	if (!hu || tty != hu->tty)
 		return;
@@ -560,7 +560,7 @@ static int hci_uart_set_flags(struct hci_uart *hu, unsigned long flags)
 static int hci_uart_tty_ioctl(struct tty_struct *tty, struct file * file,
 					unsigned int cmd, unsigned long arg)
 {
-	struct hci_uart *hu = (void *)tty->disc_data;
+	struct hci_uart *hu = tty->disc_data;
 	int err = 0;
 
 	BT_DBG("");
