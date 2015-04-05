@@ -3238,9 +3238,6 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 	u32 flags;
 	int err;
 
-	if (set->size && set->nelems == set->size)
-		return -ENFILE;
-
 	err = nla_parse_nested(nla, NFTA_SET_ELEM_MAX, attr,
 			       nft_set_elem_policy);
 	if (err < 0)
@@ -3391,11 +3388,15 @@ static int nf_tables_newsetelem(struct sock *nlsk, struct sk_buff *skb,
 		return -EBUSY;
 
 	nla_for_each_nested(attr, nla[NFTA_SET_ELEM_LIST_ELEMENTS], rem) {
-		err = nft_add_set_elem(&ctx, set, attr);
-		if (err < 0)
-			break;
+		if (set->size &&
+		    !atomic_add_unless(&set->nelems, 1, set->size + set->ndeact))
+			return -ENFILE;
 
-		set->nelems++;
+		err = nft_add_set_elem(&ctx, set, attr);
+		if (err < 0) {
+			atomic_dec(&set->nelems);
+			break;
+		}
 	}
 	return err;
 }
@@ -3477,7 +3478,7 @@ static int nf_tables_delsetelem(struct sock *nlsk, struct sk_buff *skb,
 		if (err < 0)
 			break;
 
-		set->nelems--;
+		set->ndeact++;
 	}
 	return err;
 }
@@ -3810,6 +3811,8 @@ static int nf_tables_commit(struct sk_buff *skb)
 						 &te->elem,
 						 NFT_MSG_DELSETELEM, 0);
 			te->set->ops->remove(te->set, &te->elem);
+			atomic_dec(&te->set->nelems);
+			te->set->ndeact--;
 			break;
 		}
 	}
@@ -3913,16 +3916,16 @@ static int nf_tables_abort(struct sk_buff *skb)
 			nft_trans_destroy(trans);
 			break;
 		case NFT_MSG_NEWSETELEM:
-			nft_trans_elem_set(trans)->nelems--;
 			te = (struct nft_trans_elem *)trans->data;
 
 			te->set->ops->remove(te->set, &te->elem);
+			atomic_dec(&te->set->nelems);
 			break;
 		case NFT_MSG_DELSETELEM:
 			te = (struct nft_trans_elem *)trans->data;
 
-			nft_trans_elem_set(trans)->nelems++;
 			te->set->ops->activate(te->set, &te->elem);
+			te->set->ndeact--;
 
 			nft_trans_destroy(trans);
 			break;

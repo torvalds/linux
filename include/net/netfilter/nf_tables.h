@@ -258,6 +258,7 @@ void nft_unregister_set(struct nft_set_ops *ops);
  * 	@dtype: data type (verdict or numeric type defined by userspace)
  * 	@size: maximum set size
  * 	@nelems: number of elements
+ * 	@ndeact: number of deactivated elements queued for removal
  * 	@timeout: default timeout value in msecs
  * 	@gc_int: garbage collection interval in msecs
  *	@policy: set parameterization (see enum nft_set_policies)
@@ -275,7 +276,8 @@ struct nft_set {
 	u32				ktype;
 	u32				dtype;
 	u32				size;
-	u32				nelems;
+	atomic_t			nelems;
+	u32				ndeact;
 	u64				timeout;
 	u32				gc_int;
 	u16				policy;

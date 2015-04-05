@@ -203,7 +203,7 @@ out:
 
 static void nft_hash_gc(struct work_struct *work)
 {
-	const struct nft_set *set;
+	struct nft_set *set;
 	struct nft_hash_elem *he;
 	struct nft_hash *priv;
 	struct nft_set_gc_batch *gcb = NULL;
@@ -237,6 +237,7 @@ static void nft_hash_gc(struct work_struct *work)
 		if (gcb == NULL)
 			goto out;
 		rhashtable_remove_fast(&priv->ht, &he->node, nft_hash_params);
+		atomic_dec(&set->nelems);
 		nft_set_gc_batch_add(gcb, he);
 	}
 out:
