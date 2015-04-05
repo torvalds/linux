@@ -2415,6 +2415,29 @@ static int __init it87_find(int sioaddr, unsigned short *address,
 
 		superio_select(sioaddr, GPIO);
 
+		/* Check for fan4, fan5 */
+		if (has_five_fans(config)) {
+			reg = superio_inb(sioaddr, IT87_SIO_GPIO2_REG);
+			switch (sio_data->type) {
+			case it8718:
+				if (reg & BIT(5))
+					sio_data->skip_fan |= BIT(3);
+				if (reg & BIT(4))
+					sio_data->skip_fan |= BIT(4);
+				break;
+			case it8720:
+			case it8721:
+			case it8728:
+				if (!(reg & BIT(5)))
+					sio_data->skip_fan |= BIT(3);
+				if (!(reg & BIT(4)))
+					sio_data->skip_fan |= BIT(4);
+				break;
+			default:
+				break;
+			}
+		}
+
 		reg = superio_inb(sioaddr, IT87_SIO_GPIO3_REG);
 		if (!sio_data->skip_vid) {
 			/* We need at least 4 VID pins */
