@@ -62,6 +62,7 @@ config BT_HCIUART_BCSP
 config BT_HCIUART_ATH3K
 	bool "Atheros AR300x serial support"
 	depends on BT_HCIUART
+	select BT_HCIUART_H4
 	help
 	  HCIATH3K (HCI Atheros AR300x) is a serial protocol for
 	  communication between host and Atheros AR300x Bluetooth devices.

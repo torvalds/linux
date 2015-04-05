@@ -45,6 +45,7 @@ struct ath_struct {
 	struct hci_uart *hu;
 	unsigned int cur_sleep;
 
+	struct sk_buff *rx_skb;
 	struct sk_buff_head txq;
 	struct work_struct ctxtsw;
 };
@@ -136,6 +137,8 @@ static int ath_close(struct hci_uart *hu)
 
 	skb_queue_purge(&ath->txq);
 
+	kfree_skb(ath->rx_skb);
+
 	cancel_work_sync(&ath->ctxtsw);
 
 	hu->priv = NULL;
@@ -190,12 +193,13 @@ static struct sk_buff *ath_dequeue(struct hci_uart *hu)
 /* Recv data */
 static int ath_recv(struct hci_uart *hu, const void *data, int count)
 {
-	int ret;
+	struct ath_struct *ath = hu->priv;
 
-	ret = hci_recv_stream_fragment(hu->hdev, data, count);
-	if (ret < 0) {
-		BT_ERR("Frame Reassembly Failed");
-		return ret;
+	ath->rx_skb = h4_recv_buf(hu->hdev, ath->rx_skb, data, count);
+	if (IS_ERR(ath->rx_skb)) {
+		int err = PTR_ERR(ath->rx_skb);
+		BT_ERR("%s: Frame reassembly failed (%d)", hu->hdev->name, err);
+		return err;
 	}
 
 	return count;
