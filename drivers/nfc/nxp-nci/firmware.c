@@ -245,8 +245,7 @@ int nxp_nci_fw_download(struct nci_dev *ndev, const char *firmware_name)
 	fw_info->frame_size = 0;
 	fw_info->cmd_result = 0;
 
-	if (fw_info->fw)
-		schedule_work(&fw_info->work);
+	schedule_work(&fw_info->work);
 
 fw_download_exit:
 	mutex_unlock(&info->info_lock);
