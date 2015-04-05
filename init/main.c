@@ -87,6 +87,57 @@
 #include <asm/sections.h>
 #include <asm/cacheflush.h>
 
+/*********  NINTENDO 3DS DEBUGGING *********/
+
+#undef pr_notice
+#define pr_notice(fmt, ...) set_stringf(fmt, ##__VA_ARGS__)
+#undef pr_warn
+#define pr_warn(fmt, ...) set_stringf(fmt, ##__VA_ARGS__)
+#undef pr_info
+#define pr_info(fmt, ...) set_stringf(fmt, ##__VA_ARGS__)
+#undef pr_err
+#define pr_err(fmt, ...) set_stringf(fmt, ##__VA_ARGS__)
+#undef pr_crit
+#define pr_crit(fmt, ...) set_stringf(fmt, ##__VA_ARGS__)
+#undef printk
+#define printk(fmt, ...) set_stringf(fmt, ##__VA_ARGS__)
+
+#define N3DS_BUF_SIZE (64)
+volatile unsigned char shared_3ds_buf[N3DS_BUF_SIZE] = { 0 }; // @0xC033CB10
+
+static void set_string(const char *str)
+{
+	strncpy((char *)shared_3ds_buf, str, sizeof(shared_3ds_buf));
+	// Clean and Invalidate Entire Data Cache
+	// Data Memory Barrier
+	asm volatile (
+		"mov r8, #0\n\t"
+		"mcr p15, 0, r8, c7, c14, 0\n\t"
+		"mcr p15, 0, r8, c7, c10, 5\n\t"
+		: : : "r8"
+	);
+	do {
+		// Invalidate Entire Data Cache
+		asm volatile (
+			"mov r8, #0\n\t"
+			"mcr p15, 0, r8, c7, c6, 0\n\t"
+			: : : "r8"
+		);
+	} while (shared_3ds_buf[0] != 0);
+}
+
+void set_stringf(const char *str, ...)
+{
+	char dest[N3DS_BUF_SIZE];
+	va_list argptr;
+	va_start(argptr, str);
+	vsnprintf(dest, N3DS_BUF_SIZE, str, argptr);
+	va_end(argptr);
+	set_string(dest);
+}
+
+/*********  END NINTENDO 3DS DEBUGGING *********/
+
 static int kernel_init(void *);
 
 extern void init_IRQ(void);
@@ -486,10 +537,58 @@ static void __init mm_init(void)
 	vmalloc_init();
 }
 
+/* WOOOOOOOOOOOOO NINTENDO 3DS */
+
+#define SCREEN_TOP_W  (400)
+#define SCREEN_BOT_W  (340)
+#define SCREEN_TOP_H  (240)
+#define SCREEN_BOT_H  (240)
+#define VRAM_BASE     (0x18000000)
+#define FB_TOP_SIZE	  (400*240*3)
+#define FB_BOT_SIZE	  (340*240*3)
+#define FB_TOP_LEFT1  (VRAM_BASE)
+#define FB_TOP_LEFT2  (FB_TOP_LEFT1  + FB_TOP_SIZE)
+#define FB_TOP_RIGHT1 (FB_TOP_LEFT2  + FB_TOP_SIZE)
+#define FB_TOP_RIGHT2 (FB_TOP_RIGHT1 + FB_TOP_SIZE)
+#define FB_BOT_1      (FB_TOP_RIGHT2 + FB_TOP_SIZE)
+#define FB_BOT_2      (FB_BOT_1      + FB_BOT_SIZE)
+#define RED    0xFF0000
+#define GREEN  0x00FF00
+#define BLUE   0x0000FF
+#define CYAN   0x00FFFF
+#define BLACK  0x000000
+#define WHITE  0xFFFFFF
+#define ORANGE 0xFF9900
+#define LIGHT_GREEN 0x00CC00
+#define PURPLE 0x660033
+
+static void draw_plot(int x, int y, u32 color)
+{
+	u8 *base = (u8*)((SCREEN_TOP_H-y-1)*3 +x*3*SCREEN_TOP_H);
+	u8 *p1 = base + FB_TOP_LEFT1;
+	u8 *p2 = base + FB_TOP_LEFT2;
+	u8 *p3 = base + FB_TOP_RIGHT1;
+	u8 *p4 = base + FB_TOP_RIGHT2;
+	p1[0] = p2[0] = p3[0] = p4[0] = color & 0xFF;
+	p1[1] = p2[1] = p3[1] =	p4[1] = (color>>8) & 0xFF;
+	p1[2] = p2[2] = p3[2] =	p4[2] = (color>>16) & 0xFF;
+}
+
+static void fill_3ds_fb(u32 color)
+{
+	int i, j;
+	for (i = 0; i < SCREEN_TOP_W; ++i) {
+		for (j = 0; j < SCREEN_TOP_H; ++j) {
+			draw_plot(i, j, color);
+		}
+	}
+}
+
 asmlinkage __visible void __init start_kernel(void)
 {
 	char *command_line;
 	char *after_dashes;
+
 
 	/*
 	 * Need to run as early as possible, to initialize the
@@ -499,6 +598,7 @@ asmlinkage __visible void __init start_kernel(void)
 	set_task_stack_end_magic(&init_task);
 	smp_setup_processor_id();
 	debug_objects_early_init();
+
 
 	/*
 	 * Set up the the initial canary ASAP:
@@ -514,6 +614,7 @@ asmlinkage __visible void __init start_kernel(void)
  * Interrupts are still disabled. Do necessary setups, then
  * enable them
  */
+
 	boot_cpu_init();
 	page_address_init();
 	pr_notice("%s", linux_banner);

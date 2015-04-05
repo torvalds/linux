@@ -60,6 +60,21 @@
 
 #include "atags.h"
 
+/*********  NINTENDO 3DS DEBUGGING *********/
+extern void set_stringf(const char *str, ...);
+#undef pr_notice
+#define pr_notice(fmt, ...) set_stringf(fmt, ##__VA_ARGS__)
+#undef pr_warn
+#define pr_warn(fmt, ...) set_stringf(fmt, ##__VA_ARGS__)
+#undef pr_info
+#define pr_info(fmt, ...) set_stringf(fmt, ##__VA_ARGS__)
+#undef pr_err
+#define pr_err(fmt, ...) set_stringf(fmt, ##__VA_ARGS__)
+#undef pr_crit
+#define pr_crit(fmt, ...) set_stringf(fmt, ##__VA_ARGS__)
+#undef printk
+#define printk(fmt, ...) set_stringf(fmt, ##__VA_ARGS__)
+/*********  END NINTENDO 3DS DEBUGGING *********/
 
 #if defined(CONFIG_FPE_NWFPE) || defined(CONFIG_FPE_FASTFPE)
 char fpe_type[8];
