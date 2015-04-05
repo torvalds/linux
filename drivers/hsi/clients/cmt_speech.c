@@ -1028,6 +1028,7 @@ static int cs_hsi_start(struct cs_hsi_iface **hi, struct hsi_client *cl,
 	}
 	hsi_if->master = ssip_slave_get_master(cl);
 	if (IS_ERR(hsi_if->master)) {
+		err = PTR_ERR(hsi_if->master);
 		dev_err(&cl->device, "Could not get HSI master client\n");
 		goto leave4;
 	}
