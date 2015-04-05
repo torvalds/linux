@@ -737,6 +737,7 @@ static int bcsp_close(struct hci_uart *hu)
 
 static const struct hci_uart_proto bcsp = {
 	.id		= HCI_UART_BCSP,
+	.name		= "BCSP",
 	.open		= bcsp_open,
 	.close		= bcsp_close,
 	.enqueue	= bcsp_enqueue,

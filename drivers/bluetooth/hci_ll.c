@@ -507,6 +507,7 @@ static struct sk_buff *ll_dequeue(struct hci_uart *hu)
 
 static const struct hci_uart_proto llp = {
 	.id		= HCI_UART_LL,
+	.name		= "LL",
 	.open		= ll_open,
 	.close		= ll_close,
 	.recv		= ll_recv,

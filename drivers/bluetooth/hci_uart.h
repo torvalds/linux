@@ -57,6 +57,7 @@ struct hci_uart;
 
 struct hci_uart_proto {
 	unsigned int id;
+	const char *name;
 	int (*open)(struct hci_uart *hu);
 	int (*close)(struct hci_uart *hu);
 	int (*flush)(struct hci_uart *hu);
