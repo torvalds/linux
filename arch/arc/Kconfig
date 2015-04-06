@@ -267,6 +267,7 @@ choice
 	prompt "MMU Version"
 	default ARC_MMU_V3 if ARC_CPU_770
 	default ARC_MMU_V2 if ARC_CPU_750D
+	default ARC_MMU_V4 if ARC_CPU_HS
 
 config ARC_MMU_V1
 	bool "MMU v1"
@@ -286,6 +287,10 @@ config ARC_MMU_V3
 	  Introduced with ARC700 4.10: New Features
 	  Variable Page size (1k-16k), var JTLB size 128 x (2 or 4)
 	  Shared Address Spaces (SASID)
+
+config ARC_MMU_V4
+	bool "MMU v4"
+	depends on ISA_ARCV2
 
 endchoice
 

@@ -44,6 +44,7 @@
 #include <asm/processor.h>
 #include <asm/tlb-mmu1.h>
 
+#ifdef CONFIG_ISA_ARCOMPACT
 ;-----------------------------------------------------------------
 ; ARC700 Exception Handling doesn't auto-switch stack and it only provides
 ; ONE scratch AUX reg "ARC_REG_SCRATCH_DATA0"
@@ -120,6 +121,24 @@ ex_saved_reg1:
 	ld_s  r0, [r0]
 #endif
 .endm
+
+#else	/* ARCv2 */
+
+.macro TLBMISS_FREEUP_REGS
+	PUSH  r0
+	PUSH  r1
+	PUSH  r2
+	PUSH  r3
+.endm
+
+.macro TLBMISS_RESTORE_REGS
+	POP   r3
+	POP   r2
+	POP   r1
+	POP   r0
+.endm
+
+#endif
 
 ;============================================================================
 ;  Troubleshooting Stuff
@@ -239,6 +258,7 @@ ex_saved_reg1:
 ; Commit the TLB entry into MMU
 
 .macro COMMIT_ENTRY_TO_MMU
+#if (CONFIG_ARC_MMU_VER < 4)
 
 	/* Get free TLB slot: Set = computed from vaddr, way = random */
 	sr  TLBGetIndex, [ARC_REG_TLBCOMMAND]
@@ -248,6 +268,10 @@ ex_saved_reg1:
 	sr TLBWriteNI, [ARC_REG_TLBCOMMAND]
 #else
 	sr TLBWrite, [ARC_REG_TLBCOMMAND]
+#endif
+
+#else
+	sr TLBInsertEntry, [ARC_REG_TLBCOMMAND]
 #endif
 .endm
 

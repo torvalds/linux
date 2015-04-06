@@ -326,7 +326,7 @@ struct bcr_generic {
  */
 
 struct cpuinfo_arc_mmu {
-	unsigned int ver:4, pg_sz_k:8, pad:8, u_dtlb:6, u_itlb:6;
+	unsigned int ver:4, pg_sz_k:8, s_pg_sz_m:8, u_dtlb:6, u_itlb:6;
 	unsigned int num_tlb:16, sets:12, ways:4;
 };
 
