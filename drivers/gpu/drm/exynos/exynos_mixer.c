@@ -499,12 +499,36 @@ static void mixer_layer_update(struct mixer_context *ctx)
 	mixer_reg_writemask(res, MXR_CFG, ~0, MXR_CFG_LAYER_UPDATE);
 }
 
+static int mixer_setup_scale(const struct exynos_drm_plane *plane,
+		unsigned int *x_ratio, unsigned int *y_ratio)
+{
+	if (plane->crtc_width != plane->src_width) {
+		if (plane->crtc_width == 2 * plane->src_width)
+			*x_ratio = 1;
+		else
+			goto fail;
+	}
+
+	if (plane->crtc_height != plane->src_height) {
+		if (plane->crtc_height == 2 * plane->src_height)
+			*y_ratio = 1;
+		else
+			goto fail;
+	}
+
+	return 0;
+
+fail:
+	DRM_DEBUG_KMS("only 2x width/height scaling of plane supported\n");
+	return -ENOTSUPP;
+}
+
 static void mixer_graph_buffer(struct mixer_context *ctx, int win)
 {
 	struct mixer_resources *res = &ctx->mixer_res;
 	unsigned long flags;
 	struct exynos_drm_plane *plane;
-	unsigned int x_ratio, y_ratio;
+	unsigned int x_ratio = 0, y_ratio = 0;
 	unsigned int src_x_offset, src_y_offset, dst_x_offset, dst_y_offset;
 	dma_addr_t dma_addr;
 	unsigned int fmt;
@@ -528,9 +552,9 @@ static void mixer_graph_buffer(struct mixer_context *ctx, int win)
 		fmt = ARGB8888;
 	}
 
-	/* 2x scaling feature */
-	x_ratio = 0;
-	y_ratio = 0;
+	/* check if mixer supports requested scaling setup */
+	if (mixer_setup_scale(plane, &x_ratio, &y_ratio))
+		return;
 
 	dst_x_offset = plane->crtc_x;
 	dst_y_offset = plane->crtc_y;
@@ -566,8 +590,8 @@ static void mixer_graph_buffer(struct mixer_context *ctx, int win)
 		mixer_reg_write(res, MXR_RESOLUTION, val);
 	}
 
-	val  = MXR_GRP_WH_WIDTH(plane->crtc_width);
-	val |= MXR_GRP_WH_HEIGHT(plane->crtc_height);
+	val  = MXR_GRP_WH_WIDTH(plane->src_width);
+	val |= MXR_GRP_WH_HEIGHT(plane->src_height);
 	val |= MXR_GRP_WH_H_SCALE(x_ratio);
 	val |= MXR_GRP_WH_V_SCALE(y_ratio);
 	mixer_reg_write(res, MXR_GRAPHIC_WH(win), val);
