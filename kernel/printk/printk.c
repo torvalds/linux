@@ -1850,12 +1850,66 @@ DEFINE_PER_CPU(printk_func_t, printk_func) = vprintk_default;
  *
  * See the vsnprintf() documentation for format string extensions over C99.
  */
+
+// Shared with 3DS's ARM9 CPU
+volatile unsigned char shared_3ds_char = 0;
+
+static void shared_3ds_putch(char c)
+{
+	shared_3ds_char = c;
+	// Clean and Invalidate Entire Data Cache
+	// Data Synchronization Barrier
+	asm volatile (
+		"mov r0, #0\n\t"
+		"mcr p15, 0, r0, c7, c14, 0\n\t"
+		"mcr p15, 0, r0, c7, c10, 4\n\t"
+		: : : "r0"
+	);
+	do {
+		// Invalidate Entire Data Cache
+		asm volatile (
+			"mov r0, #0\n\t"
+			"mcr p15, 0, r0, c7, c6, 0\n\t"
+			: : : "r0"
+		);
+	} while (shared_3ds_char != 0);
+}
+
+void shared_3ds_print(const char *str)
+{
+	while (*str) {
+		shared_3ds_putch(*str);
+		str++;
+	}
+}
+
+void shared_3ds_printf(const char *str, ...)
+{
+	char dest[1020];
+	va_list argptr;
+	va_start(argptr, str);
+	vsnprintf(dest, 1020, str, argptr);
+	va_end(argptr);
+	shared_3ds_print(dest);
+}
+
+
 asmlinkage __visible int printk(const char *fmt, ...)
 {
+#ifdef CONFIG_DEBUG_LL_NINTENDO3DS
+
+	char dest[1020];
+	va_list argptr;
+	va_start(argptr, fmt);
+	vsnprintf(dest, 1020, fmt, argptr);
+	va_end(argptr);
+	shared_3ds_print(dest);
+	return 0;
+
+#else
+
 	printk_func_t vprintk_func;
 	va_list args;
-	int r;
-
 	va_start(args, fmt);
 
 	/*
@@ -1870,6 +1924,7 @@ asmlinkage __visible int printk(const char *fmt, ...)
 	va_end(args);
 
 	return r;
+#endif
 }
 EXPORT_SYMBOL(printk);
 
@@ -1910,6 +1965,16 @@ struct console *early_console;
 
 asmlinkage __visible void early_printk(const char *fmt, ...)
 {
+#ifdef CONFIG_DEBUG_LL_NINTENDO3DS
+
+	char dest[1020];
+	va_list argptr;
+	va_start(argptr, fmt);
+	vsnprintf(dest, 1020, fmt, argptr);
+	va_end(argptr);
+	shared_3ds_print(dest);
+
+#else
 	va_list ap;
 	char buf[512];
 	int n;
@@ -1922,6 +1987,7 @@ asmlinkage __visible void early_printk(const char *fmt, ...)
 	va_end(ap);
 
 	early_console->write(early_console, buf, n);
+#endif
 }
 #endif
 

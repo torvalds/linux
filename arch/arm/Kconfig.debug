@@ -1209,6 +1209,14 @@ choice
 		  options; the platform specific options are deprecated
 		  and will be soon removed.
 
+	config DEBUG_LL_NINTENDO3DS
+		bool "Kernel low-level debugging via 3DS ARM9"
+		depends on ARCH_NINTENDO3DS
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to the shared ARM9 buffer.
+
+
 endchoice
 
 config DEBUG_AT91_UART

@@ -87,64 +87,6 @@
 #include <asm/sections.h>
 #include <asm/cacheflush.h>
 
-/*********  NINTENDO 3DS DEBUGGING *********/
-
-#undef pr_notice
-#define pr_notice(fmt, ...) shared_3ds_printf(fmt, ##__VA_ARGS__)
-#undef pr_warn
-#define pr_warn(fmt, ...) shared_3ds_printf(fmt, ##__VA_ARGS__)
-#undef pr_info
-#define pr_info(fmt, ...) shared_3ds_printf(fmt, ##__VA_ARGS__)
-#undef pr_err
-#define pr_err(fmt, ...) shared_3ds_printf(fmt, ##__VA_ARGS__)
-#undef pr_crit
-#define pr_crit(fmt, ...) shared_3ds_printf(fmt, ##__VA_ARGS__)
-#undef printk
-#define printk(fmt, ...) shared_3ds_printf(fmt, ##__VA_ARGS__)
-
-volatile unsigned char shared_3ds_char = 0; // @0xC033CB10
-
-static void shared_3ds_putch(char c)
-{
-	shared_3ds_char = c;
-	// Clean and Invalidate Entire Data Cache
-	// Data Synchronization Barrier
-	asm volatile (
-		"mov r0, #0\n\t"
-		"mcr p15, 0, r0, c7, c14, 0\n\t"
-		"mcr p15, 0, r0, c7, c10, 4\n\t"
-		: : : "r0"
-	);
-	do {
-		// Invalidate Entire Data Cache
-		asm volatile (
-			"mov r0, #0\n\t"
-			"mcr p15, 0, r0, c7, c6, 0\n\t"
-			: : : "r0"
-		);
-	} while (shared_3ds_char != 0);
-}
-
-static void shared_3ds_print(const char *str)
-{
-	while (*str) {
-		shared_3ds_putch(*str);
-		str++;
-	}
-}
-
-void shared_3ds_printf(const char *str, ...)
-{
-	char dest[1020];
-	va_list argptr;
-	va_start(argptr, str);
-	vsnprintf(dest, 1020, str, argptr);
-	va_end(argptr);
-	shared_3ds_print(dest);
-}
-
-/*********  END NINTENDO 3DS DEBUGGING *********/
-
 static int kernel_init(void *);
 
 extern void init_IRQ(void);
@@ -542,53 +484,6 @@ static void __init mm_init(void)
 	percpu_init_late();
 	pgtable_init();
 	vmalloc_init();
-}
-
-/* WOOOOOOOOOOOOO NINTENDO 3DS */
-
-#define SCREEN_TOP_W  (400)
-#define SCREEN_BOT_W  (340)
-#define SCREEN_TOP_H  (240)
-#define SCREEN_BOT_H  (240)
-#define VRAM_BASE     (0x18000000)
-#define FB_TOP_SIZE	  (400*240*3)
-#define FB_BOT_SIZE	  (340*240*3)
-#define FB_TOP_LEFT1  (VRAM_BASE)
-#define FB_TOP_LEFT2  (FB_TOP_LEFT1  + FB_TOP_SIZE)
-#define FB_TOP_RIGHT1 (FB_TOP_LEFT2  + FB_TOP_SIZE)
-#define FB_TOP_RIGHT2 (FB_TOP_RIGHT1 + FB_TOP_SIZE)
-#define FB_BOT_1      (FB_TOP_RIGHT2 + FB_TOP_SIZE)
-#define FB_BOT_2      (FB_BOT_1      + FB_BOT_SIZE)
-#define RED    0xFF0000
-#define GREEN  0x00FF00
-#define BLUE   0x0000FF
-#define CYAN   0x00FFFF
-#define BLACK  0x000000
-#define WHITE  0xFFFFFF
-#define ORANGE 0xFF9900
-#define LIGHT_GREEN 0x00CC00
-#define PURPLE 0x660033
-
-static void draw_plot(int x, int y, u32 color)
-{
-	u8 *base = (u8*)((SCREEN_TOP_H-y-1)*3 +x*3*SCREEN_TOP_H);
-	u8 *p1 = base + FB_TOP_LEFT1;
-	u8 *p2 = base + FB_TOP_LEFT2;
-	u8 *p3 = base + FB_TOP_RIGHT1;
-	u8 *p4 = base + FB_TOP_RIGHT2;
-	p1[0] = p2[0] = p3[0] = p4[0] = color & 0xFF;
-	p1[1] = p2[1] = p3[1] =	p4[1] = (color>>8) & 0xFF;
-	p1[2] = p2[2] = p3[2] =	p4[2] = (color>>16) & 0xFF;
-}
-
-static void fill_3ds_fb(u32 color)
-{
-	int i, j;
-	for (i = 0; i < SCREEN_TOP_W; ++i) {
-		for (j = 0; j < SCREEN_TOP_H; ++j) {
-			draw_plot(i, j, color);
-		}
-	}
 }
 
 asmlinkage __visible void __init start_kernel(void)
