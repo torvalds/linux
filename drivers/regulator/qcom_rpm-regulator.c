@@ -884,19 +884,26 @@ static int rpm_reg_probe(struct platform_device *pdev)
 	struct regulator_config config = { };
 	struct regulator_dev *rdev;
 	struct qcom_rpm_reg *vreg;
+	struct qcom_rpm *rpm;
+
+	rpm = dev_get_drvdata(pdev->dev.parent);
+	if (!rpm) {
+		dev_err(&pdev->dev, "unable to retrieve handle to rpm\n");
+		return -ENODEV;
+	}
 
 	match = of_match_device(rpm_of_match, &pdev->dev);
 	for (reg = match->data; reg->name; reg++) {
 		vreg = devm_kmalloc(&pdev->dev, sizeof(*vreg), GFP_KERNEL);
-		if (!vreg) {
-			dev_err(&pdev->dev, "failed to allocate vreg\n");
+		if (!vreg)
 			return -ENOMEM;
-		}
+
 		memcpy(vreg, reg->template, sizeof(*vreg));
 		mutex_init(&vreg->lock);
 
 		vreg->dev = &pdev->dev;
 		vreg->resource = reg->resource;
+		vreg->rpm = rpm;
 
 		vreg->desc.id = -1;
 		vreg->desc.owner = THIS_MODULE;
@@ -906,17 +913,11 @@ static int rpm_reg_probe(struct platform_device *pdev)
 		vreg->desc.of_match = reg->name;
 		vreg->desc.of_parse_cb = rpm_reg_of_parse;
 
-		vreg->rpm = dev_get_drvdata(pdev->dev.parent);
-		if (!vreg->rpm) {
-			dev_err(&pdev->dev, "unable to retrieve handle to rpm\n");
-			return -ENODEV;
-		}
-
 		config.dev = &pdev->dev;
 		config.driver_data = vreg;
 		rdev = devm_regulator_register(&pdev->dev, &vreg->desc, &config);
 		if (IS_ERR(rdev)) {
-			dev_err(&pdev->dev, "can't register regulator\n");
+			dev_err(&pdev->dev, "failed to register %s\n", reg->name);
 			return PTR_ERR(rdev);
 		}
 	}
