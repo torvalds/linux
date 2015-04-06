@@ -405,10 +405,10 @@ static void img_spfi_config(struct spi_master *master, struct spi_device *spi,
 
 	/*
 	 * output = spfi_clk * (BITCLK / 512), where BITCLK must be a
-	 * power of 2 up to 256 (where 255 == 256 since BITCLK is 8 bits)
+	 * power of 2 up to 128
 	 */
-	div = DIV_ROUND_UP(master->max_speed_hz, xfer->speed_hz);
-	div = clamp(512 / (1 << get_count_order(div)), 1, 255);
+	div = DIV_ROUND_UP(clk_get_rate(spfi->spfi_clk), xfer->speed_hz);
+	div = clamp(512 / (1 << get_count_order(div)), 1, 128);
 
 	val = spfi_readl(spfi, SPFI_DEVICE_PARAMETER(spi->chip_select));
 	val &= ~(SPFI_DEVICE_PARAMETER_BITCLK_MASK <<
@@ -587,8 +587,8 @@ static int img_spfi_probe(struct platform_device *pdev)
 	master->num_chipselect = 5;
 	master->dev.of_node = pdev->dev.of_node;
 	master->bits_per_word_mask = SPI_BPW_MASK(32) | SPI_BPW_MASK(8);
-	master->max_speed_hz = clk_get_rate(spfi->spfi_clk);
-	master->min_speed_hz = master->max_speed_hz / 512;
+	master->max_speed_hz = clk_get_rate(spfi->spfi_clk) / 4;
+	master->min_speed_hz = clk_get_rate(spfi->spfi_clk) / 512;
 
 	master->set_cs = img_spfi_set_cs;
 	master->transfer_one = img_spfi_transfer_one;
