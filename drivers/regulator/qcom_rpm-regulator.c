@@ -645,7 +645,9 @@ static int rpm_reg_set(struct qcom_rpm_reg *vreg,
 	return 0;
 }
 
-static int rpm_reg_of_parse_freq(struct device *dev, struct qcom_rpm_reg *vreg)
+static int rpm_reg_of_parse_freq(struct device *dev,
+				 struct device_node *node,
+				 struct qcom_rpm_reg *vreg)
 {
 	static const int freq_table[] = {
 		19200000, 9600000, 6400000, 4800000, 3840000, 3200000, 2740000,
@@ -659,7 +661,7 @@ static int rpm_reg_of_parse_freq(struct device *dev, struct qcom_rpm_reg *vreg)
 	int i;
 
 	key = "qcom,switch-mode-frequency";
-	ret = of_property_read_u32(dev->of_node, key, &freq);
+	ret = of_property_read_u32(node, key, &freq);
 	if (ret) {
 		dev_err(dev, "regulator requires %s property\n", key);
 		return -EINVAL;
@@ -676,6 +678,101 @@ static int rpm_reg_of_parse_freq(struct device *dev, struct qcom_rpm_reg *vreg)
 	return -EINVAL;
 }
 
+static int rpm_reg_of_parse(struct device_node *node,
+			    const struct regulator_desc *desc,
+			    struct regulator_config *config)
+{
+	struct qcom_rpm_reg *vreg = config->driver_data;
+	struct device *dev = config->dev;
+	const char *key;
+	u32 force_mode;
+	bool pwm;
+	u32 val;
+	int ret;
+
+	key = "bias-pull-down";
+	if (of_property_read_bool(node, key)) {
+		ret = rpm_reg_set(vreg, &vreg->parts->pd, 1);
+		if (ret) {
+			dev_err(dev, "%s is invalid", key);
+			return ret;
+		}
+	}
+
+	if (vreg->parts->freq.mask) {
+		ret = rpm_reg_of_parse_freq(dev, node, vreg);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (vreg->parts->pm.mask) {
+		key = "qcom,power-mode-hysteretic";
+		pwm = !of_property_read_bool(node, key);
+
+		ret = rpm_reg_set(vreg, &vreg->parts->pm, pwm);
+		if (ret) {
+			dev_err(dev, "failed to set power mode\n");
+			return ret;
+		}
+	}
+
+	if (vreg->parts->fm.mask) {
+		force_mode = -1;
+
+		key = "qcom,force-mode";
+		ret = of_property_read_u32(node, key, &val);
+		if (ret == -EINVAL) {
+			val = QCOM_RPM_FORCE_MODE_NONE;
+		} else if (ret < 0) {
+			dev_err(dev, "failed to read %s\n", key);
+			return ret;
+		}
+
+		/*
+		 * If force-mode is encoded as 2 bits then the
+		 * possible register values are:
+		 * NONE, LPM, HPM
+		 * otherwise:
+		 * NONE, LPM, AUTO, HPM, BYPASS
+		 */
+		switch (val) {
+		case QCOM_RPM_FORCE_MODE_NONE:
+			force_mode = 0;
+			break;
+		case QCOM_RPM_FORCE_MODE_LPM:
+			force_mode = 1;
+			break;
+		case QCOM_RPM_FORCE_MODE_HPM:
+			if (FORCE_MODE_IS_2_BITS(vreg))
+				force_mode = 2;
+			else
+				force_mode = 3;
+			break;
+		case QCOM_RPM_FORCE_MODE_AUTO:
+			if (vreg->supports_force_mode_auto)
+				force_mode = 2;
+			break;
+		case QCOM_RPM_FORCE_MODE_BYPASS:
+			if (vreg->supports_force_mode_bypass)
+				force_mode = 4;
+			break;
+		}
+
+		if (force_mode == -1) {
+			dev_err(dev, "invalid force mode\n");
+			return -EINVAL;
+		}
+
+		ret = rpm_reg_set(vreg, &vreg->parts->fm, force_mode);
+		if (ret) {
+			dev_err(dev, "failed to set force mode\n");
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static int rpm_reg_probe(struct platform_device *pdev)
 {
 	struct regulator_init_data *initdata;
@@ -685,8 +782,6 @@ static int rpm_reg_probe(struct platform_device *pdev)
 	struct regulator_dev *rdev;
 	struct qcom_rpm_reg *vreg;
 	const char *key;
-	u32 force_mode;
-	bool pwm;
 	u32 val;
 	int ret;
 
@@ -732,90 +827,16 @@ static int rpm_reg_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	key = "bias-pull-down";
-	if (of_property_read_bool(pdev->dev.of_node, key)) {
-		ret = rpm_reg_set(vreg, &vreg->parts->pd, 1);
-		if (ret) {
-			dev_err(&pdev->dev, "%s is invalid", key);
-			return ret;
-		}
-	}
-
-	if (vreg->parts->freq.mask) {
-		ret = rpm_reg_of_parse_freq(&pdev->dev, vreg);
-		if (ret < 0)
-			return ret;
-	}
-
-	if (vreg->parts->pm.mask) {
-		key = "qcom,power-mode-hysteretic";
-		pwm = !of_property_read_bool(pdev->dev.of_node, key);
-
-		ret = rpm_reg_set(vreg, &vreg->parts->pm, pwm);
-		if (ret) {
-			dev_err(&pdev->dev, "failed to set power mode\n");
-			return ret;
-		}
-	}
-
-	if (vreg->parts->fm.mask) {
-		force_mode = -1;
-
-		key = "qcom,force-mode";
-		ret = of_property_read_u32(pdev->dev.of_node, key, &val);
-		if (ret == -EINVAL) {
-			val = QCOM_RPM_FORCE_MODE_NONE;
-		} else if (ret < 0) {
-			dev_err(&pdev->dev, "failed to read %s\n", key);
-			return ret;
-		}
-
-		/*
-		 * If force-mode is encoded as 2 bits then the
-		 * possible register values are:
-		 * NONE, LPM, HPM
-		 * otherwise:
-		 * NONE, LPM, AUTO, HPM, BYPASS
-		 */
-		switch (val) {
-		case QCOM_RPM_FORCE_MODE_NONE:
-			force_mode = 0;
-			break;
-		case QCOM_RPM_FORCE_MODE_LPM:
-			force_mode = 1;
-			break;
-		case QCOM_RPM_FORCE_MODE_HPM:
-			if (FORCE_MODE_IS_2_BITS(vreg))
-				force_mode = 2;
-			else
-				force_mode = 3;
-			break;
-		case QCOM_RPM_FORCE_MODE_AUTO:
-			if (vreg->supports_force_mode_auto)
-				force_mode = 2;
-			break;
-		case QCOM_RPM_FORCE_MODE_BYPASS:
-			if (vreg->supports_force_mode_bypass)
-				force_mode = 4;
-			break;
-		}
-
-		if (force_mode == -1) {
-			dev_err(&pdev->dev, "invalid force mode\n");
-			return -EINVAL;
-		}
-
-		ret = rpm_reg_set(vreg, &vreg->parts->fm, force_mode);
-		if (ret) {
-			dev_err(&pdev->dev, "failed to set force mode\n");
-			return ret;
-		}
-	}
 
 	config.dev = &pdev->dev;
 	config.init_data = initdata;
 	config.driver_data = vreg;
 	config.of_node = pdev->dev.of_node;
+
+	ret = rpm_reg_of_parse(pdev->dev.of_node, &vreg->desc, &config);
+	if (ret)
+		return ret;
+
 	rdev = devm_regulator_register(&pdev->dev, &vreg->desc, &config);
 	if (IS_ERR(rdev)) {
 		dev_err(&pdev->dev, "can't register regulator\n");
