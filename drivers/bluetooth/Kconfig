@@ -2,6 +2,9 @@
 menu "Bluetooth device drivers"
 	depends on BT
 
+config BT_INTEL
+	tristate
+
 config BT_BCM
 	tristate
 	select FW_LOADER
