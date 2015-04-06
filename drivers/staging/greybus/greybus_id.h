@@ -13,7 +13,7 @@ struct greybus_bundle_id {
 	__u16	match_flags;
 	__u16	vendor;
 	__u16	product;
-	__u8	class_type;
+	__u8	class;
 	__u64	unique_id;
 
 	kernel_ulong_t	driver_info __aligned(sizeof(kernel_ulong_t));
@@ -23,6 +23,6 @@ struct greybus_bundle_id {
 #define GREYBUS_ID_MATCH_VENDOR		BIT(0)
 #define GREYBUS_ID_MATCH_PRODUCT	BIT(1)
 #define GREYBUS_ID_MATCH_SERIAL		BIT(2)
-#define GREYBUS_ID_MATCH_CLASS_TYPE	BIT(3)
+#define GREYBUS_ID_MATCH_CLASS		BIT(3)
 
 #endif /* __LINUX_GREYBUS_ID_H */

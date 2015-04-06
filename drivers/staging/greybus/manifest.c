@@ -261,7 +261,7 @@ static u32 gb_manifest_parse_bundles(struct gb_interface *intf)
 		/* Found one.  Set up its bundle structure*/
 		desc_bundle = descriptor->data;
 		bundle = gb_bundle_create(intf, desc_bundle->id,
-					  desc_bundle->class_type);
+					  desc_bundle->class);
 		if (!bundle)
 			return 0;	/* Error */
 

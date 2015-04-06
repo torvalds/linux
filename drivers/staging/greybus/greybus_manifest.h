@@ -93,7 +93,7 @@ struct greybus_descriptor_interface {
 };
 
 /*
- * An bundle descriptor defines an identification number and a class type for
+ * An bundle descriptor defines an identification number and a class for
  * each bundle.
  *
  * @id: Uniquely identifies a bundle within a interface, its sole purpose is to
@@ -105,7 +105,7 @@ struct greybus_descriptor_interface {
  * encode the device id and module number in UniPro packets
  * that use the bundle.
  *
- * @class_type: It is used by kernel to know the functionality provided by the
+ * @class: It is used by kernel to know the functionality provided by the
  * bundle and will be matched against drivers functinality while probing greybus
  * driver. It should contain one of the values defined in
  * 'enum greybus_class_type'.
@@ -113,7 +113,7 @@ struct greybus_descriptor_interface {
  */
 struct greybus_descriptor_bundle {
 	__u8	id;	/* interface-relative id (0..) */
-	__u8	class_type;
+	__u8	class;
 };
 
 /*

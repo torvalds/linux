@@ -17,7 +17,7 @@ struct gb_bundle {
 	struct device		dev;
 	struct gb_interface	*intf;
 	u8			id;
-	u8			class_type;
+	u8			class;
 	u8			device_id;
 	struct list_head	connections;
 
@@ -29,7 +29,7 @@ struct gb_bundle {
 
 /* Greybus "private" definitions" */
 struct gb_bundle *gb_bundle_create(struct gb_interface *intf, u8 bundle_id,
-				   u8 class_type);
+				   u8 class);
 void gb_bundle_destroy(struct gb_interface *intf);
 int gb_bundle_init(struct gb_bundle *bundle, u8 device_id);
 int gb_bundles_init(struct gb_interface *intf, u8 device_id);

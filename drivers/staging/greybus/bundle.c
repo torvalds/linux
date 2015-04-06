@@ -22,18 +22,18 @@ static ssize_t device_id_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(device_id);
 
-static ssize_t class_type_show(struct device *dev, struct device_attribute *attr,
-			      char *buf)
+static ssize_t class_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
 	struct gb_bundle *bundle = to_gb_bundle(dev);
 
-	return sprintf(buf, "%d\n", bundle->class_type);
+	return sprintf(buf, "%d\n", bundle->class);
 }
-static DEVICE_ATTR_RO(class_type);
+static DEVICE_ATTR_RO(class);
 
 static struct attribute *bundle_attrs[] = {
 	&dev_attr_device_id.attr,
-	&dev_attr_class_type.attr,
+	&dev_attr_class.attr,
 	NULL,
 };
 
@@ -66,8 +66,8 @@ static int gb_bundle_match_one_id(struct gb_bundle *bundle,
 	    (id->unique_id != bundle->intf->unique_id))
 		return 0;
 
-	if ((id->match_flags & GREYBUS_ID_MATCH_CLASS_TYPE) &&
-	    (id->class_type != bundle->class_type))
+	if ((id->match_flags & GREYBUS_ID_MATCH_CLASS) &&
+	    (id->class != bundle->class))
 		return 0;
 
 	return 1;
@@ -80,7 +80,7 @@ gb_bundle_match_id(struct gb_bundle *bundle,
 	if (id == NULL)
 		return NULL;
 
-	for (; id->vendor || id->product || id->unique_id || id->class_type ||
+	for (; id->vendor || id->product || id->unique_id || id->class ||
 	       id->driver_info; id++) {
 		if (gb_bundle_match_one_id(bundle, id))
 			return id;
@@ -129,7 +129,7 @@ void gb_bundle_bind_protocols(void)
  * pointer if a failure occurs due to memory exhaustion.
  */
 struct gb_bundle *gb_bundle_create(struct gb_interface *intf, u8 bundle_id,
-				   u8 class_type)
+				   u8 class)
 {
 	struct gb_bundle *bundle;
 	int retval;
@@ -140,7 +140,7 @@ struct gb_bundle *gb_bundle_create(struct gb_interface *intf, u8 bundle_id,
 
 	bundle->intf = intf;
 	bundle->id = bundle_id;
-	bundle->class_type = class_type;
+	bundle->class = class;
 	INIT_LIST_HEAD(&bundle->connections);
 
 	/* Invalid device id to start with */
