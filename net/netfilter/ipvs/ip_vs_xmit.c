@@ -536,8 +536,8 @@ static inline int ip_vs_nat_send_or_cont(int pf, struct sk_buff *skb,
 		ip_vs_update_conntrack(skb, cp, 1);
 	if (!local) {
 		skb_forward_csum(skb);
-		NF_HOOK(pf, NF_INET_LOCAL_OUT, skb, NULL, skb_dst(skb)->dev,
-			dst_output);
+		NF_HOOK(pf, NF_INET_LOCAL_OUT, NULL, skb,
+			NULL, skb_dst(skb)->dev, dst_output_sk);
 	} else
 		ret = NF_ACCEPT;
 	return ret;
@@ -554,8 +554,8 @@ static inline int ip_vs_send_or_cont(int pf, struct sk_buff *skb,
 		ip_vs_notrack(skb);
 	if (!local) {
 		skb_forward_csum(skb);
-		NF_HOOK(pf, NF_INET_LOCAL_OUT, skb, NULL, skb_dst(skb)->dev,
-			dst_output);
+		NF_HOOK(pf, NF_INET_LOCAL_OUT, NULL, skb,
+			NULL, skb_dst(skb)->dev, dst_output_sk);
 	} else
 		ret = NF_ACCEPT;
 	return ret;
