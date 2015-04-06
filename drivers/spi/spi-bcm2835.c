@@ -68,7 +68,8 @@
 #define BCM2835_SPI_CS_CS_10		0x00000002
 #define BCM2835_SPI_CS_CS_01		0x00000001
 
-#define BCM2835_SPI_TIMEOUT_MS	30000
+#define BCM2835_SPI_POLLING_LIMIT_US	30
+#define BCM2835_SPI_TIMEOUT_MS		30000
 #define BCM2835_SPI_MODE_BITS	(SPI_CPOL | SPI_CPHA | SPI_CS_HIGH \
 				| SPI_NO_CS | SPI_3WIRE)
 
@@ -156,52 +157,49 @@ static irqreturn_t bcm2835_spi_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int bcm2835_spi_transfer_one(struct spi_master *master,
-				    struct spi_device *spi,
-				    struct spi_transfer *tfr)
+static int bcm2835_spi_transfer_one_poll(struct spi_master *master,
+					 struct spi_device *spi,
+					 struct spi_transfer *tfr,
+					 u32 cs,
+					 unsigned long xfer_time_us)
 {
 	struct bcm2835_spi *bs = spi_master_get_devdata(master);
-	unsigned long spi_hz, clk_hz, cdiv;
-	u32 cs = bcm2835_rd(bs, BCM2835_SPI_CS);
+	unsigned long timeout = jiffies +
+		max(4 * xfer_time_us * HZ / 1000000, 2uL);
 
-	/* set clock */
-	spi_hz = tfr->speed_hz;
-	clk_hz = clk_get_rate(bs->clk);
+	/* enable HW block without interrupts */
+	bcm2835_wr(bs, BCM2835_SPI_CS, cs | BCM2835_SPI_CS_TA);
 
-	if (spi_hz >= clk_hz / 2) {
-		cdiv = 2; /* clk_hz/2 is the fastest we can go */
-	} else if (spi_hz) {
-		/* CDIV must be a multiple of two */
-		cdiv = DIV_ROUND_UP(clk_hz, spi_hz);
-		cdiv += (cdiv % 2);
-
-		if (cdiv >= 65536)
-			cdiv = 0; /* 0 is the slowest we can go */
-	} else {
-		cdiv = 0; /* 0 is the slowest we can go */
+	/* set timeout to 4x the expected time, or 2 jiffies */
+	/* loop until finished the transfer */
+	while (bs->rx_len) {
+		/* read from fifo as much as possible */
+		bcm2835_rd_fifo(bs);
+		/* fill in tx fifo as much as possible */
+		bcm2835_wr_fifo(bs);
+		/* if we still expect some data after the read,
+		 * check for a possible timeout
+		 */
+		if (bs->rx_len && time_after(jiffies, timeout)) {
+			/* Transfer complete - reset SPI HW */
+			bcm2835_spi_reset_hw(master);
+			/* and return timeout */
+			return -ETIMEDOUT;
+		}
 	}
-	bcm2835_wr(bs, BCM2835_SPI_CLK, cdiv);
 
-	/* handle all the modes */
-	if ((spi->mode & SPI_3WIRE) && (tfr->rx_buf))
-		cs |= BCM2835_SPI_CS_REN;
-	if (spi->mode & SPI_CPOL)
-		cs |= BCM2835_SPI_CS_CPOL;
-	if (spi->mode & SPI_CPHA)
-		cs |= BCM2835_SPI_CS_CPHA;
+	/* Transfer complete - reset SPI HW */
+	bcm2835_spi_reset_hw(master);
+	/* and return without waiting for completion */
+	return 0;
+}
 
-	/* for gpio_cs set dummy CS so that no HW-CS get changed
-	 * we can not run this in bcm2835_spi_set_cs, as it does
-	 * not get called for cs_gpio cases, so we need to do it here
-	 */
-	if (gpio_is_valid(spi->cs_gpio) || (spi->mode & SPI_NO_CS))
-		cs |= BCM2835_SPI_CS_CS_10 | BCM2835_SPI_CS_CS_01;
-
-	/* set transmit buffers and length */
-	bs->tx_buf = tfr->tx_buf;
-	bs->rx_buf = tfr->rx_buf;
-	bs->tx_len = tfr->len;
-	bs->rx_len = tfr->len;
+static int bcm2835_spi_transfer_one_irq(struct spi_master *master,
+					struct spi_device *spi,
+					struct spi_transfer *tfr,
+					u32 cs)
+{
+	struct bcm2835_spi *bs = spi_master_get_devdata(master);
 
 	/* fill in fifo if we have gpio-cs
 	 * note that there have been rare events where the native-CS
@@ -230,6 +228,68 @@ static int bcm2835_spi_transfer_one(struct spi_master *master,
 
 	/* signal that we need to wait for completion */
 	return 1;
+}
+
+static int bcm2835_spi_transfer_one(struct spi_master *master,
+				    struct spi_device *spi,
+				    struct spi_transfer *tfr)
+{
+	struct bcm2835_spi *bs = spi_master_get_devdata(master);
+	unsigned long spi_hz, clk_hz, cdiv;
+	unsigned long spi_used_hz, xfer_time_us;
+	u32 cs = bcm2835_rd(bs, BCM2835_SPI_CS);
+
+	/* set clock */
+	spi_hz = tfr->speed_hz;
+	clk_hz = clk_get_rate(bs->clk);
+
+	if (spi_hz >= clk_hz / 2) {
+		cdiv = 2; /* clk_hz/2 is the fastest we can go */
+	} else if (spi_hz) {
+		/* CDIV must be a multiple of two */
+		cdiv = DIV_ROUND_UP(clk_hz, spi_hz);
+		cdiv += (cdiv % 2);
+
+		if (cdiv >= 65536)
+			cdiv = 0; /* 0 is the slowest we can go */
+	} else {
+		cdiv = 0; /* 0 is the slowest we can go */
+	}
+	spi_used_hz = cdiv ? (clk_hz / cdiv) : (clk_hz / 65536);
+	bcm2835_wr(bs, BCM2835_SPI_CLK, cdiv);
+
+	/* handle all the modes */
+	if ((spi->mode & SPI_3WIRE) && (tfr->rx_buf))
+		cs |= BCM2835_SPI_CS_REN;
+	if (spi->mode & SPI_CPOL)
+		cs |= BCM2835_SPI_CS_CPOL;
+	if (spi->mode & SPI_CPHA)
+		cs |= BCM2835_SPI_CS_CPHA;
+
+	/* for gpio_cs set dummy CS so that no HW-CS get changed
+	 * we can not run this in bcm2835_spi_set_cs, as it does
+	 * not get called for cs_gpio cases, so we need to do it here
+	 */
+	if (gpio_is_valid(spi->cs_gpio) || (spi->mode & SPI_NO_CS))
+		cs |= BCM2835_SPI_CS_CS_10 | BCM2835_SPI_CS_CS_01;
+
+	/* set transmit buffers and length */
+	bs->tx_buf = tfr->tx_buf;
+	bs->rx_buf = tfr->rx_buf;
+	bs->tx_len = tfr->len;
+	bs->rx_len = tfr->len;
+
+	/* calculate the estimated time in us the transfer runs */
+	xfer_time_us = tfr->len
+		* 9 /* clocks/byte - SPI-HW waits 1 clock after each byte */
+		* 1000000 / spi_used_hz;
+
+	/* for short requests run polling*/
+	if (xfer_time_us <= BCM2835_SPI_POLLING_LIMIT_US)
+		return bcm2835_spi_transfer_one_poll(master, spi, tfr,
+						     cs, xfer_time_us);
+
+	return bcm2835_spi_transfer_one_irq(master, spi, tfr, cs);
 }
 
 static void bcm2835_spi_handle_err(struct spi_master *master,
