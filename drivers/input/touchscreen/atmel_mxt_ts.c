@@ -178,6 +178,9 @@ enum t100_type {
 	MXT_T100_TYPE_LARGE_TOUCH	= 6,
 };
 
+#define MXT_DISTANCE_ACTIVE_TOUCH	0
+#define MXT_DISTANCE_HOVERING		1
+
 #define MXT_TOUCH_MAJOR_DEFAULT		1
 #define MXT_PRESSURE_DEFAULT		1
 
@@ -1043,10 +1046,11 @@ static void mxt_proc_t100_message(struct mxt_data *data, u8 *message)
 	struct input_dev *input_dev = data->input_dev;
 	int id;
 	u8 status;
-	u8 type;
-	int x;
-	int y;
-	int tool;
+	u8 type = 0;
+	u16 x;
+	u16 y;
+	int distance = 0;
+	int tool = 0;
 	u8 major = 0;
 	u8 pressure = 0;
 	u8 orientation = 0;
@@ -1068,28 +1072,40 @@ static void mxt_proc_t100_message(struct mxt_data *data, u8 *message)
 
 		switch (type) {
 		case MXT_T100_TYPE_HOVERING_FINGER:
+			tool = MT_TOOL_FINGER;
+			distance = MXT_DISTANCE_HOVERING;
 			hover = true;
-			/* fall through */
+			active = true;
+			break;
+
 		case MXT_T100_TYPE_FINGER:
 		case MXT_T100_TYPE_GLOVE:
-			active = true;
 			tool = MT_TOOL_FINGER;
+			distance = MXT_DISTANCE_ACTIVE_TOUCH;
+			hover = false;
+			active = true;
 
 			if (data->t100_aux_area)
 				major = message[data->t100_aux_area];
+
 			if (data->t100_aux_ampl)
 				pressure = message[data->t100_aux_ampl];
+
 			if (data->t100_aux_vect)
 				orientation = message[data->t100_aux_vect];
 
 			break;
 
 		case MXT_T100_TYPE_PASSIVE_STYLUS:
-			active = true;
 			tool = MT_TOOL_PEN;
+			distance = MXT_DISTANCE_ACTIVE_TOUCH;
+			hover = false;
+			active = true;
 
-			/* Passive stylus is reported with size zero so
-			 * hardcode */
+			/*
+			 * Passive stylus is reported with size zero so
+			 * hardcode.
+			 */
 			major = MXT_TOUCH_MAJOR_DEFAULT;
 
 			if (data->t100_aux_ampl)
@@ -1108,14 +1124,17 @@ static void mxt_proc_t100_message(struct mxt_data *data, u8 *message)
 			if (!(message[6] & MXT_T107_STYLUS_HOVER))
 				break;
 
-			active = true;
 			tool = MT_TOOL_PEN;
+			distance = MXT_DISTANCE_ACTIVE_TOUCH;
+			active = true;
 			major = MXT_TOUCH_MAJOR_DEFAULT;
 
-			if (!(message[6] & MXT_T107_STYLUS_TIPSWITCH))
+			if (!(message[6] & MXT_T107_STYLUS_TIPSWITCH)) {
 				hover = true;
-			else if (data->stylus_aux_pressure)
+				distance = MXT_DISTANCE_HOVERING;
+			} else if (data->stylus_aux_pressure) {
 				pressure = message[data->stylus_aux_pressure];
+			}
 
 			break;
 
@@ -1129,20 +1148,12 @@ static void mxt_proc_t100_message(struct mxt_data *data, u8 *message)
 		}
 	}
 
-	if (hover) {
-		pressure = 0;
-		major = 0;
-	} else if (active) {
-		/*
-		 * Values reported should be non-zero if tool is touching the
-		 * device
-		 */
-		if (pressure == 0)
-			pressure = MXT_PRESSURE_DEFAULT;
-
-		if (major == 0)
-			major = MXT_TOUCH_MAJOR_DEFAULT;
-	}
+	/*
+	 * Values reported should be non-zero if tool is touching the
+	 * device
+	 */
+	if (!pressure && !hover)
+		pressure = MXT_PRESSURE_DEFAULT;
 
 	input_mt_slot(input_dev, id);
 
@@ -1155,6 +1166,7 @@ static void mxt_proc_t100_message(struct mxt_data *data, u8 *message)
 		input_report_abs(input_dev, ABS_MT_POSITION_Y, y);
 		input_report_abs(input_dev, ABS_MT_TOUCH_MAJOR, major);
 		input_report_abs(input_dev, ABS_MT_PRESSURE, pressure);
+		input_report_abs(input_dev, ABS_MT_DISTANCE, distance);
 		input_report_abs(input_dev, ABS_MT_ORIENTATION, orientation);
 
 	} else {
