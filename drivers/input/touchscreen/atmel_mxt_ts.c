@@ -2479,10 +2479,33 @@ static int mxt_read_t100_config(struct mxt_data *data)
 static int mxt_input_open(struct input_dev *dev);
 static void mxt_input_close(struct input_dev *dev);
 
+static void mxt_set_up_as_touchpad(struct input_dev *input_dev,
+				   struct mxt_data *data)
+{
+	const struct mxt_platform_data *pdata = data->pdata;
+	int i;
+
+	input_dev->name = "Atmel maXTouch Touchpad";
+
+	__set_bit(INPUT_PROP_BUTTONPAD, input_dev->propbit);
+
+	input_abs_set_res(input_dev, ABS_X, MXT_PIXELS_PER_MM);
+	input_abs_set_res(input_dev, ABS_Y, MXT_PIXELS_PER_MM);
+	input_abs_set_res(input_dev, ABS_MT_POSITION_X,
+			  MXT_PIXELS_PER_MM);
+	input_abs_set_res(input_dev, ABS_MT_POSITION_Y,
+			  MXT_PIXELS_PER_MM);
+
+	for (i = 0; i < pdata->t19_num_keys; i++)
+		if (pdata->t19_keymap[i] != KEY_RESERVED)
+			input_set_capability(input_dev, EV_KEY,
+					     pdata->t19_keymap[i]);
+}
+
 static int mxt_initialize_input_device(struct mxt_data *data)
 {
-	struct device *dev = &data->client->dev;
 	const struct mxt_platform_data *pdata = data->pdata;
+	struct device *dev = &data->client->dev;
 	struct input_dev *input_dev;
 	int error;
 	unsigned int num_mt_slots;
@@ -2534,28 +2557,6 @@ static int mxt_initialize_input_device(struct mxt_data *data)
 	set_bit(EV_ABS, input_dev->evbit);
 	input_set_capability(input_dev, EV_KEY, BTN_TOUCH);
 
-	if (pdata->t19_num_keys) {
-		__set_bit(INPUT_PROP_BUTTONPAD, input_dev->propbit);
-
-		for (i = 0; i < pdata->t19_num_keys; i++)
-			if (pdata->t19_keymap[i] != KEY_RESERVED)
-				input_set_capability(input_dev, EV_KEY,
-						     pdata->t19_keymap[i]);
-
-		mt_flags |= INPUT_MT_POINTER;
-
-		input_abs_set_res(input_dev, ABS_X, MXT_PIXELS_PER_MM);
-		input_abs_set_res(input_dev, ABS_Y, MXT_PIXELS_PER_MM);
-		input_abs_set_res(input_dev, ABS_MT_POSITION_X,
-				  MXT_PIXELS_PER_MM);
-		input_abs_set_res(input_dev, ABS_MT_POSITION_Y,
-				  MXT_PIXELS_PER_MM);
-
-		input_dev->name = "Atmel maXTouch Touchpad";
-	} else {
-		mt_flags |= INPUT_MT_DIRECT;
-	}
-
 	/* For single touch */
 	input_set_abs_params(input_dev, ABS_X, 0, data->max_x, 0, 0);
 	input_set_abs_params(input_dev, ABS_Y, 0, data->max_y, 0, 0);
@@ -2564,6 +2565,14 @@ static int mxt_initialize_input_device(struct mxt_data *data)
 	    (data->multitouch == MXT_TOUCH_MULTITOUCHSCREEN_T100 &&
 	     data->t100_aux_ampl)) {
 		input_set_abs_params(input_dev, ABS_PRESSURE, 0, 255, 0, 0);
+	}
+
+	/* If device has buttons we assume it is a touchpad */
+	if (pdata->t19_num_keys) {
+		mxt_set_up_as_touchpad(input_dev, data);
+		mt_flags |= INPUT_MT_POINTER;
+	} else {
+		mt_flags |= INPUT_MT_DIRECT;
 	}
 
 	/* For multi touch */
