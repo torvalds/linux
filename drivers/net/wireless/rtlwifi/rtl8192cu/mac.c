@@ -393,59 +393,9 @@ void rtl92c_disable_interrupt(struct ieee80211_hw *hw)
 void rtl92c_set_qos(struct ieee80211_hw *hw, int aci)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
-	u32 u4b_ac_param;
 
 	rtl92c_dm_init_edca_turbo(hw);
-	u4b_ac_param = (u32) mac->ac[aci].aifs;
-	u4b_ac_param |=
-	    ((u32) le16_to_cpu(mac->ac[aci].cw_min) & 0xF) <<
-	    AC_PARAM_ECW_MIN_OFFSET;
-	u4b_ac_param |=
-	    ((u32) le16_to_cpu(mac->ac[aci].cw_max) & 0xF) <<
-	    AC_PARAM_ECW_MAX_OFFSET;
-	u4b_ac_param |= (u32) le16_to_cpu(mac->ac[aci].tx_op) <<
-			 AC_PARAM_TXOP_OFFSET;
-	RT_TRACE(rtlpriv, COMP_QOS, DBG_LOUD, "queue:%x, ac_param:%x\n",
-		 aci, u4b_ac_param);
-	switch (aci) {
-	case AC1_BK:
-		rtl_write_dword(rtlpriv, REG_EDCA_BK_PARAM, u4b_ac_param);
-		break;
-	case AC0_BE:
-		rtl_write_dword(rtlpriv, REG_EDCA_BE_PARAM, u4b_ac_param);
-		break;
-	case AC2_VI:
-		rtl_write_dword(rtlpriv, REG_EDCA_VI_PARAM, u4b_ac_param);
-		break;
-	case AC3_VO:
-		rtl_write_dword(rtlpriv, REG_EDCA_VO_PARAM, u4b_ac_param);
-		break;
-	default:
-		RT_ASSERT(false, "invalid aci: %d !\n", aci);
-		break;
-	}
-}
-
-/*-------------------------------------------------------------------------
- * HW MAC Address
- *-------------------------------------------------------------------------*/
-void rtl92c_set_mac_addr(struct ieee80211_hw *hw, const u8 *addr)
-{
-	u32 i;
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-
-	for (i = 0 ; i < ETH_ALEN ; i++)
-		rtl_write_byte(rtlpriv, (REG_MACID + i), *(addr+i));
-
-	RT_TRACE(rtlpriv, COMP_CMD, DBG_DMESG,
-		 "MAC Address: %02X-%02X-%02X-%02X-%02X-%02X\n",
-		 rtl_read_byte(rtlpriv, REG_MACID),
-		 rtl_read_byte(rtlpriv, REG_MACID+1),
-		 rtl_read_byte(rtlpriv, REG_MACID+2),
-		 rtl_read_byte(rtlpriv, REG_MACID+3),
-		 rtl_read_byte(rtlpriv, REG_MACID+4),
-		 rtl_read_byte(rtlpriv, REG_MACID+5));
+	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_AC_PARAM, (u8 *)&aci);
 }
 
 void rtl92c_init_driver_info_size(struct ieee80211_hw *hw, u8 size)

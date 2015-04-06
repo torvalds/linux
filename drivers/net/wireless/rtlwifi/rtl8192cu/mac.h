@@ -48,7 +48,6 @@ void rtl92c_set_qos(struct ieee80211_hw *hw, int aci);
 /*---------------------------------------------------------------
  *	Hardware init functions
  *---------------------------------------------------------------*/
-void rtl92c_set_mac_addr(struct ieee80211_hw *hw, const u8 *addr);
 void rtl92c_init_interrupt(struct ieee80211_hw *hw);
 void rtl92c_init_driver_info_size(struct ieee80211_hw *hw, u8 size);
 

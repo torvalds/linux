@@ -1611,7 +1611,6 @@ void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
-	struct rtl_usb *rtlusb = rtl_usbdev(rtl_usbpriv(hw));
 	enum wireless_mode wirelessmode = mac->mode;
 	u8 idx = 0;
 
@@ -1820,63 +1819,10 @@ void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 						u4b_ac_param);
 				break;
 			default:
-				RT_ASSERT(false,
-					  "SetHwReg8185(): invalid aci: %d !\n",
+				RT_ASSERT(false, "invalid aci: %d !\n",
 					  e_aci);
 				break;
 			}
-			if (rtlusb->acm_method != EACMWAY2_SW)
-				rtlpriv->cfg->ops->set_hw_reg(hw,
-					 HW_VAR_ACM_CTRL, &e_aci);
-			break;
-		}
-	case HW_VAR_ACM_CTRL:{
-			u8 e_aci = *val;
-			union aci_aifsn *p_aci_aifsn = (union aci_aifsn *)
-							(&(mac->ac[0].aifs));
-			u8 acm = p_aci_aifsn->f.acm;
-			u8 acm_ctrl = rtl_read_byte(rtlpriv, REG_ACMHWCTRL);
-
-			acm_ctrl =
-			    acm_ctrl | ((rtlusb->acm_method == 2) ? 0x0 : 0x1);
-			if (acm) {
-				switch (e_aci) {
-				case AC0_BE:
-					acm_ctrl |= AcmHw_BeqEn;
-					break;
-				case AC2_VI:
-					acm_ctrl |= AcmHw_ViqEn;
-					break;
-				case AC3_VO:
-					acm_ctrl |= AcmHw_VoqEn;
-					break;
-				default:
-					RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
-						 "HW_VAR_ACM_CTRL acm set failed: eACI is %d\n",
-						 acm);
-					break;
-				}
-			} else {
-				switch (e_aci) {
-				case AC0_BE:
-					acm_ctrl &= (~AcmHw_BeqEn);
-					break;
-				case AC2_VI:
-					acm_ctrl &= (~AcmHw_ViqEn);
-					break;
-				case AC3_VO:
-					acm_ctrl &= (~AcmHw_VoqEn);
-					break;
-				default:
-					RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-						 "switch case not processed\n");
-					break;
-				}
-			}
-			RT_TRACE(rtlpriv, COMP_QOS, DBG_TRACE,
-				 "SetHwReg8190pci(): [HW_VAR_ACM_CTRL] Write 0x%X\n",
-				 acm_ctrl);
-			rtl_write_byte(rtlpriv, REG_ACMHWCTRL, acm_ctrl);
 			break;
 		}
 	case HW_VAR_RCR:{
