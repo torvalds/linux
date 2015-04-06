@@ -44,6 +44,7 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
+#include "btintel.h"
 #include "btbcm.h"
 #include "hci_uart.h"
 
@@ -295,7 +296,8 @@ static int hci_uart_setup(struct hci_dev *hdev)
 	switch (le16_to_cpu(ver->manufacturer)) {
 #ifdef CONFIG_BT_HCIUART_INTEL
 	case 2:
-		hdev->set_bdaddr = intel_set_bdaddr;
+		hdev->set_bdaddr = btintel_set_bdaddr;
+		btintel_check_bdaddr(hdev);
 		break;
 #endif
 #ifdef CONFIG_BT_HCIUART_BCM
