@@ -85,7 +85,8 @@ static struct inode *__lookup_free_space_inode(struct btrfs_root *root,
 	}
 
 	mapping_set_gfp_mask(inode->i_mapping,
-			mapping_gfp_mask(inode->i_mapping) & ~__GFP_FS);
+			mapping_gfp_mask(inode->i_mapping) &
+			~(GFP_NOFS & ~__GFP_HIGHMEM));
 
 	return inode;
 }
@@ -310,7 +311,6 @@ static void io_ctl_free(struct btrfs_io_ctl *io_ctl)
 static void io_ctl_unmap_page(struct btrfs_io_ctl *io_ctl)
 {
 	if (io_ctl->cur) {
-		kunmap(io_ctl->page);
 		io_ctl->cur = NULL;
 		io_ctl->orig = NULL;
 	}
@@ -320,7 +320,7 @@ static void io_ctl_map_page(struct btrfs_io_ctl *io_ctl, int clear)
 {
 	ASSERT(io_ctl->index < io_ctl->num_pages);
 	io_ctl->page = io_ctl->pages[io_ctl->index++];
-	io_ctl->cur = kmap(io_ctl->page);
+	io_ctl->cur = page_address(io_ctl->page);
 	io_ctl->orig = io_ctl->cur;
 	io_ctl->size = PAGE_CACHE_SIZE;
 	if (clear)
@@ -446,10 +446,9 @@ static void io_ctl_set_crc(struct btrfs_io_ctl *io_ctl, int index)
 			      PAGE_CACHE_SIZE - offset);
 	btrfs_csum_final(crc, (char *)&crc);
 	io_ctl_unmap_page(io_ctl);
-	tmp = kmap(io_ctl->pages[0]);
+	tmp = page_address(io_ctl->pages[0]);
 	tmp += index;
 	*tmp = crc;
-	kunmap(io_ctl->pages[0]);
 }
 
 static int io_ctl_check_crc(struct btrfs_io_ctl *io_ctl, int index)
@@ -466,10 +465,9 @@ static int io_ctl_check_crc(struct btrfs_io_ctl *io_ctl, int index)
 	if (index == 0)
 		offset = sizeof(u32) * io_ctl->num_pages;
 
-	tmp = kmap(io_ctl->pages[0]);
+	tmp = page_address(io_ctl->pages[0]);
 	tmp += index;
 	val = *tmp;
-	kunmap(io_ctl->pages[0]);
 
 	io_ctl_map_page(io_ctl, 0);
 	crc = btrfs_csum_data(io_ctl->orig + offset, crc,
