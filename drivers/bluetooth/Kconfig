@@ -122,6 +122,7 @@ config BT_HCIUART_INTEL
 config BT_HCIUART_BCM
 	bool "Broadcom protocol support"
 	depends on BT_HCIUART
+	select BT_HCIUART_H4
 	select BT_BCM
 	help
 	  The Broadcom protocol support enables Bluetooth HCI over serial
