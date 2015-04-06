@@ -732,10 +732,6 @@ static int rpm_reg_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	/* Regulators with ia property suppports drms */
-	if (vreg->parts->ia.mask)
-		initdata->constraints.valid_ops_mask |= REGULATOR_CHANGE_DRMS;
-
 	key = "bias-pull-down";
 	if (of_property_read_bool(pdev->dev.of_node, key)) {
 		ret = rpm_reg_set(vreg, &vreg->parts->pd, 1);
