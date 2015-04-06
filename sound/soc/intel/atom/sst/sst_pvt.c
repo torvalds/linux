@@ -111,7 +111,7 @@ int sst_wait_interruptible(struct intel_sst_drv *sst_drv_ctx,
 
 }
 
-unsigned long long read_shim_data(struct intel_sst_drv *sst, int addr)
+static unsigned long long read_shim_data(struct intel_sst_drv *sst, int addr)
 {
 	unsigned long long val = 0;
 
@@ -124,7 +124,7 @@ unsigned long long read_shim_data(struct intel_sst_drv *sst, int addr)
 	return val;
 }
 
-void write_shim_data(struct intel_sst_drv *sst, int addr,
+static void write_shim_data(struct intel_sst_drv *sst, int addr,
 				unsigned long long data)
 {
 	switch (sst->dev_id) {
