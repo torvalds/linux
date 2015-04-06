@@ -18,6 +18,7 @@ struct davinci_i2c_platform_data {
 	unsigned int	bus_delay;	/* post-transaction delay (usec) */
 	unsigned int    sda_pin;        /* GPIO pin ID to use for SDA */
 	unsigned int    scl_pin;        /* GPIO pin ID to use for SCL */
+	bool		has_pfunc;	/*chip has a ICPFUNC register */
 };
 
 /* for board setup code */
