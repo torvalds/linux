@@ -303,6 +303,7 @@ fastopen:
 	} else if (foc->len > 0) /* Client presents an invalid cookie */
 		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPFASTOPENPASSIVEFAIL);
 
+	valid_foc.exp = foc->exp;
 	*foc = valid_foc;
 	return false;
 }
