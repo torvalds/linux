@@ -191,6 +191,8 @@ static int mmap_events(synth_cb synth)
 				      PERF_RECORD_MISC_USER, MAP__FUNCTION,
 				      (unsigned long) (td->map + 1), &al);
 
+		thread__put(thread);
+
 		if (!al.map) {
 			pr_debug("failed, couldn't find map\n");
 			err = -1;

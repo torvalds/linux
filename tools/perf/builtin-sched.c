@@ -770,7 +770,7 @@ static int replay_fork_event(struct perf_sched *sched,
 	if (child == NULL || parent == NULL) {
 		pr_debug("thread does not exist on fork event: child %p, parent %p\n",
 				 child, parent);
-		return 0;
+		goto out_put;
 	}
 
 	if (verbose) {
@@ -781,6 +781,9 @@ static int replay_fork_event(struct perf_sched *sched,
 
 	register_pid(sched, parent->tid, thread__comm_str(parent));
 	register_pid(sched, child->tid, thread__comm_str(child));
+out_put:
+	thread__put(child);
+	thread__put(parent);
 	return 0;
 }
 
@@ -957,7 +960,7 @@ static int latency_switch_event(struct perf_sched *sched,
 	struct work_atoms *out_events, *in_events;
 	struct thread *sched_out, *sched_in;
 	u64 timestamp0, timestamp = sample->time;
-	int cpu = sample->cpu;
+	int cpu = sample->cpu, err = -1;
 	s64 delta;
 
 	BUG_ON(cpu >= MAX_CPUS || cpu < 0);
@@ -976,15 +979,17 @@ static int latency_switch_event(struct perf_sched *sched,
 
 	sched_out = machine__findnew_thread(machine, -1, prev_pid);
 	sched_in = machine__findnew_thread(machine, -1, next_pid);
+	if (sched_out == NULL || sched_in == NULL)
+		goto out_put;
 
 	out_events = thread_atoms_search(&sched->atom_root, sched_out, &sched->cmp_pid);
 	if (!out_events) {
 		if (thread_atoms_insert(sched, sched_out))
-			return -1;
+			goto out_put;
 		out_events = thread_atoms_search(&sched->atom_root, sched_out, &sched->cmp_pid);
 		if (!out_events) {
 			pr_err("out-event: Internal tree error");
-			return -1;
+			goto out_put;
 		}
 	}
 	if (add_sched_out_event(out_events, sched_out_state(prev_state), timestamp))
@@ -993,22 +998,25 @@ static int latency_switch_event(struct perf_sched *sched,
 	in_events = thread_atoms_search(&sched->atom_root, sched_in, &sched->cmp_pid);
 	if (!in_events) {
 		if (thread_atoms_insert(sched, sched_in))
-			return -1;
+			goto out_put;
 		in_events = thread_atoms_search(&sched->atom_root, sched_in, &sched->cmp_pid);
 		if (!in_events) {
 			pr_err("in-event: Internal tree error");
-			return -1;
+			goto out_put;
 		}
 		/*
 		 * Take came in we have not heard about yet,
 		 * add in an initial atom in runnable state:
 		 */
 		if (add_sched_out_event(in_events, 'R', timestamp))
-			return -1;
+			goto out_put;
 	}
 	add_sched_in_event(in_events, timestamp);
-
-	return 0;
+	err = 0;
+out_put:
+	thread__put(sched_out);
+	thread__put(sched_in);
+	return err;
 }
 
 static int latency_runtime_event(struct perf_sched *sched,
@@ -1021,23 +1029,29 @@ static int latency_runtime_event(struct perf_sched *sched,
 	struct thread *thread = machine__findnew_thread(machine, -1, pid);
 	struct work_atoms *atoms = thread_atoms_search(&sched->atom_root, thread, &sched->cmp_pid);
 	u64 timestamp = sample->time;
-	int cpu = sample->cpu;
+	int cpu = sample->cpu, err = -1;
+
+	if (thread == NULL)
+		return -1;
 
 	BUG_ON(cpu >= MAX_CPUS || cpu < 0);
 	if (!atoms) {
 		if (thread_atoms_insert(sched, thread))
-			return -1;
+			goto out_put;
 		atoms = thread_atoms_search(&sched->atom_root, thread, &sched->cmp_pid);
 		if (!atoms) {
 			pr_err("in-event: Internal tree error");
-			return -1;
+			goto out_put;
 		}
 		if (add_sched_out_event(atoms, 'R', timestamp))
-			return -1;
+			goto out_put;
 	}
 
 	add_runtime_event(atoms, runtime, timestamp);
-	return 0;
+	err = 0;
+out_put:
+	thread__put(thread);
+	return err;
 }
 
 static int latency_wakeup_event(struct perf_sched *sched,
@@ -1050,19 +1064,22 @@ static int latency_wakeup_event(struct perf_sched *sched,
 	struct work_atom *atom;
 	struct thread *wakee;
 	u64 timestamp = sample->time;
+	int err = -1;
 
 	wakee = machine__findnew_thread(machine, -1, pid);
+	if (wakee == NULL)
+		return -1;
 	atoms = thread_atoms_search(&sched->atom_root, wakee, &sched->cmp_pid);
 	if (!atoms) {
 		if (thread_atoms_insert(sched, wakee))
-			return -1;
+			goto out_put;
 		atoms = thread_atoms_search(&sched->atom_root, wakee, &sched->cmp_pid);
 		if (!atoms) {
 			pr_err("wakeup-event: Internal tree error");
-			return -1;
+			goto out_put;
 		}
 		if (add_sched_out_event(atoms, 'S', timestamp))
-			return -1;
+			goto out_put;
 	}
 
 	BUG_ON(list_empty(&atoms->work_list));
@@ -1081,17 +1098,21 @@ static int latency_wakeup_event(struct perf_sched *sched,
 	 * skip in this case.
 	 */
 	if (sched->profile_cpu == -1 && atom->state != THREAD_SLEEPING)
-		return 0;
+		goto out_ok;
 
 	sched->nr_timestamps++;
 	if (atom->sched_out_time > timestamp) {
 		sched->nr_unordered_timestamps++;
-		return 0;
+		goto out_ok;
 	}
 
 	atom->state = THREAD_WAIT_CPU;
 	atom->wake_up_time = timestamp;
-	return 0;
+out_ok:
+	err = 0;
+out_put:
+	thread__put(wakee);
+	return err;
 }
 
 static int latency_migrate_task_event(struct perf_sched *sched,
@@ -1104,6 +1125,7 @@ static int latency_migrate_task_event(struct perf_sched *sched,
 	struct work_atoms *atoms;
 	struct work_atom *atom;
 	struct thread *migrant;
+	int err = -1;
 
 	/*
 	 * Only need to worry about migration when profiling one CPU.
@@ -1112,18 +1134,20 @@ static int latency_migrate_task_event(struct perf_sched *sched,
 		return 0;
 
 	migrant = machine__findnew_thread(machine, -1, pid);
+	if (migrant == NULL)
+		return -1;
 	atoms = thread_atoms_search(&sched->atom_root, migrant, &sched->cmp_pid);
 	if (!atoms) {
 		if (thread_atoms_insert(sched, migrant))
-			return -1;
+			goto out_put;
 		register_pid(sched, migrant->tid, thread__comm_str(migrant));
 		atoms = thread_atoms_search(&sched->atom_root, migrant, &sched->cmp_pid);
 		if (!atoms) {
 			pr_err("migration-event: Internal tree error");
-			return -1;
+			goto out_put;
 		}
 		if (add_sched_out_event(atoms, 'R', timestamp))
-			return -1;
+			goto out_put;
 	}
 
 	BUG_ON(list_empty(&atoms->work_list));
@@ -1135,8 +1159,10 @@ static int latency_migrate_task_event(struct perf_sched *sched,
 
 	if (atom->sched_out_time > timestamp)
 		sched->nr_unordered_timestamps++;
-
-	return 0;
+	err = 0;
+out_put:
+	thread__put(migrant);
+	return err;
 }
 
 static void output_lat_thread(struct perf_sched *sched, struct work_atoms *work_list)
@@ -1330,8 +1356,10 @@ static int map_switch_event(struct perf_sched *sched, struct perf_evsel *evsel,
 	}
 
 	sched_in = machine__findnew_thread(machine, -1, next_pid);
+	if (sched_in == NULL)
+		return -1;
 
-	sched->curr_thread[this_cpu] = sched_in;
+	sched->curr_thread[this_cpu] = thread__get(sched_in);
 
 	printf("  ");
 
@@ -1380,6 +1408,8 @@ static int map_switch_event(struct perf_sched *sched, struct perf_evsel *evsel,
 	} else {
 		printf("\n");
 	}
+
+	thread__put(sched_in);
 
 	return 0;
 }

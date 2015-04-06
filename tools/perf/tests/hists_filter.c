@@ -82,8 +82,10 @@ static int add_hist_entries(struct perf_evlist *evlist,
 				goto out;
 
 			if (hist_entry_iter__add(&iter, &al, evsel, &sample,
-						 PERF_MAX_STACK_DEPTH, NULL) < 0)
+						 PERF_MAX_STACK_DEPTH, NULL) < 0) {
+				addr_location__put(&al);
 				goto out;
+			}
 
 			fake_samples[i].thread = al.thread;
 			fake_samples[i].map = al.map;

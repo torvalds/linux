@@ -91,8 +91,10 @@ static int add_hist_entries(struct perf_evlist *evlist, struct machine *machine)
 
 			he = __hists__add_entry(hists, &al, NULL,
 						NULL, NULL, 1, 1, 0, true);
-			if (he == NULL)
+			if (he == NULL) {
+				addr_location__put(&al);
 				goto out;
+			}
 
 			fake_common_samples[k].thread = al.thread;
 			fake_common_samples[k].map = al.map;
@@ -115,8 +117,10 @@ static int add_hist_entries(struct perf_evlist *evlist, struct machine *machine)
 
 			he = __hists__add_entry(hists, &al, NULL,
 						NULL, NULL, 1, 1, 0, true);
-			if (he == NULL)
+			if (he == NULL) {
+				addr_location__put(&al);
 				goto out;
+			}
 
 			fake_samples[i][k].thread = al.thread;
 			fake_samples[i][k].map = al.map;

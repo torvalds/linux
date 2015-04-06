@@ -122,6 +122,7 @@ int db_export__machine(struct db_export *dbe, struct machine *machine)
 int db_export__thread(struct db_export *dbe, struct thread *thread,
 		      struct machine *machine, struct comm *comm)
 {
+	struct thread *main_thread;
 	u64 main_thread_db_id = 0;
 	int err;
 
@@ -131,8 +132,6 @@ int db_export__thread(struct db_export *dbe, struct thread *thread,
 	thread->db_id = ++dbe->thread_last_db_id;
 
 	if (thread->pid_ != -1) {
-		struct thread *main_thread;
-
 		if (thread->pid_ == thread->tid) {
 			main_thread = thread;
 		} else {
@@ -144,14 +143,16 @@ int db_export__thread(struct db_export *dbe, struct thread *thread,
 			err = db_export__thread(dbe, main_thread, machine,
 						comm);
 			if (err)
-				return err;
+				goto out_put;
 			if (comm) {
 				err = db_export__comm_thread(dbe, comm, thread);
 				if (err)
-					return err;
+					goto out_put;
 			}
 		}
 		main_thread_db_id = main_thread->db_id;
+		if (main_thread != thread)
+			thread__put(main_thread);
 	}
 
 	if (dbe->export_thread)
@@ -159,6 +160,10 @@ int db_export__thread(struct db_export *dbe, struct thread *thread,
 					  machine);
 
 	return 0;
+
+out_put:
+	thread__put(main_thread);
+	return err;
 }
 
 int db_export__comm(struct db_export *dbe, struct comm *comm,
@@ -303,6 +308,7 @@ int db_export__sample(struct db_export *dbe, union perf_event *event,
 	if (err)
 		return err;
 
+	/* FIXME: check refcounting for get_main_thread, that calls machine__find_thread... */
 	main_thread = get_main_thread(al->machine, thread);
 	if (main_thread)
 		comm = machine__thread_exec_comm(al->machine, main_thread);

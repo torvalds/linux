@@ -365,6 +365,7 @@ static int perf_event__inject_buildid(struct perf_tool *tool,
 		}
 	}
 
+	thread__put(thread);
 repipe:
 	perf_event__repipe(tool, event, sample, machine);
 	return 0;

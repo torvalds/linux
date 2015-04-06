@@ -170,6 +170,7 @@ int test__dwarf_unwind(void)
 	}
 
 	err = krava_1(thread);
+	thread__put(thread);
 
  out:
 	machine__delete_threads(machine);

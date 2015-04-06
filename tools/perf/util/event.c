@@ -919,6 +919,10 @@ void thread__find_addr_location(struct thread *thread,
 		al->sym = NULL;
 }
 
+/*
+ * Callers need to drop the reference to al->thread, obtained in
+ * machine__findnew_thread()
+ */
 int perf_event__preprocess_sample(const union perf_event *event,
 				  struct machine *machine,
 				  struct addr_location *al,
@@ -977,6 +981,17 @@ int perf_event__preprocess_sample(const union perf_event *event,
 	}
 
 	return 0;
+}
+
+/*
+ * The preprocess_sample method will return with reference counts for the
+ * in it, when done using (and perhaps getting ref counts if needing to
+ * keep a pointer to one of those entries) it must be paired with
+ * addr_location__put(), so that the refcounts can be decremented.
+ */
+void addr_location__put(struct addr_location *al)
+{
+	thread__zput(al->thread);
 }
 
 bool is_bts_event(struct perf_event_attr *attr)

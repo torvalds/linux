@@ -64,22 +64,22 @@ int test__thread_mg_share(void)
 	TEST_ASSERT_VAL("map groups don't match", other_mg == other_leader->mg);
 
 	/* release thread group */
-	thread__delete(leader);
+	thread__put(leader);
 	TEST_ASSERT_VAL("wrong refcnt", mg->refcnt == 3);
 
-	thread__delete(t1);
+	thread__put(t1);
 	TEST_ASSERT_VAL("wrong refcnt", mg->refcnt == 2);
 
-	thread__delete(t2);
+	thread__put(t2);
 	TEST_ASSERT_VAL("wrong refcnt", mg->refcnt == 1);
 
-	thread__delete(t3);
+	thread__put(t3);
 
 	/* release other group  */
-	thread__delete(other_leader);
+	thread__put(other_leader);
 	TEST_ASSERT_VAL("wrong refcnt", other_mg->refcnt == 1);
 
-	thread__delete(other);
+	thread__put(other);
 
 	/*
 	 * Cannot call machine__delete_threads(machine) now,

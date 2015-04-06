@@ -793,7 +793,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 		pthread_mutex_unlock(&hists->lock);
 	}
 
-	return;
+	addr_location__put(&al);
 }
 
 static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
