@@ -1090,7 +1090,7 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance)
 	 * update ISR counter
 	 */
 	STAvUpdate802_11Counter(&pDevice->s802_11Counter, &pDevice->scStatistic, dwMIBCounter);
-	while (pDevice->dwIsr != 0) {
+	while (pDevice->dwIsr && pDevice->vif) {
 		STAvUpdateIsrStatCounter(&pDevice->scStatistic, pDevice->dwIsr);
 		MACvWriteISR(pDevice->PortOffset, pDevice->dwIsr);
 
@@ -1102,8 +1102,7 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance)
 		}
 
 		if (pDevice->dwIsr & ISR_TBTT) {
-			if (pDevice->vif &&
-			    pDevice->op_mode != NL80211_IFTYPE_ADHOC)
+			if (pDevice->op_mode != NL80211_IFTYPE_ADHOC)
 				vnt_check_bb_vga(pDevice);
 
 			pDevice->bBeaconSent = false;
@@ -1143,19 +1142,15 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance)
 			max_count += device_tx_srv(pDevice, TYPE_AC0DMA);
 
 		if (pDevice->dwIsr & ISR_SOFTTIMER1) {
-			if (pDevice->vif) {
-				if (pDevice->vif->bss_conf.enable_beacon)
-					vnt_beacon_make(pDevice, pDevice->vif);
-			}
+			if (pDevice->vif->bss_conf.enable_beacon)
+				vnt_beacon_make(pDevice, pDevice->vif);
 		}
 
 		/* If both buffers available wake the queue */
-		if (pDevice->vif) {
-			if (AVAIL_TD(pDevice, TYPE_TXDMA0) &&
-			    AVAIL_TD(pDevice, TYPE_AC0DMA) &&
-			    ieee80211_queue_stopped(pDevice->hw, 0))
-				ieee80211_wake_queues(pDevice->hw);
-		}
+		if (AVAIL_TD(pDevice, TYPE_TXDMA0) &&
+		    AVAIL_TD(pDevice, TYPE_AC0DMA) &&
+		    ieee80211_queue_stopped(pDevice->hw, 0))
+			ieee80211_wake_queues(pDevice->hw);
 
 		MACvReadISR(pDevice->PortOffset, &pDevice->dwIsr);
 
