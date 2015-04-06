@@ -8,3 +8,8 @@ config RTL8188EU
 
 
 
+config RTL8192DU
+        tristate "Realtek 8192DU USB WiFi"
+        depends on USB
+        ---help---
+          Help message of RTL8192DU
