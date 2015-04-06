@@ -1345,39 +1345,6 @@ static int btusb_setup_csr(struct hci_dev *hdev)
 	return ret;
 }
 
-struct intel_version {
-	u8 status;
-	u8 hw_platform;
-	u8 hw_variant;
-	u8 hw_revision;
-	u8 fw_variant;
-	u8 fw_revision;
-	u8 fw_build_num;
-	u8 fw_build_ww;
-	u8 fw_build_yy;
-	u8 fw_patch_num;
-} __packed;
-
-struct intel_boot_params {
-	__u8     status;
-	__u8     otp_format;
-	__u8     otp_content;
-	__u8     otp_patch;
-	__le16   dev_revid;
-	__u8     secure_boot;
-	__u8     key_from_hdr;
-	__u8     key_type;
-	__u8     otp_lock;
-	__u8     api_lock;
-	__u8     debug_lock;
-	bdaddr_t otp_bdaddr;
-	__u8     min_fw_build_nn;
-	__u8     min_fw_build_cw;
-	__u8     min_fw_build_yy;
-	__u8     limited_cce;
-	__u8     unlocked_state;
-} __packed;
-
 static const struct firmware *btusb_setup_intel_get_fw(struct hci_dev *hdev,
 						       struct intel_version *ver)
 {
