@@ -47,8 +47,6 @@ struct rndis_request {
 
 	/* Simplify allocation by having a netvsc packet inline */
 	struct hv_netvsc_packet	pkt;
-	/* Set 2 pages for rndis requests crossing page boundary */
-	struct hv_page_buffer buf[2];
 
 	struct rndis_message request_msg;
 	/*
