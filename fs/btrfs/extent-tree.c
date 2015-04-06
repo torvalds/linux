@@ -3298,7 +3298,7 @@ again:
 		if (ret)
 			goto out_put;
 
-		ret = btrfs_truncate_free_space_cache(root, trans, inode);
+		ret = btrfs_truncate_free_space_cache(root, trans, NULL, inode);
 		if (ret)
 			goto out_put;
 	}
@@ -3382,6 +3382,146 @@ int btrfs_setup_space_cache(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
+/*
+ * transaction commit does final block group cache writeback during a
+ * critical section where nothing is allowed to change the FS.  This is
+ * required in order for the cache to actually match the block group,
+ * but can introduce a lot of latency into the commit.
+ *
+ * So, btrfs_start_dirty_block_groups is here to kick off block group
+ * cache IO.  There's a chance we'll have to redo some of it if the
+ * block group changes again during the commit, but it greatly reduces
+ * the commit latency by getting rid of the easy block groups while
+ * we're still allowing others to join the commit.
+ */
+int btrfs_start_dirty_block_groups(struct btrfs_trans_handle *trans,
+				   struct btrfs_root *root)
+{
+	struct btrfs_block_group_cache *cache;
+	struct btrfs_transaction *cur_trans = trans->transaction;
+	int ret = 0;
+	int should_put;
+	struct btrfs_path *path = NULL;
+	LIST_HEAD(dirty);
+	struct list_head *io = &cur_trans->io_bgs;
+	int num_started = 0;
+	int loops = 0;
+
+	spin_lock(&cur_trans->dirty_bgs_lock);
+	if (!list_empty(&cur_trans->dirty_bgs)) {
+		list_splice_init(&cur_trans->dirty_bgs, &dirty);
+	}
+	spin_unlock(&cur_trans->dirty_bgs_lock);
+
+again:
+	if (list_empty(&dirty)) {
+		btrfs_free_path(path);
+		return 0;
+	}
+
+	/*
+	 * make sure all the block groups on our dirty list actually
+	 * exist
+	 */
+	btrfs_create_pending_block_groups(trans, root);
+
+	if (!path) {
+		path = btrfs_alloc_path();
+		if (!path)
+			return -ENOMEM;
+	}
+
+	while (!list_empty(&dirty)) {
+		cache = list_first_entry(&dirty,
+					 struct btrfs_block_group_cache,
+					 dirty_list);
+
+		/*
+		 * cache_write_mutex is here only to save us from balance
+		 * deleting this block group while we are writing out the
+		 * cache
+		 */
+		mutex_lock(&trans->transaction->cache_write_mutex);
+
+		/*
+		 * this can happen if something re-dirties a block
+		 * group that is already under IO.  Just wait for it to
+		 * finish and then do it all again
+		 */
+		if (!list_empty(&cache->io_list)) {
+			list_del_init(&cache->io_list);
+			btrfs_wait_cache_io(root, trans, cache,
+					    &cache->io_ctl, path,
+					    cache->key.objectid);
+			btrfs_put_block_group(cache);
+		}
+
+
+		/*
+		 * btrfs_wait_cache_io uses the cache->dirty_list to decide
+		 * if it should update the cache_state.  Don't delete
+		 * until after we wait.
+		 *
+		 * Since we're not running in the commit critical section
+		 * we need the dirty_bgs_lock to protect from update_block_group
+		 */
+		spin_lock(&cur_trans->dirty_bgs_lock);
+		list_del_init(&cache->dirty_list);
+		spin_unlock(&cur_trans->dirty_bgs_lock);
+
+		should_put = 1;
+
+		cache_save_setup(cache, trans, path);
+
+		if (cache->disk_cache_state == BTRFS_DC_SETUP) {
+			cache->io_ctl.inode = NULL;
+			ret = btrfs_write_out_cache(root, trans, cache, path);
+			if (ret == 0 && cache->io_ctl.inode) {
+				num_started++;
+				should_put = 0;
+
+				/*
+				 * the cache_write_mutex is protecting
+				 * the io_list
+				 */
+				list_add_tail(&cache->io_list, io);
+			} else {
+				/*
+				 * if we failed to write the cache, the
+				 * generation will be bad and life goes on
+				 */
+				ret = 0;
+			}
+		}
+		if (!ret)
+			ret = write_one_cache_group(trans, root, path, cache);
+		mutex_unlock(&trans->transaction->cache_write_mutex);
+
+		/* if its not on the io list, we need to put the block group */
+		if (should_put)
+			btrfs_put_block_group(cache);
+
+		if (ret)
+			break;
+	}
+
+	/*
+	 * go through delayed refs for all the stuff we've just kicked off
+	 * and then loop back (just once)
+	 */
+	ret = btrfs_run_delayed_refs(trans, root, 0);
+	if (!ret && loops == 0) {
+		loops++;
+		spin_lock(&cur_trans->dirty_bgs_lock);
+		list_splice_init(&cur_trans->dirty_bgs, &dirty);
+		spin_unlock(&cur_trans->dirty_bgs_lock);
+		goto again;
+	}
+
+	btrfs_free_path(path);
+	return ret;
+}
+
 int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans,
 				   struct btrfs_root *root)
 {
@@ -3390,12 +3530,8 @@ int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans,
 	int ret = 0;
 	int should_put;
 	struct btrfs_path *path;
-	LIST_HEAD(io);
+	struct list_head *io = &cur_trans->io_bgs;
 	int num_started = 0;
-	int num_waited = 0;
-
-	if (list_empty(&cur_trans->dirty_bgs))
-		return 0;
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -3423,14 +3559,16 @@ int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans,
 					    &cache->io_ctl, path,
 					    cache->key.objectid);
 			btrfs_put_block_group(cache);
-			num_waited++;
 		}
 
+		/*
+		 * don't remove from the dirty list until after we've waited
+		 * on any pending IO
+		 */
 		list_del_init(&cache->dirty_list);
 		should_put = 1;
 
-		if (cache->disk_cache_state == BTRFS_DC_CLEAR)
-			cache_save_setup(cache, trans, path);
+		cache_save_setup(cache, trans, path);
 
 		if (!ret)
 			ret = btrfs_run_delayed_refs(trans, root, (unsigned long) -1);
@@ -3441,7 +3579,7 @@ int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans,
 			if (ret == 0 && cache->io_ctl.inode) {
 				num_started++;
 				should_put = 0;
-				list_add_tail(&cache->io_list, &io);
+				list_add_tail(&cache->io_list, io);
 			} else {
 				/*
 				 * if we failed to write the cache, the
@@ -3458,11 +3596,10 @@ int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans,
 			btrfs_put_block_group(cache);
 	}
 
-	while (!list_empty(&io)) {
-		cache = list_first_entry(&io, struct btrfs_block_group_cache,
+	while (!list_empty(io)) {
+		cache = list_first_entry(io, struct btrfs_block_group_cache,
 					 io_list);
 		list_del_init(&cache->io_list);
-		num_waited++;
 		btrfs_wait_cache_io(root, trans, cache,
 				    &cache->io_ctl, path, cache->key.objectid);
 		btrfs_put_block_group(cache);
@@ -5459,15 +5596,6 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 		if (!alloc && cache->cached == BTRFS_CACHE_NO)
 			cache_block_group(cache, 1);
 
-		spin_lock(&trans->transaction->dirty_bgs_lock);
-		if (list_empty(&cache->dirty_list)) {
-			list_add_tail(&cache->dirty_list,
-				      &trans->transaction->dirty_bgs);
-				trans->transaction->num_dirty_bgs++;
-			btrfs_get_block_group(cache);
-		}
-		spin_unlock(&trans->transaction->dirty_bgs_lock);
-
 		byte_in_group = bytenr - cache->key.objectid;
 		WARN_ON(byte_in_group > cache->key.offset);
 
@@ -5516,6 +5644,16 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 				spin_unlock(&info->unused_bgs_lock);
 			}
 		}
+
+		spin_lock(&trans->transaction->dirty_bgs_lock);
+		if (list_empty(&cache->dirty_list)) {
+			list_add_tail(&cache->dirty_list,
+				      &trans->transaction->dirty_bgs);
+				trans->transaction->num_dirty_bgs++;
+			btrfs_get_block_group(cache);
+		}
+		spin_unlock(&trans->transaction->dirty_bgs_lock);
+
 		btrfs_put_block_group(cache);
 		total -= num_bytes;
 		bytenr += num_bytes;
@@ -8602,9 +8740,29 @@ int btrfs_set_block_group_ro(struct btrfs_root *root,
 
 	BUG_ON(cache->ro);
 
+again:
 	trans = btrfs_join_transaction(root);
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
+
+	/*
+	 * we're not allowed to set block groups readonly after the dirty
+	 * block groups cache has started writing.  If it already started,
+	 * back off and let this transaction commit
+	 */
+	mutex_lock(&root->fs_info->ro_block_group_mutex);
+	if (trans->transaction->dirty_bg_run) {
+		u64 transid = trans->transid;
+
+		mutex_unlock(&root->fs_info->ro_block_group_mutex);
+		btrfs_end_transaction(trans, root);
+
+		ret = btrfs_wait_for_commit(root, transid);
+		if (ret)
+			return ret;
+		goto again;
+	}
+
 
 	ret = set_block_group_ro(cache, 0);
 	if (!ret)
@@ -8620,6 +8778,7 @@ out:
 		alloc_flags = update_block_group_flags(root, cache->flags);
 		check_system_chunk(trans, root, alloc_flags);
 	}
+	mutex_unlock(&root->fs_info->ro_block_group_mutex);
 
 	btrfs_end_transaction(trans, root);
 	return ret;
@@ -9425,7 +9584,38 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 
+	/*
+	 * get the inode first so any iput calls done for the io_list
+	 * aren't the final iput (no unlinks allowed now)
+	 */
 	inode = lookup_free_space_inode(tree_root, block_group, path);
+
+	mutex_lock(&trans->transaction->cache_write_mutex);
+	/*
+	 * make sure our free spache cache IO is done before remove the
+	 * free space inode
+	 */
+	spin_lock(&trans->transaction->dirty_bgs_lock);
+	if (!list_empty(&block_group->io_list)) {
+		list_del_init(&block_group->io_list);
+
+		WARN_ON(!IS_ERR(inode) && inode != block_group->io_ctl.inode);
+
+		spin_unlock(&trans->transaction->dirty_bgs_lock);
+		btrfs_wait_cache_io(root, trans, block_group,
+				    &block_group->io_ctl, path,
+				    block_group->key.objectid);
+		btrfs_put_block_group(block_group);
+		spin_lock(&trans->transaction->dirty_bgs_lock);
+	}
+
+	if (!list_empty(&block_group->dirty_list)) {
+		list_del_init(&block_group->dirty_list);
+		btrfs_put_block_group(block_group);
+	}
+	spin_unlock(&trans->transaction->dirty_bgs_lock);
+	mutex_unlock(&trans->transaction->cache_write_mutex);
+
 	if (!IS_ERR(inode)) {
 		ret = btrfs_orphan_add(trans, inode);
 		if (ret) {
@@ -9518,11 +9708,12 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 
 	spin_lock(&trans->transaction->dirty_bgs_lock);
 	if (!list_empty(&block_group->dirty_list)) {
-		list_del_init(&block_group->dirty_list);
-		btrfs_put_block_group(block_group);
+		WARN_ON(1);
+	}
+	if (!list_empty(&block_group->io_list)) {
+		WARN_ON(1);
 	}
 	spin_unlock(&trans->transaction->dirty_bgs_lock);
-
 	btrfs_remove_free_space_cache(block_group);
 
 	spin_lock(&block_group->space_info->lock);

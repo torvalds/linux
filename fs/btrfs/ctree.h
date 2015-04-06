@@ -1491,6 +1491,12 @@ struct btrfs_fs_info {
 	struct mutex chunk_mutex;
 	struct mutex volume_mutex;
 
+	/*
+	 * this is taken to make sure we don't set block groups ro after
+	 * the free space cache has been allocated on them
+	 */
+	struct mutex ro_block_group_mutex;
+
 	/* this is used during read/modify/write to make sure
 	 * no two ios are trying to mod the same stripe at the same
 	 * time
@@ -3407,6 +3413,8 @@ int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 			 u64 bytenr, u64 num_bytes, u64 parent,
 			 u64 root_objectid, u64 owner, u64 offset, int no_quota);
 
+int btrfs_start_dirty_block_groups(struct btrfs_trans_handle *trans,
+				   struct btrfs_root *root);
 int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans,
 				    struct btrfs_root *root);
 int btrfs_setup_space_cache(struct btrfs_trans_handle *trans,

@@ -222,6 +222,7 @@ loop:
 	atomic_set(&cur_trans->use_count, 2);
 	cur_trans->have_free_bgs = 0;
 	cur_trans->start_time = get_seconds();
+	cur_trans->dirty_bg_run = 0;
 
 	cur_trans->delayed_refs.href_root = RB_ROOT;
 	atomic_set(&cur_trans->delayed_refs.num_entries, 0);
@@ -251,6 +252,8 @@ loop:
 	INIT_LIST_HEAD(&cur_trans->switch_commits);
 	INIT_LIST_HEAD(&cur_trans->pending_ordered);
 	INIT_LIST_HEAD(&cur_trans->dirty_bgs);
+	INIT_LIST_HEAD(&cur_trans->io_bgs);
+	mutex_init(&cur_trans->cache_write_mutex);
 	cur_trans->num_dirty_bgs = 0;
 	spin_lock_init(&cur_trans->dirty_bgs_lock);
 	list_add_tail(&cur_trans->list, &fs_info->trans_list);
@@ -1059,6 +1062,7 @@ static noinline int commit_cowonly_roots(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct list_head *dirty_bgs = &trans->transaction->dirty_bgs;
+	struct list_head *io_bgs = &trans->transaction->io_bgs;
 	struct list_head *next;
 	struct extent_buffer *eb;
 	int ret;
@@ -1112,7 +1116,7 @@ again:
 			return ret;
 	}
 
-	while (!list_empty(dirty_bgs)) {
+	while (!list_empty(dirty_bgs) || !list_empty(io_bgs)) {
 		ret = btrfs_write_dirty_block_groups(trans, root);
 		if (ret)
 			return ret;
@@ -1812,6 +1816,37 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 		return ret;
 	}
 
+	if (!cur_trans->dirty_bg_run) {
+		int run_it = 0;
+
+		/* this mutex is also taken before trying to set
+		 * block groups readonly.  We need to make sure
+		 * that nobody has set a block group readonly
+		 * after a extents from that block group have been
+		 * allocated for cache files.  btrfs_set_block_group_ro
+		 * will wait for the transaction to commit if it
+		 * finds dirty_bg_run = 1
+		 *
+		 * The dirty_bg_run flag is also used to make sure only
+		 * one process starts all the block group IO.  It wouldn't
+		 * hurt to have more than one go through, but there's no
+		 * real advantage to it either.
+		 */
+		mutex_lock(&root->fs_info->ro_block_group_mutex);
+		if (!cur_trans->dirty_bg_run) {
+			run_it = 1;
+			cur_trans->dirty_bg_run = 1;
+		}
+		mutex_unlock(&root->fs_info->ro_block_group_mutex);
+
+		if (run_it)
+			ret = btrfs_start_dirty_block_groups(trans, root);
+	}
+	if (ret) {
+		btrfs_end_transaction(trans, root);
+		return ret;
+	}
+
 	spin_lock(&root->fs_info->trans_lock);
 	list_splice(&trans->ordered, &cur_trans->pending_ordered);
 	if (cur_trans->state >= TRANS_STATE_COMMIT_START) {
@@ -2005,6 +2040,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 
 	assert_qgroups_uptodate(trans);
 	ASSERT(list_empty(&cur_trans->dirty_bgs));
+	ASSERT(list_empty(&cur_trans->io_bgs));
 	update_super_roots(root);
 
 	btrfs_set_super_log_root(root->fs_info->super_copy, 0);

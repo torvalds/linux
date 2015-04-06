@@ -226,9 +226,37 @@ int btrfs_check_trunc_cache_free_space(struct btrfs_root *root,
 
 int btrfs_truncate_free_space_cache(struct btrfs_root *root,
 				    struct btrfs_trans_handle *trans,
+				    struct btrfs_block_group_cache *block_group,
 				    struct inode *inode)
 {
 	int ret = 0;
+	struct btrfs_path *path = btrfs_alloc_path();
+
+	if (!path) {
+		ret = -ENOMEM;
+		goto fail;
+	}
+
+	if (block_group) {
+		mutex_lock(&trans->transaction->cache_write_mutex);
+		if (!list_empty(&block_group->io_list)) {
+			list_del_init(&block_group->io_list);
+
+			btrfs_wait_cache_io(root, trans, block_group,
+					    &block_group->io_ctl, path,
+					    block_group->key.objectid);
+			btrfs_put_block_group(block_group);
+		}
+
+		/*
+		 * now that we've truncated the cache away, its no longer
+		 * setup or written
+		 */
+		spin_lock(&block_group->lock);
+		block_group->disk_cache_state = BTRFS_DC_CLEAR;
+		spin_unlock(&block_group->lock);
+	}
+	btrfs_free_path(path);
 
 	btrfs_i_size_write(inode, 0);
 	truncate_pagecache(inode, 0);
@@ -242,11 +270,17 @@ int btrfs_truncate_free_space_cache(struct btrfs_root *root,
 	ret = btrfs_truncate_inode_items(trans, root, inode,
 					 0, BTRFS_EXTENT_DATA_KEY);
 	if (ret) {
+		mutex_unlock(&trans->transaction->cache_write_mutex);
 		btrfs_abort_transaction(trans, root, ret);
 		return ret;
 	}
 
 	ret = btrfs_update_inode(trans, root, inode);
+
+	if (block_group)
+		mutex_unlock(&trans->transaction->cache_write_mutex);
+
+fail:
 	if (ret)
 		btrfs_abort_transaction(trans, root, ret);
 
@@ -876,6 +910,7 @@ int write_cache_extent_entries(struct btrfs_io_ctl *io_ctl,
 {
 	int ret;
 	struct btrfs_free_cluster *cluster = NULL;
+	struct btrfs_free_cluster *cluster_locked = NULL;
 	struct rb_node *node = rb_first(&ctl->free_space_offset);
 	struct btrfs_trim_range *trim_entry;
 
@@ -887,6 +922,8 @@ int write_cache_extent_entries(struct btrfs_io_ctl *io_ctl,
 	}
 
 	if (!node && cluster) {
+		cluster_locked = cluster;
+		spin_lock(&cluster_locked->lock);
 		node = rb_first(&cluster->root);
 		cluster = NULL;
 	}
@@ -910,8 +947,14 @@ int write_cache_extent_entries(struct btrfs_io_ctl *io_ctl,
 		node = rb_next(node);
 		if (!node && cluster) {
 			node = rb_first(&cluster->root);
+			cluster_locked = cluster;
+			spin_lock(&cluster_locked->lock);
 			cluster = NULL;
 		}
+	}
+	if (cluster_locked) {
+		spin_unlock(&cluster_locked->lock);
+		cluster_locked = NULL;
 	}
 
 	/*
@@ -930,6 +973,8 @@ int write_cache_extent_entries(struct btrfs_io_ctl *io_ctl,
 
 	return 0;
 fail:
+	if (cluster_locked)
+		spin_unlock(&cluster_locked->lock);
 	return -ENOSPC;
 }
 
@@ -1101,6 +1146,9 @@ int btrfs_wait_cache_io(struct btrfs_root *root,
 	int ret;
 	struct inode *inode = io_ctl->inode;
 
+	if (!inode)
+		return 0;
+
 	root = root->fs_info->tree_root;
 
 	/* Flush the dirty pages in the cache file. */
@@ -1127,11 +1175,16 @@ out:
 	btrfs_update_inode(trans, root, inode);
 
 	if (block_group) {
+		/* the dirty list is protected by the dirty_bgs_lock */
+		spin_lock(&trans->transaction->dirty_bgs_lock);
+
+		/* the disk_cache_state is protected by the block group lock */
 		spin_lock(&block_group->lock);
 
 		/*
 		 * only mark this as written if we didn't get put back on
-		 * the dirty list while waiting for IO.
+		 * the dirty list while waiting for IO.   Otherwise our
+		 * cache state won't be right, and we won't get written again
 		 */
 		if (!ret && list_empty(&block_group->dirty_list))
 			block_group->disk_cache_state = BTRFS_DC_WRITTEN;
@@ -1139,6 +1192,7 @@ out:
 			block_group->disk_cache_state = BTRFS_DC_ERROR;
 
 		spin_unlock(&block_group->lock);
+		spin_unlock(&trans->transaction->dirty_bgs_lock);
 		io_ctl->inode = NULL;
 		iput(inode);
 	}
@@ -1207,9 +1261,11 @@ static int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 
 	mutex_lock(&ctl->cache_writeout_mutex);
 	/* Write out the extent entries in the free space cache */
+	spin_lock(&ctl->tree_lock);
 	ret = write_cache_extent_entries(io_ctl, ctl,
 					 block_group, &entries, &bitmaps,
 					 &bitmap_list);
+	spin_unlock(&ctl->tree_lock);
 	if (ret) {
 		mutex_unlock(&ctl->cache_writeout_mutex);
 		goto out_nospc;
@@ -1219,6 +1275,9 @@ static int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 	 * Some spaces that are freed in the current transaction are pinned,
 	 * they will be added into free space cache after the transaction is
 	 * committed, we shouldn't lose them.
+	 *
+	 * If this changes while we are working we'll get added back to
+	 * the dirty list and redo it.  No locking needed
 	 */
 	ret = write_pinned_extent_entries(root, block_group, io_ctl, &entries);
 	if (ret) {
@@ -1231,7 +1290,9 @@ static int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 	 * locked while doing it because a concurrent trim can be manipulating
 	 * or freeing the bitmap.
 	 */
+	spin_lock(&ctl->tree_lock);
 	ret = write_bitmap_entries(io_ctl, &bitmap_list);
+	spin_unlock(&ctl->tree_lock);
 	mutex_unlock(&ctl->cache_writeout_mutex);
 	if (ret)
 		goto out_nospc;
@@ -1304,12 +1365,6 @@ int btrfs_write_out_cache(struct btrfs_root *root,
 
 	spin_lock(&block_group->lock);
 	if (block_group->disk_cache_state < BTRFS_DC_SETUP) {
-		spin_unlock(&block_group->lock);
-		return 0;
-	}
-
-	if (block_group->delalloc_bytes) {
-		block_group->disk_cache_state = BTRFS_DC_WRITTEN;
 		spin_unlock(&block_group->lock);
 		return 0;
 	}
