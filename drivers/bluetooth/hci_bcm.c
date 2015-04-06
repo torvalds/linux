@@ -29,20 +29,3 @@
 #include <net/bluetooth/hci_core.h>
 
 #include "hci_uart.h"
-
-int bcm_set_bdaddr(struct hci_dev *hdev, const bdaddr_t *bdaddr)
-{
-	struct sk_buff *skb;
-	int err;
-
-	skb = __hci_cmd_sync(hdev, 0xfc01, 6, bdaddr, HCI_INIT_TIMEOUT);
-	if (IS_ERR(skb)) {
-		err = PTR_ERR(skb);
-		BT_ERR("%s: BCM: Change address command failed (%d)",
-		       hdev->name, err);
-		return err;
-	}
-	kfree_skb(skb);
-
-	return 0;
-}

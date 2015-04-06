@@ -44,6 +44,7 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
+#include "btbcm.h"
 #include "hci_uart.h"
 
 #define VERSION "2.3"
@@ -299,7 +300,8 @@ static int hci_uart_setup(struct hci_dev *hdev)
 #endif
 #ifdef CONFIG_BT_HCIUART_BCM
 	case 15:
-		hdev->set_bdaddr = bcm_set_bdaddr;
+		hdev->set_bdaddr = btbcm_set_bdaddr;
+		btbcm_check_bdaddr(hdev);
 		break;
 #endif
 	}

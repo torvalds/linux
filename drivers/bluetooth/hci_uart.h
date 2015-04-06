@@ -128,7 +128,3 @@ int h5_deinit(void);
 #ifdef CONFIG_BT_HCIUART_INTEL
 int intel_set_bdaddr(struct hci_dev *hdev, const bdaddr_t *bdaddr);
 #endif
-
-#ifdef CONFIG_BT_HCIUART_BCM
-int bcm_set_bdaddr(struct hci_dev *hdev, const bdaddr_t *bdaddr);
-#endif
