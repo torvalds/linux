@@ -1256,6 +1256,17 @@ struct btrfs_caching_control {
 	atomic_t count;
 };
 
+struct btrfs_io_ctl {
+	void *cur, *orig;
+	struct page *page;
+	struct page **pages;
+	struct btrfs_root *root;
+	unsigned long size;
+	int index;
+	int num_pages;
+	unsigned check_crcs:1;
+};
+
 struct btrfs_block_group_cache {
 	struct btrfs_key key;
 	struct btrfs_block_group_item item;
