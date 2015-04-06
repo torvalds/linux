@@ -327,6 +327,8 @@ reset:
 
 	btbcm_check_bdaddr(hdev);
 
+	set_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks);
+
 done:
 	release_firmware(fw);
 
@@ -346,6 +348,8 @@ int btbcm_setup_apple(struct hci_dev *hdev)
 	BT_INFO("%s: BCM: chip id %u build %4.4u", hdev->name, skb->data[1],
 		get_unaligned_le16(skb->data + 5));
 	kfree_skb(skb);
+
+	set_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks);
 
 	return 0;
 }

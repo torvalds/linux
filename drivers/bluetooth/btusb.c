@@ -2799,13 +2799,10 @@ static int btusb_probe(struct usb_interface *intf,
 	if (id->driver_info & BTUSB_BCM_PATCHRAM) {
 		hdev->setup = btbcm_setup_patchram;
 		hdev->set_bdaddr = btbcm_set_bdaddr;
-		set_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks);
 	}
 
-	if (id->driver_info & BTUSB_BCM_APPLE) {
+	if (id->driver_info & BTUSB_BCM_APPLE)
 		hdev->setup = btbcm_setup_apple;
-		set_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks);
-	}
 #endif
 
 	if (id->driver_info & BTUSB_INTEL) {
