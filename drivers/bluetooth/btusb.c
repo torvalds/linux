@@ -29,6 +29,8 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
+#include "btbcm.h"
+
 #define VERSION "0.7"
 
 static bool disable_scofix;
@@ -2418,8 +2420,6 @@ static const struct {
 	{ }
 };
 
-#define BDADDR_BCM20702A0 (&(bdaddr_t) {{0x00, 0xa0, 0x02, 0x70, 0x20, 0x00}})
-
 static int btusb_setup_bcm_patchram(struct hci_dev *hdev)
 {
 	struct btusb_data *data = hci_get_drvdata(hdev);
@@ -2434,7 +2434,6 @@ static int btusb_setup_bcm_patchram(struct hci_dev *hdev)
 	const char *hw_name = NULL;
 	struct sk_buff *skb;
 	struct hci_rp_read_local_version *ver;
-	struct hci_rp_read_bd_addr *bda;
 	long ret;
 	int i;
 
@@ -2572,65 +2571,12 @@ reset_fw:
 		hw_name ? : "BCM", (subver & 0x7000) >> 13,
 		(subver & 0x1f00) >> 8, (subver & 0x00ff), rev & 0x0fff);
 
-	/* Read BD Address */
-	skb = __hci_cmd_sync(hdev, HCI_OP_READ_BD_ADDR, 0, NULL,
-			     HCI_INIT_TIMEOUT);
-	if (IS_ERR(skb)) {
-		ret = PTR_ERR(skb);
-		BT_ERR("%s: HCI_OP_READ_BD_ADDR failed (%ld)",
-		       hdev->name, ret);
-		goto done;
-	}
-
-	if (skb->len != sizeof(*bda)) {
-		BT_ERR("%s: HCI_OP_READ_BD_ADDR event length mismatch",
-		       hdev->name);
-		kfree_skb(skb);
-		ret = -EIO;
-		goto done;
-	}
-
-	bda = (struct hci_rp_read_bd_addr *)skb->data;
-	if (bda->status) {
-		BT_ERR("%s: HCI_OP_READ_BD_ADDR error status (%02x)",
-		       hdev->name, bda->status);
-		kfree_skb(skb);
-		ret = -bt_to_errno(bda->status);
-		goto done;
-	}
-
-	/* The address 00:20:70:02:A0:00 indicates a BCM20702A0 controller
-	 * with no configured address.
-	 */
-	if (!bacmp(&bda->bdaddr, BDADDR_BCM20702A0)) {
-		BT_INFO("%s: BCM: using default device address (%pMR)",
-			hdev->name, &bda->bdaddr);
-		set_bit(HCI_QUIRK_INVALID_BDADDR, &hdev->quirks);
-	}
-
-	kfree_skb(skb);
+	btbcm_check_bdaddr(hdev);
 
 done:
 	release_firmware(fw);
 
 	return ret;
-}
-
-static int btusb_set_bdaddr_bcm(struct hci_dev *hdev, const bdaddr_t *bdaddr)
-{
-	struct sk_buff *skb;
-	long ret;
-
-	skb = __hci_cmd_sync(hdev, 0xfc01, 6, bdaddr, HCI_INIT_TIMEOUT);
-	if (IS_ERR(skb)) {
-		ret = PTR_ERR(skb);
-		BT_ERR("%s: BCM: Change address command failed (%ld)",
-		       hdev->name, ret);
-		return ret;
-	}
-	kfree_skb(skb);
-
-	return 0;
 }
 
 static int btusb_setup_bcm_apple(struct hci_dev *hdev)
@@ -3056,7 +3002,7 @@ static int btusb_probe(struct usb_interface *intf,
 
 	if (id->driver_info & BTUSB_BCM_PATCHRAM) {
 		hdev->setup = btusb_setup_bcm_patchram;
-		hdev->set_bdaddr = btusb_set_bdaddr_bcm;
+		hdev->set_bdaddr = btbcm_set_bdaddr;
 		set_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks);
 	}
 
