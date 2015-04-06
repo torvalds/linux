@@ -129,43 +129,6 @@ static inline u16 davinci_i2c_read_reg(struct davinci_i2c_dev *i2c_dev, int reg)
 	return readw_relaxed(i2c_dev->base + reg);
 }
 
-/* Generate a pulse on the i2c clock pin. */
-static void davinci_i2c_clock_pulse(unsigned int scl_pin)
-{
-	u16 i;
-
-	if (scl_pin) {
-		/* Send high and low on the SCL line */
-		for (i = 0; i < 9; i++) {
-			gpio_set_value(scl_pin, 0);
-			udelay(20);
-			gpio_set_value(scl_pin, 1);
-			udelay(20);
-		}
-	}
-}
-
-/* This routine does i2c bus recovery as specified in the
- * i2c protocol Rev. 03 section 3.16 titled "Bus clear"
- */
-static void davinci_i2c_recover_bus(struct davinci_i2c_dev *dev)
-{
-	u32 flag = 0;
-	struct davinci_i2c_platform_data *pdata = dev->pdata;
-
-	dev_err(dev->dev, "initiating i2c bus recovery\n");
-	/* Send NACK to the slave */
-	flag = davinci_i2c_read_reg(dev, DAVINCI_I2C_MDR_REG);
-	flag |=  DAVINCI_I2C_MDR_NACK;
-	/* write the data into mode register */
-	davinci_i2c_write_reg(dev, DAVINCI_I2C_MDR_REG, flag);
-	davinci_i2c_clock_pulse(pdata->scl_pin);
-	/* Send STOP */
-	flag = davinci_i2c_read_reg(dev, DAVINCI_I2C_MDR_REG);
-	flag |= DAVINCI_I2C_MDR_STP;
-	davinci_i2c_write_reg(dev, DAVINCI_I2C_MDR_REG, flag);
-}
-
 static inline void davinci_i2c_reset_ctrl(struct davinci_i2c_dev *i2c_dev,
 								int val)
 {
@@ -263,6 +226,34 @@ static int i2c_davinci_init(struct davinci_i2c_dev *dev)
 }
 
 /*
+ * This routine does i2c bus recovery by using i2c_generic_gpio_recovery
+ * which is provided by I2C Bus recovery infrastructure.
+ */
+static void davinci_i2c_prepare_recovery(struct i2c_adapter *adap)
+{
+	struct davinci_i2c_dev *dev = i2c_get_adapdata(adap);
+
+	/* Disable interrupts */
+	davinci_i2c_write_reg(dev, DAVINCI_I2C_IMR_REG, 0);
+
+	/* put I2C into reset */
+	davinci_i2c_reset_ctrl(dev, 0);
+}
+
+static void davinci_i2c_unprepare_recovery(struct i2c_adapter *adap)
+{
+	struct davinci_i2c_dev *dev = i2c_get_adapdata(adap);
+
+	i2c_davinci_init(dev);
+}
+
+static struct i2c_bus_recovery_info davinci_i2c_gpio_recovery_info = {
+	.recover_bus = i2c_generic_gpio_recovery,
+	.prepare_recovery = davinci_i2c_prepare_recovery,
+	.unprepare_recovery = davinci_i2c_unprepare_recovery,
+};
+
+/*
  * Waiting for bus not busy
  */
 static int i2c_davinci_wait_bus_not_busy(struct davinci_i2c_dev *dev,
@@ -282,8 +273,7 @@ static int i2c_davinci_wait_bus_not_busy(struct davinci_i2c_dev *dev,
 				return -ETIMEDOUT;
 			} else {
 				to_cnt = 0;
-				davinci_i2c_recover_bus(dev);
-				i2c_davinci_init(dev);
+				i2c_recover_bus(&dev->adapter);
 			}
 		}
 		if (allow_sleep)
@@ -372,8 +362,7 @@ i2c_davinci_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg, int stop)
 						dev->adapter.timeout);
 	if (!time_left) {
 		dev_err(dev->dev, "controller timed out\n");
-		davinci_i2c_recover_bus(dev);
-		i2c_davinci_init(dev);
+		i2c_recover_bus(adap);
 		dev->buf_len = 0;
 		return -ETIMEDOUT;
 	}
@@ -711,6 +700,12 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 	adap->dev.parent = &pdev->dev;
 	adap->timeout = DAVINCI_I2C_TIMEOUT;
 	adap->dev.of_node = pdev->dev.of_node;
+
+	if (dev->pdata->scl_pin) {
+		adap->bus_recovery_info = &davinci_i2c_gpio_recovery_info;
+		adap->bus_recovery_info->scl_gpio = dev->pdata->scl_pin;
+		adap->bus_recovery_info->sda_gpio = dev->pdata->sda_pin;
+	}
 
 	adap->nr = pdev->id;
 	r = i2c_add_numbered_adapter(adap);
