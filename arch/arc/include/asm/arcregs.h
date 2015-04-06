@@ -17,6 +17,7 @@
 #define ARC_REG_FP_BCR		0x6B	/* ARCompact: Single-Precision FPU */
 #define ARC_REG_DPFP_BCR	0x6C	/* ARCompact: Dbl Precision FPU */
 #define ARC_REG_FP_V2_BCR	0xc8	/* ARCv2 FPU */
+#define ARC_REG_SLC_BCR		0xce
 #define ARC_REG_DCCM_BCR	0x74	/* DCCM Present + SZ */
 #define ARC_REG_TIMERS_BCR	0x75
 #define ARC_REG_AP_BCR		0x76
@@ -331,7 +332,7 @@ struct cpuinfo_arc_mmu {
 };
 
 struct cpuinfo_arc_cache {
-	unsigned int sz_k:8, line_len:8, assoc:4, ver:4, alias:1, vipt:1, pad:6;
+	unsigned int sz_k:14, line_len:8, assoc:4, ver:4, alias:1, vipt:1;
 };
 
 struct cpuinfo_arc_bpu {
@@ -343,7 +344,7 @@ struct cpuinfo_arc_ccm {
 };
 
 struct cpuinfo_arc {
-	struct cpuinfo_arc_cache icache, dcache;
+	struct cpuinfo_arc_cache icache, dcache, slc;
 	struct cpuinfo_arc_mmu mmu;
 	struct cpuinfo_arc_bpu bpu;
 	struct bcr_identity core;

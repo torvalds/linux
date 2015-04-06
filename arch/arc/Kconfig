@@ -223,7 +223,7 @@ config ARC_CACHE_PAGES
 
 config ARC_CACHE_VIPT_ALIASING
 	bool "Support VIPT Aliasing D$"
-	depends on ARC_HAS_DCACHE
+	depends on ARC_HAS_DCACHE && ISA_ARCOMPACT
 	default n
 
 endif	#ARC_CACHE
