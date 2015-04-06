@@ -1939,7 +1939,22 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 			goto out_warn_free;
 
 		type = process_arg_token(event, right, tok, type);
-		arg->op.right = right;
+
+		if (right->type == PRINT_OP &&
+		    get_op_prio(arg->op.op) < get_op_prio(right->op.op)) {
+			struct print_arg tmp;
+
+			/* rotate ops according to the priority */
+			arg->op.right = right->op.left;
+
+			tmp = *arg;
+			*arg = *right;
+			*right = tmp;
+
+			arg->op.left = right;
+		} else {
+			arg->op.right = right;
+		}
 
 	} else if (strcmp(token, "[") == 0) {
 
