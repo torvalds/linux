@@ -124,7 +124,7 @@ help:
 	@echo  '  config	  - Update current config utilising a line-oriented program'
 	@echo  '  nconfig         - Update current config utilising a ncurses menu based program'
 	@echo  '  menuconfig	  - Update current config utilising a menu based program'
-	@echo  '  xconfig	  - Update current config utilising a QT based front-end'
+	@echo  '  xconfig	  - Update current config utilising a Qt based front-end'
 	@echo  '  gconfig	  - Update current config utilising a GTK based front-end'
 	@echo  '  oldconfig	  - Update current config utilising a provided .config as base'
 	@echo  '  localmodconfig  - Update current config disabling modules not loaded'
@@ -158,7 +158,7 @@ HOST_EXTRACFLAGS += $(shell $(CONFIG_SHELL) $(check-lxdialog) -ccflags) \
 # mconf:  Used for the menuconfig target
 #         Utilizes the lxdialog package
 # qconf:  Used for the xconfig target
-#         Based on QT which needs to be installed to compile it
+#         Based on Qt which needs to be installed to compile it
 # gconf:  Used for the gconfig target
 #         Based on GTK which needs to be installed to compile it
 # object files used by all kconfig flavours
@@ -217,11 +217,11 @@ ifeq ($(MAKECMDGOALS),xconfig)
 $(obj)/.tmp_qtcheck: $(src)/Makefile
 -include $(obj)/.tmp_qtcheck
 
-# QT needs some extra effort...
+# Qt needs some extra effort...
 $(obj)/.tmp_qtcheck:
 	@set -e; $(kecho) "  CHECK   qt"; dir=""; pkg=""; \
 	if ! pkg-config --exists QtCore 2> /dev/null; then \
-	    echo "* Unable to find the QT4 tool qmake. Trying to use QT3"; \
+	    echo "* Unable to find the Qt4 tool qmake. Trying to use Qt3"; \
 	    pkg-config --exists qt 2> /dev/null && pkg=qt; \
 	    pkg-config --exists qt-mt 2> /dev/null && pkg=qt-mt; \
 	    if [ -n "$$pkg" ]; then \
@@ -235,8 +235,8 @@ $(obj)/.tmp_qtcheck:
 	      done; \
 	      if [ -z "$$dir" ]; then \
 	        echo >&2 "*"; \
-	        echo >&2 "* Unable to find any QT installation. Please make sure that"; \
-	        echo >&2 "* the QT4 or QT3 development package is correctly installed and"; \
+	        echo >&2 "* Unable to find any Qt installation. Please make sure that"; \
+	        echo >&2 "* the Qt4 or Qt3 development package is correctly installed and"; \
 	        echo >&2 "* either qmake can be found or install pkg-config or set"; \
 	        echo >&2 "* the QTDIR environment variable to the correct location."; \
 	        echo >&2 "*"; \
