@@ -401,10 +401,7 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 		return NETDEV_TX_OK;
 	}
 
-	pkt_sz = sizeof(struct hv_netvsc_packet) +
-			sizeof(struct rndis_message) +
-			NDIS_VLAN_PPI_SIZE + NDIS_CSUM_PPI_SIZE +
-			NDIS_LSO_PPI_SIZE + NDIS_HASH_PPI_SIZE;
+	pkt_sz = sizeof(struct hv_netvsc_packet) + RNDIS_AND_PPI_SIZE;
 
 	if (head_room < pkt_sz) {
 		packet = kmalloc(pkt_sz, GFP_ATOMIC);
@@ -436,11 +433,7 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	packet->rndis_msg = (struct rndis_message *)((unsigned long)packet +
 				sizeof(struct hv_netvsc_packet));
 
-	memset(packet->rndis_msg, 0, sizeof(struct rndis_message) +
-					NDIS_VLAN_PPI_SIZE +
-					NDIS_CSUM_PPI_SIZE +
-					NDIS_LSO_PPI_SIZE +
-					NDIS_HASH_PPI_SIZE);
+	memset(packet->rndis_msg, 0, RNDIS_AND_PPI_SIZE);
 
 	/* Set the completion routine */
 	packet->send_completion = netvsc_xmit_completion;
@@ -872,9 +865,7 @@ static int netvsc_probe(struct hv_device *dev,
 		return -ENOMEM;
 
 	max_needed_headroom = sizeof(struct hv_netvsc_packet) +
-				sizeof(struct rndis_message) +
-				NDIS_VLAN_PPI_SIZE + NDIS_CSUM_PPI_SIZE +
-				NDIS_LSO_PPI_SIZE + NDIS_HASH_PPI_SIZE;
+			      RNDIS_AND_PPI_SIZE;
 
 	netif_carrier_off(net);
 
