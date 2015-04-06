@@ -229,7 +229,7 @@ static u16 netvsc_select_queue(struct net_device *ndev, struct sk_buff *skb,
 	return q_idx;
 }
 
-static void netvsc_xmit_completion(void *context)
+void netvsc_xmit_completion(void *context)
 {
 	struct hv_netvsc_packet *packet = (struct hv_netvsc_packet *)context;
 	struct sk_buff *skb = (struct sk_buff *)
