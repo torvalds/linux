@@ -782,7 +782,7 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 		return;
 	}
 
-	err = iptunnel_xmit(skb->sk, rt, skb, fl4.saddr, fl4.daddr, protocol,
+	err = iptunnel_xmit(NULL, rt, skb, fl4.saddr, fl4.daddr, protocol,
 			    tos, ttl, df, !net_eq(tunnel->net, dev_net(dev)));
 	iptunnel_xmit_stats(err, &dev->stats, dev->tstats);
 

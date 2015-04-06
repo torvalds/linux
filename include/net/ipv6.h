@@ -827,6 +827,7 @@ int ip6_input(struct sk_buff *skb);
 int ip6_mc_input(struct sk_buff *skb);
 
 int __ip6_local_out(struct sk_buff *skb);
+int ip6_local_out_sk(struct sock *sk, struct sk_buff *skb);
 int ip6_local_out(struct sk_buff *skb);
 
 /*

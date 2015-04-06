@@ -136,7 +136,7 @@ int ip6_dst_hoplimit(struct dst_entry *dst)
 EXPORT_SYMBOL(ip6_dst_hoplimit);
 #endif
 
-int __ip6_local_out(struct sk_buff *skb)
+static int __ip6_local_out_sk(struct sock *sk, struct sk_buff *skb)
 {
 	int len;
 
@@ -146,19 +146,30 @@ int __ip6_local_out(struct sk_buff *skb)
 	ipv6_hdr(skb)->payload_len = htons(len);
 	IP6CB(skb)->nhoff = offsetof(struct ipv6hdr, nexthdr);
 
-	return nf_hook(NFPROTO_IPV6, NF_INET_LOCAL_OUT, skb->sk, skb,
+	return nf_hook(NFPROTO_IPV6, NF_INET_LOCAL_OUT, sk, skb,
 		       NULL, skb_dst(skb)->dev, dst_output_sk);
+}
+
+int __ip6_local_out(struct sk_buff *skb)
+{
+	return __ip6_local_out_sk(skb->sk, skb);
 }
 EXPORT_SYMBOL_GPL(__ip6_local_out);
 
-int ip6_local_out(struct sk_buff *skb)
+int ip6_local_out_sk(struct sock *sk, struct sk_buff *skb)
 {
 	int err;
 
-	err = __ip6_local_out(skb);
+	err = __ip6_local_out_sk(sk, skb);
 	if (likely(err == 1))
-		err = dst_output(skb);
+		err = dst_output_sk(sk, skb);
 
 	return err;
+}
+EXPORT_SYMBOL_GPL(ip6_local_out_sk);
+
+int ip6_local_out(struct sk_buff *skb)
+{
+	return ip6_local_out_sk(skb->sk, skb);
 }
 EXPORT_SYMBOL_GPL(ip6_local_out);

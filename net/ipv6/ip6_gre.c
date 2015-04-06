@@ -760,7 +760,7 @@ static netdev_tx_t ip6gre_xmit2(struct sk_buff *skb,
 
 	skb_set_inner_protocol(skb, protocol);
 
-	ip6tunnel_xmit(skb, dev);
+	ip6tunnel_xmit(NULL, skb, dev);
 	if (ndst)
 		ip6_tnl_dst_store(tunnel, ndst);
 	return 0;
