@@ -267,7 +267,7 @@ static void mixer_cfg_scan(struct mixer_context *ctx, unsigned int height)
 
 	/* choosing between interlace and progressive mode */
 	val = (ctx->interlace ? MXR_CFG_SCAN_INTERLACE :
-				MXR_CFG_SCAN_PROGRASSIVE);
+				MXR_CFG_SCAN_PROGRESSIVE);
 
 	if (ctx->mxr_ver != MXR_VER_128_0_0_184) {
 		/* choosing between proper HD and SD mode */
