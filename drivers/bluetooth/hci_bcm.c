@@ -86,6 +86,12 @@ static int bcm_setup(struct hci_uart *hu)
 	return btbcm_setup_patchram(hu->hdev);
 }
 
+static const struct h4_recv_pkt bcm_recv_pkts[] = {
+	{ H4_RECV_ACL,   .recv = hci_recv_frame },
+	{ H4_RECV_SCO,   .recv = hci_recv_frame },
+	{ H4_RECV_EVENT, .recv = hci_recv_frame },
+};
+
 static int bcm_recv(struct hci_uart *hu, const void *data, int count)
 {
 	struct bcm_data *bcm = hu->priv;
@@ -93,7 +99,8 @@ static int bcm_recv(struct hci_uart *hu, const void *data, int count)
 	if (!test_bit(HCI_UART_REGISTERED, &hu->flags))
 		return -EUNATCH;
 
-	bcm->rx_skb = h4_recv_buf(hu->hdev, bcm->rx_skb, data, count);
+	bcm->rx_skb = h4_recv_buf(hu->hdev, bcm->rx_skb, data, count,
+				  bcm_recv_pkts, ARRAY_SIZE(bcm_recv_pkts));
 	if (IS_ERR(bcm->rx_skb)) {
 		int err = PTR_ERR(bcm->rx_skb);
 		BT_ERR("%s: Frame reassembly failed (%d)", hu->hdev->name, err);
