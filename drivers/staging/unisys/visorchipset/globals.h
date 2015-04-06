@@ -36,7 +36,6 @@ extern int visorchipset_serverregwait;
 extern int visorchipset_clientregwait;
 extern int visorchipset_testteardown;
 extern int visorchipset_disable_controlvm;
-extern int visorchipset_crash_kernel;
 extern int visorchipset_holdchipsetready;
 
 #endif

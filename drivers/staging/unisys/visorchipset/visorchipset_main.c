@@ -30,6 +30,7 @@
 #include <linux/netdevice.h>
 #include <linux/platform_device.h>
 #include <linux/uuid.h>
+#include <linux/crash_dump.h>
 
 #define CURRENT_FILE_PC VISOR_CHIPSET_PC_visorchipset_main_c
 #define TEST_VNIC_PHYSITF "eth0"	/* physical network itf for
@@ -2207,7 +2208,7 @@ visorchipset_init(void)
 	}
 	if (!visorchipset_disable_controlvm) {
 		/* if booting in a crash kernel */
-		if (visorchipset_crash_kernel)
+		if (is_kdump_kernel())
 			INIT_DELAYED_WORK(&periodic_controlvm_work,
 					  setup_crash_devices_work_queue);
 		else
@@ -2315,10 +2316,6 @@ module_param_named(disable_controlvm, visorchipset_disable_controlvm, int,
 MODULE_PARM_DESC(visorchipset_disable_controlvm,
 		 "1 to disable polling of controlVm channel");
 int visorchipset_disable_controlvm = 0;	/* default is off */
-module_param_named(crash_kernel, visorchipset_crash_kernel, int, S_IRUGO);
-MODULE_PARM_DESC(visorchipset_crash_kernel,
-		 "1 means we are running in crash kernel");
-int visorchipset_crash_kernel = 0; /* default is running in non-crash kernel */
 module_param_named(holdchipsetready, visorchipset_holdchipsetready,
 		   int, S_IRUGO);
 MODULE_PARM_DESC(visorchipset_holdchipsetready,
