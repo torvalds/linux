@@ -3412,9 +3412,23 @@ static void univ8250_console_write(struct console *co, const char *s,
 	serial8250_console_write(up, s, count);
 }
 
-static int serial8250_console_setup(struct uart_8250_port *up, char *options)
+static unsigned int probe_baud(struct uart_port *port)
 {
-	struct uart_port *port = &up->port;
+	unsigned char lcr, dll, dlm;
+	unsigned int quot;
+
+	lcr = serial_port_in(port, UART_LCR);
+	serial_port_out(port, UART_LCR, lcr | UART_LCR_DLAB);
+	dll = serial_port_in(port, UART_DLL);
+	dlm = serial_port_in(port, UART_DLM);
+	serial_port_out(port, UART_LCR, lcr);
+
+	quot = (dlm << 8) | dll;
+	return (port->uartclk / 16) / quot;
+}
+
+static int serial8250_console_setup(struct uart_port *port, char *options, bool probe)
+{
 	int baud = 9600;
 	int bits = 8;
 	int parity = 'n';
@@ -3425,13 +3439,15 @@ static int serial8250_console_setup(struct uart_8250_port *up, char *options)
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
+	else if (probe)
+		baud = probe_baud(port);
 
 	return uart_set_options(port, port->cons, baud, parity, bits, flow);
 }
 
 static int univ8250_console_setup(struct console *co, char *options)
 {
-	struct uart_8250_port *up;
+	struct uart_port *port;
 
 	/*
 	 * Check whether an invalid uart number has been specified, and
@@ -3440,11 +3456,11 @@ static int univ8250_console_setup(struct console *co, char *options)
 	 */
 	if (co->index >= nr_uarts)
 		co->index = 0;
-	up = &serial8250_ports[co->index];
+	port = &serial8250_ports[co->index].port;
 	/* link port to console */
-	up->port.cons = co;
+	port->cons = co;
 
-	return serial8250_console_setup(up, options);
+	return serial8250_console_setup(port, options, false);
 }
 
 /**
@@ -3491,7 +3507,8 @@ static int univ8250_console_match(struct console *co, char *name, int idx,
 			continue;
 
 		co->index = i;
-		return univ8250_console_setup(co, options);
+		port->cons = co;
+		return serial8250_console_setup(port, options, true);
 	}
 
 	return -ENODEV;
