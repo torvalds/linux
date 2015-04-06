@@ -291,8 +291,15 @@ static void bcm2835_spi_set_cs(struct spi_device *spi, bool gpio_level)
 	bcm2835_wr(bs, BCM2835_SPI_CS, cs);
 }
 
+static int chip_match_name(struct gpio_chip *chip, void *data)
+{
+	return !strcmp(chip->label, data);
+}
+
 static int bcm2835_spi_setup(struct spi_device *spi)
 {
+	int err;
+	struct gpio_chip *chip;
 	/*
 	 * sanity checking the native-chipselects
 	 */
@@ -300,13 +307,45 @@ static int bcm2835_spi_setup(struct spi_device *spi)
 		return 0;
 	if (gpio_is_valid(spi->cs_gpio))
 		return 0;
-	if (spi->chip_select < 3)
+	if (spi->chip_select > 1) {
+		/* error in the case of native CS requested with CS > 1
+		 * officially there is a CS2, but it is not documented
+		 * which GPIO is connected with that...
+		 */
+		dev_err(&spi->dev,
+			"setup: only two native chip-selects are supported\n");
+		return -EINVAL;
+	}
+	/* now translate native cs to GPIO */
+
+	/* get the gpio chip for the base */
+	chip = gpiochip_find("pinctrl-bcm2835", chip_match_name);
+	if (!chip)
 		return 0;
 
-	/* error in the case of native CS requested with CS-id > 2 */
-	dev_err(&spi->dev,
-		"setup: only three native chip-selects are supported\n");
-	return -EINVAL;
+	/* and calculate the real CS */
+	spi->cs_gpio = chip->base + 8 - spi->chip_select;
+
+	/* and set up the "mode" and level */
+	dev_info(&spi->dev, "setting up native-CS%i as GPIO %i\n",
+		 spi->chip_select, spi->cs_gpio);
+
+	/* set up GPIO as output and pull to the correct level */
+	err = gpio_direction_output(spi->cs_gpio,
+				    (spi->mode & SPI_CS_HIGH) ? 0 : 1);
+	if (err) {
+		dev_err(&spi->dev,
+			"could not set CS%i gpio %i as output: %i",
+			spi->chip_select, spi->cs_gpio, err);
+		return err;
+	}
+	/* the implementation of pinctrl-bcm2835 currently does not
+	 * set the GPIO value when using gpio_direction_output
+	 * so we are setting it here explicitly
+	 */
+	gpio_set_value(spi->cs_gpio, (spi->mode & SPI_CS_HIGH) ? 0 : 1);
+
+	return 0;
 }
 
 static int bcm2835_spi_probe(struct platform_device *pdev)
