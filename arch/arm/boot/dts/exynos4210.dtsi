@@ -52,16 +52,6 @@
 		};
 	};
 
-	pmu_system_controller: system-controller@10020000 {
-		clock-names = "clkout0", "clkout1", "clkout2", "clkout3",
-				"clkout4", "clkout8", "clkout9";
-		clocks = <&clock CLK_OUT_DMC>, <&clock CLK_OUT_TOP>,
-			<&clock CLK_OUT_LEFTBUS>, <&clock CLK_OUT_RIGHTBUS>,
-			<&clock CLK_OUT_CPU>, <&clock CLK_XXTI>,
-			<&clock CLK_XUSBXTI>;
-		#clock-cells = <1>;
-	};
-
 	sysram: sysram@02020000 {
 		compatible = "mmio-sram";
 		reg = <0x02020000 0x20000>;
@@ -93,18 +83,6 @@
 		cache-level = <2>;
 		arm,tag-latency = <2 2 1>;
 		arm,data-latency = <2 2 1>;
-	};
-
-	gic: interrupt-controller@10490000 {
-		cpu-offset = <0x8000>;
-	};
-
-	combiner: interrupt-controller@10440000 {
-		samsung,combiner-nr = <16>;
-		interrupts = <0 0 0>, <0 1 0>, <0 2 0>, <0 3 0>,
-			     <0 4 0>, <0 5 0>, <0 6 0>, <0 7 0>,
-			     <0 8 0>, <0 9 0>, <0 10 0>, <0 11 0>,
-			     <0 12 0>, <0 13 0>, <0 14 0>, <0 15 0>;
 	};
 
 	mct: mct@10050000 {
@@ -244,4 +222,25 @@
 		clock-names = "ppmu";
 		status = "disabled";
 	};
+};
+
+&gic {
+	cpu-offset = <0x8000>;
+};
+
+&combiner {
+	samsung,combiner-nr = <16>;
+	interrupts = <0 0 0>, <0 1 0>, <0 2 0>, <0 3 0>,
+		     <0 4 0>, <0 5 0>, <0 6 0>, <0 7 0>,
+		     <0 8 0>, <0 9 0>, <0 10 0>, <0 11 0>,
+		     <0 12 0>, <0 13 0>, <0 14 0>, <0 15 0>;
+};
+
+&pmu_system_controller {
+	clock-names = "clkout0", "clkout1", "clkout2", "clkout3",
+			"clkout4", "clkout8", "clkout9";
+	clocks = <&clock CLK_OUT_DMC>, <&clock CLK_OUT_TOP>,
+		<&clock CLK_OUT_LEFTBUS>, <&clock CLK_OUT_RIGHTBUS>,
+		<&clock CLK_OUT_CPU>, <&clock CLK_XXTI>, <&clock CLK_XUSBXTI>;
+	#clock-cells = <1>;
 };
