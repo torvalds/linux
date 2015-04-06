@@ -300,6 +300,7 @@ struct mxt_data {
 	bool update_input;
 	u8 last_message_count;
 	u8 num_touchids;
+	u8 multitouch;
 	struct t7_config t7_cfg;
 	u8 num_stylusids;
 	unsigned long t15_keystatus;
@@ -2079,6 +2080,7 @@ static int mxt_parse_object_table(struct mxt_data *data,
 			data->T71_address = object->start_address;
 			break;
 		case MXT_TOUCH_MULTI_T9:
+			data->multitouch = MXT_TOUCH_MULTI_T9;
 			/* Only handle messages from first T9 instance */
 			data->T9_reportid_min = min_id;
 			data->T9_reportid_max = min_id +
@@ -2112,6 +2114,7 @@ static int mxt_parse_object_table(struct mxt_data *data,
 			data->num_stylusids = 1;
 			break;
 		case MXT_TOUCH_MULTITOUCHSCREEN_T100:
+			data->multitouch = MXT_TOUCH_MULTITOUCHSCREEN_T100;
 			data->T100_reportid_min = min_id;
 			data->T100_reportid_max = max_id;
 			/* first two report IDs reserved */
@@ -2361,121 +2364,6 @@ static int mxt_read_t9_resolution(struct mxt_data *data)
 	return 0;
 }
 
-static int mxt_input_open(struct input_dev *dev);
-static void mxt_input_close(struct input_dev *dev);
-
-static int mxt_initialize_t9_input_device(struct mxt_data *data)
-{
-	struct device *dev = &data->client->dev;
-	const struct mxt_platform_data *pdata = data->pdata;
-	struct input_dev *input_dev;
-	int error;
-	unsigned int num_mt_slots;
-	unsigned int mt_flags = 0;
-	int i;
-
-	error = mxt_read_t9_resolution(data);
-	if (error)
-		dev_warn(dev, "Failed to initialize T9 resolution\n");
-
-	input_dev = input_allocate_device();
-	if (!input_dev)
-		return -ENOMEM;
-
-	input_dev->name = "Atmel maXTouch Touchscreen";
-	input_dev->phys = data->phys;
-	input_dev->id.bustype = BUS_I2C;
-	input_dev->dev.parent = dev;
-	input_dev->open = mxt_input_open;
-	input_dev->close = mxt_input_close;
-
-	__set_bit(EV_ABS, input_dev->evbit);
-	__set_bit(EV_KEY, input_dev->evbit);
-	__set_bit(BTN_TOUCH, input_dev->keybit);
-
-	if (pdata->t19_num_keys) {
-		__set_bit(INPUT_PROP_BUTTONPAD, input_dev->propbit);
-
-		for (i = 0; i < pdata->t19_num_keys; i++)
-			if (pdata->t19_keymap[i] != KEY_RESERVED)
-				input_set_capability(input_dev, EV_KEY,
-						     pdata->t19_keymap[i]);
-
-		mt_flags |= INPUT_MT_POINTER;
-
-		input_abs_set_res(input_dev, ABS_X, MXT_PIXELS_PER_MM);
-		input_abs_set_res(input_dev, ABS_Y, MXT_PIXELS_PER_MM);
-		input_abs_set_res(input_dev, ABS_MT_POSITION_X,
-				  MXT_PIXELS_PER_MM);
-		input_abs_set_res(input_dev, ABS_MT_POSITION_Y,
-				  MXT_PIXELS_PER_MM);
-
-		input_dev->name = "Atmel maXTouch Touchpad";
-	} else {
-		mt_flags |= INPUT_MT_DIRECT;
-	}
-
-	/* For single touch */
-	input_set_abs_params(input_dev, ABS_X,
-			     0, data->max_x, 0, 0);
-	input_set_abs_params(input_dev, ABS_Y,
-			     0, data->max_y, 0, 0);
-	input_set_abs_params(input_dev, ABS_PRESSURE,
-			     0, 255, 0, 0);
-
-	/* For multi touch */
-	num_mt_slots = data->num_touchids + data->num_stylusids;
-	error = input_mt_init_slots(input_dev, num_mt_slots, mt_flags);
-	if (error) {
-		dev_err(dev, "Error %d initialising slots\n", error);
-		goto err_free_mem;
-	}
-
-	input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR,
-			     0, MXT_MAX_AREA, 0, 0);
-	input_set_abs_params(input_dev, ABS_MT_POSITION_X,
-			     0, data->max_x, 0, 0);
-	input_set_abs_params(input_dev, ABS_MT_POSITION_Y,
-			     0, data->max_y, 0, 0);
-	input_set_abs_params(input_dev, ABS_MT_PRESSURE,
-			     0, 255, 0, 0);
-	input_set_abs_params(input_dev, ABS_MT_ORIENTATION,
-			     0, 255, 0, 0);
-
-	/* For T63 active stylus */
-	if (data->T63_reportid_min) {
-		input_set_capability(input_dev, EV_KEY, BTN_STYLUS);
-		input_set_capability(input_dev, EV_KEY, BTN_STYLUS2);
-		input_set_abs_params(input_dev, ABS_MT_TOOL_TYPE,
-			0, MT_TOOL_MAX, 0, 0);
-	}
-
-	/* For T15 key array */
-	if (data->T15_reportid_min) {
-		data->t15_keystatus = 0;
-
-		for (i = 0; i < data->pdata->t15_num_keys; i++)
-			input_set_capability(input_dev, EV_KEY,
-					     data->pdata->t15_keymap[i]);
-	}
-
-	input_set_drvdata(input_dev, data);
-
-	error = input_register_device(input_dev);
-	if (error) {
-		dev_err(dev, "Error %d registering input device\n", error);
-		goto err_free_mem;
-	}
-
-	data->input_dev = input_dev;
-
-	return 0;
-
-err_free_mem:
-	input_free_device(input_dev);
-	return error;
-}
-
 static int mxt_read_t107_stylus_config(struct mxt_data *data)
 {
 	struct i2c_client *client = data->client;
@@ -2588,78 +2476,166 @@ static int mxt_read_t100_config(struct mxt_data *data)
 	return 0;
 }
 
-static int mxt_initialize_t100_input_device(struct mxt_data *data)
+static int mxt_input_open(struct input_dev *dev);
+static void mxt_input_close(struct input_dev *dev);
+
+static int mxt_initialize_input_device(struct mxt_data *data)
 {
 	struct device *dev = &data->client->dev;
+	const struct mxt_platform_data *pdata = data->pdata;
 	struct input_dev *input_dev;
 	int error;
+	unsigned int num_mt_slots;
+	unsigned int mt_flags = 0;
+	int i;
 
-	error = mxt_read_t100_config(data);
-	if (error) {
-		dev_err(dev, "Failed to read T100 config\n");
-		return error;
+	switch (data->multitouch) {
+	case MXT_TOUCH_MULTI_T9:
+		num_mt_slots = data->T9_reportid_max - data->T9_reportid_min + 1;
+		error = mxt_read_t9_resolution(data);
+		if (error)
+			dev_warn(dev, "Failed to initialize T9 resolution\n");
+		break;
+
+	case MXT_TOUCH_MULTITOUCHSCREEN_T100:
+		num_mt_slots = data->num_touchids;
+		error = mxt_read_t100_config(data);
+		if (error)
+			dev_warn(dev, "Failed to read T100 config\n");
+
+		if (data->T107_address) {
+			error = mxt_read_t107_stylus_config(data);
+			if (error)
+				dev_warn(dev, "Failed to read T107 config\n");
+		}
+
+		break;
+
+	default:
+		dev_err(dev, "Invalid multitouch object\n");
+		return -EINVAL;
 	}
 
-	mxt_read_t107_stylus_config(data);
-
 	input_dev = input_allocate_device();
-	if (!data || !input_dev)
+	if (!input_dev)
 		return -ENOMEM;
 
 	if (data->pdata->input_name)
 		input_dev->name = data->pdata->input_name;
 	else
-		input_dev->name = "atmel_mxt_ts T100 touchscreen";
+		input_dev->name = "Atmel maXTouch Touchscreen";
 
 	input_dev->phys = data->phys;
 	input_dev->id.bustype = BUS_I2C;
-	input_dev->dev.parent = &data->client->dev;
+	input_dev->dev.parent = dev;
 	input_dev->open = mxt_input_open;
 	input_dev->close = mxt_input_close;
 
 	set_bit(EV_ABS, input_dev->evbit);
 	input_set_capability(input_dev, EV_KEY, BTN_TOUCH);
 
-	/* For single touch */
-	input_set_abs_params(input_dev, ABS_X,
-			     0, data->max_x, 0, 0);
-	input_set_abs_params(input_dev, ABS_Y,
-			     0, data->max_y, 0, 0);
+	if (pdata->t19_num_keys) {
+		__set_bit(INPUT_PROP_BUTTONPAD, input_dev->propbit);
 
-	if (data->t100_aux_ampl)
-		input_set_abs_params(input_dev, ABS_PRESSURE,
-				     0, 255, 0, 0);
+		for (i = 0; i < pdata->t19_num_keys; i++)
+			if (pdata->t19_keymap[i] != KEY_RESERVED)
+				input_set_capability(input_dev, EV_KEY,
+						     pdata->t19_keymap[i]);
+
+		mt_flags |= INPUT_MT_POINTER;
+
+		input_abs_set_res(input_dev, ABS_X, MXT_PIXELS_PER_MM);
+		input_abs_set_res(input_dev, ABS_Y, MXT_PIXELS_PER_MM);
+		input_abs_set_res(input_dev, ABS_MT_POSITION_X,
+				  MXT_PIXELS_PER_MM);
+		input_abs_set_res(input_dev, ABS_MT_POSITION_Y,
+				  MXT_PIXELS_PER_MM);
+
+		input_dev->name = "Atmel maXTouch Touchpad";
+	} else {
+		mt_flags |= INPUT_MT_DIRECT;
+	}
+
+	/* For single touch */
+	input_set_abs_params(input_dev, ABS_X, 0, data->max_x, 0, 0);
+	input_set_abs_params(input_dev, ABS_Y, 0, data->max_y, 0, 0);
+
+	if (data->multitouch == MXT_TOUCH_MULTI_T9 ||
+	    (data->multitouch == MXT_TOUCH_MULTITOUCHSCREEN_T100 &&
+	     data->t100_aux_ampl)) {
+		input_set_abs_params(input_dev, ABS_PRESSURE, 0, 255, 0, 0);
+	}
 
 	/* For multi touch */
-	error = input_mt_init_slots(input_dev, data->num_touchids,
-				    INPUT_MT_DIRECT);
+	error = input_mt_init_slots(input_dev, num_mt_slots, mt_flags);
 	if (error) {
 		dev_err(dev, "Error %d initialising slots\n", error);
 		goto err_free_mem;
 	}
 
-	input_set_abs_params(input_dev, ABS_MT_TOOL_TYPE, 0, MT_TOOL_MAX, 0, 0);
+	if (data->multitouch == MXT_TOUCH_MULTITOUCHSCREEN_T100) {
+		input_set_abs_params(input_dev, ABS_MT_TOOL_TYPE,
+				     0, MT_TOOL_MAX, 0, 0);
+		input_set_abs_params(input_dev, ABS_MT_DISTANCE,
+				     MXT_DISTANCE_ACTIVE_TOUCH,
+				     MXT_DISTANCE_HOVERING,
+				     0, 0);
+	}
+
 	input_set_abs_params(input_dev, ABS_MT_POSITION_X,
 			     0, data->max_x, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_POSITION_Y,
 			     0, data->max_y, 0, 0);
 
-	if (data->T107_address) {
-		input_set_capability(input_dev, EV_KEY, BTN_STYLUS);
-		input_set_capability(input_dev, EV_KEY, BTN_STYLUS2);
-	}
-
-	if (data->t100_aux_area)
+	if (data->multitouch == MXT_TOUCH_MULTI_T9 ||
+	    (data->multitouch == MXT_TOUCH_MULTITOUCHSCREEN_T100 &&
+	     data->t100_aux_area)) {
 		input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR,
 				     0, MXT_MAX_AREA, 0, 0);
+	}
 
-	if (data->t100_aux_ampl | data->stylus_aux_pressure)
+	if (data->multitouch == MXT_TOUCH_MULTI_T9 ||
+	    (data->multitouch == MXT_TOUCH_MULTITOUCHSCREEN_T100 &&
+	     (data->t100_aux_ampl || data->stylus_aux_pressure))) {
 		input_set_abs_params(input_dev, ABS_MT_PRESSURE,
 				     0, 255, 0, 0);
+	}
 
-	if (data->t100_aux_vect)
+	if (data->multitouch == MXT_TOUCH_MULTITOUCHSCREEN_T100 &&
+	    data->t100_aux_vect) {
 		input_set_abs_params(input_dev, ABS_MT_ORIENTATION,
 				     0, 255, 0, 0);
+	}
+
+	if (data->multitouch == MXT_TOUCH_MULTITOUCHSCREEN_T100 &&
+	    data->t100_aux_ampl) {
+		input_set_abs_params(input_dev, ABS_MT_PRESSURE,
+				     0, 255, 0, 0);
+	}
+
+	if (data->multitouch == MXT_TOUCH_MULTI_T9 ||
+	    (data->multitouch == MXT_TOUCH_MULTITOUCHSCREEN_T100 &&
+	    data->t100_aux_vect)) {
+		input_set_abs_params(input_dev, ABS_MT_ORIENTATION,
+				     0, 255, 0, 0);
+	}
+
+	/* For active stylus */
+	if (data->T63_reportid_min || data->T107_address) {
+		input_set_capability(input_dev, EV_KEY, BTN_STYLUS);
+		input_set_capability(input_dev, EV_KEY, BTN_STYLUS2);
+		input_set_abs_params(input_dev, ABS_MT_TOOL_TYPE,
+				0, MT_TOOL_MAX, 0, 0);
+	}
+
+	/* For T15 Key Array */
+	if (data->T15_reportid_min) {
+		data->t15_keystatus = 0;
+
+		for (i = 0; i < data->pdata->t15_num_keys; i++)
+			input_set_capability(input_dev, EV_KEY,
+					data->pdata->t15_keymap[i]);
+	}
 
 	input_set_drvdata(input_dev, data);
 
@@ -2831,12 +2807,8 @@ static int mxt_configure_objects(struct mxt_data *data,
 			dev_warn(dev, "Error %d updating config\n", error);
 	}
 
-	if (data->T9_reportid_min) {
-		error = mxt_initialize_t9_input_device(data);
-		if (error)
-			goto err_free_object_table;
-	} else if (data->T100_reportid_min) {
-		error = mxt_initialize_t100_input_device(data);
+	if (data->multitouch) {
+		error = mxt_initialize_input_device(data);
 		if (error)
 			goto err_free_object_table;
 	} else {
