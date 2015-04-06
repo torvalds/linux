@@ -4,6 +4,7 @@ menu "Bluetooth device drivers"
 
 config BT_BCM
 	tristate
+	select FW_LOADER
 
 config BT_HCIBTUSB
 	tristate "HCI USB driver"
