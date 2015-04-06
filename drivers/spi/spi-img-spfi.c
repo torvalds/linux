@@ -434,6 +434,9 @@ static void img_spfi_config(struct spi_master *master, struct spi_device *spi,
 	val |= div << SPFI_DEVICE_PARAMETER_BITCLK_SHIFT;
 	spfi_writel(spfi, val, SPFI_DEVICE_PARAMETER(spi->chip_select));
 
+	spfi_writel(spfi, xfer->len << SPFI_TRANSACTION_TSIZE_SHIFT,
+		    SPFI_TRANSACTION);
+
 	val = spfi_readl(spfi, SPFI_CONTROL);
 	val &= ~(SPFI_CONTROL_SEND_DMA | SPFI_CONTROL_GET_DMA);
 	if (xfer->tx_buf)
@@ -452,8 +455,6 @@ static void img_spfi_config(struct spi_master *master, struct spi_device *spi,
 					      &master->cur_msg->transfers))
 		val |= SPFI_CONTROL_CONTINUE;
 	spfi_writel(spfi, val, SPFI_CONTROL);
-	spfi_writel(spfi, xfer->len << SPFI_TRANSACTION_TSIZE_SHIFT,
-		    SPFI_TRANSACTION);
 }
 
 static int img_spfi_transfer_one(struct spi_master *master,
