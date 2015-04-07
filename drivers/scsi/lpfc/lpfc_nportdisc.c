@@ -276,6 +276,7 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	struct Scsi_Host   *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_hba    *phba = vport->phba;
 	struct lpfc_dmabuf *pcmd;
+	uint64_t nlp_portwwn = 0;
 	uint32_t *lp;
 	IOCB_t *icmd;
 	struct serv_parm *sp;
@@ -332,6 +333,8 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			NULL);
 		return 0;
 	}
+
+	nlp_portwwn = wwn_to_u64(ndlp->nlp_portname.u.wwn);
 	if ((lpfc_check_sparm(vport, ndlp, sp, CLASS3, 0) == 0)) {
 		/* Reject this request because invalid parameters */
 		stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
@@ -367,7 +370,7 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	ndlp->nlp_maxframe =
 		((sp->cmn.bbRcvSizeMsb & 0x0F) << 8) | sp->cmn.bbRcvSizeLsb;
 
-	/* no need to reg_login if we are already in one of these states */
+	/* if already logged in, do implicit logout */
 	switch (ndlp->nlp_state) {
 	case  NLP_STE_NPR_NODE:
 		if (!(ndlp->nlp_flag & NLP_NPR_ADISC))
@@ -376,8 +379,26 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	case  NLP_STE_PRLI_ISSUE:
 	case  NLP_STE_UNMAPPED_NODE:
 	case  NLP_STE_MAPPED_NODE:
-		lpfc_els_rsp_acc(vport, ELS_CMD_PLOGI, cmdiocb, ndlp, NULL);
-		return 1;
+		/* lpfc_plogi_confirm_nport skips fabric did, handle it here */
+		if (!(ndlp->nlp_type & NLP_FABRIC)) {
+			lpfc_els_rsp_acc(vport, ELS_CMD_PLOGI, cmdiocb,
+					 ndlp, NULL);
+			return 1;
+		}
+		if (nlp_portwwn != 0 &&
+		    nlp_portwwn != wwn_to_u64(sp->portName.u.wwn))
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+					 "0143 PLOGI recv'd from DID: x%x "
+					 "WWPN changed: old %llx new %llx\n",
+					 ndlp->nlp_DID,
+					 (unsigned long long)nlp_portwwn,
+					 (unsigned long long)
+					 wwn_to_u64(sp->portName.u.wwn));
+
+		ndlp->nlp_prev_state = ndlp->nlp_state;
+		/* rport needs to be unregistered first */
+		lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
+		break;
 	}
 
 	/* Check for Nport to NPort pt2pt protocol */
