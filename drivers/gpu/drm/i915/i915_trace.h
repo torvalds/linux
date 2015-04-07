@@ -597,33 +597,6 @@ DEFINE_EVENT(i915_gem_request, i915_gem_request_wait_end,
 	    TP_ARGS(req)
 );
 
-DECLARE_EVENT_CLASS(i915_ring,
-	    TP_PROTO(struct intel_engine_cs *ring),
-	    TP_ARGS(ring),
-
-	    TP_STRUCT__entry(
-			     __field(u32, dev)
-			     __field(u32, ring)
-			     ),
-
-	    TP_fast_assign(
-			   __entry->dev = ring->dev->primary->index;
-			   __entry->ring = ring->id;
-			   ),
-
-	    TP_printk("dev=%u, ring=%u", __entry->dev, __entry->ring)
-);
-
-DEFINE_EVENT(i915_ring, i915_ring_wait_begin,
-	    TP_PROTO(struct intel_engine_cs *ring),
-	    TP_ARGS(ring)
-);
-
-DEFINE_EVENT(i915_ring, i915_ring_wait_end,
-	    TP_PROTO(struct intel_engine_cs *ring),
-	    TP_ARGS(ring)
-);
-
 TRACE_EVENT(i915_flip_request,
 	    TP_PROTO(int plane, struct drm_i915_gem_object *obj),
 

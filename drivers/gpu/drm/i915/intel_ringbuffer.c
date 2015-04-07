@@ -2060,7 +2060,7 @@ void intel_cleanup_ring_buffer(struct intel_engine_cs *ring)
 	ring->buffer = NULL;
 }
 
-static int intel_ring_wait_request(struct intel_engine_cs *ring, int n)
+static int ring_wait_for_space(struct intel_engine_cs *ring, int n)
 {
 	struct intel_ringbuffer *ringbuf = ring->buffer;
 	struct drm_i915_gem_request *request;
@@ -2076,7 +2076,7 @@ static int intel_ring_wait_request(struct intel_engine_cs *ring, int n)
 			break;
 	}
 
-	if (&request->list == &ring->request_list)
+	if (WARN_ON(&request->list == &ring->request_list))
 		return -ENOSPC;
 
 	ret = i915_wait_request(request);
@@ -2088,58 +2088,6 @@ static int intel_ring_wait_request(struct intel_engine_cs *ring, int n)
 	WARN_ON(intel_ring_space(ringbuf) < new_space);
 
 	return 0;
-}
-
-static int ring_wait_for_space(struct intel_engine_cs *ring, int n)
-{
-	struct drm_device *dev = ring->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_ringbuffer *ringbuf = ring->buffer;
-	unsigned long end;
-	int ret;
-
-	ret = intel_ring_wait_request(ring, n);
-	if (ret != -ENOSPC)
-		return ret;
-
-	/* force the tail write in case we have been skipping them */
-	__intel_ring_advance(ring);
-
-	/* With GEM the hangcheck timer should kick us out of the loop,
-	 * leaving it early runs the risk of corrupting GEM state (due
-	 * to running on almost untested codepaths). But on resume
-	 * timers don't work yet, so prevent a complete hang in that
-	 * case by choosing an insanely large timeout. */
-	end = jiffies + 60 * HZ;
-
-	ret = 0;
-	trace_i915_ring_wait_begin(ring);
-	do {
-		if (intel_ring_space(ringbuf) >= n)
-			break;
-		ringbuf->head = I915_READ_HEAD(ring);
-		if (intel_ring_space(ringbuf) >= n)
-			break;
-
-		msleep(1);
-
-		if (dev_priv->mm.interruptible && signal_pending(current)) {
-			ret = -ERESTARTSYS;
-			break;
-		}
-
-		ret = i915_gem_check_wedge(&dev_priv->gpu_error,
-					   dev_priv->mm.interruptible);
-		if (ret)
-			break;
-
-		if (time_after(jiffies, end)) {
-			ret = -EBUSY;
-			break;
-		}
-	} while (1);
-	trace_i915_ring_wait_end(ring);
-	return ret;
 }
 
 static int intel_wrap_ring_buffer(struct intel_engine_cs *ring)

@@ -647,8 +647,9 @@ int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request
 	return 0;
 }
 
-static int logical_ring_wait_request(struct intel_ringbuffer *ringbuf,
-				     int bytes)
+static int logical_ring_wait_for_space(struct intel_ringbuffer *ringbuf,
+				       struct intel_context *ctx,
+				       int bytes)
 {
 	struct intel_engine_cs *ring = ringbuf->ring;
 	struct drm_i915_gem_request *request;
@@ -674,7 +675,7 @@ static int logical_ring_wait_request(struct intel_ringbuffer *ringbuf,
 			break;
 	}
 
-	if (&request->list == &ring->request_list)
+	if (WARN_ON(&request->list == &ring->request_list))
 		return -ENOSPC;
 
 	ret = i915_wait_request(request);
@@ -710,56 +711,6 @@ intel_logical_ring_advance_and_submit(struct intel_ringbuffer *ringbuf,
 		return;
 
 	execlists_context_queue(ring, ctx, ringbuf->tail, request);
-}
-
-static int logical_ring_wait_for_space(struct intel_ringbuffer *ringbuf,
-				       struct intel_context *ctx,
-				       int bytes)
-{
-	struct intel_engine_cs *ring = ringbuf->ring;
-	struct drm_device *dev = ring->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned long end;
-	int ret;
-
-	ret = logical_ring_wait_request(ringbuf, bytes);
-	if (ret != -ENOSPC)
-		return ret;
-
-	/* Force the context submission in case we have been skipping it */
-	intel_logical_ring_advance_and_submit(ringbuf, ctx, NULL);
-
-	/* With GEM the hangcheck timer should kick us out of the loop,
-	 * leaving it early runs the risk of corrupting GEM state (due
-	 * to running on almost untested codepaths). But on resume
-	 * timers don't work yet, so prevent a complete hang in that
-	 * case by choosing an insanely large timeout. */
-	end = jiffies + 60 * HZ;
-
-	ret = 0;
-	do {
-		if (intel_ring_space(ringbuf) >= bytes)
-			break;
-
-		msleep(1);
-
-		if (dev_priv->mm.interruptible && signal_pending(current)) {
-			ret = -ERESTARTSYS;
-			break;
-		}
-
-		ret = i915_gem_check_wedge(&dev_priv->gpu_error,
-					   dev_priv->mm.interruptible);
-		if (ret)
-			break;
-
-		if (time_after(jiffies, end)) {
-			ret = -EBUSY;
-			break;
-		}
-	} while (1);
-
-	return ret;
 }
 
 static int logical_ring_wrap_buffer(struct intel_ringbuffer *ringbuf,
