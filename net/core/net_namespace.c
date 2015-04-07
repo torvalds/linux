@@ -565,8 +565,8 @@ static int rtnl_net_getid(struct sk_buff *skb, struct nlmsghdr *nlh)
 	struct net *net = sock_net(skb->sk);
 	struct nlattr *tb[NETNSA_MAX + 1];
 	struct sk_buff *msg;
-	int err = -ENOBUFS;
 	struct net *peer;
+	int err;
 
 	err = nlmsg_parse(nlh, sizeof(struct rtgenmsg), tb, NETNSA_MAX,
 			  rtnl_net_policy);
