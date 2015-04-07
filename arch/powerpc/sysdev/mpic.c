@@ -655,7 +655,6 @@ static inline struct mpic * mpic_from_irq_data(struct irq_data *d)
 static inline void mpic_eoi(struct mpic *mpic)
 {
 	mpic_cpu_write(MPIC_INFO(CPU_EOI), 0);
-	(void)mpic_cpu_read(MPIC_INFO(CPU_WHOAMI));
 }
 
 /*
@@ -1218,6 +1217,16 @@ static u32 fsl_mpic_get_version(struct mpic *mpic)
 /*
  * Exported functions
  */
+
+u32 fsl_mpic_primary_get_version(void)
+{
+	struct mpic *mpic = mpic_primary;
+
+	if (mpic)
+		return fsl_mpic_get_version(mpic);
+
+	return 0;
+}
 
 struct mpic * __init mpic_alloc(struct device_node *node,
 				phys_addr_t phys_addr,
