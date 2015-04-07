@@ -103,6 +103,8 @@ static void chv_prepare_pll(struct intel_crtc *crtc,
 			    const struct intel_crtc_state *pipe_config);
 static void intel_begin_crtc_commit(struct drm_crtc *crtc);
 static void intel_finish_crtc_commit(struct drm_crtc *crtc);
+static void skl_init_scalers(struct drm_device *dev, struct intel_crtc *intel_crtc,
+	struct intel_crtc_state *crtc_state);
 
 static struct intel_encoder *intel_find_encoder(struct intel_connector *connector, int pipe)
 {
@@ -12862,6 +12864,7 @@ static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
 
 	primary->can_scale = false;
 	primary->max_downscale = 1;
+	state->scaler_id = -1;
 	primary->pipe = pipe;
 	primary->plane = pipe;
 	primary->check_plane = intel_check_primary_plane;
@@ -13026,6 +13029,7 @@ static struct drm_plane *intel_cursor_plane_create(struct drm_device *dev,
 	cursor->max_downscale = 1;
 	cursor->pipe = pipe;
 	cursor->plane = pipe;
+	state->scaler_id = -1;
 	cursor->check_plane = intel_check_cursor_plane;
 	cursor->commit_plane = intel_commit_cursor_plane;
 
@@ -13052,6 +13056,24 @@ static struct drm_plane *intel_cursor_plane_create(struct drm_device *dev,
 	return &cursor->base;
 }
 
+static void skl_init_scalers(struct drm_device *dev, struct intel_crtc *intel_crtc,
+	struct intel_crtc_state *crtc_state)
+{
+	int i;
+	struct intel_scaler *intel_scaler;
+	struct intel_crtc_scaler_state *scaler_state = &crtc_state->scaler_state;
+
+	for (i = 0; i < intel_crtc->num_scalers; i++) {
+		intel_scaler = &scaler_state->scalers[i];
+		intel_scaler->in_use = 0;
+		intel_scaler->id = i;
+
+		intel_scaler->mode = PS_SCALER_MODE_DYN;
+	}
+
+	scaler_state->scaler_id = -1;
+}
+
 static void intel_crtc_init(struct drm_device *dev, int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -13070,6 +13092,16 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 		goto fail;
 	intel_crtc_set_state(intel_crtc, crtc_state);
 	crtc_state->base.crtc = &intel_crtc->base;
+
+	/* initialize shared scalers */
+	if (INTEL_INFO(dev)->gen >= 9) {
+		if (pipe == PIPE_C)
+			intel_crtc->num_scalers = 1;
+		else
+			intel_crtc->num_scalers = SKL_NUM_SCALERS;
+
+		skl_init_scalers(dev, intel_crtc, crtc_state);
+	}
 
 	primary = intel_primary_plane_create(dev, pipe);
 	if (!primary)

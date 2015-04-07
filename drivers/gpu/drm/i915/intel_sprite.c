@@ -1294,6 +1294,7 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 		intel_plane->max_downscale = 1;
 		intel_plane->update_plane = skl_update_plane;
 		intel_plane->disable_plane = skl_disable_plane;
+		state->scaler_id = -1;
 
 		plane_formats = skl_plane_formats;
 		num_plane_formats = ARRAY_SIZE(skl_plane_formats);
