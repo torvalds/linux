@@ -151,7 +151,17 @@ static ssize_t udf_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	} else
 		up_write(&iinfo->i_data_sem);
 
+	retval = generic_write_checks(file, &iocb->ki_pos, &count, 0);
+	if (retval)
+		goto out;
+
+	if (count == 0)
+		goto out;
+
+	iov_iter_truncate(from, count);
+
 	retval = __generic_file_write_iter(iocb, from);
+out:
 	mutex_unlock(&inode->i_mutex);
 
 	if (retval > 0) {

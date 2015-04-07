@@ -1597,6 +1597,16 @@ ssize_t blkdev_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	struct file *file = iocb->ki_filp;
 	struct blk_plug plug;
 	ssize_t ret;
+	size_t count = iov_iter_count(from);
+
+	ret = generic_write_checks(file, &iocb->ki_pos, &count, 1);
+	if (ret)
+		return ret;
+
+	if (count == 0)
+		return 0;
+
+	iov_iter_truncate(from, count);
 
 	blk_start_plug(&plug);
 	ret = __generic_file_write_iter(iocb, from);

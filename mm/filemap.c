@@ -2560,19 +2560,9 @@ ssize_t __generic_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	ssize_t		written = 0;
 	ssize_t		err;
 	ssize_t		status;
-	size_t		count = iov_iter_count(from);
 
 	/* We can write back this queue in page reclaim */
 	current->backing_dev_info = inode_to_bdi(inode);
-	err = generic_write_checks(file, &iocb->ki_pos, &count, S_ISBLK(inode->i_mode));
-	if (err)
-		goto out;
-
-	if (count == 0)
-		goto out;
-
-	iov_iter_truncate(from, count);
-
 	err = file_remove_suid(file);
 	if (err)
 		goto out;
@@ -2651,9 +2641,14 @@ ssize_t generic_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
 	ssize_t ret;
+	size_t count = iov_iter_count(from);
 
 	mutex_lock(&inode->i_mutex);
-	ret = __generic_file_write_iter(iocb, from);
+	ret = generic_write_checks(file, &iocb->ki_pos, &count, 0);
+	if (!ret && count) {
+		iov_iter_truncate(from, count);
+		ret = __generic_file_write_iter(iocb, from);
+	}
 	mutex_unlock(&inode->i_mutex);
 
 	if (ret > 0) {

@@ -2673,8 +2673,8 @@ cifs_writev(struct kiocb *iocb, struct iov_iter *from)
 	struct inode *inode = file->f_mapping->host;
 	struct cifsInodeInfo *cinode = CIFS_I(inode);
 	struct TCP_Server_Info *server = tlink_tcon(cfile->tlink)->ses->server;
-	ssize_t rc = -EACCES;
-	loff_t lock_pos = iocb->ki_pos;
+	ssize_t rc;
+	size_t count;
 
 	/*
 	 * We need to hold the sem to be sure nobody modifies lock list
@@ -2682,23 +2682,30 @@ cifs_writev(struct kiocb *iocb, struct iov_iter *from)
 	 */
 	down_read(&cinode->lock_sem);
 	mutex_lock(&inode->i_mutex);
-	if (file->f_flags & O_APPEND)
-		lock_pos = i_size_read(inode);
-	if (!cifs_find_lock_conflict(cfile, lock_pos, iov_iter_count(from),
+
+	count = iov_iter_count(from);
+	rc = generic_write_checks(file, &iocb->ki_pos, &count, 0);
+	if (rc)
+		goto out;
+
+	if (count == 0)
+		goto out;
+
+	iov_iter_truncate(from, count);
+
+	if (!cifs_find_lock_conflict(cfile, iocb->ki_pos, iov_iter_count(from),
 				     server->vals->exclusive_lock_type, NULL,
-				     CIFS_WRITE_OP)) {
+				     CIFS_WRITE_OP))
 		rc = __generic_file_write_iter(iocb, from);
-		mutex_unlock(&inode->i_mutex);
+	else
+		rc = -EACCES;
+out:
+	mutex_unlock(&inode->i_mutex);
 
-		if (rc > 0) {
-			ssize_t err;
-
-			err = generic_write_sync(file, iocb->ki_pos - rc, rc);
-			if (err < 0)
-				rc = err;
-		}
-	} else {
-		mutex_unlock(&inode->i_mutex);
+	if (rc > 0) {
+		ssize_t err = generic_write_sync(file, iocb->ki_pos - rc, rc);
+		if (err < 0)
+			rc = err;
 	}
 	up_read(&cinode->lock_sem);
 	return rc;

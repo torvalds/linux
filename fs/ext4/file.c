@@ -132,9 +132,8 @@ ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 			ret = -EFBIG;
 			goto errout;
 		}
-
-		if (pos + length > sbi->s_bitmap_maxbytes)
-			iov_iter_truncate(from, sbi->s_bitmap_maxbytes - pos);
+		iov_iter_truncate(from, sbi->s_bitmap_maxbytes - pos);
+		length = iov_iter_count(from);
 	}
 
 	iocb->private = &overwrite;
@@ -172,7 +171,16 @@ ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		}
 	}
 
+	ret = generic_write_checks(file, &iocb->ki_pos, &length, 0);
+	if (ret)
+		goto out;
+
+	if (length == 0)
+		goto out;
+
+	iov_iter_truncate(from, length);
 	ret = __generic_file_write_iter(iocb, from);
+out:
 	mutex_unlock(&inode->i_mutex);
 
 	if (ret > 0) {
