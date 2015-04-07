@@ -1341,6 +1341,7 @@ static int atmel_aes_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, aes_dd);
 
 	INIT_LIST_HEAD(&aes_dd->list);
+	spin_lock_init(&aes_dd->lock);
 
 	tasklet_init(&aes_dd->done_task, atmel_aes_done_task,
 					(unsigned long)aes_dd);
