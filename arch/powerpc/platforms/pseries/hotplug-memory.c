@@ -562,13 +562,15 @@ int dlpar_memory(struct pseries_hp_errorlog *hp_elog)
 	lock_device_hotplug();
 
 	dn = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
-	if (!dn)
-		return -EINVAL;
+	if (!dn) {
+		rc = -EINVAL;
+		goto dlpar_memory_out;
+	}
 
 	prop = dlpar_clone_drconf_property(dn);
 	if (!prop) {
-		of_node_put(dn);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto dlpar_memory_out;
 	}
 
 	switch (hp_elog->action) {
@@ -599,6 +601,7 @@ int dlpar_memory(struct pseries_hp_errorlog *hp_elog)
 	else
 		dlpar_update_drconf_property(dn, prop);
 
+dlpar_memory_out:
 	of_node_put(dn);
 	unlock_device_hotplug();
 	return rc;
