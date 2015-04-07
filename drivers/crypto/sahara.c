@@ -479,6 +479,7 @@ static int sahara_hw_descriptor_create(struct sahara_dev *dev)
 	struct scatterlist *sg;
 	int ret;
 	int i, j;
+	int idx = 0;
 
 	/* Copy new key if necessary */
 	if (ctx->flags & FLAGS_NEW_KEY) {
@@ -486,17 +487,20 @@ static int sahara_hw_descriptor_create(struct sahara_dev *dev)
 		ctx->flags &= ~FLAGS_NEW_KEY;
 
 		if (dev->flags & FLAGS_CBC) {
-			dev->hw_desc[0]->len1 = AES_BLOCK_SIZE;
-			dev->hw_desc[0]->p1 = dev->iv_phys_base;
+			dev->hw_desc[idx]->len1 = AES_BLOCK_SIZE;
+			dev->hw_desc[idx]->p1 = dev->iv_phys_base;
 		} else {
-			dev->hw_desc[0]->len1 = 0;
-			dev->hw_desc[0]->p1 = 0;
+			dev->hw_desc[idx]->len1 = 0;
+			dev->hw_desc[idx]->p1 = 0;
 		}
-		dev->hw_desc[0]->len2 = ctx->keylen;
-		dev->hw_desc[0]->p2 = dev->key_phys_base;
-		dev->hw_desc[0]->next = dev->hw_phys_desc[1];
+		dev->hw_desc[idx]->len2 = ctx->keylen;
+		dev->hw_desc[idx]->p2 = dev->key_phys_base;
+		dev->hw_desc[idx]->next = dev->hw_phys_desc[1];
+
+		dev->hw_desc[idx]->hdr = sahara_aes_key_hdr(dev);
+
+		idx++;
 	}
-	dev->hw_desc[0]->hdr = sahara_aes_key_hdr(dev);
 
 	dev->nb_in_sg = sahara_sg_length(dev->in_sg, dev->total);
 	dev->nb_out_sg = sahara_sg_length(dev->out_sg, dev->total);
@@ -520,7 +524,7 @@ static int sahara_hw_descriptor_create(struct sahara_dev *dev)
 	}
 
 	/* Create input links */
-	dev->hw_desc[1]->p1 = dev->hw_phys_link[0];
+	dev->hw_desc[idx]->p1 = dev->hw_phys_link[0];
 	sg = dev->in_sg;
 	for (i = 0; i < dev->nb_in_sg; i++) {
 		dev->hw_link[i]->len = sg->length;
@@ -534,7 +538,7 @@ static int sahara_hw_descriptor_create(struct sahara_dev *dev)
 	}
 
 	/* Create output links */
-	dev->hw_desc[1]->p2 = dev->hw_phys_link[i];
+	dev->hw_desc[idx]->p2 = dev->hw_phys_link[i];
 	sg = dev->out_sg;
 	for (j = i; j < dev->nb_out_sg + i; j++) {
 		dev->hw_link[j]->len = sg->length;
@@ -548,10 +552,10 @@ static int sahara_hw_descriptor_create(struct sahara_dev *dev)
 	}
 
 	/* Fill remaining fields of hw_desc[1] */
-	dev->hw_desc[1]->hdr = sahara_aes_data_link_hdr(dev);
-	dev->hw_desc[1]->len1 = dev->total;
-	dev->hw_desc[1]->len2 = dev->total;
-	dev->hw_desc[1]->next = 0;
+	dev->hw_desc[idx]->hdr = sahara_aes_data_link_hdr(dev);
+	dev->hw_desc[idx]->len1 = dev->total;
+	dev->hw_desc[idx]->len2 = dev->total;
+	dev->hw_desc[idx]->next = 0;
 
 	sahara_dump_descriptors(dev);
 	sahara_dump_links(dev);
