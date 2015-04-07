@@ -511,8 +511,12 @@ return_from_execve:
 	jmp	int_ret_from_sys_call
 	CFI_ENDPROC
 END(stub_execve)
-
-ENTRY(stub_execveat)
+/*
+ * Remaining execve stubs are only 7 bytes long.
+ * ENTRY() often aligns to 16 bytes, which in this case has no benefits.
+ */
+	.align	8
+GLOBAL(stub_execveat)
 	CFI_STARTPROC
 	DEFAULT_FRAME 0, 8
 	call	sys_execveat
@@ -521,14 +525,16 @@ ENTRY(stub_execveat)
 END(stub_execveat)
 
 #ifdef CONFIG_X86_X32_ABI
-ENTRY(stub_x32_execve)
+	.align	8
+GLOBAL(stub_x32_execve)
 	CFI_STARTPROC
 	DEFAULT_FRAME 0, 8
 	call	compat_sys_execve
 	jmp	return_from_execve
 	CFI_ENDPROC
 END(stub_x32_execve)
-ENTRY(stub_x32_execveat)
+	.align	8
+GLOBAL(stub_x32_execveat)
 	CFI_STARTPROC
 	DEFAULT_FRAME 0, 8
 	call	compat_sys_execveat
@@ -538,13 +544,15 @@ END(stub_x32_execveat)
 #endif
 
 #ifdef CONFIG_IA32_EMULATION
-ENTRY(stub32_execve)
+	.align	8
+GLOBAL(stub32_execve)
 	CFI_STARTPROC
 	call	compat_sys_execve
 	jmp	return_from_execve
 	CFI_ENDPROC
 END(stub32_execve)
-ENTRY(stub32_execveat)
+	.align	8
+GLOBAL(stub32_execveat)
 	CFI_STARTPROC
 	call	compat_sys_execveat
 	jmp	return_from_execve
