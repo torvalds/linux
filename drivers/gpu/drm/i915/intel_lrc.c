@@ -522,7 +522,6 @@ static int execlists_context_queue(struct intel_engine_cs *ring,
 {
 	struct drm_i915_gem_request *cursor;
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
-	unsigned long flags;
 	int num_elements = 0;
 
 	if (to != ring->default_context)
@@ -549,7 +548,7 @@ static int execlists_context_queue(struct intel_engine_cs *ring,
 
 	intel_runtime_pm_get(dev_priv);
 
-	spin_lock_irqsave(&ring->execlist_lock, flags);
+	spin_lock_irq(&ring->execlist_lock);
 
 	list_for_each_entry(cursor, &ring->execlist_queue, execlist_link)
 		if (++num_elements > 2)
@@ -575,7 +574,7 @@ static int execlists_context_queue(struct intel_engine_cs *ring,
 	if (num_elements == 0)
 		execlists_context_unqueue(ring);
 
-	spin_unlock_irqrestore(&ring->execlist_lock, flags);
+	spin_unlock_irq(&ring->execlist_lock);
 
 	return 0;
 }
@@ -960,7 +959,6 @@ void intel_execlists_retire_requests(struct intel_engine_cs *ring)
 {
 	struct drm_i915_gem_request *req, *tmp;
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
-	unsigned long flags;
 	struct list_head retired_list;
 
 	WARN_ON(!mutex_is_locked(&ring->dev->struct_mutex));
@@ -968,9 +966,9 @@ void intel_execlists_retire_requests(struct intel_engine_cs *ring)
 		return;
 
 	INIT_LIST_HEAD(&retired_list);
-	spin_lock_irqsave(&ring->execlist_lock, flags);
+	spin_lock_irq(&ring->execlist_lock);
 	list_replace_init(&ring->execlist_retired_req_list, &retired_list);
-	spin_unlock_irqrestore(&ring->execlist_lock, flags);
+	spin_unlock_irq(&ring->execlist_lock);
 
 	list_for_each_entry_safe(req, tmp, &retired_list, execlist_link) {
 		struct intel_context *ctx = req->ctx;
