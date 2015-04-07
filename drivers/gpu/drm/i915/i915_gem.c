@@ -1222,7 +1222,7 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 	timeout_expire = timeout ?
 		jiffies + nsecs_to_jiffies_timeout((u64)*timeout) : 0;
 
-	if (ring->id == RCS && INTEL_INFO(dev)->gen >= 6)
+	if (INTEL_INFO(dev)->gen >= 6)
 		gen6_rps_boost(dev_priv, file_priv);
 
 	if (!irq_test_in_progress && WARN_ON(!ring->irq_get(ring)))
