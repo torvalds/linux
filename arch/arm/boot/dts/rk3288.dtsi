@@ -44,6 +44,14 @@
 		spi2 = &spi2;
 	};
 
+	arm-pmu {
+		compatible = "arm,cortex-a12-pmu";
+		interrupts = <GIC_SPI 151 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 152 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
