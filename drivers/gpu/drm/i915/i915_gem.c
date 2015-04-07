@@ -2532,7 +2532,6 @@ int i915_gem_request_alloc(struct intel_engine_cs *ring,
 	}
 
 	rq->ring = ring;
-	rq->uniq = dev_priv->request_uniq++;
 
 	if (i915.enable_execlists)
 		ret = intel_logical_ring_alloc_request_extras(rq, ctx);

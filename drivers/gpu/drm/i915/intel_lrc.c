@@ -540,7 +540,6 @@ static int execlists_context_queue(struct intel_engine_cs *ring,
 		request->ring = ring;
 		request->ctx = to;
 		kref_init(&request->ref);
-		request->uniq = dev_priv->request_uniq++;
 		i915_gem_context_reference(request->ctx);
 	} else {
 		i915_gem_request_reference(request);

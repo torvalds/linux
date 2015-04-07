@@ -1823,8 +1823,6 @@ struct drm_i915_private {
 		void (*stop_ring)(struct intel_engine_cs *ring);
 	} gt;
 
-	uint32_t request_uniq;
-
 	/*
 	 * NOTE: This is the dri1/ums dungeon, don't add stuff here. Your patch
 	 * will be rejected. Instead look for a better place.
@@ -2093,8 +2091,6 @@ struct drm_i915_gem_request {
 
 	/** process identifier submitting this request */
 	struct pid *pid;
-
-	uint32_t uniq;
 
 	/**
 	 * The ELSP only accepts two elements at a time, so we queue
