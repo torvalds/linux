@@ -63,6 +63,8 @@
 #define GPU_VPU_PDN_REQ		BIT(0)
 
 #define GPC_CLK_MAX		10
+#define DEFAULT_IPG_RATE		66000000
+#define GPC_PU_UP_DELAY_MARGIN		2
 
 struct pu_domain {
 	struct generic_pm_domain base;
@@ -88,6 +90,7 @@ static struct pu_domain imx6q_pu_domain;
 static bool pu_on;      /* keep always on i.mx6qp */
 static void _imx6q_pm_pu_power_off(struct generic_pm_domain *genpd);
 static void _imx6q_pm_pu_power_on(struct generic_pm_domain *genpd);
+static struct clk *ipg;
 
 void imx_gpc_add_m4_wake_up_irq(u32 hwirq, bool enable)
 {
@@ -624,6 +627,7 @@ static int imx_pm_dispmix_on(struct generic_pm_domain *genpd)
 	struct disp_domain *disp = container_of(genpd, struct disp_domain, base);
 	u32 val = readl_relaxed(gpc_base + GPC_CNTR);
 	int i;
+	u32 ipg_rate = clk_get_rate(ipg);
 
 	if ((cpu_is_imx6sl() &&
 		imx_get_soc_revision() >= IMX_CHIP_REVISION_1_2) || cpu_is_imx6sx()) {
@@ -638,6 +642,10 @@ static int imx_pm_dispmix_on(struct generic_pm_domain *genpd)
 			;
 
 		writel_relaxed(0x1, gpc_base + GPC_PGC_DISP_SR_OFFSET);
+
+		/* Wait power switch done */
+		udelay(2 * DEFAULT_IPG_RATE / ipg_rate +
+			GPC_PU_UP_DELAY_MARGIN);
 
 		/* Disable reset clocks for all devices in the disp domain */
 		for (i = 0; i < disp->num_clks; i++)
@@ -712,7 +720,7 @@ static int imx_gpc_genpd_init(struct device *dev, struct regulator *pu_reg)
 {
 	struct clk *clk;
 	bool is_off;
-	int pu_clks, disp_clks;
+	int pu_clks, disp_clks, ipg_clks = 1;
 	int i = 0, k = 0;
 
 	imx6q_pu_domain.reg = pu_reg;
@@ -720,12 +728,12 @@ static int imx_gpc_genpd_init(struct device *dev, struct regulator *pu_reg)
 	if ((cpu_is_imx6sl() &&
 			imx_get_soc_revision() >= IMX_CHIP_REVISION_1_2)) {
 		pu_clks = 2 ;
-		disp_clks = 6;
+		disp_clks = 5;
 	} else if (cpu_is_imx6sx()) {
 		pu_clks = 1;
-		disp_clks = 8;
+		disp_clks = 7;
 	} else {
-		pu_clks = GPC_CLK_MAX;
+		pu_clks = 6;
 		disp_clks = 0;
 	}
 
@@ -738,8 +746,11 @@ static int imx_gpc_genpd_init(struct device *dev, struct regulator *pu_reg)
 	}
 	imx6q_pu_domain.num_clks = i;
 
+	ipg = of_clk_get(dev->of_node, pu_clks);
+
 	/* Get disp domain clks */
-	for (k = 0, i = pu_clks; i < pu_clks + disp_clks ; i++, k++) {
+	for (k = 0, i = pu_clks + ipg_clks; i < pu_clks + ipg_clks + disp_clks;
+		i++, k++) {
 		clk = of_clk_get(dev->of_node, i);
 		if (IS_ERR(clk))
 			break;
