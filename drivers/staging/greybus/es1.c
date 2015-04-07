@@ -454,14 +454,13 @@ static void cport_out_callback(struct urb *urb)
 	free_urb(es1, urb);
 }
 
-static void apb1_log_get(struct es1_ap_dev *es1)
+#define APB1_LOG_MSG_SIZE	64
+static void apb1_log_get(struct es1_ap_dev *es1, char *buf)
 {
-	char buf[65];
 	int retval;
 
 	/* SVC messages go down our control pipe */
 	do {
-		memset(buf, 0, 65);
 		retval = usb_control_msg(es1->usb_dev,
 					usb_rcvctrlpipe(es1->usb_dev,
 							es1->control_endpoint),
@@ -469,7 +468,7 @@ static void apb1_log_get(struct es1_ap_dev *es1)
 					USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 					0x00, 0x00,
 					buf,
-					64,
+					APB1_LOG_MSG_SIZE,
 					ES1_TIMEOUT);
 		if (retval > 0)
 			kfifo_in(&apb1_log_fifo, buf, retval);
@@ -478,10 +477,20 @@ static void apb1_log_get(struct es1_ap_dev *es1)
 
 static int apb1_log_poll(void *data)
 {
+	struct es1_ap_dev *es1 = data;
+	char *buf;
+
+	buf = kmalloc(APB1_LOG_MSG_SIZE, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
 	while (!kthread_should_stop()) {
 		msleep(1000);
-		apb1_log_get((struct es1_ap_dev *)data);
+		apb1_log_get(es1, buf);
 	}
+
+	kfree(buf);
+
 	return 0;
 }
 
