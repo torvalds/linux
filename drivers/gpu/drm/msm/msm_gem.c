@@ -540,6 +540,7 @@ void msm_gem_free_object(struct drm_gem_object *obj)
 		if (msm_obj->pages)
 			drm_free_large(msm_obj->pages);
 
+		drm_prime_gem_destroy(obj, msm_obj->sgt);
 	} else {
 		vunmap(msm_obj->vaddr);
 		put_pages(obj);
