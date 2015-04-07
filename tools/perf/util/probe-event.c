@@ -135,6 +135,8 @@ static struct ref_reloc_sym *kernel_get_ref_reloc_sym(void)
 		return NULL;
 
 	kmap = map__kmap(host_machine->vmlinux_maps[MAP__FUNCTION]);
+	if (!kmap)
+		return NULL;
 	return kmap->ref_reloc_sym;
 }
 

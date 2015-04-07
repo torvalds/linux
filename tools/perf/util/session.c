@@ -1466,6 +1466,9 @@ int maps__set_kallsyms_ref_reloc_sym(struct map **maps,
 
 	for (i = 0; i < MAP__NR_TYPES; ++i) {
 		struct kmap *kmap = map__kmap(maps[i]);
+
+		if (!kmap)
+			continue;
 		kmap->ref_reloc_sym = ref;
 	}
 

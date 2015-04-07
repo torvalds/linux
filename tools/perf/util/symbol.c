@@ -630,12 +630,15 @@ static int dso__load_all_kallsyms(struct dso *dso, const char *filename,
 static int dso__split_kallsyms_for_kcore(struct dso *dso, struct map *map,
 					 symbol_filter_t filter)
 {
-	struct map_groups *kmaps = map__kmap(map)->kmaps;
+	struct map_groups *kmaps = map__kmaps(map);
 	struct map *curr_map;
 	struct symbol *pos;
 	int count = 0, moved = 0;
 	struct rb_root *root = &dso->symbols[map->type];
 	struct rb_node *next = rb_first(root);
+
+	if (!kmaps)
+		return -1;
 
 	while (next) {
 		char *module;
@@ -682,14 +685,19 @@ static int dso__split_kallsyms_for_kcore(struct dso *dso, struct map *map,
 static int dso__split_kallsyms(struct dso *dso, struct map *map, u64 delta,
 			       symbol_filter_t filter)
 {
-	struct map_groups *kmaps = map__kmap(map)->kmaps;
-	struct machine *machine = kmaps->machine;
+	struct map_groups *kmaps = map__kmaps(map);
+	struct machine *machine;
 	struct map *curr_map = map;
 	struct symbol *pos;
 	int count = 0, moved = 0;
 	struct rb_root *root = &dso->symbols[map->type];
 	struct rb_node *next = rb_first(root);
 	int kernel_range = 0;
+
+	if (!kmaps)
+		return -1;
+
+	machine = kmaps->machine;
 
 	while (next) {
 		char *module;
@@ -1025,8 +1033,11 @@ static bool filename_from_kallsyms_filename(char *filename,
 static int validate_kcore_modules(const char *kallsyms_filename,
 				  struct map *map)
 {
-	struct map_groups *kmaps = map__kmap(map)->kmaps;
+	struct map_groups *kmaps = map__kmaps(map);
 	char modules_filename[PATH_MAX];
+
+	if (!kmaps)
+		return -EINVAL;
 
 	if (!filename_from_kallsyms_filename(modules_filename, "modules",
 					     kallsyms_filename))
@@ -1042,6 +1053,9 @@ static int validate_kcore_addresses(const char *kallsyms_filename,
 				    struct map *map)
 {
 	struct kmap *kmap = map__kmap(map);
+
+	if (!kmap)
+		return -EINVAL;
 
 	if (kmap->ref_reloc_sym && kmap->ref_reloc_sym->name) {
 		u64 start;
@@ -1081,14 +1095,19 @@ static int kcore_mapfn(u64 start, u64 len, u64 pgoff, void *data)
 static int dso__load_kcore(struct dso *dso, struct map *map,
 			   const char *kallsyms_filename)
 {
-	struct map_groups *kmaps = map__kmap(map)->kmaps;
-	struct machine *machine = kmaps->machine;
+	struct map_groups *kmaps = map__kmaps(map);
+	struct machine *machine;
 	struct kcore_mapfn_data md;
 	struct map *old_map, *new_map, *replacement_map = NULL;
 	bool is_64_bit;
 	int err, fd;
 	char kcore_filename[PATH_MAX];
 	struct symbol *sym;
+
+	if (!kmaps)
+		return -EINVAL;
+
+	machine = kmaps->machine;
 
 	/* This function requires that the map is the kernel map */
 	if (map != machine->vmlinux_maps[map->type])
@@ -1201,6 +1220,9 @@ static int kallsyms__delta(struct map *map, const char *filename, u64 *delta)
 {
 	struct kmap *kmap = map__kmap(map);
 	u64 addr;
+
+	if (!kmap)
+		return -1;
 
 	if (!kmap->ref_reloc_sym || !kmap->ref_reloc_sym->name)
 		return 0;
