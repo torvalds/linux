@@ -506,6 +506,7 @@ return_from_execve:
 1:
 	/* must use IRET code path (pt_regs->cs may have changed) */
 	addq	$8, %rsp
+	CFI_ADJUST_CFA_OFFSET -8
 	ZERO_EXTRA_REGS
 	movq	%rax,RAX(%rsp)
 	jmp	int_ret_from_sys_call
