@@ -2892,7 +2892,8 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc,
 	spin_unlock(&session->s_cap_lock);
 
 	/* trim unused caps to reduce MDS's cache rejoin time */
-	shrink_dcache_parent(mdsc->fsc->sb->s_root);
+	if (mdsc->fsc->sb->s_root)
+		shrink_dcache_parent(mdsc->fsc->sb->s_root);
 
 	ceph_con_close(&session->s_con);
 	ceph_con_open(&session->s_con,
