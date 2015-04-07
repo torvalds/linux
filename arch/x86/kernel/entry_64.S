@@ -603,8 +603,6 @@ ENTRY(ret_from_fork)
 
 	call schedule_tail			# rdi: 'prev' task parameter
 
-	GET_THREAD_INFO(%rcx)
-
 	RESTORE_EXTRA_REGS
 
 	testl $3,CS(%rsp)			# from kernel_thread?
