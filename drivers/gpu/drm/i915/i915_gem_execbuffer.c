@@ -1136,12 +1136,11 @@ i915_gem_execbuffer_parse(struct intel_engine_cs *ring,
 			  u32 batch_len,
 			  bool is_master)
 {
-	struct drm_i915_private *dev_priv = to_i915(batch_obj->base.dev);
 	struct drm_i915_gem_object *shadow_batch_obj;
 	struct i915_vma *vma;
 	int ret;
 
-	shadow_batch_obj = i915_gem_batch_pool_get(&dev_priv->mm.batch_pool,
+	shadow_batch_obj = i915_gem_batch_pool_get(&ring->batch_pool,
 						   PAGE_ALIGN(batch_len));
 	if (IS_ERR(shadow_batch_obj))
 		return shadow_batch_obj;

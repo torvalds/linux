@@ -96,8 +96,9 @@ i915_gem_batch_pool_get(struct i915_gem_batch_pool *pool,
 
 	list_for_each_entry_safe(tmp, next,
 				 &pool->cache_list, batch_pool_list) {
+		/* The batches are strictly LRU ordered */
 		if (tmp->active)
-			continue;
+			break;
 
 		/* While we're looping, do some clean up */
 		if (tmp->madv == __I915_MADV_PURGED) {

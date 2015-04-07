@@ -37,7 +37,6 @@
 #include "intel_bios.h"
 #include "intel_ringbuffer.h"
 #include "intel_lrc.h"
-#include "i915_gem_batch_pool.h"
 #include "i915_gem_gtt.h"
 #include "i915_gem_render_state.h"
 #include <linux/io-mapping.h>
@@ -1155,13 +1154,6 @@ struct i915_gem_mm {
 	 * (presumably uncached) pages still attached.
 	 */
 	struct list_head unbound_list;
-
-	/*
-	 * A pool of objects to use as shadow copies of client batch buffers
-	 * when the command parser is enabled. Prevents the client from
-	 * modifying the batch contents after software parsing.
-	 */
-	struct i915_gem_batch_pool batch_pool;
 
 	/** Usable portion of the GTT for GEM */
 	unsigned long stolen_base; /* limited to low memory (32-bit) */

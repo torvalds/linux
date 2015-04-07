@@ -5021,8 +5021,6 @@ i915_gem_load(struct drm_device *dev)
 
 	i915_gem_shrinker_init(dev_priv);
 
-	i915_gem_batch_pool_init(dev, &dev_priv->mm.batch_pool);
-
 	mutex_init(&dev_priv->fb_tracking.lock);
 }
 

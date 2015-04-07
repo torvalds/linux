@@ -1384,6 +1384,7 @@ void intel_logical_ring_cleanup(struct intel_engine_cs *ring)
 		ring->cleanup(ring);
 
 	i915_cmd_parser_fini_ring(ring);
+	i915_gem_batch_pool_fini(&ring->batch_pool);
 
 	if (ring->status_page.obj) {
 		kunmap(sg_page(ring->status_page.obj->pages->sgl));
@@ -1401,6 +1402,7 @@ static int logical_ring_init(struct drm_device *dev, struct intel_engine_cs *rin
 	ring->dev = dev;
 	INIT_LIST_HEAD(&ring->active_list);
 	INIT_LIST_HEAD(&ring->request_list);
+	i915_gem_batch_pool_init(dev, &ring->batch_pool);
 	init_waitqueue_head(&ring->irq_queue);
 
 	INIT_LIST_HEAD(&ring->execlist_queue);

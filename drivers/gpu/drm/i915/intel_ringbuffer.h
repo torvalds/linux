@@ -2,6 +2,7 @@
 #define _INTEL_RINGBUFFER_H_
 
 #include <linux/hashtable.h>
+#include "i915_gem_batch_pool.h"
 
 #define I915_CMD_HASH_ORDER 9
 
@@ -132,6 +133,13 @@ struct  intel_engine_cs {
 	u32		mmio_base;
 	struct		drm_device *dev;
 	struct intel_ringbuffer *buffer;
+
+	/*
+	 * A pool of objects to use as shadow copies of client batch buffers
+	 * when the command parser is enabled. Prevents the client from
+	 * modifying the batch contents after software parsing.
+	 */
+	struct i915_gem_batch_pool batch_pool;
 
 	struct intel_hw_status_page status_page;
 
