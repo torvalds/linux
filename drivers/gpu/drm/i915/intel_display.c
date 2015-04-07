@@ -10839,11 +10839,14 @@ static void
 clear_intel_crtc_state(struct intel_crtc_state *crtc_state)
 {
 	struct drm_crtc_state tmp_state;
+	struct intel_crtc_scaler_state scaler_state;
 
-	/* Clear only the intel specific part of the crtc state */
+	/* Clear only the intel specific part of the crtc state excluding scalers */
 	tmp_state = crtc_state->base;
+	scaler_state = crtc_state->scaler_state;
 	memset(crtc_state, 0, sizeof *crtc_state);
 	crtc_state->base = tmp_state;
+	crtc_state->scaler_state = scaler_state;
 }
 
 static struct intel_crtc_state *
