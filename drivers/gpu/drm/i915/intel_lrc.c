@@ -546,8 +546,6 @@ static int execlists_context_queue(struct intel_engine_cs *ring,
 	}
 	request->tail = tail;
 
-	intel_runtime_pm_get(dev_priv);
-
 	spin_lock_irq(&ring->execlist_lock);
 
 	list_for_each_entry(cursor, &ring->execlist_queue, execlist_link)
@@ -977,7 +975,6 @@ void intel_execlists_retire_requests(struct intel_engine_cs *ring)
 
 		if (ctx_obj && (ctx != ring->default_context))
 			intel_lr_context_unpin(ring, ctx);
-		intel_runtime_pm_put(dev_priv);
 		list_del(&req->execlist_link);
 		i915_gem_request_unreference(req);
 	}
