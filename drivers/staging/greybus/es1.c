@@ -244,7 +244,7 @@ static void *buffer_send(struct greybus_host_device *hd, u16 cport_id,
 		pr_err("request to send inbound data buffer\n");
 		return ERR_PTR(-EINVAL);
 	}
-	if (cport_id > (u16)U8_MAX) {
+	if (cport_id > U8_MAX) {
 		pr_err("cport_id (%hd) is out of range for ES1\n", cport_id);
 		return ERR_PTR(-EINVAL);
 	}
@@ -423,7 +423,7 @@ static void cport_in_callback(struct urb *urb)
 	 * the rest of the stream is "real" data
 	 */
 	data = urb->transfer_buffer;
-	cport_id = (u16)data[0];
+	cport_id = data[0];
 	data = &data[1];
 
 	/* Pass this data to the greybus core */
