@@ -5110,6 +5110,121 @@ enum skl_disp_power_wells {
 #define PS_WIN_SZ(pipe)		_PIPE(pipe, _PSA_WIN_SZ, _PSB_WIN_SZ)
 #define PS_WIN_POS(pipe)	_PIPE(pipe, _PSA_WIN_POS, _PSB_WIN_POS)
 
+/*
+ * Skylake scalers
+ */
+#define _PS_1A_CTRL      0x68180
+#define _PS_2A_CTRL      0x68280
+#define _PS_1B_CTRL      0x68980
+#define _PS_2B_CTRL      0x68A80
+#define _PS_1C_CTRL      0x69180
+#define PS_SCALER_EN        (1 << 31)
+#define PS_SCALER_MODE_MASK (3 << 28)
+#define PS_SCALER_MODE_DYN  (0 << 28)
+#define PS_SCALER_MODE_HQ  (1 << 28)
+#define PS_PLANE_SEL_MASK  (7 << 25)
+#define PS_PLANE_SEL(plane) ((plane + 1) << 25)
+#define PS_FILTER_MASK         (3 << 23)
+#define PS_FILTER_MEDIUM       (0 << 23)
+#define PS_FILTER_EDGE_ENHANCE (2 << 23)
+#define PS_FILTER_BILINEAR     (3 << 23)
+#define PS_VERT3TAP            (1 << 21)
+#define PS_VERT_INT_INVERT_FIELD1 (0 << 20)
+#define PS_VERT_INT_INVERT_FIELD0 (1 << 20)
+#define PS_PWRUP_PROGRESS         (1 << 17)
+#define PS_V_FILTER_BYPASS        (1 << 8)
+#define PS_VADAPT_EN              (1 << 7)
+#define PS_VADAPT_MODE_MASK        (3 << 5)
+#define PS_VADAPT_MODE_LEAST_ADAPT (0 << 5)
+#define PS_VADAPT_MODE_MOD_ADAPT   (1 << 5)
+#define PS_VADAPT_MODE_MOST_ADAPT  (3 << 5)
+
+#define _PS_PWR_GATE_1A     0x68160
+#define _PS_PWR_GATE_2A     0x68260
+#define _PS_PWR_GATE_1B     0x68960
+#define _PS_PWR_GATE_2B     0x68A60
+#define _PS_PWR_GATE_1C     0x69160
+#define PS_PWR_GATE_DIS_OVERRIDE       (1 << 31)
+#define PS_PWR_GATE_SETTLING_TIME_32   (0 << 3)
+#define PS_PWR_GATE_SETTLING_TIME_64   (1 << 3)
+#define PS_PWR_GATE_SETTLING_TIME_96   (2 << 3)
+#define PS_PWR_GATE_SETTLING_TIME_128  (3 << 3)
+#define PS_PWR_GATE_SLPEN_8             0
+#define PS_PWR_GATE_SLPEN_16            1
+#define PS_PWR_GATE_SLPEN_24            2
+#define PS_PWR_GATE_SLPEN_32            3
+
+#define _PS_WIN_POS_1A      0x68170
+#define _PS_WIN_POS_2A      0x68270
+#define _PS_WIN_POS_1B      0x68970
+#define _PS_WIN_POS_2B      0x68A70
+#define _PS_WIN_POS_1C      0x69170
+
+#define _PS_WIN_SZ_1A       0x68174
+#define _PS_WIN_SZ_2A       0x68274
+#define _PS_WIN_SZ_1B       0x68974
+#define _PS_WIN_SZ_2B       0x68A74
+#define _PS_WIN_SZ_1C       0x69174
+
+#define _PS_VSCALE_1A       0x68184
+#define _PS_VSCALE_2A       0x68284
+#define _PS_VSCALE_1B       0x68984
+#define _PS_VSCALE_2B       0x68A84
+#define _PS_VSCALE_1C       0x69184
+
+#define _PS_HSCALE_1A       0x68190
+#define _PS_HSCALE_2A       0x68290
+#define _PS_HSCALE_1B       0x68990
+#define _PS_HSCALE_2B       0x68A90
+#define _PS_HSCALE_1C       0x69190
+
+#define _PS_VPHASE_1A       0x68188
+#define _PS_VPHASE_2A       0x68288
+#define _PS_VPHASE_1B       0x68988
+#define _PS_VPHASE_2B       0x68A88
+#define _PS_VPHASE_1C       0x69188
+
+#define _PS_HPHASE_1A       0x68194
+#define _PS_HPHASE_2A       0x68294
+#define _PS_HPHASE_1B       0x68994
+#define _PS_HPHASE_2B       0x68A94
+#define _PS_HPHASE_1C       0x69194
+
+#define _PS_ECC_STAT_1A     0x681D0
+#define _PS_ECC_STAT_2A     0x682D0
+#define _PS_ECC_STAT_1B     0x689D0
+#define _PS_ECC_STAT_2B     0x68AD0
+#define _PS_ECC_STAT_1C     0x691D0
+
+#define _ID(id, a, b) ((a) + (id)*((b)-(a)))
+#define SKL_PS_CTRL(pipe, id) _PIPE(pipe,        \
+			_ID(id, _PS_1A_CTRL, _PS_2A_CTRL),       \
+			_ID(id, _PS_1B_CTRL, _PS_2B_CTRL))
+#define SKL_PS_PWR_GATE(pipe, id) _PIPE(pipe,    \
+			_ID(id, _PS_PWR_GATE_1A, _PS_PWR_GATE_2A), \
+			_ID(id, _PS_PWR_GATE_1B, _PS_PWR_GATE_2B))
+#define SKL_PS_WIN_POS(pipe, id) _PIPE(pipe,     \
+			_ID(id, _PS_WIN_POS_1A, _PS_WIN_POS_2A), \
+			_ID(id, _PS_WIN_POS_1B, _PS_WIN_POS_2B))
+#define SKL_PS_WIN_SZ(pipe, id)  _PIPE(pipe,     \
+			_ID(id, _PS_WIN_SZ_1A, _PS_WIN_SZ_2A),   \
+			_ID(id, _PS_WIN_SZ_1B, _PS_WIN_SZ_2B))
+#define SKL_PS_VSCALE(pipe, id)  _PIPE(pipe,     \
+			_ID(id, _PS_VSCALE_1A, _PS_VSCALE_2A),   \
+			_ID(id, _PS_VSCALE_1B, _PS_VSCALE_2B))
+#define SKL_PS_HSCALE(pipe, id)  _PIPE(pipe,     \
+			_ID(id, _PS_HSCALE_1A, _PS_HSCALE_2A),   \
+			_ID(id, _PS_HSCALE_1B, _PS_HSCALE_2B))
+#define SKL_PS_VPHASE(pipe, id)  _PIPE(pipe,     \
+			_ID(id, _PS_VPHASE_1A, _PS_VPHASE_2A),   \
+			_ID(id, _PS_VPHASE_1B, _PS_VPHASE_2B))
+#define SKL_PS_HPHASE(pipe, id)  _PIPE(pipe,     \
+			_ID(id, _PS_HPHASE_1A, _PS_HPHASE_2A),   \
+			_ID(id, _PS_HPHASE_1B, _PS_HPHASE_2B))
+#define SKL_PS_ECC_STAT(pipe, id)  _PIPE(pipe,     \
+			_ID(id, _PS_ECC_STAT_1A, _PS_ECC_STAT_2A),   \
+			_ID(id, _PS_ECC_STAT_1B, _PS_ECC_STAT_2B)
+
 /* legacy palette */
 #define _LGC_PALETTE_A           0x4a000
 #define _LGC_PALETTE_B           0x4a800
