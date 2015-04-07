@@ -2411,7 +2411,6 @@ int __i915_add_request(struct intel_engine_cs *ring,
 
 	i915_queue_hangcheck(ring->dev);
 
-	cancel_delayed_work_sync(&dev_priv->mm.idle_work);
 	queue_delayed_work(dev_priv->wq,
 			   &dev_priv->mm.retire_work,
 			   round_jiffies_up_relative(HZ));
@@ -2797,6 +2796,12 @@ i915_gem_idle_work_handler(struct work_struct *work)
 	struct drm_i915_private *dev_priv =
 		container_of(work, typeof(*dev_priv), mm.idle_work.work);
 	struct drm_device *dev = dev_priv->dev;
+	struct intel_engine_cs *ring;
+	int i;
+
+	for_each_ring(ring, dev_priv, i)
+		if (!list_empty(&ring->request_list))
+			return;
 
 	intel_mark_idle(dev);
 
