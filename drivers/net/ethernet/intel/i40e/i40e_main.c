@@ -7301,7 +7301,7 @@ err_out:
  * i40e_init_interrupt_scheme - Determine proper interrupt scheme
  * @pf: board private structure to initialize
  **/
-static void i40e_init_interrupt_scheme(struct i40e_pf *pf)
+static int i40e_init_interrupt_scheme(struct i40e_pf *pf)
 {
 	int vectors = 0;
 	ssize_t size;
@@ -7343,11 +7343,17 @@ static void i40e_init_interrupt_scheme(struct i40e_pf *pf)
 	/* set up vector assignment tracking */
 	size = sizeof(struct i40e_lump_tracking) + (sizeof(u16) * vectors);
 	pf->irq_pile = kzalloc(size, GFP_KERNEL);
+	if (!pf->irq_pile) {
+		dev_err(&pf->pdev->dev, "error allocating irq_pile memory\n");
+		return -ENOMEM;
+	}
 	pf->irq_pile->num_entries = vectors;
 	pf->irq_pile->search_hint = 0;
 
-	/* track first vector for misc interrupts */
+	/* track first vector for misc interrupts, ignore return */
 	(void)i40e_get_lump(pf, pf->irq_pile, 1, I40E_PILE_VALID_BIT - 1);
+
+	return 0;
 }
 
 /**
@@ -9827,7 +9833,9 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* set up the main switch operations */
 	i40e_determine_queue_usage(pf);
-	i40e_init_interrupt_scheme(pf);
+	err = i40e_init_interrupt_scheme(pf);
+	if (err)
+		goto err_switch_setup;
 
 	/* The number of VSIs reported by the FW is the minimum guaranteed
 	 * to us; HW supports far more and we share the remaining pool with
