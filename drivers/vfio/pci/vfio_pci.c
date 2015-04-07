@@ -37,7 +37,22 @@ module_param_named(nointxmask, nointxmask, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(nointxmask,
 		  "Disable support for PCI 2.3 style INTx masking.  If this resolves problems for specific devices, report lspci -vvvxxx to linux-pci@vger.kernel.org so the device can be fixed automatically via the broken_intx_masking flag.");
 
+#ifdef CONFIG_VFIO_PCI_VGA
+static bool disable_vga;
+module_param(disable_vga, bool, S_IRUGO);
+MODULE_PARM_DESC(disable_vga, "Disable VGA resource access through vfio-pci");
+#endif
+
 static DEFINE_MUTEX(driver_lock);
+
+static inline bool vfio_vga_disabled(void)
+{
+#ifdef CONFIG_VFIO_PCI_VGA
+	return disable_vga;
+#else
+	return true;
+#endif
+}
 
 static void vfio_pci_try_bus_reset(struct vfio_pci_device *vdev);
 
@@ -93,10 +108,8 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 	} else
 		vdev->msix_bar = 0xFF;
 
-#ifdef CONFIG_VFIO_PCI_VGA
-	if ((pdev->class >> 8) == PCI_CLASS_DISPLAY_VGA)
+	if (!vfio_vga_disabled() && (pdev->class >> 8) == PCI_CLASS_DISPLAY_VGA)
 		vdev->has_vga = true;
-#endif
 
 	return 0;
 }
