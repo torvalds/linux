@@ -356,8 +356,7 @@ static void i40e_get_settings_link_up(struct i40e_hw *hw,
 	/* Set speed and duplex */
 	switch (link_speed) {
 	case I40E_LINK_SPEED_40GB:
-		/* need a SPEED_40000 in ethtool.h */
-		ethtool_cmd_speed_set(ecmd, 40000);
+		ethtool_cmd_speed_set(ecmd, SPEED_40000);
 		break;
 	case I40E_LINK_SPEED_20GB:
 		ethtool_cmd_speed_set(ecmd, SPEED_20000);
