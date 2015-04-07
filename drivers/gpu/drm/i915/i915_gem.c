@@ -1181,6 +1181,29 @@ static bool missed_irq(struct drm_i915_private *dev_priv,
 	return test_bit(ring->id, &dev_priv->gpu_error.missed_irq_rings);
 }
 
+static int __i915_spin_request(struct drm_i915_gem_request *rq)
+{
+	unsigned long timeout;
+
+	if (i915_gem_request_get_ring(rq)->irq_refcount)
+		return -EBUSY;
+
+	timeout = jiffies + 1;
+	while (!need_resched()) {
+		if (i915_gem_request_completed(rq, true))
+			return 0;
+
+		if (time_after_eq(jiffies, timeout))
+			break;
+
+		cpu_relax_lowlatency();
+	}
+	if (i915_gem_request_completed(rq, false))
+		return 0;
+
+	return -EAGAIN;
+}
+
 /**
  * __i915_wait_request - wait until execution of request has finished
  * @req: duh!
@@ -1225,12 +1248,20 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 	if (INTEL_INFO(dev)->gen >= 6)
 		gen6_rps_boost(dev_priv, file_priv);
 
-	if (!irq_test_in_progress && WARN_ON(!ring->irq_get(ring)))
-		return -ENODEV;
-
 	/* Record current time in case interrupted by signal, or wedged */
 	trace_i915_gem_request_wait_begin(req);
 	before = ktime_get_raw_ns();
+
+	/* Optimistic spin for the next jiffie before touching IRQs */
+	ret = __i915_spin_request(req);
+	if (ret == 0)
+		goto out;
+
+	if (!irq_test_in_progress && WARN_ON(!ring->irq_get(ring))) {
+		ret = -ENODEV;
+		goto out;
+	}
+
 	for (;;) {
 		struct timer_list timer;
 
@@ -1279,13 +1310,14 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 			destroy_timer_on_stack(&timer);
 		}
 	}
-	now = ktime_get_raw_ns();
-	trace_i915_gem_request_wait_end(req);
-
 	if (!irq_test_in_progress)
 		ring->irq_put(ring);
 
 	finish_wait(&ring->irq_queue, &wait);
+
+out:
+	now = ktime_get_raw_ns();
+	trace_i915_gem_request_wait_end(req);
 
 	if (timeout) {
 		s64 tres = *timeout - (now - before);
