@@ -4091,10 +4091,14 @@ void gen6_rps_idle(struct drm_i915_private *dev_priv)
 		dev_priv->rps.last_adj = 0;
 		I915_WRITE(GEN6_PMINTRMSK, 0xffffffff);
 	}
+
+	while (!list_empty(&dev_priv->rps.clients))
+		list_del_init(dev_priv->rps.clients.next);
 	mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
-void gen6_rps_boost(struct drm_i915_private *dev_priv)
+void gen6_rps_boost(struct drm_i915_private *dev_priv,
+		    struct drm_i915_file_private *file_priv)
 {
 	u32 val;
 
@@ -4102,9 +4106,16 @@ void gen6_rps_boost(struct drm_i915_private *dev_priv)
 	val = dev_priv->rps.max_freq_softlimit;
 	if (dev_priv->rps.enabled &&
 	    dev_priv->mm.busy &&
-	    dev_priv->rps.cur_freq < val) {
+	    dev_priv->rps.cur_freq < val &&
+	    (file_priv == NULL || list_empty(&file_priv->rps_boost))) {
 		intel_set_rps(dev_priv->dev, val);
 		dev_priv->rps.last_adj = 0;
+
+		if (file_priv != NULL) {
+			list_add(&file_priv->rps_boost, &dev_priv->rps.clients);
+			file_priv->rps_boosts++;
+		} else
+			dev_priv->rps.boosts++;
 	}
 	mutex_unlock(&dev_priv->rps.hw_lock);
 }
@@ -6782,7 +6793,7 @@ static void __intel_rps_boost_work(struct work_struct *work)
 	struct request_boost *boost = container_of(work, struct request_boost, work);
 
 	if (!i915_gem_request_completed(boost->rq, true))
-		gen6_rps_boost(to_i915(boost->rq->ring->dev));
+		gen6_rps_boost(to_i915(boost->rq->ring->dev), NULL);
 
 	i915_gem_request_unreference__unlocked(boost->rq);
 	kfree(boost);
@@ -6815,6 +6826,7 @@ void intel_pm_setup(struct drm_device *dev)
 
 	INIT_DELAYED_WORK(&dev_priv->rps.delayed_resume_work,
 			  intel_gen6_powersave_work);
+	INIT_LIST_HEAD(&dev_priv->rps.clients);
 
 	dev_priv->pm.suspended = false;
 }

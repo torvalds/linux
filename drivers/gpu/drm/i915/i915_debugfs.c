@@ -2239,6 +2239,44 @@ static int i915_ppgtt_info(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int i915_rps_boost_info(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_file *file;
+	int ret;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	ret = mutex_lock_interruptible(&dev_priv->rps.hw_lock);
+	if (ret)
+		goto unlock;
+
+	list_for_each_entry_reverse(file, &dev->filelist, lhead) {
+		struct drm_i915_file_private *file_priv = file->driver_priv;
+		struct task_struct *task;
+
+		rcu_read_lock();
+		task = pid_task(file->pid, PIDTYPE_PID);
+		seq_printf(m, "%s [%d]: %d boosts%s\n",
+			   task ? task->comm : "<unknown>",
+			   task ? task->pid : -1,
+			   file_priv->rps_boosts,
+			   list_empty(&file_priv->rps_boost) ? "" : ", active");
+		rcu_read_unlock();
+	}
+	seq_printf(m, "Kernel boosts: %d\n", dev_priv->rps.boosts);
+
+	mutex_unlock(&dev_priv->rps.hw_lock);
+unlock:
+	mutex_unlock(&dev->struct_mutex);
+
+	return ret;
+}
+
 static int i915_llc(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = m->private;
@@ -4704,6 +4742,7 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_ddb_info", i915_ddb_info, 0},
 	{"i915_sseu_status", i915_sseu_status, 0},
 	{"i915_drrs_status", i915_drrs_status, 0},
+	{"i915_rps_boost_info", i915_rps_boost_info, 0},
 };
 #define I915_DEBUGFS_ENTRIES ARRAY_SIZE(i915_debugfs_list)
 

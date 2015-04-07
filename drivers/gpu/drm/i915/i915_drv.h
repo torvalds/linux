@@ -1043,6 +1043,8 @@ struct intel_gen6_power_mgmt {
 
 	bool enabled;
 	struct delayed_work delayed_resume_work;
+	struct list_head clients;
+	unsigned boosts;
 
 	/* manual wa residency calculations */
 	struct intel_rps_ei up_ei, down_ei;
@@ -2190,12 +2192,13 @@ struct drm_i915_file_private {
 	struct {
 		spinlock_t lock;
 		struct list_head request_list;
-		struct delayed_work idle_work;
 	} mm;
 	struct idr context_idr;
 
-	atomic_t rps_wait_boost;
-	struct  intel_engine_cs *bsd_ring;
+	struct list_head rps_boost;
+	struct intel_engine_cs *bsd_ring;
+
+	unsigned rps_boosts;
 };
 
 /*

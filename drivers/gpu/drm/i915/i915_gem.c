@@ -1181,14 +1181,6 @@ static bool missed_irq(struct drm_i915_private *dev_priv,
 	return test_bit(ring->id, &dev_priv->gpu_error.missed_irq_rings);
 }
 
-static bool can_wait_boost(struct drm_i915_file_private *file_priv)
-{
-	if (file_priv == NULL)
-		return true;
-
-	return !atomic_xchg(&file_priv->rps_wait_boost, true);
-}
-
 /**
  * __i915_wait_request - wait until execution of request has finished
  * @req: duh!
@@ -1230,13 +1222,8 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 	timeout_expire = timeout ?
 		jiffies + nsecs_to_jiffies_timeout((u64)*timeout) : 0;
 
-	if (INTEL_INFO(dev)->gen >= 6 && ring->id == RCS && can_wait_boost(file_priv)) {
-		gen6_rps_boost(dev_priv);
-		if (file_priv)
-			mod_delayed_work(dev_priv->wq,
-					 &file_priv->mm.idle_work,
-					 msecs_to_jiffies(100));
-	}
+	if (ring->id == RCS && INTEL_INFO(dev)->gen >= 6)
+		gen6_rps_boost(dev_priv, file_priv);
 
 	if (!irq_test_in_progress && WARN_ON(!ring->irq_get(ring)))
 		return -ENODEV;
@@ -5043,8 +5030,6 @@ void i915_gem_release(struct drm_device *dev, struct drm_file *file)
 {
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 
-	cancel_delayed_work_sync(&file_priv->mm.idle_work);
-
 	/* Clean up our request list when the client is going away, so that
 	 * later retire_requests won't dereference our soon-to-be-gone
 	 * file_priv.
@@ -5060,15 +5045,12 @@ void i915_gem_release(struct drm_device *dev, struct drm_file *file)
 		request->file_priv = NULL;
 	}
 	spin_unlock(&file_priv->mm.lock);
-}
 
-static void
-i915_gem_file_idle_work_handler(struct work_struct *work)
-{
-	struct drm_i915_file_private *file_priv =
-		container_of(work, typeof(*file_priv), mm.idle_work.work);
-
-	atomic_set(&file_priv->rps_wait_boost, false);
+	if (!list_empty(&file_priv->rps_boost)) {
+		mutex_lock(&to_i915(dev)->rps.hw_lock);
+		list_del(&file_priv->rps_boost);
+		mutex_unlock(&to_i915(dev)->rps.hw_lock);
+	}
 }
 
 int i915_gem_open(struct drm_device *dev, struct drm_file *file)
@@ -5085,11 +5067,10 @@ int i915_gem_open(struct drm_device *dev, struct drm_file *file)
 	file->driver_priv = file_priv;
 	file_priv->dev_priv = dev->dev_private;
 	file_priv->file = file;
+	INIT_LIST_HEAD(&file_priv->rps_boost);
 
 	spin_lock_init(&file_priv->mm.lock);
 	INIT_LIST_HEAD(&file_priv->mm.request_list);
-	INIT_DELAYED_WORK(&file_priv->mm.idle_work,
-			  i915_gem_file_idle_work_handler);
 
 	ret = i915_gem_context_open(dev, file);
 	if (ret)
