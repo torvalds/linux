@@ -338,16 +338,12 @@ void __init ima_init_policy(void)
 	appraise_entries = ima_use_appraise_tcb ?
 			 ARRAY_SIZE(default_appraise_rules) : 0;
 
-	for (i = 0; i < measure_entries + appraise_entries; i++) {
-		if (i < measure_entries)
-			list_add_tail(&default_rules[i].list,
-				      &ima_default_rules);
-		else {
-			int j = i - measure_entries;
+	for (i = 0; i < measure_entries; i++)
+		list_add_tail(&default_rules[i].list, &ima_default_rules);
 
-			list_add_tail(&default_appraise_rules[j].list,
-				      &ima_default_rules);
-		}
+	for (i = 0; i < appraise_entries; i++) {
+		list_add_tail(&default_appraise_rules[i].list,
+			      &ima_default_rules);
 	}
 
 	ima_rules = &ima_default_rules;
