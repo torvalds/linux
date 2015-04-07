@@ -2560,9 +2560,9 @@ cifs_write_from_iter(loff_t offset, size_t len, struct iov_iter *from,
 	return rc;
 }
 
-static ssize_t
-cifs_iovec_write(struct file *file, struct iov_iter *from, loff_t *poffset)
+ssize_t cifs_user_writev(struct kiocb *iocb, struct iov_iter *from)
 {
+	struct file *file = iocb->ki_filp;
 	size_t len;
 	ssize_t total_written = 0;
 	struct cifsFileInfo *open_file;
@@ -2573,8 +2573,14 @@ cifs_iovec_write(struct file *file, struct iov_iter *from, loff_t *poffset)
 	struct iov_iter saved_from;
 	int rc;
 
+	/*
+	 * BB - optimize the way when signing is disabled. We can drop this
+	 * extra memory-to-memory copying and use iovec buffers for constructing
+	 * write request.
+	 */
+
 	len = iov_iter_count(from);
-	rc = generic_write_checks(file, poffset, &len, 0);
+	rc = generic_write_checks(file, &iocb->ki_pos, &len, 0);
 	if (rc)
 		return rc;
 
@@ -2593,7 +2599,7 @@ cifs_iovec_write(struct file *file, struct iov_iter *from, loff_t *poffset)
 
 	memcpy(&saved_from, from, sizeof(struct iov_iter));
 
-	rc = cifs_write_from_iter(*poffset, len, from, open_file, cifs_sb,
+	rc = cifs_write_from_iter(iocb->ki_pos, len, from, open_file, cifs_sb,
 				  &wdata_list);
 
 	/*
@@ -2633,7 +2639,7 @@ restart_loop:
 				memcpy(&tmp_from, &saved_from,
 				       sizeof(struct iov_iter));
 				iov_iter_advance(&tmp_from,
-						 wdata->offset - *poffset);
+						 wdata->offset - iocb->ki_pos);
 
 				rc = cifs_write_from_iter(wdata->offset,
 						wdata->bytes, &tmp_from,
@@ -2650,34 +2656,13 @@ restart_loop:
 		kref_put(&wdata->refcount, cifs_uncached_writedata_release);
 	}
 
-	if (total_written > 0)
-		*poffset += total_written;
+	if (unlikely(!total_written))
+		return rc;
 
+	iocb->ki_pos += total_written;
+	set_bit(CIFS_INO_INVALID_MAPPING, &CIFS_I(file_inode(file))->flags);
 	cifs_stats_bytes_written(tcon, total_written);
-	return total_written ? total_written : (ssize_t)rc;
-}
-
-ssize_t cifs_user_writev(struct kiocb *iocb, struct iov_iter *from)
-{
-	ssize_t written;
-	struct inode *inode;
-	loff_t pos = iocb->ki_pos;
-
-	inode = file_inode(iocb->ki_filp);
-
-	/*
-	 * BB - optimize the way when signing is disabled. We can drop this
-	 * extra memory-to-memory copying and use iovec buffers for constructing
-	 * write request.
-	 */
-
-	written = cifs_iovec_write(iocb->ki_filp, from, &pos);
-	if (written > 0) {
-		set_bit(CIFS_INO_INVALID_MAPPING, &CIFS_I(inode)->flags);
-		iocb->ki_pos = pos;
-	}
-
-	return written;
+	return total_written;
 }
 
 static ssize_t
