@@ -709,6 +709,7 @@ struct event_modifier {
 	int eh;
 	int eH;
 	int eG;
+	int eI;
 	int precise;
 	int exclude_GH;
 	int sample_read;
@@ -723,6 +724,7 @@ static int get_event_modifier(struct event_modifier *mod, char *str,
 	int eh = evsel ? evsel->attr.exclude_hv : 0;
 	int eH = evsel ? evsel->attr.exclude_host : 0;
 	int eG = evsel ? evsel->attr.exclude_guest : 0;
+	int eI = evsel ? evsel->attr.exclude_idle : 0;
 	int precise = evsel ? evsel->attr.precise_ip : 0;
 	int sample_read = 0;
 	int pinned = evsel ? evsel->attr.pinned : 0;
@@ -753,6 +755,8 @@ static int get_event_modifier(struct event_modifier *mod, char *str,
 			if (!exclude_GH)
 				exclude_GH = eG = eH = 1;
 			eH = 0;
+		} else if (*str == 'I') {
+			eI = 1;
 		} else if (*str == 'p') {
 			precise++;
 			/* use of precise requires exclude_guest */
@@ -786,6 +790,7 @@ static int get_event_modifier(struct event_modifier *mod, char *str,
 	mod->eh = eh;
 	mod->eH = eH;
 	mod->eG = eG;
+	mod->eI = eI;
 	mod->precise = precise;
 	mod->exclude_GH = exclude_GH;
 	mod->sample_read = sample_read;
@@ -803,7 +808,7 @@ static int check_modifier(char *str)
 	char *p = str;
 
 	/* The sizeof includes 0 byte as well. */
-	if (strlen(str) > (sizeof("ukhGHpppSD") - 1))
+	if (strlen(str) > (sizeof("ukhGHpppSDI") - 1))
 		return -1;
 
 	while (*p) {
@@ -839,6 +844,7 @@ int parse_events__modifier_event(struct list_head *list, char *str, bool add)
 		evsel->attr.precise_ip     = mod.precise;
 		evsel->attr.exclude_host   = mod.eH;
 		evsel->attr.exclude_guest  = mod.eG;
+		evsel->attr.exclude_idle   = mod.eI;
 		evsel->exclude_GH          = mod.exclude_GH;
 		evsel->sample_read         = mod.sample_read;
 
