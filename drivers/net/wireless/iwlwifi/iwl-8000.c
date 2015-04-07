@@ -94,8 +94,8 @@
 	IWL8000_FW_PRE "-" __stringify(api) ".ucode"
 
 #define NVM_HW_SECTION_NUM_FAMILY_8000		10
-#define DEFAULT_NVM_FILE_FAMILY_8000A		"iwl_nvm_8000.bin"
-#define DEFAULT_NVM_FILE_FAMILY_8000		"iwl_nvm_8000B.bin"
+#define DEFAULT_NVM_FILE_FAMILY_8000B		"nvmData-8000B"
+#define DEFAULT_NVM_FILE_FAMILY_8000C		"nvmData-8000C"
 
 /* Max SDIO RX aggregation size of the ADDBA request/response */
 #define MAX_RX_AGG_SIZE_8260_SDIO	28
@@ -177,8 +177,8 @@ const struct iwl_cfg iwl8260_2ac_sdio_cfg = {
 	.ht_params = &iwl8000_ht_params,
 	.nvm_ver = IWL8000_NVM_VERSION,
 	.nvm_calib_ver = IWL8000_TX_POWER_VERSION,
-	.default_nvm_file = DEFAULT_NVM_FILE_FAMILY_8000,
-	.default_nvm_file_8000A = DEFAULT_NVM_FILE_FAMILY_8000A,
+	.default_nvm_file_B_step = DEFAULT_NVM_FILE_FAMILY_8000B,
+	.default_nvm_file_C_step = DEFAULT_NVM_FILE_FAMILY_8000C,
 	.max_rx_agg_size = MAX_RX_AGG_SIZE_8260_SDIO,
 	.disable_dummy_notification = true,
 	.max_ht_ampdu_exponent  = MAX_HT_AMPDU_EXPONENT_8260_SDIO,
@@ -192,8 +192,8 @@ const struct iwl_cfg iwl4165_2ac_sdio_cfg = {
 	.ht_params = &iwl8000_ht_params,
 	.nvm_ver = IWL8000_NVM_VERSION,
 	.nvm_calib_ver = IWL8000_TX_POWER_VERSION,
-	.default_nvm_file = DEFAULT_NVM_FILE_FAMILY_8000,
-	.default_nvm_file_8000A = DEFAULT_NVM_FILE_FAMILY_8000A,
+	.default_nvm_file_B_step = DEFAULT_NVM_FILE_FAMILY_8000B,
+	.default_nvm_file_C_step = DEFAULT_NVM_FILE_FAMILY_8000C,
 	.max_rx_agg_size = MAX_RX_AGG_SIZE_8260_SDIO,
 	.bt_shared_single_ant = true,
 	.disable_dummy_notification = true,

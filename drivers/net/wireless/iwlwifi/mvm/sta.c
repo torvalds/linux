@@ -209,9 +209,8 @@ static int iwl_mvm_tdls_sta_init(struct iwl_mvm *mvm,
 {
 	unsigned long used_hw_queues;
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
-	unsigned int wdg_timeout = iwlmvm_mod_params.tfd_q_hang_detect ?
-					mvm->cfg->base_params->wd_timeout :
-					IWL_WATCHDOG_DISABLED;
+	unsigned int wdg_timeout =
+		iwl_mvm_get_wd_timeout(mvm, NULL, true, false);
 	u32 ac;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -491,8 +490,18 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 
 	if (vif->type == NL80211_IFTYPE_STATION &&
 	    mvmvif->ap_sta_id == mvm_sta->sta_id) {
+		ret = iwl_mvm_drain_sta(mvm, mvm_sta, true);
+		if (ret)
+			return ret;
 		/* flush its queues here since we are freeing mvm_sta */
 		ret = iwl_mvm_flush_tx_path(mvm, mvm_sta->tfd_queue_msk, true);
+		if (ret)
+			return ret;
+		ret = iwl_trans_wait_tx_queue_empty(mvm->trans,
+						    mvm_sta->tfd_queue_msk);
+		if (ret)
+			return ret;
+		ret = iwl_mvm_drain_sta(mvm, mvm_sta, false);
 
 		/* if we are associated - we can't remove the AP STA now */
 		if (vif->bss_conf.assoc)
@@ -971,9 +980,8 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 {
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm_tid_data *tid_data = &mvmsta->tid_data[tid];
-	unsigned int wdg_timeout = iwlmvm_mod_params.tfd_q_hang_detect ?
-					mvm->cfg->base_params->wd_timeout :
-					IWL_WATCHDOG_DISABLED;
+	unsigned int wdg_timeout =
+		iwl_mvm_get_wd_timeout(mvm, vif, sta->tdls, false);
 	int queue, fifo, ret;
 	u16 ssn;
 
@@ -1120,8 +1128,12 @@ int iwl_mvm_sta_tx_agg_flush(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	spin_unlock_bh(&mvmsta->lock);
 
 	if (old_state >= IWL_AGG_ON) {
+		iwl_mvm_drain_sta(mvm, mvmsta, true);
 		if (iwl_mvm_flush_tx_path(mvm, BIT(txq_id), true))
 			IWL_ERR(mvm, "Couldn't flush the AGG queue\n");
+		iwl_trans_wait_tx_queue_empty(mvm->trans,
+					      mvmsta->tfd_queue_msk);
+		iwl_mvm_drain_sta(mvm, mvmsta, false);
 
 		iwl_mvm_sta_tx_agg(mvm, sta, tid, txq_id, false);
 
@@ -1702,8 +1714,8 @@ void iwl_mvm_sta_modify_disable_tx_ap(struct iwl_mvm *mvm,
 	mvm_sta->disable_tx = disable;
 
 	/*
-	 * Tell mac80211 to start/stop queueing tx for this station,
-	 * but don't stop queueing if there are still pending frames
+	 * Tell mac80211 to start/stop queuing tx for this station,
+	 * but don't stop queuing if there are still pending frames
 	 * for this station.
 	 */
 	if (disable || !atomic_read(&mvm->pending_frames[mvm_sta->sta_id]))

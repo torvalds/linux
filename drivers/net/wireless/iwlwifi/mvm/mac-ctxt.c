@@ -470,9 +470,8 @@ exit_fail:
 
 int iwl_mvm_mac_ctxt_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
-	unsigned int wdg_timeout = iwlmvm_mod_params.tfd_q_hang_detect ?
-					mvm->cfg->base_params->wd_timeout :
-					IWL_WATCHDOG_DISABLED;
+	unsigned int wdg_timeout =
+		iwl_mvm_get_wd_timeout(mvm, vif, false, false);
 	u32 ac;
 	int ret;
 
@@ -1413,7 +1412,7 @@ static void iwl_mvm_beacon_loss_iterator(void *_data, u8 *mac,
 
 	if (rx_missed_bcon_since_rx >= stop_trig_missed_bcon_since_rx ||
 	    rx_missed_bcon >= stop_trig_missed_bcon)
-		iwl_mvm_fw_dbg_collect_trig(mvm, trigger, NULL, 0);
+		iwl_mvm_fw_dbg_collect_trig(mvm, trigger, NULL);
 }
 
 int iwl_mvm_rx_missed_beacons_notif(struct iwl_mvm *mvm,

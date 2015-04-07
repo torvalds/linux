@@ -691,11 +691,15 @@ static int iwl_pcie_rsa_race_bug_wa(struct iwl_trans *trans)
 {
 	u32 val, loop = 1000;
 
-	/* Check the RSA semaphore is accessible - if not, we are in trouble */
+	/*
+	 * Check the RSA semaphore is accessible.
+	 * If the HW isn't locked and the rsa semaphore isn't accessible,
+	 * we are in trouble.
+	 */
 	val = iwl_read_prph(trans, PREG_AUX_BUS_WPROT_0);
 	if (val & (BIT(1) | BIT(17))) {
-		IWL_ERR(trans,
-			"can't access the RSA semaphore it is write protected\n");
+		IWL_INFO(trans,
+			 "can't access the RSA semaphore it is write protected\n");
 		return 0;
 	}
 
@@ -719,10 +723,10 @@ static int iwl_pcie_rsa_race_bug_wa(struct iwl_trans *trans)
 	return -EIO;
 }
 
-static int iwl_pcie_load_cpu_sections_8000b(struct iwl_trans *trans,
-					    const struct fw_img *image,
-					    int cpu,
-					    int *first_ucode_section)
+static int iwl_pcie_load_cpu_sections_8000(struct iwl_trans *trans,
+					   const struct fw_img *image,
+					   int cpu,
+					   int *first_ucode_section)
 {
 	int shift_param;
 	int i, ret = 0, sec_num = 0x1;
@@ -917,20 +921,16 @@ static int iwl_pcie_load_given_ucode(struct iwl_trans *trans,
 	}
 
 	/* release CPU reset */
-	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000)
-		iwl_write_prph(trans, RELEASE_CPU_RESET, RELEASE_CPU_RESET_BIT);
-	else
-		iwl_write32(trans, CSR_RESET, 0);
+	iwl_write32(trans, CSR_RESET, 0);
 
 	return 0;
 }
 
-static int iwl_pcie_load_given_ucode_8000b(struct iwl_trans *trans,
-					   const struct fw_img *image)
+static int iwl_pcie_load_given_ucode_8000(struct iwl_trans *trans,
+					  const struct fw_img *image)
 {
 	int ret = 0;
 	int first_ucode_section;
-	u32 reg;
 
 	IWL_DEBUG_FW(trans, "working with %s CPU\n",
 		     image->is_dual_cpus ? "Dual" : "Single");
@@ -948,30 +948,16 @@ static int iwl_pcie_load_given_ucode_8000b(struct iwl_trans *trans,
 	iwl_write_prph(trans, RELEASE_CPU_RESET, RELEASE_CPU_RESET_BIT);
 
 	/* load to FW the binary Secured sections of CPU1 */
-	ret = iwl_pcie_load_cpu_sections_8000b(trans, image, 1,
-					       &first_ucode_section);
+	ret = iwl_pcie_load_cpu_sections_8000(trans, image, 1,
+					      &first_ucode_section);
 	if (ret)
 		return ret;
 
 	/* load to FW the binary sections of CPU2 */
-	ret = iwl_pcie_load_cpu_sections_8000b(trans, image, 2,
-					       &first_ucode_section);
+	ret = iwl_pcie_load_cpu_sections_8000(trans, image, 2,
+					      &first_ucode_section);
 	if (ret)
 		return ret;
-
-	/* wait for image verification to complete  */
-	ret = iwl_poll_prph_bit(trans, LMPM_SECURE_BOOT_CPU1_STATUS_ADDR_B0,
-				LMPM_SECURE_BOOT_STATUS_SUCCESS,
-				LMPM_SECURE_BOOT_STATUS_SUCCESS,
-				LMPM_SECURE_TIME_OUT);
-	if (ret < 0) {
-		reg = iwl_read_prph(trans,
-				    LMPM_SECURE_BOOT_CPU1_STATUS_ADDR_B0);
-
-		IWL_ERR(trans, "Timeout on secure boot process, reg = %x\n",
-			reg);
-		return ret;
-	}
 
 	return 0;
 }
@@ -979,7 +965,6 @@ static int iwl_pcie_load_given_ucode_8000b(struct iwl_trans *trans,
 static int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
 				   const struct fw_img *fw, bool run_in_rfkill)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int ret;
 	bool hw_rfkill;
 
@@ -1009,9 +994,6 @@ static int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
 		return ret;
 	}
 
-	/* init ref_count to 1 (should be cleared when ucode is loaded) */
-	trans_pcie->ref_count = 1;
-
 	/* make sure rfkill handshake bits are cleared */
 	iwl_write32(trans, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
 	iwl_write32(trans, CSR_UCODE_DRV_GP1_CLR,
@@ -1026,9 +1008,8 @@ static int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
 	iwl_write32(trans, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
 
 	/* Load the given image to the HW */
-	if ((trans->cfg->device_family == IWL_DEVICE_FAMILY_8000) &&
-	    (CSR_HW_REV_STEP(trans->hw_rev) != SILICON_A_STEP))
-		return iwl_pcie_load_given_ucode_8000b(trans, fw);
+	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000)
+		return iwl_pcie_load_given_ucode_8000(trans, fw);
 	else
 		return iwl_pcie_load_given_ucode(trans, fw);
 }
@@ -1329,6 +1310,9 @@ static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 	trans_pcie->command_names = trans_cfg->command_names;
 	trans_pcie->bc_table_dword = trans_cfg->bc_table_dword;
 	trans_pcie->scd_set_active = trans_cfg->scd_set_active;
+
+	/* init ref_count to 1 (should be cleared when ucode is loaded) */
+	trans_pcie->ref_count = 1;
 
 	/* Initialize NAPI here - it should be before registering to mac80211
 	 * in the opmode but after the HW struct is allocated.

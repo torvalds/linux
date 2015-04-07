@@ -99,14 +99,9 @@ enum family_8000_nvm_offsets {
 	/* NVM SW-Section offset (in words) definitions */
 	NVM_SW_SECTION_FAMILY_8000 = 0x1C0,
 	NVM_VERSION_FAMILY_8000 = 0,
-	RADIO_CFG_FAMILY_8000 = 2,
-	SKU_FAMILY_8000 = 4,
-	N_HW_ADDRS_FAMILY_8000 = 5,
-
-	/* NVM PHY-SKU-Section offset (in words) for B0 */
-	RADIO_CFG_FAMILY_8000_B0 = 0,
-	SKU_FAMILY_8000_B0 = 2,
-	N_HW_ADDRS_FAMILY_8000_B0 = 3,
+	RADIO_CFG_FAMILY_8000 = 0,
+	SKU_FAMILY_8000 = 2,
+	N_HW_ADDRS_FAMILY_8000 = 3,
 
 	/* NVM REGULATORY -Section offset (in words) definitions */
 	NVM_CHANNELS_FAMILY_8000 = 0,
@@ -446,22 +441,16 @@ static void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
 			    n_used, n_channels);
 }
 
-static int iwl_get_sku(const struct iwl_cfg *cfg,
-		       const __le16 *nvm_sw, const __le16 *phy_sku,
-		       bool is_family_8000_a_step)
+static int iwl_get_sku(const struct iwl_cfg *cfg, const __le16 *nvm_sw,
+		       const __le16 *phy_sku)
 {
 	if (cfg->device_family != IWL_DEVICE_FAMILY_8000)
 		return le16_to_cpup(nvm_sw + SKU);
 
-	if (!is_family_8000_a_step)
-		return le32_to_cpup((__le32 *)(phy_sku +
-					       SKU_FAMILY_8000_B0));
-	else
-		return le32_to_cpup((__le32 *)(nvm_sw + SKU_FAMILY_8000));
+	return le32_to_cpup((__le32 *)(phy_sku + SKU_FAMILY_8000));
 }
 
-static int iwl_get_nvm_version(const struct iwl_cfg *cfg,
-			       const __le16 *nvm_sw)
+static int iwl_get_nvm_version(const struct iwl_cfg *cfg, const __le16 *nvm_sw)
 {
 	if (cfg->device_family != IWL_DEVICE_FAMILY_8000)
 		return le16_to_cpup(nvm_sw + NVM_VERSION);
@@ -470,35 +459,24 @@ static int iwl_get_nvm_version(const struct iwl_cfg *cfg,
 					       NVM_VERSION_FAMILY_8000));
 }
 
-static int iwl_get_radio_cfg(const struct iwl_cfg *cfg,
-			     const __le16 *nvm_sw, const __le16 *phy_sku,
-			     bool is_family_8000_a_step)
+static int iwl_get_radio_cfg(const struct iwl_cfg *cfg, const __le16 *nvm_sw,
+			     const __le16 *phy_sku)
 {
 	if (cfg->device_family != IWL_DEVICE_FAMILY_8000)
 		return le16_to_cpup(nvm_sw + RADIO_CFG);
 
-	if (!is_family_8000_a_step)
-		return le32_to_cpup((__le32 *)(phy_sku +
-					       RADIO_CFG_FAMILY_8000_B0));
-	else
-		return le32_to_cpup((__le32 *)(nvm_sw + RADIO_CFG_FAMILY_8000));
+	return le32_to_cpup((__le32 *)(nvm_sw + RADIO_CFG_FAMILY_8000));
 
 }
 
-static int iwl_get_n_hw_addrs(const struct iwl_cfg *cfg,
-			      const __le16 *nvm_sw, bool is_family_8000_a_step)
+static int iwl_get_n_hw_addrs(const struct iwl_cfg *cfg, const __le16 *nvm_sw)
 {
 	int n_hw_addr;
 
 	if (cfg->device_family != IWL_DEVICE_FAMILY_8000)
 		return le16_to_cpup(nvm_sw + N_HW_ADDRS);
 
-	if (!is_family_8000_a_step)
-		n_hw_addr = le32_to_cpup((__le32 *)(nvm_sw +
-						    N_HW_ADDRS_FAMILY_8000_B0));
-	else
-		n_hw_addr = le32_to_cpup((__le32 *)(nvm_sw +
-						    N_HW_ADDRS_FAMILY_8000));
+	n_hw_addr = le32_to_cpup((__le32 *)(nvm_sw + N_HW_ADDRS_FAMILY_8000));
 
 	return n_hw_addr & N_HW_ADDR_MASK;
 }
@@ -594,8 +572,7 @@ iwl_parse_nvm_data(struct device *dev, const struct iwl_cfg *cfg,
 		   const __le16 *nvm_hw, const __le16 *nvm_sw,
 		   const __le16 *nvm_calib, const __le16 *regulatory,
 		   const __le16 *mac_override, const __le16 *phy_sku,
-		   u8 tx_chains, u8 rx_chains,
-		   bool lar_fw_supported, bool is_family_8000_a_step,
+		   u8 tx_chains, u8 rx_chains, bool lar_fw_supported,
 		   u32 mac_addr0, u32 mac_addr1)
 {
 	struct iwl_nvm_data *data;
@@ -618,15 +595,14 @@ iwl_parse_nvm_data(struct device *dev, const struct iwl_cfg *cfg,
 
 	data->nvm_version = iwl_get_nvm_version(cfg, nvm_sw);
 
-	radio_cfg =
-		iwl_get_radio_cfg(cfg, nvm_sw, phy_sku, is_family_8000_a_step);
+	radio_cfg = iwl_get_radio_cfg(cfg, nvm_sw, phy_sku);
 	iwl_set_radio_cfg(cfg, data, radio_cfg);
 	if (data->valid_tx_ant)
 		tx_chains &= data->valid_tx_ant;
 	if (data->valid_rx_ant)
 		rx_chains &= data->valid_rx_ant;
 
-	sku = iwl_get_sku(cfg, nvm_sw, phy_sku, is_family_8000_a_step);
+	sku = iwl_get_sku(cfg, nvm_sw, phy_sku);
 	data->sku_cap_band_24GHz_enable = sku & NVM_SKU_CAP_BAND_24GHZ;
 	data->sku_cap_band_52GHz_enable = sku & NVM_SKU_CAP_BAND_52GHZ;
 	data->sku_cap_11n_enable = sku & NVM_SKU_CAP_11N_ENABLE;
@@ -635,8 +611,7 @@ iwl_parse_nvm_data(struct device *dev, const struct iwl_cfg *cfg,
 	data->sku_cap_11ac_enable = data->sku_cap_11n_enable &&
 				    (sku & NVM_SKU_CAP_11AC_ENABLE);
 
-	data->n_hw_addrs =
-		iwl_get_n_hw_addrs(cfg, nvm_sw, is_family_8000_a_step);
+	data->n_hw_addrs = iwl_get_n_hw_addrs(cfg, nvm_sw);
 
 	if (cfg->device_family != IWL_DEVICE_FAMILY_8000) {
 		/* Checking for required sections */
