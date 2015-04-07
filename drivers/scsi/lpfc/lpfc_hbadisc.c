@@ -3439,6 +3439,11 @@ lpfc_mbx_cmpl_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	pmb->context1 = NULL;
 	pmb->context2 = NULL;
 
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_SLI,
+			 "0002 rpi:%x DID:%x flg:%x %d map:%x %p\n",
+			 ndlp->nlp_rpi, ndlp->nlp_DID, ndlp->nlp_flag,
+			 atomic_read(&ndlp->kref.refcount),
+			 ndlp->nlp_usg_map, ndlp);
 	if (ndlp->nlp_flag & NLP_REG_LOGIN_SEND)
 		ndlp->nlp_flag &= ~NLP_REG_LOGIN_SEND;
 
@@ -3855,6 +3860,11 @@ out:
 	ndlp->nlp_flag |= NLP_RPI_REGISTERED;
 	ndlp->nlp_type |= NLP_FABRIC;
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_SLI,
+			 "0003 rpi:%x DID:%x flg:%x %d map%x %p\n",
+			 ndlp->nlp_rpi, ndlp->nlp_DID, ndlp->nlp_flag,
+			 atomic_read(&ndlp->kref.refcount),
+			 ndlp->nlp_usg_map, ndlp);
 
 	if (vport->port_state < LPFC_VPORT_READY) {
 		/* Link up discovery requires Fabric registration. */
@@ -4250,8 +4260,15 @@ lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		ndlp->active_rrqs_xri_bitmap = active_rrqs_xri_bitmap;
 
 	spin_unlock_irqrestore(&phba->ndlp_lock, flags);
-	if (vport->phba->sli_rev == LPFC_SLI_REV4)
+	if (vport->phba->sli_rev == LPFC_SLI_REV4) {
 		ndlp->nlp_rpi = lpfc_sli4_alloc_rpi(vport->phba);
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
+				 "0008 rpi:%x DID:%x flg:%x refcnt:%d "
+				 "map:%x %p\n", ndlp->nlp_rpi, ndlp->nlp_DID,
+				 ndlp->nlp_flag,
+				 atomic_read(&ndlp->kref.refcount),
+				 ndlp->nlp_usg_map, ndlp);
+	}
 
 
 	if (state != NLP_STE_UNUSED_NODE)
@@ -4276,9 +4293,12 @@ lpfc_drop_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	if (ndlp->nlp_state == NLP_STE_UNUSED_NODE)
 		return;
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNUSED_NODE);
-	if (vport->phba->sli_rev == LPFC_SLI_REV4)
+	if (vport->phba->sli_rev == LPFC_SLI_REV4) {
 		lpfc_cleanup_vports_rrqs(vport, ndlp);
-	lpfc_nlp_put(ndlp);
+		lpfc_unreg_rpi(vport, ndlp);
+	} else {
+		lpfc_nlp_put(ndlp);
+	}
 	return;
 }
 
@@ -4515,7 +4535,17 @@ lpfc_unreg_rpi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 				mbox->context1 = ndlp;
 				mbox->mbox_cmpl = lpfc_nlp_logo_unreg;
 			} else {
-				mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+				if (phba->sli_rev == LPFC_SLI_REV4 &&
+				    (!(vport->load_flag & FC_UNLOADING)) &&
+				    (bf_get(lpfc_sli_intf_if_type,
+				     &phba->sli4_hba.sli_intf) ==
+				      LPFC_SLI_INTF_IF_TYPE_2)) {
+					mbox->context1 = lpfc_nlp_get(ndlp);
+					mbox->mbox_cmpl =
+						lpfc_sli4_unreg_rpi_cmpl_clr;
+				} else
+					mbox->mbox_cmpl =
+						lpfc_sli_def_mbox_cmpl;
 			}
 
 			rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
@@ -4741,6 +4771,11 @@ lpfc_nlp_remove(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		/* For this case we need to cleanup the default rpi
 		 * allocated by the firmware.
 		 */
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
+				 "0005 rpi:%x DID:%x flg:%x %d map:%x %p\n",
+				 ndlp->nlp_rpi, ndlp->nlp_DID, ndlp->nlp_flag,
+				 atomic_read(&ndlp->kref.refcount),
+				 ndlp->nlp_usg_map, ndlp);
 		if ((mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL))
 			!= NULL) {
 			rc = lpfc_reg_rpi(phba, vport->vpi, ndlp->nlp_DID,
@@ -5482,7 +5517,11 @@ lpfc_mbx_cmpl_fdmi_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	ndlp->nlp_flag |= NLP_RPI_REGISTERED;
 	ndlp->nlp_type |= NLP_FABRIC;
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
-
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_SLI,
+			 "0004 rpi:%x DID:%x flg:%x %d map:%x %p\n",
+			 ndlp->nlp_rpi, ndlp->nlp_DID, ndlp->nlp_flag,
+			 atomic_read(&ndlp->kref.refcount),
+			 ndlp->nlp_usg_map, ndlp);
 	/*
 	 * Start issuing Fabric-Device Management Interface (FDMI) command to
 	 * 0xfffffa (FDMI well known port) or Delay issuing FDMI command if
@@ -5648,6 +5687,13 @@ lpfc_nlp_init(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	INIT_LIST_HEAD(&ndlp->nlp_listp);
 	if (vport->phba->sli_rev == LPFC_SLI_REV4) {
 		ndlp->nlp_rpi = lpfc_sli4_alloc_rpi(vport->phba);
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
+				 "0007 rpi:%x DID:%x flg:%x refcnt:%d "
+				 "map:%x %p\n", ndlp->nlp_rpi, ndlp->nlp_DID,
+				 ndlp->nlp_flag,
+				 atomic_read(&ndlp->kref.refcount),
+				 ndlp->nlp_usg_map, ndlp);
+
 		ndlp->active_rrqs_xri_bitmap =
 				mempool_alloc(vport->phba->active_rrq_pool,
 					      GFP_KERNEL);
@@ -5682,9 +5728,9 @@ lpfc_nlp_release(struct kref *kref)
 
 	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
 			"0279 lpfc_nlp_release: ndlp:x%p did %x "
-			"usgmap:x%x refcnt:%d\n",
+			"usgmap:x%x refcnt:%d rpi:%x\n",
 			(void *)ndlp, ndlp->nlp_DID, ndlp->nlp_usg_map,
-			atomic_read(&ndlp->kref.refcount));
+			atomic_read(&ndlp->kref.refcount), ndlp->nlp_rpi);
 
 	/* remove ndlp from action. */
 	lpfc_nlp_remove(ndlp->vport, ndlp);
