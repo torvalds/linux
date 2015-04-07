@@ -71,14 +71,6 @@
 struct greybus_host_device;
 struct svc_msg;
 
-/*
- * When the Greybus code allocates a buffer it sets aside bytes
- * prior to the beginning of the payload area for the host device's
- * exclusive use.  The size is specified by hd->buffer_headroom, and
- * which can't be greater than GB_BUFFER_HEADROOM_MAX.
- */
-#define GB_BUFFER_HEADROOM_MAX		sizeof(u64)
-
 /* Greybus "Host driver" structure, needed by a host controller driver to be
  * able to handle both SVC control as well as "real" greybus messages
  */
@@ -103,7 +95,6 @@ struct greybus_host_device {
 	u8 device_id;
 
 	/* Host device buffer constraints */
-	size_t buffer_headroom;
 	size_t buffer_size_max;
 
 	/* Private data for the host driver */

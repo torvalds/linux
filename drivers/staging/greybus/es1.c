@@ -106,29 +106,11 @@ static void usb_log_disable(struct es1_ap_dev *es1);
  * which defines a region of memory used by the host driver for
  * transferring the data.  When Greybus allocates a buffer, it must
  * do so subject to the constraints associated with the host driver.
- * These constraints are specified by two parameters: the
- * headroom; and the maximum buffer size.
  *
- *			+------------------+
- *			|    Host driver   | \
- *			|   reserved area  |  }- headroom
- *			|      . . .       | /
- *  buffer pointer ---> +------------------+
- *			| Buffer space for | \
- *			| transferred data |  }- buffer size
- *			|      . . .       | /   (limited to size_max)
- *			+------------------+
- *
- *  headroom:	Every buffer must have at least this much space
- *		*before* the buffer pointer, reserved for use by the
- *		host driver.  I.e., ((char *)buffer - headroom) must
- *		point to valid memory, usable only by the host driver.
- *  size_max:	The maximum size of a buffer (not including the
- *		headroom) must not exceed this.
+ *  size_max:	The maximum size of a buffer
  */
 static void hd_buffer_constraints(struct greybus_host_device *hd)
 {
-	hd->buffer_headroom = 0;
 	hd->buffer_size_max = ES1_GBUF_MSG_SIZE_MAX;
 }
 

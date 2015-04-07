@@ -230,7 +230,7 @@ static void gb_operation_message_init(struct greybus_host_device *hd,
 	u8 *buffer;
 
 	buffer = message->buffer;
-	header = (struct gb_operation_msg_hdr *)(buffer + hd->buffer_headroom);
+	header = message->buffer;
 
 	message->header = header;
 	message->payload = payload_size ? header + 1 : NULL;
@@ -271,7 +271,6 @@ static void gb_operation_message_init(struct greybus_host_device *hd,
  * they'll be filled in by arriving data.
  *
  * Our message buffers have the following layout:
- *	headroom
  *	message header  \_ these combined are
  *	message payload /  the message size
  */
@@ -282,7 +281,6 @@ gb_operation_message_alloc(struct greybus_host_device *hd, u8 type,
 	struct gb_message *message;
 	struct gb_operation_msg_hdr *header;
 	size_t message_size = payload_size + sizeof(*header);
-	size_t size;
 
 	if (hd->buffer_size_max > GB_OPERATION_MESSAGE_SIZE_MAX) {
 		pr_warn("limiting buffer size to %u\n",
@@ -301,8 +299,7 @@ gb_operation_message_alloc(struct greybus_host_device *hd, u8 type,
 	if (!message)
 		return NULL;
 
-	size = hd->buffer_headroom + message_size;
-	message->buffer = kzalloc(size, gfp_flags);
+	message->buffer = kzalloc(message_size, gfp_flags);
 	if (!message->buffer)
 		goto err_free_message;
 
