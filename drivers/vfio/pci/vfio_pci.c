@@ -50,6 +50,11 @@ module_param(disable_vga, bool, S_IRUGO);
 MODULE_PARM_DESC(disable_vga, "Disable VGA resource access through vfio-pci");
 #endif
 
+static bool disable_idle_d3;
+module_param(disable_idle_d3, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(disable_idle_d3,
+		 "Disable using the PCI D3 low power state for idle, unused devices");
+
 static DEFINE_MUTEX(driver_lock);
 
 static inline bool vfio_vga_disabled(void)
@@ -113,6 +118,8 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 	int ret;
 	u16 cmd;
 	u8 msix_pos;
+
+	pci_set_power_state(pdev, PCI_D0);
 
 	/* Don't allow our initial saved state to include busmaster */
 	pci_clear_master(pdev);
@@ -225,6 +232,9 @@ out:
 	pci_disable_device(pdev);
 
 	vfio_pci_try_bus_reset(vdev);
+
+	if (!disable_idle_d3)
+		pci_set_power_state(pdev, PCI_D3hot);
 }
 
 static void vfio_pci_release(void *device_data)
@@ -951,6 +961,20 @@ static int vfio_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 					vfio_pci_set_vga_decode(vdev, false));
 	}
 
+	if (!disable_idle_d3) {
+		/*
+		 * pci-core sets the device power state to an unknown value at
+		 * bootup and after being removed from a driver.  The only
+		 * transition it allows from this unknown state is to D0, which
+		 * typically happens when a driver calls pci_enable_device().
+		 * We're not ready to enable the device yet, but we do want to
+		 * be able to get to D3.  Therefore first do a D0 transition
+		 * before going to D3.
+		 */
+		pci_set_power_state(pdev, PCI_D0);
+		pci_set_power_state(pdev, PCI_D3hot);
+	}
+
 	return ret;
 }
 
@@ -971,6 +995,9 @@ static void vfio_pci_remove(struct pci_dev *pdev)
 				VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM |
 				VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM);
 	}
+
+	if (!disable_idle_d3)
+		pci_set_power_state(pdev, PCI_D0);
 }
 
 static pci_ers_result_t vfio_pci_aer_err_detected(struct pci_dev *pdev,
@@ -1089,10 +1116,13 @@ static void vfio_pci_try_bus_reset(struct vfio_pci_device *vdev)
 
 put_devs:
 	for (i = 0; i < devs.cur_index; i++) {
-		if (!ret) {
-			tmp = vfio_device_data(devs.devices[i]);
+		tmp = vfio_device_data(devs.devices[i]);
+		if (!ret)
 			tmp->needs_reset = false;
-		}
+
+		if (!tmp->refcnt && !disable_idle_d3)
+			pci_set_power_state(tmp->pdev, PCI_D3hot);
+
 		vfio_device_put(devs.devices[i]);
 	}
 
