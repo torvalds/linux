@@ -627,7 +627,7 @@ static int atmel_aes_crypt_dma_stop(struct atmel_aes_dev *dd)
 			dma_unmap_sg(dd->dev, dd->out_sg, 1, DMA_FROM_DEVICE);
 			dma_unmap_sg(dd->dev, dd->in_sg, 1, DMA_TO_DEVICE);
 		} else {
-			dma_sync_single_for_device(dd->dev, dd->dma_addr_out,
+			dma_sync_single_for_cpu(dd->dev, dd->dma_addr_out,
 				dd->dma_size, DMA_FROM_DEVICE);
 
 			/* copy data */
