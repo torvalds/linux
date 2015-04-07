@@ -79,9 +79,6 @@ struct svc_msg;
  */
 #define GB_BUFFER_HEADROOM_MAX		sizeof(u64)
 
-/* Buffers allocated from the host driver will be aligned to this multiple */
-#define GB_BUFFER_ALIGN	sizeof(u32)
-
 /* Greybus "Host driver" structure, needed by a host controller driver to be
  * able to handle both SVC control as well as "real" greybus messages
  */
