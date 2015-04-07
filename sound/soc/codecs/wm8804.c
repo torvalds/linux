@@ -16,6 +16,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
+#include <linux/pm_runtime.h>
 #include <linux/of_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
@@ -59,6 +60,7 @@ static const struct reg_default wm8804_reg_defaults[] = {
 };
 
 struct wm8804_priv {
+	struct device *dev;
 	struct regmap *regmap;
 	struct regulator_bulk_data supplies[WM8804_NUM_SUPPLIES];
 	struct notifier_block disable_nb[WM8804_NUM_SUPPLIES];
@@ -403,19 +405,19 @@ static int wm8804_set_pll(struct snd_soc_dai *dai, int pll_id,
 			  int source, unsigned int freq_in,
 			  unsigned int freq_out)
 {
-	struct snd_soc_codec *codec;
+	struct snd_soc_codec *codec = dai->codec;
+	struct wm8804_priv *wm8804 = snd_soc_codec_get_drvdata(codec);
+	bool change;
 
-	codec = dai->codec;
 	if (!freq_in || !freq_out) {
 		/* disable the PLL */
-		snd_soc_update_bits(codec, WM8804_PWRDN, 0x1, 0x1);
-		return 0;
+		regmap_update_bits_check(wm8804->regmap, WM8804_PWRDN,
+					 0x1, 0x1, &change);
+		if (change)
+			pm_runtime_put(wm8804->dev);
 	} else {
 		int ret;
 		struct pll_div pll_div;
-		struct wm8804_priv *wm8804;
-
-		wm8804 = snd_soc_codec_get_drvdata(codec);
 
 		ret = pll_factors(&pll_div, freq_out, freq_in,
 				  wm8804->mclk_div);
@@ -423,7 +425,10 @@ static int wm8804_set_pll(struct snd_soc_dai *dai, int pll_id,
 			return ret;
 
 		/* power down the PLL before reprogramming it */
-		snd_soc_update_bits(codec, WM8804_PWRDN, 0x1, 0x1);
+		regmap_update_bits_check(wm8804->regmap, WM8804_PWRDN,
+					 0x1, 0x1, &change);
+		if (!change)
+			pm_runtime_get_sync(wm8804->dev);
 
 		/* set PLLN and PRESCALE */
 		snd_soc_update_bits(codec, WM8804_PLL4, 0xf | 0x10,
@@ -501,47 +506,6 @@ static int wm8804_set_clkdiv(struct snd_soc_dai *dai,
 	return 0;
 }
 
-static int wm8804_set_bias_level(struct snd_soc_codec *codec,
-				 enum snd_soc_bias_level level)
-{
-	int ret;
-	struct wm8804_priv *wm8804;
-
-	wm8804 = snd_soc_codec_get_drvdata(codec);
-	switch (level) {
-	case SND_SOC_BIAS_ON:
-		break;
-	case SND_SOC_BIAS_PREPARE:
-		/* power up the OSC and the PLL */
-		snd_soc_update_bits(codec, WM8804_PWRDN, 0x9, 0);
-		break;
-	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
-			ret = regulator_bulk_enable(ARRAY_SIZE(wm8804->supplies),
-						    wm8804->supplies);
-			if (ret) {
-				dev_err(codec->dev,
-					"Failed to enable supplies: %d\n",
-					ret);
-				return ret;
-			}
-			regcache_sync(wm8804->regmap);
-		}
-		/* power down the OSC and the PLL */
-		snd_soc_update_bits(codec, WM8804_PWRDN, 0x9, 0x9);
-		break;
-	case SND_SOC_BIAS_OFF:
-		/* power down the OSC and the PLL */
-		snd_soc_update_bits(codec, WM8804_PWRDN, 0x9, 0x9);
-		regulator_bulk_disable(ARRAY_SIZE(wm8804->supplies),
-				       wm8804->supplies);
-		break;
-	}
-
-	codec->dapm.bias_level = level;
-	return 0;
-}
-
 static const struct snd_soc_dai_ops wm8804_dai_ops = {
 	.hw_params = wm8804_hw_params,
 	.set_fmt = wm8804_set_fmt,
@@ -579,7 +543,6 @@ static struct snd_soc_dai_driver wm8804_dai = {
 };
 
 static const struct snd_soc_codec_driver soc_codec_dev_wm8804 = {
-	.set_bias_level = wm8804_set_bias_level,
 	.idle_bias_off = true,
 
 	.dapm_widgets = wm8804_dapm_widgets,
@@ -613,6 +576,7 @@ int wm8804_probe(struct device *dev, struct regmap *regmap)
 
 	dev_set_drvdata(dev, wm8804);
 
+	wm8804->dev = dev;
 	wm8804->regmap = regmap;
 
 	wm8804->reset = devm_gpiod_get_optional(dev, "wlf,reset",
@@ -703,6 +667,10 @@ int wm8804_probe(struct device *dev, struct regmap *regmap)
 		goto err_reg_enable;
 	}
 
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+	pm_runtime_idle(dev);
+
 	return 0;
 
 err_reg_enable:
@@ -713,9 +681,50 @@ EXPORT_SYMBOL_GPL(wm8804_probe);
 
 void wm8804_remove(struct device *dev)
 {
+	pm_runtime_disable(dev);
 	snd_soc_unregister_codec(dev);
 }
 EXPORT_SYMBOL_GPL(wm8804_remove);
+
+#if IS_ENABLED(CONFIG_PM)
+static int wm8804_runtime_resume(struct device *dev)
+{
+	struct wm8804_priv *wm8804 = dev_get_drvdata(dev);
+	int ret;
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(wm8804->supplies),
+				    wm8804->supplies);
+	if (ret) {
+		dev_err(wm8804->dev, "Failed to enable supplies: %d\n", ret);
+		return ret;
+	}
+
+	regcache_sync(wm8804->regmap);
+
+	/* Power up OSCCLK */
+	regmap_update_bits(wm8804->regmap, WM8804_PWRDN, 0x8, 0x0);
+
+	return 0;
+}
+
+static int wm8804_runtime_suspend(struct device *dev)
+{
+	struct wm8804_priv *wm8804 = dev_get_drvdata(dev);
+
+	/* Power down OSCCLK */
+	regmap_update_bits(wm8804->regmap, WM8804_PWRDN, 0x8, 0x8);
+
+	regulator_bulk_disable(ARRAY_SIZE(wm8804->supplies),
+			       wm8804->supplies);
+
+	return 0;
+}
+#endif
+
+const struct dev_pm_ops wm8804_pm = {
+	SET_RUNTIME_PM_OPS(wm8804_runtime_suspend, wm8804_runtime_resume, NULL)
+};
+EXPORT_SYMBOL_GPL(wm8804_pm);
 
 MODULE_DESCRIPTION("ASoC WM8804 driver");
 MODULE_AUTHOR("Dimitris Papastamos <dp@opensource.wolfsonmicro.com>");

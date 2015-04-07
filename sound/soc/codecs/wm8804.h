@@ -65,6 +65,7 @@
 #define WM8804_MCLKDIV_128FS			1
 
 extern const struct regmap_config wm8804_regmap_config;
+extern const struct dev_pm_ops wm8804_pm;
 
 int wm8804_probe(struct device *dev, struct regmap *regmap);
 void wm8804_remove(struct device *dev);
