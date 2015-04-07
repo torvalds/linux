@@ -9,17 +9,17 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __KVM_IODEV_H__
 #define __KVM_IODEV_H__
 
 #include <linux/kvm_types.h>
-#include <asm/errno.h>
+#include <linux/errno.h>
 
 struct kvm_io_device;
+struct kvm_vcpu;
 
 /**
  * kvm_io_device_ops are called under kvm slots_lock.
@@ -27,11 +27,13 @@ struct kvm_io_device;
  * or non-zero to have it passed to the next device.
  **/
 struct kvm_io_device_ops {
-	int (*read)(struct kvm_io_device *this,
+	int (*read)(struct kvm_vcpu *vcpu,
+		    struct kvm_io_device *this,
 		    gpa_t addr,
 		    int len,
 		    void *val);
-	int (*write)(struct kvm_io_device *this,
+	int (*write)(struct kvm_vcpu *vcpu,
+		     struct kvm_io_device *this,
 		     gpa_t addr,
 		     int len,
 		     const void *val);
@@ -49,16 +51,20 @@ static inline void kvm_iodevice_init(struct kvm_io_device *dev,
 	dev->ops = ops;
 }
 
-static inline int kvm_iodevice_read(struct kvm_io_device *dev,
-				    gpa_t addr, int l, void *v)
+static inline int kvm_iodevice_read(struct kvm_vcpu *vcpu,
+				    struct kvm_io_device *dev, gpa_t addr,
+				    int l, void *v)
 {
-	return dev->ops->read ? dev->ops->read(dev, addr, l, v) : -EOPNOTSUPP;
+	return dev->ops->read ? dev->ops->read(vcpu, dev, addr, l, v)
+				: -EOPNOTSUPP;
 }
 
-static inline int kvm_iodevice_write(struct kvm_io_device *dev,
-				     gpa_t addr, int l, const void *v)
+static inline int kvm_iodevice_write(struct kvm_vcpu *vcpu,
+				     struct kvm_io_device *dev, gpa_t addr,
+				     int l, const void *v)
 {
-	return dev->ops->write ? dev->ops->write(dev, addr, l, v) : -EOPNOTSUPP;
+	return dev->ops->write ? dev->ops->write(vcpu, dev, addr, l, v)
+				 : -EOPNOTSUPP;
 }
 
 static inline void kvm_iodevice_destructor(struct kvm_io_device *dev)

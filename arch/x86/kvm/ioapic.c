@@ -493,8 +493,8 @@ static inline int ioapic_in_range(struct kvm_ioapic *ioapic, gpa_t addr)
 		 (addr < ioapic->base_address + IOAPIC_MEM_LENGTH)));
 }
 
-static int ioapic_mmio_read(struct kvm_io_device *this, gpa_t addr, int len,
-			    void *val)
+static int ioapic_mmio_read(struct kvm_vcpu *vcpu, struct kvm_io_device *this,
+				gpa_t addr, int len, void *val)
 {
 	struct kvm_ioapic *ioapic = to_ioapic(this);
 	u32 result;
@@ -536,8 +536,8 @@ static int ioapic_mmio_read(struct kvm_io_device *this, gpa_t addr, int len,
 	return 0;
 }
 
-static int ioapic_mmio_write(struct kvm_io_device *this, gpa_t addr, int len,
-			     const void *val)
+static int ioapic_mmio_write(struct kvm_vcpu *vcpu, struct kvm_io_device *this,
+				 gpa_t addr, int len, const void *val)
 {
 	struct kvm_ioapic *ioapic = to_ioapic(this);
 	u32 data;

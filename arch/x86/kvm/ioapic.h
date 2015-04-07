@@ -3,7 +3,7 @@
 
 #include <linux/kvm_host.h>
 
-#include "iodev.h"
+#include <kvm/iodev.h>
 
 struct kvm;
 struct kvm_vcpu;
