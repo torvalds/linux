@@ -51,6 +51,14 @@ static int greybus_uevent(struct device *dev, struct kobj_uevent_env *env)
 	struct gb_bundle *bundle = NULL;
 	struct gb_connection *connection = NULL;
 
+	if (is_gb_endo(dev)) {
+		/*
+		 * Not much to do for an endo, just fall through, as the
+		 * "default" attributes are good enough for us.
+		 */
+		return 0;
+	}
+
 	if (is_gb_module(dev)) {
 		module = to_gb_module(dev);
 	} else if (is_gb_interface(dev)) {

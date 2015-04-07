@@ -24,6 +24,7 @@
 #include "greybus_id.h"
 #include "greybus_manifest.h"
 #include "manifest.h"
+#include "endo.h"
 #include "module.h"
 #include "interface.h"
 #include "bundle.h"
@@ -158,10 +159,16 @@ void gb_uart_device_exit(struct gb_connection *connection);
 int svc_set_route_send(struct gb_bundle *bundle,
 			       struct greybus_host_device *hd);
 
+extern struct device_type greybus_endo_type;
 extern struct device_type greybus_module_type;
 extern struct device_type greybus_interface_type;
 extern struct device_type greybus_bundle_type;
 extern struct device_type greybus_connection_type;
+
+static inline int is_gb_endo(const struct device *dev)
+{
+	return dev->type == &greybus_endo_type;
+}
 
 static inline int is_gb_module(const struct device *dev)
 {
