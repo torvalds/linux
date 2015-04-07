@@ -33,35 +33,6 @@ static struct workqueue_struct *gb_operation_workqueue;
 static DEFINE_MUTEX(gb_message_mutex);
 
 /*
- * All operation messages (both requests and responses) begin with
- * a header that encodes the size of the message (header included).
- * This header also contains a unique identifier, that associates a
- * response message with its operation.  The header contains an
- * operation type field, whose interpretation is dependent on what
- * type of protocol is used over the connection.  The high bit
- * (0x80) of the operation type field is used to indicate whether
- * the message is a request (clear) or a response (set).
- *
- * Response messages include an additional result byte, which
- * communicates the result of the corresponding request.  A zero
- * result value means the operation completed successfully.  Any
- * other value indicates an error; in this case, the payload of the
- * response message (if any) is ignored.  The result byte must be
- * zero in the header for a request message.
- *
- * The wire format for all numeric fields in the header is little
- * endian.  Any operation-specific data begins immediately after the
- * header, and is 64-bit aligned.
- */
-struct gb_operation_msg_hdr {
-	__le16	size;		/* Size in bytes of header + payload */
-	__le16	operation_id;	/* Operation unique id */
-	__u8	type;		/* E.g GB_I2C_TYPE_* or GB_GPIO_TYPE_* */
-	__u8	result;		/* Result of request (in responses only) */
-	/* 2 bytes pad, must be zero (ignore when read) */
-} __aligned(sizeof(u64));
-
-/*
  * Protects access to connection operations lists, as well as
  * updates to operation->errno.
  */
