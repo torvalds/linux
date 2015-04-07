@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
+#include <linux/gpio/consumer.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/of_device.h>
@@ -61,6 +62,8 @@ struct wm8804_priv {
 	struct regulator_bulk_data supplies[WM8804_NUM_SUPPLIES];
 	struct notifier_block disable_nb[WM8804_NUM_SUPPLIES];
 	int mclk_div;
+
+	struct gpio_desc *reset;
 };
 
 static int txsrc_get(struct snd_kcontrol *kcontrol,
@@ -182,7 +185,7 @@ static bool wm8804_volatile(struct device *dev, unsigned int reg)
 	}
 }
 
-static int wm8804_reset(struct wm8804_priv *wm8804)
+static int wm8804_soft_reset(struct wm8804_priv *wm8804)
 {
 	return regmap_write(wm8804->regmap, WM8804_RST_DEVID1, 0x0);
 }
@@ -586,6 +589,14 @@ int wm8804_probe(struct device *dev, struct regmap *regmap)
 
 	wm8804->regmap = regmap;
 
+	wm8804->reset = devm_gpiod_get_optional(dev, "wlf,reset",
+						GPIOD_OUT_LOW);
+	if (IS_ERR(wm8804->reset)) {
+		ret = PTR_ERR(wm8804->reset);
+		dev_err(dev, "Failed to get reset line: %d\n", ret);
+		return ret;
+	}
+
 	for (i = 0; i < ARRAY_SIZE(wm8804->supplies); i++)
 		wm8804->supplies[i].supply = wm8804_supply_names[i];
 
@@ -620,6 +631,9 @@ int wm8804_probe(struct device *dev, struct regmap *regmap)
 		return ret;
 	}
 
+	if (wm8804->reset)
+		gpiod_set_value_cansleep(wm8804->reset, 1);
+
 	ret = regmap_read(regmap, WM8804_RST_DEVID1, &id1);
 	if (ret < 0) {
 		dev_err(dev, "Failed to read device ID: %d\n", ret);
@@ -648,10 +662,12 @@ int wm8804_probe(struct device *dev, struct regmap *regmap)
 	}
 	dev_info(dev, "revision %c\n", id1 + 'A');
 
-	ret = wm8804_reset(wm8804);
-	if (ret < 0) {
-		dev_err(dev, "Failed to issue reset: %d\n", ret);
-		goto err_reg_enable;
+	if (!wm8804->reset) {
+		ret = wm8804_soft_reset(wm8804);
+		if (ret < 0) {
+			dev_err(dev, "Failed to issue reset: %d\n", ret);
+			goto err_reg_enable;
+		}
 	}
 
 	ret = snd_soc_register_codec(dev, &soc_codec_dev_wm8804,
