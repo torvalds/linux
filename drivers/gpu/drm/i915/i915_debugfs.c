@@ -160,9 +160,9 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 	}
 	if (obj->stolen)
 		seq_printf(m, " (stolen: %08llx)", obj->stolen->start);
-	if (obj->pin_mappable || obj->fault_mappable) {
+	if (obj->pin_display || obj->fault_mappable) {
 		char s[3], *t = s;
-		if (obj->pin_mappable)
+		if (obj->pin_display)
 			*t++ = 'p';
 		if (obj->fault_mappable)
 			*t++ = 'f';
@@ -458,7 +458,7 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 			size += i915_gem_obj_ggtt_size(obj);
 			++count;
 		}
-		if (obj->pin_mappable) {
+		if (obj->pin_display) {
 			mappable_size += i915_gem_obj_ggtt_size(obj);
 			++mappable_count;
 		}

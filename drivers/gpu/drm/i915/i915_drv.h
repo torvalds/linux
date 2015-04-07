@@ -1963,7 +1963,6 @@ struct drm_i915_gem_object {
 	 * accurate mappable working set.
 	 */
 	unsigned int fault_mappable:1;
-	unsigned int pin_mappable:1;
 	unsigned int pin_display:1;
 
 	/*

@@ -4255,9 +4255,6 @@ i915_gem_object_do_pin(struct drm_i915_gem_object *obj,
 	WARN_ON(flags & PIN_MAPPABLE && !obj->map_and_fenceable);
 
 	vma->pin_count++;
-	if (flags & PIN_MAPPABLE)
-		obj->pin_mappable |= true;
-
 	return 0;
 }
 
@@ -4295,8 +4292,7 @@ i915_gem_object_ggtt_unpin_view(struct drm_i915_gem_object *obj,
 	WARN_ON(vma->pin_count == 0);
 	WARN_ON(!i915_gem_obj_ggtt_bound_view(obj, view));
 
-	if (--vma->pin_count == 0 && view->type == I915_GGTT_VIEW_NORMAL)
-		obj->pin_mappable = false;
+	--vma->pin_count;
 }
 
 bool
