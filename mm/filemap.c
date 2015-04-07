@@ -2557,7 +2557,6 @@ ssize_t __generic_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	struct file *file = iocb->ki_filp;
 	struct address_space * mapping = file->f_mapping;
 	struct inode 	*inode = mapping->host;
-	loff_t		pos = iocb->ki_pos;
 	ssize_t		written = 0;
 	ssize_t		err;
 	ssize_t		status;
@@ -2565,7 +2564,7 @@ ssize_t __generic_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 
 	/* We can write back this queue in page reclaim */
 	current->backing_dev_info = inode_to_bdi(inode);
-	err = generic_write_checks(file, &pos, &count, S_ISBLK(inode->i_mode));
+	err = generic_write_checks(file, &iocb->ki_pos, &count, S_ISBLK(inode->i_mode));
 	if (err)
 		goto out;
 
@@ -2583,9 +2582,9 @@ ssize_t __generic_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		goto out;
 
 	if (io_is_direct(file)) {
-		loff_t endbyte;
+		loff_t pos, endbyte;
 
-		written = generic_file_direct_write(iocb, from, pos);
+		written = generic_file_direct_write(iocb, from, iocb->ki_pos);
 		/*
 		 * If the write stopped short of completing, fall back to
 		 * buffered writes.  Some filesystems do this for writes to
@@ -2593,13 +2592,10 @@ ssize_t __generic_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		 * not succeed (even if it did, DAX does not handle dirty
 		 * page-cache pages correctly).
 		 */
-		if (written < 0 || written == count || IS_DAX(inode))
+		if (written < 0 || !iov_iter_count(from) || IS_DAX(inode))
 			goto out;
 
-		pos += written;
-		count -= written;
-
-		status = generic_perform_write(file, from, pos);
+		status = generic_perform_write(file, from, pos = iocb->ki_pos);
 		/*
 		 * If generic_perform_write() returned a synchronous error
 		 * then we want to return the number of bytes which were
@@ -2611,15 +2607,15 @@ ssize_t __generic_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 			err = status;
 			goto out;
 		}
-		iocb->ki_pos = pos + status;
 		/*
 		 * We need to ensure that the page cache pages are written to
 		 * disk and invalidated to preserve the expected O_DIRECT
 		 * semantics.
 		 */
 		endbyte = pos + status - 1;
-		err = filemap_write_and_wait_range(file->f_mapping, pos, endbyte);
+		err = filemap_write_and_wait_range(mapping, pos, endbyte);
 		if (err == 0) {
+			iocb->ki_pos = endbyte + 1;
 			written += status;
 			invalidate_mapping_pages(mapping,
 						 pos >> PAGE_CACHE_SHIFT,
@@ -2631,9 +2627,9 @@ ssize_t __generic_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 			 */
 		}
 	} else {
-		written = generic_perform_write(file, from, pos);
-		if (likely(written >= 0))
-			iocb->ki_pos = pos + written;
+		written = generic_perform_write(file, from, iocb->ki_pos);
+		if (likely(written > 0))
+			iocb->ki_pos += written;
 	}
 out:
 	current->backing_dev_info = NULL;
