@@ -2397,6 +2397,7 @@ i40e_aq_erase_nvm_exit:
 #define I40E_DEV_FUNC_CAP_LED		0x61
 #define I40E_DEV_FUNC_CAP_SDP		0x62
 #define I40E_DEV_FUNC_CAP_MDIO		0x63
+#define I40E_DEV_FUNC_CAP_WR_CSR_PROT	0x64
 
 /**
  * i40e_parse_discover_capabilities
@@ -2540,6 +2541,10 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 			p->fd = true;
 			p->fd_filters_guaranteed = number;
 			p->fd_filters_best_effort = logical_id;
+			break;
+		case I40E_DEV_FUNC_CAP_WR_CSR_PROT:
+			p->wr_csr_prot = (u64)number;
+			p->wr_csr_prot |= (u64)logical_id << 32;
 			break;
 		default:
 			break;
