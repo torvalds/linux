@@ -1011,68 +1011,124 @@ static int get_group_fd(struct perf_evsel *evsel, int cpu, int thread)
 	return fd;
 }
 
-#define __PRINT_ATTR(fmt, cast, field)  \
-	fprintf(fp, "  %-19s "fmt"\n", #field, cast attr->field)
+struct bit_names {
+	int bit;
+	const char *name;
+};
 
-#define PRINT_ATTR_U32(field)  __PRINT_ATTR("%u" , , field)
-#define PRINT_ATTR_X32(field)  __PRINT_ATTR("%#x", , field)
-#define PRINT_ATTR_U64(field)  __PRINT_ATTR("%" PRIu64, (uint64_t), field)
-#define PRINT_ATTR_X64(field)  __PRINT_ATTR("%#"PRIx64, (uint64_t), field)
-
-#define PRINT_ATTR2N(name1, field1, name2, field2)	\
-	fprintf(fp, "  %-19s %u    %-19s %u\n",		\
-	name1, attr->field1, name2, attr->field2)
-
-#define PRINT_ATTR2(field1, field2) \
-	PRINT_ATTR2N(#field1, field1, #field2, field2)
-
-static size_t perf_event_attr__fprintf(struct perf_event_attr *attr, FILE *fp)
+static void __p_bits(char *buf, size_t size, u64 value, struct bit_names *bits)
 {
-	size_t ret = 0;
+	bool first_bit = true;
+	int i = 0;
 
-	ret += fprintf(fp, "%.60s\n", graph_dotted_line);
-	ret += fprintf(fp, "perf_event_attr:\n");
+	do {
+		if (value & bits[i].bit) {
+			buf += scnprintf(buf, size, "%s%s", first_bit ? "" : "|", bits[i].name);
+			first_bit = false;
+		}
+	} while (bits[++i].name != NULL);
+}
 
-	ret += PRINT_ATTR_U32(type);
-	ret += PRINT_ATTR_U32(size);
-	ret += PRINT_ATTR_X64(config);
-	ret += PRINT_ATTR_U64(sample_period);
-	ret += PRINT_ATTR_U64(sample_freq);
-	ret += PRINT_ATTR_X64(sample_type);
-	ret += PRINT_ATTR_X64(read_format);
+static void __p_sample_type(char *buf, size_t size, u64 value)
+{
+#define bit_name(n) { PERF_SAMPLE_##n, #n }
+	struct bit_names bits[] = {
+		bit_name(IP), bit_name(TID), bit_name(TIME), bit_name(ADDR),
+		bit_name(READ), bit_name(CALLCHAIN), bit_name(ID), bit_name(CPU),
+		bit_name(PERIOD), bit_name(STREAM_ID), bit_name(RAW),
+		bit_name(BRANCH_STACK), bit_name(REGS_USER), bit_name(STACK_USER),
+		bit_name(IDENTIFIER), bit_name(REGS_INTR),
+		{ .name = NULL, }
+	};
+#undef bit_name
+	__p_bits(buf, size, value, bits);
+}
 
-	ret += PRINT_ATTR2(disabled, inherit);
-	ret += PRINT_ATTR2(pinned, exclusive);
-	ret += PRINT_ATTR2(exclude_user, exclude_kernel);
-	ret += PRINT_ATTR2(exclude_hv, exclude_idle);
-	ret += PRINT_ATTR2(mmap, comm);
-	ret += PRINT_ATTR2(freq, inherit_stat);
-	ret += PRINT_ATTR2(enable_on_exec, task);
-	ret += PRINT_ATTR2(watermark, precise_ip);
-	ret += PRINT_ATTR2(mmap_data, sample_id_all);
-	ret += PRINT_ATTR2(exclude_host, exclude_guest);
-	ret += PRINT_ATTR2N("excl.callchain_kern", exclude_callchain_kernel,
-			    "excl.callchain_user", exclude_callchain_user);
-	ret += PRINT_ATTR2(mmap2, comm_exec);
-	ret += __PRINT_ATTR("%u",,use_clockid);
+static void __p_read_format(char *buf, size_t size, u64 value)
+{
+#define bit_name(n) { PERF_FORMAT_##n, #n }
+	struct bit_names bits[] = {
+		bit_name(TOTAL_TIME_ENABLED), bit_name(TOTAL_TIME_RUNNING),
+		bit_name(ID), bit_name(GROUP),
+		{ .name = NULL, }
+	};
+#undef bit_name
+	__p_bits(buf, size, value, bits);
+}
 
+#define BUF_SIZE		1024
 
-	ret += PRINT_ATTR_U32(wakeup_events);
-	ret += PRINT_ATTR_U32(wakeup_watermark);
-	ret += PRINT_ATTR_X32(bp_type);
-	ret += PRINT_ATTR_X64(bp_addr);
-	ret += PRINT_ATTR_X64(config1);
-	ret += PRINT_ATTR_U64(bp_len);
-	ret += PRINT_ATTR_X64(config2);
-	ret += PRINT_ATTR_X64(branch_sample_type);
-	ret += PRINT_ATTR_X64(sample_regs_user);
-	ret += PRINT_ATTR_U32(sample_stack_user);
-	ret += PRINT_ATTR_U32(clockid);
-	ret += PRINT_ATTR_X64(sample_regs_intr);
+#define p_hex(val)		snprintf(buf, BUF_SIZE, "%"PRIx64, (uint64_t)(val))
+#define p_unsigned(val)		snprintf(buf, BUF_SIZE, "%"PRIu64, (uint64_t)(val))
+#define p_signed(val)		snprintf(buf, BUF_SIZE, "%"PRId64, (int64_t)(val))
+#define p_sample_type(val)	__p_sample_type(buf, BUF_SIZE, val)
+#define p_read_format(val)	__p_read_format(buf, BUF_SIZE, val)
 
-	ret += fprintf(fp, "%.60s\n", graph_dotted_line);
+#define PRINT_ATTRn(_n, _f, _p)				\
+do {							\
+	if (attr->_f) {					\
+		_p(attr->_f);				\
+		ret += attr__fprintf(fp, _n, buf, priv);\
+	}						\
+} while (0)
+
+#define PRINT_ATTRf(_f, _p)	PRINT_ATTRn(#_f, _f, _p)
+
+int perf_event_attr__fprintf(FILE *fp, struct perf_event_attr *attr,
+			     attr__fprintf_f attr__fprintf, void *priv)
+{
+	char buf[BUF_SIZE];
+	int ret = 0;
+
+	PRINT_ATTRf(type, p_unsigned);
+	PRINT_ATTRf(size, p_unsigned);
+	PRINT_ATTRf(config, p_hex);
+	PRINT_ATTRn("{ sample_period, sample_freq }", sample_period, p_unsigned);
+	PRINT_ATTRf(sample_type, p_sample_type);
+	PRINT_ATTRf(read_format, p_read_format);
+
+	PRINT_ATTRf(disabled, p_unsigned);
+	PRINT_ATTRf(inherit, p_unsigned);
+	PRINT_ATTRf(pinned, p_unsigned);
+	PRINT_ATTRf(exclusive, p_unsigned);
+	PRINT_ATTRf(exclude_user, p_unsigned);
+	PRINT_ATTRf(exclude_kernel, p_unsigned);
+	PRINT_ATTRf(exclude_hv, p_unsigned);
+	PRINT_ATTRf(exclude_idle, p_unsigned);
+	PRINT_ATTRf(mmap, p_unsigned);
+	PRINT_ATTRf(comm, p_unsigned);
+	PRINT_ATTRf(freq, p_unsigned);
+	PRINT_ATTRf(inherit_stat, p_unsigned);
+	PRINT_ATTRf(enable_on_exec, p_unsigned);
+	PRINT_ATTRf(task, p_unsigned);
+	PRINT_ATTRf(watermark, p_unsigned);
+	PRINT_ATTRf(precise_ip, p_unsigned);
+	PRINT_ATTRf(mmap_data, p_unsigned);
+	PRINT_ATTRf(sample_id_all, p_unsigned);
+	PRINT_ATTRf(exclude_host, p_unsigned);
+	PRINT_ATTRf(exclude_guest, p_unsigned);
+	PRINT_ATTRf(exclude_callchain_kernel, p_unsigned);
+	PRINT_ATTRf(exclude_callchain_user, p_unsigned);
+	PRINT_ATTRf(mmap2, p_unsigned);
+	PRINT_ATTRf(comm_exec, p_unsigned);
+	PRINT_ATTRf(use_clockid, p_unsigned);
+
+	PRINT_ATTRn("{ wakeup_events, wakeup_watermark }", wakeup_events, p_unsigned);
+	PRINT_ATTRf(bp_type, p_unsigned);
+	PRINT_ATTRn("{ bp_addr, config1 }", bp_addr, p_hex);
+	PRINT_ATTRn("{ bp_len, config2 }", bp_len, p_hex);
+	PRINT_ATTRf(sample_regs_user, p_hex);
+	PRINT_ATTRf(sample_stack_user, p_unsigned);
+	PRINT_ATTRf(clockid, p_signed);
+	PRINT_ATTRf(sample_regs_intr, p_hex);
 
 	return ret;
+}
+
+static int __open_attr__fprintf(FILE *fp, const char *name, const char *val,
+				void *priv __attribute__((unused)))
+{
+	return fprintf(fp, "  %-32s %s\n", name, val);
 }
 
 static int __perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
@@ -1114,8 +1170,12 @@ retry_sample_id:
 	if (perf_missing_features.sample_id_all)
 		evsel->attr.sample_id_all = 0;
 
-	if (verbose >= 2)
-		perf_event_attr__fprintf(&evsel->attr, stderr);
+	if (verbose >= 2) {
+		fprintf(stderr, "%.60s\n", graph_dotted_line);
+		fprintf(stderr, "perf_event_attr:\n");
+		perf_event_attr__fprintf(stderr, &evsel->attr, __open_attr__fprintf, NULL);
+		fprintf(stderr, "%.60s\n", graph_dotted_line);
+	}
 
 	for (cpu = 0; cpu < cpus->nr; cpu++) {
 
@@ -1996,62 +2056,9 @@ static int comma_fprintf(FILE *fp, bool *first, const char *fmt, ...)
 	return ret;
 }
 
-static int __if_fprintf(FILE *fp, bool *first, const char *field, u64 value)
+static int __print_attr__fprintf(FILE *fp, const char *name, const char *val, void *priv)
 {
-	if (value == 0)
-		return 0;
-
-	return comma_fprintf(fp, first, " %s: %" PRIu64, field, value);
-}
-
-#define if_print(field) printed += __if_fprintf(fp, &first, #field, evsel->attr.field)
-
-struct bit_names {
-	int bit;
-	const char *name;
-};
-
-static int bits__fprintf(FILE *fp, const char *field, u64 value,
-			 struct bit_names *bits, bool *first)
-{
-	int i = 0, printed = comma_fprintf(fp, first, " %s: ", field);
-	bool first_bit = true;
-
-	do {
-		if (value & bits[i].bit) {
-			printed += fprintf(fp, "%s%s", first_bit ? "" : "|", bits[i].name);
-			first_bit = false;
-		}
-	} while (bits[++i].name != NULL);
-
-	return printed;
-}
-
-static int sample_type__fprintf(FILE *fp, bool *first, u64 value)
-{
-#define bit_name(n) { PERF_SAMPLE_##n, #n }
-	struct bit_names bits[] = {
-		bit_name(IP), bit_name(TID), bit_name(TIME), bit_name(ADDR),
-		bit_name(READ), bit_name(CALLCHAIN), bit_name(ID), bit_name(CPU),
-		bit_name(PERIOD), bit_name(STREAM_ID), bit_name(RAW),
-		bit_name(BRANCH_STACK), bit_name(REGS_USER), bit_name(STACK_USER),
-		bit_name(IDENTIFIER), bit_name(REGS_INTR),
-		{ .name = NULL, }
-	};
-#undef bit_name
-	return bits__fprintf(fp, "sample_type", value, bits, first);
-}
-
-static int read_format__fprintf(FILE *fp, bool *first, u64 value)
-{
-#define bit_name(n) { PERF_FORMAT_##n, #n }
-	struct bit_names bits[] = {
-		bit_name(TOTAL_TIME_ENABLED), bit_name(TOTAL_TIME_RUNNING),
-		bit_name(ID), bit_name(GROUP),
-		{ .name = NULL, }
-	};
-#undef bit_name
-	return bits__fprintf(fp, "read_format", value, bits, first);
+	return comma_fprintf(fp, (bool *)priv, " %s: %s", name, val);
 }
 
 int perf_evsel__fprintf(struct perf_evsel *evsel,
@@ -2080,51 +2087,12 @@ int perf_evsel__fprintf(struct perf_evsel *evsel,
 
 	printed += fprintf(fp, "%s", perf_evsel__name(evsel));
 
-	if (details->verbose || details->freq) {
+	if (details->verbose) {
+		printed += perf_event_attr__fprintf(fp, &evsel->attr,
+						    __print_attr__fprintf, &first);
+	} else if (details->freq) {
 		printed += comma_fprintf(fp, &first, " sample_freq=%" PRIu64,
 					 (u64)evsel->attr.sample_freq);
-	}
-
-	if (details->verbose) {
-		if_print(type);
-		if_print(config);
-		if_print(config1);
-		if_print(config2);
-		if_print(size);
-		printed += sample_type__fprintf(fp, &first, evsel->attr.sample_type);
-		if (evsel->attr.read_format)
-			printed += read_format__fprintf(fp, &first, evsel->attr.read_format);
-		if_print(disabled);
-		if_print(inherit);
-		if_print(pinned);
-		if_print(exclusive);
-		if_print(exclude_user);
-		if_print(exclude_kernel);
-		if_print(exclude_hv);
-		if_print(exclude_idle);
-		if_print(mmap);
-		if_print(comm);
-		if_print(freq);
-		if_print(inherit_stat);
-		if_print(enable_on_exec);
-		if_print(task);
-		if_print(watermark);
-		if_print(precise_ip);
-		if_print(mmap_data);
-		if_print(sample_id_all);
-		if_print(exclude_host);
-		if_print(exclude_guest);
-		if_print(mmap2);
-		if_print(comm_exec);
-		if_print(use_clockid);
-		if_print(__reserved_1);
-		if_print(wakeup_events);
-		if_print(bp_type);
-		if_print(branch_sample_type);
-		if_print(sample_regs_user);
-		if_print(sample_stack_user);
-		if_print(clockid);
-		if_print(sample_regs_intr);
 	}
 out:
 	fputc('\n', fp);

@@ -1055,6 +1055,12 @@ error:
 	goto out;
 }
 
+static int __desc_attr__fprintf(FILE *fp, const char *name, const char *val,
+				void *priv __attribute__((unused)))
+{
+	return fprintf(fp, ", %s = %s", name, val);
+}
+
 static void print_event_desc(struct perf_header *ph, int fd, FILE *fp)
 {
 	struct perf_evsel *evsel, *events = read_event_desc(ph, fd);
@@ -1069,26 +1075,6 @@ static void print_event_desc(struct perf_header *ph, int fd, FILE *fp)
 	for (evsel = events; evsel->attr.size; evsel++) {
 		fprintf(fp, "# event : name = %s, ", evsel->name);
 
-		fprintf(fp, "type = %d, config = 0x%"PRIx64
-			    ", config1 = 0x%"PRIx64", config2 = 0x%"PRIx64,
-				evsel->attr.type,
-				(u64)evsel->attr.config,
-				(u64)evsel->attr.config1,
-				(u64)evsel->attr.config2);
-
-		fprintf(fp, ", excl_usr = %d, excl_kern = %d",
-				evsel->attr.exclude_user,
-				evsel->attr.exclude_kernel);
-
-		fprintf(fp, ", excl_host = %d, excl_guest = %d",
-				evsel->attr.exclude_host,
-				evsel->attr.exclude_guest);
-
-		fprintf(fp, ", precise_ip = %d", evsel->attr.precise_ip);
-
-		fprintf(fp, ", attr_mmap2 = %d", evsel->attr.mmap2);
-		fprintf(fp, ", attr_mmap  = %d", evsel->attr.mmap);
-		fprintf(fp, ", attr_mmap_data = %d", evsel->attr.mmap_data);
 		if (evsel->ids) {
 			fprintf(fp, ", id = {");
 			for (j = 0, id = evsel->id; j < evsel->ids; j++, id++) {
@@ -1098,9 +1084,8 @@ static void print_event_desc(struct perf_header *ph, int fd, FILE *fp)
 			}
 			fprintf(fp, " }");
 		}
-		if (evsel->attr.use_clockid)
-			fprintf(fp, ", clockid = %d", evsel->attr.clockid);
 
+		perf_event_attr__fprintf(fp, &evsel->attr, __desc_attr__fprintf, NULL);
 
 		fputc('\n', fp);
 	}
