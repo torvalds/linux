@@ -155,6 +155,8 @@ static void hz_to_spi_baud(char *pbr, char *br, int speed_hz,
 	int i, j;
 
 	scale_needed = clkrate / speed_hz;
+	if (clkrate % speed_hz)
+		scale_needed++;
 
 	for (i = 0; i < ARRAY_SIZE(brs); i++)
 		for (j = 0; j < ARRAY_SIZE(pbr_tbl); j++) {
