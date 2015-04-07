@@ -1,41 +1,41 @@
 What:		/sys/bus/greybus/device/.../product
-Date:		December 2014
-KernelVersion:	3.XX
+Date:		October 2015
+KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		Product ID of a Greybus interface block.
 
 What:		/sys/bus/greybus/device/.../product_string
-Date:		December 2014
-KernelVersion:	3.XX
+Date:		October 2015
+KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		Product ID string of a Greybus interface block.
 
 What:		/sys/bus/greybus/device/.../unique_id
-Date:		December 2014
-KernelVersion:	3.XX
+Date:		October 2015
+KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		Unique ID of a Greybus interface block.
 
 What:		/sys/bus/greybus/device/.../vendor
-Date:		December 2014
-KernelVersion:	3.XX
+Date:		October 2015
+KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		Vendor ID of a Greybus interface block.
 
 What:		/sys/bus/greybus/device/.../vendor_string
-Date:		December 2014
-KernelVersion:	3.XX
+Date:		October 2015
+KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		Vendor ID string of a Greybus interface block.
 
 What:		/sys/bus/greybus/device/.../state
-Date:		December 2014
-KernelVersion:	3.XX
+Date:		October 2015
+KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		The current state of a Greybus connection.
@@ -48,15 +48,15 @@ Description:
 		4 - destroying
 
 What:		/sys/bus/greybus/device/.../protocol_id
-Date:		December 2014
-KernelVersion:	3.XX
+Date:		October 2015
+KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		The protocol id of a Greybus connection.
 
 What:		/sys/bus/greybus/device/.../device_id
-Date:		December 2014
-KernelVersion:	3.XX
+Date:		October 2015
+KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		The device id of a Greybus bundle.
