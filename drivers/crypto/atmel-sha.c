@@ -1367,6 +1367,7 @@ static int atmel_sha_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, sha_dd);
 
 	INIT_LIST_HEAD(&sha_dd->list);
+	spin_lock_init(&sha_dd->lock);
 
 	tasklet_init(&sha_dd->done_task, atmel_sha_done_task,
 					(unsigned long)sha_dd);
