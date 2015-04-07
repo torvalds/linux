@@ -754,6 +754,34 @@ static int rockchip_iommu_enable(struct iommu_drvdata *data, unsigned int pgtabl
 	return 0;
 }
 
+int rockchip_iommu_tlb_invalidate_global(struct device *dev)
+{
+	unsigned long flags;
+	struct iommu_drvdata *data = dev_get_drvdata(dev->archdata.iommu);
+	int ret;
+
+	spin_lock_irqsave(&data->data_lock, flags);
+
+	if (rockchip_is_iommu_active(data)) {
+		int i;
+
+		for (i = 0; i < data->num_res_mem; i++) {
+			ret = rockchip_iommu_zap_tlb(data->res_bases[i]);
+			if (ret)
+				dev_err(dev->archdata.iommu, "(%s) %s failed\n",
+					data->dbgname, __func__);
+		}
+	} else {
+		dev_dbg(dev->archdata.iommu, "(%s) Disabled. Skipping invalidating TLB.\n",
+			data->dbgname);
+		ret = -1;
+	}
+
+	spin_unlock_irqrestore(&data->data_lock, flags);
+
+	return ret;
+}
+
 int rockchip_iommu_tlb_invalidate(struct device *dev)
 {
 	unsigned long flags;

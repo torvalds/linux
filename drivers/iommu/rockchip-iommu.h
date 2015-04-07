@@ -79,9 +79,14 @@ static inline int rockchip_init_iovmm(struct device *iommu,
  * This function flush all TLB entry in iommu
  */
 int rockchip_iommu_tlb_invalidate(struct device *owner);
+int rockchip_iommu_tlb_invalidate_global(struct device *owner);
 
 #else /* CONFIG_ROCKCHIP_IOMMU */
 static inline int rockchip_iommu_tlb_invalidate(struct device *owner)
+{
+	return -1;
+}
+static int rockchip_iommu_tlb_invalidate_global(struct device *owner)
 {
 	return -1;
 }

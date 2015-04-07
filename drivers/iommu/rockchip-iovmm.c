@@ -30,6 +30,13 @@ static struct rk_vm_region *find_region(struct rk_iovmm *vmm, dma_addr_t iova)
 	return NULL;
 }
 
+int rockchip_iovmm_invalidate_tlb(struct device *dev)
+{
+	int ret = rockchip_iommu_tlb_invalidate_global(dev);
+
+	return ret;
+}
+
 void rockchip_iovmm_set_fault_handler(struct device *dev,
 				       rockchip_iommu_fault_handler_t handler)
 {
