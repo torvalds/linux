@@ -521,6 +521,23 @@ ENTRY(stub_execveat)
 	CFI_ENDPROC
 END(stub_execveat)
 
+#ifdef CONFIG_X86_X32_ABI
+ENTRY(stub_x32_execve)
+	CFI_STARTPROC
+	DEFAULT_FRAME 0, 8
+	call	compat_sys_execve
+	jmp	return_from_execve
+	CFI_ENDPROC
+END(stub_x32_execve)
+ENTRY(stub_x32_execveat)
+	CFI_STARTPROC
+	DEFAULT_FRAME 0, 8
+	call	compat_sys_execveat
+	jmp	return_from_execve
+	CFI_ENDPROC
+END(stub_x32_execveat)
+#endif
+
 /*
  * sigreturn is special because it needs to restore all registers on return.
  * This cannot be done with SYSRET, so use the IRET return path instead.
@@ -555,23 +572,6 @@ ENTRY(stub_x32_rt_sigreturn)
 	jmp  return_from_stub
 	CFI_ENDPROC
 END(stub_x32_rt_sigreturn)
-
-ENTRY(stub_x32_execve)
-	CFI_STARTPROC
-	DEFAULT_FRAME 0, 8
-	call	compat_sys_execve
-	jmp	return_from_execve
-	CFI_ENDPROC
-END(stub_x32_execve)
-
-ENTRY(stub_x32_execveat)
-	CFI_STARTPROC
-	DEFAULT_FRAME 0, 8
-	call	compat_sys_execveat
-	jmp	return_from_execve
-	CFI_ENDPROC
-END(stub_x32_execveat)
-
 #endif
 
 /*
