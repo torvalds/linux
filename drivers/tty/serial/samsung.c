@@ -963,6 +963,7 @@ static void s3c24xx_serial_shutdown(struct uart_port *port)
 			free_irq(ourport->tx_irq, ourport);
 		tx_enabled(port) = 0;
 		ourport->tx_claimed = 0;
+		ourport->tx_mode = 0;
 	}
 
 	if (ourport->rx_claimed) {
