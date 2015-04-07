@@ -182,31 +182,31 @@ static void rackmeter_setup_dbdma(struct rackmeter *rm)
 
 	/* Prepare 4 dbdma commands for the 2 buffers */
 	memset(cmd, 0, 4 * sizeof(struct dbdma_cmd));
-	st_le16(&cmd->req_count, 4);
-	st_le16(&cmd->command, STORE_WORD | INTR_ALWAYS | KEY_SYSTEM);
-	st_le32(&cmd->phy_addr, rm->dma_buf_p +
+	cmd->req_count = cpu_to_le16(4);
+	cmd->command = cpu_to_le16(STORE_WORD | INTR_ALWAYS | KEY_SYSTEM);
+	cmd->phy_addr = cpu_to_le32(rm->dma_buf_p +
 		offsetof(struct rackmeter_dma, mark));
-	st_le32(&cmd->cmd_dep, 0x02000000);
+	cmd->cmd_dep = cpu_to_le32(0x02000000);
 	cmd++;
 
-	st_le16(&cmd->req_count, SAMPLE_COUNT * 4);
-	st_le16(&cmd->command, OUTPUT_MORE);
-	st_le32(&cmd->phy_addr, rm->dma_buf_p +
+	cmd->req_count = cpu_to_le16(SAMPLE_COUNT * 4);
+	cmd->command = cpu_to_le16(OUTPUT_MORE);
+	cmd->phy_addr = cpu_to_le32(rm->dma_buf_p +
 		offsetof(struct rackmeter_dma, buf1));
 	cmd++;
 
-	st_le16(&cmd->req_count, 4);
-	st_le16(&cmd->command, STORE_WORD | INTR_ALWAYS | KEY_SYSTEM);
-	st_le32(&cmd->phy_addr, rm->dma_buf_p +
+	cmd->req_count = cpu_to_le16(4);
+	cmd->command = cpu_to_le16(STORE_WORD | INTR_ALWAYS | KEY_SYSTEM);
+	cmd->phy_addr = cpu_to_le32(rm->dma_buf_p +
 		offsetof(struct rackmeter_dma, mark));
-	st_le32(&cmd->cmd_dep, 0x01000000);
+	cmd->cmd_dep = cpu_to_le32(0x01000000);
 	cmd++;
 
-	st_le16(&cmd->req_count, SAMPLE_COUNT * 4);
-	st_le16(&cmd->command, OUTPUT_MORE | BR_ALWAYS);
-	st_le32(&cmd->phy_addr, rm->dma_buf_p +
+	cmd->req_count = cpu_to_le16(SAMPLE_COUNT * 4);
+	cmd->command = cpu_to_le16(OUTPUT_MORE | BR_ALWAYS);
+	cmd->phy_addr = cpu_to_le32(rm->dma_buf_p +
 		offsetof(struct rackmeter_dma, buf2));
-	st_le32(&cmd->cmd_dep, rm->dma_buf_p);
+	cmd->cmd_dep = cpu_to_le32(rm->dma_buf_p);
 
 	rackmeter_do_pause(rm, 0);
 }
