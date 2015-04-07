@@ -87,37 +87,18 @@ Required properties:
 		"simple-mfd", "syscon"
 - reg: address and length of the system control register set
 
-* Clock provider binding
-
-As clock related registers are spread among the chip control registers, the
-chip control node also provides the clocks. Marvell Berlin2 (BG2, BG2CD, BG2Q)
-SoCs share the same IP for PLLs and clocks, with some minor differences in
-features and register layout.
-
-Required properties:
-- #clock-cells: shall be set to 1
-- clocks: clock specifiers referencing the core clock input clocks
-- clock-names: array of strings describing the input clock specifiers above.
-    Allowed clock-names for the reference clocks are
-      "refclk" for the SoCs osciallator input on all SoCs,
-    and SoC-specific input clocks for
-      BG2/BG2CD: "video_ext0" for the external video clock input
-
-Clocks provided by core clocks shall be referenced by a clock specifier
-indexing one of the provided clocks. Refer to dt-bindings/clock/berlin<soc>.h
-for the corresponding index mapping.
-
 Example:
 
 chip: chip-control@ea0000 {
 	compatible = "marvell,berlin2-chip-ctrl", "simple-mfd", "syscon";
-	#clock-cells = <1>;
 	reg = <0xea0000 0x400>;
-	clocks = <&refclk>, <&externaldev 0>;
-	clock-names = "refclk", "video_ext0";
+
+	/* sub-device nodes */
 };
 
 sysctrl: system-controller@d000 {
 	compatible = "marvell,berlin2-system-ctrl", "simple-mfd", "syscon";
 	reg = <0xd000 0x100>;
+
+	/* sub-device nodes */
 };
