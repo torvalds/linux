@@ -176,7 +176,8 @@ static int tipc_udp_send_msg(struct net *net, struct sk_buff *skb,
 			goto tx_error;
 		}
 		ttl = ip4_dst_hoplimit(&rt->dst);
-		err = udp_tunnel_xmit_skb(rt, clone, src->ipv4.s_addr,
+		err = udp_tunnel_xmit_skb(rt, ub->ubsock->sk, clone,
+					  src->ipv4.s_addr,
 					  dst->ipv4.s_addr, 0, ttl, 0,
 					  src->udp_port, dst->udp_port,
 					  false, true);
@@ -197,7 +198,8 @@ static int tipc_udp_send_msg(struct net *net, struct sk_buff *skb,
 		if (err)
 			goto tx_error;
 		ttl = ip6_dst_hoplimit(ndst);
-		err = udp_tunnel6_xmit_skb(ndst, clone, ndst->dev, &src->ipv6,
+		err = udp_tunnel6_xmit_skb(ndst, ub->ubsock->sk, clone,
+					   ndst->dev, &src->ipv6,
 					   &dst->ipv6, 0, ttl, src->udp_port,
 					   dst->udp_port, false);
 #endif

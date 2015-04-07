@@ -75,7 +75,7 @@ void setup_udp_tunnel_sock(struct net *net, struct socket *sock,
 }
 EXPORT_SYMBOL_GPL(setup_udp_tunnel_sock);
 
-int udp_tunnel_xmit_skb(struct rtable *rt, struct sk_buff *skb,
+int udp_tunnel_xmit_skb(struct rtable *rt, struct sock *sk, struct sk_buff *skb,
 			__be32 src, __be32 dst, __u8 tos, __u8 ttl,
 			__be16 df, __be16 src_port, __be16 dst_port,
 			bool xnet, bool nocheck)
@@ -92,7 +92,7 @@ int udp_tunnel_xmit_skb(struct rtable *rt, struct sk_buff *skb,
 
 	udp_set_csum(nocheck, skb, src, dst, skb->len);
 
-	return iptunnel_xmit(skb->sk, rt, skb, src, dst, IPPROTO_UDP,
+	return iptunnel_xmit(sk, rt, skb, src, dst, IPPROTO_UDP,
 			     tos, ttl, df, xnet);
 }
 EXPORT_SYMBOL_GPL(udp_tunnel_xmit_skb);

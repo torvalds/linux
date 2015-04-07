@@ -1100,7 +1100,7 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 	ipv6h->nexthdr = proto;
 	ipv6h->saddr = fl6->saddr;
 	ipv6h->daddr = fl6->daddr;
-	ip6tunnel_xmit(skb, dev);
+	ip6tunnel_xmit(NULL, skb, dev);
 	if (ndst)
 		ip6_tnl_dst_store(t, ndst);
 	return 0;

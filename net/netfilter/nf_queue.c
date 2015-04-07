@@ -54,6 +54,8 @@ void nf_queue_entry_release_refs(struct nf_queue_entry *entry)
 		dev_put(state->in);
 	if (state->out)
 		dev_put(state->out);
+	if (state->sk)
+		sock_put(state->sk);
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	if (entry->skb->nf_bridge) {
 		struct nf_bridge_info *nf_bridge = entry->skb->nf_bridge;
@@ -81,6 +83,8 @@ bool nf_queue_entry_get_refs(struct nf_queue_entry *entry)
 		dev_hold(state->in);
 	if (state->out)
 		dev_hold(state->out);
+	if (state->sk)
+		sock_hold(state->sk);
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	if (entry->skb->nf_bridge) {
 		struct nf_bridge_info *nf_bridge = entry->skb->nf_bridge;
@@ -198,7 +202,7 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 	case NF_ACCEPT:
 	case NF_STOP:
 		local_bh_disable();
-		entry->state.okfn(skb);
+		entry->state.okfn(entry->state.sk, skb);
 		local_bh_enable();
 		break;
 	case NF_QUEUE:
