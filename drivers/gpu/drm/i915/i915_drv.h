@@ -37,6 +37,7 @@
 #include "intel_bios.h"
 #include "intel_ringbuffer.h"
 #include "intel_lrc.h"
+#include "i915_gem_batch_pool.h"
 #include "i915_gem_gtt.h"
 #include "i915_gem_render_state.h"
 #include <linux/io-mapping.h>
@@ -1140,11 +1141,6 @@ struct intel_l3_parity {
 	u32 *remap_info[MAX_L3_SLICES];
 	struct work_struct error_work;
 	int which_slice;
-};
-
-struct i915_gem_batch_pool {
-	struct drm_device *dev;
-	struct list_head cache_list;
 };
 
 struct i915_gem_mm {
@@ -3063,13 +3059,6 @@ void i915_destroy_error_state(struct drm_device *dev);
 
 void i915_get_extra_instdone(struct drm_device *dev, uint32_t *instdone);
 const char *i915_cache_level_str(struct drm_i915_private *i915, int type);
-
-/* i915_gem_batch_pool.c */
-void i915_gem_batch_pool_init(struct drm_device *dev,
-			      struct i915_gem_batch_pool *pool);
-void i915_gem_batch_pool_fini(struct i915_gem_batch_pool *pool);
-struct drm_i915_gem_object*
-i915_gem_batch_pool_get(struct i915_gem_batch_pool *pool, size_t size);
 
 /* i915_cmd_parser.c */
 int i915_cmd_parser_get_version(void);

@@ -23,6 +23,7 @@
  */
 
 #include "i915_drv.h"
+#include "i915_gem_batch_pool.h"
 
 /**
  * DOC: batch pool
