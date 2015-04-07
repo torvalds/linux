@@ -812,6 +812,9 @@ void i40e_reset_vf(struct i40e_vf *vf, bool flr)
 		}
 	}
 
+	if (flr)
+		usleep_range(10000, 20000);
+
 	if (!rsd)
 		dev_err(&pf->pdev->dev, "VF reset check timeout on VF %d\n",
 			vf->vf_id);
