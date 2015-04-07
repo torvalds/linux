@@ -2931,6 +2931,35 @@ unsigned long intel_plane_obj_offset(struct intel_plane *intel_plane,
 	return i915_gem_obj_ggtt_offset_view(obj, view);
 }
 
+/*
+ * This function detaches (aka. unbinds) unused scalers in hardware
+ */
+void skl_detach_scalers(struct intel_crtc *intel_crtc)
+{
+	struct drm_device *dev;
+	struct drm_i915_private *dev_priv;
+	struct intel_crtc_scaler_state *scaler_state;
+	int i;
+
+	if (!intel_crtc || !intel_crtc->config)
+		return;
+
+	dev = intel_crtc->base.dev;
+	dev_priv = dev->dev_private;
+	scaler_state = &intel_crtc->config->scaler_state;
+
+	/* loop through and disable scalers that aren't in use */
+	for (i = 0; i < intel_crtc->num_scalers; i++) {
+		if (!scaler_state->scalers[i].in_use) {
+			I915_WRITE(SKL_PS_CTRL(intel_crtc->pipe, i), 0);
+			I915_WRITE(SKL_PS_WIN_POS(intel_crtc->pipe, i), 0);
+			I915_WRITE(SKL_PS_WIN_SZ(intel_crtc->pipe, i), 0);
+			DRM_DEBUG_KMS("CRTC:%d Disabled scaler id %u.%u\n",
+				intel_crtc->base.base.id, intel_crtc->pipe, i);
+		}
+	}
+}
+
 static void skylake_update_primary_plane(struct drm_crtc *crtc,
 					 struct drm_framebuffer *fb,
 					 int x, int y)
@@ -4280,16 +4309,175 @@ static void cpt_verify_modeset(struct drm_device *dev, int pipe)
 	}
 }
 
-static void skylake_pfit_enable(struct intel_crtc *crtc)
+/**
+ * skl_update_scaler_users - Stages update to crtc's scaler state
+ * @intel_crtc: crtc
+ * @crtc_state: crtc_state
+ * @plane: plane (NULL indicates crtc is requesting update)
+ * @plane_state: plane's state
+ * @force_detach: request unconditional detachment of scaler
+ *
+ * This function updates scaler state for requested plane or crtc.
+ * To request scaler usage update for a plane, caller shall pass plane pointer.
+ * To request scaler usage update for crtc, caller shall pass plane pointer
+ * as NULL.
+ *
+ * Return
+ *     0 - scaler_usage updated successfully
+ *    error - requested scaling cannot be supported or other error condition
+ */
+int
+skl_update_scaler_users(
+	struct intel_crtc *intel_crtc, struct intel_crtc_state *crtc_state,
+	struct intel_plane *intel_plane, struct intel_plane_state *plane_state,
+	int force_detach)
+{
+	int need_scaling;
+	int idx;
+	int src_w, src_h, dst_w, dst_h;
+	int *scaler_id;
+	struct drm_framebuffer *fb;
+	struct intel_crtc_scaler_state *scaler_state;
+
+	if (!intel_crtc || !crtc_state)
+		return 0;
+
+	scaler_state = &crtc_state->scaler_state;
+
+	idx = intel_plane ? drm_plane_index(&intel_plane->base) : SKL_CRTC_INDEX;
+	fb = intel_plane ? plane_state->base.fb : NULL;
+
+	if (intel_plane) {
+		src_w = drm_rect_width(&plane_state->src) >> 16;
+		src_h = drm_rect_height(&plane_state->src) >> 16;
+		dst_w = drm_rect_width(&plane_state->dst);
+		dst_h = drm_rect_height(&plane_state->dst);
+		scaler_id = &plane_state->scaler_id;
+	} else {
+		struct drm_display_mode *adjusted_mode =
+			&crtc_state->base.adjusted_mode;
+		src_w = crtc_state->pipe_src_w;
+		src_h = crtc_state->pipe_src_h;
+		dst_w = adjusted_mode->hdisplay;
+		dst_h = adjusted_mode->vdisplay;
+		scaler_id = &scaler_state->scaler_id;
+	}
+	need_scaling = (src_w != dst_w || src_h != dst_h);
+
+	/*
+	 * if plane is being disabled or scaler is no more required or force detach
+	 *  - free scaler binded to this plane/crtc
+	 *  - in order to do this, update crtc->scaler_usage
+	 *
+	 * Here scaler state in crtc_state is set free so that
+	 * scaler can be assigned to other user. Actual register
+	 * update to free the scaler is done in plane/panel-fit programming.
+	 * For this purpose crtc/plane_state->scaler_id isn't reset here.
+	 */
+	if (force_detach || !need_scaling || (intel_plane &&
+		(!fb || !plane_state->visible))) {
+		if (*scaler_id >= 0) {
+			scaler_state->scaler_users &= ~(1 << idx);
+			scaler_state->scalers[*scaler_id].in_use = 0;
+
+			DRM_DEBUG_KMS("Staged freeing scaler id %d.%d from %s:%d "
+				"crtc_state = %p scaler_users = 0x%x\n",
+				intel_crtc->pipe, *scaler_id, intel_plane ? "PLANE" : "CRTC",
+				intel_plane ? intel_plane->base.base.id :
+				intel_crtc->base.base.id, crtc_state,
+				scaler_state->scaler_users);
+			*scaler_id = -1;
+		}
+		return 0;
+	}
+
+	/* range checks */
+	if (src_w < SKL_MIN_SRC_W || src_h < SKL_MIN_SRC_H ||
+		dst_w < SKL_MIN_DST_W || dst_h < SKL_MIN_DST_H ||
+
+		src_w > SKL_MAX_SRC_W || src_h > SKL_MAX_SRC_H ||
+		dst_w > SKL_MAX_DST_W || dst_h > SKL_MAX_DST_H) {
+		DRM_DEBUG_KMS("%s:%d scaler_user index %u.%u: src %ux%u dst %ux%u "
+			"size is out of scaler range\n",
+			intel_plane ? "PLANE" : "CRTC",
+			intel_plane ? intel_plane->base.base.id : intel_crtc->base.base.id,
+			intel_crtc->pipe, idx, src_w, src_h, dst_w, dst_h);
+		return -EINVAL;
+	}
+
+	/* check colorkey */
+	if (intel_plane && intel_plane->ckey.flags != I915_SET_COLORKEY_NONE) {
+		DRM_DEBUG_KMS("PLANE:%d scaling with color key not allowed",
+			intel_plane->base.base.id);
+		return -EINVAL;
+	}
+
+	/* Check src format */
+	if (intel_plane) {
+		switch (fb->pixel_format) {
+		case DRM_FORMAT_RGB565:
+		case DRM_FORMAT_XBGR8888:
+		case DRM_FORMAT_XRGB8888:
+		case DRM_FORMAT_ABGR8888:
+		case DRM_FORMAT_ARGB8888:
+		case DRM_FORMAT_XRGB2101010:
+		case DRM_FORMAT_ARGB2101010:
+		case DRM_FORMAT_XBGR2101010:
+		case DRM_FORMAT_ABGR2101010:
+		case DRM_FORMAT_YUYV:
+		case DRM_FORMAT_YVYU:
+		case DRM_FORMAT_UYVY:
+		case DRM_FORMAT_VYUY:
+			break;
+		default:
+			DRM_DEBUG_KMS("PLANE:%d FB:%d unsupported scaling format 0x%x\n",
+				intel_plane->base.base.id, fb->base.id, fb->pixel_format);
+			return -EINVAL;
+		}
+	}
+
+	/* mark this plane as a scaler user in crtc_state */
+	scaler_state->scaler_users |= (1 << idx);
+	DRM_DEBUG_KMS("%s:%d staged scaling request for %ux%u->%ux%u "
+		"crtc_state = %p scaler_users = 0x%x\n",
+		intel_plane ? "PLANE" : "CRTC",
+		intel_plane ? intel_plane->base.base.id : intel_crtc->base.base.id,
+		src_w, src_h, dst_w, dst_h, crtc_state, scaler_state->scaler_users);
+	return 0;
+}
+
+static void skylake_pfit_update(struct intel_crtc *crtc, int enable)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe = crtc->pipe;
+	struct intel_crtc_scaler_state *scaler_state =
+		&crtc->config->scaler_state;
+
+	DRM_DEBUG_KMS("for crtc_state = %p\n", crtc->config);
+
+	/* To update pfit, first update scaler state */
+	skl_update_scaler_users(crtc, crtc->config, NULL, NULL, !enable);
+	intel_atomic_setup_scalers(crtc->base.dev, crtc, crtc->config);
+	skl_detach_scalers(crtc);
+	if (!enable)
+		return;
 
 	if (crtc->config->pch_pfit.enabled) {
-		I915_WRITE(PS_CTL(pipe), PS_ENABLE);
-		I915_WRITE(PS_WIN_POS(pipe), crtc->config->pch_pfit.pos);
-		I915_WRITE(PS_WIN_SZ(pipe), crtc->config->pch_pfit.size);
+		int id;
+
+		if (WARN_ON(crtc->config->scaler_state.scaler_id < 0)) {
+			DRM_ERROR("Requesting pfit without getting a scaler first\n");
+			return;
+		}
+
+		id = scaler_state->scaler_id;
+		I915_WRITE(SKL_PS_CTRL(pipe, id), PS_SCALER_EN |
+			PS_FILTER_MEDIUM | scaler_state->scalers[id].mode);
+		I915_WRITE(SKL_PS_WIN_POS(pipe, id), crtc->config->pch_pfit.pos);
+		I915_WRITE(SKL_PS_WIN_SZ(pipe, id), crtc->config->pch_pfit.size);
+
+		DRM_DEBUG_KMS("for crtc_state = %p scaler_id = %d\n", crtc->config, id);
 	}
 }
 
@@ -4694,7 +4882,7 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	intel_ddi_enable_pipe_clock(intel_crtc);
 
 	if (IS_SKYLAKE(dev))
-		skylake_pfit_enable(intel_crtc);
+		skylake_pfit_update(intel_crtc, 1);
 	else
 		ironlake_pfit_enable(intel_crtc);
 
@@ -4728,21 +4916,6 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	 * to change the workaround. */
 	haswell_mode_set_planes_workaround(intel_crtc);
 	intel_crtc_enable_planes(crtc);
-}
-
-static void skylake_pfit_disable(struct intel_crtc *crtc)
-{
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	int pipe = crtc->pipe;
-
-	/* To avoid upsetting the power well on haswell only disable the pfit if
-	 * it's in use. The hw state code will make sure we get this right. */
-	if (crtc->config->pch_pfit.enabled) {
-		I915_WRITE(PS_CTL(pipe), 0);
-		I915_WRITE(PS_WIN_POS(pipe), 0);
-		I915_WRITE(PS_WIN_SZ(pipe), 0);
-	}
 }
 
 static void ironlake_pfit_disable(struct intel_crtc *crtc)
@@ -4857,7 +5030,7 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 	intel_ddi_disable_transcoder_func(dev_priv, cpu_transcoder);
 
 	if (IS_SKYLAKE(dev))
-		skylake_pfit_disable(intel_crtc);
+		skylake_pfit_update(intel_crtc, 0);
 	else
 		ironlake_pfit_disable(intel_crtc);
 
@@ -8146,14 +8319,28 @@ static void skylake_get_pfit_config(struct intel_crtc *crtc,
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint32_t tmp;
+	struct intel_crtc_scaler_state *scaler_state = &pipe_config->scaler_state;
+	uint32_t ps_ctrl = 0;
+	int id = -1;
+	int i;
 
-	tmp = I915_READ(PS_CTL(crtc->pipe));
+	/* find scaler attached to this pipe */
+	for (i = 0; i < crtc->num_scalers; i++) {
+		ps_ctrl = I915_READ(SKL_PS_CTRL(crtc->pipe, i));
+		if (ps_ctrl & PS_SCALER_EN && !(ps_ctrl & PS_PLANE_SEL_MASK)) {
+			id = i;
+			pipe_config->pch_pfit.enabled = true;
+			pipe_config->pch_pfit.pos = I915_READ(SKL_PS_WIN_POS(crtc->pipe, i));
+			pipe_config->pch_pfit.size = I915_READ(SKL_PS_WIN_SZ(crtc->pipe, i));
+			break;
+		}
+	}
 
-	if (tmp & PS_ENABLE) {
-		pipe_config->pch_pfit.enabled = true;
-		pipe_config->pch_pfit.pos = I915_READ(PS_WIN_POS(crtc->pipe));
-		pipe_config->pch_pfit.size = I915_READ(PS_WIN_SZ(crtc->pipe));
+	scaler_state->scaler_id = id;
+	if (id >= 0) {
+		scaler_state->scaler_users |= (1 << SKL_CRTC_INDEX);
+	} else {
+		scaler_state->scaler_users &= ~(1 << SKL_CRTC_INDEX);
 	}
 }
 
@@ -8787,12 +8974,19 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 
 	intel_get_pipe_timings(crtc, pipe_config);
 
+	if (INTEL_INFO(dev)->gen >= 9) {
+		skl_init_scalers(dev, crtc, pipe_config);
+	}
+
 	pfit_domain = POWER_DOMAIN_PIPE_PANEL_FITTER(crtc->pipe);
 	if (intel_display_power_is_enabled(dev_priv, pfit_domain)) {
 		if (IS_SKYLAKE(dev))
 			skylake_get_pfit_config(crtc, pipe_config);
 		else
 			ironlake_get_pfit_config(crtc, pipe_config);
+	} else {
+		pipe_config->scaler_state.scaler_id = -1;
+		pipe_config->scaler_state.scaler_users &= ~(1 << SKL_CRTC_INDEX);
 	}
 
 	if (IS_HASWELL(dev))
@@ -11319,6 +11513,8 @@ intel_pipe_config_compare(struct drm_device *dev,
 		PIPE_CONF_CHECK_I(pch_pfit.pos);
 		PIPE_CONF_CHECK_I(pch_pfit.size);
 	}
+
+	PIPE_CONF_CHECK_I(scaler_state.scaler_id);
 
 	/* BDW+ don't expose a synchronous way to read the state */
 	if (IS_HASWELL(dev))

@@ -1351,6 +1351,14 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	if (is_edp(intel_dp) && intel_connector->panel.fixed_mode) {
 		intel_fixed_panel_mode(intel_connector->panel.fixed_mode,
 				       adjusted_mode);
+
+		if (INTEL_INFO(dev)->gen >= 9) {
+			int ret;
+			ret = skl_update_scaler_users(intel_crtc, pipe_config, NULL, NULL, 0);
+			if (ret)
+				return ret;
+		}
+
 		if (!HAS_PCH_SPLIT(dev))
 			intel_gmch_panel_fitting(intel_crtc, pipe_config,
 						 intel_connector->panel.fitting_mode);
