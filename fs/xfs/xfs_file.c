@@ -544,17 +544,18 @@ xfs_zero_eof(
  */
 STATIC ssize_t
 xfs_file_aio_write_checks(
-	struct file		*file,
-	loff_t			*pos,
-	size_t			*count,
+	struct kiocb		*iocb,
+	struct iov_iter		*from,
 	int			*iolock)
 {
+	struct file		*file = iocb->ki_filp;
 	struct inode		*inode = file->f_mapping->host;
 	struct xfs_inode	*ip = XFS_I(inode);
 	int			error = 0;
+	size_t			count = iov_iter_count(from);
 
 restart:
-	error = generic_write_checks(file, pos, count);
+	error = generic_write_checks(file, &iocb->ki_pos, &count);
 	if (error)
 		return error;
 
@@ -569,7 +570,7 @@ restart:
 	 * iolock shared, we need to update it to exclusive which implies
 	 * having to redo all checks before.
 	 */
-	if (*pos > i_size_read(inode)) {
+	if (iocb->ki_pos > i_size_read(inode)) {
 		bool	zero = false;
 
 		if (*iolock == XFS_IOLOCK_SHARED) {
@@ -578,10 +579,11 @@ restart:
 			xfs_rw_ilock(ip, *iolock);
 			goto restart;
 		}
-		error = xfs_zero_eof(ip, *pos, i_size_read(inode), &zero);
+		error = xfs_zero_eof(ip, iocb->ki_pos, i_size_read(inode), &zero);
 		if (error)
 			return error;
 	}
+	iov_iter_truncate(from, count);
 
 	/*
 	 * Updating the timestamps will grab the ilock again from
@@ -678,10 +680,11 @@ xfs_file_dio_aio_write(
 		xfs_rw_ilock(ip, iolock);
 	}
 
-	ret = xfs_file_aio_write_checks(file, &pos, &count, &iolock);
+	ret = xfs_file_aio_write_checks(iocb, from, &iolock);
 	if (ret)
 		goto out;
-	iov_iter_truncate(from, count);
+	count = iov_iter_count(from);
+	pos = iocb->ki_pos;
 
 	if (mapping->nrpages) {
 		ret = filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
@@ -734,24 +737,22 @@ xfs_file_buffered_aio_write(
 	ssize_t			ret;
 	int			enospc = 0;
 	int			iolock = XFS_IOLOCK_EXCL;
-	loff_t			pos = iocb->ki_pos;
-	size_t			count = iov_iter_count(from);
 
 	xfs_rw_ilock(ip, iolock);
 
-	ret = xfs_file_aio_write_checks(file, &pos, &count, &iolock);
+	ret = xfs_file_aio_write_checks(iocb, from, &iolock);
 	if (ret)
 		goto out;
 
-	iov_iter_truncate(from, count);
 	/* We can write back this queue in page reclaim */
 	current->backing_dev_info = inode_to_bdi(inode);
 
 write_retry:
-	trace_xfs_file_buffered_write(ip, count, iocb->ki_pos, 0);
-	ret = generic_perform_write(file, from, pos);
+	trace_xfs_file_buffered_write(ip, iov_iter_count(from),
+				      iocb->ki_pos, 0);
+	ret = generic_perform_write(file, from, iocb->ki_pos);
 	if (likely(ret >= 0))
-		iocb->ki_pos = pos + ret;
+		iocb->ki_pos += ret;
 
 	/*
 	 * If we hit a space limit, try to free up some lingering preallocated
