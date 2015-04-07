@@ -3506,6 +3506,63 @@ void i40e_set_pci_config_data(struct i40e_hw *hw, u16 link_status)
 }
 
 /**
+ * i40e_aq_debug_dump
+ * @hw: pointer to the hardware structure
+ * @cluster_id: specific cluster to dump
+ * @table_id: table id within cluster
+ * @start_index: index of line in the block to read
+ * @buff_size: dump buffer size
+ * @buff: dump buffer
+ * @ret_buff_size: actual buffer size returned
+ * @ret_next_table: next block to read
+ * @ret_next_index: next index to read
+ *
+ * Dump internal FW/HW data for debug purposes.
+ *
+ **/
+i40e_status i40e_aq_debug_dump(struct i40e_hw *hw, u8 cluster_id,
+			       u8 table_id, u32 start_index, u16 buff_size,
+			       void *buff, u16 *ret_buff_size,
+			       u8 *ret_next_table, u32 *ret_next_index,
+			       struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_debug_dump_internals *cmd =
+		(struct i40e_aqc_debug_dump_internals *)&desc.params.raw;
+	struct i40e_aqc_debug_dump_internals *resp =
+		(struct i40e_aqc_debug_dump_internals *)&desc.params.raw;
+	i40e_status status;
+
+	if (buff_size == 0 || !buff)
+		return I40E_ERR_PARAM;
+
+	i40e_fill_default_direct_cmd_desc(&desc,
+					  i40e_aqc_opc_debug_dump_internals);
+	/* Indirect Command */
+	desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_BUF);
+	if (buff_size > I40E_AQ_LARGE_BUF)
+		desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_LB);
+
+	cmd->cluster_id = cluster_id;
+	cmd->table_id = table_id;
+	cmd->idx = cpu_to_le32(start_index);
+
+	desc.datalen = cpu_to_le16(buff_size);
+
+	status = i40e_asq_send_command(hw, &desc, buff, buff_size, cmd_details);
+	if (!status) {
+		if (ret_buff_size)
+			*ret_buff_size = le16_to_cpu(desc.datalen);
+		if (ret_next_table)
+			*ret_next_table = resp->table_id;
+		if (ret_next_index)
+			*ret_next_index = le32_to_cpu(resp->idx);
+	}
+
+	return status;
+}
+
+/**
  * i40e_read_bw_from_alt_ram
  * @hw: pointer to the hardware structure
  * @max_bw: pointer for max_bw read
