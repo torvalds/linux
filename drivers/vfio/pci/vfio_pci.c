@@ -217,14 +217,8 @@ static void vfio_pci_disable(struct vfio_pci_device *vdev)
 	 * Try to reset the device.  The success of this is dependent on
 	 * being able to lock the device, which is not always possible.
 	 */
-	if (vdev->reset_works) {
-		int ret = pci_try_reset_function(pdev);
-		if (ret)
-			pr_warn("%s: Failed to reset device %s (%d)\n",
-				__func__, dev_name(&pdev->dev), ret);
-		else
-			vdev->needs_reset = false;
-	}
+	if (vdev->reset_works && !pci_try_reset_function(pdev))
+		vdev->needs_reset = false;
 
 	pci_restore_state(pdev);
 out:
