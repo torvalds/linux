@@ -313,11 +313,8 @@ static int st21nfcb_nci_i2c_probe(struct i2c_client *client,
 
 	phy = devm_kzalloc(&client->dev, sizeof(struct st21nfcb_i2c_phy),
 			   GFP_KERNEL);
-	if (!phy) {
-		nfc_err(&client->dev,
-			"Cannot allocate memory for st21nfcb i2c phy.\n");
+	if (!phy)
 		return -ENOMEM;
-	}
 
 	phy->i2c_dev = client;
 

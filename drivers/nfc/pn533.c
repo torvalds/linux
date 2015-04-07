@@ -1820,7 +1820,7 @@ static int pn533_rf_complete(struct pn533 *dev, void *arg,
 	if (IS_ERR(resp)) {
 		rc = PTR_ERR(resp);
 
-		nfc_err(&dev->interface->dev, "RF setting error %d", rc);
+		nfc_err(&dev->interface->dev, "RF setting error %d\n", rc);
 
 		return rc;
 	}
