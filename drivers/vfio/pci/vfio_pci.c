@@ -25,6 +25,7 @@
 #include <linux/types.h>
 #include <linux/uaccess.h>
 #include <linux/vfio.h>
+#include <linux/vgaarb.h>
 
 #include "vfio_pci_private.h"
 
@@ -52,6 +53,50 @@ static inline bool vfio_vga_disabled(void)
 #else
 	return true;
 #endif
+}
+
+/*
+ * Our VGA arbiter participation is limited since we don't know anything
+ * about the device itself.  However, if the device is the only VGA device
+ * downstream of a bridge and VFIO VGA support is disabled, then we can
+ * safely return legacy VGA IO and memory as not decoded since the user
+ * has no way to get to it and routing can be disabled externally at the
+ * bridge.
+ */
+static unsigned int vfio_pci_set_vga_decode(void *opaque, bool single_vga)
+{
+	struct vfio_pci_device *vdev = opaque;
+	struct pci_dev *tmp = NULL, *pdev = vdev->pdev;
+	unsigned char max_busnr;
+	unsigned int decodes;
+
+	if (single_vga || !vfio_vga_disabled() || pci_is_root_bus(pdev->bus))
+		return VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM |
+		       VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM;
+
+	max_busnr = pci_bus_max_busnr(pdev->bus);
+	decodes = VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
+
+	while ((tmp = pci_get_class(PCI_CLASS_DISPLAY_VGA << 8, tmp)) != NULL) {
+		if (tmp == pdev ||
+		    pci_domain_nr(tmp->bus) != pci_domain_nr(pdev->bus) ||
+		    pci_is_root_bus(tmp->bus))
+			continue;
+
+		if (tmp->bus->number >= pdev->bus->number &&
+		    tmp->bus->number <= max_busnr) {
+			pci_dev_put(tmp);
+			decodes |= VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM;
+			break;
+		}
+	}
+
+	return decodes;
+}
+
+static inline bool vfio_pci_is_vga(struct pci_dev *pdev)
+{
+	return (pdev->class >> 8) == PCI_CLASS_DISPLAY_VGA;
 }
 
 static void vfio_pci_try_bus_reset(struct vfio_pci_device *vdev);
@@ -108,7 +153,7 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 	} else
 		vdev->msix_bar = 0xFF;
 
-	if (!vfio_vga_disabled() && (pdev->class >> 8) == PCI_CLASS_DISPLAY_VGA)
+	if (!vfio_vga_disabled() && vfio_pci_is_vga(pdev))
 		vdev->has_vga = true;
 
 	return 0;
@@ -900,6 +945,12 @@ static int vfio_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		kfree(vdev);
 	}
 
+	if (vfio_pci_is_vga(pdev)) {
+		vga_client_register(pdev, vdev, NULL, vfio_pci_set_vga_decode);
+		vga_set_legacy_decoding(pdev,
+					vfio_pci_set_vga_decode(vdev, false));
+	}
+
 	return ret;
 }
 
@@ -908,9 +959,17 @@ static void vfio_pci_remove(struct pci_dev *pdev)
 	struct vfio_pci_device *vdev;
 
 	vdev = vfio_del_group_dev(&pdev->dev);
-	if (vdev) {
-		iommu_group_put(pdev->dev.iommu_group);
-		kfree(vdev);
+	if (!vdev)
+		return;
+
+	iommu_group_put(pdev->dev.iommu_group);
+	kfree(vdev);
+
+	if (vfio_pci_is_vga(pdev)) {
+		vga_client_register(pdev, NULL, NULL, NULL);
+		vga_set_legacy_decoding(pdev,
+				VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM |
+				VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM);
 	}
 }
 
