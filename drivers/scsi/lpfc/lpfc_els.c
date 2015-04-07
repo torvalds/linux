@@ -7172,7 +7172,7 @@ lpfc_do_scr_ns_plogi(struct lpfc_hba *phba, struct lpfc_vport *vport)
 		return;
 	}
 
-	if (vport->cfg_fdmi_on) {
+	if (vport->cfg_fdmi_on & LPFC_FDMI_SUPPORT) {
 		/* If this is the first time, allocate an ndlp and initialize
 		 * it. Otherwise, make sure the node is enabled and then do the
 		 * login.

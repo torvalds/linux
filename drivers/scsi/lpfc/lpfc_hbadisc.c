@@ -5489,11 +5489,11 @@ lpfc_mbx_cmpl_fdmi_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	 * fdmi-on=2 (supporting RPA/hostnmae)
 	 */
 
-	if (vport->cfg_fdmi_on == 1)
-		lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_DHBA);
-	else
+	if (vport->cfg_fdmi_on & LPFC_FDMI_REG_DELAY)
 		mod_timer(&vport->fc_fdmitmo,
 			  jiffies + msecs_to_jiffies(1000 * 60));
+	else
+		lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_DHBA);
 
 	/* decrement the node reference count held for this callback
 	 * function.

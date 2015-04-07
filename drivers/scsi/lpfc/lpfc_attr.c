@@ -4573,12 +4573,18 @@ LPFC_ATTR_R(multi_ring_type, FC_TYPE_IP, 1,
 
 /*
 # lpfc_fdmi_on: controls FDMI support.
-#       0 = no FDMI support
-#       1 = support FDMI without attribute of hostname
-#       2 = support FDMI with attribute of hostname
-# Value range [0,2]. Default value is 0.
+#               Set                NOT Set
+#       bit 0 = FDMI support       no FDMI support
+#           LPFC_FDMI_SUPPORT just turns basic support on/off
+#       bit 1 = Register delay     no register delay  (60 seconds)
+#           LPFC_FDMI_REG_DELAY	60 sec registration delay after FDMI login
+#       bit 2 = All attributes     Use a attribute subset
+#           LPFC_FDMI_ALL_ATTRIB applies to both port and HBA attributes
+#           Port attrutes subset: 1 thru 6 OR all: 1 thru 0xd 0x101 0x102 0x103
+#           HBA attributes subset: 1 thru 0xb OR all: 1 thru 0xc
+# Value range [0,7]. Default value is 0.
 */
-LPFC_VPORT_ATTR_RW(fdmi_on, 0, 0, 2, "Enable FDMI support");
+LPFC_VPORT_ATTR_RW(fdmi_on, 0, 0, 7, "Enable FDMI support");
 
 /*
 # Specifies the maximum number of ELS cmds we can have outstanding (for
