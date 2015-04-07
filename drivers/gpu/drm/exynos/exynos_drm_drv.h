@@ -61,6 +61,8 @@ enum exynos_drm_output_type {
  * @crtc_height: window height to be displayed (hardware screen).
  * @mode_width: width of screen mode.
  * @mode_height: height of screen mode.
+ * @h_ratio: horizontal scaling ratio, 16.16 fixed point
+ * @v_ratio: vertical scaling ratio, 16.16 fixed point
  * @refresh: refresh rate.
  * @scan_flag: interlace or progressive way.
  *	(it could be DRM_MODE_FLAG_*)
@@ -97,6 +99,8 @@ struct exynos_drm_plane {
 	unsigned int crtc_height;
 	unsigned int mode_width;
 	unsigned int mode_height;
+	unsigned int h_ratio;
+	unsigned int v_ratio;
 	unsigned int refresh;
 	unsigned int scan_flag;
 	unsigned int bpp;

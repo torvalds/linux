@@ -110,11 +110,15 @@ void exynos_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
 		crtc_y = 0;
 	}
 
+	/* set ratio */
+	exynos_plane->h_ratio = (src_w << 16) / crtc_w;
+	exynos_plane->v_ratio = (src_h << 16) / crtc_h;
+
 	/* set drm framebuffer data. */
 	exynos_plane->src_x = src_x;
 	exynos_plane->src_y = src_y;
-	exynos_plane->src_width = src_w;
-	exynos_plane->src_height = src_h;
+	exynos_plane->src_width = (actual_w * exynos_plane->h_ratio) >> 16;
+	exynos_plane->src_height = (actual_h * exynos_plane->v_ratio) >> 16;
 	exynos_plane->fb_width = fb->width;
 	exynos_plane->fb_height = fb->height;
 	exynos_plane->bpp = fb->bits_per_pixel;

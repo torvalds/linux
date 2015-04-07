@@ -382,7 +382,6 @@ static void vp_video_buffer(struct mixer_context *ctx, int win)
 	struct mixer_resources *res = &ctx->mixer_res;
 	unsigned long flags;
 	struct exynos_drm_plane *plane;
-	unsigned int x_ratio, y_ratio;
 	unsigned int buf_num = 1;
 	dma_addr_t luma_addr[2], chroma_addr[2];
 	bool tiled_mode = false;
@@ -406,10 +405,6 @@ static void vp_video_buffer(struct mixer_context *ctx, int win)
 				plane->pixel_format);
 		return;
 	}
-
-	/* scaling feature: (src << 16) / dst */
-	x_ratio = (plane->src_width << 16) / plane->crtc_width;
-	y_ratio = (plane->src_height << 16) / plane->crtc_height;
 
 	if (buf_num == 2) {
 		luma_addr[0] = plane->dma_addr[0];
@@ -470,8 +465,8 @@ static void vp_video_buffer(struct mixer_context *ctx, int win)
 		vp_reg_write(res, VP_DST_V_POSITION, plane->crtc_y);
 	}
 
-	vp_reg_write(res, VP_H_RATIO, x_ratio);
-	vp_reg_write(res, VP_V_RATIO, y_ratio);
+	vp_reg_write(res, VP_H_RATIO, plane->h_ratio);
+	vp_reg_write(res, VP_V_RATIO, plane->v_ratio);
 
 	vp_reg_write(res, VP_ENDIAN_MODE, VP_ENDIAN_MODE_LITTLE);
 
