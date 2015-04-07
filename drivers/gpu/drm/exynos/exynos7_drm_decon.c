@@ -440,8 +440,8 @@ static void decon_win_commit(struct exynos_drm_crtc *crtc, unsigned int win)
 	writel(plane->fb_height, ctx->regs + VIDW_WHOLE_Y(win));
 
 	/* offset from the start of the buffer to read */
-	writel(plane->fb_x, ctx->regs + VIDW_OFFSET_X(win));
-	writel(plane->fb_y, ctx->regs + VIDW_OFFSET_Y(win));
+	writel(plane->src_x, ctx->regs + VIDW_OFFSET_X(win));
+	writel(plane->src_y, ctx->regs + VIDW_OFFSET_Y(win));
 
 	DRM_DEBUG_KMS("start addr = 0x%lx\n",
 			(unsigned long)val);

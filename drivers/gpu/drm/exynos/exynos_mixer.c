@@ -457,8 +457,8 @@ static void vp_video_buffer(struct mixer_context *ctx, int win)
 	vp_reg_write(res, VP_SRC_WIDTH, plane->src_width);
 	vp_reg_write(res, VP_SRC_HEIGHT, plane->src_height);
 	vp_reg_write(res, VP_SRC_H_POSITION,
-			VP_SRC_H_POSITION_VAL(plane->fb_x));
-	vp_reg_write(res, VP_SRC_V_POSITION, plane->fb_y);
+			VP_SRC_H_POSITION_VAL(plane->src_x));
+	vp_reg_write(res, VP_SRC_V_POSITION, plane->src_y);
 
 	vp_reg_write(res, VP_DST_WIDTH, plane->crtc_width);
 	vp_reg_write(res, VP_DST_H_POSITION, plane->crtc_x);
@@ -561,8 +561,8 @@ static void mixer_graph_buffer(struct mixer_context *ctx, int win)
 
 	/* converting dma address base and source offset */
 	dma_addr = plane->dma_addr[0]
-		+ (plane->fb_x * plane->bpp >> 3)
-		+ (plane->fb_y * plane->pitch);
+		+ (plane->src_x * plane->bpp >> 3)
+		+ (plane->src_y * plane->pitch);
 	src_x_offset = 0;
 	src_y_offset = 0;
 

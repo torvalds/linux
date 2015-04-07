@@ -47,14 +47,14 @@ enum exynos_drm_output_type {
  * Exynos drm common overlay structure.
  *
  * @base: plane object
- * @fb_x: offset x on a framebuffer to be displayed.
+ * @src_x: offset x on a framebuffer to be displayed.
  *	- the unit is screen coordinates.
- * @fb_y: offset y on a framebuffer to be displayed.
+ * @src_y: offset y on a framebuffer to be displayed.
  *	- the unit is screen coordinates.
- * @fb_width: width of a framebuffer.
- * @fb_height: height of a framebuffer.
  * @src_width: width of a partial image to be displayed from framebuffer.
  * @src_height: height of a partial image to be displayed from framebuffer.
+ * @fb_width: width of a framebuffer.
+ * @fb_height: height of a framebuffer.
  * @crtc_x: offset x on hardware screen.
  * @crtc_y: offset y on hardware screen.
  * @crtc_width: window width to be displayed (hardware screen).
@@ -85,12 +85,12 @@ enum exynos_drm_output_type {
 
 struct exynos_drm_plane {
 	struct drm_plane base;
-	unsigned int fb_x;
-	unsigned int fb_y;
-	unsigned int fb_width;
-	unsigned int fb_height;
+	unsigned int src_x;
+	unsigned int src_y;
 	unsigned int src_width;
 	unsigned int src_height;
+	unsigned int fb_width;
+	unsigned int fb_height;
 	unsigned int crtc_x;
 	unsigned int crtc_y;
 	unsigned int crtc_width;

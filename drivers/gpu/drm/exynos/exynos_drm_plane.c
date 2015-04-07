@@ -111,12 +111,12 @@ void exynos_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
 	}
 
 	/* set drm framebuffer data. */
-	exynos_plane->fb_x = src_x;
-	exynos_plane->fb_y = src_y;
-	exynos_plane->fb_width = fb->width;
-	exynos_plane->fb_height = fb->height;
+	exynos_plane->src_x = src_x;
+	exynos_plane->src_y = src_y;
 	exynos_plane->src_width = src_w;
 	exynos_plane->src_height = src_h;
+	exynos_plane->fb_width = fb->width;
+	exynos_plane->fb_height = fb->height;
 	exynos_plane->bpp = fb->bits_per_pixel;
 	exynos_plane->pitch = fb->pitches[0];
 	exynos_plane->pixel_format = fb->pixel_format;

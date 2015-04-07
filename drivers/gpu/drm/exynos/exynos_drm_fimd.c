@@ -653,8 +653,8 @@ static void fimd_win_commit(struct exynos_drm_crtc *crtc, unsigned int win)
 	fimd_shadow_protect_win(ctx, win, true);
 
 
-	offset = plane->fb_x * (plane->bpp >> 3);
-	offset += plane->fb_y * plane->pitch;
+	offset = plane->src_x * (plane->bpp >> 3);
+	offset += plane->src_y * plane->pitch;
 
 	/* buffer start address */
 	dma_addr = plane->dma_addr[0] + offset;
