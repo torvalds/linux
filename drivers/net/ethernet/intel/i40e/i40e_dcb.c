@@ -419,7 +419,7 @@ static void i40e_cee_to_dcb_v1_config(
 {
 	u16 status, tlv_status = le16_to_cpu(cee_cfg->tlv_status);
 	u16 app_prio = le16_to_cpu(cee_cfg->oper_app_prio);
-	u8 i, tc, err, sync, oper;
+	u8 i, tc, err;
 
 	/* CEE PG data to ETS config */
 	dcbcfg->etscfg.maxtcs = cee_cfg->oper_num_tc;
@@ -456,9 +456,7 @@ static void i40e_cee_to_dcb_v1_config(
 	status = (tlv_status & I40E_AQC_CEE_APP_STATUS_MASK) >>
 		  I40E_AQC_CEE_APP_STATUS_SHIFT;
 	err = (status & I40E_TLV_STATUS_ERR) ? 1 : 0;
-	sync = (status & I40E_TLV_STATUS_SYNC) ? 1 : 0;
-	oper = (status & I40E_TLV_STATUS_OPER) ? 1 : 0;
-	/* Add APPs if Error is False and Oper/Sync is True */
+	/* Add APPs if Error is False */
 	if (!err) {
 		/* CEE operating configuration supports FCoE/iSCSI/FIP only */
 		dcbcfg->numapps = I40E_CEE_OPER_MAX_APPS;
