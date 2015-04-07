@@ -484,8 +484,7 @@ ENTRY(stub_\func)
 	CFI_STARTPROC
 	DEFAULT_FRAME 0, 8		/* offset 8: return address */
 	SAVE_EXTRA_REGS 8
-	call sys_\func
-	ret
+	jmp sys_\func
 	CFI_ENDPROC
 END(stub_\func)
 	.endm
