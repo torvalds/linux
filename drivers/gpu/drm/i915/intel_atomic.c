@@ -168,6 +168,18 @@ int intel_atomic_commit(struct drm_device *dev,
 		swap(state->plane_states[i], plane->state);
 		plane->state->state = NULL;
 	}
+
+	/* swap crtc_state */
+	for (i = 0; i < dev->mode_config.num_crtc; i++) {
+		struct drm_crtc *crtc = state->crtcs[i];
+		if (!crtc) {
+			continue;
+		}
+
+		to_intel_crtc(crtc)->config->scaler_state =
+			to_intel_crtc_state(state->crtc_states[i])->scaler_state;
+	}
+
 	drm_atomic_helper_commit_planes(dev, state);
 	drm_atomic_helper_wait_for_vblanks(dev, state);
 	drm_atomic_helper_cleanup_planes(dev, state);
