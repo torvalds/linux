@@ -920,7 +920,7 @@ static void quiesce_rx(struct adapter *adap)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(adap->sge.ingr_map); i++) {
+	for (i = 0; i < adap->sge.ingr_sz; i++) {
 		struct sge_rspq *q = adap->sge.ingr_map[i];
 
 		if (q && q->handler) {
@@ -934,6 +934,21 @@ static void quiesce_rx(struct adapter *adap)
 	}
 }
 
+/* Disable interrupt and napi handler */
+static void disable_interrupts(struct adapter *adap)
+{
+	if (adap->flags & FULL_INIT_DONE) {
+		t4_intr_disable(adap);
+		if (adap->flags & USING_MSIX) {
+			free_msix_queue_irqs(adap);
+			free_irq(adap->msix_info[0].vec, adap);
+		} else {
+			free_irq(adap->pdev->irq, adap);
+		}
+		quiesce_rx(adap);
+	}
+}
+
 /*
  * Enable NAPI scheduling and interrupt generation for all Rx queues.
  */
@@ -941,7 +956,7 @@ static void enable_rx(struct adapter *adap)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(adap->sge.ingr_map); i++) {
+	for (i = 0; i < adap->sge.ingr_sz; i++) {
 		struct sge_rspq *q = adap->sge.ingr_map[i];
 
 		if (!q)
@@ -970,8 +985,8 @@ static int setup_sge_queues(struct adapter *adap)
 	int err, msi_idx, i, j;
 	struct sge *s = &adap->sge;
 
-	bitmap_zero(s->starving_fl, MAX_EGRQ);
-	bitmap_zero(s->txq_maperr, MAX_EGRQ);
+	bitmap_zero(s->starving_fl, s->egr_sz);
+	bitmap_zero(s->txq_maperr, s->egr_sz);
 
 	if (adap->flags & USING_MSIX)
 		msi_idx = 1;         /* vector 0 is for non-queue interrupts */
@@ -983,6 +998,19 @@ static int setup_sge_queues(struct adapter *adap)
 		msi_idx = -((int)s->intrq.abs_id + 1);
 	}
 
+	/* NOTE: If you add/delete any Ingress/Egress Queue allocations in here,
+	 * don't forget to update the following which need to be
+	 * synchronized to and changes here.
+	 *
+	 * 1. The calculations of MAX_INGQ in cxgb4.h.
+	 *
+	 * 2. Update enable_msix/name_msix_vecs/request_msix_queue_irqs
+	 *    to accommodate any new/deleted Ingress Queues
+	 *    which need MSI-X Vectors.
+	 *
+	 * 3. Update sge_qinfo_show() to include information on the
+	 *    new/deleted queues.
+	 */
 	err = t4_sge_alloc_rxq(adap, &s->fw_evtq, true, adap->port[0],
 			       msi_idx, NULL, fwevtq_handler);
 	if (err) {
@@ -4244,19 +4272,12 @@ static int cxgb_up(struct adapter *adap)
 
 static void cxgb_down(struct adapter *adapter)
 {
-	t4_intr_disable(adapter);
 	cancel_work_sync(&adapter->tid_release_task);
 	cancel_work_sync(&adapter->db_full_task);
 	cancel_work_sync(&adapter->db_drop_task);
 	adapter->tid_release_task_busy = false;
 	adapter->tid_release_head = NULL;
 
-	if (adapter->flags & USING_MSIX) {
-		free_msix_queue_irqs(adapter);
-		free_irq(adapter->msix_info[0].vec, adapter);
-	} else
-		free_irq(adapter->pdev->irq, adapter);
-	quiesce_rx(adapter);
 	t4_sge_stop(adapter);
 	t4_free_sge_resources(adapter);
 	adapter->flags &= ~FULL_INIT_DONE;
@@ -4733,8 +4754,9 @@ static int adap_init1(struct adapter *adap, struct fw_caps_config_cmd *c)
 	if (ret < 0)
 		return ret;
 
-	ret = t4_cfg_pfvf(adap, adap->fn, adap->fn, 0, MAX_EGRQ, 64, MAX_INGQ,
-			  0, 0, 4, 0xf, 0xf, 16, FW_CMD_CAP_PF, FW_CMD_CAP_PF);
+	ret = t4_cfg_pfvf(adap, adap->fn, adap->fn, 0, adap->sge.egr_sz, 64,
+			  MAX_INGQ, 0, 0, 4, 0xf, 0xf, 16, FW_CMD_CAP_PF,
+			  FW_CMD_CAP_PF);
 	if (ret < 0)
 		return ret;
 
@@ -5088,9 +5110,14 @@ static int adap_init0(struct adapter *adap)
 	enum dev_state state;
 	u32 params[7], val[7];
 	struct fw_caps_config_cmd caps_cmd;
-	struct fw_devlog_cmd devlog_cmd;
-	u32 devlog_meminfo;
 	int reset = 1;
+
+	/* Grab Firmware Device Log parameters as early as possible so we have
+	 * access to it for debugging, etc.
+	 */
+	ret = t4_init_devlog_params(adap);
+	if (ret < 0)
+		return ret;
 
 	/* Contact FW, advertising Master capability */
 	ret = t4_fw_hello(adap, adap->mbox, adap->mbox, MASTER_MAY, &state);
@@ -5168,30 +5195,6 @@ static int adap_init0(struct adapter *adap)
 	ret = get_vpd_params(adap, &adap->params.vpd);
 	if (ret < 0)
 		goto bye;
-
-	/* Read firmware device log parameters.  We really need to find a way
-	 * to get these parameters initialized with some default values (which
-	 * are likely to be correct) for the case where we either don't
-	 * attache to the firmware or it's crashed when we probe the adapter.
-	 * That way we'll still be able to perform early firmware startup
-	 * debugging ...  If the request to get the Firmware's Device Log
-	 * parameters fails, we'll live so we don't make that a fatal error.
-	 */
-	memset(&devlog_cmd, 0, sizeof(devlog_cmd));
-	devlog_cmd.op_to_write = htonl(FW_CMD_OP_V(FW_DEVLOG_CMD) |
-				       FW_CMD_REQUEST_F | FW_CMD_READ_F);
-	devlog_cmd.retval_len16 = htonl(FW_LEN16(devlog_cmd));
-	ret = t4_wr_mbox(adap, adap->mbox, &devlog_cmd, sizeof(devlog_cmd),
-			 &devlog_cmd);
-	if (ret == 0) {
-		devlog_meminfo =
-			ntohl(devlog_cmd.memtype_devlog_memaddr16_devlog);
-		adap->params.devlog.memtype =
-			FW_DEVLOG_CMD_MEMTYPE_DEVLOG_G(devlog_meminfo);
-		adap->params.devlog.start =
-			FW_DEVLOG_CMD_MEMADDR16_DEVLOG_G(devlog_meminfo) << 4;
-		adap->params.devlog.size = ntohl(devlog_cmd.memsize_devlog);
-	}
 
 	/*
 	 * Find out what ports are available to us.  Note that we need to do
@@ -5292,6 +5295,51 @@ static int adap_init0(struct adapter *adap)
 	adap->tids.ftid_base = val[3];
 	adap->tids.nftids = val[4] - val[3] + 1;
 	adap->sge.ingr_start = val[5];
+
+	/* qids (ingress/egress) returned from firmware can be anywhere
+	 * in the range from EQ(IQFLINT)_START to EQ(IQFLINT)_END.
+	 * Hence driver needs to allocate memory for this range to
+	 * store the queue info. Get the highest IQFLINT/EQ index returned
+	 * in FW_EQ_*_CMD.alloc command.
+	 */
+	params[0] = FW_PARAM_PFVF(EQ_END);
+	params[1] = FW_PARAM_PFVF(IQFLINT_END);
+	ret = t4_query_params(adap, adap->mbox, adap->fn, 0, 2, params, val);
+	if (ret < 0)
+		goto bye;
+	adap->sge.egr_sz = val[0] - adap->sge.egr_start + 1;
+	adap->sge.ingr_sz = val[1] - adap->sge.ingr_start + 1;
+
+	adap->sge.egr_map = kcalloc(adap->sge.egr_sz,
+				    sizeof(*adap->sge.egr_map), GFP_KERNEL);
+	if (!adap->sge.egr_map) {
+		ret = -ENOMEM;
+		goto bye;
+	}
+
+	adap->sge.ingr_map = kcalloc(adap->sge.ingr_sz,
+				     sizeof(*adap->sge.ingr_map), GFP_KERNEL);
+	if (!adap->sge.ingr_map) {
+		ret = -ENOMEM;
+		goto bye;
+	}
+
+	/* Allocate the memory for the vaious egress queue bitmaps
+	 * ie starving_fl and txq_maperr.
+	 */
+	adap->sge.starving_fl =	kcalloc(BITS_TO_LONGS(adap->sge.egr_sz),
+					sizeof(long), GFP_KERNEL);
+	if (!adap->sge.starving_fl) {
+		ret = -ENOMEM;
+		goto bye;
+	}
+
+	adap->sge.txq_maperr = kcalloc(BITS_TO_LONGS(adap->sge.egr_sz),
+				       sizeof(long), GFP_KERNEL);
+	if (!adap->sge.txq_maperr) {
+		ret = -ENOMEM;
+		goto bye;
+	}
 
 	params[0] = FW_PARAM_PFVF(CLIP_START);
 	params[1] = FW_PARAM_PFVF(CLIP_END);
@@ -5501,6 +5549,10 @@ static int adap_init0(struct adapter *adap)
 	 * happened to HW/FW, stop issuing commands.
 	 */
 bye:
+	kfree(adap->sge.egr_map);
+	kfree(adap->sge.ingr_map);
+	kfree(adap->sge.starving_fl);
+	kfree(adap->sge.txq_maperr);
 	if (ret != -ETIMEDOUT && ret != -EIO)
 		t4_fw_bye(adap, adap->mbox);
 	return ret;
@@ -5528,6 +5580,7 @@ static pci_ers_result_t eeh_err_detected(struct pci_dev *pdev,
 		netif_carrier_off(dev);
 	}
 	spin_unlock(&adap->stats_lock);
+	disable_interrupts(adap);
 	if (adap->flags & FULL_INIT_DONE)
 		cxgb_down(adap);
 	rtnl_unlock();
@@ -5912,6 +5965,10 @@ static void free_some_resources(struct adapter *adapter)
 
 	t4_free_mem(adapter->l2t);
 	t4_free_mem(adapter->tids.tid_tab);
+	kfree(adapter->sge.egr_map);
+	kfree(adapter->sge.ingr_map);
+	kfree(adapter->sge.starving_fl);
+	kfree(adapter->sge.txq_maperr);
 	disable_msi(adapter);
 
 	for_each_port(adapter, i)
@@ -6236,6 +6293,8 @@ static void remove_one(struct pci_dev *pdev)
 
 		if (is_offload(adapter))
 			detach_ulds(adapter);
+
+		disable_interrupts(adapter);
 
 		for_each_port(adapter, i)
 			if (adapter->port[i]->reg_state == NETREG_REGISTERED)

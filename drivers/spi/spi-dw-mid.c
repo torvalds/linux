@@ -108,7 +108,8 @@ static void dw_spi_dma_tx_done(void *arg)
 {
 	struct dw_spi *dws = arg;
 
-	if (test_and_clear_bit(TX_BUSY, &dws->dma_chan_busy) & BIT(RX_BUSY))
+	clear_bit(TX_BUSY, &dws->dma_chan_busy);
+	if (test_bit(RX_BUSY, &dws->dma_chan_busy))
 		return;
 	dw_spi_xfer_done(dws);
 }
@@ -156,7 +157,8 @@ static void dw_spi_dma_rx_done(void *arg)
 {
 	struct dw_spi *dws = arg;
 
-	if (test_and_clear_bit(RX_BUSY, &dws->dma_chan_busy) & BIT(TX_BUSY))
+	clear_bit(RX_BUSY, &dws->dma_chan_busy);
+	if (test_bit(TX_BUSY, &dws->dma_chan_busy))
 		return;
 	dw_spi_xfer_done(dws);
 }

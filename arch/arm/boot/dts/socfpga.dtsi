@@ -660,7 +660,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0xfff01000 0x1000>;
-			interrupts = <0 156 4>;
+			interrupts = <0 155 4>;
 			num-cs = <4>;
 			clocks = <&spi_m_clk>;
 			status = "disabled";
