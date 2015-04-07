@@ -885,7 +885,7 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 void gb_connection_recv(struct gb_connection *connection,
 				void *data, size_t size)
 {
-	struct gb_operation_msg_hdr *header;
+	struct gb_operation_msg_hdr header;
 	size_t msg_size;
 	u16 operation_id;
 
@@ -895,27 +895,28 @@ void gb_connection_recv(struct gb_connection *connection,
 		return;
 	}
 
-	if (size < sizeof(*header)) {
+	if (size < sizeof(header)) {
 		dev_err(&connection->dev, "message too small\n");
 		return;
 	}
 
-	header = data;
-	msg_size = le16_to_cpu(header->size);
+	/* Use memcpy as data may be unaligned */
+	memcpy(&header, data, sizeof(header));
+	msg_size = le16_to_cpu(header.size);
 	if (size < msg_size) {
 		dev_err(&connection->dev,
 			"incomplete message received: 0x%04x (%zu < %zu)\n",
-			le16_to_cpu(header->operation_id), size, msg_size);
+			le16_to_cpu(header.operation_id), size, msg_size);
 		return;		/* XXX Should still complete operation */
 	}
 
-	operation_id = le16_to_cpu(header->operation_id);
-	if (header->type & GB_OPERATION_TYPE_RESPONSE)
+	operation_id = le16_to_cpu(header.operation_id);
+	if (header.type & GB_OPERATION_TYPE_RESPONSE)
 		gb_connection_recv_response(connection, operation_id,
-						header->result, data, msg_size);
+						header.result, data, msg_size);
 	else
 		gb_connection_recv_request(connection, operation_id,
-						header->type, data, msg_size);
+						header.type, data, msg_size);
 }
 
 /*
