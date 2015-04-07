@@ -1328,7 +1328,7 @@ enum netdev_priv_flags {
  *	@mpls_features:	Mask of features inheritable by MPLS
  *
  *	@ifindex:	interface index
- *	@iflink:	unique device identifier
+ *	@group:		The group, that the device belongs to
  *
  *	@stats:		Statistics struct, which was left as a legacy, use
  *			rtnl_link_stats64 instead
@@ -1488,7 +1488,6 @@ enum netdev_priv_flags {
  *
  *	@qdisc_tx_busylock:	XXX: need comments on this one
  *
- *	@group:		The group, that the device belongs to
  *	@pm_qos_req:	Power Management QoS object
  *
  *	FIXME: cleanup struct net_device such that network protocol info
