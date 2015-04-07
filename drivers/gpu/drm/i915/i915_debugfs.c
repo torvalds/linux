@@ -362,16 +362,18 @@ static int per_file_stats(int id, void *ptr, void *data)
 	return 0;
 }
 
-#define print_file_stats(m, name, stats) \
-	seq_printf(m, "%s: %u objects, %zu bytes (%zu active, %zu inactive, %zu global, %zu shared, %zu unbound)\n", \
-		   name, \
-		   stats.count, \
-		   stats.total, \
-		   stats.active, \
-		   stats.inactive, \
-		   stats.global, \
-		   stats.shared, \
-		   stats.unbound)
+#define print_file_stats(m, name, stats) do { \
+	if (stats.count) \
+		seq_printf(m, "%s: %u objects, %zu bytes (%zu active, %zu inactive, %zu global, %zu shared, %zu unbound)\n", \
+			   name, \
+			   stats.count, \
+			   stats.total, \
+			   stats.active, \
+			   stats.inactive, \
+			   stats.global, \
+			   stats.shared, \
+			   stats.unbound); \
+} while (0)
 
 static void print_batch_pool_stats(struct seq_file *m,
 				   struct drm_i915_private *dev_priv)
@@ -392,7 +394,7 @@ static void print_batch_pool_stats(struct seq_file *m,
 		}
 	}
 
-	print_file_stats(m, "batch pool", stats);
+	print_file_stats(m, "[k]batch pool", stats);
 }
 
 #define count_vmas(list, member) do { \
@@ -478,8 +480,6 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 
 	seq_putc(m, '\n');
 	print_batch_pool_stats(m, dev_priv);
-
-	seq_putc(m, '\n');
 	list_for_each_entry_reverse(file, &dev->filelist, lhead) {
 		struct file_stats stats;
 		struct task_struct *task;
