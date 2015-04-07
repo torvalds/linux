@@ -91,22 +91,12 @@ static int create_modules(struct gb_endo *endo)
 	}
 
 	for (i = 0; endo_modules[i] != 0x00; ++i) {
-//		module = gb_module_create(&endo->dev, endo_modules[i]);
+		module = gb_module_create(&endo->dev, endo_modules[i]);
 		if (!module)
 			return -EINVAL;
 	}
 
 	return 0;
-}
-
-static void remove_modules(struct gb_endo *endo)
-{
-	/*
-	 * We really don't care how many modules have been created, or what the
-	 * configuration of them are, let's just enumerate over everything in
-	 * the system and delete all found modules.
-	 */
-
 }
 
 struct gb_endo *gb_endo_create(struct greybus_host_device *hd)
@@ -156,8 +146,8 @@ void gb_endo_remove(struct gb_endo *endo)
 	if (!endo)
 		return;
 
-	/* remove all modules first */
-	remove_modules(endo);
+	/* remove all modules for this endo */
+	gb_module_remove_all(endo);
 
 	device_unregister(&endo->dev);
 }

@@ -92,7 +92,7 @@ static struct gb_interface *gb_interface_create(struct greybus_host_device *hd,
 		return NULL;
 	}
 
-	module = gb_module_find_or_create(hd, get_module_id(interface_id));
+	module = gb_module_find(hd, get_module_id(interface_id));
 	if (!module)
 		return NULL;
 
@@ -157,7 +157,7 @@ static void gb_interface_destroy(struct gb_interface *intf)
 
 	module = intf->module;
 	device_unregister(&intf->dev);
-	gb_module_remove(module);
+	put_device(&module->dev);
 }
 
 /**

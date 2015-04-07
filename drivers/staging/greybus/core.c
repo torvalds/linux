@@ -198,15 +198,25 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver
 	INIT_LIST_HEAD(&hd->connections);
 	ida_init(&hd->cport_id_map);
 
+	hd->endo = gb_endo_create(hd);
+	if (!hd->endo) {
+		greybus_remove_hd(hd);
+		return NULL;
+	}
+
 	return hd;
 }
 EXPORT_SYMBOL_GPL(greybus_create_hd);
 
 void greybus_remove_hd(struct greybus_host_device *hd)
 {
-	/* Tear down all modules that happen to be associated with this host
-	 * controller */
+	/*
+	 * Tear down all interfaces, modules, and the endo that is associated
+	 * with this host controller before freeing the memory associated with
+	 * the host controller.
+	 */
 	gb_remove_interfaces(hd);
+	gb_endo_remove(hd->endo);
 	kref_put_mutex(&hd->kref, free_hd, &hd_mutex);
 }
 EXPORT_SYMBOL_GPL(greybus_remove_hd);

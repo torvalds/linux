@@ -98,6 +98,8 @@ struct greybus_host_device {
 	/* Host device buffer constraints */
 	size_t buffer_size_max;
 
+	struct gb_endo *endo;
+
 	/* Private data for the host driver */
 	unsigned long hd_priv[0] __aligned(sizeof(s64));
 };

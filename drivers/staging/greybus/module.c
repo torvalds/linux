@@ -94,16 +94,22 @@ u8 get_module_id(u8 interface_id)
 	return interface_id;
 }
 
+struct module_find {
+	struct gb_endo *endo;
+	u8 module_id;
+};
+
 static int module_find(struct device *dev, void *data)
 {
 	struct gb_module *module;
-	u8 *module_id = data;
+	struct module_find *find = data;
 
 	if (!is_gb_module(dev))
 		return 0;
 
 	module = to_gb_module(dev);
-	if (module->module_id == *module_id)
+	if ((module->module_id == find->module_id) &&
+	    (module->dev.parent == &find->endo->dev))
 		return 1;
 
 	return 0;
@@ -113,21 +119,24 @@ static int module_find(struct device *dev, void *data)
  * Search the list of modules in the system.  If one is found, return it, with
  * the reference count incremented.
  */
-static struct gb_module *gb_module_find(u8 module_id)
+struct gb_module *gb_module_find(struct greybus_host_device *hd, u8 module_id)
 {
 	struct device *dev;
 	struct gb_module *module = NULL;
+	struct module_find find;
+
+	find.module_id = module_id;
+	find.endo = hd->endo;
 
 	dev = bus_find_device(&greybus_bus_type, NULL,
-			      &module_id, module_find);
+			      &find, module_find);
 	if (dev)
 		module = to_gb_module(dev);
 
 	return module;
 }
 
-static struct gb_module *gb_module_create(struct greybus_host_device *hd,
-					  u8 module_id)
+struct gb_module *gb_module_create(struct device *parent, u8 module_id)
 {
 	struct gb_module *module;
 	int retval;
@@ -137,12 +146,11 @@ static struct gb_module *gb_module_create(struct greybus_host_device *hd,
 		return NULL;
 
 	module->module_id = module_id;
-	module->refcount = 1;
-	module->dev.parent = hd->parent;
+	module->dev.parent = parent;
 	module->dev.bus = &greybus_bus_type;
 	module->dev.type = &greybus_module_type;
 	module->dev.groups = module_groups;
-	module->dev.dma_mask = hd->parent->dma_mask;
+	module->dev.dma_mask = parent->dma_mask;
 	device_initialize(&module->dev);
 	dev_set_name(&module->dev, "%d", module_id);
 
@@ -158,26 +166,22 @@ static struct gb_module *gb_module_create(struct greybus_host_device *hd,
 	return module;
 }
 
-struct gb_module *gb_module_find_or_create(struct greybus_host_device *hd,
-					   u8 module_id)
+static int module_remove(struct device *dev, void *data)
 {
 	struct gb_module *module;
+	struct gb_endo *endo = data;
 
-	module = gb_module_find(module_id);
-	if (module) {
-		module->refcount++;
-		return module;
-	}
+	if (!is_gb_module(dev))
+		return 0;
 
-	return gb_module_create(hd, module_id);
-}
-
-void gb_module_remove(struct gb_module *module)
-{
-	if (!module)
-		return;
-
-	if (!--module->refcount)
+	module = to_gb_module(dev);
+	if (module->dev.parent == &endo->dev)
 		device_unregister(&module->dev);
+
+	return 0;
 }
 
+void gb_module_remove_all(struct gb_endo *endo)
+{
+	bus_for_each_dev(&greybus_bus_type, NULL, endo, module_remove);
+}
