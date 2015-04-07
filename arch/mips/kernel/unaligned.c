@@ -89,8 +89,6 @@
 #include <asm/fpu_emulator.h>
 #include <asm/inst.h>
 #include <asm/uaccess.h>
-#include <asm/fpu.h>
-#include <asm/fpu_emulator.h>
 
 #define STR(x)	__STR(x)
 #define __STR(x)  #x
