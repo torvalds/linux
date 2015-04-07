@@ -455,6 +455,7 @@ struct drm_i915_error_state {
 		u32 semaphore_seqno[I915_NUM_RINGS - 1];
 
 		/* Register state */
+		u32 start;
 		u32 tail;
 		u32 head;
 		u32 ctl;

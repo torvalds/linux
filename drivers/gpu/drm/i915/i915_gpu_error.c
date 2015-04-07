@@ -251,10 +251,11 @@ static void i915_ring_error_state(struct drm_i915_error_state_buf *m,
 		return;
 
 	err_printf(m, "%s command stream:\n", ring_str(ring_idx));
-	err_printf(m, "  HEAD: 0x%08x\n", ring->head);
-	err_printf(m, "  TAIL: 0x%08x\n", ring->tail);
-	err_printf(m, "  CTL: 0x%08x\n", ring->ctl);
-	err_printf(m, "  HWS: 0x%08x\n", ring->hws);
+	err_printf(m, "  START: 0x%08x\n", ring->start);
+	err_printf(m, "  HEAD:  0x%08x\n", ring->head);
+	err_printf(m, "  TAIL:  0x%08x\n", ring->tail);
+	err_printf(m, "  CTL:   0x%08x\n", ring->ctl);
+	err_printf(m, "  HWS:   0x%08x\n", ring->hws);
 	err_printf(m, "  ACTHD: 0x%08x %08x\n", (u32)(ring->acthd>>32), (u32)ring->acthd);
 	err_printf(m, "  IPEIR: 0x%08x\n", ring->ipeir);
 	err_printf(m, "  IPEHR: 0x%08x\n", ring->ipehr);
@@ -883,6 +884,7 @@ static void i915_record_ring_state(struct drm_device *dev,
 	ering->instpm = I915_READ(RING_INSTPM(ring->mmio_base));
 	ering->seqno = ring->get_seqno(ring, false);
 	ering->acthd = intel_ring_get_active_head(ring);
+	ering->start = I915_READ_START(ring);
 	ering->head = I915_READ_HEAD(ring);
 	ering->tail = I915_READ_TAIL(ring);
 	ering->ctl = I915_READ_CTL(ring);
