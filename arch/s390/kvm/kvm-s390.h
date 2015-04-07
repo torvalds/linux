@@ -178,7 +178,7 @@ int __must_check kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
 				      struct kvm_s390_irq *irq);
 int __must_check kvm_s390_inject_program_int(struct kvm_vcpu *vcpu, u16 code);
 struct kvm_s390_interrupt_info *kvm_s390_get_io_int(struct kvm *kvm,
-						    u64 cr6, u64 schid);
+						    u64 isc_mask, u32 schid);
 int kvm_s390_reinject_io_int(struct kvm *kvm,
 			     struct kvm_s390_interrupt_info *inti);
 int kvm_s390_mask_adapter(struct kvm *kvm, unsigned int id, bool masked);
@@ -272,6 +272,10 @@ int kvm_s390_ext_call_pending(struct kvm_vcpu *vcpu);
 extern struct kvm_device_ops kvm_flic_ops;
 int kvm_s390_is_stop_irq_pending(struct kvm_vcpu *vcpu);
 void kvm_s390_clear_stop_irq(struct kvm_vcpu *vcpu);
+int kvm_s390_set_irq_state(struct kvm_vcpu *vcpu,
+			   void __user *buf, int len);
+int kvm_s390_get_irq_state(struct kvm_vcpu *vcpu,
+			   __u8 __user *buf, int len);
 
 /* implemented in guestdbg.c */
 void kvm_s390_backup_guest_per_regs(struct kvm_vcpu *vcpu);

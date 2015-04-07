@@ -2861,6 +2861,123 @@ single frame starting at start_gfn for count frames.
 Note: If any architecturally invalid key value is found in the given data then
 the ioctl will return -EINVAL.
 
+4.92 KVM_S390_IRQ
+
+Capability: KVM_CAP_S390_INJECT_IRQ
+Architectures: s390
+Type: vcpu ioctl
+Parameters: struct kvm_s390_irq (in)
+Returns: 0 on success, -1 on error
+Errors:
+  EINVAL: interrupt type is invalid
+          type is KVM_S390_SIGP_STOP and flag parameter is invalid value
+          type is KVM_S390_INT_EXTERNAL_CALL and code is bigger
+            than the maximum of VCPUs
+  EBUSY:  type is KVM_S390_SIGP_SET_PREFIX and vcpu is not stopped
+          type is KVM_S390_SIGP_STOP and a stop irq is already pending
+          type is KVM_S390_INT_EXTERNAL_CALL and an external call interrupt
+            is already pending
+
+Allows to inject an interrupt to the guest.
+
+Using struct kvm_s390_irq as a parameter allows
+to inject additional payload which is not
+possible via KVM_S390_INTERRUPT.
+
+Interrupt parameters are passed via kvm_s390_irq:
+
+struct kvm_s390_irq {
+	__u64 type;
+	union {
+		struct kvm_s390_io_info io;
+		struct kvm_s390_ext_info ext;
+		struct kvm_s390_pgm_info pgm;
+		struct kvm_s390_emerg_info emerg;
+		struct kvm_s390_extcall_info extcall;
+		struct kvm_s390_prefix_info prefix;
+		struct kvm_s390_stop_info stop;
+		struct kvm_s390_mchk_info mchk;
+		char reserved[64];
+	} u;
+};
+
+type can be one of the following:
+
+KVM_S390_SIGP_STOP - sigp stop; parameter in .stop
+KVM_S390_PROGRAM_INT - program check; parameters in .pgm
+KVM_S390_SIGP_SET_PREFIX - sigp set prefix; parameters in .prefix
+KVM_S390_RESTART - restart; no parameters
+KVM_S390_INT_CLOCK_COMP - clock comparator interrupt; no parameters
+KVM_S390_INT_CPU_TIMER - CPU timer interrupt; no parameters
+KVM_S390_INT_EMERGENCY - sigp emergency; parameters in .emerg
+KVM_S390_INT_EXTERNAL_CALL - sigp external call; parameters in .extcall
+KVM_S390_MCHK - machine check interrupt; parameters in .mchk
+
+
+Note that the vcpu ioctl is asynchronous to vcpu execution.
+
+4.94 KVM_S390_GET_IRQ_STATE
+
+Capability: KVM_CAP_S390_IRQ_STATE
+Architectures: s390
+Type: vcpu ioctl
+Parameters: struct kvm_s390_irq_state (out)
+Returns: >= number of bytes copied into buffer,
+         -EINVAL if buffer size is 0,
+         -ENOBUFS if buffer size is too small to fit all pending interrupts,
+         -EFAULT if the buffer address was invalid
+
+This ioctl allows userspace to retrieve the complete state of all currently
+pending interrupts in a single buffer. Use cases include migration
+and introspection. The parameter structure contains the address of a
+userspace buffer and its length:
+
+struct kvm_s390_irq_state {
+	__u64 buf;
+	__u32 flags;
+	__u32 len;
+	__u32 reserved[4];
+};
+
+Userspace passes in the above struct and for each pending interrupt a
+struct kvm_s390_irq is copied to the provided buffer.
+
+If -ENOBUFS is returned the buffer provided was too small and userspace
+may retry with a bigger buffer.
+
+4.95 KVM_S390_SET_IRQ_STATE
+
+Capability: KVM_CAP_S390_IRQ_STATE
+Architectures: s390
+Type: vcpu ioctl
+Parameters: struct kvm_s390_irq_state (in)
+Returns: 0 on success,
+         -EFAULT if the buffer address was invalid,
+         -EINVAL for an invalid buffer length (see below),
+         -EBUSY if there were already interrupts pending,
+         errors occurring when actually injecting the
+          interrupt. See KVM_S390_IRQ.
+
+This ioctl allows userspace to set the complete state of all cpu-local
+interrupts currently pending for the vcpu. It is intended for restoring
+interrupt state after a migration. The input parameter is a userspace buffer
+containing a struct kvm_s390_irq_state:
+
+struct kvm_s390_irq_state {
+	__u64 buf;
+	__u32 len;
+	__u32 pad;
+};
+
+The userspace memory referenced by buf contains a struct kvm_s390_irq
+for each interrupt to be injected into the guest.
+If one of the interrupts could not be injected for some reason the
+ioctl aborts.
+
+len must be a multiple of sizeof(struct kvm_s390_irq). It must be > 0
+and it must not exceed (max_vcpus + 32) * sizeof(struct kvm_s390_irq),
+which is the maximum number of possibly pending cpu-local interrupts.
+
 5. The kvm_run structure
 ------------------------
 
