@@ -1,3 +1,26 @@
+What:		/sys/bus/greybus/device/endo-XXXX
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		The "root" endo for the Greybus device tree. XXX is
+		replaced with the numeric value of the endo layout
+		scheme as documented in the ARA Module Developer Kit.
+
+What:		/sys/bus/greybus/device/endo-XXXX/SVC/serial_number
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		The serial number of the SVC device
+
+What:		/sys/bus/greybus/device/endo-XXXX/SVC/version
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		The version number of the firmware in the SVC device.
+
 What:		/sys/bus/greybus/device/.../product
 Date:		October 2015
 KernelVersion:	4.XX
