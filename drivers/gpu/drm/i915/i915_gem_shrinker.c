@@ -184,9 +184,12 @@ static int num_vma_bound(struct drm_i915_gem_object *obj)
 	struct i915_vma *vma;
 	int count = 0;
 
-	list_for_each_entry(vma, &obj->vma_list, vma_link)
+	list_for_each_entry(vma, &obj->vma_list, vma_link) {
 		if (drm_mm_node_allocated(&vma->node))
 			count++;
+		if (vma->pin_count)
+			count++;
+	}
 
 	return count;
 }
@@ -210,8 +213,7 @@ i915_gem_shrinker_count(struct shrinker *shrinker, struct shrink_control *sc)
 			count += obj->base.size >> PAGE_SHIFT;
 
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
-		if (!i915_gem_obj_is_pinned(obj) &&
-		    obj->pages_pin_count == num_vma_bound(obj))
+		if (obj->pages_pin_count == num_vma_bound(obj))
 			count += obj->base.size >> PAGE_SHIFT;
 	}
 
