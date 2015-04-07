@@ -148,9 +148,11 @@ static void ops_free_list(const struct pernet_operations *ops,
 	}
 }
 
+static void rtnl_net_notifyid(struct net *net, struct net *peer, int cmd,
+			      int id);
 static int alloc_netid(struct net *net, struct net *peer, int reqid)
 {
-	int min = 0, max = 0;
+	int min = 0, max = 0, id;
 
 	ASSERT_RTNL();
 
@@ -159,7 +161,11 @@ static int alloc_netid(struct net *net, struct net *peer, int reqid)
 		max = reqid + 1;
 	}
 
-	return idr_alloc(&net->netns_ids, peer, min, max, GFP_KERNEL);
+	id = idr_alloc(&net->netns_ids, peer, min, max, GFP_KERNEL);
+	if (id >= 0)
+		rtnl_net_notifyid(net, peer, RTM_NEWNSID, id);
+
+	return id;
 }
 
 /* This function is used by idr_for_each(). If net is equal to peer, the
@@ -359,8 +365,10 @@ static void cleanup_net(struct work_struct *work)
 		for_each_net(tmp) {
 			int id = __peernet2id(tmp, net, false);
 
-			if (id >= 0)
+			if (id >= 0) {
+				rtnl_net_notifyid(tmp, net, RTM_DELNSID, id);
 				idr_remove(&tmp->netns_ids, id);
+			}
 		}
 		idr_destroy(&net->netns_ids);
 
@@ -531,7 +539,8 @@ static int rtnl_net_get_size(void)
 }
 
 static int rtnl_net_fill(struct sk_buff *skb, u32 portid, u32 seq, int flags,
-			 int cmd, struct net *net, struct net *peer)
+			 int cmd, struct net *net, struct net *peer,
+			 int nsid)
 {
 	struct nlmsghdr *nlh;
 	struct rtgenmsg *rth;
@@ -546,9 +555,13 @@ static int rtnl_net_fill(struct sk_buff *skb, u32 portid, u32 seq, int flags,
 	rth = nlmsg_data(nlh);
 	rth->rtgen_family = AF_UNSPEC;
 
-	id = __peernet2id(net, peer, false);
-	if  (id < 0)
-		id = NETNSA_NSID_NOT_ASSIGNED;
+	if (nsid >= 0) {
+		id = nsid;
+	} else {
+		id = __peernet2id(net, peer, false);
+		if  (id < 0)
+			id = NETNSA_NSID_NOT_ASSIGNED;
+	}
 	if (nla_put_s32(skb, NETNSA_NSID, id))
 		goto nla_put_failure;
 
@@ -565,8 +578,8 @@ static int rtnl_net_getid(struct sk_buff *skb, struct nlmsghdr *nlh)
 	struct net *net = sock_net(skb->sk);
 	struct nlattr *tb[NETNSA_MAX + 1];
 	struct sk_buff *msg;
-	int err = -ENOBUFS;
 	struct net *peer;
+	int err;
 
 	err = nlmsg_parse(nlh, sizeof(struct rtgenmsg), tb, NETNSA_MAX,
 			  rtnl_net_policy);
@@ -589,7 +602,7 @@ static int rtnl_net_getid(struct sk_buff *skb, struct nlmsghdr *nlh)
 	}
 
 	err = rtnl_net_fill(msg, NETLINK_CB(skb).portid, nlh->nlmsg_seq, 0,
-			    RTM_GETNSID, net, peer);
+			    RTM_GETNSID, net, peer, -1);
 	if (err < 0)
 		goto err_out;
 
@@ -601,6 +614,75 @@ err_out:
 out:
 	put_net(peer);
 	return err;
+}
+
+struct rtnl_net_dump_cb {
+	struct net *net;
+	struct sk_buff *skb;
+	struct netlink_callback *cb;
+	int idx;
+	int s_idx;
+};
+
+static int rtnl_net_dumpid_one(int id, void *peer, void *data)
+{
+	struct rtnl_net_dump_cb *net_cb = (struct rtnl_net_dump_cb *)data;
+	int ret;
+
+	if (net_cb->idx < net_cb->s_idx)
+		goto cont;
+
+	ret = rtnl_net_fill(net_cb->skb, NETLINK_CB(net_cb->cb->skb).portid,
+			    net_cb->cb->nlh->nlmsg_seq, NLM_F_MULTI,
+			    RTM_NEWNSID, net_cb->net, peer, id);
+	if (ret < 0)
+		return ret;
+
+cont:
+	net_cb->idx++;
+	return 0;
+}
+
+static int rtnl_net_dumpid(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	struct net *net = sock_net(skb->sk);
+	struct rtnl_net_dump_cb net_cb = {
+		.net = net,
+		.skb = skb,
+		.cb = cb,
+		.idx = 0,
+		.s_idx = cb->args[0],
+	};
+
+	ASSERT_RTNL();
+
+	idr_for_each(&net->netns_ids, rtnl_net_dumpid_one, &net_cb);
+
+	cb->args[0] = net_cb.idx;
+	return skb->len;
+}
+
+static void rtnl_net_notifyid(struct net *net, struct net *peer, int cmd,
+			      int id)
+{
+	struct sk_buff *msg;
+	int err = -ENOMEM;
+
+	msg = nlmsg_new(rtnl_net_get_size(), GFP_KERNEL);
+	if (!msg)
+		goto out;
+
+	err = rtnl_net_fill(msg, 0, 0, 0, cmd, net, peer, id);
+	if (err < 0)
+		goto err_out;
+
+	rtnl_notify(msg, net, 0, RTNLGRP_NSID, NULL, 0);
+	return;
+
+err_out:
+	nlmsg_free(msg);
+out:
+	rtnl_set_sk_err(net, RTNLGRP_NSID, err);
 }
 
 static int __init net_ns_init(void)
@@ -637,7 +719,8 @@ static int __init net_ns_init(void)
 	register_pernet_subsys(&net_ns_ops);
 
 	rtnl_register(PF_UNSPEC, RTM_NEWNSID, rtnl_net_newid, NULL, NULL);
-	rtnl_register(PF_UNSPEC, RTM_GETNSID, rtnl_net_getid, NULL, NULL);
+	rtnl_register(PF_UNSPEC, RTM_GETNSID, rtnl_net_getid, rtnl_net_dumpid,
+		      NULL);
 
 	return 0;
 }
