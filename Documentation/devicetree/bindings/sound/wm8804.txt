@@ -13,6 +13,10 @@ Required properties:
   - PVDD-supply, DVDD-supply : Power supplies for the device, as covered
     in Documentation/devicetree/bindings/regulator/regulator.txt
 
+Optional properties:
+
+  - wlf,reset-gpio: A GPIO specifier for the GPIO controlling the reset pin
+
 Example:
 
 codec: wm8804@1a {
