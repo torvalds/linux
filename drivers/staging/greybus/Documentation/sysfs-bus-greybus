@@ -21,6 +21,36 @@ Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		The version number of the firmware in the SVC device.
 
+What:		/sys/bus/greybus/device/endo-XXXX/../epm
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		The EPM (Electropermanent Magnet) control file for
+		the specific module slot the file is present in.
+		Writing 1 to it turns it on, writing 0 to it turns it
+		off.  Reading the value returns if it is on or off.
+
+What:		/sys/bus/greybus/device/endo-XXXX/../power_control
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		The power control file for the specific module slot that
+		the file is present in.  Writing 1 to it turns power on
+		to the module, writing 0 to it turns power off to the
+		module.  Reading the value returns if it is on or off.
+
+What:		/sys/bus/greybus/device/endo-XXXX/../present
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		The "is a module present in the slot" file for the
+		specific module slot that the file is present in.
+		This is read-only, 1 means a module is present, 0 means
+		no module is present.
+
 What:		/sys/bus/greybus/device/.../product
 Date:		October 2015
 KernelVersion:	4.XX
