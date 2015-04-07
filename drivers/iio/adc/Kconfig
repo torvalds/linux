@@ -137,7 +137,8 @@ config AXP288_ADC
 
 config CC10001_ADC
 	tristate "Cosmic Circuits 10001 ADC driver"
-	depends on HAS_IOMEM || HAVE_CLK || REGULATOR
+	depends on HAVE_CLK || REGULATOR
+	depends on HAS_IOMEM
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help

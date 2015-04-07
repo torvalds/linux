@@ -2999,6 +2999,9 @@ enum usb_irq_events {
 #define PALMAS_GPADC_TRIM15					0x0E
 #define PALMAS_GPADC_TRIM16					0x0F
 
+/* TPS659038 regen2_ctrl offset iss different from palmas */
+#define TPS659038_REGEN2_CTRL					0x12
+
 /* TPS65917 Interrupt registers */
 
 /* Registers for function INTERRUPT */
