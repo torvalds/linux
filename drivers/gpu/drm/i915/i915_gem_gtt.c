@@ -2712,7 +2712,8 @@ __i915_gem_vma_create(struct drm_i915_gem_object *obj,
 
 	if (WARN_ON(i915_is_ggtt(vm) != !!ggtt_view))
 		return ERR_PTR(-EINVAL);
-	vma = kzalloc(sizeof(*vma), GFP_KERNEL);
+
+	vma = kmem_cache_zalloc(to_i915(obj->base.dev)->vmas, GFP_KERNEL);
 	if (vma == NULL)
 		return ERR_PTR(-ENOMEM);
 

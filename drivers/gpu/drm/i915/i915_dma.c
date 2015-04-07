@@ -1008,6 +1008,8 @@ put_bridge:
 free_priv:
 	if (dev_priv->requests)
 		kmem_cache_destroy(dev_priv->requests);
+	if (dev_priv->vmas)
+		kmem_cache_destroy(dev_priv->vmas);
 	if (dev_priv->objects)
 		kmem_cache_destroy(dev_priv->objects);
 	kfree(dev_priv);
@@ -1094,6 +1096,8 @@ int i915_driver_unload(struct drm_device *dev)
 
 	if (dev_priv->requests)
 		kmem_cache_destroy(dev_priv->requests);
+	if (dev_priv->vmas)
+		kmem_cache_destroy(dev_priv->vmas);
 	if (dev_priv->objects)
 		kmem_cache_destroy(dev_priv->objects);
 

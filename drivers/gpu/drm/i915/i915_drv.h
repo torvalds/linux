@@ -1559,6 +1559,7 @@ struct i915_virtual_gpu {
 struct drm_i915_private {
 	struct drm_device *dev;
 	struct kmem_cache *objects;
+	struct kmem_cache *vmas;
 	struct kmem_cache *requests;
 
 	const struct intel_device_info info;

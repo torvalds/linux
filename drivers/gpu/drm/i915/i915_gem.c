@@ -4612,7 +4612,7 @@ void i915_gem_vma_destroy(struct i915_vma *vma)
 
 	list_del(&vma->vma_link);
 
-	kfree(vma);
+	kmem_cache_free(to_i915(vma->obj->base.dev)->vmas, vma);
 }
 
 static void
@@ -4989,6 +4989,11 @@ i915_gem_load(struct drm_device *dev)
 	dev_priv->objects =
 		kmem_cache_create("i915_gem_object",
 				  sizeof(struct drm_i915_gem_object), 0,
+				  SLAB_HWCACHE_ALIGN,
+				  NULL);
+	dev_priv->vmas =
+		kmem_cache_create("i915_gem_vma",
+				  sizeof(struct i915_vma), 0,
 				  SLAB_HWCACHE_ALIGN,
 				  NULL);
 	dev_priv->requests =
