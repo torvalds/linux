@@ -432,14 +432,8 @@ static int atmel_sha_xmit_dma(struct atmel_sha_dev *dd, dma_addr_t dma_addr1,
 	dev_dbg(dd->dev, "xmit_dma: digcnt: 0x%llx 0x%llx, length: %d, final: %d\n",
 		ctx->digcnt[1], ctx->digcnt[0], length1, final);
 
-	if (ctx->flags & (SHA_FLAGS_SHA1 | SHA_FLAGS_SHA224 |
-			SHA_FLAGS_SHA256)) {
-		dd->dma_lch_in.dma_conf.src_maxburst = 16;
-		dd->dma_lch_in.dma_conf.dst_maxburst = 16;
-	} else {
-		dd->dma_lch_in.dma_conf.src_maxburst = 32;
-		dd->dma_lch_in.dma_conf.dst_maxburst = 32;
-	}
+	dd->dma_lch_in.dma_conf.src_maxburst = 16;
+	dd->dma_lch_in.dma_conf.dst_maxburst = 16;
 
 	dmaengine_slave_config(dd->dma_lch_in.chan, &dd->dma_lch_in.dma_conf);
 
