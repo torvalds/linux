@@ -251,7 +251,8 @@ enum {
 	CTX_BIT_USER	= 1 << 0,
 	CTX_BIT_KERNEL	= 1 << 1,
 	CTX_BIT_HV	= 1 << 2,
-	CTX_BIT_MAX	= 1 << 3,
+	CTX_BIT_HOST	= 1 << 3,
+	CTX_BIT_MAX	= 1 << 4,
 };
 
 #define NUM_CTX CTX_BIT_MAX
@@ -282,6 +283,9 @@ static int evsel_context(struct perf_evsel *evsel)
 		ctx |= CTX_BIT_USER;
 	if (evsel->attr.exclude_hv)
 		ctx |= CTX_BIT_HV;
+	if (evsel->attr.exclude_host)
+		ctx |= CTX_BIT_HOST;
+
 	return ctx;
 }
 
