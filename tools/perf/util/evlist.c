@@ -634,8 +634,8 @@ static struct perf_evsel *perf_evlist__event2evsel(struct perf_evlist *evlist,
 union perf_event *perf_evlist__mmap_read(struct perf_evlist *evlist, int idx)
 {
 	struct perf_mmap *md = &evlist->mmap[idx];
-	unsigned int head = perf_mmap__read_head(md);
-	unsigned int old = md->prev;
+	u64 head = perf_mmap__read_head(md);
+	u64 old = md->prev;
 	unsigned char *data = md->base + page_size;
 	union perf_event *event = NULL;
 
@@ -716,7 +716,7 @@ void perf_evlist__mmap_consume(struct perf_evlist *evlist, int idx)
 	struct perf_mmap *md = &evlist->mmap[idx];
 
 	if (!evlist->overwrite) {
-		unsigned int old = md->prev;
+		u64 old = md->prev;
 
 		perf_mmap__write_tail(md, old);
 	}
