@@ -256,6 +256,26 @@ struct intel_plane_state {
 	 * enable/disable the primary plane
 	 */
 	bool hides_primary;
+
+	/*
+	 * scaler_id
+	 *    = -1 : not using a scaler
+	 *    >=  0 : using a scalers
+	 *
+	 * plane requiring a scaler:
+	 *   - During check_plane, its bit is set in
+	 *     crtc_state->scaler_state.scaler_users by calling helper function
+	 *     update_scaler_users.
+	 *   - scaler_id indicates the scaler it got assigned.
+	 *
+	 * plane doesn't require a scaler:
+	 *   - this can happen when scaling is no more required or plane simply
+	 *     got disabled.
+	 *   - During check_plane, corresponding bit is reset in
+	 *     crtc_state->scaler_state.scaler_users by calling helper function
+	 *     update_scaler_users.
+	 */
+	int scaler_id;
 };
 
 struct intel_initial_plane_config {
@@ -263,6 +283,49 @@ struct intel_initial_plane_config {
 	unsigned int tiling;
 	int size;
 	u32 base;
+};
+
+#define SKL_MIN_SRC_W 8
+#define SKL_MAX_SRC_W 4096
+#define SKL_MIN_SRC_H 8
+#define SKL_MAX_SRC_H 2304
+#define SKL_MIN_DST_W 8
+#define SKL_MAX_DST_W 4096
+#define SKL_MIN_DST_H 8
+#define SKL_MAX_DST_H 2304
+
+struct intel_scaler {
+	int id;
+	int in_use;
+	uint32_t mode;
+};
+
+struct intel_crtc_scaler_state {
+#define SKL_NUM_SCALERS 2
+	struct intel_scaler scalers[SKL_NUM_SCALERS];
+
+	/*
+	 * scaler_users: keeps track of users requesting scalers on this crtc.
+	 *
+	 *     If a bit is set, a user is using a scaler.
+	 *     Here user can be a plane or crtc as defined below:
+	 *       bits 0-30 - plane (bit position is index from drm_plane_index)
+	 *       bit 31    - crtc
+	 *
+	 * Instead of creating a new index to cover planes and crtc, using
+	 * existing drm_plane_index for planes which is well less than 31
+	 * planes and bit 31 for crtc. This should be fine to cover all
+	 * our platforms.
+	 *
+	 * intel_atomic_setup_scalers will setup available scalers to users
+	 * requesting scalers. It will gracefully fail if request exceeds
+	 * avilability.
+	 */
+#define SKL_CRTC_INDEX 31
+	unsigned scaler_users;
+
+	/* scaler used by crtc for panel fitting purpose */
+	int scaler_id;
 };
 
 struct intel_crtc_state {
@@ -391,6 +454,8 @@ struct intel_crtc_state {
 
 	bool dp_encoder_is_mst;
 	int pbn;
+
+	struct intel_crtc_scaler_state scaler_state;
 };
 
 struct intel_pipe_wm {
@@ -492,6 +557,9 @@ struct intel_crtc {
 	struct intel_mmio_flip mmio_flip;
 
 	struct intel_crtc_atomic_commit atomic;
+
+	/* scalers available on this crtc */
+	int num_scalers;
 };
 
 struct intel_plane_wm_parameters {
