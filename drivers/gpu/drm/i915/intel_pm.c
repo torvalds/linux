@@ -3934,6 +3934,8 @@ static void gen6_set_rps_thresholds(struct drm_i915_private *dev_priv, u8 val)
 		    GEN6_RP_DOWN_IDLE_AVG);
 
 	dev_priv->rps.power = new_power;
+	dev_priv->rps.up_threshold = threshold_up;
+	dev_priv->rps.down_threshold = threshold_down;
 	dev_priv->rps.last_adj = 0;
 }
 
@@ -4005,8 +4007,11 @@ static void valleyview_set_rps(struct drm_device *dev, u8 val)
 		      "Odd GPU freq value\n"))
 		val &= ~1;
 
-	if (val != dev_priv->rps.cur_freq)
+	if (val != dev_priv->rps.cur_freq) {
 		vlv_punit_write(dev_priv, PUNIT_REG_GPU_FREQ_REQ, val);
+		if (!IS_CHERRYVIEW(dev_priv))
+			gen6_set_rps_thresholds(dev_priv, val);
+	}
 
 	I915_WRITE(GEN6_PMINTRMSK, gen6_rps_pm_mask(dev_priv, val));
 
@@ -4055,6 +4060,7 @@ static void vlv_set_rps_idle(struct drm_i915_private *dev_priv)
 				& GENFREQSTATUS) == 0, 100))
 		DRM_ERROR("timed out waiting for Punit\n");
 
+	gen6_set_rps_thresholds(dev_priv, val);
 	vlv_force_gfx_clock(dev_priv, false);
 
 	I915_WRITE(GEN6_PMINTRMSK, gen6_rps_pm_mask(dev_priv, val));
