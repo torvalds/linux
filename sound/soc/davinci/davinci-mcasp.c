@@ -1128,6 +1128,8 @@ static int davinci_mcasp_startup(struct snd_pcm_substream *substream,
 				 struct snd_soc_dai *cpu_dai)
 {
 	struct davinci_mcasp *mcasp = snd_soc_dai_get_drvdata(cpu_dai);
+	struct davinci_mcasp_ruledata *ruledata =
+					&mcasp->ruledata[substream->stream];
 	u32 max_channels = 0;
 	int i, dir;
 
@@ -1149,7 +1151,7 @@ static int davinci_mcasp_startup(struct snd_pcm_substream *substream,
 		if (mcasp->serial_dir[i] == dir)
 			max_channels++;
 	}
-	mcasp->ruledata[substream->stream].serializers = max_channels;
+	ruledata->serializers = max_channels;
 	max_channels *= mcasp->tdm_slots;
 	/*
 	 * If the already active stream has less channels than the calculated
@@ -1172,12 +1174,12 @@ static int davinci_mcasp_startup(struct snd_pcm_substream *substream,
 	if (mcasp->bclk_master && mcasp->bclk_div == 0 && mcasp->sysclk_freq) {
 		int ret;
 
-		mcasp->ruledata[substream->stream].mcasp = mcasp;
+		ruledata->mcasp = mcasp;
 
 		ret = snd_pcm_hw_rule_add(substream->runtime, 0,
 					  SNDRV_PCM_HW_PARAM_RATE,
 					  davinci_mcasp_hw_rule_rate,
-					  &mcasp->ruledata[dir],
+					  ruledata,
 					  SNDRV_PCM_HW_PARAM_FORMAT,
 					  SNDRV_PCM_HW_PARAM_CHANNELS, -1);
 		if (ret)
@@ -1185,7 +1187,7 @@ static int davinci_mcasp_startup(struct snd_pcm_substream *substream,
 		ret = snd_pcm_hw_rule_add(substream->runtime, 0,
 					  SNDRV_PCM_HW_PARAM_FORMAT,
 					  davinci_mcasp_hw_rule_format,
-					  &mcasp->ruledata[dir],
+					  ruledata,
 					  SNDRV_PCM_HW_PARAM_RATE,
 					  SNDRV_PCM_HW_PARAM_CHANNELS, -1);
 		if (ret)
@@ -1193,7 +1195,7 @@ static int davinci_mcasp_startup(struct snd_pcm_substream *substream,
 		ret = snd_pcm_hw_rule_add(substream->runtime, 0,
 					  SNDRV_PCM_HW_PARAM_CHANNELS,
 					  davinci_mcasp_hw_rule_channels,
-					  &mcasp->ruledata[dir],
+					  ruledata,
 					  SNDRV_PCM_HW_PARAM_RATE,
 					  SNDRV_PCM_HW_PARAM_FORMAT, -1);
 		if (ret)
