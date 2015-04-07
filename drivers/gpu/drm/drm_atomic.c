@@ -780,7 +780,7 @@ drm_atomic_set_crtc_for_plane(struct drm_plane_state *plane_state,
 EXPORT_SYMBOL(drm_atomic_set_crtc_for_plane);
 
 /**
- * drm_atomic_set_fb_for_plane - set crtc for plane
+ * drm_atomic_set_fb_for_plane - set framebuffer for plane
  * @plane_state: atomic state object for the plane
  * @fb: fb to use for the plane
  *
@@ -933,7 +933,7 @@ EXPORT_SYMBOL(drm_atomic_connectors_for_crtc);
  *
  * This function should be used by legacy entry points which don't understand
  * -EDEADLK semantics. For simplicity this one will grab all modeset locks after
- *  the slowpath completed.
+ * the slowpath completed.
  */
 void drm_atomic_legacy_backoff(struct drm_atomic_state *state)
 {
