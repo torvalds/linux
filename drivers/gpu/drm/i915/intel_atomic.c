@@ -48,6 +48,8 @@ int intel_atomic_check(struct drm_device *dev,
 	int ncrtcs = dev->mode_config.num_crtc;
 	int nconnectors = dev->mode_config.num_connector;
 	enum pipe nuclear_pipe = INVALID_PIPE;
+	struct intel_crtc *nuclear_crtc = NULL;
+	struct intel_crtc_state *crtc_state = NULL;
 	int ret;
 	int i;
 	bool not_nuclear = false;
@@ -80,6 +82,10 @@ int intel_atomic_check(struct drm_device *dev,
 			memset(&crtc->atomic, 0, sizeof(crtc->atomic));
 		if (crtc && crtc->pipe != nuclear_pipe)
 			not_nuclear = true;
+		if (crtc && crtc->pipe == nuclear_pipe) {
+			nuclear_crtc = crtc;
+			crtc_state = to_intel_crtc_state(state->crtc_states[i]);
+		}
 	}
 	for (i = 0; i < nconnectors; i++)
 		if (state->connectors[i] != NULL)
@@ -91,6 +97,11 @@ int intel_atomic_check(struct drm_device *dev,
 	}
 
 	ret = drm_atomic_helper_check_planes(dev, state);
+	if (ret)
+		return ret;
+
+	/* FIXME: move to crtc atomic check function once it is ready */
+	ret = intel_atomic_setup_scalers(dev, nuclear_crtc, crtc_state);
 	if (ret)
 		return ret;
 
