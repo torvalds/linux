@@ -3766,7 +3766,7 @@ void close_ctree(struct btrfs_root *root)
 
 	btrfs_free_stripe_hash_table(fs_info);
 
-	btrfs_free_block_rsv(root, root->orphan_block_rsv);
+	__btrfs_free_block_rsv(root->orphan_block_rsv);
 	root->orphan_block_rsv = NULL;
 
 	lock_chunks(root);
