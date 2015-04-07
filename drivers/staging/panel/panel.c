@@ -2252,20 +2252,6 @@ static void panel_detach(struct parport *port)
 	}
 
 	unregister_reboot_notifier(&panel_notifier);
-
-	if (keypad.enabled && keypad_initialized) {
-		misc_deregister(&keypad_dev);
-		keypad_initialized = 0;
-	}
-
-	if (lcd.enabled && lcd.initialized) {
-		misc_deregister(&lcd_dev);
-		lcd.initialized = false;
-	}
-
-	parport_release(pprt);
-	parport_unregister_device(pprt);
-	pprt = NULL;
 }
 
 static struct parport_driver panel_driver = {
