@@ -7953,7 +7953,7 @@ wait:
 		 * up to 30 seconds. If the port doesn't respond, treat
 		 * it as an error.
 		 */
-		for (rdy_chk = 0; rdy_chk < 3000; rdy_chk++) {
+		for (rdy_chk = 0; rdy_chk < 1500; rdy_chk++) {
 			if (lpfc_readl(phba->sli4_hba.u.if_type2.
 				STATUSregaddr, &reg_data.word0)) {
 				rc = -ENODEV;
