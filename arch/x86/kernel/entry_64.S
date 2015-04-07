@@ -527,12 +527,21 @@ END(stub_execveat)
  */
 ENTRY(stub_rt_sigreturn)
 	CFI_STARTPROC
-	addq $8, %rsp
-	DEFAULT_FRAME 0
-	SAVE_EXTRA_REGS
+	DEFAULT_FRAME 0, 8
+	/*
+	 * SAVE_EXTRA_REGS result is not normally needed:
+	 * sigreturn overwrites all pt_regs->GPREGS.
+	 * But sigreturn can fail (!), and there is no easy way to detect that.
+	 * To make sure RESTORE_EXTRA_REGS doesn't restore garbage on error,
+	 * we SAVE_EXTRA_REGS here.
+	 */
+	SAVE_EXTRA_REGS 8
 	call sys_rt_sigreturn
-	movq %rax,RAX(%rsp) # fixme, this could be done at the higher layer
+return_from_stub:
+	addq	$8, %rsp
+	CFI_ADJUST_CFA_OFFSET -8
 	RESTORE_EXTRA_REGS
+	movq %rax,RAX(%rsp)
 	jmp int_ret_from_sys_call
 	CFI_ENDPROC
 END(stub_rt_sigreturn)
@@ -540,13 +549,10 @@ END(stub_rt_sigreturn)
 #ifdef CONFIG_X86_X32_ABI
 ENTRY(stub_x32_rt_sigreturn)
 	CFI_STARTPROC
-	addq $8, %rsp
-	DEFAULT_FRAME 0
-	SAVE_EXTRA_REGS
+	DEFAULT_FRAME 0, 8
+	SAVE_EXTRA_REGS 8
 	call sys32_x32_rt_sigreturn
-	movq %rax,RAX(%rsp) # fixme, this could be done at the higher layer
-	RESTORE_EXTRA_REGS
-	jmp int_ret_from_sys_call
+	jmp  return_from_stub
 	CFI_ENDPROC
 END(stub_x32_rt_sigreturn)
 
