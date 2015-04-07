@@ -16,6 +16,7 @@
 #include <linux/kfifo.h>
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
+#include <asm/unaligned.h>
 
 #include "greybus.h"
 #include "svc_msg.h"
@@ -127,13 +128,8 @@ static void usb_log_disable(struct es1_ap_dev *es1);
  */
 static void hd_buffer_constraints(struct greybus_host_device *hd)
 {
-	/*
-	 * Only one byte is required, but this produces a result
-	 * that's better aligned for the user.
-	 */
-	hd->buffer_headroom = sizeof(u32);	/* For cport id */
-	hd->buffer_size_max = ES1_GBUF_MSG_SIZE_MAX - hd->buffer_headroom;
-	BUILD_BUG_ON(hd->buffer_headroom > GB_BUFFER_HEADROOM_MAX);
+	hd->buffer_headroom = 0;
+	hd->buffer_size_max = ES1_GBUF_MSG_SIZE_MAX;
 }
 
 #define ES1_TIMEOUT	500	/* 500 ms for the SVC to do something */
@@ -219,16 +215,13 @@ static void *message_send(struct greybus_host_device *hd, u16 cport_id,
 {
 	struct es1_ap_dev *es1 = hd_to_es1(hd);
 	struct usb_device *udev = es1->usb_dev;
-	u8 *transfer_buffer;
+	void *buffer;
 	size_t buffer_size;
-	int transfer_buffer_size;
 	int retval;
 	struct urb *urb;
 
-	buffer_size = hd->buffer_headroom + sizeof(*message->header) +
-							message->payload_size;
-	transfer_buffer = message->buffer + hd->buffer_headroom - 1;
-	transfer_buffer_size = buffer_size - (hd->buffer_headroom - 1);
+	buffer = message->buffer;
+	buffer_size = sizeof(*message->header) + message->payload_size;
 
 	/*
 	 * The data actually transferred will include an indication
@@ -239,26 +232,27 @@ static void *message_send(struct greybus_host_device *hd, u16 cport_id,
 		pr_err("request to send inbound data buffer\n");
 		return ERR_PTR(-EINVAL);
 	}
-	if (cport_id > U8_MAX) {
-		pr_err("cport_id (%hd) is out of range for ES1\n", cport_id);
-		return ERR_PTR(-EINVAL);
-	}
-	/* OK, the destination is fine; record it in the transfer buffer */
-	*transfer_buffer = cport_id;
 
 	/* Find a free urb */
 	urb = next_free_urb(es1, gfp_mask);
 	if (!urb)
 		return ERR_PTR(-ENOMEM);
 
+	/*
+	 * We (ab)use the operation-message header pad bytes to transfer the
+	 * cport id in order to minimise overhead.
+	 */
+	put_unaligned_le16(cport_id, message->header->pad);
+
 	usb_fill_bulk_urb(urb, udev,
 			  usb_sndbulkpipe(udev, es1->cport_out_endpoint),
-			  transfer_buffer, transfer_buffer_size,
+			  buffer, buffer_size,
 			  cport_out_callback, message);
 	retval = usb_submit_urb(urb, gfp_mask);
 	if (retval) {
 		pr_err("error %d submitting URB\n", retval);
 		free_urb(es1, urb);
+		put_unaligned_le16(0, message->header->pad);
 		return ERR_PTR(retval);
 	}
 
@@ -395,10 +389,10 @@ static void cport_in_callback(struct urb *urb)
 {
 	struct greybus_host_device *hd = urb->context;
 	struct device *dev = &urb->dev->dev;
+	struct gb_operation_msg_hdr *header;
 	int status = check_urb_status(urb);
 	int retval;
 	u16 cport_id;
-	u8 *data;
 
 	if (status) {
 		if ((status == -EAGAIN) || (status == -EPROTO))
@@ -407,23 +401,17 @@ static void cport_in_callback(struct urb *urb)
 		return;
 	}
 
-	/* The size has to be at least one, for the cport id */
-	if (!urb->actual_length) {
-		dev_err(dev, "%s: no cport id in input buffer?\n", __func__);
+	if (urb->actual_length < sizeof(*header)) {
+		dev_err(dev, "%s: short message received\n", __func__);
 		goto exit;
 	}
 
-	/*
-	 * Our CPort number is the first byte of the data stream,
-	 * the rest of the stream is "real" data
-	 */
-	data = urb->transfer_buffer;
-	cport_id = data[0];
-	data = &data[1];
+	header = urb->transfer_buffer;
+	cport_id = get_unaligned_le16(header->pad);
+	put_unaligned_le16(0, header->pad);
 
-	/* Pass this data to the greybus core */
-	greybus_data_rcvd(hd, cport_id, data, urb->actual_length - 1);
-
+	greybus_data_rcvd(hd, cport_id, urb->transfer_buffer,
+							urb->actual_length);
 exit:
 	/* put our urb back in the request pool */
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
@@ -438,6 +426,9 @@ static void cport_out_callback(struct urb *urb)
 	struct greybus_host_device *hd = message->operation->connection->hd;
 	struct es1_ap_dev *es1 = hd_to_es1(hd);
 	int status = check_urb_status(urb);
+
+	/* Clear the pad bytes used for the cport id */
+	put_unaligned_le16(0, message->header->pad);
 
 	/*
 	 * Tell the submitter that the message send (attempt) is
