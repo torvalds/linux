@@ -276,7 +276,7 @@ uint32_t gm107_grgpc_code[] = {
 	0x02020014,
 	0xf6120040,
 	0x04bd0002,
-	0xfe047241,
+	0xfe047e41,
 	0x00400010,
 	0x0000f607,
 	0x040204bd,
@@ -291,20 +291,23 @@ uint32_t gm107_grgpc_code[] = {
 	0x820603b5,
 	0xcf018600,
 	0x02b50022,
+	0x0f24b604,
+	0x01c90080,
+	0xbd0002f6,
 	0x0c308e04,
 	0xbd24bd50,
-/* 0x0377: init_unk_loop */
+/* 0x0383: init_unk_loop */
 	0x7e44bd34,
 	0xb0000065,
 	0x0bf400f6,
 	0xbb010f0e,
 	0x4ffd04f2,
 	0x0130b605,
-/* 0x038c: init_unk_next */
+/* 0x0398: init_unk_next */
 	0xb60120b6,
 	0x26b004e0,
 	0xe21bf402,
-/* 0x0398: init_unk_done */
+/* 0x03a4: init_unk_done */
 	0xb50703b5,
 	0x00820804,
 	0x22cf0201,
@@ -344,7 +347,7 @@ uint32_t gm107_grgpc_code[] = {
 	0x29f024bd,
 	0x3000801f,
 	0x0002f602,
-/* 0x0436: main */
+/* 0x0442: main */
 	0x31f404bd,
 	0x0028f400,
 	0x377e240d,
@@ -355,13 +358,13 @@ uint32_t gm107_grgpc_code[] = {
 	0x12fd20bd,
 	0x01e4b604,
 	0xfe051efd,
-	0x097e0018,
+	0x157e0018,
 	0x0ef40005,
-/* 0x0465: main_not_ctx_xfer */
+/* 0x0471: main_not_ctx_xfer */
 	0x10ef94d4,
 	0x7e01f5f0,
 	0xf40002f8,
-/* 0x0472: ih */
+/* 0x047e: ih */
 	0x80f9c70e,
 	0xf90188fe,
 	0xf990f980,
@@ -377,7 +380,7 @@ uint32_t gm107_grgpc_code[] = {
 	0x00047e00,
 	0x40010e00,
 	0x0ef61d00,
-/* 0x04af: ih_no_fifo */
+/* 0x04bb: ih_no_fifo */
 	0x4004bd00,
 	0x0af60100,
 	0xfc04bd00,
@@ -386,30 +389,30 @@ uint32_t gm107_grgpc_code[] = {
 	0xfc90fca0,
 	0x0088fe80,
 	0x32f480fc,
-/* 0x04cf: hub_barrier_done */
+/* 0x04db: hub_barrier_done */
 	0x0f01f800,
 	0x040e9801,
 	0xb204febb,
 	0x94188eff,
 	0x008f7e40,
-/* 0x04e3: ctx_redswitch */
+/* 0x04ef: ctx_redswitch */
 	0x0f00f800,
 	0x85008020,
 	0x000ff601,
 	0x080e04bd,
-/* 0x04f0: ctx_redswitch_delay */
+/* 0x04fc: ctx_redswitch_delay */
 	0xf401e2b6,
 	0xf5f1fd1b,
 	0xf5f10800,
 	0x00800200,
 	0x0ff60185,
 	0xf804bd00,
-/* 0x0509: ctx_xfer */
+/* 0x0515: ctx_xfer */
 	0x81008000,
 	0x000ff602,
 	0x11f404bd,
-	0x04e37e07,
-/* 0x0519: ctx_xfer_not_load */
+	0x04ef7e07,
+/* 0x0525: ctx_xfer_not_load */
 	0x02167e00,
 	0x8024bd00,
 	0xf60247fc,
@@ -444,14 +447,11 @@ uint32_t gm107_grgpc_code[] = {
 	0x013d7e02,
 	0x020a7e00,
 	0x0601f400,
-/* 0x05a3: ctx_xfer_post */
+/* 0x05af: ctx_xfer_post */
 	0x7e0712f4,
-/* 0x05a7: ctx_xfer_done */
+/* 0x05b3: ctx_xfer_done */
 	0x7e000227,
-	0xf80004cf,
-	0x00000000,
-	0x00000000,
-	0x00000000,
+	0xf80004db,
 	0x00000000,
 	0x00000000,
 	0x00000000,

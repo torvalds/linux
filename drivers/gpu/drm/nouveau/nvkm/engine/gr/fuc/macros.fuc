@@ -79,7 +79,9 @@
 #define NV_PGRAPH_FECS_MMCTX_MULTI_STRIDE                              0x409718
 #define NV_PGRAPH_FECS_MMCTX_MULTI_MASK                                0x40971c
 #define NV_PGRAPH_FECS_MMCTX_QUEUE                                     0x409720
+#define NV_PGRAPH_FECS_MMIO_BASE                                       0x409724
 #define NV_PGRAPH_FECS_MMIO_CTRL                                       0x409728
+#define NV_PGRAPH_FECS_MMIO_CTRL_BASE_ENABLE                         0x00000001
 #define NV_PGRAPH_FECS_MMIO_RDVAL                                      0x40972c
 #define NV_PGRAPH_FECS_MMIO_WRVAL                                      0x409730
 #define NV_PGRAPH_FECS_MMCTX_LOAD_COUNT                                0x40974c
@@ -147,6 +149,11 @@
 #define NV_PGRAPH_GPCX_GPCCS_MYINDEX                                   0x41a618
 #define NV_PGRAPH_GPCX_GPCCS_MMCTX_SAVE_SWBASE                         0x41a700
 #define NV_PGRAPH_GPCX_GPCCS_MMCTX_LOAD_SWBASE                         0x41a704
+#define NV_PGRAPH_GPCX_GPCCS_MMIO_BASE                                 0x41a724
+#define NV_PGRAPH_GPCX_GPCCS_MMIO_CTRL                                 0x41a728
+#define NV_PGRAPH_GPCX_GPCCS_MMIO_CTRL_BASE_ENABLE                   0x00000001
+#define NV_PGRAPH_GPCX_GPCCS_MMIO_RDVAL                                0x41a72c
+#define NV_PGRAPH_GPCX_GPCCS_MMIO_WRVAL                                0x41a730
 #define NV_PGRAPH_GPCX_GPCCS_MMCTX_LOAD_COUNT                          0x41a74c
 #if CHIPSET < GK110
 #define NV_PGRAPH_GPCX_GPCCS_CC_SCRATCH_VAL(n)              ((n) * 4 + 0x41a800)
