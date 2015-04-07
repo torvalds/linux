@@ -247,9 +247,13 @@ out_free:
 	return -1;
 }
 
-#define NUM_CTX 3
+enum {
+	CTX_BIT_USER	= 1 << 0,
+	CTX_BIT_KERNEL	= 1 << 1,
+	CTX_BIT_MAX	= 1 << 2,
+};
 
-enum { CTX_USER, CTX_KERNEL, CTX_ALL };
+#define NUM_CTX CTX_BIT_MAX
 
 static struct stats runtime_nsecs_stats[MAX_NR_CPUS];
 static struct stats runtime_cycles_stats[NUM_CTX][MAX_NR_CPUS];
@@ -269,12 +273,13 @@ static struct stats runtime_elision_stats[NUM_CTX][MAX_NR_CPUS];
 
 static int evsel_context(struct perf_evsel *evsel)
 {
+	int ctx = 0;
+
 	if (evsel->attr.exclude_kernel)
-		return CTX_USER;
+		ctx |= CTX_BIT_KERNEL;
 	if (evsel->attr.exclude_user)
-		return CTX_KERNEL;
-	/* Handle hypervisor too? */
-	return CTX_ALL;
+		ctx |= CTX_BIT_USER;
+	return ctx;
 }
 
 static void perf_stat__reset_stats(struct perf_evlist *evlist)
