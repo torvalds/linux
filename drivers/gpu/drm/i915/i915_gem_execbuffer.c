@@ -37,7 +37,6 @@
 #define  __EXEC_OBJECT_HAS_FENCE (1<<30)
 #define  __EXEC_OBJECT_NEEDS_MAP (1<<29)
 #define  __EXEC_OBJECT_NEEDS_BIAS (1<<28)
-#define  __EXEC_OBJECT_PURGEABLE (1<<27)
 
 #define BATCH_OFFSET_BIAS (256*1024)
 
@@ -224,12 +223,7 @@ i915_gem_execbuffer_unreserve_vma(struct i915_vma *vma)
 	if (entry->flags & __EXEC_OBJECT_HAS_PIN)
 		vma->pin_count--;
 
-	if (entry->flags & __EXEC_OBJECT_PURGEABLE)
-		obj->madv = I915_MADV_DONTNEED;
-
-	entry->flags &= ~(__EXEC_OBJECT_HAS_FENCE |
-			  __EXEC_OBJECT_HAS_PIN |
-			  __EXEC_OBJECT_PURGEABLE);
+	entry->flags &= ~(__EXEC_OBJECT_HAS_FENCE | __EXEC_OBJECT_HAS_PIN);
 }
 
 static void eb_destroy(struct eb_vmas *eb)
@@ -1165,11 +1159,13 @@ i915_gem_execbuffer_parse(struct intel_engine_cs *ring,
 	if (ret)
 		goto err;
 
+	i915_gem_object_unpin_pages(shadow_batch_obj);
+
 	memset(shadow_exec_entry, 0, sizeof(*shadow_exec_entry));
 
 	vma = i915_gem_obj_to_ggtt(shadow_batch_obj);
 	vma->exec_entry = shadow_exec_entry;
-	vma->exec_entry->flags = __EXEC_OBJECT_PURGEABLE | __EXEC_OBJECT_HAS_PIN;
+	vma->exec_entry->flags = __EXEC_OBJECT_HAS_PIN;
 	drm_gem_object_reference(&shadow_batch_obj->base);
 	list_add_tail(&vma->exec_list, &eb->vmas);
 
@@ -1178,6 +1174,7 @@ i915_gem_execbuffer_parse(struct intel_engine_cs *ring,
 	return shadow_batch_obj;
 
 err:
+	i915_gem_object_unpin_pages(shadow_batch_obj);
 	if (ret == -EACCES) /* unhandled chained batch */
 		return batch_obj;
 	else
