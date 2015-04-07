@@ -132,7 +132,7 @@ static void hd_buffer_constraints(struct greybus_host_device *hd)
 	 * that's better aligned for the user.
 	 */
 	hd->buffer_headroom = sizeof(u32);	/* For cport id */
-	hd->buffer_size_max = ES1_GBUF_MSG_SIZE_MAX;
+	hd->buffer_size_max = ES1_GBUF_MSG_SIZE_MAX - hd->buffer_headroom;
 	BUILD_BUG_ON(hd->buffer_headroom > GB_BUFFER_HEADROOM_MAX);
 }
 
