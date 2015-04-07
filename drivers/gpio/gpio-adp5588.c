@@ -471,7 +471,6 @@ static int adp5588_gpio_remove(struct i2c_client *client)
 
 	gpiochip_remove(&dev->gpio_chip);
 
-	kfree(dev);
 	return 0;
 }
 

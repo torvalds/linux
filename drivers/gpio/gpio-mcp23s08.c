@@ -1008,7 +1008,7 @@ static int mcp23s08_remove(struct spi_device *spi)
 			mcp23s08_irq_teardown(data->mcp[addr]);
 		gpiochip_remove(&data->mcp[addr]->chip);
 	}
-	kfree(data);
+
 	return 0;
 }
 
