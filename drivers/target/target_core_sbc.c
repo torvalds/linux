@@ -321,7 +321,7 @@ sbc_setup_write_same(struct se_cmd *cmd, unsigned char *flags, struct sbc_ops *o
 	return 0;
 }
 
-static sense_reason_t xdreadwrite_callback(struct se_cmd *cmd)
+static sense_reason_t xdreadwrite_callback(struct se_cmd *cmd, bool success)
 {
 	unsigned char *buf, *addr;
 	struct scatterlist *sg;
@@ -385,7 +385,7 @@ sbc_execute_rw(struct se_cmd *cmd)
 			       cmd->data_direction);
 }
 
-static sense_reason_t compare_and_write_post(struct se_cmd *cmd)
+static sense_reason_t compare_and_write_post(struct se_cmd *cmd, bool success)
 {
 	struct se_device *dev = cmd->se_dev;
 
@@ -408,7 +408,7 @@ static sense_reason_t compare_and_write_post(struct se_cmd *cmd)
 	return TCM_NO_SENSE;
 }
 
-static sense_reason_t compare_and_write_callback(struct se_cmd *cmd)
+static sense_reason_t compare_and_write_callback(struct se_cmd *cmd, bool success)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct scatterlist *write_sg = NULL, *sg;
@@ -423,10 +423,15 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd)
 
 	/*
 	 * Handle early failure in transport_generic_request_failure(),
-	 * which will not have taken ->caw_mutex yet..
+	 * which will not have taken ->caw_sem yet..
 	 */
-	if (!cmd->t_data_sg || !cmd->t_bidi_data_sg)
+	if (!success && (!cmd->t_data_sg || !cmd->t_bidi_data_sg))
 		return TCM_NO_SENSE;
+	/*
+	 * Handle special case for zero-length COMPARE_AND_WRITE
+	 */
+	if (!cmd->data_length)
+		goto out;
 	/*
 	 * Immediately exit + release dev->caw_sem if command has already
 	 * been failed with a non-zero SCSI status.

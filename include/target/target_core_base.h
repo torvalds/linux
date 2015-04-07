@@ -523,7 +523,7 @@ struct se_cmd {
 	sense_reason_t		(*execute_cmd)(struct se_cmd *);
 	sense_reason_t		(*execute_rw)(struct se_cmd *, struct scatterlist *,
 					      u32, enum dma_data_direction);
-	sense_reason_t (*transport_complete_callback)(struct se_cmd *);
+	sense_reason_t (*transport_complete_callback)(struct se_cmd *, bool);
 
 	unsigned char		*t_task_cdb;
 	unsigned char		__t_task_cdb[TCM_MAX_COMMAND_SIZE];

@@ -1647,11 +1647,11 @@ void transport_generic_request_failure(struct se_cmd *cmd,
 	transport_complete_task_attr(cmd);
 	/*
 	 * Handle special case for COMPARE_AND_WRITE failure, where the
-	 * callback is expected to drop the per device ->caw_mutex.
+	 * callback is expected to drop the per device ->caw_sem.
 	 */
 	if ((cmd->se_cmd_flags & SCF_COMPARE_AND_WRITE) &&
 	     cmd->transport_complete_callback)
-		cmd->transport_complete_callback(cmd);
+		cmd->transport_complete_callback(cmd, false);
 
 	switch (sense_reason) {
 	case TCM_NON_EXISTENT_LUN:
@@ -2048,8 +2048,12 @@ static void target_complete_ok_work(struct work_struct *work)
 	if (cmd->transport_complete_callback) {
 		sense_reason_t rc;
 
-		rc = cmd->transport_complete_callback(cmd);
+		rc = cmd->transport_complete_callback(cmd, true);
 		if (!rc && !(cmd->se_cmd_flags & SCF_COMPARE_AND_WRITE_POST)) {
+			if ((cmd->se_cmd_flags & SCF_COMPARE_AND_WRITE) &&
+			    !cmd->data_length)
+				goto queue_rsp;
+
 			return;
 		} else if (rc) {
 			ret = transport_send_check_condition_and_sense(cmd,
@@ -2063,6 +2067,7 @@ static void target_complete_ok_work(struct work_struct *work)
 		}
 	}
 
+queue_rsp:
 	switch (cmd->data_direction) {
 	case DMA_FROM_DEVICE:
 		spin_lock(&cmd->se_lun->lun_sep_lock);
@@ -2166,6 +2171,16 @@ static inline void transport_reset_sgl_orig(struct se_cmd *cmd)
 static inline void transport_free_pages(struct se_cmd *cmd)
 {
 	if (cmd->se_cmd_flags & SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC) {
+		/*
+		 * Release special case READ buffer payload required for
+		 * SG_TO_MEM_NOALLOC to function with COMPARE_AND_WRITE
+		 */
+		if (cmd->se_cmd_flags & SCF_COMPARE_AND_WRITE) {
+			transport_free_sgl(cmd->t_bidi_data_sg,
+					   cmd->t_bidi_data_nents);
+			cmd->t_bidi_data_sg = NULL;
+			cmd->t_bidi_data_nents = 0;
+		}
 		transport_reset_sgl_orig(cmd);
 		return;
 	}
@@ -2318,6 +2333,7 @@ sense_reason_t
 transport_generic_new_cmd(struct se_cmd *cmd)
 {
 	int ret = 0;
+	bool zero_flag = !(cmd->se_cmd_flags & SCF_SCSI_DATA_CDB);
 
 	/*
 	 * Determine is the TCM fabric module has already allocated physical
@@ -2326,7 +2342,6 @@ transport_generic_new_cmd(struct se_cmd *cmd)
 	 */
 	if (!(cmd->se_cmd_flags & SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC) &&
 	    cmd->data_length) {
-		bool zero_flag = !(cmd->se_cmd_flags & SCF_SCSI_DATA_CDB);
 
 		if ((cmd->se_cmd_flags & SCF_BIDI) ||
 		    (cmd->se_cmd_flags & SCF_COMPARE_AND_WRITE)) {
@@ -2355,6 +2370,20 @@ transport_generic_new_cmd(struct se_cmd *cmd)
 
 		ret = target_alloc_sgl(&cmd->t_data_sg, &cmd->t_data_nents,
 				       cmd->data_length, zero_flag);
+		if (ret < 0)
+			return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+	} else if ((cmd->se_cmd_flags & SCF_COMPARE_AND_WRITE) &&
+		    cmd->data_length) {
+		/*
+		 * Special case for COMPARE_AND_WRITE with fabrics
+		 * using SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC.
+		 */
+		u32 caw_length = cmd->t_task_nolb *
+				 cmd->se_dev->dev_attrib.block_size;
+
+		ret = target_alloc_sgl(&cmd->t_bidi_data_sg,
+				       &cmd->t_bidi_data_nents,
+				       caw_length, zero_flag);
 		if (ret < 0)
 			return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 	}
