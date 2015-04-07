@@ -1096,14 +1096,19 @@ static int sahara_queue_manage(void *data)
 {
 	struct sahara_dev *dev = (struct sahara_dev *)data;
 	struct crypto_async_request *async_req;
+	struct crypto_async_request *backlog;
 	int ret = 0;
 
 	do {
 		__set_current_state(TASK_INTERRUPTIBLE);
 
 		mutex_lock(&dev->queue_mutex);
+		backlog = crypto_get_backlog(&dev->queue);
 		async_req = crypto_dequeue_request(&dev->queue);
 		mutex_unlock(&dev->queue_mutex);
+
+		if (backlog)
+			backlog->complete(backlog, -EINPROGRESS);
 
 		if (async_req) {
 			if (crypto_tfm_alg_type(async_req->tfm) ==
