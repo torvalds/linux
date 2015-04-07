@@ -1018,6 +1018,8 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 	ctx->crtc = exynos_drm_crtc_create(drm_dev, &exynos_plane->base,
 					   ctx->pipe, EXYNOS_DISPLAY_TYPE_LCD,
 					   &fimd_crtc_ops, ctx);
+	if (IS_ERR(ctx->crtc))
+		return PTR_ERR(ctx->crtc);
 
 	if (ctx->display)
 		exynos_drm_create_enc_conn(drm_dev, ctx->display);
