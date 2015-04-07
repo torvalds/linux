@@ -10210,6 +10210,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	enum pipe pipe = intel_crtc->pipe;
 	struct intel_unpin_work *work;
 	struct intel_engine_cs *ring;
+	bool mmio_flip;
 	int ret;
 
 	/*
@@ -10307,15 +10308,23 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 		ring = &dev_priv->ring[RCS];
 	}
 
+	mmio_flip = use_mmio_flip(ring, obj);
+
+	/* When using CS flips, we want to emit semaphores between rings.
+	 * However, when using mmio flips we will create a task to do the
+	 * synchronisation, so all we want here is to pin the framebuffer
+	 * into the display plane and skip any waits.
+	 */
 	ret = intel_pin_and_fence_fb_obj(crtc->primary, fb,
-					 crtc->primary->state, ring);
+					 crtc->primary->state,
+					 mmio_flip ? i915_gem_request_get_ring(obj->last_read_req) : ring);
 	if (ret)
 		goto cleanup_pending;
 
 	work->gtt_offset = intel_plane_obj_offset(to_intel_plane(primary), obj)
 						  + intel_crtc->dspaddr_offset;
 
-	if (use_mmio_flip(ring, obj)) {
+	if (mmio_flip) {
 		ret = intel_queue_mmio_flip(dev, crtc, fb, obj, ring,
 					    page_flip_flags);
 		if (ret)
