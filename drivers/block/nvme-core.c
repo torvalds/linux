@@ -517,8 +517,6 @@ static void nvme_dif_remap(struct request *req,
 		return;
 
 	pmap = kmap_atomic(bip->bip_vec->bv_page) + bip->bip_vec->bv_offset;
-	if (!pmap)
-		return;
 
 	p = pmap;
 	virt = bip_get_seed(bip);
