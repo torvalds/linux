@@ -53,7 +53,7 @@ struct thread *thread__new(pid_t pid, pid_t tid)
 			goto err_thread;
 
 		list_add(&comm->list, &thread->comm_list);
-
+		atomic_set(&thread->refcnt, 0);
 	}
 
 	return thread;
@@ -84,13 +84,13 @@ void thread__delete(struct thread *thread)
 
 struct thread *thread__get(struct thread *thread)
 {
-	++thread->refcnt;
+	atomic_inc(&thread->refcnt);
 	return thread;
 }
 
 void thread__put(struct thread *thread)
 {
-	if (thread && --thread->refcnt == 0) {
+	if (thread && atomic_dec_and_test(&thread->refcnt)) {
 		list_del_init(&thread->node);
 		thread__delete(thread);
 	}

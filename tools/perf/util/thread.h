@@ -1,6 +1,7 @@
 #ifndef __PERF_THREAD_H
 #define __PERF_THREAD_H
 
+#include <linux/atomic.h>
 #include <linux/rbtree.h>
 #include <linux/list.h>
 #include <unistd.h>
@@ -21,7 +22,7 @@ struct thread {
 	pid_t			tid;
 	pid_t			ppid;
 	int			cpu;
-	int			refcnt;
+	atomic_t		refcnt;
 	char			shortname[3];
 	bool			comm_set;
 	bool			dead; /* if set thread has exited */
