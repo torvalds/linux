@@ -265,7 +265,8 @@ static uint64_t execlists_ctx_descriptor(struct intel_engine_cs *ring,
 
 	desc = GEN8_CTX_VALID;
 	desc |= LEGACY_CONTEXT << GEN8_CTX_MODE_SHIFT;
-	desc |= GEN8_CTX_L3LLC_COHERENT;
+	if (IS_GEN8(ctx_obj->base.dev))
+		desc |= GEN8_CTX_L3LLC_COHERENT;
 	desc |= GEN8_CTX_PRIVILEGE;
 	desc |= lrca;
 	desc |= (u64)intel_execlists_ctx_id(ctx_obj) << GEN8_CTX_ID_SHIFT;
