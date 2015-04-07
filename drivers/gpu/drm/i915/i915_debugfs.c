@@ -123,8 +123,9 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 	struct i915_vma *vma;
 	int pin_count = 0;
 
-	seq_printf(m, "%pK: %s%s%s %8zdKiB %02x %02x %x %x %x%s%s%s",
+	seq_printf(m, "%pK: %s%s%s%s %8zdKiB %02x %02x %x %x %x%s%s%s",
 		   &obj->base,
+		   obj->active ? "*" : " ",
 		   get_pin_flag(obj),
 		   get_tiling_flag(obj),
 		   get_global_flag(obj),
