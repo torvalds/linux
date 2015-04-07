@@ -132,7 +132,7 @@ static void hd_buffer_constraints(struct greybus_host_device *hd)
 	 * that's better aligned for the user.
 	 */
 	hd->buffer_headroom = sizeof(u32);	/* For cport id */
-	hd->buffer_size_max = ES1_GBUF_MSG_SIZE_MAX;
+	hd->buffer_size_max = ES1_GBUF_MSG_SIZE_MAX - hd->buffer_headroom;
 	BUILD_BUG_ON(hd->buffer_headroom > GB_BUFFER_HEADROOM_MAX);
 }
 
@@ -244,7 +244,7 @@ static void *buffer_send(struct greybus_host_device *hd, u16 cport_id,
 		pr_err("request to send inbound data buffer\n");
 		return ERR_PTR(-EINVAL);
 	}
-	if (cport_id > (u16)U8_MAX) {
+	if (cport_id > U8_MAX) {
 		pr_err("cport_id (%hd) is out of range for ES1\n", cport_id);
 		return ERR_PTR(-EINVAL);
 	}
@@ -423,7 +423,7 @@ static void cport_in_callback(struct urb *urb)
 	 * the rest of the stream is "real" data
 	 */
 	data = urb->transfer_buffer;
-	cport_id = (u16)data[0];
+	cport_id = data[0];
 	data = &data[1];
 
 	/* Pass this data to the greybus core */
@@ -454,14 +454,13 @@ static void cport_out_callback(struct urb *urb)
 	free_urb(es1, urb);
 }
 
-static void apb1_log_get(struct es1_ap_dev *es1)
+#define APB1_LOG_MSG_SIZE	64
+static void apb1_log_get(struct es1_ap_dev *es1, char *buf)
 {
-	char buf[65];
 	int retval;
 
 	/* SVC messages go down our control pipe */
 	do {
-		memset(buf, 0, 65);
 		retval = usb_control_msg(es1->usb_dev,
 					usb_rcvctrlpipe(es1->usb_dev,
 							es1->control_endpoint),
@@ -469,7 +468,7 @@ static void apb1_log_get(struct es1_ap_dev *es1)
 					USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 					0x00, 0x00,
 					buf,
-					64,
+					APB1_LOG_MSG_SIZE,
 					ES1_TIMEOUT);
 		if (retval > 0)
 			kfifo_in(&apb1_log_fifo, buf, retval);
@@ -478,10 +477,20 @@ static void apb1_log_get(struct es1_ap_dev *es1)
 
 static int apb1_log_poll(void *data)
 {
+	struct es1_ap_dev *es1 = data;
+	char *buf;
+
+	buf = kmalloc(APB1_LOG_MSG_SIZE, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
 	while (!kthread_should_stop()) {
 		msleep(1000);
-		apb1_log_get((struct es1_ap_dev *)data);
+		apb1_log_get(es1, buf);
 	}
+
+	kfree(buf);
+
 	return 0;
 }
 
