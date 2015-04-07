@@ -441,6 +441,12 @@
 #define BLENDCON_NEW_8BIT_ALPHA_VALUE		(1 << 0)
 #define BLENDCON_NEW_4BIT_ALPHA_VALUE		(0 << 0)
 
+/* Display port clock control */
+#define DP_MIE_CLKCON				0x27c
+#define DP_MIE_CLK_DISABLE			0x0
+#define DP_MIE_CLK_DP_ENABLE			0x2
+#define DP_MIE_CLK_MIE_ENABLE			0x3
+
 /* Notes on per-window bpp settings
  *
  * Value	Win0	 Win1	  Win2	   Win3	    Win 4

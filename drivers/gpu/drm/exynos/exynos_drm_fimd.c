@@ -33,6 +33,7 @@
 #include "exynos_drm_crtc.h"
 #include "exynos_drm_plane.h"
 #include "exynos_drm_iommu.h"
+#include "exynos_drm_fimd.h"
 
 /*
  * FIMD stands for Fully Interactive Mobile Display and
@@ -1190,6 +1191,24 @@ static int fimd_remove(struct platform_device *pdev)
 
 	return 0;
 }
+
+void fimd_dp_clock_enable(struct exynos_drm_crtc *crtc, bool enable)
+{
+	struct fimd_context *ctx = crtc->ctx;
+	u32 val;
+
+	/*
+	 * Only Exynos 5250, 5260, 5410 and 542x requires enabling DP/MIE
+	 * clock. On these SoCs the bootloader may enable it but any
+	 * power domain off/on will reset it to disable state.
+	 */
+	if (ctx->driver_data != &exynos5_fimd_driver_data)
+		return;
+
+	val = enable ? DP_MIE_CLK_DP_ENABLE : DP_MIE_CLK_DISABLE;
+	writel(DP_MIE_CLK_DP_ENABLE, ctx->regs + DP_MIE_CLKCON);
+}
+EXPORT_SYMBOL_GPL(fimd_dp_clock_enable);
 
 struct platform_driver fimd_driver = {
 	.probe		= fimd_probe,
