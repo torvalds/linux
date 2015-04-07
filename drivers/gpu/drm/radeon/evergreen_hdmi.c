@@ -398,13 +398,23 @@ void evergreen_hdmi_enable(struct drm_encoder *encoder, bool enable)
 		return;
 
 	if (enable) {
-		WREG32(HDMI_INFOFRAME_CONTROL0 + dig->afmt->offset,
-		       HDMI_AVI_INFO_SEND | /* enable AVI info frames */
-		       HDMI_AVI_INFO_CONT | /* required for audio info values to be updated */
-		       HDMI_AUDIO_INFO_SEND | /* enable audio info frames (frames won't be set until audio is enabled) */
-		       HDMI_AUDIO_INFO_CONT); /* required for audio info values to be updated */
-		WREG32_OR(AFMT_AUDIO_PACKET_CONTROL + dig->afmt->offset,
-			  AFMT_AUDIO_SAMPLE_SEND);
+		struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
+
+		if (drm_detect_monitor_audio(radeon_connector_edid(connector))) {
+			WREG32(HDMI_INFOFRAME_CONTROL0 + dig->afmt->offset,
+			       HDMI_AVI_INFO_SEND | /* enable AVI info frames */
+			       HDMI_AVI_INFO_CONT | /* required for audio info values to be updated */
+			       HDMI_AUDIO_INFO_SEND | /* enable audio info frames (frames won't be set until audio is enabled) */
+			       HDMI_AUDIO_INFO_CONT); /* required for audio info values to be updated */
+			WREG32_OR(AFMT_AUDIO_PACKET_CONTROL + dig->afmt->offset,
+				  AFMT_AUDIO_SAMPLE_SEND);
+		} else {
+			WREG32(HDMI_INFOFRAME_CONTROL0 + dig->afmt->offset,
+			       HDMI_AVI_INFO_SEND | /* enable AVI info frames */
+			       HDMI_AVI_INFO_CONT); /* required for audio info values to be updated */
+			WREG32_AND(AFMT_AUDIO_PACKET_CONTROL + dig->afmt->offset,
+				   ~AFMT_AUDIO_SAMPLE_SEND);
+		}
 	} else {
 		WREG32_AND(AFMT_AUDIO_PACKET_CONTROL + dig->afmt->offset,
 			   ~AFMT_AUDIO_SAMPLE_SEND);
@@ -423,11 +433,12 @@ void evergreen_dp_enable(struct drm_encoder *encoder, bool enable)
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
+	struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
 
 	if (!dig || !dig->afmt)
 		return;
 
-	if (enable) {
+	if (enable && drm_detect_monitor_audio(radeon_connector_edid(connector))) {
 		struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
 		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 		struct radeon_connector_atom_dig *dig_connector;
