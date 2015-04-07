@@ -616,6 +616,52 @@ out:
 	return err;
 }
 
+struct rtnl_net_dump_cb {
+	struct net *net;
+	struct sk_buff *skb;
+	struct netlink_callback *cb;
+	int idx;
+	int s_idx;
+};
+
+static int rtnl_net_dumpid_one(int id, void *peer, void *data)
+{
+	struct rtnl_net_dump_cb *net_cb = (struct rtnl_net_dump_cb *)data;
+	int ret;
+
+	if (net_cb->idx < net_cb->s_idx)
+		goto cont;
+
+	ret = rtnl_net_fill(net_cb->skb, NETLINK_CB(net_cb->cb->skb).portid,
+			    net_cb->cb->nlh->nlmsg_seq, NLM_F_MULTI,
+			    RTM_NEWNSID, net_cb->net, peer, id);
+	if (ret < 0)
+		return ret;
+
+cont:
+	net_cb->idx++;
+	return 0;
+}
+
+static int rtnl_net_dumpid(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	struct net *net = sock_net(skb->sk);
+	struct rtnl_net_dump_cb net_cb = {
+		.net = net,
+		.skb = skb,
+		.cb = cb,
+		.idx = 0,
+		.s_idx = cb->args[0],
+	};
+
+	ASSERT_RTNL();
+
+	idr_for_each(&net->netns_ids, rtnl_net_dumpid_one, &net_cb);
+
+	cb->args[0] = net_cb.idx;
+	return skb->len;
+}
+
 static void rtnl_net_notifyid(struct net *net, struct net *peer, int cmd,
 			      int id)
 {
@@ -673,7 +719,8 @@ static int __init net_ns_init(void)
 	register_pernet_subsys(&net_ns_ops);
 
 	rtnl_register(PF_UNSPEC, RTM_NEWNSID, rtnl_net_newid, NULL, NULL);
-	rtnl_register(PF_UNSPEC, RTM_GETNSID, rtnl_net_getid, NULL, NULL);
+	rtnl_register(PF_UNSPEC, RTM_GETNSID, rtnl_net_getid, rtnl_net_dumpid,
+		      NULL);
 
 	return 0;
 }
