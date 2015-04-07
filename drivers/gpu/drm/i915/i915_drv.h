@@ -1558,7 +1558,8 @@ struct i915_virtual_gpu {
 
 struct drm_i915_private {
 	struct drm_device *dev;
-	struct kmem_cache *slab;
+	struct kmem_cache *objects;
+	struct kmem_cache *requests;
 
 	const struct intel_device_info info;
 
@@ -2044,6 +2045,7 @@ struct drm_i915_gem_request {
 	struct kref ref;
 
 	/** On Which ring this request was generated */
+	struct drm_i915_private *i915;
 	struct intel_engine_cs *ring;
 
 	/** GEM sequence number associated with this request. */

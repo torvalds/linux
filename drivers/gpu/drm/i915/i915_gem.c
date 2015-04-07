@@ -378,13 +378,13 @@ out:
 void *i915_gem_object_alloc(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	return kmem_cache_zalloc(dev_priv->slab, GFP_KERNEL);
+	return kmem_cache_zalloc(dev_priv->objects, GFP_KERNEL);
 }
 
 void i915_gem_object_free(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
-	kmem_cache_free(dev_priv->slab, obj);
+	kmem_cache_free(dev_priv->objects, obj);
 }
 
 static int
@@ -2506,43 +2506,45 @@ void i915_gem_request_free(struct kref *req_ref)
 		i915_gem_context_unreference(ctx);
 	}
 
-	kfree(req);
+	kmem_cache_free(req->i915->requests, req);
 }
 
 int i915_gem_request_alloc(struct intel_engine_cs *ring,
 			   struct intel_context *ctx)
 {
+	struct drm_i915_private *dev_priv = to_i915(ring->dev);
+	struct drm_i915_gem_request *rq;
 	int ret;
-	struct drm_i915_gem_request *request;
-	struct drm_i915_private *dev_private = ring->dev->dev_private;
 
 	if (ring->outstanding_lazy_request)
 		return 0;
 
-	request = kzalloc(sizeof(*request), GFP_KERNEL);
-	if (request == NULL)
+	rq = kmem_cache_zalloc(dev_priv->requests, GFP_KERNEL);
+	if (rq == NULL)
 		return -ENOMEM;
 
-	ret = i915_gem_get_seqno(ring->dev, &request->seqno);
+	kref_init(&rq->ref);
+	rq->i915 = dev_priv;
+
+	ret = i915_gem_get_seqno(ring->dev, &rq->seqno);
 	if (ret) {
-		kfree(request);
+		kfree(rq);
 		return ret;
 	}
 
-	kref_init(&request->ref);
-	request->ring = ring;
-	request->uniq = dev_private->request_uniq++;
+	rq->ring = ring;
+	rq->uniq = dev_priv->request_uniq++;
 
 	if (i915.enable_execlists)
-		ret = intel_logical_ring_alloc_request_extras(request, ctx);
+		ret = intel_logical_ring_alloc_request_extras(rq, ctx);
 	else
-		ret = intel_ring_alloc_request_extras(request);
+		ret = intel_ring_alloc_request_extras(rq);
 	if (ret) {
-		kfree(request);
+		kfree(rq);
 		return ret;
 	}
 
-	ring->outstanding_lazy_request = request;
+	ring->outstanding_lazy_request = rq;
 	return 0;
 }
 
@@ -4984,9 +4986,14 @@ i915_gem_load(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int i;
 
-	dev_priv->slab =
+	dev_priv->objects =
 		kmem_cache_create("i915_gem_object",
 				  sizeof(struct drm_i915_gem_object), 0,
+				  SLAB_HWCACHE_ALIGN,
+				  NULL);
+	dev_priv->requests =
+		kmem_cache_create("i915_gem_request",
+				  sizeof(struct drm_i915_gem_request), 0,
 				  SLAB_HWCACHE_ALIGN,
 				  NULL);
 

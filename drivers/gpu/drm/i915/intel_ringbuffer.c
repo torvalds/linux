@@ -2139,7 +2139,6 @@ int intel_ring_idle(struct intel_engine_cs *ring)
 int intel_ring_alloc_request_extras(struct drm_i915_gem_request *request)
 {
 	request->ringbuf = request->ring->buffer;
-
 	return 0;
 }
 
