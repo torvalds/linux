@@ -378,15 +378,17 @@ static void print_batch_pool_stats(struct seq_file *m,
 	struct drm_i915_gem_object *obj;
 	struct file_stats stats;
 	struct intel_engine_cs *ring;
-	int i;
+	int i, j;
 
 	memset(&stats, 0, sizeof(stats));
 
 	for_each_ring(ring, dev_priv, i) {
-		list_for_each_entry(obj,
-				    &ring->batch_pool.cache_list,
-				    batch_pool_list)
-			per_file_stats(0, obj, &stats);
+		for (j = 0; j < ARRAY_SIZE(ring->batch_pool.cache_list); j++) {
+			list_for_each_entry(obj,
+					    &ring->batch_pool.cache_list[j],
+					    batch_pool_link)
+				per_file_stats(0, obj, &stats);
+		}
 	}
 
 	print_file_stats(m, "batch pool", stats);
@@ -618,26 +620,38 @@ static int i915_gem_batch_pool_info(struct seq_file *m, void *data)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
 	struct intel_engine_cs *ring;
-	int count = 0;
-	int ret, i;
+	int total = 0;
+	int ret, i, j;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
 	for_each_ring(ring, dev_priv, i) {
-		seq_printf(m, "%s cache:\n", ring->name);
-		list_for_each_entry(obj,
-				    &ring->batch_pool.cache_list,
-				    batch_pool_list) {
-			seq_puts(m, "   ");
-			describe_obj(m, obj);
-			seq_putc(m, '\n');
-			count++;
+		for (j = 0; j < ARRAY_SIZE(ring->batch_pool.cache_list); j++) {
+			int count;
+
+			count = 0;
+			list_for_each_entry(obj,
+					    &ring->batch_pool.cache_list[j],
+					    batch_pool_link)
+				count++;
+			seq_printf(m, "%s cache[%d]: %d objects\n",
+				   ring->name, j, count);
+
+			list_for_each_entry(obj,
+					    &ring->batch_pool.cache_list[j],
+					    batch_pool_link) {
+				seq_puts(m, "   ");
+				describe_obj(m, obj);
+				seq_putc(m, '\n');
+			}
+
+			total += count;
 		}
 	}
 
-	seq_printf(m, "total: %d\n", count);
+	seq_printf(m, "total: %d\n", total);
 
 	mutex_unlock(&dev->struct_mutex);
 

@@ -1910,7 +1910,7 @@ struct drm_i915_gem_object {
 	/** Used in execbuf to temporarily hold a ref */
 	struct list_head obj_exec_link;
 
-	struct list_head batch_pool_list;
+	struct list_head batch_pool_link;
 
 	/**
 	 * This is set if the object is on the active lists (has pending

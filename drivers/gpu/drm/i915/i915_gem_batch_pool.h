@@ -29,7 +29,7 @@
 
 struct i915_gem_batch_pool {
 	struct drm_device *dev;
-	struct list_head cache_list;
+	struct list_head cache_list[4];
 };
 
 /* i915_gem_batch_pool.c */
