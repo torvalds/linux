@@ -1124,12 +1124,22 @@ static void _rtl_pci_prepare_bcn_tasklet(struct ieee80211_hw *hw)
 	/*This is for new trx flow*/
 	struct rtl_tx_buffer_desc *pbuffer_desc = NULL;
 	u8 temp_one = 1;
+	u8 *entry;
 
 	memset(&tcb_desc, 0, sizeof(struct rtl_tcb_desc));
 	ring = &rtlpci->tx_ring[BEACON_QUEUE];
 	pskb = __skb_dequeue(&ring->queue);
-	if (pskb)
+	if (rtlpriv->use_new_trx_flow)
+		entry = (u8 *)(&ring->buffer_desc[ring->idx]);
+	else
+		entry = (u8 *)(&ring->desc[ring->idx]);
+	if (pskb) {
+		pci_unmap_single(rtlpci->pdev,
+				 rtlpriv->cfg->ops->get_desc(
+				 (u8 *)entry, true, HW_DESC_TXBUFF_ADDR),
+				 pskb->len, PCI_DMA_TODEVICE);
 		kfree_skb(pskb);
+	}
 
 	/*NB: the beacon data buffer must be 32-bit aligned. */
 	pskb = ieee80211_beacon_get(hw, mac->vif);

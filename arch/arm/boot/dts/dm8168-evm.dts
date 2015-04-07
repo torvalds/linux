@@ -36,6 +36,20 @@
 		>;
 	};
 
+	mmc_pins: pinmux_mmc_pins {
+		pinctrl-single,pins = <
+			DM816X_IOPAD(0x0a70, MUX_MODE0)			/* SD_POW */
+			DM816X_IOPAD(0x0a74, MUX_MODE0)			/* SD_CLK */
+			DM816X_IOPAD(0x0a78, MUX_MODE0)			/* SD_CMD */
+			DM816X_IOPAD(0x0a7C, MUX_MODE0)			/* SD_DAT0 */
+			DM816X_IOPAD(0x0a80, MUX_MODE0)			/* SD_DAT1 */
+			DM816X_IOPAD(0x0a84, MUX_MODE0)			/* SD_DAT2 */
+			DM816X_IOPAD(0x0a88, MUX_MODE0)			/* SD_DAT2 */
+			DM816X_IOPAD(0x0a8c, MUX_MODE2)			/* GP1[7] */
+			DM816X_IOPAD(0x0a90, MUX_MODE2)			/* GP1[8] */
+		>;
+	};
+
 	usb0_pins: pinmux_usb0_pins {
 		pinctrl-single,pins = <
 			DM816X_IOPAD(0x0d00, MUX_MODE0)			/* USB0_DRVVBUS */
@@ -137,7 +151,12 @@
 };
 
 &mmc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc_pins>;
 	vmmc-supply = <&vmmcsd_fixed>;
+	bus-width = <4>;
+	cd-gpios = <&gpio2 7 GPIO_ACTIVE_LOW>;
+	wp-gpios = <&gpio2 8 GPIO_ACTIVE_LOW>;
 };
 
 /* At least dm8168-evm rev c won't support multipoint, later may */

@@ -498,7 +498,7 @@ static int spi_qup_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct device *dev;
 	void __iomem *base;
-	u32 max_freq, iomode;
+	u32 max_freq, iomode, num_cs;
 	int ret, irq, size;
 
 	dev = &pdev->dev;
@@ -550,10 +550,11 @@ static int spi_qup_probe(struct platform_device *pdev)
 	}
 
 	/* use num-cs unless not present or out of range */
-	if (of_property_read_u16(dev->of_node, "num-cs",
-			&master->num_chipselect) ||
-			(master->num_chipselect > SPI_NUM_CHIPSELECTS))
+	if (of_property_read_u32(dev->of_node, "num-cs", &num_cs) ||
+	    num_cs > SPI_NUM_CHIPSELECTS)
 		master->num_chipselect = SPI_NUM_CHIPSELECTS;
+	else
+		master->num_chipselect = num_cs;
 
 	master->bus_num = pdev->id;
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LOOP;

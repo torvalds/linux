@@ -274,10 +274,8 @@ void ovs_vport_del(struct vport *vport)
 	ASSERT_OVSL();
 
 	hlist_del_rcu(&vport->hash_node);
-
-	vport->ops->destroy(vport);
-
 	module_put(vport->ops->owner);
+	vport->ops->destroy(vport);
 }
 
 /**

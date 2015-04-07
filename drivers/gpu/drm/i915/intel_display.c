@@ -2438,8 +2438,15 @@ intel_find_plane_obj(struct intel_crtc *intel_crtc,
 	if (!intel_crtc->base.primary->fb)
 		return;
 
-	if (intel_alloc_plane_obj(intel_crtc, plane_config))
+	if (intel_alloc_plane_obj(intel_crtc, plane_config)) {
+		struct drm_plane *primary = intel_crtc->base.primary;
+
+		primary->state->crtc = &intel_crtc->base;
+		primary->crtc = &intel_crtc->base;
+		update_state_fb(primary);
+
 		return;
+	}
 
 	kfree(intel_crtc->base.primary->fb);
 	intel_crtc->base.primary->fb = NULL;
@@ -2462,11 +2469,15 @@ intel_find_plane_obj(struct intel_crtc *intel_crtc,
 			continue;
 
 		if (i915_gem_obj_ggtt_offset(obj) == plane_config->base) {
+			struct drm_plane *primary = intel_crtc->base.primary;
+
 			if (obj->tiling_mode != I915_TILING_NONE)
 				dev_priv->preserve_bios_swizzle = true;
 
 			drm_framebuffer_reference(c->primary->fb);
-			intel_crtc->base.primary->fb = c->primary->fb;
+			primary->fb = c->primary->fb;
+			primary->state->crtc = &intel_crtc->base;
+			primary->crtc = &intel_crtc->base;
 			obj->frontbuffer_bits |= INTEL_FRONTBUFFER_PRIMARY(intel_crtc->pipe);
 			break;
 		}
@@ -6663,7 +6674,6 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 		      plane_config->size);
 
 	crtc->base.primary->fb = fb;
-	update_state_fb(crtc->base.primary);
 }
 
 static void chv_crtc_clock_get(struct intel_crtc *crtc,
@@ -7704,7 +7714,6 @@ skylake_get_initial_plane_config(struct intel_crtc *crtc,
 		      plane_config->size);
 
 	crtc->base.primary->fb = fb;
-	update_state_fb(crtc->base.primary);
 	return;
 
 error:
@@ -7798,7 +7807,6 @@ ironlake_get_initial_plane_config(struct intel_crtc *crtc,
 		      plane_config->size);
 
 	crtc->base.primary->fb = fb;
-	update_state_fb(crtc->base.primary);
 }
 
 static bool ironlake_get_pipe_config(struct intel_crtc *crtc,

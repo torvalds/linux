@@ -4204,9 +4204,18 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	{ "PIONEER DVD-RW  DVR-216D",	NULL,	ATA_HORKAGE_NOSETXFER },
 
 	/* devices that don't properly handle queued TRIM commands */
-	{ "Micron_M[56]*",		NULL,	ATA_HORKAGE_NO_NCQ_TRIM |
+	{ "Micron_M500*",		NULL,	ATA_HORKAGE_NO_NCQ_TRIM |
 						ATA_HORKAGE_ZERO_AFTER_TRIM, },
-	{ "Crucial_CT*SSD*",		NULL,	ATA_HORKAGE_NO_NCQ_TRIM, },
+	{ "Crucial_CT*M500*",		NULL,	ATA_HORKAGE_NO_NCQ_TRIM |
+						ATA_HORKAGE_ZERO_AFTER_TRIM, },
+	{ "Micron_M5[15]0*",		"MU01",	ATA_HORKAGE_NO_NCQ_TRIM |
+						ATA_HORKAGE_ZERO_AFTER_TRIM, },
+	{ "Crucial_CT*M550*",		"MU01",	ATA_HORKAGE_NO_NCQ_TRIM |
+						ATA_HORKAGE_ZERO_AFTER_TRIM, },
+	{ "Crucial_CT*MX100*",		"MU01",	ATA_HORKAGE_NO_NCQ_TRIM |
+						ATA_HORKAGE_ZERO_AFTER_TRIM, },
+	{ "Samsung SSD 850 PRO*",	NULL,	ATA_HORKAGE_NO_NCQ_TRIM |
+						ATA_HORKAGE_ZERO_AFTER_TRIM, },
 
 	/*
 	 * As defined, the DRAT (Deterministic Read After Trim) and RZAT
@@ -4226,6 +4235,8 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	 */
 	{ "INTEL*SSDSC2MH*",		NULL,	0, },
 
+	{ "Micron*",			NULL,	ATA_HORKAGE_ZERO_AFTER_TRIM, },
+	{ "Crucial*",			NULL,	ATA_HORKAGE_ZERO_AFTER_TRIM, },
 	{ "INTEL*SSD*", 		NULL,	ATA_HORKAGE_ZERO_AFTER_TRIM, },
 	{ "SSD*INTEL*",			NULL,	ATA_HORKAGE_ZERO_AFTER_TRIM, },
 	{ "Samsung*SSD*",		NULL,	ATA_HORKAGE_ZERO_AFTER_TRIM, },
@@ -4737,7 +4748,7 @@ struct ata_queued_cmd *ata_qc_new_init(struct ata_device *dev, int tag)
 		return NULL;
 
 	/* libsas case */
-	if (!ap->scsi_host) {
+	if (ap->flags & ATA_FLAG_SAS_HOST) {
 		tag = ata_sas_allocate_tag(ap);
 		if (tag < 0)
 			return NULL;
@@ -4776,7 +4787,7 @@ void ata_qc_free(struct ata_queued_cmd *qc)
 	tag = qc->tag;
 	if (likely(ata_tag_valid(tag))) {
 		qc->tag = ATA_TAG_POISON;
-		if (!ap->scsi_host)
+		if (ap->flags & ATA_FLAG_SAS_HOST)
 			ata_sas_free_tag(tag, ap);
 	}
 }

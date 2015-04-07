@@ -4459,6 +4459,59 @@ int cxgb4_t4_bar2_sge_qregs(struct adapter *adapter,
 }
 
 /**
+ *	t4_init_devlog_params - initialize adapter->params.devlog
+ *	@adap: the adapter
+ *
+ *	Initialize various fields of the adapter's Firmware Device Log
+ *	Parameters structure.
+ */
+int t4_init_devlog_params(struct adapter *adap)
+{
+	struct devlog_params *dparams = &adap->params.devlog;
+	u32 pf_dparams;
+	unsigned int devlog_meminfo;
+	struct fw_devlog_cmd devlog_cmd;
+	int ret;
+
+	/* If we're dealing with newer firmware, the Device Log Paramerters
+	 * are stored in a designated register which allows us to access the
+	 * Device Log even if we can't talk to the firmware.
+	 */
+	pf_dparams =
+		t4_read_reg(adap, PCIE_FW_REG(PCIE_FW_PF_A, PCIE_FW_PF_DEVLOG));
+	if (pf_dparams) {
+		unsigned int nentries, nentries128;
+
+		dparams->memtype = PCIE_FW_PF_DEVLOG_MEMTYPE_G(pf_dparams);
+		dparams->start = PCIE_FW_PF_DEVLOG_ADDR16_G(pf_dparams) << 4;
+
+		nentries128 = PCIE_FW_PF_DEVLOG_NENTRIES128_G(pf_dparams);
+		nentries = (nentries128 + 1) * 128;
+		dparams->size = nentries * sizeof(struct fw_devlog_e);
+
+		return 0;
+	}
+
+	/* Otherwise, ask the firmware for it's Device Log Parameters.
+	 */
+	memset(&devlog_cmd, 0, sizeof(devlog_cmd));
+	devlog_cmd.op_to_write = htonl(FW_CMD_OP_V(FW_DEVLOG_CMD) |
+				       FW_CMD_REQUEST_F | FW_CMD_READ_F);
+	devlog_cmd.retval_len16 = htonl(FW_LEN16(devlog_cmd));
+	ret = t4_wr_mbox(adap, adap->mbox, &devlog_cmd, sizeof(devlog_cmd),
+			 &devlog_cmd);
+	if (ret)
+		return ret;
+
+	devlog_meminfo = ntohl(devlog_cmd.memtype_devlog_memaddr16_devlog);
+	dparams->memtype = FW_DEVLOG_CMD_MEMTYPE_DEVLOG_G(devlog_meminfo);
+	dparams->start = FW_DEVLOG_CMD_MEMADDR16_DEVLOG_G(devlog_meminfo) << 4;
+	dparams->size = ntohl(devlog_cmd.memsize_devlog);
+
+	return 0;
+}
+
+/**
  *	t4_init_sge_params - initialize adap->params.sge
  *	@adapter: the adapter
  *
