@@ -538,6 +538,21 @@ ENTRY(stub_x32_execveat)
 END(stub_x32_execveat)
 #endif
 
+#ifdef CONFIG_IA32_EMULATION
+ENTRY(stub32_execve)
+	CFI_STARTPROC
+	call	compat_sys_execve
+	jmp	return_from_execve
+	CFI_ENDPROC
+END(stub32_execve)
+ENTRY(stub32_execveat)
+	CFI_STARTPROC
+	call	compat_sys_execveat
+	jmp	return_from_execve
+	CFI_ENDPROC
+END(stub32_execveat)
+#endif
+
 /*
  * sigreturn is special because it needs to restore all registers on return.
  * This cannot be done with SYSRET, so use the IRET return path instead.
