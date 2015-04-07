@@ -147,8 +147,8 @@ int gb_operation_response_send(struct gb_operation *operation, int errno);
 
 void gb_operation_cancel(struct gb_operation *operation, int errno);
 
-void greybus_data_sent(struct greybus_host_device *hd,
-				void *header, int status);
+void greybus_message_sent(struct greybus_host_device *hd,
+				struct gb_message *message, int status);
 
 int gb_operation_sync(struct gb_connection *connection, int type,
 		      void *request, int request_size,

@@ -85,9 +85,9 @@ struct svc_msg;
 struct greybus_host_driver {
 	size_t	hd_priv_size;
 
-	void *(*buffer_send)(struct greybus_host_device *hd, u16 dest_cport_id,
-			void *buffer, size_t buffer_size, gfp_t gfp_mask);
-	void (*buffer_cancel)(void *cookie);
+	void *(*message_send)(struct greybus_host_device *hd, u16 dest_cport_id,
+			struct gb_message *message, gfp_t gfp_mask);
+	void (*message_cancel)(void *cookie);
 	int (*submit_svc)(struct svc_msg *svc_msg,
 			    struct greybus_host_device *hd);
 };

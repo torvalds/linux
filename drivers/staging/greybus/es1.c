@@ -214,26 +214,21 @@ static void free_urb(struct es1_ap_dev *es1, struct urb *urb)
  * error otherwise.  If the caller wishes to cancel the in-flight
  * buffer, it must supply the returned cookie to the cancel routine.
  */
-static void *buffer_send(struct greybus_host_device *hd, u16 cport_id,
-			void *buffer, size_t buffer_size, gfp_t gfp_mask)
+static void *message_send(struct greybus_host_device *hd, u16 cport_id,
+			struct gb_message *message, gfp_t gfp_mask)
 {
 	struct es1_ap_dev *es1 = hd_to_es1(hd);
 	struct usb_device *udev = es1->usb_dev;
-	u8 *transfer_buffer = buffer;
+	u8 *transfer_buffer;
+	size_t buffer_size;
 	int transfer_buffer_size;
 	int retval;
 	struct urb *urb;
 
-	if (!buffer) {
-		pr_err("null buffer supplied to send\n");
-		return ERR_PTR(-EINVAL);
-	}
-	if (buffer_size > (size_t)INT_MAX) {
-		pr_err("bad buffer size (%zu) supplied to send\n", buffer_size);
-		return ERR_PTR(-EINVAL);
-	}
-	transfer_buffer--;
-	transfer_buffer_size = buffer_size + 1;
+	buffer_size = hd->buffer_headroom + sizeof(*message->header) +
+							message->payload_size;
+	transfer_buffer = message->buffer + hd->buffer_headroom - 1;
+	transfer_buffer_size = buffer_size - (hd->buffer_headroom - 1);
 
 	/*
 	 * The data actually transferred will include an indication
@@ -259,7 +254,7 @@ static void *buffer_send(struct greybus_host_device *hd, u16 cport_id,
 	usb_fill_bulk_urb(urb, udev,
 			  usb_sndbulkpipe(udev, es1->cport_out_endpoint),
 			  transfer_buffer, transfer_buffer_size,
-			  cport_out_callback, hd);
+			  cport_out_callback, message);
 	retval = usb_submit_urb(urb, gfp_mask);
 	if (retval) {
 		pr_err("error %d submitting URB\n", retval);
@@ -271,17 +266,17 @@ static void *buffer_send(struct greybus_host_device *hd, u16 cport_id,
 }
 
 /*
- * The cookie value supplied is the value that buffer_send()
- * returned to its caller.  It identifies the buffer that should be
+ * The cookie value supplied is the value that message_send()
+ * returned to its caller.  It identifies the message that should be
  * canceled.  This function must also handle (which is to say,
  * ignore) a null cookie value.
  */
-static void buffer_cancel(void *cookie)
+static void message_cancel(void *cookie)
 {
 
 	/*
 	 * We really should be defensive and track all outstanding
-	 * (sent) buffers rather than trusting the cookie provided
+	 * (sent) messages rather than trusting the cookie provided
 	 * is valid.  For the time being, this will do.
 	 */
 	if (cookie)
@@ -290,8 +285,8 @@ static void buffer_cancel(void *cookie)
 
 static struct greybus_host_driver es1_driver = {
 	.hd_priv_size		= sizeof(struct es1_ap_dev),
-	.buffer_send		= buffer_send,
-	.buffer_cancel		= buffer_cancel,
+	.message_send		= message_send,
+	.message_cancel		= message_cancel,
 	.submit_svc		= submit_svc,
 };
 
@@ -439,18 +434,17 @@ exit:
 
 static void cport_out_callback(struct urb *urb)
 {
-	struct greybus_host_device *hd = urb->context;
+	struct gb_message *message = urb->context;
+	struct greybus_host_device *hd = message->operation->connection->hd;
 	struct es1_ap_dev *es1 = hd_to_es1(hd);
 	int status = check_urb_status(urb);
-	u8 *data = urb->transfer_buffer + 1;
 
 	/*
-	 * Tell the submitter that the buffer send (attempt) is
-	 * complete, and report the status.  The submitter's buffer
-	 * starts after the one-byte CPort id we inserted.
+	 * Tell the submitter that the message send (attempt) is
+	 * complete, and report the status.
 	 */
-	data = urb->transfer_buffer + 1;
-	greybus_data_sent(hd, data, status);
+	greybus_message_sent(hd, message, status);
+
 	free_urb(es1, urb);
 }
 

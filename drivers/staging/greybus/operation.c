@@ -140,16 +140,14 @@ gb_operation_find(struct gb_connection *connection, u16 operation_id)
 
 static int gb_message_send(struct gb_message *message)
 {
-	size_t message_size = sizeof(*message->header) + message->payload_size;
 	struct gb_connection *connection = message->operation->connection;
 	int ret = 0;
 	void *cookie;
 
 	mutex_lock(&gb_message_mutex);
-	cookie = connection->hd->driver->buffer_send(connection->hd,
+	cookie = connection->hd->driver->message_send(connection->hd,
 					connection->hd_cport_id,
-					message->header,
-					message_size,
+					message,
 					GFP_KERNEL);
 	if (IS_ERR(cookie))
 		ret = PTR_ERR(cookie);
@@ -161,8 +159,7 @@ static int gb_message_send(struct gb_message *message)
 }
 
 /*
- * Cancel a message whose buffer we have passed to the host device
- * layer to be sent.
+ * Cancel a message we have passed to the host device layer to be sent.
  */
 static void gb_message_cancel(struct gb_message *message)
 {
@@ -171,7 +168,7 @@ static void gb_message_cancel(struct gb_message *message)
 		struct greybus_host_device *hd;
 
 		hd = message->operation->connection->hd;
-		hd->driver->buffer_cancel(message->cookie);
+		hd->driver->message_cancel(message->cookie);
 	}
 	mutex_unlock(&gb_message_mutex);
 }
@@ -223,25 +220,6 @@ static void gb_operation_work(struct work_struct *work)
 	operation->callback(operation);
 
 	gb_operation_put(operation);
-}
-
-
-/*
- * Given a pointer to the header in a message sent on a given host
- * device, return the associated message structure.  (This "header"
- * is just the buffer pointer we supply to the host device for
- * sending.)
- */
-static struct gb_message *
-gb_hd_message_find(struct greybus_host_device *hd, void *header)
-{
-	struct gb_message *message;
-	u8 *result;
-
-	result = (u8 *)header - hd->buffer_headroom - sizeof(*message);
-	message = (struct gb_message *)result;
-
-	return message;
 }
 
 static void gb_operation_message_init(struct greybus_host_device *hd,
@@ -737,18 +715,14 @@ int gb_operation_response_send(struct gb_operation *operation, int errno)
 EXPORT_SYMBOL_GPL(gb_operation_response_send);
 
 /*
- * This function is called when a buffer send request has completed.
- * The "header" is the message header--the beginning of what we
- * asked to have sent.
+ * This function is called when a message send request has completed.
  */
-void
-greybus_data_sent(struct greybus_host_device *hd, void *header, int status)
+void greybus_message_sent(struct greybus_host_device *hd,
+					struct gb_message *message, int status)
 {
-	struct gb_message *message;
 	struct gb_operation *operation;
 
 	/* Get the message and record that it is no longer in flight */
-	message = gb_hd_message_find(hd, header);
 	message->cookie = NULL;
 
 	/*
@@ -773,7 +747,7 @@ greybus_data_sent(struct greybus_host_device *hd, void *header, int status)
 			queue_work(gb_operation_workqueue, &operation->work);
 	}
 }
-EXPORT_SYMBOL_GPL(greybus_data_sent);
+EXPORT_SYMBOL_GPL(greybus_message_sent);
 
 /*
  * We've received data on a connection, and it doesn't look like a
