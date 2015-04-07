@@ -553,7 +553,7 @@ static int target_xcopy_init_pt_lun(
 	 * target_xcopy_setup_pt_port()
 	 */
 	if (!remote_port) {
-		pt_cmd->se_cmd_flags |= SCF_SE_LUN_CMD | SCF_CMD_XCOPY_PASSTHROUGH;
+		pt_cmd->se_cmd_flags |= SCF_SE_LUN_CMD;
 		return 0;
 	}
 
@@ -561,7 +561,7 @@ static int target_xcopy_init_pt_lun(
 	pt_cmd->se_dev = se_dev;
 
 	pr_debug("Setup emulated se_dev: %p from se_dev\n", pt_cmd->se_dev);
-	pt_cmd->se_cmd_flags |= SCF_SE_LUN_CMD | SCF_CMD_XCOPY_PASSTHROUGH;
+	pt_cmd->se_cmd_flags |= SCF_SE_LUN_CMD;
 
 	pr_debug("Setup emulated se_dev: %p to pt_cmd->se_lun->lun_se_dev\n",
 		pt_cmd->se_lun->lun_se_dev);
