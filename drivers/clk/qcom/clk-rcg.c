@@ -319,7 +319,7 @@ static int clk_dyn_rcg_set_parent(struct clk_hw *hw, u8 index)
 	if (banked_p)
 		f.pre_div = ns_to_pre_div(&rcg->p[bank], ns) + 1;
 
-	f.src = index;
+	f.src = qcom_find_src_index(hw, rcg->s[bank].parent_map, index);
 	return configure_bank(rcg, &f);
 }
 
@@ -407,17 +407,23 @@ clk_dyn_rcg_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 static long _freq_tbl_determine_rate(struct clk_hw *hw,
 		const struct freq_tbl *f, unsigned long rate,
 		unsigned long min_rate, unsigned long max_rate,
-		unsigned long *p_rate, struct clk_hw **p_hw)
+		unsigned long *p_rate, struct clk_hw **p_hw,
+		const struct parent_map *parent_map)
 {
 	unsigned long clk_flags;
 	struct clk *p;
+	int index;
 
 	f = qcom_find_freq(f, rate);
 	if (!f)
 		return -EINVAL;
 
+	index = qcom_find_src_index(hw, parent_map, f->src);
+	if (index < 0)
+		return index;
+
 	clk_flags = __clk_get_flags(hw->clk);
-	p = clk_get_parent_by_index(hw->clk, f->src);
+	p = clk_get_parent_by_index(hw->clk, index);
 	if (clk_flags & CLK_SET_RATE_PARENT) {
 		rate = rate * f->pre_div;
 		if (f->n) {
@@ -442,7 +448,7 @@ static long clk_rcg_determine_rate(struct clk_hw *hw, unsigned long rate,
 	struct clk_rcg *rcg = to_clk_rcg(hw);
 
 	return _freq_tbl_determine_rate(hw, rcg->freq_tbl, rate, min_rate,
-			max_rate, p_rate, p);
+			max_rate, p_rate, p, rcg->s.parent_map);
 }
 
 static long clk_dyn_rcg_determine_rate(struct clk_hw *hw, unsigned long rate,
@@ -450,9 +456,16 @@ static long clk_dyn_rcg_determine_rate(struct clk_hw *hw, unsigned long rate,
 		unsigned long *p_rate, struct clk_hw **p)
 {
 	struct clk_dyn_rcg *rcg = to_clk_dyn_rcg(hw);
+	u32 reg;
+	int bank;
+	struct src_sel *s;
+
+	regmap_read(rcg->clkr.regmap, rcg->bank_reg, &reg);
+	bank = reg_to_bank(rcg, reg);
+	s = &rcg->s[bank];
 
 	return _freq_tbl_determine_rate(hw, rcg->freq_tbl, rate, min_rate,
-			max_rate, p_rate, p);
+			max_rate, p_rate, p, s->parent_map);
 }
 
 static long clk_rcg_bypass_determine_rate(struct clk_hw *hw, unsigned long rate,
@@ -462,8 +475,9 @@ static long clk_rcg_bypass_determine_rate(struct clk_hw *hw, unsigned long rate,
 	struct clk_rcg *rcg = to_clk_rcg(hw);
 	const struct freq_tbl *f = rcg->freq_tbl;
 	struct clk *p;
+	int index = qcom_find_src_index(hw, rcg->s.parent_map, f->src);
 
-	p = clk_get_parent_by_index(hw->clk, f->src);
+	p = clk_get_parent_by_index(hw->clk, index);
 	*p_hw = __clk_get_hw(p);
 	*p_rate = __clk_round_rate(p, rate);
 
