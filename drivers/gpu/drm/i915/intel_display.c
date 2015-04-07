@@ -12866,6 +12866,7 @@ static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
 	primary->plane = pipe;
 	primary->check_plane = intel_check_primary_plane;
 	primary->commit_plane = intel_commit_primary_plane;
+	primary->ckey.flags = I915_SET_COLORKEY_NONE;
 	if (HAS_FBC(dev) && INTEL_INFO(dev)->gen < 4)
 		primary->plane = !pipe;
 

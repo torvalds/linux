@@ -1307,6 +1307,7 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 	intel_plane->plane = plane;
 	intel_plane->check_plane = intel_check_sprite_plane;
 	intel_plane->commit_plane = intel_commit_sprite_plane;
+	intel_plane->ckey.flags = I915_SET_COLORKEY_NONE;
 	possible_crtcs = (1 << pipe);
 	ret = drm_universal_plane_init(dev, &intel_plane->base, possible_crtcs,
 				       &intel_plane_funcs,
