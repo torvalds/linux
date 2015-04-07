@@ -2682,9 +2682,12 @@ static long btrfs_fallocate(struct file *file, int mode,
 		return ret;
 
 	inode_lock(inode);
-	ret = inode_newsize_ok(inode, alloc_end);
-	if (ret)
-		goto out;
+
+	if (!(mode & FALLOC_FL_KEEP_SIZE) && offset + len > inode->i_size) {
+		ret = inode_newsize_ok(inode, offset + len);
+		if (ret)
+			goto out;
+	}
 
 	/*
 	 * TODO: Move these two operations after we have checked
