@@ -1062,6 +1062,7 @@ static const struct x86_cpu_id rapl_ids[] = {
 	RAPL_CPU(0x3c, rapl_defaults_core),/* Haswell */
 	RAPL_CPU(0x3d, rapl_defaults_core),/* Broadwell */
 	RAPL_CPU(0x3f, rapl_defaults_hsw_server),/* Haswell servers */
+	RAPL_CPU(0x4f, rapl_defaults_hsw_server),/* Broadwell servers */
 	RAPL_CPU(0x45, rapl_defaults_core),/* Haswell ULT */
 	RAPL_CPU(0x4C, rapl_defaults_atom),/* Braswell */
 	RAPL_CPU(0x4A, rapl_defaults_atom),/* Tangier */
