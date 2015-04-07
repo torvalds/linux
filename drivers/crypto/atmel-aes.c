@@ -315,10 +315,10 @@ static int atmel_aes_crypt_dma(struct atmel_aes_dev *dd,
 
 	dd->dma_size = length;
 
-	if (!(dd->flags & AES_FLAGS_FAST)) {
-		dma_sync_single_for_device(dd->dev, dma_addr_in, length,
-					   DMA_TO_DEVICE);
-	}
+	dma_sync_single_for_device(dd->dev, dma_addr_in, length,
+				   DMA_TO_DEVICE);
+	dma_sync_single_for_device(dd->dev, dma_addr_out, length,
+				   DMA_FROM_DEVICE);
 
 	if (dd->flags & AES_FLAGS_CFB8) {
 		dd->dma_lch_in.dma_conf.dst_addr_width =
@@ -391,6 +391,11 @@ static int atmel_aes_crypt_cpu_start(struct atmel_aes_dev *dd)
 {
 	dd->flags &= ~AES_FLAGS_DMA;
 
+	dma_sync_single_for_cpu(dd->dev, dd->dma_addr_in,
+				dd->dma_size, DMA_TO_DEVICE);
+	dma_sync_single_for_cpu(dd->dev, dd->dma_addr_out,
+				dd->dma_size, DMA_FROM_DEVICE);
+
 	/* use cache buffers */
 	dd->nb_in_sg = atmel_aes_sg_length(dd->req, dd->in_sg);
 	if (!dd->nb_in_sg)
@@ -459,6 +464,9 @@ static int atmel_aes_crypt_dma_start(struct atmel_aes_dev *dd)
 		dd->flags |= AES_FLAGS_FAST;
 
 	} else {
+		dma_sync_single_for_cpu(dd->dev, dd->dma_addr_in,
+					dd->dma_size, DMA_TO_DEVICE);
+
 		/* use cache buffers */
 		count = atmel_aes_sg_copy(&dd->in_sg, &dd->in_offset,
 				dd->buf_in, dd->buflen, dd->total, 0);
