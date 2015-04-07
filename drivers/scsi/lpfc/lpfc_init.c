@@ -3257,12 +3257,17 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 	struct Scsi_Host  *shost;
 	int error = 0;
 
-	if (dev != &phba->pcidev->dev)
+	if (dev != &phba->pcidev->dev) {
 		shost = scsi_host_alloc(&lpfc_vport_template,
 					sizeof(struct lpfc_vport));
-	else
-		shost = scsi_host_alloc(&lpfc_template,
+	} else {
+		if (phba->sli_rev == LPFC_SLI_REV4)
+			shost = scsi_host_alloc(&lpfc_template,
 					sizeof(struct lpfc_vport));
+		else
+			shost = scsi_host_alloc(&lpfc_template_s3,
+					sizeof(struct lpfc_vport));
+	}
 	if (!shost)
 		goto out;
 

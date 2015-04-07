@@ -354,6 +354,7 @@ void lpfc_free_sysfs_attr(struct lpfc_vport *);
 extern struct device_attribute *lpfc_hba_attrs[];
 extern struct device_attribute *lpfc_vport_attrs[];
 extern struct scsi_host_template lpfc_template;
+extern struct scsi_host_template lpfc_template_s3;
 extern struct scsi_host_template lpfc_vport_template;
 extern struct fc_function_template lpfc_transport_functions;
 extern struct fc_function_template lpfc_vport_transport_functions;
