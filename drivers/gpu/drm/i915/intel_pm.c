@@ -6772,6 +6772,41 @@ int intel_freq_opcode(struct drm_i915_private *dev_priv, int val)
 		return val / GT_FREQUENCY_MULTIPLIER;
 }
 
+struct request_boost {
+	struct work_struct work;
+	struct drm_i915_gem_request *rq;
+};
+
+static void __intel_rps_boost_work(struct work_struct *work)
+{
+	struct request_boost *boost = container_of(work, struct request_boost, work);
+
+	if (!i915_gem_request_completed(boost->rq, true))
+		gen6_rps_boost(to_i915(boost->rq->ring->dev));
+
+	i915_gem_request_unreference__unlocked(boost->rq);
+	kfree(boost);
+}
+
+void intel_queue_rps_boost_for_request(struct drm_device *dev,
+				       struct drm_i915_gem_request *rq)
+{
+	struct request_boost *boost;
+
+	if (rq == NULL || INTEL_INFO(dev)->gen < 6)
+		return;
+
+	boost = kmalloc(sizeof(*boost), GFP_ATOMIC);
+	if (boost == NULL)
+		return;
+
+	i915_gem_request_reference(rq);
+	boost->rq = rq;
+
+	INIT_WORK(&boost->work, __intel_rps_boost_work);
+	queue_work(to_i915(dev)->wq, &boost->work);
+}
+
 void intel_pm_setup(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;

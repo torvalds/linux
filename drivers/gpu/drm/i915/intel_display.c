@@ -10180,6 +10180,7 @@ void intel_check_page_flip(struct drm_device *dev, int pipe)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_unpin_work *work;
 
 	WARN_ON(!in_interrupt());
 
@@ -10187,12 +10188,16 @@ void intel_check_page_flip(struct drm_device *dev, int pipe)
 		return;
 
 	spin_lock(&dev->event_lock);
-	if (intel_crtc->unpin_work && __intel_pageflip_stall_check(dev, crtc)) {
+	work = intel_crtc->unpin_work;
+	if (work != NULL && __intel_pageflip_stall_check(dev, crtc)) {
 		WARN_ONCE(1, "Kicking stuck page flip: queued at %d, now %d\n",
-			 intel_crtc->unpin_work->flip_queued_vblank,
-			 drm_vblank_count(dev, pipe));
+			 work->flip_queued_vblank, drm_vblank_count(dev, pipe));
 		page_flip_completed(intel_crtc);
+		work = NULL;
 	}
+	if (work != NULL &&
+	    drm_vblank_count(dev, pipe) - work->flip_queued_vblank > 1)
+		intel_queue_rps_boost_for_request(dev, work->flip_queued_req);
 	spin_unlock(&dev->event_lock);
 }
 
