@@ -1757,14 +1757,9 @@ static void ad_initialize_port(struct port *port, int lacp_fast)
 	};
 
 	if (port) {
-		port->actor_port_number = 1;
 		port->actor_port_priority = 0xff;
-		port->actor_system = null_mac_addr;
-		port->actor_system_priority = 0xffff;
 		port->actor_port_aggregator_identifier = 0;
 		port->ntt = false;
-		port->actor_admin_port_key = 1;
-		port->actor_oper_port_key  = 1;
 		port->actor_admin_port_state = AD_STATE_AGGREGATION |
 					       AD_STATE_LACP_ACTIVITY;
 		port->actor_oper_port_state  = AD_STATE_AGGREGATION |
@@ -1786,8 +1781,6 @@ static void ad_initialize_port(struct port *port, int lacp_fast)
 		port->sm_mux_state = 0;
 		port->sm_mux_timer_counter = 0;
 		port->sm_tx_state = 0;
-		port->sm_tx_timer_counter = 0;
-		port->slave = NULL;
 		port->aggregator = NULL;
 		port->next_port_in_aggregator = NULL;
 		port->transaction_id = 0;
@@ -1970,8 +1963,6 @@ void bond_3ad_bind_slave(struct slave *slave)
 		 * lacpdu's are sent in one second)
 		 */
 		port->sm_tx_timer_counter = ad_ticks_per_sec/AD_MAX_TX_IN_SECOND;
-		port->aggregator = NULL;
-		port->next_port_in_aggregator = NULL;
 
 		__disable_port(port);
 
