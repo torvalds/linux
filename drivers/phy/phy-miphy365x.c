@@ -476,11 +476,6 @@ static struct phy *miphy365x_xlate(struct device *dev,
 	struct device_node *phynode = args->np;
 	int ret, index;
 
-	if (!of_device_is_available(phynode)) {
-		dev_warn(dev, "Requested PHY is disabled\n");
-		return ERR_PTR(-ENODEV);
-	}
-
 	if (args->args_count != 1) {
 		dev_err(dev, "Invalid number of cells in 'phy' property\n");
 		return ERR_PTR(-EINVAL);

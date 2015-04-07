@@ -206,11 +206,6 @@ static struct phy *rcar_gen2_phy_xlate(struct device *dev,
 	struct device_node *np = args->np;
 	int i;
 
-	if (!of_device_is_available(np)) {
-		dev_warn(dev, "Requested PHY is disabled\n");
-		return ERR_PTR(-ENODEV);
-	}
-
 	drv = dev_get_drvdata(dev);
 	if (!drv)
 		return ERR_PTR(-EINVAL);

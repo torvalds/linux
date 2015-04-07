@@ -367,13 +367,21 @@ static struct phy *_of_phy_get(struct device_node *np, int index)
 	phy_provider = of_phy_provider_lookup(args.np);
 	if (IS_ERR(phy_provider) || !try_module_get(phy_provider->owner)) {
 		phy = ERR_PTR(-EPROBE_DEFER);
-		goto err0;
+		goto out_unlock;
+	}
+
+	if (!of_device_is_available(args.np)) {
+		dev_warn(phy_provider->dev, "Requested PHY is disabled\n");
+		phy = ERR_PTR(-ENODEV);
+		goto out_put_module;
 	}
 
 	phy = phy_provider->of_xlate(phy_provider->dev, &args);
+
+out_put_module:
 	module_put(phy_provider->owner);
 
-err0:
+out_unlock:
 	mutex_unlock(&phy_provider_mutex);
 	of_node_put(args.np);
 
