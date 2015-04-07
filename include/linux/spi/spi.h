@@ -294,7 +294,7 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  *                    transfer_one_message are mutually exclusive; when both
  *                    are set, the generic subsystem does not call your
  *                    transfer_one callback.
- * @handle_err: the subsystem calls the driver to handle and error that occurs
+ * @handle_err: the subsystem calls the driver to handle an error that occurs
  *		in the generic implementation of transfer_one_message().
  * @unprepare_message: undo any work done by prepare_message().
  * @cs_gpios: Array of GPIOs to use as chip select lines; one per CS
