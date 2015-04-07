@@ -23,6 +23,8 @@
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
 
+#include <linux/bitops.h>
+
 #include "of_private.h"
 
 static struct unittest_results {
@@ -1095,6 +1097,59 @@ static const char *overlay_path(int nr)
 
 static const char *bus_path = "/testcase-data/overlay-node/test-bus";
 
+/* it is guaranteed that overlay ids are assigned in sequence */
+#define MAX_UNITTEST_OVERLAYS	256
+static unsigned long overlay_id_bits[BITS_TO_LONGS(MAX_UNITTEST_OVERLAYS)];
+static int overlay_first_id = -1;
+
+static void of_unittest_track_overlay(int id)
+{
+	if (overlay_first_id < 0)
+		overlay_first_id = id;
+	id -= overlay_first_id;
+
+	/* we shouldn't need that many */
+	BUG_ON(id >= MAX_UNITTEST_OVERLAYS);
+	overlay_id_bits[BIT_WORD(id)] |= BIT_MASK(id);
+}
+
+static void of_unittest_untrack_overlay(int id)
+{
+	if (overlay_first_id < 0)
+		return;
+	id -= overlay_first_id;
+	BUG_ON(id >= MAX_UNITTEST_OVERLAYS);
+	overlay_id_bits[BIT_WORD(id)] &= ~BIT_MASK(id);
+}
+
+static void of_unittest_destroy_tracked_overlays(void)
+{
+	int id, ret, defers;
+
+	if (overlay_first_id < 0)
+		return;
+
+	/* try until no defers */
+	do {
+		defers = 0;
+		/* remove in reverse order */
+		for (id = MAX_UNITTEST_OVERLAYS - 1; id >= 0; id--) {
+			if (!(overlay_id_bits[BIT_WORD(id)] & BIT_MASK(id)))
+				continue;
+
+			ret = of_overlay_destroy(id + overlay_first_id);
+			if (ret != 0) {
+				defers++;
+				pr_warn("%s: overlay destroy failed for #%d\n",
+					__func__, id + overlay_first_id);
+				continue;
+			}
+
+			overlay_id_bits[BIT_WORD(id)] &= ~BIT_MASK(id);
+		}
+	} while (defers > 0);
+}
+
 static int of_unittest_apply_overlay(int unittest_nr, int overlay_nr,
 		int *overlay_id)
 {
@@ -1116,6 +1171,7 @@ static int of_unittest_apply_overlay(int unittest_nr, int overlay_nr,
 		goto out;
 	}
 	id = ret;
+	of_unittest_track_overlay(id);
 
 	ret = 0;
 
@@ -1329,6 +1385,7 @@ static void of_unittest_overlay_6(void)
 			return;
 		}
 		ov_id[i] = ret;
+		of_unittest_track_overlay(ov_id[i]);
 	}
 
 	for (i = 0; i < 2; i++) {
@@ -1353,6 +1410,7 @@ static void of_unittest_overlay_6(void)
 						PDEV_OVERLAY));
 			return;
 		}
+		of_unittest_untrack_overlay(ov_id[i]);
 	}
 
 	for (i = 0; i < 2; i++) {
@@ -1397,6 +1455,7 @@ static void of_unittest_overlay_8(void)
 			return;
 		}
 		ov_id[i] = ret;
+		of_unittest_track_overlay(ov_id[i]);
 	}
 
 	/* now try to remove first overlay (it should fail) */
@@ -1419,6 +1478,7 @@ static void of_unittest_overlay_8(void)
 						PDEV_OVERLAY));
 			return;
 		}
+		of_unittest_untrack_overlay(ov_id[i]);
 	}
 
 	unittest(1, "overlay test %d passed\n", 8);
@@ -1840,6 +1900,8 @@ static void __init of_unittest_overlay(void)
 
 	of_unittest_overlay_i2c_cleanup();
 #endif
+
+	of_unittest_destroy_tracked_overlays();
 
 out:
 	of_node_put(bus_np);
