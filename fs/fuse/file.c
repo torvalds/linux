@@ -2806,8 +2806,8 @@ fuse_direct_IO(struct kiocb *iocb, struct iov_iter *iter, loff_t offset)
 	if (async_dio && iov_iter_rw(iter) != WRITE && offset + count > i_size) {
 		if (offset >= i_size)
 			return 0;
-		count = min_t(loff_t, count, fuse_round_up(i_size - offset));
-		iov_iter_truncate(iter, count);
+		iov_iter_truncate(iter, fuse_round_up(i_size - offset));
+		count = iov_iter_count(iter);
 	}
 
 	io = kmalloc(sizeof(struct fuse_io_priv), GFP_KERNEL);
@@ -2841,12 +2841,7 @@ fuse_direct_IO(struct kiocb *iocb, struct iov_iter *iter, loff_t offset)
 		io->done = &wait;
 
 	if (iov_iter_rw(iter) == WRITE) {
-		ret = generic_write_checks(file, &pos, &count);
-		if (!ret) {
-			iov_iter_truncate(iter, count);
-			ret = fuse_direct_io(io, iter, &pos, FUSE_DIO_WRITE);
-		}
-
+		ret = fuse_direct_io(io, iter, &pos, FUSE_DIO_WRITE);
 		fuse_invalidate_attr(inode);
 	} else {
 		ret = __fuse_direct_read(io, iter, &pos);
