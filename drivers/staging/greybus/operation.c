@@ -24,7 +24,7 @@
 #define GB_OPERATION_MESSAGE_SIZE_MAX	4096
 
 static struct kmem_cache *gb_operation_cache;
-static struct kmem_cache *gb_simple_message_cache;
+static struct kmem_cache *gb_message_cache;
 
 /* Workqueue to handle Greybus operation completions. */
 static struct workqueue_struct *gb_operation_workqueue;
@@ -229,7 +229,7 @@ static void gb_operation_message_init(struct greybus_host_device *hd,
 	struct gb_operation_msg_hdr *header;
 	u8 *buffer;
 
-	buffer = &message->buffer[0];
+	buffer = message->buffer;
 	header = (struct gb_operation_msg_hdr *)(buffer + hd->buffer_headroom);
 
 	message->header = header;
@@ -270,8 +270,7 @@ static void gb_operation_message_init(struct greybus_host_device *hd,
  * The headers for inbound messages don't need to be initialized;
  * they'll be filled in by arriving data.
  *
- * Our message structure consists of:
- *	message structure
+ * Our message buffers have the following layout:
  *	headroom
  *	message header  \_ these combined are
  *	message payload /  the message size
@@ -291,34 +290,37 @@ gb_operation_message_alloc(struct greybus_host_device *hd, u8 type,
 		hd->buffer_size_max = GB_OPERATION_MESSAGE_SIZE_MAX;
 	}
 
-	/* Allocate the message.  Use the slab cache for simple messages */
-	if (payload_size) {
-		if (message_size > hd->buffer_size_max) {
-			pr_warn("requested message size too big (%zu > %zu)\n",
+	if (message_size > hd->buffer_size_max) {
+		pr_warn("requested message size too big (%zu > %zu)\n",
 				message_size, hd->buffer_size_max);
-			return NULL;
-		}
-
-		size = sizeof(*message) + hd->buffer_headroom + message_size;
-		message = kzalloc(size, gfp_flags);
-	} else {
-		message = kmem_cache_zalloc(gb_simple_message_cache, gfp_flags);
+		return NULL;
 	}
+
+	/* Allocate the message structure and buffer. */
+	message = kmem_cache_zalloc(gb_message_cache, gfp_flags);
 	if (!message)
 		return NULL;
+
+	size = hd->buffer_headroom + message_size;
+	message->buffer = kzalloc(size, gfp_flags);
+	if (!message->buffer)
+		goto err_free_message;
 
 	/* Initialize the message.  Operation id is filled in later. */
 	gb_operation_message_init(hd, message, 0, payload_size, type);
 
 	return message;
+
+err_free_message:
+	kmem_cache_free(gb_message_cache, message);
+
+	return NULL;
 }
 
 static void gb_operation_message_free(struct gb_message *message)
 {
-	if (message->payload_size)
-		kfree(message);
-	else
-		kmem_cache_free(gb_simple_message_cache, message);
+	kfree(message->buffer);
+	kmem_cache_free(gb_message_cache, message);
 }
 
 /*
@@ -937,32 +939,18 @@ EXPORT_SYMBOL_GPL(gb_operation_sync);
 
 int gb_operation_init(void)
 {
-	size_t size;
-
 	BUILD_BUG_ON(GB_OPERATION_MESSAGE_SIZE_MAX >
 			U16_MAX - sizeof(struct gb_operation_msg_hdr));
 
-	/*
-	 * A message structure consists of:
-	 *  - the message structure itself
-	 *  - the headroom set aside for the host device
-	 *  - the message header
-	 *  - space for the message payload
-	 * Messages with no payload are a fairly common case and
-	 * have a known fixed maximum size, so we use a slab cache
-	 * for them.
-	 */
-	size = sizeof(struct gb_message) + GB_BUFFER_HEADROOM_MAX +
-				sizeof(struct gb_operation_msg_hdr);
-	gb_simple_message_cache = kmem_cache_create("gb_simple_message_cache",
-							size, 0, 0, NULL);
-	if (!gb_simple_message_cache)
+	gb_message_cache = kmem_cache_create("gb_message_cache",
+				sizeof(struct gb_message), 0, 0, NULL);
+	if (!gb_message_cache)
 		return -ENOMEM;
 
 	gb_operation_cache = kmem_cache_create("gb_operation_cache",
 				sizeof(struct gb_operation), 0, 0, NULL);
 	if (!gb_operation_cache)
-		goto err_simple;
+		goto err_destroy_message_cache;
 
 	gb_operation_workqueue = alloc_workqueue("greybus_operation", 0, 1);
 	if (!gb_operation_workqueue)
@@ -972,9 +960,9 @@ int gb_operation_init(void)
 err_operation:
 	kmem_cache_destroy(gb_operation_cache);
 	gb_operation_cache = NULL;
-err_simple:
-	kmem_cache_destroy(gb_simple_message_cache);
-	gb_simple_message_cache = NULL;
+err_destroy_message_cache:
+	kmem_cache_destroy(gb_message_cache);
+	gb_message_cache = NULL;
 
 	return -ENOMEM;
 }
@@ -985,6 +973,6 @@ void gb_operation_exit(void)
 	gb_operation_workqueue = NULL;
 	kmem_cache_destroy(gb_operation_cache);
 	gb_operation_cache = NULL;
-	kmem_cache_destroy(gb_simple_message_cache);
-	gb_simple_message_cache = NULL;
+	kmem_cache_destroy(gb_message_cache);
+	gb_message_cache = NULL;
 }

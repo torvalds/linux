@@ -82,7 +82,7 @@ struct gb_message {
 	void				*payload;
 	size_t				payload_size;
 
-	u8				buffer[];
+	void				*buffer;
 };
 
 /*
