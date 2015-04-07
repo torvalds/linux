@@ -3017,7 +3017,7 @@ static struct sk_buff *smp_alloc_skb_cb(struct l2cap_chan *chan,
 		return ERR_PTR(-ENOMEM);
 
 	skb->priority = HCI_PRIO_MAX;
-	bt_cb(skb)->chan = chan;
+	bt_cb(skb)->l2cap.chan = chan;
 
 	return skb;
 }
@@ -3549,6 +3549,21 @@ static int __init test_h6(struct crypto_hash *tfm_cmac)
 	return 0;
 }
 
+static char test_smp_buffer[32];
+
+static ssize_t test_smp_read(struct file *file, char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	return simple_read_from_buffer(user_buf, count, ppos, test_smp_buffer,
+				       strlen(test_smp_buffer));
+}
+
+static const struct file_operations test_smp_fops = {
+	.open		= simple_open,
+	.read		= test_smp_read,
+	.llseek		= default_llseek,
+};
+
 static int __init run_selftests(struct crypto_blkcipher *tfm_aes,
 				struct crypto_hash *tfm_cmac)
 {
@@ -3561,49 +3576,49 @@ static int __init run_selftests(struct crypto_blkcipher *tfm_aes,
 	err = test_ah(tfm_aes);
 	if (err) {
 		BT_ERR("smp_ah test failed");
-		return err;
+		goto done;
 	}
 
 	err = test_c1(tfm_aes);
 	if (err) {
 		BT_ERR("smp_c1 test failed");
-		return err;
+		goto done;
 	}
 
 	err = test_s1(tfm_aes);
 	if (err) {
 		BT_ERR("smp_s1 test failed");
-		return err;
+		goto done;
 	}
 
 	err = test_f4(tfm_cmac);
 	if (err) {
 		BT_ERR("smp_f4 test failed");
-		return err;
+		goto done;
 	}
 
 	err = test_f5(tfm_cmac);
 	if (err) {
 		BT_ERR("smp_f5 test failed");
-		return err;
+		goto done;
 	}
 
 	err = test_f6(tfm_cmac);
 	if (err) {
 		BT_ERR("smp_f6 test failed");
-		return err;
+		goto done;
 	}
 
 	err = test_g2(tfm_cmac);
 	if (err) {
 		BT_ERR("smp_g2 test failed");
-		return err;
+		goto done;
 	}
 
 	err = test_h6(tfm_cmac);
 	if (err) {
 		BT_ERR("smp_h6 test failed");
-		return err;
+		goto done;
 	}
 
 	rettime = ktime_get();
@@ -3612,7 +3627,17 @@ static int __init run_selftests(struct crypto_blkcipher *tfm_aes,
 
 	BT_INFO("SMP test passed in %llu usecs", duration);
 
-	return 0;
+done:
+	if (!err)
+		snprintf(test_smp_buffer, sizeof(test_smp_buffer),
+			 "PASS (%llu usecs)\n", duration);
+	else
+		snprintf(test_smp_buffer, sizeof(test_smp_buffer), "FAIL\n");
+
+	debugfs_create_file("selftest_smp", 0444, bt_debugfs, NULL,
+			    &test_smp_fops);
+
+	return err;
 }
 
 int __init bt_selftest_smp(void)

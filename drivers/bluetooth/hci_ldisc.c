@@ -499,7 +499,7 @@ static int hci_uart_set_flags(struct hci_uart *hu, unsigned long flags)
 				    BIT(HCI_UART_INIT_PENDING) |
 				    BIT(HCI_UART_EXT_CONFIG);
 
-	if ((flags & ~valid_flags))
+	if (flags & ~valid_flags)
 		return -EINVAL;
 
 	hu->hdev_flags = flags;

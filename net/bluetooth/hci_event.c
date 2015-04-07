@@ -1045,11 +1045,6 @@ static void hci_cc_read_local_oob_data(struct hci_dev *hdev,
 	struct hci_rp_read_local_oob_data *rp = (void *) skb->data;
 
 	BT_DBG("%s status 0x%2.2x", hdev->name, rp->status);
-
-	hci_dev_lock(hdev);
-	mgmt_read_local_oob_data_complete(hdev, rp->hash, rp->rand, NULL, NULL,
-					  rp->status);
-	hci_dev_unlock(hdev);
 }
 
 static void hci_cc_read_local_oob_ext_data(struct hci_dev *hdev,
@@ -1058,14 +1053,7 @@ static void hci_cc_read_local_oob_ext_data(struct hci_dev *hdev,
 	struct hci_rp_read_local_oob_ext_data *rp = (void *) skb->data;
 
 	BT_DBG("%s status 0x%2.2x", hdev->name, rp->status);
-
-	hci_dev_lock(hdev);
-	mgmt_read_local_oob_data_complete(hdev, rp->hash192, rp->rand192,
-					  rp->hash256, rp->rand256,
-					  rp->status);
-	hci_dev_unlock(hdev);
 }
-
 
 static void hci_cc_le_set_random_addr(struct hci_dev *hdev, struct sk_buff *skb)
 {
@@ -2732,17 +2720,19 @@ unlock:
 	hci_dev_unlock(hdev);
 }
 
-static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
+static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb,
+				 u16 *opcode, u8 *status,
+				 hci_req_complete_t *req_complete,
+				 hci_req_complete_skb_t *req_complete_skb)
 {
 	struct hci_ev_cmd_complete *ev = (void *) skb->data;
-	u8 status = skb->data[sizeof(*ev)];
-	__u16 opcode;
+
+	*opcode = __le16_to_cpu(ev->opcode);
+	*status = skb->data[sizeof(*ev)];
 
 	skb_pull(skb, sizeof(*ev));
 
-	opcode = __le16_to_cpu(ev->opcode);
-
-	switch (opcode) {
+	switch (*opcode) {
 	case HCI_OP_INQUIRY_CANCEL:
 		hci_cc_inquiry_cancel(hdev, skb);
 		break;
@@ -3020,32 +3010,36 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		break;
 
 	default:
-		BT_DBG("%s opcode 0x%4.4x", hdev->name, opcode);
+		BT_DBG("%s opcode 0x%4.4x", hdev->name, *opcode);
 		break;
 	}
 
-	if (opcode != HCI_OP_NOP)
+	if (*opcode != HCI_OP_NOP)
 		cancel_delayed_work(&hdev->cmd_timer);
 
-	hci_req_cmd_complete(hdev, opcode, status);
-
-	if (ev->ncmd && !test_bit(HCI_RESET, &hdev->flags)) {
+	if (ev->ncmd && !test_bit(HCI_RESET, &hdev->flags))
 		atomic_set(&hdev->cmd_cnt, 1);
-		if (!skb_queue_empty(&hdev->cmd_q))
-			queue_work(hdev->workqueue, &hdev->cmd_work);
-	}
+
+	hci_req_cmd_complete(hdev, *opcode, *status, req_complete,
+			     req_complete_skb);
+
+	if (atomic_read(&hdev->cmd_cnt) && !skb_queue_empty(&hdev->cmd_q))
+		queue_work(hdev->workqueue, &hdev->cmd_work);
 }
 
-static void hci_cmd_status_evt(struct hci_dev *hdev, struct sk_buff *skb)
+static void hci_cmd_status_evt(struct hci_dev *hdev, struct sk_buff *skb,
+			       u16 *opcode, u8 *status,
+			       hci_req_complete_t *req_complete,
+			       hci_req_complete_skb_t *req_complete_skb)
 {
 	struct hci_ev_cmd_status *ev = (void *) skb->data;
-	__u16 opcode;
 
 	skb_pull(skb, sizeof(*ev));
 
-	opcode = __le16_to_cpu(ev->opcode);
+	*opcode = __le16_to_cpu(ev->opcode);
+	*status = ev->status;
 
-	switch (opcode) {
+	switch (*opcode) {
 	case HCI_OP_INQUIRY:
 		hci_cs_inquiry(hdev, ev->status);
 		break;
@@ -3115,22 +3109,29 @@ static void hci_cmd_status_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		break;
 
 	default:
-		BT_DBG("%s opcode 0x%4.4x", hdev->name, opcode);
+		BT_DBG("%s opcode 0x%4.4x", hdev->name, *opcode);
 		break;
 	}
 
-	if (opcode != HCI_OP_NOP)
+	if (*opcode != HCI_OP_NOP)
 		cancel_delayed_work(&hdev->cmd_timer);
 
-	if (ev->status ||
-	    (hdev->sent_cmd && !bt_cb(hdev->sent_cmd)->req_event))
-		hci_req_cmd_complete(hdev, opcode, ev->status);
-
-	if (ev->ncmd && !test_bit(HCI_RESET, &hdev->flags)) {
+	if (ev->ncmd && !test_bit(HCI_RESET, &hdev->flags))
 		atomic_set(&hdev->cmd_cnt, 1);
-		if (!skb_queue_empty(&hdev->cmd_q))
-			queue_work(hdev->workqueue, &hdev->cmd_work);
-	}
+
+	/* Indicate request completion if the command failed. Also, if
+	 * we're not waiting for a special event and we get a success
+	 * command status we should try to flag the request as completed
+	 * (since for this kind of commands there will not be a command
+	 * complete event).
+	 */
+	if (ev->status ||
+	    (hdev->sent_cmd && !bt_cb(hdev->sent_cmd)->req.event))
+		hci_req_cmd_complete(hdev, *opcode, ev->status, req_complete,
+				     req_complete_skb);
+
+	if (atomic_read(&hdev->cmd_cnt) && !skb_queue_empty(&hdev->cmd_q))
+		queue_work(hdev->workqueue, &hdev->cmd_work);
 }
 
 static void hci_hardware_error_evt(struct hci_dev *hdev, struct sk_buff *skb)
@@ -5031,31 +5032,78 @@ static void hci_chan_selected_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	amp_read_loc_assoc_final_data(hdev, hcon);
 }
 
+static bool hci_get_cmd_complete(struct hci_dev *hdev, u16 opcode,
+				 u8 event, struct sk_buff *skb)
+{
+	struct hci_ev_cmd_complete *ev;
+	struct hci_event_hdr *hdr;
+
+	if (!skb)
+		return false;
+
+	if (skb->len < sizeof(*hdr)) {
+		BT_ERR("Too short HCI event");
+		return false;
+	}
+
+	hdr = (void *) skb->data;
+	skb_pull(skb, HCI_EVENT_HDR_SIZE);
+
+	if (event) {
+		if (hdr->evt != event)
+			return false;
+		return true;
+	}
+
+	if (hdr->evt != HCI_EV_CMD_COMPLETE) {
+		BT_DBG("Last event is not cmd complete (0x%2.2x)", hdr->evt);
+		return false;
+	}
+
+	if (skb->len < sizeof(*ev)) {
+		BT_ERR("Too short cmd_complete event");
+		return false;
+	}
+
+	ev = (void *) skb->data;
+	skb_pull(skb, sizeof(*ev));
+
+	if (opcode != __le16_to_cpu(ev->opcode)) {
+		BT_DBG("opcode doesn't match (0x%2.2x != 0x%2.2x)", opcode,
+		       __le16_to_cpu(ev->opcode));
+		return false;
+	}
+
+	return true;
+}
+
 void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_event_hdr *hdr = (void *) skb->data;
-	__u8 event = hdr->evt;
+	hci_req_complete_t req_complete = NULL;
+	hci_req_complete_skb_t req_complete_skb = NULL;
+	struct sk_buff *orig_skb = NULL;
+	u8 status = 0, event = hdr->evt, req_evt = 0;
+	u16 opcode = HCI_OP_NOP;
 
-	hci_dev_lock(hdev);
-
-	/* Received events are (currently) only needed when a request is
-	 * ongoing so avoid unnecessary memory allocation.
-	 */
-	if (hci_req_pending(hdev)) {
-		kfree_skb(hdev->recv_evt);
-		hdev->recv_evt = skb_clone(skb, GFP_KERNEL);
+	if (hdev->sent_cmd && bt_cb(hdev->sent_cmd)->req.event == event) {
+		struct hci_command_hdr *cmd_hdr = (void *) hdev->sent_cmd->data;
+		opcode = __le16_to_cpu(cmd_hdr->opcode);
+		hci_req_cmd_complete(hdev, opcode, status, &req_complete,
+				     &req_complete_skb);
+		req_evt = event;
 	}
 
-	hci_dev_unlock(hdev);
+	/* If it looks like we might end up having to call
+	 * req_complete_skb, store a pristine copy of the skb since the
+	 * various handlers may modify the original one through
+	 * skb_pull() calls, etc.
+	 */
+	if (req_complete_skb || event == HCI_EV_CMD_STATUS ||
+	    event == HCI_EV_CMD_COMPLETE)
+		orig_skb = skb_clone(skb, GFP_KERNEL);
 
 	skb_pull(skb, HCI_EVENT_HDR_SIZE);
-
-	if (hdev->sent_cmd && bt_cb(hdev->sent_cmd)->req_event == event) {
-		struct hci_command_hdr *cmd_hdr = (void *) hdev->sent_cmd->data;
-		u16 opcode = __le16_to_cpu(cmd_hdr->opcode);
-
-		hci_req_cmd_complete(hdev, opcode, 0);
-	}
 
 	switch (event) {
 	case HCI_EV_INQUIRY_COMPLETE:
@@ -5099,11 +5147,13 @@ void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb)
 		break;
 
 	case HCI_EV_CMD_COMPLETE:
-		hci_cmd_complete_evt(hdev, skb);
+		hci_cmd_complete_evt(hdev, skb, &opcode, &status,
+				     &req_complete, &req_complete_skb);
 		break;
 
 	case HCI_EV_CMD_STATUS:
-		hci_cmd_status_evt(hdev, skb);
+		hci_cmd_status_evt(hdev, skb, &opcode, &status, &req_complete,
+				   &req_complete_skb);
 		break;
 
 	case HCI_EV_HARDWARE_ERROR:
@@ -5235,6 +5285,17 @@ void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb)
 		break;
 	}
 
+	if (req_complete) {
+		req_complete(hdev, status, opcode);
+	} else if (req_complete_skb) {
+		if (!hci_get_cmd_complete(hdev, opcode, req_evt, orig_skb)) {
+			kfree_skb(orig_skb);
+			orig_skb = NULL;
+		}
+		req_complete_skb(hdev, status, opcode, orig_skb);
+	}
+
+	kfree_skb(orig_skb);
 	kfree_skb(skb);
 	hdev->stat.evt_rx++;
 }

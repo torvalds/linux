@@ -269,11 +269,23 @@ struct l2cap_ctrl {
 	__u16	reqseq;
 	__u16	txseq;
 	__u8	retries;
+	__le16  psm;
+	bdaddr_t bdaddr;
+	struct l2cap_chan *chan;
 };
 
 struct hci_dev;
 
 typedef void (*hci_req_complete_t)(struct hci_dev *hdev, u8 status, u16 opcode);
+typedef void (*hci_req_complete_skb_t)(struct hci_dev *hdev, u8 status,
+				       u16 opcode, struct sk_buff *skb);
+
+struct req_ctrl {
+	bool start;
+	u8 event;
+	hci_req_complete_t complete;
+	hci_req_complete_skb_t complete_skb;
+};
 
 struct bt_skb_cb {
 	__u8 pkt_type;
@@ -281,13 +293,10 @@ struct bt_skb_cb {
 	__u16 opcode;
 	__u16 expect;
 	__u8 incoming:1;
-	__u8 req_start:1;
-	u8 req_event;
-	hci_req_complete_t req_complete;
-	struct l2cap_chan *chan;
-	struct l2cap_ctrl control;
-	bdaddr_t bdaddr;
-	__le16 psm;
+	union {
+		struct l2cap_ctrl l2cap;
+		struct req_ctrl req;
+	};
 };
 #define bt_cb(skb) ((struct bt_skb_cb *)((skb)->cb))
 
