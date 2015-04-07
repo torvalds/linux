@@ -62,11 +62,7 @@ different functions which are described below.
 
 Required properties:
 - compatible:
-	* the first value should be one of:
-		"marvell,berlin2-chip-ctrl" for BG2
-		"marvell,berlin2cd-chip-ctrl" for BG2CD
-		"marvell,berlin2q-chip-ctrl" for BG2Q
-	* the second and third values must be:
+	* the first and second values must be:
 		"simple-mfd", "syscon"
 - reg: address and length of following register sets for
   BG2/BG2CD: chip control register set
@@ -79,25 +75,21 @@ individual registers dealing with pinmux, padmux, and reset.
 
 Required properties:
 - compatible:
-	* the first value should be one of:
-		"marvell,berlin2-system-ctrl" for BG2
-		"marvell,berlin2cd-system-ctrl" for BG2CD
-		"marvell,berlin2q-system-ctrl" for BG2Q
-	* the second and third values must be:
+	* the first and second values must be:
 		"simple-mfd", "syscon"
 - reg: address and length of the system control register set
 
 Example:
 
 chip: chip-control@ea0000 {
-	compatible = "marvell,berlin2-chip-ctrl", "simple-mfd", "syscon";
+	compatible = "simple-mfd", "syscon";
 	reg = <0xea0000 0x400>;
 
 	/* sub-device nodes */
 };
 
 sysctrl: system-controller@d000 {
-	compatible = "marvell,berlin2-system-ctrl", "simple-mfd", "syscon";
+	compatible = "simple-mfd", "syscon";
 	reg = <0xd000 0x100>;
 
 	/* sub-device nodes */
