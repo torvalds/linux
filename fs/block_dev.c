@@ -1595,18 +1595,21 @@ static long block_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 ssize_t blkdev_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
+	struct inode *bd_inode = file->f_mapping->host;
+	loff_t size = i_size_read(bd_inode);
 	struct blk_plug plug;
 	ssize_t ret;
-	size_t count = iov_iter_count(from);
 
-	ret = generic_write_checks(file, &iocb->ki_pos, &count, 1);
-	if (ret)
-		return ret;
+	if (bdev_read_only(I_BDEV(bd_inode)))
+		return -EPERM;
 
-	if (count == 0)
+	if (!iov_iter_count(from))
 		return 0;
 
-	iov_iter_truncate(from, count);
+	if (iocb->ki_pos >= size)
+		return -ENOSPC;
+
+	iov_iter_truncate(from, size - iocb->ki_pos);
 
 	blk_start_plug(&plug);
 	ret = __generic_file_write_iter(iocb, from);
