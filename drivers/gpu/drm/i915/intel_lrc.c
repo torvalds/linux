@@ -315,17 +315,19 @@ static void execlists_elsp_write(struct intel_engine_cs *ring,
 	desc[3] = (u32)(temp >> 32);
 	desc[2] = (u32)temp;
 
-	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
-	I915_WRITE(RING_ELSP(ring), desc[1]);
-	I915_WRITE(RING_ELSP(ring), desc[0]);
-	I915_WRITE(RING_ELSP(ring), desc[3]);
+	spin_lock(&dev_priv->uncore.lock);
+	intel_uncore_forcewake_get__locked(dev_priv, FORCEWAKE_ALL);
+	I915_WRITE_FW(RING_ELSP(ring), desc[1]);
+	I915_WRITE_FW(RING_ELSP(ring), desc[0]);
+	I915_WRITE_FW(RING_ELSP(ring), desc[3]);
 
 	/* The context is automatically loaded after the following */
-	I915_WRITE(RING_ELSP(ring), desc[2]);
+	I915_WRITE_FW(RING_ELSP(ring), desc[2]);
 
 	/* ELSP is a wo register, so use another nearby reg for posting instead */
-	POSTING_READ(RING_EXECLIST_STATUS(ring));
-	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+	POSTING_READ_FW(RING_EXECLIST_STATUS(ring));
+	intel_uncore_forcewake_put__locked(dev_priv, FORCEWAKE_ALL);
+	spin_unlock(&dev_priv->uncore.lock);
 }
 
 static int execlists_update_context(struct drm_i915_gem_object *ctx_obj,

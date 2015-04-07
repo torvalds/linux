@@ -2537,6 +2537,13 @@ void intel_uncore_forcewake_get(struct drm_i915_private *dev_priv,
 				enum forcewake_domains domains);
 void intel_uncore_forcewake_put(struct drm_i915_private *dev_priv,
 				enum forcewake_domains domains);
+/* Like above but the caller must manage the uncore.lock itself.
+ * Must be used with I915_READ_FW and friends.
+ */
+void intel_uncore_forcewake_get__locked(struct drm_i915_private *dev_priv,
+					enum forcewake_domains domains);
+void intel_uncore_forcewake_put__locked(struct drm_i915_private *dev_priv,
+					enum forcewake_domains domains);
 void assert_forcewakes_inactive(struct drm_i915_private *dev_priv);
 static inline bool intel_vgpu_active(struct drm_device *dev)
 {
@@ -3228,6 +3235,17 @@ int intel_freq_opcode(struct drm_i915_private *dev_priv, int val);
 
 #define POSTING_READ(reg)	(void)I915_READ_NOTRACE(reg)
 #define POSTING_READ16(reg)	(void)I915_READ16_NOTRACE(reg)
+
+/* These are untraced mmio-accessors that are only valid to be used inside
+ * criticial sections inside IRQ handlers where forcewake is explicitly
+ * controlled.
+ * Think twice, and think again, before using these.
+ * Note: Should only be used between intel_uncore_forcewake_irqlock() and
+ * intel_uncore_forcewake_irqunlock().
+ */
+#define I915_READ_FW(reg__) readl(dev_priv->regs + (reg__))
+#define I915_WRITE_FW(reg__, val__) writel(val__, dev_priv->regs + (reg__))
+#define POSTING_READ_FW(reg__) (void)I915_READ_FW(reg__)
 
 /* "Broadcast RGB" property */
 #define INTEL_BROADCAST_RGB_AUTO 0
