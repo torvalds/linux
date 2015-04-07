@@ -1103,7 +1103,7 @@ static int hsw_pcm_probe(struct snd_soc_platform *platform)
 	return 0;
 
 err:
-	for (;i >= 0; i--) {
+	for (--i; i >= 0; i--) {
 		if (hsw_dais[i].playback.channels_min)
 			snd_dma_free_pages(&priv_data->dmab[i][0]);
 		if (hsw_dais[i].capture.channels_min)
