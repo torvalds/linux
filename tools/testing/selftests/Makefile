@@ -17,6 +17,7 @@ TARGETS += sysctl
 TARGETS += timers
 TARGETS += user
 TARGETS += vm
+TARGETS += x86
 #Please keep the TARGETS list alphabetically sorted
 
 TARGETS_HOTPLUG = cpu-hotplug
