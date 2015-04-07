@@ -511,6 +511,9 @@ static void jz4740_dma_desc_free(struct virt_dma_desc *vdesc)
 	kfree(container_of(vdesc, struct jz4740_dma_desc, vdesc));
 }
 
+#define JZ4740_DMA_BUSWIDTHS (BIT(DMA_SLAVE_BUSWIDTH_1_BYTE) | \
+	BIT(DMA_SLAVE_BUSWIDTH_2_BYTES) | BIT(DMA_SLAVE_BUSWIDTH_4_BYTES))
+
 static int jz4740_dma_probe(struct platform_device *pdev)
 {
 	struct jz4740_dmaengine_chan *chan;
@@ -548,6 +551,10 @@ static int jz4740_dma_probe(struct platform_device *pdev)
 	dd->device_prep_dma_cyclic = jz4740_dma_prep_dma_cyclic;
 	dd->device_config = jz4740_dma_slave_config;
 	dd->device_terminate_all = jz4740_dma_terminate_all;
+	dd->src_addr_widths = JZ4740_DMA_BUSWIDTHS;
+	dd->dst_addr_widths = JZ4740_DMA_BUSWIDTHS;
+	dd->directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
+	dd->residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
 	dd->dev = &pdev->dev;
 	INIT_LIST_HEAD(&dd->channels);
 

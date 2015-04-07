@@ -79,6 +79,16 @@ void nf_log_packet(struct net *net,
 		   const struct nf_loginfo *li,
 		   const char *fmt, ...);
 
+__printf(8, 9)
+void nf_log_trace(struct net *net,
+		  u_int8_t pf,
+		  unsigned int hooknum,
+		  const struct sk_buff *skb,
+		  const struct net_device *in,
+		  const struct net_device *out,
+		  const struct nf_loginfo *li,
+		  const char *fmt, ...);
+
 struct nf_log_buf;
 
 struct nf_log_buf *nf_log_buf_open(void);

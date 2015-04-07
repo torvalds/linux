@@ -1388,9 +1388,8 @@ any_leases_conflict(struct inode *inode, struct file_lock *breaker)
 int __break_lease(struct inode *inode, unsigned int mode, unsigned int type)
 {
 	int error = 0;
-	struct file_lock *new_fl;
 	struct file_lock_context *ctx = inode->i_flctx;
-	struct file_lock *fl;
+	struct file_lock *new_fl, *fl, *tmp;
 	unsigned long break_time;
 	int want_write = (mode & O_ACCMODE) != O_RDONLY;
 	LIST_HEAD(dispose);
@@ -1420,7 +1419,7 @@ int __break_lease(struct inode *inode, unsigned int mode, unsigned int type)
 			break_time++;	/* so that 0 means no break time */
 	}
 
-	list_for_each_entry(fl, &ctx->flc_lease, fl_list) {
+	list_for_each_entry_safe(fl, tmp, &ctx->flc_lease, fl_list) {
 		if (!leases_conflict(fl, new_fl))
 			continue;
 		if (want_write) {

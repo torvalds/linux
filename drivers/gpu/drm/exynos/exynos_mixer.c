@@ -55,6 +55,7 @@ struct hdmi_win_data {
 	unsigned int		fb_x;
 	unsigned int		fb_y;
 	unsigned int		fb_width;
+	unsigned int		fb_pitch;
 	unsigned int		fb_height;
 	unsigned int		src_width;
 	unsigned int		src_height;
@@ -438,7 +439,7 @@ static void vp_video_buffer(struct mixer_context *ctx, int win)
 	} else {
 		luma_addr[0] = win_data->dma_addr;
 		chroma_addr[0] = win_data->dma_addr
-			+ (win_data->fb_width * win_data->fb_height);
+			+ (win_data->fb_pitch * win_data->fb_height);
 	}
 
 	if (win_data->scan_flags & DRM_MODE_FLAG_INTERLACE) {
@@ -447,8 +448,8 @@ static void vp_video_buffer(struct mixer_context *ctx, int win)
 			luma_addr[1] = luma_addr[0] + 0x40;
 			chroma_addr[1] = chroma_addr[0] + 0x40;
 		} else {
-			luma_addr[1] = luma_addr[0] + win_data->fb_width;
-			chroma_addr[1] = chroma_addr[0] + win_data->fb_width;
+			luma_addr[1] = luma_addr[0] + win_data->fb_pitch;
+			chroma_addr[1] = chroma_addr[0] + win_data->fb_pitch;
 		}
 	} else {
 		ctx->interlace = false;
@@ -469,10 +470,10 @@ static void vp_video_buffer(struct mixer_context *ctx, int win)
 	vp_reg_writemask(res, VP_MODE, val, VP_MODE_FMT_MASK);
 
 	/* setting size of input image */
-	vp_reg_write(res, VP_IMG_SIZE_Y, VP_IMG_HSIZE(win_data->fb_width) |
+	vp_reg_write(res, VP_IMG_SIZE_Y, VP_IMG_HSIZE(win_data->fb_pitch) |
 		VP_IMG_VSIZE(win_data->fb_height));
 	/* chroma height has to reduced by 2 to avoid chroma distorions */
-	vp_reg_write(res, VP_IMG_SIZE_C, VP_IMG_HSIZE(win_data->fb_width) |
+	vp_reg_write(res, VP_IMG_SIZE_C, VP_IMG_HSIZE(win_data->fb_pitch) |
 		VP_IMG_VSIZE(win_data->fb_height / 2));
 
 	vp_reg_write(res, VP_SRC_WIDTH, win_data->src_width);
@@ -559,7 +560,7 @@ static void mixer_graph_buffer(struct mixer_context *ctx, int win)
 	/* converting dma address base and source offset */
 	dma_addr = win_data->dma_addr
 		+ (win_data->fb_x * win_data->bpp >> 3)
-		+ (win_data->fb_y * win_data->fb_width * win_data->bpp >> 3);
+		+ (win_data->fb_y * win_data->fb_pitch);
 	src_x_offset = 0;
 	src_y_offset = 0;
 
@@ -576,7 +577,8 @@ static void mixer_graph_buffer(struct mixer_context *ctx, int win)
 		MXR_GRP_CFG_FORMAT_VAL(fmt), MXR_GRP_CFG_FORMAT_MASK);
 
 	/* setup geometry */
-	mixer_reg_write(res, MXR_GRAPHIC_SPAN(win), win_data->fb_width);
+	mixer_reg_write(res, MXR_GRAPHIC_SPAN(win),
+			win_data->fb_pitch / (win_data->bpp >> 3));
 
 	/* setup display size */
 	if (ctx->mxr_ver == MXR_VER_128_0_0_184 &&
@@ -961,6 +963,7 @@ static void mixer_win_mode_set(struct exynos_drm_crtc *crtc,
 	win_data->fb_y = plane->fb_y;
 	win_data->fb_width = plane->fb_width;
 	win_data->fb_height = plane->fb_height;
+	win_data->fb_pitch = plane->pitch;
 	win_data->src_width = plane->src_width;
 	win_data->src_height = plane->src_height;
 

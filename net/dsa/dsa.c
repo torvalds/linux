@@ -501,12 +501,10 @@ static struct net_device *dev_to_net_device(struct device *dev)
 #ifdef CONFIG_OF
 static int dsa_of_setup_routing_table(struct dsa_platform_data *pd,
 					struct dsa_chip_data *cd,
-					int chip_index,
+					int chip_index, int port_index,
 					struct device_node *link)
 {
-	int ret;
 	const __be32 *reg;
-	int link_port_addr;
 	int link_sw_addr;
 	struct device_node *parent_sw;
 	int len;
@@ -519,6 +517,10 @@ static int dsa_of_setup_routing_table(struct dsa_platform_data *pd,
 	if (!reg || (len != sizeof(*reg) * 2))
 		return -EINVAL;
 
+	/*
+	 * Get the destination switch number from the second field of its 'reg'
+	 * property, i.e. for "reg = <0x19 1>" sw_addr is '1'.
+	 */
 	link_sw_addr = be32_to_cpup(reg + 1);
 
 	if (link_sw_addr >= pd->nr_chips)
@@ -535,20 +537,9 @@ static int dsa_of_setup_routing_table(struct dsa_platform_data *pd,
 		memset(cd->rtable, -1, pd->nr_chips * sizeof(s8));
 	}
 
-	reg = of_get_property(link, "reg", NULL);
-	if (!reg) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	link_port_addr = be32_to_cpup(reg);
-
-	cd->rtable[link_sw_addr] = link_port_addr;
+	cd->rtable[link_sw_addr] = port_index;
 
 	return 0;
-out:
-	kfree(cd->rtable);
-	return ret;
 }
 
 static void dsa_of_free_platform_data(struct dsa_platform_data *pd)
@@ -658,7 +649,7 @@ static int dsa_of_probe(struct platform_device *pdev)
 			if (!strcmp(port_name, "dsa") && link &&
 					pd->nr_chips > 1) {
 				ret = dsa_of_setup_routing_table(pd, cd,
-						chip_index, link);
+						chip_index, port_index, link);
 				if (ret)
 					goto out_free_chip;
 			}

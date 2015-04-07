@@ -3105,10 +3105,11 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 			if (!first_ackt.v64)
 				first_ackt = last_ackt;
 
-			if (!(sacked & TCPCB_SACKED_ACKED))
+			if (!(sacked & TCPCB_SACKED_ACKED)) {
 				reord = min(pkts_acked, reord);
-			if (!after(scb->end_seq, tp->high_seq))
-				flag |= FLAG_ORIG_SACK_ACKED;
+				if (!after(scb->end_seq, tp->high_seq))
+					flag |= FLAG_ORIG_SACK_ACKED;
+			}
 		}
 
 		if (sacked & TCPCB_SACKED_ACKED)

@@ -376,8 +376,6 @@ enum {
 enum {
 	INGQ_EXTRAS = 2,        /* firmware event queue and */
 				/*   forwarded interrupts */
-	MAX_EGRQ = MAX_ETH_QSETS*2 + MAX_OFLD_QSETS*2
-		   + MAX_CTRL_QUEUES + MAX_RDMA_QUEUES + MAX_ISCSI_QUEUES,
 	MAX_INGQ = MAX_ETH_QSETS + MAX_OFLD_QSETS + MAX_RDMA_QUEUES
 		   + MAX_RDMA_CIQS + MAX_ISCSI_QUEUES + INGQ_EXTRAS,
 };
@@ -616,11 +614,13 @@ struct sge {
 	unsigned int idma_qid[2];   /* SGE IDMA Hung Ingress Queue ID */
 
 	unsigned int egr_start;
+	unsigned int egr_sz;
 	unsigned int ingr_start;
-	void *egr_map[MAX_EGRQ];    /* qid->queue egress queue map */
-	struct sge_rspq *ingr_map[MAX_INGQ]; /* qid->queue ingress queue map */
-	DECLARE_BITMAP(starving_fl, MAX_EGRQ);
-	DECLARE_BITMAP(txq_maperr, MAX_EGRQ);
+	unsigned int ingr_sz;
+	void **egr_map;    /* qid->queue egress queue map */
+	struct sge_rspq **ingr_map; /* qid->queue ingress queue map */
+	unsigned long *starving_fl;
+	unsigned long *txq_maperr;
 	struct timer_list rx_timer; /* refills starving FLs */
 	struct timer_list tx_timer; /* checks Tx queues */
 };
@@ -1136,6 +1136,8 @@ int cxgb4_t4_bar2_sge_qregs(struct adapter *adapter,
 
 unsigned int qtimer_val(const struct adapter *adap,
 			const struct sge_rspq *q);
+
+int t4_init_devlog_params(struct adapter *adapter);
 int t4_init_sge_params(struct adapter *adapter);
 int t4_init_tp_params(struct adapter *adap);
 int t4_filter_field_shift(const struct adapter *adap, int filter_sel);

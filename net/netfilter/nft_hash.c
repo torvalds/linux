@@ -153,6 +153,8 @@ static void nft_hash_walk(const struct nft_ctx *ctx, const struct nft_set *set,
 				iter->err = err;
 				goto out;
 			}
+
+			continue;
 		}
 
 		if (iter->count < iter->skip)

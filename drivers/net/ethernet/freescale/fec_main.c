@@ -1954,6 +1954,7 @@ static int fec_enet_mii_init(struct platform_device *pdev)
 	struct fec_enet_private *fep = netdev_priv(ndev);
 	struct device_node *node;
 	int err = -ENXIO, i;
+	u32 mii_speed, holdtime;
 
 	/*
 	 * The i.MX28 dual fec interfaces are not equal.
@@ -1991,10 +1992,33 @@ static int fec_enet_mii_init(struct platform_device *pdev)
 	 * Reference Manual has an error on this, and gets fixed on i.MX6Q
 	 * document.
 	 */
-	fep->phy_speed = DIV_ROUND_UP(clk_get_rate(fep->clk_ipg), 5000000);
+	mii_speed = DIV_ROUND_UP(clk_get_rate(fep->clk_ipg), 5000000);
 	if (fep->quirks & FEC_QUIRK_ENET_MAC)
-		fep->phy_speed--;
-	fep->phy_speed <<= 1;
+		mii_speed--;
+	if (mii_speed > 63) {
+		dev_err(&pdev->dev,
+			"fec clock (%lu) to fast to get right mii speed\n",
+			clk_get_rate(fep->clk_ipg));
+		err = -EINVAL;
+		goto err_out;
+	}
+
+	/*
+	 * The i.MX28 and i.MX6 types have another filed in the MSCR (aka
+	 * MII_SPEED) register that defines the MDIO output hold time. Earlier
+	 * versions are RAZ there, so just ignore the difference and write the
+	 * register always.
+	 * The minimal hold time according to IEE802.3 (clause 22) is 10 ns.
+	 * HOLDTIME + 1 is the number of clk cycles the fec is holding the
+	 * output.
+	 * The HOLDTIME bitfield takes values between 0 and 7 (inclusive).
+	 * Given that ceil(clkrate / 5000000) <= 64, the calculation for
+	 * holdtime cannot result in a value greater than 3.
+	 */
+	holdtime = DIV_ROUND_UP(clk_get_rate(fep->clk_ipg), 100000000) - 1;
+
+	fep->phy_speed = mii_speed << 1 | holdtime << 8;
+
 	writel(fep->phy_speed, fep->hwp + FEC_MII_SPEED);
 
 	fep->mii_bus = mdiobus_alloc();

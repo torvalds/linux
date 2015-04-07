@@ -598,6 +598,10 @@ static void radeon_ttm_tt_unpin_userptr(struct ttm_tt *ttm)
 	enum dma_data_direction direction = write ?
 		DMA_BIDIRECTIONAL : DMA_TO_DEVICE;
 
+	/* double check that we don't free the table twice */
+	if (!ttm->sg->sgl)
+		return;
+
 	/* free the sg table and pages again */
 	dma_unmap_sg(rdev->dev, ttm->sg->sgl, ttm->sg->nents, direction);
 

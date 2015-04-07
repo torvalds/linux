@@ -3095,6 +3095,12 @@ int mlx4_GEN_EQE(struct mlx4_dev *dev, int slave, struct mlx4_eqe *eqe)
 	if (!priv->mfunc.master.slave_state)
 		return -EINVAL;
 
+	/* check for slave valid, slave not PF, and slave active */
+	if (slave < 0 || slave > dev->persist->num_vfs ||
+	    slave == dev->caps.function ||
+	    !priv->mfunc.master.slave_state[slave].active)
+		return 0;
+
 	event_eq = &priv->mfunc.master.slave_state[slave].event_eq[eqe->type];
 
 	/* Create the event only if the slave is registered */
