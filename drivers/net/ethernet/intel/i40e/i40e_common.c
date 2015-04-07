@@ -2546,6 +2546,9 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 		}
 	}
 
+	if (p->fcoe)
+		i40e_debug(hw, I40E_DEBUG_ALL, "device is FCoE capable\n");
+
 	/* Software override ensuring FCoE is disabled if npar or mfp
 	 * mode because it is not supported in these modes.
 	 */
