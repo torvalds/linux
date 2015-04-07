@@ -2029,7 +2029,7 @@ static void i40evf_init_task(struct work_struct *work)
 		if (err) {
 			dev_err(&pdev->dev, "Failed to set MAC type (%d)\n",
 				err);
-		goto err;
+			goto err;
 		}
 		err = i40evf_check_reset_complete(hw);
 		if (err) {
