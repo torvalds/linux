@@ -89,6 +89,7 @@ struct pci_controller {
 
 #ifdef CONFIG_PPC64
 	unsigned long buid;
+	struct pci_dn *pci_data;
 #endif	/* CONFIG_PPC64 */
 
 	void *private_data;
@@ -154,9 +155,15 @@ static inline int isa_vaddr_is_ioport(void __iomem *address)
 struct iommu_table;
 
 struct pci_dn {
+	int     flags;
+
 	int	busno;			/* pci bus number */
 	int	devfn;			/* pci device and function number */
+	int	vendor_id;		/* Vendor ID */
+	int	device_id;		/* Device ID */
+	int	class_code;		/* Device class code */
 
+	struct  pci_dn *parent;
 	struct  pci_controller *phb;	/* for pci devices */
 	struct	iommu_table *iommu_table;	/* for phb's or bridges */
 	struct	device_node *node;	/* back-pointer to the device_node */
@@ -171,14 +178,17 @@ struct pci_dn {
 #ifdef CONFIG_PPC_POWERNV
 	int	pe_number;
 #endif
+	struct list_head child_list;
+	struct list_head list;
 };
 
 /* Get the pointer to a device_node's pci_dn */
 #define PCI_DN(dn)	((struct pci_dn *) (dn)->data)
 
+extern struct pci_dn *pci_get_pdn_by_devfn(struct pci_bus *bus,
+					   int devfn);
 extern struct pci_dn *pci_get_pdn(struct pci_dev *pdev);
-
-extern void * update_dn_pci_info(struct device_node *dn, void *data);
+extern void *update_dn_pci_info(struct device_node *dn, void *data);
 
 static inline int pci_device_from_OF_node(struct device_node *np,
 					  u8 *bus, u8 *devfn)
@@ -191,20 +201,12 @@ static inline int pci_device_from_OF_node(struct device_node *np,
 }
 
 #if defined(CONFIG_EEH)
-static inline struct eeh_dev *of_node_to_eeh_dev(struct device_node *dn)
+static inline struct eeh_dev *pdn_to_eeh_dev(struct pci_dn *pdn)
 {
-	/*
-	 * For those OF nodes whose parent isn't PCI bridge, they
-	 * don't have PCI_DN actually. So we have to skip them for
-	 * any EEH operations.
-	 */
-	if (!dn || !PCI_DN(dn))
-		return NULL;
-
-	return PCI_DN(dn)->edev;
+	return pdn ? pdn->edev : NULL;
 }
 #else
-#define of_node_to_eeh_dev(x) (NULL)
+#define pdn_to_eeh_dev(x)	(NULL)
 #endif
 
 /** Find the bus corresponding to the indicated device node */

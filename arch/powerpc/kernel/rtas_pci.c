@@ -113,7 +113,7 @@ static int rtas_pci_read_config(struct pci_bus *bus,
 
 	ret = rtas_read_config(pdn, where, size, val);
 	if (*val == EEH_IO_ERROR_VALUE(size) &&
-	    eeh_dev_check_failure(of_node_to_eeh_dev(dn)))
+	    eeh_dev_check_failure(pdn_to_eeh_dev(pdn)))
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	return ret;

@@ -82,7 +82,7 @@ struct pci_controller *init_phb_dynamic(struct device_node *dn)
 	eeh_dev_phb_init_dynamic(phb);
 
 	if (dn->child)
-		eeh_add_device_tree_early(dn);
+		eeh_add_device_tree_early(PCI_DN(dn));
 
 	pcibios_scan_phb(phb);
 	pcibios_finish_adding_to_bus(phb->bus);

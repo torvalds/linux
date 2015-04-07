@@ -125,7 +125,7 @@ struct machdep_calls {
 	unsigned int	(*get_irq)(void);
 
 	/* PCI stuff */
-	/* Called after scanning the bus, before allocating resources */
+	/* Called after allocating resources */
 	void		(*pcibios_fixup)(void);
 	int		(*pci_probe_mode)(struct pci_bus *);
 	void		(*pci_irq_fixup)(struct pci_dev *dev);
