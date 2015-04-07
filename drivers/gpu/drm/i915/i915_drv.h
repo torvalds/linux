@@ -2148,14 +2148,14 @@ i915_gem_request_unreference(struct drm_i915_gem_request *req)
 static inline void
 i915_gem_request_unreference__unlocked(struct drm_i915_gem_request *req)
 {
-	if (req && !atomic_add_unless(&req->ref.refcount, -1, 1)) {
-		struct drm_device *dev = req->ring->dev;
+	struct drm_device *dev;
 
-		mutex_lock(&dev->struct_mutex);
-		if (likely(atomic_dec_and_test(&req->ref.refcount)))
-			i915_gem_request_free(&req->ref);
+	if (!req)
+		return;
+
+	dev = req->ring->dev;
+	if (kref_put_mutex(&req->ref, i915_gem_request_free, &dev->struct_mutex))
 		mutex_unlock(&dev->struct_mutex);
-	}
 }
 
 static inline void i915_gem_request_assign(struct drm_i915_gem_request **pdst,
