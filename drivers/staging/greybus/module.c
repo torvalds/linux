@@ -11,37 +11,62 @@
 
 
 /* module sysfs attributes */
-#define gb_module_attr(field, type)					\
-static ssize_t field##_show(struct device *dev,				\
-			    struct device_attribute *attr,		\
-			    char *buf)					\
-{									\
-	struct gb_module *module = to_gb_module(dev);			\
-	return sprintf(buf, "%"#type"\n", module->field);		\
-}									\
-static DEVICE_ATTR_RO(field)
-
-// FIXME, do we really need this attribute?
-gb_module_attr(module_id, x);
-
 static ssize_t epm_show(struct device *dev, struct device_attribute *attr,
 			char *buf)
 {
-	// FIXME, implement something here
+	// FIXME
+	// Implement something here when we have a working control protocol
 	return sprintf(buf, "1\n");
 }
 
 static ssize_t epm_store(struct device *dev, struct device_attribute *attr,
 			 const char *buf, size_t size)
 {
-	// FIXME, implement something here.
+	// FIXME
+	// Implement something here when we have a working control protocol
 	return 0;
 }
 static DEVICE_ATTR_RW(epm);
 
+static ssize_t power_control_show(struct device *dev,
+				  struct device_attribute *addr, char *buf)
+{
+	// FIXME
+	// Implement something here when we have a working control protocol
+	return sprintf(buf, "1\n");
+}
+
+static ssize_t power_control_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t size)
+{
+	// FIXME
+	// Implement something here when we have a working control protocol
+	return 0;
+}
+static DEVICE_ATTR_RW(power_control);
+
+static ssize_t present_show(struct device *dev,
+			    struct device_attribute *addr, char *buf)
+{
+	// FIXME
+	// Implement something here when we have a working control protocol
+	return sprintf(buf, "1\n");
+}
+
+static ssize_t present_store(struct device *dev, struct device_attribute *attr,
+			     const char *buf, size_t size)
+{
+	// FIXME
+	// Implement something here when we have a working control protocol
+	return 0;
+}
+static DEVICE_ATTR_RW(present);
+
 static struct attribute *module_attrs[] = {
-	&dev_attr_module_id.attr,
 	&dev_attr_epm.attr,
+	&dev_attr_power_control.attr,
+	&dev_attr_present.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(module);
