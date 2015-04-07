@@ -66,7 +66,7 @@ struct gb_operation_msg_hdr {
 	__le16	operation_id;	/* Operation unique id */
 	__u8	type;		/* E.g GB_I2C_TYPE_* or GB_GPIO_TYPE_* */
 	__u8	result;		/* Result of request (in responses only) */
-	/* 2 bytes pad, must be zero (ignore when read) */
+	__u8	pad[2];		/* must be zero (ignore when read) */
 } __aligned(sizeof(u64));
 
 /*
