@@ -99,7 +99,7 @@ ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	int overwrite = 0;
 	size_t length = iov_iter_count(from);
 	ssize_t ret;
-	loff_t pos = iocb->ki_pos;
+	loff_t pos;
 
 	/*
 	 * Unaligned direct AIO must be serialized; see comment above
@@ -109,15 +109,22 @@ ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	    ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS) &&
 	    !is_sync_kiocb(iocb) &&
 	    (file->f_flags & O_APPEND ||
-	     ext4_unaligned_aio(inode, from, pos))) {
+	     ext4_unaligned_aio(inode, from, iocb->ki_pos))) {
 		aio_mutex = ext4_aio_mutex(inode);
 		mutex_lock(aio_mutex);
 		ext4_unwritten_wait(inode);
 	}
 
 	mutex_lock(&inode->i_mutex);
-	if (file->f_flags & O_APPEND)
-		iocb->ki_pos = pos = i_size_read(inode);
+	ret = generic_write_checks(file, &iocb->ki_pos, &length);
+	if (ret)
+		goto out;
+
+	if (length == 0)
+		goto out;
+
+	iov_iter_truncate(from, length);
+	pos = iocb->ki_pos;
 
 	/*
 	 * If we have encountered a bitmap-format file, the size limit
@@ -126,18 +133,16 @@ ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))) {
 		struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 
-		if ((pos > sbi->s_bitmap_maxbytes) ||
-		    (pos == sbi->s_bitmap_maxbytes && length > 0)) {
-			mutex_unlock(&inode->i_mutex);
+		if (pos >= sbi->s_bitmap_maxbytes) {
 			ret = -EFBIG;
-			goto errout;
+			goto out;
 		}
 		iov_iter_truncate(from, sbi->s_bitmap_maxbytes - pos);
-		length = iov_iter_count(from);
 	}
 
 	iocb->private = &overwrite;
 	if (o_direct) {
+		length = iov_iter_count(from);
 		blk_start_plug(&plug);
 
 
@@ -171,16 +176,7 @@ ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		}
 	}
 
-	ret = generic_write_checks(file, &iocb->ki_pos, &length);
-	if (ret)
-		goto out;
-
-	if (length == 0)
-		goto out;
-
-	iov_iter_truncate(from, length);
 	ret = __generic_file_write_iter(iocb, from);
-out:
 	mutex_unlock(&inode->i_mutex);
 
 	if (ret > 0) {
@@ -193,7 +189,12 @@ out:
 	if (o_direct)
 		blk_finish_plug(&plug);
 
-errout:
+	if (aio_mutex)
+		mutex_unlock(aio_mutex);
+	return ret;
+
+out:
+	mutex_unlock(&inode->i_mutex);
 	if (aio_mutex)
 		mutex_unlock(aio_mutex);
 	return ret;
