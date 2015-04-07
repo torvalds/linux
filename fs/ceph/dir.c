@@ -947,16 +947,20 @@ static int ceph_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct ceph_fs_client *fsc = ceph_sb_to_client(old_dir->i_sb);
 	struct ceph_mds_client *mdsc = fsc->mdsc;
 	struct ceph_mds_request *req;
+	int op = CEPH_MDS_OP_RENAME;
 	int err;
 
 	if (ceph_snap(old_dir) != ceph_snap(new_dir))
 		return -EXDEV;
-	if (ceph_snap(old_dir) != CEPH_NOSNAP ||
-	    ceph_snap(new_dir) != CEPH_NOSNAP)
-		return -EROFS;
+	if (ceph_snap(old_dir) != CEPH_NOSNAP) {
+		if (old_dir == new_dir && ceph_snap(old_dir) == CEPH_SNAPDIR)
+			op = CEPH_MDS_OP_RENAMESNAP;
+		else
+			return -EROFS;
+	}
 	dout("rename dir %p dentry %p to dir %p dentry %p\n",
 	     old_dir, old_dentry, new_dir, new_dentry);
-	req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_RENAME, USE_AUTH_MDS);
+	req = ceph_mdsc_create_request(mdsc, op, USE_AUTH_MDS);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 	ihold(old_dir);
@@ -1387,6 +1391,7 @@ const struct inode_operations ceph_snapdir_iops = {
 	.getattr = ceph_getattr,
 	.mkdir = ceph_mkdir,
 	.rmdir = ceph_unlink,
+	.rename = ceph_rename,
 };
 
 const struct dentry_operations ceph_dentry_ops = {
