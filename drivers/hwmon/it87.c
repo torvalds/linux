@@ -655,8 +655,7 @@ static void it87_update_pwm_ctrl(struct it87_data *data, int nr)
 {
 	data->pwm_ctrl[nr] = it87_read_value(data, IT87_REG_PWM[nr]);
 	if (has_newer_autopwm(data)) {
-		data->pwm_temp_map[nr] = (data->pwm_ctrl[nr] & 0x03) +
-			nr < 3 ? 0 : 3;
+		data->pwm_temp_map[nr] = data->pwm_ctrl[nr] & 0x03;
 		data->pwm_duty[nr] = it87_read_value(data,
 						     IT87_REG_PWM_DUTY[nr]);
 	} else {
@@ -790,8 +789,11 @@ static struct it87_data *it87_update_device(struct device *dev)
 		data->fan_main_ctrl = it87_read_value(data,
 				IT87_REG_FAN_MAIN_CTRL);
 		data->fan_ctl = it87_read_value(data, IT87_REG_FAN_CTL);
-		for (i = 0; i < NUM_PWM; i++)
+		for (i = 0; i < NUM_PWM; i++) {
+			if (!(data->has_pwm & BIT(i)))
+				continue;
 			it87_update_pwm_ctrl(data, i);
+		}
 
 		data->sensor = it87_read_value(data, IT87_REG_TEMP_ENABLE);
 		data->extra = it87_read_value(data, IT87_REG_TEMP_EXTRA);
@@ -1403,11 +1405,13 @@ static ssize_t show_pwm_temp_map(struct device *dev,
 	int nr = sensor_attr->index;
 	int map;
 
-	if (data->pwm_temp_map[nr] < 3)
-		map = BIT(data->pwm_temp_map[nr]);
-	else
-		map = 0;			/* Should never happen */
-	return sprintf(buf, "%d\n", map);
+	map = data->pwm_temp_map[nr];
+	if (map >= 3)
+		map = 0;	/* Should never happen */
+	if (nr >= 3)		/* pwm channels 3..6 map to temp4..6 */
+		map += 3;
+
+	return sprintf(buf, "%d\n", (int)BIT(map));
 }
 
 static ssize_t set_pwm_temp_map(struct device *dev,
@@ -1422,6 +1426,9 @@ static ssize_t set_pwm_temp_map(struct device *dev,
 
 	if (kstrtol(buf, 10, &val) < 0)
 		return -EINVAL;
+
+	if (nr >= 3)
+		val -= 3;
 
 	switch (val) {
 	case BIT(0):
