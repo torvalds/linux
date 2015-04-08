@@ -1,0 +1,13 @@
+#
+# SIM configuration
+#
+
+menu "MXC SIM Support"
+
+config MXC_SIM
+	tristate "MXC SIM support"
+	default n
+	---help---
+	Say Y to get MXC SIM support.
+
+endmenu
