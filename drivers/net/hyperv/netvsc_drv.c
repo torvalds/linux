@@ -377,27 +377,42 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	struct rndis_packet *rndis_pkt;
 	u32 rndis_msg_size;
 	bool isvlan;
+	bool linear = false;
 	struct rndis_per_packet_info *ppi;
 	struct ndis_tcp_ip_checksum_info *csum_info;
 	struct ndis_tcp_lso_info *lso_info;
 	int  hdr_offset;
 	u32 net_trans_info;
 	u32 hash;
-	u32 skb_length = skb->len;
-	u32 head_room = skb_headroom(skb);
+	u32 skb_length;
+	u32 head_room;
 	u32 pkt_sz;
 	struct hv_page_buffer page_buf[MAX_PAGE_BUFFER_COUNT];
 
 
 	/* We will atmost need two pages to describe the rndis
 	 * header. We can only transmit MAX_PAGE_BUFFER_COUNT number
-	 * of pages in a single packet.
+	 * of pages in a single packet. If skb is scattered around
+	 * more pages we try linearizing it.
 	 */
+
+check_size:
+	skb_length = skb->len;
+	head_room = skb_headroom(skb);
 	num_data_pgs = netvsc_get_slots(skb) + 2;
-	if (num_data_pgs > MAX_PAGE_BUFFER_COUNT) {
-		netdev_err(net, "Packet too big: %u\n", skb->len);
+	if (num_data_pgs > MAX_PAGE_BUFFER_COUNT && linear) {
+		net_alert_ratelimited("packet too big: %u pages (%u bytes)\n",
+				      num_data_pgs, skb->len);
 		ret = -EFAULT;
 		goto drop;
+	} else if (num_data_pgs > MAX_PAGE_BUFFER_COUNT) {
+		if (skb_linearize(skb)) {
+			net_alert_ratelimited("failed to linearize skb\n");
+			ret = -ENOMEM;
+			goto drop;
+		}
+		linear = true;
+		goto check_size;
 	}
 
 	pkt_sz = sizeof(struct hv_netvsc_packet) + RNDIS_AND_PPI_SIZE;
