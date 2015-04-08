@@ -2256,11 +2256,8 @@ static int vxlan_stop(struct net_device *dev)
 	int ret = 0;
 
 	if (vxlan_addr_multicast(&vxlan->default_dst.remote_ip) &&
-	    !vxlan_group_used(vn, vxlan)) {
+	    !vxlan_group_used(vn, vxlan))
 		ret = vxlan_igmp_leave(vxlan);
-		if (ret)
-			return ret;
-	}
 
 	del_timer_sync(&vxlan->age_timer);
 
