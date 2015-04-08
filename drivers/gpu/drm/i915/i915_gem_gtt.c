@@ -716,12 +716,11 @@ unwind_out:
 	return -ENOMEM;
 }
 
-static int gen8_ppgtt_alloc_page_directories(struct i915_page_directory_pointer *pdp,
+static int gen8_ppgtt_alloc_page_directories(struct i915_hw_ppgtt *ppgtt,
+				     struct i915_page_directory_pointer *pdp,
 				     uint64_t start,
 				     uint64_t length)
 {
-	struct i915_hw_ppgtt *ppgtt =
-		container_of(pdp, struct i915_hw_ppgtt, pdp);
 	struct i915_page_directory *unused;
 	uint64_t temp;
 	uint32_t pdpe;
@@ -732,7 +731,7 @@ static int gen8_ppgtt_alloc_page_directories(struct i915_page_directory_pointer 
 	gen8_for_each_pdpe(unused, pdp, start, length, temp, pdpe) {
 		WARN_ON(unused);
 		pdp->page_directory[pdpe] = alloc_pd_single();
-		if (IS_ERR(ppgtt->pdp.page_directory[pdpe]))
+		if (IS_ERR(pdp->page_directory[pdpe]))
 			goto unwind_out;
 
 		gen8_initialize_pd(&ppgtt->base,
@@ -743,8 +742,8 @@ static int gen8_ppgtt_alloc_page_directories(struct i915_page_directory_pointer 
 	 * 4GB of memory. This won't be needed after a subsequent patch.
 	 */
 	while (pdpe < GEN8_LEGACY_PDPES) {
-		ppgtt->pdp.page_directory[pdpe] = alloc_pd_single();
-		if (IS_ERR(ppgtt->pdp.page_directory[pdpe]))
+		pdp->page_directory[pdpe] = alloc_pd_single();
+		if (IS_ERR(pdp->page_directory[pdpe]))
 			goto unwind_out;
 
 		gen8_initialize_pd(&ppgtt->base,
@@ -756,7 +755,7 @@ static int gen8_ppgtt_alloc_page_directories(struct i915_page_directory_pointer 
 
 unwind_out:
 	while (pdpe--)
-		unmap_and_free_pd(ppgtt->pdp.page_directory[pdpe]);
+		unmap_and_free_pd(pdp->page_directory[pdpe]);
 
 	return -ENOMEM;
 }
@@ -770,7 +769,7 @@ static int gen8_ppgtt_alloc(struct i915_hw_ppgtt *ppgtt,
 	uint32_t pdpe;
 	int ret;
 
-	ret = gen8_ppgtt_alloc_page_directories(&ppgtt->pdp, start, length);
+	ret = gen8_ppgtt_alloc_page_directories(ppgtt, &ppgtt->pdp, start, length);
 	if (ret)
 		return ret;
 
