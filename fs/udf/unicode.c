@@ -89,7 +89,7 @@ static void udf_build_ustr_exact(struct ustr *dest, dstring *ptr, int exactsize)
  * 				both of type "struct ustr *"
  *
  * POST-CONDITIONS
- *	<return>		Zero on success.
+ *	<return>		>= 0 on success.
  *
  * HISTORY
  *	November 12, 1997 - Andrew E. Mileski
@@ -112,7 +112,7 @@ int udf_CS0toUTF8(struct ustr *utf_o, const struct ustr *ocu_i)
 		memset(utf_o, 0, sizeof(struct ustr));
 		pr_err("unknown compression code (%d) stri=%s\n",
 		       cmp_id, ocu_i->u_name);
-		return 0;
+		return -EINVAL;
 	}
 
 	ocu = ocu_i->u_name;
@@ -350,7 +350,8 @@ int udf_get_filename(struct super_block *sb, uint8_t *sname, int slen,
 
 	udf_build_ustr_exact(unifilename, sname, slen);
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_UTF8)) {
-		if (!udf_CS0toUTF8(filename, unifilename)) {
+		ret = udf_CS0toUTF8(filename, unifilename);
+		if (ret < 0) {
 			udf_debug("Failed in udf_get_filename: sname = %s\n",
 				  sname);
 			goto out2;
