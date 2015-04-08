@@ -50,6 +50,8 @@ enum sensors {
 	MAX_SENSOR_TYPE,
 };
 
+#define INVALID_INDEX (-1U)
+
 static struct sensor_group {
 	const char *name;
 	const char *compatible;
@@ -176,11 +178,26 @@ static const char *parse_opal_node_name(const char *node_name,
 static int get_sensor_type(struct device_node *np)
 {
 	enum sensors type;
+	const char *str;
 
 	for (type = 0; type < MAX_SENSOR_TYPE; type++) {
 		if (of_device_is_compatible(np, sensor_groups[type].compatible))
 			return type;
 	}
+
+	/*
+	 * Let's check if we have a newer device tree
+	 */
+	if (!of_device_is_compatible(np, "ibm,opal-sensor"))
+		return MAX_SENSOR_TYPE;
+
+	if (of_property_read_string(np, "sensor-type", &str))
+		return MAX_SENSOR_TYPE;
+
+	for (type = 0; type < MAX_SENSOR_TYPE; type++)
+		if (!strcmp(str, sensor_groups[type].name))
+			return type;
+
 	return MAX_SENSOR_TYPE;
 }
 
@@ -189,11 +206,15 @@ static u32 get_sensor_hwmon_index(struct sensor_data *sdata,
 {
 	int i;
 
-	for (i = 0; i < count; i++)
-		if (sdata_table[i].opal_index == sdata->opal_index &&
-		    sdata_table[i].type == sdata->type)
-			return sdata_table[i].hwmon_index;
-
+	/*
+	 * We don't use the OPAL index on newer device trees
+	 */
+	if (sdata->opal_index != INVALID_INDEX) {
+		for (i = 0; i < count; i++)
+			if (sdata_table[i].opal_index == sdata->opal_index &&
+			    sdata_table[i].type == sdata->type)
+				return sdata_table[i].hwmon_index;
+	}
 	return ++sensor_groups[sdata->type].hwmon_index;
 }
 
@@ -283,7 +304,12 @@ static int create_device_attrs(struct platform_device *pdev)
 		if (type == MAX_SENSOR_TYPE)
 			continue;
 
-		if (of_property_read_u32(np, "sensor-id", &sensor_id)) {
+		/*
+		 * Newer device trees use a "sensor-data" property
+		 * name for input.
+		 */
+		if (of_property_read_u32(np, "sensor-id", &sensor_id) &&
+		    of_property_read_u32(np, "sensor-data", &sensor_id)) {
 			dev_info(&pdev->dev,
 				 "'sensor-id' missing in the node '%s'\n",
 				 np->name);
@@ -293,12 +319,16 @@ static int create_device_attrs(struct platform_device *pdev)
 		sdata[count].id = sensor_id;
 		sdata[count].type = type;
 
+		/*
+		 * If we can not parse the node name, it means we are
+		 * running on a newer device tree. We can just forget
+		 * about the OPAL index and use a defaut value for the
+		 * hwmon attribute name
+		 */
 		attr_name = parse_opal_node_name(np->name, type, &opal_index);
 		if (IS_ERR(attr_name)) {
-			dev_err(&pdev->dev, "Sensor device node name '%s' is invalid\n",
-				np->name);
-			err = PTR_ERR(attr_name);
-			goto exit_put_node;
+			attr_name = "input";
+			opal_index = INVALID_INDEX;
 		}
 
 		sdata[count].opal_index = opal_index;
