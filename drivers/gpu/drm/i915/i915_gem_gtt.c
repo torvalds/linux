@@ -606,6 +606,36 @@ static void gen8_ppgtt_insert_entries(struct i915_address_space *vm,
 	}
 }
 
+static void __gen8_do_map_pt(gen8_pde_t * const pde,
+			     struct i915_page_table *pt,
+			     struct drm_device *dev)
+{
+	gen8_pde_t entry =
+		gen8_pde_encode(dev, pt->daddr, I915_CACHE_LLC);
+	*pde = entry;
+}
+
+static void gen8_initialize_pd(struct i915_address_space *vm,
+			       struct i915_page_directory *pd)
+{
+	struct i915_hw_ppgtt *ppgtt =
+			container_of(vm, struct i915_hw_ppgtt, base);
+	gen8_pde_t *page_directory;
+	struct i915_page_table *pt;
+	int i;
+
+	page_directory = kmap_atomic(pd->page);
+	pt = ppgtt->scratch_pt;
+	for (i = 0; i < I915_PDES; i++)
+		/* Map the PDE to the page table */
+		__gen8_do_map_pt(page_directory + i, pt, vm->dev);
+
+	if (!HAS_LLC(vm->dev))
+		drm_clflush_virt_range(page_directory, PAGE_SIZE);
+
+	kunmap_atomic(page_directory);
+}
+
 static void gen8_free_page_tables(struct i915_page_directory *pd, struct drm_device *dev)
 {
 	int i;
@@ -633,6 +663,8 @@ static void gen8_ppgtt_free(struct i915_hw_ppgtt *ppgtt)
 		gen8_free_page_tables(ppgtt->pdp.page_directory[i], ppgtt->base.dev);
 		unmap_and_free_pd(ppgtt->pdp.page_directory[i]);
 	}
+
+	unmap_and_free_pt(ppgtt->scratch_pt, ppgtt->base.dev);
 }
 
 static void gen8_ppgtt_cleanup(struct i915_address_space *vm)
@@ -663,25 +695,55 @@ unwind_out:
 	return -ENOMEM;
 }
 
-static int gen8_ppgtt_allocate_page_directories(struct i915_hw_ppgtt *ppgtt,
-						const int max_pdp)
+static int gen8_ppgtt_alloc_page_directories(struct i915_page_directory_pointer *pdp,
+				     uint64_t start,
+				     uint64_t length)
 {
-	int i;
+	struct i915_hw_ppgtt *ppgtt =
+		container_of(pdp, struct i915_hw_ppgtt, pdp);
+	struct i915_page_directory *unused;
+	uint64_t temp;
+	uint32_t pdpe;
 
-	for (i = 0; i < max_pdp; i++) {
-		ppgtt->pdp.page_directory[i] = alloc_pd_single();
-		if (IS_ERR(ppgtt->pdp.page_directory[i]))
+	/* FIXME: PPGTT container_of won't work for 64b */
+	WARN_ON((start + length) > 0x800000000ULL);
+
+	gen8_for_each_pdpe(unused, pdp, start, length, temp, pdpe) {
+		WARN_ON(unused);
+		pdp->page_directory[pdpe] = alloc_pd_single();
+		if (IS_ERR(ppgtt->pdp.page_directory[pdpe]))
 			goto unwind_out;
+
+		gen8_initialize_pd(&ppgtt->base,
+				   ppgtt->pdp.page_directory[pdpe]);
+		ppgtt->num_pd_pages++;
 	}
 
-	ppgtt->num_pd_pages = max_pdp;
+	/* XXX: Still alloc all page directories in systems with less than
+	 * 4GB of memory. This won't be needed after a subsequent patch.
+	 */
+	while (ppgtt->num_pd_pages < GEN8_LEGACY_PDPES) {
+		ppgtt->pdp.page_directory[ppgtt->num_pd_pages] = alloc_pd_single();
+		if (IS_ERR(ppgtt->pdp.page_directory[ppgtt->num_pd_pages]))
+			goto unwind_out;
+
+		gen8_initialize_pd(&ppgtt->base,
+				   ppgtt->pdp.page_directory[ppgtt->num_pd_pages]);
+		pdpe++;
+		ppgtt->num_pd_pages++;
+	}
+
 	BUG_ON(ppgtt->num_pd_pages > GEN8_LEGACY_PDPES);
 
 	return 0;
 
 unwind_out:
-	while (i--)
-		unmap_and_free_pd(ppgtt->pdp.page_directory[i]);
+	while (pdpe--) {
+		unmap_and_free_pd(ppgtt->pdp.page_directory[pdpe]);
+		ppgtt->num_pd_pages--;
+	}
+
+	WARN_ON(ppgtt->num_pd_pages);
 
 	return -ENOMEM;
 }
@@ -691,7 +753,8 @@ static int gen8_ppgtt_alloc(struct i915_hw_ppgtt *ppgtt,
 {
 	int ret;
 
-	ret = gen8_ppgtt_allocate_page_directories(ppgtt, max_pdp);
+	ret = gen8_ppgtt_alloc_page_directories(&ppgtt->pdp, ppgtt->base.start,
+					ppgtt->base.total);
 	if (ret)
 		return ret;
 
@@ -769,6 +832,17 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt, uint64_t size)
 	if (size % (1<<30))
 		DRM_INFO("Pages will be wasted unless GTT size (%llu) is divisible by 1GB\n", size);
 
+	ppgtt->base.start = 0;
+	/* This is the area that we advertise as usable for the caller */
+	ppgtt->base.total = max_pdp * I915_PDES * GEN8_PTES * PAGE_SIZE;
+	WARN_ON(ppgtt->base.total == 0);
+
+	ppgtt->scratch_pt = alloc_pt_single(ppgtt->base.dev);
+	if (IS_ERR(ppgtt->scratch_pt))
+		return PTR_ERR(ppgtt->scratch_pt);
+
+	gen8_initialize_pt(&ppgtt->base, ppgtt->scratch_pt);
+
 	/* 1. Do all our allocations for page directories and page tables.
 	 * We allocate more than was asked so that we can point the unused parts
 	 * to valid entries that point to scratch page. Dynamic page tables
@@ -794,7 +868,7 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt, uint64_t size)
 	}
 
 	/*
-	 * 3. Map all the page directory entires to point to the page tables
+	 * 3. Map all the page directory entries to point to the page tables
 	 * we've allocated.
 	 *
 	 * For now, the PPGTT helper functions all require that the PDEs are
@@ -820,10 +894,6 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt, uint64_t size)
 	ppgtt->base.clear_range = gen8_ppgtt_clear_range;
 	ppgtt->base.insert_entries = gen8_ppgtt_insert_entries;
 	ppgtt->base.cleanup = gen8_ppgtt_cleanup;
-	ppgtt->base.start = 0;
-
-	/* This is the area that we advertise as usable for the caller */
-	ppgtt->base.total = max_pdp * I915_PDES * GEN8_PTES * PAGE_SIZE;
 
 	/* Set all ptes to a valid scratch page. Also above requested space */
 	ppgtt->base.clear_range(&ppgtt->base, 0,
