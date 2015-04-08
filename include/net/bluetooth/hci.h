@@ -374,6 +374,7 @@ enum {
 /* LE features */
 #define HCI_LE_ENCRYPTION		0x01
 #define HCI_LE_CONN_PARAM_REQ_PROC	0x02
+#define HCI_LE_SLAVE_FEATURES		0x08
 #define HCI_LE_PING			0x10
 #define HCI_LE_DATA_LEN_EXT		0x20
 #define HCI_LE_EXT_SCAN_POLICY		0x80
@@ -1376,6 +1377,11 @@ struct hci_cp_le_conn_update {
 	__le16   max_ce_len;
 } __packed;
 
+#define HCI_OP_LE_READ_REMOTE_FEATURES	0x2016
+struct hci_cp_le_read_remote_features {
+	__le16	 handle;
+} __packed;
+
 #define HCI_OP_LE_START_ENC		0x2019
 struct hci_cp_le_start_enc {
 	__le16	handle;
@@ -1866,6 +1872,13 @@ struct hci_ev_le_conn_update_complete {
 	__le16   interval;
 	__le16   latency;
 	__le16   supervision_timeout;
+} __packed;
+
+#define HCI_EV_LE_REMOTE_FEAT_COMPLETE	0x04
+struct hci_ev_le_remote_feat_complete {
+	__u8     status;
+	__le16   handle;
+	__u8     features[8];
 } __packed;
 
 #define HCI_EV_LE_LTK_REQ		0x05

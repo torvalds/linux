@@ -2036,6 +2036,33 @@ unlock:
 	hci_dev_unlock(hdev);
 }
 
+static void hci_cs_le_read_remote_features(struct hci_dev *hdev, u8 status)
+{
+	struct hci_cp_le_read_remote_features *cp;
+	struct hci_conn *conn;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	if (!status)
+		return;
+
+	cp = hci_sent_cmd_data(hdev, HCI_OP_LE_READ_REMOTE_FEATURES);
+	if (!cp)
+		return;
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(cp->handle));
+	if (conn) {
+		if (conn->state == BT_CONFIG) {
+			hci_connect_cfm(conn, status);
+			hci_conn_drop(conn);
+		}
+	}
+
+	hci_dev_unlock(hdev);
+}
+
 static void hci_cs_le_start_enc(struct hci_dev *hdev, u8 status)
 {
 	struct hci_cp_le_start_enc *cp;
@@ -3102,6 +3129,10 @@ static void hci_cmd_status_evt(struct hci_dev *hdev, struct sk_buff *skb,
 
 	case HCI_OP_LE_CREATE_CONN:
 		hci_cs_le_create_conn(hdev, ev->status);
+		break;
+
+	case HCI_OP_LE_READ_REMOTE_FEATURES:
+		hci_cs_le_read_remote_features(hdev, ev->status);
 		break;
 
 	case HCI_OP_LE_START_ENC:
@@ -4515,7 +4546,7 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	conn->sec_level = BT_SECURITY_LOW;
 	conn->handle = __le16_to_cpu(ev->handle);
-	conn->state = BT_CONNECTED;
+	conn->state = BT_CONFIG;
 
 	conn->le_conn_interval = le16_to_cpu(ev->interval);
 	conn->le_conn_latency = le16_to_cpu(ev->latency);
@@ -4524,7 +4555,33 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_debugfs_create_conn(conn);
 	hci_conn_add_sysfs(conn);
 
-	hci_connect_cfm(conn, ev->status);
+	if (!ev->status) {
+		/* The remote features procedure is defined for master
+		 * role only. So only in case of an initiated connection
+		 * request the remote features.
+		 *
+		 * If the local controller supports slave-initiated features
+		 * exchange, then requesting the remote features in slave
+		 * role is possible. Otherwise just transition into the
+		 * connected state without requesting the remote features.
+		 */
+		if (conn->out ||
+		    (hdev->le_features[0] & HCI_LE_SLAVE_FEATURES)) {
+			struct hci_cp_le_read_remote_features cp;
+
+			cp.handle = __cpu_to_le16(conn->handle);
+
+			hci_send_cmd(hdev, HCI_OP_LE_READ_REMOTE_FEATURES,
+				     sizeof(cp), &cp);
+
+			hci_conn_hold(conn);
+		} else {
+			conn->state = BT_CONNECTED;
+			hci_connect_cfm(conn, ev->status);
+		}
+	} else {
+		hci_connect_cfm(conn, ev->status);
+	}
 
 	params = hci_pend_le_action_lookup(&hdev->pend_le_conns, &conn->dst,
 					   conn->dst_type);
@@ -4826,6 +4883,48 @@ static void hci_le_adv_report_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_dev_unlock(hdev);
 }
 
+static void hci_le_remote_feat_complete_evt(struct hci_dev *hdev,
+					    struct sk_buff *skb)
+{
+	struct hci_ev_le_remote_feat_complete *ev = (void *)skb->data;
+	struct hci_conn *conn;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, ev->status);
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(ev->handle));
+	if (conn) {
+		if (!ev->status)
+			memcpy(conn->features[0], ev->features, 8);
+
+		if (conn->state == BT_CONFIG) {
+			__u8 status;
+
+			/* If the local controller supports slave-initiated
+			 * features exchange, but the remote controller does
+			 * not, then it is possible that the error code 0x1a
+			 * for unsupported remote feature gets returned.
+			 *
+			 * In this specific case, allow the connection to
+			 * transition into connected state and mark it as
+			 * successful.
+			 */
+			if ((hdev->le_features[0] & HCI_LE_SLAVE_FEATURES) &&
+			    !conn->out && ev->status == 0x1a)
+				status = 0x00;
+			else
+				status = ev->status;
+
+			conn->state = BT_CONNECTED;
+			hci_connect_cfm(conn, status);
+			hci_conn_drop(conn);
+		}
+	}
+
+	hci_dev_unlock(hdev);
+}
+
 static void hci_le_ltk_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_ev_le_ltk_req *ev = (void *) skb->data;
@@ -4997,6 +5096,10 @@ static void hci_le_meta_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_EV_LE_ADVERTISING_REPORT:
 		hci_le_adv_report_evt(hdev, skb);
+		break;
+
+	case HCI_EV_LE_REMOTE_FEAT_COMPLETE:
+		hci_le_remote_feat_complete_evt(hdev, skb);
 		break;
 
 	case HCI_EV_LE_LTK_REQ:
