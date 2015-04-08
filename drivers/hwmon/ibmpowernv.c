@@ -32,6 +32,7 @@
 #include <linux/err.h>
 
 #define MAX_ATTR_LEN	32
+#define MAX_LABEL_LEN	64
 
 /* Sensor suffix name from DT */
 #define DT_FAULT_ATTR_SUFFIX		"faulted"
@@ -70,6 +71,7 @@ struct sensor_data {
 	u32 hwmon_index;
 	u32 opal_index;
 	enum sensors type;
+	char label[MAX_LABEL_LEN];
 	char name[MAX_ATTR_LEN];
 	struct device_attribute dev_attr;
 };
@@ -101,8 +103,25 @@ static ssize_t show_sensor(struct device *dev, struct device_attribute *devattr,
 	return sprintf(buf, "%u\n", x);
 }
 
-static int get_sensor_index_attr(const char *name, u32 *index,
-					char *attr)
+static ssize_t show_label(struct device *dev, struct device_attribute *devattr,
+			  char *buf)
+{
+	struct sensor_data *sdata = container_of(devattr, struct sensor_data,
+						 dev_attr);
+
+	return sprintf(buf, "%s\n", sdata->label);
+}
+
+static void __init make_sensor_label(struct device_node *np,
+				     struct sensor_data *sdata,
+				     const char *label)
+{
+	size_t n;
+
+	n = snprintf(sdata->label, sizeof(sdata->label), "%s", label);
+}
+
+static int get_sensor_index_attr(const char *name, u32 *index, char *attr)
 {
 	char *hash_pos = strchr(name, '#');
 	char buf[8] = { 0 };
@@ -227,11 +246,21 @@ static int populate_attr_groups(struct platform_device *pdev)
 
 	opal = of_find_node_by_path("/ibm,opal/sensors");
 	for_each_child_of_node(opal, np) {
+		const char *label;
+
 		if (np->name == NULL)
 			continue;
 
 		type = get_sensor_type(np);
-		if (type != MAX_SENSOR_TYPE)
+		if (type == MAX_SENSOR_TYPE)
+			continue;
+
+		sensor_groups[type].attr_count++;
+
+		/*
+		 * add a new attribute for labels
+		 */
+		if (!of_property_read_string(np, "label", &label))
 			sensor_groups[type].attr_count++;
 	}
 
@@ -296,6 +325,7 @@ static int create_device_attrs(struct platform_device *pdev)
 	for_each_child_of_node(opal, np) {
 		const char *attr_name;
 		u32 opal_index;
+		const char *label;
 
 		if (np->name == NULL)
 			continue;
@@ -339,6 +369,25 @@ static int create_device_attrs(struct platform_device *pdev)
 
 		pgroups[type]->attrs[sensor_groups[type].attr_count++] =
 				&sdata[count++].dev_attr.attr;
+
+		if (!of_property_read_string(np, "label", &label)) {
+			/*
+			 * For the label attribute, we can reuse the
+			 * "properties" of the previous "input"
+			 * attribute. They are related to the same
+			 * sensor.
+			 */
+			sdata[count].type = type;
+			sdata[count].opal_index = sdata[count - 1].opal_index;
+			sdata[count].hwmon_index = sdata[count - 1].hwmon_index;
+
+			make_sensor_label(np, &sdata[count], label);
+
+			create_hwmon_attr(&sdata[count], "label", show_label);
+
+			pgroups[type]->attrs[sensor_groups[type].attr_count++] =
+				&sdata[count++].dev_attr.attr;
+		}
 	}
 
 exit_put_node:
