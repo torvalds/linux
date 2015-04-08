@@ -332,6 +332,24 @@ static void unmap_and_free_pt(struct i915_page_table *pt,
 	kfree(pt);
 }
 
+static void gen8_initialize_pt(struct i915_address_space *vm,
+				struct i915_page_table *pt)
+{
+	gen8_pte_t *pt_vaddr, scratch_pte;
+	int i;
+
+	pt_vaddr = kmap_atomic(pt->page);
+	scratch_pte = gen8_pte_encode(vm->scratch.addr,
+				      I915_CACHE_LLC, true);
+
+	for (i = 0; i < GEN8_PTES; i++)
+		pt_vaddr[i] = scratch_pte;
+
+	if (!HAS_LLC(vm->dev))
+		drm_clflush_virt_range(pt_vaddr, PAGE_SIZE);
+	kunmap_atomic(pt_vaddr);
+}
+
 static struct i915_page_table *alloc_pt_single(struct drm_device *dev)
 {
 	struct i915_page_table *pt;
@@ -429,7 +447,7 @@ static struct i915_page_directory *alloc_pd_single(void)
 	if (!pd)
 		return ERR_PTR(-ENOMEM);
 
-	pd->page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+	pd->page = alloc_page(GFP_KERNEL);
 	if (!pd->page) {
 		kfree(pd);
 		return ERR_PTR(-ENOMEM);
@@ -718,6 +736,8 @@ static int gen8_ppgtt_setup_page_tables(struct i915_hw_ppgtt *ppgtt,
 	struct i915_page_table *ptab = pdir->page_table[pt];
 	struct page *p = ptab->page;
 	int ret;
+
+	gen8_initialize_pt(&ppgtt->base, ptab);
 
 	pt_addr = pci_map_page(ppgtt->base.dev->pdev,
 			       p, 0, PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
