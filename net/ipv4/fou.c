@@ -771,12 +771,12 @@ EXPORT_SYMBOL(gue_build_header);
 
 #ifdef CONFIG_NET_FOU_IP_TUNNELS
 
-static const struct ip_tunnel_encap_ops __read_mostly fou_iptun_ops = {
+static const struct ip_tunnel_encap_ops fou_iptun_ops = {
 	.encap_hlen = fou_encap_hlen,
 	.build_header = fou_build_header,
 };
 
-static const struct ip_tunnel_encap_ops __read_mostly gue_iptun_ops = {
+static const struct ip_tunnel_encap_ops gue_iptun_ops = {
 	.encap_hlen = gue_encap_hlen,
 	.build_header = gue_build_header,
 };
