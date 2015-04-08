@@ -18,6 +18,7 @@
 	aliases {
 		rtc0 = &mcp_rtc;
 		rtc1 = &tps659038_rtc;
+		rtc2 = &rtc;
 	};
 
 	memory {

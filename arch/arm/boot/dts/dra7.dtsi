@@ -1203,7 +1203,7 @@
 			status = "disabled";
 		};
 
-		rtc@48838000 {
+		rtc: rtc@48838000 {
 			compatible = "ti,am3352-rtc";
 			reg = <0x48838000 0x100>;
 			interrupts = <GIC_SPI 217 IRQ_TYPE_LEVEL_HIGH>,
