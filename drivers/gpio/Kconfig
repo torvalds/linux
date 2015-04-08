@@ -90,10 +90,11 @@ config GPIO_GENERIC
 
 # put drivers in the right section, in alphabetical order
 
+# This symbol is selected by both I2C and SPI expanders
 config GPIO_MAX730X
 	tristate
 
-comment "Memory mapped GPIO drivers:"
+menu "Memory mapped GPIO drivers"
 
 config GPIO_74XX_MMIO
 	tristate "GPIO driver for 74xx-ICs with MMIO access"
@@ -518,7 +519,10 @@ config GPIO_ZYNQ
 	help
 	  Say yes here to support Xilinx Zynq GPIO controller.
 
-comment "I2C GPIO expanders:"
+endmenu
+
+menu "I2C GPIO expanders"
+	depends on I2C
 
 config GPIO_ADP5588
 	tristate "ADP5588 I2C GPIO expander"
@@ -652,7 +656,9 @@ config GPIO_SX150X
 	  8 bits:  sx1508q
 	  16 bits: sx1509q
 
-comment "MFD GPIO expanders:"
+endmenu
+
+menu "MFD GPIO expanders"
 
 config GPIO_ADP5520
 	tristate "GPIO Support for ADP5520 PMIC"
@@ -853,7 +859,10 @@ config GPIO_WM8994
 	  Say yes here to access the GPIO signals of WM8994 audio hub
 	  CODECs from Wolfson Microelectronics.
 
-comment "PCI GPIO expanders:"
+endmenu
+
+menu "PCI GPIO expanders"
+	depends on PCI
 
 config GPIO_AMD8111
 	tristate "AMD 8111 GPIO driver"
@@ -933,8 +942,10 @@ config GPIO_SODAVILLE
 	help
 	  Say Y here to support Intel Sodaville GPIO.
 
+endmenu
 
-comment "SPI GPIO expanders:"
+menu "SPI GPIO expanders"
+	depends on SPI_MASTER
 
 config GPIO_74X164
 	tristate "74x164 serial-in/parallel-out 8-bits shift register"
@@ -967,7 +978,10 @@ config GPIO_MC33880
 	  SPI driver for Freescale MC33880 high-side/low-side switch.
 	  This provides GPIO interface supporting inputs and outputs.
 
-comment "USB GPIO expanders:"
+endmenu
+
+menu "USB GPIO expanders"
+	depends on USB
 
 config GPIO_VIPERBOARD
 	tristate "Viperboard GPIO a & b support"
@@ -979,5 +993,7 @@ config GPIO_VIPERBOARD
           See viperboard API specification and Nano
           River Tech's viperboard.h for detailed meaning
           of the module parameters.
+
+endmenu
 
 endif
