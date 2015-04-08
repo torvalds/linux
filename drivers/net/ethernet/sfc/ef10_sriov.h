@@ -17,6 +17,8 @@ static inline bool efx_ef10_sriov_wanted(struct efx_nic *efx)
 	return false;
 }
 
+int efx_ef10_sriov_configure(struct efx_nic *efx, int num_vfs);
+
 static inline int efx_ef10_sriov_init(struct efx_nic *efx)
 {
 	return -EOPNOTSUPP;

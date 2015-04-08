@@ -41,6 +41,7 @@
 	((EFX_MAX_VF_EVQ_SIZE + 2 * EFX_MAX_DMAQ_SIZE) *	\
 	 sizeof(efx_qword_t) / EFX_BUF_SIZE)
 
+int efx_siena_sriov_configure(struct efx_nic *efx, int num_vfs);
 int efx_siena_sriov_init(struct efx_nic *efx);
 void efx_siena_sriov_fini(struct efx_nic *efx);
 void efx_siena_sriov_mac_address_changed(struct efx_nic *efx);

@@ -1701,3 +1701,8 @@ bool efx_siena_sriov_wanted(struct efx_nic *efx)
 	return false;
 #endif
 }
+
+int efx_siena_sriov_configure(struct efx_nic *efx, int num_vfs)
+{
+	return 0;
+}
