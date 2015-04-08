@@ -52,8 +52,8 @@
 #define MIPI_CAL_CONFIG_DSIC		0x10
 #define MIPI_CAL_CONFIG_DSID		0x11
 
-#define MIPI_CAL_CONFIG_DSIAB_CLK	0x19
-#define MIPI_CAL_CONFIG_DSICD_CLK	0x1a
+#define MIPI_CAL_CONFIG_DSIA_CLK	0x19
+#define MIPI_CAL_CONFIG_DSIB_CLK	0x1a
 #define MIPI_CAL_CONFIG_CSIAB_CLK	0x1b
 #define MIPI_CAL_CONFIG_CSICD_CLK	0x1c
 #define MIPI_CAL_CONFIG_CSIE_CLK	0x1d
@@ -326,9 +326,9 @@ static const struct tegra_mipi_pad tegra124_mipi_pads[] = {
 	{ .data = MIPI_CAL_CONFIG_CSIB, .clk = MIPI_CAL_CONFIG_CSIAB_CLK },
 	{ .data = MIPI_CAL_CONFIG_CSIC, .clk = MIPI_CAL_CONFIG_CSICD_CLK },
 	{ .data = MIPI_CAL_CONFIG_CSID, .clk = MIPI_CAL_CONFIG_CSICD_CLK },
-	{ .data = MIPI_CAL_CONFIG_CSIE, .clk = MIPI_CAL_CONFIG_CSIE_CLK },
-	{ .data = MIPI_CAL_CONFIG_DSIA, .clk = MIPI_CAL_CONFIG_DSIAB_CLK },
-	{ .data = MIPI_CAL_CONFIG_DSIB, .clk = MIPI_CAL_CONFIG_DSIAB_CLK },
+	{ .data = MIPI_CAL_CONFIG_CSIE, .clk = MIPI_CAL_CONFIG_CSIE_CLK  },
+	{ .data = MIPI_CAL_CONFIG_DSIA, .clk = MIPI_CAL_CONFIG_DSIA_CLK  },
+	{ .data = MIPI_CAL_CONFIG_DSIB, .clk = MIPI_CAL_CONFIG_DSIB_CLK  },
 };
 
 static const struct tegra_mipi_soc tegra124_mipi_soc = {
