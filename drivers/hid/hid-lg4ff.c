@@ -721,9 +721,9 @@ static ssize_t lg4ff_alternate_modes_store(struct device *dev, struct device_att
 }
 static DEVICE_ATTR(alternate_modes, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH, lg4ff_alternate_modes_show, lg4ff_alternate_modes_store);
 
-/* Read current range and display it in terminal */
-static ssize_t range_show(struct device *dev, struct device_attribute *attr,
-			  char *buf)
+/* Export the currently set range of the wheel */
+static ssize_t lg4ff_range_show(struct device *dev, struct device_attribute *attr,
+				char *buf)
 {
 	struct hid_device *hid = to_hid_device(dev);
 	struct lg4ff_device_entry *entry;
@@ -748,8 +748,8 @@ static ssize_t range_show(struct device *dev, struct device_attribute *attr,
 
 /* Set range to user specified value, call appropriate function
  * according to the type of the wheel */
-static ssize_t range_store(struct device *dev, struct device_attribute *attr,
-			   const char *buf, size_t count)
+static ssize_t lg4ff_range_store(struct device *dev, struct device_attribute *attr,
+				 const char *buf, size_t count)
 {
 	struct hid_device *hid = to_hid_device(dev);
 	struct lg4ff_device_entry *entry;
@@ -780,7 +780,7 @@ static ssize_t range_store(struct device *dev, struct device_attribute *attr,
 
 	return count;
 }
-static DEVICE_ATTR_RW(range);
+static DEVICE_ATTR(range, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH, lg4ff_range_show, lg4ff_range_store);
 
 static ssize_t lg4ff_real_id_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
