@@ -1013,40 +1013,9 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 					host->mmc->parent->platform_data);
 	}
 
-	/* write_protect */
-	if (boarddata->wp_type == ESDHC_WP_GPIO) {
-		err = mmc_gpio_request_ro(host->mmc, boarddata->wp_gpio);
-		if (err) {
-			dev_err(mmc_dev(host->mmc),
-				"failed to request write-protect gpio!\n");
-			goto disable_clk;
-		}
-		host->mmc->caps2 |= MMC_CAP2_RO_ACTIVE_HIGH;
-	}
-
 	/* card_detect */
-	switch (boarddata->cd_type) {
-	case ESDHC_CD_GPIO:
-		err = mmc_gpio_request_cd(host->mmc, boarddata->cd_gpio, 0);
-		if (err) {
-			dev_err(mmc_dev(host->mmc),
-				"failed to request card-detect gpio!\n");
-			goto disable_clk;
-		}
-		/* fall through */
-
-	case ESDHC_CD_CONTROLLER:
-		/* we have a working card_detect back */
+	if (boarddata->cd_type == ESDHC_CD_CONTROLLER)
 		host->quirks &= ~SDHCI_QUIRK_BROKEN_CARD_DETECTION;
-		break;
-
-	case ESDHC_CD_PERMANENT:
-		host->mmc->caps |= MMC_CAP_NONREMOVABLE;
-		break;
-
-	case ESDHC_CD_NONE:
-		break;
-	}
 
 	switch (boarddata->max_bus_width) {
 	case 8:
@@ -1078,6 +1047,11 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 	} else {
 		host->quirks2 |= SDHCI_QUIRK2_NO_1_8_V;
 	}
+
+	/* call to generic mmc_of_parse to support additional capabilities */
+	err = mmc_of_parse(host->mmc);
+	if (err)
+		goto disable_clk;
 
 	err = sdhci_add_host(host);
 	if (err)
