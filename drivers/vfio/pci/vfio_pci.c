@@ -953,6 +953,7 @@ static int vfio_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret) {
 		iommu_group_put(group);
 		kfree(vdev);
+		return ret;
 	}
 
 	if (vfio_pci_is_vga(pdev)) {
