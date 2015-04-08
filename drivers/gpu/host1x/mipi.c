@@ -31,6 +31,9 @@
 #include "dev.h"
 
 #define MIPI_CAL_CTRL			0x00
+#define MIPI_CAL_CTRL_NOISE_FILTER(x)	(((x) & 0xf) << 26)
+#define MIPI_CAL_CTRL_PRESCALE(x)	(((x) & 0x3) << 24)
+#define MIPI_CAL_CTRL_CLKEN_OVR		(1 << 4)
 #define MIPI_CAL_CTRL_START		(1 << 0)
 
 #define MIPI_CAL_AUTOCAL_CTRL		0x01
@@ -73,8 +76,11 @@
 
 #define MIPI_CAL_BIAS_PAD_CFG1		0x17
 #define MIPI_CAL_BIAS_PAD_DRV_DN_REF(x) (((x) & 0x7) << 16)
+#define MIPI_CAL_BIAS_PAD_DRV_UP_REF(x) (((x) & 0x7) << 8)
 
 #define MIPI_CAL_BIAS_PAD_CFG2		0x18
+#define MIPI_CAL_BIAS_PAD_VCLAMP(x)	(((x) & 0x7) << 16)
+#define MIPI_CAL_BIAS_PAD_VAUXP(x)	(((x) & 0x7) << 4)
 #define MIPI_CAL_BIAS_PAD_PDVREG	(1 << 1)
 
 struct tegra_mipi_pad {
@@ -86,6 +92,25 @@ struct tegra_mipi_soc {
 	bool has_clk_lane;
 	const struct tegra_mipi_pad *pads;
 	unsigned int num_pads;
+
+	bool clock_enable_override;
+	bool needs_vclamp_ref;
+
+	/* bias pad configuration settings */
+	u8 pad_drive_down_ref;
+	u8 pad_drive_up_ref;
+
+	u8 pad_vclamp_level;
+	u8 pad_vauxp_level;
+
+	/* calibration settings for data lanes */
+	u8 hspdos;
+	u8 hspuos;
+	u8 termos;
+
+	/* calibration settings for clock lanes */
+	u8 hsclkpdos;
+	u8 hsclkpuos;
 };
 
 struct tegra_mipi {
@@ -201,14 +226,25 @@ int tegra_mipi_calibrate(struct tegra_mipi_device *device)
 
 	value = tegra_mipi_readl(device->mipi, MIPI_CAL_BIAS_PAD_CFG0);
 	value &= ~MIPI_CAL_BIAS_PAD_PDVCLAMP;
-	value |= MIPI_CAL_BIAS_PAD_E_VCLAMP_REF;
+
+	if (soc->needs_vclamp_ref)
+		value |= MIPI_CAL_BIAS_PAD_E_VCLAMP_REF;
+
 	tegra_mipi_writel(device->mipi, value, MIPI_CAL_BIAS_PAD_CFG0);
 
-	tegra_mipi_writel(device->mipi, MIPI_CAL_BIAS_PAD_DRV_DN_REF(2),
-			  MIPI_CAL_BIAS_PAD_CFG1);
+	value = MIPI_CAL_BIAS_PAD_DRV_DN_REF(soc->pad_drive_down_ref) |
+		MIPI_CAL_BIAS_PAD_DRV_UP_REF(soc->pad_drive_up_ref);
+	tegra_mipi_writel(device->mipi, value, MIPI_CAL_BIAS_PAD_CFG1);
 
 	value = tegra_mipi_readl(device->mipi, MIPI_CAL_BIAS_PAD_CFG2);
 	value &= ~MIPI_CAL_BIAS_PAD_PDVREG;
+	tegra_mipi_writel(device->mipi, value, MIPI_CAL_BIAS_PAD_CFG2);
+
+	value = tegra_mipi_readl(device->mipi, MIPI_CAL_BIAS_PAD_CFG2);
+	value &= ~MIPI_CAL_BIAS_PAD_VCLAMP(0x7);
+	value &= ~MIPI_CAL_BIAS_PAD_VAUXP(0x7);
+	value |= MIPI_CAL_BIAS_PAD_VCLAMP(soc->pad_vclamp_level);
+	value |= MIPI_CAL_BIAS_PAD_VAUXP(soc->pad_vauxp_level);
 	tegra_mipi_writel(device->mipi, value, MIPI_CAL_BIAS_PAD_CFG2);
 
 	for (i = 0; i < soc->num_pads; i++) {
@@ -216,12 +252,12 @@ int tegra_mipi_calibrate(struct tegra_mipi_device *device)
 
 		if (device->pads & BIT(i)) {
 			data = MIPI_CAL_CONFIG_SELECT |
-			       MIPI_CAL_CONFIG_HSPDOS(0) |
-			       MIPI_CAL_CONFIG_HSPUOS(4) |
-			       MIPI_CAL_CONFIG_TERMOS(5);
+			       MIPI_CAL_CONFIG_HSPDOS(soc->hspdos) |
+			       MIPI_CAL_CONFIG_HSPUOS(soc->hspuos) |
+			       MIPI_CAL_CONFIG_TERMOS(soc->termos);
 			clk = MIPI_CAL_CONFIG_SELECT |
-			      MIPI_CAL_CONFIG_HSCLKPDOSD(0) |
-			      MIPI_CAL_CONFIG_HSCLKPUOSD(4);
+			      MIPI_CAL_CONFIG_HSCLKPDOSD(soc->hsclkpdos) |
+			      MIPI_CAL_CONFIG_HSCLKPUOSD(soc->hsclkpuos);
 		}
 
 		tegra_mipi_writel(device->mipi, data, soc->pads[i].data);
@@ -229,6 +265,19 @@ int tegra_mipi_calibrate(struct tegra_mipi_device *device)
 		if (soc->has_clk_lane)
 			tegra_mipi_writel(device->mipi, clk, soc->pads[i].clk);
 	}
+
+	value = tegra_mipi_readl(device->mipi, MIPI_CAL_CTRL);
+	value &= ~MIPI_CAL_CTRL_NOISE_FILTER(0xf);
+	value &= ~MIPI_CAL_CTRL_PRESCALE(0x3);
+	value |= MIPI_CAL_CTRL_NOISE_FILTER(0xa);
+	value |= MIPI_CAL_CTRL_PRESCALE(0x2);
+
+	if (!soc->clock_enable_override)
+		value &= ~MIPI_CAL_CTRL_CLKEN_OVR;
+	else
+		value |= MIPI_CAL_CTRL_CLKEN_OVR;
+
+	tegra_mipi_writel(device->mipi, value, MIPI_CAL_CTRL);
 
 	value = tegra_mipi_readl(device->mipi, MIPI_CAL_CTRL);
 	value |= MIPI_CAL_CTRL_START;
@@ -259,6 +308,17 @@ static const struct tegra_mipi_soc tegra114_mipi_soc = {
 	.has_clk_lane = false,
 	.pads = tegra114_mipi_pads,
 	.num_pads = ARRAY_SIZE(tegra114_mipi_pads),
+	.clock_enable_override = true,
+	.needs_vclamp_ref = true,
+	.pad_drive_down_ref = 0x2,
+	.pad_drive_up_ref = 0x0,
+	.pad_vclamp_level = 0x0,
+	.pad_vauxp_level = 0x0,
+	.hspdos = 0x0,
+	.hspuos = 0x4,
+	.termos = 0x5,
+	.hsclkpdos = 0x0,
+	.hsclkpuos = 0x4,
 };
 
 static const struct tegra_mipi_pad tegra124_mipi_pads[] = {
@@ -275,6 +335,17 @@ static const struct tegra_mipi_soc tegra124_mipi_soc = {
 	.has_clk_lane = true,
 	.pads = tegra124_mipi_pads,
 	.num_pads = ARRAY_SIZE(tegra124_mipi_pads),
+	.clock_enable_override = true,
+	.needs_vclamp_ref = true,
+	.pad_drive_down_ref = 0x2,
+	.pad_drive_up_ref = 0x0,
+	.pad_vclamp_level = 0x0,
+	.pad_vauxp_level = 0x0,
+	.hspdos = 0x0,
+	.hspuos = 0x0,
+	.termos = 0x0,
+	.hsclkpdos = 0x1,
+	.hsclkpuos = 0x2,
 };
 
 static struct of_device_id tegra_mipi_of_match[] = {
