@@ -84,6 +84,7 @@ int iio_simple_dummy_write_event_config(struct iio_dev *indio_dev,
 		default:
 			return -EINVAL;
 		}
+		break;
 	case IIO_STEPS:
 		switch (type) {
 		case IIO_EV_TYPE_CHANGE:
@@ -92,6 +93,7 @@ int iio_simple_dummy_write_event_config(struct iio_dev *indio_dev,
 		default:
 			return -EINVAL;
 		}
+		break;
 	default:
 		return -EINVAL;
 	}
