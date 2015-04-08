@@ -68,17 +68,12 @@ int udf_build_ustr(struct ustr *dest, dstring *ptr, int size)
 /*
  * udf_build_ustr_exact
  */
-static int udf_build_ustr_exact(struct ustr *dest, dstring *ptr, int exactsize)
+static void udf_build_ustr_exact(struct ustr *dest, dstring *ptr, int exactsize)
 {
-	if ((!dest) || (!ptr) || (!exactsize))
-		return -1;
-
 	memset(dest, 0, sizeof(struct ustr));
 	dest->u_cmpID = ptr[0];
 	dest->u_len = exactsize - 1;
 	memcpy(dest->u_name, ptr + 1, exactsize - 1);
-
-	return 0;
 }
 
 /*
@@ -340,6 +335,9 @@ int udf_get_filename(struct super_block *sb, uint8_t *sname, int slen,
 	struct ustr *filename, *unifilename;
 	int ret = 0;
 
+	if (!slen)
+		return -EIO;
+
 	filename = kmalloc(sizeof(struct ustr), GFP_NOFS);
 	if (!filename)
 		return -ENOMEM;
@@ -350,9 +348,7 @@ int udf_get_filename(struct super_block *sb, uint8_t *sname, int slen,
 		goto out1;
 	}
 
-	if (udf_build_ustr_exact(unifilename, sname, slen))
-		goto out2;
-
+	udf_build_ustr_exact(unifilename, sname, slen);
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_UTF8)) {
 		if (!udf_CS0toUTF8(filename, unifilename)) {
 			udf_debug("Failed in udf_get_filename: sname = %s\n",
