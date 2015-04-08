@@ -1711,7 +1711,7 @@ There are some more advanced barrier functions:
 	}
 
      The dma_rmb() allows us guarantee the device has released ownership
-     before we read the data from the descriptor, and he dma_wmb() allows
+     before we read the data from the descriptor, and the dma_wmb() allows
      us to guarantee the data is written to the descriptor before the device
      can see it now has ownership.  The wmb() is needed to guarantee that the
      cache coherent memory writes have completed before attempting a write to
