@@ -144,6 +144,34 @@ static inline void snd_hdac_power_up(struct hdac_device *codec) {}
 static inline void snd_hdac_power_down(struct hdac_device *codec) {}
 #endif
 
+/**
+ * snd_hdac_power_up_pm - power up the codec
+ * @codec: the codec object
+ *
+ * This function can be called in a recursive code path like init code
+ * which may be called by PM suspend/resume again.  OTOH, if a power-up
+ * call must wake up the sleeper (e.g. in a kctl callback), use
+ * snd_hdac_power_up() instead.
+ */
+static inline void snd_hdac_power_up_pm(struct hdac_device *codec)
+{
+	if (!atomic_read(&codec->in_pm))
+		snd_hdac_power_up(codec);
+}
+
+/**
+ * snd_hdac_power_down_pm - power down the codec
+ * @codec: the codec object
+ *
+ * Like snd_hdac_power_up_pm(), this function is used in a recursive
+ * code path like init code which may be called by PM suspend/resume again.
+ */
+static inline void snd_hdac_power_down_pm(struct hdac_device *codec)
+{
+	if (!atomic_read(&codec->in_pm))
+		snd_hdac_power_down(codec);
+}
+
 /*
  * HD-audio codec base driver
  */

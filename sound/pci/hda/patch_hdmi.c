@@ -1545,7 +1545,7 @@ static bool hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 	bool eld_changed = false;
 	bool ret;
 
-	snd_hda_power_up(codec);
+	snd_hda_power_up_pm(codec);
 	present = snd_hda_pin_sense(codec, pin_nid);
 
 	mutex_lock(&per_pin->lock);
@@ -1631,7 +1631,7 @@ static bool hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 		jack->block_report = !ret;
 
 	mutex_unlock(&per_pin->lock);
-	snd_hda_power_down(codec);
+	snd_hda_power_down_pm(codec);
 	return ret;
 }
 

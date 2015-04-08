@@ -3131,7 +3131,7 @@ static int ca0132_select_out(struct hda_codec *codec)
 
 	codec_dbg(codec, "ca0132_select_out\n");
 
-	snd_hda_power_up(codec);
+	snd_hda_power_up_pm(codec);
 
 	auto_jack = spec->vnode_lswitch[VNID_HP_ASEL - VNODE_START_NID];
 
@@ -3215,7 +3215,7 @@ static int ca0132_select_out(struct hda_codec *codec)
 	}
 
 exit:
-	snd_hda_power_down(codec);
+	snd_hda_power_down_pm(codec);
 
 	return err < 0 ? err : 0;
 }
@@ -3293,7 +3293,7 @@ static int ca0132_select_mic(struct hda_codec *codec)
 
 	codec_dbg(codec, "ca0132_select_mic\n");
 
-	snd_hda_power_up(codec);
+	snd_hda_power_up_pm(codec);
 
 	auto_jack = spec->vnode_lswitch[VNID_AMIC1_ASEL - VNODE_START_NID];
 
@@ -3326,7 +3326,7 @@ static int ca0132_select_mic(struct hda_codec *codec)
 		ca0132_effects_set(codec, VOICE_FOCUS, 0);
 	}
 
-	snd_hda_power_down(codec);
+	snd_hda_power_down_pm(codec);
 
 	return 0;
 }
@@ -4546,7 +4546,7 @@ static int ca0132_init(struct hda_codec *codec)
 		spec->dsp_state = DSP_DOWNLOAD_INIT;
 	spec->curr_chip_addx = INVALID_CHIP_ADDRESS;
 
-	snd_hda_power_up(codec);
+	snd_hda_power_up_pm(codec);
 
 	ca0132_init_unsol(codec);
 
@@ -4577,7 +4577,7 @@ static int ca0132_init(struct hda_codec *codec)
 
 	snd_hda_jack_report_sync(codec);
 
-	snd_hda_power_down(codec);
+	snd_hda_power_down_pm(codec);
 
 	return 0;
 }

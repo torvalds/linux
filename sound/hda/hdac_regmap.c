@@ -402,9 +402,9 @@ int snd_hdac_regmap_write_raw(struct hdac_device *codec, unsigned int reg,
 
 	err = reg_raw_write(codec, reg, val);
 	if (err == -EAGAIN) {
-		snd_hdac_power_up(codec);
+		snd_hdac_power_up_pm(codec);
 		err = reg_raw_write(codec, reg, val);
-		snd_hdac_power_down(codec);
+		snd_hdac_power_down_pm(codec);
 	}
 	return err;
 }
@@ -434,9 +434,9 @@ int snd_hdac_regmap_read_raw(struct hdac_device *codec, unsigned int reg,
 
 	err = reg_raw_read(codec, reg, val);
 	if (err == -EAGAIN) {
-		snd_hdac_power_up(codec);
+		snd_hdac_power_up_pm(codec);
 		err = reg_raw_read(codec, reg, val);
-		snd_hdac_power_down(codec);
+		snd_hdac_power_down_pm(codec);
 	}
 	return err;
 }

@@ -494,29 +494,27 @@ EXPORT_SYMBOL_GPL(snd_hdac_get_connections);
 
 #ifdef CONFIG_PM
 /**
- * snd_hdac_power_up - increment the runtime pm counter
+ * snd_hdac_power_up - power up the codec
  * @codec: the codec object
+ *
+ * This function calls the runtime PM helper to power up the given codec.
+ * Unlike snd_hdac_power_up_pm(), you should call this only for the code
+ * path that isn't included in PM path.  Otherwise it gets stuck.
  */
 void snd_hdac_power_up(struct hdac_device *codec)
 {
-	struct device *dev = &codec->dev;
-
-	if (atomic_read(&codec->in_pm))
-		return;
-	pm_runtime_get_sync(dev);
+	pm_runtime_get_sync(&codec->dev);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_power_up);
 
 /**
- * snd_hdac_power_up - decrement the runtime pm counter
+ * snd_hdac_power_down - power down the codec
  * @codec: the codec object
  */
 void snd_hdac_power_down(struct hdac_device *codec)
 {
 	struct device *dev = &codec->dev;
 
-	if (atomic_read(&codec->in_pm))
-		return;
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 }
