@@ -628,10 +628,16 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 					  LINUX_MIB_TCPACKSKIPPEDSYNRECV,
 					  &tcp_rsk(req)->last_oow_ack_time) &&
 
-		    !inet_rtx_syn_ack(sk, req))
-			mod_timer_pending(&req->rsk_timer, jiffies +
-				min(TCP_TIMEOUT_INIT << req->num_timeout,
-				    TCP_RTO_MAX));
+		    !inet_rtx_syn_ack(sk, req)) {
+			unsigned long expires = jiffies;
+
+			expires += min(TCP_TIMEOUT_INIT << req->num_timeout,
+				       TCP_RTO_MAX);
+			if (!fastopen)
+				mod_timer_pending(&req->rsk_timer, expires);
+			else
+				req->rsk_timer.expires = expires;
+		}
 		return NULL;
 	}
 
