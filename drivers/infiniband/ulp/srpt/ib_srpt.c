@@ -93,7 +93,7 @@ MODULE_PARM_DESC(srpt_service_guid,
 		 " instead of using the node_guid of the first HCA.");
 
 static struct ib_client srpt_client;
-static struct target_fabric_configfs *srpt_target;
+static const struct target_core_fabric_ops srpt_template;
 static void srpt_release_channel(struct srpt_rdma_ch *ch);
 static int srpt_queue_status(struct se_cmd *cmd);
 
@@ -3851,7 +3851,7 @@ static struct se_portal_group *srpt_make_tpg(struct se_wwn *wwn,
 	int res;
 
 	/* Initialize sport->port_wwn and sport->port_tpg_1 */
-	res = core_tpg_register(&srpt_target->tf_ops, &sport->port_wwn,
+	res = core_tpg_register(&srpt_template, &sport->port_wwn,
 			&sport->port_tpg_1, sport, TRANSPORT_TPG_TYPE_NORMAL);
 	if (res)
 		return ERR_PTR(res);
@@ -3919,7 +3919,9 @@ static struct configfs_attribute *srpt_wwn_attrs[] = {
 	NULL,
 };
 
-static struct target_core_fabric_ops srpt_template = {
+static const struct target_core_fabric_ops srpt_template = {
+	.module				= THIS_MODULE,
+	.name				= "srpt",
 	.get_fabric_name		= srpt_get_fabric_name,
 	.get_fabric_proto_ident		= srpt_get_fabric_proto_ident,
 	.tpg_get_wwn			= srpt_get_fabric_wwn,
@@ -3964,6 +3966,10 @@ static struct target_core_fabric_ops srpt_template = {
 	.fabric_drop_np			= NULL,
 	.fabric_make_nodeacl		= srpt_make_nodeacl,
 	.fabric_drop_nodeacl		= srpt_drop_nodeacl,
+
+	.tfc_wwn_attrs			= srpt_wwn_attrs,
+	.tfc_tpg_base_attrs		= srpt_tpg_attrs,
+	.tfc_tpg_attrib_attrs		= srpt_tpg_attrib_attrs,
 };
 
 /**
@@ -3994,33 +4000,9 @@ static int __init srpt_init_module(void)
 		goto out;
 	}
 
-	srpt_target = target_fabric_configfs_init(THIS_MODULE, "srpt");
-	if (IS_ERR(srpt_target)) {
-		printk(KERN_ERR "couldn't register\n");
-		ret = PTR_ERR(srpt_target);
+	ret = target_register_template(&srpt_template);
+	if (ret)
 		goto out;
-	}
-
-	srpt_target->tf_ops = srpt_template;
-
-	/*
-	 * Set up default attribute lists.
-	 */
-	srpt_target->tf_cit_tmpl.tfc_wwn_cit.ct_attrs = srpt_wwn_attrs;
-	srpt_target->tf_cit_tmpl.tfc_tpg_base_cit.ct_attrs = srpt_tpg_attrs;
-	srpt_target->tf_cit_tmpl.tfc_tpg_attrib_cit.ct_attrs = srpt_tpg_attrib_attrs;
-	srpt_target->tf_cit_tmpl.tfc_tpg_param_cit.ct_attrs = NULL;
-	srpt_target->tf_cit_tmpl.tfc_tpg_np_base_cit.ct_attrs = NULL;
-	srpt_target->tf_cit_tmpl.tfc_tpg_nacl_base_cit.ct_attrs = NULL;
-	srpt_target->tf_cit_tmpl.tfc_tpg_nacl_attrib_cit.ct_attrs = NULL;
-	srpt_target->tf_cit_tmpl.tfc_tpg_nacl_auth_cit.ct_attrs = NULL;
-	srpt_target->tf_cit_tmpl.tfc_tpg_nacl_param_cit.ct_attrs = NULL;
-
-	ret = target_fabric_configfs_register(srpt_target);
-	if (ret < 0) {
-		printk(KERN_ERR "couldn't register\n");
-		goto out_free_target;
-	}
 
 	ret = ib_register_client(&srpt_client);
 	if (ret) {
@@ -4031,11 +4013,7 @@ static int __init srpt_init_module(void)
 	return 0;
 
 out_unregister_target:
-	target_fabric_configfs_deregister(srpt_target);
-	srpt_target = NULL;
-out_free_target:
-	if (srpt_target)
-		target_fabric_configfs_free(srpt_target);
+	target_unregister_template(&srpt_template);
 out:
 	return ret;
 }
@@ -4043,8 +4021,7 @@ out:
 static void __exit srpt_cleanup_module(void)
 {
 	ib_unregister_client(&srpt_client);
-	target_fabric_configfs_deregister(srpt_target);
-	srpt_target = NULL;
+	target_unregister_template(&srpt_template);
 }
 
 module_init(srpt_init_module);

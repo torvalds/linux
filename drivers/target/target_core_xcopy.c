@@ -425,7 +425,7 @@ static int xcopy_pt_queue_status(struct se_cmd *se_cmd)
 	return 0;
 }
 
-static struct target_core_fabric_ops xcopy_pt_tfo = {
+static const struct target_core_fabric_ops xcopy_pt_tfo = {
 	.get_fabric_name	= xcopy_pt_get_fabric_name,
 	.get_task_tag		= xcopy_pt_get_tag,
 	.get_cmd_state		= xcopy_pt_get_cmd_state,

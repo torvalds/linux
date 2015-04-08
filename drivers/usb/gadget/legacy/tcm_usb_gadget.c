@@ -29,7 +29,7 @@
 
 USB_GADGET_COMPOSITE_OPTIONS();
 
-static struct target_fabric_configfs *usbg_fabric_configfs;
+static const struct target_core_fabric_ops usbg_ops;
 
 static inline struct f_uas *to_f_uas(struct usb_function *f)
 {
@@ -1572,8 +1572,7 @@ static struct se_portal_group *usbg_make_tpg(
 	tpg->tport = tport;
 	tpg->tport_tpgt = tpgt;
 
-	ret = core_tpg_register(&usbg_fabric_configfs->tf_ops, wwn,
-				&tpg->se_tpg, tpg,
+	ret = core_tpg_register(&usbg_ops, wwn, &tpg->se_tpg, tpg,
 				TRANSPORT_TPG_TYPE_NORMAL);
 	if (ret < 0) {
 		destroy_workqueue(tpg->workqueue);
@@ -1865,7 +1864,9 @@ static int usbg_check_stop_free(struct se_cmd *se_cmd)
 	return 1;
 }
 
-static struct target_core_fabric_ops usbg_ops = {
+static const struct target_core_fabric_ops usbg_ops = {
+	.module				= THIS_MODULE,
+	.name				= "usb_gadget",
 	.get_fabric_name		= usbg_get_fabric_name,
 	.get_fabric_proto_ident		= usbg_get_fabric_proto_ident,
 	.tpg_get_wwn			= usbg_get_fabric_wwn,
@@ -1907,46 +1908,9 @@ static struct target_core_fabric_ops usbg_ops = {
 	.fabric_drop_np			= NULL,
 	.fabric_make_nodeacl		= usbg_make_nodeacl,
 	.fabric_drop_nodeacl		= usbg_drop_nodeacl,
-};
 
-static int usbg_register_configfs(void)
-{
-	struct target_fabric_configfs *fabric;
-	int ret;
-
-	fabric = target_fabric_configfs_init(THIS_MODULE, "usb_gadget");
-	if (IS_ERR(fabric)) {
-		printk(KERN_ERR "target_fabric_configfs_init() failed\n");
-		return PTR_ERR(fabric);
-	}
-
-	fabric->tf_ops = usbg_ops;
-	fabric->tf_cit_tmpl.tfc_wwn_cit.ct_attrs = usbg_wwn_attrs;
-	fabric->tf_cit_tmpl.tfc_tpg_base_cit.ct_attrs = usbg_base_attrs;
-	fabric->tf_cit_tmpl.tfc_tpg_attrib_cit.ct_attrs = NULL;
-	fabric->tf_cit_tmpl.tfc_tpg_param_cit.ct_attrs = NULL;
-	fabric->tf_cit_tmpl.tfc_tpg_np_base_cit.ct_attrs = NULL;
-	fabric->tf_cit_tmpl.tfc_tpg_nacl_base_cit.ct_attrs = NULL;
-	fabric->tf_cit_tmpl.tfc_tpg_nacl_attrib_cit.ct_attrs = NULL;
-	fabric->tf_cit_tmpl.tfc_tpg_nacl_auth_cit.ct_attrs = NULL;
-	fabric->tf_cit_tmpl.tfc_tpg_nacl_param_cit.ct_attrs = NULL;
-	ret = target_fabric_configfs_register(fabric);
-	if (ret < 0) {
-		printk(KERN_ERR "target_fabric_configfs_register() failed"
-				" for usb-gadget\n");
-		return ret;
-	}
-	usbg_fabric_configfs = fabric;
-	return 0;
-};
-
-static void usbg_deregister_configfs(void)
-{
-	if (!(usbg_fabric_configfs))
-		return;
-
-	target_fabric_configfs_deregister(usbg_fabric_configfs);
-	usbg_fabric_configfs = NULL;
+	.tfc_wwn_attrs			= usbg_wwn_attrs,
+	.tfc_tpg_base_attrs		= usbg_base_attrs,
 };
 
 /* Start gadget.c code */
@@ -2455,16 +2419,13 @@ static void usbg_detach(struct usbg_tpg *tpg)
 
 static int __init usb_target_gadget_init(void)
 {
-	int ret;
-
-	ret = usbg_register_configfs();
-	return ret;
+	return target_register_template(&usbg_ops);
 }
 module_init(usb_target_gadget_init);
 
 static void __exit usb_target_gadget_exit(void)
 {
-	usbg_deregister_configfs();
+	target_unregister_template(&usbg_ops);
 }
 module_exit(usb_target_gadget_exit);
 

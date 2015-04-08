@@ -680,7 +680,7 @@ static struct t10_pr_registration *__core_scsi3_alloc_registration(
 	struct se_dev_entry *deve_tmp;
 	struct se_node_acl *nacl_tmp;
 	struct se_port *port, *port_tmp;
-	struct target_core_fabric_ops *tfo = nacl->se_tpg->se_tpg_tfo;
+	const struct target_core_fabric_ops *tfo = nacl->se_tpg->se_tpg_tfo;
 	struct t10_pr_registration *pr_reg, *pr_reg_atp, *pr_reg_tmp, *pr_reg_tmp_safe;
 	int ret;
 	/*
@@ -979,7 +979,7 @@ int core_scsi3_check_aptpl_registration(
 }
 
 static void __core_scsi3_dump_registration(
-	struct target_core_fabric_ops *tfo,
+	const struct target_core_fabric_ops *tfo,
 	struct se_device *dev,
 	struct se_node_acl *nacl,
 	struct t10_pr_registration *pr_reg,
@@ -1020,7 +1020,7 @@ static void __core_scsi3_add_registration(
 	enum register_type register_type,
 	int register_move)
 {
-	struct target_core_fabric_ops *tfo = nacl->se_tpg->se_tpg_tfo;
+	const struct target_core_fabric_ops *tfo = nacl->se_tpg->se_tpg_tfo;
 	struct t10_pr_registration *pr_reg_tmp, *pr_reg_tmp_safe;
 	struct t10_reservation *pr_tmpl = &dev->t10_pr;
 
@@ -1237,7 +1237,7 @@ static void __core_scsi3_free_registration(
 	struct list_head *preempt_and_abort_list,
 	int dec_holders)
 {
-	struct target_core_fabric_ops *tfo =
+	const struct target_core_fabric_ops *tfo =
 			pr_reg->pr_reg_nacl->se_tpg->se_tpg_tfo;
 	struct t10_reservation *pr_tmpl = &dev->t10_pr;
 	char i_buf[PR_REG_ISID_ID_LEN];
@@ -1461,7 +1461,7 @@ core_scsi3_decode_spec_i_port(
 	struct t10_pr_registration *pr_reg_tmp, *pr_reg_tmp_safe;
 	LIST_HEAD(tid_dest_list);
 	struct pr_transport_id_holder *tidh_new, *tidh, *tidh_tmp;
-	struct target_core_fabric_ops *tmp_tf_ops;
+	const struct target_core_fabric_ops *tmp_tf_ops;
 	unsigned char *buf;
 	unsigned char *ptr, *i_str = NULL, proto_ident, tmp_proto_ident;
 	char *iport_ptr = NULL, i_buf[PR_REG_ISID_ID_LEN];
@@ -2422,7 +2422,7 @@ static void __core_scsi3_complete_pro_release(
 	int explicit,
 	int unreg)
 {
-	struct target_core_fabric_ops *tfo = se_nacl->se_tpg->se_tpg_tfo;
+	const struct target_core_fabric_ops *tfo = se_nacl->se_tpg->se_tpg_tfo;
 	char i_buf[PR_REG_ISID_ID_LEN];
 	int pr_res_type = 0, pr_res_scope = 0;
 
@@ -2734,7 +2734,7 @@ static void __core_scsi3_complete_pro_preempt(
 	enum preempt_type preempt_type)
 {
 	struct se_node_acl *nacl = pr_reg->pr_reg_nacl;
-	struct target_core_fabric_ops *tfo = nacl->se_tpg->se_tpg_tfo;
+	const struct target_core_fabric_ops *tfo = nacl->se_tpg->se_tpg_tfo;
 	char i_buf[PR_REG_ISID_ID_LEN];
 
 	memset(i_buf, 0, PR_REG_ISID_ID_LEN);
@@ -3119,7 +3119,7 @@ core_scsi3_emulate_pro_register_and_move(struct se_cmd *cmd, u64 res_key,
 	struct se_node_acl *pr_res_nacl, *pr_reg_nacl, *dest_node_acl = NULL;
 	struct se_port *se_port;
 	struct se_portal_group *se_tpg, *dest_se_tpg = NULL;
-	struct target_core_fabric_ops *dest_tf_ops = NULL, *tf_ops;
+	const struct target_core_fabric_ops *dest_tf_ops = NULL, *tf_ops;
 	struct t10_pr_registration *pr_reg, *pr_res_holder, *dest_pr_reg;
 	struct t10_reservation *pr_tmpl = &dev->t10_pr;
 	unsigned char *buf;

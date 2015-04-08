@@ -216,9 +216,7 @@ struct vhost_scsi {
 	int vs_events_nr; /* num of pending events, protected by vq->mutex */
 };
 
-/* Local pointer to allocated TCM configfs fabric module */
-static struct target_fabric_configfs *vhost_scsi_fabric_configfs;
-
+static struct target_core_fabric_ops vhost_scsi_ops;
 static struct workqueue_struct *vhost_scsi_workqueue;
 
 /* Global spinlock to protect vhost_scsi TPG list for vhost IOCTL access */
@@ -2205,7 +2203,7 @@ vhost_scsi_make_tpg(struct se_wwn *wwn,
 	tpg->tport = tport;
 	tpg->tport_tpgt = tpgt;
 
-	ret = core_tpg_register(&vhost_scsi_fabric_configfs->tf_ops, wwn,
+	ret = core_tpg_register(&vhost_scsi_ops, wwn,
 				&tpg->se_tpg, tpg, TRANSPORT_TPG_TYPE_NORMAL);
 	if (ret < 0) {
 		kfree(tpg);
@@ -2327,6 +2325,8 @@ static struct configfs_attribute *vhost_scsi_wwn_attrs[] = {
 };
 
 static struct target_core_fabric_ops vhost_scsi_ops = {
+	.module				= THIS_MODULE,
+	.name				= "vhost",
 	.get_fabric_name		= vhost_scsi_get_fabric_name,
 	.get_fabric_proto_ident		= vhost_scsi_get_fabric_proto_ident,
 	.tpg_get_wwn			= vhost_scsi_get_fabric_wwn,
@@ -2371,70 +2371,20 @@ static struct target_core_fabric_ops vhost_scsi_ops = {
 	.fabric_drop_np			= NULL,
 	.fabric_make_nodeacl		= vhost_scsi_make_nodeacl,
 	.fabric_drop_nodeacl		= vhost_scsi_drop_nodeacl,
-};
 
-static int vhost_scsi_register_configfs(void)
-{
-	struct target_fabric_configfs *fabric;
-	int ret;
-
-	pr_debug("vhost-scsi fabric module %s on %s/%s"
-		" on "UTS_RELEASE"\n", VHOST_SCSI_VERSION, utsname()->sysname,
-		utsname()->machine);
-	/*
-	 * Register the top level struct config_item_type with TCM core
-	 */
-	fabric = target_fabric_configfs_init(THIS_MODULE, "vhost");
-	if (IS_ERR(fabric)) {
-		pr_err("target_fabric_configfs_init() failed\n");
-		return PTR_ERR(fabric);
-	}
-	/*
-	 * Setup fabric->tf_ops from our local vhost_scsi_ops
-	 */
-	fabric->tf_ops = vhost_scsi_ops;
-	/*
-	 * Setup default attribute lists for various fabric->tf_cit_tmpl
-	 */
-	fabric->tf_cit_tmpl.tfc_wwn_cit.ct_attrs = vhost_scsi_wwn_attrs;
-	fabric->tf_cit_tmpl.tfc_tpg_base_cit.ct_attrs = vhost_scsi_tpg_attrs;
-	fabric->tf_cit_tmpl.tfc_tpg_attrib_cit.ct_attrs = vhost_scsi_tpg_attrib_attrs;
-	fabric->tf_cit_tmpl.tfc_tpg_param_cit.ct_attrs = NULL;
-	fabric->tf_cit_tmpl.tfc_tpg_np_base_cit.ct_attrs = NULL;
-	fabric->tf_cit_tmpl.tfc_tpg_nacl_base_cit.ct_attrs = NULL;
-	fabric->tf_cit_tmpl.tfc_tpg_nacl_attrib_cit.ct_attrs = NULL;
-	fabric->tf_cit_tmpl.tfc_tpg_nacl_auth_cit.ct_attrs = NULL;
-	fabric->tf_cit_tmpl.tfc_tpg_nacl_param_cit.ct_attrs = NULL;
-	/*
-	 * Register the fabric for use within TCM
-	 */
-	ret = target_fabric_configfs_register(fabric);
-	if (ret < 0) {
-		pr_err("target_fabric_configfs_register() failed"
-				" for TCM_VHOST\n");
-		return ret;
-	}
-	/*
-	 * Setup our local pointer to *fabric
-	 */
-	vhost_scsi_fabric_configfs = fabric;
-	pr_debug("TCM_VHOST[0] - Set fabric -> vhost_scsi_fabric_configfs\n");
-	return 0;
-};
-
-static void vhost_scsi_deregister_configfs(void)
-{
-	if (!vhost_scsi_fabric_configfs)
-		return;
-
-	target_fabric_configfs_deregister(vhost_scsi_fabric_configfs);
-	vhost_scsi_fabric_configfs = NULL;
-	pr_debug("TCM_VHOST[0] - Cleared vhost_scsi_fabric_configfs\n");
+	.tfc_wwn_attrs			= vhost_scsi_wwn_attrs,
+	.tfc_tpg_base_attrs		= vhost_scsi_tpg_attrs,
+	.tfc_tpg_attrib_attrs		= vhost_scsi_tpg_attrib_attrs,
 };
 
 static int __init vhost_scsi_init(void)
 {
 	int ret = -ENOMEM;
+
+	pr_debug("TCM_VHOST fabric module %s on %s/%s"
+		" on "UTS_RELEASE"\n", VHOST_SCSI_VERSION, utsname()->sysname,
+		utsname()->machine);
+
 	/*
 	 * Use our own dedicated workqueue for submitting I/O into
 	 * target core to avoid contention within system_wq.
@@ -2447,7 +2397,7 @@ static int __init vhost_scsi_init(void)
 	if (ret < 0)
 		goto out_destroy_workqueue;
 
-	ret = vhost_scsi_register_configfs();
+	ret = target_register_template(&vhost_scsi_ops);
 	if (ret < 0)
 		goto out_vhost_scsi_deregister;
 
@@ -2463,7 +2413,7 @@ out:
 
 static void vhost_scsi_exit(void)
 {
-	vhost_scsi_deregister_configfs();
+	target_unregister_template(&vhost_scsi_ops);
 	vhost_scsi_deregister();
 	destroy_workqueue(vhost_scsi_workqueue);
 };
