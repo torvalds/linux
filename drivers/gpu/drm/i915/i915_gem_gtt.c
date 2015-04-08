@@ -675,22 +675,41 @@ static void gen8_ppgtt_cleanup(struct i915_address_space *vm)
 	gen8_ppgtt_free(ppgtt);
 }
 
-static int gen8_ppgtt_allocate_page_tables(struct i915_hw_ppgtt *ppgtt)
+static int gen8_ppgtt_alloc_pagetabs(struct i915_page_directory *pd,
+				     uint64_t start,
+				     uint64_t length,
+				     struct i915_address_space *vm)
 {
-	int i, ret;
+	struct i915_page_table *unused;
+	uint64_t temp;
+	uint32_t pde;
 
-	for (i = 0; i < ppgtt->num_pd_pages; i++) {
-		ret = alloc_pt_range(ppgtt->pdp.page_directory[i],
-				     0, I915_PDES, ppgtt->base.dev);
-		if (ret)
+	gen8_for_each_pde(unused, pd, start, length, temp, pde) {
+		WARN_ON(unused);
+		pd->page_table[pde] = alloc_pt_single(vm->dev);
+		if (IS_ERR(pd->page_table[pde]))
 			goto unwind_out;
+
+		gen8_initialize_pt(vm, pd->page_table[pde]);
+	}
+
+	/* XXX: Still alloc all page tables in systems with less than
+	 * 4GB of memory. This won't be needed after a subsequent patch.
+	 */
+	while (pde < I915_PDES) {
+		pd->page_table[pde] = alloc_pt_single(vm->dev);
+		if (IS_ERR(pd->page_table[pde]))
+			goto unwind_out;
+
+		gen8_initialize_pt(vm, pd->page_table[pde]);
+		pde++;
 	}
 
 	return 0;
 
 unwind_out:
-	while (i--)
-		gen8_free_page_tables(ppgtt->pdp.page_directory[i], ppgtt->base.dev);
+	while (pde--)
+		unmap_and_free_pt(pd->page_table[pde], vm->dev);
 
 	return -ENOMEM;
 }
@@ -749,20 +768,42 @@ unwind_out:
 }
 
 static int gen8_ppgtt_alloc(struct i915_hw_ppgtt *ppgtt,
-			    const int max_pdp)
+			    uint64_t start,
+			    uint64_t length)
 {
+	struct i915_page_directory *pd;
+	uint64_t temp;
+	uint32_t pdpe;
 	int ret;
 
-	ret = gen8_ppgtt_alloc_page_directories(&ppgtt->pdp, ppgtt->base.start,
-					ppgtt->base.total);
+	ret = gen8_ppgtt_alloc_page_directories(&ppgtt->pdp, start, length);
 	if (ret)
 		return ret;
 
-	ret = gen8_ppgtt_allocate_page_tables(ppgtt);
-	if (ret)
-		goto err_out;
+	gen8_for_each_pdpe(pd, &ppgtt->pdp, start, length, temp, pdpe) {
+		ret = gen8_ppgtt_alloc_pagetabs(pd, start, length,
+						&ppgtt->base);
+		if (ret)
+			goto err_out;
 
-	ppgtt->num_pd_entries = max_pdp * I915_PDES;
+		ppgtt->num_pd_entries += I915_PDES;
+	}
+
+	/* XXX: We allocated all page directories in systems with less than
+	 * 4GB of memory. So initalize page tables of all PDPs.
+	 * This won't be needed after the next patch.
+	 */
+	while (pdpe < GEN8_LEGACY_PDPES) {
+		ret = gen8_ppgtt_alloc_pagetabs(ppgtt->pdp.page_directory[pdpe], start, length,
+						&ppgtt->base);
+		if (ret)
+			goto err_out;
+
+		ppgtt->num_pd_entries += I915_PDES;
+		pdpe++;
+	}
+
+	WARN_ON(pdpe > ppgtt->num_pd_pages);
 
 	return 0;
 
@@ -833,9 +874,7 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt, uint64_t size)
 		DRM_INFO("Pages will be wasted unless GTT size (%llu) is divisible by 1GB\n", size);
 
 	ppgtt->base.start = 0;
-	/* This is the area that we advertise as usable for the caller */
-	ppgtt->base.total = max_pdp * I915_PDES * GEN8_PTES * PAGE_SIZE;
-	WARN_ON(ppgtt->base.total == 0);
+	ppgtt->base.total = size;
 
 	ppgtt->scratch_pt = alloc_pt_single(ppgtt->base.dev);
 	if (IS_ERR(ppgtt->scratch_pt))
@@ -843,12 +882,8 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt, uint64_t size)
 
 	gen8_initialize_pt(&ppgtt->base, ppgtt->scratch_pt);
 
-	/* 1. Do all our allocations for page directories and page tables.
-	 * We allocate more than was asked so that we can point the unused parts
-	 * to valid entries that point to scratch page. Dynamic page tables
-	 * will fix this eventually.
-	 */
-	ret = gen8_ppgtt_alloc(ppgtt, GEN8_LEGACY_PDPES);
+	/* 1. Do all our allocations for page directories and page tables. */
+	ret = gen8_ppgtt_alloc(ppgtt, ppgtt->base.start, ppgtt->base.total);
 	if (ret)
 		return ret;
 
