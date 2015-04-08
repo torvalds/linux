@@ -72,12 +72,12 @@ static void hid_lg4ff_set_range_dfp(struct hid_device *hid, u16 range);
 static void hid_lg4ff_set_range_g25(struct hid_device *hid, u16 range);
 
 struct lg4ff_device_entry {
-	__u32 product_id;
-	__u16 range;
-	__u16 min_range;
-	__u16 max_range;
+	u32 product_id;
+	u16 range;
+	u16 min_range;
+	u16 max_range;
 #ifdef CONFIG_LEDS_CLASS
-	__u8  led_state;
+	u8  led_state;
 	struct led_classdev *led[5];
 #endif
 	u32 alternate_modes;
@@ -95,16 +95,16 @@ static const signed short lg4ff_wheel_effects[] = {
 };
 
 struct lg4ff_wheel {
-	const __u32 product_id;
+	const u32 product_id;
 	const signed short *ff_effects;
-	const __u16 min_range;
-	const __u16 max_range;
+	const u16 min_range;
+	const u16 max_range;
 	void (*set_range)(struct hid_device *hid, u16 range);
 };
 
 struct lg4ff_compat_mode_switch {
-	const __u8 cmd_count;	/* Number of commands to send */
-	const __u8 cmd[];
+	const u8 cmd_count;	/* Number of commands to send */
+	const u8 cmd[];
 };
 
 struct lg4ff_wheel_ident_info {
@@ -245,10 +245,10 @@ static const struct lg4ff_compat_mode_switch lg4ff_mode_switch_ext16_g25 = {
 };
 
 /* Recalculates X axis value accordingly to currently selected range */
-static __s32 lg4ff_adjust_dfp_x_axis(__s32 value, __u16 range)
+static s32 lg4ff_adjust_dfp_x_axis(s32 value, u16 range)
 {
-	__u16 max_range;
-	__s32 new_value;
+	u16 max_range;
+	s32 new_value;
 
 	if (range == 900)
 		return value;
@@ -269,10 +269,10 @@ static __s32 lg4ff_adjust_dfp_x_axis(__s32 value, __u16 range)
 }
 
 int lg4ff_adjust_input_event(struct hid_device *hid, struct hid_field *field,
-			     struct hid_usage *usage, __s32 value, struct lg_drv_data *drv_data)
+			     struct hid_usage *usage, s32 value, struct lg_drv_data *drv_data)
 {
 	struct lg4ff_device_entry *entry = drv_data->device_props;
-	__s32 new_value = 0;
+	s32 new_value = 0;
 
 	if (!entry) {
 		hid_err(hid, "Device properties not found");
@@ -299,7 +299,7 @@ static int hid_lg4ff_play(struct input_dev *dev, void *data, struct ff_effect *e
 	struct hid_device *hid = input_get_drvdata(dev);
 	struct list_head *report_list = &hid->report_enum[HID_OUTPUT_REPORT].report_list;
 	struct hid_report *report = list_entry(report_list->next, struct hid_report, list);
-	__s32 *value = report->field[0]->value;
+	s32 *value = report->field[0]->value;
 	int x;
 
 #define CLAMP(x) do { if (x < 0) x = 0; else if (x > 0xff) x = 0xff; } while (0)
@@ -344,8 +344,8 @@ static void hid_lg4ff_set_autocenter_default(struct input_dev *dev, u16 magnitud
 	struct hid_device *hid = input_get_drvdata(dev);
 	struct list_head *report_list = &hid->report_enum[HID_OUTPUT_REPORT].report_list;
 	struct hid_report *report = list_entry(report_list->next, struct hid_report, list);
-	__s32 *value = report->field[0]->value;
-	__u32 expand_a, expand_b;
+	s32 *value = report->field[0]->value;
+	u32 expand_a, expand_b;
 	struct lg4ff_device_entry *entry;
 	struct lg_drv_data *drv_data;
 
@@ -421,7 +421,7 @@ static void hid_lg4ff_set_autocenter_ffex(struct input_dev *dev, u16 magnitude)
 	struct hid_device *hid = input_get_drvdata(dev);
 	struct list_head *report_list = &hid->report_enum[HID_OUTPUT_REPORT].report_list;
 	struct hid_report *report = list_entry(report_list->next, struct hid_report, list);
-	__s32 *value = report->field[0]->value;
+	s32 *value = report->field[0]->value;
 	magnitude = magnitude * 90 / 65535;
 
 	value[0] = 0xfe;
@@ -440,7 +440,7 @@ static void hid_lg4ff_set_range_g25(struct hid_device *hid, u16 range)
 {
 	struct list_head *report_list = &hid->report_enum[HID_OUTPUT_REPORT].report_list;
 	struct hid_report *report = list_entry(report_list->next, struct hid_report, list);
-	__s32 *value = report->field[0]->value;
+	s32 *value = report->field[0]->value;
 
 	dbg_hid("G25/G27/DFGT: setting range to %u\n", range);
 
@@ -456,12 +456,12 @@ static void hid_lg4ff_set_range_g25(struct hid_device *hid, u16 range)
 }
 
 /* Sends commands to set range compatible with Driving Force Pro wheel */
-static void hid_lg4ff_set_range_dfp(struct hid_device *hid, __u16 range)
+static void hid_lg4ff_set_range_dfp(struct hid_device *hid, u16 range)
 {
 	struct list_head *report_list = &hid->report_enum[HID_OUTPUT_REPORT].report_list;
 	struct hid_report *report = list_entry(report_list->next, struct hid_report, list);
 	int start_left, start_right, full_range;
-	__s32 *value = report->field[0]->value;
+	s32 *value = report->field[0]->value;
 
 	dbg_hid("Driving Force Pro: setting range to %u\n", range);
 
@@ -571,7 +571,7 @@ static int lg4ff_switch_compatibility_mode(struct hid_device *hid, const struct 
 {
 	struct list_head *report_list = &hid->report_enum[HID_OUTPUT_REPORT].report_list;
 	struct hid_report *report = list_entry(report_list->next, struct hid_report, list);
-	__s32 *value = report->field[0]->value;
+	s32 *value = report->field[0]->value;
 	u8 i;
 
 	for (i = 0; i < s->cmd_count; i++) {
@@ -754,7 +754,7 @@ static ssize_t range_store(struct device *dev, struct device_attribute *attr,
 	struct hid_device *hid = to_hid_device(dev);
 	struct lg4ff_device_entry *entry;
 	struct lg_drv_data *drv_data;
-	__u16 range = simple_strtoul(buf, NULL, 10);
+	u16 range = simple_strtoul(buf, NULL, 10);
 
 	drv_data = hid_get_drvdata(hid);
 	if (!drv_data) {
@@ -818,11 +818,11 @@ static ssize_t lg4ff_real_id_store(struct device *dev, struct device_attribute *
 static DEVICE_ATTR(real_id, S_IRUGO, lg4ff_real_id_show, lg4ff_real_id_store);
 
 #ifdef CONFIG_LEDS_CLASS
-static void lg4ff_set_leds(struct hid_device *hid, __u8 leds)
+static void lg4ff_set_leds(struct hid_device *hid, u8 leds)
 {
 	struct list_head *report_list = &hid->report_enum[HID_OUTPUT_REPORT].report_list;
 	struct hid_report *report = list_entry(report_list->next, struct hid_report, list);
-	__s32 *value = report->field[0]->value;
+	s32 *value = report->field[0]->value;
 
 	value[0] = 0xf8;
 	value[1] = 0x12;
