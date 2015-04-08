@@ -221,7 +221,7 @@ DEFINE_EVENT(i915_page_table_entry, i915_page_table_entry_alloc,
 
 DECLARE_EVENT_CLASS(i915_page_table_entry_update,
 	TP_PROTO(struct i915_address_space *vm, u32 pde,
-		 struct i915_page_table_entry *pt, u32 first, u32 count, u32 bits),
+		 struct i915_page_table *pt, u32 first, u32 count, u32 bits),
 	TP_ARGS(vm, pde, pt, first, count, bits),
 
 	TP_STRUCT__entry(
@@ -251,7 +251,7 @@ DECLARE_EVENT_CLASS(i915_page_table_entry_update,
 
 DEFINE_EVENT(i915_page_table_entry_update, i915_page_table_entry_map,
 	TP_PROTO(struct i915_address_space *vm, u32 pde,
-		 struct i915_page_table_entry *pt, u32 first, u32 count, u32 bits),
+		 struct i915_page_table *pt, u32 first, u32 count, u32 bits),
 	TP_ARGS(vm, pde, pt, first, count, bits)
 );
 
