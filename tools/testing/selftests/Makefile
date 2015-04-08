@@ -23,6 +23,14 @@ TARGETS += x86
 TARGETS_HOTPLUG = cpu-hotplug
 TARGETS_HOTPLUG += memory-hotplug
 
+# Clear LDFLAGS and MAKEFLAGS if called from main
+# Makefile to avoid test build failures when test
+# Makefile doesn't have explicit build rules.
+ifeq (1,$(MAKELEVEL))
+undefine LDFLAGS
+override MAKEFLAGS =
+endif
+
 all:
 	for TARGET in $(TARGETS); do \
 		make -C $$TARGET; \

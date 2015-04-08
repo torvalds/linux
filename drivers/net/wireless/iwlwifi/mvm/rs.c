@@ -1278,6 +1278,9 @@ static void rs_mac80211_tx_status(void *mvm_r,
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
+	if (!iwl_mvm_sta_from_mac80211(sta)->vif)
+		return;
+
 	if (!ieee80211_is_data(hdr->frame_control) ||
 	    info->flags & IEEE80211_TX_CTL_NO_ACK)
 		return;
@@ -2511,6 +2514,14 @@ static void rs_get_rate(void *mvm_r, struct ieee80211_sta *sta, void *mvm_sta,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct iwl_lq_sta *lq_sta = mvm_sta;
 
+	if (sta && !iwl_mvm_sta_from_mac80211(sta)->vif) {
+		/* if vif isn't initialized mvm doesn't know about
+		 * this station, so don't do anything with the it
+		 */
+		sta = NULL;
+		mvm_sta = NULL;
+	}
+
 	/* TODO: handle rate_idx_mask and rate_idx_mcs_mask */
 
 	/* Treat uninitialized rate scaling data same as non-existing. */
@@ -2826,6 +2837,9 @@ static void rs_rate_update(void *mvm_r,
 	struct iwl_op_mode *op_mode  =
 			(struct iwl_op_mode *)mvm_r;
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
+
+	if (!iwl_mvm_sta_from_mac80211(sta)->vif)
+		return;
 
 	/* Stop any ongoing aggregations as rs starts off assuming no agg */
 	for (tid = 0; tid < IWL_MAX_TID_COUNT; tid++)
@@ -3587,9 +3601,15 @@ static ssize_t iwl_dbgfs_ss_force_write(struct iwl_lq_sta *lq_sta, char *buf,
 
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(ss_force, 32);
 
-static void rs_add_debugfs(void *mvm, void *mvm_sta, struct dentry *dir)
+static void rs_add_debugfs(void *mvm, void *priv_sta, struct dentry *dir)
 {
-	struct iwl_lq_sta *lq_sta = mvm_sta;
+	struct iwl_lq_sta *lq_sta = priv_sta;
+	struct iwl_mvm_sta *mvmsta;
+
+	mvmsta = container_of(lq_sta, struct iwl_mvm_sta, lq_sta);
+
+	if (!mvmsta->vif)
+		return;
 
 	debugfs_create_file("rate_scale_table", S_IRUSR | S_IWUSR, dir,
 			    lq_sta, &rs_sta_dbgfs_scale_table_ops);

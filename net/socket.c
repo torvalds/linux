@@ -1702,6 +1702,8 @@ SYSCALL_DEFINE6(sendto, int, fd, void __user *, buff, size_t, len,
 
 	if (len > INT_MAX)
 		len = INT_MAX;
+	if (unlikely(!access_ok(VERIFY_READ, buff, len)))
+		return -EFAULT;
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
 	if (!sock)
 		goto out;
@@ -1760,6 +1762,8 @@ SYSCALL_DEFINE6(recvfrom, int, fd, void __user *, ubuf, size_t, size,
 
 	if (size > INT_MAX)
 		size = INT_MAX;
+	if (unlikely(!access_ok(VERIFY_WRITE, ubuf, size)))
+		return -EFAULT;
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
 	if (!sock)
 		goto out;

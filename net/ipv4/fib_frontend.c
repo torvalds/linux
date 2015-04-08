@@ -1111,11 +1111,10 @@ static void ip_fib_net_exit(struct net *net)
 {
 	unsigned int i;
 
+	rtnl_lock();
 #ifdef CONFIG_IP_MULTIPLE_TABLES
 	fib4_rules_exit(net);
 #endif
-
-	rtnl_lock();
 	for (i = 0; i < FIB_TABLE_HASHSZ; i++) {
 		struct fib_table *tb;
 		struct hlist_head *head;

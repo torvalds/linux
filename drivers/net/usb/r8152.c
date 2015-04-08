@@ -492,6 +492,7 @@ enum rtl8152_flags {
 /* Define these values to match your device */
 #define VENDOR_ID_REALTEK		0x0bda
 #define VENDOR_ID_SAMSUNG		0x04e8
+#define VENDOR_ID_LENOVO		0x17ef
 
 #define MCU_TYPE_PLA			0x0100
 #define MCU_TYPE_USB			0x0000
@@ -4037,6 +4038,7 @@ static struct usb_device_id rtl8152_table[] = {
 	{REALTEK_USB_DEVICE(VENDOR_ID_REALTEK, 0x8152)},
 	{REALTEK_USB_DEVICE(VENDOR_ID_REALTEK, 0x8153)},
 	{REALTEK_USB_DEVICE(VENDOR_ID_SAMSUNG, 0xa101)},
+	{REALTEK_USB_DEVICE(VENDOR_ID_LENOVO,  0x7205)},
 	{}
 };
 

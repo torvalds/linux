@@ -1111,7 +1111,6 @@
 					      "wkupclk", "refclk",
 					      "div-clk", "phy-div";
 				#phy-cells = <0>;
-				ti,hwmods = "pcie1-phy";
 			};
 
 			pcie2_phy: pciephy@4a095000 {
@@ -1130,7 +1129,6 @@
 					      "wkupclk", "refclk",
 					      "div-clk", "phy-div";
 				#phy-cells = <0>;
-				ti,hwmods = "pcie2-phy";
 				status = "disabled";
 			};
 		};
