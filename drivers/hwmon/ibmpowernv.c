@@ -232,6 +232,21 @@ static int populate_attr_groups(struct platform_device *pdev)
 	return 0;
 }
 
+static void create_hwmon_attr(struct sensor_data *sdata, const char *attr_name,
+			      ssize_t (*show)(struct device *dev,
+					      struct device_attribute *attr,
+					      char *buf))
+{
+	snprintf(sdata->name, MAX_ATTR_LEN, "%s%d_%s",
+		 sensor_groups[sdata->type].name, sdata->hwmon_index,
+		 attr_name);
+
+	sysfs_attr_init(&sdata->dev_attr.attr);
+	sdata->dev_attr.attr.name = sdata->name;
+	sdata->dev_attr.attr.mode = S_IRUGO;
+	sdata->dev_attr.show = show;
+}
+
 /*
  * Iterate through the device tree for each child of 'sensors' node, create
  * a sysfs attribute file, the file is named by translating the DT node name
@@ -290,14 +305,7 @@ static int create_device_attrs(struct platform_device *pdev)
 		sdata[count].hwmon_index =
 			get_sensor_hwmon_index(&sdata[count], sdata, count);
 
-		snprintf(sdata[count].name, MAX_ATTR_LEN, "%s%d_%s",
-			 sensor_groups[type].name, sdata[count].hwmon_index,
-			 attr_name);
-
-		sysfs_attr_init(&sdata[count].dev_attr.attr);
-		sdata[count].dev_attr.attr.name = sdata[count].name;
-		sdata[count].dev_attr.attr.mode = S_IRUGO;
-		sdata[count].dev_attr.show = show_sensor;
+		create_hwmon_attr(&sdata[count], attr_name, show_sensor);
 
 		pgroups[type]->attrs[sensor_groups[type].attr_count++] =
 				&sdata[count++].dev_attr.attr;
