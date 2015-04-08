@@ -803,7 +803,7 @@ static struct tegra_periph_init_data gate_clks[] = {
 	GATE("hda2hdmi", "clk_m", 128, TEGRA_PERIPH_ON_APB, tegra_clk_hda2hdmi, 0),
 	GATE("bsea", "clk_m", 62, 0, tegra_clk_bsea, 0),
 	GATE("bsev", "clk_m", 63, 0, tegra_clk_bsev, 0),
-	GATE("mipi-cal", "clk_m", 56, 0, tegra_clk_mipi_cal, 0),
+	GATE("mipi-cal", "clk72mhz", 56, 0, tegra_clk_mipi_cal, 0),
 	GATE("usbd", "clk_m", 22, 0, tegra_clk_usbd, 0),
 	GATE("usb2", "clk_m", 58, 0, tegra_clk_usb2, 0),
 	GATE("usb3", "clk_m", 59, 0, tegra_clk_usb3, 0),
