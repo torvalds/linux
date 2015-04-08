@@ -830,6 +830,7 @@ int opal_error_code(int rc)
 	case OPAL_ASYNC_COMPLETION:	return -EINPROGRESS;
 	case OPAL_BUSY_EVENT:		return -EBUSY;
 	case OPAL_NO_MEM:		return -ENOMEM;
+	case OPAL_PERMISSION:		return -EPERM;
 
 	case OPAL_UNSUPPORTED:		return -EIO;
 	case OPAL_HARDWARE:		return -EIO;
