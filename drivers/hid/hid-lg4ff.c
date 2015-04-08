@@ -84,7 +84,6 @@ struct lg4ff_device_entry {
 	const char *real_tag;
 	const char *real_name;
 	u16 real_product_id;
-	struct list_head list;
 	void (*set_range)(struct hid_device *hid, u16 range);
 };
 
