@@ -428,9 +428,6 @@ void dgnc_tty_uninit(struct dgnc_board *brd)
 	brd->PrintDriver.ttys = NULL;
 }
 
-
-#define TMPBUFLEN (1024)
-
 /*=======================================================================
  *
  *	dgnc_wmove - Write data to transmit queue.
@@ -554,15 +551,6 @@ void dgnc_input(struct channel_t *ch)
 	len = min(len, (N_TTY_BUF_SIZE - 1));
 
 	ld = tty_ldisc_ref(tp);
-
-#ifdef TTY_DONT_FLIP
-	/*
-	 * If the DONT_FLIP flag is on, don't flush our buffer, and act
-	 * like the ld doesn't have any space to put the data right now.
-	 */
-	if (test_bit(TTY_DONT_FLIP, &tp->flags))
-		len = 0;
-#endif
 
 	/*
 	 * If we were unable to get a reference to the ld,
@@ -896,10 +884,6 @@ void dgnc_check_queue_flow_control(struct channel_t *ch)
 		else if (ch->ch_c_iflag & IXOFF && ch->ch_stops_sent) {
 			ch->ch_stops_sent = 0;
 			ch->ch_bd->bd_ops->send_start_character(ch);
-		}
-		/* No FLOW */
-		else {
-			/* Nothing needed. */
 		}
 	}
 }
