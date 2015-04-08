@@ -2121,7 +2121,7 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 	connector = drm_connector_find(dev, out_resp->connector_id);
 	if (!connector) {
 		ret = -ENOENT;
-		goto out;
+		goto out_unlock;
 	}
 
 	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++)
@@ -2201,6 +2201,8 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 
 out:
 	drm_modeset_unlock(&dev->mode_config.connection_mutex);
+
+out_unlock:
 	mutex_unlock(&dev->mode_config.mutex);
 
 	return ret;
