@@ -30,6 +30,7 @@
 #include <linux/platform_device.h>
 #include <asm/opal.h>
 #include <linux/err.h>
+#include <asm/cputhreads.h>
 
 #define MAX_ATTR_LEN	32
 #define MAX_LABEL_LEN	64
@@ -112,13 +113,53 @@ static ssize_t show_label(struct device *dev, struct device_attribute *devattr,
 	return sprintf(buf, "%s\n", sdata->label);
 }
 
+static int __init get_logical_cpu(int hwcpu)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu)
+		if (get_hard_smp_processor_id(cpu) == hwcpu)
+			return cpu;
+
+	return -ENOENT;
+}
+
 static void __init make_sensor_label(struct device_node *np,
 				     struct sensor_data *sdata,
 				     const char *label)
 {
+	u32 id;
 	size_t n;
 
 	n = snprintf(sdata->label, sizeof(sdata->label), "%s", label);
+
+	/*
+	 * Core temp pretty print
+	 */
+	if (!of_property_read_u32(np, "ibm,pir", &id)) {
+		int cpuid = get_logical_cpu(id);
+
+		if (cpuid >= 0)
+			/*
+			 * The digital thermal sensors are associated
+			 * with a core. Let's print out the range of
+			 * cpu ids corresponding to the hardware
+			 * threads of the core.
+			 */
+			n += snprintf(sdata->label + n,
+				      sizeof(sdata->label) - n, " %d-%d",
+				      cpuid, cpuid + threads_per_core - 1);
+		else
+			n += snprintf(sdata->label + n,
+				      sizeof(sdata->label) - n, " phy%d", id);
+	}
+
+	/*
+	 * Membuffer pretty print
+	 */
+	if (!of_property_read_u32(np, "ibm,chip-id", &id))
+		n += snprintf(sdata->label + n, sizeof(sdata->label) - n,
+			      " %d", id & 0xffff);
 }
 
 static int get_sensor_index_attr(const char *name, u32 *index, char *attr)
