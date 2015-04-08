@@ -153,7 +153,7 @@ static struct fib_table *fib_empty_table(struct net *net)
 	u32 id;
 
 	for (id = 1; id <= RT_TABLE_MAX; id++)
-		if (fib_get_table(net, id) == NULL)
+		if (!fib_get_table(net, id))
 			return fib_new_table(net, id);
 	return NULL;
 }
@@ -184,7 +184,7 @@ static int fib4_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 			struct fib_table *table;
 
 			table = fib_empty_table(net);
-			if (table == NULL) {
+			if (!table) {
 				err = -ENOBUFS;
 				goto errout;
 			}

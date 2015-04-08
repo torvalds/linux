@@ -14,6 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <linux/etherdevice.h>
 #include "wil6210.h"
 #include "wmi.h"
 
@@ -217,7 +218,7 @@ static int wil_cfg80211_dump_station(struct wiphy *wiphy,
 	if (cid < 0)
 		return -ENOENT;
 
-	memcpy(mac, wil->sta[cid].addr, ETH_ALEN);
+	ether_addr_copy(mac, wil->sta[cid].addr);
 	wil_dbg_misc(wil, "%s(%pM) CID %d\n", __func__, mac, cid);
 
 	rc = wil_cid_fill_sinfo(wil, cid, sinfo);
@@ -478,8 +479,8 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 	}
 	conn.channel = ch - 1;
 
-	memcpy(conn.bssid, bss->bssid, ETH_ALEN);
-	memcpy(conn.dst_mac, bss->bssid, ETH_ALEN);
+	ether_addr_copy(conn.bssid, bss->bssid);
+	ether_addr_copy(conn.dst_mac, bss->bssid);
 
 	set_bit(wil_status_fwconnecting, wil->status);
 
@@ -782,8 +783,17 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 	rc = wmi_pcp_start(wil, info->beacon_interval, wmi_nettype,
 			   channel->hw_value);
 	if (rc)
-		netif_carrier_off(ndev);
+		goto err_pcp_start;
 
+	rc = wil_bcast_init(wil);
+	if (rc)
+		goto err_bcast;
+
+	goto out; /* success */
+err_bcast:
+	wmi_pcp_stop(wil);
+err_pcp_start:
+	netif_carrier_off(ndev);
 out:
 	mutex_unlock(&wil->mutex);
 	return rc;
@@ -917,6 +927,21 @@ static int wil_cfg80211_probe_client(struct wiphy *wiphy,
 	return 0;
 }
 
+static int wil_cfg80211_change_bss(struct wiphy *wiphy,
+				   struct net_device *dev,
+				   struct bss_parameters *params)
+{
+	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+
+	if (params->ap_isolate >= 0) {
+		wil_dbg_misc(wil, "%s(ap_isolate %d => %d)\n", __func__,
+			     wil->ap_isolate, params->ap_isolate);
+		wil->ap_isolate = params->ap_isolate;
+	}
+
+	return 0;
+}
+
 static struct cfg80211_ops wil_cfg80211_ops = {
 	.scan = wil_cfg80211_scan,
 	.connect = wil_cfg80211_connect,
@@ -937,6 +962,7 @@ static struct cfg80211_ops wil_cfg80211_ops = {
 	.stop_ap = wil_cfg80211_stop_ap,
 	.del_station = wil_cfg80211_del_station,
 	.probe_client = wil_cfg80211_probe_client,
+	.change_bss = wil_cfg80211_change_bss,
 };
 
 static void wil_wiphy_init(struct wiphy *wiphy)

@@ -194,7 +194,7 @@ static int dn_neigh_output(struct neighbour *neigh, struct sk_buff *skb)
 	return err;
 }
 
-static int dn_neigh_output_packet(struct sk_buff *skb)
+static int dn_neigh_output_packet(struct sock *sk, struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb_dst(skb);
 	struct dn_route *rt = (struct dn_route *)dst;
@@ -206,7 +206,8 @@ static int dn_neigh_output_packet(struct sk_buff *skb)
 /*
  * For talking to broadcast devices: Ethernet & PPP
  */
-static int dn_long_output(struct neighbour *neigh, struct sk_buff *skb)
+static int dn_long_output(struct neighbour *neigh, struct sock *sk,
+			  struct sk_buff *skb)
 {
 	struct net_device *dev = neigh->dev;
 	int headroom = dev->hard_header_len + sizeof(struct dn_long_packet) + 3;
@@ -245,14 +246,15 @@ static int dn_long_output(struct neighbour *neigh, struct sk_buff *skb)
 
 	skb_reset_network_header(skb);
 
-	return NF_HOOK(NFPROTO_DECNET, NF_DN_POST_ROUTING, skb, NULL,
-		       neigh->dev, dn_neigh_output_packet);
+	return NF_HOOK(NFPROTO_DECNET, NF_DN_POST_ROUTING, sk, skb,
+		       NULL, neigh->dev, dn_neigh_output_packet);
 }
 
 /*
  * For talking to pointopoint and multidrop devices: DDCMP and X.25
  */
-static int dn_short_output(struct neighbour *neigh, struct sk_buff *skb)
+static int dn_short_output(struct neighbour *neigh, struct sock *sk,
+			   struct sk_buff *skb)
 {
 	struct net_device *dev = neigh->dev;
 	int headroom = dev->hard_header_len + sizeof(struct dn_short_packet) + 2;
@@ -284,8 +286,8 @@ static int dn_short_output(struct neighbour *neigh, struct sk_buff *skb)
 
 	skb_reset_network_header(skb);
 
-	return NF_HOOK(NFPROTO_DECNET, NF_DN_POST_ROUTING, skb, NULL,
-		       neigh->dev, dn_neigh_output_packet);
+	return NF_HOOK(NFPROTO_DECNET, NF_DN_POST_ROUTING, sk, skb,
+		       NULL, neigh->dev, dn_neigh_output_packet);
 }
 
 /*
@@ -293,7 +295,8 @@ static int dn_short_output(struct neighbour *neigh, struct sk_buff *skb)
  * Phase 3 output is the same as short output, execpt that
  * it clears the area bits before transmission.
  */
-static int dn_phase3_output(struct neighbour *neigh, struct sk_buff *skb)
+static int dn_phase3_output(struct neighbour *neigh, struct sock *sk,
+			    struct sk_buff *skb)
 {
 	struct net_device *dev = neigh->dev;
 	int headroom = dev->hard_header_len + sizeof(struct dn_short_packet) + 2;
@@ -324,11 +327,11 @@ static int dn_phase3_output(struct neighbour *neigh, struct sk_buff *skb)
 
 	skb_reset_network_header(skb);
 
-	return NF_HOOK(NFPROTO_DECNET, NF_DN_POST_ROUTING, skb, NULL,
-		       neigh->dev, dn_neigh_output_packet);
+	return NF_HOOK(NFPROTO_DECNET, NF_DN_POST_ROUTING, sk, skb,
+		       NULL, neigh->dev, dn_neigh_output_packet);
 }
 
-int dn_to_neigh_output(struct sk_buff *skb)
+int dn_to_neigh_output(struct sock *sk, struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb_dst(skb);
 	struct dn_route *rt = (struct dn_route *) dst;
@@ -347,11 +350,11 @@ int dn_to_neigh_output(struct sk_buff *skb)
 	rcu_read_unlock();
 
 	if (dn->flags & DN_NDFLAG_P3)
-		return dn_phase3_output(neigh, skb);
+		return dn_phase3_output(neigh, sk, skb);
 	if (use_long)
-		return dn_long_output(neigh, skb);
+		return dn_long_output(neigh, sk, skb);
 	else
-		return dn_short_output(neigh, skb);
+		return dn_short_output(neigh, sk, skb);
 }
 
 /*
@@ -372,7 +375,7 @@ void dn_neigh_pointopoint_hello(struct sk_buff *skb)
 /*
  * Ethernet router hello message received
  */
-int dn_neigh_router_hello(struct sk_buff *skb)
+int dn_neigh_router_hello(struct sock *sk, struct sk_buff *skb)
 {
 	struct rtnode_hello_message *msg = (struct rtnode_hello_message *)skb->data;
 
@@ -434,7 +437,7 @@ int dn_neigh_router_hello(struct sk_buff *skb)
 /*
  * Endnode hello message received
  */
-int dn_neigh_endnode_hello(struct sk_buff *skb)
+int dn_neigh_endnode_hello(struct sock *sk, struct sk_buff *skb)
 {
 	struct endnode_hello_message *msg = (struct endnode_hello_message *)skb->data;
 	struct neighbour *neigh;

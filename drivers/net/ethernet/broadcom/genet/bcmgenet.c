@@ -1734,6 +1734,9 @@ static int init_umac(struct bcmgenet_priv *priv)
 	} else if (priv->ext_phy) {
 		int0_enable |= UMAC_IRQ_LINK_EVENT;
 	} else if (priv->phy_interface == PHY_INTERFACE_MODE_MOCA) {
+		if (priv->hw_params->flags & GENET_HAS_MOCA_LINK_DET)
+			int0_enable |= UMAC_IRQ_LINK_EVENT;
+
 		reg = bcmgenet_bp_mc_get(priv);
 		reg |= BIT(priv->hw_params->bp_in_en_shift);
 
@@ -2926,7 +2929,8 @@ static struct bcmgenet_hw_params bcmgenet_hw_params[] = {
 		.rdma_offset = 0x10000,
 		.tdma_offset = 0x11000,
 		.words_per_bd = 2,
-		.flags = GENET_HAS_EXT | GENET_HAS_MDIO_INTR,
+		.flags = GENET_HAS_EXT | GENET_HAS_MDIO_INTR |
+			 GENET_HAS_MOCA_LINK_DET,
 	},
 	[GENET_V4] = {
 		.tx_queues = 4,
@@ -2944,7 +2948,8 @@ static struct bcmgenet_hw_params bcmgenet_hw_params[] = {
 		.rdma_offset = 0x2000,
 		.tdma_offset = 0x4000,
 		.words_per_bd = 3,
-		.flags = GENET_HAS_40BITS | GENET_HAS_EXT | GENET_HAS_MDIO_INTR,
+		.flags = GENET_HAS_40BITS | GENET_HAS_EXT |
+			 GENET_HAS_MDIO_INTR | GENET_HAS_MOCA_LINK_DET,
 	},
 };
 

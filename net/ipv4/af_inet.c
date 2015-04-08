@@ -217,7 +217,7 @@ int inet_listen(struct socket *sock, int backlog)
 		 * shutdown() (rather than close()).
 		 */
 		if ((sysctl_tcp_fastopen & TFO_SERVER_ENABLE) != 0 &&
-		    inet_csk(sk)->icsk_accept_queue.fastopenq == NULL) {
+		    !inet_csk(sk)->icsk_accept_queue.fastopenq) {
 			if ((sysctl_tcp_fastopen & TFO_SERVER_WO_SOCKOPT1) != 0)
 				err = fastopen_init_queue(sk, backlog);
 			else if ((sysctl_tcp_fastopen &
@@ -314,11 +314,11 @@ lookup_protocol:
 	answer_flags = answer->flags;
 	rcu_read_unlock();
 
-	WARN_ON(answer_prot->slab == NULL);
+	WARN_ON(!answer_prot->slab);
 
 	err = -ENOBUFS;
 	sk = sk_alloc(net, PF_INET, GFP_KERNEL, answer_prot);
-	if (sk == NULL)
+	if (!sk)
 		goto out;
 
 	err = 0;
@@ -1269,7 +1269,7 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 		if (udpfrag) {
 			iph->id = htons(id);
 			iph->frag_off = htons(offset >> 3);
-			if (skb->next != NULL)
+			if (skb->next)
 				iph->frag_off |= htons(IP_MF);
 			offset += skb->len - nhoff - ihl;
 		} else {

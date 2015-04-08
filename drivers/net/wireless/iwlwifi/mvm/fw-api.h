@@ -212,6 +212,10 @@ enum {
 	REPLY_RX_MPDU_CMD = 0xc1,
 	BA_NOTIF = 0xc5,
 
+	/* Location Aware Regulatory */
+	MCC_UPDATE_CMD = 0xc8,
+	MCC_CHUB_UPDATE_CMD = 0xc9,
+
 	MARKER_CMD = 0xcb,
 
 	/* BT Coex */
@@ -362,7 +366,8 @@ enum {
 	NVM_SECTION_TYPE_CALIBRATION = 4,
 	NVM_SECTION_TYPE_PRODUCTION = 5,
 	NVM_SECTION_TYPE_MAC_OVERRIDE = 11,
-	NVM_MAX_NUM_SECTIONS = 12,
+	NVM_SECTION_TYPE_PHY_SKU = 12,
+	NVM_MAX_NUM_SECTIONS = 13,
 };
 
 /**
@@ -1442,7 +1447,19 @@ enum iwl_sf_scenario {
 #define SF_W_MARK_LEGACY 4096
 #define SF_W_MARK_SCAN 4096
 
-/* SF Scenarios timers for FULL_ON state (aligned to 32 uSec) */
+/* SF Scenarios timers for default configuration (aligned to 32 uSec) */
+#define SF_SINGLE_UNICAST_IDLE_TIMER_DEF 160	/* 150 uSec  */
+#define SF_SINGLE_UNICAST_AGING_TIMER_DEF 400	/* 0.4 mSec */
+#define SF_AGG_UNICAST_IDLE_TIMER_DEF 160		/* 150 uSec */
+#define SF_AGG_UNICAST_AGING_TIMER_DEF 400		/* 0.4 mSec */
+#define SF_MCAST_IDLE_TIMER_DEF 160		/* 150 mSec */
+#define SF_MCAST_AGING_TIMER_DEF 400		/* 0.4 mSec */
+#define SF_BA_IDLE_TIMER_DEF 160			/* 150 uSec */
+#define SF_BA_AGING_TIMER_DEF 400			/* 0.4 mSec */
+#define SF_TX_RE_IDLE_TIMER_DEF 160			/* 150 uSec */
+#define SF_TX_RE_AGING_TIMER_DEF 400		/* 0.4 mSec */
+
+/* SF Scenarios timers for BSS MAC configuration (aligned to 32 uSec) */
 #define SF_SINGLE_UNICAST_IDLE_TIMER 320	/* 300 uSec  */
 #define SF_SINGLE_UNICAST_AGING_TIMER 2016	/* 2 mSec */
 #define SF_AGG_UNICAST_IDLE_TIMER 320		/* 300 uSec */
@@ -1472,6 +1489,92 @@ struct iwl_sf_cfg_cmd {
 	__le32 long_delay_timeouts[SF_NUM_SCENARIO][SF_NUM_TIMEOUT_TYPES];
 	__le32 full_on_timeouts[SF_NUM_SCENARIO][SF_NUM_TIMEOUT_TYPES];
 } __packed; /* SF_CFG_API_S_VER_2 */
+
+/***********************************
+ * Location Aware Regulatory (LAR) API - MCC updates
+ ***********************************/
+
+/**
+ * struct iwl_mcc_update_cmd - Request the device to update geographic
+ * regulatory profile according to the given MCC (Mobile Country Code).
+ * The MCC is two letter-code, ascii upper case[A-Z] or '00' for world domain.
+ * 'ZZ' MCC will be used to switch to NVM default profile; in this case, the
+ * MCC in the cmd response will be the relevant MCC in the NVM.
+ * @mcc: given mobile country code
+ * @source_id: the source from where we got the MCC, see iwl_mcc_source
+ * @reserved: reserved for alignment
+ */
+struct iwl_mcc_update_cmd {
+	__le16 mcc;
+	u8 source_id;
+	u8 reserved;
+} __packed; /* LAR_UPDATE_MCC_CMD_API_S */
+
+/**
+ * iwl_mcc_update_resp - response to MCC_UPDATE_CMD.
+ * Contains the new channel control profile map, if changed, and the new MCC
+ * (mobile country code).
+ * The new MCC may be different than what was requested in MCC_UPDATE_CMD.
+ * @status: see &enum iwl_mcc_update_status
+ * @mcc: the new applied MCC
+ * @cap: capabilities for all channels which matches the MCC
+ * @source_id: the MCC source, see iwl_mcc_source
+ * @n_channels: number of channels in @channels_data (may be 14, 39, 50 or 51
+ *		channels, depending on platform)
+ * @channels: channel control data map, DWORD for each channel. Only the first
+ *	16bits are used.
+ */
+struct iwl_mcc_update_resp {
+	__le32 status;
+	__le16 mcc;
+	u8 cap;
+	u8 source_id;
+	__le32 n_channels;
+	__le32 channels[0];
+} __packed; /* LAR_UPDATE_MCC_CMD_RESP_S */
+
+/**
+ * struct iwl_mcc_chub_notif - chub notifies of mcc change
+ * (MCC_CHUB_UPDATE_CMD = 0xc9)
+ * The Chub (Communication Hub, CommsHUB) is a HW component that connects to
+ * the cellular and connectivity cores that gets updates of the mcc, and
+ * notifies the ucode directly of any mcc change.
+ * The ucode requests the driver to request the device to update geographic
+ * regulatory  profile according to the given MCC (Mobile Country Code).
+ * The MCC is two letter-code, ascii upper case[A-Z] or '00' for world domain.
+ * 'ZZ' MCC will be used to switch to NVM default profile; in this case, the
+ * MCC in the cmd response will be the relevant MCC in the NVM.
+ * @mcc: given mobile country code
+ * @source_id: identity of the change originator, see iwl_mcc_source
+ * @reserved1: reserved for alignment
+ */
+struct iwl_mcc_chub_notif {
+	u16 mcc;
+	u8 source_id;
+	u8 reserved1;
+} __packed; /* LAR_MCC_NOTIFY_S */
+
+enum iwl_mcc_update_status {
+	MCC_RESP_NEW_CHAN_PROFILE,
+	MCC_RESP_SAME_CHAN_PROFILE,
+	MCC_RESP_INVALID,
+	MCC_RESP_NVM_DISABLED,
+	MCC_RESP_ILLEGAL,
+	MCC_RESP_LOW_PRIORITY,
+};
+
+enum iwl_mcc_source {
+	MCC_SOURCE_OLD_FW = 0,
+	MCC_SOURCE_ME = 1,
+	MCC_SOURCE_BIOS = 2,
+	MCC_SOURCE_3G_LTE_HOST = 3,
+	MCC_SOURCE_3G_LTE_DEVICE = 4,
+	MCC_SOURCE_WIFI = 5,
+	MCC_SOURCE_RESERVED = 6,
+	MCC_SOURCE_DEFAULT = 7,
+	MCC_SOURCE_UNINITIALIZED = 8,
+	MCC_SOURCE_GET_CURRENT = 0x10
+};
 
 /* DTS measurements */
 

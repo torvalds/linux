@@ -462,6 +462,15 @@ static int bcmgenet_mii_of_init(struct bcmgenet_priv *priv)
 	return 0;
 }
 
+static int bcmgenet_fixed_phy_link_update(struct net_device *dev,
+					  struct fixed_phy_status *status)
+{
+	if (dev && dev->phydev && status)
+		status->link = dev->phydev->link;
+
+	return 0;
+}
+
 static int bcmgenet_mii_pd_init(struct bcmgenet_priv *priv)
 {
 	struct device *kdev = &priv->pdev->dev;
@@ -512,6 +521,13 @@ static int bcmgenet_mii_pd_init(struct bcmgenet_priv *priv)
 		if (!phydev || IS_ERR(phydev)) {
 			dev_err(kdev, "failed to register fixed PHY device\n");
 			return -ENODEV;
+		}
+
+		if (priv->hw_params->flags & GENET_HAS_MOCA_LINK_DET) {
+			ret = fixed_phy_set_link_update(
+				phydev, bcmgenet_fixed_phy_link_update);
+			if (!ret)
+				phydev->link = 0;
 		}
 	}
 

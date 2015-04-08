@@ -333,7 +333,7 @@ void cmtp_recv_capimsg(struct cmtp_session *session, struct sk_buff *skb)
 		return;
 	}
 
-	if (session->flags & (1 << CMTP_LOOPBACK)) {
+	if (session->flags & BIT(CMTP_LOOPBACK)) {
 		kfree_skb(skb);
 		return;
 	}

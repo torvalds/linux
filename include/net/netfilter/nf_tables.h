@@ -26,12 +26,11 @@ struct nft_pktinfo {
 static inline void nft_set_pktinfo(struct nft_pktinfo *pkt,
 				   const struct nf_hook_ops *ops,
 				   struct sk_buff *skb,
-				   const struct net_device *in,
-				   const struct net_device *out)
+				   const struct nf_hook_state *state)
 {
 	pkt->skb = skb;
-	pkt->in = pkt->xt.in = in;
-	pkt->out = pkt->xt.out = out;
+	pkt->in = pkt->xt.in = state->in;
+	pkt->out = pkt->xt.out = state->out;
 	pkt->ops = ops;
 	pkt->xt.hooknum = ops->hooknum;
 	pkt->xt.family = ops->pf;

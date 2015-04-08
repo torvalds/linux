@@ -130,7 +130,6 @@ struct hv_netvsc_packet {
 	u32 status;
 	bool part_of_skb;
 
-	struct hv_device *device;
 	bool is_data_pkt;
 	bool xmit_more; /* from skb */
 	u16 vlan_tci;
@@ -189,6 +188,7 @@ int netvsc_send(struct hv_device *device,
 		struct hv_netvsc_packet *packet);
 void netvsc_linkstatus_callback(struct hv_device *device_obj,
 				struct rndis_message *resp);
+void netvsc_xmit_completion(void *context);
 int netvsc_recv_callback(struct hv_device *device_obj,
 			struct hv_netvsc_packet *packet,
 			struct ndis_tcp_ip_checksum_info *csum_info);
@@ -959,6 +959,10 @@ struct ndis_tcp_lso_info {
 #define NDIS_HASH_PPI_SIZE (sizeof(struct rndis_per_packet_info) + \
 		sizeof(u32))
 
+/* Total size of all PPI data */
+#define NDIS_ALL_PPI_SIZE (NDIS_VLAN_PPI_SIZE + NDIS_CSUM_PPI_SIZE + \
+			   NDIS_LSO_PPI_SIZE + NDIS_HASH_PPI_SIZE)
+
 /* Format of Information buffer passed in a SetRequest for the OID */
 /* OID_GEN_RNDIS_CONFIG_PARAMETER. */
 struct rndis_config_parameter_info {
@@ -1170,6 +1174,8 @@ struct rndis_message {
 
 #define RNDIS_HEADER_SIZE	(sizeof(struct rndis_message) - \
 				 sizeof(union rndis_message_container))
+
+#define RNDIS_AND_PPI_SIZE (sizeof(struct rndis_message) + NDIS_ALL_PPI_SIZE)
 
 #define NDIS_PACKET_TYPE_DIRECTED	0x00000001
 #define NDIS_PACKET_TYPE_MULTICAST	0x00000002

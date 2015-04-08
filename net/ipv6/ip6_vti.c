@@ -601,8 +601,6 @@ static void vti6_link_config(struct ip6_tnl *t)
 		dev->flags |= IFF_POINTOPOINT;
 	else
 		dev->flags &= ~IFF_POINTOPOINT;
-
-	dev->iflink = p->link;
 }
 
 /**
@@ -808,6 +806,7 @@ static const struct net_device_ops vti6_netdev_ops = {
 	.ndo_do_ioctl	= vti6_ioctl,
 	.ndo_change_mtu = vti6_change_mtu,
 	.ndo_get_stats64 = ip_tunnel_get_stats64,
+	.ndo_get_iflink = ip6_tnl_get_iflink,
 };
 
 /**

@@ -178,6 +178,10 @@ void i40e_dcbnl_set_all(struct i40e_vsi *vsi)
 	if (!(pf->flags & I40E_FLAG_DCB_ENABLED))
 		return;
 
+	/* MFP mode but not an iSCSI PF so return */
+	if ((pf->flags & I40E_FLAG_MFP_ENABLED) && !(pf->hw.func_caps.iscsi))
+		return;
+
 	dcbxcfg = &hw->local_dcbx_config;
 
 	/* Set up all the App TLVs if DCBx is negotiated */
@@ -281,6 +285,10 @@ void i40e_dcbnl_flush_apps(struct i40e_pf *pf,
 {
 	struct i40e_dcb_app_priority_table app;
 	int i;
+
+	/* MFP mode but not an iSCSI PF so return */
+	if ((pf->flags & I40E_FLAG_MFP_ENABLED) && !(pf->hw.func_caps.iscsi))
+		return;
 
 	for (i = 0; i < old_cfg->numapps; i++) {
 		app = old_cfg->app[i];

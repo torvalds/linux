@@ -413,7 +413,7 @@ static void bclink_accept_pkt(struct tipc_node *node, u32 seqno)
 	 */
 	if (((seqno - tn->own_addr) % TIPC_MIN_LINK_WIN) == 0) {
 		tipc_link_proto_xmit(node->active_links[node->addr & 1],
-				     STATE_MSG, 0, 0, 0, 0, 0);
+				     STATE_MSG, 0, 0, 0, 0);
 		tn->bcl->stats.sent_acks++;
 	}
 }
@@ -899,7 +899,7 @@ int tipc_bclink_init(struct net *net)
 	skb_queue_head_init(&bclink->inputq);
 	bcl->owner = &bclink->node;
 	bcl->owner->net = net;
-	bcl->max_pkt = MAX_PKT_DEFAULT_MCAST;
+	bcl->mtu = MAX_PKT_DEFAULT_MCAST;
 	tipc_link_set_queue_limits(bcl, BCLINK_WIN_DEFAULT);
 	bcl->bearer_id = MAX_BEARERS;
 	rcu_assign_pointer(tn->bearer_list[MAX_BEARERS], &bcbearer->bearer);

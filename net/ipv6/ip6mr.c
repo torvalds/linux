@@ -250,7 +250,7 @@ static int __net_init ip6mr_rules_init(struct net *net)
 	return 0;
 
 err2:
-	kfree(mrt);
+	ip6mr_free_table(mrt);
 err1:
 	fib_rules_unregister(ops);
 	return err;
@@ -265,8 +265,8 @@ static void __net_exit ip6mr_rules_exit(struct net *net)
 		list_del(&mrt->list);
 		ip6mr_free_table(mrt);
 	}
-	rtnl_unlock();
 	fib_rules_unregister(net->ipv6.mr6_rules_ops);
+	rtnl_unlock();
 }
 #else
 #define ip6mr_for_each_table(mrt, net) \
@@ -334,7 +334,7 @@ static struct mr6_table *ip6mr_new_table(struct net *net, u32 id)
 
 static void ip6mr_free_table(struct mr6_table *mrt)
 {
-	del_timer(&mrt->ipmr_expire_timer);
+	del_timer_sync(&mrt->ipmr_expire_timer);
 	mroute_clean_tables(mrt);
 	kfree(mrt);
 }
@@ -718,8 +718,14 @@ static netdev_tx_t reg_vif_xmit(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
+static int reg_vif_get_iflink(const struct net_device *dev)
+{
+	return 0;
+}
+
 static const struct net_device_ops reg_vif_netdev_ops = {
 	.ndo_start_xmit	= reg_vif_xmit,
+	.ndo_get_iflink = reg_vif_get_iflink,
 };
 
 static void reg_vif_setup(struct net_device *dev)
@@ -752,7 +758,6 @@ static struct net_device *ip6mr_reg_vif(struct net *net, struct mr6_table *mrt)
 		free_netdev(dev);
 		return NULL;
 	}
-	dev->iflink = 0;
 
 	if (dev_open(dev))
 		goto failure;
@@ -992,7 +997,7 @@ static int mif6_add(struct net *net, struct mr6_table *mrt,
 	v->pkt_out = 0;
 	v->link = dev->ifindex;
 	if (v->flags & MIFF_REGISTER)
-		v->link = dev->iflink;
+		v->link = dev_get_iflink(dev);
 
 	/* And finish update writing critical data */
 	write_lock_bh(&mrt_lock);
@@ -1981,13 +1986,13 @@ int ip6mr_compat_ioctl(struct sock *sk, unsigned int cmd, void __user *arg)
 }
 #endif
 
-static inline int ip6mr_forward2_finish(struct sk_buff *skb)
+static inline int ip6mr_forward2_finish(struct sock *sk, struct sk_buff *skb)
 {
 	IP6_INC_STATS_BH(dev_net(skb_dst(skb)->dev), ip6_dst_idev(skb_dst(skb)),
 			 IPSTATS_MIB_OUTFORWDATAGRAMS);
 	IP6_ADD_STATS_BH(dev_net(skb_dst(skb)->dev), ip6_dst_idev(skb_dst(skb)),
 			 IPSTATS_MIB_OUTOCTETS, skb->len);
-	return dst_output(skb);
+	return dst_output_sk(sk, skb);
 }
 
 /*
@@ -2059,7 +2064,8 @@ static int ip6mr_forward2(struct net *net, struct mr6_table *mrt,
 
 	IP6CB(skb)->flags |= IP6SKB_FORWARDED;
 
-	return NF_HOOK(NFPROTO_IPV6, NF_INET_FORWARD, skb, skb->dev, dev,
+	return NF_HOOK(NFPROTO_IPV6, NF_INET_FORWARD, NULL, skb,
+		       skb->dev, dev,
 		       ip6mr_forward2_finish);
 
 out_free:

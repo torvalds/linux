@@ -121,12 +121,18 @@ static int wil_vring_debugfs_show(struct seq_file *s, void *data)
 
 			snprintf(name, sizeof(name), "tx_%2d", i);
 
-			seq_printf(s,
-				"\n%pM CID %d TID %d BACK([%d] %d TU A%s) [%3d|%3d] idle %s\n",
-				wil->sta[cid].addr, cid, tid,
-				txdata->agg_wsize, txdata->agg_timeout,
-				txdata->agg_amsdu ? "+" : "-",
-				used, avail, sidle);
+			if (cid < WIL6210_MAX_CID)
+				seq_printf(s,
+					   "\n%pM CID %d TID %d BACK([%u] %u TU A%s) [%3d|%3d] idle %s\n",
+					   wil->sta[cid].addr, cid, tid,
+					   txdata->agg_wsize,
+					   txdata->agg_timeout,
+					   txdata->agg_amsdu ? "+" : "-",
+					   used, avail, sidle);
+			else
+				seq_printf(s,
+					   "\nBroadcast [%3d|%3d] idle %s\n",
+					   used, avail, sidle);
 
 			wil_print_vring(s, wil, name, vring, '_', 'H');
 		}
@@ -1405,6 +1411,7 @@ static const struct dbg_off dbg_wil_off[] = {
 	WIL_FIELD(fw_version,	S_IRUGO,		doff_u32),
 	WIL_FIELD(hw_version,	S_IRUGO,		doff_x32),
 	WIL_FIELD(recovery_count, S_IRUGO,		doff_u32),
+	WIL_FIELD(ap_isolate,	S_IRUGO,		doff_u32),
 	{},
 };
 

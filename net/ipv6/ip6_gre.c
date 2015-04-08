@@ -760,7 +760,7 @@ static netdev_tx_t ip6gre_xmit2(struct sk_buff *skb,
 
 	skb_set_inner_protocol(skb, protocol);
 
-	ip6tunnel_xmit(skb, dev);
+	ip6tunnel_xmit(NULL, skb, dev);
 	if (ndst)
 		ip6_tnl_dst_store(tunnel, ndst);
 	return 0;
@@ -1216,6 +1216,7 @@ static const struct net_device_ops ip6gre_netdev_ops = {
 	.ndo_do_ioctl		= ip6gre_tunnel_ioctl,
 	.ndo_change_mtu		= ip6gre_tunnel_change_mtu,
 	.ndo_get_stats64	= ip_tunnel_get_stats64,
+	.ndo_get_iflink		= ip6_tnl_get_iflink,
 };
 
 static void ip6gre_dev_free(struct net_device *dev)
@@ -1238,7 +1239,6 @@ static void ip6gre_tunnel_setup(struct net_device *dev)
 	if (!(t->parms.flags & IP6_TNL_F_IGN_ENCAP_LIMIT))
 		dev->mtu -= 8;
 	dev->flags |= IFF_NOARP;
-	dev->iflink = 0;
 	dev->addr_len = sizeof(struct in6_addr);
 	netif_keep_dst(dev);
 }
@@ -1269,8 +1269,6 @@ static int ip6gre_tunnel_init(struct net_device *dev)
 		ip6gre_tunnel_stats = per_cpu_ptr(dev->tstats, i);
 		u64_stats_init(&ip6gre_tunnel_stats->syncp);
 	}
-
-	dev->iflink = tunnel->parms.link;
 
 	return 0;
 }
@@ -1480,8 +1478,6 @@ static int ip6gre_tap_init(struct net_device *dev)
 	if (!dev->tstats)
 		return -ENOMEM;
 
-	dev->iflink = tunnel->parms.link;
-
 	return 0;
 }
 
@@ -1493,6 +1489,7 @@ static const struct net_device_ops ip6gre_tap_netdev_ops = {
 	.ndo_validate_addr = eth_validate_addr,
 	.ndo_change_mtu = ip6gre_tunnel_change_mtu,
 	.ndo_get_stats64 = ip_tunnel_get_stats64,
+	.ndo_get_iflink = ip6_tnl_get_iflink,
 };
 
 static void ip6gre_tap_setup(struct net_device *dev)
@@ -1503,7 +1500,6 @@ static void ip6gre_tap_setup(struct net_device *dev)
 	dev->netdev_ops = &ip6gre_tap_netdev_ops;
 	dev->destructor = ip6gre_dev_free;
 
-	dev->iflink = 0;
 	dev->features |= NETIF_F_NETNS_LOCAL;
 }
 

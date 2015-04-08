@@ -471,7 +471,7 @@ static struct kvm *kvm_create_vm(unsigned long type)
 	BUILD_BUG_ON(KVM_MEM_SLOTS_NUM > SHRT_MAX);
 
 	r = -ENOMEM;
-	kvm->memslots = kzalloc(sizeof(struct kvm_memslots), GFP_KERNEL);
+	kvm->memslots = kvm_kvzalloc(sizeof(struct kvm_memslots));
 	if (!kvm->memslots)
 		goto out_err_no_srcu;
 
@@ -522,7 +522,7 @@ out_err_no_srcu:
 out_err_no_disable:
 	for (i = 0; i < KVM_NR_BUSES; i++)
 		kfree(kvm->buses[i]);
-	kfree(kvm->memslots);
+	kvfree(kvm->memslots);
 	kvm_arch_free_vm(kvm);
 	return ERR_PTR(r);
 }
@@ -578,7 +578,7 @@ static void kvm_free_physmem(struct kvm *kvm)
 	kvm_for_each_memslot(memslot, slots)
 		kvm_free_physmem_slot(kvm, memslot, NULL);
 
-	kfree(kvm->memslots);
+	kvfree(kvm->memslots);
 }
 
 static void kvm_destroy_devices(struct kvm *kvm)
@@ -871,10 +871,10 @@ int __kvm_set_memory_region(struct kvm *kvm,
 			goto out_free;
 	}
 
-	slots = kmemdup(kvm->memslots, sizeof(struct kvm_memslots),
-			GFP_KERNEL);
+	slots = kvm_kvzalloc(sizeof(struct kvm_memslots));
 	if (!slots)
 		goto out_free;
+	memcpy(slots, kvm->memslots, sizeof(struct kvm_memslots));
 
 	if ((change == KVM_MR_DELETE) || (change == KVM_MR_MOVE)) {
 		slot = id_to_memslot(slots, mem->slot);
@@ -917,7 +917,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	kvm_arch_commit_memory_region(kvm, mem, &old, change);
 
 	kvm_free_physmem_slot(kvm, &old, &new);
-	kfree(old_memslots);
+	kvfree(old_memslots);
 
 	/*
 	 * IOMMU mapping:  New slots need to be mapped.  Old slots need to be
@@ -936,7 +936,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	return 0;
 
 out_slots:
-	kfree(slots);
+	kvfree(slots);
 out_free:
 	kvm_free_physmem_slot(kvm, &new, &old);
 out:

@@ -2195,31 +2195,50 @@ static int mlx4_en_set_features(struct net_device *netdev,
 		netdev_features_t features)
 {
 	struct mlx4_en_priv *priv = netdev_priv(netdev);
+	bool reset = false;
 	int ret = 0;
+
+	if (DEV_FEATURE_CHANGED(netdev, features, NETIF_F_RXFCS)) {
+		en_info(priv, "Turn %s RX-FCS\n",
+			(features & NETIF_F_RXFCS) ? "ON" : "OFF");
+		reset = true;
+	}
+
+	if (DEV_FEATURE_CHANGED(netdev, features, NETIF_F_RXALL)) {
+		u8 ignore_fcs_value = (features & NETIF_F_RXALL) ? 1 : 0;
+
+		en_info(priv, "Turn %s RX-ALL\n",
+			ignore_fcs_value ? "ON" : "OFF");
+		ret = mlx4_SET_PORT_fcs_check(priv->mdev->dev,
+					      priv->port, ignore_fcs_value);
+		if (ret)
+			return ret;
+	}
 
 	if (DEV_FEATURE_CHANGED(netdev, features, NETIF_F_HW_VLAN_CTAG_RX)) {
 		en_info(priv, "Turn %s RX vlan strip offload\n",
 			(features & NETIF_F_HW_VLAN_CTAG_RX) ? "ON" : "OFF");
-		ret = mlx4_en_reset_config(netdev, priv->hwtstamp_config,
-					   features);
-		if (ret)
-			return ret;
+		reset = true;
 	}
 
 	if (DEV_FEATURE_CHANGED(netdev, features, NETIF_F_HW_VLAN_CTAG_TX))
 		en_info(priv, "Turn %s TX vlan strip offload\n",
 			(features & NETIF_F_HW_VLAN_CTAG_TX) ? "ON" : "OFF");
 
-	if (features & NETIF_F_LOOPBACK)
-		priv->ctrl_flags |= cpu_to_be32(MLX4_WQE_CTRL_FORCE_LOOPBACK);
-	else
-		priv->ctrl_flags &=
-			cpu_to_be32(~MLX4_WQE_CTRL_FORCE_LOOPBACK);
+	if (DEV_FEATURE_CHANGED(netdev, features, NETIF_F_LOOPBACK)) {
+		en_info(priv, "Turn %s loopback\n",
+			(features & NETIF_F_LOOPBACK) ? "ON" : "OFF");
+		mlx4_en_update_loopback_state(netdev, features);
+	}
 
-	mlx4_en_update_loopback_state(netdev, features);
+	if (reset) {
+		ret = mlx4_en_reset_config(netdev, priv->hwtstamp_config,
+					   features);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
-
 }
 
 static int mlx4_en_set_vf_mac(struct net_device *dev, int queue, u8 *mac)
@@ -2240,6 +2259,16 @@ static int mlx4_en_set_vf_vlan(struct net_device *dev, int vf, u16 vlan, u8 qos)
 	struct mlx4_en_dev *mdev = en_priv->mdev;
 
 	return mlx4_set_vf_vlan(mdev->dev, en_priv->port, vf, vlan, qos);
+}
+
+static int mlx4_en_set_vf_rate(struct net_device *dev, int vf, int min_tx_rate,
+			       int max_tx_rate)
+{
+	struct mlx4_en_priv *en_priv = netdev_priv(dev);
+	struct mlx4_en_dev *mdev = en_priv->mdev;
+
+	return mlx4_set_vf_rate(mdev->dev, en_priv->port, vf, min_tx_rate,
+				max_tx_rate);
 }
 
 static int mlx4_en_set_vf_spoofchk(struct net_device *dev, int vf, bool setting)
@@ -2460,6 +2489,7 @@ static const struct net_device_ops mlx4_netdev_ops_master = {
 	.ndo_vlan_rx_kill_vid	= mlx4_en_vlan_rx_kill_vid,
 	.ndo_set_vf_mac		= mlx4_en_set_vf_mac,
 	.ndo_set_vf_vlan	= mlx4_en_set_vf_vlan,
+	.ndo_set_vf_rate	= mlx4_en_set_vf_rate,
 	.ndo_set_vf_spoofchk	= mlx4_en_set_vf_spoofchk,
 	.ndo_set_vf_link_state	= mlx4_en_set_vf_link_state,
 	.ndo_get_vf_config	= mlx4_en_get_vf_config,
@@ -2805,7 +2835,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	priv->msg_enable = MLX4_EN_MSG_LEVEL;
 #ifdef CONFIG_MLX4_EN_DCB
 	if (!mlx4_is_slave(priv->mdev->dev)) {
-		if (mdev->dev->caps.flags & MLX4_DEV_CAP_FLAG_SET_ETH_SCHED) {
+		if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_ETS_CFG) {
 			dev->dcbnl_ops = &mlx4_en_dcbnl_ops;
 		} else {
 			en_info(priv, "enabling only PFC DCB ops\n");
@@ -2892,6 +2922,12 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	dev->hw_features |= NETIF_F_LOOPBACK |
 			NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX;
 
+	if (mdev->dev->caps.flags & MLX4_DEV_CAP_FLAG_FCS_KEEP)
+		dev->hw_features |= NETIF_F_RXFCS;
+
+	if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_IGNORE_FCS)
+		dev->hw_features |= NETIF_F_RXALL;
+
 	if (mdev->dev->caps.steering_mode ==
 	    MLX4_STEERING_MODE_DEVICE_MANAGED &&
 	    mdev->dev->caps.dmfs_high_steer_mode != MLX4_STEERING_DMFS_A0_STATIC)
@@ -2916,13 +2952,6 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 
 	netif_carrier_off(dev);
 	mlx4_en_set_default_moderation(priv);
-
-	err = register_netdev(dev);
-	if (err) {
-		en_err(priv, "Netdev registration failed for port %d\n", port);
-		goto out;
-	}
-	priv->registered = 1;
 
 	en_warn(priv, "Using %d TX rings\n", prof->tx_ring_num);
 	en_warn(priv, "Using %d RX rings\n", prof->rx_ring_num);
@@ -2969,6 +2998,14 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 				 mdev->profile.prof[priv->port].tx_ppp,
 				 mdev->profile.prof[priv->port].tx_pause);
 
+	err = register_netdev(dev);
+	if (err) {
+		en_err(priv, "Netdev registration failed for port %d\n", port);
+		goto out;
+	}
+
+	priv->registered = 1;
+
 	return 0;
 
 out:
@@ -2987,7 +3024,8 @@ int mlx4_en_reset_config(struct net_device *dev,
 
 	if (priv->hwtstamp_config.tx_type == ts_config.tx_type &&
 	    priv->hwtstamp_config.rx_filter == ts_config.rx_filter &&
-	    !DEV_FEATURE_CHANGED(dev, features, NETIF_F_HW_VLAN_CTAG_RX))
+	    !DEV_FEATURE_CHANGED(dev, features, NETIF_F_HW_VLAN_CTAG_RX) &&
+	    !DEV_FEATURE_CHANGED(dev, features, NETIF_F_RXFCS))
 		return 0; /* Nothing to change */
 
 	if (DEV_FEATURE_CHANGED(dev, features, NETIF_F_HW_VLAN_CTAG_RX) &&
@@ -3024,6 +3062,13 @@ int mlx4_en_reset_config(struct net_device *dev,
 			dev->features |= NETIF_F_HW_VLAN_CTAG_RX;
 		else
 			dev->features &= ~NETIF_F_HW_VLAN_CTAG_RX;
+	}
+
+	if (DEV_FEATURE_CHANGED(dev, features, NETIF_F_RXFCS)) {
+		if (features & NETIF_F_RXFCS)
+			dev->features |= NETIF_F_RXFCS;
+		else
+			dev->features &= ~NETIF_F_RXFCS;
 	}
 
 	/* RX vlan offload and RX time-stamping can't co-exist !

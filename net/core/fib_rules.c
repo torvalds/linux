@@ -165,9 +165,9 @@ void fib_rules_unregister(struct fib_rules_ops *ops)
 
 	spin_lock(&net->rules_mod_lock);
 	list_del_rcu(&ops->list);
-	fib_rules_cleanup_ops(ops);
 	spin_unlock(&net->rules_mod_lock);
 
+	fib_rules_cleanup_ops(ops);
 	kfree_rcu(ops, rcu);
 }
 EXPORT_SYMBOL_GPL(fib_rules_unregister);

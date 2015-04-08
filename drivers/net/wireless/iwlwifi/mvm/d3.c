@@ -694,6 +694,9 @@ static int iwl_mvm_d3_reprogram(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (ret)
 		IWL_ERR(mvm, "Failed to send quota: %d\n", ret);
 
+	if (iwl_mvm_is_lar_supported(mvm) && iwl_mvm_init_fw_regd(mvm))
+		IWL_ERR(mvm, "Failed to initialize D3 LAR information\n");
+
 	return 0;
 }
 
@@ -1596,7 +1599,7 @@ iwl_mvm_get_wakeup_status(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	/* RF-kill already asserted again... */
 	if (!cmd.resp_pkt) {
-		ret = -ERFKILL;
+		fw_status = ERR_PTR(-ERFKILL);
 		goto out_free_resp;
 	}
 
@@ -1605,7 +1608,7 @@ iwl_mvm_get_wakeup_status(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	len = iwl_rx_packet_payload_len(cmd.resp_pkt);
 	if (len < status_size) {
 		IWL_ERR(mvm, "Invalid WoWLAN status response!\n");
-		ret = -EIO;
+		fw_status = ERR_PTR(-EIO);
 		goto out_free_resp;
 	}
 
@@ -1613,7 +1616,7 @@ iwl_mvm_get_wakeup_status(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	if (len != (status_size +
 		    ALIGN(le32_to_cpu(status->wake_packet_bufsize), 4))) {
 		IWL_ERR(mvm, "Invalid WoWLAN status response!\n");
-		ret = -EIO;
+		fw_status = ERR_PTR(-EIO);
 		goto out_free_resp;
 	}
 
@@ -1621,7 +1624,7 @@ iwl_mvm_get_wakeup_status(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 out_free_resp:
 	iwl_free_resp(&cmd);
-	return ret ? ERR_PTR(ret) : fw_status;
+	return fw_status;
 }
 
 /* releases the MVM mutex */
@@ -1874,6 +1877,12 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 	/* query SRAM first in case we want event logging */
 	iwl_mvm_read_d3_sram(mvm);
 
+	/*
+	 * Query the current location and source from the D3 firmware so we
+	 * can play it back when we re-intiailize the D0 firmware
+	 */
+	iwl_mvm_update_changed_regdom(mvm);
+
 	if (mvm->net_detect) {
 		iwl_mvm_query_netdetect_reasons(mvm, vif);
 		/* has unlocked the mutex, so skip that */
@@ -1883,9 +1892,9 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 		if (keep)
 			mvm->keep_vif = vif;
+#endif
 		/* has unlocked the mutex, so skip that */
 		goto out_iterate;
-#endif
 	}
 
  out_unlock:

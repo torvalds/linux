@@ -136,7 +136,7 @@ int geneve_xmit_skb(struct geneve_sock *gs, struct rtable *rt,
 
 	skb_set_inner_protocol(skb, htons(ETH_P_TEB));
 
-	return udp_tunnel_xmit_skb(rt, skb, src, dst,
+	return udp_tunnel_xmit_skb(rt, gs->sock->sk, skb, src, dst,
 				   tos, ttl, df, src_port, dst_port, xnet,
 				   !csum);
 }
@@ -196,7 +196,7 @@ static struct sk_buff **geneve_gro_receive(struct sk_buff **head,
 
 	rcu_read_lock();
 	ptype = gro_find_receive_by_type(type);
-	if (ptype == NULL) {
+	if (!ptype) {
 		flush = 1;
 		goto out_unlock;
 	}
@@ -230,7 +230,7 @@ static int geneve_gro_complete(struct sk_buff *skb, int nhoff,
 
 	rcu_read_lock();
 	ptype = gro_find_complete_by_type(type);
-	if (ptype != NULL)
+	if (ptype)
 		err = ptype->callbacks.gro_complete(skb, nhoff + gh_len);
 
 	rcu_read_unlock();

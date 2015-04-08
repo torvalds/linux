@@ -509,11 +509,11 @@ static int skcipher_recvmsg_async(struct socket *sock, struct msghdr *msg,
 	struct skcipher_async_req *sreq;
 	struct ablkcipher_request *req;
 	struct skcipher_async_rsgl *last_rsgl = NULL;
-	unsigned int len = 0, tx_nents = skcipher_all_sg_nents(ctx);
+	unsigned int txbufs = 0, len = 0, tx_nents = skcipher_all_sg_nents(ctx);
 	unsigned int reqlen = sizeof(struct skcipher_async_req) +
 				GET_REQ_SIZE(ctx) + GET_IV_SIZE(ctx);
-	int i = 0;
 	int err = -ENOMEM;
+	bool mark = false;
 
 	lock_sock(sk);
 	req = kmalloc(reqlen, GFP_KERNEL);
@@ -555,7 +555,7 @@ static int skcipher_recvmsg_async(struct socket *sock, struct msghdr *msg,
 			     iov_iter_count(&msg->msg_iter));
 		used = min_t(unsigned long, used, sg->length);
 
-		if (i == tx_nents) {
+		if (txbufs == tx_nents) {
 			struct scatterlist *tmp;
 			int x;
 			/* Ran out of tx slots in async request
@@ -573,17 +573,18 @@ static int skcipher_recvmsg_async(struct socket *sock, struct msghdr *msg,
 			kfree(sreq->tsg);
 			sreq->tsg = tmp;
 			tx_nents *= 2;
+			mark = true;
 		}
 		/* Need to take over the tx sgl from ctx
 		 * to the asynch req - these sgls will be freed later */
-		sg_set_page(sreq->tsg + i++, sg_page(sg), sg->length,
+		sg_set_page(sreq->tsg + txbufs++, sg_page(sg), sg->length,
 			    sg->offset);
 
 		if (list_empty(&sreq->list)) {
 			rsgl = &sreq->first_sgl;
 			list_add_tail(&rsgl->list, &sreq->list);
 		} else {
-			rsgl = kzalloc(sizeof(*rsgl), GFP_KERNEL);
+			rsgl = kmalloc(sizeof(*rsgl), GFP_KERNEL);
 			if (!rsgl) {
 				err = -ENOMEM;
 				goto free;
@@ -603,6 +604,9 @@ static int skcipher_recvmsg_async(struct socket *sock, struct msghdr *msg,
 		skcipher_pull_sgl(sk, used, 0);
 		iov_iter_advance(&msg->msg_iter, used);
 	}
+
+	if (mark)
+		sg_mark_end(sreq->tsg + txbufs - 1);
 
 	ablkcipher_request_set_crypt(req, sreq->tsg, sreq->first_sgl.sgl.sg,
 				     len, sreq->iv);

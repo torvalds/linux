@@ -985,12 +985,25 @@ static u32 get_adv_instance_flags(struct hci_dev *hdev, u8 instance)
 	/* Instance 0 always manages the "Tx Power" and "Flags" fields */
 	flags = MGMT_ADV_FLAG_TX_POWER | MGMT_ADV_FLAG_MANAGED_FLAGS;
 
-	/* For instance 0, assemble the flags from global settings */
-	if (hci_dev_test_flag(hdev, HCI_ADVERTISING_CONNECTABLE) ||
-	    get_connectable(hdev))
+	/* For instance 0, the HCI_ADVERTISING_CONNECTABLE setting corresponds
+	 * to the "connectable" instance flag.
+	 */
+	if (hci_dev_test_flag(hdev, HCI_ADVERTISING_CONNECTABLE))
 		flags |= MGMT_ADV_FLAG_CONNECTABLE;
 
 	return flags;
+}
+
+static u8 get_adv_instance_scan_rsp_len(struct hci_dev *hdev, u8 instance)
+{
+	/* Ignore instance 0 and other unsupported instances */
+	if (instance != 0x01)
+		return 0;
+
+	/* TODO: Take into account the "appearance" and "local-name" flags here.
+	 * These are currently being ignored as they are not supported.
+	 */
+	return hdev->adv_instance.scan_rsp_len;
 }
 
 static u8 create_instance_adv_data(struct hci_dev *hdev, u8 instance, u8 *ptr)
@@ -1030,6 +1043,14 @@ static u8 create_instance_adv_data(struct hci_dev *hdev, u8 instance, u8 *ptr)
 		}
 	}
 
+	if (instance) {
+		memcpy(ptr, hdev->adv_instance.adv_data,
+		       hdev->adv_instance.adv_data_len);
+
+		ad_len += hdev->adv_instance.adv_data_len;
+		ptr += hdev->adv_instance.adv_data_len;
+	}
+
 	/* Provide Tx Power only if we can provide a valid value for it */
 	if (hdev->adv_tx_power != HCI_TX_POWER_INVALID &&
 	    (instance_flags & MGMT_ADV_FLAG_TX_POWER)) {
@@ -1039,12 +1060,6 @@ static u8 create_instance_adv_data(struct hci_dev *hdev, u8 instance, u8 *ptr)
 
 		ad_len += 3;
 		ptr += 3;
-	}
-
-	if (instance) {
-		memcpy(ptr, hdev->adv_instance.adv_data,
-		       hdev->adv_instance.adv_data_len);
-		ad_len += hdev->adv_instance.adv_data_len;
 	}
 
 	return ad_len;
@@ -1242,7 +1257,12 @@ static void enable_advertising(struct hci_request *req)
 
 	instance = get_current_adv_instance(hdev);
 	flags = get_adv_instance_flags(hdev, instance);
-	connectable = (flags & MGMT_ADV_FLAG_CONNECTABLE);
+
+	/* If the "connectable" instance flag was not set, then choose between
+	 * ADV_IND and ADV_NONCONN_IND based on the global connectable setting.
+	 */
+	connectable = (flags & MGMT_ADV_FLAG_CONNECTABLE) ||
+		      get_connectable(hdev);
 
 	/* Set require_privacy to true only when non-connectable
 	 * advertising is used. In that case it is fine to use a
@@ -1254,7 +1274,14 @@ static void enable_advertising(struct hci_request *req)
 	memset(&cp, 0, sizeof(cp));
 	cp.min_interval = cpu_to_le16(hdev->le_adv_min_interval);
 	cp.max_interval = cpu_to_le16(hdev->le_adv_max_interval);
-	cp.type = connectable ? LE_ADV_IND : LE_ADV_NONCONN_IND;
+
+	if (connectable)
+		cp.type = LE_ADV_IND;
+	else if (get_adv_instance_scan_rsp_len(hdev, instance))
+		cp.type = LE_ADV_SCAN_IND;
+	else
+		cp.type = LE_ADV_NONCONN_IND;
+
 	cp.own_address_type = own_addr_type;
 	cp.channel_map = hdev->le_adv_channel_map;
 
@@ -2088,7 +2115,8 @@ static int set_connectable(struct sock *sk, struct hci_dev *hdev, void *data,
 
 no_scan_update:
 	/* Update the advertising parameters if necessary */
-	if (hci_dev_test_flag(hdev, HCI_ADVERTISING))
+	if (hci_dev_test_flag(hdev, HCI_ADVERTISING) ||
+	    hci_dev_test_flag(hdev, HCI_ADVERTISING_INSTANCE))
 		enable_advertising(&req);
 
 	err = hci_req_run(&req, set_connectable_complete);
@@ -3757,10 +3785,70 @@ failed:
 	return err;
 }
 
+static void read_local_oob_data_complete(struct hci_dev *hdev, u8 status,
+				         u16 opcode, struct sk_buff *skb)
+{
+	struct mgmt_rp_read_local_oob_data mgmt_rp;
+	size_t rp_size = sizeof(mgmt_rp);
+	struct mgmt_pending_cmd *cmd;
+
+	BT_DBG("%s status %u", hdev->name, status);
+
+	cmd = pending_find(MGMT_OP_READ_LOCAL_OOB_DATA, hdev);
+	if (!cmd)
+		return;
+
+	if (status || !skb) {
+		mgmt_cmd_status(cmd->sk, hdev->id, MGMT_OP_READ_LOCAL_OOB_DATA,
+				status ? mgmt_status(status) : MGMT_STATUS_FAILED);
+		goto remove;
+	}
+
+	memset(&mgmt_rp, 0, sizeof(mgmt_rp));
+
+	if (opcode == HCI_OP_READ_LOCAL_OOB_DATA) {
+		struct hci_rp_read_local_oob_data *rp = (void *) skb->data;
+
+		if (skb->len < sizeof(*rp)) {
+			mgmt_cmd_status(cmd->sk, hdev->id,
+					MGMT_OP_READ_LOCAL_OOB_DATA,
+					MGMT_STATUS_FAILED);
+			goto remove;
+		}
+
+		memcpy(mgmt_rp.hash192, rp->hash, sizeof(rp->hash));
+		memcpy(mgmt_rp.rand192, rp->rand, sizeof(rp->rand));
+
+		rp_size -= sizeof(mgmt_rp.hash256) + sizeof(mgmt_rp.rand256);
+	} else {
+		struct hci_rp_read_local_oob_ext_data *rp = (void *) skb->data;
+
+		if (skb->len < sizeof(*rp)) {
+			mgmt_cmd_status(cmd->sk, hdev->id,
+					MGMT_OP_READ_LOCAL_OOB_DATA,
+					MGMT_STATUS_FAILED);
+			goto remove;
+		}
+
+		memcpy(mgmt_rp.hash192, rp->hash192, sizeof(rp->hash192));
+		memcpy(mgmt_rp.rand192, rp->rand192, sizeof(rp->rand192));
+
+		memcpy(mgmt_rp.hash256, rp->hash256, sizeof(rp->hash256));
+		memcpy(mgmt_rp.rand256, rp->rand256, sizeof(rp->rand256));
+	}
+
+	mgmt_cmd_complete(cmd->sk, hdev->id, MGMT_OP_READ_LOCAL_OOB_DATA,
+			  MGMT_STATUS_SUCCESS, &mgmt_rp, rp_size);
+
+remove:
+	mgmt_pending_remove(cmd);
+}
+
 static int read_local_oob_data(struct sock *sk, struct hci_dev *hdev,
 			       void *data, u16 data_len)
 {
 	struct mgmt_pending_cmd *cmd;
+	struct hci_request req;
 	int err;
 
 	BT_DBG("%s", hdev->name);
@@ -3791,12 +3879,14 @@ static int read_local_oob_data(struct sock *sk, struct hci_dev *hdev,
 		goto unlock;
 	}
 
-	if (bredr_sc_enabled(hdev))
-		err = hci_send_cmd(hdev, HCI_OP_READ_LOCAL_OOB_EXT_DATA,
-				   0, NULL);
-	else
-		err = hci_send_cmd(hdev, HCI_OP_READ_LOCAL_OOB_DATA, 0, NULL);
+	hci_req_init(&req, hdev);
 
+	if (bredr_sc_enabled(hdev))
+		hci_req_add(&req, HCI_OP_READ_LOCAL_OOB_EXT_DATA, 0, NULL);
+	else
+		hci_req_add(&req, HCI_OP_READ_LOCAL_OOB_DATA, 0, NULL);
+
+	err = hci_req_run_skb(&req, read_local_oob_data_complete);
 	if (err < 0)
 		mgmt_pending_remove(cmd);
 
@@ -6388,46 +6478,41 @@ static int read_local_oob_ext_data(struct sock *sk, struct hci_dev *hdev,
 
 	BT_DBG("%s", hdev->name);
 
-	if (!hdev_is_powered(hdev))
-		return mgmt_cmd_complete(sk, hdev->id,
-					 MGMT_OP_READ_LOCAL_OOB_EXT_DATA,
-					 MGMT_STATUS_NOT_POWERED,
-					 &cp->type, sizeof(cp->type));
-
-	switch (cp->type) {
-	case BIT(BDADDR_BREDR):
-		status = mgmt_bredr_support(hdev);
-		if (status)
-			return mgmt_cmd_complete(sk, hdev->id,
-						 MGMT_OP_READ_LOCAL_OOB_EXT_DATA,
-						 status, &cp->type,
-						 sizeof(cp->type));
-		eir_len = 5;
-		break;
-	case (BIT(BDADDR_LE_PUBLIC) | BIT(BDADDR_LE_RANDOM)):
-		status = mgmt_le_support(hdev);
-		if (status)
-			return mgmt_cmd_complete(sk, hdev->id,
-						 MGMT_OP_READ_LOCAL_OOB_EXT_DATA,
-						 status, &cp->type,
-						 sizeof(cp->type));
-		eir_len = 9 + 3 + 18 + 18 + 3;
-		break;
-	default:
-		return mgmt_cmd_complete(sk, hdev->id,
-					 MGMT_OP_READ_LOCAL_OOB_EXT_DATA,
-					 MGMT_STATUS_INVALID_PARAMS,
-					 &cp->type, sizeof(cp->type));
+	if (hdev_is_powered(hdev)) {
+		switch (cp->type) {
+		case BIT(BDADDR_BREDR):
+			status = mgmt_bredr_support(hdev);
+			if (status)
+				eir_len = 0;
+			else
+				eir_len = 5;
+			break;
+		case (BIT(BDADDR_LE_PUBLIC) | BIT(BDADDR_LE_RANDOM)):
+			status = mgmt_le_support(hdev);
+			if (status)
+				eir_len = 0;
+			else
+				eir_len = 9 + 3 + 18 + 18 + 3;
+			break;
+		default:
+			status = MGMT_STATUS_INVALID_PARAMS;
+			eir_len = 0;
+			break;
+		}
+	} else {
+		status = MGMT_STATUS_NOT_POWERED;
+		eir_len = 0;
 	}
-
-	hci_dev_lock(hdev);
 
 	rp_len = sizeof(*rp) + eir_len;
 	rp = kmalloc(rp_len, GFP_ATOMIC);
-	if (!rp) {
-		hci_dev_unlock(hdev);
+	if (!rp)
 		return -ENOMEM;
-	}
+
+	if (status)
+		goto complete;
+
+	hci_dev_lock(hdev);
 
 	eir_len = 0;
 	switch (cp->type) {
@@ -6439,20 +6524,30 @@ static int read_local_oob_ext_data(struct sock *sk, struct hci_dev *hdev,
 		if (hci_dev_test_flag(hdev, HCI_SC_ENABLED) &&
 		    smp_generate_oob(hdev, hash, rand) < 0) {
 			hci_dev_unlock(hdev);
-			err = mgmt_cmd_complete(sk, hdev->id,
-						MGMT_OP_READ_LOCAL_OOB_EXT_DATA,
-						MGMT_STATUS_FAILED,
-						&cp->type, sizeof(cp->type));
-			goto done;
+			status = MGMT_STATUS_FAILED;
+			goto complete;
 		}
 
+		/* This should return the active RPA, but since the RPA
+		 * is only programmed on demand, it is really hard to fill
+		 * this in at the moment. For now disallow retrieving
+		 * local out-of-band data when privacy is in use.
+		 *
+		 * Returning the identity address will not help here since
+		 * pairing happens before the identity resolving key is
+		 * known and thus the connection establishment happens
+		 * based on the RPA and not the identity address.
+		 */
 		if (hci_dev_test_flag(hdev, HCI_PRIVACY)) {
-			memcpy(addr, &hdev->rpa, 6);
-			addr[6] = 0x01;
-		} else if (hci_dev_test_flag(hdev, HCI_FORCE_STATIC_ADDR) ||
-			   !bacmp(&hdev->bdaddr, BDADDR_ANY) ||
-			   (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED) &&
-			    bacmp(&hdev->static_addr, BDADDR_ANY))) {
+			hci_dev_unlock(hdev);
+			status = MGMT_STATUS_REJECTED;
+			goto complete;
+		}
+
+		if (hci_dev_test_flag(hdev, HCI_FORCE_STATIC_ADDR) ||
+		   !bacmp(&hdev->bdaddr, BDADDR_ANY) ||
+		   (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED) &&
+		    bacmp(&hdev->static_addr, BDADDR_ANY))) {
 			memcpy(addr, &hdev->static_addr, 6);
 			addr[6] = 0x01;
 		} else {
@@ -6491,16 +6586,19 @@ static int read_local_oob_ext_data(struct sock *sk, struct hci_dev *hdev,
 		break;
 	}
 
-	rp->type = cp->type;
-	rp->eir_len = cpu_to_le16(eir_len);
-
 	hci_dev_unlock(hdev);
 
 	hci_sock_set_flag(sk, HCI_MGMT_OOB_DATA_EVENTS);
 
+	status = MGMT_STATUS_SUCCESS;
+
+complete:
+	rp->type = cp->type;
+	rp->eir_len = cpu_to_le16(eir_len);
+
 	err = mgmt_cmd_complete(sk, hdev->id, MGMT_OP_READ_LOCAL_OOB_EXT_DATA,
-				MGMT_STATUS_SUCCESS, rp, sizeof(*rp) + eir_len);
-	if (err < 0)
+				status, rp, sizeof(*rp) + eir_len);
+	if (err < 0 || status)
 		goto done;
 
 	err = mgmt_limited_event(MGMT_EV_LOCAL_OOB_DATA_UPDATED, hdev,
@@ -7897,43 +7995,6 @@ void mgmt_set_local_name_complete(struct hci_dev *hdev, u8 *name, u8 status)
 
 	mgmt_generic_event(MGMT_EV_LOCAL_NAME_CHANGED, hdev, &ev, sizeof(ev),
 			   cmd ? cmd->sk : NULL);
-}
-
-void mgmt_read_local_oob_data_complete(struct hci_dev *hdev, u8 *hash192,
-				       u8 *rand192, u8 *hash256, u8 *rand256,
-				       u8 status)
-{
-	struct mgmt_pending_cmd *cmd;
-
-	BT_DBG("%s status %u", hdev->name, status);
-
-	cmd = pending_find(MGMT_OP_READ_LOCAL_OOB_DATA, hdev);
-	if (!cmd)
-		return;
-
-	if (status) {
-		mgmt_cmd_status(cmd->sk, hdev->id, MGMT_OP_READ_LOCAL_OOB_DATA,
-			        mgmt_status(status));
-	} else {
-		struct mgmt_rp_read_local_oob_data rp;
-		size_t rp_size = sizeof(rp);
-
-		memcpy(rp.hash192, hash192, sizeof(rp.hash192));
-		memcpy(rp.rand192, rand192, sizeof(rp.rand192));
-
-		if (bredr_sc_enabled(hdev) && hash256 && rand256) {
-			memcpy(rp.hash256, hash256, sizeof(rp.hash256));
-			memcpy(rp.rand256, rand256, sizeof(rp.rand256));
-		} else {
-			rp_size -= sizeof(rp.hash256) + sizeof(rp.rand256);
-		}
-
-		mgmt_cmd_complete(cmd->sk, hdev->id,
-				  MGMT_OP_READ_LOCAL_OOB_DATA, 0,
-				  &rp, rp_size);
-	}
-
-	mgmt_pending_remove(cmd);
 }
 
 static inline bool has_uuid(u8 *uuid, u16 uuid_count, u8 (*uuids)[16])

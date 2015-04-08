@@ -866,7 +866,7 @@ static void tcp_update_reordering(struct sock *sk, const int metric,
 /* This must be called before lost_out is incremented */
 static void tcp_verify_retransmit_hint(struct tcp_sock *tp, struct sk_buff *skb)
 {
-	if ((tp->retransmit_skb_hint == NULL) ||
+	if (!tp->retransmit_skb_hint ||
 	    before(TCP_SKB_CB(skb)->seq,
 		   TCP_SKB_CB(tp->retransmit_skb_hint)->seq))
 		tp->retransmit_skb_hint = skb;
@@ -1256,7 +1256,7 @@ static u8 tcp_sacktag_one(struct sock *sk,
 		fack_count += pcount;
 
 		/* Lost marker hint past SACKed? Tweak RFC3517 cnt */
-		if (!tcp_is_fack(tp) && (tp->lost_skb_hint != NULL) &&
+		if (!tcp_is_fack(tp) && tp->lost_skb_hint &&
 		    before(start_seq, TCP_SKB_CB(tp->lost_skb_hint)->seq))
 			tp->lost_cnt_hint += pcount;
 
@@ -1535,7 +1535,7 @@ static struct sk_buff *tcp_sacktag_walk(struct sk_buff *skb, struct sock *sk,
 		if (!before(TCP_SKB_CB(skb)->seq, end_seq))
 			break;
 
-		if ((next_dup != NULL) &&
+		if (next_dup  &&
 		    before(TCP_SKB_CB(skb)->seq, next_dup->end_seq)) {
 			in_sack = tcp_match_skb_to_sack(sk, skb,
 							next_dup->start_seq,
@@ -1551,7 +1551,7 @@ static struct sk_buff *tcp_sacktag_walk(struct sk_buff *skb, struct sock *sk,
 		if (in_sack <= 0) {
 			tmp = tcp_shift_skb_data(sk, skb, state,
 						 start_seq, end_seq, dup_sack);
-			if (tmp != NULL) {
+			if (tmp) {
 				if (tmp != skb) {
 					skb = tmp;
 					continue;
@@ -1614,7 +1614,7 @@ static struct sk_buff *tcp_maybe_skipping_dsack(struct sk_buff *skb,
 						struct tcp_sacktag_state *state,
 						u32 skip_to_seq)
 {
-	if (next_dup == NULL)
+	if (!next_dup)
 		return skb;
 
 	if (before(next_dup->start_seq, skip_to_seq)) {
@@ -1783,7 +1783,7 @@ tcp_sacktag_write_queue(struct sock *sk, const struct sk_buff *ack_skb,
 			if (tcp_highest_sack_seq(tp) == cache->end_seq) {
 				/* ...but better entrypoint exists! */
 				skb = tcp_highest_sack(sk);
-				if (skb == NULL)
+				if (!skb)
 					break;
 				state.fack_count = tp->fackets_out;
 				cache++;
@@ -1798,7 +1798,7 @@ tcp_sacktag_write_queue(struct sock *sk, const struct sk_buff *ack_skb,
 
 		if (!before(start_seq, tcp_highest_sack_seq(tp))) {
 			skb = tcp_highest_sack(sk);
-			if (skb == NULL)
+			if (!skb)
 				break;
 			state.fack_count = tp->fackets_out;
 		}
@@ -3105,10 +3105,11 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 			if (!first_ackt.v64)
 				first_ackt = last_ackt;
 
-			if (!(sacked & TCPCB_SACKED_ACKED))
+			if (!(sacked & TCPCB_SACKED_ACKED)) {
 				reord = min(pkts_acked, reord);
-			if (!after(scb->end_seq, tp->high_seq))
-				flag |= FLAG_ORIG_SACK_ACKED;
+				if (!after(scb->end_seq, tp->high_seq))
+					flag |= FLAG_ORIG_SACK_ACKED;
+			}
 		}
 
 		if (sacked & TCPCB_SACKED_ACKED)
@@ -3602,6 +3603,23 @@ old_ack:
 	return 0;
 }
 
+static void tcp_parse_fastopen_option(int len, const unsigned char *cookie,
+				      bool syn, struct tcp_fastopen_cookie *foc,
+				      bool exp_opt)
+{
+	/* Valid only in SYN or SYN-ACK with an even length.  */
+	if (!foc || !syn || len < 0 || (len & 1))
+		return;
+
+	if (len >= TCP_FASTOPEN_COOKIE_MIN &&
+	    len <= TCP_FASTOPEN_COOKIE_MAX)
+		memcpy(foc->val, cookie, len);
+	else if (len != 0)
+		len = -1;
+	foc->len = len;
+	foc->exp = exp_opt;
+}
+
 /* Look for tcp options. Normally only called on SYN and SYNACK packets.
  * But, this can also be called on packets in the established flow when
  * the fast version below fails.
@@ -3691,21 +3709,22 @@ void tcp_parse_options(const struct sk_buff *skb,
 				 */
 				break;
 #endif
+			case TCPOPT_FASTOPEN:
+				tcp_parse_fastopen_option(
+					opsize - TCPOLEN_FASTOPEN_BASE,
+					ptr, th->syn, foc, false);
+				break;
+
 			case TCPOPT_EXP:
 				/* Fast Open option shares code 254 using a
-				 * 16 bits magic number. It's valid only in
-				 * SYN or SYN-ACK with an even size.
+				 * 16 bits magic number.
 				 */
-				if (opsize < TCPOLEN_EXP_FASTOPEN_BASE ||
-				    get_unaligned_be16(ptr) != TCPOPT_FASTOPEN_MAGIC ||
-				    foc == NULL || !th->syn || (opsize & 1))
-					break;
-				foc->len = opsize - TCPOLEN_EXP_FASTOPEN_BASE;
-				if (foc->len >= TCP_FASTOPEN_COOKIE_MIN &&
-				    foc->len <= TCP_FASTOPEN_COOKIE_MAX)
-					memcpy(foc->val, ptr + 2, foc->len);
-				else if (foc->len != 0)
-					foc->len = -1;
+				if (opsize >= TCPOLEN_EXP_FASTOPEN_BASE &&
+				    get_unaligned_be16(ptr) ==
+				    TCPOPT_FASTOPEN_MAGIC)
+					tcp_parse_fastopen_option(opsize -
+						TCPOLEN_EXP_FASTOPEN_BASE,
+						ptr + 2, th->syn, foc, true);
 				break;
 
 			}
@@ -4669,7 +4688,7 @@ static void tcp_collapse_ofo_queue(struct sock *sk)
 	struct sk_buff *head;
 	u32 start, end;
 
-	if (skb == NULL)
+	if (!skb)
 		return;
 
 	start = TCP_SKB_CB(skb)->seq;
@@ -5124,7 +5143,7 @@ void tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	if (unlikely(sk->sk_rx_dst == NULL))
+	if (unlikely(!sk->sk_rx_dst))
 		inet_csk(sk)->icsk_af_ops->sk_rx_dst_set(sk, skb);
 	/*
 	 *	Header prediction.
@@ -5321,7 +5340,7 @@ void tcp_finish_connect(struct sock *sk, struct sk_buff *skb)
 
 	tcp_set_state(sk, TCP_ESTABLISHED);
 
-	if (skb != NULL) {
+	if (skb) {
 		icsk->icsk_af_ops->sk_rx_dst_set(sk, skb);
 		security_inet_conn_established(sk, skb);
 	}
@@ -5359,8 +5378,8 @@ static bool tcp_rcv_fastopen_synack(struct sock *sk, struct sk_buff *synack,
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *data = tp->syn_data ? tcp_write_queue_head(sk) : NULL;
-	u16 mss = tp->rx_opt.mss_clamp;
-	bool syn_drop;
+	u16 mss = tp->rx_opt.mss_clamp, try_exp = 0;
+	bool syn_drop = false;
 
 	if (mss == tp->rx_opt.user_mss) {
 		struct tcp_options_received opt;
@@ -5372,16 +5391,25 @@ static bool tcp_rcv_fastopen_synack(struct sock *sk, struct sk_buff *synack,
 		mss = opt.mss_clamp;
 	}
 
-	if (!tp->syn_fastopen)  /* Ignore an unsolicited cookie */
+	if (!tp->syn_fastopen) {
+		/* Ignore an unsolicited cookie */
 		cookie->len = -1;
+	} else if (tp->total_retrans) {
+		/* SYN timed out and the SYN-ACK neither has a cookie nor
+		 * acknowledges data. Presumably the remote received only
+		 * the retransmitted (regular) SYNs: either the original
+		 * SYN-data or the corresponding SYN-ACK was dropped.
+		 */
+		syn_drop = (cookie->len < 0 && data);
+	} else if (cookie->len < 0 && !tp->syn_data) {
+		/* We requested a cookie but didn't get it. If we did not use
+		 * the (old) exp opt format then try so next time (try_exp=1).
+		 * Otherwise we go back to use the RFC7413 opt (try_exp=2).
+		 */
+		try_exp = tp->syn_fastopen_exp ? 2 : 1;
+	}
 
-	/* The SYN-ACK neither has cookie nor acknowledges the data. Presumably
-	 * the remote receives only the retransmitted (regular) SYNs: either
-	 * the original SYN-data or the corresponding SYN-ACK is lost.
-	 */
-	syn_drop = (cookie->len <= 0 && data && tp->total_retrans);
-
-	tcp_fastopen_cache_set(sk, mss, cookie, syn_drop);
+	tcp_fastopen_cache_set(sk, mss, cookie, syn_drop, try_exp);
 
 	if (data) { /* Retransmit unacked data in SYN */
 		tcp_for_write_queue_from(data, sk) {
@@ -5690,11 +5718,11 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 	}
 
 	req = tp->fastopen_rsk;
-	if (req != NULL) {
+	if (req) {
 		WARN_ON_ONCE(sk->sk_state != TCP_SYN_RECV &&
 		    sk->sk_state != TCP_FIN_WAIT1);
 
-		if (tcp_check_req(sk, skb, req, true) == NULL)
+		if (!tcp_check_req(sk, skb, req, true))
 			goto discard;
 	}
 
@@ -5780,7 +5808,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		 * ACK we have received, this would have acknowledged
 		 * our SYNACK so stop the SYNACK timer.
 		 */
-		if (req != NULL) {
+		if (req) {
 			/* Return RST if ack_seq is invalid.
 			 * Note that RFC793 only says to generate a
 			 * DUPACK for it but for TCP Fast Open it seems

@@ -141,13 +141,16 @@ static const struct file_operations dut_mode_fops = {
 
 /* ---- HCI requests ---- */
 
-static void hci_req_sync_complete(struct hci_dev *hdev, u8 result, u16 opcode)
+static void hci_req_sync_complete(struct hci_dev *hdev, u8 result, u16 opcode,
+				  struct sk_buff *skb)
 {
 	BT_DBG("%s result 0x%2.2x", hdev->name, result);
 
 	if (hdev->req_status == HCI_REQ_PEND) {
 		hdev->req_result = result;
 		hdev->req_status = HCI_REQ_DONE;
+		if (skb)
+			hdev->req_skb = skb_get(skb);
 		wake_up_interruptible(&hdev->req_wait_q);
 	}
 }
@@ -163,66 +166,12 @@ static void hci_req_cancel(struct hci_dev *hdev, int err)
 	}
 }
 
-static struct sk_buff *hci_get_cmd_complete(struct hci_dev *hdev, u16 opcode,
-					    u8 event)
-{
-	struct hci_ev_cmd_complete *ev;
-	struct hci_event_hdr *hdr;
-	struct sk_buff *skb;
-
-	hci_dev_lock(hdev);
-
-	skb = hdev->recv_evt;
-	hdev->recv_evt = NULL;
-
-	hci_dev_unlock(hdev);
-
-	if (!skb)
-		return ERR_PTR(-ENODATA);
-
-	if (skb->len < sizeof(*hdr)) {
-		BT_ERR("Too short HCI event");
-		goto failed;
-	}
-
-	hdr = (void *) skb->data;
-	skb_pull(skb, HCI_EVENT_HDR_SIZE);
-
-	if (event) {
-		if (hdr->evt != event)
-			goto failed;
-		return skb;
-	}
-
-	if (hdr->evt != HCI_EV_CMD_COMPLETE) {
-		BT_DBG("Last event is not cmd complete (0x%2.2x)", hdr->evt);
-		goto failed;
-	}
-
-	if (skb->len < sizeof(*ev)) {
-		BT_ERR("Too short cmd_complete event");
-		goto failed;
-	}
-
-	ev = (void *) skb->data;
-	skb_pull(skb, sizeof(*ev));
-
-	if (opcode == __le16_to_cpu(ev->opcode))
-		return skb;
-
-	BT_DBG("opcode doesn't match (0x%2.2x != 0x%2.2x)", opcode,
-	       __le16_to_cpu(ev->opcode));
-
-failed:
-	kfree_skb(skb);
-	return ERR_PTR(-ENODATA);
-}
-
 struct sk_buff *__hci_cmd_sync_ev(struct hci_dev *hdev, u16 opcode, u32 plen,
 				  const void *param, u8 event, u32 timeout)
 {
 	DECLARE_WAITQUEUE(wait, current);
 	struct hci_request req;
+	struct sk_buff *skb;
 	int err = 0;
 
 	BT_DBG("%s", hdev->name);
@@ -236,7 +185,7 @@ struct sk_buff *__hci_cmd_sync_ev(struct hci_dev *hdev, u16 opcode, u32 plen,
 	add_wait_queue(&hdev->req_wait_q, &wait);
 	set_current_state(TASK_INTERRUPTIBLE);
 
-	err = hci_req_run(&req, hci_req_sync_complete);
+	err = hci_req_run_skb(&req, hci_req_sync_complete);
 	if (err < 0) {
 		remove_wait_queue(&hdev->req_wait_q, &wait);
 		set_current_state(TASK_RUNNING);
@@ -265,13 +214,20 @@ struct sk_buff *__hci_cmd_sync_ev(struct hci_dev *hdev, u16 opcode, u32 plen,
 	}
 
 	hdev->req_status = hdev->req_result = 0;
+	skb = hdev->req_skb;
+	hdev->req_skb = NULL;
 
 	BT_DBG("%s end: err %d", hdev->name, err);
 
-	if (err < 0)
+	if (err < 0) {
+		kfree_skb(skb);
 		return ERR_PTR(err);
+	}
 
-	return hci_get_cmd_complete(hdev, opcode, event);
+	if (!skb)
+		return ERR_PTR(-ENODATA);
+
+	return skb;
 }
 EXPORT_SYMBOL(__hci_cmd_sync_ev);
 
@@ -303,7 +259,7 @@ static int __hci_req_sync(struct hci_dev *hdev,
 	add_wait_queue(&hdev->req_wait_q, &wait);
 	set_current_state(TASK_INTERRUPTIBLE);
 
-	err = hci_req_run(&req, hci_req_sync_complete);
+	err = hci_req_run_skb(&req, hci_req_sync_complete);
 	if (err < 0) {
 		hdev->req_status = 0;
 
@@ -1689,9 +1645,6 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 		kfree_skb(hdev->sent_cmd);
 		hdev->sent_cmd = NULL;
 	}
-
-	kfree_skb(hdev->recv_evt);
-	hdev->recv_evt = NULL;
 
 	/* After this point our queues are empty
 	 * and no tasks are scheduled. */
@@ -3563,11 +3516,6 @@ static void hci_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 	}
 }
 
-bool hci_req_pending(struct hci_dev *hdev)
-{
-	return (hdev->req_status == HCI_REQ_PEND);
-}
-
 /* Send HCI command */
 int hci_send_cmd(struct hci_dev *hdev, __u16 opcode, __u32 plen,
 		 const void *param)
@@ -3585,7 +3533,7 @@ int hci_send_cmd(struct hci_dev *hdev, __u16 opcode, __u32 plen,
 	/* Stand-alone HCI commands must be flagged as
 	 * single-command requests.
 	 */
-	bt_cb(skb)->req_start = 1;
+	bt_cb(skb)->req.start = true;
 
 	skb_queue_tail(&hdev->cmd_q, skb);
 	queue_work(hdev->workqueue, &hdev->cmd_work);
@@ -4263,7 +4211,7 @@ static bool hci_req_is_complete(struct hci_dev *hdev)
 	if (!skb)
 		return true;
 
-	return bt_cb(skb)->req_start;
+	return bt_cb(skb)->req.start;
 }
 
 static void hci_resend_last(struct hci_dev *hdev)
@@ -4288,9 +4236,10 @@ static void hci_resend_last(struct hci_dev *hdev)
 	queue_work(hdev->workqueue, &hdev->cmd_work);
 }
 
-void hci_req_cmd_complete(struct hci_dev *hdev, u16 opcode, u8 status)
+void hci_req_cmd_complete(struct hci_dev *hdev, u16 opcode, u8 status,
+			  hci_req_complete_t *req_complete,
+			  hci_req_complete_skb_t *req_complete_skb)
 {
-	hci_req_complete_t req_complete = NULL;
 	struct sk_buff *skb;
 	unsigned long flags;
 
@@ -4322,36 +4271,29 @@ void hci_req_cmd_complete(struct hci_dev *hdev, u16 opcode, u8 status)
 	 * callback would be found in hdev->sent_cmd instead of the
 	 * command queue (hdev->cmd_q).
 	 */
-	if (hdev->sent_cmd) {
-		req_complete = bt_cb(hdev->sent_cmd)->req_complete;
+	if (bt_cb(hdev->sent_cmd)->req.complete) {
+		*req_complete = bt_cb(hdev->sent_cmd)->req.complete;
+		return;
+	}
 
-		if (req_complete) {
-			/* We must set the complete callback to NULL to
-			 * avoid calling the callback more than once if
-			 * this function gets called again.
-			 */
-			bt_cb(hdev->sent_cmd)->req_complete = NULL;
-
-			goto call_complete;
-		}
+	if (bt_cb(hdev->sent_cmd)->req.complete_skb) {
+		*req_complete_skb = bt_cb(hdev->sent_cmd)->req.complete_skb;
+		return;
 	}
 
 	/* Remove all pending commands belonging to this request */
 	spin_lock_irqsave(&hdev->cmd_q.lock, flags);
 	while ((skb = __skb_dequeue(&hdev->cmd_q))) {
-		if (bt_cb(skb)->req_start) {
+		if (bt_cb(skb)->req.start) {
 			__skb_queue_head(&hdev->cmd_q, skb);
 			break;
 		}
 
-		req_complete = bt_cb(skb)->req_complete;
+		*req_complete = bt_cb(skb)->req.complete;
+		*req_complete_skb = bt_cb(skb)->req.complete_skb;
 		kfree_skb(skb);
 	}
 	spin_unlock_irqrestore(&hdev->cmd_q.lock, flags);
-
-call_complete:
-	if (req_complete)
-		req_complete(hdev, status, status ? opcode : HCI_OP_NOP);
 }
 
 static void hci_rx_work(struct work_struct *work)

@@ -795,7 +795,10 @@ typedef u16 (*select_queue_fallback_t)(struct net_device *dev,
  * netdev_tx_t (*ndo_start_xmit)(struct sk_buff *skb,
  *                               struct net_device *dev);
  *	Called when a packet needs to be transmitted.
- *	Must return NETDEV_TX_OK , NETDEV_TX_BUSY.
+ *	Returns NETDEV_TX_OK.  Can return NETDEV_TX_BUSY, but you should stop
+ *	the queue before that can happen; it's for obsolete devices and weird
+ *	corner cases, but the stack really does a non-trivial amount
+ *	of useless work if you return NETDEV_TX_BUSY.
  *        (can also return NETDEV_TX_LOCKED iff NETIF_F_LLTX)
  *	Required can not be NULL.
  *
@@ -1030,6 +1033,8 @@ typedef u16 (*select_queue_fallback_t)(struct net_device *dev,
  *			     int queue_index, u32 maxrate);
  *	Called when a user wants to set a max-rate limitation of specific
  *	TX queue.
+ * int (*ndo_get_iflink)(const struct net_device *dev);
+ *	Called to get the iflink value of this device.
  */
 struct net_device_ops {
 	int			(*ndo_init)(struct net_device *dev);
@@ -1191,6 +1196,7 @@ struct net_device_ops {
 	int			(*ndo_set_tx_maxrate)(struct net_device *dev,
 						      int queue_index,
 						      u32 maxrate);
+	int			(*ndo_get_iflink)(const struct net_device *dev);
 };
 
 /**
@@ -1322,7 +1328,7 @@ enum netdev_priv_flags {
  *	@mpls_features:	Mask of features inheritable by MPLS
  *
  *	@ifindex:	interface index
- *	@iflink:	unique device identifier
+ *	@group:		The group, that the device belongs to
  *
  *	@stats:		Statistics struct, which was left as a legacy, use
  *			rtnl_link_stats64 instead
@@ -1482,7 +1488,6 @@ enum netdev_priv_flags {
  *
  *	@qdisc_tx_busylock:	XXX: need comments on this one
  *
- *	@group:		The group, that the device belongs to
  *	@pm_qos_req:	Power Management QoS object
  *
  *	FIXME: cleanup struct net_device such that network protocol info
@@ -1535,7 +1540,7 @@ struct net_device {
 	netdev_features_t	mpls_features;
 
 	int			ifindex;
-	int			iflink;
+	int			group;
 
 	struct net_device_stats	stats;
 
@@ -1738,7 +1743,6 @@ struct net_device {
 #endif
 	struct phy_device *phydev;
 	struct lock_class_key *qdisc_tx_busylock;
-	int group;
 	struct pm_qos_request	pm_qos_req;
 };
 #define to_net_dev(d) container_of(d, struct net_device, dev)
@@ -2149,6 +2153,7 @@ void __dev_remove_pack(struct packet_type *pt);
 void dev_add_offload(struct packet_offload *po);
 void dev_remove_offload(struct packet_offload *po);
 
+int dev_get_iflink(const struct net_device *dev);
 struct net_device *__dev_get_by_flags(struct net *net, unsigned short flags,
 				      unsigned short mask);
 struct net_device *dev_get_by_name(struct net *net, const char *name);
@@ -2159,8 +2164,12 @@ int dev_open(struct net_device *dev);
 int dev_close(struct net_device *dev);
 int dev_close_many(struct list_head *head, bool unlink);
 void dev_disable_lro(struct net_device *dev);
-int dev_loopback_xmit(struct sk_buff *newskb);
-int dev_queue_xmit(struct sk_buff *skb);
+int dev_loopback_xmit(struct sock *sk, struct sk_buff *newskb);
+int dev_queue_xmit_sk(struct sock *sk, struct sk_buff *skb);
+static inline int dev_queue_xmit(struct sk_buff *skb)
+{
+	return dev_queue_xmit_sk(skb->sk, skb);
+}
 int dev_queue_xmit_accel(struct sk_buff *skb, void *accel_priv);
 int register_netdevice(struct net_device *dev);
 void unregister_netdevice_queue(struct net_device *dev, struct list_head *head);
@@ -2175,6 +2184,12 @@ void free_netdev(struct net_device *dev);
 void netdev_freemem(struct net_device *dev);
 void synchronize_net(void);
 int init_dummy_netdev(struct net_device *dev);
+
+DECLARE_PER_CPU(int, xmit_recursion);
+static inline int dev_recursion_level(void)
+{
+	return this_cpu_read(xmit_recursion);
+}
 
 struct net_device *dev_get_by_index(struct net *net, int ifindex);
 struct net_device *__dev_get_by_index(struct net *net, int ifindex);
@@ -2915,7 +2930,11 @@ static inline void dev_consume_skb_any(struct sk_buff *skb)
 
 int netif_rx(struct sk_buff *skb);
 int netif_rx_ni(struct sk_buff *skb);
-int netif_receive_skb(struct sk_buff *skb);
+int netif_receive_skb_sk(struct sock *sk, struct sk_buff *skb);
+static inline int netif_receive_skb(struct sk_buff *skb)
+{
+	return netif_receive_skb_sk(skb->sk, skb);
+}
 gro_result_t napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb);
 void napi_gro_flush(struct napi_struct *napi, bool flush_old);
 struct sk_buff *napi_get_frags(struct napi_struct *napi);

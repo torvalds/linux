@@ -1487,7 +1487,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		goto err;
 	}
 
-	if (i915_needs_cmd_parser(ring)) {
+	if (i915_needs_cmd_parser(ring) && args->batch_len) {
 		batch_obj = i915_gem_execbuffer_parse(ring,
 						      &shadow_exec_entry,
 						      eb,

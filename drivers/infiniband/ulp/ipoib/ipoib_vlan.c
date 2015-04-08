@@ -102,7 +102,6 @@ int __ipoib_vlan_add(struct ipoib_dev_priv *ppriv, struct ipoib_dev_priv *priv,
 	}
 
 	priv->child_type  = type;
-	priv->dev->iflink = ppriv->dev->ifindex;
 	list_add_tail(&priv->list, &ppriv->child_intfs);
 
 	return 0;

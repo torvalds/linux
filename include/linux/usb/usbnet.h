@@ -227,7 +227,7 @@ struct skb_data {	/* skb->cb is one of these */
 	struct urb		*urb;
 	struct usbnet		*dev;
 	enum skb_state		state;
-	size_t			length;
+	long			length;
 	unsigned long		packets;
 };
 
@@ -235,11 +235,13 @@ struct skb_data {	/* skb->cb is one of these */
  * tx_fixup method before returning an skb.
  */
 static inline void
-usbnet_set_skb_tx_stats(struct sk_buff *skb, unsigned long packets)
+usbnet_set_skb_tx_stats(struct sk_buff *skb,
+			unsigned long packets, long bytes_delta)
 {
 	struct skb_data *entry = (struct skb_data *) skb->cb;
 
 	entry->packets = packets;
+	entry->length = bytes_delta;
 }
 
 extern int usbnet_open(struct net_device *net);

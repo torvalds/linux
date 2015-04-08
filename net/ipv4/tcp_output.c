@@ -518,17 +518,26 @@ static void tcp_options_write(__be32 *ptr, struct tcp_sock *tp,
 
 	if (unlikely(OPTION_FAST_OPEN_COOKIE & options)) {
 		struct tcp_fastopen_cookie *foc = opts->fastopen_cookie;
+		u8 *p = (u8 *)ptr;
+		u32 len; /* Fast Open option length */
 
-		*ptr++ = htonl((TCPOPT_EXP << 24) |
-			       ((TCPOLEN_EXP_FASTOPEN_BASE + foc->len) << 16) |
-			       TCPOPT_FASTOPEN_MAGIC);
-
-		memcpy(ptr, foc->val, foc->len);
-		if ((foc->len & 3) == 2) {
-			u8 *align = ((u8 *)ptr) + foc->len;
-			align[0] = align[1] = TCPOPT_NOP;
+		if (foc->exp) {
+			len = TCPOLEN_EXP_FASTOPEN_BASE + foc->len;
+			*ptr = htonl((TCPOPT_EXP << 24) | (len << 16) |
+				     TCPOPT_FASTOPEN_MAGIC);
+			p += TCPOLEN_EXP_FASTOPEN_BASE;
+		} else {
+			len = TCPOLEN_FASTOPEN_BASE + foc->len;
+			*p++ = TCPOPT_FASTOPEN;
+			*p++ = len;
 		}
-		ptr += (foc->len + 3) >> 2;
+
+		memcpy(p, foc->val, foc->len);
+		if ((len & 3) == 2) {
+			p[foc->len] = TCPOPT_NOP;
+			p[foc->len + 1] = TCPOPT_NOP;
+		}
+		ptr += (len + 3) >> 2;
 	}
 }
 
@@ -565,7 +574,7 @@ static unsigned int tcp_syn_options(struct sock *sk, struct sk_buff *skb,
 	opts->mss = tcp_advertise_mss(sk);
 	remaining -= TCPOLEN_MSS_ALIGNED;
 
-	if (likely(sysctl_tcp_timestamps && *md5 == NULL)) {
+	if (likely(sysctl_tcp_timestamps && !*md5)) {
 		opts->options |= OPTION_TS;
 		opts->tsval = tcp_skb_timestamp(skb) + tp->tsoffset;
 		opts->tsecr = tp->rx_opt.ts_recent;
@@ -583,13 +592,17 @@ static unsigned int tcp_syn_options(struct sock *sk, struct sk_buff *skb,
 	}
 
 	if (fastopen && fastopen->cookie.len >= 0) {
-		u32 need = TCPOLEN_EXP_FASTOPEN_BASE + fastopen->cookie.len;
+		u32 need = fastopen->cookie.len;
+
+		need += fastopen->cookie.exp ? TCPOLEN_EXP_FASTOPEN_BASE :
+					       TCPOLEN_FASTOPEN_BASE;
 		need = (need + 3) & ~3U;  /* Align to 32 bits */
 		if (remaining >= need) {
 			opts->options |= OPTION_FAST_OPEN_COOKIE;
 			opts->fastopen_cookie = &fastopen->cookie;
 			remaining -= need;
 			tp->syn_fastopen = 1;
+			tp->syn_fastopen_exp = fastopen->cookie.exp ? 1 : 0;
 		}
 	}
 
@@ -642,7 +655,10 @@ static unsigned int tcp_synack_options(struct sock *sk,
 			remaining -= TCPOLEN_SACKPERM_ALIGNED;
 	}
 	if (foc != NULL && foc->len >= 0) {
-		u32 need = TCPOLEN_EXP_FASTOPEN_BASE + foc->len;
+		u32 need = foc->len;
+
+		need += foc->exp ? TCPOLEN_EXP_FASTOPEN_BASE :
+				   TCPOLEN_FASTOPEN_BASE;
 		need = (need + 3) & ~3U;  /* Align to 32 bits */
 		if (remaining >= need) {
 			opts->options |= OPTION_FAST_OPEN_COOKIE;
@@ -1148,7 +1164,7 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len,
 
 	/* Get a new skb... force flag on. */
 	buff = sk_stream_alloc_skb(sk, nsize, gfp);
-	if (buff == NULL)
+	if (!buff)
 		return -ENOMEM; /* We'll just try again later. */
 
 	sk->sk_wmem_queued += buff->truesize;
@@ -1707,7 +1723,7 @@ static int tso_fragment(struct sock *sk, struct sk_buff *skb, unsigned int len,
 		return tcp_fragment(sk, skb, len, mss_now, gfp);
 
 	buff = sk_stream_alloc_skb(sk, 0, gfp);
-	if (unlikely(buff == NULL))
+	if (unlikely(!buff))
 		return -ENOMEM;
 
 	sk->sk_wmem_queued += buff->truesize;
@@ -1925,7 +1941,8 @@ static int tcp_mtu_probe(struct sock *sk)
 	}
 
 	/* We're allowed to probe.  Build it now. */
-	if ((nskb = sk_stream_alloc_skb(sk, probe_size, GFP_ATOMIC)) == NULL)
+	nskb = sk_stream_alloc_skb(sk, probe_size, GFP_ATOMIC);
+	if (!nskb)
 		return -1;
 	sk->sk_wmem_queued += nskb->truesize;
 	sk_mem_charge(sk, nskb->truesize);
@@ -2223,7 +2240,7 @@ void tcp_send_loss_probe(struct sock *sk)
 	int mss = tcp_current_mss(sk);
 	int err = -1;
 
-	if (tcp_send_head(sk) != NULL) {
+	if (tcp_send_head(sk)) {
 		err = tcp_write_xmit(sk, mss, TCP_NAGLE_OFF, 2, GFP_ATOMIC);
 		goto rearm_timer;
 	}
@@ -2733,7 +2750,7 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 		if (skb == tcp_send_head(sk))
 			break;
 		/* we could do better than to assign each time */
-		if (hole == NULL)
+		if (!hole)
 			tp->retransmit_skb_hint = skb;
 
 		/* Assume this retransmit will generate
@@ -2757,7 +2774,7 @@ begin_fwd:
 			if (!tcp_can_forward_retransmit(sk))
 				break;
 			/* Backtrack if necessary to non-L'ed skb */
-			if (hole != NULL) {
+			if (hole) {
 				skb = hole;
 				hole = NULL;
 			}
@@ -2765,7 +2782,7 @@ begin_fwd:
 			goto begin_fwd;
 
 		} else if (!(sacked & TCPCB_LOST)) {
-			if (hole == NULL && !(sacked & (TCPCB_SACKED_RETRANS|TCPCB_SACKED_ACKED)))
+			if (!hole && !(sacked & (TCPCB_SACKED_RETRANS|TCPCB_SACKED_ACKED)))
 				hole = skb;
 			continue;
 
@@ -2810,7 +2827,7 @@ void tcp_send_fin(struct sock *sk)
 	 */
 	mss_now = tcp_current_mss(sk);
 
-	if (tcp_send_head(sk) != NULL) {
+	if (tcp_send_head(sk)) {
 		TCP_SKB_CB(skb)->tcp_flags |= TCPHDR_FIN;
 		TCP_SKB_CB(skb)->end_seq++;
 		tp->write_seq++;
@@ -2868,14 +2885,14 @@ int tcp_send_synack(struct sock *sk)
 	struct sk_buff *skb;
 
 	skb = tcp_write_queue_head(sk);
-	if (skb == NULL || !(TCP_SKB_CB(skb)->tcp_flags & TCPHDR_SYN)) {
+	if (!skb || !(TCP_SKB_CB(skb)->tcp_flags & TCPHDR_SYN)) {
 		pr_debug("%s: wrong queue state\n", __func__);
 		return -EFAULT;
 	}
 	if (!(TCP_SKB_CB(skb)->tcp_flags & TCPHDR_ACK)) {
 		if (skb_cloned(skb)) {
 			struct sk_buff *nskb = skb_copy(skb, GFP_ATOMIC);
-			if (nskb == NULL)
+			if (!nskb)
 				return -ENOMEM;
 			tcp_unlink_write_queue(skb, sk);
 			__skb_header_release(nskb);
@@ -3014,7 +3031,7 @@ static void tcp_connect_init(struct sock *sk)
 		(sysctl_tcp_timestamps ? TCPOLEN_TSTAMP_ALIGNED : 0);
 
 #ifdef CONFIG_TCP_MD5SIG
-	if (tp->af_specific->md5_lookup(sk, sk) != NULL)
+	if (tp->af_specific->md5_lookup(sk, sk))
 		tp->tcp_header_len += TCPOLEN_MD5SIG_ALIGNED;
 #endif
 
@@ -3300,7 +3317,7 @@ void tcp_send_ack(struct sock *sk)
 	 * sock.
 	 */
 	buff = alloc_skb(MAX_TCP_HEADER, sk_gfp_atomic(sk, GFP_ATOMIC));
-	if (buff == NULL) {
+	if (!buff) {
 		inet_csk_schedule_ack(sk);
 		inet_csk(sk)->icsk_ack.ato = TCP_ATO_MIN;
 		inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK,
@@ -3344,7 +3361,7 @@ static int tcp_xmit_probe_skb(struct sock *sk, int urgent)
 
 	/* We don't queue it, tcp_transmit_skb() sets ownership. */
 	skb = alloc_skb(MAX_TCP_HEADER, sk_gfp_atomic(sk, GFP_ATOMIC));
-	if (skb == NULL)
+	if (!skb)
 		return -1;
 
 	/* Reserve space for headers and set control bits. */
@@ -3375,8 +3392,8 @@ int tcp_write_wakeup(struct sock *sk)
 	if (sk->sk_state == TCP_CLOSE)
 		return -1;
 
-	if ((skb = tcp_send_head(sk)) != NULL &&
-	    before(TCP_SKB_CB(skb)->seq, tcp_wnd_end(tp))) {
+	skb = tcp_send_head(sk);
+	if (skb && before(TCP_SKB_CB(skb)->seq, tcp_wnd_end(tp))) {
 		int err;
 		unsigned int mss = tcp_current_mss(sk);
 		unsigned int seg_size = tcp_wnd_end(tp) - TCP_SKB_CB(skb)->seq;

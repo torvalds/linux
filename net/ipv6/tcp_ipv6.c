@@ -1348,6 +1348,15 @@ static void tcp_v6_fill_cb(struct sk_buff *skb, const struct ipv6hdr *hdr,
 	TCP_SKB_CB(skb)->sacked = 0;
 }
 
+static void tcp_v6_restore_cb(struct sk_buff *skb)
+{
+	/* We need to move header back to the beginning if xfrm6_policy_check()
+	 * and tcp_v6_fill_cb() are going to be called again.
+	 */
+	memmove(IP6CB(skb), &TCP_SKB_CB(skb)->header.h6,
+		sizeof(struct inet6_skb_parm));
+}
+
 static int tcp_v6_rcv(struct sk_buff *skb)
 {
 	const struct tcphdr *th;
@@ -1480,6 +1489,7 @@ do_time_wait:
 			inet_twsk_deschedule(tw, &tcp_death_row);
 			inet_twsk_put(tw);
 			sk = sk2;
+			tcp_v6_restore_cb(skb);
 			goto process;
 		}
 		/* Fall through to ACK */
@@ -1488,6 +1498,7 @@ do_time_wait:
 		tcp_v6_timewait_ack(sk, skb);
 		break;
 	case TCP_TW_RST:
+		tcp_v6_restore_cb(skb);
 		goto no_tcp_socket;
 	case TCP_TW_SUCCESS:
 		;
@@ -1522,7 +1533,7 @@ static void tcp_v6_early_demux(struct sk_buff *skb)
 		skb->sk = sk;
 		skb->destructor = sock_edemux;
 		if (sk_fullsock(sk)) {
-			struct dst_entry *dst = sk->sk_rx_dst;
+			struct dst_entry *dst = READ_ONCE(sk->sk_rx_dst);
 
 			if (dst)
 				dst = dst_check(dst, inet6_sk(sk)->rx_dst_cookie);

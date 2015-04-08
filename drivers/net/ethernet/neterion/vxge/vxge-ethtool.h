@@ -19,25 +19,6 @@
 /* Ethtool related variables and Macros. */
 static int vxge_ethtool_get_sset_count(struct net_device *dev, int sset);
 
-static char ethtool_driver_stats_keys[][ETH_GSTRING_LEN] = {
-	{"\n DRIVER STATISTICS"},
-	{"vpaths_opened"},
-	{"vpath_open_fail_cnt"},
-	{"link_up_cnt"},
-	{"link_down_cnt"},
-	{"tx_frms"},
-	{"tx_errors"},
-	{"tx_bytes"},
-	{"txd_not_free"},
-	{"txd_out_of_desc"},
-	{"rx_frms"},
-	{"rx_errors"},
-	{"rx_bytes"},
-	{"rx_mcast"},
-	{"pci_map_fail_cnt"},
-	{"skb_alloc_fail_cnt"}
-};
-
 #define VXGE_TITLE_LEN			5
 #define VXGE_HW_VPATH_STATS_LEN 	27
 #define VXGE_HW_AGGR_STATS_LEN  	13

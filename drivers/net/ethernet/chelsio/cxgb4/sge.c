@@ -2239,7 +2239,7 @@ static void sge_rx_timer_cb(unsigned long data)
 	struct adapter *adap = (struct adapter *)data;
 	struct sge *s = &adap->sge;
 
-	for (i = 0; i < ARRAY_SIZE(s->starving_fl); i++)
+	for (i = 0; i < BITS_TO_LONGS(s->egr_sz); i++)
 		for (m = s->starving_fl[i]; m; m &= m - 1) {
 			struct sge_eth_rxq *rxq;
 			unsigned int id = __ffs(m) + i * BITS_PER_LONG;
@@ -2327,7 +2327,7 @@ static void sge_tx_timer_cb(unsigned long data)
 	struct adapter *adap = (struct adapter *)data;
 	struct sge *s = &adap->sge;
 
-	for (i = 0; i < ARRAY_SIZE(s->txq_maperr); i++)
+	for (i = 0; i < BITS_TO_LONGS(s->egr_sz); i++)
 		for (m = s->txq_maperr[i]; m; m &= m - 1) {
 			unsigned long id = __ffs(m) + i * BITS_PER_LONG;
 			struct sge_ofld_txq *txq = s->egr_map[id];
@@ -2809,7 +2809,8 @@ void t4_free_sge_resources(struct adapter *adap)
 		free_rspq_fl(adap, &adap->sge.intrq, NULL);
 
 	/* clear the reverse egress queue map */
-	memset(adap->sge.egr_map, 0, sizeof(adap->sge.egr_map));
+	memset(adap->sge.egr_map, 0,
+	       adap->sge.egr_sz * sizeof(*adap->sge.egr_map));
 }
 
 void t4_sge_start(struct adapter *adap)

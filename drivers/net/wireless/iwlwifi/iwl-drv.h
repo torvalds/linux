@@ -68,7 +68,7 @@
 
 /* for all modules */
 #define DRV_NAME        "iwlwifi"
-#define DRV_COPYRIGHT	"Copyright(c) 2003- 2014 Intel Corporation"
+#define DRV_COPYRIGHT	"Copyright(c) 2003- 2015 Intel Corporation"
 #define DRV_AUTHOR     "<ilw@linux.intel.com>"
 
 /* radio config bits (actual values from NVM definition) */

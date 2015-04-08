@@ -660,6 +660,27 @@ __setup("netdev=", netdev_boot_setup);
 *******************************************************************************/
 
 /**
+ *	dev_get_iflink	- get 'iflink' value of a interface
+ *	@dev: targeted interface
+ *
+ *	Indicates the ifindex the interface is linked to.
+ *	Physical interfaces have the same 'ifindex' and 'iflink' values.
+ */
+
+int dev_get_iflink(const struct net_device *dev)
+{
+	if (dev->netdev_ops && dev->netdev_ops->ndo_get_iflink)
+		return dev->netdev_ops->ndo_get_iflink(dev);
+
+	/* If dev->rtnl_link_ops is set, it's a virtual interface. */
+	if (dev->rtnl_link_ops)
+		return 0;
+
+	return dev->ifindex;
+}
+EXPORT_SYMBOL(dev_get_iflink);
+
+/**
  *	__dev_get_by_name	- find a device by its name
  *	@net: the applicable net namespace
  *	@name: name to find
@@ -2849,14 +2870,16 @@ static void skb_update_prio(struct sk_buff *skb)
 #define skb_update_prio(skb)
 #endif
 
-static DEFINE_PER_CPU(int, xmit_recursion);
+DEFINE_PER_CPU(int, xmit_recursion);
+EXPORT_SYMBOL(xmit_recursion);
+
 #define RECURSION_LIMIT 10
 
 /**
  *	dev_loopback_xmit - loop back @skb
  *	@skb: buffer to transmit
  */
-int dev_loopback_xmit(struct sk_buff *skb)
+int dev_loopback_xmit(struct sock *sk, struct sk_buff *skb)
 {
 	skb_reset_mac_header(skb);
 	__skb_pull(skb, skb_network_offset(skb));
@@ -2994,11 +3017,11 @@ out:
 	return rc;
 }
 
-int dev_queue_xmit(struct sk_buff *skb)
+int dev_queue_xmit_sk(struct sock *sk, struct sk_buff *skb)
 {
 	return __dev_queue_xmit(skb, NULL);
 }
-EXPORT_SYMBOL(dev_queue_xmit);
+EXPORT_SYMBOL(dev_queue_xmit_sk);
 
 int dev_queue_xmit_accel(struct sk_buff *skb, void *accel_priv)
 {
@@ -3830,13 +3853,13 @@ static int netif_receive_skb_internal(struct sk_buff *skb)
  *	NET_RX_SUCCESS: no congestion
  *	NET_RX_DROP: packet was dropped
  */
-int netif_receive_skb(struct sk_buff *skb)
+int netif_receive_skb_sk(struct sock *sk, struct sk_buff *skb)
 {
 	trace_netif_receive_skb_entry(skb);
 
 	return netif_receive_skb_internal(skb);
 }
-EXPORT_SYMBOL(netif_receive_skb);
+EXPORT_SYMBOL(netif_receive_skb_sk);
 
 /* Network device is going away, flush any packets still pending
  * Called with irqs disabled.
@@ -6314,8 +6337,6 @@ int register_netdevice(struct net_device *dev)
 	spin_lock_init(&dev->addr_list_lock);
 	netdev_set_addr_lockdep_class(dev);
 
-	dev->iflink = -1;
-
 	ret = dev_get_valid_name(net, dev, dev->name);
 	if (ret < 0)
 		goto out;
@@ -6344,9 +6365,6 @@ int register_netdevice(struct net_device *dev)
 		dev->ifindex = dev_new_index(net);
 	else if (__dev_get_by_index(net, dev->ifindex))
 		goto err_uninit;
-
-	if (dev->iflink == -1)
-		dev->iflink = dev->ifindex;
 
 	/* Transfer changeable features to wanted_features and enable
 	 * software offloads (GSO and GRO).
@@ -7060,12 +7078,8 @@ int dev_change_net_namespace(struct net_device *dev, struct net *net, const char
 	dev_net_set(dev, net);
 
 	/* If there is an ifindex conflict assign a new one */
-	if (__dev_get_by_index(net, dev->ifindex)) {
-		int iflink = (dev->iflink == dev->ifindex);
+	if (__dev_get_by_index(net, dev->ifindex))
 		dev->ifindex = dev_new_index(net);
-		if (iflink)
-			dev->iflink = dev->ifindex;
-	}
 
 	/* Send a netdev-add uevent to the new namespace */
 	kobject_uevent(&dev->dev.kobj, KOBJ_ADD);

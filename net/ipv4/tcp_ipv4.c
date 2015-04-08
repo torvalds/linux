@@ -122,7 +122,7 @@ int tcp_twsk_unique(struct sock *sk, struct sock *sktw, void *twp)
 	   and use initial timestamp retrieved from peer table.
 	 */
 	if (tcptw->tw_ts_recent_stamp &&
-	    (twp == NULL || (sysctl_tcp_tw_reuse &&
+	    (!twp || (sysctl_tcp_tw_reuse &&
 			     get_seconds() - tcptw->tw_ts_recent_stamp > 1))) {
 		tp->write_seq = tcptw->tw_snd_nxt + 65535 + 2;
 		if (tp->write_seq == 0)
@@ -494,7 +494,7 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 		/* Only in fast or simultaneous open. If a fast open socket is
 		 * is already accepted it is treated as a connected one below.
 		 */
-		if (fastopen && fastopen->sk == NULL)
+		if (fastopen && !fastopen->sk)
 			break;
 
 		if (!sock_owned_by_user(sk)) {
@@ -1305,7 +1305,7 @@ struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	/* Copy over the MD5 key from the original socket */
 	key = tcp_md5_do_lookup(sk, (union tcp_md5_addr *)&newinet->inet_daddr,
 				AF_INET);
-	if (key != NULL) {
+	if (key) {
 		/*
 		 * We're using one, so create a matching key
 		 * on the newsk structure. If we fail to get
@@ -1390,7 +1390,7 @@ int tcp_v4_do_rcv(struct sock *sk, struct sk_buff *skb)
 		sk_mark_napi_id(sk, skb);
 		if (dst) {
 			if (inet_sk(sk)->rx_dst_ifindex != skb->skb_iif ||
-			    dst->ops->check(dst, 0) == NULL) {
+			    !dst->ops->check(dst, 0)) {
 				dst_release(dst);
 				sk->sk_rx_dst = NULL;
 			}
@@ -1469,7 +1469,7 @@ void tcp_v4_early_demux(struct sk_buff *skb)
 		skb->sk = sk;
 		skb->destructor = sock_edemux;
 		if (sk_fullsock(sk)) {
-			struct dst_entry *dst = sk->sk_rx_dst;
+			struct dst_entry *dst = READ_ONCE(sk->sk_rx_dst);
 
 			if (dst)
 				dst = dst_check(dst, 0);
@@ -1797,7 +1797,7 @@ void tcp_v4_destroy_sock(struct sock *sk)
 	if (inet_csk(sk)->icsk_bind_hash)
 		inet_put_port(sk);
 
-	BUG_ON(tp->fastopen_rsk != NULL);
+	BUG_ON(tp->fastopen_rsk);
 
 	/* If socket is aborted during connect operation */
 	tcp_free_fastopen_req(tp);

@@ -717,6 +717,9 @@ mwifiex_cfg80211_init_p2p_go(struct mwifiex_private *priv)
 
 static int mwifiex_deinit_priv_params(struct mwifiex_private *priv)
 {
+	struct mwifiex_adapter *adapter = priv->adapter;
+	unsigned long flags;
+
 	priv->mgmt_frame_mask = 0;
 	if (mwifiex_send_cmd(priv, HostCmd_CMD_MGMT_FRAME_REG,
 			     HostCmd_ACT_GEN_SET, 0,
@@ -727,6 +730,25 @@ static int mwifiex_deinit_priv_params(struct mwifiex_private *priv)
 	}
 
 	mwifiex_deauthenticate(priv, NULL);
+
+	spin_lock_irqsave(&adapter->main_proc_lock, flags);
+	adapter->main_locked = true;
+	if (adapter->mwifiex_processing) {
+		spin_unlock_irqrestore(&adapter->main_proc_lock, flags);
+		flush_workqueue(adapter->workqueue);
+	} else {
+		spin_unlock_irqrestore(&adapter->main_proc_lock, flags);
+	}
+
+	spin_lock_irqsave(&adapter->rx_proc_lock, flags);
+	adapter->rx_locked = true;
+	if (adapter->rx_processing) {
+		spin_unlock_irqrestore(&adapter->rx_proc_lock, flags);
+		flush_workqueue(adapter->rx_workqueue);
+	} else {
+	spin_unlock_irqrestore(&adapter->rx_proc_lock, flags);
+	}
+
 	mwifiex_free_priv(priv);
 	priv->wdev.iftype = NL80211_IFTYPE_UNSPECIFIED;
 	priv->bss_mode = NL80211_IFTYPE_UNSPECIFIED;
@@ -740,6 +762,9 @@ mwifiex_init_new_priv_params(struct mwifiex_private *priv,
 			     struct net_device *dev,
 			     enum nl80211_iftype type)
 {
+	struct mwifiex_adapter *adapter = priv->adapter;
+	unsigned long flags;
+
 	mwifiex_init_priv(priv);
 
 	priv->bss_mode = type;
@@ -769,6 +794,14 @@ mwifiex_init_new_priv_params(struct mwifiex_private *priv,
 			dev->name, type);
 		return -EOPNOTSUPP;
 	}
+
+	spin_lock_irqsave(&adapter->main_proc_lock, flags);
+	adapter->main_locked = false;
+	spin_unlock_irqrestore(&adapter->main_proc_lock, flags);
+
+	spin_lock_irqsave(&adapter->rx_proc_lock, flags);
+	adapter->rx_locked = false;
+	spin_unlock_irqrestore(&adapter->rx_proc_lock, flags);
 
 	return 0;
 }
@@ -2733,24 +2766,71 @@ mwifiex_is_pattern_supported(struct cfg80211_pkt_pattern *pat, s8 *byte_seq,
 }
 
 #ifdef CONFIG_PM
-static int mwifiex_set_mef_filter(struct mwifiex_private *priv,
-				  struct cfg80211_wowlan *wowlan)
+static void mwifiex_set_auto_arp_mef_entry(struct mwifiex_private *priv,
+					   struct mwifiex_mef_entry *mef_entry)
+{
+	int i, filt_num = 0, num_ipv4 = 0;
+	struct in_device *in_dev;
+	struct in_ifaddr *ifa;
+	__be32 ips[MWIFIEX_MAX_SUPPORTED_IPADDR];
+	struct mwifiex_adapter *adapter = priv->adapter;
+
+	mef_entry->mode = MEF_MODE_HOST_SLEEP;
+	mef_entry->action = MEF_ACTION_AUTO_ARP;
+
+	/* Enable ARP offload feature */
+	memset(ips, 0, sizeof(ips));
+	for (i = 0; i < MWIFIEX_MAX_BSS_NUM; i++) {
+		if (adapter->priv[i]->netdev) {
+			in_dev = __in_dev_get_rtnl(adapter->priv[i]->netdev);
+			if (!in_dev)
+				continue;
+			ifa = in_dev->ifa_list;
+			if (!ifa || !ifa->ifa_local)
+				continue;
+			ips[i] = ifa->ifa_local;
+			num_ipv4++;
+		}
+	}
+
+	for (i = 0; i < num_ipv4; i++) {
+		if (!ips[i])
+			continue;
+		mef_entry->filter[filt_num].repeat = 1;
+		memcpy(mef_entry->filter[filt_num].byte_seq,
+		       (u8 *)&ips[i], sizeof(ips[i]));
+		mef_entry->filter[filt_num].
+			byte_seq[MWIFIEX_MEF_MAX_BYTESEQ] =
+			sizeof(ips[i]);
+		mef_entry->filter[filt_num].offset = 46;
+		mef_entry->filter[filt_num].filt_type = TYPE_EQ;
+		if (filt_num) {
+			mef_entry->filter[filt_num].filt_action =
+				TYPE_OR;
+		}
+		filt_num++;
+	}
+
+	mef_entry->filter[filt_num].repeat = 1;
+	mef_entry->filter[filt_num].byte_seq[0] = 0x08;
+	mef_entry->filter[filt_num].byte_seq[1] = 0x06;
+	mef_entry->filter[filt_num].byte_seq[MWIFIEX_MEF_MAX_BYTESEQ] = 2;
+	mef_entry->filter[filt_num].offset = 20;
+	mef_entry->filter[filt_num].filt_type = TYPE_EQ;
+	mef_entry->filter[filt_num].filt_action = TYPE_AND;
+}
+
+static int mwifiex_set_wowlan_mef_entry(struct mwifiex_private *priv,
+					struct mwifiex_ds_mef_cfg *mef_cfg,
+					struct mwifiex_mef_entry *mef_entry,
+					struct cfg80211_wowlan *wowlan)
 {
 	int i, filt_num = 0, ret = 0;
 	bool first_pat = true;
 	u8 byte_seq[MWIFIEX_MEF_MAX_BYTESEQ + 1];
 	const u8 ipv4_mc_mac[] = {0x33, 0x33};
 	const u8 ipv6_mc_mac[] = {0x01, 0x00, 0x5e};
-	struct mwifiex_ds_mef_cfg mef_cfg;
-	struct mwifiex_mef_entry *mef_entry;
 
-	mef_entry = kzalloc(sizeof(*mef_entry), GFP_KERNEL);
-	if (!mef_entry)
-		return -ENOMEM;
-
-	memset(&mef_cfg, 0, sizeof(mef_cfg));
-	mef_cfg.num_entries = 1;
-	mef_cfg.mef_entry = mef_entry;
 	mef_entry->mode = MEF_MODE_HOST_SLEEP;
 	mef_entry->action = MEF_ACTION_ALLOW_AND_WAKEUP_HOST;
 
@@ -2767,20 +2847,19 @@ static int mwifiex_set_mef_filter(struct mwifiex_private *priv,
 		if (!wowlan->patterns[i].pkt_offset) {
 			if (!(byte_seq[0] & 0x01) &&
 			    (byte_seq[MWIFIEX_MEF_MAX_BYTESEQ] == 1)) {
-				mef_cfg.criteria |= MWIFIEX_CRITERIA_UNICAST;
+				mef_cfg->criteria |= MWIFIEX_CRITERIA_UNICAST;
 				continue;
 			} else if (is_broadcast_ether_addr(byte_seq)) {
-				mef_cfg.criteria |= MWIFIEX_CRITERIA_BROADCAST;
+				mef_cfg->criteria |= MWIFIEX_CRITERIA_BROADCAST;
 				continue;
 			} else if ((!memcmp(byte_seq, ipv4_mc_mac, 2) &&
 				    (byte_seq[MWIFIEX_MEF_MAX_BYTESEQ] == 2)) ||
 				   (!memcmp(byte_seq, ipv6_mc_mac, 3) &&
 				    (byte_seq[MWIFIEX_MEF_MAX_BYTESEQ] == 3))) {
-				mef_cfg.criteria |= MWIFIEX_CRITERIA_MULTICAST;
+				mef_cfg->criteria |= MWIFIEX_CRITERIA_MULTICAST;
 				continue;
 			}
 		}
-
 		mef_entry->filter[filt_num].repeat = 1;
 		mef_entry->filter[filt_num].offset =
 			wowlan->patterns[i].pkt_offset;
@@ -2797,7 +2876,7 @@ static int mwifiex_set_mef_filter(struct mwifiex_private *priv,
 	}
 
 	if (wowlan->magic_pkt) {
-		mef_cfg.criteria |= MWIFIEX_CRITERIA_UNICAST;
+		mef_cfg->criteria |= MWIFIEX_CRITERIA_UNICAST;
 		mef_entry->filter[filt_num].repeat = 16;
 		memcpy(mef_entry->filter[filt_num].byte_seq, priv->curr_addr,
 				ETH_ALEN);
@@ -2818,6 +2897,34 @@ static int mwifiex_set_mef_filter(struct mwifiex_private *priv,
 		mef_entry->filter[filt_num].filt_type = TYPE_EQ;
 		mef_entry->filter[filt_num].filt_action = TYPE_OR;
 	}
+	return ret;
+}
+
+static int mwifiex_set_mef_filter(struct mwifiex_private *priv,
+				  struct cfg80211_wowlan *wowlan)
+{
+	int ret = 0, num_entries = 1;
+	struct mwifiex_ds_mef_cfg mef_cfg;
+	struct mwifiex_mef_entry *mef_entry;
+
+	if (wowlan->n_patterns || wowlan->magic_pkt)
+		num_entries++;
+
+	mef_entry = kcalloc(num_entries, sizeof(*mef_entry), GFP_KERNEL);
+	if (!mef_entry)
+		return -ENOMEM;
+
+	memset(&mef_cfg, 0, sizeof(mef_cfg));
+	mef_cfg.criteria |= MWIFIEX_CRITERIA_BROADCAST |
+		MWIFIEX_CRITERIA_UNICAST;
+	mef_cfg.num_entries = num_entries;
+	mef_cfg.mef_entry = mef_entry;
+
+	mwifiex_set_auto_arp_mef_entry(priv, &mef_entry[0]);
+
+	if (wowlan->n_patterns || wowlan->magic_pkt)
+		ret = mwifiex_set_wowlan_mef_entry(priv, &mef_cfg,
+						   &mef_entry[1], wowlan);
 
 	if (!mef_cfg.criteria)
 		mef_cfg.criteria = MWIFIEX_CRITERIA_BROADCAST |
@@ -2825,8 +2932,8 @@ static int mwifiex_set_mef_filter(struct mwifiex_private *priv,
 			MWIFIEX_CRITERIA_MULTICAST;
 
 	ret = mwifiex_send_cmd(priv, HostCmd_CMD_MEF_CFG,
-			HostCmd_ACT_GEN_SET, 0, &mef_cfg, true);
-
+			HostCmd_ACT_GEN_SET, 0,
+			&mef_cfg, true);
 	kfree(mef_entry);
 	return ret;
 }
@@ -2836,14 +2943,22 @@ static int mwifiex_cfg80211_suspend(struct wiphy *wiphy,
 {
 	struct mwifiex_adapter *adapter = mwifiex_cfg80211_get_adapter(wiphy);
 	struct mwifiex_ds_hs_cfg hs_cfg;
-	int ret = 0;
-	struct mwifiex_private *priv =
-			mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA);
+	int i, ret = 0;
+	struct mwifiex_private *priv;
+
+	for (i = 0; i < adapter->priv_num; i++) {
+		priv = adapter->priv[i];
+		mwifiex_abort_cac(priv);
+	}
+
+	mwifiex_cancel_all_pending_cmd(adapter);
 
 	if (!wowlan) {
 		dev_warn(adapter->dev, "None of the WOWLAN triggers enabled\n");
 		return 0;
 	}
+
+	priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA);
 
 	if (!priv->media_connected) {
 		dev_warn(adapter->dev,
@@ -2851,12 +2966,10 @@ static int mwifiex_cfg80211_suspend(struct wiphy *wiphy,
 		return 0;
 	}
 
-	if (wowlan->n_patterns || wowlan->magic_pkt) {
-		ret = mwifiex_set_mef_filter(priv, wowlan);
-		if (ret) {
-			dev_err(adapter->dev, "Failed to set MEF filter\n");
-			return ret;
-		}
+	ret = mwifiex_set_mef_filter(priv, wowlan);
+	if (ret) {
+		dev_err(adapter->dev, "Failed to set MEF filter\n");
+		return ret;
 	}
 
 	if (wowlan->disconnect) {

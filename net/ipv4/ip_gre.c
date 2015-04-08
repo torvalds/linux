@@ -182,7 +182,7 @@ static int ipgre_err(struct sk_buff *skb, u32 info,
 	t = ip_tunnel_lookup(itn, skb->dev->ifindex, tpi->flags,
 			     iph->daddr, iph->saddr, tpi->key);
 
-	if (t == NULL)
+	if (!t)
 		return PACKET_REJECT;
 
 	if (t->parms.iph.daddr == 0 ||
@@ -423,7 +423,7 @@ static int ipgre_open(struct net_device *dev)
 			return -EADDRNOTAVAIL;
 		dev = rt->dst.dev;
 		ip_rt_put(rt);
-		if (__in_dev_get_rtnl(dev) == NULL)
+		if (!__in_dev_get_rtnl(dev))
 			return -EADDRNOTAVAIL;
 		t->mlink = dev->ifindex;
 		ip_mc_inc_group(__in_dev_get_rtnl(dev), t->parms.iph.daddr);
@@ -456,6 +456,7 @@ static const struct net_device_ops ipgre_netdev_ops = {
 	.ndo_do_ioctl		= ipgre_tunnel_ioctl,
 	.ndo_change_mtu		= ip_tunnel_change_mtu,
 	.ndo_get_stats64	= ip_tunnel_get_stats64,
+	.ndo_get_iflink		= ip_tunnel_get_iflink,
 };
 
 #define GRE_FEATURES (NETIF_F_SG |		\
@@ -686,6 +687,7 @@ static const struct net_device_ops gre_tap_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_change_mtu		= ip_tunnel_change_mtu,
 	.ndo_get_stats64	= ip_tunnel_get_stats64,
+	.ndo_get_iflink		= ip_tunnel_get_iflink,
 };
 
 static void ipgre_tap_setup(struct net_device *dev)

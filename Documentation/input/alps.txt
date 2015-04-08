@@ -114,6 +114,9 @@ ALPS Absolute Mode - Protocol Version 2
  byte 4:  0   y6   y5   y4   y3   y2   y1   y0
  byte 5:  0   z6   z5   z4   z3   z2   z1   z0
 
+Protocol Version 2 DualPoint devices send standard PS/2 mouse packets for
+the DualPoint Stick.
+
 Dualpoint device -- interleaved packet format
 ---------------------------------------------
 
@@ -126,6 +129,11 @@ Dualpoint device -- interleaved packet format
  byte 6:    0   y9   y8   y7    1    m    r    l
  byte 7:    0   y6   y5   y4   y3   y2   y1   y0
  byte 8:    0   z6   z5   z4   z3   z2   z1   z0
+
+Devices which use the interleaving format normally send standard PS/2 mouse
+packets for the DualPoint Stick + ALPS Absolute Mode packets for the
+touchpad, switching to the interleaved packet format when both the stick and
+the touchpad are used at the same time.
 
 ALPS Absolute Mode - Protocol Version 3
 ---------------------------------------

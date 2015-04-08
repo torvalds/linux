@@ -273,7 +273,7 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 	else
 		sta_id = mvm_sta->sta_id;
 
-	if (WARN_ON_ONCE(sta_id == IWL_MVM_STATION_COUNT))
+	if (sta_id == IWL_MVM_STATION_COUNT)
 		return -ENOSPC;
 
 	spin_lock_init(&mvm_sta->lock);
@@ -1680,9 +1680,6 @@ void iwl_mvm_sta_modify_disable_tx(struct iwl_mvm *mvm,
 		.mac_id_n_color = cpu_to_le32(mvmsta->mac_id_n_color),
 	};
 	int ret;
-
-	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_DISABLE_STA_TX))
-		return;
 
 	ret = iwl_mvm_send_cmd_pdu(mvm, ADD_STA, CMD_ASYNC, sizeof(cmd), &cmd);
 	if (ret)

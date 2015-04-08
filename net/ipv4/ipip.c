@@ -144,7 +144,7 @@ static int ipip_err(struct sk_buff *skb, u32 info)
 	err = -ENOENT;
 	t = ip_tunnel_lookup(itn, skb->dev->ifindex, TUNNEL_NO_KEY,
 			     iph->daddr, iph->saddr, 0);
-	if (t == NULL)
+	if (!t)
 		goto out;
 
 	if (type == ICMP_DEST_UNREACH && code == ICMP_FRAG_NEEDED) {
@@ -272,6 +272,7 @@ static const struct net_device_ops ipip_netdev_ops = {
 	.ndo_do_ioctl	= ipip_tunnel_ioctl,
 	.ndo_change_mtu = ip_tunnel_change_mtu,
 	.ndo_get_stats64 = ip_tunnel_get_stats64,
+	.ndo_get_iflink = ip_tunnel_get_iflink,
 };
 
 #define IPIP_FEATURES (NETIF_F_SG |		\
@@ -286,7 +287,6 @@ static void ipip_tunnel_setup(struct net_device *dev)
 
 	dev->type		= ARPHRD_TUNNEL;
 	dev->flags		= IFF_NOARP;
-	dev->iflink		= 0;
 	dev->addr_len		= 4;
 	dev->features		|= NETIF_F_LLTX;
 	netif_keep_dst(dev);

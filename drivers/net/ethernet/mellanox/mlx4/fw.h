@@ -203,6 +203,7 @@ struct mlx4_init_hca_param {
 	u64 dev_cap_enabled;
 	u16 cqe_size; /* For use only when CQE stride feature enabled */
 	u16 eqe_size; /* For use only when EQE stride feature enabled */
+	u8 rss_ip_frags;
 };
 
 struct mlx4_init_ib_param {

@@ -228,7 +228,7 @@ static int arp_constructor(struct neighbour *neigh)
 
 	rcu_read_lock();
 	in_dev = __in_dev_get_rcu(dev);
-	if (in_dev == NULL) {
+	if (!in_dev) {
 		rcu_read_unlock();
 		return -EINVAL;
 	}
@@ -475,7 +475,7 @@ static inline int arp_fwd_pvlan(struct in_device *in_dev,
  */
 
 /*
- *	Create an arp packet. If (dest_hw == NULL), we create a broadcast
+ *	Create an arp packet. If dest_hw is not set, we create a broadcast
  *	message.
  */
 struct sk_buff *arp_create(int type, int ptype, __be32 dest_ip,
@@ -495,7 +495,7 @@ struct sk_buff *arp_create(int type, int ptype, __be32 dest_ip,
 	 */
 
 	skb = alloc_skb(arp_hdr_len(dev) + hlen + tlen, GFP_ATOMIC);
-	if (skb == NULL)
+	if (!skb)
 		return NULL;
 
 	skb_reserve(skb, hlen);
@@ -503,9 +503,9 @@ struct sk_buff *arp_create(int type, int ptype, __be32 dest_ip,
 	arp = (struct arphdr *) skb_put(skb, arp_hdr_len(dev));
 	skb->dev = dev;
 	skb->protocol = htons(ETH_P_ARP);
-	if (src_hw == NULL)
+	if (!src_hw)
 		src_hw = dev->dev_addr;
-	if (dest_hw == NULL)
+	if (!dest_hw)
 		dest_hw = dev->broadcast;
 
 	/*
@@ -569,7 +569,7 @@ struct sk_buff *arp_create(int type, int ptype, __be32 dest_ip,
 		break;
 #endif
 	default:
-		if (target_hw != NULL)
+		if (target_hw)
 			memcpy(arp_ptr, target_hw, dev->addr_len);
 		else
 			memset(arp_ptr, 0, dev->addr_len);
@@ -591,7 +591,8 @@ EXPORT_SYMBOL(arp_create);
 void arp_xmit(struct sk_buff *skb)
 {
 	/* Send it off, maybe filter it using firewalling first.  */
-	NF_HOOK(NFPROTO_ARP, NF_ARP_OUT, skb, NULL, skb->dev, dev_queue_xmit);
+	NF_HOOK(NFPROTO_ARP, NF_ARP_OUT, NULL, skb,
+		NULL, skb->dev, dev_queue_xmit_sk);
 }
 EXPORT_SYMBOL(arp_xmit);
 
@@ -614,7 +615,7 @@ void arp_send(int type, int ptype, __be32 dest_ip,
 
 	skb = arp_create(type, ptype, dest_ip, dev, src_ip,
 			 dest_hw, src_hw, target_hw);
-	if (skb == NULL)
+	if (!skb)
 		return;
 
 	arp_xmit(skb);
@@ -625,7 +626,7 @@ EXPORT_SYMBOL(arp_send);
  *	Process an arp request.
  */
 
-static int arp_process(struct sk_buff *skb)
+static int arp_process(struct sock *sk, struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
 	struct in_device *in_dev = __in_dev_get_rcu(dev);
@@ -644,7 +645,7 @@ static int arp_process(struct sk_buff *skb)
 	 * is ARP'able.
 	 */
 
-	if (in_dev == NULL)
+	if (!in_dev)
 		goto out;
 
 	arp = arp_hdr(skb);
@@ -808,7 +809,7 @@ static int arp_process(struct sk_buff *skb)
 		is_garp = arp->ar_op == htons(ARPOP_REQUEST) && tip == sip &&
 			  inet_addr_type(net, sip) == RTN_UNICAST;
 
-		if (n == NULL &&
+		if (!n &&
 		    ((arp->ar_op == htons(ARPOP_REPLY)  &&
 		      inet_addr_type(net, sip) == RTN_UNICAST) || is_garp))
 			n = __neigh_lookup(&arp_tbl, &sip, dev, 1);
@@ -846,7 +847,7 @@ out:
 
 static void parp_redo(struct sk_buff *skb)
 {
-	arp_process(skb);
+	arp_process(NULL, skb);
 }
 
 
@@ -879,7 +880,8 @@ static int arp_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	memset(NEIGH_CB(skb), 0, sizeof(struct neighbour_cb));
 
-	return NF_HOOK(NFPROTO_ARP, NF_ARP_IN, skb, dev, NULL, arp_process);
+	return NF_HOOK(NFPROTO_ARP, NF_ARP_IN, NULL, skb,
+		       dev, NULL, arp_process);
 
 consumeskb:
 	consume_skb(skb);
@@ -900,7 +902,7 @@ out_of_mem:
 
 static int arp_req_set_proxy(struct net *net, struct net_device *dev, int on)
 {
-	if (dev == NULL) {
+	if (!dev) {
 		IPV4_DEVCONF_ALL(net, PROXY_ARP) = on;
 		return 0;
 	}
@@ -926,7 +928,7 @@ static int arp_req_set_public(struct net *net, struct arpreq *r,
 			return -ENODEV;
 	}
 	if (mask) {
-		if (pneigh_lookup(&arp_tbl, net, &ip, dev, 1) == NULL)
+		if (!pneigh_lookup(&arp_tbl, net, &ip, dev, 1))
 			return -ENOBUFS;
 		return 0;
 	}
@@ -947,7 +949,7 @@ static int arp_req_set(struct net *net, struct arpreq *r,
 	ip = ((struct sockaddr_in *)&r->arp_pa)->sin_addr.s_addr;
 	if (r->arp_flags & ATF_PERM)
 		r->arp_flags |= ATF_COM;
-	if (dev == NULL) {
+	if (!dev) {
 		struct rtable *rt = ip_route_output(net, ip, 0, RTO_ONLINK, 0);
 
 		if (IS_ERR(rt))
@@ -1067,7 +1069,7 @@ static int arp_req_delete(struct net *net, struct arpreq *r,
 		return arp_req_delete_public(net, r, dev);
 
 	ip = ((struct sockaddr_in *)&r->arp_pa)->sin_addr.s_addr;
-	if (dev == NULL) {
+	if (!dev) {
 		struct rtable *rt = ip_route_output(net, ip, 0, RTO_ONLINK, 0);
 		if (IS_ERR(rt))
 			return PTR_ERR(rt);
@@ -1116,7 +1118,7 @@ int arp_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 	if (r.arp_dev[0]) {
 		err = -ENODEV;
 		dev = __dev_get_by_name(net, r.arp_dev);
-		if (dev == NULL)
+		if (!dev)
 			goto out;
 
 		/* Mmmm... It is wrong... ARPHRD_NETROM==0 */

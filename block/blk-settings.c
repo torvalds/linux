@@ -585,7 +585,7 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 				     b->physical_block_size);
 
 	t->io_min = max(t->io_min, b->io_min);
-	t->io_opt = lcm(t->io_opt, b->io_opt);
+	t->io_opt = lcm_not_zero(t->io_opt, b->io_opt);
 
 	t->cluster &= b->cluster;
 	t->discard_zeroes_data &= b->discard_zeroes_data;
@@ -616,7 +616,7 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 		    b->raid_partial_stripes_expensive);
 
 	/* Find lowest common alignment_offset */
-	t->alignment_offset = lcm(t->alignment_offset, alignment)
+	t->alignment_offset = lcm_not_zero(t->alignment_offset, alignment)
 		% max(t->physical_block_size, t->io_min);
 
 	/* Verify that new alignment_offset is on a logical block boundary */
@@ -643,7 +643,7 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 						      b->max_discard_sectors);
 		t->discard_granularity = max(t->discard_granularity,
 					     b->discard_granularity);
-		t->discard_alignment = lcm(t->discard_alignment, alignment) %
+		t->discard_alignment = lcm_not_zero(t->discard_alignment, alignment) %
 			t->discard_granularity;
 	}
 

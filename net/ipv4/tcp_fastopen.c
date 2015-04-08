@@ -141,7 +141,7 @@ static bool tcp_fastopen_create_child(struct sock *sk,
 	req->sk = NULL;
 
 	child = inet_csk(sk)->icsk_af_ops->syn_recv_sock(sk, skb, req, NULL);
-	if (child == NULL)
+	if (!child)
 		return false;
 
 	spin_lock(&queue->fastopenq->lock);
@@ -214,7 +214,7 @@ static bool tcp_fastopen_create_child(struct sock *sk,
 	sk->sk_data_ready(sk);
 	bh_unlock_sock(child);
 	sock_put(child);
-	WARN_ON(req->sk == NULL);
+	WARN_ON(!req->sk);
 	return true;
 }
 
@@ -233,7 +233,7 @@ static bool tcp_fastopen_queue_check(struct sock *sk)
 	 * temporarily vs a server not supporting Fast Open at all.
 	 */
 	fastopenq = inet_csk(sk)->icsk_accept_queue.fastopenq;
-	if (fastopenq == NULL || fastopenq->max_qlen == 0)
+	if (!fastopenq || fastopenq->max_qlen == 0)
 		return false;
 
 	if (fastopenq->qlen >= fastopenq->max_qlen) {
@@ -303,6 +303,7 @@ fastopen:
 	} else if (foc->len > 0) /* Client presents an invalid cookie */
 		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPFASTOPENPASSIVEFAIL);
 
+	valid_foc.exp = foc->exp;
 	*foc = valid_foc;
 	return false;
 }

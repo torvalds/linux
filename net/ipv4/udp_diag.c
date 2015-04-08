@@ -58,7 +58,7 @@ static int udp_dump_one(struct udp_table *tbl, struct sk_buff *in_skb,
 		goto out_nosk;
 
 	err = -ENOENT;
-	if (sk == NULL)
+	if (!sk)
 		goto out_nosk;
 
 	err = sock_diag_check_cookie(sk, req->id.idiag_cookie);

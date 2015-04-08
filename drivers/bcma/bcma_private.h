@@ -106,15 +106,35 @@ static inline void __exit bcma_host_soc_unregister_driver(void)
 #endif /* CONFIG_BCMA_HOST_SOC && CONFIG_OF */
 
 /* driver_pci.c */
+#ifdef CONFIG_BCMA_DRIVER_PCI
 u32 bcma_pcie_read(struct bcma_drv_pci *pc, u32 address);
 void bcma_core_pci_early_init(struct bcma_drv_pci *pc);
 void bcma_core_pci_init(struct bcma_drv_pci *pc);
 void bcma_core_pci_up(struct bcma_drv_pci *pc);
 void bcma_core_pci_down(struct bcma_drv_pci *pc);
+#else
+static inline void bcma_core_pci_early_init(struct bcma_drv_pci *pc)
+{
+	WARN_ON(pc->core->bus->hosttype == BCMA_HOSTTYPE_PCI);
+}
+static inline void bcma_core_pci_init(struct bcma_drv_pci *pc)
+{
+	/* Initialization is required for PCI hosted bus */
+	WARN_ON(pc->core->bus->hosttype == BCMA_HOSTTYPE_PCI);
+}
+#endif
 
 /* driver_pcie2.c */
+#ifdef CONFIG_BCMA_DRIVER_PCI
 void bcma_core_pcie2_init(struct bcma_drv_pcie2 *pcie2);
 void bcma_core_pcie2_up(struct bcma_drv_pcie2 *pcie2);
+#else
+static inline void bcma_core_pcie2_init(struct bcma_drv_pcie2 *pcie2)
+{
+	/* Initialization is required for PCI hosted bus */
+	WARN_ON(pcie2->core->bus->hosttype == BCMA_HOSTTYPE_PCI);
+}
+#endif
 
 extern int bcma_chipco_watchdog_register(struct bcma_drv_cc *cc);
 

@@ -463,8 +463,9 @@ static void ndisc_send_skb(struct sk_buff *skb,
 	idev = __in6_dev_get(dst->dev);
 	IP6_UPD_PO_STATS(net, idev, IPSTATS_MIB_OUT, skb->len);
 
-	err = NF_HOOK(NFPROTO_IPV6, NF_INET_LOCAL_OUT, skb, NULL, dst->dev,
-		      dst_output);
+	err = NF_HOOK(NFPROTO_IPV6, NF_INET_LOCAL_OUT, sk, skb,
+		      NULL, dst->dev,
+		      dst_output_sk);
 	if (!err) {
 		ICMP6MSGOUT_INC_STATS(net, idev, type);
 		ICMP6_INC_STATS(net, idev, ICMP6_MIB_OUTMSGS);
@@ -1225,7 +1226,14 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 	if (rt)
 		rt6_set_expires(rt, jiffies + (HZ * lifetime));
 	if (ra_msg->icmph.icmp6_hop_limit) {
-		in6_dev->cnf.hop_limit = ra_msg->icmph.icmp6_hop_limit;
+		/* Only set hop_limit on the interface if it is higher than
+		 * the current hop_limit.
+		 */
+		if (in6_dev->cnf.hop_limit < ra_msg->icmph.icmp6_hop_limit) {
+			in6_dev->cnf.hop_limit = ra_msg->icmph.icmp6_hop_limit;
+		} else {
+			ND_PRINTK(2, warn, "RA: Got route advertisement with lower hop_limit than current\n");
+		}
 		if (rt)
 			dst_metric_set(&rt->dst, RTAX_HOPLIMIT,
 				       ra_msg->icmph.icmp6_hop_limit);

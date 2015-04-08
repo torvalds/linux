@@ -692,7 +692,7 @@ static int igmp_send_report(struct in_device *in_dev, struct ip_mc_list *pmc,
 	hlen = LL_RESERVED_SPACE(dev);
 	tlen = dev->needed_tailroom;
 	skb = alloc_skb(IGMP_SIZE + hlen + tlen, GFP_ATOMIC);
-	if (skb == NULL) {
+	if (!skb) {
 		ip_rt_put(rt);
 		return -1;
 	}
@@ -981,7 +981,7 @@ int igmp_rcv(struct sk_buff *skb)
 	int len = skb->len;
 	bool dropped = true;
 
-	if (in_dev == NULL)
+	if (!in_dev)
 		goto drop;
 
 	if (!pskb_may_pull(skb, sizeof(struct igmphdr)))
@@ -1888,7 +1888,7 @@ int ip_mc_join_group(struct sock *sk, struct ip_mreqn *imr)
 	if (count >= sysctl_igmp_max_memberships)
 		goto done;
 	iml = sock_kmalloc(sk, sizeof(*iml), GFP_KERNEL);
-	if (iml == NULL)
+	if (!iml)
 		goto done;
 
 	memcpy(&iml->multi, imr, sizeof(*imr));
@@ -1909,7 +1909,7 @@ static int ip_mc_leave_src(struct sock *sk, struct ip_mc_socklist *iml,
 	struct ip_sf_socklist *psf = rtnl_dereference(iml->sflist);
 	int err;
 
-	if (psf == NULL) {
+	if (!psf) {
 		/* any-source empty exclude case */
 		return ip_mc_del_src(in_dev, &iml->multi.imr_multiaddr.s_addr,
 			iml->sfmode, 0, NULL, 0);
@@ -2360,7 +2360,7 @@ void ip_mc_drop_socket(struct sock *sk)
 	struct ip_mc_socklist *iml;
 	struct net *net = sock_net(sk);
 
-	if (inet->mc_list == NULL)
+	if (!inet->mc_list)
 		return;
 
 	rtnl_lock();
@@ -2370,7 +2370,7 @@ void ip_mc_drop_socket(struct sock *sk)
 		inet->mc_list = iml->next_rcu;
 		in_dev = inetdev_by_index(net, iml->multi.imr_ifindex);
 		(void) ip_mc_leave_src(sk, iml, in_dev);
-		if (in_dev != NULL)
+		if (in_dev)
 			ip_mc_dec_group(in_dev, iml->multi.imr_multiaddr.s_addr);
 		/* decrease mem now to avoid the memleak warning */
 		atomic_sub(sizeof(*iml), &sk->sk_omem_alloc);
@@ -2587,13 +2587,13 @@ static inline struct ip_sf_list *igmp_mcf_get_first(struct seq_file *seq)
 	for_each_netdev_rcu(net, state->dev) {
 		struct in_device *idev;
 		idev = __in_dev_get_rcu(state->dev);
-		if (unlikely(idev == NULL))
+		if (unlikely(!idev))
 			continue;
 		im = rcu_dereference(idev->mc_list);
-		if (likely(im != NULL)) {
+		if (likely(im)) {
 			spin_lock_bh(&im->lock);
 			psf = im->sources;
-			if (likely(psf != NULL)) {
+			if (likely(psf)) {
 				state->im = im;
 				state->idev = idev;
 				break;
@@ -2663,7 +2663,7 @@ static void igmp_mcf_seq_stop(struct seq_file *seq, void *v)
 	__releases(rcu)
 {
 	struct igmp_mcf_iter_state *state = igmp_mcf_seq_private(seq);
-	if (likely(state->im != NULL)) {
+	if (likely(state->im)) {
 		spin_unlock_bh(&state->im->lock);
 		state->im = NULL;
 	}

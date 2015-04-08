@@ -422,6 +422,7 @@ static void __kvm_ioapic_update_eoi(struct kvm_vcpu *vcpu,
 			struct kvm_ioapic *ioapic, int vector, int trigger_mode)
 {
 	int i;
+	struct kvm_lapic *apic = vcpu->arch.apic;
 
 	for (i = 0; i < IOAPIC_NUM_PINS; i++) {
 		union kvm_ioapic_redirect_entry *ent = &ioapic->redirtbl[i];
@@ -443,7 +444,8 @@ static void __kvm_ioapic_update_eoi(struct kvm_vcpu *vcpu,
 		kvm_notify_acked_irq(ioapic->kvm, KVM_IRQCHIP_IOAPIC, i);
 		spin_lock(&ioapic->lock);
 
-		if (trigger_mode != IOAPIC_LEVEL_TRIG)
+		if (trigger_mode != IOAPIC_LEVEL_TRIG ||
+		    kvm_apic_get_reg(apic, APIC_SPIV) & APIC_SPIV_DIRECTED_EOI)
 			continue;
 
 		ASSERT(ent->fields.trig_mode == IOAPIC_LEVEL_TRIG);

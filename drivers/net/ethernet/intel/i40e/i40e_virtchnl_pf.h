@@ -88,7 +88,7 @@ struct i40e_vf {
 	 * When assigned, these will be non-zero, because VSI 0 is always
 	 * the main LAN VSI for the PF.
 	 */
-	u8 lan_vsi_index;	/* index into PF struct */
+	u8 lan_vsi_idx;	        /* index into PF struct */
 	u8 lan_vsi_id;		/* ID as used by firmware */
 
 	u8 num_queue_pairs;	/* num of qps assigned to VF vsis */

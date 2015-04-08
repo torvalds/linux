@@ -822,7 +822,7 @@ static irqreturn_t bmg160_trigger_handler(int irq, void *p)
 	int bit, ret, i = 0;
 
 	mutex_lock(&data->mutex);
-	for_each_set_bit(bit, indio_dev->buffer->scan_mask,
+	for_each_set_bit(bit, indio_dev->active_scan_mask,
 			 indio_dev->masklength) {
 		ret = i2c_smbus_read_word_data(data->client,
 					       BMG160_AXIS_TO_REG(bit));

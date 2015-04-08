@@ -131,10 +131,39 @@ static int mwifiex_unregister(struct mwifiex_adapter *adapter)
 	return 0;
 }
 
+void mwifiex_queue_main_work(struct mwifiex_adapter *adapter)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&adapter->main_proc_lock, flags);
+	if (adapter->mwifiex_processing) {
+		adapter->more_task_flag = true;
+		spin_unlock_irqrestore(&adapter->main_proc_lock, flags);
+	} else {
+		spin_unlock_irqrestore(&adapter->main_proc_lock, flags);
+		queue_work(adapter->workqueue, &adapter->main_work);
+	}
+}
+EXPORT_SYMBOL_GPL(mwifiex_queue_main_work);
+
+static void mwifiex_queue_rx_work(struct mwifiex_adapter *adapter)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&adapter->rx_proc_lock, flags);
+	if (adapter->rx_processing) {
+		spin_unlock_irqrestore(&adapter->rx_proc_lock, flags);
+	} else {
+		spin_unlock_irqrestore(&adapter->rx_proc_lock, flags);
+		queue_work(adapter->rx_workqueue, &adapter->rx_work);
+	}
+}
+
 static int mwifiex_process_rx(struct mwifiex_adapter *adapter)
 {
 	unsigned long flags;
 	struct sk_buff *skb;
+	struct mwifiex_rxinfo *rx_info;
 
 	spin_lock_irqsave(&adapter->rx_proc_lock, flags);
 	if (adapter->rx_processing || adapter->rx_locked) {
@@ -154,9 +183,16 @@ static int mwifiex_process_rx(struct mwifiex_adapter *adapter)
 			if (adapter->if_ops.submit_rem_rx_urbs)
 				adapter->if_ops.submit_rem_rx_urbs(adapter);
 			adapter->delay_main_work = false;
-			queue_work(adapter->workqueue, &adapter->main_work);
+			mwifiex_queue_main_work(adapter);
 		}
-		mwifiex_handle_rx_packet(adapter, skb);
+		rx_info = MWIFIEX_SKB_RXCB(skb);
+		if (rx_info->buf_type == MWIFIEX_TYPE_AGGR_DATA) {
+			if (adapter->if_ops.deaggr_pkt)
+				adapter->if_ops.deaggr_pkt(adapter, skb);
+			dev_kfree_skb_any(skb);
+		} else {
+			mwifiex_handle_rx_packet(adapter, skb);
+		}
 	}
 	spin_lock_irqsave(&adapter->rx_proc_lock, flags);
 	adapter->rx_processing = false;
@@ -189,7 +225,7 @@ int mwifiex_main_process(struct mwifiex_adapter *adapter)
 	spin_lock_irqsave(&adapter->main_proc_lock, flags);
 
 	/* Check if already processing */
-	if (adapter->mwifiex_processing) {
+	if (adapter->mwifiex_processing || adapter->main_locked) {
 		adapter->more_task_flag = true;
 		spin_unlock_irqrestore(&adapter->main_proc_lock, flags);
 		goto exit_main_proc;
@@ -214,9 +250,7 @@ process_start:
 		if (atomic_read(&adapter->rx_pending) >= HIGH_RX_PENDING &&
 		    adapter->iface_type != MWIFIEX_USB) {
 			adapter->delay_main_work = true;
-			if (!adapter->rx_processing)
-				queue_work(adapter->rx_workqueue,
-					   &adapter->rx_work);
+			mwifiex_queue_rx_work(adapter);
 			break;
 		}
 
@@ -229,13 +263,14 @@ process_start:
 		}
 
 		if (adapter->rx_work_enabled && adapter->data_received)
-			queue_work(adapter->rx_workqueue, &adapter->rx_work);
+			mwifiex_queue_rx_work(adapter);
 
 		/* Need to wake up the card ? */
 		if ((adapter->ps_state == PS_STATE_SLEEP) &&
 		    (adapter->pm_wakeup_card_req &&
 		     !adapter->pm_wakeup_fw_try) &&
 		    (is_command_pending(adapter) ||
+		     !skb_queue_empty(&adapter->tx_data_q) ||
 		     !mwifiex_wmm_lists_empty(adapter))) {
 			adapter->pm_wakeup_fw_try = true;
 			mod_timer(&adapter->wakeup_timer, jiffies + (HZ*3));
@@ -247,7 +282,7 @@ process_start:
 		if (IS_CARD_RX_RCVD(adapter)) {
 			adapter->data_received = false;
 			adapter->pm_wakeup_fw_try = false;
-			del_timer_sync(&adapter->wakeup_timer);
+			del_timer(&adapter->wakeup_timer);
 			if (adapter->ps_state == PS_STATE_SLEEP)
 				adapter->ps_state = PS_STATE_AWAKE;
 		} else {
@@ -260,7 +295,8 @@ process_start:
 
 			if ((!adapter->scan_chan_gap_enabled &&
 			     adapter->scan_processing) || adapter->data_sent ||
-			    mwifiex_wmm_lists_empty(adapter)) {
+			    (mwifiex_wmm_lists_empty(adapter) &&
+			     skb_queue_empty(&adapter->tx_data_q))) {
 				if (adapter->cmd_sent || adapter->curr_cmd ||
 				    (!is_command_pending(adapter)))
 					break;
@@ -312,6 +348,20 @@ process_start:
 
 		if ((adapter->scan_chan_gap_enabled ||
 		     !adapter->scan_processing) &&
+		    !adapter->data_sent &&
+		    !skb_queue_empty(&adapter->tx_data_q)) {
+			mwifiex_process_tx_queue(adapter);
+			if (adapter->hs_activated) {
+				adapter->is_hs_configured = false;
+				mwifiex_hs_activated_event
+					(mwifiex_get_priv
+					(adapter, MWIFIEX_BSS_ROLE_ANY),
+					false);
+			}
+		}
+
+		if ((adapter->scan_chan_gap_enabled ||
+		     !adapter->scan_processing) &&
 		    !adapter->data_sent && !mwifiex_wmm_lists_empty(adapter)) {
 			mwifiex_wmm_process_tx(adapter);
 			if (adapter->hs_activated) {
@@ -325,7 +375,8 @@ process_start:
 
 		if (adapter->delay_null_pkt && !adapter->cmd_sent &&
 		    !adapter->curr_cmd && !is_command_pending(adapter) &&
-		    mwifiex_wmm_lists_empty(adapter)) {
+		    (mwifiex_wmm_lists_empty(adapter) &&
+		     skb_queue_empty(&adapter->tx_data_q))) {
 			if (!mwifiex_send_null_packet
 			    (mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA),
 			     MWIFIEX_TxPD_POWER_MGMT_NULL_PACKET |
@@ -606,7 +657,7 @@ int mwifiex_queue_tx_pkt(struct mwifiex_private *priv, struct sk_buff *skb)
 	atomic_inc(&priv->adapter->tx_pending);
 	mwifiex_wmm_add_buf_txqueue(priv, skb);
 
-	queue_work(priv->adapter->workqueue, &priv->adapter->main_work);
+	mwifiex_queue_main_work(priv->adapter);
 
 	return 0;
 }
@@ -1097,9 +1148,6 @@ mwifiex_add_card(void *card, struct semaphore *sem,
 
 		INIT_WORK(&adapter->rx_work, mwifiex_rx_work_queue);
 	}
-
-	if (adapter->if_ops.iface_work)
-		INIT_WORK(&adapter->iface_work, adapter->if_ops.iface_work);
 
 	/* Register the device. Fill up the private data structure with relevant
 	   information from the card. */

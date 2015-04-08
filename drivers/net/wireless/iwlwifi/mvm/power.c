@@ -358,7 +358,7 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 	cmd->flags |= cpu_to_le16(POWER_FLAGS_POWER_SAVE_ENA_MSK);
 
 	if (!vif->bss_conf.ps || iwl_mvm_vif_low_latency(mvmvif) ||
-	    !mvmvif->pm_enabled || iwl_mvm_tdls_sta_count(mvm, vif))
+	    !mvmvif->pm_enabled)
 		return;
 
 	cmd->flags |= cpu_to_le16(POWER_FLAGS_POWER_MANAGEMENT_ENA_MSK);
@@ -638,6 +638,10 @@ static void iwl_mvm_power_set_pm(struct iwl_mvm *mvm,
 
 	if (vifs->ap_vif)
 		ap_mvmvif = iwl_mvm_vif_from_mac80211(vifs->ap_vif);
+
+	/* don't allow PM if any TDLS stations exist */
+	if (iwl_mvm_tdls_sta_count(mvm, NULL))
+		return;
 
 	/* enable PM on bss if bss stand alone */
 	if (vifs->bss_active && !vifs->p2p_active && !vifs->ap_active) {

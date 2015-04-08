@@ -1055,8 +1055,8 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 #ifdef CONFIG_RPS
 	    nla_put_u32(skb, IFLA_NUM_RX_QUEUES, dev->num_rx_queues) ||
 #endif
-	    (dev->ifindex != dev->iflink &&
-	     nla_put_u32(skb, IFLA_LINK, dev->iflink)) ||
+	    (dev->ifindex != dev_get_iflink(dev) &&
+	     nla_put_u32(skb, IFLA_LINK, dev_get_iflink(dev))) ||
 	    (upper_dev &&
 	     nla_put_u32(skb, IFLA_MASTER, upper_dev->ifindex)) ||
 	    nla_put_u8(skb, IFLA_CARRIER, netif_carrier_ok(dev)) ||
@@ -1991,10 +1991,10 @@ static int rtnl_group_changelink(const struct sk_buff *skb,
 		struct ifinfomsg *ifm,
 		struct nlattr **tb)
 {
-	struct net_device *dev;
+	struct net_device *dev, *aux;
 	int err;
 
-	for_each_netdev(net, dev) {
+	for_each_netdev_safe(net, dev, aux) {
 		if (dev->group == group) {
 			err = do_setlink(skb, dev, ifm, tb, NULL, 0);
 			if (err < 0)
@@ -2863,8 +2863,8 @@ int ndo_dflt_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 	     nla_put_u32(skb, IFLA_MASTER, br_dev->ifindex)) ||
 	    (dev->addr_len &&
 	     nla_put(skb, IFLA_ADDRESS, dev->addr_len, dev->dev_addr)) ||
-	    (dev->ifindex != dev->iflink &&
-	     nla_put_u32(skb, IFLA_LINK, dev->iflink)))
+	    (dev->ifindex != dev_get_iflink(dev) &&
+	     nla_put_u32(skb, IFLA_LINK, dev_get_iflink(dev))))
 		goto nla_put_failure;
 
 	br_afspec = nla_nest_start(skb, IFLA_AF_SPEC);

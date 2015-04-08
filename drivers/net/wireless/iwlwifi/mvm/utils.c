@@ -857,7 +857,7 @@ int iwl_mvm_update_low_latency(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	mvmvif->low_latency = value;
 
-	res = iwl_mvm_update_quotas(mvm, NULL);
+	res = iwl_mvm_update_quotas(mvm, false, NULL);
 	if (res)
 		return res;
 

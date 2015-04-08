@@ -49,8 +49,6 @@
 #define MSIX_LEGACY_SZ		4
 #define MIN_MSIX_P_PORT		5
 
-#define MLX4_NUM_UP			8
-#define MLX4_NUM_TC			8
 #define MLX4_MAX_100M_UNITS_VAL		255	/*
 						 * work around: can't set values
 						 * greater then this value when
@@ -174,6 +172,7 @@ enum {
 	MLX4_DEV_CAP_FLAG_VEP_UC_STEER	= 1LL << 41,
 	MLX4_DEV_CAP_FLAG_VEP_MC_STEER	= 1LL << 42,
 	MLX4_DEV_CAP_FLAG_COUNTERS	= 1LL << 48,
+	MLX4_DEV_CAP_FLAG_RSS_IP_FRAG   = 1LL << 52,
 	MLX4_DEV_CAP_FLAG_SET_ETH_SCHED = 1LL << 53,
 	MLX4_DEV_CAP_FLAG_SENSE_SUPPORT	= 1LL << 55,
 	MLX4_DEV_CAP_FLAG_PORT_MNG_CHG_EV = 1LL << 59,
@@ -206,7 +205,11 @@ enum {
 	MLX4_DEV_CAP_FLAG2_PORT_REMAP		= 1LL <<  21,
 	MLX4_DEV_CAP_FLAG2_QCN			= 1LL <<  22,
 	MLX4_DEV_CAP_FLAG2_QP_RATE_LIMIT	= 1LL <<  23,
-	MLX4_DEV_CAP_FLAG2_FLOWSTATS_EN         = 1LL <<  24
+	MLX4_DEV_CAP_FLAG2_FLOWSTATS_EN         = 1LL <<  24,
+	MLX4_DEV_CAP_FLAG2_QOS_VPP		= 1LL <<  25,
+	MLX4_DEV_CAP_FLAG2_ETS_CFG		= 1LL <<  26,
+	MLX4_DEV_CAP_FLAG2_PORT_BEACON		= 1LL <<  27,
+	MLX4_DEV_CAP_FLAG2_IGNORE_FCS		= 1LL <<  28,
 };
 
 enum {
@@ -1001,6 +1004,11 @@ static inline int mlx4_is_slave(struct mlx4_dev *dev)
 	return dev->flags & MLX4_FLAG_SLAVE;
 }
 
+static inline int mlx4_is_eth(struct mlx4_dev *dev, int port)
+{
+	return dev->caps.port_type[port] == MLX4_PORT_TYPE_IB ? 0 : 1;
+}
+
 int mlx4_buf_alloc(struct mlx4_dev *dev, int size, int max_direct,
 		   struct mlx4_buf *buf, gfp_t gfp);
 void mlx4_buf_free(struct mlx4_dev *dev, int size, struct mlx4_buf *buf);
@@ -1305,9 +1313,9 @@ int mlx4_SET_PORT_general(struct mlx4_dev *dev, u8 port, int mtu,
 			  u8 pptx, u8 pfctx, u8 pprx, u8 pfcrx);
 int mlx4_SET_PORT_qpn_calc(struct mlx4_dev *dev, u8 port, u32 base_qpn,
 			   u8 promisc);
-int mlx4_SET_PORT_PRIO2TC(struct mlx4_dev *dev, u8 port, u8 *prio2tc);
-int mlx4_SET_PORT_SCHEDULER(struct mlx4_dev *dev, u8 port, u8 *tc_tx_bw,
-		u8 *pg, u16 *ratelimit);
+int mlx4_SET_PORT_BEACON(struct mlx4_dev *dev, u8 port, u16 time);
+int mlx4_SET_PORT_fcs_check(struct mlx4_dev *dev, u8 port,
+			    u8 ignore_fcs_value);
 int mlx4_SET_PORT_VXLAN(struct mlx4_dev *dev, u8 port, u8 steering, int enable);
 int mlx4_find_cached_mac(struct mlx4_dev *dev, u8 port, u64 mac, int *idx);
 int mlx4_find_cached_vlan(struct mlx4_dev *dev, u8 port, u16 vid, int *idx);

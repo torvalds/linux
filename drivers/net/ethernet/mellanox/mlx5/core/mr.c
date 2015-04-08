@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -141,7 +141,7 @@ EXPORT_SYMBOL(mlx5_core_destroy_mkey);
 int mlx5_core_query_mkey(struct mlx5_core_dev *dev, struct mlx5_core_mr *mr,
 			 struct mlx5_query_mkey_mbox_out *out, int outlen)
 {
-	struct mlx5_destroy_mkey_mbox_in in;
+	struct mlx5_query_mkey_mbox_in in;
 	int err;
 
 	memset(&in, 0, sizeof(in));

@@ -27,7 +27,7 @@ static inline unsigned int nf_bridge_mtu_reduction(const struct sk_buff *skb)
 	return 0;
 }
 
-int br_handle_frame_finish(struct sk_buff *skb);
+int br_handle_frame_finish(struct sock *sk, struct sk_buff *skb);
 
 static inline void br_drop_fake_rtable(struct sk_buff *skb)
 {

@@ -437,12 +437,21 @@ static inline struct bcma_device *bcma_find_core(struct bcma_bus *bus,
 #ifdef CONFIG_BCMA_HOST_PCI
 extern void bcma_host_pci_up(struct bcma_bus *bus);
 extern void bcma_host_pci_down(struct bcma_bus *bus);
+extern int bcma_host_pci_irq_ctl(struct bcma_bus *bus,
+				 struct bcma_device *core, bool enable);
 #else
 static inline void bcma_host_pci_up(struct bcma_bus *bus)
 {
 }
 static inline void bcma_host_pci_down(struct bcma_bus *bus)
 {
+}
+static inline int bcma_host_pci_irq_ctl(struct bcma_bus *bus,
+					struct bcma_device *core, bool enable)
+{
+	if (bus->hosttype == BCMA_HOSTTYPE_PCI)
+		return -ENOTSUPP;
+	return 0;
 }
 #endif
 

@@ -458,6 +458,8 @@ struct iwl_trans_txq_scd_cfg {
  * @txq_disable: de-configure a Tx queue to send AMPDUs
  *	Must be atomic
  * @wait_tx_queue_empty: wait until tx queues are empty. May sleep.
+ * @freeze_txq_timer: prevents the timer of the queue from firing until the
+ *	queue is set to awake. Must be atomic.
  * @dbgfs_register: add the dbgfs files under this directory. Files will be
  *	automatically deleted.
  * @write8: write a u8 to a register at offset ofs from the BAR
@@ -517,6 +519,8 @@ struct iwl_trans_ops {
 
 	int (*dbgfs_register)(struct iwl_trans *trans, struct dentry* dir);
 	int (*wait_tx_queue_empty)(struct iwl_trans *trans, u32 txq_bm);
+	void (*freeze_txq_timer)(struct iwl_trans *trans, unsigned long txqs,
+				 bool freeze);
 
 	void (*write8)(struct iwl_trans *trans, u32 ofs, u8 val);
 	void (*write32)(struct iwl_trans *trans, u32 ofs, u32 val);
@@ -871,6 +875,17 @@ void iwl_trans_ac_txq_enable(struct iwl_trans *trans, int queue, int fifo,
 	};
 
 	iwl_trans_txq_enable_cfg(trans, queue, 0, &cfg, queue_wdg_timeout);
+}
+
+static inline void iwl_trans_freeze_txq_timer(struct iwl_trans *trans,
+					      unsigned long txqs,
+					      bool freeze)
+{
+	if (unlikely(trans->state != IWL_TRANS_FW_ALIVE))
+		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
+
+	if (trans->ops->freeze_txq_timer)
+		trans->ops->freeze_txq_timer(trans, txqs, freeze);
 }
 
 static inline int iwl_trans_wait_tx_queue_empty(struct iwl_trans *trans,

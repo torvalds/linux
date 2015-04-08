@@ -60,7 +60,7 @@ static int vti_input(struct sk_buff *skb, int nexthdr, __be32 spi,
 
 	tunnel = ip_tunnel_lookup(itn, skb->dev->ifindex, TUNNEL_NO_KEY,
 				  iph->saddr, iph->daddr, 0);
-	if (tunnel != NULL) {
+	if (tunnel) {
 		if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb))
 			goto drop;
 
@@ -341,6 +341,7 @@ static const struct net_device_ops vti_netdev_ops = {
 	.ndo_do_ioctl	= vti_tunnel_ioctl,
 	.ndo_change_mtu	= ip_tunnel_change_mtu,
 	.ndo_get_stats64 = ip_tunnel_get_stats64,
+	.ndo_get_iflink = ip_tunnel_get_iflink,
 };
 
 static void vti_tunnel_setup(struct net_device *dev)
@@ -361,7 +362,6 @@ static int vti_tunnel_init(struct net_device *dev)
 	dev->hard_header_len	= LL_MAX_HEADER + sizeof(struct iphdr);
 	dev->mtu		= ETH_DATA_LEN;
 	dev->flags		= IFF_NOARP;
-	dev->iflink		= 0;
 	dev->addr_len		= 4;
 	dev->features		|= NETIF_F_LLTX;
 	netif_keep_dst(dev);

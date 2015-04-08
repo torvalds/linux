@@ -989,7 +989,7 @@ out:
 
 /* Watch incoming packets to learn mapping between Ethernet address
  * and Tunnel endpoint.
- * Return true if packet is bogus and should be droppped.
+ * Return true if packet is bogus and should be dropped.
  */
 static bool vxlan_snoop(struct net_device *dev,
 			union vxlan_addr *src_ip, const u8 *src_mac)
@@ -1085,7 +1085,7 @@ void vxlan_sock_release(struct vxlan_sock *vs)
 EXPORT_SYMBOL_GPL(vxlan_sock_release);
 
 /* Update multicast group membership when first VNI on
- * multicast asddress is brought up
+ * multicast address is brought up
  */
 static int vxlan_igmp_join(struct vxlan_dev *vxlan)
 {
@@ -1229,7 +1229,7 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 		 * this as a malformed packet. This behavior diverges from
 		 * VXLAN RFC (RFC7348) which stipulates that bits in reserved
 		 * in reserved fields are to be ignored. The approach here
-		 * maintains compatbility with previous stack code, and also
+		 * maintains compatibility with previous stack code, and also
 		 * is more robust and provides a little more security in
 		 * adding extensions to VXLAN.
 		 */
@@ -1672,7 +1672,8 @@ static void vxlan_build_gbp_hdr(struct vxlanhdr *vxh, u32 vxflags,
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
-static int vxlan6_xmit_skb(struct dst_entry *dst, struct sk_buff *skb,
+static int vxlan6_xmit_skb(struct dst_entry *dst, struct sock *sk,
+			   struct sk_buff *skb,
 			   struct net_device *dev, struct in6_addr *saddr,
 			   struct in6_addr *daddr, __u8 prio, __u8 ttl,
 			   __be16 src_port, __be16 dst_port,
@@ -1748,7 +1749,7 @@ static int vxlan6_xmit_skb(struct dst_entry *dst, struct sk_buff *skb,
 
 	skb_set_inner_protocol(skb, htons(ETH_P_TEB));
 
-	udp_tunnel6_xmit_skb(dst, skb, dev, saddr, daddr, prio,
+	udp_tunnel6_xmit_skb(dst, sk, skb, dev, saddr, daddr, prio,
 			     ttl, src_port, dst_port,
 			     !!(vxflags & VXLAN_F_UDP_ZERO_CSUM6_TX));
 	return 0;
@@ -1758,7 +1759,7 @@ err:
 }
 #endif
 
-int vxlan_xmit_skb(struct rtable *rt, struct sk_buff *skb,
+int vxlan_xmit_skb(struct rtable *rt, struct sock *sk, struct sk_buff *skb,
 		   __be32 src, __be32 dst, __u8 tos, __u8 ttl, __be16 df,
 		   __be16 src_port, __be16 dst_port,
 		   struct vxlan_metadata *md, bool xnet, u32 vxflags)
@@ -1827,7 +1828,7 @@ int vxlan_xmit_skb(struct rtable *rt, struct sk_buff *skb,
 
 	skb_set_inner_protocol(skb, htons(ETH_P_TEB));
 
-	return udp_tunnel_xmit_skb(rt, skb, src, dst, tos,
+	return udp_tunnel_xmit_skb(rt, sk, skb, src, dst, tos,
 				   ttl, df, src_port, dst_port, xnet,
 				   !(vxflags & VXLAN_F_UDP_CSUM));
 }
@@ -1882,6 +1883,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 			   struct vxlan_rdst *rdst, bool did_rsc)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
+	struct sock *sk = vxlan->vn_sock->sock->sk;
 	struct rtable *rt = NULL;
 	const struct iphdr *old_iph;
 	struct flowi4 fl4;
@@ -1961,7 +1963,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 		md.vni = htonl(vni << 8);
 		md.gbp = skb->mark;
 
-		err = vxlan_xmit_skb(rt, skb, fl4.saddr,
+		err = vxlan_xmit_skb(rt, sk, skb, fl4.saddr,
 				     dst->sin.sin_addr.s_addr, tos, ttl, df,
 				     src_port, dst_port, &md,
 				     !net_eq(vxlan->net, dev_net(vxlan->dev)),
@@ -2021,7 +2023,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 		md.vni = htonl(vni << 8);
 		md.gbp = skb->mark;
 
-		err = vxlan6_xmit_skb(ndst, skb, dev, &fl6.saddr, &fl6.daddr,
+		err = vxlan6_xmit_skb(ndst, sk, skb, dev, &fl6.saddr, &fl6.daddr,
 				      0, ttl, src_port, dst_port, &md,
 				      !net_eq(vxlan->net, dev_net(vxlan->dev)),
 				      vxlan->flags);

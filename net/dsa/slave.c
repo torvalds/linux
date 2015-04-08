@@ -55,13 +55,11 @@ void dsa_slave_mii_bus_init(struct dsa_switch *ds)
 
 
 /* slave device handling ****************************************************/
-static int dsa_slave_init(struct net_device *dev)
+static int dsa_slave_get_iflink(const struct net_device *dev)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 
-	dev->iflink = p->parent->dst->master_netdev->ifindex;
-
-	return 0;
+	return p->parent->dst->master_netdev->ifindex;
 }
 
 static inline bool dsa_port_is_bridged(struct dsa_slave_priv *p)
@@ -664,7 +662,6 @@ static const struct ethtool_ops dsa_slave_ethtool_ops = {
 };
 
 static const struct net_device_ops dsa_slave_netdev_ops = {
-	.ndo_init		= dsa_slave_init,
 	.ndo_open	 	= dsa_slave_open,
 	.ndo_stop		= dsa_slave_close,
 	.ndo_start_xmit		= dsa_slave_xmit,
@@ -675,6 +672,7 @@ static const struct net_device_ops dsa_slave_netdev_ops = {
 	.ndo_fdb_del		= dsa_slave_fdb_del,
 	.ndo_fdb_dump		= dsa_slave_fdb_dump,
 	.ndo_do_ioctl		= dsa_slave_ioctl,
+	.ndo_get_iflink		= dsa_slave_get_iflink,
 };
 
 static const struct swdev_ops dsa_slave_swdev_ops = {

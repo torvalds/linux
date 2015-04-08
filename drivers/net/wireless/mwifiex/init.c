@@ -266,18 +266,15 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 
 	mwifiex_wmm_init(adapter);
 
-	if (adapter->sleep_cfm) {
-		sleep_cfm_buf = (struct mwifiex_opt_sleep_confirm *)
-						adapter->sleep_cfm->data;
-		memset(sleep_cfm_buf, 0, adapter->sleep_cfm->len);
-		sleep_cfm_buf->command =
-				cpu_to_le16(HostCmd_CMD_802_11_PS_MODE_ENH);
-		sleep_cfm_buf->size =
-				cpu_to_le16(adapter->sleep_cfm->len);
-		sleep_cfm_buf->result = 0;
-		sleep_cfm_buf->action = cpu_to_le16(SLEEP_CONFIRM);
-		sleep_cfm_buf->resp_ctrl = cpu_to_le16(RESP_NEEDED);
-	}
+	sleep_cfm_buf = (struct mwifiex_opt_sleep_confirm *)
+					adapter->sleep_cfm->data;
+	memset(sleep_cfm_buf, 0, adapter->sleep_cfm->len);
+	sleep_cfm_buf->command = cpu_to_le16(HostCmd_CMD_802_11_PS_MODE_ENH);
+	sleep_cfm_buf->size = cpu_to_le16(adapter->sleep_cfm->len);
+	sleep_cfm_buf->result = 0;
+	sleep_cfm_buf->action = cpu_to_le16(SLEEP_CONFIRM);
+	sleep_cfm_buf->resp_ctrl = cpu_to_le16(RESP_NEEDED);
+
 	memset(&adapter->sleep_params, 0, sizeof(adapter->sleep_params));
 	memset(&adapter->sleep_period, 0, sizeof(adapter->sleep_period));
 	adapter->tx_lock_flag = false;
@@ -481,6 +478,7 @@ int mwifiex_init_lock_list(struct mwifiex_adapter *adapter)
 	spin_lock_init(&adapter->rx_proc_lock);
 
 	skb_queue_head_init(&adapter->rx_data_q);
+	skb_queue_head_init(&adapter->tx_data_q);
 
 	for (i = 0; i < adapter->priv_num; ++i) {
 		INIT_LIST_HEAD(&adapter->bss_prio_tbl[i].bss_prio_head);
@@ -687,6 +685,10 @@ mwifiex_shutdown_drv(struct mwifiex_adapter *adapter)
 			mwifiex_delete_bss_prio_tbl(priv);
 		}
 	}
+
+	atomic_set(&adapter->tx_queued, 0);
+	while ((skb = skb_dequeue(&adapter->tx_data_q)))
+		mwifiex_write_data_complete(adapter, skb, 0, 0);
 
 	spin_lock_irqsave(&adapter->rx_proc_lock, flags);
 

@@ -496,7 +496,7 @@ unsigned int tcp_poll(struct file *file, struct socket *sock, poll_table *wait)
 
 	/* Connected or passive Fast Open socket? */
 	if (sk->sk_state != TCP_SYN_SENT &&
-	    (sk->sk_state != TCP_SYN_RECV || tp->fastopen_rsk != NULL)) {
+	    (sk->sk_state != TCP_SYN_RECV || tp->fastopen_rsk)) {
 		int target = sock_rcvlowat(sk, 0, INT_MAX);
 
 		if (tp->urg_seq == tp->copied_seq &&
@@ -1028,7 +1028,7 @@ static inline int select_size(const struct sock *sk, bool sg)
 
 void tcp_free_fastopen_req(struct tcp_sock *tp)
 {
-	if (tp->fastopen_req != NULL) {
+	if (tp->fastopen_req) {
 		kfree(tp->fastopen_req);
 		tp->fastopen_req = NULL;
 	}
@@ -1042,12 +1042,12 @@ static int tcp_sendmsg_fastopen(struct sock *sk, struct msghdr *msg,
 
 	if (!(sysctl_tcp_fastopen & TFO_CLIENT_ENABLE))
 		return -EOPNOTSUPP;
-	if (tp->fastopen_req != NULL)
+	if (tp->fastopen_req)
 		return -EALREADY; /* Another Fast Open is in progress */
 
 	tp->fastopen_req = kzalloc(sizeof(struct tcp_fastopen_request),
 				   sk->sk_allocation);
-	if (unlikely(tp->fastopen_req == NULL))
+	if (unlikely(!tp->fastopen_req))
 		return -ENOBUFS;
 	tp->fastopen_req->data = msg;
 	tp->fastopen_req->size = size;
@@ -2138,7 +2138,7 @@ adjudge_to_death:
 		 * aborted (e.g., closed with unread data) before 3WHS
 		 * finishes.
 		 */
-		if (req != NULL)
+		if (req)
 			reqsk_fastopen_remove(sk, req, false);
 		inet_csk_destroy_sock(sk);
 	}
@@ -2776,7 +2776,7 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 		break;
 
 	case TCP_FASTOPEN:
-		if (icsk->icsk_accept_queue.fastopenq != NULL)
+		if (icsk->icsk_accept_queue.fastopenq)
 			val = icsk->icsk_accept_queue.fastopenq->max_qlen;
 		else
 			val = 0;
@@ -2960,7 +2960,7 @@ void tcp_done(struct sock *sk)
 
 	tcp_set_state(sk, TCP_CLOSE);
 	tcp_clear_xmit_timers(sk);
-	if (req != NULL)
+	if (req)
 		reqsk_fastopen_remove(sk, req, false);
 
 	sk->sk_shutdown = SHUTDOWN_MASK;

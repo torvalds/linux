@@ -1762,6 +1762,8 @@ struct dst_entry *__sk_dst_check(struct sock *sk, u32 cookie);
 
 struct dst_entry *sk_dst_check(struct sock *sk, u32 cookie);
 
+bool sk_mc_loop(struct sock *sk);
+
 static inline bool sk_can_gso(const struct sock *sk)
 {
 	return net_gso_ok(sk->sk_route_caps, sk->sk_gso_type);

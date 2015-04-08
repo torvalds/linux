@@ -670,8 +670,12 @@ static int cctrl_tbl_show(struct seq_file *seq, void *v)
 		"0.9375" };
 
 	int i;
-	u16 incr[NMTUS][NCCTRL_WIN];
+	u16 (*incr)[NCCTRL_WIN];
 	struct adapter *adap = seq->private;
+
+	incr = kmalloc(sizeof(*incr) * NMTUS, GFP_KERNEL);
+	if (!incr)
+		return -ENOMEM;
 
 	t4_read_cong_tbl(adap, incr);
 
@@ -685,6 +689,8 @@ static int cctrl_tbl_show(struct seq_file *seq, void *v)
 			   adap->params.a_wnd[i],
 			   dec_fac[adap->params.b_wnd[i]]);
 	}
+
+	kfree(incr);
 	return 0;
 }
 

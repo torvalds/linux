@@ -254,8 +254,8 @@ void tipc_node_link_up(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 	active[0] = active[1] = l_ptr;
 exit:
 	/* Leave room for changeover header when returning 'mtu' to users: */
-	n_ptr->act_mtus[0] = active[0]->max_pkt - INT_H_SIZE;
-	n_ptr->act_mtus[1] = active[1]->max_pkt - INT_H_SIZE;
+	n_ptr->act_mtus[0] = active[0]->mtu - INT_H_SIZE;
+	n_ptr->act_mtus[1] = active[1]->mtu - INT_H_SIZE;
 }
 
 /**
@@ -319,11 +319,10 @@ void tipc_node_link_down(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 
 	/* Leave room for changeover header when returning 'mtu' to users: */
 	if (active[0]) {
-		n_ptr->act_mtus[0] = active[0]->max_pkt - INT_H_SIZE;
-		n_ptr->act_mtus[1] = active[1]->max_pkt - INT_H_SIZE;
+		n_ptr->act_mtus[0] = active[0]->mtu - INT_H_SIZE;
+		n_ptr->act_mtus[1] = active[1]->mtu - INT_H_SIZE;
 		return;
 	}
-
 	/* Loopback link went down? No fragmentation needed from now on. */
 	if (n_ptr->addr == tn->own_addr) {
 		n_ptr->act_mtus[0] = MAX_MSG_SIZE;
@@ -394,18 +393,17 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 		n_ptr->bclink.recv_permitted = false;
 	}
 
-	/* Abort link changeover */
+	/* Abort any ongoing link failover */
 	for (i = 0; i < MAX_BEARERS; i++) {
 		struct tipc_link *l_ptr = n_ptr->links[i];
 		if (!l_ptr)
 			continue;
-		l_ptr->reset_checkpoint = l_ptr->next_in_no;
-		l_ptr->exp_msg_count = 0;
+		l_ptr->flags &= ~LINK_FAILINGOVER;
+		l_ptr->failover_checkpt = 0;
+		l_ptr->failover_pkts = 0;
+		kfree_skb(l_ptr->failover_skb);
+		l_ptr->failover_skb = NULL;
 		tipc_link_reset_fragments(l_ptr);
-
-		/* Link marked for deletion after failover? => do it now */
-		if (l_ptr->flags & LINK_STOPPED)
-			tipc_link_delete(l_ptr);
 	}
 
 	n_ptr->action_flags &= ~TIPC_WAIT_OWN_LINKS_DOWN;

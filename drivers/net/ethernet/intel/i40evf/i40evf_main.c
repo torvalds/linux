@@ -664,13 +664,21 @@ i40evf_vlan_filter *i40evf_find_vlan(struct i40evf_adapter *adapter, u16 vlan)
 static struct
 i40evf_vlan_filter *i40evf_add_vlan(struct i40evf_adapter *adapter, u16 vlan)
 {
-	struct i40evf_vlan_filter *f;
+	struct i40evf_vlan_filter *f = NULL;
+	int count = 50;
+
+	while (test_and_set_bit(__I40EVF_IN_CRITICAL_TASK,
+				&adapter->crit_section)) {
+		udelay(1);
+		if (--count == 0)
+			goto out;
+	}
 
 	f = i40evf_find_vlan(adapter, vlan);
 	if (!f) {
 		f = kzalloc(sizeof(*f), GFP_ATOMIC);
 		if (!f)
-			return NULL;
+			goto clearout;
 
 		f->vlan = vlan;
 
@@ -680,6 +688,9 @@ i40evf_vlan_filter *i40evf_add_vlan(struct i40evf_adapter *adapter, u16 vlan)
 		adapter->aq_required |= I40EVF_FLAG_AQ_ADD_VLAN_FILTER;
 	}
 
+clearout:
+	clear_bit(__I40EVF_IN_CRITICAL_TASK, &adapter->crit_section);
+out:
 	return f;
 }
 
@@ -691,12 +702,21 @@ i40evf_vlan_filter *i40evf_add_vlan(struct i40evf_adapter *adapter, u16 vlan)
 static void i40evf_del_vlan(struct i40evf_adapter *adapter, u16 vlan)
 {
 	struct i40evf_vlan_filter *f;
+	int count = 50;
+
+	while (test_and_set_bit(__I40EVF_IN_CRITICAL_TASK,
+				&adapter->crit_section)) {
+		udelay(1);
+		if (--count == 0)
+			return;
+	}
 
 	f = i40evf_find_vlan(adapter, vlan);
 	if (f) {
 		f->remove = true;
 		adapter->aq_required |= I40EVF_FLAG_AQ_DEL_VLAN_FILTER;
 	}
+	clear_bit(__I40EVF_IN_CRITICAL_TASK, &adapter->crit_section);
 }
 
 /**
@@ -1415,41 +1435,22 @@ restart_watchdog:
 }
 
 /**
- * next_queue - increment to next available tx queue
- * @adapter: board private structure
- * @j: queue counter
- *
- * Helper function for RSS programming to increment through available
- * queus. Returns the next queue value.
- **/
-static int next_queue(struct i40evf_adapter *adapter, int j)
-{
-	j += 1;
-
-	return j >= adapter->num_active_queues ? 0 : j;
-}
-
-/**
- * i40evf_configure_rss - Prepare for RSS if used
+ * i40evf_configure_rss - Prepare for RSS
  * @adapter: board private structure
  **/
 static void i40evf_configure_rss(struct i40evf_adapter *adapter)
 {
 	u32 rss_key[I40E_VFQF_HKEY_MAX_INDEX + 1];
 	struct i40e_hw *hw = &adapter->hw;
+	u32 cqueue = 0;
 	u32 lut = 0;
 	int i, j;
 	u64 hena;
 
-	/* No RSS for single queue. */
-	if (adapter->num_active_queues == 1) {
-		wr32(hw, I40E_VFQF_HENA(0), 0);
-		wr32(hw, I40E_VFQF_HENA(1), 0);
-		return;
-	}
-
 	/* Hash type is configured by the PF - we just supply the key */
 	netdev_rss_key_fill(rss_key, sizeof(rss_key));
+
+	/* Fill out hash function seed */
 	for (i = 0; i <= I40E_VFQF_HKEY_MAX_INDEX; i++)
 		wr32(hw, I40E_VFQF_HKEY(i), rss_key[i]);
 
@@ -1459,16 +1460,14 @@ static void i40evf_configure_rss(struct i40evf_adapter *adapter)
 	wr32(hw, I40E_VFQF_HENA(1), (u32)(hena >> 32));
 
 	/* Populate the LUT with max no. of queues in round robin fashion */
-	j = adapter->num_active_queues;
 	for (i = 0; i <= I40E_VFQF_HLUT_MAX_INDEX; i++) {
-		j = next_queue(adapter, j);
-		lut = j;
-		j = next_queue(adapter, j);
-		lut |= j << 8;
-		j = next_queue(adapter, j);
-		lut |= j << 16;
-		j = next_queue(adapter, j);
-		lut |= j << 24;
+		lut = 0;
+		for (j = 0; j < 4; j++) {
+			if (cqueue == adapter->vsi_res->num_queue_pairs)
+				cqueue = 0;
+			lut |= ((cqueue) << (8 * j));
+			cqueue++;
+		}
 		wr32(hw, I40E_VFQF_HLUT(i), lut);
 	}
 	i40e_flush(hw);
