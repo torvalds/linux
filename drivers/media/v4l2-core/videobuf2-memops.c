@@ -37,7 +37,7 @@ struct vm_area_struct *vb2_get_vma(struct vm_area_struct *vma)
 {
 	struct vm_area_struct *vma_copy;
 
-	vma_copy = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
+	vma_copy = kmalloc(sizeof(*vma_copy), GFP_KERNEL);
 	if (vma_copy == NULL)
 		return NULL;
 
@@ -75,7 +75,7 @@ void vb2_put_vma(struct vm_area_struct *vma)
 	if (vma->vm_file)
 		fput(vma->vm_file);
 
-	kmem_cache_free(vm_area_cachep, vma);
+	kfree(vma);
 }
 EXPORT_SYMBOL_GPL(vb2_put_vma);
 
