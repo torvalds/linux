@@ -1213,6 +1213,8 @@ int lg4ff_deinit(struct hid_device *hid)
 		}
 	}
 #endif
+	hid_hw_stop(hid);
+	drv_data->device_props = NULL;
 
 	kfree(entry);
 out:
