@@ -265,7 +265,7 @@ static int udf_CS0toNLS(struct nls_table *nls, struct ustr *utf_o,
 		memset(utf_o, 0, sizeof(struct ustr));
 		pr_err("unknown compression code (%d) stri=%s\n",
 		       cmp_id, ocu_i->u_name);
-		return 0;
+		return -EINVAL;
 	}
 
 	ocu = ocu_i->u_name;
@@ -357,8 +357,9 @@ int udf_get_filename(struct super_block *sb, uint8_t *sname, int slen,
 			goto out2;
 		}
 	} else if (UDF_QUERY_FLAG(sb, UDF_FLAG_NLS_MAP)) {
-		if (!udf_CS0toNLS(UDF_SB(sb)->s_nls_map, filename,
-				  unifilename)) {
+		ret = udf_CS0toNLS(UDF_SB(sb)->s_nls_map, filename,
+				   unifilename);
+		if (ret < 0) {
 			udf_debug("Failed in udf_get_filename: sname = %s\n",
 				  sname);
 			goto out2;
