@@ -786,7 +786,7 @@ static inline struct vmcs12 *get_vmcs12(struct kvm_vcpu *vcpu)
 
 static struct page *nested_get_page(struct kvm_vcpu *vcpu, gpa_t addr)
 {
-	struct page *page = gfn_to_page(vcpu->kvm, addr >> PAGE_SHIFT);
+	struct page *page = kvm_vcpu_gfn_to_page(vcpu, addr >> PAGE_SHIFT);
 	if (is_error_page(page))
 		return NULL;
 
@@ -7323,7 +7323,7 @@ static bool nested_vmx_exit_handled_io(struct kvm_vcpu *vcpu,
 		bitmap += (port & 0x7fff) / 8;
 
 		if (last_bitmap != bitmap)
-			if (kvm_read_guest(vcpu->kvm, bitmap, &b, 1))
+			if (kvm_vcpu_read_guest(vcpu, bitmap, &b, 1))
 				return true;
 		if (b & (1 << (port & 7)))
 			return true;
@@ -7367,7 +7367,7 @@ static bool nested_vmx_exit_handled_msr(struct kvm_vcpu *vcpu,
 	/* Then read the msr_index'th bit from this bitmap: */
 	if (msr_index < 1024*8) {
 		unsigned char b;
-		if (kvm_read_guest(vcpu->kvm, bitmap + msr_index/8, &b, 1))
+		if (kvm_vcpu_read_guest(vcpu, bitmap + msr_index/8, &b, 1))
 			return true;
 		return 1 & (b >> (msr_index & 7));
 	} else
@@ -7632,9 +7632,9 @@ static void vmx_disable_pml(struct vcpu_vmx *vmx)
 	vmcs_write32(SECONDARY_VM_EXEC_CONTROL, exec_control);
 }
 
-static void vmx_flush_pml_buffer(struct vcpu_vmx *vmx)
+static void vmx_flush_pml_buffer(struct kvm_vcpu *vcpu)
 {
-	struct kvm *kvm = vmx->vcpu.kvm;
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u64 *pml_buf;
 	u16 pml_idx;
 
@@ -7656,7 +7656,7 @@ static void vmx_flush_pml_buffer(struct vcpu_vmx *vmx)
 
 		gpa = pml_buf[pml_idx];
 		WARN_ON(gpa & (PAGE_SIZE - 1));
-		mark_page_dirty(kvm, gpa >> PAGE_SHIFT);
+		kvm_vcpu_mark_page_dirty(vcpu, gpa >> PAGE_SHIFT);
 	}
 
 	/* reset PML index */
@@ -7851,7 +7851,7 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 	 * flushed already.
 	 */
 	if (enable_pml)
-		vmx_flush_pml_buffer(vmx);
+		vmx_flush_pml_buffer(vcpu);
 
 	/* If guest state is invalid, start emulating */
 	if (vmx->emulation_required)
@@ -9109,8 +9109,8 @@ static u32 nested_vmx_load_msr(struct kvm_vcpu *vcpu, u64 gpa, u32 count)
 
 	msr.host_initiated = false;
 	for (i = 0; i < count; i++) {
-		if (kvm_read_guest(vcpu->kvm, gpa + i * sizeof(e),
-				   &e, sizeof(e))) {
+		if (kvm_vcpu_read_guest(vcpu, gpa + i * sizeof(e),
+					&e, sizeof(e))) {
 			pr_warn_ratelimited(
 				"%s cannot read MSR entry (%u, 0x%08llx)\n",
 				__func__, i, gpa + i * sizeof(e));
@@ -9143,9 +9143,9 @@ static int nested_vmx_store_msr(struct kvm_vcpu *vcpu, u64 gpa, u32 count)
 
 	for (i = 0; i < count; i++) {
 		struct msr_data msr_info;
-		if (kvm_read_guest(vcpu->kvm,
-				   gpa + i * sizeof(e),
-				   &e, 2 * sizeof(u32))) {
+		if (kvm_vcpu_read_guest(vcpu,
+					gpa + i * sizeof(e),
+					&e, 2 * sizeof(u32))) {
 			pr_warn_ratelimited(
 				"%s cannot read MSR entry (%u, 0x%08llx)\n",
 				__func__, i, gpa + i * sizeof(e));
@@ -9165,10 +9165,10 @@ static int nested_vmx_store_msr(struct kvm_vcpu *vcpu, u64 gpa, u32 count)
 				__func__, i, e.index);
 			return -EINVAL;
 		}
-		if (kvm_write_guest(vcpu->kvm,
-				    gpa + i * sizeof(e) +
-					offsetof(struct vmx_msr_entry, value),
-				    &msr_info.data, sizeof(msr_info.data))) {
+		if (kvm_vcpu_write_guest(vcpu,
+					 gpa + i * sizeof(e) +
+					     offsetof(struct vmx_msr_entry, value),
+					 &msr_info.data, sizeof(msr_info.data))) {
 			pr_warn_ratelimited(
 				"%s cannot write MSR (%u, 0x%x, 0x%llx)\n",
 				__func__, i, e.index, msr_info.data);

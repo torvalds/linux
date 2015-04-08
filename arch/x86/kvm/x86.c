@@ -478,7 +478,7 @@ EXPORT_SYMBOL_GPL(kvm_require_dr);
 
 /*
  * This function will be used to read from the physical memory of the currently
- * running guest. The difference to kvm_read_guest_page is that this function
+ * running guest. The difference to kvm_vcpu_read_guest_page is that this function
  * can read from guest physical or from the guest's guest physical memory.
  */
 int kvm_read_guest_page_mmu(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
@@ -496,7 +496,7 @@ int kvm_read_guest_page_mmu(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 
 	real_gfn = gpa_to_gfn(real_gfn);
 
-	return kvm_read_guest_page(vcpu->kvm, real_gfn, data, offset, len);
+	return kvm_vcpu_read_guest_page(vcpu, real_gfn, data, offset, len);
 }
 EXPORT_SYMBOL_GPL(kvm_read_guest_page_mmu);
 
@@ -2030,7 +2030,7 @@ static int xen_hvm_config(struct kvm_vcpu *vcpu, u64 data)
 		r = PTR_ERR(page);
 		goto out;
 	}
-	if (kvm_write_guest(kvm, page_addr, page, PAGE_SIZE))
+	if (kvm_vcpu_write_guest(vcpu, page_addr, page, PAGE_SIZE))
 		goto out_free;
 	r = 0;
 out_free:
@@ -2130,13 +2130,13 @@ static int set_msr_hyperv(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 			break;
 		}
 		gfn = data >> HV_X64_MSR_APIC_ASSIST_PAGE_ADDRESS_SHIFT;
-		addr = gfn_to_hva(vcpu->kvm, gfn);
+		addr = kvm_vcpu_gfn_to_hva(vcpu, gfn);
 		if (kvm_is_error_hva(addr))
 			return 1;
 		if (__clear_user((void __user *)addr, PAGE_SIZE))
 			return 1;
 		vcpu->arch.hv_vapic = data;
-		mark_page_dirty(vcpu->kvm, gfn);
+		kvm_vcpu_mark_page_dirty(vcpu, gfn);
 		if (kvm_lapic_enable_pv_eoi(vcpu, gfn_to_gpa(gfn) | KVM_MSR_ENABLED))
 			return 1;
 		break;
@@ -4425,8 +4425,8 @@ static int kvm_read_guest_virt_helper(gva_t addr, void *val, unsigned int bytes,
 
 		if (gpa == UNMAPPED_GVA)
 			return X86EMUL_PROPAGATE_FAULT;
-		ret = kvm_read_guest_page(vcpu->kvm, gpa >> PAGE_SHIFT, data,
-					  offset, toread);
+		ret = kvm_vcpu_read_guest_page(vcpu, gpa >> PAGE_SHIFT, data,
+					       offset, toread);
 		if (ret < 0) {
 			r = X86EMUL_IO_NEEDED;
 			goto out;
@@ -4459,8 +4459,8 @@ static int kvm_fetch_guest_virt(struct x86_emulate_ctxt *ctxt,
 	offset = addr & (PAGE_SIZE-1);
 	if (WARN_ON(offset + bytes > PAGE_SIZE))
 		bytes = (unsigned)PAGE_SIZE - offset;
-	ret = kvm_read_guest_page(vcpu->kvm, gpa >> PAGE_SHIFT, val,
-				  offset, bytes);
+	ret = kvm_vcpu_read_guest_page(vcpu, gpa >> PAGE_SHIFT, val,
+				       offset, bytes);
 	if (unlikely(ret < 0))
 		return X86EMUL_IO_NEEDED;
 
@@ -4506,7 +4506,7 @@ int kvm_write_guest_virt_system(struct x86_emulate_ctxt *ctxt,
 
 		if (gpa == UNMAPPED_GVA)
 			return X86EMUL_PROPAGATE_FAULT;
-		ret = kvm_write_guest(vcpu->kvm, gpa, data, towrite);
+		ret = kvm_vcpu_write_guest(vcpu, gpa, data, towrite);
 		if (ret < 0) {
 			r = X86EMUL_IO_NEEDED;
 			goto out;
@@ -4559,7 +4559,7 @@ int emulator_write_phys(struct kvm_vcpu *vcpu, gpa_t gpa,
 {
 	int ret;
 
-	ret = kvm_write_guest(vcpu->kvm, gpa, val, bytes);
+	ret = kvm_vcpu_write_guest(vcpu, gpa, val, bytes);
 	if (ret < 0)
 		return 0;
 	kvm_mmu_pte_write(vcpu, gpa, val, bytes);
@@ -4593,7 +4593,7 @@ static int read_prepare(struct kvm_vcpu *vcpu, void *val, int bytes)
 static int read_emulate(struct kvm_vcpu *vcpu, gpa_t gpa,
 			void *val, int bytes)
 {
-	return !kvm_read_guest(vcpu->kvm, gpa, val, bytes);
+	return !kvm_vcpu_read_guest(vcpu, gpa, val, bytes);
 }
 
 static int write_emulate(struct kvm_vcpu *vcpu, gpa_t gpa,
@@ -4791,7 +4791,7 @@ static int emulator_cmpxchg_emulated(struct x86_emulate_ctxt *ctxt,
 	if (((gpa + bytes - 1) & PAGE_MASK) != (gpa & PAGE_MASK))
 		goto emul_write;
 
-	page = gfn_to_page(vcpu->kvm, gpa >> PAGE_SHIFT);
+	page = kvm_vcpu_gfn_to_page(vcpu, gpa >> PAGE_SHIFT);
 	if (is_error_page(page))
 		goto emul_write;
 
@@ -4819,7 +4819,7 @@ static int emulator_cmpxchg_emulated(struct x86_emulate_ctxt *ctxt,
 	if (!exchanged)
 		return X86EMUL_CMPXCHG_FAILED;
 
-	mark_page_dirty(vcpu->kvm, gpa >> PAGE_SHIFT);
+	kvm_vcpu_mark_page_dirty(vcpu, gpa >> PAGE_SHIFT);
 	kvm_mmu_pte_write(vcpu, gpa, new, bytes);
 
 	return X86EMUL_CONTINUE;
@@ -6570,7 +6570,7 @@ static void process_smi(struct kvm_vcpu *vcpu)
 	else
 		process_smi_save_state_32(vcpu, buf);
 
-	kvm_write_guest(vcpu->kvm, vcpu->arch.smbase + 0xfe00, buf, sizeof(buf));
+	kvm_vcpu_write_guest(vcpu, vcpu->arch.smbase + 0xfe00, buf, sizeof(buf));
 
 	if (kvm_x86_ops->get_nmi_mask(vcpu))
 		vcpu->arch.hflags |= HF_SMM_INSIDE_NMI_MASK;
@@ -8075,7 +8075,7 @@ void kvm_arch_memslots_updated(struct kvm *kvm, struct kvm_memslots *slots)
 	 * memslots->generation has been incremented.
 	 * mmio generation may have reached its maximum value.
 	 */
-	kvm_mmu_invalidate_mmio_sptes(kvm);
+	kvm_mmu_invalidate_mmio_sptes(kvm, slots);
 }
 
 int kvm_arch_prepare_memory_region(struct kvm *kvm,

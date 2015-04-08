@@ -1955,8 +1955,8 @@ static u64 nested_svm_get_tdp_pdptr(struct kvm_vcpu *vcpu, int index)
 	u64 pdpte;
 	int ret;
 
-	ret = kvm_read_guest_page(vcpu->kvm, gpa_to_gfn(cr3), &pdpte,
-				  offset_in_page(cr3) + index * 8, 8);
+	ret = kvm_vcpu_read_guest_page(vcpu, gpa_to_gfn(cr3), &pdpte,
+				       offset_in_page(cr3) + index * 8, 8);
 	if (ret)
 		return 0;
 	return pdpte;
@@ -2114,7 +2114,7 @@ static void *nested_svm_map(struct vcpu_svm *svm, u64 gpa, struct page **_page)
 
 	might_sleep();
 
-	page = gfn_to_page(svm->vcpu.kvm, gpa >> PAGE_SHIFT);
+	page = kvm_vcpu_gfn_to_page(&svm->vcpu, gpa >> PAGE_SHIFT);
 	if (is_error_page(page))
 		goto error;
 
@@ -2153,7 +2153,7 @@ static int nested_svm_intercept_ioio(struct vcpu_svm *svm)
 	mask = (0xf >> (4 - size)) << start_bit;
 	val = 0;
 
-	if (kvm_read_guest(svm->vcpu.kvm, gpa, &val, iopm_len))
+	if (kvm_vcpu_read_guest(&svm->vcpu, gpa, &val, iopm_len))
 		return NESTED_EXIT_DONE;
 
 	return (val & mask) ? NESTED_EXIT_DONE : NESTED_EXIT_HOST;
@@ -2178,7 +2178,7 @@ static int nested_svm_exit_handled_msr(struct vcpu_svm *svm)
 	/* Offset is in 32 bit units but need in 8 bit units */
 	offset *= 4;
 
-	if (kvm_read_guest(svm->vcpu.kvm, svm->nested.vmcb_msrpm + offset, &value, 4))
+	if (kvm_vcpu_read_guest(&svm->vcpu, svm->nested.vmcb_msrpm + offset, &value, 4))
 		return NESTED_EXIT_DONE;
 
 	return (value & mask) ? NESTED_EXIT_DONE : NESTED_EXIT_HOST;
@@ -2449,7 +2449,7 @@ static bool nested_svm_vmrun_msrpm(struct vcpu_svm *svm)
 		p      = msrpm_offsets[i];
 		offset = svm->nested.vmcb_msrpm + (p * 4);
 
-		if (kvm_read_guest(svm->vcpu.kvm, offset, &value, 4))
+		if (kvm_vcpu_read_guest(&svm->vcpu, offset, &value, 4))
 			return false;
 
 		svm->nested.msrpm[p] = svm->msrpm[p] | value;
