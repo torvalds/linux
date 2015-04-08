@@ -338,15 +338,17 @@ int udf_get_filename(struct super_block *sb, uint8_t *sname, int slen,
 		     uint8_t *dname, int dlen)
 {
 	struct ustr *filename, *unifilename;
-	int len = 0;
+	int ret = 0;
 
 	filename = kmalloc(sizeof(struct ustr), GFP_NOFS);
 	if (!filename)
-		return 0;
+		return -ENOMEM;
 
 	unifilename = kmalloc(sizeof(struct ustr), GFP_NOFS);
-	if (!unifilename)
+	if (!unifilename) {
+		ret = -ENOMEM;
 		goto out1;
+	}
 
 	if (udf_build_ustr_exact(unifilename, sname, slen))
 		goto out2;
@@ -367,14 +369,14 @@ int udf_get_filename(struct super_block *sb, uint8_t *sname, int slen,
 	} else
 		goto out2;
 
-	len = udf_translate_to_linux(dname, dlen,
+	ret = udf_translate_to_linux(dname, dlen,
 				     filename->u_name, filename->u_len,
 				     unifilename->u_name, unifilename->u_len);
 out2:
 	kfree(unifilename);
 out1:
 	kfree(filename);
-	return len;
+	return ret;
 }
 
 int udf_put_filename(struct super_block *sb, const uint8_t *sname,
