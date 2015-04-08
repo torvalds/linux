@@ -322,6 +322,7 @@ struct i915_hw_ppgtt {
 	};
 
 	struct i915_page_table *scratch_pt;
+	struct i915_page_directory *scratch_pd;
 
 	struct drm_i915_file_private *file_priv;
 
