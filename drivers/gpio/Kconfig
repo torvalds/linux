@@ -521,6 +521,39 @@ config GPIO_ZYNQ
 
 comment "I2C GPIO expanders:"
 
+config GPIO_ADP5520
+	tristate "GPIO Support for ADP5520 PMIC"
+	depends on PMIC_ADP5520
+	help
+	  This option enables support for on-chip GPIO found
+	  on Analog Devices ADP5520 PMICs.
+
+config GPIO_ADP5588
+	tristate "ADP5588 I2C GPIO expander"
+	depends on I2C
+	help
+	  This option enables support for 18 GPIOs found
+	  on Analog Devices ADP5588 GPIO Expanders.
+
+config GPIO_ADP5588_IRQ
+	bool "Interrupt controller support for ADP5588"
+	depends on GPIO_ADP5588=y
+	help
+	  Say yes here to enable the adp5588 to be used as an interrupt
+	  controller. It requires the driver to be built in the kernel.
+
+config GPIO_ADNP
+	tristate "Avionic Design N-bit GPIO expander"
+	depends on I2C && OF_GPIO
+	select GPIOLIB_IRQCHIP
+	help
+	  This option enables support for N GPIOs found on Avionic Design
+	  I2C GPIO expanders. The register space will be extended by powers
+	  of two, so the controller will need to accommodate for that. For
+	  example: if a controller provides 48 pins, 6 registers will be
+	  enough to represent all pins, but the driver will assume a
+	  register layout for 64 pins (8 registers).
+
 config GPIO_ARIZONA
 	tristate "Wolfson Microelectronics Arizona class devices"
 	depends on MFD_ARIZONA
@@ -651,18 +684,6 @@ config GPIO_RC5T583
 	  This driver provides the support for driving/reading the gpio pins
 	  of RC5T583 device through standard gpio library.
 
-config GPIO_SX150X
-	bool "Semtech SX150x I2C GPIO expander"
-	depends on I2C=y
-	select GPIOLIB_IRQCHIP
-	default n
-	help
-	  Say yes here to provide support for Semtech SX150-series I2C
-	  GPIO expanders. Compatible models include:
-
-	  8 bits:  sx1508q
-	  16 bits: sx1509q
-
 config GPIO_STMPE
 	bool "STMPE GPIOs"
 	depends on MFD_STMPE
@@ -681,6 +702,18 @@ config GPIO_STP_XWAY
 	  that can be up to 24 bit. This peripheral is aimed at driving leds.
 	  Some of the gpios/leds can be auto updated by the soc with dsl and
 	  phy status.
+
+config GPIO_SX150X
+	bool "Semtech SX150x I2C GPIO expander"
+	depends on I2C=y
+	select GPIOLIB_IRQCHIP
+	default n
+	help
+	  Say yes here to provide support for Semtech SX150-series I2C
+	  GPIO expanders. Compatible models include:
+
+	  8 bits:  sx1508q
+	  16 bits: sx1509q
 
 config GPIO_TC3589X
 	bool "TC3589X GPIOs"
@@ -730,39 +763,6 @@ config GPIO_WM8994
 	help
 	  Say yes here to access the GPIO signals of WM8994 audio hub
 	  CODECs from Wolfson Microelectronics.
-
-config GPIO_ADP5520
-	tristate "GPIO Support for ADP5520 PMIC"
-	depends on PMIC_ADP5520
-	help
-	  This option enables support for on-chip GPIO found
-	  on Analog Devices ADP5520 PMICs.
-
-config GPIO_ADP5588
-	tristate "ADP5588 I2C GPIO expander"
-	depends on I2C
-	help
-	  This option enables support for 18 GPIOs found
-	  on Analog Devices ADP5588 GPIO Expanders.
-
-config GPIO_ADP5588_IRQ
-	bool "Interrupt controller support for ADP5588"
-	depends on GPIO_ADP5588=y
-	help
-	  Say yes here to enable the adp5588 to be used as an interrupt
-	  controller. It requires the driver to be built in the kernel.
-
-config GPIO_ADNP
-	tristate "Avionic Design N-bit GPIO expander"
-	depends on I2C && OF_GPIO
-	select GPIOLIB_IRQCHIP
-	help
-	  This option enables support for N GPIOs found on Avionic Design
-	  I2C GPIO expanders. The register space will be extended by powers
-	  of two, so the controller will need to accommodate for that. For
-	  example: if a controller provides 48 pins, 6 registers will be
-	  enough to represent all pins, but the driver will assume a
-	  register layout for 64 pins (8 registers).
 
 comment "PCI GPIO expanders:"
 
