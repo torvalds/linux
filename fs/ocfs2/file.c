@@ -2394,7 +2394,6 @@ relock:
 		/*
 		 * for completing the rest of the request.
 		 */
-		*ppos += written;
 		count -= written;
 		written_buffered = generic_perform_write(file, from, *ppos);
 		/*
