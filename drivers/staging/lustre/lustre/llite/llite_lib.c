@@ -227,14 +227,6 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	if (sbi->ll_flags & LL_SBI_USER_XATTR)
 		data->ocd_connect_flags |= OBD_CONNECT_XATTR;
 
-#ifdef HAVE_MS_FLOCK_LOCK
-	/* force vfs to use lustre handler for flock() calls - bug 10743 */
-	sb->s_flags |= MS_FLOCK_LOCK;
-#endif
-#ifdef MS_HAS_NEW_AOPS
-	sb->s_flags |= MS_HAS_NEW_AOPS;
-#endif
-
 	if (sbi->ll_flags & LL_SBI_FLOCK)
 		sbi->ll_fop = &ll_file_operations_flock;
 	else if (sbi->ll_flags & LL_SBI_LOCALFLOCK)
