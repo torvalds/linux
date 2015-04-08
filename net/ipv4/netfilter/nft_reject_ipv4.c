@@ -33,6 +33,8 @@ static void nft_reject_ipv4_eval(const struct nft_expr *expr,
 	case NFT_REJECT_TCP_RST:
 		nf_send_reset(pkt->skb, pkt->ops->hooknum);
 		break;
+	default:
+		break;
 	}
 
 	data[NFT_REG_VERDICT].verdict = NF_DROP;
