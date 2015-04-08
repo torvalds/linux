@@ -136,6 +136,12 @@ config GPIO_ALTERA
 
 	  If driver is built as a module it will be called gpio-altera.
 
+config GPIO_BCM_KONA
+	bool "Broadcom Kona GPIO"
+	depends on OF_GPIO && (ARCH_BCM_MOBILE || COMPILE_TEST)
+	help
+	  Turn on GPIO support for Broadcom "Kona" chips.
+
 config GPIO_CLPS711X
 	tristate "CLPS711X GPIO support"
 	depends on ARCH_CLPS711X || COMPILE_TEST
@@ -951,12 +957,6 @@ config GPIO_MSIC
 	help
 	  Enable support for GPIO on intel MSIC controllers found in
 	  intel MID devices
-
-config GPIO_BCM_KONA
-	bool "Broadcom Kona GPIO"
-	depends on OF_GPIO && (ARCH_BCM_MOBILE || COMPILE_TEST)
-	help
-	  Turn on GPIO support for Broadcom "Kona" chips.
 
 comment "USB GPIO expanders:"
 
