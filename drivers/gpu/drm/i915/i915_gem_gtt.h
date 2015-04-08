@@ -220,11 +220,13 @@ struct i915_page_directory {
 		dma_addr_t daddr;
 	};
 
+	unsigned long *used_pdes;
 	struct i915_page_table *page_table[I915_PDES]; /* PDEs */
 };
 
 struct i915_page_directory_pointer {
 	/* struct page *page; */
+	DECLARE_BITMAP(used_pdpes, GEN8_LEGACY_PDPES);
 	struct i915_page_directory *page_directory[GEN8_LEGACY_PDPES];
 };
 
@@ -451,6 +453,11 @@ static inline uint32_t gen8_pml4e_index(uint64_t address)
 {
 	WARN_ON(1); /* For 64B */
 	return 0;
+}
+
+static inline size_t gen8_pte_count(uint64_t address, uint64_t length)
+{
+	return i915_pte_count(address, length, GEN8_PDE_SHIFT);
 }
 
 int i915_gem_gtt_init(struct drm_device *dev);

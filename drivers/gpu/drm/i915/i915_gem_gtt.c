@@ -437,6 +437,7 @@ static void unmap_and_free_pd(struct i915_page_directory *pd,
 	if (pd->page) {
 		i915_dma_unmap_single(pd, dev);
 		__free_page(pd->page);
+		kfree(pd->used_pdes);
 		kfree(pd);
 	}
 }
@@ -444,26 +445,35 @@ static void unmap_and_free_pd(struct i915_page_directory *pd,
 static struct i915_page_directory *alloc_pd_single(struct drm_device *dev)
 {
 	struct i915_page_directory *pd;
-	int ret;
+	int ret = -ENOMEM;
 
 	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
 	if (!pd)
 		return ERR_PTR(-ENOMEM);
 
+	pd->used_pdes = kcalloc(BITS_TO_LONGS(I915_PDES),
+				sizeof(*pd->used_pdes), GFP_KERNEL);
+	if (!pd->used_pdes)
+		goto free_pd;
+
 	pd->page = alloc_page(GFP_KERNEL);
-	if (!pd->page) {
-		kfree(pd);
-		return ERR_PTR(-ENOMEM);
-	}
+	if (!pd->page)
+		goto free_bitmap;
 
 	ret = i915_dma_map_single(pd, dev);
-	if (ret) {
-		__free_page(pd->page);
-		kfree(pd);
-		return ERR_PTR(ret);
-	}
+	if (ret)
+		goto free_page;
 
 	return pd;
+
+free_page:
+	__free_page(pd->page);
+free_bitmap:
+	kfree(pd->used_pdes);
+free_pd:
+	kfree(pd);
+
+	return ERR_PTR(ret);
 }
 
 /* Broadwell Page Directory Pointer Descriptors */
@@ -675,7 +685,7 @@ static void gen8_free_page_tables(struct i915_page_directory *pd, struct drm_dev
 	if (!pd->page)
 		return;
 
-	for (i = 0; i < I915_PDES; i++) {
+	for_each_set_bit(i, pd->used_pdes, I915_PDES) {
 		if (WARN_ON(!pd->page_table[i]))
 			continue;
 
@@ -688,7 +698,7 @@ static void gen8_ppgtt_free(struct i915_hw_ppgtt *ppgtt)
 {
 	int i;
 
-	for (i = 0; i < GEN8_LEGACY_PDPES; i++) {
+	for_each_set_bit(i, ppgtt->pdp.used_pdpes, GEN8_LEGACY_PDPES) {
 		if (WARN_ON(!ppgtt->pdp.page_directory[i]))
 			continue;
 
@@ -752,6 +762,7 @@ static int gen8_ppgtt_alloc_page_directories(struct i915_hw_ppgtt *ppgtt,
 	gen8_for_each_pdpe(unused, pdp, start, length, temp, pdpe) {
 		WARN_ON(unused);
 		pdp->page_directory[pdpe] = alloc_pd_single(dev);
+
 		if (IS_ERR(pdp->page_directory[pdpe]))
 			goto unwind_out;
 
@@ -775,10 +786,13 @@ static int gen8_alloc_va_range(struct i915_address_space *vm,
 	struct i915_hw_ppgtt *ppgtt =
 		container_of(vm, struct i915_hw_ppgtt, base);
 	struct i915_page_directory *pd;
+	const uint64_t orig_start = start;
+	const uint64_t orig_length = length;
 	uint64_t temp;
 	uint32_t pdpe;
 	int ret;
 
+	/* Do the allocations first so we can easily bail out */
 	ret = gen8_ppgtt_alloc_page_directories(ppgtt, &ppgtt->pdp, start, length);
 	if (ret)
 		return ret;
@@ -787,6 +801,27 @@ static int gen8_alloc_va_range(struct i915_address_space *vm,
 		ret = gen8_ppgtt_alloc_pagetabs(ppgtt, pd, start, length);
 		if (ret)
 			goto err_out;
+	}
+
+	/* Now mark everything we've touched as used. This doesn't allow for
+	 * robust error checking, but it makes the code a hell of a lot simpler.
+	 */
+	start = orig_start;
+	length = orig_length;
+
+	gen8_for_each_pdpe(pd, &ppgtt->pdp, start, length, temp, pdpe) {
+		struct i915_page_table *pt;
+		uint64_t pd_len = gen8_clamp_pd(start, length);
+		uint64_t pd_start = start;
+		uint32_t pde;
+
+		gen8_for_each_pde(pt, &ppgtt->pd, pd_start, pd_len, temp, pde) {
+			bitmap_set(pd->page_table[pde]->used_ptes,
+				   gen8_pte_index(start),
+				   gen8_pte_count(start, length));
+			set_bit(pde, pd->used_pdes);
+		}
+		set_bit(pdpe, ppgtt->pdp.used_pdpes);
 	}
 
 	return 0;
