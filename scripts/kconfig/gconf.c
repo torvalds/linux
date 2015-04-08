@@ -1474,9 +1474,12 @@ int main(int ac, char *av[])
 		case 'a':
 			//showAll = 1;
 			break;
+		case 's':
+			conf_set_message_callback(NULL);
+			break;
 		case 'h':
 		case '?':
-			printf("%s <config>\n", av[0]);
+			printf("%s [-s] <config>\n", av[0]);
 			exit(0);
 		}
 		name = av[2];
