@@ -188,6 +188,15 @@
 #define GEN8_CTX_FORCE_RESTORE (1<<2)
 #define GEN8_CTX_L3LLC_COHERENT (1<<5)
 #define GEN8_CTX_PRIVILEGE (1<<8)
+
+#define ASSIGN_CTX_PDP(ppgtt, reg_state, n) { \
+	const u64 _addr = ppgtt->pdp.page_directory[n] ? \
+		ppgtt->pdp.page_directory[n]->daddr : \
+		ppgtt->scratch_pd->daddr; \
+	reg_state[CTX_PDP ## n ## _UDW+1] = upper_32_bits(_addr); \
+	reg_state[CTX_PDP ## n ## _LDW+1] = lower_32_bits(_addr); \
+}
+
 enum {
 	ADVANCED_CONTEXT = 0,
 	LEGACY_CONTEXT,
@@ -1755,14 +1764,14 @@ populate_lr_context(struct intel_context *ctx, struct drm_i915_gem_object *ctx_o
 	reg_state[CTX_PDP1_LDW] = GEN8_RING_PDP_LDW(ring, 1);
 	reg_state[CTX_PDP0_UDW] = GEN8_RING_PDP_UDW(ring, 0);
 	reg_state[CTX_PDP0_LDW] = GEN8_RING_PDP_LDW(ring, 0);
-	reg_state[CTX_PDP3_UDW+1] = upper_32_bits(ppgtt->pdp.page_directory[3]->daddr);
-	reg_state[CTX_PDP3_LDW+1] = lower_32_bits(ppgtt->pdp.page_directory[3]->daddr);
-	reg_state[CTX_PDP2_UDW+1] = upper_32_bits(ppgtt->pdp.page_directory[2]->daddr);
-	reg_state[CTX_PDP2_LDW+1] = lower_32_bits(ppgtt->pdp.page_directory[2]->daddr);
-	reg_state[CTX_PDP1_UDW+1] = upper_32_bits(ppgtt->pdp.page_directory[1]->daddr);
-	reg_state[CTX_PDP1_LDW+1] = lower_32_bits(ppgtt->pdp.page_directory[1]->daddr);
-	reg_state[CTX_PDP0_UDW+1] = upper_32_bits(ppgtt->pdp.page_directory[0]->daddr);
-	reg_state[CTX_PDP0_LDW+1] = lower_32_bits(ppgtt->pdp.page_directory[0]->daddr);
+	/* XXX: Systems with less than 4GB of memory do not have
+	 * all PDPs. Proper PDP tracking will be added in a
+	 * subsequent patch.
+	 */
+	ASSIGN_CTX_PDP(ppgtt, reg_state, 3);
+	ASSIGN_CTX_PDP(ppgtt, reg_state, 2);
+	ASSIGN_CTX_PDP(ppgtt, reg_state, 1);
+	ASSIGN_CTX_PDP(ppgtt, reg_state, 0);
 	if (ring->id == RCS) {
 		reg_state[CTX_LRI_HEADER_2] = MI_LOAD_REGISTER_IMM(1);
 		reg_state[CTX_R_PWR_CLK_STATE] = GEN8_R_PWR_CLK_STATE;
