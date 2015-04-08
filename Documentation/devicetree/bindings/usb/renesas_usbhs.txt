@@ -15,10 +15,8 @@ Optional properties:
   - phys: phandle + phy specifier pair
   - phy-names: must be "usb"
   - dmas: Must contain a list of references to DMA specifiers.
-  - dma-names : Must contain a list of DMA names:
-   - tx0 ... tx<n>
-   - rx0 ... rx<n>
-    - This <n> means DnFIFO in USBHS module.
+  - dma-names : named "ch%d", where %d is the channel number ranging from zero
+                to the number of channels (DnFIFOs) minus one.
 
 Example:
 	usbhs: usb@e6590000 {

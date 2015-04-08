@@ -1227,15 +1227,21 @@ static void usbhsf_dma_init_dt(struct device *dev, struct usbhs_fifo *fifo,
 {
 	char name[16];
 
-	snprintf(name, sizeof(name), "tx%d", channel);
-	fifo->tx_chan = dma_request_slave_channel_reason(dev, name);
-	if (IS_ERR(fifo->tx_chan))
-		fifo->tx_chan = NULL;
-
-	snprintf(name, sizeof(name), "rx%d", channel);
-	fifo->rx_chan = dma_request_slave_channel_reason(dev, name);
-	if (IS_ERR(fifo->rx_chan))
-		fifo->rx_chan = NULL;
+	/*
+	 * To avoid complex handing for DnFIFOs, the driver uses each
+	 * DnFIFO as TX or RX direction (not bi-direction).
+	 * So, the driver uses odd channels for TX, even channels for RX.
+	 */
+	snprintf(name, sizeof(name), "ch%d", channel);
+	if (channel & 1) {
+		fifo->tx_chan = dma_request_slave_channel_reason(dev, name);
+		if (IS_ERR(fifo->tx_chan))
+			fifo->tx_chan = NULL;
+	} else {
+		fifo->rx_chan = dma_request_slave_channel_reason(dev, name);
+		if (IS_ERR(fifo->rx_chan))
+			fifo->rx_chan = NULL;
+	}
 }
 
 static void usbhsf_dma_init(struct usbhs_priv *priv, struct usbhs_fifo *fifo,
