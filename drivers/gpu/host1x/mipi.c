@@ -279,6 +279,10 @@ int tegra_mipi_calibrate(struct tegra_mipi_device *device)
 
 	tegra_mipi_writel(device->mipi, value, MIPI_CAL_CTRL);
 
+	/* clear any pending status bits */
+	value = tegra_mipi_readl(device->mipi, MIPI_CAL_STATUS);
+	tegra_mipi_writel(device->mipi, value, MIPI_CAL_STATUS);
+
 	value = tegra_mipi_readl(device->mipi, MIPI_CAL_CTRL);
 	value |= MIPI_CAL_CTRL_START;
 	tegra_mipi_writel(device->mipi, value, MIPI_CAL_CTRL);
