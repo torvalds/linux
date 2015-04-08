@@ -89,6 +89,7 @@ struct lg4ff_wheel_data {
 };
 
 struct lg4ff_device_entry {
+	spinlock_t report_lock; /* Protect output HID report */
 	struct lg4ff_wheel_data wdata;
 };
 
@@ -303,8 +304,23 @@ static int lg4ff_play(struct input_dev *dev, void *data, struct ff_effect *effec
 	struct hid_device *hid = input_get_drvdata(dev);
 	struct list_head *report_list = &hid->report_enum[HID_OUTPUT_REPORT].report_list;
 	struct hid_report *report = list_entry(report_list->next, struct hid_report, list);
+	struct lg4ff_device_entry *entry;
+	struct lg_drv_data *drv_data;
+	unsigned long flags;
 	s32 *value = report->field[0]->value;
 	int x;
+
+	drv_data = hid_get_drvdata(hid);
+	if (!drv_data) {
+		hid_err(hid, "Private driver data not found!\n");
+		return -EINVAL;
+	}
+
+	entry = drv_data->device_props;
+	if (!entry) {
+		hid_err(hid, "Device properties not found!\n");
+		return -EINVAL;
+	}
 
 #define CLAMP(x) do { if (x < 0) x = 0; else if (x > 0xff) x = 0xff; } while (0)
 
@@ -313,6 +329,7 @@ static int lg4ff_play(struct input_dev *dev, void *data, struct ff_effect *effec
 		x = effect->u.ramp.start_level + 0x80;	/* 0x80 is no force */
 		CLAMP(x);
 
+		spin_lock_irqsave(&entry->report_lock, flags);
 		if (x == 0x80) {
 			/* De-activate force in slot-1*/
 			value[0] = 0x13;
@@ -324,6 +341,7 @@ static int lg4ff_play(struct input_dev *dev, void *data, struct ff_effect *effec
 			value[6] = 0x00;
 
 			hid_hw_request(hid, report, HID_REQ_SET_REPORT);
+			spin_unlock_irqrestore(&entry->report_lock, flags);
 			return 0;
 		}
 
@@ -336,6 +354,7 @@ static int lg4ff_play(struct input_dev *dev, void *data, struct ff_effect *effec
 		value[6] = 0x00;
 
 		hid_hw_request(hid, report, HID_REQ_SET_REPORT);
+		spin_unlock_irqrestore(&entry->report_lock, flags);
 		break;
 	}
 	return 0;
@@ -352,6 +371,7 @@ static void lg4ff_set_autocenter_default(struct input_dev *dev, u16 magnitude)
 	u32 expand_a, expand_b;
 	struct lg4ff_device_entry *entry;
 	struct lg_drv_data *drv_data;
+	unsigned long flags;
 
 	drv_data = hid_get_drvdata(hid);
 	if (!drv_data) {
@@ -366,6 +386,7 @@ static void lg4ff_set_autocenter_default(struct input_dev *dev, u16 magnitude)
 	}
 
 	/* De-activate Auto-Center */
+	spin_lock_irqsave(&entry->report_lock, flags);
 	if (magnitude == 0) {
 		value[0] = 0xf5;
 		value[1] = 0x00;
@@ -376,6 +397,7 @@ static void lg4ff_set_autocenter_default(struct input_dev *dev, u16 magnitude)
 		value[6] = 0x00;
 
 		hid_hw_request(hid, report, HID_REQ_SET_REPORT);
+		spin_unlock_irqrestore(&entry->report_lock, flags);
 		return;
 	}
 
@@ -417,6 +439,7 @@ static void lg4ff_set_autocenter_default(struct input_dev *dev, u16 magnitude)
 	value[6] = 0x00;
 
 	hid_hw_request(hid, report, HID_REQ_SET_REPORT);
+	spin_unlock_irqrestore(&entry->report_lock, flags);
 }
 
 /* Sends autocentering command compatible with Formula Force EX */
@@ -425,9 +448,25 @@ static void lg4ff_set_autocenter_ffex(struct input_dev *dev, u16 magnitude)
 	struct hid_device *hid = input_get_drvdata(dev);
 	struct list_head *report_list = &hid->report_enum[HID_OUTPUT_REPORT].report_list;
 	struct hid_report *report = list_entry(report_list->next, struct hid_report, list);
+	struct lg4ff_device_entry *entry;
+	struct lg_drv_data *drv_data;
+	unsigned long flags;
 	s32 *value = report->field[0]->value;
 	magnitude = magnitude * 90 / 65535;
 
+	drv_data = hid_get_drvdata(hid);
+	if (!drv_data) {
+		hid_err(hid, "Private driver data not found!\n");
+		return;
+	}
+
+	entry = drv_data->device_props;
+	if (!entry) {
+		hid_err(hid, "Device properties not found!\n");
+		return;
+	}
+
+	spin_lock_irqsave(&entry->report_lock, flags);
 	value[0] = 0xfe;
 	value[1] = 0x03;
 	value[2] = magnitude >> 14;
@@ -437,6 +476,7 @@ static void lg4ff_set_autocenter_ffex(struct input_dev *dev, u16 magnitude)
 	value[6] = 0x00;
 
 	hid_hw_request(hid, report, HID_REQ_SET_REPORT);
+	spin_unlock_irqrestore(&entry->report_lock, flags);
 }
 
 /* Sends command to set range compatible with G25/G27/Driving Force GT */
@@ -444,10 +484,26 @@ static void lg4ff_set_range_g25(struct hid_device *hid, u16 range)
 {
 	struct list_head *report_list = &hid->report_enum[HID_OUTPUT_REPORT].report_list;
 	struct hid_report *report = list_entry(report_list->next, struct hid_report, list);
+	struct lg4ff_device_entry *entry;
+	struct lg_drv_data *drv_data;
+	unsigned long flags;
 	s32 *value = report->field[0]->value;
+
+	drv_data = hid_get_drvdata(hid);
+	if (!drv_data) {
+		hid_err(hid, "Private driver data not found!\n");
+		return;
+	}
+
+	entry = drv_data->device_props;
+	if (!entry) {
+		hid_err(hid, "Device properties not found!\n");
+		return;
+	}
 
 	dbg_hid("G25/G27/DFGT: setting range to %u\n", range);
 
+	spin_lock_irqsave(&entry->report_lock, flags);
 	value[0] = 0xf8;
 	value[1] = 0x81;
 	value[2] = range & 0x00ff;
@@ -457,6 +513,7 @@ static void lg4ff_set_range_g25(struct hid_device *hid, u16 range)
 	value[6] = 0x00;
 
 	hid_hw_request(hid, report, HID_REQ_SET_REPORT);
+	spin_unlock_irqrestore(&entry->report_lock, flags);
 }
 
 /* Sends commands to set range compatible with Driving Force Pro wheel */
@@ -465,11 +522,27 @@ static void lg4ff_set_range_dfp(struct hid_device *hid, u16 range)
 	struct list_head *report_list = &hid->report_enum[HID_OUTPUT_REPORT].report_list;
 	struct hid_report *report = list_entry(report_list->next, struct hid_report, list);
 	int start_left, start_right, full_range;
+	struct lg4ff_device_entry *entry;
+	struct lg_drv_data *drv_data;
+	unsigned long flags;
 	s32 *value = report->field[0]->value;
+
+	drv_data = hid_get_drvdata(hid);
+	if (!drv_data) {
+		hid_err(hid, "Private driver data not found!\n");
+		return;
+	}
+
+	entry = drv_data->device_props;
+	if (!entry) {
+		hid_err(hid, "Device properties not found!\n");
+		return;
+	}
 
 	dbg_hid("Driving Force Pro: setting range to %u\n", range);
 
 	/* Prepare "coarse" limit command */
+	spin_lock_irqsave(&entry->report_lock, flags);
 	value[0] = 0xf8;
 	value[1] = 0x00;	/* Set later */
 	value[2] = 0x00;
@@ -498,6 +571,7 @@ static void lg4ff_set_range_dfp(struct hid_device *hid, u16 range)
 
 	if (range == 200 || range == 900) {	/* Do not apply any fine limit */
 		hid_hw_request(hid, report, HID_REQ_SET_REPORT);
+		spin_unlock_irqrestore(&entry->report_lock, flags);
 		return;
 	}
 
@@ -512,6 +586,7 @@ static void lg4ff_set_range_dfp(struct hid_device *hid, u16 range)
 	value[6] = 0xff;
 
 	hid_hw_request(hid, report, HID_REQ_SET_REPORT);
+	spin_unlock_irqrestore(&entry->report_lock, flags);
 }
 
 static const struct lg4ff_compat_mode_switch *lg4ff_get_mode_switch_command(const u16 real_product_id, const u16 target_product_id)
@@ -575,9 +650,25 @@ static int lg4ff_switch_compatibility_mode(struct hid_device *hid, const struct 
 {
 	struct list_head *report_list = &hid->report_enum[HID_OUTPUT_REPORT].report_list;
 	struct hid_report *report = list_entry(report_list->next, struct hid_report, list);
+	struct lg4ff_device_entry *entry;
+	struct lg_drv_data *drv_data;
+	unsigned long flags;
 	s32 *value = report->field[0]->value;
 	u8 i;
 
+	drv_data = hid_get_drvdata(hid);
+	if (!drv_data) {
+		hid_err(hid, "Private driver data not found!\n");
+		return -EINVAL;
+	}
+
+	entry = drv_data->device_props;
+	if (!entry) {
+		hid_err(hid, "Device properties not found!\n");
+		return -EINVAL;
+	}
+
+	spin_lock_irqsave(&entry->report_lock, flags);
 	for (i = 0; i < s->cmd_count; i++) {
 		u8 j;
 
@@ -586,6 +677,7 @@ static int lg4ff_switch_compatibility_mode(struct hid_device *hid, const struct 
 
 		hid_hw_request(hid, report, HID_REQ_SET_REPORT);
 	}
+	spin_unlock_irqrestore(&entry->report_lock, flags);
 	hid_hw_wait(hid);
 	return 0;
 }
@@ -826,8 +918,24 @@ static void lg4ff_set_leds(struct hid_device *hid, u8 leds)
 {
 	struct list_head *report_list = &hid->report_enum[HID_OUTPUT_REPORT].report_list;
 	struct hid_report *report = list_entry(report_list->next, struct hid_report, list);
+	struct lg_drv_data *drv_data;
+	struct lg4ff_device_entry *entry;
+	unsigned long flags;
 	s32 *value = report->field[0]->value;
 
+	drv_data = hid_get_drvdata(hid);
+	if (!drv_data) {
+		hid_err(hid, "Private driver data not found!\n");
+		return;
+	}
+
+	entry = drv_data->device_props;
+	if (!entry) {
+		hid_err(hid, "Device properties not found!\n");
+		return;
+	}
+
+	spin_lock_irqsave(&entry->report_lock, flags);
 	value[0] = 0xf8;
 	value[1] = 0x12;
 	value[2] = leds;
@@ -836,6 +944,7 @@ static void lg4ff_set_leds(struct hid_device *hid, u8 leds)
 	value[5] = 0x00;
 	value[6] = 0x00;
 	hid_hw_request(hid, report, HID_REQ_SET_REPORT);
+	spin_unlock_irqrestore(&entry->report_lock, flags);
 }
 
 static void lg4ff_led_set_brightness(struct led_classdev *led_cdev,
@@ -1015,6 +1124,7 @@ int lg4ff_init(struct hid_device *hid)
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
 		return -ENOMEM;
+	spin_lock_init(&entry->report_lock);
 	drv_data->device_props = entry;
 
 	/* Check if a multimode wheel has been connected and
