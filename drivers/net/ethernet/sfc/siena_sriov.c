@@ -16,6 +16,7 @@
 #include "filter.h"
 #include "mcdi_pcol.h"
 #include "farch_regs.h"
+#include "siena_sriov.h"
 #include "vfdi.h"
 
 /* Number of longs required to track all the VIs in a VF */
@@ -1050,6 +1051,7 @@ static const struct efx_channel_type efx_siena_sriov_channel_type = {
 
 void efx_siena_sriov_probe(struct efx_nic *efx)
 {
+#ifdef CONFIG_SFC_SRIOV
 	unsigned count;
 
 	if (!max_vfs)
@@ -1064,8 +1066,10 @@ void efx_siena_sriov_probe(struct efx_nic *efx)
 	efx->vf_count = count;
 
 	efx->extra_channel_type[EFX_EXTRA_CHANNEL_IOV] = &efx_siena_sriov_channel_type;
+#endif
 }
 
+#ifdef CONFIG_SFC_SRIOV
 /* Copy the list of individual addresses into the vfdi_status.peers
  * array and auxiliary pages, protected by %local_lock. Drop that lock
  * and then broadcast the address list to every VF.
@@ -1276,9 +1280,11 @@ fail:
 	efx_siena_sriov_vfs_fini(efx);
 	return rc;
 }
+#endif
 
 int efx_siena_sriov_init(struct efx_nic *efx)
 {
+#ifdef CONFIG_SFC_SRIOV
 	struct net_device *net_dev = efx->net_dev;
 	struct siena_nic_data *nic_data = efx->nic_data;
 	struct vfdi_status *vfdi_status;
@@ -1357,10 +1363,14 @@ fail_status:
 	efx_siena_sriov_cmd(efx, false, NULL, NULL);
 fail_cmd:
 	return rc;
+#else /* CONFIG_SFC_SRIOV */
+	return -EOPNOTSUPP;
+#endif
 }
 
 void efx_siena_sriov_fini(struct efx_nic *efx)
 {
+#ifdef CONFIG_SFC_SRIOV
 	struct efx_vf *vf;
 	unsigned int pos;
 	struct siena_nic_data *nic_data = efx->nic_data;
@@ -1391,10 +1401,12 @@ void efx_siena_sriov_fini(struct efx_nic *efx)
 	kfree(efx->vf);
 	efx_nic_free_buffer(efx, &nic_data->vfdi_status);
 	efx_siena_sriov_cmd(efx, false, NULL, NULL);
+#endif /* CONFIG_SFC_SRIOV*/
 }
 
 void efx_siena_sriov_event(struct efx_channel *channel, efx_qword_t *event)
 {
+#ifdef CONFIG_SFC_SRIOV
 	struct efx_nic *efx = channel->efx;
 	struct efx_vf *vf;
 	unsigned qid, seq, type, data;
@@ -1448,10 +1460,12 @@ error:
 	/* Reset the request and sequence number */
 	vf->req_type = VFDI_EV_TYPE_REQ_WORD0;
 	vf->req_seqno = seq + 1;
+#endif /* CONFIG_SFC_SRIOV */
 }
 
 void efx_siena_sriov_flr(struct efx_nic *efx, unsigned vf_i)
 {
+#ifdef CONFIG_SFC_SRIOV
 	struct efx_vf *vf;
 
 	if (vf_i > efx->vf_init_count)
@@ -1465,10 +1479,12 @@ void efx_siena_sriov_flr(struct efx_nic *efx, unsigned vf_i)
 	efx_vfdi_flush_clear(vf);
 
 	vf->evq0_count = 0;
+#endif /* CONFIG_SFC_SRIOV */
 }
 
 void efx_siena_sriov_mac_address_changed(struct efx_nic *efx)
 {
+#ifdef CONFIG_SFC_SRIOV
 	struct siena_nic_data *nic_data = efx->nic_data;
 	struct vfdi_status *vfdi_status = nic_data->vfdi_status.addr;
 
@@ -1477,10 +1493,12 @@ void efx_siena_sriov_mac_address_changed(struct efx_nic *efx)
 	ether_addr_copy(vfdi_status->peers[0].mac_addr,
 			efx->net_dev->dev_addr);
 	queue_work(vfdi_workqueue, &nic_data->peer_work);
+#endif /* CONFIG_SFC_SRIOV */
 }
 
 void efx_siena_sriov_tx_flush_done(struct efx_nic *efx, efx_qword_t *event)
 {
+#ifdef CONFIG_SFC_SRIOV
 	struct efx_vf *vf;
 	unsigned queue, qid;
 
@@ -1496,10 +1514,12 @@ void efx_siena_sriov_tx_flush_done(struct efx_nic *efx, efx_qword_t *event)
 
 	if (efx_vfdi_flush_wake(vf))
 		wake_up(&vf->flush_waitq);
+#endif /* CONFIG_SFC_SRIOV */
 }
 
 void efx_siena_sriov_rx_flush_done(struct efx_nic *efx, efx_qword_t *event)
 {
+#ifdef CONFIG_SFC_SRIOV
 	struct efx_vf *vf;
 	unsigned ev_failed, queue, qid;
 
@@ -1520,11 +1540,13 @@ void efx_siena_sriov_rx_flush_done(struct efx_nic *efx, efx_qword_t *event)
 	}
 	if (efx_vfdi_flush_wake(vf))
 		wake_up(&vf->flush_waitq);
+#endif /* CONFIG_SFC_SRIOV */
 }
 
 /* Called from napi. Schedule the reset work item */
 void efx_siena_sriov_desc_fetch_err(struct efx_nic *efx, unsigned dmaq)
 {
+#ifdef CONFIG_SFC_SRIOV
 	struct efx_vf *vf;
 	unsigned int rel;
 
@@ -1536,11 +1558,13 @@ void efx_siena_sriov_desc_fetch_err(struct efx_nic *efx, unsigned dmaq)
 			  "VF %d DMA Q %d reports descriptor fetch error.\n",
 			  vf->index, rel);
 	queue_work(vfdi_workqueue, &vf->reset_work);
+#endif /* CONFIG_SFC_SRIOV */
 }
 
 /* Reset all VFs */
 void efx_siena_sriov_reset(struct efx_nic *efx)
 {
+#ifdef CONFIG_SFC_SRIOV
 	unsigned int vf_i;
 	struct efx_buffer buf;
 	struct efx_vf *vf;
@@ -1562,10 +1586,12 @@ void efx_siena_sriov_reset(struct efx_nic *efx)
 	}
 
 	efx_nic_free_buffer(efx, &buf);
+#endif /* CONFIG_SFC_SRIOV */
 }
 
 int efx_init_sriov(void)
 {
+#ifdef CONFIG_SFC_SRIOV
 	/* A single threaded workqueue is sufficient. efx_siena_sriov_vfdi() and
 	 * efx_siena_sriov_peer_work() spend almost all their time sleeping for
 	 * MCDI to complete anyway
@@ -1573,18 +1599,20 @@ int efx_init_sriov(void)
 	vfdi_workqueue = create_singlethread_workqueue("sfc_vfdi");
 	if (!vfdi_workqueue)
 		return -ENOMEM;
-
+#endif
 	return 0;
 }
 
 void efx_fini_sriov(void)
 {
+#ifdef CONFIG_SFC_SRIOV
 	destroy_workqueue(vfdi_workqueue);
+#endif
 }
 
-int efx_siena_sriov_set_vf_mac(struct net_device *net_dev, int vf_i, u8 *mac)
+#ifdef CONFIG_SFC_SRIOV
+int efx_siena_sriov_set_vf_mac(struct efx_nic *efx, int vf_i, u8 *mac)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_vf *vf;
 
 	if (vf_i >= efx->vf_init_count)
@@ -1599,10 +1627,9 @@ int efx_siena_sriov_set_vf_mac(struct net_device *net_dev, int vf_i, u8 *mac)
 	return 0;
 }
 
-int efx_siena_sriov_set_vf_vlan(struct net_device *net_dev, int vf_i,
+int efx_siena_sriov_set_vf_vlan(struct efx_nic *efx, int vf_i,
 				u16 vlan, u8 qos)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_vf *vf;
 	u16 tci;
 
@@ -1619,10 +1646,9 @@ int efx_siena_sriov_set_vf_vlan(struct net_device *net_dev, int vf_i,
 	return 0;
 }
 
-int efx_siena_sriov_set_vf_spoofchk(struct net_device *net_dev, int vf_i,
+int efx_siena_sriov_set_vf_spoofchk(struct efx_nic *efx, int vf_i,
 				    bool spoofchk)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_vf *vf;
 	int rc;
 
@@ -1643,10 +1669,9 @@ int efx_siena_sriov_set_vf_spoofchk(struct net_device *net_dev, int vf_i,
 	return rc;
 }
 
-int efx_siena_sriov_get_vf_config(struct net_device *net_dev, int vf_i,
+int efx_siena_sriov_get_vf_config(struct efx_nic *efx, int vf_i,
 				  struct ifla_vf_info *ivi)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_vf *vf;
 	u16 tci;
 
@@ -1666,3 +1691,13 @@ int efx_siena_sriov_get_vf_config(struct net_device *net_dev, int vf_i,
 	return 0;
 }
 
+#endif /* CONFIG_SFC_SRIOV */
+
+bool efx_siena_sriov_wanted(struct efx_nic *efx)
+{
+#ifdef CONFIG_SFC_SRIOV
+	return efx->vf_count != 0;
+#else
+	return false;
+#endif
+}

@@ -25,6 +25,7 @@
 #include "mcdi.h"
 #include "mcdi_pcol.h"
 #include "selftest.h"
+#include "siena_sriov.h"
 
 /* Hardware control for SFC9000 family including SFL9021 (aka Siena). */
 
@@ -1002,6 +1003,11 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.sriov_mac_address_changed = efx_siena_sriov_mac_address_changed,
 	.sriov_wanted = efx_siena_sriov_wanted,
 	.sriov_reset = efx_siena_sriov_reset,
+	.sriov_flr = efx_siena_sriov_flr,
+	.sriov_set_vf_mac = efx_siena_sriov_set_vf_mac,
+	.sriov_set_vf_vlan = efx_siena_sriov_set_vf_vlan,
+	.sriov_set_vf_spoofchk = efx_siena_sriov_set_vf_spoofchk,
+	.sriov_get_vf_config = efx_siena_sriov_get_vf_config,
 
 	.revision = EFX_REV_SIENA_A0,
 	.txd_ptr_tbl_base = FR_BZ_TX_DESC_PTR_TBL,
