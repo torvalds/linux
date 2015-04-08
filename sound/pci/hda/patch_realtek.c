@@ -2912,6 +2912,8 @@ static void alc283_init(struct hda_codec *codec)
 
 	if (!hp_pin)
 		return;
+
+	msleep(30);
 	hp_pin_sense = snd_hda_jack_detect(codec, hp_pin);
 
 	/* Index 0x43 Direct Drive HP AMP LPM Control 1 */
