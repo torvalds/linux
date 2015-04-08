@@ -1021,8 +1021,9 @@ int lg4ff_init(struct hid_device *hid)
 	}
 
 	if (i == ARRAY_SIZE(lg4ff_devices)) {
-		hid_err(hid, "Device is not supported by lg4ff driver. If you think it should be, consider reporting a bug to"
-			     "LKML, Simon Wood <simon@mungewell.org> or Michal Maly <madcatxster@gmail.com>\n");
+		hid_err(hid, "This device is flagged to be handled by the lg4ff module but this module does not know how to handle it. "
+			     "Please report this as a bug to LKML, Simon Wood <simon@mungewell.org> or "
+			     "Michal Maly <madcatxster@devoid-pointer.net>\n");
 		return -1;
 	}
 
