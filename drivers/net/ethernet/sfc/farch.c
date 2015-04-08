@@ -20,8 +20,6 @@
 #include "efx.h"
 #include "nic.h"
 #include "farch_regs.h"
-#include "sriov.h"
-#include "siena_sriov.h"
 #include "io.h"
 #include "workarounds.h"
 
@@ -1687,32 +1685,28 @@ void efx_farch_dimension_resources(struct efx_nic *efx, unsigned sram_lim_qw)
 	vi_count = max(efx->n_channels, efx->n_tx_channels * EFX_TXQ_TYPES);
 
 #ifdef CONFIG_SFC_SRIOV
-	if (efx->type->sriov_wanted) {
-		if (efx->type->sriov_wanted(efx)) {
-			unsigned vi_dc_entries, buftbl_free;
-			unsigned entries_per_vf, vf_limit;
+	if (efx->type->sriov_wanted(efx)) {
+		unsigned vi_dc_entries, buftbl_free, entries_per_vf, vf_limit;
 
-			nic_data->vf_buftbl_base = buftbl_min;
+		nic_data->vf_buftbl_base = buftbl_min;
 
-			vi_dc_entries = RX_DC_ENTRIES + TX_DC_ENTRIES;
-			vi_count = max(vi_count, EFX_VI_BASE);
-			buftbl_free = (sram_lim_qw - buftbl_min -
-				       vi_count * vi_dc_entries);
+		vi_dc_entries = RX_DC_ENTRIES + TX_DC_ENTRIES;
+		vi_count = max(vi_count, EFX_VI_BASE);
+		buftbl_free = (sram_lim_qw - buftbl_min -
+			       vi_count * vi_dc_entries);
 
-			entries_per_vf = ((vi_dc_entries +
-					   EFX_VF_BUFTBL_PER_VI) *
-					  efx_vf_size(efx));
-			vf_limit = min(buftbl_free / entries_per_vf,
-				       (1024U - EFX_VI_BASE) >> efx->vi_scale);
+		entries_per_vf = ((vi_dc_entries + EFX_VF_BUFTBL_PER_VI) *
+				  efx_vf_size(efx));
+		vf_limit = min(buftbl_free / entries_per_vf,
+			       (1024U - EFX_VI_BASE) >> efx->vi_scale);
 
-			if (efx->vf_count > vf_limit) {
-				netif_err(efx, probe, efx->net_dev,
-					  "Reducing VF count from from %d to %d\n",
-					  efx->vf_count, vf_limit);
-				efx->vf_count = vf_limit;
-			}
-			vi_count += efx->vf_count * efx_vf_size(efx);
+		if (efx->vf_count > vf_limit) {
+			netif_err(efx, probe, efx->net_dev,
+				  "Reducing VF count from from %d to %d\n",
+				  efx->vf_count, vf_limit);
+			efx->vf_count = vf_limit;
 		}
+		vi_count += efx->vf_count * efx_vf_size(efx);
 	}
 #endif
 

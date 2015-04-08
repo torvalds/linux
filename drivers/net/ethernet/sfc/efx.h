@@ -220,13 +220,6 @@ static inline void efx_mtd_rename(struct efx_nic *efx) {}
 static inline void efx_mtd_remove(struct efx_nic *efx) {}
 #endif
 
-#ifdef CONFIG_SFC_SRIOV
-static inline unsigned int efx_vf_size(struct efx_nic *efx)
-{
-	return 1 << efx->vi_scale;
-}
-#endif
-
 static inline void efx_schedule_channel(struct efx_channel *channel)
 {
 	netif_vdbg(channel->efx, intr, channel->efx->net_dev,

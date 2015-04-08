@@ -15,7 +15,6 @@
 #include "nic.h"
 #include "workarounds.h"
 #include "selftest.h"
-#include "ef10_sriov.h"
 #include <linux/in.h>
 #include <linux/jhash.h>
 #include <linux/wait.h>
@@ -3690,17 +3689,11 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.ptp_write_host_time = efx_ef10_ptp_write_host_time,
 	.ptp_set_ts_sync_events = efx_ef10_ptp_set_ts_sync_events,
 	.ptp_set_ts_config = efx_ef10_ptp_set_ts_config,
-	.sriov_configure = efx_ef10_sriov_configure,
 	.sriov_init = efx_ef10_sriov_init,
 	.sriov_fini = efx_ef10_sriov_fini,
 	.sriov_mac_address_changed = efx_ef10_sriov_mac_address_changed,
 	.sriov_wanted = efx_ef10_sriov_wanted,
 	.sriov_reset = efx_ef10_sriov_reset,
-	.sriov_flr = efx_ef10_sriov_flr,
-	.sriov_set_vf_mac = efx_ef10_sriov_set_vf_mac,
-	.sriov_set_vf_vlan = efx_ef10_sriov_set_vf_vlan,
-	.sriov_set_vf_spoofchk = efx_ef10_sriov_set_vf_spoofchk,
-	.sriov_get_vf_config = efx_ef10_sriov_get_vf_config,
 
 	.revision = EFX_REV_HUNT_A0,
 	.max_dma_mask = DMA_BIT_MASK(ESF_DZ_TX_KER_BUF_ADDR_WIDTH),
