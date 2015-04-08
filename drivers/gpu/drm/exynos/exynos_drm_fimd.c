@@ -663,7 +663,7 @@ static void fimd_win_commit(struct exynos_drm_crtc *crtc, unsigned int win)
 	writel(val, ctx->regs + VIDWx_BUF_START(win, 0));
 
 	/* buffer end address */
-	size = plane->pitch * plane->crtc_height * (plane->bpp >> 3);
+	size = plane->pitch * plane->crtc_height;
 	val = (unsigned long)(dma_addr + size);
 	writel(val, ctx->regs + VIDWx_BUF_END(win, 0));
 
@@ -673,7 +673,7 @@ static void fimd_win_commit(struct exynos_drm_crtc *crtc, unsigned int win)
 			plane->crtc_width, plane->crtc_height);
 
 	/* buffer size */
-	buf_offsize = (plane->fb_width - plane->crtc_width) * (plane->bpp >> 3);
+	buf_offsize = plane->pitch - (plane->crtc_width * (plane->bpp >> 3));
 	line_size = plane->crtc_width * (plane->bpp >> 3);
 	val = VIDW_BUF_SIZE_OFFSET(buf_offsize) |
 		VIDW_BUF_SIZE_PAGEWIDTH(line_size) |
