@@ -397,6 +397,58 @@ static inline uint32_t gen6_pde_index(uint32_t addr)
 	return i915_pde_index(addr, GEN6_PDE_SHIFT);
 }
 
+/* Equivalent to the gen6 version, For each pde iterates over every pde
+ * between from start until start + length. On gen8+ it simply iterates
+ * over every page directory entry in a page directory.
+ */
+#define gen8_for_each_pde(pt, pd, start, length, temp, iter)		\
+	for (iter = gen8_pde_index(start); \
+	     pt = (pd)->page_table[iter], length > 0 && iter < I915_PDES;	\
+	     iter++,				\
+	     temp = ALIGN(start+1, 1 << GEN8_PDE_SHIFT) - start,	\
+	     temp = min(temp, length),					\
+	     start += temp, length -= temp)
+
+#define gen8_for_each_pdpe(pd, pdp, start, length, temp, iter)		\
+	for (iter = gen8_pdpe_index(start);	\
+	     pd = (pdp)->page_directory[iter], length > 0 && iter < GEN8_LEGACY_PDPES;	\
+	     iter++,				\
+	     temp = ALIGN(start+1, 1 << GEN8_PDPE_SHIFT) - start,	\
+	     temp = min(temp, length),					\
+	     start += temp, length -= temp)
+
+/* Clamp length to the next page_directory boundary */
+static inline uint64_t gen8_clamp_pd(uint64_t start, uint64_t length)
+{
+	uint64_t next_pd = ALIGN(start + 1, 1 << GEN8_PDPE_SHIFT);
+
+	if (next_pd > (start + length))
+		return length;
+
+	return next_pd - start;
+}
+
+static inline uint32_t gen8_pte_index(uint64_t address)
+{
+	return i915_pte_index(address, GEN8_PDE_SHIFT);
+}
+
+static inline uint32_t gen8_pde_index(uint64_t address)
+{
+	return i915_pde_index(address, GEN8_PDE_SHIFT);
+}
+
+static inline uint32_t gen8_pdpe_index(uint64_t address)
+{
+	return (address >> GEN8_PDPE_SHIFT) & GEN8_PDPE_MASK;
+}
+
+static inline uint32_t gen8_pml4e_index(uint64_t address)
+{
+	WARN_ON(1); /* For 64B */
+	return 0;
+}
+
 int i915_gem_gtt_init(struct drm_device *dev);
 void i915_gem_init_global_gtt(struct drm_device *dev);
 void i915_global_gtt_cleanup(struct drm_device *dev);
