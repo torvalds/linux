@@ -243,4 +243,12 @@ extern struct regcache_ops regcache_rbtree_ops;
 extern struct regcache_ops regcache_lzo_ops;
 extern struct regcache_ops regcache_flat_ops;
 
+static inline const char *regmap_name(const struct regmap *map)
+{
+	if (map->dev)
+		return dev_name(map->dev);
+
+	return map->name;
+}
+
 #endif

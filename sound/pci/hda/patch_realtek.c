@@ -396,7 +396,7 @@ static void alc_auto_setup_eapd(struct hda_codec *codec, bool on)
 {
 	/* We currently only handle front, HP */
 	static hda_nid_t pins[] = {
-		0x0f, 0x10, 0x14, 0x15, 0
+		0x0f, 0x10, 0x14, 0x15, 0x17, 0
 	};
 	hda_nid_t *p;
 	for (p = pins; *p; p++)
@@ -2870,6 +2870,8 @@ static void alc283_init(struct hda_codec *codec)
 
 	if (!hp_pin)
 		return;
+
+	msleep(30);
 	hp_pin_sense = snd_hda_jack_detect(codec, hp_pin);
 
 	/* Index 0x43 Direct Drive HP AMP LPM Control 1 */
@@ -3564,6 +3566,7 @@ static void alc_headset_mode_unplugged(struct hda_codec *codec)
 
 	switch (codec->core.vendor_id) {
 	case 0x10ec0255:
+	case 0x10ec0256:
 		alc_process_coef_fw(codec, coef0255);
 		break;
 	case 0x10ec0233:
@@ -3619,6 +3622,7 @@ static void alc_headset_mode_mic_in(struct hda_codec *codec, hda_nid_t hp_pin,
 
 	switch (codec->core.vendor_id) {
 	case 0x10ec0255:
+	case 0x10ec0256:
 		alc_write_coef_idx(codec, 0x45, 0xc489);
 		snd_hda_set_pin_ctl_cache(codec, hp_pin, 0);
 		alc_process_coef_fw(codec, coef0255);
@@ -3688,6 +3692,7 @@ static void alc_headset_mode_default(struct hda_codec *codec)
 
 	switch (codec->core.vendor_id) {
 	case 0x10ec0255:
+	case 0x10ec0256:
 		alc_process_coef_fw(codec, coef0255);
 		break;
 	case 0x10ec0233:
@@ -3742,6 +3747,7 @@ static void alc_headset_mode_ctia(struct hda_codec *codec)
 
 	switch (codec->core.vendor_id) {
 	case 0x10ec0255:
+	case 0x10ec0256:
 		alc_process_coef_fw(codec, coef0255);
 		break;
 	case 0x10ec0233:
@@ -3796,6 +3802,7 @@ static void alc_headset_mode_omtp(struct hda_codec *codec)
 
 	switch (codec->core.vendor_id) {
 	case 0x10ec0255:
+	case 0x10ec0256:
 		alc_process_coef_fw(codec, coef0255);
 		break;
 	case 0x10ec0233:
@@ -3841,6 +3848,7 @@ static void alc_determine_headset_type(struct hda_codec *codec)
 
 	switch (codec->core.vendor_id) {
 	case 0x10ec0255:
+	case 0x10ec0256:
 		alc_process_coef_fw(codec, coef0255);
 		msleep(300);
 		val = alc_read_coef_idx(codec, 0x46);
@@ -4993,6 +5001,7 @@ static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x17aa, 0x501a, "Thinkpad", ALC283_FIXUP_INT_MIC),
 	SND_PCI_QUIRK(0x17aa, 0x501e, "Thinkpad L440", ALC292_FIXUP_TPT440_DOCK),
 	SND_PCI_QUIRK(0x17aa, 0x5026, "Thinkpad", ALC269_FIXUP_LIMIT_INT_MIC_BOOST),
+	SND_PCI_QUIRK(0x17aa, 0x5036, "Thinkpad T450s", ALC292_FIXUP_TPT440_DOCK),
 	SND_PCI_QUIRK(0x17aa, 0x5109, "Thinkpad", ALC269_FIXUP_LIMIT_INT_MIC_BOOST),
 	SND_PCI_QUIRK(0x17aa, 0x3bf8, "Quanta FL1", ALC269_FIXUP_PCM_44K),
 	SND_PCI_QUIRK(0x17aa, 0x9e54, "LENOVO NB", ALC269_FIXUP_LENOVO_EAPD),
@@ -5173,6 +5182,16 @@ static const struct snd_hda_pin_quirk alc269_pin_fixup_tbl[] = {
 		{0x17, 0x40000000},
 		{0x1d, 0x40700001},
 		{0x21, 0x02211050}),
+	SND_HDA_PIN_QUIRK(0x10ec0256, 0x1028, "Dell", ALC255_FIXUP_DELL1_MIC_NO_PRESENCE,
+		{0x12, 0x90a60140},
+		{0x13, 0x40000000},
+		{0x14, 0x90170110},
+		{0x19, 0x411111f0},
+		{0x1a, 0x411111f0},
+		{0x1b, 0x411111f0},
+		{0x1d, 0x40700001},
+		{0x1e, 0x411111f0},
+		{0x21, 0x02211020}),
 	SND_HDA_PIN_QUIRK(0x10ec0280, 0x103c, "HP", ALC280_FIXUP_HP_GPIO4,
 		{0x12, 0x90a60130},
 		{0x13, 0x40000000},

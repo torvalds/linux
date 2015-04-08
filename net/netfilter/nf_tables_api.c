@@ -1225,7 +1225,10 @@ static int nf_tables_newchain(struct sock *nlsk, struct sk_buff *skb,
 
 	if (nla[NFTA_CHAIN_POLICY]) {
 		if ((chain != NULL &&
-		    !(chain->flags & NFT_BASE_CHAIN)) ||
+		    !(chain->flags & NFT_BASE_CHAIN)))
+			return -EOPNOTSUPP;
+
+		if (chain == NULL &&
 		    nla[NFTA_CHAIN_HOOK] == NULL)
 			return -EOPNOTSUPP;
 
