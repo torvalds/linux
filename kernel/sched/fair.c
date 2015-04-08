@@ -6462,10 +6462,10 @@ static int __do_active_load_balance_cpu_stop(void *data, bool check_sd_lb_flag)
 	rcu_read_unlock();
 	double_unlock_balance(busiest_rq, target_rq);
 out_unlock:
-	if (!check_sd_lb_flag)
-		put_task_struct(p);
 	busiest_rq->active_balance = 0;
 	raw_spin_unlock_irq(&busiest_rq->lock);
+	if (!check_sd_lb_flag)
+		put_task_struct(p);
 	return 0;
 }
 
