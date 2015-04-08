@@ -449,7 +449,7 @@ int t4_edc_read(struct adapter *adap, int idx, u32 addr, __be32 *data, u64 *ecc)
  *	@mtype: memory type: MEM_EDC0, MEM_EDC1 or MEM_MC
  *	@addr: address within indicated memory type
  *	@len: amount of memory to transfer
- *	@buf: host memory buffer
+ *	@hbuf: host memory buffer
  *	@dir: direction of transfer T4_MEMORY_READ (1) or T4_MEMORY_WRITE (0)
  *
  *	Reads/writes an [almost] arbitrary memory region in the firmware: the
@@ -460,15 +460,17 @@ int t4_edc_read(struct adapter *adap, int idx, u32 addr, __be32 *data, u64 *ecc)
  *	caller's responsibility to perform appropriate byte order conversions.
  */
 int t4_memory_rw(struct adapter *adap, int win, int mtype, u32 addr,
-		 u32 len, __be32 *buf, int dir)
+		 u32 len, void *hbuf, int dir)
 {
 	u32 pos, offset, resid, memoffset;
 	u32 edc_size, mc_size, win_pf, mem_reg, mem_aperture, mem_base;
+	u32 *buf;
 
 	/* Argument sanity checks ...
 	 */
-	if (addr & 0x3)
+	if (addr & 0x3 || (uintptr_t)hbuf & 0x3)
 		return -EINVAL;
+	buf = (u32 *)hbuf;
 
 	/* It's convenient to be able to handle lengths which aren't a
 	 * multiple of 32-bits because we often end up transferring files to
@@ -532,14 +534,45 @@ int t4_memory_rw(struct adapter *adap, int win, int mtype, u32 addr,
 
 	/* Transfer data to/from the adapter as long as there's an integral
 	 * number of 32-bit transfers to complete.
+	 *
+	 * A note on Endianness issues:
+	 *
+	 * The "register" reads and writes below from/to the PCI-E Memory
+	 * Window invoke the standard adapter Big-Endian to PCI-E Link
+	 * Little-Endian "swizzel."  As a result, if we have the following
+	 * data in adapter memory:
+	 *
+	 *     Memory:  ... | b0 | b1 | b2 | b3 | ...
+	 *     Address:      i+0  i+1  i+2  i+3
+	 *
+	 * Then a read of the adapter memory via the PCI-E Memory Window
+	 * will yield:
+	 *
+	 *     x = readl(i)
+	 *         31                  0
+	 *         [ b3 | b2 | b1 | b0 ]
+	 *
+	 * If this value is stored into local memory on a Little-Endian system
+	 * it will show up correctly in local memory as:
+	 *
+	 *     ( ..., b0, b1, b2, b3, ... )
+	 *
+	 * But on a Big-Endian system, the store will show up in memory
+	 * incorrectly swizzled as:
+	 *
+	 *     ( ..., b3, b2, b1, b0, ... )
+	 *
+	 * So we need to account for this in the reads and writes to the
+	 * PCI-E Memory Window below by undoing the register read/write
+	 * swizzels.
 	 */
 	while (len > 0) {
 		if (dir == T4_MEMORY_READ)
-			*buf++ = (__force __be32) t4_read_reg(adap,
-							mem_base + offset);
+			*buf++ = le32_to_cpu((__force __le32)t4_read_reg(adap,
+						mem_base + offset));
 		else
 			t4_write_reg(adap, mem_base + offset,
-				     (__force u32) *buf++);
+				     (__force u32)cpu_to_le32(*buf++));
 		offset += sizeof(__be32);
 		len -= sizeof(__be32);
 
@@ -568,15 +601,16 @@ int t4_memory_rw(struct adapter *adap, int win, int mtype, u32 addr,
 	 */
 	if (resid) {
 		union {
-			__be32 word;
+			u32 word;
 			char byte[4];
 		} last;
 		unsigned char *bp;
 		int i;
 
 		if (dir == T4_MEMORY_READ) {
-			last.word = (__force __be32) t4_read_reg(adap,
-							mem_base + offset);
+			last.word = le32_to_cpu(
+					(__force __le32)t4_read_reg(adap,
+						mem_base + offset));
 			for (bp = (unsigned char *)buf, i = resid; i < 4; i++)
 				bp[i] = last.byte[i];
 		} else {
@@ -584,7 +618,7 @@ int t4_memory_rw(struct adapter *adap, int win, int mtype, u32 addr,
 			for (i = resid; i < 4; i++)
 				last.byte[i] = 0;
 			t4_write_reg(adap, mem_base + offset,
-				     (__force u32) last.word);
+				     (__force u32)cpu_to_le32(last.word));
 		}
 	}
 
@@ -1086,7 +1120,7 @@ int t4_prep_fw(struct adapter *adap, struct fw_info *fw_info,
 		}
 
 		/* Installed successfully, update the cached header too. */
-		memcpy(card_fw, fs_fw, sizeof(*card_fw));
+		*card_fw = *fs_fw;
 		card_fw_usable = 1;
 		*reset = 0;	/* already reset as part of load_fw */
 	}
@@ -4421,6 +4455,59 @@ int cxgb4_t4_bar2_sge_qregs(struct adapter *adapter,
 
 	*pbar2_qoffset = bar2_qoffset;
 	*pbar2_qid = bar2_qid;
+	return 0;
+}
+
+/**
+ *	t4_init_devlog_params - initialize adapter->params.devlog
+ *	@adap: the adapter
+ *
+ *	Initialize various fields of the adapter's Firmware Device Log
+ *	Parameters structure.
+ */
+int t4_init_devlog_params(struct adapter *adap)
+{
+	struct devlog_params *dparams = &adap->params.devlog;
+	u32 pf_dparams;
+	unsigned int devlog_meminfo;
+	struct fw_devlog_cmd devlog_cmd;
+	int ret;
+
+	/* If we're dealing with newer firmware, the Device Log Paramerters
+	 * are stored in a designated register which allows us to access the
+	 * Device Log even if we can't talk to the firmware.
+	 */
+	pf_dparams =
+		t4_read_reg(adap, PCIE_FW_REG(PCIE_FW_PF_A, PCIE_FW_PF_DEVLOG));
+	if (pf_dparams) {
+		unsigned int nentries, nentries128;
+
+		dparams->memtype = PCIE_FW_PF_DEVLOG_MEMTYPE_G(pf_dparams);
+		dparams->start = PCIE_FW_PF_DEVLOG_ADDR16_G(pf_dparams) << 4;
+
+		nentries128 = PCIE_FW_PF_DEVLOG_NENTRIES128_G(pf_dparams);
+		nentries = (nentries128 + 1) * 128;
+		dparams->size = nentries * sizeof(struct fw_devlog_e);
+
+		return 0;
+	}
+
+	/* Otherwise, ask the firmware for it's Device Log Parameters.
+	 */
+	memset(&devlog_cmd, 0, sizeof(devlog_cmd));
+	devlog_cmd.op_to_write = htonl(FW_CMD_OP_V(FW_DEVLOG_CMD) |
+				       FW_CMD_REQUEST_F | FW_CMD_READ_F);
+	devlog_cmd.retval_len16 = htonl(FW_LEN16(devlog_cmd));
+	ret = t4_wr_mbox(adap, adap->mbox, &devlog_cmd, sizeof(devlog_cmd),
+			 &devlog_cmd);
+	if (ret)
+		return ret;
+
+	devlog_meminfo = ntohl(devlog_cmd.memtype_devlog_memaddr16_devlog);
+	dparams->memtype = FW_DEVLOG_CMD_MEMTYPE_DEVLOG_G(devlog_meminfo);
+	dparams->start = FW_DEVLOG_CMD_MEMADDR16_DEVLOG_G(devlog_meminfo) << 4;
+	dparams->size = ntohl(devlog_cmd.memsize_devlog);
+
 	return 0;
 }
 

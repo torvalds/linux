@@ -267,14 +267,14 @@ static void mdp5_encoder_enable(struct drm_encoder *encoder)
 	mdp5_write(mdp5_kms, REG_MDP5_INTF_TIMING_ENGINE_EN(intf), 1);
 	spin_unlock_irqrestore(&mdp5_encoder->intf_lock, flags);
 
-	mdp5_encoder->enabled = false;
+	mdp5_encoder->enabled = true;
 }
 
 static const struct drm_encoder_helper_funcs mdp5_encoder_helper_funcs = {
 	.mode_fixup = mdp5_encoder_mode_fixup,
 	.mode_set = mdp5_encoder_mode_set,
-	.prepare = mdp5_encoder_disable,
-	.commit = mdp5_encoder_enable,
+	.disable = mdp5_encoder_disable,
+	.enable = mdp5_encoder_enable,
 };
 
 /* initialize encoder */

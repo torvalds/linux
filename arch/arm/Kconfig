@@ -619,6 +619,7 @@ config ARCH_PXA
 	select GENERIC_CLOCKEVENTS
 	select GPIO_PXA
 	select HAVE_IDE
+	select IRQ_DOMAIN
 	select MULTI_IRQ_HANDLER
 	select PLAT_PXA
 	select SPARSE_IRQ

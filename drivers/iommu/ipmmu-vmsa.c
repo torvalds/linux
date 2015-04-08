@@ -851,6 +851,7 @@ static int ipmmu_remove(struct platform_device *pdev)
 
 static const struct of_device_id ipmmu_of_ids[] = {
 	{ .compatible = "renesas,ipmmu-vmsa", },
+	{ }
 };
 
 static struct platform_driver ipmmu_driver = {

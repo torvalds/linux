@@ -156,6 +156,9 @@ int vce_v2_0_resume(struct radeon_device *rdev)
 	WREG32(VCE_LMI_SWAP_CNTL1, 0);
 	WREG32(VCE_LMI_VM_CTRL, 0);
 
+	WREG32(VCE_LMI_VCPU_CACHE_40BIT_BAR, addr >> 8);
+
+	addr &= 0xff;
 	size = RADEON_GPU_PAGE_ALIGN(rdev->vce_fw->size);
 	WREG32(VCE_VCPU_CACHE_OFFSET0, addr & 0x7fffffff);
 	WREG32(VCE_VCPU_CACHE_SIZE0, size);

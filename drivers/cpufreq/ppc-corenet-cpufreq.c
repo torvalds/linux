@@ -22,6 +22,8 @@
 #include <linux/smp.h>
 #include <sysdev/fsl_soc.h>
 
+#include <asm/smp.h>	/* for get_hard_smp_processor_id() in UP configs */
+
 /**
  * struct cpu_data - per CPU data struct
  * @parent: the parent node of cpu clock

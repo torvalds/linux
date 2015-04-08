@@ -124,7 +124,7 @@ int mmc_pwrseq_simple_alloc(struct mmc_host *host, struct device *dev)
 		    PTR_ERR(pwrseq->reset_gpios[i]) != -ENOSYS) {
 			ret = PTR_ERR(pwrseq->reset_gpios[i]);
 
-			while (--i)
+			while (i--)
 				gpiod_put(pwrseq->reset_gpios[i]);
 
 			goto clk_put;

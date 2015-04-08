@@ -62,6 +62,7 @@ void *high_memory;
 EXPORT_SYMBOL(high_memory);
 struct page *mem_map;
 unsigned long max_mapnr;
+EXPORT_SYMBOL(max_mapnr);
 unsigned long highest_memmap_pfn;
 struct percpu_counter vm_committed_as;
 int sysctl_overcommit_memory = OVERCOMMIT_GUESS; /* heuristic overcommit */
@@ -1213,11 +1214,9 @@ static int do_mmap_private(struct vm_area_struct *vma,
 	if (sysctl_nr_trim_pages && total - point >= sysctl_nr_trim_pages) {
 		total = point;
 		kdebug("try to alloc exact %lu pages", total);
-		base = alloc_pages_exact(len, GFP_KERNEL);
-	} else {
-		base = (void *)__get_free_pages(GFP_KERNEL, order);
 	}
 
+	base = alloc_pages_exact(total << PAGE_SHIFT, GFP_KERNEL);
 	if (!base)
 		goto enomem;
 

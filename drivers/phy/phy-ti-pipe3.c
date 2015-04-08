@@ -165,15 +165,11 @@ static int ti_pipe3_dpll_wait_lock(struct ti_pipe3 *phy)
 		cpu_relax();
 		val = ti_pipe3_readl(phy->pll_ctrl_base, PLL_STATUS);
 		if (val & PLL_LOCK)
-			break;
+			return 0;
 	} while (!time_after(jiffies, timeout));
 
-	if (!(val & PLL_LOCK)) {
-		dev_err(phy->dev, "DPLL failed to lock\n");
-		return -EBUSY;
-	}
-
-	return 0;
+	dev_err(phy->dev, "DPLL failed to lock\n");
+	return -EBUSY;
 }
 
 static int ti_pipe3_dpll_program(struct ti_pipe3 *phy)
@@ -608,7 +604,7 @@ static struct platform_driver ti_pipe3_driver = {
 
 module_platform_driver(ti_pipe3_driver);
 
-MODULE_ALIAS("platform: ti_pipe3");
+MODULE_ALIAS("platform:ti_pipe3");
 MODULE_AUTHOR("Texas Instruments Inc.");
 MODULE_DESCRIPTION("TI PIPE3 phy driver");
 MODULE_LICENSE("GPL v2");

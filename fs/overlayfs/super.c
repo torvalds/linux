@@ -529,8 +529,7 @@ static int ovl_remount(struct super_block *sb, int *flags, char *data)
 {
 	struct ovl_fs *ufs = sb->s_fs_info;
 
-	if (!(*flags & MS_RDONLY) &&
-	    (!ufs->upper_mnt || (ufs->upper_mnt->mnt_sb->s_flags & MS_RDONLY)))
+	if (!(*flags & MS_RDONLY) && !ufs->upper_mnt)
 		return -EROFS;
 
 	return 0;
@@ -615,9 +614,19 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 			break;
 
 		default:
+			pr_err("overlayfs: unrecognized mount option \"%s\" or missing value\n", p);
 			return -EINVAL;
 		}
 	}
+
+	/* Workdir is useless in non-upper mount */
+	if (!config->upperdir && config->workdir) {
+		pr_info("overlayfs: option \"workdir=%s\" is useless in a non-upper mount, ignore\n",
+			config->workdir);
+		kfree(config->workdir);
+		config->workdir = NULL;
+	}
+
 	return 0;
 }
 
@@ -837,7 +846,6 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 
 	sb->s_stack_depth = 0;
 	if (ufs->config.upperdir) {
-		/* FIXME: workdir is not needed for a R/O mount */
 		if (!ufs->config.workdir) {
 			pr_err("overlayfs: missing 'workdir'\n");
 			goto out_free_config;
@@ -846,6 +854,13 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 		err = ovl_mount_dir(ufs->config.upperdir, &upperpath);
 		if (err)
 			goto out_free_config;
+
+		/* Upper fs should not be r/o */
+		if (upperpath.mnt->mnt_sb->s_flags & MS_RDONLY) {
+			pr_err("overlayfs: upper fs is r/o, try multi-lower layers mount\n");
+			err = -EINVAL;
+			goto out_put_upperpath;
+		}
 
 		err = ovl_mount_dir(ufs->config.workdir, &workpath);
 		if (err)
@@ -869,8 +884,14 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 
 	err = -EINVAL;
 	stacklen = ovl_split_lowerdirs(lowertmp);
-	if (stacklen > OVL_MAX_STACK)
+	if (stacklen > OVL_MAX_STACK) {
+		pr_err("overlayfs: too many lower directries, limit is %d\n",
+		       OVL_MAX_STACK);
 		goto out_free_lowertmp;
+	} else if (!ufs->config.upperdir && stacklen == 1) {
+		pr_err("overlayfs: at least 2 lowerdir are needed while upperdir nonexistent\n");
+		goto out_free_lowertmp;
+	}
 
 	stack = kcalloc(stacklen, sizeof(struct path), GFP_KERNEL);
 	if (!stack)
@@ -932,8 +953,8 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 		ufs->numlower++;
 	}
 
-	/* If the upper fs is r/o or nonexistent, we mark overlayfs r/o too */
-	if (!ufs->upper_mnt || (ufs->upper_mnt->mnt_sb->s_flags & MS_RDONLY))
+	/* If the upper fs is nonexistent, we mark overlayfs r/o too */
+	if (!ufs->upper_mnt)
 		sb->s_flags |= MS_RDONLY;
 
 	sb->s_d_op = &ovl_dentry_operations;

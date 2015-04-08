@@ -387,21 +387,9 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 
 	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (irq) {
-		int ret;
-
 		/*
 		 * platform has IRQ support.
 		 * Then, driver uses common registers
-		 */
-
-		ret = devm_request_irq(dev, irq->start, rcar_thermal_irq, 0,
-				       dev_name(dev), common);
-		if (ret) {
-			dev_err(dev, "irq request failed\n ");
-			return ret;
-		}
-
-		/*
 		 * rcar_has_irq_support() will be enabled
 		 */
 		res = platform_get_resource(pdev, IORESOURCE_MEM, mres++);
@@ -456,8 +444,16 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 	}
 
 	/* enable temperature comparation */
-	if (irq)
+	if (irq) {
+		ret = devm_request_irq(dev, irq->start, rcar_thermal_irq, 0,
+				       dev_name(dev), common);
+		if (ret) {
+			dev_err(dev, "irq request failed\n ");
+			goto error_unregister;
+		}
+
 		rcar_thermal_common_write(common, ENR, enr_bits);
+	}
 
 	platform_set_drvdata(pdev, common);
 
@@ -467,9 +463,9 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 
 error_unregister:
 	rcar_thermal_for_each_priv(priv, common) {
-		thermal_zone_device_unregister(priv->zone);
 		if (rcar_has_irq_support(priv))
 			rcar_thermal_irq_disable(priv);
+		thermal_zone_device_unregister(priv->zone);
 	}
 
 	pm_runtime_put(dev);
@@ -485,9 +481,9 @@ static int rcar_thermal_remove(struct platform_device *pdev)
 	struct rcar_thermal_priv *priv;
 
 	rcar_thermal_for_each_priv(priv, common) {
-		thermal_zone_device_unregister(priv->zone);
 		if (rcar_has_irq_support(priv))
 			rcar_thermal_irq_disable(priv);
+		thermal_zone_device_unregister(priv->zone);
 	}
 
 	pm_runtime_put(dev);

@@ -528,7 +528,7 @@ out_cleanup:
 static inline void update_used_max(struct zram *zram,
 					const unsigned long pages)
 {
-	int old_max, cur_max;
+	unsigned long old_max, cur_max;
 
 	old_max = atomic_long_read(&zram->stats.max_used_pages);
 

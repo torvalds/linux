@@ -1477,28 +1477,25 @@ static void gpio_irq_ack(struct irq_data *d)
 	/* the interrupt is already cleared before by reading ISR */
 }
 
-static unsigned int gpio_irq_startup(struct irq_data *d)
+static int gpio_irq_request_res(struct irq_data *d)
 {
 	struct at91_gpio_chip *at91_gpio = irq_data_get_irq_chip_data(d);
 	unsigned	pin = d->hwirq;
 	int ret;
 
 	ret = gpiochip_lock_as_irq(&at91_gpio->chip, pin);
-	if (ret) {
+	if (ret)
 		dev_err(at91_gpio->chip.dev, "unable to lock pind %lu IRQ\n",
 			d->hwirq);
-		return ret;
-	}
-	gpio_irq_unmask(d);
-	return 0;
+
+	return ret;
 }
 
-static void gpio_irq_shutdown(struct irq_data *d)
+static void gpio_irq_release_res(struct irq_data *d)
 {
 	struct at91_gpio_chip *at91_gpio = irq_data_get_irq_chip_data(d);
 	unsigned	pin = d->hwirq;
 
-	gpio_irq_mask(d);
 	gpiochip_unlock_as_irq(&at91_gpio->chip, pin);
 }
 
@@ -1577,8 +1574,8 @@ void at91_pinctrl_gpio_resume(void)
 static struct irq_chip gpio_irqchip = {
 	.name		= "GPIO",
 	.irq_ack	= gpio_irq_ack,
-	.irq_startup	= gpio_irq_startup,
-	.irq_shutdown	= gpio_irq_shutdown,
+	.irq_request_resources = gpio_irq_request_res,
+	.irq_release_resources = gpio_irq_release_res,
 	.irq_disable	= gpio_irq_mask,
 	.irq_mask	= gpio_irq_mask,
 	.irq_unmask	= gpio_irq_unmask,

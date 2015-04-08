@@ -330,16 +330,6 @@ static void device_init_registers(struct vnt_private *pDevice)
 	/* zonetype initial */
 	pDevice->byOriginalZonetype = pDevice->abyEEPROM[EEP_OFS_ZONETYPE];
 
-	/* Get RFType */
-	pDevice->byRFType = SROMbyReadEmbedded(pDevice->PortOffset, EEP_OFS_RFTYPE);
-
-	/* force change RevID for VT3253 emu */
-	if ((pDevice->byRFType & RF_EMU) != 0)
-			pDevice->byRevId = 0x80;
-
-	pDevice->byRFType &= RF_MASK;
-	pr_debug("pDevice->byRFType = %x\n", pDevice->byRFType);
-
 	if (!pDevice->bZoneRegExist)
 		pDevice->byZoneType = pDevice->abyEEPROM[EEP_OFS_ZONETYPE];
 
@@ -1187,12 +1177,14 @@ static int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	PSTxDesc head_td;
-	u32 dma_idx = TYPE_AC0DMA;
+	u32 dma_idx;
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	if (!ieee80211_is_data(hdr->frame_control))
+	if (ieee80211_is_data(hdr->frame_control))
+		dma_idx = TYPE_AC0DMA;
+	else
 		dma_idx = TYPE_TXDMA0;
 
 	if (AVAIL_TD(priv, dma_idx) < 1) {
@@ -1205,6 +1197,9 @@ static int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	head_td->m_td1TD1.byTCR = 0;
 
 	head_td->pTDInfo->skb = skb;
+
+	if (dma_idx == TYPE_AC0DMA)
+		head_td->pTDInfo->byFlags = TD_FLAGS_NETIF_SKB;
 
 	priv->iTDUsed[dma_idx]++;
 
@@ -1234,13 +1229,10 @@ static int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 	head_td->buff_addr = cpu_to_le32(head_td->pTDInfo->skb_dma);
 
-	if (dma_idx == TYPE_AC0DMA) {
-		head_td->pTDInfo->byFlags = TD_FLAGS_NETIF_SKB;
-
+	if (head_td->pTDInfo->byFlags & TD_FLAGS_NETIF_SKB)
 		MACvTransmitAC0(priv->PortOffset);
-	} else {
+	else
 		MACvTransmit0(priv->PortOffset);
-	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -1777,6 +1769,12 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 	/* initial to reload eeprom */
 	MACvInitialize(priv->PortOffset);
 	MACvReadEtherAddress(priv->PortOffset, priv->abyCurrentNetAddr);
+
+	/* Get RFType */
+	priv->byRFType = SROMbyReadEmbedded(priv->PortOffset, EEP_OFS_RFTYPE);
+	priv->byRFType &= RF_MASK;
+
+	dev_dbg(&pcid->dev, "RF Type = %x\n", priv->byRFType);
 
 	device_get_options(priv);
 	device_set_options(priv);

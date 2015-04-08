@@ -212,11 +212,11 @@ static struct event_constraint intel_hsw_event_constraints[] = {
 	INTEL_UEVENT_CONSTRAINT(0x01c0, 0x2), /* INST_RETIRED.PREC_DIST */
 	INTEL_EVENT_CONSTRAINT(0xcd, 0x8), /* MEM_TRANS_RETIRED.LOAD_LATENCY */
 	/* CYCLE_ACTIVITY.CYCLES_L1D_PENDING */
-	INTEL_EVENT_CONSTRAINT(0x08a3, 0x4),
+	INTEL_UEVENT_CONSTRAINT(0x08a3, 0x4),
 	/* CYCLE_ACTIVITY.STALLS_L1D_PENDING */
-	INTEL_EVENT_CONSTRAINT(0x0ca3, 0x4),
+	INTEL_UEVENT_CONSTRAINT(0x0ca3, 0x4),
 	/* CYCLE_ACTIVITY.CYCLES_NO_EXECUTE */
-	INTEL_EVENT_CONSTRAINT(0x04a3, 0xf),
+	INTEL_UEVENT_CONSTRAINT(0x04a3, 0xf),
 	EVENT_CONSTRAINT_END
 };
 
@@ -1649,11 +1649,11 @@ intel_get_event_constraints(struct cpu_hw_events *cpuc, struct perf_event *event
 	if (c)
 		return c;
 
-	c = intel_pebs_constraints(event);
+	c = intel_shared_regs_constraints(cpuc, event);
 	if (c)
 		return c;
 
-	c = intel_shared_regs_constraints(cpuc, event);
+	c = intel_pebs_constraints(event);
 	if (c)
 		return c;
 

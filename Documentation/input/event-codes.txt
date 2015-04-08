@@ -294,6 +294,12 @@ accordingly. This property does not affect kernel behavior.
 The kernel does not provide button emulation for such devices but treats
 them as any other INPUT_PROP_BUTTONPAD device.
 
+INPUT_PROP_ACCELEROMETER
+-------------------------
+Directional axes on this device (absolute and/or relative x, y, z) represent
+accelerometer data. All other axes retain their meaning. A device must not mix
+regular directional axes and accelerometer axes on the same event node.
+
 Guidelines:
 ==========
 The guidelines below ensure proper single-touch and multi-finger functionality.

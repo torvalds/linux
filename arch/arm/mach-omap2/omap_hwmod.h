@@ -674,6 +674,7 @@ struct omap_hwmod {
 	u32				_sysc_cache;
 	void __iomem			*_mpu_rt_va;
 	spinlock_t			_lock;
+	struct lock_class_key		hwmod_key; /* unique lock class */
 	struct list_head		node;
 	struct omap_hwmod_ocp_if	*_mpu_port;
 	unsigned int			(*xlate_irq)(unsigned int);

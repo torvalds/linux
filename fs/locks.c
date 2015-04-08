@@ -1388,9 +1388,8 @@ any_leases_conflict(struct inode *inode, struct file_lock *breaker)
 int __break_lease(struct inode *inode, unsigned int mode, unsigned int type)
 {
 	int error = 0;
-	struct file_lock *new_fl;
 	struct file_lock_context *ctx = inode->i_flctx;
-	struct file_lock *fl;
+	struct file_lock *new_fl, *fl, *tmp;
 	unsigned long break_time;
 	int want_write = (mode & O_ACCMODE) != O_RDONLY;
 	LIST_HEAD(dispose);
@@ -1420,7 +1419,7 @@ int __break_lease(struct inode *inode, unsigned int mode, unsigned int type)
 			break_time++;	/* so that 0 means no break time */
 	}
 
-	list_for_each_entry(fl, &ctx->flc_lease, fl_list) {
+	list_for_each_entry_safe(fl, tmp, &ctx->flc_lease, fl_list) {
 		if (!leases_conflict(fl, new_fl))
 			continue;
 		if (want_write) {
@@ -1665,7 +1664,8 @@ generic_add_lease(struct file *filp, long arg, struct file_lock **flp, void **pr
 	}
 
 	if (my_fl != NULL) {
-		error = lease->fl_lmops->lm_change(my_fl, arg, &dispose);
+		lease = my_fl;
+		error = lease->fl_lmops->lm_change(lease, arg, &dispose);
 		if (error)
 			goto out;
 		goto out_setup;
@@ -1727,7 +1727,7 @@ static int generic_delete_lease(struct file *filp, void *owner)
 			break;
 		}
 	}
-	trace_generic_delete_lease(inode, fl);
+	trace_generic_delete_lease(inode, victim);
 	if (victim)
 		error = fl->fl_lmops->lm_change(victim, F_UNLCK, &dispose);
 	spin_unlock(&ctx->flc_lock);

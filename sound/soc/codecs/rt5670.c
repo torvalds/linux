@@ -225,7 +225,6 @@ static bool rt5670_volatile_register(struct device *dev, unsigned int reg)
 	case RT5670_ADC_EQ_CTRL1:
 	case RT5670_EQ_CTRL1:
 	case RT5670_ALC_CTRL_1:
-	case RT5670_IRQ_CTRL1:
 	case RT5670_IRQ_CTRL2:
 	case RT5670_INT_IRQ_ST:
 	case RT5670_IL_CMD:
@@ -2702,6 +2701,12 @@ static int rt5670_i2c_probe(struct i2c_client *i2c,
 	msleep(100);
 
 	regmap_write(rt5670->regmap, RT5670_RESET, 0);
+
+	regmap_read(rt5670->regmap, RT5670_VENDOR_ID, &val);
+	if (val >= 4)
+		regmap_write(rt5670->regmap, RT5670_GPIO_CTRL3, 0x0980);
+	else
+		regmap_write(rt5670->regmap, RT5670_GPIO_CTRL3, 0x0d00);
 
 	ret = regmap_register_patch(rt5670->regmap, init_list,
 				    ARRAY_SIZE(init_list));

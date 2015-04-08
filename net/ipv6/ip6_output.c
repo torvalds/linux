@@ -318,6 +318,7 @@ static int ip6_forward_proxy_check(struct sk_buff *skb)
 
 static inline int ip6_forward_finish(struct sk_buff *skb)
 {
+	skb_sender_cpu_clear(skb);
 	return dst_output(skb);
 }
 
@@ -541,7 +542,8 @@ int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 {
 	struct sk_buff *frag;
 	struct rt6_info *rt = (struct rt6_info *)skb_dst(skb);
-	struct ipv6_pinfo *np = skb->sk ? inet6_sk(skb->sk) : NULL;
+	struct ipv6_pinfo *np = skb->sk && !dev_recursion_level() ?
+				inet6_sk(skb->sk) : NULL;
 	struct ipv6hdr *tmp_hdr;
 	struct frag_hdr *fh;
 	unsigned int mtu, hlen, left, len;
@@ -1298,7 +1300,8 @@ emsgsize:
 	if (((length > mtu) ||
 	     (skb && skb_is_gso(skb))) &&
 	    (sk->sk_protocol == IPPROTO_UDP) &&
-	    (rt->dst.dev->features & NETIF_F_UFO)) {
+	    (rt->dst.dev->features & NETIF_F_UFO) &&
+	    (sk->sk_type == SOCK_DGRAM)) {
 		err = ip6_ufo_append_data(sk, queue, getfrag, from, length,
 					  hh_len, fragheaderlen,
 					  transhdrlen, mtu, flags, rt);

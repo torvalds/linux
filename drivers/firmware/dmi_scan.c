@@ -78,7 +78,7 @@ static const char * __init dmi_string(const struct dmi_header *dm, u8 s)
  *	We have to be cautious here. We have seen BIOSes with DMI pointers
  *	pointing to completely the wrong place for example
  */
-static void dmi_table(u8 *buf, int len, int num,
+static void dmi_table(u8 *buf, u32 len, int num,
 		      void (*decode)(const struct dmi_header *, void *),
 		      void *private_data)
 {
@@ -86,17 +86,14 @@ static void dmi_table(u8 *buf, int len, int num,
 	int i = 0;
 
 	/*
-	 *	Stop when we see all the items the table claimed to have
-	 *	OR we run off the end of the table (also happens)
+	 * Stop when we have seen all the items the table claimed to have
+	 * (SMBIOS < 3.0 only) OR we reach an end-of-table marker OR we run
+	 * off the end of the table (should never happen but sometimes does
+	 * on bogus implementations.)
 	 */
-	while ((i < num) && (data - buf + sizeof(struct dmi_header)) <= len) {
+	while ((!num || i < num) &&
+	       (data - buf + sizeof(struct dmi_header)) <= len) {
 		const struct dmi_header *dm = (const struct dmi_header *)data;
-
-		/*
-		 * 7.45 End-of-Table (Type 127) [SMBIOS reference spec v3.0.0]
-		 */
-		if (dm->type == DMI_ENTRY_END_OF_TABLE)
-			break;
 
 		/*
 		 *  We want to know the total length (formatted area and
@@ -108,13 +105,20 @@ static void dmi_table(u8 *buf, int len, int num,
 			data++;
 		if (data - buf < len - 1)
 			decode(dm, private_data);
+
+		/*
+		 * 7.45 End-of-Table (Type 127) [SMBIOS reference spec v3.0.0]
+		 */
+		if (dm->type == DMI_ENTRY_END_OF_TABLE)
+			break;
+
 		data += 2;
 		i++;
 	}
 }
 
 static phys_addr_t dmi_base;
-static u16 dmi_len;
+static u32 dmi_len;
 static u16 dmi_num;
 
 static int __init dmi_walk_early(void (*decode)(const struct dmi_header *,
@@ -528,20 +532,9 @@ static int __init dmi_smbios3_present(const u8 *buf)
 	if (memcmp(buf, "_SM3_", 5) == 0 &&
 	    buf[6] < 32 && dmi_checksum(buf, buf[6])) {
 		dmi_ver = get_unaligned_be16(buf + 7);
+		dmi_num = 0;			/* No longer specified */
 		dmi_len = get_unaligned_le32(buf + 12);
 		dmi_base = get_unaligned_le64(buf + 16);
-
-		/*
-		 * The 64-bit SMBIOS 3.0 entry point no longer has a field
-		 * containing the number of structures present in the table.
-		 * Instead, it defines the table size as a maximum size, and
-		 * relies on the end-of-table structure type (#127) to be used
-		 * to signal the end of the table.
-		 * So let's define dmi_num as an upper bound as well: each
-		 * structure has a 4 byte header, so dmi_len / 4 is an upper
-		 * bound for the number of structures in the table.
-		 */
-		dmi_num = dmi_len / 4;
 
 		if (dmi_walk_early(dmi_decode) == 0) {
 			pr_info("SMBIOS %d.%d present.\n",

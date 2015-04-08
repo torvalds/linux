@@ -46,12 +46,13 @@ static int of_gpiochip_find_and_xlate(struct gpio_chip *gc, void *data)
 
 	ret = gc->of_xlate(gc, &gg_data->gpiospec, gg_data->flags);
 	if (ret < 0) {
-		/* We've found the gpio chip, but the translation failed.
-		 * Return true to stop looking and return the translation
-		 * error via out_gpio
+		/* We've found a gpio chip, but the translation failed.
+		 * Store translation error in out_gpio.
+		 * Return false to keep looking, as more than one gpio chip
+		 * could be registered per of-node.
 		 */
 		gg_data->out_gpio = ERR_PTR(ret);
-		return true;
+		return false;
 	 }
 
 	gg_data->out_gpio = gpiochip_get_desc(gc, ret);

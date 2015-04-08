@@ -3402,7 +3402,7 @@ static int ip_vs_genl_set_cmd(struct sk_buff *skb, struct genl_info *info)
 		if (udest.af == 0)
 			udest.af = svc->af;
 
-		if (udest.af != svc->af) {
+		if (udest.af != svc->af && cmd != IPVS_CMD_DEL_DEST) {
 			/* The synchronization protocol is incompatible
 			 * with mixed family services
 			 */

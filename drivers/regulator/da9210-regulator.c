@@ -152,6 +152,15 @@ static int da9210_i2c_probe(struct i2c_client *i2c,
 	config.regmap = chip->regmap;
 	config.of_node = dev->of_node;
 
+	/* Mask all interrupt sources to deassert interrupt line */
+	error = regmap_write(chip->regmap, DA9210_REG_MASK_A, ~0);
+	if (!error)
+		error = regmap_write(chip->regmap, DA9210_REG_MASK_B, ~0);
+	if (error) {
+		dev_err(&i2c->dev, "Failed to write to mask reg: %d\n", error);
+		return error;
+	}
+
 	rdev = devm_regulator_register(&i2c->dev, &da9210_reg, &config);
 	if (IS_ERR(rdev)) {
 		dev_err(&i2c->dev, "Failed to register DA9210 regulator\n");

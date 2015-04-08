@@ -47,6 +47,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/err.h>
 #include <linux/irq.h>
+#include <linux/suspend.h>
 
 #include <asm/io.h>
 #include <asm/ioctls.h>
@@ -173,6 +174,12 @@ struct atmel_uart_port {
 	bool			ms_irq_enabled;
 	bool			is_usart;	/* usart or uart */
 	struct timer_list	uart_timer;	/* uart timer */
+
+	bool			suspended;
+	unsigned int		pending;
+	unsigned int		pending_status;
+	spinlock_t		lock_suspended;
+
 	int (*prepare_rx)(struct uart_port *port);
 	int (*prepare_tx)(struct uart_port *port);
 	void (*schedule_rx)(struct uart_port *port);
@@ -1179,12 +1186,15 @@ static irqreturn_t atmel_interrupt(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
-	unsigned int status, pending, pass_counter = 0;
+	unsigned int status, pending, mask, pass_counter = 0;
 	bool gpio_handled = false;
+
+	spin_lock(&atmel_port->lock_suspended);
 
 	do {
 		status = atmel_get_lines_status(port);
-		pending = status & UART_GET_IMR(port);
+		mask = UART_GET_IMR(port);
+		pending = status & mask;
 		if (!gpio_handled) {
 			/*
 			 * Dealing with GPIO interrupt
@@ -1206,10 +1216,20 @@ static irqreturn_t atmel_interrupt(int irq, void *dev_id)
 		if (!pending)
 			break;
 
+		if (atmel_port->suspended) {
+			atmel_port->pending |= pending;
+			atmel_port->pending_status = status;
+			UART_PUT_IDR(port, mask);
+			pm_system_wakeup();
+			break;
+		}
+
 		atmel_handle_receive(port, pending);
 		atmel_handle_status(port, pending, status);
 		atmel_handle_transmit(port, pending);
 	} while (pass_counter++ < ATMEL_ISR_PASS_LIMIT);
+
+	spin_unlock(&atmel_port->lock_suspended);
 
 	return pass_counter ? IRQ_HANDLED : IRQ_NONE;
 }
@@ -1742,7 +1762,8 @@ static int atmel_startup(struct uart_port *port)
 	/*
 	 * Allocate the IRQ
 	 */
-	retval = request_irq(port->irq, atmel_interrupt, IRQF_SHARED,
+	retval = request_irq(port->irq, atmel_interrupt,
+			IRQF_SHARED | IRQF_COND_SUSPEND,
 			tty ? tty->name : "atmel_serial", port);
 	if (retval) {
 		dev_err(port->dev, "atmel_startup - Can't get irq\n");
@@ -2513,8 +2534,14 @@ static int atmel_serial_suspend(struct platform_device *pdev,
 
 	/* we can not wake up if we're running on slow clock */
 	atmel_port->may_wakeup = device_may_wakeup(&pdev->dev);
-	if (atmel_serial_clk_will_stop())
+	if (atmel_serial_clk_will_stop()) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&atmel_port->lock_suspended, flags);
+		atmel_port->suspended = true;
+		spin_unlock_irqrestore(&atmel_port->lock_suspended, flags);
 		device_set_wakeup_enable(&pdev->dev, 0);
+	}
 
 	uart_suspend_port(&atmel_uart, port);
 
@@ -2525,6 +2552,18 @@ static int atmel_serial_resume(struct platform_device *pdev)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
+	unsigned long flags;
+
+	spin_lock_irqsave(&atmel_port->lock_suspended, flags);
+	if (atmel_port->pending) {
+		atmel_handle_receive(port, atmel_port->pending);
+		atmel_handle_status(port, atmel_port->pending,
+				    atmel_port->pending_status);
+		atmel_handle_transmit(port, atmel_port->pending);
+		atmel_port->pending = 0;
+	}
+	atmel_port->suspended = false;
+	spin_unlock_irqrestore(&atmel_port->lock_suspended, flags);
 
 	uart_resume_port(&atmel_uart, port);
 	device_set_wakeup_enable(&pdev->dev, atmel_port->may_wakeup);
@@ -2592,6 +2631,8 @@ static int atmel_serial_probe(struct platform_device *pdev)
 	port = &atmel_ports[ret];
 	port->backup_imr = 0;
 	port->uart.line = ret;
+
+	spin_lock_init(&port->lock_suspended);
 
 	ret = atmel_init_gpios(port, &pdev->dev);
 	if (ret < 0)

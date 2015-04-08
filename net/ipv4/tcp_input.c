@@ -3105,10 +3105,11 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 			if (!first_ackt.v64)
 				first_ackt = last_ackt;
 
-			if (!(sacked & TCPCB_SACKED_ACKED))
+			if (!(sacked & TCPCB_SACKED_ACKED)) {
 				reord = min(pkts_acked, reord);
-			if (!after(scb->end_seq, tp->high_seq))
-				flag |= FLAG_ORIG_SACK_ACKED;
+				if (!after(scb->end_seq, tp->high_seq))
+					flag |= FLAG_ORIG_SACK_ACKED;
+			}
 		}
 
 		if (sacked & TCPCB_SACKED_ACKED)
@@ -4770,7 +4771,7 @@ static bool tcp_should_expand_sndbuf(const struct sock *sk)
 		return false;
 
 	/* If we filled the congestion window, do not expand.  */
-	if (tp->packets_out >= tp->snd_cwnd)
+	if (tcp_packets_in_flight(tp) >= tp->snd_cwnd)
 		return false;
 
 	return true;

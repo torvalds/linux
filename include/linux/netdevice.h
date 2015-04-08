@@ -965,9 +965,12 @@ typedef u16 (*select_queue_fallback_t)(struct net_device *dev,
  *	Used to add FDB entries to dump requests. Implementers should add
  *	entries to skb and update idx with the number of entries.
  *
- * int (*ndo_bridge_setlink)(struct net_device *dev, struct nlmsghdr *nlh)
+ * int (*ndo_bridge_setlink)(struct net_device *dev, struct nlmsghdr *nlh,
+ *			     u16 flags)
  * int (*ndo_bridge_getlink)(struct sk_buff *skb, u32 pid, u32 seq,
  *			     struct net_device *dev, u32 filter_mask)
+ * int (*ndo_bridge_dellink)(struct net_device *dev, struct nlmsghdr *nlh,
+ *			     u16 flags);
  *
  * int (*ndo_change_carrier)(struct net_device *dev, bool new_carrier);
  *	Called to change device carrier. Soft-devices (like dummy, team, etc)
@@ -2182,6 +2185,12 @@ void netdev_freemem(struct net_device *dev);
 void synchronize_net(void);
 int init_dummy_netdev(struct net_device *dev);
 
+DECLARE_PER_CPU(int, xmit_recursion);
+static inline int dev_recursion_level(void)
+{
+	return this_cpu_read(xmit_recursion);
+}
+
 struct net_device *dev_get_by_index(struct net *net, int ifindex);
 struct net_device *__dev_get_by_index(struct net *net, int ifindex);
 struct net_device *dev_get_by_index_rcu(struct net *net, int ifindex);
@@ -2342,6 +2351,7 @@ struct gro_remcsum {
 
 static inline void skb_gro_remcsum_init(struct gro_remcsum *grc)
 {
+	grc->offset = 0;
 	grc->delta = 0;
 }
 

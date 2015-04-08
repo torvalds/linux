@@ -153,7 +153,7 @@ static int atmel_hlcdc_crtc_mode_set(struct drm_crtc *c,
 		     (adj->crtc_hdisplay - 1) |
 		     ((adj->crtc_vdisplay - 1) << 16));
 
-	cfg = ATMEL_HLCDC_CLKPOL;
+	cfg = 0;
 
 	prate = clk_get_rate(crtc->dc->hlcdc->sys_clk);
 	mode_rate = mode->crtc_clock * 1000;

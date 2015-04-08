@@ -1448,8 +1448,10 @@ static void virtnet_free_queues(struct virtnet_info *vi)
 {
 	int i;
 
-	for (i = 0; i < vi->max_queue_pairs; i++)
+	for (i = 0; i < vi->max_queue_pairs; i++) {
+		napi_hash_del(&vi->rq[i].napi);
 		netif_napi_del(&vi->rq[i].napi);
+	}
 
 	kfree(vi->rq);
 	kfree(vi->sq);
@@ -1948,11 +1950,8 @@ static int virtnet_freeze(struct virtio_device *vdev)
 	cancel_delayed_work_sync(&vi->refill);
 
 	if (netif_running(vi->dev)) {
-		for (i = 0; i < vi->max_queue_pairs; i++) {
+		for (i = 0; i < vi->max_queue_pairs; i++)
 			napi_disable(&vi->rq[i].napi);
-			napi_hash_del(&vi->rq[i].napi);
-			netif_napi_del(&vi->rq[i].napi);
-		}
 	}
 
 	remove_vq_common(vi);

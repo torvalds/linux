@@ -410,42 +410,46 @@ error_read_raw:
 	}
 }
 
-static int inv_mpu6050_write_fsr(struct inv_mpu6050_state *st, int fsr)
+static int inv_mpu6050_write_gyro_scale(struct inv_mpu6050_state *st, int val)
 {
-	int result;
+	int result, i;
 	u8 d;
 
-	if (fsr < 0 || fsr > INV_MPU6050_MAX_GYRO_FS_PARAM)
-		return -EINVAL;
-	if (fsr == st->chip_config.fsr)
-		return 0;
+	for (i = 0; i < ARRAY_SIZE(gyro_scale_6050); ++i) {
+		if (gyro_scale_6050[i] == val) {
+			d = (i << INV_MPU6050_GYRO_CONFIG_FSR_SHIFT);
+			result = inv_mpu6050_write_reg(st,
+					st->reg->gyro_config, d);
+			if (result)
+				return result;
 
-	d = (fsr << INV_MPU6050_GYRO_CONFIG_FSR_SHIFT);
-	result = inv_mpu6050_write_reg(st, st->reg->gyro_config, d);
-	if (result)
-		return result;
-	st->chip_config.fsr = fsr;
+			st->chip_config.fsr = i;
+			return 0;
+		}
+	}
 
-	return 0;
+	return -EINVAL;
 }
 
-static int inv_mpu6050_write_accel_fs(struct inv_mpu6050_state *st, int fs)
+static int inv_mpu6050_write_accel_scale(struct inv_mpu6050_state *st, int val)
 {
-	int result;
+	int result, i;
 	u8 d;
 
-	if (fs < 0 || fs > INV_MPU6050_MAX_ACCL_FS_PARAM)
-		return -EINVAL;
-	if (fs == st->chip_config.accl_fs)
-		return 0;
+	for (i = 0; i < ARRAY_SIZE(accel_scale); ++i) {
+		if (accel_scale[i] == val) {
+			d = (i << INV_MPU6050_ACCL_CONFIG_FSR_SHIFT);
+			result = inv_mpu6050_write_reg(st,
+					st->reg->accl_config, d);
+			if (result)
+				return result;
 
-	d = (fs << INV_MPU6050_ACCL_CONFIG_FSR_SHIFT);
-	result = inv_mpu6050_write_reg(st, st->reg->accl_config, d);
-	if (result)
-		return result;
-	st->chip_config.accl_fs = fs;
+			st->chip_config.accl_fs = i;
+			return 0;
+		}
+	}
 
-	return 0;
+	return -EINVAL;
 }
 
 static int inv_mpu6050_write_raw(struct iio_dev *indio_dev,
@@ -471,10 +475,10 @@ static int inv_mpu6050_write_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
 		case IIO_ANGL_VEL:
-			result = inv_mpu6050_write_fsr(st, val);
+			result = inv_mpu6050_write_gyro_scale(st, val2);
 			break;
 		case IIO_ACCEL:
-			result = inv_mpu6050_write_accel_fs(st, val);
+			result = inv_mpu6050_write_accel_scale(st, val2);
 			break;
 		default:
 			result = -EINVAL;
@@ -780,7 +784,11 @@ static int inv_mpu_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, indio_dev);
 	indio_dev->dev.parent = &client->dev;
-	indio_dev->name = id->name;
+	/* id will be NULL when enumerated via ACPI */
+	if (id)
+		indio_dev->name = (char *)id->name;
+	else
+		indio_dev->name = (char *)dev_name(&client->dev);
 	indio_dev->channels = inv_mpu_channels;
 	indio_dev->num_channels = ARRAY_SIZE(inv_mpu_channels);
 

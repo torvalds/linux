@@ -713,7 +713,7 @@ static int update_vport_qp_param(struct mlx4_dev *dev,
 	struct mlx4_vport_oper_state *vp_oper;
 	struct mlx4_priv *priv;
 	u32 qp_type;
-	int port;
+	int port, err = 0;
 
 	port = (qpc->pri_path.sched_queue & 0x40) ? 2 : 1;
 	priv = mlx4_priv(dev);
@@ -738,7 +738,9 @@ static int update_vport_qp_param(struct mlx4_dev *dev,
 			} else {
 				struct mlx4_update_qp_params params = {.flags = 0};
 
-				mlx4_update_qp(dev, qpn, MLX4_UPDATE_QP_VSD, &params);
+				err = mlx4_update_qp(dev, qpn, MLX4_UPDATE_QP_VSD, &params);
+				if (err)
+					goto out;
 			}
 		}
 
@@ -773,7 +775,8 @@ static int update_vport_qp_param(struct mlx4_dev *dev,
 		qpc->pri_path.feup |= MLX4_FSM_FORCE_ETH_SRC_MAC;
 		qpc->pri_path.grh_mylmc = (0x80 & qpc->pri_path.grh_mylmc) + vp_oper->mac_idx;
 	}
-	return 0;
+out:
+	return err;
 }
 
 static int mpt_mask(struct mlx4_dev *dev)
@@ -3091,6 +3094,12 @@ int mlx4_GEN_EQE(struct mlx4_dev *dev, int slave, struct mlx4_eqe *eqe)
 
 	if (!priv->mfunc.master.slave_state)
 		return -EINVAL;
+
+	/* check for slave valid, slave not PF, and slave active */
+	if (slave < 0 || slave > dev->persist->num_vfs ||
+	    slave == dev->caps.function ||
+	    !priv->mfunc.master.slave_state[slave].active)
+		return 0;
 
 	event_eq = &priv->mfunc.master.slave_state[slave].event_eq[eqe->type];
 
