@@ -2359,8 +2359,11 @@ static void set_usb_port_removable(struct usb_device *udev)
 		udev->removable = USB_DEVICE_REMOVABLE;
 		return;
 	case USB_PORT_CONNECT_TYPE_HARD_WIRED:
+	case USB_PORT_NOT_USED:
 		udev->removable = USB_DEVICE_FIXED;
 		return;
+	default:
+		break;
 	}
 
 	/*
