@@ -923,6 +923,9 @@ restart:
 	if (error)
 		return error;
 
+	if (test_and_clear_bit(QDF_REFRESH, &qd->qd_flags))
+		force_refresh = FORCE;
+
 	qd->qd_qb = *(struct gfs2_quota_lvb *)qd->qd_gl->gl_lksb.sb_lvbptr;
 
 	if (force_refresh || qd->qd_qb.qb_magic != cpu_to_be32(GFS2_MAGIC)) {
@@ -974,11 +977,8 @@ int gfs2_quota_lock(struct gfs2_inode *ip, kuid_t uid, kgid_t gid)
 	     sizeof(struct gfs2_quota_data *), sort_qd, NULL);
 
 	for (x = 0; x < ip->i_res->rs_qa_qd_num; x++) {
-		int force = NO_FORCE;
 		qd = ip->i_res->rs_qa_qd[x];
-		if (test_and_clear_bit(QDF_REFRESH, &qd->qd_flags))
-			force = FORCE;
-		error = do_glock(qd, force, &ip->i_res->rs_qa_qd_ghs[x]);
+		error = do_glock(qd, NO_FORCE, &ip->i_res->rs_qa_qd_ghs[x]);
 		if (error)
 			break;
 	}
