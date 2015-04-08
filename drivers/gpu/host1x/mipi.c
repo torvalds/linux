@@ -352,7 +352,7 @@ static const struct tegra_mipi_soc tegra124_mipi_soc = {
 	.hsclkpuos = 0x2,
 };
 
-static struct of_device_id tegra_mipi_of_match[] = {
+static const struct of_device_id tegra_mipi_of_match[] = {
 	{ .compatible = "nvidia,tegra114-mipi", .data = &tegra114_mipi_soc },
 	{ .compatible = "nvidia,tegra124-mipi", .data = &tegra124_mipi_soc },
 	{ },
