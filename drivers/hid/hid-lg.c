@@ -714,11 +714,11 @@ static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	if (drv_data->quirks & LG_FF)
 		ret = lgff_init(hdev);
-	if (drv_data->quirks & LG_FF2)
+	else if (drv_data->quirks & LG_FF2)
 		ret = lg2ff_init(hdev);
-	if (drv_data->quirks & LG_FF3)
+	else if (drv_data->quirks & LG_FF3)
 		ret = lg3ff_init(hdev);
-	if (drv_data->quirks & LG_FF4)
+	else if (drv_data->quirks & LG_FF4)
 		ret = lg4ff_init(hdev);
 
 	if (ret)
