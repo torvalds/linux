@@ -77,7 +77,7 @@ static void udf_build_ustr_exact(struct ustr *dest, dstring *ptr, int exactsize)
 }
 
 /*
- * udf_ocu_to_utf8
+ * udf_CS0toUTF8
  *
  * PURPOSE
  *	Convert OSTA Compressed Unicode to the UTF-8 equivalent.
@@ -149,7 +149,7 @@ int udf_CS0toUTF8(struct ustr *utf_o, const struct ustr *ocu_i)
 
 /*
  *
- * udf_utf8_to_ocu
+ * udf_UTF8toCS0
  *
  * PURPOSE
  *	Convert UTF-8 to the OSTA Compressed Unicode equivalent.
