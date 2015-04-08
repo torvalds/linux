@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2015 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -24,13 +24,23 @@ const struct mdp5_cfg_hw *mdp5_cfg = NULL;
 
 const struct mdp5_cfg_hw msm8x74_config = {
 	.name = "msm8x74",
+	.mdp = {
+		.count = 1,
+		.base = { 0x00100 },
+	},
 	.smp = {
 		.mmb_count = 22,
 		.mmb_size = 4096,
+		.clients = {
+			[SSPP_VIG0] =  1, [SSPP_VIG1] =  4, [SSPP_VIG2] =  7,
+			[SSPP_DMA0] = 10, [SSPP_DMA1] = 13,
+			[SSPP_RGB0] = 16, [SSPP_RGB1] = 17, [SSPP_RGB2] = 18,
+		},
 	},
 	.ctl = {
 		.count = 5,
 		.base = { 0x00600, 0x00700, 0x00800, 0x00900, 0x00a00 },
+		.flush_hw_mask = 0x0003ffff,
 	},
 	.pipe_vig = {
 		.count = 3,
@@ -57,27 +67,49 @@ const struct mdp5_cfg_hw msm8x74_config = {
 		.count = 2,
 		.base = { 0x13100, 0x13300 }, /* NOTE: no ad in v1.0 */
 	},
+	.pp = {
+		.count = 3,
+		.base = { 0x12d00, 0x12e00, 0x12f00 },
+	},
 	.intf = {
 		.count = 4,
 		.base = { 0x12500, 0x12700, 0x12900, 0x12b00 },
+	},
+	.intfs = {
+		[0] = INTF_eDP,
+		[1] = INTF_DSI,
+		[2] = INTF_DSI,
+		[3] = INTF_HDMI,
 	},
 	.max_clk = 200000000,
 };
 
 const struct mdp5_cfg_hw apq8084_config = {
 	.name = "apq8084",
+	.mdp = {
+		.count = 1,
+		.base = { 0x00100 },
+	},
 	.smp = {
 		.mmb_count = 44,
 		.mmb_size = 8192,
+		.clients = {
+			[SSPP_VIG0] =  1, [SSPP_VIG1] =  4,
+			[SSPP_VIG2] =  7, [SSPP_VIG3] = 19,
+			[SSPP_DMA0] = 10, [SSPP_DMA1] = 13,
+			[SSPP_RGB0] = 16, [SSPP_RGB1] = 17,
+			[SSPP_RGB2] = 18, [SSPP_RGB3] = 22,
+		},
 		.reserved_state[0] = GENMASK(7, 0),	/* first 8 MMBs */
-		.reserved[CID_RGB0] = 2,
-		.reserved[CID_RGB1] = 2,
-		.reserved[CID_RGB2] = 2,
-		.reserved[CID_RGB3] = 2,
+		.reserved = {
+			/* Two SMP blocks are statically tied to RGB pipes: */
+			[16] = 2, [17] = 2, [18] = 2, [22] = 2,
+		},
 	},
 	.ctl = {
 		.count = 5,
 		.base = { 0x00600, 0x00700, 0x00800, 0x00900, 0x00a00 },
+		.flush_hw_mask = 0x003fffff,
 	},
 	.pipe_vig = {
 		.count = 4,
@@ -105,10 +137,69 @@ const struct mdp5_cfg_hw apq8084_config = {
 		.count = 3,
 		.base = { 0x13500, 0x13700, 0x13900 },
 	},
+	.pp = {
+		.count = 4,
+		.base = { 0x12f00, 0x13000, 0x13100, 0x13200 },
+	},
 	.intf = {
 		.count = 5,
 		.base = { 0x12500, 0x12700, 0x12900, 0x12b00, 0x12d00 },
 	},
+	.intfs = {
+		[0] = INTF_eDP,
+		[1] = INTF_DSI,
+		[2] = INTF_DSI,
+		[3] = INTF_HDMI,
+	},
+	.max_clk = 320000000,
+};
+
+const struct mdp5_cfg_hw msm8x16_config = {
+	.name = "msm8x16",
+	.mdp = {
+		.count = 1,
+		.base = { 0x01000 },
+	},
+	.smp = {
+		.mmb_count = 8,
+		.mmb_size = 8192,
+		.clients = {
+			[SSPP_VIG0] = 1, [SSPP_DMA0] = 4,
+			[SSPP_RGB0] = 7, [SSPP_RGB1] = 8,
+		},
+	},
+	.ctl = {
+		.count = 5,
+		.base = { 0x02000, 0x02200, 0x02400, 0x02600, 0x02800 },
+		.flush_hw_mask = 0x4003ffff,
+	},
+	.pipe_vig = {
+		.count = 1,
+		.base = { 0x05000 },
+	},
+	.pipe_rgb = {
+		.count = 2,
+		.base = { 0x15000, 0x17000 },
+	},
+	.pipe_dma = {
+		.count = 1,
+		.base = { 0x25000 },
+	},
+	.lm = {
+		.count = 2, /* LM0 and LM3 */
+		.base = { 0x45000, 0x48000 },
+		.nb_stages = 5,
+	},
+	.dspp = {
+		.count = 1,
+		.base = { 0x55000 },
+
+	},
+	.intf = {
+		.count = 1, /* INTF_1 */
+		.base = { 0x6B800 },
+	},
+	/* TODO enable .intfs[] with [1] = INTF_DSI, once DSI is implemented */
 	.max_clk = 320000000,
 };
 
@@ -116,6 +207,7 @@ static const struct mdp5_cfg_handler cfg_handlers[] = {
 	{ .revision = 0, .config = { .hw = &msm8x74_config } },
 	{ .revision = 2, .config = { .hw = &msm8x74_config } },
 	{ .revision = 3, .config = { .hw = &apq8084_config } },
+	{ .revision = 6, .config = { .hw = &msm8x16_config } },
 };
 
 
