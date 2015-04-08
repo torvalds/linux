@@ -563,18 +563,10 @@ static int gpio_fan_probe(struct platform_device *pdev)
 		err = gpio_fan_get_of_pdata(&pdev->dev, pdata);
 		if (err)
 			return err;
-		/* Optional cooling device register for Device tree platforms */
-		fan_data->cdev =
-			thermal_of_cooling_device_register(pdev->dev.of_node,
-							   "gpio-fan", fan_data,
-							   &gpio_fan_cool_ops);
 	}
 #else /* CONFIG_OF_GPIO */
 	if (!pdata)
 		return -EINVAL;
-	/* Optional cooling device register for non Device tree platforms */
-	fan_data->cdev = thermal_cooling_device_register("gpio-fan", fan_data,
-							 &gpio_fan_cool_ops);
 #endif /* CONFIG_OF_GPIO */
 
 	fan_data->pdev = pdev;
@@ -604,6 +596,17 @@ static int gpio_fan_probe(struct platform_device *pdev)
 						       gpio_fan_groups);
 	if (IS_ERR(fan_data->hwmon_dev))
 		return PTR_ERR(fan_data->hwmon_dev);
+#ifdef CONFIG_OF_GPIO
+	/* Optional cooling device register for Device tree platforms */
+	fan_data->cdev = thermal_of_cooling_device_register(pdev->dev.of_node,
+							    "gpio-fan",
+							    fan_data,
+							    &gpio_fan_cool_ops);
+#else /* CONFIG_OF_GPIO */
+	/* Optional cooling device register for non Device tree platforms */
+	fan_data->cdev = thermal_cooling_device_register("gpio-fan", fan_data,
+							 &gpio_fan_cool_ops);
+#endif /* CONFIG_OF_GPIO */
 
 	dev_info(&pdev->dev, "GPIO fan initialized\n");
 
