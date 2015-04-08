@@ -1035,7 +1035,9 @@ void efx_mcdi_process_event(struct efx_channel *channel,
 		/* MAC stats are gather lazily.  We can ignore this. */
 		break;
 	case MCDI_EVENT_CODE_FLR:
-		efx_siena_sriov_flr(efx, MCDI_EVENT_FIELD(*event, FLR_VF));
+		if (efx->type->sriov_flr)
+			efx->type->sriov_flr(efx,
+					     MCDI_EVENT_FIELD(*event, FLR_VF));
 		break;
 	case MCDI_EVENT_CODE_PTP_RX:
 	case MCDI_EVENT_CODE_PTP_FAULT:

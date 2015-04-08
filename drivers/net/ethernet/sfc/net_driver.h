@@ -1330,11 +1330,20 @@ struct efx_nic_type {
 	int (*ptp_set_ts_sync_events)(struct efx_nic *efx, bool en, bool temp);
 	int (*ptp_set_ts_config)(struct efx_nic *efx,
 				 struct hwtstamp_config *init);
+	int (*sriov_configure)(struct efx_nic *efx, int num_vfs);
 	int (*sriov_init)(struct efx_nic *efx);
 	void (*sriov_fini)(struct efx_nic *efx);
 	void (*sriov_mac_address_changed)(struct efx_nic *efx);
 	bool (*sriov_wanted)(struct efx_nic *efx);
 	void (*sriov_reset)(struct efx_nic *efx);
+	void (*sriov_flr)(struct efx_nic *efx, unsigned vf_i);
+	int (*sriov_set_vf_mac)(struct efx_nic *efx, int vf_i, u8 *mac);
+	int (*sriov_set_vf_vlan)(struct efx_nic *efx, int vf_i, u16 vlan,
+				 u8 qos);
+	int (*sriov_set_vf_spoofchk)(struct efx_nic *efx, int vf_i,
+				     bool spoofchk);
+	int (*sriov_get_vf_config)(struct efx_nic *efx, int vf_i,
+				   struct ifla_vf_info *ivi);
 
 	int revision;
 	unsigned int txd_ptr_tbl_base;
