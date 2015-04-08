@@ -168,14 +168,14 @@ static const struct {
 	int val;
 	int val2;
 	u8 bw_bits;
-} bmc150_accel_samp_freq_table[] = { {7, 810000, 0x08},
-				     {15, 630000, 0x09},
-				     {31, 250000, 0x0A},
-				     {62, 500000, 0x0B},
-				     {125, 0, 0x0C},
-				     {250, 0, 0x0D},
-				     {500, 0, 0x0E},
-				     {1000, 0, 0x0F} };
+} bmc150_accel_samp_freq_table[] = { {15, 620000, 0x08},
+				     {31, 260000, 0x09},
+				     {62, 500000, 0x0A},
+				     {125, 0, 0x0B},
+				     {250, 0, 0x0C},
+				     {500, 0, 0x0D},
+				     {1000, 0, 0x0E},
+				     {2000, 0, 0x0F} };
 
 static const struct {
 	int bw_bits;
@@ -840,7 +840,7 @@ static int bmc150_accel_validate_trigger(struct iio_dev *indio_dev,
 }
 
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL(
-		"7.810000 15.630000 31.250000 62.500000 125 250 500 1000");
+		"15.620000 31.260000 62.50000 125 250 500 1000 2000");
 
 static struct attribute *bmc150_accel_attributes[] = {
 	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
@@ -986,7 +986,7 @@ static irqreturn_t bmc150_accel_trigger_handler(int irq, void *p)
 	int bit, ret, i = 0;
 
 	mutex_lock(&data->mutex);
-	for_each_set_bit(bit, indio_dev->buffer->scan_mask,
+	for_each_set_bit(bit, indio_dev->active_scan_mask,
 			 indio_dev->masklength) {
 		ret = i2c_smbus_read_word_data(data->client,
 					       BMC150_ACCEL_AXIS_TO_REG(bit));

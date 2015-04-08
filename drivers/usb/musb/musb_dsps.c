@@ -457,12 +457,27 @@ static int dsps_musb_init(struct musb *musb)
 	if (IS_ERR(musb->xceiv))
 		return PTR_ERR(musb->xceiv);
 
+	musb->phy = devm_phy_get(dev->parent, "usb2-phy");
+
 	/* Returns zero if e.g. not clocked */
 	rev = dsps_readl(reg_base, wrp->revision);
 	if (!rev)
 		return -ENODEV;
 
 	usb_phy_init(musb->xceiv);
+	if (IS_ERR(musb->phy))  {
+		musb->phy = NULL;
+	} else {
+		ret = phy_init(musb->phy);
+		if (ret < 0)
+			return ret;
+		ret = phy_power_on(musb->phy);
+		if (ret) {
+			phy_exit(musb->phy);
+			return ret;
+		}
+	}
+
 	setup_timer(&glue->timer, otg_timer, (unsigned long) musb);
 
 	/* Reset the musb */
@@ -502,6 +517,8 @@ static int dsps_musb_exit(struct musb *musb)
 
 	del_timer_sync(&glue->timer);
 	usb_phy_shutdown(musb->xceiv);
+	phy_power_off(musb->phy);
+	phy_exit(musb->phy);
 	debugfs_remove_recursive(glue->dbgfs_root);
 
 	return 0;
@@ -610,7 +627,7 @@ static int dsps_musb_reset(struct musb *musb)
 	struct device *dev = musb->controller;
 	struct dsps_glue *glue = dev_get_drvdata(dev->parent);
 	const struct dsps_musb_wrapper *wrp = glue->wrp;
-	int session_restart = 0;
+	int session_restart = 0, error;
 
 	if (glue->sw_babble_enabled)
 		session_restart = sw_babble_control(musb);
@@ -624,8 +641,14 @@ static int dsps_musb_reset(struct musb *musb)
 		dsps_writel(musb->ctrl_base, wrp->control, (1 << wrp->reset));
 		usleep_range(100, 200);
 		usb_phy_shutdown(musb->xceiv);
+		error = phy_power_off(musb->phy);
+		if (error)
+			dev_err(dev, "phy shutdown failed: %i\n", error);
 		usleep_range(100, 200);
 		usb_phy_init(musb->xceiv);
+		error = phy_power_on(musb->phy);
+		if (error)
+			dev_err(dev, "phy powerup failed: %i\n", error);
 		session_restart = 1;
 	}
 
@@ -687,7 +710,7 @@ static int dsps_create_musb_pdev(struct dsps_glue *glue,
 	struct musb_hdrc_config	*config;
 	struct platform_device *musb;
 	struct device_node *dn = parent->dev.of_node;
-	int ret;
+	int ret, val;
 
 	memset(resources, 0, sizeof(resources));
 	res = platform_get_resource_byname(parent, IORESOURCE_MEM, "mc");
@@ -739,7 +762,10 @@ static int dsps_create_musb_pdev(struct dsps_glue *glue,
 	pdata.mode = get_musb_port_mode(dev);
 	/* DT keeps this entry in mA, musb expects it as per USB spec */
 	pdata.power = get_int_prop(dn, "mentor,power") / 2;
-	config->multipoint = of_property_read_bool(dn, "mentor,multipoint");
+
+	ret = of_property_read_u32(dn, "mentor,multipoint", &val);
+	if (!ret && val)
+		config->multipoint = true;
 
 	ret = platform_device_add_data(musb, &pdata, sizeof(pdata));
 	if (ret) {

@@ -2138,8 +2138,8 @@ int serial8250_do_startup(struct uart_port *port)
 	/*
 	 * Clear the interrupt registers.
 	 */
-	if (serial_port_in(port, UART_LSR) & UART_LSR_DR)
-		serial_port_in(port, UART_RX);
+	serial_port_in(port, UART_LSR);
+	serial_port_in(port, UART_RX);
 	serial_port_in(port, UART_IIR);
 	serial_port_in(port, UART_MSR);
 
@@ -2300,8 +2300,8 @@ dont_test_tx_en:
 	 * saved flags to avoid getting false values from polling
 	 * routines or the previous session.
 	 */
-	if (serial_port_in(port, UART_LSR) & UART_LSR_DR)
-		serial_port_in(port, UART_RX);
+	serial_port_in(port, UART_LSR);
+	serial_port_in(port, UART_RX);
 	serial_port_in(port, UART_IIR);
 	serial_port_in(port, UART_MSR);
 	up->lsr_saved_flags = 0;
@@ -2394,8 +2394,7 @@ void serial8250_do_shutdown(struct uart_port *port)
 	 * Read data port to reset things, and then unlink from
 	 * the IRQ chain.
 	 */
-	if (serial_port_in(port, UART_LSR) & UART_LSR_DR)
-		serial_port_in(port, UART_RX);
+	serial_port_in(port, UART_RX);
 	serial8250_rpm_put(up);
 
 	del_timer_sync(&up->timer);

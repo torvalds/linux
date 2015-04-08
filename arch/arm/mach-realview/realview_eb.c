@@ -234,7 +234,7 @@ static struct resource realview_eb_eth_resources[] = {
 	[1] = {
 		.start		= IRQ_EB_ETH,
 		.end		= IRQ_EB_ETH,
-		.flags		= IORESOURCE_IRQ,
+		.flags		= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
 	},
 };
 

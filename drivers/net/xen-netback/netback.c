@@ -96,6 +96,7 @@ static void xenvif_idx_release(struct xenvif_queue *queue, u16 pending_idx,
 static void make_tx_response(struct xenvif_queue *queue,
 			     struct xen_netif_tx_request *txp,
 			     s8       st);
+static void push_tx_responses(struct xenvif_queue *queue);
 
 static inline int tx_work_todo(struct xenvif_queue *queue);
 
@@ -657,6 +658,7 @@ static void xenvif_tx_err(struct xenvif_queue *queue,
 	do {
 		spin_lock_irqsave(&queue->response_lock, flags);
 		make_tx_response(queue, txp, XEN_NETIF_RSP_ERROR);
+		push_tx_responses(queue);
 		spin_unlock_irqrestore(&queue->response_lock, flags);
 		if (cons == end)
 			break;
@@ -1343,7 +1345,7 @@ static int xenvif_handle_frag_list(struct xenvif_queue *queue, struct sk_buff *s
 {
 	unsigned int offset = skb_headlen(skb);
 	skb_frag_t frags[MAX_SKB_FRAGS];
-	int i;
+	int i, f;
 	struct ubuf_info *uarg;
 	struct sk_buff *nskb = skb_shinfo(skb)->frag_list;
 
@@ -1383,23 +1385,25 @@ static int xenvif_handle_frag_list(struct xenvif_queue *queue, struct sk_buff *s
 		frags[i].page_offset = 0;
 		skb_frag_size_set(&frags[i], len);
 	}
-	/* swap out with old one */
-	memcpy(skb_shinfo(skb)->frags,
-	       frags,
-	       i * sizeof(skb_frag_t));
-	skb_shinfo(skb)->nr_frags = i;
-	skb->truesize += i * PAGE_SIZE;
 
-	/* remove traces of mapped pages and frag_list */
+	/* Copied all the bits from the frag list -- free it. */
 	skb_frag_list_init(skb);
+	xenvif_skb_zerocopy_prepare(queue, nskb);
+	kfree_skb(nskb);
+
+	/* Release all the original (foreign) frags. */
+	for (f = 0; f < skb_shinfo(skb)->nr_frags; f++)
+		skb_frag_unref(skb, f);
 	uarg = skb_shinfo(skb)->destructor_arg;
 	/* increase inflight counter to offset decrement in callback */
 	atomic_inc(&queue->inflight_packets);
 	uarg->callback(uarg, true);
 	skb_shinfo(skb)->destructor_arg = NULL;
 
-	xenvif_skb_zerocopy_prepare(queue, nskb);
-	kfree_skb(nskb);
+	/* Fill the skb with the new (local) frags. */
+	memcpy(skb_shinfo(skb)->frags, frags, i * sizeof(skb_frag_t));
+	skb_shinfo(skb)->nr_frags = i;
+	skb->truesize += i * PAGE_SIZE;
 
 	return 0;
 }
@@ -1652,13 +1656,20 @@ static void xenvif_idx_release(struct xenvif_queue *queue, u16 pending_idx,
 	unsigned long flags;
 
 	pending_tx_info = &queue->pending_tx_info[pending_idx];
+
 	spin_lock_irqsave(&queue->response_lock, flags);
+
 	make_tx_response(queue, &pending_tx_info->req, status);
-	index = pending_index(queue->pending_prod);
+
+	/* Release the pending index before pusing the Tx response so
+	 * its available before a new Tx request is pushed by the
+	 * frontend.
+	 */
+	index = pending_index(queue->pending_prod++);
 	queue->pending_ring[index] = pending_idx;
-	/* TX shouldn't use the index before we give it back here */
-	mb();
-	queue->pending_prod++;
+
+	push_tx_responses(queue);
+
 	spin_unlock_irqrestore(&queue->response_lock, flags);
 }
 
@@ -1669,7 +1680,6 @@ static void make_tx_response(struct xenvif_queue *queue,
 {
 	RING_IDX i = queue->tx.rsp_prod_pvt;
 	struct xen_netif_tx_response *resp;
-	int notify;
 
 	resp = RING_GET_RESPONSE(&queue->tx, i);
 	resp->id     = txp->id;
@@ -1679,6 +1689,12 @@ static void make_tx_response(struct xenvif_queue *queue,
 		RING_GET_RESPONSE(&queue->tx, ++i)->status = XEN_NETIF_RSP_NULL;
 
 	queue->tx.rsp_prod_pvt = ++i;
+}
+
+static void push_tx_responses(struct xenvif_queue *queue)
+{
+	int notify;
+
 	RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&queue->tx, notify);
 	if (notify)
 		notify_remote_via_irq(queue->tx_irq);

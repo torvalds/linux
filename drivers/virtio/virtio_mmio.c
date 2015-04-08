@@ -156,22 +156,95 @@ static void vm_get(struct virtio_device *vdev, unsigned offset,
 		   void *buf, unsigned len)
 {
 	struct virtio_mmio_device *vm_dev = to_virtio_mmio_device(vdev);
-	u8 *ptr = buf;
-	int i;
+	void __iomem *base = vm_dev->base + VIRTIO_MMIO_CONFIG;
+	u8 b;
+	__le16 w;
+	__le32 l;
 
-	for (i = 0; i < len; i++)
-		ptr[i] = readb(vm_dev->base + VIRTIO_MMIO_CONFIG + offset + i);
+	if (vm_dev->version == 1) {
+		u8 *ptr = buf;
+		int i;
+
+		for (i = 0; i < len; i++)
+			ptr[i] = readb(base + offset + i);
+		return;
+	}
+
+	switch (len) {
+	case 1:
+		b = readb(base + offset);
+		memcpy(buf, &b, sizeof b);
+		break;
+	case 2:
+		w = cpu_to_le16(readw(base + offset));
+		memcpy(buf, &w, sizeof w);
+		break;
+	case 4:
+		l = cpu_to_le32(readl(base + offset));
+		memcpy(buf, &l, sizeof l);
+		break;
+	case 8:
+		l = cpu_to_le32(readl(base + offset));
+		memcpy(buf, &l, sizeof l);
+		l = cpu_to_le32(ioread32(base + offset + sizeof l));
+		memcpy(buf + sizeof l, &l, sizeof l);
+		break;
+	default:
+		BUG();
+	}
 }
 
 static void vm_set(struct virtio_device *vdev, unsigned offset,
 		   const void *buf, unsigned len)
 {
 	struct virtio_mmio_device *vm_dev = to_virtio_mmio_device(vdev);
-	const u8 *ptr = buf;
-	int i;
+	void __iomem *base = vm_dev->base + VIRTIO_MMIO_CONFIG;
+	u8 b;
+	__le16 w;
+	__le32 l;
 
-	for (i = 0; i < len; i++)
-		writeb(ptr[i], vm_dev->base + VIRTIO_MMIO_CONFIG + offset + i);
+	if (vm_dev->version == 1) {
+		const u8 *ptr = buf;
+		int i;
+
+		for (i = 0; i < len; i++)
+			writeb(ptr[i], base + offset + i);
+
+		return;
+	}
+
+	switch (len) {
+	case 1:
+		memcpy(&b, buf, sizeof b);
+		writeb(b, base + offset);
+		break;
+	case 2:
+		memcpy(&w, buf, sizeof w);
+		writew(le16_to_cpu(w), base + offset);
+		break;
+	case 4:
+		memcpy(&l, buf, sizeof l);
+		writel(le32_to_cpu(l), base + offset);
+		break;
+	case 8:
+		memcpy(&l, buf, sizeof l);
+		writel(le32_to_cpu(l), base + offset);
+		memcpy(&l, buf + sizeof l, sizeof l);
+		writel(le32_to_cpu(l), base + offset + sizeof l);
+		break;
+	default:
+		BUG();
+	}
+}
+
+static u32 vm_generation(struct virtio_device *vdev)
+{
+	struct virtio_mmio_device *vm_dev = to_virtio_mmio_device(vdev);
+
+	if (vm_dev->version == 1)
+		return 0;
+	else
+		return readl(vm_dev->base + VIRTIO_MMIO_CONFIG_GENERATION);
 }
 
 static u8 vm_get_status(struct virtio_device *vdev)
@@ -440,6 +513,7 @@ static const char *vm_bus_name(struct virtio_device *vdev)
 static const struct virtio_config_ops virtio_mmio_config_ops = {
 	.get		= vm_get,
 	.set		= vm_set,
+	.generation	= vm_generation,
 	.get_status	= vm_get_status,
 	.set_status	= vm_set_status,
 	.reset		= vm_reset,

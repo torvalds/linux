@@ -26,6 +26,9 @@
 #include "radeon_audio.h"
 #include "sid.h"
 
+#define DCE8_DCCG_AUDIO_DTO1_PHASE	0x05b8
+#define DCE8_DCCG_AUDIO_DTO1_MODULE	0x05bc
+
 u32 dce6_endpoint_rreg(struct radeon_device *rdev,
 			      u32 block_offset, u32 reg)
 {
@@ -252,72 +255,67 @@ void dce6_audio_enable(struct radeon_device *rdev,
 void dce6_hdmi_audio_set_dto(struct radeon_device *rdev,
 	struct radeon_crtc *crtc, unsigned int clock)
 {
-    /* Two dtos; generally use dto0 for HDMI */
+	/* Two dtos; generally use dto0 for HDMI */
 	u32 value = 0;
 
-    if (crtc)
+	if (crtc)
 		value |= DCCG_AUDIO_DTO0_SOURCE_SEL(crtc->crtc_id);
 
 	WREG32(DCCG_AUDIO_DTO_SOURCE, value);
 
-    /* Express [24MHz / target pixel clock] as an exact rational
-     * number (coefficient of two integer numbers.  DCCG_AUDIO_DTOx_PHASE
-     * is the numerator, DCCG_AUDIO_DTOx_MODULE is the denominator
-     */
-    WREG32(DCCG_AUDIO_DTO0_PHASE, 24000);
-    WREG32(DCCG_AUDIO_DTO0_MODULE, clock);
+	/* Express [24MHz / target pixel clock] as an exact rational
+	 * number (coefficient of two integer numbers.  DCCG_AUDIO_DTOx_PHASE
+	 * is the numerator, DCCG_AUDIO_DTOx_MODULE is the denominator
+	 */
+	WREG32(DCCG_AUDIO_DTO0_PHASE, 24000);
+	WREG32(DCCG_AUDIO_DTO0_MODULE, clock);
 }
 
 void dce6_dp_audio_set_dto(struct radeon_device *rdev,
 	struct radeon_crtc *crtc, unsigned int clock)
 {
-    /* Two dtos; generally use dto1 for DP */
+	/* Two dtos; generally use dto1 for DP */
 	u32 value = 0;
 	value |= DCCG_AUDIO_DTO_SEL;
 
-    if (crtc)
+	if (crtc)
 		value |= DCCG_AUDIO_DTO0_SOURCE_SEL(crtc->crtc_id);
 
 	WREG32(DCCG_AUDIO_DTO_SOURCE, value);
 
-    /* Express [24MHz / target pixel clock] as an exact rational
-     * number (coefficient of two integer numbers.  DCCG_AUDIO_DTOx_PHASE
-     * is the numerator, DCCG_AUDIO_DTOx_MODULE is the denominator
-     */
-    WREG32(DCCG_AUDIO_DTO1_PHASE, 24000);
-    WREG32(DCCG_AUDIO_DTO1_MODULE, clock);
+	/* Express [24MHz / target pixel clock] as an exact rational
+	 * number (coefficient of two integer numbers.  DCCG_AUDIO_DTOx_PHASE
+	 * is the numerator, DCCG_AUDIO_DTOx_MODULE is the denominator
+	 */
+	if (ASIC_IS_DCE8(rdev)) {
+		WREG32(DCE8_DCCG_AUDIO_DTO1_PHASE, 24000);
+		WREG32(DCE8_DCCG_AUDIO_DTO1_MODULE, clock);
+	} else {
+		WREG32(DCCG_AUDIO_DTO1_PHASE, 24000);
+		WREG32(DCCG_AUDIO_DTO1_MODULE, clock);
+	}
 }
 
-void dce6_enable_dp_audio_packets(struct drm_encoder *encoder, bool enable)
+void dce6_dp_enable(struct drm_encoder *encoder, bool enable)
 {
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
-	uint32_t offset;
 
 	if (!dig || !dig->afmt)
 		return;
 
-	offset = dig->afmt->offset;
-
 	if (enable) {
-        if (dig->afmt->enabled)
-            return;
-
-		WREG32(EVERGREEN_DP_SEC_TIMESTAMP + offset, EVERGREEN_DP_SEC_TIMESTAMP_MODE(1));
-		WREG32(EVERGREEN_DP_SEC_CNTL + offset,
-			EVERGREEN_DP_SEC_ASP_ENABLE |		/* Audio packet transmission */
-			EVERGREEN_DP_SEC_ATP_ENABLE |		/* Audio timestamp packet transmission */
-			EVERGREEN_DP_SEC_AIP_ENABLE |		/* Audio infoframe packet transmission */
-			EVERGREEN_DP_SEC_STREAM_ENABLE);	/* Master enable for secondary stream engine */
-		radeon_audio_enable(rdev, dig->afmt->pin, true);
+		WREG32(EVERGREEN_DP_SEC_TIMESTAMP + dig->afmt->offset,
+		       EVERGREEN_DP_SEC_TIMESTAMP_MODE(1));
+		WREG32(EVERGREEN_DP_SEC_CNTL + dig->afmt->offset,
+		       EVERGREEN_DP_SEC_ASP_ENABLE |		/* Audio packet transmission */
+		       EVERGREEN_DP_SEC_ATP_ENABLE |		/* Audio timestamp packet transmission */
+		       EVERGREEN_DP_SEC_AIP_ENABLE |		/* Audio infoframe packet transmission */
+		       EVERGREEN_DP_SEC_STREAM_ENABLE);	/* Master enable for secondary stream engine */
 	} else {
-		if (!dig->afmt->enabled)
-			return;
-
-		WREG32(EVERGREEN_DP_SEC_CNTL + offset, 0);
-		radeon_audio_enable(rdev, dig->afmt->pin, false);
+		WREG32(EVERGREEN_DP_SEC_CNTL + dig->afmt->offset, 0);
 	}
 
 	dig->afmt->enabled = enable;

@@ -62,8 +62,8 @@ struct mdp5_crtc {
 
 		/* current cursor being scanned out: */
 		struct drm_gem_object *scanout_bo;
-		uint32_t width;
-		uint32_t height;
+		uint32_t width, height;
+		uint32_t x, y;
 	} cursor;
 };
 #define to_mdp5_crtc(x) container_of(x, struct mdp5_crtc, base)
@@ -103,8 +103,8 @@ static void crtc_flush_all(struct drm_crtc *crtc)
 	struct drm_plane *plane;
 	uint32_t flush_mask = 0;
 
-	/* we could have already released CTL in the disable path: */
-	if (!mdp5_crtc->ctl)
+	/* this should not happen: */
+	if (WARN_ON(!mdp5_crtc->ctl))
 		return;
 
 	drm_atomic_crtc_for_each_plane(plane, crtc) {
@@ -142,6 +142,11 @@ static void complete_flip(struct drm_crtc *crtc, struct drm_file *file)
 
 	drm_atomic_crtc_for_each_plane(plane, crtc) {
 		mdp5_plane_complete_flip(plane);
+	}
+
+	if (mdp5_crtc->ctl && !crtc->state->enable) {
+		mdp5_ctl_release(mdp5_crtc->ctl);
+		mdp5_crtc->ctl = NULL;
 	}
 }
 
@@ -386,14 +391,17 @@ static void mdp5_crtc_atomic_flush(struct drm_crtc *crtc)
 	mdp5_crtc->event = crtc->state->event;
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
+	/*
+	 * If no CTL has been allocated in mdp5_crtc_atomic_check(),
+	 * it means we are trying to flush a CRTC whose state is disabled:
+	 * nothing else needs to be done.
+	 */
+	if (unlikely(!mdp5_crtc->ctl))
+		return;
+
 	blend_setup(crtc);
 	crtc_flush_all(crtc);
 	request_pending(crtc, PENDING_FLIP);
-
-	if (mdp5_crtc->ctl && !crtc->state->enable) {
-		mdp5_ctl_release(mdp5_crtc->ctl);
-		mdp5_crtc->ctl = NULL;
-	}
 }
 
 static int mdp5_crtc_set_property(struct drm_crtc *crtc,
@@ -401,6 +409,32 @@ static int mdp5_crtc_set_property(struct drm_crtc *crtc,
 {
 	// XXX
 	return -EINVAL;
+}
+
+static void get_roi(struct drm_crtc *crtc, uint32_t *roi_w, uint32_t *roi_h)
+{
+	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
+	uint32_t xres = crtc->mode.hdisplay;
+	uint32_t yres = crtc->mode.vdisplay;
+
+	/*
+	 * Cursor Region Of Interest (ROI) is a plane read from cursor
+	 * buffer to render. The ROI region is determined by the visibility of
+	 * the cursor point. In the default Cursor image the cursor point will
+	 * be at the top left of the cursor image, unless it is specified
+	 * otherwise using hotspot feature.
+	 *
+	 * If the cursor point reaches the right (xres - x < cursor.width) or
+	 * bottom (yres - y < cursor.height) boundary of the screen, then ROI
+	 * width and ROI height need to be evaluated to crop the cursor image
+	 * accordingly.
+	 * (xres-x) will be new cursor width when x > (xres - cursor.width)
+	 * (yres-y) will be new cursor height when y > (yres - cursor.height)
+	 */
+	*roi_w = min(mdp5_crtc->cursor.width, xres -
+			mdp5_crtc->cursor.x);
+	*roi_h = min(mdp5_crtc->cursor.height, yres -
+			mdp5_crtc->cursor.y);
 }
 
 static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
@@ -416,6 +450,7 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 	unsigned int depth;
 	enum mdp5_cursor_alpha cur_alpha = CURSOR_ALPHA_PER_PIXEL;
 	uint32_t flush_mask = mdp_ctl_flush_mask_cursor(0);
+	uint32_t roi_w, roi_h;
 	unsigned long flags;
 
 	if ((width > CURSOR_WIDTH) || (height > CURSOR_HEIGHT)) {
@@ -446,6 +481,12 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 	spin_lock_irqsave(&mdp5_crtc->cursor.lock, flags);
 	old_bo = mdp5_crtc->cursor.scanout_bo;
 
+	mdp5_crtc->cursor.scanout_bo = cursor_bo;
+	mdp5_crtc->cursor.width = width;
+	mdp5_crtc->cursor.height = height;
+
+	get_roi(crtc, &roi_w, &roi_h);
+
 	mdp5_write(mdp5_kms, REG_MDP5_LM_CURSOR_STRIDE(lm), stride);
 	mdp5_write(mdp5_kms, REG_MDP5_LM_CURSOR_FORMAT(lm),
 			MDP5_LM_CURSOR_FORMAT_FORMAT(CURSOR_FMT_ARGB8888));
@@ -453,19 +494,14 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 			MDP5_LM_CURSOR_IMG_SIZE_SRC_H(height) |
 			MDP5_LM_CURSOR_IMG_SIZE_SRC_W(width));
 	mdp5_write(mdp5_kms, REG_MDP5_LM_CURSOR_SIZE(lm),
-			MDP5_LM_CURSOR_SIZE_ROI_H(height) |
-			MDP5_LM_CURSOR_SIZE_ROI_W(width));
+			MDP5_LM_CURSOR_SIZE_ROI_H(roi_h) |
+			MDP5_LM_CURSOR_SIZE_ROI_W(roi_w));
 	mdp5_write(mdp5_kms, REG_MDP5_LM_CURSOR_BASE_ADDR(lm), cursor_addr);
 
-
 	blendcfg = MDP5_LM_CURSOR_BLEND_CONFIG_BLEND_EN;
-	blendcfg |= MDP5_LM_CURSOR_BLEND_CONFIG_BLEND_TRANSP_EN;
 	blendcfg |= MDP5_LM_CURSOR_BLEND_CONFIG_BLEND_ALPHA_SEL(cur_alpha);
 	mdp5_write(mdp5_kms, REG_MDP5_LM_CURSOR_BLEND_CONFIG(lm), blendcfg);
 
-	mdp5_crtc->cursor.scanout_bo = cursor_bo;
-	mdp5_crtc->cursor.width = width;
-	mdp5_crtc->cursor.height = height;
 	spin_unlock_irqrestore(&mdp5_crtc->cursor.lock, flags);
 
 	ret = mdp5_ctl_set_cursor(mdp5_crtc->ctl, true);
@@ -489,31 +525,18 @@ static int mdp5_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	uint32_t flush_mask = mdp_ctl_flush_mask_cursor(0);
-	uint32_t xres = crtc->mode.hdisplay;
-	uint32_t yres = crtc->mode.vdisplay;
 	uint32_t roi_w;
 	uint32_t roi_h;
 	unsigned long flags;
 
-	x = (x > 0) ? x : 0;
-	y = (y > 0) ? y : 0;
+	/* In case the CRTC is disabled, just drop the cursor update */
+	if (unlikely(!crtc->state->enable))
+		return 0;
 
-	/*
-	 * Cursor Region Of Interest (ROI) is a plane read from cursor
-	 * buffer to render. The ROI region is determined by the visiblity of
-	 * the cursor point. In the default Cursor image the cursor point will
-	 * be at the top left of the cursor image, unless it is specified
-	 * otherwise using hotspot feature.
-	 *
-	 * If the cursor point reaches the right (xres - x < cursor.width) or
-	 * bottom (yres - y < cursor.height) boundary of the screen, then ROI
-	 * width and ROI height need to be evaluated to crop the cursor image
-	 * accordingly.
-	 * (xres-x) will be new cursor width when x > (xres - cursor.width)
-	 * (yres-y) will be new cursor height when y > (yres - cursor.height)
-	 */
-	roi_w = min(mdp5_crtc->cursor.width, xres - x);
-	roi_h = min(mdp5_crtc->cursor.height, yres - y);
+	mdp5_crtc->cursor.x = x = max(x, 0);
+	mdp5_crtc->cursor.y = y = max(y, 0);
+
+	get_roi(crtc, &roi_w, &roi_h);
 
 	spin_lock_irqsave(&mdp5_crtc->cursor.lock, flags);
 	mdp5_write(mdp5_kms, REG_MDP5_LM_CURSOR_SIZE(mdp5_crtc->lm),
@@ -544,8 +567,8 @@ static const struct drm_crtc_funcs mdp5_crtc_funcs = {
 static const struct drm_crtc_helper_funcs mdp5_crtc_helper_funcs = {
 	.mode_fixup = mdp5_crtc_mode_fixup,
 	.mode_set_nofb = mdp5_crtc_mode_set_nofb,
-	.prepare = mdp5_crtc_disable,
-	.commit = mdp5_crtc_enable,
+	.disable = mdp5_crtc_disable,
+	.enable = mdp5_crtc_enable,
 	.atomic_check = mdp5_crtc_atomic_check,
 	.atomic_begin = mdp5_crtc_atomic_begin,
 	.atomic_flush = mdp5_crtc_atomic_flush,

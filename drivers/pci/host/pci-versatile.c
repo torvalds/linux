@@ -80,7 +80,7 @@ static int versatile_pci_parse_request_of_pci_ranges(struct device *dev,
 	if (err)
 		return err;
 
-	resource_list_for_each_entry(win, res, list) {
+	resource_list_for_each_entry(win, res) {
 		struct resource *parent, *res = win->res;
 
 		switch (resource_type(res)) {

@@ -531,6 +531,10 @@ static int sdma_run_channel0(struct sdma_engine *sdma)
 		dev_err(sdma->dev, "Timeout waiting for CH0 ready\n");
 	}
 
+	/* Set bits of CONFIG register with dynamic context switching */
+	if (readl(sdma->regs + SDMA_H_CONFIG) == 0)
+		writel_relaxed(SDMA_H_CONFIG_CSM, sdma->regs + SDMA_H_CONFIG);
+
 	return ret ? 0 : -ETIMEDOUT;
 }
 
@@ -1393,9 +1397,6 @@ static int sdma_init(struct sdma_engine *sdma)
 	writel_relaxed(0, sdma->regs + SDMA_H_CONFIG);
 
 	writel_relaxed(ccb_phys, sdma->regs + SDMA_H_C0PTR);
-
-	/* Set bits of CONFIG register with given context switching mode */
-	writel_relaxed(SDMA_H_CONFIG_CSM, sdma->regs + SDMA_H_CONFIG);
 
 	/* Initializes channel's priorities */
 	sdma_set_channel_priority(&sdma->channel[0], 7);

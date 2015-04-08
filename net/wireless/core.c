@@ -1199,6 +1199,7 @@ out_fail_wq:
 	regulatory_exit();
 out_fail_reg:
 	debugfs_remove(ieee80211_debugfs_dir);
+	nl80211_exit();
 out_fail_nl80211:
 	unregister_netdevice_notifier(&cfg80211_netdev_notifier);
 out_fail_notifier:

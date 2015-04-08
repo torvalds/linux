@@ -1839,10 +1839,12 @@ static int _regulator_do_enable(struct regulator_dev *rdev)
 	}
 
 	if (rdev->ena_pin) {
-		ret = regulator_ena_gpio_ctrl(rdev, true);
-		if (ret < 0)
-			return ret;
-		rdev->ena_gpio_state = 1;
+		if (!rdev->ena_gpio_state) {
+			ret = regulator_ena_gpio_ctrl(rdev, true);
+			if (ret < 0)
+				return ret;
+			rdev->ena_gpio_state = 1;
+		}
 	} else if (rdev->desc->ops->enable) {
 		ret = rdev->desc->ops->enable(rdev);
 		if (ret < 0)
@@ -1939,10 +1941,12 @@ static int _regulator_do_disable(struct regulator_dev *rdev)
 	trace_regulator_disable(rdev_get_name(rdev));
 
 	if (rdev->ena_pin) {
-		ret = regulator_ena_gpio_ctrl(rdev, false);
-		if (ret < 0)
-			return ret;
-		rdev->ena_gpio_state = 0;
+		if (rdev->ena_gpio_state) {
+			ret = regulator_ena_gpio_ctrl(rdev, false);
+			if (ret < 0)
+				return ret;
+			rdev->ena_gpio_state = 0;
+		}
 
 	} else if (rdev->desc->ops->disable) {
 		ret = rdev->desc->ops->disable(rdev);
@@ -3444,13 +3448,6 @@ static umode_t regulator_attr_is_visible(struct kobject *kobj,
 	if (attr == &dev_attr_requested_microamps.attr)
 		return rdev->desc->type == REGULATOR_CURRENT ? mode : 0;
 
-	/* all the other attributes exist to support constraints;
-	 * don't show them if there are no constraints, or if the
-	 * relevant supporting methods are missing.
-	 */
-	if (!rdev->constraints)
-		return 0;
-
 	/* constraints need specific supporting methods */
 	if (attr == &dev_attr_min_microvolts.attr ||
 	    attr == &dev_attr_max_microvolts.attr)
@@ -3633,12 +3630,6 @@ regulator_register(const struct regulator_desc *regulator_desc,
 				 config->ena_gpio, ret);
 			goto wash;
 		}
-
-		if (config->ena_gpio_flags & GPIOF_OUT_INIT_HIGH)
-			rdev->ena_gpio_state = 1;
-
-		if (config->ena_gpio_invert)
-			rdev->ena_gpio_state = !rdev->ena_gpio_state;
 	}
 
 	/* set regulator constraints */
@@ -3807,9 +3798,11 @@ int regulator_suspend_finish(void)
 	list_for_each_entry(rdev, &regulator_list, list) {
 		mutex_lock(&rdev->mutex);
 		if (rdev->use_count > 0  || rdev->constraints->always_on) {
-			error = _regulator_do_enable(rdev);
-			if (error)
-				ret = error;
+			if (!_regulator_is_enabled(rdev)) {
+				error = _regulator_do_enable(rdev);
+				if (error)
+					ret = error;
+			}
 		} else {
 			if (!have_full_constraints())
 				goto unlock;

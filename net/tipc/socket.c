@@ -2364,8 +2364,6 @@ int tipc_sk_rht_init(struct net *net)
 		.hashfn = jhash,
 		.max_shift = 20, /* 1M */
 		.min_shift = 8,  /* 256 */
-		.grow_decision = rht_grow_above_75,
-		.shrink_decision = rht_shrink_below_30,
 	};
 
 	return rhashtable_init(&tn->sk_rht, &rht_params);

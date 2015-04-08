@@ -1638,7 +1638,7 @@ __destroy_client(struct nfs4_client *clp)
 		nfs4_put_stid(&dp->dl_stid);
 	}
 	while (!list_empty(&clp->cl_revoked)) {
-		dp = list_entry(reaplist.next, struct nfs4_delegation, dl_recall_lru);
+		dp = list_entry(clp->cl_revoked.next, struct nfs4_delegation, dl_recall_lru);
 		list_del_init(&dp->dl_recall_lru);
 		nfs4_put_stid(&dp->dl_stid);
 	}
@@ -3221,7 +3221,7 @@ alloc_init_open_stateowner(unsigned int strhashval, struct nfsd4_open *open,
 	} else
 		nfs4_free_openowner(&oo->oo_owner);
 	spin_unlock(&clp->cl_lock);
-	return oo;
+	return ret;
 }
 
 static void init_open_stateid(struct nfs4_ol_stateid *stp, struct nfs4_file *fp, struct nfsd4_open *open) {
@@ -5062,7 +5062,7 @@ alloc_init_lock_stateowner(unsigned int strhashval, struct nfs4_client *clp,
 	} else
 		nfs4_free_lockowner(&lo->lo_owner);
 	spin_unlock(&clp->cl_lock);
-	return lo;
+	return ret;
 }
 
 static void

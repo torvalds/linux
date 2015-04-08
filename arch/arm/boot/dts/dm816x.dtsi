@@ -150,17 +150,27 @@
 		};
 
 		gpio1: gpio@48032000 {
-			compatible = "ti,omap3-gpio";
+			compatible = "ti,omap4-gpio";
 			ti,hwmods = "gpio1";
+			ti,gpio-always-on;
 			reg = <0x48032000 0x1000>;
-			interrupts = <97>;
+			interrupts = <96>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 		};
 
 		gpio2: gpio@4804c000 {
-			compatible = "ti,omap3-gpio";
+			compatible = "ti,omap4-gpio";
 			ti,hwmods = "gpio2";
+			ti,gpio-always-on;
 			reg = <0x4804c000 0x1000>;
-			interrupts = <99>;
+			interrupts = <98>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 		};
 
 		gpmc: gpmc@50000000 {

@@ -209,7 +209,7 @@ $(OUTPUT)%.o: %.c
 
 $(OUTPUT)cpupower: $(UTIL_OBJS) $(OUTPUT)libcpupower.so.$(LIB_MAJ)
 	$(ECHO) "  CC      " $@
-	$(QUIET) $(CC) $(CFLAGS) $(LDFLAGS) $(UTIL_OBJS) -lcpupower -Wl,-rpath=./ -lrt -lpci -L$(OUTPUT) -o $@
+	$(QUIET) $(CC) $(CFLAGS) $(LDFLAGS) $(UTIL_OBJS) -lcpupower -lrt -lpci -L$(OUTPUT) -o $@
 	$(QUIET) $(STRIPCMD) $@
 
 $(OUTPUT)po/$(PACKAGE).pot: $(UTIL_SRC)

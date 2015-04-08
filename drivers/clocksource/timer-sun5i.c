@@ -17,7 +17,6 @@
 #include <linux/irq.h>
 #include <linux/irqreturn.h>
 #include <linux/reset.h>
-#include <linux/sched_clock.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
@@ -137,11 +136,6 @@ static struct irqaction sun5i_timer_irq = {
 	.dev_id = &sun5i_clockevent,
 };
 
-static u64 sun5i_timer_sched_read(void)
-{
-	return ~readl(timer_base + TIMER_CNTVAL_LO_REG(1));
-}
-
 static void __init sun5i_timer_init(struct device_node *node)
 {
 	struct reset_control *rstc;
@@ -172,15 +166,10 @@ static void __init sun5i_timer_init(struct device_node *node)
 	writel(TIMER_CTL_ENABLE | TIMER_CTL_RELOAD,
 	       timer_base + TIMER_CTL_REG(1));
 
-	sched_clock_register(sun5i_timer_sched_read, 32, rate);
 	clocksource_mmio_init(timer_base + TIMER_CNTVAL_LO_REG(1), node->name,
 			      rate, 340, 32, clocksource_mmio_readl_down);
 
 	ticks_per_jiffy = DIV_ROUND_UP(rate, HZ);
-
-	ret = setup_irq(irq, &sun5i_timer_irq);
-	if (ret)
-		pr_warn("failed to setup irq %d\n", irq);
 
 	/* Enable timer0 interrupt */
 	val = readl(timer_base + TIMER_IRQ_EN_REG);
@@ -191,6 +180,10 @@ static void __init sun5i_timer_init(struct device_node *node)
 
 	clockevents_config_and_register(&sun5i_clockevent, rate,
 					TIMER_SYNC_TICKS, 0xffffffff);
+
+	ret = setup_irq(irq, &sun5i_timer_irq);
+	if (ret)
+		pr_warn("failed to setup irq %d\n", irq);
 }
 CLOCKSOURCE_OF_DECLARE(sun5i_a13, "allwinner,sun5i-a13-hstimer",
 		       sun5i_timer_init);

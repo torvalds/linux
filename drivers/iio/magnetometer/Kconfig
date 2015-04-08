@@ -18,6 +18,8 @@ config AK8975
 
 config AK09911
 	tristate "Asahi Kasei AK09911 3-axis Compass"
+	depends on I2C
+	depends on GPIOLIB
 	select AK8975
 	help
 	  Deprecated: AK09911 is now supported by AK8975 driver.

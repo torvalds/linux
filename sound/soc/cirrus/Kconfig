@@ -16,7 +16,7 @@ config SND_EP93XX_SOC_AC97
 
 config SND_EP93XX_SOC_SNAPPERCL15
         tristate "SoC Audio support for Bluewater Systems Snapper CL15 module"
-        depends on SND_EP93XX_SOC && MACH_SNAPPER_CL15
+        depends on SND_EP93XX_SOC && MACH_SNAPPER_CL15 && I2C
         select SND_EP93XX_SOC_I2S
         select SND_SOC_TLV320AIC23_I2C
         help

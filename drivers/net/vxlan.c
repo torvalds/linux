@@ -1218,7 +1218,7 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 			goto drop;
 
 		flags &= ~VXLAN_HF_RCO;
-		vni &= VXLAN_VID_MASK;
+		vni &= VXLAN_VNI_MASK;
 	}
 
 	/* For backwards compatibility, only allow reserved fields to be
@@ -1239,7 +1239,7 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 		flags &= ~VXLAN_GBP_USED_BITS;
 	}
 
-	if (flags || (vni & ~VXLAN_VID_MASK)) {
+	if (flags || vni & ~VXLAN_VNI_MASK) {
 		/* If there are any unprocessed flags remaining treat
 		 * this as a malformed packet. This behavior diverges from
 		 * VXLAN RFC (RFC7348) which stipulates that bits in reserved

@@ -27,6 +27,8 @@ property is used.
 - amd,serdes-cdr-rate: CDR rate speed selection
 - amd,serdes-pq-skew: PQ (data sampling) skew
 - amd,serdes-tx-amp: TX amplitude boost
+- amd,serdes-dfe-tap-config: DFE taps available to run
+- amd,serdes-dfe-tap-enable: DFE taps to enable
 
 Example:
 	xgbe_phy@e1240800 {
@@ -41,4 +43,6 @@ Example:
 		amd,serdes-cdr-rate = <2>, <2>, <7>;
 		amd,serdes-pq-skew = <10>, <10>, <30>;
 		amd,serdes-tx-amp = <15>, <15>, <10>;
+		amd,serdes-dfe-tap-config = <3>, <3>, <1>;
+		amd,serdes-dfe-tap-enable = <0>, <0>, <127>;
 	};

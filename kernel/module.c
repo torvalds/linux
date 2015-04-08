@@ -56,7 +56,6 @@
 #include <linux/async.h>
 #include <linux/percpu.h>
 #include <linux/kmemleak.h>
-#include <linux/kasan.h>
 #include <linux/jump_label.h>
 #include <linux/pfn.h>
 #include <linux/bsearch.h>
@@ -1814,7 +1813,6 @@ static void unset_module_init_ro_nx(struct module *mod) { }
 void __weak module_memfree(void *module_region)
 {
 	vfree(module_region);
-	kasan_module_free(module_region);
 }
 
 void __weak module_arch_cleanup(struct module *mod)
@@ -1867,7 +1865,7 @@ static void free_module(struct module *mod)
 	kfree(mod->args);
 	percpu_modfree(mod);
 
-	/* Free lock-classes: */
+	/* Free lock-classes; relies on the preceding sync_rcu(). */
 	lockdep_free_key_range(mod->module_core, mod->core_size);
 
 	/* Finally, free the core (containing the module structure) */
@@ -2313,11 +2311,13 @@ static void layout_symtab(struct module *mod, struct load_info *info)
 	info->symoffs = ALIGN(mod->core_size, symsect->sh_addralign ?: 1);
 	info->stroffs = mod->core_size = info->symoffs + ndst * sizeof(Elf_Sym);
 	mod->core_size += strtab_size;
+	mod->core_size = debug_align(mod->core_size);
 
 	/* Put string table section at end of init part of module. */
 	strsect->sh_flags |= SHF_ALLOC;
 	strsect->sh_entsize = get_offset(mod, &mod->init_size, strsect,
 					 info->index.str) | INIT_OFFSET_MASK;
+	mod->init_size = debug_align(mod->init_size);
 	pr_debug("\t%s\n", info->secstrings + strsect->sh_name);
 }
 
@@ -3349,9 +3349,6 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	module_bug_cleanup(mod);
 	mutex_unlock(&module_mutex);
 
-	/* Free lock-classes: */
-	lockdep_free_key_range(mod->module_core, mod->core_size);
-
 	/* we can't deallocate the module until we clear memory protection */
 	unset_module_init_ro_nx(mod);
 	unset_module_core_ro_nx(mod);
@@ -3375,6 +3372,9 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	synchronize_rcu();
 	mutex_unlock(&module_mutex);
  free_module:
+	/* Free lock-classes; relies on the preceding sync_rcu() */
+	lockdep_free_key_range(mod->module_core, mod->core_size);
+
 	module_deallocate(mod, info);
  free_copy:
 	free_copy(info);

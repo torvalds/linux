@@ -1340,3 +1340,5 @@ static int __init disable_multitce(char *str)
 }
 
 __setup("multitce=", disable_multitce);
+
+machine_subsys_initcall_sync(pseries, tce_iommu_bus_notifier_init);

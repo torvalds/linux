@@ -507,6 +507,7 @@ static int picdev_read(struct kvm_pic *s,
 		return -EOPNOTSUPP;
 
 	if (len != 1) {
+		memset(val, 0, len);
 		pr_pic_unimpl("non byte read\n");
 		return 0;
 	}
