@@ -787,6 +787,11 @@ static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
 		dsi_write(msm_host, REG_DSI_LANE_SWAP_CTRL,
 			DSI_LANE_SWAP_CTRL_DLN_SWAP_SEL(LANE_SWAP_0123));
 	}
+
+	if (!(flags & MIPI_DSI_CLOCK_NON_CONTINUOUS))
+		dsi_write(msm_host, REG_DSI_LANE_CTRL,
+			DSI_LANE_CTRL_CLKLN_HS_FORCE_REQUEST);
+
 	data |= DSI_CTRL_ENABLE;
 
 	dsi_write(msm_host, REG_DSI_CTRL, data);
