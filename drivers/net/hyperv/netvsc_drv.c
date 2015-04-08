@@ -370,7 +370,7 @@ not_ip:
 static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 {
 	struct net_device_context *net_device_ctx = netdev_priv(net);
-	struct hv_netvsc_packet *packet;
+	struct hv_netvsc_packet *packet = NULL;
 	int ret;
 	unsigned int num_data_pgs;
 	struct rndis_message *rndis_msg;
@@ -396,9 +396,8 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	num_data_pgs = netvsc_get_slots(skb) + 2;
 	if (num_data_pgs > MAX_PAGE_BUFFER_COUNT) {
 		netdev_err(net, "Packet too big: %u\n", skb->len);
-		dev_kfree_skb(skb);
-		net->stats.tx_dropped++;
-		return NETDEV_TX_OK;
+		ret = -EFAULT;
+		goto drop;
 	}
 
 	pkt_sz = sizeof(struct hv_netvsc_packet) + RNDIS_AND_PPI_SIZE;
@@ -408,9 +407,8 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 		if (!packet) {
 			/* out of memory, drop packet */
 			netdev_err(net, "unable to alloc hv_netvsc_packet\n");
-			dev_kfree_skb(skb);
-			net->stats.tx_dropped++;
-			return NETDEV_TX_OK;
+			ret = -ENOMEM;
+			goto drop;
 		}
 		packet->part_of_skb = false;
 	} else {
@@ -574,7 +572,7 @@ drop:
 		net->stats.tx_bytes += skb_length;
 		net->stats.tx_packets++;
 	} else {
-		if (!packet->part_of_skb)
+		if (packet && !packet->part_of_skb)
 			kfree(packet);
 		if (ret != -EAGAIN) {
 			dev_kfree_skb_any(skb);
