@@ -365,7 +365,7 @@ int udf_get_filename(struct super_block *sb, uint8_t *sname, int slen,
 			goto out2;
 		}
 	} else
-		goto out2;
+		BUG();
 
 	ret = udf_translate_to_linux(dname, dlen,
 				     filename->u_name, filename->u_len,
