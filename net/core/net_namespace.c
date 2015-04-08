@@ -198,8 +198,10 @@ static int __peernet2id(struct net *net, struct net *peer, bool alloc)
  */
 int peernet2id(struct net *net, struct net *peer)
 {
-	int id = __peernet2id(net, peer, true);
+	bool alloc = atomic_read(&peer->count) == 0 ? false : true;
+	int id;
 
+	id = __peernet2id(net, peer, alloc);
 	return id >= 0 ? id : NETNSA_NSID_NOT_ASSIGNED;
 }
 EXPORT_SYMBOL(peernet2id);

@@ -188,12 +188,11 @@ static int tiadc_buffer_preenable(struct iio_dev *indio_dev)
 static int tiadc_buffer_postenable(struct iio_dev *indio_dev)
 {
 	struct tiadc_device *adc_dev = iio_priv(indio_dev);
-	struct iio_buffer *buffer = indio_dev->buffer;
 	unsigned int enb = 0;
 	u8 bit;
 
 	tiadc_step_config(indio_dev);
-	for_each_set_bit(bit, buffer->scan_mask, adc_dev->channels)
+	for_each_set_bit(bit, indio_dev->active_scan_mask, adc_dev->channels)
 		enb |= (get_adc_step_bit(adc_dev, bit) << 1);
 	adc_dev->buffer_en_ch_steps = enb;
 

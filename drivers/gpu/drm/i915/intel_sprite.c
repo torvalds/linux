@@ -1113,7 +1113,7 @@ int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 	drm_modeset_lock_all(dev);
 
 	plane = drm_plane_find(dev, set->plane_id);
-	if (!plane) {
+	if (!plane || plane->type != DRM_PLANE_TYPE_OVERLAY) {
 		ret = -ENOENT;
 		goto out_unlock;
 	}
