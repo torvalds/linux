@@ -2033,7 +2033,7 @@ static int emulate_iret_real(struct x86_emulate_ctxt *ctxt)
 			     X86_EFLAGS_IF | X86_EFLAGS_DF | X86_EFLAGS_OF |
 			     X86_EFLAGS_IOPL | X86_EFLAGS_NT | X86_EFLAGS_RF |
 			     X86_EFLAGS_AC | X86_EFLAGS_ID |
-			     X86_EFLAGS_FIXED_BIT;
+			     X86_EFLAGS_FIXED;
 	unsigned long vm86_mask = X86_EFLAGS_VM | X86_EFLAGS_VIF |
 				  X86_EFLAGS_VIP;
 
@@ -2072,7 +2072,7 @@ static int emulate_iret_real(struct x86_emulate_ctxt *ctxt)
 	}
 
 	ctxt->eflags &= ~EFLG_RESERVED_ZEROS_MASK; /* Clear reserved zeros */
-	ctxt->eflags |= X86_EFLAGS_FIXED_BIT;
+	ctxt->eflags |= X86_EFLAGS_FIXED;
 	ctxt->ops->set_nmi_mask(ctxt, false);
 
 	return rc;
@@ -2390,7 +2390,7 @@ static int em_syscall(struct x86_emulate_ctxt *ctxt)
 
 		ops->get_msr(ctxt, MSR_SYSCALL_MASK, &msr_data);
 		ctxt->eflags &= ~msr_data;
-		ctxt->eflags |= X86_EFLAGS_FIXED_BIT;
+		ctxt->eflags |= X86_EFLAGS_FIXED;
 #endif
 	} else {
 		/* legacy mode */
