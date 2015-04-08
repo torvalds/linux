@@ -47,6 +47,7 @@
 #define MIPI_CAL_CONFIG_CSIC		0x07
 #define MIPI_CAL_CONFIG_CSID		0x08
 #define MIPI_CAL_CONFIG_CSIE		0x09
+#define MIPI_CAL_CONFIG_CSIF		0x0a
 #define MIPI_CAL_CONFIG_DSIA		0x0e
 #define MIPI_CAL_CONFIG_DSIB		0x0f
 #define MIPI_CAL_CONFIG_DSIC		0x10
@@ -55,7 +56,9 @@
 #define MIPI_CAL_CONFIG_DSIA_CLK	0x19
 #define MIPI_CAL_CONFIG_DSIB_CLK	0x1a
 #define MIPI_CAL_CONFIG_CSIAB_CLK	0x1b
+#define MIPI_CAL_CONFIG_DSIC_CLK	0x1c
 #define MIPI_CAL_CONFIG_CSICD_CLK	0x1c
+#define MIPI_CAL_CONFIG_DSID_CLK	0x1d
 #define MIPI_CAL_CONFIG_CSIE_CLK	0x1d
 
 /* for data and clock lanes */
@@ -262,7 +265,7 @@ int tegra_mipi_calibrate(struct tegra_mipi_device *device)
 
 		tegra_mipi_writel(device->mipi, data, soc->pads[i].data);
 
-		if (soc->has_clk_lane)
+		if (soc->has_clk_lane && soc->pads[i].clk != 0)
 			tegra_mipi_writel(device->mipi, clk, soc->pads[i].clk);
 	}
 
@@ -369,10 +372,41 @@ static const struct tegra_mipi_soc tegra132_mipi_soc = {
 	.hsclkpuos = 0x2,
 };
 
+static const struct tegra_mipi_pad tegra210_mipi_pads[] = {
+	{ .data = MIPI_CAL_CONFIG_CSIA, .clk = 0 },
+	{ .data = MIPI_CAL_CONFIG_CSIB, .clk = 0 },
+	{ .data = MIPI_CAL_CONFIG_CSIC, .clk = 0 },
+	{ .data = MIPI_CAL_CONFIG_CSID, .clk = 0 },
+	{ .data = MIPI_CAL_CONFIG_CSIE, .clk = 0 },
+	{ .data = MIPI_CAL_CONFIG_CSIF, .clk = 0 },
+	{ .data = MIPI_CAL_CONFIG_DSIA, .clk = MIPI_CAL_CONFIG_DSIA_CLK },
+	{ .data = MIPI_CAL_CONFIG_DSIB, .clk = MIPI_CAL_CONFIG_DSIB_CLK },
+	{ .data = MIPI_CAL_CONFIG_DSIC, .clk = MIPI_CAL_CONFIG_DSIC_CLK },
+	{ .data = MIPI_CAL_CONFIG_DSID, .clk = MIPI_CAL_CONFIG_DSID_CLK },
+};
+
+static const struct tegra_mipi_soc tegra210_mipi_soc = {
+	.has_clk_lane = true,
+	.pads = tegra210_mipi_pads,
+	.num_pads = ARRAY_SIZE(tegra210_mipi_pads),
+	.clock_enable_override = true,
+	.needs_vclamp_ref = false,
+	.pad_drive_down_ref = 0x0,
+	.pad_drive_up_ref = 0x3,
+	.pad_vclamp_level = 0x1,
+	.pad_vauxp_level = 0x1,
+	.hspdos = 0x0,
+	.hspuos = 0x2,
+	.termos = 0x0,
+	.hsclkpdos = 0x0,
+	.hsclkpuos = 0x2,
+};
+
 static const struct of_device_id tegra_mipi_of_match[] = {
 	{ .compatible = "nvidia,tegra114-mipi", .data = &tegra114_mipi_soc },
 	{ .compatible = "nvidia,tegra124-mipi", .data = &tegra124_mipi_soc },
 	{ .compatible = "nvidia,tegra132-mipi", .data = &tegra132_mipi_soc },
+	{ .compatible = "nvidia,tegra210-mipi", .data = &tegra210_mipi_soc },
 	{ },
 };
 
