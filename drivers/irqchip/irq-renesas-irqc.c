@@ -94,7 +94,7 @@ static int irqc_irq_set_type(struct irq_data *d, unsigned int type)
 	struct irqc_priv *p = irq_data_get_irq_chip_data(d);
 	int hw_irq = irqd_to_hwirq(d);
 	unsigned char value = irqc_sense[type & IRQ_TYPE_SENSE_MASK];
-	unsigned long tmp;
+	u32 tmp;
 
 	irqc_dbg(&p->irq[hw_irq], "sense");
 
@@ -112,7 +112,7 @@ static irqreturn_t irqc_irq_handler(int irq, void *dev_id)
 {
 	struct irqc_irq *i = dev_id;
 	struct irqc_priv *p = i->p;
-	unsigned long bit = BIT(i->hw_irq);
+	u32 bit = BIT(i->hw_irq);
 
 	irqc_dbg(i, "demux1");
 
