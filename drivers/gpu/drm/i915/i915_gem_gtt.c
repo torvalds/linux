@@ -1030,11 +1030,9 @@ static int gen8_aliasing_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 
 static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 {
-	struct drm_device *dev = ppgtt->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
-	ret = gen8_ppgtt_init_common(ppgtt, dev_priv->gtt.base.total);
+	ret = gen8_ppgtt_init_common(ppgtt, (1ULL << 32));
 	if (ret)
 		return ret;
 
