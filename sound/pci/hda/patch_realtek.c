@@ -4121,6 +4121,29 @@ static void alc_fixup_headset_mode_alc255_no_hp_mic(struct hda_codec *codec,
 		alc_fixup_headset_mode(codec, fix, action);
 }
 
+static void alc288_update_headset_jack_cb(struct hda_codec *codec,
+				       struct hda_jack_callback *jack)
+{
+	struct alc_spec *spec = codec->spec;
+	int present;
+
+	alc_update_headset_jack_cb(codec, jack);
+	/* Headset Mic enable or disable, only for Dell Dino */
+	present = spec->gen.hp_jack_present ? 0x40 : 0;
+	snd_hda_codec_write(codec, 0x01, 0, AC_VERB_SET_GPIO_DATA,
+				present);
+}
+
+static void alc_fixup_headset_mode_dell_alc288(struct hda_codec *codec,
+				const struct hda_fixup *fix, int action)
+{
+	alc_fixup_headset_mode(codec, fix, action);
+	if (action == HDA_FIXUP_ACT_PROBE) {
+		struct alc_spec *spec = codec->spec;
+		spec->gen.hp_automute_hook = alc288_update_headset_jack_cb;
+	}
+}
+
 static void alc_fixup_auto_mute_via_amp(struct hda_codec *codec,
 					const struct hda_fixup *fix, int action)
 {
@@ -4460,6 +4483,9 @@ enum {
 	ALC286_FIXUP_HP_GPIO_LED,
 	ALC280_FIXUP_HP_GPIO2_MIC_HOTKEY,
 	ALC280_FIXUP_HP_DOCK_PINS,
+	ALC288_FIXUP_DELL_HEADSET_MODE,
+	ALC288_FIXUP_DELL1_MIC_NO_PRESENCE,
+	ALC288_FIXUP_DELL_XPS_13_GPIO6,
 };
 
 static const struct hda_fixup alc269_fixups[] = {
@@ -4948,6 +4974,33 @@ static const struct hda_fixup alc269_fixups[] = {
 		.chained = true,
 		.chain_id = ALC280_FIXUP_HP_GPIO4
 	},
+	[ALC288_FIXUP_DELL_HEADSET_MODE] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = alc_fixup_headset_mode_dell_alc288,
+		.chained = true,
+		.chain_id = ALC255_FIXUP_DELL_WMI_MIC_MUTE_LED
+	},
+	[ALC288_FIXUP_DELL1_MIC_NO_PRESENCE] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = (const struct hda_pintbl[]) {
+			{ 0x18, 0x01a1913c }, /* use as headset mic, without its own jack detect */
+			{ 0x1a, 0x01a1913d }, /* use as headphone mic, without its own jack detect */
+			{ }
+		},
+		.chained = true,
+		.chain_id = ALC288_FIXUP_DELL_HEADSET_MODE
+	},
+	[ALC288_FIXUP_DELL_XPS_13_GPIO6] = {
+		.type = HDA_FIXUP_VERBS,
+		.v.verbs = (const struct hda_verb[]) {
+			{0x01, AC_VERB_SET_GPIO_MASK, 0x40},
+			{0x01, AC_VERB_SET_GPIO_DIRECTION, 0x40},
+			{0x01, AC_VERB_SET_GPIO_DATA, 0x00},
+			{ }
+		},
+		.chained = true,
+		.chain_id = ALC288_FIXUP_DELL1_MIC_NO_PRESENCE
+	},
 };
 
 static const struct snd_pci_quirk alc269_fixup_tbl[] = {
@@ -5174,6 +5227,13 @@ static const struct hda_model_fixup alc269_fixup_models[] = {
 	{0x1b, 0x411111f0}, \
 	{0x1e, 0x411111f0}
 
+#define ALC288_STANDARD_PINS \
+	{0x17, 0x411111f0}, \
+	{0x18, 0x411111f0}, \
+	{0x19, 0x411111f0}, \
+	{0x1a, 0x411111f0}, \
+	{0x1e, 0x411111f0}
+
 #define ALC290_STANDARD_PINS \
 	{0x12, 0x99a30130}, \
 	{0x13, 0x40000000}, \
@@ -5368,6 +5428,13 @@ static const struct snd_hda_pin_quirk alc269_pin_fixup_tbl[] = {
 		{0x17, 0x40020008},
 		{0x19, 0x03a11020},
 		{0x1d, 0x40e00001},
+		{0x21, 0x0321101f}),
+	SND_HDA_PIN_QUIRK(0x10ec0288, 0x1028, "Dell", ALC288_FIXUP_DELL_XPS_13_GPIO6,
+		ALC288_STANDARD_PINS,
+		{0x12, 0x90a60120},
+		{0x13, 0x40000000},
+		{0x14, 0x90170110},
+		{0x1d, 0x4076832d},
 		{0x21, 0x0321101f}),
 	SND_HDA_PIN_QUIRK(0x10ec0290, 0x103c, "HP", ALC269_FIXUP_HP_MUTE_LED_MIC1,
 		ALC290_STANDARD_PINS,
