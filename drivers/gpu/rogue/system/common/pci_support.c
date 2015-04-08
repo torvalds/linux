@@ -65,7 +65,7 @@ PVRSRV_PCI_DEV_HANDLE OSPCISetDev(IMG_VOID *pvPCICookie, HOST_PCI_INIT_FLAGS eFl
 	IMG_UINT32 i;
 	PVR_PCI_DEV *psPVRPCI;
 
-	psPVRPCI = kmalloc(sizeof(*psPVRPCI), GFP_KERNEL);
+	psPVRPCI = kzalloc(sizeof(*psPVRPCI), GFP_KERNEL);
 	if (psPVRPCI == IMG_NULL)
 	{
 		printk(KERN_ERR "OSPCISetDev: Couldn't allocate PVR PCI structure\n");

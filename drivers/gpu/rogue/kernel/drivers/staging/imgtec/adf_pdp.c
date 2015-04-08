@@ -861,7 +861,7 @@ static int pdp_validate(struct adf_device *dev, struct adf_post *cfg,
 		 * handle cases e.g. during fence timeouts where validates
 		 * are called without corresponding posts.
 		 */
-		int *validates = kmalloc(sizeof(int), GFP_KERNEL);
+		int *validates = kzalloc(sizeof(int), GFP_KERNEL);
 		*validates = atomic_inc_return(&pdp->num_validates);
 		*driver_state = validates;
 	} else {

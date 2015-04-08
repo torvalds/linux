@@ -508,7 +508,7 @@ PVRSRV_ERROR DC_FBDEV_BufferAlloc(IMG_HANDLE hDisplayContext,
 		goto err_out;
 	}
 
-	psBuffer = kmalloc(sizeof(DC_FBDEV_BUFFER), GFP_KERNEL);
+	psBuffer = kzalloc(sizeof(DC_FBDEV_BUFFER), GFP_KERNEL);
 	if (!psBuffer)
 	{
 		eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -827,7 +827,7 @@ static int __init DC_FBDEV_init(void)
 		goto err_module_put;
 	}
 
-	gpsDeviceData = kmalloc(sizeof(DC_FBDEV_DEVICE), GFP_KERNEL);
+	gpsDeviceData = kzalloc(sizeof(DC_FBDEV_DEVICE), GFP_KERNEL);
 	if(!gpsDeviceData)
 		goto err_module_put;
 

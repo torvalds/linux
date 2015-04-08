@@ -313,7 +313,7 @@ int PVRDebugFSCreateEntry(const char *pszName,
 
 	PVR_ASSERT(gpsPVRDebugFSEntryDir != NULL);
 
-	psPrivData = kmalloc(sizeof(*psPrivData), GFP_KERNEL);
+	psPrivData = kzalloc(sizeof(*psPrivData), GFP_KERNEL);
 	if (psPrivData == NULL)
 	{
 		return -ENOMEM;

@@ -1754,7 +1754,7 @@ IMG_VOID RgxRkInit(IMG_VOID)
 
     if (NULL == platform)
     {
-        PVR_DPF((PVR_DBG_ERROR, "RgxRkInit: Failed to kmalloc rk_context"));
+        PVR_DPF((PVR_DBG_ERROR, "RgxRkInit: Failed to kzalloc rk_context"));
         return;
     }
 
