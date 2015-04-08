@@ -333,7 +333,7 @@ int udf_get_filename(struct super_block *sb, uint8_t *sname, int slen,
 		     uint8_t *dname, int dlen)
 {
 	struct ustr *filename, *unifilename;
-	int ret = 0;
+	int ret;
 
 	if (!slen)
 		return -EIO;
@@ -370,6 +370,9 @@ int udf_get_filename(struct super_block *sb, uint8_t *sname, int slen,
 	ret = udf_translate_to_linux(dname, dlen,
 				     filename->u_name, filename->u_len,
 				     unifilename->u_name, unifilename->u_len);
+	/* Zero length filename isn't valid... */
+	if (ret == 0)
+		ret = -EINVAL;
 out2:
 	kfree(unifilename);
 out1:
