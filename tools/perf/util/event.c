@@ -387,6 +387,7 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 	DIR *tasks;
 	struct dirent dirent, *next;
 	pid_t tgid, ppid;
+	int rc = 0;
 
 	/* special case: only send one comm event using passed in pid */
 	if (!full) {
@@ -414,38 +415,38 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 
 	while (!readdir_r(tasks, &dirent, &next) && next) {
 		char *end;
-		int rc = 0;
 		pid_t _pid;
 
 		_pid = strtol(dirent.d_name, &end, 10);
 		if (*end)
 			continue;
 
+		rc = -1;
 		if (perf_event__prepare_comm(comm_event, _pid, machine,
 					     &tgid, &ppid) != 0)
-			return -1;
+			break;
 
 		if (perf_event__synthesize_fork(tool, fork_event, _pid, tgid,
 						ppid, process, machine) < 0)
-			return -1;
+			break;
 		/*
 		 * Send the prepared comm event
 		 */
 		if (process(tool, comm_event, &synth_sample, machine) != 0)
-			return -1;
+			break;
 
+		rc = 0;
 		if (_pid == pid) {
 			/* process the parent's maps too */
 			rc = perf_event__synthesize_mmap_events(tool, mmap_event, pid, tgid,
 						process, machine, mmap_data);
+			if (rc)
+				break;
 		}
-
-		if (rc)
-			return rc;
 	}
 
 	closedir(tasks);
-	return 0;
+	return rc;
 }
 
 int perf_event__synthesize_thread_map(struct perf_tool *tool,
