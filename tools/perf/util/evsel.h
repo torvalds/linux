@@ -360,4 +360,10 @@ static inline bool has_branch_callstack(struct perf_evsel *evsel)
 {
 	return evsel->attr.branch_sample_type & PERF_SAMPLE_BRANCH_CALL_STACK;
 }
+
+typedef int (*attr__fprintf_f)(FILE *, const char *, const char *, void *);
+
+int perf_event_attr__fprintf(FILE *fp, struct perf_event_attr *attr,
+			     attr__fprintf_f attr__fprintf, void *priv);
+
 #endif /* __PERF_EVSEL_H */

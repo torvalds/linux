@@ -695,7 +695,7 @@ union perf_event *perf_evlist__mmap_read(struct perf_evlist *evlist, int idx)
 
 static bool perf_mmap__empty(struct perf_mmap *md)
 {
-	return perf_mmap__read_head(md) != md->prev;
+	return perf_mmap__read_head(md) == md->prev;
 }
 
 static void perf_evlist__mmap_get(struct perf_evlist *evlist, int idx)

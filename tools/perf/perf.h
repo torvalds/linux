@@ -62,6 +62,8 @@ struct record_opts {
 	u64	     user_interval;
 	bool	     sample_transaction;
 	unsigned     initial_delay;
+	bool         use_clockid;
+	clockid_t    clockid;
 };
 
 struct option;

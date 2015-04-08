@@ -23,12 +23,13 @@
 #include <semaphore.h>
 #include <pthread.h>
 #include <math.h>
+#include <api/fs/fs.h>
 
 #define PR_SET_NAME		15               /* Set process name */
 #define MAX_CPUS		4096
 #define COMM_LEN		20
 #define SYM_LEN			129
-#define MAX_PID			65536
+#define MAX_PID			1024000
 
 struct sched_atom;
 
@@ -124,7 +125,7 @@ struct perf_sched {
 	struct perf_tool tool;
 	const char	 *sort_order;
 	unsigned long	 nr_tasks;
-	struct task_desc *pid_to_task[MAX_PID];
+	struct task_desc **pid_to_task;
 	struct task_desc **tasks;
 	const struct trace_sched_handler *tp_handler;
 	pthread_mutex_t	 start_work_mutex;
@@ -169,6 +170,7 @@ struct perf_sched {
 	u64		 cpu_last_switched[MAX_CPUS];
 	struct rb_root	 atom_root, sorted_atom_root;
 	struct list_head sort_list, cmp_pid;
+	bool force;
 };
 
 static u64 get_nsecs(void)
@@ -326,8 +328,19 @@ static struct task_desc *register_pid(struct perf_sched *sched,
 				      unsigned long pid, const char *comm)
 {
 	struct task_desc *task;
+	static int pid_max;
 
-	BUG_ON(pid >= MAX_PID);
+	if (sched->pid_to_task == NULL) {
+		if (sysctl__read_int("kernel/pid_max", &pid_max) < 0)
+			pid_max = MAX_PID;
+		BUG_ON((sched->pid_to_task = calloc(pid_max, sizeof(struct task_desc *))) == NULL);
+	}
+	if (pid >= (unsigned long)pid_max) {
+		BUG_ON((sched->pid_to_task = realloc(sched->pid_to_task, (pid + 1) *
+			sizeof(struct task_desc *))) == NULL);
+		while (pid >= (unsigned long)pid_max)
+			sched->pid_to_task[pid_max++] = NULL;
+	}
 
 	task = sched->pid_to_task[pid];
 
@@ -346,7 +359,7 @@ static struct task_desc *register_pid(struct perf_sched *sched,
 
 	sched->pid_to_task[pid] = task;
 	sched->nr_tasks++;
-	sched->tasks = realloc(sched->tasks, sched->nr_tasks * sizeof(struct task_task *));
+	sched->tasks = realloc(sched->tasks, sched->nr_tasks * sizeof(struct task_desc *));
 	BUG_ON(!sched->tasks);
 	sched->tasks[task->nr] = task;
 
@@ -425,24 +438,45 @@ static u64 get_cpu_usage_nsec_parent(void)
 	return sum;
 }
 
-static int self_open_counters(void)
+static int self_open_counters(struct perf_sched *sched, unsigned long cur_task)
 {
 	struct perf_event_attr attr;
-	char sbuf[STRERR_BUFSIZE];
+	char sbuf[STRERR_BUFSIZE], info[STRERR_BUFSIZE];
 	int fd;
+	struct rlimit limit;
+	bool need_privilege = false;
 
 	memset(&attr, 0, sizeof(attr));
 
 	attr.type = PERF_TYPE_SOFTWARE;
 	attr.config = PERF_COUNT_SW_TASK_CLOCK;
 
+force_again:
 	fd = sys_perf_event_open(&attr, 0, -1, -1,
 				 perf_event_open_cloexec_flag());
 
-	if (fd < 0)
+	if (fd < 0) {
+		if (errno == EMFILE) {
+			if (sched->force) {
+				BUG_ON(getrlimit(RLIMIT_NOFILE, &limit) == -1);
+				limit.rlim_cur += sched->nr_tasks - cur_task;
+				if (limit.rlim_cur > limit.rlim_max) {
+					limit.rlim_max = limit.rlim_cur;
+					need_privilege = true;
+				}
+				if (setrlimit(RLIMIT_NOFILE, &limit) == -1) {
+					if (need_privilege && errno == EPERM)
+						strcpy(info, "Need privilege\n");
+				} else
+					goto force_again;
+			} else
+				strcpy(info, "Have a try with -f option\n");
+		}
 		pr_err("Error: sys_perf_event_open() syscall returned "
-		       "with %d (%s)\n", fd,
-		       strerror_r(errno, sbuf, sizeof(sbuf)));
+		       "with %d (%s)\n%s", fd,
+		       strerror_r(errno, sbuf, sizeof(sbuf)), info);
+		exit(EXIT_FAILURE);
+	}
 	return fd;
 }
 
@@ -460,6 +494,7 @@ static u64 get_cpu_usage_nsec_self(int fd)
 struct sched_thread_parms {
 	struct task_desc  *task;
 	struct perf_sched *sched;
+	int fd;
 };
 
 static void *thread_func(void *ctx)
@@ -470,13 +505,12 @@ static void *thread_func(void *ctx)
 	u64 cpu_usage_0, cpu_usage_1;
 	unsigned long i, ret;
 	char comm2[22];
-	int fd;
+	int fd = parms->fd;
 
 	zfree(&parms);
 
 	sprintf(comm2, ":%s", this_task->comm);
 	prctl(PR_SET_NAME, comm2);
-	fd = self_open_counters();
 	if (fd < 0)
 		return NULL;
 again:
@@ -528,6 +562,7 @@ static void create_tasks(struct perf_sched *sched)
 		BUG_ON(parms == NULL);
 		parms->task = task = sched->tasks[i];
 		parms->sched = sched;
+		parms->fd = self_open_counters(sched, i);
 		sem_init(&task->sleep_sem, 0, 0);
 		sem_init(&task->ready_for_work, 0, 0);
 		sem_init(&task->work_done_sem, 0, 0);
@@ -572,13 +607,13 @@ static void wait_for_tasks(struct perf_sched *sched)
 	cpu_usage_1 = get_cpu_usage_nsec_parent();
 	if (!sched->runavg_cpu_usage)
 		sched->runavg_cpu_usage = sched->cpu_usage;
-	sched->runavg_cpu_usage = (sched->runavg_cpu_usage * 9 + sched->cpu_usage) / 10;
+	sched->runavg_cpu_usage = (sched->runavg_cpu_usage * (sched->replay_repeat - 1) + sched->cpu_usage) / sched->replay_repeat;
 
 	sched->parent_cpu_usage = cpu_usage_1 - cpu_usage_0;
 	if (!sched->runavg_parent_cpu_usage)
 		sched->runavg_parent_cpu_usage = sched->parent_cpu_usage;
-	sched->runavg_parent_cpu_usage = (sched->runavg_parent_cpu_usage * 9 +
-					 sched->parent_cpu_usage)/10;
+	sched->runavg_parent_cpu_usage = (sched->runavg_parent_cpu_usage * (sched->replay_repeat - 1) +
+					 sched->parent_cpu_usage)/sched->replay_repeat;
 
 	ret = pthread_mutex_lock(&sched->start_work_mutex);
 	BUG_ON(ret);
@@ -610,7 +645,7 @@ static void run_one_test(struct perf_sched *sched)
 	sched->sum_fluct += fluct;
 	if (!sched->run_avg)
 		sched->run_avg = delta;
-	sched->run_avg = (sched->run_avg * 9 + delta) / 10;
+	sched->run_avg = (sched->run_avg * (sched->replay_repeat - 1) + delta) / sched->replay_repeat;
 
 	printf("#%-3ld: %0.3f, ", sched->nr_runs, (double)delta / 1000000.0);
 
@@ -1452,6 +1487,7 @@ static int perf_sched__read_events(struct perf_sched *sched)
 	struct perf_data_file file = {
 		.path = input_name,
 		.mode = PERF_DATA_MODE_READ,
+		.force = sched->force,
 	};
 	int rc = -1;
 
@@ -1685,6 +1721,7 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
+	OPT_BOOLEAN('f', "force", &sched.force, "don't complain, do it"),
 	OPT_END()
 	};
 	const struct option sched_options[] = {

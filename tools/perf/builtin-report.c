@@ -347,7 +347,7 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 static void report__warn_kptr_restrict(const struct report *rep)
 {
 	struct map *kernel_map = rep->session->machines.host.vmlinux_maps[MAP__FUNCTION];
-	struct kmap *kernel_kmap = map__kmap(kernel_map);
+	struct kmap *kernel_kmap = kernel_map ? map__kmap(kernel_map) : NULL;
 
 	if (kernel_map == NULL ||
 	    (kernel_map->dso->hit &&

@@ -776,6 +776,7 @@ int dso__load_sym(struct dso *dso, struct map *map,
 		  symbol_filter_t filter, int kmodule)
 {
 	struct kmap *kmap = dso->kernel ? map__kmap(map) : NULL;
+	struct map_groups *kmaps = kmap ? map__kmaps(map) : NULL;
 	struct map *curr_map = map;
 	struct dso *curr_dso = dso;
 	Elf_Data *symstrs, *secstrs;
@@ -790,6 +791,9 @@ int dso__load_sym(struct dso *dso, struct map *map,
 	Elf *elf;
 	int nr = 0;
 	bool remap_kernel = false, adjust_kernel_syms = false;
+
+	if (kmap && !kmaps)
+		return -1;
 
 	dso->symtab_type = syms_ss->type;
 	dso->is_64_bit = syms_ss->is_64_bit;
@@ -958,8 +962,10 @@ int dso__load_sym(struct dso *dso, struct map *map,
 					map->map_ip = map__map_ip;
 					map->unmap_ip = map__unmap_ip;
 					/* Ensure maps are correctly ordered */
-					map_groups__remove(kmap->kmaps, map);
-					map_groups__insert(kmap->kmaps, map);
+					if (kmaps) {
+						map_groups__remove(kmaps, map);
+						map_groups__insert(kmaps, map);
+					}
 				}
 
 				/*
@@ -983,7 +989,7 @@ int dso__load_sym(struct dso *dso, struct map *map,
 			snprintf(dso_name, sizeof(dso_name),
 				 "%s%s", dso->short_name, section_name);
 
-			curr_map = map_groups__find_by_name(kmap->kmaps, map->type, dso_name);
+			curr_map = map_groups__find_by_name(kmaps, map->type, dso_name);
 			if (curr_map == NULL) {
 				u64 start = sym.st_value;
 
@@ -1013,7 +1019,7 @@ int dso__load_sym(struct dso *dso, struct map *map,
 					curr_map->unmap_ip = identity__map_ip;
 				}
 				curr_dso->symtab_type = dso->symtab_type;
-				map_groups__insert(kmap->kmaps, curr_map);
+				map_groups__insert(kmaps, curr_map);
 				/*
 				 * The new DSO should go to the kernel DSOS
 				 */
@@ -1075,7 +1081,7 @@ new_symbol:
 			 * We need to fixup this here too because we create new
 			 * maps here, for things like vsyscall sections.
 			 */
-			__map_groups__fixup_end(kmap->kmaps, map->type);
+			__map_groups__fixup_end(kmaps, map->type);
 		}
 	}
 	err = nr;

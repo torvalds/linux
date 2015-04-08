@@ -26,6 +26,7 @@ counted. The following modifiers exist:
  u - user-space counting
  k - kernel counting
  h - hypervisor counting
+ I - non idle counting
  G - guest counting (in KVM guests)
  H - host counting (not in KVM guests)
  p - precise level

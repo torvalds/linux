@@ -663,7 +663,6 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	const char * const default_sort_order = "frag,hit,bytes";
 	struct perf_data_file file = {
-		.path = input_name,
 		.mode = PERF_DATA_MODE_READ,
 	};
 	const struct option kmem_options[] = {
@@ -700,6 +699,8 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 		symbol__init(NULL);
 		return __cmd_record(argc, argv);
 	}
+
+	file.path = input_name;
 
 	session = perf_session__new(&file, false, &perf_kmem);
 	if (session == NULL)

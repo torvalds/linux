@@ -135,6 +135,8 @@ static struct ref_reloc_sym *kernel_get_ref_reloc_sym(void)
 		return NULL;
 
 	kmap = map__kmap(host_machine->vmlinux_maps[MAP__FUNCTION]);
+	if (!kmap)
+		return NULL;
 	return kmap->ref_reloc_sym;
 }
 
@@ -320,7 +322,8 @@ static int find_alternative_probe_point(struct debuginfo *dinfo,
 		ret = -ENOENT;
 		goto out;
 	}
-	pr_debug("Symbol %s address found : %lx\n", pp->function, address);
+	pr_debug("Symbol %s address found : %" PRIx64 "\n",
+			pp->function, address);
 
 	ret = debuginfo__find_probe_point(dinfo, (unsigned long)address,
 					  result);
