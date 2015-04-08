@@ -617,44 +617,11 @@ static void gen8_ppgtt_free(struct i915_hw_ppgtt *ppgtt)
 	}
 }
 
-static void gen8_ppgtt_unmap_pages(struct i915_hw_ppgtt *ppgtt)
-{
-	struct pci_dev *hwdev = ppgtt->base.dev->pdev;
-	int i, j;
-
-	for (i = 0; i < ppgtt->num_pd_pages; i++) {
-		/* TODO: In the future we'll support sparse mappings, so this
-		 * will have to change. */
-		if (!ppgtt->pdp.page_directory[i]->daddr)
-			continue;
-
-		pci_unmap_page(hwdev, ppgtt->pdp.page_directory[i]->daddr, PAGE_SIZE,
-			       PCI_DMA_BIDIRECTIONAL);
-
-		for (j = 0; j < I915_PDES; j++) {
-			struct i915_page_directory *pd = ppgtt->pdp.page_directory[i];
-			struct i915_page_table *pt;
-			dma_addr_t addr;
-
-			if (WARN_ON(!pd->page_table[j]))
-				continue;
-
-			pt = pd->page_table[j];
-			addr = pt->daddr;
-
-			if (addr)
-				pci_unmap_page(hwdev, addr, PAGE_SIZE,
-					       PCI_DMA_BIDIRECTIONAL);
-		}
-	}
-}
-
 static void gen8_ppgtt_cleanup(struct i915_address_space *vm)
 {
 	struct i915_hw_ppgtt *ppgtt =
 		container_of(vm, struct i915_hw_ppgtt, base);
 
-	gen8_ppgtt_unmap_pages(ppgtt);
 	gen8_ppgtt_free(ppgtt);
 }
 
@@ -851,7 +818,6 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt, uint64_t size)
 	return 0;
 
 bail:
-	gen8_ppgtt_unmap_pages(ppgtt);
 	gen8_ppgtt_free(ppgtt);
 	return ret;
 }
