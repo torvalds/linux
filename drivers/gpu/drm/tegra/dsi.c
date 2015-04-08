@@ -997,6 +997,10 @@ static int tegra_dsi_pad_calibrate(struct tegra_dsi *dsi)
 		DSI_PAD_OUT_CLK(0x0);
 	tegra_dsi_writel(dsi, value, DSI_PAD_CONTROL_2);
 
+	value = DSI_PAD_PREEMP_PD_CLK(0x3) | DSI_PAD_PREEMP_PU_CLK(0x3) |
+		DSI_PAD_PREEMP_PD(0x03) | DSI_PAD_PREEMP_PU(0x3);
+	tegra_dsi_writel(dsi, value, DSI_PAD_CONTROL_3);
+
 	return tegra_mipi_calibrate(dsi->mipi);
 }
 
@@ -1626,6 +1630,7 @@ static int tegra_dsi_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id tegra_dsi_of_match[] = {
+	{ .compatible = "nvidia,tegra210-dsi", },
 	{ .compatible = "nvidia,tegra132-dsi", },
 	{ .compatible = "nvidia,tegra124-dsi", },
 	{ .compatible = "nvidia,tegra114-dsi", },
