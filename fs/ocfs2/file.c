@@ -2408,7 +2408,6 @@ relock:
 			goto out_dio;
 		}
 
-		iocb->ki_pos = *ppos + written_buffered;
 		/* We need to ensure that the page cache pages are written to
 		 * disk and invalidated to preserve the expected O_DIRECT
 		 * semantics.
@@ -2417,6 +2416,7 @@ relock:
 		ret = filemap_write_and_wait_range(file->f_mapping, *ppos,
 				endbyte);
 		if (ret == 0) {
+			iocb->ki_pos = *ppos + written_buffered;
 			written += written_buffered;
 			invalidate_mapping_pages(mapping,
 					*ppos >> PAGE_CACHE_SHIFT,
