@@ -455,7 +455,6 @@ no_route:
 }
 EXPORT_SYMBOL(ip_queue_xmit);
 
-
 static void ip_copy_metadata(struct sk_buff *to, struct sk_buff *from)
 {
 	to->pkt_type = from->pkt_type;
@@ -819,7 +818,6 @@ static inline int ip_ufo_append_data(struct sock *sk,
 		skb->transport_header = skb->network_header + fragheaderlen;
 
 		skb->csum = 0;
-
 
 		__skb_queue_tail(queue, skb);
 	} else if (skb_is_gso(skb)) {
@@ -1217,7 +1215,6 @@ ssize_t	ip_append_page(struct sock *sk, struct flowi4 *fl4, struct page *page,
 		skb_shinfo(skb)->gso_size = mtu - fragheaderlen;
 		skb_shinfo(skb)->gso_type = SKB_GSO_UDP;
 	}
-
 
 	while (size > 0) {
 		int i;

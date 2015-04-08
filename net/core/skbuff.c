@@ -3752,7 +3752,6 @@ void skb_complete_wifi_ack(struct sk_buff *skb, bool acked)
 }
 EXPORT_SYMBOL_GPL(skb_complete_wifi_ack);
 
-
 /**
  * skb_partial_csum_set - set up and verify partial csum values for packet
  * @skb: the skb to set

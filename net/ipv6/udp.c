@@ -120,7 +120,6 @@ static u32 udp6_portaddr_hash(const struct net *net,
 	return hash ^ port;
 }
 
-
 int udp_v6_get_port(struct sock *sk, unsigned short snum)
 {
 	unsigned int hash2_nulladdr =
@@ -384,7 +383,6 @@ struct sock *udp6_lib_lookup(struct net *net, const struct in6_addr *saddr, __be
 	return __udp6_lib_lookup(net, saddr, sport, daddr, dport, dif, &udp_table);
 }
 EXPORT_SYMBOL_GPL(udp6_lib_lookup);
-
 
 /*
  *	This should be easy, if there is something there we
@@ -1554,7 +1552,6 @@ static struct inet_protosw udpv6_protosw = {
 	.ops =       &inet6_dgram_ops,
 	.flags =     INET_PROTOSW_PERMANENT,
 };
-
 
 int __init udpv6_init(void)
 {

@@ -433,7 +433,6 @@ static u32 udp_ehashfn(const struct net *net, const __be32 laddr,
 			      udp_ehash_secret + net_hash_mix(net));
 }
 
-
 /* called with read_rcu_lock() */
 static struct sock *udp4_lib_lookup2(struct net *net,
 		__be32 saddr, __be16 sport,
@@ -1171,7 +1170,6 @@ out:
 	return ret;
 }
 
-
 /**
  *	first_packet_length	- return length of first packet in receive queue
  *	@sk: socket
@@ -1354,7 +1352,6 @@ csum_copy_err:
 	msg->msg_flags &= ~MSG_TRUNC;
 	goto try_again;
 }
-
 
 int udp_disconnect(struct sock *sk, int flags)
 {
@@ -1579,7 +1576,6 @@ int udp_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	    udp_lib_checksum_complete(skb))
 		goto csum_error;
 
-
 	if (sk_rcvqueues_full(sk, sk->sk_rcvbuf)) {
 		UDP_INC_STATS_BH(sock_net(sk), UDP_MIB_RCVBUFERRORS,
 				 is_udplite);
@@ -1608,7 +1604,6 @@ drop:
 	kfree_skb(skb);
 	return -1;
 }
-
 
 static void flush_stack(struct sock **stack, unsigned int count,
 			struct sk_buff *skb, unsigned int final)

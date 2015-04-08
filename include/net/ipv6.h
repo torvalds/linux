@@ -47,8 +47,6 @@
 
 #define NEXTHDR_MAX		255
 
-
-
 #define IPV6_DEFAULT_HOPLIMIT   64
 #define IPV6_DEFAULT_MCASTHOPS	1
 
