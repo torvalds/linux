@@ -190,7 +190,7 @@
 #define GEN8_CTX_PRIVILEGE (1<<8)
 
 #define ASSIGN_CTX_PDP(ppgtt, reg_state, n) { \
-	const u64 _addr = ppgtt->pdp.page_directory[n] ? \
+	const u64 _addr = test_bit(n, ppgtt->pdp.used_pdpes) ? \
 		ppgtt->pdp.page_directory[n]->daddr : \
 		ppgtt->scratch_pd->daddr; \
 	reg_state[CTX_PDP ## n ## _UDW+1] = upper_32_bits(_addr); \
@@ -330,6 +330,7 @@ static void execlists_elsp_write(struct intel_engine_cs *ring,
 
 static int execlists_update_context(struct drm_i915_gem_object *ctx_obj,
 				    struct drm_i915_gem_object *ring_obj,
+				    struct i915_hw_ppgtt *ppgtt,
 				    u32 tail)
 {
 	struct page *page;
@@ -340,6 +341,16 @@ static int execlists_update_context(struct drm_i915_gem_object *ctx_obj,
 
 	reg_state[CTX_RING_TAIL+1] = tail;
 	reg_state[CTX_RING_BUFFER_START+1] = i915_gem_obj_ggtt_offset(ring_obj);
+
+	/* True PPGTT with dynamic page allocation: update PDP registers and
+	 * point the unallocated PDPs to the scratch page
+	 */
+	if (ppgtt) {
+		ASSIGN_CTX_PDP(ppgtt, reg_state, 3);
+		ASSIGN_CTX_PDP(ppgtt, reg_state, 2);
+		ASSIGN_CTX_PDP(ppgtt, reg_state, 1);
+		ASSIGN_CTX_PDP(ppgtt, reg_state, 0);
+	}
 
 	kunmap_atomic(reg_state);
 
@@ -359,7 +370,7 @@ static void execlists_submit_contexts(struct intel_engine_cs *ring,
 	WARN_ON(!i915_gem_obj_is_pinned(ctx_obj0));
 	WARN_ON(!i915_gem_obj_is_pinned(ringbuf0->obj));
 
-	execlists_update_context(ctx_obj0, ringbuf0->obj, tail0);
+	execlists_update_context(ctx_obj0, ringbuf0->obj, to0->ppgtt, tail0);
 
 	if (to1) {
 		ringbuf1 = to1->engine[ring->id].ringbuf;
@@ -368,7 +379,7 @@ static void execlists_submit_contexts(struct intel_engine_cs *ring,
 		WARN_ON(!i915_gem_obj_is_pinned(ctx_obj1));
 		WARN_ON(!i915_gem_obj_is_pinned(ringbuf1->obj));
 
-		execlists_update_context(ctx_obj1, ringbuf1->obj, tail1);
+		execlists_update_context(ctx_obj1, ringbuf1->obj, to1->ppgtt, tail1);
 	}
 
 	execlists_elsp_write(ring, ctx_obj0, ctx_obj1);
@@ -1764,9 +1775,9 @@ populate_lr_context(struct intel_context *ctx, struct drm_i915_gem_object *ctx_o
 	reg_state[CTX_PDP1_LDW] = GEN8_RING_PDP_LDW(ring, 1);
 	reg_state[CTX_PDP0_UDW] = GEN8_RING_PDP_UDW(ring, 0);
 	reg_state[CTX_PDP0_LDW] = GEN8_RING_PDP_LDW(ring, 0);
-	/* XXX: Systems with less than 4GB of memory do not have
-	 * all PDPs. Proper PDP tracking will be added in a
-	 * subsequent patch.
+
+	/* With dynamic page allocation, PDPs may not be allocated at this point,
+	 * Point the unallocated PDPs to the scratch page
 	 */
 	ASSIGN_CTX_PDP(ppgtt, reg_state, 3);
 	ASSIGN_CTX_PDP(ppgtt, reg_state, 2);
