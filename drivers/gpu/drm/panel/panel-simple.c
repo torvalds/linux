@@ -1175,6 +1175,34 @@ struct panel_desc_dsi {
 	unsigned int lanes;
 };
 
+static const struct drm_display_mode auo_b080uan01_mode = {
+	.clock = 154500,
+	.hdisplay = 1200,
+	.hsync_start = 1200 + 62,
+	.hsync_end = 1200 + 62 + 4,
+	.htotal = 1200 + 62 + 4 + 62,
+	.vdisplay = 1920,
+	.vsync_start = 1920 + 9,
+	.vsync_end = 1920 + 9 + 2,
+	.vtotal = 1920 + 9 + 2 + 8,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc_dsi auo_b080uan01 = {
+	.desc = {
+		.modes = &auo_b080uan01_mode,
+		.num_modes = 1,
+		.bpc = 8,
+		.size = {
+			.width = 108,
+			.height = 272,
+		},
+	},
+	.flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_CLOCK_NON_CONTINUOUS,
+	.format = MIPI_DSI_FMT_RGB888,
+	.lanes = 4,
+};
+
 static const struct drm_display_mode lg_ld070wx3_sl01_mode = {
 	.clock = 71000,
 	.hdisplay = 800,
@@ -1262,6 +1290,9 @@ static const struct panel_desc_dsi panasonic_vvx10f004b00 = {
 
 static const struct of_device_id dsi_of_match[] = {
 	{
+		.compatible = "auo,b080uan01",
+		.data = &auo_b080uan01
+	}, {
 		.compatible = "lg,ld070wx3-sl01",
 		.data = &lg_ld070wx3_sl01
 	}, {
