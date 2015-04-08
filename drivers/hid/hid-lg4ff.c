@@ -1229,15 +1229,14 @@ int lg4ff_init(struct hid_device *hid)
 	/* Create sysfs interface */
 	error = device_create_file(&hid->dev, &dev_attr_range);
 	if (error)
-		goto err_init;
+		hid_warn(hid, "Unable to create sysfs interface for \"range\", errno %d\n", error);
 	if (mmode_ret == LG4FF_MMODE_IS_MULTIMODE) {
 		error = device_create_file(&hid->dev, &dev_attr_real_id);
 		if (error)
-			goto err_init;
-
+			hid_warn(hid, "Unable to create sysfs interface for \"real_id\", errno %d\n", error);
 		error = device_create_file(&hid->dev, &dev_attr_alternate_modes);
 		if (error)
-			goto err_init;
+			hid_warn(hid, "Unable to create sysfs interface for \"alternate_modes\", errno %d\n", error);
 	}
 	dbg_hid("sysfs interface created\n");
 
