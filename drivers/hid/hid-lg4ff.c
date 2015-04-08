@@ -68,8 +68,8 @@
 #define LG4FF_FFEX_REV_MAJ 0x21
 #define LG4FF_FFEX_REV_MIN 0x00
 
-static void hid_lg4ff_set_range_dfp(struct hid_device *hid, u16 range);
-static void hid_lg4ff_set_range_g25(struct hid_device *hid, u16 range);
+static void lg4ff_set_range_dfp(struct hid_device *hid, u16 range);
+static void lg4ff_set_range_g25(struct hid_device *hid, u16 range);
 
 struct lg4ff_device_entry {
 	u32 product_id;
@@ -134,10 +134,10 @@ struct lg4ff_alternate_mode {
 static const struct lg4ff_wheel lg4ff_devices[] = {
 	{USB_DEVICE_ID_LOGITECH_WHEEL,       lg4ff_wheel_effects, 40, 270, NULL},
 	{USB_DEVICE_ID_LOGITECH_MOMO_WHEEL,  lg4ff_wheel_effects, 40, 270, NULL},
-	{USB_DEVICE_ID_LOGITECH_DFP_WHEEL,   lg4ff_wheel_effects, 40, 900, hid_lg4ff_set_range_dfp},
-	{USB_DEVICE_ID_LOGITECH_G25_WHEEL,   lg4ff_wheel_effects, 40, 900, hid_lg4ff_set_range_g25},
-	{USB_DEVICE_ID_LOGITECH_DFGT_WHEEL,  lg4ff_wheel_effects, 40, 900, hid_lg4ff_set_range_g25},
-	{USB_DEVICE_ID_LOGITECH_G27_WHEEL,   lg4ff_wheel_effects, 40, 900, hid_lg4ff_set_range_g25},
+	{USB_DEVICE_ID_LOGITECH_DFP_WHEEL,   lg4ff_wheel_effects, 40, 900, lg4ff_set_range_dfp},
+	{USB_DEVICE_ID_LOGITECH_G25_WHEEL,   lg4ff_wheel_effects, 40, 900, lg4ff_set_range_g25},
+	{USB_DEVICE_ID_LOGITECH_DFGT_WHEEL,  lg4ff_wheel_effects, 40, 900, lg4ff_set_range_g25},
+	{USB_DEVICE_ID_LOGITECH_G27_WHEEL,   lg4ff_wheel_effects, 40, 900, lg4ff_set_range_g25},
 	{USB_DEVICE_ID_LOGITECH_MOMO_WHEEL2, lg4ff_wheel_effects, 40, 270, NULL},
 	{USB_DEVICE_ID_LOGITECH_WII_WHEEL,   lg4ff_wheel_effects, 40, 270, NULL}
 };
@@ -294,7 +294,7 @@ int lg4ff_adjust_input_event(struct hid_device *hid, struct hid_field *field,
 	}
 }
 
-static int hid_lg4ff_play(struct input_dev *dev, void *data, struct ff_effect *effect)
+static int lg4ff_play(struct input_dev *dev, void *data, struct ff_effect *effect)
 {
 	struct hid_device *hid = input_get_drvdata(dev);
 	struct list_head *report_list = &hid->report_enum[HID_OUTPUT_REPORT].report_list;
@@ -339,7 +339,7 @@ static int hid_lg4ff_play(struct input_dev *dev, void *data, struct ff_effect *e
 
 /* Sends default autocentering command compatible with
  * all wheels except Formula Force EX */
-static void hid_lg4ff_set_autocenter_default(struct input_dev *dev, u16 magnitude)
+static void lg4ff_set_autocenter_default(struct input_dev *dev, u16 magnitude)
 {
 	struct hid_device *hid = input_get_drvdata(dev);
 	struct list_head *report_list = &hid->report_enum[HID_OUTPUT_REPORT].report_list;
@@ -416,7 +416,7 @@ static void hid_lg4ff_set_autocenter_default(struct input_dev *dev, u16 magnitud
 }
 
 /* Sends autocentering command compatible with Formula Force EX */
-static void hid_lg4ff_set_autocenter_ffex(struct input_dev *dev, u16 magnitude)
+static void lg4ff_set_autocenter_ffex(struct input_dev *dev, u16 magnitude)
 {
 	struct hid_device *hid = input_get_drvdata(dev);
 	struct list_head *report_list = &hid->report_enum[HID_OUTPUT_REPORT].report_list;
@@ -436,7 +436,7 @@ static void hid_lg4ff_set_autocenter_ffex(struct input_dev *dev, u16 magnitude)
 }
 
 /* Sends command to set range compatible with G25/G27/Driving Force GT */
-static void hid_lg4ff_set_range_g25(struct hid_device *hid, u16 range)
+static void lg4ff_set_range_g25(struct hid_device *hid, u16 range)
 {
 	struct list_head *report_list = &hid->report_enum[HID_OUTPUT_REPORT].report_list;
 	struct hid_report *report = list_entry(report_list->next, struct hid_report, list);
@@ -456,7 +456,7 @@ static void hid_lg4ff_set_range_g25(struct hid_device *hid, u16 range)
 }
 
 /* Sends commands to set range compatible with Driving Force Pro wheel */
-static void hid_lg4ff_set_range_dfp(struct hid_device *hid, u16 range)
+static void lg4ff_set_range_dfp(struct hid_device *hid, u16 range)
 {
 	struct list_head *report_list = &hid->report_enum[HID_OUTPUT_REPORT].report_list;
 	struct hid_report *report = list_entry(report_list->next, struct hid_report, list);
@@ -1043,7 +1043,7 @@ int lg4ff_init(struct hid_device *hid)
 	for (j = 0; lg4ff_devices[i].ff_effects[j] >= 0; j++)
 		set_bit(lg4ff_devices[i].ff_effects[j], dev->ffbit);
 
-	error = input_ff_create_memless(dev, NULL, hid_lg4ff_play);
+	error = input_ff_create_memless(dev, NULL, lg4ff_play);
 
 	if (error)
 		return error;
@@ -1081,9 +1081,9 @@ int lg4ff_init(struct hid_device *hid)
 		/* Formula Force EX expects different autocentering command */
 		if ((bcdDevice >> 8) == LG4FF_FFEX_REV_MAJ &&
 		    (bcdDevice & 0xff) == LG4FF_FFEX_REV_MIN)
-			dev->ff->set_autocenter = hid_lg4ff_set_autocenter_ffex;
+			dev->ff->set_autocenter = lg4ff_set_autocenter_ffex;
 		else
-			dev->ff->set_autocenter = hid_lg4ff_set_autocenter_default;
+			dev->ff->set_autocenter = lg4ff_set_autocenter_default;
 
 		dev->ff->set_autocenter(dev, 0);
 	}
