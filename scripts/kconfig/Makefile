@@ -2,7 +2,7 @@
 # Kernel configuration targets
 # These targets are used from top-level makefile
 
-PHONY += oldconfig xconfig gconfig menuconfig config silentoldconfig update-po-config \
+PHONY += xconfig gconfig menuconfig config silentoldconfig update-po-config \
 	localmodconfig localyesconfig
 
 ifdef KBUILD_KCONFIG
@@ -28,9 +28,6 @@ config: $(obj)/conf
 
 nconfig: $(obj)/nconf
 	$< $(Kconfig)
-
-oldconfig: $(obj)/conf
-	$< --$@ $(Kconfig)
 
 silentoldconfig: $(obj)/conf
 	$(Q)mkdir -p include/config include/generated
@@ -74,21 +71,20 @@ update-po-config: $(obj)/kxgettext $(obj)/gconf.glade.h
 	    --output $(obj)/linux.pot
 	$(Q)rm -f $(obj)/config.pot
 
-PHONY += allnoconfig allyesconfig allmodconfig alldefconfig randconfig
+# These targets map 1:1 to the commandline options of 'conf'
+simple-targets := oldconfig allnoconfig allyesconfig allmodconfig \
+	alldefconfig randconfig listnewconfig olddefconfig
+PHONY += $(simple-targets)
 
-allnoconfig allyesconfig allmodconfig alldefconfig randconfig: $(obj)/conf
+$(simple-targets): $(obj)/conf
 	$< --$@ $(Kconfig)
 
-PHONY += listnewconfig olddefconfig oldnoconfig savedefconfig defconfig
-
-listnewconfig olddefconfig: $(obj)/conf
-	$< --$@ $(Kconfig)
+PHONY += oldnoconfig savedefconfig defconfig
 
 # oldnoconfig is an alias of olddefconfig, because people already are dependent
 # on its behavior(sets new symbols to their default value but not 'n') with the
 # counter-intuitive name.
-oldnoconfig: $(obj)/conf
-	$< --olddefconfig $(Kconfig)
+oldnoconfig: olddefconfig
 
 savedefconfig: $(obj)/conf
 	$< --$@=defconfig $(Kconfig)
