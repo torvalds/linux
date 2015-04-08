@@ -847,7 +847,7 @@ static void lg4ff_led_set_brightness(struct led_classdev *led_cdev,
 		return;
 	}
 
-	entry = (struct lg4ff_device_entry *)drv_data->device_props;
+	entry = drv_data->device_props;
 
 	if (!entry) {
 		hid_err(hid, "Device properties not found.");
@@ -882,7 +882,7 @@ static enum led_brightness lg4ff_led_get_brightness(struct led_classdev *led_cde
 		return LED_OFF;
 	}
 
-	entry = (struct lg4ff_device_entry *)drv_data->device_props;
+	entry = drv_data->device_props;
 
 	if (!entry) {
 		hid_err(hid, "Device properties not found.");
