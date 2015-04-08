@@ -124,6 +124,7 @@
 	};
 
 	rockchip-hdmi-i2s {
+		status = "disabled";
 		compatible = "rockchip-hdmi-i2s";
 		dais {
 			dai0 {
@@ -586,10 +587,14 @@
 	status = "disabled";
 };
 
+&CPU_SLEEP_0 {
+	arm,psci-suspend-param = <0x0>;
+};
 
 &fb {
 	rockchip,disp-mode = <NO_DUAL>;
 	rockchip,uboot-logo-on = <0>;
+	rockchip,disp-policy = <DISPLAY_POLICY_BOX>;
 };
 
 &disp_timings {
@@ -616,6 +621,7 @@
 	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&lcdc_lcdc>;
 	pinctrl-1 = <&lcdc_gpio>;
+	rockchip,iommu-enabled = <1>;
 	power_ctr: power_ctr {
 		rockchip,debug = <0>;
 		/*lcd_en:lcd_en {
@@ -638,6 +644,22 @@
 	};
 };
 
+
+&vpu {
+	iommu_enabled = <1>;
+};
+
+&hevc {
+	iommu_enabled = <1>;
+};
+
+&iep {
+	iommu_enabled = <1>;
+};
+
+&isp {
+	rockchip,isp,iommu_enable = <1>;
+};
 
 &hdmi {
 	status = "okay";
@@ -792,7 +814,7 @@
 
 &dwc_control_usb {
 		host_drv_gpio = <&gpio0 GPIO_A4 GPIO_ACTIVE_LOW>;
-		otg_drv_gpio = <&gpio0 GPIO_D1 GPIO_ACTIVE_LOW>;
+		otg_drv_gpio = <&gpio0 GPIO_A5 GPIO_ACTIVE_LOW>;
 
 		rockchip,remote_wakeup;
 		rockchip,usb_irq_wakeup;
@@ -919,7 +941,8 @@
 };
 
 &ion_cma {
-       reg = <0x00000000 0x28000000>; /* 640MB */
+       //reg = <0x00000000 0x28000000>; /* 640MB */
+	     reg = <0x00000000 0x0>; 
 };
 
 /*
