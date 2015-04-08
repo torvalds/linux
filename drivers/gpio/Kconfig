@@ -862,6 +862,14 @@ config GPIO_TIMBERDALE
 
 comment "SPI GPIO expanders:"
 
+config GPIO_74X164
+	tristate "74x164 serial-in/parallel-out 8-bits shift register"
+	depends on SPI_MASTER && OF
+	help
+	  Driver for 74x164 compatible serial-in/parallel-out 8-outputs
+	  shift registers. This driver can be used to provide access
+	  to more gpio outputs.
+
 config GPIO_MAX7301
 	tristate "Maxim MAX7301 GPIO expander"
 	depends on SPI_MASTER
@@ -884,14 +892,6 @@ config GPIO_MC33880
 	help
 	  SPI driver for Freescale MC33880 high-side/low-side switch.
 	  This provides GPIO interface supporting inputs and outputs.
-
-config GPIO_74X164
-	tristate "74x164 serial-in/parallel-out 8-bits shift register"
-	depends on SPI_MASTER && OF
-	help
-	  Driver for 74x164 compatible serial-in/parallel-out 8-outputs
-	  shift registers. This driver can be used to provide access
-	  to more gpio outputs.
 
 comment "AC97 GPIO expanders:"
 
