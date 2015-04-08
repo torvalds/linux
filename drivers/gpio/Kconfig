@@ -766,15 +766,17 @@ config GPIO_WM8994
 
 comment "PCI GPIO expanders:"
 
-config GPIO_CS5535
-	tristate "AMD CS5535/CS5536 GPIO support"
-	depends on MFD_CS5535
+config GPIO_AMD8111
+	tristate "AMD 8111 GPIO driver"
+	depends on PCI
 	help
-	  The AMD CS5535 and CS5536 southbridges support 28 GPIO pins that
-	  can be used for quite a number of things.  The CS5535/6 is found on
-	  AMD Geode and Lemote Yeeloong devices.
+	  The AMD 8111 south bridge contains 32 GPIO pins which can be used.
 
-	  If unsure, say N.
+	  Note, that usually system firmware/ACPI handles GPIO pins on their
+	  own and users might easily break their systems with uncarefull usage
+	  of this driver!
+
+	  If unsure, say N
 
 config GPIO_BT8XX
 	tristate "BT8XX GPIO abuser"
@@ -792,17 +794,15 @@ config GPIO_BT8XX
 
 	  If unsure, say N.
 
-config GPIO_AMD8111
-	tristate "AMD 8111 GPIO driver"
-	depends on PCI
+config GPIO_CS5535
+	tristate "AMD CS5535/CS5536 GPIO support"
+	depends on MFD_CS5535
 	help
-	  The AMD 8111 south bridge contains 32 GPIO pins which can be used.
+	  The AMD CS5535 and CS5536 southbridges support 28 GPIO pins that
+	  can be used for quite a number of things.  The CS5535/6 is found on
+	  AMD Geode and Lemote Yeeloong devices.
 
-	  Note, that usually system firmware/ACPI handles GPIO pins on their
-	  own and users might easily break their systems with uncarefull usage
-	  of this driver!
-
-	  If unsure, say N
+	  If unsure, say N.
 
 config GPIO_INTEL_MID
 	bool "Intel Mid GPIO support"
@@ -810,6 +810,16 @@ config GPIO_INTEL_MID
 	select GPIOLIB_IRQCHIP
 	help
 	  Say Y here to support Intel Mid GPIO.
+
+config GPIO_ML_IOH
+	tristate "OKI SEMICONDUCTOR ML7213 IOH GPIO support"
+	depends on PCI
+	select GENERIC_IRQ_CHIP
+	help
+	  ML7213 is companion chip for Intel Atom E6xx series.
+	  This driver can be used for OKI SEMICONDUCTOR ML7213 IOH(Input/Output
+	  Hub) which is for IVI(In-Vehicle Infotainment) use.
+	  This driver can access the IOH's GPIO device.
 
 config GPIO_PCH
 	tristate "Intel EG20T PCH/LAPIS Semiconductor IOH(ML7223/ML7831) GPIO"
@@ -827,15 +837,14 @@ config GPIO_PCH
 	  ML7223/ML7831 is companion chip for Intel Atom E6xx series.
 	  ML7223/ML7831 is completely compatible for Intel EG20T PCH.
 
-config GPIO_ML_IOH
-	tristate "OKI SEMICONDUCTOR ML7213 IOH GPIO support"
+config GPIO_RDC321X
+	tristate "RDC R-321x GPIO support"
 	depends on PCI
-	select GENERIC_IRQ_CHIP
+	select MFD_CORE
+	select MFD_RDC321X
 	help
-	  ML7213 is companion chip for Intel Atom E6xx series.
-	  This driver can be used for OKI SEMICONDUCTOR ML7213 IOH(Input/Output
-	  Hub) which is for IVI(In-Vehicle Infotainment) use.
-	  This driver can access the IOH's GPIO device.
+	  Support for the RDC R321x SoC GPIOs over southbridge
+	  PCI configuration space.
 
 config GPIO_SODAVILLE
 	bool "Intel Sodaville GPIO support"
@@ -850,15 +859,6 @@ config GPIO_TIMBERDALE
 	depends on MFD_TIMBERDALE
 	---help---
 	Add support for the GPIO IP in the timberdale FPGA.
-
-config GPIO_RDC321X
-	tristate "RDC R-321x GPIO support"
-	depends on PCI
-	select MFD_CORE
-	select MFD_RDC321X
-	help
-	  Support for the RDC R321x SoC GPIOs over southbridge
-	  PCI configuration space.
 
 comment "SPI GPIO expanders:"
 
