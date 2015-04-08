@@ -414,8 +414,6 @@ static void img_spfi_handle_err(struct spi_master *master,
 		dmaengine_terminate_all(spfi->rx_ch);
 	}
 	spin_unlock_irqrestore(&spfi->lock, flags);
-
-	spfi_reset(spfi);
 }
 
 static int img_spfi_prepare(struct spi_master *master, struct spi_message *msg)
@@ -433,6 +431,16 @@ static int img_spfi_prepare(struct spi_master *master, struct spi_message *msg)
 	else
 		val &= ~SPFI_PORT_STATE_CK_POL(msg->spi->chip_select);
 	spfi_writel(spfi, val, SPFI_PORT_STATE);
+
+	return 0;
+}
+
+static int img_spfi_unprepare(struct spi_master *master,
+			      struct spi_message *msg)
+{
+	struct img_spfi *spfi = spi_master_get_devdata(master);
+
+	spfi_reset(spfi);
 
 	return 0;
 }
@@ -610,6 +618,7 @@ static int img_spfi_probe(struct platform_device *pdev)
 	master->set_cs = img_spfi_set_cs;
 	master->transfer_one = img_spfi_transfer_one;
 	master->prepare_message = img_spfi_prepare;
+	master->unprepare_message = img_spfi_unprepare;
 	master->handle_err = img_spfi_handle_err;
 
 	spfi->tx_ch = dma_request_slave_channel(spfi->dev, "tx");
