@@ -302,7 +302,7 @@ struct s5p_mfc_hw_ops {
 	void (*write_info)(struct s5p_mfc_ctx *ctx, unsigned int data,
 			unsigned int ofs);
 	unsigned int (*read_info)(struct s5p_mfc_ctx *ctx,
-			unsigned int ofs);
+			unsigned long ofs);
 	int (*get_dspl_y_adr)(struct s5p_mfc_dev *dev);
 	int (*get_dec_y_adr)(struct s5p_mfc_dev *dev);
 	int (*get_dspl_status)(struct s5p_mfc_dev *dev);
