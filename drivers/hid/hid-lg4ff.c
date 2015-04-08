@@ -72,18 +72,18 @@ static void lg4ff_set_range_dfp(struct hid_device *hid, u16 range);
 static void lg4ff_set_range_g25(struct hid_device *hid, u16 range);
 
 struct lg4ff_wheel_data {
-	u32 product_id;
+	const u32 product_id;
 	u16 range;
-	u16 min_range;
-	u16 max_range;
+	const u16 min_range;
+	const u16 max_range;
 #ifdef CONFIG_LEDS_CLASS
 	u8  led_state;
 	struct led_classdev *led[5];
 #endif
-	u32 alternate_modes;
-	const char *real_tag;
-	const char *real_name;
-	u16 real_product_id;
+	const u32 alternate_modes;
+	const char * const real_tag;
+	const char * const real_name;
+	const u16 real_product_id;
 
 	void (*set_range)(struct hid_device *hid, u16 range);
 };
@@ -297,6 +297,34 @@ int lg4ff_adjust_input_event(struct hid_device *hid, struct hid_field *field,
 		}
 	default:
 		return 0;
+	}
+}
+
+static void lg4ff_init_wheel_data(struct lg4ff_wheel_data * const wdata, const struct lg4ff_wheel *wheel,
+				  const struct lg4ff_multimode_wheel *mmode_wheel,
+				  const u16 real_product_id)
+{
+	u32 alternate_modes = 0;
+	const char *real_tag = NULL;
+	const char *real_name = NULL;
+
+	if (mmode_wheel) {
+		alternate_modes = mmode_wheel->alternate_modes;
+		real_tag = mmode_wheel->real_tag;
+		real_name = mmode_wheel->real_name;
+	}
+
+	{
+		struct lg4ff_wheel_data t_wdata =  { .product_id = wheel->product_id,
+						     .real_product_id = real_product_id,
+						     .min_range = wheel->min_range,
+						     .max_range = wheel->max_range,
+						     .set_range = wheel->set_range,
+						     .alternate_modes = alternate_modes,
+						     .real_tag = real_tag,
+						     .real_name = real_name };
+
+		memcpy(wdata, &t_wdata, sizeof(t_wdata));
 	}
 }
 
@@ -1102,6 +1130,7 @@ int lg4ff_init(struct hid_device *hid)
 	struct hid_report *report = list_entry(report_list->next, struct hid_report, list);
 	const struct usb_device_descriptor *udesc = &(hid_to_usb_dev(hid)->descriptor);
 	const u16 bcdDevice = le16_to_cpu(udesc->bcdDevice);
+	const struct lg4ff_multimode_wheel *mmode_wheel = NULL;
 	struct lg4ff_device_entry *entry;
 	struct lg_drv_data *drv_data;
 	int error, i, j;
@@ -1177,17 +1206,12 @@ int lg4ff_init(struct hid_device *hid)
 	if (error)
 		goto err_init;
 
-	entry->wdata.product_id = lg4ff_devices[i].product_id;
-	entry->wdata.real_product_id = real_product_id;
-	entry->wdata.min_range = lg4ff_devices[i].min_range;
-	entry->wdata.max_range = lg4ff_devices[i].max_range;
-	entry->wdata.set_range = lg4ff_devices[i].set_range;
+	/* Initialize device properties */
 	if (mmode_ret == LG4FF_MMODE_IS_MULTIMODE) {
 		BUG_ON(mmode_idx == -1);
-		entry->wdata.alternate_modes = lg4ff_multimode_wheels[mmode_idx].alternate_modes;
-		entry->wdata.real_tag = lg4ff_multimode_wheels[mmode_idx].real_tag;
-		entry->wdata.real_name = lg4ff_multimode_wheels[mmode_idx].real_name;
+		mmode_wheel = &lg4ff_multimode_wheels[mmode_idx];
 	}
+	lg4ff_init_wheel_data(&entry->wdata, &lg4ff_devices[i], mmode_wheel, real_product_id);
 
 	/* Check if autocentering is available and
 	 * set the centering force to zero by default */
