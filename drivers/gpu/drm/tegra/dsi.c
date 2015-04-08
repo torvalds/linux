@@ -548,14 +548,19 @@ static void tegra_dsi_configure(struct tegra_dsi *dsi, unsigned int pipe,
 
 		/* horizontal sync width */
 		hsw = (mode->hsync_end - mode->hsync_start) * mul / div;
-		hsw -= 10;
 
 		/* horizontal back porch */
 		hbp = (mode->htotal - mode->hsync_end) * mul / div;
-		hbp -= 14;
+
+		if ((dsi->flags & MIPI_DSI_MODE_VIDEO_SYNC_PULSE) == 0)
+			hbp += hsw;
 
 		/* horizontal front porch */
 		hfp = (mode->hsync_start - mode->hdisplay) * mul / div;
+
+		/* subtract packet overhead */
+		hsw -= 10;
+		hbp -= 14;
 		hfp -= 8;
 
 		tegra_dsi_writel(dsi, hsw << 16 | 0, DSI_PKT_LEN_0_1);
