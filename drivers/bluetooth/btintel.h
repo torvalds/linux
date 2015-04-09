@@ -54,6 +54,21 @@ struct intel_boot_params {
 	__u8     unlocked_state;
 } __packed;
 
+struct intel_bootup {
+	__u8     zero;
+	__u8     num_cmds;
+	__u8     source;
+	__u8     reset_type;
+	__u8     reset_reason;
+	__u8     ddc_status;
+} __packed;
+
+struct intel_secure_send_result {
+	__u8     result;
+	__le16   opcode;
+	__u8     status;
+} __packed;
+
 #if IS_ENABLED(CONFIG_BT_INTEL)
 
 int btintel_check_bdaddr(struct hci_dev *hdev);
