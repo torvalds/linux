@@ -4703,6 +4703,10 @@ unsigned int snd_hda_gen_path_power_filter(struct hda_codec *codec,
 						  hda_nid_t nid,
 						  unsigned int power_state)
 {
+	struct hda_gen_spec *spec = codec->spec;
+
+	if (!spec->power_down_unused && !codec->power_save_node)
+		return power_state;
 	if (power_state != AC_PWRST_D0 || nid == codec->core.afg)
 		return power_state;
 	if (get_wcaps_type(get_wcaps(codec, nid)) >= AC_WID_POWER)
