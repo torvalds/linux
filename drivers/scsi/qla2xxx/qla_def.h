@@ -3300,6 +3300,8 @@ struct qla_hw_data {
 #define RISC_RDY_AFT_RESET	3
 #define RISC_SRAM_DUMP_CMPL	4
 #define RISC_EXT_MEM_DUMP_CMPL	5
+#define ISP_MBX_RDY		6
+#define ISP_SOFT_RESET_CMPL	7
 	int		fw_dump_reading;
 	int		prev_minidump_failed;
 	dma_addr_t	eft_dma;
