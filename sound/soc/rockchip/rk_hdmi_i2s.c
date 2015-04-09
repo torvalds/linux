@@ -75,7 +75,7 @@ static int hdmi_i2s_hifi_hw_params(struct snd_pcm_substream *substream,
 		__func__, __LINE__,
 		params_rate(params));
 
-	div_bclk = 63;
+	div_bclk = 127;
 	div_mclk = pll_out/(params_rate(params)*(div_bclk+1))-1;
 
 	snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);

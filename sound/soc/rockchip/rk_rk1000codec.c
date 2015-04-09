@@ -39,6 +39,8 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	unsigned int dai_fmt = rtd->dai_link->dai_fmt;
 	int ret;
+	unsigned int pll_out = 0;
+	int div_bclk, div_mclk;
 
 	DBG("Enter::%s----%d\n",  __func__, __LINE__);
 	/* set codec DAI configuration */
@@ -55,6 +57,43 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 		       __func__);
 		return ret;
 	}
+
+	switch (params_rate(params)) {
+	case 8000:
+	case 16000:
+	case 24000:
+	case 32000:
+	case 48000:
+	case 96000:
+		pll_out = 12288000;
+		break;
+	case 11025:
+	case 22050:
+	case 44100:
+	case 88200:
+		pll_out = 11289600;
+		break;
+	case 176400:
+		pll_out = 11289600*2;
+		break;
+	case 192000:
+		pll_out = 12288000*2;
+		break;
+	default:
+		DBG("Enter:%s, %d, Error rate=%d\n", __func__,
+		    __LINE__, params_rate(params));
+		return -EINVAL;
+		break;
+	}
+	DBG("Enter:%s, %d, rate=%d\n", __func__, __LINE__, params_rate(params));
+	snd_soc_dai_set_sysclk(codec_dai, 0, pll_out, SND_SOC_CLOCK_IN);
+
+	div_bclk = 127;
+	div_mclk = pll_out/(params_rate(params)*128) - 1;
+
+	snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
+	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK, div_bclk);
+	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, div_mclk);
 	return 0;
 }
 

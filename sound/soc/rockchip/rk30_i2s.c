@@ -44,6 +44,7 @@
 
 #include "rk_pcm.h"
 #include "rk_i2s.h"
+#include "../../../drivers/video/rockchip/hdmi/rockchip-hdmi.h"
 
 #if 0
 #define I2S_DBG(x...) printk(KERN_INFO x)
@@ -81,6 +82,8 @@ extern int hdmi_get_hotplug(void);
 #else
 #define hdmi_get_hotplug() 0
 #endif
+
+
 
 static inline struct rk30_i2s_info *to_info(struct snd_soc_dai *dai)
 {
@@ -283,6 +286,29 @@ out_:
 	return ret;
 }
 
+static int SR2FS(int samplerate)
+{
+	switch (samplerate) {
+	case 32000:
+		return HDMI_AUDIO_FS_32000;
+	case 44100:
+		return HDMI_AUDIO_FS_44100;
+	case 48000:
+		return HDMI_AUDIO_FS_48000;
+	case 88200:
+		return HDMI_AUDIO_FS_88200;
+	case 96000:
+		return HDMI_AUDIO_FS_96000;
+	case 176400:
+		return HDMI_AUDIO_FS_176400;
+	case 192000:
+		return HDMI_AUDIO_FS_192000;
+	default:
+		I2S_DBG("SR2FS %d unsupport.", samplerate);
+		return HDMI_AUDIO_FS_44100;
+	}
+}
+
 static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params, struct snd_soc_dai *dai)
 {
@@ -290,9 +316,9 @@ static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
 	u32 iismod;
 	u32 dmarc;
 	unsigned long flags;
+	struct hdmi_audio hdmi_audio_cfg;
 
 	I2S_DBG("Enter %s, %d \n", __func__, __LINE__);
-
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		dai->playback_dma_data = &i2s->playback_dma_data;
 	else
@@ -315,14 +341,42 @@ static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
 		iismod |= I2S_DATA_WIDTH(19);
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
+	case SNDRV_PCM_FORMAT_S24_3LE:
 		iismod |= I2S_DATA_WIDTH(23);
 		break;
 	case SNDRV_PCM_FORMAT_S32_LE:
 		iismod |= I2S_DATA_WIDTH(31);
 		break;
 	}
+	iismod &= ~CHANNLE_4_EN;
+	switch (params_channels(params)) {
+	case 8:
+		iismod |= CHANNLE_4_EN;
+		break;
+	case 6:
+		iismod |= CHANNEL_3_EN;
+		break;
+	case 4:
+		iismod |= CHANNEL_2_EN;
+		break;
+	case 2:
+		iismod |= CHANNEL_1_EN;
+		break;
+	default:
+		I2S_DBG("%d channels not supported\n",
+			params_channels(params));
+		return -EINVAL;
+	}
+	/* set  hdmi codec params */
+	if (HW_PARAMS_FLAG_NLPCM == params->flags)
+		hdmi_audio_cfg.type = HDMI_AUDIO_NLPCM;
+	else
+		hdmi_audio_cfg.type = HDMI_AUDIO_LPCM;
+	hdmi_audio_cfg.channel = params_channels(params);
+	hdmi_audio_cfg.rate = SR2FS(params_rate(params));
+	hdmi_audio_cfg.word_length = HDMI_AUDIO_WORD_LENGTH_16bit;
+	hdmi_config_audio(&hdmi_audio_cfg);
 
-//	writel((16<<24) |(16<<18)|(16<<12)|(16<<6)|16, &(pheadi2s->I2S_FIFOLR));
 	dmarc = readl(&(pheadi2s->I2S_DMACR));
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
@@ -445,7 +499,7 @@ static struct snd_soc_dai_ops rockchip_i2s_dai_ops = {
 	.set_sysclk = rockchip_i2s_set_sysclk,
 };
 
-#define ROCKCHIP_I2S_STEREO_RATES SNDRV_PCM_RATE_8000_96000
+#define ROCKCHIP_I2S_STEREO_RATES SNDRV_PCM_RATE_8000_192000
 #define ROCKCHIP_I2S_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S8)
 

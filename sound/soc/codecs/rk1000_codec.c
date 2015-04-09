@@ -613,7 +613,7 @@ static struct snd_soc_dai_ops rk1000_codec_ops = {
 	.digital_mute = rk1000_codec_mute,
 };
 
-#define RK1000_CODEC_RATES SNDRV_PCM_RATE_8000_96000
+#define RK1000_CODEC_RATES SNDRV_PCM_RATE_8000_192000
 #define RK1000_CODEC_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | \
 				SNDRV_PCM_FMTBIT_S20_3LE |\
 				SNDRV_PCM_FMTBIT_S24_LE)
@@ -623,7 +623,7 @@ static struct snd_soc_dai_driver rk1000_codec_dai[] = {
 		.playback = {
 			.stream_name = "Playback",
 			.channels_min = 1,
-			.channels_max = 2,
+			.channels_max = 8,
 			.rates = RK1000_CODEC_RATES,
 			.formats = RK1000_CODEC_FORMATS,
 		},
