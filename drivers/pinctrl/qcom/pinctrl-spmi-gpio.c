@@ -417,7 +417,7 @@ static int pmic_gpio_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 		return ret;
 
 	val = pad->buffer_type << PMIC_GPIO_REG_OUT_TYPE_SHIFT;
-	val = pad->strength << PMIC_GPIO_REG_OUT_STRENGTH_SHIFT;
+	val |= pad->strength << PMIC_GPIO_REG_OUT_STRENGTH_SHIFT;
 
 	ret = pmic_gpio_write(state, pad, PMIC_GPIO_REG_DIG_OUT_CTL, val);
 	if (ret < 0)
