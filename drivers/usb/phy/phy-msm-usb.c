@@ -240,7 +240,13 @@ static void ulpi_init(struct msm_otg *motg)
 static int msm_phy_notify_disconnect(struct usb_phy *phy,
 				   enum usb_device_speed speed)
 {
+	struct msm_otg *motg = container_of(phy, struct msm_otg, phy);
 	int val;
+
+	if (motg->manual_pullup) {
+		val = ULPI_MISC_A_VBUSVLDEXT | ULPI_MISC_A_VBUSVLDEXTSEL;
+		usb_phy_io_write(phy, val, ULPI_CLR(ULPI_MISC_A));
+	}
 
 	/*
 	 * Put the transceiver in non-driving mode. Otherwise host
@@ -420,6 +426,24 @@ static int msm_phy_init(struct usb_phy *phy)
 		writel(val, USB_OTGSC);
 		ulpi_write(phy, ulpi_val, ULPI_USB_INT_EN_RISE);
 		ulpi_write(phy, ulpi_val, ULPI_USB_INT_EN_FALL);
+	}
+
+	if (motg->manual_pullup) {
+		val = ULPI_MISC_A_VBUSVLDEXTSEL | ULPI_MISC_A_VBUSVLDEXT;
+		ulpi_write(phy, val, ULPI_SET(ULPI_MISC_A));
+
+		val = readl(USB_GENCONFIG_2);
+		val |= GENCONFIG_2_SESS_VLD_CTRL_EN;
+		writel(val, USB_GENCONFIG_2);
+
+		val = readl(USB_USBCMD);
+		val |= USBCMD_SESS_VLD_CTRL;
+		writel(val, USB_USBCMD);
+
+		val = ulpi_read(phy, ULPI_FUNC_CTRL);
+		val &= ~ULPI_FUNC_CTRL_OPMODE_MASK;
+		val |= ULPI_FUNC_CTRL_OPMODE_NORMAL;
+		ulpi_write(phy, val, ULPI_FUNC_CTRL);
 	}
 
 	if (motg->phy_number)
@@ -1519,6 +1543,8 @@ static int msm_otg_read_dt(struct platform_device *pdev, struct msm_otg *motg)
 		motg->vdd_levels[VDD_LEVEL_MIN] = tmp[VDD_LEVEL_MIN];
 		motg->vdd_levels[VDD_LEVEL_MAX] = tmp[VDD_LEVEL_MAX];
 	}
+
+	motg->manual_pullup = of_property_read_bool(node, "qcom,manual-pullup");
 
 	ext_id = ERR_PTR(-ENODEV);
 	ext_vbus = ERR_PTR(-ENODEV);

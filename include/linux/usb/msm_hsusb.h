@@ -150,6 +150,9 @@ struct msm_usb_cable {
  * @chg_type: The type of charger attached.
  * @dcd_retires: The retry count used to track Data contact
  *               detection process.
+ * @manual_pullup: true if VBUS is not routed to USB controller/phy
+ *	and controller driver therefore enables pull-up explicitly before
+ *	starting controller using usbcmd run/stop bit.
  * @vbus: VBUS signal state trakining, using extcon framework
  * @id: ID signal state trakining, using extcon framework
  */
@@ -180,6 +183,8 @@ struct msm_otg {
 	struct reset_control *phy_rst;
 	struct reset_control *link_rst;
 	int vdd_levels[3];
+
+	bool manual_pullup;
 
 	struct msm_usb_cable vbus;
 	struct msm_usb_cable id;
