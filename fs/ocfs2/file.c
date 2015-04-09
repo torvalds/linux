@@ -2106,7 +2106,7 @@ out:
 }
 
 static int ocfs2_prepare_inode_for_write(struct file *file,
-					 loff_t *ppos,
+					 loff_t pos,
 					 size_t count,
 					 int appending,
 					 int *direct_io,
@@ -2115,7 +2115,7 @@ static int ocfs2_prepare_inode_for_write(struct file *file,
 	int ret = 0, meta_level = 0;
 	struct dentry *dentry = file->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
-	loff_t saved_pos = 0, end;
+	loff_t end;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	int full_coherency = !(osb->s_mount_opt &
 		OCFS2_MOUNT_COHERENCY_BUFFERED);
@@ -2155,23 +2155,16 @@ static int ocfs2_prepare_inode_for_write(struct file *file,
 			}
 		}
 
-		/* work on a copy of ppos until we're sure that we won't have
-		 * to recalculate it due to relocking. */
-		if (appending)
-			saved_pos = i_size_read(inode);
-		else
-			saved_pos = *ppos;
+		end = pos + count;
 
-		end = saved_pos + count;
-
-		ret = ocfs2_check_range_for_refcount(inode, saved_pos, count);
+		ret = ocfs2_check_range_for_refcount(inode, pos, count);
 		if (ret == 1) {
 			ocfs2_inode_unlock(inode, meta_level);
 			meta_level = -1;
 
 			ret = ocfs2_prepare_inode_for_refcount(inode,
 							       file,
-							       saved_pos,
+							       pos,
 							       count,
 							       &meta_level);
 			if (has_refcount)
@@ -2227,7 +2220,7 @@ static int ocfs2_prepare_inode_for_write(struct file *file,
 		 * caller will have to retake some cluster
 		 * locks and initiate the io as buffered.
 		 */
-		ret = ocfs2_check_range_for_holes(inode, saved_pos, count);
+		ret = ocfs2_check_range_for_holes(inode, pos, count);
 		if (ret == 1) {
 			/*
 			 * Fallback to old way if the feature bit is not set.
@@ -2242,12 +2235,9 @@ static int ocfs2_prepare_inode_for_write(struct file *file,
 		break;
 	}
 
-	if (appending)
-		*ppos = saved_pos;
-
 out_unlock:
 	trace_ocfs2_prepare_inode_for_write(OCFS2_I(inode)->ip_blkno,
-					    saved_pos, appending, count,
+					    pos, appending, count,
 					    direct_io, has_refcount);
 
 	if (meta_level >= 0)
@@ -2263,7 +2253,7 @@ static ssize_t ocfs2_file_write_iter(struct kiocb *iocb,
 	int ret, direct_io, appending, rw_level, have_alloc_sem  = 0;
 	int can_do_direct, has_refcount = 0;
 	ssize_t written = 0;
-	size_t count = iov_iter_count(from);
+	size_t count = iov_iter_count(from), orig_count;
 	loff_t old_size;
 	u32 old_clusters;
 	struct file *file = iocb->ki_filp;
@@ -2329,8 +2319,16 @@ relock:
 		ocfs2_inode_unlock(inode, 1);
 	}
 
+	orig_count = count;
+	ret = generic_write_checks(file, &iocb->ki_pos, &count);
+	if (ret < 0) {
+		mlog_errno(ret);
+		goto out;
+	}
+	iov_iter_truncate(from, count);
+
 	can_do_direct = direct_io;
-	ret = ocfs2_prepare_inode_for_write(file, &iocb->ki_pos, count, appending,
+	ret = ocfs2_prepare_inode_for_write(file, iocb->ki_pos, count, appending,
 					    &can_do_direct, &has_refcount);
 	if (ret < 0) {
 		mlog_errno(ret);
@@ -2351,6 +2349,7 @@ relock:
 		rw_level = -1;
 
 		direct_io = 0;
+		iov_iter_reexpand(from, count = orig_count);
 		goto relock;
 	}
 
@@ -2374,11 +2373,6 @@ relock:
 	/* communicate with ocfs2_dio_end_io */
 	ocfs2_iocb_set_rw_locked(iocb, rw_level);
 
-	ret = generic_write_checks(file, &iocb->ki_pos, &count);
-	if (ret)
-		goto out_dio;
-
-	iov_iter_truncate(from, count);
 	if (direct_io) {
 		loff_t endbyte;
 		ssize_t written_buffered;
