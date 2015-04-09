@@ -40,7 +40,7 @@ Configuration options: not applicable, uses PCI auto config
    for the card, and here are the findings so far.
 
    1. A good document that describes the PCI interface chip is 9080db-106.pdf
-      available from http://www.plxtech.com/products/io/pci9080 
+      available from http://www.plxtech.com/products/io/pci9080
 
    2. The initialization done so far is:
         a. program the FPGA (windows code sans a lot of error messages)
