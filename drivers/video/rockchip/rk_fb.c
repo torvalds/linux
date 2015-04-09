@@ -61,7 +61,7 @@
 #define H_USE_FENCE 1
 /* #define FB_ROATE_BY_KERNEL 1 */
 
-static int hdmi_switch_complete;
+static int hdmi_switch_state;
 static struct platform_device *fb_pdev;
 
 #if defined(CONFIG_FB_MIRRORING)
@@ -1592,7 +1592,7 @@ static void rk_fb_update_win(struct rk_lcdc_driver *dev_drv,
                                                 primary_screen.mode.yres;
 
 					/* recalc display size if set hdmi scaler when at ONE_DUAL mode */
-					if (inf->disp_mode == ONE_DUAL && hdmi_switch_complete) {
+					if (inf->disp_mode == ONE_DUAL && hdmi_switch_state) {
 						if (cur_screen->xsize > 0 &&
 						    cur_screen->xsize <= cur_screen->mode.xres) {
 							win->area[i].xpos =
@@ -1762,6 +1762,8 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 		}
 	}
 	dev_drv->ops->ovl_mgr(dev_drv, 0, 1);
+	if (dev_drv->ops->dsp_black)
+	        dev_drv->ops->dsp_black(dev_drv, 0);
 	dev_drv->ops->cfg_done(dev_drv);
 
 	do {
@@ -1958,7 +1960,7 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 
 	reg_win_data->mirror_en = win_par->mirror_en;
 	for (i = 0; i < reg_win_data->area_num; i++) {
-		rk_fb_check_config_var(&win_par->area_par[i], screen);
+		/*rk_fb_check_config_var(&win_par->area_par[i], screen);*/
 
 		fb_data_fmt = rk_fb_data_fmt(win_par->area_par[i].data_format, 0);
 		reg_win_data->reg_area_data[i].data_format = fb_data_fmt;
@@ -2166,10 +2168,27 @@ static int rk_fb_set_win_config(struct fb_info *info,
 #endif
 	int ret = 0, i, j = 0;
 	int list_is_empty = 0;
+        struct rk_screen *screen = dev_drv->cur_screen;
 
-	if (dev_drv->suspend_flag) {
+        for (i = 0; i < 4; i++) {
+                for (j = 0; j < 4; j++) {
+                        if (win_data->win_par[i].area_par[j].ion_fd > 0)
+                                ret += rk_fb_check_config_var(
+                                        &win_data->win_par[i].area_par[j],
+                                        screen);
+                }
+        }
+	if ((dev_drv->suspend_flag) || (dev_drv->hdmi_switch) || (ret < 0)) {
 		dev_drv->timeline_max++;
 		sw_sync_timeline_inc(dev_drv->timeline, 1);
+		if (dev_drv->suspend_flag)
+		        pr_err("suspend_flag=%d\n", dev_drv->suspend_flag);
+		else if (dev_drv->hdmi_switch)
+		        pr_err("hdmi switch = %d\n", dev_drv->hdmi_switch);
+		else
+		        pr_err("error config ,ignore\n");
+		for (j = 0; j < RK_MAX_BUF_NUM; j++)
+		        win_data->rel_fence_fd[j] = -1;
 		return 0;
 	}
 
@@ -2180,14 +2199,7 @@ static int rk_fb_set_win_config(struct fb_info *info,
 		return ret;
 	}
 
-/*
-	regs->post_cfg.xpos = win_data->post_cfg.xpos;
-	regs->post_cfg.ypos = win_data->post_cfg.ypos;
-	regs->post_cfg.xsize = win_data->post_cfg.xsize;
-	regs->post_cfg.ysize = win_data->post_cfg.xsize;
-*/
-
-	for (i = 0; i < dev_drv->lcdc_win_num; i++) {
+	for (i = 0,j = 0; i < dev_drv->lcdc_win_num; i++) {
 		if (win_data->win_par[i].win_id < dev_drv->lcdc_win_num) {
 			if (rk_fb_set_win_buffer(info, &win_data->win_par[i],
 							&regs->reg_win_data[j]))
@@ -3147,7 +3159,6 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 	if (unlikely(!rk_fb) || unlikely(!screen))
 		return -ENODEV;
 
-	hdmi_switch_complete = 0;
 	/* get lcdc driver */
 	sprintf(name, "lcdc%d", lcdc_id);
 	if (rk_fb->disp_mode != DUAL)
@@ -3168,7 +3179,8 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
                		dev_drv->id);
 	if (enable == 2 /*&& dev_drv->enable*/)
 		return 0;
-
+	hdmi_switch_state = 0;
+	dev_drv->hdmi_switch = 1;
 	if ((rk_fb->disp_mode == ONE_DUAL) ||
 	    (rk_fb->disp_mode == NO_DUAL)) {
 		if ((dev_drv->ops->backlight_close) &&
@@ -3185,8 +3197,10 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
                dev_drv->uboot_logo = 0;
 	if (!enable) {
 		/* if screen type is different, we do not disable lcdc. */
-		if (dev_drv->cur_screen->type != screen->type)
+		if (dev_drv->cur_screen->type != screen->type) {
+			dev_drv->hdmi_switch = 0;
 			return 0;
+		}
 
 		/* if used one lcdc to dual disp, no need to close win */
 		if ((rk_fb->disp_mode == ONE_DUAL) ||
@@ -3202,12 +3216,12 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 				(dev_drv->cur_screen->mode.xres << 8) +
 				(dev_drv->cur_screen->mode.yres << 20);
 			mutex_lock(&dev_drv->win_config);
-			info->fbops->fb_set_par(info);
-			info->fbops->fb_pan_display(&info->var, info);
+			/*info->fbops->fb_set_par(info);
+			info->fbops->fb_pan_display(&info->var, info);*/
 			mutex_unlock(&dev_drv->win_config);
 
-			if (dev_drv->ops->dsp_black)
-				dev_drv->ops->dsp_black(dev_drv, 0);
+			/*if (dev_drv->ops->dsp_black)
+				dev_drv->ops->dsp_black(dev_drv, 0);*/
 			if ((dev_drv->ops->backlight_close) &&
 			    (rk_fb->disp_policy != DISPLAY_POLICY_BOX))
 				dev_drv->ops->backlight_close(dev_drv, 0);
@@ -3222,7 +3236,8 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 			}
 		}
 
-		hdmi_switch_complete = 0;
+		hdmi_switch_state = 0;
+		dev_drv->hdmi_switch = 0;
 		return 0;
 	} else {
 		if (dev_drv->screen1)
@@ -3259,6 +3274,7 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 					}
 
 					mutex_lock(&dev_drv->win_config);
+					info->var.yoffset = 0;
 					info->fbops->fb_set_par(info);
 					info->fbops->fb_pan_display(&info->var, info);
 					mutex_unlock(&dev_drv->win_config);
@@ -3268,13 +3284,14 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 	}else {
 		dev_drv->uboot_logo = 0;
 	}
-	hdmi_switch_complete = 1;
+	hdmi_switch_state = 1;
+	dev_drv->hdmi_switch = 0;
 	if ((rk_fb->disp_mode == ONE_DUAL) || (rk_fb->disp_mode == NO_DUAL)) {
 		if ((dev_drv->ops->set_screen_scaler) &&
 		    (rk_fb->disp_mode == ONE_DUAL))
 			dev_drv->ops->set_screen_scaler(dev_drv, dev_drv->screen0, 1);
-		if (dev_drv->ops->dsp_black)
-			dev_drv->ops->dsp_black(dev_drv, 0);
+		/*if (dev_drv->ops->dsp_black)
+			dev_drv->ops->dsp_black(dev_drv, 0);*/
 		if ((dev_drv->ops->backlight_close) &&
 		    (rk_fb->disp_policy != DISPLAY_POLICY_BOX) &&
 		    (rk_fb->disp_mode == ONE_DUAL))
@@ -3305,7 +3322,9 @@ int rk_fb_disp_scale(u8 scale_x, u8 scale_y, u8 lcdc_id)
 	if (primary_screen.type == SCREEN_HDMI) {
 		return 0;
 	}
+	pr_err("fuck not be hear--%s\n",__func__);
 
+	return 0;
 	sprintf(name, "lcdc%d", lcdc_id);
 
 	if (inf->disp_mode == DUAL) {
