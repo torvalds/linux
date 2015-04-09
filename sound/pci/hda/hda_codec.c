@@ -137,7 +137,7 @@ static int codec_exec_verb(struct hdac_device *dev, unsigned int cmd,
 		return -1;
 
  again:
-	snd_hda_power_up(codec);
+	snd_hda_power_up_pm(codec);
 	mutex_lock(&bus->core.cmd_mutex);
 	if (flags & HDA_RW_NO_RESPONSE_FALLBACK)
 		bus->no_response_fallback = 1;
@@ -145,7 +145,7 @@ static int codec_exec_verb(struct hdac_device *dev, unsigned int cmd,
 					      cmd, res);
 	bus->no_response_fallback = 0;
 	mutex_unlock(&bus->core.cmd_mutex);
-	snd_hda_power_down(codec);
+	snd_hda_power_down_pm(codec);
 	if (!codec_in_pm(codec) && res && err < 0 && bus->rirb_error) {
 		if (bus->response_reset) {
 			codec_dbg(codec,
@@ -3951,7 +3951,7 @@ int snd_hda_check_amp_list_power(struct hda_codec *codec,
 			if (!(v & HDA_AMP_MUTE) && v > 0) {
 				if (!check->power_on) {
 					check->power_on = 1;
-					snd_hda_power_up(codec);
+					snd_hda_power_up_pm(codec);
 				}
 				return 1;
 			}
@@ -3959,7 +3959,7 @@ int snd_hda_check_amp_list_power(struct hda_codec *codec,
 	}
 	if (check->power_on) {
 		check->power_on = 0;
-		snd_hda_power_down(codec);
+		snd_hda_power_down_pm(codec);
 	}
 	return 0;
 }

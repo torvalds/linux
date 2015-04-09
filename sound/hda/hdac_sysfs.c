@@ -313,12 +313,12 @@ static void widget_tree_free(struct hdac_device *codec)
 
 	if (!tree)
 		return;
+	free_widget_node(tree->afg, &widget_afg_group);
 	if (tree->nodes) {
 		for (p = tree->nodes; *p; p++)
 			free_widget_node(*p, &widget_node_group);
 		kfree(tree->nodes);
 	}
-	free_widget_node(tree->afg, &widget_afg_group);
 	if (tree->root)
 		kobject_put(tree->root);
 	kfree(tree);
@@ -362,13 +362,6 @@ static int widget_tree_create(struct hdac_device *codec)
 	if (!tree->root)
 		return -ENOMEM;
 
-	if (codec->afg) {
-		err = add_widget_node(tree->root, codec->afg,
-				      &widget_afg_group, &tree->afg);
-		if (err < 0)
-			return err;
-	}
-
 	tree->nodes = kcalloc(codec->num_nodes + 1, sizeof(*tree->nodes),
 			      GFP_KERNEL);
 	if (!tree->nodes)
@@ -377,6 +370,13 @@ static int widget_tree_create(struct hdac_device *codec)
 	for (i = 0, nid = codec->start_nid; i < codec->num_nodes; i++, nid++) {
 		err = add_widget_node(tree->root, nid, &widget_node_group,
 				      &tree->nodes[i]);
+		if (err < 0)
+			return err;
+	}
+
+	if (codec->afg) {
+		err = add_widget_node(tree->root, codec->afg,
+				      &widget_afg_group, &tree->afg);
 		if (err < 0)
 			return err;
 	}

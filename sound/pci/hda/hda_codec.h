@@ -508,7 +508,9 @@ const char *snd_hda_get_jack_location(u32 cfg);
  * power saving
  */
 #define snd_hda_power_up(codec)		snd_hdac_power_up(&(codec)->core)
+#define snd_hda_power_up_pm(codec)	snd_hdac_power_up_pm(&(codec)->core)
 #define snd_hda_power_down(codec)	snd_hdac_power_down(&(codec)->core)
+#define snd_hda_power_down_pm(codec)	snd_hdac_power_down_pm(&(codec)->core)
 #ifdef CONFIG_PM
 void snd_hda_set_power_save(struct hda_bus *bus, int delay);
 void snd_hda_update_power_acct(struct hda_codec *codec);

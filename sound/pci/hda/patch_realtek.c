@@ -3223,7 +3223,7 @@ static unsigned int led_power_filter(struct hda_codec *codec,
 	snd_hda_set_pin_ctl(codec, nid,
 			    snd_hda_codec_get_pin_target(codec, nid));
 
-	return AC_PWRST_D0;
+	return snd_hda_gen_path_power_filter(codec, nid, power_state);
 }
 
 static void alc269_fixup_hp_mute_led(struct hda_codec *codec,
@@ -4186,7 +4186,7 @@ static unsigned int alc_power_filter_xps13(struct hda_codec *codec,
 	if (spec->gen.hp_jack_present)
 		if (nid == codec->core.afg || nid == 0x02 || nid == 0x15)
 			return AC_PWRST_D0;
-	return power_state;
+	return snd_hda_gen_path_power_filter(codec, nid, power_state);
 }
 
 static void alc_fixup_dell_xps13(struct hda_codec *codec,
@@ -5682,6 +5682,7 @@ static int patch_alc269(struct hda_codec *codec)
 		set_beep_amp(spec, 0x0b, 0x04, HDA_INPUT);
 
 	codec->patch_ops = alc_patch_ops;
+	codec->patch_ops.stream_pm = snd_hda_gen_stream_pm,
 #ifdef CONFIG_PM
 	codec->patch_ops.suspend = alc269_suspend;
 	codec->patch_ops.resume = alc269_resume;

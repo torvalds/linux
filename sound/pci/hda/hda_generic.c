@@ -832,6 +832,8 @@ static hda_nid_t path_power_update(struct hda_codec *codec,
 
 	for (i = 0; i < path->depth; i++) {
 		nid = path->path[i];
+		if (!(get_wcaps(codec, nid) & AC_WCAP_POWER))
+			continue;
 		if (nid == codec->core.afg)
 			continue;
 		if (!allow_powerdown || is_active_nid_for_any(codec, nid))
@@ -3957,6 +3959,14 @@ static hda_nid_t set_path_power(struct hda_codec *codec, hda_nid_t nid,
 	return changed;
 }
 
+/* check the jack status for power control */
+static bool detect_pin_state(struct hda_codec *codec, hda_nid_t pin)
+{
+	if (!is_jack_detectable(codec, pin))
+		return true;
+	return snd_hda_jack_detect_state(codec, pin) != HDA_JACK_NOT_PRESENT;
+}
+
 /* power up/down the paths of the given pin according to the jack state;
  * power = 0/1 : only power up/down if it matches with the jack state,
  *       < 0   : force power up/down to follow the jack sate
@@ -3971,7 +3981,8 @@ static hda_nid_t set_pin_power_jack(struct hda_codec *codec, hda_nid_t pin,
 	if (!codec->power_save_node)
 		return 0;
 
-	on = snd_hda_jack_detect_state(codec, pin) != HDA_JACK_NOT_PRESENT;
+	on = detect_pin_state(codec, pin);
+
 	if (power >= 0 && on != power)
 		return 0;
 	return set_path_power(codec, pin, on, -1);
@@ -4223,8 +4234,7 @@ static void do_automute(struct hda_codec *codec, int num_pins, hda_nid_t *pins,
 		if (codec->power_save_node) {
 			bool on = !mute;
 			if (on)
-				on = snd_hda_jack_detect_state(codec, nid)
-					!= HDA_JACK_NOT_PRESENT;
+				on = detect_pin_state(codec, nid);
 			set_path_power(codec, nid, on, -1);
 		}
 	}
@@ -4693,6 +4703,10 @@ unsigned int snd_hda_gen_path_power_filter(struct hda_codec *codec,
 						  hda_nid_t nid,
 						  unsigned int power_state)
 {
+	struct hda_gen_spec *spec = codec->spec;
+
+	if (!spec->power_down_unused && !codec->power_save_node)
+		return power_state;
 	if (power_state != AC_PWRST_D0 || nid == codec->core.afg)
 		return power_state;
 	if (get_wcaps_type(get_wcaps(codec, nid)) >= AC_WID_POWER)
@@ -4904,7 +4918,8 @@ int snd_hda_gen_parse_auto_config(struct hda_codec *codec,
 	parse_digital(codec);
 
 	if (spec->power_down_unused || codec->power_save_node)
-		codec->power_filter = snd_hda_gen_path_power_filter;
+		if (!codec->power_filter)
+			codec->power_filter = snd_hda_gen_path_power_filter;
 
 	if (!spec->no_analog && spec->beep_nid) {
 		err = snd_hda_attach_beep_device(codec, spec->beep_nid);

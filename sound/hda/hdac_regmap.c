@@ -239,7 +239,7 @@ static int hda_reg_read(void *context, unsigned int reg, unsigned int *val)
 	int verb = get_verb(reg);
 	int err;
 
-	if (!codec_is_running(codec))
+	if (!codec_is_running(codec) && verb != AC_VERB_GET_POWER_STATE)
 		return -EAGAIN;
 	reg |= (codec->addr << 28);
 	if (is_stereo_amp_verb(reg))
@@ -265,16 +265,16 @@ static int hda_reg_write(void *context, unsigned int reg, unsigned int val)
 	unsigned int verb;
 	int i, bytes, err;
 
-	if (!codec_is_running(codec))
-		return codec->lazy_cache ? 0 : -EAGAIN;
-
 	reg &= ~0x00080000U; /* drop GET bit */
 	reg |= (codec->addr << 28);
+	verb = get_verb(reg);
+
+	if (!codec_is_running(codec) && verb != AC_VERB_SET_POWER_STATE)
+		return codec->lazy_cache ? 0 : -EAGAIN;
 
 	if (is_stereo_amp_verb(reg))
 		return hda_reg_write_stereo_amp(codec, reg, val);
 
-	verb = get_verb(reg);
 	if (verb == AC_VERB_SET_PROC_COEF)
 		return hda_reg_write_coef(codec, reg, val);
 
@@ -402,9 +402,9 @@ int snd_hdac_regmap_write_raw(struct hdac_device *codec, unsigned int reg,
 
 	err = reg_raw_write(codec, reg, val);
 	if (err == -EAGAIN) {
-		snd_hdac_power_up(codec);
+		snd_hdac_power_up_pm(codec);
 		err = reg_raw_write(codec, reg, val);
-		snd_hdac_power_down(codec);
+		snd_hdac_power_down_pm(codec);
 	}
 	return err;
 }
@@ -434,9 +434,9 @@ int snd_hdac_regmap_read_raw(struct hdac_device *codec, unsigned int reg,
 
 	err = reg_raw_read(codec, reg, val);
 	if (err == -EAGAIN) {
-		snd_hdac_power_up(codec);
+		snd_hdac_power_up_pm(codec);
 		err = reg_raw_read(codec, reg, val);
-		snd_hdac_power_down(codec);
+		snd_hdac_power_down_pm(codec);
 	}
 	return err;
 }
