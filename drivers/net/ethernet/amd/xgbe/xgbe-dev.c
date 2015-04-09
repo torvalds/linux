@@ -853,6 +853,22 @@ static int xgbe_set_mac_address(struct xgbe_prv_data *pdata, u8 *addr)
 	return 0;
 }
 
+static int xgbe_config_rx_mode(struct xgbe_prv_data *pdata)
+{
+	struct net_device *netdev = pdata->netdev;
+	unsigned int pr_mode, am_mode;
+
+	pr_mode = ((netdev->flags & IFF_PROMISC) != 0);
+	am_mode = ((netdev->flags & IFF_ALLMULTI) != 0);
+
+	xgbe_set_promiscuous_mode(pdata, pr_mode);
+	xgbe_set_all_multicast_mode(pdata, am_mode);
+
+	xgbe_add_mac_addresses(pdata);
+
+	return 0;
+}
+
 static int xgbe_read_mmd_regs(struct xgbe_prv_data *pdata, int prtad,
 			      int mmd_reg)
 {
@@ -2808,6 +2824,7 @@ static int xgbe_init(struct xgbe_prv_data *pdata)
 	 * Initialize MAC related features
 	 */
 	xgbe_config_mac_address(pdata);
+	xgbe_config_rx_mode(pdata);
 	xgbe_config_jumbo_enable(pdata);
 	xgbe_config_flow_control(pdata);
 	xgbe_config_mac_speed(pdata);
@@ -2827,10 +2844,8 @@ void xgbe_init_function_ptrs_dev(struct xgbe_hw_if *hw_if)
 
 	hw_if->tx_complete = xgbe_tx_complete;
 
-	hw_if->set_promiscuous_mode = xgbe_set_promiscuous_mode;
-	hw_if->set_all_multicast_mode = xgbe_set_all_multicast_mode;
-	hw_if->add_mac_addresses = xgbe_add_mac_addresses;
 	hw_if->set_mac_address = xgbe_set_mac_address;
+	hw_if->config_rx_mode = xgbe_config_rx_mode;
 
 	hw_if->enable_rx_csum = xgbe_enable_rx_csum;
 	hw_if->disable_rx_csum = xgbe_disable_rx_csum;
