@@ -1173,7 +1173,7 @@ at86rf230_set_hw_addr_filt(struct ieee802154_hw *hw,
 }
 
 static int
-at86rf230_set_txpower(struct ieee802154_hw *hw, int db)
+at86rf230_set_txpower(struct ieee802154_hw *hw, s8 db)
 {
 	struct at86rf230_local *lp = hw->priv;
 
