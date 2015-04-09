@@ -77,8 +77,8 @@ struct sha256_state {
 };
 
 struct sha512_state {
-	u64 count[2];
 	u64 state[SHA512_DIGEST_SIZE / 8];
+	u64 count[2];
 	u8 buf[SHA512_BLOCK_SIZE];
 };
 
