@@ -2259,11 +2259,11 @@ static ssize_t ocfs2_file_write_iter(struct kiocb *iocb,
 	u32 old_clusters;
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
-	struct address_space *mapping = file->f_mapping;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	int full_coherency = !(osb->s_mount_opt &
 			       OCFS2_MOUNT_COHERENCY_BUFFERED);
 	int unaligned_dio = 0;
+	int dropped_dio = 0;
 
 	trace_ocfs2_file_aio_write(inode, file, file->f_path.dentry,
 		(unsigned long long)OCFS2_I(inode)->ip_blkno,
@@ -2351,7 +2351,9 @@ relock:
 		rw_level = -1;
 
 		direct_io = 0;
+		iocb->ki_flags &= ~IOCB_DIRECT;
 		iov_iter_reexpand(from, orig_count);
+		dropped_dio = 1;
 		goto relock;
 	}
 
@@ -2375,67 +2377,15 @@ relock:
 	/* communicate with ocfs2_dio_end_io */
 	ocfs2_iocb_set_rw_locked(iocb, rw_level);
 
-	if (direct_io) {
-		loff_t endbyte;
-		ssize_t written_buffered;
-		written = generic_file_direct_write(iocb, from, iocb->ki_pos);
-		if (written < 0 || !iov_iter_count(from)) {
-			ret = written;
-			goto out_dio;
-		}
-
-		/*
-		 * for completing the rest of the request.
-		 */
-		written_buffered = generic_perform_write(file, from, iocb->ki_pos);
-		/*
-		 * If generic_file_buffered_write() returned a synchronous error
-		 * then we want to return the number of bytes which were
-		 * direct-written, or the error code if that was zero. Note
-		 * that this differs from normal direct-io semantics, which
-		 * will return -EFOO even if some bytes were written.
-		 */
-		if (written_buffered < 0) {
-			ret = written_buffered;
-			goto out_dio;
-		}
-
-		/* We need to ensure that the page cache pages are written to
-		 * disk and invalidated to preserve the expected O_DIRECT
-		 * semantics.
-		 */
-		endbyte = iocb->ki_pos + written_buffered - 1;
-		ret = filemap_write_and_wait_range(file->f_mapping, iocb->ki_pos,
-				endbyte);
-		if (ret == 0) {
-			iocb->ki_pos += written_buffered;
-			written += written_buffered;
-			invalidate_mapping_pages(mapping,
-					iocb->ki_pos >> PAGE_CACHE_SHIFT,
-					endbyte >> PAGE_CACHE_SHIFT);
-		} else {
-			/*
-			 * We don't know how much we wrote, so just return
-			 * the number of bytes which were direct-written
-			 */
-		}
-	} else {
-		current->backing_dev_info = inode_to_bdi(inode);
-		written = generic_perform_write(file, from, iocb->ki_pos);
-		if (likely(written >= 0))
-			iocb->ki_pos = iocb->ki_pos + written;
-		current->backing_dev_info = NULL;
-	}
-
-out_dio:
+	written = __generic_file_write_iter(iocb, from);
 	/* buffered aio wouldn't have proper lock coverage today */
-	BUG_ON(ret == -EIOCBQUEUED && !(iocb->ki_flags & IOCB_DIRECT));
+	BUG_ON(written == -EIOCBQUEUED && !(iocb->ki_flags & IOCB_DIRECT));
 
 	if (unlikely(written <= 0))
 		goto no_sync;
 
-	if (((file->f_flags & O_DSYNC) && !direct_io) || IS_SYNC(inode) ||
-	    ((file->f_flags & O_DIRECT) && !direct_io)) {
+	if (((file->f_flags & O_DSYNC) && !direct_io) ||
+	    IS_SYNC(inode) || dropped_dio) {
 		ret = filemap_fdatawrite_range(file->f_mapping,
 					       iocb->ki_pos - written,
 					       iocb->ki_pos - 1);
