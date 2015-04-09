@@ -45,7 +45,7 @@ size_t get_fb_size(u8 reserved_fb)
 	/* align as 64 bytes(16*4) in an odd number of times */
 	xres = ALIGN_64BYTE_ODD_TIMES(xres, ALIGN_PIXEL_64BYTE_RGB8888);
         if (reserved_fb == 1) {
-                size = (xres * yres << 2);/*one buffer*/
+                size = (xres * yres << 2) << 1;/*two buffer*/
         } else {
 #if defined(CONFIG_THREE_FB_BUFFER)
 		size = (xres * yres << 2) * 3;	/* three buffer */
