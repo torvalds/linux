@@ -912,7 +912,11 @@ static int vnt_int_report_rate(struct vnt_private *priv,
 
 	if (!(tsr1 & TSR1_TERR)) {
 		info->status.rates[0].idx = idx;
-		info->flags |= IEEE80211_TX_STAT_ACK;
+
+		if (info->flags & IEEE80211_TX_CTL_NO_ACK)
+			info->flags |= IEEE80211_TX_STAT_NOACK_TRANSMITTED;
+		else
+			info->flags |= IEEE80211_TX_STAT_ACK;
 	}
 
 	return 0;
