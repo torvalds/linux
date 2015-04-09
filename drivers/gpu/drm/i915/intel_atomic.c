@@ -76,6 +76,8 @@ int intel_atomic_check(struct drm_device *dev,
 	state->allow_modeset = false;
 	for (i = 0; i < ncrtcs; i++) {
 		struct intel_crtc *crtc = to_intel_crtc(state->crtcs[i]);
+		if (crtc)
+			memset(&crtc->atomic, 0, sizeof(crtc->atomic));
 		if (crtc && crtc->pipe != nuclear_pipe)
 			not_nuclear = true;
 	}
