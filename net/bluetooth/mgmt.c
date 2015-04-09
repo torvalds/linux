@@ -6466,6 +6466,145 @@ static inline u16 eir_append_data(u8 *eir, u16 eir_len, u8 type, u8 *data,
 	return eir_len;
 }
 
+static void read_local_oob_ext_data_complete(struct hci_dev *hdev, u8 status,
+					     u16 opcode, struct sk_buff *skb)
+{
+	const struct mgmt_cp_read_local_oob_ext_data *mgmt_cp;
+	struct mgmt_rp_read_local_oob_ext_data *mgmt_rp;
+	u8 *h192, *r192, *h256, *r256;
+	struct mgmt_pending_cmd *cmd;
+	u16 eir_len;
+	int err;
+
+	BT_DBG("%s status %u", hdev->name, status);
+
+	cmd = pending_find(MGMT_OP_READ_LOCAL_OOB_EXT_DATA, hdev);
+	if (!cmd)
+		return;
+
+	mgmt_cp = cmd->param;
+
+	if (status) {
+		status = mgmt_status(status);
+		eir_len = 0;
+
+		h192 = NULL;
+		r192 = NULL;
+		h256 = NULL;
+		r256 = NULL;
+	} else if (opcode == HCI_OP_READ_LOCAL_OOB_DATA) {
+		struct hci_rp_read_local_oob_data *rp;
+
+		if (skb->len != sizeof(*rp)) {
+			status = MGMT_STATUS_FAILED;
+			eir_len = 0;
+		} else {
+			status = MGMT_STATUS_SUCCESS;
+			rp = (void *)skb->data;
+
+			eir_len = 5 + 18 + 18;
+			h192 = rp->hash;
+			r192 = rp->rand;
+			h256 = NULL;
+			r256 = NULL;
+		}
+	} else {
+		struct hci_rp_read_local_oob_ext_data *rp;
+
+		if (skb->len != sizeof(*rp)) {
+			status = MGMT_STATUS_FAILED;
+			eir_len = 0;
+		} else {
+			status = MGMT_STATUS_SUCCESS;
+			rp = (void *)skb->data;
+
+			if (hci_dev_test_flag(hdev, HCI_SC_ONLY)) {
+				eir_len = 5 + 18 + 18;
+				h192 = NULL;
+				r192 = NULL;
+			} else {
+				eir_len = 5 + 18 + 18 + 18 + 18;
+				h192 = rp->hash192;
+				r192 = rp->rand192;
+			}
+
+			h256 = rp->hash256;
+			r256 = rp->rand256;
+		}
+	}
+
+	mgmt_rp = kmalloc(sizeof(*mgmt_rp) + eir_len, GFP_KERNEL);
+	if (!mgmt_rp)
+		goto done;
+
+	if (status)
+		goto send_rsp;
+
+	eir_len = eir_append_data(mgmt_rp->eir, 0, EIR_CLASS_OF_DEV,
+				  hdev->dev_class, 3);
+
+	if (h192 && r192) {
+		eir_len = eir_append_data(mgmt_rp->eir, eir_len,
+					  EIR_SSP_HASH_C192, h192, 16);
+		eir_len = eir_append_data(mgmt_rp->eir, eir_len,
+					  EIR_SSP_RAND_R192, r192, 16);
+	}
+
+	if (h256 && r256) {
+		eir_len = eir_append_data(mgmt_rp->eir, eir_len,
+					  EIR_SSP_HASH_C256, h256, 16);
+		eir_len = eir_append_data(mgmt_rp->eir, eir_len,
+					  EIR_SSP_RAND_R256, r256, 16);
+	}
+
+send_rsp:
+	mgmt_rp->type = mgmt_cp->type;
+	mgmt_rp->eir_len = cpu_to_le16(eir_len);
+
+	err = mgmt_cmd_complete(cmd->sk, hdev->id,
+				MGMT_OP_READ_LOCAL_OOB_EXT_DATA, status,
+				mgmt_rp, sizeof(*mgmt_rp) + eir_len);
+	if (err < 0 || status)
+		goto done;
+
+	hci_sock_set_flag(cmd->sk, HCI_MGMT_OOB_DATA_EVENTS);
+
+	err = mgmt_limited_event(MGMT_EV_LOCAL_OOB_DATA_UPDATED, hdev,
+				 mgmt_rp, sizeof(*mgmt_rp) + eir_len,
+				 HCI_MGMT_OOB_DATA_EVENTS, cmd->sk);
+done:
+	kfree(mgmt_rp);
+	mgmt_pending_remove(cmd);
+}
+
+static int read_local_ssp_oob_req(struct hci_dev *hdev, struct sock *sk,
+				  struct mgmt_cp_read_local_oob_ext_data *cp)
+{
+	struct mgmt_pending_cmd *cmd;
+	struct hci_request req;
+	int err;
+
+	cmd = mgmt_pending_add(sk, MGMT_OP_READ_LOCAL_OOB_EXT_DATA, hdev,
+			       cp, sizeof(*cp));
+	if (!cmd)
+		return -ENOMEM;
+
+	hci_req_init(&req, hdev);
+
+	if (bredr_sc_enabled(hdev))
+		hci_req_add(&req, HCI_OP_READ_LOCAL_OOB_EXT_DATA, 0, NULL);
+	else
+		hci_req_add(&req, HCI_OP_READ_LOCAL_OOB_DATA, 0, NULL);
+
+	err = hci_req_run_skb(&req, read_local_oob_ext_data_complete);
+	if (err < 0) {
+		mgmt_pending_remove(cmd);
+		return err;
+	}
+
+	return 0;
+}
+
 static int read_local_oob_ext_data(struct sock *sk, struct hci_dev *hdev,
 				   void *data, u16 data_len)
 {
@@ -6517,8 +6656,19 @@ static int read_local_oob_ext_data(struct sock *sk, struct hci_dev *hdev,
 	eir_len = 0;
 	switch (cp->type) {
 	case BIT(BDADDR_BREDR):
-		eir_len = eir_append_data(rp->eir, eir_len, EIR_CLASS_OF_DEV,
-					  hdev->dev_class, 3);
+		if (hci_dev_test_flag(hdev, HCI_SSP_ENABLED)) {
+			err = read_local_ssp_oob_req(hdev, sk, cp);
+			hci_dev_unlock(hdev);
+			if (!err)
+				goto done;
+
+			status = MGMT_STATUS_FAILED;
+			goto complete;
+		} else {
+			eir_len = eir_append_data(rp->eir, eir_len,
+						  EIR_CLASS_OF_DEV,
+						  hdev->dev_class, 3);
+		}
 		break;
 	case (BIT(BDADDR_LE_PUBLIC) | BIT(BDADDR_LE_RANDOM)):
 		if (hci_dev_test_flag(hdev, HCI_SC_ENABLED) &&

@@ -213,7 +213,7 @@ struct ieee802154_ops {
 	int		(*set_hw_addr_filt)(struct ieee802154_hw *hw,
 					    struct ieee802154_hw_addr_filt *filt,
 					    unsigned long changed);
-	int		(*set_txpower)(struct ieee802154_hw *hw, int db);
+	int		(*set_txpower)(struct ieee802154_hw *hw, s8 dbm);
 	int		(*set_lbt)(struct ieee802154_hw *hw, bool on);
 	int		(*set_cca_mode)(struct ieee802154_hw *hw,
 					const struct wpan_phy_cca *cca);
@@ -247,7 +247,7 @@ static inline void ieee802154_le64_to_be64(void *be64_dst, const void *le64_src)
 	__put_unaligned_memmove64(swab64p(le64_src), be64_dst);
 }
 
-/* Basic interface to register ieee802154 hwice */
+/* Basic interface to register ieee802154 device */
 struct ieee802154_hw *
 ieee802154_alloc_hw(size_t priv_data_len, const struct ieee802154_ops *ops);
 void ieee802154_free_hw(struct ieee802154_hw *hw);

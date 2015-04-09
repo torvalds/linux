@@ -47,8 +47,6 @@
 
 #include "hci_uart.h"
 
-#define VERSION "0.3"
-
 static bool txcrc = 1;
 static bool hciextn = 1;
 
@@ -554,10 +552,10 @@ static u16 bscp_get_crc(struct bcsp_struct *bcsp)
 }
 
 /* Recv data */
-static int bcsp_recv(struct hci_uart *hu, void *data, int count)
+static int bcsp_recv(struct hci_uart *hu, const void *data, int count)
 {
 	struct bcsp_struct *bcsp = hu->priv;
-	unsigned char *ptr;
+	const unsigned char *ptr;
 
 	BT_DBG("hu %p count %d rx_state %d rx_count %ld", 
 		hu, count, bcsp->rx_state, bcsp->rx_count);
@@ -735,8 +733,9 @@ static int bcsp_close(struct hci_uart *hu)
 	return 0;
 }
 
-static struct hci_uart_proto bcsp = {
+static const struct hci_uart_proto bcsp = {
 	.id		= HCI_UART_BCSP,
+	.name		= "BCSP",
 	.open		= bcsp_open,
 	.close		= bcsp_close,
 	.enqueue	= bcsp_enqueue,
@@ -747,14 +746,7 @@ static struct hci_uart_proto bcsp = {
 
 int __init bcsp_init(void)
 {
-	int err = hci_uart_register_proto(&bcsp);
-
-	if (!err)
-		BT_INFO("HCI BCSP protocol initialized");
-	else
-		BT_ERR("HCI BCSP protocol registration failed");
-
-	return err;
+	return hci_uart_register_proto(&bcsp);
 }
 
 int __exit bcsp_deinit(void)
