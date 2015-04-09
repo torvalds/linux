@@ -243,6 +243,7 @@ struct waiting_dir_move {
 	 * after this directory is moved, we can try to rmdir the ino rmdir_ino.
 	 */
 	u64 rmdir_ino;
+	bool orphanized;
 };
 
 struct orphan_dir_info {
@@ -1900,8 +1901,13 @@ static int did_overwrite_ref(struct send_ctx *sctx,
 		goto out;
 	}
 
-	/* we know that it is or will be overwritten. check this now */
-	if (ow_inode < sctx->send_progress)
+	/*
+	 * We know that it is or will be overwritten. Check this now.
+	 * The current inode being processed might have been the one that caused
+	 * inode 'ino' to be orphanized, therefore ow_inode can actually be the
+	 * same as sctx->send_progress.
+	 */
+	if (ow_inode <= sctx->send_progress)
 		ret = 1;
 	else
 		ret = 0;
@@ -2223,6 +2229,8 @@ static int get_cur_path(struct send_ctx *sctx, u64 ino, u64 gen,
 	fs_path_reset(dest);
 
 	while (!stop && ino != BTRFS_FIRST_FREE_OBJECTID) {
+		struct waiting_dir_move *wdm;
+
 		fs_path_reset(name);
 
 		if (is_waiting_for_rm(sctx, ino)) {
@@ -2233,7 +2241,11 @@ static int get_cur_path(struct send_ctx *sctx, u64 ino, u64 gen,
 			break;
 		}
 
-		if (is_waiting_for_move(sctx, ino)) {
+		wdm = get_waiting_dir_move(sctx, ino);
+		if (wdm && wdm->orphanized) {
+			ret = gen_unique_name(sctx, ino, gen, name);
+			stop = 1;
+		} else if (wdm) {
 			ret = get_first_ref(sctx->parent_root, ino,
 					    &parent_inode, &parent_gen, name);
 		} else {
@@ -2923,7 +2935,7 @@ static int is_waiting_for_move(struct send_ctx *sctx, u64 ino)
 	return entry != NULL;
 }
 
-static int add_waiting_dir_move(struct send_ctx *sctx, u64 ino)
+static int add_waiting_dir_move(struct send_ctx *sctx, u64 ino, bool orphanized)
 {
 	struct rb_node **p = &sctx->waiting_dir_moves.rb_node;
 	struct rb_node *parent = NULL;
@@ -2934,6 +2946,7 @@ static int add_waiting_dir_move(struct send_ctx *sctx, u64 ino)
 		return -ENOMEM;
 	dm->ino = ino;
 	dm->rmdir_ino = 0;
+	dm->orphanized = orphanized;
 
 	while (*p) {
 		parent = *p;
@@ -3030,7 +3043,7 @@ static int add_pending_dir_move(struct send_ctx *sctx,
 			goto out;
 	}
 
-	ret = add_waiting_dir_move(sctx, pm->ino);
+	ret = add_waiting_dir_move(sctx, pm->ino, is_orphan);
 	if (ret)
 		goto out;
 
@@ -3385,7 +3398,8 @@ static int is_ancestor(struct btrfs_root *root,
 }
 
 static int wait_for_parent_move(struct send_ctx *sctx,
-				struct recorded_ref *parent_ref)
+				struct recorded_ref *parent_ref,
+				const bool is_orphan)
 {
 	int ret = 0;
 	u64 ino = parent_ref->dir;
@@ -3464,7 +3478,7 @@ out:
 					   ino,
 					   &sctx->new_refs,
 					   &sctx->deleted_refs,
-					   false);
+					   is_orphan);
 		if (!ret)
 			ret = 1;
 	}
@@ -3633,6 +3647,17 @@ verbose_printk("btrfs: process_recorded_refs %llu\n", sctx->cur_ino);
 			}
 		}
 
+		if (S_ISDIR(sctx->cur_inode_mode) && sctx->parent_root &&
+		    can_rename) {
+			ret = wait_for_parent_move(sctx, cur, is_orphan);
+			if (ret < 0)
+				goto out;
+			if (ret == 1) {
+				can_rename = false;
+				*pending_move = 1;
+			}
+		}
+
 		/*
 		 * link/move the ref to the new place. If we have an orphan
 		 * inode, move it and update valid_path. If not, link or move
@@ -3653,18 +3678,11 @@ verbose_printk("btrfs: process_recorded_refs %llu\n", sctx->cur_ino);
 				 * dirs, we always have one new and one deleted
 				 * ref. The deleted ref is ignored later.
 				 */
-				ret = wait_for_parent_move(sctx, cur);
-				if (ret < 0)
-					goto out;
-				if (ret) {
-					*pending_move = 1;
-				} else {
-					ret = send_rename(sctx, valid_path,
-							  cur->full_path);
-					if (!ret)
-						ret = fs_path_copy(valid_path,
-							       cur->full_path);
-				}
+				ret = send_rename(sctx, valid_path,
+						  cur->full_path);
+				if (!ret)
+					ret = fs_path_copy(valid_path,
+							   cur->full_path);
 				if (ret < 0)
 					goto out;
 			} else {
