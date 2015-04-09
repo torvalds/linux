@@ -593,6 +593,7 @@ static void omap_dma_free_chan_resources(struct dma_chan *chan)
 	omap_free_dma(c->dma_ch);
 
 	dev_dbg(od->ddev.dev, "freeing channel for %u\n", c->dma_sig);
+	c->dma_sig = 0;
 }
 
 static size_t omap_dma_sg_size(struct omap_sg *sg)
@@ -1041,7 +1042,7 @@ static int omap_dma_resume(struct dma_chan *chan)
 	return 0;
 }
 
-static int omap_dma_chan_init(struct omap_dmadev *od, int dma_sig)
+static int omap_dma_chan_init(struct omap_dmadev *od)
 {
 	struct omap_chan *c;
 
@@ -1050,7 +1051,6 @@ static int omap_dma_chan_init(struct omap_dmadev *od, int dma_sig)
 		return -ENOMEM;
 
 	c->reg_map = od->reg_map;
-	c->dma_sig = dma_sig;
 	c->vc.desc_free = omap_dma_desc_free;
 	vchan_init(&c->vc, &od->ddev);
 	INIT_LIST_HEAD(&c->node);
@@ -1130,7 +1130,7 @@ static int omap_dma_probe(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < od->dma_requests; i++) {
-		rc = omap_dma_chan_init(od, i);
+		rc = omap_dma_chan_init(od);
 		if (rc) {
 			omap_dma_free(od);
 			return rc;
@@ -1221,10 +1221,14 @@ static struct platform_driver omap_dma_driver = {
 bool omap_dma_filter_fn(struct dma_chan *chan, void *param)
 {
 	if (chan->device->dev->driver == &omap_dma_driver.driver) {
+		struct omap_dmadev *od = to_omap_dma_dev(chan->device);
 		struct omap_chan *c = to_omap_dma_chan(chan);
 		unsigned req = *(unsigned *)param;
 
-		return req == c->dma_sig;
+		if (req <= od->dma_requests) {
+			c->dma_sig = req;
+			return true;
+		}
 	}
 	return false;
 }
