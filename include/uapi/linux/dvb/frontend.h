@@ -467,7 +467,7 @@ struct dtv_cmds_h {
  * @FE_SCALE_NOT_AVAILABLE: That QoS measure is not available. That
  *			    could indicate a temporary or a permanent
  *			    condition.
- * @FE_SCALE_DECIBEL: The scale is measured in 0.0001 dB steps, typically
+ * @FE_SCALE_DECIBEL: The scale is measured in 0.001 dB steps, typically
  *		  used on signal measures.
  * @FE_SCALE_RELATIVE: The scale is a relative percentual measure,
  *			ranging from 0 (0%) to 0xffff (100%).
@@ -516,7 +516,7 @@ struct dtv_stats {
 	__u8 scale;	/* enum fecap_scale_params type */
 	union {
 		__u64 uvalue;	/* for counters and relative scales */
-		__s64 svalue;	/* for 0.0001 dB measures */
+		__s64 svalue;	/* for 0.001 dB measures */
 	};
 } __attribute__ ((packed));
 

@@ -953,7 +953,7 @@ enum fe_interleaving {
 		<para>Possible scales for this metric are:</para>
 		<itemizedlist mark='bullet'>
 			<listitem><para><constant>FE_SCALE_NOT_AVAILABLE</constant> - it failed to measure it, or the measurement was not complete yet.</para></listitem>
-			<listitem><para><constant>FE_SCALE_DECIBEL</constant> - signal strength is in 0.0001 dBm units, power measured in miliwatts. This value is generally negative.</para></listitem>
+			<listitem><para><constant>FE_SCALE_DECIBEL</constant> - signal strength is in 0.001 dBm units, power measured in miliwatts. This value is generally negative.</para></listitem>
 			<listitem><para><constant>FE_SCALE_RELATIVE</constant> - The frontend provides a 0% to 100% measurement for power (actually, 0 to 65535).</para></listitem>
 		</itemizedlist>
 	</section>
@@ -963,7 +963,7 @@ enum fe_interleaving {
 		<para>Possible scales for this metric are:</para>
 		<itemizedlist mark='bullet'>
 			<listitem><para><constant>FE_SCALE_NOT_AVAILABLE</constant> - it failed to measure it, or the measurement was not complete yet.</para></listitem>
-			<listitem><para><constant>FE_SCALE_DECIBEL</constant> - Signal/Noise ratio is in 0.0001 dB units.</para></listitem>
+			<listitem><para><constant>FE_SCALE_DECIBEL</constant> - Signal/Noise ratio is in 0.001 dB units.</para></listitem>
 			<listitem><para><constant>FE_SCALE_RELATIVE</constant> - The frontend provides a 0% to 100% measurement for Signal/Noise (actually, 0 to 65535).</para></listitem>
 		</itemizedlist>
 	</section>
