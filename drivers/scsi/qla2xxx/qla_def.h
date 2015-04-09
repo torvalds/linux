@@ -2163,7 +2163,7 @@ struct ct_fdmi_hba_attr {
 		uint8_t node_name[WWN_SIZE];
 		uint8_t manufacturer[64];
 		uint8_t serial_num[32];
-		uint8_t model[16];
+		uint8_t model[16+1];
 		uint8_t model_desc[80];
 		uint8_t hw_version[32];
 		uint8_t driver_version[32];
@@ -2184,9 +2184,9 @@ struct ct_fdmiv2_hba_attr {
 	uint16_t len;
 	union {
 		uint8_t node_name[WWN_SIZE];
-		uint8_t manufacturer[32];
+		uint8_t manufacturer[64];
 		uint8_t serial_num[32];
-		uint8_t model[16];
+		uint8_t model[16+1];
 		uint8_t model_desc[80];
 		uint8_t hw_version[16];
 		uint8_t driver_version[32];
@@ -2252,7 +2252,7 @@ struct ct_fdmiv2_port_attr {
 		uint32_t cur_speed;
 		uint32_t max_frame_size;
 		uint8_t os_dev_name[32];
-		uint8_t host_name[32];
+		uint8_t host_name[256];
 		uint8_t node_name[WWN_SIZE];
 		uint8_t port_name[WWN_SIZE];
 		uint8_t port_sym_name[128];
@@ -2283,7 +2283,7 @@ struct ct_fdmi_port_attr {
 		uint32_t cur_speed;
 		uint32_t max_frame_size;
 		uint8_t os_dev_name[32];
-		uint8_t host_name[32];
+		uint8_t host_name[256];
 	} a;
 };
 
