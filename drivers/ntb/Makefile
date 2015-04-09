@@ -1,4 +1,2 @@
-obj-$(CONFIG_NTB) += ntb.o
-obj-$(CONFIG_NTB) += ntb_hw_intel.o
-
-ntb_hw_intel-objs := hw/intel/ntb_hw_intel.o ntb_transport.o
+obj-$(CONFIG_NTB) += ntb.o hw/
+obj-$(CONFIG_NTB_TRANSPORT) += ntb_transport.o

@@ -26,7 +26,33 @@ as ntb hardware, or hardware drivers, are inserted and removed.  The
 registration uses the Linux Device framework, so it should feel familiar to
 anyone who has written a pci driver.
 
+### NTB Transport Client (ntb\_transport) and NTB Netdev (ntb\_netdev)
+
+The primary client for NTB is the Transport client, used in tandem with NTB
+Netdev.  These drivers function together to create a logical link to the peer,
+across the ntb, to exchange packets of network data.  The Transport client
+establishes a logical link to the peer, and creates queue pairs to exchange
+messages and data.  The NTB Netdev then creates an ethernet device using a
+Transport queue pair.  Network data is copied between socket buffers and the
+Transport queue pair buffer.  The Transport client may be used for other things
+besides Netdev, however no other applications have yet been written.
+
 ## NTB Hardware Drivers
 
 NTB hardware drivers should register devices with the NTB core driver.  After
 registering, clients probe and remove functions will be called.
+
+### NTB Intel Hardware Driver (ntb\_hw\_intel)
+
+The Intel hardware driver supports NTB on Xeon and Atom CPUs.
+
+Module Parameters:
+
+* b2b\_mw\_idx - If the peer ntb is to be accessed via a memory window, then use
+	this memory window to access the peer ntb.  A value of zero or positive
+	starts from the first mw idx, and a negative value starts from the last
+	mw idx.  Both sides MUST set the same value here!  The default value is
+	`-1`.
+* b2b\_mw\_share - If the peer ntb is to be accessed via a memory window, and if
+	the memory window is large enough, still allow the client to use the
+	second half of the memory window for address translation to the peer.

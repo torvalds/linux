@@ -5,6 +5,7 @@
  *   GPL LICENSE SUMMARY
  *
  *   Copyright(c) 2012 Intel Corporation. All rights reserved.
+ *   Copyright (C) 2015 EMC Corporation. All Rights Reserved.
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of version 2 of the GNU General Public License as
@@ -13,6 +14,7 @@
  *   BSD LICENSE
  *
  *   Copyright(c) 2012 Intel Corporation. All rights reserved.
+ *   Copyright (C) 2015 EMC Corporation. All Rights Reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
@@ -40,7 +42,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Intel PCIe NTB Linux driver
+ * PCIe NTB Transport Linux driver
  *
  * Contact Information:
  * Jon Mason <jon.mason@intel.com>
@@ -48,21 +50,16 @@
 
 struct ntb_transport_qp;
 
-struct ntb_client {
+struct ntb_transport_client {
 	struct device_driver driver;
-	int (*probe)(struct pci_dev *pdev);
-	void (*remove)(struct pci_dev *pdev);
+	int (*probe)(struct device *client_dev);
+	void (*remove)(struct device *client_dev);
 };
 
-enum {
-	NTB_LINK_DOWN = 0,
-	NTB_LINK_UP,
-};
-
-int ntb_transport_register_client(struct ntb_client *drvr);
-void ntb_transport_unregister_client(struct ntb_client *drvr);
-int ntb_register_client_dev(char *device_name);
-void ntb_unregister_client_dev(char *device_name);
+int ntb_transport_register_client(struct ntb_transport_client *drvr);
+void ntb_transport_unregister_client(struct ntb_transport_client *drvr);
+int ntb_transport_register_client_dev(char *device_name);
+void ntb_transport_unregister_client_dev(char *device_name);
 
 struct ntb_queue_handlers {
 	void (*rx_handler)(struct ntb_transport_qp *qp, void *qp_data,
@@ -75,7 +72,7 @@ struct ntb_queue_handlers {
 unsigned char ntb_transport_qp_num(struct ntb_transport_qp *qp);
 unsigned int ntb_transport_max_size(struct ntb_transport_qp *qp);
 struct ntb_transport_qp *
-ntb_transport_create_queue(void *data, struct pci_dev *pdev,
+ntb_transport_create_queue(void *data, struct device *client_dev,
 			   const struct ntb_queue_handlers *handlers);
 void ntb_transport_free_queue(struct ntb_transport_qp *qp);
 int ntb_transport_rx_enqueue(struct ntb_transport_qp *qp, void *cb, void *data,

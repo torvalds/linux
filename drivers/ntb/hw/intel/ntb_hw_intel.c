@@ -5,6 +5,7 @@
  *   GPL LICENSE SUMMARY
  *
  *   Copyright(c) 2012 Intel Corporation. All rights reserved.
+ *   Copyright (C) 2015 EMC Corporation. All Rights Reserved.
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of version 2 of the GNU General Public License as
@@ -13,6 +14,7 @@
  *   BSD LICENSE
  *
  *   Copyright(c) 2012 Intel Corporation. All rights reserved.
+ *   Copyright (C) 2015 EMC Corporation. All Rights Reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
@@ -45,6 +47,7 @@
  * Contact Information:
  * Jon Mason <jon.mason@intel.com>
  */
+
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -53,40 +56,2022 @@
 #include <linux/pci.h>
 #include <linux/random.h>
 #include <linux/slab.h>
+#include <linux/ntb.h>
+
 #include "ntb_hw_intel.h"
 
-#define NTB_NAME	"Intel(R) PCI-E Non-Transparent Bridge Driver"
-#define NTB_VER		"1.0"
+#define NTB_NAME	"ntb_hw_intel"
+#define NTB_DESC	"Intel(R) PCI-E Non-Transparent Bridge Driver"
+#define NTB_VER		"2.0"
 
-MODULE_DESCRIPTION(NTB_NAME);
+MODULE_DESCRIPTION(NTB_DESC);
 MODULE_VERSION(NTB_VER);
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Intel Corporation");
 
-enum {
-	NTB_CONN_TRANSPARENT = 0,
-	NTB_CONN_B2B,
-	NTB_CONN_RP,
-};
+#define bar0_off(base, bar) ((base) + ((bar) << 2))
+#define bar2_off(base, bar) bar0_off(base, (bar) - 2)
 
-enum {
-	NTB_DEV_USD = 0,
-	NTB_DEV_DSD,
-};
+static int b2b_mw_idx = -1;
+module_param(b2b_mw_idx, int, 0644);
+MODULE_PARM_DESC(b2b_mw_idx, "Use this mw idx to access the peer ntb.  A "
+		 "value of zero or positive starts from first mw idx, and a "
+		 "negative value starts from last mw idx.  Both sides MUST "
+		 "set the same value here!");
 
-enum {
-	SNB_HW = 0,
-	BWD_HW,
-};
+static unsigned int b2b_mw_share;
+module_param(b2b_mw_share, uint, 0644);
+MODULE_PARM_DESC(b2b_mw_share, "If the b2b mw is large enough, configure the "
+		 "ntb so that the peer ntb only occupies the first half of "
+		 "the mw, so the second half can still be used as a mw.  Both "
+		 "sides MUST set the same value here!");
 
+static const struct intel_ntb_reg bwd_reg;
+static const struct intel_ntb_alt_reg bwd_pri_reg;
+static const struct intel_ntb_alt_reg bwd_sec_reg;
+static const struct intel_ntb_alt_reg bwd_b2b_reg;
+static const struct intel_ntb_xlat_reg bwd_pri_xlat;
+static const struct intel_ntb_xlat_reg bwd_sec_xlat;
+static const struct intel_ntb_reg snb_reg;
+static const struct intel_ntb_alt_reg snb_pri_reg;
+static const struct intel_ntb_alt_reg snb_sec_reg;
+static const struct intel_ntb_alt_reg snb_b2b_reg;
+static const struct intel_ntb_xlat_reg snb_pri_xlat;
+static const struct intel_ntb_xlat_reg snb_sec_xlat;
+static const struct intel_b2b_addr snb_b2b_usd_addr;
+static const struct intel_b2b_addr snb_b2b_dsd_addr;
+
+static const struct ntb_dev_ops intel_ntb_ops;
+
+static const struct file_operations intel_ntb_debugfs_info;
 static struct dentry *debugfs_dir;
 
-#define BWD_LINK_RECOVERY_TIME	500
+#ifndef ioread64
+#ifdef readq
+#define ioread64 readq
+#else
+#define ioread64 _ioread64
+static inline u64 _ioread64(void __iomem *mmio)
+{
+	u64 low, high;
 
-/* Translate memory window 0,1,2 to BAR 2,4,5 */
-#define MW_TO_BAR(mw)	(mw == 0 ? 2 : (mw == 1 ? 4 : 5))
+	low = ioread32(mmio);
+	high = ioread32(mmio + sizeof(u32));
+	return low | (high << 32);
+}
+#endif
+#endif
 
-static const struct pci_device_id ntb_pci_tbl[] = {
+#ifndef iowrite64
+#ifdef writeq
+#define iowrite64 writeq
+#else
+#define iowrite64 _iowrite64
+static inline void _iowrite64(u64 val, void __iomem *mmio)
+{
+	iowrite32(val, mmio);
+	iowrite32(val >> 32, mmio + sizeof(u32));
+}
+#endif
+#endif
+
+static inline int pdev_is_bwd(struct pci_dev *pdev)
+{
+	switch (pdev->device) {
+	case PCI_DEVICE_ID_INTEL_NTB_B2B_BWD:
+		return 1;
+	}
+	return 0;
+}
+
+static inline int pdev_is_snb(struct pci_dev *pdev)
+{
+	switch (pdev->device) {
+	case PCI_DEVICE_ID_INTEL_NTB_SS_JSF:
+	case PCI_DEVICE_ID_INTEL_NTB_SS_SNB:
+	case PCI_DEVICE_ID_INTEL_NTB_SS_IVT:
+	case PCI_DEVICE_ID_INTEL_NTB_SS_HSX:
+	case PCI_DEVICE_ID_INTEL_NTB_PS_JSF:
+	case PCI_DEVICE_ID_INTEL_NTB_PS_SNB:
+	case PCI_DEVICE_ID_INTEL_NTB_PS_IVT:
+	case PCI_DEVICE_ID_INTEL_NTB_PS_HSX:
+	case PCI_DEVICE_ID_INTEL_NTB_B2B_JSF:
+	case PCI_DEVICE_ID_INTEL_NTB_B2B_SNB:
+	case PCI_DEVICE_ID_INTEL_NTB_B2B_IVT:
+	case PCI_DEVICE_ID_INTEL_NTB_B2B_HSX:
+		return 1;
+	}
+	return 0;
+}
+
+static inline void ndev_reset_unsafe_flags(struct intel_ntb_dev *ndev)
+{
+	ndev->unsafe_flags = 0;
+	ndev->unsafe_flags_ignore = 0;
+
+	/* Only B2B has a workaround to avoid SDOORBELL */
+	if (ndev->hwerr_flags & NTB_HWERR_SDOORBELL_LOCKUP)
+		if (!ntb_topo_is_b2b(ndev->ntb.topo))
+			ndev->unsafe_flags |= NTB_UNSAFE_DB;
+
+	/* No low level workaround to avoid SB01BASE */
+	if (ndev->hwerr_flags & NTB_HWERR_SB01BASE_LOCKUP) {
+		ndev->unsafe_flags |= NTB_UNSAFE_DB;
+		ndev->unsafe_flags |= NTB_UNSAFE_SPAD;
+	}
+}
+
+static inline int ndev_is_unsafe(struct intel_ntb_dev *ndev,
+				 unsigned long flag)
+{
+	return !!(flag & ndev->unsafe_flags & ~ndev->unsafe_flags_ignore);
+}
+
+static inline int ndev_ignore_unsafe(struct intel_ntb_dev *ndev,
+				     unsigned long flag)
+{
+	flag &= ndev->unsafe_flags;
+	ndev->unsafe_flags_ignore |= flag;
+
+	return !!flag;
+}
+
+static int ndev_mw_to_bar(struct intel_ntb_dev *ndev, int idx)
+{
+	if (idx < 0 || idx > ndev->mw_count)
+		return -EINVAL;
+	return ndev->reg->mw_bar[idx];
+}
+
+static inline int ndev_db_addr(struct intel_ntb_dev *ndev,
+			       phys_addr_t *db_addr, resource_size_t *db_size,
+			       phys_addr_t reg_addr, unsigned long reg)
+{
+	WARN_ON_ONCE(ndev_is_unsafe(ndev, NTB_UNSAFE_DB));
+
+	if (db_addr) {
+		*db_addr = reg_addr + reg;
+		dev_dbg(ndev_dev(ndev), "Peer db addr %llx\n", *db_addr);
+	}
+
+	if (db_size) {
+		*db_size = ndev->reg->db_size;
+		dev_dbg(ndev_dev(ndev), "Peer db size %llx\n", *db_size);
+	}
+
+	return 0;
+}
+
+static inline u64 ndev_db_read(struct intel_ntb_dev *ndev,
+			       void __iomem *mmio)
+{
+	WARN_ON_ONCE(ndev_is_unsafe(ndev, NTB_UNSAFE_DB));
+
+	return ndev->reg->db_ioread(mmio);
+}
+
+static inline int ndev_db_write(struct intel_ntb_dev *ndev, u64 db_bits,
+				void __iomem *mmio)
+{
+	WARN_ON_ONCE(ndev_is_unsafe(ndev, NTB_UNSAFE_DB));
+
+	if (db_bits & ~ndev->db_valid_mask)
+		return -EINVAL;
+
+	ndev->reg->db_iowrite(db_bits, mmio);
+
+	return 0;
+}
+
+static inline int ndev_db_set_mask(struct intel_ntb_dev *ndev, u64 db_bits,
+				   void __iomem *mmio)
+{
+	unsigned long irqflags;
+
+	WARN_ON_ONCE(ndev_is_unsafe(ndev, NTB_UNSAFE_DB));
+
+	if (db_bits & ~ndev->db_valid_mask)
+		return -EINVAL;
+
+	spin_lock_irqsave(&ndev->db_mask_lock, irqflags);
+	{
+		ndev->db_mask |= db_bits;
+		ndev->reg->db_iowrite(ndev->db_mask, mmio);
+	}
+	spin_unlock_irqrestore(&ndev->db_mask_lock, irqflags);
+
+	return 0;
+}
+
+static inline int ndev_db_clear_mask(struct intel_ntb_dev *ndev, u64 db_bits,
+				     void __iomem *mmio)
+{
+	unsigned long irqflags;
+
+	WARN_ON_ONCE(ndev_is_unsafe(ndev, NTB_UNSAFE_DB));
+
+	if (db_bits & ~ndev->db_valid_mask)
+		return -EINVAL;
+
+	spin_lock_irqsave(&ndev->db_mask_lock, irqflags);
+	{
+		ndev->db_mask &= ~db_bits;
+		ndev->reg->db_iowrite(ndev->db_mask, mmio);
+	}
+	spin_unlock_irqrestore(&ndev->db_mask_lock, irqflags);
+
+	return 0;
+}
+
+static inline int ndev_vec_mask(struct intel_ntb_dev *ndev, int db_vector)
+{
+	u64 shift, mask;
+
+	shift = ndev->db_vec_shift;
+	mask = BIT_ULL(shift) - 1;
+
+	return mask << (shift * db_vector);
+}
+
+static inline int ndev_spad_addr(struct intel_ntb_dev *ndev, int idx,
+				 phys_addr_t *spad_addr, phys_addr_t reg_addr,
+				 unsigned long reg)
+{
+	WARN_ON_ONCE(ndev_is_unsafe(ndev, NTB_UNSAFE_SPAD));
+
+	if (idx < 0 || idx >= ndev->spad_count)
+		return -EINVAL;
+
+	if (spad_addr) {
+		*spad_addr = reg_addr + reg + (idx << 2);
+		dev_dbg(ndev_dev(ndev), "Peer spad addr %llx\n", *spad_addr);
+	}
+
+	return 0;
+}
+
+static inline u32 ndev_spad_read(struct intel_ntb_dev *ndev, int idx,
+				 void __iomem *mmio)
+{
+	WARN_ON_ONCE(ndev_is_unsafe(ndev, NTB_UNSAFE_SPAD));
+
+	if (idx < 0 || idx >= ndev->spad_count)
+		return 0;
+
+	return ioread32(mmio + (idx << 2));
+}
+
+static inline int ndev_spad_write(struct intel_ntb_dev *ndev, int idx, u32 val,
+				  void __iomem *mmio)
+{
+	WARN_ON_ONCE(ndev_is_unsafe(ndev, NTB_UNSAFE_SPAD));
+
+	if (idx < 0 || idx >= ndev->spad_count)
+		return -EINVAL;
+
+	iowrite32(val, mmio + (idx << 2));
+
+	return 0;
+}
+
+static irqreturn_t ndev_interrupt(struct intel_ntb_dev *ndev, int vec)
+{
+	u64 vec_mask;
+
+	vec_mask = ndev_vec_mask(ndev, vec);
+
+	dev_dbg(ndev_dev(ndev), "vec %d vec_mask %llx\n", vec, vec_mask);
+
+	ndev->last_ts = jiffies;
+
+	if (vec_mask & ndev->db_link_mask) {
+		if (ndev->reg->poll_link(ndev))
+			ntb_link_event(&ndev->ntb);
+	}
+
+	if (vec_mask & ndev->db_valid_mask)
+		ntb_db_event(&ndev->ntb, vec);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t ndev_vec_isr(int irq, void *dev)
+{
+	struct intel_ntb_vec *nvec = dev;
+
+	return ndev_interrupt(nvec->ndev, nvec->num);
+}
+
+static irqreturn_t ndev_irq_isr(int irq, void *dev)
+{
+	struct intel_ntb_dev *ndev = dev;
+
+	return ndev_interrupt(ndev, irq - ndev_pdev(ndev)->irq);
+}
+
+static int ndev_init_isr(struct intel_ntb_dev *ndev,
+			 int msix_min, int msix_max,
+			 int msix_shift, int total_shift)
+{
+	struct pci_dev *pdev;
+	int rc, i, msix_count;
+
+	pdev = ndev_pdev(ndev);
+
+	/* Mask all doorbell interrupts */
+	ndev->db_mask = ndev->db_valid_mask;
+	ndev->reg->db_iowrite(ndev->db_mask,
+			      ndev->self_mmio +
+			      ndev->self_reg->db_mask);
+
+	/* Try to set up msix irq */
+
+	ndev->vec = kcalloc(msix_max, sizeof(*ndev->vec), GFP_KERNEL);
+	if (!ndev->vec)
+		goto err_msix_vec_alloc;
+
+	ndev->msix = kcalloc(msix_max, sizeof(*ndev->msix), GFP_KERNEL);
+	if (!ndev->msix)
+		goto err_msix_alloc;
+
+	for (i = 0; i < msix_max; ++i)
+		ndev->msix[i].entry = i;
+
+	msix_count = pci_enable_msix_range(pdev, ndev->msix,
+					   msix_min, msix_max);
+	if (msix_count < 0)
+		goto err_msix_enable;
+
+	for (i = 0; i < msix_count; ++i) {
+		ndev->vec[i].ndev = ndev;
+		ndev->vec[i].num = i;
+		rc = request_irq(ndev->msix[i].vector, ndev_vec_isr, 0,
+				 "ndev_vec_isr", &ndev->vec[i]);
+		if (rc)
+			goto err_msix_request;
+	}
+
+	dev_dbg(ndev_dev(ndev), "Using msix interrupts\n");
+	ndev->db_vec_count = msix_count;
+	ndev->db_vec_shift = msix_shift;
+	return 0;
+
+err_msix_request:
+	while (i-- > 0)
+		free_irq(ndev->msix[i].vector, ndev);
+	pci_disable_msix(pdev);
+err_msix_enable:
+	kfree(ndev->msix);
+err_msix_alloc:
+	kfree(ndev->vec);
+err_msix_vec_alloc:
+	ndev->msix = NULL;
+	ndev->vec = NULL;
+
+	/* Try to set up msi irq */
+
+	rc = pci_enable_msi(pdev);
+	if (rc)
+		goto err_msi_enable;
+
+	rc = request_irq(pdev->irq, ndev_irq_isr, 0,
+			 "ndev_irq_isr", ndev);
+	if (rc)
+		goto err_msi_request;
+
+	dev_dbg(ndev_dev(ndev), "Using msi interrupts\n");
+	ndev->db_vec_count = 1;
+	ndev->db_vec_shift = total_shift;
+	return 0;
+
+err_msi_request:
+	pci_disable_msi(pdev);
+err_msi_enable:
+
+	/* Try to set up intx irq */
+
+	pci_intx(pdev, 1);
+
+	rc = request_irq(pdev->irq, ndev_irq_isr, IRQF_SHARED,
+			 "ndev_irq_isr", ndev);
+	if (rc)
+		goto err_intx_request;
+
+	dev_dbg(ndev_dev(ndev), "Using intx interrupts\n");
+	ndev->db_vec_count = 1;
+	ndev->db_vec_shift = total_shift;
+	return 0;
+
+err_intx_request:
+	return rc;
+}
+
+static void ndev_deinit_isr(struct intel_ntb_dev *ndev)
+{
+	struct pci_dev *pdev;
+	int i;
+
+	pdev = ndev_pdev(ndev);
+
+	/* Mask all doorbell interrupts */
+	ndev->db_mask = ndev->db_valid_mask;
+	ndev->reg->db_iowrite(ndev->db_mask,
+			      ndev->self_mmio +
+			      ndev->self_reg->db_mask);
+
+	if (ndev->msix) {
+		i = ndev->db_vec_count;
+		while (i--)
+			free_irq(ndev->msix[i].vector, &ndev->vec[i]);
+		pci_disable_msix(pdev);
+		kfree(ndev->msix);
+		kfree(ndev->vec);
+	} else {
+		free_irq(pdev->irq, ndev);
+		if (pci_dev_msi_enabled(pdev))
+			pci_disable_msi(pdev);
+	}
+}
+
+static ssize_t ndev_debugfs_read(struct file *filp, char __user *ubuf,
+				 size_t count, loff_t *offp)
+{
+	struct intel_ntb_dev *ndev;
+	void __iomem *mmio;
+	char *buf;
+	size_t buf_size;
+	ssize_t ret, off;
+	union { u64 v64; u32 v32; u16 v16; } u;
+
+	ndev = filp->private_data;
+	mmio = ndev->self_mmio;
+
+	buf_size = min(count, 0x800ul);
+
+	buf = kmalloc(buf_size, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	off = 0;
+
+	off += scnprintf(buf + off, buf_size - off,
+			 "NTB Device Information:\n");
+
+	off += scnprintf(buf + off, buf_size - off,
+			 "Connection Topology -\t%s\n",
+			 ntb_topo_string(ndev->ntb.topo));
+
+	off += scnprintf(buf + off, buf_size - off,
+			 "B2B Offset -\t\t%#lx\n", ndev->b2b_off);
+	off += scnprintf(buf + off, buf_size - off,
+			 "B2B MW Idx -\t\t%d\n", ndev->b2b_idx);
+	off += scnprintf(buf + off, buf_size - off,
+			 "BAR4 Split -\t\t%s\n",
+			 ndev->bar4_split ? "yes" : "no");
+
+	off += scnprintf(buf + off, buf_size - off,
+			 "NTB CTL -\t\t%#06x\n", ndev->ntb_ctl);
+	off += scnprintf(buf + off, buf_size - off,
+			 "LNK STA -\t\t%#06x\n", ndev->lnk_sta);
+
+	if (!ndev->reg->link_is_up(ndev)) {
+		off += scnprintf(buf + off, buf_size - off,
+				 "Link Status -\t\tDown\n");
+	} else {
+		off += scnprintf(buf + off, buf_size - off,
+				 "Link Status -\t\tUp\n");
+		off += scnprintf(buf + off, buf_size - off,
+				 "Link Speed -\t\tPCI-E Gen %u\n",
+				 NTB_LNK_STA_SPEED(ndev->lnk_sta));
+		off += scnprintf(buf + off, buf_size - off,
+				 "Link Width -\t\tx%u\n",
+				 NTB_LNK_STA_WIDTH(ndev->lnk_sta));
+	}
+
+	off += scnprintf(buf + off, buf_size - off,
+			 "Memory Window Count -\t%u\n", ndev->mw_count);
+	off += scnprintf(buf + off, buf_size - off,
+			 "Scratchpad Count -\t%u\n", ndev->spad_count);
+	off += scnprintf(buf + off, buf_size - off,
+			 "Doorbell Count -\t%u\n", ndev->db_count);
+	off += scnprintf(buf + off, buf_size - off,
+			 "Doorbell Vector Count -\t%u\n", ndev->db_vec_count);
+	off += scnprintf(buf + off, buf_size - off,
+			 "Doorbell Vector Shift -\t%u\n", ndev->db_vec_shift);
+
+	off += scnprintf(buf + off, buf_size - off,
+			 "Doorbell Valid Mask -\t%#llx\n", ndev->db_valid_mask);
+	off += scnprintf(buf + off, buf_size - off,
+			 "Doorbell Link Mask -\t%#llx\n", ndev->db_link_mask);
+	off += scnprintf(buf + off, buf_size - off,
+			 "Doorbell Mask Cached -\t%#llx\n", ndev->db_mask);
+
+	u.v64 = ndev_db_read(ndev, mmio + ndev->self_reg->db_mask);
+	off += scnprintf(buf + off, buf_size - off,
+			 "Doorbell Mask -\t\t%#llx\n", u.v64);
+
+	u.v64 = ndev_db_read(ndev, mmio + ndev->self_reg->db_bell);
+	off += scnprintf(buf + off, buf_size - off,
+			 "Doorbell Bell -\t\t%#llx\n", u.v64);
+
+	off += scnprintf(buf + off, buf_size - off,
+			 "\nNTB Incoming XLAT:\n");
+
+	u.v64 = ioread64(mmio + bar2_off(ndev->xlat_reg->bar2_xlat, 2));
+	off += scnprintf(buf + off, buf_size - off,
+			 "XLAT23 -\t\t%#018llx\n", u.v64);
+
+	u.v64 = ioread64(mmio + bar2_off(ndev->xlat_reg->bar2_xlat, 4));
+	off += scnprintf(buf + off, buf_size - off,
+			 "XLAT45 -\t\t%#018llx\n", u.v64);
+
+	u.v64 = ioread64(mmio + bar2_off(ndev->xlat_reg->bar2_limit, 2));
+	off += scnprintf(buf + off, buf_size - off,
+			 "LMT23 -\t\t\t%#018llx\n", u.v64);
+
+	u.v64 = ioread64(mmio + bar2_off(ndev->xlat_reg->bar2_limit, 4));
+	off += scnprintf(buf + off, buf_size - off,
+			 "LMT45 -\t\t\t%#018llx\n", u.v64);
+
+	if (pdev_is_snb(ndev->ntb.pdev)) {
+		if (ntb_topo_is_b2b(ndev->ntb.topo)) {
+			off += scnprintf(buf + off, buf_size - off,
+					 "\nNTB Outgoing B2B XLAT:\n");
+
+			u.v64 = ioread64(mmio + SNB_PBAR23XLAT_OFFSET);
+			off += scnprintf(buf + off, buf_size - off,
+					 "B2B XLAT23 -\t\t%#018llx\n", u.v64);
+
+			u.v64 = ioread64(mmio + SNB_PBAR45XLAT_OFFSET);
+			off += scnprintf(buf + off, buf_size - off,
+					 "B2B XLAT45 -\t\t%#018llx\n", u.v64);
+
+			u.v64 = ioread64(mmio + SNB_PBAR23LMT_OFFSET);
+			off += scnprintf(buf + off, buf_size - off,
+					 "B2B LMT23 -\t\t%#018llx\n", u.v64);
+
+			u.v64 = ioread64(mmio + SNB_PBAR45LMT_OFFSET);
+			off += scnprintf(buf + off, buf_size - off,
+					 "B2B LMT45 -\t\t%#018llx\n", u.v64);
+
+			off += scnprintf(buf + off, buf_size - off,
+					 "\nNTB Secondary BAR:\n");
+
+			u.v64 = ioread64(mmio + SNB_SBAR0BASE_OFFSET);
+			off += scnprintf(buf + off, buf_size - off,
+					 "SBAR01 -\t\t%#018llx\n", u.v64);
+
+			u.v64 = ioread64(mmio + SNB_SBAR23BASE_OFFSET);
+			off += scnprintf(buf + off, buf_size - off,
+					 "SBAR23 -\t\t%#018llx\n", u.v64);
+
+			u.v64 = ioread64(mmio + SNB_SBAR45BASE_OFFSET);
+			off += scnprintf(buf + off, buf_size - off,
+					 "SBAR45 -\t\t%#018llx\n", u.v64);
+		}
+
+		off += scnprintf(buf + off, buf_size - off,
+				 "\nSNB NTB Statistics:\n");
+
+		u.v16 = ioread16(mmio + SNB_USMEMMISS_OFFSET);
+		off += scnprintf(buf + off, buf_size - off,
+				 "Upstream Memory Miss -\t%u\n", u.v16);
+
+		off += scnprintf(buf + off, buf_size - off,
+				 "\nSNB NTB Hardware Errors:\n");
+
+		if (!pci_read_config_word(ndev->ntb.pdev,
+					  SNB_DEVSTS_OFFSET, &u.v16))
+			off += scnprintf(buf + off, buf_size - off,
+					 "DEVSTS -\t\t%#06x\n", u.v16);
+
+		if (!pci_read_config_word(ndev->ntb.pdev,
+					  SNB_LINK_STATUS_OFFSET, &u.v16))
+			off += scnprintf(buf + off, buf_size - off,
+					 "LNKSTS -\t\t%#06x\n", u.v16);
+
+		if (!pci_read_config_dword(ndev->ntb.pdev,
+					   SNB_UNCERRSTS_OFFSET, &u.v32))
+			off += scnprintf(buf + off, buf_size - off,
+					 "UNCERRSTS -\t\t%#06x\n", u.v32);
+
+		if (!pci_read_config_dword(ndev->ntb.pdev,
+					   SNB_CORERRSTS_OFFSET, &u.v32))
+			off += scnprintf(buf + off, buf_size - off,
+					 "CORERRSTS -\t\t%#06x\n", u.v32);
+	}
+
+	ret = simple_read_from_buffer(ubuf, count, offp, buf, off);
+	kfree(buf);
+	return ret;
+}
+
+static void ndev_init_debugfs(struct intel_ntb_dev *ndev)
+{
+	if (!debugfs_dir) {
+		ndev->debugfs_dir = NULL;
+		ndev->debugfs_info = NULL;
+	} else {
+		ndev->debugfs_dir =
+			debugfs_create_dir(ndev_name(ndev), debugfs_dir);
+		if (!ndev->debugfs_dir)
+			ndev->debugfs_info = NULL;
+		else
+			ndev->debugfs_info =
+				debugfs_create_file("info", S_IRUSR,
+						    ndev->debugfs_dir, ndev,
+						    &intel_ntb_debugfs_info);
+	}
+}
+
+static void ndev_deinit_debugfs(struct intel_ntb_dev *ndev)
+{
+	debugfs_remove_recursive(ndev->debugfs_dir);
+}
+
+static int intel_ntb_mw_count(struct ntb_dev *ntb)
+{
+	return ntb_ndev(ntb)->mw_count;
+}
+
+static int intel_ntb_mw_get_range(struct ntb_dev *ntb, int idx,
+				  phys_addr_t *base,
+				  resource_size_t *size,
+				  resource_size_t *align,
+				  resource_size_t *align_size)
+{
+	struct intel_ntb_dev *ndev = ntb_ndev(ntb);
+	int bar;
+
+	if (idx >= ndev->b2b_idx && !ndev->b2b_off)
+		idx += 1;
+
+	bar = ndev_mw_to_bar(ndev, idx);
+	if (bar < 0)
+		return bar;
+
+	if (base)
+		*base = pci_resource_start(ndev->ntb.pdev, bar) +
+			(idx == ndev->b2b_idx ? ndev->b2b_off : 0);
+
+	if (size)
+		*size = pci_resource_len(ndev->ntb.pdev, bar) -
+			(idx == ndev->b2b_idx ? ndev->b2b_off : 0);
+
+	if (align)
+		*align = pci_resource_len(ndev->ntb.pdev, bar);
+
+	if (align_size)
+		*align_size = 1;
+
+	return 0;
+}
+
+static int intel_ntb_mw_set_trans(struct ntb_dev *ntb, int idx,
+				  dma_addr_t addr, resource_size_t size)
+{
+	struct intel_ntb_dev *ndev = ntb_ndev(ntb);
+	unsigned long base_reg, xlat_reg, limit_reg;
+	resource_size_t bar_size, mw_size;
+	void __iomem *mmio;
+	u64 base, limit, reg_val;
+	int bar;
+
+	if (idx >= ndev->b2b_idx && !ndev->b2b_off)
+		idx += 1;
+
+	bar = ndev_mw_to_bar(ndev, idx);
+	if (bar < 0)
+		return bar;
+
+	bar_size = pci_resource_len(ndev->ntb.pdev, bar);
+
+	if (idx == ndev->b2b_idx)
+		mw_size = bar_size - ndev->b2b_off;
+	else
+		mw_size = bar_size;
+
+	/* hardware requires that addr is aligned to bar size */
+	if (addr & (bar_size - 1))
+		return -EINVAL;
+
+	/* make sure the range fits in the usable mw size */
+	if (size > mw_size)
+		return -EINVAL;
+
+	mmio = ndev->self_mmio;
+	base_reg = bar0_off(ndev->xlat_reg->bar0_base, bar);
+	xlat_reg = bar2_off(ndev->xlat_reg->bar2_xlat, bar);
+	limit_reg = bar2_off(ndev->xlat_reg->bar2_limit, bar);
+
+	if (bar < 4 || !ndev->bar4_split) {
+		base = ioread64(mmio + base_reg);
+
+		/* Set the limit if supported, if size is not mw_size */
+		if (limit_reg && size != mw_size)
+			limit = base + size;
+		else
+			limit = 0;
+
+		/* set and verify setting the translation address */
+		iowrite64(addr, mmio + xlat_reg);
+		reg_val = ioread64(mmio + xlat_reg);
+		if (reg_val != addr) {
+			iowrite64(0, mmio + xlat_reg);
+			return -EIO;
+		}
+
+		/* set and verify setting the limit */
+		iowrite64(limit, mmio + limit_reg);
+		reg_val = ioread64(mmio + limit_reg);
+		if (reg_val != limit) {
+			iowrite64(base, mmio + limit_reg);
+			iowrite64(0, mmio + xlat_reg);
+			return -EIO;
+		}
+	} else {
+		/* split bar addr range must all be 32 bit */
+		if (addr & (~0ull << 32))
+			return -EINVAL;
+		if ((addr + size) & (~0ull << 32))
+			return -EINVAL;
+
+		base = ioread32(mmio + base_reg);
+
+		/* Set the limit if supported, if size is not mw_size */
+		if (limit_reg && size != mw_size)
+			limit = base + size;
+		else
+			limit = 0;
+
+		/* set and verify setting the translation address */
+		iowrite32(addr, mmio + xlat_reg);
+		reg_val = ioread32(mmio + xlat_reg);
+		if (reg_val != addr) {
+			iowrite32(0, mmio + xlat_reg);
+			return -EIO;
+		}
+
+		/* set and verify setting the limit */
+		iowrite32(limit, mmio + limit_reg);
+		reg_val = ioread32(mmio + limit_reg);
+		if (reg_val != limit) {
+			iowrite32(base, mmio + limit_reg);
+			iowrite32(0, mmio + xlat_reg);
+			return -EIO;
+		}
+	}
+
+	return 0;
+}
+
+static int intel_ntb_link_is_up(struct ntb_dev *ntb,
+				enum ntb_speed *speed,
+				enum ntb_width *width)
+{
+	struct intel_ntb_dev *ndev = ntb_ndev(ntb);
+
+	if (ndev->reg->link_is_up(ndev)) {
+		if (speed)
+			*speed = NTB_LNK_STA_SPEED(ndev->lnk_sta);
+		if (width)
+			*width = NTB_LNK_STA_WIDTH(ndev->lnk_sta);
+		return 1;
+	} else {
+		/* TODO MAYBE: is it possible to observe the link speed and
+		 * width while link is training? */
+		if (speed)
+			*speed = NTB_SPEED_NONE;
+		if (width)
+			*width = NTB_WIDTH_NONE;
+		return 0;
+	}
+}
+
+static int intel_ntb_link_enable(struct ntb_dev *ntb,
+				 enum ntb_speed max_speed,
+				 enum ntb_width max_width)
+{
+	struct intel_ntb_dev *ndev;
+	u32 ntb_ctl;
+
+	ndev = container_of(ntb, struct intel_ntb_dev, ntb);
+
+	if (ndev->ntb.topo == NTB_TOPO_SEC)
+		return -EINVAL;
+
+	dev_dbg(ndev_dev(ndev),
+		"Enabling link with max_speed %d max_width %d\n",
+		max_speed, max_width);
+	if (max_speed != NTB_SPEED_AUTO)
+		dev_dbg(ndev_dev(ndev), "ignoring max_speed %d\n", max_speed);
+	if (max_width != NTB_WIDTH_AUTO)
+		dev_dbg(ndev_dev(ndev), "ignoring max_width %d\n", max_width);
+
+	ntb_ctl = ioread32(ndev->self_mmio + ndev->reg->ntb_ctl);
+	ntb_ctl &= ~(NTB_CTL_DISABLE | NTB_CTL_CFG_LOCK);
+	ntb_ctl |= NTB_CTL_P2S_BAR2_SNOOP | NTB_CTL_S2P_BAR2_SNOOP;
+	ntb_ctl |= NTB_CTL_P2S_BAR4_SNOOP | NTB_CTL_S2P_BAR4_SNOOP;
+	if (ndev->bar4_split)
+		ntb_ctl |= NTB_CTL_P2S_BAR5_SNOOP | NTB_CTL_S2P_BAR5_SNOOP;
+	iowrite32(ntb_ctl, ndev->self_mmio + ndev->reg->ntb_ctl);
+
+	return 0;
+}
+
+static int intel_ntb_link_disable(struct ntb_dev *ntb)
+{
+	struct intel_ntb_dev *ndev;
+	u32 ntb_cntl;
+
+	ndev = container_of(ntb, struct intel_ntb_dev, ntb);
+
+	if (ndev->ntb.topo == NTB_TOPO_SEC)
+		return -EINVAL;
+
+	dev_dbg(ndev_dev(ndev), "Disabling link\n");
+
+	/* Bring NTB link down */
+	ntb_cntl = ioread32(ndev->self_mmio + ndev->reg->ntb_ctl);
+	ntb_cntl &= ~(NTB_CTL_P2S_BAR2_SNOOP | NTB_CTL_S2P_BAR2_SNOOP);
+	ntb_cntl &= ~(NTB_CTL_P2S_BAR4_SNOOP | NTB_CTL_S2P_BAR4_SNOOP);
+	if (ndev->bar4_split)
+		ntb_cntl &= ~(NTB_CTL_P2S_BAR5_SNOOP | NTB_CTL_S2P_BAR5_SNOOP);
+	ntb_cntl |= NTB_CTL_DISABLE | NTB_CTL_CFG_LOCK;
+	iowrite32(ntb_cntl, ndev->self_mmio + ndev->reg->ntb_ctl);
+
+	return 0;
+}
+
+static int intel_ntb_db_is_unsafe(struct ntb_dev *ntb)
+{
+	return ndev_ignore_unsafe(ntb_ndev(ntb), NTB_UNSAFE_DB);
+}
+
+static u64 intel_ntb_db_valid_mask(struct ntb_dev *ntb)
+{
+	return ntb_ndev(ntb)->db_valid_mask;
+}
+
+static int intel_ntb_db_vector_count(struct ntb_dev *ntb)
+{
+	struct intel_ntb_dev *ndev;
+
+	ndev = container_of(ntb, struct intel_ntb_dev, ntb);
+
+	return ndev->db_vec_count;
+}
+
+static u64 intel_ntb_db_vector_mask(struct ntb_dev *ntb, int db_vector)
+{
+	struct intel_ntb_dev *ndev = ntb_ndev(ntb);
+
+	if (db_vector < 0 || db_vector > ndev->db_vec_count)
+		return 0;
+
+	return ndev->db_valid_mask & ndev_vec_mask(ndev, db_vector);
+}
+
+static u64 intel_ntb_db_read(struct ntb_dev *ntb)
+{
+	struct intel_ntb_dev *ndev = ntb_ndev(ntb);
+
+	return ndev_db_read(ndev,
+			    ndev->self_mmio +
+			    ndev->self_reg->db_bell);
+}
+
+static int intel_ntb_db_clear(struct ntb_dev *ntb, u64 db_bits)
+{
+	struct intel_ntb_dev *ndev = ntb_ndev(ntb);
+
+	return ndev_db_write(ndev, db_bits,
+			     ndev->self_mmio +
+			     ndev->self_reg->db_bell);
+}
+
+static int intel_ntb_db_set_mask(struct ntb_dev *ntb, u64 db_bits)
+{
+	struct intel_ntb_dev *ndev = ntb_ndev(ntb);
+
+	return ndev_db_set_mask(ndev, db_bits,
+				ndev->self_mmio +
+				ndev->self_reg->db_mask);
+}
+
+static int intel_ntb_db_clear_mask(struct ntb_dev *ntb, u64 db_bits)
+{
+	struct intel_ntb_dev *ndev = ntb_ndev(ntb);
+
+	return ndev_db_clear_mask(ndev, db_bits,
+				  ndev->self_mmio +
+				  ndev->self_reg->db_mask);
+}
+
+static int intel_ntb_peer_db_addr(struct ntb_dev *ntb,
+				  phys_addr_t *db_addr,
+				  resource_size_t *db_size)
+{
+	struct intel_ntb_dev *ndev = ntb_ndev(ntb);
+
+	return ndev_db_addr(ndev, db_addr, db_size, ndev->peer_addr,
+			    ndev->peer_reg->db_bell);
+}
+
+static int intel_ntb_peer_db_set(struct ntb_dev *ntb, u64 db_bits)
+{
+	struct intel_ntb_dev *ndev = ntb_ndev(ntb);
+
+	return ndev_db_write(ndev, db_bits,
+			     ndev->peer_mmio +
+			     ndev->peer_reg->db_bell);
+}
+
+static int intel_ntb_spad_is_unsafe(struct ntb_dev *ntb)
+{
+	return ndev_ignore_unsafe(ntb_ndev(ntb), NTB_UNSAFE_SPAD);
+}
+
+static int intel_ntb_spad_count(struct ntb_dev *ntb)
+{
+	struct intel_ntb_dev *ndev;
+
+	ndev = container_of(ntb, struct intel_ntb_dev, ntb);
+
+	return ndev->spad_count;
+}
+
+static u32 intel_ntb_spad_read(struct ntb_dev *ntb, int idx)
+{
+	struct intel_ntb_dev *ndev = ntb_ndev(ntb);
+
+	return ndev_spad_read(ndev, idx,
+			      ndev->self_mmio +
+			      ndev->self_reg->spad);
+}
+
+static int intel_ntb_spad_write(struct ntb_dev *ntb,
+				int idx, u32 val)
+{
+	struct intel_ntb_dev *ndev = ntb_ndev(ntb);
+
+	return ndev_spad_write(ndev, idx, val,
+			       ndev->self_mmio +
+			       ndev->self_reg->spad);
+}
+
+static int intel_ntb_peer_spad_addr(struct ntb_dev *ntb, int idx,
+				    phys_addr_t *spad_addr)
+{
+	struct intel_ntb_dev *ndev = ntb_ndev(ntb);
+
+	return ndev_spad_addr(ndev, idx, spad_addr, ndev->peer_addr,
+			      ndev->peer_reg->spad);
+}
+
+static u32 intel_ntb_peer_spad_read(struct ntb_dev *ntb, int idx)
+{
+	struct intel_ntb_dev *ndev = ntb_ndev(ntb);
+
+	return ndev_spad_read(ndev, idx,
+			      ndev->peer_mmio +
+			      ndev->peer_reg->spad);
+}
+
+static int intel_ntb_peer_spad_write(struct ntb_dev *ntb,
+				     int idx, u32 val)
+{
+	struct intel_ntb_dev *ndev = ntb_ndev(ntb);
+
+	return ndev_spad_write(ndev, idx, val,
+			       ndev->peer_mmio +
+			       ndev->peer_reg->spad);
+}
+
+/* BWD */
+
+static u64 bwd_db_ioread(void __iomem *mmio)
+{
+	return ioread64(mmio);
+}
+
+static void bwd_db_iowrite(u64 bits, void __iomem *mmio)
+{
+	iowrite64(bits, mmio);
+}
+
+static int bwd_poll_link(struct intel_ntb_dev *ndev)
+{
+	u32 ntb_ctl;
+
+	ntb_ctl = ioread32(ndev->self_mmio + BWD_NTBCNTL_OFFSET);
+
+	if (ntb_ctl == ndev->ntb_ctl)
+		return 0;
+
+	ndev->ntb_ctl = ntb_ctl;
+
+	ndev->lnk_sta = ioread32(ndev->self_mmio + BWD_LINK_STATUS_OFFSET);
+
+	return 1;
+}
+
+static int bwd_link_is_up(struct intel_ntb_dev *ndev)
+{
+	return BWD_NTB_CTL_ACTIVE(ndev->ntb_ctl);
+}
+
+static int bwd_link_is_err(struct intel_ntb_dev *ndev)
+{
+	if (ioread32(ndev->self_mmio + BWD_LTSSMSTATEJMP_OFFSET)
+	    & BWD_LTSSMSTATEJMP_FORCEDETECT)
+		return 1;
+
+	if (ioread32(ndev->self_mmio + BWD_IBSTERRRCRVSTS0_OFFSET)
+	    & BWD_IBIST_ERR_OFLOW)
+		return 1;
+
+	return 0;
+}
+
+static inline enum ntb_topo bwd_ppd_topo(struct intel_ntb_dev *ndev, u32 ppd)
+{
+	switch (ppd & BWD_PPD_TOPO_MASK) {
+	case BWD_PPD_TOPO_B2B_USD:
+		dev_dbg(ndev_dev(ndev), "PPD %d B2B USD\n", ppd);
+		return NTB_TOPO_B2B_USD;
+
+	case BWD_PPD_TOPO_B2B_DSD:
+		dev_dbg(ndev_dev(ndev), "PPD %d B2B DSD\n", ppd);
+		return NTB_TOPO_B2B_DSD;
+
+	case BWD_PPD_TOPO_PRI_USD:
+	case BWD_PPD_TOPO_PRI_DSD: /* accept bogus PRI_DSD */
+	case BWD_PPD_TOPO_SEC_USD:
+	case BWD_PPD_TOPO_SEC_DSD: /* accept bogus SEC_DSD */
+		dev_dbg(ndev_dev(ndev), "PPD %d non B2B disabled\n", ppd);
+		return NTB_TOPO_NONE;
+	}
+
+	dev_dbg(ndev_dev(ndev), "PPD %d invalid\n", ppd);
+	return NTB_TOPO_NONE;
+}
+
+static void bwd_link_hb(struct work_struct *work)
+{
+	struct intel_ntb_dev *ndev = hb_ndev(work);
+	unsigned long poll_ts;
+	void __iomem *mmio;
+	u32 status32;
+
+	poll_ts = ndev->last_ts + BWD_LINK_HB_TIMEOUT;
+
+	/* Delay polling the link status if an interrupt was received,
+	 * unless the cached link status says the link is down.
+	 */
+	if (time_after(poll_ts, jiffies) && bwd_link_is_up(ndev)) {
+		schedule_delayed_work(&ndev->hb_timer, poll_ts - jiffies);
+		return;
+	}
+
+	if (bwd_poll_link(ndev))
+		ntb_link_event(&ndev->ntb);
+
+	if (bwd_link_is_up(ndev) || !bwd_link_is_err(ndev)) {
+		schedule_delayed_work(&ndev->hb_timer, BWD_LINK_HB_TIMEOUT);
+		return;
+	}
+
+	/* Link is down with error: recover the link! */
+
+	mmio = ndev->self_mmio;
+
+	/* Driver resets the NTB ModPhy lanes - magic! */
+	iowrite8(0xe0, mmio + BWD_MODPHY_PCSREG6);
+	iowrite8(0x40, mmio + BWD_MODPHY_PCSREG4);
+	iowrite8(0x60, mmio + BWD_MODPHY_PCSREG4);
+	iowrite8(0x60, mmio + BWD_MODPHY_PCSREG6);
+
+	/* Driver waits 100ms to allow the NTB ModPhy to settle */
+	msleep(100);
+
+	/* Clear AER Errors, write to clear */
+	status32 = ioread32(mmio + BWD_ERRCORSTS_OFFSET);
+	dev_dbg(ndev_dev(ndev), "ERRCORSTS = %x\n", status32);
+	status32 &= PCI_ERR_COR_REP_ROLL;
+	iowrite32(status32, mmio + BWD_ERRCORSTS_OFFSET);
+
+	/* Clear unexpected electrical idle event in LTSSM, write to clear */
+	status32 = ioread32(mmio + BWD_LTSSMERRSTS0_OFFSET);
+	dev_dbg(ndev_dev(ndev), "LTSSMERRSTS0 = %x\n", status32);
+	status32 |= BWD_LTSSMERRSTS0_UNEXPECTEDEI;
+	iowrite32(status32, mmio + BWD_LTSSMERRSTS0_OFFSET);
+
+	/* Clear DeSkew Buffer error, write to clear */
+	status32 = ioread32(mmio + BWD_DESKEWSTS_OFFSET);
+	dev_dbg(ndev_dev(ndev), "DESKEWSTS = %x\n", status32);
+	status32 |= BWD_DESKEWSTS_DBERR;
+	iowrite32(status32, mmio + BWD_DESKEWSTS_OFFSET);
+
+	status32 = ioread32(mmio + BWD_IBSTERRRCRVSTS0_OFFSET);
+	dev_dbg(ndev_dev(ndev), "IBSTERRRCRVSTS0 = %x\n", status32);
+	status32 &= BWD_IBIST_ERR_OFLOW;
+	iowrite32(status32, mmio + BWD_IBSTERRRCRVSTS0_OFFSET);
+
+	/* Releases the NTB state machine to allow the link to retrain */
+	status32 = ioread32(mmio + BWD_LTSSMSTATEJMP_OFFSET);
+	dev_dbg(ndev_dev(ndev), "LTSSMSTATEJMP = %x\n", status32);
+	status32 &= ~BWD_LTSSMSTATEJMP_FORCEDETECT;
+	iowrite32(status32, mmio + BWD_LTSSMSTATEJMP_OFFSET);
+
+	/* There is a potential race between the 2 NTB devices recovering at the
+	 * same time.  If the times are the same, the link will not recover and
+	 * the driver will be stuck in this loop forever.  Add a random interval
+	 * to the recovery time to prevent this race.
+	 */
+	schedule_delayed_work(&ndev->hb_timer, BWD_LINK_RECOVERY_TIME
+			      + prandom_u32() % BWD_LINK_RECOVERY_TIME);
+}
+
+static int bwd_init_isr(struct intel_ntb_dev *ndev)
+{
+	int rc;
+
+	rc = ndev_init_isr(ndev, 1, BWD_DB_MSIX_VECTOR_COUNT,
+			   BWD_DB_MSIX_VECTOR_SHIFT, BWD_DB_TOTAL_SHIFT);
+	if (rc)
+		return rc;
+
+	/* BWD doesn't have link status interrupt, poll on that platform */
+	ndev->last_ts = jiffies;
+	INIT_DELAYED_WORK(&ndev->hb_timer, bwd_link_hb);
+	schedule_delayed_work(&ndev->hb_timer, BWD_LINK_HB_TIMEOUT);
+
+	return 0;
+}
+
+static void bwd_deinit_isr(struct intel_ntb_dev *ndev)
+{
+	cancel_delayed_work_sync(&ndev->hb_timer);
+	ndev_deinit_isr(ndev);
+}
+
+static int bwd_init_ntb(struct intel_ntb_dev *ndev)
+{
+	ndev->mw_count = BWD_MW_COUNT;
+	ndev->spad_count = BWD_SPAD_COUNT;
+	ndev->db_count = BWD_DB_COUNT;
+
+	switch (ndev->ntb.topo) {
+	case NTB_TOPO_B2B_USD:
+	case NTB_TOPO_B2B_DSD:
+		ndev->self_reg = &bwd_pri_reg;
+		ndev->peer_reg = &bwd_b2b_reg;
+		ndev->xlat_reg = &bwd_sec_xlat;
+
+		/* Enable Bus Master and Memory Space on the secondary side */
+		iowrite16(PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER,
+			  ndev->self_mmio + BWD_SPCICMD_OFFSET);
+
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	ndev->db_valid_mask = BIT_ULL(ndev->db_count) - 1;
+
+	return 0;
+}
+
+static int bwd_init_dev(struct intel_ntb_dev *ndev)
+{
+	u32 ppd;
+	int rc;
+
+	rc = pci_read_config_dword(ndev->ntb.pdev, BWD_PPD_OFFSET, &ppd);
+	if (rc)
+		return -EIO;
+
+	ndev->ntb.topo = bwd_ppd_topo(ndev, ppd);
+	if (ndev->ntb.topo == NTB_TOPO_NONE)
+		return -EINVAL;
+
+	rc = bwd_init_ntb(ndev);
+	if (rc)
+		return rc;
+
+	rc = bwd_init_isr(ndev);
+	if (rc)
+		return rc;
+
+	if (ndev->ntb.topo != NTB_TOPO_SEC) {
+		/* Initiate PCI-E link training */
+		rc = pci_write_config_dword(ndev->ntb.pdev, BWD_PPD_OFFSET,
+					    ppd | BWD_PPD_INIT_LINK);
+		if (rc)
+			return rc;
+	}
+
+	return 0;
+}
+
+static void bwd_deinit_dev(struct intel_ntb_dev *ndev)
+{
+	bwd_deinit_isr(ndev);
+}
+
+/* SNB */
+
+static u64 snb_db_ioread(void __iomem *mmio)
+{
+	return (u64)ioread16(mmio);
+}
+
+static void snb_db_iowrite(u64 bits, void __iomem *mmio)
+{
+	iowrite16((u16)bits, mmio);
+}
+
+static int snb_poll_link(struct intel_ntb_dev *ndev)
+{
+	u16 reg_val;
+	int rc;
+
+	ndev->reg->db_iowrite(ndev->db_link_mask,
+			      ndev->self_mmio +
+			      ndev->self_reg->db_bell);
+
+	rc = pci_read_config_word(ndev->ntb.pdev,
+				  SNB_LINK_STATUS_OFFSET, &reg_val);
+	if (rc)
+		return 0;
+
+	if (reg_val == ndev->lnk_sta)
+		return 0;
+
+	ndev->lnk_sta = reg_val;
+
+	return 1;
+}
+
+static int snb_link_is_up(struct intel_ntb_dev *ndev)
+{
+	return NTB_LNK_STA_ACTIVE(ndev->lnk_sta);
+}
+
+static inline enum ntb_topo snb_ppd_topo(struct intel_ntb_dev *ndev, u8 ppd)
+{
+	switch (ppd & SNB_PPD_TOPO_MASK) {
+	case SNB_PPD_TOPO_B2B_USD:
+		return NTB_TOPO_B2B_USD;
+
+	case SNB_PPD_TOPO_B2B_DSD:
+		return NTB_TOPO_B2B_DSD;
+
+	case SNB_PPD_TOPO_PRI_USD:
+	case SNB_PPD_TOPO_PRI_DSD: /* accept bogus PRI_DSD */
+		return NTB_TOPO_PRI;
+
+	case SNB_PPD_TOPO_SEC_USD:
+	case SNB_PPD_TOPO_SEC_DSD: /* accept bogus SEC_DSD */
+		return NTB_TOPO_SEC;
+	}
+
+	return NTB_TOPO_NONE;
+}
+
+static inline int snb_ppd_bar4_split(struct intel_ntb_dev *ndev, u8 ppd)
+{
+	if (ppd & SNB_PPD_SPLIT_BAR_MASK) {
+		dev_dbg(ndev_dev(ndev), "PPD %d split bar\n", ppd);
+		return 1;
+	}
+	return 0;
+}
+
+static int snb_init_isr(struct intel_ntb_dev *ndev)
+{
+	return ndev_init_isr(ndev, SNB_DB_MSIX_VECTOR_COUNT,
+			     SNB_DB_MSIX_VECTOR_COUNT,
+			     SNB_DB_MSIX_VECTOR_SHIFT,
+			     SNB_DB_TOTAL_SHIFT);
+}
+
+static void snb_deinit_isr(struct intel_ntb_dev *ndev)
+{
+	ndev_deinit_isr(ndev);
+}
+
+static int snb_setup_b2b_mw(struct intel_ntb_dev *ndev,
+			    const struct intel_b2b_addr *addr,
+			    const struct intel_b2b_addr *peer_addr)
+{
+	struct pci_dev *pdev;
+	void __iomem *mmio;
+	resource_size_t bar_size;
+	phys_addr_t bar_addr;
+	int b2b_bar;
+	u8 bar_sz;
+
+	pdev = ndev_pdev(ndev);
+	mmio = ndev->self_mmio;
+
+	if (ndev->b2b_idx >= ndev->mw_count) {
+		dev_dbg(ndev_dev(ndev), "not using b2b mw\n");
+		b2b_bar = 0;
+		ndev->b2b_off = 0;
+	} else {
+		b2b_bar = ndev_mw_to_bar(ndev, ndev->b2b_idx);
+		if (b2b_bar < 0)
+			return -EIO;
+
+		dev_dbg(ndev_dev(ndev), "using b2b mw bar %d\n", b2b_bar);
+
+		bar_size = pci_resource_len(ndev->ntb.pdev, b2b_bar);
+
+		dev_dbg(ndev_dev(ndev), "b2b bar size %#llx\n", bar_size);
+
+		if (b2b_mw_share && SNB_B2B_MIN_SIZE <= bar_size >> 1) {
+			dev_dbg(ndev_dev(ndev),
+				"b2b using first half of bar\n");
+			ndev->b2b_off = bar_size >> 1;
+		} else if (SNB_B2B_MIN_SIZE <= bar_size) {
+			dev_dbg(ndev_dev(ndev),
+				"b2b using whole bar\n");
+			ndev->b2b_off = 0;
+			--ndev->mw_count;
+		} else {
+			dev_dbg(ndev_dev(ndev),
+				"b2b bar size is too small\n");
+			return -EIO;
+		}
+	}
+
+	/* Reset the secondary bar sizes to match the primary bar sizes,
+	 * except disable or halve the size of the b2b secondary bar.
+	 *
+	 * Note: code for each specific bar size register, because the register
+	 * offsets are not in a consistent order (bar5sz comes after ppd, odd).
+	 */
+	pci_read_config_byte(pdev, SNB_PBAR23SZ_OFFSET, &bar_sz);
+	dev_dbg(ndev_dev(ndev), "PBAR23SZ %#x\n", bar_sz);
+	if (b2b_bar == 2) {
+		if (ndev->b2b_off)
+			bar_sz -= 1;
+		else
+			bar_sz = 0;
+	}
+	pci_write_config_byte(pdev, SNB_SBAR23SZ_OFFSET, bar_sz);
+	pci_read_config_byte(pdev, SNB_SBAR23SZ_OFFSET, &bar_sz);
+	dev_dbg(ndev_dev(ndev), "SBAR23SZ %#x\n", bar_sz);
+
+	if (!ndev->bar4_split) {
+		pci_read_config_byte(pdev, SNB_PBAR45SZ_OFFSET, &bar_sz);
+		dev_dbg(ndev_dev(ndev), "PBAR45SZ %#x\n", bar_sz);
+		if (b2b_bar == 4) {
+			if (ndev->b2b_off)
+				bar_sz -= 1;
+			else
+				bar_sz = 0;
+		}
+		pci_write_config_byte(pdev, SNB_SBAR45SZ_OFFSET, bar_sz);
+		pci_read_config_byte(pdev, SNB_SBAR45SZ_OFFSET, &bar_sz);
+		dev_dbg(ndev_dev(ndev), "SBAR45SZ %#x\n", bar_sz);
+	} else {
+		pci_read_config_byte(pdev, SNB_PBAR4SZ_OFFSET, &bar_sz);
+		dev_dbg(ndev_dev(ndev), "PBAR4SZ %#x\n", bar_sz);
+		if (b2b_bar == 4) {
+			if (ndev->b2b_off)
+				bar_sz -= 1;
+			else
+				bar_sz = 0;
+		}
+		pci_write_config_byte(pdev, SNB_SBAR4SZ_OFFSET, bar_sz);
+		pci_read_config_byte(pdev, SNB_SBAR4SZ_OFFSET, &bar_sz);
+		dev_dbg(ndev_dev(ndev), "SBAR4SZ %#x\n", bar_sz);
+
+		pci_read_config_byte(pdev, SNB_PBAR5SZ_OFFSET, &bar_sz);
+		dev_dbg(ndev_dev(ndev), "PBAR5SZ %#x\n", bar_sz);
+		if (b2b_bar == 5) {
+			if (ndev->b2b_off)
+				bar_sz -= 1;
+			else
+				bar_sz = 0;
+		}
+		pci_write_config_byte(pdev, SNB_SBAR5SZ_OFFSET, bar_sz);
+		pci_read_config_byte(pdev, SNB_SBAR5SZ_OFFSET, &bar_sz);
+		dev_dbg(ndev_dev(ndev), "SBAR5SZ %#x\n", bar_sz);
+	}
+
+	/* SBAR01 hit by first part of the b2b bar */
+	if (b2b_bar == 0)
+		bar_addr = addr->bar0_addr;
+	else if (b2b_bar == 2)
+		bar_addr = addr->bar2_addr64;
+	else if (b2b_bar == 4 && !ndev->bar4_split)
+		bar_addr = addr->bar4_addr64;
+	else if (b2b_bar == 4)
+		bar_addr = addr->bar4_addr32;
+	else if (b2b_bar == 5)
+		bar_addr = addr->bar5_addr32;
+	else
+		return -EIO;
+
+	dev_dbg(ndev_dev(ndev), "SBAR01 %#018llx\n", bar_addr);
+	iowrite64(bar_addr, mmio + SNB_SBAR0BASE_OFFSET);
+
+	/* Other SBAR are normally hit by the PBAR xlat, except for b2b bar.
+	 * The b2b bar is either disabled above, or configured half-size, and
+	 * it starts at the PBAR xlat + offset.
+	 */
+
+	bar_addr = addr->bar2_addr64 + (b2b_bar == 2 ? ndev->b2b_off : 0);
+	iowrite64(bar_addr, mmio + SNB_SBAR23BASE_OFFSET);
+	bar_addr = ioread64(mmio + SNB_SBAR23BASE_OFFSET);
+	dev_dbg(ndev_dev(ndev), "SBAR23 %#018llx\n", bar_addr);
+
+	if (!ndev->bar4_split) {
+		bar_addr = addr->bar4_addr64 +
+			(b2b_bar == 4 ? ndev->b2b_off : 0);
+		iowrite64(bar_addr, mmio + SNB_SBAR45BASE_OFFSET);
+		bar_addr = ioread64(mmio + SNB_SBAR45BASE_OFFSET);
+		dev_dbg(ndev_dev(ndev), "SBAR45 %#018llx\n", bar_addr);
+	} else {
+		bar_addr = addr->bar4_addr32 +
+			(b2b_bar == 4 ? ndev->b2b_off : 0);
+		iowrite32(bar_addr, mmio + SNB_SBAR4BASE_OFFSET);
+		bar_addr = ioread32(mmio + SNB_SBAR4BASE_OFFSET);
+		dev_dbg(ndev_dev(ndev), "SBAR4 %#010llx\n", bar_addr);
+
+		bar_addr = addr->bar5_addr32 +
+			(b2b_bar == 5 ? ndev->b2b_off : 0);
+		iowrite32(bar_addr, mmio + SNB_SBAR5BASE_OFFSET);
+		bar_addr = ioread32(mmio + SNB_SBAR5BASE_OFFSET);
+		dev_dbg(ndev_dev(ndev), "SBAR5 %#010llx\n", bar_addr);
+	}
+
+	/* setup incoming bar limits == base addrs (zero length windows) */
+
+	bar_addr = addr->bar2_addr64 + (b2b_bar == 2 ? ndev->b2b_off : 0);
+	iowrite64(bar_addr, mmio + SNB_SBAR23LMT_OFFSET);
+	bar_addr = ioread64(mmio + SNB_SBAR23LMT_OFFSET);
+	dev_dbg(ndev_dev(ndev), "SBAR23LMT %#018llx\n", bar_addr);
+
+	if (!ndev->bar4_split) {
+		bar_addr = addr->bar4_addr64 +
+			(b2b_bar == 4 ? ndev->b2b_off : 0);
+		iowrite64(bar_addr, mmio + SNB_SBAR45LMT_OFFSET);
+		bar_addr = ioread64(mmio + SNB_SBAR45LMT_OFFSET);
+		dev_dbg(ndev_dev(ndev), "SBAR45LMT %#018llx\n", bar_addr);
+	} else {
+		bar_addr = addr->bar4_addr32 +
+			(b2b_bar == 4 ? ndev->b2b_off : 0);
+		iowrite32(bar_addr, mmio + SNB_SBAR4LMT_OFFSET);
+		bar_addr = ioread32(mmio + SNB_SBAR4LMT_OFFSET);
+		dev_dbg(ndev_dev(ndev), "SBAR4LMT %#010llx\n", bar_addr);
+
+		bar_addr = addr->bar5_addr32 +
+			(b2b_bar == 5 ? ndev->b2b_off : 0);
+		iowrite32(bar_addr, mmio + SNB_SBAR5LMT_OFFSET);
+		bar_addr = ioread32(mmio + SNB_SBAR5LMT_OFFSET);
+		dev_dbg(ndev_dev(ndev), "SBAR5LMT %#05llx\n", bar_addr);
+	}
+
+	/* zero incoming translation addrs */
+	iowrite64(0, mmio + SNB_SBAR23XLAT_OFFSET);
+
+	if (!ndev->bar4_split) {
+		iowrite64(0, mmio + SNB_SBAR45XLAT_OFFSET);
+	} else {
+		iowrite32(0, mmio + SNB_SBAR4XLAT_OFFSET);
+		iowrite32(0, mmio + SNB_SBAR5XLAT_OFFSET);
+	}
+
+	/* zero outgoing translation limits (whole bar size windows) */
+	iowrite64(0, mmio + SNB_PBAR23LMT_OFFSET);
+	if (!ndev->bar4_split) {
+		iowrite64(0, mmio + SNB_PBAR45LMT_OFFSET);
+	} else {
+		iowrite32(0, mmio + SNB_PBAR4LMT_OFFSET);
+		iowrite32(0, mmio + SNB_PBAR5LMT_OFFSET);
+	}
+
+	/* set outgoing translation offsets */
+	bar_addr = peer_addr->bar2_addr64;
+	iowrite64(bar_addr, mmio + SNB_PBAR23XLAT_OFFSET);
+	bar_addr = ioread64(mmio + SNB_PBAR23XLAT_OFFSET);
+	dev_dbg(ndev_dev(ndev), "PBAR23XLAT %#018llx\n", bar_addr);
+
+	if (!ndev->bar4_split) {
+		bar_addr = peer_addr->bar4_addr64;
+		iowrite64(bar_addr, mmio + SNB_PBAR45XLAT_OFFSET);
+		bar_addr = ioread64(mmio + SNB_PBAR45XLAT_OFFSET);
+		dev_dbg(ndev_dev(ndev), "PBAR45XLAT %#018llx\n", bar_addr);
+	} else {
+		bar_addr = peer_addr->bar4_addr32;
+		iowrite32(bar_addr, mmio + SNB_PBAR4XLAT_OFFSET);
+		bar_addr = ioread32(mmio + SNB_PBAR4XLAT_OFFSET);
+		dev_dbg(ndev_dev(ndev), "PBAR4XLAT %#010llx\n", bar_addr);
+
+		bar_addr = peer_addr->bar5_addr32;
+		iowrite32(bar_addr, mmio + SNB_PBAR5XLAT_OFFSET);
+		bar_addr = ioread32(mmio + SNB_PBAR5XLAT_OFFSET);
+		dev_dbg(ndev_dev(ndev), "PBAR5XLAT %#010llx\n", bar_addr);
+	}
+
+	/* set the translation offset for b2b registers */
+	if (b2b_bar == 0)
+		bar_addr = peer_addr->bar0_addr;
+	else if (b2b_bar == 2)
+		bar_addr = peer_addr->bar2_addr64;
+	else if (b2b_bar == 4 && !ndev->bar4_split)
+		bar_addr = peer_addr->bar4_addr64;
+	else if (b2b_bar == 4)
+		bar_addr = peer_addr->bar4_addr32;
+	else if (b2b_bar == 5)
+		bar_addr = peer_addr->bar5_addr32;
+	else
+		return -EIO;
+
+	/* B2B_XLAT_OFFSET is 64bit, but can only take 32bit writes */
+	dev_dbg(ndev_dev(ndev), "B2BXLAT %#018llx\n", bar_addr);
+	iowrite32(bar_addr, mmio + SNB_B2B_XLAT_OFFSETL);
+	iowrite32(bar_addr >> 32, mmio + SNB_B2B_XLAT_OFFSETU);
+
+	if (b2b_bar) {
+		/* map peer ntb mmio config space registers */
+		ndev->peer_mmio = pci_iomap(pdev, b2b_bar,
+					    SNB_B2B_MIN_SIZE);
+		if (!ndev->peer_mmio)
+			return -EIO;
+	}
+
+	return 0;
+}
+
+static int snb_init_ntb(struct intel_ntb_dev *ndev)
+{
+	int rc;
+
+	if (ndev->bar4_split)
+		ndev->mw_count = HSX_SPLIT_BAR_MW_COUNT;
+	else
+		ndev->mw_count = SNB_MW_COUNT;
+
+	ndev->spad_count = SNB_SPAD_COUNT;
+	ndev->db_count = SNB_DB_COUNT;
+	ndev->db_link_mask = SNB_DB_LINK_BIT;
+
+	switch (ndev->ntb.topo) {
+	case NTB_TOPO_PRI:
+		if (ndev->hwerr_flags & NTB_HWERR_SDOORBELL_LOCKUP) {
+			dev_err(ndev_dev(ndev), "NTB Primary config disabled\n");
+			return -EINVAL;
+		}
+		/* use half the spads for the peer */
+		ndev->spad_count >>= 1;
+		ndev->self_reg = &snb_pri_reg;
+		ndev->peer_reg = &snb_sec_reg;
+		ndev->xlat_reg = &snb_sec_xlat;
+		break;
+
+	case NTB_TOPO_SEC:
+		if (ndev->hwerr_flags & NTB_HWERR_SDOORBELL_LOCKUP) {
+			dev_err(ndev_dev(ndev), "NTB Secondary config disabled\n");
+			return -EINVAL;
+		}
+		/* use half the spads for the peer */
+		ndev->spad_count >>= 1;
+		ndev->self_reg = &snb_sec_reg;
+		ndev->peer_reg = &snb_pri_reg;
+		ndev->xlat_reg = &snb_pri_xlat;
+		break;
+
+	case NTB_TOPO_B2B_USD:
+	case NTB_TOPO_B2B_DSD:
+		ndev->self_reg = &snb_pri_reg;
+		ndev->peer_reg = &snb_b2b_reg;
+		ndev->xlat_reg = &snb_sec_xlat;
+
+		if (ndev->hwerr_flags & NTB_HWERR_SDOORBELL_LOCKUP) {
+			ndev->peer_reg = &snb_pri_reg;
+
+			if (b2b_mw_idx < 0)
+				ndev->b2b_idx = b2b_mw_idx + ndev->mw_count;
+			else
+				ndev->b2b_idx = b2b_mw_idx;
+
+			dev_dbg(ndev_dev(ndev),
+				"setting up b2b mw idx %d means %d\n",
+				b2b_mw_idx, ndev->b2b_idx);
+
+		} else if (ndev->hwerr_flags & NTB_HWERR_B2BDOORBELL_BIT14) {
+			dev_warn(ndev_dev(ndev), "Reduce doorbell count by 1\n");
+			ndev->db_count -= 1;
+		}
+
+		if (ndev->ntb.topo == NTB_TOPO_B2B_USD) {
+			rc = snb_setup_b2b_mw(ndev,
+					      &snb_b2b_dsd_addr,
+					      &snb_b2b_usd_addr);
+		} else {
+			rc = snb_setup_b2b_mw(ndev,
+					      &snb_b2b_usd_addr,
+					      &snb_b2b_dsd_addr);
+		}
+		if (rc)
+			return rc;
+
+		/* Enable Bus Master and Memory Space on the secondary side */
+		iowrite16(PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER,
+			  ndev->self_mmio + SNB_SPCICMD_OFFSET);
+
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	ndev->db_valid_mask = BIT_ULL(ndev->db_count) - 1;
+
+	ndev->reg->db_iowrite(ndev->db_valid_mask,
+			      ndev->self_mmio +
+			      ndev->self_reg->db_mask);
+
+	return 0;
+}
+
+static int snb_init_dev(struct intel_ntb_dev *ndev)
+{
+	struct pci_dev *pdev;
+	u8 ppd;
+	int rc, mem;
+
+	/* There is a Xeon hardware errata related to writes to SDOORBELL or
+	 * B2BDOORBELL in conjunction with inbound access to NTB MMIO Space,
+	 * which may hang the system.  To workaround this use the second memory
+	 * window to access the interrupt and scratch pad registers on the
+	 * remote system.
+	 */
+	ndev->hwerr_flags |= NTB_HWERR_SDOORBELL_LOCKUP;
+
+	/* There is a hardware errata related to accessing any register in
+	 * SB01BASE in the presence of bidirectional traffic crossing the NTB.
+	 */
+	ndev->hwerr_flags |= NTB_HWERR_SB01BASE_LOCKUP;
+
+	/* HW Errata on bit 14 of b2bdoorbell register.  Writes will not be
+	 * mirrored to the remote system.  Shrink the number of bits by one,
+	 * since bit 14 is the last bit.
+	 */
+	ndev->hwerr_flags |= NTB_HWERR_B2BDOORBELL_BIT14;
+
+	ndev->reg = &snb_reg;
+
+	pdev = ndev_pdev(ndev);
+
+	rc = pci_read_config_byte(pdev, SNB_PPD_OFFSET, &ppd);
+	if (rc)
+		return -EIO;
+
+	ndev->ntb.topo = snb_ppd_topo(ndev, ppd);
+	dev_dbg(ndev_dev(ndev), "ppd %#x topo %s\n", ppd,
+		ntb_topo_string(ndev->ntb.topo));
+	if (ndev->ntb.topo == NTB_TOPO_NONE)
+		return -EINVAL;
+
+	if (ndev->ntb.topo != NTB_TOPO_SEC) {
+		ndev->bar4_split = snb_ppd_bar4_split(ndev, ppd);
+		dev_dbg(ndev_dev(ndev), "ppd %#x bar4_split %d\n",
+			ppd, ndev->bar4_split);
+	} else {
+		/* This is a way for transparent BAR to figure out if we are
+		 * doing split BAR or not. There is no way for the hw on the
+		 * transparent side to know and set the PPD.
+		 */
+		mem = pci_select_bars(pdev, IORESOURCE_MEM);
+		ndev->bar4_split = hweight32(mem) ==
+			HSX_SPLIT_BAR_MW_COUNT + 1;
+		dev_dbg(ndev_dev(ndev), "mem %#x bar4_split %d\n",
+			mem, ndev->bar4_split);
+	}
+
+	rc = snb_init_ntb(ndev);
+	if (rc)
+		return rc;
+
+	return snb_init_isr(ndev);
+}
+
+static void snb_deinit_dev(struct intel_ntb_dev *ndev)
+{
+	snb_deinit_isr(ndev);
+}
+
+static int intel_ntb_init_pci(struct intel_ntb_dev *ndev, struct pci_dev *pdev)
+{
+	int rc;
+
+	pci_set_drvdata(pdev, ndev);
+
+	rc = pci_enable_device(pdev);
+	if (rc)
+		goto err_pci_enable;
+
+	rc = pci_request_regions(pdev, NTB_NAME);
+	if (rc)
+		goto err_pci_regions;
+
+	pci_set_master(pdev);
+
+	rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
+	if (rc) {
+		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		if (rc)
+			goto err_dma_mask;
+		dev_warn(ndev_dev(ndev), "Cannot DMA highmem\n");
+	}
+
+	rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
+	if (rc) {
+		rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
+		if (rc)
+			goto err_dma_mask;
+		dev_warn(ndev_dev(ndev), "Cannot DMA consistent highmem\n");
+	}
+
+	ndev->self_mmio = pci_iomap(pdev, 0, 0);
+	if (!ndev->self_mmio) {
+		rc = -EIO;
+		goto err_mmio;
+	}
+	ndev->peer_mmio = ndev->self_mmio;
+
+	return 0;
+
+err_mmio:
+err_dma_mask:
+	pci_clear_master(pdev);
+	pci_release_regions(pdev);
+err_pci_regions:
+	pci_disable_device(pdev);
+err_pci_enable:
+	pci_set_drvdata(pdev, NULL);
+	return rc;
+}
+
+static void intel_ntb_deinit_pci(struct intel_ntb_dev *ndev)
+{
+	struct pci_dev *pdev = ndev_pdev(ndev);
+
+	if (ndev->peer_mmio && ndev->peer_mmio != ndev->self_mmio)
+		pci_iounmap(pdev, ndev->peer_mmio);
+	pci_iounmap(pdev, ndev->self_mmio);
+
+	pci_clear_master(pdev);
+	pci_release_regions(pdev);
+	pci_disable_device(pdev);
+	pci_set_drvdata(pdev, NULL);
+}
+
+static inline void ndev_init_struct(struct intel_ntb_dev *ndev,
+				    struct pci_dev *pdev)
+{
+	ndev->ntb.pdev = pdev;
+	ndev->ntb.topo = NTB_TOPO_NONE;
+	ndev->ntb.ops = &intel_ntb_ops;
+
+	ndev->b2b_off = 0;
+	ndev->b2b_idx = INT_MAX;
+
+	ndev->bar4_split = 0;
+
+	ndev->mw_count = 0;
+	ndev->spad_count = 0;
+	ndev->db_count = 0;
+	ndev->db_vec_count = 0;
+	ndev->db_vec_shift = 0;
+
+	ndev->ntb_ctl = 0;
+	ndev->lnk_sta = 0;
+
+	ndev->db_valid_mask = 0;
+	ndev->db_link_mask = 0;
+	ndev->db_mask = 0;
+
+	spin_lock_init(&ndev->db_mask_lock);
+}
+
+static int intel_ntb_pci_probe(struct pci_dev *pdev,
+			       const struct pci_device_id *id)
+{
+	struct intel_ntb_dev *ndev;
+	int rc;
+
+	if (pdev_is_bwd(pdev)) {
+		ndev = kzalloc(sizeof(*ndev), GFP_KERNEL);
+		if (!ndev) {
+			rc = -ENOMEM;
+			goto err_ndev;
+		}
+
+		ndev_init_struct(ndev, pdev);
+
+		rc = intel_ntb_init_pci(ndev, pdev);
+		if (rc)
+			goto err_init_pci;
+
+		rc = bwd_init_dev(ndev);
+		if (rc)
+			goto err_init_dev;
+
+	} else if (pdev_is_snb(pdev)) {
+		ndev = kzalloc(sizeof(*ndev), GFP_KERNEL);
+		if (!ndev) {
+			rc = -ENOMEM;
+			goto err_ndev;
+		}
+
+		ndev_init_struct(ndev, pdev);
+
+		rc = intel_ntb_init_pci(ndev, pdev);
+		if (rc)
+			goto err_init_pci;
+
+		rc = snb_init_dev(ndev);
+		if (rc)
+			goto err_init_dev;
+
+	} else {
+		rc = -EINVAL;
+		goto err_ndev;
+	}
+
+	ndev_reset_unsafe_flags(ndev);
+
+	ndev->reg->poll_link(ndev);
+
+	ndev_init_debugfs(ndev);
+
+	rc = ntb_register_device(&ndev->ntb);
+	if (rc)
+		goto err_register;
+
+	return 0;
+
+err_register:
+	ndev_deinit_debugfs(ndev);
+	if (pdev_is_bwd(pdev))
+		bwd_deinit_dev(ndev);
+	else if (pdev_is_snb(pdev))
+		snb_deinit_dev(ndev);
+err_init_dev:
+	intel_ntb_deinit_pci(ndev);
+err_init_pci:
+	kfree(ndev);
+err_ndev:
+	return rc;
+}
+
+static void intel_ntb_pci_remove(struct pci_dev *pdev)
+{
+	struct intel_ntb_dev *ndev = pci_get_drvdata(pdev);
+
+	ntb_unregister_device(&ndev->ntb);
+	ndev_deinit_debugfs(ndev);
+	if (pdev_is_bwd(pdev))
+		bwd_deinit_dev(ndev);
+	else if (pdev_is_snb(pdev))
+		snb_deinit_dev(ndev);
+	intel_ntb_deinit_pci(ndev);
+	kfree(ndev);
+}
+
+static const struct intel_ntb_reg bwd_reg = {
+	.poll_link		= bwd_poll_link,
+	.link_is_up		= bwd_link_is_up,
+	.db_ioread		= bwd_db_ioread,
+	.db_iowrite		= bwd_db_iowrite,
+	.db_size		= sizeof(u64),
+	.ntb_ctl		= BWD_NTBCNTL_OFFSET,
+	.mw_bar			= {2, 4},
+};
+
+static const struct intel_ntb_alt_reg bwd_pri_reg = {
+	.db_bell		= BWD_PDOORBELL_OFFSET,
+	.db_mask		= BWD_PDBMSK_OFFSET,
+	.spad			= BWD_SPAD_OFFSET,
+};
+
+static const struct intel_ntb_alt_reg bwd_b2b_reg = {
+	.db_bell		= BWD_B2B_DOORBELL_OFFSET,
+	.spad			= BWD_B2B_SPAD_OFFSET,
+};
+
+static const struct intel_ntb_xlat_reg bwd_sec_xlat = {
+	/* FIXME : .bar0_base	= BWD_SBAR0BASE_OFFSET, */
+	/* FIXME : .bar2_limit	= BWD_SBAR2LMT_OFFSET, */
+	.bar2_xlat		= BWD_SBAR2XLAT_OFFSET,
+};
+
+static const struct intel_ntb_reg snb_reg = {
+	.poll_link		= snb_poll_link,
+	.link_is_up		= snb_link_is_up,
+	.db_ioread		= snb_db_ioread,
+	.db_iowrite		= snb_db_iowrite,
+	.db_size		= sizeof(u32),
+	.ntb_ctl		= SNB_NTBCNTL_OFFSET,
+	.mw_bar			= {2, 4, 5},
+};
+
+static const struct intel_ntb_alt_reg snb_pri_reg = {
+	.db_bell		= SNB_PDOORBELL_OFFSET,
+	.db_mask		= SNB_PDBMSK_OFFSET,
+	.spad			= SNB_SPAD_OFFSET,
+};
+
+static const struct intel_ntb_alt_reg snb_sec_reg = {
+	.db_bell		= SNB_SDOORBELL_OFFSET,
+	.db_mask		= SNB_SDBMSK_OFFSET,
+	/* second half of the scratchpads */
+	.spad			= SNB_SPAD_OFFSET + (SNB_SPAD_COUNT << 1),
+};
+
+static const struct intel_ntb_alt_reg snb_b2b_reg = {
+	.db_bell		= SNB_B2B_DOORBELL_OFFSET,
+	.spad			= SNB_B2B_SPAD_OFFSET,
+};
+
+static const struct intel_ntb_xlat_reg snb_pri_xlat = {
+	/* Note: no primary .bar0_base visible to the secondary side.
+	 *
+	 * The secondary side cannot get the base address stored in primary
+	 * bars.  The base address is necessary to set the limit register to
+	 * any value other than zero, or unlimited.
+	 *
+	 * WITHOUT THE BASE ADDRESS, THE SECONDARY SIDE CANNOT DISABLE the
+	 * window by setting the limit equal to base, nor can it limit the size
+	 * of the memory window by setting the limit to base + size.
+	 */
+	.bar2_limit		= SNB_PBAR23LMT_OFFSET,
+	.bar2_xlat		= SNB_PBAR23XLAT_OFFSET,
+};
+
+static const struct intel_ntb_xlat_reg snb_sec_xlat = {
+	.bar0_base		= SNB_SBAR0BASE_OFFSET,
+	.bar2_limit		= SNB_SBAR23LMT_OFFSET,
+	.bar2_xlat		= SNB_SBAR23XLAT_OFFSET,
+};
+
+static const struct intel_b2b_addr snb_b2b_usd_addr = {
+	.bar2_addr64		= SNB_B2B_BAR2_USD_ADDR64,
+	.bar4_addr64		= SNB_B2B_BAR4_USD_ADDR64,
+	.bar4_addr32		= SNB_B2B_BAR4_USD_ADDR32,
+	.bar5_addr32		= SNB_B2B_BAR5_USD_ADDR32,
+};
+
+static const struct intel_b2b_addr snb_b2b_dsd_addr = {
+	.bar2_addr64		= SNB_B2B_BAR2_DSD_ADDR64,
+	.bar4_addr64		= SNB_B2B_BAR4_DSD_ADDR64,
+	.bar4_addr32		= SNB_B2B_BAR4_DSD_ADDR32,
+	.bar5_addr32		= SNB_B2B_BAR5_DSD_ADDR32,
+};
+
+/* operations for primary side of local ntb */
+static const struct ntb_dev_ops intel_ntb_ops = {
+	.mw_count		= intel_ntb_mw_count,
+	.mw_get_range		= intel_ntb_mw_get_range,
+	.mw_set_trans		= intel_ntb_mw_set_trans,
+	.link_is_up		= intel_ntb_link_is_up,
+	.link_enable		= intel_ntb_link_enable,
+	.link_disable		= intel_ntb_link_disable,
+	.db_is_unsafe		= intel_ntb_db_is_unsafe,
+	.db_valid_mask		= intel_ntb_db_valid_mask,
+	.db_vector_count	= intel_ntb_db_vector_count,
+	.db_vector_mask		= intel_ntb_db_vector_mask,
+	.db_read		= intel_ntb_db_read,
+	.db_clear		= intel_ntb_db_clear,
+	.db_set_mask		= intel_ntb_db_set_mask,
+	.db_clear_mask		= intel_ntb_db_clear_mask,
+	.peer_db_addr		= intel_ntb_peer_db_addr,
+	.peer_db_set		= intel_ntb_peer_db_set,
+	.spad_is_unsafe		= intel_ntb_spad_is_unsafe,
+	.spad_count		= intel_ntb_spad_count,
+	.spad_read		= intel_ntb_spad_read,
+	.spad_write		= intel_ntb_spad_write,
+	.peer_spad_addr		= intel_ntb_peer_spad_addr,
+	.peer_spad_read		= intel_ntb_peer_spad_read,
+	.peer_spad_write	= intel_ntb_peer_spad_write,
+};
+
+static const struct file_operations intel_ntb_debugfs_info = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = ndev_debugfs_read,
+};
+
+static const struct pci_device_id intel_ntb_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_NTB_B2B_BWD)},
 	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_NTB_B2B_JSF)},
 	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_NTB_B2B_SNB)},
@@ -102,1793 +2087,29 @@ static const struct pci_device_id ntb_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_NTB_SS_HSX)},
 	{0}
 };
-MODULE_DEVICE_TABLE(pci, ntb_pci_tbl);
-
-static int is_ntb_xeon(struct ntb_device *ndev)
-{
-	switch (ndev->pdev->device) {
-	case PCI_DEVICE_ID_INTEL_NTB_SS_JSF:
-	case PCI_DEVICE_ID_INTEL_NTB_SS_SNB:
-	case PCI_DEVICE_ID_INTEL_NTB_SS_IVT:
-	case PCI_DEVICE_ID_INTEL_NTB_SS_HSX:
-	case PCI_DEVICE_ID_INTEL_NTB_PS_JSF:
-	case PCI_DEVICE_ID_INTEL_NTB_PS_SNB:
-	case PCI_DEVICE_ID_INTEL_NTB_PS_IVT:
-	case PCI_DEVICE_ID_INTEL_NTB_PS_HSX:
-	case PCI_DEVICE_ID_INTEL_NTB_B2B_JSF:
-	case PCI_DEVICE_ID_INTEL_NTB_B2B_SNB:
-	case PCI_DEVICE_ID_INTEL_NTB_B2B_IVT:
-	case PCI_DEVICE_ID_INTEL_NTB_B2B_HSX:
-		return 1;
-	default:
-		return 0;
-	}
-
-	return 0;
-}
-
-static int is_ntb_atom(struct ntb_device *ndev)
-{
-	switch (ndev->pdev->device) {
-	case PCI_DEVICE_ID_INTEL_NTB_B2B_BWD:
-		return 1;
-	default:
-		return 0;
-	}
-
-	return 0;
-}
-
-static void ntb_set_errata_flags(struct ntb_device *ndev)
-{
-	switch (ndev->pdev->device) {
-	/*
-	 * this workaround applies to all platform up to IvyBridge
-	 * Haswell has splitbar support and use a different workaround
-	 */
-	case PCI_DEVICE_ID_INTEL_NTB_SS_JSF:
-	case PCI_DEVICE_ID_INTEL_NTB_SS_SNB:
-	case PCI_DEVICE_ID_INTEL_NTB_SS_IVT:
-	case PCI_DEVICE_ID_INTEL_NTB_SS_HSX:
-	case PCI_DEVICE_ID_INTEL_NTB_PS_JSF:
-	case PCI_DEVICE_ID_INTEL_NTB_PS_SNB:
-	case PCI_DEVICE_ID_INTEL_NTB_PS_IVT:
-	case PCI_DEVICE_ID_INTEL_NTB_PS_HSX:
-	case PCI_DEVICE_ID_INTEL_NTB_B2B_JSF:
-	case PCI_DEVICE_ID_INTEL_NTB_B2B_SNB:
-	case PCI_DEVICE_ID_INTEL_NTB_B2B_IVT:
-	case PCI_DEVICE_ID_INTEL_NTB_B2B_HSX:
-		ndev->wa_flags |= WA_SNB_ERR;
-		break;
-	}
-}
-
-/**
- * ntb_register_event_callback() - register event callback
- * @ndev: pointer to ntb_device instance
- * @func: callback function to register
- *
- * This function registers a callback for any HW driver events such as link
- * up/down, power management notices and etc.
- *
- * RETURNS: An appropriate -ERRNO error value on error, or zero for success.
- */
-int ntb_register_event_callback(struct ntb_device *ndev,
-				void (*func)(void *handle,
-					     enum ntb_hw_event event))
-{
-	if (ndev->event_cb)
-		return -EINVAL;
-
-	ndev->event_cb = func;
-
-	return 0;
-}
-
-/**
- * ntb_unregister_event_callback() - unregisters the event callback
- * @ndev: pointer to ntb_device instance
- *
- * This function unregisters the existing callback from transport
- */
-void ntb_unregister_event_callback(struct ntb_device *ndev)
-{
-	ndev->event_cb = NULL;
-}
-
-static void ntb_irq_work(unsigned long data)
-{
-	struct ntb_db_cb *db_cb = (struct ntb_db_cb *)data;
-	int rc;
-
-	rc = db_cb->callback(db_cb->data, db_cb->db_num);
-	if (rc)
-		tasklet_schedule(&db_cb->irq_work);
-	else {
-		struct ntb_device *ndev = db_cb->ndev;
-		unsigned long mask;
-
-		mask = readw(ndev->reg_ofs.ldb_mask);
-		clear_bit(db_cb->db_num * ndev->bits_per_vector, &mask);
-		writew(mask, ndev->reg_ofs.ldb_mask);
-	}
-}
-
-/**
- * ntb_register_db_callback() - register a callback for doorbell interrupt
- * @ndev: pointer to ntb_device instance
- * @idx: doorbell index to register callback, zero based
- * @data: pointer to be returned to caller with every callback
- * @func: callback function to register
- *
- * This function registers a callback function for the doorbell interrupt
- * on the primary side. The function will unmask the doorbell as well to
- * allow interrupt.
- *
- * RETURNS: An appropriate -ERRNO error value on error, or zero for success.
- */
-int ntb_register_db_callback(struct ntb_device *ndev, unsigned int idx,
-			     void *data, int (*func)(void *data, int db_num))
-{
-	unsigned long mask;
-
-	if (idx >= ndev->max_cbs || ndev->db_cb[idx].callback) {
-		dev_warn(&ndev->pdev->dev, "Invalid Index.\n");
-		return -EINVAL;
-	}
-
-	ndev->db_cb[idx].callback = func;
-	ndev->db_cb[idx].data = data;
-	ndev->db_cb[idx].ndev = ndev;
-
-	tasklet_init(&ndev->db_cb[idx].irq_work, ntb_irq_work,
-		     (unsigned long) &ndev->db_cb[idx]);
-
-	/* unmask interrupt */
-	mask = readw(ndev->reg_ofs.ldb_mask);
-	clear_bit(idx * ndev->bits_per_vector, &mask);
-	writew(mask, ndev->reg_ofs.ldb_mask);
-
-	return 0;
-}
-
-/**
- * ntb_unregister_db_callback() - unregister a callback for doorbell interrupt
- * @ndev: pointer to ntb_device instance
- * @idx: doorbell index to register callback, zero based
- *
- * This function unregisters a callback function for the doorbell interrupt
- * on the primary side. The function will also mask the said doorbell.
- */
-void ntb_unregister_db_callback(struct ntb_device *ndev, unsigned int idx)
-{
-	unsigned long mask;
-
-	if (idx >= ndev->max_cbs || !ndev->db_cb[idx].callback)
-		return;
-
-	mask = readw(ndev->reg_ofs.ldb_mask);
-	set_bit(idx * ndev->bits_per_vector, &mask);
-	writew(mask, ndev->reg_ofs.ldb_mask);
-
-	tasklet_disable(&ndev->db_cb[idx].irq_work);
-
-	ndev->db_cb[idx].callback = NULL;
-}
-
-/**
- * ntb_find_transport() - find the transport pointer
- * @transport: pointer to pci device
- *
- * Given the pci device pointer, return the transport pointer passed in when
- * the transport attached when it was inited.
- *
- * RETURNS: pointer to transport.
- */
-void *ntb_find_transport(struct pci_dev *pdev)
-{
-	struct ntb_device *ndev = pci_get_drvdata(pdev);
-	return ndev->ntb_transport;
-}
-
-/**
- * ntb_register_transport() - Register NTB transport with NTB HW driver
- * @transport: transport identifier
- *
- * This function allows a transport to reserve the hardware driver for
- * NTB usage.
- *
- * RETURNS: pointer to ntb_device, NULL on error.
- */
-struct ntb_device *ntb_register_transport(struct pci_dev *pdev, void *transport)
-{
-	struct ntb_device *ndev = pci_get_drvdata(pdev);
-
-	if (ndev->ntb_transport)
-		return NULL;
-
-	ndev->ntb_transport = transport;
-	return ndev;
-}
-
-/**
- * ntb_unregister_transport() - Unregister the transport with the NTB HW driver
- * @ndev - ntb_device of the transport to be freed
- *
- * This function unregisters the transport from the HW driver and performs any
- * necessary cleanups.
- */
-void ntb_unregister_transport(struct ntb_device *ndev)
-{
-	int i;
-
-	if (!ndev->ntb_transport)
-		return;
-
-	for (i = 0; i < ndev->max_cbs; i++)
-		ntb_unregister_db_callback(ndev, i);
-
-	ntb_unregister_event_callback(ndev);
-	ndev->ntb_transport = NULL;
-}
-
-/**
- * ntb_write_local_spad() - write to the secondary scratchpad register
- * @ndev: pointer to ntb_device instance
- * @idx: index to the scratchpad register, 0 based
- * @val: the data value to put into the register
- *
- * This function allows writing of a 32bit value to the indexed scratchpad
- * register. This writes over the data mirrored to the local scratchpad register
- * by the remote system.
- *
- * RETURNS: An appropriate -ERRNO error value on error, or zero for success.
- */
-int ntb_write_local_spad(struct ntb_device *ndev, unsigned int idx, u32 val)
-{
-	if (idx >= ndev->limits.max_spads)
-		return -EINVAL;
-
-	dev_dbg(&ndev->pdev->dev, "Writing %x to local scratch pad index %d\n",
-		val, idx);
-	writel(val, ndev->reg_ofs.spad_read + idx * 4);
-
-	return 0;
-}
-
-/**
- * ntb_read_local_spad() - read from the primary scratchpad register
- * @ndev: pointer to ntb_device instance
- * @idx: index to scratchpad register, 0 based
- * @val: pointer to 32bit integer for storing the register value
- *
- * This function allows reading of the 32bit scratchpad register on
- * the primary (internal) side.  This allows the local system to read data
- * written and mirrored to the scratchpad register by the remote system.
- *
- * RETURNS: An appropriate -ERRNO error value on error, or zero for success.
- */
-int ntb_read_local_spad(struct ntb_device *ndev, unsigned int idx, u32 *val)
-{
-	if (idx >= ndev->limits.max_spads)
-		return -EINVAL;
-
-	*val = readl(ndev->reg_ofs.spad_write + idx * 4);
-	dev_dbg(&ndev->pdev->dev,
-		"Reading %x from local scratch pad index %d\n", *val, idx);
-
-	return 0;
-}
-
-/**
- * ntb_write_remote_spad() - write to the secondary scratchpad register
- * @ndev: pointer to ntb_device instance
- * @idx: index to the scratchpad register, 0 based
- * @val: the data value to put into the register
- *
- * This function allows writing of a 32bit value to the indexed scratchpad
- * register. The register resides on the secondary (external) side.  This allows
- * the local system to write data to be mirrored to the remote systems
- * scratchpad register.
- *
- * RETURNS: An appropriate -ERRNO error value on error, or zero for success.
- */
-int ntb_write_remote_spad(struct ntb_device *ndev, unsigned int idx, u32 val)
-{
-	if (idx >= ndev->limits.max_spads)
-		return -EINVAL;
-
-	dev_dbg(&ndev->pdev->dev, "Writing %x to remote scratch pad index %d\n",
-		val, idx);
-	writel(val, ndev->reg_ofs.spad_write + idx * 4);
-
-	return 0;
-}
-
-/**
- * ntb_read_remote_spad() - read from the primary scratchpad register
- * @ndev: pointer to ntb_device instance
- * @idx: index to scratchpad register, 0 based
- * @val: pointer to 32bit integer for storing the register value
- *
- * This function allows reading of the 32bit scratchpad register on
- * the primary (internal) side.  This alloows the local system to read the data
- * it wrote to be mirrored on the remote system.
- *
- * RETURNS: An appropriate -ERRNO error value on error, or zero for success.
- */
-int ntb_read_remote_spad(struct ntb_device *ndev, unsigned int idx, u32 *val)
-{
-	if (idx >= ndev->limits.max_spads)
-		return -EINVAL;
-
-	*val = readl(ndev->reg_ofs.spad_read + idx * 4);
-	dev_dbg(&ndev->pdev->dev,
-		"Reading %x from remote scratch pad index %d\n", *val, idx);
-
-	return 0;
-}
-
-/**
- * ntb_get_mw_base() - get addr for the NTB memory window
- * @ndev: pointer to ntb_device instance
- * @mw: memory window number
- *
- * This function provides the base address of the memory window specified.
- *
- * RETURNS: address, or NULL on error.
- */
-resource_size_t ntb_get_mw_base(struct ntb_device *ndev, unsigned int mw)
-{
-	if (mw >= ntb_max_mw(ndev))
-		return 0;
-
-	return pci_resource_start(ndev->pdev, MW_TO_BAR(mw));
-}
-
-/**
- * ntb_get_mw_vbase() - get virtual addr for the NTB memory window
- * @ndev: pointer to ntb_device instance
- * @mw: memory window number
- *
- * This function provides the base virtual address of the memory window
- * specified.
- *
- * RETURNS: pointer to virtual address, or NULL on error.
- */
-void __iomem *ntb_get_mw_vbase(struct ntb_device *ndev, unsigned int mw)
-{
-	if (mw >= ntb_max_mw(ndev))
-		return NULL;
-
-	return ndev->mw[mw].vbase;
-}
-
-/**
- * ntb_get_mw_size() - return size of NTB memory window
- * @ndev: pointer to ntb_device instance
- * @mw: memory window number
- *
- * This function provides the physical size of the memory window specified
- *
- * RETURNS: the size of the memory window or zero on error
- */
-u64 ntb_get_mw_size(struct ntb_device *ndev, unsigned int mw)
-{
-	if (mw >= ntb_max_mw(ndev))
-		return 0;
-
-	return ndev->mw[mw].bar_sz;
-}
-
-/**
- * ntb_set_mw_addr - set the memory window address
- * @ndev: pointer to ntb_device instance
- * @mw: memory window number
- * @addr: base address for data
- *
- * This function sets the base physical address of the memory window.  This
- * memory address is where data from the remote system will be transfered into
- * or out of depending on how the transport is configured.
- */
-void ntb_set_mw_addr(struct ntb_device *ndev, unsigned int mw, u64 addr)
-{
-	if (mw >= ntb_max_mw(ndev))
-		return;
-
-	dev_dbg(&ndev->pdev->dev, "Writing addr %Lx to BAR %d\n", addr,
-		MW_TO_BAR(mw));
-
-	ndev->mw[mw].phys_addr = addr;
-
-	switch (MW_TO_BAR(mw)) {
-	case NTB_BAR_23:
-		writeq(addr, ndev->reg_ofs.bar2_xlat);
-		break;
-	case NTB_BAR_4:
-		if (ndev->split_bar)
-			writel(addr, ndev->reg_ofs.bar4_xlat);
-		else
-			writeq(addr, ndev->reg_ofs.bar4_xlat);
-		break;
-	case NTB_BAR_5:
-		writel(addr, ndev->reg_ofs.bar5_xlat);
-		break;
-	}
-}
-
-/**
- * ntb_ring_doorbell() - Set the doorbell on the secondary/external side
- * @ndev: pointer to ntb_device instance
- * @db: doorbell to ring
- *
- * This function allows triggering of a doorbell on the secondary/external
- * side that will initiate an interrupt on the remote host
- *
- * RETURNS: An appropriate -ERRNO error value on error, or zero for success.
- */
-void ntb_ring_doorbell(struct ntb_device *ndev, unsigned int db)
-{
-	dev_dbg(&ndev->pdev->dev, "%s: ringing doorbell %d\n", __func__, db);
-
-	if (ndev->hw_type == BWD_HW)
-		writeq((u64) 1 << db, ndev->reg_ofs.rdb);
-	else
-		writew(((1 << ndev->bits_per_vector) - 1) <<
-		       (db * ndev->bits_per_vector), ndev->reg_ofs.rdb);
-}
-
-static void bwd_recover_link(struct ntb_device *ndev)
-{
-	u32 status;
-
-	/* Driver resets the NTB ModPhy lanes - magic! */
-	writeb(0xe0, ndev->reg_base + BWD_MODPHY_PCSREG6);
-	writeb(0x40, ndev->reg_base + BWD_MODPHY_PCSREG4);
-	writeb(0x60, ndev->reg_base + BWD_MODPHY_PCSREG4);
-	writeb(0x60, ndev->reg_base + BWD_MODPHY_PCSREG6);
-
-	/* Driver waits 100ms to allow the NTB ModPhy to settle */
-	msleep(100);
-
-	/* Clear AER Errors, write to clear */
-	status = readl(ndev->reg_base + BWD_ERRCORSTS_OFFSET);
-	dev_dbg(&ndev->pdev->dev, "ERRCORSTS = %x\n", status);
-	status &= PCI_ERR_COR_REP_ROLL;
-	writel(status, ndev->reg_base + BWD_ERRCORSTS_OFFSET);
-
-	/* Clear unexpected electrical idle event in LTSSM, write to clear */
-	status = readl(ndev->reg_base + BWD_LTSSMERRSTS0_OFFSET);
-	dev_dbg(&ndev->pdev->dev, "LTSSMERRSTS0 = %x\n", status);
-	status |= BWD_LTSSMERRSTS0_UNEXPECTEDEI;
-	writel(status, ndev->reg_base + BWD_LTSSMERRSTS0_OFFSET);
-
-	/* Clear DeSkew Buffer error, write to clear */
-	status = readl(ndev->reg_base + BWD_DESKEWSTS_OFFSET);
-	dev_dbg(&ndev->pdev->dev, "DESKEWSTS = %x\n", status);
-	status |= BWD_DESKEWSTS_DBERR;
-	writel(status, ndev->reg_base + BWD_DESKEWSTS_OFFSET);
-
-	status = readl(ndev->reg_base + BWD_IBSTERRRCRVSTS0_OFFSET);
-	dev_dbg(&ndev->pdev->dev, "IBSTERRRCRVSTS0 = %x\n", status);
-	status &= BWD_IBIST_ERR_OFLOW;
-	writel(status, ndev->reg_base + BWD_IBSTERRRCRVSTS0_OFFSET);
-
-	/* Releases the NTB state machine to allow the link to retrain */
-	status = readl(ndev->reg_base + BWD_LTSSMSTATEJMP_OFFSET);
-	dev_dbg(&ndev->pdev->dev, "LTSSMSTATEJMP = %x\n", status);
-	status &= ~BWD_LTSSMSTATEJMP_FORCEDETECT;
-	writel(status, ndev->reg_base + BWD_LTSSMSTATEJMP_OFFSET);
-}
-
-static void ntb_link_event(struct ntb_device *ndev, int link_state)
-{
-	unsigned int event;
-
-	if (ndev->link_status == link_state)
-		return;
-
-	if (link_state == NTB_LINK_UP) {
-		u16 status;
-
-		dev_info(&ndev->pdev->dev, "Link Up\n");
-		ndev->link_status = NTB_LINK_UP;
-		event = NTB_EVENT_HW_LINK_UP;
-
-		if (is_ntb_atom(ndev) ||
-		    ndev->conn_type == NTB_CONN_TRANSPARENT)
-			status = readw(ndev->reg_ofs.lnk_stat);
-		else {
-			int rc = pci_read_config_word(ndev->pdev,
-						      SNB_LINK_STATUS_OFFSET,
-						      &status);
-			if (rc)
-				return;
-		}
-
-		ndev->link_width = (status & NTB_LINK_WIDTH_MASK) >> 4;
-		ndev->link_speed = (status & NTB_LINK_SPEED_MASK);
-		dev_info(&ndev->pdev->dev, "Link Width %d, Link Speed %d\n",
-			 ndev->link_width, ndev->link_speed);
-	} else {
-		dev_info(&ndev->pdev->dev, "Link Down\n");
-		ndev->link_status = NTB_LINK_DOWN;
-		event = NTB_EVENT_HW_LINK_DOWN;
-		/* Don't modify link width/speed, we need it in link recovery */
-	}
-
-	/* notify the upper layer if we have an event change */
-	if (ndev->event_cb)
-		ndev->event_cb(ndev->ntb_transport, event);
-}
-
-static int ntb_link_status(struct ntb_device *ndev)
-{
-	int link_state;
-
-	if (is_ntb_atom(ndev)) {
-		u32 ntb_cntl;
-
-		ntb_cntl = readl(ndev->reg_ofs.lnk_cntl);
-		if (ntb_cntl & BWD_CNTL_LINK_DOWN)
-			link_state = NTB_LINK_DOWN;
-		else
-			link_state = NTB_LINK_UP;
-	} else {
-		u16 status;
-		int rc;
-
-		rc = pci_read_config_word(ndev->pdev, SNB_LINK_STATUS_OFFSET,
-					  &status);
-		if (rc)
-			return rc;
-
-		if (status & NTB_LINK_STATUS_ACTIVE)
-			link_state = NTB_LINK_UP;
-		else
-			link_state = NTB_LINK_DOWN;
-	}
-
-	ntb_link_event(ndev, link_state);
-
-	return 0;
-}
-
-static void bwd_link_recovery(struct work_struct *work)
-{
-	struct ntb_device *ndev = container_of(work, struct ntb_device,
-					       lr_timer.work);
-	u32 status32;
-
-	bwd_recover_link(ndev);
-	/* There is a potential race between the 2 NTB devices recovering at the
-	 * same time.  If the times are the same, the link will not recover and
-	 * the driver will be stuck in this loop forever.  Add a random interval
-	 * to the recovery time to prevent this race.
-	 */
-	msleep(BWD_LINK_RECOVERY_TIME + prandom_u32() % BWD_LINK_RECOVERY_TIME);
-
-	status32 = readl(ndev->reg_base + BWD_LTSSMSTATEJMP_OFFSET);
-	if (status32 & BWD_LTSSMSTATEJMP_FORCEDETECT)
-		goto retry;
-
-	status32 = readl(ndev->reg_base + BWD_IBSTERRRCRVSTS0_OFFSET);
-	if (status32 & BWD_IBIST_ERR_OFLOW)
-		goto retry;
-
-	status32 = readl(ndev->reg_ofs.lnk_cntl);
-	if (!(status32 & BWD_CNTL_LINK_DOWN)) {
-		unsigned char speed, width;
-		u16 status16;
-
-		status16 = readw(ndev->reg_ofs.lnk_stat);
-		width = (status16 & NTB_LINK_WIDTH_MASK) >> 4;
-		speed = (status16 & NTB_LINK_SPEED_MASK);
-		if (ndev->link_width != width || ndev->link_speed != speed)
-			goto retry;
-	}
-
-	schedule_delayed_work(&ndev->hb_timer, NTB_HB_TIMEOUT);
-	return;
-
-retry:
-	schedule_delayed_work(&ndev->lr_timer, NTB_HB_TIMEOUT);
-}
-
-/* BWD doesn't have link status interrupt, poll on that platform */
-static void bwd_link_poll(struct work_struct *work)
-{
-	struct ntb_device *ndev = container_of(work, struct ntb_device,
-					       hb_timer.work);
-	unsigned long ts = jiffies;
-
-	/* If we haven't gotten an interrupt in a while, check the BWD link
-	 * status bit
-	 */
-	if (ts > ndev->last_ts + NTB_HB_TIMEOUT) {
-		int rc = ntb_link_status(ndev);
-		if (rc)
-			dev_err(&ndev->pdev->dev,
-				"Error determining link status\n");
-
-		/* Check to see if a link error is the cause of the link down */
-		if (ndev->link_status == NTB_LINK_DOWN) {
-			u32 status32 = readl(ndev->reg_base +
-					     BWD_LTSSMSTATEJMP_OFFSET);
-			if (status32 & BWD_LTSSMSTATEJMP_FORCEDETECT) {
-				schedule_delayed_work(&ndev->lr_timer, 0);
-				return;
-			}
-		}
-	}
-
-	schedule_delayed_work(&ndev->hb_timer, NTB_HB_TIMEOUT);
-}
-
-static int ntb_xeon_setup(struct ntb_device *ndev)
-{
-	switch (ndev->conn_type) {
-	case NTB_CONN_B2B:
-		ndev->reg_ofs.ldb = ndev->reg_base + SNB_PDOORBELL_OFFSET;
-		ndev->reg_ofs.ldb_mask = ndev->reg_base + SNB_PDBMSK_OFFSET;
-		ndev->reg_ofs.spad_read = ndev->reg_base + SNB_SPAD_OFFSET;
-		ndev->reg_ofs.bar2_xlat = ndev->reg_base + SNB_SBAR2XLAT_OFFSET;
-		ndev->reg_ofs.bar4_xlat = ndev->reg_base + SNB_SBAR4XLAT_OFFSET;
-		if (ndev->split_bar)
-			ndev->reg_ofs.bar5_xlat =
-				ndev->reg_base + SNB_SBAR5XLAT_OFFSET;
-		ndev->limits.max_spads = SNB_MAX_B2B_SPADS;
-
-		/* There is a Xeon hardware errata related to writes to
-		 * SDOORBELL or B2BDOORBELL in conjunction with inbound access
-		 * to NTB MMIO Space, which may hang the system.  To workaround
-		 * this use the second memory window to access the interrupt and
-		 * scratch pad registers on the remote system.
-		 */
-		if (ndev->wa_flags & WA_SNB_ERR) {
-			if (!ndev->mw[ndev->limits.max_mw - 1].bar_sz)
-				return -EINVAL;
-
-			ndev->limits.max_db_bits = SNB_MAX_DB_BITS;
-			ndev->reg_ofs.spad_write =
-				ndev->mw[ndev->limits.max_mw - 1].vbase +
-				SNB_SPAD_OFFSET;
-			ndev->reg_ofs.rdb =
-				ndev->mw[ndev->limits.max_mw - 1].vbase +
-				SNB_PDOORBELL_OFFSET;
-
-			/* Set the Limit register to 4k, the minimum size, to
-			 * prevent an illegal access
-			 */
-			writeq(ndev->mw[1].bar_sz + 0x1000, ndev->reg_base +
-			       SNB_PBAR4LMT_OFFSET);
-			/* HW errata on the Limit registers.  They can only be
-			 * written when the base register is 4GB aligned and
-			 * < 32bit.  This should already be the case based on
-			 * the driver defaults, but write the Limit registers
-			 * first just in case.
-			 */
-
-			ndev->limits.max_mw = SNB_ERRATA_MAX_MW;
-		} else {
-			/* HW Errata on bit 14 of b2bdoorbell register.  Writes
-			 * will not be mirrored to the remote system.  Shrink
-			 * the number of bits by one, since bit 14 is the last
-			 * bit.
-			 */
-			ndev->limits.max_db_bits = SNB_MAX_DB_BITS - 1;
-			ndev->reg_ofs.spad_write = ndev->reg_base +
-						   SNB_B2B_SPAD_OFFSET;
-			ndev->reg_ofs.rdb = ndev->reg_base +
-					    SNB_B2B_DOORBELL_OFFSET;
-
-			/* Disable the Limit register, just incase it is set to
-			 * something silly. A 64bit write should handle it
-			 * regardless of whether it has a split BAR or not.
-			 */
-			writeq(0, ndev->reg_base + SNB_PBAR4LMT_OFFSET);
-			/* HW errata on the Limit registers.  They can only be
-			 * written when the base register is 4GB aligned and
-			 * < 32bit.  This should already be the case based on
-			 * the driver defaults, but write the Limit registers
-			 * first just in case.
-			 */
-			if (ndev->split_bar)
-				ndev->limits.max_mw = HSX_SPLITBAR_MAX_MW;
-			else
-				ndev->limits.max_mw = SNB_MAX_MW;
-		}
-
-		/* The Xeon errata workaround requires setting SBAR Base
-		 * addresses to known values, so that the PBAR XLAT can be
-		 * pointed at SBAR0 of the remote system.
-		 */
-		if (ndev->dev_type == NTB_DEV_USD) {
-			writeq(SNB_MBAR23_DSD_ADDR, ndev->reg_base +
-			       SNB_PBAR2XLAT_OFFSET);
-			if (ndev->wa_flags & WA_SNB_ERR)
-				writeq(SNB_MBAR01_DSD_ADDR, ndev->reg_base +
-				       SNB_PBAR4XLAT_OFFSET);
-			else {
-				if (ndev->split_bar) {
-					writel(SNB_MBAR4_DSD_ADDR,
-					       ndev->reg_base +
-					       SNB_PBAR4XLAT_OFFSET);
-					writel(SNB_MBAR5_DSD_ADDR,
-					       ndev->reg_base +
-					       SNB_PBAR5XLAT_OFFSET);
-				} else
-					writeq(SNB_MBAR4_DSD_ADDR,
-					       ndev->reg_base +
-					       SNB_PBAR4XLAT_OFFSET);
-
-				/* B2B_XLAT_OFFSET is a 64bit register, but can
-				 * only take 32bit writes
-				 */
-				writel(SNB_MBAR01_DSD_ADDR & 0xffffffff,
-				       ndev->reg_base + SNB_B2B_XLAT_OFFSETL);
-				writel(SNB_MBAR01_DSD_ADDR >> 32,
-				       ndev->reg_base + SNB_B2B_XLAT_OFFSETU);
-			}
-
-			writeq(SNB_MBAR01_USD_ADDR, ndev->reg_base +
-			       SNB_SBAR0BASE_OFFSET);
-			writeq(SNB_MBAR23_USD_ADDR, ndev->reg_base +
-			       SNB_SBAR2BASE_OFFSET);
-			if (ndev->split_bar) {
-				writel(SNB_MBAR4_USD_ADDR, ndev->reg_base +
-				       SNB_SBAR4BASE_OFFSET);
-				writel(SNB_MBAR5_USD_ADDR, ndev->reg_base +
-				       SNB_SBAR5BASE_OFFSET);
-			} else
-				writeq(SNB_MBAR4_USD_ADDR, ndev->reg_base +
-				       SNB_SBAR4BASE_OFFSET);
-		} else {
-			writeq(SNB_MBAR23_USD_ADDR, ndev->reg_base +
-			       SNB_PBAR2XLAT_OFFSET);
-			if (ndev->wa_flags & WA_SNB_ERR)
-				writeq(SNB_MBAR01_USD_ADDR, ndev->reg_base +
-				       SNB_PBAR4XLAT_OFFSET);
-			else {
-				if (ndev->split_bar) {
-					writel(SNB_MBAR4_USD_ADDR,
-					       ndev->reg_base +
-					       SNB_PBAR4XLAT_OFFSET);
-					writel(SNB_MBAR5_USD_ADDR,
-					       ndev->reg_base +
-					       SNB_PBAR5XLAT_OFFSET);
-				} else
-					writeq(SNB_MBAR4_USD_ADDR,
-					       ndev->reg_base +
-					       SNB_PBAR4XLAT_OFFSET);
-
-				/*
-				 * B2B_XLAT_OFFSET is a 64bit register, but can
-				 * only take 32bit writes
-				 */
-				writel(SNB_MBAR01_USD_ADDR & 0xffffffff,
-				       ndev->reg_base + SNB_B2B_XLAT_OFFSETL);
-				writel(SNB_MBAR01_USD_ADDR >> 32,
-				       ndev->reg_base + SNB_B2B_XLAT_OFFSETU);
-			}
-			writeq(SNB_MBAR01_DSD_ADDR, ndev->reg_base +
-			       SNB_SBAR0BASE_OFFSET);
-			writeq(SNB_MBAR23_DSD_ADDR, ndev->reg_base +
-			       SNB_SBAR2BASE_OFFSET);
-			if (ndev->split_bar) {
-				writel(SNB_MBAR4_DSD_ADDR, ndev->reg_base +
-				       SNB_SBAR4BASE_OFFSET);
-				writel(SNB_MBAR5_DSD_ADDR, ndev->reg_base +
-				       SNB_SBAR5BASE_OFFSET);
-			} else
-				writeq(SNB_MBAR4_DSD_ADDR, ndev->reg_base +
-				       SNB_SBAR4BASE_OFFSET);
-
-		}
-		break;
-	case NTB_CONN_RP:
-		if (ndev->wa_flags & WA_SNB_ERR) {
-			dev_err(&ndev->pdev->dev,
-				"NTB-RP disabled due to hardware errata.\n");
-			return -EINVAL;
-		}
-
-		/* Scratch pads need to have exclusive access from the primary
-		 * or secondary side.  Halve the num spads so that each side can
-		 * have an equal amount.
-		 */
-		ndev->limits.max_spads = SNB_MAX_COMPAT_SPADS / 2;
-		ndev->limits.max_db_bits = SNB_MAX_DB_BITS;
-		/* Note: The SDOORBELL is the cause of the errata.  You REALLY
-		 * don't want to touch it.
-		 */
-		ndev->reg_ofs.rdb = ndev->reg_base + SNB_SDOORBELL_OFFSET;
-		ndev->reg_ofs.ldb = ndev->reg_base + SNB_PDOORBELL_OFFSET;
-		ndev->reg_ofs.ldb_mask = ndev->reg_base + SNB_PDBMSK_OFFSET;
-		/* Offset the start of the spads to correspond to whether it is
-		 * primary or secondary
-		 */
-		ndev->reg_ofs.spad_write = ndev->reg_base + SNB_SPAD_OFFSET +
-					   ndev->limits.max_spads * 4;
-		ndev->reg_ofs.spad_read = ndev->reg_base + SNB_SPAD_OFFSET;
-		ndev->reg_ofs.bar2_xlat = ndev->reg_base + SNB_SBAR2XLAT_OFFSET;
-		ndev->reg_ofs.bar4_xlat = ndev->reg_base + SNB_SBAR4XLAT_OFFSET;
-		if (ndev->split_bar) {
-			ndev->reg_ofs.bar5_xlat =
-				ndev->reg_base + SNB_SBAR5XLAT_OFFSET;
-			ndev->limits.max_mw = HSX_SPLITBAR_MAX_MW;
-		} else
-			ndev->limits.max_mw = SNB_MAX_MW;
-		break;
-	case NTB_CONN_TRANSPARENT:
-		if (ndev->wa_flags & WA_SNB_ERR) {
-			dev_err(&ndev->pdev->dev,
-				"NTB-TRANSPARENT disabled due to hardware errata.\n");
-			return -EINVAL;
-		}
-
-		/* Scratch pads need to have exclusive access from the primary
-		 * or secondary side.  Halve the num spads so that each side can
-		 * have an equal amount.
-		 */
-		ndev->limits.max_spads = SNB_MAX_COMPAT_SPADS / 2;
-		ndev->limits.max_db_bits = SNB_MAX_DB_BITS;
-		ndev->reg_ofs.rdb = ndev->reg_base + SNB_PDOORBELL_OFFSET;
-		ndev->reg_ofs.ldb = ndev->reg_base + SNB_SDOORBELL_OFFSET;
-		ndev->reg_ofs.ldb_mask = ndev->reg_base + SNB_SDBMSK_OFFSET;
-		ndev->reg_ofs.spad_write = ndev->reg_base + SNB_SPAD_OFFSET;
-		/* Offset the start of the spads to correspond to whether it is
-		 * primary or secondary
-		 */
-		ndev->reg_ofs.spad_read = ndev->reg_base + SNB_SPAD_OFFSET +
-					  ndev->limits.max_spads * 4;
-		ndev->reg_ofs.bar2_xlat = ndev->reg_base + SNB_PBAR2XLAT_OFFSET;
-		ndev->reg_ofs.bar4_xlat = ndev->reg_base + SNB_PBAR4XLAT_OFFSET;
-
-		if (ndev->split_bar) {
-			ndev->reg_ofs.bar5_xlat =
-				ndev->reg_base + SNB_PBAR5XLAT_OFFSET;
-			ndev->limits.max_mw = HSX_SPLITBAR_MAX_MW;
-		} else
-			ndev->limits.max_mw = SNB_MAX_MW;
-		break;
-	default:
-		/*
-		 * we should never hit this. the detect function should've
-		 * take cared of everything.
-		 */
-		return -EINVAL;
-	}
-
-	ndev->reg_ofs.lnk_cntl = ndev->reg_base + SNB_NTBCNTL_OFFSET;
-	ndev->reg_ofs.lnk_stat = ndev->reg_base + SNB_SLINK_STATUS_OFFSET;
-	ndev->reg_ofs.spci_cmd = ndev->reg_base + SNB_PCICMD_OFFSET;
-
-	ndev->limits.msix_cnt = SNB_MSIX_CNT;
-	ndev->bits_per_vector = SNB_DB_BITS_PER_VEC;
-
-	return 0;
-}
-
-static int ntb_bwd_setup(struct ntb_device *ndev)
-{
-	int rc;
-	u32 val;
-
-	ndev->hw_type = BWD_HW;
-
-	rc = pci_read_config_dword(ndev->pdev, NTB_PPD_OFFSET, &val);
-	if (rc)
-		return rc;
-
-	switch ((val & BWD_PPD_CONN_TYPE) >> 8) {
-	case NTB_CONN_B2B:
-		ndev->conn_type = NTB_CONN_B2B;
-		break;
-	case NTB_CONN_RP:
-	default:
-		dev_err(&ndev->pdev->dev, "Unsupported NTB configuration\n");
-		return -EINVAL;
-	}
-
-	if (val & BWD_PPD_DEV_TYPE)
-		ndev->dev_type = NTB_DEV_DSD;
-	else
-		ndev->dev_type = NTB_DEV_USD;
-
-	/* Initiate PCI-E link training */
-	rc = pci_write_config_dword(ndev->pdev, NTB_PPD_OFFSET,
-				    val | BWD_PPD_INIT_LINK);
-	if (rc)
-		return rc;
-
-	ndev->reg_ofs.ldb = ndev->reg_base + BWD_PDOORBELL_OFFSET;
-	ndev->reg_ofs.ldb_mask = ndev->reg_base + BWD_PDBMSK_OFFSET;
-	ndev->reg_ofs.rdb = ndev->reg_base + BWD_B2B_DOORBELL_OFFSET;
-	ndev->reg_ofs.bar2_xlat = ndev->reg_base + BWD_SBAR2XLAT_OFFSET;
-	ndev->reg_ofs.bar4_xlat = ndev->reg_base + BWD_SBAR4XLAT_OFFSET;
-	ndev->reg_ofs.lnk_cntl = ndev->reg_base + BWD_NTBCNTL_OFFSET;
-	ndev->reg_ofs.lnk_stat = ndev->reg_base + BWD_LINK_STATUS_OFFSET;
-	ndev->reg_ofs.spad_read = ndev->reg_base + BWD_SPAD_OFFSET;
-	ndev->reg_ofs.spad_write = ndev->reg_base + BWD_B2B_SPAD_OFFSET;
-	ndev->reg_ofs.spci_cmd = ndev->reg_base + BWD_PCICMD_OFFSET;
-	ndev->limits.max_mw = BWD_MAX_MW;
-	ndev->limits.max_spads = BWD_MAX_SPADS;
-	ndev->limits.max_db_bits = BWD_MAX_DB_BITS;
-	ndev->limits.msix_cnt = BWD_MSIX_CNT;
-	ndev->bits_per_vector = BWD_DB_BITS_PER_VEC;
-
-	/* Since bwd doesn't have a link interrupt, setup a poll timer */
-	INIT_DELAYED_WORK(&ndev->hb_timer, bwd_link_poll);
-	INIT_DELAYED_WORK(&ndev->lr_timer, bwd_link_recovery);
-	schedule_delayed_work(&ndev->hb_timer, NTB_HB_TIMEOUT);
-
-	return 0;
-}
-
-static int ntb_device_setup(struct ntb_device *ndev)
-{
-	int rc;
-
-	if (is_ntb_xeon(ndev))
-		rc = ntb_xeon_setup(ndev);
-	else if (is_ntb_atom(ndev))
-		rc = ntb_bwd_setup(ndev);
-	else
-		rc = -ENODEV;
-
-	if (rc)
-		return rc;
-
-	if (ndev->conn_type == NTB_CONN_B2B)
-		/* Enable Bus Master and Memory Space on the secondary side */
-		writew(PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER,
-		       ndev->reg_ofs.spci_cmd);
-
-	return 0;
-}
-
-static void ntb_device_free(struct ntb_device *ndev)
-{
-	if (is_ntb_atom(ndev)) {
-		cancel_delayed_work_sync(&ndev->hb_timer);
-		cancel_delayed_work_sync(&ndev->lr_timer);
-	}
-}
-
-static irqreturn_t bwd_callback_msix_irq(int irq, void *data)
-{
-	struct ntb_db_cb *db_cb = data;
-	struct ntb_device *ndev = db_cb->ndev;
-	unsigned long mask;
-
-	dev_dbg(&ndev->pdev->dev, "MSI-X irq %d received for DB %d\n", irq,
-		db_cb->db_num);
-
-	mask = readw(ndev->reg_ofs.ldb_mask);
-	set_bit(db_cb->db_num * ndev->bits_per_vector, &mask);
-	writew(mask, ndev->reg_ofs.ldb_mask);
-
-	tasklet_schedule(&db_cb->irq_work);
-
-	/* No need to check for the specific HB irq, any interrupt means
-	 * we're connected.
-	 */
-	ndev->last_ts = jiffies;
-
-	writeq((u64) 1 << db_cb->db_num, ndev->reg_ofs.ldb);
-
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t xeon_callback_msix_irq(int irq, void *data)
-{
-	struct ntb_db_cb *db_cb = data;
-	struct ntb_device *ndev = db_cb->ndev;
-	unsigned long mask;
-
-	dev_dbg(&ndev->pdev->dev, "MSI-X irq %d received for DB %d\n", irq,
-		db_cb->db_num);
-
-	mask = readw(ndev->reg_ofs.ldb_mask);
-	set_bit(db_cb->db_num * ndev->bits_per_vector, &mask);
-	writew(mask, ndev->reg_ofs.ldb_mask);
-
-	tasklet_schedule(&db_cb->irq_work);
-
-	/* On Sandybridge, there are 16 bits in the interrupt register
-	 * but only 4 vectors.  So, 5 bits are assigned to the first 3
-	 * vectors, with the 4th having a single bit for link
-	 * interrupts.
-	 */
-	writew(((1 << ndev->bits_per_vector) - 1) <<
-	       (db_cb->db_num * ndev->bits_per_vector), ndev->reg_ofs.ldb);
-
-	return IRQ_HANDLED;
-}
-
-/* Since we do not have a HW doorbell in BWD, this is only used in JF/JT */
-static irqreturn_t xeon_event_msix_irq(int irq, void *dev)
-{
-	struct ntb_device *ndev = dev;
-	int rc;
-
-	dev_dbg(&ndev->pdev->dev, "MSI-X irq %d received for Events\n", irq);
-
-	rc = ntb_link_status(ndev);
-	if (rc)
-		dev_err(&ndev->pdev->dev, "Error determining link status\n");
-
-	/* bit 15 is always the link bit */
-	writew(1 << SNB_LINK_DB, ndev->reg_ofs.ldb);
-
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t ntb_interrupt(int irq, void *dev)
-{
-	struct ntb_device *ndev = dev;
-	unsigned int i = 0;
-
-	if (is_ntb_atom(ndev)) {
-		u64 ldb = readq(ndev->reg_ofs.ldb);
-
-		dev_dbg(&ndev->pdev->dev, "irq %d - ldb = %Lx\n", irq, ldb);
-
-		while (ldb) {
-			i = __ffs(ldb);
-			ldb &= ldb - 1;
-			bwd_callback_msix_irq(irq, &ndev->db_cb[i]);
-		}
-	} else {
-		u16 ldb = readw(ndev->reg_ofs.ldb);
-
-		dev_dbg(&ndev->pdev->dev, "irq %d - ldb = %x\n", irq, ldb);
-
-		if (ldb & SNB_DB_HW_LINK) {
-			xeon_event_msix_irq(irq, dev);
-			ldb &= ~SNB_DB_HW_LINK;
-		}
-
-		while (ldb) {
-			i = __ffs(ldb);
-			ldb &= ldb - 1;
-			xeon_callback_msix_irq(irq, &ndev->db_cb[i]);
-		}
-	}
-
-	return IRQ_HANDLED;
-}
-
-static int ntb_setup_snb_msix(struct ntb_device *ndev, int msix_entries)
-{
-	struct pci_dev *pdev = ndev->pdev;
-	struct msix_entry *msix;
-	int rc, i;
-
-	if (msix_entries < ndev->limits.msix_cnt)
-		return -ENOSPC;
-
-	rc = pci_enable_msix_exact(pdev, ndev->msix_entries, msix_entries);
-	if (rc < 0)
-		return rc;
-
-	for (i = 0; i < msix_entries; i++) {
-		msix = &ndev->msix_entries[i];
-		WARN_ON(!msix->vector);
-
-		if (i == msix_entries - 1) {
-			rc = request_irq(msix->vector,
-					 xeon_event_msix_irq, 0,
-					 "ntb-event-msix", ndev);
-			if (rc)
-				goto err;
-		} else {
-			rc = request_irq(msix->vector,
-					 xeon_callback_msix_irq, 0,
-					 "ntb-callback-msix",
-					 &ndev->db_cb[i]);
-			if (rc)
-				goto err;
-		}
-	}
-
-	ndev->num_msix = msix_entries;
-	ndev->max_cbs = msix_entries - 1;
-
-	return 0;
-
-err:
-	while (--i >= 0) {
-		/* Code never reaches here for entry nr 'ndev->num_msix - 1' */
-		msix = &ndev->msix_entries[i];
-		free_irq(msix->vector, &ndev->db_cb[i]);
-	}
-
-	pci_disable_msix(pdev);
-	ndev->num_msix = 0;
-
-	return rc;
-}
-
-static int ntb_setup_bwd_msix(struct ntb_device *ndev, int msix_entries)
-{
-	struct pci_dev *pdev = ndev->pdev;
-	struct msix_entry *msix;
-	int rc, i;
-
-	msix_entries = pci_enable_msix_range(pdev, ndev->msix_entries,
-					     1, msix_entries);
-	if (msix_entries < 0)
-		return msix_entries;
-
-	for (i = 0; i < msix_entries; i++) {
-		msix = &ndev->msix_entries[i];
-		WARN_ON(!msix->vector);
-
-		rc = request_irq(msix->vector, bwd_callback_msix_irq, 0,
-				 "ntb-callback-msix", &ndev->db_cb[i]);
-		if (rc)
-			goto err;
-	}
-
-	ndev->num_msix = msix_entries;
-	ndev->max_cbs = msix_entries;
-
-	return 0;
-
-err:
-	while (--i >= 0)
-		free_irq(msix->vector, &ndev->db_cb[i]);
-
-	pci_disable_msix(pdev);
-	ndev->num_msix = 0;
-
-	return rc;
-}
-
-static int ntb_setup_msix(struct ntb_device *ndev)
-{
-	struct pci_dev *pdev = ndev->pdev;
-	int msix_entries;
-	int rc, i;
-
-	msix_entries = pci_msix_vec_count(pdev);
-	if (msix_entries < 0) {
-		rc = msix_entries;
-		goto err;
-	} else if (msix_entries > ndev->limits.msix_cnt) {
-		rc = -EINVAL;
-		goto err;
-	}
-
-	ndev->msix_entries = kmalloc(sizeof(struct msix_entry) * msix_entries,
-				     GFP_KERNEL);
-	if (!ndev->msix_entries) {
-		rc = -ENOMEM;
-		goto err;
-	}
-
-	for (i = 0; i < msix_entries; i++)
-		ndev->msix_entries[i].entry = i;
-
-	if (is_ntb_atom(ndev))
-		rc = ntb_setup_bwd_msix(ndev, msix_entries);
-	else
-		rc = ntb_setup_snb_msix(ndev, msix_entries);
-	if (rc)
-		goto err1;
-
-	return 0;
-
-err1:
-	kfree(ndev->msix_entries);
-err:
-	dev_err(&pdev->dev, "Error allocating MSI-X interrupt\n");
-	return rc;
-}
-
-static int ntb_setup_msi(struct ntb_device *ndev)
-{
-	struct pci_dev *pdev = ndev->pdev;
-	int rc;
-
-	rc = pci_enable_msi(pdev);
-	if (rc)
-		return rc;
-
-	rc = request_irq(pdev->irq, ntb_interrupt, 0, "ntb-msi", ndev);
-	if (rc) {
-		pci_disable_msi(pdev);
-		dev_err(&pdev->dev, "Error allocating MSI interrupt\n");
-		return rc;
-	}
-
-	return 0;
-}
-
-static int ntb_setup_intx(struct ntb_device *ndev)
-{
-	struct pci_dev *pdev = ndev->pdev;
-	int rc;
-
-	/* Verify intx is enabled */
-	pci_intx(pdev, 1);
-
-	rc = request_irq(pdev->irq, ntb_interrupt, IRQF_SHARED, "ntb-intx",
-			 ndev);
-	if (rc)
-		return rc;
-
-	return 0;
-}
-
-static int ntb_setup_interrupts(struct ntb_device *ndev)
-{
-	int rc;
-
-	/* On BWD, disable all interrupts.  On SNB, disable all but Link
-	 * Interrupt.  The rest will be unmasked as callbacks are registered.
-	 */
-	if (is_ntb_atom(ndev))
-		writeq(~0, ndev->reg_ofs.ldb_mask);
-	else {
-		u16 var = 1 << SNB_LINK_DB;
-		writew(~var, ndev->reg_ofs.ldb_mask);
-	}
-
-	rc = ntb_setup_msix(ndev);
-	if (!rc)
-		goto done;
-
-	ndev->bits_per_vector = 1;
-	ndev->max_cbs = ndev->limits.max_db_bits;
-
-	rc = ntb_setup_msi(ndev);
-	if (!rc)
-		goto done;
-
-	rc = ntb_setup_intx(ndev);
-	if (rc) {
-		dev_err(&ndev->pdev->dev, "no usable interrupts\n");
-		return rc;
-	}
-
-done:
-	return 0;
-}
-
-static void ntb_free_interrupts(struct ntb_device *ndev)
-{
-	struct pci_dev *pdev = ndev->pdev;
-
-	/* mask interrupts */
-	if (is_ntb_atom(ndev))
-		writeq(~0, ndev->reg_ofs.ldb_mask);
-	else
-		writew(~0, ndev->reg_ofs.ldb_mask);
-
-	if (ndev->num_msix) {
-		struct msix_entry *msix;
-		u32 i;
-
-		for (i = 0; i < ndev->num_msix; i++) {
-			msix = &ndev->msix_entries[i];
-			if (is_ntb_xeon(ndev) && i == ndev->num_msix - 1)
-				free_irq(msix->vector, ndev);
-			else
-				free_irq(msix->vector, &ndev->db_cb[i]);
-		}
-		pci_disable_msix(pdev);
-		kfree(ndev->msix_entries);
-	} else {
-		free_irq(pdev->irq, ndev);
-
-		if (pci_dev_msi_enabled(pdev))
-			pci_disable_msi(pdev);
-	}
-}
-
-static int ntb_create_callbacks(struct ntb_device *ndev)
-{
-	int i;
-
-	/* Chicken-egg issue.  We won't know how many callbacks are necessary
-	 * until we see how many MSI-X vectors we get, but these pointers need
-	 * to be passed into the MSI-X register function.  So, we allocate the
-	 * max, knowing that they might not all be used, to work around this.
-	 */
-	ndev->db_cb = kcalloc(ndev->limits.max_db_bits,
-			      sizeof(struct ntb_db_cb),
-			      GFP_KERNEL);
-	if (!ndev->db_cb)
-		return -ENOMEM;
-
-	for (i = 0; i < ndev->limits.max_db_bits; i++) {
-		ndev->db_cb[i].db_num = i;
-		ndev->db_cb[i].ndev = ndev;
-	}
-
-	return 0;
-}
-
-static void ntb_free_callbacks(struct ntb_device *ndev)
-{
-	int i;
-
-	for (i = 0; i < ndev->limits.max_db_bits; i++)
-		ntb_unregister_db_callback(ndev, i);
-
-	kfree(ndev->db_cb);
-}
-
-static ssize_t ntb_debugfs_read(struct file *filp, char __user *ubuf,
-				size_t count, loff_t *offp)
-{
-	struct ntb_device *ndev;
-	char *buf;
-	ssize_t ret, offset, out_count;
-
-	out_count = 500;
-
-	buf = kmalloc(out_count, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	ndev = filp->private_data;
-	offset = 0;
-	offset += snprintf(buf + offset, out_count - offset,
-			   "NTB Device Information:\n");
-	offset += snprintf(buf + offset, out_count - offset,
-			   "Connection Type - \t\t%s\n",
-			   ndev->conn_type == NTB_CONN_TRANSPARENT ?
-			   "Transparent" : (ndev->conn_type == NTB_CONN_B2B) ?
-			   "Back to back" : "Root Port");
-	offset += snprintf(buf + offset, out_count - offset,
-			   "Device Type - \t\t\t%s\n",
-			   ndev->dev_type == NTB_DEV_USD ?
-			   "DSD/USP" : "USD/DSP");
-	offset += snprintf(buf + offset, out_count - offset,
-			   "Max Number of Callbacks - \t%u\n",
-			   ntb_max_cbs(ndev));
-	offset += snprintf(buf + offset, out_count - offset,
-			   "Link Status - \t\t\t%s\n",
-			   ntb_hw_link_status(ndev) ? "Up" : "Down");
-	if (ntb_hw_link_status(ndev)) {
-		offset += snprintf(buf + offset, out_count - offset,
-				   "Link Speed - \t\t\tPCI-E Gen %u\n",
-				   ndev->link_speed);
-		offset += snprintf(buf + offset, out_count - offset,
-				   "Link Width - \t\t\tx%u\n",
-				   ndev->link_width);
-	}
-
-	if (is_ntb_xeon(ndev)) {
-		u32 status32;
-		u16 status16;
-		int rc;
-
-		offset += snprintf(buf + offset, out_count - offset,
-				   "\nNTB Device Statistics:\n");
-		offset += snprintf(buf + offset, out_count - offset,
-				   "Upstream Memory Miss - \t%u\n",
-				   readw(ndev->reg_base +
-					 SNB_USMEMMISS_OFFSET));
-
-		offset += snprintf(buf + offset, out_count - offset,
-				   "\nNTB Hardware Errors:\n");
-
-		rc = pci_read_config_word(ndev->pdev, SNB_DEVSTS_OFFSET,
-					  &status16);
-		if (!rc)
-			offset += snprintf(buf + offset, out_count - offset,
-					   "DEVSTS - \t%#06x\n", status16);
-
-		rc = pci_read_config_word(ndev->pdev, SNB_LINK_STATUS_OFFSET,
-					  &status16);
-		if (!rc)
-			offset += snprintf(buf + offset, out_count - offset,
-					   "LNKSTS - \t%#06x\n", status16);
-
-		rc = pci_read_config_dword(ndev->pdev, SNB_UNCERRSTS_OFFSET,
-					   &status32);
-		if (!rc)
-			offset += snprintf(buf + offset, out_count - offset,
-					   "UNCERRSTS - \t%#010x\n", status32);
-
-		rc = pci_read_config_dword(ndev->pdev, SNB_CORERRSTS_OFFSET,
-					   &status32);
-		if (!rc)
-			offset += snprintf(buf + offset, out_count - offset,
-					   "CORERRSTS - \t%#010x\n", status32);
-	}
-
-	if (offset > out_count)
-		offset = out_count;
-
-	ret = simple_read_from_buffer(ubuf, count, offp, buf, offset);
-	kfree(buf);
-	return ret;
-}
-
-static const struct file_operations ntb_debugfs_info = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = ntb_debugfs_read,
+MODULE_DEVICE_TABLE(pci, intel_ntb_pci_tbl);
+
+static struct pci_driver intel_ntb_pci_driver = {
+	.name = KBUILD_MODNAME,
+	.id_table = intel_ntb_pci_tbl,
+	.probe = intel_ntb_pci_probe,
+	.remove = intel_ntb_pci_remove,
 };
 
-static void ntb_setup_debugfs(struct ntb_device *ndev)
+static int __init intel_ntb_pci_driver_init(void)
 {
-	if (!debugfs_initialized())
-		return;
-
-	if (!debugfs_dir)
+	if (debugfs_initialized())
 		debugfs_dir = debugfs_create_dir(KBUILD_MODNAME, NULL);
 
-	ndev->debugfs_dir = debugfs_create_dir(pci_name(ndev->pdev),
-					       debugfs_dir);
-	if (ndev->debugfs_dir)
-		ndev->debugfs_info = debugfs_create_file("info", S_IRUSR,
-							 ndev->debugfs_dir,
-							 ndev,
-							 &ntb_debugfs_info);
+	return pci_register_driver(&intel_ntb_pci_driver);
 }
+module_init(intel_ntb_pci_driver_init);
 
-static void ntb_free_debugfs(struct ntb_device *ndev)
+static void __exit intel_ntb_pci_driver_exit(void)
 {
-	debugfs_remove_recursive(ndev->debugfs_dir);
+	pci_unregister_driver(&intel_ntb_pci_driver);
 
-	if (debugfs_dir && simple_empty(debugfs_dir)) {
-		debugfs_remove_recursive(debugfs_dir);
-		debugfs_dir = NULL;
-	}
+	debugfs_remove_recursive(debugfs_dir);
 }
+module_exit(intel_ntb_pci_driver_exit);
 
-static void ntb_hw_link_up(struct ntb_device *ndev)
-{
-	if (ndev->conn_type == NTB_CONN_TRANSPARENT)
-		ntb_link_event(ndev, NTB_LINK_UP);
-	else {
-		u32 ntb_cntl;
-
-		/* Let's bring the NTB link up */
-		ntb_cntl = readl(ndev->reg_ofs.lnk_cntl);
-		ntb_cntl &= ~(NTB_CNTL_LINK_DISABLE | NTB_CNTL_CFG_LOCK);
-		ntb_cntl |= NTB_CNTL_P2S_BAR23_SNOOP | NTB_CNTL_S2P_BAR23_SNOOP;
-		ntb_cntl |= NTB_CNTL_P2S_BAR4_SNOOP | NTB_CNTL_S2P_BAR4_SNOOP;
-		if (ndev->split_bar)
-			ntb_cntl |= NTB_CNTL_P2S_BAR5_SNOOP |
-				    NTB_CNTL_S2P_BAR5_SNOOP;
-
-		writel(ntb_cntl, ndev->reg_ofs.lnk_cntl);
-	}
-}
-
-static void ntb_hw_link_down(struct ntb_device *ndev)
-{
-	u32 ntb_cntl;
-
-	if (ndev->conn_type == NTB_CONN_TRANSPARENT) {
-		ntb_link_event(ndev, NTB_LINK_DOWN);
-		return;
-	}
-
-	/* Bring NTB link down */
-	ntb_cntl = readl(ndev->reg_ofs.lnk_cntl);
-	ntb_cntl &= ~(NTB_CNTL_P2S_BAR23_SNOOP | NTB_CNTL_S2P_BAR23_SNOOP);
-	ntb_cntl &= ~(NTB_CNTL_P2S_BAR4_SNOOP | NTB_CNTL_S2P_BAR4_SNOOP);
-	if (ndev->split_bar)
-		ntb_cntl &= ~(NTB_CNTL_P2S_BAR5_SNOOP |
-			      NTB_CNTL_S2P_BAR5_SNOOP);
-	ntb_cntl |= NTB_CNTL_LINK_DISABLE | NTB_CNTL_CFG_LOCK;
-	writel(ntb_cntl, ndev->reg_ofs.lnk_cntl);
-}
-
-static void ntb_max_mw_detect(struct ntb_device *ndev)
-{
-	if (ndev->split_bar)
-		ndev->limits.max_mw = HSX_SPLITBAR_MAX_MW;
-	else
-		ndev->limits.max_mw = SNB_MAX_MW;
-}
-
-static int ntb_xeon_detect(struct ntb_device *ndev)
-{
-	int rc, bars_mask;
-	u32 bars;
-	u8 ppd;
-
-	ndev->hw_type = SNB_HW;
-
-	rc = pci_read_config_byte(ndev->pdev, NTB_PPD_OFFSET, &ppd);
-	if (rc)
-		return -EIO;
-
-	if (ppd & SNB_PPD_DEV_TYPE)
-		ndev->dev_type = NTB_DEV_USD;
-	else
-		ndev->dev_type = NTB_DEV_DSD;
-
-	ndev->split_bar = (ppd & SNB_PPD_SPLIT_BAR) ? 1 : 0;
-
-	switch (ppd & SNB_PPD_CONN_TYPE) {
-	case NTB_CONN_B2B:
-		dev_info(&ndev->pdev->dev, "Conn Type = B2B\n");
-		ndev->conn_type = NTB_CONN_B2B;
-		break;
-	case NTB_CONN_RP:
-		dev_info(&ndev->pdev->dev, "Conn Type = RP\n");
-		ndev->conn_type = NTB_CONN_RP;
-		break;
-	case NTB_CONN_TRANSPARENT:
-		dev_info(&ndev->pdev->dev, "Conn Type = TRANSPARENT\n");
-		ndev->conn_type = NTB_CONN_TRANSPARENT;
-		/*
-		 * This mode is default to USD/DSP. HW does not report
-		 * properly in transparent mode as it has no knowledge of
-		 * NTB. We will just force correct here.
-		 */
-		ndev->dev_type = NTB_DEV_USD;
-
-		/*
-		 * This is a way for transparent BAR to figure out if we
-		 * are doing split BAR or not. There is no way for the hw
-		 * on the transparent side to know and set the PPD.
-		 */
-		bars_mask = pci_select_bars(ndev->pdev, IORESOURCE_MEM);
-		bars = hweight32(bars_mask);
-		if (bars == (HSX_SPLITBAR_MAX_MW + 1))
-			ndev->split_bar = 1;
-
-		break;
-	default:
-		dev_err(&ndev->pdev->dev, "Unknown PPD %x\n", ppd);
-		return -ENODEV;
-	}
-
-	ntb_max_mw_detect(ndev);
-
-	return 0;
-}
-
-static int ntb_atom_detect(struct ntb_device *ndev)
-{
-	int rc;
-	u32 ppd;
-
-	ndev->hw_type = BWD_HW;
-	ndev->limits.max_mw = BWD_MAX_MW;
-
-	rc = pci_read_config_dword(ndev->pdev, NTB_PPD_OFFSET, &ppd);
-	if (rc)
-		return rc;
-
-	switch ((ppd & BWD_PPD_CONN_TYPE) >> 8) {
-	case NTB_CONN_B2B:
-		dev_info(&ndev->pdev->dev, "Conn Type = B2B\n");
-		ndev->conn_type = NTB_CONN_B2B;
-		break;
-	case NTB_CONN_RP:
-	default:
-		dev_err(&ndev->pdev->dev, "Unsupported NTB configuration\n");
-		return -EINVAL;
-	}
-
-	if (ppd & BWD_PPD_DEV_TYPE)
-		ndev->dev_type = NTB_DEV_DSD;
-	else
-		ndev->dev_type = NTB_DEV_USD;
-
-	return 0;
-}
-
-static int ntb_device_detect(struct ntb_device *ndev)
-{
-	int rc;
-
-	if (is_ntb_xeon(ndev))
-		rc = ntb_xeon_detect(ndev);
-	else if (is_ntb_atom(ndev))
-		rc = ntb_atom_detect(ndev);
-	else
-		rc = -ENODEV;
-
-	dev_info(&ndev->pdev->dev, "Device Type = %s\n",
-		 ndev->dev_type == NTB_DEV_USD ? "USD/DSP" : "DSD/USP");
-
-	return 0;
-}
-
-static int ntb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
-{
-	struct ntb_device *ndev;
-	int rc, i;
-
-	ndev = kzalloc(sizeof(struct ntb_device), GFP_KERNEL);
-	if (!ndev)
-		return -ENOMEM;
-
-	ndev->pdev = pdev;
-
-	ntb_set_errata_flags(ndev);
-
-	ndev->link_status = NTB_LINK_DOWN;
-	pci_set_drvdata(pdev, ndev);
-	ntb_setup_debugfs(ndev);
-
-	rc = pci_enable_device(pdev);
-	if (rc)
-		goto err;
-
-	pci_set_master(ndev->pdev);
-
-	rc = ntb_device_detect(ndev);
-	if (rc)
-		goto err;
-
-	ndev->mw = kcalloc(ndev->limits.max_mw, sizeof(struct ntb_mw),
-			   GFP_KERNEL);
-	if (!ndev->mw) {
-		rc = -ENOMEM;
-		goto err1;
-	}
-
-	if (ndev->split_bar)
-		rc = pci_request_selected_regions(pdev, NTB_SPLITBAR_MASK,
-						  KBUILD_MODNAME);
-	else
-		rc = pci_request_selected_regions(pdev, NTB_BAR_MASK,
-						  KBUILD_MODNAME);
-
-	if (rc)
-		goto err2;
-
-	ndev->reg_base = pci_ioremap_bar(pdev, NTB_BAR_MMIO);
-	if (!ndev->reg_base) {
-		dev_warn(&pdev->dev, "Cannot remap BAR 0\n");
-		rc = -EIO;
-		goto err3;
-	}
-
-	for (i = 0; i < ndev->limits.max_mw; i++) {
-		ndev->mw[i].bar_sz = pci_resource_len(pdev, MW_TO_BAR(i));
-
-		/*
-		 * with the errata we need to steal last of the memory
-		 * windows for workarounds and they point to MMIO registers.
-		 */
-		if ((ndev->wa_flags & WA_SNB_ERR) &&
-		    (i == (ndev->limits.max_mw - 1))) {
-			ndev->mw[i].vbase =
-				ioremap_nocache(pci_resource_start(pdev,
-							MW_TO_BAR(i)),
-						ndev->mw[i].bar_sz);
-		} else {
-			ndev->mw[i].vbase =
-				ioremap_wc(pci_resource_start(pdev,
-							MW_TO_BAR(i)),
-					   ndev->mw[i].bar_sz);
-		}
-
-		dev_info(&pdev->dev, "MW %d size %llu\n", i,
-			 (unsigned long long) ndev->mw[i].bar_sz);
-		if (!ndev->mw[i].vbase) {
-			dev_warn(&pdev->dev, "Cannot remap BAR %d\n",
-				 MW_TO_BAR(i));
-			rc = -EIO;
-			goto err4;
-		}
-	}
-
-	rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
-	if (rc) {
-		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
-		if (rc)
-			goto err4;
-
-		dev_warn(&pdev->dev, "Cannot DMA highmem\n");
-	}
-
-	rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
-	if (rc) {
-		rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
-		if (rc)
-			goto err4;
-
-		dev_warn(&pdev->dev, "Cannot DMA consistent highmem\n");
-	}
-
-	rc = ntb_device_setup(ndev);
-	if (rc)
-		goto err4;
-
-	rc = ntb_create_callbacks(ndev);
-	if (rc)
-		goto err5;
-
-	rc = ntb_setup_interrupts(ndev);
-	if (rc)
-		goto err6;
-
-	/* The scratchpad registers keep the values between rmmod/insmod,
-	 * blast them now
-	 */
-	for (i = 0; i < ndev->limits.max_spads; i++) {
-		ntb_write_local_spad(ndev, i, 0);
-		ntb_write_remote_spad(ndev, i, 0);
-	}
-
-	rc = ntb_transport_init(pdev);
-	if (rc)
-		goto err7;
-
-	ntb_hw_link_up(ndev);
-
-	return 0;
-
-err7:
-	ntb_free_interrupts(ndev);
-err6:
-	ntb_free_callbacks(ndev);
-err5:
-	ntb_device_free(ndev);
-err4:
-	for (i--; i >= 0; i--)
-		iounmap(ndev->mw[i].vbase);
-	iounmap(ndev->reg_base);
-err3:
-	if (ndev->split_bar)
-		pci_release_selected_regions(pdev, NTB_SPLITBAR_MASK);
-	else
-		pci_release_selected_regions(pdev, NTB_BAR_MASK);
-err2:
-	kfree(ndev->mw);
-err1:
-	pci_disable_device(pdev);
-err:
-	ntb_free_debugfs(ndev);
-	kfree(ndev);
-
-	dev_err(&pdev->dev, "Error loading %s module\n", KBUILD_MODNAME);
-	return rc;
-}
-
-static void ntb_pci_remove(struct pci_dev *pdev)
-{
-	struct ntb_device *ndev = pci_get_drvdata(pdev);
-	int i;
-
-	ntb_hw_link_down(ndev);
-
-	ntb_transport_free(ndev->ntb_transport);
-
-	ntb_free_interrupts(ndev);
-	ntb_free_callbacks(ndev);
-	ntb_device_free(ndev);
-
-	/* need to reset max_mw limits so we can unmap properly */
-	if (ndev->hw_type == SNB_HW)
-		ntb_max_mw_detect(ndev);
-
-	for (i = 0; i < ndev->limits.max_mw; i++)
-		iounmap(ndev->mw[i].vbase);
-
-	kfree(ndev->mw);
-	iounmap(ndev->reg_base);
-	if (ndev->split_bar)
-		pci_release_selected_regions(pdev, NTB_SPLITBAR_MASK);
-	else
-		pci_release_selected_regions(pdev, NTB_BAR_MASK);
-	pci_disable_device(pdev);
-	ntb_free_debugfs(ndev);
-	kfree(ndev);
-}
-
-static struct pci_driver ntb_pci_driver = {
-	.name = KBUILD_MODNAME,
-	.id_table = ntb_pci_tbl,
-	.probe = ntb_pci_probe,
-	.remove = ntb_pci_remove,
-};
-
-module_pci_driver(ntb_pci_driver);
