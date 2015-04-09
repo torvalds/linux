@@ -602,7 +602,10 @@ static int bcap_try_format(struct bcap_device *bcap,
 {
 	struct bcap_format *sf = bcap->sensor_formats;
 	struct bcap_format *fmt = NULL;
-	struct v4l2_mbus_framefmt mbus_fmt;
+	struct v4l2_subdev_pad_config pad_cfg;
+	struct v4l2_subdev_format format = {
+		.which = V4L2_SUBDEV_FORMAT_TRY,
+	};
 	int ret, i;
 
 	for (i = 0; i < bcap->num_sensor_formats; i++) {
@@ -613,16 +616,16 @@ static int bcap_try_format(struct bcap_device *bcap,
 	if (i == bcap->num_sensor_formats)
 		fmt = &sf[0];
 
-	v4l2_fill_mbus_format(&mbus_fmt, pixfmt, fmt->mbus_code);
-	ret = v4l2_subdev_call(bcap->sd, video,
-				try_mbus_fmt, &mbus_fmt);
+	v4l2_fill_mbus_format(&format.format, pixfmt, fmt->mbus_code);
+	ret = v4l2_subdev_call(bcap->sd, pad, set_fmt, &pad_cfg,
+				&format);
 	if (ret < 0)
 		return ret;
-	v4l2_fill_pix_format(pixfmt, &mbus_fmt);
+	v4l2_fill_pix_format(pixfmt, &format.format);
 	if (bcap_fmt) {
 		for (i = 0; i < bcap->num_sensor_formats; i++) {
 			fmt = &sf[i];
-			if (mbus_fmt.code == fmt->mbus_code)
+			if (format.format.code == fmt->mbus_code)
 				break;
 		}
 		*bcap_fmt = *fmt;

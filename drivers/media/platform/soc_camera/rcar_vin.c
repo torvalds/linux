@@ -1683,7 +1683,11 @@ static int rcar_vin_try_fmt(struct soc_camera_device *icd,
 	const struct soc_camera_format_xlate *xlate;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
-	struct v4l2_mbus_framefmt mf;
+	struct v4l2_subdev_pad_config pad_cfg;
+	struct v4l2_subdev_format format = {
+		.which = V4L2_SUBDEV_FORMAT_TRY,
+	};
+	struct v4l2_mbus_framefmt *mf = &format.format;
 	__u32 pixfmt = pix->pixelformat;
 	int width, height;
 	int ret;
@@ -1710,25 +1714,25 @@ static int rcar_vin_try_fmt(struct soc_camera_device *icd,
 	pix->sizeimage = 0;
 
 	/* limit to sensor capabilities */
-	mf.width = pix->width;
-	mf.height = pix->height;
-	mf.field = pix->field;
-	mf.code = xlate->code;
-	mf.colorspace = pix->colorspace;
+	mf->width = pix->width;
+	mf->height = pix->height;
+	mf->field = pix->field;
+	mf->code = xlate->code;
+	mf->colorspace = pix->colorspace;
 
 	ret = v4l2_device_call_until_err(sd->v4l2_dev, soc_camera_grp_id(icd),
-					 video, try_mbus_fmt, &mf);
+					 pad, set_fmt, &pad_cfg, &format);
 	if (ret < 0)
 		return ret;
 
 	/* Adjust only if VIN cannot scale */
-	if (pix->width > mf.width * 2)
-		pix->width = mf.width * 2;
-	if (pix->height > mf.height * 3)
-		pix->height = mf.height * 3;
+	if (pix->width > mf->width * 2)
+		pix->width = mf->width * 2;
+	if (pix->height > mf->height * 3)
+		pix->height = mf->height * 3;
 
-	pix->field = mf.field;
-	pix->colorspace = mf.colorspace;
+	pix->field = mf->field;
+	pix->colorspace = mf->colorspace;
 
 	if (pixfmt == V4L2_PIX_FMT_NV16) {
 		/* FIXME: check against rect_max after converting soc-camera */
@@ -1739,12 +1743,12 @@ static int rcar_vin_try_fmt(struct soc_camera_device *icd,
 			 * requested a bigger rectangle, it will not return a
 			 * smaller one.
 			 */
-			mf.width = VIN_MAX_WIDTH;
-			mf.height = VIN_MAX_HEIGHT;
+			mf->width = VIN_MAX_WIDTH;
+			mf->height = VIN_MAX_HEIGHT;
 			ret = v4l2_device_call_until_err(sd->v4l2_dev,
 							 soc_camera_grp_id(icd),
-							 video, try_mbus_fmt,
-							 &mf);
+							 pad, set_fmt, &pad_cfg,
+							 &format);
 			if (ret < 0) {
 				dev_err(icd->parent,
 					"client try_fmt() = %d\n", ret);
@@ -1752,9 +1756,9 @@ static int rcar_vin_try_fmt(struct soc_camera_device *icd,
 			}
 		}
 		/* We will scale exactly */
-		if (mf.width > width)
+		if (mf->width > width)
 			pix->width = width;
-		if (mf.height > height)
+		if (mf->height > height)
 			pix->height = height;
 	}
 

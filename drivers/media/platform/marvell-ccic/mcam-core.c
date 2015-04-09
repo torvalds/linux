@@ -1351,14 +1351,17 @@ static int mcam_vidioc_try_fmt_vid_cap(struct file *filp, void *priv,
 	struct mcam_camera *cam = video_drvdata(filp);
 	struct mcam_format_struct *f;
 	struct v4l2_pix_format *pix = &fmt->fmt.pix;
-	struct v4l2_mbus_framefmt mbus_fmt;
+	struct v4l2_subdev_pad_config pad_cfg;
+	struct v4l2_subdev_format format = {
+		.which = V4L2_SUBDEV_FORMAT_TRY,
+	};
 	int ret;
 
 	f = mcam_find_format(pix->pixelformat);
 	pix->pixelformat = f->pixelformat;
-	v4l2_fill_mbus_format(&mbus_fmt, pix, f->mbus_code);
-	ret = sensor_call(cam, video, try_mbus_fmt, &mbus_fmt);
-	v4l2_fill_pix_format(pix, &mbus_fmt);
+	v4l2_fill_mbus_format(&format.format, pix, f->mbus_code);
+	ret = sensor_call(cam, pad, set_fmt, &pad_cfg, &format);
+	v4l2_fill_pix_format(pix, &format.format);
 	pix->bytesperline = pix->width * f->bpp;
 	switch (f->pixelformat) {
 	case V4L2_PIX_FMT_YUV420:
