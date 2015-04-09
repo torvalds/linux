@@ -147,6 +147,7 @@ struct fimd_win_data {
 	unsigned int		ovl_height;
 	unsigned int		fb_width;
 	unsigned int		fb_height;
+	unsigned int		fb_pitch;
 	unsigned int		bpp;
 	unsigned int		pixel_format;
 	dma_addr_t		dma_addr;
@@ -284,14 +285,9 @@ static void fimd_clear_channel(struct fimd_context *ctx)
 	}
 }
 
-static int fimd_ctx_initialize(struct fimd_context *ctx,
+static int fimd_iommu_attach_devices(struct fimd_context *ctx,
 			struct drm_device *drm_dev)
 {
-	struct exynos_drm_private *priv;
-	priv = drm_dev->dev_private;
-
-	ctx->drm_dev = drm_dev;
-	ctx->pipe = priv->pipe++;
 
 	/* attach this sub driver to iommu mapping if supported. */
 	if (is_drm_iommu_supported(ctx->drm_dev)) {
@@ -313,7 +309,7 @@ static int fimd_ctx_initialize(struct fimd_context *ctx,
 	return 0;
 }
 
-static void fimd_ctx_remove(struct fimd_context *ctx)
+static void fimd_iommu_detach_devices(struct fimd_context *ctx)
 {
 	/* detach this sub driver from iommu mapping if supported. */
 	if (is_drm_iommu_supported(ctx->drm_dev))
@@ -537,13 +533,14 @@ static void fimd_win_mode_set(struct exynos_drm_crtc *crtc,
 	win_data->offset_y = plane->crtc_y;
 	win_data->ovl_width = plane->crtc_width;
 	win_data->ovl_height = plane->crtc_height;
+	win_data->fb_pitch = plane->pitch;
 	win_data->fb_width = plane->fb_width;
 	win_data->fb_height = plane->fb_height;
 	win_data->dma_addr = plane->dma_addr[0] + offset;
 	win_data->bpp = plane->bpp;
 	win_data->pixel_format = plane->pixel_format;
-	win_data->buf_offsize = (plane->fb_width - plane->crtc_width) *
-				(plane->bpp >> 3);
+	win_data->buf_offsize =
+		plane->pitch - (plane->crtc_width * (plane->bpp >> 3));
 	win_data->line_size = plane->crtc_width * (plane->bpp >> 3);
 
 	DRM_DEBUG_KMS("offset_x = %d, offset_y = %d\n",
@@ -709,7 +706,7 @@ static void fimd_win_commit(struct exynos_drm_crtc *crtc, int zpos)
 	writel(val, ctx->regs + VIDWx_BUF_START(win, 0));
 
 	/* buffer end address */
-	size = win_data->fb_width * win_data->ovl_height * (win_data->bpp >> 3);
+	size = win_data->fb_pitch * win_data->ovl_height * (win_data->bpp >> 3);
 	val = (unsigned long)(win_data->dma_addr + size);
 	writel(val, ctx->regs + VIDWx_BUF_END(win, 0));
 
@@ -1056,24 +1053,22 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 {
 	struct fimd_context *ctx = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
+	struct exynos_drm_private *priv = drm_dev->dev_private;
 	int ret;
 
-	ret = fimd_ctx_initialize(ctx, drm_dev);
-	if (ret) {
-		DRM_ERROR("fimd_ctx_initialize failed.\n");
-		return ret;
-	}
+	ctx->drm_dev = drm_dev;
+	ctx->pipe = priv->pipe++;
 
 	ctx->crtc = exynos_drm_crtc_create(drm_dev, ctx->pipe,
 					   EXYNOS_DISPLAY_TYPE_LCD,
 					   &fimd_crtc_ops, ctx);
-	if (IS_ERR(ctx->crtc)) {
-		fimd_ctx_remove(ctx);
-		return PTR_ERR(ctx->crtc);
-	}
 
 	if (ctx->display)
 		exynos_drm_create_enc_conn(drm_dev, ctx->display);
+
+	ret = fimd_iommu_attach_devices(ctx, drm_dev);
+	if (ret)
+		return ret;
 
 	return 0;
 
@@ -1086,10 +1081,10 @@ static void fimd_unbind(struct device *dev, struct device *master,
 
 	fimd_dpms(ctx->crtc, DRM_MODE_DPMS_OFF);
 
+	fimd_iommu_detach_devices(ctx);
+
 	if (ctx->display)
 		exynos_dpi_remove(ctx->display);
-
-	fimd_ctx_remove(ctx);
 }
 
 static const struct component_ops fimd_component_ops = {

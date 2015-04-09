@@ -3162,6 +3162,8 @@ static void si_gpu_init(struct radeon_device *rdev)
 	}
 
 	WREG32(GRBM_CNTL, GRBM_READ_TIMEOUT(0xff));
+	WREG32(SRBM_INT_CNTL, 1);
+	WREG32(SRBM_INT_ACK, 1);
 
 	evergreen_fix_pci_max_read_req_size(rdev);
 
@@ -4699,12 +4701,6 @@ int si_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib)
 		switch (pkt.type) {
 		case RADEON_PACKET_TYPE0:
 			dev_err(rdev->dev, "Packet0 not allowed!\n");
-			for (i = 0; i < ib->length_dw; i++) {
-				if (i == idx)
-					printk("\t0x%08x <---\n", ib->ptr[i]);
-				else
-					printk("\t0x%08x\n", ib->ptr[i]);
-			}
 			ret = -EINVAL;
 			break;
 		case RADEON_PACKET_TYPE2:
@@ -4736,8 +4732,15 @@ int si_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib)
 			ret = -EINVAL;
 			break;
 		}
-		if (ret)
+		if (ret) {
+			for (i = 0; i < ib->length_dw; i++) {
+				if (i == idx)
+					printk("\t0x%08x <---\n", ib->ptr[i]);
+				else
+					printk("\t0x%08x\n", ib->ptr[i]);
+			}
 			break;
+		}
 	} while (idx < ib->length_dw);
 
 	return ret;
@@ -5910,6 +5913,7 @@ static void si_disable_interrupt_state(struct radeon_device *rdev)
 	tmp = RREG32(DMA_CNTL + DMA1_REGISTER_OFFSET) & ~TRAP_ENABLE;
 	WREG32(DMA_CNTL + DMA1_REGISTER_OFFSET, tmp);
 	WREG32(GRBM_INT_CNTL, 0);
+	WREG32(SRBM_INT_CNTL, 0);
 	if (rdev->num_crtc >= 2) {
 		WREG32(INT_MASK + EVERGREEN_CRTC0_REGISTER_OFFSET, 0);
 		WREG32(INT_MASK + EVERGREEN_CRTC1_REGISTER_OFFSET, 0);
@@ -6198,6 +6202,9 @@ int si_irq_set(struct radeon_device *rdev)
 	}
 
 	WREG32(CG_THERMAL_INT, thermal_int);
+
+	/* posting read */
+	RREG32(SRBM_STATUS);
 
 	return 0;
 }
@@ -6608,6 +6615,10 @@ restart_ih:
 				DRM_DEBUG("Unhandled interrupt: %d %d\n", src_id, src_data);
 				break;
 			}
+			break;
+		case 96:
+			DRM_ERROR("SRBM_READ_ERROR: 0x%x\n", RREG32(SRBM_READ_ERROR));
+			WREG32(SRBM_INT_ACK, 0x1);
 			break;
 		case 124: /* UVD */
 			DRM_DEBUG("IH: UVD int: 0x%08x\n", src_data);
@@ -7119,8 +7130,7 @@ int si_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
 	WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_BYPASS_EN_MASK, ~UPLL_BYPASS_EN_MASK);
 
 	if (!vclk || !dclk) {
-		/* keep the Bypass mode, put PLL to sleep */
-		WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_SLEEP_MASK, ~UPLL_SLEEP_MASK);
+		/* keep the Bypass mode */
 		return 0;
 	}
 
@@ -7136,8 +7146,7 @@ int si_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
 	/* set VCO_MODE to 1 */
 	WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_VCO_MODE_MASK, ~UPLL_VCO_MODE_MASK);
 
-	/* toggle UPLL_SLEEP to 1 then back to 0 */
-	WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_SLEEP_MASK, ~UPLL_SLEEP_MASK);
+	/* disable sleep mode */
 	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_SLEEP_MASK);
 
 	/* deassert UPLL_RESET */

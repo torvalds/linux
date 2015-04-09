@@ -2114,6 +2114,9 @@ void i915_gem_track_fb(struct drm_i915_gem_object *old,
  * number comparisons on buffer last_read|write_seqno. It also allows an
  * emission time to be associated with the request for tracking how far ahead
  * of the GPU the submission is.
+ *
+ * The requests are reference counted, so upon creation they should have an
+ * initial reference taken using kref_init
  */
 struct drm_i915_gem_request {
 	struct kref ref;
@@ -2137,7 +2140,16 @@ struct drm_i915_gem_request {
 	/** Position in the ringbuffer of the end of the whole request */
 	u32 tail;
 
-	/** Context related to this request */
+	/**
+	 * Context related to this request
+	 * Contexts are refcounted, so when this request is associated with a
+	 * context, we must increment the context's refcount, to guarantee that
+	 * it persists while any request is linked to it. Requests themselves
+	 * are also refcounted, so the request will only be freed when the last
+	 * reference to it is dismissed, and the code in
+	 * i915_gem_request_free() will then decrement the refcount on the
+	 * context.
+	 */
 	struct intel_context *ctx;
 
 	/** Batch buffer related to this request if any */
@@ -2374,6 +2386,7 @@ struct drm_i915_cmd_table {
 				 (INTEL_DEVID(dev) & 0xFF00) == 0x0C00)
 #define IS_BDW_ULT(dev)		(IS_BROADWELL(dev) && \
 				 ((INTEL_DEVID(dev) & 0xf) == 0x6 ||	\
+				 (INTEL_DEVID(dev) & 0xf) == 0xb ||	\
 				 (INTEL_DEVID(dev) & 0xf) == 0xe))
 #define IS_BDW_GT3(dev)		(IS_BROADWELL(dev) && \
 				 (INTEL_DEVID(dev) & 0x00F0) == 0x0020)

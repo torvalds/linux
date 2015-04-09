@@ -226,11 +226,20 @@ static void dice_card_strings(struct snd_dice *dice)
 	strcpy(card->mixername, "DICE");
 }
 
+/*
+ * This module releases the FireWire unit data after all ALSA character devices
+ * are released by applications. This is for releasing stream data or finishing
+ * transactions safely. Thus at returning from .remove(), this module still keep
+ * references for the unit.
+ */
 static void dice_card_free(struct snd_card *card)
 {
 	struct snd_dice *dice = card->private_data;
 
+	snd_dice_stream_destroy_duplex(dice);
 	snd_dice_transaction_destroy(dice);
+	fw_unit_put(dice->unit);
+
 	mutex_destroy(&dice->mutex);
 }
 
@@ -251,7 +260,7 @@ static int dice_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 
 	dice = card->private_data;
 	dice->card = card;
-	dice->unit = unit;
+	dice->unit = fw_unit_get(unit);
 	card->private_free = dice_card_free;
 
 	spin_lock_init(&dice->lock);
@@ -305,10 +314,7 @@ static void dice_remove(struct fw_unit *unit)
 {
 	struct snd_dice *dice = dev_get_drvdata(&unit->device);
 
-	snd_card_disconnect(dice->card);
-
-	snd_dice_stream_destroy_duplex(dice);
-
+	/* No need to wait for releasing card object in this context. */
 	snd_card_free_when_closed(dice->card);
 }
 

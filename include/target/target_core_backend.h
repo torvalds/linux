@@ -111,6 +111,7 @@ void	array_free(void *array, int n);
 void	target_core_setup_sub_cits(struct se_subsystem_api *);
 
 /* attribute helpers from target_core_device.c for backend drivers */
+bool	se_dev_check_wce(struct se_device *);
 int	se_dev_set_max_unmap_lba_count(struct se_device *, u32);
 int	se_dev_set_max_unmap_block_desc_count(struct se_device *, u32);
 int	se_dev_set_unmap_granularity(struct se_device *, u32);

@@ -153,6 +153,8 @@ static void nft_hash_walk(const struct nft_ctx *ctx, const struct nft_set *set,
 				iter->err = err;
 				goto out;
 			}
+
+			continue;
 		}
 
 		if (iter->count < iter->skip)
@@ -192,8 +194,6 @@ static int nft_hash_init(const struct nft_set *set,
 		.key_offset = offsetof(struct nft_hash_elem, key),
 		.key_len = set->klen,
 		.hashfn = jhash,
-		.grow_decision = rht_grow_above_75,
-		.shrink_decision = rht_shrink_below_30,
 	};
 
 	return rhashtable_init(priv, &params);

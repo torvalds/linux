@@ -1257,9 +1257,9 @@ static void rocker_port_set_enable(struct rocker_port *rocker_port, bool enable)
 	u64 val = rocker_read64(rocker_port->rocker, PORT_PHYS_ENABLE);
 
 	if (enable)
-		val |= 1 << rocker_port->lport;
+		val |= 1ULL << rocker_port->lport;
 	else
-		val &= ~(1 << rocker_port->lport);
+		val &= ~(1ULL << rocker_port->lport);
 	rocker_write64(rocker_port->rocker, PORT_PHYS_ENABLE, val);
 }
 
@@ -4201,6 +4201,8 @@ static int rocker_probe_ports(struct rocker *rocker)
 
 	alloc_size = sizeof(struct rocker_port *) * rocker->port_count;
 	rocker->ports = kmalloc(alloc_size, GFP_KERNEL);
+	if (!rocker->ports)
+		return -ENOMEM;
 	for (i = 0; i < rocker->port_count; i++) {
 		err = rocker_probe_port(rocker, i);
 		if (err)
@@ -4466,10 +4468,16 @@ static int rocker_port_master_changed(struct net_device *dev)
 	struct net_device *master = netdev_master_upper_dev_get(dev);
 	int err = 0;
 
+	/* There are currently three cases handled here:
+	 * 1. Joining a bridge
+	 * 2. Leaving a previously joined bridge
+	 * 3. Other, e.g. being added to or removed from a bond or openvswitch,
+	 *    in which case nothing is done
+	 */
 	if (master && master->rtnl_link_ops &&
 	    !strcmp(master->rtnl_link_ops->kind, "bridge"))
 		err = rocker_port_bridge_join(rocker_port, master);
-	else
+	else if (rocker_port_is_bridged(rocker_port))
 		err = rocker_port_bridge_leave(rocker_port);
 
 	return err;

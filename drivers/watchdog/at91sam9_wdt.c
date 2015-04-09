@@ -208,7 +208,8 @@ static int at91_wdt_init(struct platform_device *pdev, struct at91wdt *wdt)
 
 	if ((tmp & AT91_WDT_WDFIEN) && wdt->irq) {
 		err = request_irq(wdt->irq, wdt_interrupt,
-				  IRQF_SHARED | IRQF_IRQPOLL,
+				  IRQF_SHARED | IRQF_IRQPOLL |
+				  IRQF_NO_SUSPEND,
 				  pdev->name, wdt);
 		if (err)
 			return err;

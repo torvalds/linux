@@ -649,7 +649,7 @@ struct spi_transfer {
  * sequence completes.  On some systems, many such sequences can execute as
  * as single programmed DMA transfer.  On all systems, these messages are
  * queued, and might complete after transactions to other devices.  Messages
- * sent to a given spi_device are alway executed in FIFO order.
+ * sent to a given spi_device are always executed in FIFO order.
  *
  * The code that submits an spi_message (and its spi_transfers)
  * to the lower layers is responsible for managing its memory.

@@ -268,6 +268,7 @@ static int inet_csk_wait_for_connect(struct sock *sk, long timeo)
 		release_sock(sk);
 		if (reqsk_queue_empty(&icsk->icsk_accept_queue))
 			timeo = schedule_timeout(timeo);
+		sched_annotate_sleep();
 		lock_sock(sk);
 		err = 0;
 		if (!reqsk_queue_empty(&icsk->icsk_accept_queue))

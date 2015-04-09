@@ -833,8 +833,7 @@ int kvm_apic_compare_prio(struct kvm_vcpu *vcpu1, struct kvm_vcpu *vcpu2)
 
 static void kvm_ioapic_send_eoi(struct kvm_lapic *apic, int vector)
 {
-	if (!(kvm_apic_get_reg(apic, APIC_SPIV) & APIC_SPIV_DIRECTED_EOI) &&
-	    kvm_ioapic_handles_vector(apic->vcpu->kvm, vector)) {
+	if (kvm_ioapic_handles_vector(apic->vcpu->kvm, vector)) {
 		int trigger_mode;
 		if (apic_test_vector(vector, apic->regs + APIC_TMR))
 			trigger_mode = IOAPIC_LEVEL_TRIG;
@@ -1572,7 +1571,7 @@ void kvm_lapic_reset(struct kvm_vcpu *vcpu)
 		apic_set_reg(apic, APIC_TMR + 0x10 * i, 0);
 	}
 	apic->irr_pending = kvm_apic_vid_enabled(vcpu->kvm);
-	apic->isr_count = kvm_apic_vid_enabled(vcpu->kvm);
+	apic->isr_count = kvm_x86_ops->hwapic_isr_update ? 1 : 0;
 	apic->highest_isr_cache = -1;
 	update_divide_count(apic);
 	atomic_set(&apic->lapic_timer.pending, 0);
@@ -1782,7 +1781,7 @@ void kvm_apic_post_state_restore(struct kvm_vcpu *vcpu,
 	update_divide_count(apic);
 	start_apic_timer(apic);
 	apic->irr_pending = true;
-	apic->isr_count = kvm_apic_vid_enabled(vcpu->kvm) ?
+	apic->isr_count = kvm_x86_ops->hwapic_isr_update ?
 				1 : count_vectors(apic->regs + APIC_ISR);
 	apic->highest_isr_cache = -1;
 	if (kvm_x86_ops->hwapic_irr_update)

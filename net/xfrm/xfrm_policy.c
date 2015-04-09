@@ -2269,11 +2269,9 @@ struct dst_entry *xfrm_lookup(struct net *net, struct dst_entry *dst_orig,
 		 * have the xfrm_state's. We need to wait for KM to
 		 * negotiate new SA's or bail out with error.*/
 		if (net->xfrm.sysctl_larval_drop) {
-			dst_release(dst);
-			xfrm_pols_put(pols, drop_pols);
 			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTNOSTATES);
-
-			return ERR_PTR(-EREMOTE);
+			err = -EREMOTE;
+			goto error;
 		}
 
 		err = -EAGAIN;
@@ -2324,7 +2322,8 @@ nopol:
 error:
 	dst_release(dst);
 dropdst:
-	dst_release(dst_orig);
+	if (!(flags & XFRM_LOOKUP_KEEP_DST_REF))
+		dst_release(dst_orig);
 	xfrm_pols_put(pols, drop_pols);
 	return ERR_PTR(err);
 }
@@ -2338,7 +2337,8 @@ struct dst_entry *xfrm_lookup_route(struct net *net, struct dst_entry *dst_orig,
 				    struct sock *sk, int flags)
 {
 	struct dst_entry *dst = xfrm_lookup(net, dst_orig, fl, sk,
-					    flags | XFRM_LOOKUP_QUEUE);
+					    flags | XFRM_LOOKUP_QUEUE |
+					    XFRM_LOOKUP_KEEP_DST_REF);
 
 	if (IS_ERR(dst) && PTR_ERR(dst) == -EREMOTE)
 		return make_blackhole(net, dst_orig->ops->family, dst_orig);

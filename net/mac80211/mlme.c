@@ -1150,6 +1150,17 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 		return;
 	}
 
+	if (cfg80211_chandef_identical(&csa_ie.chandef,
+				       &sdata->vif.bss_conf.chandef)) {
+		if (ifmgd->csa_ignored_same_chan)
+			return;
+		sdata_info(sdata,
+			   "AP %pM tries to chanswitch to same channel, ignore\n",
+			   ifmgd->associated->bssid);
+		ifmgd->csa_ignored_same_chan = true;
+		return;
+	}
+
 	mutex_lock(&local->mtx);
 	mutex_lock(&local->chanctx_mtx);
 	conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
@@ -1210,6 +1221,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	sdata->vif.csa_active = true;
 	sdata->csa_chandef = csa_ie.chandef;
 	sdata->csa_block_tx = csa_ie.mode;
+	ifmgd->csa_ignored_same_chan = false;
 
 	if (sdata->csa_block_tx)
 		ieee80211_stop_vif_queues(local, sdata,
@@ -2090,6 +2102,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 
 	sdata->vif.csa_active = false;
 	ifmgd->csa_waiting_bcn = false;
+	ifmgd->csa_ignored_same_chan = false;
 	if (sdata->csa_block_tx) {
 		ieee80211_wake_vif_queues(local, sdata,
 					  IEEE80211_QUEUE_STOP_REASON_CSA);
@@ -3204,7 +3217,8 @@ static const u64 care_about_ies =
 	(1ULL << WLAN_EID_CHANNEL_SWITCH) |
 	(1ULL << WLAN_EID_PWR_CONSTRAINT) |
 	(1ULL << WLAN_EID_HT_CAPABILITY) |
-	(1ULL << WLAN_EID_HT_OPERATION);
+	(1ULL << WLAN_EID_HT_OPERATION) |
+	(1ULL << WLAN_EID_EXT_CHANSWITCH_ANN);
 
 static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 				     struct ieee80211_mgmt *mgmt, size_t len,

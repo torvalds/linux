@@ -269,11 +269,14 @@ ENTRY(ret_from_fork)
 	testl $3, CS-ARGOFFSET(%rsp)		# from kernel_thread?
 	jz   1f
 
-	testl $_TIF_IA32, TI_flags(%rcx)	# 32-bit compat task needs IRET
-	jnz  int_ret_from_sys_call
-
-	RESTORE_TOP_OF_STACK %rdi, -ARGOFFSET
-	jmp ret_from_sys_call			# go to the SYSRET fastpath
+	/*
+	 * By the time we get here, we have no idea whether our pt_regs,
+	 * ti flags, and ti status came from the 64-bit SYSCALL fast path,
+	 * the slow path, or one of the ia32entry paths.
+	 * Use int_ret_from_sys_call to return, since it can safely handle
+	 * all of the above.
+	 */
+	jmp  int_ret_from_sys_call
 
 1:
 	subq $REST_SKIP, %rsp	# leave space for volatiles
@@ -361,12 +364,21 @@ system_call_fastpath:
  * Has incomplete stack frame and undefined top of stack.
  */
 ret_from_sys_call:
-	testl $_TIF_ALLWORK_MASK,TI_flags+THREAD_INFO(%rsp,RIP-ARGOFFSET)
-	jnz int_ret_from_sys_call_fixup	/* Go the the slow path */
-
 	LOCKDEP_SYS_EXIT
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
+
+	/*
+	 * We must check ti flags with interrupts (or at least preemption)
+	 * off because we must *never* return to userspace without
+	 * processing exit work that is enqueued if we're preempted here.
+	 * In particular, returning to userspace with any of the one-shot
+	 * flags (TIF_NOTIFY_RESUME, TIF_USER_RETURN_NOTIFY, etc) set is
+	 * very bad.
+	 */
+	testl $_TIF_ALLWORK_MASK,TI_flags+THREAD_INFO(%rsp,RIP-ARGOFFSET)
+	jnz int_ret_from_sys_call_fixup	/* Go the the slow path */
+
 	CFI_REMEMBER_STATE
 	/*
 	 * sysretq will re-enable interrupts:
@@ -383,7 +395,7 @@ ret_from_sys_call:
 
 int_ret_from_sys_call_fixup:
 	FIXUP_TOP_OF_STACK %r11, -ARGOFFSET
-	jmp int_ret_from_sys_call
+	jmp int_ret_from_sys_call_irqs_off
 
 	/* Do syscall tracing */
 tracesys:
@@ -429,6 +441,7 @@ tracesys_phase2:
 GLOBAL(int_ret_from_sys_call)
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
+int_ret_from_sys_call_irqs_off:
 	movl $_TIF_ALLWORK_MASK,%edi
 	/* edi:	mask to check */
 GLOBAL(int_with_check)
@@ -786,7 +799,21 @@ retint_swapgs:		/* return to user-space */
 	cmpq %r11,(EFLAGS-ARGOFFSET)(%rsp)	/* R11 == RFLAGS */
 	jne opportunistic_sysret_failed
 
-	testq $X86_EFLAGS_RF,%r11		/* sysret can't restore RF */
+	/*
+	 * SYSRET can't restore RF.  SYSRET can restore TF, but unlike IRET,
+	 * restoring TF results in a trap from userspace immediately after
+	 * SYSRET.  This would cause an infinite loop whenever #DB happens
+	 * with register state that satisfies the opportunistic SYSRET
+	 * conditions.  For example, single-stepping this user code:
+	 *
+	 *           movq $stuck_here,%rcx
+	 *           pushfq
+	 *           popq %r11
+	 *   stuck_here:
+	 *
+	 * would never get past 'stuck_here'.
+	 */
+	testq $(X86_EFLAGS_RF|X86_EFLAGS_TF), %r11
 	jnz opportunistic_sysret_failed
 
 	/* nothing to check for RSP */
@@ -1208,6 +1235,9 @@ ENTRY(xen_do_hypervisor_callback)   # do_hypervisor_callback(struct *pt_regs)
 	popq %rsp
 	CFI_DEF_CFA_REGISTER rsp
 	decl PER_CPU_VAR(irq_count)
+#ifndef CONFIG_PREEMPT
+	call xen_maybe_preempt_hcall
+#endif
 	jmp  error_exit
 	CFI_ENDPROC
 END(xen_do_hypervisor_callback)

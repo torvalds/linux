@@ -228,6 +228,7 @@ struct miphy28lp_dev {
 	struct regmap *regmap;
 	struct mutex miphy_mutex;
 	struct miphy28lp_phy **phys;
+	int nphys;
 };
 
 struct miphy_initval {
@@ -1116,7 +1117,7 @@ static struct phy *miphy28lp_xlate(struct device *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	for (index = 0; index < of_get_child_count(dev->of_node); index++)
+	for (index = 0; index < miphy_dev->nphys; index++)
 		if (phynode == miphy_dev->phys[index]->phy->dev.of_node) {
 			miphy_phy = miphy_dev->phys[index];
 			break;
@@ -1138,6 +1139,7 @@ static struct phy *miphy28lp_xlate(struct device *dev,
 
 static struct phy_ops miphy28lp_ops = {
 	.init = miphy28lp_init,
+	.owner = THIS_MODULE,
 };
 
 static int miphy28lp_probe_resets(struct device_node *node,
@@ -1200,16 +1202,15 @@ static int miphy28lp_probe(struct platform_device *pdev)
 	struct miphy28lp_dev *miphy_dev;
 	struct phy_provider *provider;
 	struct phy *phy;
-	int chancount, port = 0;
-	int ret;
+	int ret, port = 0;
 
 	miphy_dev = devm_kzalloc(&pdev->dev, sizeof(*miphy_dev), GFP_KERNEL);
 	if (!miphy_dev)
 		return -ENOMEM;
 
-	chancount = of_get_child_count(np);
-	miphy_dev->phys = devm_kzalloc(&pdev->dev, sizeof(phy) * chancount,
-				       GFP_KERNEL);
+	miphy_dev->nphys = of_get_child_count(np);
+	miphy_dev->phys = devm_kcalloc(&pdev->dev, miphy_dev->nphys,
+				       sizeof(*miphy_dev->phys), GFP_KERNEL);
 	if (!miphy_dev->phys)
 		return -ENOMEM;
 

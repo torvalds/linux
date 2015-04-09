@@ -12,6 +12,9 @@ I. For patch submitters
 
        devicetree@vger.kernel.org
 
+     and Cc: the DT maintainers. Use scripts/get_maintainer.pl to identify
+     all of the DT maintainers.
+
   3) The Documentation/ portion of the patch should come in the series before
      the code implementing the binding.
 

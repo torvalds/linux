@@ -74,7 +74,7 @@ static void ttm_mem_type_debug(struct ttm_bo_device *bdev, int mem_type)
 	pr_err("    has_type: %d\n", man->has_type);
 	pr_err("    use_type: %d\n", man->use_type);
 	pr_err("    flags: 0x%08X\n", man->flags);
-	pr_err("    gpu_offset: 0x%08lX\n", man->gpu_offset);
+	pr_err("    gpu_offset: 0x%08llX\n", man->gpu_offset);
 	pr_err("    size: %llu\n", man->size);
 	pr_err("    available_caching: 0x%08X\n", man->available_caching);
 	pr_err("    default_caching: 0x%08X\n", man->default_caching);

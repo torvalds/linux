@@ -143,13 +143,13 @@ struct uart_port {
 	unsigned char		iotype;			/* io access style */
 	unsigned char		unused1;
 
-#define UPIO_PORT		(0)			/* 8b I/O port access */
-#define UPIO_HUB6		(1)			/* Hub6 ISA card */
-#define UPIO_MEM		(2)			/* 8b MMIO access */
-#define UPIO_MEM32		(3)			/* 32b little endian */
-#define UPIO_MEM32BE		(4)			/* 32b big endian */
-#define UPIO_AU			(5)			/* Au1x00 and RT288x type IO */
-#define UPIO_TSI		(6)			/* Tsi108/109 type IO */
+#define UPIO_PORT		(SERIAL_IO_PORT)	/* 8b I/O port access */
+#define UPIO_HUB6		(SERIAL_IO_HUB6)	/* Hub6 ISA card */
+#define UPIO_MEM		(SERIAL_IO_MEM)		/* 8b MMIO access */
+#define UPIO_MEM32		(SERIAL_IO_MEM32)	/* 32b little endian */
+#define UPIO_AU			(SERIAL_IO_AU)		/* Au1x00 and RT288x type IO */
+#define UPIO_TSI		(SERIAL_IO_TSI)		/* Tsi108/109 type IO */
+#define UPIO_MEM32BE		(SERIAL_IO_MEM32BE)	/* 32b big endian */
 
 	unsigned int		read_status_mask;	/* driver specific */
 	unsigned int		ignore_status_mask;	/* driver specific */

@@ -37,6 +37,7 @@
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 #include "i915_trace.h"
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_crtc_helper.h>
@@ -2371,13 +2372,19 @@ intel_alloc_plane_obj(struct intel_crtc *crtc,
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_gem_object *obj = NULL;
 	struct drm_mode_fb_cmd2 mode_cmd = { 0 };
-	u32 base = plane_config->base;
+	u32 base_aligned = round_down(plane_config->base, PAGE_SIZE);
+	u32 size_aligned = round_up(plane_config->base + plane_config->size,
+				    PAGE_SIZE);
+
+	size_aligned -= base_aligned;
 
 	if (plane_config->size == 0)
 		return false;
 
-	obj = i915_gem_object_create_stolen_for_preallocated(dev, base, base,
-							     plane_config->size);
+	obj = i915_gem_object_create_stolen_for_preallocated(dev,
+							     base_aligned,
+							     base_aligned,
+							     size_aligned);
 	if (!obj)
 		return false;
 
@@ -2410,6 +2417,14 @@ out_unref_obj:
 	return false;
 }
 
+/* Update plane->state->fb to match plane->fb after driver-internal updates */
+static void
+update_state_fb(struct drm_plane *plane)
+{
+	if (plane->fb != plane->state->fb)
+		drm_atomic_set_fb_for_plane(plane->state, plane->fb);
+}
+
 static void
 intel_find_plane_obj(struct intel_crtc *intel_crtc,
 		     struct intel_initial_plane_config *plane_config)
@@ -2423,8 +2438,15 @@ intel_find_plane_obj(struct intel_crtc *intel_crtc,
 	if (!intel_crtc->base.primary->fb)
 		return;
 
-	if (intel_alloc_plane_obj(intel_crtc, plane_config))
+	if (intel_alloc_plane_obj(intel_crtc, plane_config)) {
+		struct drm_plane *primary = intel_crtc->base.primary;
+
+		primary->state->crtc = &intel_crtc->base;
+		primary->crtc = &intel_crtc->base;
+		update_state_fb(primary);
+
 		return;
+	}
 
 	kfree(intel_crtc->base.primary->fb);
 	intel_crtc->base.primary->fb = NULL;
@@ -2447,15 +2469,21 @@ intel_find_plane_obj(struct intel_crtc *intel_crtc,
 			continue;
 
 		if (i915_gem_obj_ggtt_offset(obj) == plane_config->base) {
+			struct drm_plane *primary = intel_crtc->base.primary;
+
 			if (obj->tiling_mode != I915_TILING_NONE)
 				dev_priv->preserve_bios_swizzle = true;
 
 			drm_framebuffer_reference(c->primary->fb);
-			intel_crtc->base.primary->fb = c->primary->fb;
+			primary->fb = c->primary->fb;
+			primary->state->crtc = &intel_crtc->base;
+			primary->crtc = &intel_crtc->base;
 			obj->frontbuffer_bits |= INTEL_FRONTBUFFER_PRIMARY(intel_crtc->pipe);
 			break;
 		}
 	}
+
+	update_state_fb(intel_crtc->base.primary);
 }
 
 static void i9xx_update_primary_plane(struct drm_crtc *crtc,
@@ -2725,9 +2753,18 @@ static void skylake_update_primary_plane(struct drm_crtc *crtc,
 	case DRM_FORMAT_XRGB8888:
 		plane_ctl |= PLANE_CTL_FORMAT_XRGB_8888;
 		break;
+	case DRM_FORMAT_ARGB8888:
+		plane_ctl |= PLANE_CTL_FORMAT_XRGB_8888;
+		plane_ctl |= PLANE_CTL_ALPHA_SW_PREMULTIPLY;
+		break;
 	case DRM_FORMAT_XBGR8888:
 		plane_ctl |= PLANE_CTL_ORDER_RGBX;
 		plane_ctl |= PLANE_CTL_FORMAT_XRGB_8888;
+		break;
+	case DRM_FORMAT_ABGR8888:
+		plane_ctl |= PLANE_CTL_ORDER_RGBX;
+		plane_ctl |= PLANE_CTL_FORMAT_XRGB_8888;
+		plane_ctl |= PLANE_CTL_ALPHA_SW_PREMULTIPLY;
 		break;
 	case DRM_FORMAT_XRGB2101010:
 		plane_ctl |= PLANE_CTL_FORMAT_XRGB_2101010;
@@ -6587,6 +6624,10 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 	struct drm_framebuffer *fb;
 	struct intel_framebuffer *intel_fb;
 
+	val = I915_READ(DSPCNTR(plane));
+	if (!(val & DISPLAY_PLANE_ENABLE))
+		return;
+
 	intel_fb = kzalloc(sizeof(*intel_fb), GFP_KERNEL);
 	if (!intel_fb) {
 		DRM_DEBUG_KMS("failed to alloc fb\n");
@@ -6594,8 +6635,6 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 	}
 
 	fb = &intel_fb->base;
-
-	val = I915_READ(DSPCNTR(plane));
 
 	if (INTEL_INFO(dev)->gen >= 4)
 		if (val & DISPPLANE_TILED)
@@ -6627,7 +6666,7 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 	aligned_height = intel_fb_align_height(dev, fb->height,
 					       plane_config->tiling);
 
-	plane_config->size = PAGE_ALIGN(fb->pitches[0] * aligned_height);
+	plane_config->size = fb->pitches[0] * aligned_height;
 
 	DRM_DEBUG_KMS("pipe/plane %c/%d with fb: size=%dx%d@%d, offset=%x, pitch %d, size 0x%x\n",
 		      pipe_name(pipe), plane, fb->width, fb->height,
@@ -7628,6 +7667,9 @@ skylake_get_initial_plane_config(struct intel_crtc *crtc,
 	fb = &intel_fb->base;
 
 	val = I915_READ(PLANE_CTL(pipe, 0));
+	if (!(val & PLANE_CTL_ENABLE))
+		goto error;
+
 	if (val & PLANE_CTL_TILED_MASK)
 		plane_config->tiling = I915_TILING_X;
 
@@ -7664,7 +7706,7 @@ skylake_get_initial_plane_config(struct intel_crtc *crtc,
 	aligned_height = intel_fb_align_height(dev, fb->height,
 					       plane_config->tiling);
 
-	plane_config->size = ALIGN(fb->pitches[0] * aligned_height, PAGE_SIZE);
+	plane_config->size = fb->pitches[0] * aligned_height;
 
 	DRM_DEBUG_KMS("pipe %c with fb: size=%dx%d@%d, offset=%x, pitch %d, size 0x%x\n",
 		      pipe_name(pipe), fb->width, fb->height,
@@ -7715,6 +7757,10 @@ ironlake_get_initial_plane_config(struct intel_crtc *crtc,
 	struct drm_framebuffer *fb;
 	struct intel_framebuffer *intel_fb;
 
+	val = I915_READ(DSPCNTR(pipe));
+	if (!(val & DISPLAY_PLANE_ENABLE))
+		return;
+
 	intel_fb = kzalloc(sizeof(*intel_fb), GFP_KERNEL);
 	if (!intel_fb) {
 		DRM_DEBUG_KMS("failed to alloc fb\n");
@@ -7722,8 +7768,6 @@ ironlake_get_initial_plane_config(struct intel_crtc *crtc,
 	}
 
 	fb = &intel_fb->base;
-
-	val = I915_READ(DSPCNTR(pipe));
 
 	if (INTEL_INFO(dev)->gen >= 4)
 		if (val & DISPPLANE_TILED)
@@ -7755,7 +7799,7 @@ ironlake_get_initial_plane_config(struct intel_crtc *crtc,
 	aligned_height = intel_fb_align_height(dev, fb->height,
 					       plane_config->tiling);
 
-	plane_config->size = PAGE_ALIGN(fb->pitches[0] * aligned_height);
+	plane_config->size = fb->pitches[0] * aligned_height;
 
 	DRM_DEBUG_KMS("pipe %c with fb: size=%dx%d@%d, offset=%x, pitch %d, size 0x%x\n",
 		      pipe_name(pipe), fb->width, fb->height,
@@ -8698,6 +8742,7 @@ retry:
 			old->release_fb->funcs->destroy(old->release_fb);
 		goto fail;
 	}
+	crtc->primary->crtc = crtc;
 
 	/* let the connector get through one full cycle before testing */
 	intel_wait_for_vblank(dev, intel_crtc->pipe);
@@ -9700,7 +9745,7 @@ void intel_check_page_flip(struct drm_device *dev, int pipe)
 	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
-	WARN_ON(!in_irq());
+	WARN_ON(!in_interrupt());
 
 	if (crtc == NULL)
 		return;
@@ -9800,6 +9845,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	drm_gem_object_reference(&obj->base);
 
 	crtc->primary->fb = fb;
+	update_state_fb(crtc->primary);
 
 	work->pending_flip_obj = obj;
 
@@ -9868,6 +9914,7 @@ cleanup_unpin:
 cleanup_pending:
 	atomic_dec(&intel_crtc->unpin_work_count);
 	crtc->primary->fb = old_fb;
+	update_state_fb(crtc->primary);
 	drm_gem_object_unreference(&work->old_fb_obj->base);
 	drm_gem_object_unreference(&obj->base);
 	mutex_unlock(&dev->struct_mutex);
@@ -12182,9 +12229,6 @@ intel_check_cursor_plane(struct drm_plane *plane,
 		return -ENOMEM;
 	}
 
-	if (fb == crtc->cursor->fb)
-		return 0;
-
 	/* we only need to pin inside GTT if cursor is non-phy */
 	mutex_lock(&dev->struct_mutex);
 	if (!INTEL_INFO(dev)->cursor_needs_physical && obj->tiling_mode) {
@@ -13096,6 +13140,9 @@ static struct intel_quirk intel_quirks[] = {
 
 	/* HP Chromebook 14 (Celeron 2955U) */
 	{ 0x0a06, 0x103c, 0x21ed, quirk_backlight_present },
+
+	/* Dell Chromebook 11 */
+	{ 0x0a06, 0x1028, 0x0a35, quirk_backlight_present },
 };
 
 static void intel_init_quirks(struct drm_device *dev)
@@ -13702,6 +13749,7 @@ void intel_modeset_gem_init(struct drm_device *dev)
 				  to_intel_crtc(c)->pipe);
 			drm_framebuffer_unreference(c->primary->fb);
 			c->primary->fb = NULL;
+			update_state_fb(c->primary);
 		}
 	}
 	mutex_unlock(&dev->struct_mutex);

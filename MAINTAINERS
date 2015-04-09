@@ -637,8 +637,7 @@ F:      drivers/gpu/drm/radeon/radeon_kfd.h
 F:      include/uapi/linux/kfd_ioctl.h
 
 AMD MICROCODE UPDATE SUPPORT
-M:	Andreas Herrmann <herrmann.der.user@googlemail.com>
-L:	amd64-microcode@amd64.org
+M:	Borislav Petkov <bp@alien8.de>
 S:	Maintained
 F:	arch/x86/kernel/cpu/microcode/amd*
 
@@ -1030,6 +1029,16 @@ F:	arch/arm/mach-mxs/
 F:	arch/arm/boot/dts/imx*
 F:	arch/arm/configs/imx*_defconfig
 
+ARM/FREESCALE VYBRID ARM ARCHITECTURE
+M:	Shawn Guo <shawn.guo@linaro.org>
+M:	Sascha Hauer <kernel@pengutronix.de>
+R:	Stefan Agner <stefan@agner.ch>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux.git
+F:	arch/arm/mach-imx/*vf610*
+F:	arch/arm/boot/dts/vf*
+
 ARM/GLOMATION GESBC9312SX MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -1176,7 +1185,7 @@ M:	Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-mvebu/
-F:	drivers/rtc/armada38x-rtc
+F:	drivers/rtc/rtc-armada38x.c
 
 ARM/Marvell Berlin SoC support
 M:	Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
@@ -1188,6 +1197,7 @@ ARM/Marvell Dove/MV78xx0/Orion SOC support
 M:	Jason Cooper <jason@lakedaemon.net>
 M:	Andrew Lunn <andrew@lunn.ch>
 M:	Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
+M:	Gregory Clement <gregory.clement@free-electrons.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-dove/
@@ -1351,6 +1361,7 @@ F:	drivers/i2c/busses/i2c-rk3x.c
 F:	drivers/*/*rockchip*
 F:	drivers/*/*/*rockchip*
 F:	sound/soc/rockchip/
+N:	rockchip
 
 ARM/SAMSUNG EXYNOS ARM ARCHITECTURES
 M:	Kukjin Kim <kgene@kernel.org>
@@ -1664,8 +1675,8 @@ F:	drivers/misc/eeprom/at24.c
 F:	include/linux/platform_data/at24.h
 
 ATA OVER ETHERNET (AOE) DRIVER
-M:	"Ed L. Cashin" <ecashin@coraid.com>
-W:	http://support.coraid.com/support/linux
+M:	"Ed L. Cashin" <ed.cashin@acm.org>
+W:	http://www.openaoe.org/
 S:	Supported
 F:	Documentation/aoe/
 F:	drivers/block/aoe/
@@ -1730,7 +1741,7 @@ S:	Maintained
 F:	drivers/net/ethernet/atheros/
 
 ATM
-M:	Chas Williams <chas@cmf.nrl.navy.mil>
+M:	Chas Williams <3chas3@gmail.com>
 L:	linux-atm-general@lists.sourceforge.net (moderated for non-subscribers)
 L:	netdev@vger.kernel.org
 W:	http://linux-atm.sourceforge.net
@@ -2065,7 +2076,7 @@ F:	include/net/bluetooth/
 BONDING DRIVER
 M:	Jay Vosburgh <j.vosburgh@gmail.com>
 M:	Veaceslav Falico <vfalico@gmail.com>
-M:	Andy Gospodarek <andy@greyhouse.net>
+M:	Andy Gospodarek <gospo@cumulusnetworks.com>
 L:	netdev@vger.kernel.org
 W:	http://sourceforge.net/projects/bonding/
 S:	Supported
@@ -2107,7 +2118,6 @@ F:	drivers/net/ethernet/broadcom/bnx2x/
 
 BROADCOM BCM281XX/BCM11XXX/BCM216XX ARM ARCHITECTURE
 M:	Christian Daudt <bcm@fixthebug.org>
-M:	Matt Porter <mporter@linaro.org>
 M:	Florian Fainelli <f.fainelli@gmail.com>
 L:	bcm-kernel-feedback-list@broadcom.com
 T:	git git://github.com/broadcom/mach-bcm
@@ -2369,8 +2379,9 @@ F:	arch/x86/include/asm/tce.h
 
 CAN NETWORK LAYER
 M:	Oliver Hartkopp <socketcan@hartkopp.net>
+M:	Marc Kleine-Budde <mkl@pengutronix.de>
 L:	linux-can@vger.kernel.org
-W:	http://gitorious.org/linux-can
+W:	https://github.com/linux-can
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mkl/linux-can.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mkl/linux-can-next.git
 S:	Maintained
@@ -2386,7 +2397,7 @@ CAN NETWORK DRIVERS
 M:	Wolfgang Grandegger <wg@grandegger.com>
 M:	Marc Kleine-Budde <mkl@pengutronix.de>
 L:	linux-can@vger.kernel.org
-W:	http://gitorious.org/linux-can
+W:	https://github.com/linux-can
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mkl/linux-can.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mkl/linux-can-next.git
 S:	Maintained
@@ -3240,6 +3251,13 @@ L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/dme1737
 F:	drivers/hwmon/dme1737.c
+
+DMI/SMBIOS SUPPORT
+M:	Jean Delvare <jdelvare@suse.de>
+S:	Maintained
+F:	drivers/firmware/dmi-id.c
+F:	drivers/firmware/dmi_scan.c
+F:	include/linux/dmi.h
 
 DOCKING STATION DRIVER
 M:	Shaohua Li <shaohua.li@intel.com>
@@ -5076,7 +5094,7 @@ S:	Supported
 F:	drivers/platform/x86/intel_menlow.c
 
 INTEL IA32 MICROCODE UPDATE SUPPORT
-M:	Tigran Aivazian <tigran@aivazian.fsnet.co.uk>
+M:	Borislav Petkov <bp@alien8.de>
 S:	Maintained
 F:	arch/x86/kernel/cpu/microcode/core*
 F:	arch/x86/kernel/cpu/microcode/intel*
@@ -5117,22 +5135,21 @@ M:	Deepak Saxena <dsaxena@plexity.net>
 S:	Maintained
 F:	drivers/char/hw_random/ixp4xx-rng.c
 
-INTEL ETHERNET DRIVERS (e100/e1000/e1000e/fm10k/igb/igbvf/ixgb/ixgbe/ixgbevf/i40e/i40evf)
+INTEL ETHERNET DRIVERS
 M:	Jeff Kirsher <jeffrey.t.kirsher@intel.com>
-M:	Jesse Brandeburg <jesse.brandeburg@intel.com>
-M:	Bruce Allan <bruce.w.allan@intel.com>
-M:	Carolyn Wyborny <carolyn.wyborny@intel.com>
-M:	Don Skidmore <donald.c.skidmore@intel.com>
-M:	Greg Rose <gregory.v.rose@intel.com>
-M:	Matthew Vick <matthew.vick@intel.com>
-M:	John Ronciak <john.ronciak@intel.com>
-M:	Mitch Williams <mitch.a.williams@intel.com>
-M:	Linux NICS <linux.nics@intel.com>
-L:	e1000-devel@lists.sourceforge.net
+R:	Jesse Brandeburg <jesse.brandeburg@intel.com>
+R:	Shannon Nelson <shannon.nelson@intel.com>
+R:	Carolyn Wyborny <carolyn.wyborny@intel.com>
+R:	Don Skidmore <donald.c.skidmore@intel.com>
+R:	Matthew Vick <matthew.vick@intel.com>
+R:	John Ronciak <john.ronciak@intel.com>
+R:	Mitch Williams <mitch.a.williams@intel.com>
+L:	intel-wired-lan@lists.osuosl.org
 W:	http://www.intel.com/support/feedback.htm
 W:	http://e1000.sourceforge.net/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jkirsher/net.git
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jkirsher/net-next.git
+Q:	http://patchwork.ozlabs.org/project/intel-wired-lan/list/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jkirsher/net-queue.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jkirsher/next-queue.git
 S:	Supported
 F:	Documentation/networking/e100.txt
 F:	Documentation/networking/e1000.txt
@@ -7213,8 +7230,7 @@ ORACLE CLUSTER FILESYSTEM 2 (OCFS2)
 M:	Mark Fasheh <mfasheh@suse.com>
 M:	Joel Becker <jlbec@evilplan.org>
 L:	ocfs2-devel@oss.oracle.com (moderated for non-subscribers)
-W:	http://oss.oracle.com/projects/ocfs2/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jlbec/ocfs2.git
+W:	http://ocfs2.wiki.kernel.org
 S:	Supported
 F:	Documentation/filesystems/ocfs2.txt
 F:	Documentation/filesystems/dlmfs.txt
@@ -8480,6 +8496,14 @@ M:	Vipul Pandya <vipul.pandya@samsung.com>
 S:	Supported
 L:	netdev@vger.kernel.org
 F:	drivers/net/ethernet/samsung/sxgbe/
+
+SAMSUNG THERMAL DRIVER
+M:	Lukasz Majewski <l.majewski@samsung.com>
+L:	linux-pm@vger.kernel.org
+L:	linux-samsung-soc@vger.kernel.org
+S:	Supported
+T:	https://github.com/lmajewski/linux-samsung-thermal.git
+F:	drivers/thermal/samsung/
 
 SAMSUNG USB2 PHY DRIVER
 M:	Kamil Debski <k.debski@samsung.com>
@@ -10188,6 +10212,13 @@ L:	linux-usb@vger.kernel.org
 S:	Maintained
 F:	Documentation/usb/ohci.txt
 F:	drivers/usb/host/ohci*
+
+USB OTG FSM (Finite State Machine)
+M:	Peter Chen <Peter.Chen@freescale.com>
+T:	git git://github.com/hzpeterchen/linux-usb.git
+L:	linux-usb@vger.kernel.org
+S:	Maintained
+F:	drivers/usb/common/usb-otg-fsm.c
 
 USB OVER IP DRIVER
 M:	Valentina Manea <valentina.manea.m@gmail.com>

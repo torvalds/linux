@@ -714,15 +714,11 @@ static struct device_node *__of_find_node_by_path(struct device_node *parent,
 						const char *path)
 {
 	struct device_node *child;
-	int len = strchrnul(path, '/') - path;
-	int term;
+	int len;
 
+	len = strcspn(path, "/:");
 	if (!len)
 		return NULL;
-
-	term = strchrnul(path, ':') - path;
-	if (term < len)
-		len = term;
 
 	__for_each_child_of_node(parent, child) {
 		const char *name = strrchr(child->full_name, '/');
@@ -768,8 +764,12 @@ struct device_node *of_find_node_opts_by_path(const char *path, const char **opt
 
 	/* The path could begin with an alias */
 	if (*path != '/') {
-		char *p = strchrnul(path, '/');
-		int len = separator ? separator - path : p - path;
+		int len;
+		const char *p = separator;
+
+		if (!p)
+			p = strchrnul(path, '/');
+		len = p - path;
 
 		/* of_aliases must not be NULL */
 		if (!of_aliases)
@@ -794,6 +794,8 @@ struct device_node *of_find_node_opts_by_path(const char *path, const char **opt
 		path++; /* Increment past '/' delimiter */
 		np = __of_find_node_by_path(np, path);
 		path = strchrnul(path, '/');
+		if (separator && separator < path)
+			break;
 	}
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
 	return np;
