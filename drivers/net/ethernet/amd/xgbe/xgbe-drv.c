@@ -129,7 +129,6 @@
 
 static int xgbe_one_poll(struct napi_struct *, int);
 static int xgbe_all_poll(struct napi_struct *, int);
-static void xgbe_set_rx_mode(struct net_device *);
 
 static int xgbe_alloc_channels(struct xgbe_prv_data *pdata)
 {
@@ -952,8 +951,6 @@ static int xgbe_start(struct xgbe_prv_data *pdata)
 
 	DBGPR("-->xgbe_start\n");
 
-	xgbe_set_rx_mode(netdev);
-
 	hw_if->init(pdata);
 
 	phy_start(pdata->phydev);
@@ -1533,17 +1530,10 @@ static void xgbe_set_rx_mode(struct net_device *netdev)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
 	struct xgbe_hw_if *hw_if = &pdata->hw_if;
-	unsigned int pr_mode, am_mode;
 
 	DBGPR("-->xgbe_set_rx_mode\n");
 
-	pr_mode = ((netdev->flags & IFF_PROMISC) != 0);
-	am_mode = ((netdev->flags & IFF_ALLMULTI) != 0);
-
-	hw_if->set_promiscuous_mode(pdata, pr_mode);
-	hw_if->set_all_multicast_mode(pdata, am_mode);
-
-	hw_if->add_mac_addresses(pdata);
+	hw_if->config_rx_mode(pdata);
 
 	DBGPR("<--xgbe_set_rx_mode\n");
 }
@@ -1608,6 +1598,14 @@ static int xgbe_change_mtu(struct net_device *netdev, int mtu)
 	DBGPR("<--xgbe_change_mtu\n");
 
 	return 0;
+}
+
+static void xgbe_tx_timeout(struct net_device *netdev)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+
+	netdev_warn(netdev, "tx timeout, device restarting\n");
+	schedule_work(&pdata->restart_work);
 }
 
 static struct rtnl_link_stats64 *xgbe_get_stats64(struct net_device *netdev,
@@ -1774,6 +1772,7 @@ static const struct net_device_ops xgbe_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_do_ioctl		= xgbe_ioctl,
 	.ndo_change_mtu		= xgbe_change_mtu,
+	.ndo_tx_timeout		= xgbe_tx_timeout,
 	.ndo_get_stats64	= xgbe_get_stats64,
 	.ndo_vlan_rx_add_vid	= xgbe_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= xgbe_vlan_rx_kill_vid,
@@ -1806,7 +1805,7 @@ static void xgbe_rx_refresh(struct xgbe_channel *channel)
 		if (desc_if->map_rx_buffer(pdata, ring, rdata))
 			break;
 
-		hw_if->rx_desc_reset(rdata);
+		hw_if->rx_desc_reset(pdata, rdata, ring->dirty);
 
 		ring->dirty++;
 	}

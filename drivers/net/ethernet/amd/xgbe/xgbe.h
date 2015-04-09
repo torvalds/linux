@@ -325,8 +325,6 @@ struct xgbe_ring_data {
 	struct xgbe_tx_ring_data tx;	/* Tx-related data */
 	struct xgbe_rx_ring_data rx;	/* Rx-related data */
 
-	unsigned int interrupt;		/* Interrupt indicator */
-
 	unsigned int mapped_as_page;
 
 	/* Incomplete receive save location.  If the budget is exhausted
@@ -497,10 +495,8 @@ struct xgbe_mmc_stats {
 struct xgbe_hw_if {
 	int (*tx_complete)(struct xgbe_ring_desc *);
 
-	int (*set_promiscuous_mode)(struct xgbe_prv_data *, unsigned int);
-	int (*set_all_multicast_mode)(struct xgbe_prv_data *, unsigned int);
-	int (*add_mac_addresses)(struct xgbe_prv_data *);
 	int (*set_mac_address)(struct xgbe_prv_data *, u8 *addr);
+	int (*config_rx_mode)(struct xgbe_prv_data *);
 
 	int (*enable_rx_csum)(struct xgbe_prv_data *);
 	int (*disable_rx_csum)(struct xgbe_prv_data *);
@@ -536,8 +532,9 @@ struct xgbe_hw_if {
 	int (*dev_read)(struct xgbe_channel *);
 	void (*tx_desc_init)(struct xgbe_channel *);
 	void (*rx_desc_init)(struct xgbe_channel *);
-	void (*rx_desc_reset)(struct xgbe_ring_data *);
 	void (*tx_desc_reset)(struct xgbe_ring_data *);
+	void (*rx_desc_reset)(struct xgbe_prv_data *, struct xgbe_ring_data *,
+			      unsigned int);
 	int (*is_last_desc)(struct xgbe_ring_desc *);
 	int (*is_context_desc)(struct xgbe_ring_desc *);
 	void (*tx_start_xmit)(struct xgbe_channel *, struct xgbe_ring *);

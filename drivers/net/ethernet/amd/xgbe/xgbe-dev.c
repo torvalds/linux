@@ -853,6 +853,22 @@ static int xgbe_set_mac_address(struct xgbe_prv_data *pdata, u8 *addr)
 	return 0;
 }
 
+static int xgbe_config_rx_mode(struct xgbe_prv_data *pdata)
+{
+	struct net_device *netdev = pdata->netdev;
+	unsigned int pr_mode, am_mode;
+
+	pr_mode = ((netdev->flags & IFF_PROMISC) != 0);
+	am_mode = ((netdev->flags & IFF_ALLMULTI) != 0);
+
+	xgbe_set_promiscuous_mode(pdata, pr_mode);
+	xgbe_set_all_multicast_mode(pdata, am_mode);
+
+	xgbe_add_mac_addresses(pdata);
+
+	return 0;
+}
+
 static int xgbe_read_mmd_regs(struct xgbe_prv_data *pdata, int prtad,
 			      int mmd_reg)
 {
@@ -1101,9 +1117,24 @@ static void xgbe_tx_desc_init(struct xgbe_channel *channel)
 	DBGPR("<--tx_desc_init\n");
 }
 
-static void xgbe_rx_desc_reset(struct xgbe_ring_data *rdata)
+static void xgbe_rx_desc_reset(struct xgbe_prv_data *pdata,
+			       struct xgbe_ring_data *rdata, unsigned int index)
 {
 	struct xgbe_ring_desc *rdesc = rdata->rdesc;
+	unsigned int rx_usecs = pdata->rx_usecs;
+	unsigned int rx_frames = pdata->rx_frames;
+	unsigned int inte;
+
+	if (!rx_usecs && !rx_frames) {
+		/* No coalescing, interrupt for every descriptor */
+		inte = 1;
+	} else {
+		/* Set interrupt based on Rx frame coalescing setting */
+		if (rx_frames && !((index + 1) % rx_frames))
+			inte = 1;
+		else
+			inte = 0;
+	}
 
 	/* Reset the Rx descriptor
 	 *   Set buffer 1 (lo) address to header dma address (lo)
@@ -1117,8 +1148,7 @@ static void xgbe_rx_desc_reset(struct xgbe_ring_data *rdata)
 	rdesc->desc2 = cpu_to_le32(lower_32_bits(rdata->rx.buf.dma));
 	rdesc->desc3 = cpu_to_le32(upper_32_bits(rdata->rx.buf.dma));
 
-	XGMAC_SET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, INTE,
-			  rdata->interrupt ? 1 : 0);
+	XGMAC_SET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, INTE, inte);
 
 	/* Since the Rx DMA engine is likely running, make sure everything
 	 * is written to the descriptor(s) before setting the OWN bit
@@ -1138,26 +1168,16 @@ static void xgbe_rx_desc_init(struct xgbe_channel *channel)
 	struct xgbe_ring *ring = channel->rx_ring;
 	struct xgbe_ring_data *rdata;
 	unsigned int start_index = ring->cur;
-	unsigned int rx_coalesce, rx_frames;
 	unsigned int i;
 
 	DBGPR("-->rx_desc_init\n");
-
-	rx_coalesce = (pdata->rx_riwt || pdata->rx_frames) ? 1 : 0;
-	rx_frames = pdata->rx_frames;
 
 	/* Initialize all descriptors */
 	for (i = 0; i < ring->rdesc_count; i++) {
 		rdata = XGBE_GET_DESC_DATA(ring, i);
 
-		/* Set interrupt on completion bit as appropriate */
-		if (rx_coalesce && (!rx_frames || ((i + 1) % rx_frames)))
-			rdata->interrupt = 0;
-		else
-			rdata->interrupt = 1;
-
 		/* Initialize Rx descriptor */
-		xgbe_rx_desc_reset(rdata);
+		xgbe_rx_desc_reset(pdata, rdata, i);
 	}
 
 	/* Update the total number of Rx descriptors */
@@ -2804,6 +2824,7 @@ static int xgbe_init(struct xgbe_prv_data *pdata)
 	 * Initialize MAC related features
 	 */
 	xgbe_config_mac_address(pdata);
+	xgbe_config_rx_mode(pdata);
 	xgbe_config_jumbo_enable(pdata);
 	xgbe_config_flow_control(pdata);
 	xgbe_config_mac_speed(pdata);
@@ -2823,10 +2844,8 @@ void xgbe_init_function_ptrs_dev(struct xgbe_hw_if *hw_if)
 
 	hw_if->tx_complete = xgbe_tx_complete;
 
-	hw_if->set_promiscuous_mode = xgbe_set_promiscuous_mode;
-	hw_if->set_all_multicast_mode = xgbe_set_all_multicast_mode;
-	hw_if->add_mac_addresses = xgbe_add_mac_addresses;
 	hw_if->set_mac_address = xgbe_set_mac_address;
+	hw_if->config_rx_mode = xgbe_config_rx_mode;
 
 	hw_if->enable_rx_csum = xgbe_enable_rx_csum;
 	hw_if->disable_rx_csum = xgbe_disable_rx_csum;
