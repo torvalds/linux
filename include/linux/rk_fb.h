@@ -648,7 +648,8 @@ struct rk_lcdc_driver {
 	int bcsh_init_status;
 	bool cabc_pwm_pol;
 	u8  reserved_fb;
-
+	/*1:hdmi switch uncomplete,0:complete*/
+	bool hdmi_switch;
 	void *trace_buf;
 };
 
