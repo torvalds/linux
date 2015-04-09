@@ -91,7 +91,7 @@ static int socfpga_dwmac_parse_data(struct socfpga_dwmac *dwmac, struct device *
 						  STMMAC_RESOURCE_NAME);
 	if (IS_ERR(dwmac->stmmac_rst)) {
 		dev_info(dev, "Could not get reset control!\n");
-		return -EINVAL;
+		return PTR_ERR(dwmac->stmmac_rst);
 	}
 
 	dwmac->interface = of_get_phy_mode(np);
