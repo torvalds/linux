@@ -335,15 +335,29 @@ static int mt9v011_enum_mbus_code(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int mt9v011_try_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *fmt)
+static int mt9v011_set_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
-	if (fmt->code != MEDIA_BUS_FMT_SGRBG8_1X8)
+	struct v4l2_mbus_framefmt *fmt = &format->format;
+	struct mt9v011 *core = to_mt9v011(sd);
+
+	if (format->pad || fmt->code != MEDIA_BUS_FMT_SGRBG8_1X8)
 		return -EINVAL;
 
 	v4l_bound_align_image(&fmt->width, 48, 639, 1,
 			      &fmt->height, 32, 480, 1, 0);
 	fmt->field = V4L2_FIELD_NONE;
 	fmt->colorspace = V4L2_COLORSPACE_SRGB;
+
+	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
+		core->width = fmt->width;
+		core->height = fmt->height;
+
+		set_res(sd);
+	} else {
+		cfg->try_fmt = *fmt;
+	}
 
 	return 0;
 }
@@ -382,23 +396,6 @@ static int mt9v011_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
 
 	/* Recalculate and update fps info */
 	calc_fps(sd, &tpf->numerator, &tpf->denominator);
-
-	return 0;
-}
-
-static int mt9v011_s_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *fmt)
-{
-	struct mt9v011 *core = to_mt9v011(sd);
-	int rc;
-
-	rc = mt9v011_try_mbus_fmt(sd, fmt);
-	if (rc < 0)
-		return -EINVAL;
-
-	core->width = fmt->width;
-	core->height = fmt->height;
-
-	set_res(sd);
 
 	return 0;
 }
@@ -470,14 +467,13 @@ static const struct v4l2_subdev_core_ops mt9v011_core_ops = {
 };
 
 static const struct v4l2_subdev_video_ops mt9v011_video_ops = {
-	.try_mbus_fmt = mt9v011_try_mbus_fmt,
-	.s_mbus_fmt = mt9v011_s_mbus_fmt,
 	.g_parm = mt9v011_g_parm,
 	.s_parm = mt9v011_s_parm,
 };
 
 static const struct v4l2_subdev_pad_ops mt9v011_pad_ops = {
 	.enum_mbus_code = mt9v011_enum_mbus_code,
+	.set_fmt = mt9v011_set_fmt,
 };
 
 static const struct v4l2_subdev_ops mt9v011_ops = {

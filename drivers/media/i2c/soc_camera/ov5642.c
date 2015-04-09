@@ -786,39 +786,34 @@ static int ov5642_set_resolution(struct v4l2_subdev *sd)
 	return ret;
 }
 
-static int ov5642_try_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_mbus_framefmt *mf)
+static int ov5642_set_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
+	struct v4l2_mbus_framefmt *mf = &format->format;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov5642 *priv = to_ov5642(client);
 	const struct ov5642_datafmt *fmt = ov5642_find_datafmt(mf->code);
+
+	if (format->pad)
+		return -EINVAL;
 
 	mf->width = priv->crop_rect.width;
 	mf->height = priv->crop_rect.height;
 
 	if (!fmt) {
+		if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
+			return -EINVAL;
 		mf->code	= ov5642_colour_fmts[0].code;
 		mf->colorspace	= ov5642_colour_fmts[0].colorspace;
 	}
 
 	mf->field	= V4L2_FIELD_NONE;
 
-	return 0;
-}
-
-static int ov5642_s_fmt(struct v4l2_subdev *sd,
-			struct v4l2_mbus_framefmt *mf)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct ov5642 *priv = to_ov5642(client);
-
-	/* MIPI CSI could have changed the format, double-check */
-	if (!ov5642_find_datafmt(mf->code))
-		return -EINVAL;
-
-	ov5642_try_fmt(sd, mf);
-	priv->fmt = ov5642_find_datafmt(mf->code);
-
+	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
+		priv->fmt = ov5642_find_datafmt(mf->code);
+	else
+		cfg->try_fmt = *mf;
 	return 0;
 }
 
@@ -945,8 +940,6 @@ static int ov5642_s_power(struct v4l2_subdev *sd, int on)
 }
 
 static struct v4l2_subdev_video_ops ov5642_subdev_video_ops = {
-	.s_mbus_fmt	= ov5642_s_fmt,
-	.try_mbus_fmt	= ov5642_try_fmt,
 	.s_crop		= ov5642_s_crop,
 	.g_crop		= ov5642_g_crop,
 	.cropcap	= ov5642_cropcap,
@@ -956,6 +949,7 @@ static struct v4l2_subdev_video_ops ov5642_subdev_video_ops = {
 static const struct v4l2_subdev_pad_ops ov5642_subdev_pad_ops = {
 	.enum_mbus_code = ov5642_enum_mbus_code,
 	.get_fmt	= ov5642_get_fmt,
+	.set_fmt	= ov5642_set_fmt,
 };
 
 static struct v4l2_subdev_core_ops ov5642_subdev_core_ops = {

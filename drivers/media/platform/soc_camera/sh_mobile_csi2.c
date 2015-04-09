@@ -45,11 +45,17 @@ struct sh_csi2 {
 
 static void sh_csi2_hwinit(struct sh_csi2 *priv);
 
-static int sh_csi2_try_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_mbus_framefmt *mf)
+static int sh_csi2_set_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
 	struct sh_csi2 *priv = container_of(sd, struct sh_csi2, subdev);
 	struct sh_csi2_pdata *pdata = priv->pdev->dev.platform_data;
+	struct v4l2_mbus_framefmt *mf = &format->format;
+	u32 tmp = (priv->client->channel & 3) << 8;
+
+	if (format->pad)
+		return -EINVAL;
 
 	if (mf->width > 8188)
 		mf->width = 8188;
@@ -85,21 +91,11 @@ static int sh_csi2_try_fmt(struct v4l2_subdev *sd,
 		break;
 	}
 
-	return 0;
-}
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
+		cfg->try_fmt = *mf;
+		return 0;
+	}
 
-/*
- * We have done our best in try_fmt to try and tell the sensor, which formats
- * we support. If now the configuration is unsuitable for us we can only
- * error out.
- */
-static int sh_csi2_s_fmt(struct v4l2_subdev *sd,
-			 struct v4l2_mbus_framefmt *mf)
-{
-	struct sh_csi2 *priv = container_of(sd, struct sh_csi2, subdev);
-	u32 tmp = (priv->client->channel & 3) << 8;
-
-	dev_dbg(sd->v4l2_dev->dev, "%s(%u)\n", __func__, mf->code);
 	if (mf->width > 8188 || mf->width & 1)
 		return -EINVAL;
 
@@ -211,10 +207,12 @@ static int sh_csi2_s_mbus_config(struct v4l2_subdev *sd,
 }
 
 static struct v4l2_subdev_video_ops sh_csi2_subdev_video_ops = {
-	.s_mbus_fmt	= sh_csi2_s_fmt,
-	.try_mbus_fmt	= sh_csi2_try_fmt,
 	.g_mbus_config	= sh_csi2_g_mbus_config,
 	.s_mbus_config	= sh_csi2_s_mbus_config,
+};
+
+static struct v4l2_subdev_pad_ops sh_csi2_subdev_pad_ops = {
+	.set_fmt	= sh_csi2_set_fmt,
 };
 
 static void sh_csi2_hwinit(struct sh_csi2 *priv)
@@ -313,6 +311,7 @@ static struct v4l2_subdev_core_ops sh_csi2_subdev_core_ops = {
 static struct v4l2_subdev_ops sh_csi2_subdev_ops = {
 	.core	= &sh_csi2_subdev_core_ops,
 	.video	= &sh_csi2_subdev_video_ops,
+	.pad	= &sh_csi2_subdev_pad_ops,
 };
 
 static int sh_csi2_probe(struct platform_device *pdev)

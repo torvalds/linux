@@ -412,7 +412,7 @@ static int mt9v022_s_fmt(struct v4l2_subdev *sd,
 
 	/*
 	 * The caller provides a supported format, as verified per call to
-	 * .try_mbus_fmt(), datawidth is from our supported format list
+	 * .set_fmt(FORMAT_TRY), datawidth is from our supported format list
 	 */
 	switch (mf->code) {
 	case MEDIA_BUS_FMT_Y8_1X8:
@@ -442,14 +442,19 @@ static int mt9v022_s_fmt(struct v4l2_subdev *sd,
 	return ret;
 }
 
-static int mt9v022_try_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_mbus_framefmt *mf)
+static int mt9v022_set_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
+	struct v4l2_mbus_framefmt *mf = &format->format;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9v022 *mt9v022 = to_mt9v022(client);
 	const struct mt9v022_datafmt *fmt;
 	int align = mf->code == MEDIA_BUS_FMT_SBGGR8_1X8 ||
 		mf->code == MEDIA_BUS_FMT_SBGGR10_1X10;
+
+	if (format->pad)
+		return -EINVAL;
 
 	v4l_bound_align_image(&mf->width, MT9V022_MIN_WIDTH,
 		MT9V022_MAX_WIDTH, align,
@@ -465,6 +470,9 @@ static int mt9v022_try_fmt(struct v4l2_subdev *sd,
 
 	mf->colorspace	= fmt->colorspace;
 
+	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
+		return mt9v022_s_fmt(sd, mf);
+	cfg->try_fmt = *mf;
 	return 0;
 }
 
@@ -845,8 +853,6 @@ static int mt9v022_s_mbus_config(struct v4l2_subdev *sd,
 
 static struct v4l2_subdev_video_ops mt9v022_subdev_video_ops = {
 	.s_stream	= mt9v022_s_stream,
-	.s_mbus_fmt	= mt9v022_s_fmt,
-	.try_mbus_fmt	= mt9v022_try_fmt,
 	.s_crop		= mt9v022_s_crop,
 	.g_crop		= mt9v022_g_crop,
 	.cropcap	= mt9v022_cropcap,
@@ -861,6 +867,7 @@ static struct v4l2_subdev_sensor_ops mt9v022_subdev_sensor_ops = {
 static const struct v4l2_subdev_pad_ops mt9v022_subdev_pad_ops = {
 	.enum_mbus_code = mt9v022_enum_mbus_code,
 	.get_fmt	= mt9v022_get_fmt,
+	.set_fmt	= mt9v022_set_fmt,
 };
 
 static struct v4l2_subdev_ops mt9v022_subdev_ops = {

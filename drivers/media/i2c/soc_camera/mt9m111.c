@@ -536,14 +536,20 @@ static int mt9m111_set_pixfmt(struct mt9m111 *mt9m111,
 	return ret;
 }
 
-static int mt9m111_try_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_mbus_framefmt *mf)
+static int mt9m111_set_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
+	struct v4l2_mbus_framefmt *mf = &format->format;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9m111 *mt9m111 = container_of(sd, struct mt9m111, subdev);
 	const struct mt9m111_datafmt *fmt;
 	struct v4l2_rect *rect = &mt9m111->rect;
 	bool bayer;
+	int ret;
+
+	if (format->pad)
+		return -EINVAL;
 
 	fmt = mt9m111_find_datafmt(mt9m111, mf->code);
 
@@ -577,20 +583,10 @@ static int mt9m111_try_fmt(struct v4l2_subdev *sd,
 	mf->code = fmt->code;
 	mf->colorspace = fmt->colorspace;
 
-	return 0;
-}
-
-static int mt9m111_s_fmt(struct v4l2_subdev *sd,
-			 struct v4l2_mbus_framefmt *mf)
-{
-	const struct mt9m111_datafmt *fmt;
-	struct mt9m111 *mt9m111 = container_of(sd, struct mt9m111, subdev);
-	struct v4l2_rect *rect = &mt9m111->rect;
-	int ret;
-
-	mt9m111_try_fmt(sd, mf);
-	fmt = mt9m111_find_datafmt(mt9m111, mf->code);
-	/* try_fmt() guarantees fmt != NULL && fmt->code == mf->code */
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
+		cfg->try_fmt = *mf;
+		return 0;
+	}
 
 	ret = mt9m111_setup_geometry(mt9m111, rect, mf->width, mf->height, mf->code);
 	if (!ret)
@@ -871,8 +867,6 @@ static int mt9m111_g_mbus_config(struct v4l2_subdev *sd,
 }
 
 static struct v4l2_subdev_video_ops mt9m111_subdev_video_ops = {
-	.s_mbus_fmt	= mt9m111_s_fmt,
-	.try_mbus_fmt	= mt9m111_try_fmt,
 	.s_crop		= mt9m111_s_crop,
 	.g_crop		= mt9m111_g_crop,
 	.cropcap	= mt9m111_cropcap,
@@ -882,6 +876,7 @@ static struct v4l2_subdev_video_ops mt9m111_subdev_video_ops = {
 static const struct v4l2_subdev_pad_ops mt9m111_subdev_pad_ops = {
 	.enum_mbus_code = mt9m111_enum_mbus_code,
 	.get_fmt	= mt9m111_get_fmt,
+	.set_fmt	= mt9m111_set_fmt,
 };
 
 static struct v4l2_subdev_ops mt9m111_subdev_ops = {

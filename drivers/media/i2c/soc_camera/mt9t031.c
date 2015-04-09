@@ -264,7 +264,7 @@ static int mt9t031_set_params(struct i2c_client *client,
 
 	/*
 	 * The caller provides a supported format, as guaranteed by
-	 * .try_mbus_fmt(), soc_camera_s_crop() and soc_camera_cropcap()
+	 * .set_fmt(FORMAT_TRY), soc_camera_s_crop() and soc_camera_cropcap()
 	 */
 	if (ret >= 0)
 		ret = reg_write(client, MT9T031_COLUMN_START, rect->left);
@@ -357,16 +357,36 @@ static int mt9t031_get_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int mt9t031_s_fmt(struct v4l2_subdev *sd,
-			 struct v4l2_mbus_framefmt *mf)
+/*
+ * If a user window larger than sensor window is requested, we'll increase the
+ * sensor window.
+ */
+static int mt9t031_set_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
+	struct v4l2_mbus_framefmt *mf = &format->format;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9t031 *mt9t031 = to_mt9t031(client);
 	u16 xskip, yskip;
 	struct v4l2_rect rect = mt9t031->rect;
 
+	if (format->pad)
+		return -EINVAL;
+
+	mf->code	= MEDIA_BUS_FMT_SBGGR10_1X10;
+	mf->colorspace	= V4L2_COLORSPACE_SRGB;
+	v4l_bound_align_image(
+			&mf->width, MT9T031_MIN_WIDTH, MT9T031_MAX_WIDTH, 1,
+			&mf->height, MT9T031_MIN_HEIGHT, MT9T031_MAX_HEIGHT, 1, 0);
+
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
+		cfg->try_fmt = *mf;
+		return 0;
+	}
+
 	/*
-	 * try_fmt has put width and height within limits.
+	 * Width and height are within limits.
 	 * S_FMT: use binning and skipping for scaling
 	 */
 	xskip = mt9t031_skip(&rect.width, mf->width, MT9T031_MAX_WIDTH);
@@ -377,23 +397,6 @@ static int mt9t031_s_fmt(struct v4l2_subdev *sd,
 
 	/* mt9t031_set_params() doesn't change width and height */
 	return mt9t031_set_params(client, &rect, xskip, yskip);
-}
-
-/*
- * If a user window larger than sensor window is requested, we'll increase the
- * sensor window.
- */
-static int mt9t031_try_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_mbus_framefmt *mf)
-{
-	v4l_bound_align_image(
-		&mf->width, MT9T031_MIN_WIDTH, MT9T031_MAX_WIDTH, 1,
-		&mf->height, MT9T031_MIN_HEIGHT, MT9T031_MAX_HEIGHT, 1, 0);
-
-	mf->code	= MEDIA_BUS_FMT_SBGGR10_1X10;
-	mf->colorspace	= V4L2_COLORSPACE_SRGB;
-
-	return 0;
 }
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -718,8 +721,6 @@ static int mt9t031_s_mbus_config(struct v4l2_subdev *sd,
 
 static struct v4l2_subdev_video_ops mt9t031_subdev_video_ops = {
 	.s_stream	= mt9t031_s_stream,
-	.s_mbus_fmt	= mt9t031_s_fmt,
-	.try_mbus_fmt	= mt9t031_try_fmt,
 	.s_crop		= mt9t031_s_crop,
 	.g_crop		= mt9t031_g_crop,
 	.cropcap	= mt9t031_cropcap,
@@ -734,6 +735,7 @@ static struct v4l2_subdev_sensor_ops mt9t031_subdev_sensor_ops = {
 static const struct v4l2_subdev_pad_ops mt9t031_subdev_pad_ops = {
 	.enum_mbus_code = mt9t031_enum_mbus_code,
 	.get_fmt	= mt9t031_get_fmt,
+	.set_fmt	= mt9t031_set_fmt,
 };
 
 static struct v4l2_subdev_ops mt9t031_subdev_ops = {

@@ -881,33 +881,16 @@ static int ov2640_get_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int ov2640_s_fmt(struct v4l2_subdev *sd,
-			struct v4l2_mbus_framefmt *mf)
+static int ov2640_set_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
+	struct v4l2_mbus_framefmt *mf = &format->format;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int ret;
 
+	if (format->pad)
+		return -EINVAL;
 
-	switch (mf->code) {
-	case MEDIA_BUS_FMT_RGB565_2X8_BE:
-	case MEDIA_BUS_FMT_RGB565_2X8_LE:
-		mf->colorspace = V4L2_COLORSPACE_SRGB;
-		break;
-	default:
-		mf->code = MEDIA_BUS_FMT_UYVY8_2X8;
-	case MEDIA_BUS_FMT_YUYV8_2X8:
-	case MEDIA_BUS_FMT_UYVY8_2X8:
-		mf->colorspace = V4L2_COLORSPACE_JPEG;
-	}
-
-	ret = ov2640_set_params(client, &mf->width, &mf->height, mf->code);
-
-	return ret;
-}
-
-static int ov2640_try_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_mbus_framefmt *mf)
-{
 	/*
 	 * select suitable win, but don't store it
 	 */
@@ -927,6 +910,10 @@ static int ov2640_try_fmt(struct v4l2_subdev *sd,
 		mf->colorspace = V4L2_COLORSPACE_JPEG;
 	}
 
+	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
+		return ov2640_set_params(client, &mf->width,
+					 &mf->height, mf->code);
+	cfg->try_fmt = *mf;
 	return 0;
 }
 
@@ -1037,8 +1024,6 @@ static int ov2640_g_mbus_config(struct v4l2_subdev *sd,
 
 static struct v4l2_subdev_video_ops ov2640_subdev_video_ops = {
 	.s_stream	= ov2640_s_stream,
-	.s_mbus_fmt	= ov2640_s_fmt,
-	.try_mbus_fmt	= ov2640_try_fmt,
 	.cropcap	= ov2640_cropcap,
 	.g_crop		= ov2640_g_crop,
 	.g_mbus_config	= ov2640_g_mbus_config,
@@ -1047,6 +1032,7 @@ static struct v4l2_subdev_video_ops ov2640_subdev_video_ops = {
 static const struct v4l2_subdev_pad_ops ov2640_subdev_pad_ops = {
 	.enum_mbus_code = ov2640_enum_mbus_code,
 	.get_fmt	= ov2640_get_fmt,
+	.set_fmt	= ov2640_set_fmt,
 };
 
 static struct v4l2_subdev_ops ov2640_subdev_ops = {

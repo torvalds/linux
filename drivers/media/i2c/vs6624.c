@@ -568,10 +568,16 @@ static int vs6624_enum_mbus_code(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int vs6624_try_mbus_fmt(struct v4l2_subdev *sd,
-				struct v4l2_mbus_framefmt *fmt)
+static int vs6624_set_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
+	struct v4l2_mbus_framefmt *fmt = &format->format;
+	struct vs6624 *sensor = to_vs6624(sd);
 	int index;
+
+	if (format->pad)
+		return -EINVAL;
 
 	for (index = 0; index < ARRAY_SIZE(vs6624_formats); index++)
 		if (vs6624_formats[index].mbus_code == fmt->code)
@@ -591,18 +597,11 @@ static int vs6624_try_mbus_fmt(struct v4l2_subdev *sd,
 	fmt->height = fmt->height & (~3);
 	fmt->field = V4L2_FIELD_NONE;
 	fmt->colorspace = vs6624_formats[index].colorspace;
-	return 0;
-}
 
-static int vs6624_s_mbus_fmt(struct v4l2_subdev *sd,
-				struct v4l2_mbus_framefmt *fmt)
-{
-	struct vs6624 *sensor = to_vs6624(sd);
-	int ret;
-
-	ret = vs6624_try_mbus_fmt(sd, fmt);
-	if (ret)
-		return ret;
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
+		cfg->try_fmt = *fmt;
+		return 0;
+	}
 
 	/* set image format */
 	switch (fmt->code) {
@@ -743,8 +742,6 @@ static const struct v4l2_subdev_core_ops vs6624_core_ops = {
 };
 
 static const struct v4l2_subdev_video_ops vs6624_video_ops = {
-	.try_mbus_fmt = vs6624_try_mbus_fmt,
-	.s_mbus_fmt = vs6624_s_mbus_fmt,
 	.s_parm = vs6624_s_parm,
 	.g_parm = vs6624_g_parm,
 	.s_stream = vs6624_s_stream,
@@ -753,6 +750,7 @@ static const struct v4l2_subdev_video_ops vs6624_video_ops = {
 static const struct v4l2_subdev_pad_ops vs6624_pad_ops = {
 	.enum_mbus_code = vs6624_enum_mbus_code,
 	.get_fmt = vs6624_get_fmt,
+	.set_fmt = vs6624_set_fmt,
 };
 
 static const struct v4l2_subdev_ops vs6624_ops = {
