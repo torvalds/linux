@@ -1037,10 +1037,10 @@ intel_check_sprite_plane(struct drm_plane *plane,
 	}
 
 	if (state->visible) {
-		src->x1 = src_x;
-		src->x2 = src_x + src_w;
-		src->y1 = src_y;
-		src->y2 = src_y + src_h;
+		src->x1 = src_x << 16;
+		src->x2 = (src_x + src_w) << 16;
+		src->y1 = src_y << 16;
+		src->y2 = (src_y + src_h) << 16;
 	}
 
 	dst->x1 = crtc_x;
@@ -1112,10 +1112,10 @@ intel_commit_sprite_plane(struct drm_plane *plane,
 			crtc_y = state->dst.y1;
 			crtc_w = drm_rect_width(&state->dst);
 			crtc_h = drm_rect_height(&state->dst);
-			src_x = state->src.x1;
-			src_y = state->src.y1;
-			src_w = drm_rect_width(&state->src);
-			src_h = drm_rect_height(&state->src);
+			src_x = state->src.x1 >> 16;
+			src_y = state->src.y1 >> 16;
+			src_w = drm_rect_width(&state->src) >> 16;
+			src_h = drm_rect_height(&state->src) >> 16;
 			intel_plane->update_plane(plane, crtc, fb,
 						  crtc_x, crtc_y, crtc_w, crtc_h,
 						  src_x, src_y, src_w, src_h);
