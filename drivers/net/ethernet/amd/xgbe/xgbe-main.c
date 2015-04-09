@@ -491,6 +491,9 @@ static int xgbe_probe(struct platform_device *pdev)
 
 	netdev->priv_flags |= IFF_UNICAST_FLT;
 
+	/* Use default watchdog timeout */
+	netdev->watchdog_timeo = 0;
+
 	xgbe_init_rx_coalesce(pdata);
 	xgbe_init_tx_coalesce(pdata);
 
