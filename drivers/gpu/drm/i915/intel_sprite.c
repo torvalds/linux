@@ -1139,11 +1139,11 @@ int intel_plane_restore(struct drm_plane *plane)
 	if (!plane->crtc || !plane->state->fb)
 		return 0;
 
-	return plane->funcs->update_plane(plane, plane->crtc, plane->state->fb,
-				  plane->state->crtc_x, plane->state->crtc_y,
-				  plane->state->crtc_w, plane->state->crtc_h,
-				  plane->state->src_x, plane->state->src_y,
-				  plane->state->src_w, plane->state->src_h);
+	return drm_plane_helper_update(plane, plane->crtc, plane->state->fb,
+				       plane->state->crtc_x, plane->state->crtc_y,
+				       plane->state->crtc_w, plane->state->crtc_h,
+				       plane->state->src_x, plane->state->src_y,
+				       plane->state->src_w, plane->state->src_h);
 }
 
 static uint32_t ilk_plane_formats[] = {

@@ -5576,7 +5576,7 @@ static void intel_crtc_disable(struct drm_crtc *crtc)
 	dev_priv->display.crtc_disable(crtc);
 	dev_priv->display.off(crtc);
 
-	crtc->primary->funcs->disable_plane(crtc->primary);
+	drm_plane_helper_disable(crtc->primary);
 
 	/* Update computed state. */
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
@@ -11731,11 +11731,11 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 		int vdisplay, hdisplay;
 
 		drm_crtc_get_hv_timing(mode, &hdisplay, &vdisplay);
-		ret = primary->funcs->update_plane(primary, &intel_crtc->base,
-						   fb, 0, 0,
-						   hdisplay, vdisplay,
-						   x << 16, y << 16,
-						   hdisplay << 16, vdisplay << 16);
+		ret = drm_plane_helper_update(primary, &intel_crtc->base,
+					      fb, 0, 0,
+					      hdisplay, vdisplay,
+					      x << 16, y << 16,
+					      hdisplay << 16, vdisplay << 16);
 	}
 
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
@@ -12286,10 +12286,10 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 		int vdisplay, hdisplay;
 
 		drm_crtc_get_hv_timing(set->mode, &hdisplay, &vdisplay);
-		ret = primary->funcs->update_plane(primary, set->crtc, set->fb,
-						   0, 0, hdisplay, vdisplay,
-						   set->x << 16, set->y << 16,
-						   hdisplay << 16, vdisplay << 16);
+		ret = drm_plane_helper_update(primary, set->crtc, set->fb,
+					      0, 0, hdisplay, vdisplay,
+					      set->x << 16, set->y << 16,
+					      hdisplay << 16, vdisplay << 16);
 
 		/*
 		 * We need to make sure the primary plane is re-enabled if it
@@ -12773,8 +12773,8 @@ void intel_plane_destroy(struct drm_plane *plane)
 }
 
 const struct drm_plane_funcs intel_plane_funcs = {
-	.update_plane = drm_plane_helper_update,
-	.disable_plane = drm_plane_helper_disable,
+	.update_plane = drm_atomic_helper_update_plane,
+	.disable_plane = drm_atomic_helper_disable_plane,
 	.destroy = intel_plane_destroy,
 	.set_property = drm_atomic_helper_plane_set_property,
 	.atomic_get_property = intel_plane_atomic_get_property,
