@@ -1131,6 +1131,7 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	iwl_trans_d3_suspend(mvm->trans, test);
  out:
 	if (ret < 0) {
+		iwl_mvm_ref(mvm, IWL_MVM_REF_UCODE_DOWN);
 		ieee80211_restart_hw(mvm->hw);
 		iwl_mvm_free_nd(mvm);
 	}
@@ -1725,6 +1726,10 @@ iwl_mvm_netdetect_query_results(struct iwl_mvm *mvm,
 	results->matched_profiles = le32_to_cpu(query->matched_profiles);
 	memcpy(results->matches, query->matches, sizeof(results->matches));
 
+#ifdef CPTCFG_IWLWIFI_DEBUGFS
+	mvm->last_netdetect_scans = le32_to_cpu(query->n_scans_done);
+#endif
+
 out_free_resp:
 	iwl_free_resp(&cmd);
 	return ret;
@@ -2016,6 +2021,7 @@ static int iwl_mvm_d3_test_release(struct inode *inode, struct file *file)
 	__iwl_mvm_resume(mvm, true);
 	rtnl_unlock();
 	iwl_abort_notification_waits(&mvm->notif_wait);
+	iwl_mvm_ref(mvm, IWL_MVM_REF_UCODE_DOWN);
 	ieee80211_restart_hw(mvm->hw);
 
 	/* wait for restart and disconnect all interfaces */

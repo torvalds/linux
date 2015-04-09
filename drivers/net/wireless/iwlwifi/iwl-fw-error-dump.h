@@ -183,7 +183,7 @@ struct iwl_fw_error_dump_info {
  * struct iwl_fw_error_dump_fw_mon - FW monitor data
  * @fw_mon_wr_ptr: the position of the write pointer in the cyclic buffer
  * @fw_mon_base_ptr: base pointer of the data
- * @fw_mon_cycle_cnt: number of wrap arounds
+ * @fw_mon_cycle_cnt: number of wraparounds
  * @reserved: for future use
  * @data: captured data
  */
@@ -246,10 +246,14 @@ iwl_fw_error_next_data(struct iwl_fw_error_dump_data *data)
  * @FW_DBG_TRIGGER_CHANNEL_SWITCH: trigger log collection upon channel switch.
  * @FW_DBG_TRIGGER_FW_NOTIF: trigger log collection when the firmware sends a
  *	command response or a notification.
- * @FW_DB_TRIGGER_RESERVED: reserved
+ * @FW_DBG_TRIGGER_MLME: trigger log collection upon MLME event.
  * @FW_DBG_TRIGGER_STATS: trigger log collection upon statistics threshold.
  * @FW_DBG_TRIGGER_RSSI: trigger log collection when the rssi of the beacon
  *	goes below a threshold.
+ * @FW_DBG_TRIGGER_TXQ_TIMERS: configures the timers for the Tx queue hang
+ *	detection.
+ * @FW_DBG_TRIGGER_TIME_EVENT: trigger log collection upon time events related
+ *	events.
  */
 enum iwl_fw_dbg_trigger {
 	FW_DBG_TRIGGER_INVALID = 0,
@@ -258,9 +262,11 @@ enum iwl_fw_dbg_trigger {
 	FW_DBG_TRIGGER_MISSED_BEACONS,
 	FW_DBG_TRIGGER_CHANNEL_SWITCH,
 	FW_DBG_TRIGGER_FW_NOTIF,
-	FW_DB_TRIGGER_RESERVED,
+	FW_DBG_TRIGGER_MLME,
 	FW_DBG_TRIGGER_STATS,
 	FW_DBG_TRIGGER_RSSI,
+	FW_DBG_TRIGGER_TXQ_TIMERS,
+	FW_DBG_TRIGGER_TIME_EVENT,
 
 	/* must be last */
 	FW_DBG_TRIGGER_MAX,

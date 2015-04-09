@@ -69,8 +69,14 @@ void ath_fill_led_pin(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
 
-	if (AR_SREV_9100(ah) || (ah->led_pin >= 0))
+	if (AR_SREV_9100(ah))
 		return;
+
+	if (ah->led_pin >= 0) {
+		if (!((1 << ah->led_pin) & AR_GPIO_OE_OUT_MASK))
+			ath9k_hw_request_gpio(ah, ah->led_pin, "ath9k-led");
+		return;
+	}
 
 	if (AR_SREV_9287(ah))
 		ah->led_pin = ATH_LED_PIN_9287;

@@ -1608,7 +1608,7 @@ int wl1251_free_hw(struct wl1251 *wl)
 }
 EXPORT_SYMBOL_GPL(wl1251_free_hw);
 
-MODULE_DESCRIPTION("TI wl1251 Wireles LAN Driver Core");
+MODULE_DESCRIPTION("TI wl1251 Wireless LAN Driver Core");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kalle Valo <kvalo@adurom.com>");
 MODULE_FIRMWARE(WL1251_FW_NAME);

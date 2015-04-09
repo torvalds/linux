@@ -488,8 +488,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	/* Set a short watchdog for the command queue */
 	trans_cfg.cmd_q_wdg_timeout =
-		iwlmvm_mod_params.tfd_q_hang_detect ? IWL_DEF_WD_TIMEOUT :
-						      IWL_WATCHDOG_DISABLED;
+		iwl_mvm_get_wd_timeout(mvm, NULL, false, true);
 
 	snprintf(mvm->hw->wiphy->fw_version,
 		 sizeof(mvm->hw->wiphy->fw_version),
@@ -524,12 +523,11 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	/* set the nvm_file_name according to priority */
 	if (iwlwifi_mod_params.nvm_file) {
 		mvm->nvm_file_name = iwlwifi_mod_params.nvm_file;
-	} else {
-		if ((trans->cfg->device_family == IWL_DEVICE_FAMILY_8000) &&
-		    (CSR_HW_REV_STEP(trans->hw_rev) == SILICON_A_STEP))
-			mvm->nvm_file_name = mvm->cfg->default_nvm_file_8000A;
+	} else if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000) {
+		if (CSR_HW_REV_STEP(trans->hw_rev) == SILICON_B_STEP)
+			mvm->nvm_file_name = mvm->cfg->default_nvm_file_B_step;
 		else
-			mvm->nvm_file_name = mvm->cfg->default_nvm_file;
+			mvm->nvm_file_name = mvm->cfg->default_nvm_file_C_step;
 	}
 
 	if (WARN(cfg->no_power_up_nic_in_init && !mvm->nvm_file_name,
@@ -691,7 +689,6 @@ static inline void iwl_mvm_rx_check_trigger(struct iwl_mvm *mvm,
 {
 	struct iwl_fw_dbg_trigger_tlv *trig;
 	struct iwl_fw_dbg_trigger_cmd *cmds_trig;
-	char buf[32];
 	int i;
 
 	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_FW_NOTIF))
@@ -711,9 +708,9 @@ static inline void iwl_mvm_rx_check_trigger(struct iwl_mvm *mvm,
 		if (cmds_trig->cmds[i].cmd_id != pkt->hdr.cmd)
 			continue;
 
-		memset(buf, 0, sizeof(buf));
-		snprintf(buf, sizeof(buf), "CMD 0x%02x received", pkt->hdr.cmd);
-		iwl_mvm_fw_dbg_collect_trig(mvm, trig, buf, sizeof(buf));
+		iwl_mvm_fw_dbg_collect_trig(mvm, trig,
+					    "CMD 0x%02x received",
+					    pkt->hdr.cmd);
 		break;
 	}
 }
@@ -894,18 +891,7 @@ void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
 	 * the next start() call from mac80211. If restart isn't called
 	 * (no fw restart) scan status will stay busy.
 	 */
-	switch (mvm->scan_status) {
-	case IWL_MVM_SCAN_NONE:
-		break;
-	case IWL_MVM_SCAN_OS:
-		ieee80211_scan_completed(mvm->hw, true);
-		break;
-	case IWL_MVM_SCAN_SCHED:
-		/* Sched scan will be restarted by mac80211 in restart_hw. */
-		if (!mvm->restart_fw)
-			ieee80211_sched_scan_stopped(mvm->hw);
-		break;
-	}
+	iwl_mvm_report_scan_aborted(mvm);
 
 	/*
 	 * If we're restarting already, don't cycle restarts.
@@ -1175,7 +1161,7 @@ static void iwl_mvm_d0i3_disconnect_iter(void *data, u8 *mac,
 
 	if (vif->type == NL80211_IFTYPE_STATION && vif->bss_conf.assoc &&
 	    mvm->d0i3_ap_sta_id == mvmvif->ap_sta_id)
-		ieee80211_connection_loss(vif);
+		iwl_mvm_connection_loss(mvm, vif, "D0i3");
 }
 
 void iwl_mvm_d0i3_enable_tx(struct iwl_mvm *mvm, __le16 *qos_seq)

@@ -186,21 +186,14 @@ IWL_EXPORT_SYMBOL(iwl_clear_bits_prph);
 
 void iwl_force_nmi(struct iwl_trans *trans)
 {
-	/*
-	 * In HW previous to the 8000 HW family, and in the 8000 HW family
-	 * itself when the revision step==0, the DEVICE_SET_NMI_REG is used
-	 * to force an NMI. Otherwise, a different register -
-	 * DEVICE_SET_NMI_8000B_REG - is used.
-	 */
-	if ((trans->cfg->device_family != IWL_DEVICE_FAMILY_8000) ||
-	    (CSR_HW_REV_STEP(trans->hw_rev) == SILICON_A_STEP)) {
+	if (trans->cfg->device_family != IWL_DEVICE_FAMILY_8000) {
 		iwl_write_prph(trans, DEVICE_SET_NMI_REG,
 			       DEVICE_SET_NMI_VAL_DRV);
 		iwl_write_prph(trans, DEVICE_SET_NMI_REG,
 			       DEVICE_SET_NMI_VAL_HW);
 	} else {
-		iwl_write_prph(trans, DEVICE_SET_NMI_8000B_REG,
-			       DEVICE_SET_NMI_8000B_VAL);
+		iwl_write_prph(trans, DEVICE_SET_NMI_8000_REG,
+			       DEVICE_SET_NMI_8000_VAL);
 		iwl_write_prph(trans, DEVICE_SET_NMI_REG,
 			       DEVICE_SET_NMI_VAL_DRV);
 	}

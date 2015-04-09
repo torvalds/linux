@@ -77,10 +77,10 @@
 /**
  * DOC: Transport layer - what is it ?
  *
- * The tranport layer is the layer that deals with the HW directly. It provides
+ * The transport layer is the layer that deals with the HW directly. It provides
  * an abstraction of the underlying HW to the upper layer. The transport layer
  * doesn't provide any policy, algorithm or anything of this kind, but only
- * mechanisms to make the HW do something.It is not completely stateless but
+ * mechanisms to make the HW do something. It is not completely stateless but
  * close to it.
  * We will have an implementation for each different supported bus.
  */
@@ -111,10 +111,10 @@
 /**
  * DOC: Host command section
  *
- * A host command is a commaned issued by the upper layer to the fw. There are
+ * A host command is a command issued by the upper layer to the fw. There are
  * several versions of fw that have several APIs. The transport layer is
  * completely agnostic to these differences.
- * The transport does provide helper functionnality (i.e. SYNC / ASYNC mode),
+ * The transport does provide helper functionality (i.e. SYNC / ASYNC mode),
  */
 #define SEQ_TO_QUEUE(s)	(((s) >> 8) & 0x1f)
 #define QUEUE_TO_SEQ(q)	(((q) & 0x1f) << 8)
@@ -195,7 +195,7 @@ static inline u32 iwl_rx_packet_payload_len(const struct iwl_rx_packet *pkt)
  * @CMD_WANT_SKB: Not valid with CMD_ASYNC. The caller needs the buffer of
  *	the response. The caller needs to call iwl_free_resp when done.
  * @CMD_HIGH_PRIO: The command is high priority - it goes to the front of the
- *	command queue, but after other high priority commands. valid only
+ *	command queue, but after other high priority commands. Valid only
  *	with CMD_ASYNC.
  * @CMD_SEND_IN_IDLE: The command should be sent even when the trans is idle.
  * @CMD_MAKE_TRANS_IDLE: The command response should mark the trans as idle.
@@ -582,7 +582,7 @@ enum iwl_d0i3_mode {
  * @cfg - pointer to the configuration
  * @status: a bit-mask of transport status flags
  * @dev - pointer to struct device * that represents the device
- * @hw_id: a u32 with the ID of the device / subdevice.
+ * @hw_id: a u32 with the ID of the device / sub-device.
  *	Set during transport allocation.
  * @hw_id_str: a string with info about HW ID. Set during transport allocation.
  * @pm_support: set to true in start_hw if link pm is supported

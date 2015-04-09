@@ -20,6 +20,7 @@
 #include <linux/time.h>
 #include <linux/bitops.h>
 #include <linux/etherdevice.h>
+#include <linux/gpio.h>
 #include <asm/unaligned.h>
 
 #include "hw.h"
@@ -2711,10 +2712,22 @@ void ath9k_hw_set_gpio(struct ath_hw *ah, u32 gpio, u32 val)
 	if (AR_SREV_9271(ah))
 		val = ~val;
 
-	REG_RMW(ah, AR_GPIO_IN_OUT, ((val & 1) << gpio),
-		AR_GPIO_BIT(gpio));
+	if ((1 << gpio) & AR_GPIO_OE_OUT_MASK)
+		REG_RMW(ah, AR_GPIO_IN_OUT, ((val & 1) << gpio),
+			AR_GPIO_BIT(gpio));
+	else
+		gpio_set_value(gpio, val & 1);
 }
 EXPORT_SYMBOL(ath9k_hw_set_gpio);
+
+void ath9k_hw_request_gpio(struct ath_hw *ah, u32 gpio, const char *label)
+{
+	if (gpio >= ah->caps.num_gpio_pins)
+		return;
+
+	gpio_request_one(gpio, GPIOF_DIR_OUT | GPIOF_INIT_LOW, label);
+}
+EXPORT_SYMBOL(ath9k_hw_request_gpio);
 
 void ath9k_hw_setantenna(struct ath_hw *ah, u32 antenna)
 {
