@@ -71,8 +71,8 @@ struct sha1_state {
 };
 
 struct sha256_state {
-	u64 count;
 	u32 state[SHA256_DIGEST_SIZE / 4];
+	u64 count;
 	u8 buf[SHA256_BLOCK_SIZE];
 };
 
