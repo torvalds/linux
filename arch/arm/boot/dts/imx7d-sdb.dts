@@ -139,8 +139,6 @@
 			regulator-name = "wlreg_on";
 			gpio = <&gpio4 21 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
-			regulator-boot-on;
-			regulator-always-on;
 		};
 	};
 };
