@@ -1806,7 +1806,7 @@ static void xgbe_rx_refresh(struct xgbe_channel *channel)
 		if (desc_if->map_rx_buffer(pdata, ring, rdata))
 			break;
 
-		hw_if->rx_desc_reset(rdata);
+		hw_if->rx_desc_reset(pdata, rdata, ring->dirty);
 
 		ring->dirty++;
 	}

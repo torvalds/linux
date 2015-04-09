@@ -424,16 +424,6 @@ static int xgbe_set_coalesce(struct net_device *netdev,
 	    (ec->rate_sample_interval))
 		return -EOPNOTSUPP;
 
-	/* Can only change rx-frames when interface is down (see
-	 * rx_descriptor_init in xgbe-dev.c)
-	 */
-	rx_frames = pdata->rx_frames;
-	if (rx_frames != ec->rx_max_coalesced_frames && netif_running(netdev)) {
-		netdev_alert(netdev,
-			     "interface must be down to change rx-frames\n");
-		return -EINVAL;
-	}
-
 	rx_riwt = hw_if->usec_to_riwt(pdata, ec->rx_coalesce_usecs);
 	rx_usecs = ec->rx_coalesce_usecs;
 	rx_frames = ec->rx_max_coalesced_frames;

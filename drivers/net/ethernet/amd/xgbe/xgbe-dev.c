@@ -1101,9 +1101,24 @@ static void xgbe_tx_desc_init(struct xgbe_channel *channel)
 	DBGPR("<--tx_desc_init\n");
 }
 
-static void xgbe_rx_desc_reset(struct xgbe_ring_data *rdata)
+static void xgbe_rx_desc_reset(struct xgbe_prv_data *pdata,
+			       struct xgbe_ring_data *rdata, unsigned int index)
 {
 	struct xgbe_ring_desc *rdesc = rdata->rdesc;
+	unsigned int rx_usecs = pdata->rx_usecs;
+	unsigned int rx_frames = pdata->rx_frames;
+	unsigned int inte;
+
+	if (!rx_usecs && !rx_frames) {
+		/* No coalescing, interrupt for every descriptor */
+		inte = 1;
+	} else {
+		/* Set interrupt based on Rx frame coalescing setting */
+		if (rx_frames && !((index + 1) % rx_frames))
+			inte = 1;
+		else
+			inte = 0;
+	}
 
 	/* Reset the Rx descriptor
 	 *   Set buffer 1 (lo) address to header dma address (lo)
@@ -1117,8 +1132,7 @@ static void xgbe_rx_desc_reset(struct xgbe_ring_data *rdata)
 	rdesc->desc2 = cpu_to_le32(lower_32_bits(rdata->rx.buf.dma));
 	rdesc->desc3 = cpu_to_le32(upper_32_bits(rdata->rx.buf.dma));
 
-	XGMAC_SET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, INTE,
-			  rdata->interrupt ? 1 : 0);
+	XGMAC_SET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, INTE, inte);
 
 	/* Since the Rx DMA engine is likely running, make sure everything
 	 * is written to the descriptor(s) before setting the OWN bit
@@ -1138,26 +1152,16 @@ static void xgbe_rx_desc_init(struct xgbe_channel *channel)
 	struct xgbe_ring *ring = channel->rx_ring;
 	struct xgbe_ring_data *rdata;
 	unsigned int start_index = ring->cur;
-	unsigned int rx_coalesce, rx_frames;
 	unsigned int i;
 
 	DBGPR("-->rx_desc_init\n");
-
-	rx_coalesce = (pdata->rx_riwt || pdata->rx_frames) ? 1 : 0;
-	rx_frames = pdata->rx_frames;
 
 	/* Initialize all descriptors */
 	for (i = 0; i < ring->rdesc_count; i++) {
 		rdata = XGBE_GET_DESC_DATA(ring, i);
 
-		/* Set interrupt on completion bit as appropriate */
-		if (rx_coalesce && (!rx_frames || ((i + 1) % rx_frames)))
-			rdata->interrupt = 0;
-		else
-			rdata->interrupt = 1;
-
 		/* Initialize Rx descriptor */
-		xgbe_rx_desc_reset(rdata);
+		xgbe_rx_desc_reset(pdata, rdata, i);
 	}
 
 	/* Update the total number of Rx descriptors */
