@@ -567,15 +567,16 @@ exit:
 	return ret;
 }
 
-static struct platform_driver mobx_scpi_driver = {
+static struct platform_driver mbox_scpi_driver = {
 	.probe	= mobx_scpi_probe,
 	.driver = {
 		.name = "mbox-scpi",
 		.of_match_table = of_match_ptr(mobx_scpi_of_match),
 	},
 };
-module_platform_driver(mobx_scpi_driver);
 
-MODULE_AUTHOR("Addy Ke <addy.ke@rock-chips.com>");
-MODULE_DESCRIPTION("Rockchip SCPI Driver");
-MODULE_LICENSE("GPL v2");
+static int __init rockchip_mbox_scpi_init(void)
+{
+	return platform_driver_register(&mbox_scpi_driver);
+}
+subsys_initcall(rockchip_mbox_scpi_init);

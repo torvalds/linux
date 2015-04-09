@@ -271,8 +271,9 @@ static struct platform_driver rockchip_mbox_driver = {
 		.of_match_table = of_match_ptr(rockchip_mbox_of_match),
 	},
 };
-module_platform_driver(rockchip_mbox_driver);
 
-MODULE_AUTHOR("Addy Ke <addy.ke@rock-chips.com>");
-MODULE_DESCRIPTION("Rockchip Mailbox Driver");
-MODULE_LICENSE("GPL v2");
+static int __init rockchip_mbox_init(void)
+{
+	return platform_driver_register(&rockchip_mbox_driver);
+}
+subsys_initcall(rockchip_mbox_init);

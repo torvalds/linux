@@ -179,19 +179,25 @@ static void ddrfreq_mode(bool auto_self_refresh, unsigned long target_rate, char
 	}
 
 	if (target_rate != dvfs_clk_get_last_set_rate(ddr.clk_dvfs_node)) {
-		freq_limit_en = dvfs_clk_get_limit(clk_cpu_dvfs_node, &min_rate, &max_rate);
+		if (clk_cpu_dvfs_node) {
+			freq_limit_en = dvfs_clk_get_limit(clk_cpu_dvfs_node,
+							   &min_rate,
+							   &max_rate);
 
-		dvfs_clk_enable_limit(clk_cpu_dvfs_node, 600000000, -1);
+			dvfs_clk_enable_limit(clk_cpu_dvfs_node, 600000000, -1);
+		}
 		if (dvfs_clk_set_rate(ddr.clk_dvfs_node, target_rate) == 0) {
 			target_rate = dvfs_clk_get_rate(ddr.clk_dvfs_node);
 			auto_freq_update_index(target_rate);
 			dprintk(DEBUG_DDR, "change freq to %lu MHz when %s\n", target_rate / MHZ, name);
 		}
-
-		if (freq_limit_en) {
-			dvfs_clk_enable_limit(clk_cpu_dvfs_node, min_rate, max_rate);
-		} else {
-			dvfs_clk_disable_limit(clk_cpu_dvfs_node);
+		if (clk_cpu_dvfs_node) {
+			if (freq_limit_en) {
+				dvfs_clk_enable_limit(clk_cpu_dvfs_node,
+						      min_rate, max_rate);
+			} else {
+				dvfs_clk_disable_limit(clk_cpu_dvfs_node);
+			}
 		}
 	}
 }
@@ -931,10 +937,6 @@ static int ddrfreq_init(void)
 #endif
 
 	clk_cpu_dvfs_node = clk_get_dvfs_node("clk_core");
-	if (!clk_cpu_dvfs_node){
-		return -EINVAL;
-	}
-
 	memset(&ddr, 0x00, sizeof(ddr));
 	ddr.clk_dvfs_node = clk_get_dvfs_node("clk_ddr");
 	if (!ddr.clk_dvfs_node){

@@ -151,6 +151,11 @@
 		      <0x0 0xffb72000 0 0x1000>;
 	};
 
+	ddrpctl: syscon@ff610000 {
+		compatible = "rockchip,rk3368-ddrpctl", "syscon";
+		reg = <0x0 0xff610000 0x0 0x400>;
+	};
+
 	pmu: syscon@ff730000 {
 		compatible = "rockchip,rk3368-pmu", "rockchip,pmu", "syscon";
 		reg = <0x0 0xff730000 0x0 0x1000>;
@@ -175,6 +180,11 @@
 	grf: syscon@ff770000 {
 		compatible = "rockchip,rk3368-grf", "rockchip,grf", "syscon";
 		reg = <0x0 0xff770000 0x0 0x1000>;
+	};
+
+	msch: syscon@ffac0000 {
+		compatible = "rockchip,rk3368-msch", "rockchip,msch", "syscon";
+		reg = <0x0 0xffac0000 0x0 0x3000>;
 	};
 
 	arm-pmu {
@@ -564,6 +574,14 @@
 	mbox_scpi: mbox-scpi {
 		compatible = "rockchip,mbox-scpi";
 		mboxes = <&mbox 0 &mbox 1>;
+	};
+
+	ddr {
+		compatible = "rockchip,rk3368-ddr";
+		status = "okay";
+		rockchip,ddrpctl = <&ddrpctl>;
+		rockchip,grf = <&grf>;
+		rockchip,msch = <&msch>;
 	};
 
 	rockchip_clocks_init: clocks-init{
