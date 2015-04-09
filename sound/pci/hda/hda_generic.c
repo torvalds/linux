@@ -832,6 +832,8 @@ static hda_nid_t path_power_update(struct hda_codec *codec,
 
 	for (i = 0; i < path->depth; i++) {
 		nid = path->path[i];
+		if (!(get_wcaps(codec, nid) & AC_WCAP_POWER))
+			continue;
 		if (nid == codec->core.afg)
 			continue;
 		if (!allow_powerdown || is_active_nid_for_any(codec, nid))
