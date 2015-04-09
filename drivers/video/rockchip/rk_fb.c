@@ -1770,7 +1770,7 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 		timestamp = dev_drv->vsync_info.timestamp;
 		timeout = wait_event_interruptible_timeout(dev_drv->vsync_info.wait,
 				ktime_compare(dev_drv->vsync_info.timestamp, timestamp) > 0,
-				msecs_to_jiffies(25));
+				msecs_to_jiffies(50));
 
 		wait_for_vsync = rk_fb_reg_effect(dev_drv, regs, count);
 	} while (wait_for_vsync && count--);
