@@ -205,6 +205,9 @@
 		pmu-supply = <&ldo5_reg>;      /*PMUIO_VDD*/
 		vop-supply = <&ldo5_reg>;      /*LCDC_VDD*/
 	};
+	test-power{
+		status = "okay";
+	};
 };
 
 
@@ -405,7 +408,7 @@
 			regulator-max-microvolt = <1500000>;
 			regulator-always-on;
 			regulator-boot-on;
-			regulator-initial-mode = <0x1>;
+			regulator-initial-mode = <0x2>;
 			regulator-initial-state = <3>;
 			regulator-state-mem {
 				regulator-state-mode = <0x2>;
@@ -418,7 +421,7 @@
 	syr828: syr828@41 {
 		compatible = "silergy,syr82x";
 		reg = <0x41>;
-		status = "okay";
+		status = "disabled";
 		regulators {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -442,6 +445,11 @@
 	};
 	act8846: act8846@5a {
 		reg = <0x5a>;
+		status = "okay";
+	};
+
+	rk818: rk818@1c {
+		reg = <0x1c>;
 		status = "okay";
 	};
 
@@ -858,6 +866,189 @@
 		};
 	};
 };
+
+/include/ "../../../arm/boot/dts/rk818.dtsi"
+&rk818 {
+	gpios =<&gpio0 GPIO_A1 GPIO_ACTIVE_HIGH>,<&gpio0 GPIO_A0 GPIO_ACTIVE_LOW>;
+	rk818,system-power-controller;
+
+rk818,support_dc_chg = <1>;/*1:dc chg; 0:usb chg*/
+	regulators {
+
+		rk818_dcdc1_reg: regulator@0{
+			regulator-name= "vdd_logic";/*vcc arm*/
+			regulator-min-microvolt = <700000>;/*<725000>;*/
+			regulator-max-microvolt = <1500000>;
+			regulator-initial-mode = <0x2>;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-mode = <0x2>;
+				regulator-state-enabled;
+				regulator-state-uv =<1100000>;
+			};
+		};
+
+		rk818_dcdc2_reg: regulator@1 {
+			regulator-name= "rk818_dcdc2";/*vcc gpu*/
+			regulator-min-microvolt = <700000>;
+			regulator-max-microvolt = <1200000>;
+			regulator-initial-mode = <0x2>;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-mode = <0x2>;
+				regulator-state-enabled;
+				regulator-state-uv = <1200000>;
+			};
+		};
+
+		rk818_dcdc3_reg: regulator@2 {
+			regulator-name= "rk818_dcdc3";
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1200000>;
+			regulator-initial-mode = <0x2>;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-mode = <0x2>;
+				regulator-state-enabled;
+				regulator-state-uv = <1200000>;
+			};
+		};
+
+		rk818_dcdc4_reg: regulator@3 {
+			regulator-name= "vccio";
+			regulator-min-microvolt = <3000000>;
+			regulator-max-microvolt = <3000000>;
+			regulator-initial-mode = <0x2>;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-mode = <0x2>;
+				regulator-state-enabled;
+				regulator-state-uv = <3000000>;
+			};
+		};
+
+		rk818_ldo1_reg: regulator@4 {
+			regulator-name= "rk818_ldo1";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-enabled;
+				regulator-state-uv = <3300000>;
+			};
+		};
+
+		rk818_ldo2_reg: regulator@5 {
+			regulator-name= "rk818_ldo2";
+			regulator-min-microvolt = <3000000>;
+			regulator-max-microvolt = <3000000>;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-enabled;
+				regulator-state-uv = <3000000>;
+			};
+		};
+
+		rk818_ldo3_reg: regulator@6 {
+			regulator-name= "rk818_ldo3";
+			regulator-min-microvolt = <1000000>;
+			regulator-max-microvolt = <1000000>;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-enabled;
+				regulator-state-uv = <1000000>;
+			};
+		};
+
+		rk818_ldo4_reg:regulator@7 {
+			regulator-name= "rk818_ldo4";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-disabled;
+				regulator-state-uv = <1800000>;
+			};
+		};
+
+		rk818_ldo5_reg: regulator@8 {
+			regulator-name= "rk818_ldo5";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-enabled;
+				regulator-state-uv = <1800000>;
+			};
+		};
+
+		rk818_ldo6_reg: regulator@9 {
+			regulator-name= "rk818_ldo6";
+			regulator-min-microvolt = <1000000>;
+			regulator-max-microvolt = <1000000>;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-disabled;
+				regulator-state-uv = <1000000>;
+			};
+		};
+
+		rk818_ldo7_reg: regulator@10 {
+			regulator-name= "rk818_ldo7";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-enabled;
+				regulator-state-uv = <1800000>;
+			};
+		};
+
+		rk818_ldo8_reg: regulator@11 {
+			regulator-name= "rk818_ldo8";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-enabled;
+				regulator-state-uv = <1800000>;
+			};
+		};
+
+		rk818_ldo9_reg: regulator@12 {
+			regulator-name= "vccio_sd";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-initial-state = <3>;
+			regulator-state-mem {
+				regulator-state-enabled;
+				regulator-state-uv = <3300000>;
+			};
+		};
+
+		rk818_ldo10_reg: regulator@13 {
+			regulator-name= "rk818_ldo10";
+			regulator-state-mem {
+				regulator-state-disabled;
+			};
+		};
+	};
+
+       battery {
+		ocv_table = <3350 3677 3693 3719 3752
+			     3770 3775 3778 3785 3796
+			     3812 3839 3881 3907 3933
+			     3958 3978 4033 4087 4123
+			     4174 >;
+		design_capacity = <2100>;
+		design_qmax = <2200>;
+		max_overcharge = <100>;
+		max_charge_currentma = <1500>;
+		max_charge_voltagemv = <4260>;
+		max_bat_voltagemv = <4200>;
+        };
+};
+
 
 &ion_cma {
        reg = <0x00000000 0x28000000>; /* 640MB */
