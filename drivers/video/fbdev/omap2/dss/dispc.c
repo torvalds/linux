@@ -1741,6 +1741,15 @@ static void dispc_ovl_set_rotation_attrs(enum omap_plane plane, u8 rotation,
 			row_repeat = false;
 	}
 
+	/*
+	 * OMAP4/5 Errata i631:
+	 * NV12 in 1D mode must use ROTATION=1. Otherwise DSS will fetch extra
+	 * rows beyond the framebuffer, which may cause OCP error.
+	 */
+	if (color_mode == OMAP_DSS_COLOR_NV12 &&
+			rotation_type != OMAP_DSS_ROT_TILER)
+		vidrot = 1;
+
 	REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(plane), vidrot, 13, 12);
 	if (dss_has_feature(FEAT_ROWREPEATENABLE))
 		REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(plane),
