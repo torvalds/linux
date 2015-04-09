@@ -257,7 +257,8 @@ static void iwl_mvm_scan_calc_params(struct iwl_mvm *mvm,
 		}
 	}
 
-	if (flags & NL80211_SCAN_FLAG_LOW_PRIORITY)
+	if ((flags & NL80211_SCAN_FLAG_LOW_PRIORITY) &&
+	    (params->max_out_time > 200))
 		params->max_out_time = 200;
 
 not_bound:
