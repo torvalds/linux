@@ -230,7 +230,7 @@ void blk_mq_freeze_queue_start(struct request_queue *q);
 
 /*
  * Driver command data is immediately after the request. So subtract request
- * size to get back to the original request.
+ * size to get back to the original request, add request size to get the PDU.
  */
 static inline struct request *blk_mq_rq_from_pdu(void *pdu)
 {
@@ -238,7 +238,7 @@ static inline struct request *blk_mq_rq_from_pdu(void *pdu)
 }
 static inline void *blk_mq_rq_to_pdu(struct request *rq)
 {
-	return (void *) rq + sizeof(*rq);
+	return rq + 1;
 }
 
 #define queue_for_each_hw_ctx(q, hctx, i)				\
