@@ -615,6 +615,53 @@ out_free:
 	return err;
 }
 
+static bool auxtrace__dont_decode(struct perf_session *session)
+{
+	return !session->itrace_synth_opts ||
+	       session->itrace_synth_opts->dont_decode;
+}
+
+int perf_event__process_auxtrace_info(struct perf_tool *tool __maybe_unused,
+				      union perf_event *event,
+				      struct perf_session *session __maybe_unused)
+{
+	enum auxtrace_type type = event->auxtrace_info.type;
+
+	if (dump_trace)
+		fprintf(stdout, " type: %u\n", type);
+
+	switch (type) {
+	case PERF_AUXTRACE_UNKNOWN:
+	default:
+		return -EINVAL;
+	}
+}
+
+s64 perf_event__process_auxtrace(struct perf_tool *tool,
+				 union perf_event *event,
+				 struct perf_session *session)
+{
+	s64 err;
+
+	if (dump_trace)
+		fprintf(stdout, " size: %#"PRIx64"  offset: %#"PRIx64"  ref: %#"PRIx64"  idx: %u  tid: %d  cpu: %d\n",
+			event->auxtrace.size, event->auxtrace.offset,
+			event->auxtrace.reference, event->auxtrace.idx,
+			event->auxtrace.tid, event->auxtrace.cpu);
+
+	if (auxtrace__dont_decode(session))
+		return event->auxtrace.size;
+
+	if (!session->auxtrace || event->header.type != PERF_RECORD_AUXTRACE)
+		return -EINVAL;
+
+	err = session->auxtrace->process_auxtrace_event(session, event, tool);
+	if (err < 0)
+		return err;
+
+	return event->auxtrace.size;
+}
+
 #define PERF_ITRACE_DEFAULT_PERIOD_TYPE		PERF_ITRACE_PERIOD_NANOSECS
 #define PERF_ITRACE_DEFAULT_PERIOD		100000
 #define PERF_ITRACE_DEFAULT_CALLCHAIN_SZ	16
@@ -801,8 +848,11 @@ void events_stats__auxtrace_error_warn(const struct events_stats *stats)
 
 int perf_event__process_auxtrace_error(struct perf_tool *tool __maybe_unused,
 				       union perf_event *event,
-				       struct perf_session *session __maybe_unused)
+				       struct perf_session *session)
 {
+	if (auxtrace__dont_decode(session))
+		return 0;
+
 	perf_event__fprintf_auxtrace_error(event, stdout);
 	return 0;
 }
