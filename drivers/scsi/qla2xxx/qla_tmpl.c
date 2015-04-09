@@ -190,7 +190,7 @@ static inline void
 qla27xx_write_reg(__iomem struct device_reg_24xx *reg,
 	uint offset, uint32_t data, void *buf)
 {
-	__iomem void *window = reg + offset;
+	__iomem void *window = (void __iomem *)reg + offset;
 
 	if (buf) {
 		WRT_REG_DWORD(window, data);
