@@ -523,7 +523,10 @@ int crypto_register_instance(struct crypto_template *tmpl,
 
 	err = crypto_check_alg(&inst->alg);
 	if (err)
-		goto err;
+		return err;
+
+	if (unlikely(!crypto_mod_get(&inst->alg)))
+		return -EAGAIN;
 
 	inst->alg.cra_module = tmpl->module;
 	inst->alg.cra_flags |= CRYPTO_ALG_INSTANCE;
@@ -545,9 +548,14 @@ unlock:
 		goto err;
 
 	crypto_wait_for_test(larval);
+
+	/* Remove instance if test failed */
+	if (!(inst->alg.cra_flags & CRYPTO_ALG_TESTED))
+		crypto_unregister_instance(inst);
 	err = 0;
 
 err:
+	crypto_mod_put(&inst->alg);
 	return err;
 }
 EXPORT_SYMBOL_GPL(crypto_register_instance);
