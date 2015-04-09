@@ -22,6 +22,9 @@
 
 #include "virt-dma.h"
 
+#define OMAP_SDMA_REQUESTS	127
+#define OMAP_SDMA_CHANNELS	32
+
 struct omap_dmadev {
 	struct dma_device ddev;
 	spinlock_t lock;
@@ -33,7 +36,7 @@ struct omap_dmadev {
 	bool legacy;
 	spinlock_t irq_lock;
 	uint32_t irq_enable_mask;
-	struct omap_chan *lch_map[32];
+	struct omap_chan *lch_map[OMAP_SDMA_CHANNELS];
 };
 
 struct omap_chan {
@@ -1116,7 +1119,7 @@ static int omap_dma_probe(struct platform_device *pdev)
 
 	tasklet_init(&od->task, omap_dma_sched, (unsigned long)od);
 
-	for (i = 0; i < 127; i++) {
+	for (i = 0; i < OMAP_SDMA_REQUESTS; i++) {
 		rc = omap_dma_chan_init(od, i);
 		if (rc) {
 			omap_dma_free(od);
