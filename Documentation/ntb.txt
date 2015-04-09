@@ -1,0 +1,32 @@
+# NTB Drivers
+
+NTB (Non-Transparent Bridge) is a type of PCI-Express bridge chip that connects
+the separate memory systems of two computers to the same PCI-Express fabric.
+Existing NTB hardware supports a common feature set, including scratchpad
+registers, doorbell registers, and memory translation windows.  Scratchpad
+registers are read-and-writable registers that are accessible from either side
+of the device, so that peers can exchange a small amount of information at a
+fixed address.  Doorbell registers provide a way for peers to send interrupt
+events.  Memory windows allow translated read and write access to the peer
+memory.
+
+## NTB Core Driver (ntb)
+
+The NTB core driver defines an api wrapping the common feature set, and allows
+clients interested in NTB features to discover NTB the devices supported by
+hardware drivers.  The term "client" is used here to mean an upper layer
+component making use of the NTB api.  The term "driver," or "hardware driver,"
+is used here to mean a driver for a specific vendor and model of NTB hardware.
+
+## NTB Client Drivers
+
+NTB client drivers should register with the NTB core driver.  After
+registering, the client probe and remove functions will be called appropriately
+as ntb hardware, or hardware drivers, are inserted and removed.  The
+registration uses the Linux Device framework, so it should feel familiar to
+anyone who has written a pci driver.
+
+## NTB Hardware Drivers
+
+NTB hardware drivers should register devices with the NTB core driver.  After
+registering, clients probe and remove functions will be called.
