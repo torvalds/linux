@@ -140,6 +140,14 @@
 /* A higher clock ferquency than this rate requires strobell dll control */
 #define ESDHC_STROBE_DLL_CLK_FREQ	100000000
 
+static struct mmc_host *wifi_mmc_host;
+void wifi_card_detect(void)
+{
+	WARN_ON(!wifi_mmc_host);
+	mmc_detect_change(wifi_mmc_host, 0);
+}
+EXPORT_SYMBOL(wifi_card_detect);
+
 struct esdhc_soc_data {
 	u32 flags;
 };
@@ -1020,6 +1028,11 @@ sdhci_esdhc_imx_probe_dt(struct platform_device *pdev,
 
 	if (!IS_ERR_VALUE(mmc_gpio_get_cd(host->mmc)))
 		host->quirks &= ~SDHCI_QUIRK_BROKEN_CARD_DETECTION;
+
+	if (of_get_property(np, "wifi-host", NULL)) {
+		wifi_mmc_host = host->mmc;
+		dev_info(mmc_dev(host->mmc), "assigned as wifi host\n");
+	}
 
 	return 0;
 }

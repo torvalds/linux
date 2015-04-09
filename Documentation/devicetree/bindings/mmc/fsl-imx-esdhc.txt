@@ -33,6 +33,8 @@ Optional properties:
   This property allows user to change the tuning step to more than one delay
   cells which is useful for some special boards or cards when the default
   tuning step can't find the proper delay window within limited tuning retries.
+- wifi-host : assigned as a wifi host.
+  This is required for some WiFi cards to do card detect
 
 Examples:
 
