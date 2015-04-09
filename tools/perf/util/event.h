@@ -221,6 +221,11 @@ enum perf_user_event_type { /* above any possible kernel type */
 	PERF_RECORD_HEADER_MAX
 };
 
+enum auxtrace_error_type {
+	PERF_AUXTRACE_ERROR_ITRACE  = 1,
+	PERF_AUXTRACE_ERROR_MAX
+};
+
 /*
  * The kernel collects the number of events it couldn't send in a stretch and
  * when possible sends this number in a PERF_RECORD_LOST event. The number of
@@ -245,6 +250,7 @@ struct events_stats {
 	u32 nr_invalid_chains;
 	u32 nr_unknown_id;
 	u32 nr_unprocessable_samples;
+	u32 nr_auxtrace_errors[PERF_AUXTRACE_ERROR_MAX];
 };
 
 struct attr_event {

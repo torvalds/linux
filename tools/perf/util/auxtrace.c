@@ -24,6 +24,7 @@
 #include <linux/log2.h>
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <errno.h>
 
@@ -36,6 +37,7 @@
 #include "auxtrace.h"
 
 #include "event.h"
+#include "session.h"
 #include "debug.h"
 #include "parse-options.h"
 
@@ -170,6 +172,28 @@ auxtrace_record__init(struct perf_evlist *evlist __maybe_unused, int *err)
 {
 	*err = 0;
 	return NULL;
+}
+
+void auxtrace_synth_error(struct auxtrace_error_event *auxtrace_error, int type,
+			  int code, int cpu, pid_t pid, pid_t tid, u64 ip,
+			  const char *msg)
+{
+	size_t size;
+
+	memset(auxtrace_error, 0, sizeof(struct auxtrace_error_event));
+
+	auxtrace_error->header.type = PERF_RECORD_AUXTRACE_ERROR;
+	auxtrace_error->type = type;
+	auxtrace_error->code = code;
+	auxtrace_error->cpu = cpu;
+	auxtrace_error->pid = pid;
+	auxtrace_error->tid = tid;
+	auxtrace_error->ip = ip;
+	strlcpy(auxtrace_error->msg, msg, MAX_AUXTRACE_ERROR_MSG);
+
+	size = (void *)auxtrace_error->msg - (void *)auxtrace_error +
+	       strlen(auxtrace_error->msg) + 1;
+	auxtrace_error->header.size = PERF_ALIGN(size, sizeof(u64));
 }
 
 int perf_event__synthesize_auxtrace_info(struct auxtrace_record *itr,
@@ -334,6 +358,63 @@ out:
 out_err:
 	pr_err("Bad Instruction Tracing options '%s'\n", str);
 	return -EINVAL;
+}
+
+static const char * const auxtrace_error_type_name[] = {
+	[PERF_AUXTRACE_ERROR_ITRACE] = "instruction trace",
+};
+
+static const char *auxtrace_error_name(int type)
+{
+	const char *error_type_name = NULL;
+
+	if (type < PERF_AUXTRACE_ERROR_MAX)
+		error_type_name = auxtrace_error_type_name[type];
+	if (!error_type_name)
+		error_type_name = "unknown AUX";
+	return error_type_name;
+}
+
+size_t perf_event__fprintf_auxtrace_error(union perf_event *event, FILE *fp)
+{
+	struct auxtrace_error_event *e = &event->auxtrace_error;
+	int ret;
+
+	ret = fprintf(fp, " %s error type %u",
+		      auxtrace_error_name(e->type), e->type);
+	ret += fprintf(fp, " cpu %d pid %d tid %d ip %#"PRIx64" code %u: %s\n",
+		       e->cpu, e->pid, e->tid, e->ip, e->code, e->msg);
+	return ret;
+}
+
+void perf_session__auxtrace_error_inc(struct perf_session *session,
+				      union perf_event *event)
+{
+	struct auxtrace_error_event *e = &event->auxtrace_error;
+
+	if (e->type < PERF_AUXTRACE_ERROR_MAX)
+		session->evlist->stats.nr_auxtrace_errors[e->type] += 1;
+}
+
+void events_stats__auxtrace_error_warn(const struct events_stats *stats)
+{
+	int i;
+
+	for (i = 0; i < PERF_AUXTRACE_ERROR_MAX; i++) {
+		if (!stats->nr_auxtrace_errors[i])
+			continue;
+		ui__warning("%u %s errors\n",
+			    stats->nr_auxtrace_errors[i],
+			    auxtrace_error_name(i));
+	}
+}
+
+int perf_event__process_auxtrace_error(struct perf_tool *tool __maybe_unused,
+				       union perf_event *event,
+				       struct perf_session *session __maybe_unused)
+{
+	perf_event__fprintf_auxtrace_error(event, stdout);
+	return 0;
 }
 
 int auxtrace_mmap__read(struct auxtrace_mmap *mm, struct auxtrace_record *itr,

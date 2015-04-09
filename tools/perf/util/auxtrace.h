@@ -23,6 +23,7 @@
 #include <linux/types.h>
 
 #include "../perf.h"
+#include "event.h"
 #include "session.h"
 
 union perf_event;
@@ -32,6 +33,7 @@ struct perf_tool;
 struct option;
 struct record_opts;
 struct auxtrace_info_event;
+struct events_stats;
 
 enum itrace_period_type {
 	PERF_ITRACE_PERIOD_INSTRUCTIONS,
@@ -222,13 +224,25 @@ int auxtrace_record__info_fill(struct auxtrace_record *itr,
 void auxtrace_record__free(struct auxtrace_record *itr);
 u64 auxtrace_record__reference(struct auxtrace_record *itr);
 
+void auxtrace_synth_error(struct auxtrace_error_event *auxtrace_error, int type,
+			  int code, int cpu, pid_t pid, pid_t tid, u64 ip,
+			  const char *msg);
+
 int perf_event__synthesize_auxtrace_info(struct auxtrace_record *itr,
 					 struct perf_tool *tool,
 					 struct perf_session *session,
 					 perf_event__handler_t process);
+int perf_event__process_auxtrace_error(struct perf_tool *tool,
+				       union perf_event *event,
+				       struct perf_session *session);
 int itrace_parse_synth_opts(const struct option *opt, const char *str,
 			    int unset);
 void itrace_synth_opts__set_default(struct itrace_synth_opts *synth_opts);
+
+size_t perf_event__fprintf_auxtrace_error(union perf_event *event, FILE *fp);
+void perf_session__auxtrace_error_inc(struct perf_session *session,
+				      union perf_event *event);
+void events_stats__auxtrace_error_warn(const struct events_stats *stats);
 
 static inline int auxtrace__process_event(struct perf_session *session,
 					  union perf_event *event,

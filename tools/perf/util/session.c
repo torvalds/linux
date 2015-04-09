@@ -1093,6 +1093,7 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 		lseek(fd, file_offset + event->header.size, SEEK_SET);
 		return tool->auxtrace(tool, event, session);
 	case PERF_RECORD_AUXTRACE_ERROR:
+		perf_session__auxtrace_error_inc(session, event);
 		return tool->auxtrace_error(tool, event, session);
 	default:
 		return -EINVAL;
@@ -1282,6 +1283,8 @@ static void perf_session__warn_about_errors(const struct perf_session *session)
 
 	if (oe->nr_unordered_events != 0)
 		ui__warning("%u out of order events recorded.\n", oe->nr_unordered_events);
+
+	events_stats__auxtrace_error_warn(stats);
 }
 
 volatile int session_done;
