@@ -1188,26 +1188,18 @@ void __weak read_persistent_clock64(struct timespec64 *ts64)
 }
 
 /**
- * read_boot_clock -  Return time of the system start.
+ * read_boot_clock64 -  Return time of the system start.
  *
  * Weak dummy function for arches that do not yet support it.
  * Function to read the exact time the system has been started.
- * Returns a timespec with tv_sec=0 and tv_nsec=0 if unsupported.
+ * Returns a timespec64 with tv_sec=0 and tv_nsec=0 if unsupported.
  *
  *  XXX - Do be sure to remove it once all arches implement it.
  */
-void __weak read_boot_clock(struct timespec *ts)
+void __weak read_boot_clock64(struct timespec64 *ts)
 {
 	ts->tv_sec = 0;
 	ts->tv_nsec = 0;
-}
-
-void __weak read_boot_clock64(struct timespec64 *ts64)
-{
-	struct timespec ts;
-
-	read_boot_clock(&ts);
-	*ts64 = timespec_to_timespec64(ts);
 }
 
 /* Flag for if timekeeping_resume() has injected sleeptime */
