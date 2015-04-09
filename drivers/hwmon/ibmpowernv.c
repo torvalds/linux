@@ -31,6 +31,7 @@
 #include <asm/opal.h>
 #include <linux/err.h>
 #include <asm/cputhreads.h>
+#include <asm/smp.h>
 
 #define MAX_ATTR_LEN	32
 #define MAX_LABEL_LEN	64
