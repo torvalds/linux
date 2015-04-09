@@ -157,6 +157,8 @@ enum {
 	PERF_IP_FLAG_IN_TX		= 1ULL << 10,
 };
 
+#define PERF_IP_FLAG_CHARS "bcrosyiABEx"
+
 #define PERF_BRANCH_MASK		(\
 	PERF_IP_FLAG_BRANCH		|\
 	PERF_IP_FLAG_CALL		|\
