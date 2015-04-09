@@ -304,19 +304,15 @@ int dgnc_tty_init(struct dgnc_board *brd)
 
 	brd->nasync = brd->maxports;
 
-	/*
-	 * Allocate channel memory that might not have been allocated
-	 * when the driver was first loaded.
-	 */
 	for (i = 0; i < brd->nasync; i++) {
-		if (!brd->channels[i]) {
-
-			/*
-			 * Okay to malloc with GFP_KERNEL, we are not at
-			 * interrupt context, and there are no locks held.
-			 */
-			brd->channels[i] = kzalloc(sizeof(*brd->channels[i]), GFP_KERNEL);
-		}
+		/*
+		 * Okay to malloc with GFP_KERNEL, we are not at
+		 * interrupt context, and there are no locks held.
+		 */
+		brd->channels[i] = kzalloc(sizeof(*brd->channels[i]),
+					   GFP_KERNEL);
+		if (!brd->channels[i])
+			goto err_free_channels;
 	}
 
 	ch = brd->channels[0];
@@ -324,10 +320,6 @@ int dgnc_tty_init(struct dgnc_board *brd)
 
 	/* Set up channel variables */
 	for (i = 0; i < brd->nasync; i++, ch = brd->channels[i]) {
-
-		if (!brd->channels[i])
-			continue;
-
 		spin_lock_init(&ch->ch_lock);
 
 		/* Store all our magic numbers */
@@ -375,6 +367,13 @@ int dgnc_tty_init(struct dgnc_board *brd)
 	}
 
 	return 0;
+
+err_free_channels:
+	for (i = i - 1; i >= 0; --i) {
+		kfree(brd->channels[i]);
+		brd->channels[i] = NULL;
+	}
+	return -ENOMEM;
 }
 
 
