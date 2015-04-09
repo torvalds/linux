@@ -674,17 +674,20 @@ ssize_t nfs_file_write(struct kiocb *iocb, struct iov_iter *from)
 	unsigned long written = 0;
 	ssize_t result;
 	size_t count = iov_iter_count(from);
-	loff_t pos = iocb->ki_pos;
 
 	result = nfs_key_timeout_notify(file, inode);
 	if (result)
 		return result;
 
-	if (iocb->ki_flags & IOCB_DIRECT)
-		return nfs_file_direct_write(iocb, from, pos);
+	if (iocb->ki_flags & IOCB_DIRECT) {
+		result = generic_write_checks(iocb, from);
+		if (result <= 0)
+			return result;
+		return nfs_file_direct_write(iocb, from);
+	}
 
 	dprintk("NFS: write(%pD2, %zu@%Ld)\n",
-		file, count, (long long) pos);
+		file, count, (long long) iocb->ki_pos);
 
 	result = -EBUSY;
 	if (IS_SWAPFILE(inode))

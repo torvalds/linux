@@ -268,7 +268,7 @@ ssize_t nfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter, loff_t pos)
 
 	if (iov_iter_rw(iter) == READ)
 		return nfs_file_direct_read(iocb, iter, pos);
-	return nfs_file_direct_write(iocb, iter, pos);
+	return nfs_file_direct_write(iocb, iter);
 #endif /* CONFIG_NFS_SWAP */
 }
 
@@ -959,8 +959,7 @@ static ssize_t nfs_direct_write_schedule_iovec(struct nfs_direct_req *dreq,
  * Note that O_APPEND is not supported for NFS direct writes, as there
  * is no atomic O_APPEND write facility in the NFS protocol.
  */
-ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter,
-				loff_t pos)
+ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter)
 {
 	ssize_t result = -EINVAL;
 	struct file *file = iocb->ki_filp;
@@ -968,14 +967,10 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter,
 	struct inode *inode = mapping->host;
 	struct nfs_direct_req *dreq;
 	struct nfs_lock_context *l_ctx;
-	loff_t end;
+	loff_t pos, end;
 
 	dfprintk(FILE, "NFS: direct write(%pD2, %zd@%Ld)\n",
 		file, iov_iter_count(iter), (long long) iocb->ki_pos);
-
-	result = generic_write_checks(iocb, iter);
-	if (result <= 0)
-		goto out;
 
 	nfs_add_stats(mapping->host, NFSIOS_DIRECTWRITTENBYTES,
 		      iov_iter_count(iter));
@@ -1044,7 +1039,6 @@ out_release:
 	nfs_direct_req_release(dreq);
 out_unlock:
 	mutex_unlock(&inode->i_mutex);
-out:
 	return result;
 }
 
