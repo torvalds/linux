@@ -361,6 +361,91 @@ void auxtrace_queues__free(struct auxtrace_queues *queues)
 	queues->nr_queues = 0;
 }
 
+static void auxtrace_heapify(struct auxtrace_heap_item *heap_array,
+			     unsigned int pos, unsigned int queue_nr,
+			     u64 ordinal)
+{
+	unsigned int parent;
+
+	while (pos) {
+		parent = (pos - 1) >> 1;
+		if (heap_array[parent].ordinal <= ordinal)
+			break;
+		heap_array[pos] = heap_array[parent];
+		pos = parent;
+	}
+	heap_array[pos].queue_nr = queue_nr;
+	heap_array[pos].ordinal = ordinal;
+}
+
+int auxtrace_heap__add(struct auxtrace_heap *heap, unsigned int queue_nr,
+		       u64 ordinal)
+{
+	struct auxtrace_heap_item *heap_array;
+
+	if (queue_nr >= heap->heap_sz) {
+		unsigned int heap_sz = AUXTRACE_INIT_NR_QUEUES;
+
+		while (heap_sz <= queue_nr)
+			heap_sz <<= 1;
+		heap_array = realloc(heap->heap_array,
+				     heap_sz * sizeof(struct auxtrace_heap_item));
+		if (!heap_array)
+			return -ENOMEM;
+		heap->heap_array = heap_array;
+		heap->heap_sz = heap_sz;
+	}
+
+	auxtrace_heapify(heap->heap_array, heap->heap_cnt++, queue_nr, ordinal);
+
+	return 0;
+}
+
+void auxtrace_heap__free(struct auxtrace_heap *heap)
+{
+	zfree(&heap->heap_array);
+	heap->heap_cnt = 0;
+	heap->heap_sz = 0;
+}
+
+void auxtrace_heap__pop(struct auxtrace_heap *heap)
+{
+	unsigned int pos, last, heap_cnt = heap->heap_cnt;
+	struct auxtrace_heap_item *heap_array;
+
+	if (!heap_cnt)
+		return;
+
+	heap->heap_cnt -= 1;
+
+	heap_array = heap->heap_array;
+
+	pos = 0;
+	while (1) {
+		unsigned int left, right;
+
+		left = (pos << 1) + 1;
+		if (left >= heap_cnt)
+			break;
+		right = left + 1;
+		if (right >= heap_cnt) {
+			heap_array[pos] = heap_array[left];
+			return;
+		}
+		if (heap_array[left].ordinal < heap_array[right].ordinal) {
+			heap_array[pos] = heap_array[left];
+			pos = left;
+		} else {
+			heap_array[pos] = heap_array[right];
+			pos = right;
+		}
+	}
+
+	last = heap_cnt - 1;
+	auxtrace_heapify(heap_array, pos, heap_array[last].queue_nr,
+			 heap_array[last].ordinal);
+}
+
 size_t auxtrace_record__info_priv_size(struct auxtrace_record *itr)
 {
 	if (itr)

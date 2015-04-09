@@ -168,6 +168,29 @@ struct auxtrace_queues {
 };
 
 /**
+ * struct auxtrace_heap_item - element of struct auxtrace_heap.
+ * @queue_nr: queue number
+ * @ordinal: value used for sorting (lowest ordinal is top of the heap) expected
+ *           to be a timestamp
+ */
+struct auxtrace_heap_item {
+	unsigned int		queue_nr;
+	u64			ordinal;
+};
+
+/**
+ * struct auxtrace_heap - a heap suitable for sorting AUX area tracing queues.
+ * @heap_array: the heap
+ * @heap_cnt: the number of elements in the heap
+ * @heap_sz: maximum number of elements (grows as needed)
+ */
+struct auxtrace_heap {
+	struct auxtrace_heap_item	*heap_array;
+	unsigned int		heap_cnt;
+	unsigned int		heap_sz;
+};
+
+/**
  * struct auxtrace_mmap - records an mmap of the auxtrace buffer.
  * @base: address of mapped area
  * @userpg: pointer to buffer's perf_event_mmap_page
@@ -297,6 +320,12 @@ void *auxtrace_buffer__get_data(struct auxtrace_buffer *buffer, int fd);
 void auxtrace_buffer__put_data(struct auxtrace_buffer *buffer);
 void auxtrace_buffer__drop_data(struct auxtrace_buffer *buffer);
 void auxtrace_buffer__free(struct auxtrace_buffer *buffer);
+
+int auxtrace_heap__add(struct auxtrace_heap *heap, unsigned int queue_nr,
+		       u64 ordinal);
+void auxtrace_heap__pop(struct auxtrace_heap *heap);
+void auxtrace_heap__free(struct auxtrace_heap *heap);
+
 struct auxtrace_record *auxtrace_record__init(struct perf_evlist *evlist,
 					      int *err);
 
