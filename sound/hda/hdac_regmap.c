@@ -239,7 +239,7 @@ static int hda_reg_read(void *context, unsigned int reg, unsigned int *val)
 	int verb = get_verb(reg);
 	int err;
 
-	if (!codec_is_running(codec))
+	if (!codec_is_running(codec) && verb != AC_VERB_GET_POWER_STATE)
 		return -EAGAIN;
 	reg |= (codec->addr << 28);
 	if (is_stereo_amp_verb(reg))
@@ -265,16 +265,16 @@ static int hda_reg_write(void *context, unsigned int reg, unsigned int val)
 	unsigned int verb;
 	int i, bytes, err;
 
-	if (!codec_is_running(codec))
-		return codec->lazy_cache ? 0 : -EAGAIN;
-
 	reg &= ~0x00080000U; /* drop GET bit */
 	reg |= (codec->addr << 28);
+	verb = get_verb(reg);
+
+	if (!codec_is_running(codec) && verb != AC_VERB_SET_POWER_STATE)
+		return codec->lazy_cache ? 0 : -EAGAIN;
 
 	if (is_stereo_amp_verb(reg))
 		return hda_reg_write_stereo_amp(codec, reg, val);
 
-	verb = get_verb(reg);
 	if (verb == AC_VERB_SET_PROC_COEF)
 		return hda_reg_write_coef(codec, reg, val);
 
