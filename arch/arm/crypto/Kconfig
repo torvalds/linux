@@ -39,7 +39,7 @@ config CRYPTO_SHA1_ARM_CE
 config CRYPTO_SHA2_ARM_CE
 	tristate "SHA-224/256 digest algorithm (ARM v8 Crypto Extensions)"
 	depends on KERNEL_MODE_NEON
-	select CRYPTO_SHA256
+	select CRYPTO_SHA256_ARM
 	select CRYPTO_HASH
 	help
 	  SHA-256 secure hash standard (DFIPS 180-2) implemented
