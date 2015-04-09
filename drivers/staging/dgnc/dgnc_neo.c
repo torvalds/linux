@@ -395,7 +395,7 @@ static inline void neo_parse_isr(struct dgnc_board *brd, uint port)
 		return;
 
 	ch = brd->channels[port];
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (ch->magic != DGNC_CHANNEL_MAGIC)
 		return;
 
 	/* Here we try to figure out what caused the interrupt to happen */
