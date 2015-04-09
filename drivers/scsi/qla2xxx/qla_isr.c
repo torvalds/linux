@@ -763,6 +763,7 @@ skip_rio:
 				memcpy(vha->port_name, wwpn, WWN_SIZE);
 			}
 
+			clear_bit(VP_CONFIG_OK, &vha->vp_flags);
 			vha->device_flags |= DFLG_NO_CABLE;
 			qla2x00_mark_all_devices_lost(vha, 1);
 		}
@@ -947,6 +948,7 @@ skip_rio:
 
 		set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
 		set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
+		set_bit(VP_CONFIG_OK, &vha->vp_flags);
 
 		qlt_async_event(mb[0], vha, mb);
 		break;

@@ -3590,6 +3590,7 @@ typedef struct scsi_qla_host {
 #define VP_BIND_NEEDED		2
 #define VP_DELETE_NEEDED	3
 #define VP_SCR_NEEDED		4	/* State Change Request registration */
+#define VP_CONFIG_OK		5	/* Flag to cfg VP, if FW is ready */
 	atomic_t 		vp_state;
 #define VP_OFFLINE		0
 #define VP_ACTIVE		1
