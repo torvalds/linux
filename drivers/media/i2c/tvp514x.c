@@ -747,25 +747,6 @@ static int tvp514x_s_ctrl(struct v4l2_ctrl *ctrl)
 }
 
 /**
- * tvp514x_enum_mbus_fmt() - V4L2 decoder interface handler for enum_mbus_fmt
- * @sd: pointer to standard V4L2 sub-device structure
- * @index: index of pixelcode to retrieve
- * @code: receives the pixelcode
- *
- * Enumerates supported mediabus formats
- */
-static int
-tvp514x_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned index,
-					u32 *code)
-{
-	if (index)
-		return -EINVAL;
-
-	*code = MEDIA_BUS_FMT_YUYV10_2X10;
-	return 0;
-}
-
-/**
  * tvp514x_mbus_fmt() - V4L2 decoder interface handler for try/s/g_mbus_fmt
  * @sd: pointer to standard V4L2 sub-device structure
  * @f: pointer to the mediabus format structure
@@ -1016,7 +997,6 @@ static const struct v4l2_subdev_video_ops tvp514x_video_ops = {
 	.s_std = tvp514x_s_std,
 	.s_routing = tvp514x_s_routing,
 	.querystd = tvp514x_querystd,
-	.enum_mbus_fmt = tvp514x_enum_mbus_fmt,
 	.g_mbus_fmt = tvp514x_mbus_fmt,
 	.try_mbus_fmt = tvp514x_mbus_fmt,
 	.s_mbus_fmt = tvp514x_mbus_fmt,

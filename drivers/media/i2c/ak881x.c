@@ -118,13 +118,14 @@ static int ak881x_s_mbus_fmt(struct v4l2_subdev *sd,
 	return ak881x_try_g_mbus_fmt(sd, mf);
 }
 
-static int ak881x_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned int index,
-				u32 *code)
+static int ak881x_enum_mbus_code(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (index)
+	if (code->pad || code->index)
 		return -EINVAL;
 
-	*code = MEDIA_BUS_FMT_YUYV8_2X8;
+	code->code = MEDIA_BUS_FMT_YUYV8_2X8;
 	return 0;
 }
 
@@ -215,14 +216,18 @@ static struct v4l2_subdev_video_ops ak881x_subdev_video_ops = {
 	.g_mbus_fmt	= ak881x_try_g_mbus_fmt,
 	.try_mbus_fmt	= ak881x_try_g_mbus_fmt,
 	.cropcap	= ak881x_cropcap,
-	.enum_mbus_fmt	= ak881x_enum_mbus_fmt,
 	.s_std_output	= ak881x_s_std_output,
 	.s_stream	= ak881x_s_stream,
+};
+
+static const struct v4l2_subdev_pad_ops ak881x_subdev_pad_ops = {
+	.enum_mbus_code = ak881x_enum_mbus_code,
 };
 
 static struct v4l2_subdev_ops ak881x_subdev_ops = {
 	.core	= &ak881x_subdev_core_ops,
 	.video	= &ak881x_subdev_video_ops,
+	.pad	= &ak881x_subdev_pad_ops,
 };
 
 static int ak881x_probe(struct i2c_client *client,

@@ -1068,18 +1068,21 @@ static int omap1_cam_get_formats(struct soc_camera_device *icd,
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct device *dev = icd->parent;
 	int formats = 0, ret;
-	u32 code;
+	struct v4l2_subdev_mbus_code_enum code = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+		.index = idx,
+	};
 	const struct soc_mbus_pixelfmt *fmt;
 
-	ret = v4l2_subdev_call(sd, video, enum_mbus_fmt, idx, &code);
+	ret = v4l2_subdev_call(sd, pad, enum_mbus_code, NULL, &code);
 	if (ret < 0)
 		/* No more formats */
 		return 0;
 
-	fmt = soc_mbus_get_fmtdesc(code);
+	fmt = soc_mbus_get_fmtdesc(code.code);
 	if (!fmt) {
 		dev_warn(dev, "%s: unsupported format code #%d: %d\n", __func__,
-				idx, code);
+				idx, code.code);
 		return 0;
 	}
 
@@ -1087,7 +1090,7 @@ static int omap1_cam_get_formats(struct soc_camera_device *icd,
 	if (fmt->bits_per_sample != 8)
 		return 0;
 
-	switch (code) {
+	switch (code.code) {
 	case MEDIA_BUS_FMT_YUYV8_2X8:
 	case MEDIA_BUS_FMT_YVYU8_2X8:
 	case MEDIA_BUS_FMT_UYVY8_2X8:
@@ -1098,14 +1101,14 @@ static int omap1_cam_get_formats(struct soc_camera_device *icd,
 	case MEDIA_BUS_FMT_RGB565_2X8_LE:
 		formats++;
 		if (xlate) {
-			xlate->host_fmt	= soc_mbus_find_fmtdesc(code,
+			xlate->host_fmt	= soc_mbus_find_fmtdesc(code.code,
 						omap1_cam_formats,
 						ARRAY_SIZE(omap1_cam_formats));
-			xlate->code	= code;
+			xlate->code	= code.code;
 			xlate++;
 			dev_dbg(dev,
 				"%s: providing format %s as byte swapped code #%d\n",
-				__func__, xlate->host_fmt->name, code);
+				__func__, xlate->host_fmt->name, code.code);
 		}
 	default:
 		if (xlate)
@@ -1116,7 +1119,7 @@ static int omap1_cam_get_formats(struct soc_camera_device *icd,
 	formats++;
 	if (xlate) {
 		xlate->host_fmt	= fmt;
-		xlate->code	= code;
+		xlate->code	= code.code;
 		xlate++;
 	}
 

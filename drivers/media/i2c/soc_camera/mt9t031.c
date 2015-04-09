@@ -672,13 +672,14 @@ static struct v4l2_subdev_core_ops mt9t031_subdev_core_ops = {
 #endif
 };
 
-static int mt9t031_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
-			    u32 *code)
+static int mt9t031_enum_mbus_code(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (index)
+	if (code->pad || code->index)
 		return -EINVAL;
 
-	*code = MEDIA_BUS_FMT_SBGGR10_1X10;
+	code->code = MEDIA_BUS_FMT_SBGGR10_1X10;
 	return 0;
 }
 
@@ -718,7 +719,6 @@ static struct v4l2_subdev_video_ops mt9t031_subdev_video_ops = {
 	.s_crop		= mt9t031_s_crop,
 	.g_crop		= mt9t031_g_crop,
 	.cropcap	= mt9t031_cropcap,
-	.enum_mbus_fmt	= mt9t031_enum_fmt,
 	.g_mbus_config	= mt9t031_g_mbus_config,
 	.s_mbus_config	= mt9t031_s_mbus_config,
 };
@@ -727,10 +727,15 @@ static struct v4l2_subdev_sensor_ops mt9t031_subdev_sensor_ops = {
 	.g_skip_top_lines	= mt9t031_g_skip_top_lines,
 };
 
+static const struct v4l2_subdev_pad_ops mt9t031_subdev_pad_ops = {
+	.enum_mbus_code = mt9t031_enum_mbus_code,
+};
+
 static struct v4l2_subdev_ops mt9t031_subdev_ops = {
 	.core	= &mt9t031_subdev_core_ops,
 	.video	= &mt9t031_subdev_video_ops,
 	.sensor	= &mt9t031_subdev_sensor_ops,
+	.pad	= &mt9t031_subdev_pad_ops,
 };
 
 static int mt9t031_probe(struct i2c_client *client,

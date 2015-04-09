@@ -300,13 +300,14 @@ static int adv7175_s_routing(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int adv7175_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
-				u32 *code)
+static int adv7175_enum_mbus_code(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (index >= ARRAY_SIZE(adv7175_codes))
+	if (code->pad || code->index >= ARRAY_SIZE(adv7175_codes))
 		return -EINVAL;
 
-	*code = adv7175_codes[index];
+	code->code = adv7175_codes[code->index];
 	return 0;
 }
 
@@ -376,12 +377,16 @@ static const struct v4l2_subdev_video_ops adv7175_video_ops = {
 	.s_routing = adv7175_s_routing,
 	.s_mbus_fmt = adv7175_s_fmt,
 	.g_mbus_fmt = adv7175_g_fmt,
-	.enum_mbus_fmt  = adv7175_enum_fmt,
+};
+
+static const struct v4l2_subdev_pad_ops adv7175_pad_ops = {
+	.enum_mbus_code = adv7175_enum_mbus_code,
 };
 
 static const struct v4l2_subdev_ops adv7175_ops = {
 	.core = &adv7175_core_ops,
 	.video = &adv7175_video_ops,
+	.pad = &adv7175_pad_ops,
 };
 
 /* ----------------------------------------------------------------------- */

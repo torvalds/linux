@@ -485,13 +485,14 @@ static int reg_write_multiple(struct i2c_client *client,
 	return 0;
 }
 
-static int rj54n1_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
-			   u32 *code)
+static int rj54n1_enum_mbus_code(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (index >= ARRAY_SIZE(rj54n1_colour_fmts))
+	if (code->pad || code->index >= ARRAY_SIZE(rj54n1_colour_fmts))
 		return -EINVAL;
 
-	*code = rj54n1_colour_fmts[index].code;
+	code->code = rj54n1_colour_fmts[code->index].code;
 	return 0;
 }
 
@@ -1252,7 +1253,6 @@ static struct v4l2_subdev_video_ops rj54n1_subdev_video_ops = {
 	.s_mbus_fmt	= rj54n1_s_fmt,
 	.g_mbus_fmt	= rj54n1_g_fmt,
 	.try_mbus_fmt	= rj54n1_try_fmt,
-	.enum_mbus_fmt	= rj54n1_enum_fmt,
 	.g_crop		= rj54n1_g_crop,
 	.s_crop		= rj54n1_s_crop,
 	.cropcap	= rj54n1_cropcap,
@@ -1260,9 +1260,14 @@ static struct v4l2_subdev_video_ops rj54n1_subdev_video_ops = {
 	.s_mbus_config	= rj54n1_s_mbus_config,
 };
 
+static const struct v4l2_subdev_pad_ops rj54n1_subdev_pad_ops = {
+	.enum_mbus_code = rj54n1_enum_mbus_code,
+};
+
 static struct v4l2_subdev_ops rj54n1_subdev_ops = {
 	.core	= &rj54n1_subdev_core_ops,
 	.video	= &rj54n1_subdev_video_ops,
+	.pad	= &rj54n1_subdev_pad_ops,
 };
 
 /*

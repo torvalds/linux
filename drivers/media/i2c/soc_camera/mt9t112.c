@@ -966,16 +966,17 @@ static int mt9t112_try_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int mt9t112_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
-			   u32 *code)
+static int mt9t112_enum_mbus_code(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9t112_priv *priv = to_mt9t112(client);
 
-	if (index >= priv->num_formats)
+	if (code->pad || code->index >= priv->num_formats)
 		return -EINVAL;
 
-	*code = mt9t112_cfmts[index].code;
+	code->code = mt9t112_cfmts[code->index].code;
 
 	return 0;
 }
@@ -1016,9 +1017,12 @@ static struct v4l2_subdev_video_ops mt9t112_subdev_video_ops = {
 	.cropcap	= mt9t112_cropcap,
 	.g_crop		= mt9t112_g_crop,
 	.s_crop		= mt9t112_s_crop,
-	.enum_mbus_fmt	= mt9t112_enum_fmt,
 	.g_mbus_config	= mt9t112_g_mbus_config,
 	.s_mbus_config	= mt9t112_s_mbus_config,
+};
+
+static const struct v4l2_subdev_pad_ops mt9t112_subdev_pad_ops = {
+	.enum_mbus_code = mt9t112_enum_mbus_code,
 };
 
 /************************************************************************
@@ -1027,6 +1031,7 @@ static struct v4l2_subdev_video_ops mt9t112_subdev_video_ops = {
 static struct v4l2_subdev_ops mt9t112_subdev_ops = {
 	.core	= &mt9t112_subdev_core_ops,
 	.video	= &mt9t112_subdev_video_ops,
+	.pad	= &mt9t112_subdev_pad_ops,
 };
 
 static int mt9t112_camera_probe(struct i2c_client *client)

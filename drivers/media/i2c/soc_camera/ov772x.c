@@ -989,13 +989,14 @@ static struct v4l2_subdev_core_ops ov772x_subdev_core_ops = {
 	.s_power	= ov772x_s_power,
 };
 
-static int ov772x_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
-			   u32 *code)
+static int ov772x_enum_mbus_code(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (index >= ARRAY_SIZE(ov772x_cfmts))
+	if (code->pad || code->index >= ARRAY_SIZE(ov772x_cfmts))
 		return -EINVAL;
 
-	*code = ov772x_cfmts[index].code;
+	code->code = ov772x_cfmts[code->index].code;
 	return 0;
 }
 
@@ -1021,13 +1022,17 @@ static struct v4l2_subdev_video_ops ov772x_subdev_video_ops = {
 	.try_mbus_fmt	= ov772x_try_fmt,
 	.cropcap	= ov772x_cropcap,
 	.g_crop		= ov772x_g_crop,
-	.enum_mbus_fmt	= ov772x_enum_fmt,
 	.g_mbus_config	= ov772x_g_mbus_config,
+};
+
+static const struct v4l2_subdev_pad_ops ov772x_subdev_pad_ops = {
+	.enum_mbus_code = ov772x_enum_mbus_code,
 };
 
 static struct v4l2_subdev_ops ov772x_subdev_ops = {
 	.core	= &ov772x_subdev_core_ops,
 	.video	= &ov772x_subdev_video_ops,
+	.pad	= &ov772x_subdev_pad_ops,
 };
 
 /*

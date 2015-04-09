@@ -839,13 +839,14 @@ static struct v4l2_subdev_core_ops mt9m111_subdev_core_ops = {
 #endif
 };
 
-static int mt9m111_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
-			    u32 *code)
+static int mt9m111_enum_mbus_code(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (index >= ARRAY_SIZE(mt9m111_colour_fmts))
+	if (code->pad || code->index >= ARRAY_SIZE(mt9m111_colour_fmts))
 		return -EINVAL;
 
-	*code = mt9m111_colour_fmts[index].code;
+	code->code = mt9m111_colour_fmts[code->index].code;
 	return 0;
 }
 
@@ -871,13 +872,17 @@ static struct v4l2_subdev_video_ops mt9m111_subdev_video_ops = {
 	.s_crop		= mt9m111_s_crop,
 	.g_crop		= mt9m111_g_crop,
 	.cropcap	= mt9m111_cropcap,
-	.enum_mbus_fmt	= mt9m111_enum_fmt,
 	.g_mbus_config	= mt9m111_g_mbus_config,
+};
+
+static const struct v4l2_subdev_pad_ops mt9m111_subdev_pad_ops = {
+	.enum_mbus_code = mt9m111_enum_mbus_code,
 };
 
 static struct v4l2_subdev_ops mt9m111_subdev_ops = {
 	.core	= &mt9m111_subdev_core_ops,
 	.video	= &mt9m111_subdev_video_ops,
+	.pad	= &mt9m111_subdev_pad_ops,
 };
 
 /*

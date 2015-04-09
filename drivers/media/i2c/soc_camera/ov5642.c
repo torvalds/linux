@@ -839,13 +839,14 @@ static int ov5642_g_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int ov5642_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
-			   u32 *code)
+static int ov5642_enum_mbus_code(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (index >= ARRAY_SIZE(ov5642_colour_fmts))
+	if (code->pad || code->index >= ARRAY_SIZE(ov5642_colour_fmts))
 		return -EINVAL;
 
-	*code = ov5642_colour_fmts[index].code;
+	code->code = ov5642_colour_fmts[code->index].code;
 	return 0;
 }
 
@@ -942,11 +943,14 @@ static struct v4l2_subdev_video_ops ov5642_subdev_video_ops = {
 	.s_mbus_fmt	= ov5642_s_fmt,
 	.g_mbus_fmt	= ov5642_g_fmt,
 	.try_mbus_fmt	= ov5642_try_fmt,
-	.enum_mbus_fmt	= ov5642_enum_fmt,
 	.s_crop		= ov5642_s_crop,
 	.g_crop		= ov5642_g_crop,
 	.cropcap	= ov5642_cropcap,
 	.g_mbus_config	= ov5642_g_mbus_config,
+};
+
+static const struct v4l2_subdev_pad_ops ov5642_subdev_pad_ops = {
+	.enum_mbus_code = ov5642_enum_mbus_code,
 };
 
 static struct v4l2_subdev_core_ops ov5642_subdev_core_ops = {
@@ -960,6 +964,7 @@ static struct v4l2_subdev_core_ops ov5642_subdev_core_ops = {
 static struct v4l2_subdev_ops ov5642_subdev_ops = {
 	.core	= &ov5642_subdev_core_ops,
 	.video	= &ov5642_subdev_video_ops,
+	.pad	= &ov5642_subdev_pad_ops,
 };
 
 static int ov5642_video_probe(struct i2c_client *client)

@@ -1867,13 +1867,14 @@ static int adv7842_s_routing(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int adv7842_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned int index,
-				 u32 *code)
+static int adv7842_enum_mbus_code(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (index)
+	if (code->pad || code->index)
 		return -EINVAL;
 	/* Good enough for now */
-	*code = MEDIA_BUS_FMT_FIXED;
+	code->code = MEDIA_BUS_FMT_FIXED;
 	return 0;
 }
 
@@ -2809,7 +2810,6 @@ static const struct v4l2_subdev_video_ops adv7842_video_ops = {
 	.s_dv_timings = adv7842_s_dv_timings,
 	.g_dv_timings = adv7842_g_dv_timings,
 	.query_dv_timings = adv7842_query_dv_timings,
-	.enum_mbus_fmt = adv7842_enum_mbus_fmt,
 	.g_mbus_fmt = adv7842_g_mbus_fmt,
 	.try_mbus_fmt = adv7842_g_mbus_fmt,
 	.s_mbus_fmt = adv7842_g_mbus_fmt,
@@ -2820,6 +2820,7 @@ static const struct v4l2_subdev_pad_ops adv7842_pad_ops = {
 	.set_edid = adv7842_set_edid,
 	.enum_dv_timings = adv7842_enum_dv_timings,
 	.dv_timings_cap = adv7842_dv_timings_cap,
+	.enum_mbus_code = adv7842_enum_mbus_code,
 };
 
 static const struct v4l2_subdev_ops adv7842_ops = {

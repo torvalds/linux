@@ -925,13 +925,14 @@ static int ov2640_try_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int ov2640_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
-			   u32 *code)
+static int ov2640_enum_mbus_code(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (index >= ARRAY_SIZE(ov2640_codes))
+	if (code->pad || code->index >= ARRAY_SIZE(ov2640_codes))
 		return -EINVAL;
 
-	*code = ov2640_codes[index];
+	code->code = ov2640_codes[code->index];
 	return 0;
 }
 
@@ -1036,13 +1037,17 @@ static struct v4l2_subdev_video_ops ov2640_subdev_video_ops = {
 	.try_mbus_fmt	= ov2640_try_fmt,
 	.cropcap	= ov2640_cropcap,
 	.g_crop		= ov2640_g_crop,
-	.enum_mbus_fmt	= ov2640_enum_fmt,
 	.g_mbus_config	= ov2640_g_mbus_config,
+};
+
+static const struct v4l2_subdev_pad_ops ov2640_subdev_pad_ops = {
+	.enum_mbus_code = ov2640_enum_mbus_code,
 };
 
 static struct v4l2_subdev_ops ov2640_subdev_ops = {
 	.core	= &ov2640_subdev_core_ops,
 	.video	= &ov2640_subdev_video_ops,
+	.pad	= &ov2640_subdev_pad_ops,
 };
 
 /* OF probe functions */

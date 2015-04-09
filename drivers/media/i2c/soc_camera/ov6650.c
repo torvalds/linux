@@ -716,13 +716,14 @@ static int ov6650_try_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int ov6650_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
-			   u32 *code)
+static int ov6650_enum_mbus_code(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (index >= ARRAY_SIZE(ov6650_codes))
+	if (code->pad || code->index >= ARRAY_SIZE(ov6650_codes))
 		return -EINVAL;
 
-	*code = ov6650_codes[index];
+	code->code = ov6650_codes[code->index];
 	return 0;
 }
 
@@ -932,7 +933,6 @@ static struct v4l2_subdev_video_ops ov6650_video_ops = {
 	.g_mbus_fmt	= ov6650_g_fmt,
 	.s_mbus_fmt	= ov6650_s_fmt,
 	.try_mbus_fmt	= ov6650_try_fmt,
-	.enum_mbus_fmt	= ov6650_enum_fmt,
 	.cropcap	= ov6650_cropcap,
 	.g_crop		= ov6650_g_crop,
 	.s_crop		= ov6650_s_crop,
@@ -942,9 +942,14 @@ static struct v4l2_subdev_video_ops ov6650_video_ops = {
 	.s_mbus_config	= ov6650_s_mbus_config,
 };
 
+static const struct v4l2_subdev_pad_ops ov6650_pad_ops = {
+	.enum_mbus_code = ov6650_enum_mbus_code,
+};
+
 static struct v4l2_subdev_ops ov6650_subdev_ops = {
 	.core	= &ov6650_core_ops,
 	.video	= &ov6650_video_ops,
+	.pad	= &ov6650_pad_ops,
 };
 
 /*

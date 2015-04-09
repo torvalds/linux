@@ -324,13 +324,14 @@ static int mt9v011_reset(struct v4l2_subdev *sd, u32 val)
 	return 0;
 }
 
-static int mt9v011_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned index,
-					u32 *code)
+static int mt9v011_enum_mbus_code(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (index > 0)
+	if (code->pad || code->index > 0)
 		return -EINVAL;
 
-	*code = MEDIA_BUS_FMT_SGRBG8_1X8;
+	code->code = MEDIA_BUS_FMT_SGRBG8_1X8;
 	return 0;
 }
 
@@ -469,16 +470,20 @@ static const struct v4l2_subdev_core_ops mt9v011_core_ops = {
 };
 
 static const struct v4l2_subdev_video_ops mt9v011_video_ops = {
-	.enum_mbus_fmt = mt9v011_enum_mbus_fmt,
 	.try_mbus_fmt = mt9v011_try_mbus_fmt,
 	.s_mbus_fmt = mt9v011_s_mbus_fmt,
 	.g_parm = mt9v011_g_parm,
 	.s_parm = mt9v011_s_parm,
 };
 
+static const struct v4l2_subdev_pad_ops mt9v011_pad_ops = {
+	.enum_mbus_code = mt9v011_enum_mbus_code,
+};
+
 static const struct v4l2_subdev_ops mt9v011_ops = {
 	.core  = &mt9v011_core_ops,
 	.video = &mt9v011_video_ops,
+	.pad   = &mt9v011_pad_ops,
 };
 
 

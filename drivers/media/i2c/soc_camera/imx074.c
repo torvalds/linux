@@ -235,13 +235,15 @@ static int imx074_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
 	return 0;
 }
 
-static int imx074_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
-			   u32 *code)
+static int imx074_enum_mbus_code(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_mbus_code_enum *code)
 {
-	if ((unsigned int)index >= ARRAY_SIZE(imx074_colour_fmts))
+	if (code->pad ||
+	    (unsigned int)code->index >= ARRAY_SIZE(imx074_colour_fmts))
 		return -EINVAL;
 
-	*code = imx074_colour_fmts[index].code;
+	code->code = imx074_colour_fmts[code->index].code;
 	return 0;
 }
 
@@ -278,7 +280,6 @@ static struct v4l2_subdev_video_ops imx074_subdev_video_ops = {
 	.s_mbus_fmt	= imx074_s_fmt,
 	.g_mbus_fmt	= imx074_g_fmt,
 	.try_mbus_fmt	= imx074_try_fmt,
-	.enum_mbus_fmt	= imx074_enum_fmt,
 	.g_crop		= imx074_g_crop,
 	.cropcap	= imx074_cropcap,
 	.g_mbus_config	= imx074_g_mbus_config,
@@ -288,9 +289,14 @@ static struct v4l2_subdev_core_ops imx074_subdev_core_ops = {
 	.s_power	= imx074_s_power,
 };
 
+static const struct v4l2_subdev_pad_ops imx074_subdev_pad_ops = {
+	.enum_mbus_code = imx074_enum_mbus_code,
+};
+
 static struct v4l2_subdev_ops imx074_subdev_ops = {
 	.core	= &imx074_subdev_core_ops,
 	.video	= &imx074_subdev_video_ops,
+	.pad	= &imx074_subdev_pad_ops,
 };
 
 static int imx074_video_probe(struct i2c_client *client)

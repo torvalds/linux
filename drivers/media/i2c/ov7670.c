@@ -899,13 +899,14 @@ static int ov7670_set_hw(struct v4l2_subdev *sd, int hstart, int hstop,
 }
 
 
-static int ov7670_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned index,
-					u32 *code)
+static int ov7670_enum_mbus_code(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (index >= N_OV7670_FMTS)
+	if (code->pad || code->index >= N_OV7670_FMTS)
 		return -EINVAL;
 
-	*code = ov7670_formats[index].mbus_code;
+	code->code = ov7670_formats[code->index].mbus_code;
 	return 0;
 }
 
@@ -1508,7 +1509,6 @@ static const struct v4l2_subdev_core_ops ov7670_core_ops = {
 };
 
 static const struct v4l2_subdev_video_ops ov7670_video_ops = {
-	.enum_mbus_fmt = ov7670_enum_mbus_fmt,
 	.try_mbus_fmt = ov7670_try_mbus_fmt,
 	.s_mbus_fmt = ov7670_s_mbus_fmt,
 	.s_parm = ov7670_s_parm,
@@ -1518,6 +1518,7 @@ static const struct v4l2_subdev_video_ops ov7670_video_ops = {
 static const struct v4l2_subdev_pad_ops ov7670_pad_ops = {
 	.enum_frame_interval = ov7670_enum_frame_interval,
 	.enum_frame_size = ov7670_enum_frame_size,
+	.enum_mbus_code = ov7670_enum_mbus_code,
 };
 
 static const struct v4l2_subdev_ops ov7670_ops = {

@@ -156,14 +156,18 @@ static struct bcap_buffer *to_bcap_vb(struct vb2_buffer *vb)
 
 static int bcap_init_sensor_formats(struct bcap_device *bcap_dev)
 {
-	u32 code;
+	struct v4l2_subdev_mbus_code_enum code = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
 	struct bcap_format *sf;
 	unsigned int num_formats = 0;
 	int i, j;
 
-	while (!v4l2_subdev_call(bcap_dev->sd, video,
-				enum_mbus_fmt, num_formats, &code))
+	while (!v4l2_subdev_call(bcap_dev->sd, pad,
+				enum_mbus_code, NULL, &code)) {
 		num_formats++;
+		code.index++;
+	}
 	if (!num_formats)
 		return -ENXIO;
 
@@ -172,10 +176,11 @@ static int bcap_init_sensor_formats(struct bcap_device *bcap_dev)
 		return -ENOMEM;
 
 	for (i = 0; i < num_formats; i++) {
-		v4l2_subdev_call(bcap_dev->sd, video,
-				enum_mbus_fmt, i, &code);
+		code.index = i;
+		v4l2_subdev_call(bcap_dev->sd, pad,
+				enum_mbus_code, NULL, &code);
 		for (j = 0; j < BCAP_MAX_FMTS; j++)
-			if (code == bcap_formats[j].mbus_code)
+			if (code.code == bcap_formats[j].mbus_code)
 				break;
 		if (j == BCAP_MAX_FMTS) {
 			/* we don't allow this sensor working with our bridge */

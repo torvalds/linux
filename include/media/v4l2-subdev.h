@@ -293,8 +293,6 @@ struct v4l2_mbus_frame_desc {
 
    g_dv_timings(): Get custom dv timings in the sub device.
 
-   enum_mbus_fmt: enumerate pixel formats, provided by a video data source
-
    g_mbus_fmt: get the current pixel format, provided by a video data source
 
    try_mbus_fmt: try to set a pixel format on a video data source
@@ -338,8 +336,6 @@ struct v4l2_subdev_video_ops {
 			struct v4l2_dv_timings *timings);
 	int (*query_dv_timings)(struct v4l2_subdev *sd,
 			struct v4l2_dv_timings *timings);
-	int (*enum_mbus_fmt)(struct v4l2_subdev *sd, unsigned int index,
-			     u32 *code);
 	int (*g_mbus_fmt)(struct v4l2_subdev *sd,
 			  struct v4l2_mbus_framefmt *fmt);
 	int (*try_mbus_fmt)(struct v4l2_subdev *sd,

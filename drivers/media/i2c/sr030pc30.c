@@ -471,13 +471,15 @@ static int sr030pc30_s_ctrl(struct v4l2_ctrl *ctrl)
 	return 0;
 }
 
-static int sr030pc30_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
-			      u32 *code)
+static int sr030pc30_enum_mbus_code(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (!code || index >= ARRAY_SIZE(sr030pc30_formats))
+	if (!code || code->pad ||
+	    code->index >= ARRAY_SIZE(sr030pc30_formats))
 		return -EINVAL;
 
-	*code = sr030pc30_formats[index].code;
+	code->code = sr030pc30_formats[code->index].code;
 	return 0;
 }
 
@@ -640,12 +642,16 @@ static const struct v4l2_subdev_video_ops sr030pc30_video_ops = {
 	.g_mbus_fmt	= sr030pc30_g_fmt,
 	.s_mbus_fmt	= sr030pc30_s_fmt,
 	.try_mbus_fmt	= sr030pc30_try_fmt,
-	.enum_mbus_fmt	= sr030pc30_enum_fmt,
+};
+
+static const struct v4l2_subdev_pad_ops sr030pc30_pad_ops = {
+	.enum_mbus_code = sr030pc30_enum_mbus_code,
 };
 
 static const struct v4l2_subdev_ops sr030pc30_ops = {
 	.core	= &sr030pc30_core_ops,
 	.video	= &sr030pc30_video_ops,
+	.pad	= &sr030pc30_pad_ops,
 };
 
 /*

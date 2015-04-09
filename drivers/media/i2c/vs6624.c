@@ -557,13 +557,14 @@ static int vs6624_s_ctrl(struct v4l2_ctrl *ctrl)
 	return 0;
 }
 
-static int vs6624_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned index,
-				u32 *code)
+static int vs6624_enum_mbus_code(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (index >= ARRAY_SIZE(vs6624_formats))
+	if (code->pad || code->index >= ARRAY_SIZE(vs6624_formats))
 		return -EINVAL;
 
-	*code = vs6624_formats[index].mbus_code;
+	code->code = vs6624_formats[code->index].mbus_code;
 	return 0;
 }
 
@@ -738,7 +739,6 @@ static const struct v4l2_subdev_core_ops vs6624_core_ops = {
 };
 
 static const struct v4l2_subdev_video_ops vs6624_video_ops = {
-	.enum_mbus_fmt = vs6624_enum_mbus_fmt,
 	.try_mbus_fmt = vs6624_try_mbus_fmt,
 	.s_mbus_fmt = vs6624_s_mbus_fmt,
 	.g_mbus_fmt = vs6624_g_mbus_fmt,
@@ -747,9 +747,14 @@ static const struct v4l2_subdev_video_ops vs6624_video_ops = {
 	.s_stream = vs6624_s_stream,
 };
 
+static const struct v4l2_subdev_pad_ops vs6624_pad_ops = {
+	.enum_mbus_code = vs6624_enum_mbus_code,
+};
+
 static const struct v4l2_subdev_ops vs6624_ops = {
 	.core = &vs6624_core_ops,
 	.video = &vs6624_video_ops,
+	.pad = &vs6624_pad_ops,
 };
 
 static int vs6624_probe(struct i2c_client *client,

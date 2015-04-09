@@ -484,10 +484,14 @@ static int soc_camera_init_user_formats(struct soc_camera_device *icd)
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	unsigned int i, fmts = 0, raw_fmts = 0;
 	int ret;
-	u32 code;
+	struct v4l2_subdev_mbus_code_enum code = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
 
-	while (!v4l2_subdev_call(sd, video, enum_mbus_fmt, raw_fmts, &code))
+	while (!v4l2_subdev_call(sd, pad, enum_mbus_code, NULL, &code)) {
 		raw_fmts++;
+		code.index++;
+	}
 
 	if (!ici->ops->get_formats)
 		/*
@@ -521,11 +525,12 @@ static int soc_camera_init_user_formats(struct soc_camera_device *icd)
 	fmts = 0;
 	for (i = 0; i < raw_fmts; i++)
 		if (!ici->ops->get_formats) {
-			v4l2_subdev_call(sd, video, enum_mbus_fmt, i, &code);
+			code.index = i;
+			v4l2_subdev_call(sd, pad, enum_mbus_code, NULL, &code);
 			icd->user_formats[fmts].host_fmt =
-				soc_mbus_get_fmtdesc(code);
+				soc_mbus_get_fmtdesc(code.code);
 			if (icd->user_formats[fmts].host_fmt)
-				icd->user_formats[fmts++].code = code;
+				icd->user_formats[fmts++].code = code.code;
 		} else {
 			ret = ici->ops->get_formats(icd, i,
 						    &icd->user_formats[fmts]);

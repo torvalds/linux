@@ -716,13 +716,14 @@ static int ov9740_try_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int ov9740_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
-			   u32 *code)
+static int ov9740_enum_mbus_code(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (index >= ARRAY_SIZE(ov9740_codes))
+	if (code->pad || code->index >= ARRAY_SIZE(ov9740_codes))
 		return -EINVAL;
 
-	*code = ov9740_codes[index];
+	code->code = ov9740_codes[code->index];
 
 	return 0;
 }
@@ -906,7 +907,6 @@ static struct v4l2_subdev_video_ops ov9740_video_ops = {
 	.s_stream	= ov9740_s_stream,
 	.s_mbus_fmt	= ov9740_s_fmt,
 	.try_mbus_fmt	= ov9740_try_fmt,
-	.enum_mbus_fmt	= ov9740_enum_fmt,
 	.cropcap	= ov9740_cropcap,
 	.g_crop		= ov9740_g_crop,
 	.g_mbus_config	= ov9740_g_mbus_config,
@@ -920,9 +920,14 @@ static struct v4l2_subdev_core_ops ov9740_core_ops = {
 #endif
 };
 
+static const struct v4l2_subdev_pad_ops ov9740_pad_ops = {
+	.enum_mbus_code = ov9740_enum_mbus_code,
+};
+
 static struct v4l2_subdev_ops ov9740_subdev_ops = {
-	.core			= &ov9740_core_ops,
-	.video			= &ov9740_video_ops,
+	.core	= &ov9740_core_ops,
+	.video	= &ov9740_video_ops,
+	.pad	= &ov9740_pad_ops,
 };
 
 static const struct v4l2_ctrl_ops ov9740_ctrl_ops = {
