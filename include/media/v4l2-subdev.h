@@ -293,10 +293,6 @@ struct v4l2_mbus_frame_desc {
 
    g_dv_timings(): Get custom dv timings in the sub device.
 
-   try_mbus_fmt: try to set a pixel format on a video data source
-
-   s_mbus_fmt: set a pixel format on a video data source
-
    g_mbus_config: get supported mediabus configurations
 
    s_mbus_config: set a certain mediabus configuration. This operation is added
@@ -334,10 +330,6 @@ struct v4l2_subdev_video_ops {
 			struct v4l2_dv_timings *timings);
 	int (*query_dv_timings)(struct v4l2_subdev *sd,
 			struct v4l2_dv_timings *timings);
-	int (*try_mbus_fmt)(struct v4l2_subdev *sd,
-			    struct v4l2_mbus_framefmt *fmt);
-	int (*s_mbus_fmt)(struct v4l2_subdev *sd,
-			  struct v4l2_mbus_framefmt *fmt);
 	int (*g_mbus_config)(struct v4l2_subdev *sd,
 			     struct v4l2_mbus_config *cfg);
 	int (*s_mbus_config)(struct v4l2_subdev *sd,

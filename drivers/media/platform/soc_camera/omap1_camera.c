@@ -1157,7 +1157,7 @@ static int dma_align(int *width, int *height,
 	return 1;
 }
 
-#define subdev_call_with_sense(pcdev, dev, icd, sd, function, args...)		     \
+#define subdev_call_with_sense(pcdev, dev, icd, sd, op, function, args...)		     \
 ({										     \
 	struct soc_camera_sense sense = {					     \
 		.master_clock		= pcdev->camexclk,			     \
@@ -1168,7 +1168,7 @@ static int dma_align(int *width, int *height,
 	if (pcdev->pdata)							     \
 		sense.pixel_clock_max = pcdev->pdata->lclk_khz_max * 1000;	     \
 	icd->sense = &sense;							     \
-	__ret = v4l2_subdev_call(sd, video, function, ##args);			     \
+	__ret = v4l2_subdev_call(sd, op, function, ##args);			     \
 	icd->sense = NULL;							     \
 										     \
 	if (sense.flags & SOCAM_SENSE_PCLK_CHANGED) {				     \
@@ -1182,16 +1182,17 @@ static int dma_align(int *width, int *height,
 	__ret;									     \
 })
 
-static int set_mbus_format(struct omap1_cam_dev *pcdev, struct device *dev,
+static int set_format(struct omap1_cam_dev *pcdev, struct device *dev,
 		struct soc_camera_device *icd, struct v4l2_subdev *sd,
-		struct v4l2_mbus_framefmt *mf,
+		struct v4l2_subdev_format *format,
 		const struct soc_camera_format_xlate *xlate)
 {
 	s32 bytes_per_line;
-	int ret = subdev_call_with_sense(pcdev, dev, icd, sd, s_mbus_fmt, mf);
+	struct v4l2_mbus_framefmt *mf = &format->format;
+	int ret = subdev_call_with_sense(pcdev, dev, icd, sd, pad, set_fmt, NULL, format);
 
 	if (ret < 0) {
-		dev_err(dev, "%s: s_mbus_fmt failed\n", __func__);
+		dev_err(dev, "%s: set_fmt failed\n", __func__);
 		return ret;
 	}
 
@@ -1230,7 +1231,7 @@ static int omap1_cam_set_crop(struct soc_camera_device *icd,
 	struct v4l2_mbus_framefmt *mf = &fmt.format;
 	int ret;
 
-	ret = subdev_call_with_sense(pcdev, dev, icd, sd, s_crop, crop);
+	ret = subdev_call_with_sense(pcdev, dev, icd, sd, video, s_crop, crop);
 	if (ret < 0) {
 		dev_warn(dev, "%s: failed to crop to %ux%u@%u:%u\n", __func__,
 			 rect->width, rect->height, rect->left, rect->top);
@@ -1254,7 +1255,7 @@ static int omap1_cam_set_crop(struct soc_camera_device *icd,
 
 	if (!ret) {
 		/* sensor returned geometry not DMA aligned, trying to fix */
-		ret = set_mbus_format(pcdev, dev, icd, sd, mf, xlate);
+		ret = set_format(pcdev, dev, icd, sd, &fmt, xlate);
 		if (ret < 0) {
 			dev_err(dev, "%s: failed to set format\n", __func__);
 			return ret;
@@ -1276,7 +1277,10 @@ static int omap1_cam_set_fmt(struct soc_camera_device *icd,
 	struct soc_camera_host *ici = to_soc_camera_host(dev);
 	struct omap1_cam_dev *pcdev = ici->priv;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
-	struct v4l2_mbus_framefmt mf;
+	struct v4l2_subdev_format format = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
+	struct v4l2_mbus_framefmt *mf = &format.format;
 	int ret;
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pix->pixelformat);
@@ -1286,13 +1290,13 @@ static int omap1_cam_set_fmt(struct soc_camera_device *icd,
 		return -EINVAL;
 	}
 
-	mf.width	= pix->width;
-	mf.height	= pix->height;
-	mf.field	= pix->field;
-	mf.colorspace	= pix->colorspace;
-	mf.code		= xlate->code;
+	mf->width	= pix->width;
+	mf->height	= pix->height;
+	mf->field	= pix->field;
+	mf->colorspace	= pix->colorspace;
+	mf->code	= xlate->code;
 
-	ret = dma_align(&mf.width, &mf.height, xlate->host_fmt, pcdev->vb_mode,
+	ret = dma_align(&mf->width, &mf->height, xlate->host_fmt, pcdev->vb_mode,
 			true);
 	if (ret < 0) {
 		dev_err(dev, "%s: failed to align %ux%u %s with DMA\n",
@@ -1301,16 +1305,16 @@ static int omap1_cam_set_fmt(struct soc_camera_device *icd,
 		return ret;
 	}
 
-	ret = set_mbus_format(pcdev, dev, icd, sd, &mf, xlate);
+	ret = set_format(pcdev, dev, icd, sd, &format, xlate);
 	if (ret < 0) {
 		dev_err(dev, "%s: failed to set format\n", __func__);
 		return ret;
 	}
 
-	pix->width	 = mf.width;
-	pix->height	 = mf.height;
-	pix->field	 = mf.field;
-	pix->colorspace  = mf.colorspace;
+	pix->width	 = mf->width;
+	pix->height	 = mf->height;
+	pix->field	 = mf->field;
+	pix->colorspace  = mf->colorspace;
 	icd->current_fmt = xlate;
 
 	return 0;

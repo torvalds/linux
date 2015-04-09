@@ -1376,8 +1376,8 @@ static int rcar_vin_get_formats(struct soc_camera_device *icd, unsigned int idx,
 			mf->height = 960 >> shift;
 			ret = v4l2_device_call_until_err(sd->v4l2_dev,
 							 soc_camera_grp_id(icd),
-							 video, s_mbus_fmt,
-							 mf);
+							 pad, set_fmt, NULL,
+							 &fmt);
 			if (ret < 0)
 				return ret;
 		}

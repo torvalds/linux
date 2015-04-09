@@ -679,12 +679,14 @@ static int sh_vou_s_fmt_vid_out(struct file *file, void *priv,
 	unsigned int img_height_max;
 	int pix_idx;
 	struct sh_vou_geometry geo;
-	struct v4l2_mbus_framefmt mbfmt = {
+	struct v4l2_subdev_format format = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
 		/* Revisit: is this the correct code? */
-		.code = MEDIA_BUS_FMT_YUYV8_2X8,
-		.field = V4L2_FIELD_INTERLACED,
-		.colorspace = V4L2_COLORSPACE_SMPTE170M,
+		.format.code = MEDIA_BUS_FMT_YUYV8_2X8,
+		.format.field = V4L2_FIELD_INTERLACED,
+		.format.colorspace = V4L2_COLORSPACE_SMPTE170M,
 	};
+	struct v4l2_mbus_framefmt *mbfmt = &format.format;
 	int ret;
 
 	dev_dbg(vou_dev->v4l2_dev.dev, "%s(): %ux%u -> %ux%u\n", __func__,
@@ -720,27 +722,27 @@ static int sh_vou_s_fmt_vid_out(struct file *file, void *priv,
 
 	vou_adjust_output(&geo, vou_dev->std);
 
-	mbfmt.width = geo.output.width;
-	mbfmt.height = geo.output.height;
-	ret = v4l2_device_call_until_err(&vou_dev->v4l2_dev, 0, video,
-					 s_mbus_fmt, &mbfmt);
+	mbfmt->width = geo.output.width;
+	mbfmt->height = geo.output.height;
+	ret = v4l2_device_call_until_err(&vou_dev->v4l2_dev, 0, pad,
+					 set_fmt, NULL, &format);
 	/* Must be implemented, so, don't check for -ENOIOCTLCMD */
 	if (ret < 0)
 		return ret;
 
 	dev_dbg(vou_dev->v4l2_dev.dev, "%s(): %ux%u -> %ux%u\n", __func__,
-		geo.output.width, geo.output.height, mbfmt.width, mbfmt.height);
+		geo.output.width, geo.output.height, mbfmt->width, mbfmt->height);
 
 	/* Sanity checks */
-	if ((unsigned)mbfmt.width > VOU_MAX_IMAGE_WIDTH ||
-	    (unsigned)mbfmt.height > img_height_max ||
-	    mbfmt.code != MEDIA_BUS_FMT_YUYV8_2X8)
+	if ((unsigned)mbfmt->width > VOU_MAX_IMAGE_WIDTH ||
+	    (unsigned)mbfmt->height > img_height_max ||
+	    mbfmt->code != MEDIA_BUS_FMT_YUYV8_2X8)
 		return -EIO;
 
-	if (mbfmt.width != geo.output.width ||
-	    mbfmt.height != geo.output.height) {
-		geo.output.width = mbfmt.width;
-		geo.output.height = mbfmt.height;
+	if (mbfmt->width != geo.output.width ||
+	    mbfmt->height != geo.output.height) {
+		geo.output.width = mbfmt->width;
+		geo.output.height = mbfmt->height;
 
 		vou_adjust_input(&geo, vou_dev->std);
 	}
@@ -942,11 +944,12 @@ static int sh_vou_s_crop(struct file *file, void *fh, const struct v4l2_crop *a)
 	struct v4l2_crop sd_crop = {.type = V4L2_BUF_TYPE_VIDEO_OUTPUT};
 	struct v4l2_pix_format *pix = &vou_dev->pix;
 	struct sh_vou_geometry geo;
-	struct v4l2_mbus_framefmt mbfmt = {
+	struct v4l2_subdev_format format = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
 		/* Revisit: is this the correct code? */
-		.code = MEDIA_BUS_FMT_YUYV8_2X8,
-		.field = V4L2_FIELD_INTERLACED,
-		.colorspace = V4L2_COLORSPACE_SMPTE170M,
+		.format.code = MEDIA_BUS_FMT_YUYV8_2X8,
+		.format.field = V4L2_FIELD_INTERLACED,
+		.format.colorspace = V4L2_COLORSPACE_SMPTE170M,
 	};
 	unsigned int img_height_max;
 	int ret;
@@ -984,22 +987,22 @@ static int sh_vou_s_crop(struct file *file, void *fh, const struct v4l2_crop *a)
 	 */
 	v4l2_device_call_until_err(&vou_dev->v4l2_dev, 0, video,
 				   s_crop, &sd_crop);
-	mbfmt.width = geo.output.width;
-	mbfmt.height = geo.output.height;
-	ret = v4l2_device_call_until_err(&vou_dev->v4l2_dev, 0, video,
-					 s_mbus_fmt, &mbfmt);
+	format.format.width = geo.output.width;
+	format.format.height = geo.output.height;
+	ret = v4l2_device_call_until_err(&vou_dev->v4l2_dev, 0, pad,
+					 set_fmt, NULL, &format);
 	/* Must be implemented, so, don't check for -ENOIOCTLCMD */
 	if (ret < 0)
 		return ret;
 
 	/* Sanity checks */
-	if ((unsigned)mbfmt.width > VOU_MAX_IMAGE_WIDTH ||
-	    (unsigned)mbfmt.height > img_height_max ||
-	    mbfmt.code != MEDIA_BUS_FMT_YUYV8_2X8)
+	if ((unsigned)format.format.width > VOU_MAX_IMAGE_WIDTH ||
+	    (unsigned)format.format.height > img_height_max ||
+	    format.format.code != MEDIA_BUS_FMT_YUYV8_2X8)
 		return -EIO;
 
-	geo.output.width = mbfmt.width;
-	geo.output.height = mbfmt.height;
+	geo.output.width = format.format.width;
+	geo.output.height = format.format.height;
 
 	/*
 	 * No down-scaling. According to the API, current call has precedence:

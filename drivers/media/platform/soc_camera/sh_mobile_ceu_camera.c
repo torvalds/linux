@@ -1111,8 +1111,8 @@ static int sh_mobile_ceu_get_formats(struct soc_camera_device *icd, unsigned int
 			mf->width	= 2560 >> shift;
 			mf->height	= 1920 >> shift;
 			ret = v4l2_device_call_until_err(sd->v4l2_dev,
-					soc_camera_grp_id(icd), video,
-					s_mbus_fmt, mf);
+					soc_camera_grp_id(icd), pad,
+					set_fmt, NULL, &fmt);
 			if (ret < 0)
 				return ret;
 			shift++;
@@ -1286,8 +1286,8 @@ static int sh_mobile_ceu_set_crop(struct soc_camera_device *icd,
 
 	if (interm_width < icd->user_width || interm_height < icd->user_height) {
 		ret = v4l2_device_call_until_err(sd->v4l2_dev,
-					soc_camera_grp_id(icd), video,
-					s_mbus_fmt, mf);
+					soc_camera_grp_id(icd), pad,
+					set_fmt, NULL, &fmt);
 		if (ret < 0)
 			return ret;
 

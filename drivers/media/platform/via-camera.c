@@ -249,13 +249,15 @@ static int viacam_set_flip(struct via_camera *cam)
  */
 static int viacam_configure_sensor(struct via_camera *cam)
 {
-	struct v4l2_mbus_framefmt mbus_fmt;
+	struct v4l2_subdev_format format = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
 	int ret;
 
-	v4l2_fill_mbus_format(&mbus_fmt, &cam->sensor_format, cam->mbus_code);
+	v4l2_fill_mbus_format(&format.format, &cam->sensor_format, cam->mbus_code);
 	ret = sensor_call(cam, core, init, 0);
 	if (ret == 0)
-		ret = sensor_call(cam, video, s_mbus_fmt, &mbus_fmt);
+		ret = sensor_call(cam, pad, set_fmt, NULL, &format);
 	/*
 	 * OV7670 does weird things if flip is set *before* format...
 	 */

@@ -1127,7 +1127,10 @@ static int mx2_camera_set_fmt(struct soc_camera_device *icd,
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	const struct soc_camera_format_xlate *xlate;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
-	struct v4l2_mbus_framefmt mf;
+	struct v4l2_subdev_format format = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
+	struct v4l2_mbus_framefmt *mf = &format.format;
 	int ret;
 
 	dev_dbg(icd->parent, "%s: requested params: width = %d, height = %d\n",
@@ -1140,19 +1143,19 @@ static int mx2_camera_set_fmt(struct soc_camera_device *icd,
 		return -EINVAL;
 	}
 
-	mf.width	= pix->width;
-	mf.height	= pix->height;
-	mf.field	= pix->field;
-	mf.colorspace	= pix->colorspace;
-	mf.code		= xlate->code;
+	mf->width	= pix->width;
+	mf->height	= pix->height;
+	mf->field	= pix->field;
+	mf->colorspace	= pix->colorspace;
+	mf->code	= xlate->code;
 
-	ret = v4l2_subdev_call(sd, video, s_mbus_fmt, &mf);
+	ret = v4l2_subdev_call(sd, pad, set_fmt, NULL, &format);
 	if (ret < 0 && ret != -ENOIOCTLCMD)
 		return ret;
 
 	/* Store width and height returned by the sensor for resizing */
-	pcdev->s_width = mf.width;
-	pcdev->s_height = mf.height;
+	pcdev->s_width = mf->width;
+	pcdev->s_height = mf->height;
 	dev_dbg(icd->parent, "%s: sensor params: width = %d, height = %d\n",
 		__func__, pcdev->s_width, pcdev->s_height);
 
@@ -1160,19 +1163,19 @@ static int mx2_camera_set_fmt(struct soc_camera_device *icd,
 						   xlate->host_fmt->fourcc);
 
 	memset(pcdev->resizing, 0, sizeof(pcdev->resizing));
-	if ((mf.width != pix->width || mf.height != pix->height) &&
+	if ((mf->width != pix->width || mf->height != pix->height) &&
 		pcdev->emma_prp->cfg.in_fmt == PRP_CNTL_DATA_IN_YUV422) {
-		if (mx2_emmaprp_resize(pcdev, &mf, pix, true) < 0)
+		if (mx2_emmaprp_resize(pcdev, mf, pix, true) < 0)
 			dev_dbg(icd->parent, "%s: can't resize\n", __func__);
 	}
 
-	if (mf.code != xlate->code)
+	if (mf->code != xlate->code)
 		return -EINVAL;
 
-	pix->width		= mf.width;
-	pix->height		= mf.height;
-	pix->field		= mf.field;
-	pix->colorspace		= mf.colorspace;
+	pix->width		= mf->width;
+	pix->height		= mf->height;
+	pix->field		= mf->field;
+	pix->colorspace		= mf->colorspace;
 	icd->current_fmt	= xlate;
 
 	dev_dbg(icd->parent, "%s: returned params: width = %d, height = %d\n",
