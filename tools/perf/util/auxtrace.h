@@ -333,6 +333,20 @@ int auxtrace_heap__add(struct auxtrace_heap *heap, unsigned int queue_nr,
 void auxtrace_heap__pop(struct auxtrace_heap *heap);
 void auxtrace_heap__free(struct auxtrace_heap *heap);
 
+struct auxtrace_cache_entry {
+	struct hlist_node hash;
+	u32 key;
+};
+
+struct auxtrace_cache *auxtrace_cache__new(unsigned int bits, size_t entry_size,
+					   unsigned int limit_percent);
+void auxtrace_cache__free(struct auxtrace_cache *auxtrace_cache);
+void *auxtrace_cache__alloc_entry(struct auxtrace_cache *c);
+void auxtrace_cache__free_entry(struct auxtrace_cache *c, void *entry);
+int auxtrace_cache__add(struct auxtrace_cache *c, u32 key,
+			struct auxtrace_cache_entry *entry);
+void *auxtrace_cache__lookup(struct auxtrace_cache *c, u32 key);
+
 struct auxtrace_record *auxtrace_record__init(struct perf_evlist *evlist,
 					      int *err);
 

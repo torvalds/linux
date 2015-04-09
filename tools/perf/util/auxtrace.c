@@ -40,6 +40,8 @@
 #include "asm/bug.h"
 #include "auxtrace.h"
 
+#include <linux/hash.h>
+
 #include "event.h"
 #include "session.h"
 #include "debug.h"
@@ -943,4 +945,125 @@ int auxtrace_mmap__read(struct auxtrace_mmap *mm, struct auxtrace_record *itr,
 	}
 
 	return 1;
+}
+
+/**
+ * struct auxtrace_cache - hash table to implement a cache
+ * @hashtable: the hashtable
+ * @sz: hashtable size (number of hlists)
+ * @entry_size: size of an entry
+ * @limit: limit the number of entries to this maximum, when reached the cache
+ *         is dropped and caching begins again with an empty cache
+ * @cnt: current number of entries
+ * @bits: hashtable size (@sz = 2^@bits)
+ */
+struct auxtrace_cache {
+	struct hlist_head *hashtable;
+	size_t sz;
+	size_t entry_size;
+	size_t limit;
+	size_t cnt;
+	unsigned int bits;
+};
+
+struct auxtrace_cache *auxtrace_cache__new(unsigned int bits, size_t entry_size,
+					   unsigned int limit_percent)
+{
+	struct auxtrace_cache *c;
+	struct hlist_head *ht;
+	size_t sz, i;
+
+	c = zalloc(sizeof(struct auxtrace_cache));
+	if (!c)
+		return NULL;
+
+	sz = 1UL << bits;
+
+	ht = calloc(sz, sizeof(struct hlist_head));
+	if (!ht)
+		goto out_free;
+
+	for (i = 0; i < sz; i++)
+		INIT_HLIST_HEAD(&ht[i]);
+
+	c->hashtable = ht;
+	c->sz = sz;
+	c->entry_size = entry_size;
+	c->limit = (c->sz * limit_percent) / 100;
+	c->bits = bits;
+
+	return c;
+
+out_free:
+	free(c);
+	return NULL;
+}
+
+static void auxtrace_cache__drop(struct auxtrace_cache *c)
+{
+	struct auxtrace_cache_entry *entry;
+	struct hlist_node *tmp;
+	size_t i;
+
+	if (!c)
+		return;
+
+	for (i = 0; i < c->sz; i++) {
+		hlist_for_each_entry_safe(entry, tmp, &c->hashtable[i], hash) {
+			hlist_del(&entry->hash);
+			auxtrace_cache__free_entry(c, entry);
+		}
+	}
+
+	c->cnt = 0;
+}
+
+void auxtrace_cache__free(struct auxtrace_cache *c)
+{
+	if (!c)
+		return;
+
+	auxtrace_cache__drop(c);
+	free(c->hashtable);
+	free(c);
+}
+
+void *auxtrace_cache__alloc_entry(struct auxtrace_cache *c)
+{
+	return malloc(c->entry_size);
+}
+
+void auxtrace_cache__free_entry(struct auxtrace_cache *c __maybe_unused,
+				void *entry)
+{
+	free(entry);
+}
+
+int auxtrace_cache__add(struct auxtrace_cache *c, u32 key,
+			struct auxtrace_cache_entry *entry)
+{
+	if (c->limit && ++c->cnt > c->limit)
+		auxtrace_cache__drop(c);
+
+	entry->key = key;
+	hlist_add_head(&entry->hash, &c->hashtable[hash_32(key, c->bits)]);
+
+	return 0;
+}
+
+void *auxtrace_cache__lookup(struct auxtrace_cache *c, u32 key)
+{
+	struct auxtrace_cache_entry *entry;
+	struct hlist_head *hlist;
+
+	if (!c)
+		return NULL;
+
+	hlist = &c->hashtable[hash_32(key, c->bits)];
+	hlist_for_each_entry(entry, hlist, hash) {
+		if (entry->key == key)
+			return entry;
+	}
+
+	return NULL;
 }
