@@ -106,7 +106,7 @@ static void skcipher_async_cb(struct crypto_async_request *req, int err)
 	atomic_dec(&ctx->inflight);
 	skcipher_free_async_sgls(sreq);
 	kfree(req);
-	aio_complete(iocb, err, err);
+	iocb->ki_complete(iocb, err, err);
 }
 
 static inline int skcipher_sndbuf(struct sock *sk)

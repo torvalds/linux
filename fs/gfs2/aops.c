@@ -20,7 +20,7 @@
 #include <linux/swap.h>
 #include <linux/gfs2_ondisk.h>
 #include <linux/backing-dev.h>
-#include <linux/aio.h>
+#include <linux/uio.h>
 #include <trace/events/writeback.h>
 
 #include "gfs2.h"

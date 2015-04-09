@@ -26,7 +26,6 @@
 #include <linux/nfs_mount.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
-#include <linux/aio.h>
 #include <linux/gfp.h>
 #include <linux/swap.h>
 
