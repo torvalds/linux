@@ -108,6 +108,8 @@ OPTIONS
 	Number of mmap data pages (must be a power of two) or size
 	specification with appended unit character - B/K/M/G. The
 	size is rounded up to have nearest pages power of two value.
+	Also, by adding a comma, the number of mmap pages for AUX
+	area tracing can be specified.
 
 --group::
 	Put all events in a single event group.  This precedes the --event
