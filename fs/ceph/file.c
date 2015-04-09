@@ -457,7 +457,7 @@ static ssize_t ceph_sync_read(struct kiocb *iocb, struct iov_iter *i,
 	if (ret < 0)
 		return ret;
 
-	if (file->f_flags & O_DIRECT) {
+	if (iocb->ki_flags & IOCB_DIRECT) {
 		while (iov_iter_count(i)) {
 			size_t start;
 			ssize_t n;
@@ -828,7 +828,7 @@ again:
 		return ret;
 
 	if ((got & (CEPH_CAP_FILE_CACHE|CEPH_CAP_FILE_LAZYIO)) == 0 ||
-	    (iocb->ki_filp->f_flags & O_DIRECT) ||
+	    (iocb->ki_flags & IOCB_DIRECT) ||
 	    (fi->flags & CEPH_F_SYNC)) {
 
 		dout("aio_sync_read %p %llx.%llx %llu~%u got cap refs on %s\n",
@@ -995,12 +995,12 @@ retry_snap:
 	     inode, ceph_vinop(inode), pos, count, ceph_cap_string(got));
 
 	if ((got & (CEPH_CAP_FILE_BUFFER|CEPH_CAP_FILE_LAZYIO)) == 0 ||
-	    (file->f_flags & O_DIRECT) || (fi->flags & CEPH_F_SYNC)) {
+	    (iocb->ki_flags & IOCB_DIRECT) || (fi->flags & CEPH_F_SYNC)) {
 		struct iov_iter data;
 		mutex_unlock(&inode->i_mutex);
 		/* we might need to revert back to that point */
 		data = *from;
-		if (file->f_flags & O_DIRECT)
+		if (iocb->ki_flags & IOCB_DIRECT)
 			written = ceph_sync_direct_write(iocb, &data, pos);
 		else
 			written = ceph_sync_write(iocb, &data, pos);

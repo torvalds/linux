@@ -279,7 +279,7 @@ xfs_file_read_iter(
 
 	XFS_STATS_INC(xs_read_calls);
 
-	if (unlikely(file->f_flags & O_DIRECT))
+	if (unlikely(iocb->ki_flags & IOCB_DIRECT))
 		ioflags |= XFS_IO_ISDIRECT;
 	if (file->f_mode & FMODE_NOCMTIME)
 		ioflags |= XFS_IO_INVIS;
@@ -804,7 +804,7 @@ xfs_file_write_iter(
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
 		return -EIO;
 
-	if (unlikely(file->f_flags & O_DIRECT))
+	if (unlikely(iocb->ki_flags & IOCB_DIRECT))
 		ret = xfs_file_dio_aio_write(iocb, from);
 	else
 		ret = xfs_file_buffered_aio_write(iocb, from);

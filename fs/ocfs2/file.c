@@ -2274,8 +2274,8 @@ static ssize_t ocfs2_file_write_iter(struct kiocb *iocb,
 	if (count == 0)
 		return 0;
 
-	appending = file->f_flags & O_APPEND ? 1 : 0;
-	direct_io = file->f_flags & O_DIRECT ? 1 : 0;
+	appending = iocb->ki_flags & IOCB_APPEND ? 1 : 0;
+	direct_io = iocb->ki_flags & IOCB_DIRECT ? 1 : 0;
 
 	mutex_lock(&inode->i_mutex);
 
@@ -2429,7 +2429,7 @@ relock:
 
 out_dio:
 	/* buffered aio wouldn't have proper lock coverage today */
-	BUG_ON(ret == -EIOCBQUEUED && !(file->f_flags & O_DIRECT));
+	BUG_ON(ret == -EIOCBQUEUED && !(iocb->ki_flags & IOCB_DIRECT));
 
 	if (unlikely(written <= 0))
 		goto no_sync;
@@ -2546,7 +2546,7 @@ static ssize_t ocfs2_file_read_iter(struct kiocb *iocb,
 	 * buffered reads protect themselves in ->readpage().  O_DIRECT reads
 	 * need locks to protect pending reads from racing with truncate.
 	 */
-	if (filp->f_flags & O_DIRECT) {
+	if (iocb->ki_flags & IOCB_DIRECT) {
 		have_alloc_sem = 1;
 		ocfs2_iocb_set_sem_locked(iocb);
 
@@ -2580,7 +2580,7 @@ static ssize_t ocfs2_file_read_iter(struct kiocb *iocb,
 	trace_generic_file_aio_read_ret(ret);
 
 	/* buffered aio wouldn't have proper lock coverage today */
-	BUG_ON(ret == -EIOCBQUEUED && !(filp->f_flags & O_DIRECT));
+	BUG_ON(ret == -EIOCBQUEUED && !(iocb->ki_flags & IOCB_DIRECT));
 
 	/* see ocfs2_file_write_iter */
 	if (ret == -EIOCBQUEUED || !ocfs2_iocb_is_rw_locked(iocb)) {
