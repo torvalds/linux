@@ -314,7 +314,7 @@ struct xgene_dma_chan {
 	struct device *dev;
 	int id;
 	int rx_irq;
-	char name[8];
+	char name[10];
 	spinlock_t lock;
 	int pending;
 	int max_outstanding;
@@ -1876,7 +1876,7 @@ static void xgene_dma_init_channels(struct xgene_dma *pdma)
 		chan->dev = pdma->dev;
 		chan->pdma = pdma;
 		chan->id = i;
-		sprintf(chan->name, "dmachan%d", chan->id);
+		snprintf(chan->name, sizeof(chan->name), "dmachan%d", chan->id);
 	}
 }
 
