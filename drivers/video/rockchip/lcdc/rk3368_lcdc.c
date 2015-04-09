@@ -1733,7 +1733,6 @@ static int lcdc_reset(struct rk_lcdc_driver *dev_drv, bool initscreen)
 		mask = m_WIN0_EN;
 		val = v_WIN0_EN(0);
 		lcdc_msk_reg(lcdc_dev, WIN0_CTRL0, mask, val);
-
 		lcdc_msk_reg(lcdc_dev, WIN1_CTRL0, mask, val);
 
 		mask = m_WIN2_EN | m_WIN2_MST0_EN |
@@ -1784,6 +1783,8 @@ static int rk3368_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 	    container_of(dev_drv, struct lcdc_device, driver);
 	struct rk_screen *screen = dev_drv->cur_screen;
 	u32 mask, val;
+        if (!lcdc_dev->standby && initscreen && (dev_drv->first_frame != 1))
+                flush_kthread_worker(&dev_drv->update_regs_worker);
 
 	spin_lock(&lcdc_dev->reg_lock);
 	if (likely(lcdc_dev->clk_on)) {
