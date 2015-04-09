@@ -1713,12 +1713,6 @@ static int vxlan6_xmit_skb(struct dst_entry *dst, struct sk_buff *skb,
 		}
 	}
 
-	skb = iptunnel_handle_offloads(skb, udp_sum, type);
-	if (IS_ERR(skb)) {
-		err = -EINVAL;
-		goto err;
-	}
-
 	skb_scrub_packet(skb, xnet);
 
 	min_headroom = LL_RESERVED_SPACE(dst->dev) + dst->header_len
@@ -1735,6 +1729,12 @@ static int vxlan6_xmit_skb(struct dst_entry *dst, struct sk_buff *skb,
 	skb = vlan_hwaccel_push_inside(skb);
 	if (WARN_ON(!skb)) {
 		err = -ENOMEM;
+		goto err;
+	}
+
+	skb = iptunnel_handle_offloads(skb, udp_sum, type);
+	if (IS_ERR(skb)) {
+		err = -EINVAL;
 		goto err;
 	}
 
@@ -1798,10 +1798,6 @@ int vxlan_xmit_skb(struct rtable *rt, struct sk_buff *skb,
 		}
 	}
 
-	skb = iptunnel_handle_offloads(skb, udp_sum, type);
-	if (IS_ERR(skb))
-		return PTR_ERR(skb);
-
 	min_headroom = LL_RESERVED_SPACE(rt->dst.dev) + rt->dst.header_len
 			+ VXLAN_HLEN + sizeof(struct iphdr)
 			+ (skb_vlan_tag_present(skb) ? VLAN_HLEN : 0);
@@ -1816,6 +1812,10 @@ int vxlan_xmit_skb(struct rtable *rt, struct sk_buff *skb,
 	skb = vlan_hwaccel_push_inside(skb);
 	if (WARN_ON(!skb))
 		return -ENOMEM;
+
+	skb = iptunnel_handle_offloads(skb, udp_sum, type);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
 
 	vxh = (struct vxlanhdr *) __skb_push(skb, sizeof(*vxh));
 	vxh->vx_flags = htonl(VXLAN_HF_VNI);
