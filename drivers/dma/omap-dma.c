@@ -34,6 +34,7 @@ struct omap_dmadev {
 	const struct omap_dma_reg *reg_map;
 	struct omap_system_dma_plat_info *plat;
 	bool legacy;
+	unsigned dma_requests;
 	spinlock_t irq_lock;
 	uint32_t irq_enable_mask;
 	struct omap_chan *lch_map[OMAP_SDMA_CHANNELS];
@@ -1119,7 +1120,16 @@ static int omap_dma_probe(struct platform_device *pdev)
 
 	tasklet_init(&od->task, omap_dma_sched, (unsigned long)od);
 
-	for (i = 0; i < OMAP_SDMA_REQUESTS; i++) {
+	od->dma_requests = OMAP_SDMA_REQUESTS;
+	if (pdev->dev.of_node && of_property_read_u32(pdev->dev.of_node,
+						      "dma-requests",
+						      &od->dma_requests)) {
+		dev_info(&pdev->dev,
+			 "Missing dma-requests property, using %u.\n",
+			 OMAP_SDMA_REQUESTS);
+	}
+
+	for (i = 0; i < od->dma_requests; i++) {
 		rc = omap_dma_chan_init(od, i);
 		if (rc) {
 			omap_dma_free(od);
