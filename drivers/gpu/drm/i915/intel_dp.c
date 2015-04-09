@@ -5157,7 +5157,6 @@ static void intel_edp_drrs_downclock_work(struct work_struct *work)
 			downclock_mode->vrefresh);
 
 unlock:
-
 	mutex_unlock(&dev_priv->drrs.mutex);
 }
 
@@ -5179,12 +5178,17 @@ void intel_edp_drrs_invalidate(struct drm_device *dev,
 	struct drm_crtc *crtc;
 	enum pipe pipe;
 
-	if (!dev_priv->drrs.dp)
+	if (dev_priv->drrs.type == DRRS_NOT_SUPPORTED)
 		return;
 
 	cancel_delayed_work_sync(&dev_priv->drrs.work);
 
 	mutex_lock(&dev_priv->drrs.mutex);
+	if (!dev_priv->drrs.dp) {
+		mutex_unlock(&dev_priv->drrs.mutex);
+		return;
+	}
+
 	crtc = dp_to_dig_port(dev_priv->drrs.dp)->base.base.crtc;
 	pipe = to_intel_crtc(crtc)->pipe;
 
@@ -5218,12 +5222,17 @@ void intel_edp_drrs_flush(struct drm_device *dev,
 	struct drm_crtc *crtc;
 	enum pipe pipe;
 
-	if (!dev_priv->drrs.dp)
+	if (dev_priv->drrs.type == DRRS_NOT_SUPPORTED)
 		return;
 
 	cancel_delayed_work_sync(&dev_priv->drrs.work);
 
 	mutex_lock(&dev_priv->drrs.mutex);
+	if (!dev_priv->drrs.dp) {
+		mutex_unlock(&dev_priv->drrs.mutex);
+		return;
+	}
+
 	crtc = dp_to_dig_port(dev_priv->drrs.dp)->base.base.crtc;
 	pipe = to_intel_crtc(crtc)->pipe;
 	dev_priv->drrs.busy_frontbuffer_bits &= ~frontbuffer_bits;
@@ -5294,6 +5303,9 @@ intel_dp_drrs_init(struct intel_connector *intel_connector,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_display_mode *downclock_mode = NULL;
 
+	INIT_DELAYED_WORK(&dev_priv->drrs.work, intel_edp_drrs_downclock_work);
+	mutex_init(&dev_priv->drrs.mutex);
+
 	if (INTEL_INFO(dev)->gen <= 6) {
 		DRM_DEBUG_KMS("DRRS supported for Gen7 and above\n");
 		return NULL;
@@ -5311,10 +5323,6 @@ intel_dp_drrs_init(struct intel_connector *intel_connector,
 		DRM_DEBUG_KMS("Downclock mode is not found. DRRS not supported\n");
 		return NULL;
 	}
-
-	INIT_DELAYED_WORK(&dev_priv->drrs.work, intel_edp_drrs_downclock_work);
-
-	mutex_init(&dev_priv->drrs.mutex);
 
 	dev_priv->drrs.type = dev_priv->vbt.drrs_type;
 
