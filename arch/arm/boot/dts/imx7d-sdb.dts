@@ -1031,7 +1031,6 @@
 	enable-sdio-wakeup;
 	keep-power-in-suspend;
 	fsl,tuning-step = <2>;
-	non-removable;
 	wifi-host;
 	status = "okay";
 };
