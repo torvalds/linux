@@ -947,6 +947,10 @@ qla27xx_fwdump(scsi_qla_host_t *vha, int hardware_locked)
 		ql_log(ql_log_warn, vha, 0xd01e, "fwdump buffer missing.\n");
 	else if (!vha->hw->fw_dump_template)
 		ql_log(ql_log_warn, vha, 0xd01f, "fwdump template missing.\n");
+	else if (vha->hw->fw_dumped)
+		ql_log(ql_log_warn, vha, 0xd300,
+		    "Firmware has been previously dumped (%p),"
+		    " -- ignoring request\n", vha->hw->fw_dump);
 	else
 		qla27xx_execute_fwdt_template(vha);
 
