@@ -221,6 +221,33 @@ OPTIONS
 --header-only
 	Show only perf.data header.
 
+--itrace::
+	Options for decoding instruction tracing data. The options are:
+
+		i	synthesize instructions events
+		b	synthesize branches events
+		c	synthesize branches events (calls only)
+		r	synthesize branches events (returns only)
+		e	synthesize error events
+		d	create a debug log
+		g	synthesize a call chain for instructions events
+
+	The default is all events i.e. the same as --itrace=ibe
+
+	In addition, the period (default 100000) for instructions events
+	can be specified in units of:
+
+		i	instructions
+		t	ticks
+		ms	milliseconds
+		us	microseconds
+		ns	nanoseconds (default)
+
+	Also the call chain size (default 16, max. 1024) for instructions
+	events can be specified.
+
+	To disable decoding entirely, use --no-itrace.
+
 SEE ALSO
 --------
 linkperf:perf-record[1], linkperf:perf-script-perl[1],
