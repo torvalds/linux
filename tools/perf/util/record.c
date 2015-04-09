@@ -119,7 +119,16 @@ void perf_evlist__config(struct perf_evlist *evlist, struct record_opts *opts)
 			evsel->attr.comm_exec = 1;
 	}
 
-	if (evlist->nr_entries > 1) {
+	if (opts->full_auxtrace) {
+		/*
+		 * Need to be able to synthesize and parse selected events with
+		 * arbitrary sample types, which requires always being able to
+		 * match the id.
+		 */
+		use_sample_identifier = perf_can_sample_identifier();
+		evlist__for_each(evlist, evsel)
+			perf_evsel__set_sample_id(evsel, use_sample_identifier);
+	} else if (evlist->nr_entries > 1) {
 		struct perf_evsel *first = perf_evlist__first(evlist);
 
 		evlist__for_each(evlist, evsel) {

@@ -18,13 +18,18 @@
 
 #include <sys/types.h>
 #include <stdbool.h>
-
+#include <stddef.h>
 #include <linux/perf_event.h>
 #include <linux/types.h>
 
 #include "../perf.h"
 
+union perf_event;
+struct perf_session;
 struct perf_evlist;
+struct perf_tool;
+struct record_opts;
+struct auxtrace_info_event;
 
 /**
  * struct auxtrace_mmap - records an mmap of the auxtrace buffer.
@@ -70,6 +75,29 @@ struct auxtrace_mmap_params {
 	int		cpu;
 };
 
+/**
+ * struct auxtrace_record - callbacks for recording AUX area data.
+ * @recording_options: validate and process recording options
+ * @info_priv_size: return the size of the private data in auxtrace_info_event
+ * @info_fill: fill-in the private data in auxtrace_info_event
+ * @free: free this auxtrace record structure
+ * @reference: provide a 64-bit reference number for auxtrace_event
+ * @read_finish: called after reading from an auxtrace mmap
+ */
+struct auxtrace_record {
+	int (*recording_options)(struct auxtrace_record *itr,
+				 struct perf_evlist *evlist,
+				 struct record_opts *opts);
+	size_t (*info_priv_size)(struct auxtrace_record *itr);
+	int (*info_fill)(struct auxtrace_record *itr,
+			 struct perf_session *session,
+			 struct auxtrace_info_event *auxtrace_info,
+			 size_t priv_size);
+	void (*free)(struct auxtrace_record *itr);
+	u64 (*reference)(struct auxtrace_record *itr);
+	int (*read_finish)(struct auxtrace_record *itr, int idx);
+};
+
 static inline u64 auxtrace_mmap__read_head(struct auxtrace_mmap *mm)
 {
 	struct perf_event_mmap_page *pc = mm->userpg;
@@ -113,5 +141,31 @@ void auxtrace_mmap_params__init(struct auxtrace_mmap_params *mp,
 void auxtrace_mmap_params__set_idx(struct auxtrace_mmap_params *mp,
 				   struct perf_evlist *evlist, int idx,
 				   bool per_cpu);
+
+typedef int (*process_auxtrace_t)(struct perf_tool *tool,
+				  union perf_event *event, void *data1,
+				  size_t len1, void *data2, size_t len2);
+
+int auxtrace_mmap__read(struct auxtrace_mmap *mm, struct auxtrace_record *itr,
+			struct perf_tool *tool, process_auxtrace_t fn);
+
+struct auxtrace_record *auxtrace_record__init(struct perf_evlist *evlist,
+					      int *err);
+
+int auxtrace_record__options(struct auxtrace_record *itr,
+			     struct perf_evlist *evlist,
+			     struct record_opts *opts);
+size_t auxtrace_record__info_priv_size(struct auxtrace_record *itr);
+int auxtrace_record__info_fill(struct auxtrace_record *itr,
+			       struct perf_session *session,
+			       struct auxtrace_info_event *auxtrace_info,
+			       size_t priv_size);
+void auxtrace_record__free(struct auxtrace_record *itr);
+u64 auxtrace_record__reference(struct auxtrace_record *itr);
+
+int perf_event__synthesize_auxtrace_info(struct auxtrace_record *itr,
+					 struct perf_tool *tool,
+					 struct perf_session *session,
+					 perf_event__handler_t process);
 
 #endif

@@ -23,6 +23,10 @@
 #include <linux/bitops.h>
 #include <linux/log2.h>
 
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+
 #include "../perf.h"
 #include "util.h"
 #include "evlist.h"
@@ -30,6 +34,9 @@
 #include "thread_map.h"
 #include "asm/bug.h"
 #include "auxtrace.h"
+
+#include "event.h"
+#include "debug.h"
 
 int auxtrace_mmap__mmap(struct auxtrace_mmap *mm,
 			struct auxtrace_mmap_params *mp,
@@ -110,4 +117,173 @@ void auxtrace_mmap_params__set_idx(struct auxtrace_mmap_params *mp,
 		mp->cpu = -1;
 		mp->tid = evlist->threads->map[idx];
 	}
+}
+
+size_t auxtrace_record__info_priv_size(struct auxtrace_record *itr)
+{
+	if (itr)
+		return itr->info_priv_size(itr);
+	return 0;
+}
+
+static int auxtrace_not_supported(void)
+{
+	pr_err("AUX area tracing is not supported on this architecture\n");
+	return -EINVAL;
+}
+
+int auxtrace_record__info_fill(struct auxtrace_record *itr,
+			       struct perf_session *session,
+			       struct auxtrace_info_event *auxtrace_info,
+			       size_t priv_size)
+{
+	if (itr)
+		return itr->info_fill(itr, session, auxtrace_info, priv_size);
+	return auxtrace_not_supported();
+}
+
+void auxtrace_record__free(struct auxtrace_record *itr)
+{
+	if (itr)
+		itr->free(itr);
+}
+
+int auxtrace_record__options(struct auxtrace_record *itr,
+			     struct perf_evlist *evlist,
+			     struct record_opts *opts)
+{
+	if (itr)
+		return itr->recording_options(itr, evlist, opts);
+	return 0;
+}
+
+u64 auxtrace_record__reference(struct auxtrace_record *itr)
+{
+	if (itr)
+		return itr->reference(itr);
+	return 0;
+}
+
+struct auxtrace_record *__weak
+auxtrace_record__init(struct perf_evlist *evlist __maybe_unused, int *err)
+{
+	*err = 0;
+	return NULL;
+}
+
+int perf_event__synthesize_auxtrace_info(struct auxtrace_record *itr,
+					 struct perf_tool *tool,
+					 struct perf_session *session,
+					 perf_event__handler_t process)
+{
+	union perf_event *ev;
+	size_t priv_size;
+	int err;
+
+	pr_debug2("Synthesizing auxtrace information\n");
+	priv_size = auxtrace_record__info_priv_size(itr);
+	ev = zalloc(sizeof(struct auxtrace_info_event) + priv_size);
+	if (!ev)
+		return -ENOMEM;
+
+	ev->auxtrace_info.header.type = PERF_RECORD_AUXTRACE_INFO;
+	ev->auxtrace_info.header.size = sizeof(struct auxtrace_info_event) +
+					priv_size;
+	err = auxtrace_record__info_fill(itr, session, &ev->auxtrace_info,
+					 priv_size);
+	if (err)
+		goto out_free;
+
+	err = process(tool, ev, NULL, NULL);
+out_free:
+	free(ev);
+	return err;
+}
+
+int auxtrace_mmap__read(struct auxtrace_mmap *mm, struct auxtrace_record *itr,
+			struct perf_tool *tool, process_auxtrace_t fn)
+{
+	u64 head = auxtrace_mmap__read_head(mm);
+	u64 old = mm->prev, offset, ref;
+	unsigned char *data = mm->base;
+	size_t size, head_off, old_off, len1, len2, padding;
+	union perf_event ev;
+	void *data1, *data2;
+
+	if (old == head)
+		return 0;
+
+	pr_debug3("auxtrace idx %d old %#"PRIx64" head %#"PRIx64" diff %#"PRIx64"\n",
+		  mm->idx, old, head, head - old);
+
+	if (mm->mask) {
+		head_off = head & mm->mask;
+		old_off = old & mm->mask;
+	} else {
+		head_off = head % mm->len;
+		old_off = old % mm->len;
+	}
+
+	if (head_off > old_off)
+		size = head_off - old_off;
+	else
+		size = mm->len - (old_off - head_off);
+
+	ref = auxtrace_record__reference(itr);
+
+	if (head > old || size <= head || mm->mask) {
+		offset = head - size;
+	} else {
+		/*
+		 * When the buffer size is not a power of 2, 'head' wraps at the
+		 * highest multiple of the buffer size, so we have to subtract
+		 * the remainder here.
+		 */
+		u64 rem = (0ULL - mm->len) % mm->len;
+
+		offset = head - size - rem;
+	}
+
+	if (size > head_off) {
+		len1 = size - head_off;
+		data1 = &data[mm->len - len1];
+		len2 = head_off;
+		data2 = &data[0];
+	} else {
+		len1 = size;
+		data1 = &data[head_off - len1];
+		len2 = 0;
+		data2 = NULL;
+	}
+
+	/* padding must be written by fn() e.g. record__process_auxtrace() */
+	padding = size & 7;
+	if (padding)
+		padding = 8 - padding;
+
+	memset(&ev, 0, sizeof(ev));
+	ev.auxtrace.header.type = PERF_RECORD_AUXTRACE;
+	ev.auxtrace.header.size = sizeof(ev.auxtrace);
+	ev.auxtrace.size = size + padding;
+	ev.auxtrace.offset = offset;
+	ev.auxtrace.reference = ref;
+	ev.auxtrace.idx = mm->idx;
+	ev.auxtrace.tid = mm->tid;
+	ev.auxtrace.cpu = mm->cpu;
+
+	if (fn(tool, &ev, data1, len1, data2, len2))
+		return -1;
+
+	mm->prev = head;
+
+	auxtrace_mmap__write_tail(mm, head);
+	if (itr->read_finish) {
+		int err;
+
+		err = itr->read_finish(itr, mm->idx);
+		if (err < 0)
+			return err;
+	}
+
+	return 1;
 }
