@@ -28,8 +28,8 @@
 #include <asm/byteorder.h>
 #include <asm/neon.h>
 #include <asm/simd.h>
-#include <asm/crypto/sha1.h>
 
+#include "sha1.h"
 
 asmlinkage void sha1_transform_neon(void *state_h, const char *data,
 				    unsigned int rounds);
