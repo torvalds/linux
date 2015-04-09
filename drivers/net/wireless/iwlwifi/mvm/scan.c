@@ -271,6 +271,21 @@ not_bound:
 		params->dwell[band].active = iwl_mvm_get_active_dwell(mvm, band,
 								      n_ssids);
 	}
+
+	IWL_DEBUG_SCAN(mvm,
+		       "scan parameters: max_out_time %d, suspend_time %d, passive_fragmented %d\n",
+		       params->max_out_time, params->suspend_time,
+		       params->passive_fragmented);
+	IWL_DEBUG_SCAN(mvm,
+		       "dwell[IEEE80211_BAND_2GHZ]: passive %d, active %d, fragmented %d\n",
+		       params->dwell[IEEE80211_BAND_2GHZ].passive,
+		       params->dwell[IEEE80211_BAND_2GHZ].active,
+		       params->dwell[IEEE80211_BAND_2GHZ].fragmented);
+	IWL_DEBUG_SCAN(mvm,
+		       "dwell[IEEE80211_BAND_5GHZ]: passive %d, active %d, fragmented %d\n",
+		       params->dwell[IEEE80211_BAND_5GHZ].passive,
+		       params->dwell[IEEE80211_BAND_5GHZ].active,
+		       params->dwell[IEEE80211_BAND_5GHZ].fragmented);
 }
 
 static inline bool iwl_mvm_rrm_scan_needed(struct iwl_mvm *mvm)
