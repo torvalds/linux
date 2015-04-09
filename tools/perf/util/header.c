@@ -2504,8 +2504,11 @@ int perf_session__read_header(struct perf_session *session)
 		if (read_attr(fd, header, &f_attr) < 0)
 			goto out_errno;
 
-		if (header->needs_swap)
+		if (header->needs_swap) {
+			f_attr.ids.size   = bswap_64(f_attr.ids.size);
+			f_attr.ids.offset = bswap_64(f_attr.ids.offset);
 			perf_event__attr_swap(&f_attr.attr);
+		}
 
 		tmp = lseek(fd, 0, SEEK_CUR);
 		evsel = perf_evsel__new(&f_attr.attr);
