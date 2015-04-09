@@ -2264,7 +2264,7 @@ static ssize_t ocfs2_file_write_iter(struct kiocb *iocb,
 	int can_do_direct, has_refcount = 0;
 	ssize_t written = 0;
 	size_t count = iov_iter_count(from);
-	loff_t old_size, *ppos = &iocb->ki_pos;
+	loff_t old_size;
 	u32 old_clusters;
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
@@ -2330,7 +2330,7 @@ relock:
 	}
 
 	can_do_direct = direct_io;
-	ret = ocfs2_prepare_inode_for_write(file, ppos, count, appending,
+	ret = ocfs2_prepare_inode_for_write(file, &iocb->ki_pos, count, appending,
 					    &can_do_direct, &has_refcount);
 	if (ret < 0) {
 		mlog_errno(ret);
@@ -2338,7 +2338,7 @@ relock:
 	}
 
 	if (direct_io && !is_sync_kiocb(iocb))
-		unaligned_dio = ocfs2_is_io_unaligned(inode, count, *ppos);
+		unaligned_dio = ocfs2_is_io_unaligned(inode, count, iocb->ki_pos);
 
 	/*
 	 * We can't complete the direct I/O as requested, fall back to
@@ -2374,7 +2374,7 @@ relock:
 	/* communicate with ocfs2_dio_end_io */
 	ocfs2_iocb_set_rw_locked(iocb, rw_level);
 
-	ret = generic_write_checks(file, ppos, &count);
+	ret = generic_write_checks(file, &iocb->ki_pos, &count);
 	if (ret)
 		goto out_dio;
 
@@ -2382,7 +2382,7 @@ relock:
 	if (direct_io) {
 		loff_t endbyte;
 		ssize_t written_buffered;
-		written = generic_file_direct_write(iocb, from, *ppos);
+		written = generic_file_direct_write(iocb, from, iocb->ki_pos);
 		if (written < 0 || written == count) {
 			ret = written;
 			goto out_dio;
@@ -2392,7 +2392,7 @@ relock:
 		 * for completing the rest of the request.
 		 */
 		count -= written;
-		written_buffered = generic_perform_write(file, from, *ppos);
+		written_buffered = generic_perform_write(file, from, iocb->ki_pos);
 		/*
 		 * If generic_file_buffered_write() returned a synchronous error
 		 * then we want to return the number of bytes which were
@@ -2409,14 +2409,14 @@ relock:
 		 * disk and invalidated to preserve the expected O_DIRECT
 		 * semantics.
 		 */
-		endbyte = *ppos + written_buffered - 1;
-		ret = filemap_write_and_wait_range(file->f_mapping, *ppos,
+		endbyte = iocb->ki_pos + written_buffered - 1;
+		ret = filemap_write_and_wait_range(file->f_mapping, iocb->ki_pos,
 				endbyte);
 		if (ret == 0) {
-			iocb->ki_pos = *ppos + written_buffered;
+			iocb->ki_pos += written_buffered;
 			written += written_buffered;
 			invalidate_mapping_pages(mapping,
-					*ppos >> PAGE_CACHE_SHIFT,
+					iocb->ki_pos >> PAGE_CACHE_SHIFT,
 					endbyte >> PAGE_CACHE_SHIFT);
 		} else {
 			/*
@@ -2426,9 +2426,9 @@ relock:
 		}
 	} else {
 		current->backing_dev_info = inode_to_bdi(inode);
-		written = generic_perform_write(file, from, *ppos);
+		written = generic_perform_write(file, from, iocb->ki_pos);
 		if (likely(written >= 0))
-			iocb->ki_pos = *ppos + written;
+			iocb->ki_pos = iocb->ki_pos + written;
 		current->backing_dev_info = NULL;
 	}
 
