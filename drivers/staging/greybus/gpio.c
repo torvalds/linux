@@ -14,6 +14,7 @@
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include "greybus.h"
+#include "gpbridge.h"
 
 struct gb_gpio_line {
 	/* The following has to be an array of line_max entries */
@@ -42,110 +43,6 @@ struct gb_gpio_controller {
 #define gpio_chip_to_gb_gpio_controller(chip) \
 	container_of(chip, struct gb_gpio_controller, chip)
 #define irq_data_to_gpio_chip(d) (d->domain->host_data)
-
-/* Version of the Greybus GPIO protocol we support */
-#define	GB_GPIO_VERSION_MAJOR		0x00
-#define	GB_GPIO_VERSION_MINOR		0x01
-
-/* Greybus GPIO request types */
-#define	GB_GPIO_TYPE_INVALID		0x00
-#define	GB_GPIO_TYPE_PROTOCOL_VERSION	0x01
-#define	GB_GPIO_TYPE_LINE_COUNT		0x02
-#define	GB_GPIO_TYPE_ACTIVATE		0x03
-#define	GB_GPIO_TYPE_DEACTIVATE		0x04
-#define	GB_GPIO_TYPE_GET_DIRECTION	0x05
-#define	GB_GPIO_TYPE_DIRECTION_IN	0x06
-#define	GB_GPIO_TYPE_DIRECTION_OUT	0x07
-#define	GB_GPIO_TYPE_GET_VALUE		0x08
-#define	GB_GPIO_TYPE_SET_VALUE		0x09
-#define	GB_GPIO_TYPE_SET_DEBOUNCE	0x0a
-#define GB_GPIO_TYPE_IRQ_TYPE		0x0b
-#define GB_GPIO_TYPE_IRQ_ACK		0x0c
-#define GB_GPIO_TYPE_IRQ_MASK		0x0d
-#define GB_GPIO_TYPE_IRQ_UNMASK		0x0e
-#define GB_GPIO_TYPE_IRQ_EVENT		0x0f
-#define	GB_GPIO_TYPE_RESPONSE		0x80	/* OR'd with rest */
-
-#define	GB_GPIO_DEBOUNCE_USEC_DEFAULT	0	/* microseconds */
-
-/* line count request has no payload */
-struct gb_gpio_line_count_response {
-	__u8	count;
-};
-
-struct gb_gpio_activate_request {
-	__u8	which;
-};
-/* activate response has no payload */
-
-struct gb_gpio_deactivate_request {
-	__u8	which;
-};
-/* deactivate response has no payload */
-
-struct gb_gpio_get_direction_request {
-	__u8	which;
-};
-struct gb_gpio_get_direction_response {
-	__u8	direction;
-};
-
-struct gb_gpio_direction_in_request {
-	__u8	which;
-};
-/* direction in response has no payload */
-
-struct gb_gpio_direction_out_request {
-	__u8	which;
-	__u8	value;
-};
-/* direction out response has no payload */
-
-struct gb_gpio_get_value_request {
-	__u8	which;
-};
-struct gb_gpio_get_value_response {
-	__u8	value;
-};
-
-struct gb_gpio_set_value_request {
-	__u8	which;
-	__u8	value;
-};
-/* set value response has no payload */
-
-struct gb_gpio_set_debounce_request {
-	__u8	which;
-	__le16	usec __packed;
-};
-/* debounce response has no payload */
-
-struct gb_gpio_irq_type_request {
-	__u8	which;
-	__u8	type;
-};
-/* irq type response has no payload */
-
-struct gb_gpio_irq_mask_request {
-	__u8	which;
-};
-/* irq mask response has no payload */
-
-struct gb_gpio_irq_unmask_request {
-	__u8	which;
-};
-/* irq unmask response has no payload */
-
-struct gb_gpio_irq_ack_request {
-	__u8	which;
-};
-/* irq ack response has no payload */
-
-/* irq event requests originate on another module and are handled on the AP */
-struct gb_gpio_irq_event_request {
-	__u8	which;
-};
-/* irq event response has no payload */
 
 /* Define get_version() routine */
 define_get_version(gb_gpio_controller, GPIO);

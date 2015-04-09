@@ -12,6 +12,7 @@
 #include <linux/slab.h>
 #include <linux/pwm.h>
 #include "greybus.h"
+#include "gpbridge.h"
 
 struct gb_pwm_chip {
 	struct gb_connection	*connection;
@@ -25,53 +26,6 @@ struct gb_pwm_chip {
 #define pwm_chip_to_gb_pwm_chip(chip) \
 	container_of(chip, struct gb_pwm_chip, chip)
 
-/* Version of the Greybus PWM protocol we support */
-#define	GB_PWM_VERSION_MAJOR		0x00
-#define	GB_PWM_VERSION_MINOR		0x01
-
-/* Greybus PWM request types */
-#define	GB_PWM_TYPE_INVALID		0x00
-#define	GB_PWM_TYPE_PROTOCOL_VERSION	0x01
-#define	GB_PWM_TYPE_PWM_COUNT		0x02
-#define	GB_PWM_TYPE_ACTIVATE		0x03
-#define	GB_PWM_TYPE_DEACTIVATE		0x04
-#define	GB_PWM_TYPE_CONFIG		0x05
-#define	GB_PWM_TYPE_POLARITY		0x06
-#define	GB_PWM_TYPE_ENABLE		0x07
-#define	GB_PWM_TYPE_DISABLE		0x08
-#define	GB_PWM_TYPE_RESPONSE		0x80	/* OR'd with rest */
-
-/* pwm count request has no payload */
-struct gb_pwm_count_response {
-	__u8	count;
-};
-
-struct gb_pwm_activate_request {
-	__u8	which;
-};
-
-struct gb_pwm_deactivate_request {
-	__u8	which;
-};
-
-struct gb_pwm_config_request {
-	__u8	which;
-	__le32	duty __packed;
-	__le32	period __packed;
-};
-
-struct gb_pwm_polarity_request {
-	__u8	which;
-	__u8	polarity;
-};
-
-struct gb_pwm_enable_request {
-	__u8	which;
-};
-
-struct gb_pwm_disable_request {
-	__u8	which;
-};
 
 /* Define get_version() routine */
 define_get_version(gb_pwm_chip, PWM);

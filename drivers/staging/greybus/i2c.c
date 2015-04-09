@@ -13,6 +13,8 @@
 #include <linux/i2c.h>
 
 #include "greybus.h"
+#include "gpbridge.h"
+
 
 struct gb_i2c_device {
 	struct gb_connection	*connection;
@@ -24,61 +26,6 @@ struct gb_i2c_device {
 	u8			retries;
 
 	struct i2c_adapter	adapter;
-};
-
-/* Version of the Greybus i2c protocol we support */
-#define	GB_I2C_VERSION_MAJOR		0x00
-#define	GB_I2C_VERSION_MINOR		0x01
-
-/* Greybus i2c request types */
-#define	GB_I2C_TYPE_INVALID		0x00
-#define	GB_I2C_TYPE_PROTOCOL_VERSION	0x01
-#define	GB_I2C_TYPE_FUNCTIONALITY	0x02
-#define	GB_I2C_TYPE_TIMEOUT		0x03
-#define	GB_I2C_TYPE_RETRIES		0x04
-#define	GB_I2C_TYPE_TRANSFER		0x05
-#define	GB_I2C_TYPE_RESPONSE		0x80	/* OR'd with rest */
-
-#define	GB_I2C_RETRIES_DEFAULT		3
-#define	GB_I2C_TIMEOUT_DEFAULT		1000	/* milliseconds */
-
-/* functionality request has no payload */
-struct gb_i2c_functionality_response {
-	__le32	functionality;
-};
-
-struct gb_i2c_timeout_request {
-	__le16	msec;
-};
-/* timeout response has no payload */
-
-struct gb_i2c_retries_request {
-	__u8	retries;
-};
-/* retries response has no payload */
-
-/*
- * Outgoing data immediately follows the op count and ops array.
- * The data for each write (master -> slave) op in the array is sent
- * in order, with no (e.g. pad) bytes separating them.
- *
- * Short reads cause the entire transfer request to fail So response
- * payload consists only of bytes read, and the number of bytes is
- * exactly what was specified in the corresponding op.  Like
- * outgoing data, the incoming data is in order and contiguous.
- */
-struct gb_i2c_transfer_op {
-	__le16	addr;
-	__le16	flags;
-	__le16	size;
-};
-
-struct gb_i2c_transfer_request {
-	__le16				op_count;
-	struct gb_i2c_transfer_op	ops[0];		/* op_count of these */
-};
-struct gb_i2c_transfer_response {
-	__u8				data[0];	/* inbound data */
 };
 
 /* Define get_version() routine */
