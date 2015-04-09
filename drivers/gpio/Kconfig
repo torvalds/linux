@@ -142,7 +142,6 @@ config GPIO_DAVINCI
 
 config GPIO_DWAPB
 	tristate "Synopsys DesignWare APB GPIO driver"
-	depends on ((ARC || ARM || ARM64) && OF_GPIO) || X86_INTEL_QUARK
 	select GPIO_GENERIC
 	select GENERIC_IRQ_CHIP
 	help
