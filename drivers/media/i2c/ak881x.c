@@ -93,11 +93,16 @@ static int ak881x_s_register(struct v4l2_subdev *sd,
 }
 #endif
 
-static int ak881x_try_g_mbus_fmt(struct v4l2_subdev *sd,
-				 struct v4l2_mbus_framefmt *mf)
+static int ak881x_fill_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
+	struct v4l2_mbus_framefmt *mf = &format->format;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ak881x *ak881x = to_ak881x(client);
+
+	if (format->pad)
+		return -EINVAL;
 
 	v4l_bound_align_image(&mf->width, 0, 720, 2,
 			      &mf->height, 0, ak881x->lines, 1, 0);
@@ -106,16 +111,6 @@ static int ak881x_try_g_mbus_fmt(struct v4l2_subdev *sd,
 	mf->colorspace	= V4L2_COLORSPACE_SMPTE170M;
 
 	return 0;
-}
-
-static int ak881x_s_mbus_fmt(struct v4l2_subdev *sd,
-			     struct v4l2_mbus_framefmt *mf)
-{
-	if (mf->field != V4L2_FIELD_INTERLACED ||
-	    mf->code != MEDIA_BUS_FMT_YUYV8_2X8)
-		return -EINVAL;
-
-	return ak881x_try_g_mbus_fmt(sd, mf);
 }
 
 static int ak881x_enum_mbus_code(struct v4l2_subdev *sd,
@@ -212,9 +207,6 @@ static struct v4l2_subdev_core_ops ak881x_subdev_core_ops = {
 };
 
 static struct v4l2_subdev_video_ops ak881x_subdev_video_ops = {
-	.s_mbus_fmt	= ak881x_s_mbus_fmt,
-	.g_mbus_fmt	= ak881x_try_g_mbus_fmt,
-	.try_mbus_fmt	= ak881x_try_g_mbus_fmt,
 	.cropcap	= ak881x_cropcap,
 	.s_std_output	= ak881x_s_std_output,
 	.s_stream	= ak881x_s_stream,
@@ -222,6 +214,8 @@ static struct v4l2_subdev_video_ops ak881x_subdev_video_ops = {
 
 static const struct v4l2_subdev_pad_ops ak881x_subdev_pad_ops = {
 	.enum_mbus_code = ak881x_enum_mbus_code,
+	.set_fmt	= ak881x_fill_fmt,
+	.get_fmt	= ak881x_fill_fmt,
 };
 
 static struct v4l2_subdev_ops ak881x_subdev_ops = {

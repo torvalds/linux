@@ -1224,7 +1224,10 @@ static int omap1_cam_set_crop(struct soc_camera_device *icd,
 	struct device *dev = icd->parent;
 	struct soc_camera_host *ici = to_soc_camera_host(dev);
 	struct omap1_cam_dev *pcdev = ici->priv;
-	struct v4l2_mbus_framefmt mf;
+	struct v4l2_subdev_format fmt = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
+	struct v4l2_mbus_framefmt *mf = &fmt.format;
 	int ret;
 
 	ret = subdev_call_with_sense(pcdev, dev, icd, sd, s_crop, crop);
@@ -1234,32 +1237,32 @@ static int omap1_cam_set_crop(struct soc_camera_device *icd,
 		return ret;
 	}
 
-	ret = v4l2_subdev_call(sd, video, g_mbus_fmt, &mf);
+	ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &fmt);
 	if (ret < 0) {
 		dev_warn(dev, "%s: failed to fetch current format\n", __func__);
 		return ret;
 	}
 
-	ret = dma_align(&mf.width, &mf.height, xlate->host_fmt, pcdev->vb_mode,
+	ret = dma_align(&mf->width, &mf->height, xlate->host_fmt, pcdev->vb_mode,
 			false);
 	if (ret < 0) {
 		dev_err(dev, "%s: failed to align %ux%u %s with DMA\n",
-				__func__, mf.width, mf.height,
+				__func__, mf->width, mf->height,
 				xlate->host_fmt->name);
 		return ret;
 	}
 
 	if (!ret) {
 		/* sensor returned geometry not DMA aligned, trying to fix */
-		ret = set_mbus_format(pcdev, dev, icd, sd, &mf, xlate);
+		ret = set_mbus_format(pcdev, dev, icd, sd, mf, xlate);
 		if (ret < 0) {
 			dev_err(dev, "%s: failed to set format\n", __func__);
 			return ret;
 		}
 	}
 
-	icd->user_width	 = mf.width;
-	icd->user_height = mf.height;
+	icd->user_width	 = mf->width;
+	icd->user_height = mf->height;
 
 	return 0;
 }

@@ -691,11 +691,16 @@ static int tw9910_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
 	return 0;
 }
 
-static int tw9910_g_fmt(struct v4l2_subdev *sd,
-			struct v4l2_mbus_framefmt *mf)
+static int tw9910_get_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
+	struct v4l2_mbus_framefmt *mf = &format->format;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct tw9910_priv *priv = to_tw9910(client);
+
+	if (format->pad)
+		return -EINVAL;
 
 	if (!priv->scale) {
 		priv->scale = tw9910_select_norm(priv->norm, 640, 480);
@@ -881,7 +886,6 @@ static struct v4l2_subdev_video_ops tw9910_subdev_video_ops = {
 	.s_std		= tw9910_s_std,
 	.g_std		= tw9910_g_std,
 	.s_stream	= tw9910_s_stream,
-	.g_mbus_fmt	= tw9910_g_fmt,
 	.s_mbus_fmt	= tw9910_s_fmt,
 	.try_mbus_fmt	= tw9910_try_fmt,
 	.cropcap	= tw9910_cropcap,
@@ -893,6 +897,7 @@ static struct v4l2_subdev_video_ops tw9910_subdev_video_ops = {
 
 static const struct v4l2_subdev_pad_ops tw9910_subdev_pad_ops = {
 	.enum_mbus_code = tw9910_enum_mbus_code,
+	.get_fmt	= tw9910_get_fmt,
 };
 
 static struct v4l2_subdev_ops tw9910_subdev_ops = {

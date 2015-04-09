@@ -273,10 +273,15 @@ static int adv7170_enum_mbus_code(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int adv7170_g_fmt(struct v4l2_subdev *sd,
-				struct v4l2_mbus_framefmt *mf)
+static int adv7170_get_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
+	struct v4l2_mbus_framefmt *mf = &format->format;
 	u8 val = adv7170_read(sd, 0x7);
+
+	if (format->pad)
+		return -EINVAL;
 
 	if ((val & 0x40) == (1 << 6))
 		mf->code = MEDIA_BUS_FMT_UYVY8_1X16;
@@ -323,11 +328,11 @@ static const struct v4l2_subdev_video_ops adv7170_video_ops = {
 	.s_std_output = adv7170_s_std_output,
 	.s_routing = adv7170_s_routing,
 	.s_mbus_fmt = adv7170_s_fmt,
-	.g_mbus_fmt = adv7170_g_fmt,
 };
 
 static const struct v4l2_subdev_pad_ops adv7170_pad_ops = {
 	.enum_mbus_code = adv7170_enum_mbus_code,
+	.get_fmt = adv7170_get_fmt,
 };
 
 static const struct v4l2_subdev_ops adv7170_ops = {

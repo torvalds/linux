@@ -1339,12 +1339,15 @@ static int rcar_vin_get_formats(struct soc_camera_device *icd, unsigned int idx,
 		return 0;
 
 	if (!icd->host_priv) {
-		struct v4l2_mbus_framefmt mf;
+		struct v4l2_subdev_format fmt = {
+			.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+		};
+		struct v4l2_mbus_framefmt *mf = &fmt.format;
 		struct v4l2_rect rect;
 		struct device *dev = icd->parent;
 		int shift;
 
-		ret = v4l2_subdev_call(sd, video, g_mbus_fmt, &mf);
+		ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &fmt);
 		if (ret < 0)
 			return ret;
 
@@ -1354,8 +1357,8 @@ static int rcar_vin_get_formats(struct soc_camera_device *icd, unsigned int idx,
 			/* Sensor driver doesn't support cropping */
 			rect.left = 0;
 			rect.top = 0;
-			rect.width = mf.width;
-			rect.height = mf.height;
+			rect.width = mf->width;
+			rect.height = mf->height;
 		} else if (ret < 0) {
 			return ret;
 		}
@@ -1365,16 +1368,16 @@ static int rcar_vin_get_formats(struct soc_camera_device *icd, unsigned int idx,
 		 * 1280x960, 640x480, 320x240
 		 */
 		for (shift = 0; shift < 3; shift++) {
-			if (mf.width <= VIN_MAX_WIDTH &&
-			    mf.height <= VIN_MAX_HEIGHT)
+			if (mf->width <= VIN_MAX_WIDTH &&
+			    mf->height <= VIN_MAX_HEIGHT)
 				break;
 
-			mf.width = 1280 >> shift;
-			mf.height = 960 >> shift;
+			mf->width = 1280 >> shift;
+			mf->height = 960 >> shift;
 			ret = v4l2_device_call_until_err(sd->v4l2_dev,
 							 soc_camera_grp_id(icd),
 							 video, s_mbus_fmt,
-							 &mf);
+							 mf);
 			if (ret < 0)
 				return ret;
 		}
@@ -1382,11 +1385,11 @@ static int rcar_vin_get_formats(struct soc_camera_device *icd, unsigned int idx,
 		if (shift == 3) {
 			dev_err(dev,
 				"Failed to configure the client below %ux%u\n",
-				mf.width, mf.height);
+				mf->width, mf->height);
 			return -EIO;
 		}
 
-		dev_dbg(dev, "camera fmt %ux%u\n", mf.width, mf.height);
+		dev_dbg(dev, "camera fmt %ux%u\n", mf->width, mf->height);
 
 		cam = kzalloc(sizeof(*cam), GFP_KERNEL);
 		if (!cam)
@@ -1397,10 +1400,10 @@ static int rcar_vin_get_formats(struct soc_camera_device *icd, unsigned int idx,
 		 */
 		cam->rect = rect;
 		cam->subrect = rect;
-		cam->width = mf.width;
-		cam->height = mf.height;
-		cam->out_width	= mf.width;
-		cam->out_height	= mf.height;
+		cam->width = mf->width;
+		cam->height = mf->height;
+		cam->out_width	= mf->width;
+		cam->out_height	= mf->height;
 
 		icd->host_priv = cam;
 	} else {
@@ -1468,7 +1471,10 @@ static int rcar_vin_set_crop(struct soc_camera_device *icd,
 	struct v4l2_rect *cam_rect = &cam_crop.c;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct device *dev = icd->parent;
-	struct v4l2_mbus_framefmt mf;
+	struct v4l2_subdev_format fmt = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
+	struct v4l2_mbus_framefmt *mf = &fmt.format;
 	u32 vnmc;
 	int ret, i;
 
@@ -1492,16 +1498,16 @@ static int rcar_vin_set_crop(struct soc_camera_device *icd,
 	/* On success cam_crop contains current camera crop */
 
 	/* Retrieve camera output window */
-	ret = v4l2_subdev_call(sd, video, g_mbus_fmt, &mf);
+	ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &fmt);
 	if (ret < 0)
 		return ret;
 
-	if (mf.width > VIN_MAX_WIDTH || mf.height > VIN_MAX_HEIGHT)
+	if (mf->width > VIN_MAX_WIDTH || mf->height > VIN_MAX_HEIGHT)
 		return -EINVAL;
 
 	/* Cache camera output window */
-	cam->width = mf.width;
-	cam->height = mf.height;
+	cam->width = mf->width;
+	cam->height = mf->height;
 
 	icd->user_width  = cam->width;
 	icd->user_height = cam->height;

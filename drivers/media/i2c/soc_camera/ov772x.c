@@ -876,10 +876,15 @@ static int ov772x_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
 	return 0;
 }
 
-static int ov772x_g_fmt(struct v4l2_subdev *sd,
-			struct v4l2_mbus_framefmt *mf)
+static int ov772x_get_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
+	struct v4l2_mbus_framefmt *mf = &format->format;
 	struct ov772x_priv *priv = to_ov772x(sd);
+
+	if (format->pad)
+		return -EINVAL;
 
 	mf->width	= priv->win->rect.width;
 	mf->height	= priv->win->rect.height;
@@ -1017,7 +1022,6 @@ static int ov772x_g_mbus_config(struct v4l2_subdev *sd,
 
 static struct v4l2_subdev_video_ops ov772x_subdev_video_ops = {
 	.s_stream	= ov772x_s_stream,
-	.g_mbus_fmt	= ov772x_g_fmt,
 	.s_mbus_fmt	= ov772x_s_fmt,
 	.try_mbus_fmt	= ov772x_try_fmt,
 	.cropcap	= ov772x_cropcap,
@@ -1027,6 +1031,7 @@ static struct v4l2_subdev_video_ops ov772x_subdev_video_ops = {
 
 static const struct v4l2_subdev_pad_ops ov772x_subdev_pad_ops = {
 	.enum_mbus_code = ov772x_enum_mbus_code,
+	.get_fmt	= ov772x_get_fmt,
 };
 
 static struct v4l2_subdev_ops ov772x_subdev_ops = {

@@ -1073,7 +1073,10 @@ static int sh_mobile_ceu_get_formats(struct soc_camera_device *icd, unsigned int
 	}
 
 	if (!icd->host_priv) {
-		struct v4l2_mbus_framefmt mf;
+		struct v4l2_subdev_format fmt = {
+			.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+		};
+		struct v4l2_mbus_framefmt *mf = &fmt.format;
 		struct v4l2_rect rect;
 		int shift = 0;
 
@@ -1091,7 +1094,7 @@ static int sh_mobile_ceu_get_formats(struct soc_camera_device *icd, unsigned int
 			return ret;
 
 		/* First time */
-		ret = v4l2_subdev_call(sd, video, g_mbus_fmt, &mf);
+		ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &fmt);
 		if (ret < 0)
 			return ret;
 
@@ -1102,14 +1105,14 @@ static int sh_mobile_ceu_get_formats(struct soc_camera_device *icd, unsigned int
 		 * sizes, just try VGA multiples. If needed, this can be
 		 * adjusted in the future.
 		 */
-		while ((mf.width > pcdev->max_width ||
-			mf.height > pcdev->max_height) && shift < 4) {
+		while ((mf->width > pcdev->max_width ||
+			mf->height > pcdev->max_height) && shift < 4) {
 			/* Try 2560x1920, 1280x960, 640x480, 320x240 */
-			mf.width	= 2560 >> shift;
-			mf.height	= 1920 >> shift;
+			mf->width	= 2560 >> shift;
+			mf->height	= 1920 >> shift;
 			ret = v4l2_device_call_until_err(sd->v4l2_dev,
 					soc_camera_grp_id(icd), video,
-					s_mbus_fmt, &mf);
+					s_mbus_fmt, mf);
 			if (ret < 0)
 				return ret;
 			shift++;
@@ -1117,11 +1120,11 @@ static int sh_mobile_ceu_get_formats(struct soc_camera_device *icd, unsigned int
 
 		if (shift == 4) {
 			dev_err(dev, "Failed to configure the client below %ux%x\n",
-				mf.width, mf.height);
+				mf->width, mf->height);
 			return -EIO;
 		}
 
-		dev_geo(dev, "camera fmt %ux%u\n", mf.width, mf.height);
+		dev_geo(dev, "camera fmt %ux%u\n", mf->width, mf->height);
 
 		cam = kzalloc(sizeof(*cam), GFP_KERNEL);
 		if (!cam)
@@ -1131,8 +1134,8 @@ static int sh_mobile_ceu_get_formats(struct soc_camera_device *icd, unsigned int
 		cam->rect	= rect;
 		cam->subrect	= rect;
 
-		cam->width	= mf.width;
-		cam->height	= mf.height;
+		cam->width	= mf->width;
+		cam->height	= mf->height;
 
 		icd->host_priv = cam;
 	} else {
@@ -1217,7 +1220,10 @@ static int sh_mobile_ceu_set_crop(struct soc_camera_device *icd,
 	struct sh_mobile_ceu_cam *cam = icd->host_priv;
 	struct v4l2_rect *cam_rect = &cam_crop.c;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
-	struct v4l2_mbus_framefmt mf;
+	struct v4l2_subdev_format fmt = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
+	struct v4l2_mbus_framefmt *mf = &fmt.format;
 	unsigned int scale_cam_h, scale_cam_v, scale_ceu_h, scale_ceu_v,
 		out_width, out_height;
 	int interm_width, interm_height;
@@ -1247,16 +1253,16 @@ static int sh_mobile_ceu_set_crop(struct soc_camera_device *icd,
 	/* On success cam_crop contains current camera crop */
 
 	/* 3. Retrieve camera output window */
-	ret = v4l2_subdev_call(sd, video, g_mbus_fmt, &mf);
+	ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &fmt);
 	if (ret < 0)
 		return ret;
 
-	if (mf.width > pcdev->max_width || mf.height > pcdev->max_height)
+	if (mf->width > pcdev->max_width || mf->height > pcdev->max_height)
 		return -EINVAL;
 
 	/* 4. Calculate camera scales */
-	scale_cam_h	= calc_generic_scale(cam_rect->width, mf.width);
-	scale_cam_v	= calc_generic_scale(cam_rect->height, mf.height);
+	scale_cam_h	= calc_generic_scale(cam_rect->width, mf->width);
+	scale_cam_v	= calc_generic_scale(cam_rect->height, mf->height);
 
 	/* Calculate intermediate window */
 	interm_width	= scale_down(rect->width, scale_cam_h);
@@ -1267,7 +1273,7 @@ static int sh_mobile_ceu_set_crop(struct soc_camera_device *icd,
 
 		new_scale_h = calc_generic_scale(rect->width, icd->user_width);
 
-		mf.width = scale_down(cam_rect->width, new_scale_h);
+		mf->width = scale_down(cam_rect->width, new_scale_h);
 	}
 
 	if (interm_height < icd->user_height) {
@@ -1275,26 +1281,26 @@ static int sh_mobile_ceu_set_crop(struct soc_camera_device *icd,
 
 		new_scale_v = calc_generic_scale(rect->height, icd->user_height);
 
-		mf.height = scale_down(cam_rect->height, new_scale_v);
+		mf->height = scale_down(cam_rect->height, new_scale_v);
 	}
 
 	if (interm_width < icd->user_width || interm_height < icd->user_height) {
 		ret = v4l2_device_call_until_err(sd->v4l2_dev,
 					soc_camera_grp_id(icd), video,
-					s_mbus_fmt, &mf);
+					s_mbus_fmt, mf);
 		if (ret < 0)
 			return ret;
 
-		dev_geo(dev, "New camera output %ux%u\n", mf.width, mf.height);
-		scale_cam_h	= calc_generic_scale(cam_rect->width, mf.width);
-		scale_cam_v	= calc_generic_scale(cam_rect->height, mf.height);
+		dev_geo(dev, "New camera output %ux%u\n", mf->width, mf->height);
+		scale_cam_h	= calc_generic_scale(cam_rect->width, mf->width);
+		scale_cam_v	= calc_generic_scale(cam_rect->height, mf->height);
 		interm_width	= scale_down(rect->width, scale_cam_h);
 		interm_height	= scale_down(rect->height, scale_cam_v);
 	}
 
 	/* Cache camera output window */
-	cam->width	= mf.width;
-	cam->height	= mf.height;
+	cam->width	= mf->width;
+	cam->height	= mf->height;
 
 	if (pcdev->image_mode) {
 		out_width	= min(interm_width, icd->user_width);

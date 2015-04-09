@@ -375,11 +375,16 @@ static int mt9v022_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
 	return 0;
 }
 
-static int mt9v022_g_fmt(struct v4l2_subdev *sd,
-			 struct v4l2_mbus_framefmt *mf)
+static int mt9v022_get_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
+	struct v4l2_mbus_framefmt *mf = &format->format;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9v022 *mt9v022 = to_mt9v022(client);
+
+	if (format->pad)
+		return -EINVAL;
 
 	mf->width	= mt9v022->rect.width;
 	mf->height	= mt9v022->rect.height;
@@ -841,7 +846,6 @@ static int mt9v022_s_mbus_config(struct v4l2_subdev *sd,
 static struct v4l2_subdev_video_ops mt9v022_subdev_video_ops = {
 	.s_stream	= mt9v022_s_stream,
 	.s_mbus_fmt	= mt9v022_s_fmt,
-	.g_mbus_fmt	= mt9v022_g_fmt,
 	.try_mbus_fmt	= mt9v022_try_fmt,
 	.s_crop		= mt9v022_s_crop,
 	.g_crop		= mt9v022_g_crop,
@@ -856,6 +860,7 @@ static struct v4l2_subdev_sensor_ops mt9v022_subdev_sensor_ops = {
 
 static const struct v4l2_subdev_pad_ops mt9v022_subdev_pad_ops = {
 	.enum_mbus_code = mt9v022_enum_mbus_code,
+	.get_fmt	= mt9v022_get_fmt,
 };
 
 static struct v4l2_subdev_ops mt9v022_subdev_ops = {

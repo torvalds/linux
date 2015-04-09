@@ -191,13 +191,18 @@ static int imx074_s_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int imx074_g_fmt(struct v4l2_subdev *sd,
-			struct v4l2_mbus_framefmt *mf)
+static int imx074_get_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
+	struct v4l2_mbus_framefmt *mf = &format->format;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct imx074 *priv = to_imx074(client);
 
 	const struct imx074_datafmt *fmt = priv->fmt;
+
+	if (format->pad)
+		return -EINVAL;
 
 	mf->code	= fmt->code;
 	mf->colorspace	= fmt->colorspace;
@@ -278,7 +283,6 @@ static int imx074_g_mbus_config(struct v4l2_subdev *sd,
 static struct v4l2_subdev_video_ops imx074_subdev_video_ops = {
 	.s_stream	= imx074_s_stream,
 	.s_mbus_fmt	= imx074_s_fmt,
-	.g_mbus_fmt	= imx074_g_fmt,
 	.try_mbus_fmt	= imx074_try_fmt,
 	.g_crop		= imx074_g_crop,
 	.cropcap	= imx074_cropcap,
@@ -291,6 +295,7 @@ static struct v4l2_subdev_core_ops imx074_subdev_core_ops = {
 
 static const struct v4l2_subdev_pad_ops imx074_subdev_pad_ops = {
 	.enum_mbus_code = imx074_enum_mbus_code,
+	.get_fmt	= imx074_get_fmt,
 };
 
 static struct v4l2_subdev_ops imx074_subdev_ops = {

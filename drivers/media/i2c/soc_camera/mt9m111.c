@@ -447,10 +447,15 @@ static int mt9m111_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
 	return 0;
 }
 
-static int mt9m111_g_fmt(struct v4l2_subdev *sd,
-			 struct v4l2_mbus_framefmt *mf)
+static int mt9m111_get_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
+	struct v4l2_mbus_framefmt *mf = &format->format;
 	struct mt9m111 *mt9m111 = container_of(sd, struct mt9m111, subdev);
+
+	if (format->pad)
+		return -EINVAL;
 
 	mf->width	= mt9m111->width;
 	mf->height	= mt9m111->height;
@@ -867,7 +872,6 @@ static int mt9m111_g_mbus_config(struct v4l2_subdev *sd,
 
 static struct v4l2_subdev_video_ops mt9m111_subdev_video_ops = {
 	.s_mbus_fmt	= mt9m111_s_fmt,
-	.g_mbus_fmt	= mt9m111_g_fmt,
 	.try_mbus_fmt	= mt9m111_try_fmt,
 	.s_crop		= mt9m111_s_crop,
 	.g_crop		= mt9m111_g_crop,
@@ -877,6 +881,7 @@ static struct v4l2_subdev_video_ops mt9m111_subdev_video_ops = {
 
 static const struct v4l2_subdev_pad_ops mt9m111_subdev_pad_ops = {
 	.enum_mbus_code = mt9m111_enum_mbus_code,
+	.get_fmt	= mt9m111_get_fmt,
 };
 
 static struct v4l2_subdev_ops mt9m111_subdev_ops = {

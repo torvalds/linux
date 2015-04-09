@@ -828,13 +828,17 @@ static int tvp5150_enum_mbus_code(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int tvp5150_mbus_fmt(struct v4l2_subdev *sd,
-			    struct v4l2_mbus_framefmt *f)
+static int tvp5150_fill_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
+	struct v4l2_mbus_framefmt *f;
 	struct tvp5150 *decoder = to_tvp5150(sd);
 
-	if (f == NULL)
+	if (!format || format->pad)
 		return -EINVAL;
+
+	f = &format->format;
 
 	tvp5150_reset(sd, 0);
 
@@ -1069,9 +1073,6 @@ static const struct v4l2_subdev_tuner_ops tvp5150_tuner_ops = {
 static const struct v4l2_subdev_video_ops tvp5150_video_ops = {
 	.s_std = tvp5150_s_std,
 	.s_routing = tvp5150_s_routing,
-	.s_mbus_fmt = tvp5150_mbus_fmt,
-	.try_mbus_fmt = tvp5150_mbus_fmt,
-	.g_mbus_fmt = tvp5150_mbus_fmt,
 	.s_crop = tvp5150_s_crop,
 	.g_crop = tvp5150_g_crop,
 	.cropcap = tvp5150_cropcap,
@@ -1086,6 +1087,8 @@ static const struct v4l2_subdev_vbi_ops tvp5150_vbi_ops = {
 
 static const struct v4l2_subdev_pad_ops tvp5150_pad_ops = {
 	.enum_mbus_code = tvp5150_enum_mbus_code,
+	.set_fmt = tvp5150_fill_fmt,
+	.get_fmt = tvp5150_fill_fmt,
 };
 
 static const struct v4l2_subdev_ops tvp5150_ops = {

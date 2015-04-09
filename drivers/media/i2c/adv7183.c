@@ -460,12 +460,16 @@ static int adv7183_s_mbus_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int adv7183_g_mbus_fmt(struct v4l2_subdev *sd,
-				struct v4l2_mbus_framefmt *fmt)
+static int adv7183_get_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
 	struct adv7183 *decoder = to_adv7183(sd);
 
-	*fmt = decoder->fmt;
+	if (format->pad)
+		return -EINVAL;
+
+	format->format = decoder->fmt;
 	return 0;
 }
 
@@ -517,12 +521,12 @@ static const struct v4l2_subdev_video_ops adv7183_video_ops = {
 	.g_input_status = adv7183_g_input_status,
 	.try_mbus_fmt = adv7183_try_mbus_fmt,
 	.s_mbus_fmt = adv7183_s_mbus_fmt,
-	.g_mbus_fmt = adv7183_g_mbus_fmt,
 	.s_stream = adv7183_s_stream,
 };
 
 static const struct v4l2_subdev_pad_ops adv7183_pad_ops = {
 	.enum_mbus_code = adv7183_enum_mbus_code,
+	.get_fmt = adv7183_get_fmt,
 };
 
 static const struct v4l2_subdev_ops adv7183_ops = {

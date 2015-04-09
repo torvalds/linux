@@ -1349,7 +1349,10 @@ static int pxa_camera_set_crop(struct soc_camera_device *icd,
 		.master_clock = pcdev->mclk,
 		.pixel_clock_max = pcdev->ciclk / 4,
 	};
-	struct v4l2_mbus_framefmt mf;
+	struct v4l2_subdev_format fmt = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
+	struct v4l2_mbus_framefmt *mf = &fmt.format;
 	struct pxa_cam *cam = icd->host_priv;
 	u32 fourcc = icd->current_fmt->host_fmt->fourcc;
 	int ret;
@@ -1368,23 +1371,23 @@ static int pxa_camera_set_crop(struct soc_camera_device *icd,
 		return ret;
 	}
 
-	ret = v4l2_subdev_call(sd, video, g_mbus_fmt, &mf);
+	ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &fmt);
 	if (ret < 0)
 		return ret;
 
-	if (pxa_camera_check_frame(mf.width, mf.height)) {
+	if (pxa_camera_check_frame(mf->width, mf->height)) {
 		/*
 		 * Camera cropping produced a frame beyond our capabilities.
 		 * FIXME: just extract a subframe, that we can process.
 		 */
-		v4l_bound_align_image(&mf.width, 48, 2048, 1,
-			&mf.height, 32, 2048, 0,
+		v4l_bound_align_image(&mf->width, 48, 2048, 1,
+			&mf->height, 32, 2048, 0,
 			fourcc == V4L2_PIX_FMT_YUV422P ? 4 : 0);
-		ret = v4l2_subdev_call(sd, video, s_mbus_fmt, &mf);
+		ret = v4l2_subdev_call(sd, video, s_mbus_fmt, mf);
 		if (ret < 0)
 			return ret;
 
-		if (pxa_camera_check_frame(mf.width, mf.height)) {
+		if (pxa_camera_check_frame(mf->width, mf->height)) {
 			dev_warn(icd->parent,
 				 "Inconsistent state. Use S_FMT to repair\n");
 			return -EINVAL;
@@ -1401,8 +1404,8 @@ static int pxa_camera_set_crop(struct soc_camera_device *icd,
 		recalculate_fifo_timeout(pcdev, sense.pixel_clock);
 	}
 
-	icd->user_width		= mf.width;
-	icd->user_height	= mf.height;
+	icd->user_width		= mf->width;
+	icd->user_height	= mf->height;
 
 	pxa_camera_setup_cicr(icd, cam->flags, fourcc);
 

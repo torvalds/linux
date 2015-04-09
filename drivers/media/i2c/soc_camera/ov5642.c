@@ -822,13 +822,18 @@ static int ov5642_s_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int ov5642_g_fmt(struct v4l2_subdev *sd,
-			struct v4l2_mbus_framefmt *mf)
+static int ov5642_get_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
+	struct v4l2_mbus_framefmt *mf = &format->format;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov5642 *priv = to_ov5642(client);
 
 	const struct ov5642_datafmt *fmt = priv->fmt;
+
+	if (format->pad)
+		return -EINVAL;
 
 	mf->code	= fmt->code;
 	mf->colorspace	= fmt->colorspace;
@@ -941,7 +946,6 @@ static int ov5642_s_power(struct v4l2_subdev *sd, int on)
 
 static struct v4l2_subdev_video_ops ov5642_subdev_video_ops = {
 	.s_mbus_fmt	= ov5642_s_fmt,
-	.g_mbus_fmt	= ov5642_g_fmt,
 	.try_mbus_fmt	= ov5642_try_fmt,
 	.s_crop		= ov5642_s_crop,
 	.g_crop		= ov5642_g_crop,
@@ -951,6 +955,7 @@ static struct v4l2_subdev_video_ops ov5642_subdev_video_ops = {
 
 static const struct v4l2_subdev_pad_ops ov5642_subdev_pad_ops = {
 	.enum_mbus_code = ov5642_enum_mbus_code,
+	.get_fmt	= ov5642_get_fmt,
 };
 
 static struct v4l2_subdev_core_ops ov5642_subdev_core_ops = {

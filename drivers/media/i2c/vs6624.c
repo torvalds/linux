@@ -649,12 +649,16 @@ static int vs6624_s_mbus_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int vs6624_g_mbus_fmt(struct v4l2_subdev *sd,
-				struct v4l2_mbus_framefmt *fmt)
+static int vs6624_get_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
 	struct vs6624 *sensor = to_vs6624(sd);
 
-	*fmt = sensor->fmt;
+	if (format->pad)
+		return -EINVAL;
+
+	format->format = sensor->fmt;
 	return 0;
 }
 
@@ -741,7 +745,6 @@ static const struct v4l2_subdev_core_ops vs6624_core_ops = {
 static const struct v4l2_subdev_video_ops vs6624_video_ops = {
 	.try_mbus_fmt = vs6624_try_mbus_fmt,
 	.s_mbus_fmt = vs6624_s_mbus_fmt,
-	.g_mbus_fmt = vs6624_g_mbus_fmt,
 	.s_parm = vs6624_s_parm,
 	.g_parm = vs6624_g_parm,
 	.s_stream = vs6624_s_stream,
@@ -749,6 +752,7 @@ static const struct v4l2_subdev_video_ops vs6624_video_ops = {
 
 static const struct v4l2_subdev_pad_ops vs6624_pad_ops = {
 	.enum_mbus_code = vs6624_enum_mbus_code,
+	.get_fmt = vs6624_get_fmt,
 };
 
 static const struct v4l2_subdev_ops vs6624_ops = {

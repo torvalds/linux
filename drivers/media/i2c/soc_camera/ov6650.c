@@ -499,11 +499,16 @@ static int ov6650_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
 	return 0;
 }
 
-static int ov6650_g_fmt(struct v4l2_subdev *sd,
-			 struct v4l2_mbus_framefmt *mf)
+static int ov6650_get_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
+	struct v4l2_mbus_framefmt *mf = &format->format;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov6650 *priv = to_ov6650(client);
+
+	if (format->pad)
+		return -EINVAL;
 
 	mf->width	= priv->rect.width >> priv->half_scale;
 	mf->height	= priv->rect.height >> priv->half_scale;
@@ -930,7 +935,6 @@ static int ov6650_s_mbus_config(struct v4l2_subdev *sd,
 
 static struct v4l2_subdev_video_ops ov6650_video_ops = {
 	.s_stream	= ov6650_s_stream,
-	.g_mbus_fmt	= ov6650_g_fmt,
 	.s_mbus_fmt	= ov6650_s_fmt,
 	.try_mbus_fmt	= ov6650_try_fmt,
 	.cropcap	= ov6650_cropcap,
@@ -944,6 +948,7 @@ static struct v4l2_subdev_video_ops ov6650_video_ops = {
 
 static const struct v4l2_subdev_pad_ops ov6650_pad_ops = {
 	.enum_mbus_code = ov6650_enum_mbus_code,
+	.get_fmt	= ov6650_get_fmt,
 };
 
 static struct v4l2_subdev_ops ov6650_subdev_ops = {

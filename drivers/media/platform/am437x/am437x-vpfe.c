@@ -1095,7 +1095,7 @@ static int vpfe_config_ccdc_image_format(struct vpfe_device *vpfe)
  * For a given standard, this functions sets up the default
  * pix format & crop values in the vpfe device and ccdc.  It first
  * starts with defaults based values from the standard table.
- * It then checks if sub device support g_mbus_fmt and then override the
+ * It then checks if sub device supports get_fmt and then override the
  * values based on that.Sets crop values to match with scan resolution
  * starting at 0,0. It calls vpfe_config_ccdc_image_format() set the
  * values in ccdc
@@ -1432,8 +1432,8 @@ static int __vpfe_get_format(struct vpfe_device *vpfe,
 	} else {
 		ret = v4l2_device_call_until_err(&vpfe->v4l2_dev,
 						 sdinfo->grp_id,
-						 video, g_mbus_fmt,
-						 &mbus_fmt);
+						 pad, get_fmt,
+						 NULL, &fmt);
 		if (ret && ret != -ENOIOCTLCMD && ret != -ENODEV)
 			return ret;
 		v4l2_fill_pix_format(&format->fmt.pix, &mbus_fmt);

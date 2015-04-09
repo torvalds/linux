@@ -37,9 +37,11 @@ static int soc_camera_platform_s_stream(struct v4l2_subdev *sd, int enable)
 }
 
 static int soc_camera_platform_fill_fmt(struct v4l2_subdev *sd,
-					struct v4l2_mbus_framefmt *mf)
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
 	struct soc_camera_platform_info *p = v4l2_get_subdevdata(sd);
+	struct v4l2_mbus_framefmt *mf = &format->format;
 
 	mf->width	= p->format.width;
 	mf->height	= p->format.height;
@@ -120,14 +122,13 @@ static struct v4l2_subdev_video_ops platform_subdev_video_ops = {
 	.s_stream	= soc_camera_platform_s_stream,
 	.cropcap	= soc_camera_platform_cropcap,
 	.g_crop		= soc_camera_platform_g_crop,
-	.try_mbus_fmt	= soc_camera_platform_fill_fmt,
-	.g_mbus_fmt	= soc_camera_platform_fill_fmt,
-	.s_mbus_fmt	= soc_camera_platform_fill_fmt,
 	.g_mbus_config	= soc_camera_platform_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops platform_subdev_pad_ops = {
 	.enum_mbus_code = soc_camera_platform_enum_mbus_code,
+	.get_fmt	= soc_camera_platform_fill_fmt,
+	.set_fmt	= soc_camera_platform_fill_fmt,
 };
 
 static struct v4l2_subdev_ops platform_subdev_ops = {

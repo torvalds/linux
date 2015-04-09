@@ -598,11 +598,16 @@ static int rj54n1_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
 	return 0;
 }
 
-static int rj54n1_g_fmt(struct v4l2_subdev *sd,
-			struct v4l2_mbus_framefmt *mf)
+static int rj54n1_get_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
+	struct v4l2_mbus_framefmt *mf = &format->format;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct rj54n1 *rj54n1 = to_rj54n1(client);
+
+	if (format->pad)
+		return -EINVAL;
 
 	mf->code	= rj54n1->fmt->code;
 	mf->colorspace	= rj54n1->fmt->colorspace;
@@ -1251,7 +1256,6 @@ static int rj54n1_s_mbus_config(struct v4l2_subdev *sd,
 static struct v4l2_subdev_video_ops rj54n1_subdev_video_ops = {
 	.s_stream	= rj54n1_s_stream,
 	.s_mbus_fmt	= rj54n1_s_fmt,
-	.g_mbus_fmt	= rj54n1_g_fmt,
 	.try_mbus_fmt	= rj54n1_try_fmt,
 	.g_crop		= rj54n1_g_crop,
 	.s_crop		= rj54n1_s_crop,
@@ -1262,6 +1266,7 @@ static struct v4l2_subdev_video_ops rj54n1_subdev_video_ops = {
 
 static const struct v4l2_subdev_pad_ops rj54n1_subdev_pad_ops = {
 	.enum_mbus_code = rj54n1_enum_mbus_code,
+	.get_fmt	= rj54n1_get_fmt,
 };
 
 static struct v4l2_subdev_ops rj54n1_subdev_ops = {

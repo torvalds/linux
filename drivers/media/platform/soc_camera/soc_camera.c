@@ -1289,7 +1289,10 @@ static struct soc_camera_device *soc_camera_add_pdev(struct soc_camera_async_cli
 static int soc_camera_probe_finish(struct soc_camera_device *icd)
 {
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
-	struct v4l2_mbus_framefmt mf;
+	struct v4l2_subdev_format fmt = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
+	struct v4l2_mbus_framefmt *mf = &fmt.format;
 	int ret;
 
 	sd->grp_id = soc_camera_grp_id(icd);
@@ -1319,11 +1322,11 @@ static int soc_camera_probe_finish(struct soc_camera_device *icd)
 		goto evidstart;
 
 	/* Try to improve our guess of a reasonable window format */
-	if (!v4l2_subdev_call(sd, video, g_mbus_fmt, &mf)) {
-		icd->user_width		= mf.width;
-		icd->user_height	= mf.height;
-		icd->colorspace		= mf.colorspace;
-		icd->field		= mf.field;
+	if (!v4l2_subdev_call(sd, pad, get_fmt, NULL, &fmt)) {
+		icd->user_width		= mf->width;
+		icd->user_height	= mf->height;
+		icd->colorspace		= mf->colorspace;
+		icd->field		= mf->field;
 	}
 	soc_camera_remove_device(icd);
 

@@ -804,7 +804,10 @@ static int mx3_camera_set_crop(struct soc_camera_device *icd,
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx3_camera_dev *mx3_cam = ici->priv;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
-	struct v4l2_mbus_framefmt mf;
+	struct v4l2_subdev_format fmt = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
+	struct v4l2_mbus_framefmt *mf = &fmt.format;
 	int ret;
 
 	soc_camera_limit_side(&rect->left, &rect->width, 0, 2, 4096);
@@ -815,30 +818,30 @@ static int mx3_camera_set_crop(struct soc_camera_device *icd,
 		return ret;
 
 	/* The capture device might have changed its output sizes */
-	ret = v4l2_subdev_call(sd, video, g_mbus_fmt, &mf);
+	ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &fmt);
 	if (ret < 0)
 		return ret;
 
-	if (mf.code != icd->current_fmt->code)
+	if (mf->code != icd->current_fmt->code)
 		return -EINVAL;
 
-	if (mf.width & 7) {
+	if (mf->width & 7) {
 		/* Ouch! We can only handle 8-byte aligned width... */
-		stride_align(&mf.width);
-		ret = v4l2_subdev_call(sd, video, s_mbus_fmt, &mf);
+		stride_align(&mf->width);
+		ret = v4l2_subdev_call(sd, video, s_mbus_fmt, mf);
 		if (ret < 0)
 			return ret;
 	}
 
-	if (mf.width != icd->user_width || mf.height != icd->user_height)
-		configure_geometry(mx3_cam, mf.width, mf.height,
+	if (mf->width != icd->user_width || mf->height != icd->user_height)
+		configure_geometry(mx3_cam, mf->width, mf->height,
 				   icd->current_fmt->host_fmt);
 
 	dev_dbg(icd->parent, "Sensor cropped %dx%d\n",
-		mf.width, mf.height);
+		mf->width, mf->height);
 
-	icd->user_width		= mf.width;
-	icd->user_height	= mf.height;
+	icd->user_width		= mf->width;
+	icd->user_height	= mf->height;
 
 	return ret;
 }
