@@ -217,6 +217,7 @@ enum perf_user_event_type { /* above any possible kernel type */
 	PERF_RECORD_ID_INDEX			= 69,
 	PERF_RECORD_AUXTRACE_INFO		= 70,
 	PERF_RECORD_AUXTRACE			= 71,
+	PERF_RECORD_AUXTRACE_ERROR		= 72,
 	PERF_RECORD_HEADER_MAX
 };
 
@@ -300,6 +301,20 @@ struct auxtrace_event {
 	u32 reserved__; /* For alignment */
 };
 
+#define MAX_AUXTRACE_ERROR_MSG 64
+
+struct auxtrace_error_event {
+	struct perf_event_header header;
+	u32 type;
+	u32 code;
+	u32 cpu;
+	u32 pid;
+	u32 tid;
+	u32 reserved__; /* For alignment */
+	u64 ip;
+	char msg[MAX_AUXTRACE_ERROR_MSG];
+};
+
 union perf_event {
 	struct perf_event_header	header;
 	struct mmap_event		mmap;
@@ -317,6 +332,7 @@ union perf_event {
 	struct id_index_event		id_index;
 	struct auxtrace_info_event	auxtrace_info;
 	struct auxtrace_event		auxtrace;
+	struct auxtrace_error_event	auxtrace_error;
 };
 
 void perf_event__print_totals(void);

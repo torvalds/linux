@@ -50,7 +50,8 @@ struct perf_tool {
 	event_oe	finished_round;
 	event_op2	build_id,
 			id_index,
-			auxtrace_info;
+			auxtrace_info,
+			auxtrace_error;
 	event_op3	auxtrace;
 	bool		ordered_events;
 	bool		ordering_requires_timestamps;
