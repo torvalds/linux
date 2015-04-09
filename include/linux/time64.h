@@ -2,6 +2,7 @@
 #define _LINUX_TIME64_H
 
 #include <uapi/linux/time.h>
+#include <linux/math64.h>
 
 typedef __s64 time64_t;
 
