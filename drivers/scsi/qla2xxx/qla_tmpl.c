@@ -787,11 +787,12 @@ qla27xx_walk_template(struct scsi_qla_host *vha,
 	ql_dbg(ql_dbg_misc, vha, 0xd01b,
 	    "%s: len=%lx\n", __func__, *len);
 
-	if (buf)
+	if (buf) {
 		ql_log(ql_log_warn, vha, 0xd015,
 		    "Firmware dump saved to temp buffer (%ld/%p)\n",
 		    vha->host_no, vha->hw->fw_dump);
-
+		qla2x00_post_uevent_work(vha, QLA_UEVENT_CODE_FW_DUMP);
+	}
 }
 
 static void
