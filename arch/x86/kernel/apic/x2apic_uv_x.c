@@ -881,10 +881,14 @@ void __init uv_system_init(void)
 	unsigned long mmr_base, present, paddr;
 	unsigned short pnode_mask;
 	unsigned char n_lshift;
-	char *hub = (is_uv1_hub() ? "UV1" :
-		    (is_uv2_hub() ? "UV2" :
-				    "UV3"));
+	char *hub = (is_uv1_hub() ? "UV100/1000" :
+		    (is_uv2_hub() ? "UV2000/3000" :
+		    (is_uv3_hub() ? "UV300" : NULL)));
 
+	if (!hub) {
+		pr_err("UV: Unknown/unsupported UV hub\n");
+		return;
+	}
 	pr_info("UV: Found %s hub\n", hub);
 	map_low_mmrs();
 
