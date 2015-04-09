@@ -27,6 +27,7 @@
 #include "util/cpumap.h"
 #include "util/thread_map.h"
 #include "util/data.h"
+#include "util/auxtrace.h"
 
 #include <unistd.h>
 #include <sched.h>
@@ -38,6 +39,7 @@ struct record {
 	struct record_opts	opts;
 	u64			bytes_written;
 	struct perf_data_file	file;
+	struct auxtrace_record	*itr;
 	struct perf_evlist	*evlist;
 	struct perf_session	*session;
 	const char		*progname;
@@ -110,6 +112,44 @@ out:
 	return rc;
 }
 
+static int record__process_auxtrace(struct perf_tool *tool,
+				    union perf_event *event, void *data1,
+				    size_t len1, void *data2, size_t len2)
+{
+	struct record *rec = container_of(tool, struct record, tool);
+	size_t padding;
+	u8 pad[8] = {0};
+
+	/* event.auxtrace.size includes padding, see __auxtrace_mmap__read() */
+	padding = (len1 + len2) & 7;
+	if (padding)
+		padding = 8 - padding;
+
+	record__write(rec, event, event->header.size);
+	record__write(rec, data1, len1);
+	if (len2)
+		record__write(rec, data2, len2);
+	record__write(rec, &pad, padding);
+
+	return 0;
+}
+
+static int record__auxtrace_mmap_read(struct record *rec,
+				      struct auxtrace_mmap *mm)
+{
+	int ret;
+
+	ret = auxtrace_mmap__read(mm, rec->itr, &rec->tool,
+				  record__process_auxtrace);
+	if (ret < 0)
+		return ret;
+
+	if (ret)
+		rec->samples++;
+
+	return 0;
+}
+
 static volatile int done = 0;
 static volatile int signr = -1;
 static volatile int child_finished = 0;
@@ -169,13 +209,15 @@ try_again:
 		goto out;
 	}
 
-	if (perf_evlist__mmap(evlist, opts->mmap_pages, false) < 0) {
+	if (perf_evlist__mmap_ex(evlist, opts->mmap_pages, false,
+				 opts->auxtrace_mmap_pages, false) < 0) {
 		if (errno == EPERM) {
 			pr_err("Permission error mapping pages.\n"
 			       "Consider increasing "
 			       "/proc/sys/kernel/perf_event_mlock_kb,\n"
 			       "or try again with a smaller value of -m/--mmap_pages.\n"
-			       "(current value: %u)\n", opts->mmap_pages);
+			       "(current value: %u,%u)\n",
+			       opts->mmap_pages, opts->auxtrace_mmap_pages);
 			rc = -errno;
 		} else {
 			pr_err("failed to mmap with %d (%s)\n", errno,
@@ -270,11 +312,19 @@ static int record__mmap_read_all(struct record *rec)
 	int rc = 0;
 
 	for (i = 0; i < rec->evlist->nr_mmaps; i++) {
+		struct auxtrace_mmap *mm = &rec->evlist->mmap[i].auxtrace_mmap;
+
 		if (rec->evlist->mmap[i].base) {
 			if (record__mmap_read(rec, i) != 0) {
 				rc = -1;
 				goto out;
 			}
+		}
+
+		if (mm->base &&
+		    record__auxtrace_mmap_read(rec, mm) != 0) {
+			rc = -1;
+			goto out;
 		}
 	}
 
@@ -305,6 +355,9 @@ static void record__init_features(struct record *rec)
 
 	if (!rec->opts.branch_stack)
 		perf_header__clear_feat(&session->header, HEADER_BRANCH_STACK);
+
+	if (!rec->opts.full_auxtrace)
+		perf_header__clear_feat(&session->header, HEADER_AUXTRACE);
 }
 
 static volatile int workload_exec_errno;
@@ -419,6 +472,13 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 			}
 			rec->bytes_written += err;
 		}
+	}
+
+	if (rec->opts.full_auxtrace) {
+		err = perf_event__synthesize_auxtrace_info(rec->itr, tool,
+					session, process_synthesized_event);
+		if (err)
+			goto out_delete_session;
 	}
 
 	err = perf_event__synthesize_kernel_mmap(tool, process_synthesized_event,
@@ -553,7 +613,7 @@ out_child:
 	if (!err && !quiet) {
 		char samples[128];
 
-		if (rec->samples)
+		if (rec->samples && !rec->opts.full_auxtrace)
 			scnprintf(samples, sizeof(samples),
 				  " (%" PRIu64 " samples)", rec->samples);
 		else
@@ -936,7 +996,7 @@ struct option *record_options = __record_options;
 
 int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 {
-	int err = -ENOMEM;
+	int err;
 	struct record *rec = &record;
 	char errbuf[BUFSIZ];
 
@@ -956,6 +1016,14 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 			  " system-wide mode\n");
 		usage_with_options(record_usage, record_options);
 	}
+
+	if (!rec->itr) {
+		rec->itr = auxtrace_record__init(rec->evlist, &err);
+		if (err)
+			return err;
+	}
+
+	err = -ENOMEM;
 
 	symbol__init(NULL);
 
@@ -1002,6 +1070,10 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (perf_evlist__create_maps(rec->evlist, &rec->opts.target) < 0)
 		usage_with_options(record_usage, record_options);
 
+	err = auxtrace_record__options(rec->itr, rec->evlist, &rec->opts);
+	if (err)
+		goto out_symbol_exit;
+
 	if (record_opts__config(&rec->opts)) {
 		err = -EINVAL;
 		goto out_symbol_exit;
@@ -1011,5 +1083,6 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 out_symbol_exit:
 	perf_evlist__delete(rec->evlist);
 	symbol__exit();
+	auxtrace_record__free(rec->itr);
 	return err;
 }
