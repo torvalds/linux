@@ -3216,8 +3216,9 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 				(dev_drv->cur_screen->mode.xres << 8) +
 				(dev_drv->cur_screen->mode.yres << 20);
 			mutex_lock(&dev_drv->win_config);
-			/*info->fbops->fb_set_par(info);
-			info->fbops->fb_pan_display(&info->var, info);*/
+			info->var.yoffset = 0;
+			info->fbops->fb_set_par(info);
+			info->fbops->fb_pan_display(&info->var, info);
 			mutex_unlock(&dev_drv->win_config);
 
 			/*if (dev_drv->ops->dsp_black)
