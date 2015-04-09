@@ -31,7 +31,6 @@ config CRYPTO_SHA1_ARM_CE
 	tristate "SHA1 digest algorithm (ARM v8 Crypto Extensions)"
 	depends on KERNEL_MODE_NEON
 	select CRYPTO_SHA1_ARM
-	select CRYPTO_SHA1
 	select CRYPTO_HASH
 	help
 	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2) implemented
