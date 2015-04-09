@@ -146,6 +146,9 @@ static int __init uv_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 {
 	int pnodeid, is_uv1, is_uv2, is_uv3;
 
+	if (strncmp(oem_id, "SGI", 3) != 0)
+		return 0;
+
 	is_uv1 = !strcmp(oem_id, "SGI");
 	is_uv2 = !strcmp(oem_id, "SGI2");
 	is_uv3 = !strncmp(oem_id, "SGI3", 4);	/* there are varieties of UV3 */
