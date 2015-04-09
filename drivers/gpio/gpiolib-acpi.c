@@ -550,7 +550,7 @@ acpi_gpio_adr_space_handler(u32 function, acpi_physical_address address,
 
 	length = min(agpio->pin_table_length, (u16)(pin_index + bits));
 	for (i = pin_index; i < length; ++i) {
-		unsigned pin = agpio->pin_table[i];
+		int pin = agpio->pin_table[i];
 		struct acpi_gpio_connection *conn;
 		struct gpio_desc *desc;
 		bool found;
