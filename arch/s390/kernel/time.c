@@ -76,7 +76,7 @@ unsigned long long monotonic_clock(void)
 }
 EXPORT_SYMBOL(monotonic_clock);
 
-void tod_to_timeval(__u64 todval, struct timespec *xt)
+void tod_to_timeval(__u64 todval, struct timespec64 *xt)
 {
 	unsigned long long sec;
 
@@ -181,12 +181,12 @@ static void timing_alert_interrupt(struct ext_code ext_code,
 static void etr_reset(void);
 static void stp_reset(void);
 
-void read_persistent_clock(struct timespec *ts)
+void read_persistent_clock64(struct timespec64 *ts)
 {
 	tod_to_timeval(get_tod_clock() - TOD_UNIX_EPOCH, ts);
 }
 
-void read_boot_clock(struct timespec *ts)
+void read_boot_clock64(struct timespec64 *ts)
 {
 	tod_to_timeval(sched_clock_base_cc - TOD_UNIX_EPOCH, ts);
 }
