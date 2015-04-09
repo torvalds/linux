@@ -1250,6 +1250,14 @@ static int rt286_i2c_probe(struct i2c_client *i2c,
 	rt286->i2c = i2c;
 	i2c_set_clientdata(i2c, rt286);
 
+	/* restore codec default */
+	for (i = 0; i < INDEX_CACHE_SIZE; i++)
+		regmap_write(rt286->regmap, rt286->index_cache[i].reg,
+				rt286->index_cache[i].def);
+	for (i = 0; i < ARRAY_SIZE(rt286_reg); i++)
+		regmap_write(rt286->regmap, rt286_reg[i].reg,
+				rt286_reg[i].def);
+
 	if (pdata)
 		rt286->pdata = *pdata;
 
