@@ -29,6 +29,8 @@ static const char *perf_event__names[] = {
 	[PERF_RECORD_HEADER_BUILD_ID]		= "BUILD_ID",
 	[PERF_RECORD_FINISHED_ROUND]		= "FINISHED_ROUND",
 	[PERF_RECORD_ID_INDEX]			= "ID_INDEX",
+	[PERF_RECORD_AUXTRACE_INFO]		= "AUXTRACE_INFO",
+	[PERF_RECORD_AUXTRACE]			= "AUXTRACE",
 };
 
 const char *perf_event__name(unsigned int id)
