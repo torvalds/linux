@@ -1129,7 +1129,7 @@ static int omap_dma_probe(struct platform_device *pdev)
 			 OMAP_SDMA_REQUESTS);
 	}
 
-	for (i = 0; i < od->dma_requests; i++) {
+	for (i = 0; i < OMAP_SDMA_CHANNELS; i++) {
 		rc = omap_dma_chan_init(od);
 		if (rc) {
 			omap_dma_free(od);
