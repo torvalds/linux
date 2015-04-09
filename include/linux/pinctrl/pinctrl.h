@@ -114,6 +114,8 @@ struct pinctrl_ops {
  *	of the pins field above
  * @pctlops: pin control operation vtable, to support global concepts like
  *	grouping of pins, this is optional.
+ * @strict: check both gpio_owner and mux_owner strictly before approving
+	the pin request
  * @pmxops: pinmux operations vtable, if you support pinmuxing in your driver
  * @confops: pin config operations vtable, if you support pin configuration in
  *	your driver
@@ -132,6 +134,7 @@ struct pinctrl_desc {
 	const struct pinctrl_ops *pctlops;
 	const struct pinmux_ops *pmxops;
 	const struct pinconf_ops *confops;
+	bool strict;
 	struct module *owner;
 #ifdef CONFIG_GENERIC_PINCONF
 	unsigned int num_custom_params;
