@@ -1,5 +1,5 @@
 TODO:
-- lots of clechpatch cleanup
+- lots of checkpatch cleanup
 - use kernel coding style
 - refine the code and remove unused code
 - check on hardware effects of removal of USE_HW_I2C and USE_DVICHIP (these two
