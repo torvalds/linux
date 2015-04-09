@@ -472,6 +472,7 @@ static const struct hda_codec_ops via_patch_ops = {
 	.init = via_init,
 	.free = via_free,
 	.unsol_event = snd_hda_jack_unsol_event,
+	.stream_pm = snd_hda_gen_stream_pm,
 #ifdef CONFIG_PM
 	.suspend = via_suspend,
 	.check_power_status = via_check_power_status,
