@@ -65,8 +65,8 @@
 #define SHA512_H7	0x5be0cd19137e2179ULL
 
 struct sha1_state {
-	u64 count;
 	u32 state[SHA1_DIGEST_SIZE / 4];
+	u64 count;
 	u8 buffer[SHA1_BLOCK_SIZE];
 };
 
