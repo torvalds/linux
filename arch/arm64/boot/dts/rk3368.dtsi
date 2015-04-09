@@ -817,6 +817,7 @@
 		 compatible = "rockchip,rk3368-lcdc";
 		 rockchip,grf = <&grf>;
 		 rockchip,pmugrf = <&pmugrf>;
+		 rockchip,cru = <&cru>;
 		 rockchip,prop = <PRMRY>;
 		 rockchip,pwr18 = <0>;
 		 rockchip,iommu-enabled = <0>;

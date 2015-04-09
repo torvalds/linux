@@ -1720,6 +1720,60 @@ static int rk3368_post_dspbuf(struct rk_lcdc_driver *dev_drv, u32 rgb_mst,
 	return 0;
 }
 
+static int lcdc_reset(struct rk_lcdc_driver *dev_drv, bool initscreen)
+{
+	struct lcdc_device *lcdc_dev =
+	    container_of(dev_drv, struct lcdc_device, driver);
+	u32 mask, val;
+	u32 v;
+        /*printk("0407:standby=%d,initscreen=%d,dev_drv->first_frame=%d\n",
+                lcdc_dev->standby,initscreen,dev_drv->first_frame);*/
+	if (!lcdc_dev->standby && initscreen && (dev_drv->first_frame != 1)) {
+		mdelay(150);
+		mask = m_WIN0_EN;
+		val = v_WIN0_EN(0);
+		lcdc_msk_reg(lcdc_dev, WIN0_CTRL0, mask, val);
+
+		lcdc_msk_reg(lcdc_dev, WIN1_CTRL0, mask, val);
+
+		mask = m_WIN2_EN | m_WIN2_MST0_EN |
+			m_WIN2_MST1_EN |
+			m_WIN2_MST2_EN | m_WIN2_MST3_EN;
+		val = v_WIN2_EN(0) | v_WIN2_MST0_EN(0) |
+			v_WIN2_MST1_EN(0) |
+			v_WIN2_MST2_EN(0) | v_WIN2_MST3_EN(0);
+		lcdc_msk_reg(lcdc_dev, WIN2_CTRL0, mask, val);
+		lcdc_msk_reg(lcdc_dev, WIN3_CTRL0, mask, val);
+		mask = m_HDMI_OUT_EN;
+		val = v_HDMI_OUT_EN(0);
+		lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask, val);
+		lcdc_cfg_done(lcdc_dev);
+		mdelay(50);
+		writel_relaxed(0, lcdc_dev->regs + REG_CFG_DONE);
+		if (dev_drv->iommu_enabled) {
+			if (dev_drv->mmu_dev)
+				rockchip_iovmm_deactivate(dev_drv->dev);
+		}
+		lcdc_cru_writel(lcdc_dev->cru_base, 0x0318,
+				(1 << 4)  | (1 << 5)  | (1 << 6) |
+				(1 << 20) | (1 << 21) | (1 << 22));
+		udelay(100);
+		v = lcdc_cru_readl(lcdc_dev->cru_base, 0x0318);
+		pr_info("cru read = 0x%x\n", v);
+		lcdc_cru_writel(lcdc_dev->cru_base, 0x0318,
+				(0 << 4)  | (0 << 5)  | (0 << 6) |
+				(1 << 20) | (1 << 21) | (1 << 22));
+		mdelay(100);
+		if (dev_drv->iommu_enabled) {
+			if (dev_drv->mmu_dev)
+				rockchip_iovmm_activate(dev_drv->dev);
+		}
+		mdelay(50);
+		rk3368_lcdc_reg_restore(lcdc_dev);
+		mdelay(50);
+	}
+	return 0;
+}
 
 static int rk3368_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 {
@@ -1734,12 +1788,16 @@ static int rk3368_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 	spin_lock(&lcdc_dev->reg_lock);
 	if (likely(lcdc_dev->clk_on)) {
 		dev_drv->overlay_mode = VOP_RGB_DOMAIN;
+#if 0
 		if (!lcdc_dev->standby && !initscreen) {
 			lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_STANDBY_EN,
 				     v_STANDBY_EN(1));
 			lcdc_cfg_done(lcdc_dev);
 			mdelay(50);
 		}
+#else
+        lcdc_reset(dev_drv, initscreen);
+#endif
 		switch (screen->face) {
 		case OUT_P565:
 			face = OUT_P565;
@@ -1917,7 +1975,9 @@ static int rk3368_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
 	rk3368_lcdc_set_dclk(dev_drv, 1);
-	if (screen->type != SCREEN_HDMI && dev_drv->trsm_ops &&
+	if (screen->type != SCREEN_HDMI &&
+	    screen->type != SCREEN_TVOUT &&
+	    dev_drv->trsm_ops &&
 	    dev_drv->trsm_ops->enable)
 		dev_drv->trsm_ops->enable();
 	if (screen->init)
@@ -2072,7 +2132,7 @@ static int rk3368_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 	   rockchip_clear_system_status(sys_status);
 	   #endif
 	   } */
-
+        dev_drv->first_frame = 0;
 	return 0;
 }
 
@@ -2184,11 +2244,6 @@ static int rk3368_lcdc_pan_display(struct rk_lcdc_driver *dev_drv, int win_id)
 		return -EINVAL;
 	}
 
-	/*this is the first frame of the system ,enable frame start interrupt */
-	if ((dev_drv->first_frame)) {
-		dev_drv->first_frame = 0;
-		rk3368_lcdc_enable_irq(dev_drv);
-	}
 #if defined(WAIT_FOR_SYNC)
 	spin_lock_irqsave(&dev_drv->cpl_lock, flags);
 	init_completion(&dev_drv->frame_done);
@@ -4622,6 +4677,13 @@ static int rk3368_lcdc_probe(struct platform_device *pdev)
 	if (IS_ERR(lcdc_dev->pmugrf_base)) {
 		dev_err(&pdev->dev, "can't find lcdc pmu grf property\n");
 		return PTR_ERR(lcdc_dev->pmugrf_base);
+	}
+
+	lcdc_dev->cru_base =
+		syscon_regmap_lookup_by_phandle(np, "rockchip,cru");
+	if (IS_ERR(lcdc_dev->cru_base)) {
+		dev_err(&pdev->dev, "can't find lcdc cru_base property\n");
+		return PTR_ERR(lcdc_dev->cru_base);
 	}
 
 	lcdc_dev->id = 0;

@@ -1744,6 +1744,7 @@ struct lcdc_device {
 	u32 reg_phy_base;	/* physical basic address of lcdc register*/
 	struct regmap *grf_base;
 	struct regmap *pmugrf_base;
+	struct regmap *cru_base;
 	u32 len;		/* physical map length of lcdc register*/
 	/*one time only one process allowed to config the register*/
 	spinlock_t reg_lock;
@@ -1877,6 +1878,24 @@ static inline int lcdc_grf_writel(struct regmap *base,
 	dsb(sy);
 
 	return 0;
+}
+
+static inline int lcdc_cru_writel(struct regmap *base,
+				  u32 offset, u32 val)
+{
+	regmap_write(base, offset, val);
+	dsb(sy);
+
+	return 0;
+}
+
+static inline int lcdc_cru_readl(struct regmap *base,
+				  u32 offset)
+{
+	u32 v;
+	regmap_read(base, offset, &v);
+
+	return v;
 }
 
 #define CUBIC_PRECISE  0
