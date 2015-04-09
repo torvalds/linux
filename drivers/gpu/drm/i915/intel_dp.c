@@ -5181,7 +5181,7 @@ void intel_edp_drrs_invalidate(struct drm_device *dev,
 	if (dev_priv->drrs.type == DRRS_NOT_SUPPORTED)
 		return;
 
-	cancel_delayed_work_sync(&dev_priv->drrs.work);
+	cancel_delayed_work(&dev_priv->drrs.work);
 
 	mutex_lock(&dev_priv->drrs.mutex);
 	if (!dev_priv->drrs.dp) {
@@ -5225,7 +5225,7 @@ void intel_edp_drrs_flush(struct drm_device *dev,
 	if (dev_priv->drrs.type == DRRS_NOT_SUPPORTED)
 		return;
 
-	cancel_delayed_work_sync(&dev_priv->drrs.work);
+	cancel_delayed_work(&dev_priv->drrs.work);
 
 	mutex_lock(&dev_priv->drrs.mutex);
 	if (!dev_priv->drrs.dp) {
