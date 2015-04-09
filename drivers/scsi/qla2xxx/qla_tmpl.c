@@ -219,6 +219,8 @@ qla27xx_skip_entry(struct qla27xx_fwdt_entry *ent, void *buf)
 {
 	if (buf)
 		ent->hdr.driver_flags |= DRIVER_FLAG_SKIP_ENTRY;
+	ql_dbg(ql_dbg_misc + ql_dbg_verbose, NULL, 0xd011,
+	    "Skipping entry %d\n", ent->hdr.entry_type);
 }
 
 static int
@@ -784,6 +786,12 @@ qla27xx_walk_template(struct scsi_qla_host *vha,
 
 	ql_dbg(ql_dbg_misc, vha, 0xd01b,
 	    "%s: len=%lx\n", __func__, *len);
+
+	if (buf)
+		ql_log(ql_log_warn, vha, 0xd015,
+		    "Firmware dump saved to temp buffer (%ld/%p)\n",
+		    vha->host_no, vha->hw->fw_dump);
+
 }
 
 static void
