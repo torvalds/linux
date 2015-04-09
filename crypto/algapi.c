@@ -64,6 +64,8 @@ static int crypto_check_alg(struct crypto_alg *alg)
 	if (alg->cra_priority < 0)
 		return -EINVAL;
 
+	atomic_set(&alg->cra_refcnt, 1);
+
 	return crypto_set_driver_name(alg);
 }
 
@@ -187,7 +189,6 @@ static struct crypto_larval *__crypto_register_alg(struct crypto_alg *alg)
 
 	ret = -EEXIST;
 
-	atomic_set(&alg->cra_refcnt, 1);
 	list_for_each_entry(q, &crypto_alg_list, cra_list) {
 		if (q == alg)
 			goto err;
