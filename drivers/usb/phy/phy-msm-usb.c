@@ -1436,9 +1436,42 @@ static const struct of_device_id msm_otg_dt_match[] = {
 };
 MODULE_DEVICE_TABLE(of, msm_otg_dt_match);
 
+static int msm_otg_vbus_notifier(struct notifier_block *nb, unsigned long event,
+				void *ptr)
+{
+	struct msm_usb_cable *vbus = container_of(nb, struct msm_usb_cable, nb);
+	struct msm_otg *motg = container_of(vbus, struct msm_otg, vbus);
+
+	if (event)
+		set_bit(B_SESS_VLD, &motg->inputs);
+	else
+		clear_bit(B_SESS_VLD, &motg->inputs);
+
+	schedule_work(&motg->sm_work);
+
+	return NOTIFY_DONE;
+}
+
+static int msm_otg_id_notifier(struct notifier_block *nb, unsigned long event,
+				void *ptr)
+{
+	struct msm_usb_cable *id = container_of(nb, struct msm_usb_cable, nb);
+	struct msm_otg *motg = container_of(id, struct msm_otg, id);
+
+	if (event)
+		clear_bit(ID, &motg->inputs);
+	else
+		set_bit(ID, &motg->inputs);
+
+	schedule_work(&motg->sm_work);
+
+	return NOTIFY_DONE;
+}
+
 static int msm_otg_read_dt(struct platform_device *pdev, struct msm_otg *motg)
 {
 	struct msm_otg_platform_data *pdata;
+	struct extcon_dev *ext_id, *ext_vbus;
 	const struct of_device_id *id;
 	struct device_node *node = pdev->dev.of_node;
 	struct property *prop;
@@ -1485,6 +1518,52 @@ static int msm_otg_read_dt(struct platform_device *pdev, struct msm_otg *motg)
 		motg->vdd_levels[VDD_LEVEL_NONE] = tmp[VDD_LEVEL_NONE];
 		motg->vdd_levels[VDD_LEVEL_MIN] = tmp[VDD_LEVEL_MIN];
 		motg->vdd_levels[VDD_LEVEL_MAX] = tmp[VDD_LEVEL_MAX];
+	}
+
+	ext_id = ERR_PTR(-ENODEV);
+	ext_vbus = ERR_PTR(-ENODEV);
+	if (of_property_read_bool(node, "extcon")) {
+
+		/* Each one of them is not mandatory */
+		ext_vbus = extcon_get_edev_by_phandle(&pdev->dev, 0);
+		if (IS_ERR(ext_vbus) && PTR_ERR(ext_vbus) != -ENODEV)
+			return PTR_ERR(ext_vbus);
+
+		ext_id = extcon_get_edev_by_phandle(&pdev->dev, 1);
+		if (IS_ERR(ext_id) && PTR_ERR(ext_id) != -ENODEV)
+			return PTR_ERR(ext_id);
+	}
+
+	if (!IS_ERR(ext_vbus)) {
+		motg->vbus.nb.notifier_call = msm_otg_vbus_notifier;
+		ret = extcon_register_interest(&motg->vbus.conn, ext_vbus->name,
+					       "USB", &motg->vbus.nb);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "register VBUS notifier failed\n");
+			return ret;
+		}
+
+		ret = extcon_get_cable_state(ext_vbus, "USB");
+		if (ret)
+			set_bit(B_SESS_VLD, &motg->inputs);
+		else
+			clear_bit(B_SESS_VLD, &motg->inputs);
+	}
+
+	if (!IS_ERR(ext_id)) {
+		motg->id.nb.notifier_call = msm_otg_id_notifier;
+		ret = extcon_register_interest(&motg->id.conn, ext_id->name,
+					       "USB-HOST", &motg->id.nb);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "register ID notifier failed\n");
+			return ret;
+		}
+
+		ret = extcon_get_cable_state(ext_id, "USB-HOST");
+		if (ret)
+			clear_bit(ID, &motg->inputs);
+		else
+			set_bit(ID, &motg->inputs);
 	}
 
 	prop = of_find_property(node, "qcom,phy-init-sequence", &len);
@@ -1699,6 +1778,11 @@ static int msm_otg_remove(struct platform_device *pdev)
 
 	if (phy->otg->host || phy->otg->gadget)
 		return -EBUSY;
+
+	if (motg->id.conn.edev)
+		extcon_unregister_interest(&motg->id.conn);
+	if (motg->vbus.conn.edev)
+		extcon_unregister_interest(&motg->vbus.conn);
 
 	msm_otg_debugfs_cleanup();
 	cancel_delayed_work_sync(&motg->chg_work);
