@@ -756,14 +756,23 @@ skip_rio:
 			/*
 			 * In case of loop down, restore WWPN from
 			 * NVRAM in case of FA-WWPN capable ISP
+			 * Restore for Physical Port only
 			 */
-			if (ha->flags.fawwpn_enabled) {
-				void *wwpn = ha->init_cb->port_name;
+			if (!vha->vp_idx) {
+				if (ha->flags.fawwpn_enabled) {
+					void *wwpn = ha->init_cb->port_name;
+					memcpy(vha->port_name, wwpn, WWN_SIZE);
+					fc_host_port_name(vha->host) =
+					    wwn_to_u64(vha->port_name);
+					ql_dbg(ql_dbg_init + ql_dbg_verbose,
+					    vha, 0x0144, "LOOP DOWN detected,"
+					    "restore WWPN %016llx\n",
+					    wwn_to_u64(vha->port_name));
+				}
 
-				memcpy(vha->port_name, wwpn, WWN_SIZE);
+				clear_bit(VP_CONFIG_OK, &vha->vp_flags);
 			}
 
-			clear_bit(VP_CONFIG_OK, &vha->vp_flags);
 			vha->device_flags |= DFLG_NO_CABLE;
 			qla2x00_mark_all_devices_lost(vha, 1);
 		}
