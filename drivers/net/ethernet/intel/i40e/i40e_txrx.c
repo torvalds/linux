@@ -1554,7 +1554,7 @@ static int i40e_clean_rx_irq_ps(struct i40e_ring *rx_ring, int budget)
 		 * any other fields out of the rx_desc until we know the
 		 * DD bit is set.
 		 */
-		rmb();
+		dma_rmb();
 		if (i40e_rx_is_programming_status(qword)) {
 			i40e_clean_programming_status(rx_ring, rx_desc);
 			I40E_RX_INCREMENT(rx_ring, i);
@@ -1745,7 +1745,7 @@ static int i40e_clean_rx_irq_1buf(struct i40e_ring *rx_ring, int budget)
 		 * any other fields out of the rx_desc until we know the
 		 * DD bit is set.
 		 */
-		rmb();
+		dma_rmb();
 
 		if (i40e_rx_is_programming_status(qword)) {
 			i40e_clean_programming_status(rx_ring, rx_desc);

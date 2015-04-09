@@ -1034,7 +1034,7 @@ static int i40e_clean_rx_irq_ps(struct i40e_ring *rx_ring, int budget)
 		 * any other fields out of the rx_desc until we know the
 		 * DD bit is set.
 		 */
-		rmb();
+		dma_rmb();
 		rx_bi = &rx_ring->rx_bi[i];
 		skb = rx_bi->skb;
 		if (likely(!skb)) {
@@ -1213,7 +1213,7 @@ static int i40e_clean_rx_irq_1buf(struct i40e_ring *rx_ring, int budget)
 		 * any other fields out of the rx_desc until we know the
 		 * DD bit is set.
 		 */
-		rmb();
+		dma_rmb();
 
 		rx_bi = &rx_ring->rx_bi[i];
 		skb = rx_bi->skb;

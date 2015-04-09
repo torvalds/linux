@@ -1968,7 +1968,7 @@ static int process_responses(struct sge_rspq *q, int budget)
 		if (!is_new_response(rc, q))
 			break;
 
-		rmb();
+		dma_rmb();
 		rsp_type = RSPD_TYPE(rc->type_gen);
 		if (likely(rsp_type == RSP_TYPE_FLBUF)) {
 			struct page_frag *fp;
@@ -2160,7 +2160,7 @@ static unsigned int process_intrq(struct adapter *adap)
 		if (!is_new_response(rc, q))
 			break;
 
-		rmb();
+		dma_rmb();
 		if (RSPD_TYPE(rc->type_gen) == RSP_TYPE_INTR) {
 			unsigned int qid = ntohl(rc->pldbuflen_qid);
 

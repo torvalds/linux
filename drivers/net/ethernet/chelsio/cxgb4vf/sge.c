@@ -1751,7 +1751,7 @@ static int process_responses(struct sge_rspq *rspq, int budget)
 		 * Figure out what kind of response we've received from the
 		 * SGE.
 		 */
-		rmb();
+		dma_rmb();
 		rsp_type = RSPD_TYPE(rc->type_gen);
 		if (likely(rsp_type == RSP_TYPE_FLBUF)) {
 			struct page_frag *fp;
@@ -1935,7 +1935,7 @@ static unsigned int process_intrq(struct adapter *adapter)
 		 * error and go on to the next response message.  This should
 		 * never happen ...
 		 */
-		rmb();
+		dma_rmb();
 		if (unlikely(RSPD_TYPE(rc->type_gen) != RSP_TYPE_INTR)) {
 			dev_err(adapter->pdev_dev,
 				"Unexpected INTRQ response type %d\n",
