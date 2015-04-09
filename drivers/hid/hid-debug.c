@@ -1127,7 +1127,8 @@ static ssize_t hid_debug_events_read(struct file *file, char __user *buffer,
 
 				if (!list->hdev || !list->hdev->debug) {
 					ret = -EIO;
-					break;
+					set_current_state(TASK_RUNNING);
+					goto out;
 				}
 
 				/* allow O_NONBLOCK from other threads */
