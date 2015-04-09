@@ -969,24 +969,19 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter,
 	struct nfs_direct_req *dreq;
 	struct nfs_lock_context *l_ctx;
 	loff_t end;
-	size_t count = iov_iter_count(iter);
-	end = (pos + count - 1) >> PAGE_CACHE_SHIFT;
-
-	nfs_add_stats(mapping->host, NFSIOS_DIRECTWRITTENBYTES, count);
 
 	dfprintk(FILE, "NFS: direct write(%pD2, %zd@%Ld)\n",
-		file, count, (long long) pos);
+		file, iov_iter_count(iter), (long long) iocb->ki_pos);
 
-	result = generic_write_checks(file, &pos, &count);
-	if (result)
+	result = generic_write_checks(iocb, iter);
+	if (result <= 0)
 		goto out;
 
-	result = -EINVAL;
-	if ((ssize_t) count < 0)
-		goto out;
-	result = 0;
-	if (!count)
-		goto out;
+	nfs_add_stats(mapping->host, NFSIOS_DIRECTWRITTENBYTES,
+		      iov_iter_count(iter));
+
+	pos = iocb->ki_pos;
+	end = (pos + iov_iter_count(iter) - 1) >> PAGE_CACHE_SHIFT;
 
 	mutex_lock(&inode->i_mutex);
 
@@ -1001,7 +996,7 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter,
 			goto out_unlock;
 	}
 
-	task_io_account_write(count);
+	task_io_account_write(iov_iter_count(iter));
 
 	result = -ENOMEM;
 	dreq = nfs_direct_req_alloc();
@@ -1009,7 +1004,7 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter,
 		goto out_unlock;
 
 	dreq->inode = inode;
-	dreq->bytes_left = count;
+	dreq->bytes_left = iov_iter_count(iter);
 	dreq->io_start = pos;
 	dreq->ctx = get_nfs_open_context(nfs_file_open_context(iocb->ki_filp));
 	l_ctx = nfs_get_lock_context(dreq->ctx);

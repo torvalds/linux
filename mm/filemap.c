@@ -2260,36 +2260,38 @@ EXPORT_SYMBOL(read_cache_page_gfp);
  * Returns appropriate error code that caller should return or
  * zero in case that write should be allowed.
  */
-inline int generic_write_checks(struct file *file, loff_t *pos, size_t *count)
+inline ssize_t generic_write_checks(struct kiocb *iocb, struct iov_iter *from)
 {
+	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
 	unsigned long limit = rlimit(RLIMIT_FSIZE);
+	loff_t pos;
 
-        if (unlikely(*pos < 0))
-                return -EINVAL;
+	if (!iov_iter_count(from))
+		return 0;
 
 	/* FIXME: this is for backwards compatibility with 2.4 */
 	if (file->f_flags & O_APPEND)
-		*pos = i_size_read(inode);
+		iocb->ki_pos = i_size_read(inode);
+
+	pos = iocb->ki_pos;
 
 	if (limit != RLIM_INFINITY) {
-		if (*pos >= limit) {
+		if (iocb->ki_pos >= limit) {
 			send_sig(SIGXFSZ, current, 0);
 			return -EFBIG;
 		}
-		if (*count > limit - (typeof(limit))*pos)
-			*count = limit - (typeof(limit))*pos;
+		iov_iter_truncate(from, limit - (unsigned long)pos);
 	}
 
 	/*
 	 * LFS rule
 	 */
-	if (unlikely(*pos + *count > MAX_NON_LFS &&
+	if (unlikely(pos + iov_iter_count(from) > MAX_NON_LFS &&
 				!(file->f_flags & O_LARGEFILE))) {
-		if (*pos >= MAX_NON_LFS)
+		if (pos >= MAX_NON_LFS)
 			return -EFBIG;
-		if (*count > MAX_NON_LFS - (unsigned long)*pos)
-			*count = MAX_NON_LFS - (unsigned long)*pos;
+		iov_iter_truncate(from, MAX_NON_LFS - (unsigned long)pos);
 	}
 
 	/*
@@ -2299,16 +2301,11 @@ inline int generic_write_checks(struct file *file, loff_t *pos, size_t *count)
 	 * exceeded without writing data we send a signal and return EFBIG.
 	 * Linus frestrict idea will clean these up nicely..
 	 */
-	if (unlikely(*pos >= inode->i_sb->s_maxbytes)) {
-		if (*count || *pos > inode->i_sb->s_maxbytes) {
-			return -EFBIG;
-		}
-		/* zero-length writes at ->s_maxbytes are OK */
-	}
+	if (unlikely(pos >= inode->i_sb->s_maxbytes))
+		return -EFBIG;
 
-	if (unlikely(*pos + *count > inode->i_sb->s_maxbytes))
-		*count = inode->i_sb->s_maxbytes - *pos;
-	return 0;
+	iov_iter_truncate(from, inode->i_sb->s_maxbytes - pos);
+	return iov_iter_count(from);
 }
 EXPORT_SYMBOL(generic_write_checks);
 
@@ -2618,14 +2615,11 @@ ssize_t generic_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
 	ssize_t ret;
-	size_t count = iov_iter_count(from);
 
 	mutex_lock(&inode->i_mutex);
-	ret = generic_write_checks(file, &iocb->ki_pos, &count);
-	if (!ret && count) {
-		iov_iter_truncate(from, count);
+	ret = generic_write_checks(iocb, from);
+	if (ret > 0)
 		ret = __generic_file_write_iter(iocb, from);
-	}
 	mutex_unlock(&inode->i_mutex);
 
 	if (ret > 0) {

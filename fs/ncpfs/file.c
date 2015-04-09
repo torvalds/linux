@@ -170,20 +170,15 @@ ncp_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
 	size_t already_written = 0;
-	loff_t pos = iocb->ki_pos;
-	size_t count = iov_iter_count(from);
 	size_t bufsize;
 	int errno;
 	void *bouncebuffer;
+	off_t pos;
 
 	ncp_dbg(1, "enter %pD2\n", file);
-	errno = generic_write_checks(file, &pos, &count);
-	if (errno)
+	errno = generic_write_checks(iocb, from);
+	if (errno <= 0)
 		return errno;
-	iov_iter_truncate(from, count);
-	
-	if (!count)
-		return 0;
 
 	errno = ncp_make_open(inode, O_WRONLY);
 	if (errno) {
@@ -201,10 +196,11 @@ ncp_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		errno = -EIO;	/* -ENOMEM */
 		goto outrel;
 	}
+	pos = iocb->ki_pos;
 	while (iov_iter_count(from)) {
 		int written_this_time;
 		size_t to_write = min_t(size_t,
-				      bufsize - ((off_t)pos % bufsize),
+				      bufsize - (pos % bufsize),
 				      iov_iter_count(from));
 
 		if (copy_from_iter(bouncebuffer, to_write, from) != to_write) {

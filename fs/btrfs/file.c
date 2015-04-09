@@ -1739,27 +1739,19 @@ static ssize_t btrfs_file_write_iter(struct kiocb *iocb,
 	u64 start_pos;
 	u64 end_pos;
 	ssize_t num_written = 0;
-	ssize_t err = 0;
-	size_t count = iov_iter_count(from);
 	bool sync = (file->f_flags & O_DSYNC) || IS_SYNC(file->f_mapping->host);
-	loff_t pos = iocb->ki_pos;
+	ssize_t err;
+	loff_t pos;
+	size_t count;
 
 	mutex_lock(&inode->i_mutex);
+	err = generic_write_checks(iocb, from);
+	if (err <= 0) {
+		mutex_unlock(&inode->i_mutex);
+		return err;
+	}
 
 	current->backing_dev_info = inode_to_bdi(inode);
-	err = generic_write_checks(file, &pos, &count);
-	if (err) {
-		mutex_unlock(&inode->i_mutex);
-		goto out;
-	}
-
-	if (count == 0) {
-		mutex_unlock(&inode->i_mutex);
-		goto out;
-	}
-
-	iov_iter_truncate(from, count);
-
 	err = file_remove_suid(file);
 	if (err) {
 		mutex_unlock(&inode->i_mutex);
@@ -1786,6 +1778,8 @@ static ssize_t btrfs_file_write_iter(struct kiocb *iocb,
 	 */
 	update_time_for_write(inode);
 
+	pos = iocb->ki_pos;
+	count = iov_iter_count(from);
 	start_pos = round_down(pos, root->sectorsize);
 	if (start_pos > i_size_read(inode)) {
 		/* Expand hole size to cover write data, preventing empty gap */

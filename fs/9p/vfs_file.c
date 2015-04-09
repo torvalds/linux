@@ -404,21 +404,16 @@ static ssize_t
 v9fs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
-	ssize_t retval = 0;
-	loff_t origin = iocb->ki_pos;
-	size_t count = iov_iter_count(from);
+	ssize_t retval;
+	loff_t origin;
 	int err = 0;
 
-	retval = generic_write_checks(file, &origin, &count);
-	if (retval)
+	retval = generic_write_checks(iocb, from);
+	if (retval <= 0)
 		return retval;
 
-	iov_iter_truncate(from, count);
-
-	if (!count)
-		return 0;
-
-	retval = p9_client_write(file->private_data, origin, from, &err);
+	origin = iocb->ki_pos;
+	retval = p9_client_write(file->private_data, iocb->ki_pos, from, &err);
 	if (retval > 0) {
 		struct inode *inode = file_inode(file);
 		loff_t i_size;
@@ -428,12 +423,11 @@ v9fs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		if (inode->i_mapping && inode->i_mapping->nrpages)
 			invalidate_inode_pages2_range(inode->i_mapping,
 						      pg_start, pg_end);
-		origin += retval;
+		iocb->ki_pos += retval;
 		i_size = i_size_read(inode);
-		iocb->ki_pos = origin;
-		if (origin > i_size) {
-			inode_add_bytes(inode, origin - i_size);
-			i_size_write(inode, origin);
+		if (iocb->ki_pos > i_size) {
+			inode_add_bytes(inode, iocb->ki_pos - i_size);
+			i_size_write(inode, iocb->ki_pos);
 		}
 		return retval;
 	}

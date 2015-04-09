@@ -120,20 +120,14 @@ static ssize_t udf_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	ssize_t retval;
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
-	size_t count = iov_iter_count(from);
 	struct udf_inode_info *iinfo = UDF_I(inode);
 	int err;
 
 	mutex_lock(&inode->i_mutex);
 
-	retval = generic_write_checks(file, &iocb->ki_pos, &count);
-	if (retval)
+	retval = generic_write_checks(iocb, from);
+	if (retval <= 0)
 		goto out;
-
-	if (count == 0)
-		goto out;
-
-	iov_iter_truncate(from, count);
 
 	down_write(&iinfo->i_data_sem);
 	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {

@@ -551,12 +551,12 @@ xfs_file_aio_write_checks(
 	struct file		*file = iocb->ki_filp;
 	struct inode		*inode = file->f_mapping->host;
 	struct xfs_inode	*ip = XFS_I(inode);
-	int			error = 0;
+	ssize_t			error = 0;
 	size_t			count = iov_iter_count(from);
 
 restart:
-	error = generic_write_checks(file, &iocb->ki_pos, &count);
-	if (error)
+	error = generic_write_checks(iocb, from);
+	if (error <= 0)
 		return error;
 
 	error = xfs_break_layouts(inode, iolock);
@@ -577,13 +577,13 @@ restart:
 			xfs_rw_iunlock(ip, *iolock);
 			*iolock = XFS_IOLOCK_EXCL;
 			xfs_rw_ilock(ip, *iolock);
+			iov_iter_reexpand(from, count);
 			goto restart;
 		}
 		error = xfs_zero_eof(ip, iocb->ki_pos, i_size_read(inode), &zero);
 		if (error)
 			return error;
 	}
-	iov_iter_truncate(from, count);
 
 	/*
 	 * Updating the timestamps will grab the ilock again from

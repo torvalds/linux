@@ -2563,7 +2563,6 @@ cifs_write_from_iter(loff_t offset, size_t len, struct iov_iter *from,
 ssize_t cifs_user_writev(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
-	size_t len;
 	ssize_t total_written = 0;
 	struct cifsFileInfo *open_file;
 	struct cifs_tcon *tcon;
@@ -2579,15 +2578,9 @@ ssize_t cifs_user_writev(struct kiocb *iocb, struct iov_iter *from)
 	 * write request.
 	 */
 
-	len = iov_iter_count(from);
-	rc = generic_write_checks(file, &iocb->ki_pos, &len);
-	if (rc)
+	rc = generic_write_checks(iocb, from);
+	if (rc <= 0)
 		return rc;
-
-	if (!len)
-		return 0;
-
-	iov_iter_truncate(from, len);
 
 	INIT_LIST_HEAD(&wdata_list);
 	cifs_sb = CIFS_FILE_SB(file);
@@ -2599,8 +2592,8 @@ ssize_t cifs_user_writev(struct kiocb *iocb, struct iov_iter *from)
 
 	memcpy(&saved_from, from, sizeof(struct iov_iter));
 
-	rc = cifs_write_from_iter(iocb->ki_pos, len, from, open_file, cifs_sb,
-				  &wdata_list);
+	rc = cifs_write_from_iter(iocb->ki_pos, iov_iter_count(from), from,
+				  open_file, cifs_sb, &wdata_list);
 
 	/*
 	 * If at least one write was successfully sent, then discard any rc
@@ -2674,7 +2667,6 @@ cifs_writev(struct kiocb *iocb, struct iov_iter *from)
 	struct cifsInodeInfo *cinode = CIFS_I(inode);
 	struct TCP_Server_Info *server = tlink_tcon(cfile->tlink)->ses->server;
 	ssize_t rc;
-	size_t count;
 
 	/*
 	 * We need to hold the sem to be sure nobody modifies lock list
@@ -2683,15 +2675,9 @@ cifs_writev(struct kiocb *iocb, struct iov_iter *from)
 	down_read(&cinode->lock_sem);
 	mutex_lock(&inode->i_mutex);
 
-	count = iov_iter_count(from);
-	rc = generic_write_checks(file, &iocb->ki_pos, &count);
-	if (rc)
+	rc = generic_write_checks(iocb, from);
+	if (rc <= 0)
 		goto out;
-
-	if (count == 0)
-		goto out;
-
-	iov_iter_truncate(from, count);
 
 	if (!cifs_find_lock_conflict(cfile, iocb->ki_pos, iov_iter_count(from),
 				     server->vals->exclusive_lock_type, NULL,

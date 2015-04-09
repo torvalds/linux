@@ -2250,9 +2250,10 @@ out:
 static ssize_t ocfs2_file_write_iter(struct kiocb *iocb,
 				    struct iov_iter *from)
 {
-	int ret, direct_io, appending, rw_level, have_alloc_sem  = 0;
+	int direct_io, appending, rw_level, have_alloc_sem  = 0;
 	int can_do_direct, has_refcount = 0;
 	ssize_t written = 0;
+	ssize_t ret;
 	size_t count = iov_iter_count(from), orig_count;
 	loff_t old_size;
 	u32 old_clusters;
@@ -2319,13 +2320,14 @@ relock:
 		ocfs2_inode_unlock(inode, 1);
 	}
 
-	orig_count = count;
-	ret = generic_write_checks(file, &iocb->ki_pos, &count);
-	if (ret < 0) {
-		mlog_errno(ret);
+	orig_count = iov_iter_count(from);
+	ret = generic_write_checks(iocb, from);
+	if (ret <= 0) {
+		if (ret)
+			mlog_errno(ret);
 		goto out;
 	}
-	iov_iter_truncate(from, count);
+	count = ret;
 
 	can_do_direct = direct_io;
 	ret = ocfs2_prepare_inode_for_write(file, iocb->ki_pos, count, appending,
@@ -2349,7 +2351,7 @@ relock:
 		rw_level = -1;
 
 		direct_io = 0;
-		iov_iter_reexpand(from, count = orig_count);
+		iov_iter_reexpand(from, orig_count);
 		goto relock;
 	}
 
@@ -2377,7 +2379,7 @@ relock:
 		loff_t endbyte;
 		ssize_t written_buffered;
 		written = generic_file_direct_write(iocb, from, iocb->ki_pos);
-		if (written < 0 || written == count) {
+		if (written < 0 || !iov_iter_count(from)) {
 			ret = written;
 			goto out_dio;
 		}
@@ -2385,7 +2387,6 @@ relock:
 		/*
 		 * for completing the rest of the request.
 		 */
-		count -= written;
 		written_buffered = generic_perform_write(file, from, iocb->ki_pos);
 		/*
 		 * If generic_file_buffered_write() returned a synchronous error

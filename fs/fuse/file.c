@@ -1145,13 +1145,11 @@ static ssize_t fuse_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
-	size_t count = iov_iter_count(from);
 	ssize_t written = 0;
 	ssize_t written_buffered = 0;
 	struct inode *inode = mapping->host;
 	ssize_t err;
 	loff_t endbyte = 0;
-	loff_t pos = iocb->ki_pos;
 
 	if (get_fuse_conn(inode)->writeback_cache) {
 		/* Update size (EOF optimization) and mode (SUID clearing) */
@@ -1167,14 +1165,10 @@ static ssize_t fuse_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	/* We can write back this queue in page reclaim */
 	current->backing_dev_info = inode_to_bdi(inode);
 
-	err = generic_write_checks(file, &pos, &count);
-	if (err)
+	err = generic_write_checks(iocb, from);
+	if (err <= 0)
 		goto out;
 
-	if (count == 0)
-		goto out;
-
-	iov_iter_truncate(from, count);
 	err = file_remove_suid(file);
 	if (err)
 		goto out;
@@ -1184,6 +1178,7 @@ static ssize_t fuse_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		goto out;
 
 	if (file->f_flags & O_DIRECT) {
+		loff_t pos = iocb->ki_pos;
 		written = generic_file_direct_write(iocb, from, pos);
 		if (written < 0 || !iov_iter_count(from))
 			goto out;
@@ -1209,9 +1204,9 @@ static ssize_t fuse_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		written += written_buffered;
 		iocb->ki_pos = pos + written_buffered;
 	} else {
-		written = fuse_perform_write(file, mapping, from, pos);
+		written = fuse_perform_write(file, mapping, from, iocb->ki_pos);
 		if (written >= 0)
-			iocb->ki_pos = pos + written;
+			iocb->ki_pos += written;
 	}
 out:
 	current->backing_dev_info = NULL;
@@ -1412,7 +1407,6 @@ static ssize_t fuse_direct_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
 	struct fuse_io_priv io = { .async = 0, .file = file };
-	size_t count = iov_iter_count(from);
 	ssize_t res;
 
 	if (is_bad_inode(inode))
@@ -1420,11 +1414,9 @@ static ssize_t fuse_direct_write_iter(struct kiocb *iocb, struct iov_iter *from)
 
 	/* Don't allow parallel writes to the same file */
 	mutex_lock(&inode->i_mutex);
-	res = generic_write_checks(file, &iocb->ki_pos, &count);
-	if (!res) {
-		iov_iter_truncate(from, count);
+	res = generic_write_checks(iocb, from);
+	if (res > 0)
 		res = fuse_direct_io(&io, from, &iocb->ki_pos, FUSE_DIO_WRITE);
-	}
 	fuse_invalidate_attr(inode);
 	if (res > 0)
 		fuse_write_update_size(inode, iocb->ki_pos);

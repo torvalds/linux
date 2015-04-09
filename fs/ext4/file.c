@@ -97,9 +97,7 @@ ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	struct blk_plug plug;
 	int o_direct = io_is_direct(file);
 	int overwrite = 0;
-	size_t length = iov_iter_count(from);
 	ssize_t ret;
-	loff_t pos;
 
 	/*
 	 * Unaligned direct AIO must be serialized; see comment above
@@ -116,15 +114,9 @@ ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	}
 
 	mutex_lock(&inode->i_mutex);
-	ret = generic_write_checks(file, &iocb->ki_pos, &length);
-	if (ret)
+	ret = generic_write_checks(iocb, from);
+	if (ret <= 0)
 		goto out;
-
-	if (length == 0)
-		goto out;
-
-	iov_iter_truncate(from, length);
-	pos = iocb->ki_pos;
 
 	/*
 	 * If we have encountered a bitmap-format file, the size limit
@@ -133,18 +125,18 @@ ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))) {
 		struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 
-		if (pos >= sbi->s_bitmap_maxbytes) {
+		if (iocb->ki_pos >= sbi->s_bitmap_maxbytes) {
 			ret = -EFBIG;
 			goto out;
 		}
-		iov_iter_truncate(from, sbi->s_bitmap_maxbytes - pos);
+		iov_iter_truncate(from, sbi->s_bitmap_maxbytes - iocb->ki_pos);
 	}
 
 	iocb->private = &overwrite;
 	if (o_direct) {
-		length = iov_iter_count(from);
+		size_t length = iov_iter_count(from);
+		loff_t pos = iocb->ki_pos;
 		blk_start_plug(&plug);
-
 
 		/* check whether we do a DIO overwrite or not */
 		if (ext4_should_dioread_nolock(inode) && !aio_mutex &&

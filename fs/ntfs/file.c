@@ -339,17 +339,14 @@ static ssize_t ntfs_prepare_file_for_write(struct kiocb *iocb,
 	struct inode *vi = file_inode(file);
 	ntfs_inode *base_ni, *ni = NTFS_I(vi);
 	ntfs_volume *vol = ni->vol;
-	size_t count = iov_iter_count(from);
 
 	ntfs_debug("Entering for i_ino 0x%lx, attribute type 0x%x, pos "
 			"0x%llx, count 0x%zx.", vi->i_ino,
 			(unsigned)le32_to_cpu(ni->type),
-			(unsigned long long)iocb->ki_pos, count);
-	err = generic_write_checks(file, &iocb->ki_pos, &count);
-	if (unlikely(err))
-		goto out;
-	iov_iter_truncate(from, count);
-	if (count == 0)
+			(unsigned long long)iocb->ki_pos,
+			iov_iter_count(from));
+	err = generic_write_checks(iocb, from);
+	if (unlikely(err <= 0))
 		goto out;
 	/*
 	 * All checks have passed.  Before we start doing any writing we want
