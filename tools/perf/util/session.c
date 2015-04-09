@@ -15,12 +15,13 @@
 #include "cpumap.h"
 #include "perf_regs.h"
 #include "asm/bug.h"
+#include "auxtrace.h"
 
-static int machines__deliver_event(struct machines *machines,
-				   struct perf_evlist *evlist,
-				   union perf_event *event,
-				   struct perf_sample *sample,
-				   struct perf_tool *tool, u64 file_offset);
+static int perf_session__deliver_event(struct perf_session *session,
+				       union perf_event *event,
+				       struct perf_sample *sample,
+				       struct perf_tool *tool,
+				       u64 file_offset);
 
 static int perf_session__open(struct perf_session *session)
 {
@@ -105,8 +106,8 @@ static int ordered_events__deliver_event(struct ordered_events *oe,
 		return ret;
 	}
 
-	return machines__deliver_event(&session->machines, session->evlist, event->event,
-				       &sample, session->tool, event->file_offset);
+	return perf_session__deliver_event(session, event->event, &sample,
+					   session->tool, event->file_offset);
 }
 
 struct perf_session *perf_session__new(struct perf_data_file *file,
@@ -185,6 +186,7 @@ static void perf_session_env__delete(struct perf_session_env *env)
 
 void perf_session__delete(struct perf_session *session)
 {
+	auxtrace__free(session);
 	perf_session__destroy_kernel_maps(session);
 	perf_session__delete_threads(session);
 	perf_session_env__delete(&session->header.env);
@@ -1030,6 +1032,24 @@ static int machines__deliver_event(struct machines *machines,
 	}
 }
 
+static int perf_session__deliver_event(struct perf_session *session,
+				       union perf_event *event,
+				       struct perf_sample *sample,
+				       struct perf_tool *tool,
+				       u64 file_offset)
+{
+	int ret;
+
+	ret = auxtrace__process_event(session, event, sample, tool);
+	if (ret < 0)
+		return ret;
+	if (ret > 0)
+		return 0;
+
+	return machines__deliver_event(&session->machines, session->evlist,
+				       event, sample, tool, file_offset);
+}
+
 static s64 perf_session__process_user_event(struct perf_session *session,
 					    union perf_event *event,
 					    u64 file_offset)
@@ -1190,8 +1210,8 @@ static s64 perf_session__process_event(struct perf_session *session,
 			return ret;
 	}
 
-	return machines__deliver_event(&session->machines, evlist, event,
-				       &sample, tool, file_offset);
+	return perf_session__deliver_event(session, event, &sample, tool,
+					   file_offset);
 }
 
 void perf_event_header__bswap(struct perf_event_header *hdr)
@@ -1350,10 +1370,14 @@ more:
 done:
 	/* do the final flush for ordered samples */
 	err = ordered_events__flush(oe, OE_FLUSH__FINAL);
+	if (err)
+		goto out_err;
+	err = auxtrace__flush_events(session, tool);
 out_err:
 	free(buf);
 	perf_session__warn_about_errors(session);
 	ordered_events__free(&session->ordered_events);
+	auxtrace__free_events(session);
 	return err;
 }
 
@@ -1496,10 +1520,14 @@ more:
 out:
 	/* do the final flush for ordered samples */
 	err = ordered_events__flush(oe, OE_FLUSH__FINAL);
+	if (err)
+		goto out_err;
+	err = auxtrace__flush_events(session, tool);
 out_err:
 	ui_progress__finish();
 	perf_session__warn_about_errors(session);
 	ordered_events__free(&session->ordered_events);
+	auxtrace__free_events(session);
 	session->one_mmap = false;
 	return err;
 }
@@ -1582,7 +1610,13 @@ size_t perf_session__fprintf_dsos_buildid(struct perf_session *session, FILE *fp
 
 size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp)
 {
-	size_t ret = fprintf(fp, "Aggregated stats:\n");
+	size_t ret;
+	const char *msg = "";
+
+	if (perf_header__has_feat(&session->header, HEADER_AUXTRACE))
+		msg = " (excludes AUX area (e.g. instruction trace) decoded / synthesized events)";
+
+	ret = fprintf(fp, "Aggregated stats:%s\n", msg);
 
 	ret += events_stats__fprintf(&session->evlist->stats, fp);
 	return ret;
