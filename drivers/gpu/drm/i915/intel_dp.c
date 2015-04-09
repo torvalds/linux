@@ -2742,11 +2742,6 @@ static void chv_pre_enable_dp(struct intel_encoder *encoder)
 
 	/* Program Tx lane latency optimal setting*/
 	for (i = 0; i < 4; i++) {
-		/* Set the latency optimal bit */
-		data = (i == 1) ? 0x0 : 0x6;
-		vlv_dpio_write(dev_priv, pipe, CHV_TX_DW11(ch, i),
-				data << DPIO_FRC_LATENCY_SHFIT);
-
 		/* Set the upar bit */
 		data = (i == 1) ? 0x0 : 0x1;
 		vlv_dpio_write(dev_priv, pipe, CHV_TX_DW14(ch, i),
