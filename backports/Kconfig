@@ -4,7 +4,7 @@ config BACKPORT_INTEGRATE
 
 config BACKPORT_DIR
 	string
-	default "backports/"
+	default "backports"
 
 config BACKPORT_VERSION
 	string
