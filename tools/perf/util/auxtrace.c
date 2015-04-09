@@ -37,6 +37,7 @@
 
 #include "event.h"
 #include "debug.h"
+#include "parse-options.h"
 
 int auxtrace_mmap__mmap(struct auxtrace_mmap *mm,
 			struct auxtrace_mmap_params *mp,
@@ -198,6 +199,141 @@ int perf_event__synthesize_auxtrace_info(struct auxtrace_record *itr,
 out_free:
 	free(ev);
 	return err;
+}
+
+#define PERF_ITRACE_DEFAULT_PERIOD_TYPE		PERF_ITRACE_PERIOD_NANOSECS
+#define PERF_ITRACE_DEFAULT_PERIOD		100000
+#define PERF_ITRACE_DEFAULT_CALLCHAIN_SZ	16
+#define PERF_ITRACE_MAX_CALLCHAIN_SZ		1024
+
+void itrace_synth_opts__set_default(struct itrace_synth_opts *synth_opts)
+{
+	synth_opts->instructions = true;
+	synth_opts->branches = true;
+	synth_opts->errors = true;
+	synth_opts->period_type = PERF_ITRACE_DEFAULT_PERIOD_TYPE;
+	synth_opts->period = PERF_ITRACE_DEFAULT_PERIOD;
+	synth_opts->callchain_sz = PERF_ITRACE_DEFAULT_CALLCHAIN_SZ;
+}
+
+/*
+ * Please check tools/perf/Documentation/perf-script.txt for information
+ * about the options parsed here, which is introduced after this cset,
+ * when support in 'perf script' for these options is introduced.
+ */
+int itrace_parse_synth_opts(const struct option *opt, const char *str,
+			    int unset)
+{
+	struct itrace_synth_opts *synth_opts = opt->value;
+	const char *p;
+	char *endptr;
+
+	synth_opts->set = true;
+
+	if (unset) {
+		synth_opts->dont_decode = true;
+		return 0;
+	}
+
+	if (!str) {
+		itrace_synth_opts__set_default(synth_opts);
+		return 0;
+	}
+
+	for (p = str; *p;) {
+		switch (*p++) {
+		case 'i':
+			synth_opts->instructions = true;
+			while (*p == ' ' || *p == ',')
+				p += 1;
+			if (isdigit(*p)) {
+				synth_opts->period = strtoull(p, &endptr, 10);
+				p = endptr;
+				while (*p == ' ' || *p == ',')
+					p += 1;
+				switch (*p++) {
+				case 'i':
+					synth_opts->period_type =
+						PERF_ITRACE_PERIOD_INSTRUCTIONS;
+					break;
+				case 't':
+					synth_opts->period_type =
+						PERF_ITRACE_PERIOD_TICKS;
+					break;
+				case 'm':
+					synth_opts->period *= 1000;
+					/* Fall through */
+				case 'u':
+					synth_opts->period *= 1000;
+					/* Fall through */
+				case 'n':
+					if (*p++ != 's')
+						goto out_err;
+					synth_opts->period_type =
+						PERF_ITRACE_PERIOD_NANOSECS;
+					break;
+				case '\0':
+					goto out;
+				default:
+					goto out_err;
+				}
+			}
+			break;
+		case 'b':
+			synth_opts->branches = true;
+			break;
+		case 'e':
+			synth_opts->errors = true;
+			break;
+		case 'd':
+			synth_opts->log = true;
+			break;
+		case 'c':
+			synth_opts->branches = true;
+			synth_opts->calls = true;
+			break;
+		case 'r':
+			synth_opts->branches = true;
+			synth_opts->returns = true;
+			break;
+		case 'g':
+			synth_opts->instructions = true;
+			synth_opts->callchain = true;
+			synth_opts->callchain_sz =
+					PERF_ITRACE_DEFAULT_CALLCHAIN_SZ;
+			while (*p == ' ' || *p == ',')
+				p += 1;
+			if (isdigit(*p)) {
+				unsigned int val;
+
+				val = strtoul(p, &endptr, 10);
+				p = endptr;
+				if (!val || val > PERF_ITRACE_MAX_CALLCHAIN_SZ)
+					goto out_err;
+				synth_opts->callchain_sz = val;
+			}
+			break;
+		case ' ':
+		case ',':
+			break;
+		default:
+			goto out_err;
+		}
+	}
+out:
+	if (synth_opts->instructions) {
+		if (!synth_opts->period_type)
+			synth_opts->period_type =
+					PERF_ITRACE_DEFAULT_PERIOD_TYPE;
+		if (!synth_opts->period)
+			synth_opts->period = PERF_ITRACE_DEFAULT_PERIOD;
+	}
+
+	return 0;
+
+out_err:
+	pr_err("Bad Instruction Tracing options '%s'\n", str);
+	return -EINVAL;
 }
 
 int auxtrace_mmap__read(struct auxtrace_mmap *mm, struct auxtrace_record *itr,

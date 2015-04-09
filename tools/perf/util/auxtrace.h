@@ -29,8 +29,48 @@ union perf_event;
 struct perf_session;
 struct perf_evlist;
 struct perf_tool;
+struct option;
 struct record_opts;
 struct auxtrace_info_event;
+
+enum itrace_period_type {
+	PERF_ITRACE_PERIOD_INSTRUCTIONS,
+	PERF_ITRACE_PERIOD_TICKS,
+	PERF_ITRACE_PERIOD_NANOSECS,
+};
+
+/**
+ * struct itrace_synth_opts - AUX area tracing synthesis options.
+ * @set: indicates whether or not options have been set
+ * @inject: indicates the event (not just the sample) must be fully synthesized
+ *          because 'perf inject' will write it out
+ * @instructions: whether to synthesize 'instructions' events
+ * @branches: whether to synthesize 'branches' events
+ * @errors: whether to synthesize decoder error events
+ * @dont_decode: whether to skip decoding entirely
+ * @log: write a decoding log
+ * @calls: limit branch samples to calls (can be combined with @returns)
+ * @returns: limit branch samples to returns (can be combined with @calls)
+ * @callchain: add callchain to 'instructions' events
+ * @callchain_sz: maximum callchain size
+ * @period: 'instructions' events period
+ * @period_type: 'instructions' events period type
+ */
+struct itrace_synth_opts {
+	bool			set;
+	bool			inject;
+	bool			instructions;
+	bool			branches;
+	bool			errors;
+	bool			dont_decode;
+	bool			log;
+	bool			calls;
+	bool			returns;
+	bool			callchain;
+	unsigned int		callchain_sz;
+	unsigned long long	period;
+	enum itrace_period_type	period_type;
+};
 
 /**
  * struct auxtrace - session callbacks to allow AUX area data decoding.
@@ -186,6 +226,9 @@ int perf_event__synthesize_auxtrace_info(struct auxtrace_record *itr,
 					 struct perf_tool *tool,
 					 struct perf_session *session,
 					 perf_event__handler_t process);
+int itrace_parse_synth_opts(const struct option *opt, const char *str,
+			    int unset);
+void itrace_synth_opts__set_default(struct itrace_synth_opts *synth_opts);
 
 static inline int auxtrace__process_event(struct perf_session *session,
 					  union perf_event *event,

@@ -16,12 +16,14 @@ struct ip_callchain;
 struct thread;
 
 struct auxtrace;
+struct itrace_synth_opts;
 
 struct perf_session {
 	struct perf_header	header;
 	struct machines		machines;
 	struct perf_evlist	*evlist;
 	struct auxtrace		*auxtrace;
+	struct itrace_synth_opts *itrace_synth_opts;
 	struct trace_event	tevent;
 	bool			repipe;
 	bool			one_mmap;
