@@ -166,9 +166,8 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 		dest->data[0] = out->group;
 		break;
 	case NFT_META_CGROUP:
-		if (skb->sk == NULL)
-			break;
-
+		if (skb->sk == NULL || !sk_fullsock(skb->sk))
+			goto err;
 		dest->data[0] = skb->sk->sk_classid;
 		break;
 	default:

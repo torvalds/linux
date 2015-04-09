@@ -23,6 +23,7 @@
 #include <linux/ipv6.h>
 #include <linux/netdevice.h>
 #include <linux/netfilter.h>
+#include <linux/netfilter_bridge.h>
 #include <net/netlink.h>
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_log.h>
@@ -448,14 +449,18 @@ __build_packet_message(struct nfnl_log_net *log,
 					 htonl(br_port_get_rcu(indev)->br->dev->ifindex)))
 				goto nla_put_failure;
 		} else {
+			struct net_device *physindev;
+
 			/* Case 2: indev is bridge group, we need to look for
 			 * physical device (when called from ipv4) */
 			if (nla_put_be32(inst->skb, NFULA_IFINDEX_INDEV,
 					 htonl(indev->ifindex)))
 				goto nla_put_failure;
-			if (skb->nf_bridge && skb->nf_bridge->physindev &&
+
+			physindev = nf_bridge_get_physindev(skb);
+			if (physindev &&
 			    nla_put_be32(inst->skb, NFULA_IFINDEX_PHYSINDEV,
-					 htonl(skb->nf_bridge->physindev->ifindex)))
+					 htonl(physindev->ifindex)))
 				goto nla_put_failure;
 		}
 #endif
@@ -479,14 +484,18 @@ __build_packet_message(struct nfnl_log_net *log,
 					 htonl(br_port_get_rcu(outdev)->br->dev->ifindex)))
 				goto nla_put_failure;
 		} else {
+			struct net_device *physoutdev;
+
 			/* Case 2: indev is a bridge group, we need to look
 			 * for physical device (when called from ipv4) */
 			if (nla_put_be32(inst->skb, NFULA_IFINDEX_OUTDEV,
 					 htonl(outdev->ifindex)))
 				goto nla_put_failure;
-			if (skb->nf_bridge && skb->nf_bridge->physoutdev &&
+
+			physoutdev = nf_bridge_get_physoutdev(skb);
+			if (physoutdev &&
 			    nla_put_be32(inst->skb, NFULA_IFINDEX_PHYSOUTDEV,
-					 htonl(skb->nf_bridge->physoutdev->ifindex)))
+					 htonl(physoutdev->ifindex)))
 				goto nla_put_failure;
 		}
 #endif

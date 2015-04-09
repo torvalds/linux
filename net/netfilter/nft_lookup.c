@@ -92,6 +92,8 @@ static int nft_lookup_init(const struct nft_ctx *ctx,
 	} else if (set->flags & NFT_SET_MAP)
 		return -EINVAL;
 
+	priv->binding.flags = set->flags & NFT_SET_MAP;
+
 	err = nf_tables_bind_set(ctx, set, &priv->binding);
 	if (err < 0)
 		return err;

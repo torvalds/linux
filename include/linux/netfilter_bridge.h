@@ -2,7 +2,7 @@
 #define __LINUX_BRIDGE_NETFILTER_H
 
 #include <uapi/linux/netfilter_bridge.h>
-
+#include <linux/skbuff.h>
 
 enum nf_br_hook_priorities {
 	NF_BR_PRI_FIRST = INT_MIN,
@@ -17,15 +17,12 @@ enum nf_br_hook_priorities {
 
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 
-#define BRNF_PKT_TYPE			0x01
 #define BRNF_BRIDGED_DNAT		0x02
 #define BRNF_NF_BRIDGE_PREROUTING	0x08
-#define BRNF_8021Q			0x10
-#define BRNF_PPPoE			0x20
 
 static inline unsigned int nf_bridge_mtu_reduction(const struct sk_buff *skb)
 {
-	if (unlikely(skb->nf_bridge->mask & BRNF_PPPoE))
+	if (skb->nf_bridge->orig_proto == BRNF_PROTO_PPPOE)
 		return PPPOE_SES_HLEN;
 	return 0;
 }
@@ -40,6 +37,27 @@ static inline void br_drop_fake_rtable(struct sk_buff *skb)
 		skb_dst_drop(skb);
 }
 
+static inline int nf_bridge_get_physinif(const struct sk_buff *skb)
+{
+	return skb->nf_bridge ? skb->nf_bridge->physindev->ifindex : 0;
+}
+
+static inline int nf_bridge_get_physoutif(const struct sk_buff *skb)
+{
+	return skb->nf_bridge ? skb->nf_bridge->physoutdev->ifindex : 0;
+}
+
+static inline struct net_device *
+nf_bridge_get_physindev(const struct sk_buff *skb)
+{
+	return skb->nf_bridge ? skb->nf_bridge->physindev : NULL;
+}
+
+static inline struct net_device *
+nf_bridge_get_physoutdev(const struct sk_buff *skb)
+{
+	return skb->nf_bridge ? skb->nf_bridge->physoutdev : NULL;
+}
 #else
 #define br_drop_fake_rtable(skb)	        do { } while (0)
 #endif /* CONFIG_BRIDGE_NETFILTER */

@@ -31,6 +31,9 @@ void nft_cmp_module_exit(void);
 int nft_lookup_module_init(void);
 void nft_lookup_module_exit(void);
 
+int nft_dynset_module_init(void);
+void nft_dynset_module_exit(void);
+
 int nft_bitwise_module_init(void);
 void nft_bitwise_module_exit(void);
 
