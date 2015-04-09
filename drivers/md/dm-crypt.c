@@ -1124,15 +1124,15 @@ static void clone_init(struct dm_crypt_io *io, struct bio *clone)
 static int kcryptd_io_read(struct dm_crypt_io *io, gfp_t gfp)
 {
 	struct crypt_config *cc = io->cc;
-	struct bio *base_bio = io->base_bio;
 	struct bio *clone;
 
 	/*
-	 * The block layer might modify the bvec array, so always
-	 * copy the required bvecs because we need the original
-	 * one in order to decrypt the whole bio data *afterwards*.
+	 * We need the original biovec array in order to decrypt
+	 * the whole bio data *afterwards* -- thanks to immutable
+	 * biovecs we don't need to worry about the block layer
+	 * modifying the biovec array; so leverage bio_clone_fast().
 	 */
-	clone = bio_clone_bioset(base_bio, gfp, cc->bs);
+	clone = bio_clone_fast(io->base_bio, gfp, cc->bs);
 	if (!clone)
 		return 1;
 
