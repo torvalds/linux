@@ -94,7 +94,7 @@ void __iomem *msm_ioremap(struct platform_device *pdev, const char *name,
 	}
 
 	if (reglog)
-		printk(KERN_DEBUG "IO:region %s %08x %08lx\n", dbgname, (u32)ptr, size);
+		printk(KERN_DEBUG "IO:region %s %p %08lx\n", dbgname, ptr, size);
 
 	return ptr;
 }
@@ -102,7 +102,7 @@ void __iomem *msm_ioremap(struct platform_device *pdev, const char *name,
 void msm_writel(u32 data, void __iomem *addr)
 {
 	if (reglog)
-		printk(KERN_DEBUG "IO:W %08x %08x\n", (u32)addr, data);
+		printk(KERN_DEBUG "IO:W %p %08x\n", addr, data);
 	writel(data, addr);
 }
 
@@ -110,7 +110,7 @@ u32 msm_readl(const void __iomem *addr)
 {
 	u32 val = readl(addr);
 	if (reglog)
-		printk(KERN_ERR "IO:R %08x %08x\n", (u32)addr, val);
+		printk(KERN_ERR "IO:R %p %08x\n", addr, val);
 	return val;
 }
 
@@ -177,7 +177,7 @@ static int get_mdp_ver(struct platform_device *pdev)
 	const struct of_device_id *match;
 	match = of_match_node(match_types, dev->of_node);
 	if (match)
-		return (int)match->data;
+		return (int)(unsigned long)match->data;
 #endif
 	return 4;
 }
@@ -216,7 +216,7 @@ static int msm_init_vram(struct drm_device *dev)
 		if (ret)
 			return ret;
 		size = r.end - r.start;
-		DRM_INFO("using VRAM carveout: %lx@%08x\n", size, r.start);
+		DRM_INFO("using VRAM carveout: %lx@%pa\n", size, &r.start);
 	} else
 #endif
 
