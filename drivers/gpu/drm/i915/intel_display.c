@@ -6302,14 +6302,6 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 		adjusted_mode->hsync_start == adjusted_mode->hdisplay)
 		return -EINVAL;
 
-	if ((IS_G4X(dev) || IS_VALLEYVIEW(dev)) && pipe_config->pipe_bpp > 10*3) {
-		pipe_config->pipe_bpp = 10*3; /* 12bpc is gen5+ */
-	} else if (INTEL_INFO(dev)->gen <= 4 && pipe_config->pipe_bpp > 8*3) {
-		/* only a 8bpc pipe, with 6bpc dither through the panel fitter
-		 * for lvds. */
-		pipe_config->pipe_bpp = 8*3;
-	}
-
 	if (HAS_IPS(dev))
 		hsw_compute_ips_config(crtc, pipe_config);
 
@@ -10981,7 +10973,6 @@ connected_sink_compute_bpp(struct intel_connector *connector,
 
 static int
 compute_baseline_pipe_bpp(struct intel_crtc *crtc,
-			  struct drm_framebuffer *fb,
 			  struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = crtc->base.dev;
@@ -10989,41 +10980,13 @@ compute_baseline_pipe_bpp(struct intel_crtc *crtc,
 	struct intel_connector *connector;
 	int bpp, i;
 
-	switch (fb->pixel_format) {
-	case DRM_FORMAT_C8:
-		bpp = 8*3; /* since we go through a colormap */
-		break;
-	case DRM_FORMAT_XRGB1555:
-	case DRM_FORMAT_ARGB1555:
-		/* checked in intel_framebuffer_init already */
-		if (WARN_ON(INTEL_INFO(dev)->gen > 3))
-			return -EINVAL;
-	case DRM_FORMAT_RGB565:
-		bpp = 6*3; /* min is 18bpp */
-		break;
-	case DRM_FORMAT_XBGR8888:
-	case DRM_FORMAT_ABGR8888:
-		/* checked in intel_framebuffer_init already */
-		if (WARN_ON(INTEL_INFO(dev)->gen < 4))
-			return -EINVAL;
-	case DRM_FORMAT_XRGB8888:
-	case DRM_FORMAT_ARGB8888:
-		bpp = 8*3;
-		break;
-	case DRM_FORMAT_XRGB2101010:
-	case DRM_FORMAT_ARGB2101010:
-	case DRM_FORMAT_XBGR2101010:
-	case DRM_FORMAT_ABGR2101010:
-		/* checked in intel_framebuffer_init already */
-		if (WARN_ON(INTEL_INFO(dev)->gen < 4))
-			return -EINVAL;
+	if ((IS_G4X(dev) || IS_VALLEYVIEW(dev)))
 		bpp = 10*3;
-		break;
-	/* TODO: gen4+ supports 16 bpc floating point, too. */
-	default:
-		DRM_DEBUG_KMS("unsupported depth\n");
-		return -EINVAL;
-	}
+	else if (INTEL_INFO(dev)->gen >= 5)
+		bpp = 12*3;
+	else
+		bpp = 8*3;
+
 
 	pipe_config->pipe_bpp = bpp;
 
@@ -11280,7 +11243,7 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 	struct intel_connector *connector;
 	struct drm_connector_state *connector_state;
 	struct intel_crtc_state *pipe_config;
-	int plane_bpp, ret = -EINVAL;
+	int base_bpp, ret = -EINVAL;
 	int i;
 	bool retry = true;
 
@@ -11325,9 +11288,9 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 	 * plane pixel format and any sink constraints into account. Returns the
 	 * source plane bpp so that dithering can be selected on mismatches
 	 * after encoders and crtc also have had their say. */
-	plane_bpp = compute_baseline_pipe_bpp(to_intel_crtc(crtc),
-					      fb, pipe_config);
-	if (plane_bpp < 0)
+	base_bpp = compute_baseline_pipe_bpp(to_intel_crtc(crtc),
+					     pipe_config);
+	if (base_bpp < 0)
 		goto fail;
 
 	/*
@@ -11395,9 +11358,9 @@ encoder_retry:
 		goto encoder_retry;
 	}
 
-	pipe_config->dither = pipe_config->pipe_bpp != plane_bpp;
+	pipe_config->dither = pipe_config->pipe_bpp != base_bpp;
 	DRM_DEBUG_KMS("plane bpp: %i, pipe bpp: %i, dithering: %i\n",
-		      plane_bpp, pipe_config->pipe_bpp, pipe_config->dither);
+		      base_bpp, pipe_config->pipe_bpp, pipe_config->dither);
 
 	return pipe_config;
 fail:
