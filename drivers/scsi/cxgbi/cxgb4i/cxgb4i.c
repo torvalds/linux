@@ -200,9 +200,9 @@ static void send_act_open_req(struct cxgbi_sock *csk, struct sk_buff *skb,
 		SMAC_SEL_V(csk->smac_idx) |
 		ULP_MODE_V(ULP_MODE_ISCSI) |
 		RCV_BUFSIZ_V(csk->rcv_win >> 10);
+
 	opt2 = RX_CHANNEL_V(0) |
 		RSS_QUEUE_VALID_F |
-		(RX_FC_DISABLE_F) |
 		RSS_QUEUE_V(csk->rss_qid);
 
 	if (is_t4(lldi->adapter_type)) {
@@ -231,6 +231,7 @@ static void send_act_open_req(struct cxgbi_sock *csk, struct sk_buff *skb,
 	} else {
 		struct cpl_t5_act_open_req *req =
 				(struct cpl_t5_act_open_req *)skb->head;
+		u32 isn = (prandom_u32() & ~7UL) - 1;
 
 		INIT_TP_WR(req, 0);
 		OPCODE_TID(req) = cpu_to_be32(MK_OPCODE_TID(CPL_ACT_OPEN_REQ,
@@ -244,7 +245,10 @@ static void send_act_open_req(struct cxgbi_sock *csk, struct sk_buff *skb,
 				cxgb4_select_ntuple(
 					csk->cdev->ports[csk->port_id],
 					csk->l2t)));
-		opt2 |= 1 << 31;
+		req->rsvd = cpu_to_be32(isn);
+		opt2 |= T5_ISS_VALID;
+		opt2 |= T5_OPT_2_VALID_F;
+
 		req->opt2 = cpu_to_be32(opt2);
 
 		log_debug(1 << CXGBI_DBG_TOE | 1 << CXGBI_DBG_SOCK,

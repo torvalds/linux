@@ -23,6 +23,8 @@
 #define CXGB4I_TX_HEADER_LEN \
 	(sizeof(struct fw_ofld_tx_data_wr) + sizeof(struct sge_opaque_hdr))
 
+#define T5_ISS_VALID		(1 << 18)
+
 struct ulptx_idata {
 	__be32 cmd_more;
 	__be32 len;
