@@ -268,9 +268,6 @@ struct gb_pwm_disable_request {
 };
 
 /* I2S */
-#ifndef BIT
-#define BIT(n) (1UL << (n))
-#endif
 
 #define GB_I2S_MGMT_TYPE_PROTOCOL_VERSION		0x01
 #define GB_I2S_MGMT_TYPE_GET_SUPPORTED_CONFIGURATIONS	0x02
