@@ -130,6 +130,9 @@
 		pmu_system_controller: system-controller@10020000 {
 			compatible = "samsung,exynos3250-pmu", "syscon";
 			reg = <0x10020000 0x4000>;
+			interrupt-controller;
+			#interrupt-cells = <3>;
+			interrupt-parent = <&gic>;
 		};
 
 		mipi_phy: video-phy@10020710 {
@@ -184,6 +187,7 @@
 			compatible = "samsung,exynos3250-rtc";
 			reg = <0x10070000 0x100>;
 			interrupts = <0 73 0>, <0 74 0>;
+			interrupt-parent = <&pmu_system_controller>;
 			status = "disabled";
 		};
 
