@@ -32,8 +32,8 @@ static unsigned int dbg_level;
 
 #define DRV_MODULE_NAME         "cxgb3i"
 #define DRV_MODULE_DESC         "Chelsio T3 iSCSI Driver"
-#define DRV_MODULE_VERSION	"2.0.0"
-#define DRV_MODULE_RELDATE	"Jun. 2010"
+#define DRV_MODULE_VERSION	"2.0.1-ko"
+#define DRV_MODULE_RELDATE	"Apr. 2015"
 
 static char version[] =
 	DRV_MODULE_DESC " " DRV_MODULE_NAME

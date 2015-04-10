@@ -38,8 +38,12 @@ static unsigned int dbg_level;
 
 #define DRV_MODULE_NAME		"libcxgbi"
 #define DRV_MODULE_DESC		"Chelsio iSCSI driver library"
-#define DRV_MODULE_VERSION	"0.9.0"
-#define DRV_MODULE_RELDATE	"Jun. 2010"
+#define DRV_MODULE_VERSION	"0.9.1-ko"
+#define DRV_MODULE_RELDATE	"Apr. 2015"
+
+static char version[] =
+	DRV_MODULE_DESC " " DRV_MODULE_NAME
+	" v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
 
 MODULE_AUTHOR("Chelsio Communications, Inc.");
 MODULE_DESCRIPTION(DRV_MODULE_DESC);
@@ -2912,6 +2916,8 @@ static int __init libcxgbi_init_module(void)
 {
 	sw_tag_idx_bits = (__ilog2_u32(ISCSI_ITT_MASK)) + 1;
 	sw_tag_age_bits = (__ilog2_u32(ISCSI_AGE_MASK)) + 1;
+
+	pr_info("%s", version);
 
 	pr_info("tag itt 0x%x, %u bits, age 0x%x, %u bits.\n",
 		ISCSI_ITT_MASK, sw_tag_idx_bits,
