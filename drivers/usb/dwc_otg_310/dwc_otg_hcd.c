@@ -174,6 +174,8 @@ static void kill_urbs_in_qh_list(dwc_otg_hcd_t *hcd, dwc_list_link_t *qh_list)
 		qh = DWC_LIST_ENTRY(qh_item, dwc_otg_qh_t, qh_list_entry);
 		DWC_CIRCLEQ_FOREACH_SAFE(qtd, qtd_tmp,
 					 &qh->qtd_list, qtd_list_entry) {
+			if (DWC_CIRCLEQ_EMPTY(&qh->qtd_list))
+				return;
 			qtd = DWC_CIRCLEQ_FIRST(&qh->qtd_list);
 			if (qtd->urb != NULL) {
 				hcd->fops->complete(hcd, qtd->urb->priv,
@@ -478,6 +480,9 @@ void dwc_otg_hcd_stop(dwc_otg_hcd_t *hcd)
 	pldata = hcd->core_if->otg_dev->pldata;
 	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD STOP\n");
 
+	/* Turn off all host-specific interrupts. */
+	dwc_otg_disable_host_interrupts(hcd->core_if);
+
 	/*
 	 * The root hub should be disconnected before this function is called.
 	 * The disconnect will clear the QTD lists (via ..._hcd_urb_dequeue)
@@ -492,9 +497,6 @@ void dwc_otg_hcd_stop(dwc_otg_hcd_t *hcd)
 	 */
 	hcd->flags.b.port_connect_status_change = 1;
 	hcd->flags.b.port_connect_status = 0;
-
-	/* Turn off all host-specific interrupts. */
-	dwc_otg_disable_host_interrupts(hcd->core_if);
 
 	/* Turn off the vbus power */
 	DWC_PRINTF("PortPower off\n");
@@ -1349,7 +1351,8 @@ static int queue_transaction(dwc_otg_hcd_t *hcd,
 			     dwc_hc_t *hc, uint16_t fifo_dwords_avail)
 {
 	int retval;
-
+	if (!hc || !(hc->qh))
+		return -ENODEV;
 	if (hcd->core_if->dma_enable) {
 		if (hcd->core_if->dma_desc_enable) {
 			if (!hc->xfer_started

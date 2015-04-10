@@ -1158,18 +1158,16 @@ static void dwc_otg_driver_shutdown(struct platform_device *_dev)
 	dwc_otg_core_if_t *core_if = otg_dev->core_if;
 	struct dwc_otg_platform_data *pldata = otg_dev->pldata;
 	dctl_data_t dctl = {.d32 = 0 };
+	dwc_otg_pcd_t *pcd = core_if->otg_dev->pcd;
 
 	DWC_PRINTF("%s: disconnect USB %s mode\n", __func__,
 		   dwc_otg_is_host_mode(core_if) ? "host" : "device");
 
-	if (pldata->dwc_otg_uart_mode != NULL)
-		pldata->dwc_otg_uart_mode(pldata, PHY_USB_MODE);
-	if (pldata->phy_suspend != NULL)
-		pldata->phy_suspend(pldata, USB_PHY_ENABLED);
 	if (dwc_otg_is_host_mode(core_if)) {
 		if (core_if->hcd_cb && core_if->hcd_cb->stop)
 			core_if->hcd_cb->stop(core_if->hcd_cb_p);
 	} else {
+		cancel_delayed_work_sync(&pcd->check_vbus_work);
 		/* soft disconnect */
 		dctl.d32 =
 		    DWC_READ_REG32(&core_if->dev_if->dev_global_regs->dctl);
@@ -1179,6 +1177,11 @@ static void dwc_otg_driver_shutdown(struct platform_device *_dev)
 	}
 	/* Clear any pending interrupts */
 	DWC_WRITE_REG32(&core_if->core_global_regs->gintsts, 0xFFFFFFFF);
+
+	if (pldata->dwc_otg_uart_mode != NULL)
+		pldata->dwc_otg_uart_mode(pldata, PHY_USB_MODE);
+	if (pldata->phy_suspend != NULL)
+		pldata->phy_suspend(pldata, USB_PHY_ENABLED);
 
 }
 

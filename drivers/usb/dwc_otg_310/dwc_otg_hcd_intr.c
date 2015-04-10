@@ -2101,6 +2101,12 @@ int32_t dwc_otg_hcd_handle_hc_n_intr(dwc_otg_hcd_t *dwc_otg_hcd, uint32_t num)
 
 	hc = dwc_otg_hcd->hc_ptr_array[num];
 	hc_regs = dwc_otg_hcd->core_if->host_if->hc_regs[num];
+	if (DWC_CIRCLEQ_EMPTY(&hc->qh->qtd_list)) {
+		/* All transfer had been killed, clear panding interrupts */
+		hcint.d32 = DWC_READ_REG32(&hc_regs->hcint);
+		DWC_WRITE_REG32(&hc_regs->hcint, hcint.d32);
+		return retval;
+	}
 	qtd = DWC_CIRCLEQ_FIRST(&hc->qh->qtd_list);
 
 	hcint.d32 = DWC_READ_REG32(&hc_regs->hcint);
