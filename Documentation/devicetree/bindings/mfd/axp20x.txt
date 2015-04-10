@@ -1,15 +1,16 @@
-AXP202/AXP209 device tree bindings
+AXP family PMIC device tree bindings
 
 The axp20x family current members :
 axp202 (X-Powers)
 axp209 (X-Powers)
+axp221 (X-Powers)
 
 Required properties:
-- compatible: "x-powers,axp202" or "x-powers,axp209"
+- compatible: "x-powers,axp202", "x-powers,axp209", "x-powers,axp221"
 - reg: The I2C slave address for the AXP chip
 - interrupt-parent: The parent interrupt controller
 - interrupts: SoC NMI / GPIO interrupt connected to the PMIC's IRQ pin
-- interrupt-controller: axp20x has its own internal IRQs
+- interrupt-controller: The PMIC has its own internal IRQs
 - #interrupt-cells: Should be set to 1
 
 Optional properties:
