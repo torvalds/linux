@@ -13,7 +13,7 @@
  * tegra30-cardhu-a04.dts.
  * The identification of board is done in two ways, by looking the sticker
  * on PCB and by reading board id eeprom.
- * The stciker will have number like 600-81291-1000-002 C.3. In this 4th
+ * The sticker will have number like 600-81291-1000-002 C.3. In this 4th
  * number is the fab version like here it is 002 and hence fab version A02.
  * The (downstream internal) U-Boot of Cardhu display the board-id as
  * follows:
