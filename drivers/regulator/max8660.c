@@ -442,9 +442,9 @@ static int max8660_probe(struct i2c_client *client,
 	for (i = 0; i < pdata->num_subdevs; i++) {
 
 		if (!pdata->subdevs[i].platform_data)
-			return ret;
-
-		boot_on = pdata->subdevs[i].platform_data->constraints.boot_on;
+			boot_on = false;
+		else
+			boot_on = pdata->subdevs[i].platform_data->constraints.boot_on;
 
 		switch (pdata->subdevs[i].id) {
 		case MAX8660_V3:
