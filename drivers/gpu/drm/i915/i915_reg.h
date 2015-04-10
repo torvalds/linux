@@ -961,6 +961,7 @@ enum skl_disp_power_wells {
 
 #define _VLV_PCS_DW11_CH0		0x822c
 #define _VLV_PCS_DW11_CH1		0x842c
+#define   DPIO_TX2_STAGGER_MASK(x)	((x)<<24)
 #define   DPIO_LANEDESKEW_STRAP_OVRD	(1<<3)
 #define   DPIO_LEFT_TXFIFO_RST_MASTER	(1<<1)
 #define   DPIO_RIGHT_TXFIFO_RST_MASTER	(1<<0)
@@ -973,8 +974,20 @@ enum skl_disp_power_wells {
 #define VLV_PCS01_DW11(ch) _PORT(ch, _VLV_PCS01_DW11_CH0, _VLV_PCS01_DW11_CH1)
 #define VLV_PCS23_DW11(ch) _PORT(ch, _VLV_PCS23_DW11_CH0, _VLV_PCS23_DW11_CH1)
 
+#define _VLV_PCS01_DW12_CH0		0x0230
+#define _VLV_PCS23_DW12_CH0		0x0430
+#define _VLV_PCS01_DW12_CH1		0x2630
+#define _VLV_PCS23_DW12_CH1		0x2830
+#define VLV_PCS01_DW12(ch) _PORT(ch, _VLV_PCS01_DW12_CH0, _VLV_PCS01_DW12_CH1)
+#define VLV_PCS23_DW12(ch) _PORT(ch, _VLV_PCS23_DW12_CH0, _VLV_PCS23_DW12_CH1)
+
 #define _VLV_PCS_DW12_CH0		0x8230
 #define _VLV_PCS_DW12_CH1		0x8430
+#define   DPIO_TX2_STAGGER_MULT(x)	((x)<<20)
+#define   DPIO_TX1_STAGGER_MULT(x)	((x)<<16)
+#define   DPIO_TX1_STAGGER_MASK(x)	((x)<<8)
+#define   DPIO_LANESTAGGER_STRAP_OVRD	(1<<6)
+#define   DPIO_LANESTAGGER_STRAP(x)	((x)<<0)
 #define VLV_PCS_DW12(ch) _PORT(ch, _VLV_PCS_DW12_CH0, _VLV_PCS_DW12_CH1)
 
 #define _VLV_PCS_DW14_CH0		0x8238
