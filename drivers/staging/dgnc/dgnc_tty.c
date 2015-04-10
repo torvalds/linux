@@ -1760,12 +1760,6 @@ static int dgnc_tty_write(struct tty_struct *tty,
 		ch->ch_flags &= ~CH_PRON;
 	}
 
-	/*
-	 * If there is nothing left to copy, or I can't handle any more data, leave.
-	 */
-	if (count <= 0)
-		goto exit_retry;
-
 	n = count;
 
 	/*
