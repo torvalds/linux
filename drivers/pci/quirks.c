@@ -3182,7 +3182,7 @@ static void quirk_apple_wait_for_thunderbolt(struct pci_dev *dev)
 			|| nhi->subsystem_vendor != 0x2222
 			|| nhi->subsystem_device != 0x1111)
 		goto out;
-	dev_info(&dev->dev, "quirk: wating for thunderbolt to reestablish pci tunnels...\n");
+	dev_info(&dev->dev, "quirk: waiting for thunderbolt to reestablish PCI tunnels...\n");
 	device_pm_wait_for_dev(&dev->dev, &nhi->dev);
 out:
 	pci_dev_put(nhi);
