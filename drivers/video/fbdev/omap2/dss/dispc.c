@@ -2418,6 +2418,9 @@ static int dispc_ovl_calc_scaling_44xx(unsigned long pclk, unsigned long lclk,
 	return 0;
 }
 
+#define DIV_FRAC(dividend, divisor) \
+	((dividend) * 100 / (divisor) - ((dividend) / (divisor) * 100))
+
 static int dispc_ovl_calc_scaling(unsigned long pclk, unsigned long lclk,
 		enum omap_overlay_caps caps,
 		const struct omap_video_timings *mgr_timings,
@@ -2477,8 +2480,19 @@ static int dispc_ovl_calc_scaling(unsigned long pclk, unsigned long lclk,
 	if (ret)
 		return ret;
 
-	DSSDBG("required core clk rate = %lu Hz\n", core_clk);
-	DSSDBG("current core clk rate = %lu Hz\n", dispc_core_clk_rate());
+	DSSDBG("%dx%d -> %dx%d (%d.%02d x %d.%02d), decim %dx%d %dx%d (%d.%02d x %d.%02d), taps %d, req clk %lu, cur clk %lu\n",
+		width, height,
+		out_width, out_height,
+		out_width / width, DIV_FRAC(out_width, width),
+		out_height / height, DIV_FRAC(out_height, height),
+
+		decim_x, decim_y,
+		width / decim_x, height / decim_y,
+		out_width / (width / decim_x), DIV_FRAC(out_width, width / decim_x),
+		out_height / (height / decim_y), DIV_FRAC(out_height, height / decim_y),
+
+		*five_taps ? 5 : 3,
+		core_clk, dispc_core_clk_rate());
 
 	if (!core_clk || core_clk > dispc_core_clk_rate()) {
 		DSSERR("failed to set up scaling, "
