@@ -60,12 +60,17 @@
 #define PTR_IPENDING	37
 #define PTR_CPUID	38
 #define PTR_CTL6	39
-#define PTR_CTL7	40
+#define PTR_EXCEPTION	40
 #define PTR_PTEADDR	41
 #define PTR_TLBACC	42
 #define PTR_TLBMISC	43
+#define PTR_ECCINJ	44
+#define PTR_BADADDR	45
+#define PTR_CONFIG	46
+#define PTR_MPUBASE	47
+#define PTR_MPUACC	48
 
-#define NUM_PTRACE_REG (PTR_TLBMISC + 1)
+#define NUM_PTRACE_REG (PTR_MPUACC + 1)
 
 /* User structures for general purpose registers.  */
 struct user_pt_regs {
