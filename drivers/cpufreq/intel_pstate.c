@@ -1024,23 +1024,9 @@ static unsigned int force_load;
 
 static int intel_pstate_msrs_not_valid(void)
 {
-	/* Check that all the msr's we are using are valid. */
-	u64 aperf, mperf, tmp;
-
-	rdmsrl(MSR_IA32_APERF, aperf);
-	rdmsrl(MSR_IA32_MPERF, mperf);
-
 	if (!pstate_funcs.get_max() ||
 	    !pstate_funcs.get_min() ||
 	    !pstate_funcs.get_turbo())
-		return -ENODEV;
-
-	rdmsrl(MSR_IA32_APERF, tmp);
-	if (!(tmp - aperf))
-		return -ENODEV;
-
-	rdmsrl(MSR_IA32_MPERF, tmp);
-	if (!(tmp - mperf))
 		return -ENODEV;
 
 	return 0;
