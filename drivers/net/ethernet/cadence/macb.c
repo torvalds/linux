@@ -1956,12 +1956,12 @@ static struct net_device_stats *macb_get_stats(struct net_device *dev)
 			    hwstat->rx_oversize_pkts +
 			    hwstat->rx_jabbers +
 			    hwstat->rx_undersize_pkts +
-			    hwstat->sqe_test_errors +
 			    hwstat->rx_length_mismatch);
 	nstat->tx_errors = (hwstat->tx_late_cols +
 			    hwstat->tx_excessive_cols +
 			    hwstat->tx_underruns +
-			    hwstat->tx_carrier_errors);
+			    hwstat->tx_carrier_errors +
+			    hwstat->sqe_test_errors);
 	nstat->collisions = (hwstat->tx_single_cols +
 			     hwstat->tx_multiple_cols +
 			     hwstat->tx_excessive_cols);
