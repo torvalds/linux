@@ -2427,6 +2427,22 @@ intel_sdvo_add_hdmi_properties(struct intel_sdvo *intel_sdvo,
 	}
 }
 
+static struct intel_sdvo_connector *intel_sdvo_connector_alloc(void)
+{
+	struct intel_sdvo_connector *sdvo_connector;
+
+	sdvo_connector = kzalloc(sizeof(*sdvo_connector), GFP_KERNEL);
+	if (!sdvo_connector)
+		return NULL;
+
+	if (intel_connector_init(&sdvo_connector->base) < 0) {
+		kfree(sdvo_connector);
+		return NULL;
+	}
+
+	return sdvo_connector;
+}
+
 static bool
 intel_sdvo_dvi_init(struct intel_sdvo *intel_sdvo, int device)
 {
@@ -2438,7 +2454,7 @@ intel_sdvo_dvi_init(struct intel_sdvo *intel_sdvo, int device)
 
 	DRM_DEBUG_KMS("initialising DVI device %d\n", device);
 
-	intel_sdvo_connector = kzalloc(sizeof(*intel_sdvo_connector), GFP_KERNEL);
+	intel_sdvo_connector = intel_sdvo_connector_alloc();
 	if (!intel_sdvo_connector)
 		return false;
 
@@ -2492,7 +2508,7 @@ intel_sdvo_tv_init(struct intel_sdvo *intel_sdvo, int type)
 
 	DRM_DEBUG_KMS("initialising TV type %d\n", type);
 
-	intel_sdvo_connector = kzalloc(sizeof(*intel_sdvo_connector), GFP_KERNEL);
+	intel_sdvo_connector = intel_sdvo_connector_alloc();
 	if (!intel_sdvo_connector)
 		return false;
 
@@ -2571,7 +2587,7 @@ intel_sdvo_lvds_init(struct intel_sdvo *intel_sdvo, int device)
 
 	DRM_DEBUG_KMS("initialising LVDS device %d\n", device);
 
-	intel_sdvo_connector = kzalloc(sizeof(*intel_sdvo_connector), GFP_KERNEL);
+	intel_sdvo_connector = intel_sdvo_connector_alloc();
 	if (!intel_sdvo_connector)
 		return false;
 

@@ -1621,7 +1621,7 @@ intel_tv_init(struct drm_device *dev)
 		return;
 	}
 
-	intel_connector = kzalloc(sizeof(*intel_connector), GFP_KERNEL);
+	intel_connector = intel_connector_alloc();
 	if (!intel_connector) {
 		kfree(intel_tv);
 		return;

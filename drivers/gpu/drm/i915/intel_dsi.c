@@ -1007,7 +1007,7 @@ void intel_dsi_init(struct drm_device *dev)
 	if (!intel_dsi)
 		return;
 
-	intel_connector = kzalloc(sizeof(*intel_connector), GFP_KERNEL);
+	intel_connector = intel_connector_alloc();
 	if (!intel_connector) {
 		kfree(intel_dsi);
 		return;

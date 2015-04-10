@@ -5602,7 +5602,7 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 	if (!intel_dig_port)
 		return;
 
-	intel_connector = kzalloc(sizeof(*intel_connector), GFP_KERNEL);
+	intel_connector = intel_connector_alloc();
 	if (!intel_connector) {
 		kfree(intel_dig_port);
 		return;

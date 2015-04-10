@@ -469,7 +469,7 @@ void intel_dvo_init(struct drm_device *dev)
 	if (!intel_dvo)
 		return;
 
-	intel_connector = kzalloc(sizeof(*intel_connector), GFP_KERNEL);
+	intel_connector = intel_connector_alloc();
 	if (!intel_connector) {
 		kfree(intel_dvo);
 		return;

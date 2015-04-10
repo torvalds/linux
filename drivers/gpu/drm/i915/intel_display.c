@@ -5685,6 +5685,34 @@ static void intel_connector_check_state(struct intel_connector *connector)
 	}
 }
 
+int intel_connector_init(struct intel_connector *connector)
+{
+	struct drm_connector_state *connector_state;
+
+	connector_state = kzalloc(sizeof *connector_state, GFP_KERNEL);
+	if (!connector_state)
+		return -ENOMEM;
+
+	connector->base.state = connector_state;
+	return 0;
+}
+
+struct intel_connector *intel_connector_alloc(void)
+{
+	struct intel_connector *connector;
+
+	connector = kzalloc(sizeof *connector, GFP_KERNEL);
+	if (!connector)
+		return NULL;
+
+	if (intel_connector_init(connector) < 0) {
+		kfree(connector);
+		return NULL;
+	}
+
+	return connector;
+}
+
 /* Even simpler default implementation, if there's really no special case to
  * consider. */
 void intel_connector_dpms(struct drm_connector *connector, int mode)
@@ -13187,7 +13215,6 @@ static void intel_setup_outputs(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_encoder *encoder;
-	struct drm_connector *connector;
 	bool dpd_is_edp = false;
 
 	intel_lvds_init(dev);
@@ -13322,39 +13349,6 @@ static void intel_setup_outputs(struct drm_device *dev)
 
 	if (SUPPORTS_TV(dev))
 		intel_tv_init(dev);
-
-	/*
-	 * FIXME:  We don't have full atomic support yet, but we want to be
-	 * able to enable/test plane updates via the atomic interface in the
-	 * meantime.  However as soon as we flip DRIVER_ATOMIC on, the DRM core
-	 * will take some atomic codepaths to lookup properties during
-	 * drmModeGetConnector() that unconditionally dereference
-	 * connector->state.
-	 *
-	 * We create a dummy connector state here for each connector to ensure
-	 * the DRM core doesn't try to dereference a NULL connector->state.
-	 * The actual connector properties will never be updated or contain
-	 * useful information, but since we're doing this specifically for
-	 * testing/debug of the plane operations (and only when a specific
-	 * kernel module option is given), that shouldn't really matter.
-	 *
-	 * We are also relying on these states to convert the legacy mode set
-	 * to use a drm_atomic_state struct. The states are kept consistent
-	 * with actual state, so that it is safe to rely on that instead of
-	 * the staged config.
-	 *
-	 * Once atomic support for crtc's + connectors lands, this loop should
-	 * be removed since we'll be setting up real connector state, which
-	 * will contain Intel-specific properties.
-	 */
-	list_for_each_entry(connector,
-			    &dev->mode_config.connector_list,
-			    head) {
-		if (!WARN_ON(connector->state)) {
-			connector->state = kzalloc(sizeof(*connector->state),
-						   GFP_KERNEL);
-		}
-	}
 
 	intel_psr_init(dev);
 

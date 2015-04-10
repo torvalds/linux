@@ -946,6 +946,12 @@ void intel_lvds_init(struct drm_device *dev)
 		return;
 	}
 
+	if (intel_connector_init(&lvds_connector->base) < 0) {
+		kfree(lvds_connector);
+		kfree(lvds_encoder);
+		return;
+	}
+
 	lvds_encoder->attached_connector = lvds_connector;
 
 	intel_encoder = &lvds_encoder->base;
