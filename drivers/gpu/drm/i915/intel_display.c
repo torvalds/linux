@@ -11723,9 +11723,6 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 
 	modeset_update_crtc_power_domains(state);
 
-	/* Set up the DPLL and any encoders state that needs to adjust or depend
-	 * on the DPLL.
-	 */
 	for_each_intel_crtc_masked(dev, modeset_pipes, intel_crtc) {
 		struct drm_plane *primary = intel_crtc->base.primary;
 		int vdisplay, hdisplay;
