@@ -1626,6 +1626,7 @@ static int tegra_dsi_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id tegra_dsi_of_match[] = {
+	{ .compatible = "nvidia,tegra132-dsi", },
 	{ .compatible = "nvidia,tegra124-dsi", },
 	{ .compatible = "nvidia,tegra114-dsi", },
 	{ },
