@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2010-2015, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -26,6 +26,15 @@ extern int __qcom_scm_set_cold_boot_addr(void *entry, const cpumask_t *cpus);
 #define QCOM_SCM_FLUSH_FLAG_MASK	0x3
 #define QCOM_SCM_CMD_CORE_HOTPLUGGED	0x10
 extern void __qcom_scm_cpu_power_down(u32 flags);
+
+#define QCOM_SCM_SVC_INFO		0x6
+#define QCOM_IS_CALL_AVAIL_CMD		0x1
+extern int __qcom_scm_is_call_available(u32 svc_id, u32 cmd_id);
+
+#define QCOM_SCM_SVC_HDCP		0x11
+#define QCOM_SCM_CMD_HDCP		0x01
+extern int __qcom_scm_hdcp_req(struct qcom_scm_hdcp_req *req, u32 req_cnt,
+		u32 *resp);
 
 /* common error codes */
 #define QCOM_SCM_ENOMEM		-5

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010,2015, The Linux Foundation. All rights reserved.
  * Copyright (C) 2015 Linaro Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -64,3 +64,33 @@ void qcom_scm_cpu_power_down(u32 flags)
 	__qcom_scm_cpu_power_down(flags);
 }
 EXPORT_SYMBOL(qcom_scm_cpu_power_down);
+
+/**
+ * qcom_scm_hdcp_available() - Check if secure environment supports HDCP.
+ *
+ * Return true if HDCP is supported, false if not.
+ */
+bool qcom_scm_hdcp_available(void)
+{
+	int ret;
+
+	ret = __qcom_scm_is_call_available(QCOM_SCM_SVC_HDCP,
+		QCOM_SCM_CMD_HDCP);
+
+	return (ret > 0) ? true : false;
+}
+EXPORT_SYMBOL(qcom_scm_hdcp_available);
+
+/**
+ * qcom_scm_hdcp_req() - Send HDCP request.
+ * @req: HDCP request array
+ * @req_cnt: HDCP request array count
+ * @resp: response buffer passed to SCM
+ *
+ * Write HDCP register(s) through SCM.
+ */
+int qcom_scm_hdcp_req(struct qcom_scm_hdcp_req *req, u32 req_cnt, u32 *resp)
+{
+	return __qcom_scm_hdcp_req(req, req_cnt, resp);
+}
+EXPORT_SYMBOL(qcom_scm_hdcp_req);

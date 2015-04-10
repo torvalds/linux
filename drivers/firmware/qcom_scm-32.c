@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010,2015, The Linux Foundation. All rights reserved.
  * Copyright (C) 2015 Linaro Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -477,4 +477,27 @@ void __qcom_scm_cpu_power_down(u32 flags)
 {
 	qcom_scm_call_atomic1(QCOM_SCM_SVC_BOOT, QCOM_SCM_CMD_TERMINATE_PC,
 			flags & QCOM_SCM_FLUSH_FLAG_MASK);
+}
+
+int __qcom_scm_is_call_available(u32 svc_id, u32 cmd_id)
+{
+	int ret;
+	u32 svc_cmd = (svc_id << 10) | cmd_id;
+	u32 ret_val = 0;
+
+	ret = qcom_scm_call(QCOM_SCM_SVC_INFO, QCOM_IS_CALL_AVAIL_CMD, &svc_cmd,
+			sizeof(svc_cmd), &ret_val, sizeof(ret_val));
+	if (ret)
+		return ret;
+
+	return ret_val;
+}
+
+int __qcom_scm_hdcp_req(struct qcom_scm_hdcp_req *req, u32 req_cnt, u32 *resp)
+{
+	if (req_cnt > QCOM_SCM_HDCP_MAX_REQ_CNT)
+		return -ERANGE;
+
+	return qcom_scm_call(QCOM_SCM_SVC_HDCP, QCOM_SCM_CMD_HDCP,
+		req, req_cnt * sizeof(*req), resp, sizeof(*resp));
 }
