@@ -949,8 +949,8 @@ static void chv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 	if (wait_for(I915_READ(DISPLAY_PHY_STATUS) & PHY_POWERGOOD(phy), 1))
 		DRM_ERROR("Display PHY %d is not power up\n", phy);
 
-	I915_WRITE(DISPLAY_PHY_CONTROL, I915_READ(DISPLAY_PHY_CONTROL) |
-		   PHY_COM_LANE_RESET_DEASSERT(phy));
+	dev_priv->chv_phy_control |= PHY_COM_LANE_RESET_DEASSERT(phy);
+	I915_WRITE(DISPLAY_PHY_CONTROL, dev_priv->chv_phy_control);
 }
 
 static void chv_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
@@ -970,8 +970,8 @@ static void chv_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
 		assert_pll_disabled(dev_priv, PIPE_C);
 	}
 
-	I915_WRITE(DISPLAY_PHY_CONTROL, I915_READ(DISPLAY_PHY_CONTROL) &
-		   ~PHY_COM_LANE_RESET_DEASSERT(phy));
+	dev_priv->chv_phy_control &= ~PHY_COM_LANE_RESET_DEASSERT(phy);
+	I915_WRITE(DISPLAY_PHY_CONTROL, dev_priv->chv_phy_control);
 
 	vlv_set_power_well(dev_priv, power_well, false);
 }
@@ -1719,6 +1719,30 @@ static void intel_power_domains_resume(struct drm_i915_private *dev_priv)
 	mutex_unlock(&power_domains->lock);
 }
 
+static void chv_phy_control_init(struct drm_i915_private *dev_priv)
+{
+	struct i915_power_well *cmn_bc =
+		lookup_power_well(dev_priv, PUNIT_POWER_WELL_DPIO_CMN_BC);
+	struct i915_power_well *cmn_d =
+		lookup_power_well(dev_priv, PUNIT_POWER_WELL_DPIO_CMN_D);
+
+	/*
+	 * DISPLAY_PHY_CONTROL can get corrupted if read. As a
+	 * workaround never ever read DISPLAY_PHY_CONTROL, and
+	 * instead maintain a shadow copy ourselves. Use the actual
+	 * power well state to reconstruct the expected initial
+	 * value.
+	 */
+	dev_priv->chv_phy_control =
+		PHY_CH_POWER_MODE(PHY_CH_SU_PSR, DPIO_PHY0, DPIO_CH0) |
+		PHY_CH_POWER_MODE(PHY_CH_SU_PSR, DPIO_PHY0, DPIO_CH1) |
+		PHY_CH_POWER_MODE(PHY_CH_SU_PSR, DPIO_PHY1, DPIO_CH0);
+	if (cmn_bc->ops->is_enabled(dev_priv, cmn_bc))
+		dev_priv->chv_phy_control |= PHY_COM_LANE_RESET_DEASSERT(DPIO_PHY0);
+	if (cmn_d->ops->is_enabled(dev_priv, cmn_d))
+		dev_priv->chv_phy_control |= PHY_COM_LANE_RESET_DEASSERT(DPIO_PHY1);
+}
+
 static void vlv_cmnlane_wa(struct drm_i915_private *dev_priv)
 {
 	struct i915_power_well *cmn =
@@ -1761,7 +1785,9 @@ void intel_power_domains_init_hw(struct drm_i915_private *dev_priv)
 
 	power_domains->initializing = true;
 
-	if (IS_VALLEYVIEW(dev) && !IS_CHERRYVIEW(dev)) {
+	if (IS_CHERRYVIEW(dev)) {
+		chv_phy_control_init(dev_priv);
+	} else if (IS_VALLEYVIEW(dev)) {
 		mutex_lock(&power_domains->lock);
 		vlv_cmnlane_wa(dev_priv);
 		mutex_unlock(&power_domains->lock);

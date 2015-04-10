@@ -1782,6 +1782,8 @@ struct drm_i915_private {
 
 	u32 fdi_rx_config;
 
+	u32 chv_phy_control;
+
 	u32 suspend_count;
 	struct i915_suspend_saved_registers regfile;
 	struct vlv_s0ix_state vlv_s0ix_state;
