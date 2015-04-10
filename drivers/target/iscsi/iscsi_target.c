@@ -1181,7 +1181,7 @@ iscsit_handle_scsi_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 	 * traditional iSCSI block I/O.
 	 */
 	if (iscsit_allocate_iovecs(cmd) < 0) {
-		return iscsit_add_reject_cmd(cmd,
+		return iscsit_reject_cmd(cmd,
 				ISCSI_REASON_BOOKMARK_NO_RESOURCES, buf);
 	}
 	immed_data = cmd->immediate_data;
@@ -3468,6 +3468,7 @@ iscsit_build_sendtargets_response(struct iscsi_cmd *cmd,
 						tpg_np_list) {
 				struct iscsi_np *np = tpg_np->tpg_np;
 				bool inaddr_any = iscsit_check_inaddr_any(np);
+				char *fmt_str;
 
 				if (np->np_network_transport != network_transport)
 					continue;
@@ -3495,8 +3496,12 @@ iscsit_build_sendtargets_response(struct iscsi_cmd *cmd,
 					}
 				}
 
-				len = sprintf(buf, "TargetAddress="
-					"%s:%hu,%hu",
+				if (np->np_sockaddr.ss_family == AF_INET6)
+					fmt_str = "TargetAddress=[%s]:%hu,%hu";
+				else
+					fmt_str = "TargetAddress=%s:%hu,%hu";
+
+				len = sprintf(buf, fmt_str,
 					inaddr_any ? conn->local_ip : np->np_ip,
 					np->np_port,
 					tpg->tpgt);
