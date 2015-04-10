@@ -3967,23 +3967,13 @@ static void regulator_summary_show_subtree(struct seq_file *s,
 	if (!rdev)
 		return;
 
-	mutex_lock(&rdev->mutex);
-
 	seq_printf(s, "%*s%-*s %3d %4d %6d ",
 		   level * 3 + 1, "",
 		   30 - level * 3, rdev_get_name(rdev),
 		   rdev->use_count, rdev->open_count, rdev->bypass_count);
 
-	switch (rdev->desc->type) {
-	case REGULATOR_VOLTAGE:
-		seq_printf(s, "%5dmV ",
-			   _regulator_get_voltage(rdev) / 1000);
-		break;
-	case REGULATOR_CURRENT:
-		seq_printf(s, "%5dmA ",
-			   _regulator_get_current_limit(rdev) / 1000);
-		break;
-	}
+	seq_printf(s, "%5dmV ", _regulator_get_voltage(rdev) / 1000);
+	seq_printf(s, "%5dmA ", _regulator_get_current_limit(rdev) / 1000);
 
 	c = rdev->constraints;
 	if (c) {
@@ -4011,20 +4001,16 @@ static void regulator_summary_show_subtree(struct seq_file *s,
 
 		switch (rdev->desc->type) {
 		case REGULATOR_VOLTAGE:
-			seq_printf(s, "%29dmV %5dmV",
+			seq_printf(s, "%37dmV %5dmV",
 				   consumer->min_uV / 1000,
 				   consumer->max_uV / 1000);
 			break;
 		case REGULATOR_CURRENT:
-			seq_printf(s, "%37dmA",
-				regulator_get_current_limit(consumer) / 1000);
 			break;
 		}
 
 		seq_puts(s, "\n");
 	}
-
-	mutex_unlock(&rdev->mutex);
 
 	list_for_each_entry(child, list, list) {
 		/* handle only non-root regulators supplied by current rdev */
@@ -4040,8 +4026,8 @@ static int regulator_summary_show(struct seq_file *s, void *data)
 	struct list_head *list = s->private;
 	struct regulator_dev *rdev;
 
-	seq_puts(s, " regulator                      use open bypass   value     min     max\n");
-	seq_puts(s, "-----------------------------------------------------------------------\n");
+	seq_puts(s, " regulator                      use open bypass voltage current     min     max\n");
+	seq_puts(s, "-------------------------------------------------------------------------------\n");
 
 	mutex_lock(&regulator_list_mutex);
 
