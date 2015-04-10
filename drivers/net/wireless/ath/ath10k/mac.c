@@ -4650,10 +4650,14 @@ static void ath10k_set_key_h_def_keyidx(struct ath10k *ar,
 	 * frames with multi-vif APs. This is not required for main firmware
 	 * branch (e.g. 636).
 	 *
-	 * FIXME: This has been tested only in AP. It remains unknown if this
-	 * is required for multi-vif STA interfaces on 10.1 */
+	 * This is also needed for 636 fw for IBSS-RSN to work more reliably.
+	 *
+	 * FIXME: It remains unknown if this is required for multi-vif STA
+	 * interfaces on 10.1.
+	 */
 
-	if (arvif->vdev_type != WMI_VDEV_TYPE_AP)
+	if (arvif->vdev_type != WMI_VDEV_TYPE_AP &&
+	    arvif->vdev_type != WMI_VDEV_TYPE_IBSS)
 		return;
 
 	if (key->cipher == WLAN_CIPHER_SUITE_WEP40)
