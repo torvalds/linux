@@ -42,16 +42,11 @@
 #include "dgnc_sysfs.h"
 #include "dgnc_utils.h"
 
-#define init_MUTEX(sem)	 sema_init(sem, 1)
-#define DECLARE_MUTEX(name)     \
-	struct semaphore name = __SEMAPHORE_INITIALIZER(name, 1)
-
 /*
  * internal variables
  */
 static struct dgnc_board	*dgnc_BoardsByMajor[256];
 static unsigned char		*dgnc_TmpWriteBuf;
-static DECLARE_MUTEX(dgnc_TmpWriteSem);
 
 /*
  * Default transparent print information.
@@ -1692,7 +1687,6 @@ static int dgnc_tty_write(struct tty_struct *tty,
 	ushort tail;
 	ushort tmask;
 	uint remain;
-	int from_user = 0;
 
 	if (tty == NULL || dgnc_TmpWriteBuf == NULL)
 		return 0;
@@ -1772,38 +1766,6 @@ static int dgnc_tty_write(struct tty_struct *tty,
 	if (count <= 0)
 		goto exit_retry;
 
-	if (from_user) {
-
-		count = min(count, WRITEBUFLEN);
-
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-
-		/*
-		 * If data is coming from user space, copy it into a temporary
-		 * buffer so we don't get swapped out while doing the copy to
-		 * the board.
-		 */
-		/* we're allowed to block if it's from_user */
-		if (down_interruptible(&dgnc_TmpWriteSem))
-			return -EINTR;
-
-		/*
-		 * copy_from_user() returns the number
-		 * of bytes that could *NOT* be copied.
-		 */
-		count -= copy_from_user(dgnc_TmpWriteBuf, (const unsigned char __user *) buf, count);
-
-		if (!count) {
-			up(&dgnc_TmpWriteSem);
-			return -EFAULT;
-		}
-
-		spin_lock_irqsave(&ch->ch_lock, flags);
-
-		buf = dgnc_TmpWriteBuf;
-
-	}
-
 	n = count;
 
 	/*
@@ -1840,12 +1802,7 @@ static int dgnc_tty_write(struct tty_struct *tty,
 		ch->ch_cpstime += (HZ * count) / ch->ch_digi.digi_maxcps;
 	}
 
-	if (from_user) {
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-		up(&dgnc_TmpWriteSem);
-	} else {
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-	}
+	spin_unlock_irqrestore(&ch->ch_lock, flags);
 
 	if (count) {
 		/*
