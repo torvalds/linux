@@ -2300,7 +2300,6 @@ static int dispc_ovl_calc_scaling_34xx(unsigned long pclk, unsigned long lclk,
 {
 	int error;
 	u16 in_width, in_height;
-	int min_factor = min(*decim_x, *decim_y);
 	const int maxsinglelinewidth =
 			dss_feat_get_param_max(FEAT_PARAM_LINEWIDTH);
 
@@ -2349,16 +2348,8 @@ again:
 			}
 		}
 
-		if (error) {
-			if (*decim_x == *decim_y) {
-				*decim_x = min_factor;
-				++*decim_y;
-			} else {
-				swap(*decim_x, *decim_y);
-				if (*decim_x < *decim_y)
-					++*decim_x;
-			}
-		}
+		if (error)
+			++*decim_y;
 	} while (*decim_x <= *x_predecim && *decim_y <= *y_predecim && error);
 
 	if (error) {
