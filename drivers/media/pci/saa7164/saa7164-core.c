@@ -85,6 +85,11 @@ module_param(guard_checking, int, 0644);
 MODULE_PARM_DESC(guard_checking,
 	"enable dma sanity checking for buffer overruns");
 
+static bool enable_msi = true;
+module_param(enable_msi, bool, 0444);
+MODULE_PARM_DESC(enable_msi,
+		"enable the use of an msi interrupt if available");
+
 static unsigned int saa7164_devcount;
 
 static DEFINE_MUTEX(devlist);
@@ -1186,6 +1191,39 @@ static int saa7164_thread_function(void *data)
 	return 0;
 }
 
+static bool saa7164_enable_msi(struct pci_dev *pci_dev, struct saa7164_dev *dev)
+{
+	int err;
+
+	if (!enable_msi) {
+		printk(KERN_WARNING "%s() MSI disabled by module parameter 'enable_msi'"
+		       , __func__);
+		return false;
+	}
+
+	err = pci_enable_msi(pci_dev);
+
+	if (err) {
+		printk(KERN_ERR "%s() Failed to enable MSI interrupt."
+			" Falling back to a shared IRQ\n", __func__);
+		return false;
+	}
+
+	/* no error - so request an msi interrupt */
+	err = request_irq(pci_dev->irq, saa7164_irq, 0,
+						dev->name, dev);
+
+	if (err) {
+		/* fall back to legacy interrupt */
+		printk(KERN_ERR "%s() Failed to get an MSI interrupt."
+		       " Falling back to a shared IRQ\n", __func__);
+		pci_disable_msi(pci_dev);
+		return false;
+	}
+
+	return true;
+}
+
 static int saa7164_initdev(struct pci_dev *pci_dev,
 			   const struct pci_device_id *pci_id)
 {
@@ -1232,13 +1270,22 @@ static int saa7164_initdev(struct pci_dev *pci_dev,
 		goto fail_irq;
 	}
 
-	err = request_irq(pci_dev->irq, saa7164_irq,
-		IRQF_SHARED, dev->name, dev);
-	if (err < 0) {
-		printk(KERN_ERR "%s: can't get IRQ %d\n", dev->name,
-			pci_dev->irq);
-		err = -EIO;
-		goto fail_irq;
+	/* irq bit */
+	if (saa7164_enable_msi(pci_dev, dev)) {
+		dev->msi = true;
+	} else {
+		/* if we have an error (i.e. we don't have an interrupt)
+			 or msi is not enabled - fallback to shared interrupt */
+
+		err = request_irq(pci_dev->irq, saa7164_irq,
+				IRQF_SHARED, dev->name, dev);
+
+		if (err < 0) {
+			printk(KERN_ERR "%s: can't get IRQ %d\n", dev->name,
+			       pci_dev->irq);
+			err = -EIO;
+			goto fail_irq;
+		}
 	}
 
 	pci_set_drvdata(pci_dev, dev);
@@ -1440,6 +1487,11 @@ static void saa7164_finidev(struct pci_dev *pci_dev)
 
 	/* unregister stuff */
 	free_irq(pci_dev->irq, dev);
+
+	if (dev->msi) {
+		pci_disable_msi(pci_dev);
+		dev->msi = false;
+	}
 
 	pci_disable_device(pci_dev);
 

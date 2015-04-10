@@ -464,6 +464,7 @@ struct saa7164_dev {
 	/* Interrupt status and ack registers */
 	u32 int_status;
 	u32 int_ack;
+	bool msi;
 
 	struct cmd			cmds[SAA_CMD_MAX_MSG_UNITS];
 	struct mutex			lock;
