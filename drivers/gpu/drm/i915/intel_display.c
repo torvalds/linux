@@ -11235,7 +11235,6 @@ clear_intel_crtc_state(struct intel_crtc_state *crtc_state)
 
 static struct intel_crtc_state *
 intel_modeset_pipe_config(struct drm_crtc *crtc,
-			  struct drm_framebuffer *fb,
 			  struct drm_display_mode *mode,
 			  struct drm_atomic_state *state)
 {
@@ -12040,7 +12039,6 @@ static void update_scanline_offset(struct intel_crtc *crtc)
 static struct intel_crtc_state *
 intel_modeset_compute_config(struct drm_crtc *crtc,
 			     struct drm_display_mode *mode,
-			     struct drm_framebuffer *fb,
 			     struct drm_atomic_state *state,
 			     unsigned *modeset_pipes,
 			     unsigned *prepare_pipes,
@@ -12078,7 +12076,7 @@ intel_modeset_compute_config(struct drm_crtc *crtc,
 		if (WARN_ON(&intel_crtc->base != crtc))
 			continue;
 
-		pipe_config = intel_modeset_pipe_config(crtc, fb, mode, state);
+		pipe_config = intel_modeset_pipe_config(crtc, mode, state);
 		if (IS_ERR(pipe_config))
 			return pipe_config;
 
@@ -12281,7 +12279,7 @@ static int intel_set_mode(struct drm_crtc *crtc,
 	unsigned modeset_pipes, prepare_pipes, disable_pipes;
 	int ret = 0;
 
-	pipe_config = intel_modeset_compute_config(crtc, mode, fb, state,
+	pipe_config = intel_modeset_compute_config(crtc, mode, state,
 						   &modeset_pipes,
 						   &prepare_pipes,
 						   &disable_pipes);
@@ -12739,7 +12737,7 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 		goto fail;
 
 	pipe_config = intel_modeset_compute_config(set->crtc, set->mode,
-						   set->fb, state,
+						   state,
 						   &modeset_pipes,
 						   &prepare_pipes,
 						   &disable_pipes);
