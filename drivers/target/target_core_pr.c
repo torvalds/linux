@@ -1236,6 +1236,8 @@ static void __core_scsi3_free_registration(
 	struct t10_pr_registration *pr_reg,
 	struct list_head *preempt_and_abort_list,
 	int dec_holders)
+	__releases(&pr_tmpl->registration_lock)
+	__acquires(&pr_tmpl->registration_lock)
 {
 	const struct target_core_fabric_ops *tfo =
 			pr_reg->pr_reg_nacl->se_tpg->se_tpg_tfo;

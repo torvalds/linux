@@ -1602,6 +1602,8 @@ EXPORT_SYMBOL(target_submit_tmr);
  * has completed.
  */
 bool target_stop_cmd(struct se_cmd *cmd, unsigned long *flags)
+	__releases(&cmd->t_state_lock)
+	__acquires(&cmd->t_state_lock)
 {
 	bool was_active = false;
 
