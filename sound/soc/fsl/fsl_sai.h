@@ -140,6 +140,7 @@ struct fsl_sai {
 	bool is_dsp_mode;
 	bool sai_on_imx;
 	bool synchronous[2];
+	bool is_stream_opened[2];
 
 	unsigned int mclk_id[2];
 	unsigned int mclk_streams;
