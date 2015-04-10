@@ -2497,6 +2497,7 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
 	uint32_t dp_reg = I915_READ(intel_dp->output_reg);
+	unsigned int lane_mask = 0x0;
 
 	if (WARN_ON(dp_reg & DP_PORT_EN))
 		return;
@@ -2515,7 +2516,8 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 	pps_unlock(intel_dp);
 
 	if (IS_VALLEYVIEW(dev))
-		vlv_wait_port_ready(dev_priv, dp_to_dig_port(intel_dp));
+		vlv_wait_port_ready(dev_priv, dp_to_dig_port(intel_dp),
+				    lane_mask);
 
 	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
 	intel_dp_start_link_train(intel_dp);

@@ -1324,7 +1324,7 @@ static void vlv_hdmi_pre_enable(struct intel_encoder *encoder)
 
 	intel_enable_hdmi(encoder);
 
-	vlv_wait_port_ready(dev_priv, dport);
+	vlv_wait_port_ready(dev_priv, dport, 0x0);
 }
 
 static void vlv_hdmi_pre_pll_enable(struct intel_encoder *encoder)
@@ -1641,7 +1641,7 @@ static void chv_hdmi_pre_enable(struct intel_encoder *encoder)
 
 	intel_enable_hdmi(encoder);
 
-	vlv_wait_port_ready(dev_priv, dport);
+	vlv_wait_port_ready(dev_priv, dport, 0x0);
 }
 
 static void intel_hdmi_destroy(struct drm_connector *connector)
