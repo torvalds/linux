@@ -1063,7 +1063,7 @@ static s32 ixgbe_setup_kr_x550em(struct ixgbe_hw *hw)
  **/
 static s32 ixgbe_setup_internal_phy_x550em(struct ixgbe_hw *hw)
 {
-	u32 status;
+	s32 status;
 	u16 lasi, autoneg_status, speed;
 	ixgbe_link_speed force_speed;
 
@@ -1205,7 +1205,7 @@ static enum ixgbe_media_type ixgbe_get_media_type_X550em(struct ixgbe_hw *hw)
  **/
 static s32 ixgbe_init_ext_t_x550em(struct ixgbe_hw *hw)
 {
-	u32 status;
+	s32 status;
 	u16 reg;
 	u32 retries = 2;
 
