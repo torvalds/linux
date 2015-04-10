@@ -27,8 +27,12 @@
 #define AXP20X_IO_ENABLED		0x03
 #define AXP20X_IO_DISABLED		0x07
 
+#define AXP22X_IO_ENABLED		0x04
+#define AXP22X_IO_DISABLED		0x03
+
 #define AXP20X_WORKMODE_DCDC2_MASK	BIT(2)
 #define AXP20X_WORKMODE_DCDC3_MASK	BIT(1)
+#define AXP22X_WORKMODE_DCDCX_MASK(x)	BIT(x)
 
 #define AXP20X_FREQ_DCDC_MASK		0x0f
 
@@ -72,6 +76,26 @@
 		.enable_reg	= (_ereg),					\
 		.enable_mask	= (_emask),					\
 		.ops		= &axp20x_ops,					\
+	}
+
+#define AXP_DESC_SW(_family, _id, _match, _supply, _min, _max, _step, _vreg,	\
+		    _vmask, _ereg, _emask) 					\
+	[_family##_##_id] = {							\
+		.name		= #_id,						\
+		.supply_name	= (_supply),					\
+		.of_match	= of_match_ptr(_match),				\
+		.regulators_node = of_match_ptr("regulators"),			\
+		.type		= REGULATOR_VOLTAGE,				\
+		.id		= _family##_##_id,				\
+		.n_voltages	= (((_max) - (_min)) / (_step) + 1),		\
+		.owner		= THIS_MODULE,					\
+		.min_uV		= (_min) * 1000,				\
+		.uV_step	= (_step) * 1000,				\
+		.vsel_reg	= (_vreg),					\
+		.vsel_mask	= (_vmask),					\
+		.enable_reg	= (_ereg),					\
+		.enable_mask	= (_emask),					\
+		.ops		= &axp20x_ops_sw,				\
 	}
 
 #define AXP_DESC_FIXED(_family, _id, _match, _supply, _volt)			\
@@ -135,6 +159,14 @@ static struct regulator_ops axp20x_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 };
 
+static struct regulator_ops axp20x_ops_sw = {
+	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
+	.list_voltage		= regulator_list_voltage_linear,
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
+	.is_enabled		= regulator_is_enabled_regmap,
+};
+
 static const struct regulator_desc axp20x_regulators[] = {
 	AXP_DESC(AXP20X, DCDC2, "dcdc2", "vin2", 700, 2275, 25,
 		 AXP20X_DCDC2_V_OUT, 0x3f, AXP20X_PWR_OUT_CTRL, 0x10),
@@ -152,6 +184,52 @@ static const struct regulator_desc axp20x_regulators[] = {
 		    AXP20X_IO_ENABLED, AXP20X_IO_DISABLED),
 };
 
+static const struct regulator_desc axp22x_regulators[] = {
+	AXP_DESC(AXP22X, DCDC1, "dcdc1", "vin1", 1600, 3400, 100,
+		 AXP22X_DCDC1_V_OUT, 0x1f, AXP22X_PWR_OUT_CTRL1, BIT(1)),
+	AXP_DESC(AXP22X, DCDC2, "dcdc2", "vin2", 600, 1540, 20,
+		 AXP22X_DCDC2_V_OUT, 0x3f, AXP22X_PWR_OUT_CTRL1, BIT(2)),
+	AXP_DESC(AXP22X, DCDC3, "dcdc3", "vin3", 600, 1860, 20,
+		 AXP22X_DCDC3_V_OUT, 0x3f, AXP22X_PWR_OUT_CTRL1, BIT(3)),
+	AXP_DESC(AXP22X, DCDC4, "dcdc4", "vin4", 600, 1540, 20,
+		 AXP22X_DCDC4_V_OUT, 0x3f, AXP22X_PWR_OUT_CTRL1, BIT(3)),
+	AXP_DESC(AXP22X, DCDC5, "dcdc5", "vin5", 1000, 2550, 50,
+		 AXP22X_DCDC5_V_OUT, 0x1f, AXP22X_PWR_OUT_CTRL1, BIT(4)),
+	/* secondary switchable output of DCDC1 */
+	AXP_DESC_SW(AXP22X, DC1SW, "dc1sw", "dcdc1", 1600, 3400, 100,
+		    AXP22X_DCDC1_V_OUT, 0x1f, AXP22X_PWR_OUT_CTRL2, BIT(7)),
+	/* LDO regulator internally chained to DCDC5 */
+	AXP_DESC(AXP22X, DC5LDO, "dc5ldo", "dcdc5", 700, 1400, 100,
+		 AXP22X_DC5LDO_V_OUT, 0x7, AXP22X_PWR_OUT_CTRL1, BIT(0)),
+	AXP_DESC(AXP22X, ALDO1, "aldo1", "aldoin", 700, 3300, 100,
+		 AXP22X_ALDO1_V_OUT, 0x1f, AXP22X_PWR_OUT_CTRL1, BIT(6)),
+	AXP_DESC(AXP22X, ALDO2, "aldo2", "aldoin", 700, 3300, 100,
+		 AXP22X_ALDO2_V_OUT, 0x1f, AXP22X_PWR_OUT_CTRL1, BIT(7)),
+	AXP_DESC(AXP22X, ALDO3, "aldo3", "aldoin", 700, 3300, 100,
+		 AXP22X_ALDO3_V_OUT, 0x1f, AXP22X_PWR_OUT_CTRL3, BIT(7)),
+	AXP_DESC(AXP22X, DLDO1, "dldo1", "dldoin", 700, 3300, 100,
+		 AXP22X_DLDO1_V_OUT, 0x1f, AXP22X_PWR_OUT_CTRL2, BIT(3)),
+	AXP_DESC(AXP22X, DLDO2, "dldo2", "dldoin", 700, 3300, 100,
+		 AXP22X_DLDO2_V_OUT, 0x1f, AXP22X_PWR_OUT_CTRL2, BIT(4)),
+	AXP_DESC(AXP22X, DLDO3, "dldo3", "dldoin", 700, 3300, 100,
+		 AXP22X_DLDO3_V_OUT, 0x1f, AXP22X_PWR_OUT_CTRL2, BIT(5)),
+	AXP_DESC(AXP22X, DLDO4, "dldo4", "dldoin", 700, 3300, 100,
+		 AXP22X_DLDO4_V_OUT, 0x1f, AXP22X_PWR_OUT_CTRL2, BIT(6)),
+	AXP_DESC(AXP22X, ELDO1, "eldo1", "eldoin", 700, 3300, 100,
+		 AXP22X_ELDO1_V_OUT, 0x1f, AXP22X_PWR_OUT_CTRL2, BIT(0)),
+	AXP_DESC(AXP22X, ELDO2, "eldo2", "eldoin", 700, 3300, 100,
+		 AXP22X_ELDO2_V_OUT, 0x1f, AXP22X_PWR_OUT_CTRL2, BIT(1)),
+	AXP_DESC(AXP22X, ELDO3, "eldo3", "eldoin", 700, 3300, 100,
+		 AXP22X_ELDO3_V_OUT, 0x1f, AXP22X_PWR_OUT_CTRL2, BIT(2)),
+	AXP_DESC_IO(AXP22X, LDO_IO0, "ldo_io0", "ips", 1800, 3300, 100,
+		    AXP22X_LDO_IO0_V_OUT, 0x1f, AXP20X_GPIO0_CTRL, 0x07,
+		    AXP22X_IO_ENABLED, AXP22X_IO_DISABLED),
+	AXP_DESC_IO(AXP22X, LDO_IO1, "ldo_io1", "ips", 1800, 3300, 100,
+		    AXP22X_LDO_IO1_V_OUT, 0x1f, AXP20X_GPIO1_CTRL, 0x07,
+		    AXP22X_IO_ENABLED, AXP22X_IO_DISABLED),
+	AXP_DESC_FIXED(AXP22X, RTC_LDO, "rtc_ldo", "ips", 3000),
+};
+
 static int axp20x_set_dcdc_freq(struct platform_device *pdev, u32 dcdcfreq)
 {
 	struct axp20x_dev *axp20x = dev_get_drvdata(pdev->dev.parent);
@@ -164,6 +242,12 @@ static int axp20x_set_dcdc_freq(struct platform_device *pdev, u32 dcdcfreq)
 		max = 1875;
 		def = 1500;
 		step = 75;
+		break;
+	case AXP221_ID:
+		min = 1800;
+		max = 4050;
+		def = 3000;
+		step = 150;
 		break;
 	default:
 		dev_err(&pdev->dev,
@@ -237,6 +321,14 @@ static int axp20x_set_dcdc_workmode(struct regulator_dev *rdev, int id, u32 work
 		workmode <<= ffs(mask) - 1;
 		break;
 
+	case AXP221_ID:
+		if (id < AXP22X_DCDC1 || id > AXP22X_DCDC5)
+			return -EINVAL;
+
+		mask = AXP22X_WORKMODE_DCDCX_MASK(id - AXP22X_DCDC1);
+		workmode <<= id - AXP22X_DCDC1;
+		break;
+
 	default:
 		/* should not happen */
 		WARN_ON(1);
@@ -264,6 +356,10 @@ static int axp20x_regulator_probe(struct platform_device *pdev)
 	case AXP209_ID:
 		regulators = axp20x_regulators;
 		nregulators = AXP20X_REG_ID_MAX;
+		break;
+	case AXP221_ID:
+		regulators = axp22x_regulators;
+		nregulators = AXP22X_REG_ID_MAX;
 		break;
 	default:
 		dev_err(&pdev->dev, "Unsupported AXP variant: %ld\n",
