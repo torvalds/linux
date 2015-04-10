@@ -2338,13 +2338,6 @@ intel_fill_fb_ggtt_view(struct i915_ggtt_view *view, struct drm_framebuffer *fb,
 	info->pitch = fb->pitches[0];
 	info->fb_modifier = fb->modifier[0];
 
-	if (!(info->fb_modifier == I915_FORMAT_MOD_Y_TILED ||
-	      info->fb_modifier == I915_FORMAT_MOD_Yf_TILED)) {
-		DRM_DEBUG_KMS(
-			      "Y or Yf tiling is needed for 90/270 rotation!\n");
-		return -EINVAL;
-	}
-
 	return 0;
 }
 
@@ -2945,8 +2938,12 @@ static void skylake_update_primary_plane(struct drm_crtc *crtc,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_i915_gem_object *obj;
 	int pipe = intel_crtc->pipe;
-	u32 plane_ctl, stride_div;
+	u32 plane_ctl, stride_div, stride;
+	u32 tile_height, plane_offset, plane_size;
+	unsigned int rotation;
+	int x_offset, y_offset;
 	unsigned long surf_addr;
+	struct drm_plane *plane;
 
 	if (!intel_crtc->primary_enabled) {
 		I915_WRITE(PLANE_CTL(pipe, 0), 0);
@@ -3007,21 +3004,51 @@ static void skylake_update_primary_plane(struct drm_crtc *crtc,
 	}
 
 	plane_ctl |= PLANE_CTL_PLANE_GAMMA_DISABLE;
-	if (crtc->primary->state->rotation == BIT(DRM_ROTATE_180))
+
+	plane = crtc->primary;
+	rotation = plane->state->rotation;
+	switch (rotation) {
+	case BIT(DRM_ROTATE_90):
+		plane_ctl |= PLANE_CTL_ROTATE_90;
+		break;
+
+	case BIT(DRM_ROTATE_180):
 		plane_ctl |= PLANE_CTL_ROTATE_180;
+		break;
+
+	case BIT(DRM_ROTATE_270):
+		plane_ctl |= PLANE_CTL_ROTATE_270;
+		break;
+	}
 
 	obj = intel_fb_obj(fb);
 	stride_div = intel_fb_stride_alignment(dev, fb->modifier[0],
 					       fb->pixel_format);
-	surf_addr = intel_plane_obj_offset(to_intel_plane(crtc->primary), obj);
+	surf_addr = intel_plane_obj_offset(to_intel_plane(plane), obj);
+
+	if (intel_rotation_90_or_270(rotation)) {
+		/* stride = Surface height in tiles */
+		tile_height = intel_tile_height(dev, fb->bits_per_pixel,
+						fb->modifier[0]);
+		stride = DIV_ROUND_UP(fb->height, tile_height);
+		x_offset = stride * tile_height - y - (plane->state->src_h >> 16);
+		y_offset = x;
+		plane_size = ((plane->state->src_w >> 16) - 1) << 16 |
+					((plane->state->src_h >> 16) - 1);
+	} else {
+		stride = fb->pitches[0] / stride_div;
+		x_offset = x;
+		y_offset = y;
+		plane_size = ((plane->state->src_h >> 16) - 1) << 16 |
+			((plane->state->src_w >> 16) - 1);
+	}
+	plane_offset = y_offset << 16 | x_offset;
 
 	I915_WRITE(PLANE_CTL(pipe, 0), plane_ctl);
 	I915_WRITE(PLANE_POS(pipe, 0), 0);
-	I915_WRITE(PLANE_OFFSET(pipe, 0), (y << 16) | x);
-	I915_WRITE(PLANE_SIZE(pipe, 0),
-		   (intel_crtc->config->pipe_src_h - 1) << 16 |
-		   (intel_crtc->config->pipe_src_w - 1));
-	I915_WRITE(PLANE_STRIDE(pipe, 0), fb->pitches[0] / stride_div);
+	I915_WRITE(PLANE_OFFSET(pipe, 0), plane_offset);
+	I915_WRITE(PLANE_SIZE(pipe, 0), plane_size);
+	I915_WRITE(PLANE_STRIDE(pipe, 0), stride);
 	I915_WRITE(PLANE_SURF(pipe, 0), surf_addr);
 
 	POSTING_READ(PLANE_SURF(pipe, 0));
@@ -12827,21 +12854,30 @@ static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
 				 intel_primary_formats, num_formats,
 				 DRM_PLANE_TYPE_PRIMARY);
 
-	if (INTEL_INFO(dev)->gen >= 4) {
-		if (!dev->mode_config.rotation_property)
-			dev->mode_config.rotation_property =
-				drm_mode_create_rotation_property(dev,
-							BIT(DRM_ROTATE_0) |
-							BIT(DRM_ROTATE_180));
-		if (dev->mode_config.rotation_property)
-			drm_object_attach_property(&primary->base.base,
-				dev->mode_config.rotation_property,
-				state->base.rotation);
-	}
+	if (INTEL_INFO(dev)->gen >= 4)
+		intel_create_rotation_property(dev, primary);
 
 	drm_plane_helper_add(&primary->base, &intel_plane_helper_funcs);
 
 	return &primary->base;
+}
+
+void intel_create_rotation_property(struct drm_device *dev, struct intel_plane *plane)
+{
+	if (!dev->mode_config.rotation_property) {
+		unsigned long flags = BIT(DRM_ROTATE_0) |
+			BIT(DRM_ROTATE_180);
+
+		if (INTEL_INFO(dev)->gen >= 9)
+			flags |= BIT(DRM_ROTATE_90) | BIT(DRM_ROTATE_270);
+
+		dev->mode_config.rotation_property =
+			drm_mode_create_rotation_property(dev, flags);
+	}
+	if (dev->mode_config.rotation_property)
+		drm_object_attach_property(&plane->base.base,
+				dev->mode_config.rotation_property,
+				plane->base.state->rotation);
 }
 
 static int

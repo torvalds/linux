@@ -4866,7 +4866,9 @@ enum skl_disp_power_wells {
 #define   PLANE_CTL_ALPHA_HW_PREMULTIPLY	(  3 << 4)
 #define   PLANE_CTL_ROTATE_MASK			0x3
 #define   PLANE_CTL_ROTATE_0			0x0
+#define   PLANE_CTL_ROTATE_90			0x1
 #define   PLANE_CTL_ROTATE_180			0x2
+#define   PLANE_CTL_ROTATE_270			0x3
 #define _PLANE_STRIDE_1_A			0x70188
 #define _PLANE_STRIDE_2_A			0x70288
 #define _PLANE_STRIDE_3_A			0x70388

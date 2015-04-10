@@ -162,6 +162,30 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 			(1 << drm_plane_index(plane));
 	}
 
+	if (state->fb && intel_rotation_90_or_270(state->rotation)) {
+		if (!(state->fb->modifier[0] == I915_FORMAT_MOD_Y_TILED ||
+			state->fb->modifier[0] == I915_FORMAT_MOD_Yf_TILED)) {
+			DRM_DEBUG_KMS("Y/Yf tiling required for 90/270!\n");
+			return -EINVAL;
+		}
+
+		/*
+		 * 90/270 is not allowed with RGB64 16:16:16:16,
+		 * RGB 16-bit 5:6:5, and Indexed 8-bit.
+		 * TBD: Add RGB64 case once its added in supported format list.
+		 */
+		switch (state->fb->pixel_format) {
+		case DRM_FORMAT_C8:
+		case DRM_FORMAT_RGB565:
+			DRM_DEBUG_KMS("Unsupported pixel format %s for 90/270!\n",
+					drm_get_format_name(state->fb->pixel_format));
+			return -EINVAL;
+
+		default:
+			break;
+		}
+	}
+
 	return intel_plane->check_plane(plane, intel_state);
 }
 

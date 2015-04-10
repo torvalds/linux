@@ -190,10 +190,13 @@ skl_update_plane(struct drm_plane *drm_plane, struct drm_crtc *crtc,
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	const int pipe = intel_plane->pipe;
 	const int plane = intel_plane->plane + 1;
-	u32 plane_ctl, stride_div;
+	u32 plane_ctl, stride_div, stride;
 	int pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
 	const struct drm_intel_sprite_colorkey *key = &intel_plane->ckey;
 	unsigned long surf_addr;
+	u32 tile_height, plane_offset, plane_size;
+	unsigned int rotation;
+	int x_offset, y_offset;
 
 	plane_ctl = PLANE_CTL_ENABLE |
 		PLANE_CTL_PIPE_CSC_ENABLE;
@@ -254,8 +257,20 @@ skl_update_plane(struct drm_plane *drm_plane, struct drm_crtc *crtc,
 		MISSING_CASE(fb->modifier[0]);
 	}
 
-	if (drm_plane->state->rotation == BIT(DRM_ROTATE_180))
+	rotation = drm_plane->state->rotation;
+	switch (rotation) {
+	case BIT(DRM_ROTATE_90):
+		plane_ctl |= PLANE_CTL_ROTATE_90;
+		break;
+
+	case BIT(DRM_ROTATE_180):
 		plane_ctl |= PLANE_CTL_ROTATE_180;
+		break;
+
+	case BIT(DRM_ROTATE_270):
+		plane_ctl |= PLANE_CTL_ROTATE_270;
+		break;
+	}
 
 	intel_update_sprite_watermarks(drm_plane, crtc, src_w, src_h,
 				       pixel_size, true,
@@ -283,10 +298,26 @@ skl_update_plane(struct drm_plane *drm_plane, struct drm_crtc *crtc,
 
 	surf_addr = intel_plane_obj_offset(intel_plane, obj);
 
-	I915_WRITE(PLANE_OFFSET(pipe, plane), (y << 16) | x);
-	I915_WRITE(PLANE_STRIDE(pipe, plane), fb->pitches[0] / stride_div);
+	if (intel_rotation_90_or_270(rotation)) {
+		/* stride: Surface height in tiles */
+		tile_height = intel_tile_height(dev, fb->bits_per_pixel,
+							fb->modifier[0]);
+		stride = DIV_ROUND_UP(fb->height, tile_height);
+		plane_size = (src_w << 16) | src_h;
+		x_offset = stride * tile_height - y - (src_h + 1);
+		y_offset = x;
+	} else {
+		stride = fb->pitches[0] / stride_div;
+		plane_size = (src_h << 16) | src_w;
+		x_offset = x;
+		y_offset = y;
+	}
+	plane_offset = y_offset << 16 | x_offset;
+
+	I915_WRITE(PLANE_OFFSET(pipe, plane), plane_offset);
+	I915_WRITE(PLANE_STRIDE(pipe, plane), stride);
 	I915_WRITE(PLANE_POS(pipe, plane), (crtc_y << 16) | crtc_x);
-	I915_WRITE(PLANE_SIZE(pipe, plane), (crtc_h << 16) | crtc_w);
+	I915_WRITE(PLANE_SIZE(pipe, plane), plane_size);
 	I915_WRITE(PLANE_CTL(pipe, plane), plane_ctl);
 	I915_WRITE(PLANE_SURF(pipe, plane), surf_addr);
 	POSTING_READ(PLANE_SURF(pipe, plane));
@@ -1286,16 +1317,7 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 		goto out;
 	}
 
-	if (!dev->mode_config.rotation_property)
-		dev->mode_config.rotation_property =
-			drm_mode_create_rotation_property(dev,
-							  BIT(DRM_ROTATE_0) |
-							  BIT(DRM_ROTATE_180));
-
-	if (dev->mode_config.rotation_property)
-		drm_object_attach_property(&intel_plane->base.base,
-					   dev->mode_config.rotation_property,
-					   state->base.rotation);
+	intel_create_rotation_property(dev, intel_plane);
 
 	drm_plane_helper_add(&intel_plane->base, &intel_plane_helper_funcs);
 
