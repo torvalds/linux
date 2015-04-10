@@ -122,6 +122,65 @@ struct st_mmc_platform_data {
 		 ST_TOP_MMC_DLY_CTRL_ATUNE_NOT_CFG_DLY | \
 		 ST_TOP_MMC_START_DLL_LOCK)
 
+/*
+ * For clock speeds greater than 90MHz, we need to check that the
+ * DLL procedure has finished before switching to ultra-speed modes.
+ */
+#define	CLK_TO_CHECK_DLL_LOCK	90000000
+
+static inline void st_mmcss_set_static_delay(void __iomem *ioaddr)
+{
+	if (!ioaddr)
+		return;
+
+	writel_relaxed(0x0, ioaddr + ST_TOP_MMC_DLY_CTRL);
+	writel_relaxed(ST_TOP_MMC_DLY_MAX,
+			ioaddr + ST_TOP_MMC_TX_CLK_DLY);
+}
+
+static inline void st_mmcss_set_dll(void __iomem *ioaddr)
+{
+	if (!ioaddr)
+		return;
+
+	writel_relaxed(ST_TOP_MMC_DYN_DLY_CONF,	ioaddr + ST_TOP_MMC_DLY_CTRL);
+	writel_relaxed(ST_TOP_MMC_TX_DLL_STEP_DLY_VALID,
+			ioaddr + ST_TOP_MMC_TX_DLL_STEP_DLY);
+}
+
+static int st_mmcss_lock_dll(void __iomem *ioaddr)
+{
+	unsigned long curr, value;
+	unsigned long finish = jiffies + HZ;
+
+	/* Checks if the DLL procedure is finished */
+	do {
+		curr = jiffies;
+		value = readl(ioaddr + ST_MMC_STATUS_R);
+		if (value & 0x1)
+			return 0;
+
+		cpu_relax();
+	} while (!time_after_eq(curr, finish));
+
+	return -EBUSY;
+}
+
+static int sdhci_st_set_dll_for_clock(struct sdhci_host *host)
+{
+	int ret = 0;
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct st_mmc_platform_data *pdata = pltfm_host->priv;
+
+	if (host->clock > CLK_TO_CHECK_DLL_LOCK) {
+		st_mmcss_set_dll(pdata->top_ioaddr);
+		ret = st_mmcss_lock_dll(host->ioaddr);
+	}
+
+	return ret;
+}
+
+
 static u32 sdhci_st_readl(struct sdhci_host *host, int reg)
 {
 	u32 ret;
