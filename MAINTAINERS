@@ -2116,7 +2116,6 @@ S:	Supported
 F:	drivers/net/ethernet/broadcom/bnx2x/
 
 BROADCOM BCM281XX/BCM11XXX/BCM216XX ARM ARCHITECTURE
-M:	Christian Daudt <bcm@fixthebug.org>
 M:	Florian Fainelli <f.fainelli@gmail.com>
 M:	Ray Jui <rjui@broadcom.com>
 M:	Scott Branden <sbranden@broadcom.com>
