@@ -13,8 +13,6 @@
  *
  */
 
-#undef DEBUG
-
 #include <linux/irq.h>
 #include <linux/msi.h>
 #include <asm/mpic.h>
@@ -23,7 +21,7 @@
 #include <asm/ppc-pci.h>
 #include <asm/msi_bitmap.h>
 
-#include "mpic.h"
+#include <sysdev/mpic.h>
 
 /* Allocate 16 interrupts per device, to give an alignment of 16,
  * since that's the size of the grouping w.r.t. affinity. If someone
