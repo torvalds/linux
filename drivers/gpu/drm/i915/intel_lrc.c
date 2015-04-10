@@ -907,7 +907,6 @@ int intel_execlists_submission(struct drm_device *dev, struct drm_file *file,
 void intel_execlists_retire_requests(struct intel_engine_cs *ring)
 {
 	struct drm_i915_gem_request *req, *tmp;
-	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 	struct list_head retired_list;
 
 	WARN_ON(!mutex_is_locked(&ring->dev->struct_mutex));
