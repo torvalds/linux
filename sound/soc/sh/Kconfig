@@ -36,6 +36,7 @@ config SND_SOC_SH4_SIU
 
 config SND_SOC_RCAR
 	tristate "R-Car series SRU/SCU/SSIU/SSI support"
+	depends on DMA_OF
 	select SND_SIMPLE_CARD
 	select REGMAP_MMIO
 	help
