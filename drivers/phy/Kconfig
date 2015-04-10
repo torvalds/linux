@@ -304,7 +304,7 @@ config PHY_STIH41X_USB
 
 config PHY_QCOM_UFS
 	tristate "Qualcomm UFS PHY driver"
-	depends on OF && ARCH_MSM
+	depends on OF && ARCH_QCOM
 	select GENERIC_PHY
 	help
 	  Support for UFS PHY on QCOM chipsets.
