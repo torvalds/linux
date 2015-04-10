@@ -416,6 +416,9 @@
 			<&clock_audss EXYNOS_I2S_BUS>,
 			<&clock_audss EXYNOS_SCLK_I2S>;
 		clock-names = "iis", "i2s_opclk0", "i2s_opclk1";
+		#clock-cells = <1>;
+		clock-output-names = "i2s_cdclk0";
+		#sound-dai-cells = <1>;
 		samsung,idma-addr = <0x03000000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s0_bus>;
@@ -430,6 +433,9 @@
 		dma-names = "tx", "rx";
 		clocks = <&clock CLK_I2S1>, <&clock CLK_SCLK_I2S1>;
 		clock-names = "iis", "i2s_opclk0";
+		#clock-cells = <1>;
+		clock-output-names = "i2s_cdclk1";
+		#sound-dai-cells = <1>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s1_bus>;
 		status = "disabled";
@@ -443,6 +449,9 @@
 		dma-names = "tx", "rx";
 		clocks = <&clock CLK_I2S2>, <&clock CLK_SCLK_I2S2>;
 		clock-names = "iis", "i2s_opclk0";
+		#clock-cells = <1>;
+		clock-output-names = "i2s_cdclk2";
+		#sound-dai-cells = <1>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s2_bus>;
 		status = "disabled";
