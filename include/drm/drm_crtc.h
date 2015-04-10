@@ -1264,6 +1264,7 @@ extern int drm_plane_init(struct drm_device *dev,
 			  bool is_primary);
 extern void drm_plane_cleanup(struct drm_plane *plane);
 extern unsigned int drm_plane_index(struct drm_plane *plane);
+extern struct drm_plane * drm_plane_from_index(struct drm_device *dev, int idx);
 extern void drm_plane_force_disable(struct drm_plane *plane);
 extern int drm_plane_check_pixel_format(const struct drm_plane *plane,
 					u32 format);
