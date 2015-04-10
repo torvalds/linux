@@ -2450,7 +2450,8 @@ void ieee80211_check_fast_xmit(struct sta_info *sta)
 		goto out;
 
 	/* fast-xmit doesn't handle fragmentation at all */
-	if (local->hw.wiphy->frag_threshold != (u32)-1)
+	if (local->hw.wiphy->frag_threshold != (u32)-1 &&
+	    !local->ops->set_frag_threshold)
 		goto out;
 
 	rcu_read_lock();
