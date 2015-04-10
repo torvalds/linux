@@ -770,14 +770,14 @@ static int fm10k_update_vid(struct net_device *netdev, u16 vid, bool set)
 	if (hw->mac.vlan_override)
 		return -EACCES;
 
-	/* if default VLAN is already present do nothing */
-	if (vid == hw->mac.default_vid)
-		return -EBUSY;
-
 	/* update active_vlans bitmask */
 	set_bit(vid, interface->active_vlans);
 	if (!set)
 		clear_bit(vid, interface->active_vlans);
+
+	/* if default VLAN is already present do nothing */
+	if (vid == hw->mac.default_vid)
+		return 0;
 
 	fm10k_mbx_lock(interface);
 
