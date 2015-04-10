@@ -6198,6 +6198,8 @@ enum skl_disp_power_wells {
 #define GEN9_MEDIA_PG_IDLE_HYSTERESIS		0xA0C4
 #define GEN9_RENDER_PG_IDLE_HYSTERESIS		0xA0C8
 #define GEN9_PG_ENABLE				0xA210
+#define GEN9_RENDER_PG_ENABLE			(1<<0)
+#define GEN9_MEDIA_PG_ENABLE			(1<<1)
 
 #define VLV_CHICKEN_3				(VLV_DISPLAY_BASE + 0x7040C)
 #define  PIXEL_OVERLAP_CNT_MASK			(3 << 30)

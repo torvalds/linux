@@ -4347,7 +4347,9 @@ static void gen9_enable_rc6(struct drm_device *dev)
 				   rc6_mask);
 
 	/* 3b: Enable Coarse Power Gating only when RC6 is enabled */
-	I915_WRITE(GEN9_PG_ENABLE, (rc6_mask & GEN6_RC_CTL_RC6_ENABLE) ? 3 : 0);
+	I915_WRITE(GEN9_PG_ENABLE, (rc6_mask & GEN6_RC_CTL_RC6_ENABLE) ?
+			(GEN9_RENDER_PG_ENABLE | GEN9_MEDIA_PG_ENABLE) : 0);
+
 
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 
