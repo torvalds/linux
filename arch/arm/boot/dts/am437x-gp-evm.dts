@@ -352,7 +352,6 @@
 		reg = <0x24>;
 		compatible = "ti,tps65218";
 		interrupts = <GIC_SPI 7 IRQ_TYPE_NONE>; /* NMIn */
-		interrupt-parent = <&gic>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
 
