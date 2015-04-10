@@ -246,7 +246,7 @@ static unsigned int _save_mc(struct microcode_intel **mc_saved,
 			     u8 *ucode_ptr, unsigned int num_saved)
 {
 	struct microcode_header_intel *mc_hdr, *mc_saved_hdr;
-	unsigned int sig, pf, new_rev;
+	unsigned int sig, pf;
 	int found = 0, i;
 
 	mc_hdr = (struct microcode_header_intel *)ucode_ptr;
@@ -255,9 +255,8 @@ static unsigned int _save_mc(struct microcode_intel **mc_saved,
 		mc_saved_hdr = (struct microcode_header_intel *)mc_saved[i];
 		sig	     = mc_saved_hdr->sig;
 		pf	     = mc_saved_hdr->pf;
-		new_rev	     = mc_hdr->rev;
 
-		if (!get_matching_sig(sig, pf, new_rev, ucode_ptr))
+		if (!get_matching_sig(sig, pf, ucode_ptr))
 			continue;
 
 		found = 1;
