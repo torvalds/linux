@@ -2927,8 +2927,22 @@ i915_get_ggtt_vma_pages(struct i915_vma *vma)
 int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 		  u32 flags)
 {
+	int ret;
+
+	if (vma->vm->allocate_va_range) {
+		trace_i915_va_alloc(vma->vm, vma->node.start,
+				    vma->node.size,
+				    VM_TO_TRACE_NAME(vma->vm));
+
+		ret = vma->vm->allocate_va_range(vma->vm,
+						 vma->node.start,
+						 vma->node.size);
+		if (ret)
+			return ret;
+	}
+
 	if (i915_is_ggtt(vma->vm)) {
-		int ret = i915_get_ggtt_vma_pages(vma);
+		ret = i915_get_ggtt_vma_pages(vma);
 
 		if (ret)
 			return ret;
