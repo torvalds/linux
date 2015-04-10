@@ -118,9 +118,12 @@ struct tegra_mipi_soc {
 
 struct tegra_mipi {
 	const struct tegra_mipi_soc *soc;
+	struct device *dev;
 	void __iomem *regs;
 	struct mutex lock;
 	struct clk *clk;
+
+	unsigned long usage_count;
 };
 
 struct tegra_mipi_device {
@@ -140,6 +143,67 @@ static inline void tegra_mipi_writel(struct tegra_mipi *mipi, u32 value,
 				     unsigned long offset)
 {
 	writel(value, mipi->regs + (offset << 2));
+}
+
+static int tegra_mipi_power_up(struct tegra_mipi *mipi)
+{
+	u32 value;
+	int err;
+
+	err = clk_enable(mipi->clk);
+	if (err < 0)
+		return err;
+
+	value = tegra_mipi_readl(mipi, MIPI_CAL_BIAS_PAD_CFG0);
+	value &= ~MIPI_CAL_BIAS_PAD_PDVCLAMP;
+
+	if (mipi->soc->needs_vclamp_ref)
+		value |= MIPI_CAL_BIAS_PAD_E_VCLAMP_REF;
+
+	tegra_mipi_writel(mipi, value, MIPI_CAL_BIAS_PAD_CFG0);
+
+	value = tegra_mipi_readl(mipi, MIPI_CAL_BIAS_PAD_CFG2);
+	value &= ~MIPI_CAL_BIAS_PAD_PDVREG;
+	tegra_mipi_writel(mipi, value, MIPI_CAL_BIAS_PAD_CFG2);
+
+	clk_disable(mipi->clk);
+
+	return 0;
+}
+
+static int tegra_mipi_power_down(struct tegra_mipi *mipi)
+{
+	u32 value;
+	int err;
+
+	err = clk_enable(mipi->clk);
+	if (err < 0)
+		return err;
+
+	/*
+	 * The MIPI_CAL_BIAS_PAD_PDVREG controls a voltage regulator that
+	 * supplies the DSI pads. This must be kept enabled until none of the
+	 * DSI lanes are used anymore.
+	 */
+	value = tegra_mipi_readl(mipi, MIPI_CAL_BIAS_PAD_CFG2);
+	value |= MIPI_CAL_BIAS_PAD_PDVREG;
+	tegra_mipi_writel(mipi, value, MIPI_CAL_BIAS_PAD_CFG2);
+
+	/*
+	 * MIPI_CAL_BIAS_PAD_PDVCLAMP and MIPI_CAL_BIAS_PAD_E_VCLAMP_REF
+	 * control a regulator that supplies current to the pre-driver logic.
+	 * Powering down this regulator causes DSI to fail, so it must remain
+	 * powered on until none of the DSI lanes are used anymore.
+	 */
+	value = tegra_mipi_readl(mipi, MIPI_CAL_BIAS_PAD_CFG0);
+
+	if (mipi->soc->needs_vclamp_ref)
+		value &= ~MIPI_CAL_BIAS_PAD_E_VCLAMP_REF;
+
+	value |= MIPI_CAL_BIAS_PAD_PDVCLAMP;
+	tegra_mipi_writel(mipi, value, MIPI_CAL_BIAS_PAD_CFG0);
+
+	return 0;
 }
 
 struct tegra_mipi_device *tegra_mipi_request(struct device *device)
@@ -178,6 +242,20 @@ struct tegra_mipi_device *tegra_mipi_request(struct device *device)
 	dev->pads = args.args[0];
 	dev->device = device;
 
+	mutex_lock(&dev->mipi->lock);
+
+	if (dev->mipi->usage_count++ == 0) {
+		err = tegra_mipi_power_up(dev->mipi);
+		if (err < 0) {
+			dev_err(dev->mipi->dev,
+				"failed to power up MIPI bricks: %d\n",
+				err);
+			return ERR_PTR(err);
+		}
+	}
+
+	mutex_unlock(&dev->mipi->lock);
+
 	return dev;
 
 put:
@@ -192,6 +270,25 @@ EXPORT_SYMBOL(tegra_mipi_request);
 
 void tegra_mipi_free(struct tegra_mipi_device *device)
 {
+	int err;
+
+	mutex_lock(&device->mipi->lock);
+
+	if (--device->mipi->usage_count == 0) {
+		err = tegra_mipi_power_down(device->mipi);
+		if (err < 0) {
+			/*
+			 * Not much that can be done here, so an error message
+			 * will have to do.
+			 */
+			dev_err(device->mipi->dev,
+				"failed to power down MIPI bricks: %d\n",
+				err);
+		}
+	}
+
+	mutex_unlock(&device->mipi->lock);
+
 	platform_device_put(device->pdev);
 	kfree(device);
 }
@@ -227,21 +324,9 @@ int tegra_mipi_calibrate(struct tegra_mipi_device *device)
 
 	mutex_lock(&device->mipi->lock);
 
-	value = tegra_mipi_readl(device->mipi, MIPI_CAL_BIAS_PAD_CFG0);
-	value &= ~MIPI_CAL_BIAS_PAD_PDVCLAMP;
-
-	if (soc->needs_vclamp_ref)
-		value |= MIPI_CAL_BIAS_PAD_E_VCLAMP_REF;
-
-	tegra_mipi_writel(device->mipi, value, MIPI_CAL_BIAS_PAD_CFG0);
-
 	value = MIPI_CAL_BIAS_PAD_DRV_DN_REF(soc->pad_drive_down_ref) |
 		MIPI_CAL_BIAS_PAD_DRV_UP_REF(soc->pad_drive_up_ref);
 	tegra_mipi_writel(device->mipi, value, MIPI_CAL_BIAS_PAD_CFG1);
-
-	value = tegra_mipi_readl(device->mipi, MIPI_CAL_BIAS_PAD_CFG2);
-	value &= ~MIPI_CAL_BIAS_PAD_PDVREG;
-	tegra_mipi_writel(device->mipi, value, MIPI_CAL_BIAS_PAD_CFG2);
 
 	value = tegra_mipi_readl(device->mipi, MIPI_CAL_BIAS_PAD_CFG2);
 	value &= ~MIPI_CAL_BIAS_PAD_VCLAMP(0x7);
@@ -426,6 +511,7 @@ static int tegra_mipi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	mipi->soc = match->data;
+	mipi->dev = &pdev->dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	mipi->regs = devm_ioremap_resource(&pdev->dev, res);
