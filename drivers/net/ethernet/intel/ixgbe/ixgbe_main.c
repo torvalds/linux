@@ -7880,13 +7880,57 @@ static int ixgbe_ndo_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 static int ixgbe_configure_bridge_mode(struct ixgbe_adapter *adapter,
 				       __u16 mode)
 {
+	struct ixgbe_hw *hw = &adapter->hw;
+	unsigned int p, num_pools;
+	u32 vmdctl;
+
 	switch (mode) {
 	case BRIDGE_MODE_VEPA:
+		/* disable Tx loopback, rely on switch hairpin mode */
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_PFDTXGSWC, 0);
+
+		/* must enable Rx switching replication to allow multicast
+		 * packet reception on all VFs, and to enable source address
+		 * pruning.
+		 */
+		vmdctl = IXGBE_READ_REG(hw, IXGBE_VMD_CTL);
+		vmdctl |= IXGBE_VT_CTL_REPLEN;
+		IXGBE_WRITE_REG(hw, IXGBE_VMD_CTL, vmdctl);
+
+		/* enable Rx source address pruning. Note, this requires
+		 * replication to be enabled or else it does nothing.
+		 */
+		num_pools = adapter->num_vfs + adapter->num_rx_pools;
+		for (p = 0; p < num_pools; p++) {
+			if (hw->mac.ops.set_source_address_pruning)
+				hw->mac.ops.set_source_address_pruning(hw,
+								       true,
+								       p);
+		}
 		break;
 	case BRIDGE_MODE_VEB:
+		/* enable Tx loopback for internal VF/PF communication */
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_PFDTXGSWC,
 				IXGBE_PFDTXGSWC_VT_LBEN);
+
+		/* disable Rx switching replication unless we have SR-IOV
+		 * virtual functions
+		 */
+		vmdctl = IXGBE_READ_REG(hw, IXGBE_VMD_CTL);
+		if (!adapter->num_vfs)
+			vmdctl &= ~IXGBE_VT_CTL_REPLEN;
+		IXGBE_WRITE_REG(hw, IXGBE_VMD_CTL, vmdctl);
+
+		/* disable Rx source address pruning, since we don't expect to
+		 * be receiving external loopback of our transmitted frames.
+		 */
+		num_pools = adapter->num_vfs + adapter->num_rx_pools;
+		for (p = 0; p < num_pools; p++) {
+			if (hw->mac.ops.set_source_address_pruning)
+				hw->mac.ops.set_source_address_pruning(hw,
+								       false,
+								       p);
+		}
 		break;
 	default:
 		return -EINVAL;
