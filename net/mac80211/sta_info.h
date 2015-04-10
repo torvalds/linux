@@ -241,6 +241,8 @@ struct sta_ampdu_mlme {
 /* Value to indicate no TID reservation */
 #define IEEE80211_TID_UNRESERVED	0xff
 
+#define IEEE80211_FAST_XMIT_MAX_IV	18
+
 /**
  * struct ieee80211_fast_tx - TX fastpath information
  * @key: key to use for hw crypto
@@ -252,15 +254,17 @@ struct sta_ampdu_mlme {
  * @band: band this will be transmitted on, for tx_info
  * @rcu_head: RCU head to free this struct
  *
- * Try to keep this struct small so it fits into a single cacheline.
+ * This struct is small enough so that the common case (maximum crypto
+ * header length of 8 like for CCMP/GCMP) fits into a single 64-byte
+ * cache line.
  */
 struct ieee80211_fast_tx {
 	struct ieee80211_key *key;
-	u8 hdr[30 + 2 + IEEE80211_CCMP_HDR_LEN +
-	       sizeof(rfc1042_header)];
 	u8 hdr_len;
 	u8 sa_offs, da_offs, pn_offs;
 	u8 band;
+	u8 hdr[30 + 2 + IEEE80211_FAST_XMIT_MAX_IV +
+	       sizeof(rfc1042_header)];
 
 	struct rcu_head rcu_head;
 };

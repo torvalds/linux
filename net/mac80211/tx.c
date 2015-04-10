@@ -2535,10 +2535,11 @@ void ieee80211_check_fast_xmit(struct sta_info *sta)
 	if (!build.key)
 		build.key = rcu_access_pointer(sdata->default_unicast_key);
 	if (build.key) {
-		bool gen_iv, iv_spc;
+		bool gen_iv, iv_spc, mmic;
 
 		gen_iv = build.key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV;
 		iv_spc = build.key->conf.flags & IEEE80211_KEY_FLAG_PUT_IV_SPACE;
+		mmic = build.key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_MMIC;
 
 		/* don't handle software crypto */
 		if (!(build.key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE))
@@ -2567,9 +2568,42 @@ void ieee80211_check_fast_xmit(struct sta_info *sta)
 			if (gen_iv || iv_spc)
 				build.hdr_len += IEEE80211_GCMP_HDR_LEN;
 			break;
-		default:
-			/* don't do fast-xmit for these ciphers (yet) */
+		case WLAN_CIPHER_SUITE_TKIP:
+			/* cannot handle MMIC or IV generation in xmit-fast */
+			if (mmic || gen_iv)
+				goto out;
+			if (iv_spc)
+				build.hdr_len += IEEE80211_TKIP_IV_LEN;
+			break;
+		case WLAN_CIPHER_SUITE_WEP40:
+		case WLAN_CIPHER_SUITE_WEP104:
+			/* cannot handle IV generation in fast-xmit */
+			if (gen_iv)
+				goto out;
+			if (iv_spc)
+				build.hdr_len += IEEE80211_WEP_IV_LEN;
+			break;
+		case WLAN_CIPHER_SUITE_AES_CMAC:
+		case WLAN_CIPHER_SUITE_BIP_CMAC_256:
+		case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+		case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+			WARN(1,
+			     "management cipher suite 0x%x enabled for data\n",
+			     build.key->conf.cipher);
 			goto out;
+		default:
+			/* we don't know how to generate IVs for this at all */
+			if (WARN_ON(gen_iv))
+				goto out;
+			/* pure hardware keys are OK, of course */
+			if (!(build.key->flags & KEY_FLAG_CIPHER_SCHEME))
+				break;
+			/* cipher scheme might require space allocation */
+			if (iv_spc &&
+			    build.key->conf.iv_len > IEEE80211_FAST_XMIT_MAX_IV)
+				goto out;
+			if (iv_spc)
+				build.hdr_len += build.key->conf.iv_len;
 		}
 
 		fc |= cpu_to_le16(IEEE80211_FCTL_PROTECTED);
