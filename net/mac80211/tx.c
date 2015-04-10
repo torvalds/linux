@@ -2851,10 +2851,8 @@ void __ieee80211_subif_start_xmit(struct sk_buff *skb,
 
 	rcu_read_lock();
 
-	if (ieee80211_lookup_ra_sta(sdata, skb, &sta)) {
-		kfree_skb(skb);
-		goto out;
-	}
+	if (ieee80211_lookup_ra_sta(sdata, skb, &sta))
+		goto out_free;
 
 	if (!IS_ERR_OR_NULL(sta)) {
 		struct ieee80211_fast_tx *fast_tx;
@@ -2866,6 +2864,21 @@ void __ieee80211_subif_start_xmit(struct sk_buff *skb,
 			goto out;
 	}
 
+	/* the frame could be fragmented, software-encrypted, and other things
+	 * so we cannot really handle checksum offload with it - fix it up in
+	 * software before we handle anything else.
+	 */
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		if (skb->encapsulation)
+			skb_set_inner_transport_header(skb,
+						       skb_checksum_start_offset(skb));
+		else
+			skb_set_transport_header(skb,
+						 skb_checksum_start_offset(skb));
+		if (skb_checksum_help(skb))
+			goto out_free;
+	}
+
 	skb = ieee80211_build_hdr(sdata, skb, info_flags, sta);
 	if (IS_ERR(skb))
 		goto out;
@@ -2875,6 +2888,9 @@ void __ieee80211_subif_start_xmit(struct sk_buff *skb,
 	dev->trans_start = jiffies;
 
 	ieee80211_xmit(sdata, sta, skb);
+	goto out;
+ out_free:
+	kfree_skb(skb);
  out:
 	rcu_read_unlock();
 }
