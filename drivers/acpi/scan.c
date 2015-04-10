@@ -194,7 +194,8 @@ static int create_modalias(struct acpi_device *acpi_dev, char *modalias,
  *
  * Check if the given device has an ACPI companion and if that companion has
  * a valid list of PNP IDs, and if the device is the first (primary) physical
- * device associated with it.
+ * device associated with it.  Return the companion pointer if that's the case
+ * or NULL otherwise.
  *
  * If multiple physical devices are attached to a single ACPI companion, we need
  * to be careful.  The usage scenario for this kind of relationship is that all
@@ -208,31 +209,31 @@ static int create_modalias(struct acpi_device *acpi_dev, char *modalias,
  * resources available from it but they will be matched normally using functions
  * provided by their bus types (and analogously for their modalias).
  */
-static bool acpi_companion_match(const struct device *dev)
+static struct acpi_device *acpi_companion_match(const struct device *dev)
 {
 	struct acpi_device *adev;
-	bool ret;
 
 	adev = ACPI_COMPANION(dev);
 	if (!adev)
-		return false;
+		return NULL;
 
 	if (list_empty(&adev->pnp.ids))
-		return false;
+		return NULL;
 
 	mutex_lock(&adev->physical_node_lock);
 	if (list_empty(&adev->physical_node_list)) {
-		ret = false;
+		adev = NULL;
 	} else {
 		const struct acpi_device_physical_node *node;
 
 		node = list_first_entry(&adev->physical_node_list,
 					struct acpi_device_physical_node, node);
-		ret = node->dev == dev;
+		if (node->dev != dev)
+			adev = NULL;
 	}
 	mutex_unlock(&adev->physical_node_lock);
 
-	return ret;
+	return adev;
 }
 
 /*
@@ -904,7 +905,7 @@ static const struct acpi_device_id *__acpi_match_device(
 	 * If the device is not present, it is unnecessary to load device
 	 * driver for it.
 	 */
-	if (!device->status.present)
+	if (!device || !device->status.present)
 		return NULL;
 
 	for (id = ids; id->id[0]; id++)
@@ -929,16 +930,7 @@ static const struct acpi_device_id *__acpi_match_device(
 const struct acpi_device_id *acpi_match_device(const struct acpi_device_id *ids,
 					       const struct device *dev)
 {
-	struct acpi_device *adev;
-	acpi_handle handle = ACPI_HANDLE(dev);
-
-	if (!ids || !handle || acpi_bus_get_device(handle, &adev))
-		return NULL;
-
-	if (!acpi_companion_match(dev))
-		return NULL;
-
-	return __acpi_match_device(adev, ids);
+	return __acpi_match_device(acpi_companion_match(dev), ids);
 }
 EXPORT_SYMBOL_GPL(acpi_match_device);
 
