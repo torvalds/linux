@@ -839,12 +839,14 @@ static int __rsnd_kctrl_new(struct rsnd_mod *mod,
 			    struct rsnd_kctrl_cfg *cfg,
 			    void (*update)(struct rsnd_mod *mod))
 {
+	struct snd_soc_card *soc_card = rtd->card;
 	struct snd_card *card = rtd->card->snd_card;
 	struct snd_kcontrol *kctrl;
 	struct snd_kcontrol_new knew = {
 		.iface		= SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name		= name,
 		.info		= rsnd_kctrl_info,
+		.index		= rtd - soc_card->rtd,
 		.get		= rsnd_kctrl_get,
 		.put		= rsnd_kctrl_put,
 		.private_value	= (unsigned long)cfg,
