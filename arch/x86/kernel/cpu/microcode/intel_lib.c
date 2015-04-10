@@ -154,13 +154,13 @@ int get_matching_sig(unsigned int csig, int cpf, int rev, void *mc)
 /*
  * Returns 1 if update has been found, 0 otherwise.
  */
-int get_matching_microcode(unsigned int csig, int cpf, int rev, void *mc)
+int get_matching_microcode(unsigned int csig, int cpf, int new_rev, void *mc)
 {
 	struct microcode_header_intel *mc_hdr = mc;
 
-	if (!revision_is_newer(mc_hdr, rev))
+	if (mc_hdr->rev <= new_rev)
 		return 0;
 
-	return get_matching_sig(csig, cpf, rev, mc);
+	return get_matching_sig(csig, cpf, new_rev, mc);
 }
 EXPORT_SYMBOL_GPL(get_matching_microcode);

@@ -262,7 +262,7 @@ static unsigned int _save_mc(struct microcode_intel **mc_saved,
 
 		found = 1;
 
-		if (!revision_is_newer(mc_hdr, new_rev))
+		if (mc_hdr->rev <= mc_saved_hdr->rev)
 			continue;
 
 		/*

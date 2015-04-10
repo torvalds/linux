@@ -60,12 +60,6 @@ extern int get_matching_microcode(unsigned int csig, int cpf, int rev, void *mc)
 extern int microcode_sanity_check(void *mc, int print_err);
 extern int get_matching_sig(unsigned int csig, int cpf, int rev, void *mc);
 
-static inline int
-revision_is_newer(struct microcode_header_intel *mc_header, int rev)
-{
-	return (mc_header->rev <= rev) ? 0 : 1;
-}
-
 #ifdef CONFIG_MICROCODE_INTEL_EARLY
 extern void __init load_ucode_intel_bsp(void);
 extern void load_ucode_intel_ap(void);
