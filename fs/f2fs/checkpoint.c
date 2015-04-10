@@ -1051,7 +1051,7 @@ void write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	mutex_lock(&sbi->cp_mutex);
 
 	if (!is_sbi_flag_set(sbi, SBI_IS_DIRTY) &&
-			cpc->reason != CP_DISCARD && cpc->reason != CP_UMOUNT)
+		(cpc->reason == CP_FASTBOOT || cpc->reason == CP_SYNC))
 		goto out;
 	if (unlikely(f2fs_cp_error(sbi)))
 		goto out;
@@ -1086,6 +1086,10 @@ void write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 
 	unblock_operations(sbi);
 	stat_inc_cp_count(sbi->stat_info);
+
+	if (cpc->reason == CP_RECOVERY)
+		f2fs_msg(sbi->sb, KERN_NOTICE,
+			"checkpoint: version = %llx", ckpt_ver);
 out:
 	mutex_unlock(&sbi->cp_mutex);
 	trace_f2fs_write_checkpoint(sbi->sb, cpc->reason, "finish checkpoint");
