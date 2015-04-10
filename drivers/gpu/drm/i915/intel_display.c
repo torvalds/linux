@@ -12571,16 +12571,21 @@ intel_check_primary_plane(struct drm_plane *plane,
 	struct drm_rect *dest = &state->dst;
 	struct drm_rect *src = &state->src;
 	const struct drm_rect *clip = &state->clip;
+	bool can_position = false;
 	int ret;
 
 	crtc = crtc ? crtc : plane->crtc;
 	intel_crtc = to_intel_crtc(crtc);
 
+	if (INTEL_INFO(dev)->gen >= 9)
+		can_position = true;
+
 	ret = drm_plane_helper_check_update(plane, crtc, fb,
 					    src, dest, clip,
 					    DRM_PLANE_HELPER_NO_SCALING,
 					    DRM_PLANE_HELPER_NO_SCALING,
-					    false, true, &state->visible);
+					    can_position, true,
+					    &state->visible);
 	if (ret)
 		return ret;
 
