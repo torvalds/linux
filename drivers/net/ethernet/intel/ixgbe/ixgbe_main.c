@@ -7870,6 +7870,36 @@ static int ixgbe_ndo_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 	return ndo_dflt_fdb_add(ndm, tb, dev, addr, vid, flags);
 }
 
+/**
+ * ixgbe_configure_bridge_mode - set various bridge modes
+ * @adapter - the private structure
+ * @mode - requested bridge mode
+ *
+ * Configure some settings require for various bridge modes.
+ **/
+static int ixgbe_configure_bridge_mode(struct ixgbe_adapter *adapter,
+				       __u16 mode)
+{
+	switch (mode) {
+	case BRIDGE_MODE_VEPA:
+		IXGBE_WRITE_REG(&adapter->hw, IXGBE_PFDTXGSWC, 0);
+		break;
+	case BRIDGE_MODE_VEB:
+		IXGBE_WRITE_REG(&adapter->hw, IXGBE_PFDTXGSWC,
+				IXGBE_PFDTXGSWC_VT_LBEN);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	adapter->bridge_mode = mode;
+
+	e_info(drv, "enabling bridge mode: %s\n",
+	       mode == BRIDGE_MODE_VEPA ? "VEPA" : "VEB");
+
+	return 0;
+}
+
 static int ixgbe_ndo_bridge_setlink(struct net_device *dev,
 				    struct nlmsghdr *nlh, u16 flags)
 {
@@ -7885,6 +7915,7 @@ static int ixgbe_ndo_bridge_setlink(struct net_device *dev,
 		return -EINVAL;
 
 	nla_for_each_nested(attr, br_spec, rem) {
+		u32 status;
 		__u16 mode;
 
 		if (nla_type(attr) != IFLA_BRIDGE_MODE)
@@ -7894,22 +7925,9 @@ static int ixgbe_ndo_bridge_setlink(struct net_device *dev,
 			return -EINVAL;
 
 		mode = nla_get_u16(attr);
-		switch (mode) {
-		case BRIDGE_MODE_VEPA:
-			IXGBE_WRITE_REG(&adapter->hw, IXGBE_PFDTXGSWC, 0);
-			break;
-		case BRIDGE_MODE_VEB:
-			IXGBE_WRITE_REG(&adapter->hw, IXGBE_PFDTXGSWC,
-					IXGBE_PFDTXGSWC_VT_LBEN);
-			break;
-		default:
-			return -EINVAL;
-		}
-
-		adapter->bridge_mode = mode;
-
-		e_info(drv, "enabling bridge mode: %s\n",
-			mode == BRIDGE_MODE_VEPA ? "VEPA" : "VEB");
+		status = ixgbe_configure_bridge_mode(adapter, mode);
+		if (status)
+			return status;
 
 		break;
 	}
