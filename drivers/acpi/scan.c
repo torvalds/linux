@@ -895,69 +895,21 @@ static void acpi_device_remove_files(struct acpi_device *dev)
 			ACPI Bus operations
    -------------------------------------------------------------------------- */
 
-static const struct acpi_device_id *__acpi_match_device(
-	struct acpi_device *device, const struct acpi_device_id *ids)
-{
-	const struct acpi_device_id *id;
-	struct acpi_hardware_id *hwid;
-
-	/*
-	 * If the device is not present, it is unnecessary to load device
-	 * driver for it.
-	 */
-	if (!device || !device->status.present)
-		return NULL;
-
-	for (id = ids; id->id[0]; id++)
-		list_for_each_entry(hwid, &device->pnp.ids, list)
-			if (!strcmp((char *) id->id, hwid->id))
-				return id;
-
-	return NULL;
-}
-
 /**
- * acpi_match_device - Match a struct device against a given list of ACPI IDs
- * @ids: Array of struct acpi_device_id object to match against.
- * @dev: The device structure to match.
- *
- * Check if @dev has a valid ACPI handle and if there is a struct acpi_device
- * object for that handle and use that object to match against a given list of
- * device IDs.
- *
- * Return a pointer to the first matching ID on success or %NULL on failure.
- */
-const struct acpi_device_id *acpi_match_device(const struct acpi_device_id *ids,
-					       const struct device *dev)
-{
-	return __acpi_match_device(acpi_companion_match(dev), ids);
-}
-EXPORT_SYMBOL_GPL(acpi_match_device);
-
-int acpi_match_device_ids(struct acpi_device *device,
-			  const struct acpi_device_id *ids)
-{
-	return __acpi_match_device(device, ids) ? 0 : -ENOENT;
-}
-EXPORT_SYMBOL(acpi_match_device_ids);
-
-/**
- * acpi_of_match_device - Match device using the "compatible" property.
- * @dev: Device to match.
+ * acpi_of_match_device - Match device object using the "compatible" property.
+ * @adev: ACPI device object to match.
  * @of_match_table: List of device IDs to match against.
  *
  * If @dev has an ACPI companion which has the special PRP0001 device ID in its
  * list of identifiers and a _DSD object with the "compatible" property, use
  * that property to match against the given list of identifiers.
  */
-static bool acpi_of_match_device(struct device *dev,
+static bool acpi_of_match_device(struct acpi_device *adev,
 				 const struct of_device_id *of_match_table)
 {
 	const union acpi_object *of_compatible, *obj;
-	struct acpi_device *adev;
 	int i, nval;
 
-	adev = ACPI_COMPANION(dev);
 	if (!adev)
 		return false;
 
@@ -984,13 +936,76 @@ static bool acpi_of_match_device(struct device *dev,
 	return false;
 }
 
+static const struct acpi_device_id *__acpi_match_device(
+	struct acpi_device *device,
+	const struct acpi_device_id *ids,
+	const struct of_device_id *of_ids)
+{
+	const struct acpi_device_id *id;
+	struct acpi_hardware_id *hwid;
+
+	/*
+	 * If the device is not present, it is unnecessary to load device
+	 * driver for it.
+	 */
+	if (!device || !device->status.present)
+		return NULL;
+
+	list_for_each_entry(hwid, &device->pnp.ids, list) {
+		/* First, check the ACPI/PNP IDs provided by the caller. */
+		for (id = ids; id->id[0]; id++)
+			if (!strcmp((char *) id->id, hwid->id))
+				return id;
+
+		/*
+		 * Next, check the special "PRP0001" ID and try to match the
+		 * "compatible" property if found.
+		 *
+		 * The id returned by the below is not valid, but the only
+		 * caller passing non-NULL of_ids here is only interested in
+		 * whether or not the return value is NULL.
+		 */
+		if (!strcmp("PRP0001", hwid->id)
+		    && acpi_of_match_device(device, of_ids))
+			return id;
+	}
+	return NULL;
+}
+
+/**
+ * acpi_match_device - Match a struct device against a given list of ACPI IDs
+ * @ids: Array of struct acpi_device_id object to match against.
+ * @dev: The device structure to match.
+ *
+ * Check if @dev has a valid ACPI handle and if there is a struct acpi_device
+ * object for that handle and use that object to match against a given list of
+ * device IDs.
+ *
+ * Return a pointer to the first matching ID on success or %NULL on failure.
+ */
+const struct acpi_device_id *acpi_match_device(const struct acpi_device_id *ids,
+					       const struct device *dev)
+{
+	return __acpi_match_device(acpi_companion_match(dev), ids, NULL);
+}
+EXPORT_SYMBOL_GPL(acpi_match_device);
+
+int acpi_match_device_ids(struct acpi_device *device,
+			  const struct acpi_device_id *ids)
+{
+	return __acpi_match_device(device, ids, NULL) ? 0 : -ENOENT;
+}
+EXPORT_SYMBOL(acpi_match_device_ids);
+
 bool acpi_driver_match_device(struct device *dev,
 			      const struct device_driver *drv)
 {
 	if (!drv->acpi_match_table)
-		return acpi_of_match_device(dev, drv->of_match_table);
+		return acpi_of_match_device(ACPI_COMPANION(dev),
+					    drv->of_match_table);
 
-	return !!acpi_match_device(drv->acpi_match_table, dev);
+	return !!__acpi_match_device(acpi_companion_match(dev),
+				     drv->acpi_match_table, drv->of_match_table);
 }
 EXPORT_SYMBOL_GPL(acpi_driver_match_device);
 
