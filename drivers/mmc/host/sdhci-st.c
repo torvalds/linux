@@ -340,7 +340,10 @@ static const struct sdhci_ops sdhci_st_ops = {
 static const struct sdhci_pltfm_data sdhci_st_pdata = {
 	.ops = &sdhci_st_ops,
 	.quirks = SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC |
-	    SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
+		SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN |
+		SDHCI_QUIRK_NO_HISPD_BIT,
+	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
+		SDHCI_QUIRK2_STOP_WITH_TC,
 };
 
 
