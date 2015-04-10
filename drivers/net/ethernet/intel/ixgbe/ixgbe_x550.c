@@ -1363,6 +1363,33 @@ static void ixgbe_set_ethertype_anti_spoofing_X550(struct ixgbe_hw *hw,
 	IXGBE_WRITE_REG(hw, IXGBE_PFVFSPOOF(vf_target_reg), pfvfspoof);
 }
 
+/** ixgbe_set_source_address_pruning_X550 - Enable/Disbale src address pruning
+ *  @hw: pointer to hardware structure
+ *  @enable: enable or disable source address pruning
+ *  @pool: Rx pool to set source address pruning for
+ **/
+static void ixgbe_set_source_address_pruning_X550(struct ixgbe_hw *hw,
+						  bool enable,
+						  unsigned int pool)
+{
+	u64 pfflp;
+
+	/* max rx pool is 63 */
+	if (pool > 63)
+		return;
+
+	pfflp = (u64)IXGBE_READ_REG(hw, IXGBE_PFFLPL);
+	pfflp |= (u64)IXGBE_READ_REG(hw, IXGBE_PFFLPH) << 32;
+
+	if (enable)
+		pfflp |= (1ULL << pool);
+	else
+		pfflp &= ~(1ULL << pool);
+
+	IXGBE_WRITE_REG(hw, IXGBE_PFFLPL, (u32)pfflp);
+	IXGBE_WRITE_REG(hw, IXGBE_PFFLPH, (u32)(pfflp >> 32));
+}
+
 #define X550_COMMON_MAC \
 	.init_hw			= &ixgbe_init_hw_generic, \
 	.start_hw			= &ixgbe_start_hw_X540, \
@@ -1397,6 +1424,8 @@ static void ixgbe_set_ethertype_anti_spoofing_X550(struct ixgbe_hw *hw,
 	.init_uta_tables		= &ixgbe_init_uta_tables_generic, \
 	.set_mac_anti_spoofing		= &ixgbe_set_mac_anti_spoofing, \
 	.set_vlan_anti_spoofing		= &ixgbe_set_vlan_anti_spoofing, \
+	.set_source_address_pruning	= \
+				&ixgbe_set_source_address_pruning_X550, \
 	.set_ethertype_anti_spoofing	= \
 				&ixgbe_set_ethertype_anti_spoofing_X550, \
 	.acquire_swfw_sync		= &ixgbe_acquire_swfw_sync_X540, \

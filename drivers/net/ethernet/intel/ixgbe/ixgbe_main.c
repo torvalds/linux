@@ -3553,7 +3553,7 @@ static void ixgbe_configure_virtualization(struct ixgbe_adapter *adapter)
 	IXGBE_WRITE_REG(hw, IXGBE_VFRE(reg_offset ^ 1), reg_offset - 1);
 	IXGBE_WRITE_REG(hw, IXGBE_VFTE(reg_offset), (~0) << vf_shift);
 	IXGBE_WRITE_REG(hw, IXGBE_VFTE(reg_offset ^ 1), reg_offset - 1);
-	if (adapter->flags2 & IXGBE_FLAG2_BRIDGE_MODE_VEB)
+	if (adapter->bridge_mode == BRIDGE_MODE_VEB)
 		IXGBE_WRITE_REG(hw, IXGBE_PFDTXGSWC, IXGBE_PFDTXGSWC_VT_LBEN);
 
 	/* Map PF MAC address in RAR Entry 0 to first pool following VFs */
@@ -7870,6 +7870,80 @@ static int ixgbe_ndo_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 	return ndo_dflt_fdb_add(ndm, tb, dev, addr, vid, flags);
 }
 
+/**
+ * ixgbe_configure_bridge_mode - set various bridge modes
+ * @adapter - the private structure
+ * @mode - requested bridge mode
+ *
+ * Configure some settings require for various bridge modes.
+ **/
+static int ixgbe_configure_bridge_mode(struct ixgbe_adapter *adapter,
+				       __u16 mode)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	unsigned int p, num_pools;
+	u32 vmdctl;
+
+	switch (mode) {
+	case BRIDGE_MODE_VEPA:
+		/* disable Tx loopback, rely on switch hairpin mode */
+		IXGBE_WRITE_REG(&adapter->hw, IXGBE_PFDTXGSWC, 0);
+
+		/* must enable Rx switching replication to allow multicast
+		 * packet reception on all VFs, and to enable source address
+		 * pruning.
+		 */
+		vmdctl = IXGBE_READ_REG(hw, IXGBE_VMD_CTL);
+		vmdctl |= IXGBE_VT_CTL_REPLEN;
+		IXGBE_WRITE_REG(hw, IXGBE_VMD_CTL, vmdctl);
+
+		/* enable Rx source address pruning. Note, this requires
+		 * replication to be enabled or else it does nothing.
+		 */
+		num_pools = adapter->num_vfs + adapter->num_rx_pools;
+		for (p = 0; p < num_pools; p++) {
+			if (hw->mac.ops.set_source_address_pruning)
+				hw->mac.ops.set_source_address_pruning(hw,
+								       true,
+								       p);
+		}
+		break;
+	case BRIDGE_MODE_VEB:
+		/* enable Tx loopback for internal VF/PF communication */
+		IXGBE_WRITE_REG(&adapter->hw, IXGBE_PFDTXGSWC,
+				IXGBE_PFDTXGSWC_VT_LBEN);
+
+		/* disable Rx switching replication unless we have SR-IOV
+		 * virtual functions
+		 */
+		vmdctl = IXGBE_READ_REG(hw, IXGBE_VMD_CTL);
+		if (!adapter->num_vfs)
+			vmdctl &= ~IXGBE_VT_CTL_REPLEN;
+		IXGBE_WRITE_REG(hw, IXGBE_VMD_CTL, vmdctl);
+
+		/* disable Rx source address pruning, since we don't expect to
+		 * be receiving external loopback of our transmitted frames.
+		 */
+		num_pools = adapter->num_vfs + adapter->num_rx_pools;
+		for (p = 0; p < num_pools; p++) {
+			if (hw->mac.ops.set_source_address_pruning)
+				hw->mac.ops.set_source_address_pruning(hw,
+								       false,
+								       p);
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	adapter->bridge_mode = mode;
+
+	e_info(drv, "enabling bridge mode: %s\n",
+	       mode == BRIDGE_MODE_VEPA ? "VEPA" : "VEB");
+
+	return 0;
+}
+
 static int ixgbe_ndo_bridge_setlink(struct net_device *dev,
 				    struct nlmsghdr *nlh, u16 flags)
 {
@@ -7885,8 +7959,8 @@ static int ixgbe_ndo_bridge_setlink(struct net_device *dev,
 		return -EINVAL;
 
 	nla_for_each_nested(attr, br_spec, rem) {
+		u32 status;
 		__u16 mode;
-		u32 reg = 0;
 
 		if (nla_type(attr) != IFLA_BRIDGE_MODE)
 			continue;
@@ -7895,19 +7969,11 @@ static int ixgbe_ndo_bridge_setlink(struct net_device *dev,
 			return -EINVAL;
 
 		mode = nla_get_u16(attr);
-		if (mode == BRIDGE_MODE_VEPA) {
-			reg = 0;
-			adapter->flags2 &= ~IXGBE_FLAG2_BRIDGE_MODE_VEB;
-		} else if (mode == BRIDGE_MODE_VEB) {
-			reg = IXGBE_PFDTXGSWC_VT_LBEN;
-			adapter->flags2 |= IXGBE_FLAG2_BRIDGE_MODE_VEB;
-		} else
-			return -EINVAL;
+		status = ixgbe_configure_bridge_mode(adapter, mode);
+		if (status)
+			return status;
 
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_PFDTXGSWC, reg);
-
-		e_info(drv, "enabling bridge mode: %s\n",
-			mode == BRIDGE_MODE_VEPA ? "VEPA" : "VEB");
+		break;
 	}
 
 	return 0;
@@ -7918,17 +7984,12 @@ static int ixgbe_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 				    u32 filter_mask)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
-	u16 mode;
 
 	if (!(adapter->flags & IXGBE_FLAG_SRIOV_ENABLED))
 		return 0;
 
-	if (adapter->flags2 & IXGBE_FLAG2_BRIDGE_MODE_VEB)
-		mode = BRIDGE_MODE_VEB;
-	else
-		mode = BRIDGE_MODE_VEPA;
-
-	return ndo_dflt_bridge_getlink(skb, pid, seq, dev, mode, 0, 0);
+	return ndo_dflt_bridge_getlink(skb, pid, seq, dev,
+				       adapter->bridge_mode, 0, 0);
 }
 
 static void *ixgbe_fwd_add(struct net_device *pdev, struct net_device *vdev)
@@ -8394,7 +8455,6 @@ skip_sriov:
 			   NETIF_F_IPV6_CSUM |
 			   NETIF_F_HW_VLAN_CTAG_TX |
 			   NETIF_F_HW_VLAN_CTAG_RX |
-			   NETIF_F_HW_VLAN_CTAG_FILTER |
 			   NETIF_F_TSO |
 			   NETIF_F_TSO6 |
 			   NETIF_F_RXHASH |
@@ -8416,6 +8476,7 @@ skip_sriov:
 	}
 
 	netdev->hw_features |= NETIF_F_RXALL;
+	netdev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 
 	netdev->vlan_features |= NETIF_F_TSO;
 	netdev->vlan_features |= NETIF_F_TSO6;
@@ -8977,8 +9038,6 @@ static void __exit ixgbe_exit_module(void)
 	pci_unregister_driver(&ixgbe_driver);
 
 	ixgbe_dbg_exit();
-
-	rcu_barrier(); /* Wait for completion of call_rcu()'s */
 }
 
 #ifdef CONFIG_IXGBE_DCA
