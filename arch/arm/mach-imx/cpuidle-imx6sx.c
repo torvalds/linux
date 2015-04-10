@@ -10,7 +10,6 @@
 #include <linux/cpu_pm.h>
 #include <linux/module.h>
 #include <asm/cpuidle.h>
-#include <asm/proc-fns.h>
 #include <asm/suspend.h>
 
 #include "common.h"
