@@ -7,6 +7,7 @@
 #define PCI_BAR_COUNT	6
 
 #include <linux/pci.h>
+#include <linux/mutex.h>
 #include <asm-generic/pci.h>
 #include <asm-generic/pci-dma-compat.h>
 #include <asm/pci_clp.h>
@@ -76,6 +77,7 @@ struct zpci_dev {
 	u8		pft;		/* pci function type */
 	u16		domain;
 
+	struct mutex lock;
 	u8 pfip[CLP_PFIP_NR_SEGMENTS];	/* pci function internal path */
 	u32 uid;			/* user defined id */
 	u8 util_str[CLP_UTIL_STR_LEN];	/* utility string */
