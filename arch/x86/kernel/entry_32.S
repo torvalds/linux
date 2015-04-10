@@ -435,7 +435,7 @@ sysenter_after_call:
 	TRACE_IRQS_OFF
 	movl TI_flags(%ebp), %ecx
 	testl $_TIF_ALLWORK_MASK, %ecx
-	jne sysexit_audit
+	jnz sysexit_audit
 sysenter_exit:
 /* if something modifies registers it must also disable sysexit */
 	movl PT_EIP(%esp), %edx
@@ -463,7 +463,7 @@ sysenter_audit:
 
 sysexit_audit:
 	testl $(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT), %ecx
-	jne syscall_exit_work
+	jnz syscall_exit_work
 	TRACE_IRQS_ON
 	ENABLE_INTERRUPTS(CLBR_ANY)
 	movl %eax,%edx		/* second arg, syscall return value */
@@ -475,7 +475,7 @@ sysexit_audit:
 	TRACE_IRQS_OFF
 	movl TI_flags(%ebp), %ecx
 	testl $(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT), %ecx
-	jne syscall_exit_work
+	jnz syscall_exit_work
 	movl PT_EAX(%esp),%eax	/* reload syscall return value */
 	jmp sysenter_exit
 #endif
@@ -513,7 +513,7 @@ syscall_exit:
 	TRACE_IRQS_OFF
 	movl TI_flags(%ebp), %ecx
 	testl $_TIF_ALLWORK_MASK, %ecx	# current->work
-	jne syscall_exit_work
+	jnz syscall_exit_work
 
 restore_all:
 	TRACE_IRQS_IRET
@@ -615,7 +615,7 @@ work_notifysig:				# deal with pending signals and
 #ifdef CONFIG_VM86
 	testl $X86_EFLAGS_VM, PT_EFLAGS(%esp)
 	movl %esp, %eax
-	jne work_notifysig_v86		# returning to kernel-space or
+	jnz work_notifysig_v86		# returning to kernel-space or
 					# vm86-space
 1:
 #else
