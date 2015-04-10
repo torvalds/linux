@@ -170,13 +170,8 @@ static void hsw_psr_enable_sink(struct intel_dp *intel_dp)
 
 	aux_clock_divider = intel_dp->get_aux_clock_divider(intel_dp, 0);
 
-	/* Enable PSR in sink */
-	if (dev_priv->psr.link_standby)
-		drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG,
-				   DP_PSR_ENABLE | DP_PSR_MAIN_LINK_ACTIVE);
-	else
-		drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG,
-				   DP_PSR_ENABLE & ~DP_PSR_MAIN_LINK_ACTIVE);
+	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG,
+			   DP_PSR_ENABLE & ~DP_PSR_MAIN_LINK_ACTIVE);
 
 	/* Enable AUX frame sync at sink */
 	if (dev_priv->psr.aux_frame_sync)
@@ -214,6 +209,8 @@ static void hsw_psr_enable_sink(struct intel_dp *intel_dp)
 		   (precharge << DP_AUX_CH_CTL_PRECHARGE_2US_SHIFT) |
 		   (aux_clock_divider << DP_AUX_CH_CTL_BIT_CLOCK_2X_SHIFT));
 	}
+
+	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG, DP_PSR_ENABLE);
 }
 
 static void vlv_psr_enable_source(struct intel_dp *intel_dp)
@@ -263,9 +260,6 @@ static void hsw_psr_enable_source(struct intel_dp *intel_dp)
 			       dev_priv->vbt.psr.idle_frames + 1 : 2;
 	uint32_t val = 0x0;
 	const uint32_t link_entry_time = EDP_PSR_MIN_LINK_ENTRY_TIME_8_LINES;
-
-	if (dev_priv->psr.link_standby)
-		val |= EDP_PSR_LINK_STANDBY;
 
 	if (intel_dp->psr_dpcd[1] & DP_PSR_NO_TRAIN_ON_EXIT) {
 		/* It doesn't mean we shouldn't send TPS patters, so let's
@@ -322,6 +316,12 @@ static bool intel_psr_match_conditions(struct intel_dp *intel_dp)
 	if (IS_HASWELL(dev) &&
 	    intel_crtc->config->base.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE) {
 		DRM_DEBUG_KMS("PSR condition failed: Interlaced is Enabled\n");
+		return false;
+	}
+
+	if (!IS_VALLEYVIEW(dev) && ((dev_priv->vbt.psr.full_link) ||
+				    (dig_port->port != PORT_A))) {
+		DRM_DEBUG_KMS("PSR condition failed: Link Standby requested/needed but not supported on this platform\n");
 		return false;
 	}
 
@@ -383,12 +383,6 @@ void intel_psr_enable(struct intel_dp *intel_dp)
 
 	if (!intel_psr_match_conditions(intel_dp))
 		goto unlock;
-
-	/* First we check VBT, but we must respect sink and source
-	 * known restrictions */
-	dev_priv->psr.link_standby = dev_priv->vbt.psr.full_link;
-	if (IS_BROADWELL(dev) && intel_dig_port->port != PORT_A)
-		dev_priv->psr.link_standby = true;
 
 	dev_priv->psr.busy_frontbuffer_bits = 0;
 

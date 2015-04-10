@@ -2358,9 +2358,6 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 		}
 	seq_puts(m, "\n");
 
-	seq_printf(m, "Link standby: %s\n",
-		   yesno((bool)dev_priv->psr.link_standby));
-
 	/* CHV PSR has no kind of performance counter */
 	if (HAS_DDI(dev)) {
 		psrperf = I915_READ(EDP_PSR_PERF_CNT(dev)) &

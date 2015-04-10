@@ -881,7 +881,6 @@ struct i915_psr {
 	bool active;
 	struct delayed_work work;
 	unsigned busy_frontbuffer_bits;
-	bool link_standby;
 	bool psr2_support;
 	bool aux_frame_sync;
 };
