@@ -2684,7 +2684,7 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 	if (!ath10k_pci_chip_is_supported(pdev->device, chip_id)) {
 		ath10k_err(ar, "device %04x with chip_id %08x isn't supported\n",
 			   pdev->device, chip_id);
-		goto err_sleep;
+		goto err_free_irq;
 	}
 
 	ret = ath10k_core_register(ar, chip_id);
