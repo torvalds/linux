@@ -605,8 +605,11 @@ static int fou_nl_cmd_add_port(struct sk_buff *skb, struct genl_info *info)
 static int fou_nl_cmd_rm_port(struct sk_buff *skb, struct genl_info *info)
 {
 	struct fou_cfg cfg;
+	int err;
 
-	parse_nl_config(info, &cfg);
+	err = parse_nl_config(info, &cfg);
+	if (err)
+		return err;
 
 	return fou_destroy(&init_net, &cfg);
 }
