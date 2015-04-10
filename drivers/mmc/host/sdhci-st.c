@@ -261,6 +261,56 @@ static int sdhci_st_set_dll_for_clock(struct sdhci_host *host)
 	return ret;
 }
 
+static void sdhci_st_set_uhs_signaling(struct sdhci_host *host,
+					unsigned int uhs)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct st_mmc_platform_data *pdata = pltfm_host->priv;
+	u16 ctrl_2 = sdhci_readw(host, SDHCI_HOST_CONTROL2);
+	int ret = 0;
+
+	/* Select Bus Speed Mode for host */
+	ctrl_2 &= ~SDHCI_CTRL_UHS_MASK;
+	switch (uhs) {
+	/*
+	 * Set V18_EN -- UHS modes do not work without this.
+	 * does not change signaling voltage
+	 */
+
+	case MMC_TIMING_UHS_SDR12:
+		st_mmcss_set_static_delay(pdata->top_ioaddr);
+		ctrl_2 |= SDHCI_CTRL_UHS_SDR12 | SDHCI_CTRL_VDD_180;
+		break;
+	case MMC_TIMING_UHS_SDR25:
+		st_mmcss_set_static_delay(pdata->top_ioaddr);
+		ctrl_2 |= SDHCI_CTRL_UHS_SDR25 | SDHCI_CTRL_VDD_180;
+		break;
+	case MMC_TIMING_UHS_SDR50:
+		st_mmcss_set_static_delay(pdata->top_ioaddr);
+		ctrl_2 |= SDHCI_CTRL_UHS_SDR50 | SDHCI_CTRL_VDD_180;
+		ret = sdhci_st_set_dll_for_clock(host);
+		break;
+	case MMC_TIMING_UHS_SDR104:
+	case MMC_TIMING_MMC_HS200:
+		st_mmcss_set_static_delay(pdata->top_ioaddr);
+		ctrl_2 |= SDHCI_CTRL_UHS_SDR104 | SDHCI_CTRL_VDD_180;
+		ret =  sdhci_st_set_dll_for_clock(host);
+		break;
+	case MMC_TIMING_UHS_DDR50:
+	case MMC_TIMING_MMC_DDR52:
+		st_mmcss_set_static_delay(pdata->top_ioaddr);
+		ctrl_2 |= SDHCI_CTRL_UHS_DDR50 | SDHCI_CTRL_VDD_180;
+		break;
+	}
+
+	if (ret)
+		dev_warn(mmc_dev(host->mmc), "Error setting dll for clock "
+						"(uhs %d)\n", uhs);
+
+	dev_dbg(mmc_dev(host->mmc), "uhs %d, ctrl_2 %04X\n", uhs, ctrl_2);
+
+	sdhci_writew(host, ctrl_2, SDHCI_HOST_CONTROL2);
+}
 
 static u32 sdhci_st_readl(struct sdhci_host *host, int reg)
 {
@@ -284,6 +334,7 @@ static const struct sdhci_ops sdhci_st_ops = {
 	.set_bus_width = sdhci_set_bus_width,
 	.read_l = sdhci_st_readl,
 	.reset = sdhci_reset,
+	.set_uhs_signaling = sdhci_st_set_uhs_signaling,
 };
 
 static const struct sdhci_pltfm_data sdhci_st_pdata = {
