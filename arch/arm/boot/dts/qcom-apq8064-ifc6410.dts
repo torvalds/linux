@@ -116,6 +116,15 @@
 			};
 		};
 
+		sata_phy0: phy@1b400000 {
+			status = "okay";
+		};
+
+		sata0: sata@29000000 {
+			status		= "okay";
+			target-supply	= <&pm8921_s4>;
+		};
+
 		/* OTG */
 		usb1_phy: phy@12500000 {
 			status		= "okay";
