@@ -1138,7 +1138,8 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 		if (drm_atomic_plane_disabling(plane, old_plane_state) &&
 		    funcs->atomic_disable)
 			funcs->atomic_disable(plane, old_plane_state);
-		else
+		else if (plane->state->crtc ||
+			 drm_atomic_plane_disabling(plane, old_plane_state))
 			funcs->atomic_update(plane, old_plane_state);
 	}
 

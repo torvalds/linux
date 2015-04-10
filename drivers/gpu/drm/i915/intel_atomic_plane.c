@@ -172,10 +172,6 @@ static void intel_plane_atomic_update(struct drm_plane *plane,
 	struct intel_plane_state *intel_state =
 		to_intel_plane_state(plane->state);
 
-	/* Don't disable an already disabled plane */
-	if (!plane->state->fb && !old_state->fb)
-		return;
-
 	intel_plane->commit_plane(plane, intel_state);
 }
 
