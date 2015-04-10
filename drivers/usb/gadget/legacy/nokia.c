@@ -118,7 +118,7 @@ static struct usb_function_instance *fi_obex1;
 static struct usb_function_instance *fi_obex2;
 static struct usb_function_instance *fi_phonet;
 
-static int __init nokia_bind_config(struct usb_configuration *c)
+static int nokia_bind_config(struct usb_configuration *c)
 {
 	struct usb_function *f_acm;
 	struct usb_function *f_phonet = NULL;
@@ -224,7 +224,7 @@ err_get_acm:
 	return status;
 }
 
-static int __init nokia_bind(struct usb_composite_dev *cdev)
+static int nokia_bind(struct usb_composite_dev *cdev)
 {
 	struct usb_gadget	*gadget = cdev->gadget;
 	int			status;
@@ -307,7 +307,7 @@ err_usb:
 	return status;
 }
 
-static int __exit nokia_unbind(struct usb_composite_dev *cdev)
+static int nokia_unbind(struct usb_composite_dev *cdev)
 {
 	if (!IS_ERR_OR_NULL(f_obex1_cfg2))
 		usb_put_function(f_obex1_cfg2);
@@ -338,13 +338,13 @@ static int __exit nokia_unbind(struct usb_composite_dev *cdev)
 	return 0;
 }
 
-static __refdata struct usb_composite_driver nokia_driver = {
+static struct usb_composite_driver nokia_driver = {
 	.name		= "g_nokia",
 	.dev		= &device_desc,
 	.strings	= dev_strings,
 	.max_speed	= USB_SPEED_HIGH,
 	.bind		= nokia_bind,
-	.unbind		= __exit_p(nokia_unbind),
+	.unbind		= nokia_unbind,
 };
 
 module_usb_composite_driver(nokia_driver);
