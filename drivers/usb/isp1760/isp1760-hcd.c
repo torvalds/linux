@@ -1869,7 +1869,7 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 				reg_write32(hcd->regs, HC_PORTSC1,
 							temp | PORT_RESUME);
 				priv->reset_done = jiffies +
-					msecs_to_jiffies(20);
+					msecs_to_jiffies(USB_RESUME_TIMEOUT);
 			}
 			break;
 		case USB_PORT_FEAT_C_SUSPEND:

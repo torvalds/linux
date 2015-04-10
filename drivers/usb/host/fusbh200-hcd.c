@@ -1550,10 +1550,9 @@ static int fusbh200_hub_control (
 			if ((temp & PORT_PE) == 0)
 				goto error;
 
-			/* resume signaling for 20 msec */
 			fusbh200_writel(fusbh200, temp | PORT_RESUME, status_reg);
 			fusbh200->reset_done[wIndex] = jiffies
-					+ msecs_to_jiffies(20);
+					+ msecs_to_jiffies(USB_RESUME_TIMEOUT);
 			break;
 		case USB_PORT_FEAT_C_SUSPEND:
 			clear_bit(wIndex, &fusbh200->port_c_suspend);

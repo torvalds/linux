@@ -136,7 +136,7 @@ void musb_port_suspend(struct musb *musb, bool do_suspend)
 		/* later, GetPortStatus will stop RESUME signaling */
 		musb->port1_status |= MUSB_PORT_STAT_RESUME;
 		schedule_delayed_work(&musb->finish_resume_work,
-				      msecs_to_jiffies(20));
+				      msecs_to_jiffies(USB_RESUME_TIMEOUT));
 	}
 }
 
