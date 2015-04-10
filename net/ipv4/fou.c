@@ -23,7 +23,7 @@ struct fou {
 	struct socket *sock;
 	u8 protocol;
 	u8 flags;
-	u16 port;
+	__be16 port;
 	struct udp_offload udp_offloads;
 	struct list_head list;
 };
@@ -523,7 +523,7 @@ error:
 static int fou_destroy(struct net *net, struct fou_cfg *cfg)
 {
 	struct fou *fou;
-	u16 port = cfg->udp_config.local_udp_port;
+	__be16 port = cfg->udp_config.local_udp_port;
 	int err = -EINVAL;
 
 	spin_lock(&fou_lock);
@@ -573,7 +573,7 @@ static int parse_nl_config(struct genl_info *info,
 	}
 
 	if (info->attrs[FOU_ATTR_PORT]) {
-		u16 port = nla_get_u16(info->attrs[FOU_ATTR_PORT]);
+		__be16 port = nla_get_be16(info->attrs[FOU_ATTR_PORT]);
 
 		cfg->udp_config.local_udp_port = port;
 	}
