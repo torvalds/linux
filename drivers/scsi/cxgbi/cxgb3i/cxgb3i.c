@@ -1,7 +1,7 @@
 /*
  * cxgb3i_offload.c: Chelsio S3xx iscsi offloaded tcp connection management
  *
- * Copyright (C) 2003-2008 Chelsio Communications.  All rights reserved.
+ * Copyright (C) 2003-2015 Chelsio Communications.  All rights reserved.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
