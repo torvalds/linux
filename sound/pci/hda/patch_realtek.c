@@ -5682,7 +5682,7 @@ static int patch_alc269(struct hda_codec *codec)
 		set_beep_amp(spec, 0x0b, 0x04, HDA_INPUT);
 
 	codec->patch_ops = alc_patch_ops;
-	codec->patch_ops.stream_pm = snd_hda_gen_stream_pm,
+	codec->patch_ops.stream_pm = snd_hda_gen_stream_pm;
 #ifdef CONFIG_PM
 	codec->patch_ops.suspend = alc269_suspend;
 	codec->patch_ops.resume = alc269_resume;

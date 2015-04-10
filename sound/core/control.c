@@ -1099,7 +1099,7 @@ static int snd_ctl_elem_user_tlv(struct snd_kcontrol *kcontrol,
 	int change = 0;
 	void *new_data;
 
-	if (op_flag > 0) {
+	if (op_flag == SNDRV_CTL_TLV_OP_WRITE) {
 		if (size > 1024 * 128)	/* sane value */
 			return -EINVAL;
 
@@ -1381,9 +1381,12 @@ static int snd_ctl_tlv_ioctl(struct snd_ctl_file *file,
 		goto __kctl_end;
 	}
 	vd = &kctl->vd[tlv.numid - kctl->id.numid];
-	if ((op_flag == 0 && (vd->access & SNDRV_CTL_ELEM_ACCESS_TLV_READ) == 0) ||
-	    (op_flag > 0 && (vd->access & SNDRV_CTL_ELEM_ACCESS_TLV_WRITE) == 0) ||
-	    (op_flag < 0 && (vd->access & SNDRV_CTL_ELEM_ACCESS_TLV_COMMAND) == 0)) {
+	if ((op_flag == SNDRV_CTL_TLV_OP_READ &&
+	     (vd->access & SNDRV_CTL_ELEM_ACCESS_TLV_READ) == 0) ||
+	    (op_flag == SNDRV_CTL_TLV_OP_WRITE &&
+	     (vd->access & SNDRV_CTL_ELEM_ACCESS_TLV_WRITE) == 0) ||
+	    (op_flag == SNDRV_CTL_TLV_OP_CMD &&
+	     (vd->access & SNDRV_CTL_ELEM_ACCESS_TLV_COMMAND) == 0)) {
 	    	err = -ENXIO;
 	    	goto __kctl_end;
 	}
@@ -1400,7 +1403,7 @@ static int snd_ctl_tlv_ioctl(struct snd_ctl_file *file,
 			return 0;
 		}
 	} else {
-		if (op_flag) {
+		if (op_flag != SNDRV_CTL_ELEM_ACCESS_TLV_READ) {
 			err = -ENXIO;
 			goto __kctl_end;
 		}
