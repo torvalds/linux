@@ -410,7 +410,8 @@ static void fou_release(struct fou *fou)
 	struct socket *sock = fou->sock;
 	struct sock *sk = sock->sk;
 
-	udp_del_offload(&fou->udp_offloads);
+	if (sk->sk_family == AF_INET)
+		udp_del_offload(&fou->udp_offloads);
 
 	list_del(&fou->list);
 
@@ -528,7 +529,6 @@ static int fou_destroy(struct net *net, struct fou_cfg *cfg)
 	spin_lock(&fou_lock);
 	list_for_each_entry(fou, &fou_list, list) {
 		if (fou->port == port) {
-			udp_del_offload(&fou->udp_offloads);
 			fou_release(fou);
 			err = 0;
 			break;
