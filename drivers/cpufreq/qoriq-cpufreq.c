@@ -21,7 +21,9 @@
 #include <linux/slab.h>
 #include <linux/smp.h>
 
+#if !defined(CONFIG_ARM)
 #include <asm/smp.h>	/* for get_hard_smp_processor_id() in UP configs */
+#endif
 
 /**
  * struct cpu_data
