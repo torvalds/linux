@@ -370,6 +370,8 @@ static struct mfd_cell axp22x_cells[] = {
 		.name			= "axp20x-pek",
 		.num_resources		= ARRAY_SIZE(axp22x_pek_resources),
 		.resources		= axp22x_pek_resources,
+	}, {
+		.name			= "axp20x-regulator",
 	},
 };
 
