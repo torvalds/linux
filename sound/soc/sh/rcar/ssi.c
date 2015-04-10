@@ -80,7 +80,7 @@ struct rsnd_ssi {
 #define rsnd_mod_to_ssi(_mod) container_of((_mod), struct rsnd_ssi, mod)
 #define rsnd_dma_to_ssi(dma)  rsnd_mod_to_ssi(rsnd_dma_to_mod(dma))
 #define rsnd_ssi_pio_available(ssi) ((ssi)->info->irq > 0)
-#define rsnd_ssi_clk_from_parent(ssi) ((ssi)->parent)
+#define rsnd_ssi_parent(ssi) ((ssi)->parent)
 #define rsnd_ssi_mode_flags(p) ((p)->info->flags)
 #define rsnd_ssi_dai_id(ssi) ((ssi)->info->dai_id)
 #define rsnd_ssi_of_node(priv) \
@@ -189,8 +189,10 @@ static void rsnd_ssi_hw_start(struct rsnd_ssi *ssi,
 		rsnd_mod_hw_start(&ssi->mod);
 
 		if (rsnd_rdai_is_clk_master(rdai)) {
-			if (rsnd_ssi_clk_from_parent(ssi))
-				rsnd_ssi_hw_start(ssi->parent, io);
+			struct rsnd_ssi *ssi_parent = rsnd_ssi_parent(ssi);
+
+			if (ssi_parent)
+				rsnd_ssi_hw_start(ssi_parent, io);
 			else
 				rsnd_ssi_master_clk_start(ssi, io);
 		}
@@ -253,8 +255,10 @@ static void rsnd_ssi_hw_stop(struct rsnd_ssi *ssi)
 		rsnd_ssi_status_check(&ssi->mod, IIRQ);
 
 		if (rsnd_rdai_is_clk_master(rdai)) {
-			if (rsnd_ssi_clk_from_parent(ssi))
-				rsnd_ssi_hw_stop(ssi->parent);
+			struct rsnd_ssi *ssi_parent = rsnd_ssi_parent(ssi);
+
+			if (ssi_parent)
+				rsnd_ssi_hw_stop(ssi_parent);
 			else
 				rsnd_ssi_master_clk_stop(ssi);
 		}
@@ -598,7 +602,7 @@ int rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod)
 	return !!(rsnd_ssi_mode_flags(ssi) & RSND_SSI_CLK_PIN_SHARE);
 }
 
-static void rsnd_ssi_parent_clk_setup(struct rsnd_priv *priv, struct rsnd_ssi *ssi)
+static void rsnd_ssi_parent_setup(struct rsnd_priv *priv, struct rsnd_ssi *ssi)
 {
 	if (!rsnd_ssi_is_pin_sharing(&ssi->mod))
 		return;
@@ -732,7 +736,7 @@ int rsnd_ssi_probe(struct platform_device *pdev,
 		if (ret)
 			return ret;
 
-		rsnd_ssi_parent_clk_setup(priv, ssi);
+		rsnd_ssi_parent_setup(priv, ssi);
 	}
 
 	return 0;
