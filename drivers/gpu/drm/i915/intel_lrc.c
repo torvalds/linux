@@ -523,7 +523,6 @@ static int execlists_context_queue(struct intel_engine_cs *ring,
 				   struct drm_i915_gem_request *request)
 {
 	struct drm_i915_gem_request *cursor;
-	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 	int num_elements = 0;
 
 	if (to != ring->default_context)
