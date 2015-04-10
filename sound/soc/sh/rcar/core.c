@@ -272,9 +272,10 @@ struct rsnd_dai *rsnd_rdai_get(struct rsnd_priv *priv, int id)
 	return priv->rdai + id;
 }
 
+#define rsnd_dai_to_priv(dai) snd_soc_dai_get_drvdata(dai)
 static struct rsnd_dai *rsnd_dai_to_rdai(struct snd_soc_dai *dai)
 {
-	struct rsnd_priv *priv = snd_soc_dai_get_drvdata(dai);
+	struct rsnd_priv *priv = rsnd_dai_to_priv(dai);
 
 	return rsnd_rdai_get(priv, dai->id);
 }
@@ -351,7 +352,7 @@ struct rsnd_dai_stream *rsnd_rdai_to_io(struct rsnd_dai *rdai,
 static int rsnd_soc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 			    struct snd_soc_dai *dai)
 {
-	struct rsnd_priv *priv = snd_soc_dai_get_drvdata(dai);
+	struct rsnd_priv *priv = rsnd_dai_to_priv(dai);
 	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
 	struct rsnd_dai_stream *io = rsnd_rdai_to_io(rdai, substream);
 	int ssi_id = rsnd_mod_id(rsnd_io_to_mod_ssi(io));
