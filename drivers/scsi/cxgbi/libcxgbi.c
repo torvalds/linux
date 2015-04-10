@@ -1126,11 +1126,11 @@ static int cxgbi_sock_send_pdus(struct cxgbi_sock *csk, struct sk_buff *skb)
 		goto out_err;
 	}
 
-	if (csk->write_seq - csk->snd_una >= cdev->snd_win) {
+	if (csk->write_seq - csk->snd_una >= csk->snd_win) {
 		log_debug(1 << CXGBI_DBG_PDU_TX,
 			"csk 0x%p,%u,0x%lx,%u, FULL %u-%u >= %u.\n",
 			csk, csk->state, csk->flags, csk->tid, csk->write_seq,
-			csk->snd_una, cdev->snd_win);
+			csk->snd_una, csk->snd_win);
 		err = -ENOBUFS;
 		goto out_err;
 	}
@@ -1885,7 +1885,7 @@ static void csk_return_rx_credits(struct cxgbi_sock *csk, int copied)
 		"csk 0x%p,%u,0x%lx,%u, seq %u, wup %u, thre %u, %u.\n",
 		csk, csk->state, csk->flags, csk->tid, csk->copied_seq,
 		csk->rcv_wup, cdev->rx_credit_thres,
-		cdev->rcv_win);
+		csk->rcv_win);
 
 	if (csk->state != CTP_ESTABLISHED)
 		return;
@@ -1896,7 +1896,7 @@ static void csk_return_rx_credits(struct cxgbi_sock *csk, int copied)
 	if (unlikely(cdev->rx_credit_thres == 0))
 		return;
 
-	must_send = credits + 16384 >= cdev->rcv_win;
+	must_send = credits + 16384 >= csk->rcv_win;
 	if (must_send || credits >= cdev->rx_credit_thres)
 		csk->rcv_wup += cdev->csk_send_rx_credits(csk, credits);
 }

@@ -234,6 +234,8 @@ struct cxgbi_sock {
 	u32 snd_nxt;
 	u32 snd_una;
 	u32 write_seq;
+	u32 snd_win;
+	u32 rcv_win;
 };
 
 /*
@@ -540,8 +542,6 @@ struct cxgbi_device {
 	struct iscsi_transport *itp;
 
 	unsigned int pfvf;
-	unsigned int snd_win;
-	unsigned int rcv_win;
 	unsigned int rx_credit_thres;
 	unsigned int skb_tx_rsvd;
 	unsigned int skb_rx_extra;	/* for msg coalesced mode */
