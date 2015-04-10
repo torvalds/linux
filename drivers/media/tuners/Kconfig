@@ -258,6 +258,7 @@ config MEDIA_TUNER_R820T
 	tristate "Rafael Micro R820T silicon tuner"
 	depends on MEDIA_SUPPORT && I2C
 	default m if !MEDIA_SUBDRV_AUTOSELECT
+	select BITREVERSE
 	help
 	  Rafael Micro R820T silicon tuner driver.
 
