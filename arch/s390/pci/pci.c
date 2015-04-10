@@ -190,6 +190,11 @@ int zpci_fmb_enable_device(struct zpci_dev *zdev)
 		return -ENOMEM;
 	WARN_ON((u64) zdev->fmb & 0xf);
 
+	/* reset software counters */
+	atomic64_set(&zdev->allocated_pages, 0);
+	atomic64_set(&zdev->mapped_pages, 0);
+	atomic64_set(&zdev->unmapped_pages, 0);
+
 	args.fmb_addr = virt_to_phys(zdev->fmb);
 	return mod_pci(zdev, ZPCI_MOD_FC_SET_MEASURE, 0, &args);
 }
