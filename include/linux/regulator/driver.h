@@ -367,6 +367,7 @@ struct regulator_dev {
 	struct device dev;
 	struct regulation_constraints *constraints;
 	struct regulator *supply;	/* for tree */
+	const char *supply_name;
 	struct regmap *regmap;
 
 	struct delayed_work disable_work;
