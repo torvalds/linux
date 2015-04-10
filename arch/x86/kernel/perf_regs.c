@@ -177,8 +177,6 @@ void perf_get_regs_user(struct perf_regs *regs_user,
 		 * than just blindly copying user_regs.
 		 */
 		regs_user->abi = PERF_SAMPLE_REGS_ABI_64;
-		/* usually contains return address (same as ->ip) */
-		regs_user_copy->cx = -1;
 	} else {
 		/* We're probably in an interrupt or exception. */
 		regs_user->abi = user_64bit_mode(user_regs) ?
