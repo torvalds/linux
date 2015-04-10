@@ -3556,7 +3556,18 @@ static struct class regulator_class = {
 
 static void rdev_init_debugfs(struct regulator_dev *rdev)
 {
-	rdev->debugfs = debugfs_create_dir(rdev_get_name(rdev), debugfs_root);
+	struct device *parent = rdev->dev.parent;
+	const char *rname = rdev_get_name(rdev);
+	char name[NAME_MAX];
+
+	/* Avoid duplicate debugfs directory names */
+	if (parent && rname == rdev->desc->name) {
+		snprintf(name, sizeof(name), "%s-%s", dev_name(parent),
+			 rname);
+		rname = name;
+	}
+
+	rdev->debugfs = debugfs_create_dir(rname, debugfs_root);
 	if (!rdev->debugfs) {
 		rdev_warn(rdev, "Failed to create debugfs directory\n");
 		return;
@@ -3963,6 +3974,110 @@ static const struct file_operations supply_map_fops = {
 #endif
 };
 
+#ifdef CONFIG_DEBUG_FS
+static void regulator_summary_show_subtree(struct seq_file *s,
+					   struct regulator_dev *rdev,
+					   int level)
+{
+	struct list_head *list = s->private;
+	struct regulator_dev *child;
+	struct regulation_constraints *c;
+	struct regulator *consumer;
+
+	if (!rdev)
+		return;
+
+	seq_printf(s, "%*s%-*s %3d %4d %6d ",
+		   level * 3 + 1, "",
+		   30 - level * 3, rdev_get_name(rdev),
+		   rdev->use_count, rdev->open_count, rdev->bypass_count);
+
+	seq_printf(s, "%5dmV ", _regulator_get_voltage(rdev) / 1000);
+	seq_printf(s, "%5dmA ", _regulator_get_current_limit(rdev) / 1000);
+
+	c = rdev->constraints;
+	if (c) {
+		switch (rdev->desc->type) {
+		case REGULATOR_VOLTAGE:
+			seq_printf(s, "%5dmV %5dmV ",
+				   c->min_uV / 1000, c->max_uV / 1000);
+			break;
+		case REGULATOR_CURRENT:
+			seq_printf(s, "%5dmA %5dmA ",
+				   c->min_uA / 1000, c->max_uA / 1000);
+			break;
+		}
+	}
+
+	seq_puts(s, "\n");
+
+	list_for_each_entry(consumer, &rdev->consumer_list, list) {
+		if (consumer->dev->class == &regulator_class)
+			continue;
+
+		seq_printf(s, "%*s%-*s ",
+			   (level + 1) * 3 + 1, "",
+			   30 - (level + 1) * 3, dev_name(consumer->dev));
+
+		switch (rdev->desc->type) {
+		case REGULATOR_VOLTAGE:
+			seq_printf(s, "%37dmV %5dmV",
+				   consumer->min_uV / 1000,
+				   consumer->max_uV / 1000);
+			break;
+		case REGULATOR_CURRENT:
+			break;
+		}
+
+		seq_puts(s, "\n");
+	}
+
+	list_for_each_entry(child, list, list) {
+		/* handle only non-root regulators supplied by current rdev */
+		if (!child->supply || child->supply->rdev != rdev)
+			continue;
+
+		regulator_summary_show_subtree(s, child, level + 1);
+	}
+}
+
+static int regulator_summary_show(struct seq_file *s, void *data)
+{
+	struct list_head *list = s->private;
+	struct regulator_dev *rdev;
+
+	seq_puts(s, " regulator                      use open bypass voltage current     min     max\n");
+	seq_puts(s, "-------------------------------------------------------------------------------\n");
+
+	mutex_lock(&regulator_list_mutex);
+
+	list_for_each_entry(rdev, list, list) {
+		if (rdev->supply)
+			continue;
+
+		regulator_summary_show_subtree(s, rdev, 0);
+	}
+
+	mutex_unlock(&regulator_list_mutex);
+
+	return 0;
+}
+
+static int regulator_summary_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, regulator_summary_show, inode->i_private);
+}
+#endif
+
+static const struct file_operations regulator_summary_fops = {
+#ifdef CONFIG_DEBUG_FS
+	.open		= regulator_summary_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+#endif
+};
+
 static int __init regulator_init(void)
 {
 	int ret;
@@ -3975,6 +4090,9 @@ static int __init regulator_init(void)
 
 	debugfs_create_file("supply_map", 0444, debugfs_root, NULL,
 			    &supply_map_fops);
+
+	debugfs_create_file("regulator_summary", 0444, debugfs_root,
+			    &regulator_list, &regulator_summary_fops);
 
 	regulator_dummy_init();
 
