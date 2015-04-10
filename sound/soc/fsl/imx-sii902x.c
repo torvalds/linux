@@ -22,6 +22,7 @@
 #include <sound/pcm_params.h>
 #include <sound/soc-dapm.h>
 #include <linux/pinctrl/consumer.h>
+#include "fsl_sai.h"
 
 #define SUPPORT_RATE_NUM 10
 
@@ -29,6 +30,7 @@ struct imx_sii902x_data {
 	struct snd_soc_dai_link dai;
 	struct snd_soc_card card;
 	struct i2c_client *sii902x;
+	bool  is_stream_opened[2];
 };
 
 static int imx_sii902x_startup(struct snd_pcm_substream *substream)
@@ -36,7 +38,20 @@ static int imx_sii902x_startup(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	static struct snd_pcm_hw_constraint_list constraint_rates;
 	static u32 support_rates[SUPPORT_RATE_NUM];
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_card *card = rtd->card;
+	struct imx_sii902x_data *data = snd_soc_card_get_drvdata(card);
+	struct fsl_sai *sai = dev_get_drvdata(cpu_dai->dev);
+	bool tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 	int ret;
+
+	data->is_stream_opened[tx] = true;
+	if (data->is_stream_opened[tx] != sai->is_stream_opened[tx] ||
+	    data->is_stream_opened[!tx] != sai->is_stream_opened[!tx]) {
+		data->is_stream_opened[tx] = false;
+		return -EBUSY;
+	}
 
 	support_rates[0] = 32000;
 	support_rates[1] = 48000;
@@ -136,8 +151,19 @@ static int imx_sii902x_hw_free(struct snd_pcm_substream *substream)
 	return 0;
 }
 
+static void imx_sii902x_shutdown(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_card *card = rtd->card;
+	struct imx_sii902x_data *data = snd_soc_card_get_drvdata(card);
+	bool tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
+
+	data->is_stream_opened[tx] = false;
+}
+
 static struct snd_soc_ops imx_sii902x_ops = {
 	.startup = imx_sii902x_startup,
+	.shutdown  = imx_sii902x_shutdown,
 	.hw_params = imx_sii902x_hw_params,
 	.hw_free = imx_sii902x_hw_free,
 };
