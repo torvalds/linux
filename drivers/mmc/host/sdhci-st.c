@@ -23,8 +23,13 @@
 #include <linux/module.h>
 #include <linux/err.h>
 #include <linux/mmc/host.h>
-
+#include <linux/reset.h>
 #include "sdhci-pltfm.h"
+
+struct st_mmc_platform_data {
+	struct  reset_control *rstc;
+	void __iomem *top_ioaddr;
+};
 
 /* MMCSS glue logic to setup the HC on some ST SoCs (e.g. STiH407 family) */
 
@@ -151,10 +156,16 @@ static const struct sdhci_pltfm_data sdhci_st_pdata = {
 static int sdhci_st_probe(struct platform_device *pdev)
 {
 	struct sdhci_host *host;
+	struct st_mmc_platform_data *pdata;
 	struct sdhci_pltfm_host *pltfm_host;
 	struct clk *clk;
 	int ret = 0;
 	u16 host_version;
+	struct resource *res;
+
+	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return -ENOMEM;
 
 	clk =  devm_clk_get(&pdev->dev, "mmc");
 	if (IS_ERR(clk)) {
@@ -162,10 +173,17 @@ static int sdhci_st_probe(struct platform_device *pdev)
 		return PTR_ERR(clk);
 	}
 
+	pdata->rstc = devm_reset_control_get(&pdev->dev, NULL);
+	if (IS_ERR(pdata->rstc))
+		pdata->rstc = NULL;
+	else
+		reset_control_deassert(pdata->rstc);
+
 	host = sdhci_pltfm_init(pdev, &sdhci_st_pdata, 0);
 	if (IS_ERR(host)) {
 		dev_err(&pdev->dev, "Failed sdhci_pltfm_init\n");
-		return PTR_ERR(host);
+		ret = PTR_ERR(host);
+		goto err_pltfm_init;
 	}
 
 	ret = mmc_of_parse(host->mmc);
@@ -176,7 +194,17 @@ static int sdhci_st_probe(struct platform_device *pdev)
 
 	clk_prepare_enable(clk);
 
+	/* Configure the FlashSS Top registers for setting eMMC TX/RX delay */
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+					   "top-mmc-delay");
+	pdata->top_ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(pdata->top_ioaddr)) {
+		dev_warn(&pdev->dev, "FlashSS Top Dly registers not available");
+		pdata->top_ioaddr = NULL;
+	}
+
 	pltfm_host = sdhci_priv(host);
+	pltfm_host->priv = pdata;
 	pltfm_host->clk = clk;
 
 	ret = sdhci_add_host(host);
@@ -200,6 +228,24 @@ err_out:
 	clk_disable_unprepare(clk);
 err_of:
 	sdhci_pltfm_free(pdev);
+err_pltfm_init:
+	if (pdata->rstc)
+		reset_control_assert(pdata->rstc);
+
+	return ret;
+}
+
+static int sdhci_st_remove(struct platform_device *pdev)
+{
+	struct sdhci_host *host = platform_get_drvdata(pdev);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct st_mmc_platform_data *pdata = pltfm_host->priv;
+	int ret;
+
+	ret = sdhci_pltfm_unregister(pdev);
+
+	if (pdata->rstc)
+		reset_control_assert(pdata->rstc);
 
 	return ret;
 }
@@ -209,10 +255,14 @@ static int sdhci_st_suspend(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct st_mmc_platform_data *pdata = pltfm_host->priv;
 	int ret = sdhci_suspend_host(host);
 
 	if (ret)
 		goto out;
+
+	if (pdata->rstc)
+		reset_control_assert(pdata->rstc);
 
 	clk_disable_unprepare(pltfm_host->clk);
 out:
@@ -223,8 +273,12 @@ static int sdhci_st_resume(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct st_mmc_platform_data *pdata = pltfm_host->priv;
 
 	clk_prepare_enable(pltfm_host->clk);
+
+	if (pdata->rstc)
+		reset_control_deassert(pdata->rstc);
 
 	return sdhci_resume_host(host);
 }
@@ -241,7 +295,7 @@ MODULE_DEVICE_TABLE(of, st_sdhci_match);
 
 static struct platform_driver sdhci_st_driver = {
 	.probe = sdhci_st_probe,
-	.remove = sdhci_pltfm_unregister,
+	.remove = sdhci_st_remove,
 	.driver = {
 		   .name = "sdhci-st",
 		   .pm = &sdhci_st_pmops,
