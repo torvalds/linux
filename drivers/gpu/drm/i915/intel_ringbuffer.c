@@ -1041,7 +1041,14 @@ static int skl_init_workarounds(struct intel_engine_cs *ring)
 
 static int bxt_init_workarounds(struct intel_engine_cs *ring)
 {
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
 	gen9_init_workarounds(ring);
+
+	/* WaDisableThreadStallDopClockGating:bxt */
+	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
+			  STALL_DOP_GATING_DISABLE);
 
 	return 0;
 }
