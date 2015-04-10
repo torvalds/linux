@@ -1050,6 +1050,13 @@ static int bxt_init_workarounds(struct intel_engine_cs *ring)
 	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
 			  STALL_DOP_GATING_DISABLE);
 
+	/* WaDisableSbeCacheDispatchPortSharing:bxt */
+	if (INTEL_REVID(dev) <= BXT_REVID_B0) {
+		WA_SET_BIT_MASKED(
+			GEN7_HALF_SLICE_CHICKEN1,
+			GEN7_SBE_SS_CACHE_DISPATCH_PORT_SHARING_DISABLE);
+	}
+
 	return 0;
 }
 
