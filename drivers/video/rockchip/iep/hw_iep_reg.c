@@ -18,6 +18,7 @@
 #include "iep.h"
 #include "hw_iep_config_addr.h"
 
+extern iep_service_info iep_service;
 static void iep_config_src_size(struct IEP_MSG *iep_msg)
 {
 	IEP_REGB_SRC_IMG_WIDTH(iep_msg->base, iep_msg->src.act_w - 1);
@@ -916,35 +917,58 @@ static void iep_config_src_addr(struct IEP_MSG *iep_msg)
 	//**********************************************//
 	//***********yuv address   *********************//
 	//**********************************************//
-	src_addr_yrgb = ((u32)iep_msg->src.mem_addr) + offset_addr_y;
-	src_addr_cbcr = ((u32)iep_msg->src.uv_addr) + offset_addr_uv;
-	src_addr_cr = ((u32)iep_msg->src.v_addr) + offset_addr_v;
+	if (iep_service.iommu_dev == NULL) {
+		src_addr_yrgb = ((u32)iep_msg->src.mem_addr) + offset_addr_y;
+		src_addr_cbcr = ((u32)iep_msg->src.uv_addr) + offset_addr_uv;
+		src_addr_cr = ((u32)iep_msg->src.v_addr) + offset_addr_v;
 
-	// former frame when processing deinterlace
-	src_addr_y1 = ((u32)iep_msg->src1.mem_addr) + offset_addr_y;
-	src_addr_cbcr1 = ((u32)iep_msg->src1.uv_addr) + offset_addr_uv;
-	src_addr_cr1 = ((u32)iep_msg->src1.v_addr) + offset_addr_v;
+		src_addr_y1 = ((u32)iep_msg->src1.mem_addr) + offset_addr_y;
+		src_addr_cbcr1 = ((u32)iep_msg->src1.uv_addr) + offset_addr_uv;
+		src_addr_cr1 = ((u32)iep_msg->src1.v_addr) + offset_addr_v;
 
-	src_addr_y_itemp = ((u32)iep_msg->src_itemp.mem_addr) +
-		offset_addr_y;
-	src_addr_cbcr_itemp = ((u32)iep_msg->src_itemp.uv_addr) +
-		offset_addr_uv;
-	src_addr_cr_itemp = ((u32)iep_msg->src_itemp.v_addr) +
-		offset_addr_v;
+		src_addr_y_itemp = ((u32)iep_msg->src_itemp.mem_addr) +
+			offset_addr_y;
+		src_addr_cbcr_itemp = ((u32)iep_msg->src_itemp.uv_addr) +
+			offset_addr_uv;
+		src_addr_cr_itemp = ((u32)iep_msg->src_itemp.v_addr) +
+			offset_addr_v;
 
-	src_addr_y_ftemp = ((u32)iep_msg->src_ftemp.mem_addr) +
-		offset_addr_y;
-	src_addr_cbcr_ftemp = ((u32)iep_msg->src_ftemp.uv_addr) +
-		offset_addr_uv;
-	src_addr_cr_ftemp = ((u32)iep_msg->src_ftemp.v_addr) +
-		offset_addr_v;
+		src_addr_y_ftemp = ((u32)iep_msg->src_ftemp.mem_addr) +
+			offset_addr_y;
+		src_addr_cbcr_ftemp = ((u32)iep_msg->src_ftemp.uv_addr) +
+			offset_addr_uv;
+		src_addr_cr_ftemp = ((u32)iep_msg->src_ftemp.v_addr) +
+			offset_addr_v;
+	} else {
+		src_addr_yrgb = ((u32)iep_msg->src.mem_addr) + (offset_addr_y << 10);
+		src_addr_cbcr = ((u32)iep_msg->src.uv_addr) + (offset_addr_uv << 10);
+		src_addr_cr = ((u32)iep_msg->src.v_addr) + (offset_addr_v << 10);
+
+		src_addr_y1 = ((u32)iep_msg->src1.mem_addr) + (offset_addr_y << 10);
+		src_addr_cbcr1 = ((u32)iep_msg->src1.uv_addr) + (offset_addr_uv  << 10);
+		src_addr_cr1 = ((u32)iep_msg->src1.v_addr) + (offset_addr_v << 10);
+
+		src_addr_y_itemp = ((u32)iep_msg->src_itemp.mem_addr) +
+			(offset_addr_y << 10);
+		src_addr_cbcr_itemp = ((u32)iep_msg->src_itemp.uv_addr) +
+			(offset_addr_uv << 10);
+		src_addr_cr_itemp = ((u32)iep_msg->src_itemp.v_addr) +
+			(offset_addr_v << 10);
+
+		src_addr_y_ftemp = ((u32)iep_msg->src_ftemp.mem_addr) +
+			(offset_addr_y << 10);
+		src_addr_cbcr_ftemp = ((u32)iep_msg->src_ftemp.uv_addr) +
+			(offset_addr_uv << 10);
+		src_addr_cr_ftemp = ((u32)iep_msg->src_ftemp.v_addr) +
+			(offset_addr_v << 10);
+	}
 
 	if ((iep_msg->dein_mode == IEP_DEINTERLACE_MODE_I4O1 ||
 	     iep_msg->dein_mode == IEP_DEINTERLACE_MODE_I4O2) &&
 #if 1
 		iep_msg->field_order == FIELD_ORDER_BOTTOM_FIRST
 #else
-	    iep_msg->field_order == FIELD_ORDER_TOP_FIRST
+		iep_msg->field_order == FIELD_ORDER_TOP_FIRST
 #endif
 		) {
 		IEP_REGB_SRC_ADDR_YRGB(iep_msg->base, src_addr_y1);
@@ -1000,30 +1024,204 @@ static void iep_config_src_addr(struct IEP_MSG *iep_msg)
 
 static void iep_config_dst_addr(struct IEP_MSG *iep_msg)
 {
-	IEP_REGB_DST_ADDR_YRGB(iep_msg->base, (u32)iep_msg->dst.mem_addr);
-	IEP_REGB_DST_ADDR_CBCR(iep_msg->base, (u32)iep_msg->dst.uv_addr);
-	IEP_REGB_DST_ADDR_Y1(iep_msg->base, (u32)iep_msg->dst1.mem_addr);
-	IEP_REGB_DST_ADDR_CBCR1(iep_msg->base, (u32)iep_msg->dst1.uv_addr);
-	IEP_REGB_DST_ADDR_CR(iep_msg->base, (u32)iep_msg->dst.v_addr);
-	IEP_REGB_DST_ADDR_CR1(iep_msg->base, (u32)iep_msg->dst1.v_addr);
+	u32 dst_addr_yrgb;
+	u32 dst_addr_cbcr;
+	u32 dst_addr_cr;
+	u32 dst_addr_y1;
+	u32 dst_addr_cbcr1;
+	u32 dst_addr_cr1;
+	u32 dst_addr_y_itemp;
+	u32 dst_addr_cbcr_itemp;
+	u32 dst_addr_cr_itemp;
+	u32 dst_addr_y_ftemp;
+	u32 dst_addr_cbcr_ftemp;
+	u32 dst_addr_cr_ftemp;
+	unsigned int offset_addr_y = 0;
+	unsigned int offset_addr_uv = 0;
+	unsigned int offset_addr_v = 0;
+	//unsigned int offset_addr_y_w = 0;
+	unsigned int offset_addr_uv_w = 0;
+	unsigned int offset_addr_v_w = 0;
+	//unsigned int offset_addr_y_h = 0;
+	unsigned int offset_addr_uv_h = 0;
+	unsigned int offset_addr_v_h = 0;
+
+	unsigned int offset_x_equ_uv;
+	unsigned int offset_x_u_byte;
+	unsigned int offset_x_v_byte;
+	unsigned int vir_w_euq_uv;
+	unsigned int line_u_byte;
+	unsigned int line_v_byte;
+	unsigned int offset_y_equ_420_uv = 0;
+
+	//**********************************************//
+	//***********y addr offset**********************//
+	//**********************************************//
+	if (iep_msg->dst.format <= 3) {
+		offset_addr_y = iep_msg->dst.y_off * 4 *
+			iep_msg->dst.vir_w + iep_msg->dst.x_off * 4;
+	} else if (iep_msg->dst.format <= 5) {
+		offset_addr_y = iep_msg->dst.y_off * 2 *
+			iep_msg->dst.vir_w + iep_msg->dst.x_off * 2;
+	} else {
+		offset_addr_y = iep_msg->dst.y_off *
+			iep_msg->dst.vir_w + iep_msg->dst.x_off;
+	}
+
+	//**********************************************//
+	//***********uv addr offset*********************//
+	//**********************************************//
+	// note: image size align to even when image format is yuv
+
+	//----------offset_w--------//
+	if (iep_msg->dst.x_off % 2 == 1)
+		offset_x_equ_uv = iep_msg->dst.x_off + 1;
+	else
+		offset_x_equ_uv = iep_msg->dst.x_off;
+
+	offset_x_u_byte = offset_x_equ_uv / 2;
+	offset_x_v_byte = offset_x_equ_uv / 2;
+
+	if ((iep_msg->dst.format == IEP_FORMAT_YCbCr_422_SP) ||
+	    (iep_msg->dst.format == IEP_FORMAT_YCbCr_420_SP)
+		|| (iep_msg->dst.format == IEP_FORMAT_YCrCb_422_SP) ||
+	    (iep_msg->dst.format == IEP_FORMAT_YCrCb_420_SP))
+		offset_addr_uv_w = offset_x_u_byte + offset_x_v_byte;
+	else {
+		offset_addr_uv_w = offset_x_u_byte;
+		offset_addr_v_w = offset_x_v_byte;
+	}
+
+	//----------offset_h--------//
+	if (iep_msg->dst.vir_w % 2 == 1)
+		vir_w_euq_uv = iep_msg->dst.vir_w + 1;
+	else
+		vir_w_euq_uv = iep_msg->dst.vir_w;
+
+	line_u_byte = vir_w_euq_uv / 2;
+	line_v_byte = vir_w_euq_uv / 2;
+
+	if (iep_msg->dst.y_off % 2 == 1)
+		offset_y_equ_420_uv = iep_msg->dst.y_off + 1;
+	else
+		offset_y_equ_420_uv = iep_msg->dst.y_off;
+
+	switch (iep_msg->dst.format) {
+	case IEP_FORMAT_YCbCr_422_SP :
+		offset_addr_uv_h = (line_u_byte + line_v_byte) *
+			iep_msg->dst.y_off;
+		break;
+	case IEP_FORMAT_YCbCr_422_P :
+		offset_addr_uv_h = line_u_byte * iep_msg->dst.y_off;
+		offset_addr_v_h = line_v_byte * iep_msg->dst.y_off;
+		break;
+	case IEP_FORMAT_YCbCr_420_SP :
+		offset_addr_uv_h = (line_u_byte + line_v_byte) *
+			offset_y_equ_420_uv / 2;
+		break;
+	case IEP_FORMAT_YCbCr_420_P :
+		offset_addr_uv_h = line_u_byte * offset_y_equ_420_uv / 2;
+		offset_addr_v_h = line_v_byte * offset_y_equ_420_uv / 2;
+		break;
+	case IEP_FORMAT_YCrCb_422_SP :
+		offset_addr_uv_h = (line_u_byte + line_v_byte) *
+			iep_msg->dst.y_off;
+		break;
+	case IEP_FORMAT_YCrCb_422_P :
+		offset_addr_uv_h = line_u_byte * iep_msg->dst.y_off;
+		offset_addr_v_h = line_v_byte * iep_msg->dst.y_off;
+		break;
+	case IEP_FORMAT_YCrCb_420_SP :
+		offset_addr_uv_h = (line_u_byte + line_v_byte) *
+			offset_y_equ_420_uv / 2;
+		break;
+	case IEP_FORMAT_YCrCb_420_P :
+		offset_addr_uv_h = line_u_byte * offset_y_equ_420_uv / 2;
+		offset_addr_v_h = line_v_byte * offset_y_equ_420_uv / 2;
+		break;
+	default:
+		break;
+	}
+	//----------offset u/v addr--------//
+
+	offset_addr_uv = offset_addr_uv_w + offset_addr_uv_h;
+	offset_addr_v  = offset_addr_v_w + offset_addr_v_h;
+	//**********************************************//
+	//***********yuv address   *********************//
+	//**********************************************//
+
+	if (iep_service.iommu_dev == NULL) {
+		dst_addr_yrgb = ((u32)iep_msg->dst.mem_addr) + offset_addr_y;
+		dst_addr_cbcr = ((u32)iep_msg->dst.uv_addr) + offset_addr_uv;
+		dst_addr_cr = ((u32)iep_msg->dst.v_addr) + offset_addr_v;
+
+		// former frame when processing deinterlace
+		dst_addr_y1 = ((u32)iep_msg->dst1.mem_addr) + offset_addr_y;
+		dst_addr_cbcr1 = ((u32)iep_msg->dst1.uv_addr) + offset_addr_uv;
+		dst_addr_cr1 = ((u32)iep_msg->dst1.v_addr) + offset_addr_v;
+
+		dst_addr_y_itemp = ((u32)iep_msg->dst_itemp.mem_addr) +
+			offset_addr_y;
+		dst_addr_cbcr_itemp = ((u32)iep_msg->dst_itemp.uv_addr) +
+			offset_addr_uv;
+		dst_addr_cr_itemp = ((u32)iep_msg->dst_itemp.v_addr) +
+			offset_addr_v;
+
+		dst_addr_y_ftemp = ((u32)iep_msg->dst_ftemp.mem_addr) +
+			offset_addr_y;
+		dst_addr_cbcr_ftemp = ((u32)iep_msg->dst_ftemp.uv_addr) +
+			offset_addr_uv;
+		dst_addr_cr_ftemp = ((u32)iep_msg->dst_ftemp.v_addr) +
+			offset_addr_v;
+	} else {
+		dst_addr_yrgb = ((u32)iep_msg->dst.mem_addr) + (offset_addr_y << 10);
+		dst_addr_cbcr = ((u32)iep_msg->dst.uv_addr) + (offset_addr_uv << 10);
+		dst_addr_cr = ((u32)iep_msg->dst.v_addr) + (offset_addr_v << 10);
+
+		// former frame when processing deinterlace
+		dst_addr_y1 = ((u32)iep_msg->dst1.mem_addr) + (offset_addr_y << 10);
+		dst_addr_cbcr1 = ((u32)iep_msg->dst1.uv_addr) + (offset_addr_uv << 10);
+		dst_addr_cr1 = ((u32)iep_msg->dst1.v_addr) + (offset_addr_v << 10);
+
+		dst_addr_y_itemp = ((u32)iep_msg->dst_itemp.mem_addr) +
+			(offset_addr_y << 10);
+		dst_addr_cbcr_itemp = ((u32)iep_msg->dst_itemp.uv_addr) +
+			(offset_addr_uv << 10);
+		dst_addr_cr_itemp = ((u32)iep_msg->dst_itemp.v_addr) +
+			(offset_addr_v << 10);
+
+		dst_addr_y_ftemp = ((u32)iep_msg->dst_ftemp.mem_addr) +
+			(offset_addr_y << 10);
+		dst_addr_cbcr_ftemp = ((u32)iep_msg->dst_ftemp.uv_addr) +
+			(offset_addr_uv << 10);
+		dst_addr_cr_ftemp = ((u32)iep_msg->dst_ftemp.v_addr) +
+			(offset_addr_v << 10);
+	}
+
+	IEP_REGB_DST_ADDR_YRGB(iep_msg->base, dst_addr_yrgb);
+	IEP_REGB_DST_ADDR_CBCR(iep_msg->base, dst_addr_cbcr);
+	IEP_REGB_DST_ADDR_Y1(iep_msg->base, dst_addr_y1);
+	IEP_REGB_DST_ADDR_CBCR1(iep_msg->base, dst_addr_cbcr1);
+	IEP_REGB_DST_ADDR_CR(iep_msg->base, dst_addr_cr);
+	IEP_REGB_DST_ADDR_CR1(iep_msg->base, dst_addr_cr1);
 
 	if (iep_msg->yuv_3D_denoise_en) {
 		IEP_REGB_DST_ADDR_Y_ITEMP(iep_msg->base,
-			(u32)iep_msg->dst_itemp.mem_addr);
+			dst_addr_y_itemp);
 		IEP_REGB_DST_ADDR_CBCR_ITEMP(iep_msg->base,
-			(u32)iep_msg->dst_itemp.uv_addr);
+			dst_addr_cbcr_itemp);
 		IEP_REGB_DST_ADDR_Y_FTEMP(iep_msg->base,
-			(u32)iep_msg->dst_ftemp.mem_addr);
+			dst_addr_y_ftemp);
 		IEP_REGB_DST_ADDR_CBCR_FTEMP(iep_msg->base,
-			(u32)iep_msg->dst_ftemp.uv_addr);
+			dst_addr_cbcr_ftemp);
 		if ((iep_msg->dst.format == IEP_FORMAT_YCbCr_422_P) ||
 		    (iep_msg->dst.format == IEP_FORMAT_YCbCr_420_P) ||
 		    (iep_msg->dst.format == IEP_FORMAT_YCrCb_422_P) ||
 		    (iep_msg->dst.format == IEP_FORMAT_YCrCb_420_P)) {
 			IEP_REGB_DST_ADDR_CR_ITEMP(iep_msg->base,
-				(u32)iep_msg->dst_itemp.v_addr);
+				dst_addr_cr_itemp);
 			IEP_REGB_DST_ADDR_CR_FTEMP(iep_msg->base,
-				(u32)iep_msg->dst_ftemp.v_addr);
+				dst_addr_cr_ftemp);
 		}
 	}
 #ifdef IEP_PRINT_INFO
@@ -1293,7 +1491,6 @@ static int iep_reg_address_translate(iep_service_info *pservice, struct iep_reg 
 /**
  * generating a series of registers copy from iep message
  */
-extern iep_service_info iep_service;
 void iep_config(iep_session *session, struct IEP_MSG *iep_msg)
 {
 	struct iep_reg *reg = kzalloc(sizeof(struct iep_reg), GFP_KERNEL);

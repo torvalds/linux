@@ -786,6 +786,20 @@ static long iep_ioctl(struct file *filp, uint32_t cmd, unsigned long arg)
 		iep_try_set_reg();
 		iep_try_start_frm();
 		break;
+	case IEP_GET_IOMMU_STATE:
+		{
+			int iommu_enable = 0;
+
+#if defined(CONFIG_IEP_IOMMU)
+			iommu_enable = iep_service.iommu_dev ? 1 : 0;
+#endif
+			if (copy_to_user((void __user *)arg, &iommu_enable,
+				sizeof(int))) {
+				IEP_ERR("error: copy_to_user failed\n");
+				return -EFAULT;
+			}
+		}
+		break;
 	default:
 		IEP_ERR("unknown ioctl cmd!\n");
 		ret = -EINVAL;
@@ -857,6 +871,20 @@ static long compat_iep_ioctl(struct file *filp, uint32_t cmd,
 		iep_del_running_list_timeout();
 		iep_try_set_reg();
 		iep_try_start_frm();
+		break;
+	case COMPAT_IEP_GET_IOMMU_STATE:
+		{
+			int iommu_enable = 0;
+
+#if defined(CONFIG_IEP_IOMMU)
+			iommu_enable = iep_service.iommu_dev ? 1 : 0;
+#endif
+			if (copy_to_user((void __user *)arg, &iommu_enable,
+				sizeof(int))) {
+				IEP_ERR("error: copy_to_user failed\n");
+				return -EFAULT;
+			}
+		}
 		break;
 	default:
 		IEP_ERR("unknown ioctl cmd!\n");
