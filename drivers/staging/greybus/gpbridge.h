@@ -1,5 +1,3 @@
-#ifndef __GB_GPBRIDGE_H__
-#define __GB_GPBRIDGE_H__
 /*
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -51,24 +49,26 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef __GB_GPBRIDGE_H__
+#define __GB_GPBRIDGE_H__
 
 /* I2C */
 
 /* Version of the Greybus i2c protocol we support */
-#define	GB_I2C_VERSION_MAJOR		0x00
-#define	GB_I2C_VERSION_MINOR		0x01
+#define GB_I2C_VERSION_MAJOR		0x00
+#define GB_I2C_VERSION_MINOR		0x01
 
 /* Greybus i2c request types */
-#define	GB_I2C_TYPE_INVALID		0x00
-#define	GB_I2C_TYPE_PROTOCOL_VERSION	0x01
-#define	GB_I2C_TYPE_FUNCTIONALITY	0x02
-#define	GB_I2C_TYPE_TIMEOUT		0x03
-#define	GB_I2C_TYPE_RETRIES		0x04
-#define	GB_I2C_TYPE_TRANSFER		0x05
-#define	GB_I2C_TYPE_RESPONSE		0x80	/* OR'd with rest */
+#define GB_I2C_TYPE_INVALID		0x00
+#define GB_I2C_TYPE_PROTOCOL_VERSION	0x01
+#define GB_I2C_TYPE_FUNCTIONALITY	0x02
+#define GB_I2C_TYPE_TIMEOUT		0x03
+#define GB_I2C_TYPE_RETRIES		0x04
+#define GB_I2C_TYPE_TRANSFER		0x05
+#define GB_I2C_TYPE_RESPONSE		0x80	/* OR'd with rest */
 
-#define	GB_I2C_RETRIES_DEFAULT		3
-#define	GB_I2C_TIMEOUT_DEFAULT		1000	/* milliseconds */
+#define GB_I2C_RETRIES_DEFAULT		3
+#define GB_I2C_TIMEOUT_DEFAULT		1000	/* milliseconds */
 
 /* functionality request has no payload */
 struct gb_i2c_functionality_response {
@@ -113,29 +113,29 @@ struct gb_i2c_transfer_response {
 /* GPIO */
 
 /* Version of the Greybus GPIO protocol we support */
-#define	GB_GPIO_VERSION_MAJOR		0x00
-#define	GB_GPIO_VERSION_MINOR		0x01
+#define GB_GPIO_VERSION_MAJOR		0x00
+#define GB_GPIO_VERSION_MINOR		0x01
 
 /* Greybus GPIO request types */
-#define	GB_GPIO_TYPE_INVALID		0x00
-#define	GB_GPIO_TYPE_PROTOCOL_VERSION	0x01
-#define	GB_GPIO_TYPE_LINE_COUNT		0x02
-#define	GB_GPIO_TYPE_ACTIVATE		0x03
-#define	GB_GPIO_TYPE_DEACTIVATE		0x04
-#define	GB_GPIO_TYPE_GET_DIRECTION	0x05
-#define	GB_GPIO_TYPE_DIRECTION_IN	0x06
-#define	GB_GPIO_TYPE_DIRECTION_OUT	0x07
-#define	GB_GPIO_TYPE_GET_VALUE		0x08
-#define	GB_GPIO_TYPE_SET_VALUE		0x09
-#define	GB_GPIO_TYPE_SET_DEBOUNCE	0x0a
+#define GB_GPIO_TYPE_INVALID		0x00
+#define GB_GPIO_TYPE_PROTOCOL_VERSION	0x01
+#define GB_GPIO_TYPE_LINE_COUNT		0x02
+#define GB_GPIO_TYPE_ACTIVATE		0x03
+#define GB_GPIO_TYPE_DEACTIVATE		0x04
+#define GB_GPIO_TYPE_GET_DIRECTION	0x05
+#define GB_GPIO_TYPE_DIRECTION_IN	0x06
+#define GB_GPIO_TYPE_DIRECTION_OUT	0x07
+#define GB_GPIO_TYPE_GET_VALUE		0x08
+#define GB_GPIO_TYPE_SET_VALUE		0x09
+#define GB_GPIO_TYPE_SET_DEBOUNCE	0x0a
 #define GB_GPIO_TYPE_IRQ_TYPE		0x0b
 #define GB_GPIO_TYPE_IRQ_ACK		0x0c
 #define GB_GPIO_TYPE_IRQ_MASK		0x0d
 #define GB_GPIO_TYPE_IRQ_UNMASK		0x0e
 #define GB_GPIO_TYPE_IRQ_EVENT		0x0f
-#define	GB_GPIO_TYPE_RESPONSE		0x80	/* OR'd with rest */
+#define GB_GPIO_TYPE_RESPONSE		0x80	/* OR'd with rest */
 
-#define	GB_GPIO_DEBOUNCE_USEC_DEFAULT	0	/* microseconds */
+#define GB_GPIO_DEBOUNCE_USEC_DEFAULT	0	/* microseconds */
 
 /* line count request has no payload */
 struct gb_gpio_line_count_response {
@@ -220,20 +220,20 @@ struct gb_gpio_irq_event_request {
 /* PWM */
 
 /* Version of the Greybus PWM protocol we support */
-#define	GB_PWM_VERSION_MAJOR		0x00
-#define	GB_PWM_VERSION_MINOR		0x01
+#define GB_PWM_VERSION_MAJOR		0x00
+#define GB_PWM_VERSION_MINOR		0x01
 
 /* Greybus PWM request types */
-#define	GB_PWM_TYPE_INVALID		0x00
-#define	GB_PWM_TYPE_PROTOCOL_VERSION	0x01
-#define	GB_PWM_TYPE_PWM_COUNT		0x02
-#define	GB_PWM_TYPE_ACTIVATE		0x03
-#define	GB_PWM_TYPE_DEACTIVATE		0x04
-#define	GB_PWM_TYPE_CONFIG		0x05
-#define	GB_PWM_TYPE_POLARITY		0x06
-#define	GB_PWM_TYPE_ENABLE		0x07
-#define	GB_PWM_TYPE_DISABLE		0x08
-#define	GB_PWM_TYPE_RESPONSE		0x80	/* OR'd with rest */
+#define GB_PWM_TYPE_INVALID		0x00
+#define GB_PWM_TYPE_PROTOCOL_VERSION	0x01
+#define GB_PWM_TYPE_PWM_COUNT		0x02
+#define GB_PWM_TYPE_ACTIVATE		0x03
+#define GB_PWM_TYPE_DEACTIVATE		0x04
+#define GB_PWM_TYPE_CONFIG		0x05
+#define GB_PWM_TYPE_POLARITY		0x06
+#define GB_PWM_TYPE_ENABLE		0x07
+#define GB_PWM_TYPE_DISABLE		0x08
+#define GB_PWM_TYPE_RESPONSE		0x80	/* OR'd with rest */
 
 /* pwm count request has no payload */
 struct gb_pwm_count_response {
