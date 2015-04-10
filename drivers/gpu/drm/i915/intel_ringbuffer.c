@@ -1057,6 +1057,10 @@ static int bxt_init_workarounds(struct intel_engine_cs *ring)
 			GEN7_SBE_SS_CACHE_DISPATCH_PORT_SHARING_DISABLE);
 	}
 
+	/* WaForceContextSaveRestoreNonCoherent:bxt */
+	WA_SET_BIT_MASKED(HDC_CHICKEN0,
+			  HDC_FORCE_CONTEXT_SAVE_RESTORE_NON_COHERENT);
+
 	return 0;
 }
 
