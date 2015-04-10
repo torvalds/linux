@@ -166,22 +166,8 @@ void perf_get_regs_user(struct perf_regs *regs_user,
 	 * be careful not to look at any other percpu variables that might
 	 * change during context switches.
 	 */
-	if (IS_ENABLED(CONFIG_IA32_EMULATION) &&
-	    task_thread_info(current)->status & TS_COMPAT) {
-		/* Easy case: we're in a compat syscall. */
-		regs_user->abi = PERF_SAMPLE_REGS_ABI_32;
-	} else if (user_regs->orig_ax != -1) {
-		/*
-		 * We're probably in a 64-bit syscall.
-		 * Warning: this code is severely racy.  At least it's better
-		 * than just blindly copying user_regs.
-		 */
-		regs_user->abi = PERF_SAMPLE_REGS_ABI_64;
-	} else {
-		/* We're probably in an interrupt or exception. */
-		regs_user->abi = user_64bit_mode(user_regs) ?
-			PERF_SAMPLE_REGS_ABI_64 : PERF_SAMPLE_REGS_ABI_32;
-	}
+	regs_user->abi = user_64bit_mode(user_regs) ?
+		PERF_SAMPLE_REGS_ABI_64 : PERF_SAMPLE_REGS_ABI_32;
 
 	regs_user->regs = regs_user_copy;
 }
