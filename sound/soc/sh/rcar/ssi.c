@@ -66,6 +66,7 @@ struct rsnd_ssi {
 
 	u32 cr_own;
 	u32 cr_clk;
+	int chan;
 	int err;
 	unsigned int usrcnt;
 };
@@ -264,6 +265,8 @@ static void rsnd_ssi_hw_stop(struct rsnd_ssi *ssi)
 		}
 
 		rsnd_mod_hw_stop(&ssi->mod);
+
+		ssi->chan = 0;
 	}
 
 	dev_dbg(dev, "%s[%d] hw stopped\n",
@@ -336,6 +339,35 @@ static int rsnd_ssi_quit(struct rsnd_mod *mod,
 
 	ssi->cr_own	= 0;
 	ssi->err	= 0;
+
+	return 0;
+}
+
+static int rsnd_ssi_hw_params(struct rsnd_mod *mod,
+			      struct snd_pcm_substream *substream,
+			      struct snd_pcm_hw_params *params)
+{
+	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
+	struct rsnd_ssi *ssi_parent = rsnd_ssi_parent(ssi);
+	int chan = params_channels(params);
+
+	/*
+	 * Already working.
+	 * It will happen if SSI has parent/child connection.
+	 */
+	if (ssi->usrcnt) {
+		/*
+		 * it is error if child <-> parent SSI uses
+		 * different channels.
+		 */
+		if (ssi->chan != chan)
+			return -EIO;
+	}
+
+	/* It will be removed on rsnd_ssi_hw_stop */
+	ssi->chan = chan;
+	if (ssi_parent)
+		return rsnd_ssi_hw_params(&ssi_parent->mod, substream, params);
 
 	return 0;
 }
@@ -460,6 +492,7 @@ static struct rsnd_mod_ops rsnd_ssi_pio_ops = {
 	.quit	= rsnd_ssi_quit,
 	.start	= rsnd_ssi_start,
 	.stop	= rsnd_ssi_stop,
+	.hw_params = rsnd_ssi_hw_params,
 };
 
 static int rsnd_ssi_dma_probe(struct rsnd_mod *mod,
@@ -569,6 +602,7 @@ static struct rsnd_mod_ops rsnd_ssi_dma_ops = {
 	.start	= rsnd_ssi_dma_start,
 	.stop	= rsnd_ssi_dma_stop,
 	.fallback = rsnd_ssi_fallback,
+	.hw_params = rsnd_ssi_hw_params,
 };
 
 int rsnd_ssi_is_dma_mode(struct rsnd_mod *mod)
