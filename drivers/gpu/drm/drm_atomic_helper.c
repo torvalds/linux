@@ -248,29 +248,23 @@ update_connector_routing(struct drm_atomic_state *state, int conn_idx)
 static int
 mode_fixup(struct drm_atomic_state *state)
 {
-	int ncrtcs = state->dev->mode_config.num_crtc;
+	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
+	struct drm_connector *connector;
 	struct drm_connector_state *conn_state;
 	int i;
 	bool ret;
 
-	for (i = 0; i < ncrtcs; i++) {
-		crtc_state = state->crtc_states[i];
-
-		if (!crtc_state || !crtc_state->mode_changed)
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		if (!crtc_state->mode_changed)
 			continue;
 
 		drm_mode_copy(&crtc_state->adjusted_mode, &crtc_state->mode);
 	}
 
-	for (i = 0; i < state->num_connector; i++) {
+	for_each_connector_in_state(state, connector, conn_state, i) {
 		const struct drm_encoder_helper_funcs *funcs;
 		struct drm_encoder *encoder;
-
-		conn_state = state->connector_states[i];
-
-		if (!conn_state)
-			continue;
 
 		WARN_ON(!!conn_state->best_encoder != !!conn_state->crtc);
 
@@ -316,14 +310,10 @@ mode_fixup(struct drm_atomic_state *state)
 		}
 	}
 
-	for (i = 0; i < ncrtcs; i++) {
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		const struct drm_crtc_helper_funcs *funcs;
-		struct drm_crtc *crtc;
 
-		crtc_state = state->crtc_states[i];
-		crtc = state->crtcs[i];
-
-		if (!crtc_state || !crtc_state->mode_changed)
+		if (!crtc_state->mode_changed)
 			continue;
 
 		funcs = crtc->helper_private;
@@ -371,18 +361,13 @@ int
 drm_atomic_helper_check_modeset(struct drm_device *dev,
 				struct drm_atomic_state *state)
 {
-	int ncrtcs = dev->mode_config.num_crtc;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
+	struct drm_connector *connector;
+	struct drm_connector_state *connector_state;
 	int i, ret;
 
-	for (i = 0; i < ncrtcs; i++) {
-		crtc = state->crtcs[i];
-		crtc_state = state->crtc_states[i];
-
-		if (!crtc)
-			continue;
-
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		if (!drm_mode_equal(&crtc->state->mode, &crtc_state->mode)) {
 			DRM_DEBUG_ATOMIC("[CRTC:%d] mode changed\n",
 					 crtc->base.id);
@@ -396,7 +381,7 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 		}
 	}
 
-	for (i = 0; i < state->num_connector; i++) {
+	for_each_connector_in_state(state, connector, connector_state, i) {
 		/*
 		 * This only sets crtc->mode_changed for routing changes,
 		 * drivers must set crtc->mode_changed themselves when connector
@@ -413,14 +398,8 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 	 * configuration. This must be done before calling mode_fixup in case a
 	 * crtc only changed its mode but has the same set of connectors.
 	 */
-	for (i = 0; i < ncrtcs; i++) {
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		int num_connectors;
-
-		crtc = state->crtcs[i];
-		crtc_state = state->crtc_states[i];
-
-		if (!crtc)
-			continue;
 
 		/*
 		 * We must set ->active_changed after walking connectors for
@@ -476,17 +455,14 @@ int
 drm_atomic_helper_check_planes(struct drm_device *dev,
 			       struct drm_atomic_state *state)
 {
-	int nplanes = dev->mode_config.num_total_plane;
-	int ncrtcs = dev->mode_config.num_crtc;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+	struct drm_plane *plane;
+	struct drm_plane_state *plane_state;
 	int i, ret = 0;
 
-	for (i = 0; i < nplanes; i++) {
+	for_each_plane_in_state(state, plane, plane_state, i) {
 		const struct drm_plane_helper_funcs *funcs;
-		struct drm_plane *plane = state->planes[i];
-		struct drm_plane_state *plane_state = state->plane_states[i];
-
-		if (!plane)
-			continue;
 
 		funcs = plane->helper_private;
 
@@ -503,12 +479,8 @@ drm_atomic_helper_check_planes(struct drm_device *dev,
 		}
 	}
 
-	for (i = 0; i < ncrtcs; i++) {
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		const struct drm_crtc_helper_funcs *funcs;
-		struct drm_crtc *crtc = state->crtcs[i];
-
-		if (!crtc)
-			continue;
 
 		funcs = crtc->helper_private;
 
@@ -567,22 +539,20 @@ EXPORT_SYMBOL(drm_atomic_helper_check);
 static void
 disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 {
-	int ncrtcs = old_state->dev->mode_config.num_crtc;
+	struct drm_connector *connector;
+	struct drm_connector_state *old_conn_state;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *old_crtc_state;
 	int i;
 
-	for (i = 0; i < old_state->num_connector; i++) {
+	for_each_connector_in_state(old_state, connector, old_conn_state, i) {
 		const struct drm_encoder_helper_funcs *funcs;
-		struct drm_connector_state *old_conn_state;
-		struct drm_connector *connector;
 		struct drm_encoder *encoder;
 		struct drm_crtc_state *old_crtc_state;
 
-		old_conn_state = old_state->connector_states[i];
-		connector = old_state->connectors[i];
-
 		/* Shut down everything that's in the changeset and currently
 		 * still on. So need to check the old, saved state. */
-		if (!old_conn_state || !old_conn_state->crtc)
+		if (!old_conn_state->crtc)
 			continue;
 
 		old_crtc_state = old_state->crtc_states[drm_crtc_index(old_conn_state->crtc)];
@@ -623,16 +593,11 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 			encoder->bridge->funcs->post_disable(encoder->bridge);
 	}
 
-	for (i = 0; i < ncrtcs; i++) {
+	for_each_crtc_in_state(old_state, crtc, old_crtc_state, i) {
 		const struct drm_crtc_helper_funcs *funcs;
-		struct drm_crtc *crtc;
-		struct drm_crtc_state *old_crtc_state;
-
-		crtc = old_state->crtcs[i];
-		old_crtc_state = old_state->crtc_states[i];
 
 		/* Shut down everything that needs a full modeset. */
-		if (!crtc || !needs_modeset(crtc->state))
+		if (!needs_modeset(crtc->state))
 			continue;
 
 		if (!old_crtc_state->active)
@@ -657,16 +622,15 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 static void
 set_routing_links(struct drm_device *dev, struct drm_atomic_state *old_state)
 {
-	int ncrtcs = old_state->dev->mode_config.num_crtc;
+	struct drm_connector *connector;
+	struct drm_connector_state *old_conn_state;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *old_crtc_state;
 	int i;
 
 	/* clear out existing links */
-	for (i = 0; i < old_state->num_connector; i++) {
-		struct drm_connector *connector;
-
-		connector = old_state->connectors[i];
-
-		if (!connector || !connector->encoder)
+	for_each_connector_in_state(old_state, connector, old_conn_state, i) {
+		if (!connector->encoder)
 			continue;
 
 		WARN_ON(!connector->encoder->crtc);
@@ -676,12 +640,8 @@ set_routing_links(struct drm_device *dev, struct drm_atomic_state *old_state)
 	}
 
 	/* set new links */
-	for (i = 0; i < old_state->num_connector; i++) {
-		struct drm_connector *connector;
-
-		connector = old_state->connectors[i];
-
-		if (!connector || !connector->state->crtc)
+	for_each_connector_in_state(old_state, connector, old_conn_state, i) {
+		if (!connector->state->crtc)
 			continue;
 
 		if (WARN_ON(!connector->state->best_encoder))
@@ -692,14 +652,7 @@ set_routing_links(struct drm_device *dev, struct drm_atomic_state *old_state)
 	}
 
 	/* set legacy state in the crtc structure */
-	for (i = 0; i < ncrtcs; i++) {
-		struct drm_crtc *crtc;
-
-		crtc = old_state->crtcs[i];
-
-		if (!crtc)
-			continue;
-
+	for_each_crtc_in_state(old_state, crtc, old_crtc_state, i) {
 		crtc->mode = crtc->state->mode;
 		crtc->enabled = crtc->state->enable;
 		crtc->x = crtc->primary->state->src_x >> 16;
@@ -710,16 +663,16 @@ set_routing_links(struct drm_device *dev, struct drm_atomic_state *old_state)
 static void
 crtc_set_mode(struct drm_device *dev, struct drm_atomic_state *old_state)
 {
-	int ncrtcs = old_state->dev->mode_config.num_crtc;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *old_crtc_state;
+	struct drm_connector *connector;
+	struct drm_connector_state *old_conn_state;
 	int i;
 
-	for (i = 0; i < ncrtcs; i++) {
+	for_each_crtc_in_state(old_state, crtc, old_crtc_state, i) {
 		const struct drm_crtc_helper_funcs *funcs;
-		struct drm_crtc *crtc;
 
-		crtc = old_state->crtcs[i];
-
-		if (!crtc || !crtc->state->mode_changed)
+		if (!crtc->state->mode_changed)
 			continue;
 
 		funcs = crtc->helper_private;
@@ -732,16 +685,13 @@ crtc_set_mode(struct drm_device *dev, struct drm_atomic_state *old_state)
 		}
 	}
 
-	for (i = 0; i < old_state->num_connector; i++) {
+	for_each_connector_in_state(old_state, connector, old_conn_state, i) {
 		const struct drm_encoder_helper_funcs *funcs;
-		struct drm_connector *connector;
 		struct drm_crtc_state *new_crtc_state;
 		struct drm_encoder *encoder;
 		struct drm_display_mode *mode, *adjusted_mode;
 
-		connector = old_state->connectors[i];
-
-		if (!connector || !connector->state->best_encoder)
+		if (!connector->state->best_encoder)
 			continue;
 
 		encoder = connector->state->best_encoder;
@@ -809,17 +759,17 @@ EXPORT_SYMBOL(drm_atomic_helper_commit_modeset_disables);
 void drm_atomic_helper_commit_modeset_enables(struct drm_device *dev,
 					      struct drm_atomic_state *old_state)
 {
-	int ncrtcs = old_state->dev->mode_config.num_crtc;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *old_crtc_state;
+	struct drm_connector *connector;
+	struct drm_connector_state *old_conn_state;
 	int i;
 
-	for (i = 0; i < ncrtcs; i++) {
+	for_each_crtc_in_state(old_state, crtc, old_crtc_state, i) {
 		const struct drm_crtc_helper_funcs *funcs;
-		struct drm_crtc *crtc;
-
-		crtc = old_state->crtcs[i];
 
 		/* Need to filter out CRTCs where only planes change. */
-		if (!crtc || !needs_modeset(crtc->state))
+		if (!needs_modeset(crtc->state))
 			continue;
 
 		if (!crtc->state->active)
@@ -838,14 +788,11 @@ void drm_atomic_helper_commit_modeset_enables(struct drm_device *dev,
 		}
 	}
 
-	for (i = 0; i < old_state->num_connector; i++) {
+	for_each_connector_in_state(old_state, connector, old_conn_state, i) {
 		const struct drm_encoder_helper_funcs *funcs;
-		struct drm_connector *connector;
 		struct drm_encoder *encoder;
 
-		connector = old_state->connectors[i];
-
-		if (!connector || !connector->state->best_encoder)
+		if (!connector->state->best_encoder)
 			continue;
 
 		if (!connector->state->crtc->state->active ||
@@ -879,13 +826,12 @@ EXPORT_SYMBOL(drm_atomic_helper_commit_modeset_enables);
 static void wait_for_fences(struct drm_device *dev,
 			    struct drm_atomic_state *state)
 {
-	int nplanes = dev->mode_config.num_total_plane;
+	struct drm_plane *plane;
+	struct drm_plane_state *plane_state;
 	int i;
 
-	for (i = 0; i < nplanes; i++) {
-		struct drm_plane *plane = state->planes[i];
-
-		if (!plane || !plane->state->fence)
+	for_each_plane_in_state(state, plane, plane_state, i) {
+		if (!plane->state->fence)
 			continue;
 
 		WARN_ON(!plane->state->fb);
@@ -902,16 +848,9 @@ static bool framebuffer_changed(struct drm_device *dev,
 {
 	struct drm_plane *plane;
 	struct drm_plane_state *old_plane_state;
-	int nplanes = old_state->dev->mode_config.num_total_plane;
 	int i;
 
-	for (i = 0; i < nplanes; i++) {
-		plane = old_state->planes[i];
-		old_plane_state = old_state->plane_states[i];
-
-		if (!plane)
-			continue;
-
+	for_each_plane_in_state(old_state, plane, old_plane_state, i) {
 		if (plane->state->crtc != crtc &&
 		    old_plane_state->crtc != crtc)
 			continue;
@@ -940,16 +879,9 @@ drm_atomic_helper_wait_for_vblanks(struct drm_device *dev,
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state;
-	int ncrtcs = old_state->dev->mode_config.num_crtc;
 	int i, ret;
 
-	for (i = 0; i < ncrtcs; i++) {
-		crtc = old_state->crtcs[i];
-		old_crtc_state = old_state->crtc_states[i];
-
-		if (!crtc)
-			continue;
-
+	for_each_crtc_in_state(old_state, crtc, old_crtc_state, i) {
 		/* No one cares about the old state, so abuse it for tracking
 		 * and store whether we hold a vblank reference (and should do a
 		 * vblank wait) in the ->enable boolean. */
@@ -974,11 +906,8 @@ drm_atomic_helper_wait_for_vblanks(struct drm_device *dev,
 		old_crtc_state->last_vblank_count = drm_vblank_count(dev, i);
 	}
 
-	for (i = 0; i < ncrtcs; i++) {
-		crtc = old_state->crtcs[i];
-		old_crtc_state = old_state->crtc_states[i];
-
-		if (!crtc || !old_crtc_state->enable)
+	for_each_crtc_in_state(old_state, crtc, old_crtc_state, i) {
+		if (!old_crtc_state->enable)
 			continue;
 
 		ret = wait_event_timeout(dev->vblank[i].queue,
@@ -1176,16 +1105,14 @@ EXPORT_SYMBOL(drm_atomic_helper_prepare_planes);
 void drm_atomic_helper_commit_planes(struct drm_device *dev,
 				     struct drm_atomic_state *old_state)
 {
-	int nplanes = dev->mode_config.num_total_plane;
-	int ncrtcs = dev->mode_config.num_crtc;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *old_crtc_state;
+	struct drm_plane *plane;
+	struct drm_plane_state *old_plane_state;
 	int i;
 
-	for (i = 0; i < ncrtcs; i++) {
+	for_each_crtc_in_state(old_state, crtc, old_crtc_state, i) {
 		const struct drm_crtc_helper_funcs *funcs;
-		struct drm_crtc *crtc = old_state->crtcs[i];
-
-		if (!crtc)
-			continue;
 
 		funcs = crtc->helper_private;
 
@@ -1195,13 +1122,8 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 		funcs->atomic_begin(crtc);
 	}
 
-	for (i = 0; i < nplanes; i++) {
+	for_each_plane_in_state(old_state, plane, old_plane_state, i) {
 		const struct drm_plane_helper_funcs *funcs;
-		struct drm_plane *plane = old_state->planes[i];
-		struct drm_plane_state *old_plane_state;
-
-		if (!plane)
-			continue;
 
 		funcs = plane->helper_private;
 
@@ -1220,12 +1142,8 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 			funcs->atomic_update(plane, old_plane_state);
 	}
 
-	for (i = 0; i < ncrtcs; i++) {
+	for_each_crtc_in_state(old_state, crtc, old_crtc_state, i) {
 		const struct drm_crtc_helper_funcs *funcs;
-		struct drm_crtc *crtc = old_state->crtcs[i];
-
-		if (!crtc)
-			continue;
 
 		funcs = crtc->helper_private;
 
@@ -1252,17 +1170,13 @@ EXPORT_SYMBOL(drm_atomic_helper_commit_planes);
 void drm_atomic_helper_cleanup_planes(struct drm_device *dev,
 				      struct drm_atomic_state *old_state)
 {
-	int nplanes = dev->mode_config.num_total_plane;
+	struct drm_plane *plane;
+	struct drm_plane_state *plane_state;
 	int i;
 
-	for (i = 0; i < nplanes; i++) {
+	for_each_plane_in_state(old_state, plane, plane_state, i) {
 		const struct drm_plane_helper_funcs *funcs;
-		struct drm_plane *plane = old_state->planes[i];
-		struct drm_plane_state *plane_state = old_state->plane_states[i];
 		struct drm_framebuffer *old_fb;
-
-		if (!plane)
-			continue;
 
 		funcs = plane->helper_private;
 
@@ -1512,8 +1426,10 @@ static int update_output_state(struct drm_atomic_state *state,
 			       struct drm_mode_set *set)
 {
 	struct drm_device *dev = set->crtc->dev;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+	struct drm_connector *connector;
 	struct drm_connector_state *conn_state;
-	int ncrtcs = state->dev->mode_config.num_crtc;
 	int ret, i, j;
 
 	ret = drm_modeset_lock(&dev->mode_config.connection_mutex,
@@ -1529,27 +1445,14 @@ static int update_output_state(struct drm_atomic_state *state,
 			return PTR_ERR(conn_state);
 	}
 
-	for (i = 0; i < ncrtcs; i++) {
-		struct drm_crtc *crtc = state->crtcs[i];
-
-		if (!crtc)
-			continue;
-
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		ret = drm_atomic_add_affected_connectors(state, crtc);
 		if (ret)
 			return ret;
 	}
 
 	/* Then recompute connector->crtc links and crtc enabling state. */
-	for (i = 0; i < state->num_connector; i++) {
-		struct drm_connector *connector;
-
-		connector = state->connectors[i];
-		conn_state = state->connector_states[i];
-
-		if (!connector)
-			continue;
-
+	for_each_connector_in_state(state, connector, conn_state, i) {
 		if (conn_state->crtc == set->crtc) {
 			ret = drm_atomic_set_crtc_for_connector(conn_state,
 								NULL);
@@ -1568,13 +1471,7 @@ static int update_output_state(struct drm_atomic_state *state,
 		}
 	}
 
-	for (i = 0; i < ncrtcs; i++) {
-		struct drm_crtc *crtc = state->crtcs[i];
-		struct drm_crtc_state *crtc_state = state->crtc_states[i];
-
-		if (!crtc)
-			continue;
-
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		/* Don't update ->enable for the CRTC in the set_config request,
 		 * since a mismatch would indicate a bug in the upper layers.
 		 * The actual modeset code later on will catch any
