@@ -949,9 +949,17 @@ int acpi_match_device_ids(struct acpi_device *device,
 }
 EXPORT_SYMBOL(acpi_match_device_ids);
 
-/* Performs match against special "PRP0001" shoehorn ACPI ID */
-static bool acpi_of_driver_match_device(struct device *dev,
-					const struct device_driver *drv)
+/**
+ * acpi_of_match_device - Match device using the "compatible" property.
+ * @dev: Device to match.
+ * @of_match_table: List of device IDs to match against.
+ *
+ * If @dev has an ACPI companion which has the special PRP0001 device ID in its
+ * list of identifiers and a _DSD object with the "compatible" property, use
+ * that property to match against the given list of identifiers.
+ */
+static bool acpi_of_match_device(struct device *dev,
+				 const struct of_device_id *of_match_table)
 {
 	const union acpi_object *of_compatible, *obj;
 	struct acpi_device *adev;
@@ -962,7 +970,7 @@ static bool acpi_of_driver_match_device(struct device *dev,
 		return false;
 
 	of_compatible = adev->data.of_compatible;
-	if (!drv->of_match_table || !of_compatible)
+	if (!of_match_table || !of_compatible)
 		return false;
 
 	if (of_compatible->type == ACPI_TYPE_PACKAGE) {
@@ -976,7 +984,7 @@ static bool acpi_of_driver_match_device(struct device *dev,
 	for (i = 0; i < nval; i++, obj++) {
 		const struct of_device_id *id;
 
-		for (id = drv->of_match_table; id->compatible[0]; id++)
+		for (id = of_match_table; id->compatible[0]; id++)
 			if (!strcasecmp(obj->string.pointer, id->compatible))
 				return true;
 	}
@@ -988,7 +996,7 @@ bool acpi_driver_match_device(struct device *dev,
 			      const struct device_driver *drv)
 {
 	if (!drv->acpi_match_table)
-		return acpi_of_driver_match_device(dev, drv);
+		return acpi_of_match_device(dev, drv->of_match_table);
 
 	return !!acpi_match_device(drv->acpi_match_table, dev);
 }
