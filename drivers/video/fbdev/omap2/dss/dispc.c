@@ -2279,6 +2279,11 @@ static int dispc_ovl_calc_scaling_24xx(unsigned long pclk, unsigned long lclk,
 		}
 	} while (*decim_x <= *x_predecim && *decim_y <= *y_predecim && error);
 
+	if (error) {
+		DSSERR("failed to find scaling settings\n");
+		return -EINVAL;
+	}
+
 	if (in_width > maxsinglelinewidth) {
 		DSSERR("Cannot scale max input width exceeded");
 		return -EINVAL;
@@ -2355,6 +2360,11 @@ again:
 			}
 		}
 	} while (*decim_x <= *x_predecim && *decim_y <= *y_predecim && error);
+
+	if (error) {
+		DSSERR("failed to find scaling settings\n");
+		return -EINVAL;
+	}
 
 	if (check_horiz_timing_omap3(pclk, lclk, mgr_timings, pos_x, in_width,
 				in_height, out_width, out_height, *five_taps)) {
