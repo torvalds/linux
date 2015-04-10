@@ -1285,7 +1285,7 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 	const struct of_device_id *of_id;
 	const char *p, *sprop;
 	const uint32_t *iprop;
-	struct resource res;
+	struct resource *res;
 	void __iomem *iomem;
 	char name[64];
 
@@ -1332,19 +1332,11 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 	}
 	ssi_private->cpu_dai_drv.name = dev_name(&pdev->dev);
 
-	/* Get the addresses and IRQ */
-	ret = of_address_to_resource(np, 0, &res);
-	if (ret) {
-		dev_err(&pdev->dev, "could not determine device resources\n");
-		return ret;
-	}
-	ssi_private->ssi_phys = res.start;
-
-	iomem = devm_ioremap(&pdev->dev, res.start, resource_size(&res));
-	if (!iomem) {
-		dev_err(&pdev->dev, "could not map device resources\n");
-		return -ENOMEM;
-	}
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	iomem = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(iomem))
+		return PTR_ERR(iomem);
+	ssi_private->ssi_phys = res->start;
 
 	ret = of_property_match_string(np, "clock-names", "ipg");
 	if (ret < 0) {
