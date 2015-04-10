@@ -1359,6 +1359,9 @@ static int soc_probe_link_dais(struct snd_soc_card *card, int num, int order)
 		}
 	}
 
+	if (dai_link->dai_fmt)
+		snd_soc_runtime_set_dai_fmt(rtd, dai_link->dai_fmt);
+
 	ret = soc_post_component_init(rtd, dai_link->name);
 	if (ret)
 		return ret;
@@ -1671,12 +1674,6 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	if (card->of_dapm_routes)
 		snd_soc_dapm_add_routes(&card->dapm, card->of_dapm_routes,
 					card->num_of_dapm_routes);
-
-	for (i = 0; i < card->num_links; i++) {
-		if (card->dai_link[i].dai_fmt)
-			snd_soc_runtime_set_dai_fmt(&card->rtd[i],
-				card->dai_link[i].dai_fmt);
-	}
 
 	snprintf(card->snd_card->shortname, sizeof(card->snd_card->shortname),
 		 "%s", card->name);
