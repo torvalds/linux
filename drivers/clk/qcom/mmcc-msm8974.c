@@ -522,17 +522,11 @@ static struct clk_rcg2 jpeg2_clk_src = {
 	},
 };
 
-static struct freq_tbl pixel_freq_tbl[] = {
-	{ .src = P_DSI0PLL },
-	{ }
-};
-
 static struct clk_rcg2 pclk0_clk_src = {
 	.cmd_rcgr = 0x2000,
 	.mnd_width = 8,
 	.hid_width = 5,
 	.parent_map = mmcc_xo_dsi_hdmi_edp_gpll0_map,
-	.freq_tbl = pixel_freq_tbl,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "pclk0_clk_src",
 		.parent_names = mmcc_xo_dsi_hdmi_edp_gpll0,
@@ -547,7 +541,6 @@ static struct clk_rcg2 pclk1_clk_src = {
 	.mnd_width = 8,
 	.hid_width = 5,
 	.parent_map = mmcc_xo_dsi_hdmi_edp_gpll0_map,
-	.freq_tbl = pixel_freq_tbl,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "pclk1_clk_src",
 		.parent_names = mmcc_xo_dsi_hdmi_edp_gpll0,
@@ -785,7 +778,7 @@ static struct clk_rcg2 byte0_clk_src = {
 		.name = "byte0_clk_src",
 		.parent_names = mmcc_xo_dsibyte_hdmi_edp_gpll0,
 		.num_parents = 6,
-		.ops = &clk_byte_ops,
+		.ops = &clk_byte2_ops,
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
@@ -799,7 +792,7 @@ static struct clk_rcg2 byte1_clk_src = {
 		.name = "byte1_clk_src",
 		.parent_names = mmcc_xo_dsibyte_hdmi_edp_gpll0,
 		.num_parents = 6,
-		.ops = &clk_byte_ops,
+		.ops = &clk_byte2_ops,
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };

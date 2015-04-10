@@ -171,6 +171,7 @@ struct clk_rcg2 {
 extern const struct clk_ops clk_rcg2_ops;
 extern const struct clk_ops clk_edp_pixel_ops;
 extern const struct clk_ops clk_byte_ops;
+extern const struct clk_ops clk_byte2_ops;
 extern const struct clk_ops clk_pixel_ops;
 
 #endif

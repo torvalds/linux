@@ -906,21 +906,15 @@ static struct clk_rcg2 gp3_clk_src = {
 	},
 };
 
-static struct freq_tbl ftbl_gcc_mdss_byte0_clk[] = {
-	{ .src = P_DSI0_PHYPLL_BYTE },
-	{ }
-};
-
 static struct clk_rcg2 byte0_clk_src = {
 	.cmd_rcgr = 0x4d044,
 	.hid_width = 5,
 	.parent_map = gcc_xo_gpll0a_dsibyte_map,
-	.freq_tbl = ftbl_gcc_mdss_byte0_clk,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "byte0_clk_src",
 		.parent_names = gcc_xo_gpll0a_dsibyte,
 		.num_parents = 3,
-		.ops = &clk_byte_ops,
+		.ops = &clk_byte2_ops,
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
@@ -968,17 +962,11 @@ static struct clk_rcg2 mdp_clk_src = {
 	},
 };
 
-static struct freq_tbl ftbl_gcc_mdss_pclk[] = {
-	{ .src = P_DSI0_PHYPLL_DSI },
-	{ }
-};
-
 static struct clk_rcg2 pclk0_clk_src = {
 	.cmd_rcgr = 0x4d000,
 	.mnd_width = 8,
 	.hid_width = 5,
 	.parent_map = gcc_xo_gpll0a_dsiphy_map,
-	.freq_tbl = ftbl_gcc_mdss_pclk,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "pclk0_clk_src",
 		.parent_names = gcc_xo_gpll0a_dsiphy,
