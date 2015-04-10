@@ -1,8 +1,11 @@
-PROGS := tm-resched-dscr
+PROGS := tm-resched-dscr tm-syscall
 
 all: $(PROGS)
 
 $(PROGS): ../harness.c
+
+tm-syscall: tm-syscall-asm.S
+tm-syscall: CFLAGS += -mhtm
 
 run_tests: all
 	@-for PROG in $(PROGS); do \
