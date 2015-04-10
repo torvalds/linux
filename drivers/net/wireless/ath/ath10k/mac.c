@@ -230,9 +230,13 @@ static int ath10k_install_peer_wep_keys(struct ath10k_vif *arvif,
 		flags = 0;
 		flags |= WMI_KEY_PAIRWISE;
 
-		/* set TX_USAGE flag for default key id */
-		if (arvif->def_wep_key_idx == i)
-			flags |= WMI_KEY_TX_USAGE;
+		ret = ath10k_install_key(arvif, arvif->wep_keys[i], SET_KEY,
+					 addr, flags);
+		if (ret)
+			return ret;
+
+		flags = 0;
+		flags |= WMI_KEY_GROUP;
 
 		ret = ath10k_install_key(arvif, arvif->wep_keys[i], SET_KEY,
 					 addr, flags);
@@ -242,6 +246,27 @@ static int ath10k_install_peer_wep_keys(struct ath10k_vif *arvif,
 		spin_lock_bh(&ar->data_lock);
 		peer->keys[i] = arvif->wep_keys[i];
 		spin_unlock_bh(&ar->data_lock);
+	}
+
+	/* In some cases (notably with static WEP IBSS with multiple keys)
+	 * multicast Tx becomes broken. Both pairwise and groupwise keys are
+	 * installed already. Using WMI_KEY_TX_USAGE in different combinations
+	 * didn't seem help. Using def_keyid vdev parameter seems to be
+	 * effective so use that.
+	 *
+	 * FIXME: Revisit. Perhaps this can be done in a less hacky way.
+	 */
+	if (arvif->def_wep_key_idx == -1)
+		return 0;
+
+	ret = ath10k_wmi_vdev_set_param(arvif->ar,
+					arvif->vdev_id,
+					arvif->ar->wmi.vdev_param->def_keyid,
+					arvif->def_wep_key_idx);
+	if (ret) {
+		ath10k_warn(ar, "failed to re-set def wpa key idxon vdev %i: %d\n",
+			    arvif->vdev_id, ret);
+		return ret;
 	}
 
 	return 0;
