@@ -236,10 +236,9 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
-
 			syscon-tcsr = <&tcsr>;
 
-			serial@16640000 {
+			gsbi7_serial: serial@16640000 {
 				compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
 				reg = <0x16640000 0x1000>,
 				      <0x16600000 0x1000>;
