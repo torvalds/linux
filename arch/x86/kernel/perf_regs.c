@@ -135,6 +135,7 @@ void perf_get_regs_user(struct perf_regs *regs_user,
 	 * On 32-bit entry points, they are saved too except r8..r11.
 	 */
 	regs_user_copy->ip = user_regs->ip;
+	regs_user_copy->ax = user_regs->ax;
 	regs_user_copy->cx = user_regs->cx;
 	regs_user_copy->dx = user_regs->dx;
 	regs_user_copy->si = user_regs->si;
