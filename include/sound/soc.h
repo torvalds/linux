@@ -1071,11 +1071,16 @@ struct snd_soc_card {
 
 	/*
 	 * Card-specific routes and widgets.
+	 * Note: of_dapm_xxx for Device Tree; Otherwise for driver build-in.
 	 */
 	const struct snd_soc_dapm_widget *dapm_widgets;
 	int num_dapm_widgets;
 	const struct snd_soc_dapm_route *dapm_routes;
 	int num_dapm_routes;
+	const struct snd_soc_dapm_widget *of_dapm_widgets;
+	int num_of_dapm_widgets;
+	const struct snd_soc_dapm_route *of_dapm_routes;
+	int num_of_dapm_routes;
 	bool fully_routed;
 
 	struct work_struct deferred_resume_work;
