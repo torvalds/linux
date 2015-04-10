@@ -2200,7 +2200,7 @@ intel_ddi_init_dp_connector(struct intel_digital_port *intel_dig_port)
 	struct intel_connector *connector;
 	enum port port = intel_dig_port->port;
 
-	connector = kzalloc(sizeof(*connector), GFP_KERNEL);
+	connector = intel_connector_alloc();
 	if (!connector)
 		return NULL;
 
@@ -2219,7 +2219,7 @@ intel_ddi_init_hdmi_connector(struct intel_digital_port *intel_dig_port)
 	struct intel_connector *connector;
 	enum port port = intel_dig_port->port;
 
-	connector = kzalloc(sizeof(*connector), GFP_KERNEL);
+	connector = intel_connector_alloc();
 	if (!connector)
 		return NULL;
 
