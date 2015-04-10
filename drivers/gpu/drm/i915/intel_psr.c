@@ -269,8 +269,7 @@ static void hsw_psr_enable_source(struct intel_dp *intel_dp)
 		val |= EDP_PSR_TP2_TP3_TIME_0us;
 		val |= EDP_PSR_TP1_TIME_0us;
 		val |= EDP_PSR_SKIP_AUX_EXIT;
-	} else
-		val |= EDP_PSR_LINK_DISABLE;
+	}
 
 	I915_WRITE(EDP_PSR_CTL(dev), val |
 		   (IS_BROADWELL(dev) ? 0 : link_entry_time) |

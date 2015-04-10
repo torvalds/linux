@@ -2688,7 +2688,6 @@ enum skl_disp_power_wells {
 #define EDP_PSR_CTL(dev)			(EDP_PSR_BASE(dev) + 0)
 #define   EDP_PSR_ENABLE			(1<<31)
 #define   BDW_PSR_SINGLE_FRAME			(1<<30)
-#define   EDP_PSR_LINK_DISABLE			(0<<27)
 #define   EDP_PSR_LINK_STANDBY			(1<<27)
 #define   EDP_PSR_MIN_LINK_ENTRY_TIME_MASK	(3<<25)
 #define   EDP_PSR_MIN_LINK_ENTRY_TIME_8_LINES	(0<<25)
