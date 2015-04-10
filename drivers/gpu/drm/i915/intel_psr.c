@@ -594,6 +594,48 @@ static void intel_psr_exit(struct drm_device *dev)
 }
 
 /**
+ * intel_psr_single_frame_update - Single Frame Update
+ * @dev: DRM device
+ *
+ * Some platforms support a single frame update feature that is used to
+ * send and update only one frame on Remote Frame Buffer.
+ * So far it is only implemented for Valleyview and Cherryview because
+ * hardware requires this to be done before a page flip.
+ */
+void intel_psr_single_frame_update(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_crtc *crtc;
+	enum pipe pipe;
+	u32 val;
+
+	/*
+	 * Single frame update is already supported on BDW+ but it requires
+	 * many W/A and it isn't really needed.
+	 */
+	if (!IS_VALLEYVIEW(dev))
+		return;
+
+	mutex_lock(&dev_priv->psr.lock);
+	if (!dev_priv->psr.enabled) {
+		mutex_unlock(&dev_priv->psr.lock);
+		return;
+	}
+
+	crtc = dp_to_dig_port(dev_priv->psr.enabled)->base.base.crtc;
+	pipe = to_intel_crtc(crtc)->pipe;
+	val = I915_READ(VLV_PSRCTL(pipe));
+
+	/*
+	 * We need to set this bit before writing registers for a flip.
+	 * This bit will be self-clear when it gets to the PSR active state.
+	 */
+	I915_WRITE(VLV_PSRCTL(pipe), val | VLV_EDP_PSR_SINGLE_FRAME_UPDATE);
+
+	mutex_unlock(&dev_priv->psr.lock);
+}
+
+/**
  * intel_psr_invalidate - Invalidade PSR
  * @dev: DRM device
  * @frontbuffer_bits: frontbuffer plane tracking bits
