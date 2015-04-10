@@ -2747,6 +2747,7 @@ int snd_soc_register_card(struct snd_soc_card *card)
 	card->instantiated = 0;
 	mutex_init(&card->mutex);
 	mutex_init(&card->dapm_mutex);
+	mutex_init(&card->dapm_power_mutex);
 
 	ret = snd_soc_instantiate_card(card);
 	if (ret != 0)
