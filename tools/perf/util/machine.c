@@ -14,8 +14,6 @@
 #include "unwind.h"
 #include "linux/hash.h"
 
-static void machine__remove_thread(struct machine *machine, struct thread *th);
-
 static void dsos__init(struct dsos *dsos)
 {
 	INIT_LIST_HEAD(&dsos->head);
@@ -1256,7 +1254,7 @@ out_problem:
 	return 0;
 }
 
-static void machine__remove_thread(struct machine *machine, struct thread *th)
+void machine__remove_thread(struct machine *machine, struct thread *th)
 {
 	if (machine->last_match == th)
 		thread__zput(machine->last_match);
