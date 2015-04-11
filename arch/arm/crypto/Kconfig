@@ -48,6 +48,7 @@ config CRYPTO_SHA2_ARM_CE
 config CRYPTO_SHA256_ARM
 	tristate "SHA-224/256 digest algorithm (ARM-asm and NEON)"
 	select CRYPTO_HASH
+	depends on !CPU_V7M
 	help
 	  SHA-256 secure hash standard (DFIPS 180-2) implemented
 	  using optimized ARM assembler and NEON, when available.
