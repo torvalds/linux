@@ -162,8 +162,6 @@ struct spi_transfer;
  * @remove: Unbinds this driver from the spi device
  * @shutdown: Standard shutdown callback used during system state
  *	transitions such as powerdown/halt and kexec
- * @suspend: Standard suspend callback used during system state transitions
- * @resume: Standard resume callback used during system state transitions
  * @driver: SPI device drivers should initialize the name and owner
  *	field of this structure.
  *
@@ -184,8 +182,6 @@ struct spi_driver {
 	int			(*probe)(struct spi_device *spi);
 	int			(*remove)(struct spi_device *spi);
 	void			(*shutdown)(struct spi_device *spi);
-	int			(*suspend)(struct spi_device *spi, pm_message_t mesg);
-	int			(*resume)(struct spi_device *spi);
 	struct device_driver	driver;
 };
 
