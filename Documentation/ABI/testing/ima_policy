@@ -49,11 +49,22 @@ Description:
 			dont_measure fsmagic=0x01021994
 			dont_appraise fsmagic=0x01021994
 			# RAMFS_MAGIC
-			dont_measure fsmagic=0x858458f6
 			dont_appraise fsmagic=0x858458f6
+			# DEVPTS_SUPER_MAGIC
+			dont_measure fsmagic=0x1cd1
+			dont_appraise fsmagic=0x1cd1
+			# BINFMTFS_MAGIC
+			dont_measure fsmagic=0x42494e4d
+			dont_appraise fsmagic=0x42494e4d
 			# SECURITYFS_MAGIC
 			dont_measure fsmagic=0x73636673
 			dont_appraise fsmagic=0x73636673
+			# SELINUX_MAGIC
+			dont_measure fsmagic=0xf97cff8c
+			dont_appraise fsmagic=0xf97cff8c
+			# CGROUP_SUPER_MAGIC
+			dont_measure fsmagic=0x27e0eb
+			dont_appraise fsmagic=0x27e0eb
 
 			measure func=BPRM_CHECK
 			measure func=FILE_MMAP mask=MAY_EXEC
@@ -70,10 +81,6 @@ Description:
 		Examples of LSM specific definitions:
 
 		SELinux:
-			# SELINUX_MAGIC
-			dont_measure fsmagic=0xf97cff8c
-			dont_appraise fsmagic=0xf97cff8c
-
 			dont_measure obj_type=var_log_t
 			dont_appraise obj_type=var_log_t
 			dont_measure obj_type=auditd_log_t
