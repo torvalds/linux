@@ -47,7 +47,7 @@ s32 fm10k_iov_event(struct fm10k_intfc *interface)
 {
 	struct fm10k_hw *hw = &interface->hw;
 	struct fm10k_iov_data *iov_data;
-	s64 mbicr, vflre;
+	s64 vflre;
 	int i;
 
 	/* if there is no iov_data then there is no mailboxes to process */
@@ -63,7 +63,7 @@ s32 fm10k_iov_event(struct fm10k_intfc *interface)
 		goto read_unlock;
 
 	if (!(fm10k_read_reg(hw, FM10K_EICR) & FM10K_EICR_VFLR))
-		goto process_mbx;
+		goto read_unlock;
 
 	/* read VFLRE to determine if any VFs have been reset */
 	do {
@@ -86,32 +86,6 @@ s32 fm10k_iov_event(struct fm10k_intfc *interface)
 		}
 	} while (i != iov_data->num_vfs);
 
-process_mbx:
-	/* read MBICR to determine which VFs require attention */
-	mbicr = fm10k_read_reg(hw, FM10K_MBICR(1));
-	mbicr <<= 32;
-	mbicr |= fm10k_read_reg(hw, FM10K_MBICR(0));
-
-	i = iov_data->next_vf_mbx ? : iov_data->num_vfs;
-
-	for (mbicr <<= 64 - i; i--; mbicr += mbicr) {
-		struct fm10k_mbx_info *mbx = &iov_data->vf_info[i].mbx;
-
-		if (mbicr >= 0)
-			continue;
-
-		if (!hw->mbx.ops.tx_ready(&hw->mbx, FM10K_VFMBX_MSG_MTU))
-			break;
-
-		mbx->ops.process(hw, mbx);
-	}
-
-	if (i >= 0) {
-		iov_data->next_vf_mbx = i + 1;
-	} else if (iov_data->next_vf_mbx) {
-		iov_data->next_vf_mbx = 0;
-		goto process_mbx;
-	}
 read_unlock:
 	rcu_read_unlock();
 
@@ -154,10 +128,6 @@ process_mbx:
 			hw->iov.ops.reset_resources(hw, vf_info);
 			mbx->ops.connect(hw, mbx);
 		}
-
-		/* no work pending, then just continue */
-		if (mbx->ops.tx_complete(mbx) && !mbx->ops.rx_ready(mbx))
-			continue;
 
 		/* guarantee we have free space in the SM mailbox */
 		if (!hw->mbx.ops.tx_ready(&hw->mbx, FM10K_VFMBX_MSG_MTU))
