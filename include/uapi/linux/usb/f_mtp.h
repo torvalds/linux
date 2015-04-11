@@ -38,12 +38,22 @@ struct mtp_file_range {
 	uint32_t	transaction_id;
 };
 
+/* support of 32bit userspace on 64bit platforms */
+#ifdef CONFIG_COMPAT
+struct mtp_event {
+	/* size of the event */
+	int32_t		length;
+	/* event data to send */
+	compat_uptr_t		data;
+};
+#else
 struct mtp_event {
 	/* size of the event */
 	size_t		length;
 	/* event data to send */
 	void		*data;
 };
+#endif
 
 /* Sends the specified file range to the host */
 #define MTP_SEND_FILE              _IOW('M', 0, struct mtp_file_range)
