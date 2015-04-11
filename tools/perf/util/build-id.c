@@ -59,12 +59,8 @@ static int perf_event__exit_del_thread(struct perf_tool *tool __maybe_unused,
 	dump_printf("(%d:%d):(%d:%d)\n", event->fork.pid, event->fork.tid,
 		    event->fork.ppid, event->fork.ptid);
 
-	if (thread) {
-		rb_erase(&thread->rb_node, &machine->threads);
-		if (machine->last_match == thread)
-			thread__zput(machine->last_match);
-		thread__put(thread);
-	}
+	if (thread)
+		machine__remove_thread(machine, thread);
 
 	return 0;
 }

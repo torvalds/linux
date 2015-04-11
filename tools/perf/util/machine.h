@@ -120,6 +120,7 @@ int machine__init(struct machine *machine, const char *root_dir, pid_t pid);
 void machine__exit(struct machine *machine);
 void machine__delete_threads(struct machine *machine);
 void machine__delete(struct machine *machine);
+void machine__remove_thread(struct machine *machine, struct thread *th);
 
 struct branch_info *sample__resolve_bstack(struct perf_sample *sample,
 					   struct addr_location *al);

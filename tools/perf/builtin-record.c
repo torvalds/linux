@@ -70,8 +70,8 @@ static int process_synthesized_event(struct perf_tool *tool,
 static int record__mmap_read(struct record *rec, int idx)
 {
 	struct perf_mmap *md = &rec->evlist->mmap[idx];
-	unsigned int head = perf_mmap__read_head(md);
-	unsigned int old = md->prev;
+	u64 head = perf_mmap__read_head(md);
+	u64 old = md->prev;
 	unsigned char *data = md->base + page_size;
 	unsigned long size;
 	void *buf;
