@@ -941,9 +941,6 @@ static int device_tx_srv(struct vnt_private *pDevice, unsigned int uIdx)
 		/* Only the status of first TD in the chain is correct */
 		if (pTD->m_td1TD1.byTCR & TCR_STP) {
 			if ((pTD->pTDInfo->byFlags & TD_FLAGS_NETIF_SKB) != 0) {
-
-				vnt_int_report_rate(pDevice, pTD->pTDInfo, byTsr0, byTsr1);
-
 				if (!(byTsr1 & TSR1_TERR)) {
 					if (byTsr0 != 0) {
 						pr_debug(" Tx[%d] OK but has error. tsr1[%02X] tsr0[%02X]\n",
@@ -962,6 +959,9 @@ static int device_tx_srv(struct vnt_private *pDevice, unsigned int uIdx)
 						 (int)uIdx, byTsr1, byTsr0);
 				}
 			}
+
+			vnt_int_report_rate(pDevice, pTD->pTDInfo, byTsr0, byTsr1);
+
 			device_free_tx_buf(pDevice, pTD);
 			pDevice->iTDUsed[uIdx]--;
 		}
