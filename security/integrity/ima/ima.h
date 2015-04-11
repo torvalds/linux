@@ -52,6 +52,15 @@ extern int ima_used_chip;
 extern int ima_hash_algo;
 extern int ima_appraise;
 
+/* IMA event related data */
+struct ima_event_data {
+	struct integrity_iint_cache *iint;
+	struct file *file;
+	const unsigned char *filename;
+	struct evm_ima_xattr_data *xattr_value;
+	int xattr_len;
+};
+
 /* IMA template field data definition */
 struct ima_field_data {
 	u8 *data;
@@ -61,12 +70,10 @@ struct ima_field_data {
 /* IMA template field definition */
 struct ima_template_field {
 	const char field_id[IMA_TEMPLATE_FIELD_ID_MAX_LEN];
-	int (*field_init) (struct integrity_iint_cache *iint, struct file *file,
-			   const unsigned char *filename,
-			   struct evm_ima_xattr_data *xattr_value,
-			   int xattr_len, struct ima_field_data *field_data);
-	void (*field_show) (struct seq_file *m, enum ima_show_type show,
-			    struct ima_field_data *field_data);
+	int (*field_init)(struct ima_event_data *event_data,
+			  struct ima_field_data *field_data);
+	void (*field_show)(struct seq_file *m, enum ima_show_type show,
+			   struct ima_field_data *field_data);
 };
 
 /* IMA template descriptor definition */
@@ -140,10 +147,8 @@ void ima_store_measurement(struct integrity_iint_cache *iint, struct file *file,
 			   int xattr_len);
 void ima_audit_measurement(struct integrity_iint_cache *iint,
 			   const unsigned char *filename);
-int ima_alloc_init_template(struct integrity_iint_cache *iint,
-			    struct file *file, const unsigned char *filename,
-			    struct evm_ima_xattr_data *xattr_value,
-			    int xattr_len, struct ima_template_entry **entry);
+int ima_alloc_init_template(struct ima_event_data *event_data,
+			    struct ima_template_entry **entry);
 int ima_store_template(struct ima_template_entry *entry, int violation,
 		       struct inode *inode, const unsigned char *filename);
 void ima_free_template_entry(struct ima_template_entry *entry);
