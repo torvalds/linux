@@ -30,8 +30,7 @@ struct nft_rbtree_elem {
 };
 
 
-static bool nft_rbtree_lookup(const struct nft_set *set,
-			      const struct nft_data *key,
+static bool nft_rbtree_lookup(const struct nft_set *set, const u32 *key,
 			      const struct nft_set_ext **ext)
 {
 	const struct nft_rbtree *priv = nft_set_priv(set);

@@ -36,7 +36,7 @@ struct nft_hash_elem {
 
 struct nft_hash_cmp_arg {
 	const struct nft_set		*set;
-	const struct nft_data		*key;
+	const u32			*key;
 	u8				genmask;
 };
 
@@ -71,8 +71,7 @@ static inline int nft_hash_cmp(struct rhashtable_compare_arg *arg,
 	return 0;
 }
 
-static bool nft_hash_lookup(const struct nft_set *set,
-			    const struct nft_data *key,
+static bool nft_hash_lookup(const struct nft_set *set, const u32 *key,
 			    const struct nft_set_ext **ext)
 {
 	struct nft_hash *priv = nft_set_priv(set);
@@ -90,7 +89,7 @@ static bool nft_hash_lookup(const struct nft_set *set,
 	return !!he;
 }
 
-static bool nft_hash_update(struct nft_set *set, const struct nft_data *key,
+static bool nft_hash_update(struct nft_set *set, const u32 *key,
 			    void *(*new)(struct nft_set *,
 					 const struct nft_expr *,
 					 struct nft_regs *regs),
@@ -134,7 +133,7 @@ static int nft_hash_insert(const struct nft_set *set,
 	struct nft_hash_cmp_arg arg = {
 		.genmask = nft_genmask_next(read_pnet(&set->pnet)),
 		.set	 = set,
-		.key	 = &elem->key,
+		.key	 = elem->key.data,
 	};
 
 	return rhashtable_lookup_insert_key(&priv->ht, &arg, &he->node,
@@ -158,7 +157,7 @@ static void *nft_hash_deactivate(const struct nft_set *set,
 	struct nft_hash_cmp_arg arg = {
 		.genmask = nft_genmask_next(read_pnet(&set->pnet)),
 		.set	 = set,
-		.key	 = &elem->key,
+		.key	 = elem->key.data,
 	};
 
 	rcu_read_lock();

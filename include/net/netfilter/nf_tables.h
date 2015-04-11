@@ -231,10 +231,10 @@ struct nft_expr;
  */
 struct nft_set_ops {
 	bool				(*lookup)(const struct nft_set *set,
-						  const struct nft_data *key,
+						  const u32 *key,
 						  const struct nft_set_ext **ext);
 	bool				(*update)(struct nft_set *set,
-						  const struct nft_data *key,
+						  const u32 *key,
 						  void *(*new)(struct nft_set *,
 							       const struct nft_expr *,
 							       struct nft_regs *),
