@@ -98,6 +98,7 @@ static struct nft_expr_type nft_limit_type __read_mostly = {
 	.ops		= &nft_limit_ops,
 	.policy		= nft_limit_policy,
 	.maxattr	= NFTA_LIMIT_MAX,
+	.flags		= NFT_EXPR_STATEFUL,
 	.owner		= THIS_MODULE,
 };
 

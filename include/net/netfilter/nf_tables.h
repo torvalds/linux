@@ -583,6 +583,7 @@ static inline void nft_set_gc_batch_add(struct nft_set_gc_batch *gcb,
  *	@policy: netlink attribute policy
  *	@maxattr: highest netlink attribute number
  *	@family: address family for AF-specific types
+ *	@flags: expression type flags
  */
 struct nft_expr_type {
 	const struct nft_expr_ops	*(*select_ops)(const struct nft_ctx *,
@@ -594,7 +595,10 @@ struct nft_expr_type {
 	const struct nla_policy		*policy;
 	unsigned int			maxattr;
 	u8				family;
+	u8				flags;
 };
+
+#define NFT_EXPR_STATEFUL		0x1
 
 /**
  *	struct nft_expr_ops - nf_tables expression operations
