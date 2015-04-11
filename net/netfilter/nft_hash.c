@@ -133,7 +133,7 @@ static int nft_hash_insert(const struct nft_set *set,
 	struct nft_hash_cmp_arg arg = {
 		.genmask = nft_genmask_next(read_pnet(&set->pnet)),
 		.set	 = set,
-		.key	 = elem->key.data,
+		.key	 = elem->key.val.data,
 	};
 
 	return rhashtable_lookup_insert_key(&priv->ht, &arg, &he->node,
@@ -157,7 +157,7 @@ static void *nft_hash_deactivate(const struct nft_set *set,
 	struct nft_hash_cmp_arg arg = {
 		.genmask = nft_genmask_next(read_pnet(&set->pnet)),
 		.set	 = set,
-		.key	 = elem->key.data,
+		.key	 = elem->key.val.data,
 	};
 
 	rcu_read_lock();

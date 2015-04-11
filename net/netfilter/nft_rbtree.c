@@ -152,7 +152,8 @@ static void *nft_rbtree_deactivate(const struct nft_set *set,
 	while (parent != NULL) {
 		rbe = rb_entry(parent, struct nft_rbtree_elem, node);
 
-		d = memcmp(nft_set_ext_key(&rbe->ext), &elem->key, set->klen);
+		d = memcmp(nft_set_ext_key(&rbe->ext), &elem->key.val,
+					   set->klen);
 		if (d < 0)
 			parent = parent->rb_left;
 		else if (d > 0)

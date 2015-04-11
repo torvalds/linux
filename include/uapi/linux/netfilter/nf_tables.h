@@ -388,6 +388,9 @@ enum nft_data_attributes {
 };
 #define NFTA_DATA_MAX		(__NFTA_DATA_MAX - 1)
 
+/* Maximum length of a value */
+#define NFT_DATA_VALUE_MAXLEN	64
+
 /**
  * enum nft_verdict_attributes - nf_tables verdict netlink attributes
  *

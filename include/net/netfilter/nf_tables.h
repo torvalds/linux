@@ -158,7 +158,10 @@ struct nft_userdata {
  *	@priv: element private data and extensions
  */
 struct nft_set_elem {
-	struct nft_data		key;
+	union {
+		u32		buf[NFT_DATA_VALUE_MAXLEN / sizeof(u32)];
+		struct nft_data	val;
+	} key;
 	void			*priv;
 };
 
