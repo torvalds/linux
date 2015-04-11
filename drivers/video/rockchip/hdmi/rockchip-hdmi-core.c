@@ -238,6 +238,10 @@ static void hdmi_wq_remove(struct hdmi *hdmi)
 	DBG("%s", __func__);
 	if (hdmi->ops->remove)
 		hdmi->ops->remove(hdmi);
+	if (hdmi->hotplug == HDMI_HPD_ACTIVED) {
+		screen.type = SCREEN_HDMI;
+		rk_fb_switch_screen(&screen, 0, hdmi->lcdc->id);
+	}
 	#ifdef CONFIG_SWITCH
 	switch_set_state(&(hdmi->switchdev), 0);
 	#endif
@@ -245,9 +249,7 @@ static void hdmi_wq_remove(struct hdmi *hdmi)
 		list_del(pos);
 		kfree(pos);
 	}
-
 	kfree(hdmi->edid.audio);
-
 	if (hdmi->edid.specs) {
 		kfree(hdmi->edid.specs->modedb);
 		kfree(hdmi->edid.specs);
@@ -257,10 +259,6 @@ static void hdmi_wq_remove(struct hdmi *hdmi)
 	hdmi->mute	= HDMI_AV_UNMUTE;
 	hdmi->mode_3d = HDMI_3D_NONE;
 	hdmi->uboot = 0;
-	if (hdmi->hotplug == HDMI_HPD_ACTIVED) {
-		screen.type = SCREEN_HDMI;
-		rk_fb_switch_screen(&screen, 0, hdmi->lcdc->id);
-	}
 	hdmi->hotplug = HDMI_HPD_REMOVED;
 	hdmi_send_uevent(hdmi, KOBJ_REMOVE);
 }
