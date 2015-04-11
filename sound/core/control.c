@@ -1214,6 +1214,7 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 	unsigned int access;
 	long private_size;
 	struct user_element *ue;
+	unsigned int offset;
 	int err;
 
 	if (!*info->id.name)
@@ -1316,6 +1317,15 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 	err = snd_ctl_add(card, kctl);
 	if (err < 0)
 		return err;
+	offset = snd_ctl_get_ioff(kctl, &info->id);
+	snd_ctl_build_ioff(&info->id, kctl, offset);
+	/*
+	 * Here we cannot fill any field for the number of elements added by
+	 * this operation because there're no specific fields. The usage of
+	 * 'owner' field for this purpose may cause any bugs to userspace
+	 * applications because the field originally means PID of a process
+	 * which locks the element.
+	 */
 
 	down_write(&card->controls_rwsem);
 	card->user_ctl_count++;
@@ -1328,9 +1338,19 @@ static int snd_ctl_elem_add_user(struct snd_ctl_file *file,
 				 struct snd_ctl_elem_info __user *_info, int replace)
 {
 	struct snd_ctl_elem_info info;
+	int err;
+
 	if (copy_from_user(&info, _info, sizeof(info)))
 		return -EFAULT;
-	return snd_ctl_elem_add(file, &info, replace);
+	err = snd_ctl_elem_add(file, &info, replace);
+	if (err < 0)
+		return err;
+	if (copy_to_user(_info, &info, sizeof(info))) {
+		snd_ctl_remove_user_ctl(file, &info.id);
+		return -EFAULT;
+	}
+
+	return 0;
 }
 
 static int snd_ctl_elem_remove(struct snd_ctl_file *file,
