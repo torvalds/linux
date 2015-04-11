@@ -75,7 +75,8 @@ static int nft_cmp_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 	struct nft_data_desc desc;
 	int err;
 
-	err = nft_data_init(NULL, &priv->data, &desc, tb[NFTA_CMP_DATA]);
+	err = nft_data_init(NULL, &priv->data, sizeof(priv->data), &desc,
+			    tb[NFTA_CMP_DATA]);
 	BUG_ON(err < 0);
 
 	priv->sreg = nft_parse_register(tb[NFTA_CMP_SREG]);
@@ -125,7 +126,8 @@ static int nft_cmp_fast_init(const struct nft_ctx *ctx,
 	u32 mask;
 	int err;
 
-	err = nft_data_init(NULL, &data, &desc, tb[NFTA_CMP_DATA]);
+	err = nft_data_init(NULL, &data, sizeof(data), &desc,
+			    tb[NFTA_CMP_DATA]);
 	BUG_ON(err < 0);
 
 	priv->sreg = nft_parse_register(tb[NFTA_CMP_SREG]);
@@ -195,7 +197,8 @@ nft_cmp_select_ops(const struct nft_ctx *ctx, const struct nlattr * const tb[])
 		return ERR_PTR(-EINVAL);
 	}
 
-	err = nft_data_init(NULL, &data, &desc, tb[NFTA_CMP_DATA]);
+	err = nft_data_init(NULL, &data, sizeof(data), &desc,
+			    tb[NFTA_CMP_DATA]);
 	if (err < 0)
 		return ERR_PTR(err);
 

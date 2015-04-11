@@ -3299,7 +3299,8 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 		timeout = set->timeout;
 	}
 
-	err = nft_data_init(ctx, &elem.key, &d1, nla[NFTA_SET_ELEM_KEY]);
+	err = nft_data_init(ctx, &elem.key, sizeof(elem.key), &d1,
+			    nla[NFTA_SET_ELEM_KEY]);
 	if (err < 0)
 		goto err1;
 	err = -EINVAL;
@@ -3314,7 +3315,8 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 	}
 
 	if (nla[NFTA_SET_ELEM_DATA] != NULL) {
-		err = nft_data_init(ctx, &data, &d2, nla[NFTA_SET_ELEM_DATA]);
+		err = nft_data_init(ctx, &data, sizeof(data), &d2,
+				    nla[NFTA_SET_ELEM_DATA]);
 		if (err < 0)
 			goto err2;
 
@@ -3458,7 +3460,8 @@ static int nft_del_setelem(struct nft_ctx *ctx, struct nft_set *set,
 	if (nla[NFTA_SET_ELEM_KEY] == NULL)
 		goto err1;
 
-	err = nft_data_init(ctx, &elem.key, &desc, nla[NFTA_SET_ELEM_KEY]);
+	err = nft_data_init(ctx, &elem.key, sizeof(elem.key), &desc,
+			    nla[NFTA_SET_ELEM_KEY]);
 	if (err < 0)
 		goto err1;
 
@@ -4339,7 +4342,8 @@ nla_put_failure:
 	return -1;
 }
 
-static int nft_value_init(const struct nft_ctx *ctx, struct nft_data *data,
+static int nft_value_init(const struct nft_ctx *ctx,
+			  struct nft_data *data, unsigned int size,
 			  struct nft_data_desc *desc, const struct nlattr *nla)
 {
 	unsigned int len;
@@ -4347,10 +4351,10 @@ static int nft_value_init(const struct nft_ctx *ctx, struct nft_data *data,
 	len = nla_len(nla);
 	if (len == 0)
 		return -EINVAL;
-	if (len > sizeof(data->data))
+	if (len > size)
 		return -EOVERFLOW;
 
-	nla_memcpy(data->data, nla, sizeof(data->data));
+	nla_memcpy(data->data, nla, len);
 	desc->type = NFT_DATA_VALUE;
 	desc->len  = len;
 	return 0;
@@ -4363,8 +4367,7 @@ static int nft_value_dump(struct sk_buff *skb, const struct nft_data *data,
 }
 
 static const struct nla_policy nft_data_policy[NFTA_DATA_MAX + 1] = {
-	[NFTA_DATA_VALUE]	= { .type = NLA_BINARY,
-				    .len  = FIELD_SIZEOF(struct nft_data, data) },
+	[NFTA_DATA_VALUE]	= { .type = NLA_BINARY },
 	[NFTA_DATA_VERDICT]	= { .type = NLA_NESTED },
 };
 
@@ -4373,6 +4376,7 @@ static const struct nla_policy nft_data_policy[NFTA_DATA_MAX + 1] = {
  *
  *	@ctx: context of the expression using the data
  *	@data: destination struct nft_data
+ *	@size: maximum data length
  *	@desc: data description
  *	@nla: netlink attribute containing data
  *
@@ -4382,7 +4386,8 @@ static const struct nla_policy nft_data_policy[NFTA_DATA_MAX + 1] = {
  *	The caller can indicate that it only wants to accept data of type
  *	NFT_DATA_VALUE by passing NULL for the ctx argument.
  */
-int nft_data_init(const struct nft_ctx *ctx, struct nft_data *data,
+int nft_data_init(const struct nft_ctx *ctx,
+		  struct nft_data *data, unsigned int size,
 		  struct nft_data_desc *desc, const struct nlattr *nla)
 {
 	struct nlattr *tb[NFTA_DATA_MAX + 1];
@@ -4393,7 +4398,8 @@ int nft_data_init(const struct nft_ctx *ctx, struct nft_data *data,
 		return err;
 
 	if (tb[NFTA_DATA_VALUE])
-		return nft_value_init(ctx, data, desc, tb[NFTA_DATA_VALUE]);
+		return nft_value_init(ctx, data, size, desc,
+				      tb[NFTA_DATA_VALUE]);
 	if (tb[NFTA_DATA_VERDICT] && ctx != NULL)
 		return nft_verdict_init(ctx, data, desc, tb[NFTA_DATA_VERDICT]);
 	return -EINVAL;

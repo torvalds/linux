@@ -49,7 +49,8 @@ static int nft_immediate_init(const struct nft_ctx *ctx,
 	    tb[NFTA_IMMEDIATE_DATA] == NULL)
 		return -EINVAL;
 
-	err = nft_data_init(ctx, &priv->data, &desc, tb[NFTA_IMMEDIATE_DATA]);
+	err = nft_data_init(ctx, &priv->data, sizeof(priv->data), &desc,
+			    tb[NFTA_IMMEDIATE_DATA]);
 	if (err < 0)
 		return err;
 	priv->dlen = desc.len;
