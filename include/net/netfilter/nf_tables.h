@@ -371,6 +371,7 @@ void nf_tables_unbind_set(const struct nft_ctx *ctx, struct nft_set *set,
  *	@NFT_SET_EXT_TIMEOUT: element timeout
  *	@NFT_SET_EXT_EXPIRATION: element expiration time
  *	@NFT_SET_EXT_USERDATA: user data associated with the element
+ *	@NFT_SET_EXT_EXPR: expression assiociated with the element
  *	@NFT_SET_EXT_NUM: number of extension types
  */
 enum nft_set_extensions {
@@ -380,6 +381,7 @@ enum nft_set_extensions {
 	NFT_SET_EXT_TIMEOUT,
 	NFT_SET_EXT_EXPIRATION,
 	NFT_SET_EXT_USERDATA,
+	NFT_SET_EXT_EXPR,
 	NFT_SET_EXT_NUM
 };
 
@@ -489,6 +491,11 @@ static inline unsigned long *nft_set_ext_expiration(const struct nft_set_ext *ex
 static inline struct nft_userdata *nft_set_ext_userdata(const struct nft_set_ext *ext)
 {
 	return nft_set_ext(ext, NFT_SET_EXT_USERDATA);
+}
+
+static inline struct nft_expr *nft_set_ext_expr(const struct nft_set_ext *ext)
+{
+	return nft_set_ext(ext, NFT_SET_EXT_EXPR);
 }
 
 static inline bool nft_set_elem_expired(const struct nft_set_ext *ext)
