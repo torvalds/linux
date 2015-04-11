@@ -56,10 +56,6 @@ static char *serial_version = "$Revision: 1.25 $";
 #error "RX_TIMEOUT_TICKS == 0 not allowed, use 1"
 #endif
 
-#if defined(CONFIG_ETRAX_RS485_ON_PA) && defined(CONFIG_ETRAX_RS485_ON_PORT_G)
-#error "Disable either CONFIG_ETRAX_RS485_ON_PA or CONFIG_ETRAX_RS485_ON_PORT_G"
-#endif
-
 /*
  * All of the compatibilty code so we can compile serial.c against
  * older kernels is hidden in serial_compat.h
@@ -486,9 +482,6 @@ static struct fast_timer fast_timers_rs485[NR_PORTS];
 #endif
 #if defined(CONFIG_ETRAX_RS485_ON_PA)
 static int rs485_pa_bit = CONFIG_ETRAX_RS485_ON_PA_BIT;
-#endif
-#if defined(CONFIG_ETRAX_RS485_ON_PORT_G)
-static int rs485_port_g_bit = CONFIG_ETRAX_RS485_ON_PORT_G_BIT;
 #endif
 #endif
 
@@ -1366,16 +1359,6 @@ e100_enable_rs485(struct tty_struct *tty, struct serial_rs485 *r)
 
 #if defined(CONFIG_ETRAX_RS485_ON_PA)
 	*R_PORT_PA_DATA = port_pa_data_shadow |= (1 << rs485_pa_bit);
-#endif
-#if defined(CONFIG_ETRAX_RS485_ON_PORT_G)
-	REG_SHADOW_SET(R_PORT_G_DATA,  port_g_data_shadow,
-		       rs485_port_g_bit, 1);
-#endif
-#if defined(CONFIG_ETRAX_RS485_LTC1387)
-	REG_SHADOW_SET(R_PORT_G_DATA, port_g_data_shadow,
-		       CONFIG_ETRAX_RS485_LTC1387_DXEN_PORT_G_BIT, 1);
-	REG_SHADOW_SET(R_PORT_G_DATA, port_g_data_shadow,
-		       CONFIG_ETRAX_RS485_LTC1387_RXEN_PORT_G_BIT, 1);
 #endif
 
 	info->rs485 = *r;
@@ -3708,16 +3691,6 @@ rs_close(struct tty_struct *tty, struct file * filp)
 #if defined(CONFIG_ETRAX_RS485_ON_PA)
 		*R_PORT_PA_DATA = port_pa_data_shadow &= ~(1 << rs485_pa_bit);
 #endif
-#if defined(CONFIG_ETRAX_RS485_ON_PORT_G)
-		REG_SHADOW_SET(R_PORT_G_DATA, port_g_data_shadow,
-			       rs485_port_g_bit, 0);
-#endif
-#if defined(CONFIG_ETRAX_RS485_LTC1387)
-		REG_SHADOW_SET(R_PORT_G_DATA, port_g_data_shadow,
-			       CONFIG_ETRAX_RS485_LTC1387_DXEN_PORT_G_BIT, 0);
-		REG_SHADOW_SET(R_PORT_G_DATA, port_g_data_shadow,
-			       CONFIG_ETRAX_RS485_LTC1387_RXEN_PORT_G_BIT, 0);
-#endif
 	}
 #endif
 
@@ -4240,15 +4213,6 @@ static int __init rs_init(void)
 #if defined(CONFIG_ETRAX_RS485_ON_PA)
 	if (cris_io_interface_allocate_pins(if_serial_0, 'a', rs485_pa_bit,
 			rs485_pa_bit)) {
-		printk(KERN_ERR "ETRAX100LX serial: Could not allocate "
-			"RS485 pin\n");
-		put_tty_driver(driver);
-		return -EBUSY;
-	}
-#endif
-#if defined(CONFIG_ETRAX_RS485_ON_PORT_G)
-	if (cris_io_interface_allocate_pins(if_serial_0, 'g', rs485_pa_bit,
-			rs485_port_g_bit)) {
 		printk(KERN_ERR "ETRAX100LX serial: Could not allocate "
 			"RS485 pin\n");
 		put_tty_driver(driver);
