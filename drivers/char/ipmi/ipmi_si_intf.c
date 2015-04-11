@@ -263,6 +263,11 @@ struct smi_info {
 	bool supports_event_msg_buff;
 
 	/*
+	 * Can we clear the global enables receive irq bit?
+	 */
+	bool cannot_clear_recv_irq_bit;
+
+	/*
 	 * Did we get an attention that we did not handle?
 	 */
 	bool got_attn;
@@ -461,6 +466,9 @@ static void smi_mod_timer(struct smi_info *smi_info, unsigned long new_val)
  * allocate messages, we just leave them in the BMC and run the system
  * polled until we can allocate some memory.  Once we have some
  * memory, we will re-enable the interrupt.
+ *
+ * Note that we cannot just use disable_irq(), since the interrupt may
+ * be shared.
  */
 static inline bool disable_si_irq(struct smi_info *smi_info)
 {
@@ -549,20 +557,15 @@ static u8 current_global_enables(struct smi_info *smi_info, u8 base,
 
 	if (smi_info->supports_event_msg_buff)
 		enables |= IPMI_BMC_EVT_MSG_BUFF;
-	else
-		enables &= ~IPMI_BMC_EVT_MSG_BUFF;
 
-	if (smi_info->irq && !smi_info->interrupt_disabled)
+	if ((smi_info->irq && !smi_info->interrupt_disabled) ||
+	    smi_info->cannot_clear_recv_irq_bit)
 		enables |= IPMI_BMC_RCV_MSG_INTR;
-	else
-		enables &= ~IPMI_BMC_RCV_MSG_INTR;
 
 	if (smi_info->supports_event_msg_buff &&
 	    smi_info->irq && !smi_info->interrupt_disabled)
 
 		enables |= IPMI_BMC_EVT_MSG_INTR;
-	else
-		enables &= ~IPMI_BMC_EVT_MSG_INTR;
 
 	*irq_on = enables & (IPMI_BMC_EVT_MSG_INTR | IPMI_BMC_RCV_MSG_INTR);
 
@@ -2900,6 +2903,96 @@ static int try_get_dev_id(struct smi_info *smi_info)
 	return rv;
 }
 
+/*
+ * Some BMCs do not support clearing the receive irq bit in the global
+ * enables (even if they don't support interrupts on the BMC).  Check
+ * for this and handle it properly.
+ */
+static void check_clr_rcv_irq(struct smi_info *smi_info)
+{
+	unsigned char         msg[3];
+	unsigned char         *resp;
+	unsigned long         resp_len;
+	int                   rv;
+
+	resp = kmalloc(IPMI_MAX_MSG_LENGTH, GFP_KERNEL);
+	if (!resp) {
+		printk(KERN_WARNING PFX "Out of memory allocating response for"
+		       " global enables command, cannot check recv irq bit"
+		       " handling.\n");
+		return;
+	}
+
+	msg[0] = IPMI_NETFN_APP_REQUEST << 2;
+	msg[1] = IPMI_GET_BMC_GLOBAL_ENABLES_CMD;
+	smi_info->handlers->start_transaction(smi_info->si_sm, msg, 2);
+
+	rv = wait_for_msg_done(smi_info);
+	if (rv) {
+		printk(KERN_WARNING PFX "Error getting response from get"
+		       " global enables command, cannot check recv irq bit"
+		       " handling.\n");
+		goto out;
+	}
+
+	resp_len = smi_info->handlers->get_result(smi_info->si_sm,
+						  resp, IPMI_MAX_MSG_LENGTH);
+
+	if (resp_len < 4 ||
+			resp[0] != (IPMI_NETFN_APP_REQUEST | 1) << 2 ||
+			resp[1] != IPMI_GET_BMC_GLOBAL_ENABLES_CMD   ||
+			resp[2] != 0) {
+		printk(KERN_WARNING PFX "Invalid return from get global"
+		       " enables command, cannot check recv irq bit"
+		       " handling.\n");
+		rv = -EINVAL;
+		goto out;
+	}
+
+	if ((resp[3] & IPMI_BMC_RCV_MSG_INTR) == 0)
+		/* Already clear, should work ok. */
+		goto out;
+
+	msg[0] = IPMI_NETFN_APP_REQUEST << 2;
+	msg[1] = IPMI_SET_BMC_GLOBAL_ENABLES_CMD;
+	msg[2] = resp[3] & ~IPMI_BMC_RCV_MSG_INTR;
+	smi_info->handlers->start_transaction(smi_info->si_sm, msg, 3);
+
+	rv = wait_for_msg_done(smi_info);
+	if (rv) {
+		printk(KERN_WARNING PFX "Error getting response from set"
+		       " global enables command, cannot check recv irq bit"
+		       " handling.\n");
+		goto out;
+	}
+
+	resp_len = smi_info->handlers->get_result(smi_info->si_sm,
+						  resp, IPMI_MAX_MSG_LENGTH);
+
+	if (resp_len < 3 ||
+			resp[0] != (IPMI_NETFN_APP_REQUEST | 1) << 2 ||
+			resp[1] != IPMI_SET_BMC_GLOBAL_ENABLES_CMD) {
+		printk(KERN_WARNING PFX "Invalid return from get global"
+		       " enables command, cannot check recv irq bit"
+		       " handling.\n");
+		rv = -EINVAL;
+		goto out;
+	}
+
+	if (resp[2] != 0) {
+		/*
+		 * An error when setting the event buffer bit means
+		 * clearing the bit is not supported.
+		 */
+		printk(KERN_WARNING PFX "The BMC does not support clearing"
+		       " the recv irq bit, compensating, but the BMC needs to"
+		       " be fixed.\n");
+		smi_info->cannot_clear_recv_irq_bit = true;
+	}
+ out:
+	kfree(resp);
+}
+
 static int try_enable_event_buffer(struct smi_info *smi_info)
 {
 	unsigned char         msg[3];
@@ -3394,6 +3487,8 @@ static int try_smi_init(struct smi_info *new_smi)
 			       " at this location\n");
 		goto out_err;
 	}
+
+	check_clr_rcv_irq(new_smi);
 
 	setup_oem_data_handler(new_smi);
 	setup_xaction_handlers(new_smi);
