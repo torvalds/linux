@@ -307,10 +307,6 @@ static int nft_ct_get_init(const struct nft_ctx *ctx,
 	}
 
 	priv->dreg = ntohl(nla_get_be32(tb[NFTA_CT_DREG]));
-	err = nft_validate_output_register(priv->dreg);
-	if (err < 0)
-		return err;
-
 	err = nft_validate_register_store(ctx, priv->dreg, NULL,
 					  NFT_DATA_VALUE, len);
 	if (err < 0)

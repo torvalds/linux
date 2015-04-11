@@ -80,10 +80,6 @@ static int nft_lookup_init(const struct nft_ctx *ctx,
 			return -EINVAL;
 
 		priv->dreg = ntohl(nla_get_be32(tb[NFTA_LOOKUP_DREG]));
-		err = nft_validate_output_register(priv->dreg);
-		if (err < 0)
-			return err;
-
 		err = nft_validate_register_store(ctx, priv->dreg, NULL,
 						  set->dtype, set->dlen);
 		if (err < 0)

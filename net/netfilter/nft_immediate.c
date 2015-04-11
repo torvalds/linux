@@ -49,16 +49,12 @@ static int nft_immediate_init(const struct nft_ctx *ctx,
 	    tb[NFTA_IMMEDIATE_DATA] == NULL)
 		return -EINVAL;
 
-	priv->dreg = ntohl(nla_get_be32(tb[NFTA_IMMEDIATE_DREG]));
-	err = nft_validate_output_register(priv->dreg);
-	if (err < 0)
-		return err;
-
 	err = nft_data_init(ctx, &priv->data, &desc, tb[NFTA_IMMEDIATE_DATA]);
 	if (err < 0)
 		return err;
 	priv->dlen = desc.len;
 
+	priv->dreg = ntohl(nla_get_be32(tb[NFTA_IMMEDIATE_DREG]));
 	err = nft_validate_register_store(ctx, priv->dreg, &priv->data,
 					  desc.type, desc.len);
 	if (err < 0)

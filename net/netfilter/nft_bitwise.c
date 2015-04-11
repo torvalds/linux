@@ -71,10 +71,6 @@ static int nft_bitwise_init(const struct nft_ctx *ctx,
 		return err;
 
 	priv->dreg = ntohl(nla_get_be32(tb[NFTA_BITWISE_DREG]));
-	err = nft_validate_output_register(priv->dreg);
-	if (err < 0)
-		return err;
-
 	err = nft_validate_register_store(ctx, priv->dreg, NULL,
 					  NFT_DATA_VALUE, priv->len);
 	if (err < 0)

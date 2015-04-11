@@ -115,15 +115,8 @@ static int nft_byteorder_init(const struct nft_ctx *ctx,
 		return err;
 
 	priv->dreg = ntohl(nla_get_be32(tb[NFTA_BYTEORDER_DREG]));
-	err = nft_validate_output_register(priv->dreg);
-	if (err < 0)
-		return err;
-	err = nft_validate_register_store(ctx, priv->dreg, NULL,
-					  NFT_DATA_VALUE, priv->len);
-	if (err < 0)
-		return err;
-
-	return 0;
+	return nft_validate_register_store(ctx, priv->dreg, NULL,
+					   NFT_DATA_VALUE, priv->len);
 }
 
 static int nft_byteorder_dump(struct sk_buff *skb, const struct nft_expr *expr)

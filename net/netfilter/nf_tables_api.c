@@ -4140,24 +4140,6 @@ int nft_validate_input_register(enum nft_registers reg)
 EXPORT_SYMBOL_GPL(nft_validate_input_register);
 
 /**
- *	nft_validate_output_register - validate an expressions' output register
- *
- *	@reg: the register number
- *
- * 	Validate that the output register is one of the general purpose
- * 	registers or the verdict register.
- */
-int nft_validate_output_register(enum nft_registers reg)
-{
-	if (reg < NFT_REG_VERDICT)
-		return -EINVAL;
-	if (reg > NFT_REG_MAX)
-		return -ERANGE;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(nft_validate_output_register);
-
-/**
  *	nft_validate_register_store - validate an expressions' register store
  *
  *	@ctx: context of the expression performing the load
@@ -4198,10 +4180,15 @@ int nft_validate_register_store(const struct nft_ctx *ctx,
 
 		return 0;
 	default:
+		if (reg < NFT_REG_1)
+			return -EINVAL;
+		if (reg > NFT_REG_MAX)
+			return -ERANGE;
 		if (len == 0)
 			return -EINVAL;
 		if (len > FIELD_SIZEOF(struct nft_data, data))
 			return -ERANGE;
+
 		if (data != NULL && type != NFT_DATA_VALUE)
 			return -EINVAL;
 		return 0;
