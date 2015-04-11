@@ -30,14 +30,12 @@ static void nft_bitwise_eval(const struct nft_expr *expr,
 			     const struct nft_pktinfo *pkt)
 {
 	const struct nft_bitwise *priv = nft_expr_priv(expr);
-	const struct nft_data *src = &regs->data[priv->sreg];
-	struct nft_data *dst = &regs->data[priv->dreg];
+	const u32  *src = &regs->data[priv->sreg].data[0];
+	u32 *dst = &regs->data[priv->dreg].data[0];
 	unsigned int i;
 
-	for (i = 0; i < DIV_ROUND_UP(priv->len, 4); i++) {
-		dst->data[i] = (src->data[i] & priv->mask.data[i]) ^
-			       priv->xor.data[i];
-	}
+	for (i = 0; i < DIV_ROUND_UP(priv->len, 4); i++)
+		dst[i] = (src[i] & priv->mask.data[i]) ^ priv->xor.data[i];
 }
 
 static const struct nla_policy nft_bitwise_policy[NFTA_BITWISE_MAX + 1] = {

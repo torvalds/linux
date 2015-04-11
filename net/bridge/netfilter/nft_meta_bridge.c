@@ -24,7 +24,7 @@ static void nft_meta_bridge_get_eval(const struct nft_expr *expr,
 {
 	const struct nft_meta *priv = nft_expr_priv(expr);
 	const struct net_device *in = pkt->in, *out = pkt->out;
-	struct nft_data *dest = &regs->data[priv->dreg];
+	u32 *dest = &regs->data[priv->dreg].data[0];
 	const struct net_bridge_port *p;
 
 	switch (priv->key) {
@@ -40,7 +40,7 @@ static void nft_meta_bridge_get_eval(const struct nft_expr *expr,
 		goto out;
 	}
 
-	strncpy((char *)dest->data, p->br->dev->name, sizeof(dest->data));
+	strncpy((char *)dest, p->br->dev->name, IFNAMSIZ);
 	return;
 out:
 	return nft_meta_get_eval(expr, regs, pkt);

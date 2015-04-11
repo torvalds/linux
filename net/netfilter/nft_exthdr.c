@@ -30,7 +30,7 @@ static void nft_exthdr_eval(const struct nft_expr *expr,
 			    const struct nft_pktinfo *pkt)
 {
 	struct nft_exthdr *priv = nft_expr_priv(expr);
-	struct nft_data *dest = &regs->data[priv->dreg];
+	u32 *dest = &regs->data[priv->dreg].data[0];
 	unsigned int offset = 0;
 	int err;
 
@@ -39,7 +39,7 @@ static void nft_exthdr_eval(const struct nft_expr *expr,
 		goto err;
 	offset += priv->offset;
 
-	if (skb_copy_bits(pkt->skb, offset, dest->data, priv->len) < 0)
+	if (skb_copy_bits(pkt->skb, offset, dest, priv->len) < 0)
 		goto err;
 	return;
 err:

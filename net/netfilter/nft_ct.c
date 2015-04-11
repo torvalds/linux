@@ -35,7 +35,7 @@ static void nft_ct_get_eval(const struct nft_expr *expr,
 			    const struct nft_pktinfo *pkt)
 {
 	const struct nft_ct *priv = nft_expr_priv(expr);
-	struct nft_data *dest = &regs->data[priv->dreg];
+	u32 *dest = &regs->data[priv->dreg].data[0];
 	enum ip_conntrack_info ctinfo;
 	const struct nf_conn *ct;
 	const struct nf_conn_help *help;
@@ -54,7 +54,7 @@ static void nft_ct_get_eval(const struct nft_expr *expr,
 			state = NF_CT_STATE_UNTRACKED_BIT;
 		else
 			state = NF_CT_STATE_BIT(ctinfo);
-		dest->data[0] = state;
+		*dest = state;
 		return;
 	default:
 		break;
@@ -65,26 +65,26 @@ static void nft_ct_get_eval(const struct nft_expr *expr,
 
 	switch (priv->key) {
 	case NFT_CT_DIRECTION:
-		dest->data[0] = CTINFO2DIR(ctinfo);
+		*dest = CTINFO2DIR(ctinfo);
 		return;
 	case NFT_CT_STATUS:
-		dest->data[0] = ct->status;
+		*dest = ct->status;
 		return;
 #ifdef CONFIG_NF_CONNTRACK_MARK
 	case NFT_CT_MARK:
-		dest->data[0] = ct->mark;
+		*dest = ct->mark;
 		return;
 #endif
 #ifdef CONFIG_NF_CONNTRACK_SECMARK
 	case NFT_CT_SECMARK:
-		dest->data[0] = ct->secmark;
+		*dest = ct->secmark;
 		return;
 #endif
 	case NFT_CT_EXPIRATION:
 		diff = (long)jiffies - (long)ct->timeout.expires;
 		if (diff < 0)
 			diff = 0;
-		dest->data[0] = jiffies_to_msecs(diff);
+		*dest = jiffies_to_msecs(diff);
 		return;
 	case NFT_CT_HELPER:
 		if (ct->master == NULL)
@@ -95,7 +95,7 @@ static void nft_ct_get_eval(const struct nft_expr *expr,
 		helper = rcu_dereference(help->helper);
 		if (helper == NULL)
 			goto err;
-		strncpy((char *)dest->data, helper->name, sizeof(dest->data));
+		strncpy((char *)dest, helper->name, NF_CT_HELPER_NAME_LEN);
 		return;
 #ifdef CONFIG_NF_CONNTRACK_LABELS
 	case NFT_CT_LABELS: {
@@ -103,15 +103,15 @@ static void nft_ct_get_eval(const struct nft_expr *expr,
 		unsigned int size;
 
 		if (!labels) {
-			memset(dest->data, 0, sizeof(dest->data));
+			memset(dest, 0, NF_CT_LABELS_MAX_SIZE);
 			return;
 		}
 
 		size = labels->words * sizeof(long);
-		memcpy(dest->data, labels->bits, size);
-		if (size < sizeof(dest->data))
-			memset(((char *) dest->data) + size, 0,
-			       sizeof(dest->data) - size);
+		memcpy(dest, labels->bits, size);
+		if (size < NF_CT_LABELS_MAX_SIZE)
+			memset(((char *) dest) + size, 0,
+			       NF_CT_LABELS_MAX_SIZE - size);
 		return;
 	}
 #endif
@@ -122,24 +122,24 @@ static void nft_ct_get_eval(const struct nft_expr *expr,
 	tuple = &ct->tuplehash[priv->dir].tuple;
 	switch (priv->key) {
 	case NFT_CT_L3PROTOCOL:
-		dest->data[0] = nf_ct_l3num(ct);
+		*dest = nf_ct_l3num(ct);
 		return;
 	case NFT_CT_SRC:
-		memcpy(dest->data, tuple->src.u3.all,
+		memcpy(dest, tuple->src.u3.all,
 		       nf_ct_l3num(ct) == NFPROTO_IPV4 ? 4 : 16);
 		return;
 	case NFT_CT_DST:
-		memcpy(dest->data, tuple->dst.u3.all,
+		memcpy(dest, tuple->dst.u3.all,
 		       nf_ct_l3num(ct) == NFPROTO_IPV4 ? 4 : 16);
 		return;
 	case NFT_CT_PROTOCOL:
-		dest->data[0] = nf_ct_protonum(ct);
+		*dest = nf_ct_protonum(ct);
 		return;
 	case NFT_CT_PROTO_SRC:
-		dest->data[0] = (__force __u16)tuple->src.u.all;
+		*dest = (__force __u16)tuple->src.u.all;
 		return;
 	case NFT_CT_PROTO_DST:
-		dest->data[0] = (__force __u16)tuple->dst.u.all;
+		*dest = (__force __u16)tuple->dst.u.all;
 		return;
 	default:
 		break;

@@ -81,7 +81,7 @@ static bool nft_payload_fast_eval(const struct nft_expr *expr,
 {
 	const struct nft_payload *priv = nft_expr_priv(expr);
 	const struct sk_buff *skb = pkt->skb;
-	struct nft_data *dest = &regs->data[priv->dreg];
+	u32 *dest = &regs->data[priv->dreg].data[0];
 	unsigned char *ptr;
 
 	if (priv->base == NFT_PAYLOAD_NETWORK_HEADER)
@@ -95,11 +95,11 @@ static bool nft_payload_fast_eval(const struct nft_expr *expr,
 		return false;
 
 	if (priv->len == 2)
-		*(u16 *)dest->data = *(u16 *)ptr;
+		*(u16 *)dest = *(u16 *)ptr;
 	else if (priv->len == 4)
-		*(u32 *)dest->data = *(u32 *)ptr;
+		*(u32 *)dest = *(u32 *)ptr;
 	else
-		*(u8 *)dest->data = *(u8 *)ptr;
+		*(u8 *)dest = *(u8 *)ptr;
 	return true;
 }
 
