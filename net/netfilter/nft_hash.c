@@ -62,7 +62,7 @@ static inline int nft_hash_cmp(struct rhashtable_compare_arg *arg,
 	const struct nft_hash_cmp_arg *x = arg->key;
 	const struct nft_hash_elem *he = ptr;
 
-	if (nft_data_cmp(nft_set_ext_key(&he->ext), x->key, x->set->klen))
+	if (memcmp(nft_set_ext_key(&he->ext), x->key, x->set->klen))
 		return 1;
 	if (nft_set_elem_expired(&he->ext))
 		return 1;

@@ -31,7 +31,7 @@ static void nft_cmp_eval(const struct nft_expr *expr,
 	const struct nft_cmp_expr *priv = nft_expr_priv(expr);
 	int d;
 
-	d = nft_data_cmp(&regs->data[priv->sreg], &priv->data, priv->len);
+	d = memcmp(&regs->data[priv->sreg], &priv->data, priv->len);
 	switch (priv->op) {
 	case NFT_CMP_EQ:
 		if (d != 0)

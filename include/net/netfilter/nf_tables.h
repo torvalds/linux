@@ -69,13 +69,6 @@ struct nft_regs {
 	};
 };
 
-static inline int nft_data_cmp(const struct nft_data *d1,
-			       const struct nft_data *d2,
-			       unsigned int len)
-{
-	return memcmp(d1->data, d2->data, len);
-}
-
 static inline void nft_data_copy(struct nft_data *dst,
 				 const struct nft_data *src)
 {
