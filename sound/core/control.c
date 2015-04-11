@@ -578,6 +578,7 @@ error:
  *
  * Finds the control instance with the given id, and activate or
  * inactivate the control together with notification, if changed.
+ * The given ID data is filled with full information.
  *
  * Return: 0 if unchanged, 1 if changed, or a negative error code on failure.
  */
@@ -607,6 +608,7 @@ int snd_ctl_activate_id(struct snd_card *card, struct snd_ctl_elem_id *id,
 			goto unlock;
 		vd->access |= SNDRV_CTL_ELEM_ACCESS_INACTIVE;
 	}
+	snd_ctl_build_ioff(id, kctl, index_offset);
 	ret = 1;
  unlock:
 	up_write(&card->controls_rwsem);
@@ -1038,8 +1040,12 @@ static int snd_ctl_elem_user_info(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_info *uinfo)
 {
 	struct user_element *ue = kcontrol->private_data;
+	unsigned int offset;
 
+	offset = snd_ctl_get_ioff(kcontrol, &uinfo->id);
 	*uinfo = ue->info;
+	snd_ctl_build_ioff(&uinfo->id, kcontrol, offset);
+
 	return 0;
 }
 
@@ -1049,10 +1055,13 @@ static int snd_ctl_elem_user_enum_info(struct snd_kcontrol *kcontrol,
 	struct user_element *ue = kcontrol->private_data;
 	const char *names;
 	unsigned int item;
+	unsigned int offset;
 
 	item = uinfo->value.enumerated.item;
 
+	offset = snd_ctl_get_ioff(kcontrol, &uinfo->id);
 	*uinfo = ue->info;
+	snd_ctl_build_ioff(&uinfo->id, kcontrol, offset);
 
 	item = min(item, uinfo->value.enumerated.items - 1);
 	uinfo->value.enumerated.item = item;
@@ -1205,6 +1214,7 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 	unsigned int access;
 	long private_size;
 	struct user_element *ue;
+	unsigned int offset;
 	int err;
 
 	if (!*info->id.name)
@@ -1307,6 +1317,15 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 	err = snd_ctl_add(card, kctl);
 	if (err < 0)
 		return err;
+	offset = snd_ctl_get_ioff(kctl, &info->id);
+	snd_ctl_build_ioff(&info->id, kctl, offset);
+	/*
+	 * Here we cannot fill any field for the number of elements added by
+	 * this operation because there're no specific fields. The usage of
+	 * 'owner' field for this purpose may cause any bugs to userspace
+	 * applications because the field originally means PID of a process
+	 * which locks the element.
+	 */
 
 	down_write(&card->controls_rwsem);
 	card->user_ctl_count++;
@@ -1319,9 +1338,19 @@ static int snd_ctl_elem_add_user(struct snd_ctl_file *file,
 				 struct snd_ctl_elem_info __user *_info, int replace)
 {
 	struct snd_ctl_elem_info info;
+	int err;
+
 	if (copy_from_user(&info, _info, sizeof(info)))
 		return -EFAULT;
-	return snd_ctl_elem_add(file, &info, replace);
+	err = snd_ctl_elem_add(file, &info, replace);
+	if (err < 0)
+		return err;
+	if (copy_to_user(_info, &info, sizeof(info))) {
+		snd_ctl_remove_user_ctl(file, &info.id);
+		return -EFAULT;
+	}
+
+	return 0;
 }
 
 static int snd_ctl_elem_remove(struct snd_ctl_file *file,
