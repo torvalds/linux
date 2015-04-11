@@ -422,7 +422,7 @@ enum {
 	EXT4_INODE_DIRTY	= 8,
 	EXT4_INODE_COMPRBLK	= 9,	/* One or more compressed clusters */
 	EXT4_INODE_NOCOMPR	= 10,	/* Don't compress */
-	EXT4_INODE_ENCRYPT	= 11,	/* Compression error */
+	EXT4_INODE_ENCRYPT	= 11,	/* Encrypted file */
 /* End compression flags --- maybe not all used */
 	EXT4_INODE_INDEX	= 12,	/* hash-indexed directory */
 	EXT4_INODE_IMAGIC	= 13,	/* AFS directory */
@@ -581,6 +581,13 @@ enum {
 #define EXT4_FREE_BLOCKS_NO_QUOT_UPDATE	0x0008
 #define EXT4_FREE_BLOCKS_NOFREE_FIRST_CLUSTER	0x0010
 #define EXT4_FREE_BLOCKS_NOFREE_LAST_CLUSTER	0x0020
+
+/* Encryption algorithms */
+#define EXT4_ENCRYPTION_MODE_INVALID		0
+#define EXT4_ENCRYPTION_MODE_AES_256_XTS	1
+#define EXT4_ENCRYPTION_MODE_AES_256_GCM	2
+#define EXT4_ENCRYPTION_MODE_AES_256_CBC	3
+#define EXT4_ENCRYPTION_MODE_AES_256_CTS	4
 
 /*
  * ioctl commands
@@ -1142,7 +1149,8 @@ struct ext4_super_block {
 	__le32  s_raid_stripe_width;    /* blocks on all data disks (N*stride)*/
 	__u8	s_log_groups_per_flex;  /* FLEX_BG group size */
 	__u8	s_checksum_type;	/* metadata checksum algorithm used */
-	__le16  s_reserved_pad;
+	__u8	s_encryption_level;	/* versioning level for encryption */
+	__u8	s_reserved_pad;		/* Padding to next 32bits */
 	__le64	s_kbytes_written;	/* nr of lifetime kilobytes written */
 	__le32	s_snapshot_inum;	/* Inode number of active snapshot */
 	__le32	s_snapshot_id;		/* sequential ID of active snapshot */
@@ -1169,7 +1177,9 @@ struct ext4_super_block {
 	__le32	s_overhead_clusters;	/* overhead blocks/clusters in fs */
 	__le32	s_backup_bgs[2];	/* groups with sparse_super2 SBs */
 	__u8	s_encrypt_algos[4];	/* Encryption algorithms in use  */
-	__le32	s_reserved[105];	/* Padding to the end of the block */
+	__u8	s_encrypt_pw_salt[16];	/* Salt used for string2key algorithm */
+	__le32	s_lpf_ino;		/* Location of the lost+found inode */
+	__le32	s_reserved[100];	/* Padding to the end of the block */
 	__le32	s_checksum;		/* crc32c(superblock) */
 };
 
