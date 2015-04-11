@@ -49,11 +49,8 @@ struct nft_verdict {
 
 struct nft_data {
 	union {
-		u32				data[4];
-		struct {
-			u32			verdict;
-			struct nft_chain	*chain;
-		};
+		u32			data[4];
+		struct nft_verdict	verdict;
 	};
 } __attribute__((aligned(__alignof__(u64))));
 
