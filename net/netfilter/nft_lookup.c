@@ -71,7 +71,7 @@ static int nft_lookup_init(const struct nft_ctx *ctx,
 	}
 
 	priv->sreg = ntohl(nla_get_be32(tb[NFTA_LOOKUP_SREG]));
-	err = nft_validate_input_register(priv->sreg);
+	err = nft_validate_register_load(priv->sreg, set->klen);
 	if (err < 0)
 		return err;
 

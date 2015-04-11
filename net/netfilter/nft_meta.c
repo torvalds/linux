@@ -267,20 +267,24 @@ int nft_meta_set_init(const struct nft_ctx *ctx,
 		      const struct nlattr * const tb[])
 {
 	struct nft_meta *priv = nft_expr_priv(expr);
+	unsigned int len;
 	int err;
 
 	priv->key = ntohl(nla_get_be32(tb[NFTA_META_KEY]));
 	switch (priv->key) {
 	case NFT_META_MARK:
 	case NFT_META_PRIORITY:
+		len = sizeof(u32);
+		break;
 	case NFT_META_NFTRACE:
+		len = sizeof(u8);
 		break;
 	default:
 		return -EOPNOTSUPP;
 	}
 
 	priv->sreg = ntohl(nla_get_be32(tb[NFTA_META_SREG]));
-	err = nft_validate_input_register(priv->sreg);
+	err = nft_validate_register_load(priv->sreg, len);
 	if (err < 0)
 		return err;
 

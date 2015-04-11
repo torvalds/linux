@@ -124,7 +124,7 @@ static int nft_dynset_init(const struct nft_ctx *ctx,
 	}
 
 	priv->sreg_key = ntohl(nla_get_be32(tb[NFTA_DYNSET_SREG_KEY]));
-	err = nft_validate_input_register(priv->sreg_key);
+	err = nft_validate_register_load(priv->sreg_key, set->klen);;
 	if (err < 0)
 		return err;
 
@@ -135,7 +135,7 @@ static int nft_dynset_init(const struct nft_ctx *ctx,
 			return -EOPNOTSUPP;
 
 		priv->sreg_data = ntohl(nla_get_be32(tb[NFTA_DYNSET_SREG_DATA]));
-		err = nft_validate_input_register(priv->sreg_data);
+		err = nft_validate_register_load(priv->sreg_data, set->dlen);
 		if (err < 0)
 			return err;
 	} else if (set->flags & NFT_SET_MAP)

@@ -4122,22 +4122,27 @@ static int nf_tables_check_loops(const struct nft_ctx *ctx,
 }
 
 /**
- *	nft_validate_input_register - validate an expressions' input register
+ *	nft_validate_register_load - validate a load from a register
  *
  *	@reg: the register number
+ *	@len: the length of the data
  *
  * 	Validate that the input register is one of the general purpose
- * 	registers.
+ * 	registers and that the length of the load is within the bounds.
  */
-int nft_validate_input_register(enum nft_registers reg)
+int nft_validate_register_load(enum nft_registers reg, unsigned int len)
 {
 	if (reg <= NFT_REG_VERDICT)
 		return -EINVAL;
 	if (reg > NFT_REG_MAX)
 		return -ERANGE;
+	if (len == 0)
+		return -EINVAL;
+	if (len > FIELD_SIZEOF(struct nft_data, data))
+		return -ERANGE;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(nft_validate_input_register);
+EXPORT_SYMBOL_GPL(nft_validate_register_load);
 
 /**
  *	nft_validate_register_store - validate an expressions' register store

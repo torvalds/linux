@@ -96,10 +96,6 @@ static int nft_byteorder_init(const struct nft_ctx *ctx,
 		return -EINVAL;
 	}
 
-	priv->len = ntohl(nla_get_be32(tb[NFTA_BYTEORDER_LEN]));
-	if (priv->len == 0 || priv->len > FIELD_SIZEOF(struct nft_data, data))
-		return -EINVAL;
-
 	priv->size = ntohl(nla_get_be32(tb[NFTA_BYTEORDER_SIZE]));
 	switch (priv->size) {
 	case 2:
@@ -110,7 +106,8 @@ static int nft_byteorder_init(const struct nft_ctx *ctx,
 	}
 
 	priv->sreg = ntohl(nla_get_be32(tb[NFTA_BYTEORDER_SREG]));
-	err = nft_validate_input_register(priv->sreg);
+	priv->len  = ntohl(nla_get_be32(tb[NFTA_BYTEORDER_LEN]));
+	err = nft_validate_register_load(priv->sreg, priv->len);
 	if (err < 0)
 		return err;
 

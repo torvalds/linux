@@ -119,6 +119,7 @@ static int nft_nat_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 			const struct nlattr * const tb[])
 {
 	struct nft_nat *priv = nft_expr_priv(expr);
+	unsigned int alen, plen;
 	u32 family;
 	int err;
 
@@ -146,17 +147,25 @@ static int nft_nat_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 		return -EINVAL;
 
 	family = ntohl(nla_get_be32(tb[NFTA_NAT_FAMILY]));
-	if (family != AF_INET && family != AF_INET6)
-		return -EAFNOSUPPORT;
 	if (family != ctx->afi->family)
 		return -EOPNOTSUPP;
+
+	switch (family) {
+	case NFPROTO_IPV4:
+		alen = FIELD_SIZEOF(struct nf_nat_range, min_addr.ip);
+		break;
+	case NFPROTO_IPV6:
+		alen = FIELD_SIZEOF(struct nf_nat_range, min_addr.ip6);
+		break;
+	default:
+		return -EAFNOSUPPORT;
+	}
 	priv->family = family;
 
 	if (tb[NFTA_NAT_REG_ADDR_MIN]) {
 		priv->sreg_addr_min =
 			ntohl(nla_get_be32(tb[NFTA_NAT_REG_ADDR_MIN]));
-
-		err = nft_validate_input_register(priv->sreg_addr_min);
+		err = nft_validate_register_load(priv->sreg_addr_min, alen);
 		if (err < 0)
 			return err;
 
@@ -164,7 +173,8 @@ static int nft_nat_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 			priv->sreg_addr_max =
 				ntohl(nla_get_be32(tb[NFTA_NAT_REG_ADDR_MAX]));
 
-			err = nft_validate_input_register(priv->sreg_addr_max);
+			err = nft_validate_register_load(priv->sreg_addr_max,
+							 alen);
 			if (err < 0)
 				return err;
 		} else {
@@ -172,11 +182,12 @@ static int nft_nat_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 		}
 	}
 
+	plen = FIELD_SIZEOF(struct nf_nat_range, min_addr.all);
 	if (tb[NFTA_NAT_REG_PROTO_MIN]) {
 		priv->sreg_proto_min =
 			ntohl(nla_get_be32(tb[NFTA_NAT_REG_PROTO_MIN]));
 
-		err = nft_validate_input_register(priv->sreg_proto_min);
+		err = nft_validate_register_load(priv->sreg_proto_min, plen);
 		if (err < 0)
 			return err;
 
@@ -184,7 +195,8 @@ static int nft_nat_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 			priv->sreg_proto_max =
 				ntohl(nla_get_be32(tb[NFTA_NAT_REG_PROTO_MAX]));
 
-			err = nft_validate_input_register(priv->sreg_proto_max);
+			err = nft_validate_register_load(priv->sreg_proto_max,
+							 plen);
 			if (err < 0)
 				return err;
 		} else {

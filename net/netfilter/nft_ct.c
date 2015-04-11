@@ -324,12 +324,14 @@ static int nft_ct_set_init(const struct nft_ctx *ctx,
 			   const struct nlattr * const tb[])
 {
 	struct nft_ct *priv = nft_expr_priv(expr);
+	unsigned int len;
 	int err;
 
 	priv->key = ntohl(nla_get_be32(tb[NFTA_CT_KEY]));
 	switch (priv->key) {
 #ifdef CONFIG_NF_CONNTRACK_MARK
 	case NFT_CT_MARK:
+		len = FIELD_SIZEOF(struct nf_conn, mark);
 		break;
 #endif
 	default:
@@ -337,7 +339,7 @@ static int nft_ct_set_init(const struct nft_ctx *ctx,
 	}
 
 	priv->sreg = ntohl(nla_get_be32(tb[NFTA_CT_SREG]));
-	err = nft_validate_input_register(priv->sreg);
+	err = nft_validate_register_load(priv->sreg, len);
 	if (err < 0)
 		return err;
 
