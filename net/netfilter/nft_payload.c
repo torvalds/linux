@@ -72,7 +72,8 @@ static int nft_payload_init(const struct nft_ctx *ctx,
 	err = nft_validate_output_register(priv->dreg);
 	if (err < 0)
 		return err;
-	return nft_validate_data_load(ctx, priv->dreg, NULL, NFT_DATA_VALUE);
+	return nft_validate_data_load(ctx, priv->dreg, NULL,
+				      NFT_DATA_VALUE, priv->len);
 }
 
 static int nft_payload_dump(struct sk_buff *skb, const struct nft_expr *expr)
@@ -131,9 +132,7 @@ nft_payload_select_ops(const struct nft_ctx *ctx,
 	}
 
 	offset = ntohl(nla_get_be32(tb[NFTA_PAYLOAD_OFFSET]));
-	len = ntohl(nla_get_be32(tb[NFTA_PAYLOAD_LEN]));
-	if (len == 0 || len > FIELD_SIZEOF(struct nft_data, data))
-		return ERR_PTR(-EINVAL);
+	len    = ntohl(nla_get_be32(tb[NFTA_PAYLOAD_LEN]));
 
 	if (len <= 4 && is_power_of_2(len) && IS_ALIGNED(offset, len) &&
 	    base != NFT_PAYLOAD_LL_HEADER)

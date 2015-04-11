@@ -63,6 +63,8 @@ static int nft_bitwise_init(const struct nft_ctx *ctx,
 	    tb[NFTA_BITWISE_XOR] == NULL)
 		return -EINVAL;
 
+	priv->len = ntohl(nla_get_be32(tb[NFTA_BITWISE_LEN]));
+
 	priv->sreg = ntohl(nla_get_be32(tb[NFTA_BITWISE_SREG]));
 	err = nft_validate_input_register(priv->sreg);
 	if (err < 0)
@@ -72,11 +74,11 @@ static int nft_bitwise_init(const struct nft_ctx *ctx,
 	err = nft_validate_output_register(priv->dreg);
 	if (err < 0)
 		return err;
-	err = nft_validate_data_load(ctx, priv->dreg, NULL, NFT_DATA_VALUE);
+
+	err = nft_validate_data_load(ctx, priv->dreg, NULL,
+				     NFT_DATA_VALUE, priv->len);
 	if (err < 0)
 		return err;
-
-	priv->len = ntohl(nla_get_be32(tb[NFTA_BITWISE_LEN]));
 
 	err = nft_data_init(NULL, &priv->mask, &d1, tb[NFTA_BITWISE_MASK]);
 	if (err < 0)

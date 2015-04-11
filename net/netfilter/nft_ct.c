@@ -95,8 +95,6 @@ static void nft_ct_get_eval(const struct nft_expr *expr,
 		helper = rcu_dereference(help->helper);
 		if (helper == NULL)
 			goto err;
-		if (strlen(helper->name) >= sizeof(dest->data))
-			goto err;
 		strncpy((char *)dest->data, helper->name, sizeof(dest->data));
 		return;
 #ifdef CONFIG_NF_CONNTRACK_LABELS
@@ -109,9 +107,7 @@ static void nft_ct_get_eval(const struct nft_expr *expr,
 			return;
 		}
 
-		BUILD_BUG_ON(NF_CT_LABELS_MAX_SIZE > sizeof(dest->data));
 		size = labels->words * sizeof(long);
-
 		memcpy(dest->data, labels->bits, size);
 		if (size < sizeof(dest->data))
 			memset(((char *) dest->data) + size, 0,
@@ -228,12 +224,17 @@ static int nft_ct_get_init(const struct nft_ctx *ctx,
 			   const struct nlattr * const tb[])
 {
 	struct nft_ct *priv = nft_expr_priv(expr);
+	unsigned int len;
 	int err;
 
 	priv->key = ntohl(nla_get_be32(tb[NFTA_CT_KEY]));
 	switch (priv->key) {
-	case NFT_CT_STATE:
 	case NFT_CT_DIRECTION:
+		if (tb[NFTA_CT_DIRECTION] != NULL)
+			return -EINVAL;
+		len = sizeof(u8);
+		break;
+	case NFT_CT_STATE:
 	case NFT_CT_STATUS:
 #ifdef CONFIG_NF_CONNTRACK_MARK
 	case NFT_CT_MARK:
@@ -241,22 +242,54 @@ static int nft_ct_get_init(const struct nft_ctx *ctx,
 #ifdef CONFIG_NF_CONNTRACK_SECMARK
 	case NFT_CT_SECMARK:
 #endif
+	case NFT_CT_EXPIRATION:
+		if (tb[NFTA_CT_DIRECTION] != NULL)
+			return -EINVAL;
+		len = sizeof(u32);
+		break;
 #ifdef CONFIG_NF_CONNTRACK_LABELS
 	case NFT_CT_LABELS:
+		if (tb[NFTA_CT_DIRECTION] != NULL)
+			return -EINVAL;
+		len = NF_CT_LABELS_MAX_SIZE;
+		break;
 #endif
-	case NFT_CT_EXPIRATION:
 	case NFT_CT_HELPER:
 		if (tb[NFTA_CT_DIRECTION] != NULL)
 			return -EINVAL;
+		len = NF_CT_HELPER_NAME_LEN;
 		break;
+
 	case NFT_CT_L3PROTOCOL:
 	case NFT_CT_PROTOCOL:
+		if (tb[NFTA_CT_DIRECTION] == NULL)
+			return -EINVAL;
+		len = sizeof(u8);
+		break;
 	case NFT_CT_SRC:
 	case NFT_CT_DST:
+		if (tb[NFTA_CT_DIRECTION] == NULL)
+			return -EINVAL;
+
+		switch (ctx->afi->family) {
+		case NFPROTO_IPV4:
+			len = FIELD_SIZEOF(struct nf_conntrack_tuple,
+					   src.u3.ip);
+			break;
+		case NFPROTO_IPV6:
+		case NFPROTO_INET:
+			len = FIELD_SIZEOF(struct nf_conntrack_tuple,
+					   src.u3.ip6);
+			break;
+		default:
+			return -EAFNOSUPPORT;
+		}
+		break;
 	case NFT_CT_PROTO_SRC:
 	case NFT_CT_PROTO_DST:
 		if (tb[NFTA_CT_DIRECTION] == NULL)
 			return -EINVAL;
+		len = FIELD_SIZEOF(struct nf_conntrack_tuple, src.u.all);
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -278,7 +311,8 @@ static int nft_ct_get_init(const struct nft_ctx *ctx,
 	if (err < 0)
 		return err;
 
-	err = nft_validate_data_load(ctx, priv->dreg, NULL, NFT_DATA_VALUE);
+	err = nft_validate_data_load(ctx, priv->dreg, NULL,
+				     NFT_DATA_VALUE, len);
 	if (err < 0)
 		return err;
 

@@ -59,7 +59,8 @@ static int nft_immediate_init(const struct nft_ctx *ctx,
 		return err;
 	priv->dlen = desc.len;
 
-	err = nft_validate_data_load(ctx, priv->dreg, &priv->data, desc.type);
+	err = nft_validate_data_load(ctx, priv->dreg, &priv->data,
+				     desc.type, desc.len);
 	if (err < 0)
 		goto err1;
 

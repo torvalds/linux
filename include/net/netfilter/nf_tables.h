@@ -116,7 +116,7 @@ int nft_validate_input_register(enum nft_registers reg);
 int nft_validate_output_register(enum nft_registers reg);
 int nft_validate_data_load(const struct nft_ctx *ctx, enum nft_registers reg,
 			   const struct nft_data *data,
-			   enum nft_data_types type);
+			   enum nft_data_types type, unsigned int len);
 
 
 /**

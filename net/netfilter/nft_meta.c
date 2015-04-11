@@ -217,22 +217,23 @@ int nft_meta_get_init(const struct nft_ctx *ctx,
 		      const struct nlattr * const tb[])
 {
 	struct nft_meta *priv = nft_expr_priv(expr);
+	unsigned int len;
 	int err;
 
 	priv->key = ntohl(nla_get_be32(tb[NFTA_META_KEY]));
 	switch (priv->key) {
-	case NFT_META_LEN:
 	case NFT_META_PROTOCOL:
+	case NFT_META_IIFTYPE:
+	case NFT_META_OIFTYPE:
+		len = sizeof(u16);
+		break;
 	case NFT_META_NFPROTO:
 	case NFT_META_L4PROTO:
+	case NFT_META_LEN:
 	case NFT_META_PRIORITY:
 	case NFT_META_MARK:
 	case NFT_META_IIF:
 	case NFT_META_OIF:
-	case NFT_META_IIFNAME:
-	case NFT_META_OIFNAME:
-	case NFT_META_IIFTYPE:
-	case NFT_META_OIFTYPE:
 	case NFT_META_SKUID:
 	case NFT_META_SKGID:
 #ifdef CONFIG_IP_ROUTE_CLASSID
@@ -246,6 +247,11 @@ int nft_meta_get_init(const struct nft_ctx *ctx,
 	case NFT_META_IIFGROUP:
 	case NFT_META_OIFGROUP:
 	case NFT_META_CGROUP:
+		len = sizeof(u32);
+		break;
+	case NFT_META_IIFNAME:
+	case NFT_META_OIFNAME:
+		len = IFNAMSIZ;
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -256,7 +262,8 @@ int nft_meta_get_init(const struct nft_ctx *ctx,
 	if (err < 0)
 		return err;
 
-	err = nft_validate_data_load(ctx, priv->dreg, NULL, NFT_DATA_VALUE);
+	err = nft_validate_data_load(ctx, priv->dreg, NULL,
+				     NFT_DATA_VALUE, len);
 	if (err < 0)
 		return err;
 

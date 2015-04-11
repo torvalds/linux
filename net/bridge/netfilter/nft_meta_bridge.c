@@ -53,12 +53,14 @@ static int nft_meta_bridge_get_init(const struct nft_ctx *ctx,
 				    const struct nlattr * const tb[])
 {
 	struct nft_meta *priv = nft_expr_priv(expr);
+	unsigned int len;
 	int err;
 
 	priv->key = ntohl(nla_get_be32(tb[NFTA_META_KEY]));
 	switch (priv->key) {
 	case NFT_META_BRI_IIFNAME:
 	case NFT_META_BRI_OIFNAME:
+		len = IFNAMSIZ;
 		break;
 	default:
 		return nft_meta_get_init(ctx, expr, tb);
@@ -69,7 +71,8 @@ static int nft_meta_bridge_get_init(const struct nft_ctx *ctx,
 	if (err < 0)
 		return err;
 
-	err = nft_validate_data_load(ctx, priv->dreg, NULL, NFT_DATA_VALUE);
+	err = nft_validate_data_load(ctx, priv->dreg, NULL,
+				     NFT_DATA_VALUE, len);
 	if (err < 0)
 		return err;
 

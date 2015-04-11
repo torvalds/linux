@@ -2799,7 +2799,8 @@ static int nf_tables_bind_check_setelem(const struct nft_ctx *ctx,
 	dreg = nft_type_to_reg(set->dtype);
 	return nft_validate_data_load(ctx, dreg, nft_set_ext_data(ext),
 				      set->dtype == NFT_DATA_VERDICT ?
-				      NFT_DATA_VERDICT : NFT_DATA_VALUE);
+				      NFT_DATA_VERDICT : NFT_DATA_VALUE,
+				      set->dlen);
 }
 
 int nf_tables_bind_set(const struct nft_ctx *ctx, struct nft_set *set,
@@ -3334,7 +3335,7 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 				continue;
 
 			err = nft_validate_data_load(&bind_ctx, dreg,
-						     &data, d2.type);
+						     &data, d2.type, d2.len);
 			if (err < 0)
 				goto err3;
 		}
@@ -4162,15 +4163,16 @@ EXPORT_SYMBOL_GPL(nft_validate_output_register);
  * 	@reg: the destination register number
  * 	@data: the data to load
  * 	@type: the data type
+ * 	@len: the length of the data
  *
  * 	Validate that a data load uses the appropriate data type for
- * 	the destination register. A value of NULL for the data means
- * 	that its runtime gathered data, which is always of type
- * 	NFT_DATA_VALUE.
+ * 	the destination register and the length is within the bounds.
+ * 	A value of NULL for the data means that its runtime gathered
+ * 	data, which is always of type NFT_DATA_VALUE.
  */
 int nft_validate_data_load(const struct nft_ctx *ctx, enum nft_registers reg,
 			   const struct nft_data *data,
-			   enum nft_data_types type)
+			   enum nft_data_types type, unsigned int len)
 {
 	int err;
 
@@ -4193,6 +4195,10 @@ int nft_validate_data_load(const struct nft_ctx *ctx, enum nft_registers reg,
 
 		return 0;
 	default:
+		if (len == 0)
+			return -EINVAL;
+		if (len > FIELD_SIZEOF(struct nft_data, data))
+			return -ERANGE;
 		if (data != NULL && type != NFT_DATA_VALUE)
 			return -EINVAL;
 		return 0;

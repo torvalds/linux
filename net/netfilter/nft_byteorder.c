@@ -87,19 +87,6 @@ static int nft_byteorder_init(const struct nft_ctx *ctx,
 	    tb[NFTA_BYTEORDER_OP] == NULL)
 		return -EINVAL;
 
-	priv->sreg = ntohl(nla_get_be32(tb[NFTA_BYTEORDER_SREG]));
-	err = nft_validate_input_register(priv->sreg);
-	if (err < 0)
-		return err;
-
-	priv->dreg = ntohl(nla_get_be32(tb[NFTA_BYTEORDER_DREG]));
-	err = nft_validate_output_register(priv->dreg);
-	if (err < 0)
-		return err;
-	err = nft_validate_data_load(ctx, priv->dreg, NULL, NFT_DATA_VALUE);
-	if (err < 0)
-		return err;
-
 	priv->op = ntohl(nla_get_be32(tb[NFTA_BYTEORDER_OP]));
 	switch (priv->op) {
 	case NFT_BYTEORDER_NTOH:
@@ -121,6 +108,20 @@ static int nft_byteorder_init(const struct nft_ctx *ctx,
 	default:
 		return -EINVAL;
 	}
+
+	priv->sreg = ntohl(nla_get_be32(tb[NFTA_BYTEORDER_SREG]));
+	err = nft_validate_input_register(priv->sreg);
+	if (err < 0)
+		return err;
+
+	priv->dreg = ntohl(nla_get_be32(tb[NFTA_BYTEORDER_DREG]));
+	err = nft_validate_output_register(priv->dreg);
+	if (err < 0)
+		return err;
+	err = nft_validate_data_load(ctx, priv->dreg, NULL,
+				     NFT_DATA_VALUE, priv->len);
+	if (err < 0)
+		return err;
 
 	return 0;
 }
