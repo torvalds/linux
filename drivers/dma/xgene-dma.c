@@ -2076,7 +2076,6 @@ static struct platform_driver xgene_dma_driver = {
 	.remove = xgene_dma_remove,
 	.driver = {
 		.name = "X-Gene-DMA",
-		.owner = THIS_MODULE,
 		.of_match_table = xgene_dma_of_match_ptr,
 	},
 };
