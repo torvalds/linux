@@ -1093,7 +1093,7 @@ static void alps_process_packet_v7(struct psmouse *psmouse)
 		alps_process_touchpad_packet_v7(psmouse);
 }
 
-unsigned char alps_get_pkt_id_ss4_v2(unsigned char *byte)
+static unsigned char alps_get_pkt_id_ss4_v2(unsigned char *byte)
 {
 	unsigned char pkt_id = SS4_PACKET_ID_IDLE;
 
@@ -2340,8 +2340,8 @@ static int alps_get_otp_values_ss4_v2(struct psmouse *psmouse,
 	return 0;
 }
 
-int alps_update_device_area_ss4_v2(unsigned char otp[][4],
-				   struct alps_data *priv)
+static int alps_update_device_area_ss4_v2(unsigned char otp[][4],
+					  struct alps_data *priv)
 {
 	int num_x_electrode;
 	int num_y_electrode;
@@ -2365,9 +2365,9 @@ int alps_update_device_area_ss4_v2(unsigned char otp[][4],
 	return 0;
 }
 
-int alps_update_btn_info_ss4_v2(unsigned char otp[][4], struct alps_data *priv)
+static int alps_update_btn_info_ss4_v2(unsigned char otp[][4],
+				       struct alps_data *priv)
 {
-
 	unsigned char is_btnless;
 
 	is_btnless = (otp[1][1] >> 3) & 0x01;
