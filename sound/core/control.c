@@ -578,6 +578,7 @@ error:
  *
  * Finds the control instance with the given id, and activate or
  * inactivate the control together with notification, if changed.
+ * The given ID data is filled with full information.
  *
  * Return: 0 if unchanged, 1 if changed, or a negative error code on failure.
  */
@@ -607,6 +608,7 @@ int snd_ctl_activate_id(struct snd_card *card, struct snd_ctl_elem_id *id,
 			goto unlock;
 		vd->access |= SNDRV_CTL_ELEM_ACCESS_INACTIVE;
 	}
+	snd_ctl_build_ioff(id, kctl, index_offset);
 	ret = 1;
  unlock:
 	up_write(&card->controls_rwsem);
