@@ -7,7 +7,7 @@
 
 / {
 	compatible = "nvidia,tegra20";
-	interrupt-parent = <&intc>;
+	interrupt-parent = <&lic>;
 
 	host1x@50000000 {
 		compatible = "nvidia,tegra20-host1x", "simple-bus";
@@ -142,6 +142,7 @@
 
 	timer@50040600 {
 		compatible = "arm,cortex-a9-twd-timer";
+		interrupt-parent = <&intc>;
 		reg = <0x50040600 0x20>;
 		interrupts = <GIC_PPI 13
 			(GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_HIGH)>;
@@ -154,6 +155,7 @@
 		       0x50040100 0x0100>;
 		interrupt-controller;
 		#interrupt-cells = <3>;
+		interrupt-parent = <&intc>;
 	};
 
 	cache-controller@50043000 {
@@ -163,6 +165,17 @@
 		arm,tag-latency = <4 4 2>;
 		cache-unified;
 		cache-level = <2>;
+	};
+
+	lic: interrupt-controller@60004000 {
+		compatible = "nvidia,tegra20-ictlr";
+		reg = <0x60004000 0x100>,
+		      <0x60004100 0x50>,
+		      <0x60004200 0x50>,
+		      <0x60004300 0x50>;
+		interrupt-controller;
+		#interrupt-cells = <3>;
+		interrupt-parent = <&intc>;
 	};
 
 	timer@60005000 {
