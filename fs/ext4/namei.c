@@ -2457,7 +2457,7 @@ out_stop:
 /*
  * routine to check that the specified directory is empty (for rmdir)
  */
-static int empty_dir(struct inode *inode)
+int ext4_empty_dir(struct inode *inode)
 {
 	unsigned int offset;
 	struct buffer_head *bh;
@@ -2725,7 +2725,7 @@ static int ext4_rmdir(struct inode *dir, struct dentry *dentry)
 		goto end_rmdir;
 
 	retval = -ENOTEMPTY;
-	if (!empty_dir(inode))
+	if (!ext4_empty_dir(inode))
 		goto end_rmdir;
 
 	handle = ext4_journal_start(dir, EXT4_HT_DIR,
@@ -3285,7 +3285,7 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (S_ISDIR(old.inode->i_mode)) {
 		if (new.inode) {
 			retval = -ENOTEMPTY;
-			if (!empty_dir(new.inode))
+			if (!ext4_empty_dir(new.inode))
 				goto end_rename;
 		} else {
 			retval = -EMLINK;
@@ -3359,8 +3359,9 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 		ext4_dec_count(handle, old.dir);
 		if (new.inode) {
-			/* checked empty_dir above, can't have another parent,
-			 * ext4_dec_count() won't work for many-linked dirs */
+			/* checked ext4_empty_dir above, can't have another
+			 * parent, ext4_dec_count() won't work for many-linked
+			 * dirs */
 			clear_nlink(new.inode);
 		} else {
 			ext4_inc_count(handle, new.dir);
