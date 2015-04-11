@@ -20,43 +20,6 @@
 #include <linux/types.h>
 #include <linux/fs_struct.h>
 
-static void default_handler(int, struct pt_regs *);
-static unsigned long ident_map[32] = {
-	0,	1,	2,	3,	4,	5,	6,	7,
-	8,	9,	10,	11,	12,	13,	14,	15,
-	16,	17,	18,	19,	20,	21,	22,	23,
-	24,	25,	26,	27,	28,	29,	30,	31
-};
-
-struct exec_domain default_exec_domain = {
-	.name		= "Linux",		/* name */
-	.handler	= default_handler,	/* lcall7 causes a seg fault. */
-	.pers_low	= 0,			/* PER_LINUX personality. */
-	.pers_high	= 0,			/* PER_LINUX personality. */
-	.signal_map	= ident_map,		/* Identity map signals. */
-	.signal_invmap	= ident_map,		/*  - both ways. */
-};
-
-
-static void
-default_handler(int segment, struct pt_regs *regp)
-{
-	set_personality(0);
-
-	if (current_thread_info()->exec_domain->handler != default_handler)
-		current_thread_info()->exec_domain->handler(segment, regp);
-	else
-		send_sig(SIGSEGV, current, 1);
-}
-
-int __set_personality(unsigned int personality)
-{
-	current->personality = personality;
-
-	return 0;
-}
-EXPORT_SYMBOL(__set_personality);
-
 #ifdef CONFIG_PROC_FS
 static int execdomains_proc_show(struct seq_file *m, void *v)
 {
