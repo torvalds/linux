@@ -1545,6 +1545,23 @@ nla_put_failure:
 	return -1;
 };
 
+int nft_expr_dump(struct sk_buff *skb, unsigned int attr,
+		  const struct nft_expr *expr)
+{
+	struct nlattr *nest;
+
+	nest = nla_nest_start(skb, attr);
+	if (!nest)
+		goto nla_put_failure;
+	if (nf_tables_fill_expr_info(skb, expr) < 0)
+		goto nla_put_failure;
+	nla_nest_end(skb, nest);
+	return 0;
+
+nla_put_failure:
+	return -1;
+}
+
 struct nft_expr_info {
 	const struct nft_expr_ops	*ops;
 	struct nlattr			*tb[NFT_EXPR_MAXATTR + 1];
@@ -1620,6 +1637,39 @@ static void nf_tables_expr_destroy(const struct nft_ctx *ctx,
 	if (expr->ops->destroy)
 		expr->ops->destroy(ctx, expr);
 	module_put(expr->ops->type->owner);
+}
+
+struct nft_expr *nft_expr_init(const struct nft_ctx *ctx,
+			       const struct nlattr *nla)
+{
+	struct nft_expr_info info;
+	struct nft_expr *expr;
+	int err;
+
+	err = nf_tables_expr_parse(ctx, nla, &info);
+	if (err < 0)
+		goto err1;
+
+	err = -ENOMEM;
+	expr = kzalloc(info.ops->size, GFP_KERNEL);
+	if (expr == NULL)
+		goto err2;
+
+	err = nf_tables_newexpr(ctx, &info, expr);
+	if (err < 0)
+		goto err2;
+
+	return expr;
+err2:
+	module_put(info.ops->type->owner);
+err1:
+	return ERR_PTR(err);
+}
+
+void nft_expr_destroy(const struct nft_ctx *ctx, struct nft_expr *expr)
+{
+	nf_tables_expr_destroy(ctx, expr);
+	kfree(expr);
 }
 
 /*
@@ -1703,12 +1753,8 @@ static int nf_tables_fill_rule_info(struct sk_buff *skb, struct net *net,
 	if (list == NULL)
 		goto nla_put_failure;
 	nft_rule_for_each_expr(expr, next, rule) {
-		struct nlattr *elem = nla_nest_start(skb, NFTA_LIST_ELEM);
-		if (elem == NULL)
+		if (nft_expr_dump(skb, NFTA_LIST_ELEM, expr) < 0)
 			goto nla_put_failure;
-		if (nf_tables_fill_expr_info(skb, expr) < 0)
-			goto nla_put_failure;
-		nla_nest_end(skb, elem);
 	}
 	nla_nest_end(skb, list);
 
