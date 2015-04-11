@@ -84,11 +84,10 @@ static int nft_lookup_init(const struct nft_ctx *ctx,
 		if (err < 0)
 			return err;
 
-		if (priv->dreg == NFT_REG_VERDICT) {
-			if (set->dtype != NFT_DATA_VERDICT)
-				return -EINVAL;
-		} else if (set->dtype == NFT_DATA_VERDICT)
-			return -EINVAL;
+		err = nft_validate_register_store(ctx, priv->dreg, NULL,
+						  set->dtype, set->dlen);
+		if (err < 0)
+			return err;
 	} else if (set->flags & NFT_SET_MAP)
 		return -EINVAL;
 

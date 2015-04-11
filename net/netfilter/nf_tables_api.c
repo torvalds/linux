@@ -4169,7 +4169,7 @@ EXPORT_SYMBOL_GPL(nft_validate_output_register);
  * 	Validate that a data load uses the appropriate data type for
  * 	the destination register and the length is within the bounds.
  * 	A value of NULL for the data means that its runtime gathered
- * 	data, which is always of type NFT_DATA_VALUE.
+ * 	data.
  */
 int nft_validate_register_store(const struct nft_ctx *ctx,
 				enum nft_registers reg,
@@ -4180,10 +4180,11 @@ int nft_validate_register_store(const struct nft_ctx *ctx,
 
 	switch (reg) {
 	case NFT_REG_VERDICT:
-		if (data == NULL || type != NFT_DATA_VERDICT)
+		if (type != NFT_DATA_VERDICT)
 			return -EINVAL;
 
-		if (data->verdict == NFT_GOTO || data->verdict == NFT_JUMP) {
+		if (data != NULL &&
+		    (data->verdict == NFT_GOTO || data->verdict == NFT_JUMP)) {
 			err = nf_tables_check_loops(ctx, data->chain);
 			if (err < 0)
 				return err;
