@@ -4,14 +4,25 @@
 
 obj-$(CONFIG_CRYPTO_AES_ARM) += aes-arm.o
 obj-$(CONFIG_CRYPTO_AES_ARM_BS) += aes-arm-bs.o
-obj-$(CONFIG_CRYPTO_AES_ARM_CE) += aes-arm-ce.o
 obj-$(CONFIG_CRYPTO_SHA1_ARM) += sha1-arm.o
 obj-$(CONFIG_CRYPTO_SHA1_ARM_NEON) += sha1-arm-neon.o
 obj-$(CONFIG_CRYPTO_SHA256_ARM) += sha256-arm.o
 obj-$(CONFIG_CRYPTO_SHA512_ARM_NEON) += sha512-arm-neon.o
-obj-$(CONFIG_CRYPTO_SHA1_ARM_CE) += sha1-arm-ce.o
-obj-$(CONFIG_CRYPTO_SHA2_ARM_CE) += sha2-arm-ce.o
-obj-$(CONFIG_CRYPTO_GHASH_ARM_CE) += ghash-arm-ce.o
+
+ce-obj-$(CONFIG_CRYPTO_AES_ARM_CE) += aes-arm-ce.o
+ce-obj-$(CONFIG_CRYPTO_SHA1_ARM_CE) += sha1-arm-ce.o
+ce-obj-$(CONFIG_CRYPTO_SHA2_ARM_CE) += sha2-arm-ce.o
+ce-obj-$(CONFIG_CRYPTO_GHASH_ARM_CE) += ghash-arm-ce.o
+
+ifneq ($(ce-obj-y)$(ce-obj-m),)
+ifeq ($(call as-instr,.fpu crypto-neon-fp-armv8,y,n),y)
+obj-y += $(ce-obj-y)
+obj-m += $(ce-obj-m)
+else
+$(warning These ARMv8 Crypto Extensions modules need binutils 2.23 or higher)
+$(warning $(ce-obj-y) $(ce-obj-m))
+endif
+endif
 
 aes-arm-y	:= aes-armv4.o aes_glue.o
 aes-arm-bs-y	:= aesbs-core.o aesbs-glue.o
