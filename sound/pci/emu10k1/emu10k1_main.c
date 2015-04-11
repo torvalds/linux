@@ -707,6 +707,7 @@ static int emu1010_firmware_thread(void *data)
 {
 	struct snd_emu10k1 *emu = data;
 	u32 tmp, tmp2, reg;
+	u32 last_reg = 0;
 	int err;
 
 	for (;;) {
@@ -782,7 +783,15 @@ static int emu1010_firmware_thread(void *data)
 			msleep(10);
 			/* Unmute all. Default is muted after a firmware load */
 			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE);
+		} else if (!reg && last_reg) {
+			/* Audio Dock removed */
+			dev_info(emu->card->dev,
+				 "emu1010: Audio Dock detached\n");
+			/* Unmute all */
+			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE);
 		}
+
+		last_reg = reg;
 	}
 	dev_info(emu->card->dev, "emu1010: firmware thread stopping\n");
 	return 0;
