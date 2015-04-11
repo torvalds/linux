@@ -209,7 +209,7 @@ int ima_eventdigest_init(struct ima_event_data *event_data,
 
 	memset(&hash, 0, sizeof(hash));
 
-	if (!event_data->iint)		/* recording a violation. */
+	if (event_data->violation)	/* recording a violation. */
 		goto out;
 
 	if (ima_template_hash_algo_allowed(event_data->iint->ima_hash->algo)) {
@@ -247,8 +247,7 @@ int ima_eventdigest_ng_init(struct ima_event_data *event_data,
 	u8 *cur_digest = NULL, hash_algo = HASH_ALGO_SHA1;
 	u32 cur_digestsize = 0;
 
-	/* If iint is NULL, we are recording a violation. */
-	if (!event_data->iint)
+	if (event_data->violation)	/* recording a violation. */
 		goto out;
 
 	cur_digest = event_data->iint->ima_hash->digest;

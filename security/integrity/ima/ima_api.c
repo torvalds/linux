@@ -126,11 +126,13 @@ int ima_store_template(struct ima_template_entry *entry,
  * value is invalidated.
  */
 void ima_add_violation(struct file *file, const unsigned char *filename,
+		       struct integrity_iint_cache *iint,
 		       const char *op, const char *cause)
 {
 	struct ima_template_entry *entry;
 	struct inode *inode = file_inode(file);
-	struct ima_event_data event_data = {NULL, file, filename, NULL, 0};
+	struct ima_event_data event_data = {iint, file, filename, NULL, 0,
+					    cause};
 	int violation = 1;
 	int result;
 
@@ -264,8 +266,8 @@ void ima_store_measurement(struct integrity_iint_cache *iint,
 	int result = -ENOMEM;
 	struct inode *inode = file_inode(file);
 	struct ima_template_entry *entry;
-	struct ima_event_data event_data = {iint, file, filename,
-					    xattr_value, xattr_len};
+	struct ima_event_data event_data = {iint, file, filename, xattr_value,
+					    xattr_len, NULL};
 	int violation = 0;
 
 	if (iint->flags & IMA_MEASURED)
