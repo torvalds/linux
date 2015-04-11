@@ -1406,7 +1406,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	ima_template=   [IMA]
 			Select one of defined IMA measurements template formats.
-			Formats: { "ima" | "ima-ng" }
+			Formats: { "ima" | "ima-ng" | "ima-sig" }
 			Default: "ima-ng"
 
 	ima_template_fmt=
