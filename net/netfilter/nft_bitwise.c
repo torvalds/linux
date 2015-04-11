@@ -75,8 +75,8 @@ static int nft_bitwise_init(const struct nft_ctx *ctx,
 	if (err < 0)
 		return err;
 
-	err = nft_validate_data_load(ctx, priv->dreg, NULL,
-				     NFT_DATA_VALUE, priv->len);
+	err = nft_validate_register_store(ctx, priv->dreg, NULL,
+					  NFT_DATA_VALUE, priv->len);
 	if (err < 0)
 		return err;
 

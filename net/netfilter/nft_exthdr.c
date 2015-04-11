@@ -74,8 +74,8 @@ static int nft_exthdr_init(const struct nft_ctx *ctx,
 	err = nft_validate_output_register(priv->dreg);
 	if (err < 0)
 		return err;
-	return nft_validate_data_load(ctx, priv->dreg, NULL,
-				      NFT_DATA_VALUE, priv->len);
+	return nft_validate_register_store(ctx, priv->dreg, NULL,
+					   NFT_DATA_VALUE, priv->len);
 }
 
 static int nft_exthdr_dump(struct sk_buff *skb, const struct nft_expr *expr)

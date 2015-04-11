@@ -2797,10 +2797,10 @@ static int nf_tables_bind_check_setelem(const struct nft_ctx *ctx,
 	enum nft_registers dreg;
 
 	dreg = nft_type_to_reg(set->dtype);
-	return nft_validate_data_load(ctx, dreg, nft_set_ext_data(ext),
-				      set->dtype == NFT_DATA_VERDICT ?
-				      NFT_DATA_VERDICT : NFT_DATA_VALUE,
-				      set->dlen);
+	return nft_validate_register_store(ctx, dreg, nft_set_ext_data(ext),
+					   set->dtype == NFT_DATA_VERDICT ?
+					   NFT_DATA_VERDICT : NFT_DATA_VALUE,
+					   set->dlen);
 }
 
 int nf_tables_bind_set(const struct nft_ctx *ctx, struct nft_set *set,
@@ -3334,8 +3334,9 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 			if (!(binding->flags & NFT_SET_MAP))
 				continue;
 
-			err = nft_validate_data_load(&bind_ctx, dreg,
-						     &data, d2.type, d2.len);
+			err = nft_validate_register_store(&bind_ctx, dreg,
+							  &data,
+							  d2.type, d2.len);
 			if (err < 0)
 				goto err3;
 		}
@@ -4157,7 +4158,7 @@ int nft_validate_output_register(enum nft_registers reg)
 EXPORT_SYMBOL_GPL(nft_validate_output_register);
 
 /**
- *	nft_validate_data_load - validate an expressions' data load
+ *	nft_validate_register_store - validate an expressions' register store
  *
  *	@ctx: context of the expression performing the load
  * 	@reg: the destination register number
@@ -4170,9 +4171,10 @@ EXPORT_SYMBOL_GPL(nft_validate_output_register);
  * 	A value of NULL for the data means that its runtime gathered
  * 	data, which is always of type NFT_DATA_VALUE.
  */
-int nft_validate_data_load(const struct nft_ctx *ctx, enum nft_registers reg,
-			   const struct nft_data *data,
-			   enum nft_data_types type, unsigned int len)
+int nft_validate_register_store(const struct nft_ctx *ctx,
+				enum nft_registers reg,
+				const struct nft_data *data,
+				enum nft_data_types type, unsigned int len)
 {
 	int err;
 
@@ -4204,7 +4206,7 @@ int nft_validate_data_load(const struct nft_ctx *ctx, enum nft_registers reg,
 		return 0;
 	}
 }
-EXPORT_SYMBOL_GPL(nft_validate_data_load);
+EXPORT_SYMBOL_GPL(nft_validate_register_store);
 
 static const struct nla_policy nft_verdict_policy[NFTA_VERDICT_MAX + 1] = {
 	[NFTA_VERDICT_CODE]	= { .type = NLA_U32 },
