@@ -163,14 +163,14 @@ static int nft_nat_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 
 	if (tb[NFTA_NAT_REG_ADDR_MIN]) {
 		priv->sreg_addr_min =
-			ntohl(nla_get_be32(tb[NFTA_NAT_REG_ADDR_MIN]));
+			nft_parse_register(tb[NFTA_NAT_REG_ADDR_MIN]);
 		err = nft_validate_register_load(priv->sreg_addr_min, alen);
 		if (err < 0)
 			return err;
 
 		if (tb[NFTA_NAT_REG_ADDR_MAX]) {
 			priv->sreg_addr_max =
-				ntohl(nla_get_be32(tb[NFTA_NAT_REG_ADDR_MAX]));
+				nft_parse_register(tb[NFTA_NAT_REG_ADDR_MAX]);
 
 			err = nft_validate_register_load(priv->sreg_addr_max,
 							 alen);
@@ -184,7 +184,7 @@ static int nft_nat_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 	plen = FIELD_SIZEOF(struct nf_nat_range, min_addr.all);
 	if (tb[NFTA_NAT_REG_PROTO_MIN]) {
 		priv->sreg_proto_min =
-			ntohl(nla_get_be32(tb[NFTA_NAT_REG_PROTO_MIN]));
+			nft_parse_register(tb[NFTA_NAT_REG_PROTO_MIN]);
 
 		err = nft_validate_register_load(priv->sreg_proto_min, plen);
 		if (err < 0)
@@ -192,7 +192,7 @@ static int nft_nat_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 
 		if (tb[NFTA_NAT_REG_PROTO_MAX]) {
 			priv->sreg_proto_max =
-				ntohl(nla_get_be32(tb[NFTA_NAT_REG_PROTO_MAX]));
+				nft_parse_register(tb[NFTA_NAT_REG_PROTO_MAX]);
 
 			err = nft_validate_register_load(priv->sreg_proto_max,
 							 plen);
@@ -231,18 +231,18 @@ static int nft_nat_dump(struct sk_buff *skb, const struct nft_expr *expr)
 		goto nla_put_failure;
 
 	if (priv->sreg_addr_min) {
-		if (nla_put_be32(skb, NFTA_NAT_REG_ADDR_MIN,
-				 htonl(priv->sreg_addr_min)) ||
-		    nla_put_be32(skb, NFTA_NAT_REG_ADDR_MAX,
-				 htonl(priv->sreg_addr_max)))
+		if (nft_dump_register(skb, NFTA_NAT_REG_ADDR_MIN,
+				      priv->sreg_addr_min) ||
+		    nft_dump_register(skb, NFTA_NAT_REG_ADDR_MAX,
+				      priv->sreg_addr_max))
 			goto nla_put_failure;
 	}
 
 	if (priv->sreg_proto_min) {
-		if (nla_put_be32(skb, NFTA_NAT_REG_PROTO_MIN,
-				 htonl(priv->sreg_proto_min)) ||
-		    nla_put_be32(skb, NFTA_NAT_REG_PROTO_MAX,
-				 htonl(priv->sreg_proto_max)))
+		if (nft_dump_register(skb, NFTA_NAT_REG_PROTO_MIN,
+				      priv->sreg_proto_min) ||
+		    nft_dump_register(skb, NFTA_NAT_REG_PROTO_MAX,
+				      priv->sreg_proto_max))
 			goto nla_put_failure;
 	}
 

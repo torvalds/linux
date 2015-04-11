@@ -62,12 +62,12 @@ static int nft_bitwise_init(const struct nft_ctx *ctx,
 		return -EINVAL;
 
 	priv->len  = ntohl(nla_get_be32(tb[NFTA_BITWISE_LEN]));
-	priv->sreg = ntohl(nla_get_be32(tb[NFTA_BITWISE_SREG]));
+	priv->sreg = nft_parse_register(tb[NFTA_BITWISE_SREG]);
 	err = nft_validate_register_load(priv->sreg, priv->len);
 	if (err < 0)
 		return err;
 
-	priv->dreg = ntohl(nla_get_be32(tb[NFTA_BITWISE_DREG]));
+	priv->dreg = nft_parse_register(tb[NFTA_BITWISE_DREG]);
 	err = nft_validate_register_store(ctx, priv->dreg, NULL,
 					  NFT_DATA_VALUE, priv->len);
 	if (err < 0)
@@ -92,9 +92,9 @@ static int nft_bitwise_dump(struct sk_buff *skb, const struct nft_expr *expr)
 {
 	const struct nft_bitwise *priv = nft_expr_priv(expr);
 
-	if (nla_put_be32(skb, NFTA_BITWISE_SREG, htonl(priv->sreg)))
+	if (nft_dump_register(skb, NFTA_BITWISE_SREG, priv->sreg))
 		goto nla_put_failure;
-	if (nla_put_be32(skb, NFTA_BITWISE_DREG, htonl(priv->dreg)))
+	if (nft_dump_register(skb, NFTA_BITWISE_DREG, priv->dreg))
 		goto nla_put_failure;
 	if (nla_put_be32(skb, NFTA_BITWISE_LEN, htonl(priv->len)))
 		goto nla_put_failure;

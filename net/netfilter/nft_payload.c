@@ -66,7 +66,7 @@ static int nft_payload_init(const struct nft_ctx *ctx,
 	priv->base   = ntohl(nla_get_be32(tb[NFTA_PAYLOAD_BASE]));
 	priv->offset = ntohl(nla_get_be32(tb[NFTA_PAYLOAD_OFFSET]));
 	priv->len    = ntohl(nla_get_be32(tb[NFTA_PAYLOAD_LEN]));
-	priv->dreg   = ntohl(nla_get_be32(tb[NFTA_PAYLOAD_DREG]));
+	priv->dreg   = nft_parse_register(tb[NFTA_PAYLOAD_DREG]);
 
 	return nft_validate_register_store(ctx, priv->dreg, NULL,
 					   NFT_DATA_VALUE, priv->len);
@@ -76,7 +76,7 @@ static int nft_payload_dump(struct sk_buff *skb, const struct nft_expr *expr)
 {
 	const struct nft_payload *priv = nft_expr_priv(expr);
 
-	if (nla_put_be32(skb, NFTA_PAYLOAD_DREG, htonl(priv->dreg)) ||
+	if (nft_dump_register(skb, NFTA_PAYLOAD_DREG, priv->dreg) ||
 	    nla_put_be32(skb, NFTA_PAYLOAD_BASE, htonl(priv->base)) ||
 	    nla_put_be32(skb, NFTA_PAYLOAD_OFFSET, htonl(priv->offset)) ||
 	    nla_put_be32(skb, NFTA_PAYLOAD_LEN, htonl(priv->len)))

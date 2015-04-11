@@ -106,13 +106,13 @@ static int nft_byteorder_init(const struct nft_ctx *ctx,
 		return -EINVAL;
 	}
 
-	priv->sreg = ntohl(nla_get_be32(tb[NFTA_BYTEORDER_SREG]));
+	priv->sreg = nft_parse_register(tb[NFTA_BYTEORDER_SREG]);
 	priv->len  = ntohl(nla_get_be32(tb[NFTA_BYTEORDER_LEN]));
 	err = nft_validate_register_load(priv->sreg, priv->len);
 	if (err < 0)
 		return err;
 
-	priv->dreg = ntohl(nla_get_be32(tb[NFTA_BYTEORDER_DREG]));
+	priv->dreg = nft_parse_register(tb[NFTA_BYTEORDER_DREG]);
 	return nft_validate_register_store(ctx, priv->dreg, NULL,
 					   NFT_DATA_VALUE, priv->len);
 }
@@ -121,9 +121,9 @@ static int nft_byteorder_dump(struct sk_buff *skb, const struct nft_expr *expr)
 {
 	const struct nft_byteorder *priv = nft_expr_priv(expr);
 
-	if (nla_put_be32(skb, NFTA_BYTEORDER_SREG, htonl(priv->sreg)))
+	if (nft_dump_register(skb, NFTA_BYTEORDER_SREG, priv->sreg))
 		goto nla_put_failure;
-	if (nla_put_be32(skb, NFTA_BYTEORDER_DREG, htonl(priv->dreg)))
+	if (nft_dump_register(skb, NFTA_BYTEORDER_DREG, priv->dreg))
 		goto nla_put_failure;
 	if (nla_put_be32(skb, NFTA_BYTEORDER_OP, htonl(priv->op)))
 		goto nla_put_failure;

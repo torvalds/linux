@@ -68,7 +68,7 @@ static int nft_exthdr_init(const struct nft_ctx *ctx,
 	priv->type   = nla_get_u8(tb[NFTA_EXTHDR_TYPE]);
 	priv->offset = ntohl(nla_get_be32(tb[NFTA_EXTHDR_OFFSET]));
 	priv->len    = ntohl(nla_get_be32(tb[NFTA_EXTHDR_LEN]));
-	priv->dreg   = ntohl(nla_get_be32(tb[NFTA_EXTHDR_DREG]));
+	priv->dreg   = nft_parse_register(tb[NFTA_EXTHDR_DREG]);
 
 	return nft_validate_register_store(ctx, priv->dreg, NULL,
 					   NFT_DATA_VALUE, priv->len);
@@ -78,7 +78,7 @@ static int nft_exthdr_dump(struct sk_buff *skb, const struct nft_expr *expr)
 {
 	const struct nft_exthdr *priv = nft_expr_priv(expr);
 
-	if (nla_put_be32(skb, NFTA_EXTHDR_DREG, htonl(priv->dreg)))
+	if (nft_dump_register(skb, NFTA_EXTHDR_DREG, priv->dreg))
 		goto nla_put_failure;
 	if (nla_put_u8(skb, NFTA_EXTHDR_TYPE, priv->type))
 		goto nla_put_failure;

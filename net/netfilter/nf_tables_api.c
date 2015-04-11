@@ -4122,6 +4122,18 @@ static int nf_tables_check_loops(const struct nft_ctx *ctx,
 	return 0;
 }
 
+unsigned int nft_parse_register(const struct nlattr *attr)
+{
+	return ntohl(nla_get_be32(attr));
+}
+EXPORT_SYMBOL_GPL(nft_parse_register);
+
+int nft_dump_register(struct sk_buff *skb, unsigned int attr, unsigned int reg)
+{
+	return nla_put_be32(skb, attr, htonl(reg));
+}
+EXPORT_SYMBOL_GPL(nft_dump_register);
+
 /**
  *	nft_validate_register_load - validate a load from a register
  *

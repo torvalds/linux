@@ -71,7 +71,7 @@ static int nft_lookup_init(const struct nft_ctx *ctx,
 			return PTR_ERR(set);
 	}
 
-	priv->sreg = ntohl(nla_get_be32(tb[NFTA_LOOKUP_SREG]));
+	priv->sreg = nft_parse_register(tb[NFTA_LOOKUP_SREG]);
 	err = nft_validate_register_load(priv->sreg, set->klen);
 	if (err < 0)
 		return err;
@@ -80,7 +80,7 @@ static int nft_lookup_init(const struct nft_ctx *ctx,
 		if (!(set->flags & NFT_SET_MAP))
 			return -EINVAL;
 
-		priv->dreg = ntohl(nla_get_be32(tb[NFTA_LOOKUP_DREG]));
+		priv->dreg = nft_parse_register(tb[NFTA_LOOKUP_DREG]);
 		err = nft_validate_register_store(ctx, priv->dreg, NULL,
 						  set->dtype, set->dlen);
 		if (err < 0)
@@ -112,10 +112,10 @@ static int nft_lookup_dump(struct sk_buff *skb, const struct nft_expr *expr)
 
 	if (nla_put_string(skb, NFTA_LOOKUP_SET, priv->set->name))
 		goto nla_put_failure;
-	if (nla_put_be32(skb, NFTA_LOOKUP_SREG, htonl(priv->sreg)))
+	if (nft_dump_register(skb, NFTA_LOOKUP_SREG, priv->sreg))
 		goto nla_put_failure;
 	if (priv->set->flags & NFT_SET_MAP)
-		if (nla_put_be32(skb, NFTA_LOOKUP_DREG, htonl(priv->dreg)))
+		if (nft_dump_register(skb, NFTA_LOOKUP_DREG, priv->dreg))
 			goto nla_put_failure;
 	return 0;
 

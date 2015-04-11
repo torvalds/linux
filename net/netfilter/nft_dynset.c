@@ -124,7 +124,7 @@ static int nft_dynset_init(const struct nft_ctx *ctx,
 		timeout = be64_to_cpu(nla_get_be64(tb[NFTA_DYNSET_TIMEOUT]));
 	}
 
-	priv->sreg_key = ntohl(nla_get_be32(tb[NFTA_DYNSET_SREG_KEY]));
+	priv->sreg_key = nft_parse_register(tb[NFTA_DYNSET_SREG_KEY]);
 	err = nft_validate_register_load(priv->sreg_key, set->klen);;
 	if (err < 0)
 		return err;
@@ -135,7 +135,7 @@ static int nft_dynset_init(const struct nft_ctx *ctx,
 		if (set->dtype == NFT_DATA_VERDICT)
 			return -EOPNOTSUPP;
 
-		priv->sreg_data = ntohl(nla_get_be32(tb[NFTA_DYNSET_SREG_DATA]));
+		priv->sreg_data = nft_parse_register(tb[NFTA_DYNSET_SREG_DATA]);
 		err = nft_validate_register_load(priv->sreg_data, set->dlen);
 		if (err < 0)
 			return err;
@@ -173,10 +173,10 @@ static int nft_dynset_dump(struct sk_buff *skb, const struct nft_expr *expr)
 {
 	const struct nft_dynset *priv = nft_expr_priv(expr);
 
-	if (nla_put_be32(skb, NFTA_DYNSET_SREG_KEY, htonl(priv->sreg_key)))
+	if (nft_dump_register(skb, NFTA_DYNSET_SREG_KEY, priv->sreg_key))
 		goto nla_put_failure;
 	if (priv->set->flags & NFT_SET_MAP &&
-	    nla_put_be32(skb, NFTA_DYNSET_SREG_DATA, htonl(priv->sreg_data)))
+	    nft_dump_register(skb, NFTA_DYNSET_SREG_DATA, priv->sreg_data))
 		goto nla_put_failure;
 	if (nla_put_be32(skb, NFTA_DYNSET_OP, htonl(priv->op)))
 		goto nla_put_failure;
