@@ -708,10 +708,10 @@ static unsigned char dummy_ser[NR_PORTS] = {0xFF, 0xFF, 0xFF,0xFF};
     defined(CONFIG_ETRAX_SER1_DTR_RI_DSR_CD_MIXED) || \
     defined(CONFIG_ETRAX_SER2_DTR_RI_DSR_CD_MIXED) || \
     defined(CONFIG_ETRAX_SER3_DTR_RI_DSR_CD_MIXED)
-#define CONFIG_ETRAX_SERX_DTR_RI_DSR_CD_MIXED
+#define ETRAX_SERX_DTR_RI_DSR_CD_MIXED
 #endif
 
-#ifdef CONFIG_ETRAX_SERX_DTR_RI_DSR_CD_MIXED
+#ifdef ETRAX_SERX_DTR_RI_DSR_CD_MIXED
 /* The pins can be mixed on PA and PB */
 #define CONTROL_PINS_PORT_NOT_USED(line) \
   &dummy_ser[line], &dummy_ser[line], \
@@ -804,7 +804,7 @@ static const struct control_pins e100_modem_pins[NR_PORTS] =
 #endif
 	}
 };
-#else  /* CONFIG_ETRAX_SERX_DTR_RI_DSR_CD_MIXED */
+#else  /* ETRAX_SERX_DTR_RI_DSR_CD_MIXED */
 
 /* All pins are on either PA or PB for each serial port */
 #define CONTROL_PINS_PORT_NOT_USED(line) \
@@ -886,7 +886,7 @@ static const struct control_pins e100_modem_pins[NR_PORTS] =
 #endif
 	}
 };
-#endif /* !CONFIG_ETRAX_SERX_DTR_RI_DSR_CD_MIXED */
+#endif /* !ETRAX_SERX_DTR_RI_DSR_CD_MIXED */
 
 #define E100_RTS_MASK 0x20
 #define E100_CTS_MASK 0x40
