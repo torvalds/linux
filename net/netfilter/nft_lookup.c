@@ -71,6 +71,9 @@ static int nft_lookup_init(const struct nft_ctx *ctx,
 			return PTR_ERR(set);
 	}
 
+	if (set->flags & NFT_SET_EVAL)
+		return -EOPNOTSUPP;
+
 	priv->sreg = nft_parse_register(tb[NFTA_LOOKUP_SREG]);
 	err = nft_validate_register_load(priv->sreg, set->klen);
 	if (err < 0)

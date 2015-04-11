@@ -2661,9 +2661,13 @@ static int nf_tables_newset(struct sock *nlsk, struct sk_buff *skb,
 	if (nla[NFTA_SET_FLAGS] != NULL) {
 		flags = ntohl(nla_get_be32(nla[NFTA_SET_FLAGS]));
 		if (flags & ~(NFT_SET_ANONYMOUS | NFT_SET_CONSTANT |
-			      NFT_SET_INTERVAL | NFT_SET_MAP |
-			      NFT_SET_TIMEOUT))
+			      NFT_SET_INTERVAL | NFT_SET_TIMEOUT |
+			      NFT_SET_MAP | NFT_SET_EVAL))
 			return -EINVAL;
+		/* Only one of both operations is supported */
+		if ((flags & (NFT_SET_MAP | NFT_SET_EVAL)) ==
+			     (NFT_SET_MAP | NFT_SET_EVAL))
+			return -EOPNOTSUPP;
 	}
 
 	dtype = 0;
