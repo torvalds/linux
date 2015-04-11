@@ -144,6 +144,39 @@ static int ath_flush(struct hci_uart *hu)
 	return 0;
 }
 
+static int ath_set_bdaddr(struct hci_dev *hdev, const bdaddr_t *bdaddr)
+{
+	struct sk_buff *skb;
+	u8 buf[10];
+	int err;
+
+	buf[0] = 0x01;
+	buf[1] = 0x01;
+	buf[2] = 0x00;
+	buf[3] = sizeof(bdaddr_t);
+	memcpy(buf + 4, bdaddr, sizeof(bdaddr_t));
+
+	skb = __hci_cmd_sync(hdev, 0xfc0b, sizeof(buf), buf, HCI_INIT_TIMEOUT);
+	if (IS_ERR(skb)) {
+		err = PTR_ERR(skb);
+		BT_ERR("%s: Change address command failed (%d)",
+		       hdev->name, err);
+		return err;
+	}
+	kfree_skb(skb);
+
+	return 0;
+}
+
+static int ath_setup(struct hci_uart *hu)
+{
+	BT_DBG("hu %p", hu);
+
+	hu->hdev->set_bdaddr = ath_set_bdaddr;
+
+	return 0;
+}
+
 static const struct h4_recv_pkt ath_recv_pkts[] = {
 	{ H4_RECV_ACL,   .recv = hci_recv_frame },
 	{ H4_RECV_SCO,   .recv = hci_recv_frame },
@@ -212,6 +245,7 @@ static const struct hci_uart_proto athp = {
 	.open		= ath_open,
 	.close		= ath_close,
 	.flush		= ath_flush,
+	.setup		= ath_setup,
 	.recv		= ath_recv,
 	.enqueue	= ath_enqueue,
 	.dequeue	= ath_dequeue,
