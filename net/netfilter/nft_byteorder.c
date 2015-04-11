@@ -26,11 +26,12 @@ struct nft_byteorder {
 };
 
 static void nft_byteorder_eval(const struct nft_expr *expr,
-			       struct nft_data data[NFT_REG_MAX + 1],
+			       struct nft_regs *regs,
 			       const struct nft_pktinfo *pkt)
 {
 	const struct nft_byteorder *priv = nft_expr_priv(expr);
-	struct nft_data *src = &data[priv->sreg], *dst = &data[priv->dreg];
+	struct nft_data *src = &regs->data[priv->sreg];
+	struct nft_data *dst = &regs->data[priv->dreg];
 	union { u32 u32; u16 u16; } *s, *d;
 	unsigned int i;
 

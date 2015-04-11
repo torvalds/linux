@@ -27,7 +27,7 @@ struct nft_dynset {
 };
 
 static void *nft_dynset_new(struct nft_set *set, const struct nft_expr *expr,
-			    struct nft_data data[NFT_REG_MAX + 1])
+			    struct nft_regs *regs)
 {
 	const struct nft_dynset *priv = nft_expr_priv(expr);
 	u64 timeout;
@@ -38,7 +38,8 @@ static void *nft_dynset_new(struct nft_set *set, const struct nft_expr *expr,
 
 	timeout = priv->timeout ? : set->timeout;
 	elem = nft_set_elem_init(set, &priv->tmpl,
-				 &data[priv->sreg_key], &data[priv->sreg_data],
+				 &regs->data[priv->sreg_key],
+				 &regs->data[priv->sreg_data],
 				 timeout, GFP_ATOMIC);
 	if (elem == NULL) {
 		if (set->size)
@@ -48,7 +49,7 @@ static void *nft_dynset_new(struct nft_set *set, const struct nft_expr *expr,
 }
 
 static void nft_dynset_eval(const struct nft_expr *expr,
-			    struct nft_data data[NFT_REG_MAX + 1],
+			    struct nft_regs *regs,
 			    const struct nft_pktinfo *pkt)
 {
 	const struct nft_dynset *priv = nft_expr_priv(expr);
@@ -56,8 +57,8 @@ static void nft_dynset_eval(const struct nft_expr *expr,
 	const struct nft_set_ext *ext;
 	u64 timeout;
 
-	if (set->ops->update(set, &data[priv->sreg_key], nft_dynset_new,
-			     expr, data, &ext)) {
+	if (set->ops->update(set, &regs->data[priv->sreg_key], nft_dynset_new,
+			     expr, regs, &ext)) {
 		if (priv->op == NFT_DYNSET_OP_UPDATE &&
 		    nft_set_ext_exists(ext, NFT_SET_EXT_EXPIRATION)) {
 			timeout = priv->timeout ? : set->timeout;
@@ -66,7 +67,7 @@ static void nft_dynset_eval(const struct nft_expr *expr,
 		}
 	}
 
-	data[NFT_REG_VERDICT].verdict = NFT_BREAK;
+	regs->verdict.code = NFT_BREAK;
 }
 
 static const struct nla_policy nft_dynset_policy[NFTA_DYNSET_MAX + 1] = {

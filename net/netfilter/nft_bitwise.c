@@ -26,12 +26,12 @@ struct nft_bitwise {
 };
 
 static void nft_bitwise_eval(const struct nft_expr *expr,
-			     struct nft_data data[NFT_REG_MAX + 1],
+			     struct nft_regs *regs,
 			     const struct nft_pktinfo *pkt)
 {
 	const struct nft_bitwise *priv = nft_expr_priv(expr);
-	const struct nft_data *src = &data[priv->sreg];
-	struct nft_data *dst = &data[priv->dreg];
+	const struct nft_data *src = &regs->data[priv->sreg];
+	struct nft_data *dst = &regs->data[priv->dreg];
 	unsigned int i;
 
 	for (i = 0; i < DIV_ROUND_UP(priv->len, 4); i++) {

@@ -93,9 +93,9 @@ static bool nft_hash_lookup(const struct nft_set *set,
 static bool nft_hash_update(struct nft_set *set, const struct nft_data *key,
 			    void *(*new)(struct nft_set *,
 					 const struct nft_expr *,
-					 struct nft_data []),
+					 struct nft_regs *regs),
 			    const struct nft_expr *expr,
-			    struct nft_data data[],
+			    struct nft_regs *regs,
 			    const struct nft_set_ext **ext)
 {
 	struct nft_hash *priv = nft_set_priv(set);
@@ -110,7 +110,7 @@ static bool nft_hash_update(struct nft_set *set, const struct nft_data *key,
 	if (he != NULL)
 		goto out;
 
-	he = new(set, expr, data);
+	he = new(set, expr, regs);
 	if (he == NULL)
 		goto err1;
 	if (rhashtable_lookup_insert_key(&priv->ht, &arg, &he->node,

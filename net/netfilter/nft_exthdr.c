@@ -26,11 +26,11 @@ struct nft_exthdr {
 };
 
 static void nft_exthdr_eval(const struct nft_expr *expr,
-			    struct nft_data data[NFT_REG_MAX + 1],
+			    struct nft_regs *regs,
 			    const struct nft_pktinfo *pkt)
 {
 	struct nft_exthdr *priv = nft_expr_priv(expr);
-	struct nft_data *dest = &data[priv->dreg];
+	struct nft_data *dest = &regs->data[priv->dreg];
 	unsigned int offset = 0;
 	int err;
 
@@ -43,7 +43,7 @@ static void nft_exthdr_eval(const struct nft_expr *expr,
 		goto err;
 	return;
 err:
-	data[NFT_REG_VERDICT].verdict = NFT_BREAK;
+	regs->verdict.code = NFT_BREAK;
 }
 
 static const struct nla_policy nft_exthdr_policy[NFTA_EXTHDR_MAX + 1] = {

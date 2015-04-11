@@ -27,7 +27,7 @@ struct nft_log {
 };
 
 static void nft_log_eval(const struct nft_expr *expr,
-			 struct nft_data data[NFT_REG_MAX + 1],
+			 struct nft_regs *regs,
 			 const struct nft_pktinfo *pkt)
 {
 	const struct nft_log *priv = nft_expr_priv(expr);

@@ -24,12 +24,12 @@ struct nft_immediate_expr {
 };
 
 static void nft_immediate_eval(const struct nft_expr *expr,
-			       struct nft_data data[NFT_REG_MAX + 1],
+			       struct nft_regs *regs,
 			       const struct nft_pktinfo *pkt)
 {
 	const struct nft_immediate_expr *priv = nft_expr_priv(expr);
 
-	nft_data_copy(&data[priv->dreg], &priv->data);
+	nft_data_copy(&regs->data[priv->dreg], &priv->data);
 }
 
 static const struct nla_policy nft_immediate_policy[NFTA_IMMEDIATE_MAX + 1] = {

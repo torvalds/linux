@@ -18,12 +18,12 @@
 #include <net/netfilter/nf_tables.h>
 
 static void nft_payload_eval(const struct nft_expr *expr,
-			     struct nft_data data[NFT_REG_MAX + 1],
+			     struct nft_regs *regs,
 			     const struct nft_pktinfo *pkt)
 {
 	const struct nft_payload *priv = nft_expr_priv(expr);
 	const struct sk_buff *skb = pkt->skb;
-	struct nft_data *dest = &data[priv->dreg];
+	struct nft_data *dest = &regs->data[priv->dreg];
 	int offset;
 
 	switch (priv->base) {
@@ -47,7 +47,7 @@ static void nft_payload_eval(const struct nft_expr *expr,
 		goto err;
 	return;
 err:
-	data[NFT_REG_VERDICT].verdict = NFT_BREAK;
+	regs->verdict.code = NFT_BREAK;
 }
 
 static const struct nla_policy nft_payload_policy[NFTA_PAYLOAD_MAX + 1] = {

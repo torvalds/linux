@@ -65,23 +65,23 @@ static inline void nft_trace_packet(const struct nft_pktinfo *pkt,
 }
 
 static void nft_cmp_fast_eval(const struct nft_expr *expr,
-			      struct nft_data data[NFT_REG_MAX + 1])
+			      struct nft_regs *regs)
 {
 	const struct nft_cmp_fast_expr *priv = nft_expr_priv(expr);
 	u32 mask = nft_cmp_fast_mask(priv->len);
 
-	if ((data[priv->sreg].data[0] & mask) == priv->data)
+	if ((regs->data[priv->sreg].data[0] & mask) == priv->data)
 		return;
-	data[NFT_REG_VERDICT].verdict = NFT_BREAK;
+	regs->verdict.code = NFT_BREAK;
 }
 
 static bool nft_payload_fast_eval(const struct nft_expr *expr,
-				  struct nft_data data[NFT_REG_MAX + 1],
+				  struct nft_regs *regs,
 				  const struct nft_pktinfo *pkt)
 {
 	const struct nft_payload *priv = nft_expr_priv(expr);
 	const struct sk_buff *skb = pkt->skb;
-	struct nft_data *dest = &data[priv->dreg];
+	struct nft_data *dest = &regs->data[priv->dreg];
 	unsigned char *ptr;
 
 	if (priv->base == NFT_PAYLOAD_NETWORK_HEADER)
@@ -116,7 +116,7 @@ nft_do_chain(struct nft_pktinfo *pkt, const struct nf_hook_ops *ops)
 	const struct net *net = read_pnet(&nft_base_chain(basechain)->pnet);
 	const struct nft_rule *rule;
 	const struct nft_expr *expr, *last;
-	struct nft_data data[NFT_REG_MAX + 1];
+	struct nft_regs regs;
 	unsigned int stackptr = 0;
 	struct nft_jumpstack jumpstack[NFT_JUMP_STACK_SIZE];
 	struct nft_stats *stats;
@@ -127,7 +127,7 @@ do_chain:
 	rulenum = 0;
 	rule = list_entry(&chain->rules, struct nft_rule, list);
 next_rule:
-	data[NFT_REG_VERDICT].verdict = NFT_CONTINUE;
+	regs.verdict.code = NFT_CONTINUE;
 	list_for_each_entry_continue_rcu(rule, &chain->rules, list) {
 
 		/* This rule is not active, skip. */
@@ -138,18 +138,18 @@ next_rule:
 
 		nft_rule_for_each_expr(expr, last, rule) {
 			if (expr->ops == &nft_cmp_fast_ops)
-				nft_cmp_fast_eval(expr, data);
+				nft_cmp_fast_eval(expr, &regs);
 			else if (expr->ops != &nft_payload_fast_ops ||
-				 !nft_payload_fast_eval(expr, data, pkt))
-				expr->ops->eval(expr, data, pkt);
+				 !nft_payload_fast_eval(expr, &regs, pkt))
+				expr->ops->eval(expr, &regs, pkt);
 
-			if (data[NFT_REG_VERDICT].verdict != NFT_CONTINUE)
+			if (regs.verdict.code != NFT_CONTINUE)
 				break;
 		}
 
-		switch (data[NFT_REG_VERDICT].verdict) {
+		switch (regs.verdict.code) {
 		case NFT_BREAK:
-			data[NFT_REG_VERDICT].verdict = NFT_CONTINUE;
+			regs.verdict.code = NFT_CONTINUE;
 			continue;
 		case NFT_CONTINUE:
 			nft_trace_packet(pkt, chain, rulenum, NFT_TRACE_RULE);
@@ -158,15 +158,15 @@ next_rule:
 		break;
 	}
 
-	switch (data[NFT_REG_VERDICT].verdict & NF_VERDICT_MASK) {
+	switch (regs.verdict.code & NF_VERDICT_MASK) {
 	case NF_ACCEPT:
 	case NF_DROP:
 	case NF_QUEUE:
 		nft_trace_packet(pkt, chain, rulenum, NFT_TRACE_RULE);
-		return data[NFT_REG_VERDICT].verdict;
+		return regs.verdict.code;
 	}
 
-	switch (data[NFT_REG_VERDICT].verdict) {
+	switch (regs.verdict.code) {
 	case NFT_JUMP:
 		BUG_ON(stackptr >= NFT_JUMP_STACK_SIZE);
 		jumpstack[stackptr].chain = chain;
@@ -177,7 +177,7 @@ next_rule:
 	case NFT_GOTO:
 		nft_trace_packet(pkt, chain, rulenum, NFT_TRACE_RULE);
 
-		chain = data[NFT_REG_VERDICT].chain;
+		chain = regs.verdict.chain;
 		goto do_chain;
 	case NFT_CONTINUE:
 		rulenum++;

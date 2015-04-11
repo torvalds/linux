@@ -55,7 +55,7 @@ nft_compat_set_par(struct xt_action_param *par, void *xt, const void *xt_info)
 }
 
 static void nft_target_eval_xt(const struct nft_expr *expr,
-			       struct nft_data data[NFT_REG_MAX + 1],
+			       struct nft_regs *regs,
 			       const struct nft_pktinfo *pkt)
 {
 	void *info = nft_expr_priv(expr);
@@ -72,16 +72,16 @@ static void nft_target_eval_xt(const struct nft_expr *expr,
 
 	switch (ret) {
 	case XT_CONTINUE:
-		data[NFT_REG_VERDICT].verdict = NFT_CONTINUE;
+		regs->verdict.code = NFT_CONTINUE;
 		break;
 	default:
-		data[NFT_REG_VERDICT].verdict = ret;
+		regs->verdict.code = ret;
 		break;
 	}
 }
 
 static void nft_target_eval_bridge(const struct nft_expr *expr,
-				   struct nft_data data[NFT_REG_MAX + 1],
+				   struct nft_regs *regs,
 				   const struct nft_pktinfo *pkt)
 {
 	void *info = nft_expr_priv(expr);
@@ -98,19 +98,19 @@ static void nft_target_eval_bridge(const struct nft_expr *expr,
 
 	switch (ret) {
 	case EBT_ACCEPT:
-		data[NFT_REG_VERDICT].verdict = NF_ACCEPT;
+		regs->verdict.code = NF_ACCEPT;
 		break;
 	case EBT_DROP:
-		data[NFT_REG_VERDICT].verdict = NF_DROP;
+		regs->verdict.code = NF_DROP;
 		break;
 	case EBT_CONTINUE:
-		data[NFT_REG_VERDICT].verdict = NFT_CONTINUE;
+		regs->verdict.code = NFT_CONTINUE;
 		break;
 	case EBT_RETURN:
-		data[NFT_REG_VERDICT].verdict = NFT_RETURN;
+		regs->verdict.code = NFT_RETURN;
 		break;
 	default:
-		data[NFT_REG_VERDICT].verdict = ret;
+		regs->verdict.code = ret;
 		break;
 	}
 }
@@ -304,7 +304,7 @@ static int nft_target_validate(const struct nft_ctx *ctx,
 }
 
 static void nft_match_eval(const struct nft_expr *expr,
-			   struct nft_data data[NFT_REG_MAX + 1],
+			   struct nft_regs *regs,
 			   const struct nft_pktinfo *pkt)
 {
 	void *info = nft_expr_priv(expr);
@@ -317,16 +317,16 @@ static void nft_match_eval(const struct nft_expr *expr,
 	ret = match->match(skb, (struct xt_action_param *)&pkt->xt);
 
 	if (pkt->xt.hotdrop) {
-		data[NFT_REG_VERDICT].verdict = NF_DROP;
+		regs->verdict.code = NF_DROP;
 		return;
 	}
 
 	switch (ret ? 1 : 0) {
 	case 1:
-		data[NFT_REG_VERDICT].verdict = NFT_CONTINUE;
+		regs->verdict.code = NFT_CONTINUE;
 		break;
 	case 0:
-		data[NFT_REG_VERDICT].verdict = NFT_BREAK;
+		regs->verdict.code = NFT_BREAK;
 		break;
 	}
 }

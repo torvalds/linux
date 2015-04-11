@@ -19,12 +19,12 @@
 #include "../br_private.h"
 
 static void nft_meta_bridge_get_eval(const struct nft_expr *expr,
-				     struct nft_data data[NFT_REG_MAX + 1],
+				     struct nft_regs *regs,
 				     const struct nft_pktinfo *pkt)
 {
 	const struct nft_meta *priv = nft_expr_priv(expr);
 	const struct net_device *in = pkt->in, *out = pkt->out;
-	struct nft_data *dest = &data[priv->dreg];
+	struct nft_data *dest = &regs->data[priv->dreg];
 	const struct net_bridge_port *p;
 
 	switch (priv->key) {
@@ -43,9 +43,9 @@ static void nft_meta_bridge_get_eval(const struct nft_expr *expr,
 	strncpy((char *)dest->data, p->br->dev->name, sizeof(dest->data));
 	return;
 out:
-	return nft_meta_get_eval(expr, data, pkt);
+	return nft_meta_get_eval(expr, regs, pkt);
 err:
-	data[NFT_REG_VERDICT].verdict = NFT_BREAK;
+	regs->verdict.code = NFT_BREAK;
 }
 
 static int nft_meta_bridge_get_init(const struct nft_ctx *ctx,

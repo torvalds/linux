@@ -26,19 +26,20 @@ struct nft_lookup {
 };
 
 static void nft_lookup_eval(const struct nft_expr *expr,
-			    struct nft_data data[NFT_REG_MAX + 1],
+			    struct nft_regs *regs,
 			    const struct nft_pktinfo *pkt)
 {
 	const struct nft_lookup *priv = nft_expr_priv(expr);
 	const struct nft_set *set = priv->set;
 	const struct nft_set_ext *ext;
 
-	if (set->ops->lookup(set, &data[priv->sreg], &ext)) {
+	if (set->ops->lookup(set, &regs->data[priv->sreg], &ext)) {
 		if (set->flags & NFT_SET_MAP)
-			nft_data_copy(&data[priv->dreg], nft_set_ext_data(ext));
+			nft_data_copy(&regs->data[priv->dreg],
+				      nft_set_ext_data(ext));
 		return;
 	}
-	data[NFT_REG_VERDICT].verdict = NFT_BREAK;
+	regs->verdict.code = NFT_BREAK;
 }
 
 static const struct nla_policy nft_lookup_policy[NFTA_LOOKUP_MAX + 1] = {

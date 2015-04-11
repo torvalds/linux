@@ -25,13 +25,13 @@
 #include <net/netfilter/nft_meta.h>
 
 void nft_meta_get_eval(const struct nft_expr *expr,
-		       struct nft_data data[NFT_REG_MAX + 1],
+		       struct nft_regs *regs,
 		       const struct nft_pktinfo *pkt)
 {
 	const struct nft_meta *priv = nft_expr_priv(expr);
 	const struct sk_buff *skb = pkt->skb;
 	const struct net_device *in = pkt->in, *out = pkt->out;
-	struct nft_data *dest = &data[priv->dreg];
+	struct nft_data *dest = &regs->data[priv->dreg];
 
 	switch (priv->key) {
 	case NFT_META_LEN:
@@ -177,17 +177,17 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 	return;
 
 err:
-	data[NFT_REG_VERDICT].verdict = NFT_BREAK;
+	regs->verdict.code = NFT_BREAK;
 }
 EXPORT_SYMBOL_GPL(nft_meta_get_eval);
 
 void nft_meta_set_eval(const struct nft_expr *expr,
-		       struct nft_data data[NFT_REG_MAX + 1],
+		       struct nft_regs *regs,
 		       const struct nft_pktinfo *pkt)
 {
 	const struct nft_meta *meta = nft_expr_priv(expr);
 	struct sk_buff *skb = pkt->skb;
-	u32 value = data[meta->sreg].data[0];
+	u32 value = regs->data[meta->sreg].data[0];
 
 	switch (meta->key) {
 	case NFT_META_MARK:

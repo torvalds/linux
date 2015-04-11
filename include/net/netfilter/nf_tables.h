@@ -36,6 +36,17 @@ static inline void nft_set_pktinfo(struct nft_pktinfo *pkt,
 	pkt->xt.family = ops->pf;
 }
 
+/**
+ * 	struct nft_verdict - nf_tables verdict
+ *
+ * 	@code: nf_tables/netfilter verdict code
+ * 	@chain: destination chain for NFT_JUMP/NFT_GOTO
+ */
+struct nft_verdict {
+	u32				code;
+	struct nft_chain		*chain;
+};
+
 struct nft_data {
 	union {
 		u32				data[4];
@@ -45,6 +56,21 @@ struct nft_data {
 		};
 	};
 } __attribute__((aligned(__alignof__(u64))));
+
+/**
+ *	struct nft_regs - nf_tables register set
+ *
+ *	@data: data registers
+ *	@verdict: verdict register
+ *
+ *	The first four data registers alias to the verdict register.
+ */
+struct nft_regs {
+	union {
+		struct nft_data 	data[NFT_REG_MAX + 1];
+		struct nft_verdict	verdict;
+	};
+};
 
 static inline int nft_data_cmp(const struct nft_data *d1,
 			       const struct nft_data *d2,
@@ -221,9 +247,9 @@ struct nft_set_ops {
 						  const struct nft_data *key,
 						  void *(*new)(struct nft_set *,
 							       const struct nft_expr *,
-							       struct nft_data []),
+							       struct nft_regs *),
 						  const struct nft_expr *expr,
-						  struct nft_data data[],
+						  struct nft_regs *regs,
 						  const struct nft_set_ext **ext);
 
 	int				(*insert)(const struct nft_set *set,
@@ -583,7 +609,7 @@ struct nft_expr_type {
 struct nft_expr;
 struct nft_expr_ops {
 	void				(*eval)(const struct nft_expr *expr,
-						struct nft_data data[NFT_REG_MAX + 1],
+						struct nft_regs *regs,
 						const struct nft_pktinfo *pkt);
 	unsigned int			size;
 
