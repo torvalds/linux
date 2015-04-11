@@ -1033,8 +1033,7 @@ static void edp_ctrl_off_worker(struct work_struct *work)
 	time_left = wait_for_completion_timeout(&ctrl->idle_comp,
 						msecs_to_jiffies(500));
 	if (!time_left)
-		DBG("%s: idle pattern timedout, %lu\n",
-				__func__, time_left);
+		DBG("%s: idle pattern timedout\n", __func__);
 
 	edp_state_ctrl(ctrl, 0);
 
