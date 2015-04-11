@@ -3205,7 +3205,7 @@ static int btrfs_clone(struct inode *src, struct inode *inode,
 	key.offset = off;
 
 	while (1) {
-		u64 next_key_min_offset;
+		u64 next_key_min_offset = key.offset + 1;
 
 		/*
 		 * note the key will change type as we walk through the
