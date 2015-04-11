@@ -23,7 +23,7 @@ static void nft_payload_eval(const struct nft_expr *expr,
 {
 	const struct nft_payload *priv = nft_expr_priv(expr);
 	const struct sk_buff *skb = pkt->skb;
-	u32 *dest = &regs->data[priv->dreg].data[0];
+	u32 *dest = &regs->data[priv->dreg];
 	int offset;
 
 	switch (priv->base) {
@@ -43,6 +43,7 @@ static void nft_payload_eval(const struct nft_expr *expr,
 	}
 	offset += priv->offset;
 
+	dest[priv->len / NFT_REG32_SIZE] = 0;
 	if (skb_copy_bits(skb, offset, dest, priv->len) < 0)
 		goto err;
 	return;

@@ -30,8 +30,8 @@ static void nft_bitwise_eval(const struct nft_expr *expr,
 			     const struct nft_pktinfo *pkt)
 {
 	const struct nft_bitwise *priv = nft_expr_priv(expr);
-	const u32  *src = &regs->data[priv->sreg].data[0];
-	u32 *dst = &regs->data[priv->dreg].data[0];
+	const u32 *src = &regs->data[priv->sreg];
+	u32 *dst = &regs->data[priv->dreg];
 	unsigned int i;
 
 	for (i = 0; i < DIV_ROUND_UP(priv->len, 4); i++)

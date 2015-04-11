@@ -70,7 +70,7 @@ static void nft_cmp_fast_eval(const struct nft_expr *expr,
 	const struct nft_cmp_fast_expr *priv = nft_expr_priv(expr);
 	u32 mask = nft_cmp_fast_mask(priv->len);
 
-	if ((regs->data[priv->sreg].data[0] & mask) == priv->data)
+	if ((regs->data[priv->sreg] & mask) == priv->data)
 		return;
 	regs->verdict.code = NFT_BREAK;
 }
@@ -81,7 +81,7 @@ static bool nft_payload_fast_eval(const struct nft_expr *expr,
 {
 	const struct nft_payload *priv = nft_expr_priv(expr);
 	const struct sk_buff *skb = pkt->skb;
-	u32 *dest = &regs->data[priv->dreg].data[0];
+	u32 *dest = &regs->data[priv->dreg];
 	unsigned char *ptr;
 
 	if (priv->base == NFT_PAYLOAD_NETWORK_HEADER)
@@ -94,6 +94,7 @@ static bool nft_payload_fast_eval(const struct nft_expr *expr,
 	if (unlikely(ptr + priv->len >= skb_tail_pointer(skb)))
 		return false;
 
+	*dest = 0;
 	if (priv->len == 2)
 		*(u16 *)dest = *(u16 *)ptr;
 	else if (priv->len == 4)

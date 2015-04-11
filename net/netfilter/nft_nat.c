@@ -49,26 +49,26 @@ static void nft_nat_eval(const struct nft_expr *expr,
 	if (priv->sreg_addr_min) {
 		if (priv->family == AF_INET) {
 			range.min_addr.ip = (__force __be32)
-					regs->data[priv->sreg_addr_min].data[0];
+					regs->data[priv->sreg_addr_min];
 			range.max_addr.ip = (__force __be32)
-					regs->data[priv->sreg_addr_max].data[0];
+					regs->data[priv->sreg_addr_max];
 
 		} else {
 			memcpy(range.min_addr.ip6,
-			       &regs->data[priv->sreg_addr_min].data,
-			       sizeof(struct nft_data));
+			       &regs->data[priv->sreg_addr_min],
+			       sizeof(range.min_addr.ip6));
 			memcpy(range.max_addr.ip6,
-			       &regs->data[priv->sreg_addr_max].data,
-			       sizeof(struct nft_data));
+			       &regs->data[priv->sreg_addr_max],
+			       sizeof(range.max_addr.ip6));
 		}
 		range.flags |= NF_NAT_RANGE_MAP_IPS;
 	}
 
 	if (priv->sreg_proto_min) {
 		range.min_proto.all =
-			*(__be16 *)&regs->data[priv->sreg_proto_min].data[0];
+			*(__be16 *)&regs->data[priv->sreg_proto_min];
 		range.max_proto.all =
-			*(__be16 *)&regs->data[priv->sreg_proto_max].data[0];
+			*(__be16 *)&regs->data[priv->sreg_proto_max];
 		range.flags |= NF_NAT_RANGE_PROTO_SPECIFIED;
 	}
 

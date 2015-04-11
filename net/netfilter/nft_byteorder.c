@@ -30,8 +30,8 @@ static void nft_byteorder_eval(const struct nft_expr *expr,
 			       const struct nft_pktinfo *pkt)
 {
 	const struct nft_byteorder *priv = nft_expr_priv(expr);
-	u32 *src = &regs->data[priv->sreg].data[0];
-	u32 *dst = &regs->data[priv->dreg].data[0];
+	u32 *src = &regs->data[priv->sreg];
+	u32 *dst = &regs->data[priv->dreg];
 	union { u32 u32; u16 u16; } *s, *d;
 	unsigned int i;
 

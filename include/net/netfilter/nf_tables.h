@@ -64,17 +64,15 @@ struct nft_data {
  */
 struct nft_regs {
 	union {
-		struct nft_data 	data[NFT_REG_MAX + 1];
+		u32			data[20];
 		struct nft_verdict	verdict;
 	};
 };
 
-static inline void nft_data_copy(struct nft_data *dst,
-				 const struct nft_data *src)
+static inline void nft_data_copy(u32 *dst, const struct nft_data *src,
+				 unsigned int len)
 {
-	BUILD_BUG_ON(__alignof__(*dst) != __alignof__(u64));
-	*(u64 *)&dst->data[0] = *(u64 *)&src->data[0];
-	*(u64 *)&dst->data[2] = *(u64 *)&src->data[2];
+	memcpy(dst, src, len);
 }
 
 static inline void nft_data_debug(const struct nft_data *data)
@@ -502,8 +500,7 @@ static inline struct nft_set_ext *nft_set_elem_ext(const struct nft_set *set,
 
 void *nft_set_elem_init(const struct nft_set *set,
 			const struct nft_set_ext_tmpl *tmpl,
-			const struct nft_data *key,
-			const struct nft_data *data,
+			const u32 *key, const u32 *data,
 			u64 timeout, gfp_t gfp);
 void nft_set_elem_destroy(const struct nft_set *set, void *elem);
 

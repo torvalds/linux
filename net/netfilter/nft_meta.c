@@ -31,13 +31,14 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 	const struct nft_meta *priv = nft_expr_priv(expr);
 	const struct sk_buff *skb = pkt->skb;
 	const struct net_device *in = pkt->in, *out = pkt->out;
-	u32 *dest = &regs->data[priv->dreg].data[0];
+	u32 *dest = &regs->data[priv->dreg];
 
 	switch (priv->key) {
 	case NFT_META_LEN:
 		*dest = skb->len;
 		break;
 	case NFT_META_PROTOCOL:
+		*dest = 0;
 		*(__be16 *)dest = skb->protocol;
 		break;
 	case NFT_META_NFPROTO:
@@ -75,11 +76,13 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 	case NFT_META_IIFTYPE:
 		if (in == NULL)
 			goto err;
+		*dest = 0;
 		*(u16 *)dest = in->type;
 		break;
 	case NFT_META_OIFTYPE:
 		if (out == NULL)
 			goto err;
+		*dest = 0;
 		*(u16 *)dest = out->type;
 		break;
 	case NFT_META_SKUID:
@@ -185,7 +188,7 @@ void nft_meta_set_eval(const struct nft_expr *expr,
 {
 	const struct nft_meta *meta = nft_expr_priv(expr);
 	struct sk_buff *skb = pkt->skb;
-	u32 value = regs->data[meta->sreg].data[0];
+	u32 value = regs->data[meta->sreg];
 
 	switch (meta->key) {
 	case NFT_META_MARK:

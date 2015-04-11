@@ -3201,8 +3201,7 @@ static struct nft_trans *nft_trans_elem_alloc(struct nft_ctx *ctx,
 
 void *nft_set_elem_init(const struct nft_set *set,
 			const struct nft_set_ext_tmpl *tmpl,
-			const struct nft_data *key,
-			const struct nft_data *data,
+			const u32 *key, const u32 *data,
 			u64 timeout, gfp_t gfp)
 {
 	struct nft_set_ext *ext;
@@ -3357,7 +3356,7 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 	}
 
 	err = -ENOMEM;
-	elem.priv = nft_set_elem_init(set, &tmpl, &elem.key, &data,
+	elem.priv = nft_set_elem_init(set, &tmpl, elem.key.data, data.data,
 				      timeout, GFP_KERNEL);
 	if (elem.priv == NULL)
 		goto err3;
@@ -4122,14 +4121,47 @@ static int nf_tables_check_loops(const struct nft_ctx *ctx,
 	return 0;
 }
 
+/**
+ *	nft_parse_register - parse a register value from a netlink attribute
+ *
+ *	@attr: netlink attribute
+ *
+ *	Parse and translate a register value from a netlink attribute.
+ *	Registers used to be 128 bit wide, these register numbers will be
+ *	mapped to the corresponding 32 bit register numbers.
+ */
 unsigned int nft_parse_register(const struct nlattr *attr)
 {
-	return ntohl(nla_get_be32(attr));
+	unsigned int reg;
+
+	reg = ntohl(nla_get_be32(attr));
+	switch (reg) {
+	case NFT_REG_VERDICT...NFT_REG_4:
+		return reg * NFT_REG_SIZE / NFT_REG32_SIZE;
+	default:
+		return reg + NFT_REG_SIZE / NFT_REG32_SIZE - NFT_REG32_00;
+	}
 }
 EXPORT_SYMBOL_GPL(nft_parse_register);
 
+/**
+ *	nft_dump_register - dump a register value to a netlink attribute
+ *
+ *	@skb: socket buffer
+ *	@attr: attribute number
+ *	@reg: register number
+ *
+ *	Construct a netlink attribute containing the register number. For
+ *	compatibility reasons, register numbers being a multiple of 4 are
+ *	translated to the corresponding 128 bit register numbers.
+ */
 int nft_dump_register(struct sk_buff *skb, unsigned int attr, unsigned int reg)
 {
+	if (reg % (NFT_REG_SIZE / NFT_REG32_SIZE) == 0)
+		reg = reg / (NFT_REG_SIZE / NFT_REG32_SIZE);
+	else
+		reg = reg - NFT_REG_SIZE / NFT_REG32_SIZE + NFT_REG32_00;
+
 	return nla_put_be32(skb, attr, htonl(reg));
 }
 EXPORT_SYMBOL_GPL(nft_dump_register);
@@ -4145,14 +4177,13 @@ EXPORT_SYMBOL_GPL(nft_dump_register);
  */
 int nft_validate_register_load(enum nft_registers reg, unsigned int len)
 {
-	if (reg <= NFT_REG_VERDICT)
+	if (reg < NFT_REG_1 * NFT_REG_SIZE / NFT_REG32_SIZE)
 		return -EINVAL;
-	if (reg > NFT_REG_MAX)
-		return -ERANGE;
 	if (len == 0)
 		return -EINVAL;
-	if (len > FIELD_SIZEOF(struct nft_data, data))
+	if (reg * NFT_REG32_SIZE + len > FIELD_SIZEOF(struct nft_regs, data))
 		return -ERANGE;
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nft_validate_register_load);
@@ -4200,13 +4231,12 @@ int nft_validate_register_store(const struct nft_ctx *ctx,
 
 		return 0;
 	default:
-		if (reg < NFT_REG_1)
+		if (reg < NFT_REG_1 * NFT_REG_SIZE / NFT_REG32_SIZE)
 			return -EINVAL;
-		if (reg > NFT_REG_MAX)
-			return -ERANGE;
 		if (len == 0)
 			return -EINVAL;
-		if (len > FIELD_SIZEOF(struct nft_data, data))
+		if (reg * NFT_REG32_SIZE + len >
+		    FIELD_SIZEOF(struct nft_regs, data))
 			return -ERANGE;
 
 		if (data != NULL && type != NFT_DATA_VALUE)

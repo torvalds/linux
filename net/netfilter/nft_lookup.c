@@ -36,7 +36,7 @@ static void nft_lookup_eval(const struct nft_expr *expr,
 	if (set->ops->lookup(set, &regs->data[priv->sreg], &ext)) {
 		if (set->flags & NFT_SET_MAP)
 			nft_data_copy(&regs->data[priv->dreg],
-				      nft_set_ext_data(ext));
+				      nft_set_ext_data(ext), set->dlen);
 		return;
 	}
 	regs->verdict.code = NFT_BREAK;

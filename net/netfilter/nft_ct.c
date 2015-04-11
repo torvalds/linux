@@ -35,7 +35,7 @@ static void nft_ct_get_eval(const struct nft_expr *expr,
 			    const struct nft_pktinfo *pkt)
 {
 	const struct nft_ct *priv = nft_expr_priv(expr);
-	u32 *dest = &regs->data[priv->dreg].data[0];
+	u32 *dest = &regs->data[priv->dreg];
 	enum ip_conntrack_info ctinfo;
 	const struct nf_conn *ct;
 	const struct nf_conn_help *help;
@@ -156,7 +156,7 @@ static void nft_ct_set_eval(const struct nft_expr *expr,
 	const struct nft_ct *priv = nft_expr_priv(expr);
 	struct sk_buff *skb = pkt->skb;
 #ifdef CONFIG_NF_CONNTRACK_MARK
-	u32 value = regs->data[priv->sreg].data[0];
+	u32 value = regs->data[priv->sreg];
 #endif
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct;
