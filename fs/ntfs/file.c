@@ -28,7 +28,6 @@
 #include <linux/swap.h>
 #include <linux/uio.h>
 #include <linux/writeback.h>
-#include <linux/aio.h>
 
 #include <asm/page.h>
 #include <asm/uaccess.h>

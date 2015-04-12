@@ -29,6 +29,7 @@
 #include <linux/mpage.h>
 #include <linux/quotaops.h>
 #include <linux/blkdev.h>
+#include <linux/uio.h>
 
 #include <cluster/masklog.h>
 

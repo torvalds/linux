@@ -32,7 +32,6 @@
 #include <linux/gfp.h>
 #include <linux/socket.h>
 #include <linux/compat.h>
-#include <linux/aio.h>
 #include "internal.h"
 
 /*

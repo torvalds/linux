@@ -265,7 +265,7 @@ ssize_t nfs_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter, loff_t 
 
 	return -EINVAL;
 #else
-	VM_BUG_ON(iocb->ki_nbytes != PAGE_SIZE);
+	VM_BUG_ON(iov_iter_count(iter) != PAGE_SIZE);
 
 	if (rw == READ)
 		return nfs_file_direct_read(iocb, iter, pos);
@@ -393,7 +393,7 @@ static void nfs_direct_complete(struct nfs_direct_req *dreq, bool write)
 		long res = (long) dreq->error;
 		if (!res)
 			res = (long) dreq->count;
-		aio_complete(dreq->iocb, res, 0);
+		dreq->iocb->ki_complete(dreq->iocb, res, 0);
 	}
 
 	complete_all(&dreq->completion);
