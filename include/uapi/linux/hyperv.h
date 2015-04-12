@@ -105,7 +105,8 @@ struct hv_vss_msg {
  */
 
 #define FCOPY_VERSION_0 0
-#define FCOPY_CURRENT_VERSION FCOPY_VERSION_0
+#define FCOPY_VERSION_1 1
+#define FCOPY_CURRENT_VERSION FCOPY_VERSION_1
 #define W_MAX_PATH 260
 
 enum hv_fcopy_op {

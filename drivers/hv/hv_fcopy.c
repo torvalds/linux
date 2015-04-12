@@ -62,6 +62,10 @@ static DECLARE_WORK(fcopy_send_work, fcopy_send_data);
 static const char fcopy_devname[] = "vmbus/hv_fcopy";
 static u8 *recv_buffer;
 static struct hvutil_transport *hvt;
+/*
+ * This state maintains the version number registered by the daemon.
+ */
+static int dm_reg_value;
 
 static void fcopy_timeout_func(struct work_struct *dummy)
 {
@@ -81,8 +85,18 @@ static void fcopy_timeout_func(struct work_struct *dummy)
 
 static int fcopy_handle_handshake(u32 version)
 {
+	u32 our_ver = FCOPY_CURRENT_VERSION;
+
 	switch (version) {
-	case FCOPY_CURRENT_VERSION:
+	case FCOPY_VERSION_0:
+		/* Daemon doesn't expect us to reply */
+		dm_reg_value = version;
+		break;
+	case FCOPY_VERSION_1:
+		/* Daemon expects us to reply with our own version */
+		if (hvutil_transport_send(hvt, &our_ver, sizeof(our_ver)))
+			return -EFAULT;
+		dm_reg_value = version;
 		break;
 	default:
 		/*
