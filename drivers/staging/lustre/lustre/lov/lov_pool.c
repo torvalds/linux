@@ -67,7 +67,7 @@ void lov_pool_putref(struct pool_desc *pool)
 		LASSERT(pool->pool_proc_entry == NULL);
 		lov_ost_pool_free(&(pool->pool_rr.lqr_pool));
 		lov_ost_pool_free(&(pool->pool_obds));
-		OBD_FREE_PTR(pool);
+		kfree(pool);
 	}
 }
 
@@ -210,7 +210,7 @@ static void *pool_proc_start(struct seq_file *s, loff_t *pos)
 		return NULL;
 	}
 
-	OBD_ALLOC_PTR(iter);
+	iter = kzalloc(sizeof(*iter), GFP_NOFS);
 	if (!iter)
 		return ERR_PTR(-ENOMEM);
 	iter->magic = POOL_IT_MAGIC;
@@ -246,7 +246,7 @@ static void pool_proc_stop(struct seq_file *s, void *v)
 		 * will work */
 		s->private = iter->pool;
 		lov_pool_putref(iter->pool);
-		OBD_FREE_PTR(iter);
+		kfree(iter);
 	}
 	return;
 }
@@ -327,7 +327,7 @@ int lov_ost_pool_init(struct ost_pool *op, unsigned int count)
 	op->op_count = 0;
 	init_rwsem(&op->op_rw_sem);
 	op->op_size = count;
-	OBD_ALLOC(op->op_array, op->op_size * sizeof(op->op_array[0]));
+	op->op_array = kcalloc(op->op_size, sizeof(op->op_array[0]), GFP_NOFS);
 	if (op->op_array == NULL) {
 		op->op_size = 0;
 		return -ENOMEM;
@@ -347,13 +347,13 @@ int lov_ost_pool_extend(struct ost_pool *op, unsigned int min_count)
 		return 0;
 
 	new_size = max(min_count, 2 * op->op_size);
-	OBD_ALLOC(new, new_size * sizeof(op->op_array[0]));
+	new = kcalloc(new_size, sizeof(op->op_array[0]), GFP_NOFS);
 	if (new == NULL)
 		return -ENOMEM;
 
 	/* copy old array to new one */
 	memcpy(new, op->op_array, op->op_size * sizeof(op->op_array[0]));
-	OBD_FREE(op->op_array, op->op_size * sizeof(op->op_array[0]));
+	kfree(op->op_array);
 	op->op_array = new;
 	op->op_size = new_size;
 	return 0;
@@ -411,7 +411,7 @@ int lov_ost_pool_free(struct ost_pool *op)
 
 	down_write(&op->op_rw_sem);
 
-	OBD_FREE(op->op_array, op->op_size * sizeof(op->op_array[0]));
+	kfree(op->op_array);
 	op->op_array = NULL;
 	op->op_count = 0;
 	op->op_size = 0;
@@ -432,7 +432,7 @@ int lov_pool_new(struct obd_device *obd, char *poolname)
 	if (strlen(poolname) > LOV_MAXPOOLNAME)
 		return -ENAMETOOLONG;
 
-	OBD_ALLOC_PTR(new_pool);
+	new_pool = kzalloc(sizeof(*new_pool), GFP_NOFS);
 	if (new_pool == NULL)
 		return -ENOMEM;
 
@@ -498,7 +498,7 @@ out_err:
 	lov_ost_pool_free(&new_pool->pool_rr.lqr_pool);
 out_free_pool_obds:
 	lov_ost_pool_free(&new_pool->pool_obds);
-	OBD_FREE_PTR(new_pool);
+	kfree(new_pool);
 	return rc;
 }
 

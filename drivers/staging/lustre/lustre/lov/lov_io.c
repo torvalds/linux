@@ -70,7 +70,7 @@ static void lov_io_sub_fini(const struct lu_env *env, struct lov_io *lio,
 		if (sub->sub_stripe == lio->lis_single_subio_index)
 			lio->lis_single_subio_index = -1;
 		else if (!sub->sub_borrowed)
-			OBD_FREE_PTR(sub->sub_io);
+			kfree(sub->sub_io);
 		sub->sub_io = NULL;
 	}
 	if (sub->sub_env != NULL && !IS_ERR(sub->sub_env)) {
@@ -179,7 +179,8 @@ static int lov_io_sub_init(const struct lu_env *env, struct lov_io *lio,
 				sub->sub_io = &lio->lis_single_subio;
 				lio->lis_single_subio_index = stripe;
 			} else {
-				OBD_ALLOC_PTR(sub->sub_io);
+				sub->sub_io = kzalloc(sizeof(*sub->sub_io),
+						      GFP_NOFS);
 				if (sub->sub_io == NULL)
 					result = -ENOMEM;
 			}

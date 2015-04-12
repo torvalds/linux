@@ -554,7 +554,7 @@ static int lov_add_target(struct obd_device *obd, struct obd_uuid *uuidp,
 		newsize = max_t(__u32, lov->lov_tgt_size, 2);
 		while (newsize < index + 1)
 			newsize <<= 1;
-		OBD_ALLOC(newtgts, sizeof(*newtgts) * newsize);
+		newtgts = kcalloc(newsize, sizeof(*newtgts), GFP_NOFS);
 		if (newtgts == NULL) {
 			mutex_unlock(&lov->lov_lock);
 			return -ENOMEM;
@@ -571,13 +571,13 @@ static int lov_add_target(struct obd_device *obd, struct obd_uuid *uuidp,
 		lov->lov_tgt_size = newsize;
 		smp_rmb();
 		if (old)
-			OBD_FREE(old, sizeof(*old) * oldsize);
+			kfree(old);
 
 		CDEBUG(D_CONFIG, "tgts: %p size: %d\n",
 		       lov->lov_tgts, lov->lov_tgt_size);
 	}
 
-	OBD_ALLOC_PTR(tgt);
+	tgt = kzalloc(sizeof(*tgt), GFP_NOFS);
 	if (!tgt) {
 		mutex_unlock(&lov->lov_lock);
 		return -ENOMEM;
@@ -586,7 +586,7 @@ static int lov_add_target(struct obd_device *obd, struct obd_uuid *uuidp,
 	rc = lov_ost_pool_add(&lov->lov_packed, index, lov->lov_tgt_size);
 	if (rc) {
 		mutex_unlock(&lov->lov_lock);
-		OBD_FREE_PTR(tgt);
+		kfree(tgt);
 		return rc;
 	}
 
@@ -712,7 +712,7 @@ static void __lov_del_obd(struct obd_device *obd, struct lov_tgt_desc *tgt)
 	if (tgt->ltd_exp)
 		lov_disconnect_obd(obd, tgt);
 
-	OBD_FREE_PTR(tgt);
+	kfree(tgt);
 
 	/* Manual cleanup - no cleanup logs to clean up the osc's.  We must
 	   do it ourselves. And we can't do it from lov_cleanup,
@@ -903,8 +903,7 @@ static int lov_cleanup(struct obd_device *obd)
 			lov_del_target(obd, i, NULL, 0);
 		}
 		obd_putref(obd);
-		OBD_FREE(lov->lov_tgts, sizeof(*lov->lov_tgts) *
-			 lov->lov_tgt_size);
+		kfree(lov->lov_tgts);
 		lov->lov_tgt_size = 0;
 	}
 	return 0;
@@ -994,7 +993,7 @@ static int lov_recreate(struct obd_export *exp, struct obdo *src_oa,
 	LASSERT(src_oa->o_valid & OBD_MD_FLFLAGS &&
 		src_oa->o_flags & OBD_FL_RECREATE_OBJS);
 
-	OBD_ALLOC(obj_mdp, sizeof(*obj_mdp));
+	obj_mdp = kzalloc(sizeof(*obj_mdp), GFP_NOFS);
 	if (obj_mdp == NULL)
 		return -ENOMEM;
 
@@ -1032,7 +1031,7 @@ static int lov_recreate(struct obd_export *exp, struct obdo *src_oa,
 	rc = obd_create(NULL, lov->lov_tgts[ost_idx]->ltd_exp,
 			src_oa, &obj_mdp, oti);
 out:
-	OBD_FREE(obj_mdp, sizeof(*obj_mdp));
+	kfree(obj_mdp);
 	return rc;
 }
 
@@ -1532,7 +1531,7 @@ static int lov_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 			return -EAGAIN;
 
 		LASSERT(tgt && tgt->ltd_exp);
-		OBD_ALLOC_PTR(oqctl);
+		oqctl = kzalloc(sizeof(*oqctl), GFP_NOFS);
 		if (!oqctl)
 			return -ENOMEM;
 
@@ -1543,7 +1542,7 @@ static int lov_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 			qctl->qc_valid = QC_OSTIDX;
 			qctl->obd_uuid = tgt->ltd_uuid;
 		}
-		OBD_FREE_PTR(oqctl);
+		kfree(oqctl);
 		break;
 	}
 	default: {
