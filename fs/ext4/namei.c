@@ -585,8 +585,10 @@ struct stats
 	unsigned bcount;
 };
 
-static struct stats dx_show_leaf(struct dx_hash_info *hinfo, struct ext4_dir_entry_2 *de,
-				 int size, int show_names)
+static struct stats dx_show_leaf(struct inode *dir,
+				struct dx_hash_info *hinfo,
+				struct ext4_dir_entry_2 *de,
+				int size, int show_names)
 {
 	unsigned names = 0, space = 0;
 	char *base = (char *) de;
@@ -599,12 +601,80 @@ static struct stats dx_show_leaf(struct dx_hash_info *hinfo, struct ext4_dir_ent
 		{
 			if (show_names)
 			{
+#ifdef CONFIG_EXT4_FS_ENCRYPTION
+				int len;
+				char *name;
+				struct ext4_str fname_crypto_str
+					= {.name = NULL, .len = 0};
+				struct ext4_fname_crypto_ctx *ctx = NULL;
+				int res;
+
+				name  = de->name;
+				len = de->name_len;
+				ctx = ext4_get_fname_crypto_ctx(dir,
+								EXT4_NAME_LEN);
+				if (IS_ERR(ctx)) {
+					printk(KERN_WARNING "Error acquiring"
+					" crypto ctxt--skipping crypto\n");
+					ctx = NULL;
+				}
+				if (ctx == NULL) {
+					/* Directory is not encrypted */
+					ext4fs_dirhash(de->name,
+						de->name_len, &h);
+					printk("%*.s:(U)%x.%u ", len,
+					       name, h.hash,
+					       (unsigned) ((char *) de
+							   - base));
+				} else {
+					/* Directory is encrypted */
+					res = ext4_fname_crypto_alloc_buffer(
+						ctx, de->name_len,
+						&fname_crypto_str);
+					if (res < 0) {
+						printk(KERN_WARNING "Error "
+							"allocating crypto "
+							"buffer--skipping "
+							"crypto\n");
+						ext4_put_fname_crypto_ctx(&ctx);
+						ctx = NULL;
+					}
+					res = ext4_fname_disk_to_usr(ctx, de,
+							&fname_crypto_str);
+					if (res < 0) {
+						printk(KERN_WARNING "Error "
+							"converting filename "
+							"from disk to usr"
+							"\n");
+						name = "??";
+						len = 2;
+					} else {
+						name = fname_crypto_str.name;
+						len = fname_crypto_str.len;
+					}
+					res = ext4_fname_disk_to_hash(ctx, de,
+								      &h);
+					if (res < 0) {
+						printk(KERN_WARNING "Error "
+							"converting filename "
+							"from disk to htree"
+							"\n");
+						h.hash = 0xDEADBEEF;
+					}
+					printk("%*.s:(E)%x.%u ", len, name,
+					       h.hash, (unsigned) ((char *) de
+								   - base));
+					ext4_put_fname_crypto_ctx(&ctx);
+					ext4_fname_crypto_free_buffer(
+						&fname_crypto_str);
+				}
+#else
 				int len = de->name_len;
 				char *name = de->name;
-				while (len--) printk("%c", *name++);
 				ext4fs_dirhash(de->name, de->name_len, &h);
-				printk(":%x.%u ", h.hash,
+				printk("%*.s:%x.%u ", len, name, h.hash,
 				       (unsigned) ((char *) de - base));
+#endif
 			}
 			space += EXT4_DIR_REC_LEN(de->name_len);
 			names++;
@@ -622,7 +692,6 @@ struct stats dx_show_entries(struct dx_hash_info *hinfo, struct inode *dir,
 	unsigned count = dx_get_count(entries), names = 0, space = 0, i;
 	unsigned bcount = 0;
 	struct buffer_head *bh;
-	int err;
 	printk("%i indexed blocks...\n", count);
 	for (i = 0; i < count; i++, entries++)
 	{
@@ -636,7 +705,8 @@ struct stats dx_show_entries(struct dx_hash_info *hinfo, struct inode *dir,
 			continue;
 		stats = levels?
 		   dx_show_entries(hinfo, dir, ((struct dx_node *) bh->b_data)->entries, levels - 1):
-		   dx_show_leaf(hinfo, (struct ext4_dir_entry_2 *) bh->b_data, blocksize, 0);
+		   dx_show_leaf(dir, hinfo, (struct ext4_dir_entry_2 *)
+			bh->b_data, blocksize, 0);
 		names += stats.names;
 		space += stats.space;
 		bcount += stats.bcount;
@@ -686,8 +756,28 @@ dx_probe(const struct qstr *d_name, struct inode *dir,
 	if (hinfo->hash_version <= DX_HASH_TEA)
 		hinfo->hash_version += EXT4_SB(dir->i_sb)->s_hash_unsigned;
 	hinfo->seed = EXT4_SB(dir->i_sb)->s_hash_seed;
+#ifdef CONFIG_EXT4_FS_ENCRYPTION
+	if (d_name) {
+		struct ext4_fname_crypto_ctx *ctx = NULL;
+		int res;
+
+		/* Check if the directory is encrypted */
+		ctx = ext4_get_fname_crypto_ctx(dir, EXT4_NAME_LEN);
+		if (IS_ERR(ctx)) {
+			ret_err = ERR_PTR(PTR_ERR(ctx));
+			goto fail;
+		}
+		res = ext4_fname_usr_to_hash(ctx, d_name, hinfo);
+		if (res < 0) {
+			ret_err = ERR_PTR(res);
+			goto fail;
+		}
+		ext4_put_fname_crypto_ctx(&ctx);
+	}
+#else
 	if (d_name)
 		ext4fs_dirhash(d_name->name, d_name->len, hinfo);
+#endif
 	hash = hinfo->hash;
 
 	if (root->info.unused_flags & 1) {
@@ -772,6 +862,7 @@ fail:
 		brelse(frame->bh);
 		frame--;
 	}
+
 	if (ret_err == ERR_PTR(ERR_BAD_DX_DIR))
 		ext4_warning(dir->i_sb,
 			     "Corrupt dir inode %lu, running e2fsck is "
@@ -1604,8 +1695,10 @@ static struct ext4_dir_entry_2 *do_split(handle_t *handle, struct inode *dir,
 		initialize_dirent_tail(t, blocksize);
 	}
 
-	dxtrace(dx_show_leaf (hinfo, (struct ext4_dir_entry_2 *) data1, blocksize, 1));
-	dxtrace(dx_show_leaf (hinfo, (struct ext4_dir_entry_2 *) data2, blocksize, 1));
+	dxtrace(dx_show_leaf(dir, hinfo, (struct ext4_dir_entry_2 *) data1,
+			blocksize, 1));
+	dxtrace(dx_show_leaf(dir, hinfo, (struct ext4_dir_entry_2 *) data2,
+			blocksize, 1));
 
 	/* Which block gets the new entry? */
 	if (hinfo->hash >= hash2) {
