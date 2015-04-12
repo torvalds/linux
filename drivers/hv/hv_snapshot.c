@@ -33,16 +33,21 @@
 #define VSS_USERSPACE_TIMEOUT (msecs_to_jiffies(10 * 1000))
 
 /*
- * Global state maintained for transaction that is being processed.
- * Note that only one transaction can be active at any point in time.
+ * Global state maintained for transaction that is being processed. For a class
+ * of integration services, including the "VSS service", the specified protocol
+ * is a "request/response" protocol which means that there can only be single
+ * outstanding transaction from the host at any given point in time. We use
+ * this to simplify memory management in this driver - we cache and process
+ * only one message at a time.
  *
- * This state is set when we receive a request from the host; we
- * cleanup this state when the transaction is completed - when we respond
- * to the host with the key value.
+ * While the request/response protocol is guaranteed by the host, we further
+ * ensure this by serializing packet processing in this driver - we do not
+ * read additional packets from the VMBUs until the current packet is fully
+ * handled.
  */
 
 static struct {
-	bool active; /* transaction status - active or not */
+	int state;   /* hvutil_device_state */
 	int recv_len; /* number of bytes received. */
 	struct vmbus_channel *recv_channel; /* chn we got the request */
 	u64 recv_req_id; /* request ID. */
@@ -75,6 +80,10 @@ static void vss_timeout_func(struct work_struct *dummy)
 	pr_warn("VSS: timeout waiting for daemon to reply\n");
 	vss_respond_to_host(HV_E_FAIL);
 
+	/* Transaction is finished, reset the state. */
+	if (vss_transaction.state > HVUTIL_READY)
+		vss_transaction.state = HVUTIL_READY;
+
 	hv_poll_channel(vss_transaction.vss_context,
 			hv_vss_onchannelcallback);
 }
@@ -86,15 +95,32 @@ vss_cn_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
 
 	vss_msg = (struct hv_vss_msg *)msg->data;
 
-	if (vss_msg->vss_hdr.operation == VSS_OP_REGISTER) {
-		pr_info("VSS daemon registered\n");
-		vss_transaction.active = false;
-	}
-	if (cancel_delayed_work_sync(&vss_timeout_work))
-		vss_respond_to_host(vss_msg->error);
+	/*
+	 * Don't process registration messages if we're in the middle of
+	 * a transaction processing.
+	 */
+	if (vss_transaction.state > HVUTIL_READY &&
+	    vss_msg->vss_hdr.operation == VSS_OP_REGISTER)
+		return;
 
-	hv_poll_channel(vss_transaction.vss_context,
-			hv_vss_onchannelcallback);
+	if (vss_transaction.state == HVUTIL_DEVICE_INIT &&
+	    vss_msg->vss_hdr.operation == VSS_OP_REGISTER) {
+		pr_info("VSS daemon registered\n");
+		vss_transaction.state = HVUTIL_READY;
+	} else if (vss_transaction.state == HVUTIL_USERSPACE_REQ) {
+		vss_transaction.state = HVUTIL_USERSPACE_RECV;
+		if (cancel_delayed_work_sync(&vss_timeout_work)) {
+			vss_respond_to_host(vss_msg->error);
+			/* Transaction is finished, reset the state. */
+			vss_transaction.state = HVUTIL_READY;
+			hv_poll_channel(vss_transaction.vss_context,
+					hv_vss_onchannelcallback);
+		}
+	} else {
+		/* This is a spurious call! */
+		pr_warn("VSS: Transaction not active\n");
+		return;
+	}
 }
 
 
@@ -104,6 +130,10 @@ static void vss_send_op(struct work_struct *dummy)
 	int rc;
 	struct cn_msg *msg;
 	struct hv_vss_msg *vss_msg;
+
+	/* The transaction state is wrong. */
+	if (vss_transaction.state != HVUTIL_HOSTMSG_RECEIVED)
+		return;
 
 	msg = kzalloc(sizeof(*msg) + sizeof(*vss_msg), GFP_ATOMIC);
 	if (!msg)
@@ -117,12 +147,16 @@ static void vss_send_op(struct work_struct *dummy)
 	vss_msg->vss_hdr.operation = op;
 	msg->len = sizeof(struct hv_vss_msg);
 
+	vss_transaction.state = HVUTIL_USERSPACE_REQ;
 	rc = cn_netlink_send(msg, 0, 0, GFP_ATOMIC);
 	if (rc) {
 		pr_warn("VSS: failed to communicate to the daemon: %d\n", rc);
-		if (cancel_delayed_work_sync(&vss_timeout_work))
+		if (cancel_delayed_work_sync(&vss_timeout_work)) {
 			vss_respond_to_host(HV_E_FAIL);
+			vss_transaction.state = HVUTIL_READY;
+		}
 	}
+
 	kfree(msg);
 
 	return;
@@ -141,17 +175,6 @@ vss_respond_to_host(int error)
 	u64	req_id;
 
 	/*
-	 * If a transaction is not active; log and return.
-	 */
-
-	if (!vss_transaction.active) {
-		/*
-		 * This is a spurious call!
-		 */
-		pr_warn("VSS: Transaction not active\n");
-		return;
-	}
-	/*
 	 * Copy the global state for completing the transaction. Note that
 	 * only one transaction can be active at a time.
 	 */
@@ -159,7 +182,6 @@ vss_respond_to_host(int error)
 	buf_len = vss_transaction.recv_len;
 	channel = vss_transaction.recv_channel;
 	req_id = vss_transaction.recv_req_id;
-	vss_transaction.active = false;
 
 	icmsghdrp = (struct icmsg_hdr *)
 			&recv_buffer[sizeof(struct vmbuspipe_hdr)];
@@ -196,7 +218,7 @@ void hv_vss_onchannelcallback(void *context)
 	struct icmsg_hdr *icmsghdrp;
 	struct icmsg_negotiate *negop = NULL;
 
-	if (vss_transaction.active) {
+	if (vss_transaction.state > HVUTIL_READY) {
 		/*
 		 * We will defer processing this callback once
 		 * the current transaction is complete.
@@ -230,7 +252,6 @@ void hv_vss_onchannelcallback(void *context)
 			vss_transaction.recv_len = recvlen;
 			vss_transaction.recv_channel = channel;
 			vss_transaction.recv_req_id = requestid;
-			vss_transaction.active = true;
 			vss_transaction.msg = (struct hv_vss_msg *)vss_msg;
 
 			switch (vss_msg->vss_hdr.operation) {
@@ -247,6 +268,12 @@ void hv_vss_onchannelcallback(void *context)
 				 */
 			case VSS_OP_FREEZE:
 			case VSS_OP_THAW:
+				if (vss_transaction.state < HVUTIL_READY) {
+					/* Userspace is not registered yet */
+					vss_respond_to_host(HV_E_FAIL);
+					return;
+				}
+				vss_transaction.state = HVUTIL_HOSTMSG_RECEIVED;
 				schedule_work(&vss_send_op_work);
 				schedule_delayed_work(&vss_timeout_work,
 						      VSS_USERSPACE_TIMEOUT);
@@ -297,12 +324,14 @@ hv_vss_init(struct hv_util_service *srv)
 	 * Defer processing channel callbacks until the daemon
 	 * has registered.
 	 */
-	vss_transaction.active = true;
+	vss_transaction.state = HVUTIL_DEVICE_INIT;
+
 	return 0;
 }
 
 void hv_vss_deinit(void)
 {
+	vss_transaction.state = HVUTIL_DEVICE_DYING;
 	cn_del_callback(&vss_id);
 	cancel_delayed_work_sync(&vss_timeout_work);
 	cancel_work_sync(&vss_send_op_work);
