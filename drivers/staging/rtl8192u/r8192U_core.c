@@ -3209,7 +3209,7 @@ static void rtl819x_update_rxcounts(struct r8192_priv *priv, u32 *TotalRxBcnNum,
 }
 
 
-void rtl819x_watchdog_wqcallback(struct work_struct *work)
+static void rtl819x_watchdog_wqcallback(struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work, struct delayed_work, work);
 	struct r8192_priv *priv = container_of(dwork, struct r8192_priv, watch_dog_wq);
@@ -3273,13 +3273,13 @@ void rtl819x_watchdog_wqcallback(struct work_struct *work)
 
 }
 
-void watch_dog_timer_callback(unsigned long data)
+static void watch_dog_timer_callback(unsigned long data)
 {
 	struct r8192_priv *priv = ieee80211_priv((struct net_device *) data);
 	queue_delayed_work(priv->priv_wq, &priv->watch_dog_wq, 0);
 	mod_timer(&priv->watch_dog_timer, jiffies + MSECS(IEEE80211_WATCH_DOG_TIME));
 }
-int _rtl8192_up(struct net_device *dev)
+static int _rtl8192_up(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	int init_status = 0;
@@ -3330,7 +3330,7 @@ int rtl8192_up(struct net_device *dev)
 }
 
 
-int rtl8192_close(struct net_device *dev)
+static int rtl8192_close(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	int ret;
@@ -3403,7 +3403,7 @@ void rtl8192_commit(struct net_device *dev)
 
 }
 
-void rtl8192_restart(struct work_struct *work)
+static void rtl8192_restart(struct work_struct *work)
 {
 	struct r8192_priv *priv = container_of(work, struct r8192_priv, reset_wq);
 	struct net_device *dev = priv->ieee80211->dev;
@@ -4615,7 +4615,7 @@ static void rtl8192_rx_cmd(struct sk_buff *skb)
 	}
 }
 
-void rtl8192_irq_rx_tasklet(struct r8192_priv *priv)
+static void rtl8192_irq_rx_tasklet(struct r8192_priv *priv)
 {
 	struct sk_buff *skb;
 	struct rtl8192_rx_info *info;
@@ -4733,7 +4733,7 @@ fail:
 }
 
 //detach all the work and timer structure declared or inititialize in r8192U_init function.
-void rtl8192_cancel_deferred_work(struct r8192_priv *priv)
+static void rtl8192_cancel_deferred_work(struct r8192_priv *priv)
 {
 
 	cancel_work_sync(&priv->reset_wq);
