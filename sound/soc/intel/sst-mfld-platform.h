@@ -174,6 +174,7 @@ struct sst_data {
 	struct sst_platform_data *pdata;
 	struct snd_sst_bytes_v2 *byte_stream;
 	struct mutex lock;
+	struct snd_soc_card *soc_card;
 };
 int sst_register_dsp(struct sst_device *sst);
 int sst_unregister_dsp(struct sst_device *sst);

@@ -84,7 +84,6 @@ static struct snd_soc_jack_gpio hs_jack_gpios[] = {
 static int byt_max98090_init(struct snd_soc_pcm_runtime *runtime)
 {
 	int ret;
-	struct snd_soc_codec *codec = runtime->codec;
 	struct snd_soc_card *card = runtime->card;
 	struct byt_max98090_private *drv = snd_soc_card_get_drvdata(card);
 	struct snd_soc_jack *jack = &drv->jack;
@@ -100,13 +99,9 @@ static int byt_max98090_init(struct snd_soc_pcm_runtime *runtime)
 	}
 
 	/* Enable jack detection */
-	ret = snd_soc_jack_new(codec, "Headset",
-			       SND_JACK_LINEOUT | SND_JACK_HEADSET, jack);
-	if (ret)
-		return ret;
-
-	ret = snd_soc_jack_add_pins(jack, ARRAY_SIZE(hs_jack_pins),
-				    hs_jack_pins);
+	ret = snd_soc_card_jack_new(runtime->card, "Headset",
+				    SND_JACK_LINEOUT | SND_JACK_HEADSET, jack,
+				    hs_jack_pins, ARRAY_SIZE(hs_jack_pins));
 	if (ret)
 		return ret;
 

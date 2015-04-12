@@ -1213,27 +1213,15 @@ static int sta350_i2c_probe(struct i2c_client *i2c,
 #endif
 
 	/* GPIOs */
-	sta350->gpiod_nreset = devm_gpiod_get(dev, "reset");
-	if (IS_ERR(sta350->gpiod_nreset)) {
-		ret = PTR_ERR(sta350->gpiod_nreset);
-		if (ret != -ENOENT && ret != -ENOSYS)
-			return ret;
+	sta350->gpiod_nreset = devm_gpiod_get_optional(dev, "reset",
+						       GPIOD_OUT_LOW);
+	if (IS_ERR(sta350->gpiod_nreset))
+		return PTR_ERR(sta350->gpiod_nreset);
 
-		sta350->gpiod_nreset = NULL;
-	} else {
-		gpiod_direction_output(sta350->gpiod_nreset, 0);
-	}
-
-	sta350->gpiod_power_down = devm_gpiod_get(dev, "power-down");
-	if (IS_ERR(sta350->gpiod_power_down)) {
-		ret = PTR_ERR(sta350->gpiod_power_down);
-		if (ret != -ENOENT && ret != -ENOSYS)
-			return ret;
-
-		sta350->gpiod_power_down = NULL;
-	} else {
-		gpiod_direction_output(sta350->gpiod_power_down, 0);
-	}
+	sta350->gpiod_power_down = devm_gpiod_get(dev, "power-down",
+						  GPIOD_OUT_LOW);
+	if (IS_ERR(sta350->gpiod_power_down))
+		return PTR_ERR(sta350->gpiod_power_down);
 
 	/* regulators */
 	for (i = 0; i < ARRAY_SIZE(sta350->supplies); i++)

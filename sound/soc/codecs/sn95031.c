@@ -783,19 +783,21 @@ static inline void sn95031_enable_jack_btn(struct snd_soc_codec *codec)
 	snd_soc_write(codec, SN95031_BTNCTRL2, 0x01);
 }
 
-static int sn95031_get_headset_state(struct snd_soc_jack *mfld_jack)
+static int sn95031_get_headset_state(struct snd_soc_codec *codec,
+	struct snd_soc_jack *mfld_jack)
 {
-	int micbias = sn95031_get_mic_bias(mfld_jack->codec);
+	int micbias = sn95031_get_mic_bias(codec);
 
 	int jack_type = snd_soc_jack_get_type(mfld_jack, micbias);
 
 	pr_debug("jack type detected = %d\n", jack_type);
 	if (jack_type == SND_JACK_HEADSET)
-		sn95031_enable_jack_btn(mfld_jack->codec);
+		sn95031_enable_jack_btn(codec);
 	return jack_type;
 }
 
-void sn95031_jack_detection(struct mfld_jack_data *jack_data)
+void sn95031_jack_detection(struct snd_soc_codec *codec,
+	struct mfld_jack_data *jack_data)
 {
 	unsigned int status;
 	unsigned int mask = SND_JACK_BTN_0 | SND_JACK_BTN_1 | SND_JACK_HEADSET;
@@ -809,11 +811,11 @@ void sn95031_jack_detection(struct mfld_jack_data *jack_data)
 		status = SND_JACK_HEADSET | SND_JACK_BTN_1;
 	} else if (jack_data->intr_id & 0x4) {
 		pr_debug("headset or headphones inserted\n");
-		status = sn95031_get_headset_state(jack_data->mfld_jack);
+		status = sn95031_get_headset_state(codec, jack_data->mfld_jack);
 	} else if (jack_data->intr_id & 0x8) {
 		pr_debug("headset or headphones removed\n");
 		status = 0;
-		sn95031_disable_jack_btn(jack_data->mfld_jack->codec);
+		sn95031_disable_jack_btn(codec);
 	} else {
 		pr_err("unidentified interrupt\n");
 		return;
