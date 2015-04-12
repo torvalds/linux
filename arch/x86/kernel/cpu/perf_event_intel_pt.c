@@ -119,48 +119,55 @@ static int __init pt_pmu_hw_init(void)
 	struct dev_ext_attribute *de_attrs;
 	struct attribute **attrs;
 	size_t size;
+	int ret;
 	long i;
 
-	if (test_cpu_cap(&boot_cpu_data, X86_FEATURE_INTEL_PT)) {
-		for (i = 0; i < PT_CPUID_LEAVES; i++)
-			cpuid_count(20, i,
-				    &pt_pmu.caps[CR_EAX + i * 4],
-				    &pt_pmu.caps[CR_EBX + i * 4],
-				    &pt_pmu.caps[CR_ECX + i * 4],
-				    &pt_pmu.caps[CR_EDX + i * 4]);
-	} else {
-		return -ENODEV;
+	attrs = NULL;
+	ret = -ENODEV;
+	if (!test_cpu_cap(&boot_cpu_data, X86_FEATURE_INTEL_PT))
+		goto fail;
+
+	for (i = 0; i < PT_CPUID_LEAVES; i++) {
+		cpuid_count(20, i,
+			    &pt_pmu.caps[CR_EAX + i*4],
+			    &pt_pmu.caps[CR_EBX + i*4],
+			    &pt_pmu.caps[CR_ECX + i*4],
+			    &pt_pmu.caps[CR_EDX + i*4]);
 	}
 
-	size = sizeof(struct attribute *) * (ARRAY_SIZE(pt_caps) + 1);
+	ret = -ENOMEM;
+	size = sizeof(struct attribute *) * (ARRAY_SIZE(pt_caps)+1);
 	attrs = kzalloc(size, GFP_KERNEL);
 	if (!attrs)
-		goto err_attrs;
+		goto fail;
 
-	size = sizeof(struct dev_ext_attribute) * (ARRAY_SIZE(pt_caps) + 1);
+	size = sizeof(struct dev_ext_attribute) * (ARRAY_SIZE(pt_caps)+1);
 	de_attrs = kzalloc(size, GFP_KERNEL);
 	if (!de_attrs)
-		goto err_de_attrs;
+		goto fail;
 
 	for (i = 0; i < ARRAY_SIZE(pt_caps); i++) {
-		de_attrs[i].attr.attr.name = pt_caps[i].name;
+		struct dev_ext_attribute *de_attr = de_attrs + i;
 
-		sysfs_attr_init(&de_attrs[i].attr.attr);
-		de_attrs[i].attr.attr.mode = S_IRUGO;
-		de_attrs[i].attr.show = pt_cap_show;
-		de_attrs[i].var = (void *)i;
-		attrs[i] = &de_attrs[i].attr.attr;
+		de_attr->attr.attr.name = pt_caps[i].name;
+
+		sysfs_attr_init(&de_attrs->attr.attr);
+
+		de_attr->attr.attr.mode		= S_IRUGO;
+		de_attr->attr.show		= pt_cap_show;
+		de_attr->var			= (void *)i;
+
+		attrs[i] = &de_attr->attr.attr;
 	}
 
 	pt_cap_group.attrs = attrs;
+
 	return 0;
 
-err_de_attrs:
-	kfree(de_attrs);
-err_attrs:
+fail:
 	kfree(attrs);
 
-	return -ENOMEM;
+	return ret;
 }
 
 #define PT_CONFIG_MASK (RTIT_CTL_TSC_EN | RTIT_CTL_DISRETC)
