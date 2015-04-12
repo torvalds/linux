@@ -665,7 +665,7 @@ static int ll_atomic_open(struct inode *dir, struct dentry *dentry,
 
 out_release:
 	ll_intent_release(it);
-	OBD_FREE(it, sizeof(*it));
+	kfree(it);
 
 	return rc;
 }

@@ -239,7 +239,7 @@ static int ll_dir_filler(void *_hash, struct page *page0)
 	ll_pagevec_lru_add_file(&lru_pvec);
 
 	if (page_pool != &page0)
-		OBD_FREE(page_pool, sizeof(struct page *) * max_pages);
+		kfree(page_pool);
 	return rc;
 }
 
@@ -650,7 +650,7 @@ static int ll_send_mgc_param(struct obd_export *mgc, char *string)
 				sizeof(struct mgs_send_param), msp, NULL);
 	if (rc)
 		CERROR("Failed to set parameter: %d\n", rc);
-	OBD_FREE_PTR(msp);
+	kfree(msp);
 
 	return rc;
 }
@@ -787,7 +787,7 @@ int ll_dir_setstripe(struct inode *inode, struct lov_user_md *lump,
 
 end:
 		if (param != NULL)
-			OBD_FREE(param, MGS_PARAM_MAXLEN);
+			kfree(param);
 	}
 	return rc;
 }
@@ -1072,7 +1072,7 @@ static int copy_and_ioctl(int cmd, struct obd_export *exp,
 
 	rc = obd_iocontrol(cmd, exp, size, copy, NULL);
 out:
-	OBD_FREE(copy, size);
+	kfree(copy);
 
 	return rc;
 }
@@ -1163,7 +1163,7 @@ static int quotactl_ioctl(struct ll_sb_info *sbi, struct if_quotactl *qctl)
 				oqctl->qc_cmd = Q_QUOTAOFF;
 				obd_quotactl(sbi->ll_md_exp, oqctl);
 			}
-			OBD_FREE_PTR(oqctl);
+			kfree(oqctl);
 			return rc;
 		}
 		/* If QIF_SPACE is not set, client should collect the
@@ -1206,11 +1206,11 @@ static int quotactl_ioctl(struct ll_sb_info *sbi, struct if_quotactl *qctl)
 				oqctl->qc_dqblk.dqb_valid &= ~QIF_SPACE;
 			}
 
-			OBD_FREE_PTR(oqctl_tmp);
+			kfree(oqctl_tmp);
 		}
 out:
 		QCTL_COPY(qctl, oqctl);
-		OBD_FREE_PTR(oqctl);
+		kfree(oqctl);
 	}
 
 	return rc;
@@ -1437,7 +1437,7 @@ lmv_out_free:
 		}
 free_lmv:
 		if (tmp)
-			OBD_FREE(tmp, lum_size);
+			kfree(tmp);
 		return rc;
 	}
 	case LL_IOC_REMOVE_ENTRY: {
@@ -1657,7 +1657,7 @@ free_lmm:
 		if (rc < 0)
 			CDEBUG(D_INFO, "obd_quotacheck failed: rc %d\n", rc);
 
-		OBD_FREE_PTR(oqctl);
+		kfree(oqctl);
 		return error ?: rc;
 	}
 	case OBD_IOC_POLL_QUOTACHECK: {
@@ -1691,7 +1691,7 @@ free_lmm:
 			goto out_poll;
 		}
 out_poll:
-		OBD_FREE_PTR(check);
+		kfree(check);
 		return rc;
 	}
 	case LL_IOC_QUOTACTL: {
@@ -1712,7 +1712,7 @@ out_poll:
 			rc = -EFAULT;
 
 out_quotactl:
-		OBD_FREE_PTR(qctl);
+		kfree(qctl);
 		return rc;
 	}
 	case OBD_IOC_GETDTNAME:
@@ -1781,13 +1781,13 @@ out_quotactl:
 
 		/* We don't know the true size yet; copy the fixed-size part */
 		if (copy_from_user(hur, (void *)arg, sizeof(*hur))) {
-			OBD_FREE_PTR(hur);
+			kfree(hur);
 			return -EFAULT;
 		}
 
 		/* Compute the whole struct size */
 		totalsize = hur_len(hur);
-		OBD_FREE_PTR(hur);
+		kfree(hur);
 		if (totalsize < 0)
 			return -E2BIG;
 
@@ -1865,7 +1865,7 @@ out_quotactl:
 		if (!copy)
 			return -ENOMEM;
 		if (copy_from_user(copy, (char *)arg, sizeof(*copy))) {
-			OBD_FREE_PTR(copy);
+			kfree(copy);
 			return -EFAULT;
 		}
 
@@ -1873,7 +1873,7 @@ out_quotactl:
 		if (copy_to_user((char *)arg, copy, sizeof(*copy)))
 			rc = -EFAULT;
 
-		OBD_FREE_PTR(copy);
+		kfree(copy);
 		return rc;
 	}
 	case LL_IOC_HSM_COPY_END: {
@@ -1884,7 +1884,7 @@ out_quotactl:
 		if (!copy)
 			return -ENOMEM;
 		if (copy_from_user(copy, (char *)arg, sizeof(*copy))) {
-			OBD_FREE_PTR(copy);
+			kfree(copy);
 			return -EFAULT;
 		}
 
@@ -1892,7 +1892,7 @@ out_quotactl:
 		if (copy_to_user((char *)arg, copy, sizeof(*copy)))
 			rc = -EFAULT;
 
-		OBD_FREE_PTR(copy);
+		kfree(copy);
 		return rc;
 	}
 	default:

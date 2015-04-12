@@ -144,7 +144,7 @@ static int ll_xattr_cache_add(struct list_head *cache,
 
 	return 0;
 err_value:
-	OBD_FREE(xattr->xe_name, xattr->xe_namelen);
+	kfree(xattr->xe_name);
 err_name:
 	OBD_SLAB_FREE_PTR(xattr, xattr_kmem);
 
@@ -170,8 +170,8 @@ static int ll_xattr_cache_del(struct list_head *cache,
 
 	if (ll_xattr_cache_find(cache, xattr_name, &xattr) == 0) {
 		list_del(&xattr->xe_list);
-		OBD_FREE(xattr->xe_name, xattr->xe_namelen);
-		OBD_FREE(xattr->xe_value, xattr->xe_vallen);
+		kfree(xattr->xe_name);
+		kfree(xattr->xe_value);
 		OBD_SLAB_FREE_PTR(xattr, xattr_kmem);
 
 		return 0;
