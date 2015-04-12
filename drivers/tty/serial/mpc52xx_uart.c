@@ -405,7 +405,7 @@ static struct psc_ops mpc5200b_psc_ops = {
 	.get_mr1 = mpc52xx_psc_get_mr1,
 };
 
-#endif /* CONFIG_MPC52xx */
+#endif /* CONFIG_PPC_MPC52xx */
 
 #ifdef CONFIG_PPC_MPC512x
 #define FIFO_512x(port) ((struct mpc512x_psc_fifo __iomem *)(PSC(port)+1))
