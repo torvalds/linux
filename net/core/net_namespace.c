@@ -198,8 +198,10 @@ static int __peernet2id(struct net *net, struct net *peer, bool alloc)
  */
 int peernet2id(struct net *net, struct net *peer)
 {
-	int id = __peernet2id(net, peer, true);
+	bool alloc = atomic_read(&peer->count) == 0 ? false : true;
+	int id;
 
+	id = __peernet2id(net, peer, alloc);
 	return id >= 0 ? id : NETNSA_NSID_NOT_ASSIGNED;
 }
 EXPORT_SYMBOL(peernet2id);
@@ -235,10 +237,6 @@ static __net_init int setup_net(struct net *net, struct user_namespace *user_ns)
 	net->dev_base_seq = 1;
 	net->user_ns = user_ns;
 	idr_init(&net->netns_ids);
-
-#ifdef NETNS_REFCNT_DEBUG
-	atomic_set(&net->use_count, 0);
-#endif
 
 	list_for_each_entry(ops, &pernet_list, list) {
 		error = ops_init(ops, net);
@@ -294,13 +292,6 @@ out_free:
 
 static void net_free(struct net *net)
 {
-#ifdef NETNS_REFCNT_DEBUG
-	if (unlikely(atomic_read(&net->use_count) != 0)) {
-		pr_emerg("network namespace not free! Usage: %d\n",
-			 atomic_read(&net->use_count));
-		return;
-	}
-#endif
 	kfree(rcu_access_pointer(net->gen));
 	kmem_cache_free(net_cachep, net);
 }

@@ -257,7 +257,7 @@ static int nfqnl_put_sk_uidgid(struct sk_buff *skb, struct sock *sk)
 {
 	const struct cred *cred;
 
-	if (sk->sk_state == TCP_TIME_WAIT)
+	if (!sk_fullsock(sk))
 		return 0;
 
 	read_lock_bh(&sk->sk_callback_lock);
@@ -314,13 +314,13 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 	if (entskb->tstamp.tv64)
 		size += nla_total_size(sizeof(struct nfqnl_msg_packet_timestamp));
 
-	if (entry->hook <= NF_INET_FORWARD ||
-	   (entry->hook == NF_INET_POST_ROUTING && entskb->sk == NULL))
+	if (entry->state.hook <= NF_INET_FORWARD ||
+	   (entry->state.hook == NF_INET_POST_ROUTING && entskb->sk == NULL))
 		csum_verify = !skb_csum_unnecessary(entskb);
 	else
 		csum_verify = false;
 
-	outdev = entry->outdev;
+	outdev = entry->state.out;
 
 	switch ((enum nfqnl_config_mode)ACCESS_ONCE(queue->copy_mode)) {
 	case NFQNL_COPY_META:
@@ -368,23 +368,23 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 		return NULL;
 	}
 	nfmsg = nlmsg_data(nlh);
-	nfmsg->nfgen_family = entry->pf;
+	nfmsg->nfgen_family = entry->state.pf;
 	nfmsg->version = NFNETLINK_V0;
 	nfmsg->res_id = htons(queue->queue_num);
 
 	nla = __nla_reserve(skb, NFQA_PACKET_HDR, sizeof(*pmsg));
 	pmsg = nla_data(nla);
 	pmsg->hw_protocol	= entskb->protocol;
-	pmsg->hook		= entry->hook;
+	pmsg->hook		= entry->state.hook;
 	*packet_id_ptr		= &pmsg->packet_id;
 
-	indev = entry->indev;
+	indev = entry->state.in;
 	if (indev) {
 #if !IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 		if (nla_put_be32(skb, NFQA_IFINDEX_INDEV, htonl(indev->ifindex)))
 			goto nla_put_failure;
 #else
-		if (entry->pf == PF_BRIDGE) {
+		if (entry->state.pf == PF_BRIDGE) {
 			/* Case 1: indev is physical input device, we need to
 			 * look for bridge group (when called from
 			 * netfilter_bridge) */
@@ -414,7 +414,7 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 		if (nla_put_be32(skb, NFQA_IFINDEX_OUTDEV, htonl(outdev->ifindex)))
 			goto nla_put_failure;
 #else
-		if (entry->pf == PF_BRIDGE) {
+		if (entry->state.pf == PF_BRIDGE) {
 			/* Case 1: outdev is physical output device, we need to
 			 * look for bridge group (when called from
 			 * netfilter_bridge) */
@@ -633,8 +633,8 @@ nfqnl_enqueue_packet(struct nf_queue_entry *entry, unsigned int queuenum)
 	struct nfqnl_instance *queue;
 	struct sk_buff *skb, *segs;
 	int err = -ENOBUFS;
-	struct net *net = dev_net(entry->indev ?
-				  entry->indev : entry->outdev);
+	struct net *net = dev_net(entry->state.in ?
+				  entry->state.in : entry->state.out);
 	struct nfnl_queue_net *q = nfnl_queue_pernet(net);
 
 	/* rcu_read_lock()ed by nf_hook_slow() */
@@ -647,7 +647,7 @@ nfqnl_enqueue_packet(struct nf_queue_entry *entry, unsigned int queuenum)
 
 	skb = entry->skb;
 
-	switch (entry->pf) {
+	switch (entry->state.pf) {
 	case NFPROTO_IPV4:
 		skb->protocol = htons(ETH_P_IP);
 		break;
@@ -757,11 +757,11 @@ nfqnl_set_mode(struct nfqnl_instance *queue,
 static int
 dev_cmp(struct nf_queue_entry *entry, unsigned long ifindex)
 {
-	if (entry->indev)
-		if (entry->indev->ifindex == ifindex)
+	if (entry->state.in)
+		if (entry->state.in->ifindex == ifindex)
 			return 1;
-	if (entry->outdev)
-		if (entry->outdev->ifindex == ifindex)
+	if (entry->state.out)
+		if (entry->state.out->ifindex == ifindex)
 			return 1;
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	if (entry->skb->nf_bridge) {

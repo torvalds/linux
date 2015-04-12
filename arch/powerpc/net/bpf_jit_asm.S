@@ -34,13 +34,13 @@
  */
 	.globl	sk_load_word
 sk_load_word:
-	cmpdi	r_addr, 0
+	PPC_LCMPI	r_addr, 0
 	blt	bpf_slow_path_word_neg
 	.globl	sk_load_word_positive_offset
 sk_load_word_positive_offset:
 	/* Are we accessing past headlen? */
 	subi	r_scratch1, r_HL, 4
-	cmpd	r_scratch1, r_addr
+	PPC_LCMP	r_scratch1, r_addr
 	blt	bpf_slow_path_word
 	/* Nope, just hitting the header.  cr0 here is eq or gt! */
 #ifdef __LITTLE_ENDIAN__
@@ -52,12 +52,12 @@ sk_load_word_positive_offset:
 
 	.globl	sk_load_half
 sk_load_half:
-	cmpdi	r_addr, 0
+	PPC_LCMPI	r_addr, 0
 	blt	bpf_slow_path_half_neg
 	.globl	sk_load_half_positive_offset
 sk_load_half_positive_offset:
 	subi	r_scratch1, r_HL, 2
-	cmpd	r_scratch1, r_addr
+	PPC_LCMP	r_scratch1, r_addr
 	blt	bpf_slow_path_half
 #ifdef __LITTLE_ENDIAN__
 	lhbrx	r_A, r_D, r_addr
@@ -68,11 +68,11 @@ sk_load_half_positive_offset:
 
 	.globl	sk_load_byte
 sk_load_byte:
-	cmpdi	r_addr, 0
+	PPC_LCMPI	r_addr, 0
 	blt	bpf_slow_path_byte_neg
 	.globl	sk_load_byte_positive_offset
 sk_load_byte_positive_offset:
-	cmpd	r_HL, r_addr
+	PPC_LCMP	r_HL, r_addr
 	ble	bpf_slow_path_byte
 	lbzx	r_A, r_D, r_addr
 	blr
@@ -83,11 +83,11 @@ sk_load_byte_positive_offset:
  */
 	.globl sk_load_byte_msh
 sk_load_byte_msh:
-	cmpdi	r_addr, 0
+	PPC_LCMPI	r_addr, 0
 	blt	bpf_slow_path_byte_msh_neg
 	.globl sk_load_byte_msh_positive_offset
 sk_load_byte_msh_positive_offset:
-	cmpd	r_HL, r_addr
+	PPC_LCMP	r_HL, r_addr
 	ble	bpf_slow_path_byte_msh
 	lbzx	r_X, r_D, r_addr
 	rlwinm	r_X, r_X, 2, 32-4-2, 31-2
@@ -101,13 +101,13 @@ sk_load_byte_msh_positive_offset:
  */
 #define bpf_slow_path_common(SIZE)				\
 	mflr	r0;						\
-	std	r0, 16(r1);					\
+	PPC_STL	r0, PPC_LR_STKOFF(r1);					\
 	/* R3 goes in parameter space of caller's frame */	\
-	std	r_skb, (BPF_PPC_STACKFRAME+48)(r1);		\
-	std	r_A, (BPF_PPC_STACK_BASIC+(0*8))(r1);		\
-	std	r_X, (BPF_PPC_STACK_BASIC+(1*8))(r1);		\
-	addi	r5, r1, BPF_PPC_STACK_BASIC+(2*8);		\
-	stdu	r1, -BPF_PPC_SLOWPATH_FRAME(r1);		\
+	PPC_STL	r_skb, (BPF_PPC_STACKFRAME+BPF_PPC_STACK_R3_OFF)(r1);		\
+	PPC_STL	r_A, (BPF_PPC_STACK_BASIC+(0*REG_SZ))(r1);		\
+	PPC_STL	r_X, (BPF_PPC_STACK_BASIC+(1*REG_SZ))(r1);		\
+	addi	r5, r1, BPF_PPC_STACK_BASIC+(2*REG_SZ);		\
+	PPC_STLU	r1, -BPF_PPC_SLOWPATH_FRAME(r1);		\
 	/* R3 = r_skb, as passed */				\
 	mr	r4, r_addr;					\
 	li	r6, SIZE;					\
@@ -115,19 +115,19 @@ sk_load_byte_msh_positive_offset:
 	nop;							\
 	/* R3 = 0 on success */					\
 	addi	r1, r1, BPF_PPC_SLOWPATH_FRAME;			\
-	ld	r0, 16(r1);					\
-	ld	r_A, (BPF_PPC_STACK_BASIC+(0*8))(r1);		\
-	ld	r_X, (BPF_PPC_STACK_BASIC+(1*8))(r1);		\
+	PPC_LL	r0, PPC_LR_STKOFF(r1);					\
+	PPC_LL	r_A, (BPF_PPC_STACK_BASIC+(0*REG_SZ))(r1);		\
+	PPC_LL	r_X, (BPF_PPC_STACK_BASIC+(1*REG_SZ))(r1);		\
 	mtlr	r0;						\
-	cmpdi	r3, 0;						\
+	PPC_LCMPI	r3, 0;						\
 	blt	bpf_error;	/* cr0 = LT */			\
-	ld	r_skb, (BPF_PPC_STACKFRAME+48)(r1);		\
+	PPC_LL	r_skb, (BPF_PPC_STACKFRAME+BPF_PPC_STACK_R3_OFF)(r1);		\
 	/* Great success! */
 
 bpf_slow_path_word:
 	bpf_slow_path_common(4)
 	/* Data value is on stack, and cr0 != LT */
-	lwz	r_A, BPF_PPC_STACK_BASIC+(2*8)(r1)
+	lwz	r_A, BPF_PPC_STACK_BASIC+(2*REG_SZ)(r1)
 	blr
 
 bpf_slow_path_half:
@@ -154,12 +154,12 @@ bpf_slow_path_byte_msh:
  */
 #define sk_negative_common(SIZE)				\
 	mflr	r0;						\
-	std	r0, 16(r1);					\
+	PPC_STL	r0, PPC_LR_STKOFF(r1);					\
 	/* R3 goes in parameter space of caller's frame */	\
-	std	r_skb, (BPF_PPC_STACKFRAME+48)(r1);		\
-	std	r_A, (BPF_PPC_STACK_BASIC+(0*8))(r1);		\
-	std	r_X, (BPF_PPC_STACK_BASIC+(1*8))(r1);		\
-	stdu	r1, -BPF_PPC_SLOWPATH_FRAME(r1);		\
+	PPC_STL	r_skb, (BPF_PPC_STACKFRAME+BPF_PPC_STACK_R3_OFF)(r1);		\
+	PPC_STL	r_A, (BPF_PPC_STACK_BASIC+(0*REG_SZ))(r1);		\
+	PPC_STL	r_X, (BPF_PPC_STACK_BASIC+(1*REG_SZ))(r1);		\
+	PPC_STLU	r1, -BPF_PPC_SLOWPATH_FRAME(r1);		\
 	/* R3 = r_skb, as passed */				\
 	mr	r4, r_addr;					\
 	li	r5, SIZE;					\
@@ -167,19 +167,19 @@ bpf_slow_path_byte_msh:
 	nop;							\
 	/* R3 != 0 on success */				\
 	addi	r1, r1, BPF_PPC_SLOWPATH_FRAME;			\
-	ld	r0, 16(r1);					\
-	ld	r_A, (BPF_PPC_STACK_BASIC+(0*8))(r1);		\
-	ld	r_X, (BPF_PPC_STACK_BASIC+(1*8))(r1);		\
+	PPC_LL	r0, PPC_LR_STKOFF(r1);					\
+	PPC_LL	r_A, (BPF_PPC_STACK_BASIC+(0*REG_SZ))(r1);		\
+	PPC_LL	r_X, (BPF_PPC_STACK_BASIC+(1*REG_SZ))(r1);		\
 	mtlr	r0;						\
-	cmpldi	r3, 0;						\
+	PPC_LCMPLI	r3, 0;						\
 	beq	bpf_error_slow;	/* cr0 = EQ */			\
 	mr	r_addr, r3;					\
-	ld	r_skb, (BPF_PPC_STACKFRAME+48)(r1);		\
+	PPC_LL	r_skb, (BPF_PPC_STACKFRAME+BPF_PPC_STACK_R3_OFF)(r1);		\
 	/* Great success! */
 
 bpf_slow_path_word_neg:
 	lis     r_scratch1,-32	/* SKF_LL_OFF */
-	cmpd	r_addr, r_scratch1	/* addr < SKF_* */
+	PPC_LCMP	r_addr, r_scratch1	/* addr < SKF_* */
 	blt	bpf_error	/* cr0 = LT */
 	.globl	sk_load_word_negative_offset
 sk_load_word_negative_offset:
@@ -189,7 +189,7 @@ sk_load_word_negative_offset:
 
 bpf_slow_path_half_neg:
 	lis     r_scratch1,-32	/* SKF_LL_OFF */
-	cmpd	r_addr, r_scratch1	/* addr < SKF_* */
+	PPC_LCMP	r_addr, r_scratch1	/* addr < SKF_* */
 	blt	bpf_error	/* cr0 = LT */
 	.globl	sk_load_half_negative_offset
 sk_load_half_negative_offset:
@@ -199,7 +199,7 @@ sk_load_half_negative_offset:
 
 bpf_slow_path_byte_neg:
 	lis     r_scratch1,-32	/* SKF_LL_OFF */
-	cmpd	r_addr, r_scratch1	/* addr < SKF_* */
+	PPC_LCMP	r_addr, r_scratch1	/* addr < SKF_* */
 	blt	bpf_error	/* cr0 = LT */
 	.globl	sk_load_byte_negative_offset
 sk_load_byte_negative_offset:
@@ -209,7 +209,7 @@ sk_load_byte_negative_offset:
 
 bpf_slow_path_byte_msh_neg:
 	lis     r_scratch1,-32	/* SKF_LL_OFF */
-	cmpd	r_addr, r_scratch1	/* addr < SKF_* */
+	PPC_LCMP	r_addr, r_scratch1	/* addr < SKF_* */
 	blt	bpf_error	/* cr0 = LT */
 	.globl	sk_load_byte_msh_negative_offset
 sk_load_byte_msh_negative_offset:
@@ -221,7 +221,7 @@ sk_load_byte_msh_negative_offset:
 bpf_error_slow:
 	/* fabricate a cr0 = lt */
 	li	r_scratch1, -1
-	cmpdi	r_scratch1, 0
+	PPC_LCMPI	r_scratch1, 0
 bpf_error:
 	/* Entered with cr0 = lt */
 	li	r3, 0

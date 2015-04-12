@@ -442,7 +442,7 @@ static void handle_info_queue_linkstatus(local_info_t *local)
 	} else {
 		netif_carrier_off(local->dev);
 		netif_carrier_off(local->ddev);
-		memset(wrqu.ap_addr.sa_data, 0, ETH_ALEN);
+		eth_zero_addr(wrqu.ap_addr.sa_data);
 	}
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
 

@@ -160,6 +160,9 @@ static bool rs_mimo_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			  struct iwl_scale_tbl_info *tbl,
 			  const struct rs_tx_column *next_col)
 {
+	struct iwl_mvm_sta *mvmsta;
+	struct iwl_mvm_vif *mvmvif;
+
 	if (!sta->ht_cap.ht_supported)
 		return false;
 
@@ -170,6 +173,11 @@ static bool rs_mimo_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		return false;
 
 	if (!iwl_mvm_bt_coex_is_mimo_allowed(mvm, sta))
+		return false;
+
+	mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	mvmvif = iwl_mvm_vif_from_mac80211(mvmsta->vif);
+	if (iwl_mvm_vif_low_latency(mvmvif) && mvmsta->vif->p2p)
 		return false;
 
 	return true;
@@ -807,6 +815,8 @@ static int rs_rate_from_ucode_rate(const u32 ucode_rate,
 		rate->ldpc = true;
 	if (ucode_rate & RATE_MCS_VHT_STBC_MSK)
 		rate->stbc = true;
+	if (ucode_rate & RATE_MCS_BF_MSK)
+		rate->bfer = true;
 
 	rate->bw = ucode_rate & RATE_MCS_CHAN_WIDTH_MSK;
 
@@ -816,7 +826,9 @@ static int rs_rate_from_ucode_rate(const u32 ucode_rate,
 
 		if (nss == 1) {
 			rate->type = LQ_HT_SISO;
-			WARN_ON_ONCE(!rate->stbc && num_of_ant != 1);
+			WARN_ONCE(!rate->stbc && !rate->bfer && num_of_ant != 1,
+				  "stbc %d bfer %d",
+				  rate->stbc, rate->bfer);
 		} else if (nss == 2) {
 			rate->type = LQ_HT_MIMO2;
 			WARN_ON_ONCE(num_of_ant != 2);
@@ -829,7 +841,9 @@ static int rs_rate_from_ucode_rate(const u32 ucode_rate,
 
 		if (nss == 1) {
 			rate->type = LQ_VHT_SISO;
-			WARN_ON_ONCE(!rate->stbc && num_of_ant != 1);
+			WARN_ONCE(!rate->stbc && !rate->bfer && num_of_ant != 1,
+				  "stbc %d bfer %d",
+				  rate->stbc, rate->bfer);
 		} else if (nss == 2) {
 			rate->type = LQ_VHT_MIMO2;
 			WARN_ON_ONCE(num_of_ant != 2);
@@ -1008,13 +1022,41 @@ static void rs_get_lower_rate_down_column(struct iwl_lq_sta *lq_sta,
 		rs_get_lower_rate_in_column(lq_sta, rate);
 }
 
-/* Simple function to compare two rate scale table types */
-static inline bool rs_rate_match(struct rs_rate *a,
-				 struct rs_rate *b)
+/* Check if both rates are identical
+ * allow_ant_mismatch enables matching a SISO rate on ANT_A or ANT_B
+ * with a rate indicating STBC/BFER and ANT_AB.
+ */
+static inline bool rs_rate_equal(struct rs_rate *a,
+				 struct rs_rate *b,
+				 bool allow_ant_mismatch)
+
+{
+	bool ant_match = (a->ant == b->ant) && (a->stbc == b->stbc) &&
+		(a->bfer == b->bfer);
+
+	if (allow_ant_mismatch) {
+		if (a->stbc || a->bfer) {
+			WARN_ONCE(a->ant != ANT_AB, "stbc %d bfer %d ant %d",
+				  a->stbc, a->bfer, a->ant);
+			ant_match |= (b->ant == ANT_A || b->ant == ANT_B);
+		} else if (b->stbc || b->bfer) {
+			WARN_ONCE(b->ant != ANT_AB, "stbc %d bfer %d ant %d",
+				  b->stbc, b->bfer, b->ant);
+			ant_match |= (a->ant == ANT_A || a->ant == ANT_B);
+		}
+	}
+
+	return (a->type == b->type) && (a->bw == b->bw) && (a->sgi == b->sgi) &&
+		(a->ldpc == b->ldpc) && (a->index == b->index) && ant_match;
+}
+
+/* Check if both rates share the same column */
+static inline bool rs_rate_column_match(struct rs_rate *a,
+					struct rs_rate *b)
 {
 	bool ant_match;
 
-	if (a->stbc)
+	if (a->stbc || a->bfer)
 		ant_match = (b->ant == ANT_A || b->ant == ANT_B);
 	else
 		ant_match = (a->ant == b->ant);
@@ -1023,16 +1065,35 @@ static inline bool rs_rate_match(struct rs_rate *a,
 		&& ant_match;
 }
 
-static u32 rs_ch_width_from_mac_flags(enum mac80211_rate_control_flags flags)
+static inline enum rs_column rs_get_column_from_rate(struct rs_rate *rate)
 {
-	if (flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
-		return RATE_MCS_CHAN_WIDTH_40;
-	else if (flags & IEEE80211_TX_RC_80_MHZ_WIDTH)
-		return RATE_MCS_CHAN_WIDTH_80;
-	else if (flags & IEEE80211_TX_RC_160_MHZ_WIDTH)
-		return RATE_MCS_CHAN_WIDTH_160;
+	if (is_legacy(rate)) {
+		if (rate->ant == ANT_A)
+			return RS_COLUMN_LEGACY_ANT_A;
 
-	return RATE_MCS_CHAN_WIDTH_20;
+		if (rate->ant == ANT_B)
+			return RS_COLUMN_LEGACY_ANT_B;
+
+		goto err;
+	}
+
+	if (is_siso(rate)) {
+		if (rate->ant == ANT_A || rate->stbc || rate->bfer)
+			return rate->sgi ? RS_COLUMN_SISO_ANT_A_SGI :
+				RS_COLUMN_SISO_ANT_A;
+
+		if (rate->ant == ANT_B)
+			return rate->sgi ? RS_COLUMN_SISO_ANT_B_SGI :
+				RS_COLUMN_SISO_ANT_B;
+
+		goto err;
+	}
+
+	if (is_mimo(rate))
+		return rate->sgi ? RS_COLUMN_MIMO2_SGI : RS_COLUMN_MIMO2;
+
+err:
+	return RS_COLUMN_INVALID;
 }
 
 static u8 rs_get_tid(struct ieee80211_hdr *hdr)
@@ -1055,15 +1116,17 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 {
 	int legacy_success;
 	int retries;
-	int mac_index, i;
+	int i;
 	struct iwl_lq_cmd *table;
-	enum mac80211_rate_control_flags mac_flags;
-	u32 ucode_rate;
-	struct rs_rate rate;
+	u32 lq_hwrate;
+	struct rs_rate lq_rate, tx_resp_rate;
 	struct iwl_scale_tbl_info *curr_tbl, *other_tbl, *tmp_tbl;
 	u8 reduced_txp = (uintptr_t)info->status.status_driver_data[0];
+	u32 tx_resp_hwrate = (uintptr_t)info->status.status_driver_data[1];
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_lq_sta *lq_sta = &mvmsta->lq_sta;
+	bool allow_ant_mismatch = mvm->fw->ucode_capa.api[0] &
+		IWL_UCODE_TLV_API_LQ_SS_PARAMS;
 
 	/* Treat uninitialized rate scaling data same as non-existing. */
 	if (!lq_sta) {
@@ -1074,50 +1137,43 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		return;
 	}
 
-#ifdef CONFIG_MAC80211_DEBUGFS
-	/* Disable last tx check if we are debugging with fixed rate */
-	if (lq_sta->pers.dbg_fixed_rate) {
-		IWL_DEBUG_RATE(mvm, "Fixed rate. avoid rate scaling\n");
-		return;
-	}
-#endif
 	/* This packet was aggregated but doesn't carry status info */
 	if ((info->flags & IEEE80211_TX_CTL_AMPDU) &&
 	    !(info->flags & IEEE80211_TX_STAT_AMPDU))
 		return;
 
-	/*
-	 * Ignore this Tx frame response if its initial rate doesn't match
-	 * that of latest Link Quality command.  There may be stragglers
-	 * from a previous Link Quality command, but we're no longer interested
-	 * in those; they're either from the "active" mode while we're trying
-	 * to check "search" mode, or a prior "search" mode after we've moved
-	 * to a new "search" mode (which might become the new "active" mode).
-	 */
-	table = &lq_sta->lq;
-	ucode_rate = le32_to_cpu(table->rs_table[0]);
-	rs_rate_from_ucode_rate(ucode_rate, info->band, &rate);
-	if (info->band == IEEE80211_BAND_5GHZ)
-		rate.index -= IWL_FIRST_OFDM_RATE;
-	mac_flags = info->status.rates[0].flags;
-	mac_index = info->status.rates[0].idx;
-	/* For HT packets, map MCS to PLCP */
-	if (mac_flags & IEEE80211_TX_RC_MCS) {
-		/* Remove # of streams */
-		mac_index &= RATE_HT_MCS_RATE_CODE_MSK;
-		if (mac_index >= (IWL_RATE_9M_INDEX - IWL_FIRST_OFDM_RATE))
-			mac_index++;
-		/*
-		 * mac80211 HT index is always zero-indexed; we need to move
-		 * HT OFDM rates after CCK rates in 2.4 GHz band
-		 */
-		if (info->band == IEEE80211_BAND_2GHZ)
-			mac_index += IWL_FIRST_OFDM_RATE;
-	} else if (mac_flags & IEEE80211_TX_RC_VHT_MCS) {
-		mac_index &= RATE_VHT_MCS_RATE_CODE_MSK;
-		if (mac_index >= (IWL_RATE_9M_INDEX - IWL_FIRST_OFDM_RATE))
-			mac_index++;
+	rs_rate_from_ucode_rate(tx_resp_hwrate, info->band, &tx_resp_rate);
+
+#ifdef CONFIG_MAC80211_DEBUGFS
+	/* Disable last tx check if we are debugging with fixed rate but
+	 * update tx stats */
+	if (lq_sta->pers.dbg_fixed_rate) {
+		int index = tx_resp_rate.index;
+		enum rs_column column;
+		int attempts, success;
+
+		column = rs_get_column_from_rate(&tx_resp_rate);
+		if (WARN_ONCE(column == RS_COLUMN_INVALID,
+			      "Can't map rate 0x%x to column",
+			      tx_resp_hwrate))
+			return;
+
+		if (info->flags & IEEE80211_TX_STAT_AMPDU) {
+			attempts = info->status.ampdu_len;
+			success = info->status.ampdu_ack_len;
+		} else {
+			attempts = info->status.rates[0].count;
+			success = !!(info->flags & IEEE80211_TX_STAT_ACK);
+		}
+
+		lq_sta->pers.tx_stats[column][index].total += attempts;
+		lq_sta->pers.tx_stats[column][index].success += success;
+
+		IWL_DEBUG_RATE(mvm, "Fixed rate 0x%x success %d attempts %d\n",
+			       tx_resp_hwrate, success, attempts);
+		return;
 	}
+#endif
 
 	if (time_after(jiffies,
 		       (unsigned long)(lq_sta->last_tx +
@@ -1133,21 +1189,23 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	}
 	lq_sta->last_tx = jiffies;
 
+	/* Ignore this Tx frame response if its initial rate doesn't match
+	 * that of latest Link Quality command.  There may be stragglers
+	 * from a previous Link Quality command, but we're no longer interested
+	 * in those; they're either from the "active" mode while we're trying
+	 * to check "search" mode, or a prior "search" mode after we've moved
+	 * to a new "search" mode (which might become the new "active" mode).
+	 */
+	table = &lq_sta->lq;
+	lq_hwrate = le32_to_cpu(table->rs_table[0]);
+	rs_rate_from_ucode_rate(lq_hwrate, info->band, &lq_rate);
+
 	/* Here we actually compare this rate to the latest LQ command */
-	if ((mac_index < 0) ||
-	    (rate.sgi != !!(mac_flags & IEEE80211_TX_RC_SHORT_GI)) ||
-	    (rate.bw != rs_ch_width_from_mac_flags(mac_flags)) ||
-	    (rate.ant != info->status.antenna) ||
-	    (!!(ucode_rate & RATE_MCS_HT_MSK) !=
-	     !!(mac_flags & IEEE80211_TX_RC_MCS)) ||
-	    (!!(ucode_rate & RATE_MCS_VHT_MSK) !=
-	     !!(mac_flags & IEEE80211_TX_RC_VHT_MCS)) ||
-	    (!!(ucode_rate & RATE_HT_MCS_GF_MSK) !=
-	     !!(mac_flags & IEEE80211_TX_RC_GREEN_FIELD)) ||
-	    (rate.index != mac_index)) {
+	if (!rs_rate_equal(&tx_resp_rate, &lq_rate, allow_ant_mismatch)) {
 		IWL_DEBUG_RATE(mvm,
-			       "initial rate %d does not match %d (0x%x)\n",
-			       mac_index, rate.index, ucode_rate);
+			       "initial tx resp rate 0x%x does not match 0x%x\n",
+			       tx_resp_hwrate, lq_hwrate);
+
 		/*
 		 * Since rates mis-match, the last LQ command may have failed.
 		 * After IWL_MISSED_RATE_MAX mis-matches, resync the uCode with
@@ -1175,14 +1233,14 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		other_tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
 	}
 
-	if (WARN_ON_ONCE(!rs_rate_match(&rate, &curr_tbl->rate))) {
+	if (WARN_ON_ONCE(!rs_rate_column_match(&lq_rate, &curr_tbl->rate))) {
 		IWL_DEBUG_RATE(mvm,
 			       "Neither active nor search matches tx rate\n");
 		tmp_tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
 		rs_dump_rate(mvm, &tmp_tbl->rate, "ACTIVE");
 		tmp_tbl = &(lq_sta->lq_info[1 - lq_sta->active_tbl]);
 		rs_dump_rate(mvm, &tmp_tbl->rate, "SEARCH");
-		rs_dump_rate(mvm, &rate, "ACTUAL");
+		rs_dump_rate(mvm, &lq_rate, "ACTUAL");
 
 		/*
 		 * no matching table found, let's by-pass the data collection
@@ -1207,9 +1265,7 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		if (info->status.ampdu_ack_len == 0)
 			info->status.ampdu_len = 1;
 
-		ucode_rate = le32_to_cpu(table->rs_table[0]);
-		rs_rate_from_ucode_rate(ucode_rate, info->band, &rate);
-		rs_collect_tx_data(mvm, lq_sta, curr_tbl, rate.index,
+		rs_collect_tx_data(mvm, lq_sta, curr_tbl, lq_rate.index,
 				   info->status.ampdu_len,
 				   info->status.ampdu_ack_len,
 				   reduced_txp);
@@ -1232,21 +1288,23 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		legacy_success = !!(info->flags & IEEE80211_TX_STAT_ACK);
 		/* Collect data for each rate used during failed TX attempts */
 		for (i = 0; i <= retries; ++i) {
-			ucode_rate = le32_to_cpu(table->rs_table[i]);
-			rs_rate_from_ucode_rate(ucode_rate, info->band, &rate);
+			lq_hwrate = le32_to_cpu(table->rs_table[i]);
+			rs_rate_from_ucode_rate(lq_hwrate, info->band,
+						&lq_rate);
 			/*
 			 * Only collect stats if retried rate is in the same RS
 			 * table as active/search.
 			 */
-			if (rs_rate_match(&rate, &curr_tbl->rate))
+			if (rs_rate_column_match(&lq_rate, &curr_tbl->rate))
 				tmp_tbl = curr_tbl;
-			else if (rs_rate_match(&rate, &other_tbl->rate))
+			else if (rs_rate_column_match(&lq_rate,
+						      &other_tbl->rate))
 				tmp_tbl = other_tbl;
 			else
 				continue;
 
-			rs_collect_tx_data(mvm, lq_sta, tmp_tbl, rate.index, 1,
-					   i < retries ? 0 : legacy_success,
+			rs_collect_tx_data(mvm, lq_sta, tmp_tbl, lq_rate.index,
+					   1, i < retries ? 0 : legacy_success,
 					   reduced_txp);
 		}
 
@@ -1257,7 +1315,7 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		}
 	}
 	/* The last TX rate is cached in lq_sta; it's set in if/else above */
-	lq_sta->last_rate_n_flags = ucode_rate;
+	lq_sta->last_rate_n_flags = lq_hwrate;
 	IWL_DEBUG_RATE(mvm, "reduced txpower: %d\n", reduced_txp);
 done:
 	/* See if there's a better rate or modulation mode to try. */
@@ -1277,6 +1335,9 @@ static void rs_mac80211_tx_status(void *mvm_r,
 	struct iwl_op_mode *op_mode = (struct iwl_op_mode *)mvm_r;
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+
+	if (!iwl_mvm_sta_from_mac80211(sta)->vif)
+		return;
 
 	if (!ieee80211_is_data(hdr->frame_control) ||
 	    info->flags & IEEE80211_TX_CTL_NO_ACK)
@@ -2511,6 +2572,14 @@ static void rs_get_rate(void *mvm_r, struct ieee80211_sta *sta, void *mvm_sta,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct iwl_lq_sta *lq_sta = mvm_sta;
 
+	if (sta && !iwl_mvm_sta_from_mac80211(sta)->vif) {
+		/* if vif isn't initialized mvm doesn't know about
+		 * this station, so don't do anything with the it
+		 */
+		sta = NULL;
+		mvm_sta = NULL;
+	}
+
 	/* TODO: handle rate_idx_mask and rate_idx_mcs_mask */
 
 	/* Treat uninitialized rate scaling data same as non-existing. */
@@ -2543,6 +2612,7 @@ static void *rs_alloc_sta(void *mvm_rate, struct ieee80211_sta *sta,
 #ifdef CONFIG_MAC80211_DEBUGFS
 	lq_sta->pers.dbg_fixed_rate = 0;
 	lq_sta->pers.dbg_fixed_txp_reduction = TPC_INVALID;
+	lq_sta->pers.ss_force = RS_SS_FORCE_NONE;
 #endif
 	lq_sta->pers.chains = 0;
 	memset(lq_sta->pers.chain_signal, 0, sizeof(lq_sta->pers.chain_signal));
@@ -2827,6 +2897,9 @@ static void rs_rate_update(void *mvm_r,
 			(struct iwl_op_mode *)mvm_r;
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 
+	if (!iwl_mvm_sta_from_mac80211(sta)->vif)
+		return;
+
 	/* Stop any ongoing aggregations as rs starts off assuming no agg */
 	for (tid = 0; tid < IWL_MAX_TID_COUNT; tid++)
 		ieee80211_stop_tx_ba_session(sta, tid);
@@ -3065,19 +3138,21 @@ static void rs_set_lq_ss_params(struct iwl_mvm *mvm,
 	if (!iwl_mvm_bt_coex_is_mimo_allowed(mvm, sta))
 		goto out;
 
+#ifdef CONFIG_MAC80211_DEBUGFS
 	/* Check if forcing the decision is configured.
 	 * Note that SISO is forced by not allowing STBC or BFER
 	 */
-	if (lq_sta->ss_force == RS_SS_FORCE_STBC)
+	if (lq_sta->pers.ss_force == RS_SS_FORCE_STBC)
 		ss_params |= (LQ_SS_STBC_1SS_ALLOWED | LQ_SS_FORCE);
-	else if (lq_sta->ss_force == RS_SS_FORCE_BFER)
+	else if (lq_sta->pers.ss_force == RS_SS_FORCE_BFER)
 		ss_params |= (LQ_SS_BFER_ALLOWED | LQ_SS_FORCE);
 
-	if (lq_sta->ss_force != RS_SS_FORCE_NONE) {
+	if (lq_sta->pers.ss_force != RS_SS_FORCE_NONE) {
 		IWL_DEBUG_RATE(mvm, "Forcing single stream Tx decision %d\n",
-			       lq_sta->ss_force);
+			       lq_sta->pers.ss_force);
 		goto out;
 	}
+#endif
 
 	if (lq_sta->stbc_capable)
 		ss_params |= LQ_SS_STBC_1SS_ALLOWED;
@@ -3318,6 +3393,7 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 	struct iwl_mvm *mvm;
 	struct iwl_scale_tbl_info *tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
 	struct rs_rate *rate = &tbl->rate;
+	u32 ss_params;
 	mvm = lq_sta->pers.drv;
 	buff = kmalloc(2048, GFP_KERNEL);
 	if (!buff)
@@ -3337,16 +3413,16 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 			(is_legacy(rate)) ? "legacy" :
 			is_vht(rate) ? "VHT" : "HT");
 	if (!is_legacy(rate)) {
-		desc += sprintf(buff+desc, " %s",
+		desc += sprintf(buff + desc, " %s",
 		   (is_siso(rate)) ? "SISO" : "MIMO2");
-		   desc += sprintf(buff+desc, " %s",
-				   (is_ht20(rate)) ? "20MHz" :
-				   (is_ht40(rate)) ? "40MHz" :
-				   (is_ht80(rate)) ? "80Mhz" : "BAD BW");
-		   desc += sprintf(buff+desc, " %s %s %s\n",
-				   (rate->sgi) ? "SGI" : "NGI",
-				   (rate->ldpc) ? "LDPC" : "BCC",
-				   (lq_sta->is_agg) ? "AGG on" : "");
+		desc += sprintf(buff + desc, " %s",
+				(is_ht20(rate)) ? "20MHz" :
+				(is_ht40(rate)) ? "40MHz" :
+				(is_ht80(rate)) ? "80Mhz" : "BAD BW");
+		desc += sprintf(buff + desc, " %s %s %s\n",
+				(rate->sgi) ? "SGI" : "NGI",
+				(rate->ldpc) ? "LDPC" : "BCC",
+				(lq_sta->is_agg) ? "AGG on" : "");
 	}
 	desc += sprintf(buff+desc, "last tx rate=0x%X\n",
 			lq_sta->last_rate_n_flags);
@@ -3364,6 +3440,16 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 			lq_sta->lq.agg_frame_cnt_limit);
 
 	desc += sprintf(buff+desc, "reduced tpc=%d\n", lq_sta->lq.reduced_tpc);
+	ss_params = le32_to_cpu(lq_sta->lq.ss_params);
+	desc += sprintf(buff+desc, "single stream params: %s%s%s%s\n",
+			(ss_params & LQ_SS_PARAMS_VALID) ?
+			"VALID" : "INVALID",
+			(ss_params & LQ_SS_BFER_ALLOWED) ?
+			", BFER" : "",
+			(ss_params & LQ_SS_STBC_1SS_ALLOWED) ?
+			", STBC" : "",
+			(ss_params & LQ_SS_FORCE) ?
+			", FORCE" : "");
 	desc += sprintf(buff+desc,
 			"Start idx [0]=0x%x [1]=0x%x [2]=0x%x [3]=0x%x\n",
 			lq_sta->lq.initial_rate_index[0],
@@ -3540,7 +3626,7 @@ static ssize_t iwl_dbgfs_ss_force_read(struct file *file,
 	};
 
 	pos += scnprintf(buf+pos, bufsz-pos, "%s\n",
-			 ss_force_name[lq_sta->ss_force]);
+			 ss_force_name[lq_sta->pers.ss_force]);
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
@@ -3551,12 +3637,12 @@ static ssize_t iwl_dbgfs_ss_force_write(struct iwl_lq_sta *lq_sta, char *buf,
 	int ret = 0;
 
 	if (!strncmp("none", buf, 4)) {
-		lq_sta->ss_force = RS_SS_FORCE_NONE;
+		lq_sta->pers.ss_force = RS_SS_FORCE_NONE;
 	} else if (!strncmp("siso", buf, 4)) {
-		lq_sta->ss_force = RS_SS_FORCE_SISO;
+		lq_sta->pers.ss_force = RS_SS_FORCE_SISO;
 	} else if (!strncmp("stbc", buf, 4)) {
 		if (lq_sta->stbc_capable) {
-			lq_sta->ss_force = RS_SS_FORCE_STBC;
+			lq_sta->pers.ss_force = RS_SS_FORCE_STBC;
 		} else {
 			IWL_ERR(mvm,
 				"can't force STBC. peer doesn't support\n");
@@ -3564,7 +3650,7 @@ static ssize_t iwl_dbgfs_ss_force_write(struct iwl_lq_sta *lq_sta, char *buf,
 		}
 	} else if (!strncmp("bfer", buf, 4)) {
 		if (lq_sta->bfer_capable) {
-			lq_sta->ss_force = RS_SS_FORCE_BFER;
+			lq_sta->pers.ss_force = RS_SS_FORCE_BFER;
 		} else {
 			IWL_ERR(mvm,
 				"can't force BFER. peer doesn't support\n");
@@ -3587,9 +3673,15 @@ static ssize_t iwl_dbgfs_ss_force_write(struct iwl_lq_sta *lq_sta, char *buf,
 
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(ss_force, 32);
 
-static void rs_add_debugfs(void *mvm, void *mvm_sta, struct dentry *dir)
+static void rs_add_debugfs(void *mvm, void *priv_sta, struct dentry *dir)
 {
-	struct iwl_lq_sta *lq_sta = mvm_sta;
+	struct iwl_lq_sta *lq_sta = priv_sta;
+	struct iwl_mvm_sta *mvmsta;
+
+	mvmsta = container_of(lq_sta, struct iwl_mvm_sta, lq_sta);
+
+	if (!mvmsta->vif)
+		return;
 
 	debugfs_create_file("rate_scale_table", S_IRUSR | S_IWUSR, dir,
 			    lq_sta, &rs_sta_dbgfs_scale_table_ops);

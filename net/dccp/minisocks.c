@@ -152,8 +152,7 @@ EXPORT_SYMBOL_GPL(dccp_create_openreq_child);
  * as an request_sock.
  */
 struct sock *dccp_check_req(struct sock *sk, struct sk_buff *skb,
-			    struct request_sock *req,
-			    struct request_sock **prev)
+			    struct request_sock *req)
 {
 	struct sock *child = NULL;
 	struct dccp_request_sock *dreq = dccp_rsk(req);
@@ -200,7 +199,7 @@ struct sock *dccp_check_req(struct sock *sk, struct sk_buff *skb,
 	if (child == NULL)
 		goto listen_overflow;
 
-	inet_csk_reqsk_queue_unlink(sk, req, prev);
+	inet_csk_reqsk_queue_unlink(sk, req);
 	inet_csk_reqsk_queue_removed(sk, req);
 	inet_csk_reqsk_queue_add(sk, req, child);
 out:
@@ -212,7 +211,7 @@ drop:
 	if (dccp_hdr(skb)->dccph_type != DCCP_PKT_RESET)
 		req->rsk_ops->send_reset(sk, skb);
 
-	inet_csk_reqsk_queue_drop(sk, req, prev);
+	inet_csk_reqsk_queue_drop(sk, req);
 	goto out;
 }
 

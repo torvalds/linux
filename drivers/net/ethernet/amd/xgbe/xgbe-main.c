@@ -374,15 +374,6 @@ static int xgbe_probe(struct platform_device *pdev)
 		pdata->awcache = XGBE_DMA_SYS_AWCACHE;
 	}
 
-	/* Set the DMA mask */
-	if (!dev->dma_mask)
-		dev->dma_mask = &dev->coherent_dma_mask;
-	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(40));
-	if (ret) {
-		dev_err(dev, "dma_set_mask_and_coherent failed\n");
-		goto err_io;
-	}
-
 	/* Get the device interrupt */
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0) {
@@ -408,6 +399,16 @@ static int xgbe_probe(struct platform_device *pdev)
 
 	/* Set default configuration data */
 	xgbe_default_config(pdata);
+
+	/* Set the DMA mask */
+	if (!dev->dma_mask)
+		dev->dma_mask = &dev->coherent_dma_mask;
+	ret = dma_set_mask_and_coherent(dev,
+					DMA_BIT_MASK(pdata->hw_feat.dma_width));
+	if (ret) {
+		dev_err(dev, "dma_set_mask_and_coherent failed\n");
+		goto err_io;
+	}
 
 	/* Calculate the number of Tx and Rx rings to be created
 	 *  -Tx (DMA) Channels map 1-to-1 to Tx Queues so set

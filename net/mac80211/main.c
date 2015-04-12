@@ -1057,7 +1057,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	/* add one default STA interface if supported */
 	if (local->hw.wiphy->interface_modes & BIT(NL80211_IFTYPE_STATION) &&
 	    !(hw->flags & IEEE80211_HW_NO_AUTO_VIF)) {
-		result = ieee80211_if_add(local, "wlan%d", NULL,
+		result = ieee80211_if_add(local, "wlan%d", NET_NAME_ENUM, NULL,
 					  NL80211_IFTYPE_STATION, NULL);
 		if (result)
 			wiphy_warn(local->hw.wiphy,
@@ -1200,8 +1200,6 @@ void ieee80211_free_hw(struct ieee80211_hw *hw)
 	idr_for_each(&local->ack_status_frames,
 		     ieee80211_free_ack_frame, NULL);
 	idr_destroy(&local->ack_status_frames);
-
-	kfree(rcu_access_pointer(local->tx_latency));
 
 	sta_info_stop(local);
 

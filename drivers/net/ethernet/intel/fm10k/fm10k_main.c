@@ -711,10 +711,6 @@ static struct ethhdr *fm10k_gre_is_nvgre(struct sk_buff *skb)
 	if (nvgre_hdr->flags & FM10K_NVGRE_RESERVED0_FLAGS)
 		return NULL;
 
-	/* verify protocol is transparent Ethernet bridging */
-	if (nvgre_hdr->proto != htons(ETH_P_TEB))
-		return NULL;
-
 	/* report start of ethernet header */
 	if (nvgre_hdr->flags & NVGRE_TNI)
 		return (struct ethhdr *)(nvgre_hdr + 1);
@@ -722,15 +718,13 @@ static struct ethhdr *fm10k_gre_is_nvgre(struct sk_buff *skb)
 	return (struct ethhdr *)(&nvgre_hdr->tni);
 }
 
-static __be16 fm10k_tx_encap_offload(struct sk_buff *skb)
+__be16 fm10k_tx_encap_offload(struct sk_buff *skb)
 {
+	u8 l4_hdr = 0, inner_l4_hdr = 0, inner_l4_hlen;
 	struct ethhdr *eth_hdr;
-	u8 l4_hdr = 0;
 
-/* fm10k supports 184 octets of outer+inner headers. Minus 20 for inner L4. */
-#define FM10K_MAX_ENCAP_TRANSPORT_OFFSET	164
-	if (skb_inner_transport_header(skb) - skb_mac_header(skb) >
-	    FM10K_MAX_ENCAP_TRANSPORT_OFFSET)
+	if (skb->inner_protocol_type != ENCAP_TYPE_ETHER ||
+	    skb->inner_protocol != htons(ETH_P_TEB))
 		return 0;
 
 	switch (vlan_get_protocol(skb)) {
@@ -760,11 +754,32 @@ static __be16 fm10k_tx_encap_offload(struct sk_buff *skb)
 
 	switch (eth_hdr->h_proto) {
 	case htons(ETH_P_IP):
+		inner_l4_hdr = inner_ip_hdr(skb)->protocol;
+		break;
 	case htons(ETH_P_IPV6):
+		inner_l4_hdr = inner_ipv6_hdr(skb)->nexthdr;
 		break;
 	default:
 		return 0;
 	}
+
+	switch (inner_l4_hdr) {
+	case IPPROTO_TCP:
+		inner_l4_hlen = inner_tcp_hdrlen(skb);
+		break;
+	case IPPROTO_UDP:
+		inner_l4_hlen = 8;
+		break;
+	default:
+		return 0;
+	}
+
+	/* The hardware allows tunnel offloads only if the combined inner and
+	 * outer header is 184 bytes or less
+	 */
+	if (skb_inner_transport_header(skb) + inner_l4_hlen -
+	    skb_mac_header(skb) > FM10K_TUNNEL_HEADER_LENGTH)
+		return 0;
 
 	return eth_hdr->h_proto;
 }
@@ -934,10 +949,10 @@ static int __fm10k_maybe_stop_tx(struct fm10k_ring *tx_ring, u16 size)
 {
 	netif_stop_subqueue(tx_ring->netdev, tx_ring->queue_index);
 
+	/* Memory barrier before checking head and tail */
 	smp_mb();
 
-	/* We need to check again in a case another CPU has just
-	 * made room available. */
+	/* Check again in a case another CPU has just made room available */
 	if (likely(fm10k_desc_unused(tx_ring) < size))
 		return -EBUSY;
 

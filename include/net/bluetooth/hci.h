@@ -160,6 +160,14 @@ enum {
 	 * during the hdev->setup vendor callback.
 	 */
 	HCI_QUIRK_STRICT_DUPLICATE_FILTER,
+
+	/* When this quirk is set, LE scan and BR/EDR inquiry is done
+	 * simultaneously, otherwise it's interleaved.
+	 *
+	 * This quirk can be set before hci_register_dev is called or
+	 * during the hdev->setup vendor callback.
+	 */
+	HCI_QUIRK_SIMULTANEOUS_DISCOVERY,
 };
 
 /* HCI device flags */
@@ -179,13 +187,14 @@ enum {
 	HCI_RESET,
 };
 
-/* BR/EDR and/or LE controller flags: the flags defined here should represent
- * states configured via debugfs for debugging and testing purposes only.
- */
+/* HCI socket flags */
 enum {
-	HCI_DUT_MODE,
-	HCI_FORCE_BREDR_SMP,
-	HCI_FORCE_STATIC_ADDR,
+	HCI_SOCK_TRUSTED,
+	HCI_MGMT_INDEX_EVENTS,
+	HCI_MGMT_UNCONF_INDEX_EVENTS,
+	HCI_MGMT_EXT_INDEX_EVENTS,
+	HCI_MGMT_GENERIC_EVENTS,
+	HCI_MGMT_OOB_DATA_EVENTS,
 };
 
 /*
@@ -217,6 +226,8 @@ enum {
 	HCI_HS_ENABLED,
 	HCI_LE_ENABLED,
 	HCI_ADVERTISING,
+	HCI_ADVERTISING_CONNECTABLE,
+	HCI_ADVERTISING_INSTANCE,
 	HCI_CONNECTABLE,
 	HCI_DISCOVERABLE,
 	HCI_LIMITED_DISCOVERABLE,
@@ -225,13 +236,13 @@ enum {
 	HCI_FAST_CONNECTABLE,
 	HCI_BREDR_ENABLED,
 	HCI_LE_SCAN_INTERRUPTED,
-};
 
-/* A mask for the flags that are supposed to remain when a reset happens
- * or the HCI device is closed.
- */
-#define HCI_PERSISTENT_MASK (BIT(HCI_LE_SCAN) | BIT(HCI_PERIODIC_INQ) | \
-			      BIT(HCI_FAST_CONNECTABLE) | BIT(HCI_LE_ADV))
+	HCI_DUT_MODE,
+	HCI_FORCE_BREDR_SMP,
+	HCI_FORCE_STATIC_ADDR,
+
+	__HCI_NUM_FLAGS,
+};
 
 /* HCI timeouts */
 #define HCI_DISCONN_TIMEOUT	msecs_to_jiffies(2000)	/* 2 seconds */
@@ -455,6 +466,11 @@ enum {
 #define EIR_SSP_HASH_C		0x0E /* Simple Pairing Hash C */
 #define EIR_SSP_RAND_R		0x0F /* Simple Pairing Randomizer R */
 #define EIR_DEVICE_ID		0x10 /* device ID */
+#define EIR_APPEARANCE		0x19 /* Device appearance */
+#define EIR_LE_BDADDR		0x1B /* LE Bluetooth device address */
+#define EIR_LE_ROLE		0x1C /* LE role */
+#define EIR_LE_SC_CONFIRM	0x22 /* LE SC Confirmation Value */
+#define EIR_LE_SC_RANDOM	0x23 /* LE SC Random Value */
 
 /* Low Energy Advertising Flags */
 #define LE_AD_LIMITED		0x01 /* Limited Discoverable */

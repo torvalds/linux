@@ -122,6 +122,7 @@ struct inet_timewait_sock {
 #define tw_v6_rcv_saddr    	__tw_common.skc_v6_rcv_saddr
 #define tw_dport		__tw_common.skc_dport
 #define tw_num			__tw_common.skc_num
+#define tw_cookie		__tw_common.skc_cookie
 
 	int			tw_timeout;
 	volatile unsigned char	tw_substate;

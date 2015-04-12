@@ -47,7 +47,6 @@
 			clock-latency = <244144>; /* 8 32k periods */
 			operating-points = <
 				/* kHz    uV */
-				1104000	1500000
 				1008000 1400000
 				912000  1350000
 				864000  1300000
@@ -57,7 +56,7 @@
 				>;
 			#cooling-cells = <2>;
 			cooling-min-level = <0>;
-			cooling-max-level = <6>;
+			cooling-max-level = <5>;
 		};
 	};
 

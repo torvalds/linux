@@ -557,6 +557,47 @@ static s32 ixgbe_update_flash_X550(struct ixgbe_hw *hw)
 	return status;
 }
 
+/** ixgbe_disable_rx_x550 - Disable RX unit
+ *
+ *  Enables the Rx DMA unit for x550
+ **/
+static void ixgbe_disable_rx_x550(struct ixgbe_hw *hw)
+{
+	u32 rxctrl, pfdtxgswc;
+	s32 status;
+	struct ixgbe_hic_disable_rxen fw_cmd;
+
+	rxctrl = IXGBE_READ_REG(hw, IXGBE_RXCTRL);
+	if (rxctrl & IXGBE_RXCTRL_RXEN) {
+		pfdtxgswc = IXGBE_READ_REG(hw, IXGBE_PFDTXGSWC);
+		if (pfdtxgswc & IXGBE_PFDTXGSWC_VT_LBEN) {
+			pfdtxgswc &= ~IXGBE_PFDTXGSWC_VT_LBEN;
+			IXGBE_WRITE_REG(hw, IXGBE_PFDTXGSWC, pfdtxgswc);
+			hw->mac.set_lben = true;
+		} else {
+			hw->mac.set_lben = false;
+		}
+
+		fw_cmd.hdr.cmd = FW_DISABLE_RXEN_CMD;
+		fw_cmd.hdr.buf_len = FW_DISABLE_RXEN_LEN;
+		fw_cmd.hdr.checksum = FW_DEFAULT_CHECKSUM;
+		fw_cmd.port_number = (u8)hw->bus.lan_id;
+
+		status = ixgbe_host_interface_command(hw, (u32 *)&fw_cmd,
+					sizeof(struct ixgbe_hic_disable_rxen),
+					IXGBE_HI_COMMAND_TIMEOUT, true);
+
+		/* If we fail - disable RX using register write */
+		if (status) {
+			rxctrl = IXGBE_READ_REG(hw, IXGBE_RXCTRL);
+			if (rxctrl & IXGBE_RXCTRL_RXEN) {
+				rxctrl &= ~IXGBE_RXCTRL_RXEN;
+				IXGBE_WRITE_REG(hw, IXGBE_RXCTRL, rxctrl);
+			}
+		}
+	}
+}
+
 /** ixgbe_update_eeprom_checksum_X550 - Updates the EEPROM checksum and flash
  *  @hw: pointer to hardware structure
  *
@@ -1306,8 +1347,8 @@ mac_reset_top:
  *  @enable: enable or disable switch for Ethertype anti-spoofing
  *  @vf: Virtual Function pool - VF Pool to set for Ethertype anti-spoofing
  **/
-void ixgbe_set_ethertype_anti_spoofing_X550(struct ixgbe_hw *hw, bool enable,
-					    int vf)
+static void ixgbe_set_ethertype_anti_spoofing_X550(struct ixgbe_hw *hw,
+						   bool enable, int vf)
 {
 	int vf_target_reg = vf >> 3;
 	int vf_target_shift = vf % 8 + IXGBE_SPOOF_ETHERTYPEAS_SHIFT;
@@ -1366,6 +1407,8 @@ void ixgbe_set_ethertype_anti_spoofing_X550(struct ixgbe_hw *hw, bool enable,
 	.init_thermal_sensor_thresh	= NULL, \
 	.prot_autoc_read		= &prot_autoc_read_generic, \
 	.prot_autoc_write		= &prot_autoc_write_generic, \
+	.enable_rx			= &ixgbe_enable_rx_generic, \
+	.disable_rx			= &ixgbe_disable_rx_x550, \
 
 static struct ixgbe_mac_operations mac_ops_X550 = {
 	X550_COMMON_MAC

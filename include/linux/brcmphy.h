@@ -19,6 +19,7 @@
 #define PHY_ID_BCM7425			0x03625e60
 #define PHY_ID_BCM7429			0x600d8730
 #define PHY_ID_BCM7439			0x600d8480
+#define PHY_ID_BCM7439_2		0xae025080
 #define PHY_ID_BCM7445			0x600d8510
 
 #define PHY_BCM_OUI_MASK		0xfffffc00

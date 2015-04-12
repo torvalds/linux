@@ -60,13 +60,15 @@ static int br_pass_frame_up(struct sk_buff *skb)
 }
 
 static void br_do_proxy_arp(struct sk_buff *skb, struct net_bridge *br,
-			    u16 vid)
+			    u16 vid, struct net_bridge_port *p)
 {
 	struct net_device *dev = br->dev;
 	struct neighbour *n;
 	struct arphdr *parp;
 	u8 *arpptr, *sha;
 	__be32 sip, tip;
+
+	BR_INPUT_SKB_CB(skb)->proxyarp_replied = false;
 
 	if (dev->flags & IFF_NOARP)
 		return;
@@ -105,9 +107,12 @@ static void br_do_proxy_arp(struct sk_buff *skb, struct net_bridge *br,
 		}
 
 		f = __br_fdb_get(br, n->ha, vid);
-		if (f)
+		if (f && ((p->flags & BR_PROXYARP) ||
+			  (f->dst && (f->dst->flags & BR_PROXYARP_WIFI)))) {
 			arp_send(ARPOP_REPLY, ETH_P_ARP, sip, skb->dev, tip,
 				 sha, n->ha, sha);
+			BR_INPUT_SKB_CB(skb)->proxyarp_replied = true;
+		}
 
 		neigh_release(n);
 	}
@@ -153,12 +158,10 @@ int br_handle_frame_finish(struct sk_buff *skb)
 
 	dst = NULL;
 
-	if (is_broadcast_ether_addr(dest)) {
-		if (IS_ENABLED(CONFIG_INET) &&
-		    p->flags & BR_PROXYARP &&
-		    skb->protocol == htons(ETH_P_ARP))
-			br_do_proxy_arp(skb, br, vid);
+	if (IS_ENABLED(CONFIG_INET) && skb->protocol == htons(ETH_P_ARP))
+		br_do_proxy_arp(skb, br, vid, p);
 
+	if (is_broadcast_ether_addr(dest)) {
 		skb2 = skb;
 		unicast = false;
 	} else if (is_multicast_ether_addr(dest)) {

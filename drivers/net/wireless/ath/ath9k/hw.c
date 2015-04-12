@@ -121,6 +121,36 @@ void ath9k_hw_write_array(struct ath_hw *ah, const struct ar5416IniArray *array,
 	REGWRITE_BUFFER_FLUSH(ah);
 }
 
+void ath9k_hw_read_array(struct ath_hw *ah, u32 array[][2], int size)
+{
+	u32 *tmp_reg_list, *tmp_data;
+	int i;
+
+	tmp_reg_list = kmalloc(size * sizeof(u32), GFP_KERNEL);
+	if (!tmp_reg_list) {
+		dev_err(ah->dev, "%s: tmp_reg_list: alloc filed\n", __func__);
+		return;
+	}
+
+	tmp_data = kmalloc(size * sizeof(u32), GFP_KERNEL);
+	if (!tmp_data) {
+		dev_err(ah->dev, "%s tmp_data: alloc filed\n", __func__);
+		goto error_tmp_data;
+	}
+
+	for (i = 0; i < size; i++)
+		tmp_reg_list[i] = array[i][0];
+
+	REG_READ_MULTI(ah, tmp_reg_list, tmp_data, size);
+
+	for (i = 0; i < size; i++)
+		array[i][1] = tmp_data[i];
+
+	kfree(tmp_data);
+error_tmp_data:
+	kfree(tmp_reg_list);
+}
+
 u32 ath9k_hw_reverse_bits(u32 val, u32 n)
 {
 	u32 retval;
@@ -366,6 +396,9 @@ static void ath9k_hw_init_config(struct ath_hw *ah)
 		ah->config.rimt_first = 700;
 	}
 
+	if (AR_SREV_9462(ah) || AR_SREV_9565(ah))
+		ah->config.pll_pwrsave = 7;
+
 	/*
 	 * We need this for PCI devices only (Cardbus, PCI, miniPCI)
 	 * _and_ if on non-uniprocessor systems (Multiprocessor/HT).
@@ -424,7 +457,7 @@ static void ath9k_hw_init_defaults(struct ath_hw *ah)
 	ah->power_mode = ATH9K_PM_UNDEFINED;
 	ah->htc_reset_init = true;
 
-	ah->tpc_enabled = true;
+	ah->tpc_enabled = false;
 
 	ah->ani_function = ATH9K_ANI_ALL;
 	if (!AR_SREV_9300_20_OR_LATER(ah))
@@ -1197,6 +1230,7 @@ static void ath9k_hw_set_operating_mode(struct ath_hw *ah, int opmode)
 	u32 mask = AR_STA_ID1_STA_AP | AR_STA_ID1_ADHOC;
 	u32 set = AR_STA_ID1_KSRCH_MODE;
 
+	ENABLE_REG_RMW_BUFFER(ah);
 	switch (opmode) {
 	case NL80211_IFTYPE_ADHOC:
 		if (!AR_SREV_9340_13(ah)) {
@@ -1218,6 +1252,7 @@ static void ath9k_hw_set_operating_mode(struct ath_hw *ah, int opmode)
 		break;
 	}
 	REG_RMW(ah, AR_STA_ID1, set, mask);
+	REG_RMW_BUFFER_FLUSH(ah);
 }
 
 void ath9k_hw_get_delta_slope_vals(struct ath_hw *ah, u32 coef_scaled,
@@ -1930,6 +1965,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	if (!ath9k_hw_mci_is_enabled(ah))
 		REG_WRITE(ah, AR_OBS, 8);
 
+	ENABLE_REG_RMW_BUFFER(ah);
 	if (ah->config.rx_intr_mitigation) {
 		REG_RMW_FIELD(ah, AR_RIMT, AR_RIMT_LAST, ah->config.rimt_last);
 		REG_RMW_FIELD(ah, AR_RIMT, AR_RIMT_FIRST, ah->config.rimt_first);
@@ -1939,6 +1975,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		REG_RMW_FIELD(ah, AR_TIMT, AR_TIMT_LAST, 300);
 		REG_RMW_FIELD(ah, AR_TIMT, AR_TIMT_FIRST, 750);
 	}
+	REG_RMW_BUFFER_FLUSH(ah);
 
 	ath9k_hw_init_bb(ah, chan);
 

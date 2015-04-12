@@ -345,8 +345,8 @@
 
 #define BGMAC_DESC_CTL0_EOT			0x10000000	/* End of ring */
 #define BGMAC_DESC_CTL0_IOC			0x20000000	/* IRQ on complete */
-#define BGMAC_DESC_CTL0_SOF			0x40000000	/* Start of frame */
-#define BGMAC_DESC_CTL0_EOF			0x80000000	/* End of frame */
+#define BGMAC_DESC_CTL0_EOF			0x40000000	/* End of frame */
+#define BGMAC_DESC_CTL0_SOF			0x80000000	/* Start of frame */
 #define BGMAC_DESC_CTL1_LEN			0x00001FFF
 
 #define BGMAC_PHY_NOREGS			0x1E
@@ -362,6 +362,8 @@
 #define BGMAC_RX_FRAME_OFFSET			30		/* There are 2 unused bytes between header and real data */
 #define BGMAC_RX_MAX_FRAME_SIZE			1536		/* Copied from b44/tg3 */
 #define BGMAC_RX_BUF_SIZE			(BGMAC_RX_FRAME_OFFSET + BGMAC_RX_MAX_FRAME_SIZE)
+#define BGMAC_RX_ALLOC_SIZE			(SKB_DATA_ALIGN(BGMAC_RX_BUF_SIZE) + \
+						 SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 
 #define BGMAC_BFL_ENETROBO			0x0010		/* has ephy roboswitch spi */
 #define BGMAC_BFL_ENETADM			0x0080		/* has ADMtek switch */
@@ -383,7 +385,10 @@
 #define ETHER_MAX_LEN   1518
 
 struct bgmac_slot_info {
-	struct sk_buff *skb;
+	union {
+		struct sk_buff *skb;
+		void *buf;
+	};
 	dma_addr_t dma_addr;
 };
 

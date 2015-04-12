@@ -82,17 +82,12 @@
  *	be intersected with the current one.
  * @REG_REQ_ALREADY_SET: the regulatory request will not change the current
  *	regulatory settings, and no further processing is required.
- * @REG_REQ_USER_HINT_HANDLED: a non alpha2  user hint was handled and no
- *	further processing is required, i.e., not need to update last_request
- *	etc. This should be used for user hints that do not provide an alpha2
- *	but some other type of regulatory hint, i.e., indoor operation.
  */
 enum reg_request_treatment {
 	REG_REQ_OK,
 	REG_REQ_IGNORE,
 	REG_REQ_INTERSECT,
 	REG_REQ_ALREADY_SET,
-	REG_REQ_USER_HINT_HANDLED,
 };
 
 static struct regulatory_request core_request_world = {
@@ -133,9 +128,12 @@ static int reg_num_devs_support_basehint;
  * State variable indicating if the platform on which the devices
  * are attached is operating in an indoor environment. The state variable
  * is relevant for all registered devices.
- * (protected by RTNL)
  */
 static bool reg_is_indoor;
+static spinlock_t reg_indoor_lock;
+
+/* Used to track the userspace process controlling the indoor setting */
+static u32 reg_is_indoor_portid;
 
 static const struct ieee80211_regdomain *get_cfg80211_regdom(void)
 {
@@ -554,6 +552,9 @@ reg_call_crda(struct regulatory_request *request)
 {
 	if (call_crda(request->alpha2))
 		return REG_REQ_IGNORE;
+
+	queue_delayed_work(system_power_efficient_wq,
+			   &reg_timeout, msecs_to_jiffies(3142));
 	return REG_REQ_OK;
 }
 
@@ -1248,13 +1249,6 @@ static bool reg_request_cell_base(struct regulatory_request *request)
 	return request->user_reg_hint_type == NL80211_USER_REG_HINT_CELL_BASE;
 }
 
-static bool reg_request_indoor(struct regulatory_request *request)
-{
-	if (request->initiator != NL80211_REGDOM_SET_BY_USER)
-		return false;
-	return request->user_reg_hint_type == NL80211_USER_REG_HINT_INDOOR;
-}
-
 bool reg_last_request_cell_base(void)
 {
 	return reg_request_cell_base(get_last_request());
@@ -1800,8 +1794,7 @@ static void reg_set_request_processed(void)
 		need_more_processing = true;
 	spin_unlock(&reg_requests_lock);
 
-	if (lr->initiator == NL80211_REGDOM_SET_BY_USER)
-		cancel_delayed_work(&reg_timeout);
+	cancel_delayed_work(&reg_timeout);
 
 	if (need_more_processing)
 		schedule_work(&reg_work);
@@ -1832,11 +1825,6 @@ static enum reg_request_treatment
 __reg_process_hint_user(struct regulatory_request *user_request)
 {
 	struct regulatory_request *lr = get_last_request();
-
-	if (reg_request_indoor(user_request)) {
-		reg_is_indoor = true;
-		return REG_REQ_USER_HINT_HANDLED;
-	}
 
 	if (reg_request_cell_base(user_request))
 		return reg_ignore_cell_hint(user_request);
@@ -1885,8 +1873,7 @@ reg_process_hint_user(struct regulatory_request *user_request)
 
 	treatment = __reg_process_hint_user(user_request);
 	if (treatment == REG_REQ_IGNORE ||
-	    treatment == REG_REQ_ALREADY_SET ||
-	    treatment == REG_REQ_USER_HINT_HANDLED) {
+	    treatment == REG_REQ_ALREADY_SET) {
 		reg_free_request(user_request);
 		return treatment;
 	}
@@ -1947,7 +1934,6 @@ reg_process_hint_driver(struct wiphy *wiphy,
 	case REG_REQ_OK:
 		break;
 	case REG_REQ_IGNORE:
-	case REG_REQ_USER_HINT_HANDLED:
 		reg_free_request(driver_request);
 		return treatment;
 	case REG_REQ_INTERSECT:
@@ -2047,7 +2033,6 @@ reg_process_hint_country_ie(struct wiphy *wiphy,
 	case REG_REQ_OK:
 		break;
 	case REG_REQ_IGNORE:
-	case REG_REQ_USER_HINT_HANDLED:
 		/* fall through */
 	case REG_REQ_ALREADY_SET:
 		reg_free_request(country_ie_request);
@@ -2086,11 +2071,8 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 	case NL80211_REGDOM_SET_BY_USER:
 		treatment = reg_process_hint_user(reg_request);
 		if (treatment == REG_REQ_IGNORE ||
-		    treatment == REG_REQ_ALREADY_SET ||
-		    treatment == REG_REQ_USER_HINT_HANDLED)
+		    treatment == REG_REQ_ALREADY_SET)
 			return;
-		queue_delayed_work(system_power_efficient_wq,
-				   &reg_timeout, msecs_to_jiffies(3142));
 		return;
 	case NL80211_REGDOM_SET_BY_DRIVER:
 		if (!wiphy)
@@ -2177,6 +2159,13 @@ static void reg_process_pending_hints(void)
 	}
 
 	reg_process_hint(reg_request);
+
+	lr = get_last_request();
+
+	spin_lock(&reg_requests_lock);
+	if (!list_empty(&reg_requests_list) && lr && lr->processed)
+		schedule_work(&reg_work);
+	spin_unlock(&reg_requests_lock);
 }
 
 /* Processes beacon hints -- this has nothing to do with country IEs */
@@ -2309,20 +2298,48 @@ int regulatory_hint_user(const char *alpha2,
 	return 0;
 }
 
-int regulatory_hint_indoor_user(void)
+int regulatory_hint_indoor(bool is_indoor, u32 portid)
 {
-	struct regulatory_request *request;
+	spin_lock(&reg_indoor_lock);
 
-	request = kzalloc(sizeof(struct regulatory_request), GFP_KERNEL);
-	if (!request)
-		return -ENOMEM;
+	/* It is possible that more than one user space process is trying to
+	 * configure the indoor setting. To handle such cases, clear the indoor
+	 * setting in case that some process does not think that the device
+	 * is operating in an indoor environment. In addition, if a user space
+	 * process indicates that it is controlling the indoor setting, save its
+	 * portid, i.e., make it the owner.
+	 */
+	reg_is_indoor = is_indoor;
+	if (reg_is_indoor) {
+		if (!reg_is_indoor_portid)
+			reg_is_indoor_portid = portid;
+	} else {
+		reg_is_indoor_portid = 0;
+	}
 
-	request->wiphy_idx = WIPHY_IDX_INVALID;
-	request->initiator = NL80211_REGDOM_SET_BY_USER;
-	request->user_reg_hint_type = NL80211_USER_REG_HINT_INDOOR;
-	queue_regulatory_request(request);
+	spin_unlock(&reg_indoor_lock);
+
+	if (!is_indoor)
+		reg_check_channels();
 
 	return 0;
+}
+
+void regulatory_netlink_notify(u32 portid)
+{
+	spin_lock(&reg_indoor_lock);
+
+	if (reg_is_indoor_portid != portid) {
+		spin_unlock(&reg_indoor_lock);
+		return;
+	}
+
+	reg_is_indoor = false;
+	reg_is_indoor_portid = 0;
+
+	spin_unlock(&reg_indoor_lock);
+
+	reg_check_channels();
 }
 
 /* Driver hints */
@@ -2486,13 +2503,22 @@ static void restore_regulatory_settings(bool reset_user)
 	char alpha2[2];
 	char world_alpha2[2];
 	struct reg_beacon *reg_beacon, *btmp;
-	struct regulatory_request *reg_request, *tmp;
 	LIST_HEAD(tmp_reg_req_list);
 	struct cfg80211_registered_device *rdev;
 
 	ASSERT_RTNL();
 
-	reg_is_indoor = false;
+	/*
+	 * Clear the indoor setting in case that it is not controlled by user
+	 * space, as otherwise there is no guarantee that the device is still
+	 * operating in an indoor environment.
+	 */
+	spin_lock(&reg_indoor_lock);
+	if (reg_is_indoor && !reg_is_indoor_portid) {
+		reg_is_indoor = false;
+		reg_check_channels();
+	}
+	spin_unlock(&reg_indoor_lock);
 
 	reset_regdomains(true, &world_regdom);
 	restore_alpha2(alpha2, reset_user);
@@ -2504,11 +2530,7 @@ static void restore_regulatory_settings(bool reset_user)
 	 * settings.
 	 */
 	spin_lock(&reg_requests_lock);
-	list_for_each_entry_safe(reg_request, tmp, &reg_requests_list, list) {
-		if (reg_request->initiator != NL80211_REGDOM_SET_BY_USER)
-			continue;
-		list_move_tail(&reg_request->list, &tmp_reg_req_list);
-	}
+	list_splice_tail_init(&reg_requests_list, &tmp_reg_req_list);
 	spin_unlock(&reg_requests_lock);
 
 	/* Clear beacon hints */
@@ -3089,6 +3111,7 @@ int __init regulatory_init(void)
 
 	spin_lock_init(&reg_requests_lock);
 	spin_lock_init(&reg_pending_beacons_lock);
+	spin_lock_init(&reg_indoor_lock);
 
 	reg_regdb_size_check();
 

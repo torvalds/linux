@@ -79,7 +79,6 @@ static const struct irq_class irqclass_sub_desc[NR_ARCH_IRQS] = {
 	{.irq = IRQIO_TAP,  .name = "TAP", .desc = "[I/O] Tape"},
 	{.irq = IRQIO_VMR,  .name = "VMR", .desc = "[I/O] Unit Record Devices"},
 	{.irq = IRQIO_LCS,  .name = "LCS", .desc = "[I/O] LCS"},
-	{.irq = IRQIO_CLW,  .name = "CLW", .desc = "[I/O] CLAW"},
 	{.irq = IRQIO_CTC,  .name = "CTC", .desc = "[I/O] CTC"},
 	{.irq = IRQIO_APB,  .name = "APB", .desc = "[I/O] AP Bus"},
 	{.irq = IRQIO_ADM,  .name = "ADM", .desc = "[I/O] EADM Subchannel"},

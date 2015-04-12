@@ -56,7 +56,7 @@ MODULE_LICENSE("GPL");
 
 #define W5100_S0_REGS		0x0400
 #define W5100_S0_MR		0x0400 /* S0 Mode Register */
-#define   S0_MR_MACRAW		  0x04 /* MAC RAW mode (promiscous) */
+#define   S0_MR_MACRAW		  0x04 /* MAC RAW mode (promiscuous) */
 #define   S0_MR_MACRAW_MF	  0x44 /* MAC RAW mode (filtered) */
 #define W5100_S0_CR		0x0401 /* S0 Command Register */
 #define   S0_CR_OPEN		  0x01 /* OPEN command */

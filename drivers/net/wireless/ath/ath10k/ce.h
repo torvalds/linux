@@ -39,7 +39,7 @@ struct ath10k_ce_pipe;
 #define CE_DESC_FLAGS_GATHER         (1 << 0)
 #define CE_DESC_FLAGS_BYTE_SWAP      (1 << 1)
 #define CE_DESC_FLAGS_META_DATA_MASK 0xFFFC
-#define CE_DESC_FLAGS_META_DATA_LSB  3
+#define CE_DESC_FLAGS_META_DATA_LSB  2
 
 struct ce_desc {
 	__le32 addr;

@@ -65,7 +65,7 @@ EXPORT_SYMBOL_GPL(nf_reject_ip6_tcphdr_get);
 
 struct ipv6hdr *nf_reject_ip6hdr_put(struct sk_buff *nskb,
 				     const struct sk_buff *oldskb,
-				     __be16 protocol, int hoplimit)
+				     __u8 protocol, int hoplimit)
 {
 	struct ipv6hdr *ip6h;
 	const struct ipv6hdr *oip6h = ipv6_hdr(oldskb);
@@ -207,5 +207,40 @@ void nf_send_reset6(struct net *net, struct sk_buff *oldskb, int hook)
 		ip6_local_out(nskb);
 }
 EXPORT_SYMBOL_GPL(nf_send_reset6);
+
+static bool reject6_csum_ok(struct sk_buff *skb, int hook)
+{
+	const struct ipv6hdr *ip6h = ipv6_hdr(skb);
+	int thoff;
+	__be16 fo;
+	u8 proto;
+
+	if (skb->csum_bad)
+		return false;
+
+	if (skb_csum_unnecessary(skb))
+		return true;
+
+	proto = ip6h->nexthdr;
+	thoff = ipv6_skip_exthdr(skb, ((u8*)(ip6h+1) - skb->data), &proto, &fo);
+
+	if (thoff < 0 || thoff >= skb->len || (fo & htons(~0x7)) != 0)
+		return false;
+
+	return nf_ip6_checksum(skb, hook, thoff, proto) == 0;
+}
+
+void nf_send_unreach6(struct net *net, struct sk_buff *skb_in,
+		      unsigned char code, unsigned int hooknum)
+{
+	if (!reject6_csum_ok(skb_in, hooknum))
+		return;
+
+	if (hooknum == NF_INET_LOCAL_OUT && skb_in->dev == NULL)
+		skb_in->dev = net->loopback_dev;
+
+	icmpv6_send(skb_in, ICMPV6_DEST_UNREACH, code, 0);
+}
+EXPORT_SYMBOL_GPL(nf_send_unreach6);
 
 MODULE_LICENSE("GPL");

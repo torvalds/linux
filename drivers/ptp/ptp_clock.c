@@ -107,13 +107,21 @@ static int ptp_clock_getres(struct posix_clock *pc, struct timespec *tp)
 static int ptp_clock_settime(struct posix_clock *pc, const struct timespec *tp)
 {
 	struct ptp_clock *ptp = container_of(pc, struct ptp_clock, clock);
-	return ptp->info->settime(ptp->info, tp);
+	struct timespec64 ts = timespec_to_timespec64(*tp);
+
+	return  ptp->info->settime64(ptp->info, &ts);
 }
 
 static int ptp_clock_gettime(struct posix_clock *pc, struct timespec *tp)
 {
 	struct ptp_clock *ptp = container_of(pc, struct ptp_clock, clock);
-	return ptp->info->gettime(ptp->info, tp);
+	struct timespec64 ts;
+	int err;
+
+	err = ptp->info->gettime64(ptp->info, &ts);
+	if (!err)
+		*tp = timespec64_to_timespec(ts);
+	return err;
 }
 
 static int ptp_clock_adjtime(struct posix_clock *pc, struct timex *tx)

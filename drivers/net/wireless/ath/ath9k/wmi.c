@@ -61,6 +61,8 @@ static const char *wmi_cmd_to_name(enum wmi_cmd_id wmi_cmd)
 		return "WMI_REG_READ_CMDID";
 	case WMI_REG_WRITE_CMDID:
 		return "WMI_REG_WRITE_CMDID";
+	case WMI_REG_RMW_CMDID:
+		return "WMI_REG_RMW_CMDID";
 	case WMI_RC_STATE_CHANGE_CMDID:
 		return "WMI_RC_STATE_CHANGE_CMDID";
 	case WMI_RC_RATE_UPDATE_CMDID:
@@ -101,6 +103,7 @@ struct wmi *ath9k_init_wmi(struct ath9k_htc_priv *priv)
 	spin_lock_init(&wmi->event_lock);
 	mutex_init(&wmi->op_mutex);
 	mutex_init(&wmi->multi_write_mutex);
+	mutex_init(&wmi->multi_rmw_mutex);
 	init_completion(&wmi->cmd_wait);
 	INIT_LIST_HEAD(&wmi->pending_tx_events);
 	tasklet_init(&wmi->wmi_event_tasklet, ath9k_wmi_event_tasklet,

@@ -411,11 +411,9 @@ static irqreturn_t xgbe_dma_isr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static enum hrtimer_restart xgbe_tx_timer(struct hrtimer *timer)
+static void xgbe_tx_timer(unsigned long data)
 {
-	struct xgbe_channel *channel = container_of(timer,
-						    struct xgbe_channel,
-						    tx_timer);
+	struct xgbe_channel *channel = (struct xgbe_channel *)data;
 	struct xgbe_prv_data *pdata = channel->pdata;
 	struct napi_struct *napi;
 
@@ -437,8 +435,6 @@ static enum hrtimer_restart xgbe_tx_timer(struct hrtimer *timer)
 	channel->tx_timer_active = 0;
 
 	DBGPR("<--xgbe_tx_timer\n");
-
-	return HRTIMER_NORESTART;
 }
 
 static void xgbe_init_tx_timers(struct xgbe_prv_data *pdata)
@@ -454,9 +450,8 @@ static void xgbe_init_tx_timers(struct xgbe_prv_data *pdata)
 			break;
 
 		DBGPR("  %s adding tx timer\n", channel->name);
-		hrtimer_init(&channel->tx_timer, CLOCK_MONOTONIC,
-			     HRTIMER_MODE_REL);
-		channel->tx_timer.function = xgbe_tx_timer;
+		setup_timer(&channel->tx_timer, xgbe_tx_timer,
+			    (unsigned long)channel);
 	}
 
 	DBGPR("<--xgbe_init_tx_timers\n");
@@ -475,8 +470,7 @@ static void xgbe_stop_tx_timers(struct xgbe_prv_data *pdata)
 			break;
 
 		DBGPR("  %s deleting tx timer\n", channel->name);
-		channel->tx_timer_active = 0;
-		hrtimer_cancel(&channel->tx_timer);
+		del_timer_sync(&channel->tx_timer);
 	}
 
 	DBGPR("<--xgbe_stop_tx_timers\n");
@@ -519,6 +513,7 @@ void xgbe_get_all_hw_features(struct xgbe_prv_data *pdata)
 						RXFIFOSIZE);
 	hw_feat->tx_fifo_size  = XGMAC_GET_BITS(mac_hfr1, MAC_HWF1R,
 						TXFIFOSIZE);
+	hw_feat->dma_width     = XGMAC_GET_BITS(mac_hfr1, MAC_HWF1R, ADDR64);
 	hw_feat->dcb           = XGMAC_GET_BITS(mac_hfr1, MAC_HWF1R, DCBEN);
 	hw_feat->sph           = XGMAC_GET_BITS(mac_hfr1, MAC_HWF1R, SPHEN);
 	hw_feat->tso           = XGMAC_GET_BITS(mac_hfr1, MAC_HWF1R, TSOEN);
@@ -551,6 +546,21 @@ void xgbe_get_all_hw_features(struct xgbe_prv_data *pdata)
 	case 3:
 		hw_feat->hash_table_size = 256;
 		break;
+	}
+
+	/* Translate the address width setting into actual number */
+	switch (hw_feat->dma_width) {
+	case 0:
+		hw_feat->dma_width = 32;
+		break;
+	case 1:
+		hw_feat->dma_width = 40;
+		break;
+	case 2:
+		hw_feat->dma_width = 48;
+		break;
+	default:
+		hw_feat->dma_width = 32;
 	}
 
 	/* The Queue, Channel and TC counts are zero based so increment them
@@ -692,6 +702,7 @@ void xgbe_init_rx_coalesce(struct xgbe_prv_data *pdata)
 	DBGPR("-->xgbe_init_rx_coalesce\n");
 
 	pdata->rx_riwt = hw_if->usec_to_riwt(pdata, XGMAC_INIT_DMA_RX_USECS);
+	pdata->rx_usecs = XGMAC_INIT_DMA_RX_USECS;
 	pdata->rx_frames = XGMAC_INIT_DMA_RX_FRAMES;
 
 	hw_if->config_rx_coalesce(pdata);
@@ -1800,6 +1811,9 @@ static void xgbe_rx_refresh(struct xgbe_channel *channel)
 		ring->dirty++;
 	}
 
+	/* Make sure everything is written before the register write */
+	wmb();
+
 	/* Update the Rx Tail Pointer Register with address of
 	 * the last cleaned entry */
 	rdata = XGBE_GET_DESC_DATA(ring, ring->dirty - 1);
@@ -1807,16 +1821,15 @@ static void xgbe_rx_refresh(struct xgbe_channel *channel)
 			  lower_32_bits(rdata->rdesc_dma));
 }
 
-static struct sk_buff *xgbe_create_skb(struct xgbe_prv_data *pdata,
+static struct sk_buff *xgbe_create_skb(struct napi_struct *napi,
 				       struct xgbe_ring_data *rdata,
 				       unsigned int *len)
 {
-	struct net_device *netdev = pdata->netdev;
 	struct sk_buff *skb;
 	u8 *packet;
 	unsigned int copy_len;
 
-	skb = netdev_alloc_skb_ip_align(netdev, rdata->rx.hdr.dma_len);
+	skb = napi_alloc_skb(napi, rdata->rx.hdr.dma_len);
 	if (!skb)
 		return NULL;
 
@@ -1863,7 +1876,7 @@ static int xgbe_tx_poll(struct xgbe_channel *channel)
 
 		/* Make sure descriptor fields are read after reading the OWN
 		 * bit */
-		rmb();
+		dma_rmb();
 
 #ifdef XGMAC_ENABLE_TX_DESC_DUMP
 		xgbe_dump_tx_desc(ring, ring->dirty, 1, 0);
@@ -1986,7 +1999,7 @@ read_again:
 							rdata->rx.hdr.dma_len,
 							DMA_FROM_DEVICE);
 
-				skb = xgbe_create_skb(pdata, rdata, &put_len);
+				skb = xgbe_create_skb(napi, rdata, &put_len);
 				if (!skb) {
 					error = 1;
 					goto skip_data;

@@ -575,7 +575,7 @@ static irqreturn_t mace_interrupt(int irq, void *dev_id)
 			mace_reset(dev);
 			/*
 			 * XXX mace likes to hang the machine after a xmtfs error.
-			 * This is hard to reproduce, reseting *may* help
+			 * This is hard to reproduce, resetting *may* help
 			 */
 		}
 		/* dma should have finished */

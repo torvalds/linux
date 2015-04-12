@@ -483,7 +483,7 @@ static inline int nla_put_ipaddr4(struct sk_buff *skb, int type, __be32 ipaddr)
 
 	if (!__nested)
 		return -EMSGSIZE;
-	ret = nla_put_net32(skb, IPSET_ATTR_IPADDR_IPV4, ipaddr);
+	ret = nla_put_in_addr(skb, IPSET_ATTR_IPADDR_IPV4, ipaddr);
 	if (!ret)
 		ipset_nest_end(skb, __nested);
 	return ret;
@@ -497,8 +497,7 @@ static inline int nla_put_ipaddr6(struct sk_buff *skb, int type,
 
 	if (!__nested)
 		return -EMSGSIZE;
-	ret = nla_put(skb, IPSET_ATTR_IPADDR_IPV6,
-		      sizeof(struct in6_addr), ipaddrptr);
+	ret = nla_put_in6_addr(skb, IPSET_ATTR_IPADDR_IPV6, ipaddrptr);
 	if (!ret)
 		ipset_nest_end(skb, __nested);
 	return ret;

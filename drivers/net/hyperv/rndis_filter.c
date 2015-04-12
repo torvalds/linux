@@ -210,6 +210,7 @@ static int rndis_filter_send_request(struct rndis_device *dev,
 {
 	int ret;
 	struct hv_netvsc_packet *packet;
+	struct hv_page_buffer page_buf[2];
 
 	/* Setup the packet to send it */
 	packet = &req->pkt;
@@ -217,6 +218,7 @@ static int rndis_filter_send_request(struct rndis_device *dev,
 	packet->is_data_pkt = false;
 	packet->total_data_buflen = req->request_msg.msg_len;
 	packet->page_buf_cnt = 1;
+	packet->page_buf = page_buf;
 
 	packet->page_buf[0].pfn = virt_to_phys(&req->request_msg) >>
 					PAGE_SHIFT;
@@ -237,6 +239,7 @@ static int rndis_filter_send_request(struct rndis_device *dev,
 	}
 
 	packet->send_completion = NULL;
+	packet->xmit_more = false;
 
 	ret = netvsc_send(dev->net_dev->dev, packet);
 	return ret;
@@ -855,6 +858,7 @@ static int rndis_filter_init_device(struct rndis_device *dev)
 	u32 status;
 	int ret;
 	unsigned long t;
+	struct netvsc_device *nvdev = dev->net_dev;
 
 	request = get_rndis_request(dev, RNDIS_MSG_INIT,
 			RNDIS_MESSAGE_SIZE(struct rndis_initialize_request));
@@ -889,6 +893,8 @@ static int rndis_filter_init_device(struct rndis_device *dev)
 	status = init_complete->status;
 	if (status == RNDIS_STATUS_SUCCESS) {
 		dev->state = RNDIS_DEV_INITIALIZED;
+		nvdev->max_pkt = init_complete->max_pkt_per_msg;
+		nvdev->pkt_align = 1 << init_complete->pkt_alignment_factor;
 		ret = 0;
 	} else {
 		dev->state = RNDIS_DEV_UNINITIALIZED;
@@ -1027,6 +1033,7 @@ int rndis_filter_device_add(struct hv_device *dev,
 
 	/* Initialize the rndis device */
 	net_device = hv_get_drvdata(dev);
+	net_device->max_chn = 1;
 	net_device->num_chn = 1;
 
 	net_device->extension = rndis_device;
@@ -1094,6 +1101,7 @@ int rndis_filter_device_add(struct hv_device *dev,
 	if (ret || rsscap.num_recv_que < 2)
 		goto out;
 
+	net_device->max_chn = rsscap.num_recv_que;
 	net_device->num_chn = (num_online_cpus() < rsscap.num_recv_que) ?
 			       num_online_cpus() : rsscap.num_recv_que;
 	if (net_device->num_chn == 1)
@@ -1135,13 +1143,13 @@ int rndis_filter_device_add(struct hv_device *dev,
 	net_device->num_chn = 1 +
 		init_packet->msg.v5_msg.subchn_comp.num_subchannels;
 
-	vmbus_are_subchannels_present(dev->channel);
-
 	ret = rndis_filter_set_rss_param(rndis_device, net_device->num_chn);
 
 out:
-	if (ret)
+	if (ret) {
+		net_device->max_chn = 1;
 		net_device->num_chn = 1;
+	}
 	return 0; /* return 0 because primary channel can be used alone */
 
 err_dev_remv:

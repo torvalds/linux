@@ -305,6 +305,7 @@ struct br_input_skb_cb {
 #endif
 
 	u16 frag_max_size;
+	bool proxyarp_replied;
 
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	bool vlan_filtered;
@@ -761,6 +762,11 @@ static inline int br_vlan_enabled(struct net_bridge *br)
 	return 0;
 }
 #endif
+
+struct nf_br_ops {
+	int (*br_dev_xmit_hook)(struct sk_buff *skb);
+};
+extern const struct nf_br_ops __rcu *nf_br_ops;
 
 /* br_netfilter.c */
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)

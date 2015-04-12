@@ -98,7 +98,6 @@ void inet_twsk_free(struct inet_timewait_sock *tw)
 #ifdef SOCK_REFCNT_DEBUG
 	pr_debug("%s timewait_sock %p released\n", tw->tw_prot->name, tw);
 #endif
-	release_net(twsk_net(tw));
 	kmem_cache_free(tw->tw_prot->twsk_prot->twsk_slab, tw);
 	module_put(owner);
 }
@@ -174,7 +173,7 @@ struct inet_timewait_sock *inet_twsk_alloc(const struct sock *sk, const int stat
 	struct inet_timewait_sock *tw =
 		kmem_cache_alloc(sk->sk_prot_creator->twsk_prot->twsk_slab,
 				 GFP_ATOMIC);
-	if (tw != NULL) {
+	if (tw) {
 		const struct inet_sock *inet = inet_sk(sk);
 
 		kmemcheck_annotate_bitfield(tw, flags);
@@ -195,7 +194,8 @@ struct inet_timewait_sock *inet_twsk_alloc(const struct sock *sk, const int stat
 		tw->tw_ipv6only	    = 0;
 		tw->tw_transparent  = inet->transparent;
 		tw->tw_prot	    = sk->sk_prot_creator;
-		twsk_net_set(tw, hold_net(sock_net(sk)));
+		atomic64_set(&tw->tw_cookie, atomic64_read(&sk->sk_cookie));
+		twsk_net_set(tw, sock_net(sk));
 		/*
 		 * Because we use RCU lookups, we should not set tw_refcnt
 		 * to a non null value before everything is setup for this
@@ -487,6 +487,7 @@ void inet_twsk_purge(struct inet_hashinfo *hashinfo,
 	for (slot = 0; slot <= hashinfo->ehash_mask; slot++) {
 		struct inet_ehash_bucket *head = &hashinfo->ehash[slot];
 restart_rcu:
+		cond_resched();
 		rcu_read_lock();
 restart:
 		sk_nulls_for_each_rcu(sk, node, &head->chain) {

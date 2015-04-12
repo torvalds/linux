@@ -72,7 +72,7 @@
 #include "iwl-trans.h"
 
 #define CHANNEL_NUM_SIZE	4	/* num of channels in calib_ch size */
-#define IWL_NUM_PAPD_CH_GROUPS	7
+#define IWL_NUM_PAPD_CH_GROUPS	9
 #define IWL_NUM_TXP_CH_GROUPS	9
 
 struct iwl_phy_db_entry {

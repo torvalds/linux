@@ -2676,7 +2676,7 @@ static void wifi_setup(struct net_device *dev)
 	dev->addr_len           = ETH_ALEN;
 	dev->tx_queue_len       = 100; 
 
-	memset(dev->broadcast,0xFF, ETH_ALEN);
+	eth_broadcast_addr(dev->broadcast);
 
 	dev->flags              = IFF_BROADCAST|IFF_MULTICAST;
 }
@@ -3273,7 +3273,7 @@ static void airo_handle_link(struct airo_info *ai)
 		}
 
 		/* Send event to user space */
-		memset(wrqu.ap_addr.sa_data, '\0', ETH_ALEN);
+		eth_zero_addr(wrqu.ap_addr.sa_data);
 		wrqu.ap_addr.sa_family = ARPHRD_ETHER;
 		wireless_send_event(ai->dev, SIOCGIWAP, &wrqu, NULL);
 	}

@@ -234,8 +234,7 @@ static s32 fm10k_update_vlan_pf(struct fm10k_hw *hw, u32 vid, u8 vsi, bool set)
 	vid = (vid << 17) >> 17;
 
 	/* verify the reserved 0 fields are 0 */
-	if (len >= FM10K_VLAN_TABLE_VID_MAX ||
-	    vid >= FM10K_VLAN_TABLE_VID_MAX)
+	if (len >= FM10K_VLAN_TABLE_VID_MAX || vid >= FM10K_VLAN_TABLE_VID_MAX)
 		return FM10K_ERR_PARAM;
 
 	/* Loop through the table updating all required VLANs */
@@ -312,7 +311,7 @@ bool fm10k_glort_valid_pf(struct fm10k_hw *hw, u16 glort)
 }
 
 /**
- *  fm10k_update_uc_addr_pf - Update device unicast addresss
+ *  fm10k_update_xc_addr_pf - Update device addresses
  *  @hw: pointer to the HW structure
  *  @glort: base resource tag for this request
  *  @mac: MAC address to add/remove from table
@@ -356,7 +355,7 @@ static s32 fm10k_update_xc_addr_pf(struct fm10k_hw *hw, u16 glort,
 }
 
 /**
- *  fm10k_update_uc_addr_pf - Update device unicast addresss
+ *  fm10k_update_uc_addr_pf - Update device unicast addresses
  *  @hw: pointer to the HW structure
  *  @glort: base resource tag for this request
  *  @mac: MAC address to add/remove from table
@@ -454,7 +453,7 @@ static void fm10k_update_int_moderator_pf(struct fm10k_hw *hw)
 			break;
 	}
 
-	/* always reset VFITR2[0] to point to last enabled PF vector*/
+	/* always reset VFITR2[0] to point to last enabled PF vector */
 	fm10k_write_reg(hw, FM10K_ITR2(FM10K_ITR_REG_COUNT_PF), i);
 
 	/* reset ITR2[0] to point to last enabled PF vector */
@@ -812,7 +811,7 @@ static s32 fm10k_iov_assign_int_moderator_pf(struct fm10k_hw *hw, u16 vf_idx)
 	if (vf_idx >= hw->iov.num_vfs)
 		return FM10K_ERR_PARAM;
 
-	/* determine vector offset and count*/
+	/* determine vector offset and count */
 	vf_v_idx = fm10k_vf_vector_index(hw, vf_idx);
 	vf_v_limit = vf_v_idx + fm10k_vectors_per_pool(hw);
 
@@ -951,7 +950,7 @@ static s32 fm10k_iov_reset_resources_pf(struct fm10k_hw *hw,
 	if (vf_info->mbx.ops.disconnect)
 		vf_info->mbx.ops.disconnect(hw, &vf_info->mbx);
 
-	/* determine vector offset and count*/
+	/* determine vector offset and count */
 	vf_v_idx = fm10k_vf_vector_index(hw, vf_idx);
 	vf_v_limit = vf_v_idx + fm10k_vectors_per_pool(hw);
 
@@ -1035,7 +1034,7 @@ static s32 fm10k_iov_reset_resources_pf(struct fm10k_hw *hw,
 			((u32)vf_info->mac[2]);
 	}
 
-	/* map queue pairs back to VF from last to first*/
+	/* map queue pairs back to VF from last to first */
 	for (i = queues_per_pool; i--;) {
 		fm10k_write_reg(hw, FM10K_TDBAL(vf_q_idx + i), tdbal);
 		fm10k_write_reg(hw, FM10K_TDBAH(vf_q_idx + i), tdbah);
@@ -1141,7 +1140,7 @@ static s32 fm10k_iov_report_timestamp_pf(struct fm10k_hw *hw,
  *
  *  This function is a default handler for MSI-X requests from the VF.  The
  *  assumption is that in this case it is acceptable to just directly
- *  hand off the message form the VF to the underlying shared code.
+ *  hand off the message from the VF to the underlying shared code.
  **/
 s32 fm10k_iov_msg_msix_pf(struct fm10k_hw *hw, u32 **results,
 			  struct fm10k_mbx_info *mbx)
@@ -1160,7 +1159,7 @@ s32 fm10k_iov_msg_msix_pf(struct fm10k_hw *hw, u32 **results,
  *
  *  This function is a default handler for MAC/VLAN requests from the VF.
  *  The assumption is that in this case it is acceptable to just directly
- *  hand off the message form the VF to the underlying shared code.
+ *  hand off the message from the VF to the underlying shared code.
  **/
 s32 fm10k_iov_msg_mac_vlan_pf(struct fm10k_hw *hw, u32 **results,
 			      struct fm10k_mbx_info *mbx)
@@ -1404,7 +1403,7 @@ static void fm10k_update_hw_stats_pf(struct fm10k_hw *hw,
 						    &stats->vlan_drop);
 		loopback_drop = fm10k_read_hw_stats_32b(hw,
 							FM10K_STATS_LOOPBACK_DROP,
-						     &stats->loopback_drop);
+							&stats->loopback_drop);
 		nodesc_drop = fm10k_read_hw_stats_32b(hw,
 						      FM10K_STATS_NODESC_DROP,
 						      &stats->nodesc_drop);
@@ -1573,7 +1572,7 @@ static s32 fm10k_get_host_state_pf(struct fm10k_hw *hw, bool *switch_ready)
 	s32 ret_val = 0;
 	u32 dma_ctrl2;
 
-	/* verify the switch is ready for interraction */
+	/* verify the switch is ready for interaction */
 	dma_ctrl2 = fm10k_read_reg(hw, FM10K_DMA_CTRL2);
 	if (!(dma_ctrl2 & FM10K_DMA_CTRL2_SWITCH_READY))
 		goto out;

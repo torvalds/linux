@@ -133,7 +133,7 @@ EXPORT_SYMBOL_GPL(nf_log_dump_tcp_header);
 
 void nf_log_dump_sk_uid_gid(struct nf_log_buf *m, struct sock *sk)
 {
-	if (!sk || sk->sk_state == TCP_TIME_WAIT)
+	if (!sk || !sk_fullsock(sk))
 		return;
 
 	read_lock_bh(&sk->sk_callback_lock);

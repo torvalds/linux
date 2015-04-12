@@ -345,7 +345,7 @@ static void htab_map_free(struct bpf_map *map)
 	kfree(htab);
 }
 
-static struct bpf_map_ops htab_ops = {
+static const struct bpf_map_ops htab_ops = {
 	.map_alloc = htab_map_alloc,
 	.map_free = htab_map_free,
 	.map_get_next_key = htab_map_get_next_key,
@@ -354,14 +354,14 @@ static struct bpf_map_ops htab_ops = {
 	.map_delete_elem = htab_map_delete_elem,
 };
 
-static struct bpf_map_type_list tl = {
+static struct bpf_map_type_list htab_type __read_mostly = {
 	.ops = &htab_ops,
 	.type = BPF_MAP_TYPE_HASH,
 };
 
 static int __init register_htab_map(void)
 {
-	bpf_register_map_type(&tl);
+	bpf_register_map_type(&htab_type);
 	return 0;
 }
 late_initcall(register_htab_map);

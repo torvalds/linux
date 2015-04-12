@@ -867,7 +867,7 @@ static int flash_wait_op(struct adapter *adapter, int attempts, int delay)
  *	Read the specified number of 32-bit words from the serial flash.
  *	If @byte_oriented is set the read data is stored as a byte array
  *	(i.e., big-endian), otherwise as 32-bit words in the platform's
- *	natural endianess.
+ *	natural endianness.
  */
 int t4_read_flash(struct adapter *adapter, unsigned int addr,
 		  unsigned int nwords, u32 *data, int byte_oriented)
@@ -3558,7 +3558,7 @@ int t4_fixup_host_params(struct adapter *adap, unsigned int page_size,
 	 * For the single-MTU buffers in unpacked mode we need to include
 	 * space for the SGE Control Packet Shift, 14 byte Ethernet header,
 	 * possible 4 byte VLAN tag, all rounded up to the next Ingress Packet
-	 * Padding boundry.  All of these are accommodated in the Factory
+	 * Padding boundary.  All of these are accommodated in the Factory
 	 * Default Firmware Configuration File but we need to adjust it for
 	 * this host's cache line size.
 	 */
@@ -4459,6 +4459,59 @@ int cxgb4_t4_bar2_sge_qregs(struct adapter *adapter,
 }
 
 /**
+ *	t4_init_devlog_params - initialize adapter->params.devlog
+ *	@adap: the adapter
+ *
+ *	Initialize various fields of the adapter's Firmware Device Log
+ *	Parameters structure.
+ */
+int t4_init_devlog_params(struct adapter *adap)
+{
+	struct devlog_params *dparams = &adap->params.devlog;
+	u32 pf_dparams;
+	unsigned int devlog_meminfo;
+	struct fw_devlog_cmd devlog_cmd;
+	int ret;
+
+	/* If we're dealing with newer firmware, the Device Log Paramerters
+	 * are stored in a designated register which allows us to access the
+	 * Device Log even if we can't talk to the firmware.
+	 */
+	pf_dparams =
+		t4_read_reg(adap, PCIE_FW_REG(PCIE_FW_PF_A, PCIE_FW_PF_DEVLOG));
+	if (pf_dparams) {
+		unsigned int nentries, nentries128;
+
+		dparams->memtype = PCIE_FW_PF_DEVLOG_MEMTYPE_G(pf_dparams);
+		dparams->start = PCIE_FW_PF_DEVLOG_ADDR16_G(pf_dparams) << 4;
+
+		nentries128 = PCIE_FW_PF_DEVLOG_NENTRIES128_G(pf_dparams);
+		nentries = (nentries128 + 1) * 128;
+		dparams->size = nentries * sizeof(struct fw_devlog_e);
+
+		return 0;
+	}
+
+	/* Otherwise, ask the firmware for it's Device Log Parameters.
+	 */
+	memset(&devlog_cmd, 0, sizeof(devlog_cmd));
+	devlog_cmd.op_to_write = htonl(FW_CMD_OP_V(FW_DEVLOG_CMD) |
+				       FW_CMD_REQUEST_F | FW_CMD_READ_F);
+	devlog_cmd.retval_len16 = htonl(FW_LEN16(devlog_cmd));
+	ret = t4_wr_mbox(adap, adap->mbox, &devlog_cmd, sizeof(devlog_cmd),
+			 &devlog_cmd);
+	if (ret)
+		return ret;
+
+	devlog_meminfo = ntohl(devlog_cmd.memtype_devlog_memaddr16_devlog);
+	dparams->memtype = FW_DEVLOG_CMD_MEMTYPE_DEVLOG_G(devlog_meminfo);
+	dparams->start = FW_DEVLOG_CMD_MEMADDR16_DEVLOG_G(devlog_meminfo) << 4;
+	dparams->size = ntohl(devlog_cmd.memsize_devlog);
+
+	return 0;
+}
+
+/**
  *	t4_init_sge_params - initialize adap->params.sge
  *	@adapter: the adapter
  *
@@ -4529,7 +4582,7 @@ int t4_init_tp_params(struct adapter *adap)
 							       PROTOCOL_F);
 
 	/* If TP_INGRESS_CONFIG.VNID == 0, then TP_VLAN_PRI_MAP.VNIC_ID
-	 * represents the presense of an Outer VLAN instead of a VNIC ID.
+	 * represents the presence of an Outer VLAN instead of a VNIC ID.
 	 */
 	if ((adap->params.tp.ingress_config & VNIC_F) == 0)
 		adap->params.tp.vnic_shift = -1;

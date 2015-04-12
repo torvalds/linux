@@ -21,8 +21,10 @@ enum can_led_event {
 
 #ifdef CONFIG_CAN_LEDS
 
-/* keep space for interface name + "-tx"/"-rx" suffix and null terminator */
-#define CAN_LED_NAME_SZ (IFNAMSIZ + 4)
+/* keep space for interface name + "-tx"/"-rx"/"-rxtx"
+ * suffix and null terminator
+ */
+#define CAN_LED_NAME_SZ (IFNAMSIZ + 6)
 
 void can_led_event(struct net_device *netdev, enum can_led_event event);
 void devm_can_led_init(struct net_device *netdev);

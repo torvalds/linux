@@ -261,6 +261,16 @@ static int hci_uart_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 	return 0;
 }
 
+static int hci_uart_setup(struct hci_dev *hdev)
+{
+	struct hci_uart *hu = hci_get_drvdata(hdev);
+
+	if (hu->proto->setup)
+		return hu->proto->setup(hu);
+
+	return 0;
+}
+
 /* ------ LDISC part ------ */
 /* hci_uart_tty_open
  *
@@ -426,6 +436,7 @@ static int hci_uart_register_dev(struct hci_uart *hu)
 	hdev->close = hci_uart_close;
 	hdev->flush = hci_uart_flush;
 	hdev->send  = hci_uart_send_frame;
+	hdev->setup = hci_uart_setup;
 	SET_HCIDEV_DEV(hdev, hu->tty->dev);
 
 	if (test_bit(HCI_UART_RAW_DEVICE, &hu->hdev_flags))
@@ -488,7 +499,7 @@ static int hci_uart_set_flags(struct hci_uart *hu, unsigned long flags)
 				    BIT(HCI_UART_INIT_PENDING) |
 				    BIT(HCI_UART_EXT_CONFIG);
 
-	if ((flags & ~valid_flags))
+	if (flags & ~valid_flags)
 		return -EINVAL;
 
 	hu->hdev_flags = flags;

@@ -9,13 +9,14 @@
 #include <net/addrconf.h>
 #include <net/secure_seq.h>
 
-static u32 __ipv6_select_ident(u32 hashrnd, struct in6_addr *dst,
-			       struct in6_addr *src)
+static u32 __ipv6_select_ident(struct net *net, u32 hashrnd,
+			       struct in6_addr *dst, struct in6_addr *src)
 {
 	u32 hash, id;
 
 	hash = __ipv6_addr_jhash(dst, hashrnd);
 	hash = __ipv6_addr_jhash(src, hash);
+	hash ^= net_hash_mix(net);
 
 	/* Treat id of 0 as unset and if we get 0 back from ip_idents_reserve,
 	 * set the hight order instead thus minimizing possible future
@@ -36,7 +37,7 @@ static u32 __ipv6_select_ident(u32 hashrnd, struct in6_addr *dst,
  *
  * The network header must be set before calling this.
  */
-void ipv6_proxy_select_ident(struct sk_buff *skb)
+void ipv6_proxy_select_ident(struct net *net, struct sk_buff *skb)
 {
 	static u32 ip6_proxy_idents_hashrnd __read_mostly;
 	struct in6_addr buf[2];
@@ -53,20 +54,21 @@ void ipv6_proxy_select_ident(struct sk_buff *skb)
 	net_get_random_once(&ip6_proxy_idents_hashrnd,
 			    sizeof(ip6_proxy_idents_hashrnd));
 
-	id = __ipv6_select_ident(ip6_proxy_idents_hashrnd,
+	id = __ipv6_select_ident(net, ip6_proxy_idents_hashrnd,
 				 &addrs[1], &addrs[0]);
 	skb_shinfo(skb)->ip6_frag_id = htonl(id);
 }
 EXPORT_SYMBOL_GPL(ipv6_proxy_select_ident);
 
-void ipv6_select_ident(struct frag_hdr *fhdr, struct rt6_info *rt)
+void ipv6_select_ident(struct net *net, struct frag_hdr *fhdr,
+		       struct rt6_info *rt)
 {
 	static u32 ip6_idents_hashrnd __read_mostly;
 	u32 id;
 
 	net_get_random_once(&ip6_idents_hashrnd, sizeof(ip6_idents_hashrnd));
 
-	id = __ipv6_select_ident(ip6_idents_hashrnd, &rt->rt6i_dst.addr,
+	id = __ipv6_select_ident(net, ip6_idents_hashrnd, &rt->rt6i_dst.addr,
 				 &rt->rt6i_src.addr);
 	fhdr->identification = htonl(id);
 }
