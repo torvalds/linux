@@ -2078,6 +2078,19 @@ static inline int ext4_sb_has_crypto(struct super_block *sb)
 }
 #endif
 
+/* crypto_key.c */
+int ext4_generate_encryption_key(struct inode *inode);
+
+#ifdef CONFIG_EXT4_FS_ENCRYPTION
+int ext4_has_encryption_key(struct inode *inode);
+#else
+static inline int ext4_has_encryption_key(struct inode *inode)
+{
+	return 0;
+}
+#endif
+
+
 /* dir.c */
 extern int __ext4_check_dir_entry(const char *, unsigned int, struct inode *,
 				  struct file *,

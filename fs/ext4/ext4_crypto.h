@@ -55,6 +55,9 @@ struct ext4_encryption_context {
 #define EXT4_AES_256_XTS_KEY_SIZE 64
 #define EXT4_MAX_KEY_SIZE 64
 
+#define EXT4_KEY_DESC_PREFIX "ext4:"
+#define EXT4_KEY_DESC_PREFIX_SIZE 5
+
 struct ext4_encryption_key {
 	uint32_t mode;
 	char raw[EXT4_MAX_KEY_SIZE];
