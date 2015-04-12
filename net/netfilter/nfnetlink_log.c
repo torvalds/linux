@@ -1007,7 +1007,7 @@ static int seq_show(struct seq_file *s, void *v)
 {
 	const struct nfulnl_instance *inst = v;
 
-	seq_printf(s, "%5d %6d %5d %1d %5d %6d %2d\n",
+	seq_printf(s, "%5u %6u %5u %1u %5u %6u %2u\n",
 		   inst->group_num,
 		   inst->peer_portid, inst->qlen,
 		   inst->copy_mode, inst->copy_range,
