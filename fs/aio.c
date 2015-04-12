@@ -278,11 +278,11 @@ static int aio_ring_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
-static void aio_ring_remap(struct file *file, struct vm_area_struct *vma)
+static int aio_ring_remap(struct file *file, struct vm_area_struct *vma)
 {
 	struct mm_struct *mm = vma->vm_mm;
 	struct kioctx_table *table;
-	int i;
+	int i, res = -EINVAL;
 
 	spin_lock(&mm->ioctx_lock);
 	rcu_read_lock();
@@ -292,13 +292,17 @@ static void aio_ring_remap(struct file *file, struct vm_area_struct *vma)
 
 		ctx = table->table[i];
 		if (ctx && ctx->aio_ring_file == file) {
-			ctx->user_id = ctx->mmap_base = vma->vm_start;
+			if (!atomic_read(&ctx->dead)) {
+				ctx->user_id = ctx->mmap_base = vma->vm_start;
+				res = 0;
+			}
 			break;
 		}
 	}
 
 	rcu_read_unlock();
 	spin_unlock(&mm->ioctx_lock);
+	return res;
 }
 
 static const struct file_operations aio_ring_fops = {
@@ -727,6 +731,9 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 err_cleanup:
 	aio_nr_sub(ctx->max_reqs);
 err_ctx:
+	atomic_set(&ctx->dead, 1);
+	if (ctx->mmap_size)
+		vm_munmap(ctx->mmap_base, ctx->mmap_size);
 	aio_free_ring(ctx);
 err:
 	mutex_unlock(&ctx->ring_lock);
@@ -748,11 +755,12 @@ static int kill_ioctx(struct mm_struct *mm, struct kioctx *ctx,
 {
 	struct kioctx_table *table;
 
-	if (atomic_xchg(&ctx->dead, 1))
-		return -EINVAL;
-
-
 	spin_lock(&mm->ioctx_lock);
+	if (atomic_xchg(&ctx->dead, 1)) {
+		spin_unlock(&mm->ioctx_lock);
+		return -EINVAL;
+	}
+
 	table = rcu_dereference_raw(mm->ioctx_table);
 	WARN_ON(ctx != table->table[ctx->id]);
 	table->table[ctx->id] = NULL;
