@@ -755,4 +755,13 @@ static inline void hv_poll_channel(struct vmbus_channel *channel,
 		cb(channel);
 }
 
+enum hvutil_device_state {
+	HVUTIL_DEVICE_INIT = 0,  /* driver is loaded, waiting for userspace */
+	HVUTIL_READY,            /* userspace is registered */
+	HVUTIL_HOSTMSG_RECEIVED, /* message from the host was received */
+	HVUTIL_USERSPACE_REQ,    /* request to userspace was sent */
+	HVUTIL_USERSPACE_RECV,   /* reply from userspace was received */
+	HVUTIL_DEVICE_DYING,     /* driver unload is in progress */
+};
+
 #endif /* _HYPERV_VMBUS_H */
