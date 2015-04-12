@@ -150,7 +150,8 @@ static int kvp_handle_handshake(struct hv_kvp_msg *msg)
 	/*
 	 * We have a compatible daemon; complete the handshake.
 	 */
-	pr_info("KVP: user-mode registering done.\n");
+	pr_debug("KVP: userspace daemon ver. %d registered\n",
+		 KVP_OP_REGISTER);
 	kvp_register(dm_reg_value);
 	kvp_transaction.state = HVUTIL_READY;
 

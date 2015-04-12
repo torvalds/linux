@@ -107,8 +107,7 @@ static int fcopy_handle_handshake(u32 version)
 		 */
 		return -EINVAL;
 	}
-	pr_info("FCP: user-mode registering done. Daemon version: %d\n",
-		version);
+	pr_debug("FCP: userspace daemon ver. %d registered\n", version);
 	fcopy_transaction.state = HVUTIL_READY;
 	hv_poll_channel(fcopy_transaction.fcopy_context,
 			hv_fcopy_onchannelcallback);
