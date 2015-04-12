@@ -850,7 +850,7 @@ int rsnd_src_probe(struct platform_device *pdev,
 	struct rsnd_mod_ops *ops;
 	struct clk *clk;
 	char name[RSND_SRC_NAME_SIZE];
-	int i, nr;
+	int i, nr, ret;
 
 	ops = NULL;
 	if (rsnd_is_gen1(priv))
@@ -890,10 +890,23 @@ int rsnd_src_probe(struct platform_device *pdev,
 
 		src->info = &info->src_info[i];
 
-		rsnd_mod_init(&src->mod, ops, clk, RSND_MOD_SRC, i);
+		ret = rsnd_mod_init(&src->mod, ops, clk, RSND_MOD_SRC, i);
+		if (ret)
+			return ret;
 
 		dev_dbg(dev, "SRC%d probed\n", i);
 	}
 
 	return 0;
+}
+
+void rsnd_src_remove(struct platform_device *pdev,
+		     struct rsnd_priv *priv)
+{
+	struct rsnd_src *src;
+	int i;
+
+	for_each_rsnd_src(src, priv, i) {
+		rsnd_mod_quit(&src->mod);
+	}
 }
