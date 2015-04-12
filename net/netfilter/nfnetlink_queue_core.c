@@ -55,7 +55,7 @@ struct nfqnl_instance {
 	struct hlist_node hlist;		/* global list of queues */
 	struct rcu_head rcu;
 
-	int peer_portid;
+	u32 peer_portid;
 	unsigned int queue_maxlen;
 	unsigned int copy_range;
 	unsigned int queue_dropped;
@@ -110,8 +110,7 @@ instance_lookup(struct nfnl_queue_net *q, u_int16_t queue_num)
 }
 
 static struct nfqnl_instance *
-instance_create(struct nfnl_queue_net *q, u_int16_t queue_num,
-		int portid)
+instance_create(struct nfnl_queue_net *q, u_int16_t queue_num, u32 portid)
 {
 	struct nfqnl_instance *inst;
 	unsigned int h;
@@ -870,7 +869,7 @@ static const struct nla_policy nfqa_verdict_batch_policy[NFQA_MAX+1] = {
 };
 
 static struct nfqnl_instance *
-verdict_instance_lookup(struct nfnl_queue_net *q, u16 queue_num, int nlportid)
+verdict_instance_lookup(struct nfnl_queue_net *q, u16 queue_num, u32 nlportid)
 {
 	struct nfqnl_instance *queue;
 

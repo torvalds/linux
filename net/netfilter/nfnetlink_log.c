@@ -63,7 +63,7 @@ struct nfulnl_instance {
 	struct timer_list timer;
 	struct net *net;
 	struct user_namespace *peer_user_ns;	/* User namespace of the peer process */
-	int peer_portid;			/* PORTID of the peer process */
+	u32 peer_portid;		/* PORTID of the peer process */
 
 	/* configurable parameters */
 	unsigned int flushtimeout;	/* timeout until queue flush */
@@ -152,7 +152,7 @@ static void nfulnl_timer(unsigned long data);
 
 static struct nfulnl_instance *
 instance_create(struct net *net, u_int16_t group_num,
-		int portid, struct user_namespace *user_ns)
+		u32 portid, struct user_namespace *user_ns)
 {
 	struct nfulnl_instance *inst;
 	struct nfnl_log_net *log = nfnl_log_pernet(net);
