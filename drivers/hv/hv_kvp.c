@@ -79,10 +79,10 @@ static void kvp_send_key(struct work_struct *dummy);
 
 
 static void kvp_respond_to_host(struct hv_kvp_msg *msg, int error);
-static void kvp_work_func(struct work_struct *dummy);
+static void kvp_timeout_func(struct work_struct *dummy);
 static void kvp_register(int);
 
-static DECLARE_DELAYED_WORK(kvp_work, kvp_work_func);
+static DECLARE_DELAYED_WORK(kvp_timeout_work, kvp_timeout_func);
 static DECLARE_WORK(kvp_sendkey_work, kvp_send_key);
 
 static struct cb_id kvp_id = { CN_KVP_IDX, CN_KVP_VAL };
@@ -118,8 +118,8 @@ kvp_register(int reg_value)
 		kfree(msg);
 	}
 }
-static void
-kvp_work_func(struct work_struct *dummy)
+
+static void kvp_timeout_func(struct work_struct *dummy)
 {
 	/*
 	 * If the timer fires, the user-mode component has not responded;
@@ -215,7 +215,7 @@ kvp_cn_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
 	 * Complete the transaction by forwarding the key value
 	 * to the host. But first, cancel the timeout.
 	 */
-	if (cancel_delayed_work_sync(&kvp_work))
+	if (cancel_delayed_work_sync(&kvp_timeout_work))
 		kvp_respond_to_host(message, error);
 }
 
@@ -440,7 +440,7 @@ kvp_send_key(struct work_struct *dummy)
 	rc = cn_netlink_send(msg, 0, 0, GFP_ATOMIC);
 	if (rc) {
 		pr_debug("KVP: failed to communicate to the daemon: %d\n", rc);
-		if (cancel_delayed_work_sync(&kvp_work))
+		if (cancel_delayed_work_sync(&kvp_timeout_work))
 			kvp_respond_to_host(message, HV_E_FAIL);
 	}
 
@@ -668,7 +668,7 @@ void hv_kvp_onchannelcallback(void *context)
 			 * user-mode not responding.
 			 */
 			schedule_work(&kvp_sendkey_work);
-			schedule_delayed_work(&kvp_work, 5*HZ);
+			schedule_delayed_work(&kvp_timeout_work, 5*HZ);
 
 			return;
 
@@ -708,6 +708,6 @@ hv_kvp_init(struct hv_util_service *srv)
 void hv_kvp_deinit(void)
 {
 	cn_del_callback(&kvp_id);
-	cancel_delayed_work_sync(&kvp_work);
+	cancel_delayed_work_sync(&kvp_timeout_work);
 	cancel_work_sync(&kvp_sendkey_work);
 }
