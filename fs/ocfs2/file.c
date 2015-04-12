@@ -2391,7 +2391,6 @@ relock:
 		/*
 		 * for completing the rest of the request.
 		 */
-		*ppos += written;
 		count -= written;
 		written_buffered = generic_perform_write(file, from, *ppos);
 		/*
@@ -2406,7 +2405,6 @@ relock:
 			goto out_dio;
 		}
 
-		iocb->ki_pos = *ppos + written_buffered;
 		/* We need to ensure that the page cache pages are written to
 		 * disk and invalidated to preserve the expected O_DIRECT
 		 * semantics.
@@ -2415,6 +2413,7 @@ relock:
 		ret = filemap_write_and_wait_range(file->f_mapping, *ppos,
 				endbyte);
 		if (ret == 0) {
+			iocb->ki_pos = *ppos + written_buffered;
 			written += written_buffered;
 			invalidate_mapping_pages(mapping,
 					*ppos >> PAGE_CACHE_SHIFT,
@@ -2437,10 +2436,14 @@ out_dio:
 	/* buffered aio wouldn't have proper lock coverage today */
 	BUG_ON(ret == -EIOCBQUEUED && !(file->f_flags & O_DIRECT));
 
+	if (unlikely(written <= 0))
+		goto no_sync;
+
 	if (((file->f_flags & O_DSYNC) && !direct_io) || IS_SYNC(inode) ||
 	    ((file->f_flags & O_DIRECT) && !direct_io)) {
-		ret = filemap_fdatawrite_range(file->f_mapping, *ppos,
-					       *ppos + count - 1);
+		ret = filemap_fdatawrite_range(file->f_mapping,
+					       iocb->ki_pos - written,
+					       iocb->ki_pos - 1);
 		if (ret < 0)
 			written = ret;
 
@@ -2451,10 +2454,12 @@ out_dio:
 		}
 
 		if (!ret)
-			ret = filemap_fdatawait_range(file->f_mapping, *ppos,
-						      *ppos + count - 1);
+			ret = filemap_fdatawait_range(file->f_mapping,
+						      iocb->ki_pos - written,
+						      iocb->ki_pos - 1);
 	}
 
+no_sync:
 	/*
 	 * deep in g_f_a_w_n()->ocfs2_direct_IO we pass in a ocfs2_dio_end_io
 	 * function pointer which is called when o_direct io completes so that
