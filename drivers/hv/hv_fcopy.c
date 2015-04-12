@@ -360,12 +360,9 @@ static int fcopy_open(struct inode *inode, struct file *f)
 }
 
 /* XXX: there are still some tricky corner cases, e.g.,
- * 1) In a SMP guest, when fcopy_release() runs between
+ * In an SMP guest, when fcopy_release() runs between
  * schedule_delayed_work() and fcopy_send_data(), there is
  * still a chance an obsolete message will be queued.
- *
- * 2) When the fcopy daemon is running, if we unload the driver,
- * we'll notice a kernel oops when we kill the daemon later.
  */
 static int fcopy_release(struct inode *inode, struct file *f)
 {
@@ -385,6 +382,7 @@ static int fcopy_release(struct inode *inode, struct file *f)
 
 
 static const struct file_operations fcopy_fops = {
+	.owner          = THIS_MODULE,
 	.read           = fcopy_read,
 	.write          = fcopy_write,
 	.release	= fcopy_release,
