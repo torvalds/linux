@@ -68,6 +68,7 @@ struct sample {
 	int32_t core_pct_busy;
 	u64 aperf;
 	u64 mperf;
+	u64 tsc;
 	int freq;
 	ktime_t time;
 };
@@ -109,6 +110,7 @@ struct cpudata {
 	ktime_t last_sample_time;
 	u64	prev_aperf;
 	u64	prev_mperf;
+	u64	prev_tsc;
 	struct sample sample;
 };
 
@@ -756,23 +758,28 @@ static inline void intel_pstate_sample(struct cpudata *cpu)
 {
 	u64 aperf, mperf;
 	unsigned long flags;
+	u64 tsc;
 
 	local_irq_save(flags);
 	rdmsrl(MSR_IA32_APERF, aperf);
 	rdmsrl(MSR_IA32_MPERF, mperf);
+	tsc = native_read_tsc();
 	local_irq_restore(flags);
 
 	cpu->last_sample_time = cpu->sample.time;
 	cpu->sample.time = ktime_get();
 	cpu->sample.aperf = aperf;
 	cpu->sample.mperf = mperf;
+	cpu->sample.tsc =  tsc;
 	cpu->sample.aperf -= cpu->prev_aperf;
 	cpu->sample.mperf -= cpu->prev_mperf;
+	cpu->sample.tsc -= cpu->prev_tsc;
 
 	intel_pstate_calc_busy(cpu);
 
 	cpu->prev_aperf = aperf;
 	cpu->prev_mperf = mperf;
+	cpu->prev_tsc = tsc;
 }
 
 static inline void intel_hwp_set_sample_time(struct cpudata *cpu)
@@ -837,6 +844,10 @@ static inline void intel_pstate_adjust_busy_pstate(struct cpudata *cpu)
 	int32_t busy_scaled;
 	struct _pid *pid;
 	signed int ctl;
+	int from;
+	struct sample *sample;
+
+	from = cpu->pstate.current_pstate;
 
 	pid = &cpu->pid;
 	busy_scaled = intel_pstate_get_scaled_busy(cpu);
@@ -845,6 +856,16 @@ static inline void intel_pstate_adjust_busy_pstate(struct cpudata *cpu)
 
 	/* Negative values of ctl increase the pstate and vice versa */
 	intel_pstate_set_pstate(cpu, cpu->pstate.current_pstate - ctl);
+
+	sample = &cpu->sample;
+	trace_pstate_sample(fp_toint(sample->core_pct_busy),
+		fp_toint(busy_scaled),
+		from,
+		cpu->pstate.current_pstate,
+		sample->mperf,
+		sample->aperf,
+		sample->tsc,
+		sample->freq);
 }
 
 static void intel_hwp_timer_func(unsigned long __data)
@@ -858,20 +879,10 @@ static void intel_hwp_timer_func(unsigned long __data)
 static void intel_pstate_timer_func(unsigned long __data)
 {
 	struct cpudata *cpu = (struct cpudata *) __data;
-	struct sample *sample;
 
 	intel_pstate_sample(cpu);
 
-	sample = &cpu->sample;
-
 	intel_pstate_adjust_busy_pstate(cpu);
-
-	trace_pstate_sample(fp_toint(sample->core_pct_busy),
-			fp_toint(intel_pstate_get_scaled_busy(cpu)),
-			cpu->pstate.current_pstate,
-			sample->mperf,
-			sample->aperf,
-			sample->freq);
 
 	intel_pstate_set_sample_time(cpu);
 }
