@@ -382,10 +382,15 @@ void ext4_htree_free_dir_info(struct dir_private_info *p)
 
 /*
  * Given a directory entry, enter it into the fname rb tree.
+ *
+ * When filename encryption is enabled, the dirent will hold the
+ * encrypted filename, while the htree will hold decrypted filename.
+ * The decrypted filename is passed in via ent_name.  parameter.
  */
 int ext4_htree_store_dirent(struct file *dir_file, __u32 hash,
 			     __u32 minor_hash,
-			     struct ext4_dir_entry_2 *dirent)
+			    struct ext4_dir_entry_2 *dirent,
+			    struct ext4_str *ent_name)
 {
 	struct rb_node **p, *parent = NULL;
 	struct fname *fname, *new_fn;
@@ -396,17 +401,17 @@ int ext4_htree_store_dirent(struct file *dir_file, __u32 hash,
 	p = &info->root.rb_node;
 
 	/* Create and allocate the fname structure */
-	len = sizeof(struct fname) + dirent->name_len + 1;
+	len = sizeof(struct fname) + ent_name->len + 1;
 	new_fn = kzalloc(len, GFP_KERNEL);
 	if (!new_fn)
 		return -ENOMEM;
 	new_fn->hash = hash;
 	new_fn->minor_hash = minor_hash;
 	new_fn->inode = le32_to_cpu(dirent->inode);
-	new_fn->name_len = dirent->name_len;
+	new_fn->name_len = ent_name->len;
 	new_fn->file_type = dirent->file_type;
-	memcpy(new_fn->name, dirent->name, dirent->name_len);
-	new_fn->name[dirent->name_len] = 0;
+	memcpy(new_fn->name, ent_name->name, ent_name->len);
+	new_fn->name[ent_name->len] = 0;
 
 	while (*p) {
 		parent = *p;
