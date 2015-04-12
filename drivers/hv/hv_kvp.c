@@ -28,6 +28,7 @@
 #include <linux/workqueue.h>
 #include <linux/hyperv.h>
 
+#include "hyperv_vmbus.h"
 
 /*
  * Pre win8 version numbers used in ws2008 and ws 2008 r2 (win7)

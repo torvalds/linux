@@ -24,6 +24,8 @@
 #include <linux/workqueue.h>
 #include <linux/hyperv.h>
 
+#include "hyperv_vmbus.h"
+
 #define VSS_MAJOR  5
 #define VSS_MINOR  0
 #define VSS_VERSION    (VSS_MAJOR << 16 | VSS_MINOR)
