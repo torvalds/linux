@@ -41,6 +41,25 @@ void common(void) {
 	OFFSET(pbe_orig_address, pbe, orig_address);
 	OFFSET(pbe_next, pbe, next);
 
+#if defined(CONFIG_X86_32) || defined(CONFIG_IA32_EMULATION)
+	BLANK();
+	OFFSET(IA32_SIGCONTEXT_ax, sigcontext_ia32, ax);
+	OFFSET(IA32_SIGCONTEXT_bx, sigcontext_ia32, bx);
+	OFFSET(IA32_SIGCONTEXT_cx, sigcontext_ia32, cx);
+	OFFSET(IA32_SIGCONTEXT_dx, sigcontext_ia32, dx);
+	OFFSET(IA32_SIGCONTEXT_si, sigcontext_ia32, si);
+	OFFSET(IA32_SIGCONTEXT_di, sigcontext_ia32, di);
+	OFFSET(IA32_SIGCONTEXT_bp, sigcontext_ia32, bp);
+	OFFSET(IA32_SIGCONTEXT_sp, sigcontext_ia32, sp);
+	OFFSET(IA32_SIGCONTEXT_ip, sigcontext_ia32, ip);
+
+	BLANK();
+	OFFSET(TI_sysenter_return, thread_info, sysenter_return);
+
+	BLANK();
+	OFFSET(IA32_RT_SIGFRAME_sigcontext, rt_sigframe_ia32, uc.uc_mcontext);
+#endif
+
 #ifdef CONFIG_PARAVIRT
 	BLANK();
 	OFFSET(PARAVIRT_enabled, pv_info, paravirt_enabled);
