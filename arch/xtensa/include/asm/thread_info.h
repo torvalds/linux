@@ -61,17 +61,6 @@ struct thread_info {
 	xtregs_user_t		xtregs_user;
 };
 
-#else /* !__ASSEMBLY__ */
-
-/* offsets into the thread_info struct for assembly code access */
-#define TI_TASK		 0x00000000
-#define TI_EXEC_DOMAIN	 0x00000004
-#define TI_FLAGS	 0x00000008
-#define TI_STATUS	 0x0000000C
-#define TI_CPU		 0x00000010
-#define TI_PRE_COUNT	 0x00000014
-#define TI_ADDR_LIMIT	 0x00000018
-
 #endif
 
 /*
