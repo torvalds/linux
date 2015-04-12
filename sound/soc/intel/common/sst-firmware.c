@@ -221,8 +221,6 @@ int sst_dsp_dma_get_channel(struct sst_dsp *dsp, int chan_id)
 	dma_cap_mask_t mask;
 	int ret;
 
-	/* The Intel MID DMA engine driver needs the slave config set but
-	 * Synopsis DMA engine driver safely ignores the slave config */
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 	dma_cap_set(DMA_MEMCPY, mask);
@@ -280,9 +278,6 @@ int sst_dma_new(struct sst_dsp *sst)
 	switch (sst->pdata->dma_engine) {
 	case SST_DMA_TYPE_DW:
 		dma_dev_name = "dw_dmac";
-		break;
-	case SST_DMA_TYPE_MID:
-		dma_dev_name = "Intel MID DMA";
 		break;
 	default:
 		dev_err(sst->dev, "error: invalid DMA engine %d\n",
@@ -502,6 +497,7 @@ struct sst_module *sst_module_new(struct sst_fw *sst_fw,
 	sst_module->scratch_size = template->scratch_size;
 	sst_module->persistent_size = template->persistent_size;
 	sst_module->entry = template->entry;
+	sst_module->state = SST_MODULE_STATE_UNLOADED;
 
 	INIT_LIST_HEAD(&sst_module->block_list);
 	INIT_LIST_HEAD(&sst_module->runtime_list);

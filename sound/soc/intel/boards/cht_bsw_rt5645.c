@@ -27,8 +27,8 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/jack.h>
-#include "../codecs/rt5645.h"
-#include "sst-atom-controls.h"
+#include "../../codecs/rt5645.h"
+#include "../atom/sst-atom-controls.h"
 
 #define CHT_PLAT_CLK_3_HZ	19200000
 #define CHT_CODEC_DAI	"rt5645-aif1"

@@ -28,9 +28,9 @@
 #include <linux/firmware.h>
 #include <linux/pm_runtime.h>
 
-#include "sst-dsp.h"
-#include "sst-dsp-priv.h"
-#include "sst-haswell-ipc.h"
+#include "../common/sst-dsp.h"
+#include "../common/sst-dsp-priv.h"
+#include "../haswell/sst-haswell-ipc.h"
 
 #include <trace/events/hswadsp.h>
 
@@ -100,6 +100,7 @@ static int hsw_parse_module(struct sst_dsp *dsp, struct sst_fw *fw,
 		&& module->type != SST_HSW_MODULE_PCM
 		&& module->type != SST_HSW_MODULE_PCM_REFERENCE
 		&& module->type != SST_HSW_MODULE_PCM_CAPTURE
+		&& module->type != SST_HSW_MODULE_WAVES
 		&& module->type != SST_HSW_MODULE_LPAL)
 		return 0;
 
@@ -139,6 +140,7 @@ static int hsw_parse_module(struct sst_dsp *dsp, struct sst_fw *fw,
 			mod->type = SST_MEM_IRAM;
 			break;
 		case SST_HSW_DRAM:
+		case SST_HSW_REGS:
 			ram = dsp->addr.lpe;
 			mod->offset = block->ram_offset;
 			mod->type = SST_MEM_DRAM;
@@ -169,6 +171,7 @@ static int hsw_parse_module(struct sst_dsp *dsp, struct sst_fw *fw,
 
 		block = (void *)block + sizeof(*block) + block->size;
 	}
+	mod->state = SST_MODULE_STATE_LOADED;
 
 	return 0;
 }

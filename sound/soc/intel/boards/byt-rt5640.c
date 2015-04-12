@@ -23,9 +23,9 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/jack.h>
-#include "../codecs/rt5640.h"
+#include "../../codecs/rt5640.h"
 
-#include "sst-dsp.h"
+#include "../common/sst-dsp.h"
 
 static const struct snd_soc_dapm_widget byt_rt5640_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone", NULL),

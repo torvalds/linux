@@ -37,6 +37,9 @@
 #define SST_HSW_IPC_MAX_PAYLOAD_SIZE	400
 #define SST_HSW_MAX_INFO_SIZE		64
 #define SST_HSW_BUILD_HASH_LENGTH	40
+#define SST_HSW_IPC_MAX_SHORT_PARAMETER_SIZE	500
+#define WAVES_PARAM_COUNT		128
+#define WAVES_PARAM_LINES		160
 
 struct sst_hsw;
 struct sst_hsw_stream;
@@ -187,6 +190,28 @@ enum sst_hsw_performance_action {
 	SST_HSW_PERF_STOP = 1,
 };
 
+struct sst_hsw_transfer_info {
+	uint32_t destination;       /* destination address */
+	uint32_t reverse:1;         /* if 1 data flows from destination */
+	uint32_t size:31;           /* transfer size in bytes.*/
+	uint16_t first_page_offset; /* offset to data in the first page. */
+	uint8_t  packed_pages;   /* page addresses. Each occupies 20 bits */
+} __attribute__((packed));
+
+struct sst_hsw_transfer_list {
+	uint32_t transfers_count;
+	struct sst_hsw_transfer_info transfers;
+} __attribute__((packed));
+
+struct sst_hsw_transfer_parameter {
+	uint32_t parameter_id;
+	uint32_t data_size;
+	union {
+		uint8_t data[1];
+		struct sst_hsw_transfer_list transfer_list;
+	};
+} __attribute__((packed));
+
 /* SST firmware module info */
 struct sst_hsw_module_info {
 	u8 name[SST_HSW_MAX_INFO_SIZE];
@@ -213,6 +238,12 @@ struct sst_hsw_memory_info {
 struct sst_hsw_fx_enable {
 	struct sst_hsw_module_map module_map;
 	struct sst_hsw_memory_info persistent_mem;
+} __attribute__((packed));
+
+struct sst_hsw_ipc_module_config {
+	struct sst_hsw_module_map map;
+	struct sst_hsw_memory_info persistent_mem;
+	struct sst_hsw_memory_info scratch_mem;
 } __attribute__((packed));
 
 struct sst_hsw_get_fx_param {
@@ -466,6 +497,28 @@ int sst_hsw_dx_set_state(struct sst_hsw *hsw,
 int sst_hsw_dsp_init(struct device *dev, struct sst_pdata *pdata);
 void sst_hsw_dsp_free(struct device *dev, struct sst_pdata *pdata);
 struct sst_dsp *sst_hsw_get_dsp(struct sst_hsw *hsw);
+
+/* fw module function */
+void sst_hsw_init_module_state(struct sst_hsw *hsw);
+bool sst_hsw_is_module_loaded(struct sst_hsw *hsw, u32 module_id);
+bool sst_hsw_is_module_active(struct sst_hsw *hsw, u32 module_id);
+void sst_hsw_set_module_enabled_rtd3(struct sst_hsw *hsw, u32 module_id);
+void sst_hsw_set_module_disabled_rtd3(struct sst_hsw *hsw, u32 module_id);
+bool sst_hsw_is_module_enabled_rtd3(struct sst_hsw *hsw, u32 module_id);
+void sst_hsw_reset_param_buf(struct sst_hsw *hsw);
+int sst_hsw_store_param_line(struct sst_hsw *hsw, u8 *buf);
+int sst_hsw_load_param_line(struct sst_hsw *hsw, u8 *buf);
+int sst_hsw_launch_param_buf(struct sst_hsw *hsw);
+
+int sst_hsw_module_load(struct sst_hsw *hsw,
+	u32 module_id, u32 instance_id, char *name);
+int sst_hsw_module_enable(struct sst_hsw *hsw,
+	u32 module_id, u32 instance_id);
+int sst_hsw_module_disable(struct sst_hsw *hsw,
+	u32 module_id, u32 instance_id);
+int sst_hsw_module_set_param(struct sst_hsw *hsw,
+	u32 module_id, u32 instance_id, u32 parameter_id,
+	u32 param_size, char *param);
 
 /* runtime module management */
 struct sst_module_runtime *sst_hsw_runtime_module_create(struct sst_hsw *hsw,

@@ -32,7 +32,7 @@
 #include <asm/platform_sst_audio.h>
 #include "../sst-mfld-platform.h"
 #include "sst.h"
-#include "../sst-dsp.h"
+#include "../../common/sst-dsp.h"
 
 
 
@@ -381,7 +381,7 @@ static int sst_cdev_tstamp(struct device *dev, unsigned int str_id,
 	tstamp->copied_total = fw_tstamp.ring_buffer_counter;
 	tstamp->pcm_frames = fw_tstamp.frames_decoded;
 	tstamp->pcm_io_frames = div_u64(fw_tstamp.hardware_counter,
-			(u64)((stream->num_ch) * SST_GET_BYTES_PER_SAMPLE(24)));
+			(u64)stream->num_ch * SST_GET_BYTES_PER_SAMPLE(24));
 	tstamp->sampling_rate = fw_tstamp.sampling_frequency;
 
 	dev_dbg(dev, "PCM  = %u\n", tstamp->pcm_io_frames);

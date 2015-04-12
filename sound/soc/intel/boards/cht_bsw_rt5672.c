@@ -22,12 +22,27 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include "../codecs/rt5670.h"
-#include "sst-atom-controls.h"
+#include <sound/jack.h>
+#include "../../codecs/rt5670.h"
+#include "../atom/sst-atom-controls.h"
 
 /* The platform clock #3 outputs 19.2Mhz clock to codec as I2S MCLK */
 #define CHT_PLAT_CLK_3_HZ	19200000
 #define CHT_CODEC_DAI	"rt5670-aif1"
+
+static struct snd_soc_jack cht_bsw_headset;
+
+/* Headset jack detection DAPM pins */
+static struct snd_soc_jack_pin cht_bsw_headset_pins[] = {
+	{
+		.pin = "Headset Mic",
+		.mask = SND_JACK_MICROPHONE,
+	},
+	{
+		.pin = "Headphone",
+		.mask = SND_JACK_HEADPHONE,
+	},
+};
 
 static inline struct snd_soc_dai *cht_get_codec_dai(struct snd_soc_card *card)
 {
@@ -50,6 +65,7 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 	struct snd_soc_dapm_context *dapm = w->dapm;
 	struct snd_soc_card *card = dapm->card;
 	struct snd_soc_dai *codec_dai;
+	int ret;
 
 	codec_dai = cht_get_codec_dai(card);
 	if (!codec_dai) {
@@ -57,17 +73,31 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 		return -EIO;
 	}
 
-	if (!SND_SOC_DAPM_EVENT_OFF(event))
-		return 0;
+	if (SND_SOC_DAPM_EVENT_ON(event)) {
+		/* set codec PLL source to the 19.2MHz platform clock (MCLK) */
+		ret = snd_soc_dai_set_pll(codec_dai, 0, RT5670_PLL1_S_MCLK,
+				CHT_PLAT_CLK_3_HZ, 48000 * 512);
+		if (ret < 0) {
+			dev_err(card->dev, "can't set codec pll: %d\n", ret);
+			return ret;
+		}
 
-	/* Set codec sysclk source to its internal clock because codec PLL will
-	 * be off when idle and MCLK will also be off by ACPI when codec is
-	 * runtime suspended. Codec needs clock for jack detection and button
-	 * press.
-	 */
-	snd_soc_dai_set_sysclk(codec_dai, RT5670_SCLK_S_RCCLK,
-			       0, SND_SOC_CLOCK_IN);
-
+		/* set codec sysclk source to PLL */
+		ret = snd_soc_dai_set_sysclk(codec_dai, RT5670_SCLK_S_PLL1,
+			48000 * 512, SND_SOC_CLOCK_IN);
+		if (ret < 0) {
+			dev_err(card->dev, "can't set codec sysclk: %d\n", ret);
+			return ret;
+		}
+	} else {
+		/* Set codec sysclk source to its internal clock because codec
+		 * PLL will be off when idle and MCLK will also be off by ACPI
+		 * when codec is runtime suspended. Codec needs clock for jack
+		 * detection and button press.
+		 */
+		snd_soc_dai_set_sysclk(codec_dai, RT5670_SCLK_S_RCCLK,
+				       48000 * 512, SND_SOC_CLOCK_IN);
+	}
 	return 0;
 }
 
@@ -77,7 +107,8 @@ static const struct snd_soc_dapm_widget cht_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Int Mic", NULL),
 	SND_SOC_DAPM_SPK("Ext Spk", NULL),
 	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_NOPM, 0, 0,
-			platform_clock_control, SND_SOC_DAPM_POST_PMD),
+			platform_clock_control, SND_SOC_DAPM_PRE_PMU |
+			SND_SOC_DAPM_POST_PMD),
 };
 
 static const struct snd_soc_dapm_route cht_audio_map[] = {
@@ -162,6 +193,15 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 				| RT5670_AD_MONO_L_FILTER
 				| RT5670_AD_MONO_R_FILTER,
 				RT5670_CLK_SEL_I2S1_ASRC);
+
+        ret = snd_soc_card_jack_new(runtime->card, "Headset",
+                SND_JACK_HEADSET | SND_JACK_BTN_0 |
+                SND_JACK_BTN_1 | SND_JACK_BTN_2, &cht_bsw_headset,
+                cht_bsw_headset_pins, ARRAY_SIZE(cht_bsw_headset_pins));
+        if (ret)
+                return ret;
+
+	rt5670_set_jack_detect(codec, &cht_bsw_headset);
 	return 0;
 }
 
@@ -251,6 +291,35 @@ static struct snd_soc_dai_link cht_dailink[] = {
 	},
 };
 
+static int cht_suspend_pre(struct snd_soc_card *card)
+{
+	struct snd_soc_codec *codec;
+
+	list_for_each_entry(codec, &card->codec_dev_list, card_list) {
+		if (!strcmp(codec->component.name, "i2c-10EC5670:00")) {
+			dev_dbg(codec->dev, "disabling jack detect before going to suspend.\n");
+			rt5670_jack_suspend(codec);
+			break;
+		}
+	}
+	return 0;
+}
+
+static int cht_resume_post(struct snd_soc_card *card)
+{
+	struct snd_soc_codec *codec;
+
+	list_for_each_entry(codec, &card->codec_dev_list, card_list) {
+		if (!strcmp(codec->component.name, "i2c-10EC5670:00")) {
+			dev_dbg(codec->dev, "enabling jack detect for resume.\n");
+			rt5670_jack_resume(codec);
+			break;
+		}
+	}
+
+	return 0;
+}
+
 /* SoC card */
 static struct snd_soc_card snd_soc_card_cht = {
 	.name = "cherrytrailcraudio",
@@ -262,6 +331,8 @@ static struct snd_soc_card snd_soc_card_cht = {
 	.num_dapm_routes = ARRAY_SIZE(cht_audio_map),
 	.controls = cht_mc_controls,
 	.num_controls = ARRAY_SIZE(cht_mc_controls),
+	.suspend_pre = cht_suspend_pre,
+	.resume_post = cht_resume_post,
 };
 
 static int snd_cht_mc_probe(struct platform_device *pdev)

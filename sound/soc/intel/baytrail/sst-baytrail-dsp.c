@@ -22,8 +22,8 @@
 #include <linux/platform_device.h>
 #include <linux/firmware.h>
 
-#include "sst-dsp.h"
-#include "sst-dsp-priv.h"
+#include "../common/sst-dsp.h"
+#include "../common/sst-dsp-priv.h"
 #include "sst-baytrail-ipc.h"
 
 #define SST_BYT_FW_SIGNATURE_SIZE	4

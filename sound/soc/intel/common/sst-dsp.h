@@ -28,7 +28,6 @@
 
 /* Supported SST DMA Devices */
 #define SST_DMA_TYPE_DW		1
-#define SST_DMA_TYPE_MID	2
 
 /* autosuspend delay 5s*/
 #define SST_RUNTIME_SUSPEND_DELAY	(5 * 1000)

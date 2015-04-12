@@ -29,9 +29,9 @@
 #include <sound/tlv.h>
 #include <sound/compress_driver.h>
 
-#include "sst-haswell-ipc.h"
-#include "sst-dsp-priv.h"
-#include "sst-dsp.h"
+#include "../haswell/sst-haswell-ipc.h"
+#include "../common/sst-dsp-priv.h"
+#include "../common/sst-dsp.h"
 
 #define HSW_PCM_COUNT		6
 #define HSW_VOLUME_MAX		0x7FFFFFFF	/* 0dB */
@@ -137,6 +137,7 @@ struct hsw_priv_data {
 	struct device *dev;
 	enum hsw_pm_state pm_state;
 	struct snd_soc_card *soc_card;
+	struct sst_module_runtime *runtime_waves; /* sound effect module */
 
 	/* page tables */
 	struct snd_dma_buffer dmab[HSW_PCM_COUNT][2];
@@ -318,6 +319,93 @@ static int hsw_volume_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int hsw_waves_switch_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_platform *platform = snd_soc_kcontrol_platform(kcontrol);
+	struct hsw_priv_data *pdata = snd_soc_platform_get_drvdata(platform);
+	struct sst_hsw *hsw = pdata->hsw;
+	enum sst_hsw_module_id id = SST_HSW_MODULE_WAVES;
+
+	ucontrol->value.integer.value[0] =
+		(sst_hsw_is_module_active(hsw, id) ||
+		sst_hsw_is_module_enabled_rtd3(hsw, id));
+	return 0;
+}
+
+static int hsw_waves_switch_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_platform *platform = snd_soc_kcontrol_platform(kcontrol);
+	struct hsw_priv_data *pdata = snd_soc_platform_get_drvdata(platform);
+	struct sst_hsw *hsw = pdata->hsw;
+	int ret = 0;
+	enum sst_hsw_module_id id = SST_HSW_MODULE_WAVES;
+	bool switch_on = (bool)ucontrol->value.integer.value[0];
+
+	/* if module is in RAM on the DSP, apply user settings to module through
+	 * ipc. If module is not in RAM on the DSP, store user setting for
+	 * track */
+	if (sst_hsw_is_module_loaded(hsw, id)) {
+		if (switch_on == sst_hsw_is_module_active(hsw, id))
+			return 0;
+
+		if (switch_on)
+			ret = sst_hsw_module_enable(hsw, id, 0);
+		else
+			ret = sst_hsw_module_disable(hsw, id, 0);
+	} else {
+		if (switch_on == sst_hsw_is_module_enabled_rtd3(hsw, id))
+			return 0;
+
+		if (switch_on)
+			sst_hsw_set_module_enabled_rtd3(hsw, id);
+		else
+			sst_hsw_set_module_disabled_rtd3(hsw, id);
+	}
+
+	return ret;
+}
+
+static int hsw_waves_param_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_platform *platform = snd_soc_kcontrol_platform(kcontrol);
+	struct hsw_priv_data *pdata = snd_soc_platform_get_drvdata(platform);
+	struct sst_hsw *hsw = pdata->hsw;
+
+	/* return a matching line from param buffer */
+	return sst_hsw_load_param_line(hsw, ucontrol->value.bytes.data);
+}
+
+static int hsw_waves_param_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_platform *platform = snd_soc_kcontrol_platform(kcontrol);
+	struct hsw_priv_data *pdata = snd_soc_platform_get_drvdata(platform);
+	struct sst_hsw *hsw = pdata->hsw;
+	int ret;
+	enum sst_hsw_module_id id = SST_HSW_MODULE_WAVES;
+	int param_id = ucontrol->value.bytes.data[0];
+	int param_size = WAVES_PARAM_COUNT;
+
+	/* clear param buffer and reset buffer index */
+	if (param_id == 0xFF) {
+		sst_hsw_reset_param_buf(hsw);
+		return 0;
+	}
+
+	/* store params into buffer */
+	ret = sst_hsw_store_param_line(hsw, ucontrol->value.bytes.data);
+	if (ret < 0)
+		return ret;
+
+	if (sst_hsw_is_module_active(hsw, id))
+		ret = sst_hsw_module_set_param(hsw, id, 0, param_id,
+				param_size, ucontrol->value.bytes.data);
+	return ret;
+}
+
 /* TLV used by both global and stream volumes */
 static const DECLARE_TLV_DB_SCALE(hsw_vol_tlv, -9000, 300, 1);
 
@@ -339,6 +427,12 @@ static const struct snd_kcontrol_new hsw_volume_controls[] = {
 	SOC_DOUBLE_EXT_TLV("Mic Capture Volume", 4, 0, 8,
 		ARRAY_SIZE(volume_map) - 1, 0,
 		hsw_stream_volume_get, hsw_stream_volume_put, hsw_vol_tlv),
+	/* enable/disable module waves */
+	SOC_SINGLE_BOOL_EXT("Waves Switch", 0,
+		hsw_waves_switch_get, hsw_waves_switch_put),
+	/* set parameters to module waves */
+	SND_SOC_BYTES_EXT("Waves Set Param", WAVES_PARAM_COUNT,
+		hsw_waves_param_get, hsw_waves_param_put),
 };
 
 /* Create DMA buffer page table for DSP */
@@ -807,6 +901,14 @@ static int hsw_pcm_create_modules(struct hsw_priv_data *pdata)
 			pcm_data->runtime->persistent_offset;
 	}
 
+	/* create runtime blocks for module waves */
+	if (sst_hsw_is_module_loaded(hsw, SST_HSW_MODULE_WAVES)) {
+		pdata->runtime_waves = sst_hsw_runtime_module_create(hsw,
+			SST_HSW_MODULE_WAVES, 0);
+		if (pdata->runtime_waves == NULL)
+			goto err;
+	}
+
 	return 0;
 
 err:
@@ -820,13 +922,16 @@ err:
 
 static void hsw_pcm_free_modules(struct hsw_priv_data *pdata)
 {
+	struct sst_hsw *hsw = pdata->hsw;
 	struct hsw_pcm_data *pcm_data;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(mod_map); i++) {
 		pcm_data = &pdata->pcm[mod_map[i].dai_id][mod_map[i].stream];
-
 		sst_hsw_runtime_module_free(pcm_data->runtime);
+	}
+	if (sst_hsw_is_module_loaded(hsw, SST_HSW_MODULE_WAVES)) {
+		sst_hsw_runtime_module_free(pdata->runtime_waves);
 	}
 }
 
@@ -984,7 +1089,9 @@ static int hsw_pcm_probe(struct snd_soc_platform *platform)
 	}
 
 	/* allocate runtime modules */
-	hsw_pcm_create_modules(priv_data);
+	ret = hsw_pcm_create_modules(priv_data);
+	if (ret < 0)
+		goto err;
 
 	/* enable runtime PM with auto suspend */
 	pm_runtime_set_autosuspend_delay(platform->dev,
@@ -996,7 +1103,7 @@ static int hsw_pcm_probe(struct snd_soc_platform *platform)
 	return 0;
 
 err:
-	for (;i >= 0; i--) {
+	for (--i; i >= 0; i--) {
 		if (hsw_dais[i].playback.channels_min)
 			snd_dma_free_pages(&priv_data->dmab[i][0]);
 		if (hsw_dais[i].capture.channels_min)
@@ -1101,10 +1208,18 @@ static int hsw_pcm_runtime_suspend(struct device *dev)
 {
 	struct hsw_priv_data *pdata = dev_get_drvdata(dev);
 	struct sst_hsw *hsw = pdata->hsw;
+	int ret;
 
 	if (pdata->pm_state >= HSW_PM_STATE_RTD3)
 		return 0;
 
+	/* fw modules will be unloaded on RTD3, set flag to track */
+	if (sst_hsw_is_module_active(hsw, SST_HSW_MODULE_WAVES)) {
+		ret = sst_hsw_module_disable(hsw, SST_HSW_MODULE_WAVES, 0);
+		if (ret < 0)
+			return ret;
+		sst_hsw_set_module_enabled_rtd3(hsw, SST_HSW_MODULE_WAVES);
+	}
 	sst_hsw_dsp_runtime_suspend(hsw);
 	sst_hsw_dsp_runtime_sleep(hsw);
 	pdata->pm_state = HSW_PM_STATE_RTD3;
@@ -1138,6 +1253,19 @@ static int hsw_pcm_runtime_resume(struct device *dev)
 		return ret;
 	else if (ret == 1) /* no action required */
 		return 0;
+
+	/* check flag when resume */
+	if (sst_hsw_is_module_enabled_rtd3(hsw, SST_HSW_MODULE_WAVES)) {
+		ret = sst_hsw_module_enable(hsw, SST_HSW_MODULE_WAVES, 0);
+		if (ret < 0)
+			return ret;
+		/* put parameters from buffer to dsp */
+		ret = sst_hsw_launch_param_buf(hsw);
+		if (ret < 0)
+			return ret;
+		/* unset flag */
+		sst_hsw_set_module_disabled_rtd3(hsw, SST_HSW_MODULE_WAVES);
+	}
 
 	pdata->pm_state = HSW_PM_STATE_D0;
 	return ret;
