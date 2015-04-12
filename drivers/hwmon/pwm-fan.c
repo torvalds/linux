@@ -47,15 +47,13 @@ static int  __set_pwm(struct pwm_fan_ctx *ctx, unsigned long pwm)
 	if (ctx->pwm_value == pwm)
 		goto exit_set_pwm_err;
 
-	if (pwm == 0) {
-		pwm_disable(ctx->pwm);
-		goto exit_set_pwm;
-	}
-
 	duty = DIV_ROUND_UP(pwm * (ctx->pwm->period - 1), MAX_PWM);
 	ret = pwm_config(ctx->pwm, duty, ctx->pwm->period);
 	if (ret)
 		goto exit_set_pwm_err;
+
+	if (pwm == 0)
+		pwm_disable(ctx->pwm);
 
 	if (ctx->pwm_value == 0) {
 		ret = pwm_enable(ctx->pwm);
@@ -63,7 +61,6 @@ static int  __set_pwm(struct pwm_fan_ctx *ctx, unsigned long pwm)
 			goto exit_set_pwm_err;
 	}
 
-exit_set_pwm:
 	ctx->pwm_value = pwm;
 exit_set_pwm_err:
 	mutex_unlock(&ctx->lock);
