@@ -38,6 +38,7 @@ struct class;
 struct subsys_private;
 struct bus_type;
 struct device_node;
+struct fwnode_handle;
 struct iommu_ops;
 struct iommu_group;
 
@@ -650,14 +651,6 @@ struct device_dma_parameters {
 	unsigned long segment_boundary_mask;
 };
 
-struct acpi_device;
-
-struct acpi_dev_node {
-#ifdef CONFIG_ACPI
-	struct acpi_device *companion;
-#endif
-};
-
 /**
  * struct device - The basic device structure
  * @parent:	The device's "parent" device, the device to which it is attached.
@@ -703,7 +696,7 @@ struct acpi_dev_node {
  * @cma_area:	Contiguous memory area for dma allocations
  * @archdata:	For arch-specific additions.
  * @of_node:	Associated device tree node.
- * @acpi_node:	Associated ACPI device node.
+ * @fwnode:	Associated device node supplied by platform firmware.
  * @devt:	For creating the sysfs "dev".
  * @id:		device instance
  * @devres_lock: Spinlock to protect the resource of the device.
@@ -779,7 +772,7 @@ struct device {
 	struct dev_archdata	archdata;
 
 	struct device_node	*of_node; /* associated device tree node */
-	struct acpi_dev_node	acpi_node; /* associated ACPI device node */
+	struct fwnode_handle	*fwnode; /* firmware device node */
 
 	dev_t			devt;	/* dev_t, creates the sysfs "dev" */
 	u32			id;	/* device instance */
@@ -947,6 +940,9 @@ extern void unlock_device_hotplug(void);
 extern int lock_device_hotplug_sysfs(void);
 extern int device_offline(struct device *dev);
 extern int device_online(struct device *dev);
+extern void set_primary_fwnode(struct device *dev, struct fwnode_handle *fwnode);
+extern void set_secondary_fwnode(struct device *dev, struct fwnode_handle *fwnode);
+
 /*
  * Root device objects for grouping under /sys/devices
  */
