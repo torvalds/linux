@@ -312,7 +312,7 @@ static void rtl92c_dm_ctrl_initgain_by_rssi(struct ieee80211_hw *hw)
 	struct dig_t *digtable = &rtlpriv->dm_digtable;
 	u32 isbt;
 
-	/* modify DIG lower bound, deal with abnorally large false alarm */
+	/* modify DIG lower bound, deal with abnormally large false alarm */
 	if (rtlpriv->falsealm_cnt.cnt_all > 10000) {
 		digtable->large_fa_hit++;
 		if (digtable->forbidden_igi < digtable->cur_igvalue) {
