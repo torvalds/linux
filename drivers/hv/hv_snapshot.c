@@ -47,6 +47,7 @@ static struct {
 	struct vmbus_channel *recv_channel; /* chn we got the request */
 	u64 recv_req_id; /* request ID. */
 	struct hv_vss_msg  *msg; /* current message */
+	void *vss_context; /* for the channel callback */
 } vss_transaction;
 
 
@@ -73,6 +74,9 @@ static void vss_timeout_func(struct work_struct *dummy)
 	 */
 	pr_warn("VSS: timeout waiting for daemon to reply\n");
 	vss_respond_to_host(HV_E_FAIL);
+
+	hv_poll_channel(vss_transaction.vss_context,
+			hv_vss_onchannelcallback);
 }
 
 static void
@@ -85,13 +89,12 @@ vss_cn_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
 	if (vss_msg->vss_hdr.operation == VSS_OP_REGISTER) {
 		pr_info("VSS daemon registered\n");
 		vss_transaction.active = false;
-		if (vss_transaction.recv_channel != NULL)
-			hv_vss_onchannelcallback(vss_transaction.recv_channel);
-		return;
-
 	}
 	if (cancel_delayed_work_sync(&vss_timeout_work))
 		vss_respond_to_host(vss_msg->error);
+
+	hv_poll_channel(vss_transaction.vss_context,
+			hv_vss_onchannelcallback);
 }
 
 
@@ -198,9 +201,10 @@ void hv_vss_onchannelcallback(void *context)
 		 * We will defer processing this callback once
 		 * the current transaction is complete.
 		 */
-		vss_transaction.recv_channel = channel;
+		vss_transaction.vss_context = context;
 		return;
 	}
+	vss_transaction.vss_context = NULL;
 
 	vmbus_recvpacket(channel, recv_buffer, PAGE_SIZE * 2, &recvlen,
 			 &requestid);
