@@ -32,7 +32,7 @@
 #define SX9500_DRIVER_NAME		"sx9500"
 #define SX9500_IRQ_NAME			"sx9500_event"
 
-#define SX9500_GPIO_NAME		"interrupt"
+#define SX9500_GPIO_INT			"interrupt"
 
 /* Register definitions. */
 #define SX9500_REG_IRQ_SRC		0x00
@@ -857,30 +857,24 @@ static int sx9500_init_device(struct iio_dev *indio_dev)
 	return 0;
 }
 
-static int sx9500_gpio_probe(struct i2c_client *client,
-			     struct sx9500_data *data)
+static void sx9500_gpio_probe(struct i2c_client *client,
+			      struct sx9500_data *data)
 {
 	struct device *dev;
 	struct gpio_desc *gpio;
-	int ret;
 
 	if (!client)
-		return -EINVAL;
+		return;
 
 	dev = &client->dev;
 
-	/* data ready gpio interrupt pin */
-	gpio = devm_gpiod_get_index(dev, SX9500_GPIO_NAME, 0, GPIOD_IN);
-	if (IS_ERR(gpio)) {
-		dev_err(dev, "acpi gpio get index failed\n");
-		return PTR_ERR(gpio);
+	if (client->irq <= 0) {
+		gpio = devm_gpiod_get_index(dev, SX9500_GPIO_INT, 0, GPIOD_IN);
+		if (IS_ERR(gpio))
+			dev_err(dev, "gpio get irq failed\n");
+		else
+			client->irq = gpiod_to_irq(gpio);
 	}
-
-	ret = gpiod_to_irq(gpio);
-
-	dev_dbg(dev, "GPIO resource, no:%d irq:%d\n", desc_to_gpio(gpio), ret);
-
-	return ret;
 }
 
 static int sx9500_probe(struct i2c_client *client,
@@ -914,8 +908,7 @@ static int sx9500_probe(struct i2c_client *client,
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	i2c_set_clientdata(client, indio_dev);
 
-	if (client->irq <= 0)
-		client->irq = sx9500_gpio_probe(client, data);
+	sx9500_gpio_probe(client, data);
 
 	if (client->irq <= 0)
 		dev_warn(&client->dev, "no valid irq found\n");
