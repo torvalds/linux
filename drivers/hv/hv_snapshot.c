@@ -59,6 +59,11 @@ static struct {
 
 static void vss_respond_to_host(int error);
 
+/*
+ * This state maintains the version number registered by the daemon.
+ */
+static int dm_reg_value;
+
 static const char vss_devname[] = "vmbus/hv_vss";
 static __u8 *recv_buffer;
 static struct hvutil_transport *hvt;
@@ -89,6 +94,29 @@ static void vss_timeout_func(struct work_struct *dummy)
 			hv_vss_onchannelcallback);
 }
 
+static int vss_handle_handshake(struct hv_vss_msg *vss_msg)
+{
+	u32 our_ver = VSS_OP_REGISTER1;
+
+	switch (vss_msg->vss_hdr.operation) {
+	case VSS_OP_REGISTER:
+		/* Daemon doesn't expect us to reply */
+		dm_reg_value = VSS_OP_REGISTER;
+		break;
+	case VSS_OP_REGISTER1:
+		/* Daemon expects us to reply with our own version*/
+		if (hvutil_transport_send(hvt, &our_ver, sizeof(our_ver)))
+			return -EFAULT;
+		dm_reg_value = VSS_OP_REGISTER1;
+		break;
+	default:
+		return -EINVAL;
+	}
+	vss_transaction.state = HVUTIL_READY;
+	pr_info("VSS daemon registered\n");
+	return 0;
+}
+
 static int vss_on_msg(void *msg, int len)
 {
 	struct hv_vss_msg *vss_msg = (struct hv_vss_msg *)msg;
@@ -96,18 +124,15 @@ static int vss_on_msg(void *msg, int len)
 	if (len != sizeof(*vss_msg))
 		return -EINVAL;
 
-	/*
-	 * Don't process registration messages if we're in the middle of
-	 * a transaction processing.
-	 */
-	if (vss_transaction.state > HVUTIL_READY &&
-	    vss_msg->vss_hdr.operation == VSS_OP_REGISTER)
-		return -EINVAL;
-
-	if (vss_transaction.state == HVUTIL_DEVICE_INIT &&
-	    vss_msg->vss_hdr.operation == VSS_OP_REGISTER) {
-		pr_info("VSS daemon registered\n");
-		vss_transaction.state = HVUTIL_READY;
+	if (vss_msg->vss_hdr.operation == VSS_OP_REGISTER ||
+	    vss_msg->vss_hdr.operation == VSS_OP_REGISTER1) {
+		/*
+		 * Don't process registration messages if we're in the middle
+		 * of a transaction processing.
+		 */
+		if (vss_transaction.state > HVUTIL_READY)
+			return -EINVAL;
+		return vss_handle_handshake(vss_msg);
 	} else if (vss_transaction.state == HVUTIL_USERSPACE_REQ) {
 		vss_transaction.state = HVUTIL_USERSPACE_RECV;
 		if (cancel_delayed_work_sync(&vss_timeout_work)) {

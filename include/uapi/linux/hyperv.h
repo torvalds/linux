@@ -45,6 +45,11 @@
 
 #define VSS_OP_REGISTER 128
 
+/*
+  Daemon code with full handshake support.
+ */
+#define VSS_OP_REGISTER1 129
+
 enum hv_vss_op {
 	VSS_OP_CREATE = 0,
 	VSS_OP_DELETE,

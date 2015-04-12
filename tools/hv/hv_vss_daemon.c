@@ -148,6 +148,8 @@ int main(int argc, char *argv[])
 	int	op;
 	struct hv_vss_msg vss_msg[1];
 	int daemonize = 1, long_index = 0, opt;
+	int in_handshake = 1;
+	__u32 kernel_modver;
 
 	static struct option long_options[] = {
 		{"help",	no_argument,	   0,  'h' },
@@ -210,6 +212,18 @@ int main(int argc, char *argv[])
 		}
 
 		len = read(vss_fd, vss_msg, sizeof(struct hv_vss_msg));
+
+		if (in_handshake) {
+			if (len != sizeof(kernel_modver)) {
+				syslog(LOG_ERR, "invalid version negotiation");
+				exit(EXIT_FAILURE);
+			}
+			kernel_modver = *(__u32 *)vss_msg;
+			in_handshake = 0;
+			syslog(LOG_INFO, "VSS: kernel module version: %d",
+			       kernel_modver);
+			continue;
+		}
 
 		if (len != sizeof(struct hv_vss_msg)) {
 			syslog(LOG_ERR, "read failed; error:%d %s",
