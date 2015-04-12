@@ -117,7 +117,6 @@ static const struct snd_soc_dapm_route audio_map[] = {
 static int evm_aic3x_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
-	struct snd_soc_codec *codec = rtd->codec;
 	struct device_node *np = card->dev->of_node;
 	int ret;
 
@@ -136,9 +135,9 @@ static int evm_aic3x_init(struct snd_soc_pcm_runtime *rtd)
 	}
 
 	/* not connected */
-	snd_soc_dapm_nc_pin(&codec->dapm, "MONO_LOUT");
-	snd_soc_dapm_nc_pin(&codec->dapm, "HPLCOM");
-	snd_soc_dapm_nc_pin(&codec->dapm, "HPRCOM");
+	snd_soc_dapm_nc_pin(&card->dapm, "MONO_LOUT");
+	snd_soc_dapm_nc_pin(&card->dapm, "HPLCOM");
+	snd_soc_dapm_nc_pin(&card->dapm, "HPRCOM");
 
 	return 0;
 }
