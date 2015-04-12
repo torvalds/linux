@@ -104,4 +104,24 @@ static inline int ext4_encryption_key_size(int mode)
 	return 0;
 }
 
+#define EXT4_FNAME_NUM_SCATTER_ENTRIES	4
+#define EXT4_CRYPTO_BLOCK_SIZE		16
+#define EXT4_FNAME_CRYPTO_DIGEST_SIZE	32
+
+struct ext4_str {
+	unsigned char *name;
+	u32 len;
+};
+
+struct ext4_fname_crypto_ctx {
+	u32 lim;
+	char tmp_buf[EXT4_CRYPTO_BLOCK_SIZE];
+	struct crypto_ablkcipher *ctfm;
+	struct crypto_hash *htfm;
+	struct page *workpage;
+	struct ext4_encryption_key key;
+	unsigned has_valid_key : 1;
+	unsigned ctfm_key_is_ready : 1;
+};
+
 #endif	/* _EXT4_CRYPTO_H */

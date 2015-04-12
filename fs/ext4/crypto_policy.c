@@ -59,6 +59,13 @@ static int ext4_create_encryption_context_from_policy(
 		res = -EINVAL;
 		goto out;
 	}
+	if (!ext4_valid_filenames_enc_mode(policy->filenames_encryption_mode)) {
+		printk(KERN_WARNING
+		       "%s: Invalid filenames encryption mode %d\n", __func__,
+			policy->filenames_encryption_mode);
+		res = -EINVAL;
+		goto out;
+	}
 	ctx.contents_encryption_mode = policy->contents_encryption_mode;
 	ctx.filenames_encryption_mode = policy->filenames_encryption_mode;
 	BUILD_BUG_ON(sizeof(ctx.nonce) != EXT4_KEY_DERIVATION_NONCE_SIZE);

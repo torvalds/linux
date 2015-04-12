@@ -2078,6 +2078,47 @@ static inline int ext4_sb_has_crypto(struct super_block *sb)
 }
 #endif
 
+/* crypto_fname.c */
+bool ext4_valid_filenames_enc_mode(uint32_t mode);
+u32 ext4_fname_crypto_round_up(u32 size, u32 blksize);
+int ext4_fname_crypto_alloc_buffer(struct ext4_fname_crypto_ctx *ctx,
+				   u32 ilen, struct ext4_str *crypto_str);
+int _ext4_fname_disk_to_usr(struct ext4_fname_crypto_ctx *ctx,
+			    const struct ext4_str *iname,
+			    struct ext4_str *oname);
+int ext4_fname_disk_to_usr(struct ext4_fname_crypto_ctx *ctx,
+			   const struct ext4_dir_entry_2 *de,
+			   struct ext4_str *oname);
+int ext4_fname_usr_to_disk(struct ext4_fname_crypto_ctx *ctx,
+			   const struct qstr *iname,
+			   struct ext4_str *oname);
+int ext4_fname_usr_to_hash(struct ext4_fname_crypto_ctx *ctx,
+			   const struct qstr *iname,
+			   struct dx_hash_info *hinfo);
+int ext4_fname_disk_to_hash(struct ext4_fname_crypto_ctx *ctx,
+			    const struct ext4_dir_entry_2 *de,
+			    struct dx_hash_info *hinfo);
+int ext4_fname_crypto_namelen_on_disk(struct ext4_fname_crypto_ctx *ctx,
+				      u32 namelen);
+
+#ifdef CONFIG_EXT4_FS_ENCRYPTION
+void ext4_put_fname_crypto_ctx(struct ext4_fname_crypto_ctx **ctx);
+struct ext4_fname_crypto_ctx *ext4_get_fname_crypto_ctx(struct inode *inode,
+							u32 max_len);
+void ext4_fname_crypto_free_buffer(struct ext4_str *crypto_str);
+#else
+static inline
+void ext4_put_fname_crypto_ctx(struct ext4_fname_crypto_ctx **ctx) { }
+static inline
+struct ext4_fname_crypto_ctx *ext4_get_fname_crypto_ctx(struct inode *inode,
+							u32 max_len)
+{
+	return NULL;
+}
+static inline void ext4_fname_crypto_free_buffer(struct ext4_str *p) { }
+#endif
+
+
 /* crypto_key.c */
 int ext4_generate_encryption_key(struct inode *inode);
 
