@@ -271,6 +271,10 @@ int sst_dma_new(struct sst_dsp *sst)
 	const char *dma_dev_name;
 	int ret = 0;
 
+	if (sst->pdata->resindex_dma_base == -1)
+		/* DMA is not used, return and squelsh error messages */
+		return 0;
+
 	/* configure the correct platform data for whatever DMA engine
 	* is attached to the ADSP IP. */
 	switch (sst->pdata->dma_engine) {
