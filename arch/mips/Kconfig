@@ -2702,6 +2702,24 @@ choice
 		  look like a DTB header after a reboot if no actual DTB is appended
 		  to vmlinux.bin.  Do not leave this option active in a production kernel
 		  if you don't intend to always append a DTB.
+
+	config MIPS_ZBOOT_APPENDED_DTB
+		bool "vmlinuz.bin"
+		depends on SYS_SUPPORTS_ZBOOT
+		help
+		  With this option, the boot code will look for a device tree binary
+		  DTB) appended to raw vmlinuz.bin (with decompressor).
+		  (e.g. cat vmlinuz.bin <filename>.dtb > vmlinuz_w_dtb).
+
+		  This is meant as a backward compatibility convenience for those
+		  systems with a bootloader that can't be upgraded to accommodate
+		  the documented boot protocol using a device tree.
+
+		  Beware that there is very little in terms of protection against
+		  this option being confused by leftover garbage in memory that might
+		  look like a DTB header after a reboot if no actual DTB is appended
+		  to vmlinuz.bin.  Do not leave this option active in a production kernel
+		  if you don't intend to always append a DTB.
 endchoice
 
 endmenu
