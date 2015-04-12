@@ -17,17 +17,6 @@ void foo(void);
 
 void foo(void)
 {
-	OFFSET(IA32_SIGCONTEXT_ax, sigcontext, ax);
-	OFFSET(IA32_SIGCONTEXT_bx, sigcontext, bx);
-	OFFSET(IA32_SIGCONTEXT_cx, sigcontext, cx);
-	OFFSET(IA32_SIGCONTEXT_dx, sigcontext, dx);
-	OFFSET(IA32_SIGCONTEXT_si, sigcontext, si);
-	OFFSET(IA32_SIGCONTEXT_di, sigcontext, di);
-	OFFSET(IA32_SIGCONTEXT_bp, sigcontext, bp);
-	OFFSET(IA32_SIGCONTEXT_sp, sigcontext, sp);
-	OFFSET(IA32_SIGCONTEXT_ip, sigcontext, ip);
-	BLANK();
-
 	OFFSET(CPUINFO_x86, cpuinfo_x86, x86);
 	OFFSET(CPUINFO_x86_vendor, cpuinfo_x86, x86_vendor);
 	OFFSET(CPUINFO_x86_model, cpuinfo_x86, x86_model);
@@ -37,7 +26,6 @@ void foo(void)
 	OFFSET(CPUINFO_x86_vendor_id, cpuinfo_x86, x86_vendor_id);
 	BLANK();
 
-	OFFSET(TI_sysenter_return, thread_info, sysenter_return);
 	OFFSET(TI_cpu, thread_info, cpu);
 	BLANK();
 
@@ -58,9 +46,6 @@ void foo(void)
 	OFFSET(PT_EFLAGS, pt_regs, flags);
 	OFFSET(PT_OLDESP, pt_regs, sp);
 	OFFSET(PT_OLDSS,  pt_regs, ss);
-	BLANK();
-
-	OFFSET(IA32_RT_SIGFRAME_sigcontext, rt_sigframe, uc.uc_mcontext);
 	BLANK();
 
 	OFFSET(saved_context_gdt_desc, saved_context, gdt_desc);

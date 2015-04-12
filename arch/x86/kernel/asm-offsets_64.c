@@ -29,27 +29,6 @@ int main(void)
 	BLANK();
 #endif
 
-#ifdef CONFIG_IA32_EMULATION
-	OFFSET(TI_sysenter_return, thread_info, sysenter_return);
-	BLANK();
-
-#define ENTRY(entry) OFFSET(IA32_SIGCONTEXT_ ## entry, sigcontext_ia32, entry)
-	ENTRY(ax);
-	ENTRY(bx);
-	ENTRY(cx);
-	ENTRY(dx);
-	ENTRY(si);
-	ENTRY(di);
-	ENTRY(bp);
-	ENTRY(sp);
-	ENTRY(ip);
-	BLANK();
-#undef ENTRY
-
-	OFFSET(IA32_RT_SIGFRAME_sigcontext, rt_sigframe_ia32, uc.uc_mcontext);
-	BLANK();
-#endif
-
 #define ENTRY(entry) OFFSET(pt_regs_ ## entry, pt_regs, entry)
 	ENTRY(bx);
 	ENTRY(cx);
