@@ -17,6 +17,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
+#include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -1385,6 +1386,16 @@ static int iss_probe(struct platform_device *pdev)
 	iss->dev->coherent_dma_mask = DMA_BIT_MASK(32);
 
 	platform_set_drvdata(pdev, iss);
+
+	/*
+	 * TODO: When implementing DT support switch to syscon regmap lookup by
+	 * phandle.
+	 */
+	iss->syscon = syscon_regmap_lookup_by_compatible("syscon");
+	if (IS_ERR(iss->syscon)) {
+		ret = PTR_ERR(iss->syscon);
+		goto error;
+	}
 
 	/* Clocks */
 	ret = iss_map_mem_resource(pdev, iss, OMAP4_ISS_MEM_TOP);
