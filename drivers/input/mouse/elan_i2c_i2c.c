@@ -41,6 +41,7 @@
 #define ETP_I2C_MAX_X_AXIS_CMD		0x0106
 #define ETP_I2C_MAX_Y_AXIS_CMD		0x0107
 #define ETP_I2C_RESOLUTION_CMD		0x0108
+#define ETP_I2C_PRESSURE_CMD		0x010A
 #define ETP_I2C_IAP_VERSION_CMD		0x0110
 #define ETP_I2C_SET_CMD			0x0300
 #define ETP_I2C_POWER_CMD		0x0307
@@ -370,6 +371,27 @@ static int elan_i2c_get_num_traces(struct i2c_client *client,
 	return 0;
 }
 
+static int elan_i2c_get_pressure_adjustment(struct i2c_client *client,
+					    int *adjustment)
+{
+	int error;
+	u8 val[3];
+
+	error = elan_i2c_read_cmd(client, ETP_I2C_PRESSURE_CMD, val);
+	if (error) {
+		dev_err(&client->dev, "failed to get pressure format: %d\n",
+			error);
+		return error;
+	}
+
+	if ((val[0] >> 4) & 0x1)
+		*adjustment = 0;
+	else
+		*adjustment = ETP_PRESSURE_OFFSET;
+
+	return 0;
+}
+
 static int elan_i2c_iap_get_mode(struct i2c_client *client, enum tp_mode *mode)
 {
 	int error;
@@ -602,6 +624,7 @@ const struct elan_transport_ops elan_i2c_ops = {
 	.get_sm_version		= elan_i2c_get_sm_version,
 	.get_product_id		= elan_i2c_get_product_id,
 	.get_checksum		= elan_i2c_get_checksum,
+	.get_pressure_adjustment = elan_i2c_get_pressure_adjustment,
 
 	.get_max		= elan_i2c_get_max,
 	.get_resolution		= elan_i2c_get_resolution,
