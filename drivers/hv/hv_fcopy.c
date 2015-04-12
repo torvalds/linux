@@ -98,6 +98,8 @@ static void fcopy_work_func(struct work_struct *dummy)
 	if (down_trylock(&fcopy_transaction.read_sema))
 		;
 
+	hv_poll_channel(fcopy_transaction.fcopy_context,
+			hv_fcopy_onchannelcallback);
 }
 
 static int fcopy_handle_handshake(u32 version)
@@ -117,8 +119,8 @@ static int fcopy_handle_handshake(u32 version)
 	pr_info("FCP: user-mode registering done. Daemon version: %d\n",
 		version);
 	fcopy_transaction.active = false;
-	if (fcopy_transaction.fcopy_context)
-		hv_fcopy_onchannelcallback(fcopy_transaction.fcopy_context);
+	hv_poll_channel(fcopy_transaction.fcopy_context,
+			hv_fcopy_onchannelcallback);
 	in_hand_shake = false;
 	return 0;
 }
@@ -226,6 +228,7 @@ void hv_fcopy_onchannelcallback(void *context)
 		fcopy_transaction.fcopy_context = context;
 		return;
 	}
+	fcopy_transaction.fcopy_context = NULL;
 
 	vmbus_recvpacket(channel, recv_buffer, PAGE_SIZE * 2, &recvlen,
 			 &requestid);
@@ -333,8 +336,11 @@ static ssize_t fcopy_write(struct file *file, const char __user *buf,
 	 * Complete the transaction by forwarding the result
 	 * to the host. But first, cancel the timeout.
 	 */
-	if (cancel_delayed_work_sync(&fcopy_work))
+	if (cancel_delayed_work_sync(&fcopy_work)) {
 		fcopy_respond_to_host(response);
+		hv_poll_channel(fcopy_transaction.fcopy_context,
+				hv_fcopy_onchannelcallback);
+	}
 
 	return sizeof(int);
 }
