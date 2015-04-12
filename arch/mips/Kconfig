@@ -2677,6 +2677,33 @@ config USE_OF
 config BUILTIN_DTB
 	bool
 
+choice
+	prompt "Kernel appended dtb support" if OF
+	default MIPS_NO_APPENDED_DTB
+
+	config MIPS_NO_APPENDED_DTB
+		bool "None"
+		help
+		  Do not enable appended dtb support.
+
+	config MIPS_RAW_APPENDED_DTB
+		bool "vmlinux.bin"
+		help
+		  With this option, the boot code will look for a device tree binary
+		  DTB) appended to raw vmlinux.bin (without decompressor).
+		  (e.g. cat vmlinux.bin <filename>.dtb > vmlinux_w_dtb).
+
+		  This is meant as a backward compatibility convenience for those
+		  systems with a bootloader that can't be upgraded to accommodate
+		  the documented boot protocol using a device tree.
+
+		  Beware that there is very little in terms of protection against
+		  this option being confused by leftover garbage in memory that might
+		  look like a DTB header after a reboot if no actual DTB is appended
+		  to vmlinux.bin.  Do not leave this option active in a production kernel
+		  if you don't intend to always append a DTB.
+endchoice
+
 endmenu
 
 config LOCKDEP_SUPPORT
