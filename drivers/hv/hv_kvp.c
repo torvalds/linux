@@ -621,6 +621,7 @@ void hv_kvp_onchannelcallback(void *context)
 		kvp_transaction.kvp_context = context;
 		return;
 	}
+	kvp_transaction.kvp_context = NULL;
 
 	vmbus_recvpacket(channel, recv_buffer, PAGE_SIZE * 4, &recvlen,
 			 &requestid);
