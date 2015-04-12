@@ -47,6 +47,46 @@
 #include "ext4.h"
 
 /*
+ * Call ext4_decrypt on every single page, reusing the encryption
+ * context.
+ */
+static void completion_pages(struct work_struct *work)
+{
+#ifdef CONFIG_EXT4_FS_ENCRYPTION
+	struct ext4_crypto_ctx *ctx =
+		container_of(work, struct ext4_crypto_ctx, work);
+	struct bio	*bio	= ctx->bio;
+	struct bio_vec	*bv;
+	int		i;
+
+	bio_for_each_segment_all(bv, bio, i) {
+		struct page *page = bv->bv_page;
+
+		int ret = ext4_decrypt(ctx, page);
+		if (ret) {
+			WARN_ON_ONCE(1);
+			SetPageError(page);
+		} else
+			SetPageUptodate(page);
+		unlock_page(page);
+	}
+	ext4_release_crypto_ctx(ctx);
+	bio_put(bio);
+#else
+	BUG();
+#endif
+}
+
+static inline bool ext4_bio_encrypted(struct bio *bio)
+{
+#ifdef CONFIG_EXT4_FS_ENCRYPTION
+	return unlikely(bio->bi_private != NULL);
+#else
+	return false;
+#endif
+}
+
+/*
  * I/O completion handler for multipage BIOs.
  *
  * The mpage code never puts partial pages into a BIO (except for end-of-file).
@@ -63,6 +103,18 @@ static void mpage_end_io(struct bio *bio, int err)
 	struct bio_vec *bv;
 	int i;
 
+	if (ext4_bio_encrypted(bio)) {
+		struct ext4_crypto_ctx *ctx = bio->bi_private;
+
+		if (err) {
+			ext4_release_crypto_ctx(ctx);
+		} else {
+			INIT_WORK(&ctx->work, completion_pages);
+			ctx->bio = bio;
+			queue_work(ext4_read_workqueue, &ctx->work);
+			return;
+		}
+	}
 	bio_for_each_segment_all(bv, bio, i) {
 		struct page *page = bv->bv_page;
 
@@ -223,13 +275,25 @@ int ext4_mpage_readpages(struct address_space *mapping,
 			bio = NULL;
 		}
 		if (bio == NULL) {
+			struct ext4_crypto_ctx *ctx = NULL;
+
+			if (ext4_encrypted_inode(inode) &&
+			    S_ISREG(inode->i_mode)) {
+				ctx = ext4_get_crypto_ctx(inode);
+				if (IS_ERR(ctx))
+					goto set_error_page;
+			}
 			bio = bio_alloc(GFP_KERNEL,
 				min_t(int, nr_pages, bio_get_nr_vecs(bdev)));
-			if (!bio)
+			if (!bio) {
+				if (ctx)
+					ext4_release_crypto_ctx(ctx);
 				goto set_error_page;
+			}
 			bio->bi_bdev = bdev;
 			bio->bi_iter.bi_sector = blocks[0] << (blkbits - 9);
 			bio->bi_end_io = mpage_end_io;
+			bio->bi_private = ctx;
 		}
 
 		length = first_hole << blkbits;
