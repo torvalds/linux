@@ -254,8 +254,13 @@ GPIO support
 ~~~~~~~~~~~~
 ACPI 5 introduced two new resources to describe GPIO connections: GpioIo
 and GpioInt. These resources are used be used to pass GPIO numbers used by
-the device to the driver. For example:
+the device to the driver. ACPI 5.1 extended this with _DSD (Device
+Specific Data) which made it possible to name the GPIOs among other things.
 
+For example:
+
+Device (DEV)
+{
 	Method (_CRS, 0, NotSerialized)
 	{
 		Name (SBUF, ResourceTemplate()
@@ -285,6 +290,18 @@ the device to the driver. For example:
 		Return (SBUF)
 	}
 
+	// ACPI 5.1 _DSD used for naming the GPIOs
+	Name (_DSD, Package ()
+	{
+		ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+		Package ()
+		{
+			Package () {"power-gpios", Package() {^DEV, 0, 0, 0 }},
+			Package () {"irq-gpios", Package() {^DEV, 1, 0, 0 }},
+		}
+	})
+	...
+
 These GPIO numbers are controller relative and path "\\_SB.PCI0.GPI0"
 specifies the path to the controller. In order to use these GPIOs in Linux
 we need to translate them to the corresponding Linux GPIO descriptors.
@@ -300,11 +317,11 @@ a code like this:
 
 	struct gpio_desc *irq_desc, *power_desc;
 
-	irq_desc = gpiod_get_index(dev, NULL, 1);
+	irq_desc = gpiod_get(dev, "irq");
 	if (IS_ERR(irq_desc))
 		/* handle error */
 
-	power_desc = gpiod_get_index(dev, NULL, 0);
+	power_desc = gpiod_get(dev, "power");
 	if (IS_ERR(power_desc))
 		/* handle error */
 
@@ -312,6 +329,9 @@ a code like this:
 
 There are also devm_* versions of these functions which release the
 descriptors once the device is released.
+
+See Documentation/acpi/gpio-properties.txt for more information about the
+_DSD binding related to GPIOs.
 
 MFD devices
 ~~~~~~~~~~~
