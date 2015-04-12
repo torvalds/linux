@@ -1432,7 +1432,7 @@ static int snd_ctl_tlv_ioctl(struct snd_ctl_file *file,
 			return 0;
 		}
 	} else {
-		if (op_flag != SNDRV_CTL_ELEM_ACCESS_TLV_READ) {
+		if (op_flag != SNDRV_CTL_TLV_OP_READ) {
 			err = -ENXIO;
 			goto __kctl_end;
 		}
