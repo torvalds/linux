@@ -108,7 +108,10 @@ static int ext4_readdir(struct file *file, struct dir_context *ctx)
 	int err;
 	struct inode *inode = file_inode(file);
 	struct super_block *sb = inode->i_sb;
+	struct buffer_head *bh = NULL;
 	int dir_has_error = 0;
+	struct ext4_fname_crypto_ctx *enc_ctx = NULL;
+	struct ext4_str fname_crypto_str = {.name = NULL, .len = 0};
 
 	if (is_dx_dir(inode)) {
 		err = ext4_dx_readdir(file, ctx);
@@ -125,17 +128,28 @@ static int ext4_readdir(struct file *file, struct dir_context *ctx)
 
 	if (ext4_has_inline_data(inode)) {
 		int has_inline_data = 1;
-		int ret = ext4_read_inline_dir(file, ctx,
+		err = ext4_read_inline_dir(file, ctx,
 					   &has_inline_data);
 		if (has_inline_data)
-			return ret;
+			return err;
+	}
+
+	enc_ctx = ext4_get_fname_crypto_ctx(inode, EXT4_NAME_LEN);
+	if (IS_ERR(enc_ctx))
+		return PTR_ERR(enc_ctx);
+	if (enc_ctx) {
+		err = ext4_fname_crypto_alloc_buffer(enc_ctx, EXT4_NAME_LEN,
+						     &fname_crypto_str);
+		if (err < 0) {
+			ext4_put_fname_crypto_ctx(&enc_ctx);
+			return err;
+		}
 	}
 
 	offset = ctx->pos & (sb->s_blocksize - 1);
 
 	while (ctx->pos < inode->i_size) {
 		struct ext4_map_blocks map;
-		struct buffer_head *bh = NULL;
 
 		map.m_lblk = ctx->pos >> EXT4_BLOCK_SIZE_BITS(sb);
 		map.m_len = 1;
@@ -178,6 +192,7 @@ static int ext4_readdir(struct file *file, struct dir_context *ctx)
 					(unsigned long long)ctx->pos);
 			ctx->pos += sb->s_blocksize - offset;
 			brelse(bh);
+			bh = NULL;
 			continue;
 		}
 		set_buffer_verified(bh);
@@ -224,25 +239,44 @@ static int ext4_readdir(struct file *file, struct dir_context *ctx)
 			offset += ext4_rec_len_from_disk(de->rec_len,
 					sb->s_blocksize);
 			if (le32_to_cpu(de->inode)) {
-				if (!dir_emit(ctx, de->name,
-						de->name_len,
-						le32_to_cpu(de->inode),
-						get_dtype(sb, de->file_type))) {
-					brelse(bh);
-					return 0;
+				if (enc_ctx == NULL) {
+					/* Directory is not encrypted */
+					if (!dir_emit(ctx, de->name,
+					    de->name_len,
+					    le32_to_cpu(de->inode),
+					    get_dtype(sb, de->file_type)))
+						goto done;
+				} else {
+					/* Directory is encrypted */
+					err = ext4_fname_disk_to_usr(enc_ctx,
+							de, &fname_crypto_str);
+					if (err < 0)
+						goto errout;
+					if (!dir_emit(ctx,
+					    fname_crypto_str.name, err,
+					    le32_to_cpu(de->inode),
+					    get_dtype(sb, de->file_type)))
+						goto done;
 				}
 			}
 			ctx->pos += ext4_rec_len_from_disk(de->rec_len,
 						sb->s_blocksize);
 		}
-		offset = 0;
+		if ((ctx->pos < inode->i_size) && !dir_relax(inode))
+			goto done;
 		brelse(bh);
-		if (ctx->pos < inode->i_size) {
-			if (!dir_relax(inode))
-				return 0;
-		}
+		bh = NULL;
+		offset = 0;
 	}
-	return 0;
+done:
+	err = 0;
+errout:
+#ifdef CONFIG_EXT4_FS_ENCRYPTION
+	ext4_put_fname_crypto_ctx(&enc_ctx);
+	ext4_fname_crypto_free_buffer(&fname_crypto_str);
+#endif
+	brelse(bh);
+	return err;
 }
 
 static inline int is_32bit_api(void)
