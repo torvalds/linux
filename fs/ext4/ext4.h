@@ -951,6 +951,11 @@ struct ext4_inode_info {
 
 	/* Precomputed uuid+inum+igen checksum for seeding inode checksums */
 	__u32 i_csum_seed;
+
+#ifdef CONFIG_EXT4_FS_ENCRYPTION
+	/* Encryption params */
+	struct ext4_encryption_key i_encryption_key;
+#endif
 };
 
 /*
@@ -1366,6 +1371,12 @@ struct ext4_sb_info {
 	struct ratelimit_state s_err_ratelimit_state;
 	struct ratelimit_state s_warning_ratelimit_state;
 	struct ratelimit_state s_msg_ratelimit_state;
+
+#ifdef CONFIG_EXT4_FS_ENCRYPTION
+	/* Encryption */
+	uint32_t s_file_encryption_mode;
+	uint32_t s_dir_encryption_mode;
+#endif
 };
 
 static inline struct ext4_sb_info *EXT4_SB(struct super_block *sb)
@@ -1480,6 +1491,18 @@ static inline void ext4_clear_state_flags(struct ext4_inode_info *ei)
  * macros from user land. */
 #define EXT4_SB(sb)	(sb)
 #endif
+
+/*
+ * Returns true if the inode is inode is encrypted
+ */
+static inline int ext4_encrypted_inode(struct inode *inode)
+{
+#ifdef CONFIG_EXT4_FS_ENCRYPTION
+	return ext4_test_inode_flag(inode, EXT4_INODE_ENCRYPT);
+#else
+	return 0;
+#endif
+}
 
 #define NEXT_ORPHAN(inode) EXT4_I(inode)->i_dtime
 
@@ -2025,6 +2048,35 @@ int ext4_process_policy(const struct ext4_encryption_policy *policy,
 			struct inode *inode);
 int ext4_get_policy(struct inode *inode,
 		    struct ext4_encryption_policy *policy);
+
+/* crypto.c */
+bool ext4_valid_contents_enc_mode(uint32_t mode);
+uint32_t ext4_validate_encryption_key_size(uint32_t mode, uint32_t size);
+extern struct workqueue_struct *ext4_read_workqueue;
+struct ext4_crypto_ctx *ext4_get_crypto_ctx(struct inode *inode);
+void ext4_release_crypto_ctx(struct ext4_crypto_ctx *ctx);
+void ext4_restore_control_page(struct page *data_page);
+struct page *ext4_encrypt(struct inode *inode,
+			  struct page *plaintext_page);
+int ext4_decrypt(struct ext4_crypto_ctx *ctx, struct page *page);
+int ext4_decrypt_one(struct inode *inode, struct page *page);
+int ext4_encrypted_zeroout(struct inode *inode, struct ext4_extent *ex);
+
+#ifdef CONFIG_EXT4_FS_ENCRYPTION
+int ext4_init_crypto(void);
+void ext4_exit_crypto(void);
+static inline int ext4_sb_has_crypto(struct super_block *sb)
+{
+	return EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_ENCRYPT);
+}
+#else
+static inline int ext4_init_crypto(void) { return 0; }
+static inline void ext4_exit_crypto(void) { }
+static inline int ext4_sb_has_crypto(struct super_block *sb)
+{
+	return 0;
+}
+#endif
 
 /* dir.c */
 extern int __ext4_check_dir_entry(const char *, unsigned int, struct inode *,
