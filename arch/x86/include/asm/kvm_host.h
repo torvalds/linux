@@ -635,6 +635,8 @@ struct kvm_arch {
 	#endif
 
 	bool boot_vcpu_runs_old_kvmclock;
+
+	u64 disabled_quirks;
 };
 
 struct kvm_vm_stat {

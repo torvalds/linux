@@ -1577,8 +1577,9 @@ void kvm_lapic_reset(struct kvm_vcpu *vcpu)
 	for (i = 0; i < APIC_LVT_NUM; i++)
 		apic_set_reg(apic, APIC_LVTT + 0x10 * i, APIC_LVT_MASKED);
 	apic->lapic_timer.timer_mode = 0;
-	apic_set_reg(apic, APIC_LVT0,
-		     SET_APIC_DELIVERY_MODE(0, APIC_MODE_EXTINT));
+	if (!(vcpu->kvm->arch.disabled_quirks & KVM_QUIRK_LINT0_REENABLED))
+		apic_set_reg(apic, APIC_LVT0,
+			     SET_APIC_DELIVERY_MODE(0, APIC_MODE_EXTINT));
 
 	apic_set_reg(apic, APIC_DFR, 0xffffffffU);
 	apic_set_spiv(apic, 0xff);
