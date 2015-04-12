@@ -4049,7 +4049,7 @@ restart:
 	if (trans && progress && err == -ENOSPC) {
 		ret = btrfs_force_chunk_alloc(trans, rc->extent_root,
 					      rc->block_group->flags);
-		if (ret == 0) {
+		if (ret == 1) {
 			err = 0;
 			progress = 0;
 			goto restart;
