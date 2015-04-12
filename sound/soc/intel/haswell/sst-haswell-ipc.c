@@ -466,7 +466,7 @@ static void hsw_fw_ready(struct sst_hsw *hsw, u32 header)
 		/* log the FW version info got from the mailbox here. */
 		memcpy(fw_info, fw_ready.fw_info, fw_ready.fw_info_size);
 		pinfo = &fw_info[0];
-		for (i = 0; i < sizeof(tmp) / sizeof(char *); i++)
+		for (i = 0; i < ARRAY_SIZE(tmp); i++)
 			tmp[i] = strsep(&pinfo, " ");
 		dev_info(hsw->dev, "FW loaded, mailbox readback FW info: type %s, - "
 			"version: %s.%s, build %s, source commit id: %s\n",
