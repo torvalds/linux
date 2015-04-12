@@ -24,8 +24,6 @@ void snd_hdac_stream_init(struct hdac_bus *bus, struct hdac_stream *azx_dev,
 			  int idx, int direction, int tag)
 {
 	azx_dev->bus = bus;
-	if (bus->posbuf.area)
-		azx_dev->posbuf = (__le32 *)(bus->posbuf.area + idx * 8);
 	/* offset: SDI0=0x80, SDI1=0xa0, ... SDO3=0x160 */
 	azx_dev->sd_addr = bus->remap_addr + (0x20 * idx + 0x80);
 	/* int mask: SDI0=0x01, SDI1=0x02, ... SDO3=0x80 */

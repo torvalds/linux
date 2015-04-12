@@ -314,6 +314,9 @@ void snd_hdac_bus_handle_stream_irq(struct hdac_bus *bus, unsigned int status,
 				    void (*ack)(struct hdac_bus *,
 						struct hdac_stream *));
 
+int snd_hdac_bus_alloc_stream_pages(struct hdac_bus *bus);
+void snd_hdac_bus_free_stream_pages(struct hdac_bus *bus);
+
 /*
  * macros for easy use
  */
