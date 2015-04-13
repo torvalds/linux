@@ -61,7 +61,7 @@ struct wmfw_adsp1_id_hdr {
 	struct wmfw_id_hdr fw;
 	__be32 zm;
 	__be32 dm;
-	__be32 algs;
+	__be32 n_algs;
 } __packed;
 
 struct wmfw_adsp2_id_hdr {
@@ -69,7 +69,7 @@ struct wmfw_adsp2_id_hdr {
 	__be32 zm;
 	__be32 xm;
 	__be32 ym;
-	__be32 algs;
+	__be32 n_algs;
 } __packed;
 
 struct wmfw_alg_hdr {
