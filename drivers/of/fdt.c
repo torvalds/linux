@@ -164,9 +164,12 @@ static void *unflatten_dt_alloc(void **mem, unsigned long size,
  * unflatten_dt_node - Alloc and populate a device_node from the flat tree
  * @blob: The parent device tree blob
  * @mem: Memory chunk to use for allocating device nodes and properties
- * @p: pointer to node in flat tree
+ * @poffset: pointer to node in flat tree
  * @dad: Parent struct device_node
+ * @nodepp: The device_node tree created by the call
  * @fpsize: Size of the node path up at the current depth.
+ * @dryrun: If true, do not allocate device nodes but still calculate needed
+ * memory size
  */
 static void * unflatten_dt_node(void *blob,
 				void *mem,
