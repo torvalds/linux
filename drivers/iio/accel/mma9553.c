@@ -794,7 +794,7 @@ static int mma9553_write_event_config(struct iio_dev *indio_dev,
 
 	mutex_unlock(&data->mutex);
 
-	return ret;
+	return 0;
 
 err_conf_gpio:
 	if (state) {
