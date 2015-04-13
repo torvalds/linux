@@ -25,32 +25,6 @@
 
 static struct irq_domain *msi_default_domain;
 
-static void native_compose_msi_msg(struct irq_cfg *cfg, struct msi_msg *msg)
-{
-	msg->address_hi = MSI_ADDR_BASE_HI;
-
-	if (x2apic_enabled())
-		msg->address_hi |= MSI_ADDR_EXT_DEST_ID(cfg->dest_apicid);
-
-	msg->address_lo =
-		MSI_ADDR_BASE_LO |
-		((apic->irq_dest_mode == 0) ?
-			MSI_ADDR_DEST_MODE_PHYSICAL :
-			MSI_ADDR_DEST_MODE_LOGICAL) |
-		((apic->irq_delivery_mode != dest_LowestPrio) ?
-			MSI_ADDR_REDIRECTION_CPU :
-			MSI_ADDR_REDIRECTION_LOWPRI) |
-		MSI_ADDR_DEST_ID(cfg->dest_apicid);
-
-	msg->data =
-		MSI_DATA_TRIGGER_EDGE |
-		MSI_DATA_LEVEL_ASSERT |
-		((apic->irq_delivery_mode != dest_LowestPrio) ?
-			MSI_DATA_DELIVERY_FIXED :
-			MSI_DATA_DELIVERY_LOWPRI) |
-		MSI_DATA_VECTOR(cfg->vector);
-}
-
 static void irq_msi_compose_msg(struct irq_data *data, struct msi_msg *msg)
 {
 	struct irq_cfg *cfg = irqd_cfg(data);
@@ -87,6 +61,9 @@ static void msi_update_msg(struct msi_msg *msg, struct irq_data *irq_data)
 	msg->data |= MSI_DATA_VECTOR(cfg->vector);
 	msg->address_lo &= ~MSI_ADDR_DEST_ID_MASK;
 	msg->address_lo |= MSI_ADDR_DEST_ID(cfg->dest_apicid);
+	if (x2apic_enabled())
+		msg->address_hi = MSI_ADDR_BASE_HI |
+				  MSI_ADDR_EXT_DEST_ID(cfg->dest_apicid);
 }
 
 /*
@@ -196,59 +173,121 @@ static int
 dmar_msi_set_affinity(struct irq_data *data, const struct cpumask *mask,
 		      bool force)
 {
-	struct irq_cfg *cfg = irqd_cfg(data);
-	unsigned int dest, irq = data->irq;
+	struct irq_data *parent = data->parent_data;
 	struct msi_msg msg;
 	int ret;
 
-	ret = apic_set_affinity(data, mask, &dest);
-	if (ret)
-		return ret;
+	ret = parent->chip->irq_set_affinity(parent, mask, force);
+	if (ret >= 0) {
+		dmar_msi_read(data->irq, &msg);
+		msi_update_msg(&msg, data);
+		dmar_msi_write(data->irq, &msg);
+	}
 
-	dmar_msi_read(irq, &msg);
-
-	msg.data &= ~MSI_DATA_VECTOR_MASK;
-	msg.data |= MSI_DATA_VECTOR(cfg->vector);
-	msg.address_lo &= ~MSI_ADDR_DEST_ID_MASK;
-	msg.address_lo |= MSI_ADDR_DEST_ID(dest);
-	msg.address_hi = MSI_ADDR_BASE_HI | MSI_ADDR_EXT_DEST_ID(dest);
-
-	dmar_msi_write(irq, &msg);
-
-	return IRQ_SET_MASK_OK_NOCOPY;
+	return ret;
 }
 
-static struct irq_chip dmar_msi_type = {
+static struct irq_chip dmar_msi_controller = {
 	.name			= "DMAR_MSI",
 	.irq_unmask		= dmar_msi_unmask,
 	.irq_mask		= dmar_msi_mask,
-	.irq_ack		= apic_ack_edge,
+	.irq_ack		= irq_chip_ack_parent,
 	.irq_set_affinity	= dmar_msi_set_affinity,
-	.irq_retrigger		= apic_retrigger_irq,
+	.irq_retrigger		= irq_chip_retrigger_hierarchy,
+	.irq_compose_msi_msg	= irq_msi_compose_msg,
 	.flags			= IRQCHIP_SKIP_SET_WAKE,
 };
 
-int dmar_alloc_hwirq(int id, int node, void *arg)
+static int dmar_domain_alloc(struct irq_domain *domain, unsigned int virq,
+			     unsigned int nr_irqs, void *arg)
 {
-	int irq;
-	struct msi_msg msg;
+	struct irq_alloc_info *info = arg;
+	int ret;
 
-	irq = irq_domain_alloc_irqs(NULL, 1, node, NULL);
-	if (irq > 0) {
-		irq_set_handler_data(irq, arg);
-		irq_set_chip_and_handler_name(irq, &dmar_msi_type,
-					      handle_edge_irq, "edge");
-		native_compose_msi_msg(irq_cfg(irq), &msg);
-		dmar_msi_write(irq, &msg);
+	if (nr_irqs > 1 || !info || info->type != X86_IRQ_ALLOC_TYPE_DMAR)
+		return -EINVAL;
+	if (irq_find_mapping(domain, info->dmar_id)) {
+		pr_warn("IRQ for DMAR%d already exists.\n", info->dmar_id);
+		return -EEXIST;
 	}
 
-	return irq;
+	ret = irq_domain_alloc_irqs_parent(domain, virq, nr_irqs, arg);
+	if (ret >= 0) {
+		irq_domain_set_hwirq_and_chip(domain, virq, info->dmar_id,
+					      &dmar_msi_controller, NULL);
+		irq_set_handler_data(virq, info->dmar_data);
+		__irq_set_handler(virq, handle_edge_irq, 0, "edge");
+	}
+
+	return ret;
+}
+
+static void dmar_domain_free(struct irq_domain *domain, unsigned int virq,
+			     unsigned int nr_irqs)
+{
+	BUG_ON(nr_irqs > 1);
+	irq_domain_free_irqs_top(domain, virq, nr_irqs);
+}
+
+static void dmar_domain_activate(struct irq_domain *domain,
+				 struct irq_data *irq_data)
+{
+	struct msi_msg msg;
+
+	BUG_ON(irq_chip_compose_msi_msg(irq_data, &msg));
+	dmar_msi_write(irq_data->irq, &msg);
+}
+
+static void dmar_domain_deactivate(struct irq_domain *domain,
+				   struct irq_data *irq_data)
+{
+	struct msi_msg msg;
+
+	memset(&msg, 0, sizeof(msg));
+	dmar_msi_write(irq_data->irq, &msg);
+}
+
+static struct irq_domain_ops dmar_domain_ops = {
+	.alloc = dmar_domain_alloc,
+	.free = dmar_domain_free,
+	.activate = dmar_domain_activate,
+	.deactivate = dmar_domain_deactivate,
+};
+
+static struct irq_domain *dmar_get_irq_domain(void)
+{
+	static struct irq_domain *dmar_domain;
+	static DEFINE_MUTEX(dmar_lock);
+
+	mutex_lock(&dmar_lock);
+	if (dmar_domain == NULL) {
+		dmar_domain = irq_domain_add_tree(NULL, &dmar_domain_ops, NULL);
+		if (dmar_domain)
+			dmar_domain->parent = x86_vector_domain;
+	}
+	mutex_unlock(&dmar_lock);
+
+	return dmar_domain;
+}
+
+int dmar_alloc_hwirq(int id, int node, void *arg)
+{
+	struct irq_domain *domain = dmar_get_irq_domain();
+	struct irq_alloc_info info;
+
+	if (!domain)
+		return -1;
+
+	init_irq_alloc_info(&info, NULL);
+	info.type = X86_IRQ_ALLOC_TYPE_DMAR;
+	info.dmar_id = id;
+	info.dmar_data = arg;
+
+	return irq_domain_alloc_irqs(domain, 1, node, &info);
 }
 
 void dmar_free_hwirq(int irq)
 {
-	irq_set_handler_data(irq, NULL);
-	irq_set_handler(irq, NULL);
 	irq_domain_free_irqs(irq, 1);
 }
 #endif
