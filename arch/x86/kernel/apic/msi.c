@@ -77,7 +77,6 @@ static struct irq_chip pci_msi_controller = {
 	.irq_ack		= irq_chip_ack_parent,
 	.irq_set_affinity	= msi_domain_set_affinity,
 	.irq_retrigger		= irq_chip_retrigger_hierarchy,
-	.irq_print_chip		= irq_remapping_print_chip,
 	.irq_compose_msi_msg	= irq_msi_compose_msg,
 	.irq_write_msi_msg	= pci_msi_domain_write_msg,
 	.flags			= IRQCHIP_SKIP_SET_WAKE,
@@ -143,7 +142,7 @@ static struct msi_domain_ops pci_msi_domain_ops = {
 
 static struct msi_domain_info pci_msi_domain_info = {
 	.flags		= MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
-			  MSI_FLAG_MULTI_PCI_MSI | MSI_FLAG_PCI_MSIX,
+			  MSI_FLAG_PCI_MSIX,
 	.ops		= &pci_msi_domain_ops,
 	.chip		= &pci_msi_controller,
 	.handler	= handle_edge_irq,
@@ -162,9 +161,29 @@ void arch_init_msi_domain(struct irq_domain *parent)
 }
 
 #ifdef CONFIG_IRQ_REMAP
+static struct irq_chip pci_msi_ir_controller = {
+	.name			= "IR-PCI-MSI",
+	.irq_unmask		= pci_msi_unmask_irq,
+	.irq_mask		= pci_msi_mask_irq,
+	.irq_ack		= irq_chip_ack_parent,
+	.irq_set_affinity	= msi_domain_set_affinity,
+	.irq_retrigger		= irq_chip_retrigger_hierarchy,
+	.irq_write_msi_msg	= pci_msi_domain_write_msg,
+	.flags			= IRQCHIP_SKIP_SET_WAKE,
+};
+
+static struct msi_domain_info pci_msi_ir_domain_info = {
+	.flags		= MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
+			  MSI_FLAG_MULTI_PCI_MSI | MSI_FLAG_PCI_MSIX,
+	.ops		= &pci_msi_domain_ops,
+	.chip		= &pci_msi_ir_controller,
+	.handler	= handle_edge_irq,
+	.handler_name	= "edge",
+};
+
 struct irq_domain *arch_create_msi_irq_domain(struct irq_domain *parent)
 {
-	return msi_create_irq_domain(NULL, &pci_msi_domain_info, parent);
+	return pci_msi_create_irq_domain(NULL, &pci_msi_ir_domain_info, parent);
 }
 #endif
 
@@ -325,7 +344,6 @@ static struct irq_chip hpet_msi_controller = {
 	.irq_ack = irq_chip_ack_parent,
 	.irq_set_affinity = hpet_msi_set_affinity,
 	.irq_retrigger = irq_chip_retrigger_hierarchy,
-	.irq_print_chip = irq_remapping_print_chip,
 	.irq_compose_msi_msg = irq_msi_compose_msg,
 	.flags = IRQCHIP_SKIP_SET_WAKE,
 };
@@ -402,6 +420,8 @@ struct irq_domain *hpet_create_irq_domain(int hpet_id)
 	parent = irq_remapping_get_ir_irq_domain(&info);
 	if (parent == NULL)
 		parent = x86_vector_domain;
+	else
+		hpet_msi_controller.name = "IR-HPET-MSI";
 
 	return irq_domain_add_hierarchy(parent, 0, 0, NULL, &hpet_domain_ops,
 					(void *)(long)hpet_id);
