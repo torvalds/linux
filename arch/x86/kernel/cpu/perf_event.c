@@ -2147,24 +2147,24 @@ perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 static unsigned long code_segment_base(struct pt_regs *regs)
 {
 	/*
+	 * For IA32 we look at the GDT/LDT segment base to convert the
+	 * effective IP to a linear address.
+	 */
+
+#ifdef CONFIG_X86_32
+	/*
 	 * If we are in VM86 mode, add the segment offset to convert to a
 	 * linear address.
 	 */
 	if (regs->flags & X86_VM_MASK)
 		return 0x10 * regs->cs;
 
-	/*
-	 * For IA32 we look at the GDT/LDT segment base to convert the
-	 * effective IP to a linear address.
-	 */
-#ifdef CONFIG_X86_32
 	if (user_mode(regs) && regs->cs != __USER_CS)
 		return get_segment_base(regs->cs);
 #else
-	if (test_thread_flag(TIF_IA32)) {
-		if (user_mode(regs) && regs->cs != __USER32_CS)
-			return get_segment_base(regs->cs);
-	}
+	if (user_mode(regs) && !user_64bit_mode(regs) &&
+	    regs->cs != __USER32_CS)
+		return get_segment_base(regs->cs);
 #endif
 	return 0;
 }

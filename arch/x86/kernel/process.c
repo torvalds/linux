@@ -38,7 +38,26 @@
  * section. Since TSS's are completely CPU-local, we want them
  * on exact cacheline boundaries, to eliminate cacheline ping-pong.
  */
-__visible DEFINE_PER_CPU_SHARED_ALIGNED(struct tss_struct, init_tss) = INIT_TSS;
+__visible DEFINE_PER_CPU_SHARED_ALIGNED(struct tss_struct, cpu_tss) = {
+	.x86_tss = {
+		.sp0 = TOP_OF_INIT_STACK,
+#ifdef CONFIG_X86_32
+		.ss0 = __KERNEL_DS,
+		.ss1 = __KERNEL_CS,
+		.io_bitmap_base	= INVALID_IO_BITMAP_OFFSET,
+#endif
+	 },
+#ifdef CONFIG_X86_32
+	 /*
+	  * Note that the .io_bitmap member must be extra-big. This is because
+	  * the CPU will access an additional byte beyond the end of the IO
+	  * permission bitmap. The extra byte must be all 1 bits, and must
+	  * be within the limit.
+	  */
+	.io_bitmap		= { [0 ... IO_BITMAP_LONGS] = ~0 },
+#endif
+};
+EXPORT_PER_CPU_SYMBOL_GPL(cpu_tss);
 
 #ifdef CONFIG_X86_64
 static DEFINE_PER_CPU(unsigned char, is_idle);
@@ -110,7 +129,7 @@ void exit_thread(void)
 	unsigned long *bp = t->io_bitmap_ptr;
 
 	if (bp) {
-		struct tss_struct *tss = &per_cpu(init_tss, get_cpu());
+		struct tss_struct *tss = &per_cpu(cpu_tss, get_cpu());
 
 		t->io_bitmap_ptr = NULL;
 		clear_thread_flag(TIF_IO_BITMAP);

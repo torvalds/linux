@@ -602,7 +602,7 @@ int kprobe_int3_handler(struct pt_regs *regs)
 	struct kprobe *p;
 	struct kprobe_ctlblk *kcb;
 
-	if (user_mode_vm(regs))
+	if (user_mode(regs))
 		return 0;
 
 	addr = (kprobe_opcode_t *)(regs->ip - sizeof(kprobe_opcode_t));
@@ -1007,7 +1007,7 @@ int kprobe_exceptions_notify(struct notifier_block *self, unsigned long val,
 	struct die_args *args = data;
 	int ret = NOTIFY_DONE;
 
-	if (args->regs && user_mode_vm(args->regs))
+	if (args->regs && user_mode(args->regs))
 		return ret;
 
 	if (val == DIE_GPF) {

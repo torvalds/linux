@@ -68,7 +68,7 @@ static inline bool interrupted_kernel_fpu_idle(void)
 static inline bool interrupted_user_mode(void)
 {
 	struct pt_regs *regs = get_irq_regs();
-	return regs && user_mode_vm(regs);
+	return regs && user_mode(regs);
 }
 
 /*

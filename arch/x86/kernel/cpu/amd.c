@@ -711,6 +711,11 @@ static void init_amd(struct cpuinfo_x86 *c)
 		set_cpu_bug(c, X86_BUG_AMD_APIC_C1E);
 
 	rdmsr_safe(MSR_AMD64_PATCH_LEVEL, &c->microcode, &dummy);
+
+	/* 3DNow or LM implies PREFETCHW */
+	if (!cpu_has(c, X86_FEATURE_3DNOWPREFETCH))
+		if (cpu_has(c, X86_FEATURE_3DNOW) || cpu_has(c, X86_FEATURE_LM))
+			set_cpu_cap(c, X86_FEATURE_3DNOWPREFETCH);
 }
 
 #ifdef CONFIG_X86_32

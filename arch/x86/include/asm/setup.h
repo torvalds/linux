@@ -66,6 +66,11 @@ static inline void x86_ce4100_early_setup(void) { }
  */
 extern struct boot_params boot_params;
 
+static inline bool kaslr_enabled(void)
+{
+	return !!(boot_params.hdr.loadflags & KASLR_FLAG);
+}
+
 /*
  * Do NOT EVER look at the BIOS memory size location.
  * It does not work on many machines.

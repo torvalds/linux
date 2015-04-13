@@ -779,6 +779,26 @@ out:
 	return boot_error;
 }
 
+void common_cpu_up(unsigned int cpu, struct task_struct *idle)
+{
+	/* Just in case we booted with a single CPU. */
+	alternatives_enable_smp();
+
+	per_cpu(current_task, cpu) = idle;
+
+#ifdef CONFIG_X86_32
+	/* Stack for startup_32 can be just as for start_secondary onwards */
+	irq_ctx_init(cpu);
+	per_cpu(cpu_current_top_of_stack, cpu) =
+		(unsigned long)task_stack_page(idle) + THREAD_SIZE;
+#else
+	clear_tsk_thread_flag(idle, TIF_FORK);
+	initial_gs = per_cpu_offset(cpu);
+#endif
+	per_cpu(kernel_stack, cpu) =
+		(unsigned long)task_stack_page(idle) + THREAD_SIZE;
+}
+
 /*
  * NOTE - on most systems this is a PHYSICAL apic ID, but on multiquad
  * (ie clustered apic addressing mode), this is a LOGICAL apic ID.
@@ -796,23 +816,9 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
 	int cpu0_nmi_registered = 0;
 	unsigned long timeout;
 
-	/* Just in case we booted with a single CPU. */
-	alternatives_enable_smp();
-
 	idle->thread.sp = (unsigned long) (((struct pt_regs *)
 			  (THREAD_SIZE +  task_stack_page(idle))) - 1);
-	per_cpu(current_task, cpu) = idle;
 
-#ifdef CONFIG_X86_32
-	/* Stack for startup_32 can be just as for start_secondary onwards */
-	irq_ctx_init(cpu);
-#else
-	clear_tsk_thread_flag(idle, TIF_FORK);
-	initial_gs = per_cpu_offset(cpu);
-#endif
-	per_cpu(kernel_stack, cpu) =
-		(unsigned long)task_stack_page(idle) -
-		KERNEL_STACK_OFFSET + THREAD_SIZE;
 	early_gdt_descr.address = (unsigned long)get_cpu_gdt_table(cpu);
 	initial_code = (unsigned long)start_secondary;
 	stack_start  = idle->thread.sp;
@@ -952,6 +958,8 @@ int native_cpu_up(unsigned int cpu, struct task_struct *tidle)
 
 	/* the FPU context is blank, nobody can own it */
 	__cpu_disable_lazy_restore(cpu);
+
+	common_cpu_up(cpu, tidle);
 
 	err = do_boot_cpu(apicid, cpu, tidle);
 	if (err) {

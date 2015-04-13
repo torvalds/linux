@@ -226,23 +226,23 @@ swap_pages:
 	movl	(%ebx), %ecx
 	addl	$4, %ebx
 1:
-	testl	$0x1,   %ecx  /* is it a destination page */
+	testb	$0x1, %cl     /* is it a destination page */
 	jz	2f
 	movl	%ecx,	%edi
 	andl	$0xfffff000, %edi
 	jmp     0b
 2:
-	testl	$0x2,	%ecx  /* is it an indirection page */
+	testb	$0x2, %cl    /* is it an indirection page */
 	jz	2f
 	movl	%ecx,	%ebx
 	andl	$0xfffff000, %ebx
 	jmp     0b
 2:
-	testl   $0x4,   %ecx /* is it the done indicator */
+	testb   $0x4, %cl    /* is it the done indicator */
 	jz      2f
 	jmp     3f
 2:
-	testl   $0x8,   %ecx /* is it the source indicator */
+	testb   $0x8, %cl    /* is it the source indicator */
 	jz      0b	     /* Ignore it otherwise */
 	movl    %ecx,   %esi /* For every source page do a copy */
 	andl    $0xfffff000, %esi
