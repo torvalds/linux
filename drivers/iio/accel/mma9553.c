@@ -322,7 +322,8 @@ static int mma9553_read_activity_stepcnt(struct mma9553_data *data,
 	int ret;
 
 	ret = mma9551_read_status_words(data->client, MMA9551_APPID_PEDOMETER,
-					MMA9553_REG_STATUS, sizeof(u32), buf);
+					MMA9553_REG_STATUS, ARRAY_SIZE(buf),
+					buf);
 	if (ret < 0) {
 		dev_err(&data->client->dev,
 			"error reading status and stepcnt\n");
@@ -397,7 +398,8 @@ static int mma9553_init(struct mma9553_data *data)
 	ret =
 	    mma9551_read_config_words(data->client, MMA9551_APPID_PEDOMETER,
 				      MMA9553_REG_CONF_SLEEPMIN,
-				      sizeof(data->conf), (u16 *) &data->conf);
+				      sizeof(data->conf) / sizeof(u16),
+				      (u16 *)&data->conf);
 	if (ret < 0) {
 		dev_err(&data->client->dev,
 			"failed to read configuration registers\n");
@@ -430,7 +432,8 @@ static int mma9553_init(struct mma9553_data *data)
 	ret =
 	    mma9551_write_config_words(data->client, MMA9551_APPID_PEDOMETER,
 				       MMA9553_REG_CONF_SLEEPMIN,
-				       sizeof(data->conf), (u16 *) &data->conf);
+				       sizeof(data->conf) / sizeof(u16),
+				       (u16 *)&data->conf);
 	if (ret < 0) {
 		dev_err(&data->client->dev,
 			"failed to write configuration registers\n");
