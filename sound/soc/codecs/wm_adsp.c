@@ -785,13 +785,9 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 {
 	struct wm_coeff_ctl *ctl;
 	struct wmfw_ctl_work *ctl_work;
-	char *name;
+	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 	char *region_name;
 	int ret;
-
-	name = kmalloc(SNDRV_CTL_ELEM_ID_NAME_MAXLEN, GFP_KERNEL);
-	if (!name)
-		return -ENOMEM;
 
 	switch (alg_region->type) {
 	case WMFW_ADSP1_PM:
@@ -810,8 +806,7 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 		region_name = "ZM";
 		break;
 	default:
-		ret = -EINVAL;
-		goto err_name;
+		return -EINVAL;
 	}
 
 	snprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN, "DSP%d %s %x",
@@ -822,15 +817,13 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 		if (!strcmp(ctl->name, name)) {
 			if (!ctl->enabled)
 				ctl->enabled = 1;
-			goto found;
+			return 0;
 		}
 	}
 
 	ctl = kzalloc(sizeof(*ctl), GFP_KERNEL);
-	if (!ctl) {
-		ret = -ENOMEM;
-		goto err_name;
-	}
+	if (!ctl)
+		return -ENOMEM;
 	ctl->alg_region = *alg_region;
 	ctl->name = kmemdup(name, strlen(name) + 1, GFP_KERNEL);
 	if (!ctl->name) {
@@ -866,9 +859,6 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 	INIT_WORK(&ctl_work->work, wm_adsp_ctl_work);
 	schedule_work(&ctl_work->work);
 
-found:
-	kfree(name);
-
 	return 0;
 
 err_ctl_cache:
@@ -877,8 +867,7 @@ err_ctl_name:
 	kfree(ctl->name);
 err_ctl:
 	kfree(ctl);
-err_name:
-	kfree(name);
+
 	return ret;
 }
 
