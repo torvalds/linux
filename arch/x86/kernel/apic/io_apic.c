@@ -254,24 +254,13 @@ static void free_ioapic_saved_registers(int idx)
 
 int __init arch_early_ioapic_init(void)
 {
-	struct irq_cfg *cfg;
-	int i, node = cpu_to_node(0);
+	int i;
 
 	if (!nr_legacy_irqs())
 		io_apic_irqs = ~0UL;
 
 	for_each_ioapic(i)
 		alloc_ioapic_saved_registers(i);
-
-	/*
-	 * For legacy IRQ's, start with assigning irq0 to irq15 to
-	 * IRQ0_VECTOR to IRQ15_VECTOR for all cpu's.
-	 */
-	for (i = 0; i < nr_legacy_irqs(); i++) {
-		cfg = alloc_irq_and_cfg_at(i, node);
-		cfg->vector = IRQ0_VECTOR + i;
-		cpumask_setall(cfg->domain);
-	}
 
 	return 0;
 }

@@ -24,6 +24,9 @@
 struct irq_domain *x86_vector_domain;
 static DEFINE_RAW_SPINLOCK(vector_lock);
 static struct irq_chip lapic_controller;
+#ifdef	CONFIG_X86_IO_APIC
+static struct irq_cfg *legacy_irq_cfgs[NR_IRQS_LEGACY];
+#endif
 
 void lock_vector_lock(void)
 {
@@ -283,6 +286,10 @@ static void x86_vector_free_irqs(struct irq_domain *domain,
 			free_remapped_irq(virq);
 			clear_irq_vector(virq + i, irq_data->chip_data);
 			free_irq_cfg(irq_data->chip_data);
+#ifdef	CONFIG_X86_IO_APIC
+			if (virq + i < nr_legacy_irqs())
+				legacy_irq_cfgs[virq + i] = NULL;
+#endif
 			irq_domain_reset_irq_data(irq_data);
 		}
 	}
@@ -308,7 +315,12 @@ static int x86_vector_alloc_irqs(struct irq_domain *domain, unsigned int virq,
 	for (i = 0; i < nr_irqs; i++) {
 		irq_data = irq_domain_get_irq_data(domain, virq + i);
 		BUG_ON(!irq_data);
-		cfg = alloc_irq_cfg(irq_data->node);
+#ifdef	CONFIG_X86_IO_APIC
+		if (virq + i < nr_legacy_irqs() && legacy_irq_cfgs[virq + i])
+			cfg = legacy_irq_cfgs[virq + i];
+		else
+#endif
+			cfg = alloc_irq_cfg(irq_data->node);
 		if (!cfg) {
 			err = -ENOMEM;
 			goto error;
@@ -357,8 +369,36 @@ int __init arch_probe_nr_irqs(void)
 	return nr_legacy_irqs();
 }
 
+#ifdef	CONFIG_X86_IO_APIC
+static void init_legacy_irqs(void)
+{
+	int i, node = cpu_to_node(0);
+	struct irq_cfg *cfg;
+
+	/*
+	 * For legacy IRQ's, start with assigning irq0 to irq15 to
+	 * IRQ0_VECTOR to IRQ15_VECTOR for all cpu's.
+	 */
+	for (i = 0; i < nr_legacy_irqs(); i++) {
+		cfg = legacy_irq_cfgs[i] = alloc_irq_cfg(node);
+		BUG_ON(!cfg);
+		/*
+		 * For legacy IRQ's, start with assigning irq0 to irq15 to
+		 * IRQ0_VECTOR to IRQ15_VECTOR for all cpu's.
+		 */
+		cfg->vector = IRQ0_VECTOR + i;
+		cpumask_setall(cfg->domain);
+		irq_set_chip_data(i, cfg);
+	}
+}
+#else
+static void init_legacy_irqs(void) { }
+#endif
+
 int __init arch_early_irq_init(void)
 {
+	init_legacy_irqs();
+
 	x86_vector_domain = irq_domain_add_tree(NULL, &x86_vector_domain_ops,
 						NULL);
 	BUG_ON(x86_vector_domain == NULL);
