@@ -44,6 +44,7 @@ struct mmc_data;
  * struct dw_mci - MMC controller state shared between all slots
  * @lock: Spinlock protecting the queue and associated data.
  * @regs: Pointer to MMIO registers.
+ * @fifo_reg: Pointer to MMIO registers for data FIFO
  * @sg: Scatterlist entry currently being processed by PIO code, if any.
  * @sg_miter: PIO mapping scatterlist iterator.
  * @cur_slot: The slot which is currently using the controller.
@@ -79,7 +80,6 @@ struct mmc_data;
  * @current_speed: Configured rate of the controller.
  * @num_slots: Number of slots available.
  * @verid: Denote Version ID.
- * @data_offset: Set the offset of DATA register according to VERID.
  * @dev: Device associated with the MMC controller.
  * @pdata: Platform data associated with the MMC controller.
  * @drv_data: Driver specific data for identified variant of the controller
@@ -132,6 +132,7 @@ struct dw_mci {
 	spinlock_t		lock;
 	spinlock_t		irq_lock;
 	void __iomem		*regs;
+	void __iomem		*fifo_reg;
 
 	struct scatterlist	*sg;
 	struct sg_mapping_iter	sg_miter;
@@ -172,7 +173,6 @@ struct dw_mci {
 	u32			num_slots;
 	u32			fifoth_val;
 	u16			verid;
-	u16			data_offset;
 	struct device		*dev;
 	struct dw_mci_board	*pdata;
 	const struct dw_mci_drv_data	*drv_data;
@@ -202,6 +202,8 @@ struct dw_mci {
 	int			irq;
 
 	int			sdio_id0;
+
+	struct timer_list       cmd11_timer;
 };
 
 /* DMA ops for Internal/External DMAC interface */

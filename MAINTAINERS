@@ -6566,10 +6566,8 @@ F:	drivers/mfd/
 F:	include/linux/mfd/
 
 MULTIMEDIA CARD (MMC), SECURE DIGITAL (SD) AND SDIO SUBSYSTEM
-M:	Chris Ball <chris@printf.net>
 M:	Ulf Hansson <ulf.hansson@linaro.org>
 L:	linux-mmc@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/cjb/mmc.git
 T:	git git://git.linaro.org/people/ulf.hansson/mmc.git
 S:	Maintained
 F:	drivers/mmc/
@@ -8670,10 +8668,8 @@ S:	Maintained
 F:	drivers/mmc/host/sdricoh_cs.c
 
 SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) DRIVER
-M:	Chris Ball <chris@printf.net>
 L:	linux-mmc@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/cjb/mmc.git
-S:	Maintained
+S:	Orphan
 F:	drivers/mmc/host/sdhci.*
 F:	drivers/mmc/host/sdhci-pltfm.[ch]
 
@@ -8689,18 +8685,12 @@ F:	include/linux/seccomp.h
 K:	\bsecure_computing
 K:	\bTIF_SECCOMP\b
 
-SECURE DIGITAL HOST CONTROLLER INTERFACE, OPEN FIRMWARE BINDINGS (SDHCI-OF)
-M:	Anton Vorontsov <anton@enomsg.org>
-L:	linuxppc-dev@lists.ozlabs.org
-L:	linux-mmc@vger.kernel.org
-S:	Maintained
-F:	drivers/mmc/host/sdhci-pltfm.[ch]
-
 SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) SAMSUNG DRIVER
 M:	Ben Dooks <ben-linux@fluff.org>
+M:	Jaehoon Chung <jh80.chung@samsung.com>
 L:	linux-mmc@vger.kernel.org
 S:	Maintained
-F:	drivers/mmc/host/sdhci-s3c.c
+F:	drivers/mmc/host/sdhci-s3c*
 
 SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) ST SPEAR DRIVER
 M:	Viresh Kumar <viresh.linux@gmail.com>
