@@ -123,7 +123,7 @@ static void dw_hdmi_imx_encoder_commit(struct drm_encoder *encoder)
 
 static void dw_hdmi_imx_encoder_prepare(struct drm_encoder *encoder)
 {
-	imx_drm_panel_format(encoder, V4L2_PIX_FMT_RGB24);
+	imx_drm_set_bus_format(encoder, MEDIA_BUS_FMT_RGB888_1X24);
 }
 
 static struct drm_encoder_helper_funcs dw_hdmi_imx_encoder_helper_funcs = {

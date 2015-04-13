@@ -91,7 +91,9 @@ see <xref linkend="colorspaces" />.</entry>
 	<listitem><para>For formats where the total number of bits per pixel is smaller
 	than the number of bus samples per pixel times the bus width, a padding
 	value stating if the bytes are padded in their most high order bits
-	(PADHI) or low order bits (PADLO).</para></listitem>
+	(PADHI) or low order bits (PADLO). A "C" prefix is used for component-wise
+	padding in the most high order bits (CPADHI) or low order bits (CPADLO)
+	of each separate component.</para></listitem>
 	<listitem><para>For formats where the number of bus samples per pixel is larger
 	than 1, an endianness value stating if the pixel is transferred MSB first
 	(BE) or LSB first (LE).</para></listitem>
@@ -192,6 +194,24 @@ see <xref linkend="colorspaces" />.</entry>
 	    </row>
 	  </thead>
 	  <tbody valign="top">
+	    <row id="MEDIA-BUS-FMT-RGB444-1X12">
+	      <entry>MEDIA_BUS_FMT_RGB444_1X12</entry>
+	      <entry>0x100e</entry>
+	      <entry></entry>
+	      &dash-ent-20;
+	      <entry>r<subscript>3</subscript></entry>
+	      <entry>r<subscript>2</subscript></entry>
+	      <entry>r<subscript>1</subscript></entry>
+	      <entry>r<subscript>0</subscript></entry>
+	      <entry>g<subscript>3</subscript></entry>
+	      <entry>g<subscript>2</subscript></entry>
+	      <entry>g<subscript>1</subscript></entry>
+	      <entry>g<subscript>0</subscript></entry>
+	      <entry>b<subscript>3</subscript></entry>
+	      <entry>b<subscript>2</subscript></entry>
+	      <entry>b<subscript>1</subscript></entry>
+	      <entry>b<subscript>0</subscript></entry>
+	    </row>
 	    <row id="MEDIA-BUS-FMT-RGB444-2X8-PADHI-BE">
 	      <entry>MEDIA_BUS_FMT_RGB444_2X8_PADHI_BE</entry>
 	      <entry>0x1001</entry>
@@ -303,6 +323,28 @@ see <xref linkend="colorspaces" />.</entry>
 	      <entry>r<subscript>0</subscript></entry>
 	      <entry>g<subscript>4</subscript></entry>
 	      <entry>g<subscript>3</subscript></entry>
+	    </row>
+	    <row id="MEDIA-BUS-FMT-RGB565-1X16">
+	      <entry>MEDIA_BUS_FMT_RGB565_1X16</entry>
+	      <entry>0x100f</entry>
+	      <entry></entry>
+	      &dash-ent-16;
+	      <entry>r<subscript>4</subscript></entry>
+	      <entry>r<subscript>3</subscript></entry>
+	      <entry>r<subscript>2</subscript></entry>
+	      <entry>r<subscript>1</subscript></entry>
+	      <entry>r<subscript>0</subscript></entry>
+	      <entry>g<subscript>5</subscript></entry>
+	      <entry>g<subscript>4</subscript></entry>
+	      <entry>g<subscript>3</subscript></entry>
+	      <entry>g<subscript>2</subscript></entry>
+	      <entry>g<subscript>1</subscript></entry>
+	      <entry>g<subscript>0</subscript></entry>
+	      <entry>b<subscript>4</subscript></entry>
+	      <entry>b<subscript>3</subscript></entry>
+	      <entry>b<subscript>2</subscript></entry>
+	      <entry>b<subscript>1</subscript></entry>
+	      <entry>b<subscript>0</subscript></entry>
 	    </row>
 	    <row id="MEDIA-BUS-FMT-BGR565-2X8-BE">
 	      <entry>MEDIA_BUS_FMT_BGR565_2X8_BE</entry>
@@ -439,6 +481,96 @@ see <xref linkend="colorspaces" />.</entry>
 	      <entry>b<subscript>2</subscript></entry>
 	      <entry>b<subscript>1</subscript></entry>
 	      <entry>b<subscript>0</subscript></entry>
+	    </row>
+	    <row id="MEDIA-BUS-FMT-RGB666-1X24_CPADHI">
+	      <entry>MEDIA_BUS_FMT_RGB666_1X24_CPADHI</entry>
+	      <entry>0x1015</entry>
+	      <entry></entry>
+	      &dash-ent-8;
+	      <entry>0</entry>
+	      <entry>0</entry>
+	      <entry>r<subscript>5</subscript></entry>
+	      <entry>r<subscript>4</subscript></entry>
+	      <entry>r<subscript>3</subscript></entry>
+	      <entry>r<subscript>2</subscript></entry>
+	      <entry>r<subscript>1</subscript></entry>
+	      <entry>r<subscript>0</subscript></entry>
+	      <entry>0</entry>
+	      <entry>0</entry>
+	      <entry>g<subscript>5</subscript></entry>
+	      <entry>g<subscript>4</subscript></entry>
+	      <entry>g<subscript>3</subscript></entry>
+	      <entry>g<subscript>2</subscript></entry>
+	      <entry>g<subscript>1</subscript></entry>
+	      <entry>g<subscript>0</subscript></entry>
+	      <entry>0</entry>
+	      <entry>0</entry>
+	      <entry>b<subscript>5</subscript></entry>
+	      <entry>b<subscript>4</subscript></entry>
+	      <entry>b<subscript>3</subscript></entry>
+	      <entry>b<subscript>2</subscript></entry>
+	      <entry>b<subscript>1</subscript></entry>
+	      <entry>b<subscript>0</subscript></entry>
+	    </row>
+	    <row id="MEDIA-BUS-FMT-BGR888-1X24">
+	      <entry>MEDIA_BUS_FMT_BGR888_1X24</entry>
+	      <entry>0x1013</entry>
+	      <entry></entry>
+	      &dash-ent-8;
+	      <entry>b<subscript>7</subscript></entry>
+	      <entry>b<subscript>6</subscript></entry>
+	      <entry>b<subscript>5</subscript></entry>
+	      <entry>b<subscript>4</subscript></entry>
+	      <entry>b<subscript>3</subscript></entry>
+	      <entry>b<subscript>2</subscript></entry>
+	      <entry>b<subscript>1</subscript></entry>
+	      <entry>b<subscript>0</subscript></entry>
+	      <entry>g<subscript>7</subscript></entry>
+	      <entry>g<subscript>6</subscript></entry>
+	      <entry>g<subscript>5</subscript></entry>
+	      <entry>g<subscript>4</subscript></entry>
+	      <entry>g<subscript>3</subscript></entry>
+	      <entry>g<subscript>2</subscript></entry>
+	      <entry>g<subscript>1</subscript></entry>
+	      <entry>g<subscript>0</subscript></entry>
+	      <entry>r<subscript>7</subscript></entry>
+	      <entry>r<subscript>6</subscript></entry>
+	      <entry>r<subscript>5</subscript></entry>
+	      <entry>r<subscript>4</subscript></entry>
+	      <entry>r<subscript>3</subscript></entry>
+	      <entry>r<subscript>2</subscript></entry>
+	      <entry>r<subscript>1</subscript></entry>
+	      <entry>r<subscript>0</subscript></entry>
+	    </row>
+	    <row id="MEDIA-BUS-FMT-GBR888-1X24">
+	      <entry>MEDIA_BUS_FMT_GBR888_1X24</entry>
+	      <entry>0x1014</entry>
+	      <entry></entry>
+	      &dash-ent-8;
+	      <entry>g<subscript>7</subscript></entry>
+	      <entry>g<subscript>6</subscript></entry>
+	      <entry>g<subscript>5</subscript></entry>
+	      <entry>g<subscript>4</subscript></entry>
+	      <entry>g<subscript>3</subscript></entry>
+	      <entry>g<subscript>2</subscript></entry>
+	      <entry>g<subscript>1</subscript></entry>
+	      <entry>g<subscript>0</subscript></entry>
+	      <entry>b<subscript>7</subscript></entry>
+	      <entry>b<subscript>6</subscript></entry>
+	      <entry>b<subscript>5</subscript></entry>
+	      <entry>b<subscript>4</subscript></entry>
+	      <entry>b<subscript>3</subscript></entry>
+	      <entry>b<subscript>2</subscript></entry>
+	      <entry>b<subscript>1</subscript></entry>
+	      <entry>b<subscript>0</subscript></entry>
+	      <entry>r<subscript>7</subscript></entry>
+	      <entry>r<subscript>6</subscript></entry>
+	      <entry>r<subscript>5</subscript></entry>
+	      <entry>r<subscript>4</subscript></entry>
+	      <entry>r<subscript>3</subscript></entry>
+	      <entry>r<subscript>2</subscript></entry>
+	      <entry>r<subscript>1</subscript></entry>
+	      <entry>r<subscript>0</subscript></entry>
 	    </row>
 	    <row id="MEDIA-BUS-FMT-RGB888-1X24">
 	      <entry>MEDIA_BUS_FMT_RGB888_1X24</entry>
@@ -578,6 +710,261 @@ see <xref linkend="colorspaces" />.</entry>
 	      <entry>b<subscript>2</subscript></entry>
 	      <entry>b<subscript>1</subscript></entry>
 	      <entry>b<subscript>0</subscript></entry>
+	    </row>
+	  </tbody>
+	</tgroup>
+      </table>
+
+      <para>On LVDS buses, usually each sample is transferred serialized in
+      seven time slots per pixel clock, on three (18-bit) or four (24-bit)
+      differential data pairs at the same time. The remaining bits are used for
+      control signals as defined by SPWG/PSWG/VESA or JEIDA standards.
+      The 24-bit RGB format serialized in seven time slots on four lanes using
+      JEIDA defined bit mapping will be named
+      <constant>MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA</constant>, for example.
+      </para>
+
+      <table pgwide="0" frame="none" id="v4l2-mbus-pixelcode-rgb-lvds">
+	<title>LVDS RGB formats</title>
+	<tgroup cols="8">
+	  <colspec colname="id" align="left" />
+	  <colspec colname="code" align="center" />
+	  <colspec colname="slot" align="center" />
+	  <colspec colname="lane" />
+	  <colspec colnum="5" colname="l03" align="center" />
+	  <colspec colnum="6" colname="l02" align="center" />
+	  <colspec colnum="7" colname="l01" align="center" />
+	  <colspec colnum="8" colname="l00" align="center" />
+	  <spanspec namest="l03" nameend="l00" spanname="l0" />
+	  <thead>
+	    <row>
+	      <entry>Identifier</entry>
+	      <entry>Code</entry>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry spanname="l0">Data organization</entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>Timeslot</entry>
+	      <entry>Lane</entry>
+	      <entry>3</entry>
+	      <entry>2</entry>
+	      <entry>1</entry>
+	      <entry>0</entry>
+	    </row>
+	  </thead>
+	  <tbody valign="top">
+	    <row id="MEDIA-BUS-FMT-RGB666-1X7X3-SPWG">
+	      <entry>MEDIA_BUS_FMT_RGB666_1X7X3_SPWG</entry>
+	      <entry>0x1010</entry>
+	      <entry>0</entry>
+	      <entry></entry>
+	      <entry>-</entry>
+	      <entry>d</entry>
+	      <entry>b<subscript>1</subscript></entry>
+	      <entry>g<subscript>0</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>1</entry>
+	      <entry></entry>
+	      <entry>-</entry>
+	      <entry>d</entry>
+	      <entry>b<subscript>0</subscript></entry>
+	      <entry>r<subscript>5</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>2</entry>
+	      <entry></entry>
+	      <entry>-</entry>
+	      <entry>d</entry>
+	      <entry>g<subscript>5</subscript></entry>
+	      <entry>r<subscript>4</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>3</entry>
+	      <entry></entry>
+	      <entry>-</entry>
+	      <entry>b<subscript>5</subscript></entry>
+	      <entry>g<subscript>4</subscript></entry>
+	      <entry>r<subscript>3</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>4</entry>
+	      <entry></entry>
+	      <entry>-</entry>
+	      <entry>b<subscript>4</subscript></entry>
+	      <entry>g<subscript>3</subscript></entry>
+	      <entry>r<subscript>2</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>5</entry>
+	      <entry></entry>
+	      <entry>-</entry>
+	      <entry>b<subscript>3</subscript></entry>
+	      <entry>g<subscript>2</subscript></entry>
+	      <entry>r<subscript>1</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>6</entry>
+	      <entry></entry>
+	      <entry>-</entry>
+	      <entry>b<subscript>2</subscript></entry>
+	      <entry>g<subscript>1</subscript></entry>
+	      <entry>r<subscript>0</subscript></entry>
+	    </row>
+	    <row id="MEDIA-BUS-FMT-RGB888-1X7X4-SPWG">
+	      <entry>MEDIA_BUS_FMT_RGB888_1X7X4_SPWG</entry>
+	      <entry>0x1011</entry>
+	      <entry>0</entry>
+	      <entry></entry>
+	      <entry>d</entry>
+	      <entry>d</entry>
+	      <entry>b<subscript>1</subscript></entry>
+	      <entry>g<subscript>0</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>1</entry>
+	      <entry></entry>
+	      <entry>b<subscript>7</subscript></entry>
+	      <entry>d</entry>
+	      <entry>b<subscript>0</subscript></entry>
+	      <entry>r<subscript>5</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>2</entry>
+	      <entry></entry>
+	      <entry>b<subscript>6</subscript></entry>
+	      <entry>d</entry>
+	      <entry>g<subscript>5</subscript></entry>
+	      <entry>r<subscript>4</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>3</entry>
+	      <entry></entry>
+	      <entry>g<subscript>7</subscript></entry>
+	      <entry>b<subscript>5</subscript></entry>
+	      <entry>g<subscript>4</subscript></entry>
+	      <entry>r<subscript>3</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>4</entry>
+	      <entry></entry>
+	      <entry>g<subscript>6</subscript></entry>
+	      <entry>b<subscript>4</subscript></entry>
+	      <entry>g<subscript>3</subscript></entry>
+	      <entry>r<subscript>2</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>5</entry>
+	      <entry></entry>
+	      <entry>r<subscript>7</subscript></entry>
+	      <entry>b<subscript>3</subscript></entry>
+	      <entry>g<subscript>2</subscript></entry>
+	      <entry>r<subscript>1</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>6</entry>
+	      <entry></entry>
+	      <entry>r<subscript>6</subscript></entry>
+	      <entry>b<subscript>2</subscript></entry>
+	      <entry>g<subscript>1</subscript></entry>
+	      <entry>r<subscript>0</subscript></entry>
+	    </row>
+	    <row id="MEDIA-BUS-FMT-RGB888-1X7X4-JEIDA">
+	      <entry>MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA</entry>
+	      <entry>0x1012</entry>
+	      <entry>0</entry>
+	      <entry></entry>
+	      <entry>d</entry>
+	      <entry>d</entry>
+	      <entry>b<subscript>3</subscript></entry>
+	      <entry>g<subscript>2</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>1</entry>
+	      <entry></entry>
+	      <entry>b<subscript>1</subscript></entry>
+	      <entry>d</entry>
+	      <entry>b<subscript>2</subscript></entry>
+	      <entry>r<subscript>7</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>2</entry>
+	      <entry></entry>
+	      <entry>b<subscript>0</subscript></entry>
+	      <entry>d</entry>
+	      <entry>g<subscript>7</subscript></entry>
+	      <entry>r<subscript>6</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>3</entry>
+	      <entry></entry>
+	      <entry>g<subscript>1</subscript></entry>
+	      <entry>b<subscript>7</subscript></entry>
+	      <entry>g<subscript>6</subscript></entry>
+	      <entry>r<subscript>5</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>4</entry>
+	      <entry></entry>
+	      <entry>g<subscript>0</subscript></entry>
+	      <entry>b<subscript>6</subscript></entry>
+	      <entry>g<subscript>5</subscript></entry>
+	      <entry>r<subscript>4</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>5</entry>
+	      <entry></entry>
+	      <entry>r<subscript>1</subscript></entry>
+	      <entry>b<subscript>5</subscript></entry>
+	      <entry>g<subscript>4</subscript></entry>
+	      <entry>r<subscript>3</subscript></entry>
+	    </row>
+	    <row>
+	      <entry></entry>
+	      <entry></entry>
+	      <entry>6</entry>
+	      <entry></entry>
+	      <entry>r<subscript>0</subscript></entry>
+	      <entry>b<subscript>4</subscript></entry>
+	      <entry>g<subscript>3</subscript></entry>
+	      <entry>r<subscript>2</subscript></entry>
 	    </row>
 	  </tbody>
 	</tgroup>
@@ -2659,6 +3046,43 @@ see <xref linkend="colorspaces" />.</entry>
 	      <entry>u<subscript>2</subscript></entry>
 	      <entry>u<subscript>1</subscript></entry>
 	      <entry>u<subscript>0</subscript></entry>
+	    </row>
+	    <row id="MEDIA-BUS-FMT-YUV8-1X24">
+	      <entry>MEDIA_BUS_FMT_YUV8_1X24</entry>
+	      <entry>0x2024</entry>
+	      <entry></entry>
+	      <entry>-</entry>
+	      <entry>-</entry>
+	      <entry>-</entry>
+	      <entry>-</entry>
+	      <entry>-</entry>
+	      <entry>-</entry>
+	      <entry>-</entry>
+	      <entry>-</entry>
+	      <entry>y<subscript>7</subscript></entry>
+	      <entry>y<subscript>6</subscript></entry>
+	      <entry>y<subscript>5</subscript></entry>
+	      <entry>y<subscript>4</subscript></entry>
+	      <entry>y<subscript>3</subscript></entry>
+	      <entry>y<subscript>2</subscript></entry>
+	      <entry>y<subscript>1</subscript></entry>
+	      <entry>y<subscript>0</subscript></entry>
+	      <entry>u<subscript>7</subscript></entry>
+	      <entry>u<subscript>6</subscript></entry>
+	      <entry>u<subscript>5</subscript></entry>
+	      <entry>u<subscript>4</subscript></entry>
+	      <entry>u<subscript>3</subscript></entry>
+	      <entry>u<subscript>2</subscript></entry>
+	      <entry>u<subscript>1</subscript></entry>
+	      <entry>u<subscript>0</subscript></entry>
+	      <entry>v<subscript>7</subscript></entry>
+	      <entry>v<subscript>6</subscript></entry>
+	      <entry>v<subscript>5</subscript></entry>
+	      <entry>v<subscript>4</subscript></entry>
+	      <entry>v<subscript>3</subscript></entry>
+	      <entry>v<subscript>2</subscript></entry>
+	      <entry>v<subscript>1</subscript></entry>
+	      <entry>v<subscript>0</subscript></entry>
 	    </row>
 	    <row id="MEDIA-BUS-FMT-YUV10-1X30">
 	      <entry>MEDIA_BUS_FMT_YUV10_1X30</entry>
