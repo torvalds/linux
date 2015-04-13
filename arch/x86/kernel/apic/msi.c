@@ -51,6 +51,44 @@ void native_compose_msi_msg(struct pci_dev *pdev,
 		MSI_DATA_VECTOR(cfg->vector);
 }
 
+static void irq_msi_compose_msg(struct irq_data *data, struct msi_msg *msg)
+{
+	struct irq_cfg *cfg = irqd_cfg(data);
+
+	msg->address_hi = MSI_ADDR_BASE_HI;
+
+	if (x2apic_enabled())
+		msg->address_hi |= MSI_ADDR_EXT_DEST_ID(cfg->dest_apicid);
+
+	msg->address_lo =
+		MSI_ADDR_BASE_LO |
+		((apic->irq_dest_mode == 0) ?
+			MSI_ADDR_DEST_MODE_PHYSICAL :
+			MSI_ADDR_DEST_MODE_LOGICAL) |
+		((apic->irq_delivery_mode != dest_LowestPrio) ?
+			MSI_ADDR_REDIRECTION_CPU :
+			MSI_ADDR_REDIRECTION_LOWPRI) |
+		MSI_ADDR_DEST_ID(cfg->dest_apicid);
+
+	msg->data =
+		MSI_DATA_TRIGGER_EDGE |
+		MSI_DATA_LEVEL_ASSERT |
+		((apic->irq_delivery_mode != dest_LowestPrio) ?
+			MSI_DATA_DELIVERY_FIXED :
+			MSI_DATA_DELIVERY_LOWPRI) |
+		MSI_DATA_VECTOR(cfg->vector);
+}
+
+static void msi_update_msg(struct msi_msg *msg, struct irq_data *irq_data)
+{
+	struct irq_cfg *cfg = irqd_cfg(irq_data);
+
+	msg->data &= ~MSI_DATA_VECTOR_MASK;
+	msg->data |= MSI_DATA_VECTOR(cfg->vector);
+	msg->address_lo &= ~MSI_ADDR_DEST_ID_MASK;
+	msg->address_lo |= MSI_ADDR_DEST_ID(cfg->dest_apicid);
+}
+
 static int msi_compose_msg(struct pci_dev *pdev, unsigned int irq,
 			   struct msi_msg *msg, u8 hpet_id)
 {
@@ -239,44 +277,43 @@ void dmar_free_hwirq(int irq)
  * MSI message composition
  */
 #ifdef CONFIG_HPET_TIMER
+static inline int hpet_dev_id(struct irq_domain *domain)
+{
+	return (int)(long)domain->host_data;
+}
 
 static int hpet_msi_set_affinity(struct irq_data *data,
 				 const struct cpumask *mask, bool force)
 {
-	struct irq_cfg *cfg = irqd_cfg(data);
+	struct irq_data *parent = data->parent_data;
 	struct msi_msg msg;
-	unsigned int dest;
 	int ret;
 
-	ret = apic_set_affinity(data, mask, &dest);
-	if (ret)
-		return ret;
+	ret = parent->chip->irq_set_affinity(parent, mask, force);
+	if (ret >= 0 && ret != IRQ_SET_MASK_OK_DONE) {
+		hpet_msi_read(data->handler_data, &msg);
+		msi_update_msg(&msg, data);
+		hpet_msi_write(data->handler_data, &msg);
+	}
 
-	hpet_msi_read(data->handler_data, &msg);
-
-	msg.data &= ~MSI_DATA_VECTOR_MASK;
-	msg.data |= MSI_DATA_VECTOR(cfg->vector);
-	msg.address_lo &= ~MSI_ADDR_DEST_ID_MASK;
-	msg.address_lo |= MSI_ADDR_DEST_ID(dest);
-
-	hpet_msi_write(data->handler_data, &msg);
-
-	return IRQ_SET_MASK_OK_NOCOPY;
+	return ret;
 }
 
-static struct irq_chip hpet_msi_type = {
+static struct irq_chip hpet_msi_controller = {
 	.name = "HPET_MSI",
 	.irq_unmask = hpet_msi_unmask,
 	.irq_mask = hpet_msi_mask,
-	.irq_ack = apic_ack_edge,
+	.irq_ack = irq_chip_ack_parent,
 	.irq_set_affinity = hpet_msi_set_affinity,
-	.irq_retrigger = apic_retrigger_irq,
+	.irq_retrigger = irq_chip_retrigger_hierarchy,
+	.irq_print_chip = irq_remapping_print_chip,
+	.irq_compose_msi_msg = irq_msi_compose_msg,
 	.flags = IRQCHIP_SKIP_SET_WAKE,
 };
 
 int default_setup_hpet_msi(unsigned int irq, unsigned int id)
 {
-	struct irq_chip *chip = &hpet_msi_type;
+	struct irq_chip *chip = &hpet_msi_controller;
 	struct msi_msg msg;
 	int ret;
 
@@ -290,5 +327,96 @@ int default_setup_hpet_msi(unsigned int irq, unsigned int id)
 
 	irq_set_chip_and_handler_name(irq, chip, handle_edge_irq, "edge");
 	return 0;
+}
+
+static int hpet_domain_alloc(struct irq_domain *domain, unsigned int virq,
+			     unsigned int nr_irqs, void *arg)
+{
+	struct irq_alloc_info *info = arg;
+	int ret;
+
+	if (nr_irqs > 1 || !info || info->type != X86_IRQ_ALLOC_TYPE_HPET)
+		return -EINVAL;
+	if (irq_find_mapping(domain, info->hpet_index)) {
+		pr_warn("IRQ for HPET%d already exists.\n", info->hpet_index);
+		return -EEXIST;
+	}
+
+	ret = irq_domain_alloc_irqs_parent(domain, virq, nr_irqs, arg);
+	if (ret >= 0) {
+		irq_set_status_flags(virq, IRQ_MOVE_PCNTXT);
+		irq_domain_set_hwirq_and_chip(domain, virq, info->hpet_index,
+					      &hpet_msi_controller, NULL);
+		irq_set_handler_data(virq, info->hpet_data);
+		__irq_set_handler(virq, handle_edge_irq, 0, "edge");
+	}
+
+	return ret;
+}
+
+static void hpet_domain_free(struct irq_domain *domain, unsigned int virq,
+			     unsigned int nr_irqs)
+{
+	BUG_ON(nr_irqs > 1);
+	irq_clear_status_flags(virq, IRQ_MOVE_PCNTXT);
+	irq_domain_free_irqs_top(domain, virq, nr_irqs);
+}
+
+static void hpet_domain_activate(struct irq_domain *domain,
+				struct irq_data *irq_data)
+{
+	struct msi_msg msg;
+
+	BUG_ON(irq_chip_compose_msi_msg(irq_data, &msg));
+	hpet_msi_write(irq_get_handler_data(irq_data->irq), &msg);
+}
+
+static void hpet_domain_deactivate(struct irq_domain *domain,
+				  struct irq_data *irq_data)
+{
+	struct msi_msg msg;
+
+	memset(&msg, 0, sizeof(msg));
+	hpet_msi_write(irq_get_handler_data(irq_data->irq), &msg);
+}
+
+static struct irq_domain_ops hpet_domain_ops = {
+	.alloc = hpet_domain_alloc,
+	.free = hpet_domain_free,
+	.activate = hpet_domain_activate,
+	.deactivate = hpet_domain_deactivate,
+};
+
+struct irq_domain *hpet_create_irq_domain(int hpet_id)
+{
+	struct irq_domain *parent;
+	struct irq_alloc_info info;
+
+	if (x86_vector_domain == NULL)
+		return NULL;
+
+	init_irq_alloc_info(&info, NULL);
+	info.type = X86_IRQ_ALLOC_TYPE_HPET;
+	info.hpet_id = hpet_id;
+	parent = irq_remapping_get_ir_irq_domain(&info);
+	if (parent == NULL)
+		parent = x86_vector_domain;
+
+	return irq_domain_add_hierarchy(parent, 0, 0, NULL, &hpet_domain_ops,
+					(void *)(long)hpet_id);
+}
+
+int hpet_assign_irq(struct irq_domain *domain, struct hpet_dev *dev,
+		    int dev_num)
+{
+	struct irq_alloc_info info;
+
+	init_irq_alloc_info(&info, NULL);
+	info.type = X86_IRQ_ALLOC_TYPE_HPET;
+	info.hpet_data = dev;
+	info.hpet_id = hpet_dev_id(domain);
+	info.hpet_index = dev_num;
+
+	return irq_domain_alloc_irqs(domain, 1, NUMA_NO_NODE, NULL);
 }
 #endif
