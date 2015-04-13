@@ -127,14 +127,11 @@ static int __init ls_pcie_probe(struct platform_device *pdev)
 	pcie->dev = &pdev->dev;
 
 	dbi_base = platform_get_resource_byname(pdev, IORESOURCE_MEM, "regs");
-	if (!dbi_base) {
-		dev_err(&pdev->dev, "missing *regs* space\n");
-		return -ENODEV;
-	}
-
 	pcie->dbi = devm_ioremap_resource(&pdev->dev, dbi_base);
-	if (IS_ERR(pcie->dbi))
+	if (IS_ERR(pcie->dbi)) {
+		dev_err(&pdev->dev, "missing *regs* space\n");
 		return PTR_ERR(pcie->dbi);
+	}
 
 	pcie->scfg = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
 						     "fsl,pcie-scfg");
