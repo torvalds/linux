@@ -7050,6 +7050,14 @@ extern int get_wifi_chip_type(void);
 extern char WIFI_MODULE_NAME[];
 extern char RKWIFI_DRV_VERSION[];
 
+#ifdef CONFIG_WIFI_LOAD_DRIVER_WHEN_KERNEL_BOOTUP
+static int wifi_init_thread(void *data)
+{
+    dhd_module_init();
+    return 0;
+}
+#endif
+
 int rockchip_wifi_init_module_rkwifi(void)
 {
 #ifdef CONFIG_WIFI_LOAD_DRIVER_WHEN_KERNEL_BOOTUP
@@ -7061,7 +7069,16 @@ int rockchip_wifi_init_module_rkwifi(void)
     printk("=======================================================\n");
     printk("%s WiFi driver (Powered by Rockchip,Ver %s) init.\n", WIFI_MODULE_NAME, RKWIFI_DRV_VERSION);
 
+#ifdef CONFIG_WIFI_LOAD_DRIVER_WHEN_KERNEL_BOOTUP
+{
+    struct task_struct *kthread = kthread_run(wifi_init_thread, NULL, "wifi_init_thread");
+    if (kthread->pid < 0)
+        printk("create wifi_init_thread failed.\n");
+    return 0; 
+}
+#else
     return dhd_module_init();
+#endif
 }
 
 void rockchip_wifi_exit_module_rkwifi(void)
