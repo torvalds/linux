@@ -16,6 +16,12 @@ Optional property:
   in big endian mode, otherwise in native mode(same with CPU), for more
   detail please see: Documentation/devicetree/bindings/regmap/regmap.txt.
 
+Optional SPI slave node properties:
+- fsl,spi-cs-sck-delay: a delay in nanoseconds between activating chip
+  select and the start of clock signal, at the start of a transfer.
+- fsl,spi-sck-cs-delay: a delay in nanoseconds between stopping the clock
+  signal and deactivating chip select, at the end of a transfer.
+
 Example:
 
 dspi0@4002c000 {
@@ -43,6 +49,8 @@ dspi0@4002c000 {
 		reg = <0>;
 		linux,modalias = "m25p80";
 		modal = "at26df081a";
+		fsl,spi-cs-sck-delay = <100>;
+		fsl,spi-sck-cs-delay = <50>;
 	};
 };
 
