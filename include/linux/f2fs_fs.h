@@ -90,7 +90,8 @@ struct f2fs_super_block {
 	__le32 cp_payload;
 	__u8 version[VERSION_LEN];	/* the kernel version */
 	__u8 init_version[VERSION_LEN];	/* the initial kernel version */
-	__u8 reserved[892];		/* valid reserved region */
+	__le32 feature;			/* defined features */
+	__u8 reserved[888];		/* valid reserved region */
 } __packed;
 
 /*

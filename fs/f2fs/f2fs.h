@@ -70,6 +70,13 @@ struct f2fs_mount_info {
 	unsigned int	opt;
 };
 
+#define F2FS_HAS_FEATURE(sb, mask)					\
+	((F2FS_SB(sb)->raw_super->feature & cpu_to_le32(mask)) != 0)
+#define F2FS_SET_FEATURE(sb, mask)					\
+	F2FS_SB(sb)->raw_super->feature |= cpu_to_le32(mask)
+#define F2FS_CLEAR_FEATURE(sb, mask)					\
+	F2FS_SB(sb)->raw_super->feature &= ~cpu_to_le32(mask)
+
 #define CRCPOLY_LE 0xedb88320
 
 static inline __u32 f2fs_crc32(void *buf, size_t len)
