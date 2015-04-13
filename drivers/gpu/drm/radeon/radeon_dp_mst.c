@@ -604,7 +604,7 @@ radeon_dp_create_fake_mst_encoder(struct radeon_connector *connector)
 	struct radeon_encoder *radeon_encoder;
 	struct radeon_encoder_mst *mst_enc;
 	struct drm_encoder *encoder;
-	struct drm_connector_helper_funcs *connector_funcs = connector->base.helper_private;
+	const struct drm_connector_helper_funcs *connector_funcs = connector->base.helper_private;
 	struct drm_encoder *enc_master = connector_funcs->best_encoder(&connector->base);
 
 	DRM_DEBUG_KMS("enc master is %p\n", enc_master);

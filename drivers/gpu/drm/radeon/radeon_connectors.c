@@ -751,7 +751,7 @@ static int radeon_connector_set_property(struct drm_connector *connector, struct
 		if (connector->encoder)
 			radeon_encoder = to_radeon_encoder(connector->encoder);
 		else {
-			struct drm_connector_helper_funcs *connector_funcs = connector->helper_private;
+			const struct drm_connector_helper_funcs *connector_funcs = connector->helper_private;
 			radeon_encoder = to_radeon_encoder(connector_funcs->best_encoder(connector));
 		}
 
@@ -762,7 +762,7 @@ static int radeon_connector_set_property(struct drm_connector *connector, struct
 
 		if (connector->encoder->crtc) {
 			struct drm_crtc *crtc  = connector->encoder->crtc;
-			struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+			const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 			struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 
 			radeon_crtc->output_csc = radeon_encoder->output_csc;
