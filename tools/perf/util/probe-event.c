@@ -332,6 +332,7 @@ static int find_alternative_probe_point(struct debuginfo *dinfo,
 	else {
 		result->offset += pp->offset;
 		result->line += pp->line;
+		result->retprobe = pp->retprobe;
 		ret = 0;
 	}
 
