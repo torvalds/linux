@@ -25,15 +25,6 @@ enum {
 #define USB_G_ALT_INT_BBB       0
 #define USB_G_ALT_INT_UAS       1
 
-struct usbg_nacl {
-	/* Binary World Wide unique Port Name for SAS Initiator port */
-	u64 iport_wwpn;
-	/* ASCII formatted WWPN for Sas Initiator port */
-	char iport_name[USBG_NAMELEN];
-	/* Returned by usbg_make_nodeacl() */
-	struct se_node_acl se_node_acl;
-};
-
 struct tcm_usbg_nexus {
 	struct se_session *tvn_se_sess;
 };

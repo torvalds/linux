@@ -1380,22 +1380,14 @@ static char *usbg_parse_pr_out_transport_id(
 
 static struct se_node_acl *usbg_alloc_fabric_acl(struct se_portal_group *se_tpg)
 {
-	struct usbg_nacl *nacl;
-
-	nacl = kzalloc(sizeof(struct usbg_nacl), GFP_KERNEL);
-	if (!nacl)
-		return NULL;
-
-	return &nacl->se_node_acl;
+	return kzalloc(sizeof(struct se_node_acl), GFP_KERNEL);
 }
 
 static void usbg_release_fabric_acl(
 	struct se_portal_group *se_tpg,
 	struct se_node_acl *se_nacl)
 {
-	struct usbg_nacl *nacl = container_of(se_nacl,
-			struct usbg_nacl, se_node_acl);
-	kfree(nacl);
+	kfree(se_nacl);
 }
 
 static u32 usbg_tpg_get_inst_index(struct se_portal_group *se_tpg)
@@ -1495,8 +1487,6 @@ static struct se_node_acl *usbg_make_nodeacl(
 	const char *name)
 {
 	struct se_node_acl *se_nacl, *se_nacl_new;
-	struct usbg_nacl *nacl;
-	u64 wwpn = 0;
 	u32 nexus_depth;
 	const char *wnn_name;
 
@@ -1518,21 +1508,13 @@ static struct se_node_acl *usbg_make_nodeacl(
 		usbg_release_fabric_acl(se_tpg, se_nacl_new);
 		return se_nacl;
 	}
-	/*
-	 * Locate our struct usbg_nacl and set the FC Nport WWPN
-	 */
-	nacl = container_of(se_nacl, struct usbg_nacl, se_node_acl);
-	nacl->iport_wwpn = wwpn;
-	snprintf(nacl->iport_name, sizeof(nacl->iport_name), "%s", name);
 	return se_nacl;
 }
 
 static void usbg_drop_nodeacl(struct se_node_acl *se_acl)
 {
-	struct usbg_nacl *nacl = container_of(se_acl,
-				struct usbg_nacl, se_node_acl);
 	core_tpg_del_initiator_node_acl(se_acl->se_tpg, se_acl, 1);
-	kfree(nacl);
+	kfree(se_acl);
 }
 
 struct usbg_tpg *the_only_tpg_I_currently_have;
