@@ -73,7 +73,7 @@ int mmc_pwrseq_alloc(struct mmc_host *host)
 
 	pwrseq = match->alloc(host, &pdev->dev);
 	if (IS_ERR(pwrseq)) {
-		ret = PTR_ERR(host->pwrseq);
+		ret = PTR_ERR(pwrseq);
 		goto err;
 	}
 
