@@ -1996,8 +1996,7 @@ xfs_attr3_leaf_remove(
 				tmp = be16_to_cpu(entry->nameidx);
 		}
 		ichdr.firstused = tmp;
-		if (!ichdr.firstused)
-			ichdr.firstused = tmp - XFS_ATTR_LEAF_NAME_ALIGN;
+		ASSERT(ichdr.firstused != 0);
 	} else {
 		ichdr.holes = 1;	/* mark as needing compaction */
 	}
