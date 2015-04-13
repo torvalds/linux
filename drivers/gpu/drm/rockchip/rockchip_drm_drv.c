@@ -385,7 +385,7 @@ static const struct dev_pm_ops rockchip_drm_pm_ops = {
 int rockchip_drm_encoder_get_mux_id(struct device_node *node,
 				    struct drm_encoder *encoder)
 {
-	struct device_node *ep = NULL;
+	struct device_node *ep;
 	struct drm_crtc *crtc = encoder->crtc;
 	struct of_endpoint endpoint;
 	struct device_node *port;
@@ -394,18 +394,15 @@ int rockchip_drm_encoder_get_mux_id(struct device_node *node,
 	if (!node || !crtc)
 		return -EINVAL;
 
-	do {
-		ep = of_graph_get_next_endpoint(node, ep);
-		if (!ep)
-			break;
-
+	for_each_endpoint_of_node(node, ep) {
 		port = of_graph_get_remote_port(ep);
 		of_node_put(port);
 		if (port == crtc->port) {
 			ret = of_graph_parse_endpoint(ep, &endpoint);
+			of_node_put(ep);
 			return ret ?: endpoint.id;
 		}
-	} while (ep);
+	}
 
 	return -EINVAL;
 }
