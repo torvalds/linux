@@ -101,8 +101,8 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 	 * If the combination of the addr and size requested for this memory
 	 * region causes an integer overflow, return error.
 	 */
-	if ((PAGE_ALIGN(addr + size) <= size) ||
-	    (PAGE_ALIGN(addr + size) <= addr))
+	if (((addr + size) < addr) ||
+	    PAGE_ALIGN(addr + size) < (addr + size))
 		return ERR_PTR(-EINVAL);
 
 	if (!can_do_mlock())
