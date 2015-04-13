@@ -96,6 +96,7 @@ struct IR_IO_APIC_route_entry {
 } __attribute__ ((packed));
 
 struct irq_alloc_info;
+struct irq_data;
 
 #define IOAPIC_AUTO     -1
 #define IOAPIC_EDGE     0
@@ -206,6 +207,15 @@ extern int mp_ioapic_registered(u32 gsi_base);
 extern int mp_irqdomain_map(struct irq_domain *domain, unsigned int virq,
 			    irq_hw_number_t hwirq);
 extern void mp_irqdomain_unmap(struct irq_domain *domain, unsigned int virq);
+extern int mp_irqdomain_alloc(struct irq_domain *domain, unsigned int virq,
+			      unsigned int nr_irqs, void *arg);
+extern void mp_irqdomain_free(struct irq_domain *domain, unsigned int virq,
+			      unsigned int nr_irqs);
+extern void mp_irqdomain_activate(struct irq_domain *domain,
+				  struct irq_data *irq_data);
+extern void mp_irqdomain_deactivate(struct irq_domain *domain,
+				    struct irq_data *irq_data);
+extern int mp_irqdomain_ioapic_idx(struct irq_domain *domain);
 extern void ioapic_set_alloc_attr(struct irq_alloc_info *info,
 				  int node, int trigger, int polarity);
 extern int mp_set_gsi_attr(u32 gsi, int trigger, int polarity, int node);
