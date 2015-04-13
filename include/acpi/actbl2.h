@@ -846,7 +846,8 @@ struct acpi_lpit_header {
 
 enum acpi_lpit_type {
 	ACPI_LPIT_TYPE_NATIVE_CSTATE = 0x00,
-	ACPI_LPIT_TYPE_SIMPLE_IO = 0x01
+	ACPI_LPIT_TYPE_SIMPLE_IO = 0x01,
+	ACPI_LPIT_TYPE_RESERVED = 0x02	/* 2 and above are reserved */
 };
 
 /* Masks for Flags field above  */
