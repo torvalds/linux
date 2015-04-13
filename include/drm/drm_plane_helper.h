@@ -76,7 +76,7 @@ struct drm_plane_helper_funcs {
 static inline void drm_plane_helper_add(struct drm_plane *plane,
 					const struct drm_plane_helper_funcs *funcs)
 {
-	plane->helper_private = (void *)funcs;
+	plane->helper_private = funcs;
 }
 
 extern int drm_plane_helper_check_update(struct drm_plane *plane,

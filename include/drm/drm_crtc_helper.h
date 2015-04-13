@@ -197,19 +197,19 @@ extern void drm_helper_mode_fill_fb_struct(struct drm_framebuffer *fb,
 static inline void drm_crtc_helper_add(struct drm_crtc *crtc,
 				       const struct drm_crtc_helper_funcs *funcs)
 {
-	crtc->helper_private = (void *)funcs;
+	crtc->helper_private = funcs;
 }
 
 static inline void drm_encoder_helper_add(struct drm_encoder *encoder,
 					  const struct drm_encoder_helper_funcs *funcs)
 {
-	encoder->helper_private = (void *)funcs;
+	encoder->helper_private = funcs;
 }
 
 static inline void drm_connector_helper_add(struct drm_connector *connector,
 					    const struct drm_connector_helper_funcs *funcs)
 {
-	connector->helper_private = (void *)funcs;
+	connector->helper_private = funcs;
 }
 
 extern void drm_helper_resume_force_mode(struct drm_device *dev);
