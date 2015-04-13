@@ -518,6 +518,146 @@ err_kcontrol:
 	return ret;
 }
 
+static int wm_coeff_init_control_caches(struct wm_adsp *dsp)
+{
+	struct wm_coeff_ctl *ctl;
+	int ret;
+
+	list_for_each_entry(ctl, &dsp->ctl_list, list) {
+		if (!ctl->enabled || ctl->set)
+			continue;
+		ret = wm_coeff_read_control(ctl,
+					    ctl->cache,
+					    ctl->len);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int wm_coeff_sync_controls(struct wm_adsp *dsp)
+{
+	struct wm_coeff_ctl *ctl;
+	int ret;
+
+	list_for_each_entry(ctl, &dsp->ctl_list, list) {
+		if (!ctl->enabled)
+			continue;
+		if (ctl->set) {
+			ret = wm_coeff_write_control(ctl,
+						     ctl->cache,
+						     ctl->len);
+			if (ret < 0)
+				return ret;
+		}
+	}
+
+	return 0;
+}
+
+static void wm_adsp_ctl_work(struct work_struct *work)
+{
+	struct wmfw_ctl_work *ctl_work = container_of(work,
+						      struct wmfw_ctl_work,
+						      work);
+
+	wmfw_add_ctl(ctl_work->dsp, ctl_work->ctl);
+	kfree(ctl_work);
+}
+
+static int wm_adsp_create_control(struct wm_adsp *dsp,
+				  const struct wm_adsp_alg_region *alg_region,
+				  unsigned int len)
+{
+	struct wm_coeff_ctl *ctl;
+	struct wmfw_ctl_work *ctl_work;
+	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
+	char *region_name;
+	int ret;
+
+	switch (alg_region->type) {
+	case WMFW_ADSP1_PM:
+		region_name = "PM";
+		break;
+	case WMFW_ADSP1_DM:
+		region_name = "DM";
+		break;
+	case WMFW_ADSP2_XM:
+		region_name = "XM";
+		break;
+	case WMFW_ADSP2_YM:
+		region_name = "YM";
+		break;
+	case WMFW_ADSP1_ZM:
+		region_name = "ZM";
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	snprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN, "DSP%d %s %x",
+		 dsp->num, region_name, alg_region->alg);
+
+	list_for_each_entry(ctl, &dsp->ctl_list,
+			    list) {
+		if (!strcmp(ctl->name, name)) {
+			if (!ctl->enabled)
+				ctl->enabled = 1;
+			return 0;
+		}
+	}
+
+	ctl = kzalloc(sizeof(*ctl), GFP_KERNEL);
+	if (!ctl)
+		return -ENOMEM;
+	ctl->alg_region = *alg_region;
+	ctl->name = kmemdup(name, strlen(name) + 1, GFP_KERNEL);
+	if (!ctl->name) {
+		ret = -ENOMEM;
+		goto err_ctl;
+	}
+	ctl->enabled = 1;
+	ctl->set = 0;
+	ctl->ops.xget = wm_coeff_get;
+	ctl->ops.xput = wm_coeff_put;
+	ctl->dsp = dsp;
+
+	if (len > 512) {
+		adsp_warn(dsp, "Truncating control %s from %d\n",
+			  ctl->name, len);
+		len = 512;
+	}
+	ctl->len = len;
+	ctl->cache = kzalloc(ctl->len, GFP_KERNEL);
+	if (!ctl->cache) {
+		ret = -ENOMEM;
+		goto err_ctl_name;
+	}
+
+	ctl_work = kzalloc(sizeof(*ctl_work), GFP_KERNEL);
+	if (!ctl_work) {
+		ret = -ENOMEM;
+		goto err_ctl_cache;
+	}
+
+	ctl_work->dsp = dsp;
+	ctl_work->ctl = ctl;
+	INIT_WORK(&ctl_work->work, wm_adsp_ctl_work);
+	schedule_work(&ctl_work->work);
+
+	return 0;
+
+err_ctl_cache:
+	kfree(ctl->cache);
+err_ctl_name:
+	kfree(ctl->name);
+err_ctl:
+	kfree(ctl);
+
+	return ret;
+}
+
 static int wm_adsp_load(struct wm_adsp *dsp)
 {
 	LIST_HEAD(buf_list);
@@ -724,146 +864,6 @@ out_fw:
 	release_firmware(firmware);
 out:
 	kfree(file);
-
-	return ret;
-}
-
-static int wm_coeff_init_control_caches(struct wm_adsp *dsp)
-{
-	struct wm_coeff_ctl *ctl;
-	int ret;
-
-	list_for_each_entry(ctl, &dsp->ctl_list, list) {
-		if (!ctl->enabled || ctl->set)
-			continue;
-		ret = wm_coeff_read_control(ctl,
-					    ctl->cache,
-					    ctl->len);
-		if (ret < 0)
-			return ret;
-	}
-
-	return 0;
-}
-
-static int wm_coeff_sync_controls(struct wm_adsp *dsp)
-{
-	struct wm_coeff_ctl *ctl;
-	int ret;
-
-	list_for_each_entry(ctl, &dsp->ctl_list, list) {
-		if (!ctl->enabled)
-			continue;
-		if (ctl->set) {
-			ret = wm_coeff_write_control(ctl,
-						     ctl->cache,
-						     ctl->len);
-			if (ret < 0)
-				return ret;
-		}
-	}
-
-	return 0;
-}
-
-static void wm_adsp_ctl_work(struct work_struct *work)
-{
-	struct wmfw_ctl_work *ctl_work = container_of(work,
-						      struct wmfw_ctl_work,
-						      work);
-
-	wmfw_add_ctl(ctl_work->dsp, ctl_work->ctl);
-	kfree(ctl_work);
-}
-
-static int wm_adsp_create_control(struct wm_adsp *dsp,
-				  const struct wm_adsp_alg_region *alg_region,
-				  unsigned int len)
-{
-	struct wm_coeff_ctl *ctl;
-	struct wmfw_ctl_work *ctl_work;
-	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
-	char *region_name;
-	int ret;
-
-	switch (alg_region->type) {
-	case WMFW_ADSP1_PM:
-		region_name = "PM";
-		break;
-	case WMFW_ADSP1_DM:
-		region_name = "DM";
-		break;
-	case WMFW_ADSP2_XM:
-		region_name = "XM";
-		break;
-	case WMFW_ADSP2_YM:
-		region_name = "YM";
-		break;
-	case WMFW_ADSP1_ZM:
-		region_name = "ZM";
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	snprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN, "DSP%d %s %x",
-		 dsp->num, region_name, alg_region->alg);
-
-	list_for_each_entry(ctl, &dsp->ctl_list,
-			    list) {
-		if (!strcmp(ctl->name, name)) {
-			if (!ctl->enabled)
-				ctl->enabled = 1;
-			return 0;
-		}
-	}
-
-	ctl = kzalloc(sizeof(*ctl), GFP_KERNEL);
-	if (!ctl)
-		return -ENOMEM;
-	ctl->alg_region = *alg_region;
-	ctl->name = kmemdup(name, strlen(name) + 1, GFP_KERNEL);
-	if (!ctl->name) {
-		ret = -ENOMEM;
-		goto err_ctl;
-	}
-	ctl->enabled = 1;
-	ctl->set = 0;
-	ctl->ops.xget = wm_coeff_get;
-	ctl->ops.xput = wm_coeff_put;
-	ctl->dsp = dsp;
-
-	if (len > 512) {
-		adsp_warn(dsp, "Truncating control %s from %d\n",
-			  ctl->name, len);
-		len = 512;
-	}
-	ctl->len = len;
-	ctl->cache = kzalloc(ctl->len, GFP_KERNEL);
-	if (!ctl->cache) {
-		ret = -ENOMEM;
-		goto err_ctl_name;
-	}
-
-	ctl_work = kzalloc(sizeof(*ctl_work), GFP_KERNEL);
-	if (!ctl_work) {
-		ret = -ENOMEM;
-		goto err_ctl_cache;
-	}
-
-	ctl_work->dsp = dsp;
-	ctl_work->ctl = ctl;
-	INIT_WORK(&ctl_work->work, wm_adsp_ctl_work);
-	schedule_work(&ctl_work->work);
-
-	return 0;
-
-err_ctl_cache:
-	kfree(ctl->cache);
-err_ctl_name:
-	kfree(ctl->name);
-err_ctl:
-	kfree(ctl);
 
 	return ret;
 }
