@@ -860,20 +860,6 @@ static struct configfs_attribute *lio_target_initiator_attrs[] = {
 	NULL,
 };
 
-static struct se_node_acl *lio_tpg_alloc_fabric_acl(
-	struct se_portal_group *se_tpg)
-{
-	struct iscsi_node_acl *acl;
-
-	acl = kzalloc(sizeof(struct iscsi_node_acl), GFP_KERNEL);
-	if (!acl) {
-		pr_err("Unable to allocate memory for struct iscsi_node_acl\n");
-		return NULL;
-	}
-
-	return &acl->se_node_acl;
-}
-
 static int lio_target_init_nodeacl(struct se_node_acl *se_nacl,
 		const char *name)
 {
@@ -1868,15 +1854,6 @@ static int lio_tpg_check_prot_fabric_only(
 	return tpg->tpg_attrib.fabric_prot_type;
 }
 
-static void lio_tpg_release_fabric_acl(
-	struct se_portal_group *se_tpg,
-	struct se_node_acl *se_acl)
-{
-	struct iscsi_node_acl *acl = container_of(se_acl,
-				struct iscsi_node_acl, se_node_acl);
-	kfree(acl);
-}
-
 /*
  * Called with spin_lock_bh(struct se_portal_group->session_lock) held..
  *
@@ -1952,6 +1929,7 @@ static void lio_release_cmd(struct se_cmd *se_cmd)
 const struct target_core_fabric_ops iscsi_ops = {
 	.module				= THIS_MODULE,
 	.name				= "iscsi",
+	.node_acl_size			= sizeof(struct iscsi_node_acl),
 	.get_fabric_name		= iscsi_get_fabric_name,
 	.get_fabric_proto_ident		= iscsi_get_fabric_proto_ident,
 	.tpg_get_wwn			= lio_tpg_get_endpoint_wwn,
@@ -1967,8 +1945,6 @@ const struct target_core_fabric_ops iscsi_ops = {
 	.tpg_check_prod_mode_write_protect =
 			lio_tpg_check_prod_mode_write_protect,
 	.tpg_check_prot_fabric_only	= &lio_tpg_check_prot_fabric_only,
-	.tpg_alloc_fabric_acl		= lio_tpg_alloc_fabric_acl,
-	.tpg_release_fabric_acl		= lio_tpg_release_fabric_acl,
 	.tpg_get_inst_index		= lio_tpg_get_inst_index,
 	.check_stop_free		= lio_check_stop_free,
 	.release_cmd			= lio_release_cmd,

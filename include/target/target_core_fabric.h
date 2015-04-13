@@ -4,6 +4,7 @@
 struct target_core_fabric_ops {
 	struct module *module;
 	const char *name;
+	size_t node_acl_size;
 	char *(*get_fabric_name)(void);
 	u8 (*get_fabric_proto_ident)(struct se_portal_group *);
 	char *(*tpg_get_wwn)(struct se_portal_group *);
@@ -36,10 +37,6 @@ struct target_core_fabric_ops {
 	 * WRITE_STRIP and READ_INSERT operations.
 	 */
 	int (*tpg_check_prot_fabric_only)(struct se_portal_group *);
-	struct se_node_acl *(*tpg_alloc_fabric_acl)(
-					struct se_portal_group *);
-	void (*tpg_release_fabric_acl)(struct se_portal_group *,
-					struct se_node_acl *);
 	u32 (*tpg_get_inst_index)(struct se_portal_group *);
 	/*
 	 * Optional to release struct se_cmd and fabric dependent allocated

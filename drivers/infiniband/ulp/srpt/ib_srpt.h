@@ -410,15 +410,15 @@ struct srpt_device {
 
 /**
  * struct srpt_node_acl - Per-initiator ACL data (managed via configfs).
+ * @nacl:      Target core node ACL information.
  * @i_port_id: 128-bit SRP initiator port ID.
  * @sport:     port information.
- * @nacl:      Target core node ACL information.
  * @list:      Element of the per-HCA ACL list.
  */
 struct srpt_node_acl {
+	struct se_node_acl	nacl;
 	u8			i_port_id[16];
 	struct srpt_port	*sport;
-	struct se_node_acl	nacl;
 	struct list_head	list;
 };
 

@@ -313,8 +313,6 @@ def tcm_mod_build_configfs(proto_ident, fabric_mod_dir_var, fabric_mod_name):
 	buf += "	.tpg_check_demo_mode_cache	= " + fabric_mod_name + "_check_true,\n"
 	buf += "	.tpg_check_demo_mode_write_protect = " + fabric_mod_name + "_check_true,\n"
 	buf += "	.tpg_check_prod_mode_write_protect = " + fabric_mod_name + "_check_false,\n"
-	buf += "	.tpg_alloc_fabric_acl		= " + fabric_mod_name + "_alloc_fabric_acl,\n"
-	buf += "	.tpg_release_fabric_acl		= " + fabric_mod_name + "_release_fabric_acl,\n"
 	buf += "	.tpg_get_inst_index		= " + fabric_mod_name + "_tpg_get_inst_index,\n"
 	buf += "	.release_cmd			= " + fabric_mod_name + "_release_cmd,\n"
 	buf += "	.shutdown_session		= " + fabric_mod_name + "_shutdown_session,\n"
@@ -623,31 +621,6 @@ def tcm_mod_dump_fabric_ops(proto_ident, fabric_mod_dir_var, fabric_mod_name):
 			buf += "}\n\n"
 			bufi += "char *" + fabric_mod_name + "_parse_pr_out_transport_id(struct se_portal_group *,\n"
 			bufi +=	"			const char *, u32 *, char **);\n"
-
-		if re.search('alloc_fabric_acl\)\(', fo):
-			buf += "struct se_node_acl *" + fabric_mod_name + "_alloc_fabric_acl(struct se_portal_group *se_tpg)\n"
-			buf += "{\n"
-			buf += "	struct " + fabric_mod_name + "_nacl *nacl;\n\n"
-			buf += "	nacl = kzalloc(sizeof(struct " + fabric_mod_name + "_nacl), GFP_KERNEL);\n"
-			buf += "	if (!nacl) {\n"
-			buf += "		printk(KERN_ERR \"Unable to allocate struct " + fabric_mod_name + "_nacl\\n\");\n"
-			buf += "		return NULL;\n"
-			buf += "	}\n\n"
-			buf += "	return &nacl->se_node_acl;\n"
-			buf += "}\n\n"
-			bufi += "struct se_node_acl *" + fabric_mod_name + "_alloc_fabric_acl(struct se_portal_group *);\n"
-
-		if re.search('release_fabric_acl\)\(', fo):
-			buf += "void " + fabric_mod_name + "_release_fabric_acl(\n"
-			buf += "	struct se_portal_group *se_tpg,\n"
-			buf += "	struct se_node_acl *se_nacl)\n"
-			buf += "{\n"
-			buf += "	struct " + fabric_mod_name + "_nacl *nacl = container_of(se_nacl,\n"
-			buf += "			struct " + fabric_mod_name + "_nacl, se_node_acl);\n"
-			buf += "	kfree(nacl);\n"
-			buf += "}\n\n"
-			bufi += "void " + fabric_mod_name + "_release_fabric_acl(struct se_portal_group *,\n"
-			bufi +=	"			struct se_node_acl *);\n"
 
 		if re.search('tpg_get_inst_index\)\(', fo):
 			buf += "u32 " + fabric_mod_name + "_tpg_get_inst_index(struct se_portal_group *se_tpg)\n"

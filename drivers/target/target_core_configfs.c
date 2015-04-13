@@ -354,14 +354,6 @@ static int target_fabric_tf_ops_check(const struct target_core_fabric_ops *tfo)
 		pr_err("Missing tfo->tpg_check_prod_mode_write_protect()\n");
 		return -EINVAL;
 	}
-	if (!tfo->tpg_alloc_fabric_acl) {
-		pr_err("Missing tfo->tpg_alloc_fabric_acl()\n");
-		return -EINVAL;
-	}
-	if (!tfo->tpg_release_fabric_acl) {
-		pr_err("Missing tfo->tpg_release_fabric_acl()\n");
-		return -EINVAL;
-	}
 	if (!tfo->tpg_get_inst_index) {
 		pr_err("Missing tfo->tpg_get_inst_index()\n");
 		return -EINVAL;

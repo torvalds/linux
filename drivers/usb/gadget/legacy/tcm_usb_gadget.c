@@ -1373,18 +1373,6 @@ static char *usbg_parse_pr_out_transport_id(
 	return tid;
 }
 
-static struct se_node_acl *usbg_alloc_fabric_acl(struct se_portal_group *se_tpg)
-{
-	return kzalloc(sizeof(struct se_node_acl), GFP_KERNEL);
-}
-
-static void usbg_release_fabric_acl(
-	struct se_portal_group *se_tpg,
-	struct se_node_acl *se_nacl)
-{
-	kfree(se_nacl);
-}
-
 static u32 usbg_tpg_get_inst_index(struct se_portal_group *se_tpg)
 {
 	return 1;
@@ -1825,8 +1813,6 @@ static const struct target_core_fabric_ops usbg_ops = {
 	.tpg_check_demo_mode_cache	= usbg_check_false,
 	.tpg_check_demo_mode_write_protect = usbg_check_false,
 	.tpg_check_prod_mode_write_protect = usbg_check_false,
-	.tpg_alloc_fabric_acl		= usbg_alloc_fabric_acl,
-	.tpg_release_fabric_acl		= usbg_release_fabric_acl,
 	.tpg_get_inst_index		= usbg_tpg_get_inst_index,
 	.release_cmd			= usbg_release_cmd,
 	.shutdown_session		= usbg_shutdown_session,

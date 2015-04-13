@@ -338,29 +338,6 @@ static int tcm_qla2xxx_check_prot_fabric_only(struct se_portal_group *se_tpg)
 	return tpg->tpg_attrib.fabric_prot_type;
 }
 
-static struct se_node_acl *tcm_qla2xxx_alloc_fabric_acl(
-	struct se_portal_group *se_tpg)
-{
-	struct tcm_qla2xxx_nacl *nacl;
-
-	nacl = kzalloc(sizeof(struct tcm_qla2xxx_nacl), GFP_KERNEL);
-	if (!nacl) {
-		pr_err("Unable to allocate struct tcm_qla2xxx_nacl\n");
-		return NULL;
-	}
-
-	return &nacl->se_node_acl;
-}
-
-static void tcm_qla2xxx_release_fabric_acl(
-	struct se_portal_group *se_tpg,
-	struct se_node_acl *se_nacl)
-{
-	struct tcm_qla2xxx_nacl *nacl = container_of(se_nacl,
-			struct tcm_qla2xxx_nacl, se_node_acl);
-	kfree(nacl);
-}
-
 static u32 tcm_qla2xxx_tpg_get_inst_index(struct se_portal_group *se_tpg)
 {
 	struct tcm_qla2xxx_tpg *tpg = container_of(se_tpg,
@@ -1949,6 +1926,7 @@ static struct configfs_attribute *tcm_qla2xxx_wwn_attrs[] = {
 static const struct target_core_fabric_ops tcm_qla2xxx_ops = {
 	.module				= THIS_MODULE,
 	.name				= "qla2xxx",
+	.node_acl_size			= sizeof(struct tcm_qla2xxx_nacl),
 	.get_fabric_name		= tcm_qla2xxx_get_fabric_name,
 	.get_fabric_proto_ident		= tcm_qla2xxx_get_fabric_proto_ident,
 	.tpg_get_wwn			= tcm_qla2xxx_get_fabric_wwn,
@@ -1964,8 +1942,6 @@ static const struct target_core_fabric_ops tcm_qla2xxx_ops = {
 					tcm_qla2xxx_check_prod_write_protect,
 	.tpg_check_prot_fabric_only	= tcm_qla2xxx_check_prot_fabric_only,
 	.tpg_check_demo_mode_login_only = tcm_qla2xxx_check_demo_mode_login_only,
-	.tpg_alloc_fabric_acl		= tcm_qla2xxx_alloc_fabric_acl,
-	.tpg_release_fabric_acl		= tcm_qla2xxx_release_fabric_acl,
 	.tpg_get_inst_index		= tcm_qla2xxx_tpg_get_inst_index,
 	.check_stop_free		= tcm_qla2xxx_check_stop_free,
 	.release_cmd			= tcm_qla2xxx_release_cmd,
@@ -2001,6 +1977,7 @@ static const struct target_core_fabric_ops tcm_qla2xxx_ops = {
 static const struct target_core_fabric_ops tcm_qla2xxx_npiv_ops = {
 	.module				= THIS_MODULE,
 	.name				= "qla2xxx_npiv",
+	.node_acl_size			= sizeof(struct tcm_qla2xxx_nacl),
 	.get_fabric_name		= tcm_qla2xxx_npiv_get_fabric_name,
 	.get_fabric_proto_ident		= tcm_qla2xxx_get_fabric_proto_ident,
 	.tpg_get_wwn			= tcm_qla2xxx_get_fabric_wwn,
@@ -2014,8 +1991,6 @@ static const struct target_core_fabric_ops tcm_qla2xxx_npiv_ops = {
 	.tpg_check_prod_mode_write_protect =
 	    tcm_qla2xxx_check_prod_write_protect,
 	.tpg_check_demo_mode_login_only	= tcm_qla2xxx_check_demo_mode_login_only,
-	.tpg_alloc_fabric_acl		= tcm_qla2xxx_alloc_fabric_acl,
-	.tpg_release_fabric_acl		= tcm_qla2xxx_release_fabric_acl,
 	.tpg_get_inst_index		= tcm_qla2xxx_tpg_get_inst_index,
 	.check_stop_free                = tcm_qla2xxx_check_stop_free,
 	.release_cmd			= tcm_qla2xxx_release_cmd,

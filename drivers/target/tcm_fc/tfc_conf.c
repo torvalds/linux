@@ -236,29 +236,6 @@ struct ft_node_acl *ft_acl_get(struct ft_tpg *tpg, struct fc_rport_priv *rdata)
 	return found;
 }
 
-static struct se_node_acl *ft_tpg_alloc_fabric_acl(struct se_portal_group *se_tpg)
-{
-	struct ft_node_acl *acl;
-
-	acl = kzalloc(sizeof(*acl), GFP_KERNEL);
-	if (!acl) {
-		pr_err("Unable to allocate struct ft_node_acl\n");
-		return NULL;
-	}
-	pr_debug("acl %p\n", acl);
-	return &acl->se_node_acl;
-}
-
-static void ft_tpg_release_fabric_acl(struct se_portal_group *se_tpg,
-				      struct se_node_acl *se_acl)
-{
-	struct ft_node_acl *acl = container_of(se_acl,
-				struct ft_node_acl, se_node_acl);
-
-	pr_debug("acl %p\n", acl);
-	kfree(acl);
-}
-
 /*
  * local_port port_group (tpg) ops.
  */
@@ -474,6 +451,7 @@ static u32 ft_tpg_get_inst_index(struct se_portal_group *se_tpg)
 static const struct target_core_fabric_ops ft_fabric_ops = {
 	.module =			THIS_MODULE,
 	.name =				"fc",
+	.node_acl_size =		sizeof(struct ft_node_acl),
 	.get_fabric_name =		ft_get_fabric_name,
 	.get_fabric_proto_ident =	fc_get_fabric_proto_ident,
 	.tpg_get_wwn =			ft_get_fabric_wwn,
@@ -485,8 +463,6 @@ static const struct target_core_fabric_ops ft_fabric_ops = {
 	.tpg_check_demo_mode_cache =	ft_check_false,
 	.tpg_check_demo_mode_write_protect = ft_check_false,
 	.tpg_check_prod_mode_write_protect = ft_check_false,
-	.tpg_alloc_fabric_acl =		ft_tpg_alloc_fabric_acl,
-	.tpg_release_fabric_acl =	ft_tpg_release_fabric_acl,
 	.tpg_get_inst_index =		ft_tpg_get_inst_index,
 	.check_stop_free =		ft_check_stop_free,
 	.release_cmd =			ft_release_cmd,

@@ -3447,28 +3447,6 @@ static char *srpt_parse_pr_out_transport_id(struct se_portal_group *se_tpg,
 	return (char *)tr_id->i_port_id;
 }
 
-static struct se_node_acl *srpt_alloc_fabric_acl(struct se_portal_group *se_tpg)
-{
-	struct srpt_node_acl *nacl;
-
-	nacl = kzalloc(sizeof(struct srpt_node_acl), GFP_KERNEL);
-	if (!nacl) {
-		pr_err("Unable to allocate struct srpt_node_acl\n");
-		return NULL;
-	}
-
-	return &nacl->nacl;
-}
-
-static void srpt_release_fabric_acl(struct se_portal_group *se_tpg,
-				    struct se_node_acl *se_nacl)
-{
-	struct srpt_node_acl *nacl;
-
-	nacl = container_of(se_nacl, struct srpt_node_acl, nacl);
-	kfree(nacl);
-}
-
 static u32 srpt_tpg_get_inst_index(struct se_portal_group *se_tpg)
 {
 	return 1;
@@ -3883,6 +3861,7 @@ static struct configfs_attribute *srpt_wwn_attrs[] = {
 static const struct target_core_fabric_ops srpt_template = {
 	.module				= THIS_MODULE,
 	.name				= "srpt",
+	.node_acl_size			= sizeof(struct srpt_node_acl),
 	.get_fabric_name		= srpt_get_fabric_name,
 	.get_fabric_proto_ident		= srpt_get_fabric_proto_ident,
 	.tpg_get_wwn			= srpt_get_fabric_wwn,
@@ -3894,8 +3873,6 @@ static const struct target_core_fabric_ops srpt_template = {
 	.tpg_check_demo_mode_cache	= srpt_check_true,
 	.tpg_check_demo_mode_write_protect = srpt_check_true,
 	.tpg_check_prod_mode_write_protect = srpt_check_false,
-	.tpg_alloc_fabric_acl		= srpt_alloc_fabric_acl,
-	.tpg_release_fabric_acl		= srpt_release_fabric_acl,
 	.tpg_get_inst_index		= srpt_tpg_get_inst_index,
 	.release_cmd			= srpt_release_cmd,
 	.check_stop_free		= srpt_check_stop_free,

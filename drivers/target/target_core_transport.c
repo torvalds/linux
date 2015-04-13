@@ -533,7 +533,7 @@ void transport_deregister_session(struct se_session *se_sess)
 			spin_unlock_irqrestore(&se_tpg->acl_node_lock, flags);
 			core_tpg_wait_for_nacl_pr_ref(se_nacl);
 			core_free_device_list_for_node(se_nacl, se_tpg);
-			se_tfo->tpg_release_fabric_acl(se_tpg, se_nacl);
+			kfree(se_nacl);
 
 			comp_nacl = false;
 			spin_lock_irqsave(&se_tpg->acl_node_lock, flags);

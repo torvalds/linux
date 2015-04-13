@@ -1449,19 +1449,6 @@ static void scsiback_drop_tport(struct se_wwn *wwn)
 	kfree(tport);
 }
 
-static struct se_node_acl *
-scsiback_alloc_fabric_acl(struct se_portal_group *se_tpg)
-{
-	return kzalloc(sizeof(struct se_node_acl), GFP_KERNEL);
-}
-
-static void
-scsiback_release_fabric_acl(struct se_portal_group *se_tpg,
-			     struct se_node_acl *se_nacl)
-{
-	kfree(se_nacl);
-}
-
 static u32 scsiback_tpg_get_inst_index(struct se_portal_group *se_tpg)
 {
 	return 1;
@@ -1952,8 +1939,6 @@ static const struct target_core_fabric_ops scsiback_ops = {
 	.tpg_check_demo_mode_cache	= scsiback_check_true,
 	.tpg_check_demo_mode_write_protect = scsiback_check_false,
 	.tpg_check_prod_mode_write_protect = scsiback_check_false,
-	.tpg_alloc_fabric_acl		= scsiback_alloc_fabric_acl,
-	.tpg_release_fabric_acl		= scsiback_release_fabric_acl,
 	.tpg_get_inst_index		= scsiback_tpg_get_inst_index,
 	.check_stop_free		= scsiback_check_stop_free,
 	.release_cmd			= scsiback_release_cmd,

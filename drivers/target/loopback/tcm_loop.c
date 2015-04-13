@@ -698,19 +698,6 @@ static int tcm_loop_check_prot_fabric_only(struct se_portal_group *se_tpg)
 	return tl_tpg->tl_fabric_prot_type;
 }
 
-static struct se_node_acl *tcm_loop_tpg_alloc_fabric_acl(
-	struct se_portal_group *se_tpg)
-{
-	return kzalloc(sizeof(struct se_node_acl), GFP_KERNEL);
-}
-
-static void tcm_loop_tpg_release_fabric_acl(
-	struct se_portal_group *se_tpg,
-	struct se_node_acl *se_nacl)
-{
-	kfree(se_nacl);
-}
-
 static u32 tcm_loop_get_inst_index(struct se_portal_group *se_tpg)
 {
 	return 1;
@@ -1383,8 +1370,6 @@ static const struct target_core_fabric_ops loop_ops = {
 	.tpg_check_prod_mode_write_protect =
 				tcm_loop_check_prod_mode_write_protect,
 	.tpg_check_prot_fabric_only	= tcm_loop_check_prot_fabric_only,
-	.tpg_alloc_fabric_acl		= tcm_loop_tpg_alloc_fabric_acl,
-	.tpg_release_fabric_acl		= tcm_loop_tpg_release_fabric_acl,
 	.tpg_get_inst_index		= tcm_loop_get_inst_index,
 	.check_stop_free		= tcm_loop_check_stop_free,
 	.release_cmd			= tcm_loop_release_cmd,

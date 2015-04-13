@@ -745,10 +745,10 @@ struct iscsi_node_stat_grps {
 };
 
 struct iscsi_node_acl {
+	struct se_node_acl	se_node_acl;
 	struct iscsi_node_attrib node_attrib;
 	struct iscsi_node_auth	node_auth;
 	struct iscsi_node_stat_grps node_stat_grps;
-	struct se_node_acl	se_node_acl;
 };
 
 struct iscsi_tpg_attrib {

@@ -259,7 +259,8 @@ static struct se_node_acl *target_alloc_node_acl(struct se_portal_group *tpg,
 {
 	struct se_node_acl *acl;
 
-	acl = tpg->se_tpg_tfo->tpg_alloc_fabric_acl(tpg);
+	acl = kzalloc(max(sizeof(*acl), tpg->se_tpg_tfo->node_acl_size),
+			GFP_KERNEL);
 	if (!acl)
 		return NULL;
 
@@ -290,7 +291,7 @@ static struct se_node_acl *target_alloc_node_acl(struct se_portal_group *tpg,
 out_free_device_list:
 	core_free_device_list_for_node(acl, tpg);
 out_free_acl:
-	tpg->se_tpg_tfo->tpg_release_fabric_acl(tpg, acl);
+	kfree(acl);
 	return NULL;
 }
 
@@ -461,7 +462,7 @@ void core_tpg_del_initiator_node_acl(struct se_node_acl *acl)
 		tpg->se_tpg_tfo->tpg_get_tag(tpg), acl->queue_depth,
 		tpg->se_tpg_tfo->get_fabric_name(), acl->initiatorname);
 
-	tpg->se_tpg_tfo->tpg_release_fabric_acl(tpg, acl);
+	kfree(acl);
 }
 
 /*	core_tpg_set_initiator_node_queue_depth():
@@ -725,7 +726,7 @@ int core_tpg_deregister(struct se_portal_group *se_tpg)
 
 		core_tpg_wait_for_nacl_pr_ref(nacl);
 		core_free_device_list_for_node(nacl, se_tpg);
-		se_tpg->se_tpg_tfo->tpg_release_fabric_acl(se_tpg, nacl);
+		kfree(nacl);
 
 		spin_lock_irq(&se_tpg->acl_node_lock);
 	}

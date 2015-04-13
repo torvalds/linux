@@ -425,19 +425,6 @@ static int vhost_scsi_check_prot_fabric_only(struct se_portal_group *se_tpg)
 	return tpg->tv_fabric_prot_type;
 }
 
-static struct se_node_acl *
-vhost_scsi_alloc_fabric_acl(struct se_portal_group *se_tpg)
-{
-	return kzalloc(sizeof(struct se_node_acl), GFP_KERNEL);
-}
-
-static void
-vhost_scsi_release_fabric_acl(struct se_portal_group *se_tpg,
-			     struct se_node_acl *se_nacl)
-{
-	kfree(se_nacl);
-}
-
 static u32 vhost_scsi_tpg_get_inst_index(struct se_portal_group *se_tpg)
 {
 	return 1;
@@ -2268,8 +2255,6 @@ static struct target_core_fabric_ops vhost_scsi_ops = {
 	.tpg_check_demo_mode_write_protect = vhost_scsi_check_false,
 	.tpg_check_prod_mode_write_protect = vhost_scsi_check_false,
 	.tpg_check_prot_fabric_only	= vhost_scsi_check_prot_fabric_only,
-	.tpg_alloc_fabric_acl		= vhost_scsi_alloc_fabric_acl,
-	.tpg_release_fabric_acl		= vhost_scsi_release_fabric_acl,
 	.tpg_get_inst_index		= vhost_scsi_tpg_get_inst_index,
 	.release_cmd			= vhost_scsi_release_cmd,
 	.check_stop_free		= vhost_scsi_check_stop_free,

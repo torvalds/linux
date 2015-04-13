@@ -80,8 +80,8 @@ struct ft_node_auth {
  * Node ACL for FC remote port session.
  */
 struct ft_node_acl {
-	struct ft_node_auth node_auth;
 	struct se_node_acl se_node_acl;
+	struct ft_node_auth node_auth;
 };
 
 struct ft_lun {

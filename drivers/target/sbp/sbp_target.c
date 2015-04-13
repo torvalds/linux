@@ -1707,18 +1707,6 @@ static u16 sbp_get_tag(struct se_portal_group *se_tpg)
 	return tpg->tport_tpgt;
 }
 
-static struct se_node_acl *sbp_alloc_fabric_acl(struct se_portal_group *se_tpg)
-{
-	return kzalloc(sizeof(struct se_node_acl), GFP_KERNEL);
-}
-
-static void sbp_release_fabric_acl(
-	struct se_portal_group *se_tpg,
-	struct se_node_acl *se_nacl)
-{
-	kfree(se_nacl);
-}
-
 static u32 sbp_tpg_get_inst_index(struct se_portal_group *se_tpg)
 {
 	return 1;
@@ -2465,8 +2453,6 @@ static const struct target_core_fabric_ops sbp_ops = {
 	.tpg_check_demo_mode_cache	= sbp_check_true,
 	.tpg_check_demo_mode_write_protect = sbp_check_false,
 	.tpg_check_prod_mode_write_protect = sbp_check_false,
-	.tpg_alloc_fabric_acl		= sbp_alloc_fabric_acl,
-	.tpg_release_fabric_acl		= sbp_release_fabric_acl,
 	.tpg_get_inst_index		= sbp_tpg_get_inst_index,
 	.release_cmd			= sbp_release_cmd,
 	.shutdown_session		= sbp_shutdown_session,
