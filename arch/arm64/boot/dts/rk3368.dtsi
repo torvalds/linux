@@ -617,11 +617,6 @@
 	rockchip_clocks_enable: clocks-enable {
 		compatible = "rockchip,clocks-enable";
 		clocks =
-		<&pd_vio>,
-               <&pd_video>,
-               <&pd_gpu_0>,
-               <&pd_gpu_1>,
-
 			/*PLL*/
 			<&clk_apllb>,
 			<&clk_aplll>,
