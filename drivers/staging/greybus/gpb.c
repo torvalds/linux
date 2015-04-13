@@ -87,4 +87,4 @@ static void __exit gpbridge_exit(void)
 }
 module_exit(gpbridge_exit);
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

@@ -694,5 +694,5 @@ static struct usb_driver es1_ap_driver = {
 
 module_usb_driver(es1_ap_driver);
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Greg Kroah-Hartman <gregkh@linuxfoundation.org>");
