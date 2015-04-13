@@ -30,7 +30,6 @@ struct wm_adsp_alg_region {
 	unsigned int alg;
 	int type;
 	unsigned int base;
-	size_t len;
 };
 
 struct wm_adsp {
