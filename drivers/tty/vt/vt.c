@@ -3204,22 +3204,6 @@ err:
 
 
 #ifdef CONFIG_VT_HW_CONSOLE_BINDING
-static int con_is_graphics(const struct consw *csw, int first, int last)
-{
-	int i, retval = 0;
-
-	for (i = first; i <= last; i++) {
-		struct vc_data *vc = vc_cons[i].d;
-
-		if (vc && vc->vc_mode == KD_GRAPHICS) {
-			retval = 1;
-			break;
-		}
-	}
-
-	return retval;
-}
-
 /* unlocked version of unbind_con_driver() */
 int do_unbind_con_driver(const struct consw *csw, int first, int last, int deflt)
 {
@@ -3305,8 +3289,7 @@ static int vt_bind(struct con_driver *con)
 	const struct consw *defcsw = NULL, *csw = NULL;
 	int i, more = 1, first = -1, last = -1, deflt = 0;
 
- 	if (!con->con || !(con->flag & CON_DRIVER_FLAG_MODULE) ||
-	    con_is_graphics(con->con, con->first, con->last))
+ 	if (!con->con || !(con->flag & CON_DRIVER_FLAG_MODULE))
 		goto err;
 
 	csw = con->con;
@@ -3357,8 +3340,7 @@ static int vt_unbind(struct con_driver *con)
 	int i, more = 1, first = -1, last = -1, deflt = 0;
 	int ret;
 
- 	if (!con->con || !(con->flag & CON_DRIVER_FLAG_MODULE) ||
-	    con_is_graphics(con->con, con->first, con->last))
+ 	if (!con->con || !(con->flag & CON_DRIVER_FLAG_MODULE))
 		goto err;
 
 	csw = con->con;
