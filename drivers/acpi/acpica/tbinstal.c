@@ -356,7 +356,7 @@ acpi_tb_install_standard_table(acpi_physical_address address,
 
 	/* Add the table to the global root table list */
 
-	status = acpi_tb_get_next_root_index(&i);
+	status = acpi_tb_get_next_table_descriptor(&i, NULL);
 	if (ACPI_FAILURE(status)) {
 		goto release_and_exit;
 	}
@@ -453,43 +453,6 @@ finish_override:
 	/* Release the temporary table descriptor */
 
 	acpi_tb_release_temp_table(&new_table_desc);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_tb_store_table
- *
- * PARAMETERS:  address             - Table address
- *              table               - Table header
- *              length              - Table length
- *              flags               - Install flags
- *              table_index         - Where the table index is returned
- *
- * RETURN:      Status and table index.
- *
- * DESCRIPTION: Add an ACPI table to the global table list
- *
- ******************************************************************************/
-
-acpi_status
-acpi_tb_store_table(acpi_physical_address address,
-		    struct acpi_table_header * table,
-		    u32 length, u8 flags, u32 *table_index)
-{
-	acpi_status status;
-	struct acpi_table_desc *table_desc;
-
-	status = acpi_tb_get_next_root_index(table_index);
-	if (ACPI_FAILURE(status)) {
-		return (status);
-	}
-
-	/* Initialize added table */
-
-	table_desc = &acpi_gbl_root_table_list.tables[*table_index];
-	acpi_tb_init_table_descriptor(table_desc, address, flags, table);
-	table_desc->pointer = table;
-	return (AE_OK);
 }
 
 /*******************************************************************************

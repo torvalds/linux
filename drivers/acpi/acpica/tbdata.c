@@ -484,19 +484,23 @@ acpi_status acpi_tb_resize_root_table_list(void)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_tb_get_next_root_index
+ * FUNCTION:    acpi_tb_get_next_table_descriptor
  *
  * PARAMETERS:  table_index         - Where table index is returned
+ *              table_desc          - Where table descriptor is returned
  *
- * RETURN:      Status and table index.
+ * RETURN:      Status and table index/descriptor.
  *
  * DESCRIPTION: Allocate a new ACPI table entry to the global table list
  *
  ******************************************************************************/
 
-acpi_status acpi_tb_get_next_root_index(u32 *table_index)
+acpi_status
+acpi_tb_get_next_table_descriptor(u32 *table_index,
+				  struct acpi_table_desc **table_desc)
 {
 	acpi_status status;
+	u32 i;
 
 	/* Ensure that there is room for the table in the Root Table List */
 
@@ -508,8 +512,16 @@ acpi_status acpi_tb_get_next_root_index(u32 *table_index)
 		}
 	}
 
-	*table_index = acpi_gbl_root_table_list.current_table_count;
+	i = acpi_gbl_root_table_list.current_table_count;
 	acpi_gbl_root_table_list.current_table_count++;
+
+	if (table_index) {
+		*table_index = i;
+	}
+	if (table_desc) {
+		*table_desc = &acpi_gbl_root_table_list.tables[i];
+	}
+
 	return (AE_OK);
 }
 
