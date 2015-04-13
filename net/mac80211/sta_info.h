@@ -299,6 +299,7 @@ struct sta_ampdu_mlme {
  * @tid_seq: per-TID sequence numbers for sending to this STA
  * @ampdu_mlme: A-MPDU state machine state
  * @timer_to_tid: identity mapping to ID timers
+ * @plink_lock: serialize access to plink fields
  * @llid: Local link ID
  * @plid: Peer link ID
  * @reason: Cancel reason on PLINK_HOLDING state
@@ -422,9 +423,10 @@ struct sta_info {
 
 #ifdef CONFIG_MAC80211_MESH
 	/*
-	 * Mesh peer link attributes
+	 * Mesh peer link attributes, protected by plink_lock.
 	 * TODO: move to a sub-structure that is referenced with pointer?
 	 */
+	spinlock_t plink_lock;
 	u16 llid;
 	u16 plid;
 	u16 reason;
@@ -432,6 +434,7 @@ struct sta_info {
 	enum nl80211_plink_state plink_state;
 	u32 plink_timeout;
 	struct timer_list plink_timer;
+
 	s64 t_offset;
 	s64 t_offset_setpoint;
 	/* mesh power save */
