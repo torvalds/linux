@@ -731,6 +731,29 @@ static const struct panel_desc hannstar_hsd070pww1 = {
 	},
 };
 
+static const struct display_timing hannstar_hsd100pxn1_timing = {
+	.pixelclock = { 55000000, 65000000, 75000000 },
+	.hactive = { 1024, 1024, 1024 },
+	.hfront_porch = { 40, 40, 40 },
+	.hback_porch = { 220, 220, 220 },
+	.hsync_len = { 20, 60, 100 },
+	.vactive = { 768, 768, 768 },
+	.vfront_porch = { 7, 7, 7 },
+	.vback_porch = { 21, 21, 21 },
+	.vsync_len = { 10, 10, 10 },
+	.flags = DISPLAY_FLAGS_DE_HIGH,
+};
+
+static const struct panel_desc hannstar_hsd100pxn1 = {
+	.timings = &hannstar_hsd100pxn1_timing,
+	.num_timings = 1,
+	.bpc = 6,
+	.size = {
+		.width = 203,
+		.height = 152,
+	},
+};
+
 static const struct drm_display_mode hitachi_tx23d38vm0caa_mode = {
 	.clock = 33333,
 	.hdisplay = 800,
@@ -1061,6 +1084,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "hannstar,hsd070pww1",
 		.data = &hannstar_hsd070pww1,
+	}, {
+		.compatible = "hannstar,hsd100pxn1",
+		.data = &hannstar_hsd100pxn1,
 	}, {
 		.compatible = "hit,tx23d38vm0caa",
 		.data = &hitachi_tx23d38vm0caa
