@@ -135,6 +135,15 @@ config AXP288_ADC
 	  device. Depending on platform configuration, this general purpose ADC can
 	  be used for sampling sensors such as thermal resistors.
 
+config DA9150_GPADC
+	tristate "Dialog DA9150 GPADC driver support"
+	depends on MFD_DA9150
+	help
+	  Say yes here to build support for Dialog DA9150 GPADC.
+
+	  This driver can also be built as a module. If chosen, the module name
+	  will be da9150-gpadc.
+
 config CC10001_ADC
 	tristate "Cosmic Circuits 10001 ADC driver"
 	depends on HAVE_CLK || REGULATOR
