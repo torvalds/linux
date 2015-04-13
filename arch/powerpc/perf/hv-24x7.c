@@ -647,7 +647,7 @@ static ssize_t catalog_event_len_validate(struct hv_24x7_event_data *event,
 
 #define MAX_4K (SIZE_MAX / 4096)
 
-static void create_events_from_catalog(struct attribute ***events_,
+static int create_events_from_catalog(struct attribute ***events_,
 		struct attribute ***event_descs_,
 		struct attribute ***event_long_descs_)
 {
@@ -665,19 +665,25 @@ static void create_events_from_catalog(struct attribute ***events_,
 	void *event_data, *end;
 	struct hv_24x7_event_data *event;
 	struct rb_root ev_uniq = RB_ROOT;
+	int ret = 0;
 
-	if (!page)
+	if (!page) {
+		ret = -ENOMEM;
 		goto e_out;
+	}
 
 	hret = h_get_24x7_catalog_page(page, 0, 0);
-	if (hret)
+	if (hret) {
+		ret = -EIO;
 		goto e_free;
+	}
 
 	catalog_version_num = be64_to_cpu(page_0->version);
 	catalog_page_len = be32_to_cpu(page_0->length);
 
 	if (MAX_4K < catalog_page_len) {
 		pr_err("invalid page count: %zu\n", catalog_page_len);
+		ret = -EIO;
 		goto e_free;
 	}
 
@@ -696,6 +702,7 @@ static void create_events_from_catalog(struct attribute ***events_,
 			|| (MAX_4K - event_data_offs < event_data_len)) {
 		pr_err("invalid event data offs %zu and/or len %zu\n",
 				event_data_offs, event_data_len);
+		ret = -EIO;
 		goto e_free;
 	}
 
@@ -704,12 +711,14 @@ static void create_events_from_catalog(struct attribute ***events_,
 				event_data_offs,
 				event_data_offs + event_data_len,
 				catalog_page_len);
+		ret = -EIO;
 		goto e_free;
 	}
 
 	if (SIZE_MAX / MAX_EVENTS_PER_EVENT_DATA - 1 < event_entry_count) {
 		pr_err("event_entry_count %zu is invalid\n",
 				event_entry_count);
+		ret = -EIO;
 		goto e_free;
 	}
 
@@ -722,6 +731,7 @@ static void create_events_from_catalog(struct attribute ***events_,
 	event_data = vmalloc(event_data_bytes);
 	if (!event_data) {
 		pr_err("could not allocate event data\n");
+		ret = -ENOMEM;
 		goto e_free;
 	}
 
@@ -741,6 +751,7 @@ static void create_events_from_catalog(struct attribute ***events_,
 		if (hret) {
 			pr_err("failed to get event data in page %zu\n",
 					i + event_data_offs);
+			ret = -EIO;
 			goto e_event_data;
 		}
 	}
@@ -788,18 +799,24 @@ static void create_events_from_catalog(struct attribute ***events_,
 				event_idx_last, event_entry_count, junk_events);
 
 	events = kmalloc_array(attr_max + 1, sizeof(*events), GFP_KERNEL);
-	if (!events)
+	if (!events) {
+		ret = -ENOMEM;
 		goto e_event_data;
+	}
 
 	event_descs = kmalloc_array(event_idx + 1, sizeof(*event_descs),
 				GFP_KERNEL);
-	if (!event_descs)
+	if (!event_descs) {
+		ret = -ENOMEM;
 		goto e_event_attrs;
+	}
 
 	event_long_descs = kmalloc_array(event_idx + 1,
 			sizeof(*event_long_descs), GFP_KERNEL);
-	if (!event_long_descs)
+	if (!event_long_descs) {
+		ret = -ENOMEM;
 		goto e_event_descs;
+	}
 
 	/* Iterate over the catalog filling in the attribute vector */
 	for (junk_events = 0, event_attr_ct = 0, desc_ct = 0, long_desc_ct = 0,
@@ -853,7 +870,7 @@ static void create_events_from_catalog(struct attribute ***events_,
 	*events_ = events;
 	*event_descs_ = event_descs;
 	*event_long_descs_ = event_long_descs;
-	return;
+	return 0;
 
 e_event_descs:
 	kfree(event_descs);
@@ -867,6 +884,7 @@ e_out:
 	*events_ = NULL;
 	*event_descs_ = NULL;
 	*event_long_descs_ = NULL;
+	return ret;
 }
 
 static ssize_t catalog_read(struct file *filp, struct kobject *kobj,
@@ -1275,9 +1293,12 @@ static int hv_24x7_init(void)
 	/* sampling not supported */
 	h_24x7_pmu.capabilities |= PERF_PMU_CAP_NO_INTERRUPT;
 
-	create_events_from_catalog(&event_group.attrs,
+	r = create_events_from_catalog(&event_group.attrs,
 				   &event_desc_group.attrs,
 				   &event_long_desc_group.attrs);
+
+	if (r)
+		return r;
 
 	r = perf_pmu_register(&h_24x7_pmu, h_24x7_pmu.name, -1);
 	if (r)
