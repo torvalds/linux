@@ -264,11 +264,10 @@ static int fd_do_prot_rw(struct se_cmd *cmd, struct fd_prot *fd_prot,
 	struct se_device *se_dev = cmd->se_dev;
 	struct fd_dev *dev = FD_DEV(se_dev);
 	struct file *prot_fd = dev->fd_prot_file;
-	struct scatterlist *sg;
 	loff_t pos = (cmd->t_task_lba * se_dev->prot_length);
 	unsigned char *buf;
-	u32 prot_size, len, size;
-	int rc, ret = 1, i;
+	u32 prot_size;
+	int rc, ret = 1;
 
 	prot_size = (cmd->data_length / se_dev->dev_attrib.block_size) *
 		     se_dev->prot_length;
@@ -281,24 +280,16 @@ static int fd_do_prot_rw(struct se_cmd *cmd, struct fd_prot *fd_prot,
 		}
 		buf = fd_prot->prot_buf;
 
-		fd_prot->prot_sg_nents = cmd->t_prot_nents;
-		fd_prot->prot_sg = kzalloc(sizeof(struct scatterlist) *
-					   fd_prot->prot_sg_nents, GFP_KERNEL);
+		fd_prot->prot_sg_nents = 1;
+		fd_prot->prot_sg = kzalloc(sizeof(struct scatterlist),
+					   GFP_KERNEL);
 		if (!fd_prot->prot_sg) {
 			pr_err("Unable to allocate fd_prot->prot_sg\n");
 			kfree(fd_prot->prot_buf);
 			return -ENOMEM;
 		}
 		sg_init_table(fd_prot->prot_sg, fd_prot->prot_sg_nents);
-		size = prot_size;
-
-		for_each_sg(fd_prot->prot_sg, sg, fd_prot->prot_sg_nents, i) {
-
-			len = min_t(u32, PAGE_SIZE, size);
-			sg_set_buf(sg, buf, len);
-			size -= len;
-			buf += len;
-		}
+		sg_set_buf(fd_prot->prot_sg, buf, prot_size);
 	}
 
 	if (is_write) {
