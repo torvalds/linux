@@ -1332,7 +1332,7 @@ static int armpmu_device_probe(struct platform_device *pdev)
 				      i);
 		if (!dn) {
 			pr_warn("Failed to parse %s/interrupt-affinity[%d]\n",
-				of_node_full_name(dn), i);
+				of_node_full_name(pdev->dev.of_node), i);
 			break;
 		}
 
