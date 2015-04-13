@@ -1440,7 +1440,7 @@ static int rk_fb_copy_from_loader(struct fb_info *info)
 }
 #endif
 #ifdef CONFIG_ROCKCHIP_IOMMU
-static int g_last_addr[4];
+static int g_last_addr[4][4];
 int g_last_timeout;
 u32 freed_addr[10];
 u32 freed_index;
@@ -1454,17 +1454,20 @@ int rk_fb_sysmmu_fault_handler(struct device *dev,
 			       unsigned long fault_addr, unsigned int status)
 {
 	struct rk_lcdc_driver *dev_drv = rk_get_prmry_lcdc_drv();
-	int i = 0;
+	int i = 0, j = 0;
 	static int page_fault_cnt;
 	if ((page_fault_cnt++) >= 10)
 		return 0;
 	pr_err
 	    ("PAGE FAULT occurred at 0x%lx (Page table base: 0x%lx),status=%d\n",
 	     fault_addr, pgtable_base, status);
-	printk("last config addr:\n" "win0:0x%08x\n" "win1:0x%08x\n"
-	       "win2:0x%08x\n" "win3:0x%08x\n", g_last_addr[0], g_last_addr[1],
-	       g_last_addr[2], g_last_addr[3]);
-	printk("last freed buffer:\n");
+	pr_info("last config addr:\n");
+	for (i = 0; i < 4; i++) {
+	        for (j = 0; j < 4; j++)
+                        pr_info("win[%d],area[%d] = 0x%08x\n",
+                                i, j, g_last_addr[i][j]);
+	}
+	pr_info("last freed buffer:\n");
 	for (i = 0; (freed_addr[i] != 0xfefefefe) && freed_addr[i]; i++)
 		printk("%d:0x%08x\n", i, freed_addr[i]);
 	printk("last timeout:%d\n", g_last_timeout);
@@ -1627,15 +1630,19 @@ static void rk_fb_update_win(struct rk_lcdc_driver *dev_drv,
 				win->area[i].y_vir_stride =
 				    reg_win_data->reg_area_data[i].y_vir_stride;
 				win->area[i].state = 1;
+#if defined(CONFIG_ROCKCHIP_IOMMU)
+				if (dev_drv->iommu_enabled)
+					g_last_addr[win->id][i] = win->area[i].smem_start +
+						win->area[i].y_offset;
+#endif
 			} else {
 				win->area[i].state = 0;
+#if defined(CONFIG_ROCKCHIP_IOMMU)
+				if (dev_drv->iommu_enabled)
+					g_last_addr[win->id][i] = -1;
+#endif
 			}
 		}
-	} else {
-	/*
-		win->state = 0;
-		win->z_order = -1;
-	*/
 	}
 }
 
@@ -1750,15 +1757,15 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 			dev_drv->ops->set_par(dev_drv, i);
 			dev_drv->ops->pan_display(dev_drv, i);
 			mutex_unlock(&dev_drv->win_config);
-#if defined(CONFIG_ROCKCHIP_IOMMU)
-			if (dev_drv->iommu_enabled) {
-				g_last_addr[i] = win_data->reg_area_data[0].smem_start +
-					win_data->reg_area_data[0].y_offset;
-			}
-#endif
 		} else {
 			win->z_order = -1;
 			win->state = 0;
+#if defined(CONFIG_ROCKCHIP_IOMMU)
+			if (dev_drv->iommu_enabled) {
+				for (j = 0; j < 4; j++)
+					g_last_addr[i][j] = -1;
+			}
+#endif
 		}
 	}
 	dev_drv->ops->ovl_mgr(dev_drv, 0, 1);
