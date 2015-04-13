@@ -930,6 +930,26 @@ enum mismatch {
 	EXTABLE_TO_NON_TEXT,
 };
 
+/**
+ * Describe how to match sections on different criterias:
+ *
+ * @fromsec: Array of sections to be matched.
+ *
+ * @bad_tosec: Relocations applied to a section in @fromsec to a section in
+ * this array is forbidden (black-list).  Can be empty.
+ *
+ * @good_tosec: Relocations applied to a section in @fromsec must be
+ * targetting sections in this array (white-list).  Can be empty.
+ *
+ * @mismatch: Type of mismatch.
+ *
+ * @symbol_white_list: Do not match a relocation to a symbol in this list
+ * even if it is targetting a section in @bad_to_sec.
+ *
+ * @handler: Specific handler to call when a match is found.  If NULL,
+ * default_mismatch_handler() will be called.
+ *
+ */
 struct sectioncheck {
 	const char *fromsec[20];
 	const char *bad_tosec[20];
