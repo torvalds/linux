@@ -355,6 +355,7 @@ static void acpi_rs_dump_address_common(union acpi_resource_data *resource)
 	acpi_rs_dump_descriptor(resource, acpi_rs_dump_general_flags);
 }
 
+#ifdef ACPI_EXEC_APP
 /*******************************************************************************
  *
  * FUNCTION:    acpi_rs_dump_resource_list
@@ -464,6 +465,7 @@ void acpi_rs_dump_irq_list(u8 *route_table)
 					   prt_element, prt_element->length);
 	}
 }
+#endif
 
 /*******************************************************************************
  *
