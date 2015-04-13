@@ -1309,15 +1309,19 @@ void graph_trace_open(struct trace_iterator *iter)
 {
 	/* pid and depth on the last trace processed */
 	struct fgraph_data *data;
+	gfp_t gfpflags;
 	int cpu;
 
 	iter->private = NULL;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	/* We can be called in atomic context via ftrace_dump() */
+	gfpflags = (in_atomic() || irqs_disabled()) ? GFP_ATOMIC : GFP_KERNEL;
+
+	data = kzalloc(sizeof(*data), gfpflags);
 	if (!data)
 		goto out_err;
 
-	data->cpu_data = alloc_percpu(struct fgraph_cpu_data);
+	data->cpu_data = alloc_percpu_gfp(struct fgraph_cpu_data, gfpflags);
 	if (!data->cpu_data)
 		goto out_err_free;
 
