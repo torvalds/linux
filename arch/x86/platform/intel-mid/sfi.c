@@ -469,10 +469,7 @@ static int __init sfi_parse_devs(struct sfi_table_header *table)
 			}
 
 			ioapic_set_alloc_attr(&info, NUMA_NO_NODE, 1, polarity);
-			ret = mp_set_gsi_attr(irq, 1, polarity, NUMA_NO_NODE);
-			if (ret == 0)
-				ret = mp_map_gsi_to_irq(irq, IOAPIC_MAP_ALLOC,
-							&info);
+			ret = mp_map_gsi_to_irq(irq, IOAPIC_MAP_ALLOC, &info);
 			WARN_ON(ret < 0);
 		}
 

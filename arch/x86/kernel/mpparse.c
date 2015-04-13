@@ -114,8 +114,10 @@ static void __init MP_bus_info(struct mpc_bus *m)
 }
 
 static struct irq_domain_ops mp_ioapic_irqdomain_ops = {
-	.map = mp_irqdomain_map,
-	.unmap = mp_irqdomain_unmap,
+	.alloc = mp_irqdomain_alloc,
+	.free = mp_irqdomain_free,
+	.activate = mp_irqdomain_activate,
+	.deactivate = mp_irqdomain_deactivate,
 };
 
 static void __init MP_ioapic_info(struct mpc_ioapic *m)

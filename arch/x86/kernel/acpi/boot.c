@@ -412,11 +412,6 @@ static int mp_register_gsi(struct device *dev, u32 gsi, int trigger,
 	trigger = trigger == ACPI_EDGE_SENSITIVE ? 0 : 1;
 	polarity = polarity == ACPI_ACTIVE_HIGH ? 0 : 1;
 	node = dev ? dev_to_node(dev) : NUMA_NO_NODE;
-	if (mp_set_gsi_attr(gsi, trigger, polarity, node)) {
-		pr_warn("Failed to set pin attr for GSI%d\n", gsi);
-		return -1;
-	}
-
 	ioapic_set_alloc_attr(&info, node, trigger, polarity);
 	irq = mp_map_gsi_to_irq(gsi, IOAPIC_MAP_ALLOC, &info);
 	if (irq < 0)
@@ -442,8 +437,10 @@ static void mp_unregister_gsi(u32 gsi)
 }
 
 static struct irq_domain_ops acpi_irqdomain_ops = {
-	.map = mp_irqdomain_map,
-	.unmap = mp_irqdomain_unmap,
+	.alloc = mp_irqdomain_alloc,
+	.free = mp_irqdomain_free,
+	.activate = mp_irqdomain_activate,
+	.deactivate = mp_irqdomain_deactivate,
 };
 
 static int __init

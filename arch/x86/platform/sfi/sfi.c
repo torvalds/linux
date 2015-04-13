@@ -72,7 +72,10 @@ static int __init sfi_parse_cpus(struct sfi_table_header *table)
 
 #ifdef CONFIG_X86_IO_APIC
 static struct irq_domain_ops sfi_ioapic_irqdomain_ops = {
-	.map = mp_irqdomain_map,
+	.alloc = mp_irqdomain_alloc,
+	.free = mp_irqdomain_free,
+	.activate = mp_irqdomain_activate,
+	.deactivate = mp_irqdomain_deactivate,
 };
 
 static int __init sfi_parse_ioapic(struct sfi_table_header *table)
