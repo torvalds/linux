@@ -378,10 +378,8 @@ int snd_hwdep_new(struct snd_card *card, char *id, int device,
 	if (rhwdep)
 		*rhwdep = NULL;
 	hwdep = kzalloc(sizeof(*hwdep), GFP_KERNEL);
-	if (hwdep == NULL) {
-		dev_err(card->dev, "hwdep: cannot allocate\n");
+	if (!hwdep)
 		return -ENOMEM;
-	}
 
 	init_waitqueue_head(&hwdep->open_wait);
 	mutex_init(&hwdep->open_mutex);

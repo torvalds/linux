@@ -27,10 +27,8 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
-#include <linux/reboot.h>
 #include <sound/core.h>
 #include <sound/initval.h>
-#include "hda_priv.h"
 #include "hda_controller.h"
 
 #define CREATE_TRACE_POINTS
@@ -259,11 +257,18 @@ static void azx_timecounter_init(struct snd_pcm_substream *substream,
 		tc->cycle_last = last;
 }
 
+static inline struct hda_pcm_stream *
+to_hda_pcm_stream(struct snd_pcm_substream *substream)
+{
+	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
+	return &apcm->info->stream[substream->stream];
+}
+
 static u64 azx_adjust_codec_delay(struct snd_pcm_substream *substream,
 				u64 nsec)
 {
 	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
-	struct hda_pcm_stream *hinfo = apcm->hinfo[substream->stream];
+	struct hda_pcm_stream *hinfo = to_hda_pcm_stream(substream);
 	u64 codec_frames, codec_nsecs;
 
 	if (!hinfo->ops.get_delay)
@@ -399,7 +404,7 @@ static int azx_setup_periods(struct azx *chip,
 static int azx_pcm_close(struct snd_pcm_substream *substream)
 {
 	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
-	struct hda_pcm_stream *hinfo = apcm->hinfo[substream->stream];
+	struct hda_pcm_stream *hinfo = to_hda_pcm_stream(substream);
 	struct azx *chip = apcm->chip;
 	struct azx_dev *azx_dev = get_azx_dev(substream);
 	unsigned long flags;
@@ -410,9 +415,11 @@ static int azx_pcm_close(struct snd_pcm_substream *substream)
 	azx_dev->running = 0;
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	azx_release_device(azx_dev);
-	hinfo->ops.close(hinfo, apcm->codec, substream);
+	if (hinfo->ops.close)
+		hinfo->ops.close(hinfo, apcm->codec, substream);
 	snd_hda_power_down(apcm->codec);
 	mutex_unlock(&chip->open_mutex);
+	snd_hda_codec_pcm_put(apcm->info);
 	return 0;
 }
 
@@ -441,7 +448,7 @@ static int azx_pcm_hw_free(struct snd_pcm_substream *substream)
 	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
 	struct azx_dev *azx_dev = get_azx_dev(substream);
 	struct azx *chip = apcm->chip;
-	struct hda_pcm_stream *hinfo = apcm->hinfo[substream->stream];
+	struct hda_pcm_stream *hinfo = to_hda_pcm_stream(substream);
 	int err;
 
 	/* reset BDL address */
@@ -468,7 +475,7 @@ static int azx_pcm_prepare(struct snd_pcm_substream *substream)
 	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
 	struct azx *chip = apcm->chip;
 	struct azx_dev *azx_dev = get_azx_dev(substream);
-	struct hda_pcm_stream *hinfo = apcm->hinfo[substream->stream];
+	struct hda_pcm_stream *hinfo = to_hda_pcm_stream(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	unsigned int bufsize, period_bytes, format_val, stream_tag;
 	int err;
@@ -708,7 +715,7 @@ unsigned int azx_get_position(struct azx *chip,
 
 	if (substream->runtime) {
 		struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
-		struct hda_pcm_stream *hinfo = apcm->hinfo[stream];
+		struct hda_pcm_stream *hinfo = to_hda_pcm_stream(substream);
 
 		if (chip->get_delay[stream])
 			delay += chip->get_delay[stream](chip, azx_dev, pos);
@@ -732,17 +739,32 @@ static snd_pcm_uframes_t azx_pcm_pointer(struct snd_pcm_substream *substream)
 			       azx_get_position(chip, azx_dev));
 }
 
-static int azx_get_wallclock_tstamp(struct snd_pcm_substream *substream,
-				struct timespec *ts)
+static int azx_get_time_info(struct snd_pcm_substream *substream,
+			struct timespec *system_ts, struct timespec *audio_ts,
+			struct snd_pcm_audio_tstamp_config *audio_tstamp_config,
+			struct snd_pcm_audio_tstamp_report *audio_tstamp_report)
 {
 	struct azx_dev *azx_dev = get_azx_dev(substream);
 	u64 nsec;
 
-	nsec = timecounter_read(&azx_dev->azx_tc);
-	nsec = div_u64(nsec, 3); /* can be optimized */
-	nsec = azx_adjust_codec_delay(substream, nsec);
+	if ((substream->runtime->hw.info & SNDRV_PCM_INFO_HAS_LINK_ATIME) &&
+		(audio_tstamp_config->type_requested == SNDRV_PCM_AUDIO_TSTAMP_TYPE_LINK)) {
 
-	*ts = ns_to_timespec(nsec);
+		snd_pcm_gettime(substream->runtime, system_ts);
+
+		nsec = timecounter_read(&azx_dev->azx_tc);
+		nsec = div_u64(nsec, 3); /* can be optimized */
+		if (audio_tstamp_config->report_delay)
+			nsec = azx_adjust_codec_delay(substream, nsec);
+
+		*audio_ts = ns_to_timespec(nsec);
+
+		audio_tstamp_report->actual_type = SNDRV_PCM_AUDIO_TSTAMP_TYPE_LINK;
+		audio_tstamp_report->accuracy_report = 1; /* rest of structure is valid */
+		audio_tstamp_report->accuracy = 42; /* 24 MHz WallClock == 42ns resolution */
+
+	} else
+		audio_tstamp_report->actual_type = SNDRV_PCM_AUDIO_TSTAMP_TYPE_DEFAULT;
 
 	return 0;
 }
@@ -756,7 +778,8 @@ static struct snd_pcm_hardware azx_pcm_hw = {
 				 /* SNDRV_PCM_INFO_RESUME |*/
 				 SNDRV_PCM_INFO_PAUSE |
 				 SNDRV_PCM_INFO_SYNC_START |
-				 SNDRV_PCM_INFO_HAS_WALL_CLOCK |
+				 SNDRV_PCM_INFO_HAS_WALL_CLOCK | /* legacy */
+				 SNDRV_PCM_INFO_HAS_LINK_ATIME |
 				 SNDRV_PCM_INFO_NO_PERIOD_WAKEUP),
 	.formats =		SNDRV_PCM_FMTBIT_S16_LE,
 	.rates =		SNDRV_PCM_RATE_48000,
@@ -775,7 +798,7 @@ static struct snd_pcm_hardware azx_pcm_hw = {
 static int azx_pcm_open(struct snd_pcm_substream *substream)
 {
 	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
-	struct hda_pcm_stream *hinfo = apcm->hinfo[substream->stream];
+	struct hda_pcm_stream *hinfo = to_hda_pcm_stream(substream);
 	struct azx *chip = apcm->chip;
 	struct azx_dev *azx_dev;
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -783,11 +806,12 @@ static int azx_pcm_open(struct snd_pcm_substream *substream)
 	int err;
 	int buff_step;
 
+	snd_hda_codec_pcm_get(apcm->info);
 	mutex_lock(&chip->open_mutex);
 	azx_dev = azx_assign_device(chip, substream);
 	if (azx_dev == NULL) {
-		mutex_unlock(&chip->open_mutex);
-		return -EBUSY;
+		err = -EBUSY;
+		goto unlock;
 	}
 	runtime->hw = azx_pcm_hw;
 	runtime->hw.channels_min = hinfo->channels_min;
@@ -821,13 +845,14 @@ static int azx_pcm_open(struct snd_pcm_substream *substream)
 				   buff_step);
 	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_BYTES,
 				   buff_step);
-	snd_hda_power_up_d3wait(apcm->codec);
-	err = hinfo->ops.open(hinfo, apcm->codec, substream);
+	snd_hda_power_up(apcm->codec);
+	if (hinfo->ops.open)
+		err = hinfo->ops.open(hinfo, apcm->codec, substream);
+	else
+		err = -ENODEV;
 	if (err < 0) {
 		azx_release_device(azx_dev);
-		snd_hda_power_down(apcm->codec);
-		mutex_unlock(&chip->open_mutex);
-		return err;
+		goto powerdown;
 	}
 	snd_pcm_limit_hw_rates(runtime);
 	/* sanity check */
@@ -836,16 +861,18 @@ static int azx_pcm_open(struct snd_pcm_substream *substream)
 	    snd_BUG_ON(!runtime->hw.formats) ||
 	    snd_BUG_ON(!runtime->hw.rates)) {
 		azx_release_device(azx_dev);
-		hinfo->ops.close(hinfo, apcm->codec, substream);
-		snd_hda_power_down(apcm->codec);
-		mutex_unlock(&chip->open_mutex);
-		return -EINVAL;
+		if (hinfo->ops.close)
+			hinfo->ops.close(hinfo, apcm->codec, substream);
+		err = -EINVAL;
+		goto powerdown;
 	}
 
-	/* disable WALLCLOCK timestamps for capture streams
+	/* disable LINK_ATIME timestamps for capture streams
 	   until we figure out how to handle digital inputs */
-	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
-		runtime->hw.info &= ~SNDRV_PCM_INFO_HAS_WALL_CLOCK;
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+		runtime->hw.info &= ~SNDRV_PCM_INFO_HAS_WALL_CLOCK; /* legacy */
+		runtime->hw.info &= ~SNDRV_PCM_INFO_HAS_LINK_ATIME;
+	}
 
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	azx_dev->substream = substream;
@@ -856,6 +883,13 @@ static int azx_pcm_open(struct snd_pcm_substream *substream)
 	snd_pcm_set_sync(substream);
 	mutex_unlock(&chip->open_mutex);
 	return 0;
+
+ powerdown:
+	snd_hda_power_down(apcm->codec);
+ unlock:
+	mutex_unlock(&chip->open_mutex);
+	snd_hda_codec_pcm_put(apcm->info);
+	return err;
 }
 
 static int azx_pcm_mmap(struct snd_pcm_substream *substream,
@@ -877,7 +911,7 @@ static struct snd_pcm_ops azx_pcm_ops = {
 	.prepare = azx_pcm_prepare,
 	.trigger = azx_pcm_trigger,
 	.pointer = azx_pcm_pointer,
-	.wall_clock =  azx_get_wallclock_tstamp,
+	.get_time_info =  azx_get_time_info,
 	.mmap = azx_pcm_mmap,
 	.page = snd_pcm_sgbuf_ops_page,
 };
@@ -887,6 +921,7 @@ static void azx_pcm_free(struct snd_pcm *pcm)
 	struct azx_pcm *apcm = pcm->private_data;
 	if (apcm) {
 		list_del(&apcm->list);
+		apcm->info->pcm = NULL;
 		kfree(apcm);
 	}
 }
@@ -923,6 +958,7 @@ static int azx_attach_pcm_stream(struct hda_bus *bus, struct hda_codec *codec,
 	apcm->chip = chip;
 	apcm->pcm = pcm;
 	apcm->codec = codec;
+	apcm->info = cpcm;
 	pcm->private_data = apcm;
 	pcm->private_free = azx_pcm_free;
 	if (cpcm->pcm_type == HDA_PCM_TYPE_MODEM)
@@ -930,7 +966,6 @@ static int azx_attach_pcm_stream(struct hda_bus *bus, struct hda_codec *codec,
 	list_add_tail(&apcm->list, &chip->pcm_list);
 	cpcm->pcm = pcm;
 	for (s = 0; s < 2; s++) {
-		apcm->hinfo[s] = &cpcm->stream[s];
 		if (cpcm->stream[s].substreams)
 			snd_pcm_set_ops(pcm, s, &azx_pcm_ops);
 	}
@@ -941,9 +976,6 @@ static int azx_attach_pcm_stream(struct hda_bus *bus, struct hda_codec *codec,
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
 					      chip->card->dev,
 					      size, MAX_PREALLOC_SIZE);
-	/* link to codec */
-	for (s = 0; s < 2; s++)
-		pcm->streams[s].dev.parent = &codec->dev;
 	return 0;
 }
 
@@ -952,14 +984,9 @@ static int azx_attach_pcm_stream(struct hda_bus *bus, struct hda_codec *codec,
  */
 static int azx_alloc_cmd_io(struct azx *chip)
 {
-	int err;
-
 	/* single page (at least 4096 bytes) must suffice for both ringbuffes */
-	err = chip->ops->dma_alloc_pages(chip, SNDRV_DMA_TYPE_DEV,
-					 PAGE_SIZE, &chip->rb);
-	if (err < 0)
-		dev_err(chip->card->dev, "cannot allocate CORB/RIRB\n");
-	return err;
+	return chip->ops->dma_alloc_pages(chip, SNDRV_DMA_TYPE_DEV,
+					  PAGE_SIZE, &chip->rb);
 }
 
 static void azx_init_cmd_io(struct azx *chip)
@@ -1445,7 +1472,6 @@ static void azx_load_dsp_cleanup(struct hda_bus *bus,
 int azx_alloc_stream_pages(struct azx *chip)
 {
 	int i, err;
-	struct snd_card *card = chip->card;
 
 	for (i = 0; i < chip->num_streams; i++) {
 		dsp_lock_init(&chip->azx_dev[i]);
@@ -1453,18 +1479,14 @@ int azx_alloc_stream_pages(struct azx *chip)
 		err = chip->ops->dma_alloc_pages(chip, SNDRV_DMA_TYPE_DEV,
 						 BDL_SIZE,
 						 &chip->azx_dev[i].bdl);
-		if (err < 0) {
-			dev_err(card->dev, "cannot allocate BDL\n");
+		if (err < 0)
 			return -ENOMEM;
-		}
 	}
 	/* allocate memory for the position buffer */
 	err = chip->ops->dma_alloc_pages(chip, SNDRV_DMA_TYPE_DEV,
 					 chip->num_streams * 8, &chip->posbuf);
-	if (err < 0) {
-		dev_err(card->dev, "cannot allocate posbuf\n");
+	if (err < 0)
 		return -ENOMEM;
-	}
 
 	/* allocate CORB/RIRB */
 	err = azx_alloc_cmd_io(chip);
@@ -1676,7 +1698,7 @@ irqreturn_t azx_interrupt(int irq, void *dev_id)
 	int i;
 
 #ifdef CONFIG_PM
-	if (chip->driver_caps & AZX_DCAPS_PM_RUNTIME)
+	if (azx_has_pm_runtime(chip))
 		if (!pm_runtime_active(chip->card->dev))
 			return IRQ_NONE;
 #endif
@@ -1742,12 +1764,12 @@ static int probe_codec(struct azx *chip, int addr)
 		(AC_VERB_PARAMETERS << 8) | AC_PAR_VENDOR_ID;
 	unsigned int res;
 
-	mutex_lock(&chip->bus->cmd_mutex);
+	mutex_lock(&chip->bus->core.cmd_mutex);
 	chip->probing = 1;
 	azx_send_cmd(chip->bus, cmd);
 	res = azx_get_response(chip->bus, addr);
 	chip->probing = 0;
-	mutex_unlock(&chip->bus->cmd_mutex);
+	mutex_unlock(&chip->bus->core.cmd_mutex);
 	if (res == -1)
 		return -EIO;
 	dev_dbg(chip->card->dev, "codec #%d probed OK\n", addr);
@@ -1761,33 +1783,10 @@ static void azx_bus_reset(struct hda_bus *bus)
 	bus->in_reset = 1;
 	azx_stop_chip(chip);
 	azx_init_chip(chip, true);
-#ifdef CONFIG_PM
-	if (chip->initialized) {
-		struct azx_pcm *p;
-		list_for_each_entry(p, &chip->pcm_list, list)
-			snd_pcm_suspend_all(p->pcm);
-		snd_hda_suspend(chip->bus);
-		snd_hda_resume(chip->bus);
-	}
-#endif
+	if (chip->initialized)
+		snd_hda_bus_reset(chip->bus);
 	bus->in_reset = 0;
 }
-
-#ifdef CONFIG_PM
-/* power-up/down the controller */
-static void azx_power_notify(struct hda_bus *bus, bool power_up)
-{
-	struct azx *chip = bus->private_data;
-
-	if (!(chip->driver_caps & AZX_DCAPS_PM_RUNTIME))
-		return;
-
-	if (power_up)
-		pm_runtime_get_sync(chip->card->dev);
-	else
-		pm_runtime_put_sync(chip->card->dev);
-}
-#endif
 
 static int get_jackpoll_interval(struct azx *chip)
 {
@@ -1810,40 +1809,58 @@ static int get_jackpoll_interval(struct azx *chip)
 	return j;
 }
 
-/* Codec initialization */
-int azx_codec_create(struct azx *chip, const char *model,
-		     unsigned int max_slots,
-		     int *power_save_to)
-{
-	struct hda_bus_template bus_temp;
-	int c, codecs, err;
-
-	memset(&bus_temp, 0, sizeof(bus_temp));
-	bus_temp.private_data = chip;
-	bus_temp.modelname = model;
-	bus_temp.pci = chip->pci;
-	bus_temp.ops.command = azx_send_cmd;
-	bus_temp.ops.get_response = azx_get_response;
-	bus_temp.ops.attach_pcm = azx_attach_pcm_stream;
-	bus_temp.ops.bus_reset = azx_bus_reset;
-#ifdef CONFIG_PM
-	bus_temp.power_save = power_save_to;
-	bus_temp.ops.pm_notify = azx_power_notify;
-#endif
+static struct hda_bus_ops bus_ops = {
+	.command = azx_send_cmd,
+	.get_response = azx_get_response,
+	.attach_pcm = azx_attach_pcm_stream,
+	.bus_reset = azx_bus_reset,
 #ifdef CONFIG_SND_HDA_DSP_LOADER
-	bus_temp.ops.load_dsp_prepare = azx_load_dsp_prepare;
-	bus_temp.ops.load_dsp_trigger = azx_load_dsp_trigger;
-	bus_temp.ops.load_dsp_cleanup = azx_load_dsp_cleanup;
+	.load_dsp_prepare = azx_load_dsp_prepare,
+	.load_dsp_trigger = azx_load_dsp_trigger,
+	.load_dsp_cleanup = azx_load_dsp_cleanup,
 #endif
+};
 
-	err = snd_hda_bus_new(chip->card, &bus_temp, &chip->bus);
+/* HD-audio bus initialization */
+int azx_bus_create(struct azx *chip, const char *model)
+{
+	struct hda_bus *bus;
+	int err;
+
+	err = snd_hda_bus_new(chip->card, &bus);
 	if (err < 0)
 		return err;
 
+	chip->bus = bus;
+	bus->private_data = chip;
+	bus->pci = chip->pci;
+	bus->modelname = model;
+	bus->ops = bus_ops;
+
 	if (chip->driver_caps & AZX_DCAPS_RIRB_DELAY) {
 		dev_dbg(chip->card->dev, "Enable delay in RIRB handling\n");
-		chip->bus->needs_damn_long_delay = 1;
+		bus->needs_damn_long_delay = 1;
 	}
+
+	/* AMD chipsets often cause the communication stalls upon certain
+	 * sequence like the pin-detection.  It seems that forcing the synced
+	 * access works around the stall.  Grrr...
+	 */
+	if (chip->driver_caps & AZX_DCAPS_SYNC_WRITE) {
+		dev_dbg(chip->card->dev, "Enable sync_write for stable communication\n");
+		bus->core.sync_write = 1;
+		bus->allow_bus_reset = 1;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(azx_bus_create);
+
+/* Probe codecs */
+int azx_probe_codecs(struct azx *chip, unsigned int max_slots)
+{
+	struct hda_bus *bus = chip->bus;
+	int c, codecs, err;
 
 	codecs = 0;
 	if (!max_slots)
@@ -1872,21 +1889,11 @@ int azx_codec_create(struct azx *chip, const char *model,
 		}
 	}
 
-	/* AMD chipsets often cause the communication stalls upon certain
-	 * sequence like the pin-detection.  It seems that forcing the synced
-	 * access works around the stall.  Grrr...
-	 */
-	if (chip->driver_caps & AZX_DCAPS_SYNC_WRITE) {
-		dev_dbg(chip->card->dev, "Enable sync_write for stable communication\n");
-		chip->bus->sync_write = 1;
-		chip->bus->allow_bus_reset = 1;
-	}
-
 	/* Then create codec instances */
 	for (c = 0; c < max_slots; c++) {
 		if ((chip->codec_mask & (1 << c)) & chip->codec_probe_mask) {
 			struct hda_codec *codec;
-			err = snd_hda_codec_new(chip->bus, c, &codec);
+			err = snd_hda_codec_new(bus, bus->card, c, &codec);
 			if (err < 0)
 				continue;
 			codec->jackpoll_interval = get_jackpoll_interval(chip);
@@ -1900,25 +1907,18 @@ int azx_codec_create(struct azx *chip, const char *model,
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(azx_codec_create);
+EXPORT_SYMBOL_GPL(azx_probe_codecs);
 
 /* configure each codec instance */
 int azx_codec_configure(struct azx *chip)
 {
 	struct hda_codec *codec;
-	list_for_each_entry(codec, &chip->bus->codec_list, list) {
+	list_for_each_codec(codec, chip->bus) {
 		snd_hda_codec_configure(codec);
 	}
 	return 0;
 }
 EXPORT_SYMBOL_GPL(azx_codec_configure);
-
-/* mixer creation - all stuff is implemented in hda module */
-int azx_mixer_create(struct azx *chip)
-{
-	return snd_hda_build_controls(chip->bus);
-}
-EXPORT_SYMBOL_GPL(azx_mixer_create);
 
 
 static bool is_input_stream(struct azx *chip, unsigned char index)
@@ -1965,31 +1965,6 @@ int azx_init_stream(struct azx *chip)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(azx_init_stream);
-
-/*
- * reboot notifier for hang-up problem at power-down
- */
-static int azx_halt(struct notifier_block *nb, unsigned long event, void *buf)
-{
-	struct azx *chip = container_of(nb, struct azx, reboot_notifier);
-	snd_hda_bus_reboot_notify(chip->bus);
-	azx_stop_chip(chip);
-	return NOTIFY_OK;
-}
-
-void azx_notifier_register(struct azx *chip)
-{
-	chip->reboot_notifier.notifier_call = azx_halt;
-	register_reboot_notifier(&chip->reboot_notifier);
-}
-EXPORT_SYMBOL_GPL(azx_notifier_register);
-
-void azx_notifier_unregister(struct azx *chip)
-{
-	if (chip->reboot_notifier.notifier_call)
-		unregister_reboot_notifier(&chip->reboot_notifier);
-}
-EXPORT_SYMBOL_GPL(azx_notifier_unregister);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Common HDA driver functions");

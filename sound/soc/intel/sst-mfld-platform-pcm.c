@@ -594,11 +594,13 @@ static int sst_platform_pcm_trigger(struct snd_pcm_substream *substream,
 		ret_val = stream->ops->stream_drop(sst->dev, str_id);
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
 		dev_dbg(rtd->dev, "sst: in pause\n");
 		status = SST_PLATFORM_PAUSED;
 		ret_val = stream->ops->stream_pause(sst->dev, str_id);
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+	case SNDRV_PCM_TRIGGER_RESUME:
 		dev_dbg(rtd->dev, "sst: in pause release\n");
 		status = SST_PLATFORM_RUNNING;
 		ret_val = stream->ops->stream_pause_release(sst->dev, str_id);
@@ -665,6 +667,9 @@ static int sst_pcm_new(struct snd_soc_pcm_runtime *rtd)
 
 static int sst_soc_probe(struct snd_soc_platform *platform)
 {
+	struct sst_data *drv = dev_get_drvdata(platform->dev);
+
+	drv->soc_card = platform->component.card;
 	return sst_dsp_init_v2_dpcm(platform);
 }
 
@@ -727,9 +732,64 @@ static int sst_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+
+static int sst_soc_prepare(struct device *dev)
+{
+	struct sst_data *drv = dev_get_drvdata(dev);
+	int i;
+
+	/* suspend all pcms first */
+	snd_soc_suspend(drv->soc_card->dev);
+	snd_soc_poweroff(drv->soc_card->dev);
+
+	/* set the SSPs to idle */
+	for (i = 0; i < drv->soc_card->num_rtd; i++) {
+		struct snd_soc_dai *dai = drv->soc_card->rtd[i].cpu_dai;
+
+		if (dai->active) {
+			send_ssp_cmd(dai, dai->name, 0);
+			sst_handle_vb_timer(dai, false);
+		}
+	}
+
+	return 0;
+}
+
+static void sst_soc_complete(struct device *dev)
+{
+	struct sst_data *drv = dev_get_drvdata(dev);
+	int i;
+
+	/* restart SSPs */
+	for (i = 0; i < drv->soc_card->num_rtd; i++) {
+		struct snd_soc_dai *dai = drv->soc_card->rtd[i].cpu_dai;
+
+		if (dai->active) {
+			sst_handle_vb_timer(dai, true);
+			send_ssp_cmd(dai, dai->name, 1);
+		}
+	}
+	snd_soc_resume(drv->soc_card->dev);
+}
+
+#else
+
+#define sst_soc_prepare NULL
+#define sst_soc_complete NULL
+
+#endif
+
+
+static const struct dev_pm_ops sst_platform_pm = {
+	.prepare	= sst_soc_prepare,
+	.complete	= sst_soc_complete,
+};
+
 static struct platform_driver sst_platform_driver = {
 	.driver		= {
 		.name		= "sst-mfld-platform",
+		.pm             = &sst_platform_pm,
 	},
 	.probe		= sst_platform_probe,
 	.remove		= sst_platform_remove,

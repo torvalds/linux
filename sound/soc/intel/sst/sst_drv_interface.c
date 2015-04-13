@@ -138,12 +138,36 @@ int sst_get_stream(struct intel_sst_drv *ctx,
 static int sst_power_control(struct device *dev, bool state)
 {
 	struct intel_sst_drv *ctx = dev_get_drvdata(dev);
+	int ret = 0;
+	int usage_count = 0;
 
-	dev_dbg(ctx->dev, "state:%d", state);
-	if (state == true)
-		return pm_runtime_get_sync(dev);
-	else
+#ifdef CONFIG_PM
+	usage_count = atomic_read(&dev->power.usage_count);
+#else
+	usage_count = 1;
+#endif
+
+	if (state == true) {
+		ret = pm_runtime_get_sync(dev);
+
+		dev_dbg(ctx->dev, "Enable: pm usage count: %d\n", usage_count);
+		if (ret < 0) {
+			dev_err(ctx->dev, "Runtime get failed with err: %d\n", ret);
+			return ret;
+		}
+		if ((ctx->sst_state == SST_RESET) && (usage_count == 1)) {
+			ret = sst_load_fw(ctx);
+			if (ret) {
+				dev_err(dev, "FW download fail %d\n", ret);
+				sst_set_fw_state_locked(ctx, SST_RESET);
+				ret = sst_pm_runtime_put(ctx);
+			}
+		}
+	} else {
+		dev_dbg(ctx->dev, "Disable: pm usage count: %d\n", usage_count);
 		return sst_pm_runtime_put(ctx);
+	}
+	return ret;
 }
 
 /*
@@ -572,6 +596,35 @@ static int sst_stream_drop(struct device *dev, int str_id)
 	return sst_drop_stream(ctx, str_id);
 }
 
+static int sst_stream_pause(struct device *dev, int str_id)
+{
+	struct stream_info *str_info;
+	struct intel_sst_drv *ctx = dev_get_drvdata(dev);
+
+	if (ctx->sst_state != SST_FW_RUNNING)
+		return 0;
+
+	str_info = get_stream_info(ctx, str_id);
+	if (!str_info)
+		return -EINVAL;
+
+	return sst_pause_stream(ctx, str_id);
+}
+
+static int sst_stream_resume(struct device *dev, int str_id)
+{
+	struct stream_info *str_info;
+	struct intel_sst_drv *ctx = dev_get_drvdata(dev);
+
+	if (ctx->sst_state != SST_FW_RUNNING)
+		return 0;
+
+	str_info = get_stream_info(ctx, str_id);
+	if (!str_info)
+		return -EINVAL;
+	return sst_resume_stream(ctx, str_id);
+}
+
 static int sst_stream_init(struct device *dev, struct pcm_stream_info *str_info)
 {
 	int str_id = 0;
@@ -633,6 +686,8 @@ static struct sst_ops pcm_ops = {
 	.stream_init = sst_stream_init,
 	.stream_start = sst_stream_start,
 	.stream_drop = sst_stream_drop,
+	.stream_pause = sst_stream_pause,
+	.stream_pause_release = sst_stream_resume,
 	.stream_read_tstamp = sst_read_timestamp,
 	.send_byte_stream = sst_send_byte_stream,
 	.close = sst_close_pcm_stream,

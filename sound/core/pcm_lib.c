@@ -232,6 +232,49 @@ int snd_pcm_update_state(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static void update_audio_tstamp(struct snd_pcm_substream *substream,
+				struct timespec *curr_tstamp,
+				struct timespec *audio_tstamp)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	u64 audio_frames, audio_nsecs;
+	struct timespec driver_tstamp;
+
+	if (runtime->tstamp_mode != SNDRV_PCM_TSTAMP_ENABLE)
+		return;
+
+	if (!(substream->ops->get_time_info) ||
+		(runtime->audio_tstamp_report.actual_type ==
+			SNDRV_PCM_AUDIO_TSTAMP_TYPE_DEFAULT)) {
+
+		/*
+		 * provide audio timestamp derived from pointer position
+		 * add delay only if requested
+		 */
+
+		audio_frames = runtime->hw_ptr_wrap + runtime->status->hw_ptr;
+
+		if (runtime->audio_tstamp_config.report_delay) {
+			if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+				audio_frames -=  runtime->delay;
+			else
+				audio_frames +=  runtime->delay;
+		}
+		audio_nsecs = div_u64(audio_frames * 1000000000LL,
+				runtime->rate);
+		*audio_tstamp = ns_to_timespec(audio_nsecs);
+	}
+	runtime->status->audio_tstamp = *audio_tstamp;
+	runtime->status->tstamp = *curr_tstamp;
+
+	/*
+	 * re-take a driver timestamp to let apps detect if the reference tstamp
+	 * read by low-level hardware was provided with a delay
+	 */
+	snd_pcm_gettime(substream->runtime, (struct timespec *)&driver_tstamp);
+	runtime->driver_tstamp = driver_tstamp;
+}
+
 static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 				  unsigned int in_interrupt)
 {
@@ -256,11 +299,18 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 	pos = substream->ops->pointer(substream);
 	curr_jiffies = jiffies;
 	if (runtime->tstamp_mode == SNDRV_PCM_TSTAMP_ENABLE) {
-		snd_pcm_gettime(runtime, (struct timespec *)&curr_tstamp);
+		if ((substream->ops->get_time_info) &&
+			(runtime->audio_tstamp_config.type_requested != SNDRV_PCM_AUDIO_TSTAMP_TYPE_DEFAULT)) {
+			substream->ops->get_time_info(substream, &curr_tstamp,
+						&audio_tstamp,
+						&runtime->audio_tstamp_config,
+						&runtime->audio_tstamp_report);
 
-		if ((runtime->hw.info & SNDRV_PCM_INFO_HAS_WALL_CLOCK) &&
-			(substream->ops->wall_clock))
-			substream->ops->wall_clock(substream, &audio_tstamp);
+			/* re-test in case tstamp type is not supported in hardware and was demoted to DEFAULT */
+			if (runtime->audio_tstamp_report.actual_type == SNDRV_PCM_AUDIO_TSTAMP_TYPE_DEFAULT)
+				snd_pcm_gettime(runtime, (struct timespec *)&curr_tstamp);
+		} else
+			snd_pcm_gettime(runtime, (struct timespec *)&curr_tstamp);
 	}
 
 	if (pos == SNDRV_PCM_POS_XRUN) {
@@ -403,8 +453,10 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 	}
 
  no_delta_check:
-	if (runtime->status->hw_ptr == new_hw_ptr)
+	if (runtime->status->hw_ptr == new_hw_ptr) {
+		update_audio_tstamp(substream, &curr_tstamp, &audio_tstamp);
 		return 0;
+	}
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
 	    runtime->silence_size > 0)
@@ -426,30 +478,8 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 		snd_BUG_ON(crossed_boundary != 1);
 		runtime->hw_ptr_wrap += runtime->boundary;
 	}
-	if (runtime->tstamp_mode == SNDRV_PCM_TSTAMP_ENABLE) {
-		runtime->status->tstamp = curr_tstamp;
 
-		if (!(runtime->hw.info & SNDRV_PCM_INFO_HAS_WALL_CLOCK)) {
-			/*
-			 * no wall clock available, provide audio timestamp
-			 * derived from pointer position+delay
-			 */
-			u64 audio_frames, audio_nsecs;
-
-			if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-				audio_frames = runtime->hw_ptr_wrap
-					+ runtime->status->hw_ptr
-					- runtime->delay;
-			else
-				audio_frames = runtime->hw_ptr_wrap
-					+ runtime->status->hw_ptr
-					+ runtime->delay;
-			audio_nsecs = div_u64(audio_frames * 1000000000LL,
-					runtime->rate);
-			audio_tstamp = ns_to_timespec(audio_nsecs);
-		}
-		runtime->status->audio_tstamp = audio_tstamp;
-	}
+	update_audio_tstamp(substream, &curr_tstamp, &audio_tstamp);
 
 	return snd_pcm_update_state(substream, runtime);
 }
