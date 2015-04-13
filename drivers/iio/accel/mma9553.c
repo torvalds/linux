@@ -968,7 +968,8 @@ static const struct iio_chan_spec_ext_info mma9553_ext_info[] = {
 	.modified = 1,							\
 	.channel2 = _chan2,						\
 	.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),		\
-	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_CALIBHEIGHT),	\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_CALIBHEIGHT) |	\
+				    BIT(IIO_CHAN_INFO_ENABLE),		\
 	.event_spec = mma9553_activity_events,				\
 	.num_event_specs = ARRAY_SIZE(mma9553_activity_events),		\
 	.ext_info = mma9553_ext_info,					\
