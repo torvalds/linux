@@ -357,13 +357,13 @@ static void handle_tx(struct vhost_net *net)
 		iov_iter_init(&msg.msg_iter, WRITE, vq->iov, out, len);
 		iov_iter_advance(&msg.msg_iter, hdr_size);
 		/* Sanity check */
-		if (!iov_iter_count(&msg.msg_iter)) {
+		if (!msg_data_left(&msg)) {
 			vq_err(vq, "Unexpected header len for TX: "
 			       "%zd expected %zd\n",
 			       len, hdr_size);
 			break;
 		}
-		len = iov_iter_count(&msg.msg_iter);
+		len = msg_data_left(&msg);
 
 		zcopy_used = zcopy && len >= VHOST_GOODCOPY_LEN
 				   && (nvq->upend_idx + 1) % UIO_MAXIOV !=

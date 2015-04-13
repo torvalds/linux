@@ -46,7 +46,6 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/fcntl.h>
-#include <linux/aio.h>
 #include <linux/workqueue.h>
 #include <linux/kthread.h>
 #include <linux/seq_file.h>

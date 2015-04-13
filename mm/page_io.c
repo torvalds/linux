@@ -20,8 +20,8 @@
 #include <linux/buffer_head.h>
 #include <linux/writeback.h>
 #include <linux/frontswap.h>
-#include <linux/aio.h>
 #include <linux/blkdev.h>
+#include <linux/uio.h>
 #include <asm/pgtable.h>
 
 static struct bio *get_swap_bio(gfp_t gfp_flags,
@@ -274,7 +274,6 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc,
 		iov_iter_bvec(&from, ITER_BVEC | WRITE, &bv, 1, PAGE_SIZE);
 		init_sync_kiocb(&kiocb, swap_file);
 		kiocb.ki_pos = page_file_offset(page);
-		kiocb.ki_nbytes = PAGE_SIZE;
 
 		set_page_writeback(page);
 		unlock_page(page);

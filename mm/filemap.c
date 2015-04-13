@@ -13,7 +13,6 @@
 #include <linux/compiler.h>
 #include <linux/fs.h>
 #include <linux/uaccess.h>
-#include <linux/aio.h>
 #include <linux/capability.h>
 #include <linux/kernel_stat.h>
 #include <linux/gfp.h>

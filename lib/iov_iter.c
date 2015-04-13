@@ -766,3 +766,60 @@ const void *dup_iter(struct iov_iter *new, struct iov_iter *old, gfp_t flags)
 				   flags);
 }
 EXPORT_SYMBOL(dup_iter);
+
+int import_iovec(int type, const struct iovec __user * uvector,
+		 unsigned nr_segs, unsigned fast_segs,
+		 struct iovec **iov, struct iov_iter *i)
+{
+	ssize_t n;
+	struct iovec *p;
+	n = rw_copy_check_uvector(type, uvector, nr_segs, fast_segs,
+				  *iov, &p);
+	if (n < 0) {
+		if (p != *iov)
+			kfree(p);
+		*iov = NULL;
+		return n;
+	}
+	iov_iter_init(i, type, p, nr_segs, n);
+	*iov = p == *iov ? NULL : p;
+	return 0;
+}
+EXPORT_SYMBOL(import_iovec);
+
+#ifdef CONFIG_COMPAT
+#include <linux/compat.h>
+
+int compat_import_iovec(int type, const struct compat_iovec __user * uvector,
+		 unsigned nr_segs, unsigned fast_segs,
+		 struct iovec **iov, struct iov_iter *i)
+{
+	ssize_t n;
+	struct iovec *p;
+	n = compat_rw_copy_check_uvector(type, uvector, nr_segs, fast_segs,
+				  *iov, &p);
+	if (n < 0) {
+		if (p != *iov)
+			kfree(p);
+		*iov = NULL;
+		return n;
+	}
+	iov_iter_init(i, type, p, nr_segs, n);
+	*iov = p == *iov ? NULL : p;
+	return 0;
+}
+#endif
+
+int import_single_range(int rw, void __user *buf, size_t len,
+		 struct iovec *iov, struct iov_iter *i)
+{
+	if (len > MAX_RW_COUNT)
+		len = MAX_RW_COUNT;
+	if (unlikely(!access_ok(!rw, buf, len)))
+		return -EFAULT;
+
+	iov->iov_base = buf;
+	iov->iov_len = len;
+	iov_iter_init(i, rw, iov, 1, len);
+	return 0;
+}

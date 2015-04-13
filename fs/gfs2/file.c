@@ -25,7 +25,6 @@
 #include <asm/uaccess.h>
 #include <linux/dlm.h>
 #include <linux/dlm_plock.h>
-#include <linux/aio.h>
 #include <linux/delay.h>
 
 #include "gfs2.h"

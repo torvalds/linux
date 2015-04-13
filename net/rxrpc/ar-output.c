@@ -542,11 +542,7 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 	call->tx_pending = NULL;
 
 	copied = 0;
-	if (len > iov_iter_count(&msg->msg_iter))
-		len = iov_iter_count(&msg->msg_iter);
-	while (len) {
-		int copy;
-
+	do {
 		if (!skb) {
 			size_t size, chunk, max, space;
 
@@ -568,8 +564,8 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 			max &= ~(call->conn->size_align - 1UL);
 
 			chunk = max;
-			if (chunk > len && !more)
-				chunk = len;
+			if (chunk > msg_data_left(msg) && !more)
+				chunk = msg_data_left(msg);
 
 			space = chunk + call->conn->size_align;
 			space &= ~(call->conn->size_align - 1UL);
@@ -612,23 +608,23 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 		sp = rxrpc_skb(skb);
 
 		/* append next segment of data to the current buffer */
-		copy = skb_tailroom(skb);
-		ASSERTCMP(copy, >, 0);
-		if (copy > len)
-			copy = len;
-		if (copy > sp->remain)
-			copy = sp->remain;
+		if (msg_data_left(msg) > 0) {
+			int copy = skb_tailroom(skb);
+			ASSERTCMP(copy, >, 0);
+			if (copy > msg_data_left(msg))
+				copy = msg_data_left(msg);
+			if (copy > sp->remain)
+				copy = sp->remain;
 
-		_debug("add");
-		ret = skb_add_data(skb, &msg->msg_iter, copy);
-		_debug("added");
-		if (ret < 0)
-			goto efault;
-		sp->remain -= copy;
-		skb->mark += copy;
-		copied += copy;
-
-		len -= copy;
+			_debug("add");
+			ret = skb_add_data(skb, &msg->msg_iter, copy);
+			_debug("added");
+			if (ret < 0)
+				goto efault;
+			sp->remain -= copy;
+			skb->mark += copy;
+			copied += copy;
+		}
 
 		/* check for the far side aborting the call or a network error
 		 * occurring */
@@ -636,7 +632,8 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 			goto call_aborted;
 
 		/* add the packet to the send queue if it's now full */
-		if (sp->remain <= 0 || (!len && !more)) {
+		if (sp->remain <= 0 ||
+		    (msg_data_left(msg) == 0 && !more)) {
 			struct rxrpc_connection *conn = call->conn;
 			uint32_t seq;
 			size_t pad;
@@ -666,7 +663,7 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 			sp->hdr.serviceId = conn->service_id;
 
 			sp->hdr.flags = conn->out_clientflag;
-			if (len == 0 && !more)
+			if (msg_data_left(msg) == 0 && !more)
 				sp->hdr.flags |= RXRPC_LAST_PACKET;
 			else if (CIRC_SPACE(call->acks_head, call->acks_tail,
 					    call->acks_winsz) > 1)
@@ -682,10 +679,10 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 
 			memcpy(skb->head, &sp->hdr,
 			       sizeof(struct rxrpc_header));
-			rxrpc_queue_packet(call, skb, !iov_iter_count(&msg->msg_iter) && !more);
+			rxrpc_queue_packet(call, skb, !msg_data_left(msg) && !more);
 			skb = NULL;
 		}
-	}
+	} while (msg_data_left(msg) > 0);
 
 success:
 	ret = copied;
