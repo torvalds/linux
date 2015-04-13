@@ -621,7 +621,6 @@
 	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&lcdc_lcdc>;
 	pinctrl-1 = <&lcdc_gpio>;
-	rockchip,iommu-enabled = <1>;
 	power_ctr: power_ctr {
 		rockchip,debug = <0>;
 		/*lcd_en:lcd_en {
@@ -642,23 +641,6 @@
 			rockchip,delay = <5>;
 		};*/
 	};
-};
-
-
-&vpu {
-	iommu_enabled = <1>;
-};
-
-&hevc {
-	iommu_enabled = <1>;
-};
-
-&iep {
-	iommu_enabled = <1>;
-};
-
-&isp {
-	rockchip,isp,iommu_enable = <1>;
 };
 
 &hdmi {
@@ -941,8 +923,7 @@
 };
 
 &ion_cma {
-       //reg = <0x00000000 0x28000000>; /* 640MB */
-	     reg = <0x00000000 0x0>; 
+       reg = <0x00000000 0x00000000>; /* 0MB */
 };
 
 /*

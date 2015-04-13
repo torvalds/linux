@@ -838,7 +838,7 @@
 		 rockchip,cru = <&cru>;
 		 rockchip,prop = <PRMRY>;
 		 rockchip,pwr18 = <0>;
-		 rockchip,iommu-enabled = <0>;
+		 rockchip,iommu-enabled = <1>;
 		 reg = <0x0 0xff930000 0x0 0x10000>;
 		 interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
 		/*pinctrl-names = "default", "gpio";
@@ -1096,7 +1096,7 @@
 		ion_cma: rockchip,ion-heap@4 { /* CMA HEAP */
 			compatible = "rockchip,ion-heap";
 			rockchip,ion_heap = <4>;
-			reg = <0x00000000 0x08000000>; /* 512MB */
+			reg = <0x00000000 0x00000000>; /* 0MB */
 		};
 		rockchip,ion-heap@0 { /* VMALLOC HEAP */
 			compatible = "rockchip,ion-heap";
@@ -1106,7 +1106,7 @@
 
 	vpu: vpu_service {
 		compatible = "rockchip,vpu_sub";
-		iommu_enabled = <0>;
+		iommu_enabled = <1>;
 		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_enc", "irq_dec";
@@ -1116,7 +1116,7 @@
 
 	hevc: hevc_service {
 		compatible = "rockchip,hevc_sub";
-		iommu_enabled = <0>;
+		iommu_enabled = <1>;
 		interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_dec";
 		dev_mode = <1>;
@@ -1139,7 +1139,7 @@
 
 	iep: iep@ff900000 {
 		compatible = "rockchip,iep";
-		iommu_enabled = <0>;
+		iommu_enabled = <1>;
 		reg = <0x0 0xff900000 0x0 0x800>;
 		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clk_gates16 2>, <&clk_gates16 3>;
@@ -1230,8 +1230,9 @@
 		dbgname = "vpu";
 		compatible = "rockchip,vpu_mmu";
 		reg = <0x0 0xff9a0800 0x0 0x100>;                    /*need to fix*/
-		interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;       /*need to fix*/
-		interrupt-names = "vpu_mmu";
+		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,	     /*need to fix*/
+			     <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vepu_mmu", "vdpu_mmu";
 	};
 
 	rockchip_suspend {
@@ -1280,7 +1281,7 @@
 		rockchip,grf = <&grf>;
 		rockchip,cru = <&cru>;
 		rockchip,gpios = <&gpio3 GPIO_C4 GPIO_ACTIVE_HIGH>;
-		rockchip,isp,iommu_enable = <0>;
+		rockchip,isp,iommu_enable = <1>;
 		status = "okay";
 	};
 

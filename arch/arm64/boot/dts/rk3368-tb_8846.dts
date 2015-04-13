@@ -1051,7 +1051,7 @@ rk818,support_dc_chg = <1>;/*1:dc chg; 0:usb chg*/
 
 
 &ion_cma {
-       reg = <0x00000000 0x28000000>; /* 640MB */
+       reg = <0x00000000 0x00000000>; /* 0MB */
 };
 
 &rk3368_cif_sensor{
