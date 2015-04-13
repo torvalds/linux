@@ -286,6 +286,8 @@ struct q_inval {
 
 #define INTR_REMAP_TABLE_ENTRIES	65536
 
+struct irq_domain;
+
 struct ir_table {
 	struct irte *base;
 	unsigned long *bitmap;
@@ -335,6 +337,8 @@ struct intel_iommu {
 
 #ifdef CONFIG_IRQ_REMAP
 	struct ir_table *ir_table;	/* Interrupt remapping info */
+	struct irq_domain *ir_domain;
+	struct irq_domain *ir_msi_domain;
 #endif
 	struct device	*iommu_dev; /* IOMMU-sysfs device */
 	int		node;
