@@ -247,6 +247,7 @@ static int create_of_modalias(struct acpi_device *acpi_dev, char *modalias,
 static struct acpi_device *acpi_companion_match(const struct device *dev)
 {
 	struct acpi_device *adev;
+	struct mutex *physical_node_lock;
 
 	adev = ACPI_COMPANION(dev);
 	if (!adev)
@@ -255,7 +256,8 @@ static struct acpi_device *acpi_companion_match(const struct device *dev)
 	if (list_empty(&adev->pnp.ids))
 		return NULL;
 
-	mutex_lock(&adev->physical_node_lock);
+	physical_node_lock = &adev->physical_node_lock;
+	mutex_lock(physical_node_lock);
 	if (list_empty(&adev->physical_node_list)) {
 		adev = NULL;
 	} else {
@@ -266,7 +268,7 @@ static struct acpi_device *acpi_companion_match(const struct device *dev)
 		if (node->dev != dev)
 			adev = NULL;
 	}
-	mutex_unlock(&adev->physical_node_lock);
+	mutex_unlock(physical_node_lock);
 
 	return adev;
 }
