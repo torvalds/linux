@@ -132,6 +132,8 @@ struct hv_netvsc_packet {
 
 	bool is_data_pkt;
 	bool xmit_more; /* from skb */
+	bool cp_partial; /* partial copy into send buffer */
+
 	u16 vlan_tci;
 
 	u16 q_idx;
@@ -145,6 +147,9 @@ struct hv_netvsc_packet {
 
 	/* This points to the memory after page_buf */
 	struct rndis_message *rndis_msg;
+
+	u32 rmsg_size; /* RNDIS header and PPI size */
+	u32 rmsg_pgcnt; /* page count of RNDIS header and PPI */
 
 	u32 total_data_buflen;
 	/* Points to the send/receive buffer where the ethernet frame is */

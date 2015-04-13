@@ -277,15 +277,16 @@ static u32 fill_pg_buf(struct page *page, u32 offset, u32 len,
 }
 
 static u32 init_page_array(void *hdr, u32 len, struct sk_buff *skb,
-			   struct hv_page_buffer *pb)
+			   struct hv_netvsc_packet *packet)
 {
+	struct hv_page_buffer *pb = packet->page_buf;
 	u32 slots_used = 0;
 	char *data = skb->data;
 	int frags = skb_shinfo(skb)->nr_frags;
 	int i;
 
 	/* The packet is laid out thus:
-	 * 1. hdr
+	 * 1. hdr: RNDIS header and PPI
 	 * 2. skb linear data
 	 * 3. skb fragment data
 	 */
@@ -293,6 +294,9 @@ static u32 init_page_array(void *hdr, u32 len, struct sk_buff *skb,
 		slots_used += fill_pg_buf(virt_to_page(hdr),
 					offset_in_page(hdr),
 					len, &pb[slots_used]);
+
+	packet->rmsg_size = len;
+	packet->rmsg_pgcnt = slots_used;
 
 	slots_used += fill_pg_buf(virt_to_page(data),
 				offset_in_page(data),
@@ -578,7 +582,7 @@ do_send:
 	rndis_msg->msg_len += rndis_msg_size;
 	packet->total_data_buflen = rndis_msg->msg_len;
 	packet->page_buf_cnt = init_page_array(rndis_msg, rndis_msg_size,
-					skb, &page_buf[0]);
+					       skb, packet);
 
 	ret = netvsc_send(net_device_ctx->device_ctx, packet);
 
