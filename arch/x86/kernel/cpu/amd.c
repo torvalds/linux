@@ -5,6 +5,7 @@
 
 #include <linux/io.h>
 #include <linux/sched.h>
+#include <linux/random.h>
 #include <asm/processor.h>
 #include <asm/apic.h>
 #include <asm/cpu.h>
@@ -488,6 +489,9 @@ static void bsp_init_amd(struct cpuinfo_x86 *c)
 
 		va_align.mask	  = (upperbit - 1) & PAGE_MASK;
 		va_align.flags    = ALIGN_VA_32 | ALIGN_VA_64;
+
+		/* A random value per boot for bit slice [12:upper_bit) */
+		va_align.bits = get_random_int() & va_align.mask;
 	}
 }
 
