@@ -182,6 +182,10 @@ struct mma9553_conf_regs {
 
 struct mma9553_data {
 	struct i2c_client *client;
+	/*
+	 * 1. Serialize access to HW (requested by mma9551_core API).
+	 * 2. Serialize sequences that power on/off the device and access HW.
+	 */
 	struct mutex mutex;
 	struct mma9553_conf_regs conf;
 	struct mma9553_event events[MMA9553_EVENTS_INFO_SIZE];
