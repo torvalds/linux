@@ -672,8 +672,8 @@ static void rcu_torture_boost_cb(struct rcu_head *head)
 	struct rcu_boost_inflight *rbip =
 		container_of(head, struct rcu_boost_inflight, rcu);
 
-	smp_mb(); /* Ensure RCU-core accesses precede clearing ->inflight */
-	rbip->inflight = 0;
+	/* Ensure RCU-core accesses precede clearing ->inflight */
+	smp_store_release(&rbip->inflight, 0);
 }
 
 static int rcu_torture_boost(void *arg)
@@ -710,9 +710,9 @@ static int rcu_torture_boost(void *arg)
 		call_rcu_time = jiffies;
 		while (ULONG_CMP_LT(jiffies, endtime)) {
 			/* If we don't have a callback in flight, post one. */
-			if (!rbi.inflight) {
-				smp_mb(); /* RCU core before ->inflight = 1. */
-				rbi.inflight = 1;
+			if (!smp_load_acquire(&rbi.inflight)) {
+				/* RCU core before ->inflight = 1. */
+				smp_store_release(&rbi.inflight, 1);
 				call_rcu(&rbi.rcu, rcu_torture_boost_cb);
 				if (jiffies - call_rcu_time >
 					 test_boost_duration * HZ - HZ / 2) {
@@ -751,11 +751,10 @@ checkwait:	stutter_wait("rcu_torture_boost");
 	} while (!torture_must_stop());
 
 	/* Clean up and exit. */
-	while (!kthread_should_stop() || rbi.inflight) {
+	while (!kthread_should_stop() || smp_load_acquire(&rbi.inflight)) {
 		torture_shutdown_absorb("rcu_torture_boost");
 		schedule_timeout_uninterruptible(1);
 	}
-	smp_mb(); /* order accesses to ->inflight before stack-frame death. */
 	destroy_rcu_head_on_stack(&rbi.rcu);
 	torture_kthread_stopping("rcu_torture_boost");
 	return 0;
@@ -1413,12 +1412,15 @@ static int rcu_torture_barrier_cbs(void *arg)
 	do {
 		wait_event(barrier_cbs_wq[myid],
 			   (newphase =
-			    READ_ONCE(barrier_phase)) != lastphase ||
+			    smp_load_acquire(&barrier_phase)) != lastphase ||
 			   torture_must_stop());
 		lastphase = newphase;
-		smp_mb(); /* ensure barrier_phase load before ->call(). */
 		if (torture_must_stop())
 			break;
+		/*
+		 * The above smp_load_acquire() ensures barrier_phase load
+		 * is ordered before the folloiwng ->call().
+		 */
 		cur_ops->call(&rcu, rcu_torture_barrier_cbf);
 		if (atomic_dec_and_test(&barrier_cbs_count))
 			wake_up(&barrier_wq);
@@ -1439,8 +1441,8 @@ static int rcu_torture_barrier(void *arg)
 	do {
 		atomic_set(&barrier_cbs_invoked, 0);
 		atomic_set(&barrier_cbs_count, n_barrier_cbs);
-		smp_mb(); /* Ensure barrier_phase after prior assignments. */
-		barrier_phase = !barrier_phase;
+		/* Ensure barrier_phase ordered after prior assignments. */
+		smp_store_release(&barrier_phase, !barrier_phase);
 		for (i = 0; i < n_barrier_cbs; i++)
 			wake_up(&barrier_cbs_wq[i]);
 		wait_event(barrier_wq,
