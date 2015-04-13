@@ -165,8 +165,8 @@ acpi_ex_system_memory_space_handler(u32 function,
 		 * one page, which is similar to the original code that used a 4k
 		 * maximum window.
 		 */
-		page_boundary_map_length =
-		    ACPI_ROUND_UP(address, ACPI_DEFAULT_PAGE_SIZE) - address;
+		page_boundary_map_length = (acpi_size)
+		    (ACPI_ROUND_UP(address, ACPI_DEFAULT_PAGE_SIZE) - address);
 		if (page_boundary_map_length == 0) {
 			page_boundary_map_length = ACPI_DEFAULT_PAGE_SIZE;
 		}
