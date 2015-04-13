@@ -151,15 +151,6 @@ struct sbp_session {
 	u64 reconnect_expires;
 };
 
-struct sbp_nacl {
-	/* Initiator EUI-64 */
-	u64 guid;
-	/* ASCII formatted GUID for SBP Initiator port */
-	char iport_name[SBP_NAMELEN];
-	/* Returned by sbp_make_nodeacl() */
-	struct se_node_acl se_node_acl;
-};
-
 struct sbp_tpg {
 	/* Target portal group tag for TCM */
 	u16 tport_tpgt;

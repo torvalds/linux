@@ -1714,24 +1714,14 @@ static u32 sbp_get_default_depth(struct se_portal_group *se_tpg)
 
 static struct se_node_acl *sbp_alloc_fabric_acl(struct se_portal_group *se_tpg)
 {
-	struct sbp_nacl *nacl;
-
-	nacl = kzalloc(sizeof(struct sbp_nacl), GFP_KERNEL);
-	if (!nacl) {
-		pr_err("Unable to allocate struct sbp_nacl\n");
-		return NULL;
-	}
-
-	return &nacl->se_node_acl;
+	return kzalloc(sizeof(struct se_node_acl), GFP_KERNEL);
 }
 
 static void sbp_release_fabric_acl(
 	struct se_portal_group *se_tpg,
 	struct se_node_acl *se_nacl)
 {
-	struct sbp_nacl *nacl =
-		container_of(se_nacl, struct sbp_nacl, se_node_acl);
-	kfree(nacl);
+	kfree(se_nacl);
 }
 
 static u32 sbp_tpg_get_inst_index(struct se_portal_group *se_tpg)
@@ -2106,7 +2096,6 @@ static struct se_node_acl *sbp_make_nodeacl(
 		const char *name)
 {
 	struct se_node_acl *se_nacl, *se_nacl_new;
-	struct sbp_nacl *nacl;
 	u64 guid = 0;
 	u32 nexus_depth = 1;
 
@@ -2128,20 +2117,13 @@ static struct se_node_acl *sbp_make_nodeacl(
 		return se_nacl;
 	}
 
-	nacl = container_of(se_nacl, struct sbp_nacl, se_node_acl);
-	nacl->guid = guid;
-	sbp_format_wwn(nacl->iport_name, SBP_NAMELEN, guid);
-
 	return se_nacl;
 }
 
 static void sbp_drop_nodeacl(struct se_node_acl *se_acl)
 {
-	struct sbp_nacl *nacl =
-		container_of(se_acl, struct sbp_nacl, se_node_acl);
-
 	core_tpg_del_initiator_node_acl(se_acl->se_tpg, se_acl, 1);
-	kfree(nacl);
+	kfree(se_acl);
 }
 
 static int sbp_post_link_lun(
