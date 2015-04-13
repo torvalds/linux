@@ -911,6 +911,9 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 
 	switch (header->ver) {
 	case 0:
+		adsp_warn(dsp, "%s: Depreciated file format %d\n",
+			  file, header->ver);
+		break;
 	case 1:
 	case 2:
 		break;
