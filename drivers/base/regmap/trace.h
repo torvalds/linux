@@ -7,7 +7,7 @@
 #include <linux/ktime.h>
 #include <linux/tracepoint.h>
 
-#include "../../../drivers/base/regmap/internal.h"
+#include "internal.h"
 
 /*
  * Log register events
@@ -246,6 +246,12 @@ TRACE_EVENT(regcache_drop_region,
 );
 
 #endif /* _TRACE_REGMAP_H */
+
+#undef TRACE_INCLUDE_PATH
+#define TRACE_INCLUDE_PATH .
+
+#undef TRACE_INCLUDE_FILE
+#define TRACE_INCLUDE_FILE trace
 
 /* This part must be outside protection */
 #include <trace/define_trace.h>
