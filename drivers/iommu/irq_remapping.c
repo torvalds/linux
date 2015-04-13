@@ -25,9 +25,6 @@ int no_x2apic_optout;
 static int disable_irq_remap;
 static struct irq_remap_ops *remap_ops;
 
-static int msi_alloc_remapped_irq(struct pci_dev *pdev, int irq, int nvec);
-static int msi_setup_remapped_irq(struct pci_dev *pdev, unsigned int irq,
-				  int index, int sub_handle);
 static int set_remapped_irq_affinity(struct irq_data *data,
 				     const struct cpumask *mask,
 				     bool force);
@@ -50,109 +47,6 @@ static void irq_remapping_disable_io_apic(void)
 		disconnect_bsp_APIC(0);
 }
 
-#ifndef CONFIG_GENERIC_IRQ_LEGACY_ALLOC_HWIRQ
-static unsigned int irq_alloc_hwirqs(int cnt, int node)
-{
-	return irq_domain_alloc_irqs(NULL, -1, cnt, node, NULL);
-}
-
-static void irq_free_hwirqs(unsigned int from, int cnt)
-{
-	irq_domain_free_irqs(from, cnt);
-}
-#endif
-
-static int do_setup_msi_irqs(struct pci_dev *dev, int nvec)
-{
-	int ret, sub_handle, nvec_pow2, index = 0;
-	unsigned int irq;
-	struct msi_desc *msidesc;
-
-	msidesc = list_entry(dev->msi_list.next, struct msi_desc, list);
-
-	irq = irq_alloc_hwirqs(nvec, dev_to_node(&dev->dev));
-	if (irq == 0)
-		return -ENOSPC;
-
-	nvec_pow2 = __roundup_pow_of_two(nvec);
-	for (sub_handle = 0; sub_handle < nvec; sub_handle++) {
-		if (!sub_handle) {
-			index = msi_alloc_remapped_irq(dev, irq, nvec_pow2);
-			if (index < 0) {
-				ret = index;
-				goto error;
-			}
-		} else {
-			ret = msi_setup_remapped_irq(dev, irq + sub_handle,
-						     index, sub_handle);
-			if (ret < 0)
-				goto error;
-		}
-		ret = setup_msi_irq(dev, msidesc, irq, sub_handle);
-		if (ret < 0)
-			goto error;
-	}
-	return 0;
-
-error:
-	irq_free_hwirqs(irq, nvec);
-
-	/*
-	 * Restore altered MSI descriptor fields and prevent just destroyed
-	 * IRQs from tearing down again in default_teardown_msi_irqs()
-	 */
-	msidesc->irq = 0;
-
-	return ret;
-}
-
-static int do_setup_msix_irqs(struct pci_dev *dev, int nvec)
-{
-	int node, ret, sub_handle, index = 0;
-	struct msi_desc *msidesc;
-	unsigned int irq;
-
-	node		= dev_to_node(&dev->dev);
-	sub_handle	= 0;
-
-	list_for_each_entry(msidesc, &dev->msi_list, list) {
-
-		irq = irq_alloc_hwirqs(1, node);
-		if (irq == 0)
-			return -1;
-
-		if (sub_handle == 0)
-			ret = index = msi_alloc_remapped_irq(dev, irq, nvec);
-		else
-			ret = msi_setup_remapped_irq(dev, irq, index, sub_handle);
-
-		if (ret < 0)
-			goto error;
-
-		ret = setup_msi_irq(dev, msidesc, irq, 0);
-		if (ret < 0)
-			goto error;
-
-		sub_handle += 1;
-		irq        += 1;
-	}
-
-	return 0;
-
-error:
-	irq_free_hwirqs(irq, 1);
-	return ret;
-}
-
-static int irq_remapping_setup_msi_irqs(struct pci_dev *dev,
-					int nvec, int type)
-{
-	if (type == PCI_CAP_ID_MSI)
-		return do_setup_msi_irqs(dev, nvec);
-	else
-		return do_setup_msix_irqs(dev, nvec);
-}
-
 static void eoi_ioapic_pin_remapped(int apic, int pin, int vector)
 {
 	/*
@@ -170,8 +64,6 @@ static void __init irq_remapping_modify_x86_ops(void)
 	x86_io_apic_ops.set_affinity	= set_remapped_irq_affinity;
 	x86_io_apic_ops.setup_entry	= setup_ioapic_remapped_entry;
 	x86_io_apic_ops.eoi_ioapic_pin	= eoi_ioapic_pin_remapped;
-	x86_msi.setup_hpet_msi		= setup_hpet_msi_remapped;
-	x86_msi.compose_msi_msg		= compose_remapped_msi_msg;
 }
 
 static __init int setup_nointremap(char *str)
@@ -293,49 +185,6 @@ void free_remapped_irq(int irq)
 
 	if (irq_remapped(cfg) && remap_ops->free_irq)
 		remap_ops->free_irq(irq);
-}
-
-void compose_remapped_msi_msg(struct pci_dev *pdev,
-			      unsigned int irq, unsigned int dest,
-			      struct msi_msg *msg, u8 hpet_id)
-{
-	struct irq_cfg *cfg = irq_cfg(irq);
-
-	if (!irq_remapped(cfg))
-		native_compose_msi_msg(pdev, irq, dest, msg, hpet_id);
-	else if (remap_ops->compose_msi_msg)
-		remap_ops->compose_msi_msg(pdev, irq, dest, msg, hpet_id);
-}
-
-static int msi_alloc_remapped_irq(struct pci_dev *pdev, int irq, int nvec)
-{
-	if (!remap_ops->msi_alloc_irq)
-		return -ENODEV;
-
-	return remap_ops->msi_alloc_irq(pdev, irq, nvec);
-}
-
-static int msi_setup_remapped_irq(struct pci_dev *pdev, unsigned int irq,
-				  int index, int sub_handle)
-{
-	if (!remap_ops->msi_setup_irq)
-		return -ENODEV;
-
-	return remap_ops->msi_setup_irq(pdev, irq, index, sub_handle);
-}
-
-int setup_hpet_msi_remapped(unsigned int irq, unsigned int id)
-{
-	int ret;
-
-	if (!remap_ops->alloc_hpet_msi)
-		return -ENODEV;
-
-	ret = remap_ops->alloc_hpet_msi(irq, id);
-	if (ret)
-		return -EINVAL;
-
-	return default_setup_hpet_msi(irq, id);
 }
 
 void panic_if_irq_remap(const char *msg)
