@@ -365,9 +365,12 @@ static int mma9553_conf_gpio(struct mma9553_data *data)
 		return 0;
 
 	/* Save initial values for activity and stepcnt */
-	if (activity_enabled || ev_step_detect->enabled)
-		mma9553_read_activity_stepcnt(data, &data->activity,
-					      &data->stepcnt);
+	if (activity_enabled || ev_step_detect->enabled) {
+		ret = mma9553_read_activity_stepcnt(data, &data->activity,
+						    &data->stepcnt);
+		if (ret < 0)
+			return ret;
+	}
 
 	ret = mma9551_gpio_config(data->client,
 				  MMA9553_DEFAULT_GPIO_PIN,
