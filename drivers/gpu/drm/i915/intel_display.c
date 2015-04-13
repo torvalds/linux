@@ -11034,7 +11034,7 @@ out_hang:
 	return ret;
 }
 
-static struct drm_crtc_helper_funcs intel_helper_funcs = {
+static const struct drm_crtc_helper_funcs intel_helper_funcs = {
 	.mode_set_base_atomic = intel_pipe_set_base_atomic,
 	.load_lut = intel_crtc_load_lut,
 	.atomic_begin = intel_begin_crtc_commit,
