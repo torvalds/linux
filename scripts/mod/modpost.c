@@ -1270,6 +1270,15 @@ static void print_section_list(const char * const list[20])
 	fprintf(stderr, "\n");
 }
 
+static inline void get_pretty_name(int is_func, const char** name, const char** name_p)
+{
+	switch (is_func) {
+	case 0:	*name = "variable"; *name_p = ""; break;
+	case 1:	*name = "function"; *name_p = "()"; break;
+	default: *name = "(unknown reference)"; *name_p = ""; break;
+	}
+}
+
 /*
  * Print a warning about a section mismatch.
  * Try to find symbols near it so user can find it.
@@ -1289,20 +1298,12 @@ static void report_sec_mismatch(const char *modname,
 	char *prl_from;
 	char *prl_to;
 
-	switch (from_is_func) {
-	case 0: from = "variable"; from_p = "";   break;
-	case 1: from = "function"; from_p = "()"; break;
-	default: from = "(unknown reference)"; from_p = ""; break;
-	}
-	switch (to_is_func) {
-	case 0: to = "variable"; to_p = "";   break;
-	case 1: to = "function"; to_p = "()"; break;
-	default: to = "(unknown reference)"; to_p = ""; break;
-	}
-
 	sec_mismatch_count++;
 	if (!sec_mismatch_verbose)
 		return;
+
+	get_pretty_name(from_is_func, &from, &from_p);
+	get_pretty_name(to_is_func, &to, &to_p);
 
 	warn("%s(%s+0x%llx): Section mismatch in reference from the %s %s%s "
 	     "to the %s %s:%s%s\n",
