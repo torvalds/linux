@@ -988,7 +988,7 @@ xfs_vn_setattr(
 		uint		iolock = XFS_IOLOCK_EXCL;
 
 		xfs_ilock(ip, iolock);
-		error = xfs_break_layouts(dentry->d_inode, &iolock);
+		error = xfs_break_layouts(dentry->d_inode, &iolock, true);
 		if (!error)
 			error = xfs_setattr_size(ip, iattr);
 		xfs_iunlock(ip, iolock);
