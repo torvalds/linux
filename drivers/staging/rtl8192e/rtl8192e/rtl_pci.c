@@ -62,7 +62,7 @@ bool rtl8192_pci_findadapter(struct pci_dev *pdev, struct net_device *dev)
 
 	priv->card_8192 = priv->ops->nic_type;
 
-	if (DeviceID == 0x8172) {
+	if (DeviceID == 0x8192) {
 		switch (RevisionID) {
 		case HAL_HW_PCI_REVISION_ID_8192PCIE:
 			dev_info(&pdev->dev,
