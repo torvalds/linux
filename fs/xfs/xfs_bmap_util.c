@@ -1383,7 +1383,7 @@ out:
  * If we are shifting right, we will start with last extent inside file space
  * and continue until we reach the block corresponding to offset.
  */
-int
+static int
 xfs_shift_file_space(
 	struct xfs_inode        *ip,
 	xfs_off_t               offset,
