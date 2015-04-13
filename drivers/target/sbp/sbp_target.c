@@ -1707,11 +1707,6 @@ static u16 sbp_get_tag(struct se_portal_group *se_tpg)
 	return tpg->tport_tpgt;
 }
 
-static u32 sbp_get_default_depth(struct se_portal_group *se_tpg)
-{
-	return 1;
-}
-
 static struct se_node_acl *sbp_alloc_fabric_acl(struct se_portal_group *se_tpg)
 {
 	return kzalloc(sizeof(struct se_node_acl), GFP_KERNEL);
@@ -2490,7 +2485,6 @@ static const struct target_core_fabric_ops sbp_ops = {
 	.get_fabric_proto_ident		= sbp_get_fabric_proto_ident,
 	.tpg_get_wwn			= sbp_get_fabric_wwn,
 	.tpg_get_tag			= sbp_get_tag,
-	.tpg_get_default_depth		= sbp_get_default_depth,
 	.tpg_get_pr_transport_id	= sbp_get_pr_transport_id,
 	.tpg_get_pr_transport_id_len	= sbp_get_pr_transport_id_len,
 	.tpg_parse_pr_out_transport_id	= sbp_parse_pr_out_transport_id,

@@ -330,10 +330,6 @@ static int target_fabric_tf_ops_check(const struct target_core_fabric_ops *tfo)
 		pr_err("Missing tfo->tpg_get_tag()\n");
 		return -EINVAL;
 	}
-	if (!tfo->tpg_get_default_depth) {
-		pr_err("Missing tfo->tpg_get_default_depth()\n");
-		return -EINVAL;
-	}
 	if (!tfo->tpg_get_pr_transport_id) {
 		pr_err("Missing tfo->tpg_get_pr_transport_id()\n");
 		return -EINVAL;

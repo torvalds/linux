@@ -326,11 +326,6 @@ static u16 vhost_scsi_get_tpgt(struct se_portal_group *se_tpg)
 	return tpg->tport_tpgt;
 }
 
-static u32 vhost_scsi_get_default_depth(struct se_portal_group *se_tpg)
-{
-	return 1;
-}
-
 static u32
 vhost_scsi_get_pr_transport_id(struct se_portal_group *se_tpg,
 			      struct se_node_acl *se_nacl,
@@ -2300,7 +2295,6 @@ static struct target_core_fabric_ops vhost_scsi_ops = {
 	.get_fabric_proto_ident		= vhost_scsi_get_fabric_proto_ident,
 	.tpg_get_wwn			= vhost_scsi_get_fabric_wwn,
 	.tpg_get_tag			= vhost_scsi_get_tpgt,
-	.tpg_get_default_depth		= vhost_scsi_get_default_depth,
 	.tpg_get_pr_transport_id	= vhost_scsi_get_pr_transport_id,
 	.tpg_get_pr_transport_id_len	= vhost_scsi_get_pr_transport_id_len,
 	.tpg_parse_pr_out_transport_id	= vhost_scsi_parse_pr_out_transport_id,

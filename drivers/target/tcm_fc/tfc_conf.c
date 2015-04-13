@@ -486,11 +486,6 @@ static u16 ft_get_tag(struct se_portal_group *se_tpg)
 	return tpg->index;
 }
 
-static u32 ft_get_default_depth(struct se_portal_group *se_tpg)
-{
-	return 1;
-}
-
 static int ft_check_false(struct se_portal_group *se_tpg)
 {
 	return 0;
@@ -514,7 +509,6 @@ static const struct target_core_fabric_ops ft_fabric_ops = {
 	.get_fabric_proto_ident =	fc_get_fabric_proto_ident,
 	.tpg_get_wwn =			ft_get_fabric_wwn,
 	.tpg_get_tag =			ft_get_tag,
-	.tpg_get_default_depth =	ft_get_default_depth,
 	.tpg_get_pr_transport_id =	fc_get_pr_transport_id,
 	.tpg_get_pr_transport_id_len =	fc_get_pr_transport_id_len,
 	.tpg_parse_pr_out_transport_id = fc_parse_pr_out_transport_id,

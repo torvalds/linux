@@ -282,7 +282,10 @@ struct se_node_acl *core_tpg_check_initiator_node_acl(
 	spin_lock_init(&acl->device_list_lock);
 	spin_lock_init(&acl->nacl_sess_lock);
 	atomic_set(&acl->acl_pr_ref_count, 0);
-	acl->queue_depth = tpg->se_tpg_tfo->tpg_get_default_depth(tpg);
+	if (tpg->se_tpg_tfo->tpg_get_default_depth)
+		acl->queue_depth = tpg->se_tpg_tfo->tpg_get_default_depth(tpg);
+	else
+		acl->queue_depth = 1;
 	snprintf(acl->initiatorname, TRANSPORT_IQN_LEN, "%s", initiatorname);
 	acl->se_tpg = tpg;
 	acl->acl_index = scsi_get_new_index(SCSI_AUTH_INTR_INDEX);

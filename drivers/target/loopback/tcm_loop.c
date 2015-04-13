@@ -566,11 +566,6 @@ static u16 tcm_loop_get_tag(struct se_portal_group *se_tpg)
 	return tl_tpg->tl_tpgt;
 }
 
-static u32 tcm_loop_get_default_depth(struct se_portal_group *se_tpg)
-{
-	return 1;
-}
-
 static u32 tcm_loop_get_pr_transport_id(
 	struct se_portal_group *se_tpg,
 	struct se_node_acl *se_nacl,
@@ -1378,7 +1373,6 @@ static const struct target_core_fabric_ops loop_ops = {
 	.get_fabric_proto_ident		= tcm_loop_get_fabric_proto_ident,
 	.tpg_get_wwn			= tcm_loop_get_endpoint_wwn,
 	.tpg_get_tag			= tcm_loop_get_tag,
-	.tpg_get_default_depth		= tcm_loop_get_default_depth,
 	.tpg_get_pr_transport_id	= tcm_loop_get_pr_transport_id,
 	.tpg_get_pr_transport_id_len	= tcm_loop_get_pr_transport_id_len,
 	.tpg_parse_pr_out_transport_id	= tcm_loop_parse_pr_out_transport_id,

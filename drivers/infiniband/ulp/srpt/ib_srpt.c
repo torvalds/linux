@@ -3411,11 +3411,6 @@ static u16 srpt_get_tag(struct se_portal_group *tpg)
 	return 1;
 }
 
-static u32 srpt_get_default_depth(struct se_portal_group *se_tpg)
-{
-	return 1;
-}
-
 static u32 srpt_get_pr_transport_id(struct se_portal_group *se_tpg,
 				    struct se_node_acl *se_nacl,
 				    struct t10_pr_registration *pr_reg,
@@ -3920,7 +3915,6 @@ static const struct target_core_fabric_ops srpt_template = {
 	.get_fabric_proto_ident		= srpt_get_fabric_proto_ident,
 	.tpg_get_wwn			= srpt_get_fabric_wwn,
 	.tpg_get_tag			= srpt_get_tag,
-	.tpg_get_default_depth		= srpt_get_default_depth,
 	.tpg_get_pr_transport_id	= srpt_get_pr_transport_id,
 	.tpg_get_pr_transport_id_len	= srpt_get_pr_transport_id_len,
 	.tpg_parse_pr_out_transport_id	= srpt_parse_pr_out_transport_id,

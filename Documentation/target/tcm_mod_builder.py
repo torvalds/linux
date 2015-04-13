@@ -377,7 +377,6 @@ def tcm_mod_build_configfs(proto_ident, fabric_mod_dir_var, fabric_mod_name):
 	buf += "	.get_fabric_proto_ident		= " + fabric_mod_name + "_get_fabric_proto_ident,\n"
 	buf += "	.tpg_get_wwn			= " + fabric_mod_name + "_get_fabric_wwn,\n"
 	buf += "	.tpg_get_tag			= " + fabric_mod_name + "_get_tag,\n"
-	buf += "	.tpg_get_default_depth		= " + fabric_mod_name + "_get_default_depth,\n"
 	buf += "	.tpg_get_pr_transport_id	= " + fabric_mod_name + "_get_pr_transport_id,\n"
 	buf += "	.tpg_get_pr_transport_id_len	= " + fabric_mod_name + "_get_pr_transport_id_len,\n"
 	buf += "	.tpg_parse_pr_out_transport_id	= " + fabric_mod_name + "_parse_pr_out_transport_id,\n"
@@ -589,13 +588,6 @@ def tcm_mod_dump_fabric_ops(proto_ident, fabric_mod_dir_var, fabric_mod_name):
 			buf += "	return tpg->" + fabric_mod_port + "_tpgt;\n"
 			buf += "}\n\n"
 			bufi += "u16 " + fabric_mod_name + "_get_tag(struct se_portal_group *);\n"
-
-		if re.search('get_default_depth', fo):
-			buf += "u32 " + fabric_mod_name + "_get_default_depth(struct se_portal_group *se_tpg)\n"
-			buf += "{\n"
-			buf += "	return 1;\n"
-			buf += "}\n\n"
-			bufi += "u32 " + fabric_mod_name + "_get_default_depth(struct se_portal_group *);\n"
 
 		if re.search('get_pr_transport_id\)\(', fo):
 			buf += "u32 " + fabric_mod_name + "_get_pr_transport_id(\n"

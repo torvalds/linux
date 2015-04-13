@@ -223,11 +223,6 @@ static u16 tcm_qla2xxx_get_tag(struct se_portal_group *se_tpg)
 	return tpg->lport_tpgt;
 }
 
-static u32 tcm_qla2xxx_get_default_depth(struct se_portal_group *se_tpg)
-{
-	return 1;
-}
-
 static u32 tcm_qla2xxx_get_pr_transport_id(
 	struct se_portal_group *se_tpg,
 	struct se_node_acl *se_nacl,
@@ -1991,7 +1986,6 @@ static const struct target_core_fabric_ops tcm_qla2xxx_ops = {
 	.get_fabric_proto_ident		= tcm_qla2xxx_get_fabric_proto_ident,
 	.tpg_get_wwn			= tcm_qla2xxx_get_fabric_wwn,
 	.tpg_get_tag			= tcm_qla2xxx_get_tag,
-	.tpg_get_default_depth		= tcm_qla2xxx_get_default_depth,
 	.tpg_get_pr_transport_id	= tcm_qla2xxx_get_pr_transport_id,
 	.tpg_get_pr_transport_id_len	= tcm_qla2xxx_get_pr_transport_id_len,
 	.tpg_parse_pr_out_transport_id	= tcm_qla2xxx_parse_pr_out_transport_id,
@@ -2049,7 +2043,6 @@ static const struct target_core_fabric_ops tcm_qla2xxx_npiv_ops = {
 	.get_fabric_proto_ident		= tcm_qla2xxx_get_fabric_proto_ident,
 	.tpg_get_wwn			= tcm_qla2xxx_get_fabric_wwn,
 	.tpg_get_tag			= tcm_qla2xxx_get_tag,
-	.tpg_get_default_depth		= tcm_qla2xxx_get_default_depth,
 	.tpg_get_pr_transport_id	= tcm_qla2xxx_get_pr_transport_id,
 	.tpg_get_pr_transport_id_len	= tcm_qla2xxx_get_pr_transport_id_len,
 	.tpg_parse_pr_out_transport_id	= tcm_qla2xxx_parse_pr_out_transport_id,
