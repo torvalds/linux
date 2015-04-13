@@ -469,7 +469,7 @@ static bool AddReorderEntry(struct rx_ts_record *pTS,
 void rtllib_indicate_packets(struct rtllib_device *ieee, struct rtllib_rxb **prxbIndicateArray, u8 index)
 {
 	struct net_device_stats *stats = &ieee->stats;
-	u8 i = 0 , j = 0;
+	u8 i = 0, j = 0;
 	u16 ethertype;
 
 	for (j = 0; j < index; j++) {

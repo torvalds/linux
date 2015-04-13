@@ -1533,7 +1533,7 @@ RESET_START:
 			SEM_UP_IEEE_WX(&ieee->wx_sem);
 		} else {
 			netdev_info(dev, "ieee->state is NOT LINKED\n");
-			rtllib_softmac_stop_protocol(priv->rtllib, 0 , true);
+			rtllib_softmac_stop_protocol(priv->rtllib, 0, true);
 		}
 
 		dm_backup_dynamic_mechanism_state(dev);
@@ -2102,7 +2102,7 @@ static short rtl8192_alloc_rx_desc_ring(struct net_device *dev)
 			entry->OWN = 1;
 		}
 
-		if(entry)
+		if (entry)
 			entry->EOR = 1;
 	}
 	return 0;
@@ -2519,7 +2519,7 @@ void rtl8192_commit(struct net_device *dev)
 
 	if (priv->up == 0)
 		return;
-	rtllib_softmac_stop_protocol(priv->rtllib, 0 , true);
+	rtllib_softmac_stop_protocol(priv->rtllib, 0, true);
 	rtl8192_irq_disable(dev);
 	priv->ops->stop_adapter(dev, true);
 	_rtl8192_up(dev, false);

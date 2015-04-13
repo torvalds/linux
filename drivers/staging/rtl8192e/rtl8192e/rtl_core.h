@@ -84,7 +84,7 @@
 
 #define RTL_PCI_DEVICE(vend, dev, cfg) \
 	.vendor = (vend), .device = (dev), \
-	.subvendor = PCI_ANY_ID, .subdevice = PCI_ANY_ID , \
+	.subvendor = PCI_ANY_ID, .subdevice = PCI_ANY_ID, \
 	.driver_data = (kernel_ulong_t)&(cfg)
 
 #define RTL_MAX_SCAN_SIZE 128
@@ -303,9 +303,9 @@ enum pci_bridge_vendor {
 	PCI_BRIDGE_VENDOR_INTEL = 0x0,
 	PCI_BRIDGE_VENDOR_ATI,
 	PCI_BRIDGE_VENDOR_AMD,
-	PCI_BRIDGE_VENDOR_SIS ,
+	PCI_BRIDGE_VENDOR_SIS,
 	PCI_BRIDGE_VENDOR_UNKNOWN,
-	PCI_BRIDGE_VENDOR_MAX ,
+	PCI_BRIDGE_VENDOR_MAX,
 };
 
 struct buffer {
