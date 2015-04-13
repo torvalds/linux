@@ -129,8 +129,8 @@ struct bnx2x_mac_vals {
 	u32 xmac_val;
 	u32 emac_addr;
 	u32 emac_val;
-	u32 umac_addr;
-	u32 umac_val;
+	u32 umac_addr[2];
+	u32 umac_val[2];
 	u32 bmac_addr;
 	u32 bmac_val[2];
 };
@@ -7866,6 +7866,20 @@ int bnx2x_init_hw_func_cnic(struct bnx2x *bp)
 	return 0;
 }
 
+/* previous driver DMAE transaction may have occurred when pre-boot stage ended
+ * and boot began, or when kdump kernel was loaded. Either case would invalidate
+ * the addresses of the transaction, resulting in was-error bit set in the pci
+ * causing all hw-to-host pcie transactions to timeout. If this happened we want
+ * to clear the interrupt which detected this from the pglueb and the was done
+ * bit
+ */
+static void bnx2x_clean_pglue_errors(struct bnx2x *bp)
+{
+	if (!CHIP_IS_E1x(bp))
+		REG_WR(bp, PGLUE_B_REG_WAS_ERROR_PF_7_0_CLR,
+		       1 << BP_ABS_FUNC(bp));
+}
+
 static int bnx2x_init_hw_func(struct bnx2x *bp)
 {
 	int port = BP_PORT(bp);
@@ -7958,8 +7972,7 @@ static int bnx2x_init_hw_func(struct bnx2x *bp)
 
 	bnx2x_init_block(bp, BLOCK_PGLUE_B, init_phase);
 
-	if (!CHIP_IS_E1x(bp))
-		REG_WR(bp, PGLUE_B_REG_WAS_ERROR_PF_7_0_CLR, func);
+	bnx2x_clean_pglue_errors(bp);
 
 	bnx2x_init_block(bp, BLOCK_ATC, init_phase);
 	bnx2x_init_block(bp, BLOCK_DMAE, init_phase);
@@ -10141,6 +10154,25 @@ static u32 bnx2x_get_pretend_reg(struct bnx2x *bp)
 	return base + (BP_ABS_FUNC(bp)) * stride;
 }
 
+static bool bnx2x_prev_unload_close_umac(struct bnx2x *bp,
+					 u8 port, u32 reset_reg,
+					 struct bnx2x_mac_vals *vals)
+{
+	u32 mask = MISC_REGISTERS_RESET_REG_2_UMAC0 << port;
+	u32 base_addr;
+
+	if (!(mask & reset_reg))
+		return false;
+
+	BNX2X_DEV_INFO("Disable umac Rx %02x\n", port);
+	base_addr = port ? GRCBASE_UMAC1 : GRCBASE_UMAC0;
+	vals->umac_addr[port] = base_addr + UMAC_REG_COMMAND_CONFIG;
+	vals->umac_val[port] = REG_RD(bp, vals->umac_addr[port]);
+	REG_WR(bp, vals->umac_addr[port], 0);
+
+	return true;
+}
+
 static void bnx2x_prev_unload_close_mac(struct bnx2x *bp,
 					struct bnx2x_mac_vals *vals)
 {
@@ -10149,10 +10181,7 @@ static void bnx2x_prev_unload_close_mac(struct bnx2x *bp,
 	u8 port = BP_PORT(bp);
 
 	/* reset addresses as they also mark which values were changed */
-	vals->bmac_addr = 0;
-	vals->umac_addr = 0;
-	vals->xmac_addr = 0;
-	vals->emac_addr = 0;
+	memset(vals, 0, sizeof(*vals));
 
 	reset_reg = REG_RD(bp, MISC_REG_RESET_REG_2);
 
@@ -10201,15 +10230,11 @@ static void bnx2x_prev_unload_close_mac(struct bnx2x *bp,
 			REG_WR(bp, vals->xmac_addr, 0);
 			mac_stopped = true;
 		}
-		mask = MISC_REGISTERS_RESET_REG_2_UMAC0 << port;
-		if (mask & reset_reg) {
-			BNX2X_DEV_INFO("Disable umac Rx\n");
-			base_addr = BP_PORT(bp) ? GRCBASE_UMAC1 : GRCBASE_UMAC0;
-			vals->umac_addr = base_addr + UMAC_REG_COMMAND_CONFIG;
-			vals->umac_val = REG_RD(bp, vals->umac_addr);
-			REG_WR(bp, vals->umac_addr, 0);
-			mac_stopped = true;
-		}
+
+		mac_stopped |= bnx2x_prev_unload_close_umac(bp, 0,
+							    reset_reg, vals);
+		mac_stopped |= bnx2x_prev_unload_close_umac(bp, 1,
+							    reset_reg, vals);
 	}
 
 	if (mac_stopped)
@@ -10505,8 +10530,11 @@ static int bnx2x_prev_unload_common(struct bnx2x *bp)
 		/* Close the MAC Rx to prevent BRB from filling up */
 		bnx2x_prev_unload_close_mac(bp, &mac_vals);
 
-		/* close LLH filters towards the BRB */
+		/* close LLH filters for both ports towards the BRB */
 		bnx2x_set_rx_filter(&bp->link_params, 0);
+		bp->link_params.port ^= 1;
+		bnx2x_set_rx_filter(&bp->link_params, 0);
+		bp->link_params.port ^= 1;
 
 		/* Check if the UNDI driver was previously loaded */
 		if (bnx2x_prev_is_after_undi(bp)) {
@@ -10553,8 +10581,10 @@ static int bnx2x_prev_unload_common(struct bnx2x *bp)
 
 	if (mac_vals.xmac_addr)
 		REG_WR(bp, mac_vals.xmac_addr, mac_vals.xmac_val);
-	if (mac_vals.umac_addr)
-		REG_WR(bp, mac_vals.umac_addr, mac_vals.umac_val);
+	if (mac_vals.umac_addr[0])
+		REG_WR(bp, mac_vals.umac_addr[0], mac_vals.umac_val[0]);
+	if (mac_vals.umac_addr[1])
+		REG_WR(bp, mac_vals.umac_addr[1], mac_vals.umac_val[1]);
 	if (mac_vals.emac_addr)
 		REG_WR(bp, mac_vals.emac_addr, mac_vals.emac_val);
 	if (mac_vals.bmac_addr) {
@@ -10571,26 +10601,6 @@ static int bnx2x_prev_unload_common(struct bnx2x *bp)
 	return bnx2x_prev_mcp_done(bp);
 }
 
-/* previous driver DMAE transaction may have occurred when pre-boot stage ended
- * and boot began, or when kdump kernel was loaded. Either case would invalidate
- * the addresses of the transaction, resulting in was-error bit set in the pci
- * causing all hw-to-host pcie transactions to timeout. If this happened we want
- * to clear the interrupt which detected this from the pglueb and the was done
- * bit
- */
-static void bnx2x_prev_interrupted_dmae(struct bnx2x *bp)
-{
-	if (!CHIP_IS_E1x(bp)) {
-		u32 val = REG_RD(bp, PGLUE_B_REG_PGLUE_B_INT_STS);
-		if (val & PGLUE_B_PGLUE_B_INT_STS_REG_WAS_ERROR_ATTN) {
-			DP(BNX2X_MSG_SP,
-			   "'was error' bit was found to be set in pglueb upon startup. Clearing\n");
-			REG_WR(bp, PGLUE_B_REG_WAS_ERROR_PF_7_0_CLR,
-			       1 << BP_FUNC(bp));
-		}
-	}
-}
-
 static int bnx2x_prev_unload(struct bnx2x *bp)
 {
 	int time_counter = 10;
@@ -10600,7 +10610,7 @@ static int bnx2x_prev_unload(struct bnx2x *bp)
 	/* clear hw from errors which may have resulted from an interrupted
 	 * dmae transaction.
 	 */
-	bnx2x_prev_interrupted_dmae(bp);
+	bnx2x_clean_pglue_errors(bp);
 
 	/* Release previously held locks */
 	hw_lock_reg = (BP_FUNC(bp) <= 5) ?
@@ -12037,9 +12047,8 @@ static int bnx2x_init_bp(struct bnx2x *bp)
 	mutex_init(&bp->port.phy_mutex);
 	mutex_init(&bp->fw_mb_mutex);
 	mutex_init(&bp->drv_info_mutex);
+	mutex_init(&bp->stats_lock);
 	bp->drv_info_mng_owner = false;
-	spin_lock_init(&bp->stats_lock);
-	sema_init(&bp->stats_sema, 1);
 
 	INIT_DELAYED_WORK(&bp->sp_task, bnx2x_sp_task);
 	INIT_DELAYED_WORK(&bp->sp_rtnl_task, bnx2x_sp_rtnl_task);
@@ -13668,9 +13677,9 @@ static int bnx2x_eeh_nic_unload(struct bnx2x *bp)
 	cancel_delayed_work_sync(&bp->sp_task);
 	cancel_delayed_work_sync(&bp->period_task);
 
-	spin_lock_bh(&bp->stats_lock);
+	mutex_lock(&bp->stats_lock);
 	bp->stats_state = STATS_STATE_DISABLED;
-	spin_unlock_bh(&bp->stats_lock);
+	mutex_unlock(&bp->stats_lock);
 
 	bnx2x_save_statistics(bp);
 

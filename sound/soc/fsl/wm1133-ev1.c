@@ -202,7 +202,6 @@ static struct snd_soc_jack_pin mic_jack_pins[] = {
 static int wm1133_ev1_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
 	/* Headphone jack detection */
 	snd_soc_card_jack_new(rtd->card, "Headphone", SND_JACK_HEADPHONE,
@@ -216,7 +215,7 @@ static int wm1133_ev1_init(struct snd_soc_pcm_runtime *rtd)
 	wm8350_mic_jack_detect(codec, &mic_jack, SND_JACK_MICROPHONE,
 			       SND_JACK_BTN_0);
 
-	snd_soc_dapm_force_enable_pin(dapm, "Mic Bias");
+	snd_soc_dapm_force_enable_pin(&rtd->card->dapm, "Mic Bias");
 
 	return 0;
 }

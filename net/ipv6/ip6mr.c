@@ -252,7 +252,7 @@ static int __net_init ip6mr_rules_init(struct net *net)
 	return 0;
 
 err2:
-	kfree(mrt);
+	ip6mr_free_table(mrt);
 err1:
 	fib_rules_unregister(ops);
 	return err;
@@ -267,8 +267,8 @@ static void __net_exit ip6mr_rules_exit(struct net *net)
 		list_del(&mrt->list);
 		ip6mr_free_table(mrt);
 	}
-	rtnl_unlock();
 	fib_rules_unregister(net->ipv6.mr6_rules_ops);
+	rtnl_unlock();
 }
 #else
 #define ip6mr_for_each_table(mrt, net) \
@@ -336,7 +336,7 @@ static struct mr6_table *ip6mr_new_table(struct net *net, u32 id)
 
 static void ip6mr_free_table(struct mr6_table *mrt)
 {
-	del_timer(&mrt->ipmr_expire_timer);
+	del_timer_sync(&mrt->ipmr_expire_timer);
 	mroute_clean_tables(mrt);
 	kfree(mrt);
 }

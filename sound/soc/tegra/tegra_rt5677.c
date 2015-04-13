@@ -141,9 +141,6 @@ static const struct snd_kcontrol_new tegra_rt5677_controls[] = {
 
 static int tegra_rt5677_asoc_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	struct tegra_rt5677 *machine = snd_soc_card_get_drvdata(rtd->card);
 
 	snd_soc_card_jack_new(rtd->card, "Headphone Jack", SND_JACK_HEADPHONE,
@@ -167,7 +164,7 @@ static int tegra_rt5677_asoc_init(struct snd_soc_pcm_runtime *rtd)
 				&tegra_rt5677_mic_jack_gpio);
 	}
 
-	snd_soc_dapm_force_enable_pin(dapm, "MICBIAS1");
+	snd_soc_dapm_force_enable_pin(&rtd->card->dapm, "MICBIAS1");
 
 	return 0;
 }
@@ -329,7 +326,6 @@ static const struct of_device_id tegra_rt5677_of_match[] = {
 static struct platform_driver tegra_rt5677_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
 		.of_match_table = tegra_rt5677_of_match,
 	},
