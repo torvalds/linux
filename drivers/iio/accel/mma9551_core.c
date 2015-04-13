@@ -297,7 +297,7 @@ EXPORT_SYMBOL(mma9551_read_status_byte);
  * Returns: 0 on success, negative value on failure.
  */
 int mma9551_read_config_word(struct i2c_client *client, u8 app_id,
-			    u16 reg, u16 *val)
+			     u16 reg, u16 *val)
 {
 	int ret;
 	__be16 v;
@@ -328,12 +328,12 @@ EXPORT_SYMBOL(mma9551_read_config_word);
  * Returns: 0 on success, negative value on failure.
  */
 int mma9551_write_config_word(struct i2c_client *client, u8 app_id,
-			     u16 reg, u16 val)
+			      u16 reg, u16 val)
 {
 	__be16 v = cpu_to_be16(val);
 
 	return mma9551_transfer(client, app_id, MMA9551_CMD_WRITE_CONFIG, reg,
-				(u8 *) &v, 2, NULL, 0);
+				(u8 *)&v, 2, NULL, 0);
 }
 EXPORT_SYMBOL(mma9551_write_config_word);
 
@@ -385,7 +385,7 @@ EXPORT_SYMBOL(mma9551_read_status_word);
  * Returns: 0 on success, negative value on failure.
  */
 int mma9551_read_config_words(struct i2c_client *client, u8 app_id,
-			     u16 reg, u8 len, u16 *buf)
+			      u16 reg, u8 len, u16 *buf)
 {
 	int ret, i;
 	__be16 be_buf[MMA9551_MAX_MAILBOX_DATA_REGS / 2];
