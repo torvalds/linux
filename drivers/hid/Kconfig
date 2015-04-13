@@ -878,6 +878,21 @@ config HID_SENSOR_HUB
 	  for events and handle data streams. Each sensor driver can format
 	  data and present to user mode using input or IIO interface.
 
+config HID_SENSOR_CUSTOM_SENSOR
+	tristate "HID Sensors hub custom sensor support"
+	depends on HID_SENSOR_HUB
+	default n
+	---help---
+	  HID Sensor hub specification allows definition of some custom and
+	  generic sensors. Unlike other HID sensors, they can't be exported
+	  via Linux IIO because of custom fields. This is up to the manufacturer
+	  to decide how to interpret these special sensor ids and process in
+	  the user space. Currently some manufacturers are using these ids for
+	  sensor calibration and debugging other sensors. Manufacturers
+	  should't use these special custom sensor ids to export any of the
+	  standard sensors.
+	  Select this config option for custom/generic sensor support.
+
 endmenu
 
 endif # HID
