@@ -86,6 +86,80 @@ STATIC void xfs_attr3_leaf_moveents(struct xfs_da_args *args,
 			int move_count);
 STATIC int xfs_attr_leaf_entsize(xfs_attr_leafblock_t *leaf, int index);
 
+/*
+ * attr3 block 'firstused' conversion helpers.
+ *
+ * firstused refers to the offset of the first used byte of the nameval region
+ * of an attr leaf block. The region starts at the tail of the block and expands
+ * backwards towards the middle. As such, firstused is initialized to the block
+ * size for an empty leaf block and is reduced from there.
+ *
+ * The attr3 block size is pegged to the fsb size and the maximum fsb is 64k.
+ * The in-core firstused field is 32-bit and thus supports the maximum fsb size.
+ * The on-disk field is only 16-bit, however, and overflows at 64k. Since this
+ * only occurs at exactly 64k, we use zero as a magic on-disk value to represent
+ * the attr block size. The following helpers manage the conversion between the
+ * in-core and on-disk formats.
+ */
+
+static void
+xfs_attr3_leaf_firstused_from_disk(
+	struct xfs_da_geometry		*geo,
+	struct xfs_attr3_icleaf_hdr	*to,
+	struct xfs_attr_leafblock	*from)
+{
+	struct xfs_attr3_leaf_hdr	*hdr3;
+
+	if (from->hdr.info.magic == cpu_to_be16(XFS_ATTR3_LEAF_MAGIC)) {
+		hdr3 = (struct xfs_attr3_leaf_hdr *) from;
+		to->firstused = be16_to_cpu(hdr3->firstused);
+	} else {
+		to->firstused = be16_to_cpu(from->hdr.firstused);
+	}
+
+	/*
+	 * Convert from the magic fsb size value to actual blocksize. This
+	 * should only occur for empty blocks when the block size overflows
+	 * 16-bits.
+	 */
+	if (to->firstused == XFS_ATTR3_LEAF_NULLOFF) {
+		ASSERT(!to->count && !to->usedbytes);
+		ASSERT(geo->blksize > USHRT_MAX);
+		to->firstused = geo->blksize;
+	}
+}
+
+static void
+xfs_attr3_leaf_firstused_to_disk(
+	struct xfs_da_geometry		*geo,
+	struct xfs_attr_leafblock	*to,
+	struct xfs_attr3_icleaf_hdr	*from)
+{
+	struct xfs_attr3_leaf_hdr	*hdr3;
+	uint32_t			firstused;
+
+	/* magic value should only be seen on disk */
+	ASSERT(from->firstused != XFS_ATTR3_LEAF_NULLOFF);
+
+	/*
+	 * Scale down the 32-bit in-core firstused value to the 16-bit on-disk
+	 * value. This only overflows at the max supported value of 64k. Use the
+	 * magic on-disk value to represent block size in this case.
+	 */
+	firstused = from->firstused;
+	if (firstused > USHRT_MAX) {
+		ASSERT(from->firstused == geo->blksize);
+		firstused = XFS_ATTR3_LEAF_NULLOFF;
+	}
+
+	if (from->magic == XFS_ATTR3_LEAF_MAGIC) {
+		hdr3 = (struct xfs_attr3_leaf_hdr *) to;
+		hdr3->firstused = cpu_to_be16(firstused);
+	} else {
+		to->hdr.firstused = cpu_to_be16(firstused);
+	}
+}
+
 void
 xfs_attr3_leaf_hdr_from_disk(
 	struct xfs_da_geometry		*geo,
@@ -105,7 +179,7 @@ xfs_attr3_leaf_hdr_from_disk(
 		to->magic = be16_to_cpu(hdr3->info.hdr.magic);
 		to->count = be16_to_cpu(hdr3->count);
 		to->usedbytes = be16_to_cpu(hdr3->usedbytes);
-		to->firstused = be16_to_cpu(hdr3->firstused);
+		xfs_attr3_leaf_firstused_from_disk(geo, to, from);
 		to->holes = hdr3->holes;
 
 		for (i = 0; i < XFS_ATTR_LEAF_MAPSIZE; i++) {
@@ -119,7 +193,7 @@ xfs_attr3_leaf_hdr_from_disk(
 	to->magic = be16_to_cpu(from->hdr.info.magic);
 	to->count = be16_to_cpu(from->hdr.count);
 	to->usedbytes = be16_to_cpu(from->hdr.usedbytes);
-	to->firstused = be16_to_cpu(from->hdr.firstused);
+	xfs_attr3_leaf_firstused_from_disk(geo, to, from);
 	to->holes = from->hdr.holes;
 
 	for (i = 0; i < XFS_ATTR_LEAF_MAPSIZE; i++) {
@@ -134,7 +208,7 @@ xfs_attr3_leaf_hdr_to_disk(
 	struct xfs_attr_leafblock	*to,
 	struct xfs_attr3_icleaf_hdr	*from)
 {
-	int	i;
+	int				i;
 
 	ASSERT(from->magic == XFS_ATTR_LEAF_MAGIC ||
 	       from->magic == XFS_ATTR3_LEAF_MAGIC);
@@ -147,7 +221,7 @@ xfs_attr3_leaf_hdr_to_disk(
 		hdr3->info.hdr.magic = cpu_to_be16(from->magic);
 		hdr3->count = cpu_to_be16(from->count);
 		hdr3->usedbytes = cpu_to_be16(from->usedbytes);
-		hdr3->firstused = cpu_to_be16(from->firstused);
+		xfs_attr3_leaf_firstused_to_disk(geo, to, from);
 		hdr3->holes = from->holes;
 		hdr3->pad1 = 0;
 
@@ -162,7 +236,7 @@ xfs_attr3_leaf_hdr_to_disk(
 	to->hdr.info.magic = cpu_to_be16(from->magic);
 	to->hdr.count = cpu_to_be16(from->count);
 	to->hdr.usedbytes = cpu_to_be16(from->usedbytes);
-	to->hdr.firstused = cpu_to_be16(from->firstused);
+	xfs_attr3_leaf_firstused_to_disk(geo, to, from);
 	to->hdr.holes = from->holes;
 	to->hdr.pad1 = 0;
 
