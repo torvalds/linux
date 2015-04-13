@@ -607,7 +607,7 @@ static struct dw_dma_platform_data dw_dmac0_data = {
 	.nr_channels	= 3,
 	.block_size	= 4095U,
 	.nr_masters	= 2,
-	.data_width	= { 2, 2, 0, 0 },
+	.data_width	= { 2, 2 },
 };
 
 static struct resource dw_dmac0_resource[] = {

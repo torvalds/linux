@@ -288,7 +288,7 @@ static void pinconf_dump_pin(struct pinctrl_dev *pctldev,
 	const struct pinconf_ops *ops = pctldev->desc->confops;
 
 	/* no-op when not using generic pin config */
-	pinconf_generic_dump_pin(pctldev, s, pin);
+	pinconf_generic_dump_pins(pctldev, s, NULL, pin);
 	if (ops && ops->pin_config_dbg_show)
 		ops->pin_config_dbg_show(pctldev, s, pin);
 }
@@ -333,7 +333,7 @@ static void pinconf_dump_group(struct pinctrl_dev *pctldev,
 	const struct pinconf_ops *ops = pctldev->desc->confops;
 
 	/* no-op when not using generic pin config */
-	pinconf_generic_dump_group(pctldev, s, gname);
+	pinconf_generic_dump_pins(pctldev, s, gname, 0);
 	if (ops && ops->pin_config_group_dbg_show)
 		ops->pin_config_group_dbg_show(pctldev, s, selector);
 }

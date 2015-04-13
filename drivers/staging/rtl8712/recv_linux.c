@@ -137,20 +137,6 @@ _recv_indicatepkt_drop:
 	 precvpriv->rx_drop++;
 }
 
-void r8712_os_read_port(struct _adapter *padapter, struct recv_buf *precvbuf)
-{
-	struct recv_priv *precvpriv = &padapter->recvpriv;
-
-	precvbuf->ref_cnt--;
-	/*free skb in recv_buf*/
-	dev_kfree_skb_any(precvbuf->pskb);
-	precvbuf->pskb = NULL;
-	precvbuf->reuse = false;
-	if (!precvbuf->irp_pending)
-		r8712_read_port(padapter, precvpriv->ff_hwaddr, 0,
-			 (unsigned char *)precvbuf);
-}
-
 static void _r8712_reordering_ctrl_timeout_handler (void *FunctionContext)
 {
 	struct recv_reorder_ctrl *preorder_ctrl =

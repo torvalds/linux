@@ -3,6 +3,11 @@
 
 #include <asm/xen/page.h>
 
+static inline unsigned long page_to_mfn(struct page *page)
+{
+	return pfn_to_mfn(page_to_pfn(page));
+}
+
 struct xen_memory_region {
 	phys_addr_t start;
 	phys_addr_t size;

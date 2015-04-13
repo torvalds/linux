@@ -711,6 +711,7 @@ static int pm860x_charger_probe(struct platform_device *pdev)
 	return 0;
 
 out_irq:
+	power_supply_unregister(&info->usb);
 	while (--i >= 0)
 		free_irq(info->irq[i], info);
 out:

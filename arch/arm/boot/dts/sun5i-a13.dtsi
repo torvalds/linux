@@ -11,18 +11,85 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-/include/ "skeleton.dtsi"
+#include "skeleton.dtsi"
+
+#include <dt-bindings/thermal/thermal.h>
+
+#include <dt-bindings/dma/sun4i-a10.h>
+#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	interrupt-parent = <&intc>;
 
+	chosen {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		framebuffer@0 {
+			compatible = "allwinner,simple-framebuffer",
+				     "simple-framebuffer";
+			allwinner,pipeline = "de_be0-lcd0";
+			clocks = <&pll5 1>, <&ahb_gates 36>, <&ahb_gates 44>;
+			status = "disabled";
+		};
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		cpu@0 {
+
+		cpu0: cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a8";
 			reg = <0x0>;
+			clocks = <&cpu>;
+			clock-latency = <244144>; /* 8 32k periods */
+			operating-points = <
+				/* kHz    uV */
+				1104000	1500000
+				1008000 1400000
+				912000  1350000
+				864000  1300000
+				624000  1200000
+				576000  1200000
+				432000  1200000
+				>;
+			#cooling-cells = <2>;
+			cooling-min-level = <0>;
+			cooling-max-level = <6>;
+		};
+	};
+
+	thermal-zones {
+		cpu_thermal {
+			/* milliseconds */
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+			thermal-sensors = <&rtp>;
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu_alert0>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
+
+			trips {
+				cpu_alert0: cpu_alert0 {
+					/* milliCelsius */
+					temperature = <850000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				cpu_crit: cpu_crit {
+					/* milliCelsius */
+					temperature = <100000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
 		};
 	};
 
@@ -190,27 +257,33 @@
 		};
 
 		mmc0_clk: clk@01c20088 {
-			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-a10-mod0-clk";
+			#clock-cells = <1>;
+			compatible = "allwinner,sun4i-a10-mmc-clk";
 			reg = <0x01c20088 0x4>;
 			clocks = <&osc24M>, <&pll6 1>, <&pll5 1>;
-			clock-output-names = "mmc0";
+			clock-output-names = "mmc0",
+					     "mmc0_output",
+					     "mmc0_sample";
 		};
 
 		mmc1_clk: clk@01c2008c {
-			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-a10-mod0-clk";
+			#clock-cells = <1>;
+			compatible = "allwinner,sun4i-a10-mmc-clk";
 			reg = <0x01c2008c 0x4>;
 			clocks = <&osc24M>, <&pll6 1>, <&pll5 1>;
-			clock-output-names = "mmc1";
+			clock-output-names = "mmc1",
+					     "mmc1_output",
+					     "mmc1_sample";
 		};
 
 		mmc2_clk: clk@01c20090 {
-			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-a10-mod0-clk";
+			#clock-cells = <1>;
+			compatible = "allwinner,sun4i-a10-mmc-clk";
 			reg = <0x01c20090 0x4>;
 			clocks = <&osc24M>, <&pll6 1>, <&pll5 1>;
-			clock-output-names = "mmc2";
+			clock-output-names = "mmc2",
+					     "mmc2_output",
+					     "mmc2_sample";
 		};
 
 		ts_clk: clk@01c20098 {
@@ -299,7 +372,8 @@
 			interrupts = <10>;
 			clocks = <&ahb_gates 20>, <&spi0_clk>;
 			clock-names = "ahb", "mod";
-			dmas = <&dma 1 27>, <&dma 1 26>;
+			dmas = <&dma SUN4I_DMA_DEDICATED 27>,
+			       <&dma SUN4I_DMA_DEDICATED 26>;
 			dma-names = "rx", "tx";
 			status = "disabled";
 			#address-cells = <1>;
@@ -312,7 +386,8 @@
 			interrupts = <11>;
 			clocks = <&ahb_gates 21>, <&spi1_clk>;
 			clock-names = "ahb", "mod";
-			dmas = <&dma 1 9>, <&dma 1 8>;
+			dmas = <&dma SUN4I_DMA_DEDICATED 9>,
+			       <&dma SUN4I_DMA_DEDICATED 8>;
 			dma-names = "rx", "tx";
 			status = "disabled";
 			#address-cells = <1>;
@@ -322,8 +397,14 @@
 		mmc0: mmc@01c0f000 {
 			compatible = "allwinner,sun5i-a13-mmc";
 			reg = <0x01c0f000 0x1000>;
-			clocks = <&ahb_gates 8>, <&mmc0_clk>;
-			clock-names = "ahb", "mmc";
+			clocks = <&ahb_gates 8>,
+				 <&mmc0_clk 0>,
+				 <&mmc0_clk 1>,
+				 <&mmc0_clk 2>;
+			clock-names = "ahb",
+				      "mmc",
+				      "output",
+				      "sample";
 			interrupts = <32>;
 			status = "disabled";
 		};
@@ -331,8 +412,14 @@
 		mmc2: mmc@01c11000 {
 			compatible = "allwinner,sun5i-a13-mmc";
 			reg = <0x01c11000 0x1000>;
-			clocks = <&ahb_gates 10>, <&mmc2_clk>;
-			clock-names = "ahb", "mmc";
+			clocks = <&ahb_gates 10>,
+				 <&mmc2_clk 0>,
+				 <&mmc2_clk 1>,
+				 <&mmc2_clk 2>;
+			clock-names = "ahb",
+				      "mmc",
+				      "output",
+				      "sample";
 			interrupts = <34>;
 			status = "disabled";
 		};
@@ -375,7 +462,8 @@
 			interrupts = <12>;
 			clocks = <&ahb_gates 22>, <&spi2_clk>;
 			clock-names = "ahb", "mod";
-			dmas = <&dma 1 29>, <&dma 1 28>;
+			dmas = <&dma SUN4I_DMA_DEDICATED 29>,
+			       <&dma SUN4I_DMA_DEDICATED 28>;
 			dma-names = "rx", "tx";
 			status = "disabled";
 			#address-cells = <1>;
@@ -403,43 +491,43 @@
 			uart1_pins_a: uart1@0 {
 				allwinner,pins = "PE10", "PE11";
 				allwinner,function = "uart1";
-				allwinner,drive = <0>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			uart1_pins_b: uart1@1 {
 				allwinner,pins = "PG3", "PG4";
 				allwinner,function = "uart1";
-				allwinner,drive = <0>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			i2c0_pins_a: i2c0@0 {
 				allwinner,pins = "PB0", "PB1";
 				allwinner,function = "i2c0";
-				allwinner,drive = <0>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			i2c1_pins_a: i2c1@0 {
 				allwinner,pins = "PB15", "PB16";
 				allwinner,function = "i2c1";
-				allwinner,drive = <0>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			i2c2_pins_a: i2c2@0 {
 				allwinner,pins = "PB17", "PB18";
 				allwinner,function = "i2c2";
-				allwinner,drive = <0>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			mmc0_pins_a: mmc0@0 {
 				allwinner,pins = "PF0","PF1","PF2","PF3","PF4","PF5";
 				allwinner,function = "mmc0";
-				allwinner,drive = <2>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 		};
 
@@ -455,6 +543,13 @@
 			reg = <0x01c20c90 0x10>;
 		};
 
+		lradc: lradc@01c22800 {
+			compatible = "allwinner,sun4i-a10-lradc-keys";
+			reg = <0x01c22800 0x100>;
+			interrupts = <31>;
+			status = "disabled";
+		};
+
 		sid: eeprom@01c23800 {
 			compatible = "allwinner,sun4i-a10-sid";
 			reg = <0x01c23800 0x10>;
@@ -464,6 +559,7 @@
 			compatible = "allwinner,sun4i-a10-ts";
 			reg = <0x01c25000 0x100>;
 			interrupts = <29>;
+			#thermal-sensor-cells = <0>;
 		};
 
 		uart1: serial@01c28400 {

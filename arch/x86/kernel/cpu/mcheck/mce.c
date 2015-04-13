@@ -44,6 +44,7 @@
 
 #include <asm/processor.h>
 #include <asm/traps.h>
+#include <asm/tlbflush.h>
 #include <asm/mce.h>
 #include <asm/msr.h>
 
@@ -151,14 +152,11 @@ static struct mce_log mcelog = {
 void mce_log(struct mce *mce)
 {
 	unsigned next, entry;
-	int ret = 0;
 
 	/* Emit the trace record: */
 	trace_mce_record(mce);
 
-	ret = atomic_notifier_call_chain(&x86_mce_decoder_chain, 0, mce);
-	if (ret == NOTIFY_STOP)
-		return;
+	atomic_notifier_call_chain(&x86_mce_decoder_chain, 0, mce);
 
 	mce->finished = 0;
 	wmb();
@@ -1452,7 +1450,7 @@ static void __mcheck_cpu_init_generic(void)
 	bitmap_fill(all_banks, MAX_NR_BANKS);
 	machine_check_poll(MCP_UC | m_fl, &all_banks);
 
-	set_in_cr4(X86_CR4_MCE);
+	cr4_set_bits(X86_CR4_MCE);
 
 	rdmsrl(MSR_IA32_MCG_CAP, cap);
 	if (cap & MCG_CTL_P)

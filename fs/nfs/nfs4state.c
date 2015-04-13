@@ -1003,11 +1003,11 @@ struct nfs_seqid *nfs_alloc_seqid(struct nfs_seqid_counter *counter, gfp_t gfp_m
 	struct nfs_seqid *new;
 
 	new = kmalloc(sizeof(*new), gfp_mask);
-	if (new != NULL) {
-		new->sequence = counter;
-		INIT_LIST_HEAD(&new->list);
-		new->task = NULL;
-	}
+	if (new == NULL)
+		return ERR_PTR(-ENOMEM);
+	new->sequence = counter;
+	INIT_LIST_HEAD(&new->list);
+	new->task = NULL;
 	return new;
 }
 
@@ -1015,7 +1015,7 @@ void nfs_release_seqid(struct nfs_seqid *seqid)
 {
 	struct nfs_seqid_counter *sequence;
 
-	if (list_empty(&seqid->list))
+	if (seqid == NULL || list_empty(&seqid->list))
 		return;
 	sequence = seqid->sequence;
 	spin_lock(&sequence->lock);
@@ -1071,13 +1071,15 @@ static void nfs_increment_seqid(int status, struct nfs_seqid *seqid)
 
 void nfs_increment_open_seqid(int status, struct nfs_seqid *seqid)
 {
-	struct nfs4_state_owner *sp = container_of(seqid->sequence,
-					struct nfs4_state_owner, so_seqid);
-	struct nfs_server *server = sp->so_server;
+	struct nfs4_state_owner *sp;
 
+	if (seqid == NULL)
+		return;
+
+	sp = container_of(seqid->sequence, struct nfs4_state_owner, so_seqid);
 	if (status == -NFS4ERR_BAD_SEQID)
 		nfs4_drop_state_owner(sp);
-	if (!nfs4_has_session(server->nfs_client))
+	if (!nfs4_has_session(sp->so_server->nfs_client))
 		nfs_increment_seqid(status, seqid);
 }
 
@@ -1088,14 +1090,18 @@ void nfs_increment_open_seqid(int status, struct nfs_seqid *seqid)
  */
 void nfs_increment_lock_seqid(int status, struct nfs_seqid *seqid)
 {
-	nfs_increment_seqid(status, seqid);
+	if (seqid != NULL)
+		nfs_increment_seqid(status, seqid);
 }
 
 int nfs_wait_on_sequence(struct nfs_seqid *seqid, struct rpc_task *task)
 {
-	struct nfs_seqid_counter *sequence = seqid->sequence;
+	struct nfs_seqid_counter *sequence;
 	int status = 0;
 
+	if (seqid == NULL)
+		goto out;
+	sequence = seqid->sequence;
 	spin_lock(&sequence->lock);
 	seqid->task = task;
 	if (list_empty(&seqid->list))
@@ -1106,6 +1112,7 @@ int nfs_wait_on_sequence(struct nfs_seqid *seqid, struct rpc_task *task)
 	status = -EAGAIN;
 unlock:
 	spin_unlock(&sequence->lock);
+out:
 	return status;
 }
 

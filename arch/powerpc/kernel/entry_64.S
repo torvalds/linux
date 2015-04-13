@@ -49,8 +49,6 @@ exception_marker:
 	.section	".text"
 	.align 7
 
-#undef SHOW_SYSCALLS
-
 	.globl system_call_common
 system_call_common:
 	andi.	r10,r12,MSR_PR
@@ -142,16 +140,9 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 	li	r10,1
 	std	r10,SOFTE(r1)
 
-#ifdef SHOW_SYSCALLS
-	bl	do_show_syscall
-	REST_GPR(0,r1)
-	REST_4GPRS(3,r1)
-	REST_2GPRS(7,r1)
-	addi	r9,r1,STACK_FRAME_OVERHEAD
-#endif
 	CURRENT_THREAD_INFO(r11, r1)
 	ld	r10,TI_FLAGS(r11)
-	andi.	r11,r10,_TIF_SYSCALL_T_OR_A
+	andi.	r11,r10,_TIF_SYSCALL_DOTRACE
 	bne	syscall_dotrace
 .Lsyscall_dotrace_cont:
 	cmpldi	0,r0,NR_syscalls
@@ -178,12 +169,8 @@ system_call:			/* label this so stack traces look sane */
 	mtctr   r12
 	bctrl			/* Call handler */
 
-syscall_exit:
+.Lsyscall_exit:
 	std	r3,RESULT(r1)
-#ifdef SHOW_SYSCALLS
-	bl	do_show_syscall_exit
-	ld	r3,RESULT(r1)
-#endif
 	CURRENT_THREAD_INFO(r12, r1)
 
 	ld	r8,_MSR(r1)
@@ -214,7 +201,7 @@ syscall_exit:
 
 	ld	r9,TI_FLAGS(r12)
 	li	r11,-_LAST_ERRNO
-	andi.	r0,r9,(_TIF_SYSCALL_T_OR_A|_TIF_SINGLESTEP|_TIF_USER_WORK_MASK|_TIF_PERSYSCALL_MASK)
+	andi.	r0,r9,(_TIF_SYSCALL_DOTRACE|_TIF_SINGLESTEP|_TIF_USER_WORK_MASK|_TIF_PERSYSCALL_MASK)
 	bne-	syscall_exit_work
 	cmpld	r3,r11
 	ld	r5,_CCR(r1)
@@ -270,7 +257,7 @@ syscall_dotrace:
 
 syscall_enosys:
 	li	r3,-ENOSYS
-	b	syscall_exit
+	b	.Lsyscall_exit
 	
 syscall_exit_work:
 #ifdef CONFIG_PPC_BOOK3S
@@ -307,7 +294,7 @@ syscall_exit_work:
 
 4:	/* Anything else left to do? */
 	SET_DEFAULT_THREAD_PPR(r3, r10)		/* Set thread.ppr = 3 */
-	andi.	r0,r9,(_TIF_SYSCALL_T_OR_A|_TIF_SINGLESTEP)
+	andi.	r0,r9,(_TIF_SYSCALL_DOTRACE|_TIF_SINGLESTEP)
 	beq	ret_from_except_lite
 
 	/* Re-enable interrupts */
@@ -347,33 +334,33 @@ _GLOBAL(save_nvgprs)
 _GLOBAL(ppc_fork)
 	bl	save_nvgprs
 	bl	sys_fork
-	b	syscall_exit
+	b	.Lsyscall_exit
 
 _GLOBAL(ppc_vfork)
 	bl	save_nvgprs
 	bl	sys_vfork
-	b	syscall_exit
+	b	.Lsyscall_exit
 
 _GLOBAL(ppc_clone)
 	bl	save_nvgprs
 	bl	sys_clone
-	b	syscall_exit
+	b	.Lsyscall_exit
 
 _GLOBAL(ppc32_swapcontext)
 	bl	save_nvgprs
 	bl	compat_sys_swapcontext
-	b	syscall_exit
+	b	.Lsyscall_exit
 
 _GLOBAL(ppc64_swapcontext)
 	bl	save_nvgprs
 	bl	sys_swapcontext
-	b	syscall_exit
+	b	.Lsyscall_exit
 
 _GLOBAL(ret_from_fork)
 	bl	schedule_tail
 	REST_NVGPRS(r1)
 	li	r3,0
-	b	syscall_exit
+	b	.Lsyscall_exit
 
 _GLOBAL(ret_from_kernel_thread)
 	bl	schedule_tail
@@ -385,7 +372,7 @@ _GLOBAL(ret_from_kernel_thread)
 #endif
 	blrl
 	li	r3,0
-	b	syscall_exit
+	b	.Lsyscall_exit
 
 /*
  * This routine switches between two different tasks.  The process

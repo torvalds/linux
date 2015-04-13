@@ -3,8 +3,8 @@
 Required properties:
 - compatible : Should be "intel,pxa25x-gpio", "intel,pxa26x-gpio",
 		"intel,pxa27x-gpio", "intel,pxa3xx-gpio",
-		"marvell,pxa93x-gpio", "marvell,mmp-gpio" or
-		"marvell,mmp2-gpio".
+		"marvell,pxa93x-gpio", "marvell,mmp-gpio",
+		"marvell,mmp2-gpio" or marvell,pxa1928-gpio.
 - reg : Address and length of the register set for the device
 - interrupts : Should be the port interrupt shared by all gpio pins.
   There're three gpio interrupts in arch-pxa, and they're gpio0,

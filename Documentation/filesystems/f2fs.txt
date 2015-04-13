@@ -106,6 +106,8 @@ background_gc=%s       Turn on/off cleaning operations, namely garbage
                        Default value for this option is on. So garbage
                        collection is on by default.
 disable_roll_forward   Disable the roll-forward recovery routine
+norecovery             Disable the roll-forward recovery routine, mounted read-
+                       only (i.e., -o ro,disable_roll_forward)
 discard                Issue discard/TRIM commands when a segment is cleaned.
 no_heap                Disable heap-style segment allocation which finds free
                        segments for data from the beginning of main area, while
@@ -196,6 +198,10 @@ Files in /sys/fs/f2fs/<devname>
 			      The candidates to be discarded are cached until
 			      checkpoint is triggered, and issued during the
 			      checkpoint. By default, it is disabled with 0.
+
+ trim_sections                This parameter controls the number of sections
+                              to be trimmed out in batch mode when FITRIM
+                              conducts. 32 sections is set by default.
 
  ipu_policy                   This parameter controls the policy of in-place
                               updates in f2fs. There are five policies:

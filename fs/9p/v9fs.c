@@ -335,7 +335,7 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 	}
 	init_rwsem(&v9ses->rename_sem);
 
-	rc = bdi_setup_and_register(&v9ses->bdi, "9p", BDI_CAP_MAP_COPY);
+	rc = bdi_setup_and_register(&v9ses->bdi, "9p");
 	if (rc) {
 		kfree(v9ses->aname);
 		kfree(v9ses->uname);

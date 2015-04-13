@@ -65,9 +65,12 @@ static unsigned long basic_get(struct tcf_proto *tp, u32 handle)
 	if (head == NULL)
 		return 0UL;
 
-	list_for_each_entry(f, &head->flist, link)
-		if (f->handle == handle)
+	list_for_each_entry(f, &head->flist, link) {
+		if (f->handle == handle) {
 			l = (unsigned long) f;
+			break;
+		}
+	}
 
 	return l;
 }

@@ -28,3 +28,15 @@ config SECURITY_SMACK_BRINGUP
 	  access rule set once the behavior is well understood.
 	  This is a superior mechanism to the oft abused
 	  "permissive" mode of other systems.
+	  If you are unsure how to answer this question, answer N.
+
+config SECURITY_SMACK_NETFILTER
+	bool "Packet marking using secmarks for netfilter"
+	depends on SECURITY_SMACK
+	depends on NETWORK_SECMARK
+	depends on NETFILTER
+	default n
+	help
+	  This enables security marking of network packets using
+	  Smack labels.
+	  If you are unsure how to answer this question, answer N.

@@ -8,6 +8,7 @@ config NIOS2
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
 	select HAVE_ARCH_TRACEHOOK
+	select HAVE_ARCH_KGDB
 	select IRQ_DOMAIN
 	select MODULES_USE_ELF_RELA
 	select OF
@@ -133,6 +134,14 @@ config NIOS2_PASS_CMDLINE
 	  Use bootargs env variable from u-boot for kernel command line.
 	  will override "Default kernel command string".
 	  Say N if you are unsure.
+
+config NIOS2_BOOT_LINK_OFFSET
+	hex "Link address offset for booting"
+	default "0x00500000"
+	help
+	  This option allows you to set the link address offset of the zImage.
+	  This can be useful if you are on a board which has a small amount of
+	  memory.
 
 endmenu
 

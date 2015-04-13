@@ -32,6 +32,7 @@
 #include <linux/completion.h>
 #include <linux/hyperv.h>
 #include <linux/kernel_stat.h>
+#include <linux/clockchips.h>
 #include <asm/hyperv.h>
 #include <asm/hypervisor.h>
 #include <asm/mshyperv.h>
@@ -578,6 +579,34 @@ static void vmbus_onmessage_work(struct work_struct *work)
 	kfree(ctx);
 }
 
+static void hv_process_timer_expiration(struct hv_message *msg, int cpu)
+{
+	struct clock_event_device *dev = hv_context.clk_evt[cpu];
+
+	if (dev->event_handler)
+		dev->event_handler(dev);
+
+	msg->header.message_type = HVMSG_NONE;
+
+	/*
+	 * Make sure the write to MessageType (ie set to
+	 * HVMSG_NONE) happens before we read the
+	 * MessagePending and EOMing. Otherwise, the EOMing
+	 * will not deliver any more messages since there is
+	 * no empty slot
+	 */
+	mb();
+
+	if (msg->header.message_flags.msg_pending) {
+		/*
+		 * This will cause message queue rescan to
+		 * possibly deliver another msg from the
+		 * hypervisor
+		 */
+		wrmsrl(HV_X64_MSR_EOM, 0);
+	}
+}
+
 static void vmbus_on_msg_dpc(unsigned long data)
 {
 	int cpu = smp_processor_id();
@@ -667,8 +696,12 @@ static void vmbus_isr(void)
 	msg = (struct hv_message *)page_addr + VMBUS_MESSAGE_SINT;
 
 	/* Check if there are actual msgs to be processed */
-	if (msg->header.message_type != HVMSG_NONE)
-		tasklet_schedule(&msg_dpc);
+	if (msg->header.message_type != HVMSG_NONE) {
+		if (msg->header.message_type == HVMSG_TIMER_EXPIRED)
+			hv_process_timer_expiration(msg, cpu);
+		else
+			tasklet_schedule(&msg_dpc);
+	}
 }
 
 /*

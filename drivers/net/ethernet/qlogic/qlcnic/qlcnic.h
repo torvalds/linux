@@ -848,10 +848,17 @@ struct qlcnic_cardrsp_tx_ctx {
 #define QLCNIC_MAC_VLAN_ADD	3
 #define QLCNIC_MAC_VLAN_DEL	4
 
+enum qlcnic_mac_type {
+	QLCNIC_UNICAST_MAC,
+	QLCNIC_MULTICAST_MAC,
+	QLCNIC_BROADCAST_MAC,
+};
+
 struct qlcnic_mac_vlan_list {
 	struct list_head list;
 	uint8_t mac_addr[ETH_ALEN+2];
 	u16 vlan_id;
+	enum qlcnic_mac_type mac_type;
 };
 
 /* MAC Learn */
@@ -1615,7 +1622,9 @@ void qlcnic_watchdog_task(struct work_struct *work);
 void qlcnic_post_rx_buffers(struct qlcnic_adapter *adapter,
 		struct qlcnic_host_rds_ring *rds_ring, u8 ring_id);
 void qlcnic_set_multi(struct net_device *netdev);
-int qlcnic_nic_add_mac(struct qlcnic_adapter *, const u8 *, u16);
+void qlcnic_flush_mcast_mac(struct qlcnic_adapter *);
+int qlcnic_nic_add_mac(struct qlcnic_adapter *, const u8 *, u16,
+		       enum qlcnic_mac_type);
 int qlcnic_nic_del_mac(struct qlcnic_adapter *, const u8 *);
 void qlcnic_82xx_free_mac_list(struct qlcnic_adapter *adapter);
 int qlcnic_82xx_read_phys_port_id(struct qlcnic_adapter *);

@@ -27,6 +27,7 @@
 #include "drmP.h"
 #include "radeon.h"
 #include "radeon_asic.h"
+#include "radeon_audio.h"
 #include "cikd.h"
 #include "atom.h"
 #include "cik_blit_shaders.h"
@@ -3904,7 +3905,21 @@ void cik_fence_gfx_ring_emit(struct radeon_device *rdev,
 	struct radeon_ring *ring = &rdev->ring[fence->ring];
 	u64 addr = rdev->fence_drv[fence->ring].gpu_addr;
 
-	/* EVENT_WRITE_EOP - flush caches, send int */
+	/* Workaround for cache flush problems. First send a dummy EOP
+	 * event down the pipe with seq one below.
+	 */
+	radeon_ring_write(ring, PACKET3(PACKET3_EVENT_WRITE_EOP, 4));
+	radeon_ring_write(ring, (EOP_TCL1_ACTION_EN |
+				 EOP_TC_ACTION_EN |
+				 EVENT_TYPE(CACHE_FLUSH_AND_INV_TS_EVENT) |
+				 EVENT_INDEX(5)));
+	radeon_ring_write(ring, addr & 0xfffffffc);
+	radeon_ring_write(ring, (upper_32_bits(addr) & 0xffff) |
+				DATA_SEL(1) | INT_SEL(0));
+	radeon_ring_write(ring, fence->seq - 1);
+	radeon_ring_write(ring, 0);
+
+	/* Then send the real EOP event down the pipe. */
 	radeon_ring_write(ring, PACKET3(PACKET3_EVENT_WRITE_EOP, 4));
 	radeon_ring_write(ring, (EOP_TCL1_ACTION_EN |
 				 EOP_TC_ACTION_EN |
@@ -5707,6 +5722,28 @@ void cik_pcie_gart_tlb_flush(struct radeon_device *rdev)
 	WREG32(VM_INVALIDATE_REQUEST, 0x1);
 }
 
+static void cik_pcie_init_compute_vmid(struct radeon_device *rdev)
+{
+	int i;
+	uint32_t sh_mem_bases, sh_mem_config;
+
+	sh_mem_bases = 0x6000 | 0x6000 << 16;
+	sh_mem_config = ALIGNMENT_MODE(SH_MEM_ALIGNMENT_MODE_UNALIGNED);
+	sh_mem_config |= DEFAULT_MTYPE(MTYPE_NONCACHED);
+
+	mutex_lock(&rdev->srbm_mutex);
+	for (i = 8; i < 16; i++) {
+		cik_srbm_select(rdev, 0, 0, 0, i);
+		/* CP and shaders */
+		WREG32(SH_MEM_CONFIG, sh_mem_config);
+		WREG32(SH_MEM_APE1_BASE, 1);
+		WREG32(SH_MEM_APE1_LIMIT, 0);
+		WREG32(SH_MEM_BASES, sh_mem_bases);
+	}
+	cik_srbm_select(rdev, 0, 0, 0, 0);
+	mutex_unlock(&rdev->srbm_mutex);
+}
+
 /**
  * cik_pcie_gart_enable - gart enable
  *
@@ -5819,6 +5856,8 @@ static int cik_pcie_gart_enable(struct radeon_device *rdev)
 	}
 	cik_srbm_select(rdev, 0, 0, 0, 0);
 	mutex_unlock(&rdev->srbm_mutex);
+
+	cik_pcie_init_compute_vmid(rdev);
 
 	cik_pcie_gart_tlb_flush(rdev);
 	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
@@ -7334,7 +7373,6 @@ int cik_irq_set(struct radeon_device *rdev)
 	u32 hpd1, hpd2, hpd3, hpd4, hpd5, hpd6;
 	u32 grbm_int_cntl = 0;
 	u32 dma_cntl, dma_cntl1;
-	u32 thermal_int;
 
 	if (!rdev->irq.installed) {
 		WARN(1, "Can't enable IRQ/MSI because no handler is installed\n");
@@ -7363,13 +7401,6 @@ int cik_irq_set(struct radeon_device *rdev)
 	dma_cntl1 = RREG32(SDMA0_CNTL + SDMA1_REGISTER_OFFSET) & ~TRAP_ENABLE;
 
 	cp_m1p0 = RREG32(CP_ME1_PIPE0_INT_CNTL) & ~TIME_STAMP_INT_ENABLE;
-
-	if (rdev->flags & RADEON_IS_IGP)
-		thermal_int = RREG32_SMC(CG_THERMAL_INT_CTRL) &
-			~(THERM_INTH_MASK | THERM_INTL_MASK);
-	else
-		thermal_int = RREG32_SMC(CG_THERMAL_INT) &
-			~(THERM_INT_MASK_HIGH | THERM_INT_MASK_LOW);
 
 	/* enable CP interrupts on all rings */
 	if (atomic_read(&rdev->irq.ring_int[RADEON_RING_TYPE_GFX_INDEX])) {
@@ -7474,14 +7505,6 @@ int cik_irq_set(struct radeon_device *rdev)
 		hpd6 |= DC_HPDx_INT_EN;
 	}
 
-	if (rdev->irq.dpm_thermal) {
-		DRM_DEBUG("dpm thermal\n");
-		if (rdev->flags & RADEON_IS_IGP)
-			thermal_int |= THERM_INTH_MASK | THERM_INTL_MASK;
-		else
-			thermal_int |= THERM_INT_MASK_HIGH | THERM_INT_MASK_LOW;
-	}
-
 	WREG32(CP_INT_CNTL_RING0, cp_int_cntl);
 
 	WREG32(SDMA0_CNTL + SDMA0_REGISTER_OFFSET, dma_cntl);
@@ -7527,11 +7550,6 @@ int cik_irq_set(struct radeon_device *rdev)
 	WREG32(DC_HPD4_INT_CONTROL, hpd4);
 	WREG32(DC_HPD5_INT_CONTROL, hpd5);
 	WREG32(DC_HPD6_INT_CONTROL, hpd6);
-
-	if (rdev->flags & RADEON_IS_IGP)
-		WREG32_SMC(CG_THERMAL_INT_CTRL, thermal_int);
-	else
-		WREG32_SMC(CG_THERMAL_INT, thermal_int);
 
 	return 0;
 }
@@ -8493,7 +8511,7 @@ static int cik_startup(struct radeon_device *rdev)
 		return r;
 	}
 
-	r = dce6_audio_init(rdev);
+	r = radeon_audio_init(rdev);
 	if (r)
 		return r;
 
@@ -8551,7 +8569,7 @@ int cik_suspend(struct radeon_device *rdev)
 {
 	radeon_kfd_suspend(rdev);
 	radeon_pm_suspend(rdev);
-	dce6_audio_fini(rdev);
+	radeon_audio_fini(rdev);
 	radeon_vm_manager_fini(rdev);
 	cik_cp_enable(rdev, false);
 	cik_sdma_enable(rdev, false);

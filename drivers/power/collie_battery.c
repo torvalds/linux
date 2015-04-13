@@ -26,6 +26,7 @@
 static DEFINE_MUTEX(bat_lock); /* protects gpio pins */
 static struct work_struct bat_work;
 static struct ucb1x00 *ucb;
+static int wakeup_enabled;
 
 struct collie_bat {
 	int status;
@@ -291,11 +292,21 @@ static int collie_bat_suspend(struct ucb1x00_dev *dev)
 {
 	/* flush all pending status updates */
 	flush_work(&bat_work);
+
+	if (device_may_wakeup(&dev->ucb->dev) &&
+	    collie_bat_main.status == POWER_SUPPLY_STATUS_CHARGING)
+		wakeup_enabled = !enable_irq_wake(gpio_to_irq(COLLIE_GPIO_CO));
+	else
+		wakeup_enabled = 0;
+
 	return 0;
 }
 
 static int collie_bat_resume(struct ucb1x00_dev *dev)
 {
+	if (wakeup_enabled)
+		disable_irq_wake(gpio_to_irq(COLLIE_GPIO_CO));
+
 	/* things may have changed while we were away */
 	schedule_work(&bat_work);
 	return 0;
@@ -334,10 +345,15 @@ static int collie_bat_probe(struct ucb1x00_dev *dev)
 				collie_bat_gpio_isr,
 				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 				"main full", &collie_bat_main);
-	if (!ret) {
-		schedule_work(&bat_work);
-		return 0;
-	}
+	if (ret)
+		goto err_irq;
+
+	device_init_wakeup(&ucb->dev, 1);
+	schedule_work(&bat_work);
+
+	return 0;
+
+err_irq:
 	power_supply_unregister(&collie_bat_bu.psy);
 err_psy_reg_bu:
 	power_supply_unregister(&collie_bat_main.psy);

@@ -4,10 +4,9 @@
  * Jan 23 2005  Matt Mackall <mpm@selenic.com>
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/types.h>
+#include <linux/export.h>
 #include <linux/sort.h>
-#include <linux/slab.h>
 
 static void u32_swap(void *a, void *b, int size)
 {
@@ -85,6 +84,7 @@ void sort(void *base, size_t num, size_t size,
 EXPORT_SYMBOL(sort);
 
 #if 0
+#include <linux/slab.h>
 /* a simple boot-time regression test */
 
 int cmpint(const void *a, const void *b)

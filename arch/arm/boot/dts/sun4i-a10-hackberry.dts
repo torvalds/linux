@@ -48,8 +48,11 @@
  */
 
 /dts-v1/;
-/include/ "sun4i-a10.dtsi"
-/include/ "sunxi-common-regulators.dtsi"
+#include "sun4i-a10.dtsi"
+#include "sunxi-common-regulators.dtsi"
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	model = "Miniand Hackberry";
@@ -77,7 +80,7 @@
 			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_reference_design>;
 			vmmc-supply = <&reg_vcc3v3>;
 			bus-width = <4>;
-			cd-gpios = <&pio 7 1 0>; /* PH1 */
+			cd-gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>; /* PH1 */
 			cd-inverted;
 			status = "okay";
 		};
@@ -111,15 +114,15 @@
 			hackberry_hogs: hogs@0 {
 				allwinner,pins = "PH19";
 				allwinner,function = "gpio_out";
-				allwinner,drive = <0>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			usb2_vbus_pin_hackberry: usb2_vbus_pin@0 {
 					allwinner,pins = "PH12";
 					allwinner,function = "gpio_out";
-					allwinner,drive = <0>;
-					allwinner,pull = <0>;
+					allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+					allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 		};
 
@@ -157,7 +160,7 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		enable-active-high;
-		gpio = <&pio 7 19 0>;
+		gpio = <&pio 7 19 GPIO_ACTIVE_HIGH>;
 	};
 
 	reg_usb1_vbus: usb1-vbus {
@@ -166,7 +169,7 @@
 
 	reg_usb2_vbus: usb2-vbus {
 		pinctrl-0 = <&usb2_vbus_pin_hackberry>;
-		gpio = <&pio 7 12 0>;
+		gpio = <&pio 7 12 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };

@@ -654,7 +654,7 @@ static int gfs2_fsync(struct file *file, loff_t start, loff_t end,
 {
 	struct address_space *mapping = file->f_mapping;
 	struct inode *inode = mapping->host;
-	int sync_state = inode->i_state & I_DIRTY;
+	int sync_state = inode->i_state & I_DIRTY_ALL;
 	struct gfs2_inode *ip = GFS2_I(inode);
 	int ret = 0, ret1 = 0;
 
@@ -667,7 +667,7 @@ static int gfs2_fsync(struct file *file, loff_t start, loff_t end,
 	if (!gfs2_is_jdata(ip))
 		sync_state &= ~I_DIRTY_PAGES;
 	if (datasync)
-		sync_state &= ~I_DIRTY_SYNC;
+		sync_state &= ~(I_DIRTY_SYNC | I_DIRTY_TIME);
 
 	if (sync_state) {
 		ret = sync_inode_metadata(inode, 1);

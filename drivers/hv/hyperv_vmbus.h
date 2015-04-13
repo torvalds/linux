@@ -178,6 +178,23 @@ struct hv_message_header {
 	};
 };
 
+/*
+ * Timer configuration register.
+ */
+union hv_timer_config {
+	u64 as_uint64;
+	struct {
+		u64 enable:1;
+		u64 periodic:1;
+		u64 lazy:1;
+		u64 auto_enable:1;
+		u64 reserved_z0:12;
+		u64 sintx:4;
+		u64 reserved_z1:44;
+	};
+};
+
+
 /* Define timer message payload structure. */
 struct hv_timer_message_payload {
 	u32 timer_index;
@@ -519,6 +536,10 @@ struct hv_context {
 	 * buffer to post messages to the host.
 	 */
 	void *post_msg_page[NR_CPUS];
+	/*
+	 * Support PV clockevent device.
+	 */
+	struct clock_event_device *clk_evt[NR_CPUS];
 };
 
 extern struct hv_context hv_context;

@@ -21,7 +21,7 @@ static const
 struct nla_policy wlcore_vendor_attr_policy[NUM_WLCORE_VENDOR_ATTR] = {
 	[WLCORE_VENDOR_ATTR_FREQ]		= { .type = NLA_U32 },
 	[WLCORE_VENDOR_ATTR_GROUP_ID]		= { .type = NLA_U32 },
-	[WLCORE_VENDOR_ATTR_GROUP_KEY]		= { .type = NLA_U32,
+	[WLCORE_VENDOR_ATTR_GROUP_KEY]		= { .type = NLA_BINARY,
 						    .len = WLAN_MAX_KEY_LEN },
 };
 

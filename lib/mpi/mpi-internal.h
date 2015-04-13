@@ -84,7 +84,7 @@ static inline int RESIZE_IF_NEEDED(MPI a, unsigned b)
 	do {					\
 		mpi_size_t _i;			\
 		for (_i = 0; _i < (n); _i++)	\
-			(d)[_i] = (d)[_i];	\
+			(d)[_i] = (s)[_i];	\
 	} while (0)
 
 #define MPN_COPY_DECR(d, s, n) \

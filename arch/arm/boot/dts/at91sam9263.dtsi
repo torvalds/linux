@@ -62,6 +62,16 @@
 		};
 	};
 
+	sram0: sram@00300000 {
+		compatible = "mmio-sram";
+		reg = <0x00300000 0x14000>;
+	};
+
+	sram1: sram@00500000 {
+		compatible = "mmio-sram";
+		reg = <0x00300000 0x4000>;
+	};
+
 	ahb {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -294,7 +304,7 @@
 						reg = <17>;
 					};
 
-					ac91_clk: ac97_clk {
+					ac97_clk: ac97_clk {
 						#clock-cells = <0>;
 						reg = <18>;
 					};
@@ -685,6 +695,16 @@
 					};
 				};
 
+				ac97 {
+					pinctrl_ac97: ac97-0 {
+						atmel,pins =
+							<AT91_PIOB 0 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PB12 periph A AC97FS pin */
+							 AT91_PIOB 1 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PB13 periph A AC97CK pin */
+							 AT91_PIOB 2 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PB14 periph A AC97TX pin */
+							 AT91_PIOB 3 AT91_PERIPH_A AT91_PINCTRL_NONE>;	/* PB14 periph A AC97RX pin */
+					};
+				};
+
 				pioA: gpio@fffff200 {
 					compatible = "atmel,at91rm9200-gpio";
 					reg = <0xfffff200 0x200>;
@@ -810,6 +830,17 @@
 				pinctrl-0 = <&pinctrl_ssc1_tx &pinctrl_ssc1_rx>;
 				clocks = <&ssc1_clk>;
 				clock-names = "pclk";
+				status = "disabled";
+			};
+
+			ac97: sound@fffa0000 {
+				compatible = "atmel,at91sam9263-ac97c";
+				reg = <0xfffa0000 0x4000>;
+				interrupts = <18 IRQ_TYPE_LEVEL_HIGH 5>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_ac97>;
+				clocks = <&ac97_clk>;
+				clock-names = "ac97_clk";
 				status = "disabled";
 			};
 

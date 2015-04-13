@@ -46,7 +46,7 @@ static unsigned long cken_recalc_rate(struct clk_hw *hw,
 		fix = &pclk->lp;
 	else
 		fix = &pclk->hp;
-	fix->hw.clk = hw->clk;
+	__clk_hw_set_clk(&fix->hw, hw);
 	return clk_fixed_factor_ops.recalc_rate(&fix->hw, parent_rate);
 }
 

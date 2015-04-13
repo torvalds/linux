@@ -33,6 +33,8 @@
 #define WACOM_PKGLEN_MTTPC	40
 #define WACOM_PKGLEN_DTUS	68
 #define WACOM_PKGLEN_PENABLED	 8
+#define WACOM_PKGLEN_BPAD_TOUCH	32
+#define WACOM_PKGLEN_BPAD_TOUCH_USB	64
 
 /* wacom data size per MT contact */
 #define WACOM_BYTES_PER_MT_PACKET	11
@@ -67,13 +69,14 @@
 #define WACOM_REPORT_24HDT		1
 #define WACOM_REPORT_WL			128
 #define WACOM_REPORT_USB		192
+#define WACOM_REPORT_BPAD_PEN		3
+#define WACOM_REPORT_BPAD_TOUCH		16
 
 /* device quirks */
-#define WACOM_QUIRK_MULTI_INPUT		0x0001
-#define WACOM_QUIRK_BBTOUCH_LOWRES	0x0002
-#define WACOM_QUIRK_NO_INPUT		0x0004
-#define WACOM_QUIRK_MONITOR		0x0008
-#define WACOM_QUIRK_BATTERY		0x0010
+#define WACOM_QUIRK_BBTOUCH_LOWRES	0x0001
+#define WACOM_QUIRK_NO_INPUT		0x0002
+#define WACOM_QUIRK_MONITOR		0x0004
+#define WACOM_QUIRK_BATTERY		0x0008
 
 #define WACOM_PEN_FIELD(f)	(((f)->logical == HID_DG_STYLUS) || \
 				 ((f)->physical == HID_DG_STYLUS) || \
@@ -122,6 +125,7 @@ enum {
 	BAMBOO_PT,
 	WACOM_24HDT,
 	WACOM_27QHDT,
+	BAMBOO_PAD,
 	TABLETPC,   /* add new TPC below */
 	TABLETPCE,
 	TABLETPC2FG,
@@ -169,6 +173,8 @@ struct wacom_shared {
 	unsigned touch_max;
 	int type;
 	struct input_dev *touch_input;
+	struct hid_device *pen;
+	struct hid_device *touch;
 };
 
 struct hid_data {
@@ -205,6 +211,7 @@ struct wacom_wac {
 	int battery_capacity;
 	int num_contacts_left;
 	int bat_charging;
+	int bat_connected;
 	int ps_connected;
 	u8 bt_features;
 	u8 bt_high_speed;

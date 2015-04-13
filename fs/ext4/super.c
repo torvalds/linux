@@ -334,7 +334,7 @@ static void save_error_info(struct super_block *sb, const char *func,
 static int block_device_ejected(struct super_block *sb)
 {
 	struct inode *bd_inode = sb->s_bdev->bd_inode;
-	struct backing_dev_info *bdi = bd_inode->i_mapping->backing_dev_info;
+	struct backing_dev_info *bdi = inode_to_bdi(bd_inode);
 
 	return bdi->dev == NULL;
 }
@@ -1124,8 +1124,9 @@ enum {
 	Opt_usrjquota, Opt_grpjquota, Opt_offusrjquota, Opt_offgrpjquota,
 	Opt_jqfmt_vfsold, Opt_jqfmt_vfsv0, Opt_jqfmt_vfsv1, Opt_quota,
 	Opt_noquota, Opt_barrier, Opt_nobarrier, Opt_err,
-	Opt_usrquota, Opt_grpquota, Opt_i_version,
+	Opt_usrquota, Opt_grpquota, Opt_i_version, Opt_dax,
 	Opt_stripe, Opt_delalloc, Opt_nodelalloc, Opt_mblk_io_submit,
+	Opt_lazytime, Opt_nolazytime,
 	Opt_nomblk_io_submit, Opt_block_validity, Opt_noblock_validity,
 	Opt_inode_readahead_blks, Opt_journal_ioprio,
 	Opt_dioread_nolock, Opt_dioread_lock,
@@ -1187,8 +1188,11 @@ static const match_table_t tokens = {
 	{Opt_barrier, "barrier"},
 	{Opt_nobarrier, "nobarrier"},
 	{Opt_i_version, "i_version"},
+	{Opt_dax, "dax"},
 	{Opt_stripe, "stripe=%u"},
 	{Opt_delalloc, "delalloc"},
+	{Opt_lazytime, "lazytime"},
+	{Opt_nolazytime, "nolazytime"},
 	{Opt_nodelalloc, "nodelalloc"},
 	{Opt_removed, "mblk_io_submit"},
 	{Opt_removed, "nomblk_io_submit"},
@@ -1371,6 +1375,7 @@ static const struct mount_opts {
 	{Opt_min_batch_time, 0, MOPT_GTE0},
 	{Opt_inode_readahead_blks, 0, MOPT_GTE0},
 	{Opt_init_itable, 0, MOPT_GTE0},
+	{Opt_dax, EXT4_MOUNT_DAX, MOPT_SET},
 	{Opt_stripe, 0, MOPT_GTE0},
 	{Opt_resuid, 0, MOPT_GTE0},
 	{Opt_resgid, 0, MOPT_GTE0},
@@ -1445,6 +1450,12 @@ static int handle_mount_opt(struct super_block *sb, char *opt, int token,
 		return 1;
 	case Opt_i_version:
 		sb->s_flags |= MS_I_VERSION;
+		return 1;
+	case Opt_lazytime:
+		sb->s_flags |= MS_LAZYTIME;
+		return 1;
+	case Opt_nolazytime:
+		sb->s_flags &= ~MS_LAZYTIME;
 		return 1;
 	}
 
@@ -1606,6 +1617,11 @@ static int handle_mount_opt(struct super_block *sb, char *opt, int token,
 			return -1;
 		}
 		sbi->s_jquota_fmt = m->mount_opt;
+#endif
+#ifndef CONFIG_FS_DAX
+	} else if (token == Opt_dax) {
+		ext4_msg(sb, KERN_INFO, "dax option not supported");
+		return -1;
 #endif
 	} else {
 		if (!args->from)
@@ -2763,6 +2779,12 @@ static int ext4_feature_set_ok(struct super_block *sb, int readonly)
 	if (readonly)
 		return 1;
 
+	if (EXT4_HAS_RO_COMPAT_FEATURE(sb, EXT4_FEATURE_RO_COMPAT_READONLY)) {
+		ext4_msg(sb, KERN_INFO, "filesystem is read-only");
+		sb->s_flags |= MS_RDONLY;
+		return 1;
+	}
+
 	/* Check that feature set is OK for a read-write mount */
 	if (EXT4_HAS_RO_COMPAT_FEATURE(sb, ~EXT4_FEATURE_RO_COMPAT_SUPP)) {
 		ext4_msg(sb, KERN_ERR, "couldn't mount RDWR because of "
@@ -3589,6 +3611,11 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 				 "both data=journal and dioread_nolock");
 			goto failed_mount;
 		}
+		if (test_opt(sb, DAX)) {
+			ext4_msg(sb, KERN_ERR, "can't mount with "
+				 "both data=journal and dax");
+			goto failed_mount;
+		}
 		if (test_opt(sb, DELALLOC))
 			clear_opt(sb, DELALLOC);
 	}
@@ -3650,6 +3677,19 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		ext4_msg(sb, KERN_ERR,
 		       "Unsupported filesystem blocksize %d", blocksize);
 		goto failed_mount;
+	}
+
+	if (sbi->s_mount_opt & EXT4_MOUNT_DAX) {
+		if (blocksize != PAGE_SIZE) {
+			ext4_msg(sb, KERN_ERR,
+					"error: unsupported blocksize for dax");
+			goto failed_mount;
+		}
+		if (!sb->s_bdev->bd_disk->fops->direct_access) {
+			ext4_msg(sb, KERN_ERR,
+					"error: device does not support dax");
+			goto failed_mount;
+		}
 	}
 
 	if (sb->s_blocksize != blocksize) {
@@ -3902,9 +3942,8 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	get_random_bytes(&sbi->s_next_generation, sizeof(u32));
 	spin_lock_init(&sbi->s_next_gen_lock);
 
-	init_timer(&sbi->s_err_report);
-	sbi->s_err_report.function = print_daily_error_info;
-	sbi->s_err_report.data = (unsigned long) sb;
+	setup_timer(&sbi->s_err_report, print_daily_error_info,
+		(unsigned long) sb);
 
 	/* Register extent status tree shrinker */
 	if (ext4_es_register_shrinker(sbi))
@@ -4832,9 +4871,6 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 	if (sbi->s_journal && sbi->s_journal->j_task->io_context)
 		journal_ioprio = sbi->s_journal->j_task->io_context->ioprio;
 
-	/*
-	 * Allow the "check" option to be passed as a remount option.
-	 */
 	if (!parse_options(data, sb, NULL, &journal_ioprio, 1)) {
 		err = -EINVAL;
 		goto restore_opts;
@@ -4843,17 +4879,8 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 	if ((old_opts.s_mount_opt & EXT4_MOUNT_JOURNAL_CHECKSUM) ^
 	    test_opt(sb, JOURNAL_CHECKSUM)) {
 		ext4_msg(sb, KERN_ERR, "changing journal_checksum "
-			 "during remount not supported");
-		err = -EINVAL;
-		goto restore_opts;
-	}
-
-	if ((old_opts.s_mount_opt & EXT4_MOUNT_JOURNAL_CHECKSUM) ^
-	    test_opt(sb, JOURNAL_CHECKSUM)) {
-		ext4_msg(sb, KERN_ERR, "changing journal_checksum "
-			 "during remount not supported");
-		err = -EINVAL;
-		goto restore_opts;
+			 "during remount not supported; ignoring");
+		sbi->s_mount_opt ^= EXT4_MOUNT_JOURNAL_CHECKSUM;
 	}
 
 	if (test_opt(sb, DATA_FLAGS) == EXT4_MOUNT_JOURNAL_DATA) {
@@ -4869,6 +4896,18 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 			err = -EINVAL;
 			goto restore_opts;
 		}
+		if (test_opt(sb, DAX)) {
+			ext4_msg(sb, KERN_ERR, "can't mount with "
+				 "both data=journal and dax");
+			err = -EINVAL;
+			goto restore_opts;
+		}
+	}
+
+	if ((sbi->s_mount_opt ^ old_opts.s_mount_opt) & EXT4_MOUNT_DAX) {
+		ext4_msg(sb, KERN_WARNING, "warning: refusing change of "
+			"dax flag with busy inodes while remounting");
+		sbi->s_mount_opt ^= EXT4_MOUNT_DAX;
 	}
 
 	if (sbi->s_mount_flags & EXT4_MF_FS_ABORTED)
@@ -4917,7 +4956,9 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 				ext4_mark_recovery_complete(sb, es);
 		} else {
 			/* Make sure we can mount this feature set readwrite */
-			if (!ext4_feature_set_ok(sb, 0)) {
+			if (EXT4_HAS_RO_COMPAT_FEATURE(sb,
+					EXT4_FEATURE_RO_COMPAT_READONLY) ||
+			    !ext4_feature_set_ok(sb, 0)) {
 				err = -EROFS;
 				goto restore_opts;
 			}
@@ -5007,6 +5048,7 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 	}
 #endif
 
+	*flags = (*flags & ~MS_LAZYTIME) | (sb->s_flags & MS_LAZYTIME);
 	ext4_msg(sb, KERN_INFO, "re-mounted. Opts: %s", orig_data);
 	kfree(orig_data);
 	return 0;

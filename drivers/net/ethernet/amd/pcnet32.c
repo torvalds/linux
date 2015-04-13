@@ -2806,7 +2806,7 @@ static void pcnet32_check_media(struct net_device *dev, int verbose)
 
 /*
  * Check for loss of link and link establishment.
- * Can not use mii_check_media because it does nothing if mode is forced.
+ * Could possibly be changed to use mii_check_media instead.
  */
 
 static void pcnet32_watchdog(struct net_device *dev)

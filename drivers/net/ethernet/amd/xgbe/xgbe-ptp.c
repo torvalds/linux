@@ -171,15 +171,9 @@ static int xgbe_adjtime(struct ptp_clock_info *info, s64 delta)
 						   struct xgbe_prv_data,
 						   ptp_clock_info);
 	unsigned long flags;
-	u64 nsec;
 
 	spin_lock_irqsave(&pdata->tstamp_lock, flags);
-
-	nsec = timecounter_read(&pdata->tstamp_tc);
-
-	nsec += delta;
-	timecounter_init(&pdata->tstamp_tc, &pdata->tstamp_cc, nsec);
-
+	timecounter_adjtime(&pdata->tstamp_tc, delta);
 	spin_unlock_irqrestore(&pdata->tstamp_lock, flags);
 
 	return 0;
@@ -239,7 +233,7 @@ void xgbe_ptp_register(struct xgbe_prv_data *pdata)
 	snprintf(info->name, sizeof(info->name), "%s",
 		 netdev_name(pdata->netdev));
 	info->owner = THIS_MODULE;
-	info->max_adj = clk_get_rate(pdata->ptpclk);
+	info->max_adj = pdata->ptpclk_rate;
 	info->adjfreq = xgbe_adjfreq;
 	info->adjtime = xgbe_adjtime;
 	info->gettime = xgbe_gettime;
@@ -260,7 +254,7 @@ void xgbe_ptp_register(struct xgbe_prv_data *pdata)
 	 */
 	dividend = 50000000;
 	dividend <<= 32;
-	pdata->tstamp_addend = div_u64(dividend, clk_get_rate(pdata->ptpclk));
+	pdata->tstamp_addend = div_u64(dividend, pdata->ptpclk_rate);
 
 	/* Setup the timecounter */
 	cc->read = xgbe_cc_read;

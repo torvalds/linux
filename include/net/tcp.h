@@ -262,8 +262,6 @@ extern int sysctl_tcp_low_latency;
 extern int sysctl_tcp_nometrics_save;
 extern int sysctl_tcp_moderate_rcvbuf;
 extern int sysctl_tcp_tso_win_divisor;
-extern int sysctl_tcp_mtu_probing;
-extern int sysctl_tcp_base_mss;
 extern int sysctl_tcp_workaround_signed_windows;
 extern int sysctl_tcp_slow_start_after_idle;
 extern int sysctl_tcp_thin_linear_timeouts;
@@ -274,6 +272,7 @@ extern int sysctl_tcp_challenge_ack_limit;
 extern unsigned int sysctl_tcp_notsent_lowat;
 extern int sysctl_tcp_min_tso_segs;
 extern int sysctl_tcp_autocorking;
+extern int sysctl_tcp_invalid_ratelimit;
 
 extern atomic_long_t tcp_memory_allocated;
 extern struct percpu_counter tcp_sockets_allocated;
@@ -448,6 +447,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb);
 struct sock *tcp_create_openreq_child(struct sock *sk,
 				      struct request_sock *req,
 				      struct sk_buff *skb);
+void tcp_ca_openreq_child(struct sock *sk, const struct dst_entry *dst);
 struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 				  struct request_sock *req,
 				  struct dst_entry *dst);
@@ -636,6 +636,11 @@ static inline u32 tcp_rto_min_us(struct sock *sk)
 	return jiffies_to_usecs(tcp_rto_min(sk));
 }
 
+static inline bool tcp_ca_dst_locked(const struct dst_entry *dst)
+{
+	return dst_metric_locked(dst, RTAX_CC_ALGO);
+}
+
 /* Compute the actual receive window we are currently advertising.
  * Rcv_nxt can be after the window if our peer push more data
  * than the offered window.
@@ -787,6 +792,8 @@ enum tcp_ca_ack_event_flags {
 #define TCP_CA_MAX	128
 #define TCP_CA_BUF_MAX	(TCP_CA_NAME_MAX*TCP_CA_MAX)
 
+#define TCP_CA_UNSPEC	0
+
 /* Algorithm can be set on socket without CAP_NET_ADMIN privileges */
 #define TCP_CONG_NON_RESTRICTED 0x1
 /* Requires ECN/ECT set on all packets */
@@ -794,7 +801,8 @@ enum tcp_ca_ack_event_flags {
 
 struct tcp_congestion_ops {
 	struct list_head	list;
-	unsigned long flags;
+	u32 key;
+	u32 flags;
 
 	/* initialize private data (optional) */
 	void (*init)(struct sock *sk);
@@ -840,6 +848,17 @@ void tcp_cong_avoid_ai(struct tcp_sock *tp, u32 w, u32 acked);
 u32 tcp_reno_ssthresh(struct sock *sk);
 void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 acked);
 extern struct tcp_congestion_ops tcp_reno;
+
+struct tcp_congestion_ops *tcp_ca_find_key(u32 key);
+u32 tcp_ca_get_key_by_name(const char *name);
+#ifdef CONFIG_INET
+char *tcp_ca_get_name_by_key(u32 key, char *buffer);
+#else
+static inline char *tcp_ca_get_name_by_key(u32 key, char *buffer)
+{
+	return NULL;
+}
+#endif
 
 static inline bool tcp_ca_needs_ecn(const struct sock *sk)
 {
@@ -1124,6 +1143,7 @@ static inline void tcp_openreq_init(struct request_sock *req,
 	tcp_rsk(req)->rcv_isn = TCP_SKB_CB(skb)->seq;
 	tcp_rsk(req)->rcv_nxt = TCP_SKB_CB(skb)->seq + 1;
 	tcp_rsk(req)->snt_synack = tcp_time_stamp;
+	tcp_rsk(req)->last_oow_ack_time = 0;
 	req->mss = rx_opt->mss_clamp;
 	req->ts_recent = rx_opt->saw_tstamp ? rx_opt->rcv_tsval : 0;
 	ireq->tstamp_ok = rx_opt->tstamp_ok;
@@ -1214,6 +1234,37 @@ static inline bool tcp_paws_reject(const struct tcp_options_received *rx_opt,
 	if (rst && get_seconds() >= rx_opt->ts_recent_stamp + TCP_PAWS_MSL)
 		return false;
 	return true;
+}
+
+/* Return true if we're currently rate-limiting out-of-window ACKs and
+ * thus shouldn't send a dupack right now. We rate-limit dupacks in
+ * response to out-of-window SYNs or ACKs to mitigate ACK loops or DoS
+ * attacks that send repeated SYNs or ACKs for the same connection. To
+ * do this, we do not send a duplicate SYNACK or ACK if the remote
+ * endpoint is sending out-of-window SYNs or pure ACKs at a high rate.
+ */
+static inline bool tcp_oow_rate_limited(struct net *net,
+					const struct sk_buff *skb,
+					int mib_idx, u32 *last_oow_ack_time)
+{
+	/* Data packets without SYNs are not likely part of an ACK loop. */
+	if ((TCP_SKB_CB(skb)->seq != TCP_SKB_CB(skb)->end_seq) &&
+	    !tcp_hdr(skb)->syn)
+		goto not_rate_limited;
+
+	if (*last_oow_ack_time) {
+		s32 elapsed = (s32)(tcp_time_stamp - *last_oow_ack_time);
+
+		if (0 <= elapsed && elapsed < sysctl_tcp_invalid_ratelimit) {
+			NET_INC_STATS_BH(net, mib_idx);
+			return true;	/* rate-limited: don't send yet! */
+		}
+	}
+
+	*last_oow_ack_time = tcp_time_stamp;
+
+not_rate_limited:
+	return false;	/* not rate-limited: go ahead, send dupack now! */
 }
 
 static inline void tcp_mib_init(struct net *net)
@@ -1691,6 +1742,21 @@ static inline struct ip_options_rcu *tcp_v4_save_options(struct sk_buff *skb)
 		}
 	}
 	return dopt;
+}
+
+/* locally generated TCP pure ACKs have skb->truesize == 2
+ * (check tcp_send_ack() in net/ipv4/tcp_output.c )
+ * This is much faster than dissecting the packet to find out.
+ * (Think of GRE encapsulations, IPv4, IPv6, ...)
+ */
+static inline bool skb_is_tcp_pure_ack(const struct sk_buff *skb)
+{
+	return skb->truesize == 2;
+}
+
+static inline void skb_set_tcp_pure_ack(struct sk_buff *skb)
+{
+	skb->truesize = 2;
 }
 
 #endif	/* _TCP_H */

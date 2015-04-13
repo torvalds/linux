@@ -38,14 +38,6 @@
 	 | (e) << RE_SH						\
 	 | (f) << FUNC_SH)
 
-/* Define these when we are not the ISA the kernel is being compiled with. */
-#ifndef CONFIG_CPU_MICROMIPS
-#define MM_uasm_i_b(buf, off) ISAOPC(_beq)(buf, 0, 0, off)
-#define MM_uasm_i_beqz(buf, rs, off) ISAOPC(_beq)(buf, rs, 0, off)
-#define MM_uasm_i_beqzl(buf, rs, off) ISAOPC(_beql)(buf, rs, 0, off)
-#define MM_uasm_i_bnez(buf, rs, off) ISAOPC(_bne)(buf, rs, 0, off)
-#endif
-
 #include "uasm.c"
 
 static struct insn insn_table_MM[] = {

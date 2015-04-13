@@ -1463,17 +1463,6 @@ static int sbp2_scsi_queuecommand(struct Scsi_Host *shost,
 	struct sbp2_command_orb *orb;
 	int generation, retval = SCSI_MLQUEUE_HOST_BUSY;
 
-	/*
-	 * Bidirectional commands are not yet implemented, and unknown
-	 * transfer direction not handled.
-	 */
-	if (cmd->sc_data_direction == DMA_BIDIRECTIONAL) {
-		dev_err(lu_dev(lu), "cannot handle bidirectional command\n");
-		cmd->result = DID_ERROR << 16;
-		cmd->scsi_done(cmd);
-		return 0;
-	}
-
 	orb = kzalloc(sizeof(*orb), GFP_ATOMIC);
 	if (orb == NULL)
 		return SCSI_MLQUEUE_HOST_BUSY;

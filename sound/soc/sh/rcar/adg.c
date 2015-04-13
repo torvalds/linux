@@ -57,8 +57,7 @@ static u32 rsnd_adg_ssi_ws_timing_gen2(struct rsnd_dai_stream *io)
 	return (0x6 + ws) << 8;
 }
 
-int rsnd_adg_set_cmd_timsel_gen2(struct rsnd_dai *rdai,
-				 struct rsnd_mod *mod,
+int rsnd_adg_set_cmd_timsel_gen2(struct rsnd_mod *mod,
 				 struct rsnd_dai_stream *io)
 {
 	int id = rsnd_mod_id(mod);
@@ -75,12 +74,11 @@ int rsnd_adg_set_cmd_timsel_gen2(struct rsnd_dai *rdai,
 	return 0;
 }
 
-static int rsnd_adg_set_src_timsel_gen2(struct rsnd_dai *rdai,
-					struct rsnd_mod *mod,
+static int rsnd_adg_set_src_timsel_gen2(struct rsnd_mod *mod,
 					struct rsnd_dai_stream *io,
 					u32 timsel)
 {
-	int is_play = rsnd_dai_is_play(rdai, io);
+	int is_play = rsnd_io_is_play(io);
 	int id = rsnd_mod_id(mod);
 	int shift = (id % 2) ? 16 : 0;
 	u32 mask, ws;
@@ -122,7 +120,6 @@ static int rsnd_adg_set_src_timsel_gen2(struct rsnd_dai *rdai,
 }
 
 int rsnd_adg_set_convert_clk_gen2(struct rsnd_mod *mod,
-				  struct rsnd_dai *rdai,
 				  struct rsnd_dai_stream *io,
 				  unsigned int src_rate,
 				  unsigned int dst_rate)
@@ -178,7 +175,7 @@ int rsnd_adg_set_convert_clk_gen2(struct rsnd_mod *mod,
 		return -EIO;
 	}
 
-	ret = rsnd_adg_set_src_timsel_gen2(rdai, mod, io, val);
+	ret = rsnd_adg_set_src_timsel_gen2(mod, io, val);
 	if (ret < 0) {
 		dev_err(dev, "timsel error\n");
 		return ret;
@@ -190,12 +187,11 @@ int rsnd_adg_set_convert_clk_gen2(struct rsnd_mod *mod,
 }
 
 int rsnd_adg_set_convert_timing_gen2(struct rsnd_mod *mod,
-				     struct rsnd_dai *rdai,
 				     struct rsnd_dai_stream *io)
 {
 	u32 val = rsnd_adg_ssi_ws_timing_gen2(io);
 
-	return rsnd_adg_set_src_timsel_gen2(rdai, mod, io, val);
+	return rsnd_adg_set_src_timsel_gen2(mod, io, val);
 }
 
 int rsnd_adg_set_convert_clk_gen1(struct rsnd_priv *priv,

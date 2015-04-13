@@ -1303,6 +1303,7 @@ int of_property_read_u64_array(const struct device_node *np,
 	}
 	return 0;
 }
+EXPORT_SYMBOL_GPL(of_property_read_u64_array);
 
 /**
  * of_property_read_string - Find and read a string from a property

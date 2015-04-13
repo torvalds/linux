@@ -25,16 +25,12 @@
 #include "raid0.h"
 #include "raid5.h"
 
-static int raid0_congested(void *data, int bits)
+static int raid0_congested(struct mddev *mddev, int bits)
 {
-	struct mddev *mddev = data;
 	struct r0conf *conf = mddev->private;
 	struct md_rdev **devlist = conf->devlist;
 	int raid_disks = conf->strip_zone[0].nb_dev;
 	int i, ret = 0;
-
-	if (mddev_congested(mddev, bits))
-		return 1;
 
 	for (i = 0; i < raid_disks && !ret ; i++) {
 		struct request_queue *q = bdev_get_queue(devlist[i]->bdev);
@@ -263,8 +259,6 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 			 mdname(mddev),
 			 (unsigned long long)smallest->sectors);
 	}
-	mddev->queue->backing_dev_info.congested_fn = raid0_congested;
-	mddev->queue->backing_dev_info.congested_data = mddev;
 
 	/*
 	 * now since we have the hard sector sizes, we can make sure
@@ -356,17 +350,16 @@ static struct md_rdev *map_sector(struct mddev *mddev, struct strip_zone *zone,
 
 /**
  *	raid0_mergeable_bvec -- tell bio layer if two requests can be merged
- *	@q: request queue
+ *	@mddev: the md device
  *	@bvm: properties of new bio
  *	@biovec: the request that could be merged to it.
  *
  *	Return amount of bytes we can accept at this offset
  */
-static int raid0_mergeable_bvec(struct request_queue *q,
+static int raid0_mergeable_bvec(struct mddev *mddev,
 				struct bvec_merge_data *bvm,
 				struct bio_vec *biovec)
 {
-	struct mddev *mddev = q->queuedata;
 	struct r0conf *conf = mddev->private;
 	sector_t sector = bvm->bi_sector + get_start_sect(bvm->bi_bdev);
 	sector_t sector_offset = sector;
@@ -422,7 +415,7 @@ static sector_t raid0_size(struct mddev *mddev, sector_t sectors, int raid_disks
 	return array_sectors;
 }
 
-static int raid0_stop(struct mddev *mddev);
+static void raid0_free(struct mddev *mddev, void *priv);
 
 static int raid0_run(struct mddev *mddev)
 {
@@ -471,26 +464,22 @@ static int raid0_run(struct mddev *mddev)
 			mddev->queue->backing_dev_info.ra_pages = 2* stripe;
 	}
 
-	blk_queue_merge_bvec(mddev->queue, raid0_mergeable_bvec);
 	dump_zones(mddev);
 
 	ret = md_integrity_register(mddev);
 	if (ret)
-		raid0_stop(mddev);
+		raid0_free(mddev, conf);
 
 	return ret;
 }
 
-static int raid0_stop(struct mddev *mddev)
+static void raid0_free(struct mddev *mddev, void *priv)
 {
-	struct r0conf *conf = mddev->private;
+	struct r0conf *conf = priv;
 
-	blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/
 	kfree(conf->strip_zone);
 	kfree(conf->devlist);
 	kfree(conf);
-	mddev->private = NULL;
-	return 0;
 }
 
 /*
@@ -724,11 +713,13 @@ static struct md_personality raid0_personality=
 	.owner		= THIS_MODULE,
 	.make_request	= raid0_make_request,
 	.run		= raid0_run,
-	.stop		= raid0_stop,
+	.free		= raid0_free,
 	.status		= raid0_status,
 	.size		= raid0_size,
 	.takeover	= raid0_takeover,
 	.quiesce	= raid0_quiesce,
+	.congested	= raid0_congested,
+	.mergeable_bvec	= raid0_mergeable_bvec,
 };
 
 static int __init raid0_init (void)

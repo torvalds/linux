@@ -111,7 +111,7 @@ static struct mfd_cell crystal_cove_dev[] = {
 	},
 };
 
-static struct regmap_config crystal_cove_regmap_config = {
+static const struct regmap_config crystal_cove_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 

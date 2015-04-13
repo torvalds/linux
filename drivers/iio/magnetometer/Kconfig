@@ -6,26 +6,21 @@
 menu "Magnetometer sensors"
 
 config AK8975
-	tristate "Asahi Kasei AK8975 3-Axis Magnetometer"
+	tristate "Asahi Kasei AK 3-Axis Magnetometer"
 	depends on I2C
 	depends on GPIOLIB
 	help
-	  Say yes here to build support for Asahi Kasei AK8975 3-Axis
-	  Magnetometer. This driver can also support AK8963, if i2c
-	  device name is identified as ak8963.
+	  Say yes here to build support for Asahi Kasei AK8975, AK8963,
+	  AK09911 or AK09912 3-Axis Magnetometer.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called ak8975.
 
 config AK09911
 	tristate "Asahi Kasei AK09911 3-axis Compass"
-	depends on I2C
+	select AK8975
 	help
-	  Say yes here to build support for Asahi Kasei AK09911 3-Axis
-	  Magnetometer.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called ak09911.
+	  Deprecated: AK09911 is now supported by AK8975 driver.
 
 config MAG3110
 	tristate "Freescale MAG3110 3-Axis Magnetometer"

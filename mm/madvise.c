@@ -222,21 +222,24 @@ static long madvise_willneed(struct vm_area_struct *vma,
 	struct file *file = vma->vm_file;
 
 #ifdef CONFIG_SWAP
-	if (!file || mapping_cap_swap_backed(file->f_mapping)) {
+	if (!file) {
 		*prev = vma;
-		if (!file)
-			force_swapin_readahead(vma, start, end);
-		else
-			force_shm_swapin_readahead(vma, start, end,
-						file->f_mapping);
+		force_swapin_readahead(vma, start, end);
 		return 0;
 	}
-#endif
 
+	if (shmem_mapping(file->f_mapping)) {
+		*prev = vma;
+		force_shm_swapin_readahead(vma, start, end,
+					file->f_mapping);
+		return 0;
+	}
+#else
 	if (!file)
 		return -EBADF;
+#endif
 
-	if (file->f_mapping->a_ops->get_xip_mem) {
+	if (IS_DAX(file_inode(file))) {
 		/* no bad return value, but ignore advice */
 		return 0;
 	}

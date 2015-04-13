@@ -42,9 +42,8 @@ for my needs.
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/uaccess.h>
-#include <linux/usb.h>
 
-#include "../comedidev.h"
+#include "../comedi_usb.h"
 
 #define DT9812_DIAGS_BOARD_INFO_ADDR	0xFBFF
 #define DT9812_MAX_WRITE_CMD_PIPE_SIZE	32

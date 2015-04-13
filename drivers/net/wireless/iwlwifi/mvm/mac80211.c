@@ -85,6 +85,7 @@
 #include "testmode.h"
 #include "iwl-fw-error-dump.h"
 #include "iwl-prph.h"
+#include "iwl-csr.h"
 
 static const struct ieee80211_iface_limit iwl_mvm_limits[] = {
 	{
@@ -105,7 +106,7 @@ static const struct ieee80211_iface_limit iwl_mvm_limits[] = {
 
 static const struct ieee80211_iface_combination iwl_mvm_iface_combinations[] = {
 	{
-		.num_different_channels = 1,
+		.num_different_channels = 2,
 		.max_interfaces = 3,
 		.limits = iwl_mvm_limits,
 		.n_limits = ARRAY_SIZE(iwl_mvm_limits),
@@ -326,6 +327,8 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	hw->radiotap_vht_details |= IEEE80211_RADIOTAP_VHT_KNOWN_STBC |
 		IEEE80211_RADIOTAP_VHT_KNOWN_BEAMFORMED;
 	hw->rate_control_algorithm = "iwl-mvm-rs";
+	hw->uapsd_queues = IWL_MVM_UAPSD_QUEUES;
+	hw->uapsd_max_sp_len = IWL_UAPSD_MAX_SP;
 
 	/*
 	 * Enable 11w if advertised by firmware and software crypto
@@ -335,13 +338,6 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_MFP &&
 	    !iwlwifi_mod_params.sw_crypto)
 		hw->flags |= IEEE80211_HW_MFP_CAPABLE;
-
-	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_UAPSD_SUPPORT &&
-	    !iwlwifi_mod_params.uapsd_disable) {
-		hw->flags |= IEEE80211_HW_SUPPORTS_UAPSD;
-		hw->uapsd_queues = IWL_MVM_UAPSD_QUEUES;
-		hw->uapsd_max_sp_len = IWL_UAPSD_MAX_SP;
-	}
 
 	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN ||
 	    mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN) {
@@ -377,6 +373,8 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 
 	hw->wiphy->max_remain_on_channel_duration = 10000;
 	hw->max_listen_interval = IWL_CONN_MAX_LISTEN_INTERVAL;
+	/* we can compensate an offset of up to 3 channels = 15 MHz */
+	hw->wiphy->max_adj_channel_rssi_comp = 3 * 5;
 
 	/* Extract MAC address */
 	memcpy(mvm->addresses[0].addr, mvm->nvm_data->hw_addr, ETH_ALEN);
@@ -403,9 +401,14 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	if (mvm->nvm_data->bands[IEEE80211_BAND_2GHZ].n_channels)
 		hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
 			&mvm->nvm_data->bands[IEEE80211_BAND_2GHZ];
-	if (mvm->nvm_data->bands[IEEE80211_BAND_5GHZ].n_channels)
+	if (mvm->nvm_data->bands[IEEE80211_BAND_5GHZ].n_channels) {
 		hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 			&mvm->nvm_data->bands[IEEE80211_BAND_5GHZ];
+
+		if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_BEAMFORMER)
+			hw->wiphy->bands[IEEE80211_BAND_5GHZ]->vht_cap.cap |=
+				IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE;
+	}
 
 	hw->wiphy->hw_version = mvm->trans->hw_id;
 
@@ -459,15 +462,17 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	    device_can_wakeup(mvm->trans->dev)) {
 		mvm->wowlan.flags = WIPHY_WOWLAN_ANY;
 		hw->wiphy->wowlan = &mvm->wowlan;
-	} else if (mvm->fw->img[IWL_UCODE_WOWLAN].sec[0].len &&
+	}
+
+	if (mvm->fw->img[IWL_UCODE_WOWLAN].sec[0].len &&
 	    mvm->trans->ops->d3_suspend &&
 	    mvm->trans->ops->d3_resume &&
 	    device_can_wakeup(mvm->trans->dev)) {
-		mvm->wowlan.flags = WIPHY_WOWLAN_MAGIC_PKT |
-				    WIPHY_WOWLAN_DISCONNECT |
-				    WIPHY_WOWLAN_EAP_IDENTITY_REQ |
-				    WIPHY_WOWLAN_RFKILL_RELEASE |
-				    WIPHY_WOWLAN_NET_DETECT;
+		mvm->wowlan.flags |= WIPHY_WOWLAN_MAGIC_PKT |
+				     WIPHY_WOWLAN_DISCONNECT |
+				     WIPHY_WOWLAN_EAP_IDENTITY_REQ |
+				     WIPHY_WOWLAN_RFKILL_RELEASE |
+				     WIPHY_WOWLAN_NET_DETECT;
 		if (!iwlwifi_mod_params.sw_crypto)
 			mvm->wowlan.flags |= WIPHY_WOWLAN_SUPPORTS_GTK_REKEY |
 					     WIPHY_WOWLAN_GTK_REKEY_FAILURE |
@@ -707,9 +712,6 @@ static void iwl_mvm_cleanup_iterator(void *data, u8 *mac,
 	mvmvif->uploaded = false;
 	mvmvif->ap_sta_id = IWL_MVM_STATION_COUNT;
 
-	/* does this make sense at all? */
-	mvmvif->color++;
-
 	spin_lock_bh(&mvm->time_event_lock);
 	iwl_mvm_te_clear_data(mvm, &mvmvif->time_event_data);
 	spin_unlock_bh(&mvm->time_event_lock);
@@ -761,40 +763,214 @@ static void iwl_mvm_free_coredump(const void *data)
 	kfree(fw_error_dump);
 }
 
+static void iwl_mvm_dump_fifos(struct iwl_mvm *mvm,
+			       struct iwl_fw_error_dump_data **dump_data)
+{
+	struct iwl_fw_error_dump_fifo *fifo_hdr;
+	u32 *fifo_data;
+	u32 fifo_len;
+	unsigned long flags;
+	int i, j;
+
+	if (!iwl_trans_grab_nic_access(mvm->trans, false, &flags))
+		return;
+
+	/* Pull RXF data from all RXFs */
+	for (i = 0; i < ARRAY_SIZE(mvm->shared_mem_cfg.rxfifo_size); i++) {
+		/*
+		 * Keep aside the additional offset that might be needed for
+		 * next RXF
+		 */
+		u32 offset_diff = RXF_DIFF_FROM_PREV * i;
+
+		fifo_hdr = (void *)(*dump_data)->data;
+		fifo_data = (void *)fifo_hdr->data;
+		fifo_len = mvm->shared_mem_cfg.rxfifo_size[i];
+
+		/* No need to try to read the data if the length is 0 */
+		if (fifo_len == 0)
+			continue;
+
+		/* Add a TLV for the RXF */
+		(*dump_data)->type = cpu_to_le32(IWL_FW_ERROR_DUMP_RXF);
+		(*dump_data)->len = cpu_to_le32(fifo_len + sizeof(*fifo_hdr));
+
+		fifo_hdr->fifo_num = cpu_to_le32(i);
+		fifo_hdr->available_bytes =
+			cpu_to_le32(iwl_trans_read_prph(mvm->trans,
+							RXF_RD_D_SPACE +
+							offset_diff));
+		fifo_hdr->wr_ptr =
+			cpu_to_le32(iwl_trans_read_prph(mvm->trans,
+							RXF_RD_WR_PTR +
+							offset_diff));
+		fifo_hdr->rd_ptr =
+			cpu_to_le32(iwl_trans_read_prph(mvm->trans,
+							RXF_RD_RD_PTR +
+							offset_diff));
+		fifo_hdr->fence_ptr =
+			cpu_to_le32(iwl_trans_read_prph(mvm->trans,
+							RXF_RD_FENCE_PTR +
+							offset_diff));
+		fifo_hdr->fence_mode =
+			cpu_to_le32(iwl_trans_read_prph(mvm->trans,
+							RXF_SET_FENCE_MODE +
+							offset_diff));
+
+		/* Lock fence */
+		iwl_trans_write_prph(mvm->trans,
+				     RXF_SET_FENCE_MODE + offset_diff, 0x1);
+		/* Set fence pointer to the same place like WR pointer */
+		iwl_trans_write_prph(mvm->trans,
+				     RXF_LD_WR2FENCE + offset_diff, 0x1);
+		/* Set fence offset */
+		iwl_trans_write_prph(mvm->trans,
+				     RXF_LD_FENCE_OFFSET_ADDR + offset_diff,
+				     0x0);
+
+		/* Read FIFO */
+		fifo_len /= sizeof(u32); /* Size in DWORDS */
+		for (j = 0; j < fifo_len; j++)
+			fifo_data[j] = iwl_trans_read_prph(mvm->trans,
+							 RXF_FIFO_RD_FENCE_INC +
+							 offset_diff);
+		*dump_data = iwl_fw_error_next_data(*dump_data);
+	}
+
+	/* Pull TXF data from all TXFs */
+	for (i = 0; i < ARRAY_SIZE(mvm->shared_mem_cfg.txfifo_size); i++) {
+		/* Mark the number of TXF we're pulling now */
+		iwl_trans_write_prph(mvm->trans, TXF_LARC_NUM, i);
+
+		fifo_hdr = (void *)(*dump_data)->data;
+		fifo_data = (void *)fifo_hdr->data;
+		fifo_len = mvm->shared_mem_cfg.txfifo_size[i];
+
+		/* No need to try to read the data if the length is 0 */
+		if (fifo_len == 0)
+			continue;
+
+		/* Add a TLV for the FIFO */
+		(*dump_data)->type = cpu_to_le32(IWL_FW_ERROR_DUMP_TXF);
+		(*dump_data)->len = cpu_to_le32(fifo_len + sizeof(*fifo_hdr));
+
+		fifo_hdr->fifo_num = cpu_to_le32(i);
+		fifo_hdr->available_bytes =
+			cpu_to_le32(iwl_trans_read_prph(mvm->trans,
+							TXF_FIFO_ITEM_CNT));
+		fifo_hdr->wr_ptr =
+			cpu_to_le32(iwl_trans_read_prph(mvm->trans,
+							TXF_WR_PTR));
+		fifo_hdr->rd_ptr =
+			cpu_to_le32(iwl_trans_read_prph(mvm->trans,
+							TXF_RD_PTR));
+		fifo_hdr->fence_ptr =
+			cpu_to_le32(iwl_trans_read_prph(mvm->trans,
+							TXF_FENCE_PTR));
+		fifo_hdr->fence_mode =
+			cpu_to_le32(iwl_trans_read_prph(mvm->trans,
+							TXF_LOCK_FENCE));
+
+		/* Set the TXF_READ_MODIFY_ADDR to TXF_WR_PTR */
+		iwl_trans_write_prph(mvm->trans, TXF_READ_MODIFY_ADDR,
+				     TXF_WR_PTR);
+
+		/* Dummy-read to advance the read pointer to the head */
+		iwl_trans_read_prph(mvm->trans, TXF_READ_MODIFY_DATA);
+
+		/* Read FIFO */
+		fifo_len /= sizeof(u32); /* Size in DWORDS */
+		for (j = 0; j < fifo_len; j++)
+			fifo_data[j] = iwl_trans_read_prph(mvm->trans,
+							  TXF_READ_MODIFY_DATA);
+		*dump_data = iwl_fw_error_next_data(*dump_data);
+	}
+
+	iwl_trans_release_nic_access(mvm->trans, &flags);
+}
+
 void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 {
 	struct iwl_fw_error_dump_file *dump_file;
 	struct iwl_fw_error_dump_data *dump_data;
 	struct iwl_fw_error_dump_info *dump_info;
+	struct iwl_fw_error_dump_mem *dump_mem;
 	struct iwl_mvm_dump_ptrs *fw_error_dump;
-	const struct fw_img *img;
 	u32 sram_len, sram_ofs;
-	u32 file_len, rxf_len;
-	unsigned long flags;
-	int reg_val;
+	u32 file_len, fifo_data_len = 0;
+	u32 smem_len = mvm->cfg->smem_len;
+	u32 sram2_len = mvm->cfg->dccm2_len;
 
 	lockdep_assert_held(&mvm->mutex);
+
+	/* W/A for 8000 HW family A-step */
+	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_8000 &&
+	    CSR_HW_REV_STEP(mvm->trans->hw_rev) == SILICON_A_STEP) {
+		if (smem_len)
+			smem_len = 0x38000;
+
+		if (sram2_len)
+			sram2_len = 0x10000;
+	}
 
 	fw_error_dump = kzalloc(sizeof(*fw_error_dump), GFP_KERNEL);
 	if (!fw_error_dump)
 		return;
 
-	img = &mvm->fw->img[mvm->cur_ucode];
-	sram_ofs = img->sec[IWL_UCODE_SECTION_DATA].offset;
-	sram_len = img->sec[IWL_UCODE_SECTION_DATA].len;
+	/* SRAM - include stack CCM if driver knows the values for it */
+	if (!mvm->cfg->dccm_offset || !mvm->cfg->dccm_len) {
+		const struct fw_img *img;
 
-	/* reading buffer size */
-	reg_val = iwl_trans_read_prph(mvm->trans, RXF_SIZE_ADDR);
-	rxf_len = (reg_val & RXF_SIZE_BYTE_CNT_MSK) >> RXF_SIZE_BYTE_CND_POS;
+		img = &mvm->fw->img[mvm->cur_ucode];
+		sram_ofs = img->sec[IWL_UCODE_SECTION_DATA].offset;
+		sram_len = img->sec[IWL_UCODE_SECTION_DATA].len;
+	} else {
+		sram_ofs = mvm->cfg->dccm_offset;
+		sram_len = mvm->cfg->dccm_len;
+	}
 
-	/* the register holds the value divided by 128 */
-	rxf_len = rxf_len << 7;
+	/* reading RXF/TXF sizes */
+	if (test_bit(STATUS_FW_ERROR, &mvm->trans->status)) {
+		struct iwl_mvm_shared_mem_cfg *mem_cfg = &mvm->shared_mem_cfg;
+		int i;
+
+		fifo_data_len = 0;
+
+		/* Count RXF size */
+		for (i = 0; i < ARRAY_SIZE(mem_cfg->rxfifo_size); i++) {
+			if (!mem_cfg->rxfifo_size[i])
+				continue;
+
+			/* Add header info */
+			fifo_data_len += mem_cfg->rxfifo_size[i] +
+					 sizeof(*dump_data) +
+					 sizeof(struct iwl_fw_error_dump_fifo);
+		}
+
+		for (i = 0; i < ARRAY_SIZE(mem_cfg->txfifo_size); i++) {
+			if (!mem_cfg->txfifo_size[i])
+				continue;
+
+			/* Add header info */
+			fifo_data_len += mem_cfg->txfifo_size[i] +
+					 sizeof(*dump_data) +
+					 sizeof(struct iwl_fw_error_dump_fifo);
+		}
+	}
 
 	file_len = sizeof(*dump_file) +
-		   sizeof(*dump_data) * 3 +
-		   sram_len +
-		   rxf_len +
+		   sizeof(*dump_data) * 2 +
+		   sram_len + sizeof(*dump_mem) +
+		   fifo_data_len +
 		   sizeof(*dump_info);
+
+	/* Make room for the SMEM, if it exists */
+	if (smem_len)
+		file_len += sizeof(*dump_data) + sizeof(*dump_mem) + smem_len;
+
+	/* Make room for the secondary SRAM, if it exists */
+	if (sram2_len)
+		file_len += sizeof(*dump_data) + sizeof(*dump_mem) + sram2_len;
 
 	dump_file = vzalloc(file_len);
 	if (!dump_file) {
@@ -814,6 +990,7 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 		mvm->cfg->device_family == IWL_DEVICE_FAMILY_7000 ?
 			cpu_to_le32(IWL_FW_ERROR_DUMP_FAMILY_7) :
 			cpu_to_le32(IWL_FW_ERROR_DUMP_FAMILY_8);
+	dump_info->hw_step = cpu_to_le32(CSR_HW_REV_STEP(mvm->trans->hw_rev));
 	memcpy(dump_info->fw_human_readable, mvm->fw->human_readable,
 	       sizeof(dump_info->fw_human_readable));
 	strncpy(dump_info->dev_human_readable, mvm->cfg->name,
@@ -822,28 +999,39 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 		sizeof(dump_info->bus_human_readable));
 
 	dump_data = iwl_fw_error_next_data(dump_data);
-	dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_RXF);
-	dump_data->len = cpu_to_le32(rxf_len);
+	/* We only dump the FIFOs if the FW is in error state */
+	if (test_bit(STATUS_FW_ERROR, &mvm->trans->status))
+		iwl_mvm_dump_fifos(mvm, &dump_data);
 
-	if (iwl_trans_grab_nic_access(mvm->trans, false, &flags)) {
-		u32 *rxf = (void *)dump_data->data;
-		int i;
+	dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM);
+	dump_data->len = cpu_to_le32(sram_len + sizeof(*dump_mem));
+	dump_mem = (void *)dump_data->data;
+	dump_mem->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM_SRAM);
+	dump_mem->offset = cpu_to_le32(sram_ofs);
+	iwl_trans_read_mem_bytes(mvm->trans, sram_ofs, dump_mem->data,
+				 sram_len);
 
-		for (i = 0; i < (rxf_len / sizeof(u32)); i++) {
-			iwl_trans_write_prph(mvm->trans,
-					     RXF_LD_FENCE_OFFSET_ADDR,
-					     i * sizeof(u32));
-			rxf[i] = iwl_trans_read_prph(mvm->trans,
-						     RXF_FIFO_RD_FENCE_ADDR);
-		}
-		iwl_trans_release_nic_access(mvm->trans, &flags);
+	if (smem_len) {
+		dump_data = iwl_fw_error_next_data(dump_data);
+		dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM);
+		dump_data->len = cpu_to_le32(smem_len + sizeof(*dump_mem));
+		dump_mem = (void *)dump_data->data;
+		dump_mem->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM_SMEM);
+		dump_mem->offset = cpu_to_le32(mvm->cfg->smem_offset);
+		iwl_trans_read_mem_bytes(mvm->trans, mvm->cfg->smem_offset,
+					 dump_mem->data, smem_len);
 	}
 
-	dump_data = iwl_fw_error_next_data(dump_data);
-	dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_SRAM);
-	dump_data->len = cpu_to_le32(sram_len);
-	iwl_trans_read_mem_bytes(mvm->trans, sram_ofs, dump_data->data,
-				 sram_len);
+	if (sram2_len) {
+		dump_data = iwl_fw_error_next_data(dump_data);
+		dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM);
+		dump_data->len = cpu_to_le32(sram2_len + sizeof(*dump_mem));
+		dump_mem = (void *)dump_data->data;
+		dump_mem->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM_SRAM);
+		dump_mem->offset = cpu_to_le32(mvm->cfg->dccm2_offset);
+		iwl_trans_read_mem_bytes(mvm->trans, mvm->cfg->dccm2_offset,
+					 dump_mem->data, sram2_len);
+	}
 
 	fw_error_dump->trans_ptr = iwl_trans_dump_data(mvm->trans);
 	fw_error_dump->op_mode_len = file_len;
@@ -863,6 +1051,11 @@ static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 	 */
 	if (!test_and_clear_bit(IWL_MVM_STATUS_D3_RECONFIG, &mvm->status))
 		iwl_mvm_fw_error_dump(mvm);
+
+	/* cleanup all stale references (scan, roc), but keep the
+	 * ucode_down ref until reconfig is complete
+	 */
+	iwl_mvm_unref_all_except(mvm, IWL_MVM_REF_UCODE_DOWN);
 
 	iwl_trans_stop_device(mvm->trans);
 
@@ -892,10 +1085,6 @@ static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 	memset(&mvm->bt_cts_kill_msk, 0, sizeof(mvm->bt_cts_kill_msk));
 
 	ieee80211_wake_queues(mvm->hw);
-
-	/* cleanup all stale references (scan, roc), but keep the
-	 * ucode_down ref until reconfig is complete */
-	iwl_mvm_unref_all_except(mvm, IWL_MVM_REF_UCODE_DOWN);
 
 	/* clear any stale d0i3 state */
 	clear_bit(IWL_MVM_STATUS_IN_D0I3, &mvm->status);
@@ -932,6 +1121,19 @@ static int iwl_mvm_mac_start(struct ieee80211_hw *hw)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	int ret;
+
+	/* Some hw restart cleanups must not hold the mutex */
+	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
+		/*
+		 * Make sure we are out of d0i3. This is needed
+		 * to make sure the reference accounting is correct
+		 * (and there is no stale d0i3_exit_work).
+		 */
+		wait_event_timeout(mvm->d0i3_exit_waitq,
+				   !test_bit(IWL_MVM_STATUS_IN_D0I3,
+					     &mvm->status),
+				   HZ);
+	}
 
 	mutex_lock(&mvm->mutex);
 	ret = __iwl_mvm_mac_start(mvm);
@@ -982,6 +1184,13 @@ static void iwl_mvm_resume_complete(struct iwl_mvm *mvm)
 		IWL_DEBUG_RPM(mvm, "Run deferred d0i3 exit\n");
 		_iwl_mvm_exit_d0i3(mvm);
 	}
+
+	if (mvm->trans->d0i3_mode == IWL_D0I3_MODE_ON_SUSPEND)
+		if (!wait_event_timeout(mvm->d0i3_exit_waitq,
+					!test_bit(IWL_MVM_STATUS_IN_D0I3,
+						  &mvm->status),
+					HZ))
+			WARN_ONCE(1, "D0i3 exit on resume timed out\n");
 }
 
 static void
@@ -1146,7 +1355,7 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 
 	ret = iwl_mvm_power_update_mac(mvm);
 	if (ret)
-		goto out_release;
+		goto out_remove_mac;
 
 	/* beacon filtering */
 	ret = iwl_mvm_disable_beacon_filter(mvm, vif, 0);
@@ -2088,7 +2297,7 @@ static void iwl_mvm_sta_pre_rcu_remove(struct ieee80211_hw *hw,
 				       struct ieee80211_sta *sta)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	struct iwl_mvm_sta *mvm_sta = (void *)sta->drv_priv;
+	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 
 	/*
 	 * This is called before mac80211 does RCU synchronisation,
@@ -2103,6 +2312,20 @@ static void iwl_mvm_sta_pre_rcu_remove(struct ieee80211_hw *hw,
 		rcu_assign_pointer(mvm->fw_id_to_mac_id[mvm_sta->sta_id],
 				   ERR_PTR(-ENOENT));
 	mutex_unlock(&mvm->mutex);
+}
+
+static void iwl_mvm_check_uapsd(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+				const u8 *bssid)
+{
+	if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_UAPSD_SUPPORT))
+		return;
+
+	if (iwlwifi_mod_params.uapsd_disable) {
+		vif->driver_flags &= ~IEEE80211_VIF_SUPPORTS_UAPSD;
+		return;
+	}
+
+	vif->driver_flags |= IEEE80211_VIF_SUPPORTS_UAPSD;
 }
 
 static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
@@ -2164,6 +2387,7 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 		 * Reset EBS status here assuming environment has been changed.
 		 */
 		mvm->last_ebs_successful = true;
+		iwl_mvm_check_uapsd(mvm, vif, sta->addr);
 		ret = 0;
 	} else if (old_state == IEEE80211_STA_AUTH &&
 		   new_state == IEEE80211_STA_ASSOC) {
@@ -3103,7 +3327,7 @@ static int iwl_mvm_set_tim(struct ieee80211_hw *hw,
 			   bool set)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	struct iwl_mvm_sta *mvm_sta = (void *)sta->drv_priv;
+	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 
 	if (!mvm_sta || !mvm_sta->vif) {
 		IWL_ERR(mvm, "Station is not associated to a vif\n");
@@ -3343,16 +3567,18 @@ static void iwl_mvm_mac_flush(struct ieee80211_hw *hw,
 		msk |= mvmsta->tfd_queue_msk;
 	}
 
-	msk &= ~BIT(vif->hw_queue[IEEE80211_AC_VO]);
+	if (drop) {
+		if (iwl_mvm_flush_tx_path(mvm, msk, true))
+			IWL_ERR(mvm, "flush request fail\n");
+		mutex_unlock(&mvm->mutex);
+	} else {
+		mutex_unlock(&mvm->mutex);
 
-	if (iwl_mvm_flush_tx_path(mvm, msk, true))
-		IWL_ERR(mvm, "flush request fail\n");
-	mutex_unlock(&mvm->mutex);
-
-	/* this can take a while, and we may need/want other operations
-	 * to succeed while doing this, so do it without the mutex held
-	 */
-	iwl_trans_wait_tx_queue_empty(mvm->trans, msk);
+		/* this can take a while, and we may need/want other operations
+		 * to succeed while doing this, so do it without the mutex held
+		 */
+		iwl_trans_wait_tx_queue_empty(mvm->trans, msk);
+	}
 }
 
 const struct ieee80211_ops iwl_mvm_hw_ops = {

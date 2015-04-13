@@ -511,16 +511,10 @@ static enum hrtimer_restart dl_task_timer(struct hrtimer *timer)
 						     struct sched_dl_entity,
 						     dl_timer);
 	struct task_struct *p = dl_task_of(dl_se);
+	unsigned long flags;
 	struct rq *rq;
-again:
-	rq = task_rq(p);
-	raw_spin_lock(&rq->lock);
 
-	if (rq != task_rq(p)) {
-		/* Task was moved, retrying. */
-		raw_spin_unlock(&rq->lock);
-		goto again;
-	}
+	rq = task_rq_lock(current, &flags);
 
 	/*
 	 * We need to take care of several possible races here:
@@ -541,6 +535,26 @@ again:
 
 	sched_clock_tick();
 	update_rq_clock(rq);
+
+	/*
+	 * If the throttle happened during sched-out; like:
+	 *
+	 *   schedule()
+	 *     deactivate_task()
+	 *       dequeue_task_dl()
+	 *         update_curr_dl()
+	 *           start_dl_timer()
+	 *         __dequeue_task_dl()
+	 *     prev->on_rq = 0;
+	 *
+	 * We can be both throttled and !queued. Replenish the counter
+	 * but do not enqueue -- wait for our wakeup to do that.
+	 */
+	if (!task_on_rq_queued(p)) {
+		replenish_dl_entity(dl_se, dl_se);
+		goto unlock;
+	}
+
 	enqueue_task_dl(rq, p, ENQUEUE_REPLENISH);
 	if (dl_task(rq->curr))
 		check_preempt_curr_dl(rq, p, 0);
@@ -555,7 +569,7 @@ again:
 		push_dl_task(rq);
 #endif
 unlock:
-	raw_spin_unlock(&rq->lock);
+	task_rq_unlock(rq, current, &flags);
 
 	return HRTIMER_NORESTART;
 }
@@ -898,6 +912,7 @@ static void yield_task_dl(struct rq *rq)
 		rq->curr->dl.dl_yielded = 1;
 		p->dl.runtime = 0;
 	}
+	update_rq_clock(rq);
 	update_curr_dl(rq);
 }
 

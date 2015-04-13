@@ -34,14 +34,14 @@
 
 #define NV_DPMS_CLEARED 0x80
 
-struct nouveau_i2c_port;
+struct nvkm_i2c_port;
 
 struct nouveau_encoder {
 	struct drm_encoder_slave base;
 
 	struct dcb_output *dcb;
 	int or;
-	struct nouveau_i2c_port *i2c;
+	struct nvkm_i2c_port *i2c;
 
 	/* different to drm_encoder.crtc, this reflects what's
 	 * actually programmed on the hw, not the proposed crtc */

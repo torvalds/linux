@@ -45,4 +45,10 @@ config PCC
 	  states). Select this driver if your platform implements the
 	  PCC clients mentioned above.
 
+config ALTERA_MBOX
+	tristate "Altera Mailbox"
+	help
+	  An implementation of the Altera Mailbox soft core. It is used
+	  to send message between processors. Say Y here if you want to use the
+	  Altera mailbox support.
 endif

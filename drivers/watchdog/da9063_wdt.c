@@ -20,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/mfd/da9063/registers.h>
 #include <linux/mfd/da9063/core.h>
+#include <linux/reboot.h>
 #include <linux/regmap.h>
 
 /*
@@ -38,6 +39,7 @@ static const unsigned int wdt_timeout[] = { 0, 2, 4, 8, 16, 32, 65, 131 };
 struct da9063_watchdog {
 	struct da9063 *da9063;
 	struct watchdog_device wdtdev;
+	struct notifier_block restart_handler;
 };
 
 static unsigned int da9063_wdt_timeout_to_sel(unsigned int secs)
@@ -119,6 +121,23 @@ static int da9063_wdt_set_timeout(struct watchdog_device *wdd,
 	return ret;
 }
 
+static int da9063_wdt_restart_handler(struct notifier_block *this,
+				      unsigned long mode, void *cmd)
+{
+	struct da9063_watchdog *wdt = container_of(this,
+						   struct da9063_watchdog,
+						   restart_handler);
+	int ret;
+
+	ret = regmap_write(wdt->da9063->regmap, DA9063_REG_CONTROL_F,
+			   DA9063_SHUTDOWN);
+	if (ret)
+		dev_alert(wdt->da9063->dev, "Failed to shutdown (err = %d)\n",
+			  ret);
+
+	return NOTIFY_DONE;
+}
+
 static const struct watchdog_info da9063_watchdog_info = {
 	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING,
 	.identity = "DA9063 Watchdog",
@@ -163,13 +182,24 @@ static int da9063_wdt_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, wdt);
 
 	ret = watchdog_register_device(&wdt->wdtdev);
+	if (ret)
+		return ret;
 
-	return ret;
+	wdt->restart_handler.notifier_call = da9063_wdt_restart_handler;
+	wdt->restart_handler.priority = 128;
+	ret = register_restart_handler(&wdt->restart_handler);
+	if (ret)
+		dev_err(wdt->da9063->dev,
+			"Failed to register restart handler (err = %d)\n", ret);
+
+	return 0;
 }
 
 static int da9063_wdt_remove(struct platform_device *pdev)
 {
 	struct da9063_watchdog *wdt = dev_get_drvdata(&pdev->dev);
+
+	unregister_restart_handler(&wdt->restart_handler);
 
 	watchdog_unregister_device(&wdt->wdtdev);
 

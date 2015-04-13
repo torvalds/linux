@@ -298,6 +298,8 @@ static int wcn36xx_start(struct ieee80211_hw *hw)
 	wcn36xx_debugfs_init(wcn);
 
 	INIT_LIST_HEAD(&wcn->vif_list);
+	spin_lock_init(&wcn->dxe_lock);
+
 	return 0;
 
 out_smd_stop:
@@ -795,6 +797,7 @@ static int wcn36xx_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	wcn36xx_dbg(WCN36XX_DBG_MAC, "mac sta add vif %p sta %pM\n",
 		    vif, sta->addr);
 
+	spin_lock_init(&sta_priv->ampdu_lock);
 	vif_priv->sta = sta_priv;
 	sta_priv->vif = vif_priv;
 	/*
@@ -873,21 +876,32 @@ static int wcn36xx_ampdu_action(struct ieee80211_hw *hw,
 			get_sta_index(vif, sta_priv));
 		wcn36xx_smd_add_ba(wcn);
 		wcn36xx_smd_trigger_ba(wcn, get_sta_index(vif, sta_priv));
-		ieee80211_start_tx_ba_session(sta, tid, 0);
 		break;
 	case IEEE80211_AMPDU_RX_STOP:
 		wcn36xx_smd_del_ba(wcn, tid, get_sta_index(vif, sta_priv));
 		break;
 	case IEEE80211_AMPDU_TX_START:
+		spin_lock_bh(&sta_priv->ampdu_lock);
+		sta_priv->ampdu_state[tid] = WCN36XX_AMPDU_START;
+		spin_unlock_bh(&sta_priv->ampdu_lock);
+
 		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
+		spin_lock_bh(&sta_priv->ampdu_lock);
+		sta_priv->ampdu_state[tid] = WCN36XX_AMPDU_OPERATIONAL;
+		spin_unlock_bh(&sta_priv->ampdu_lock);
+
 		wcn36xx_smd_add_ba_session(wcn, sta, tid, ssn, 1,
 			get_sta_index(vif, sta_priv));
 		break;
 	case IEEE80211_AMPDU_TX_STOP_FLUSH:
 	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
 	case IEEE80211_AMPDU_TX_STOP_CONT:
+		spin_lock_bh(&sta_priv->ampdu_lock);
+		sta_priv->ampdu_state[tid] = WCN36XX_AMPDU_NONE;
+		spin_unlock_bh(&sta_priv->ampdu_lock);
+
 		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
 	default:

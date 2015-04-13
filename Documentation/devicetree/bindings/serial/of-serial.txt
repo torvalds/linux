@@ -8,7 +8,10 @@ Required properties:
 	- "ns16550"
 	- "ns16750"
 	- "ns16850"
-	- "nvidia,tegra20-uart"
+	- For Tegra20, must contain "nvidia,tegra20-uart"
+	- For other Tegra, must contain '"nvidia,<chip>-uart",
+	  "nvidia,tegra20-uart"' where <chip> is tegra30, tegra114, tegra124,
+	  tegra132, or tegra210.
 	- "nxp,lpc3220-uart"
 	- "ralink,rt2880-uart"
 	- "ibm,qpace-nwp-serial"
@@ -16,6 +19,7 @@ Required properties:
 	- "altr,16550-FIFO64"
 	- "altr,16550-FIFO128"
 	- "fsl,16550-FIFO64"
+	- "fsl,ns16550"
 	- "serial" if the port type is unknown.
 - reg : offset and length of the register set for the device.
 - interrupts : should contain uart interrupt.
@@ -39,6 +43,17 @@ Optional properties:
 - auto-flow-control: one way to enable automatic flow control support. The
   driver is allowed to detect support for the capability even without this
   property.
+
+Note:
+* fsl,ns16550:
+  ------------
+  Freescale DUART is very similar to the PC16552D (and to a
+  pair of NS16550A), albeit with some nonstandard behavior such as
+  erratum A-004737 (relating to incorrect BRK handling).
+
+  Represents a single port that is compatible with the DUART found
+  on many Freescale chips (examples include mpc8349, mpc8548,
+  mpc8641d, p4080 and ls2085a).
 
 Example:
 

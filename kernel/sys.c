@@ -97,6 +97,12 @@
 #ifndef MPX_DISABLE_MANAGEMENT
 # define MPX_DISABLE_MANAGEMENT(a)	(-EINVAL)
 #endif
+#ifndef GET_FP_MODE
+# define GET_FP_MODE(a)		(-EINVAL)
+#endif
+#ifndef SET_FP_MODE
+# define SET_FP_MODE(a,b)	(-EINVAL)
+#endif
 
 /*
  * this is where the system-wide overflow UID and GID are defined, for
@@ -2218,6 +2224,12 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 		if (arg2 || arg3 || arg4 || arg5)
 			return -EINVAL;
 		error = MPX_DISABLE_MANAGEMENT(me);
+		break;
+	case PR_SET_FP_MODE:
+		error = SET_FP_MODE(me, arg2);
+		break;
+	case PR_GET_FP_MODE:
+		error = GET_FP_MODE(me);
 		break;
 	default:
 		error = -EINVAL;

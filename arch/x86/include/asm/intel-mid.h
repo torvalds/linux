@@ -136,9 +136,6 @@ extern enum intel_mid_timer_options intel_mid_timer_options;
 #define SFI_MTMR_MAX_NUM 8
 #define SFI_MRTC_MAX	8
 
-extern struct console early_mrst_console;
-extern void mrst_early_console_init(void);
-
 extern struct console early_hsu_console;
 extern void hsu_early_console_init(const char *);
 

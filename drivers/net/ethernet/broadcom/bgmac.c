@@ -21,7 +21,7 @@
 static const struct bcma_device_id bgmac_bcma_tbl[] = {
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_4706_MAC_GBIT, BCMA_ANY_REV, BCMA_ANY_CLASS),
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_MAC_GBIT, BCMA_ANY_REV, BCMA_ANY_CLASS),
-	BCMA_CORETABLE_END
+	{},
 };
 MODULE_DEVICE_TABLE(bcma, bgmac_bcma_tbl);
 
@@ -1412,6 +1412,7 @@ static void bgmac_mii_unregister(struct bgmac *bgmac)
 /* http://bcm-v4.sipsolutions.net/mac-gbit/gmac/chipattach */
 static int bgmac_probe(struct bcma_device *core)
 {
+	struct bcma_chipinfo *ci = &core->bus->chipinfo;
 	struct net_device *net_dev;
 	struct bgmac *bgmac;
 	struct ssb_sprom *sprom = &core->bus->sprom;
@@ -1474,8 +1475,8 @@ static int bgmac_probe(struct bcma_device *core)
 	bgmac_chip_reset(bgmac);
 
 	/* For Northstar, we have to take all GMAC core out of reset */
-	if (core->id.id == BCMA_CHIP_ID_BCM4707 ||
-	    core->id.id == BCMA_CHIP_ID_BCM53018) {
+	if (ci->id == BCMA_CHIP_ID_BCM4707 ||
+	    ci->id == BCMA_CHIP_ID_BCM53018) {
 		struct bcma_device *ns_core;
 		int ns_gmac;
 

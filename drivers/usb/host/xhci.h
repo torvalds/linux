@@ -1605,6 +1605,8 @@ static inline struct usb_hcd *xhci_to_hcd(struct xhci_hcd *xhci)
 	dev_warn(xhci_to_hcd(xhci)->self.controller , fmt , ## args)
 #define xhci_warn_ratelimited(xhci, fmt, args...) \
 	dev_warn_ratelimited(xhci_to_hcd(xhci)->self.controller , fmt , ## args)
+#define xhci_info(xhci, fmt, args...) \
+	dev_info(xhci_to_hcd(xhci)->self.controller , fmt , ## args)
 
 /*
  * Registers should always be accessed with double word or quad word accesses.
@@ -1712,8 +1714,7 @@ void xhci_free_stream_info(struct xhci_hcd *xhci,
 void xhci_setup_streams_ep_input_ctx(struct xhci_hcd *xhci,
 		struct xhci_ep_ctx *ep_ctx,
 		struct xhci_stream_info *stream_info);
-void xhci_setup_no_streams_ep_input_ctx(struct xhci_hcd *xhci,
-		struct xhci_ep_ctx *ep_ctx,
+void xhci_setup_no_streams_ep_input_ctx(struct xhci_ep_ctx *ep_ctx,
 		struct xhci_virt_ep *ep);
 void xhci_free_device_endpoint_resources(struct xhci_hcd *xhci,
 	struct xhci_virt_device *virt_dev, bool drop_control_ep);
@@ -1727,14 +1728,13 @@ struct xhci_ring *xhci_stream_id_to_ring(
 struct xhci_command *xhci_alloc_command(struct xhci_hcd *xhci,
 		bool allocate_in_ctx, bool allocate_completion,
 		gfp_t mem_flags);
-void xhci_urb_free_priv(struct xhci_hcd *xhci, struct urb_priv *urb_priv);
+void xhci_urb_free_priv(struct urb_priv *urb_priv);
 void xhci_free_command(struct xhci_hcd *xhci,
 		struct xhci_command *command);
 
 /* xHCI host controller glue */
 typedef void (*xhci_get_quirks_t)(struct device *, struct xhci_hcd *);
-int xhci_handshake(struct xhci_hcd *xhci, void __iomem *ptr,
-		u32 mask, u32 done, int usec);
+int xhci_handshake(void __iomem *ptr, u32 mask, u32 done, int usec);
 void xhci_quiesce(struct xhci_hcd *xhci);
 int xhci_halt(struct xhci_hcd *xhci);
 int xhci_reset(struct xhci_hcd *xhci);
@@ -1864,7 +1864,7 @@ int xhci_find_slot_id_by_port(struct usb_hcd *hcd, struct xhci_hcd *xhci,
 void xhci_ring_device(struct xhci_hcd *xhci, int slot_id);
 
 /* xHCI contexts */
-struct xhci_input_control_ctx *xhci_get_input_control_ctx(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx);
+struct xhci_input_control_ctx *xhci_get_input_control_ctx(struct xhci_container_ctx *ctx);
 struct xhci_slot_ctx *xhci_get_slot_ctx(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx);
 struct xhci_ep_ctx *xhci_get_ep_ctx(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx, unsigned int ep_index);
 

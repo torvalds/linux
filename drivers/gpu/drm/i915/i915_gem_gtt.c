@@ -30,6 +30,68 @@
 #include "i915_trace.h"
 #include "intel_drv.h"
 
+/**
+ * DOC: Global GTT views
+ *
+ * Background and previous state
+ *
+ * Historically objects could exists (be bound) in global GTT space only as
+ * singular instances with a view representing all of the object's backing pages
+ * in a linear fashion. This view will be called a normal view.
+ *
+ * To support multiple views of the same object, where the number of mapped
+ * pages is not equal to the backing store, or where the layout of the pages
+ * is not linear, concept of a GGTT view was added.
+ *
+ * One example of an alternative view is a stereo display driven by a single
+ * image. In this case we would have a framebuffer looking like this
+ * (2x2 pages):
+ *
+ *    12
+ *    34
+ *
+ * Above would represent a normal GGTT view as normally mapped for GPU or CPU
+ * rendering. In contrast, fed to the display engine would be an alternative
+ * view which could look something like this:
+ *
+ *   1212
+ *   3434
+ *
+ * In this example both the size and layout of pages in the alternative view is
+ * different from the normal view.
+ *
+ * Implementation and usage
+ *
+ * GGTT views are implemented using VMAs and are distinguished via enum
+ * i915_ggtt_view_type and struct i915_ggtt_view.
+ *
+ * A new flavour of core GEM functions which work with GGTT bound objects were
+ * added with the _view suffix. They take the struct i915_ggtt_view parameter
+ * encapsulating all metadata required to implement a view.
+ *
+ * As a helper for callers which are only interested in the normal view,
+ * globally const i915_ggtt_view_normal singleton instance exists. All old core
+ * GEM API functions, the ones not taking the view parameter, are operating on,
+ * or with the normal GGTT view.
+ *
+ * Code wanting to add or use a new GGTT view needs to:
+ *
+ * 1. Add a new enum with a suitable name.
+ * 2. Extend the metadata in the i915_ggtt_view structure if required.
+ * 3. Add support to i915_get_vma_pages().
+ *
+ * New views are required to build a scatter-gather table from within the
+ * i915_get_vma_pages function. This table is stored in the vma.ggtt_view and
+ * exists for the lifetime of an VMA.
+ *
+ * Core API is designed to have copy semantics which means that passed in
+ * struct i915_ggtt_view does not need to be persistent (left around after
+ * calling the core API functions).
+ *
+ */
+
+const struct i915_ggtt_view i915_ggtt_view_normal;
+
 static void bdw_setup_private_ppat(struct drm_i915_private *dev_priv);
 static void chv_setup_private_ppat(struct drm_i915_private *dev_priv);
 
@@ -40,8 +102,6 @@ static int sanitize_enable_ppgtt(struct drm_device *dev, int enable_ppgtt)
 
 	has_aliasing_ppgtt = INTEL_INFO(dev)->gen >= 6;
 	has_full_ppgtt = INTEL_INFO(dev)->gen >= 7;
-	if (IS_GEN8(dev))
-		has_full_ppgtt = false; /* XXX why? */
 
 	/*
 	 * We don't allow disabling PPGTT for gen9+ as it's a requirement for
@@ -72,7 +132,10 @@ static int sanitize_enable_ppgtt(struct drm_device *dev, int enable_ppgtt)
 		return 0;
 	}
 
-	return has_aliasing_ppgtt ? 1 : 0;
+	if (INTEL_INFO(dev)->gen >= 8 && i915.enable_execlists)
+		return 2;
+	else
+		return has_aliasing_ppgtt ? 1 : 0;
 }
 
 
@@ -132,7 +195,7 @@ static gen6_gtt_pte_t snb_pte_encode(dma_addr_t addr,
 		pte |= GEN6_PTE_UNCACHED;
 		break;
 	default:
-		WARN_ON(1);
+		MISSING_CASE(level);
 	}
 
 	return pte;
@@ -156,7 +219,7 @@ static gen6_gtt_pte_t ivb_pte_encode(dma_addr_t addr,
 		pte |= GEN6_PTE_UNCACHED;
 		break;
 	default:
-		WARN_ON(1);
+		MISSING_CASE(level);
 	}
 
 	return pte;
@@ -1102,10 +1165,8 @@ static int __hw_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
 
 	if (INTEL_INFO(dev)->gen < 8)
 		return gen6_ppgtt_init(ppgtt);
-	else if (IS_GEN8(dev) || IS_GEN9(dev))
-		return gen8_ppgtt_init(ppgtt, dev_priv->gtt.base.total);
 	else
-		BUG();
+		return gen8_ppgtt_init(ppgtt, dev_priv->gtt.base.total);
 }
 int i915_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
 {
@@ -1146,7 +1207,7 @@ int i915_ppgtt_init_hw(struct drm_device *dev)
 	else if (INTEL_INFO(dev)->gen >= 8)
 		gen8_ppgtt_enable(dev);
 	else
-		WARN_ON(1);
+		MISSING_CASE(INTEL_INFO(dev)->gen);
 
 	if (ppgtt) {
 		for_each_ring(ring, dev_priv, i) {
@@ -1341,9 +1402,12 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 		/* The bind_vma code tries to be smart about tracking mappings.
 		 * Unfortunately above, we've just wiped out the mappings
 		 * without telling our object about it. So we need to fake it.
+		 *
+		 * Bind is not expected to fail since this is only called on
+		 * resume and assumption is all requirements exist already.
 		 */
 		vma->bound &= ~GLOBAL_BIND;
-		vma->bind_vma(vma, obj->cache_level, GLOBAL_BIND);
+		WARN_ON(i915_vma_bind(vma, obj->cache_level, GLOBAL_BIND));
 	}
 
 
@@ -1538,7 +1602,7 @@ static void i915_ggtt_bind_vma(struct i915_vma *vma,
 		AGP_USER_MEMORY : AGP_USER_CACHED_MEMORY;
 
 	BUG_ON(!i915_is_ggtt(vma->vm));
-	intel_gtt_insert_sg_entries(vma->obj->pages, entry, flags);
+	intel_gtt_insert_sg_entries(vma->ggtt_view.pages, entry, flags);
 	vma->bound = GLOBAL_BIND;
 }
 
@@ -1588,7 +1652,7 @@ static void ggtt_bind_vma(struct i915_vma *vma,
 	if (!dev_priv->mm.aliasing_ppgtt || flags & GLOBAL_BIND) {
 		if (!(vma->bound & GLOBAL_BIND) ||
 		    (cache_level != obj->cache_level)) {
-			vma->vm->insert_entries(vma->vm, obj->pages,
+			vma->vm->insert_entries(vma->vm, vma->ggtt_view.pages,
 						vma->node.start,
 						cache_level, flags);
 			vma->bound |= GLOBAL_BIND;
@@ -1600,7 +1664,7 @@ static void ggtt_bind_vma(struct i915_vma *vma,
 	     (cache_level != obj->cache_level))) {
 		struct i915_hw_ppgtt *appgtt = dev_priv->mm.aliasing_ppgtt;
 		appgtt->base.insert_entries(&appgtt->base,
-					    vma->obj->pages,
+					    vma->ggtt_view.pages,
 					    vma->node.start,
 					    cache_level, flags);
 		vma->bound |= LOCAL_BIND;
@@ -2165,7 +2229,8 @@ int i915_gem_gtt_init(struct drm_device *dev)
 }
 
 static struct i915_vma *__i915_gem_vma_create(struct drm_i915_gem_object *obj,
-					      struct i915_address_space *vm)
+					      struct i915_address_space *vm,
+					      const struct i915_ggtt_view *view)
 {
 	struct i915_vma *vma = kzalloc(sizeof(*vma), GFP_KERNEL);
 	if (vma == NULL)
@@ -2176,12 +2241,9 @@ static struct i915_vma *__i915_gem_vma_create(struct drm_i915_gem_object *obj,
 	INIT_LIST_HEAD(&vma->exec_list);
 	vma->vm = vm;
 	vma->obj = obj;
+	vma->ggtt_view = *view;
 
-	switch (INTEL_INFO(vm->dev)->gen) {
-	case 9:
-	case 8:
-	case 7:
-	case 6:
+	if (INTEL_INFO(vm->dev)->gen >= 6) {
 		if (i915_is_ggtt(vm)) {
 			vma->unbind_vma = ggtt_unbind_vma;
 			vma->bind_vma = ggtt_bind_vma;
@@ -2189,39 +2251,73 @@ static struct i915_vma *__i915_gem_vma_create(struct drm_i915_gem_object *obj,
 			vma->unbind_vma = ppgtt_unbind_vma;
 			vma->bind_vma = ppgtt_bind_vma;
 		}
-		break;
-	case 5:
-	case 4:
-	case 3:
-	case 2:
+	} else {
 		BUG_ON(!i915_is_ggtt(vm));
 		vma->unbind_vma = i915_ggtt_unbind_vma;
 		vma->bind_vma = i915_ggtt_bind_vma;
-		break;
-	default:
-		BUG();
 	}
 
-	/* Keep GGTT vmas first to make debug easier */
-	if (i915_is_ggtt(vm))
-		list_add(&vma->vma_link, &obj->vma_list);
-	else {
-		list_add_tail(&vma->vma_link, &obj->vma_list);
+	list_add_tail(&vma->vma_link, &obj->vma_list);
+	if (!i915_is_ggtt(vm))
 		i915_ppgtt_get(i915_vm_to_ppgtt(vm));
-	}
 
 	return vma;
 }
 
 struct i915_vma *
-i915_gem_obj_lookup_or_create_vma(struct drm_i915_gem_object *obj,
-				  struct i915_address_space *vm)
+i915_gem_obj_lookup_or_create_vma_view(struct drm_i915_gem_object *obj,
+				       struct i915_address_space *vm,
+				       const struct i915_ggtt_view *view)
 {
 	struct i915_vma *vma;
 
-	vma = i915_gem_obj_to_vma(obj, vm);
+	vma = i915_gem_obj_to_vma_view(obj, vm, view);
 	if (!vma)
-		vma = __i915_gem_vma_create(obj, vm);
+		vma = __i915_gem_vma_create(obj, vm, view);
 
 	return vma;
+}
+
+static inline
+int i915_get_vma_pages(struct i915_vma *vma)
+{
+	if (vma->ggtt_view.pages)
+		return 0;
+
+	if (vma->ggtt_view.type == I915_GGTT_VIEW_NORMAL)
+		vma->ggtt_view.pages = vma->obj->pages;
+	else
+		WARN_ONCE(1, "GGTT view %u not implemented!\n",
+			  vma->ggtt_view.type);
+
+	if (!vma->ggtt_view.pages) {
+		DRM_ERROR("Failed to get pages for VMA view type %u!\n",
+			  vma->ggtt_view.type);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/**
+ * i915_vma_bind - Sets up PTEs for an VMA in it's corresponding address space.
+ * @vma: VMA to map
+ * @cache_level: mapping cache level
+ * @flags: flags like global or local mapping
+ *
+ * DMA addresses are taken from the scatter-gather table of this object (or of
+ * this VMA in case of non-default GGTT views) and PTE entries set up.
+ * Note that DMA addresses are also the only part of the SG table we care about.
+ */
+int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
+		  u32 flags)
+{
+	int ret = i915_get_vma_pages(vma);
+
+	if (ret)
+		return ret;
+
+	vma->bind_vma(vma, cache_level, flags);
+
+	return 0;
 }

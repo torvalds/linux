@@ -3127,7 +3127,8 @@ static void et131x_error_timer_handler(unsigned long data)
 	}
 
 	/* This is a periodic timer, so reschedule */
-	mod_timer(&adapter->error_timer, jiffies + TX_ERROR_PERIOD * HZ / 1000);
+	mod_timer(&adapter->error_timer, jiffies +
+		  msecs_to_jiffies(TX_ERROR_PERIOD));
 }
 
 static void et131x_adapter_memory_free(struct et131x_adapter *adapter)
@@ -3647,7 +3648,8 @@ static int et131x_open(struct net_device *netdev)
 
 	/* Start the timer to track NIC errors */
 	init_timer(&adapter->error_timer);
-	adapter->error_timer.expires = jiffies + TX_ERROR_PERIOD * HZ / 1000;
+	adapter->error_timer.expires = jiffies +
+		msecs_to_jiffies(TX_ERROR_PERIOD);
 	adapter->error_timer.function = et131x_error_timer_handler;
 	adapter->error_timer.data = (unsigned long)adapter;
 	add_timer(&adapter->error_timer);

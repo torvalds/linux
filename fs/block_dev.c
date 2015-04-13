@@ -49,23 +49,15 @@ inline struct block_device *I_BDEV(struct inode *inode)
 }
 EXPORT_SYMBOL(I_BDEV);
 
-/*
- * Move the inode from its current bdi to a new bdi.  Make sure the inode
- * is clean before moving so that it doesn't linger on the old bdi.
- */
-static void bdev_inode_switch_bdi(struct inode *inode,
-			struct backing_dev_info *dst)
+static void bdev_write_inode(struct inode *inode)
 {
-	while (true) {
-		spin_lock(&inode->i_lock);
-		if (!(inode->i_state & I_DIRTY)) {
-			inode->i_data.backing_dev_info = dst;
-			spin_unlock(&inode->i_lock);
-			return;
-		}
+	spin_lock(&inode->i_lock);
+	while (inode->i_state & I_DIRTY) {
 		spin_unlock(&inode->i_lock);
 		WARN_ON_ONCE(write_inode_now(inode, true));
+		spin_lock(&inode->i_lock);
 	}
+	spin_unlock(&inode->i_lock);
 }
 
 /* Kill _all_ buffers and pagecache , dirty or not.. */
@@ -429,6 +421,46 @@ int bdev_write_page(struct block_device *bdev, sector_t sector,
 }
 EXPORT_SYMBOL_GPL(bdev_write_page);
 
+/**
+ * bdev_direct_access() - Get the address for directly-accessibly memory
+ * @bdev: The device containing the memory
+ * @sector: The offset within the device
+ * @addr: Where to put the address of the memory
+ * @pfn: The Page Frame Number for the memory
+ * @size: The number of bytes requested
+ *
+ * If a block device is made up of directly addressable memory, this function
+ * will tell the caller the PFN and the address of the memory.  The address
+ * may be directly dereferenced within the kernel without the need to call
+ * ioremap(), kmap() or similar.  The PFN is suitable for inserting into
+ * page tables.
+ *
+ * Return: negative errno if an error occurs, otherwise the number of bytes
+ * accessible at this address.
+ */
+long bdev_direct_access(struct block_device *bdev, sector_t sector,
+			void **addr, unsigned long *pfn, long size)
+{
+	long avail;
+	const struct block_device_operations *ops = bdev->bd_disk->fops;
+
+	if (size < 0)
+		return size;
+	if (!ops->direct_access)
+		return -EOPNOTSUPP;
+	if ((sector + DIV_ROUND_UP(size, 512)) >
+					part_nr_sects_read(bdev->bd_part))
+		return -ERANGE;
+	sector += get_start_sect(bdev);
+	if (sector % (PAGE_SIZE / 512))
+		return -EINVAL;
+	avail = ops->direct_access(bdev, sector, addr, pfn, size);
+	if (!avail)
+		return -ERANGE;
+	return min(avail, size);
+}
+EXPORT_SYMBOL_GPL(bdev_direct_access);
+
 /*
  * pseudo-fs
  */
@@ -584,7 +616,6 @@ struct block_device *bdget(dev_t dev)
 		inode->i_bdev = bdev;
 		inode->i_data.a_ops = &def_blk_aops;
 		mapping_set_gfp_mask(&inode->i_data, GFP_USER);
-		inode->i_data.backing_dev_info = &default_backing_dev_info;
 		spin_lock(&bdev_lock);
 		list_add(&bdev->bd_list, &all_bdevs);
 		spin_unlock(&bdev_lock);
@@ -1145,8 +1176,6 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 		bdev->bd_queue = disk->queue;
 		bdev->bd_contains = bdev;
 		if (!partno) {
-			struct backing_dev_info *bdi;
-
 			ret = -ENXIO;
 			bdev->bd_part = disk_get_part(disk, partno);
 			if (!bdev->bd_part)
@@ -1172,11 +1201,8 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 				}
 			}
 
-			if (!ret) {
+			if (!ret)
 				bd_set_size(bdev,(loff_t)get_capacity(disk)<<9);
-				bdi = blk_get_backing_dev_info(bdev);
-				bdev_inode_switch_bdi(bdev->bd_inode, bdi);
-			}
 
 			/*
 			 * If the device is invalidated, rescan partition
@@ -1203,8 +1229,6 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 			if (ret)
 				goto out_clear;
 			bdev->bd_contains = whole;
-			bdev_inode_switch_bdi(bdev->bd_inode,
-				whole->bd_inode->i_data.backing_dev_info);
 			bdev->bd_part = disk_get_part(disk, partno);
 			if (!(disk->flags & GENHD_FL_UP) ||
 			    !bdev->bd_part || !bdev->bd_part->nr_sects) {
@@ -1244,7 +1268,6 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 	bdev->bd_disk = NULL;
 	bdev->bd_part = NULL;
 	bdev->bd_queue = NULL;
-	bdev_inode_switch_bdi(bdev->bd_inode, &default_backing_dev_info);
 	if (bdev != bdev->bd_contains)
 		__blkdev_put(bdev->bd_contains, mode, 1);
 	bdev->bd_contains = NULL;
@@ -1464,11 +1487,11 @@ static void __blkdev_put(struct block_device *bdev, fmode_t mode, int for_part)
 		WARN_ON_ONCE(bdev->bd_holders);
 		sync_blockdev(bdev);
 		kill_bdev(bdev);
-		/* ->release can cause the old bdi to disappear,
-		 * so must switch it out first
+		/*
+		 * ->release can cause the queue to disappear, so flush all
+		 * dirty data before.
 		 */
-		bdev_inode_switch_bdi(bdev->bd_inode,
-					&default_backing_dev_info);
+		bdev_write_inode(bdev->bd_inode);
 	}
 	if (bdev->bd_contains == bdev) {
 		if (disk->fops->release)

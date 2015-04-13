@@ -106,19 +106,6 @@ void hw_timer_init(irq_handler_t handler)
   pquicc->timer_tgcr  = tgcr_save;
 }
 
-int BSP_set_clock_mmss(unsigned long nowtime)
-{
-#if 0
-  short real_seconds = nowtime % 60, real_minutes = (nowtime / 60) % 60;
-
-  tod->second1 = real_seconds / 10;
-  tod->second2 = real_seconds % 10;
-  tod->minute1 = real_minutes / 10;
-  tod->minute2 = real_minutes % 10;
-#endif
-  return 0;
-}
-
 void BSP_reset (void)
 {
   local_irq_disable();

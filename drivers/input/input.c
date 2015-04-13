@@ -100,23 +100,24 @@ static unsigned int input_to_handler(struct input_handle *handle,
 	struct input_value *end = vals;
 	struct input_value *v;
 
-	for (v = vals; v != vals + count; v++) {
-		if (handler->filter &&
-		    handler->filter(handle, v->type, v->code, v->value))
-			continue;
-		if (end != v)
-			*end = *v;
-		end++;
+	if (handler->filter) {
+		for (v = vals; v != vals + count; v++) {
+			if (handler->filter(handle, v->type, v->code, v->value))
+				continue;
+			if (end != v)
+				*end = *v;
+			end++;
+		}
+		count = end - vals;
 	}
 
-	count = end - vals;
 	if (!count)
 		return 0;
 
 	if (handler->events)
 		handler->events(handle, vals, count);
 	else if (handler->event)
-		for (v = vals; v != end; v++)
+		for (v = vals; v != vals + count; v++)
 			handler->event(handle, v->type, v->code, v->value);
 
 	return count;
@@ -143,8 +144,11 @@ static void input_pass_values(struct input_dev *dev,
 		count = input_to_handler(handle, vals, count);
 	} else {
 		list_for_each_entry_rcu(handle, &dev->h_list, d_node)
-			if (handle->open)
+			if (handle->open) {
 				count = input_to_handler(handle, vals, count);
+				if (!count)
+					break;
+			}
 	}
 
 	rcu_read_unlock();
@@ -152,12 +156,14 @@ static void input_pass_values(struct input_dev *dev,
 	add_input_randomness(vals->type, vals->code, vals->value);
 
 	/* trigger auto repeat for key events */
-	for (v = vals; v != vals + count; v++) {
-		if (v->type == EV_KEY && v->value != 2) {
-			if (v->value)
-				input_start_autorepeat(dev, v->code);
-			else
-				input_stop_autorepeat(dev);
+	if (test_bit(EV_REP, dev->evbit) && test_bit(EV_KEY, dev->evbit)) {
+		for (v = vals; v != vals + count; v++) {
+			if (v->type == EV_KEY && v->value != 2) {
+				if (v->value)
+					input_start_autorepeat(dev, v->code);
+				else
+					input_stop_autorepeat(dev);
+			}
 		}
 	}
 }

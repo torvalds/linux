@@ -114,6 +114,7 @@ struct ipu_dc_priv {
 	struct completion	comp;
 	int			dc_irq;
 	int			dp_irq;
+	int			use_count;
 };
 
 static void dc_link_event(struct ipu_dc *dc, int event, int addr, int priority)
@@ -232,7 +233,16 @@ EXPORT_SYMBOL_GPL(ipu_dc_init_sync);
 
 void ipu_dc_enable(struct ipu_soc *ipu)
 {
-	ipu_module_enable(ipu, IPU_CONF_DC_EN);
+	struct ipu_dc_priv *priv = ipu->dc_priv;
+
+	mutex_lock(&priv->mutex);
+
+	if (!priv->use_count)
+		ipu_module_enable(priv->ipu, IPU_CONF_DC_EN);
+
+	priv->use_count++;
+
+	mutex_unlock(&priv->mutex);
 }
 EXPORT_SYMBOL_GPL(ipu_dc_enable);
 
@@ -267,7 +277,8 @@ static irqreturn_t dc_irq_handler(int irq, void *dev_id)
 void ipu_dc_disable_channel(struct ipu_dc *dc)
 {
 	struct ipu_dc_priv *priv = dc->priv;
-	int irq, ret;
+	int irq;
+	unsigned long ret;
 	u32 val;
 
 	/* TODO: Handle MEM_FG_SYNC differently from MEM_BG_SYNC */
@@ -282,7 +293,7 @@ void ipu_dc_disable_channel(struct ipu_dc *dc)
 	enable_irq(irq);
 	ret = wait_for_completion_timeout(&priv->comp, msecs_to_jiffies(50));
 	disable_irq(irq);
-	if (ret <= 0) {
+	if (ret == 0) {
 		dev_warn(priv->dev, "DC stop timeout after 50 ms\n");
 
 		val = readl(dc->base + DC_WR_CH_CONF);
@@ -294,7 +305,18 @@ EXPORT_SYMBOL_GPL(ipu_dc_disable_channel);
 
 void ipu_dc_disable(struct ipu_soc *ipu)
 {
-	ipu_module_disable(ipu, IPU_CONF_DC_EN);
+	struct ipu_dc_priv *priv = ipu->dc_priv;
+
+	mutex_lock(&priv->mutex);
+
+	priv->use_count--;
+	if (!priv->use_count)
+		ipu_module_disable(priv->ipu, IPU_CONF_DC_EN);
+
+	if (priv->use_count < 0)
+		priv->use_count = 0;
+
+	mutex_unlock(&priv->mutex);
 }
 EXPORT_SYMBOL_GPL(ipu_dc_disable);
 

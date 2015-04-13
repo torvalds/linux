@@ -535,6 +535,7 @@ static int cc770_err(struct net_device *dev, u8 status)
 		cc770_write_reg(priv, control, CTRL_INI);
 		cf->can_id |= CAN_ERR_BUSOFF;
 		priv->can.state = CAN_STATE_BUS_OFF;
+		priv->can.can_stats.bus_off++;
 		can_bus_off(dev);
 	} else if (status & STAT_WARN) {
 		cf->can_id |= CAN_ERR_CRTL;

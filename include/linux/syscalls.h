@@ -410,12 +410,16 @@ asmlinkage long sys_newlstat(const char __user *filename,
 				struct stat __user *statbuf);
 asmlinkage long sys_newfstat(unsigned int fd, struct stat __user *statbuf);
 asmlinkage long sys_ustat(unsigned dev, struct ustat __user *ubuf);
-#if BITS_PER_LONG == 32
+#if defined(__ARCH_WANT_STAT64) || defined(__ARCH_WANT_COMPAT_STAT64)
 asmlinkage long sys_stat64(const char __user *filename,
 				struct stat64 __user *statbuf);
 asmlinkage long sys_fstat64(unsigned long fd, struct stat64 __user *statbuf);
 asmlinkage long sys_lstat64(const char __user *filename,
 				struct stat64 __user *statbuf);
+asmlinkage long sys_fstatat64(int dfd, const char __user *filename,
+			       struct stat64 __user *statbuf, int flag);
+#endif
+#if BITS_PER_LONG == 32
 asmlinkage long sys_truncate64(const char __user *path, loff_t length);
 asmlinkage long sys_ftruncate64(unsigned int fd, loff_t length);
 #endif
@@ -771,8 +775,6 @@ asmlinkage long sys_openat(int dfd, const char __user *filename, int flags,
 			   umode_t mode);
 asmlinkage long sys_newfstatat(int dfd, const char __user *filename,
 			       struct stat __user *statbuf, int flag);
-asmlinkage long sys_fstatat64(int dfd, const char __user *filename,
-			       struct stat64 __user *statbuf, int flag);
 asmlinkage long sys_readlinkat(int dfd, const char __user *path, char __user *buf,
 			       int bufsiz);
 asmlinkage long sys_utimensat(int dfd, const char __user *filename,

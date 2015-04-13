@@ -346,6 +346,14 @@ struct ieee80211_tx_latency_stat {
  * @cipher_scheme: optional cipher scheme for this station
  * @last_tdls_pkt_time: holds the time in jiffies of last TDLS pkt ACKed
  * @reserved_tid: reserved TID (if any, otherwise IEEE80211_TID_UNRESERVED)
+ * @tx_msdu: MSDUs transmitted to this station, using IEEE80211_NUM_TID
+ *	entry for non-QoS frames
+ * @tx_msdu_retries: MSDU retries for transmissions to to this station,
+ *	using IEEE80211_NUM_TID entry for non-QoS frames
+ * @tx_msdu_failed: MSDU failures for transmissions to to this station,
+ *	using IEEE80211_NUM_TID entry for non-QoS frames
+ * @rx_msdu: MSDUs received from this station, using IEEE80211_NUM_TID
+ *	entry for non-QoS frames
  */
 struct sta_info {
 	/* General information, mostly static */
@@ -416,6 +424,10 @@ struct sta_info {
 	u32 last_rx_rate_vht_flag;
 	u8 last_rx_rate_vht_nss;
 	u16 tid_seq[IEEE80211_QOS_CTL_TID_MASK + 1];
+	u64 tx_msdu[IEEE80211_NUM_TIDS + 1];
+	u64 tx_msdu_retries[IEEE80211_NUM_TIDS + 1];
+	u64 tx_msdu_failed[IEEE80211_NUM_TIDS + 1];
+	u64 rx_msdu[IEEE80211_NUM_TIDS + 1];
 
 	/*
 	 * Aggregation information, locked with lock.

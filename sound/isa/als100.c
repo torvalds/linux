@@ -233,7 +233,7 @@ static int snd_card_als100_probe(int dev,
 			irq[dev], dma8[dev], dma16[dev]);
 	}
 
-	if ((error = snd_sb16dsp_pcm(chip, 0, &chip->pcm)) < 0) {
+	if ((error = snd_sb16dsp_pcm(chip, 0)) < 0) {
 		snd_card_free(card);
 		return error;
 	}

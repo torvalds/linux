@@ -135,6 +135,17 @@ config AXP288_ADC
 	  device. Depending on platform configuration, this general purpose ADC can
 	  be used for sampling sensors such as thermal resistors.
 
+config CC10001_ADC
+	tristate "Cosmic Circuits 10001 ADC driver"
+	depends on HAS_IOMEM || HAVE_CLK || REGULATOR
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Cosmic Circuits 10001 ADC.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called cc10001_adc.
+
 config EXYNOS_ADC
 	tristate "Exynos ADC driver support"
 	depends on ARCH_EXYNOS || ARCH_S3C24XX || ARCH_S3C64XX || (OF && COMPILE_TEST)
@@ -227,6 +238,20 @@ config QCOM_SPMI_IADC
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called qcom-spmi-iadc.
+
+config QCOM_SPMI_VADC
+	tristate "Qualcomm SPMI PMIC voltage ADC"
+	depends on SPMI
+	select REGMAP_SPMI
+	help
+	  This is the IIO Voltage ADC driver for Qualcomm QPNP VADC Chip.
+
+	  The driver supports multiple channels read. The VADC is a 15-bit
+	  sigma-delta ADC. Some of the channels are internally used for
+	  calibration.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called qcom-spmi-vadc.
 
 config ROCKCHIP_SARADC
 	tristate "Rockchip SARADC driver"

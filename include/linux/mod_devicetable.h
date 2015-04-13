@@ -53,9 +53,9 @@ struct ieee1394_device_id {
 
 /**
  * struct usb_device_id - identifies USB devices for probing and hotplugging
- * @match_flags: Bit mask controlling of the other fields are used to match
- *	against new devices.  Any field except for driver_info may be used,
- *	although some only make sense in conjunction with other fields.
+ * @match_flags: Bit mask controlling which of the other fields are used to
+ *	match against new devices. Any field except for driver_info may be
+ *	used, although some only make sense in conjunction with other fields.
  *	This is usually set by a USB_DEVICE_*() macro, which sets all
  *	other fields in this structure except for driver_info.
  * @idVendor: USB vendor ID for a device; numbers are assigned
@@ -220,8 +220,7 @@ struct serio_device_id {
 /*
  * Struct used for matching a device
  */
-struct of_device_id
-{
+struct of_device_id {
 	char	name[32];
 	char	type[32];
 	char	compatible[128];
@@ -365,8 +364,6 @@ struct ssb_device_id {
 } __attribute__((packed, aligned(2)));
 #define SSB_DEVICE(_vendor, _coreid, _revision)  \
 	{ .vendor = _vendor, .coreid = _coreid, .revision = _revision, }
-#define SSB_DEVTABLE_END  \
-	{ 0, },
 
 #define SSB_ANY_VENDOR		0xFFFF
 #define SSB_ANY_ID		0xFFFF
@@ -381,8 +378,6 @@ struct bcma_device_id {
 } __attribute__((packed,aligned(2)));
 #define BCMA_CORE(_manuf, _id, _rev, _class)  \
 	{ .manuf = _manuf, .id = _id, .rev = _rev, .class = _class, }
-#define BCMA_CORETABLE_END  \
-	{ 0, },
 
 #define BCMA_ANY_MANUF		0xFFFF
 #define BCMA_ANY_ID		0xFFFF

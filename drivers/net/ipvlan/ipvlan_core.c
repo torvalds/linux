@@ -9,7 +9,7 @@
 
 #include "ipvlan.h"
 
-static u32 ipvlan_jhash_secret;
+static u32 ipvlan_jhash_secret __read_mostly;
 
 void ipvlan_init_secret(void)
 {

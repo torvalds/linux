@@ -531,6 +531,7 @@ static struct rtnl_link_ops vti_link_ops __read_mostly = {
 	.dellink        = ip_tunnel_dellink,
 	.get_size	= vti_get_size,
 	.fill_info	= vti_fill_info,
+	.get_link_net	= ip_tunnel_get_link_net,
 };
 
 static int __init vti_init(void)

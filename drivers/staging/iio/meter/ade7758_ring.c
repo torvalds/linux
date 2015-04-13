@@ -118,7 +118,7 @@ int ade7758_configure_ring(struct iio_dev *indio_dev)
 	struct iio_buffer *buffer;
 	int ret = 0;
 
-	buffer = iio_kfifo_allocate(indio_dev);
+	buffer = iio_kfifo_allocate();
 	if (!buffer) {
 		ret = -ENOMEM;
 		return ret;
@@ -179,9 +179,4 @@ int ade7758_configure_ring(struct iio_dev *indio_dev)
 error_iio_kfifo_free:
 	iio_kfifo_free(indio_dev->buffer);
 	return ret;
-}
-
-void ade7758_uninitialize_ring(struct iio_dev *indio_dev)
-{
-	iio_buffer_unregister(indio_dev);
 }

@@ -23,12 +23,13 @@
 #include <asm/smp_scu.h>
 #include <asm/suspend.h>
 
+#include <mach/map.h>
+
 #include <plat/pm-common.h>
 
 #include "common.h"
 #include "exynos-pmu.h"
 #include "regs-pmu.h"
-#include "regs-sys.h"
 
 static inline void __iomem *exynos_boot_vector_addr(void)
 {
@@ -97,10 +98,6 @@ void exynos_pm_central_suspend(void)
 	tmp = pmu_raw_readl(S5P_CENTRAL_SEQ_CONFIGURATION);
 	tmp &= ~S5P_CENTRAL_LOWPWR_CFG;
 	pmu_raw_writel(tmp, S5P_CENTRAL_SEQ_CONFIGURATION);
-
-	/* Setting SEQ_OPTION register */
-	pmu_raw_writel(S5P_USE_STANDBY_WFI0 | S5P_USE_STANDBY_WFE0,
-		       S5P_CENTRAL_SEQ_OPTION);
 }
 
 int exynos_pm_central_resume(void)
@@ -164,6 +161,13 @@ void exynos_enter_aftr(void)
 
 	exynos_pm_central_suspend();
 
+	if (of_machine_is_compatible("samsung,exynos4212") ||
+	    of_machine_is_compatible("samsung,exynos4412")) {
+		/* Setting SEQ_OPTION register */
+		pmu_raw_writel(S5P_USE_STANDBY_WFI0 | S5P_USE_STANDBY_WFE0,
+			       S5P_CENTRAL_SEQ_OPTION);
+	}
+
 	cpu_suspend(0, exynos_aftr_finisher);
 
 	if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A9) {
@@ -176,3 +180,125 @@ void exynos_enter_aftr(void)
 
 	cpu_pm_exit();
 }
+
+static atomic_t cpu1_wakeup = ATOMIC_INIT(0);
+
+static int exynos_cpu0_enter_aftr(void)
+{
+	int ret = -1;
+
+	/*
+	 * If the other cpu is powered on, we have to power it off, because
+	 * the AFTR state won't work otherwise
+	 */
+	if (cpu_online(1)) {
+		/*
+		 * We reach a sync point with the coupled idle state, we know
+		 * the other cpu will power down itself or will abort the
+		 * sequence, let's wait for one of these to happen
+		 */
+		while (exynos_cpu_power_state(1)) {
+			/*
+			 * The other cpu may skip idle and boot back
+			 * up again
+			 */
+			if (atomic_read(&cpu1_wakeup))
+				goto abort;
+
+			/*
+			 * The other cpu may bounce through idle and
+			 * boot back up again, getting stuck in the
+			 * boot rom code
+			 */
+			if (__raw_readl(cpu_boot_reg_base()) == 0)
+				goto abort;
+
+			cpu_relax();
+		}
+	}
+
+	exynos_enter_aftr();
+	ret = 0;
+
+abort:
+	if (cpu_online(1)) {
+		/*
+		 * Set the boot vector to something non-zero
+		 */
+		__raw_writel(virt_to_phys(exynos_cpu_resume),
+			     cpu_boot_reg_base());
+		dsb();
+
+		/*
+		 * Turn on cpu1 and wait for it to be on
+		 */
+		exynos_cpu_power_up(1);
+		while (exynos_cpu_power_state(1) != S5P_CORE_LOCAL_PWR_EN)
+			cpu_relax();
+
+		while (!atomic_read(&cpu1_wakeup)) {
+			/*
+			 * Poke cpu1 out of the boot rom
+			 */
+			__raw_writel(virt_to_phys(exynos_cpu_resume),
+				     cpu_boot_reg_base());
+
+			arch_send_wakeup_ipi_mask(cpumask_of(1));
+		}
+	}
+
+	return ret;
+}
+
+static int exynos_wfi_finisher(unsigned long flags)
+{
+	cpu_do_idle();
+
+	return -1;
+}
+
+static int exynos_cpu1_powerdown(void)
+{
+	int ret = -1;
+
+	/*
+	 * Idle sequence for cpu1
+	 */
+	if (cpu_pm_enter())
+		goto cpu1_aborted;
+
+	/*
+	 * Turn off cpu 1
+	 */
+	exynos_cpu_power_down(1);
+
+	ret = cpu_suspend(0, exynos_wfi_finisher);
+
+	cpu_pm_exit();
+
+cpu1_aborted:
+	dsb();
+	/*
+	 * Notify cpu 0 that cpu 1 is awake
+	 */
+	atomic_set(&cpu1_wakeup, 1);
+
+	return ret;
+}
+
+static void exynos_pre_enter_aftr(void)
+{
+	__raw_writel(virt_to_phys(exynos_cpu_resume), cpu_boot_reg_base());
+}
+
+static void exynos_post_enter_aftr(void)
+{
+	atomic_set(&cpu1_wakeup, 0);
+}
+
+struct cpuidle_exynos_data cpuidle_coupled_exynos_data = {
+	.cpu0_enter_aftr		= exynos_cpu0_enter_aftr,
+	.cpu1_powerdown		= exynos_cpu1_powerdown,
+	.pre_enter_aftr		= exynos_pre_enter_aftr,
+	.post_enter_aftr		= exynos_post_enter_aftr,
+};

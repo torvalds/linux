@@ -150,12 +150,6 @@ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
 	return NULL;
 }
 
-struct page *follow_huge_addr(struct mm_struct *mm, unsigned long address,
-			      int write)
-{
-	return ERR_PTR(-EINVAL);
-}
-
 int pmd_huge(pmd_t pmd)
 {
 	return !!(pmd_val(pmd) & _PAGE_HUGE_PAGE);
@@ -164,28 +158,6 @@ int pmd_huge(pmd_t pmd)
 int pud_huge(pud_t pud)
 {
 	return !!(pud_val(pud) & _PAGE_HUGE_PAGE);
-}
-
-struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
-			     pmd_t *pmd, int write)
-{
-	struct page *page;
-
-	page = pte_page(*(pte_t *)pmd);
-	if (page)
-		page += ((address & ~PMD_MASK) >> PAGE_SHIFT);
-	return page;
-}
-
-struct page *follow_huge_pud(struct mm_struct *mm, unsigned long address,
-			     pud_t *pud, int write)
-{
-	struct page *page;
-
-	page = pte_page(*(pte_t *)pud);
-	if (page)
-		page += ((address & ~PUD_MASK) >> PAGE_SHIFT);
-	return page;
 }
 
 int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)

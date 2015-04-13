@@ -135,6 +135,31 @@ struct nfc_se {
 	u16 state;
 };
 
+/**
+ * nfc_evt_transaction - A struct for NFC secure element event transaction.
+ *
+ * @aid: The application identifier triggering the event
+ *
+ * @aid_len: The application identifier length [5:16]
+ *
+ * @params: The application parameters transmitted during the transaction
+ *
+ * @params_len: The applications parameters length [0:255]
+ *
+ */
+#define NFC_MIN_AID_LENGTH	5
+#define	NFC_MAX_AID_LENGTH	16
+#define NFC_MAX_PARAMS_LENGTH	255
+
+#define NFC_EVT_TRANSACTION_AID_TAG	0x81
+#define NFC_EVT_TRANSACTION_PARAMS_TAG	0x82
+struct nfc_evt_transaction {
+	u32 aid_len;
+	u8 aid[NFC_MAX_AID_LENGTH];
+	u8 params_len;
+	u8 params[NFC_MAX_PARAMS_LENGTH];
+} __packed;
+
 struct nfc_genl_data {
 	u32 poll_req_portid;
 	struct mutex genl_data_mutex;
@@ -262,6 +287,8 @@ int nfc_tm_data_received(struct nfc_dev *dev, struct sk_buff *skb);
 
 void nfc_driver_failure(struct nfc_dev *dev, int err);
 
+int nfc_se_transaction(struct nfc_dev *dev, u8 se_idx,
+		       struct nfc_evt_transaction *evt_transaction);
 int nfc_add_se(struct nfc_dev *dev, u32 se_idx, u16 type);
 int nfc_remove_se(struct nfc_dev *dev, u32 se_idx);
 struct nfc_se *nfc_find_se(struct nfc_dev *dev, u32 se_idx);

@@ -82,7 +82,7 @@ static inline int pinctrl_gpio_direction_output(unsigned gpio)
 
 static inline struct pinctrl * __must_check pinctrl_get(struct device *dev)
 {
-	return NULL;
+	return ERR_PTR(-ENOSYS);
 }
 
 static inline void pinctrl_put(struct pinctrl *p)
@@ -93,7 +93,7 @@ static inline struct pinctrl_state * __must_check pinctrl_lookup_state(
 							struct pinctrl *p,
 							const char *name)
 {
-	return NULL;
+	return ERR_PTR(-ENOSYS);
 }
 
 static inline int pinctrl_select_state(struct pinctrl *p,
@@ -104,7 +104,7 @@ static inline int pinctrl_select_state(struct pinctrl *p,
 
 static inline struct pinctrl * __must_check devm_pinctrl_get(struct device *dev)
 {
-	return NULL;
+	return ERR_PTR(-ENOSYS);
 }
 
 static inline void devm_pinctrl_put(struct pinctrl *p)

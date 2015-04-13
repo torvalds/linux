@@ -473,13 +473,18 @@ try_again:
 	do {
 		/*
 		 * Subrequests are always contiguous, non overlapping
-		 * and in order. If not, it's a programming error.
+		 * and in order - but may be repeated (mirrored writes).
 		 */
-		WARN_ON_ONCE(subreq->wb_offset !=
-		     (head->wb_offset + total_bytes));
-
-		/* keep track of how many bytes this group covers */
-		total_bytes += subreq->wb_bytes;
+		if (subreq->wb_offset == (head->wb_offset + total_bytes)) {
+			/* keep track of how many bytes this group covers */
+			total_bytes += subreq->wb_bytes;
+		} else if (WARN_ON_ONCE(subreq->wb_offset < head->wb_offset ||
+			    ((subreq->wb_offset + subreq->wb_bytes) >
+			     (head->wb_offset + total_bytes)))) {
+			nfs_page_group_unlock(head);
+			spin_unlock(&inode->i_lock);
+			return ERR_PTR(-EIO);
+		}
 
 		if (!nfs_lock_request(subreq)) {
 			/* releases page group bit lock and
@@ -784,13 +789,8 @@ nfs_request_add_commit_list(struct nfs_page *req, struct list_head *dst,
 	nfs_list_add_request(req, dst);
 	cinfo->mds->ncommit++;
 	spin_unlock(cinfo->lock);
-	if (!cinfo->dreq) {
-		inc_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
-		inc_bdi_stat(page_file_mapping(req->wb_page)->backing_dev_info,
-			     BDI_RECLAIMABLE);
-		__mark_inode_dirty(req->wb_context->dentry->d_inode,
-				   I_DIRTY_DATASYNC);
-	}
+	if (!cinfo->dreq)
+		nfs_mark_page_unstable(req->wb_page);
 }
 EXPORT_SYMBOL_GPL(nfs_request_add_commit_list);
 
@@ -842,9 +842,9 @@ EXPORT_SYMBOL_GPL(nfs_init_cinfo);
  */
 void
 nfs_mark_request_commit(struct nfs_page *req, struct pnfs_layout_segment *lseg,
-			struct nfs_commit_info *cinfo)
+			struct nfs_commit_info *cinfo, u32 ds_commit_idx)
 {
-	if (pnfs_mark_request_commit(req, lseg, cinfo))
+	if (pnfs_mark_request_commit(req, lseg, cinfo, ds_commit_idx))
 		return;
 	nfs_request_add_commit_list(req, &cinfo->mds->list, cinfo);
 }
@@ -853,7 +853,7 @@ static void
 nfs_clear_page_commit(struct page *page)
 {
 	dec_zone_page_state(page, NR_UNSTABLE_NFS);
-	dec_bdi_stat(page_file_mapping(page)->backing_dev_info, BDI_RECLAIMABLE);
+	dec_bdi_stat(inode_to_bdi(page_file_mapping(page)->host), BDI_RECLAIMABLE);
 }
 
 /* Called holding inode (/cinfo) lock */
@@ -900,7 +900,8 @@ static void nfs_write_completion(struct nfs_pgio_header *hdr)
 		}
 		if (nfs_write_need_commit(hdr)) {
 			memcpy(&req->wb_verf, &hdr->verf.verifier, sizeof(req->wb_verf));
-			nfs_mark_request_commit(req, hdr->lseg, &cinfo);
+			nfs_mark_request_commit(req, hdr->lseg, &cinfo,
+				hdr->pgio_mirror_idx);
 			goto next;
 		}
 remove_req:
@@ -1269,15 +1270,15 @@ static int flush_task_priority(int how)
 
 static void nfs_initiate_write(struct nfs_pgio_header *hdr,
 			       struct rpc_message *msg,
+			       const struct nfs_rpc_ops *rpc_ops,
 			       struct rpc_task_setup *task_setup_data, int how)
 {
-	struct inode *inode = hdr->inode;
 	int priority = flush_task_priority(how);
 
 	task_setup_data->priority = priority;
-	NFS_PROTO(inode)->write_setup(hdr, msg);
+	rpc_ops->write_setup(hdr, msg);
 
-	nfs4_state_protect_write(NFS_SERVER(inode)->nfs_client,
+	nfs4_state_protect_write(NFS_SERVER(hdr->inode)->nfs_client,
 				 &task_setup_data->rpc_client, msg, hdr);
 }
 
@@ -1327,8 +1328,14 @@ EXPORT_SYMBOL_GPL(nfs_pageio_init_write);
 
 void nfs_pageio_reset_write_mds(struct nfs_pageio_descriptor *pgio)
 {
+	struct nfs_pgio_mirror *mirror;
+
 	pgio->pg_ops = &nfs_pgio_rw_ops;
-	pgio->pg_bsize = NFS_SERVER(pgio->pg_inode)->wsize;
+
+	nfs_pageio_stop_mirroring(pgio);
+
+	mirror = &pgio->pg_mirrors[0];
+	mirror->pg_bsize = NFS_SERVER(pgio->pg_inode)->wsize;
 }
 EXPORT_SYMBOL_GPL(nfs_pageio_reset_write_mds);
 
@@ -1494,6 +1501,7 @@ void nfs_commitdata_release(struct nfs_commit_data *data)
 EXPORT_SYMBOL_GPL(nfs_commitdata_release);
 
 int nfs_initiate_commit(struct rpc_clnt *clnt, struct nfs_commit_data *data,
+			const struct nfs_rpc_ops *nfs_ops,
 			const struct rpc_call_ops *call_ops,
 			int how, int flags)
 {
@@ -1515,7 +1523,7 @@ int nfs_initiate_commit(struct rpc_clnt *clnt, struct nfs_commit_data *data,
 		.priority = priority,
 	};
 	/* Set up the initial task struct.  */
-	NFS_PROTO(data->inode)->commit_setup(data, &msg);
+	nfs_ops->commit_setup(data, &msg);
 
 	dprintk("NFS: %5u initiated commit call\n", data->task.tk_pid);
 
@@ -1583,19 +1591,17 @@ EXPORT_SYMBOL_GPL(nfs_init_commit);
 
 void nfs_retry_commit(struct list_head *page_list,
 		      struct pnfs_layout_segment *lseg,
-		      struct nfs_commit_info *cinfo)
+		      struct nfs_commit_info *cinfo,
+		      u32 ds_commit_idx)
 {
 	struct nfs_page *req;
 
 	while (!list_empty(page_list)) {
 		req = nfs_list_entry(page_list->next);
 		nfs_list_remove_request(req);
-		nfs_mark_request_commit(req, lseg, cinfo);
-		if (!cinfo->dreq) {
-			dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
-			dec_bdi_stat(page_file_mapping(req->wb_page)->backing_dev_info,
-				     BDI_RECLAIMABLE);
-		}
+		nfs_mark_request_commit(req, lseg, cinfo, ds_commit_idx);
+		if (!cinfo->dreq)
+			nfs_clear_page_commit(req->wb_page);
 		nfs_unlock_and_release_request(req);
 	}
 }
@@ -1618,10 +1624,10 @@ nfs_commit_list(struct inode *inode, struct list_head *head, int how,
 	/* Set up the argument struct */
 	nfs_init_commit(data, head, NULL, cinfo);
 	atomic_inc(&cinfo->mds->rpcs_out);
-	return nfs_initiate_commit(NFS_CLIENT(inode), data, data->mds_ops,
-				   how, 0);
+	return nfs_initiate_commit(NFS_CLIENT(inode), data, NFS_PROTO(inode),
+				   data->mds_ops, how, 0);
  out_bad:
-	nfs_retry_commit(head, NULL, cinfo);
+	nfs_retry_commit(head, NULL, cinfo, 0);
 	cinfo->completion_ops->error_cleanup(NFS_I(inode));
 	return -ENOMEM;
 }

@@ -45,7 +45,7 @@
 
 #define vmemmap			((struct page *)(VMALLOC_END + SZ_64K))
 
-#define FIRST_USER_ADDRESS	0
+#define FIRST_USER_ADDRESS	0UL
 
 #ifndef __ASSEMBLY__
 extern void __pte_error(const char *file, int line, unsigned long val);
@@ -263,6 +263,11 @@ static inline pmd_t pte_pmd(pte_t pte)
 	return __pmd(pte_val(pte));
 }
 
+static inline pgprot_t mk_sect_prot(pgprot_t prot)
+{
+	return __pgprot(pgprot_val(prot) & ~PTE_TABLE_BIT);
+}
+
 /*
  * THP definitions.
  */
@@ -336,9 +341,12 @@ extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 
 #ifdef CONFIG_ARM64_64K_PAGES
 #define pud_sect(pud)		(0)
+#define pud_table(pud)		(1)
 #else
 #define pud_sect(pud)		((pud_val(pud) & PUD_TYPE_MASK) == \
 				 PUD_TYPE_SECT)
+#define pud_table(pud)		((pud_val(pud) & PUD_TYPE_MASK) == \
+				 PUD_TYPE_TABLE)
 #endif
 
 static inline void set_pmd(pmd_t *pmdp, pmd_t pmd)

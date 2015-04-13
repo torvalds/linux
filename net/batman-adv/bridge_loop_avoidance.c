@@ -69,7 +69,6 @@ static inline uint32_t batadv_choose_backbone_gw(const void *data,
 	return hash % size;
 }
 
-
 /* compares address and vid of two backbone gws */
 static int batadv_compare_backbone_gw(const struct hlist_node *node,
 				      const void *data2)
@@ -245,14 +244,14 @@ batadv_bla_del_backbone_claims(struct batadv_bla_backbone_gw *backbone_gw)
 		spin_unlock_bh(list_lock);
 	}
 
-	/* all claims gone, intialize CRC */
+	/* all claims gone, initialize CRC */
 	backbone_gw->crc = BATADV_BLA_CRC_INIT;
 }
 
 /**
  * batadv_bla_send_claim - sends a claim frame according to the provided info
  * @bat_priv: the bat priv with all the soft interface information
- * @orig: the mac address to be announced within the claim
+ * @mac: the mac address to be announced within the claim
  * @vid: the VLAN ID
  * @claimtype: the type of the claim (CLAIM, UNCLAIM, ANNOUNCE, ...)
  */
@@ -364,6 +363,7 @@ out:
  * @bat_priv: the bat priv with all the soft interface information
  * @orig: the mac address of the originator
  * @vid: the VLAN ID
+ * @own_backbone: set if the requested backbone is local
  *
  * searches for the backbone gw or creates a new one if it could not
  * be found.
@@ -454,6 +454,7 @@ batadv_bla_update_own_backbone_gw(struct batadv_priv *bat_priv,
 /**
  * batadv_bla_answer_request - answer a bla request by sending own claims
  * @bat_priv: the bat priv with all the soft interface information
+ * @primary_if: interface where the request came on
  * @vid: the vid where the request came on
  *
  * Repeat all of our own claims, and finally send an ANNOUNCE frame
@@ -660,7 +661,6 @@ static int batadv_handle_announce(struct batadv_priv *bat_priv,
 	if (unlikely(!backbone_gw))
 		return 1;
 
-
 	/* handle as ANNOUNCE frame */
 	backbone_gw->lasttime = jiffies;
 	crc = ntohs(*((__be16 *)(&an_addr[4])));
@@ -775,6 +775,7 @@ static int batadv_handle_claim(struct batadv_priv *bat_priv,
 /**
  * batadv_check_claim_group
  * @bat_priv: the bat priv with all the soft interface information
+ * @primary_if: the primary interface of this batman interface
  * @hw_src: the Hardware source in the ARP Header
  * @hw_dst: the Hardware destination in the ARP Header
  * @ethhdr: pointer to the Ethernet header of the claim frame
@@ -846,10 +847,10 @@ static int batadv_check_claim_group(struct batadv_priv *bat_priv,
 	return 2;
 }
 
-
 /**
  * batadv_bla_process_claim
  * @bat_priv: the bat priv with all the soft interface information
+ * @primary_if: the primary hard interface of this batman soft interface
  * @skb: the frame to be checked
  *
  * Check if this is a claim frame, and process it accordingly.
@@ -1327,7 +1328,7 @@ int batadv_bla_check_bcast_duplist(struct batadv_priv *bat_priv,
 		goto out;
 	}
 	/* not found, add a new entry (overwrite the oldest entry)
-	 * and allow it, its the first occurence.
+	 * and allow it, its the first occurrence.
 	 */
 	curr = (bat_priv->bla.bcast_duplist_curr + BATADV_DUPLIST_SIZE - 1);
 	curr %= BATADV_DUPLIST_SIZE;
@@ -1342,8 +1343,6 @@ out:
 
 	return ret;
 }
-
-
 
 /**
  * batadv_bla_is_backbone_gw_orig
@@ -1385,7 +1384,6 @@ bool batadv_bla_is_backbone_gw_orig(struct batadv_priv *bat_priv, uint8_t *orig,
 
 	return false;
 }
-
 
 /**
  * batadv_bla_is_backbone_gw
@@ -1475,7 +1473,6 @@ int batadv_bla_rx(struct batadv_priv *bat_priv, struct sk_buff *skb,
 
 	if (!atomic_read(&bat_priv->bridge_loop_avoidance))
 		goto allow;
-
 
 	if (unlikely(atomic_read(&bat_priv->bla.num_requests)))
 		/* don't allow broadcasts while requests are in flight */

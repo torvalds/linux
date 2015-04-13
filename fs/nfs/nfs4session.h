@@ -118,6 +118,12 @@ static inline int nfs4_has_persistent_session(const struct nfs_client *clp)
 	return 0;
 }
 
+static inline void nfs4_copy_sessionid(struct nfs4_sessionid *dst,
+		const struct nfs4_sessionid *src)
+{
+	memcpy(dst->data, src->data, NFS4_MAX_SESSIONID_LEN);
+}
+
 #ifdef CONFIG_CRC32
 /*
  * nfs_session_id_hash - calculate the crc32 hash for the session id

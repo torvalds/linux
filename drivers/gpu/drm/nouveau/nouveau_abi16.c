@@ -100,7 +100,7 @@ static void
 nouveau_abi16_ntfy_fini(struct nouveau_abi16_chan *chan,
 			struct nouveau_abi16_ntfy *ntfy)
 {
-	nouveau_mm_free(&chan->heap, &ntfy->node);
+	nvkm_mm_free(&chan->heap, &ntfy->node);
 	list_del(&ntfy->head);
 	kfree(ntfy);
 }
@@ -128,7 +128,7 @@ nouveau_abi16_chan_fini(struct nouveau_abi16 *abi16,
 	}
 
 	if (chan->heap.block_size)
-		nouveau_mm_fini(&chan->heap);
+		nvkm_mm_fini(&chan->heap);
 
 	/* destroy channel object, all children will be killed too */
 	if (chan->chan) {
@@ -164,8 +164,8 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 	struct nouveau_cli *cli = nouveau_cli(file_priv);
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvif_device *device = &drm->device;
-	struct nouveau_timer *ptimer = nvkm_timer(device);
-	struct nouveau_graph *graph = nvkm_gr(device);
+	struct nvkm_timer *ptimer = nvxx_timer(device);
+	struct nvkm_gr *gr = nvxx_gr(device);
 	struct drm_nouveau_getparam *getparam = data;
 
 	switch (getparam->param) {
@@ -173,19 +173,19 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 		getparam->value = device->info.chipset;
 		break;
 	case NOUVEAU_GETPARAM_PCI_VENDOR:
-		if (nv_device_is_pci(nvkm_device(device)))
+		if (nv_device_is_pci(nvxx_device(device)))
 			getparam->value = dev->pdev->vendor;
 		else
 			getparam->value = 0;
 		break;
 	case NOUVEAU_GETPARAM_PCI_DEVICE:
-		if (nv_device_is_pci(nvkm_device(device)))
+		if (nv_device_is_pci(nvxx_device(device)))
 			getparam->value = dev->pdev->device;
 		else
 			getparam->value = 0;
 		break;
 	case NOUVEAU_GETPARAM_BUS_TYPE:
-		if (!nv_device_is_pci(nvkm_device(device)))
+		if (!nv_device_is_pci(nvxx_device(device)))
 			getparam->value = 3;
 		else
 		if (drm_pci_device_is_agp(dev))
@@ -215,7 +215,7 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 		getparam->value = 1;
 		break;
 	case NOUVEAU_GETPARAM_GRAPH_UNITS:
-		getparam->value = graph->units ? graph->units(graph) : 0;
+		getparam->value = gr->units ? gr->units(gr) : 0;
 		break;
 	default:
 		NV_PRINTK(debug, cli, "unknown parameter %lld\n", getparam->param);
@@ -324,7 +324,7 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	if (ret)
 		goto done;
 
-	ret = nouveau_mm_init(&chan->heap, 0, PAGE_SIZE, 1);
+	ret = nvkm_mm_init(&chan->heap, 0, PAGE_SIZE, 1);
 done:
 	if (ret)
 		nouveau_abi16_chan_fini(abi16, chan);
@@ -448,8 +448,8 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 	list_add(&ntfy->head, &chan->notifiers);
 	ntfy->handle = info->handle;
 
-	ret = nouveau_mm_head(&chan->heap, 0, 1, info->size, info->size, 1,
-			      &ntfy->node);
+	ret = nvkm_mm_head(&chan->heap, 0, 1, info->size, info->size, 1,
+			   &ntfy->node);
 	if (ret)
 		goto done;
 
@@ -527,7 +527,7 @@ nouveau_abi16_ioctl_gpuobj_free(ABI16_IOCTL_ARGS)
 	/* cleanup extra state if this object was a notifier */
 	list_for_each_entry(ntfy, &chan->notifiers, head) {
 		if (ntfy->handle == fini->handle) {
-			nouveau_mm_free(&chan->heap, &ntfy->node);
+			nvkm_mm_free(&chan->heap, &ntfy->node);
 			list_del(&ntfy->head);
 			break;
 		}

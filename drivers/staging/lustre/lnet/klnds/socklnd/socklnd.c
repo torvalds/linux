@@ -773,7 +773,7 @@ ksocknal_select_ips(ksock_peer_t *peer, __u32 *peerips, int n_peerips)
 	/* Only match interfaces for additional connections
 	 * if I have > 1 interface */
 	n_ips = (net->ksnn_ninterfaces < 2) ? 0 :
-		MIN(n_peerips, net->ksnn_ninterfaces);
+		min(n_peerips, net->ksnn_ninterfaces);
 
 	for (i = 0; peer->ksnp_n_passive_ips < n_ips; i++) {
 		/*	      ^ yes really... */

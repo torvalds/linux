@@ -10,6 +10,7 @@ menu "Display Panels"
 config DRM_PANEL_SIMPLE
 	tristate "support for simple panels"
 	depends on OF
+	depends on BACKLIGHT_CLASS_DEVICE
 	help
 	  DRM panel driver for dumb panels that need at most a regulator and
 	  a GPIO to be powered up. Optionally a backlight can be attached so
@@ -31,6 +32,7 @@ config DRM_PANEL_SHARP_LQ101R1SX01
 	tristate "Sharp LQ101R1SX01 panel"
 	depends on OF
 	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
 	help
 	  Say Y here if you want to enable support for Sharp LQ101R1SX01
 	  TFT-LCD modules. The panel has a 2560x1600 resolution and uses

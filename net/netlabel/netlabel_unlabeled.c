@@ -1163,7 +1163,8 @@ static int netlbl_unlabel_staticlist_gen(u32 cmd,
 		goto list_cb_failure;
 
 	cb_arg->seq++;
-	return genlmsg_end(cb_arg->skb, data);
+	genlmsg_end(cb_arg->skb, data);
+	return 0;
 
 list_cb_failure:
 	genlmsg_cancel(cb_arg->skb, data);

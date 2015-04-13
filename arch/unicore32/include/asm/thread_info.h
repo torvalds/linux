@@ -79,7 +79,6 @@ struct thread_info {
 #ifdef CONFIG_UNICORE_FPU_F64
 	struct fp_state		fpstate __attribute__((aligned(8)));
 #endif
-	struct restart_block	restart_block;
 };
 
 #define INIT_THREAD_INFO(tsk)						\
@@ -89,9 +88,6 @@ struct thread_info {
 	.flags		= 0,						\
 	.preempt_count	= INIT_PREEMPT_COUNT,				\
 	.addr_limit	= KERNEL_DS,					\
-	.restart_block	= {						\
-		.fn	= do_no_restart_syscall,			\
-	},								\
 }
 
 #define init_thread_info	(init_thread_union.thread_info)

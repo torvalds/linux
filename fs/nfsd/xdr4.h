@@ -428,6 +428,61 @@ struct nfsd4_reclaim_complete {
 	u32 rca_one_fs;
 };
 
+struct nfsd4_deviceid {
+	u64			fsid_idx;
+	u32			generation;
+	u32			pad;
+};
+
+struct nfsd4_layout_seg {
+	u32			iomode;
+	u64			offset;
+	u64			length;
+};
+
+struct nfsd4_getdeviceinfo {
+	struct nfsd4_deviceid	gd_devid;	/* request */
+	u32			gd_layout_type;	/* request */
+	u32			gd_maxcount;	/* request */
+	u32			gd_notify_types;/* request - response */
+	void			*gd_device;	/* response */
+};
+
+struct nfsd4_layoutget {
+	u64			lg_minlength;	/* request */
+	u32			lg_signal;	/* request */
+	u32			lg_layout_type;	/* request */
+	u32			lg_maxcount;	/* request */
+	stateid_t		lg_sid;		/* request/response */
+	struct nfsd4_layout_seg	lg_seg;		/* request/response */
+	void			*lg_content;	/* response */
+};
+
+struct nfsd4_layoutcommit {
+	stateid_t		lc_sid;		/* request */
+	struct nfsd4_layout_seg	lc_seg;		/* request */
+	u32			lc_reclaim;	/* request */
+	u32			lc_newoffset;	/* request */
+	u64			lc_last_wr;	/* request */
+	struct timespec		lc_mtime;	/* request */
+	u32			lc_layout_type;	/* request */
+	u32			lc_up_len;	/* layout length */
+	void			*lc_up_layout;	/* decoded by callback */
+	u32			lc_size_chg;	/* boolean for response */
+	u64			lc_newsize;	/* response */
+};
+
+struct nfsd4_layoutreturn {
+	u32			lr_return_type;	/* request */
+	u32			lr_layout_type;	/* request */
+	struct nfsd4_layout_seg	lr_seg;		/* request */
+	u32			lr_reclaim;	/* request */
+	u32			lrf_body_len;	/* request */
+	void			*lrf_body;	/* request */
+	stateid_t		lr_sid;		/* request/response */
+	u32			lrs_present;	/* response */
+};
+
 struct nfsd4_fallocate {
 	/* request */
 	stateid_t	falloc_stateid;
@@ -491,6 +546,10 @@ struct nfsd4_op {
 		struct nfsd4_reclaim_complete	reclaim_complete;
 		struct nfsd4_test_stateid	test_stateid;
 		struct nfsd4_free_stateid	free_stateid;
+		struct nfsd4_getdeviceinfo	getdeviceinfo;
+		struct nfsd4_layoutget		layoutget;
+		struct nfsd4_layoutcommit	layoutcommit;
+		struct nfsd4_layoutreturn	layoutreturn;
 
 		/* NFSv4.2 */
 		struct nfsd4_fallocate		allocate;

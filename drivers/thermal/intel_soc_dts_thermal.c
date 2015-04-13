@@ -309,10 +309,13 @@ static int soc_dts_enable(int id)
 	return ret;
 }
 
-static struct soc_sensor_entry *alloc_soc_dts(int id, u32 tj_max)
+static struct soc_sensor_entry *alloc_soc_dts(int id, u32 tj_max,
+					      bool notification_support)
 {
 	struct soc_sensor_entry *aux_entry;
 	char name[10];
+	int trip_count = 0;
+	int trip_mask = 0;
 	int err;
 
 	aux_entry = kzalloc(sizeof(*aux_entry), GFP_KERNEL);
@@ -332,11 +335,16 @@ static struct soc_sensor_entry *alloc_soc_dts(int id, u32 tj_max)
 	aux_entry->tj_max = tj_max;
 	aux_entry->temp_mask = 0x00FF << (id * 8);
 	aux_entry->temp_shift = id * 8;
+	if (notification_support) {
+		trip_count = SOC_MAX_DTS_TRIPS;
+		trip_mask = 0x02;
+	}
 	snprintf(name, sizeof(name), "soc_dts%d", id);
 	aux_entry->tzone = thermal_zone_device_register(name,
-			SOC_MAX_DTS_TRIPS,
-			0x02,
-			aux_entry, &tzone_ops, NULL, 0, 0);
+							trip_count,
+							trip_mask,
+							aux_entry, &tzone_ops,
+							NULL, 0, 0);
 	if (IS_ERR(aux_entry->tzone)) {
 		err = PTR_ERR(aux_entry->tzone);
 		goto err_ret;
@@ -402,6 +410,7 @@ static irqreturn_t soc_irq_thread_fn(int irq, void *dev_data)
 
 static const struct x86_cpu_id soc_thermal_ids[] = {
 	{ X86_VENDOR_INTEL, X86_FAMILY_ANY, 0x37, 0, BYT_SOC_DTS_APIC_IRQ},
+	{ X86_VENDOR_INTEL, X86_FAMILY_ANY, 0x4c, 0, 0},
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, soc_thermal_ids);
@@ -420,8 +429,11 @@ static int __init intel_soc_thermal_init(void)
 	if (get_tj_max(&tj_max))
 		return -EINVAL;
 
+	soc_dts_thres_irq = (int)match_cpu->driver_data;
+
 	for (i = 0; i < SOC_MAX_DTS_SENSORS; ++i) {
-		soc_dts[i] = alloc_soc_dts(i, tj_max);
+		soc_dts[i] = alloc_soc_dts(i, tj_max,
+					   soc_dts_thres_irq ? true : false);
 		if (IS_ERR(soc_dts[i])) {
 			err = PTR_ERR(soc_dts[i]);
 			goto err_free;
@@ -430,15 +442,15 @@ static int __init intel_soc_thermal_init(void)
 
 	spin_lock_init(&intr_notify_lock);
 
-	soc_dts_thres_irq = (int)match_cpu->driver_data;
-
-	err = request_threaded_irq(soc_dts_thres_irq, NULL,
-					soc_irq_thread_fn,
-					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-					"soc_dts", soc_dts);
-	if (err) {
-		pr_err("request_threaded_irq ret %d\n", err);
-		goto err_free;
+	if (soc_dts_thres_irq) {
+		err = request_threaded_irq(soc_dts_thres_irq, NULL,
+					   soc_irq_thread_fn,
+					   IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+					   "soc_dts", soc_dts);
+		if (err) {
+			pr_err("request_threaded_irq ret %d\n", err);
+			goto err_free;
+		}
 	}
 
 	for (i = 0; i < SOC_MAX_DTS_SENSORS; ++i) {
@@ -451,7 +463,8 @@ static int __init intel_soc_thermal_init(void)
 
 err_trip_temp:
 	i = SOC_MAX_DTS_SENSORS;
-	free_irq(soc_dts_thres_irq, soc_dts);
+	if (soc_dts_thres_irq)
+		free_irq(soc_dts_thres_irq, soc_dts);
 err_free:
 	while (--i >= 0)
 		free_soc_dts(soc_dts[i]);
@@ -466,7 +479,8 @@ static void __exit intel_soc_thermal_exit(void)
 	for (i = 0; i < SOC_MAX_DTS_SENSORS; ++i)
 		update_trip_temp(soc_dts[i], 0, 0);
 
-	free_irq(soc_dts_thres_irq, soc_dts);
+	if (soc_dts_thres_irq)
+		free_irq(soc_dts_thres_irq, soc_dts);
 
 	for (i = 0; i < SOC_MAX_DTS_SENSORS; ++i)
 		free_soc_dts(soc_dts[i]);

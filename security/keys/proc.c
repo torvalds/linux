@@ -18,7 +18,6 @@
 #include <asm/errno.h>
 #include "internal.h"
 
-#ifdef CONFIG_KEYS_DEBUG_PROC_KEYS
 static int proc_keys_open(struct inode *inode, struct file *file);
 static void *proc_keys_start(struct seq_file *p, loff_t *_pos);
 static void *proc_keys_next(struct seq_file *p, void *v, loff_t *_pos);
@@ -38,7 +37,6 @@ static const struct file_operations proc_keys_fops = {
 	.llseek		= seq_lseek,
 	.release	= seq_release,
 };
-#endif
 
 static int proc_key_users_open(struct inode *inode, struct file *file);
 static void *proc_key_users_start(struct seq_file *p, loff_t *_pos);
@@ -67,11 +65,9 @@ static int __init key_proc_init(void)
 {
 	struct proc_dir_entry *p;
 
-#ifdef CONFIG_KEYS_DEBUG_PROC_KEYS
 	p = proc_create("keys", 0, NULL, &proc_keys_fops);
 	if (!p)
 		panic("Cannot create /proc/keys\n");
-#endif
 
 	p = proc_create("key-users", 0, NULL, &proc_key_users_fops);
 	if (!p)
@@ -86,8 +82,6 @@ __initcall(key_proc_init);
  * Implement "/proc/keys" to provide a list of the keys on the system that
  * grant View permission to the caller.
  */
-#ifdef CONFIG_KEYS_DEBUG_PROC_KEYS
-
 static struct rb_node *key_serial_next(struct seq_file *p, struct rb_node *n)
 {
 	struct user_namespace *user_ns = seq_user_ns(p);
@@ -274,8 +268,6 @@ static int proc_keys_show(struct seq_file *m, void *v)
 	rcu_read_unlock();
 	return 0;
 }
-
-#endif /* CONFIG_KEYS_DEBUG_PROC_KEYS */
 
 static struct rb_node *__key_user_next(struct user_namespace *user_ns, struct rb_node *n)
 {

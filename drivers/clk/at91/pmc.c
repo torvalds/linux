@@ -27,6 +27,15 @@
 void __iomem *at91_pmc_base;
 EXPORT_SYMBOL_GPL(at91_pmc_base);
 
+void at91rm9200_idle(void)
+{
+	/*
+	 * Disable the processor clock.  The processor will be automatically
+	 * re-enabled by an interrupt or by a reset.
+	 */
+	at91_pmc_write(AT91_PMC_SCDR, AT91_PMC_PCK);
+}
+
 void at91sam9_idle(void)
 {
 	at91_pmc_write(AT91_PMC_SCDR, AT91_PMC_PCK);

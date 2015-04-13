@@ -357,8 +357,8 @@ static unsigned long guest_translate(struct kvm_vcpu *vcpu, unsigned long gva,
 	union asce asce;
 
 	ctlreg0.val = vcpu->arch.sie_block->gcr[0];
-	edat1 = ctlreg0.edat && test_vfacility(8);
-	edat2 = edat1 && test_vfacility(78);
+	edat1 = ctlreg0.edat && test_kvm_facility(vcpu->kvm, 8);
+	edat2 = edat1 && test_kvm_facility(vcpu->kvm, 78);
 	asce.val = get_vcpu_asce(vcpu);
 	if (asce.r)
 		goto real_address;

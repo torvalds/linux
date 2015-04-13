@@ -286,10 +286,8 @@ static struct rpc_xprt *rpc_clnt_set_transport(struct rpc_clnt *clnt,
 
 static void rpc_clnt_set_nodename(struct rpc_clnt *clnt, const char *nodename)
 {
-	clnt->cl_nodelen = strlen(nodename);
-	if (clnt->cl_nodelen > UNX_MAXNODENAME)
-		clnt->cl_nodelen = UNX_MAXNODENAME;
-	memcpy(clnt->cl_nodename, nodename, clnt->cl_nodelen);
+	clnt->cl_nodelen = strlcpy(clnt->cl_nodename,
+			nodename, sizeof(clnt->cl_nodename));
 }
 
 static int rpc_client_register(struct rpc_clnt *clnt,
@@ -365,6 +363,7 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args,
 	const struct rpc_version *version;
 	struct rpc_clnt *clnt = NULL;
 	const struct rpc_timeout *timeout;
+	const char *nodename = args->nodename;
 	int err;
 
 	/* sanity check the name before trying to print it */
@@ -420,8 +419,10 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args,
 
 	atomic_set(&clnt->cl_count, 1);
 
+	if (nodename == NULL)
+		nodename = utsname()->nodename;
 	/* save the nodename */
-	rpc_clnt_set_nodename(clnt, utsname()->nodename);
+	rpc_clnt_set_nodename(clnt, nodename);
 
 	err = rpc_client_register(clnt, args->authflavor, args->client_name);
 	if (err)
@@ -576,6 +577,7 @@ static struct rpc_clnt *__rpc_clone_client(struct rpc_create_args *args,
 	if (xprt == NULL)
 		goto out_err;
 	args->servername = xprt->servername;
+	args->nodename = clnt->cl_nodename;
 
 	new = rpc_new_client(args, xprt, clnt);
 	if (IS_ERR(new)) {
@@ -1824,6 +1826,7 @@ call_connect_status(struct rpc_task *task)
 	case -ECONNABORTED:
 	case -ENETUNREACH:
 	case -EHOSTUNREACH:
+	case -EADDRINUSE:
 	case -ENOBUFS:
 	case -EPIPE:
 		if (RPC_IS_SOFTCONN(task))
@@ -1932,6 +1935,7 @@ call_transmit_status(struct rpc_task *task)
 		}
 	case -ECONNRESET:
 	case -ECONNABORTED:
+	case -EADDRINUSE:
 	case -ENOTCONN:
 	case -ENOBUFS:
 	case -EPIPE:
@@ -2051,6 +2055,7 @@ call_status(struct rpc_task *task)
 	case -ECONNRESET:
 	case -ECONNABORTED:
 		rpc_force_rebind(clnt);
+	case -EADDRINUSE:
 	case -ENOBUFS:
 		rpc_delay(task, 3*HZ);
 	case -EPIPE:

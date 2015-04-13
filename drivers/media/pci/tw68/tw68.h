@@ -25,7 +25,6 @@
  *  GNU General Public License for more details.
  */
 
-#include <linux/version.h>
 #include <linux/pci.h>
 #include <linux/videodev2.h>
 #include <linux/notifier.h>

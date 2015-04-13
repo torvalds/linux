@@ -30,7 +30,6 @@
 #include <linux/idr.h>
 #include <linux/spinlock.h>
 #include <linux/percpu.h>
-#include <linux/hardirq.h>
 
 #define MAX_IDR_SHIFT		(sizeof(int) * 8 - 1)
 #define MAX_IDR_BIT		(1U << MAX_IDR_SHIFT)

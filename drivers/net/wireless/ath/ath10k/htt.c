@@ -53,7 +53,6 @@ int ath10k_htt_init(struct ath10k *ar)
 	struct ath10k_htt *htt = &ar->htt;
 
 	htt->ar = ar;
-	htt->max_throughput_mbps = 800;
 
 	/*
 	 * Prefetch enough data to satisfy target
@@ -102,7 +101,7 @@ int ath10k_htt_setup(struct ath10k_htt *htt)
 
 	status = wait_for_completion_timeout(&htt->target_version_received,
 					     HTT_TARGET_VERSION_TIMEOUT_HZ);
-	if (status <= 0) {
+	if (status == 0) {
 		ath10k_warn(ar, "htt version request timed out\n");
 		return -ETIMEDOUT;
 	}

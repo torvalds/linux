@@ -27,6 +27,7 @@
 
 #include <linux/types.h>
 #include <linux/sched.h>
+#include <sound/core.h>
 #include <sound/compress_offload.h>
 #include <sound/asound.h>
 #include <sound/pcm.h>
@@ -134,7 +135,7 @@ struct snd_compr_ops {
 /**
  * struct snd_compr: Compressed device
  * @name: DSP device name
- * @dev: Device pointer
+ * @dev: associated device instance
  * @ops: pointer to DSP callbacks
  * @private_data: pointer to DSP pvt data
  * @card: sound card pointer
@@ -144,7 +145,7 @@ struct snd_compr_ops {
  */
 struct snd_compr {
 	const char *name;
-	struct device *dev;
+	struct device dev;
 	struct snd_compr_ops *ops;
 	void *private_data;
 	struct snd_card *card;

@@ -52,8 +52,6 @@ struct vx855_gpio {
 	spinlock_t lock;
 	u32 io_gpi;
 	u32 io_gpo;
-	bool gpi_reserved;
-	bool gpo_reserved;
 };
 
 /* resolve a GPIx into the corresponding bit position */
@@ -224,14 +222,13 @@ static int vx855gpio_probe(struct platform_device *pdev)
 	struct resource *res_gpi;
 	struct resource *res_gpo;
 	struct vx855_gpio *vg;
-	int ret;
 
 	res_gpi = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	res_gpo = platform_get_resource(pdev, IORESOURCE_IO, 1);
 	if (!res_gpi || !res_gpo)
 		return -EBUSY;
 
-	vg = kzalloc(sizeof(*vg), GFP_KERNEL);
+	vg = devm_kzalloc(&pdev->dev, sizeof(*vg), GFP_KERNEL);
 	if (!vg)
 		return -ENOMEM;
 
@@ -250,56 +247,27 @@ static int vx855gpio_probe(struct platform_device *pdev)
 	 * succeed. Ignore and continue.
 	 */
 
-	if (!request_region(res_gpi->start, resource_size(res_gpi),
-			MODULE_NAME "_gpi"))
+	if (!devm_request_region(&pdev->dev, res_gpi->start,
+				 resource_size(res_gpi), MODULE_NAME "_gpi"))
 		dev_warn(&pdev->dev,
 			"GPI I/O resource busy, probably claimed by ACPI\n");
-	else
-		vg->gpi_reserved = true;
 
-	if (!request_region(res_gpo->start, resource_size(res_gpo),
-			MODULE_NAME "_gpo"))
+	if (!devm_request_region(&pdev->dev, res_gpo->start,
+				 resource_size(res_gpo), MODULE_NAME "_gpo"))
 		dev_warn(&pdev->dev,
 			"GPO I/O resource busy, probably claimed by ACPI\n");
-	else
-		vg->gpo_reserved = true;
 
 	vx855gpio_gpio_setup(vg);
 
-	ret = gpiochip_add(&vg->gpio);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to register GPIOs\n");
-		goto out_release;
-	}
-
-	return 0;
-
-out_release:
-	if (vg->gpi_reserved)
-		release_region(res_gpi->start, resource_size(res_gpi));
-	if (vg->gpo_reserved)
-		release_region(res_gpi->start, resource_size(res_gpo));
-	kfree(vg);
-	return ret;
+	return gpiochip_add(&vg->gpio);
 }
 
 static int vx855gpio_remove(struct platform_device *pdev)
 {
 	struct vx855_gpio *vg = platform_get_drvdata(pdev);
-	struct resource *res;
 
 	gpiochip_remove(&vg->gpio);
 
-	if (vg->gpi_reserved) {
-		res = platform_get_resource(pdev, IORESOURCE_IO, 0);
-		release_region(res->start, resource_size(res));
-	}
-	if (vg->gpo_reserved) {
-		res = platform_get_resource(pdev, IORESOURCE_IO, 1);
-		release_region(res->start, resource_size(res));
-	}
-
-	kfree(vg);
 	return 0;
 }
 

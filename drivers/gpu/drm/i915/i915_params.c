@@ -35,7 +35,7 @@ struct i915_params i915 __read_mostly = {
 	.vbt_sdvo_panel_type = -1,
 	.enable_rc6 = -1,
 	.enable_fbc = -1,
-	.enable_execlists = 0,
+	.enable_execlists = -1,
 	.enable_hangcheck = true,
 	.enable_ppgtt = -1,
 	.enable_psr = 0,
@@ -51,6 +51,8 @@ struct i915_params i915 __read_mostly = {
 	.disable_vtd_wa = 0,
 	.use_mmio_flip = 0,
 	.mmio_debug = 0,
+	.verbose_state_checks = 1,
+	.nuclear_pageflip = 0,
 };
 
 module_param_named(modeset, i915.modeset, int, 0400);
@@ -122,7 +124,7 @@ MODULE_PARM_DESC(enable_ppgtt,
 module_param_named(enable_execlists, i915.enable_execlists, int, 0400);
 MODULE_PARM_DESC(enable_execlists,
 	"Override execlists usage. "
-	"(-1=auto, 0=disabled [default], 1=enabled)");
+	"(-1=auto [default], 0=disabled, 1=enabled)");
 
 module_param_named(enable_psr, i915.enable_psr, int, 0600);
 MODULE_PARM_DESC(enable_psr, "Enable PSR (default: false)");
@@ -173,3 +175,11 @@ module_param_named(mmio_debug, i915.mmio_debug, bool, 0600);
 MODULE_PARM_DESC(mmio_debug,
 	"Enable the MMIO debug code (default: false). This may negatively "
 	"affect performance.");
+
+module_param_named(verbose_state_checks, i915.verbose_state_checks, bool, 0600);
+MODULE_PARM_DESC(verbose_state_checks,
+	"Enable verbose logs (ie. WARN_ON()) in case of unexpected hw state conditions.");
+
+module_param_named_unsafe(nuclear_pageflip, i915.nuclear_pageflip, bool, 0600);
+MODULE_PARM_DESC(nuclear_pageflip,
+		 "Force atomic modeset functionality; only planes work for now (default: false).");

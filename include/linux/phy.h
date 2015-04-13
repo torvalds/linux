@@ -327,6 +327,8 @@ struct phy_c45_device_ids {
  * c45_ids: 802.3-c45 Device Identifers if is_c45.
  * is_c45:  Set to true if this phy uses clause 45 addressing.
  * is_internal: Set to true if this phy is internal to a MAC.
+ * has_fixups: Set to true if this phy has fixups/quirks.
+ * suspended: Set to true if this phy has been suspended successfully.
  * state: state of the PHY for management purposes
  * dev_flags: Device-specific flags used by the PHY driver.
  * addr: Bus address of PHY
@@ -364,6 +366,7 @@ struct phy_device {
 	bool is_c45;
 	bool is_internal;
 	bool has_fixups;
+	bool suspended;
 
 	enum phy_state state;
 
@@ -564,6 +567,15 @@ struct phy_driver {
 	 */
 	void (*write_mmd_indirect)(struct phy_device *dev, int ptrad,
 				   int devnum, int regnum, u32 val);
+
+	/* Get the size and type of the eeprom contained within a plug-in
+	 * module */
+	int (*module_info)(struct phy_device *dev,
+			   struct ethtool_modinfo *modinfo);
+
+	/* Get the eeprom information from the plug-in module */
+	int (*module_eeprom)(struct phy_device *dev,
+			     struct ethtool_eeprom *ee, u8 *data);
 
 	struct device_driver driver;
 };

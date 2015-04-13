@@ -3429,9 +3429,7 @@ il3945_setup_deferred_work(struct il_priv *il)
 
 	il3945_hw_setup_deferred_work(il);
 
-	init_timer(&il->watchdog);
-	il->watchdog.data = (unsigned long)il;
-	il->watchdog.function = il_bg_watchdog;
+	setup_timer(&il->watchdog, il_bg_watchdog, (unsigned long)il);
 
 	tasklet_init(&il->irq_tasklet,
 		     (void (*)(unsigned long))il3945_irq_tasklet,

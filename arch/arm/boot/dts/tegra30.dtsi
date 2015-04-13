@@ -225,7 +225,7 @@
 		};
 	};
 
-	timer@50004600 {
+	timer@50040600 {
 		compatible = "arm,cortex-a9-twd-timer";
 		reg = <0x50040600 0x20>;
 		interrupts = <GIC_PPI 13

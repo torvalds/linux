@@ -199,6 +199,7 @@ int __init cma_init_reserved_mem(phys_addr_t base, phys_addr_t size,
 	cma->order_per_bit = order_per_bit;
 	*res_cma = cma;
 	cma_area_count++;
+	totalcma_pages += (size / PAGE_SIZE);
 
 	return 0;
 }
@@ -337,7 +338,6 @@ int __init cma_declare_contiguous(phys_addr_t base,
 	if (ret)
 		goto err;
 
-	totalcma_pages += (size / PAGE_SIZE);
 	pr_info("Reserved %ld MiB at %pa\n", (unsigned long)size / SZ_1M,
 		&base);
 	return 0;

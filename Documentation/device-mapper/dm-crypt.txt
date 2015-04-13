@@ -51,7 +51,7 @@ Parameters: <cipher> <key> <iv_offset> <device path> \
     Otherwise #opt_params is the number of following arguments.
 
     Example of optional parameters section:
-        1 allow_discards
+        3 allow_discards same_cpu_crypt submit_from_crypt_cpus
 
 allow_discards
     Block discard requests (a.k.a. TRIM) are passed through the crypt device.
@@ -62,6 +62,19 @@ allow_discards
     the leak of information about the ciphertext device (filesystem type,
     used space etc.) if the discarded blocks can be located easily on the
     device later.
+
+same_cpu_crypt
+    Perform encryption using the same cpu that IO was submitted on.
+    The default is to use an unbound workqueue so that encryption work
+    is automatically balanced between available CPUs.
+
+submit_from_crypt_cpus
+    Disable offloading writes to a separate thread after encryption.
+    There are some situations where offloading write bios from the
+    encryption threads to a single thread degrades performance
+    significantly.  The default is to offload write bios to the same
+    thread because it benefits CFQ to have writes submitted using the
+    same context.
 
 Example scripts
 ===============

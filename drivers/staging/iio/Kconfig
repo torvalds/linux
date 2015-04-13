@@ -30,13 +30,13 @@ config IIO_SIMPLE_DUMMY
 if IIO_SIMPLE_DUMMY
 
 config IIO_SIMPLE_DUMMY_EVENTS
-       boolean "Event generation support"
+       bool "Event generation support"
        select IIO_DUMMY_EVGEN
        help
          Add some dummy events to the simple dummy driver.
 
 config IIO_SIMPLE_DUMMY_BUFFER
-	boolean "Buffered capture support"
+	bool "Buffered capture support"
 	select IIO_BUFFER
 	select IIO_KFIFO_BUF
 	help

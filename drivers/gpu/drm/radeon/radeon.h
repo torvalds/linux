@@ -1758,6 +1758,9 @@ struct r600_audio {
 	bool enabled;
 	struct r600_audio_pin pin[RADEON_MAX_AFMT_BLOCKS];
 	int num_pins;
+	struct radeon_audio_funcs *hdmi_funcs;
+	struct radeon_audio_funcs *dp_funcs;
+	struct radeon_audio_basic_funcs *funcs;
 };
 
 /*
@@ -1778,8 +1781,16 @@ void radeon_test_syncing(struct radeon_device *rdev);
 /*
  * MMU Notifier
  */
+#if defined(CONFIG_MMU_NOTIFIER)
 int radeon_mn_register(struct radeon_bo *bo, unsigned long addr);
 void radeon_mn_unregister(struct radeon_bo *bo);
+#else
+static inline int radeon_mn_register(struct radeon_bo *bo, unsigned long addr)
+{
+	return -ENODEV;
+}
+static inline void radeon_mn_unregister(struct radeon_bo *bo) {}
+#endif
 
 /*
  * Debugfs
@@ -1969,6 +1980,10 @@ struct radeon_asic {
 		bool (*vblank_too_short)(struct radeon_device *rdev);
 		void (*powergate_uvd)(struct radeon_device *rdev, bool gate);
 		void (*enable_bapm)(struct radeon_device *rdev, bool enable);
+		void (*fan_ctrl_set_mode)(struct radeon_device *rdev, u32 mode);
+		u32 (*fan_ctrl_get_mode)(struct radeon_device *rdev);
+		int (*set_fan_speed_percent)(struct radeon_device *rdev, u32 speed);
+		int (*get_fan_speed_percent)(struct radeon_device *rdev, u32 *speed);
 	} dpm;
 	/* pageflipping */
 	struct {

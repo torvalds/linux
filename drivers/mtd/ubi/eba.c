@@ -426,6 +426,7 @@ retry:
 						 pnum, vol_id, lnum);
 					err = -EBADMSG;
 				} else
+					err = -EINVAL;
 					ubi_ro_mode(ubi);
 			}
 			goto out_free;
@@ -477,6 +478,61 @@ out_free:
 out_unlock:
 	leb_read_unlock(ubi, vol_id, lnum);
 	return err;
+}
+
+/**
+ * ubi_eba_read_leb_sg - read data into a scatter gather list.
+ * @ubi: UBI device description object
+ * @vol: volume description object
+ * @lnum: logical eraseblock number
+ * @sgl: UBI scatter gather list to store the read data
+ * @offset: offset from where to read
+ * @len: how many bytes to read
+ * @check: data CRC check flag
+ *
+ * This function works exactly like ubi_eba_read_leb(). But instead of
+ * storing the read data into a buffer it writes to an UBI scatter gather
+ * list.
+ */
+int ubi_eba_read_leb_sg(struct ubi_device *ubi, struct ubi_volume *vol,
+			struct ubi_sgl *sgl, int lnum, int offset, int len,
+			int check)
+{
+	int to_read;
+	int ret;
+	struct scatterlist *sg;
+
+	for (;;) {
+		ubi_assert(sgl->list_pos < UBI_MAX_SG_COUNT);
+		sg = &sgl->sg[sgl->list_pos];
+		if (len < sg->length - sgl->page_pos)
+			to_read = len;
+		else
+			to_read = sg->length - sgl->page_pos;
+
+		ret = ubi_eba_read_leb(ubi, vol, lnum,
+				       sg_virt(sg) + sgl->page_pos, offset,
+				       to_read, check);
+		if (ret < 0)
+			return ret;
+
+		offset += to_read;
+		len -= to_read;
+		if (!len) {
+			sgl->page_pos += to_read;
+			if (sgl->page_pos == sg->length) {
+				sgl->list_pos++;
+				sgl->page_pos = 0;
+			}
+
+			break;
+		}
+
+		sgl->list_pos++;
+		sgl->page_pos = 0;
+	}
+
+	return ret;
 }
 
 /**

@@ -24,6 +24,13 @@ $(obj)/vmImage: $(obj)/vmlinux.gz
 	$(call if_changed,uimage)
 	@$(kecho) 'Kernel: $@ is ready'
 
+$(obj)/zImage: $(obj)/compressed/vmlinux FORCE
+	$(call if_changed,objcopy)
+	@$(kecho) 'Kernel: $@ is ready'
+
+$(obj)/compressed/vmlinux: $(obj)/vmlinux.gz FORCE
+	$(Q)$(MAKE) $(build)=$(obj)/compressed $@
+
 # Rule to build device tree blobs
 DTB_SRC := $(patsubst "%",%,$(CONFIG_NIOS2_DTB_SOURCE))
 

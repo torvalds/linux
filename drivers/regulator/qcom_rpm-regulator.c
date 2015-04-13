@@ -205,6 +205,7 @@ static int rpm_reg_write(struct qcom_rpm_reg *vreg,
 	vreg->val[req->word] |= value << req->shift;
 
 	return qcom_rpm_write(vreg->rpm,
+			      QCOM_RPM_ACTIVE_STATE,
 			      vreg->resource,
 			      vreg->val,
 			      vreg->parts->request_len);

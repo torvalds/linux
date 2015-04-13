@@ -9169,7 +9169,7 @@ static void bnx2x_disable_ptp(struct bnx2x *bp)
 }
 
 /* Called during unload, to stop PTP-related stuff */
-void bnx2x_stop_ptp(struct bnx2x *bp)
+static void bnx2x_stop_ptp(struct bnx2x *bp)
 {
 	/* Cancel PTP work queue. Should be done after the Tx queues are
 	 * drained to prevent additional scheduling.
@@ -13267,14 +13267,10 @@ static int bnx2x_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 static int bnx2x_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 {
 	struct bnx2x *bp = container_of(ptp, struct bnx2x, ptp_clock_info);
-	u64 now;
 
 	DP(BNX2X_MSG_PTP, "PTP adjtime called, delta = %llx\n", delta);
 
-	now = timecounter_read(&bp->timecounter);
-	now += delta;
-	/* Re-init the timecounter */
-	timecounter_init(&bp->timecounter, &bp->cyclecounter, now);
+	timecounter_adjtime(&bp->timecounter, delta);
 
 	return 0;
 }
@@ -13322,7 +13318,7 @@ static int bnx2x_ptp_enable(struct ptp_clock_info *ptp,
 	return -ENOTSUPP;
 }
 
-void bnx2x_register_phc(struct bnx2x *bp)
+static void bnx2x_register_phc(struct bnx2x *bp)
 {
 	/* Fill the ptp_clock_info struct and register PTP clock*/
 	bp->ptp_clock_info.owner = THIS_MODULE;
@@ -14614,7 +14610,7 @@ static void bnx2x_init_cyclecounter(struct bnx2x *bp)
 {
 	memset(&bp->cyclecounter, 0, sizeof(bp->cyclecounter));
 	bp->cyclecounter.read = bnx2x_cyclecounter_read;
-	bp->cyclecounter.mask = CLOCKSOURCE_MASK(64);
+	bp->cyclecounter.mask = CYCLECOUNTER_MASK(64);
 	bp->cyclecounter.shift = 1;
 	bp->cyclecounter.mult = 1;
 }
@@ -14639,7 +14635,7 @@ static int bnx2x_send_reset_timesync_ramrod(struct bnx2x *bp)
 	return bnx2x_func_state_change(bp, &func_params);
 }
 
-int bnx2x_enable_ptp_packets(struct bnx2x *bp)
+static int bnx2x_enable_ptp_packets(struct bnx2x *bp)
 {
 	struct bnx2x_queue_state_params q_params;
 	int rc, i;

@@ -37,16 +37,19 @@ MODULE_LICENSE("GPL v2");
 static struct usb_device_id peak_usb_table[] = {
 	{USB_DEVICE(PCAN_USB_VENDOR_ID, PCAN_USB_PRODUCT_ID)},
 	{USB_DEVICE(PCAN_USB_VENDOR_ID, PCAN_USBPRO_PRODUCT_ID)},
+	{USB_DEVICE(PCAN_USB_VENDOR_ID, PCAN_USBFD_PRODUCT_ID)},
+	{USB_DEVICE(PCAN_USB_VENDOR_ID, PCAN_USBPROFD_PRODUCT_ID)},
 	{} /* Terminating entry */
 };
 
 MODULE_DEVICE_TABLE(usb, peak_usb_table);
 
 /* List of supported PCAN-USB adapters (NULL terminated list) */
-static struct peak_usb_adapter *peak_usb_adapters_list[] = {
+static const struct peak_usb_adapter *const peak_usb_adapters_list[] = {
 	&pcan_usb,
 	&pcan_usb_pro,
-	NULL,
+	&pcan_usb_fd,
+	&pcan_usb_pro_fd,
 };
 
 /*
@@ -65,7 +68,7 @@ void pcan_dump_mem(char *prompt, void *p, int l)
  * initialize a time_ref object with usb adapter own settings
  */
 void peak_usb_init_time_ref(struct peak_time_ref *time_ref,
-			    struct peak_usb_adapter *adapter)
+			    const struct peak_usb_adapter *adapter)
 {
 	if (time_ref) {
 		memset(time_ref, 0, sizeof(struct peak_time_ref));
@@ -165,6 +168,21 @@ void peak_usb_get_ts_tv(struct peak_time_ref *time_ref, u32 ts,
 }
 
 /*
+ * post received skb after having set any hw timestamp
+ */
+int peak_usb_netif_rx(struct sk_buff *skb,
+		      struct peak_time_ref *time_ref, u32 ts_low, u32 ts_high)
+{
+	struct skb_shared_hwtstamps *hwts = skb_hwtstamps(skb);
+	struct timeval tv;
+
+	peak_usb_get_ts_tv(time_ref, ts_low, &tv);
+	hwts->hwtstamp = timeval_to_ktime(tv);
+
+	return netif_rx(skb);
+}
+
+/*
  * callback for bulk Rx urb
  */
 static void peak_usb_read_bulk_callback(struct urb *urb)
@@ -253,7 +271,7 @@ static void peak_usb_write_bulk_callback(struct urb *urb)
 	case 0:
 		/* transmission complete */
 		netdev->stats.tx_packets++;
-		netdev->stats.tx_bytes += context->dlc;
+		netdev->stats.tx_bytes += context->data_len;
 
 		/* prevent tx timeout */
 		netdev->trans_start = jiffies;
@@ -289,7 +307,7 @@ static netdev_tx_t peak_usb_ndo_start_xmit(struct sk_buff *skb,
 	struct peak_usb_device *dev = netdev_priv(netdev);
 	struct peak_tx_urb_context *context = NULL;
 	struct net_device_stats *stats = &netdev->stats;
-	struct can_frame *cf = (struct can_frame *)skb->data;
+	struct canfd_frame *cfd = (struct canfd_frame *)skb->data;
 	struct urb *urb;
 	u8 *obuf;
 	int i, err;
@@ -322,7 +340,9 @@ static netdev_tx_t peak_usb_ndo_start_xmit(struct sk_buff *skb,
 	}
 
 	context->echo_index = i;
-	context->dlc = cf->can_dlc;
+
+	/* Note: this works with CANFD frames too */
+	context->data_len = cfd->len;
 
 	usb_anchor_urb(urb, &dev->tx_submitted);
 
@@ -679,19 +699,43 @@ static int peak_usb_set_mode(struct net_device *netdev, enum can_mode mode)
 }
 
 /*
- * candev callback used to set device bitrate.
+ * candev callback used to set device nominal/arbitration bitrate.
  */
 static int peak_usb_set_bittiming(struct net_device *netdev)
 {
 	struct peak_usb_device *dev = netdev_priv(netdev);
-	struct can_bittiming *bt = &dev->can.bittiming;
+	const struct peak_usb_adapter *pa = dev->adapter;
 
-	if (dev->adapter->dev_set_bittiming) {
-		int err = dev->adapter->dev_set_bittiming(dev, bt);
+	if (pa->dev_set_bittiming) {
+		struct can_bittiming *bt = &dev->can.bittiming;
+		int err = pa->dev_set_bittiming(dev, bt);
 
 		if (err)
 			netdev_info(netdev, "couldn't set bitrate (err %d)\n",
-				err);
+				    err);
+		return err;
+	}
+
+	return 0;
+}
+
+/*
+ * candev callback used to set device data bitrate.
+ */
+static int peak_usb_set_data_bittiming(struct net_device *netdev)
+{
+	struct peak_usb_device *dev = netdev_priv(netdev);
+	const struct peak_usb_adapter *pa = dev->adapter;
+
+	if (pa->dev_set_data_bittiming) {
+		struct can_bittiming *bt = &dev->can.data_bittiming;
+		int err = pa->dev_set_data_bittiming(dev, bt);
+
+		if (err)
+			netdev_info(netdev,
+				    "couldn't set data bitrate (err %d)\n",
+				    err);
+
 		return err;
 	}
 
@@ -709,7 +753,7 @@ static const struct net_device_ops peak_usb_netdev_ops = {
  * create one device which is attached to CAN controller #ctrl_idx of the
  * usb adapter.
  */
-static int peak_usb_create_dev(struct peak_usb_adapter *peak_usb_adapter,
+static int peak_usb_create_dev(const struct peak_usb_adapter *peak_usb_adapter,
 			       struct usb_interface *intf, int ctrl_idx)
 {
 	struct usb_device *usb_dev = interface_to_usbdev(intf);
@@ -750,9 +794,11 @@ static int peak_usb_create_dev(struct peak_usb_adapter *peak_usb_adapter,
 	dev->can.clock = peak_usb_adapter->clock;
 	dev->can.bittiming_const = &peak_usb_adapter->bittiming_const;
 	dev->can.do_set_bittiming = peak_usb_set_bittiming;
+	dev->can.data_bittiming_const = &peak_usb_adapter->data_bittiming_const;
+	dev->can.do_set_data_bittiming = peak_usb_set_data_bittiming;
 	dev->can.do_set_mode = peak_usb_set_mode;
-	dev->can.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES |
-				      CAN_CTRLMODE_LISTENONLY;
+	dev->can.do_get_berr_counter = peak_usb_adapter->do_get_berr_counter;
+	dev->can.ctrlmode_supported = peak_usb_adapter->ctrlmode_supported;
 
 	netdev->netdev_ops = &peak_usb_netdev_ops;
 
@@ -857,17 +903,18 @@ static int peak_usb_probe(struct usb_interface *intf,
 {
 	struct usb_device *usb_dev = interface_to_usbdev(intf);
 	const u16 usb_id_product = le16_to_cpu(usb_dev->descriptor.idProduct);
-	struct peak_usb_adapter *peak_usb_adapter, **pp;
+	const struct peak_usb_adapter *peak_usb_adapter = NULL;
 	int i, err = -ENOMEM;
 
 	usb_dev = interface_to_usbdev(intf);
 
 	/* get corresponding PCAN-USB adapter */
-	for (pp = peak_usb_adapters_list; *pp; pp++)
-		if ((*pp)->device_id == usb_id_product)
+	for (i = 0; i < ARRAY_SIZE(peak_usb_adapters_list); i++)
+		if (peak_usb_adapters_list[i]->device_id == usb_id_product) {
+			peak_usb_adapter = peak_usb_adapters_list[i];
 			break;
+		}
 
-	peak_usb_adapter = *pp;
 	if (!peak_usb_adapter) {
 		/* should never come except device_id bad usage in this file */
 		pr_err("%s: didn't find device id. 0x%x in devices list\n",

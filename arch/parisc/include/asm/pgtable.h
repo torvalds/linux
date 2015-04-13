@@ -134,7 +134,7 @@ extern void purge_tlb_entries(struct mm_struct *, unsigned long);
  * pgd entries used up by user/kernel:
  */
 
-#define FIRST_USER_ADDRESS	0
+#define FIRST_USER_ADDRESS	0UL
 
 /* NB: The tlb miss handlers make certain assumptions about the order */
 /*     of the following bits, so be careful (One example, bits 25-31  */

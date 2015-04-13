@@ -761,11 +761,81 @@ int mwifiex_uap_prepare_cmd(struct mwifiex_private *priv, u16 cmd_no,
 		if (mwifiex_cmd_uap_sta_deauth(priv, cmd, data_buf))
 			return -1;
 		break;
+	case HostCmd_CMD_CHAN_REPORT_REQUEST:
+		if (mwifiex_cmd_issue_chan_report_request(priv, cmd_buf,
+							  data_buf))
+			return -1;
+		break;
 	default:
 		dev_err(priv->adapter->dev,
 			"PREP_CMD: unknown cmd %#x\n", cmd_no);
 		return -1;
 	}
+
+	return 0;
+}
+
+void mwifiex_uap_set_channel(struct mwifiex_uap_bss_param *bss_cfg,
+			     struct cfg80211_chan_def chandef)
+{
+	u8 config_bands = 0;
+
+	bss_cfg->channel = ieee80211_frequency_to_channel(
+						     chandef.chan->center_freq);
+
+	/* Set appropriate bands */
+	if (chandef.chan->band == IEEE80211_BAND_2GHZ) {
+		bss_cfg->band_cfg = BAND_CONFIG_BG;
+		config_bands = BAND_B | BAND_G;
+
+		if (chandef.width > NL80211_CHAN_WIDTH_20_NOHT)
+			config_bands |= BAND_GN;
+	} else {
+		bss_cfg->band_cfg = BAND_CONFIG_A;
+		config_bands = BAND_A;
+
+		if (chandef.width > NL80211_CHAN_WIDTH_20_NOHT)
+			config_bands |= BAND_AN;
+
+		if (chandef.width > NL80211_CHAN_WIDTH_40)
+			config_bands |= BAND_AAC;
+	}
+}
+
+int mwifiex_config_start_uap(struct mwifiex_private *priv,
+			     struct mwifiex_uap_bss_param *bss_cfg)
+{
+	if (mwifiex_del_mgmt_ies(priv))
+		dev_err(priv->adapter->dev, "Failed to delete mgmt IEs!\n");
+
+	if (mwifiex_send_cmd(priv, HostCmd_CMD_UAP_BSS_STOP,
+			     HostCmd_ACT_GEN_SET, 0, NULL, true)) {
+		dev_err(priv->adapter->dev, "Failed to stop the BSS\n");
+		return -1;
+	}
+
+	if (mwifiex_send_cmd(priv, HostCmd_CMD_UAP_SYS_CONFIG,
+			     HostCmd_ACT_GEN_SET,
+			     UAP_BSS_PARAMS_I, bss_cfg, false)) {
+		dev_err(priv->adapter->dev, "Failed to set the SSID\n");
+		return -1;
+	}
+
+	if (mwifiex_send_cmd(priv, HostCmd_CMD_UAP_BSS_START,
+			     HostCmd_ACT_GEN_SET, 0, NULL, false)) {
+		dev_err(priv->adapter->dev, "Failed to start the BSS\n");
+		return -1;
+	}
+
+	if (priv->sec_info.wep_enabled)
+		priv->curr_pkt_filter |= HostCmd_ACT_MAC_WEP_ENABLE;
+	else
+		priv->curr_pkt_filter &= ~HostCmd_ACT_MAC_WEP_ENABLE;
+
+	if (mwifiex_send_cmd(priv, HostCmd_CMD_MAC_CONTROL,
+			     HostCmd_ACT_GEN_SET, 0,
+			     &priv->curr_pkt_filter, true))
+		return -1;
 
 	return 0;
 }

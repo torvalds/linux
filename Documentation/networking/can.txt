@@ -234,7 +234,7 @@ solution for a couple of reasons:
   mechanisms. Inside this filter definition the (interested) type of
   errors may be selected. The reception of error messages is disabled
   by default. The format of the CAN error message frame is briefly
-  described in the Linux header file "include/linux/can/error.h".
+  described in the Linux header file "include/uapi/linux/can/error.h".
 
 4. How to use SocketCAN
 ------------------------

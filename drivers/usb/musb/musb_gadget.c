@@ -1612,9 +1612,7 @@ done:
 static int
 musb_gadget_set_self_powered(struct usb_gadget *gadget, int is_selfpowered)
 {
-	struct musb	*musb = gadget_to_musb(gadget);
-
-	musb->is_self_powered = !!is_selfpowered;
+	gadget->is_selfpowered = !!is_selfpowered;
 	return 0;
 }
 

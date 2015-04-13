@@ -100,7 +100,7 @@ dw_dma_parse_dt(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct dw_dma_platform_data *pdata;
-	u32 tmp, arr[4];
+	u32 tmp, arr[DW_DMA_MAX_NR_MASTERS];
 
 	if (!np) {
 		dev_err(&pdev->dev, "Missing DT data\n");
@@ -127,7 +127,7 @@ dw_dma_parse_dt(struct platform_device *pdev)
 		pdata->block_size = tmp;
 
 	if (!of_property_read_u32(np, "dma-masters", &tmp)) {
-		if (tmp > 4)
+		if (tmp > DW_DMA_MAX_NR_MASTERS)
 			return NULL;
 
 		pdata->nr_masters = tmp;

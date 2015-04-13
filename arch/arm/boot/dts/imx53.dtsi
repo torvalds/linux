@@ -756,7 +756,7 @@
 			};
 
 			vpu: vpu@63ff4000 {
-				compatible = "fsl,imx53-vpu";
+				compatible = "fsl,imx53-vpu", "cnm,coda7541";
 				reg = <0x63ff4000 0x1000>;
 				interrupts = <9>;
 				clocks = <&clks IMX5_CLK_VPU_REFERENCE_GATE>,
@@ -764,6 +764,15 @@
 				clock-names = "per", "ahb";
 				resets = <&src 1>;
 				iram = <&ocram>;
+			};
+
+			sahara: crypto@63ff8000 {
+				compatible = "fsl,imx53-sahara";
+				reg = <0x63ff8000 0x4000>;
+				interrupts = <19 20>;
+				clocks = <&clks IMX5_CLK_SAHARA_IPG_GATE>,
+				         <&clks IMX5_CLK_SAHARA_IPG_GATE>;
+				clock-names = "ipg", "ahb";
 			};
 		};
 

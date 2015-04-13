@@ -1067,11 +1067,10 @@ static int tcp_sendmsg_fastopen(struct sock *sk, struct msghdr *msg,
 int tcp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		size_t size)
 {
-	const struct iovec *iov;
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
-	int iovlen, flags, err, copied = 0;
-	int mss_now = 0, size_goal, copied_syn = 0, offset = 0;
+	int flags, err, copied = 0;
+	int mss_now = 0, size_goal, copied_syn = 0;
 	bool sg;
 	long timeo;
 
@@ -1084,7 +1083,6 @@ int tcp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 			goto out;
 		else if (err)
 			goto out_err;
-		offset = copied_syn;
 	}
 
 	timeo = sock_sndtimeo(sk, flags & MSG_DONTWAIT);
@@ -1118,8 +1116,6 @@ int tcp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	mss_now = tcp_send_mss(sk, &size_goal, flags);
 
 	/* Ok commence sending. */
-	iovlen = msg->msg_iter.nr_segs;
-	iov = msg->msg_iter.iov;
 	copied = 0;
 
 	err = -EPIPE;
@@ -1128,151 +1124,134 @@ int tcp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 
 	sg = !!(sk->sk_route_caps & NETIF_F_SG);
 
-	while (--iovlen >= 0) {
-		size_t seglen = iov->iov_len;
-		unsigned char __user *from = iov->iov_base;
+	while (iov_iter_count(&msg->msg_iter)) {
+		int copy = 0;
+		int max = size_goal;
 
-		iov++;
-		if (unlikely(offset > 0)) {  /* Skip bytes copied in SYN */
-			if (offset >= seglen) {
-				offset -= seglen;
-				continue;
-			}
-			seglen -= offset;
-			from += offset;
-			offset = 0;
+		skb = tcp_write_queue_tail(sk);
+		if (tcp_send_head(sk)) {
+			if (skb->ip_summed == CHECKSUM_NONE)
+				max = mss_now;
+			copy = max - skb->len;
 		}
 
-		while (seglen > 0) {
-			int copy = 0;
-			int max = size_goal;
-
-			skb = tcp_write_queue_tail(sk);
-			if (tcp_send_head(sk)) {
-				if (skb->ip_summed == CHECKSUM_NONE)
-					max = mss_now;
-				copy = max - skb->len;
-			}
-
-			if (copy <= 0) {
+		if (copy <= 0) {
 new_segment:
-				/* Allocate new segment. If the interface is SG,
-				 * allocate skb fitting to single page.
-				 */
-				if (!sk_stream_memory_free(sk))
-					goto wait_for_sndbuf;
+			/* Allocate new segment. If the interface is SG,
+			 * allocate skb fitting to single page.
+			 */
+			if (!sk_stream_memory_free(sk))
+				goto wait_for_sndbuf;
 
-				skb = sk_stream_alloc_skb(sk,
-							  select_size(sk, sg),
-							  sk->sk_allocation);
-				if (!skb)
-					goto wait_for_memory;
+			skb = sk_stream_alloc_skb(sk,
+						  select_size(sk, sg),
+						  sk->sk_allocation);
+			if (!skb)
+				goto wait_for_memory;
 
-				/*
-				 * Check whether we can use HW checksum.
-				 */
-				if (sk->sk_route_caps & NETIF_F_ALL_CSUM)
-					skb->ip_summed = CHECKSUM_PARTIAL;
+			/*
+			 * Check whether we can use HW checksum.
+			 */
+			if (sk->sk_route_caps & NETIF_F_ALL_CSUM)
+				skb->ip_summed = CHECKSUM_PARTIAL;
 
-				skb_entail(sk, skb);
-				copy = size_goal;
-				max = size_goal;
+			skb_entail(sk, skb);
+			copy = size_goal;
+			max = size_goal;
 
-				/* All packets are restored as if they have
-				 * already been sent. skb_mstamp isn't set to
-				 * avoid wrong rtt estimation.
-				 */
-				if (tp->repair)
-					TCP_SKB_CB(skb)->sacked |= TCPCB_REPAIRED;
-			}
+			/* All packets are restored as if they have
+			 * already been sent. skb_mstamp isn't set to
+			 * avoid wrong rtt estimation.
+			 */
+			if (tp->repair)
+				TCP_SKB_CB(skb)->sacked |= TCPCB_REPAIRED;
+		}
 
-			/* Try to append data to the end of skb. */
-			if (copy > seglen)
-				copy = seglen;
+		/* Try to append data to the end of skb. */
+		if (copy > iov_iter_count(&msg->msg_iter))
+			copy = iov_iter_count(&msg->msg_iter);
 
-			/* Where to copy to? */
-			if (skb_availroom(skb) > 0) {
-				/* We have some space in skb head. Superb! */
-				copy = min_t(int, copy, skb_availroom(skb));
-				err = skb_add_data_nocache(sk, skb, from, copy);
-				if (err)
-					goto do_fault;
-			} else {
-				bool merge = true;
-				int i = skb_shinfo(skb)->nr_frags;
-				struct page_frag *pfrag = sk_page_frag(sk);
+		/* Where to copy to? */
+		if (skb_availroom(skb) > 0) {
+			/* We have some space in skb head. Superb! */
+			copy = min_t(int, copy, skb_availroom(skb));
+			err = skb_add_data_nocache(sk, skb, &msg->msg_iter, copy);
+			if (err)
+				goto do_fault;
+		} else {
+			bool merge = true;
+			int i = skb_shinfo(skb)->nr_frags;
+			struct page_frag *pfrag = sk_page_frag(sk);
 
-				if (!sk_page_frag_refill(sk, pfrag))
-					goto wait_for_memory;
+			if (!sk_page_frag_refill(sk, pfrag))
+				goto wait_for_memory;
 
-				if (!skb_can_coalesce(skb, i, pfrag->page,
-						      pfrag->offset)) {
-					if (i == MAX_SKB_FRAGS || !sg) {
-						tcp_mark_push(tp, skb);
-						goto new_segment;
-					}
-					merge = false;
+			if (!skb_can_coalesce(skb, i, pfrag->page,
+					      pfrag->offset)) {
+				if (i == MAX_SKB_FRAGS || !sg) {
+					tcp_mark_push(tp, skb);
+					goto new_segment;
 				}
-
-				copy = min_t(int, copy, pfrag->size - pfrag->offset);
-
-				if (!sk_wmem_schedule(sk, copy))
-					goto wait_for_memory;
-
-				err = skb_copy_to_page_nocache(sk, from, skb,
-							       pfrag->page,
-							       pfrag->offset,
-							       copy);
-				if (err)
-					goto do_error;
-
-				/* Update the skb. */
-				if (merge) {
-					skb_frag_size_add(&skb_shinfo(skb)->frags[i - 1], copy);
-				} else {
-					skb_fill_page_desc(skb, i, pfrag->page,
-							   pfrag->offset, copy);
-					get_page(pfrag->page);
-				}
-				pfrag->offset += copy;
+				merge = false;
 			}
 
-			if (!copied)
-				TCP_SKB_CB(skb)->tcp_flags &= ~TCPHDR_PSH;
+			copy = min_t(int, copy, pfrag->size - pfrag->offset);
 
-			tp->write_seq += copy;
-			TCP_SKB_CB(skb)->end_seq += copy;
-			tcp_skb_pcount_set(skb, 0);
+			if (!sk_wmem_schedule(sk, copy))
+				goto wait_for_memory;
 
-			from += copy;
-			copied += copy;
-			if ((seglen -= copy) == 0 && iovlen == 0) {
-				tcp_tx_timestamp(sk, skb);
-				goto out;
-			}
-
-			if (skb->len < max || (flags & MSG_OOB) || unlikely(tp->repair))
-				continue;
-
-			if (forced_push(tp)) {
-				tcp_mark_push(tp, skb);
-				__tcp_push_pending_frames(sk, mss_now, TCP_NAGLE_PUSH);
-			} else if (skb == tcp_send_head(sk))
-				tcp_push_one(sk, mss_now);
-			continue;
-
-wait_for_sndbuf:
-			set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
-wait_for_memory:
-			if (copied)
-				tcp_push(sk, flags & ~MSG_MORE, mss_now,
-					 TCP_NAGLE_PUSH, size_goal);
-
-			if ((err = sk_stream_wait_memory(sk, &timeo)) != 0)
+			err = skb_copy_to_page_nocache(sk, &msg->msg_iter, skb,
+						       pfrag->page,
+						       pfrag->offset,
+						       copy);
+			if (err)
 				goto do_error;
 
-			mss_now = tcp_send_mss(sk, &size_goal, flags);
+			/* Update the skb. */
+			if (merge) {
+				skb_frag_size_add(&skb_shinfo(skb)->frags[i - 1], copy);
+			} else {
+				skb_fill_page_desc(skb, i, pfrag->page,
+						   pfrag->offset, copy);
+				get_page(pfrag->page);
+			}
+			pfrag->offset += copy;
 		}
+
+		if (!copied)
+			TCP_SKB_CB(skb)->tcp_flags &= ~TCPHDR_PSH;
+
+		tp->write_seq += copy;
+		TCP_SKB_CB(skb)->end_seq += copy;
+		tcp_skb_pcount_set(skb, 0);
+
+		copied += copy;
+		if (!iov_iter_count(&msg->msg_iter)) {
+			tcp_tx_timestamp(sk, skb);
+			goto out;
+		}
+
+		if (skb->len < max || (flags & MSG_OOB) || unlikely(tp->repair))
+			continue;
+
+		if (forced_push(tp)) {
+			tcp_mark_push(tp, skb);
+			__tcp_push_pending_frames(sk, mss_now, TCP_NAGLE_PUSH);
+		} else if (skb == tcp_send_head(sk))
+			tcp_push_one(sk, mss_now);
+		continue;
+
+wait_for_sndbuf:
+		set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
+wait_for_memory:
+		if (copied)
+			tcp_push(sk, flags & ~MSG_MORE, mss_now,
+				 TCP_NAGLE_PUSH, size_goal);
+
+		if ((err = sk_stream_wait_memory(sk, &timeo)) != 0)
+			goto do_error;
+
+		mss_now = tcp_send_mss(sk, &size_goal, flags);
 	}
 
 out:

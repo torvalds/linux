@@ -51,20 +51,8 @@ obj-$(CONFIG_DYNAMIC_FTRACE)	+= ftrace.o insn.o
 obj-$(CONFIG_FUNCTION_GRAPH_TRACER)	+= ftrace.o insn.o
 obj-$(CONFIG_JUMP_LABEL)	+= jump_label.o insn.o patch.o
 obj-$(CONFIG_KEXEC)		+= machine_kexec.o relocate_kernel.o
-obj-$(CONFIG_UPROBES)		+= probes.o probes-arm.o uprobes.o uprobes-arm.o
-obj-$(CONFIG_KPROBES)		+= probes.o kprobes.o kprobes-common.o patch.o
-ifdef CONFIG_THUMB2_KERNEL
-obj-$(CONFIG_KPROBES)		+= kprobes-thumb.o probes-thumb.o
-else
-obj-$(CONFIG_KPROBES)		+= kprobes-arm.o probes-arm.o
-endif
-obj-$(CONFIG_ARM_KPROBES_TEST)	+= test-kprobes.o
-test-kprobes-objs		:= kprobes-test.o
-ifdef CONFIG_THUMB2_KERNEL
-test-kprobes-objs		+= kprobes-test-thumb.o
-else
-test-kprobes-objs		+= kprobes-test-arm.o
-endif
+# Main staffs in KPROBES are in arch/arm/probes/ .
+obj-$(CONFIG_KPROBES)		+= patch.o insn.o
 obj-$(CONFIG_OABI_COMPAT)	+= sys_oabi-compat.o
 obj-$(CONFIG_ARM_THUMBEE)	+= thumbee.o
 obj-$(CONFIG_KGDB)		+= kgdb.o patch.o

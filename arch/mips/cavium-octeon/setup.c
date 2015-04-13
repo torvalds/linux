@@ -41,6 +41,7 @@
 #include <asm/octeon/octeon.h>
 #include <asm/octeon/pci-octeon.h>
 #include <asm/octeon/cvmx-mio-defs.h>
+#include <asm/octeon/cvmx-rst-defs.h>
 
 extern struct plat_smp_ops octeon_smp_ops;
 
@@ -579,12 +580,10 @@ void octeon_user_io_init(void)
 	/* R/W If set, CVMSEG is available for loads/stores in user
 	 * mode. */
 	cvmmemctl.s.cvmsegenau = 0;
-	/* R/W Size of local memory in cache blocks, 54 (6912 bytes)
-	 * is max legal value. */
-	cvmmemctl.s.lmemsz = CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE;
 
 	write_c0_cvmmemctl(cvmmemctl.u64);
 
+	/* Setup of CVMSEG is done in kernel-entry-init.h */
 	if (smp_processor_id() == 0)
 		pr_notice("CVMSEG size: %d cache lines (%d bytes)\n",
 			  CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE,
@@ -615,6 +614,7 @@ void __init prom_init(void)
 	const char *arg;
 	char *p;
 	int i;
+	u64 t;
 	int argc;
 #ifdef CONFIG_CAVIUM_RESERVE32
 	int64_t addr = -1;
@@ -654,13 +654,54 @@ void __init prom_init(void)
 	sysinfo->dfa_ref_clock_hz = octeon_bootinfo->dfa_ref_clock_hz;
 	sysinfo->bootloader_config_flags = octeon_bootinfo->config_flags;
 
-	if (OCTEON_IS_MODEL(OCTEON_CN6XXX)) {
+	if (OCTEON_IS_OCTEON2()) {
 		/* I/O clock runs at a different rate than the CPU. */
 		union cvmx_mio_rst_boot rst_boot;
 		rst_boot.u64 = cvmx_read_csr(CVMX_MIO_RST_BOOT);
 		octeon_io_clock_rate = 50000000 * rst_boot.s.pnr_mul;
+	} else if (OCTEON_IS_OCTEON3()) {
+		/* I/O clock runs at a different rate than the CPU. */
+		union cvmx_rst_boot rst_boot;
+		rst_boot.u64 = cvmx_read_csr(CVMX_RST_BOOT);
+		octeon_io_clock_rate = 50000000 * rst_boot.s.pnr_mul;
 	} else {
 		octeon_io_clock_rate = sysinfo->cpu_clock_hz;
+	}
+
+	t = read_c0_cvmctl();
+	if ((t & (1ull << 27)) == 0) {
+		/*
+		 * Setup the multiplier save/restore code if
+		 * CvmCtl[NOMUL] clear.
+		 */
+		void *save;
+		void *save_end;
+		void *restore;
+		void *restore_end;
+		int save_len;
+		int restore_len;
+		int save_max = (char *)octeon_mult_save_end -
+			(char *)octeon_mult_save;
+		int restore_max = (char *)octeon_mult_restore_end -
+			(char *)octeon_mult_restore;
+		if (current_cpu_data.cputype == CPU_CAVIUM_OCTEON3) {
+			save = octeon_mult_save3;
+			save_end = octeon_mult_save3_end;
+			restore = octeon_mult_restore3;
+			restore_end = octeon_mult_restore3_end;
+		} else {
+			save = octeon_mult_save2;
+			save_end = octeon_mult_save2_end;
+			restore = octeon_mult_restore2;
+			restore_end = octeon_mult_restore2_end;
+		}
+		save_len = (char *)save_end - (char *)save;
+		restore_len = (char *)restore_end - (char *)restore;
+		if (!WARN_ON(save_len > save_max ||
+				restore_len > restore_max)) {
+			memcpy(octeon_mult_save, save, save_len);
+			memcpy(octeon_mult_restore, restore, restore_len);
+		}
 	}
 
 	/*
@@ -1004,7 +1045,7 @@ EXPORT_SYMBOL(prom_putchar);
 
 void prom_free_prom_memory(void)
 {
-	if (OCTEON_IS_MODEL(OCTEON_CN63XX_PASS1_X)) {
+	if (CAVIUM_OCTEON_DCACHE_PREFETCH_WAR) {
 		/* Check for presence of Core-14449 fix.  */
 		u32 insn;
 		u32 *foo;
@@ -1026,8 +1067,9 @@ void prom_free_prom_memory(void)
 			panic("No PREF instruction at Core-14449 probe point.");
 
 		if (((insn >> 16) & 0x1f) != 28)
-			panic("Core-14449 WAR not in place (%04x).\n"
-			      "Please build kernel with proper options (CONFIG_CAVIUM_CN63XXP1).", insn);
+			panic("OCTEON II DCache prefetch workaround not in place (%04x).\n"
+			      "Please build kernel with proper options (CONFIG_CAVIUM_CN63XXP1).",
+			      insn);
 	}
 }
 

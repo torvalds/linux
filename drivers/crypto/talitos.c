@@ -743,7 +743,7 @@ static int talitos_map_sg(struct device *dev, struct scatterlist *sg,
 	if (unlikely(chained))
 		while (sg) {
 			dma_map_sg(dev, sg, 1, dir);
-			sg = scatterwalk_sg_next(sg);
+			sg = sg_next(sg);
 		}
 	else
 		dma_map_sg(dev, sg, nents, dir);
@@ -755,7 +755,7 @@ static void talitos_unmap_sg_chain(struct device *dev, struct scatterlist *sg,
 {
 	while (sg) {
 		dma_unmap_sg(dev, sg, 1, dir);
-		sg = scatterwalk_sg_next(sg);
+		sg = sg_next(sg);
 	}
 }
 
@@ -915,7 +915,7 @@ static int sg_to_link_tbl(struct scatterlist *sg, int sg_count,
 		link_tbl_ptr->j_extent = 0;
 		link_tbl_ptr++;
 		cryptlen -= sg_dma_len(sg);
-		sg = scatterwalk_sg_next(sg);
+		sg = sg_next(sg);
 	}
 
 	/* adjust (decrease) last one (or two) entry's len to cryptlen */
@@ -1102,7 +1102,7 @@ static int sg_count(struct scatterlist *sg_list, int nbytes, bool *chained)
 		nbytes -= sg->length;
 		if (!sg_is_last(sg) && (sg + 1)->length == 0)
 			*chained = true;
-		sg = scatterwalk_sg_next(sg);
+		sg = sg_next(sg);
 	}
 
 	return sg_nents;

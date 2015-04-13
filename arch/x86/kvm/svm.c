@@ -1583,7 +1583,7 @@ static void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 
 static int svm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 {
-	unsigned long host_cr4_mce = read_cr4() & X86_CR4_MCE;
+	unsigned long host_cr4_mce = cr4_read_shadow() & X86_CR4_MCE;
 	unsigned long old_cr4 = to_svm(vcpu)->vmcb->save.cr4;
 
 	if (cr4 & X86_CR4_VMXE)
@@ -2003,8 +2003,8 @@ static void nested_svm_inject_npf_exit(struct kvm_vcpu *vcpu,
 
 static void nested_svm_init_mmu_context(struct kvm_vcpu *vcpu)
 {
-	kvm_init_shadow_mmu(vcpu, &vcpu->arch.mmu);
-
+	WARN_ON(mmu_is_nested(vcpu));
+	kvm_init_shadow_mmu(vcpu);
 	vcpu->arch.mmu.set_cr3           = nested_svm_set_tdp_cr3;
 	vcpu->arch.mmu.get_cr3           = nested_svm_get_tdp_cr3;
 	vcpu->arch.mmu.get_pdptr         = nested_svm_get_tdp_pdptr;

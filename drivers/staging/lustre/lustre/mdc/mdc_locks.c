@@ -828,6 +828,7 @@ resend:
 			 einfo->ei_type);
 		policy = (ldlm_policy_data_t *)lmm;
 		res_id.name[3] = LDLM_FLOCK;
+		req = NULL;
 	} else if (it->it_op & IT_OPEN) {
 		req = mdc_intent_open_pack(exp, it, op_data, lmm, lmmsize,
 					   einfo->ei_cbdata);

@@ -35,6 +35,8 @@
 #include "prm44xx.h"
 #include "common.h"
 #include "clock.h"
+#include "cm.h"
+#include "control.h"
 
 /*
  * OMAP_PRCM_MAX_NR_PENDING_REG: maximum number of PRM_IRQ*_MPU regs
@@ -581,6 +583,10 @@ static const struct of_device_id omap_prcm_dt_match_table[] = {
 	{ .compatible = "ti,am3-scrm" },
 	{ .compatible = "ti,am4-prcm" },
 	{ .compatible = "ti,am4-scrm" },
+	{ .compatible = "ti,dm814-prcm" },
+	{ .compatible = "ti,dm814-scrm" },
+	{ .compatible = "ti,dm816-prcm" },
+	{ .compatible = "ti,dm816-scrm" },
 	{ .compatible = "ti,omap2-prcm" },
 	{ .compatible = "ti,omap2-scrm" },
 	{ .compatible = "ti,omap3-prm" },
@@ -635,6 +641,15 @@ int __init of_prcm_init(void)
 	}
 
 	return 0;
+}
+
+void __init omap3_prcm_legacy_iomaps_init(void)
+{
+	ti_clk_ll_ops = &omap_clk_ll_ops;
+
+	clk_memmaps[TI_CLKM_CM] = cm_base + OMAP3430_IVA2_MOD;
+	clk_memmaps[TI_CLKM_PRM] = prm_base + OMAP3430_IVA2_MOD;
+	clk_memmaps[TI_CLKM_SCRM] = omap_ctrl_base_get();
 }
 
 static int __init prm_late_init(void)

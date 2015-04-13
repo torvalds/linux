@@ -104,6 +104,13 @@
 int eeh_subsystem_flags;
 EXPORT_SYMBOL(eeh_subsystem_flags);
 
+/*
+ * EEH allowed maximal frozen times. If one particular PE's
+ * frozen count in last hour exceeds this limit, the PE will
+ * be forced to be offline permanently.
+ */
+int eeh_max_freezes = 5;
+
 /* Platform dependent EEH operations */
 struct eeh_ops *eeh_ops = NULL;
 
@@ -1652,8 +1659,22 @@ static int eeh_enable_dbgfs_get(void *data, u64 *val)
 	return 0;
 }
 
+static int eeh_freeze_dbgfs_set(void *data, u64 val)
+{
+	eeh_max_freezes = val;
+	return 0;
+}
+
+static int eeh_freeze_dbgfs_get(void *data, u64 *val)
+{
+	*val = eeh_max_freezes;
+	return 0;
+}
+
 DEFINE_SIMPLE_ATTRIBUTE(eeh_enable_dbgfs_ops, eeh_enable_dbgfs_get,
 			eeh_enable_dbgfs_set, "0x%llx\n");
+DEFINE_SIMPLE_ATTRIBUTE(eeh_freeze_dbgfs_ops, eeh_freeze_dbgfs_get,
+			eeh_freeze_dbgfs_set, "0x%llx\n");
 #endif
 
 static int __init eeh_init_proc(void)
@@ -1664,6 +1685,9 @@ static int __init eeh_init_proc(void)
 		debugfs_create_file("eeh_enable", 0600,
                                     powerpc_debugfs_root, NULL,
                                     &eeh_enable_dbgfs_ops);
+		debugfs_create_file("eeh_max_freezes", 0600,
+				    powerpc_debugfs_root, NULL,
+				    &eeh_freeze_dbgfs_ops);
 #endif
 	}
 

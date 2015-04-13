@@ -57,29 +57,26 @@ static ssize_t qeth_l3_dev_route_store(struct qeth_card *card,
 		const char *buf, size_t count)
 {
 	enum qeth_routing_types old_route_type = route->type;
-	char *tmp;
 	int rc = 0;
 
-	tmp = strsep((char **) &buf, "\n");
 	mutex_lock(&card->conf_mutex);
-	if (!strcmp(tmp, "no_router")) {
+	if (sysfs_streq(buf, "no_router")) {
 		route->type = NO_ROUTER;
-	} else if (!strcmp(tmp, "primary_connector")) {
+	} else if (sysfs_streq(buf, "primary_connector")) {
 		route->type = PRIMARY_CONNECTOR;
-	} else if (!strcmp(tmp, "secondary_connector")) {
+	} else if (sysfs_streq(buf, "secondary_connector")) {
 		route->type = SECONDARY_CONNECTOR;
-	} else if (!strcmp(tmp, "primary_router")) {
+	} else if (sysfs_streq(buf, "primary_router")) {
 		route->type = PRIMARY_ROUTER;
-	} else if (!strcmp(tmp, "secondary_router")) {
+	} else if (sysfs_streq(buf, "secondary_router")) {
 		route->type = SECONDARY_ROUTER;
-	} else if (!strcmp(tmp, "multicast_router")) {
+	} else if (sysfs_streq(buf, "multicast_router")) {
 		route->type = MULTICAST_ROUTER;
 	} else {
 		rc = -EINVAL;
 		goto out;
 	}
-	if (((card->state == CARD_STATE_SOFTSETUP) ||
-	     (card->state == CARD_STATE_UP)) &&
+	if (qeth_card_hw_is_reachable(card) &&
 	    (old_route_type != route->type)) {
 		if (prot == QETH_PROT_IPV4)
 			rc = qeth_l3_setrouting_v4(card);
@@ -371,7 +368,6 @@ static ssize_t qeth_l3_dev_ipato_enable_store(struct device *dev,
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
 	struct qeth_ipaddr *tmpipa, *t;
-	char *tmp;
 	int rc = 0;
 
 	if (!card)
@@ -384,10 +380,9 @@ static ssize_t qeth_l3_dev_ipato_enable_store(struct device *dev,
 		goto out;
 	}
 
-	tmp = strsep((char **) &buf, "\n");
-	if (!strcmp(tmp, "toggle")) {
+	if (sysfs_streq(buf, "toggle")) {
 		card->ipato.enabled = (card->ipato.enabled)? 0 : 1;
-	} else if (!strcmp(tmp, "1")) {
+	} else if (sysfs_streq(buf, "1")) {
 		card->ipato.enabled = 1;
 		list_for_each_entry_safe(tmpipa, t, card->ip_tbd_list, entry) {
 			if ((tmpipa->type == QETH_IP_TYPE_NORMAL) &&
@@ -396,7 +391,7 @@ static ssize_t qeth_l3_dev_ipato_enable_store(struct device *dev,
 					QETH_IPA_SETIP_TAKEOVER_FLAG;
 		}
 
-	} else if (!strcmp(tmp, "0")) {
+	} else if (sysfs_streq(buf, "0")) {
 		card->ipato.enabled = 0;
 		list_for_each_entry_safe(tmpipa, t, card->ip_tbd_list, entry) {
 			if (tmpipa->set_flags &
@@ -431,21 +426,19 @@ static ssize_t qeth_l3_dev_ipato_invert4_store(struct device *dev,
 				const char *buf, size_t count)
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
-	char *tmp;
 	int rc = 0;
 
 	if (!card)
 		return -EINVAL;
 
 	mutex_lock(&card->conf_mutex);
-	tmp = strsep((char **) &buf, "\n");
-	if (!strcmp(tmp, "toggle")) {
+	if (sysfs_streq(buf, "toggle"))
 		card->ipato.invert4 = (card->ipato.invert4)? 0 : 1;
-	} else if (!strcmp(tmp, "1")) {
+	else if (sysfs_streq(buf, "1"))
 		card->ipato.invert4 = 1;
-	} else if (!strcmp(tmp, "0")) {
+	else if (sysfs_streq(buf, "0"))
 		card->ipato.invert4 = 0;
-	} else
+	else
 		rc = -EINVAL;
 	mutex_unlock(&card->conf_mutex);
 	return rc ? rc : count;
@@ -613,21 +606,19 @@ static ssize_t qeth_l3_dev_ipato_invert6_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
-	char *tmp;
 	int rc = 0;
 
 	if (!card)
 		return -EINVAL;
 
 	mutex_lock(&card->conf_mutex);
-	tmp = strsep((char **) &buf, "\n");
-	if (!strcmp(tmp, "toggle")) {
+	if (sysfs_streq(buf, "toggle"))
 		card->ipato.invert6 = (card->ipato.invert6)? 0 : 1;
-	} else if (!strcmp(tmp, "1")) {
+	else if (sysfs_streq(buf, "1"))
 		card->ipato.invert6 = 1;
-	} else if (!strcmp(tmp, "0")) {
+	else if (sysfs_streq(buf, "0"))
 		card->ipato.invert6 = 0;
-	} else
+	else
 		rc = -EINVAL;
 	mutex_unlock(&card->conf_mutex);
 	return rc ? rc : count;

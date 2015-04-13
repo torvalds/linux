@@ -77,9 +77,11 @@
 #define REG_HIMRE				0x00B8
 #define REG_HISRE				0x00BC
 
+#define REG_PMC_DBG_CTRL2			0x00CC
 #define REG_EFUSE_ACCESS			0x00CF
 #define REG_HPON_FSM				0x00EC
 #define REG_SYS_CFG1				0x00F0
+#define REG_MAC_PHY_CTRL_NORMAL			0x00F8
 #define REG_SYS_CFG2				0x00FC
 
 #define REG_CR					0x0100

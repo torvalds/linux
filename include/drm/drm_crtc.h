@@ -31,6 +31,7 @@
 #include <linux/idr.h>
 #include <linux/fb.h>
 #include <linux/hdmi.h>
+#include <linux/media-bus-format.h>
 #include <uapi/drm/drm_mode.h>
 #include <uapi/drm/drm_fourcc.h>
 #include <drm/drm_modeset_lock.h>
@@ -63,8 +64,16 @@ struct drm_mode_object {
 
 #define DRM_OBJECT_MAX_PROPERTY 24
 struct drm_object_properties {
-	int count;
-	uint32_t ids[DRM_OBJECT_MAX_PROPERTY];
+	int count, atomic_count;
+	/* NOTE: if we ever start dynamically destroying properties (ie.
+	 * not at drm_mode_config_cleanup() time), then we'd have to do
+	 * a better job of detaching property from mode objects to avoid
+	 * dangling property pointers:
+	 */
+	struct drm_property *properties[DRM_OBJECT_MAX_PROPERTY];
+	/* do not read/write values directly, but use drm_object_property_get_value()
+	 * and drm_object_property_set_value():
+	 */
 	uint64_t values[DRM_OBJECT_MAX_PROPERTY];
 };
 
@@ -130,6 +139,9 @@ struct drm_display_info {
 
 	enum subpixel_order subpixel_order;
 	u32 color_formats;
+
+	const u32 *bus_formats;
+	unsigned int num_bus_formats;
 
 	/* Mask of supported hdmi deep color modes */
 	u8 edid_hdmi_dc_modes;
@@ -237,8 +249,11 @@ struct drm_atomic_state;
 
 /**
  * struct drm_crtc_state - mutable CRTC state
+ * @crtc: backpointer to the CRTC
  * @enable: whether the CRTC should be enabled, gates all other state
+ * @active: whether the CRTC is actively displaying (used for DPMS)
  * @mode_changed: for use by helpers and drivers when computing state updates
+ * @active_changed: for use by helpers and drivers when computing state updates
  * @plane_mask: bitmask of (1 << drm_plane_index(plane)) of attached planes
  * @last_vblank_count: for helpers and drivers to capture the vblank of the
  * 	update to ensure framebuffer cleanup isn't done too early
@@ -248,13 +263,23 @@ struct drm_atomic_state;
  * @event: optional pointer to a DRM event to signal upon completion of the
  * 	state update
  * @state: backpointer to global drm_atomic_state
+ *
+ * Note that the distinction between @enable and @active is rather subtile:
+ * Flipping @active while @enable is set without changing anything else may
+ * never return in a failure from the ->atomic_check callback. Userspace assumes
+ * that a DPMS On will always succeed. In other words: @enable controls resource
+ * assignment, @active controls the actual hardware state.
  */
 struct drm_crtc_state {
+	struct drm_crtc *crtc;
+
 	bool enable;
+	bool active;
 
 	/* computed state bits used by helpers and drivers */
 	bool planes_changed : 1;
 	bool mode_changed : 1;
+	bool active_changed : 1;
 
 	/* attached planes bitmask:
 	 * WARNING: transitional helpers do not maintain plane_mask so
@@ -292,6 +317,9 @@ struct drm_crtc_state {
  * @atomic_duplicate_state: duplicate the atomic state for this CRTC
  * @atomic_destroy_state: destroy an atomic state for this CRTC
  * @atomic_set_property: set a property on an atomic state for this CRTC
+ *    (do not call directly, use drm_atomic_crtc_set_property())
+ * @atomic_get_property: get a property on an atomic state for this CRTC
+ *    (do not call directly, use drm_atomic_crtc_get_property())
  *
  * The drm_crtc_funcs structure is the central CRTC management structure
  * in the DRM.  Each CRTC controls one or more connectors (note that the name
@@ -351,6 +379,10 @@ struct drm_crtc_funcs {
 				   struct drm_crtc_state *state,
 				   struct drm_property *property,
 				   uint64_t val);
+	int (*atomic_get_property)(struct drm_crtc *crtc,
+				   const struct drm_crtc_state *state,
+				   struct drm_property *property,
+				   uint64_t *val);
 };
 
 /**
@@ -449,11 +481,14 @@ struct drm_crtc {
 
 /**
  * struct drm_connector_state - mutable connector state
+ * @connector: backpointer to the connector
  * @crtc: CRTC to connect connector to, NULL if disabled
  * @best_encoder: can be used by helpers and drivers to select the encoder
  * @state: backpointer to global drm_atomic_state
  */
 struct drm_connector_state {
+	struct drm_connector *connector;
+
 	struct drm_crtc *crtc;  /* do not write directly, use drm_atomic_set_crtc_for_connector() */
 
 	struct drm_encoder *best_encoder;
@@ -463,7 +498,7 @@ struct drm_connector_state {
 
 /**
  * struct drm_connector_funcs - control connectors on a given device
- * @dpms: set power state (see drm_crtc_funcs above)
+ * @dpms: set power state
  * @save: save connector state
  * @restore: restore connector state
  * @reset: reset connector after state has been invalidated (e.g. resume)
@@ -475,6 +510,9 @@ struct drm_connector_state {
  * @atomic_duplicate_state: duplicate the atomic state for this connector
  * @atomic_destroy_state: destroy an atomic state for this connector
  * @atomic_set_property: set a property on an atomic state for this connector
+ *    (do not call directly, use drm_atomic_connector_set_property())
+ * @atomic_get_property: get a property on an atomic state for this connector
+ *    (do not call directly, use drm_atomic_connector_get_property())
  *
  * Each CRTC may have one or more connectors attached to it.  The functions
  * below allow the core DRM code to control connectors, enumerate available modes,
@@ -508,6 +546,10 @@ struct drm_connector_funcs {
 				   struct drm_connector_state *state,
 				   struct drm_property *property,
 				   uint64_t val);
+	int (*atomic_get_property)(struct drm_connector *connector,
+				   const struct drm_connector_state *state,
+				   struct drm_property *property,
+				   uint64_t *val);
 };
 
 /**
@@ -693,6 +735,7 @@ struct drm_connector {
 
 /**
  * struct drm_plane_state - mutable plane state
+ * @plane: backpointer to the plane
  * @crtc: currently bound CRTC, NULL if disabled
  * @fb: currently bound framebuffer
  * @fence: optional fence to wait for before scanning out @fb
@@ -709,6 +752,8 @@ struct drm_connector {
  * @state: backpointer to global drm_atomic_state
  */
 struct drm_plane_state {
+	struct drm_plane *plane;
+
 	struct drm_crtc *crtc;   /* do not write directly, use drm_atomic_set_crtc_for_plane() */
 	struct drm_framebuffer *fb;  /* do not write directly, use drm_atomic_set_fb_for_plane() */
 	struct fence *fence;
@@ -720,6 +765,9 @@ struct drm_plane_state {
 	/* Source values are 16.16 fixed point */
 	uint32_t src_x, src_y;
 	uint32_t src_h, src_w;
+
+	/* Plane rotation */
+	unsigned int rotation;
 
 	struct drm_atomic_state *state;
 };
@@ -735,6 +783,9 @@ struct drm_plane_state {
  * @atomic_duplicate_state: duplicate the atomic state for this plane
  * @atomic_destroy_state: destroy an atomic state for this plane
  * @atomic_set_property: set a property on an atomic state for this plane
+ *    (do not call directly, use drm_atomic_plane_set_property())
+ * @atomic_get_property: get a property on an atomic state for this plane
+ *    (do not call directly, use drm_atomic_plane_get_property())
  */
 struct drm_plane_funcs {
 	int (*update_plane)(struct drm_plane *plane,
@@ -758,6 +809,10 @@ struct drm_plane_funcs {
 				   struct drm_plane_state *state,
 				   struct drm_property *property,
 				   uint64_t val);
+	int (*atomic_get_property)(struct drm_plane *plane,
+				   const struct drm_plane_state *state,
+				   struct drm_property *property,
+				   uint64_t *val);
 };
 
 enum drm_plane_type {
@@ -813,15 +868,16 @@ struct drm_plane {
 
 /**
  * struct drm_bridge_funcs - drm_bridge control functions
+ * @attach: Called during drm_bridge_attach
  * @mode_fixup: Try to fixup (or reject entirely) proposed mode for this bridge
  * @disable: Called right before encoder prepare, disables the bridge
  * @post_disable: Called right after encoder prepare, for lockstepped disable
  * @mode_set: Set this mode to the bridge
  * @pre_enable: Called right before encoder commit, for lockstepped commit
  * @enable: Called right after encoder commit, enables the bridge
- * @destroy: make object go away
  */
 struct drm_bridge_funcs {
+	int (*attach)(struct drm_bridge *bridge);
 	bool (*mode_fixup)(struct drm_bridge *bridge,
 			   const struct drm_display_mode *mode,
 			   struct drm_display_mode *adjusted_mode);
@@ -832,22 +888,24 @@ struct drm_bridge_funcs {
 			 struct drm_display_mode *adjusted_mode);
 	void (*pre_enable)(struct drm_bridge *bridge);
 	void (*enable)(struct drm_bridge *bridge);
-	void (*destroy)(struct drm_bridge *bridge);
 };
 
 /**
  * struct drm_bridge - central DRM bridge control structure
  * @dev: DRM device this bridge belongs to
- * @head: list management
+ * @of_node: device node pointer to the bridge
+ * @list: to keep track of all added bridges
  * @base: base mode object
  * @funcs: control functions
  * @driver_private: pointer to the bridge driver's internal context
  */
 struct drm_bridge {
 	struct drm_device *dev;
-	struct list_head head;
-
-	struct drm_mode_object base;
+	struct drm_encoder *encoder;
+#ifdef CONFIG_OF
+	struct device_node *of_node;
+#endif
+	struct list_head list;
 
 	const struct drm_bridge_funcs *funcs;
 	void *driver_private;
@@ -856,7 +914,8 @@ struct drm_bridge {
 /**
  * struct struct drm_atomic_state - the global state object for atomic updates
  * @dev: parent DRM device
- * @flags: state flags like async update
+ * @allow_modeset: allow full modeset
+ * @legacy_cursor_update: hint to enforce legacy cursor ioctl semantics
  * @planes: pointer to array of plane pointers
  * @plane_states: pointer to array of plane states pointers
  * @crtcs: pointer to array of CRTC pointers
@@ -868,7 +927,8 @@ struct drm_bridge {
  */
 struct drm_atomic_state {
 	struct drm_device *dev;
-	uint32_t flags;
+	bool allow_modeset : 1;
+	bool legacy_cursor_update : 1;
 	struct drm_plane **planes;
 	struct drm_plane_state **plane_states;
 	struct drm_crtc **crtcs;
@@ -950,7 +1010,6 @@ struct drm_mode_group {
 	uint32_t num_crtcs;
 	uint32_t num_encoders;
 	uint32_t num_connectors;
-	uint32_t num_bridges;
 
 	/* list of object IDs for this group */
 	uint32_t *id_list;
@@ -969,8 +1028,6 @@ struct drm_mode_group {
  * @fb_list: list of framebuffers available
  * @num_connector: number of connectors on this device
  * @connector_list: list of connector objects
- * @num_bridge: number of bridges on this device
- * @bridge_list: list of bridge objects
  * @num_encoder: number of encoders on this device
  * @encoder_list: list of encoder objects
  * @num_overlay_plane: number of overlay planes on this device
@@ -1015,8 +1072,6 @@ struct drm_mode_config {
 
 	int num_connector;
 	struct list_head connector_list;
-	int num_bridge;
-	struct list_head bridge_list;
 	int num_encoder;
 	struct list_head encoder_list;
 
@@ -1043,6 +1098,7 @@ struct drm_mode_config {
 	/* output poll support */
 	bool poll_enabled;
 	bool poll_running;
+	bool delayed_event;
 	struct delayed_work output_poll_work;
 
 	/* pointers to standard properties */
@@ -1053,6 +1109,17 @@ struct drm_mode_config {
 	struct drm_property *tile_property;
 	struct drm_property *plane_type_property;
 	struct drm_property *rotation_property;
+	struct drm_property *prop_src_x;
+	struct drm_property *prop_src_y;
+	struct drm_property *prop_src_w;
+	struct drm_property *prop_src_h;
+	struct drm_property *prop_crtc_x;
+	struct drm_property *prop_crtc_y;
+	struct drm_property *prop_crtc_w;
+	struct drm_property *prop_crtc_h;
+	struct drm_property *prop_fb_id;
+	struct drm_property *prop_crtc_id;
+	struct drm_property *prop_active;
 
 	/* DVI-I properties */
 	struct drm_property *dvi_i_subconnector_property;
@@ -1153,9 +1220,10 @@ extern unsigned int drm_connector_index(struct drm_connector *connector);
 /* helper to unplug all connectors from sysfs for device */
 extern void drm_connector_unplug_all(struct drm_device *dev);
 
-extern int drm_bridge_init(struct drm_device *dev, struct drm_bridge *bridge,
-			   const struct drm_bridge_funcs *funcs);
-extern void drm_bridge_cleanup(struct drm_bridge *bridge);
+extern int drm_bridge_add(struct drm_bridge *bridge);
+extern void drm_bridge_remove(struct drm_bridge *bridge);
+extern struct drm_bridge *of_drm_find_bridge(struct device_node *np);
+extern int drm_bridge_attach(struct drm_device *dev, struct drm_bridge *bridge);
 
 extern int drm_encoder_init(struct drm_device *dev,
 			    struct drm_encoder *encoder,
@@ -1191,6 +1259,8 @@ extern int drm_plane_init(struct drm_device *dev,
 extern void drm_plane_cleanup(struct drm_plane *plane);
 extern unsigned int drm_plane_index(struct drm_plane *plane);
 extern void drm_plane_force_disable(struct drm_plane *plane);
+extern void drm_crtc_get_hv_timing(const struct drm_display_mode *mode,
+				   int *hdisplay, int *vdisplay);
 extern int drm_crtc_check_viewport(const struct drm_crtc *crtc,
 				   int x, int y,
 				   const struct drm_display_mode *mode,
@@ -1223,6 +1293,10 @@ extern int drm_mode_connector_set_path_property(struct drm_connector *connector,
 int drm_mode_connector_set_tile_property(struct drm_connector *connector);
 extern int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 						   const struct edid *edid);
+
+extern int drm_display_info_set_bus_formats(struct drm_display_info *info,
+					    const u32 *formats,
+					    unsigned int num_formats);
 
 static inline bool drm_property_type_is(struct drm_property *property,
 		uint32_t type)
@@ -1279,6 +1353,8 @@ struct drm_property *drm_property_create_signed_range(struct drm_device *dev,
 					 int64_t min, int64_t max);
 struct drm_property *drm_property_create_object(struct drm_device *dev,
 					 int flags, const char *name, uint32_t type);
+struct drm_property *drm_property_create_bool(struct drm_device *dev, int flags,
+					 const char *name);
 extern void drm_property_destroy(struct drm_device *dev, struct drm_property *property);
 extern int drm_property_add_enum(struct drm_property *property, int index,
 				 uint64_t value, const char *name);
@@ -1290,6 +1366,10 @@ extern int drm_mode_create_scaling_mode_property(struct drm_device *dev);
 extern int drm_mode_create_aspect_ratio_property(struct drm_device *dev);
 extern int drm_mode_create_dirty_info_property(struct drm_device *dev);
 extern int drm_mode_create_suggested_offset_properties(struct drm_device *dev);
+extern bool drm_property_change_valid_get(struct drm_property *property,
+					 uint64_t value, struct drm_mode_object **ref);
+extern void drm_property_change_valid_put(struct drm_property *property,
+		struct drm_mode_object *ref);
 
 extern int drm_mode_connector_attach_encoder(struct drm_connector *connector,
 					     struct drm_encoder *encoder);
@@ -1381,6 +1461,8 @@ extern int drm_mode_obj_set_property_ioctl(struct drm_device *dev, void *data,
 extern int drm_mode_plane_set_obj_prop(struct drm_plane *plane,
 				       struct drm_property *property,
 				       uint64_t value);
+extern int drm_mode_atomic_ioctl(struct drm_device *dev,
+				 void *data, struct drm_file *file_priv);
 
 extern void drm_fb_get_bpp_depth(uint32_t format, unsigned int *depth,
 				 int *bpp);

@@ -52,6 +52,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "dec",         VCPU_STAT(dec_exits) },
 	{ "ext_intr",    VCPU_STAT(ext_intr_exits) },
 	{ "queue_intr",  VCPU_STAT(queue_intr) },
+	{ "halt_successful_poll", VCPU_STAT(halt_successful_poll), },
 	{ "halt_wakeup", VCPU_STAT(halt_wakeup) },
 	{ "pf_storage",  VCPU_STAT(pf_storage) },
 	{ "sp_storage",  VCPU_STAT(sp_storage) },

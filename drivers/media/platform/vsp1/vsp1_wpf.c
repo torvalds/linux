@@ -92,19 +92,20 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 		return 0;
 	}
 
-	/* Sources. If the pipeline has a single input configure it as the
-	 * master layer. Otherwise configure all inputs as sub-layers and
-	 * select the virtual RPF as the master layer.
+	/* Sources. If the pipeline has a single input and BRU is not used,
+	 * configure it as the master layer. Otherwise configure all
+	 * inputs as sub-layers and select the virtual RPF as the master
+	 * layer.
 	 */
 	for (i = 0; i < pipe->num_inputs; ++i) {
 		struct vsp1_rwpf *input = pipe->inputs[i];
 
-		srcrpf |= pipe->num_inputs == 1
+		srcrpf |= (!pipe->bru && pipe->num_inputs == 1)
 			? VI6_WPF_SRCRPF_RPF_ACT_MST(input->entity.index)
 			: VI6_WPF_SRCRPF_RPF_ACT_SUB(input->entity.index);
 	}
 
-	if (pipe->num_inputs > 1)
+	if (pipe->bru || pipe->num_inputs > 1)
 		srcrpf |= VI6_WPF_SRCRPF_VIRACT_MST;
 
 	vsp1_wpf_write(wpf, VI6_WPF_SRCRPF, srcrpf);
@@ -280,7 +281,7 @@ struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index)
 	 * except for the WPF0 source link if a LIF is present.
 	 */
 	flags = MEDIA_LNK_FL_ENABLED;
-	if (!(vsp1->pdata->features & VSP1_HAS_LIF) || index != 0)
+	if (!(vsp1->pdata.features & VSP1_HAS_LIF) || index != 0)
 		flags |= MEDIA_LNK_FL_IMMUTABLE;
 
 	ret = media_entity_create_link(&wpf->entity.subdev.entity,

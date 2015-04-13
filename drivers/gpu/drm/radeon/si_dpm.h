@@ -202,6 +202,7 @@ struct si_power_info {
 	bool fan_ctrl_is_in_default_mode;
 	u32 t_min;
 	u32 fan_ctrl_default_mode;
+	bool fan_is_controlled_by_smc;
 };
 
 #define SISLANDS_INITIAL_STATE_ARB_INDEX    0

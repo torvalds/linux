@@ -215,7 +215,6 @@ static int snd_byt_mc_probe(struct platform_device *pdev)
 
 static struct platform_driver snd_byt_mc_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "bytt100_rt5640",
 		.pm = &snd_soc_pm_ops,
 	},

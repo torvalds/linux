@@ -123,10 +123,9 @@ struct tap_filter {
 	unsigned char	addr[FLT_EXACT_COUNT][ETH_ALEN];
 };
 
-/* DEFAULT_MAX_NUM_RSS_QUEUES were chosen to let the rx/tx queues allocated for
- * the netdevice to be fit in one page. So we can make sure the success of
- * memory allocation. TODO: increase the limit. */
-#define MAX_TAP_QUEUES DEFAULT_MAX_NUM_RSS_QUEUES
+/* MAX_TAP_QUEUES 256 is chosen to allow rx/tx queues to be equal
+ * to max number of VCPUs in guest. */
+#define MAX_TAP_QUEUES 256
 #define MAX_TAP_FLOWS  4096
 
 #define TUN_FLOW_EXPIRE (3 * HZ)
@@ -257,7 +256,6 @@ static void tun_flow_delete(struct tun_struct *tun, struct tun_flow_entry *e)
 {
 	tun_debug(KERN_INFO, tun, "delete flow: hash %u index %u\n",
 		  e->rxhash, e->queue_index);
-	sock_rps_reset_flow_hash(e->rps_rxhash);
 	hlist_del_rcu(&e->hash_link);
 	kfree_rcu(e, rcu);
 	--tun->flow_count;
@@ -374,10 +372,8 @@ unlock:
  */
 static inline void tun_flow_save_rps_rxhash(struct tun_flow_entry *e, u32 hash)
 {
-	if (unlikely(e->rps_rxhash != hash)) {
-		sock_rps_reset_flow_hash(e->rps_rxhash);
+	if (unlikely(e->rps_rxhash != hash))
 		e->rps_rxhash = hash;
-	}
 }
 
 /* We try to identify a flow through its rxhash first. The reason that
@@ -1247,7 +1243,7 @@ static ssize_t tun_put_user(struct tun_struct *tun,
 	int vlan_hlen = 0;
 	int vnet_hdr_sz = 0;
 
-	if (vlan_tx_tag_present(skb))
+	if (skb_vlan_tag_present(skb))
 		vlan_hlen = VLAN_HLEN;
 
 	if (tun->flags & IFF_VNET_HDR)
@@ -1326,7 +1322,7 @@ static ssize_t tun_put_user(struct tun_struct *tun,
 		} veth;
 
 		veth.h_vlan_proto = skb->vlan_proto;
-		veth.h_vlan_TCI = htons(vlan_tx_tag_get(skb));
+		veth.h_vlan_TCI = htons(skb_vlan_tag_get(skb));
 
 		vlan_offset = offsetof(struct vlan_ethhdr, h_vlan_proto);
 
@@ -1368,7 +1364,7 @@ static ssize_t tun_do_read(struct tun_struct *tun, struct tun_file *tfile,
 	skb = __skb_recv_datagram(tfile->socket.sk, noblock ? MSG_DONTWAIT : 0,
 				  &peeked, &off, &err);
 	if (!skb)
-		return 0;
+		return err;
 
 	ret = tun_put_user(tun, tfile, skb, to);
 	if (unlikely(ret < 0))
@@ -1489,7 +1485,7 @@ static int tun_recvmsg(struct kiocb *iocb, struct socket *sock,
 		goto out;
 	}
 	ret = tun_do_read(tun, tfile, &m->msg_iter, flags & MSG_DONTWAIT);
-	if (ret > total_len) {
+	if (ret > (ssize_t)total_len) {
 		m->msg_flags |= MSG_TRUNC;
 		ret = flags & MSG_TRUNC ? ret : total_len;
 	}
@@ -1553,6 +1549,17 @@ static ssize_t tun_show_group(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR(tun_flags, 0444, tun_show_flags, NULL);
 static DEVICE_ATTR(owner, 0444, tun_show_owner, NULL);
 static DEVICE_ATTR(group, 0444, tun_show_group, NULL);
+
+static struct attribute *tun_dev_attrs[] = {
+	&dev_attr_tun_flags.attr,
+	&dev_attr_owner.attr,
+	&dev_attr_group.attr,
+	NULL
+};
+
+static const struct attribute_group tun_attr_group = {
+	.attrs = tun_dev_attrs
+};
 
 static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 {
@@ -1634,6 +1641,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		dev_net_set(dev, net);
 		dev->rtnl_link_ops = &tun_link_ops;
 		dev->ifindex = tfile->ifindex;
+		dev->sysfs_groups[0] = &tun_attr_group;
 
 		tun = netdev_priv(dev);
 		tun->dev = dev;
@@ -1669,11 +1677,6 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		err = register_netdevice(tun->dev);
 		if (err < 0)
 			goto err_detach;
-
-		if (device_create_file(&tun->dev->dev, &dev_attr_tun_flags) ||
-		    device_create_file(&tun->dev->dev, &dev_attr_owner) ||
-		    device_create_file(&tun->dev->dev, &dev_attr_group))
-			pr_err("Failed to create tun sysfs files\n");
 	}
 
 	netif_carrier_on(tun->dev);

@@ -329,6 +329,17 @@ static const struct serial8250_config uart_config[] = {
 		.fcr		= UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_10,
 		.flags		= UART_CAP_FIFO | UART_CAP_AFE,
 	},
+/* tx_loadsz is set to 63-bytes instead of 64-bytes to implement
+workaround of errata A-008006 which states that tx_loadsz should  be
+configured less than Maximum supported fifo bytes */
+	[PORT_16550A_FSL64] = {
+		.name		= "16550A_FSL64",
+		.fifo_size	= 64,
+		.tx_loadsz	= 63,
+		.fcr		= UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_10 |
+				  UART_FCR7_64BYTE,
+		.flags		= UART_CAP_FIFO,
+	},
 };
 
 /* Uart divisor latch read */
@@ -956,7 +967,17 @@ static void autoconfig_16550a(struct uart_8250_port *up)
 			up->port.type = PORT_16650;
 			up->capabilities |= UART_CAP_EFR | UART_CAP_SLEEP;
 		} else {
-			DEBUG_AUTOCONF("Motorola 8xxx DUART ");
+			serial_out(up, UART_LCR, 0);
+			serial_out(up, UART_FCR, UART_FCR_ENABLE_FIFO |
+				   UART_FCR7_64BYTE);
+			status1 = serial_in(up, UART_IIR) >> 5;
+			serial_out(up, UART_FCR, 0);
+			serial_out(up, UART_LCR, 0);
+
+			if (status1 == 7)
+				up->port.type = PORT_16550A_FSL64;
+			else
+				DEBUG_AUTOCONF("Motorola 8xxx DUART ");
 		}
 		serial_out(up, UART_EFR, 0);
 		return;
@@ -1355,9 +1376,11 @@ static void serial8250_start_tx(struct uart_port *port)
 	struct uart_8250_port *up = up_to_u8250p(port);
 
 	serial8250_rpm_get_tx(up);
-	if (up->dma && !up->dma->tx_dma(up)) {
+
+	if (up->dma && !up->dma->tx_dma(up))
 		return;
-	} else if (!(up->ier & UART_IER_THRI)) {
+
+	if (!(up->ier & UART_IER_THRI)) {
 		up->ier |= UART_IER_THRI;
 		serial_port_out(port, UART_IER, up->ier);
 
@@ -1365,7 +1388,7 @@ static void serial8250_start_tx(struct uart_port *port)
 			unsigned char lsr;
 			lsr = serial_in(up, UART_LSR);
 			up->lsr_saved_flags |= lsr & LSR_SAVE_FLAGS;
-			if (lsr & UART_LSR_TEMT)
+			if (lsr & UART_LSR_THRE)
 				serial8250_tx_chars(up);
 		}
 	}
@@ -1924,7 +1947,7 @@ static unsigned int serial8250_get_mctrl(struct uart_port *port)
 	return ret;
 }
 
-static void serial8250_set_mctrl(struct uart_port *port, unsigned int mctrl)
+void serial8250_do_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
 	unsigned char mcr = 0;
@@ -1943,6 +1966,14 @@ static void serial8250_set_mctrl(struct uart_port *port, unsigned int mctrl)
 	mcr = (mcr & up->mcr_mask) | up->mcr_force | up->mcr;
 
 	serial_port_out(port, UART_MCR, mcr);
+}
+EXPORT_SYMBOL_GPL(serial8250_do_set_mctrl);
+
+static void serial8250_set_mctrl(struct uart_port *port, unsigned int mctrl)
+{
+	if (port->set_mctrl)
+		return port->set_mctrl(port, mctrl);
+	return serial8250_do_set_mctrl(port, mctrl);
 }
 
 static void serial8250_break_ctl(struct uart_port *port, int break_state)
@@ -2382,13 +2413,34 @@ static void serial8250_shutdown(struct uart_port *port)
 		serial8250_do_shutdown(port);
 }
 
-static unsigned int serial8250_get_divisor(struct uart_port *port, unsigned int baud)
+/*
+ * XR17V35x UARTs have an extra fractional divisor register (DLD)
+ * Calculate divisor with extra 4-bit fractional portion
+ */
+static unsigned int xr17v35x_get_divisor(struct uart_8250_port *up,
+					 unsigned int baud,
+					 unsigned int *frac)
 {
+	struct uart_port *port = &up->port;
+	unsigned int quot_16;
+
+	quot_16 = DIV_ROUND_CLOSEST(port->uartclk, baud);
+	*frac = quot_16 & 0x0f;
+
+	return quot_16 >> 4;
+}
+
+static unsigned int serial8250_get_divisor(struct uart_8250_port *up,
+					   unsigned int baud,
+					   unsigned int *frac)
+{
+	struct uart_port *port = &up->port;
 	unsigned int quot;
 
 	/*
 	 * Handle magic divisors for baud rates above baud_base on
 	 * SMSC SuperIO chips.
+	 *
 	 */
 	if ((port->flags & UPF_MAGIC_MULTIPLIER) &&
 	    baud == (port->uartclk/4))
@@ -2396,22 +2448,26 @@ static unsigned int serial8250_get_divisor(struct uart_port *port, unsigned int 
 	else if ((port->flags & UPF_MAGIC_MULTIPLIER) &&
 		 baud == (port->uartclk/8))
 		quot = 0x8002;
+	else if (up->port.type == PORT_XR17V35X)
+		quot = xr17v35x_get_divisor(up, baud, frac);
 	else
 		quot = uart_get_divisor(port, baud);
+
+	/*
+	 * Oxford Semi 952 rev B workaround
+	 */
+	if (up->bugs & UART_BUG_QUOT && (quot & 0xff) == 0)
+		quot++;
 
 	return quot;
 }
 
-void
-serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
-		          struct ktermios *old)
+static unsigned char serial8250_compute_lcr(struct uart_8250_port *up,
+					    tcflag_t c_cflag)
 {
-	struct uart_8250_port *up = up_to_u8250p(port);
 	unsigned char cval;
-	unsigned long flags;
-	unsigned int baud, quot;
 
-	switch (termios->c_cflag & CSIZE) {
+	switch (c_cflag & CSIZE) {
 	case CS5:
 		cval = UART_LCR_WLEN5;
 		break;
@@ -2427,19 +2483,63 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 		break;
 	}
 
-	if (termios->c_cflag & CSTOPB)
+	if (c_cflag & CSTOPB)
 		cval |= UART_LCR_STOP;
-	if (termios->c_cflag & PARENB) {
+	if (c_cflag & PARENB) {
 		cval |= UART_LCR_PARITY;
 		if (up->bugs & UART_BUG_PARITY)
 			up->fifo_bug = true;
 	}
-	if (!(termios->c_cflag & PARODD))
+	if (!(c_cflag & PARODD))
 		cval |= UART_LCR_EPAR;
 #ifdef CMSPAR
-	if (termios->c_cflag & CMSPAR)
+	if (c_cflag & CMSPAR)
 		cval |= UART_LCR_SPAR;
 #endif
+
+	return cval;
+}
+
+static void serial8250_set_divisor(struct uart_port *port, unsigned int baud,
+			    unsigned int quot, unsigned int quot_frac)
+{
+	struct uart_8250_port *up = up_to_u8250p(port);
+
+	/* Workaround to enable 115200 baud on OMAP1510 internal ports */
+	if (is_omap1510_8250(up)) {
+		if (baud == 115200) {
+			quot = 1;
+			serial_port_out(port, UART_OMAP_OSC_12M_SEL, 1);
+		} else
+			serial_port_out(port, UART_OMAP_OSC_12M_SEL, 0);
+	}
+
+	/*
+	 * For NatSemi, switch to bank 2 not bank 1, to avoid resetting EXCR2,
+	 * otherwise just set DLAB
+	 */
+	if (up->capabilities & UART_NATSEMI)
+		serial_port_out(port, UART_LCR, 0xe0);
+	else
+		serial_port_out(port, UART_LCR, up->lcr | UART_LCR_DLAB);
+
+	serial_dl_write(up, quot);
+
+	/* XR17V35x UARTs have an extra fractional divisor register (DLD) */
+	if (up->port.type == PORT_XR17V35X)
+		serial_port_out(port, 0x2, quot_frac);
+}
+
+void
+serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
+		          struct ktermios *old)
+{
+	struct uart_8250_port *up = up_to_u8250p(port);
+	unsigned char cval;
+	unsigned long flags;
+	unsigned int baud, quot, frac = 0;
+
+	cval = serial8250_compute_lcr(up, termios->c_cflag);
 
 	/*
 	 * Ask the core to calculate the divisor for us.
@@ -2447,13 +2547,16 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 	baud = uart_get_baud_rate(port, termios, old,
 				  port->uartclk / 16 / 0xffff,
 				  port->uartclk / 16);
-	quot = serial8250_get_divisor(port, baud);
+	quot = serial8250_get_divisor(up, baud, &frac);
 
 	/*
-	 * Oxford Semi 952 rev B workaround
+	 * Ok, we're now changing the port state.  Do it with
+	 * interrupts disabled.
 	 */
-	if (up->bugs & UART_BUG_QUOT && (quot & 0xff) == 0)
-		quot++;
+	serial8250_rpm_get(up);
+	spin_lock_irqsave(&port->lock, flags);
+
+	up->lcr = cval;					/* Save computed LCR */
 
 	if (up->capabilities & UART_CAP_FIFO && port->fifosize > 1) {
 		/* NOTE: If fifo_bug is not set, a user can set RX_trigger. */
@@ -2476,13 +2579,6 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 		if (termios->c_cflag & CRTSCTS)
 			up->mcr |= UART_MCR_AFE;
 	}
-
-	/*
-	 * Ok, we're now changing the port state.  Do it with
-	 * interrupts disabled.
-	 */
-	serial8250_rpm_get(up);
-	spin_lock_irqsave(&port->lock, flags);
 
 	/*
 	 * Update the per-port timeout.
@@ -2548,43 +2644,7 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 			serial_port_out(port, UART_EFR, efr);
 	}
 
-	/* Workaround to enable 115200 baud on OMAP1510 internal ports */
-	if (is_omap1510_8250(up)) {
-		if (baud == 115200) {
-			quot = 1;
-			serial_port_out(port, UART_OMAP_OSC_12M_SEL, 1);
-		} else
-			serial_port_out(port, UART_OMAP_OSC_12M_SEL, 0);
-	}
-
-	/*
-	 * For NatSemi, switch to bank 2 not bank 1, to avoid resetting EXCR2,
-	 * otherwise just set DLAB
-	 */
-	if (up->capabilities & UART_NATSEMI)
-		serial_port_out(port, UART_LCR, 0xe0);
-	else
-		serial_port_out(port, UART_LCR, cval | UART_LCR_DLAB);
-
-	serial_dl_write(up, quot);
-
-	/*
-	 * XR17V35x UARTs have an extra fractional divisor register (DLD)
-	 *
-	 * We need to recalculate all of the registers, because DLM and DLL
-	 * are already rounded to a whole integer.
-	 *
-	 * When recalculating we use a 32x clock instead of a 16x clock to
-	 * allow 1-bit for rounding in the fractional part.
-	 */
-	if (up->port.type == PORT_XR17V35X) {
-		unsigned int baud_x32 = (port->uartclk * 2) / baud;
-		u16 quot = baud_x32 / 32;
-		u8 quot_frac = DIV_ROUND_CLOSEST(baud_x32 % 32, 2);
-
-		serial_dl_write(up, quot);
-		serial_port_out(port, 0x2, quot_frac & 0xf);
-	}
+	serial8250_set_divisor(port, baud, quot, frac);
 
 	/*
 	 * LCR DLAB must be set to enable 64-byte FIFO mode. If the FCR
@@ -2593,8 +2653,7 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 	if (port->type == PORT_16750)
 		serial_port_out(port, UART_FCR, up->fcr);
 
-	serial_port_out(port, UART_LCR, cval);		/* reset DLAB */
-	up->lcr = cval;					/* Save LCR */
+	serial_port_out(port, UART_LCR, up->lcr);	/* reset DLAB */
 	if (port->type != PORT_16750) {
 		/* emulated UARTs (Lucent Venus 167x) need two steps */
 		if (up->fcr & UART_FCR_ENABLE_FIFO)
@@ -3208,6 +3267,27 @@ serial8250_console_write(struct console *co, const char *s, unsigned int count)
 	else
 		serial_port_out(port, UART_IER, 0);
 
+	/* check scratch reg to see if port powered off during system sleep */
+	if (up->canary && (up->canary != serial_port_in(port, UART_SCR))) {
+		struct ktermios termios;
+		unsigned int baud, quot, frac = 0;
+
+		termios.c_cflag = port->cons->cflag;
+		if (port->state->port.tty && termios.c_cflag == 0)
+			termios.c_cflag = port->state->port.tty->termios.c_cflag;
+
+		baud = uart_get_baud_rate(port, &termios, NULL,
+					  port->uartclk / 16 / 0xffff,
+					  port->uartclk / 16);
+		quot = serial8250_get_divisor(up, baud, &frac);
+
+		serial8250_set_divisor(port, baud, quot, frac);
+		serial_port_out(port, UART_LCR, up->lcr);
+		serial_port_out(port, UART_MCR, UART_MCR_DTR | UART_MCR_RTS);
+
+		up->canary = 0;
+	}
+
 	uart_console_write(port, s, count, serial8250_console_putchar);
 
 	/*
@@ -3358,7 +3438,17 @@ int __init early_serial_setup(struct uart_port *port)
  */
 void serial8250_suspend_port(int line)
 {
-	uart_suspend_port(&serial8250_reg, &serial8250_ports[line].port);
+	struct uart_8250_port *up = &serial8250_ports[line];
+	struct uart_port *port = &up->port;
+
+	if (!console_suspend_enabled && uart_console(port) &&
+	    port->type != PORT_8250) {
+		unsigned char canary = 0xa5;
+		serial_out(up, UART_SCR, canary);
+		up->canary = canary;
+	}
+
+	uart_suspend_port(&serial8250_reg, port);
 }
 
 /**
@@ -3371,6 +3461,8 @@ void serial8250_resume_port(int line)
 {
 	struct uart_8250_port *up = &serial8250_ports[line];
 	struct uart_port *port = &up->port;
+
+	up->canary = 0;
 
 	if (up->capabilities & UART_NATSEMI) {
 		/* Ensure it's still in high speed mode */
@@ -3605,6 +3697,8 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 		/*  Possibly override set_termios call */
 		if (up->port.set_termios)
 			uart->port.set_termios = up->port.set_termios;
+		if (up->port.set_mctrl)
+			uart->port.set_mctrl = up->port.set_mctrl;
 		if (up->port.startup)
 			uart->port.startup = up->port.startup;
 		if (up->port.shutdown)

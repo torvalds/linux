@@ -436,9 +436,11 @@ static struct dma_async_tx_descriptor *bcm2835_dma_prep_dma_cyclic(
 	return vchan_tx_prep(&c->vc, &d->vd, flags);
 }
 
-static int bcm2835_dma_slave_config(struct bcm2835_chan *c,
-		struct dma_slave_config *cfg)
+static int bcm2835_dma_slave_config(struct dma_chan *chan,
+				    struct dma_slave_config *cfg)
 {
+	struct bcm2835_chan *c = to_bcm2835_dma_chan(chan);
+
 	if ((cfg->direction == DMA_DEV_TO_MEM &&
 	     cfg->src_addr_width != DMA_SLAVE_BUSWIDTH_4_BYTES) ||
 	    (cfg->direction == DMA_MEM_TO_DEV &&
@@ -452,8 +454,9 @@ static int bcm2835_dma_slave_config(struct bcm2835_chan *c,
 	return 0;
 }
 
-static int bcm2835_dma_terminate_all(struct bcm2835_chan *c)
+static int bcm2835_dma_terminate_all(struct dma_chan *chan)
 {
+	struct bcm2835_chan *c = to_bcm2835_dma_chan(chan);
 	struct bcm2835_dmadev *d = to_bcm2835_dma_dev(c->vc.chan.device);
 	unsigned long flags;
 	int timeout = 10000;
@@ -493,24 +496,6 @@ static int bcm2835_dma_terminate_all(struct bcm2835_chan *c)
 	vchan_dma_desc_free_list(&c->vc, &head);
 
 	return 0;
-}
-
-static int bcm2835_dma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
-	unsigned long arg)
-{
-	struct bcm2835_chan *c = to_bcm2835_dma_chan(chan);
-
-	switch (cmd) {
-	case DMA_SLAVE_CONFIG:
-		return bcm2835_dma_slave_config(c,
-				(struct dma_slave_config *)arg);
-
-	case DMA_TERMINATE_ALL:
-		return bcm2835_dma_terminate_all(c);
-
-	default:
-		return -ENXIO;
-	}
 }
 
 static int bcm2835_dma_chan_init(struct bcm2835_dmadev *d, int chan_id, int irq)
@@ -565,18 +550,6 @@ static struct dma_chan *bcm2835_dma_xlate(struct of_phandle_args *spec,
 	return chan;
 }
 
-static int bcm2835_dma_device_slave_caps(struct dma_chan *dchan,
-	struct dma_slave_caps *caps)
-{
-	caps->src_addr_widths = BIT(DMA_SLAVE_BUSWIDTH_4_BYTES);
-	caps->dstn_addr_widths = BIT(DMA_SLAVE_BUSWIDTH_4_BYTES);
-	caps->directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
-	caps->cmd_pause = false;
-	caps->cmd_terminate = true;
-
-	return 0;
-}
-
 static int bcm2835_dma_probe(struct platform_device *pdev)
 {
 	struct bcm2835_dmadev *od;
@@ -615,9 +588,12 @@ static int bcm2835_dma_probe(struct platform_device *pdev)
 	od->ddev.device_free_chan_resources = bcm2835_dma_free_chan_resources;
 	od->ddev.device_tx_status = bcm2835_dma_tx_status;
 	od->ddev.device_issue_pending = bcm2835_dma_issue_pending;
-	od->ddev.device_slave_caps = bcm2835_dma_device_slave_caps;
 	od->ddev.device_prep_dma_cyclic = bcm2835_dma_prep_dma_cyclic;
-	od->ddev.device_control = bcm2835_dma_control;
+	od->ddev.device_config = bcm2835_dma_slave_config;
+	od->ddev.device_terminate_all = bcm2835_dma_terminate_all;
+	od->ddev.src_addr_widths = BIT(DMA_SLAVE_BUSWIDTH_4_BYTES);
+	od->ddev.dst_addr_widths = BIT(DMA_SLAVE_BUSWIDTH_4_BYTES);
+	od->ddev.directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
 	od->ddev.dev = &pdev->dev;
 	INIT_LIST_HEAD(&od->ddev.channels);
 	spin_lock_init(&od->lock);

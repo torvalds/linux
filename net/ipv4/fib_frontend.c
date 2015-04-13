@@ -67,7 +67,7 @@ static int __net_init fib4_rules_init(struct net *net)
 	return 0;
 
 fail:
-	kfree(local_table);
+	fib_free_table(local_table);
 	return -ENOMEM;
 }
 #else
@@ -109,6 +109,7 @@ struct fib_table *fib_new_table(struct net *net, u32 id)
 	return tb;
 }
 
+/* caller must hold either rtnl or rcu read lock */
 struct fib_table *fib_get_table(struct net *net, u32 id)
 {
 	struct fib_table *tb;
@@ -119,15 +120,11 @@ struct fib_table *fib_get_table(struct net *net, u32 id)
 		id = RT_TABLE_MAIN;
 	h = id & (FIB_TABLE_HASHSZ - 1);
 
-	rcu_read_lock();
 	head = &net->ipv4.fib_table_hash[h];
 	hlist_for_each_entry_rcu(tb, head, tb_hlist) {
-		if (tb->tb_id == id) {
-			rcu_read_unlock();
+		if (tb->tb_id == id)
 			return tb;
-		}
 	}
-	rcu_read_unlock();
 	return NULL;
 }
 #endif /* CONFIG_IP_MULTIPLE_TABLES */
@@ -167,16 +164,18 @@ static inline unsigned int __inet_dev_addr_type(struct net *net,
 	if (ipv4_is_multicast(addr))
 		return RTN_MULTICAST;
 
+	rcu_read_lock();
+
 	local_table = fib_get_table(net, RT_TABLE_LOCAL);
 	if (local_table) {
 		ret = RTN_UNICAST;
-		rcu_read_lock();
 		if (!fib_table_lookup(local_table, &fl4, &res, FIB_LOOKUP_NOREF)) {
 			if (!dev || dev == res.fi->fib_dev)
 				ret = res.type;
 		}
-		rcu_read_unlock();
 	}
+
+	rcu_read_unlock();
 	return ret;
 }
 
@@ -919,7 +918,7 @@ void fib_del_ifaddr(struct in_ifaddr *ifa, struct in_ifaddr *iprim)
 #undef BRD1_OK
 }
 
-static void nl_fib_lookup(struct fib_result_nl *frn, struct fib_table *tb)
+static void nl_fib_lookup(struct net *net, struct fib_result_nl *frn)
 {
 
 	struct fib_result       res;
@@ -929,6 +928,11 @@ static void nl_fib_lookup(struct fib_result_nl *frn, struct fib_table *tb)
 		.flowi4_tos = frn->fl_tos,
 		.flowi4_scope = frn->fl_scope,
 	};
+	struct fib_table *tb;
+
+	rcu_read_lock();
+
+	tb = fib_get_table(net, frn->tb_id_in);
 
 	frn->err = -ENOENT;
 	if (tb) {
@@ -945,6 +949,8 @@ static void nl_fib_lookup(struct fib_result_nl *frn, struct fib_table *tb)
 		}
 		local_bh_enable();
 	}
+
+	rcu_read_unlock();
 }
 
 static void nl_fib_input(struct sk_buff *skb)
@@ -952,7 +958,6 @@ static void nl_fib_input(struct sk_buff *skb)
 	struct net *net;
 	struct fib_result_nl *frn;
 	struct nlmsghdr *nlh;
-	struct fib_table *tb;
 	u32 portid;
 
 	net = sock_net(skb->sk);
@@ -967,9 +972,7 @@ static void nl_fib_input(struct sk_buff *skb)
 	nlh = nlmsg_hdr(skb);
 
 	frn = (struct fib_result_nl *) nlmsg_data(nlh);
-	tb = fib_get_table(net, frn->tb_id_in);
-
-	nl_fib_lookup(frn, tb);
+	nl_fib_lookup(net, frn);
 
 	portid = NETLINK_CB(skb).portid;      /* netlink portid */
 	NETLINK_CB(skb).portid = 0;        /* from kernel */

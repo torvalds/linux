@@ -1508,6 +1508,9 @@ void ion_device_add_heap(struct ion_device *dev, struct ion_heap *heap)
 		pr_err("%s: can not add heap with invalid ops struct.\n",
 		       __func__);
 
+	spin_lock_init(&heap->free_lock);
+	heap->free_list_size = 0;
+
 	if (heap->flags & ION_HEAP_FLAG_DEFER_FREE)
 		ion_heap_init_deferred_free(heap);
 

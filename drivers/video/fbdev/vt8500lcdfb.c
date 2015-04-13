@@ -113,10 +113,8 @@ static int vt8500lcd_set_par(struct fb_info *info)
 	}
 
 	for (i = 0; i < 8; i++) {
-		if (bpp_values[i] == info->var.bits_per_pixel) {
+		if (bpp_values[i] == info->var.bits_per_pixel)
 			reg_bpp = i;
-			continue;
-		}
 	}
 
 	control0 = readl(fbi->regbase) & ~0xf;

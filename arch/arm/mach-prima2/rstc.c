@@ -34,36 +34,20 @@ static int sirfsoc_reset_module(struct reset_controller_dev *rcdev,
 
 	mutex_lock(&rstc_lock);
 
-	if (of_device_is_compatible(rcdev->of_node, "sirf,prima2-rstc")) {
-		/*
-		 * Writing 1 to this bit resets corresponding block.
-		 * Writing 0 to this bit de-asserts reset signal of the
-		 * corresponding block. datasheet doesn't require explicit
-		 * delay between the set and clear of reset bit. it could
-		 * be shorter if tests pass.
-		 */
-		writel(readl(sirfsoc_rstc_base +
+	/*
+	 * Writing 1 to this bit resets corresponding block.
+	 * Writing 0 to this bit de-asserts reset signal of the
+	 * corresponding block. datasheet doesn't require explicit
+	 * delay between the set and clear of reset bit. it could
+	 * be shorter if tests pass.
+	 */
+	writel(readl(sirfsoc_rstc_base +
 			(reset_bit / 32) * 4) | (1 << reset_bit),
-			sirfsoc_rstc_base + (reset_bit / 32) * 4);
-		msleep(20);
-		writel(readl(sirfsoc_rstc_base +
+		sirfsoc_rstc_base + (reset_bit / 32) * 4);
+	msleep(20);
+	writel(readl(sirfsoc_rstc_base +
 			(reset_bit / 32) * 4) & ~(1 << reset_bit),
-			sirfsoc_rstc_base + (reset_bit / 32) * 4);
-	} else {
-		/*
-		 * For MARCO and POLO
-		 * Writing 1 to SET register resets corresponding block.
-		 * Writing 1 to CLEAR register de-asserts reset signal of the
-		 * corresponding block.
-		 * datasheet doesn't require explicit delay between the set and
-		 * clear of reset bit. it could be shorter if tests pass.
-		 */
-		writel(1 << reset_bit,
-			sirfsoc_rstc_base + (reset_bit / 32) * 8);
-		msleep(20);
-		writel(1 << reset_bit,
-			sirfsoc_rstc_base + (reset_bit / 32) * 8 + 4);
-	}
+		sirfsoc_rstc_base + (reset_bit / 32) * 4);
 
 	mutex_unlock(&rstc_lock);
 
@@ -106,7 +90,6 @@ static int sirfsoc_rstc_probe(struct platform_device *pdev)
 
 static const struct of_device_id rstc_ids[]  = {
 	{ .compatible = "sirf,prima2-rstc" },
-	{ .compatible = "sirf,marco-rstc" },
 	{},
 };
 

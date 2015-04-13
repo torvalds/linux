@@ -454,6 +454,7 @@ static int bdc_udc_set_selfpowered(struct usb_gadget *gadget,
 	unsigned long           flags;
 
 	dev_dbg(bdc->dev, "%s()\n", __func__);
+	gadget->is_selfpowered = (is_self != 0);
 	spin_lock_irqsave(&bdc->lock, flags);
 	if (!is_self)
 		bdc->devstatus |= 1 << USB_DEVICE_SELF_POWERED;

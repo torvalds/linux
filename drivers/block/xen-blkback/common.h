@@ -214,6 +214,15 @@ enum blkif_protocol {
 	BLKIF_PROTOCOL_X86_64 = 3,
 };
 
+/*
+ * Default protocol if the frontend doesn't specify one.
+ */
+#ifdef CONFIG_X86
+#  define BLKIF_PROTOCOL_DEFAULT BLKIF_PROTOCOL_X86_32
+#else
+#  define BLKIF_PROTOCOL_DEFAULT BLKIF_PROTOCOL_NATIVE
+#endif
+
 struct xen_vbd {
 	/* What the domain refers to this vbd as. */
 	blkif_vdev_t		handle;

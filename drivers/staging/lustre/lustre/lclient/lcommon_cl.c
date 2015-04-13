@@ -586,6 +586,12 @@ int ccc_lock_enqueue(const struct lu_env *env,
 	return 0;
 }
 
+int ccc_lock_use(const struct lu_env *env, const struct cl_lock_slice *slice)
+{
+	CLOBINVRNT(env, slice->cls_obj, ccc_object_invariant(slice->cls_obj));
+	return 0;
+}
+
 int ccc_lock_unuse(const struct lu_env *env, const struct cl_lock_slice *slice)
 {
 	CLOBINVRNT(env, slice->cls_obj, ccc_object_invariant(slice->cls_obj));

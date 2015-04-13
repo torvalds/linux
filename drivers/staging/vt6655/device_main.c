@@ -126,10 +126,6 @@ DEVICE_PARAM(LongRetryLimit, "long frame retry limits");
 
 DEVICE_PARAM(BasebandType, "baseband type");
 
-#define DIVERSITY_ANT_DEF     0
-
-DEVICE_PARAM(bDiversityANTEnable, "ANT diversity mode");
-
 //
 // Static vars definitions
 //
@@ -152,7 +148,6 @@ static void vt6655_init_info(struct pci_dev *pcid,
 static void device_free_info(struct vnt_private *pDevice);
 static bool device_get_pci_info(struct vnt_private *, struct pci_dev *pcid);
 static void device_print_info(struct vnt_private *pDevice);
-static void device_init_diversity_timer(struct vnt_private *pDevice);
 static  irqreturn_t  device_intr(int irq,  void *dev_instance);
 
 #ifdef CONFIG_PM
@@ -216,7 +211,6 @@ static void device_get_options(struct vnt_private *pDevice)
 	pOpts->short_retry = SHORT_RETRY_DEF;
 	pOpts->long_retry = LONG_RETRY_DEF;
 	pOpts->bbp_type = BBP_TYPE_DEF;
-	pOpts->flags |= DEVICE_FLAGS_DiversityANT;
 }
 
 static void
@@ -224,7 +218,6 @@ device_set_options(struct vnt_private *pDevice)
 {
 	pDevice->byShortRetryLimit = pDevice->sOpts.short_retry;
 	pDevice->byLongRetryLimit = pDevice->sOpts.long_retry;
-	pDevice->bDiversityRegCtlON = (pDevice->sOpts.flags & DEVICE_FLAGS_DiversityANT) ? 1 : 0;
 	pDevice->byBBType = pDevice->sOpts.bbp_type;
 	pDevice->byPacketType = pDevice->byBBType;
 	pDevice->byAutoFBCtrl = AUTO_FB_0;
@@ -236,8 +229,6 @@ device_set_options(struct vnt_private *pDevice)
 	pr_debug(" byPreambleType= %d\n", (int)pDevice->byPreambleType);
 	pr_debug(" byShortPreamble= %d\n", (int)pDevice->byShortPreamble);
 	pr_debug(" byBBType= %d\n", (int)pDevice->byBBType);
-	pr_debug(" pDevice->bDiversityRegCtlON= %d\n",
-		 (int)pDevice->bDiversityRegCtlON);
 }
 
 //
@@ -249,7 +240,6 @@ static void device_init_registers(struct vnt_private *pDevice)
 	unsigned long flags;
 	unsigned int ii;
 	unsigned char byValue;
-	unsigned char byValue1;
 	unsigned char byCCKPwrdBm = 0;
 	unsigned char byOFDMPwrdBm = 0;
 
@@ -301,13 +291,6 @@ static void device_init_registers(struct vnt_private *pDevice)
 	if (byValue == 0)
 		byValue = (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN);
 
-	pDevice->ulDiversityNValue = 100*260;
-	pDevice->ulDiversityMValue = 100*16;
-	pDevice->byTMax = 1;
-	pDevice->byTMax2 = 4;
-	pDevice->ulSQ3TH = 0;
-	pDevice->byTMax3 = 64;
-
 	if (byValue == (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN)) {
 		pDevice->byAntennaCount = 2;
 		pDevice->byTxAntennaMode = ANT_B;
@@ -318,16 +301,7 @@ static void device_init_registers(struct vnt_private *pDevice)
 			pDevice->byRxAntennaMode = ANT_A;
 		else
 			pDevice->byRxAntennaMode = ANT_B;
-
-		byValue1 = SROMbyReadEmbedded(pDevice->PortOffset,
-					      EEP_OFS_ANTENNA);
-
-		if ((byValue1 & 0x08) == 0)
-			pDevice->bDiversityEnable = false;
-		else
-			pDevice->bDiversityEnable = true;
 	} else  {
-		pDevice->bDiversityEnable = false;
 		pDevice->byAntennaCount = 1;
 		pDevice->dwTxAntennaSel = 0;
 		pDevice->dwRxAntennaSel = 0;
@@ -349,10 +323,9 @@ static void device_init_registers(struct vnt_private *pDevice)
 		}
 	}
 
-	pr_debug("bDiversityEnable=[%d],NValue=[%d],MValue=[%d],TMax=[%d],TMax2=[%d]\n",
-		 pDevice->bDiversityEnable, (int)pDevice->ulDiversityNValue,
-		 (int)pDevice->ulDiversityMValue, pDevice->byTMax,
-		 pDevice->byTMax2);
+	/* Set initial antenna mode */
+	BBvSetTxAntennaMode(pDevice, pDevice->byTxAntennaMode);
+	BBvSetRxAntennaMode(pDevice, pDevice->byRxAntennaMode);
 
 	/* zonetype initial */
 	pDevice->byOriginalZonetype = pDevice->abyEEPROM[EEP_OFS_ZONETYPE];
@@ -491,24 +464,6 @@ static void device_init_registers(struct vnt_private *pDevice)
 
 	/* start the adapter */
 	MACvStart(pDevice->PortOffset);
-}
-
-static void device_init_diversity_timer(struct vnt_private *pDevice)
-{
-	init_timer(&pDevice->TimerSQ3Tmax1);
-	pDevice->TimerSQ3Tmax1.data = (unsigned long) pDevice;
-	pDevice->TimerSQ3Tmax1.function = TimerSQ3CallBack;
-	pDevice->TimerSQ3Tmax1.expires = RUN_AT(HZ);
-
-	init_timer(&pDevice->TimerSQ3Tmax2);
-	pDevice->TimerSQ3Tmax2.data = (unsigned long) pDevice;
-	pDevice->TimerSQ3Tmax2.function = TimerSQ3CallBack;
-	pDevice->TimerSQ3Tmax2.expires = RUN_AT(HZ);
-
-	init_timer(&pDevice->TimerSQ3Tmax3);
-	pDevice->TimerSQ3Tmax3.data = (unsigned long) pDevice;
-	pDevice->TimerSQ3Tmax3.function = TimerState1CallBack;
-	pDevice->TimerSQ3Tmax3.expires = RUN_AT(HZ);
 }
 
 static void device_print_info(struct vnt_private *pDevice)
@@ -1053,6 +1008,58 @@ static void device_free_tx_buf(struct vnt_private *pDevice, PSTxDesc pDesc)
 	pTDInfo->byFlags = 0;
 }
 
+static void vnt_check_bb_vga(struct vnt_private *priv)
+{
+	long dbm;
+	int i;
+
+	if (!priv->bUpdateBBVGA)
+		return;
+
+	if (priv->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)
+		return;
+
+	if (!(priv->vif->bss_conf.assoc && priv->uCurrRSSI))
+		return;
+
+	RFvRSSITodBm(priv, (u8)priv->uCurrRSSI, &dbm);
+
+	for (i = 0; i < BB_VGA_LEVEL; i++) {
+		if (dbm < priv->ldBmThreshold[i]) {
+			priv->byBBVGANew = priv->abyBBVGA[i];
+			break;
+		}
+	}
+
+	if (priv->byBBVGANew == priv->byBBVGACurrent) {
+		priv->uBBVGADiffCount = 1;
+		return;
+	}
+
+	priv->uBBVGADiffCount++;
+
+	if (priv->uBBVGADiffCount == 1) {
+		/* first VGA diff gain */
+		BBvSetVGAGainOffset(priv, priv->byBBVGANew);
+
+		dev_dbg(&priv->pcid->dev,
+			"First RSSI[%d] NewGain[%d] OldGain[%d] Count[%d]\n",
+			(int)dbm, priv->byBBVGANew,
+			priv->byBBVGACurrent,
+			(int)priv->uBBVGADiffCount);
+	}
+
+	if (priv->uBBVGADiffCount >= BB_VGA_CHANGE_THRESHOLD) {
+		dev_dbg(&priv->pcid->dev,
+			"RSSI[%d] NewGain[%d] OldGain[%d] Count[%d]\n",
+			(int)dbm, priv->byBBVGANew,
+			priv->byBBVGACurrent,
+			(int)priv->uBBVGADiffCount);
+
+		BBvSetVGAGainOffset(priv, priv->byBBVGANew);
+	}
+}
+
 static  irqreturn_t  device_intr(int irq,  void *dev_instance)
 {
 	struct vnt_private *pDevice = dev_instance;
@@ -1060,7 +1067,6 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance)
 	unsigned long dwMIBCounter = 0;
 	unsigned char byOrgPageSel = 0;
 	int             handled = 0;
-	int             ii = 0;
 	unsigned long flags;
 
 	MACvReadISR(pDevice->PortOffset, &pDevice->dwIsr);
@@ -1090,7 +1096,7 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance)
 	// Must do this after doing rx/tx, cause ISR bit is slow
 	// than RD/TD write back
 	// update ISR counter
-	STAvUpdate802_11Counter(&pDevice->s802_11Counter, &pDevice->scStatistic , dwMIBCounter);
+	STAvUpdate802_11Counter(&pDevice->s802_11Counter, &pDevice->scStatistic, dwMIBCounter);
 	while (pDevice->dwIsr != 0) {
 		STAvUpdateIsrStatCounter(&pDevice->scStatistic, pDevice->dwIsr);
 		MACvWriteISR(pDevice->PortOffset, pDevice->dwIsr);
@@ -1104,44 +1110,8 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance)
 
 		if (pDevice->dwIsr & ISR_TBTT) {
 			if (pDevice->vif &&
-			    pDevice->op_mode != NL80211_IFTYPE_ADHOC) {
-				if (pDevice->bUpdateBBVGA &&
-				    !(pDevice->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL) &&
-				    pDevice->vif->bss_conf.assoc &&
-				    pDevice->uCurrRSSI) {
-					long            ldBm;
-
-					RFvRSSITodBm(pDevice, (unsigned char) pDevice->uCurrRSSI, &ldBm);
-					for (ii = 0; ii < BB_VGA_LEVEL; ii++) {
-						if (ldBm < pDevice->ldBmThreshold[ii]) {
-							pDevice->byBBVGANew = pDevice->abyBBVGA[ii];
-							break;
-						}
-					}
-					if (pDevice->byBBVGANew != pDevice->byBBVGACurrent) {
-						pDevice->uBBVGADiffCount++;
-						if (pDevice->uBBVGADiffCount == 1) {
-							// first VGA diff gain
-							BBvSetVGAGainOffset(pDevice, pDevice->byBBVGANew);
-							pr_debug("First RSSI[%d] NewGain[%d] OldGain[%d] Count[%d]\n",
-								 (int)ldBm,
-								 pDevice->byBBVGANew,
-								 pDevice->byBBVGACurrent,
-								 (int)pDevice->uBBVGADiffCount);
-						}
-						if (pDevice->uBBVGADiffCount >= BB_VGA_CHANGE_THRESHOLD) {
-							pr_debug("RSSI[%d] NewGain[%d] OldGain[%d] Count[%d]\n",
-								 (int)ldBm,
-								 pDevice->byBBVGANew,
-								 pDevice->byBBVGACurrent,
-								 (int)pDevice->uBBVGADiffCount);
-							BBvSetVGAGainOffset(pDevice, pDevice->byBBVGANew);
-						}
-					} else {
-						pDevice->uBBVGADiffCount = 1;
-					}
-				}
-			}
+			    pDevice->op_mode != NL80211_IFTYPE_ADHOC)
+				vnt_check_bb_vga(pDevice);
 
 			pDevice->bBeaconSent = false;
 			if (pDevice->bEnablePSMode)
@@ -1262,12 +1232,15 @@ static int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	head_td->m_td1TD1.wReqCount =
 			cpu_to_le16((u16)head_td->pTDInfo->dwReqCount);
 
-	head_td->pTDInfo->byFlags = TD_FLAGS_NETIF_SKB;
+	head_td->buff_addr = cpu_to_le32(head_td->pTDInfo->skb_dma);
 
-	if (dma_idx == TYPE_AC0DMA)
+	if (dma_idx == TYPE_AC0DMA) {
+		head_td->pTDInfo->byFlags = TD_FLAGS_NETIF_SKB;
+
 		MACvTransmitAC0(priv->PortOffset);
-	else
+	} else {
 		MACvTransmit0(priv->PortOffset);
+	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -1348,8 +1321,6 @@ static int vnt_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
-		if (priv->bDiversityRegCtlON)
-			device_init_diversity_timer(priv);
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		MACvRegBitsOff(priv->PortOffset, MAC_REG_RCR, RCR_UNICAST);
@@ -1379,11 +1350,6 @@ static void vnt_remove_interface(struct ieee80211_hw *hw,
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
-		if (priv->bDiversityRegCtlON) {
-			del_timer(&priv->TimerSQ3Tmax1);
-			del_timer(&priv->TimerSQ3Tmax2);
-			del_timer(&priv->TimerSQ3Tmax3);
-		}
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		MACvRegBitsOff(priv->PortOffset, MAC_REG_TCR, TCR_AUTOBCNTX);
@@ -1420,7 +1386,7 @@ static int vnt_config(struct ieee80211_hw *hw, u32 changed)
 
 	if ((changed & IEEE80211_CONF_CHANGE_CHANNEL) ||
 	    (conf->flags & IEEE80211_CONF_OFFCHANNEL)) {
-		set_channel(priv, conf->chandef.chan->hw_value);
+		set_channel(priv, conf->chandef.chan);
 
 		if (conf->chandef.chan->band == IEEE80211_BAND_5GHZ)
 			bb_type = BB_TYPE_11A;
@@ -1572,6 +1538,10 @@ static void vnt_configure(struct ieee80211_hw *hw,
 
 	if (changed_flags & FIF_ALLMULTI) {
 		if (*total_flags & FIF_ALLMULTI) {
+			unsigned long flags;
+
+			spin_lock_irqsave(&priv->lock, flags);
+
 			if (priv->mc_list_count > 2) {
 				MACvSelectPage1(priv->PortOffset);
 
@@ -1592,6 +1562,8 @@ static void vnt_configure(struct ieee80211_hw *hw,
 
 				MACvSelectPage0(priv->PortOffset);
 			}
+
+			spin_unlock_irqrestore(&priv->lock, flags);
 
 			rx_mode |= RCR_MULTICAST | RCR_BROADCAST;
 		} else {
@@ -1676,7 +1648,7 @@ static const struct ieee80211_ops vnt_mac_ops = {
 	.reset_tsf		= vnt_reset_tsf,
 };
 
-int vnt_init(struct vnt_private *priv)
+static int vnt_init(struct vnt_private *priv)
 {
 	SET_IEEE80211_PERM_ADDR(priv->hw, priv->abyCurrentNetAddr);
 

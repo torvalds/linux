@@ -37,15 +37,11 @@ See the notes in the ni_atmio.o driver.
 */
 
 #include <linux/module.h>
-#include "../comedidev.h"
-
 #include <linux/delay.h>
 
+#include "../comedi_pcmcia.h"
 #include "ni_stc.h"
 #include "8255.h"
-
-#include <pcmcia/cistpl.h>
-#include <pcmcia/ds.h>
 
 /*
  *  AT specific setup
@@ -163,7 +159,6 @@ static int mio_cs_auto_attach(struct comedi_device *dev,
 {
 	struct pcmcia_device *link = comedi_to_pcmcia_dev(dev);
 	static const struct ni_board_struct *board;
-	struct ni_private *devpriv;
 	int ret;
 
 	board = ni_getboardtype(dev, link);
@@ -187,8 +182,6 @@ static int mio_cs_auto_attach(struct comedi_device *dev,
 	ret = ni_alloc_private(dev);
 	if (ret)
 		return ret;
-
-	devpriv = dev->private;
 
 	return ni_E_init(dev, 0, 1);
 }

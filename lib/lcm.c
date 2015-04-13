@@ -1,4 +1,4 @@
-#include <linux/kernel.h>
+#include <linux/compiler.h>
 #include <linux/gcd.h>
 #include <linux/export.h>
 #include <linux/lcm.h>

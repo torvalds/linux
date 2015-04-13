@@ -323,8 +323,6 @@ about the status of the key service:
 	U	Under construction by callback to userspace
 	N	Negative key
 
-     This file must be enabled at kernel configuration time as it allows anyone
-     to list the keys database.
 
  (*) /proc/key-users
 

@@ -219,7 +219,7 @@ static int mwifiex_process_country_ie(struct mwifiex_private *priv,
 
 	if (!strncmp(priv->adapter->country_code, &country_ie[2], 2)) {
 		rcu_read_unlock();
-		wiphy_dbg(priv->wdev->wiphy,
+		wiphy_dbg(priv->wdev.wiphy,
 			  "11D: skip setting domain info in FW\n");
 		return 0;
 	}
@@ -902,9 +902,12 @@ static int mwifiex_sec_ioctl_set_wep_key(struct mwifiex_private *priv,
 	if (wep_key->key_length) {
 		void *enc_key;
 
-		if (encrypt_key->key_disable)
+		if (encrypt_key->key_disable) {
 			memset(&priv->wep_key[index], 0,
 			       sizeof(struct mwifiex_wep_key));
+			if (wep_key->key_length)
+				goto done;
+			}
 
 		if (adapter->key_api_major_ver == KEY_API_VER_MAJOR_V2)
 			enc_key = encrypt_key;
@@ -918,6 +921,7 @@ static int mwifiex_sec_ioctl_set_wep_key(struct mwifiex_private *priv,
 			return ret;
 	}
 
+done:
 	if (priv->sec_info.wep_enabled)
 		priv->curr_pkt_filter |= HostCmd_ACT_MAC_WEP_ENABLE;
 	else
@@ -1129,36 +1133,6 @@ mwifiex_remain_on_chan_cfg(struct mwifiex_private *priv, u16 action,
 	}
 
 	return roc_cfg.status;
-}
-
-int
-mwifiex_set_bss_role(struct mwifiex_private *priv, u8 bss_role)
-{
-	if (GET_BSS_ROLE(priv) == bss_role) {
-		dev_dbg(priv->adapter->dev,
-			"info: already in the desired role.\n");
-		return 0;
-	}
-
-	mwifiex_free_priv(priv);
-	mwifiex_init_priv(priv);
-
-	priv->bss_role = bss_role;
-	switch (bss_role) {
-	case MWIFIEX_BSS_ROLE_UAP:
-		priv->bss_mode = NL80211_IFTYPE_AP;
-		break;
-	case MWIFIEX_BSS_ROLE_STA:
-	case MWIFIEX_BSS_ROLE_ANY:
-	default:
-		priv->bss_mode = NL80211_IFTYPE_STATION;
-		break;
-	}
-
-	mwifiex_send_cmd(priv, HostCmd_CMD_SET_BSS_MODE,
-			 HostCmd_ACT_GEN_SET, 0, NULL, true);
-
-	return mwifiex_sta_init_cmd(priv, false);
 }
 
 /*

@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2007-2008 Advanced Micro Devices, Inc.
- * Author: Joerg Roedel <joerg.roedel@amd.com>
+ * Author: Joerg Roedel <jroedel@suse.de>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -1084,7 +1084,7 @@ int iommu_map(struct iommu_domain *domain, unsigned long iova,
 	if (ret)
 		iommu_unmap(domain, orig_iova, orig_size - size);
 	else
-		trace_map(iova, paddr, size);
+		trace_map(orig_iova, paddr, orig_size);
 
 	return ret;
 }
@@ -1094,6 +1094,7 @@ size_t iommu_unmap(struct iommu_domain *domain, unsigned long iova, size_t size)
 {
 	size_t unmapped_page, unmapped = 0;
 	unsigned int min_pagesz;
+	unsigned long orig_iova = iova;
 
 	if (unlikely(domain->ops->unmap == NULL ||
 		     domain->ops->pgsize_bitmap == 0UL))
@@ -1133,7 +1134,7 @@ size_t iommu_unmap(struct iommu_domain *domain, unsigned long iova, size_t size)
 		unmapped += unmapped_page;
 	}
 
-	trace_unmap(iova, 0, size);
+	trace_unmap(orig_iova, size, unmapped);
 	return unmapped;
 }
 EXPORT_SYMBOL_GPL(iommu_unmap);

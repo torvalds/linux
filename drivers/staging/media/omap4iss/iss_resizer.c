@@ -283,22 +283,6 @@ static void resizer_isr_buffer(struct iss_resizer_device *resizer)
 }
 
 /*
- * resizer_isif0_isr - Handle ISIF0 event
- * @resizer: Pointer to ISP RESIZER device.
- *
- * Executes LSC deferred enablement before next frame starts.
- */
-static void resizer_int_dma_isr(struct iss_resizer_device *resizer)
-{
-	struct iss_pipeline *pipe =
-			     to_iss_pipeline(&resizer->subdev.entity);
-	if (pipe->do_propagation)
-		atomic_inc(&pipe->frame_number);
-
-	resizer_isr_buffer(resizer);
-}
-
-/*
  * omap4iss_resizer_isr - Configure resizer during interframe time.
  * @resizer: Pointer to ISP RESIZER device.
  * @events: RESIZER events
@@ -322,7 +306,7 @@ void omap4iss_resizer_isr(struct iss_resizer_device *resizer, u32 events)
 		return;
 
 	if (events & ISP5_IRQ_RSZ_INT_DMA)
-		resizer_int_dma_isr(resizer);
+		resizer_isr_buffer(resizer);
 }
 
 /* -----------------------------------------------------------------------------

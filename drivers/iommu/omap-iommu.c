@@ -1126,7 +1126,7 @@ static int omap_iommu_map(struct iommu_domain *domain, unsigned long da,
 		return -EINVAL;
 	}
 
-	dev_dbg(dev, "mapping da 0x%lx to pa 0x%x size 0x%x\n", da, pa, bytes);
+	dev_dbg(dev, "mapping da 0x%lx to pa %pa size 0x%x\n", da, &pa, bytes);
 
 	iotlb_init_entry(&e, da, pa, omap_pgsz);
 

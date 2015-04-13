@@ -26,6 +26,7 @@
 
 	chosen {
 		bootargs = "console=ttySAC2,115200N8 root=/dev/mmcblk0p5 rw rootwait earlyprintk panic=5 maxcpus=1";
+		stdout-path = &serial_2;
 	};
 
 	sysram@02020000 {
@@ -71,6 +72,7 @@
 	hsotg@12480000 {
 		vusb_d-supply = <&ldo3_reg>;
 		vusb_a-supply = <&ldo8_reg>;
+		dr_mode = "peripheral";
 		status = "okay";
 	};
 

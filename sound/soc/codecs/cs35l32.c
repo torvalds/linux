@@ -264,7 +264,7 @@ static int cs35l32_codec_set_sysclk(struct snd_soc_codec *codec,
 			CS35L32_MCLK_DIV2_MASK | CS35L32_MCLK_RATIO_MASK, val);
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_cs35l32 = {
+static const struct snd_soc_codec_driver soc_codec_dev_cs35l32 = {
 	.set_sysclk = cs35l32_codec_set_sysclk,
 
 	.dapm_widgets = cs35l32_dapm_widgets,
@@ -288,7 +288,7 @@ static const struct reg_default cs35l32_monitor_patch[] = {
 	{ 0x00, 0x00 },
 };
 
-static struct regmap_config cs35l32_regmap = {
+static const struct regmap_config cs35l32_regmap = {
 	.reg_bits = 8,
 	.val_bits = 8,
 

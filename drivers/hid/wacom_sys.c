@@ -406,6 +406,9 @@ static int wacom_query_tablet_data(struct hid_device *hdev,
 		else if (features->type == WACOM_27QHDT) {
 			return wacom_set_device_mode(hdev, 131, 3, 2);
 		}
+		else if (features->type == BAMBOO_PAD) {
+			return wacom_set_device_mode(hdev, 2, 2, 2);
+		}
 	} else if (features->device_type == BTN_TOOL_PEN) {
 		if (features->type <= BAMBOO_PT && features->type != WIRELESS) {
 			return wacom_set_device_mode(hdev, 2, 2, 2);
@@ -524,6 +527,11 @@ static int wacom_add_shared_data(struct hid_device *hdev)
 
 	wacom_wac->shared = &data->shared;
 
+	if (wacom_wac->features.device_type == BTN_TOOL_FINGER)
+		wacom_wac->shared->touch = hdev;
+	else if (wacom_wac->features.device_type == BTN_TOOL_PEN)
+		wacom_wac->shared->pen = hdev;
+
 out:
 	mutex_unlock(&wacom_udev_list_lock);
 	return retval;
@@ -541,14 +549,22 @@ static void wacom_release_shared_data(struct kref *kref)
 	kfree(data);
 }
 
-static void wacom_remove_shared_data(struct wacom_wac *wacom)
+static void wacom_remove_shared_data(struct wacom *wacom)
 {
 	struct wacom_hdev_data *data;
+	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
 
-	if (wacom->shared) {
-		data = container_of(wacom->shared, struct wacom_hdev_data, shared);
+	if (wacom_wac->shared) {
+		data = container_of(wacom_wac->shared, struct wacom_hdev_data,
+				    shared);
+
+		if (wacom_wac->shared->touch == wacom->hdev)
+			wacom_wac->shared->touch = NULL;
+		else if (wacom_wac->shared->pen == wacom->hdev)
+			wacom_wac->shared->pen = NULL;
+
 		kref_put(&data->kref, wacom_release_shared_data);
-		wacom->shared = NULL;
+		wacom_wac->shared = NULL;
 	}
 }
 
@@ -929,6 +945,7 @@ static void wacom_destroy_leds(struct wacom *wacom)
 }
 
 static enum power_supply_property wacom_battery_props[] = {
+	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_SCOPE,
 	POWER_SUPPLY_PROP_CAPACITY
@@ -948,6 +965,9 @@ static int wacom_battery_get_property(struct power_supply *psy,
 	int ret = 0;
 
 	switch (psp) {
+		case POWER_SUPPLY_PROP_PRESENT:
+			val->intval = wacom->wacom_wac.bat_connected;
+			break;
 		case POWER_SUPPLY_PROP_SCOPE:
 			val->intval = POWER_SUPPLY_SCOPE_DEVICE;
 			break;
@@ -961,6 +981,8 @@ static int wacom_battery_get_property(struct power_supply *psy,
 			else if (wacom->wacom_wac.battery_capacity == 100 &&
 				    wacom->wacom_wac.ps_connected)
 				val->intval = POWER_SUPPLY_STATUS_FULL;
+			else if (wacom->wacom_wac.ps_connected)
+				val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
 			else
 				val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
 			break;
@@ -1041,8 +1063,7 @@ static int wacom_initialize_battery(struct wacom *wacom)
 
 static void wacom_destroy_battery(struct wacom *wacom)
 {
-	if ((wacom->wacom_wac.features.quirks & WACOM_QUIRK_BATTERY) &&
-	     wacom->battery.dev) {
+	if (wacom->battery.dev) {
 		power_supply_unregister(&wacom->battery);
 		wacom->battery.dev = NULL;
 		power_supply_unregister(&wacom->ac);
@@ -1313,6 +1334,20 @@ fail:
 	return;
 }
 
+void wacom_battery_work(struct work_struct *work)
+{
+	struct wacom *wacom = container_of(work, struct wacom, work);
+
+	if ((wacom->wacom_wac.features.quirks & WACOM_QUIRK_BATTERY) &&
+	     !wacom->battery.dev) {
+		wacom_initialize_battery(wacom);
+	}
+	else if (!(wacom->wacom_wac.features.quirks & WACOM_QUIRK_BATTERY) &&
+		 wacom->battery.dev) {
+		wacom_destroy_battery(wacom);
+	}
+}
+
 /*
  * Not all devices report physical dimensions from HID.
  * Compute the default from hardcoded logical dimension
@@ -1373,6 +1408,9 @@ static int wacom_probe(struct hid_device *hdev,
 
 	hdev->quirks |= HID_QUIRK_NO_INIT_REPORTS;
 
+	/* hid-core sets this quirk for the boot interface */
+	hdev->quirks &= ~HID_QUIRK_NOGET;
+
 	wacom = kzalloc(sizeof(struct wacom), GFP_KERNEL);
 	if (!wacom)
 		return -ENOMEM;
@@ -1412,6 +1450,21 @@ static int wacom_probe(struct hid_device *hdev,
 			goto fail_allocate_inputs;
 	}
 
+	/*
+	 * Bamboo Pad has a generic hid handling for the Pen, and we switch it
+	 * into debug mode for the touch part.
+	 * We ignore the other interfaces.
+	 */
+	if (features->type == BAMBOO_PAD) {
+		if (features->pktlen == WACOM_PKGLEN_PENABLED) {
+			features->type = HID_GENERIC;
+		} else if ((features->pktlen != WACOM_PKGLEN_BPAD_TOUCH) &&
+			   (features->pktlen != WACOM_PKGLEN_BPAD_TOUCH_USB)) {
+			error = -ENODEV;
+			goto fail_shared_data;
+		}
+	}
+
 	/* set the default size in case we do not get them from hid */
 	wacom_set_default_phy(features);
 
@@ -1446,6 +1499,12 @@ static int wacom_probe(struct hid_device *hdev,
 		features->y_max = 4096;
 	}
 
+	/*
+	 * Same thing for Bamboo PAD
+	 */
+	if (features->type == BAMBOO_PAD)
+		features->device_type = BTN_TOOL_FINGER;
+
 	if (hdev->bus == BUS_BLUETOOTH)
 		features->quirks |= WACOM_QUIRK_BATTERY;
 
@@ -1462,19 +1521,17 @@ static int wacom_probe(struct hid_device *hdev,
 	snprintf(wacom_wac->pad_name, sizeof(wacom_wac->pad_name),
 		"%s Pad", features->name);
 
-	if (features->quirks & WACOM_QUIRK_MULTI_INPUT) {
-		/* Append the device type to the name */
-		if (features->device_type != BTN_TOOL_FINGER)
-			strlcat(wacom_wac->name, " Pen", WACOM_NAME_MAX);
-		else if (features->touch_max)
-			strlcat(wacom_wac->name, " Finger", WACOM_NAME_MAX);
-		else
-			strlcat(wacom_wac->name, " Pad", WACOM_NAME_MAX);
+	/* Append the device type to the name */
+	if (features->device_type != BTN_TOOL_FINGER)
+		strlcat(wacom_wac->name, " Pen", WACOM_NAME_MAX);
+	else if (features->touch_max)
+		strlcat(wacom_wac->name, " Finger", WACOM_NAME_MAX);
+	else
+		strlcat(wacom_wac->name, " Pad", WACOM_NAME_MAX);
 
-		error = wacom_add_shared_data(hdev);
-		if (error)
-			goto fail_shared_data;
-	}
+	error = wacom_add_shared_data(hdev);
+	if (error)
+		goto fail_shared_data;
 
 	if (!(features->quirks & WACOM_QUIRK_MONITOR) &&
 	     (features->quirks & WACOM_QUIRK_BATTERY)) {
@@ -1527,7 +1584,7 @@ fail_register_inputs:
 	wacom_clean_inputs(wacom);
 	wacom_destroy_battery(wacom);
 fail_battery:
-	wacom_remove_shared_data(wacom_wac);
+	wacom_remove_shared_data(wacom);
 fail_shared_data:
 	wacom_clean_inputs(wacom);
 fail_allocate_inputs:
@@ -1550,7 +1607,7 @@ static void wacom_remove(struct hid_device *hdev)
 	if (hdev->bus == BUS_BLUETOOTH)
 		device_remove_file(&hdev->dev, &dev_attr_speed);
 	wacom_destroy_battery(wacom);
-	wacom_remove_shared_data(&wacom->wacom_wac);
+	wacom_remove_shared_data(wacom);
 
 	hid_set_drvdata(hdev, NULL);
 	kfree(wacom);

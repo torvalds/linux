@@ -1,5 +1,6 @@
 #include <linux/nfs_fs.h>
 #include <linux/nfs_mount.h>
+#include <linux/sunrpc/addr.h>
 #include "internal.h"
 #include "nfs3_fs.h"
 
@@ -64,3 +65,43 @@ struct nfs_server *nfs3_clone_server(struct nfs_server *source,
 		nfs_init_server_aclclient(server);
 	return server;
 }
+
+/*
+ * Set up a pNFS Data Server client over NFSv3.
+ *
+ * Return any existing nfs_client that matches server address,port,version
+ * and minorversion.
+ *
+ * For a new nfs_client, use a soft mount (default), a low retrans and a
+ * low timeout interval so that if a connection is lost, we retry through
+ * the MDS.
+ */
+struct nfs_client *nfs3_set_ds_client(struct nfs_client *mds_clp,
+		const struct sockaddr *ds_addr, int ds_addrlen,
+		int ds_proto, unsigned int ds_timeo, unsigned int ds_retrans,
+		rpc_authflavor_t au_flavor)
+{
+	struct nfs_client_initdata cl_init = {
+		.addr = ds_addr,
+		.addrlen = ds_addrlen,
+		.nfs_mod = &nfs_v3,
+		.proto = ds_proto,
+		.net = mds_clp->cl_net,
+	};
+	struct rpc_timeout ds_timeout;
+	struct nfs_client *clp;
+	char buf[INET6_ADDRSTRLEN + 1];
+
+	/* fake a hostname because lockd wants it */
+	if (rpc_ntop(ds_addr, buf, sizeof(buf)) <= 0)
+		return ERR_PTR(-EINVAL);
+	cl_init.hostname = buf;
+
+	/* Use the MDS nfs_client cl_ipaddr. */
+	nfs_init_timeout_values(&ds_timeout, ds_proto, ds_timeo, ds_retrans);
+	clp = nfs_get_client(&cl_init, &ds_timeout, mds_clp->cl_ipaddr,
+			     au_flavor);
+
+	return clp;
+}
+EXPORT_SYMBOL_GPL(nfs3_set_ds_client);

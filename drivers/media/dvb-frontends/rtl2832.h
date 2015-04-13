@@ -2,6 +2,7 @@
  * Realtek RTL2832 DVB-T demodulator driver
  *
  * Copyright (C) 2012 Thomas Mair <thomas.mair86@gmail.com>
+ * Copyright (C) 2012-2014 Antti Palosaari <crope@iki.fi>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -21,86 +22,42 @@
 #ifndef RTL2832_H
 #define RTL2832_H
 
-#include <linux/kconfig.h>
 #include <linux/dvb/frontend.h>
+#include <linux/i2c-mux.h>
 
-struct rtl2832_config {
-	/*
-	 * Demodulator I2C address.
-	 */
-	u8 i2c_addr;
+/**
+ * struct rtl2832_platform_data - Platform data for the rtl2832 driver
+ * @clk: Clock frequency (4000000, 16000000, 25000000, 28800000).
+ * @tuner: Used tuner model.
+ * @get_dvb_frontend: Get DVB frontend.
+ * @get_i2c_adapter: Get I2C adapter.
+ * @enable_slave_ts: Enable slave TS IF.
+ * @pid_filter: Set PID to PID filter.
+ * @pid_filter_ctrl: Control PID filter.
+ */
 
+struct rtl2832_platform_data {
+	u32 clk;
 	/*
-	 * Xtal frequency.
-	 * Hz
-	 * 4000000, 16000000, 25000000, 28800000
-	 */
-	u32 xtal;
-
-	/*
-	 * tuner
-	 * XXX: This must be keep sync with dvb_usb_rtl28xxu demod driver.
+	 * XXX: This list must be kept sync with dvb_usb_rtl28xxu USB IF driver.
 	 */
 #define RTL2832_TUNER_TUA9001   0x24
 #define RTL2832_TUNER_FC0012    0x26
 #define RTL2832_TUNER_E4000     0x27
 #define RTL2832_TUNER_FC0013    0x29
-#define RTL2832_TUNER_R820T	0x2a
-#define RTL2832_TUNER_R828D	0x2b
+#define RTL2832_TUNER_R820T     0x2a
+#define RTL2832_TUNER_R828D     0x2b
 	u8 tuner;
+
+	struct dvb_frontend* (*get_dvb_frontend)(struct i2c_client *);
+	struct i2c_adapter* (*get_i2c_adapter)(struct i2c_client *);
+	int (*enable_slave_ts)(struct i2c_client *);
+	int (*pid_filter)(struct dvb_frontend *, u8, u16, int);
+	int (*pid_filter_ctrl)(struct dvb_frontend *, int);
+/* private: Register access for SDR module use only */
+	int (*bulk_read)(struct i2c_client *, unsigned int, void *, size_t);
+	int (*bulk_write)(struct i2c_client *, unsigned int, const void *, size_t);
+	int (*update_bits)(struct i2c_client *, unsigned int, unsigned int, unsigned int);
 };
-
-#if IS_ENABLED(CONFIG_DVB_RTL2832)
-struct dvb_frontend *rtl2832_attach(
-	const struct rtl2832_config *cfg,
-	struct i2c_adapter *i2c
-);
-
-extern struct i2c_adapter *rtl2832_get_i2c_adapter(
-	struct dvb_frontend *fe
-);
-
-extern struct i2c_adapter *rtl2832_get_private_i2c_adapter(
-	struct dvb_frontend *fe
-);
-
-extern int rtl2832_enable_external_ts_if(
-	struct dvb_frontend *fe
-);
-
-#else
-
-static inline struct dvb_frontend *rtl2832_attach(
-	const struct rtl2832_config *config,
-	struct i2c_adapter *i2c
-)
-{
-	pr_warn("%s: driver disabled by Kconfig\n", __func__);
-	return NULL;
-}
-
-static inline struct i2c_adapter *rtl2832_get_i2c_adapter(
-	struct dvb_frontend *fe
-)
-{
-	return NULL;
-}
-
-static inline struct i2c_adapter *rtl2832_get_private_i2c_adapter(
-	struct dvb_frontend *fe
-)
-{
-	return NULL;
-}
-
-static inline int rtl2832_enable_external_ts_if(
-	struct dvb_frontend *fe
-)
-{
-	return -ENODEV;
-}
-
-#endif
-
 
 #endif /* RTL2832_H */

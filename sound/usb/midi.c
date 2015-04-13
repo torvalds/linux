@@ -2292,14 +2292,13 @@ int snd_usbmidi_create(struct snd_card *card,
 	umidi->iface = iface;
 	umidi->quirk = quirk;
 	umidi->usb_protocol_ops = &snd_usbmidi_standard_ops;
-	init_timer(&umidi->error_timer);
 	spin_lock_init(&umidi->disc_lock);
 	init_rwsem(&umidi->disc_rwsem);
 	mutex_init(&umidi->mutex);
 	umidi->usb_id = USB_ID(le16_to_cpu(umidi->dev->descriptor.idVendor),
 			       le16_to_cpu(umidi->dev->descriptor.idProduct));
-	umidi->error_timer.function = snd_usbmidi_error_timer;
-	umidi->error_timer.data = (unsigned long)umidi;
+	setup_timer(&umidi->error_timer, snd_usbmidi_error_timer,
+		    (unsigned long)umidi);
 
 	/* detect the endpoint(s) to use */
 	memset(endpoints, 0, sizeof(endpoints));

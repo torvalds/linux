@@ -9,6 +9,16 @@ Rockchip platforms device tree bindings
     Required root node properties:
       - compatible = "mundoreader,bq-curie2", "rockchip,rk3066a";
 
+- ChipSPARK Rayeager PX2 board:
+    Required root node properties:
+      - compatible = "chipspark,rayeager-px2", "rockchip,rk3066a";
+
 - Radxa Rock board:
     Required root node properties:
       - compatible = "radxa,rock", "rockchip,rk3188";
+
+- Firefly Firefly-RK3288 board:
+    Required root node properties:
+      - compatible = "firefly,firefly-rk3288", "rockchip,rk3288";
+    or
+      - compatible = "firefly,firefly-rk3288-beta", "rockchip,rk3288";

@@ -13,10 +13,12 @@
 
 static void bcma_host_pci_switch_core(struct bcma_device *core)
 {
+	int win2 = core->bus->host_is_pcie2 ?
+		BCMA_PCIE2_BAR0_WIN2 : BCMA_PCI_BAR0_WIN2;
+
 	pci_write_config_dword(core->bus->host_pci, BCMA_PCI_BAR0_WIN,
 			       core->addr);
-	pci_write_config_dword(core->bus->host_pci, BCMA_PCI_BAR0_WIN2,
-			       core->wrap);
+	pci_write_config_dword(core->bus->host_pci, win2, core->wrap);
 	core->bus->mapped_core = core;
 	bcma_debug(core->bus, "Switched to core: 0x%X\n", core->id.id);
 }

@@ -448,16 +448,19 @@ static void smi_port_exit(struct smi_port *port)
 	port->enable = 0;
 }
 
-static void smi_port_irq(struct smi_port *port, u32 int_status)
+static int smi_port_irq(struct smi_port *port, u32 int_status)
 {
 	u32 port_req_irq = port->_dmaInterruptCH0 | port->_dmaInterruptCH1;
+	int handled = 0;
 
 	if (int_status & port_req_irq) {
 		smi_port_disableInterrupt(port);
 		port->_int_status = int_status;
 		smi_port_clearInterrupt(port);
 		tasklet_schedule(&port->tasklet);
+		handled = 1;
 	}
+	return handled;
 }
 
 static irqreturn_t smi_irq_handler(int irq, void *dev_id)
@@ -465,18 +468,19 @@ static irqreturn_t smi_irq_handler(int irq, void *dev_id)
 	struct smi_dev *dev = dev_id;
 	struct smi_port *port0 = &dev->ts_port[0];
 	struct smi_port *port1 = &dev->ts_port[1];
+	int handled = 0;
 
 	u32 intr_status = smi_read(MSI_INT_STATUS);
 
 	/* ts0 interrupt.*/
 	if (dev->info->ts_0)
-		smi_port_irq(port0, intr_status);
+		handled += smi_port_irq(port0, intr_status);
 
 	/* ts1 interrupt.*/
 	if (dev->info->ts_1)
-		smi_port_irq(port1, intr_status);
+		handled += smi_port_irq(port1, intr_status);
 
-	return IRQ_HANDLED;
+	return IRQ_RETVAL(handled);
 }
 
 static struct i2c_client *smi_add_i2c_client(struct i2c_adapter *adapter,

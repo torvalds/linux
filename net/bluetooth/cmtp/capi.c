@@ -253,8 +253,6 @@ static void cmtp_recv_interopmsg(struct cmtp_session *session, struct sk_buff *s
 			if (skb->len < CAPI_MSG_BASELEN + 15)
 				break;
 
-			controller = CAPIMSG_U32(skb->data, CAPI_MSG_BASELEN + 10);
-
 			if (!info && ctrl) {
 				int len = min_t(uint, CAPI_MANUFACTURER_LEN,
 						skb->data[CAPI_MSG_BASELEN + 14]);
@@ -270,8 +268,6 @@ static void cmtp_recv_interopmsg(struct cmtp_session *session, struct sk_buff *s
 			if (skb->len < CAPI_MSG_BASELEN + 32)
 				break;
 
-			controller = CAPIMSG_U32(skb->data, CAPI_MSG_BASELEN + 12);
-
 			if (!info && ctrl) {
 				ctrl->version.majorversion = CAPIMSG_U32(skb->data, CAPI_MSG_BASELEN + 16);
 				ctrl->version.minorversion = CAPIMSG_U32(skb->data, CAPI_MSG_BASELEN + 20);
@@ -284,8 +280,6 @@ static void cmtp_recv_interopmsg(struct cmtp_session *session, struct sk_buff *s
 		case CAPI_FUNCTION_GET_SERIAL_NUMBER:
 			if (skb->len < CAPI_MSG_BASELEN + 17)
 				break;
-
-			controller = CAPIMSG_U32(skb->data, CAPI_MSG_BASELEN + 12);
 
 			if (!info && ctrl) {
 				int len = min_t(uint, CAPI_SERIAL_LEN,

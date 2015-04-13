@@ -10,6 +10,12 @@ obj-$(CONFIG_KXCJK1013) += kxcjk-1013.o
 obj-$(CONFIG_KXSD9)	+= kxsd9.o
 obj-$(CONFIG_MMA8452)	+= mma8452.o
 
+obj-$(CONFIG_MMA9551_CORE)	+= mma9551_core.o
+obj-$(CONFIG_MMA9551)		+= mma9551.o
+obj-$(CONFIG_MMA9553)		+= mma9553.o
+
+obj-$(CONFIG_IIO_SSP_SENSORS_COMMONS) += ssp_accel_sensor.o
+
 obj-$(CONFIG_IIO_ST_ACCEL_3AXIS) += st_accel.o
 st_accel-y := st_accel_core.o
 st_accel-$(CONFIG_IIO_BUFFER) += st_accel_buffer.o

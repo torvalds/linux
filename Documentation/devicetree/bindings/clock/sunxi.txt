@@ -26,7 +26,7 @@ Required properties:
 	"allwinner,sun5i-a10s-ahb-gates-clk" - for the AHB gates on A10s
 	"allwinner,sun7i-a20-ahb-gates-clk" - for the AHB gates on A20
 	"allwinner,sun6i-a31-ar100-clk" - for the AR100 on A31
-	"allwinner,sun6i-a31-ahb1-mux-clk" - for the AHB1 multiplexer on A31
+	"allwinner,sun6i-a31-ahb1-clk" - for the AHB1 clock on A31
 	"allwinner,sun6i-a31-ahb1-gates-clk" - for the AHB1 gates on A31
 	"allwinner,sun8i-a23-ahb1-gates-clk" - for the AHB1 gates on A23
 	"allwinner,sun9i-a80-ahb0-gates-clk" - for the AHB0 gates on A80
@@ -55,9 +55,11 @@ Required properties:
 	"allwinner,sun6i-a31-apb2-gates-clk" - for the APB2 gates on A31
 	"allwinner,sun8i-a23-apb2-gates-clk" - for the APB2 gates on A23
 	"allwinner,sun5i-a13-mbus-clk" - for the MBUS clock on A13
-	"allwinner,sun4i-a10-mmc-output-clk" - for the MMC output clock on A10
-	"allwinner,sun4i-a10-mmc-sample-clk" - for the MMC sample clock on A10
+	"allwinner,sun4i-a10-mmc-clk" - for the MMC clock
+	"allwinner,sun9i-a80-mmc-clk" - for mmc module clocks on A80
+	"allwinner,sun9i-a80-mmc-config-clk" - for mmc gates + resets on A80
 	"allwinner,sun4i-a10-mod0-clk" - for the module 0 family of clocks
+	"allwinner,sun9i-a80-mod0-clk" - for module 0 (storage) clocks on A80
 	"allwinner,sun8i-a23-mbus-clk" - for the MBUS clock on A23
 	"allwinner,sun7i-a20-out-clk" - for the external output clocks
 	"allwinner,sun7i-a20-gmac-clk" - for the GMAC clock module on A20/A31
@@ -73,13 +75,19 @@ Required properties for all clocks:
 - #clock-cells : from common clock binding; shall be set to 0 except for
 	the following compatibles where it shall be set to 1:
 	"allwinner,*-gates-clk", "allwinner,sun4i-pll5-clk",
-	"allwinner,sun4i-pll6-clk", "allwinner,sun6i-a31-pll6-clk"
+	"allwinner,sun4i-pll6-clk", "allwinner,sun6i-a31-pll6-clk",
+	"allwinner,*-usb-clk", "allwinner,*-mmc-clk",
+	"allwinner,*-mmc-config-clk"
 - clock-output-names : shall be the corresponding names of the outputs.
 	If the clock module only has one output, the name shall be the
 	module name.
 
 And "allwinner,*-usb-clk" clocks also require:
 - reset-cells : shall be set to 1
+
+The "allwinner,sun9i-a80-mmc-config-clk" clock also requires:
+- #reset-cells : shall be set to 1
+- resets : shall be the reset control phandle for the mmc block.
 
 For "allwinner,sun7i-a20-gmac-clk", the parent clocks shall be fixed rate
 dummy clocks at 25 MHz and 125 MHz, respectively. See example.
@@ -94,6 +102,14 @@ refer to the index of the output.
 For "allwinner,sun6i-a31-pll6-clk", there are 2 outputs. The first output
 is the normal PLL6 output, or "pll6". The second output is rate doubled
 PLL6, or "pll6x2".
+
+The "allwinner,*-mmc-clk" clocks have three different outputs: the
+main clock, with the ID 0, and the output and sample clocks, with the
+IDs 1 and 2, respectively.
+
+The "allwinner,sun9i-a80-mmc-config-clk" clock has one clock/reset output
+per mmc controller. The number of outputs is determined by the size of
+the address block, which is related to the overall mmc block.
 
 For example:
 
@@ -138,11 +154,11 @@ cpu: cpu@01c20054 {
 };
 
 mmc0_clk: clk@01c20088 {
-	#clock-cells = <0>;
-	compatible = "allwinner,sun4i-mod0-clk";
+	#clock-cells = <1>;
+	compatible = "allwinner,sun4i-a10-mmc-clk";
 	reg = <0x01c20088 0x4>;
 	clocks = <&osc24M>, <&pll6 1>, <&pll5 1>;
-	clock-output-names = "mmc0";
+	clock-output-names = "mmc0", "mmc0_output", "mmc0_sample";
 };
 
 mii_phy_tx_clk: clk@2 {
@@ -169,4 +185,17 @@ gmac_clk: clk@01c20164 {
 	 */
 	clocks = <&mii_phy_tx_clk>, <&gmac_int_tx_clk>;
 	clock-output-names = "gmac";
+};
+
+mmc_config_clk: clk@01c13000 {
+	compatible = "allwinner,sun9i-a80-mmc-config-clk";
+	reg = <0x01c13000 0x10>;
+	clocks = <&ahb0_gates 8>;
+	clock-names = "ahb";
+	resets = <&ahb0_resets 8>;
+	reset-names = "ahb";
+	#clock-cells = <1>;
+	#reset-cells = <1>;
+	clock-output-names = "mmc0_config", "mmc1_config",
+			     "mmc2_config", "mmc3_config";
 };

@@ -352,13 +352,14 @@ static void color_to_ycbcr(struct tpg_data *tpg, int r, int g, int b,
 		{ COEFF(0.5, 224),     COEFF(-0.4629, 224), COEFF(-0.0405, 224) },
 	};
 	bool full = tpg->real_quantization == V4L2_QUANTIZATION_FULL_RANGE;
+	unsigned y_offset = full ? 0 : 16;
 	int lin_y, yc;
 
 	switch (tpg->real_ycbcr_enc) {
 	case V4L2_YCBCR_ENC_601:
 	case V4L2_YCBCR_ENC_XV601:
 	case V4L2_YCBCR_ENC_SYCC:
-		rgb2ycbcr(full ? bt601_full : bt601, r, g, b, 16, y, cb, cr);
+		rgb2ycbcr(full ? bt601_full : bt601, r, g, b, y_offset, y, cb, cr);
 		break;
 	case V4L2_YCBCR_ENC_BT2020:
 		rgb2ycbcr(bt2020, r, g, b, 16, y, cb, cr);
@@ -384,7 +385,7 @@ static void color_to_ycbcr(struct tpg_data *tpg, int r, int g, int b,
 	case V4L2_YCBCR_ENC_709:
 	case V4L2_YCBCR_ENC_XV709:
 	default:
-		rgb2ycbcr(full ? rec709_full : rec709, r, g, b, 0, y, cb, cr);
+		rgb2ycbcr(full ? rec709_full : rec709, r, g, b, y_offset, y, cb, cr);
 		break;
 	}
 }
@@ -439,13 +440,14 @@ static void ycbcr_to_color(struct tpg_data *tpg, int y, int cb, int cr,
 		{ COEFF(1, 219), COEFF(1.8814, 224),  COEFF(0, 224)       },
 	};
 	bool full = tpg->real_quantization == V4L2_QUANTIZATION_FULL_RANGE;
+	unsigned y_offset = full ? 0 : 16;
 	int lin_r, lin_g, lin_b, lin_y;
 
 	switch (tpg->real_ycbcr_enc) {
 	case V4L2_YCBCR_ENC_601:
 	case V4L2_YCBCR_ENC_XV601:
 	case V4L2_YCBCR_ENC_SYCC:
-		ycbcr2rgb(full ? bt601_full : bt601, y, cb, cr, 16, r, g, b);
+		ycbcr2rgb(full ? bt601_full : bt601, y, cb, cr, y_offset, r, g, b);
 		break;
 	case V4L2_YCBCR_ENC_BT2020:
 		ycbcr2rgb(bt2020, y, cb, cr, 16, r, g, b);
@@ -480,7 +482,7 @@ static void ycbcr_to_color(struct tpg_data *tpg, int y, int cb, int cr,
 	case V4L2_YCBCR_ENC_709:
 	case V4L2_YCBCR_ENC_XV709:
 	default:
-		ycbcr2rgb(full ? rec709_full : rec709, y, cb, cr, 16, r, g, b);
+		ycbcr2rgb(full ? rec709_full : rec709, y, cb, cr, y_offset, r, g, b);
 		break;
 	}
 }

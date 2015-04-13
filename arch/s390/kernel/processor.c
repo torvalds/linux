@@ -8,15 +8,23 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/smp.h>
 #include <linux/seq_file.h>
 #include <linux/delay.h>
 #include <linux/cpu.h>
 #include <asm/elf.h>
 #include <asm/lowcore.h>
 #include <asm/param.h>
+#include <asm/smp.h>
 
 static DEFINE_PER_CPU(struct cpuid, cpu_id);
+
+void cpu_relax(void)
+{
+	if (!smp_cpu_mtid && MACHINE_HAS_DIAG44)
+		asm volatile("diag 0,0,0x44");
+	barrier();
+}
+EXPORT_SYMBOL(cpu_relax);
 
 /*
  * cpu_init - initializes state that is per-CPU.

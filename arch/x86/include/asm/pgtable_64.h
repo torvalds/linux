@@ -142,12 +142,7 @@ static inline int pgd_large(pgd_t pgd) { return 0; }
 
 /* Encode and de-code a swap entry */
 #define SWP_TYPE_BITS 5
-#ifdef CONFIG_NUMA_BALANCING
-/* Automatic NUMA balancing needs to be distinguishable from swap entries */
-#define SWP_OFFSET_SHIFT (_PAGE_BIT_PROTNONE + 2)
-#else
 #define SWP_OFFSET_SHIFT (_PAGE_BIT_PROTNONE + 1)
-#endif
 
 #define MAX_SWAPFILES_CHECK() BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > SWP_TYPE_BITS)
 

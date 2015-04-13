@@ -133,7 +133,7 @@ ebt_basic_match(const struct ebt_entry *e, const struct sk_buff *skb,
 	__be16 ethproto;
 	int verdict, i;
 
-	if (vlan_tx_tag_present(skb))
+	if (skb_vlan_tag_present(skb))
 		ethproto = htons(ETH_P_8021Q);
 	else
 		ethproto = h->h_proto;

@@ -7,6 +7,7 @@
  * we just keep it from happening
  */
 #undef CONFIG_PARAVIRT
+#undef CONFIG_KASAN
 #ifdef CONFIG_X86_32
 #define _ASM_X86_DESC_H 1
 #endif
@@ -56,7 +57,8 @@ int cmdline_find_option_bool(const char *option);
 
 #if CONFIG_RANDOMIZE_BASE
 /* aslr.c */
-unsigned char *choose_kernel_location(unsigned char *input,
+unsigned char *choose_kernel_location(struct boot_params *params,
+				      unsigned char *input,
 				      unsigned long input_size,
 				      unsigned char *output,
 				      unsigned long output_size);
@@ -64,7 +66,8 @@ unsigned char *choose_kernel_location(unsigned char *input,
 bool has_cpuflag(int flag);
 #else
 static inline
-unsigned char *choose_kernel_location(unsigned char *input,
+unsigned char *choose_kernel_location(struct boot_params *params,
+				      unsigned char *input,
 				      unsigned long input_size,
 				      unsigned char *output,
 				      unsigned long output_size)

@@ -94,9 +94,6 @@ struct snd_pcm_ops {
 #define SNDRV_PCM_DEVICES	8
 #endif
 
-#define SNDRV_PCM_IOCTL1_FALSE		((void *)0)
-#define SNDRV_PCM_IOCTL1_TRUE		((void *)1)
-
 #define SNDRV_PCM_IOCTL1_RESET		0
 #define SNDRV_PCM_IOCTL1_INFO		1
 #define SNDRV_PCM_IOCTL1_CHANNEL_INFO	2
@@ -109,6 +106,7 @@ struct snd_pcm_ops {
 #define SNDRV_PCM_TRIGGER_PAUSE_RELEASE	4
 #define SNDRV_PCM_TRIGGER_SUSPEND	5
 #define SNDRV_PCM_TRIGGER_RESUME	6
+#define SNDRV_PCM_TRIGGER_DRAIN		7
 
 #define SNDRV_PCM_POS_XRUN		((snd_pcm_uframes_t)-1)
 
@@ -275,12 +273,19 @@ struct snd_pcm_hw_constraint_list {
 	unsigned int mask;
 };
 
+struct snd_pcm_hw_constraint_ranges {
+	unsigned int count;
+	const struct snd_interval *ranges;
+	unsigned int mask;
+};
+
 struct snd_pcm_hwptr_log;
 
 struct snd_pcm_runtime {
 	/* -- Status -- */
 	struct snd_pcm_substream *trigger_master;
 	struct timespec trigger_tstamp;	/* trigger timestamp */
+	bool trigger_tstamp_latched;     /* trigger timestamp latched in low-level driver/hardware */
 	int overrange;
 	snd_pcm_uframes_t avail_max;
 	snd_pcm_uframes_t hw_ptr_base;	/* Position at buffer restart */
@@ -449,6 +454,7 @@ struct snd_pcm_str {
 #endif
 #endif
 	struct snd_kcontrol *chmap_kctl; /* channel-mapping controls */
+	struct device dev;
 };
 
 struct snd_pcm {
@@ -465,7 +471,6 @@ struct snd_pcm {
 	wait_queue_head_t open_wait;
 	void *private_data;
 	void (*private_free) (struct snd_pcm *pcm);
-	struct device *dev; /* actual hw device this belongs to */
 	bool internal; /* pcm is for internal use only */
 	bool nonatomic; /* whole PCM operations are in non-atomic context */
 #if defined(CONFIG_SND_PCM_OSS) || defined(CONFIG_SND_PCM_OSS_MODULE)
@@ -520,7 +525,6 @@ void snd_pcm_release_substream(struct snd_pcm_substream *substream);
 int snd_pcm_attach_substream(struct snd_pcm *pcm, int stream, struct file *file,
 			     struct snd_pcm_substream **rsubstream);
 void snd_pcm_detach_substream(struct snd_pcm_substream *substream);
-void snd_pcm_vma_notify_data(void *client, void *data);
 int snd_pcm_mmap_data(struct snd_pcm_substream *substream, struct file *file, struct vm_area_struct *area);
 
 
@@ -910,6 +914,8 @@ void snd_interval_mulkdiv(const struct snd_interval *a, unsigned int k,
 			  const struct snd_interval *b, struct snd_interval *c);
 int snd_interval_list(struct snd_interval *i, unsigned int count,
 		      const unsigned int *list, unsigned int mask);
+int snd_interval_ranges(struct snd_interval *i, unsigned int count,
+			const struct snd_interval *list, unsigned int mask);
 int snd_interval_ratnum(struct snd_interval *i,
 			unsigned int rats_count, struct snd_ratnum *rats,
 			unsigned int *nump, unsigned int *denp);
@@ -934,6 +940,10 @@ int snd_pcm_hw_constraint_list(struct snd_pcm_runtime *runtime,
 			       unsigned int cond,
 			       snd_pcm_hw_param_t var,
 			       const struct snd_pcm_hw_constraint_list *l);
+int snd_pcm_hw_constraint_ranges(struct snd_pcm_runtime *runtime,
+				 unsigned int cond,
+				 snd_pcm_hw_param_t var,
+				 const struct snd_pcm_hw_constraint_ranges *r);
 int snd_pcm_hw_constraint_ratnums(struct snd_pcm_runtime *runtime, 
 				  unsigned int cond,
 				  snd_pcm_hw_param_t var,
@@ -986,21 +996,15 @@ int snd_pcm_format_physical_width(snd_pcm_format_t format);		/* in bits */
 ssize_t snd_pcm_format_size(snd_pcm_format_t format, size_t samples);
 const unsigned char *snd_pcm_format_silence_64(snd_pcm_format_t format);
 int snd_pcm_format_set_silence(snd_pcm_format_t format, void *buf, unsigned int frames);
-snd_pcm_format_t snd_pcm_build_linear_format(int width, int unsigned, int big_endian);
 
 void snd_pcm_set_ops(struct snd_pcm * pcm, int direction,
 		     const struct snd_pcm_ops *ops);
 void snd_pcm_set_sync(struct snd_pcm_substream *substream);
-int snd_pcm_lib_interleave_len(struct snd_pcm_substream *substream);
 int snd_pcm_lib_ioctl(struct snd_pcm_substream *substream,
 		      unsigned int cmd, void *arg);                      
 int snd_pcm_update_state(struct snd_pcm_substream *substream,
 			 struct snd_pcm_runtime *runtime);
 int snd_pcm_update_hw_ptr(struct snd_pcm_substream *substream);
-int snd_pcm_playback_xrun_check(struct snd_pcm_substream *substream);
-int snd_pcm_capture_xrun_check(struct snd_pcm_substream *substream);
-int snd_pcm_playback_xrun_asap(struct snd_pcm_substream *substream);
-int snd_pcm_capture_xrun_asap(struct snd_pcm_substream *substream);
 void snd_pcm_playback_silence(struct snd_pcm_substream *substream, snd_pcm_uframes_t new_hw_ptr);
 void snd_pcm_period_elapsed(struct snd_pcm_substream *substream);
 snd_pcm_sframes_t snd_pcm_lib_write(struct snd_pcm_substream *substream,

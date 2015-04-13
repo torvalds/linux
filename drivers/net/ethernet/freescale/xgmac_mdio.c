@@ -32,18 +32,19 @@ struct tgec_mdio_controller {
 	__be32	mdio_addr;	/* MDIO address */
 } __packed;
 
+#define MDIO_STAT_ENC		BIT(6)
 #define MDIO_STAT_CLKDIV(x)	(((x>>1) & 0xff) << 8)
-#define MDIO_STAT_BSY		(1 << 0)
-#define MDIO_STAT_RD_ER		(1 << 1)
+#define MDIO_STAT_BSY		BIT(0)
+#define MDIO_STAT_RD_ER		BIT(1)
 #define MDIO_CTL_DEV_ADDR(x) 	(x & 0x1f)
 #define MDIO_CTL_PORT_ADDR(x)	((x & 0x1f) << 5)
-#define MDIO_CTL_PRE_DIS	(1 << 10)
-#define MDIO_CTL_SCAN_EN	(1 << 11)
-#define MDIO_CTL_POST_INC	(1 << 14)
-#define MDIO_CTL_READ		(1 << 15)
+#define MDIO_CTL_PRE_DIS	BIT(10)
+#define MDIO_CTL_SCAN_EN	BIT(11)
+#define MDIO_CTL_POST_INC	BIT(14)
+#define MDIO_CTL_READ		BIT(15)
 
 #define MDIO_DATA(x)		(x & 0xffff)
-#define MDIO_DATA_BSY		(1 << 31)
+#define MDIO_DATA_BSY		BIT(31)
 
 /*
  * Wait until the MDIO bus is free
@@ -51,12 +52,16 @@ struct tgec_mdio_controller {
 static int xgmac_wait_until_free(struct device *dev,
 				 struct tgec_mdio_controller __iomem *regs)
 {
-	uint32_t status;
+	unsigned int timeout;
 
 	/* Wait till the bus is free */
-	status = spin_event_timeout(
-		!((in_be32(&regs->mdio_stat)) & MDIO_STAT_BSY), TIMEOUT, 0);
-	if (!status) {
+	timeout = TIMEOUT;
+	while ((ioread32be(&regs->mdio_stat) & MDIO_STAT_BSY) && timeout) {
+		cpu_relax();
+		timeout--;
+	}
+
+	if (!timeout) {
 		dev_err(dev, "timeout waiting for bus to be free\n");
 		return -ETIMEDOUT;
 	}
@@ -70,12 +75,16 @@ static int xgmac_wait_until_free(struct device *dev,
 static int xgmac_wait_until_done(struct device *dev,
 				 struct tgec_mdio_controller __iomem *regs)
 {
-	uint32_t status;
+	unsigned int timeout;
 
 	/* Wait till the MDIO write is complete */
-	status = spin_event_timeout(
-		!((in_be32(&regs->mdio_data)) & MDIO_DATA_BSY), TIMEOUT, 0);
-	if (!status) {
+	timeout = TIMEOUT;
+	while ((ioread32be(&regs->mdio_data) & MDIO_DATA_BSY) && timeout) {
+		cpu_relax();
+		timeout--;
+	}
+
+	if (!timeout) {
 		dev_err(dev, "timeout waiting for operation to complete\n");
 		return -ETIMEDOUT;
 	}
@@ -91,29 +100,42 @@ static int xgmac_wait_until_done(struct device *dev,
 static int xgmac_mdio_write(struct mii_bus *bus, int phy_id, int regnum, u16 value)
 {
 	struct tgec_mdio_controller __iomem *regs = bus->priv;
-	uint16_t dev_addr = regnum >> 16;
+	uint16_t dev_addr;
+	u32 mdio_ctl, mdio_stat;
 	int ret;
 
-	/* Setup the MII Mgmt clock speed */
-	out_be32(&regs->mdio_stat, MDIO_STAT_CLKDIV(100));
+	mdio_stat = ioread32be(&regs->mdio_stat);
+	if (regnum & MII_ADDR_C45) {
+		/* Clause 45 (ie 10G) */
+		dev_addr = (regnum >> 16) & 0x1f;
+		mdio_stat |= MDIO_STAT_ENC;
+	} else {
+		/* Clause 22 (ie 1G) */
+		dev_addr = regnum & 0x1f;
+		mdio_stat &= ~MDIO_STAT_ENC;
+	}
+
+	iowrite32be(mdio_stat, &regs->mdio_stat);
 
 	ret = xgmac_wait_until_free(&bus->dev, regs);
 	if (ret)
 		return ret;
 
 	/* Set the port and dev addr */
-	out_be32(&regs->mdio_ctl,
-		 MDIO_CTL_PORT_ADDR(phy_id) | MDIO_CTL_DEV_ADDR(dev_addr));
+	mdio_ctl = MDIO_CTL_PORT_ADDR(phy_id) | MDIO_CTL_DEV_ADDR(dev_addr);
+	iowrite32be(mdio_ctl, &regs->mdio_ctl);
 
 	/* Set the register address */
-	out_be32(&regs->mdio_addr, regnum & 0xffff);
+	if (regnum & MII_ADDR_C45) {
+		iowrite32be(regnum & 0xffff, &regs->mdio_addr);
 
-	ret = xgmac_wait_until_free(&bus->dev, regs);
-	if (ret)
-		return ret;
+		ret = xgmac_wait_until_free(&bus->dev, regs);
+		if (ret)
+			return ret;
+	}
 
 	/* Write the value to the register */
-	out_be32(&regs->mdio_data, MDIO_DATA(value));
+	iowrite32be(MDIO_DATA(value), &regs->mdio_data);
 
 	ret = xgmac_wait_until_done(&bus->dev, regs);
 	if (ret)
@@ -130,13 +152,22 @@ static int xgmac_mdio_write(struct mii_bus *bus, int phy_id, int regnum, u16 val
 static int xgmac_mdio_read(struct mii_bus *bus, int phy_id, int regnum)
 {
 	struct tgec_mdio_controller __iomem *regs = bus->priv;
-	uint16_t dev_addr = regnum >> 16;
+	uint16_t dev_addr;
+	uint32_t mdio_stat;
 	uint32_t mdio_ctl;
 	uint16_t value;
 	int ret;
 
-	/* Setup the MII Mgmt clock speed */
-	out_be32(&regs->mdio_stat, MDIO_STAT_CLKDIV(100));
+	mdio_stat = ioread32be(&regs->mdio_stat);
+	if (regnum & MII_ADDR_C45) {
+		dev_addr = (regnum >> 16) & 0x1f;
+		mdio_stat |= MDIO_STAT_ENC;
+	} else {
+		dev_addr = regnum & 0x1f;
+		mdio_stat &= ~MDIO_STAT_ENC;
+	}
+
+	iowrite32be(mdio_stat, &regs->mdio_stat);
 
 	ret = xgmac_wait_until_free(&bus->dev, regs);
 	if (ret)
@@ -144,52 +175,36 @@ static int xgmac_mdio_read(struct mii_bus *bus, int phy_id, int regnum)
 
 	/* Set the Port and Device Addrs */
 	mdio_ctl = MDIO_CTL_PORT_ADDR(phy_id) | MDIO_CTL_DEV_ADDR(dev_addr);
-	out_be32(&regs->mdio_ctl, mdio_ctl);
+	iowrite32be(mdio_ctl, &regs->mdio_ctl);
 
 	/* Set the register address */
-	out_be32(&regs->mdio_addr, regnum & 0xffff);
+	if (regnum & MII_ADDR_C45) {
+		iowrite32be(regnum & 0xffff, &regs->mdio_addr);
 
-	ret = xgmac_wait_until_free(&bus->dev, regs);
-	if (ret)
-		return ret;
+		ret = xgmac_wait_until_free(&bus->dev, regs);
+		if (ret)
+			return ret;
+	}
 
 	/* Initiate the read */
-	out_be32(&regs->mdio_ctl, mdio_ctl | MDIO_CTL_READ);
+	iowrite32be(mdio_ctl | MDIO_CTL_READ, &regs->mdio_ctl);
 
 	ret = xgmac_wait_until_done(&bus->dev, regs);
 	if (ret)
 		return ret;
 
 	/* Return all Fs if nothing was there */
-	if (in_be32(&regs->mdio_stat) & MDIO_STAT_RD_ER) {
+	if (ioread32be(&regs->mdio_stat) & MDIO_STAT_RD_ER) {
 		dev_err(&bus->dev,
 			"Error while reading PHY%d reg at %d.%hhu\n",
 			phy_id, dev_addr, regnum);
 		return 0xffff;
 	}
 
-	value = in_be32(&regs->mdio_data) & 0xffff;
+	value = ioread32be(&regs->mdio_data) & 0xffff;
 	dev_dbg(&bus->dev, "read %04x\n", value);
 
 	return value;
-}
-
-/* Reset the MIIM registers, and wait for the bus to free */
-static int xgmac_mdio_reset(struct mii_bus *bus)
-{
-	struct tgec_mdio_controller __iomem *regs = bus->priv;
-	int ret;
-
-	mutex_lock(&bus->mdio_lock);
-
-	/* Setup the MII Mgmt clock speed */
-	out_be32(&regs->mdio_stat, MDIO_STAT_CLKDIV(100));
-
-	ret = xgmac_wait_until_free(&bus->dev, regs);
-
-	mutex_unlock(&bus->mdio_lock);
-
-	return ret;
 }
 
 static int xgmac_mdio_probe(struct platform_device *pdev)
@@ -205,15 +220,13 @@ static int xgmac_mdio_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	bus = mdiobus_alloc_size(PHY_MAX_ADDR * sizeof(int));
+	bus = mdiobus_alloc();
 	if (!bus)
 		return -ENOMEM;
 
 	bus->name = "Freescale XGMAC MDIO Bus";
 	bus->read = xgmac_mdio_read;
 	bus->write = xgmac_mdio_write;
-	bus->reset = xgmac_mdio_reset;
-	bus->irq = bus->priv;
 	bus->parent = &pdev->dev;
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%llx", (unsigned long long)res.start);
 
@@ -257,6 +270,9 @@ static int xgmac_mdio_remove(struct platform_device *pdev)
 static struct of_device_id xgmac_mdio_match[] = {
 	{
 		.compatible = "fsl,fman-xmdio",
+	},
+	{
+		.compatible = "fsl,fman-memac-mdio",
 	},
 	{},
 };

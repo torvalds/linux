@@ -178,7 +178,7 @@ config MD_FAULTY
 source "drivers/md/bcache/Kconfig"
 
 config BLK_DEV_DM_BUILTIN
-	boolean
+	bool
 
 config BLK_DEV_DM
 	tristate "Device mapper support"
@@ -197,7 +197,7 @@ config BLK_DEV_DM
 	  If unsure, say N.
 
 config DM_DEBUG
-	boolean "Device mapper debugging support"
+	bool "Device mapper debugging support"
 	depends on BLK_DEV_DM
 	---help---
 	  Enable this for messages that may help debug device-mapper problems.
@@ -231,9 +231,8 @@ config DM_CRYPT
 	  transparently encrypts the data on it. You'll need to activate
 	  the ciphers you're going to use in the cryptoapi configuration.
 
-	  Information on how to use dm-crypt can be found on
-
-	  <http://www.saout.de/misc/dm-crypt/>
+	  For further information on dm-crypt and userspace tools see:
+	  <http://code.google.com/p/cryptsetup/wiki/DMCrypt>
 
 	  To compile this code as a module, choose M here: the module will
 	  be called dm-crypt.

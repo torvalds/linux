@@ -96,6 +96,7 @@ enum {
 	MLX4_QP_BIT_RRE				= 1 << 15,
 	MLX4_QP_BIT_RWE				= 1 << 14,
 	MLX4_QP_BIT_RAE				= 1 << 13,
+	MLX4_QP_BIT_FPP				= 1 <<	3,
 	MLX4_QP_BIT_RIC				= 1 <<	4,
 };
 

@@ -230,9 +230,7 @@ static inline s64 timekeeping_get_ns_raw(struct timekeeper *tk)
 
 /**
  * update_fast_timekeeper - Update the fast and NMI safe monotonic timekeeper.
- * @tk:		The timekeeper from which we take the update
- * @tkf:	The fast timekeeper to update
- * @tbase:	The time base for the fast timekeeper (mono/raw)
+ * @tkr: Timekeeping readout base from which we take the update
  *
  * We want to use this from any context including NMI and tracing /
  * instrumenting the timekeeping code itself.
@@ -244,11 +242,11 @@ static inline s64 timekeeping_get_ns_raw(struct timekeeper *tk)
  * smp_wmb();	<- Ensure that the last base[1] update is visible
  * tkf->seq++;
  * smp_wmb();	<- Ensure that the seqcount update is visible
- * update(tkf->base[0], tk);
+ * update(tkf->base[0], tkr);
  * smp_wmb();	<- Ensure that the base[0] update is visible
  * tkf->seq++;
  * smp_wmb();	<- Ensure that the seqcount update is visible
- * update(tkf->base[1], tk);
+ * update(tkf->base[1], tkr);
  *
  * The reader side does:
  *
@@ -269,7 +267,7 @@ static inline s64 timekeeping_get_ns_raw(struct timekeeper *tk)
  * slightly wrong timestamp (a few nanoseconds). See
  * @ktime_get_mono_fast_ns.
  */
-static void update_fast_timekeeper(struct timekeeper *tk)
+static void update_fast_timekeeper(struct tk_read_base *tkr)
 {
 	struct tk_read_base *base = tk_fast_mono.base;
 
@@ -277,7 +275,7 @@ static void update_fast_timekeeper(struct timekeeper *tk)
 	raw_write_seqcount_latch(&tk_fast_mono.seq);
 
 	/* Update base[0] */
-	memcpy(base, &tk->tkr, sizeof(*base));
+	memcpy(base, tkr, sizeof(*base));
 
 	/* Force readers back to base[0] */
 	raw_write_seqcount_latch(&tk_fast_mono.seq);
@@ -333,6 +331,35 @@ u64 notrace ktime_get_mono_fast_ns(void)
 	return now;
 }
 EXPORT_SYMBOL_GPL(ktime_get_mono_fast_ns);
+
+/* Suspend-time cycles value for halted fast timekeeper. */
+static cycle_t cycles_at_suspend;
+
+static cycle_t dummy_clock_read(struct clocksource *cs)
+{
+	return cycles_at_suspend;
+}
+
+/**
+ * halt_fast_timekeeper - Prevent fast timekeeper from accessing clocksource.
+ * @tk: Timekeeper to snapshot.
+ *
+ * It generally is unsafe to access the clocksource after timekeeping has been
+ * suspended, so take a snapshot of the readout base of @tk and use it as the
+ * fast timekeeper's readout base while suspended.  It will return the same
+ * number of cycles every time until timekeeping is resumed at which time the
+ * proper readout base for the fast timekeeper will be restored automatically.
+ */
+static void halt_fast_timekeeper(struct timekeeper *tk)
+{
+	static struct tk_read_base tkr_dummy;
+	struct tk_read_base *tkr = &tk->tkr;
+
+	memcpy(&tkr_dummy, tkr, sizeof(tkr_dummy));
+	cycles_at_suspend = tkr->read(tkr->clock);
+	tkr_dummy.read = dummy_clock_read;
+	update_fast_timekeeper(&tkr_dummy);
+}
 
 #ifdef CONFIG_GENERIC_TIME_VSYSCALL_OLD
 
@@ -462,7 +489,7 @@ static void timekeeping_update(struct timekeeper *tk, unsigned int action)
 		memcpy(&shadow_timekeeper, &tk_core.timekeeper,
 		       sizeof(tk_core.timekeeper));
 
-	update_fast_timekeeper(tk);
+	update_fast_timekeeper(&tk->tkr);
 }
 
 /**
@@ -1170,7 +1197,7 @@ void timekeeping_inject_sleeptime64(struct timespec64 *delta)
  * xtime/wall_to_monotonic/jiffies/etc are
  * still managed by arch specific suspend/resume code.
  */
-static void timekeeping_resume(void)
+void timekeeping_resume(void)
 {
 	struct timekeeper *tk = &tk_core.timekeeper;
 	struct clocksource *clock = tk->tkr.clock;
@@ -1251,7 +1278,7 @@ static void timekeeping_resume(void)
 	hrtimers_resume();
 }
 
-static int timekeeping_suspend(void)
+int timekeeping_suspend(void)
 {
 	struct timekeeper *tk = &tk_core.timekeeper;
 	unsigned long flags;
@@ -1296,6 +1323,7 @@ static int timekeeping_suspend(void)
 	}
 
 	timekeeping_update(tk, TK_MIRROR);
+	halt_fast_timekeeper(tk);
 	write_seqcount_end(&tk_core.seq);
 	raw_spin_unlock_irqrestore(&timekeeper_lock, flags);
 

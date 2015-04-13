@@ -4189,7 +4189,7 @@ static int e1000_sw_init(struct e1000_adapter *adapter)
 	/* Setup hardware time stamping cyclecounter */
 	if (adapter->flags & FLAG_HAS_HW_TIMESTAMP) {
 		adapter->cc.read = e1000e_cyclecounter_read;
-		adapter->cc.mask = CLOCKSOURCE_MASK(64);
+		adapter->cc.mask = CYCLECOUNTER_MASK(64);
 		adapter->cc.mult = 1;
 		/* cc.shift set in e1000e_get_base_tininca() */
 
@@ -5444,16 +5444,6 @@ static void e1000_tx_queue(struct e1000_ring *tx_ring, int tx_flags, int count)
 	wmb();
 
 	tx_ring->next_to_use = i;
-
-	if (adapter->flags2 & FLAG2_PCIM2PCI_ARBITER_WA)
-		e1000e_update_tdt_wa(tx_ring, i);
-	else
-		writel(i, tx_ring->tail);
-
-	/* we need this if more than one processor can write to our tail
-	 * at a time, it synchronizes IO on IA64/Altix systems
-	 */
-	mmiowb();
 }
 
 #define MINIMUM_DHCP_PACKET_SIZE 282
@@ -5463,8 +5453,8 @@ static int e1000_transfer_dhcp_info(struct e1000_adapter *adapter,
 	struct e1000_hw *hw = &adapter->hw;
 	u16 length, offset;
 
-	if (vlan_tx_tag_present(skb) &&
-	    !((vlan_tx_tag_get(skb) == adapter->hw.mng_cookie.vlan_id) &&
+	if (skb_vlan_tag_present(skb) &&
+	    !((skb_vlan_tag_get(skb) == adapter->hw.mng_cookie.vlan_id) &&
 	      (adapter->hw.mng_cookie.status &
 	       E1000_MNG_DHCP_COOKIE_STATUS_VLAN)))
 		return 0;
@@ -5603,9 +5593,10 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 	if (e1000_maybe_stop_tx(tx_ring, count + 2))
 		return NETDEV_TX_BUSY;
 
-	if (vlan_tx_tag_present(skb)) {
+	if (skb_vlan_tag_present(skb)) {
 		tx_flags |= E1000_TX_FLAGS_VLAN;
-		tx_flags |= (vlan_tx_tag_get(skb) << E1000_TX_FLAGS_VLAN_SHIFT);
+		tx_flags |= (skb_vlan_tag_get(skb) <<
+			     E1000_TX_FLAGS_VLAN_SHIFT);
 	}
 
 	first = tx_ring->next_to_use;
@@ -5635,8 +5626,9 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 	count = e1000_tx_map(tx_ring, skb, first, adapter->tx_fifo_limit,
 			     nr_frags);
 	if (count) {
-		if (unlikely((skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) &&
-			     !adapter->tx_hwtstamp_skb)) {
+		if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) &&
+		    (adapter->flags & FLAG_HAS_HW_TIMESTAMP) &&
+		    !adapter->tx_hwtstamp_skb) {
 			skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 			tx_flags |= E1000_TX_FLAGS_HWTSTAMP;
 			adapter->tx_hwtstamp_skb = skb_get(skb);
@@ -5653,6 +5645,21 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 				    (MAX_SKB_FRAGS *
 				     DIV_ROUND_UP(PAGE_SIZE,
 						  adapter->tx_fifo_limit) + 2));
+
+		if (!skb->xmit_more ||
+		    netif_xmit_stopped(netdev_get_tx_queue(netdev, 0))) {
+			if (adapter->flags2 & FLAG2_PCIM2PCI_ARBITER_WA)
+				e1000e_update_tdt_wa(tx_ring,
+						     tx_ring->next_to_use);
+			else
+				writel(tx_ring->next_to_use, tx_ring->tail);
+
+			/* we need this if more than one processor can write
+			 * to our tail at a time, it synchronizes IO on
+			 *IA64/Altix systems
+			 */
+			mmiowb();
+		}
 	} else {
 		dev_kfree_skb_any(skb);
 		tx_ring->buffer_info[first].time_stamp = 0;

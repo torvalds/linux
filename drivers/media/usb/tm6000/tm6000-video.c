@@ -941,7 +941,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 
 	fmt = format_by_fourcc(f->fmt.pix.pixelformat);
 	if (NULL == fmt) {
-		dprintk(dev, V4L2_DEBUG_IOCTL_ARG, "Fourcc format (0x%08x)"
+		dprintk(dev, 2, "Fourcc format (0x%08x)"
 				" invalid.\n", f->fmt.pix.pixelformat);
 		return -EINVAL;
 	}
@@ -1622,7 +1622,6 @@ static struct video_device *vdev_init(struct tm6000_core *dev,
 	*vfd = *template;
 	vfd->v4l2_dev = &dev->v4l2_dev;
 	vfd->release = video_device_release;
-	vfd->debug = tm6000_debug;
 	vfd->lock = &dev->lock;
 
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s", dev->name, type_name);

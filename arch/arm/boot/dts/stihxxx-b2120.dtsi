@@ -48,12 +48,23 @@
 		};
 
 		/* SSC11 to HDMI */
-		i2c@9541000 {
+		hdmiddc: i2c@9541000 {
 			status = "okay";
 			/* HDMI V1.3a supports Standard mode only */
 			clock-frequency = <100000>;
 			st,i2c-min-scl-pulse-width-us = <0>;
 			st,i2c-min-sda-pulse-width-us = <5>;
+		};
+
+		miphy28lp_phy: miphy28lp@9b22000 {
+
+			phy_port0: port@9b22000 {
+				st,osc-rdy;
+			};
+
+			phy_port1: port@9b2a000 {
+				st,osc-force-ext;
+			};
 		};
 	};
 };

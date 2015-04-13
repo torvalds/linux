@@ -93,11 +93,13 @@
 	pd_gsc: gsc-power-domain@10044000 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10044000 0x20>;
+		#power-domain-cells = <0>;
 	};
 
 	pd_mfc: mfc-power-domain@10044040 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10044040 0x20>;
+		#power-domain-cells = <0>;
 	};
 
 	clock: clock-controller@10010000 {
@@ -222,7 +224,7 @@
 		compatible = "samsung,mfc-v6";
 		reg = <0x11000000 0x10000>;
 		interrupts = <0 96 0>;
-		samsung,power-domain = <&pd_mfc>;
+		power-domains = <&pd_mfc>;
 		clocks = <&clock CLK_MFC>;
 		clock-names = "mfc";
 	};
@@ -682,7 +684,7 @@
 		compatible = "samsung,exynos5-gsc";
 		reg = <0x13e00000 0x1000>;
 		interrupts = <0 85 0>;
-		samsung,power-domain = <&pd_gsc>;
+		power-domains = <&pd_gsc>;
 		clocks = <&clock CLK_GSCL0>;
 		clock-names = "gscl";
 	};
@@ -691,7 +693,7 @@
 		compatible = "samsung,exynos5-gsc";
 		reg = <0x13e10000 0x1000>;
 		interrupts = <0 86 0>;
-		samsung,power-domain = <&pd_gsc>;
+		power-domains = <&pd_gsc>;
 		clocks = <&clock CLK_GSCL1>;
 		clock-names = "gscl";
 	};
@@ -700,7 +702,7 @@
 		compatible = "samsung,exynos5-gsc";
 		reg = <0x13e20000 0x1000>;
 		interrupts = <0 87 0>;
-		samsung,power-domain = <&pd_gsc>;
+		power-domains = <&pd_gsc>;
 		clocks = <&clock CLK_GSCL2>;
 		clock-names = "gscl";
 	};
@@ -709,7 +711,7 @@
 		compatible = "samsung,exynos5-gsc";
 		reg = <0x13e30000 0x1000>;
 		interrupts = <0 88 0>;
-		samsung,power-domain = <&pd_gsc>;
+		power-domains = <&pd_gsc>;
 		clocks = <&clock CLK_GSCL3>;
 		clock-names = "gscl";
 	};

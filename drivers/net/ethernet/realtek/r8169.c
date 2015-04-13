@@ -2073,8 +2073,8 @@ static int rtl8169_set_features(struct net_device *dev,
 
 static inline u32 rtl8169_tx_vlan_tag(struct sk_buff *skb)
 {
-	return (vlan_tx_tag_present(skb)) ?
-		TxVlanTag | swab16(vlan_tx_tag_get(skb)) : 0x00;
+	return (skb_vlan_tag_present(skb)) ?
+		TxVlanTag | swab16(skb_vlan_tag_get(skb)) : 0x00;
 }
 
 static void rtl8169_rx_vlan_tag(struct RxDesc *desc, struct sk_buff *skb)
@@ -7049,6 +7049,7 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 	u32 status, len;
 	u32 opts[2];
 	int frags;
+	bool stop_queue;
 
 	if (unlikely(!TX_FRAGS_READY_FOR(tp, skb_shinfo(skb)->nr_frags))) {
 		netif_err(tp, drv, dev, "BUG! Tx Ring full when queue awake!\n");
@@ -7105,11 +7106,16 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 
 	tp->cur_tx += frags + 1;
 
-	RTL_W8(TxPoll, NPQ);
+	stop_queue = !TX_FRAGS_READY_FOR(tp, MAX_SKB_FRAGS);
 
-	mmiowb();
+	if (!skb->xmit_more || stop_queue ||
+	    netif_xmit_stopped(netdev_get_tx_queue(dev, 0))) {
+		RTL_W8(TxPoll, NPQ);
 
-	if (!TX_FRAGS_READY_FOR(tp, MAX_SKB_FRAGS)) {
+		mmiowb();
+	}
+
+	if (stop_queue) {
 		/* Avoid wrongly optimistic queue wake-up: rtl_tx thread must
 		 * not miss a ring update when it notices a stopped queue.
 		 */

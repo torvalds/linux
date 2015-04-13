@@ -152,69 +152,45 @@ static inline int at91_soc_is_detected(void)
 #define cpu_is_at91rm9200_pqfp() (0)
 #endif
 
-#ifdef CONFIG_SOC_AT91SAM9260
+#ifdef CONFIG_SOC_AT91SAM9
 #define cpu_is_at91sam9xe()	(at91_soc_initdata.subtype == AT91_SOC_SAM9XE)
 #define cpu_is_at91sam9260()	(at91_soc_initdata.type == AT91_SOC_SAM9260)
 #define cpu_is_at91sam9g20()	(at91_soc_initdata.type == AT91_SOC_SAM9G20)
-#else
-#define cpu_is_at91sam9xe()	(0)
-#define cpu_is_at91sam9260()	(0)
-#define cpu_is_at91sam9g20()	(0)
-#endif
-
-#ifdef CONFIG_SOC_AT91SAM9261
 #define cpu_is_at91sam9261()	(at91_soc_initdata.type == AT91_SOC_SAM9261)
 #define cpu_is_at91sam9g10()	(at91_soc_initdata.type == AT91_SOC_SAM9G10)
-#else
-#define cpu_is_at91sam9261()	(0)
-#define cpu_is_at91sam9g10()	(0)
-#endif
-
-#ifdef CONFIG_SOC_AT91SAM9263
 #define cpu_is_at91sam9263()	(at91_soc_initdata.type == AT91_SOC_SAM9263)
-#else
-#define cpu_is_at91sam9263()	(0)
-#endif
-
-#ifdef CONFIG_SOC_AT91SAM9RL
 #define cpu_is_at91sam9rl()	(at91_soc_initdata.type == AT91_SOC_SAM9RL)
-#else
-#define cpu_is_at91sam9rl()	(0)
-#endif
-
-#ifdef CONFIG_SOC_AT91SAM9G45
 #define cpu_is_at91sam9g45()	(at91_soc_initdata.type == AT91_SOC_SAM9G45)
 #define cpu_is_at91sam9g45es()	(at91_soc_initdata.subtype == AT91_SOC_SAM9G45ES)
 #define cpu_is_at91sam9m10()	(at91_soc_initdata.subtype == AT91_SOC_SAM9M10)
 #define cpu_is_at91sam9g46()	(at91_soc_initdata.subtype == AT91_SOC_SAM9G46)
 #define cpu_is_at91sam9m11()	(at91_soc_initdata.subtype == AT91_SOC_SAM9M11)
-#else
-#define cpu_is_at91sam9g45()	(0)
-#define cpu_is_at91sam9g45es()	(0)
-#define cpu_is_at91sam9m10()	(0)
-#define cpu_is_at91sam9g46()	(0)
-#define cpu_is_at91sam9m11()	(0)
-#endif
-
-#ifdef CONFIG_SOC_AT91SAM9X5
 #define cpu_is_at91sam9x5()	(at91_soc_initdata.type == AT91_SOC_SAM9X5)
 #define cpu_is_at91sam9g15()	(at91_soc_initdata.subtype == AT91_SOC_SAM9G15)
 #define cpu_is_at91sam9g35()	(at91_soc_initdata.subtype == AT91_SOC_SAM9G35)
 #define cpu_is_at91sam9x35()	(at91_soc_initdata.subtype == AT91_SOC_SAM9X35)
 #define cpu_is_at91sam9g25()	(at91_soc_initdata.subtype == AT91_SOC_SAM9G25)
 #define cpu_is_at91sam9x25()	(at91_soc_initdata.subtype == AT91_SOC_SAM9X25)
+#define cpu_is_at91sam9n12()	(at91_soc_initdata.type == AT91_SOC_SAM9N12)
 #else
+#define cpu_is_at91sam9xe()	(0)
+#define cpu_is_at91sam9260()	(0)
+#define cpu_is_at91sam9g20()	(0)
+#define cpu_is_at91sam9261()	(0)
+#define cpu_is_at91sam9g10()	(0)
+#define cpu_is_at91sam9263()	(0)
+#define cpu_is_at91sam9rl()	(0)
+#define cpu_is_at91sam9g45()	(0)
+#define cpu_is_at91sam9g45es()	(0)
+#define cpu_is_at91sam9m10()	(0)
+#define cpu_is_at91sam9g46()	(0)
+#define cpu_is_at91sam9m11()	(0)
 #define cpu_is_at91sam9x5()	(0)
 #define cpu_is_at91sam9g15()	(0)
 #define cpu_is_at91sam9g35()	(0)
 #define cpu_is_at91sam9x35()	(0)
 #define cpu_is_at91sam9g25()	(0)
 #define cpu_is_at91sam9x25()	(0)
-#endif
-
-#ifdef CONFIG_SOC_AT91SAM9N12
-#define cpu_is_at91sam9n12()	(at91_soc_initdata.type == AT91_SOC_SAM9N12)
-#else
 #define cpu_is_at91sam9n12()	(0)
 #endif
 
