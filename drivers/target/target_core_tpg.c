@@ -254,24 +254,12 @@ static int core_create_device_list_for_node(struct se_node_acl *nacl)
 	return 0;
 }
 
-/*	core_tpg_check_initiator_node_acl()
- *
- *
- */
-struct se_node_acl *core_tpg_check_initiator_node_acl(
-	struct se_portal_group *tpg,
-	unsigned char *initiatorname)
+static struct se_node_acl *target_alloc_node_acl(struct se_portal_group *tpg,
+		const unsigned char *initiatorname)
 {
 	struct se_node_acl *acl;
 
-	acl = core_tpg_get_initiator_node_acl(tpg, initiatorname);
-	if (acl)
-		return acl;
-
-	if (!tpg->se_tpg_tfo->tpg_check_demo_mode(tpg))
-		return NULL;
-
-	acl =  tpg->se_tpg_tfo->tpg_alloc_fabric_acl(tpg);
+	acl = tpg->se_tpg_tfo->tpg_alloc_fabric_acl(tpg);
 	if (!acl)
 		return NULL;
 
@@ -289,20 +277,60 @@ struct se_node_acl *core_tpg_check_initiator_node_acl(
 	snprintf(acl->initiatorname, TRANSPORT_IQN_LEN, "%s", initiatorname);
 	acl->se_tpg = tpg;
 	acl->acl_index = scsi_get_new_index(SCSI_AUTH_INTR_INDEX);
-	acl->dynamic_node_acl = 1;
 
 	tpg->se_tpg_tfo->set_default_node_attributes(acl);
 
-	if (core_create_device_list_for_node(acl) < 0) {
-		tpg->se_tpg_tfo->tpg_release_fabric_acl(tpg, acl);
-		return NULL;
-	}
+	if (core_create_device_list_for_node(acl) < 0)
+		goto out_free_acl;
+	if (core_set_queue_depth_for_node(tpg, acl) < 0)
+		goto out_free_device_list;
 
-	if (core_set_queue_depth_for_node(tpg, acl) < 0) {
-		core_free_device_list_for_node(acl, tpg);
-		tpg->se_tpg_tfo->tpg_release_fabric_acl(tpg, acl);
+	return acl;
+
+out_free_device_list:
+	core_free_device_list_for_node(acl, tpg);
+out_free_acl:
+	tpg->se_tpg_tfo->tpg_release_fabric_acl(tpg, acl);
+	return NULL;
+}
+
+static void target_add_node_acl(struct se_node_acl *acl)
+{
+	struct se_portal_group *tpg = acl->se_tpg;
+
+	spin_lock_irq(&tpg->acl_node_lock);
+	list_add_tail(&acl->acl_list, &tpg->acl_node_list);
+	tpg->num_node_acls++;
+	spin_unlock_irq(&tpg->acl_node_lock);
+
+	pr_debug("%s_TPG[%hu] - Added %s ACL with TCQ Depth: %d for %s"
+		" Initiator Node: %s\n",
+		tpg->se_tpg_tfo->get_fabric_name(),
+		tpg->se_tpg_tfo->tpg_get_tag(tpg),
+		acl->dynamic_node_acl ? "DYNAMIC" : "",
+		acl->queue_depth,
+		tpg->se_tpg_tfo->get_fabric_name(),
+		acl->initiatorname);
+}
+
+struct se_node_acl *core_tpg_check_initiator_node_acl(
+	struct se_portal_group *tpg,
+	unsigned char *initiatorname)
+{
+	struct se_node_acl *acl;
+
+	acl = core_tpg_get_initiator_node_acl(tpg, initiatorname);
+	if (acl)
+		return acl;
+
+	if (!tpg->se_tpg_tfo->tpg_check_demo_mode(tpg))
 		return NULL;
-	}
+
+	acl = target_alloc_node_acl(tpg, initiatorname);
+	if (!acl)
+		return NULL;
+	acl->dynamic_node_acl = 1;
+
 	/*
 	 * Here we only create demo-mode MappedLUNs from the active
 	 * TPG LUNs if the fabric is not explicitly asking for
@@ -312,16 +340,7 @@ struct se_node_acl *core_tpg_check_initiator_node_acl(
 	    (tpg->se_tpg_tfo->tpg_check_demo_mode_login_only(tpg) != 1))
 		core_tpg_add_node_to_devs(acl, tpg);
 
-	spin_lock_irq(&tpg->acl_node_lock);
-	list_add_tail(&acl->acl_list, &tpg->acl_node_list);
-	tpg->num_node_acls++;
-	spin_unlock_irq(&tpg->acl_node_lock);
-
-	pr_debug("%s_TPG[%u] - Added DYNAMIC ACL with TCQ Depth: %d for %s"
-		" Initiator Node: %s\n", tpg->se_tpg_tfo->get_fabric_name(),
-		tpg->se_tpg_tfo->tpg_get_tag(tpg), acl->queue_depth,
-		tpg->se_tpg_tfo->get_fabric_name(), initiatorname);
-
+	target_add_node_acl(acl);
 	return acl;
 }
 EXPORT_SYMBOL(core_tpg_check_initiator_node_acl);
@@ -368,7 +387,7 @@ struct se_node_acl *core_tpg_add_initiator_node_acl(
 				" for %s\n", tpg->se_tpg_tfo->get_fabric_name(),
 				tpg->se_tpg_tfo->tpg_get_tag(tpg), initiatorname);
 			spin_unlock_irq(&tpg->acl_node_lock);
-			goto done;
+			return acl;
 		}
 
 		pr_err("ACL entry for %s Initiator"
@@ -380,51 +399,11 @@ struct se_node_acl *core_tpg_add_initiator_node_acl(
 	}
 	spin_unlock_irq(&tpg->acl_node_lock);
 
-	acl = tpg->se_tpg_tfo->tpg_alloc_fabric_acl(tpg);
-	if (!acl) {
-		pr_err("struct se_node_acl pointer is NULL\n");
-		return ERR_PTR(-EINVAL);
-	}
-
-	INIT_LIST_HEAD(&acl->acl_list);
-	INIT_LIST_HEAD(&acl->acl_sess_list);
-	kref_init(&acl->acl_kref);
-	init_completion(&acl->acl_free_comp);
-	spin_lock_init(&acl->device_list_lock);
-	spin_lock_init(&acl->nacl_sess_lock);
-	atomic_set(&acl->acl_pr_ref_count, 0);
-	if (tpg->se_tpg_tfo->tpg_get_default_depth)
-		acl->queue_depth = tpg->se_tpg_tfo->tpg_get_default_depth(tpg);
-	else
-		acl->queue_depth = 1;
-	snprintf(acl->initiatorname, TRANSPORT_IQN_LEN, "%s", initiatorname);
-	acl->se_tpg = tpg;
-	acl->acl_index = scsi_get_new_index(SCSI_AUTH_INTR_INDEX);
-
-	tpg->se_tpg_tfo->set_default_node_attributes(acl);
-
-	if (core_create_device_list_for_node(acl) < 0) {
-		tpg->se_tpg_tfo->tpg_release_fabric_acl(tpg, acl);
+	acl = target_alloc_node_acl(tpg, initiatorname);
+	if (!acl)
 		return ERR_PTR(-ENOMEM);
-	}
 
-	if (core_set_queue_depth_for_node(tpg, acl) < 0) {
-		core_free_device_list_for_node(acl, tpg);
-		tpg->se_tpg_tfo->tpg_release_fabric_acl(tpg, acl);
-		return ERR_PTR(-EINVAL);
-	}
-
-	spin_lock_irq(&tpg->acl_node_lock);
-	list_add_tail(&acl->acl_list, &tpg->acl_node_list);
-	tpg->num_node_acls++;
-	spin_unlock_irq(&tpg->acl_node_lock);
-
-done:
-	pr_debug("%s_TPG[%hu] - Added ACL with TCQ Depth: %d for %s"
-		" Initiator Node: %s\n", tpg->se_tpg_tfo->get_fabric_name(),
-		tpg->se_tpg_tfo->tpg_get_tag(tpg), acl->queue_depth,
-		tpg->se_tpg_tfo->get_fabric_name(), initiatorname);
-
+	target_add_node_acl(acl);
 	return acl;
 }
 
