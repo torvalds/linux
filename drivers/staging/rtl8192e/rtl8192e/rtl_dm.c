@@ -542,6 +542,97 @@ static u8	CCKSwingTable_Ch14[CCK_Table_length][8] = {
 #define		Tssi_Report_Value2			0x13e
 #define		FW_Busy_Flag				0x13f
 
+static void dm_tx_update_tssi_weak_signal(struct net_device *dev, u8 RF_Type)
+{
+	struct r8192_priv *p = rtllib_priv(dev);
+
+	if (RF_Type == RF_2T4R) {
+		if ((p->rfa_txpowertrackingindex > 0) &&
+		    (p->rfc_txpowertrackingindex > 0)) {
+			p->rfa_txpowertrackingindex--;
+			if (p->rfa_txpowertrackingindex_real > 4) {
+				p->rfa_txpowertrackingindex_real--;
+				rtl8192_setBBreg(dev, rOFDM0_XATxIQImbalance,
+						 bMaskDWord,
+						 dm_tx_bb_gain[p->rfa_txpowertrackingindex_real]);
+			}
+
+			p->rfc_txpowertrackingindex--;
+			if (p->rfc_txpowertrackingindex_real > 4) {
+				p->rfc_txpowertrackingindex_real--;
+				rtl8192_setBBreg(dev,
+						 rOFDM0_XCTxIQImbalance,
+						 bMaskDWord,
+						 dm_tx_bb_gain[p->rfc_txpowertrackingindex_real]);
+			}
+		} else {
+			rtl8192_setBBreg(dev, rOFDM0_XATxIQImbalance,
+					 bMaskDWord,
+					 dm_tx_bb_gain[4]);
+			rtl8192_setBBreg(dev,
+					 rOFDM0_XCTxIQImbalance,
+					 bMaskDWord, dm_tx_bb_gain[4]);
+		}
+	} else {
+		if (p->rfa_txpowertrackingindex > 0) {
+			p->rfa_txpowertrackingindex--;
+			if (p->rfa_txpowertrackingindex_real > 4) {
+				p->rfa_txpowertrackingindex_real--;
+				rtl8192_setBBreg(dev,
+						 rOFDM0_XATxIQImbalance,
+						 bMaskDWord,
+						 dm_tx_bb_gain[p->rfa_txpowertrackingindex_real]);
+			}
+		} else {
+			rtl8192_setBBreg(dev, rOFDM0_XATxIQImbalance,
+					 bMaskDWord, dm_tx_bb_gain[4]);
+		}
+	}
+}
+
+static void dm_tx_update_tssi_strong_signal(struct net_device *dev, u8 RF_Type)
+{
+	struct r8192_priv *p = rtllib_priv(dev);
+
+	if (RF_Type == RF_2T4R) {
+		if ((p->rfa_txpowertrackingindex < TxBBGainTableLength - 1) &&
+		    (p->rfc_txpowertrackingindex < TxBBGainTableLength - 1)) {
+			p->rfa_txpowertrackingindex++;
+			p->rfa_txpowertrackingindex_real++;
+			rtl8192_setBBreg(dev,
+				 rOFDM0_XATxIQImbalance,
+				 bMaskDWord,
+				 dm_tx_bb_gain[p->rfa_txpowertrackingindex_real]);
+			p->rfc_txpowertrackingindex++;
+			p->rfc_txpowertrackingindex_real++;
+			rtl8192_setBBreg(dev,
+				 rOFDM0_XCTxIQImbalance,
+				 bMaskDWord,
+				 dm_tx_bb_gain[p->rfc_txpowertrackingindex_real]);
+		} else {
+			rtl8192_setBBreg(dev,
+				 rOFDM0_XATxIQImbalance,
+				 bMaskDWord,
+				 dm_tx_bb_gain[TxBBGainTableLength - 1]);
+			rtl8192_setBBreg(dev, rOFDM0_XCTxIQImbalance,
+					 bMaskDWord,
+					 dm_tx_bb_gain[TxBBGainTableLength - 1]);
+		}
+	} else {
+		if (p->rfa_txpowertrackingindex < (TxBBGainTableLength - 1)) {
+			p->rfa_txpowertrackingindex++;
+			p->rfa_txpowertrackingindex_real++;
+			rtl8192_setBBreg(dev, rOFDM0_XATxIQImbalance,
+					 bMaskDWord,
+					 dm_tx_bb_gain[p->rfa_txpowertrackingindex_real]);
+		} else {
+			rtl8192_setBBreg(dev, rOFDM0_XATxIQImbalance,
+					 bMaskDWord,
+					 dm_tx_bb_gain[TxBBGainTableLength - 1]);
+		}
+	}
+}
+
 static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -672,92 +763,11 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 					 priv->CCKPresentAttentuation);
 				return;
 			}
-			if (Avg_TSSI_Meas_from_driver < TSSI_13dBm - E_FOR_TX_POWER_TRACK) {
-				if (RF_Type == RF_2T4R) {
+			if (Avg_TSSI_Meas_from_driver < TSSI_13dBm - E_FOR_TX_POWER_TRACK)
+				dm_tx_update_tssi_weak_signal(dev, RF_Type);
+			else
+				dm_tx_update_tssi_strong_signal(dev, RF_Type);
 
-					if ((priv->rfa_txpowertrackingindex > 0) &&
-					    (priv->rfc_txpowertrackingindex > 0)) {
-						priv->rfa_txpowertrackingindex--;
-						if (priv->rfa_txpowertrackingindex_real > 4) {
-							priv->rfa_txpowertrackingindex_real--;
-							rtl8192_setBBreg(dev,
-								 rOFDM0_XATxIQImbalance,
-								 bMaskDWord,
-								 dm_tx_bb_gain[priv->rfa_txpowertrackingindex_real]);
-						}
-
-						priv->rfc_txpowertrackingindex--;
-						if (priv->rfc_txpowertrackingindex_real > 4) {
-							priv->rfc_txpowertrackingindex_real--;
-							rtl8192_setBBreg(dev,
-								 rOFDM0_XCTxIQImbalance,
-								 bMaskDWord,
-								 dm_tx_bb_gain[priv->rfc_txpowertrackingindex_real]);
-						}
-					} else {
-						rtl8192_setBBreg(dev,
-								 rOFDM0_XATxIQImbalance,
-								 bMaskDWord,
-								 dm_tx_bb_gain[4]);
-						rtl8192_setBBreg(dev,
-								 rOFDM0_XCTxIQImbalance,
-								 bMaskDWord, dm_tx_bb_gain[4]);
-					}
-				} else {
-					if (priv->rfa_txpowertrackingindex > 0) {
-						priv->rfa_txpowertrackingindex--;
-						if (priv->rfa_txpowertrackingindex_real > 4) {
-							priv->rfa_txpowertrackingindex_real--;
-							rtl8192_setBBreg(dev,
-									 rOFDM0_XATxIQImbalance,
-									 bMaskDWord,
-									 dm_tx_bb_gain[priv->rfa_txpowertrackingindex_real]);
-						}
-					} else
-						rtl8192_setBBreg(dev, rOFDM0_XATxIQImbalance,
-								 bMaskDWord, dm_tx_bb_gain[4]);
-
-				}
-			} else {
-				if (RF_Type == RF_2T4R) {
-					if ((priv->rfa_txpowertrackingindex <
-					    TxBBGainTableLength - 1) &&
-					    (priv->rfc_txpowertrackingindex <
-					    TxBBGainTableLength - 1)) {
-						priv->rfa_txpowertrackingindex++;
-						priv->rfa_txpowertrackingindex_real++;
-						rtl8192_setBBreg(dev,
-							 rOFDM0_XATxIQImbalance,
-							 bMaskDWord,
-							 dm_tx_bb_gain[priv->rfa_txpowertrackingindex_real]);
-						priv->rfc_txpowertrackingindex++;
-						priv->rfc_txpowertrackingindex_real++;
-						rtl8192_setBBreg(dev,
-							 rOFDM0_XCTxIQImbalance,
-							 bMaskDWord,
-							 dm_tx_bb_gain[priv->rfc_txpowertrackingindex_real]);
-					} else {
-						rtl8192_setBBreg(dev,
-							 rOFDM0_XATxIQImbalance,
-							 bMaskDWord,
-							 dm_tx_bb_gain[TxBBGainTableLength - 1]);
-						rtl8192_setBBreg(dev,
-							 rOFDM0_XCTxIQImbalance,
-							 bMaskDWord, dm_tx_bb_gain[TxBBGainTableLength - 1]);
-					}
-				} else {
-					if (priv->rfa_txpowertrackingindex < (TxBBGainTableLength - 1)) {
-						priv->rfa_txpowertrackingindex++;
-						priv->rfa_txpowertrackingindex_real++;
-						rtl8192_setBBreg(dev, rOFDM0_XATxIQImbalance,
-								 bMaskDWord,
-								 dm_tx_bb_gain[priv->rfa_txpowertrackingindex_real]);
-					} else
-						rtl8192_setBBreg(dev, rOFDM0_XATxIQImbalance,
-								 bMaskDWord,
-								 dm_tx_bb_gain[TxBBGainTableLength - 1]);
-				}
-			}
 			if (RF_Type == RF_2T4R) {
 				priv->CCKPresentAttentuation_difference
 					= priv->rfa_txpowertrackingindex - priv->rfa_txpowertracking_default;
