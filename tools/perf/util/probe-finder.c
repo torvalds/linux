@@ -1066,7 +1066,7 @@ static int debuginfo__find_probes(struct debuginfo *dbg,
 			if (pp->function)
 				ret = find_probe_point_by_func(pf);
 			else if (pp->lazy_line)
-				ret = find_probe_point_lazy(NULL, pf);
+				ret = find_probe_point_lazy(&pf->cu_die, pf);
 			else {
 				pf->lno = pp->line;
 				ret = find_probe_point_by_line(pf);
