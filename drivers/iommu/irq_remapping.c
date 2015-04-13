@@ -204,19 +204,6 @@ static void ir_ack_apic_level(struct irq_data *data)
 	eoi_ioapic_irq(data->irq, irqd_cfg(data));
 }
 
-void irq_remapping_print_chip(struct irq_data *data, struct seq_file *p)
-{
-	/*
-	 * Assume interrupt is remapped if the parent irqdomain isn't the
-	 * vector domain, which is true for MSI, HPET and IOAPIC on x86
-	 * platforms.
-	 */
-	if (data->domain && data->domain->parent != arch_get_ir_parent_domain())
-		seq_printf(p, " IR-%s", data->chip->name);
-	else
-		seq_printf(p, " %s", data->chip->name);
-}
-
 static void ir_print_prefix(struct irq_data *data, struct seq_file *p)
 {
 	seq_printf(p, " IR-%s", data->chip->name);
