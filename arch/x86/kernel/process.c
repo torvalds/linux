@@ -89,8 +89,8 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 
 	dst->thread.fpu_counter = 0;
 	dst->thread.fpu.has_fpu = 0;
-	dst->thread.fpu.last_cpu = ~0;
 	dst->thread.fpu.state = NULL;
+	task_disable_lazy_fpu_restore(dst);
 	if (tsk_used_math(src)) {
 		int err = fpu_alloc(&dst->thread.fpu);
 		if (err)
@@ -151,13 +151,18 @@ void flush_thread(void)
 
 	flush_ptrace_hw_breakpoint(tsk);
 	memset(tsk->thread.tls_array, 0, sizeof(tsk->thread.tls_array));
-	drop_init_fpu(tsk);
-	/*
-	 * Free the FPU state for non xsave platforms. They get reallocated
-	 * lazily at the first use.
-	 */
-	if (!use_eager_fpu())
+
+	if (!use_eager_fpu()) {
+		/* FPU state will be reallocated lazily at the first use. */
+		drop_fpu(tsk);
 		free_thread_xstate(tsk);
+	} else if (!used_math()) {
+		/* kthread execs. TODO: cleanup this horror. */
+		if (WARN_ON(init_fpu(tsk)))
+			force_sig(SIGKILL, tsk);
+		user_fpu_begin();
+		restore_init_xstate();
+	}
 }
 
 static void hard_disable_TSC(void)
