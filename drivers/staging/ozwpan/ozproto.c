@@ -566,23 +566,14 @@ void oz_timer_add(struct oz_pd *pd, int type, unsigned long due_time)
 	switch (type) {
 	case OZ_TIMER_TOUT:
 	case OZ_TIMER_STOP:
-		if (hrtimer_active(&pd->timeout)) {
-			hrtimer_set_expires(&pd->timeout, ktime_set(due_time /
-			MSEC_PER_SEC, (due_time % MSEC_PER_SEC) *
-							NSEC_PER_MSEC));
-			hrtimer_start_expires(&pd->timeout, HRTIMER_MODE_REL);
-		} else {
-			hrtimer_start(&pd->timeout, ktime_set(due_time /
-			MSEC_PER_SEC, (due_time % MSEC_PER_SEC) *
-					NSEC_PER_MSEC), HRTIMER_MODE_REL);
-		}
+		hrtimer_start(&pd->timeout, ms_to_ktime(due_time),
+			      HRTIMER_MODE_REL);
 		pd->timeout_type = type;
 		break;
 	case OZ_TIMER_HEARTBEAT:
 		if (!hrtimer_active(&pd->heartbeat))
-			hrtimer_start(&pd->heartbeat, ktime_set(due_time /
-			MSEC_PER_SEC, (due_time % MSEC_PER_SEC) *
-					NSEC_PER_MSEC), HRTIMER_MODE_REL);
+			hrtimer_start(&pd->heartbeat, ms_to_ktime(due_time),
+				      HRTIMER_MODE_REL);
 		break;
 	}
 	spin_unlock_bh(&g_polling_lock);
