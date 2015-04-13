@@ -77,6 +77,7 @@
 
 /* Bitnum used for GPIO configuration = bit number in high status byte */
 #define MMA9553_STATUS_TO_BITNUM(bit)	(ffs(bit) - 9)
+#define MMA9553_MAX_BITNUM		MMA9553_STATUS_TO_BITNUM(BIT(16))
 
 #define MMA9553_DEFAULT_SAMPLE_RATE	30	/* Hz */
 
@@ -406,8 +407,8 @@ static int mma9553_init(struct mma9553_data *data)
 	}
 
 
-	data->gpio_bitnum = -1;
 	/* Reset GPIO */
+	data->gpio_bitnum = MMA9553_MAX_BITNUM;
 	ret = mma9553_conf_gpio(data);
 	if (ret < 0)
 		return ret;
