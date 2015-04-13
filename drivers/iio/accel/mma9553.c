@@ -54,6 +54,7 @@
 #define MMA9553_MASK_CONF_STEPCOALESCE		GENMASK(7, 0)
 
 #define MMA9553_REG_CONF_ACTTHD			0x0E
+#define MMA9553_MAX_ACTTHD			GENMASK(15, 0)
 
 /* Pedometer status registers (R-only) */
 #define MMA9553_REG_STATUS			0x00
@@ -869,6 +870,9 @@ static int mma9553_write_event_value(struct iio_dev *indio_dev,
 	case IIO_EV_INFO_PERIOD:
 		switch (chan->type) {
 		case IIO_ACTIVITY:
+			if (val < 0 || val > MMA9553_ACTIVITY_THD_TO_SEC(
+			    MMA9553_MAX_ACTTHD))
+				return -EINVAL;
 			mutex_lock(&data->mutex);
 			ret = mma9553_set_config(data, MMA9553_REG_CONF_ACTTHD,
 						 &data->conf.actthd,
