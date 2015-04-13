@@ -482,12 +482,68 @@ fd_execute_write_same(struct se_cmd *cmd)
 	return 0;
 }
 
+static int
+fd_do_prot_fill(struct se_device *se_dev, sector_t lba, sector_t nolb,
+		void *buf, size_t bufsize)
+{
+	struct fd_dev *fd_dev = FD_DEV(se_dev);
+	struct file *prot_fd = fd_dev->fd_prot_file;
+	sector_t prot_length, prot;
+	loff_t pos = lba * se_dev->prot_length;
+
+	if (!prot_fd) {
+		pr_err("Unable to locate fd_dev->fd_prot_file\n");
+		return -ENODEV;
+	}
+
+	prot_length = nolb * se_dev->prot_length;
+
+	for (prot = 0; prot < prot_length;) {
+		sector_t len = min_t(sector_t, bufsize, prot_length - prot);
+		ssize_t ret = kernel_write(prot_fd, buf, len, pos + prot);
+
+		if (ret != len) {
+			pr_err("vfs_write to prot file failed: %zd\n", ret);
+			return ret < 0 ? ret : -ENODEV;
+		}
+		prot += ret;
+	}
+
+	return 0;
+}
+
+static int
+fd_do_prot_unmap(struct se_cmd *cmd, sector_t lba, sector_t nolb)
+{
+	void *buf;
+	int rc;
+
+	buf = (void *)__get_free_page(GFP_KERNEL);
+	if (!buf) {
+		pr_err("Unable to allocate FILEIO prot buf\n");
+		return -ENOMEM;
+	}
+	memset(buf, 0xff, PAGE_SIZE);
+
+	rc = fd_do_prot_fill(cmd->se_dev, lba, nolb, buf, PAGE_SIZE);
+
+	free_page((unsigned long)buf);
+
+	return rc;
+}
+
 static sense_reason_t
 fd_do_unmap(struct se_cmd *cmd, void *priv, sector_t lba, sector_t nolb)
 {
 	struct file *file = priv;
 	struct inode *inode = file->f_mapping->host;
 	int ret;
+
+	if (cmd->se_dev->dev_attrib.pi_prot_type) {
+		ret = fd_do_prot_unmap(cmd, lba, nolb);
+		if (ret)
+			return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+	}
 
 	if (S_ISBLK(inode->i_mode)) {
 		/* The backend is block device, use discard */
@@ -811,20 +867,12 @@ static int fd_init_prot(struct se_device *dev)
 
 static int fd_format_prot(struct se_device *dev)
 {
-	struct fd_dev *fd_dev = FD_DEV(dev);
-	struct file *prot_fd = fd_dev->fd_prot_file;
-	sector_t prot_length, prot;
 	unsigned char *buf;
-	loff_t pos = 0;
 	int unit_size = FDBD_FORMAT_UNIT_SIZE * dev->dev_attrib.block_size;
-	int rc, ret = 0, size, len;
+	int ret;
 
 	if (!dev->dev_attrib.pi_prot_type) {
 		pr_err("Unable to format_prot while pi_prot_type == 0\n");
-		return -ENODEV;
-	}
-	if (!prot_fd) {
-		pr_err("Unable to locate fd_dev->fd_prot_file\n");
 		return -ENODEV;
 	}
 
@@ -833,26 +881,14 @@ static int fd_format_prot(struct se_device *dev)
 		pr_err("Unable to allocate FILEIO prot buf\n");
 		return -ENOMEM;
 	}
-	prot_length = (dev->transport->get_blocks(dev) + 1) * dev->prot_length;
-	size = prot_length;
 
 	pr_debug("Using FILEIO prot_length: %llu\n",
-		 (unsigned long long)prot_length);
+		 (unsigned long long)(dev->transport->get_blocks(dev) + 1) *
+					dev->prot_length);
 
 	memset(buf, 0xff, unit_size);
-	for (prot = 0; prot < prot_length; prot += unit_size) {
-		len = min(unit_size, size);
-		rc = kernel_write(prot_fd, buf, len, pos);
-		if (rc != len) {
-			pr_err("vfs_write to prot file failed: %d\n", rc);
-			ret = -ENODEV;
-			goto out;
-		}
-		pos += len;
-		size -= len;
-	}
-
-out:
+	ret = fd_do_prot_fill(dev, 0, dev->transport->get_blocks(dev) + 1,
+			      buf, unit_size);
 	vfree(buf);
 	return ret;
 }
