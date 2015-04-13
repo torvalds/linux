@@ -52,14 +52,6 @@
 static ulong poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_FAST;
 static ulong most_recent_message_jiffies;	/* when we got our last
 						 * controlvm message */
-static inline char *
-NONULLSTR(char *s)
-{
-	if (s)
-		return s;
-	return "";
-}
-
 static int serverregistered;
 static int clientregistered;
 
