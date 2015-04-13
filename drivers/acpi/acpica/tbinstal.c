@@ -432,11 +432,11 @@ finish_override:
 		return;
 	}
 
-	ACPI_INFO((AE_INFO, "%4.4s " ACPI_PRINTF_UINT
-		   " %s table override, new table: " ACPI_PRINTF_UINT,
+	ACPI_INFO((AE_INFO, "%4.4s 0x%8.8X%8.8X"
+		   " %s table override, new table: 0x%8.8X%8.8X",
 		   old_table_desc->signature.ascii,
-		   ACPI_FORMAT_TO_UINT(old_table_desc->address),
-		   override_type, ACPI_FORMAT_TO_UINT(new_table_desc.address)));
+		   ACPI_FORMAT_UINT64(old_table_desc->address),
+		   override_type, ACPI_FORMAT_UINT64(new_table_desc.address)));
 
 	/* We can now uninstall the original table */
 
