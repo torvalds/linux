@@ -3166,6 +3166,7 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 	struct rk_lcdc_driver *dev_drv = NULL;
 	char name[6] = {0};
 	int i, win_id, load_screen = 0;
+	char *envp[3];
 
 	if (unlikely(!rk_fb) || unlikely(!screen))
 		return -ENODEV;
@@ -3192,6 +3193,16 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 		return 0;
 	hdmi_switch_state = 0;
 	dev_drv->hdmi_switch = 1;
+#ifdef CONFIG_SWITCH
+	envp[0] = "switch screen";
+	envp[1] = kmalloc(32, GFP_KERNEL);
+	if (envp[1] == NULL)
+		return 0;
+	sprintf(envp[1], "SCREEN=%d", screen->type);
+	envp[2] = NULL;
+	kobject_uevent_env(&dev_drv->dev->kobj, KOBJ_CHANGE, envp);
+	kfree(envp[1]);
+#endif
 	if ((rk_fb->disp_mode == ONE_DUAL) ||
 	    (rk_fb->disp_mode == NO_DUAL)) {
 		if ((dev_drv->ops->backlight_close) &&
