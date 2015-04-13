@@ -14,6 +14,7 @@
 #include <linux/device.h>
 #include <linux/pci.h>
 #include <linux/htirq.h>
+#include <linux/irqdomain.h>
 #include <asm/hw_irq.h>
 #include <asm/apic.h>
 #include <asm/hypertransport.h>
@@ -61,31 +62,30 @@ static struct irq_chip ht_irq_chip = {
 	.flags			= IRQCHIP_SKIP_SET_WAKE,
 };
 
+int arch_alloc_ht_irq(struct pci_dev *dev)
+{
+	return irq_domain_alloc_irqs(NULL, 1, dev_to_node(&dev->dev), NULL);
+}
+
+void arch_free_ht_irq(int irq)
+{
+	irq_domain_free_irqs(irq, 1);
+}
+
 int arch_setup_ht_irq(unsigned int irq, struct pci_dev *dev)
 {
 	struct irq_cfg *cfg;
 	struct ht_irq_msg msg;
-	unsigned dest;
-	int err;
 
 	if (disable_apic)
 		return -ENXIO;
 
 	cfg = irq_cfg(irq);
-	err = assign_irq_vector(irq, cfg, apic->target_cpus());
-	if (err)
-		return err;
-
-	err = apic->cpu_mask_to_apicid_and(cfg->domain,
-					   apic->target_cpus(), &dest);
-	if (err)
-		return err;
-
-	msg.address_hi = HT_IRQ_HIGH_DEST_ID(dest);
+	msg.address_hi = HT_IRQ_HIGH_DEST_ID(cfg->dest_apicid);
 
 	msg.address_lo =
 		HT_IRQ_LOW_BASE |
-		HT_IRQ_LOW_DEST_ID(dest) |
+		HT_IRQ_LOW_DEST_ID(cfg->dest_apicid) |
 		HT_IRQ_LOW_VECTOR(cfg->vector) |
 		((apic->irq_dest_mode == 0) ?
 			HT_IRQ_LOW_DM_PHYSICAL :

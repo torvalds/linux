@@ -117,8 +117,8 @@ int __ht_create_irq(struct pci_dev *dev, int idx, ht_irq_update_t *update)
 	cfg->msg.address_lo = 0xffffffff;
 	cfg->msg.address_hi = 0xffffffff;
 
-	irq = irq_alloc_hwirq(dev_to_node(&dev->dev));
-	if (!irq) {
+	irq = arch_alloc_ht_irq(dev);
+	if (irq <= 0) {
 		kfree(cfg);
 		return -EBUSY;
 	}
@@ -163,8 +163,7 @@ void ht_destroy_irq(unsigned int irq)
 	cfg = irq_get_handler_data(irq);
 	irq_set_chip(irq, NULL);
 	irq_set_handler_data(irq, NULL);
-	irq_free_hwirq(irq);
-
+	arch_free_ht_irq(irq);
 	kfree(cfg);
 }
 EXPORT_SYMBOL(ht_destroy_irq);
