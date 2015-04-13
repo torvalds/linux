@@ -14259,6 +14259,7 @@ void intel_modeset_gem_init(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *c;
 	struct drm_i915_gem_object *obj;
+	int ret;
 
 	mutex_lock(&dev->struct_mutex);
 	intel_init_gt_powersave(dev);
@@ -14283,16 +14284,18 @@ void intel_modeset_gem_init(struct drm_device *dev)
 	 * pinned & fenced.  When we do the allocation it's too early
 	 * for this.
 	 */
-	mutex_lock(&dev->struct_mutex);
 	for_each_crtc(dev, c) {
 		obj = intel_fb_obj(c->primary->fb);
 		if (obj == NULL)
 			continue;
 
-		if (intel_pin_and_fence_fb_obj(c->primary,
-					       c->primary->fb,
-					       c->primary->state,
-					       NULL)) {
+		mutex_lock(&dev->struct_mutex);
+		ret = intel_pin_and_fence_fb_obj(c->primary,
+						 c->primary->fb,
+						 c->primary->state,
+						 NULL);
+		mutex_unlock(&dev->struct_mutex);
+		if (ret) {
 			DRM_ERROR("failed to pin boot fb on pipe %d\n",
 				  to_intel_crtc(c)->pipe);
 			drm_framebuffer_unreference(c->primary->fb);
@@ -14300,7 +14303,6 @@ void intel_modeset_gem_init(struct drm_device *dev)
 			update_state_fb(c->primary);
 		}
 	}
-	mutex_unlock(&dev->struct_mutex);
 
 	intel_backlight_register(dev);
 }
