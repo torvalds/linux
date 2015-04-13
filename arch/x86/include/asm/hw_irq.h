@@ -110,9 +110,10 @@ struct irq_2_irte {
 };
 #endif	/* CONFIG_IRQ_REMAP */
 
+struct irq_domain;
+
 #ifdef	CONFIG_X86_LOCAL_APIC
 struct irq_data;
-struct irq_domain;
 struct pci_dev;
 struct msi_desc;
 
@@ -213,6 +214,12 @@ extern int apic_set_affinity(struct irq_data *data, const struct cpumask *mask,
 static inline void lock_vector_lock(void) {}
 static inline void unlock_vector_lock(void) {}
 #endif	/* CONFIG_X86_LOCAL_APIC */
+
+#ifdef	CONFIG_PCI_MSI
+extern void arch_init_msi_domain(struct irq_domain *domain);
+#else
+static inline void arch_init_msi_domain(struct irq_domain *domain) { }
+#endif
 
 /* Statistics */
 extern atomic_t irq_err_count;

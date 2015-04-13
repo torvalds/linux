@@ -66,11 +66,7 @@ irq_remapping_get_irq_domain(struct irq_alloc_info *info);
 extern void irq_remapping_print_chip(struct irq_data *data, struct seq_file *p);
 
 /* Create PCI MSI/MSIx irqdomain, use @parent as the parent irqdomain. */
-static inline struct irq_domain *
-arch_create_msi_irq_domain(struct irq_domain *parent)
-{
-	return NULL;
-}
+extern struct irq_domain *arch_create_msi_irq_domain(struct irq_domain *parent);
 
 /* Get parent irqdomain for interrupt remapping irqdomain */
 static inline struct irq_domain *arch_get_ir_parent_domain(void)

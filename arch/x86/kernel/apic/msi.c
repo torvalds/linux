@@ -3,6 +3,8 @@
  *
  * Copyright (C) 1997, 1998, 1999, 2000, 2009 Ingo Molnar, Hajnalka Szabo
  *	Moved from arch/x86/kernel/apic/io_apic.c.
+ * Jiang Liu <jiang.liu@linux.intel.com>
+ *	Convert to hierarchical irqdomain
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -20,6 +22,8 @@
 #include <asm/hw_irq.h>
 #include <asm/apic.h>
 #include <asm/irq_remapping.h>
+
+static struct irq_domain *msi_default_domain;
 
 void native_compose_msi_msg(struct pci_dev *pdev,
 			    unsigned int irq, unsigned int dest,
@@ -114,102 +118,107 @@ static int msi_compose_msg(struct pci_dev *pdev, unsigned int irq,
 	return 0;
 }
 
-static int
-msi_set_affinity(struct irq_data *data, const struct cpumask *mask, bool force)
-{
-	struct irq_cfg *cfg = irqd_cfg(data);
-	struct msi_msg msg;
-	unsigned int dest;
-	int ret;
-
-	ret = apic_set_affinity(data, mask, &dest);
-	if (ret)
-		return ret;
-
-	__get_cached_msi_msg(data->msi_desc, &msg);
-
-	msg.data &= ~MSI_DATA_VECTOR_MASK;
-	msg.data |= MSI_DATA_VECTOR(cfg->vector);
-	msg.address_lo &= ~MSI_ADDR_DEST_ID_MASK;
-	msg.address_lo |= MSI_ADDR_DEST_ID(dest);
-
-	__pci_write_msi_msg(data->msi_desc, &msg);
-
-	return IRQ_SET_MASK_OK_NOCOPY;
-}
-
 /*
  * IRQ Chip for MSI PCI/PCI-X/PCI-Express Devices,
  * which implement the MSI or MSI-X Capability Structure.
  */
-static struct irq_chip msi_chip = {
+static struct irq_chip pci_msi_controller = {
 	.name			= "PCI-MSI",
 	.irq_unmask		= pci_msi_unmask_irq,
 	.irq_mask		= pci_msi_mask_irq,
-	.irq_ack		= apic_ack_edge,
-	.irq_set_affinity	= msi_set_affinity,
-	.irq_retrigger		= apic_retrigger_irq,
+	.irq_ack		= irq_chip_ack_parent,
+	.irq_set_affinity	= msi_domain_set_affinity,
+	.irq_retrigger		= irq_chip_retrigger_hierarchy,
+	.irq_print_chip		= irq_remapping_print_chip,
+	.irq_compose_msi_msg	= irq_msi_compose_msg,
+	.irq_write_msi_msg	= pci_msi_domain_write_msg,
 	.flags			= IRQCHIP_SKIP_SET_WAKE,
 };
 
-int setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc,
-		  unsigned int irq_base, unsigned int irq_offset)
-{
-	struct irq_chip *chip = &msi_chip;
-	struct msi_msg msg;
-	unsigned int irq = irq_base + irq_offset;
-	int ret;
-
-	ret = msi_compose_msg(dev, irq, &msg, -1);
-	if (ret < 0)
-		return ret;
-
-	irq_set_msi_desc_off(irq_base, irq_offset, msidesc);
-
-	/*
-	 * MSI-X message is written per-IRQ, the offset is always 0.
-	 * MSI message denotes a contiguous group of IRQs, written for 0th IRQ.
-	 */
-	if (!irq_offset)
-		pci_write_msi_msg(irq, &msg);
-
-	setup_remapped_irq(irq, irq_cfg(irq), chip);
-
-	irq_set_chip_and_handler_name(irq, chip, handle_edge_irq, "edge");
-
-	dev_dbg(&dev->dev, "irq %d for MSI/MSI-X\n", irq);
-
-	return 0;
-}
-
 int native_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 {
-	struct msi_desc *msidesc;
-	int irq, ret;
+	struct irq_domain *domain;
+	struct irq_alloc_info info;
 
-	/* Multiple MSI vectors only supported with interrupt remapping */
-	if (type == PCI_CAP_ID_MSI && nvec > 1)
-		return 1;
+	init_irq_alloc_info(&info, NULL);
+	info.type = X86_IRQ_ALLOC_TYPE_MSI;
+	info.msi_dev = dev;
 
-	list_for_each_entry(msidesc, &dev->msi_list, list) {
-		irq = irq_domain_alloc_irqs(NULL, 1, NUMA_NO_NODE, NULL);
-		if (irq <= 0)
-			return -ENOSPC;
+	domain = irq_remapping_get_irq_domain(&info);
+	if (domain == NULL)
+		domain = msi_default_domain;
+	if (domain == NULL)
+		return -ENOSYS;
 
-		ret = setup_msi_irq(dev, msidesc, irq, 0);
-		if (ret < 0) {
-			irq_domain_free_irqs(irq, 1);
-			return ret;
-		}
-
-	}
-	return 0;
+	return pci_msi_domain_alloc_irqs(domain, dev, nvec, type);
 }
 
 void native_teardown_msi_irq(unsigned int irq)
 {
 	irq_domain_free_irqs(irq, 1);
 }
+
+static irq_hw_number_t pci_msi_get_hwirq(struct msi_domain_info *info,
+					 msi_alloc_info_t *arg)
+{
+	return arg->msi_hwirq;
+}
+
+static int pci_msi_prepare(struct irq_domain *domain, struct device *dev,
+			   int nvec, msi_alloc_info_t *arg)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct msi_desc *desc = first_pci_msi_entry(pdev);
+
+	init_irq_alloc_info(arg, NULL);
+	arg->msi_dev = pdev;
+	if (desc->msi_attrib.is_msix) {
+		arg->type = X86_IRQ_ALLOC_TYPE_MSIX;
+	} else {
+		arg->type = X86_IRQ_ALLOC_TYPE_MSI;
+		arg->flags |= X86_IRQ_ALLOC_CONTIGUOUS_VECTORS;
+	}
+
+	return 0;
+}
+
+static void pci_msi_set_desc(msi_alloc_info_t *arg, struct msi_desc *desc)
+{
+	arg->msi_hwirq = pci_msi_domain_calc_hwirq(arg->msi_dev, desc);
+}
+
+static struct msi_domain_ops pci_msi_domain_ops = {
+	.get_hwirq	= pci_msi_get_hwirq,
+	.msi_prepare	= pci_msi_prepare,
+	.set_desc	= pci_msi_set_desc,
+};
+
+static struct msi_domain_info pci_msi_domain_info = {
+	.flags		= MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
+			  MSI_FLAG_MULTI_PCI_MSI | MSI_FLAG_PCI_MSIX,
+	.ops		= &pci_msi_domain_ops,
+	.chip		= &pci_msi_controller,
+	.handler	= handle_edge_irq,
+	.handler_name	= "edge",
+};
+
+void arch_init_msi_domain(struct irq_domain *parent)
+{
+	if (disable_apic)
+		return;
+
+	msi_default_domain = pci_msi_create_irq_domain(NULL,
+					&pci_msi_domain_info, parent);
+	if (!msi_default_domain)
+		pr_warn("failed to initialize irqdomain for MSI/MSI-x.\n");
+}
+
+#ifdef CONFIG_IRQ_REMAP
+struct irq_domain *arch_create_msi_irq_domain(struct irq_domain *parent)
+{
+	return msi_create_irq_domain(NULL, &pci_msi_domain_info, parent);
+}
+#endif
 
 #ifdef CONFIG_DMAR_TABLE
 static int
