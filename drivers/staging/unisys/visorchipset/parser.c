@@ -29,13 +29,13 @@
  * incoming payloads.  This serves as a throttling mechanism.
  */
 #define MAX_CONTROLVM_PAYLOAD_BYTES (1024*128)
-static ulong controlvm_payload_bytes_buffered;
+static unsigned long controlvm_payload_bytes_buffered;
 
 struct parser_context {
-	ulong allocbytes;
-	ulong param_bytes;
+	unsigned long allocbytes;
+	unsigned long param_bytes;
 	u8 *curr;
-	ulong bytes_remaining;
+	unsigned long bytes_remaining;
 	bool byte_stream;
 	char data[0];
 };
@@ -84,7 +84,7 @@ parser_init_guts(u64 addr, u32 bytes, bool local,
 			rc = NULL;
 			goto cleanup;
 		}
-		p = __va((ulong) (addr));
+		p = __va((unsigned long) (addr));
 		memcpy(ctx->data, p, bytes);
 	} else {
 		rgn = visor_memregion_create(addr, bytes);
@@ -165,7 +165,7 @@ parser_simpleString_get(struct parser_context *ctx)
 
 /* Obtain a copy of the buffer in the payload area.
  */
-void *parser_byte_stream_get(struct parser_context *ctx, ulong *nbytes)
+void *parser_byte_stream_get(struct parser_context *ctx, unsigned long *nbytes)
 {
 	if (!ctx->byte_stream)
 		return NULL;
@@ -265,7 +265,7 @@ void *
 parser_param_get(struct parser_context *ctx, char *nam, int namesize)
 {
 	u8 *pscan, *pnam = nam;
-	ulong nscan;
+	unsigned long nscan;
 	int value_length = -1, orig_value_length = -1;
 	void *value = NULL;
 	int i;
@@ -400,7 +400,7 @@ void *
 parser_string_get(struct parser_context *ctx)
 {
 	u8 *pscan;
-	ulong nscan;
+	unsigned long nscan;
 	int value_length = -1;
 	void *value = NULL;
 	int i;

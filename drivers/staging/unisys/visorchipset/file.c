@@ -60,8 +60,8 @@ visorchipset_release(struct inode *inode, struct file *file)
 static int
 visorchipset_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	ulong physaddr = 0;
-	ulong offset = vma->vm_pgoff << PAGE_SHIFT;
+	unsigned long physaddr = 0;
+	unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
 	GUEST_PHYSICAL_ADDRESS addr = 0;
 
 	/* sv_enable_dfp(); */
@@ -81,7 +81,7 @@ visorchipset_mmap(struct file *file, struct vm_area_struct *vma)
 		if (addr == 0) {
 			return -ENXIO;
 		}
-		physaddr = (ulong)addr;
+		physaddr = (unsigned long)addr;
 		if (remap_pfn_range(vma, vma->vm_start,
 				    physaddr >> PAGE_SHIFT,
 				    vma->vm_end - vma->vm_start,
