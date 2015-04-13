@@ -113,10 +113,47 @@ struct irq_2_irte {
 #ifdef	CONFIG_X86_LOCAL_APIC
 struct irq_data;
 struct irq_domain;
+struct pci_dev;
+struct msi_desc;
+
+enum irq_alloc_type {
+	X86_IRQ_ALLOC_TYPE_IOAPIC = 1,
+	X86_IRQ_ALLOC_TYPE_HPET,
+	X86_IRQ_ALLOC_TYPE_MSI,
+	X86_IRQ_ALLOC_TYPE_MSIX,
+};
 
 struct irq_alloc_info {
+	enum irq_alloc_type	type;
 	u32			flags;
 	const struct cpumask	*mask;	/* CPU mask for vector allocation */
+	union {
+		int		unused;
+#ifdef	CONFIG_HPET_TIMER
+		struct {
+			int		hpet_id;
+			int		hpet_index;
+			void		*hpet_data;
+		};
+#endif
+#ifdef	CONFIG_PCI_MSI
+		struct {
+			struct pci_dev	*msi_dev;
+			irq_hw_number_t	msi_hwirq;
+		};
+#endif
+#ifdef	CONFIG_X86_IO_APIC
+		struct {
+			int		ioapic_id;
+			int		ioapic_pin;
+			int		ioapic_node;
+			u32		ioapic_trigger : 1;
+			u32		ioapic_polarity : 1;
+			u32		ioapic_valid : 1;
+			struct IO_APIC_route_entry *ioapic_entry;
+		};
+#endif
+	};
 };
 
 enum {

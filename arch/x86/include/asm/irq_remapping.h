@@ -22,6 +22,8 @@
 #ifndef __X86_IRQ_REMAPPING_H
 #define __X86_IRQ_REMAPPING_H
 
+#include <linux/irqdomain.h>
+#include <asm/hw_irq.h>
 #include <asm/io_apic.h>
 
 struct IO_APIC_route_entry;
@@ -30,6 +32,7 @@ struct irq_chip;
 struct msi_msg;
 struct pci_dev;
 struct irq_cfg;
+struct irq_alloc_info;
 
 #ifdef CONFIG_IRQ_REMAP
 
@@ -55,6 +58,25 @@ extern bool setup_remapped_irq(int irq,
 			       struct irq_chip *chip);
 
 void irq_remap_modify_chip_defaults(struct irq_chip *chip);
+
+extern struct irq_domain *
+irq_remapping_get_ir_irq_domain(struct irq_alloc_info *info);
+extern struct irq_domain *
+irq_remapping_get_irq_domain(struct irq_alloc_info *info);
+extern void irq_remapping_print_chip(struct irq_data *data, struct seq_file *p);
+
+/* Create PCI MSI/MSIx irqdomain, use @parent as the parent irqdomain. */
+static inline struct irq_domain *
+arch_create_msi_irq_domain(struct irq_domain *parent)
+{
+	return NULL;
+}
+
+/* Get parent irqdomain for interrupt remapping irqdomain */
+static inline struct irq_domain *arch_get_ir_parent_domain(void)
+{
+	return x86_vector_domain;
+}
 
 #else  /* CONFIG_IRQ_REMAP */
 
@@ -97,6 +119,20 @@ static inline bool setup_remapped_irq(int irq,
 {
 	return false;
 }
+
+static inline struct irq_domain *
+irq_remapping_get_ir_irq_domain(struct irq_alloc_info *info)
+{
+	return NULL;
+}
+
+static inline struct irq_domain *
+irq_remapping_get_irq_domain(struct irq_alloc_info *info)
+{
+	return NULL;
+}
+
+#define	irq_remapping_print_chip	NULL
 #endif /* CONFIG_IRQ_REMAP */
 
 extern int dmar_alloc_hwirq(void);
