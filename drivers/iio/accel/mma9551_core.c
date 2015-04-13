@@ -785,7 +785,7 @@ EXPORT_SYMBOL(mma9551_read_accel_scale);
  */
 int mma9551_app_reset(struct i2c_client *client, u32 app_mask)
 {
-	return mma9551_write_config_byte(client, MMA9551_APPID_RCS,
+	return mma9551_write_config_byte(client, MMA9551_APPID_RSC,
 					 MMA9551_RSC_RESET +
 					 MMA9551_RSC_OFFSET(app_mask),
 					 MMA9551_RSC_VAL(app_mask));
