@@ -519,6 +519,36 @@ void snd_hdac_power_down(struct hdac_device *codec)
 	pm_runtime_put_autosuspend(dev);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_power_down);
+
+/**
+ * snd_hdac_power_up_pm - power up the codec
+ * @codec: the codec object
+ *
+ * This function can be called in a recursive code path like init code
+ * which may be called by PM suspend/resume again.  OTOH, if a power-up
+ * call must wake up the sleeper (e.g. in a kctl callback), use
+ * snd_hdac_power_up() instead.
+ */
+void snd_hdac_power_up_pm(struct hdac_device *codec)
+{
+	if (!atomic_inc_not_zero(&codec->in_pm))
+		snd_hdac_power_up(codec);
+}
+EXPORT_SYMBOL_GPL(snd_hdac_power_up_pm);
+
+/**
+ * snd_hdac_power_down_pm - power down the codec
+ * @codec: the codec object
+ *
+ * Like snd_hdac_power_up_pm(), this function is used in a recursive
+ * code path like init code which may be called by PM suspend/resume again.
+ */
+void snd_hdac_power_down_pm(struct hdac_device *codec)
+{
+	if (atomic_dec_if_positive(&codec->in_pm) < 0)
+		snd_hdac_power_down(codec);
+}
+EXPORT_SYMBOL_GPL(snd_hdac_power_down_pm);
 #endif
 
 /* codec vendor labels */
