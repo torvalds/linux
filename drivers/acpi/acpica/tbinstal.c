@@ -187,8 +187,9 @@ acpi_tb_install_fixed_table(acpi_physical_address address,
 	status = acpi_tb_acquire_temp_table(&new_table_desc, address,
 					    ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL);
 	if (ACPI_FAILURE(status)) {
-		ACPI_ERROR((AE_INFO, "Could not acquire table length at %p",
-			    ACPI_PHYSADDR_TO_PTR(address)));
+		ACPI_ERROR((AE_INFO,
+			    "Could not acquire table length at %8.8X%8.8X",
+			    ACPI_FORMAT_UINT64(address)));
 		return_ACPI_STATUS(status);
 	}
 
@@ -246,8 +247,9 @@ acpi_tb_install_standard_table(acpi_physical_address address,
 
 	status = acpi_tb_acquire_temp_table(&new_table_desc, address, flags);
 	if (ACPI_FAILURE(status)) {
-		ACPI_ERROR((AE_INFO, "Could not acquire table length at %p",
-			    ACPI_PHYSADDR_TO_PTR(address)));
+		ACPI_ERROR((AE_INFO,
+			    "Could not acquire table length at %8.8X%8.8X",
+			    ACPI_FORMAT_UINT64(address)));
 		return_ACPI_STATUS(status);
 	}
 
@@ -258,9 +260,10 @@ acpi_tb_install_standard_table(acpi_physical_address address,
 	if (!reload &&
 	    acpi_gbl_disable_ssdt_table_install &&
 	    ACPI_COMPARE_NAME(&new_table_desc.signature, ACPI_SIG_SSDT)) {
-		ACPI_INFO((AE_INFO, "Ignoring installation of %4.4s at %p",
+		ACPI_INFO((AE_INFO,
+			   "Ignoring installation of %4.4s at %8.8X%8.8X",
 			   new_table_desc.signature.ascii,
-			   ACPI_PHYSADDR_TO_PTR(address)));
+			   ACPI_FORMAT_UINT64(address)));
 		goto release_and_exit;
 	}
 
