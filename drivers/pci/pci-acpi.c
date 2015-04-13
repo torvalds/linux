@@ -248,6 +248,9 @@ int pci_get_hp_params(struct pci_dev *dev, struct hotplug_params *hpp)
 	acpi_handle handle, phandle;
 	struct pci_bus *pbus;
 
+	if (acpi_pci_disabled)
+		return -ENODEV;
+
 	handle = NULL;
 	for (pbus = dev->bus; pbus; pbus = pbus->parent) {
 		handle = acpi_pci_get_bridge_handle(pbus);

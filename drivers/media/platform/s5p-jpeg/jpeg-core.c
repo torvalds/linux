@@ -1845,6 +1845,9 @@ static void exynos4_jpeg_set_img_addr(struct s5p_jpeg_ctx *ctx)
 	struct s5p_jpeg_addr jpeg_addr;
 	u32 pix_size, padding_bytes = 0;
 
+	jpeg_addr.cb = 0;
+	jpeg_addr.cr = 0;
+
 	pix_size = ctx->cap_q.w * ctx->cap_q.h;
 
 	if (ctx->mode == S5P_JPEG_ENCODE) {
