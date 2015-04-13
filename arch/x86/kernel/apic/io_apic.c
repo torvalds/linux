@@ -1424,6 +1424,33 @@ void ioapic_zap_locks(void)
 	raw_spin_lock_init(&ioapic_lock);
 }
 
+static void io_apic_print_entries(unsigned int apic, unsigned int nr_entries)
+{
+	int i;
+	char buf[256];
+	struct IO_APIC_route_entry entry;
+	struct IR_IO_APIC_route_entry *ir_entry = (void *)&entry;
+
+	printk(KERN_DEBUG "IOAPIC %d:\n", apic);
+	for (i = 0; i <= nr_entries; i++) {
+		entry = ioapic_read_entry(apic, i);
+		snprintf(buf, sizeof(buf),
+			 " pin%02x, %s, %s, %s, V(%02X), IRR(%1d), S(%1d)",
+			 i, entry.mask ? "disabled" : "enabled ",
+			 entry.trigger ? "level" : "edge ",
+			 entry.polarity ? "low " : "high",
+			 entry.vector, entry.irr, entry.delivery_status);
+		if (ir_entry->format)
+			printk(KERN_DEBUG "%s, remapped, I(%04X),  Z(%X)\n",
+			       buf, (ir_entry->index << 15) | ir_entry->index,
+			       ir_entry->zero);
+		else
+			printk(KERN_DEBUG "%s, %s, D(%02X), M(%1d)\n",
+			       buf, entry.dest_mode ? "logical " : "physical",
+			       entry.dest, entry.delivery_mode);
+	}
+}
+
 static void __init print_IO_APIC(int ioapic_idx)
 {
 	union IO_APIC_reg_00 reg_00;
@@ -1477,8 +1504,7 @@ static void __init print_IO_APIC(int ioapic_idx)
 	}
 
 	printk(KERN_DEBUG ".... IRQ redirection table:\n");
-
-	x86_io_apic_ops.print_entries(ioapic_idx, reg_01.bits.entries);
+	io_apic_print_entries(ioapic_idx, reg_01.bits.entries);
 }
 
 void __init print_IO_APICs(void)
