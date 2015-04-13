@@ -558,6 +558,7 @@ static const struct v4l2_file_operations rk3288_vpu_fops = {
 static int rk3288_vpu_probe(struct platform_device *pdev)
 {
 	struct rk3288_vpu_dev *vpu = NULL;
+	DEFINE_DMA_ATTRS(attrs_novm);
 	struct video_device *vfd;
 	int ret = 0;
 
@@ -580,10 +581,18 @@ static int rk3288_vpu_probe(struct platform_device *pdev)
 		goto err_hw_probe;
 	}
 
-	vpu->alloc_ctx = vb2_dma_contig_init_ctx(&pdev->dev);
+	dma_set_attr(DMA_ATTR_NO_KERNEL_MAPPING, &attrs_novm);
+	vpu->alloc_ctx = vb2_dma_contig_init_ctx_attrs(&pdev->dev,
+								&attrs_novm);
 	if (IS_ERR(vpu->alloc_ctx)) {
 		ret = PTR_ERR(vpu->alloc_ctx);
 		goto err_dma_contig;
+	}
+
+	vpu->alloc_ctx_vm = vb2_dma_contig_init_ctx(&pdev->dev);
+	if (IS_ERR(vpu->alloc_ctx_vm)) {
+		ret = PTR_ERR(vpu->alloc_ctx_vm);
+		goto err_dma_contig_vm;
 	}
 
 	ret = v4l2_device_register(&pdev->dev, &vpu->v4l2_dev);
@@ -667,6 +676,8 @@ err_enc_reg:
 err_enc_alloc:
 	v4l2_device_unregister(&vpu->v4l2_dev);
 err_v4l2_dev_reg:
+	vb2_dma_contig_cleanup_ctx(vpu->alloc_ctx_vm);
+err_dma_contig_vm:
 	vb2_dma_contig_cleanup_ctx(vpu->alloc_ctx);
 err_dma_contig:
 	rk3288_vpu_hw_remove(vpu);
@@ -694,6 +705,7 @@ static int rk3288_vpu_remove(struct platform_device *pdev)
 	video_unregister_device(vpu->vfd_dec);
 	video_unregister_device(vpu->vfd_enc);
 	v4l2_device_unregister(&vpu->v4l2_dev);
+	vb2_dma_contig_cleanup_ctx(vpu->alloc_ctx_vm);
 	vb2_dma_contig_cleanup_ctx(vpu->alloc_ctx);
 	rk3288_vpu_hw_remove(vpu);
 

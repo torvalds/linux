@@ -137,7 +137,10 @@ enum rk3288_vpu_state {
  * @pdev:		Pointer to VPU platform device.
  * @dev:		Pointer to device for convenient logging using
  *			dev_ macros.
- * @alloc_ctx:		VB2 allocator context.
+ * @alloc_ctx:		VB2 allocator context
+ *			(for allocations without kernel mapping).
+ * @alloc_ctx_vm:	VB2 allocator context
+ *			(for allocations with kernel mapping).
  * @aclk_vcodec:	Handle of ACLK clock.
  * @hclk_vcodec:	Handle of HCLK clock.
  * @base:		Mapped address of VPU registers.
@@ -161,6 +164,7 @@ struct rk3288_vpu_dev {
 	struct platform_device *pdev;
 	struct device *dev;
 	void *alloc_ctx;
+	void *alloc_ctx_vm;
 	struct clk *aclk_vcodec;
 	struct clk *hclk_vcodec;
 	void __iomem *base;

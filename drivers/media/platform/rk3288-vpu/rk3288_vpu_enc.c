@@ -1036,7 +1036,8 @@ static int rk3288_vpu_queue_setup(struct vb2_queue *vq,
 			*buf_count = VIDEO_MAX_FRAME;
 
 		psize[0] = ctx->dst_fmt.plane_fmt[0].sizeimage;
-		allocators[0] = ctx->dev->alloc_ctx;
+		/* Kernel mapping necessary for bitstream post processing. */
+		allocators[0] = ctx->dev->alloc_ctx_vm;
 		vpu_debug(0, "capture psize[%d]: %d\n", 0, psize[0]);
 		break;
 
