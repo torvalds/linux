@@ -3914,24 +3914,6 @@ unlock:
 	return ret;
 }
 
-static bool is_pin_display(struct drm_i915_gem_object *obj)
-{
-	struct i915_vma *vma;
-
-	vma = i915_gem_obj_to_ggtt(obj);
-	if (!vma)
-		return false;
-
-	/* There are 2 sources that pin objects:
-	 *   1. The display engine (scanouts, sprites, cursors);
-	 *   2. Reservations for execbuffer;
-	 *
-	 * We can ignore reservations as we hold the struct_mutex and
-	 * are only called outside of the reservation path.
-	 */
-	return vma->pin_count;
-}
-
 /*
  * Prepare buffer for display plane (scanout, cursors, etc).
  * Can be called from an uninterruptible phase (modesetting) and allows
@@ -3944,7 +3926,6 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 				     const struct i915_ggtt_view *view)
 {
 	u32 old_read_domains, old_write_domain;
-	bool was_pin_display;
 	int ret;
 
 	if (pipelined != i915_gem_request_get_ring(obj->last_read_req)) {
@@ -3956,8 +3937,7 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	/* Mark the pin_display early so that we account for the
 	 * display coherency whilst setting up the cache domains.
 	 */
-	was_pin_display = obj->pin_display;
-	obj->pin_display = true;
+	obj->pin_display++;
 
 	/* The display engine is not coherent with the LLC cache on gen6.  As
 	 * a result, we make sure that the pinning that is about to occur is
@@ -4001,8 +3981,7 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	return 0;
 
 err_unpin_display:
-	WARN_ON(was_pin_display != is_pin_display(obj));
-	obj->pin_display = was_pin_display;
+	obj->pin_display--;
 	return ret;
 }
 
@@ -4010,9 +3989,12 @@ void
 i915_gem_object_unpin_from_display_plane(struct drm_i915_gem_object *obj,
 					 const struct i915_ggtt_view *view)
 {
+	if (WARN_ON(obj->pin_display == 0))
+		return;
+
 	i915_gem_object_ggtt_unpin_view(obj, view);
 
-	obj->pin_display = is_pin_display(obj);
+	obj->pin_display--;
 }
 
 int

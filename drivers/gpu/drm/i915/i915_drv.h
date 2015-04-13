@@ -1969,7 +1969,6 @@ struct drm_i915_gem_object {
 	 * accurate mappable working set.
 	 */
 	unsigned int fault_mappable:1;
-	unsigned int pin_display:1;
 
 	/*
 	 * Is the object to be mapped as read-only to the GPU
@@ -1982,6 +1981,8 @@ struct drm_i915_gem_object {
 	unsigned int has_dma_mapping:1;
 
 	unsigned int frontbuffer_bits:INTEL_FRONTBUFFER_BITS;
+
+	unsigned int pin_display;
 
 	struct sg_table *pages;
 	int pages_pin_count;
