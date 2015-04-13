@@ -396,7 +396,7 @@
 		pinctrl-names = "default", "idle", "udbg";
 		pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_dectn &sdmmc_bus4>;
 		pinctrl-1 = <&sdmmc_gpio>;
-		pinctrl-2 = <&uart2_xfer &cpu_jtag &sdmmc_dectn>;
+		pinctrl-2 = <&uart2_xfer &cpu_jtag &mcu_jtag &sdmmc_dectn>;
 		cd-gpios = <&gpio2 GPIO_B3 GPIO_ACTIVE_HIGH>;/*CD GPIO*/
 		clocks = <&clk_sdmmc0>, <&clk_gates21 0>, <&clk_gates20 10>;
 		clock-names = "clk_mmc", "hclk_mmc", "hpclk_mmc";
@@ -2089,6 +2089,13 @@
 			cpu_jtag: cpu-jtag {
 				rockchip,pins = <2 GPIO_A7 RK_FUNC_2 &pcfg_pull_up>,
 						<2 GPIO_B0 RK_FUNC_2 &pcfg_pull_up>;
+			};
+		};
+
+		mcu_jtag {
+			mcu_jtag: mcu-jtag {
+				rockchip,pins = <2 GPIO_B2 RK_FUNC_2 &pcfg_pull_up>,
+						<2 GPIO_B1 RK_FUNC_2 &pcfg_pull_up>;
 			};
 		};
 	};
