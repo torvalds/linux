@@ -2218,6 +2218,9 @@ static int rk_fb_set_win_config(struct fb_info *info,
 		}
 	}
 
+	if (regs->win_num <= 0)
+		goto err_null_frame;
+
 	mutex_lock(&dev_drv->output_lock);
 
 	dev_drv->timeline_max++;
@@ -2288,6 +2291,13 @@ static int rk_fb_set_win_config(struct fb_info *info,
 err:
 	mutex_unlock(&dev_drv->output_lock);
 	return ret;
+err_null_frame:
+	kfree(regs);
+	for (j = 0; j < RK_MAX_BUF_NUM; j++)
+		win_data->rel_fence_fd[j] = -1;
+	win_data->ret_fence_fd = -1;
+	pr_info("win num = %d,null frame\n", regs->win_num);
+	return 0;
 }
 
 #if 1
