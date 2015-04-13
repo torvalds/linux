@@ -135,6 +135,11 @@ static spinlock_t reg_indoor_lock;
 /* Used to track the userspace process controlling the indoor setting */
 static u32 reg_is_indoor_portid;
 
+/* Max number of consecutive attempts to communicate with CRDA  */
+#define REG_MAX_CRDA_TIMEOUTS 10
+
+static u32 reg_crda_timeouts;
+
 static const struct ieee80211_regdomain *get_cfg80211_regdom(void)
 {
 	return rtnl_dereference(cfg80211_regdomain);
@@ -485,7 +490,7 @@ static void reg_regdb_search(struct work_struct *work)
 	mutex_unlock(&reg_regdb_search_mutex);
 
 	if (!IS_ERR_OR_NULL(regdom))
-		set_regdom(regdom);
+		set_regdom(regdom, REGD_SOURCE_INTERNAL_DB);
 
 	rtnl_unlock();
 }
@@ -535,14 +540,19 @@ static int call_crda(const char *alpha2)
 	snprintf(country, sizeof(country), "COUNTRY=%c%c",
 		 alpha2[0], alpha2[1]);
 
+	/* query internal regulatory database (if it exists) */
+	reg_regdb_query(alpha2);
+
+	if (reg_crda_timeouts > REG_MAX_CRDA_TIMEOUTS) {
+		pr_info("Exceeded CRDA call max attempts. Not calling CRDA\n");
+		return -EINVAL;
+	}
+
 	if (!is_world_regdom((char *) alpha2))
 		pr_info("Calling CRDA for country: %c%c\n",
 			alpha2[0], alpha2[1]);
 	else
 		pr_info("Calling CRDA to update world regulatory domain\n");
-
-	/* query internal regulatory database (if it exists) */
-	reg_regdb_query(alpha2);
 
 	return kobject_uevent_env(&reg_pdev->dev.kobj, KOBJ_CHANGE, env);
 }
@@ -2293,6 +2303,9 @@ int regulatory_hint_user(const char *alpha2,
 	request->initiator = NL80211_REGDOM_SET_BY_USER;
 	request->user_reg_hint_type = user_reg_hint_type;
 
+	/* Allow calling CRDA again */
+	reg_crda_timeouts = 0;
+
 	queue_regulatory_request(request);
 
 	return 0;
@@ -2362,6 +2375,9 @@ int regulatory_hint(struct wiphy *wiphy, const char *alpha2)
 	request->alpha2[1] = alpha2[1];
 	request->initiator = NL80211_REGDOM_SET_BY_DRIVER;
 
+	/* Allow calling CRDA again */
+	reg_crda_timeouts = 0;
+
 	queue_regulatory_request(request);
 
 	return 0;
@@ -2414,6 +2430,9 @@ void regulatory_hint_country_ie(struct wiphy *wiphy, enum ieee80211_band band,
 	request->alpha2[1] = alpha2[1];
 	request->initiator = NL80211_REGDOM_SET_BY_COUNTRY_IE;
 	request->country_ie_env = env;
+
+	/* Allow calling CRDA again */
+	reg_crda_timeouts = 0;
 
 	queue_regulatory_request(request);
 	request = NULL;
@@ -2893,7 +2912,8 @@ static int reg_set_rd_country_ie(const struct ieee80211_regdomain *rd,
  * multiple drivers can be ironed out later. Caller must've already
  * kmalloc'd the rd structure.
  */
-int set_regdom(const struct ieee80211_regdomain *rd)
+int set_regdom(const struct ieee80211_regdomain *rd,
+	       enum ieee80211_regd_source regd_src)
 {
 	struct regulatory_request *lr;
 	bool user_reset = false;
@@ -2903,6 +2923,9 @@ int set_regdom(const struct ieee80211_regdomain *rd)
 		kfree(rd);
 		return -EINVAL;
 	}
+
+	if (regd_src == REGD_SOURCE_CRDA)
+		reg_crda_timeouts = 0;
 
 	lr = get_last_request();
 
@@ -3063,6 +3086,7 @@ static void reg_timeout_work(struct work_struct *work)
 {
 	REG_DBG_PRINT("Timeout while waiting for CRDA to reply, restoring regulatory settings\n");
 	rtnl_lock();
+	reg_crda_timeouts++;
 	restore_regulatory_settings(true);
 	rtnl_unlock();
 }

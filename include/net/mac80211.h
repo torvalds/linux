@@ -84,6 +84,39 @@
  *
  */
 
+/**
+ * DOC: mac80211 software tx queueing
+ *
+ * mac80211 provides an optional intermediate queueing implementation designed
+ * to allow the driver to keep hardware queues short and provide some fairness
+ * between different stations/interfaces.
+ * In this model, the driver pulls data frames from the mac80211 queue instead
+ * of letting mac80211 push them via drv_tx().
+ * Other frames (e.g. control or management) are still pushed using drv_tx().
+ *
+ * Drivers indicate that they use this model by implementing the .wake_tx_queue
+ * driver operation.
+ *
+ * Intermediate queues (struct ieee80211_txq) are kept per-sta per-tid, with a
+ * single per-vif queue for multicast data frames.
+ *
+ * The driver is expected to initialize its private per-queue data for stations
+ * and interfaces in the .add_interface and .sta_add ops.
+ *
+ * The driver can't access the queue directly. To dequeue a frame, it calls
+ * ieee80211_tx_dequeue(). Whenever mac80211 adds a new frame to a queue, it
+ * calls the .wake_tx_queue driver op.
+ *
+ * For AP powersave TIM handling, the driver only needs to indicate if it has
+ * buffered packets in the driver specific data structures by calling
+ * ieee80211_sta_set_buffered(). For frames buffered in the ieee80211_txq
+ * struct, mac80211 sets the appropriate TIM PVB bits and calls
+ * .release_buffered_frames().
+ * In that callback the driver is therefore expected to release its own
+ * buffered frames and afterwards also frames from the ieee80211_txq (obtained
+ * via the usual ieee80211_tx_dequeue).
+ */
+
 struct device;
 
 /**
@@ -1306,6 +1339,7 @@ enum ieee80211_vif_flags {
  *	monitor interface (if that is requested.)
  * @drv_priv: data area for driver use, will always be aligned to
  *	sizeof(void *).
+ * @txq: the multicast data TX queue (if driver uses the TXQ abstraction)
  */
 struct ieee80211_vif {
 	enum nl80211_iftype type;
@@ -1316,6 +1350,8 @@ struct ieee80211_vif {
 
 	u8 cab_queue;
 	u8 hw_queue[IEEE80211_NUM_ACS];
+
+	struct ieee80211_txq *txq;
 
 	struct ieee80211_chanctx_conf __rcu *chanctx_conf;
 
@@ -1575,6 +1611,7 @@ struct ieee80211_sta_rates {
  * @tdls_initiator: indicates the STA is an initiator of the TDLS link. Only
  *	valid if the STA is a TDLS peer in the first place.
  * @mfp: indicates whether the STA uses management frame protection or not.
+ * @txq: per-TID data TX queues (if driver uses the TXQ abstraction)
  */
 struct ieee80211_sta {
 	u32 supp_rates[IEEE80211_NUM_BANDS];
@@ -1592,6 +1629,8 @@ struct ieee80211_sta {
 	bool tdls;
 	bool tdls_initiator;
 	bool mfp;
+
+	struct ieee80211_txq *txq[IEEE80211_NUM_TIDS];
 
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));
@@ -1618,6 +1657,27 @@ enum sta_notify_cmd {
  */
 struct ieee80211_tx_control {
 	struct ieee80211_sta *sta;
+};
+
+/**
+ * struct ieee80211_txq - Software intermediate tx queue
+ *
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ * @sta: station table entry, %NULL for per-vif queue
+ * @tid: the TID for this queue (unused for per-vif queue)
+ * @ac: the AC for this queue
+ *
+ * The driver can obtain packets from this queue by calling
+ * ieee80211_tx_dequeue().
+ */
+struct ieee80211_txq {
+	struct ieee80211_vif *vif;
+	struct ieee80211_sta *sta;
+	u8 tid;
+	u8 ac;
+
+	/* must be last */
+	u8 drv_priv[0] __aligned(sizeof(void *));
 };
 
 /**
@@ -1844,6 +1904,8 @@ enum ieee80211_hw_flags {
  *	within &struct ieee80211_sta.
  * @chanctx_data_size: size (in bytes) of the drv_priv data area
  *	within &struct ieee80211_chanctx_conf.
+ * @txq_data_size: size (in bytes) of the drv_priv data area
+ *	within @struct ieee80211_txq.
  *
  * @max_rates: maximum number of alternate rate retry stages the hw
  *	can handle.
@@ -1892,6 +1954,9 @@ enum ieee80211_hw_flags {
  * @n_cipher_schemes: a size of an array of cipher schemes definitions.
  * @cipher_schemes: a pointer to an array of cipher scheme definitions
  *	supported by HW.
+ *
+ * @txq_ac_max_pending: maximum number of frames per AC pending in all txq
+ *	entries for a vif.
  */
 struct ieee80211_hw {
 	struct ieee80211_conf conf;
@@ -1904,6 +1969,7 @@ struct ieee80211_hw {
 	int vif_data_size;
 	int sta_data_size;
 	int chanctx_data_size;
+	int txq_data_size;
 	u16 queues;
 	u16 max_listen_interval;
 	s8 max_signal;
@@ -1920,6 +1986,7 @@ struct ieee80211_hw {
 	u8 uapsd_max_sp_len;
 	u8 n_cipher_schemes;
 	const struct ieee80211_cipher_scheme *cipher_schemes;
+	int txq_ac_max_pending;
 };
 
 /**
@@ -3082,6 +3149,8 @@ enum ieee80211_reconfig_type {
  *	response template is provided, together with the location of the
  *	switch-timing IE within the template. The skb can only be used within
  *	the function call.
+ *
+ * @wake_tx_queue: Called when new packets have been added to the queue.
  */
 struct ieee80211_ops {
 	void (*tx)(struct ieee80211_hw *hw,
@@ -3313,6 +3382,9 @@ struct ieee80211_ops {
 	void (*tdls_recv_channel_switch)(struct ieee80211_hw *hw,
 					 struct ieee80211_vif *vif,
 					 struct ieee80211_tdls_ch_sw_params *params);
+
+	void (*wake_tx_queue)(struct ieee80211_hw *hw,
+			      struct ieee80211_txq *txq);
 };
 
 /**
@@ -5308,30 +5380,13 @@ int ieee80211_reserve_tid(struct ieee80211_sta *sta, u8 tid);
 void ieee80211_unreserve_tid(struct ieee80211_sta *sta, u8 tid);
 
 /**
- * ieee80211_ie_split - split an IE buffer according to ordering
+ * ieee80211_tx_dequeue - dequeue a packet from a software tx queue
  *
- * @ies: the IE buffer
- * @ielen: the length of the IE buffer
- * @ids: an array with element IDs that are allowed before
- *	the split
- * @n_ids: the size of the element ID array
- * @offset: offset where to start splitting in the buffer
+ * @hw: pointer as obtained from ieee80211_alloc_hw()
+ * @txq: pointer obtained from station or virtual interface
  *
- * This function splits an IE buffer by updating the @offset
- * variable to point to the location where the buffer should be
- * split.
- *
- * It assumes that the given IE buffer is well-formed, this
- * has to be guaranteed by the caller!
- *
- * It also assumes that the IEs in the buffer are ordered
- * correctly, if not the result of using this function will not
- * be ordered correctly either, i.e. it does no reordering.
- *
- * The function returns the offset where the next part of the
- * buffer starts, which may be @ielen if the entire (remainder)
- * of the buffer should be used.
+ * Returns the skb if successful, %NULL if no frame was available.
  */
-size_t ieee80211_ie_split(const u8 *ies, size_t ielen,
-			  const u8 *ids, int n_ids, size_t offset);
+struct sk_buff *ieee80211_tx_dequeue(struct ieee80211_hw *hw,
+				     struct ieee80211_txq *txq);
 #endif /* MAC80211_H */
