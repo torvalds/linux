@@ -24,9 +24,7 @@
 #include <linux/device.h>
 
 #undef TRACE_SYSTEM
-
 #define TRACE_SYSTEM mei
-#define TRACE_SYSTEM_STRING __stringify(TRACE_SYSTEM)
 
 TRACE_EVENT(mei_reg_read,
 	TP_PROTO(const struct device *dev, const char *reg, u32 offs, u32 val),
