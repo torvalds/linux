@@ -2189,6 +2189,7 @@ static int rk_fb_set_win_config(struct fb_info *info,
 		        pr_err("error config ,ignore\n");
 		for (j = 0; j < RK_MAX_BUF_NUM; j++)
 		        win_data->rel_fence_fd[j] = -1;
+		win_data->ret_fence_fd = -1;
 		return 0;
 	}
 
