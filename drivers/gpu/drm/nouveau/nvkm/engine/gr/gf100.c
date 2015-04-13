@@ -1097,8 +1097,13 @@ gf100_gr_intr(struct nvkm_subdev *subdev)
 	u32 subc = (addr & 0x00070000) >> 16;
 	u32 data = nv_rd32(priv, 0x400708);
 	u32 code = nv_rd32(priv, 0x400110);
-	u32 class = nv_rd32(priv, 0x404200 + (subc * 4));
+	u32 class;
 	int chid;
+
+	if (nv_device(priv)->card_type < NV_E0 || subc < 4)
+		class = nv_rd32(priv, 0x404200 + (subc * 4));
+	else
+		class = 0x0000;
 
 	engctx = nvkm_engctx_get(engine, inst);
 	chid   = pfifo->chid(pfifo, engctx);
