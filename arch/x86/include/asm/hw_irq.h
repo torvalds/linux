@@ -161,6 +161,14 @@ struct irq_alloc_info {
 			void		*dmar_data;
 		};
 #endif
+#ifdef	CONFIG_HT_IRQ
+		struct {
+			int		ht_pos;
+			int		ht_idx;
+			struct pci_dev	*ht_dev;
+			void		*ht_update;
+		};
+#endif
 	};
 };
 
@@ -226,6 +234,11 @@ static inline void unlock_vector_lock(void) {}
 extern void arch_init_msi_domain(struct irq_domain *domain);
 #else
 static inline void arch_init_msi_domain(struct irq_domain *domain) { }
+#endif
+#ifdef	CONFIG_HT_IRQ
+extern void arch_init_htirq_domain(struct irq_domain *domain);
+#else
+static inline void arch_init_htirq_domain(struct irq_domain *domain) { }
 #endif
 
 /* Statistics */
