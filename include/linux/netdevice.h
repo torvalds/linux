@@ -1313,6 +1313,8 @@ enum netdev_priv_flags {
  *	@base_addr:	Device I/O address
  *	@irq:		Device IRQ number
  *
+ *	@carrier_changes:	Stats to monitor carrier on<->off transitions
+ *
  *	@state:		Generic network queuing layer state, see netdev_state_t
  *	@dev_list:	The global list of network devices
  *	@napi_list:	List entry, that is used for polling napi devices
@@ -1345,8 +1347,6 @@ enum netdev_priv_flags {
  *			do not use this in drivers
  *	@tx_dropped:	Dropped packets by core network,
  *			do not use this in drivers
- *
- *	@carrier_changes:	Stats to monitor carrier on<->off transitions
  *
  *	@wireless_handlers:	List of functions to handle Wireless Extensions,
  *				instead of ioctl,
@@ -1390,14 +1390,14 @@ enum netdev_priv_flags {
  * 	@dev_port:		Used to differentiate devices that share
  * 				the same function
  *	@addr_list_lock:	XXX: need comments on this one
- *	@uc:			unicast mac addresses
- *	@mc:			multicast mac addresses
- *	@dev_addrs:		list of device hw addresses
- *	@queues_kset:		Group of all Kobjects in the Tx and RX queues
  *	@uc_promisc:		Counter, that indicates, that promiscuous mode
  *				has been enabled due to the need to listen to
  *				additional unicast addresses in a device that
  *				does not implement ndo_set_rx_mode()
+ *	@uc:			unicast mac addresses
+ *	@mc:			multicast mac addresses
+ *	@dev_addrs:		list of device hw addresses
+ *	@queues_kset:		Group of all Kobjects in the Tx and RX queues
  *	@promiscuity:		Number of times, the NIC is told to work in
  *				Promiscuous mode, if it becomes 0 the NIC will
  *				exit from working in Promiscuous mode
@@ -1427,6 +1427,12 @@ enum netdev_priv_flags {
  *	@ingress_queue:		XXX: need comments on this one
  *	@broadcast:		hw bcast address
  *
+ *	@rx_cpu_rmap:	CPU reverse-mapping for RX completion interrupts,
+ *			indexed by RX queue number. Assigned by driver.
+ *			This must only be set if the ndo_rx_flow_steer
+ *			operation is defined
+ *	@index_hlist:		Device index hash chain
+ *
  *	@_tx:			Array of TX queues
  *	@num_tx_queues:		Number of TX queues allocated at alloc_netdev_mq() time
  *	@real_num_tx_queues: 	Number of TX queues currently active in device
@@ -1436,11 +1442,6 @@ enum netdev_priv_flags {
  *
  *	@xps_maps:	XXX: need comments on this one
  *
- *	@rx_cpu_rmap:	CPU reverse-mapping for RX completion interrupts,
- *			indexed by RX queue number. Assigned by driver.
- *			This must only be set if the ndo_rx_flow_steer
- *			operation is defined
- *
  *	@trans_start:		Time (in jiffies) of last Tx
  *	@watchdog_timeo:	Represents the timeout that is used by
  *				the watchdog ( see dev_watchdog() )
@@ -1448,7 +1449,6 @@ enum netdev_priv_flags {
  *
  *	@pcpu_refcnt:		Number of references to this device
  *	@todo_list:		Delayed register/unregister
- *	@index_hlist:		Device index hash chain
  *	@link_watch_list:	XXX: need comments on this one
  *
  *	@reg_state:		Register/unregister state machine
@@ -1515,6 +1515,8 @@ struct net_device {
 	unsigned long		base_addr;
 	int			irq;
 
+	atomic_t		carrier_changes;
+
 	/*
 	 *	Some hardware also needs these fields (state,dev_list,
 	 *	napi_list,unreg_list,close_list) but they are not
@@ -1555,8 +1557,6 @@ struct net_device {
 	atomic_long_t		rx_dropped;
 	atomic_long_t		tx_dropped;
 
-	atomic_t		carrier_changes;
-
 #ifdef CONFIG_WIRELESS_EXT
 	const struct iw_handler_def *	wireless_handlers;
 	struct iw_public_data *	wireless_data;
@@ -1596,6 +1596,8 @@ struct net_device {
 	unsigned short          dev_id;
 	unsigned short          dev_port;
 	spinlock_t		addr_list_lock;
+	unsigned char		name_assign_type;
+	bool			uc_promisc;
 	struct netdev_hw_addr_list	uc;
 	struct netdev_hw_addr_list	mc;
 	struct netdev_hw_addr_list	dev_addrs;
@@ -1603,10 +1605,6 @@ struct net_device {
 #ifdef CONFIG_SYSFS
 	struct kset		*queues_kset;
 #endif
-
-	unsigned char		name_assign_type;
-
-	bool			uc_promisc;
 	unsigned int		promiscuity;
 	unsigned int		allmulti;
 
@@ -1653,7 +1651,10 @@ struct net_device {
 
 	struct netdev_queue __rcu *ingress_queue;
 	unsigned char		broadcast[MAX_ADDR_LEN];
-
+#ifdef CONFIG_RFS_ACCEL
+	struct cpu_rmap		*rx_cpu_rmap;
+#endif
+	struct hlist_node	index_hlist;
 
 /*
  * Cache lines mostly used on transmit path
@@ -1664,12 +1665,10 @@ struct net_device {
 	struct Qdisc		*qdisc;
 	unsigned long		tx_queue_len;
 	spinlock_t		tx_global_lock;
+	int			watchdog_timeo;
 
 #ifdef CONFIG_XPS
 	struct xps_dev_maps __rcu *xps_maps;
-#endif
-#ifdef CONFIG_RFS_ACCEL
-	struct cpu_rmap		*rx_cpu_rmap;
 #endif
 
 	/* These may be needed for future network-power-down code. */
@@ -1680,13 +1679,11 @@ struct net_device {
 	 */
 	unsigned long		trans_start;
 
-	int			watchdog_timeo;
 	struct timer_list	watchdog_timer;
 
 	int __percpu		*pcpu_refcnt;
 	struct list_head	todo_list;
 
-	struct hlist_node	index_hlist;
 	struct list_head	link_watch_list;
 
 	enum { NETREG_UNINITIALIZED=0,
@@ -1751,7 +1748,6 @@ struct net_device {
 #endif
 	struct phy_device *phydev;
 	struct lock_class_key *qdisc_tx_busylock;
-	struct pm_qos_request	pm_qos_req;
 };
 #define to_net_dev(d) container_of(d, struct net_device, dev)
 

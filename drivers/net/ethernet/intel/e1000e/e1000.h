@@ -343,6 +343,7 @@ struct e1000_adapter {
 	struct timecounter tc;
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_clock_info;
+	struct pm_qos_request pm_qos_req;
 
 	u16 eee_advert;
 };
