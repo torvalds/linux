@@ -113,9 +113,9 @@ acpi_tb_acquire_table(struct acpi_table_desc *table_desc,
 	case ACPI_TABLE_ORIGIN_INTERNAL_VIRTUAL:
 	case ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL:
 
-		table =
-		    ACPI_CAST_PTR(struct acpi_table_header,
-				  table_desc->address);
+		table = ACPI_CAST_PTR(struct acpi_table_header,
+				      ACPI_PHYSADDR_TO_PTR(table_desc->
+							   address));
 		break;
 
 	default:
@@ -214,7 +214,8 @@ acpi_tb_acquire_temp_table(struct acpi_table_desc *table_desc,
 	case ACPI_TABLE_ORIGIN_INTERNAL_VIRTUAL:
 	case ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL:
 
-		table_header = ACPI_CAST_PTR(struct acpi_table_header, address);
+		table_header = ACPI_CAST_PTR(struct acpi_table_header,
+					     ACPI_PHYSADDR_TO_PTR(address));
 		if (!table_header) {
 			return (AE_NO_MEMORY);
 		}
