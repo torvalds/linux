@@ -53,19 +53,6 @@ static void irq_msi_compose_msg(struct irq_data *data, struct msi_msg *msg)
 		MSI_DATA_VECTOR(cfg->vector);
 }
 
-static void msi_update_msg(struct msi_msg *msg, struct irq_data *irq_data)
-{
-	struct irq_cfg *cfg = irqd_cfg(irq_data);
-
-	msg->data &= ~MSI_DATA_VECTOR_MASK;
-	msg->data |= MSI_DATA_VECTOR(cfg->vector);
-	msg->address_lo &= ~MSI_ADDR_DEST_ID_MASK;
-	msg->address_lo |= MSI_ADDR_DEST_ID(cfg->dest_apicid);
-	if (x2apic_enabled())
-		msg->address_hi = MSI_ADDR_BASE_HI |
-				  MSI_ADDR_EXT_DEST_ID(cfg->dest_apicid);
-}
-
 /*
  * IRQ Chip for MSI PCI/PCI-X/PCI-Express Devices,
  * which implement the MSI or MSI-X Capability Structure.
@@ -198,8 +185,7 @@ dmar_msi_set_affinity(struct irq_data *data, const struct cpumask *mask,
 
 	ret = parent->chip->irq_set_affinity(parent, mask, force);
 	if (ret >= 0) {
-		dmar_msi_read(data->irq, &msg);
-		msi_update_msg(&msg, data);
+		irq_chip_compose_msi_msg(data, &msg);
 		dmar_msi_write(data->irq, &msg);
 	}
 
@@ -329,8 +315,7 @@ static int hpet_msi_set_affinity(struct irq_data *data,
 
 	ret = parent->chip->irq_set_affinity(parent, mask, force);
 	if (ret >= 0 && ret != IRQ_SET_MASK_OK_DONE) {
-		hpet_msi_read(data->handler_data, &msg);
-		msi_update_msg(&msg, data);
+		irq_chip_compose_msi_msg(data, &msg);
 		hpet_msi_write(data->handler_data, &msg);
 	}
 
