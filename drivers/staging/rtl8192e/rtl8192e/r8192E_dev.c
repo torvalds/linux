@@ -918,8 +918,7 @@ start:
 			tmpRegC = rtl8192_QueryBBReg(dev,
 				  rOFDM0_XCTxIQImbalance, bMaskDWord);
 			for (i = 0; i < TxBBGainTableLength; i++) {
-				if (tmpRegA ==
-				    priv->txbbgain_table[i].txbbgain_value) {
+				if (tmpRegA == dm_tx_bb_gain[i]) {
 					priv->rfa_txpowertrackingindex = (u8)i;
 					priv->rfa_txpowertrackingindex_real =
 						 (u8)i;
@@ -933,7 +932,7 @@ start:
 				  rCCK0_TxFilter1, bMaskByte2);
 
 			for (i = 0; i < CCKTxBBGainTableLength; i++) {
-				if (TempCCk == priv->cck_txbbgain_table[i].ccktxbb_valuearray[0]) {
+				if (TempCCk == dm_cck_tx_bb_gain[i][0]) {
 					priv->CCKPresentAttentuation_20Mdefault = (u8)i;
 					break;
 				}

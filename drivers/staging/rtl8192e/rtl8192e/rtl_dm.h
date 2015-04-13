@@ -252,11 +252,20 @@ extern	u8		dm_shadow[16][256];
 extern struct drx_path_sel DM_RxPathSelTable;
 
 extern	u8			test_flag;
+
+/* Pre-calculated gain tables */
+extern const u32 dm_tx_bb_gain[TxBBGainTableLength];
+extern const u8 dm_cck_tx_bb_gain[CCKTxBBGainTableLength][8];
+extern const u8 dm_cck_tx_bb_gain_ch14[CCKTxBBGainTableLength][8];
+/* Maps table index to iq amplify gain (dB, 12 to -24dB) */
+#define dm_tx_bb_gain_idx_to_amplify(idx) (-idx + 12)
+
 /*------------------------Export global variable----------------------------*/
 
 
 /*--------------------------Exported Function prototype---------------------*/
 /*--------------------------Exported Function prototype---------------------*/
+
 extern  void    init_hal_dm(struct net_device *dev);
 extern  void deinit_hal_dm(struct net_device *dev);
 

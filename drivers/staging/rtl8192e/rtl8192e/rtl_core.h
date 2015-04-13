@@ -451,15 +451,6 @@ enum two_port_status {
 	TWO_PORT_STATUS__WITHOUT_ANY_ASSOCIATE
 };
 
-struct txbbgain_struct {
-	long	txbb_iq_amplifygain;
-	u32	txbbgain_value;
-};
-
-struct ccktxbbgain {
-	u8	ccktxbb_valuearray[8];
-};
-
 struct init_gain {
 	u8	xaagccore1;
 	u8	xbagccore1;
@@ -566,11 +557,6 @@ struct r8192_priv {
 	enum ht_channel_width CurrentChannelBW;
 	struct bb_reg_definition PHYRegDef[4];
 	struct rate_adaptive rate_adaptive;
-
-	struct ccktxbbgain cck_txbbgain_table[CCKTxBBGainTableLength];
-	struct ccktxbbgain cck_txbbgain_ch14_table[CCKTxBBGainTableLength];
-
-	struct txbbgain_struct txbbgain_table[TxBBGainTableLength];
 
 	enum acm_method AcmMethod;
 
