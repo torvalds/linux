@@ -49,8 +49,8 @@
 * message, we switch back to fast polling mode.
 */
 #define MIN_IDLE_SECONDS 10
-static ulong poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_FAST;
-static ulong most_recent_message_jiffies;	/* when we got our last
+static unsigned long poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_FAST;
+static unsigned long most_recent_message_jiffies;	/* when we got our last
 						 * controlvm message */
 static int serverregistered;
 static int clientregistered;
@@ -68,8 +68,8 @@ static struct controlvm_message_header g_del_dump_msg_hdr;
 static const uuid_le spar_diag_pool_channel_protocol_uuid =
 	SPAR_DIAG_POOL_CHANNEL_PROTOCOL_UUID;
 /* 0xffffff is an invalid Bus/Device number */
-static ulong g_diagpool_bus_no = 0xffffff;
-static ulong g_diagpool_dev_no = 0xffffff;
+static u32 g_diagpool_bus_no = 0xffffff;
+static u32 g_diagpool_dev_no = 0xffffff;
 static struct controlvm_message_packet g_devicechangestate_packet;
 
 /* Only VNIC and VHBA channels are sent to visorclientbus (aka
@@ -110,9 +110,9 @@ struct visor_livedump_info {
 	struct controlvm_message_header dumpcomplete_header;
 	bool gettextdump_outstanding;
 	u32 crc32;
-	ulong length;
+	unsigned long length;
 	atomic_t buffers_in_use;
-	ulong destination;
+	unsigned long destination;
 };
 
 static struct visor_livedump_info livedump_info;
@@ -219,11 +219,11 @@ static void parahotplug_process_list(void);
 static struct visorchipset_busdev_notifiers busdev_server_notifiers;
 static struct visorchipset_busdev_notifiers busdev_client_notifiers;
 
-static void bus_create_response(ulong bus_no, int response);
-static void bus_destroy_response(ulong bus_no, int response);
-static void device_create_response(ulong bus_no, ulong dev_no, int response);
-static void device_destroy_response(ulong bus_no, ulong dev_no, int response);
-static void device_resume_response(ulong bus_no, ulong dev_no, int response);
+static void bus_create_response(u32 bus_no, int response);
+static void bus_destroy_response(u32 bus_no, int response);
+static void device_create_response(u32 bus_no, u32 dev_no, int response);
+static void device_destroy_response(u32 bus_no, u32 dev_no, int response);
+static void device_resume_response(u32 bus_no, u32 dev_no, int response);
 
 static struct visorchipset_busdev_responders busdev_responders = {
 	.bus_create = bus_create_response,
@@ -773,7 +773,7 @@ visorchipset_save_message(struct controlvm_message *msg,
 EXPORT_SYMBOL_GPL(visorchipset_save_message);
 
 static void
-bus_responder(enum controlvm_id cmd_id, ulong bus_no, int response)
+bus_responder(enum controlvm_id cmd_id, u32 bus_no, int response)
 {
 	struct visorchipset_bus_info *p = NULL;
 	bool need_clear = false;
@@ -808,7 +808,7 @@ bus_responder(enum controlvm_id cmd_id, ulong bus_no, int response)
 
 static void
 device_changestate_responder(enum controlvm_id cmd_id,
-			     ulong bus_no, ulong dev_no, int response,
+			     u32 bus_no, u32 dev_no, int response,
 			     struct spar_segment_state response_state)
 {
 	struct visorchipset_device_info *p = NULL;
@@ -836,8 +836,7 @@ device_changestate_responder(enum controlvm_id cmd_id,
 }
 
 static void
-device_responder(enum controlvm_id cmd_id, ulong bus_no, ulong dev_no,
-		 int response)
+device_responder(enum controlvm_id cmd_id, u32 bus_no, u32 dev_no, int response)
 {
 	struct visorchipset_device_info *p = NULL;
 	bool need_clear = false;
@@ -1033,7 +1032,7 @@ static void
 bus_create(struct controlvm_message *inmsg)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
-	ulong bus_no = cmd->create_bus.bus_no;
+	u32 bus_no = cmd->create_bus.bus_no;
 	int rc = CONTROLVM_RESP_SUCCESS;
 	struct visorchipset_bus_info *bus_info = NULL;
 
@@ -1083,7 +1082,7 @@ static void
 bus_destroy(struct controlvm_message *inmsg)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
-	ulong bus_no = cmd->destroy_bus.bus_no;
+	u32 bus_no = cmd->destroy_bus.bus_no;
 	struct visorchipset_bus_info *bus_info;
 	int rc = CONTROLVM_RESP_SUCCESS;
 
@@ -1102,7 +1101,7 @@ bus_configure(struct controlvm_message *inmsg,
 	      struct parser_context *parser_ctx)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
-	ulong bus_no = cmd->configure_bus.bus_no;
+	u32 bus_no = cmd->configure_bus.bus_no;
 	struct visorchipset_bus_info *bus_info = NULL;
 	int rc = CONTROLVM_RESP_SUCCESS;
 	char s[99];
@@ -1142,8 +1141,8 @@ static void
 my_device_create(struct controlvm_message *inmsg)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
-	ulong bus_no = cmd->create_device.bus_no;
-	ulong dev_no = cmd->create_device.dev_no;
+	u32 bus_no = cmd->create_device.bus_no;
+	u32 dev_no = cmd->create_device.dev_no;
 	struct visorchipset_device_info *dev_info = NULL;
 	struct visorchipset_bus_info *bus_info = NULL;
 	int rc = CONTROLVM_RESP_SUCCESS;
@@ -1212,8 +1211,8 @@ static void
 my_device_changestate(struct controlvm_message *inmsg)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
-	ulong bus_no = cmd->device_change_state.bus_no;
-	ulong dev_no = cmd->device_change_state.dev_no;
+	u32 bus_no = cmd->device_change_state.bus_no;
+	u32 dev_no = cmd->device_change_state.dev_no;
 	struct spar_segment_state state = cmd->device_change_state.state;
 	struct visorchipset_device_info *dev_info = NULL;
 	int rc = CONTROLVM_RESP_SUCCESS;
@@ -1240,8 +1239,8 @@ static void
 my_device_destroy(struct controlvm_message *inmsg)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
-	ulong bus_no = cmd->destroy_device.bus_no;
-	ulong dev_no = cmd->destroy_device.dev_no;
+	u32 bus_no = cmd->destroy_device.bus_no;
+	u32 dev_no = cmd->destroy_device.dev_no;
 	struct visorchipset_device_info *dev_info = NULL;
 	int rc = CONTROLVM_RESP_SUCCESS;
 
@@ -1956,31 +1955,31 @@ cleanup:
 }
 
 static void
-bus_create_response(ulong bus_no, int response)
+bus_create_response(u32 bus_no, int response)
 {
 	bus_responder(CONTROLVM_BUS_CREATE, bus_no, response);
 }
 
 static void
-bus_destroy_response(ulong bus_no, int response)
+bus_destroy_response(u32 bus_no, int response)
 {
 	bus_responder(CONTROLVM_BUS_DESTROY, bus_no, response);
 }
 
 static void
-device_create_response(ulong bus_no, ulong dev_no, int response)
+device_create_response(u32 bus_no, u32 dev_no, int response)
 {
 	device_responder(CONTROLVM_DEVICE_CREATE, bus_no, dev_no, response);
 }
 
 static void
-device_destroy_response(ulong bus_no, ulong dev_no, int response)
+device_destroy_response(u32 bus_no, u32 dev_no, int response)
 {
 	device_responder(CONTROLVM_DEVICE_DESTROY, bus_no, dev_no, response);
 }
 
 void
-visorchipset_device_pause_response(ulong bus_no, ulong dev_no, int response)
+visorchipset_device_pause_response(u32 bus_no, u32 dev_no, int response)
 {
 	device_changestate_responder(CONTROLVM_DEVICE_CHANGESTATE,
 				     bus_no, dev_no, response,
@@ -1989,7 +1988,7 @@ visorchipset_device_pause_response(ulong bus_no, ulong dev_no, int response)
 EXPORT_SYMBOL_GPL(visorchipset_device_pause_response);
 
 static void
-device_resume_response(ulong bus_no, ulong dev_no, int response)
+device_resume_response(u32 bus_no, u32 dev_no, int response)
 {
 	device_changestate_responder(CONTROLVM_DEVICE_CHANGESTATE,
 				     bus_no, dev_no, response,
@@ -1997,7 +1996,7 @@ device_resume_response(ulong bus_no, ulong dev_no, int response)
 }
 
 bool
-visorchipset_get_bus_info(ulong bus_no, struct visorchipset_bus_info *bus_info)
+visorchipset_get_bus_info(u32 bus_no, struct visorchipset_bus_info *bus_info)
 {
 	void *p = findbus(&bus_info_list, bus_no);
 
@@ -2009,7 +2008,7 @@ visorchipset_get_bus_info(ulong bus_no, struct visorchipset_bus_info *bus_info)
 EXPORT_SYMBOL_GPL(visorchipset_get_bus_info);
 
 bool
-visorchipset_set_bus_context(ulong bus_no, void *context)
+visorchipset_set_bus_context(u32 bus_no, void *context)
 {
 	struct visorchipset_bus_info *p = findbus(&bus_info_list, bus_no);
 
@@ -2021,7 +2020,7 @@ visorchipset_set_bus_context(ulong bus_no, void *context)
 EXPORT_SYMBOL_GPL(visorchipset_set_bus_context);
 
 bool
-visorchipset_get_device_info(ulong bus_no, ulong dev_no,
+visorchipset_get_device_info(u32 bus_no, u32 dev_no,
 			     struct visorchipset_device_info *dev_info)
 {
 	void *p = finddevice(&dev_info_list, bus_no, dev_no);
@@ -2034,7 +2033,7 @@ visorchipset_get_device_info(ulong bus_no, ulong dev_no,
 EXPORT_SYMBOL_GPL(visorchipset_get_device_info);
 
 bool
-visorchipset_set_device_context(ulong bus_no, ulong dev_no, void *context)
+visorchipset_set_device_context(u32 bus_no, u32 dev_no, void *context)
 {
 	struct visorchipset_device_info *p =
 			finddevice(&dev_info_list, bus_no, dev_no);

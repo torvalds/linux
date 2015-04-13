@@ -162,12 +162,12 @@ findbus(struct list_head *list, u32 bus_no)
  *  visorchipset.)
  */
 struct visorchipset_busdev_notifiers {
-	void (*bus_create)(ulong bus_no);
-	void (*bus_destroy)(ulong bus_no);
-	void (*device_create)(ulong bus_no, ulong dev_no);
-	void (*device_destroy)(ulong bus_no, ulong dev_no);
-	void (*device_pause)(ulong bus_no, ulong dev_no);
-	void (*device_resume)(ulong bus_no, ulong dev_no);
+	void (*bus_create)(u32 bus_no);
+	void (*bus_destroy)(u32 bus_no);
+	void (*device_create)(u32 bus_no, u32 dev_no);
+	void (*device_destroy)(u32 bus_no, u32 dev_no);
+	void (*device_pause)(u32 bus_no, u32 dev_no);
+	void (*device_resume)(u32 bus_no, u32 dev_no);
 	int (*get_channel_info)(uuid_le type_uuid, ulong *min_size,
 				ulong *max_size);
 };
@@ -179,12 +179,12 @@ struct visorchipset_busdev_notifiers {
  *      -1 = it failed
  */
 struct visorchipset_busdev_responders {
-	void (*bus_create)(ulong bus_no, int response);
-	void (*bus_destroy)(ulong bus_no, int response);
-	void (*device_create)(ulong bus_no, ulong dev_no, int response);
-	void (*device_destroy)(ulong bus_no, ulong dev_no, int response);
-	void (*device_pause)(ulong bus_no, ulong dev_no, int response);
-	void (*device_resume)(ulong bus_no, ulong dev_no, int response);
+	void (*bus_create)(u32 bus_no, int response);
+	void (*bus_destroy)(u32 bus_no, int response);
+	void (*device_create)(u32 bus_no, u32 dev_no, int response);
+	void (*device_destroy)(u32 bus_no, u32 dev_no, int response);
+	void (*device_pause)(u32 bus_no, u32 dev_no, int response);
+	void (*device_resume)(u32 bus_no, u32 dev_no, int response);
 };
 
 /** Register functions (in the bus driver) to get called by visorchipset
@@ -214,15 +214,14 @@ visorchipset_register_busdev_server(
 typedef void (*SPARREPORTEVENT_COMPLETE_FUNC) (struct controlvm_message *msg,
 					       int status);
 
-void visorchipset_device_pause_response(ulong bus_no, ulong dev_no,
-					int response);
+void visorchipset_device_pause_response(u32 bus_no, u32 dev_no, int response);
 
-bool visorchipset_get_bus_info(ulong bus_no,
+bool visorchipset_get_bus_info(u32 bus_no,
 			       struct visorchipset_bus_info *bus_info);
-bool visorchipset_get_device_info(ulong bus_no, ulong dev_no,
+bool visorchipset_get_device_info(u32 bus_no, u32 dev_no,
 				  struct visorchipset_device_info *dev_info);
-bool visorchipset_set_bus_context(ulong bus_no, void *context);
-bool visorchipset_set_device_context(ulong bus_no, ulong dev_no, void *context);
+bool visorchipset_set_bus_context(u32 bus_no, void *context);
+bool visorchipset_set_device_context(u32 bus_no, u32 dev_no, void *context);
 int visorchipset_chipset_ready(void);
 int visorchipset_chipset_selftest(void);
 int visorchipset_chipset_notready(void);
