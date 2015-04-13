@@ -3,29 +3,48 @@ STMicroelectronics STi SATA controller
 This binding describes a SATA device.
 
 Required properties:
- - compatible	   : Must be "st,sti-ahci"
+ - compatible	   : Must be "st,ahci"
  - reg		   : Physical base addresses and length of register sets
  - interrupts	   : Interrupt associated with the SATA device
  - interrupt-names :   Associated name must be; "hostc"
- - resets	   : The power-down and soft-reset lines of SATA IP
- - reset-names	   :   Associated names must be; "pwr-dwn" and "sw-rst"
  - clocks	   : The phandle for the clock
  - clock-names	   :   Associated name must be; "ahci_clk"
- - phys		   : The phandle for the PHY device
+ - phys		   : The phandle for the PHY port
  - phy-names	   :   Associated name must be; "ahci_phy"
+
+Optional properties:
+ - resets	   : The power-down, soft-reset and power-reset lines of SATA IP
+ - reset-names	   :   Associated names must be; "pwr-dwn", "sw-rst" and "pwr-rst"
 
 Example:
 
+	/* Example for stih416 */
 	sata0: sata@fe380000 {
-		compatible      = "st,sti-ahci";
-		reg             = <0xfe380000 0x1000>;
-		interrupts      = <GIC_SPI 157 IRQ_TYPE_NONE>;
-		interrupt-names = "hostc";
-		phys	        = <&miphy365x_phy MIPHY_PORT_0 MIPHY_TYPE_SATA>;
-		phy-names       = "ahci_phy";
-		resets	        = <&powerdown STIH416_SATA0_POWERDOWN>,
+		compatible	= "st,ahci";
+		reg		= <0xfe380000 0x1000>;
+		interrupts	= <GIC_SPI 157 IRQ_TYPE_NONE>;
+		interrupt-names	= "hostc";
+		phys		= <&phy_port0 PHY_TYPE_SATA>;
+		phy-names	= "ahci_phy";
+		resets		= <&powerdown STIH416_SATA0_POWERDOWN>,
 				  <&softreset STIH416_SATA0_SOFTRESET>;
-		reset-names     = "pwr-dwn", "sw-rst";
-		clocks	        = <&clk_s_a0_ls CLK_ICN_REG>;
-		clock-names     = "ahci_clk";
+		reset-names	= "pwr-dwn", "sw-rst";
+		clocks		= <&clk_s_a0_ls CLK_ICN_REG>;
+		clock-names	= "ahci_clk";
+	};
+
+	/* Example for stih407 family silicon */
+	sata0: sata@9b20000 {
+		compatible	= "st,ahci";
+		reg		= <0x9b20000 0x1000>;
+		interrupts	= <GIC_SPI 159 IRQ_TYPE_NONE>;
+		interrupt-names	= "hostc";
+		phys		= <&phy_port0 PHY_TYPE_SATA>;
+		phy-names	= "ahci_phy";
+		resets		= <&powerdown STIH407_SATA0_POWERDOWN>,
+				  <&softreset STIH407_SATA0_SOFTRESET>,
+				  <&softreset STIH407_SATA0_PWR_SOFTRESET>;
+		reset-names	= "pwr-dwn", "sw-rst", "pwr-rst";
+		clocks		= <&clk_s_c0_flexgen CLK_ICN_REG>;
+		clock-names	= "ahci_clk";
 	};
