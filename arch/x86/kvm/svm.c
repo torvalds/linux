@@ -1082,7 +1082,7 @@ static u64 svm_compute_tsc_offset(struct kvm_vcpu *vcpu, u64 target_tsc)
 	return target_tsc - tsc;
 }
 
-static void init_vmcb(struct vcpu_svm *svm)
+static void init_vmcb(struct vcpu_svm *svm, bool init_event)
 {
 	struct vmcb_control_area *control = &svm->vmcb->control;
 	struct vmcb_save_area *save = &svm->vmcb->save;
@@ -1153,17 +1153,17 @@ static void init_vmcb(struct vcpu_svm *svm)
 	init_sys_seg(&save->ldtr, SEG_TYPE_LDT);
 	init_sys_seg(&save->tr, SEG_TYPE_BUSY_TSS16);
 
-	svm_set_efer(&svm->vcpu, 0);
+	if (!init_event)
+		svm_set_efer(&svm->vcpu, 0);
 	save->dr6 = 0xffff0ff0;
 	kvm_set_rflags(&svm->vcpu, 2);
 	save->rip = 0x0000fff0;
 	svm->vcpu.arch.regs[VCPU_REGS_RIP] = save->rip;
 
 	/*
-	 * This is the guest-visible cr0 value.
 	 * svm_set_cr0() sets PG and WP and clears NW and CD on save->cr0.
+	 * It also updates the guest-visible cr0 value.
 	 */
-	svm->vcpu.arch.cr0 = 0;
 	(void)kvm_set_cr0(&svm->vcpu, X86_CR0_NW | X86_CR0_CD | X86_CR0_ET);
 
 	save->cr4 = X86_CR4_PAE;
@@ -1195,13 +1195,19 @@ static void init_vmcb(struct vcpu_svm *svm)
 	enable_gif(svm);
 }
 
-static void svm_vcpu_reset(struct kvm_vcpu *vcpu)
+static void svm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	u32 dummy;
 	u32 eax = 1;
 
-	init_vmcb(svm);
+	if (!init_event) {
+		svm->vcpu.arch.apic_base = APIC_DEFAULT_PHYS_BASE |
+					   MSR_IA32_APICBASE_ENABLE;
+		if (kvm_vcpu_is_reset_bsp(&svm->vcpu))
+			svm->vcpu.arch.apic_base |= MSR_IA32_APICBASE_BSP;
+	}
+	init_vmcb(svm, init_event);
 
 	kvm_cpuid(vcpu, &eax, &dummy, &dummy, &dummy);
 	kvm_register_write(vcpu, VCPU_REGS_RDX, eax);
@@ -1257,12 +1263,7 @@ static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
 	clear_page(svm->vmcb);
 	svm->vmcb_pa = page_to_pfn(page) << PAGE_SHIFT;
 	svm->asid_generation = 0;
-	init_vmcb(svm);
-
-	svm->vcpu.arch.apic_base = APIC_DEFAULT_PHYS_BASE |
-				   MSR_IA32_APICBASE_ENABLE;
-	if (kvm_vcpu_is_reset_bsp(&svm->vcpu))
-		svm->vcpu.arch.apic_base |= MSR_IA32_APICBASE_BSP;
+	init_vmcb(svm, false);
 
 	svm_init_osvw(&svm->vcpu);
 
@@ -1884,7 +1885,7 @@ static int shutdown_interception(struct vcpu_svm *svm)
 	 * so reinitialize it.
 	 */
 	clear_page(svm->vmcb);
-	init_vmcb(svm);
+	init_vmcb(svm, false);
 
 	kvm_run->exit_reason = KVM_EXIT_SHUTDOWN;
 	return 0;

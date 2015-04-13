@@ -4708,22 +4708,27 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	return 0;
 }
 
-static void vmx_vcpu_reset(struct kvm_vcpu *vcpu)
+static void vmx_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	struct msr_data apic_base_msr;
+	u64 cr0;
 
 	vmx->rmode.vm86_active = 0;
 
 	vmx->soft_vnmi_blocked = 0;
 
 	vmx->vcpu.arch.regs[VCPU_REGS_RDX] = get_rdx_init_val();
-	kvm_set_cr8(&vmx->vcpu, 0);
-	apic_base_msr.data = APIC_DEFAULT_PHYS_BASE | MSR_IA32_APICBASE_ENABLE;
-	if (kvm_vcpu_is_reset_bsp(&vmx->vcpu))
-		apic_base_msr.data |= MSR_IA32_APICBASE_BSP;
-	apic_base_msr.host_initiated = true;
-	kvm_set_apic_base(&vmx->vcpu, &apic_base_msr);
+	kvm_set_cr8(vcpu, 0);
+
+	if (!init_event) {
+		apic_base_msr.data = APIC_DEFAULT_PHYS_BASE |
+				     MSR_IA32_APICBASE_ENABLE;
+		if (kvm_vcpu_is_reset_bsp(vcpu))
+			apic_base_msr.data |= MSR_IA32_APICBASE_BSP;
+		apic_base_msr.host_initiated = true;
+		kvm_set_apic_base(vcpu, &apic_base_msr);
+	}
 
 	vmx_segment_cache_clear(vmx);
 
@@ -4747,9 +4752,12 @@ static void vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 	vmcs_write32(GUEST_LDTR_LIMIT, 0xffff);
 	vmcs_write32(GUEST_LDTR_AR_BYTES, 0x00082);
 
-	vmcs_write32(GUEST_SYSENTER_CS, 0);
-	vmcs_writel(GUEST_SYSENTER_ESP, 0);
-	vmcs_writel(GUEST_SYSENTER_EIP, 0);
+	if (!init_event) {
+		vmcs_write32(GUEST_SYSENTER_CS, 0);
+		vmcs_writel(GUEST_SYSENTER_ESP, 0);
+		vmcs_writel(GUEST_SYSENTER_EIP, 0);
+		vmcs_write64(GUEST_IA32_DEBUGCTL, 0);
+	}
 
 	vmcs_writel(GUEST_RFLAGS, 0x02);
 	kvm_rip_write(vcpu, 0xfff0);
@@ -4764,18 +4772,15 @@ static void vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 	vmcs_write32(GUEST_INTERRUPTIBILITY_INFO, 0);
 	vmcs_write32(GUEST_PENDING_DBG_EXCEPTIONS, 0);
 
-	/* Special registers */
-	vmcs_write64(GUEST_IA32_DEBUGCTL, 0);
-
 	setup_msrs(vmx);
 
 	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD, 0);  /* 22.2.1 */
 
-	if (cpu_has_vmx_tpr_shadow()) {
+	if (cpu_has_vmx_tpr_shadow() && !init_event) {
 		vmcs_write64(VIRTUAL_APIC_PAGE_ADDR, 0);
-		if (vm_need_tpr_shadow(vmx->vcpu.kvm))
+		if (vm_need_tpr_shadow(vcpu->kvm))
 			vmcs_write64(VIRTUAL_APIC_PAGE_ADDR,
-				     __pa(vmx->vcpu.arch.apic->regs));
+				     __pa(vcpu->arch.apic->regs));
 		vmcs_write32(TPR_THRESHOLD, 0);
 	}
 
@@ -4787,12 +4792,14 @@ static void vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 	if (vmx->vpid != 0)
 		vmcs_write16(VIRTUAL_PROCESSOR_ID, vmx->vpid);
 
-	vmx->vcpu.arch.cr0 = X86_CR0_NW | X86_CR0_CD | X86_CR0_ET;
-	vmx_set_cr0(&vmx->vcpu, kvm_read_cr0(vcpu)); /* enter rmode */
-	vmx_set_cr4(&vmx->vcpu, 0);
-	vmx_set_efer(&vmx->vcpu, 0);
-	vmx_fpu_activate(&vmx->vcpu);
-	update_exception_bitmap(&vmx->vcpu);
+	cr0 = X86_CR0_NW | X86_CR0_CD | X86_CR0_ET;
+	vmx_set_cr0(vcpu, cr0); /* enter rmode */
+	vmx->vcpu.arch.cr0 = cr0;
+	vmx_set_cr4(vcpu, 0);
+	if (!init_event)
+		vmx_set_efer(vcpu, 0);
+	vmx_fpu_activate(vcpu);
+	update_exception_bitmap(vcpu);
 
 	vpid_sync_context(vmx);
 }

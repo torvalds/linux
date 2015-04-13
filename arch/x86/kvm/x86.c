@@ -7033,7 +7033,7 @@ int kvm_arch_vcpu_ioctl_set_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 	return 0;
 }
 
-int fx_init(struct kvm_vcpu *vcpu)
+int fx_init(struct kvm_vcpu *vcpu, bool init_event)
 {
 	int err;
 
@@ -7041,7 +7041,9 @@ int fx_init(struct kvm_vcpu *vcpu)
 	if (err)
 		return err;
 
-	fpu_finit(&vcpu->arch.guest_fpu);
+	if (!init_event)
+		fpu_finit(&vcpu->arch.guest_fpu);
+
 	if (cpu_has_xsaves)
 		vcpu->arch.guest_fpu.state->xsave.xsave_hdr.xcomp_bv =
 			host_xcr0 | XSTATE_COMPACTION_ENABLED;
@@ -7121,7 +7123,7 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	r = vcpu_load(vcpu);
 	if (r)
 		return r;
-	kvm_vcpu_reset(vcpu);
+	kvm_vcpu_reset(vcpu, false);
 	kvm_mmu_setup(vcpu);
 	vcpu_put(vcpu);
 
@@ -7159,7 +7161,7 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 	kvm_x86_ops->vcpu_free(vcpu);
 }
 
-void kvm_vcpu_reset(struct kvm_vcpu *vcpu)
+void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 {
 	atomic_set(&vcpu->arch.nmi_queued, 0);
 	vcpu->arch.nmi_pending = 0;
@@ -7186,13 +7188,14 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu)
 	kvm_async_pf_hash_reset(vcpu);
 	vcpu->arch.apf.halted = false;
 
-	kvm_pmu_reset(vcpu);
+	if (!init_event)
+		kvm_pmu_reset(vcpu);
 
 	memset(vcpu->arch.regs, 0, sizeof(vcpu->arch.regs));
 	vcpu->arch.regs_avail = ~0;
 	vcpu->arch.regs_dirty = ~0;
 
-	kvm_x86_ops->vcpu_reset(vcpu);
+	kvm_x86_ops->vcpu_reset(vcpu, init_event);
 }
 
 void kvm_vcpu_deliver_sipi_vector(struct kvm_vcpu *vcpu, u8 vector)
@@ -7381,7 +7384,7 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 		goto fail_free_mce_banks;
 	}
 
-	r = fx_init(vcpu);
+	r = fx_init(vcpu, false);
 	if (r)
 		goto fail_free_wbinvd_dirty_mask;
 
