@@ -167,8 +167,6 @@ struct visorchipset_busdev_notifiers {
 	void (*device_destroy)(u32 bus_no, u32 dev_no);
 	void (*device_pause)(u32 bus_no, u32 dev_no);
 	void (*device_resume)(u32 bus_no, u32 dev_no);
-	int (*get_channel_info)(uuid_le type_uuid, ulong *min_size,
-				ulong *max_size);
 };
 
 /*  These functions live inside visorchipset, and will be called to indicate
