@@ -92,17 +92,19 @@ static LIST_HEAD(dev_info_list);
 static struct visorchannel *controlvm_channel;
 
 /* Manages the request payload in the controlvm channel */
-static struct controlvm_payload_info {
+struct visor_controlvm_payload_info {
 	u8 __iomem *ptr;	/* pointer to base address of payload pool */
 	u64 offset;		/* offset from beginning of controlvm
 				 * channel to beginning of payload * pool */
 	u32 bytes;		/* number of bytes in payload pool */
-} controlvm_payload_info;
+};
+
+static struct visor_controlvm_payload_info controlvm_payload_info;
 
 /* Manages the info for a CONTROLVM_DUMP_CAPTURESTATE /
  * CONTROLVM_DUMP_GETTEXTDUMP / CONTROLVM_DUMP_COMPLETE conversation.
  */
-static struct livedump_info {
+struct visor_livedump_info {
 	struct controlvm_message_header dumpcapture_header;
 	struct controlvm_message_header gettextdump_header;
 	struct controlvm_message_header dumpcomplete_header;
@@ -111,7 +113,9 @@ static struct livedump_info {
 	ulong length;
 	atomic_t buffers_in_use;
 	ulong destination;
-} livedump_info;
+};
+
+static struct visor_livedump_info livedump_info;
 
 /* The following globals are used to handle the scenario where we are unable to
  * offload the payload from a controlvm message due to memory requirements.  In
@@ -1263,7 +1267,7 @@ my_device_destroy(struct controlvm_message *inmsg)
  */
 static int
 initialize_controlvm_payload_info(HOSTADDRESS phys_addr, u64 offset, u32 bytes,
-				  struct controlvm_payload_info *info)
+				  struct visor_controlvm_payload_info *info)
 {
 	u8 __iomem *payload = NULL;
 	int rc = CONTROLVM_RESP_SUCCESS;
@@ -1272,7 +1276,7 @@ initialize_controlvm_payload_info(HOSTADDRESS phys_addr, u64 offset, u32 bytes,
 		rc = -CONTROLVM_RESP_ERROR_PAYLOAD_INVALID;
 		goto cleanup;
 	}
-	memset(info, 0, sizeof(struct controlvm_payload_info));
+	memset(info, 0, sizeof(struct visor_controlvm_payload_info));
 	if ((offset == 0) || (bytes == 0)) {
 		rc = -CONTROLVM_RESP_ERROR_PAYLOAD_INVALID;
 		goto cleanup;
@@ -1298,13 +1302,13 @@ cleanup:
 }
 
 static void
-destroy_controlvm_payload_info(struct controlvm_payload_info *info)
+destroy_controlvm_payload_info(struct visor_controlvm_payload_info *info)
 {
 	if (info->ptr) {
 		iounmap(info->ptr);
 		info->ptr = NULL;
 	}
-	memset(info, 0, sizeof(struct controlvm_payload_info));
+	memset(info, 0, sizeof(struct visor_controlvm_payload_info));
 }
 
 static void
