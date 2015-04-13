@@ -3592,40 +3592,19 @@ out:
  * configfs callback function invoked for
  * mkdir /sys/kernel/config/target/$driver/$port/$tpg/acls/$i_port_id
  */
-static struct se_node_acl *srpt_make_nodeacl(struct se_portal_group *tpg,
-					     struct config_group *group,
-					     const char *name)
+static int srpt_init_nodeacl(struct se_node_acl *se_nacl, const char *name)
 {
-	struct srpt_port *sport = container_of(tpg, struct srpt_port, port_tpg_1);
-	struct se_node_acl *se_nacl, *se_nacl_new;
-	struct srpt_node_acl *nacl;
-	int ret = 0;
-	u32 nexus_depth = 1;
+	struct srpt_port *sport =
+		container_of(se_nacl->se_tpg, struct srpt_port, port_tpg_1);
+	struct srpt_node_acl *nacl =
+		container_of(se_nacl, struct srpt_node_acl, nacl);
 	u8 i_port_id[16];
 
 	if (srpt_parse_i_port_id(i_port_id, name) < 0) {
 		pr_err("invalid initiator port ID %s\n", name);
-		ret = -EINVAL;
-		goto err;
+		return -EINVAL;
 	}
 
-	se_nacl_new = srpt_alloc_fabric_acl(tpg);
-	if (!se_nacl_new) {
-		ret = -ENOMEM;
-		goto err;
-	}
-	/*
-	 * nacl_new may be released by core_tpg_add_initiator_node_acl()
-	 * when converting a node ACL from demo mode to explict
-	 */
-	se_nacl = core_tpg_add_initiator_node_acl(tpg, se_nacl_new, name,
-						  nexus_depth);
-	if (IS_ERR(se_nacl)) {
-		ret = PTR_ERR(se_nacl);
-		goto err;
-	}
-	/* Locate our struct srpt_node_acl and set sdev and i_port_id. */
-	nacl = container_of(se_nacl, struct srpt_node_acl, nacl);
 	memcpy(&nacl->i_port_id[0], &i_port_id[0], 16);
 	nacl->sport = sport;
 
@@ -3633,29 +3612,22 @@ static struct se_node_acl *srpt_make_nodeacl(struct se_portal_group *tpg,
 	list_add_tail(&nacl->list, &sport->port_acl_list);
 	spin_unlock_irq(&sport->port_acl_lock);
 
-	return se_nacl;
-err:
-	return ERR_PTR(ret);
+	return 0;
 }
 
 /*
  * configfs callback function invoked for
  * rmdir /sys/kernel/config/target/$driver/$port/$tpg/acls/$i_port_id
  */
-static void srpt_drop_nodeacl(struct se_node_acl *se_nacl)
+static void srpt_cleanup_nodeacl(struct se_node_acl *se_nacl)
 {
-	struct srpt_node_acl *nacl;
-	struct srpt_device *sdev;
-	struct srpt_port *sport;
+	struct srpt_node_acl *nacl =
+		container_of(se_nacl, struct srpt_node_acl, nacl);
+	struct srpt_port *sport = nacl->sport;
 
-	nacl = container_of(se_nacl, struct srpt_node_acl, nacl);
-	sport = nacl->sport;
-	sdev = sport->sdev;
 	spin_lock_irq(&sport->port_acl_lock);
 	list_del(&nacl->list);
 	spin_unlock_irq(&sport->port_acl_lock);
-	core_tpg_del_initiator_node_acl(&sport->port_tpg_1, se_nacl, 1);
-	srpt_release_fabric_acl(NULL, se_nacl);
 }
 
 static ssize_t srpt_tpg_attrib_show_srp_max_rdma_size(
@@ -3948,12 +3920,8 @@ static const struct target_core_fabric_ops srpt_template = {
 	.fabric_drop_wwn		= srpt_drop_tport,
 	.fabric_make_tpg		= srpt_make_tpg,
 	.fabric_drop_tpg		= srpt_drop_tpg,
-	.fabric_post_link		= NULL,
-	.fabric_pre_unlink		= NULL,
-	.fabric_make_np			= NULL,
-	.fabric_drop_np			= NULL,
-	.fabric_make_nodeacl		= srpt_make_nodeacl,
-	.fabric_drop_nodeacl		= srpt_drop_nodeacl,
+	.fabric_init_nodeacl		= srpt_init_nodeacl,
+	.fabric_cleanup_nodeacl		= srpt_cleanup_nodeacl,
 
 	.tfc_wwn_attrs			= srpt_wwn_attrs,
 	.tfc_tpg_base_attrs		= srpt_tpg_attrs,

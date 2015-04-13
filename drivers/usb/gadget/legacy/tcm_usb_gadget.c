@@ -1476,40 +1476,11 @@ static const char *usbg_check_wwn(const char *name)
 	return n;
 }
 
-static struct se_node_acl *usbg_make_nodeacl(
-	struct se_portal_group *se_tpg,
-	struct config_group *group,
-	const char *name)
+static int usbg_init_nodeacl(struct se_node_acl *se_nacl, const char *name)
 {
-	struct se_node_acl *se_nacl, *se_nacl_new;
-	u32 nexus_depth;
-	const char *wnn_name;
-
-	wnn_name = usbg_check_wwn(name);
-	if (!wnn_name)
-		return ERR_PTR(-EINVAL);
-	se_nacl_new = usbg_alloc_fabric_acl(se_tpg);
-	if (!(se_nacl_new))
-		return ERR_PTR(-ENOMEM);
-
-	nexus_depth = 1;
-	/*
-	 * se_nacl_new may be released by core_tpg_add_initiator_node_acl()
-	 * when converting a NodeACL from demo mode -> explict
-	 */
-	se_nacl = core_tpg_add_initiator_node_acl(se_tpg, se_nacl_new,
-				name, nexus_depth);
-	if (IS_ERR(se_nacl)) {
-		usbg_release_fabric_acl(se_tpg, se_nacl_new);
-		return se_nacl;
-	}
-	return se_nacl;
-}
-
-static void usbg_drop_nodeacl(struct se_node_acl *se_acl)
-{
-	core_tpg_del_initiator_node_acl(se_acl->se_tpg, se_acl, 1);
-	kfree(se_acl);
+	if (!usbg_check_wwn(name))
+		return -EINVAL;
+	return 0;
 }
 
 struct usbg_tpg *the_only_tpg_I_currently_have;
@@ -1879,10 +1850,7 @@ static const struct target_core_fabric_ops usbg_ops = {
 	.fabric_drop_tpg		= usbg_drop_tpg,
 	.fabric_post_link		= usbg_port_link,
 	.fabric_pre_unlink		= usbg_port_unlink,
-	.fabric_make_np			= NULL,
-	.fabric_drop_np			= NULL,
-	.fabric_make_nodeacl		= usbg_make_nodeacl,
-	.fabric_drop_nodeacl		= usbg_drop_nodeacl,
+	.fabric_init_nodeacl		= usbg_init_nodeacl,
 
 	.tfc_wwn_attrs			= usbg_wwn_attrs,
 	.tfc_tpg_base_attrs		= usbg_base_attrs,

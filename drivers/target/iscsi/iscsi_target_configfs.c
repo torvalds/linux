@@ -874,43 +874,19 @@ static struct se_node_acl *lio_tpg_alloc_fabric_acl(
 	return &acl->se_node_acl;
 }
 
-static struct se_node_acl *lio_target_make_nodeacl(
-	struct se_portal_group *se_tpg,
-	struct config_group *group,
-	const char *name)
+static int lio_target_init_nodeacl(struct se_node_acl *se_nacl,
+		const char *name)
 {
-	struct config_group *stats_cg;
-	struct iscsi_node_acl *acl;
-	struct se_node_acl *se_nacl_new, *se_nacl;
-	struct iscsi_portal_group *tpg = container_of(se_tpg,
-			struct iscsi_portal_group, tpg_se_tpg);
-	u32 cmdsn_depth;
-
-	se_nacl_new = lio_tpg_alloc_fabric_acl(se_tpg);
-	if (!se_nacl_new)
-		return ERR_PTR(-ENOMEM);
-
-	cmdsn_depth = tpg->tpg_attrib.default_cmdsn_depth;
-	/*
-	 * se_nacl_new may be released by core_tpg_add_initiator_node_acl()
-	 * when converting a NdoeACL from demo mode -> explict
-	 */
-	se_nacl = core_tpg_add_initiator_node_acl(se_tpg, se_nacl_new,
-				name, cmdsn_depth);
-	if (IS_ERR(se_nacl))
-		return se_nacl;
-
-	acl = container_of(se_nacl, struct iscsi_node_acl, se_node_acl);
-	stats_cg = &se_nacl->acl_fabric_stat_group;
+	struct iscsi_node_acl *acl =
+		container_of(se_nacl, struct iscsi_node_acl, se_node_acl);
+	struct config_group *stats_cg = &se_nacl->acl_fabric_stat_group;
 
 	stats_cg->default_groups = kmalloc(sizeof(struct config_group *) * 2,
 				GFP_KERNEL);
 	if (!stats_cg->default_groups) {
 		pr_err("Unable to allocate memory for"
 				" stats_cg->default_groups\n");
-		core_tpg_del_initiator_node_acl(se_tpg, se_nacl, 1);
-		kfree(acl);
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	}
 
 	stats_cg->default_groups[0] = &acl->node_stat_grps.iscsi_sess_stats_group;
@@ -918,13 +894,11 @@ static struct se_node_acl *lio_target_make_nodeacl(
 	config_group_init_type_name(&acl->node_stat_grps.iscsi_sess_stats_group,
 			"iscsi_sess_stats", &iscsi_stat_sess_cit);
 
-	return se_nacl;
+	return 0;
 }
 
-static void lio_target_drop_nodeacl(
-	struct se_node_acl *se_nacl)
+static void lio_target_cleanup_nodeacl( struct se_node_acl *se_nacl)
 {
-	struct se_portal_group *se_tpg = se_nacl->se_tpg;
 	struct iscsi_node_acl *acl = container_of(se_nacl,
 			struct iscsi_node_acl, se_node_acl);
 	struct config_item *df_item;
@@ -938,9 +912,6 @@ static void lio_target_drop_nodeacl(
 		config_item_put(df_item);
 	}
 	kfree(stats_cg->default_groups);
-
-	core_tpg_del_initiator_node_acl(se_tpg, se_nacl, 1);
-	kfree(acl);
 }
 
 /* End items for lio_target_acl_cit */
@@ -2020,8 +1991,8 @@ const struct target_core_fabric_ops iscsi_ops = {
 	.fabric_drop_tpg		= lio_target_tiqn_deltpg,
 	.fabric_make_np			= lio_target_call_addnptotpg,
 	.fabric_drop_np			= lio_target_call_delnpfromtpg,
-	.fabric_make_nodeacl		= lio_target_make_nodeacl,
-	.fabric_drop_nodeacl		= lio_target_drop_nodeacl,
+	.fabric_init_nodeacl		= lio_target_init_nodeacl,
+	.fabric_cleanup_nodeacl		= lio_target_cleanup_nodeacl,
 
 	.tfc_discovery_attrs		= lio_target_discovery_auth_attrs,
 	.tfc_wwn_attrs			= lio_target_wwn_attrs,

@@ -1798,41 +1798,6 @@ static void vhost_scsi_port_unlink(struct se_portal_group *se_tpg,
 	mutex_unlock(&vhost_scsi_mutex);
 }
 
-static struct se_node_acl *
-vhost_scsi_make_nodeacl(struct se_portal_group *se_tpg,
-		       struct config_group *group,
-		       const char *name)
-{
-	struct se_node_acl *se_nacl, *se_nacl_new;
-	u32 nexus_depth;
-
-	/* vhost_scsi_parse_wwn(name, &wwpn, 1) < 0)
-		return ERR_PTR(-EINVAL); */
-	se_nacl_new = vhost_scsi_alloc_fabric_acl(se_tpg);
-	if (!se_nacl_new)
-		return ERR_PTR(-ENOMEM);
-
-	nexus_depth = 1;
-	/*
-	 * se_nacl_new may be released by core_tpg_add_initiator_node_acl()
-	 * when converting a NodeACL from demo mode -> explict
-	 */
-	se_nacl = core_tpg_add_initiator_node_acl(se_tpg, se_nacl_new,
-				name, nexus_depth);
-	if (IS_ERR(se_nacl)) {
-		vhost_scsi_release_fabric_acl(se_tpg, se_nacl_new);
-		return se_nacl;
-	}
-
-	return se_nacl;
-}
-
-static void vhost_scsi_drop_nodeacl(struct se_node_acl *se_acl)
-{
-	core_tpg_del_initiator_node_acl(se_acl->se_tpg, se_acl, 1);
-	kfree(se_acl);
-}
-
 static void vhost_scsi_free_cmd_map_res(struct vhost_scsi_nexus *nexus,
 				       struct se_session *se_sess)
 {
@@ -2330,10 +2295,6 @@ static struct target_core_fabric_ops vhost_scsi_ops = {
 	.fabric_drop_tpg		= vhost_scsi_drop_tpg,
 	.fabric_post_link		= vhost_scsi_port_link,
 	.fabric_pre_unlink		= vhost_scsi_port_unlink,
-	.fabric_make_np			= NULL,
-	.fabric_drop_np			= NULL,
-	.fabric_make_nodeacl		= vhost_scsi_make_nodeacl,
-	.fabric_drop_nodeacl		= vhost_scsi_drop_nodeacl,
 
 	.tfc_wwn_attrs			= vhost_scsi_wwn_attrs,
 	.tfc_tpg_base_attrs		= vhost_scsi_tpg_attrs,

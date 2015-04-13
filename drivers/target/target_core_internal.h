@@ -59,6 +59,9 @@ struct se_lun *core_tpg_alloc_lun(struct se_portal_group *, u32);
 int	core_tpg_add_lun(struct se_portal_group *, struct se_lun *,
 		u32, struct se_device *);
 void core_tpg_remove_lun(struct se_portal_group *, struct se_lun *);
+struct se_node_acl *core_tpg_add_initiator_node_acl(struct se_portal_group *tpg,
+		const char *initiatorname);
+void core_tpg_del_initiator_node_acl(struct se_node_acl *acl);
 
 /* target_core_transport.c */
 extern struct kmem_cache *se_tmr_req_cache;

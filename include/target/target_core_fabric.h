@@ -88,9 +88,8 @@ struct target_core_fabric_ops {
 	struct se_tpg_np *(*fabric_make_np)(struct se_portal_group *,
 				struct config_group *, const char *);
 	void (*fabric_drop_np)(struct se_tpg_np *);
-	struct se_node_acl *(*fabric_make_nodeacl)(struct se_portal_group *,
-				struct config_group *, const char *);
-	void (*fabric_drop_nodeacl)(struct se_node_acl *);
+	int (*fabric_init_nodeacl)(struct se_node_acl *, const char *);
+	void (*fabric_cleanup_nodeacl)(struct se_node_acl *);
 
 	struct configfs_attribute **tfc_discovery_attrs;
 	struct configfs_attribute **tfc_wwn_attrs;
@@ -174,10 +173,6 @@ struct se_node_acl *core_tpg_get_initiator_node_acl(struct se_portal_group *tpg,
 struct se_node_acl *core_tpg_check_initiator_node_acl(struct se_portal_group *,
 		unsigned char *);
 void	core_tpg_clear_object_luns(struct se_portal_group *);
-struct se_node_acl *core_tpg_add_initiator_node_acl(struct se_portal_group *,
-		struct se_node_acl *, const char *, u32);
-int	core_tpg_del_initiator_node_acl(struct se_portal_group *,
-		struct se_node_acl *, int);
 int	core_tpg_set_initiator_node_queue_depth(struct se_portal_group *,
 		unsigned char *, u32, int);
 int	core_tpg_set_initiator_node_tag(struct se_portal_group *,

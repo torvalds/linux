@@ -458,10 +458,11 @@ static void target_fabric_nacl_base_release(struct config_item *item)
 {
 	struct se_node_acl *se_nacl = container_of(to_config_group(item),
 			struct se_node_acl, acl_group);
-	struct se_portal_group *se_tpg = se_nacl->se_tpg;
-	struct target_fabric_configfs *tf = se_tpg->se_tpg_wwn->wwn_tf;
+	struct target_fabric_configfs *tf = se_nacl->se_tpg->se_tpg_wwn->wwn_tf;
 
-	tf->tf_ops.fabric_drop_nodeacl(se_nacl);
+	if (tf->tf_ops.fabric_cleanup_nodeacl)
+		tf->tf_ops.fabric_cleanup_nodeacl(se_nacl);
+	core_tpg_del_initiator_node_acl(se_nacl);
 }
 
 static struct configfs_item_operations target_fabric_nacl_base_item_ops = {
@@ -501,14 +502,17 @@ static struct config_group *target_fabric_make_nodeacl(
 	struct se_node_acl *se_nacl;
 	struct config_group *nacl_cg;
 
-	if (!tf->tf_ops.fabric_make_nodeacl) {
-		pr_err("tf->tf_ops.fabric_make_nodeacl is NULL\n");
-		return ERR_PTR(-ENOSYS);
-	}
-
-	se_nacl = tf->tf_ops.fabric_make_nodeacl(se_tpg, group, name);
+	se_nacl = core_tpg_add_initiator_node_acl(se_tpg, name);
 	if (IS_ERR(se_nacl))
 		return ERR_CAST(se_nacl);
+
+	if (tf->tf_ops.fabric_init_nodeacl) {
+		int ret = tf->tf_ops.fabric_init_nodeacl(se_nacl, name);
+		if (ret) {
+			core_tpg_del_initiator_node_acl(se_nacl);
+			return ERR_PTR(ret);
+		}
+	}
 
 	nacl_cg = &se_nacl->acl_group;
 	nacl_cg->default_groups = se_nacl->acl_default_groups;

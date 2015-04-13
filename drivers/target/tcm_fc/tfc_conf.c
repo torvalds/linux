@@ -198,48 +198,17 @@ static struct configfs_attribute *ft_nacl_base_attrs[] = {
  * Add ACL for an initiator.  The ACL is named arbitrarily.
  * The port_name and/or node_name are attributes.
  */
-static struct se_node_acl *ft_add_acl(
-	struct se_portal_group *se_tpg,
-	struct config_group *group,
-	const char *name)
+static int ft_init_nodeacl(struct se_node_acl *nacl, const char *name)
 {
-	struct ft_node_acl *acl;
-	struct ft_tpg *tpg;
+	struct ft_node_acl *acl =
+		container_of(nacl, struct ft_node_acl, se_node_acl);
 	u64 wwpn;
-	u32 q_depth;
-
-	pr_debug("add acl %s\n", name);
-	tpg = container_of(se_tpg, struct ft_tpg, se_tpg);
 
 	if (ft_parse_wwn(name, &wwpn, 1) < 0)
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
-	acl = kzalloc(sizeof(struct ft_node_acl), GFP_KERNEL);
-	if (!acl)
-		return ERR_PTR(-ENOMEM);
 	acl->node_auth.port_name = wwpn;
-
-	q_depth = 32;		/* XXX bogus default - get from tpg? */
-	return core_tpg_add_initiator_node_acl(&tpg->se_tpg,
-				&acl->se_node_acl, name, q_depth);
-}
-
-static void ft_del_acl(struct se_node_acl *se_acl)
-{
-	struct se_portal_group *se_tpg = se_acl->se_tpg;
-	struct ft_tpg *tpg;
-	struct ft_node_acl *acl = container_of(se_acl,
-				struct ft_node_acl, se_node_acl);
-
-	pr_debug("del acl %s\n",
-		config_item_name(&se_acl->acl_group.cg_item));
-
-	tpg = container_of(se_tpg, struct ft_tpg, se_tpg);
-	pr_debug("del acl %p se_acl %p tpg %p se_tpg %p\n",
-		    acl, se_acl, tpg, &tpg->se_tpg);
-
-	core_tpg_del_initiator_node_acl(&tpg->se_tpg, se_acl, 1);
-	kfree(acl);
+	return 0;
 }
 
 struct ft_node_acl *ft_acl_get(struct ft_tpg *tpg, struct fc_rport_priv *rdata)
@@ -542,12 +511,7 @@ static const struct target_core_fabric_ops ft_fabric_ops = {
 	.fabric_drop_wwn =		&ft_del_wwn,
 	.fabric_make_tpg =		&ft_add_tpg,
 	.fabric_drop_tpg =		&ft_del_tpg,
-	.fabric_post_link =		NULL,
-	.fabric_pre_unlink =		NULL,
-	.fabric_make_np =		NULL,
-	.fabric_drop_np =		NULL,
-	.fabric_make_nodeacl =		&ft_add_acl,
-	.fabric_drop_nodeacl =		&ft_del_acl,
+	.fabric_init_nodeacl =		&ft_init_nodeacl,
 
 	.tfc_wwn_attrs			= ft_wwn_attrs,
 	.tfc_tpg_nacl_base_attrs	= ft_nacl_base_attrs,

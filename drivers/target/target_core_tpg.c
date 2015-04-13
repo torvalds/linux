@@ -353,17 +353,11 @@ void core_tpg_clear_object_luns(struct se_portal_group *tpg)
 }
 EXPORT_SYMBOL(core_tpg_clear_object_luns);
 
-/*	core_tpg_add_initiator_node_acl():
- *
- *
- */
 struct se_node_acl *core_tpg_add_initiator_node_acl(
 	struct se_portal_group *tpg,
-	struct se_node_acl *se_nacl,
-	const char *initiatorname,
-	u32 queue_depth)
+	const char *initiatorname)
 {
-	struct se_node_acl *acl = NULL;
+	struct se_node_acl *acl;
 
 	spin_lock_irq(&tpg->acl_node_lock);
 	acl = __core_tpg_get_initiator_node_acl(tpg, initiatorname);
@@ -374,14 +368,6 @@ struct se_node_acl *core_tpg_add_initiator_node_acl(
 				" for %s\n", tpg->se_tpg_tfo->get_fabric_name(),
 				tpg->se_tpg_tfo->tpg_get_tag(tpg), initiatorname);
 			spin_unlock_irq(&tpg->acl_node_lock);
-			/*
-			 * Release the locally allocated struct se_node_acl
-			 * because * core_tpg_add_initiator_node_acl() returned
-			 * a pointer to an existing demo mode node ACL.
-			 */
-			if (se_nacl)
-				tpg->se_tpg_tfo->tpg_release_fabric_acl(tpg,
-							se_nacl);
 			goto done;
 		}
 
@@ -394,16 +380,11 @@ struct se_node_acl *core_tpg_add_initiator_node_acl(
 	}
 	spin_unlock_irq(&tpg->acl_node_lock);
 
-	if (!se_nacl) {
+	acl = tpg->se_tpg_tfo->tpg_alloc_fabric_acl(tpg);
+	if (!acl) {
 		pr_err("struct se_node_acl pointer is NULL\n");
 		return ERR_PTR(-EINVAL);
 	}
-	/*
-	 * For v4.x logic the se_node_acl_s is hanging off a fabric
-	 * dependent structure allocated via
-	 * struct target_core_fabric_ops->fabric_make_nodeacl()
-	 */
-	acl = se_nacl;
 
 	INIT_LIST_HEAD(&acl->acl_list);
 	INIT_LIST_HEAD(&acl->acl_sess_list);
@@ -412,7 +393,10 @@ struct se_node_acl *core_tpg_add_initiator_node_acl(
 	spin_lock_init(&acl->device_list_lock);
 	spin_lock_init(&acl->nacl_sess_lock);
 	atomic_set(&acl->acl_pr_ref_count, 0);
-	acl->queue_depth = queue_depth;
+	if (tpg->se_tpg_tfo->tpg_get_default_depth)
+		acl->queue_depth = tpg->se_tpg_tfo->tpg_get_default_depth(tpg);
+	else
+		acl->queue_depth = 1;
 	snprintf(acl->initiatorname, TRANSPORT_IQN_LEN, "%s", initiatorname);
 	acl->se_tpg = tpg;
 	acl->acl_index = scsi_get_new_index(SCSI_AUTH_INTR_INDEX);
@@ -443,17 +427,10 @@ done:
 
 	return acl;
 }
-EXPORT_SYMBOL(core_tpg_add_initiator_node_acl);
 
-/*	core_tpg_del_initiator_node_acl():
- *
- *
- */
-int core_tpg_del_initiator_node_acl(
-	struct se_portal_group *tpg,
-	struct se_node_acl *acl,
-	int force)
+void core_tpg_del_initiator_node_acl(struct se_node_acl *acl)
 {
+	struct se_portal_group *tpg = acl->se_tpg;
 	LIST_HEAD(sess_list);
 	struct se_session *sess, *sess_tmp;
 	unsigned long flags;
@@ -505,9 +482,8 @@ int core_tpg_del_initiator_node_acl(
 		tpg->se_tpg_tfo->tpg_get_tag(tpg), acl->queue_depth,
 		tpg->se_tpg_tfo->get_fabric_name(), acl->initiatorname);
 
-	return 0;
+	tpg->se_tpg_tfo->tpg_release_fabric_acl(tpg, acl);
 }
-EXPORT_SYMBOL(core_tpg_del_initiator_node_acl);
 
 /*	core_tpg_set_initiator_node_queue_depth():
  *

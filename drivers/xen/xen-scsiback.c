@@ -1980,12 +1980,6 @@ static const struct target_core_fabric_ops scsiback_ops = {
 	.fabric_drop_tpg		= scsiback_drop_tpg,
 	.fabric_post_link		= scsiback_port_link,
 	.fabric_pre_unlink		= scsiback_port_unlink,
-	.fabric_make_np			= NULL,
-	.fabric_drop_np			= NULL,
-#if 0
-	.fabric_make_nodeacl		= scsiback_make_nodeacl,
-	.fabric_drop_nodeacl		= scsiback_drop_nodeacl,
-#endif
 
 	.tfc_wwn_attrs			= scsiback_wwn_attrs,
 	.tfc_tpg_base_attrs		= scsiback_tpg_attrs,

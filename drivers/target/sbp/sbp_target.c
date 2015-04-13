@@ -2085,40 +2085,13 @@ static ssize_t sbp_format_wwn(char *buf, size_t len, u64 wwn)
 	return snprintf(buf, len, "%016llx", wwn);
 }
 
-static struct se_node_acl *sbp_make_nodeacl(
-		struct se_portal_group *se_tpg,
-		struct config_group *group,
-		const char *name)
+static int sbp_init_nodeacl(struct se_node_acl *se_nacl, const char *name)
 {
-	struct se_node_acl *se_nacl, *se_nacl_new;
 	u64 guid = 0;
-	u32 nexus_depth = 1;
 
 	if (sbp_parse_wwn(name, &guid) < 0)
-		return ERR_PTR(-EINVAL);
-
-	se_nacl_new = sbp_alloc_fabric_acl(se_tpg);
-	if (!se_nacl_new)
-		return ERR_PTR(-ENOMEM);
-
-	/*
-	 * se_nacl_new may be released by core_tpg_add_initiator_node_acl()
-	 * when converting a NodeACL from demo mode -> explict
-	 */
-	se_nacl = core_tpg_add_initiator_node_acl(se_tpg, se_nacl_new,
-			name, nexus_depth);
-	if (IS_ERR(se_nacl)) {
-		sbp_release_fabric_acl(se_tpg, se_nacl_new);
-		return se_nacl;
-	}
-
-	return se_nacl;
-}
-
-static void sbp_drop_nodeacl(struct se_node_acl *se_acl)
-{
-	core_tpg_del_initiator_node_acl(se_acl->se_tpg, se_acl, 1);
-	kfree(se_acl);
+		return -EINVAL;
+	return 0;
 }
 
 static int sbp_post_link_lun(
@@ -2518,8 +2491,7 @@ static const struct target_core_fabric_ops sbp_ops = {
 	.fabric_pre_unlink		= sbp_pre_unlink_lun,
 	.fabric_make_np			= NULL,
 	.fabric_drop_np			= NULL,
-	.fabric_make_nodeacl		= sbp_make_nodeacl,
-	.fabric_drop_nodeacl		= sbp_drop_nodeacl,
+	.fabric_init_nodeacl		= sbp_init_nodeacl,
 
 	.tfc_wwn_attrs			= sbp_wwn_attrs,
 	.tfc_tpg_base_attrs		= sbp_tpg_base_attrs,
