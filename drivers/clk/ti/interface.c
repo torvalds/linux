@@ -111,7 +111,7 @@ static void __init _of_ti_interface_clk_setup(struct device_node *node,
 	u32 val;
 
 	reg = ti_clk_get_reg_addr(node, 0);
-	if (!reg)
+	if (IS_ERR(reg))
 		return;
 
 	if (!of_property_read_u32(node, "ti,bit-shift", &val))

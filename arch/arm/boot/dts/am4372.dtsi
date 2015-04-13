@@ -57,22 +57,6 @@
 		cache-level = <2>;
 	};
 
-	am43xx_control_module: control_module@4a002000 {
-		compatible = "syscon";
-		reg = <0x44e10000 0x7f4>;
-	};
-
-	am43xx_pinmux: pinmux@44e10800 {
-		compatible = "ti,am437-padconf", "pinctrl-single";
-		reg = <0x44e10800 0x31c>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		#interrupt-cells = <1>;
-		interrupt-controller;
-		pinctrl-single,register-width = <32>;
-		pinctrl-single,function-mask = <0xffffffff>;
-	};
-
 	ocp {
 		compatible = "ti,am4372-l3-noc", "simple-bus";
 		#address-cells = <1>;
@@ -84,29 +68,58 @@
 		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 
-		prcm: prcm@44df0000 {
-			compatible = "ti,am4-prcm";
-			reg = <0x44df0000 0x11000>;
+		l4_wkup: l4_wkup@44c00000 {
+			compatible = "ti,am4-l4-wkup", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x44c00000 0x287000>;
 
-			prcm_clocks: clocks {
+			prcm: prcm@1f0000 {
+				compatible = "ti,am4-prcm";
+				reg = <0x1f0000 0x11000>;
+
+				prcm_clocks: clocks {
+					#address-cells = <1>;
+					#size-cells = <0>;
+				};
+
+				prcm_clockdomains: clockdomains {
+				};
+			};
+
+			scm: scm@210000 {
+				compatible = "ti,am4-scm", "simple-bus";
+				reg = <0x210000 0x4000>;
 				#address-cells = <1>;
-				#size-cells = <0>;
-			};
+				#size-cells = <1>;
+				ranges = <0 0x210000 0x4000>;
 
-			prcm_clockdomains: clockdomains {
-			};
-		};
+				am43xx_pinmux: pinmux@800 {
+					compatible = "ti,am437-padconf",
+						     "pinctrl-single";
+					reg = <0x800 0x31c>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+					#interrupt-cells = <1>;
+					interrupt-controller;
+					pinctrl-single,register-width = <32>;
+					pinctrl-single,function-mask = <0xffffffff>;
+				};
 
-		scrm: scrm@44e10000 {
-			compatible = "ti,am4-scrm";
-			reg = <0x44e10000 0x2000>;
+				scm_conf: scm_conf@0 {
+					compatible = "syscon";
+					reg = <0x0 0x800>;
+					#address-cells = <1>;
+					#size-cells = <1>;
 
-			scrm_clocks: clocks {
-				#address-cells = <1>;
-				#size-cells = <0>;
-			};
+					scm_clocks: clocks {
+						#address-cells = <1>;
+						#size-cells = <0>;
+					};
+				};
 
-			scrm_clockdomains: clockdomains {
+				scm_clockdomains: clockdomains {
+				};
 			};
 		};
 
@@ -787,7 +800,7 @@
 		};
 
 		ocp2scp0: ocp2scp@483a8000 {
-			compatible = "ti,omap-ocp2scp";
+			compatible = "ti,am437x-ocp2scp", "ti,omap-ocp2scp";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
@@ -806,7 +819,7 @@
 		};
 
 		ocp2scp1: ocp2scp@483e8000 {
-			compatible = "ti,omap-ocp2scp";
+			compatible = "ti,am437x-ocp2scp", "ti,omap-ocp2scp";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
@@ -933,7 +946,7 @@
 			clocks = <&dcan0_fck>;
 			clock-names = "fck";
 			reg = <0x481cc000 0x2000>;
-			syscon-raminit = <&am43xx_control_module 0x644 0>;
+			syscon-raminit = <&scm_conf 0x644 0>;
 			interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 		};
@@ -944,7 +957,7 @@
 			clocks = <&dcan1_fck>;
 			clock-names = "fck";
 			reg = <0x481d0000 0x2000>;
-			syscon-raminit = <&am43xx_control_module 0x644 1>;
+			syscon-raminit = <&scm_conf 0x644 1>;
 			interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 		};

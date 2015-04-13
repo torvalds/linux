@@ -75,9 +75,9 @@ static int omap2_enter_full_retention(void)
 
 	/* Clear old wake-up events */
 	/* REVISIT: These write to reserved bits? */
-	omap2xxx_prm_clear_mod_irqs(CORE_MOD, PM_WKST1, ~0);
-	omap2xxx_prm_clear_mod_irqs(CORE_MOD, OMAP24XX_PM_WKST2, ~0);
-	omap2xxx_prm_clear_mod_irqs(WKUP_MOD, PM_WKST, ~0);
+	omap_prm_clear_mod_irqs(CORE_MOD, PM_WKST1, ~0);
+	omap_prm_clear_mod_irqs(CORE_MOD, OMAP24XX_PM_WKST2, ~0);
+	omap_prm_clear_mod_irqs(WKUP_MOD, PM_WKST, ~0);
 
 	pwrdm_set_next_pwrst(core_pwrdm, PWRDM_POWER_RET);
 	pwrdm_set_next_pwrst(mpu_pwrdm, PWRDM_POWER_RET);
@@ -104,18 +104,16 @@ no_sleep:
 	clk_enable(osc_ck);
 
 	/* clear CORE wake-up events */
-	omap2xxx_prm_clear_mod_irqs(CORE_MOD, PM_WKST1, ~0);
-	omap2xxx_prm_clear_mod_irqs(CORE_MOD, OMAP24XX_PM_WKST2, ~0);
+	omap_prm_clear_mod_irqs(CORE_MOD, PM_WKST1, ~0);
+	omap_prm_clear_mod_irqs(CORE_MOD, OMAP24XX_PM_WKST2, ~0);
 
 	/* wakeup domain events - bit 1: GPT1, bit5 GPIO */
-	omap2xxx_prm_clear_mod_irqs(WKUP_MOD, PM_WKST, 0x4 | 0x1);
+	omap_prm_clear_mod_irqs(WKUP_MOD, PM_WKST, 0x4 | 0x1);
 
 	/* MPU domain wake events */
-	omap2xxx_prm_clear_mod_irqs(OCP_MOD, OMAP2_PRCM_IRQSTATUS_MPU_OFFSET,
-				    0x1);
+	omap_prm_clear_mod_irqs(OCP_MOD, OMAP2_PRCM_IRQSTATUS_MPU_OFFSET, 0x1);
 
-	omap2xxx_prm_clear_mod_irqs(OCP_MOD, OMAP2_PRCM_IRQSTATUS_MPU_OFFSET,
-				    0x20);
+	omap_prm_clear_mod_irqs(OCP_MOD, OMAP2_PRCM_IRQSTATUS_MPU_OFFSET, 0x20);
 
 	pwrdm_set_next_pwrst(mpu_pwrdm, PWRDM_POWER_ON);
 	pwrdm_set_next_pwrst(core_pwrdm, PWRDM_POWER_ON);
@@ -143,9 +141,9 @@ static void omap2_enter_mpu_retention(void)
 	 * it is in retention mode. */
 	if (omap2_allow_mpu_retention()) {
 		/* REVISIT: These write to reserved bits? */
-		omap2xxx_prm_clear_mod_irqs(CORE_MOD, PM_WKST1, ~0);
-		omap2xxx_prm_clear_mod_irqs(CORE_MOD, OMAP24XX_PM_WKST2, ~0);
-		omap2xxx_prm_clear_mod_irqs(WKUP_MOD, PM_WKST, ~0);
+		omap_prm_clear_mod_irqs(CORE_MOD, PM_WKST1, ~0);
+		omap_prm_clear_mod_irqs(CORE_MOD, OMAP24XX_PM_WKST2, ~0);
+		omap_prm_clear_mod_irqs(WKUP_MOD, PM_WKST, ~0);
 
 		/* Try to enter MPU retention */
 		pwrdm_set_next_pwrst(mpu_pwrdm, PWRDM_POWER_RET);
