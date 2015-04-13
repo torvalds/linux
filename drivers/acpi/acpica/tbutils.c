@@ -474,8 +474,8 @@ acpi_tb_install_table(acpi_physical_address address,
 	table = acpi_os_map_memory(address, sizeof(struct acpi_table_header));
 	if (!table) {
 		ACPI_ERROR((AE_INFO,
-			    "Could not map memory for table [%s] at %p",
-			    signature, ACPI_CAST_PTR(void, address)));
+			    "Could not map memory for table [%s] at %8.8X%8.8X",
+			    signature, ACPI_FORMAT_UINT64(address)));
 		return;
 	}
 
