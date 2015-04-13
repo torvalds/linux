@@ -15,7 +15,7 @@
 
 / {
 	compatible = "ti,am4372", "ti,am43";
-	interrupt-parent = <&gic>;
+	interrupt-parent = <&wakeupgen>;
 
 
 	aliases {
@@ -48,6 +48,15 @@
 		#interrupt-cells = <3>;
 		reg = <0x48241000 0x1000>,
 		      <0x48240100 0x0100>;
+		interrupt-parent = <&gic>;
+	};
+
+	wakeupgen: interrupt-controller@48281000 {
+		compatible = "ti,omap4-wugen-mpu";
+		interrupt-controller;
+		#interrupt-cells = <3>;
+		reg = <0x48281000 0x1000>;
+		interrupt-parent = <&gic>;
 	};
 
 	l2-cache-controller@48242000 {

@@ -310,8 +310,15 @@ void msi_domain_free_irqs(struct irq_domain *domain, struct device *dev)
 	struct msi_desc *desc;
 
 	for_each_msi_entry(desc, dev) {
-		irq_domain_free_irqs(desc->irq, desc->nvec_used);
-		desc->irq = 0;
+		/*
+		 * We might have failed to allocate an MSI early
+		 * enough that there is no IRQ associated to this
+		 * entry. If that's the case, don't do anything.
+		 */
+		if (desc->irq) {
+			irq_domain_free_irqs(desc->irq, desc->nvec_used);
+			desc->irq = 0;
+		}
 	}
 }
 
