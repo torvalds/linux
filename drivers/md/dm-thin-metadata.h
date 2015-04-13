@@ -167,6 +167,8 @@ int dm_thin_insert_block(struct dm_thin_device *td, dm_block_t block,
 			 dm_block_t data_block);
 
 int dm_thin_remove_block(struct dm_thin_device *td, dm_block_t block);
+int dm_thin_remove_range(struct dm_thin_device *td,
+			 dm_block_t begin, dm_block_t end);
 
 /*
  * Queries.
