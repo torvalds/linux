@@ -30,10 +30,10 @@ typedef enum {
 	PARSERSTRING_NAME,
 } PARSER_WHICH_STRING;
 
-struct parser_context *parser_init(u64 addr, u32 bytes, BOOL isLocal,
-				   BOOL *tryAgain);
-struct parser_context *parser_init_byte_stream(u64 addr, u32 bytes, BOOL local,
-				       BOOL *retry);
+struct parser_context *parser_init(u64 addr, u32 bytes, bool isLocal,
+				   bool *tryAgain);
+struct parser_context *parser_init_byte_stream(u64 addr, u32 bytes, bool local,
+				       bool *retry);
 void parser_param_start(struct parser_context *ctx,
 			PARSER_WHICH_STRING which_string);
 void *parser_param_get(struct parser_context *ctx, char *nam, int namesize);

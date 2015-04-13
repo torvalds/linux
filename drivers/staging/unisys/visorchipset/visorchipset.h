@@ -217,19 +217,19 @@ typedef void (*SPARREPORTEVENT_COMPLETE_FUNC) (struct controlvm_message *msg,
 void visorchipset_device_pause_response(ulong bus_no, ulong dev_no,
 					int response);
 
-BOOL visorchipset_get_bus_info(ulong bus_no,
+bool visorchipset_get_bus_info(ulong bus_no,
 			       struct visorchipset_bus_info *bus_info);
-BOOL visorchipset_get_device_info(ulong bus_no, ulong dev_no,
+bool visorchipset_get_device_info(ulong bus_no, ulong dev_no,
 				  struct visorchipset_device_info *dev_info);
-BOOL visorchipset_set_bus_context(ulong bus_no, void *context);
-BOOL visorchipset_set_device_context(ulong bus_no, ulong dev_no, void *context);
+bool visorchipset_set_bus_context(ulong bus_no, void *context);
+bool visorchipset_set_device_context(ulong bus_no, ulong dev_no, void *context);
 int visorchipset_chipset_ready(void);
 int visorchipset_chipset_selftest(void);
 int visorchipset_chipset_notready(void);
 void visorchipset_save_message(struct controlvm_message *msg,
 			       enum crash_obj_type type);
 void *visorchipset_cache_alloc(struct kmem_cache *pool,
-			       BOOL ok_to_block, char *fn, int ln);
+			       bool ok_to_block, char *fn, int ln);
 void visorchipset_cache_free(struct kmem_cache *pool, void *p,
 			     char *fn, int ln);
 

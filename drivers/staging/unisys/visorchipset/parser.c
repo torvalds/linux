@@ -36,13 +36,13 @@ struct parser_context {
 	ulong param_bytes;
 	u8 *curr;
 	ulong bytes_remaining;
-	BOOL byte_stream;
+	bool byte_stream;
 	char data[0];
 };
 
 static struct parser_context *
-parser_init_guts(u64 addr, u32 bytes, BOOL local,
-		 BOOL standard_payload_header, BOOL *retry)
+parser_init_guts(u64 addr, u32 bytes, bool local,
+		 bool standard_payload_header, bool *retry)
 {
 	int allocbytes = sizeof(struct parser_context) + bytes;
 	struct parser_context *rc = NULL;
@@ -51,7 +51,7 @@ parser_init_guts(u64 addr, u32 bytes, BOOL local,
 	struct spar_controlvm_parameters_header *phdr = NULL;
 
 	if (retry)
-		*retry = FALSE;
+		*retry = false;
 	if (!standard_payload_header)
 		/* alloc and 0 extra byte to ensure payload is
 		 * '\0'-terminated
@@ -60,14 +60,14 @@ parser_init_guts(u64 addr, u32 bytes, BOOL local,
 	if ((controlvm_payload_bytes_buffered + bytes)
 	    > MAX_CONTROLVM_PAYLOAD_BYTES) {
 		if (retry)
-			*retry = TRUE;
+			*retry = true;
 		rc = NULL;
 		goto cleanup;
 	}
 	ctx = kzalloc(allocbytes, GFP_KERNEL|__GFP_NORETRY);
 	if (!ctx) {
 		if (retry)
-			*retry = TRUE;
+			*retry = true;
 		rc = NULL;
 		goto cleanup;
 	}
@@ -76,7 +76,7 @@ parser_init_guts(u64 addr, u32 bytes, BOOL local,
 	ctx->param_bytes = bytes;
 	ctx->curr = NULL;
 	ctx->bytes_remaining = 0;
-	ctx->byte_stream = FALSE;
+	ctx->byte_stream = false;
 	if (local) {
 		void *p;
 
@@ -98,7 +98,7 @@ parser_init_guts(u64 addr, u32 bytes, BOOL local,
 		}
 	}
 	if (!standard_payload_header) {
-		ctx->byte_stream = TRUE;
+		ctx->byte_stream = true;
 		rc = ctx;
 		goto cleanup;
 	}
@@ -135,9 +135,9 @@ cleanup:
 }
 
 struct parser_context *
-parser_init(u64 addr, u32 bytes, BOOL local, BOOL *retry)
+parser_init(u64 addr, u32 bytes, bool local, bool *retry)
 {
-	return parser_init_guts(addr, bytes, local, TRUE, retry);
+	return parser_init_guts(addr, bytes, local, true, retry);
 }
 
 /* Call this instead of parser_init() if the payload area consists of just
@@ -146,9 +146,9 @@ parser_init(u64 addr, u32 bytes, BOOL local, BOOL *retry)
  * parser_byteStream_get() to obtain the data.
  */
 struct parser_context *
-parser_init_byte_stream(u64 addr, u32 bytes, BOOL local, BOOL *retry)
+parser_init_byte_stream(u64 addr, u32 bytes, bool local, bool *retry)
 {
-	return parser_init_guts(addr, bytes, local, FALSE, retry);
+	return parser_init_guts(addr, bytes, local, false, retry);
 }
 
 /* Obtain '\0'-terminated copy of string in payload area.
