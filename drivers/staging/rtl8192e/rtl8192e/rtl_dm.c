@@ -941,6 +941,7 @@ static void dm_InitializeTXPowerTracking_TSSI(struct net_device *dev)
 {
 
 	struct r8192_priv *priv = rtllib_priv(dev);
+
 	priv->btxpower_tracking = true;
 	priv->txpower_count       = 0;
 	priv->btxpower_trackingInit = false;
