@@ -62,6 +62,15 @@ extern u8 amd_iommu_pc_get_max_counters(u16 devid);
 extern int amd_iommu_pc_get_set_reg_val(u16 devid, u8 bank, u8 cntr, u8 fxn,
 				    u64 *value, bool is_write);
 
+#ifdef CONFIG_IRQ_REMAP
+extern int amd_iommu_create_irq_domain(struct amd_iommu *iommu);
+#else
+static inline int amd_iommu_create_irq_domain(struct amd_iommu *iommu)
+{
+	return 0;
+}
+#endif
+
 #define PPR_SUCCESS			0x0
 #define PPR_INVALID			0x1
 #define PPR_FAILURE			0xf
