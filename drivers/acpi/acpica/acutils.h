@@ -502,6 +502,9 @@ const union acpi_predefined_info *acpi_ut_get_next_predefined_method(const union
 
 const union acpi_predefined_info *acpi_ut_match_predefined_method(char *name);
 
+void acpi_ut_get_expected_return_types(char *buffer, u32 expected_btypes);
+
+#if (defined ACPI_ASL_COMPILER || defined ACPI_HELP_APP)
 const union acpi_predefined_info *acpi_ut_match_resource_name(char *name);
 
 void
@@ -509,9 +512,8 @@ acpi_ut_display_predefined_method(char *buffer,
 				  const union acpi_predefined_info *this_name,
 				  u8 multi_line);
 
-void acpi_ut_get_expected_return_types(char *buffer, u32 expected_btypes);
-
 u32 acpi_ut_get_resource_bit_width(char *buffer, u16 types);
+#endif
 
 /*
  * utstate - Generic state creation/cache routines
@@ -562,7 +564,9 @@ const struct acpi_exception_info *acpi_ut_validate_exception(acpi_status
 
 u8 acpi_ut_is_pci_root_bridge(char *id);
 
+#if (defined ACPI_ASL_COMPILER || defined ACPI_EXEC_APP)
 u8 acpi_ut_is_aml_table(struct acpi_table_header *table);
+#endif
 
 acpi_status
 acpi_ut_walk_package_tree(union acpi_operand_object *source_object,
@@ -621,15 +625,19 @@ acpi_ut_get_resource_end_tag(union acpi_operand_object *obj_desc, u8 **end_tag);
  */
 void acpi_ut_strupr(char *src_string);
 
+#ifdef ACPI_ASL_COMPILER
 void acpi_ut_strlwr(char *src_string);
 
 int acpi_ut_stricmp(char *string1, char *string2);
+#endif
 
 acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 *ret_integer);
 
 void acpi_ut_print_string(char *string, u16 max_length);
 
+#if defined ACPI_ASL_COMPILER || defined ACPI_EXEC_APP
 void ut_convert_backslashes(char *pathname);
+#endif
 
 u8 acpi_ut_valid_acpi_name(char *name);
 
@@ -777,6 +785,8 @@ int acpi_ut_file_printf(ACPI_FILE file, const char *format, ...);
 /*
  * utuuid -- UUID support functions
  */
+#if (defined ACPI_ASL_COMPILER || defined ACPI_EXEC_APP || defined ACPI_HELP_APP)
 void acpi_ut_convert_string_to_uuid(char *in_string, u8 *uuid_buffer);
+#endif
 
 #endif				/* _ACUTILS_H */
