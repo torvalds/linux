@@ -277,7 +277,7 @@ static void ab8500_usb_regulator_enable(struct ab8500_usb *ab)
 			dev_err(ab->dev, "Failed to set the Vintcore to 1.3V, ret=%d\n",
 					ret);
 
-		ret = regulator_set_optimum_mode(ab->v_ulpi, 28000);
+		ret = regulator_set_load(ab->v_ulpi, 28000);
 		if (ret < 0)
 			dev_err(ab->dev, "Failed to set optimum mode (ret=%d)\n",
 					ret);
@@ -317,7 +317,7 @@ static void ab8500_usb_regulator_disable(struct ab8500_usb *ab)
 						ab->saved_v_ulpi, ret);
 		}
 
-		ret = regulator_set_optimum_mode(ab->v_ulpi, 0);
+		ret = regulator_set_load(ab->v_ulpi, 0);
 		if (ret < 0)
 			dev_err(ab->dev, "Failed to set optimum mode (ret=%d)\n",
 					ret);

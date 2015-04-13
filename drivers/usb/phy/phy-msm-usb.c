@@ -142,27 +142,22 @@ static int msm_hsusb_ldo_set_mode(struct msm_otg *motg, int on)
 	int ret = 0;
 
 	if (on) {
-		ret = regulator_set_optimum_mode(motg->v1p8,
-				USB_PHY_1P8_HPM_LOAD);
+		ret = regulator_set_load(motg->v1p8, USB_PHY_1P8_HPM_LOAD);
 		if (ret < 0) {
 			pr_err("Could not set HPM for v1p8\n");
 			return ret;
 		}
-		ret = regulator_set_optimum_mode(motg->v3p3,
-				USB_PHY_3P3_HPM_LOAD);
+		ret = regulator_set_load(motg->v3p3, USB_PHY_3P3_HPM_LOAD);
 		if (ret < 0) {
 			pr_err("Could not set HPM for v3p3\n");
-			regulator_set_optimum_mode(motg->v1p8,
-				USB_PHY_1P8_LPM_LOAD);
+			regulator_set_load(motg->v1p8, USB_PHY_1P8_LPM_LOAD);
 			return ret;
 		}
 	} else {
-		ret = regulator_set_optimum_mode(motg->v1p8,
-				USB_PHY_1P8_LPM_LOAD);
+		ret = regulator_set_load(motg->v1p8, USB_PHY_1P8_LPM_LOAD);
 		if (ret < 0)
 			pr_err("Could not set LPM for v1p8\n");
-		ret = regulator_set_optimum_mode(motg->v3p3,
-				USB_PHY_3P3_LPM_LOAD);
+		ret = regulator_set_load(motg->v3p3, USB_PHY_3P3_LPM_LOAD);
 		if (ret < 0)
 			pr_err("Could not set LPM for v3p3\n");
 	}
