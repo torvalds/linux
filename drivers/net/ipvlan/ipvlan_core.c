@@ -81,19 +81,20 @@ void ipvlan_ht_addr_add(struct ipvl_dev *ipvlan, struct ipvl_addr *addr)
 	hash = (addr->atype == IPVL_IPV6) ?
 	       ipvlan_get_v6_hash(&addr->ip6addr) :
 	       ipvlan_get_v4_hash(&addr->ip4addr);
-	hlist_add_head_rcu(&addr->hlnode, &port->hlhead[hash]);
+	if (hlist_unhashed(&addr->hlnode))
+		hlist_add_head_rcu(&addr->hlnode, &port->hlhead[hash]);
 }
 
 void ipvlan_ht_addr_del(struct ipvl_addr *addr, bool sync)
 {
-	hlist_del_rcu(&addr->hlnode);
+	hlist_del_init_rcu(&addr->hlnode);
 	if (sync)
 		synchronize_rcu();
 }
 
-bool ipvlan_addr_busy(struct ipvl_dev *ipvlan, void *iaddr, bool is_v6)
+struct ipvl_addr *ipvlan_find_addr(const struct ipvl_dev *ipvlan,
+				   const void *iaddr, bool is_v6)
 {
-	struct ipvl_port *port = ipvlan->port;
 	struct ipvl_addr *addr;
 
 	list_for_each_entry(addr, &ipvlan->addrs, anode) {
@@ -101,12 +102,21 @@ bool ipvlan_addr_busy(struct ipvl_dev *ipvlan, void *iaddr, bool is_v6)
 		    ipv6_addr_equal(&addr->ip6addr, iaddr)) ||
 		    (!is_v6 && addr->atype == IPVL_IPV4 &&
 		    addr->ip4addr.s_addr == ((struct in_addr *)iaddr)->s_addr))
+			return addr;
+	}
+	return NULL;
+}
+
+bool ipvlan_addr_busy(struct ipvl_port *port, void *iaddr, bool is_v6)
+{
+	struct ipvl_dev *ipvlan;
+
+	ASSERT_RTNL();
+
+	list_for_each_entry(ipvlan, &port->ipvlans, pnode) {
+		if (ipvlan_find_addr(ipvlan, iaddr, is_v6))
 			return true;
 	}
-
-	if (ipvlan_ht_addr_lookup(port, iaddr, is_v6))
-		return true;
-
 	return false;
 }
 
@@ -192,7 +202,8 @@ static void ipvlan_multicast_frame(struct ipvl_port *port, struct sk_buff *skb,
 	if (skb->protocol == htons(ETH_P_PAUSE))
 		return;
 
-	list_for_each_entry(ipvlan, &port->ipvlans, pnode) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(ipvlan, &port->ipvlans, pnode) {
 		if (local && (ipvlan == in_dev))
 			continue;
 
@@ -219,6 +230,7 @@ static void ipvlan_multicast_frame(struct ipvl_port *port, struct sk_buff *skb,
 mcast_acct:
 		ipvlan_count_rx(ipvlan, len, ret == NET_RX_SUCCESS, true);
 	}
+	rcu_read_unlock();
 
 	/* Locally generated? ...Forward a copy to the main-device as
 	 * well. On the RX side we'll ignore it (wont give it to any

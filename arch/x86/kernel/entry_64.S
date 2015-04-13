@@ -799,7 +799,21 @@ retint_swapgs:		/* return to user-space */
 	cmpq %r11,(EFLAGS-ARGOFFSET)(%rsp)	/* R11 == RFLAGS */
 	jne opportunistic_sysret_failed
 
-	testq $X86_EFLAGS_RF,%r11		/* sysret can't restore RF */
+	/*
+	 * SYSRET can't restore RF.  SYSRET can restore TF, but unlike IRET,
+	 * restoring TF results in a trap from userspace immediately after
+	 * SYSRET.  This would cause an infinite loop whenever #DB happens
+	 * with register state that satisfies the opportunistic SYSRET
+	 * conditions.  For example, single-stepping this user code:
+	 *
+	 *           movq $stuck_here,%rcx
+	 *           pushfq
+	 *           popq %r11
+	 *   stuck_here:
+	 *
+	 * would never get past 'stuck_here'.
+	 */
+	testq $(X86_EFLAGS_RF|X86_EFLAGS_TF), %r11
 	jnz opportunistic_sysret_failed
 
 	/* nothing to check for RSP */

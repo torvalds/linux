@@ -804,8 +804,6 @@
 #define RT5645_PWR_DAC_MF_L_BIT			10
 #define RT5645_PWR_DAC_MF_R			(0x1 << 9)
 #define RT5645_PWR_DAC_MF_R_BIT			9
-#define RT5645_PWR_ADC_S2F			(0x1 << 8)
-#define RT5645_PWR_ADC_S2F_BIT			8
 #define RT5645_PWR_PDM1				(0x1 << 7)
 #define RT5645_PWR_PDM1_BIT			7
 #define RT5645_PWR_PDM2				(0x1 << 6)

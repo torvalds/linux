@@ -391,9 +391,9 @@ static const struct soc_enum pcm512x_veds =
 static const struct snd_kcontrol_new pcm512x_controls[] = {
 SOC_DOUBLE_R_TLV("Digital Playback Volume", PCM512x_DIGITAL_VOLUME_2,
 		 PCM512x_DIGITAL_VOLUME_3, 0, 255, 1, digital_tlv),
-SOC_DOUBLE_TLV("Playback Volume", PCM512x_ANALOG_GAIN_CTRL,
+SOC_DOUBLE_TLV("Analogue Playback Volume", PCM512x_ANALOG_GAIN_CTRL,
 	       PCM512x_LAGN_SHIFT, PCM512x_RAGN_SHIFT, 1, 1, analog_tlv),
-SOC_DOUBLE_TLV("Playback Boost Volume", PCM512x_ANALOG_GAIN_BOOST,
+SOC_DOUBLE_TLV("Analogue Playback Boost Volume", PCM512x_ANALOG_GAIN_BOOST,
 	       PCM512x_AGBL_SHIFT, PCM512x_AGBR_SHIFT, 1, 0, boost_tlv),
 SOC_DOUBLE("Digital Playback Switch", PCM512x_MUTE, PCM512x_RQML_SHIFT,
 	   PCM512x_RQMR_SHIFT, 1, 1),
@@ -713,8 +713,8 @@ static int pcm512x_find_pll_coeff(struct snd_soc_dai *dai,
 
 	/* pllin_rate / P (or here, den) cannot be greater than 20 MHz */
 	if (pllin_rate / den > 20000000 && num < 8) {
-		num *= 20000000 / (pllin_rate / den);
-		den *= 20000000 / (pllin_rate / den);
+		num *= DIV_ROUND_UP(pllin_rate / den, 20000000);
+		den *= DIV_ROUND_UP(pllin_rate / den, 20000000);
 	}
 	dev_dbg(dev, "num / den = %lu / %lu\n", num, den);
 
@@ -1294,25 +1294,6 @@ static int pcm512x_hw_params(struct snd_pcm_substream *substream,
 		if (ret != 0) {
 			dev_err(codec->dev, "Failed to output pll on %d: %d\n",
 				ret, pcm512x->pll_out);
-			return ret;
-		}
-
-		gpio = PCM512x_G1OE << (4 - 1);
-		ret = regmap_update_bits(pcm512x->regmap, PCM512x_GPIO_EN,
-					 gpio, gpio);
-		if (ret != 0) {
-			dev_err(codec->dev, "Failed to enable gpio %d: %d\n",
-				4, ret);
-			return ret;
-		}
-
-		gpio = PCM512x_GPIO_OUTPUT_1 + 4 - 1;
-		ret = regmap_update_bits(pcm512x->regmap, gpio,
-					 PCM512x_GxSL, PCM512x_GxSL_PLLLK);
-		if (ret != 0) {
-			dev_err(codec->dev,
-				"Failed to output pll lock on %d: %d\n",
-				ret, 4);
 			return ret;
 		}
 	}

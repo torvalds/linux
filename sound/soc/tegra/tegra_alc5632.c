@@ -101,9 +101,6 @@ static const struct snd_kcontrol_new tegra_alc5632_controls[] = {
 
 static int tegra_alc5632_asoc_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	struct tegra_alc5632 *machine = snd_soc_card_get_drvdata(rtd->card);
 
 	snd_soc_card_jack_new(rtd->card, "Headset Jack", SND_JACK_HEADSET,
@@ -118,7 +115,7 @@ static int tegra_alc5632_asoc_init(struct snd_soc_pcm_runtime *rtd)
 						&tegra_alc5632_hp_jack_gpio);
 	}
 
-	snd_soc_dapm_force_enable_pin(dapm, "MICBIAS1");
+	snd_soc_dapm_force_enable_pin(&rtd->card->dapm, "MICBIAS1");
 
 	return 0;
 }
