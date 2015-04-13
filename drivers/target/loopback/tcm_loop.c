@@ -706,25 +706,14 @@ static int tcm_loop_check_prot_fabric_only(struct se_portal_group *se_tpg)
 static struct se_node_acl *tcm_loop_tpg_alloc_fabric_acl(
 	struct se_portal_group *se_tpg)
 {
-	struct tcm_loop_nacl *tl_nacl;
-
-	tl_nacl = kzalloc(sizeof(struct tcm_loop_nacl), GFP_KERNEL);
-	if (!tl_nacl) {
-		pr_err("Unable to allocate struct tcm_loop_nacl\n");
-		return NULL;
-	}
-
-	return &tl_nacl->se_node_acl;
+	return kzalloc(sizeof(struct se_node_acl), GFP_KERNEL);
 }
 
 static void tcm_loop_tpg_release_fabric_acl(
 	struct se_portal_group *se_tpg,
 	struct se_node_acl *se_nacl)
 {
-	struct tcm_loop_nacl *tl_nacl = container_of(se_nacl,
-				struct tcm_loop_nacl, se_node_acl);
-
-	kfree(tl_nacl);
+	kfree(se_nacl);
 }
 
 static u32 tcm_loop_get_inst_index(struct se_portal_group *se_tpg)

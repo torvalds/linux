@@ -28,10 +28,6 @@ struct tcm_loop_nexus {
 	struct se_session *se_sess;
 };
 
-struct tcm_loop_nacl {
-	struct se_node_acl se_node_acl;
-};
-
 #define TCM_TRANSPORT_ONLINE 0
 #define TCM_TRANSPORT_OFFLINE 1
 
