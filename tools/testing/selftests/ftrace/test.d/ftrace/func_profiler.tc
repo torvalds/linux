@@ -31,7 +31,7 @@ fail() { # mesg
     reset_tracer
     echo > set_ftrace_filter
     echo $1
-    exit -1
+    exit $FAIL
 }
 
 echo "Testing function tracer with profiler:"
