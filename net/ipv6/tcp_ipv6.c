@@ -1486,7 +1486,7 @@ do_time_wait:
 					    ntohs(th->dest), tcp_v6_iif(skb));
 		if (sk2) {
 			struct inet_timewait_sock *tw = inet_twsk(sk);
-			inet_twsk_deschedule(tw, &tcp_death_row);
+			inet_twsk_deschedule(tw);
 			inet_twsk_put(tw);
 			sk = sk2;
 			tcp_v6_restore_cb(skb);
@@ -1728,9 +1728,9 @@ static void get_tcp6_sock(struct seq_file *seq, struct sock *sp, int i)
 static void get_timewait6_sock(struct seq_file *seq,
 			       struct inet_timewait_sock *tw, int i)
 {
+	long delta = tw->tw_timer.expires - jiffies;
 	const struct in6_addr *dest, *src;
 	__u16 destp, srcp;
-	s32 delta = tw->tw_ttd - inet_tw_time_stamp();
 
 	dest = &tw->tw_v6_daddr;
 	src  = &tw->tw_v6_rcv_saddr;

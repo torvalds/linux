@@ -246,7 +246,7 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 		*twp = tw;
 	} else if (tw) {
 		/* Silly. Should hash-dance instead... */
-		inet_twsk_deschedule(tw, death_row);
+		inet_twsk_deschedule(tw);
 
 		inet_twsk_put(tw);
 	}

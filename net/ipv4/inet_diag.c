@@ -248,7 +248,7 @@ static int inet_twsk_diag_fill(struct sock *sk,
 	struct inet_timewait_sock *tw = inet_twsk(sk);
 	struct inet_diag_msg *r;
 	struct nlmsghdr *nlh;
-	s32 tmo;
+	long tmo;
 
 	nlh = nlmsg_put(skb, portid, seq, unlh->nlmsg_type, sizeof(*r),
 			nlmsg_flags);
@@ -258,7 +258,7 @@ static int inet_twsk_diag_fill(struct sock *sk,
 	r = nlmsg_data(nlh);
 	BUG_ON(tw->tw_state != TCP_TIME_WAIT);
 
-	tmo = tw->tw_ttd - inet_tw_time_stamp();
+	tmo = tw->tw_timer.expires - jiffies;
 	if (tmo < 0)
 		tmo = 0;
 

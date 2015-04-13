@@ -1685,7 +1685,7 @@ do_time_wait:
 							iph->daddr, th->dest,
 							inet_iif(skb));
 		if (sk2) {
-			inet_twsk_deschedule(inet_twsk(sk), &tcp_death_row);
+			inet_twsk_deschedule(inet_twsk(sk));
 			inet_twsk_put(inet_twsk(sk));
 			sk = sk2;
 			goto process;
@@ -2242,9 +2242,9 @@ static void get_tcp4_sock(struct sock *sk, struct seq_file *f, int i)
 static void get_timewait4_sock(const struct inet_timewait_sock *tw,
 			       struct seq_file *f, int i)
 {
+	long delta = tw->tw_timer.expires - jiffies;
 	__be32 dest, src;
 	__u16 destp, srcp;
-	s32 delta = tw->tw_ttd - inet_tw_time_stamp();
 
 	dest  = tw->tw_daddr;
 	src   = tw->tw_rcv_saddr;

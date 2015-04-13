@@ -34,18 +34,7 @@ int sysctl_tcp_abort_on_overflow __read_mostly;
 
 struct inet_timewait_death_row tcp_death_row = {
 	.sysctl_max_tw_buckets = NR_FILE * 2,
-	.period		= TCP_TIMEWAIT_LEN / INET_TWDR_TWKILL_SLOTS,
-	.death_lock	= __SPIN_LOCK_UNLOCKED(tcp_death_row.death_lock),
 	.hashinfo	= &tcp_hashinfo,
-	.tw_timer	= TIMER_INITIALIZER(inet_twdr_hangman, 0,
-					    (unsigned long)&tcp_death_row),
-	.twkill_work	= __WORK_INITIALIZER(tcp_death_row.twkill_work,
-					     inet_twdr_twkill_work),
-/* Short-time timewait calendar */
-
-	.twcal_hand	= -1,
-	.twcal_timer	= TIMER_INITIALIZER(inet_twdr_twcal_tick, 0,
-					    (unsigned long)&tcp_death_row),
 };
 EXPORT_SYMBOL_GPL(tcp_death_row);
 
@@ -158,7 +147,7 @@ tcp_timewait_state_process(struct inet_timewait_sock *tw, struct sk_buff *skb,
 		if (!th->fin ||
 		    TCP_SKB_CB(skb)->end_seq != tcptw->tw_rcv_nxt + 1) {
 kill_with_rst:
-			inet_twsk_deschedule(tw, &tcp_death_row);
+			inet_twsk_deschedule(tw);
 			inet_twsk_put(tw);
 			return TCP_TW_RST;
 		}
@@ -174,11 +163,9 @@ kill_with_rst:
 		if (tcp_death_row.sysctl_tw_recycle &&
 		    tcptw->tw_ts_recent_stamp &&
 		    tcp_tw_remember_stamp(tw))
-			inet_twsk_schedule(tw, &tcp_death_row, tw->tw_timeout,
-					   TCP_TIMEWAIT_LEN);
+			inet_twsk_schedule(tw, tw->tw_timeout);
 		else
-			inet_twsk_schedule(tw, &tcp_death_row, TCP_TIMEWAIT_LEN,
-					   TCP_TIMEWAIT_LEN);
+			inet_twsk_schedule(tw, TCP_TIMEWAIT_LEN);
 		return TCP_TW_ACK;
 	}
 
@@ -211,13 +198,12 @@ kill_with_rst:
 			 */
 			if (sysctl_tcp_rfc1337 == 0) {
 kill:
-				inet_twsk_deschedule(tw, &tcp_death_row);
+				inet_twsk_deschedule(tw);
 				inet_twsk_put(tw);
 				return TCP_TW_SUCCESS;
 			}
 		}
-		inet_twsk_schedule(tw, &tcp_death_row, TCP_TIMEWAIT_LEN,
-				   TCP_TIMEWAIT_LEN);
+		inet_twsk_schedule(tw, TCP_TIMEWAIT_LEN);
 
 		if (tmp_opt.saw_tstamp) {
 			tcptw->tw_ts_recent	  = tmp_opt.rcv_tsval;
@@ -267,8 +253,7 @@ kill:
 		 * Do not reschedule in the last case.
 		 */
 		if (paws_reject || th->ack)
-			inet_twsk_schedule(tw, &tcp_death_row, TCP_TIMEWAIT_LEN,
-					   TCP_TIMEWAIT_LEN);
+			inet_twsk_schedule(tw, TCP_TIMEWAIT_LEN);
 
 		return tcp_timewait_check_oow_rate_limit(
 			tw, skb, LINUX_MIB_TCPACKSKIPPEDTIMEWAIT);
@@ -283,16 +268,15 @@ EXPORT_SYMBOL(tcp_timewait_state_process);
  */
 void tcp_time_wait(struct sock *sk, int state, int timeo)
 {
-	struct inet_timewait_sock *tw = NULL;
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	const struct tcp_sock *tp = tcp_sk(sk);
+	struct inet_timewait_sock *tw;
 	bool recycle_ok = false;
 
 	if (tcp_death_row.sysctl_tw_recycle && tp->rx_opt.ts_recent_stamp)
 		recycle_ok = tcp_remember_stamp(sk);
 
-	if (tcp_death_row.tw_count < tcp_death_row.sysctl_max_tw_buckets)
-		tw = inet_twsk_alloc(sk, state);
+	tw = inet_twsk_alloc(sk, &tcp_death_row, state);
 
 	if (tw) {
 		struct tcp_timewait_sock *tcptw = tcp_twsk((struct sock *)tw);
@@ -355,8 +339,7 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 				timeo = TCP_TIMEWAIT_LEN;
 		}
 
-		inet_twsk_schedule(tw, &tcp_death_row, timeo,
-				   TCP_TIMEWAIT_LEN);
+		inet_twsk_schedule(tw, timeo);
 		inet_twsk_put(tw);
 	} else {
 		/* Sorry, if we're out of memory, just CLOSE this
