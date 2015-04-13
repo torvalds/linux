@@ -3228,17 +3228,98 @@ static void ixgbe_configure_srrctl(struct ixgbe_adapter *adapter,
 	IXGBE_WRITE_REG(hw, IXGBE_SRRCTL(reg_idx), srrctl);
 }
 
-static void ixgbe_setup_reta(struct ixgbe_adapter *adapter, const u32 *seed)
+/**
+ * Return a number of entries in the RSS indirection table
+ *
+ * @adapter: device handle
+ *
+ *  - 82598/82599/X540:     128
+ *  - X550(non-SRIOV mode): 512
+ *  - X550(SRIOV mode):     64
+ */
+u32 ixgbe_rss_indir_tbl_entries(struct ixgbe_adapter *adapter)
 {
+	if (adapter->hw.mac.type < ixgbe_mac_X550)
+		return 128;
+	else if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED)
+		return 64;
+	else
+		return 512;
+}
+
+/**
+ * Write the RETA table to HW
+ *
+ * @adapter: device handle
+ *
+ * Write the RSS redirection table stored in adapter.rss_indir_tbl[] to HW.
+ */
+static void ixgbe_store_reta(struct ixgbe_adapter *adapter)
+{
+	u32 i, reta_entries = ixgbe_rss_indir_tbl_entries(adapter);
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 reta = 0;
-	int i, j;
-	int reta_entries = 128;
-	u16 rss_i = adapter->ring_feature[RING_F_RSS].indices;
-	int indices_multi;
+	u32 indices_multi;
+	u8 *indir_tbl = adapter->rss_indir_tbl;
 
-	/*
-	 * Program table for at least 2 queues w/ SR-IOV so that VFs can
+	/* Fill out the redirection table as follows:
+	 *  - 82598:      8 bit wide entries containing pair of 4 bit RSS
+	 *    indices.
+	 *  - 82599/X540: 8 bit wide entries containing 4 bit RSS index
+	 *  - X550:       8 bit wide entries containing 6 bit RSS index
+	 */
+	if (adapter->hw.mac.type == ixgbe_mac_82598EB)
+		indices_multi = 0x11;
+	else
+		indices_multi = 0x1;
+
+	/* Write redirection table to HW */
+	for (i = 0; i < reta_entries; i++) {
+		reta |= indices_multi * indir_tbl[i] << (i & 0x3) * 8;
+		if ((i & 3) == 3) {
+			if (i < 128)
+				IXGBE_WRITE_REG(hw, IXGBE_RETA(i >> 2), reta);
+			else
+				IXGBE_WRITE_REG(hw, IXGBE_ERETA((i >> 2) - 32),
+						reta);
+			reta = 0;
+		}
+	}
+}
+
+/**
+ * Write the RETA table to HW (for x550 devices in SRIOV mode)
+ *
+ * @adapter: device handle
+ *
+ * Write the RSS redirection table stored in adapter.rss_indir_tbl[] to HW.
+ */
+static void ixgbe_store_vfreta(struct ixgbe_adapter *adapter)
+{
+	u32 i, reta_entries = ixgbe_rss_indir_tbl_entries(adapter);
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32 vfreta = 0;
+	unsigned int pf_pool = adapter->num_vfs;
+
+	/* Write redirection table to HW */
+	for (i = 0; i < reta_entries; i++) {
+		vfreta |= (u32)adapter->rss_indir_tbl[i] << (i & 0x3) * 8;
+		if ((i & 3) == 3) {
+			IXGBE_WRITE_REG(hw, IXGBE_PFVFRETA(i >> 2, pf_pool),
+					vfreta);
+			vfreta = 0;
+		}
+	}
+}
+
+static void ixgbe_setup_reta(struct ixgbe_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32 i, j;
+	u32 reta_entries = ixgbe_rss_indir_tbl_entries(adapter);
+	u16 rss_i = adapter->ring_feature[RING_F_RSS].indices;
+
+	/* Program table for at least 2 queues w/ SR-IOV so that VFs can
 	 * make full use of any rings they may have.  We will use the
 	 * PSRTYPE register to control how many rings we use within the PF.
 	 */
@@ -3247,70 +3328,48 @@ static void ixgbe_setup_reta(struct ixgbe_adapter *adapter, const u32 *seed)
 
 	/* Fill out hash function seeds */
 	for (i = 0; i < 10; i++)
-		IXGBE_WRITE_REG(hw, IXGBE_RSSRK(i), seed[i]);
-
-	/* Fill out the redirection table as follows:
-	 * 82598: 128 (8 bit wide) entries containing pair of 4 bit RSS indices
-	 * 82599/X540: 128 (8 bit wide) entries containing 4 bit RSS index
-	 * X550: 512 (8 bit wide) entries containing 6 bit RSS index
-	 */
-	if (adapter->hw.mac.type == ixgbe_mac_82598EB)
-		indices_multi = 0x11;
-	else
-		indices_multi = 0x1;
-
-	switch (adapter->hw.mac.type) {
-	case ixgbe_mac_X550:
-	case ixgbe_mac_X550EM_x:
-		if (!(adapter->flags & IXGBE_FLAG_SRIOV_ENABLED))
-			reta_entries = 512;
-	default:
-		break;
-	}
+		IXGBE_WRITE_REG(hw, IXGBE_RSSRK(i), adapter->rss_key[i]);
 
 	/* Fill out redirection table */
+	memset(adapter->rss_indir_tbl, 0, sizeof(adapter->rss_indir_tbl));
+
 	for (i = 0, j = 0; i < reta_entries; i++, j++) {
 		if (j == rss_i)
 			j = 0;
-		reta = (reta << 8) | (j * indices_multi);
-		if ((i & 3) == 3) {
-			if (i < 128)
-				IXGBE_WRITE_REG(hw, IXGBE_RETA(i >> 2), reta);
-			else
-				IXGBE_WRITE_REG(hw, IXGBE_ERETA((i >> 2) - 32),
-						reta);
-		}
+
+		adapter->rss_indir_tbl[i] = j;
 	}
+
+	ixgbe_store_reta(adapter);
 }
 
-static void ixgbe_setup_vfreta(struct ixgbe_adapter *adapter, const u32 *seed)
+static void ixgbe_setup_vfreta(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
-	u32 vfreta = 0;
 	u16 rss_i = adapter->ring_feature[RING_F_RSS].indices;
 	unsigned int pf_pool = adapter->num_vfs;
 	int i, j;
 
 	/* Fill out hash function seeds */
 	for (i = 0; i < 10; i++)
-		IXGBE_WRITE_REG(hw, IXGBE_PFVFRSSRK(i, pf_pool), seed[i]);
+		IXGBE_WRITE_REG(hw, IXGBE_PFVFRSSRK(i, pf_pool),
+				adapter->rss_key[i]);
 
 	/* Fill out the redirection table */
 	for (i = 0, j = 0; i < 64; i++, j++) {
 		if (j == rss_i)
 			j = 0;
-		vfreta = (vfreta << 8) | j;
-		if ((i & 3) == 3)
-			IXGBE_WRITE_REG(hw, IXGBE_PFVFRETA(i >> 2, pf_pool),
-					vfreta);
+
+		adapter->rss_indir_tbl[i] = j;
 	}
+
+	ixgbe_store_vfreta(adapter);
 }
 
 static void ixgbe_setup_mrqc(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 mrqc = 0, rss_field = 0, vfmrqc = 0;
-	u32 rss_key[10];
 	u32 rxcsum;
 
 	/* Disable indicating checksum in descriptor, enables RSS hash */
@@ -3354,7 +3413,7 @@ static void ixgbe_setup_mrqc(struct ixgbe_adapter *adapter)
 	if (adapter->flags2 & IXGBE_FLAG2_RSS_FIELD_IPV6_UDP)
 		rss_field |= IXGBE_MRQC_RSS_FIELD_IPV6_UDP;
 
-	netdev_rss_key_fill(rss_key, sizeof(rss_key));
+	netdev_rss_key_fill(adapter->rss_key, sizeof(adapter->rss_key));
 	if ((hw->mac.type >= ixgbe_mac_X550) &&
 	    (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED)) {
 		unsigned int pf_pool = adapter->num_vfs;
@@ -3364,12 +3423,12 @@ static void ixgbe_setup_mrqc(struct ixgbe_adapter *adapter)
 		IXGBE_WRITE_REG(hw, IXGBE_MRQC, mrqc);
 
 		/* Setup RSS through the VF registers */
-		ixgbe_setup_vfreta(adapter, rss_key);
+		ixgbe_setup_vfreta(adapter);
 		vfmrqc = IXGBE_MRQC_RSSEN;
 		vfmrqc |= rss_field;
 		IXGBE_WRITE_REG(hw, IXGBE_PFVFMRQC(pf_pool), vfmrqc);
 	} else {
-		ixgbe_setup_reta(adapter, rss_key);
+		ixgbe_setup_reta(adapter);
 		mrqc |= rss_field;
 		IXGBE_WRITE_REG(hw, IXGBE_MRQC, mrqc);
 	}
@@ -3599,6 +3658,10 @@ static void ixgbe_configure_virtualization(struct ixgbe_adapter *adapter)
 		/* enable ethertype anti spoofing if hw supports it */
 		if (hw->mac.ops.set_ethertype_anti_spoofing)
 			hw->mac.ops.set_ethertype_anti_spoofing(hw, true, i);
+
+		/* Enable/Disable RSS query feature  */
+		ixgbe_ndo_set_vf_rss_query_en(adapter->netdev, i,
+					  adapter->vfinfo[i].rss_query_enabled);
 	}
 }
 
@@ -8101,6 +8164,7 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_set_vf_vlan	= ixgbe_ndo_set_vf_vlan,
 	.ndo_set_vf_rate	= ixgbe_ndo_set_vf_bw,
 	.ndo_set_vf_spoofchk	= ixgbe_ndo_set_vf_spoofchk,
+	.ndo_set_vf_rss_query_en = ixgbe_ndo_set_vf_rss_query_en,
 	.ndo_get_vf_config	= ixgbe_ndo_get_vf_config,
 	.ndo_get_stats64	= ixgbe_get_stats64,
 #ifdef CONFIG_IXGBE_DCB

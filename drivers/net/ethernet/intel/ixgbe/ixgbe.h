@@ -151,6 +151,7 @@ struct vf_data_storage {
 	u16 tx_rate;
 	u16 vlan_count;
 	u8 spoofchk_enabled;
+	bool rss_query_enabled;
 	unsigned int vf_api;
 };
 
@@ -766,6 +767,15 @@ struct ixgbe_adapter {
 
 	u8 default_up;
 	unsigned long fwd_bitmask; /* Bitmask indicating in use pools */
+
+/* maximum number of RETA entries among all devices supported by ixgbe
+ * driver: currently it's x550 device in non-SRIOV mode
+ */
+#define IXGBE_MAX_RETA_ENTRIES 512
+	u8 rss_indir_tbl[IXGBE_MAX_RETA_ENTRIES];
+
+#define IXGBE_RSS_KEY_SIZE     40  /* size of RSS Hash Key in bytes */
+	u32 rss_key[IXGBE_RSS_KEY_SIZE / sizeof(u32)];
 };
 
 static inline u8 ixgbe_max_rss_indices(struct ixgbe_adapter *adapter)
@@ -955,4 +965,5 @@ void ixgbe_sriov_reinit(struct ixgbe_adapter *adapter);
 netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 				  struct ixgbe_adapter *adapter,
 				  struct ixgbe_ring *tx_ring);
+u32 ixgbe_rss_indir_tbl_entries(struct ixgbe_adapter *adapter);
 #endif /* _IXGBE_H_ */
