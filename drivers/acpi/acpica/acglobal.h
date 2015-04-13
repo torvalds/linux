@@ -321,9 +321,7 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_db_terminate_threads, FALSE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_abort_method, FALSE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_method_executing, FALSE);
 
-ACPI_GLOBAL(u8, acpi_gbl_db_opt_tables);
-ACPI_GLOBAL(u8, acpi_gbl_db_opt_stats);
-ACPI_GLOBAL(u8, acpi_gbl_db_opt_ini_methods);
+ACPI_GLOBAL(u8, acpi_gbl_db_opt_no_ini_methods);
 ACPI_GLOBAL(u8, acpi_gbl_db_opt_no_region_support);
 ACPI_GLOBAL(u8, acpi_gbl_db_output_to_file);
 ACPI_GLOBAL(char *, acpi_gbl_db_buffer);
