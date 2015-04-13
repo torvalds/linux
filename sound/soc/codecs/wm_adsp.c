@@ -789,7 +789,7 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 	char *region_name;
 	int ret;
 
-	name = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	name = kmalloc(SNDRV_CTL_ELEM_ID_NAME_MAXLEN, GFP_KERNEL);
 	if (!name)
 		return -ENOMEM;
 
@@ -814,7 +814,7 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 		goto err_name;
 	}
 
-	snprintf(name, PAGE_SIZE, "DSP%d %s %x",
+	snprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN, "DSP%d %s %x",
 		 dsp->num, region_name, alg_region->alg);
 
 	list_for_each_entry(ctl, &dsp->ctl_list,
