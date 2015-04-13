@@ -316,22 +316,19 @@ static int mma9553_set_config(struct mma9553_data *data, u16 reg,
 static int mma9553_read_activity_stepcnt(struct mma9553_data *data,
 					 u8 *activity, u16 *stepcnt)
 {
-	u32 status_stepcnt;
-	u16 status;
+	u16 buf[2];
 	int ret;
 
 	ret = mma9551_read_status_words(data->client, MMA9551_APPID_PEDOMETER,
-					MMA9553_REG_STATUS, sizeof(u32),
-					(u16 *) &status_stepcnt);
+					MMA9553_REG_STATUS, sizeof(u32), buf);
 	if (ret < 0) {
 		dev_err(&data->client->dev,
 			"error reading status and stepcnt\n");
 		return ret;
 	}
 
-	status = status_stepcnt & MMA9553_MASK_CONF_WORD;
-	*activity = mma9553_get_bits(status, MMA9553_MASK_STATUS_ACTIVITY);
-	*stepcnt = status_stepcnt >> 16;
+	*activity = mma9553_get_bits(buf[0], MMA9553_MASK_STATUS_ACTIVITY);
+	*stepcnt = buf[1];
 
 	return 0;
 }
