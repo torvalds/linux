@@ -75,8 +75,8 @@
 #define MMA9553_DEFAULT_GPIO_PIN	mma9551_gpio6
 #define MMA9553_DEFAULT_GPIO_POLARITY	0
 
-#define STATUS_TO_BITNUM(bit)		(ffs(bit) - 9)
 /* Bitnum used for GPIO configuration = bit number in high status byte */
+#define MMA9553_STATUS_TO_BITNUM(bit)	(ffs(bit) - 9)
 
 #define MMA9553_DEFAULT_SAMPLE_RATE	30	/* Hz */
 
@@ -353,11 +353,11 @@ static int mma9553_conf_gpio(struct mma9553_data *data)
 	 * This bit is the logical OR of the SUSPCHG, STEPCHG, and ACTCHG flags.
 	 */
 	if (activity_enabled && ev_step_detect->enabled)
-		bitnum = STATUS_TO_BITNUM(MMA9553_MASK_STATUS_MRGFL);
+		bitnum = MMA9553_STATUS_TO_BITNUM(MMA9553_MASK_STATUS_MRGFL);
 	else if (ev_step_detect->enabled)
-		bitnum = STATUS_TO_BITNUM(MMA9553_MASK_STATUS_STEPCHG);
+		bitnum = MMA9553_STATUS_TO_BITNUM(MMA9553_MASK_STATUS_STEPCHG);
 	else if (activity_enabled)
-		bitnum = STATUS_TO_BITNUM(MMA9553_MASK_STATUS_ACTCHG);
+		bitnum = MMA9553_STATUS_TO_BITNUM(MMA9553_MASK_STATUS_ACTCHG);
 	else			/* Reset */
 		appid = MMA9551_APPID_NONE;
 
@@ -947,11 +947,11 @@ static const struct iio_event_spec mma9553_activity_events[] = {
 	},
 };
 
-static const char * const calibgender_modes[] = { "male", "female" };
+static const char * const mma9553_calibgender_modes[] = { "male", "female" };
 
 static const struct iio_enum mma9553_calibgender_enum = {
-	.items = calibgender_modes,
-	.num_items = ARRAY_SIZE(calibgender_modes),
+	.items = mma9553_calibgender_modes,
+	.num_items = ARRAY_SIZE(mma9553_calibgender_modes),
 	.get = mma9553_get_calibgender_mode,
 	.set = mma9553_set_calibgender_mode,
 };
