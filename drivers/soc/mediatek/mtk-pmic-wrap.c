@@ -563,8 +563,6 @@ static int pwrap_init_sidly(struct pmic_wrapper *wrp)
 
 static int pwrap_init_reg_clock(struct pmic_wrapper *wrp)
 {
-	u32 wdata;
-	u32 rdata;
 	unsigned long rate_spi;
 	int ck_mhz;
 
