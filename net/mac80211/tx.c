@@ -2864,6 +2864,12 @@ void __ieee80211_subif_start_xmit(struct sk_buff *skb,
 			goto out;
 	}
 
+	/* we cannot process non-linear frames on this path */
+	if (skb_linearize(skb)) {
+		kfree_skb(skb);
+		goto out;
+	}
+
 	/* the frame could be fragmented, software-encrypted, and other things
 	 * so we cannot really handle checksum offload with it - fix it up in
 	 * software before we handle anything else.

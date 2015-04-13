@@ -1942,8 +1942,8 @@ enum ieee80211_hw_flags {
  *	Use the %IEEE80211_RADIOTAP_VHT_KNOWN_* values.
  *
  * @netdev_features: netdev features to be set in each netdev created
- *	from this HW. Note only HW checksum features are currently
- *	compatible with mac80211. Other feature bits will be rejected.
+ *	from this HW. Note that not all features are usable with mac80211,
+ *	other features will be rejected during HW registration.
  *
  * @uapsd_queues: This bitmap is included in (re)association frame to indicate
  *	for each access category if it is uAPSD trigger-enabled and delivery-
