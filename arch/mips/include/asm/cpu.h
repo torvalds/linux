@@ -377,7 +377,8 @@ enum cpu_type_enum {
 #define MIPS_CPU_MAAR		0x400000000ull /* MAAR(I) registers are present */
 #define MIPS_CPU_FRE		0x800000000ull /* FRE & UFE bits implemented */
 #define MIPS_CPU_RW_LLB		0x1000000000ull /* LLADDR/LLB writes are allowed */
-#define MIPS_CPU_CDMM		0x2000000000ull	/* CPU has Common Device Memory Map */
+#define MIPS_CPU_XPA		0x2000000000ull /* CPU supports Extended Physical Addressing */
+#define MIPS_CPU_CDMM		0x4000000000ull	/* CPU has Common Device Memory Map */
 
 /*
  * CPU ASE encodings

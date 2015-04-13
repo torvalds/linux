@@ -333,9 +333,17 @@ void __update_tlb(struct vm_area_struct * vma, unsigned long address, pte_t pte)
 		ptep = pte_offset_map(pmdp, address);
 
 #if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
+#ifdef CONFIG_XPA
+		write_c0_entrylo0(pte_to_entrylo(ptep->pte_high));
+		writex_c0_entrylo0(ptep->pte_low & _PFNX_MASK);
+		ptep++;
+		write_c0_entrylo1(pte_to_entrylo(ptep->pte_high));
+		writex_c0_entrylo1(ptep->pte_low & _PFNX_MASK);
+#else
 		write_c0_entrylo0(ptep->pte_high);
 		ptep++;
 		write_c0_entrylo1(ptep->pte_high);
+#endif
 #else
 		write_c0_entrylo0(pte_to_entrylo(pte_val(*ptep++)));
 		write_c0_entrylo1(pte_to_entrylo(pte_val(*ptep)));
@@ -355,6 +363,9 @@ void __update_tlb(struct vm_area_struct * vma, unsigned long address, pte_t pte)
 void add_wired_entry(unsigned long entrylo0, unsigned long entrylo1,
 		     unsigned long entryhi, unsigned long pagemask)
 {
+#ifdef CONFIG_XPA
+	panic("Broken for XPA kernels");
+#else
 	unsigned long flags;
 	unsigned long wired;
 	unsigned long old_pagemask;
@@ -383,6 +394,7 @@ void add_wired_entry(unsigned long entrylo0, unsigned long entrylo1,
 	write_c0_pagemask(old_pagemask);
 	local_flush_tlb_all();
 	local_irq_restore(flags);
+#endif
 }
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
