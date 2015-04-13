@@ -3788,6 +3788,106 @@ static void e1000_power_down_phy(struct e1000_adapter *adapter)
 }
 
 /**
+ * e1000_flush_tx_ring - remove all descriptors from the tx_ring
+ *
+ * We want to clear all pending descriptors from the TX ring.
+ * zeroing happens when the HW reads the regs. We  assign the ring itself as
+ * the data of the next descriptor. We don't care about the data we are about
+ * to reset the HW.
+ */
+static void e1000_flush_tx_ring(struct e1000_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	struct e1000_ring *tx_ring = adapter->tx_ring;
+	struct e1000_tx_desc *tx_desc = NULL;
+	u32 tdt, tctl, txd_lower = E1000_TXD_CMD_IFCS;
+	u16 size = 512;
+
+	tctl = er32(TCTL);
+	ew32(TCTL, tctl | E1000_TCTL_EN);
+	tdt = er32(TDT(0));
+	BUG_ON(tdt != tx_ring->next_to_use);
+	tx_desc =  E1000_TX_DESC(*tx_ring, tx_ring->next_to_use);
+	tx_desc->buffer_addr = tx_ring->dma;
+
+	tx_desc->lower.data = cpu_to_le32(txd_lower | size);
+	tx_desc->upper.data = 0;
+	/* flush descriptors to memory before notifying the HW */
+	wmb();
+	tx_ring->next_to_use++;
+	if (tx_ring->next_to_use == tx_ring->count)
+		tx_ring->next_to_use = 0;
+	ew32(TDT(0), tx_ring->next_to_use);
+	mmiowb();
+	usleep_range(200, 250);
+}
+
+/**
+ * e1000_flush_rx_ring - remove all descriptors from the rx_ring
+ *
+ * Mark all descriptors in the RX ring as consumed and disable the rx ring
+ */
+static void e1000_flush_rx_ring(struct e1000_adapter *adapter)
+{
+	u32 rctl, rxdctl;
+	struct e1000_hw *hw = &adapter->hw;
+
+	rctl = er32(RCTL);
+	ew32(RCTL, rctl & ~E1000_RCTL_EN);
+	e1e_flush();
+	usleep_range(100, 150);
+
+	rxdctl = er32(RXDCTL(0));
+	/* zero the lower 14 bits (prefetch and host thresholds) */
+	rxdctl &= 0xffffc000;
+
+	/* update thresholds: prefetch threshold to 31, host threshold to 1
+	 * and make sure the granularity is "descriptors" and not "cache lines"
+	 */
+	rxdctl |= (0x1F | (1 << 8) | E1000_RXDCTL_THRESH_UNIT_DESC);
+
+	ew32(RXDCTL(0), rxdctl);
+	/* momentarily enable the RX ring for the changes to take effect */
+	ew32(RCTL, rctl | E1000_RCTL_EN);
+	e1e_flush();
+	usleep_range(100, 150);
+	ew32(RCTL, rctl & ~E1000_RCTL_EN);
+}
+
+/**
+ * e1000_flush_desc_rings - remove all descriptors from the descriptor rings
+ *
+ * In i219, the descriptor rings must be emptied before resetting the HW
+ * or before changing the device state to D3 during runtime (runtime PM).
+ *
+ * Failure to do this will cause the HW to enter a unit hang state which can
+ * only be released by PCI reset on the device
+ *
+ */
+
+static void e1000_flush_desc_rings(struct e1000_adapter *adapter)
+{
+	u32 hang_state;
+	u32 fext_nvm11, tdlen;
+	struct e1000_hw *hw = &adapter->hw;
+
+	/* First, disable MULR fix in FEXTNVM11 */
+	fext_nvm11 = er32(FEXTNVM11);
+	fext_nvm11 |= E1000_FEXTNVM11_DISABLE_MULR_FIX;
+	ew32(FEXTNVM11, fext_nvm11);
+	/* do nothing if we're not in faulty state, or if the queue is empty */
+	tdlen = er32(TDLEN(0));
+	hang_state = er32(FEXTNVM7);
+	if ((hang_state & E1000_FEXTNVM7_NEED_DESCRING_FLUSH) || tdlen)
+		return;
+	e1000_flush_tx_ring(adapter);
+	/* recheck, maybe the fault is caused by the rx ring */
+	hang_state = er32(FEXTNVM7);
+	if (hang_state & E1000_FEXTNVM7_NEED_DESCRING_FLUSH)
+		e1000_flush_rx_ring(adapter);
+}
+
+/**
  * e1000e_reset - bring the hardware into a known good state
  *
  * This function boots the hardware and enables some settings that
@@ -4115,6 +4215,8 @@ void e1000e_down(struct e1000_adapter *adapter, bool reset)
 	spin_unlock(&adapter->stats64_lock);
 
 	e1000e_flush_descriptors(adapter);
+	if (hw->mac.type == e1000_pch_spt)
+		e1000_flush_desc_rings(adapter);
 	e1000_clean_tx_ring(adapter->tx_ring);
 	e1000_clean_rx_ring(adapter->rx_ring);
 
