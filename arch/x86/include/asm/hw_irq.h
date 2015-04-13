@@ -123,6 +123,7 @@ enum irq_alloc_type {
 	X86_IRQ_ALLOC_TYPE_MSI,
 	X86_IRQ_ALLOC_TYPE_MSIX,
 	X86_IRQ_ALLOC_TYPE_DMAR,
+	X86_IRQ_ALLOC_TYPE_UV,
 };
 
 struct irq_alloc_info {
@@ -167,6 +168,14 @@ struct irq_alloc_info {
 			int		ht_idx;
 			struct pci_dev	*ht_dev;
 			void		*ht_update;
+		};
+#endif
+#ifdef	CONFIG_X86_UV
+		struct {
+			int		uv_limit;
+			int		uv_blade;
+			unsigned long	uv_offset;
+			char		*uv_name;
 		};
 #endif
 	};
