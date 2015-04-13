@@ -112,6 +112,17 @@ struct irq_2_irte {
 
 #ifdef	CONFIG_X86_LOCAL_APIC
 struct irq_data;
+struct irq_domain;
+
+struct irq_alloc_info {
+	u32			flags;
+	const struct cpumask	*mask;	/* CPU mask for vector allocation */
+};
+
+enum {
+	/* Allocate contiguous CPU vectors */
+	X86_IRQ_ALLOC_CONTIGUOUS_VECTORS		= 0x1,
+};
 
 struct irq_cfg {
 	cpumask_var_t		domain;
@@ -135,6 +146,12 @@ struct irq_cfg {
 	};
 };
 
+extern struct irq_domain *x86_vector_domain;
+
+extern void init_irq_alloc_info(struct irq_alloc_info *info,
+				const struct cpumask *mask);
+extern void copy_irq_alloc_info(struct irq_alloc_info *dst,
+				struct irq_alloc_info *src);
 extern struct irq_cfg *irq_cfg(unsigned int irq);
 extern struct irq_cfg *irqd_cfg(struct irq_data *irq_data);
 extern struct irq_cfg *alloc_irq_and_cfg_at(unsigned int at, int node);

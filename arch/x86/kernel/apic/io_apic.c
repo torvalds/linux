@@ -2356,9 +2356,6 @@ static int mp_irqdomain_create(int ioapic)
 		ioapic_dynirq_base = max(ioapic_dynirq_base,
 					 gsi_cfg->gsi_end + 1);
 
-	if (gsi_cfg->gsi_base == 0)
-		irq_set_default_host(ip->irqdomain);
-
 	return 0;
 }
 
