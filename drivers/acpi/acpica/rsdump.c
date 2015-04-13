@@ -438,7 +438,7 @@ void acpi_rs_dump_resource_list(struct acpi_resource *resource_list)
  *
  ******************************************************************************/
 
-void acpi_rs_dump_irq_list(u8 * route_table)
+void acpi_rs_dump_irq_list(u8 *route_table)
 {
 	struct acpi_pci_routing_table *prt_element;
 	u8 count;

@@ -303,7 +303,7 @@ acpi_rs_set_resource_length(acpi_rsdesc_size total_length,
  */
 void acpi_rs_dump_resource_list(struct acpi_resource *resource);
 
-void acpi_rs_dump_irq_list(u8 * route_table);
+void acpi_rs_dump_irq_list(u8 *route_table);
 
 /*
  * Resource conversion tables

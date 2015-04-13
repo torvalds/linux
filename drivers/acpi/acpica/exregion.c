@@ -182,7 +182,7 @@ acpi_ex_system_memory_space_handler(u32 function,
 			ACPI_ERROR((AE_INFO,
 				    "Could not map memory at 0x%8.8X%8.8X, size %u",
 				    ACPI_FORMAT_NATIVE_UINT(address),
-				    (u32) map_length));
+				    (u32)map_length));
 			mem_info->mapped_length = 0;
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}
