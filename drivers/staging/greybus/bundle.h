@@ -20,6 +20,7 @@ struct gb_bundle {
 	u8			class;
 	u8			device_id;
 	struct list_head	connections;
+	u8			*state;
 
 	struct list_head	links;	/* interface->bundles */
 };

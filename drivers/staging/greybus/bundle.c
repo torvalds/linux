@@ -1,8 +1,8 @@
 /*
  * Greybus bundles
  *
- * Copyright 2014 Google Inc.
- * Copyright 2014 Linaro Ltd.
+ * Copyright 2014-2015 Google Inc.
+ * Copyright 2014-2015 Linaro Ltd.
  *
  * Released under the GPLv2 only.
  */
@@ -31,9 +31,41 @@ static ssize_t class_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(class);
 
+static ssize_t state_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
+{
+	struct gb_bundle *bundle = to_gb_bundle(dev);
+
+	if (bundle->state == NULL)
+		return sprintf(buf, "\n");
+
+	return sprintf(buf, "%s\n", bundle->state);
+}
+
+static ssize_t state_store(struct device *dev, struct device_attribute *attr,
+			   const char *buf, size_t size)
+{
+	struct gb_bundle *bundle = to_gb_bundle(dev);
+
+	kfree(bundle->state);
+	bundle->state = kzalloc(size + 1, GFP_KERNEL);
+	if (!bundle->state)
+		return -ENOMEM;
+
+	memcpy(bundle->state, buf, size);
+
+	/* Tell userspace that the file contents changed */
+	sysfs_notify(&bundle->dev.kobj, NULL, "state");
+
+	return size;
+}
+static DEVICE_ATTR_RW(state);
+
+
 static struct attribute *bundle_attrs[] = {
 	&dev_attr_device_id.attr,
 	&dev_attr_class.attr,
+	&dev_attr_state.attr,
 	NULL,
 };
 
@@ -43,6 +75,7 @@ static void gb_bundle_release(struct device *dev)
 {
 	struct gb_bundle *bundle = to_gb_bundle(dev);
 
+	kfree(bundle->state);
 	kfree(bundle);
 }
 

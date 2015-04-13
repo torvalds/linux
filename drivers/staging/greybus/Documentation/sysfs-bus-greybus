@@ -113,3 +113,16 @@ KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		The device id of a Greybus bundle.
+
+What:		/sys/bus/greybus/device/.../state
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		A bundle has a state that is managed by the userspace
+		Endo process.  This file allows that Endo to signal
+		other Android HALs that the state of the bundle has
+		changed to a specific value.  When written to, any
+		process watching the file will be woken up, and the new
+		value can be read. It's a "poor-man's IPC", yes, but
+		simplifies the Android userspace code immensely.
