@@ -494,15 +494,6 @@ int iwl_mvm_fw_dbg_collect_desc(struct iwl_mvm *mvm,
 
 	mvm->fw_dump_desc = desc;
 
-	/* stop recording */
-	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
-		iwl_set_bits_prph(mvm->trans, MON_BUFF_SAMPLE_CTL, 0x100);
-	} else {
-		iwl_write_prph(mvm->trans, DBGC_IN_SAMPLE, 0);
-		/* wait before we collect the data till the DBGC stop */
-		udelay(100);
-	}
-
 	queue_delayed_work(system_wq, &mvm->fw_dump_wk, delay);
 
 	return 0;
