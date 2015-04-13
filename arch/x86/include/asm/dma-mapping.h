@@ -133,20 +133,8 @@ dma_alloc_attrs(struct device *dev, size_t size, dma_addr_t *dma_handle,
 
 #define dma_free_coherent(d,s,c,h) dma_free_attrs(d,s,c,h,NULL)
 
-static inline void dma_free_attrs(struct device *dev, size_t size,
-				  void *vaddr, dma_addr_t bus,
-				  struct dma_attrs *attrs)
-{
-	struct dma_map_ops *ops = get_dma_ops(dev);
-
-	WARN_ON(irqs_disabled());       /* for portability */
-
-	if (dma_release_from_coherent(dev, get_order(size), vaddr))
-		return;
-
-	debug_dma_free_coherent(dev, size, vaddr, bus);
-	if (ops->free)
-		ops->free(dev, size, vaddr, bus, attrs);
-}
+void dma_free_attrs(struct device *dev, size_t size,
+		    void *vaddr, dma_addr_t bus,
+		    struct dma_attrs *attrs);
 
 #endif
