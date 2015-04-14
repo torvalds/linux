@@ -63,7 +63,6 @@
 #define	for_each_ioapic_pin(idx, pin)	\
 	for_each_ioapic((idx))		\
 		for_each_pin((idx), (pin))
-
 #define for_each_irq_pin(entry, head) \
 	list_for_each_entry(entry, &head, list)
 
@@ -90,6 +89,11 @@ struct mp_chip_data {
 	int polarity;
 	u32 count;
 	bool isa_irq;
+};
+
+struct mp_ioapic_gsi {
+	u32 gsi_base;
+	u32 gsi_end;
 };
 
 static struct ioapic {
@@ -122,7 +126,7 @@ unsigned int mpc_ioapic_addr(int ioapic_idx)
 	return ioapics[ioapic_idx].mp_config.apicaddr;
 }
 
-struct mp_ioapic_gsi *mp_ioapic_gsi_routing(int ioapic_idx)
+static inline struct mp_ioapic_gsi *mp_ioapic_gsi_routing(int ioapic_idx)
 {
 	return &ioapics[ioapic_idx].gsi_config;
 }
@@ -134,7 +138,7 @@ static inline int mp_ioapic_pin_count(int ioapic)
 	return gsi_cfg->gsi_end - gsi_cfg->gsi_base + 1;
 }
 
-u32 mp_pin_to_gsi(int ioapic, int pin)
+static inline u32 mp_pin_to_gsi(int ioapic, int pin)
 {
 	return mp_ioapic_gsi_routing(ioapic)->gsi_base + pin;
 }
@@ -1153,8 +1157,7 @@ static int pin_2_irq(int idx, int ioapic, int pin, unsigned int flags)
 	return  mp_map_pin_to_irq(gsi, idx, ioapic, pin, flags, NULL);
 }
 
-int mp_map_gsi_to_irq(u32 gsi, unsigned int flags,
-		      struct irq_alloc_info *info)
+int mp_map_gsi_to_irq(u32 gsi, unsigned int flags, struct irq_alloc_info *info)
 {
 	int ioapic, pin, idx;
 
@@ -1719,7 +1722,6 @@ static int __init timer_irq_works(void)
  * This is not complete - we should be able to fake
  * an edge even if it isn't on the 8259A...
  */
-
 static unsigned int startup_ioapic_irq(struct irq_data *data)
 {
 	int was_pending = 0, irq = data->irq;
@@ -1736,15 +1738,6 @@ static unsigned int startup_ioapic_irq(struct irq_data *data)
 
 	return was_pending;
 }
-
-/*
- * Level and edge triggered IO-APIC interrupts need different handling,
- * so we use two separate IRQ descriptors. Edge triggered IRQs can be
- * handled with the level-triggered descriptor, but that one has slightly
- * more overhead. Level-triggered interrupts cannot be handled with the
- * edge-triggered handler, without risking IRQ storms and other ugly
- * races.
- */
 
 static void __target_IO_APIC_irq(unsigned int irq, struct irq_cfg *cfg,
 				 struct mp_chip_data *data)
