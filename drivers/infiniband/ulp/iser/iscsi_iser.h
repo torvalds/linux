@@ -222,12 +222,9 @@ enum iser_data_dir {
  * @size:         num entries of this sg
  * @data_len:     total beffer byte len
  * @dma_nents:    returned by dma_map_sg
- * @copy_buf:     allocated copy buf for SGs unaligned
- *                for rdma which are copied
  * @orig_sg:      pointer to the original sg list (in case
  *                we used a copy)
- * @sg_single:    SG-ified clone of a non SG SC or
- *                unaligned SG
+ * @orig_size:    num entris of orig sg list
  */
 struct iser_data_buf {
 	struct scatterlist *sg;
@@ -235,8 +232,7 @@ struct iser_data_buf {
 	unsigned long      data_len;
 	unsigned int       dma_nents;
 	struct scatterlist *orig_sg;
-	char               *copy_buf;
-	struct scatterlist sg_single;
+	unsigned int       orig_size;
   };
 
 /* fwd declarations */

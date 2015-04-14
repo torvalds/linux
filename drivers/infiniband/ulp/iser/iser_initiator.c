@@ -674,28 +674,28 @@ void iser_task_rdma_finalize(struct iscsi_iser_task *iser_task)
 	/* if we were reading, copy back to unaligned sglist,
 	 * anyway dma_unmap and free the copy
 	 */
-	if (iser_task->data[ISER_DIR_IN].copy_buf) {
+	if (iser_task->data[ISER_DIR_IN].orig_sg) {
 		is_rdma_data_aligned = 0;
 		iser_finalize_rdma_unaligned_sg(iser_task,
 						&iser_task->data[ISER_DIR_IN],
 						ISER_DIR_IN);
 	}
 
-	if (iser_task->data[ISER_DIR_OUT].copy_buf) {
+	if (iser_task->data[ISER_DIR_OUT].orig_sg) {
 		is_rdma_data_aligned = 0;
 		iser_finalize_rdma_unaligned_sg(iser_task,
 						&iser_task->data[ISER_DIR_OUT],
 						ISER_DIR_OUT);
 	}
 
-	if (iser_task->prot[ISER_DIR_IN].copy_buf) {
+	if (iser_task->prot[ISER_DIR_IN].orig_sg) {
 		is_rdma_prot_aligned = 0;
 		iser_finalize_rdma_unaligned_sg(iser_task,
 						&iser_task->prot[ISER_DIR_IN],
 						ISER_DIR_IN);
 	}
 
-	if (iser_task->prot[ISER_DIR_OUT].copy_buf) {
+	if (iser_task->prot[ISER_DIR_OUT].orig_sg) {
 		is_rdma_prot_aligned = 0;
 		iser_finalize_rdma_unaligned_sg(iser_task,
 						&iser_task->prot[ISER_DIR_OUT],

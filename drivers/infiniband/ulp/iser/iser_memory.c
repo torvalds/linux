@@ -39,7 +39,112 @@
 
 #include "iscsi_iser.h"
 
-#define ISER_KMALLOC_THRESHOLD 0x20000 /* 128K - kmalloc limit */
+static void
+iser_free_bounce_sg(struct iser_data_buf *data)
+{
+	struct scatterlist *sg;
+	int count;
+
+	for_each_sg(data->sg, sg, data->size, count)
+		__free_page(sg_page(sg));
+
+	kfree(data->sg);
+
+	data->sg = data->orig_sg;
+	data->size = data->orig_size;
+	data->orig_sg = NULL;
+	data->orig_size = 0;
+}
+
+static int
+iser_alloc_bounce_sg(struct iser_data_buf *data)
+{
+	struct scatterlist *sg;
+	struct page *page;
+	unsigned long length = data->data_len;
+	int i = 0, nents = DIV_ROUND_UP(length, PAGE_SIZE);
+
+	sg = kcalloc(nents, sizeof(*sg), GFP_ATOMIC);
+	if (!sg)
+		goto err;
+
+	sg_init_table(sg, nents);
+	while (length) {
+		u32 page_len = min_t(u32, length, PAGE_SIZE);
+
+		page = alloc_page(GFP_ATOMIC);
+		if (!page)
+			goto err;
+
+		sg_set_page(&sg[i], page, page_len, 0);
+		length -= page_len;
+		i++;
+	}
+
+	data->orig_sg = data->sg;
+	data->orig_size = data->size;
+	data->sg = sg;
+	data->size = nents;
+
+	return 0;
+
+err:
+	for (; i > 0; i--)
+		__free_page(sg_page(&sg[i - 1]));
+	kfree(sg);
+
+	return -ENOMEM;
+}
+
+static void
+iser_copy_bounce(struct iser_data_buf *data, bool to_buffer)
+{
+	struct scatterlist *osg, *bsg = data->sg;
+	void *oaddr, *baddr;
+	unsigned int left = data->data_len;
+	unsigned int bsg_off = 0;
+	int i;
+
+	for_each_sg(data->orig_sg, osg, data->orig_size, i) {
+		unsigned int copy_len, osg_off = 0;
+
+		oaddr = kmap_atomic(sg_page(osg)) + osg->offset;
+		copy_len = min(left, osg->length);
+		while (copy_len) {
+			unsigned int len = min(copy_len, bsg->length - bsg_off);
+
+			baddr = kmap_atomic(sg_page(bsg)) + bsg->offset;
+			if (to_buffer)
+				memcpy(baddr + bsg_off, oaddr + osg_off, len);
+			else
+				memcpy(oaddr + osg_off, baddr + bsg_off, len);
+
+			kunmap_atomic(baddr - bsg->offset);
+			osg_off += len;
+			bsg_off += len;
+			copy_len -= len;
+
+			if (bsg_off >= bsg->length) {
+				bsg = sg_next(bsg);
+				bsg_off = 0;
+			}
+		}
+		kunmap_atomic(oaddr - osg->offset);
+		left -= osg_off;
+	}
+}
+
+static inline void
+iser_copy_from_bounce(struct iser_data_buf *data)
+{
+	iser_copy_bounce(data, false);
+}
+
+static inline void
+iser_copy_to_bounce(struct iser_data_buf *data)
+{
+	iser_copy_bounce(data, true);
+}
 
 struct fast_reg_descriptor *
 iser_reg_desc_get(struct ib_conn *ib_conn)
@@ -75,52 +180,32 @@ static int iser_start_rdma_unaligned_sg(struct iscsi_iser_task *iser_task,
 					enum iser_data_dir cmd_dir)
 {
 	struct ib_device *dev = iser_task->iser_conn->ib_conn.device->ib_device;
-	struct scatterlist *sgl = data->sg;
-	struct scatterlist *sg;
-	char *mem = NULL;
-	unsigned long  cmd_data_len = data->data_len;
-	int dma_nents, i;
+	int rc;
 
-	if (cmd_data_len > ISER_KMALLOC_THRESHOLD)
-		mem = (void *)__get_free_pages(GFP_ATOMIC,
-		      ilog2(roundup_pow_of_two(cmd_data_len)) - PAGE_SHIFT);
-	else
-		mem = kmalloc(cmd_data_len, GFP_ATOMIC);
-
-	if (mem == NULL) {
-		iser_err("Failed to allocate mem size %d %d for copying sglist\n",
-			 data->size, (int)cmd_data_len);
-		return -ENOMEM;
+	rc = iser_alloc_bounce_sg(data);
+	if (rc) {
+		iser_err("Failed to allocate bounce for data len %lu\n",
+			 data->data_len);
+		return rc;
 	}
 
-	if (cmd_dir == ISER_DIR_OUT) {
-		/* copy the unaligned sg the buffer which is used for RDMA */
-		char *p, *from;
+	if (cmd_dir == ISER_DIR_OUT)
+		iser_copy_to_bounce(data);
 
-		sgl = data->sg;
-		p = mem;
-		for_each_sg(sgl, sg, data->size, i) {
-			from = kmap_atomic(sg_page(sg));
-			memcpy(p,
-			       from + sg->offset,
-			       sg->length);
-			kunmap_atomic(from);
-			p += sg->length;
-		}
+	data->dma_nents = ib_dma_map_sg(dev, data->sg, data->size,
+					(cmd_dir == ISER_DIR_OUT) ?
+					DMA_TO_DEVICE : DMA_FROM_DEVICE);
+	if (!data->dma_nents) {
+		iser_err("Got dma_nents %d, something went wrong...\n",
+			 data->dma_nents);
+		rc = -ENOMEM;
+		goto err;
 	}
-
-	sg_init_one(&data->sg_single, mem, cmd_data_len);
-	data->orig_sg = data->sg;
-	data->sg = &data->sg_single;
-	data->copy_buf = mem;
-	dma_nents = ib_dma_map_sg(dev, data->sg, 1,
-				  (cmd_dir == ISER_DIR_OUT) ?
-				  DMA_TO_DEVICE : DMA_FROM_DEVICE);
-	BUG_ON(dma_nents == 0);
-
-	data->dma_nents = dma_nents;
 
 	return 0;
+err:
+	iser_free_bounce_sg(data);
+	return rc;
 }
 
 /**
@@ -131,48 +216,16 @@ void iser_finalize_rdma_unaligned_sg(struct iscsi_iser_task *iser_task,
 				     struct iser_data_buf *data,
 				     enum iser_data_dir cmd_dir)
 {
-	struct ib_device *dev;
-	unsigned long  cmd_data_len;
+	struct ib_device *dev = iser_task->iser_conn->ib_conn.device->ib_device;
 
-	dev = iser_task->iser_conn->ib_conn.device->ib_device;
-
-	ib_dma_unmap_sg(dev, data->sg, 1,
+	ib_dma_unmap_sg(dev, data->sg, data->size,
 			(cmd_dir == ISER_DIR_OUT) ?
 			DMA_TO_DEVICE : DMA_FROM_DEVICE);
 
-	if (cmd_dir == ISER_DIR_IN) {
-		char *mem;
-		struct scatterlist *sgl, *sg;
-		unsigned char *p, *to;
-		unsigned int sg_size;
-		int i;
+	if (cmd_dir == ISER_DIR_IN)
+		iser_copy_from_bounce(data);
 
-		/* copy back read RDMA to unaligned sg */
-		mem = data->copy_buf;
-
-		sgl = data->sg;
-		sg_size = data->size;
-
-		p = mem;
-		for_each_sg(sgl, sg, sg_size, i) {
-			to = kmap_atomic(sg_page(sg));
-			memcpy(to + sg->offset,
-			       p,
-			       sg->length);
-			kunmap_atomic(to);
-			p += sg->length;
-		}
-	}
-
-	cmd_data_len = data->data_len;
-
-	if (cmd_data_len > ISER_KMALLOC_THRESHOLD)
-		free_pages((unsigned long)data->copy_buf,
-			   ilog2(roundup_pow_of_two(cmd_data_len)) - PAGE_SHIFT);
-	else
-		kfree(data->copy_buf);
-
-	data->copy_buf = NULL;
+	iser_free_bounce_sg(data);
 }
 
 #define IS_4K_ALIGNED(addr)	((((unsigned long)addr) & ~MASK_4K) == 0)
