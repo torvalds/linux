@@ -218,6 +218,7 @@ static int ppc4xx_msi_probe(struct platform_device *dev)
 	struct ppc4xx_msi *msi;
 	struct resource res;
 	int err = 0;
+	struct pci_controller *phb;
 
 	dev_dbg(&dev->dev, "PCIE-MSI: Setting up MSI support...\n");
 
@@ -250,8 +251,10 @@ static int ppc4xx_msi_probe(struct platform_device *dev)
 	}
 	ppc4xx_msi = *msi;
 
-	ppc_md.setup_msi_irqs = ppc4xx_setup_msi_irqs;
-	ppc_md.teardown_msi_irqs = ppc4xx_teardown_msi_irqs;
+	list_for_each_entry(phb, &hose_list, list_node) {
+		phb->controller_ops.setup_msi_irqs = ppc4xx_setup_msi_irqs;
+		phb->controller_ops.teardown_msi_irqs = ppc4xx_teardown_msi_irqs;
+	}
 	return err;
 
 error_out:
