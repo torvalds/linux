@@ -127,7 +127,7 @@ static int usb_device_supports_lpm(struct usb_device *udev)
 	/* USB 2.1 (and greater) devices indicate LPM support through
 	 * their USB 2.0 Extended Capabilities BOS descriptor.
 	 */
-	if (udev->speed == USB_SPEED_HIGH) {
+	if (udev->speed == USB_SPEED_HIGH || udev->speed == USB_SPEED_FULL) {
 		if (udev->bos->ext_cap &&
 			(USB_LPM_SUPPORT &
 			 le32_to_cpu(udev->bos->ext_cap->bmAttributes)))
