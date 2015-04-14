@@ -228,7 +228,7 @@ memory_block_action(unsigned long phys_index, unsigned long action, int online_t
 	struct page *first_page;
 	int ret;
 
-	start_pfn = phys_index << PFN_SECTION_SHIFT;
+	start_pfn = section_nr_to_pfn(phys_index);
 	first_page = pfn_to_page(start_pfn);
 
 	switch (action) {
