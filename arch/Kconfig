@@ -491,6 +491,13 @@ config PGTABLE_LEVELS
 	int
 	default 2
 
+config ARCH_HAS_ELF_RANDOMIZE
+	bool
+	help
+	  An architecture supports choosing randomized locations for
+	  stack, mmap, brk, and ET_DYN. Defined functions:
+	  - arch_mmap_rnd()
+
 #
 # ABI hall of shame
 #

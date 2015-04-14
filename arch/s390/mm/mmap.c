@@ -60,7 +60,7 @@ static inline int mmap_is_legacy(void)
 	return sysctl_legacy_va_layout;
 }
 
-static unsigned long mmap_rnd(void)
+unsigned long arch_mmap_rnd(void)
 {
 	if (is_32bit_task())
 		return (get_random_int() & 0x7ff) << PAGE_SHIFT;
@@ -187,7 +187,7 @@ unsigned long randomize_et_dyn(void)
 		base &= ~((1UL << 32) - 1);
 
 	if (current->flags & PF_RANDOMIZE)
-		base += mmap_rnd();
+		base += arch_mmap_rnd();
 
 	return base;
 }
@@ -203,7 +203,7 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
 	unsigned long random_factor = 0UL;
 
 	if (current->flags & PF_RANDOMIZE)
-		random_factor = mmap_rnd();
+		random_factor = arch_mmap_rnd();
 
 	/*
 	 * Fall back to the standard layout if the personality
@@ -283,7 +283,7 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
 	unsigned long random_factor = 0UL;
 
 	if (current->flags & PF_RANDOMIZE)
-		random_factor = mmap_rnd();
+		random_factor = arch_mmap_rnd();
 
 	/*
 	 * Fall back to the standard layout if the personality
