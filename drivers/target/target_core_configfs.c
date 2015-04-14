@@ -1006,8 +1006,8 @@ static ssize_t target_core_dev_pr_store_attr_res_aptpl_metadata(
 	u64 sa_res_key = 0;
 	u32 mapped_lun = 0, target_lun = 0;
 	int ret = -1, res_holder = 0, all_tg_pt = 0, arg, token;
-	u16 port_rpti = 0, tpgt = 0;
-	u8 type = 0, scope;
+	u16 tpgt = 0;
+	u8 type = 0;
 
 	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH)
 		return 0;
@@ -1087,7 +1087,6 @@ static ssize_t target_core_dev_pr_store_attr_res_aptpl_metadata(
 			break;
 		case Opt_res_scope:
 			match_int(args, &arg);
-			scope = (u8)arg;
 			break;
 		case Opt_res_all_tg_pt:
 			match_int(args, &arg);
@@ -1127,7 +1126,6 @@ static ssize_t target_core_dev_pr_store_attr_res_aptpl_metadata(
 			break;
 		case Opt_port_rtpi:
 			match_int(args, &arg);
-			port_rpti = (u16)arg;
 			break;
 		case Opt_target_lun:
 			match_int(args, &arg);
