@@ -586,11 +586,12 @@ i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
 	int ret;
 
 	flags = 0;
+	if (entry->flags & EXEC_OBJECT_NEEDS_GTT)
+		flags |= PIN_GLOBAL;
+
 	if (!drm_mm_node_allocated(&vma->node)) {
 		if (entry->flags & __EXEC_OBJECT_NEEDS_MAP)
 			flags |= PIN_GLOBAL | PIN_MAPPABLE;
-		if (entry->flags & EXEC_OBJECT_NEEDS_GTT)
-			flags |= PIN_GLOBAL;
 		if (entry->flags & __EXEC_OBJECT_NEEDS_BIAS)
 			flags |= BATCH_OFFSET_BIAS | PIN_OFFSET_BIAS;
 	}
@@ -600,7 +601,7 @@ i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
 	    only_mappable_for_reloc(entry->flags))
 		ret = i915_gem_object_pin(obj, vma->vm,
 					  entry->alignment,
-					  flags & ~(PIN_GLOBAL | PIN_MAPPABLE));
+					  flags & ~PIN_MAPPABLE);
 	if (ret)
 		return ret;
 
