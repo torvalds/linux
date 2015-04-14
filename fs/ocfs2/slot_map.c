@@ -427,7 +427,7 @@ int ocfs2_init_slot_info(struct ocfs2_super *osb)
 	if (!si) {
 		status = -ENOMEM;
 		mlog_errno(status);
-		goto bail;
+		return status;
 	}
 
 	si->si_extended = ocfs2_uses_extended_slot_map(osb);
