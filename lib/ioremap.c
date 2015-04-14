@@ -14,9 +14,9 @@
 #include <asm/pgtable.h>
 
 #ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
-int __read_mostly ioremap_pud_capable;
-int __read_mostly ioremap_pmd_capable;
-int __read_mostly ioremap_huge_disabled;
+static int __read_mostly ioremap_pud_capable;
+static int __read_mostly ioremap_pmd_capable;
+static int __read_mostly ioremap_huge_disabled;
 
 static int __init set_nohugeiomap(char *str)
 {
