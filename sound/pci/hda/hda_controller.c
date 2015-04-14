@@ -1966,6 +1966,3 @@ int azx_init_stream(struct azx *chip)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(azx_init_stream);
-
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Common HDA driver functions");
