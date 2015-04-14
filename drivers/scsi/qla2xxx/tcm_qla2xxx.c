@@ -421,19 +421,6 @@ static void tcm_qla2xxx_set_default_node_attrs(struct se_node_acl *nacl)
 	return;
 }
 
-static u32 tcm_qla2xxx_get_task_tag(struct se_cmd *se_cmd)
-{
-	struct qla_tgt_cmd *cmd;
-
-	/* check for task mgmt cmd */
-	if (se_cmd->se_cmd_flags & SCF_SCSI_TMR_CDB)
-		return 0xffffffff;
-
-	cmd = container_of(se_cmd, struct qla_tgt_cmd, se_cmd);
-
-	return cmd->tag;
-}
-
 static int tcm_qla2xxx_get_cmd_state(struct se_cmd *se_cmd)
 {
 	return 0;
@@ -1865,7 +1852,6 @@ static const struct target_core_fabric_ops tcm_qla2xxx_ops = {
 	.write_pending			= tcm_qla2xxx_write_pending,
 	.write_pending_status		= tcm_qla2xxx_write_pending_status,
 	.set_default_node_attributes	= tcm_qla2xxx_set_default_node_attrs,
-	.get_task_tag			= tcm_qla2xxx_get_task_tag,
 	.get_cmd_state			= tcm_qla2xxx_get_cmd_state,
 	.queue_data_in			= tcm_qla2xxx_queue_data_in,
 	.queue_status			= tcm_qla2xxx_queue_status,
@@ -1910,7 +1896,6 @@ static const struct target_core_fabric_ops tcm_qla2xxx_npiv_ops = {
 	.write_pending			= tcm_qla2xxx_write_pending,
 	.write_pending_status		= tcm_qla2xxx_write_pending_status,
 	.set_default_node_attributes	= tcm_qla2xxx_set_default_node_attrs,
-	.get_task_tag			= tcm_qla2xxx_get_task_tag,
 	.get_cmd_state			= tcm_qla2xxx_get_cmd_state,
 	.queue_data_in			= tcm_qla2xxx_queue_data_in,
 	.queue_status			= tcm_qla2xxx_queue_status,

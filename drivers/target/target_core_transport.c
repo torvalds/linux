@@ -600,9 +600,8 @@ static int transport_cmd_check_stop(struct se_cmd *cmd, bool remove_from_lists,
 	 * this command for frontend exceptions.
 	 */
 	if (cmd->transport_state & CMD_T_STOP) {
-		pr_debug("%s:%d CMD_T_STOP for ITT: 0x%08x\n",
-			__func__, __LINE__,
-			cmd->se_tfo->get_task_tag(cmd));
+		pr_debug("%s:%d CMD_T_STOP for ITT: 0x%08llx\n",
+			__func__, __LINE__, cmd->tag);
 
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
@@ -1155,6 +1154,8 @@ target_cmd_size_check(struct se_cmd *cmd, unsigned int size)
 /*
  * Used by fabric modules containing a local struct se_cmd within their
  * fabric dependent per I/O descriptor.
+ *
+ * Preserves the value of @cmd->tag.
  */
 void transport_init_se_cmd(
 	struct se_cmd *cmd,
@@ -1380,6 +1381,8 @@ transport_generic_map_mem_to_cmd(struct se_cmd *cmd, struct scatterlist *sgl,
  * @sgl_prot: struct scatterlist memory protection information
  * @sgl_prot_count: scatterlist count for protection information
  *
+ * Task tags are supported if the caller has set @se_cmd->tag.
+ *
  * Returns non zero to signal active I/O shutdown failure.  All other
  * setup exceptions will be returned as a SCSI CHECK_CONDITION response,
  * but still return zero here.
@@ -1512,6 +1515,8 @@ EXPORT_SYMBOL(target_submit_cmd_map_sgls);
  * @data_dir: DMA data direction
  * @flags: flags for command submission from target_sc_flags_tables
  *
+ * Task tags are supported if the caller has set @se_cmd->tag.
+ *
  * Returns non zero to signal active I/O shutdown failure.  All other
  * setup exceptions will be returned as a SCSI CHECK_CONDITION response,
  * but still return zero here.
@@ -1639,9 +1644,8 @@ void transport_generic_request_failure(struct se_cmd *cmd,
 {
 	int ret = 0;
 
-	pr_debug("-----[ Storage Engine Exception for cmd: %p ITT: 0x%08x"
-		" CDB: 0x%02x\n", cmd, cmd->se_tfo->get_task_tag(cmd),
-		cmd->t_task_cdb[0]);
+	pr_debug("-----[ Storage Engine Exception for cmd: %p ITT: 0x%08llx"
+		" CDB: 0x%02x\n", cmd, cmd->tag, cmd->t_task_cdb[0]);
 	pr_debug("-----[ i_state: %d t_state: %d sense_reason: %d\n",
 		cmd->se_tfo->get_cmd_state(cmd),
 		cmd->t_state, sense_reason);
@@ -1849,9 +1853,8 @@ void target_execute_cmd(struct se_cmd *cmd)
 	 */
 	spin_lock_irq(&cmd->t_state_lock);
 	if (cmd->transport_state & CMD_T_STOP) {
-		pr_debug("%s:%d CMD_T_STOP for ITT: 0x%08x\n",
-			__func__, __LINE__,
-			cmd->se_tfo->get_task_tag(cmd));
+		pr_debug("%s:%d CMD_T_STOP for ITT: 0x%08llx\n",
+			__func__, __LINE__, cmd->tag);
 
 		spin_unlock_irq(&cmd->t_state_lock);
 		complete_all(&cmd->t_transport_stop_comp);
@@ -2658,10 +2661,8 @@ bool transport_wait_for_tasks(struct se_cmd *cmd)
 
 	cmd->transport_state |= CMD_T_STOP;
 
-	pr_debug("wait_for_tasks: Stopping %p ITT: 0x%08x"
-		" i_state: %d, t_state: %d, CMD_T_STOP\n",
-		cmd, cmd->se_tfo->get_task_tag(cmd),
-		cmd->se_tfo->get_cmd_state(cmd), cmd->t_state);
+	pr_debug("wait_for_tasks: Stopping %p ITT: 0x%08llx i_state: %d, t_state: %d, CMD_T_STOP\n",
+		cmd, cmd->tag, cmd->se_tfo->get_cmd_state(cmd), cmd->t_state);
 
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
@@ -2670,9 +2671,8 @@ bool transport_wait_for_tasks(struct se_cmd *cmd)
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
 	cmd->transport_state &= ~(CMD_T_ACTIVE | CMD_T_STOP);
 
-	pr_debug("wait_for_tasks: Stopped wait_for_completion("
-		"&cmd->t_transport_stop_comp) for ITT: 0x%08x\n",
-		cmd->se_tfo->get_task_tag(cmd));
+	pr_debug("wait_for_tasks: Stopped wait_for_completion(&cmd->t_transport_stop_comp) for ITT: 0x%08llx\n",
+		cmd->tag);
 
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
@@ -2974,8 +2974,8 @@ int transport_check_aborted_status(struct se_cmd *cmd, int send_status)
 	if (!send_status || !(cmd->se_cmd_flags & SCF_SEND_DELAYED_TAS))
 		return 1;
 
-	pr_debug("Sending delayed SAM_STAT_TASK_ABORTED status for CDB: 0x%02x ITT: 0x%08x\n",
-		 cmd->t_task_cdb[0], cmd->se_tfo->get_task_tag(cmd));
+	pr_debug("Sending delayed SAM_STAT_TASK_ABORTED status for CDB: 0x%02x ITT: 0x%08llx\n",
+		 cmd->t_task_cdb[0], cmd->tag);
 
 	cmd->se_cmd_flags &= ~SCF_SEND_DELAYED_TAS;
 	cmd->scsi_status = SAM_STAT_TASK_ABORTED;
@@ -3014,9 +3014,8 @@ void transport_send_task_abort(struct se_cmd *cmd)
 
 	transport_lun_remove_cmd(cmd);
 
-	pr_debug("Setting SAM_STAT_TASK_ABORTED status for CDB: 0x%02x,"
-		" ITT: 0x%08x\n", cmd->t_task_cdb[0],
-		cmd->se_tfo->get_task_tag(cmd));
+	pr_debug("Setting SAM_STAT_TASK_ABORTED status for CDB: 0x%02x, ITT: 0x%08llx\n",
+		 cmd->t_task_cdb[0], cmd->tag);
 
 	trace_target_cmd_complete(cmd);
 	cmd->se_tfo->queue_status(cmd);

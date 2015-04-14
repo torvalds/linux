@@ -310,7 +310,6 @@ def tcm_mod_build_configfs(proto_ident, fabric_mod_dir_var, fabric_mod_name):
 	buf += "	.write_pending			= " + fabric_mod_name + "_write_pending,\n"
 	buf += "	.write_pending_status		= " + fabric_mod_name + "_write_pending_status,\n"
 	buf += "	.set_default_node_attributes	= " + fabric_mod_name + "_set_default_node_attrs,\n"
-	buf += "	.get_task_tag			= " + fabric_mod_name + "_get_task_tag,\n"
 	buf += "	.get_cmd_state			= " + fabric_mod_name + "_get_cmd_state,\n"
 	buf += "	.queue_data_in			= " + fabric_mod_name + "_queue_data_in,\n"
 	buf += "	.queue_status			= " + fabric_mod_name + "_queue_status,\n"
@@ -524,13 +523,6 @@ def tcm_mod_dump_fabric_ops(proto_ident, fabric_mod_dir_var, fabric_mod_name):
 			buf += "	return;\n"
 			buf += "}\n\n"
 			bufi += "void " + fabric_mod_name + "_set_default_node_attrs(struct se_node_acl *);\n"
-
-		if re.search('get_task_tag\)\(', fo):
-			buf += "u32 " + fabric_mod_name + "_get_task_tag(struct se_cmd *se_cmd)\n"
-			buf += "{\n"
-			buf += "	return 0;\n"
-			buf += "}\n\n"
-			bufi += "u32 " + fabric_mod_name + "_get_task_tag(struct se_cmd *);\n"
 
 		if re.search('get_cmd_state\)\(', fo):
 			buf += "int " + fabric_mod_name + "_get_cmd_state(struct se_cmd *se_cmd)\n"

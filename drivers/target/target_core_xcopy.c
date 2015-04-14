@@ -359,11 +359,6 @@ static char *xcopy_pt_get_fabric_name(void)
         return "xcopy-pt";
 }
 
-static u32 xcopy_pt_get_tag(struct se_cmd *se_cmd)
-{
-        return 0;
-}
-
 static int xcopy_pt_get_cmd_state(struct se_cmd *se_cmd)
 {
         return 0;
@@ -424,7 +419,6 @@ static int xcopy_pt_queue_status(struct se_cmd *se_cmd)
 
 static const struct target_core_fabric_ops xcopy_pt_tfo = {
 	.get_fabric_name	= xcopy_pt_get_fabric_name,
-	.get_task_tag		= xcopy_pt_get_tag,
 	.get_cmd_state		= xcopy_pt_get_cmd_state,
 	.release_cmd		= xcopy_pt_release_cmd,
 	.check_stop_free	= xcopy_pt_check_stop_free,
@@ -575,6 +569,7 @@ static int target_xcopy_setup_pt_cmd(
 	xpt_cmd->xcopy_op = xop;
 	target_xcopy_setup_pt_port(xpt_cmd, xop, remote_port);
 
+	cmd->tag = 0;
 	sense_rc = target_setup_cmd_from_cdb(cmd, cdb);
 	if (sense_rc) {
 		ret = -EINVAL;

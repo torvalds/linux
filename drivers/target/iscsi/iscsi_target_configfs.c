@@ -1692,14 +1692,6 @@ static char *iscsi_get_fabric_name(void)
 	return "iSCSI";
 }
 
-static u32 iscsi_get_task_tag(struct se_cmd *se_cmd)
-{
-	struct iscsi_cmd *cmd = container_of(se_cmd, struct iscsi_cmd, se_cmd);
-
-	/* only used for printks or comparism with ->ref_task_tag */
-	return (__force u32)cmd->init_task_tag;
-}
-
 static int iscsi_get_cmd_state(struct se_cmd *se_cmd)
 {
 	struct iscsi_cmd *cmd = container_of(se_cmd, struct iscsi_cmd, se_cmd);
@@ -1938,7 +1930,6 @@ const struct target_core_fabric_ops iscsi_ops = {
 	.write_pending			= lio_write_pending,
 	.write_pending_status		= lio_write_pending_status,
 	.set_default_node_attributes	= lio_set_default_node_attributes,
-	.get_task_tag			= iscsi_get_task_tag,
 	.get_cmd_state			= iscsi_get_cmd_state,
 	.queue_data_in			= lio_queue_data_in,
 	.queue_status			= lio_queue_status,

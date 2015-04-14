@@ -238,7 +238,6 @@ struct srpt_send_ioctx {
 	bool			rdma_aborted;
 	struct se_cmd		cmd;
 	struct completion	tx_done;
-	u64			tag;
 	int			sg_cnt;
 	int			mapped_sg_count;
 	u16			n_rdma_ius;

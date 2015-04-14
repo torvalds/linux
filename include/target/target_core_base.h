@@ -420,7 +420,7 @@ struct se_tmr_req {
 	u8			response;
 	int			call_transport;
 	/* Reference to ITT that Task Mgmt should be performed */
-	u32			ref_task_tag;
+	u64			ref_task_tag;
 	void 			*fabric_tmr_ptr;
 	struct se_cmd		*task_cmd;
 	struct se_device	*tmr_dev;
@@ -473,6 +473,7 @@ struct se_cmd {
 	u8			scsi_asc;
 	u8			scsi_ascq;
 	u16			scsi_sense_length;
+	u64			tag; /* SAM command identifier aka task tag */
 	/* Delay for ALUA Active/NonOptimized state access in milliseconds */
 	int			alua_nonop_delay;
 	/* See include/linux/dma-mapping.h */

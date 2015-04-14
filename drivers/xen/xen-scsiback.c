@@ -400,6 +400,7 @@ static void scsiback_cmd_exec(struct vscsibk_pend *pending_req)
 	memset(se_cmd, 0, sizeof(*se_cmd));
 
 	scsiback_get(pending_req->info);
+	se_cmd->tag = pending_req->rqid;
 	rc = target_submit_cmd_map_sgls(se_cmd, sess, pending_req->cmnd,
 			pending_req->sense_buffer, pending_req->v2p->lun,
 			pending_req->data_len, 0,
@@ -1394,14 +1395,6 @@ static void scsiback_set_default_node_attrs(struct se_node_acl *nacl)
 {
 }
 
-static u32 scsiback_get_task_tag(struct se_cmd *se_cmd)
-{
-	struct vscsibk_pend *pending_req = container_of(se_cmd,
-				struct vscsibk_pend, se_cmd);
-
-	return pending_req->rqid;
-}
-
 static int scsiback_get_cmd_state(struct se_cmd *se_cmd)
 {
 	return 0;
@@ -1833,7 +1826,6 @@ static const struct target_core_fabric_ops scsiback_ops = {
 	.write_pending			= scsiback_write_pending,
 	.write_pending_status		= scsiback_write_pending_status,
 	.set_default_node_attributes	= scsiback_set_default_node_attrs,
-	.get_task_tag			= scsiback_get_task_tag,
 	.get_cmd_state			= scsiback_get_cmd_state,
 	.queue_data_in			= scsiback_queue_data_in,
 	.queue_status			= scsiback_queue_status,

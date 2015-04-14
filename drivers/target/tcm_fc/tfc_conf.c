@@ -468,7 +468,6 @@ static const struct target_core_fabric_ops ft_fabric_ops = {
 	.write_pending =		ft_write_pending,
 	.write_pending_status =		ft_write_pending_status,
 	.set_default_node_attributes =	ft_set_default_node_attr,
-	.get_task_tag =			ft_get_task_tag,
 	.get_cmd_state =		ft_get_cmd_state,
 	.queue_data_in =		ft_queue_data_in,
 	.queue_status =			ft_queue_status,

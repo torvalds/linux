@@ -1112,6 +1112,7 @@ static int usbg_submit_command(struct f_uas *fu,
 	memcpy(cmd->cmd_buf, cmd_iu->cdb, cmd_len);
 
 	cmd->tag = be16_to_cpup(&cmd_iu->tag);
+	cmd->se_cmd.tag = cmd->tag;
 	if (fu->flags & USBG_USE_STREAMS) {
 		if (cmd->tag > UASP_SS_EP_COMP_NUM_STREAMS)
 			goto err;
@@ -1245,6 +1246,7 @@ static int bot_submit_command(struct f_uas *fu,
 	cmd->unpacked_lun = cbw->Lun;
 	cmd->is_read = cbw->Flags & US_BULK_FLAG_IN ? 1 : 0;
 	cmd->data_len = le32_to_cpu(cbw->DataTransferLength);
+	cmd->se_cmd.tag = le32_to_cpu(cmd->bot_tag);
 
 	INIT_WORK(&cmd->work, bot_cmd_work);
 	ret = queue_work(tpg->workqueue, &cmd->work);
@@ -1338,18 +1340,6 @@ static int usbg_write_pending_status(struct se_cmd *se_cmd)
 static void usbg_set_default_node_attrs(struct se_node_acl *nacl)
 {
 	return;
-}
-
-static u32 usbg_get_task_tag(struct se_cmd *se_cmd)
-{
-	struct usbg_cmd *cmd = container_of(se_cmd, struct usbg_cmd,
-			se_cmd);
-	struct f_uas *fu = cmd->fu;
-
-	if (fu->flags & USBG_IS_BOT)
-		return le32_to_cpu(cmd->bot_tag);
-	else
-		return cmd->tag;
 }
 
 static int usbg_get_cmd_state(struct se_cmd *se_cmd)
@@ -1739,7 +1729,6 @@ static const struct target_core_fabric_ops usbg_ops = {
 	.write_pending			= usbg_send_write_request,
 	.write_pending_status		= usbg_write_pending_status,
 	.set_default_node_attributes	= usbg_set_default_node_attrs,
-	.get_task_tag			= usbg_get_task_tag,
 	.get_cmd_state			= usbg_get_cmd_state,
 	.queue_data_in			= usbg_send_read_response,
 	.queue_status			= usbg_send_status_response,

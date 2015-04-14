@@ -1234,6 +1234,8 @@ static void sbp_handle_command(struct sbp_target_request *req)
 	pr_debug("sbp_handle_command ORB:0x%llx unpacked_lun:%d data_len:%d data_dir:%d\n",
 			req->orb_pointer, unpacked_lun, data_length, data_dir);
 
+	/* only used for printk until we do TMRs */
+	req->se_cmd.tag = req->orb_pointer;
 	if (target_submit_cmd(&req->se_cmd, sess->se_sess, req->cmd_buf,
 			      req->sense_buf, unpacked_lun, data_length,
 			      TCM_SIMPLE_TAG, data_dir, 0))
@@ -1766,15 +1768,6 @@ static int sbp_write_pending_status(struct se_cmd *se_cmd)
 static void sbp_set_default_node_attrs(struct se_node_acl *nacl)
 {
 	return;
-}
-
-static u32 sbp_get_task_tag(struct se_cmd *se_cmd)
-{
-	struct sbp_target_request *req = container_of(se_cmd,
-			struct sbp_target_request, se_cmd);
-
-	/* only used for printk until we do TMRs */
-	return (u32)req->orb_pointer;
 }
 
 static int sbp_get_cmd_state(struct se_cmd *se_cmd)
@@ -2377,7 +2370,6 @@ static const struct target_core_fabric_ops sbp_ops = {
 	.write_pending			= sbp_write_pending,
 	.write_pending_status		= sbp_write_pending_status,
 	.set_default_node_attributes	= sbp_set_default_node_attrs,
-	.get_task_tag			= sbp_get_task_tag,
 	.get_cmd_state			= sbp_get_cmd_state,
 	.queue_data_in			= sbp_queue_data_in,
 	.queue_status			= sbp_queue_status,

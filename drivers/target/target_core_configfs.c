@@ -374,10 +374,6 @@ static int target_fabric_tf_ops_check(const struct target_core_fabric_ops *tfo)
 		pr_err("Missing tfo->set_default_node_attributes()\n");
 		return -EINVAL;
 	}
-	if (!tfo->get_task_tag) {
-		pr_err("Missing tfo->get_task_tag()\n");
-		return -EINVAL;
-	}
 	if (!tfo->get_cmd_state) {
 		pr_err("Missing tfo->get_cmd_state()\n");
 		return -EINVAL;

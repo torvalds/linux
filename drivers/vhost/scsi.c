@@ -369,11 +369,6 @@ static void vhost_scsi_set_default_node_attrs(struct se_node_acl *nacl)
 	return;
 }
 
-static u32 vhost_scsi_get_task_tag(struct se_cmd *se_cmd)
-{
-	return 0;
-}
-
 static int vhost_scsi_get_cmd_state(struct se_cmd *se_cmd)
 {
 	return 0;
@@ -818,6 +813,7 @@ static void vhost_scsi_submission_work(struct work_struct *work)
 	}
 	tv_nexus = cmd->tvc_nexus;
 
+	se_cmd->tag = 0;
 	rc = target_submit_cmd_map_sgls(se_cmd, tv_nexus->tvn_se_sess,
 			cmd->tvc_cdb, &cmd->tvc_sense_buf[0],
 			cmd->tvc_lun, cmd->tvc_exp_data_len,
@@ -2148,7 +2144,6 @@ static struct target_core_fabric_ops vhost_scsi_ops = {
 	.write_pending			= vhost_scsi_write_pending,
 	.write_pending_status		= vhost_scsi_write_pending_status,
 	.set_default_node_attributes	= vhost_scsi_set_default_node_attrs,
-	.get_task_tag			= vhost_scsi_get_task_tag,
 	.get_cmd_state			= vhost_scsi_get_cmd_state,
 	.queue_data_in			= vhost_scsi_queue_data_in,
 	.queue_status			= vhost_scsi_queue_status,

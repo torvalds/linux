@@ -165,6 +165,7 @@ static void tcm_loop_submission_work(struct work_struct *work)
 		transfer_length = scsi_bufflen(sc);
 	}
 
+	se_cmd->tag = tl_cmd->sc_cmd_tag;
 	rc = target_submit_cmd_map_sgls(se_cmd, tl_nexus->se_sess, sc->cmnd,
 			&tl_cmd->tl_sense_buf[0], tl_cmd->sc->device->lun,
 			transfer_length, TCM_SIMPLE_TAG,
@@ -595,14 +596,6 @@ static u32 tcm_loop_sess_get_index(struct se_session *se_sess)
 static void tcm_loop_set_default_node_attributes(struct se_node_acl *se_acl)
 {
 	return;
-}
-
-static u32 tcm_loop_get_task_tag(struct se_cmd *se_cmd)
-{
-	struct tcm_loop_cmd *tl_cmd = container_of(se_cmd,
-			struct tcm_loop_cmd, tl_se_cmd);
-
-	return tl_cmd->sc_cmd_tag;
 }
 
 static int tcm_loop_get_cmd_state(struct se_cmd *se_cmd)
@@ -1259,7 +1252,6 @@ static const struct target_core_fabric_ops loop_ops = {
 	.write_pending			= tcm_loop_write_pending,
 	.write_pending_status		= tcm_loop_write_pending_status,
 	.set_default_node_attributes	= tcm_loop_set_default_node_attributes,
-	.get_task_tag			= tcm_loop_get_task_tag,
 	.get_cmd_state			= tcm_loop_get_cmd_state,
 	.queue_data_in			= tcm_loop_queue_data_in,
 	.queue_status			= tcm_loop_queue_status,
