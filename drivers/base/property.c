@@ -365,7 +365,7 @@ int fwnode_property_read_string(struct fwnode_handle *fwnode,
 				const char *propname, const char **val)
 {
 	if (is_of_node(fwnode))
-		return of_property_read_string(of_node(fwnode),propname, val);
+		return of_property_read_string(of_node(fwnode), propname, val);
 	else if (is_acpi_node(fwnode))
 		return acpi_dev_prop_read(acpi_node(fwnode), propname,
 					  DEV_PROP_STRING, val, 1);

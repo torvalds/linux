@@ -101,6 +101,15 @@ int platform_get_irq(struct platform_device *dev, unsigned int num)
 	}
 
 	r = platform_get_resource(dev, IORESOURCE_IRQ, num);
+	/*
+	 * The resources may pass trigger flags to the irqs that need
+	 * to be set up. It so happens that the trigger flags for
+	 * IORESOURCE_BITS correspond 1-to-1 to the IRQF_TRIGGER*
+	 * settings.
+	 */
+	if (r && r->flags & IORESOURCE_BITS)
+		irqd_set_trigger_type(irq_get_irq_data(r->start),
+				      r->flags & IORESOURCE_BITS);
 
 	return r ? r->start : -ENXIO;
 #endif
