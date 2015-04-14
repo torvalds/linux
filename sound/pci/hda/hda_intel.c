@@ -568,6 +568,9 @@ static int azx_position_ok(struct azx *chip, struct azx_dev *azx_dev)
 			dev_info(chip->card->dev,
 				 "Invalid position buffer, using LPIB read method instead.\n");
 			chip->get_position[stream] = azx_get_pos_lpib;
+			if (chip->get_position[0] == azx_get_pos_lpib &&
+			    chip->get_position[1] == azx_get_pos_lpib)
+				azx_bus(chip)->use_posbuf = false;
 			pos = azx_get_pos_lpib(chip, azx_dev);
 			chip->get_delay[stream] = NULL;
 		} else {
@@ -1477,6 +1480,7 @@ static int azx_first_init(struct azx *chip)
 		dev_err(card->dev, "ioremap error\n");
 		return -ENXIO;
 	}
+	azx_bus(chip)->remap_addr = chip->remap_addr; /* FIXME */
 
 	if (chip->msi) {
 		if (chip->driver_caps & AZX_DCAPS_NO_MSI64) {

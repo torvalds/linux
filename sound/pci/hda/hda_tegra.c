@@ -325,6 +325,7 @@ static int hda_tegra_init_chip(struct azx *chip, struct platform_device *pdev)
 		return PTR_ERR(hda->regs);
 
 	chip->remap_addr = hda->regs + HDA_BAR0;
+	azx_bus(chip)->remap_addr = chip->remap_addr; /* FIXME */
 	chip->addr = res->start + HDA_BAR0;
 
 	err = hda_tegra_enable_clocks(hda);
