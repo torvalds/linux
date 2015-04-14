@@ -158,8 +158,7 @@ struct tpm_vendor_specific {
 
 enum tpm_chip_flags {
 	TPM_CHIP_FLAG_REGISTERED	= BIT(0),
-	TPM_CHIP_FLAG_PPI		= BIT(1),
-	TPM_CHIP_FLAG_TPM2		= BIT(2),
+	TPM_CHIP_FLAG_TPM2		= BIT(1),
 };
 
 struct tpm_chip {
@@ -182,6 +181,8 @@ struct tpm_chip {
 	struct dentry **bios_dir;
 
 #ifdef CONFIG_ACPI
+	const struct attribute_group *groups[2];
+	unsigned int groups_cnt;
 	acpi_handle acpi_dev_handle;
 	char ppi_version[TPM_PPI_VERSION_LEN + 1];
 #endif /* CONFIG_ACPI */
@@ -189,7 +190,7 @@ struct tpm_chip {
 	struct list_head list;
 };
 
-#define to_tpm_chip(n) container_of(n, struct tpm_chip, vendor)
+#define to_tpm_chip(d) container_of(d, struct tpm_chip, dev)
 
 static inline void tpm_chip_put(struct tpm_chip *chip)
 {
@@ -419,15 +420,9 @@ void tpm_sysfs_del_device(struct tpm_chip *chip);
 int tpm_pcr_read_dev(struct tpm_chip *chip, int pcr_idx, u8 *res_buf);
 
 #ifdef CONFIG_ACPI
-extern int tpm_add_ppi(struct tpm_chip *chip);
-extern void tpm_remove_ppi(struct tpm_chip *chip);
+extern void tpm_add_ppi(struct tpm_chip *chip);
 #else
-static inline int tpm_add_ppi(struct tpm_chip *chip)
-{
-	return 0;
-}
-
-static inline void tpm_remove_ppi(struct tpm_chip *chip)
+static inline void tpm_add_ppi(struct tpm_chip *chip)
 {
 }
 #endif
