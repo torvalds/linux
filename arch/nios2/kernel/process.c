@@ -94,7 +94,6 @@ void show_regs(struct pt_regs *regs)
 
 void flush_thread(void)
 {
-	set_fs(USER_DS);
 }
 
 int copy_thread(unsigned long clone_flags,

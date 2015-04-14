@@ -1034,19 +1034,16 @@ static int smack_inode_setattr(struct dentry *dentry, struct iattr *iattr)
  *
  * Returns 0 if access is permitted, an error code otherwise
  */
-static int smack_inode_getattr(struct vfsmount *mnt, struct dentry *dentry)
+static int smack_inode_getattr(const struct path *path)
 {
 	struct smk_audit_info ad;
-	struct path path;
+	struct inode *inode = path->dentry->d_inode;
 	int rc;
 
-	path.dentry = dentry;
-	path.mnt = mnt;
-
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
-	smk_ad_setfield_u_fs_path(&ad, path);
-	rc = smk_curacc(smk_of_inode(dentry->d_inode), MAY_READ, &ad);
-	rc = smk_bu_inode(dentry->d_inode, MAY_READ, rc);
+	smk_ad_setfield_u_fs_path(&ad, *path);
+	rc = smk_curacc(smk_of_inode(inode), MAY_READ, &ad);
+	rc = smk_bu_inode(inode, MAY_READ, rc);
 	return rc;
 }
 

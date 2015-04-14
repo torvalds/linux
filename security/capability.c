@@ -225,7 +225,7 @@ static int cap_inode_setattr(struct dentry *dentry, struct iattr *iattr)
 	return 0;
 }
 
-static int cap_inode_getattr(struct vfsmount *mnt, struct dentry *dentry)
+static int cap_inode_getattr(const struct path *path)
 {
 	return 0;
 }

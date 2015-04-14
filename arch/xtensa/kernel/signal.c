@@ -405,11 +405,6 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set,
 	regs->areg[8] = (unsigned long) &frame->uc;
 	regs->threadptr = tp;
 
-	/* Set access mode to USER_DS.  Nomenclature is outdated, but
-	 * functionality is used in uaccess.h
-	 */
-	set_fs(USER_DS);
-
 #if DEBUG_SIG
 	printk("SIG rt deliver (%s:%d): signal=%d sp=%p pc=%08x\n",
 		current->comm, current->pid, signal, frame, regs->pc);

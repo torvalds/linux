@@ -1556,7 +1556,7 @@ struct security_operations {
 	int (*inode_follow_link) (struct dentry *dentry, struct nameidata *nd);
 	int (*inode_permission) (struct inode *inode, int mask);
 	int (*inode_setattr)	(struct dentry *dentry, struct iattr *attr);
-	int (*inode_getattr) (struct vfsmount *mnt, struct dentry *dentry);
+	int (*inode_getattr) (const struct path *path);
 	int (*inode_setxattr) (struct dentry *dentry, const char *name,
 			       const void *value, size_t size, int flags);
 	void (*inode_post_setxattr) (struct dentry *dentry, const char *name,
@@ -1843,7 +1843,7 @@ int security_inode_readlink(struct dentry *dentry);
 int security_inode_follow_link(struct dentry *dentry, struct nameidata *nd);
 int security_inode_permission(struct inode *inode, int mask);
 int security_inode_setattr(struct dentry *dentry, struct iattr *attr);
-int security_inode_getattr(struct vfsmount *mnt, struct dentry *dentry);
+int security_inode_getattr(const struct path *path);
 int security_inode_setxattr(struct dentry *dentry, const char *name,
 			    const void *value, size_t size, int flags);
 void security_inode_post_setxattr(struct dentry *dentry, const char *name,
@@ -2259,8 +2259,7 @@ static inline int security_inode_setattr(struct dentry *dentry,
 	return 0;
 }
 
-static inline int security_inode_getattr(struct vfsmount *mnt,
-					  struct dentry *dentry)
+static inline int security_inode_getattr(const struct path *path)
 {
 	return 0;
 }

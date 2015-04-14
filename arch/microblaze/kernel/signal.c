@@ -236,8 +236,6 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	/* Offset to handle microblaze rtid r14, 0 */
 	regs->pc = (unsigned long)ksig->ka.sa.sa_handler;
 
-	set_fs(USER_DS);
-
 #ifdef DEBUG_SIG
 	pr_info("SIG deliver (%s:%d): sp=%p pc=%08lx\n",
 		current->comm, current->pid, frame, regs->pc);

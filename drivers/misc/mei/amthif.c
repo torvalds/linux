@@ -19,7 +19,6 @@
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/fcntl.h>
-#include <linux/aio.h>
 #include <linux/ioctl.h>
 #include <linux/cdev.h>
 #include <linux/list.h>
