@@ -82,11 +82,11 @@ static int iser_prepare_read_cmd(struct iscsi_task *task)
 
 	hdr->flags    |= ISER_RSV;
 	hdr->read_stag = cpu_to_be32(mem_reg->rkey);
-	hdr->read_va   = cpu_to_be64(mem_reg->va);
+	hdr->read_va   = cpu_to_be64(mem_reg->sge.addr);
 
 	iser_dbg("Cmd itt:%d READ tags RKEY:%#.4X VA:%#llX\n",
 		 task->itt, mem_reg->rkey,
-		 (unsigned long long)mem_reg->va);
+		 (unsigned long long)mem_reg->sge.addr);
 
 	return 0;
 }
@@ -139,20 +139,20 @@ iser_prepare_write_cmd(struct iscsi_task *task,
 	if (unsol_sz < edtl) {
 		hdr->flags     |= ISER_WSV;
 		hdr->write_stag = cpu_to_be32(mem_reg->rkey);
-		hdr->write_va   = cpu_to_be64(mem_reg->va + unsol_sz);
+		hdr->write_va   = cpu_to_be64(mem_reg->sge.addr + unsol_sz);
 
 		iser_dbg("Cmd itt:%d, WRITE tags, RKEY:%#.4X "
 			 "VA:%#llX + unsol:%d\n",
 			 task->itt, mem_reg->rkey,
-			 (unsigned long long)mem_reg->va, unsol_sz);
+			 (unsigned long long)mem_reg->sge.addr, unsol_sz);
 	}
 
 	if (imm_sz > 0) {
 		iser_dbg("Cmd itt:%d, WRITE, adding imm.data sz: %d\n",
 			 task->itt, imm_sz);
-		tx_dsg->addr   = mem_reg->va;
+		tx_dsg->addr = mem_reg->sge.addr;
 		tx_dsg->length = imm_sz;
-		tx_dsg->lkey   = mem_reg->lkey;
+		tx_dsg->lkey = mem_reg->sge.lkey;
 		iser_task->desc.num_sge = 2;
 	}
 
@@ -479,9 +479,9 @@ int iser_send_data_out(struct iscsi_conn *conn,
 
 	mem_reg = &iser_task->rdma_reg[ISER_DIR_OUT];
 	tx_dsg = &tx_desc->tx_sg[1];
-	tx_dsg->addr    = mem_reg->va + buf_offset;
-	tx_dsg->length  = data_seg_len;
-	tx_dsg->lkey    = mem_reg->lkey;
+	tx_dsg->addr = mem_reg->sge.addr + buf_offset;
+	tx_dsg->length = data_seg_len;
+	tx_dsg->lkey = mem_reg->sge.lkey;
 	tx_desc->num_sge = 2;
 
 	if (buf_offset + data_seg_len > iser_task->data[ISER_DIR_OUT].data_len) {

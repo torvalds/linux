@@ -400,10 +400,10 @@ int iser_reg_page_vec(struct iscsi_iser_task *iser_task,
 		return ret;
 	}
 
-	mem_reg->lkey = fmr->fmr->lkey;
+	mem_reg->sge.lkey = fmr->fmr->lkey;
 	mem_reg->rkey = fmr->fmr->rkey;
-	mem_reg->va = page_vec->pages[0] + page_vec->offset;
-	mem_reg->len = page_vec->data_size;
+	mem_reg->sge.addr = page_vec->pages[0] + page_vec->offset;
+	mem_reg->sge.length = page_vec->data_size;
 	mem_reg->mem_h = fmr;
 
 	return 0;
@@ -479,17 +479,17 @@ int iser_reg_rdma_mem_fmr(struct iscsi_iser_task *iser_task,
 	if (mem->dma_nents == 1) {
 		sg = mem->sg;
 
-		mem_reg->lkey = device->mr->lkey;
+		mem_reg->sge.lkey = device->mr->lkey;
 		mem_reg->rkey = device->mr->rkey;
-		mem_reg->len  = ib_sg_dma_len(ibdev, &sg[0]);
-		mem_reg->va   = ib_sg_dma_address(ibdev, &sg[0]);
+		mem_reg->sge.length = ib_sg_dma_len(ibdev, &sg[0]);
+		mem_reg->sge.addr = ib_sg_dma_address(ibdev, &sg[0]);
 
 		iser_dbg("PHYSICAL Mem.register: lkey: 0x%08X rkey: 0x%08X  "
 			 "va: 0x%08lX sz: %ld]\n",
-			 (unsigned int)mem_reg->lkey,
+			 (unsigned int)mem_reg->sge.lkey,
 			 (unsigned int)mem_reg->rkey,
-			 (unsigned long)mem_reg->va,
-			 (unsigned long)mem_reg->len);
+			 (unsigned long)mem_reg->sge.addr,
+			 (unsigned long)mem_reg->sge.length);
 	} else { /* use FMR for multiple dma entries */
 		err = iser_reg_page_vec(iser_task, mem, ib_conn->fmr.page_vec,
 					mem_reg);
@@ -799,19 +799,19 @@ int iser_reg_rdma_mem_fastreg(struct iscsi_iser_task *iser_task,
 		}
 		desc->reg_indicators |= ISER_FASTREG_PROTECTED;
 
-		mem_reg->lkey = sig_sge.lkey;
+		mem_reg->sge.lkey = sig_sge.lkey;
 		mem_reg->rkey = desc->pi_ctx->sig_mr->rkey;
-		mem_reg->va = sig_sge.addr;
-		mem_reg->len = sig_sge.length;
+		mem_reg->sge.addr = sig_sge.addr;
+		mem_reg->sge.length = sig_sge.length;
 	} else {
 		if (desc)
 			mem_reg->rkey = desc->data_mr->rkey;
 		else
 			mem_reg->rkey = device->mr->rkey;
 
-		mem_reg->lkey = data_sge.lkey;
-		mem_reg->va = data_sge.addr;
-		mem_reg->len = data_sge.length;
+		mem_reg->sge.lkey = data_sge.lkey;
+		mem_reg->sge.addr = data_sge.addr;
+		mem_reg->sge.length = data_sge.length;
 	}
 
 	return 0;

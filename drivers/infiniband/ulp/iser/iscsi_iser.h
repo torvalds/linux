@@ -247,18 +247,14 @@ struct iscsi_endpoint;
 /**
  * struct iser_mem_reg - iSER memory registration info
  *
- * @lkey:         MR local key
- * @rkey:         MR remote key
- * @va:           MR start address (buffer va)
- * @len:          MR length
+ * @sge:          memory region sg element
+ * @rkey:         memory region remote key
  * @mem_h:        pointer to registration context (FMR/Fastreg)
  */
 struct iser_mem_reg {
-	u32  lkey;
-	u32  rkey;
-	u64  va;
-	u64  len;
-	void *mem_h;
+	struct ib_sge	 sge;
+	u32		 rkey;
+	void		*mem_h;
 };
 
 enum iser_desc_type {
