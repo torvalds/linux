@@ -104,27 +104,6 @@ static inline int hrtimer_clockid_to_base(clockid_t clock_id)
 	return hrtimer_clock_to_base_table[clock_id];
 }
 
-
-/*
- * Get the coarse grained time at the softirq based on xtime and
- * wall_to_monotonic.
- */
-static void hrtimer_get_softirq_time(struct hrtimer_cpu_base *base)
-{
-	ktime_t xtim, mono, boot, tai;
-	ktime_t off_real, off_boot, off_tai;
-
-	mono = ktime_get_update_offsets_tick(&off_real, &off_boot, &off_tai);
-	boot = ktime_add(mono, off_boot);
-	xtim = ktime_add(mono, off_real);
-	tai = ktime_add(mono, off_tai);
-
-	base->clock_base[HRTIMER_BASE_REALTIME].softirq_time = xtim;
-	base->clock_base[HRTIMER_BASE_MONOTONIC].softirq_time = mono;
-	base->clock_base[HRTIMER_BASE_BOOTTIME].softirq_time = boot;
-	base->clock_base[HRTIMER_BASE_TAI].softirq_time = tai;
-}
-
 /*
  * Functions and macros which are different for UP/SMP systems are kept in a
  * single place
@@ -466,6 +445,15 @@ static ktime_t __hrtimer_get_next_event(struct hrtimer_cpu_base *cpu_base)
 }
 #endif
 
+static inline ktime_t hrtimer_update_base(struct hrtimer_cpu_base *base)
+{
+	ktime_t *offs_real = &base->clock_base[HRTIMER_BASE_REALTIME].offset;
+	ktime_t *offs_boot = &base->clock_base[HRTIMER_BASE_BOOTTIME].offset;
+	ktime_t *offs_tai = &base->clock_base[HRTIMER_BASE_TAI].offset;
+
+	return ktime_get_update_offsets_now(offs_real, offs_boot, offs_tai);
+}
+
 /* High resolution timer related functions */
 #ifdef CONFIG_HIGH_RES_TIMERS
 
@@ -516,7 +504,12 @@ static inline int hrtimer_hres_active(void)
 static void
 hrtimer_force_reprogram(struct hrtimer_cpu_base *cpu_base, int skip_equal)
 {
-	ktime_t expires_next = __hrtimer_get_next_event(cpu_base);
+	ktime_t expires_next;
+
+	if (!cpu_base->hres_active)
+		return;
+
+	expires_next = __hrtimer_get_next_event(cpu_base);
 
 	if (skip_equal && expires_next.tv64 == cpu_base->expires_next.tv64)
 		return;
@@ -623,15 +616,6 @@ static inline void hrtimer_init_hres(struct hrtimer_cpu_base *base)
 {
 	base->expires_next.tv64 = KTIME_MAX;
 	base->hres_active = 0;
-}
-
-static inline ktime_t hrtimer_update_base(struct hrtimer_cpu_base *base)
-{
-	ktime_t *offs_real = &base->clock_base[HRTIMER_BASE_REALTIME].offset;
-	ktime_t *offs_boot = &base->clock_base[HRTIMER_BASE_BOOTTIME].offset;
-	ktime_t *offs_tai = &base->clock_base[HRTIMER_BASE_TAI].offset;
-
-	return ktime_get_update_offsets_now(offs_real, offs_boot, offs_tai);
 }
 
 /*
@@ -1179,10 +1163,10 @@ void hrtimer_init(struct hrtimer *timer, clockid_t clock_id,
 }
 EXPORT_SYMBOL_GPL(hrtimer_init);
 
-static void __run_hrtimer(struct hrtimer *timer, ktime_t *now)
+static void __run_hrtimer(struct hrtimer_cpu_base *cpu_base,
+			  struct hrtimer_clock_base *base,
+			  struct hrtimer *timer, ktime_t *now)
 {
-	struct hrtimer_clock_base *base = timer->base;
-	struct hrtimer_cpu_base *cpu_base = base->cpu_base;
 	enum hrtimer_restart (*fn)(struct hrtimer *);
 	int restart;
 
@@ -1219,34 +1203,9 @@ static void __run_hrtimer(struct hrtimer *timer, ktime_t *now)
 	timer->state &= ~HRTIMER_STATE_CALLBACK;
 }
 
-#ifdef CONFIG_HIGH_RES_TIMERS
-
-/*
- * High resolution timer interrupt
- * Called with interrupts disabled
- */
-void hrtimer_interrupt(struct clock_event_device *dev)
+static void __hrtimer_run_queues(struct hrtimer_cpu_base *cpu_base, ktime_t now)
 {
-	struct hrtimer_cpu_base *cpu_base = this_cpu_ptr(&hrtimer_bases);
-	ktime_t expires_next, now, entry_time, delta;
-	int i, retries = 0;
-
-	BUG_ON(!cpu_base->hres_active);
-	cpu_base->nr_events++;
-	dev->next_event.tv64 = KTIME_MAX;
-
-	raw_spin_lock(&cpu_base->lock);
-	entry_time = now = hrtimer_update_base(cpu_base);
-retry:
-	cpu_base->in_hrtirq = 1;
-	/*
-	 * We set expires_next to KTIME_MAX here with cpu_base->lock
-	 * held to prevent that a timer is enqueued in our queue via
-	 * the migration code. This does not affect enqueueing of
-	 * timers which run their callback and need to be requeued on
-	 * this CPU.
-	 */
-	cpu_base->expires_next.tv64 = KTIME_MAX;
+	int i;
 
 	for (i = 0; i < HRTIMER_MAX_CLOCK_BASES; i++) {
 		struct hrtimer_clock_base *base;
@@ -1279,9 +1238,42 @@ retry:
 			if (basenow.tv64 < hrtimer_get_softexpires_tv64(timer))
 				break;
 
-			__run_hrtimer(timer, &basenow);
+			__run_hrtimer(cpu_base, base, timer, &basenow);
 		}
 	}
+}
+
+#ifdef CONFIG_HIGH_RES_TIMERS
+
+/*
+ * High resolution timer interrupt
+ * Called with interrupts disabled
+ */
+void hrtimer_interrupt(struct clock_event_device *dev)
+{
+	struct hrtimer_cpu_base *cpu_base = this_cpu_ptr(&hrtimer_bases);
+	ktime_t expires_next, now, entry_time, delta;
+	int retries = 0;
+
+	BUG_ON(!cpu_base->hres_active);
+	cpu_base->nr_events++;
+	dev->next_event.tv64 = KTIME_MAX;
+
+	raw_spin_lock(&cpu_base->lock);
+	entry_time = now = hrtimer_update_base(cpu_base);
+retry:
+	cpu_base->in_hrtirq = 1;
+	/*
+	 * We set expires_next to KTIME_MAX here with cpu_base->lock
+	 * held to prevent that a timer is enqueued in our queue via
+	 * the migration code. This does not affect enqueueing of
+	 * timers which run their callback and need to be requeued on
+	 * this CPU.
+	 */
+	cpu_base->expires_next.tv64 = KTIME_MAX;
+
+	__hrtimer_run_queues(cpu_base, now);
+
 	/* Reevaluate the clock bases for the next expiry */
 	expires_next = __hrtimer_get_next_event(cpu_base);
 	/*
@@ -1416,38 +1408,16 @@ void hrtimer_run_pending(void)
  */
 void hrtimer_run_queues(void)
 {
-	struct timerqueue_node *node;
 	struct hrtimer_cpu_base *cpu_base = this_cpu_ptr(&hrtimer_bases);
-	struct hrtimer_clock_base *base;
-	int index, gettime = 1;
+	ktime_t now;
 
 	if (hrtimer_hres_active())
 		return;
 
-	for (index = 0; index < HRTIMER_MAX_CLOCK_BASES; index++) {
-		base = &cpu_base->clock_base[index];
-		if (!timerqueue_getnext(&base->active))
-			continue;
-
-		if (gettime) {
-			hrtimer_get_softirq_time(cpu_base);
-			gettime = 0;
-		}
-
-		raw_spin_lock(&cpu_base->lock);
-
-		while ((node = timerqueue_getnext(&base->active))) {
-			struct hrtimer *timer;
-
-			timer = container_of(node, struct hrtimer, node);
-			if (base->softirq_time.tv64 <=
-					hrtimer_get_expires_tv64(timer))
-				break;
-
-			__run_hrtimer(timer, &base->softirq_time);
-		}
-		raw_spin_unlock(&cpu_base->lock);
-	}
+	raw_spin_lock(&cpu_base->lock);
+	now = hrtimer_update_base(cpu_base);
+	__hrtimer_run_queues(cpu_base, now);
+	raw_spin_unlock(&cpu_base->lock);
 }
 
 /*

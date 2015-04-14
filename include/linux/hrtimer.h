@@ -138,7 +138,6 @@ struct hrtimer_sleeper {
  * @clockid:		clock id for per_cpu support
  * @active:		red black tree root node for the active timers
  * @get_time:		function to retrieve the current time of the clock
- * @softirq_time:	the time when running the hrtimer queue in the softirq
  * @offset:		offset of this clock to the monotonic base
  */
 struct hrtimer_clock_base {
@@ -147,7 +146,6 @@ struct hrtimer_clock_base {
 	clockid_t		clockid;
 	struct timerqueue_head	active;
 	ktime_t			(*get_time)(void);
-	ktime_t			softirq_time;
 	ktime_t			offset;
 };
 
@@ -260,18 +258,15 @@ static inline ktime_t hrtimer_expires_remaining(const struct hrtimer *timer)
 	return ktime_sub(timer->node.expires, timer->base->get_time());
 }
 
-#ifdef CONFIG_HIGH_RES_TIMERS
-struct clock_event_device;
-
-extern void hrtimer_interrupt(struct clock_event_device *dev);
-
-/*
- * In high resolution mode the time reference must be read accurate
- */
 static inline ktime_t hrtimer_cb_get_time(struct hrtimer *timer)
 {
 	return timer->base->get_time();
 }
+
+#ifdef CONFIG_HIGH_RES_TIMERS
+struct clock_event_device;
+
+extern void hrtimer_interrupt(struct clock_event_device *dev);
 
 static inline int hrtimer_is_hres_active(struct hrtimer *timer)
 {
@@ -303,15 +298,6 @@ extern unsigned int hrtimer_resolution;
 #define hrtimer_resolution	LOW_RES_NSEC
 
 static inline void hrtimer_peek_ahead_timers(void) { }
-
-/*
- * In non high resolution mode the time reference is taken from
- * the base softirq time variable.
- */
-static inline ktime_t hrtimer_cb_get_time(struct hrtimer *timer)
-{
-	return timer->base->softirq_time;
-}
 
 static inline int hrtimer_is_hres_active(struct hrtimer *timer)
 {

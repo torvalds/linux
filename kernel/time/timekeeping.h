@@ -3,9 +3,6 @@
 /*
  * Internal interfaces for kernel/time/
  */
-extern ktime_t ktime_get_update_offsets_tick(ktime_t *offs_real,
-						ktime_t *offs_boot,
-						ktime_t *offs_tai);
 extern ktime_t ktime_get_update_offsets_now(ktime_t *offs_real,
 						ktime_t *offs_boot,
 						ktime_t *offs_tai);
