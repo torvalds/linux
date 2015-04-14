@@ -466,7 +466,8 @@ void rk_display_device_enable(struct rk_display_device *ddev)
 		if (dev_enable != ddev)
 			ddev->ops->setenable(ddev, 0);
 	} else {
-		if (dev_enabled)
+		if (dev_enabled &&
+		    dev_enabled->priority != DISPLAY_PRIORITY_HDMI)
 			dev_enabled->ops->setenable(dev_enabled, 0);
 		dev_enable->ops->setenable(dev_enable, 1);
 	}
