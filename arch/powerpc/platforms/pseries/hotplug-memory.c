@@ -369,6 +369,19 @@ static inline int dlpar_memory_remove(struct pseries_hp_errorlog *hp_elog)
 {
 	return -EOPNOTSUPP;
 }
+static int dlpar_remove_lmb(struct of_drconf_cell *lmb)
+{
+	return -EOPNOTSUPP;
+}
+static int dlpar_memory_remove_by_count(u32 lmbs_to_remove,
+					struct property *prop)
+{
+	return -EOPNOTSUPP;
+}
+static int dlpar_memory_remove_by_index(u32 drc_index, struct property *prop)
+{
+	return -EOPNOTSUPP;
+}
 
 #endif /* CONFIG_MEMORY_HOTREMOVE */
 
