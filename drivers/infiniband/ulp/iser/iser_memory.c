@@ -334,19 +334,19 @@ void iser_dma_unmap_task_data(struct iscsi_iser_task *iser_task,
 }
 
 static int fall_to_bounce_buf(struct iscsi_iser_task *iser_task,
-			      struct ib_device *ibdev,
 			      struct iser_data_buf *mem,
 			      enum iser_data_dir cmd_dir,
 			      int aligned_len)
 {
-	struct iscsi_conn    *iscsi_conn = iser_task->iser_conn->iscsi_conn;
+	struct iscsi_conn *iscsi_conn = iser_task->iser_conn->iscsi_conn;
+	struct iser_device *device = iser_task->iser_conn->ib_conn.device;
 
 	iscsi_conn->fmr_unalign_cnt++;
 	iser_warn("rdma alignment violation (%d/%d aligned) or FMR not supported\n",
 		  aligned_len, mem->size);
 
 	if (iser_debug_level > 0)
-		iser_data_buf_dump(mem, ibdev);
+		iser_data_buf_dump(mem, device->ib_device);
 
 	/* unmap the command data before accessing it */
 	iser_dma_unmap_task_data(iser_task, mem,
@@ -384,7 +384,7 @@ int iser_reg_rdma_mem_fmr(struct iscsi_iser_task *iser_task,
 
 	aligned_len = iser_data_buf_aligned_len(mem, ibdev);
 	if (aligned_len != mem->dma_nents) {
-		err = fall_to_bounce_buf(iser_task, ibdev, mem,
+		err = fall_to_bounce_buf(iser_task, mem,
 					 cmd_dir, aligned_len);
 		if (err) {
 			iser_err("failed to allocate bounce buffer\n");
@@ -669,7 +669,7 @@ int iser_reg_rdma_mem_fastreg(struct iscsi_iser_task *iser_task,
 
 	aligned_len = iser_data_buf_aligned_len(mem, ibdev);
 	if (aligned_len != mem->dma_nents) {
-		err = fall_to_bounce_buf(iser_task, ibdev, mem,
+		err = fall_to_bounce_buf(iser_task, mem,
 					 cmd_dir, aligned_len);
 		if (err) {
 			iser_err("failed to allocate bounce buffer\n");
@@ -700,7 +700,7 @@ int iser_reg_rdma_mem_fastreg(struct iscsi_iser_task *iser_task,
 			mem = &iser_task->prot[cmd_dir];
 			aligned_len = iser_data_buf_aligned_len(mem, ibdev);
 			if (aligned_len != mem->dma_nents) {
-				err = fall_to_bounce_buf(iser_task, ibdev, mem,
+				err = fall_to_bounce_buf(iser_task, mem,
 							 cmd_dir, aligned_len);
 				if (err) {
 					iser_err("failed to allocate bounce buffer\n");
