@@ -1649,8 +1649,13 @@ brcmf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct brcmf_pciedev_info *devinfo;
 	struct brcmf_pciedev *pcie_bus_dev;
 	struct brcmf_bus *bus;
+	u16 domain_nr;
+	u16 bus_nr;
 
-	brcmf_dbg(PCIE, "Enter %x:%x\n", pdev->vendor, pdev->device);
+	domain_nr = pci_domain_nr(pdev->bus) + 1;
+	bus_nr = pdev->bus->number;
+	brcmf_dbg(PCIE, "Enter %x:%x (%d/%d)\n", pdev->vendor, pdev->device,
+		  domain_nr, bus_nr);
 
 	ret = -ENOMEM;
 	devinfo = kzalloc(sizeof(*devinfo), GFP_KERNEL);
@@ -1699,10 +1704,10 @@ brcmf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		goto fail_bus;
 
-	ret = brcmf_fw_get_firmwares(bus->dev, BRCMF_FW_REQUEST_NVRAM |
-					       BRCMF_FW_REQ_NV_OPTIONAL,
-				     devinfo->fw_name, devinfo->nvram_name,
-				     brcmf_pcie_setup);
+	ret = brcmf_fw_get_firmwares_pcie(bus->dev, BRCMF_FW_REQUEST_NVRAM |
+						    BRCMF_FW_REQ_NV_OPTIONAL,
+					  devinfo->fw_name, devinfo->nvram_name,
+					  brcmf_pcie_setup, domain_nr, bus_nr);
 	if (ret == 0)
 		return 0;
 fail_bus:
