@@ -513,8 +513,8 @@ static int tproxy_tg6_check(const struct xt_tgchk_param *par)
 {
 	const struct ip6t_ip6 *i = par->entryinfo;
 
-	if ((i->proto == IPPROTO_TCP || i->proto == IPPROTO_UDP)
-	    && !(i->flags & IP6T_INV_PROTO))
+	if ((i->proto == IPPROTO_TCP || i->proto == IPPROTO_UDP) &&
+	    !(i->invflags & IP6T_INV_PROTO))
 		return 0;
 
 	pr_info("Can be used only in combination with "

@@ -233,16 +233,18 @@ static int sn95031_set_vaud_bias(struct snd_soc_codec *codec,
 static int sn95031_vhs_event(struct snd_soc_dapm_widget *w,
 		    struct snd_kcontrol *kcontrol, int event)
 {
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
 		pr_debug("VHS SND_SOC_DAPM_EVENT_ON doing rail startup now\n");
 		/* power up the rail */
-		snd_soc_write(w->codec, SN95031_VHSP, 0x3D);
-		snd_soc_write(w->codec, SN95031_VHSN, 0x3F);
+		snd_soc_write(codec, SN95031_VHSP, 0x3D);
+		snd_soc_write(codec, SN95031_VHSN, 0x3F);
 		msleep(1);
 	} else if (SND_SOC_DAPM_EVENT_OFF(event)) {
 		pr_debug("VHS SND_SOC_DAPM_EVENT_OFF doing rail shutdown\n");
-		snd_soc_write(w->codec, SN95031_VHSP, 0xC4);
-		snd_soc_write(w->codec, SN95031_VHSN, 0x04);
+		snd_soc_write(codec, SN95031_VHSP, 0xC4);
+		snd_soc_write(codec, SN95031_VHSN, 0x04);
 	}
 	return 0;
 }
@@ -250,14 +252,16 @@ static int sn95031_vhs_event(struct snd_soc_dapm_widget *w,
 static int sn95031_vihf_event(struct snd_soc_dapm_widget *w,
 		    struct snd_kcontrol *kcontrol, int event)
 {
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
 		pr_debug("VIHF SND_SOC_DAPM_EVENT_ON doing rail startup now\n");
 		/* power up the rail */
-		snd_soc_write(w->codec, SN95031_VIHF, 0x27);
+		snd_soc_write(codec, SN95031_VIHF, 0x27);
 		msleep(1);
 	} else if (SND_SOC_DAPM_EVENT_OFF(event)) {
 		pr_debug("VIHF SND_SOC_DAPM_EVENT_OFF doing rail shutdown\n");
-		snd_soc_write(w->codec, SN95031_VIHF, 0x24);
+		snd_soc_write(codec, SN95031_VIHF, 0x24);
 	}
 	return 0;
 }
@@ -265,6 +269,7 @@ static int sn95031_vihf_event(struct snd_soc_dapm_widget *w,
 static int sn95031_dmic12_event(struct snd_soc_dapm_widget *w,
 			struct snd_kcontrol *k, int event)
 {
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	unsigned int ldo = 0, clk_dir = 0, data_dir = 0;
 
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
@@ -273,15 +278,16 @@ static int sn95031_dmic12_event(struct snd_soc_dapm_widget *w,
 		data_dir = BIT(7);
 	}
 	/* program DMIC LDO, clock and set clock */
-	snd_soc_update_bits(w->codec, SN95031_MICBIAS, BIT(5)|BIT(4), ldo);
-	snd_soc_update_bits(w->codec, SN95031_DMICBUF0123, BIT(0), clk_dir);
-	snd_soc_update_bits(w->codec, SN95031_DMICBUF0123, BIT(7), data_dir);
+	snd_soc_update_bits(codec, SN95031_MICBIAS, BIT(5)|BIT(4), ldo);
+	snd_soc_update_bits(codec, SN95031_DMICBUF0123, BIT(0), clk_dir);
+	snd_soc_update_bits(codec, SN95031_DMICBUF0123, BIT(7), data_dir);
 	return 0;
 }
 
 static int sn95031_dmic34_event(struct snd_soc_dapm_widget *w,
 			struct snd_kcontrol *k, int event)
 {
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	unsigned int ldo = 0, clk_dir = 0, data_dir = 0;
 
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
@@ -290,22 +296,23 @@ static int sn95031_dmic34_event(struct snd_soc_dapm_widget *w,
 		data_dir = BIT(1);
 	}
 	/* program DMIC LDO, clock and set clock */
-	snd_soc_update_bits(w->codec, SN95031_MICBIAS, BIT(5)|BIT(4), ldo);
-	snd_soc_update_bits(w->codec, SN95031_DMICBUF0123, BIT(2), clk_dir);
-	snd_soc_update_bits(w->codec, SN95031_DMICBUF45, BIT(1), data_dir);
+	snd_soc_update_bits(codec, SN95031_MICBIAS, BIT(5)|BIT(4), ldo);
+	snd_soc_update_bits(codec, SN95031_DMICBUF0123, BIT(2), clk_dir);
+	snd_soc_update_bits(codec, SN95031_DMICBUF45, BIT(1), data_dir);
 	return 0;
 }
 
 static int sn95031_dmic56_event(struct snd_soc_dapm_widget *w,
 			struct snd_kcontrol *k, int event)
 {
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	unsigned int ldo = 0;
 
 	if (SND_SOC_DAPM_EVENT_ON(event))
 		ldo = BIT(7)|BIT(6);
 
 	/* program DMIC LDO */
-	snd_soc_update_bits(w->codec, SN95031_MICBIAS, BIT(7)|BIT(6), ldo);
+	snd_soc_update_bits(codec, SN95031_MICBIAS, BIT(7)|BIT(6), ldo);
 	return 0;
 }
 
@@ -531,8 +538,8 @@ static const struct snd_soc_dapm_route sn95031_audio_map[] = {
 	/* speaker map */
 	{ "IHFOUTL", NULL, "Speaker Rail"},
 	{ "IHFOUTR", NULL, "Speaker Rail"},
-	{ "IHFOUTL", "NULL", "Speaker Left Playback"},
-	{ "IHFOUTR", "NULL", "Speaker Right Playback"},
+	{ "IHFOUTL", NULL, "Speaker Left Playback"},
+	{ "IHFOUTR", NULL, "Speaker Right Playback"},
 	{ "Speaker Left Playback", NULL, "Speaker Left Filter"},
 	{ "Speaker Right Playback", NULL, "Speaker Right Filter"},
 	{ "Speaker Left Filter", NULL, "IHFDAC Left"},

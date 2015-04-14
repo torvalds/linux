@@ -648,7 +648,7 @@ static struct snd_soc_dai_driver wm8804_dai = {
 	.symmetric_rates = 1
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8804 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8804 = {
 	.probe = wm8804_probe,
 	.remove = wm8804_remove,
 	.set_bias_level = wm8804_set_bias_level,
@@ -664,7 +664,7 @@ static const struct of_device_id wm8804_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, wm8804_of_match);
 
-static struct regmap_config wm8804_regmap_config = {
+static const struct regmap_config wm8804_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 

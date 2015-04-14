@@ -55,7 +55,7 @@ static int init_qib_mregion(struct qib_mregion *mr, struct ib_pd *pd,
 
 	m = (count + QIB_SEGSZ - 1) / QIB_SEGSZ;
 	for (; i < m; i++) {
-		mr->map[i] = kzalloc(sizeof *mr->map[0], GFP_KERNEL);
+		mr->map[i] = kzalloc(sizeof(*mr->map[0]), GFP_KERNEL);
 		if (!mr->map[i])
 			goto bail;
 	}
@@ -104,7 +104,7 @@ struct ib_mr *qib_get_dma_mr(struct ib_pd *pd, int acc)
 		goto bail;
 	}
 
-	mr = kzalloc(sizeof *mr, GFP_KERNEL);
+	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr) {
 		ret = ERR_PTR(-ENOMEM);
 		goto bail;
@@ -143,7 +143,7 @@ static struct qib_mr *alloc_mr(int count, struct ib_pd *pd)
 
 	/* Allocate struct plus pointers to first level page tables. */
 	m = (count + QIB_SEGSZ - 1) / QIB_SEGSZ;
-	mr = kzalloc(sizeof *mr + m * sizeof mr->mr.map[0], GFP_KERNEL);
+	mr = kzalloc(sizeof(*mr) + m * sizeof(mr->mr.map[0]), GFP_KERNEL);
 	if (!mr)
 		goto bail;
 
@@ -347,7 +347,7 @@ qib_alloc_fast_reg_page_list(struct ib_device *ibdev, int page_list_len)
 	if (size > PAGE_SIZE)
 		return ERR_PTR(-EINVAL);
 
-	pl = kzalloc(sizeof *pl, GFP_KERNEL);
+	pl = kzalloc(sizeof(*pl), GFP_KERNEL);
 	if (!pl)
 		return ERR_PTR(-ENOMEM);
 
@@ -386,7 +386,7 @@ struct ib_fmr *qib_alloc_fmr(struct ib_pd *pd, int mr_access_flags,
 
 	/* Allocate struct plus pointers to first level page tables. */
 	m = (fmr_attr->max_pages + QIB_SEGSZ - 1) / QIB_SEGSZ;
-	fmr = kzalloc(sizeof *fmr + m * sizeof fmr->mr.map[0], GFP_KERNEL);
+	fmr = kzalloc(sizeof(*fmr) + m * sizeof(fmr->mr.map[0]), GFP_KERNEL);
 	if (!fmr)
 		goto bail;
 

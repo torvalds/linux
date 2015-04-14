@@ -17,12 +17,11 @@
 #include "irq_remapping.h"
 
 int irq_remapping_enabled;
-
-int disable_irq_remap;
 int irq_remap_broken;
 int disable_sourceid_checking;
 int no_x2apic_optout;
 
+static int disable_irq_remap;
 static struct irq_remap_ops *remap_ops;
 
 static int msi_alloc_remapped_irq(struct pci_dev *pdev, int irq, int nvec);
@@ -194,45 +193,32 @@ static __init int setup_irqremap(char *str)
 }
 early_param("intremap", setup_irqremap);
 
-void __init setup_irq_remapping_ops(void)
-{
-	remap_ops = &intel_irq_remap_ops;
-
-#ifdef CONFIG_AMD_IOMMU
-	if (amd_iommu_irq_ops.prepare() == 0)
-		remap_ops = &amd_iommu_irq_ops;
-#endif
-}
-
 void set_irq_remapping_broken(void)
 {
 	irq_remap_broken = 1;
 }
 
-int irq_remapping_supported(void)
-{
-	if (disable_irq_remap)
-		return 0;
-
-	if (!remap_ops || !remap_ops->supported)
-		return 0;
-
-	return remap_ops->supported();
-}
-
 int __init irq_remapping_prepare(void)
 {
-	if (!remap_ops || !remap_ops->prepare)
-		return -ENODEV;
+	if (disable_irq_remap)
+		return -ENOSYS;
 
-	return remap_ops->prepare();
+	if (intel_irq_remap_ops.prepare() == 0)
+		remap_ops = &intel_irq_remap_ops;
+	else if (IS_ENABLED(CONFIG_AMD_IOMMU) &&
+		 amd_iommu_irq_ops.prepare() == 0)
+		remap_ops = &amd_iommu_irq_ops;
+	else
+		return -ENOSYS;
+
+	return 0;
 }
 
 int __init irq_remapping_enable(void)
 {
 	int ret;
 
-	if (!remap_ops || !remap_ops->enable)
+	if (!remap_ops->enable)
 		return -ENODEV;
 
 	ret = remap_ops->enable();
@@ -245,22 +231,16 @@ int __init irq_remapping_enable(void)
 
 void irq_remapping_disable(void)
 {
-	if (!irq_remapping_enabled ||
-	    !remap_ops ||
-	    !remap_ops->disable)
-		return;
-
-	remap_ops->disable();
+	if (irq_remapping_enabled && remap_ops->disable)
+		remap_ops->disable();
 }
 
 int irq_remapping_reenable(int mode)
 {
-	if (!irq_remapping_enabled ||
-	    !remap_ops ||
-	    !remap_ops->reenable)
-		return 0;
+	if (irq_remapping_enabled && remap_ops->reenable)
+		return remap_ops->reenable(mode);
 
-	return remap_ops->reenable(mode);
+	return 0;
 }
 
 int __init irq_remap_enable_fault_handling(void)
@@ -268,7 +248,7 @@ int __init irq_remap_enable_fault_handling(void)
 	if (!irq_remapping_enabled)
 		return 0;
 
-	if (!remap_ops || !remap_ops->enable_faulting)
+	if (!remap_ops->enable_faulting)
 		return -ENODEV;
 
 	return remap_ops->enable_faulting();
@@ -279,7 +259,7 @@ int setup_ioapic_remapped_entry(int irq,
 				unsigned int destination, int vector,
 				struct io_apic_irq_attr *attr)
 {
-	if (!remap_ops || !remap_ops->setup_ioapic_entry)
+	if (!remap_ops->setup_ioapic_entry)
 		return -ENODEV;
 
 	return remap_ops->setup_ioapic_entry(irq, entry, destination,
@@ -289,8 +269,7 @@ int setup_ioapic_remapped_entry(int irq,
 static int set_remapped_irq_affinity(struct irq_data *data,
 				     const struct cpumask *mask, bool force)
 {
-	if (!config_enabled(CONFIG_SMP) || !remap_ops ||
-	    !remap_ops->set_affinity)
+	if (!config_enabled(CONFIG_SMP) || !remap_ops->set_affinity)
 		return 0;
 
 	return remap_ops->set_affinity(data, mask, force);
@@ -300,10 +279,7 @@ void free_remapped_irq(int irq)
 {
 	struct irq_cfg *cfg = irq_cfg(irq);
 
-	if (!remap_ops || !remap_ops->free_irq)
-		return;
-
-	if (irq_remapped(cfg))
+	if (irq_remapped(cfg) && remap_ops->free_irq)
 		remap_ops->free_irq(irq);
 }
 
@@ -315,13 +291,13 @@ void compose_remapped_msi_msg(struct pci_dev *pdev,
 
 	if (!irq_remapped(cfg))
 		native_compose_msi_msg(pdev, irq, dest, msg, hpet_id);
-	else if (remap_ops && remap_ops->compose_msi_msg)
+	else if (remap_ops->compose_msi_msg)
 		remap_ops->compose_msi_msg(pdev, irq, dest, msg, hpet_id);
 }
 
 static int msi_alloc_remapped_irq(struct pci_dev *pdev, int irq, int nvec)
 {
-	if (!remap_ops || !remap_ops->msi_alloc_irq)
+	if (!remap_ops->msi_alloc_irq)
 		return -ENODEV;
 
 	return remap_ops->msi_alloc_irq(pdev, irq, nvec);
@@ -330,7 +306,7 @@ static int msi_alloc_remapped_irq(struct pci_dev *pdev, int irq, int nvec)
 static int msi_setup_remapped_irq(struct pci_dev *pdev, unsigned int irq,
 				  int index, int sub_handle)
 {
-	if (!remap_ops || !remap_ops->msi_setup_irq)
+	if (!remap_ops->msi_setup_irq)
 		return -ENODEV;
 
 	return remap_ops->msi_setup_irq(pdev, irq, index, sub_handle);
@@ -340,7 +316,7 @@ int setup_hpet_msi_remapped(unsigned int irq, unsigned int id)
 {
 	int ret;
 
-	if (!remap_ops || !remap_ops->alloc_hpet_msi)
+	if (!remap_ops->alloc_hpet_msi)
 		return -ENODEV;
 
 	ret = remap_ops->alloc_hpet_msi(irq, id);

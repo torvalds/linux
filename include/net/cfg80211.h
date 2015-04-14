@@ -520,37 +520,41 @@ ieee80211_chandef_max_power(struct cfg80211_chan_def *chandef)
  *
  * @SURVEY_INFO_NOISE_DBM: noise (in dBm) was filled in
  * @SURVEY_INFO_IN_USE: channel is currently being used
- * @SURVEY_INFO_CHANNEL_TIME: channel active time (in ms) was filled in
- * @SURVEY_INFO_CHANNEL_TIME_BUSY: channel busy time was filled in
- * @SURVEY_INFO_CHANNEL_TIME_EXT_BUSY: extension channel busy time was filled in
- * @SURVEY_INFO_CHANNEL_TIME_RX: channel receive time was filled in
- * @SURVEY_INFO_CHANNEL_TIME_TX: channel transmit time was filled in
+ * @SURVEY_INFO_TIME: active time (in ms) was filled in
+ * @SURVEY_INFO_TIME_BUSY: busy time was filled in
+ * @SURVEY_INFO_TIME_EXT_BUSY: extension channel busy time was filled in
+ * @SURVEY_INFO_TIME_RX: receive time was filled in
+ * @SURVEY_INFO_TIME_TX: transmit time was filled in
+ * @SURVEY_INFO_TIME_SCAN: scan time was filled in
  *
  * Used by the driver to indicate which info in &struct survey_info
  * it has filled in during the get_survey().
  */
 enum survey_info_flags {
-	SURVEY_INFO_NOISE_DBM = 1<<0,
-	SURVEY_INFO_IN_USE = 1<<1,
-	SURVEY_INFO_CHANNEL_TIME = 1<<2,
-	SURVEY_INFO_CHANNEL_TIME_BUSY = 1<<3,
-	SURVEY_INFO_CHANNEL_TIME_EXT_BUSY = 1<<4,
-	SURVEY_INFO_CHANNEL_TIME_RX = 1<<5,
-	SURVEY_INFO_CHANNEL_TIME_TX = 1<<6,
+	SURVEY_INFO_NOISE_DBM		= BIT(0),
+	SURVEY_INFO_IN_USE		= BIT(1),
+	SURVEY_INFO_TIME		= BIT(2),
+	SURVEY_INFO_TIME_BUSY		= BIT(3),
+	SURVEY_INFO_TIME_EXT_BUSY	= BIT(4),
+	SURVEY_INFO_TIME_RX		= BIT(5),
+	SURVEY_INFO_TIME_TX		= BIT(6),
+	SURVEY_INFO_TIME_SCAN		= BIT(7),
 };
 
 /**
  * struct survey_info - channel survey response
  *
- * @channel: the channel this survey record reports, mandatory
+ * @channel: the channel this survey record reports, may be %NULL for a single
+ *	record to report global statistics
  * @filled: bitflag of flags from &enum survey_info_flags
  * @noise: channel noise in dBm. This and all following fields are
  *	optional
- * @channel_time: amount of time in ms the radio spent on the channel
- * @channel_time_busy: amount of time the primary channel was sensed busy
- * @channel_time_ext_busy: amount of time the extension channel was sensed busy
- * @channel_time_rx: amount of time the radio spent receiving data
- * @channel_time_tx: amount of time the radio spent transmitting data
+ * @time: amount of time in ms the radio was turn on (on the channel)
+ * @time_busy: amount of time the primary channel was sensed busy
+ * @time_ext_busy: amount of time the extension channel was sensed busy
+ * @time_rx: amount of time the radio spent receiving data
+ * @time_tx: amount of time the radio spent transmitting data
+ * @time_scan: amount of time the radio spent for scanning
  *
  * Used by dump_survey() to report back per-channel survey information.
  *
@@ -559,11 +563,12 @@ enum survey_info_flags {
  */
 struct survey_info {
 	struct ieee80211_channel *channel;
-	u64 channel_time;
-	u64 channel_time_busy;
-	u64 channel_time_ext_busy;
-	u64 channel_time_rx;
-	u64 channel_time_tx;
+	u64 time;
+	u64 time_busy;
+	u64 time_ext_busy;
+	u64 time_rx;
+	u64 time_tx;
+	u64 time_scan;
 	u32 filled;
 	s8 noise;
 };
@@ -861,75 +866,6 @@ int cfg80211_check_station_change(struct wiphy *wiphy,
 				  enum cfg80211_station_type statype);
 
 /**
- * enum station_info_flags - station information flags
- *
- * Used by the driver to indicate which info in &struct station_info
- * it has filled in during get_station() or dump_station().
- *
- * @STATION_INFO_INACTIVE_TIME: @inactive_time filled
- * @STATION_INFO_RX_BYTES: @rx_bytes filled
- * @STATION_INFO_TX_BYTES: @tx_bytes filled
- * @STATION_INFO_RX_BYTES64: @rx_bytes filled with 64-bit value
- * @STATION_INFO_TX_BYTES64: @tx_bytes filled with 64-bit value
- * @STATION_INFO_LLID: @llid filled
- * @STATION_INFO_PLID: @plid filled
- * @STATION_INFO_PLINK_STATE: @plink_state filled
- * @STATION_INFO_SIGNAL: @signal filled
- * @STATION_INFO_TX_BITRATE: @txrate fields are filled
- *	(tx_bitrate, tx_bitrate_flags and tx_bitrate_mcs)
- * @STATION_INFO_RX_PACKETS: @rx_packets filled with 32-bit value
- * @STATION_INFO_TX_PACKETS: @tx_packets filled with 32-bit value
- * @STATION_INFO_TX_RETRIES: @tx_retries filled
- * @STATION_INFO_TX_FAILED: @tx_failed filled
- * @STATION_INFO_RX_DROP_MISC: @rx_dropped_misc filled
- * @STATION_INFO_SIGNAL_AVG: @signal_avg filled
- * @STATION_INFO_RX_BITRATE: @rxrate fields are filled
- * @STATION_INFO_BSS_PARAM: @bss_param filled
- * @STATION_INFO_CONNECTED_TIME: @connected_time filled
- * @STATION_INFO_ASSOC_REQ_IES: @assoc_req_ies filled
- * @STATION_INFO_STA_FLAGS: @sta_flags filled
- * @STATION_INFO_BEACON_LOSS_COUNT: @beacon_loss_count filled
- * @STATION_INFO_T_OFFSET: @t_offset filled
- * @STATION_INFO_LOCAL_PM: @local_pm filled
- * @STATION_INFO_PEER_PM: @peer_pm filled
- * @STATION_INFO_NONPEER_PM: @nonpeer_pm filled
- * @STATION_INFO_CHAIN_SIGNAL: @chain_signal filled
- * @STATION_INFO_CHAIN_SIGNAL_AVG: @chain_signal_avg filled
- * @STATION_INFO_EXPECTED_THROUGHPUT: @expected_throughput filled
- */
-enum station_info_flags {
-	STATION_INFO_INACTIVE_TIME		= BIT(0),
-	STATION_INFO_RX_BYTES			= BIT(1),
-	STATION_INFO_TX_BYTES			= BIT(2),
-	STATION_INFO_LLID			= BIT(3),
-	STATION_INFO_PLID			= BIT(4),
-	STATION_INFO_PLINK_STATE		= BIT(5),
-	STATION_INFO_SIGNAL			= BIT(6),
-	STATION_INFO_TX_BITRATE			= BIT(7),
-	STATION_INFO_RX_PACKETS			= BIT(8),
-	STATION_INFO_TX_PACKETS			= BIT(9),
-	STATION_INFO_TX_RETRIES			= BIT(10),
-	STATION_INFO_TX_FAILED			= BIT(11),
-	STATION_INFO_RX_DROP_MISC		= BIT(12),
-	STATION_INFO_SIGNAL_AVG			= BIT(13),
-	STATION_INFO_RX_BITRATE			= BIT(14),
-	STATION_INFO_BSS_PARAM			= BIT(15),
-	STATION_INFO_CONNECTED_TIME		= BIT(16),
-	STATION_INFO_ASSOC_REQ_IES		= BIT(17),
-	STATION_INFO_STA_FLAGS			= BIT(18),
-	STATION_INFO_BEACON_LOSS_COUNT		= BIT(19),
-	STATION_INFO_T_OFFSET			= BIT(20),
-	STATION_INFO_LOCAL_PM			= BIT(21),
-	STATION_INFO_PEER_PM			= BIT(22),
-	STATION_INFO_NONPEER_PM			= BIT(23),
-	STATION_INFO_RX_BYTES64			= BIT(24),
-	STATION_INFO_TX_BYTES64			= BIT(25),
-	STATION_INFO_CHAIN_SIGNAL		= BIT(26),
-	STATION_INFO_CHAIN_SIGNAL_AVG		= BIT(27),
-	STATION_INFO_EXPECTED_THROUGHPUT	= BIT(28),
-};
-
-/**
  * enum station_info_rate_flags - bitrate info flags
  *
  * Used by the driver to indicate the specific rate transmission
@@ -937,22 +873,35 @@ enum station_info_flags {
  *
  * @RATE_INFO_FLAGS_MCS: mcs field filled with HT MCS
  * @RATE_INFO_FLAGS_VHT_MCS: mcs field filled with VHT MCS
- * @RATE_INFO_FLAGS_40_MHZ_WIDTH: 40 MHz width transmission
- * @RATE_INFO_FLAGS_80_MHZ_WIDTH: 80 MHz width transmission
- * @RATE_INFO_FLAGS_80P80_MHZ_WIDTH: 80+80 MHz width transmission
- * @RATE_INFO_FLAGS_160_MHZ_WIDTH: 160 MHz width transmission
  * @RATE_INFO_FLAGS_SHORT_GI: 400ns guard interval
  * @RATE_INFO_FLAGS_60G: 60GHz MCS
  */
 enum rate_info_flags {
 	RATE_INFO_FLAGS_MCS			= BIT(0),
 	RATE_INFO_FLAGS_VHT_MCS			= BIT(1),
-	RATE_INFO_FLAGS_40_MHZ_WIDTH		= BIT(2),
-	RATE_INFO_FLAGS_80_MHZ_WIDTH		= BIT(3),
-	RATE_INFO_FLAGS_80P80_MHZ_WIDTH		= BIT(4),
-	RATE_INFO_FLAGS_160_MHZ_WIDTH		= BIT(5),
-	RATE_INFO_FLAGS_SHORT_GI		= BIT(6),
-	RATE_INFO_FLAGS_60G			= BIT(7),
+	RATE_INFO_FLAGS_SHORT_GI		= BIT(2),
+	RATE_INFO_FLAGS_60G			= BIT(3),
+};
+
+/**
+ * enum rate_info_bw - rate bandwidth information
+ *
+ * Used by the driver to indicate the rate bandwidth.
+ *
+ * @RATE_INFO_BW_5: 5 MHz bandwidth
+ * @RATE_INFO_BW_10: 10 MHz bandwidth
+ * @RATE_INFO_BW_20: 20 MHz bandwidth
+ * @RATE_INFO_BW_40: 40 MHz bandwidth
+ * @RATE_INFO_BW_80: 80 MHz bandwidth
+ * @RATE_INFO_BW_160: 160 MHz bandwidth
+ */
+enum rate_info_bw {
+	RATE_INFO_BW_5,
+	RATE_INFO_BW_10,
+	RATE_INFO_BW_20,
+	RATE_INFO_BW_40,
+	RATE_INFO_BW_80,
+	RATE_INFO_BW_160,
 };
 
 /**
@@ -964,12 +913,14 @@ enum rate_info_flags {
  * @mcs: mcs index if struct describes a 802.11n bitrate
  * @legacy: bitrate in 100kbit/s for 802.11abg
  * @nss: number of streams (VHT only)
+ * @bw: bandwidth (from &enum rate_info_bw)
  */
 struct rate_info {
 	u8 flags;
 	u8 mcs;
 	u16 legacy;
 	u8 nss;
+	u8 bw;
 };
 
 /**
@@ -1003,6 +954,24 @@ struct sta_bss_parameters {
 	u16 beacon_interval;
 };
 
+/**
+ * struct cfg80211_tid_stats - per-TID statistics
+ * @filled: bitmap of flags using the bits of &enum nl80211_tid_stats to
+ *	indicate the relevant values in this struct are filled
+ * @rx_msdu: number of received MSDUs
+ * @tx_msdu: number of (attempted) transmitted MSDUs
+ * @tx_msdu_retries: number of retries (not counting the first) for
+ *	transmitted MSDUs
+ * @tx_msdu_failed: number of failed transmitted MSDUs
+ */
+struct cfg80211_tid_stats {
+	u32 filled;
+	u64 rx_msdu;
+	u64 tx_msdu;
+	u64 tx_msdu_retries;
+	u64 tx_msdu_failed;
+};
+
 #define IEEE80211_MAX_CHAINS	4
 
 /**
@@ -1010,11 +979,12 @@ struct sta_bss_parameters {
  *
  * Station information filled by driver for get_station() and dump_station.
  *
- * @filled: bitflag of flags from &enum station_info_flags
+ * @filled: bitflag of flags using the bits of &enum nl80211_sta_info to
+ *	indicate the relevant values in this struct for them
  * @connected_time: time(in secs) since a station is last connected
  * @inactive_time: time since last station activity (tx/rx) in milliseconds
- * @rx_bytes: bytes received from this station
- * @tx_bytes: bytes transmitted to this station
+ * @rx_bytes: bytes (size of MPDUs) received from this station
+ * @tx_bytes: bytes (size of MPDUs) transmitted to this station
  * @llid: mesh local link id
  * @plid: mesh peer link id
  * @plink_state: mesh peer link state
@@ -1027,10 +997,10 @@ struct sta_bss_parameters {
  * @chain_signal_avg: per-chain signal strength average in dBm
  * @txrate: current unicast bitrate from this station
  * @rxrate: current unicast bitrate to this station
- * @rx_packets: packets received from this station
- * @tx_packets: packets transmitted to this station
- * @tx_retries: cumulative retry counts
- * @tx_failed: number of failed transmissions (retries exceeded, no ACK)
+ * @rx_packets: packets (MSDUs & MMPDUs) received from this station
+ * @tx_packets: packets (MSDUs & MMPDUs) transmitted to this station
+ * @tx_retries: cumulative retry counts (MPDUs)
+ * @tx_failed: number of failed transmissions (MPDUs) (retries exceeded, no ACK)
  * @rx_dropped_misc:  Dropped for un-specified reason.
  * @bss_param: current BSS parameters
  * @generation: generation number for nl80211 dumps.
@@ -1050,6 +1020,11 @@ struct sta_bss_parameters {
  * @nonpeer_pm: non-peer mesh STA power save mode
  * @expected_throughput: expected throughput in kbps (including 802.11 headers)
  *	towards this station.
+ * @rx_beacon: number of beacons received from this peer
+ * @rx_beacon_signal_avg: signal strength average (in dBm) for beacons received
+ *	from this peer
+ * @pertid: per-TID statistics, see &struct cfg80211_tid_stats, using the last
+ *	(IEEE80211_NUM_TIDS) index for MSDUs not encapsulated in QoS-MPDUs.
  */
 struct station_info {
 	u32 filled;
@@ -1090,10 +1065,9 @@ struct station_info {
 
 	u32 expected_throughput;
 
-	/*
-	 * Note: Add a new enum station_info_flags value for each new field and
-	 * use it to check which fields are initialized.
-	 */
+	u64 rx_beacon;
+	u8 rx_beacon_signal_avg;
+	struct cfg80211_tid_stats pertid[IEEE80211_NUM_TIDS + 1];
 };
 
 /**
@@ -1516,6 +1490,13 @@ struct cfg80211_match_set {
  * @mac_addr_mask: MAC address mask used with randomisation, bits that
  *	are 0 in the mask should be randomised, bits that are 1 should
  *	be taken from the @mac_addr
+ * @rcu_head: RCU callback used to free the struct
+ * @owner_nlportid: netlink portid of owner (if this should is a request
+ *	owned by a particular socket)
+ * @delay: delay in seconds to use before starting the first scan
+ *	cycle.  The driver may ignore this parameter and start
+ *	immediately (or at any other time), if this feature is not
+ *	supported.
  */
 struct cfg80211_sched_scan_request {
 	struct cfg80211_ssid *ssids;
@@ -1529,6 +1510,7 @@ struct cfg80211_sched_scan_request {
 	struct cfg80211_match_set *match_sets;
 	int n_match_sets;
 	s32 min_rssi_thold;
+	u32 delay;
 
 	u8 mac_addr[ETH_ALEN] __aligned(2);
 	u8 mac_addr_mask[ETH_ALEN] __aligned(2);
@@ -1537,6 +1519,8 @@ struct cfg80211_sched_scan_request {
 	struct wiphy *wiphy;
 	struct net_device *dev;
 	unsigned long scan_start;
+	struct rcu_head rcu_head;
+	u32 owner_nlportid;
 
 	/* keep last */
 	struct ieee80211_channel *channels[0];
@@ -3011,6 +2995,8 @@ struct wiphy_vendor_command {
  * @regulatory_flags: wiphy regulatory flags, see
  *	&enum ieee80211_regulatory_flags
  * @features: features advertised to nl80211, see &enum nl80211_feature_flags.
+ * @ext_features: extended features advertised to nl80211, see
+ *	&enum nl80211_ext_feature_index.
  * @bss_priv_size: each BSS struct has private data allocated with it,
  *	this variable determines its size
  * @max_scan_ssids: maximum number of SSIDs the device can scan for in
@@ -3120,6 +3106,7 @@ struct wiphy {
 	u16 max_acl_mac_addrs;
 
 	u32 flags, regulatory_flags, features;
+	u8 ext_features[DIV_ROUND_UP(NUM_NL80211_EXT_FEATURES, 8)];
 
 	u32 ap_sme_capa;
 
@@ -3806,6 +3793,34 @@ const u8 *cfg80211_find_vendor_ie(unsigned int oui, u8 oui_type,
  * Return: 0 on success. -ENOMEM.
  */
 int regulatory_hint(struct wiphy *wiphy, const char *alpha2);
+
+/**
+ * regulatory_set_wiphy_regd - set regdom info for self managed drivers
+ * @wiphy: the wireless device we want to process the regulatory domain on
+ * @rd: the regulatory domain informatoin to use for this wiphy
+ *
+ * Set the regulatory domain information for self-managed wiphys, only they
+ * may use this function. See %REGULATORY_WIPHY_SELF_MANAGED for more
+ * information.
+ *
+ * Return: 0 on success. -EINVAL, -EPERM
+ */
+int regulatory_set_wiphy_regd(struct wiphy *wiphy,
+			      struct ieee80211_regdomain *rd);
+
+/**
+ * regulatory_set_wiphy_regd_sync_rtnl - set regdom for self-managed drivers
+ * @wiphy: the wireless device we want to process the regulatory domain on
+ * @rd: the regulatory domain information to use for this wiphy
+ *
+ * This functions requires the RTNL to be held and applies the new regdomain
+ * synchronously to this wiphy. For more details see
+ * regulatory_set_wiphy_regd().
+ *
+ * Return: 0 on success. -EINVAL, -EPERM
+ */
+int regulatory_set_wiphy_regd_sync_rtnl(struct wiphy *wiphy,
+					struct ieee80211_regdomain *rd);
 
 /**
  * wiphy_apply_custom_regulatory - apply a custom driver regulatory domain
@@ -4565,13 +4580,27 @@ void cfg80211_new_sta(struct net_device *dev, const u8 *mac_addr,
 		      struct station_info *sinfo, gfp_t gfp);
 
 /**
+ * cfg80211_del_sta_sinfo - notify userspace about deletion of a station
+ * @dev: the netdev
+ * @mac_addr: the station's address
+ * @sinfo: the station information/statistics
+ * @gfp: allocation flags
+ */
+void cfg80211_del_sta_sinfo(struct net_device *dev, const u8 *mac_addr,
+			    struct station_info *sinfo, gfp_t gfp);
+
+/**
  * cfg80211_del_sta - notify userspace about deletion of a station
  *
  * @dev: the netdev
  * @mac_addr: the station's address
  * @gfp: allocation flags
  */
-void cfg80211_del_sta(struct net_device *dev, const u8 *mac_addr, gfp_t gfp);
+static inline void cfg80211_del_sta(struct net_device *dev,
+				    const u8 *mac_addr, gfp_t gfp)
+{
+	cfg80211_del_sta_sinfo(dev, mac_addr, NULL, gfp);
+}
 
 /**
  * cfg80211_conn_failed - connection request failed notification
@@ -5033,6 +5062,42 @@ void cfg80211_stop_iface(struct wiphy *wiphy, struct wireless_dev *wdev,
  */
 void cfg80211_shutdown_all_interfaces(struct wiphy *wiphy);
 
+/**
+ * wiphy_ext_feature_set - set the extended feature flag
+ *
+ * @wiphy: the wiphy to modify.
+ * @ftidx: extended feature bit index.
+ *
+ * The extended features are flagged in multiple bytes (see
+ * &struct wiphy.@ext_features)
+ */
+static inline void wiphy_ext_feature_set(struct wiphy *wiphy,
+					 enum nl80211_ext_feature_index ftidx)
+{
+	u8 *ft_byte;
+
+	ft_byte = &wiphy->ext_features[ftidx / 8];
+	*ft_byte |= BIT(ftidx % 8);
+}
+
+/**
+ * wiphy_ext_feature_isset - check the extended feature flag
+ *
+ * @wiphy: the wiphy to modify.
+ * @ftidx: extended feature bit index.
+ *
+ * The extended features are flagged in multiple bytes (see
+ * &struct wiphy.@ext_features)
+ */
+static inline bool
+wiphy_ext_feature_isset(struct wiphy *wiphy,
+			enum nl80211_ext_feature_index ftidx)
+{
+	u8 ft_byte;
+
+	ft_byte = wiphy->ext_features[ftidx / 8];
+	return (ft_byte & BIT(ftidx % 8)) != 0;
+}
 
 /* ethtool helper */
 void cfg80211_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info);

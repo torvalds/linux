@@ -509,6 +509,7 @@
 #define DCCG_AUDIO_DTO1_MODULE            0x05c4
 #define DCCG_AUDIO_DTO1_LOAD              0x05c8
 #define DCCG_AUDIO_DTO1_CNTL              0x05cc
+#       define DCCG_AUDIO_DTO1_USE_512FBR_DTO (1 << 3)
 
 /* DCE 4.0 AFMT */
 #define HDMI_CONTROL                         0x7030
@@ -1189,6 +1190,10 @@
 #define		SOFT_RESET_TST				(1 << 21)
 #define		SOFT_RESET_REGBB			(1 << 22)
 #define		SOFT_RESET_ORB				(1 << 23)
+
+#define SRBM_READ_ERROR					0xE98
+#define SRBM_INT_CNTL					0xEA0
+#define SRBM_INT_ACK					0xEA8
 
 /* display watermarks */
 #define	DC_LB_MEMORY_SPLIT				  0x6b0c

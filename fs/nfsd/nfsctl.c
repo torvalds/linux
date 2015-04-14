@@ -21,6 +21,7 @@
 #include "cache.h"
 #include "state.h"
 #include "netns.h"
+#include "pnfs.h"
 
 /*
  *	We have a single directory with several nodes in it.
@@ -1258,9 +1259,12 @@ static int __init init_nfsd(void)
 	retval = nfsd4_init_slabs();
 	if (retval)
 		goto out_unregister_pernet;
-	retval = nfsd_fault_inject_init(); /* nfsd fault injection controls */
+	retval = nfsd4_init_pnfs();
 	if (retval)
 		goto out_free_slabs;
+	retval = nfsd_fault_inject_init(); /* nfsd fault injection controls */
+	if (retval)
+		goto out_exit_pnfs;
 	nfsd_stat_init();	/* Statistics */
 	retval = nfsd_reply_cache_init();
 	if (retval)
@@ -1282,6 +1286,8 @@ out_free_lockd:
 out_free_stat:
 	nfsd_stat_shutdown();
 	nfsd_fault_inject_cleanup();
+out_exit_pnfs:
+	nfsd4_exit_pnfs();
 out_free_slabs:
 	nfsd4_free_slabs();
 out_unregister_pernet:
@@ -1299,6 +1305,7 @@ static void __exit exit_nfsd(void)
 	nfsd_stat_shutdown();
 	nfsd_lockd_shutdown();
 	nfsd4_free_slabs();
+	nfsd4_exit_pnfs();
 	nfsd_fault_inject_cleanup();
 	unregister_filesystem(&nfsd_fs_type);
 	unregister_pernet_subsys(&nfsd_net_ops);

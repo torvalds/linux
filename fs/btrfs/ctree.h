@@ -198,6 +198,8 @@ static int btrfs_csum_sizes[] = { 4, 0 };
 
 #define BTRFS_DIRTY_METADATA_THRESH	(32 * 1024 * 1024)
 
+#define BTRFS_MAX_EXTENT_SIZE (128 * 1024 * 1024)
+
 /*
  * The key defines the order in the tree, and so it also defines (optimal)
  * block layout.
@@ -1020,6 +1022,9 @@ enum btrfs_raid_types {
 					 BTRFS_BLOCK_GROUP_RAID6 |   \
 					 BTRFS_BLOCK_GROUP_DUP |     \
 					 BTRFS_BLOCK_GROUP_RAID10)
+#define BTRFS_BLOCK_GROUP_RAID56_MASK	(BTRFS_BLOCK_GROUP_RAID5 |   \
+					 BTRFS_BLOCK_GROUP_RAID6)
+
 /*
  * We need a bit for restriper to be able to tell when chunks of type
  * SINGLE are available.  This "extended" profile format is used in
@@ -1239,7 +1244,6 @@ enum btrfs_disk_cache_state {
 	BTRFS_DC_ERROR		= 1,
 	BTRFS_DC_CLEAR		= 2,
 	BTRFS_DC_SETUP		= 3,
-	BTRFS_DC_NEED_WRITE	= 4,
 };
 
 struct btrfs_caching_control {
@@ -1277,7 +1281,6 @@ struct btrfs_block_group_cache {
 	unsigned long full_stripe_len;
 
 	unsigned int ro:1;
-	unsigned int dirty:1;
 	unsigned int iref:1;
 	unsigned int has_caching_ctl:1;
 	unsigned int removed:1;
@@ -1315,6 +1318,9 @@ struct btrfs_block_group_cache {
 	struct list_head ro_list;
 
 	atomic_t trimming;
+
+	/* For dirty block groups */
+	struct list_head dirty_list;
 };
 
 /* delayed seq elem */
@@ -1741,6 +1747,7 @@ struct btrfs_fs_info {
 
 	spinlock_t unused_bgs_lock;
 	struct list_head unused_bgs;
+	struct mutex unused_bg_unpin_mutex;
 
 	/* For btrfs to record security options */
 	struct security_mnt_opts security_opts;
@@ -1776,6 +1783,7 @@ struct btrfs_subvolume_writers {
 #define BTRFS_ROOT_DEFRAG_RUNNING	6
 #define BTRFS_ROOT_FORCE_COW		7
 #define BTRFS_ROOT_MULTI_LOG_TASKS	8
+#define BTRFS_ROOT_DIRTY		9
 
 /*
  * in ram representation of the tree.  extent_root is used for all allocations
@@ -1794,8 +1802,6 @@ struct btrfs_root {
 	struct btrfs_fs_info *fs_info;
 	struct extent_io_tree dirty_log_pages;
 
-	struct kobject root_kobj;
-	struct completion kobj_unregister;
 	struct mutex objectid_mutex;
 
 	spinlock_t accounting_lock;
@@ -2465,31 +2471,6 @@ BTRFS_SETGET_STACK_FUNCS(stack_inode_gid, struct btrfs_inode_item, gid, 32);
 BTRFS_SETGET_STACK_FUNCS(stack_inode_mode, struct btrfs_inode_item, mode, 32);
 BTRFS_SETGET_STACK_FUNCS(stack_inode_rdev, struct btrfs_inode_item, rdev, 64);
 BTRFS_SETGET_STACK_FUNCS(stack_inode_flags, struct btrfs_inode_item, flags, 64);
-
-static inline struct btrfs_timespec *
-btrfs_inode_atime(struct btrfs_inode_item *inode_item)
-{
-	unsigned long ptr = (unsigned long)inode_item;
-	ptr += offsetof(struct btrfs_inode_item, atime);
-	return (struct btrfs_timespec *)ptr;
-}
-
-static inline struct btrfs_timespec *
-btrfs_inode_mtime(struct btrfs_inode_item *inode_item)
-{
-	unsigned long ptr = (unsigned long)inode_item;
-	ptr += offsetof(struct btrfs_inode_item, mtime);
-	return (struct btrfs_timespec *)ptr;
-}
-
-static inline struct btrfs_timespec *
-btrfs_inode_ctime(struct btrfs_inode_item *inode_item)
-{
-	unsigned long ptr = (unsigned long)inode_item;
-	ptr += offsetof(struct btrfs_inode_item, ctime);
-	return (struct btrfs_timespec *)ptr;
-}
-
 BTRFS_SETGET_FUNCS(timespec_sec, struct btrfs_timespec, sec, 64);
 BTRFS_SETGET_FUNCS(timespec_nsec, struct btrfs_timespec, nsec, 32);
 BTRFS_SETGET_STACK_FUNCS(stack_timespec_sec, struct btrfs_timespec, sec, 64);
@@ -3406,6 +3387,8 @@ int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 
 int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans,
 				    struct btrfs_root *root);
+int btrfs_setup_space_cache(struct btrfs_trans_handle *trans,
+			    struct btrfs_root *root);
 int btrfs_extent_readonly(struct btrfs_root *root, u64 bytenr);
 int btrfs_free_block_groups(struct btrfs_fs_info *info);
 int btrfs_read_block_groups(struct btrfs_root *root);
@@ -3928,6 +3911,9 @@ int btrfs_prealloc_file_range_trans(struct inode *inode,
 				    loff_t actual_len, u64 *alloc_hint);
 int btrfs_inode_check_errors(struct inode *inode);
 extern const struct dentry_operations btrfs_dentry_operations;
+#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
+void btrfs_test_inode_set_ops(struct inode *inode);
+#endif
 
 /* ioctl.c */
 long btrfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg);

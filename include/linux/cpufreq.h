@@ -66,8 +66,6 @@ struct cpufreq_policy {
 	unsigned int		shared_type; /* ACPI: ANY or ALL affected CPUs
 						should set cpufreq */
 	unsigned int		cpu;    /* cpu nr of CPU managing this policy */
-	unsigned int		last_cpu; /* cpu nr of previous CPU that managed
-					   * this policy */
 	struct clk		*clk;
 	struct cpufreq_cpuinfo	cpuinfo;/* see above */
 
@@ -112,6 +110,9 @@ struct cpufreq_policy {
 	spinlock_t		transition_lock;
 	wait_queue_head_t	transition_wait;
 	struct task_struct	*transition_task; /* Task which is doing the transition */
+
+	/* cpufreq-stats */
+	struct cpufreq_stats	*stats;
 
 	/* For cpufreq driver's internal use */
 	void			*driver_data;
@@ -367,9 +368,8 @@ static inline void cpufreq_resume(void) {}
 #define CPUFREQ_INCOMPATIBLE		(1)
 #define CPUFREQ_NOTIFY			(2)
 #define CPUFREQ_START			(3)
-#define CPUFREQ_UPDATE_POLICY_CPU	(4)
-#define CPUFREQ_CREATE_POLICY		(5)
-#define CPUFREQ_REMOVE_POLICY		(6)
+#define CPUFREQ_CREATE_POLICY		(4)
+#define CPUFREQ_REMOVE_POLICY		(5)
 
 #ifdef CONFIG_CPU_FREQ
 int cpufreq_register_notifier(struct notifier_block *nb, unsigned int list);

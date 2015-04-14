@@ -1462,17 +1462,12 @@ static netdev_tx_t ali_ircc_fir_hard_xmit(struct sk_buff *skb,
 		if (mtt) 
 		{
 			/* Check how much time we have used already */
-			do_gettimeofday(&self->now);
-			
-			diff = self->now.tv_usec - self->stamp.tv_usec;
+			diff = ktime_us_delta(ktime_get(), self->stamp);
 			/* self->stamp is set from ali_ircc_dma_receive_complete() */
 							
 			pr_debug("%s(), ******* diff = %d *******\n",
 				 __func__, diff);
-			
-			if (diff < 0) 
-				diff += 1000000;
-			
+
 			/* Check if the mtt is larger than the time we have
 			 * already used by all the protocol processing
 			 */
@@ -1884,7 +1879,7 @@ static int  ali_ircc_dma_receive_complete(struct ali_ircc_cb *self)
 			 * reduce the min turn time a bit since we will know
 			 * how much time we have used for protocol processing
 			 */
-			do_gettimeofday(&self->stamp);
+			self->stamp = ktime_get();
 
 			skb = dev_alloc_skb(len+1);
 			if (skb == NULL)  

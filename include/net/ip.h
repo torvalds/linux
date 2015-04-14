@@ -453,22 +453,6 @@ static __inline__ void inet_reset_saddr(struct sock *sk)
 
 #endif
 
-static inline int sk_mc_loop(struct sock *sk)
-{
-	if (!sk)
-		return 1;
-	switch (sk->sk_family) {
-	case AF_INET:
-		return inet_sk(sk)->mc_loop;
-#if IS_ENABLED(CONFIG_IPV6)
-	case AF_INET6:
-		return inet6_sk(sk)->mc_loop;
-#endif
-	}
-	WARN_ON(1);
-	return 1;
-}
-
 bool ip_call_ra_chain(struct sk_buff *skb);
 
 /*
@@ -538,7 +522,7 @@ int ip_options_rcv_srr(struct sk_buff *skb);
  */
 
 void ipv4_pktinfo_prepare(const struct sock *sk, struct sk_buff *skb);
-void ip_cmsg_recv(struct msghdr *msg, struct sk_buff *skb);
+void ip_cmsg_recv_offset(struct msghdr *msg, struct sk_buff *skb, int offset);
 int ip_cmsg_send(struct net *net, struct msghdr *msg,
 		 struct ipcm_cookie *ipc, bool allow_ipv6);
 int ip_setsockopt(struct sock *sk, int level, int optname, char __user *optval,
@@ -557,6 +541,11 @@ void ip_icmp_error(struct sock *sk, struct sk_buff *skb, int err, __be16 port,
 		   u32 info, u8 *payload);
 void ip_local_error(struct sock *sk, int err, __be32 daddr, __be16 dport,
 		    u32 info);
+
+static inline void ip_cmsg_recv(struct msghdr *msg, struct sk_buff *skb)
+{
+	ip_cmsg_recv_offset(msg, skb, 0);
+}
 
 bool icmp_global_allow(void);
 extern int sysctl_icmp_msgs_per_sec;

@@ -20,6 +20,7 @@ config KVM
 	select PREEMPT_NOTIFIERS
 	select ANON_INODES
 	select KVM_MMIO
+	select SRCU
 	---help---
 	  Support for hosting Guest kernels.
 	  Currently supported on MIPS32 processors.

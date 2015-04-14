@@ -633,7 +633,8 @@ static int fdb_fill_info(struct sk_buff *skb, const struct net_bridge *br,
 	if (fdb->vlan_id && nla_put(skb, NDA_VLAN, sizeof(u16), &fdb->vlan_id))
 		goto nla_put_failure;
 
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 nla_put_failure:
 	nlmsg_cancel(skb, nlh);
@@ -686,6 +687,9 @@ int br_fdb_dump(struct sk_buff *skb,
 	if (!(dev->priv_flags & IFF_EBRIDGE))
 		goto out;
 
+	if (!filter_dev)
+		idx = ndo_dflt_fdb_dump(skb, cb, dev, NULL, idx);
+
 	for (i = 0; i < BR_HASH_SIZE; i++) {
 		struct net_bridge_fdb_entry *f;
 
@@ -697,7 +701,7 @@ int br_fdb_dump(struct sk_buff *skb,
 			    (!f->dst || f->dst->dev != filter_dev)) {
 				if (filter_dev != dev)
 					goto skip;
-				/* !f->dst is a speacial case for bridge
+				/* !f->dst is a special case for bridge
 				 * It means the MAC belongs to the bridge
 				 * Therefore need a little more filtering
 				 * we only want to dump the !f->dst case
@@ -705,6 +709,8 @@ int br_fdb_dump(struct sk_buff *skb,
 				if (f->dst)
 					goto skip;
 			}
+			if (!filter_dev && f->dst)
+				goto skip;
 
 			if (fdb_fill_info(skb, br, f,
 					  NETLINK_CB(cb->skb).portid,
@@ -840,10 +846,9 @@ int br_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 		/* VID was specified, so use it. */
 		err = __br_fdb_add(ndm, p, addr, nlh_flags, vid);
 	} else {
-		if (!pv || bitmap_empty(pv->vlan_bitmap, VLAN_N_VID)) {
-			err = __br_fdb_add(ndm, p, addr, nlh_flags, 0);
+		err = __br_fdb_add(ndm, p, addr, nlh_flags, 0);
+		if (err || !pv)
 			goto out;
-		}
 
 		/* We have vlans configured on this port and user didn't
 		 * specify a VLAN.  To be nice, add/update entry for every
@@ -911,16 +916,15 @@ int br_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
 
 		err = __br_fdb_delete(p, addr, vid);
 	} else {
-		if (!pv || bitmap_empty(pv->vlan_bitmap, VLAN_N_VID)) {
-			err = __br_fdb_delete(p, addr, 0);
+		err = -ENOENT;
+		err &= __br_fdb_delete(p, addr, 0);
+		if (!pv)
 			goto out;
-		}
 
 		/* We have vlans configured on this port and user didn't
 		 * specify a VLAN.  To be nice, add/update entry for every
 		 * vlan on this port.
 		 */
-		err = -ENOENT;
 		for_each_set_bit(vid, pv->vlan_bitmap, VLAN_N_VID) {
 			err &= __br_fdb_delete(p, addr, vid);
 		}
@@ -985,26 +989,14 @@ void br_fdb_unsync_static(struct net_bridge *br, struct net_bridge_port *p)
 	}
 }
 
-int br_fdb_external_learn_add(struct net_device *dev,
+int br_fdb_external_learn_add(struct net_bridge *br, struct net_bridge_port *p,
 			      const unsigned char *addr, u16 vid)
 {
-	struct net_bridge_port *p;
-	struct net_bridge *br;
 	struct hlist_head *head;
 	struct net_bridge_fdb_entry *fdb;
 	int err = 0;
 
-	rtnl_lock();
-
-	p = br_port_get_rtnl(dev);
-	if (!p) {
-		pr_info("bridge: %s not a bridge port\n", dev->name);
-		err = -EINVAL;
-		goto err_rtnl_unlock;
-	}
-
-	br = p->br;
-
+	ASSERT_RTNL();
 	spin_lock_bh(&br->hash_lock);
 
 	head = &br->hash[br_mac_hash(addr, vid)];
@@ -1029,33 +1021,18 @@ int br_fdb_external_learn_add(struct net_device *dev,
 
 err_unlock:
 	spin_unlock_bh(&br->hash_lock);
-err_rtnl_unlock:
-	rtnl_unlock();
 
 	return err;
 }
-EXPORT_SYMBOL(br_fdb_external_learn_add);
 
-int br_fdb_external_learn_del(struct net_device *dev,
+int br_fdb_external_learn_del(struct net_bridge *br, struct net_bridge_port *p,
 			      const unsigned char *addr, u16 vid)
 {
-	struct net_bridge_port *p;
-	struct net_bridge *br;
 	struct hlist_head *head;
 	struct net_bridge_fdb_entry *fdb;
 	int err = 0;
 
-	rtnl_lock();
-
-	p = br_port_get_rtnl(dev);
-	if (!p) {
-		pr_info("bridge: %s not a bridge port\n", dev->name);
-		err = -EINVAL;
-		goto err_rtnl_unlock;
-	}
-
-	br = p->br;
-
+	ASSERT_RTNL();
 	spin_lock_bh(&br->hash_lock);
 
 	head = &br->hash[br_mac_hash(addr, vid)];
@@ -1066,9 +1043,6 @@ int br_fdb_external_learn_del(struct net_device *dev,
 		err = -ENOENT;
 
 	spin_unlock_bh(&br->hash_lock);
-err_rtnl_unlock:
-	rtnl_unlock();
 
 	return err;
 }
-EXPORT_SYMBOL(br_fdb_external_learn_del);

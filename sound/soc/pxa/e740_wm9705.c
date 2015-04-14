@@ -88,24 +88,6 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"Mic Amp", NULL, "Mic (Internal)"},
 };
 
-static int e740_ac97_init(struct snd_soc_pcm_runtime *rtd)
-{
-	struct snd_soc_codec *codec = rtd->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	snd_soc_dapm_nc_pin(dapm, "HPOUTL");
-	snd_soc_dapm_nc_pin(dapm, "HPOUTR");
-	snd_soc_dapm_nc_pin(dapm, "PHONE");
-	snd_soc_dapm_nc_pin(dapm, "LINEINL");
-	snd_soc_dapm_nc_pin(dapm, "LINEINR");
-	snd_soc_dapm_nc_pin(dapm, "CDINL");
-	snd_soc_dapm_nc_pin(dapm, "CDINR");
-	snd_soc_dapm_nc_pin(dapm, "PCBEEP");
-	snd_soc_dapm_nc_pin(dapm, "MIC2");
-
-	return 0;
-}
-
 static struct snd_soc_dai_link e740_dai[] = {
 	{
 		.name = "AC97",
@@ -114,7 +96,6 @@ static struct snd_soc_dai_link e740_dai[] = {
 		.codec_dai_name = "wm9705-hifi",
 		.platform_name = "pxa-pcm-audio",
 		.codec_name = "wm9705-codec",
-		.init = e740_ac97_init,
 	},
 	{
 		.name = "AC97 Aux",
@@ -136,6 +117,7 @@ static struct snd_soc_card e740 = {
 	.num_dapm_widgets = ARRAY_SIZE(e740_dapm_widgets),
 	.dapm_routes = audio_map,
 	.num_dapm_routes = ARRAY_SIZE(audio_map),
+	.fully_routed = true,
 };
 
 static struct gpio e740_audio_gpios[] = {

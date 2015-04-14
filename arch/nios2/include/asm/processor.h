@@ -85,9 +85,6 @@ static inline void exit_thread(void)
 
 extern unsigned long get_wchan(struct task_struct *p);
 
-/* Prepare to copy thread state - unlazy all lazy status */
-#define prepare_to_copy(tsk)	do { } while (0)
-
 #define task_pt_regs(p) \
 	((struct pt_regs *)(THREAD_SIZE + task_stack_page(p)) - 1)
 

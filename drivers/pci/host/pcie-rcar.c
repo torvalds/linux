@@ -397,9 +397,6 @@ static void rcar_pcie_enable(struct rcar_pcie *pcie)
 #endif
 
 	pci_common_init_dev(&pdev->dev, &rcar_pci);
-#ifdef CONFIG_PCI_DOMAINS
-	rcar_pci.domain++;
-#endif
 }
 
 static int phy_wait_for_ack(struct rcar_pcie *pcie)
@@ -757,7 +754,7 @@ static int rcar_pcie_get_resources(struct platform_device *pdev,
 		goto err_map_reg;
 
 	i = irq_of_parse_and_map(pdev->dev.of_node, 0);
-	if (i < 0) {
+	if (!i) {
 		dev_err(pcie->dev, "cannot get platform resources for msi interrupt\n");
 		err = -ENOENT;
 		goto err_map_reg;
@@ -765,7 +762,7 @@ static int rcar_pcie_get_resources(struct platform_device *pdev,
 	pcie->msi.irq1 = i;
 
 	i = irq_of_parse_and_map(pdev->dev.of_node, 1);
-	if (i < 0) {
+	if (!i) {
 		dev_err(pcie->dev, "cannot get platform resources for msi interrupt\n");
 		err = -ENOENT;
 		goto err_map_reg;

@@ -34,21 +34,36 @@
 #define valid_IRQ(i) (true)
 #endif
 
-static unsigned long acpi_dev_memresource_flags(u64 len, u8 write_protect,
-						bool window)
+static bool acpi_dev_resource_len_valid(u64 start, u64 end, u64 len, bool io)
 {
-	unsigned long flags = IORESOURCE_MEM;
+	u64 reslen = end - start + 1;
 
-	if (len == 0)
-		flags |= IORESOURCE_DISABLED;
+	/*
+	 * CHECKME: len might be required to check versus a minimum
+	 * length as well. 1 for io is fine, but for memory it does
+	 * not make any sense at all.
+	 * Note: some BIOSes report incorrect length for ACPI address space
+	 * descriptor, so remove check of 'reslen == len' to avoid regression.
+	 */
+	if (len && reslen && start <= end)
+		return true;
+
+	pr_debug("ACPI: invalid or unassigned resource %s [%016llx - %016llx] length [%016llx]\n",
+		io ? "io" : "mem", start, end, len);
+
+	return false;
+}
+
+static void acpi_dev_memresource_flags(struct resource *res, u64 len,
+				       u8 write_protect)
+{
+	res->flags = IORESOURCE_MEM;
+
+	if (!acpi_dev_resource_len_valid(res->start, res->end, len, false))
+		res->flags |= IORESOURCE_DISABLED | IORESOURCE_UNSET;
 
 	if (write_protect == ACPI_READ_WRITE_MEMORY)
-		flags |= IORESOURCE_MEM_WRITEABLE;
-
-	if (window)
-		flags |= IORESOURCE_WINDOW;
-
-	return flags;
+		res->flags |= IORESOURCE_MEM_WRITEABLE;
 }
 
 static void acpi_dev_get_memresource(struct resource *res, u64 start, u64 len,
@@ -56,7 +71,7 @@ static void acpi_dev_get_memresource(struct resource *res, u64 start, u64 len,
 {
 	res->start = start;
 	res->end = start + len - 1;
-	res->flags = acpi_dev_memresource_flags(len, write_protect, false);
+	acpi_dev_memresource_flags(res, len, write_protect);
 }
 
 /**
@@ -67,6 +82,11 @@ static void acpi_dev_get_memresource(struct resource *res, u64 start, u64 len,
  * Check if the given ACPI resource object represents a memory resource and
  * if that's the case, use the information in it to populate the generic
  * resource object pointed to by @res.
+ *
+ * Return:
+ * 1) false with res->flags setting to zero: not the expected resource type
+ * 2) false with IORESOURCE_DISABLED in res->flags: valid unassigned resource
+ * 3) true: valid assigned resource
  */
 bool acpi_dev_resource_memory(struct acpi_resource *ares, struct resource *res)
 {
@@ -77,60 +97,52 @@ bool acpi_dev_resource_memory(struct acpi_resource *ares, struct resource *res)
 	switch (ares->type) {
 	case ACPI_RESOURCE_TYPE_MEMORY24:
 		memory24 = &ares->data.memory24;
-		if (!memory24->minimum && !memory24->address_length)
-			return false;
-		acpi_dev_get_memresource(res, memory24->minimum,
-					 memory24->address_length,
+		acpi_dev_get_memresource(res, memory24->minimum << 8,
+					 memory24->address_length << 8,
 					 memory24->write_protect);
 		break;
 	case ACPI_RESOURCE_TYPE_MEMORY32:
 		memory32 = &ares->data.memory32;
-		if (!memory32->minimum && !memory32->address_length)
-			return false;
 		acpi_dev_get_memresource(res, memory32->minimum,
 					 memory32->address_length,
 					 memory32->write_protect);
 		break;
 	case ACPI_RESOURCE_TYPE_FIXED_MEMORY32:
 		fixed_memory32 = &ares->data.fixed_memory32;
-		if (!fixed_memory32->address && !fixed_memory32->address_length)
-			return false;
 		acpi_dev_get_memresource(res, fixed_memory32->address,
 					 fixed_memory32->address_length,
 					 fixed_memory32->write_protect);
 		break;
 	default:
+		res->flags = 0;
 		return false;
 	}
-	return true;
+
+	return !(res->flags & IORESOURCE_DISABLED);
 }
 EXPORT_SYMBOL_GPL(acpi_dev_resource_memory);
 
-static unsigned int acpi_dev_ioresource_flags(u64 start, u64 end, u8 io_decode,
-					      bool window)
+static void acpi_dev_ioresource_flags(struct resource *res, u64 len,
+				      u8 io_decode)
 {
-	int flags = IORESOURCE_IO;
+	res->flags = IORESOURCE_IO;
+
+	if (!acpi_dev_resource_len_valid(res->start, res->end, len, true))
+		res->flags |= IORESOURCE_DISABLED | IORESOURCE_UNSET;
+
+	if (res->end >= 0x10003)
+		res->flags |= IORESOURCE_DISABLED | IORESOURCE_UNSET;
 
 	if (io_decode == ACPI_DECODE_16)
-		flags |= IORESOURCE_IO_16BIT_ADDR;
-
-	if (start > end || end >= 0x10003)
-		flags |= IORESOURCE_DISABLED;
-
-	if (window)
-		flags |= IORESOURCE_WINDOW;
-
-	return flags;
+		res->flags |= IORESOURCE_IO_16BIT_ADDR;
 }
 
 static void acpi_dev_get_ioresource(struct resource *res, u64 start, u64 len,
 				    u8 io_decode)
 {
-	u64 end = start + len - 1;
-
 	res->start = start;
-	res->end = end;
-	res->flags = acpi_dev_ioresource_flags(start, end, io_decode, false);
+	res->end = start + len - 1;
+	acpi_dev_ioresource_flags(res, len, io_decode);
 }
 
 /**
@@ -141,6 +153,11 @@ static void acpi_dev_get_ioresource(struct resource *res, u64 start, u64 len,
  * Check if the given ACPI resource object represents an I/O resource and
  * if that's the case, use the information in it to populate the generic
  * resource object pointed to by @res.
+ *
+ * Return:
+ * 1) false with res->flags setting to zero: not the expected resource type
+ * 2) false with IORESOURCE_DISABLED in res->flags: valid unassigned resource
+ * 3) true: valid assigned resource
  */
 bool acpi_dev_resource_io(struct acpi_resource *ares, struct resource *res)
 {
@@ -150,135 +167,143 @@ bool acpi_dev_resource_io(struct acpi_resource *ares, struct resource *res)
 	switch (ares->type) {
 	case ACPI_RESOURCE_TYPE_IO:
 		io = &ares->data.io;
-		if (!io->minimum && !io->address_length)
-			return false;
 		acpi_dev_get_ioresource(res, io->minimum,
 					io->address_length,
 					io->io_decode);
 		break;
 	case ACPI_RESOURCE_TYPE_FIXED_IO:
 		fixed_io = &ares->data.fixed_io;
-		if (!fixed_io->address && !fixed_io->address_length)
-			return false;
 		acpi_dev_get_ioresource(res, fixed_io->address,
 					fixed_io->address_length,
 					ACPI_DECODE_10);
 		break;
 	default:
+		res->flags = 0;
 		return false;
 	}
-	return true;
+
+	return !(res->flags & IORESOURCE_DISABLED);
 }
 EXPORT_SYMBOL_GPL(acpi_dev_resource_io);
 
-/**
- * acpi_dev_resource_address_space - Extract ACPI address space information.
- * @ares: Input ACPI resource object.
- * @res: Output generic resource object.
- *
- * Check if the given ACPI resource object represents an address space resource
- * and if that's the case, use the information in it to populate the generic
- * resource object pointed to by @res.
- */
-bool acpi_dev_resource_address_space(struct acpi_resource *ares,
-				     struct resource *res)
+static bool acpi_decode_space(struct resource_win *win,
+			      struct acpi_resource_address *addr,
+			      struct acpi_address64_attribute *attr)
 {
-	acpi_status status;
-	struct acpi_resource_address64 addr;
-	bool window;
-	u64 len;
-	u8 io_decode;
+	u8 iodec = attr->granularity == 0xfff ? ACPI_DECODE_10 : ACPI_DECODE_16;
+	bool wp = addr->info.mem.write_protect;
+	u64 len = attr->address_length;
+	struct resource *res = &win->res;
 
-	switch (ares->type) {
-	case ACPI_RESOURCE_TYPE_ADDRESS16:
-	case ACPI_RESOURCE_TYPE_ADDRESS32:
-	case ACPI_RESOURCE_TYPE_ADDRESS64:
-		break;
-	default:
-		return false;
+	/*
+	 * Filter out invalid descriptor according to ACPI Spec 5.0, section
+	 * 6.4.3.5 Address Space Resource Descriptors.
+	 */
+	if ((addr->min_address_fixed != addr->max_address_fixed && len) ||
+	    (addr->min_address_fixed && addr->max_address_fixed && !len))
+		pr_debug("ACPI: Invalid address space min_addr_fix %d, max_addr_fix %d, len %llx\n",
+			 addr->min_address_fixed, addr->max_address_fixed, len);
+
+	res->start = attr->minimum;
+	res->end = attr->maximum;
+
+	/*
+	 * For bridges that translate addresses across the bridge,
+	 * translation_offset is the offset that must be added to the
+	 * address on the secondary side to obtain the address on the
+	 * primary side. Non-bridge devices must list 0 for all Address
+	 * Translation offset bits.
+	 */
+	if (addr->producer_consumer == ACPI_PRODUCER) {
+		res->start += attr->translation_offset;
+		res->end += attr->translation_offset;
+	} else if (attr->translation_offset) {
+		pr_debug("ACPI: translation_offset(%lld) is invalid for non-bridge device.\n",
+			 attr->translation_offset);
 	}
 
-	status = acpi_resource_to_address64(ares, &addr);
-	if (ACPI_FAILURE(status))
-		return false;
-
-	res->start = addr.minimum;
-	res->end = addr.maximum;
-	window = addr.producer_consumer == ACPI_PRODUCER;
-
-	switch(addr.resource_type) {
+	switch (addr->resource_type) {
 	case ACPI_MEMORY_RANGE:
-		len = addr.maximum - addr.minimum + 1;
-		res->flags = acpi_dev_memresource_flags(len,
-						addr.info.mem.write_protect,
-						window);
+		acpi_dev_memresource_flags(res, len, wp);
 		break;
 	case ACPI_IO_RANGE:
-		io_decode = addr.granularity == 0xfff ?
-				ACPI_DECODE_10 : ACPI_DECODE_16;
-		res->flags = acpi_dev_ioresource_flags(addr.minimum,
-						       addr.maximum,
-						       io_decode, window);
+		acpi_dev_ioresource_flags(res, len, iodec);
 		break;
 	case ACPI_BUS_NUMBER_RANGE:
 		res->flags = IORESOURCE_BUS;
 		break;
 	default:
-		res->flags = 0;
+		return false;
 	}
 
-	return true;
+	win->offset = attr->translation_offset;
+
+	if (addr->producer_consumer == ACPI_PRODUCER)
+		res->flags |= IORESOURCE_WINDOW;
+
+	if (addr->info.mem.caching == ACPI_PREFETCHABLE_MEMORY)
+		res->flags |= IORESOURCE_PREFETCH;
+
+	return !(res->flags & IORESOURCE_DISABLED);
+}
+
+/**
+ * acpi_dev_resource_address_space - Extract ACPI address space information.
+ * @ares: Input ACPI resource object.
+ * @win: Output generic resource object.
+ *
+ * Check if the given ACPI resource object represents an address space resource
+ * and if that's the case, use the information in it to populate the generic
+ * resource object pointed to by @win.
+ *
+ * Return:
+ * 1) false with win->res.flags setting to zero: not the expected resource type
+ * 2) false with IORESOURCE_DISABLED in win->res.flags: valid unassigned
+ *    resource
+ * 3) true: valid assigned resource
+ */
+bool acpi_dev_resource_address_space(struct acpi_resource *ares,
+				     struct resource_win *win)
+{
+	struct acpi_resource_address64 addr;
+
+	win->res.flags = 0;
+	if (ACPI_FAILURE(acpi_resource_to_address64(ares, &addr)))
+		return false;
+
+	return acpi_decode_space(win, (struct acpi_resource_address *)&addr,
+				 &addr.address);
 }
 EXPORT_SYMBOL_GPL(acpi_dev_resource_address_space);
 
 /**
  * acpi_dev_resource_ext_address_space - Extract ACPI address space information.
  * @ares: Input ACPI resource object.
- * @res: Output generic resource object.
+ * @win: Output generic resource object.
  *
  * Check if the given ACPI resource object represents an extended address space
  * resource and if that's the case, use the information in it to populate the
- * generic resource object pointed to by @res.
+ * generic resource object pointed to by @win.
+ *
+ * Return:
+ * 1) false with win->res.flags setting to zero: not the expected resource type
+ * 2) false with IORESOURCE_DISABLED in win->res.flags: valid unassigned
+ *    resource
+ * 3) true: valid assigned resource
  */
 bool acpi_dev_resource_ext_address_space(struct acpi_resource *ares,
-					 struct resource *res)
+					 struct resource_win *win)
 {
 	struct acpi_resource_extended_address64 *ext_addr;
-	bool window;
-	u64 len;
-	u8 io_decode;
 
+	win->res.flags = 0;
 	if (ares->type != ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64)
 		return false;
 
 	ext_addr = &ares->data.ext_address64;
 
-	res->start = ext_addr->minimum;
-	res->end = ext_addr->maximum;
-	window = ext_addr->producer_consumer == ACPI_PRODUCER;
-
-	switch(ext_addr->resource_type) {
-	case ACPI_MEMORY_RANGE:
-		len = ext_addr->maximum - ext_addr->minimum + 1;
-		res->flags = acpi_dev_memresource_flags(len,
-					ext_addr->info.mem.write_protect,
-					window);
-		break;
-	case ACPI_IO_RANGE:
-		io_decode = ext_addr->granularity == 0xfff ?
-				ACPI_DECODE_10 : ACPI_DECODE_16;
-		res->flags = acpi_dev_ioresource_flags(ext_addr->minimum,
-						       ext_addr->maximum,
-						       io_decode, window);
-		break;
-	case ACPI_BUS_NUMBER_RANGE:
-		res->flags = IORESOURCE_BUS;
-		break;
-	default:
-		res->flags = 0;
-	}
-
-	return true;
+	return acpi_decode_space(win, (struct acpi_resource_address *)ext_addr,
+				 &ext_addr->address);
 }
 EXPORT_SYMBOL_GPL(acpi_dev_resource_ext_address_space);
 
@@ -310,7 +335,7 @@ static void acpi_dev_irqresource_disabled(struct resource *res, u32 gsi)
 {
 	res->start = gsi;
 	res->end = gsi;
-	res->flags = IORESOURCE_IRQ | IORESOURCE_DISABLED;
+	res->flags = IORESOURCE_IRQ | IORESOURCE_DISABLED | IORESOURCE_UNSET;
 }
 
 static void acpi_dev_get_irqresource(struct resource *res, u32 gsi,
@@ -369,6 +394,11 @@ static void acpi_dev_get_irqresource(struct resource *res, u32 gsi,
  * represented by the resource and populate the generic resource object pointed
  * to by @res accordingly.  If the registration of the GSI is not successful,
  * IORESOURCE_DISABLED will be set it that object's flags.
+ *
+ * Return:
+ * 1) false with res->flags setting to zero: not the expected resource type
+ * 2) false with IORESOURCE_DISABLED in res->flags: valid unassigned resource
+ * 3) true: valid assigned resource
  */
 bool acpi_dev_resource_interrupt(struct acpi_resource *ares, int index,
 				 struct resource *res)
@@ -402,6 +432,7 @@ bool acpi_dev_resource_interrupt(struct acpi_resource *ares, int index,
 					 ext_irq->sharable, false);
 		break;
 	default:
+		res->flags = 0;
 		return false;
 	}
 
@@ -415,12 +446,7 @@ EXPORT_SYMBOL_GPL(acpi_dev_resource_interrupt);
  */
 void acpi_dev_free_resource_list(struct list_head *list)
 {
-	struct resource_list_entry *rentry, *re;
-
-	list_for_each_entry_safe(rentry, re, list, node) {
-		list_del(&rentry->node);
-		kfree(rentry);
-	}
+	resource_list_free(list);
 }
 EXPORT_SYMBOL_GPL(acpi_dev_free_resource_list);
 
@@ -432,18 +458,19 @@ struct res_proc_context {
 	int error;
 };
 
-static acpi_status acpi_dev_new_resource_entry(struct resource *r,
+static acpi_status acpi_dev_new_resource_entry(struct resource_win *win,
 					       struct res_proc_context *c)
 {
-	struct resource_list_entry *rentry;
+	struct resource_entry *rentry;
 
-	rentry = kmalloc(sizeof(*rentry), GFP_KERNEL);
+	rentry = resource_list_create_entry(NULL, 0);
 	if (!rentry) {
 		c->error = -ENOMEM;
 		return AE_NO_MEMORY;
 	}
-	rentry->res = *r;
-	list_add_tail(&rentry->node, c->list);
+	*rentry->res = win->res;
+	rentry->offset = win->offset;
+	resource_list_add_tail(rentry, c->list);
 	c->count++;
 	return AE_OK;
 }
@@ -452,7 +479,8 @@ static acpi_status acpi_dev_process_resource(struct acpi_resource *ares,
 					     void *context)
 {
 	struct res_proc_context *c = context;
-	struct resource r;
+	struct resource_win win;
+	struct resource *res = &win.res;
 	int i;
 
 	if (c->preproc) {
@@ -467,18 +495,18 @@ static acpi_status acpi_dev_process_resource(struct acpi_resource *ares,
 		}
 	}
 
-	memset(&r, 0, sizeof(r));
+	memset(&win, 0, sizeof(win));
 
-	if (acpi_dev_resource_memory(ares, &r)
-	    || acpi_dev_resource_io(ares, &r)
-	    || acpi_dev_resource_address_space(ares, &r)
-	    || acpi_dev_resource_ext_address_space(ares, &r))
-		return acpi_dev_new_resource_entry(&r, c);
+	if (acpi_dev_resource_memory(ares, res)
+	    || acpi_dev_resource_io(ares, res)
+	    || acpi_dev_resource_address_space(ares, &win)
+	    || acpi_dev_resource_ext_address_space(ares, &win))
+		return acpi_dev_new_resource_entry(&win, c);
 
-	for (i = 0; acpi_dev_resource_interrupt(ares, i, &r); i++) {
+	for (i = 0; acpi_dev_resource_interrupt(ares, i, res); i++) {
 		acpi_status status;
 
-		status = acpi_dev_new_resource_entry(&r, c);
+		status = acpi_dev_new_resource_entry(&win, c);
 		if (ACPI_FAILURE(status))
 			return status;
 	}
@@ -503,7 +531,7 @@ static acpi_status acpi_dev_process_resource(struct acpi_resource *ares,
  * returned as the final error code.
  *
  * The resultant struct resource objects are put on the list pointed to by
- * @list, that must be empty initially, as members of struct resource_list_entry
+ * @list, that must be empty initially, as members of struct resource_entry
  * objects.  Callers of this routine should use %acpi_dev_free_resource_list() to
  * free that list.
  *
@@ -538,3 +566,58 @@ int acpi_dev_get_resources(struct acpi_device *adev, struct list_head *list,
 	return c.count;
 }
 EXPORT_SYMBOL_GPL(acpi_dev_get_resources);
+
+/**
+ * acpi_dev_filter_resource_type - Filter ACPI resource according to resource
+ *				   types
+ * @ares: Input ACPI resource object.
+ * @types: Valid resource types of IORESOURCE_XXX
+ *
+ * This is a hepler function to support acpi_dev_get_resources(), which filters
+ * ACPI resource objects according to resource types.
+ */
+int acpi_dev_filter_resource_type(struct acpi_resource *ares,
+				  unsigned long types)
+{
+	unsigned long type = 0;
+
+	switch (ares->type) {
+	case ACPI_RESOURCE_TYPE_MEMORY24:
+	case ACPI_RESOURCE_TYPE_MEMORY32:
+	case ACPI_RESOURCE_TYPE_FIXED_MEMORY32:
+		type = IORESOURCE_MEM;
+		break;
+	case ACPI_RESOURCE_TYPE_IO:
+	case ACPI_RESOURCE_TYPE_FIXED_IO:
+		type = IORESOURCE_IO;
+		break;
+	case ACPI_RESOURCE_TYPE_IRQ:
+	case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
+		type = IORESOURCE_IRQ;
+		break;
+	case ACPI_RESOURCE_TYPE_DMA:
+	case ACPI_RESOURCE_TYPE_FIXED_DMA:
+		type = IORESOURCE_DMA;
+		break;
+	case ACPI_RESOURCE_TYPE_GENERIC_REGISTER:
+		type = IORESOURCE_REG;
+		break;
+	case ACPI_RESOURCE_TYPE_ADDRESS16:
+	case ACPI_RESOURCE_TYPE_ADDRESS32:
+	case ACPI_RESOURCE_TYPE_ADDRESS64:
+	case ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64:
+		if (ares->data.address.resource_type == ACPI_MEMORY_RANGE)
+			type = IORESOURCE_MEM;
+		else if (ares->data.address.resource_type == ACPI_IO_RANGE)
+			type = IORESOURCE_IO;
+		else if (ares->data.address.resource_type ==
+			 ACPI_BUS_NUMBER_RANGE)
+			type = IORESOURCE_BUS;
+		break;
+	default:
+		break;
+	}
+
+	return (type & types) ? 0 : 1;
+}
+EXPORT_SYMBOL_GPL(acpi_dev_filter_resource_type);

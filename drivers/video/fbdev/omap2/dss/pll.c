@@ -222,6 +222,16 @@ static int wait_for_bit_change(void __iomem *reg, int bitnum, int value)
 	return !value;
 }
 
+int dss_pll_wait_reset_done(struct dss_pll *pll)
+{
+	void __iomem *base = pll->base;
+
+	if (wait_for_bit_change(base + PLL_STATUS, 0, 1) != 1)
+		return -ETIMEDOUT;
+	else
+		return 0;
+}
+
 static int dss_wait_hsdiv_ack(struct dss_pll *pll, u32 hsdiv_ack_mask)
 {
 	int t = 100;

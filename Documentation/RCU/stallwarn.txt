@@ -15,7 +15,7 @@ CONFIG_RCU_CPU_STALL_TIMEOUT
 	21 seconds.
 
 	This configuration parameter may be changed at runtime via the
-	/sys/module/rcutree/parameters/rcu_cpu_stall_timeout, however
+	/sys/module/rcupdate/parameters/rcu_cpu_stall_timeout, however
 	this parameter is checked only at the beginning of a cycle.
 	So if you are 10 seconds into a 40-second stall, setting this
 	sysfs parameter to (say) five will shorten the timeout for the
@@ -152,6 +152,15 @@ no non-lazy callbacks ("." is printed otherwise, as shown above) and
 "D" indicates that dyntick-idle processing is enabled ("." is printed
 otherwise, for example, if disabled via the "nohz=" kernel boot parameter).
 
+If the relevant grace-period kthread has been unable to run prior to
+the stall warning, the following additional line is printed:
+
+	rcu_preempt kthread starved for 2023 jiffies!
+
+Starving the grace-period kthreads of CPU time can of course result in
+RCU CPU stall warnings even when all CPUs and tasks have passed through
+the required quiescent states.
+
 
 Multiple Warnings From One Stall
 
@@ -186,6 +195,11 @@ o	For !CONFIG_PREEMPT kernels, a CPU looping anywhere in the
 	if the looping in the kernel is really expected and desirable
 	behavior, you might need to replace some of the cond_resched()
 	calls with calls to cond_resched_rcu_qs().
+
+o	Anything that prevents RCU's grace-period kthreads from running.
+	This can result in the "All QSes seen" console-log message.
+	This message will include information on when the kthread last
+	ran and how often it should be expected to run.
 
 o	A CPU-bound real-time task in a CONFIG_PREEMPT kernel, which might
 	happen to preempt a low-priority task in the middle of an RCU

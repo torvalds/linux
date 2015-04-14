@@ -402,6 +402,9 @@ struct scsi_host_template {
 	 */
 	unsigned char present;
 
+	/* If use block layer to manage tags, this is tag allocation policy */
+	int tag_alloc_policy;
+
 	/*
 	 * Let the block layer assigns tags to all commands.
 	 */

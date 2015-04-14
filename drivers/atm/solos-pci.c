@@ -785,8 +785,8 @@ static void solos_bh(unsigned long card_arg)
 				skb = card->rx_skb[port];
 				card->rx_skb[port] = NULL;
 
-				pci_unmap_single(card->dev, SKB_CB(skb)->dma_addr,
-						 RX_DMA_SIZE, PCI_DMA_FROMDEVICE);
+				dma_unmap_single(&card->dev->dev, SKB_CB(skb)->dma_addr,
+						 RX_DMA_SIZE, DMA_FROM_DEVICE);
 
 				header = (void *)skb->data;
 				size = le16_to_cpu(header->size);
@@ -872,8 +872,8 @@ static void solos_bh(unsigned long card_arg)
 			struct sk_buff *skb = alloc_skb(RX_DMA_SIZE, GFP_ATOMIC);
 			if (skb) {
 				SKB_CB(skb)->dma_addr =
-					pci_map_single(card->dev, skb->data,
-						       RX_DMA_SIZE, PCI_DMA_FROMDEVICE);
+					dma_map_single(&card->dev->dev, skb->data,
+						       RX_DMA_SIZE, DMA_FROM_DEVICE);
 				iowrite32(SKB_CB(skb)->dma_addr,
 					  card->config_regs + RX_DMA_ADDR(port));
 				card->rx_skb[port] = skb;
@@ -1069,8 +1069,8 @@ static uint32_t fpga_tx(struct solos_card *card)
 		if (tx_pending & 1) {
 			struct sk_buff *oldskb = card->tx_skb[port];
 			if (oldskb) {
-				pci_unmap_single(card->dev, SKB_CB(oldskb)->dma_addr,
-						 oldskb->len, PCI_DMA_TODEVICE);
+				dma_unmap_single(&card->dev->dev, SKB_CB(oldskb)->dma_addr,
+						 oldskb->len, DMA_TO_DEVICE);
 				card->tx_skb[port] = NULL;
 			}
 			spin_lock(&card->tx_queue_lock);
@@ -1089,8 +1089,8 @@ static uint32_t fpga_tx(struct solos_card *card)
 					data = card->dma_bounce + (BUF_SIZE * port);
 					memcpy(data, skb->data, skb->len);
 				}
-				SKB_CB(skb)->dma_addr = pci_map_single(card->dev, data,
-								       skb->len, PCI_DMA_TODEVICE);
+				SKB_CB(skb)->dma_addr = dma_map_single(&card->dev->dev, data,
+								       skb->len, DMA_TO_DEVICE);
 				card->tx_skb[port] = skb;
 				iowrite32(SKB_CB(skb)->dma_addr,
 					  card->config_regs + TX_DMA_ADDR(port));
@@ -1210,7 +1210,7 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		goto out;
 	}
 
-	err = pci_set_dma_mask(dev, DMA_BIT_MASK(32));
+	err = dma_set_mask_and_coherent(&dev->dev, DMA_BIT_MASK(32));
 	if (err) {
 		dev_warn(&dev->dev, "Failed to set 32-bit DMA mask\n");
 		goto out;
@@ -1411,14 +1411,14 @@ static void atm_remove(struct solos_card *card)
 
 			skb = card->rx_skb[i];
 			if (skb) {
-				pci_unmap_single(card->dev, SKB_CB(skb)->dma_addr,
-						 RX_DMA_SIZE, PCI_DMA_FROMDEVICE);
+				dma_unmap_single(&card->dev->dev, SKB_CB(skb)->dma_addr,
+						 RX_DMA_SIZE, DMA_FROM_DEVICE);
 				dev_kfree_skb(skb);
 			}
 			skb = card->tx_skb[i];
 			if (skb) {
-				pci_unmap_single(card->dev, SKB_CB(skb)->dma_addr,
-						 skb->len, PCI_DMA_TODEVICE);
+				dma_unmap_single(&card->dev->dev, SKB_CB(skb)->dma_addr,
+						 skb->len, DMA_TO_DEVICE);
 				dev_kfree_skb(skb);
 			}
 			while ((skb = skb_dequeue(&card->tx_queue[i])))

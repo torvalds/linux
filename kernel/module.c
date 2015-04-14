@@ -1225,6 +1225,12 @@ static const struct kernel_symbol *resolve_symbol(struct module *mod,
 	const unsigned long *crc;
 	int err;
 
+	/*
+	 * The module_mutex should not be a heavily contended lock;
+	 * if we get the occasional sleep here, we'll go an extra iteration
+	 * in the wait_event_interruptible(), which is harmless.
+	 */
+	sched_annotate_sleep();
 	mutex_lock(&module_mutex);
 	sym = find_symbol(name, &owner, &crc,
 			  !(mod->taints & (1 << TAINT_PROPRIETARY_MODULE)), true);
@@ -1859,7 +1865,7 @@ static void free_module(struct module *mod)
 	kfree(mod->args);
 	percpu_modfree(mod);
 
-	/* Free lock-classes: */
+	/* Free lock-classes; relies on the preceding sync_rcu(). */
 	lockdep_free_key_range(mod->module_core, mod->core_size);
 
 	/* Finally, free the core (containing the module structure) */
@@ -2305,11 +2311,13 @@ static void layout_symtab(struct module *mod, struct load_info *info)
 	info->symoffs = ALIGN(mod->core_size, symsect->sh_addralign ?: 1);
 	info->stroffs = mod->core_size = info->symoffs + ndst * sizeof(Elf_Sym);
 	mod->core_size += strtab_size;
+	mod->core_size = debug_align(mod->core_size);
 
 	/* Put string table section at end of init part of module. */
 	strsect->sh_flags |= SHF_ALLOC;
 	strsect->sh_entsize = get_offset(mod, &mod->init_size, strsect,
 					 info->index.str) | INIT_OFFSET_MASK;
+	mod->init_size = debug_align(mod->init_size);
 	pr_debug("\t%s\n", info->secstrings + strsect->sh_name);
 }
 
@@ -2471,6 +2479,23 @@ static int elf_header_check(struct load_info *info)
 	return 0;
 }
 
+#define COPY_CHUNK_SIZE (16*PAGE_SIZE)
+
+static int copy_chunked_from_user(void *dst, const void __user *usrc, unsigned long len)
+{
+	do {
+		unsigned long n = min(len, COPY_CHUNK_SIZE);
+
+		if (copy_from_user(dst, usrc, n) != 0)
+			return -EFAULT;
+		cond_resched();
+		dst += n;
+		usrc += n;
+		len -= n;
+	} while (len);
+	return 0;
+}
+
 /* Sets info->hdr and info->len. */
 static int copy_module_from_user(const void __user *umod, unsigned long len,
 				  struct load_info *info)
@@ -2490,7 +2515,7 @@ static int copy_module_from_user(const void __user *umod, unsigned long len,
 	if (!info->hdr)
 		return -ENOMEM;
 
-	if (copy_from_user(info->hdr, umod, info->len) != 0) {
+	if (copy_chunked_from_user(info->hdr, umod, info->len) != 0) {
 		vfree(info->hdr);
 		return -EFAULT;
 	}
@@ -2978,6 +3003,12 @@ static bool finished_loading(const char *name)
 	struct module *mod;
 	bool ret;
 
+	/*
+	 * The module_mutex should not be a heavily contended lock;
+	 * if we get the occasional sleep here, we'll go an extra iteration
+	 * in the wait_event_interruptible(), which is harmless.
+	 */
+	sched_annotate_sleep();
 	mutex_lock(&module_mutex);
 	mod = find_module_all(name, strlen(name), true);
 	ret = !mod || mod->state == MODULE_STATE_LIVE
@@ -3011,8 +3042,13 @@ static void do_free_init(struct rcu_head *head)
 	kfree(m);
 }
 
-/* This is where the real work happens */
-static int do_init_module(struct module *mod)
+/*
+ * This is where the real work happens.
+ *
+ * Keep it uninlined to provide a reliable breakpoint target, e.g. for the gdb
+ * helper command 'lx-symbols'.
+ */
+static noinline int do_init_module(struct module *mod)
 {
 	int ret = 0;
 	struct mod_initfree *freeinit;
@@ -3120,32 +3156,6 @@ static int may_init_module(void)
 }
 
 /*
- * Can't use wait_event_interruptible() because our condition
- * 'finished_loading()' contains a blocking primitive itself (mutex_lock).
- */
-static int wait_finished_loading(struct module *mod)
-{
-	DEFINE_WAIT_FUNC(wait, woken_wake_function);
-	int ret = 0;
-
-	add_wait_queue(&module_wq, &wait);
-	for (;;) {
-		if (finished_loading(mod->name))
-			break;
-
-		if (signal_pending(current)) {
-			ret = -ERESTARTSYS;
-			break;
-		}
-
-		wait_woken(&wait, TASK_INTERRUPTIBLE, MAX_SCHEDULE_TIMEOUT);
-	}
-	remove_wait_queue(&module_wq, &wait);
-
-	return ret;
-}
-
-/*
  * We try to place it in the list now to make sure it's unique before
  * we dedicate too many resources.  In particular, temporary percpu
  * memory exhaustion.
@@ -3165,8 +3175,8 @@ again:
 		    || old->state == MODULE_STATE_UNFORMED) {
 			/* Wait in case it fails to load. */
 			mutex_unlock(&module_mutex);
-
-			err = wait_finished_loading(mod);
+			err = wait_event_interruptible(module_wq,
+					       finished_loading(mod->name));
 			if (err)
 				goto out_unlocked;
 			goto again;
@@ -3265,7 +3275,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	mod->sig_ok = info->sig_ok;
 	if (!mod->sig_ok) {
 		pr_notice_once("%s: module verification failed: signature "
-			       "and/or  required key missing - tainting "
+			       "and/or required key missing - tainting "
 			       "kernel\n", mod->name);
 		add_taint_module(mod, TAINT_UNSIGNED_MODULE, LOCKDEP_STILL_OK);
 	}
@@ -3379,6 +3389,9 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	synchronize_rcu();
 	mutex_unlock(&module_mutex);
  free_module:
+	/* Free lock-classes; relies on the preceding sync_rcu() */
+	lockdep_free_key_range(mod->module_core, mod->core_size);
+
 	module_deallocate(mod, info);
  free_copy:
 	free_copy(info);

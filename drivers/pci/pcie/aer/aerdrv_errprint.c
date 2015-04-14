@@ -132,16 +132,8 @@ static const char *aer_agent_string[] = {
 static void __print_tlp_header(struct pci_dev *dev,
 			       struct aer_header_log_regs *t)
 {
-	unsigned char *tlp = (unsigned char *)&t;
-
-	dev_err(&dev->dev, "  TLP Header:"
-		" %02x%02x%02x%02x %02x%02x%02x%02x"
-		" %02x%02x%02x%02x %02x%02x%02x%02x\n",
-		*(tlp + 3), *(tlp + 2), *(tlp + 1), *tlp,
-		*(tlp + 7), *(tlp + 6), *(tlp + 5), *(tlp + 4),
-		*(tlp + 11), *(tlp + 10), *(tlp + 9),
-		*(tlp + 8), *(tlp + 15), *(tlp + 14),
-		*(tlp + 13), *(tlp + 12));
+	dev_err(&dev->dev, "  TLP Header: %08x %08x %08x %08x\n",
+		t->dw0, t->dw1, t->dw2, t->dw3);
 }
 
 static void __aer_print_error(struct pci_dev *dev,

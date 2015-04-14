@@ -19,7 +19,7 @@
 /*
  * Driver: pcmmio
  * Description: A driver for the PCM-MIO multifunction board
- * Devices: (Winsystems) PCM-MIO [pcmmio]
+ * Devices: [Winsystems] PCM-MIO (pcmmio)
  * Author: Calin Culianu <calin@ajvar.org>
  * Updated: Wed, May 16 2007 16:21:10 -0500
  * Status: works

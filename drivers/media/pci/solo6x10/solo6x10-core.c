@@ -182,7 +182,7 @@ static ssize_t eeprom_store(struct device *dev, struct device_attribute *attr,
 {
 	struct solo_dev *solo_dev =
 		container_of(dev, struct solo_dev, dev);
-	unsigned short *p = (unsigned short *)buf;
+	u16 *p = (u16 *)buf;
 	int i;
 
 	if (count & 0x1)
@@ -212,7 +212,7 @@ static ssize_t eeprom_show(struct device *dev, struct device_attribute *attr,
 {
 	struct solo_dev *solo_dev =
 		container_of(dev, struct solo_dev, dev);
-	unsigned short *p = (unsigned short *)buf;
+	u16 *p = (u16 *)buf;
 	int count = (full_eeprom ? 128 : 64);
 	int i;
 

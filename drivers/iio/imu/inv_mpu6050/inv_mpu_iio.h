@@ -54,6 +54,7 @@ struct inv_mpu6050_reg_map {
 	u8 int_enable;
 	u8 pwr_mgmt_1;
 	u8 pwr_mgmt_2;
+	u8 int_pin_cfg;
 };
 
 /*device enum */
@@ -119,6 +120,8 @@ struct inv_mpu6050_state {
 	enum   inv_devices chip_type;
 	spinlock_t time_stamp_lock;
 	struct i2c_client *client;
+	struct i2c_adapter *mux_adapter;
+	unsigned int powerup_count;
 	struct inv_mpu6050_platform_data plat_data;
 	DECLARE_KFIFO(timestamps, long long, TIMESTAMP_FIFO_SIZE);
 };
@@ -178,6 +181,9 @@ struct inv_mpu6050_state {
 
 /* 6 + 6 round up and plus 8 */
 #define INV_MPU6050_OUTPUT_DATA_SIZE         24
+
+#define INV_MPU6050_REG_INT_PIN_CFG	0x37
+#define INV_MPU6050_BIT_BYPASS_EN	0x2
 
 /* init parameters */
 #define INV_MPU6050_INIT_FIFO_RATE           50

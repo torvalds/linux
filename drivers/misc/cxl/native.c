@@ -18,15 +18,19 @@
 #include <misc/cxl.h>
 
 #include "cxl.h"
+#include "trace.h"
 
 static int afu_control(struct cxl_afu *afu, u64 command,
 		       u64 result, u64 mask, bool enabled)
 {
 	u64 AFU_Cntl = cxl_p2n_read(afu, CXL_AFU_Cntl_An);
 	unsigned long timeout = jiffies + (HZ * CXL_TIMEOUT);
+	int rc = 0;
 
 	spin_lock(&afu->afu_cntl_lock);
 	pr_devel("AFU command starting: %llx\n", command);
+
+	trace_cxl_afu_ctrl(afu, command);
 
 	cxl_p2n_write(afu, CXL_AFU_Cntl_An, AFU_Cntl | command);
 
@@ -34,8 +38,8 @@ static int afu_control(struct cxl_afu *afu, u64 command,
 	while ((AFU_Cntl & mask) != result) {
 		if (time_after_eq(jiffies, timeout)) {
 			dev_warn(&afu->dev, "WARNING: AFU control timed out!\n");
-			spin_unlock(&afu->afu_cntl_lock);
-			return -EBUSY;
+			rc = -EBUSY;
+			goto out;
 		}
 		pr_devel_ratelimited("AFU control... (0x%.16llx)\n",
 				     AFU_Cntl | command);
@@ -44,9 +48,11 @@ static int afu_control(struct cxl_afu *afu, u64 command,
 	};
 	pr_devel("AFU command complete: %llx\n", command);
 	afu->enabled = enabled;
+out:
+	trace_cxl_afu_ctrl_done(afu, command, rc);
 	spin_unlock(&afu->afu_cntl_lock);
 
-	return 0;
+	return rc;
 }
 
 static int afu_enable(struct cxl_afu *afu)
@@ -91,6 +97,9 @@ int cxl_psl_purge(struct cxl_afu *afu)
 	u64 dsisr, dar;
 	u64 start, end;
 	unsigned long timeout = jiffies + (HZ * CXL_TIMEOUT);
+	int rc = 0;
+
+	trace_cxl_psl_ctrl(afu, CXL_PSL_SCNTL_An_Pc);
 
 	pr_devel("PSL purge request\n");
 
@@ -107,7 +116,8 @@ int cxl_psl_purge(struct cxl_afu *afu)
 			== CXL_PSL_SCNTL_An_Ps_Pending) {
 		if (time_after_eq(jiffies, timeout)) {
 			dev_warn(&afu->dev, "WARNING: PSL Purge timed out!\n");
-			return -EBUSY;
+			rc = -EBUSY;
+			goto out;
 		}
 		dsisr = cxl_p2n_read(afu, CXL_PSL_DSISR_An);
 		pr_devel_ratelimited("PSL purging... PSL_CNTL: 0x%.16llx  PSL_DSISR: 0x%.16llx\n", PSL_CNTL, dsisr);
@@ -128,7 +138,9 @@ int cxl_psl_purge(struct cxl_afu *afu)
 
 	cxl_p1n_write(afu, CXL_PSL_SCNTL_An,
 		       PSL_CNTL & ~CXL_PSL_SCNTL_An_Pc);
-	return 0;
+out:
+	trace_cxl_psl_ctrl_done(afu, CXL_PSL_SCNTL_An_Pc, rc);
+	return rc;
 }
 
 static int spa_max_procs(int spa_size)
@@ -185,6 +197,7 @@ static int alloc_spa(struct cxl_afu *afu)
 
 static void release_spa(struct cxl_afu *afu)
 {
+	cxl_p1n_write(afu, CXL_PSL_SPAP_An, 0);
 	free_pages((unsigned long) afu->spa, afu->spa_order);
 }
 
@@ -278,6 +291,9 @@ static int do_process_element_cmd(struct cxl_context *ctx,
 {
 	u64 state;
 	unsigned long timeout = jiffies + (HZ * CXL_TIMEOUT);
+	int rc = 0;
+
+	trace_cxl_llcmd(ctx, cmd);
 
 	WARN_ON(!ctx->afu->enabled);
 
@@ -289,12 +305,14 @@ static int do_process_element_cmd(struct cxl_context *ctx,
 	while (1) {
 		if (time_after_eq(jiffies, timeout)) {
 			dev_warn(&ctx->afu->dev, "WARNING: Process Element Command timed out!\n");
-			return -EBUSY;
+			rc = -EBUSY;
+			goto out;
 		}
 		state = be64_to_cpup(ctx->afu->sw_command_status);
 		if (state == ~0ULL) {
 			pr_err("cxl: Error adding process element to AFU\n");
-			return -1;
+			rc = -1;
+			goto out;
 		}
 		if ((state & (CXL_SPA_SW_CMD_MASK | CXL_SPA_SW_STATE_MASK  | CXL_SPA_SW_LINK_MASK)) ==
 		    (cmd | (cmd >> 16) | ctx->pe))
@@ -309,7 +327,9 @@ static int do_process_element_cmd(struct cxl_context *ctx,
 		schedule();
 
 	}
-	return 0;
+out:
+	trace_cxl_llcmd_done(ctx, cmd, rc);
+	return rc;
 }
 
 static int add_process_element(struct cxl_context *ctx)
@@ -629,6 +649,8 @@ static inline int detach_process_native_afu_directed(struct cxl_context *ctx)
 
 int cxl_detach_process(struct cxl_context *ctx)
 {
+	trace_cxl_detach(ctx);
+
 	if (ctx->afu->current_mode == CXL_MODE_DEDICATED)
 		return detach_process_native_dedicated(ctx);
 
@@ -667,6 +689,7 @@ static void recover_psl_err(struct cxl_afu *afu, u64 errstat)
 
 int cxl_ack_irq(struct cxl_context *ctx, u64 tfc, u64 psl_reset_mask)
 {
+	trace_cxl_psl_irq_ack(ctx, tfc);
 	if (tfc)
 		cxl_p2n_write(ctx->afu, CXL_PSL_TFC_An, tfc);
 	if (psl_reset_mask)

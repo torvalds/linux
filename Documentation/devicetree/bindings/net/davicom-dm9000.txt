@@ -11,6 +11,8 @@ Required properties:
 Optional properties:
 - davicom,no-eeprom : Configuration EEPROM is not available
 - davicom,ext-phy : Use external PHY
+- reset-gpios : phandle of gpio that will be used to reset chip during probe
+- vcc-supply : phandle of regulator that will be used to enable power to chip
 
 Example:
 
@@ -21,4 +23,6 @@ Example:
 		interrupts = <7 4>;
 		local-mac-address = [00 00 de ad be ef];
 		davicom,no-eeprom;
+		reset-gpios = <&gpf 12 GPIO_ACTIVE_LOW>;
+		vcc-supply = <&eth0_power>;
 	};

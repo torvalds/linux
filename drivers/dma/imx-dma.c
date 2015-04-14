@@ -230,11 +230,6 @@ static inline int is_imx1_dma(struct imxdma_engine *imxdma)
 	return imxdma->devtype == IMX1_DMA;
 }
 
-static inline int is_imx21_dma(struct imxdma_engine *imxdma)
-{
-	return imxdma->devtype == IMX21_DMA;
-}
-
 static inline int is_imx27_dma(struct imxdma_engine *imxdma)
 {
 	return imxdma->devtype == IMX27_DMA;
@@ -669,69 +664,67 @@ out:
 
 }
 
-static int imxdma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
-		unsigned long arg)
+static int imxdma_terminate_all(struct dma_chan *chan)
 {
 	struct imxdma_channel *imxdmac = to_imxdma_chan(chan);
-	struct dma_slave_config *dmaengine_cfg = (void *)arg;
 	struct imxdma_engine *imxdma = imxdmac->imxdma;
 	unsigned long flags;
+
+	imxdma_disable_hw(imxdmac);
+
+	spin_lock_irqsave(&imxdma->lock, flags);
+	list_splice_tail_init(&imxdmac->ld_active, &imxdmac->ld_free);
+	list_splice_tail_init(&imxdmac->ld_queue, &imxdmac->ld_free);
+	spin_unlock_irqrestore(&imxdma->lock, flags);
+	return 0;
+}
+
+static int imxdma_config(struct dma_chan *chan,
+			 struct dma_slave_config *dmaengine_cfg)
+{
+	struct imxdma_channel *imxdmac = to_imxdma_chan(chan);
+	struct imxdma_engine *imxdma = imxdmac->imxdma;
 	unsigned int mode = 0;
 
-	switch (cmd) {
-	case DMA_TERMINATE_ALL:
-		imxdma_disable_hw(imxdmac);
-
-		spin_lock_irqsave(&imxdma->lock, flags);
-		list_splice_tail_init(&imxdmac->ld_active, &imxdmac->ld_free);
-		list_splice_tail_init(&imxdmac->ld_queue, &imxdmac->ld_free);
-		spin_unlock_irqrestore(&imxdma->lock, flags);
-		return 0;
-	case DMA_SLAVE_CONFIG:
-		if (dmaengine_cfg->direction == DMA_DEV_TO_MEM) {
-			imxdmac->per_address = dmaengine_cfg->src_addr;
-			imxdmac->watermark_level = dmaengine_cfg->src_maxburst;
-			imxdmac->word_size = dmaengine_cfg->src_addr_width;
-		} else {
-			imxdmac->per_address = dmaengine_cfg->dst_addr;
-			imxdmac->watermark_level = dmaengine_cfg->dst_maxburst;
-			imxdmac->word_size = dmaengine_cfg->dst_addr_width;
-		}
-
-		switch (imxdmac->word_size) {
-		case DMA_SLAVE_BUSWIDTH_1_BYTE:
-			mode = IMX_DMA_MEMSIZE_8;
-			break;
-		case DMA_SLAVE_BUSWIDTH_2_BYTES:
-			mode = IMX_DMA_MEMSIZE_16;
-			break;
-		default:
-		case DMA_SLAVE_BUSWIDTH_4_BYTES:
-			mode = IMX_DMA_MEMSIZE_32;
-			break;
-		}
-
-		imxdmac->hw_chaining = 0;
-
-		imxdmac->ccr_from_device = (mode | IMX_DMA_TYPE_FIFO) |
-			((IMX_DMA_MEMSIZE_32 | IMX_DMA_TYPE_LINEAR) << 2) |
-			CCR_REN;
-		imxdmac->ccr_to_device =
-			(IMX_DMA_MEMSIZE_32 | IMX_DMA_TYPE_LINEAR) |
-			((mode | IMX_DMA_TYPE_FIFO) << 2) | CCR_REN;
-		imx_dmav1_writel(imxdma, imxdmac->dma_request,
-				 DMA_RSSR(imxdmac->channel));
-
-		/* Set burst length */
-		imx_dmav1_writel(imxdma, imxdmac->watermark_level *
-				imxdmac->word_size, DMA_BLR(imxdmac->channel));
-
-		return 0;
-	default:
-		return -ENOSYS;
+	if (dmaengine_cfg->direction == DMA_DEV_TO_MEM) {
+		imxdmac->per_address = dmaengine_cfg->src_addr;
+		imxdmac->watermark_level = dmaengine_cfg->src_maxburst;
+		imxdmac->word_size = dmaengine_cfg->src_addr_width;
+	} else {
+		imxdmac->per_address = dmaengine_cfg->dst_addr;
+		imxdmac->watermark_level = dmaengine_cfg->dst_maxburst;
+		imxdmac->word_size = dmaengine_cfg->dst_addr_width;
 	}
 
-	return -EINVAL;
+	switch (imxdmac->word_size) {
+	case DMA_SLAVE_BUSWIDTH_1_BYTE:
+		mode = IMX_DMA_MEMSIZE_8;
+		break;
+	case DMA_SLAVE_BUSWIDTH_2_BYTES:
+		mode = IMX_DMA_MEMSIZE_16;
+		break;
+	default:
+	case DMA_SLAVE_BUSWIDTH_4_BYTES:
+		mode = IMX_DMA_MEMSIZE_32;
+		break;
+	}
+
+	imxdmac->hw_chaining = 0;
+
+	imxdmac->ccr_from_device = (mode | IMX_DMA_TYPE_FIFO) |
+		((IMX_DMA_MEMSIZE_32 | IMX_DMA_TYPE_LINEAR) << 2) |
+		CCR_REN;
+	imxdmac->ccr_to_device =
+		(IMX_DMA_MEMSIZE_32 | IMX_DMA_TYPE_LINEAR) |
+		((mode | IMX_DMA_TYPE_FIFO) << 2) | CCR_REN;
+	imx_dmav1_writel(imxdma, imxdmac->dma_request,
+			 DMA_RSSR(imxdmac->channel));
+
+	/* Set burst length */
+	imx_dmav1_writel(imxdma, imxdmac->watermark_level *
+			 imxdmac->word_size, DMA_BLR(imxdmac->channel));
+
+	return 0;
 }
 
 static enum dma_status imxdma_tx_status(struct dma_chan *chan,
@@ -1184,7 +1177,8 @@ static int __init imxdma_probe(struct platform_device *pdev)
 	imxdma->dma_device.device_prep_dma_cyclic = imxdma_prep_dma_cyclic;
 	imxdma->dma_device.device_prep_dma_memcpy = imxdma_prep_dma_memcpy;
 	imxdma->dma_device.device_prep_interleaved_dma = imxdma_prep_dma_interleaved;
-	imxdma->dma_device.device_control = imxdma_control;
+	imxdma->dma_device.device_config = imxdma_config;
+	imxdma->dma_device.device_terminate_all = imxdma_terminate_all;
 	imxdma->dma_device.device_issue_pending = imxdma_issue_pending;
 
 	platform_set_drvdata(pdev, imxdma);

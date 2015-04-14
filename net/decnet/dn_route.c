@@ -1062,7 +1062,7 @@ source_ok:
 	if (decnet_debug_level & 16)
 		printk(KERN_DEBUG
 		       "dn_route_output_slow: initial checks complete."
-		       " dst=%o4x src=%04x oif=%d try_hard=%d\n",
+		       " dst=%04x src=%04x oif=%d try_hard=%d\n",
 		       le16_to_cpu(fld.daddr), le16_to_cpu(fld.saddr),
 		       fld.flowidn_oif, try_hard);
 
@@ -1616,7 +1616,8 @@ static int dn_rt_fill_info(struct sk_buff *skb, u32 portid, u32 seq,
 	    nla_put_u32(skb, RTA_IIF, rt->fld.flowidn_iif) < 0)
 		goto errout;
 
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 errout:
 	nlmsg_cancel(skb, nlh);
@@ -1709,9 +1710,6 @@ static int dn_cache_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh)
 		rt->rt_flags |= RTCF_NOTIFY;
 
 	err = dn_rt_fill_info(skb, NETLINK_CB(in_skb).portid, nlh->nlmsg_seq, RTM_NEWROUTE, 0, 0);
-
-	if (err == 0)
-		goto out_free;
 	if (err < 0) {
 		err = -EMSGSIZE;
 		goto out_free;
@@ -1762,7 +1760,7 @@ int dn_cache_dump(struct sk_buff *skb, struct netlink_callback *cb)
 			skb_dst_set(skb, dst_clone(&rt->dst));
 			if (dn_rt_fill_info(skb, NETLINK_CB(cb->skb).portid,
 					cb->nlh->nlmsg_seq, RTM_NEWROUTE,
-					1, NLM_F_MULTI) <= 0) {
+					1, NLM_F_MULTI) < 0) {
 				skb_dst_drop(skb);
 				rcu_read_unlock_bh();
 				goto done;

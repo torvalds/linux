@@ -37,6 +37,9 @@ struct rt5677_platform_data {
 		OFF, GPIO4, GPIO5 and GPIO6 respectively */
 	unsigned int jd2_gpio;
 	unsigned int jd3_gpio;
+
+	/* Set MICBIAS1 VDD 1v8 or 3v3 */
+	bool micbias1_vdd_3v3;
 };
 
 #endif

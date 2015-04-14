@@ -224,46 +224,53 @@ void mei_cl_driver_unregister(struct mei_cl_driver *driver)
 }
 EXPORT_SYMBOL_GPL(mei_cl_driver_unregister);
 
-static int ___mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
+static ssize_t ___mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
 			bool blocking)
 {
 	struct mei_device *dev;
-	struct mei_me_client *me_cl;
-	struct mei_cl_cb *cb;
-	int rets;
+	struct mei_me_client *me_cl = NULL;
+	struct mei_cl_cb *cb = NULL;
+	ssize_t rets;
 
 	if (WARN_ON(!cl || !cl->dev))
 		return -ENODEV;
 
 	dev = cl->dev;
 
-	if (cl->state != MEI_FILE_CONNECTED)
-		return -ENODEV;
+	mutex_lock(&dev->device_lock);
+	if (cl->state != MEI_FILE_CONNECTED) {
+		rets = -ENODEV;
+		goto out;
+	}
 
 	/* Check if we have an ME client device */
 	me_cl = mei_me_cl_by_uuid_id(dev, &cl->cl_uuid, cl->me_client_id);
-	if (!me_cl)
-		return -ENOTTY;
+	if (!me_cl) {
+		rets = -ENOTTY;
+		goto out;
+	}
 
-	if (length > me_cl->props.max_msg_length)
-		return -EFBIG;
+	if (length > me_cl->props.max_msg_length) {
+		rets = -EFBIG;
+		goto out;
+	}
 
 	cb = mei_io_cb_init(cl, NULL);
-	if (!cb)
-		return -ENOMEM;
+	if (!cb) {
+		rets = -ENOMEM;
+		goto out;
+	}
 
 	rets = mei_io_cb_alloc_req_buf(cb, length);
-	if (rets < 0) {
-		mei_io_cb_free(cb);
-		return rets;
-	}
+	if (rets < 0)
+		goto out;
 
 	memcpy(cb->request_buffer.data, buf, length);
 
-	mutex_lock(&dev->device_lock);
-
 	rets = mei_cl_write(cl, cb, blocking);
 
+out:
+	mei_me_cl_put(me_cl);
 	mutex_unlock(&dev->device_lock);
 	if (rets < 0)
 		mei_io_cb_free(cb);
@@ -271,12 +278,12 @@ static int ___mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
 	return rets;
 }
 
-int __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length)
+ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length)
 {
 	struct mei_device *dev;
 	struct mei_cl_cb *cb;
 	size_t r_length;
-	int err;
+	ssize_t rets;
 
 	if (WARN_ON(!cl || !cl->dev))
 		return -ENODEV;
@@ -286,11 +293,9 @@ int __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length)
 	mutex_lock(&dev->device_lock);
 
 	if (!cl->read_cb) {
-		err = mei_cl_read_start(cl, length);
-		if (err < 0) {
-			mutex_unlock(&dev->device_lock);
-			return err;
-		}
+		rets = mei_cl_read_start(cl, length);
+		if (rets < 0)
+			goto out;
 	}
 
 	if (cl->reading_state != MEI_READ_COMPLETE &&
@@ -313,13 +318,13 @@ int __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length)
 	cb = cl->read_cb;
 
 	if (cl->reading_state != MEI_READ_COMPLETE) {
-		r_length = 0;
+		rets = 0;
 		goto out;
 	}
 
 	r_length = min_t(size_t, length, cb->buf_idx);
-
 	memcpy(buf, cb->response_buffer.data, r_length);
+	rets = r_length;
 
 	mei_io_cb_free(cb);
 	cl->reading_state = MEI_IDLE;
@@ -328,20 +333,20 @@ int __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length)
 out:
 	mutex_unlock(&dev->device_lock);
 
-	return r_length;
+	return rets;
 }
 
-inline int __mei_cl_async_send(struct mei_cl *cl, u8 *buf, size_t length)
+inline ssize_t __mei_cl_async_send(struct mei_cl *cl, u8 *buf, size_t length)
 {
 	return ___mei_cl_send(cl, buf, length, 0);
 }
 
-inline int __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length)
+inline ssize_t __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length)
 {
 	return ___mei_cl_send(cl, buf, length, 1);
 }
 
-int mei_cl_send(struct mei_cl_device *device, u8 *buf, size_t length)
+ssize_t mei_cl_send(struct mei_cl_device *device, u8 *buf, size_t length)
 {
 	struct mei_cl *cl = device->cl;
 
@@ -355,7 +360,7 @@ int mei_cl_send(struct mei_cl_device *device, u8 *buf, size_t length)
 }
 EXPORT_SYMBOL_GPL(mei_cl_send);
 
-int mei_cl_recv(struct mei_cl_device *device, u8 *buf, size_t length)
+ssize_t mei_cl_recv(struct mei_cl_device *device, u8 *buf, size_t length)
 {
 	struct mei_cl *cl =  device->cl;
 

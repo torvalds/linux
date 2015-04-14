@@ -149,24 +149,6 @@ static struct ctl_table xfs_table[] = {
 		.extra2		= &xfs_params.inherit_noatim.max
 	},
 	{
-		.procname	= "xfsbufd_centisecs",
-		.data		= &xfs_params.xfs_buf_timer.val,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &xfs_params.xfs_buf_timer.min,
-		.extra2		= &xfs_params.xfs_buf_timer.max
-	},
-	{
-		.procname	= "age_buffer_centisecs",
-		.data		= &xfs_params.xfs_buf_age.val,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &xfs_params.xfs_buf_age.min,
-		.extra2		= &xfs_params.xfs_buf_age.max
-	},
-	{
 		.procname	= "inherit_nosymlinks",
 		.data		= &xfs_params.inherit_nosym.val,
 		.maxlen		= sizeof(int),

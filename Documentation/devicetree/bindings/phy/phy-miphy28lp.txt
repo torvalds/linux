@@ -26,6 +26,7 @@ Required properties (port (child) node):
 		  filled in "reg". It can also contain the offset of the system configuration
 		  registers used as glue-logic to setup the device for SATA/PCIe or USB3
 		  devices.
+- st,syscfg	: Offset of the parent configuration register.
 - resets	: phandle to the parent reset controller.
 - reset-names	: Associated name must be "miphy-sw-rst".
 
@@ -54,18 +55,12 @@ example:
 			phy_port0: port@9b22000 {
 				reg = <0x9b22000 0xff>,
 				      <0x9b09000 0xff>,
-				      <0x9b04000 0xff>,
-				      <0x114 0x4>, /* sysctrl MiPHY cntrl */
-				      <0x818 0x4>, /* sysctrl MiPHY status*/
-				      <0xe0  0x4>, /* sysctrl PCIe */
-				      <0xec  0x4>; /* sysctrl SATA */
+				      <0x9b04000 0xff>;
 				reg-names = "sata-up",
 					    "pcie-up",
-					    "pipew",
-					    "miphy-ctrl-glue",
-					    "miphy-status-glue",
-					    "pcie-glue",
-					    "sata-glue";
+					    "pipew";
+
+				st,syscfg = <0x114 0x818 0xe0 0xec>;
 				#phy-cells = <1>;
 				st,osc-rdy;
 				reset-names = "miphy-sw-rst";
@@ -75,18 +70,13 @@ example:
 			phy_port1: port@9b2a000 {
 				reg = <0x9b2a000 0xff>,
 				      <0x9b19000 0xff>,
-				      <0x9b14000 0xff>,
-				      <0x118 0x4>,
-				      <0x81c 0x4>,
-				      <0xe4  0x4>,
-				      <0xf0  0x4>;
+				      <0x9b14000 0xff>;
 				reg-names = "sata-up",
 					    "pcie-up",
-					    "pipew",
-					    "miphy-ctrl-glue",
-					    "miphy-status-glue",
-					    "pcie-glue",
-					    "sata-glue";
+					    "pipew";
+
+				st,syscfg = <0x118 0x81c 0xe4 0xf0>;
+
 				#phy-cells = <1>;
 				st,osc-force-ext;
 				reset-names = "miphy-sw-rst";
@@ -95,13 +85,12 @@ example:
 
 			phy_port2: port@8f95000 {
 				reg = <0x8f95000 0xff>,
-				      <0x8f90000 0xff>,
-				      <0x11c 0x4>,
-				      <0x820 0x4>;
+				      <0x8f90000 0xff>;
 				reg-names = "pipew",
-				    "usb3-up",
-				    "miphy-ctrl-glue",
-				    "miphy-status-glue";
+					    "usb3-up";
+
+				st,syscfg = <0x11c 0x820>;
+
 				#phy-cells = <1>;
 				reset-names = "miphy-sw-rst";
 				resets = <&softreset STIH407_MIPHY2_SOFTRESET>;
@@ -125,4 +114,4 @@ example:
 
 Macro definitions for the supported miphy configuration can be found in:
 
-include/dt-bindings/phy/phy-miphy28lp.h
+include/dt-bindings/phy/phy.h

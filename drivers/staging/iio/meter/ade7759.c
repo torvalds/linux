@@ -116,7 +116,7 @@ static int ade7759_spi_read_reg_40(struct device *dev,
 
 	mutex_lock(&st->buf_lock);
 	st->tx[0] = ADE7759_READ_REG(reg_address);
-	memset(&st->tx[1], 0 , 5);
+	memset(&st->tx[1], 0, 5);
 
 	ret = spi_sync_transfer(st->us, xfers, ARRAY_SIZE(xfers));
 	if (ret) {

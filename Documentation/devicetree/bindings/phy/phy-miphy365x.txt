@@ -6,8 +6,10 @@ for SATA and PCIe.
 
 Required properties (controller (parent) node):
 - compatible    : Should be "st,miphy365x-phy"
-- st,syscfg     : Should be a phandle of the system configuration register group
-		  which contain the SATA, PCIe mode setting bits
+- st,syscfg     : Phandle / integer array property. Phandle of sysconfig group
+		  containing the miphy registers and integer array should contain
+		  an entry for each port sub-node, specifying the control
+		  register offset inside the sysconfig group.
 
 Required nodes	:  A sub-node is required for each channel the controller
 		   provides. Address range information including the usual
@@ -26,7 +28,6 @@ Required properties (port (child) node):
 		  registers filled in "reg":
 			- sata:   For SATA devices
 			- pcie:   For PCIe devices
-			- syscfg: To specify the syscfg based config register
 
 Optional properties (port (child) node):
 - st,sata-gen	     :	Generation of locally attached SATA IP. Expected values
@@ -39,20 +40,20 @@ Example:
 
 	miphy365x_phy: miphy365x@fe382000 {
 		compatible      = "st,miphy365x-phy";
-		st,syscfg  	= <&syscfg_rear>;
+		st,syscfg  	= <&syscfg_rear 0x824 0x828>;
 		#address-cells	= <1>;
 		#size-cells	= <1>;
 		ranges;
 
 		phy_port0: port@fe382000 {
-			reg = <0xfe382000 0x100>, <0xfe394000 0x100>, <0x824 0x4>;
-			reg-names = "sata", "pcie", "syscfg";
+			reg = <0xfe382000 0x100>, <0xfe394000 0x100>;
+			reg-names = "sata", "pcie";
 			#phy-cells = <1>;
 			st,sata-gen = <3>;
 		};
 
 		phy_port1: port@fe38a000 {
-			reg = <0xfe38a000 0x100>, <0xfe804000 0x100>, <0x828 0x4>;;
+			reg = <0xfe38a000 0x100>, <0xfe804000 0x100>;;
 			reg-names = "sata", "pcie", "syscfg";
 			#phy-cells = <1>;
 			st,pcie-tx-pol-inv;

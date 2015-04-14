@@ -462,7 +462,7 @@ int dwc2_core_init(struct dwc2_hsotg *hsotg, bool select_phy, int irq)
 	dwc2_enable_common_interrupts(hsotg);
 
 	/*
-	 * Do device or host intialization based on mode during PCD and
+	 * Do device or host initialization based on mode during PCD and
 	 * HCD initialization
 	 */
 	if (dwc2_is_host_mode(hsotg)) {

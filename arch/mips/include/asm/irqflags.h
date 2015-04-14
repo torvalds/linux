@@ -15,9 +15,10 @@
 
 #include <linux/compiler.h>
 #include <linux/stringify.h>
+#include <asm/compiler.h>
 #include <asm/hazards.h>
 
-#ifdef CONFIG_CPU_MIPSR2
+#if defined(CONFIG_CPU_MIPSR2) || defined (CONFIG_CPU_MIPSR6)
 
 static inline void arch_local_irq_disable(void)
 {
@@ -118,7 +119,7 @@ void arch_local_irq_disable(void);
 unsigned long arch_local_irq_save(void);
 void arch_local_irq_restore(unsigned long flags);
 void __arch_local_irq_restore(unsigned long flags);
-#endif /* CONFIG_CPU_MIPSR2 */
+#endif /* CONFIG_CPU_MIPSR2 || CONFIG_CPU_MIPSR6 */
 
 static inline void arch_local_irq_enable(void)
 {
@@ -126,7 +127,7 @@ static inline void arch_local_irq_enable(void)
 	"	.set	push						\n"
 	"	.set	reorder						\n"
 	"	.set	noat						\n"
-#if   defined(CONFIG_CPU_MIPSR2)
+#if   defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR6)
 	"	ei							\n"
 #else
 	"	mfc0	$1,$12						\n"

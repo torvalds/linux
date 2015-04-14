@@ -195,6 +195,10 @@ static int dw_i2c_probe(struct platform_device *pdev)
 			clk_freq = pdata->i2c_scl_freq;
 	}
 
+	r = i2c_dw_eval_lock_support(dev);
+	if (r)
+		return r;
+
 	dev->functionality =
 		I2C_FUNC_I2C |
 		I2C_FUNC_10BIT_ADDR |
@@ -257,10 +261,14 @@ static int dw_i2c_probe(struct platform_device *pdev)
 		return r;
 	}
 
-	pm_runtime_set_autosuspend_delay(&pdev->dev, 1000);
-	pm_runtime_use_autosuspend(&pdev->dev);
-	pm_runtime_set_active(&pdev->dev);
-	pm_runtime_enable(&pdev->dev);
+	if (dev->pm_runtime_disabled) {
+		pm_runtime_forbid(&pdev->dev);
+	} else {
+		pm_runtime_set_autosuspend_delay(&pdev->dev, 1000);
+		pm_runtime_use_autosuspend(&pdev->dev);
+		pm_runtime_set_active(&pdev->dev);
+		pm_runtime_enable(&pdev->dev);
+	}
 
 	return 0;
 }
@@ -310,7 +318,9 @@ static int dw_i2c_resume(struct device *dev)
 	struct dw_i2c_dev *i_dev = platform_get_drvdata(pdev);
 
 	clk_prepare_enable(i_dev->clk);
-	i2c_dw_init(i_dev);
+
+	if (!i_dev->pm_runtime_disabled)
+		i2c_dw_init(i_dev);
 
 	return 0;
 }

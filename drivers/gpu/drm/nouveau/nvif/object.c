@@ -22,10 +22,10 @@
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 
-#include "object.h"
-#include "client.h"
-#include "driver.h"
-#include "ioctl.h"
+#include <nvif/object.h>
+#include <nvif/client.h>
+#include <nvif/driver.h>
+#include <nvif/ioctl.h>
 
 int
 nvif_object_ioctl(struct nvif_object *object, void *data, u32 size, void **hack)

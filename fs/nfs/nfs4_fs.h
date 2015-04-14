@@ -44,6 +44,7 @@ enum nfs4_client_state {
 #define NFS4_RENEW_TIMEOUT		0x01
 #define NFS4_RENEW_DELEGATION_CB	0x02
 
+struct nfs_seqid_counter;
 struct nfs4_minor_version_ops {
 	u32	minor_version;
 	unsigned init_caps;
@@ -56,6 +57,8 @@ struct nfs4_minor_version_ops {
 			struct nfs_fsinfo *);
 	void	(*free_lock_state)(struct nfs_server *,
 			struct nfs4_lock_state *);
+	struct nfs_seqid *
+		(*alloc_seqid)(struct nfs_seqid_counter *, gfp_t);
 	const struct rpc_call_ops *call_sync_ops;
 	const struct nfs4_state_recovery_ops *reboot_recovery_ops;
 	const struct nfs4_state_recovery_ops *nograce_recovery_ops;
@@ -443,6 +446,12 @@ extern void nfs_increment_open_seqid(int status, struct nfs_seqid *seqid);
 extern void nfs_increment_lock_seqid(int status, struct nfs_seqid *seqid);
 extern void nfs_release_seqid(struct nfs_seqid *seqid);
 extern void nfs_free_seqid(struct nfs_seqid *seqid);
+extern int nfs40_setup_sequence(struct nfs4_slot_table *tbl,
+				struct nfs4_sequence_args *args,
+				struct nfs4_sequence_res *res,
+				struct rpc_task *task);
+extern int nfs4_sequence_done(struct rpc_task *task,
+			      struct nfs4_sequence_res *res);
 
 extern void nfs4_free_lock_state(struct nfs_server *server, struct nfs4_lock_state *lsp);
 

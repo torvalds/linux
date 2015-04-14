@@ -16,6 +16,7 @@
 #ifndef TMIO_MMC_H
 #define TMIO_MMC_H
 
+#include <linux/dmaengine.h>
 #include <linux/highmem.h>
 #include <linux/mmc/tmio.h>
 #include <linux/mutex.h>
@@ -39,6 +40,17 @@
 #define TMIO_MASK_IRQ     (TMIO_MASK_READOP | TMIO_MASK_WRITEOP | TMIO_MASK_CMD)
 
 struct tmio_mmc_data;
+struct tmio_mmc_host;
+
+struct tmio_mmc_dma {
+	void *chan_priv_tx;
+	void *chan_priv_rx;
+	int slave_id_tx;
+	int slave_id_rx;
+	enum dma_slave_buswidth dma_buswidth;
+	bool (*filter)(struct dma_chan *chan, void *arg);
+	void (*enable)(struct tmio_mmc_host *host, bool enable);
+};
 
 struct tmio_mmc_host {
 	void __iomem *ctl;
@@ -56,9 +68,11 @@ struct tmio_mmc_host {
 	struct scatterlist      *sg_orig;
 	unsigned int            sg_len;
 	unsigned int            sg_off;
+	unsigned long		bus_shift;
 
 	struct platform_device *pdev;
 	struct tmio_mmc_data *pdata;
+	struct tmio_mmc_dma	*dma;
 
 	/* DMA support */
 	bool			force_pio;
@@ -83,10 +97,17 @@ struct tmio_mmc_host {
 	struct mutex		ios_lock;	/* protect set_ios() context */
 	bool			native_hotplug;
 	bool			sdio_irq_enabled;
+
+	int (*write16_hook)(struct tmio_mmc_host *host, int addr);
+	int (*clk_enable)(struct platform_device *pdev, unsigned int *f);
+	void (*clk_disable)(struct platform_device *pdev);
+	int (*multi_io_quirk)(struct mmc_card *card,
+			      unsigned int direction, int blk_size);
 };
 
-int tmio_mmc_host_probe(struct tmio_mmc_host **host,
-			struct platform_device *pdev,
+struct tmio_mmc_host *tmio_mmc_host_alloc(struct platform_device *pdev);
+void tmio_mmc_host_free(struct tmio_mmc_host *host);
+int tmio_mmc_host_probe(struct tmio_mmc_host *host,
 			struct tmio_mmc_data *pdata);
 void tmio_mmc_host_remove(struct tmio_mmc_host *host);
 void tmio_mmc_do_data_irq(struct tmio_mmc_host *host);
@@ -151,19 +172,19 @@ int tmio_mmc_host_runtime_resume(struct device *dev);
 
 static inline u16 sd_ctrl_read16(struct tmio_mmc_host *host, int addr)
 {
-	return readw(host->ctl + (addr << host->pdata->bus_shift));
+	return readw(host->ctl + (addr << host->bus_shift));
 }
 
 static inline void sd_ctrl_read16_rep(struct tmio_mmc_host *host, int addr,
 		u16 *buf, int count)
 {
-	readsw(host->ctl + (addr << host->pdata->bus_shift), buf, count);
+	readsw(host->ctl + (addr << host->bus_shift), buf, count);
 }
 
 static inline u32 sd_ctrl_read32(struct tmio_mmc_host *host, int addr)
 {
-	return readw(host->ctl + (addr << host->pdata->bus_shift)) |
-	       readw(host->ctl + ((addr + 2) << host->pdata->bus_shift)) << 16;
+	return readw(host->ctl + (addr << host->bus_shift)) |
+	       readw(host->ctl + ((addr + 2) << host->bus_shift)) << 16;
 }
 
 static inline void sd_ctrl_write16(struct tmio_mmc_host *host, int addr, u16 val)
@@ -171,21 +192,21 @@ static inline void sd_ctrl_write16(struct tmio_mmc_host *host, int addr, u16 val
 	/* If there is a hook and it returns non-zero then there
 	 * is an error and the write should be skipped
 	 */
-	if (host->pdata->write16_hook && host->pdata->write16_hook(host, addr))
+	if (host->write16_hook && host->write16_hook(host, addr))
 		return;
-	writew(val, host->ctl + (addr << host->pdata->bus_shift));
+	writew(val, host->ctl + (addr << host->bus_shift));
 }
 
 static inline void sd_ctrl_write16_rep(struct tmio_mmc_host *host, int addr,
 		u16 *buf, int count)
 {
-	writesw(host->ctl + (addr << host->pdata->bus_shift), buf, count);
+	writesw(host->ctl + (addr << host->bus_shift), buf, count);
 }
 
 static inline void sd_ctrl_write32(struct tmio_mmc_host *host, int addr, u32 val)
 {
-	writew(val, host->ctl + (addr << host->pdata->bus_shift));
-	writew(val >> 16, host->ctl + ((addr + 2) << host->pdata->bus_shift));
+	writew(val, host->ctl + (addr << host->bus_shift));
+	writew(val >> 16, host->ctl + ((addr + 2) << host->bus_shift));
 }
 
 

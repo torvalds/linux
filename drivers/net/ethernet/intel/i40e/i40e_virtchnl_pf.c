@@ -647,6 +647,9 @@ void i40e_reset_vf(struct i40e_vf *vf, bool flr)
 	int i;
 	u32 reg;
 
+	if (test_and_set_bit(__I40E_VF_DISABLE, &pf->state))
+		return;
+
 	/* warn the VF */
 	clear_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states);
 
@@ -668,13 +671,13 @@ void i40e_reset_vf(struct i40e_vf *vf, bool flr)
 	/* poll VPGEN_VFRSTAT reg to make sure
 	 * that reset is complete
 	 */
-	for (i = 0; i < 100; i++) {
-		/* vf reset requires driver to first reset the
-		 * vf and then poll the status register to make sure
-		 * that the requested op was completed
-		 * successfully
+	for (i = 0; i < 10; i++) {
+		/* VF reset requires driver to first reset the VF and then
+		 * poll the status register to make sure that the reset
+		 * completed successfully. Due to internal HW FIFO flushes,
+		 * we must wait 10ms before the register will be valid.
 		 */
-		usleep_range(10, 20);
+		usleep_range(10000, 20000);
 		reg = rd32(hw, I40E_VPGEN_VFRSTAT(vf->vf_id));
 		if (reg & I40E_VPGEN_VFRSTAT_VFRD_MASK) {
 			rsd = true;
@@ -706,6 +709,7 @@ complete_reset:
 	/* tell the VF the reset is done */
 	wr32(hw, I40E_VFGEN_RSTAT1(vf->vf_id), I40E_VFR_VFACTIVE);
 	i40e_flush(hw);
+	clear_bit(__I40E_VF_DISABLE, &pf->state);
 }
 
 /**
@@ -790,11 +794,18 @@ void i40e_free_vfs(struct i40e_pf *pf)
 
 	if (!pf->vf)
 		return;
+	while (test_and_set_bit(__I40E_VF_DISABLE, &pf->state))
+		usleep_range(1000, 2000);
 
-	/* Disable interrupt 0 so we don't try to handle the VFLR. */
-	i40e_irq_dynamic_disable_icr0(pf);
+	/* Disable IOV before freeing resources. This lets any VF drivers
+	 * running in the host get themselves cleaned up before we yank
+	 * the carpet out from underneath their feet.
+	 */
+	if (!pci_vfs_assigned(pf->pdev))
+		pci_disable_sriov(pf->pdev);
 
-	mdelay(10); /* let any messages in transit get finished up */
+	msleep(20); /* let any messages in transit get finished up */
+
 	/* free up vf resources */
 	tmp = pf->num_alloc_vfs;
 	pf->num_alloc_vfs = 0;
@@ -813,7 +824,6 @@ void i40e_free_vfs(struct i40e_pf *pf)
 	 * before this function ever gets called.
 	 */
 	if (!pci_vfs_assigned(pf->pdev)) {
-		pci_disable_sriov(pf->pdev);
 		/* Acknowledge VFLR for all VFS. Without this, VFs will fail to
 		 * work correctly when SR-IOV gets re-enabled.
 		 */
@@ -827,9 +837,7 @@ void i40e_free_vfs(struct i40e_pf *pf)
 		dev_warn(&pf->pdev->dev,
 			 "unable to disable SR-IOV because VFs are assigned.\n");
 	}
-
-	/* Re-enable interrupt 0. */
-	i40e_irq_dynamic_enable_icr0(pf);
+	clear_bit(__I40E_VF_DISABLE, &pf->state);
 }
 
 #ifdef CONFIG_PCI_IOV

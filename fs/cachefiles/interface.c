@@ -437,7 +437,7 @@ static int cachefiles_attr_changed(struct fscache_object *_object)
 	if (!object->backer)
 		return -ENOBUFS;
 
-	ASSERT(S_ISREG(object->backer->d_inode->i_mode));
+	ASSERT(d_is_reg(object->backer));
 
 	fscache_set_store_limit(&object->fscache, ni_size);
 
@@ -501,7 +501,7 @@ static void cachefiles_invalidate_object(struct fscache_operation *op)
 	       op->object->debug_id, (unsigned long long)ni_size);
 
 	if (object->backer) {
-		ASSERT(S_ISREG(object->backer->d_inode->i_mode));
+		ASSERT(d_is_reg(object->backer));
 
 		fscache_set_store_limit(&object->fscache, ni_size);
 

@@ -12,19 +12,18 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/mfd/syscon/exynos4-pmu.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
+#include <linux/regmap.h>
 #include <linux/spinlock.h>
+#include <linux/mfd/syscon.h>
 
-/* MIPI_PHYn_CONTROL register offset: n = 0..1 */
+/* MIPI_PHYn_CONTROL reg. offset (for base address from ioremap): n = 0..1 */
 #define EXYNOS_MIPI_PHY_CONTROL(n)	((n) * 4)
-#define EXYNOS_MIPI_PHY_ENABLE		(1 << 0)
-#define EXYNOS_MIPI_PHY_SRESETN		(1 << 1)
-#define EXYNOS_MIPI_PHY_MRESETN		(1 << 2)
-#define EXYNOS_MIPI_PHY_RESET_MASK	(3 << 1)
 
 enum exynos_mipi_phy_id {
 	EXYNOS_MIPI_PHY_ID_CSIS0,
@@ -38,42 +37,59 @@ enum exynos_mipi_phy_id {
 	((id) == EXYNOS_MIPI_PHY_ID_DSIM0 || (id) == EXYNOS_MIPI_PHY_ID_DSIM1)
 
 struct exynos_mipi_video_phy {
-	spinlock_t slock;
 	struct video_phy_desc {
 		struct phy *phy;
 		unsigned int index;
 	} phys[EXYNOS_MIPI_PHYS_NUM];
+	spinlock_t slock;
 	void __iomem *regs;
+	struct regmap *regmap;
 };
 
 static int __set_phy_state(struct exynos_mipi_video_phy *state,
 			enum exynos_mipi_phy_id id, unsigned int on)
 {
+	const unsigned int offset = EXYNOS4_MIPI_PHY_CONTROL(id / 2);
 	void __iomem *addr;
-	u32 reg, reset;
-
-	addr = state->regs + EXYNOS_MIPI_PHY_CONTROL(id / 2);
+	u32 val, reset;
 
 	if (is_mipi_dsim_phy_id(id))
-		reset = EXYNOS_MIPI_PHY_MRESETN;
+		reset = EXYNOS4_MIPI_PHY_MRESETN;
 	else
-		reset = EXYNOS_MIPI_PHY_SRESETN;
+		reset = EXYNOS4_MIPI_PHY_SRESETN;
 
 	spin_lock(&state->slock);
-	reg = readl(addr);
-	if (on)
-		reg |= reset;
-	else
-		reg &= ~reset;
-	writel(reg, addr);
 
-	/* Clear ENABLE bit only if MRESETN, SRESETN bits are not set. */
-	if (on)
-		reg |= EXYNOS_MIPI_PHY_ENABLE;
-	else if (!(reg & EXYNOS_MIPI_PHY_RESET_MASK))
-		reg &= ~EXYNOS_MIPI_PHY_ENABLE;
+	if (!IS_ERR(state->regmap)) {
+		regmap_read(state->regmap, offset, &val);
+		if (on)
+			val |= reset;
+		else
+			val &= ~reset;
+		regmap_write(state->regmap, offset, val);
+		if (on)
+			val |= EXYNOS4_MIPI_PHY_ENABLE;
+		else if (!(val & EXYNOS4_MIPI_PHY_RESET_MASK))
+			val &= ~EXYNOS4_MIPI_PHY_ENABLE;
+		regmap_write(state->regmap, offset, val);
+	} else {
+		addr = state->regs + EXYNOS_MIPI_PHY_CONTROL(id / 2);
 
-	writel(reg, addr);
+		val = readl(addr);
+		if (on)
+			val |= reset;
+		else
+			val &= ~reset;
+		writel(val, addr);
+		/* Clear ENABLE bit only if MRESETN, SRESETN bits are not set */
+		if (on)
+			val |= EXYNOS4_MIPI_PHY_ENABLE;
+		else if (!(val & EXYNOS4_MIPI_PHY_RESET_MASK))
+			val &= ~EXYNOS4_MIPI_PHY_ENABLE;
+
+		writel(val, addr);
+	}
+
 	spin_unlock(&state->slock);
 	return 0;
 }
@@ -118,7 +134,6 @@ static int exynos_mipi_video_phy_probe(struct platform_device *pdev)
 {
 	struct exynos_mipi_video_phy *state;
 	struct device *dev = &pdev->dev;
-	struct resource *res;
 	struct phy_provider *phy_provider;
 	unsigned int i;
 
@@ -126,11 +141,18 @@ static int exynos_mipi_video_phy_probe(struct platform_device *pdev)
 	if (!state)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	state->regmap = syscon_regmap_lookup_by_phandle(dev->of_node, "syscon");
+	if (IS_ERR(state->regmap)) {
+		struct resource *res;
 
-	state->regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(state->regs))
-		return PTR_ERR(state->regs);
+		dev_info(dev, "regmap lookup failed: %ld\n",
+			 PTR_ERR(state->regmap));
+
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		state->regs = devm_ioremap_resource(dev, res);
+		if (IS_ERR(state->regs))
+			return PTR_ERR(state->regs);
+	}
 
 	dev_set_drvdata(dev, state);
 	spin_lock_init(&state->slock);

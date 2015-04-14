@@ -198,7 +198,7 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 
 	props->vendor_id	   = be32_to_cpup((__be32 *) (out_mad->data + 36)) &
 		0xffffff;
-	props->vendor_part_id	   = dev->dev->pdev->device;
+	props->vendor_part_id	   = dev->dev->persist->pdev->device;
 	props->hw_ver		   = be32_to_cpup((__be32 *) (out_mad->data + 32));
 	memcpy(&props->sys_image_guid, out_mad->data +	4, 8);
 
@@ -351,6 +351,7 @@ static int eth_link_query_port(struct ib_device *ibdev, u8 port,
 	enum ib_mtu tmp;
 	struct mlx4_cmd_mailbox *mailbox;
 	int err = 0;
+	int is_bonded = mlx4_is_bonded(mdev->dev);
 
 	mailbox = mlx4_alloc_cmd_mailbox(mdev->dev);
 	if (IS_ERR(mailbox))
@@ -374,8 +375,12 @@ static int eth_link_query_port(struct ib_device *ibdev, u8 port,
 	props->state		= IB_PORT_DOWN;
 	props->phys_state	= state_to_phys_state(props->state);
 	props->active_mtu	= IB_MTU_256;
+	if (is_bonded)
+		rtnl_lock(); /* required to get upper dev */
 	spin_lock_bh(&iboe->lock);
 	ndev = iboe->netdevs[port - 1];
+	if (ndev && is_bonded)
+		ndev = netdev_master_upper_dev_get(ndev);
 	if (!ndev)
 		goto out_unlock;
 
@@ -387,6 +392,8 @@ static int eth_link_query_port(struct ib_device *ibdev, u8 port,
 	props->phys_state	= state_to_phys_state(props->state);
 out_unlock:
 	spin_unlock_bh(&iboe->lock);
+	if (is_bonded)
+		rtnl_unlock();
 out:
 	mlx4_free_cmd_mailbox(mdev->dev, mailbox);
 	return err;
@@ -844,7 +851,7 @@ int mlx4_ib_add_mc(struct mlx4_ib_dev *mdev, struct mlx4_ib_qp *mqp,
 
 struct mlx4_ib_steering {
 	struct list_head list;
-	u64 reg_id;
+	struct mlx4_flow_reg_id reg_id;
 	union ib_gid gid;
 };
 
@@ -1135,9 +1142,11 @@ static struct ib_flow *mlx4_ib_create_flow(struct ib_qp *qp,
 				    struct ib_flow_attr *flow_attr,
 				    int domain)
 {
-	int err = 0, i = 0;
+	int err = 0, i = 0, j = 0;
 	struct mlx4_ib_flow *mflow;
 	enum mlx4_net_trans_promisc_mode type[2];
+	struct mlx4_dev *dev = (to_mdev(qp->device))->dev;
+	int is_bonded = mlx4_is_bonded(dev);
 
 	memset(type, 0, sizeof(type));
 
@@ -1172,25 +1181,57 @@ static struct ib_flow *mlx4_ib_create_flow(struct ib_qp *qp,
 
 	while (i < ARRAY_SIZE(type) && type[i]) {
 		err = __mlx4_ib_create_flow(qp, flow_attr, domain, type[i],
-					    &mflow->reg_id[i]);
+					    &mflow->reg_id[i].id);
 		if (err)
 			goto err_create_flow;
 		i++;
+		if (is_bonded) {
+			/* Application always sees one port so the mirror rule
+			 * must be on port #2
+			 */
+			flow_attr->port = 2;
+			err = __mlx4_ib_create_flow(qp, flow_attr,
+						    domain, type[j],
+						    &mflow->reg_id[j].mirror);
+			flow_attr->port = 1;
+			if (err)
+				goto err_create_flow;
+			j++;
+		}
+
 	}
 
 	if (i < ARRAY_SIZE(type) && flow_attr->type == IB_FLOW_ATTR_NORMAL) {
-		err = mlx4_ib_tunnel_steer_add(qp, flow_attr, &mflow->reg_id[i]);
+		err = mlx4_ib_tunnel_steer_add(qp, flow_attr,
+					       &mflow->reg_id[i].id);
 		if (err)
 			goto err_create_flow;
 		i++;
+		if (is_bonded) {
+			flow_attr->port = 2;
+			err = mlx4_ib_tunnel_steer_add(qp, flow_attr,
+						       &mflow->reg_id[j].mirror);
+			flow_attr->port = 1;
+			if (err)
+				goto err_create_flow;
+			j++;
+		}
+		/* function to create mirror rule */
 	}
 
 	return &mflow->ibflow;
 
 err_create_flow:
 	while (i) {
-		(void)__mlx4_ib_destroy_flow(to_mdev(qp->device)->dev, mflow->reg_id[i]);
+		(void)__mlx4_ib_destroy_flow(to_mdev(qp->device)->dev,
+					     mflow->reg_id[i].id);
 		i--;
+	}
+
+	while (j) {
+		(void)__mlx4_ib_destroy_flow(to_mdev(qp->device)->dev,
+					     mflow->reg_id[j].mirror);
+		j--;
 	}
 err_free:
 	kfree(mflow);
@@ -1204,10 +1245,16 @@ static int mlx4_ib_destroy_flow(struct ib_flow *flow_id)
 	struct mlx4_ib_dev *mdev = to_mdev(flow_id->qp->device);
 	struct mlx4_ib_flow *mflow = to_mflow(flow_id);
 
-	while (i < ARRAY_SIZE(mflow->reg_id) && mflow->reg_id[i]) {
-		err = __mlx4_ib_destroy_flow(mdev->dev, mflow->reg_id[i]);
+	while (i < ARRAY_SIZE(mflow->reg_id) && mflow->reg_id[i].id) {
+		err = __mlx4_ib_destroy_flow(mdev->dev, mflow->reg_id[i].id);
 		if (err)
 			ret = err;
+		if (mflow->reg_id[i].mirror) {
+			err = __mlx4_ib_destroy_flow(mdev->dev,
+						     mflow->reg_id[i].mirror);
+			if (err)
+				ret = err;
+		}
 		i++;
 	}
 
@@ -1219,11 +1266,11 @@ static int mlx4_ib_mcg_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 {
 	int err;
 	struct mlx4_ib_dev *mdev = to_mdev(ibqp->device);
+	struct mlx4_dev	*dev = mdev->dev;
 	struct mlx4_ib_qp *mqp = to_mqp(ibqp);
-	u64 reg_id;
 	struct mlx4_ib_steering *ib_steering = NULL;
-	enum mlx4_protocol prot = (gid->raw[1] == 0x0e) ?
-		MLX4_PROT_IB_IPV4 : MLX4_PROT_IB_IPV6;
+	enum mlx4_protocol prot = MLX4_PROT_IB_IPV6;
+	struct mlx4_flow_reg_id	reg_id;
 
 	if (mdev->dev->caps.steering_mode ==
 	    MLX4_STEERING_MODE_DEVICE_MANAGED) {
@@ -1235,9 +1282,22 @@ static int mlx4_ib_mcg_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	err = mlx4_multicast_attach(mdev->dev, &mqp->mqp, gid->raw, mqp->port,
 				    !!(mqp->flags &
 				       MLX4_IB_QP_BLOCK_MULTICAST_LOOPBACK),
-				    prot, &reg_id);
-	if (err)
+				    prot, &reg_id.id);
+	if (err) {
+		pr_err("multicast attach op failed, err %d\n", err);
 		goto err_malloc;
+	}
+
+	reg_id.mirror = 0;
+	if (mlx4_is_bonded(dev)) {
+		err = mlx4_multicast_attach(mdev->dev, &mqp->mqp, gid->raw,
+					    (mqp->port == 1) ? 2 : 1,
+					    !!(mqp->flags &
+					    MLX4_IB_QP_BLOCK_MULTICAST_LOOPBACK),
+					    prot, &reg_id.mirror);
+		if (err)
+			goto err_add;
+	}
 
 	err = add_gid_entry(ibqp, gid);
 	if (err)
@@ -1254,7 +1314,10 @@ static int mlx4_ib_mcg_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 
 err_add:
 	mlx4_multicast_detach(mdev->dev, &mqp->mqp, gid->raw,
-			      prot, reg_id);
+			      prot, reg_id.id);
+	if (reg_id.mirror)
+		mlx4_multicast_detach(mdev->dev, &mqp->mqp, gid->raw,
+				      prot, reg_id.mirror);
 err_malloc:
 	kfree(ib_steering);
 
@@ -1281,12 +1344,12 @@ static int mlx4_ib_mcg_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 {
 	int err;
 	struct mlx4_ib_dev *mdev = to_mdev(ibqp->device);
+	struct mlx4_dev *dev = mdev->dev;
 	struct mlx4_ib_qp *mqp = to_mqp(ibqp);
 	struct net_device *ndev;
 	struct mlx4_ib_gid_entry *ge;
-	u64 reg_id = 0;
-	enum mlx4_protocol prot = (gid->raw[1] == 0x0e) ?
-		MLX4_PROT_IB_IPV4 : MLX4_PROT_IB_IPV6;
+	struct mlx4_flow_reg_id reg_id = {0, 0};
+	enum mlx4_protocol prot =  MLX4_PROT_IB_IPV6;
 
 	if (mdev->dev->caps.steering_mode ==
 	    MLX4_STEERING_MODE_DEVICE_MANAGED) {
@@ -1309,9 +1372,16 @@ static int mlx4_ib_mcg_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	}
 
 	err = mlx4_multicast_detach(mdev->dev, &mqp->mqp, gid->raw,
-				    prot, reg_id);
+				    prot, reg_id.id);
 	if (err)
 		return err;
+
+	if (mlx4_is_bonded(dev)) {
+		err = mlx4_multicast_detach(mdev->dev, &mqp->mqp, gid->raw,
+					    prot, reg_id.mirror);
+		if (err)
+			return err;
+	}
 
 	mutex_lock(&mqp->mutex);
 	ge = find_gid_entry(mqp, gid->raw);
@@ -1376,7 +1446,7 @@ static ssize_t show_hca(struct device *device, struct device_attribute *attr,
 {
 	struct mlx4_ib_dev *dev =
 		container_of(device, struct mlx4_ib_dev, ib_dev.dev);
-	return sprintf(buf, "MT%d\n", dev->dev->pdev->device);
+	return sprintf(buf, "MT%d\n", dev->dev->persist->pdev->device);
 }
 
 static ssize_t show_fw_ver(struct device *device, struct device_attribute *attr,
@@ -1440,6 +1510,7 @@ static void update_gids_task(struct work_struct *work)
 	union ib_gid *gids;
 	int err;
 	struct mlx4_dev	*dev = gw->dev->dev;
+	int is_bonded = mlx4_is_bonded(dev);
 
 	if (!gw->dev->ib_active)
 		return;
@@ -1459,7 +1530,10 @@ static void update_gids_task(struct work_struct *work)
 	if (err)
 		pr_warn("set port command failed\n");
 	else
-		mlx4_ib_dispatch_event(gw->dev, gw->port, IB_EVENT_GID_CHANGE);
+		if ((gw->port == 1) || !is_bonded)
+			mlx4_ib_dispatch_event(gw->dev,
+					       is_bonded ? 1 : gw->port,
+					       IB_EVENT_GID_CHANGE);
 
 	mlx4_free_cmd_mailbox(dev, mailbox);
 	kfree(gw);
@@ -1875,7 +1949,8 @@ static void mlx4_ib_scan_netdevs(struct mlx4_ib_dev *ibdev,
 				 * don't want the bond IP based gids in the table since
 				 * flows that select port by gid may get the down port.
 				*/
-				if (port_state == IB_PORT_DOWN) {
+				if (port_state == IB_PORT_DOWN &&
+				    !mlx4_is_bonded(ibdev->dev)) {
 					reset_gid_table(ibdev, port);
 					mlx4_ib_set_default_gid(ibdev,
 								curr_netdev,
@@ -1938,7 +2013,8 @@ static void init_pkeys(struct mlx4_ib_dev *ibdev)
 	int i;
 
 	if (mlx4_is_master(ibdev->dev)) {
-		for (slave = 0; slave <= ibdev->dev->num_vfs; ++slave) {
+		for (slave = 0; slave <= ibdev->dev->persist->num_vfs;
+		     ++slave) {
 			for (port = 1; port <= ibdev->dev->caps.num_ports; ++port) {
 				for (i = 0;
 				     i < ibdev->dev->phys_caps.pkey_phys_table_len[port];
@@ -1995,7 +2071,7 @@ static void mlx4_ib_alloc_eqs(struct mlx4_dev *dev, struct mlx4_ib_dev *ibdev)
 	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB) {
 		for (j = 0; j < eq_per_port; j++) {
 			snprintf(name, sizeof(name), "mlx4-ib-%d-%d@%s",
-				 i, j, dev->pdev->bus->name);
+				 i, j, dev->persist->pdev->bus->name);
 			/* Set IRQ for specific name (per ring) */
 			if (mlx4_assign_eq(dev, name, NULL,
 					   &ibdev->eq_table[eq])) {
@@ -2046,6 +2122,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	int err;
 	struct mlx4_ib_iboe *iboe;
 	int ib_num_ports = 0;
+	int num_req_counters;
 
 	pr_info_once("%s", mlx4_ib_version);
 
@@ -2059,7 +2136,8 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 
 	ibdev = (struct mlx4_ib_dev *) ib_alloc_device(sizeof *ibdev);
 	if (!ibdev) {
-		dev_err(&dev->pdev->dev, "Device struct alloc failed\n");
+		dev_err(&dev->persist->pdev->dev,
+			"Device struct alloc failed\n");
 		return NULL;
 	}
 
@@ -2078,15 +2156,17 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	MLX4_INIT_DOORBELL_LOCK(&ibdev->uar_lock);
 
 	ibdev->dev = dev;
+	ibdev->bond_next_port	= 0;
 
 	strlcpy(ibdev->ib_dev.name, "mlx4_%d", IB_DEVICE_NAME_MAX);
 	ibdev->ib_dev.owner		= THIS_MODULE;
 	ibdev->ib_dev.node_type		= RDMA_NODE_IB_CA;
 	ibdev->ib_dev.local_dma_lkey	= dev->caps.reserved_lkey;
 	ibdev->num_ports		= num_ports;
-	ibdev->ib_dev.phys_port_cnt     = ibdev->num_ports;
+	ibdev->ib_dev.phys_port_cnt     = mlx4_is_bonded(dev) ?
+						1 : ibdev->num_ports;
 	ibdev->ib_dev.num_comp_vectors	= dev->caps.num_comp_vectors;
-	ibdev->ib_dev.dma_device	= &dev->pdev->dev;
+	ibdev->ib_dev.dma_device	= &dev->persist->pdev->dev;
 
 	if (dev->caps.userspace_caps)
 		ibdev->ib_dev.uverbs_abi_ver = MLX4_IB_UVERBS_ABI_VERSION;
@@ -2205,7 +2285,8 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	if (init_node_data(ibdev))
 		goto err_map;
 
-	for (i = 0; i < ibdev->num_ports; ++i) {
+	num_req_counters = mlx4_is_bonded(dev) ? 1 : ibdev->num_ports;
+	for (i = 0; i < num_req_counters; ++i) {
 		mutex_init(&ibdev->qp1_proxy_lock[i]);
 		if (mlx4_ib_port_link_layer(&ibdev->ib_dev, i + 1) ==
 						IB_LINK_LAYER_ETHERNET) {
@@ -2216,12 +2297,18 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 			ibdev->counters[i] = -1;
 		}
 	}
+	if (mlx4_is_bonded(dev))
+		for (i = 1; i < ibdev->num_ports ; ++i)
+			ibdev->counters[i] = ibdev->counters[0];
+
 
 	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB)
 		ib_num_ports++;
 
 	spin_lock_init(&ibdev->sm_lock);
 	mutex_init(&ibdev->cap_mask_mutex);
+	INIT_LIST_HEAD(&ibdev->qp_list);
+	spin_lock_init(&ibdev->reset_flow_resource_lock);
 
 	if (ibdev->steering_support == MLX4_STEERING_MODE_DEVICE_MANAGED &&
 	    ib_num_ports) {
@@ -2237,7 +2324,8 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 				sizeof(long),
 				GFP_KERNEL);
 		if (!ibdev->ib_uc_qpns_bitmap) {
-			dev_err(&dev->pdev->dev, "bit map alloc failed\n");
+			dev_err(&dev->persist->pdev->dev,
+				"bit map alloc failed\n");
 			goto err_steer_qp_release;
 		}
 
@@ -2535,6 +2623,103 @@ out:
 	return;
 }
 
+static void mlx4_ib_handle_catas_error(struct mlx4_ib_dev *ibdev)
+{
+	struct mlx4_ib_qp *mqp;
+	unsigned long flags_qp;
+	unsigned long flags_cq;
+	struct mlx4_ib_cq *send_mcq, *recv_mcq;
+	struct list_head    cq_notify_list;
+	struct mlx4_cq *mcq;
+	unsigned long flags;
+
+	pr_warn("mlx4_ib_handle_catas_error was started\n");
+	INIT_LIST_HEAD(&cq_notify_list);
+
+	/* Go over qp list reside on that ibdev, sync with create/destroy qp.*/
+	spin_lock_irqsave(&ibdev->reset_flow_resource_lock, flags);
+
+	list_for_each_entry(mqp, &ibdev->qp_list, qps_list) {
+		spin_lock_irqsave(&mqp->sq.lock, flags_qp);
+		if (mqp->sq.tail != mqp->sq.head) {
+			send_mcq = to_mcq(mqp->ibqp.send_cq);
+			spin_lock_irqsave(&send_mcq->lock, flags_cq);
+			if (send_mcq->mcq.comp &&
+			    mqp->ibqp.send_cq->comp_handler) {
+				if (!send_mcq->mcq.reset_notify_added) {
+					send_mcq->mcq.reset_notify_added = 1;
+					list_add_tail(&send_mcq->mcq.reset_notify,
+						      &cq_notify_list);
+				}
+			}
+			spin_unlock_irqrestore(&send_mcq->lock, flags_cq);
+		}
+		spin_unlock_irqrestore(&mqp->sq.lock, flags_qp);
+		/* Now, handle the QP's receive queue */
+		spin_lock_irqsave(&mqp->rq.lock, flags_qp);
+		/* no handling is needed for SRQ */
+		if (!mqp->ibqp.srq) {
+			if (mqp->rq.tail != mqp->rq.head) {
+				recv_mcq = to_mcq(mqp->ibqp.recv_cq);
+				spin_lock_irqsave(&recv_mcq->lock, flags_cq);
+				if (recv_mcq->mcq.comp &&
+				    mqp->ibqp.recv_cq->comp_handler) {
+					if (!recv_mcq->mcq.reset_notify_added) {
+						recv_mcq->mcq.reset_notify_added = 1;
+						list_add_tail(&recv_mcq->mcq.reset_notify,
+							      &cq_notify_list);
+					}
+				}
+				spin_unlock_irqrestore(&recv_mcq->lock,
+						       flags_cq);
+			}
+		}
+		spin_unlock_irqrestore(&mqp->rq.lock, flags_qp);
+	}
+
+	list_for_each_entry(mcq, &cq_notify_list, reset_notify) {
+		mcq->comp(mcq);
+	}
+	spin_unlock_irqrestore(&ibdev->reset_flow_resource_lock, flags);
+	pr_warn("mlx4_ib_handle_catas_error ended\n");
+}
+
+static void handle_bonded_port_state_event(struct work_struct *work)
+{
+	struct ib_event_work *ew =
+		container_of(work, struct ib_event_work, work);
+	struct mlx4_ib_dev *ibdev = ew->ib_dev;
+	enum ib_port_state bonded_port_state = IB_PORT_NOP;
+	int i;
+	struct ib_event ibev;
+
+	kfree(ew);
+	spin_lock_bh(&ibdev->iboe.lock);
+	for (i = 0; i < MLX4_MAX_PORTS; ++i) {
+		struct net_device *curr_netdev = ibdev->iboe.netdevs[i];
+		enum ib_port_state curr_port_state;
+
+		if (!curr_netdev)
+			continue;
+
+		curr_port_state =
+			(netif_running(curr_netdev) &&
+			 netif_carrier_ok(curr_netdev)) ?
+			IB_PORT_ACTIVE : IB_PORT_DOWN;
+
+		bonded_port_state = (bonded_port_state != IB_PORT_ACTIVE) ?
+			curr_port_state : IB_PORT_ACTIVE;
+	}
+	spin_unlock_bh(&ibdev->iboe.lock);
+
+	ibev.device = &ibdev->ib_dev;
+	ibev.element.port_num = 1;
+	ibev.event = (bonded_port_state == IB_PORT_ACTIVE) ?
+		IB_EVENT_PORT_ACTIVE : IB_EVENT_PORT_ERR;
+
+	ib_dispatch_event(&ibev);
+}
+
 static void mlx4_ib_event(struct mlx4_dev *dev, void *ibdev_ptr,
 			  enum mlx4_dev_event event, unsigned long param)
 {
@@ -2543,6 +2728,18 @@ static void mlx4_ib_event(struct mlx4_dev *dev, void *ibdev_ptr,
 	struct mlx4_eqe *eqe = NULL;
 	struct ib_event_work *ew;
 	int p = 0;
+
+	if (mlx4_is_bonded(dev) &&
+	    ((event == MLX4_DEV_EVENT_PORT_UP) ||
+	    (event == MLX4_DEV_EVENT_PORT_DOWN))) {
+		ew = kmalloc(sizeof(*ew), GFP_ATOMIC);
+		if (!ew)
+			return;
+		INIT_WORK(&ew->work, handle_bonded_port_state_event);
+		ew->ib_dev = ibdev;
+		queue_work(wq, &ew->work);
+		return;
+	}
 
 	if (event == MLX4_DEV_EVENT_PORT_MGMT_CHANGE)
 		eqe = (struct mlx4_eqe *)param;
@@ -2570,6 +2767,7 @@ static void mlx4_ib_event(struct mlx4_dev *dev, void *ibdev_ptr,
 	case MLX4_DEV_EVENT_CATASTROPHIC_ERROR:
 		ibdev->ib_active = false;
 		ibev.event = IB_EVENT_DEVICE_FATAL;
+		mlx4_ib_handle_catas_error(ibdev);
 		break;
 
 	case MLX4_DEV_EVENT_PORT_MGMT_CHANGE:
@@ -2604,7 +2802,7 @@ static void mlx4_ib_event(struct mlx4_dev *dev, void *ibdev_ptr,
 	}
 
 	ibev.device	      = ibdev_ptr;
-	ibev.element.port_num = (u8) p;
+	ibev.element.port_num = mlx4_is_bonded(ibdev->dev) ? 1 : (u8)p;
 
 	ib_dispatch_event(&ibev);
 }
@@ -2613,7 +2811,8 @@ static struct mlx4_interface mlx4_ib_interface = {
 	.add		= mlx4_ib_add,
 	.remove		= mlx4_ib_remove,
 	.event		= mlx4_ib_event,
-	.protocol	= MLX4_PROT_IB_IPV6
+	.protocol	= MLX4_PROT_IB_IPV6,
+	.flags		= MLX4_INTFF_BONDING
 };
 
 static int __init mlx4_ib_init(void)

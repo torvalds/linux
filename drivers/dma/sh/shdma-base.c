@@ -729,55 +729,48 @@ static struct dma_async_tx_descriptor *shdma_prep_dma_cyclic(
 	return desc;
 }
 
-static int shdma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
-			  unsigned long arg)
+static int shdma_terminate_all(struct dma_chan *chan)
 {
 	struct shdma_chan *schan = to_shdma_chan(chan);
 	struct shdma_dev *sdev = to_shdma_dev(chan->device);
 	const struct shdma_ops *ops = sdev->ops;
-	struct dma_slave_config *config;
 	unsigned long flags;
-	int ret;
 
-	switch (cmd) {
-	case DMA_TERMINATE_ALL:
-		spin_lock_irqsave(&schan->chan_lock, flags);
-		ops->halt_channel(schan);
+	spin_lock_irqsave(&schan->chan_lock, flags);
+	ops->halt_channel(schan);
 
-		if (ops->get_partial && !list_empty(&schan->ld_queue)) {
-			/* Record partial transfer */
-			struct shdma_desc *desc = list_first_entry(&schan->ld_queue,
-						struct shdma_desc, node);
-			desc->partial = ops->get_partial(schan, desc);
-		}
-
-		spin_unlock_irqrestore(&schan->chan_lock, flags);
-
-		shdma_chan_ld_cleanup(schan, true);
-		break;
-	case DMA_SLAVE_CONFIG:
-		/*
-		 * So far only .slave_id is used, but the slave drivers are
-		 * encouraged to also set a transfer direction and an address.
-		 */
-		if (!arg)
-			return -EINVAL;
-		/*
-		 * We could lock this, but you shouldn't be configuring the
-		 * channel, while using it...
-		 */
-		config = (struct dma_slave_config *)arg;
-		ret = shdma_setup_slave(schan, config->slave_id,
-					config->direction == DMA_DEV_TO_MEM ?
-					config->src_addr : config->dst_addr);
-		if (ret < 0)
-			return ret;
-		break;
-	default:
-		return -ENXIO;
+	if (ops->get_partial && !list_empty(&schan->ld_queue)) {
+		/* Record partial transfer */
+		struct shdma_desc *desc = list_first_entry(&schan->ld_queue,
+							   struct shdma_desc, node);
+		desc->partial = ops->get_partial(schan, desc);
 	}
 
+	spin_unlock_irqrestore(&schan->chan_lock, flags);
+
+	shdma_chan_ld_cleanup(schan, true);
+
 	return 0;
+}
+
+static int shdma_config(struct dma_chan *chan,
+			struct dma_slave_config *config)
+{
+	struct shdma_chan *schan = to_shdma_chan(chan);
+
+	/*
+	 * So far only .slave_id is used, but the slave drivers are
+	 * encouraged to also set a transfer direction and an address.
+	 */
+	if (!config)
+		return -EINVAL;
+	/*
+	 * We could lock this, but you shouldn't be configuring the
+	 * channel, while using it...
+	 */
+	return shdma_setup_slave(schan, config->slave_id,
+				 config->direction == DMA_DEV_TO_MEM ?
+				 config->src_addr : config->dst_addr);
 }
 
 static void shdma_issue_pending(struct dma_chan *chan)
@@ -1002,7 +995,8 @@ int shdma_init(struct device *dev, struct shdma_dev *sdev,
 	/* Compulsory for DMA_SLAVE fields */
 	dma_dev->device_prep_slave_sg = shdma_prep_slave_sg;
 	dma_dev->device_prep_dma_cyclic = shdma_prep_dma_cyclic;
-	dma_dev->device_control = shdma_control;
+	dma_dev->device_config = shdma_config;
+	dma_dev->device_terminate_all = shdma_terminate_all;
 
 	dma_dev->dev = dev;
 

@@ -12,7 +12,7 @@
 
 #include <linux/kernel.h>
 #include <linux/list.h>
-#include <linux/clk-private.h>
+#include <linux/clk.h>
 #include <linux/clkdev.h>
 #include <linux/clk/ti.h>
 

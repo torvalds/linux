@@ -97,7 +97,7 @@ ahd_format_transinfo(struct seq_file *m, struct ahd_transinfo *tinfo)
 	u_int mb;
 
 	if (tinfo->period == AHD_PERIOD_UNKNOWN) {
-		seq_printf(m, "Renegotiation Pending\n");
+		seq_puts(m, "Renegotiation Pending\n");
 		return;
 	}
         speed = 3300;
@@ -119,40 +119,38 @@ ahd_format_transinfo(struct seq_file *m, struct ahd_transinfo *tinfo)
 		printed_options = 0;
 		seq_printf(m, " (%d.%03dMHz", freq / 1000, freq % 1000);
 		if ((tinfo->ppr_options & MSG_EXT_PPR_RD_STRM) != 0) {
-			seq_printf(m, " RDSTRM");
+			seq_puts(m, " RDSTRM");
 			printed_options++;
 		}
 		if ((tinfo->ppr_options & MSG_EXT_PPR_DT_REQ) != 0) {
-			seq_printf(m, "%s", printed_options ? "|DT" : " DT");
+			seq_puts(m, printed_options ? "|DT" : " DT");
 			printed_options++;
 		}
 		if ((tinfo->ppr_options & MSG_EXT_PPR_IU_REQ) != 0) {
-			seq_printf(m, "%s", printed_options ? "|IU" : " IU");
+			seq_puts(m, printed_options ? "|IU" : " IU");
 			printed_options++;
 		}
 		if ((tinfo->ppr_options & MSG_EXT_PPR_RTI) != 0) {
-			seq_printf(m, "%s",
-				  printed_options ? "|RTI" : " RTI");
+			seq_puts(m, printed_options ? "|RTI" : " RTI");
 			printed_options++;
 		}
 		if ((tinfo->ppr_options & MSG_EXT_PPR_QAS_REQ) != 0) {
-			seq_printf(m, "%s",
-				  printed_options ? "|QAS" : " QAS");
+			seq_puts(m, printed_options ? "|QAS" : " QAS");
 			printed_options++;
 		}
 	}
 
 	if (tinfo->width > 0) {
 		if (freq != 0) {
-			seq_printf(m, ", ");
+			seq_puts(m, ", ");
 		} else {
-			seq_printf(m, " (");
+			seq_puts(m, " (");
 		}
 		seq_printf(m, "%dbit)", 8 * (0x01 << tinfo->width));
 	} else if (freq != 0) {
-		seq_printf(m, ")");
+		seq_putc(m, ')');
 	}
-	seq_printf(m, "\n");
+	seq_putc(m, '\n');
 }
 
 static void
@@ -167,15 +165,15 @@ ahd_dump_target_state(struct ahd_softc *ahd, struct seq_file *m,
 	tinfo = ahd_fetch_transinfo(ahd, channel, our_id,
 				    target_id, &tstate);
 	seq_printf(m, "Target %d Negotiation Settings\n", target_id);
-	seq_printf(m, "\tUser: ");
+	seq_puts(m, "\tUser: ");
 	ahd_format_transinfo(m, &tinfo->user);
 	starget = ahd->platform_data->starget[target_id];
 	if (starget == NULL)
 		return;
 
-	seq_printf(m, "\tGoal: ");
+	seq_puts(m, "\tGoal: ");
 	ahd_format_transinfo(m, &tinfo->goal);
-	seq_printf(m, "\tCurr: ");
+	seq_puts(m, "\tCurr: ");
 	ahd_format_transinfo(m, &tinfo->curr);
 
 	for (lun = 0; lun < AHD_NUM_LUNS; lun++) {
@@ -291,19 +289,19 @@ ahd_linux_show_info(struct seq_file *m, struct Scsi_Host *shost)
 	max_targ = 16;
 
 	if (ahd->seep_config == NULL)
-		seq_printf(m, "No Serial EEPROM\n");
+		seq_puts(m, "No Serial EEPROM\n");
 	else {
-		seq_printf(m, "Serial EEPROM:\n");
+		seq_puts(m, "Serial EEPROM:\n");
 		for (i = 0; i < sizeof(*ahd->seep_config)/2; i++) {
 			if (((i % 8) == 0) && (i != 0)) {
-				seq_printf(m, "\n");
+				seq_putc(m, '\n');
 			}
 			seq_printf(m, "0x%.4x ",
 				  ((uint16_t*)ahd->seep_config)[i]);
 		}
-		seq_printf(m, "\n");
+		seq_putc(m, '\n');
 	}
-	seq_printf(m, "\n");
+	seq_putc(m, '\n');
 
 	if ((ahd->features & AHD_WIDE) == 0)
 		max_targ = 8;

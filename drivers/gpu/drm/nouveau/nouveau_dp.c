@@ -31,7 +31,7 @@
 #include "nouveau_crtc.h"
 
 static void
-nouveau_dp_probe_oui(struct drm_device *dev, struct nouveau_i2c_port *auxch,
+nouveau_dp_probe_oui(struct drm_device *dev, struct nvkm_i2c_port *auxch,
 		     u8 *dpcd)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
@@ -55,7 +55,7 @@ nouveau_dp_detect(struct nouveau_encoder *nv_encoder)
 {
 	struct drm_device *dev = nv_encoder->base.base.dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_i2c_port *auxch;
+	struct nvkm_i2c_port *auxch;
 	u8 *dpcd = nv_encoder->dp.dpcd;
 	int ret;
 

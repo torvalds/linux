@@ -710,7 +710,7 @@ static int mxs_saif_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct resource *iores;
 	struct mxs_saif *saif;
-	int ret = 0;
+	int irq, ret = 0;
 	struct device_node *master;
 
 	if (!np)
@@ -763,16 +763,16 @@ static int mxs_saif_probe(struct platform_device *pdev)
 	if (IS_ERR(saif->base))
 		return PTR_ERR(saif->base);
 
-	saif->irq = platform_get_irq(pdev, 0);
-	if (saif->irq < 0) {
-		ret = saif->irq;
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		ret = irq;
 		dev_err(&pdev->dev, "failed to get irq resource: %d\n",
 			ret);
 		return ret;
 	}
 
 	saif->dev = &pdev->dev;
-	ret = devm_request_irq(&pdev->dev, saif->irq, mxs_saif_irq, 0,
+	ret = devm_request_irq(&pdev->dev, irq, mxs_saif_irq, 0,
 			       dev_name(&pdev->dev), saif);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to request irq\n");

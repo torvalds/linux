@@ -52,7 +52,7 @@ static int dcon_init_xo_1(struct dcon_priv *dcon)
 	 * Determine the current state by reading the GPIO bit; earlier
 	 * stages of the boot process have established the state.
 	 *
-	 * Note that we read GPIO_OUPUT_VAL rather than GPIO_READ_BACK here;
+	 * Note that we read GPIO_OUTPUT_VAL rather than GPIO_READ_BACK here;
 	 * this is because OFW will disable input for the pin and set a value..
 	 * READ_BACK will only contain a valid value if input is enabled and
 	 * then a value is set.  So, future readings of the pin can use

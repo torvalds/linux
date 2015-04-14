@@ -37,6 +37,14 @@ controlling P state selection. These files have been added to
       no_turbo: limits the driver to selecting P states below the turbo
       frequency range.
 
+      turbo_pct: displays the percentage of the total performance that
+      is supported by hardware that is in the turbo range.  This number
+      is independent of whether turbo has been disabled or not.
+
+      num_pstates: displays the number of pstates that are supported
+      by hardware.  This number is independent of whether turbo has
+      been disabled or not.
+
 For contemporary Intel processors, the frequency is controlled by the
 processor itself and the P-states exposed to software are related to
 performance levels.  The idea that frequency can be set to a single

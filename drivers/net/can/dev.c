@@ -289,9 +289,11 @@ static void can_update_state_error_stats(struct net_device *dev,
 		priv->can_stats.error_passive++;
 		break;
 	case CAN_STATE_BUS_OFF:
+		priv->can_stats.bus_off++;
+		break;
 	default:
 		break;
-	};
+	}
 }
 
 static int can_tx_state_to_frame(struct net_device *dev, enum can_state state)
@@ -544,7 +546,6 @@ void can_bus_off(struct net_device *dev)
 	netdev_dbg(dev, "bus-off\n");
 
 	netif_carrier_off(dev);
-	priv->can_stats.bus_off++;
 
 	if (priv->restart_ms)
 		mod_timer(&priv->restart_timer,
@@ -578,6 +579,10 @@ struct sk_buff *alloc_can_skb(struct net_device *dev, struct can_frame **cf)
 	skb->pkt_type = PACKET_BROADCAST;
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 
+	skb_reset_mac_header(skb);
+	skb_reset_network_header(skb);
+	skb_reset_transport_header(skb);
+
 	can_skb_reserve(skb);
 	can_skb_prv(skb)->ifindex = dev->ifindex;
 
@@ -601,6 +606,10 @@ struct sk_buff *alloc_canfd_skb(struct net_device *dev,
 	skb->protocol = htons(ETH_P_CANFD);
 	skb->pkt_type = PACKET_BROADCAST;
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
+
+	skb_reset_mac_header(skb);
+	skb_reset_network_header(skb);
+	skb_reset_transport_header(skb);
 
 	can_skb_reserve(skb);
 	can_skb_prv(skb)->ifindex = dev->ifindex;

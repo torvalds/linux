@@ -1,0 +1,44 @@
+What:		/sys/kernel/livepatch
+Date:		Nov 2014
+KernelVersion:	3.19.0
+Contact:	live-patching@vger.kernel.org
+Description:
+		Interface for kernel live patching
+
+		The /sys/kernel/livepatch directory contains subdirectories for
+		each loaded live patch module.
+
+What:		/sys/kernel/livepatch/<patch>
+Date:		Nov 2014
+KernelVersion:	3.19.0
+Contact:	live-patching@vger.kernel.org
+Description:
+		The patch directory contains subdirectories for each kernel
+		object (vmlinux or a module) in which it patched functions.
+
+What:		/sys/kernel/livepatch/<patch>/enabled
+Date:		Nov 2014
+KernelVersion:	3.19.0
+Contact:	live-patching@vger.kernel.org
+Description:
+		A writable attribute that indicates whether the patched
+		code is currently applied.  Writing 0 will disable the patch
+		while writing 1 will re-enable the patch.
+
+What:		/sys/kernel/livepatch/<patch>/<object>
+Date:		Nov 2014
+KernelVersion:	3.19.0
+Contact:	live-patching@vger.kernel.org
+Description:
+		The object directory contains subdirectories for each function
+		that is patched within the object.
+
+What:		/sys/kernel/livepatch/<patch>/<object>/<function>
+Date:		Nov 2014
+KernelVersion:	3.19.0
+Contact:	live-patching@vger.kernel.org
+Description:
+		The function directory contains attributes regarding the
+		properties and state of the patched function.
+
+		There are currently no such attributes.

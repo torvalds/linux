@@ -216,19 +216,21 @@ struct mem_dqinfo {
 	unsigned long dqi_flags;
 	unsigned int dqi_bgrace;
 	unsigned int dqi_igrace;
-	qsize_t dqi_maxblimit;
-	qsize_t dqi_maxilimit;
+	qsize_t dqi_max_spc_limit;
+	qsize_t dqi_max_ino_limit;
 	void *dqi_priv;
 };
 
 struct super_block;
 
-#define DQF_MASK 0xffff		/* Mask for format specific flags */
-#define DQF_GETINFO_MASK 0x1ffff	/* Mask for flags passed to userspace */
-#define DQF_SETINFO_MASK 0xffff		/* Mask for flags modifiable from userspace */
-#define DQF_SYS_FILE_B		16
-#define DQF_SYS_FILE (1 << DQF_SYS_FILE_B)	/* Quota file stored as system file */
-#define DQF_INFO_DIRTY_B	31
+/* Mask for flags passed to userspace */
+#define DQF_GETINFO_MASK (DQF_ROOT_SQUASH | DQF_SYS_FILE)
+/* Mask for flags modifiable from userspace */
+#define DQF_SETINFO_MASK DQF_ROOT_SQUASH
+
+enum {
+	DQF_INFO_DIRTY_B = DQF_PRIVATE,
+};
 #define DQF_INFO_DIRTY (1 << DQF_INFO_DIRTY_B)	/* Is info dirty? */
 
 extern void mark_info_dirty(struct super_block *sb, int type);
@@ -367,15 +369,15 @@ struct qc_dqblk {
 /* Operations handling requests from userspace */
 struct quotactl_ops {
 	int (*quota_on)(struct super_block *, int, int, struct path *);
-	int (*quota_on_meta)(struct super_block *, int, int);
 	int (*quota_off)(struct super_block *, int);
+	int (*quota_enable)(struct super_block *, unsigned int);
+	int (*quota_disable)(struct super_block *, unsigned int);
 	int (*quota_sync)(struct super_block *, int);
 	int (*get_info)(struct super_block *, int, struct if_dqinfo *);
 	int (*set_info)(struct super_block *, int, struct if_dqinfo *);
 	int (*get_dqblk)(struct super_block *, struct kqid, struct qc_dqblk *);
 	int (*set_dqblk)(struct super_block *, struct kqid, struct qc_dqblk *);
 	int (*get_xstate)(struct super_block *, struct fs_quota_stat *);
-	int (*set_xstate)(struct super_block *, unsigned int, int);
 	int (*get_xstatev)(struct super_block *, struct fs_quota_statv *);
 	int (*rm_xquota)(struct super_block *, unsigned int);
 };

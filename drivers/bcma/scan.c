@@ -435,14 +435,11 @@ static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 	return 0;
 }
 
-void bcma_init_bus(struct bcma_bus *bus)
+void bcma_detect_chip(struct bcma_bus *bus)
 {
 	s32 tmp;
 	struct bcma_chipinfo *chipinfo = &(bus->chipinfo);
 	char chip_id[8];
-
-	INIT_LIST_HEAD(&bus->cores);
-	bus->nr_cores = 0;
 
 	bcma_scan_switch_core(bus, BCMA_ADDR_BASE);
 
@@ -463,6 +460,10 @@ int bcma_bus_scan(struct bcma_bus *bus)
 	u32 __iomem *eromptr, *eromend;
 
 	int err, core_num = 0;
+
+	/* Skip if bus was already scanned (e.g. during early register) */
+	if (bus->nr_cores)
+		return 0;
 
 	erombase = bcma_scan_read32(bus, 0, BCMA_CC_EROM);
 	if (bus->hosttype == BCMA_HOSTTYPE_SOC) {
@@ -516,64 +517,6 @@ int bcma_bus_scan(struct bcma_bus *bus)
 	}
 
 	err = 0;
-out:
-	if (bus->hosttype == BCMA_HOSTTYPE_SOC)
-		iounmap(eromptr);
-
-	return err;
-}
-
-int __init bcma_bus_scan_early(struct bcma_bus *bus,
-			       struct bcma_device_id *match,
-			       struct bcma_device *core)
-{
-	u32 erombase;
-	u32 __iomem *eromptr, *eromend;
-
-	int err = -ENODEV;
-	int core_num = 0;
-
-	erombase = bcma_scan_read32(bus, 0, BCMA_CC_EROM);
-	if (bus->hosttype == BCMA_HOSTTYPE_SOC) {
-		eromptr = ioremap_nocache(erombase, BCMA_CORE_SIZE);
-		if (!eromptr)
-			return -ENOMEM;
-	} else {
-		eromptr = bus->mmio;
-	}
-
-	eromend = eromptr + BCMA_CORE_SIZE / sizeof(u32);
-
-	bcma_scan_switch_core(bus, erombase);
-
-	while (eromptr < eromend) {
-		memset(core, 0, sizeof(*core));
-		INIT_LIST_HEAD(&core->list);
-		core->bus = bus;
-
-		err = bcma_get_next_core(bus, &eromptr, match, core_num, core);
-		if (err == -ENODEV) {
-			core_num++;
-			continue;
-		} else if (err == -ENXIO)
-			continue;
-		else if (err == -ESPIPE)
-			break;
-		else if (err < 0)
-			goto out;
-
-		core->core_index = core_num++;
-		bus->nr_cores++;
-		bcma_info(bus, "Core %d found: %s (manuf 0x%03X, id 0x%03X, rev 0x%02X, class 0x%X)\n",
-			  core->core_index, bcma_device_name(&core->id),
-			  core->id.manuf, core->id.id, core->id.rev,
-			  core->id.class);
-
-		list_add_tail(&core->list, &bus->cores);
-		err = 0;
-		break;
-	}
-
 out:
 	if (bus->hosttype == BCMA_HOSTTYPE_SOC)
 		iounmap(eromptr);

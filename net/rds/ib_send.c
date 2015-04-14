@@ -409,7 +409,7 @@ try_again:
 	posted = IB_GET_POST_CREDITS(oldval);
 	avail = IB_GET_SEND_CREDITS(oldval);
 
-	rdsdebug("rds_ib_send_grab_credits(%u): credits=%u posted=%u\n",
+	rdsdebug("wanted=%u credits=%u posted=%u\n",
 			wanted, avail, posted);
 
 	/* The last credit must be used to send a credit update. */
@@ -453,7 +453,7 @@ void rds_ib_send_add_credits(struct rds_connection *conn, unsigned int credits)
 	if (credits == 0)
 		return;
 
-	rdsdebug("rds_ib_send_add_credits(%u): current=%u%s\n",
+	rdsdebug("credits=%u current=%u%s\n",
 			credits,
 			IB_GET_SEND_CREDITS(atomic_read(&ic->i_credits)),
 			test_bit(RDS_LL_SEND_FULL, &conn->c_flags) ? ", ll_send_full" : "");

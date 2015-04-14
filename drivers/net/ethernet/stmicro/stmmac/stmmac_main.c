@@ -310,11 +310,11 @@ bool stmmac_eee_init(struct stmmac_priv *priv)
 		spin_lock_irqsave(&priv->lock, flags);
 		if (!priv->eee_active) {
 			priv->eee_active = 1;
-			init_timer(&priv->eee_ctrl_timer);
-			priv->eee_ctrl_timer.function = stmmac_eee_ctrl_timer;
-			priv->eee_ctrl_timer.data = (unsigned long)priv;
-			priv->eee_ctrl_timer.expires = STMMAC_LPI_T(eee_timer);
-			add_timer(&priv->eee_ctrl_timer);
+			setup_timer(&priv->eee_ctrl_timer,
+				    stmmac_eee_ctrl_timer,
+				    (unsigned long)priv);
+			mod_timer(&priv->eee_ctrl_timer,
+				  STMMAC_LPI_T(eee_timer));
 
 			priv->hw->mac->set_eee_timer(priv->hw,
 						     STMMAC_DEFAULT_LIT_LS,
@@ -1097,6 +1097,7 @@ static int init_dma_desc_rings(struct net_device *dev, gfp_t flags)
 
 	priv->dirty_tx = 0;
 	priv->cur_tx = 0;
+	netdev_reset_queue(priv->dev);
 
 	stmmac_clear_descriptors(priv);
 
@@ -1287,7 +1288,7 @@ static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
 		 *    that needs to not insert csum in the TDES.
 		 */
 		priv->hw->dma->dma_mode(priv->ioaddr, SF_DMA_MODE, SF_DMA_MODE);
-		tc = SF_DMA_MODE;
+		priv->xstats.threshold = SF_DMA_MODE;
 	} else
 		priv->hw->dma->dma_mode(priv->ioaddr, tc, SF_DMA_MODE);
 }
@@ -1300,6 +1301,7 @@ static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
 static void stmmac_tx_clean(struct stmmac_priv *priv)
 {
 	unsigned int txsize = priv->dma_tx_size;
+	unsigned int bytes_compl = 0, pkts_compl = 0;
 
 	spin_lock(&priv->tx_lock);
 
@@ -1356,6 +1358,8 @@ static void stmmac_tx_clean(struct stmmac_priv *priv)
 		priv->hw->mode->clean_desc3(priv, p);
 
 		if (likely(skb != NULL)) {
+			pkts_compl++;
+			bytes_compl += skb->len;
 			dev_consume_skb_any(skb);
 			priv->tx_skbuff[entry] = NULL;
 		}
@@ -1364,6 +1368,9 @@ static void stmmac_tx_clean(struct stmmac_priv *priv)
 
 		priv->dirty_tx++;
 	}
+
+	netdev_completed_queue(priv->dev, pkts_compl, bytes_compl);
+
 	if (unlikely(netif_queue_stopped(priv->dev) &&
 		     stmmac_tx_avail(priv) > STMMAC_TX_THRESH(priv))) {
 		netif_tx_lock(priv->dev);
@@ -1418,6 +1425,7 @@ static void stmmac_tx_err(struct stmmac_priv *priv)
 						     (i == txsize - 1));
 	priv->dirty_tx = 0;
 	priv->cur_tx = 0;
+	netdev_reset_queue(priv->dev);
 	priv->hw->dma->start_tx(priv->ioaddr);
 
 	priv->dev->stats.tx_errors++;
@@ -1444,9 +1452,14 @@ static void stmmac_dma_interrupt(struct stmmac_priv *priv)
 	}
 	if (unlikely(status & tx_hard_error_bump_tc)) {
 		/* Try to bump up the dma threshold on this failure */
-		if (unlikely(tc != SF_DMA_MODE) && (tc <= 256)) {
+		if (unlikely(priv->xstats.threshold != SF_DMA_MODE) &&
+		    (tc <= 256)) {
 			tc += 64;
-			priv->hw->dma->dma_mode(priv->ioaddr, tc, SF_DMA_MODE);
+			if (priv->plat->force_thresh_dma_mode)
+				priv->hw->dma->dma_mode(priv->ioaddr, tc, tc);
+			else
+				priv->hw->dma->dma_mode(priv->ioaddr, tc,
+					SF_DMA_MODE);
 			priv->xstats.threshold = tc;
 		}
 	} else if (unlikely(status == tx_hard_error))
@@ -2050,6 +2063,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (!priv->hwts_tx_en)
 		skb_tx_timestamp(skb);
 
+	netdev_sent_queue(dev, skb->len);
 	priv->hw->dma->enable_dma_transmission(priv->ioaddr);
 
 	spin_unlock(&priv->tx_lock);
@@ -2742,7 +2756,11 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 		priv->plat->enh_desc = priv->dma_cap.enh_desc;
 		priv->plat->pmt = priv->dma_cap.pmt_remote_wake_up;
 
-		priv->plat->tx_coe = priv->dma_cap.tx_coe;
+		/* TXCOE doesn't work in thresh DMA mode */
+		if (priv->plat->force_thresh_dma_mode)
+			priv->plat->tx_coe = 0;
+		else
+			priv->plat->tx_coe = priv->dma_cap.tx_coe;
 
 		if (priv->dma_cap.rx_coe_type2)
 			priv->plat->rx_coe = STMMAC_RX_COE_TYPE2;

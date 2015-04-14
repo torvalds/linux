@@ -72,8 +72,6 @@
 #define TSI721_MSIXPBA_OFFSET	0x2a000
 #define TSI721_PCIECFG_EPCTL	0x400
 
-#define MAX_READ_REQUEST_SZ_SHIFT	12
-
 /*
  * Event Management Registers
  */

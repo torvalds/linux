@@ -497,6 +497,9 @@ thermal_zone_of_sensor_register(struct device *dev, int sensor_id, void *data,
 		if (sensor_specs.np == sensor_np && id == sensor_id) {
 			tzd = thermal_zone_of_add_sensor(child, sensor_np,
 							 data, ops);
+			if (!IS_ERR(tzd))
+				tzd->ops->set_mode(tzd, THERMAL_DEVICE_ENABLED);
+
 			of_node_put(sensor_specs.np);
 			of_node_put(child);
 			goto exit;

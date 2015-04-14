@@ -32,15 +32,19 @@
 
 #define MWIFIEX_MAX_BSS_NUM         (3)
 
-#define MWIFIEX_MIN_DATA_HEADER_LEN 36	/* sizeof(mwifiex_txpd)
-					 *   + 4 byte alignment
-					 */
+#define MWIFIEX_DMA_ALIGN_SZ	    64
+#define MAX_TXPD_SZ		    32
+#define INTF_HDR_ALIGN		     4
+
+#define MWIFIEX_MIN_DATA_HEADER_LEN (MWIFIEX_DMA_ALIGN_SZ + INTF_HDR_ALIGN + \
+				     MAX_TXPD_SZ)
 #define MWIFIEX_MGMT_FRAME_HEADER_SIZE	8	/* sizeof(pkt_type)
 						 *   + sizeof(tx_control)
 						 */
 
 #define MWIFIEX_MAX_TX_BASTREAM_SUPPORTED	2
 #define MWIFIEX_MAX_RX_BASTREAM_SUPPORTED	16
+#define MWIFIEX_MAX_TDLS_PEER_SUPPORTED 8
 
 #define MWIFIEX_STA_AMPDU_DEF_TXWINSIZE        64
 #define MWIFIEX_STA_AMPDU_DEF_RXWINSIZE        64
@@ -91,6 +95,20 @@
 #define MWIFIEX_TDLS_RSSI_LOW		55
 #define MWIFIEX_TDLS_MAX_FAIL_COUNT      4
 #define MWIFIEX_AUTO_TDLS_IDLE_TIME     10
+
+/* 54M rates, index from 0 to 11 */
+#define MWIFIEX_RATE_INDEX_MCS0 12
+/* 12-27=MCS0-15(BW20) */
+#define MWIFIEX_BW20_MCS_NUM 15
+
+/* Rate index for OFDM 0 */
+#define MWIFIEX_RATE_INDEX_OFDM0   4
+
+#define MWIFIEX_MAX_STA_NUM		1
+#define MWIFIEX_MAX_UAP_NUM		1
+#define MWIFIEX_MAX_P2P_NUM		1
+
+#define MWIFIEX_A_BAND_START_FREQ	5000
 
 enum mwifiex_bss_type {
 	MWIFIEX_BSS_TYPE_STA = 0,
@@ -203,5 +221,36 @@ struct mwifiex_chan_stats {
 	u16 total_bss;
 	u16 cca_scan_dur;
 	u16 cca_busy_dur;
+} __packed;
+
+#define MWIFIEX_HIST_MAX_SAMPLES	1048576
+#define MWIFIEX_MAX_RX_RATES		     44
+#define MWIFIEX_MAX_AC_RX_RATES		     74
+#define MWIFIEX_MAX_SNR			    256
+#define MWIFIEX_MAX_NOISE_FLR		    256
+#define MWIFIEX_MAX_SIG_STRENGTH	    256
+
+struct mwifiex_histogram_data {
+	atomic_t rx_rate[MWIFIEX_MAX_AC_RX_RATES];
+	atomic_t snr[MWIFIEX_MAX_SNR];
+	atomic_t noise_flr[MWIFIEX_MAX_NOISE_FLR];
+	atomic_t sig_str[MWIFIEX_MAX_SIG_STRENGTH];
+	atomic_t num_samples;
+};
+
+struct mwifiex_iface_comb {
+	u8 sta_intf;
+	u8 uap_intf;
+	u8 p2p_intf;
+};
+
+struct mwifiex_radar_params {
+	struct cfg80211_chan_def *chandef;
+	u32 cac_time_ms;
+} __packed;
+
+struct mwifiex_11h_intf_state {
+	bool is_11h_enabled;
+	bool is_11h_active;
 } __packed;
 #endif /* !_MWIFIEX_DECL_H_ */

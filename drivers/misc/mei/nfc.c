@@ -521,6 +521,7 @@ int mei_nfc_host_init(struct mei_device *dev)
 
 	cl_info->me_client_id = me_cl->client_id;
 	cl_info->cl_uuid = me_cl->props.protocol_name;
+	mei_me_cl_put(me_cl);
 
 	ret = mei_cl_link(cl_info, MEI_HOST_CLIENT_ID_ANY);
 	if (ret)
@@ -539,6 +540,7 @@ int mei_nfc_host_init(struct mei_device *dev)
 
 	cl->me_client_id = me_cl->client_id;
 	cl->cl_uuid = me_cl->props.protocol_name;
+	mei_me_cl_put(me_cl);
 
 	ret = mei_cl_link(cl, MEI_HOST_CLIENT_ID_ANY);
 	if (ret)

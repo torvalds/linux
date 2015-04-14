@@ -165,15 +165,6 @@ static struct vfsmount *aio_mnt;
 static const struct file_operations aio_ring_fops;
 static const struct address_space_operations aio_ctx_aops;
 
-/* Backing dev info for aio fs.
- * -no dirty page accounting or writeback happens
- */
-static struct backing_dev_info aio_fs_backing_dev_info = {
-	.name           = "aiofs",
-	.state          = 0,
-	.capabilities   = BDI_CAP_NO_ACCT_AND_WRITEBACK | BDI_CAP_MAP_COPY,
-};
-
 static struct file *aio_private_file(struct kioctx *ctx, loff_t nr_pages)
 {
 	struct qstr this = QSTR_INIT("[aio]", 5);
@@ -185,7 +176,6 @@ static struct file *aio_private_file(struct kioctx *ctx, loff_t nr_pages)
 
 	inode->i_mapping->a_ops = &aio_ctx_aops;
 	inode->i_mapping->private_data = ctx;
-	inode->i_mapping->backing_dev_info = &aio_fs_backing_dev_info;
 	inode->i_size = PAGE_SIZE * nr_pages;
 
 	path.dentry = d_alloc_pseudo(aio_mnt->mnt_sb, &this);
@@ -229,9 +219,6 @@ static int __init aio_setup(void)
 	aio_mnt = kern_mount(&aio_fs);
 	if (IS_ERR(aio_mnt))
 		panic("Failed to create aio fs mount.");
-
-	if (bdi_init(&aio_fs_backing_dev_info))
-		panic("Failed to init aio fs backing dev info.");
 
 	kiocb_cachep = KMEM_CACHE(kiocb, SLAB_HWCACHE_ALIGN|SLAB_PANIC);
 	kioctx_cachep = KMEM_CACHE(kioctx,SLAB_HWCACHE_ALIGN|SLAB_PANIC);
@@ -291,11 +278,11 @@ static int aio_ring_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
-static void aio_ring_remap(struct file *file, struct vm_area_struct *vma)
+static int aio_ring_remap(struct file *file, struct vm_area_struct *vma)
 {
 	struct mm_struct *mm = vma->vm_mm;
 	struct kioctx_table *table;
-	int i;
+	int i, res = -EINVAL;
 
 	spin_lock(&mm->ioctx_lock);
 	rcu_read_lock();
@@ -305,13 +292,17 @@ static void aio_ring_remap(struct file *file, struct vm_area_struct *vma)
 
 		ctx = table->table[i];
 		if (ctx && ctx->aio_ring_file == file) {
-			ctx->user_id = ctx->mmap_base = vma->vm_start;
+			if (!atomic_read(&ctx->dead)) {
+				ctx->user_id = ctx->mmap_base = vma->vm_start;
+				res = 0;
+			}
 			break;
 		}
 	}
 
 	rcu_read_unlock();
 	spin_unlock(&mm->ioctx_lock);
+	return res;
 }
 
 static const struct file_operations aio_ring_fops = {
@@ -740,6 +731,9 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 err_cleanup:
 	aio_nr_sub(ctx->max_reqs);
 err_ctx:
+	atomic_set(&ctx->dead, 1);
+	if (ctx->mmap_size)
+		vm_munmap(ctx->mmap_base, ctx->mmap_size);
 	aio_free_ring(ctx);
 err:
 	mutex_unlock(&ctx->ring_lock);
@@ -761,11 +755,12 @@ static int kill_ioctx(struct mm_struct *mm, struct kioctx *ctx,
 {
 	struct kioctx_table *table;
 
-	if (atomic_xchg(&ctx->dead, 1))
-		return -EINVAL;
-
-
 	spin_lock(&mm->ioctx_lock);
+	if (atomic_xchg(&ctx->dead, 1)) {
+		spin_unlock(&mm->ioctx_lock);
+		return -EINVAL;
+	}
+
 	table = rcu_dereference_raw(mm->ioctx_table);
 	WARN_ON(ctx != table->table[ctx->id]);
 	table->table[ctx->id] = NULL;
@@ -1298,7 +1293,7 @@ SYSCALL_DEFINE2(io_setup, unsigned, nr_events, aio_context_t __user *, ctxp)
 
 	ret = -EINVAL;
 	if (unlikely(ctx || nr_events == 0)) {
-		pr_debug("EINVAL: io_setup: ctx %lu nr_events %u\n",
+		pr_debug("EINVAL: ctx %lu nr_events %u\n",
 		         ctx, nr_events);
 		goto out;
 	}
@@ -1346,7 +1341,7 @@ SYSCALL_DEFINE1(io_destroy, aio_context_t, ctx)
 
 		return ret;
 	}
-	pr_debug("EINVAL: io_destroy: invalid context id\n");
+	pr_debug("EINVAL: invalid context id\n");
 	return -EINVAL;
 }
 
@@ -1528,7 +1523,7 @@ static int io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 	    (iocb->aio_nbytes != (size_t)iocb->aio_nbytes) ||
 	    ((ssize_t)iocb->aio_nbytes < 0)
 	   )) {
-		pr_debug("EINVAL: io_submit: overflow check\n");
+		pr_debug("EINVAL: overflow check\n");
 		return -EINVAL;
 	}
 

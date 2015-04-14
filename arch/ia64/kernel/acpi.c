@@ -380,9 +380,6 @@ static void __init acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 
 static int __init acpi_parse_madt(struct acpi_table_header *table)
 {
-	if (!table)
-		return -EINVAL;
-
 	acpi_madt = (struct acpi_table_madt *)table;
 
 	acpi_madt_rev = acpi_madt->header.revision;
@@ -644,9 +641,6 @@ static int __init acpi_parse_fadt(struct acpi_table_header *table)
 {
 	struct acpi_table_header *fadt_header;
 	struct acpi_table_fadt *fadt;
-
-	if (!table)
-		return -EINVAL;
 
 	fadt_header = (struct acpi_table_header *)table;
 	if (fadt_header->revision != 3)

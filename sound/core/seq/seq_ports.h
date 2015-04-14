@@ -73,7 +73,6 @@ struct snd_seq_client_port {
 			   int atomic, int hop);
 	void (*private_free)(void *private_data);
 	void *private_data;
-	unsigned int callback_all : 1;
 	unsigned int closing : 1;
 	unsigned int timestamping: 1;
 	unsigned int time_real: 1;

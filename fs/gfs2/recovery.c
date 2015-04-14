@@ -439,7 +439,7 @@ static void gfs2_recovery_done(struct gfs2_sbd *sdp, unsigned int jid,
 
         ls->ls_recover_jid_done = jid;
         ls->ls_recover_jid_status = message;
-	sprintf(env_jid, "JID=%d", jid);
+	sprintf(env_jid, "JID=%u", jid);
 	sprintf(env_status, "RECOVERY=%s",
 		message == LM_RD_SUCCESS ? "Done" : "Failed");
         kobject_uevent_env(&sdp->sd_kobj, KOBJ_CHANGE, envp);

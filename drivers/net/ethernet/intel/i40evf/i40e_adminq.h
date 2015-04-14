@@ -148,7 +148,7 @@ static inline int i40e_aq_rc_to_posix(u32 aq_ret, u16 aq_rc)
 
 /* general information */
 #define I40E_AQ_LARGE_BUF	512
-#define I40E_ASQ_CMD_TIMEOUT	100  /* msecs */
+#define I40E_ASQ_CMD_TIMEOUT	250  /* msecs */
 
 void i40evf_fill_default_direct_cmd_desc(struct i40e_aq_desc *desc,
 				       u16 opcode);

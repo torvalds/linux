@@ -24,7 +24,7 @@ config MISDN_HFCMULTI
 	   * HFC-E1 (E1 interface for 2Mbit ISDN)
 
 config MISDN_HFCMULTI_8xx
-	boolean "Support for XHFC embedded board in HFC multiport driver"
+	bool "Support for XHFC embedded board in HFC multiport driver"
 	depends on MISDN
 	depends on MISDN_HFCMULTI
 	depends on 8xx

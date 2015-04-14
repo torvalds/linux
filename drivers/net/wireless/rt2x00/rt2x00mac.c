@@ -119,7 +119,7 @@ void rt2x00mac_tx(struct ieee80211_hw *hw,
 	 * Use the ATIM queue if appropriate and present.
 	 */
 	if (tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM &&
-	    test_bit(REQUIRE_ATIM_QUEUE, &rt2x00dev->cap_flags))
+	    rt2x00_has_cap_flag(rt2x00dev, REQUIRE_ATIM_QUEUE))
 		qid = QID_ATIM;
 
 	queue = rt2x00queue_get_tx_queue(rt2x00dev, qid);

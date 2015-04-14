@@ -64,4 +64,31 @@ config BT_6LOWPAN
 	help
 	  IPv6 compression over Bluetooth Low Energy.
 
+config BT_SELFTEST
+	bool "Bluetooth self testing support"
+	depends on BT && DEBUG_KERNEL
+	help
+	  Run self tests when initializing the Bluetooth subsystem.  This
+	  is a developer option and can cause significant delay when booting
+	  the system.
+
+	  When the Bluetooth subsystem is built as module, then the test
+	  cases are run first thing at module load time.  When the Bluetooth
+	  subsystem is compiled into the kernel image, then the test cases
+	  are run late in the initcall hierarchy.
+
+config BT_SELFTEST_ECDH
+	bool "ECDH test cases"
+	depends on BT_LE && BT_SELFTEST
+	help
+	  Run test cases for ECDH cryptographic functionality used by the
+	  Bluetooth Low Energy Secure Connections feature.
+
+config BT_SELFTEST_SMP
+	bool "SMP test cases"
+	depends on BT_LE && BT_SELFTEST
+	help
+	  Run test cases for SMP cryptographic functionality, including both
+	  legacy SMP as well as the Secure Connections features.
+
 source "drivers/bluetooth/Kconfig"

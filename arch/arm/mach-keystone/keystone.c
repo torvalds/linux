@@ -103,7 +103,7 @@ static void __init keystone_init_meminfo(void)
 	pr_info("Switching to high address space at 0x%llx\n", (u64)offset);
 }
 
-static const char *keystone_match[] __initconst = {
+static const char *const keystone_match[] __initconst = {
 	"ti,keystone",
 	NULL,
 };

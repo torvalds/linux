@@ -434,20 +434,6 @@ void generic_cpu_die(unsigned int cpu)
 	printk(KERN_ERR "CPU%d didn't die...\n", cpu);
 }
 
-void generic_mach_cpu_die(void)
-{
-	unsigned int cpu;
-
-	local_irq_disable();
-	idle_task_exit();
-	cpu = smp_processor_id();
-	printk(KERN_DEBUG "CPU%d offline\n", cpu);
-	__this_cpu_write(cpu_state, CPU_DEAD);
-	smp_wmb();
-	while (__this_cpu_read(cpu_state) != CPU_UP_PREPARE)
-		cpu_relax();
-}
-
 void generic_set_cpu_dead(unsigned int cpu)
 {
 	per_cpu(cpu_state, cpu) = CPU_DEAD;
@@ -555,8 +541,8 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 	if (smp_ops->give_timebase)
 		smp_ops->give_timebase();
 
-	/* Wait until cpu puts itself in the online map */
-	while (!cpu_online(cpu))
+	/* Wait until cpu puts itself in the online & active maps */
+	while (!cpu_online(cpu) || !cpu_active(cpu))
 		cpu_relax();
 
 	return 0;

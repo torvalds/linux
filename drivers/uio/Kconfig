@@ -104,6 +104,26 @@ config UIO_NETX
 	  To compile this driver as a module, choose M here; the module
 	  will be called uio_netx.
 
+config UIO_FSL_ELBC_GPCM
+	tristate "eLBC/GPCM driver"
+	depends on FSL_LBC
+	help
+	  Generic driver for accessing a peripheral connected to an eLBC port
+	  that is running in GPCM mode. GPCM is an interface for simple lower
+	  performance memories and memory-mapped devices. For devices using
+	  FCM or UPM eLBC modes, other device-specific drivers are available.
+
+config UIO_FSL_ELBC_GPCM_NETX5152
+	bool "eLBC/GPCM netX 51/52 support"
+	depends on UIO_FSL_ELBC_GPCM
+	help
+	  This will add support for netX 51/52 devices connected via eLBC/GPCM.
+	  In particular, it implements interrupt handling. This can be used
+	  together with the userspace netX stack from Hilscher.
+
+	  Information about this hardware can be found at:
+	  http://www.hilscher.com/netx
+
 config UIO_PRUSS
 	tristate "Texas Instruments PRUSS driver"
 	depends on ARCH_DAVINCI_DA850

@@ -51,21 +51,6 @@ enum dma_ch {
 	DMACH_MAX = 32
 };
 
-struct s3c2410_dma_client {
-	char	*name;
-};
-
-static inline bool samsung_dma_has_circular(void)
-{
-	return true;
-}
-
-static inline bool samsung_dma_is_dmadev(void)
-{
-	return true;
-}
-
 #include <linux/amba/pl08x.h>
-#include <plat/dma-ops.h>
 
 #endif /* __ASM_ARCH_IRQ_H */

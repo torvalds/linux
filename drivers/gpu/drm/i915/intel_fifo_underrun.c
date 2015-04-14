@@ -282,16 +282,6 @@ bool intel_set_cpu_fifo_underrun_reporting(struct drm_i915_private *dev_priv,
 	return ret;
 }
 
-static bool
-__cpu_fifo_underrun_reporting_enabled(struct drm_i915_private *dev_priv,
-				      enum pipe pipe)
-{
-	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-
-	return !intel_crtc->cpu_fifo_underrun_disabled;
-}
-
 /**
  * intel_set_pch_fifo_underrun_reporting - set PCH fifo underrun reporting state
  * @dev_priv: i915 device instance
@@ -341,7 +331,7 @@ bool intel_set_pch_fifo_underrun_reporting(struct drm_i915_private *dev_priv,
 }
 
 /**
- * intel_pch_fifo_underrun_irq_handler - handle PCH fifo underrun interrupt
+ * intel_cpu_fifo_underrun_irq_handler - handle CPU fifo underrun interrupt
  * @dev_priv: i915 device instance
  * @pipe: (CPU) pipe to set state for
  *
@@ -352,9 +342,15 @@ bool intel_set_pch_fifo_underrun_reporting(struct drm_i915_private *dev_priv,
 void intel_cpu_fifo_underrun_irq_handler(struct drm_i915_private *dev_priv,
 					 enum pipe pipe)
 {
+	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
+
+	/* We may be called too early in init, thanks BIOS! */
+	if (crtc == NULL)
+		return;
+
 	/* GMCH can't disable fifo underruns, filter them. */
 	if (HAS_GMCH_DISPLAY(dev_priv->dev) &&
-	    !__cpu_fifo_underrun_reporting_enabled(dev_priv, pipe))
+	    to_intel_crtc(crtc)->cpu_fifo_underrun_disabled)
 		return;
 
 	if (intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false))

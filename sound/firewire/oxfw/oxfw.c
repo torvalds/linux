@@ -104,10 +104,22 @@ end:
 	return err;
 }
 
+/*
+ * This module releases the FireWire unit data after all ALSA character devices
+ * are released by applications. This is for releasing stream data or finishing
+ * transactions safely. Thus at returning from .remove(), this module still keep
+ * references for the unit.
+ */
 static void oxfw_card_free(struct snd_card *card)
 {
 	struct snd_oxfw *oxfw = card->private_data;
 	unsigned int i;
+
+	snd_oxfw_stream_destroy_simplex(oxfw, &oxfw->rx_stream);
+	if (oxfw->has_output)
+		snd_oxfw_stream_destroy_simplex(oxfw, &oxfw->tx_stream);
+
+	fw_unit_put(oxfw->unit);
 
 	for (i = 0; i < SND_OXFW_STREAM_FORMAT_ENTRIES; i++) {
 		kfree(oxfw->tx_stream_formats[i]);
@@ -136,7 +148,7 @@ static int oxfw_probe(struct fw_unit *unit,
 	oxfw = card->private_data;
 	oxfw->card = card;
 	mutex_init(&oxfw->mutex);
-	oxfw->unit = unit;
+	oxfw->unit = fw_unit_get(unit);
 	oxfw->device_info = (const struct device_info *)id->driver_data;
 	spin_lock_init(&oxfw->lock);
 	init_waitqueue_head(&oxfw->hwdep_wait);
@@ -212,12 +224,7 @@ static void oxfw_remove(struct fw_unit *unit)
 {
 	struct snd_oxfw *oxfw = dev_get_drvdata(&unit->device);
 
-	snd_card_disconnect(oxfw->card);
-
-	snd_oxfw_stream_destroy_simplex(oxfw, &oxfw->rx_stream);
-	if (oxfw->has_output)
-		snd_oxfw_stream_destroy_simplex(oxfw, &oxfw->tx_stream);
-
+	/* No need to wait for releasing card object in this context. */
 	snd_card_free_when_closed(oxfw->card);
 }
 

@@ -2240,7 +2240,7 @@ proc_show_battery(struct seq_file *m, void *v)
 		goto free_pdev;
 
 	if( mega_adapinq(adapter, dma_handle) != 0 ) {
-		seq_printf(m, "Adapter inquiry failed.\n");
+		seq_puts(m, "Adapter inquiry failed.\n");
 		printk(KERN_WARNING "megaraid: inquiry failed.\n");
 		goto free_inquiry;
 	}

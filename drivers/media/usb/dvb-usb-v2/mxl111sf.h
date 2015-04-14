@@ -152,9 +152,3 @@ extern int dvb_usb_mxl111sf_debug;
 })
 
 #endif /* _DVB_USB_MXL111SF_H_ */
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

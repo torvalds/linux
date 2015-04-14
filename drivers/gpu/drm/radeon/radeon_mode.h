@@ -449,6 +449,7 @@ struct radeon_encoder {
 	int audio_polling_active;
 	bool is_ext_encoder;
 	u16 caps;
+	struct radeon_audio_funcs *audio;
 };
 
 struct radeon_connector_atom_dig {
@@ -745,8 +746,6 @@ extern void radeon_router_select_ddc_port(struct radeon_connector *radeon_connec
 extern void radeon_router_select_cd_port(struct radeon_connector *radeon_connector);
 extern bool radeon_ddc_probe(struct radeon_connector *radeon_connector, bool use_aux);
 
-extern struct drm_encoder *radeon_best_encoder(struct drm_connector *connector);
-
 extern bool radeon_atombios_get_ppll_ss_info(struct radeon_device *rdev,
 					     struct radeon_atom_ss *ss,
 					     int id);
@@ -925,7 +924,6 @@ void dce8_program_fmt(struct drm_encoder *encoder);
 int radeon_fbdev_init(struct radeon_device *rdev);
 void radeon_fbdev_fini(struct radeon_device *rdev);
 void radeon_fbdev_set_suspend(struct radeon_device *rdev, int state);
-int radeon_fbdev_total_size(struct radeon_device *rdev);
 bool radeon_fbdev_robj_is_fb(struct radeon_device *rdev, struct radeon_bo *robj);
 
 void radeon_fb_output_poll_changed(struct radeon_device *rdev);

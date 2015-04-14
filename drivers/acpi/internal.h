@@ -35,6 +35,13 @@ void acpi_int340x_thermal_init(void);
 int acpi_sysfs_init(void);
 void acpi_container_init(void);
 void acpi_memory_hotplug_init(void);
+#ifdef	CONFIG_ACPI_HOTPLUG_IOAPIC
+int acpi_ioapic_add(struct acpi_pci_root *root);
+int acpi_ioapic_remove(struct acpi_pci_root *root);
+#else
+static inline int acpi_ioapic_add(struct acpi_pci_root *root) { return 0; }
+static inline int acpi_ioapic_remove(struct acpi_pci_root *root) { return 0; }
+#endif
 #ifdef CONFIG_ACPI_DOCK
 void register_dock_dependent_device(struct acpi_device *adev,
 				    acpi_handle dshandle);
@@ -67,6 +74,8 @@ int acpi_debugfs_init(void);
 static inline void acpi_debugfs_init(void) { return; }
 #endif
 void acpi_lpss_init(void);
+
+void acpi_apd_init(void);
 
 acpi_status acpi_hotplug_schedule(struct acpi_device *adev, u32 src);
 bool acpi_queue_hotplug_work(struct work_struct *work);
@@ -122,11 +131,13 @@ struct acpi_ec {
 	unsigned long data_addr;
 	unsigned long global_lock;
 	unsigned long flags;
+	unsigned long reference_count;
 	struct mutex mutex;
 	wait_queue_head_t wait;
 	struct list_head list;
 	struct transaction *curr;
 	spinlock_t lock;
+	struct work_struct work;
 };
 
 extern struct acpi_ec *first_ec;

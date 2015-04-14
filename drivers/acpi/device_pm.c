@@ -1027,7 +1027,6 @@ EXPORT_SYMBOL_GPL(acpi_subsys_freeze);
 
 static struct dev_pm_domain acpi_general_pm_domain = {
 	.ops = {
-#ifdef CONFIG_PM
 		.runtime_suspend = acpi_subsys_runtime_suspend,
 		.runtime_resume = acpi_subsys_runtime_resume,
 #ifdef CONFIG_PM_SLEEP
@@ -1040,7 +1039,6 @@ static struct dev_pm_domain acpi_general_pm_domain = {
 		.poweroff = acpi_subsys_suspend,
 		.poweroff_late = acpi_subsys_suspend_late,
 		.restore_early = acpi_subsys_resume_early,
-#endif
 #endif
 	},
 };

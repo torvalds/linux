@@ -62,6 +62,25 @@
 #define NCI_STATUS_NFCEE_PROTOCOL_ERROR				0xc2
 #define NCI_STATUS_NFCEE_TIMEOUT_ERROR				0xc3
 
+/* NFCEE Interface/Protocols */
+#define NCI_NFCEE_INTERFACE_APDU           0x00
+#define NCI_NFCEE_INTERFACE_HCI_ACCESS     0x01
+#define NCI_NFCEE_INTERFACE_TYPE3_CMD_SET  0x02
+#define NCI_NFCEE_INTERFACE_TRANSPARENT        0x03
+
+/* Destination type */
+#define NCI_DESTINATION_NFCC_LOOPBACK      0x01
+#define NCI_DESTINATION_REMOTE_NFC_ENDPOINT    0x02
+#define NCI_DESTINATION_NFCEE              0x03
+
+/* Destination-specific parameters type */
+#define NCI_DESTINATION_SPECIFIC_PARAM_RF_TYPE     0x00
+#define NCI_DESTINATION_SPECIFIC_PARAM_NFCEE_TYPE  0x01
+
+/* NFCEE Discovery Action */
+#define NCI_NFCEE_DISCOVERY_ACTION_DISABLE			0x00
+#define NCI_NFCEE_DISCOVERY_ACTION_ENABLE			0x01
+
 /* NCI RF Technology and Mode */
 #define NCI_NFC_A_PASSIVE_POLL_MODE				0x00
 #define NCI_NFC_B_PASSIVE_POLL_MODE				0x01
@@ -224,6 +243,28 @@ struct nci_core_set_config_cmd {
 	struct	set_config_param param; /* support 1 param per cmd is enough */
 } __packed;
 
+#define NCI_OP_CORE_CONN_CREATE_CMD	nci_opcode_pack(NCI_GID_CORE, 0x04)
+#define DEST_SPEC_PARAMS_ID_INDEX	0
+#define DEST_SPEC_PARAMS_PROTOCOL_INDEX	1
+struct dest_spec_params {
+	__u8    id;
+	__u8    protocol;
+} __packed;
+
+struct core_conn_create_dest_spec_params {
+	__u8    type;
+	__u8    length;
+	__u8    value[0];
+} __packed;
+
+struct nci_core_conn_create_cmd {
+	__u8    destination_type;
+	__u8    number_destination_params;
+	struct core_conn_create_dest_spec_params params[0];
+} __packed;
+
+#define NCI_OP_CORE_CONN_CLOSE_CMD	nci_opcode_pack(NCI_GID_CORE, 0x05)
+
 #define NCI_OP_RF_DISCOVER_MAP_CMD	nci_opcode_pack(NCI_GID_RF_MGMT, 0x00)
 struct disc_map_config {
 	__u8	rf_protocol;
@@ -258,6 +299,19 @@ struct nci_rf_discover_select_cmd {
 #define NCI_OP_RF_DEACTIVATE_CMD	nci_opcode_pack(NCI_GID_RF_MGMT, 0x06)
 struct nci_rf_deactivate_cmd {
 	__u8	type;
+} __packed;
+
+#define NCI_OP_NFCEE_DISCOVER_CMD nci_opcode_pack(NCI_GID_NFCEE_MGMT, 0x00)
+struct nci_nfcee_discover_cmd {
+	__u8	discovery_action;
+} __packed;
+
+#define NCI_OP_NFCEE_MODE_SET_CMD nci_opcode_pack(NCI_GID_NFCEE_MGMT, 0x01)
+#define NCI_NFCEE_DISABLE	0x00
+#define NCI_NFCEE_ENABLE	0x01
+struct nci_nfcee_mode_set_cmd {
+	__u8	nfcee_id;
+	__u8	nfcee_mode;
 } __packed;
 
 /* ----------------------- */
@@ -295,6 +349,16 @@ struct nci_core_set_config_rsp {
 	__u8	params_id[0];	/* variable size array */
 } __packed;
 
+#define NCI_OP_CORE_CONN_CREATE_RSP	nci_opcode_pack(NCI_GID_CORE, 0x04)
+struct nci_core_conn_create_rsp {
+	__u8	status;
+	__u8	max_ctrl_pkt_payload_len;
+	__u8    credits_cnt;
+	__u8	conn_id;
+} __packed;
+
+#define NCI_OP_CORE_CONN_CLOSE_RSP	nci_opcode_pack(NCI_GID_CORE, 0x05)
+
 #define NCI_OP_RF_DISCOVER_MAP_RSP	nci_opcode_pack(NCI_GID_RF_MGMT, 0x00)
 
 #define NCI_OP_RF_DISCOVER_RSP		nci_opcode_pack(NCI_GID_RF_MGMT, 0x03)
@@ -303,6 +367,13 @@ struct nci_core_set_config_rsp {
 
 #define NCI_OP_RF_DEACTIVATE_RSP	nci_opcode_pack(NCI_GID_RF_MGMT, 0x06)
 
+#define NCI_OP_NFCEE_DISCOVER_RSP nci_opcode_pack(NCI_GID_NFCEE_MGMT, 0x00)
+struct nci_nfcee_discover_rsp {
+	__u8	status;
+	__u8	num_nfcee;
+} __packed;
+
+#define NCI_OP_NFCEE_MODE_SET_RSP nci_opcode_pack(NCI_GID_NFCEE_MGMT, 0x01)
 /* --------------------------- */
 /* ---- NCI Notifications ---- */
 /* --------------------------- */
@@ -428,6 +499,32 @@ struct nci_rf_intf_activated_ntf {
 struct nci_rf_deactivate_ntf {
 	__u8	type;
 	__u8	reason;
+} __packed;
+
+#define NCI_OP_RF_NFCEE_ACTION_NTF	nci_opcode_pack(NCI_GID_RF_MGMT, 0x09)
+struct nci_rf_nfcee_action_ntf {
+	__u8 nfcee_id;
+	__u8 trigger;
+	__u8 supported_data_length;
+	__u8 supported_data[0];
+} __packed;
+
+#define NCI_OP_NFCEE_DISCOVER_NTF nci_opcode_pack(NCI_GID_NFCEE_MGMT, 0x00)
+struct nci_nfcee_supported_protocol {
+	__u8	num_protocol;
+	__u8	supported_protocol[0];
+} __packed;
+
+struct nci_nfcee_information_tlv {
+	__u8	num_tlv;
+	__u8	information_tlv[0];
+} __packed;
+
+struct nci_nfcee_discover_ntf {
+	__u8	nfcee_id;
+	__u8	nfcee_status;
+	struct nci_nfcee_supported_protocol supported_protocols;
+	struct nci_nfcee_information_tlv	information_tlv;
 } __packed;
 
 #endif /* __NCI_H */

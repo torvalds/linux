@@ -17,6 +17,7 @@
 
 #include <linux/power_supply.h>
 #include <linux/extcon.h>
+#include <linux/alarmtimer.h>
 
 enum data_source {
 	CM_BATTERY_PRESENT,
@@ -42,29 +43,6 @@ enum cm_event_types {
 	CM_EVENT_EXT_PWR_IN_OUT,
 	CM_EVENT_CHG_START_STOP,
 	CM_EVENT_OTHERS,
-};
-
-/**
- * struct charger_global_desc
- * @rtc_name: the name of RTC used to wake up the system from suspend.
- * @rtc_only_wakeup:
- *	If the system is woken up by waekup-sources other than the RTC or
- *	callbacks, Charger Manager should recognize with
- *	rtc_only_wakeup() returning false.
- *	If the RTC given to CM is the only wakeup reason,
- *	rtc_only_wakeup should return true.
- * @assume_timer_stops_in_suspend:
- *	Assume that the jiffy timer stops in suspend-to-RAM.
- *	When enabled, CM does not rely on jiffies value in
- *	suspend_again and assumes that jiffies value does not
- *	change during suspend.
- */
-struct charger_global_desc {
-	char *rtc_name;
-
-	bool (*rtc_only_wakeup)(void);
-
-	bool assume_timer_stops_in_suspend;
 };
 
 /**
@@ -266,22 +244,14 @@ struct charger_manager {
 	char psy_name_buf[PSY_NAME_MAX + 1];
 	struct power_supply charger_psy;
 
-	bool status_save_ext_pwr_inserted;
-	bool status_save_batt;
-
 	u64 charging_start_time;
 	u64 charging_end_time;
 };
 
 #ifdef CONFIG_CHARGER_MANAGER
-extern int setup_charger_manager(struct charger_global_desc *gd);
-extern bool cm_suspend_again(void);
 extern void cm_notify_event(struct power_supply *psy,
 				enum cm_event_types type, char *msg);
 #else
-static inline int setup_charger_manager(struct charger_global_desc *gd)
-{ return 0; }
-static inline bool cm_suspend_again(void) { return false; }
 static inline void cm_notify_event(struct power_supply *psy,
 				enum cm_event_types type, char *msg) { }
 #endif

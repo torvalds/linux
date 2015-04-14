@@ -414,8 +414,7 @@ static void snd_mtpav_output_timer(unsigned long data)
 
 	spin_lock_irqsave(&chip->spinlock, flags);
 	/* reprogram timer */
-	chip->timer.expires = 1 + jiffies;
-	add_timer(&chip->timer);
+	mod_timer(&chip->timer, 1 + jiffies);
 	/* process each port */
 	for (p = 0; p <= chip->num_ports * 2 + MTPAV_PIDX_BROADCAST; p++) {
 		struct mtpav_port *portp = &chip->ports[p];
@@ -428,8 +427,7 @@ static void snd_mtpav_output_timer(unsigned long data)
 /* spinlock held! */
 static void snd_mtpav_add_output_timer(struct mtpav *chip)
 {
-	chip->timer.expires = 1 + jiffies;
-	add_timer(&chip->timer);
+	mod_timer(&chip->timer, 1 + jiffies);
 }
 
 /* spinlock held! */
@@ -704,15 +702,13 @@ static int snd_mtpav_probe(struct platform_device *dev)
 
 	mtp_card = card->private_data;
 	spin_lock_init(&mtp_card->spinlock);
-	init_timer(&mtp_card->timer);
 	mtp_card->card = card;
 	mtp_card->irq = -1;
 	mtp_card->share_irq = 0;
 	mtp_card->inmidistate = 0;
 	mtp_card->outmidihwport = 0xffffffff;
-	init_timer(&mtp_card->timer);
-	mtp_card->timer.function = snd_mtpav_output_timer;
-	mtp_card->timer.data = (unsigned long) mtp_card;
+	setup_timer(&mtp_card->timer, snd_mtpav_output_timer,
+		    (unsigned long) mtp_card);
 
 	card->private_free = snd_mtpav_free;
 

@@ -468,11 +468,13 @@ static int ipmi_ssif_thread(void *data)
 		int result;
 
 		/* Wait for something to do */
-		wait_for_completion(&ssif_info->wake_thread);
-		init_completion(&ssif_info->wake_thread);
-
+		result = wait_for_completion_interruptible(
+						&ssif_info->wake_thread);
 		if (ssif_info->stopping)
 			break;
+		if (result == -ERESTARTSYS)
+			continue;
+		init_completion(&ssif_info->wake_thread);
 
 		if (ssif_info->i2c_read_write == I2C_SMBUS_WRITE) {
 			result = i2c_smbus_write_block_data(
@@ -1097,8 +1099,6 @@ static int ssif_remove(struct i2c_client *client)
 	if (!ssif_info)
 		return 0;
 
-	i2c_set_clientdata(client, NULL);
-
 	/*
 	 * After this point, we won't deliver anything asychronously
 	 * to the message handler.  We can unregister ourself.
@@ -1198,7 +1198,9 @@ static int ssif_detect(struct i2c_client *client, struct i2c_board_info *info)
 
 static int smi_type_proc_show(struct seq_file *m, void *v)
 {
-	return seq_puts(m, "ssif\n");
+	seq_puts(m, "ssif\n");
+
+	return seq_has_overflowed(m);
 }
 
 static int smi_type_proc_open(struct inode *inode, struct file *file)

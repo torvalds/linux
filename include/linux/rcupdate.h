@@ -331,12 +331,13 @@ static inline void rcu_init_nohz(void)
 extern struct srcu_struct tasks_rcu_exit_srcu;
 #define rcu_note_voluntary_context_switch(t) \
 	do { \
+		rcu_all_qs(); \
 		if (ACCESS_ONCE((t)->rcu_tasks_holdout)) \
 			ACCESS_ONCE((t)->rcu_tasks_holdout) = false; \
 	} while (0)
 #else /* #ifdef CONFIG_TASKS_RCU */
 #define TASKS_RCU(x) do { } while (0)
-#define rcu_note_voluntary_context_switch(t)	do { } while (0)
+#define rcu_note_voluntary_context_switch(t)	rcu_all_qs()
 #endif /* #else #ifdef CONFIG_TASKS_RCU */
 
 /**
@@ -582,11 +583,11 @@ static inline void rcu_preempt_sleep_check(void)
 })
 #define __rcu_dereference_check(p, c, space) \
 ({ \
-	typeof(*p) *_________p1 = (typeof(*p) *__force)ACCESS_ONCE(p); \
+	/* Dependency order vs. p above. */ \
+	typeof(*p) *________p1 = (typeof(*p) *__force)lockless_dereference(p); \
 	rcu_lockdep_assert(c, "suspicious rcu_dereference_check() usage"); \
 	rcu_dereference_sparse(p, space); \
-	smp_read_barrier_depends(); /* Dependency order vs. p above. */ \
-	((typeof(*p) __force __kernel *)(_________p1)); \
+	((typeof(*p) __force __kernel *)(________p1)); \
 })
 #define __rcu_dereference_protected(p, c, space) \
 ({ \
@@ -603,10 +604,10 @@ static inline void rcu_preempt_sleep_check(void)
 })
 #define __rcu_dereference_index_check(p, c) \
 ({ \
-	typeof(p) _________p1 = ACCESS_ONCE(p); \
+	/* Dependency order vs. p above. */ \
+	typeof(p) _________p1 = lockless_dereference(p); \
 	rcu_lockdep_assert(c, \
 			   "suspicious rcu_dereference_index_check() usage"); \
-	smp_read_barrier_depends(); /* Dependency order vs. p above. */ \
 	(_________p1); \
 })
 

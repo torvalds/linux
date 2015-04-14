@@ -299,7 +299,7 @@ static int xhci_abort_cmd_ring(struct xhci_hcd *xhci)
 	 * seconds), then it should assume that the there are
 	 * larger problems with the xHC and assert HCRST.
 	 */
-	ret = xhci_handshake(xhci, &xhci->op_regs->cmd_ring,
+	ret = xhci_handshake(&xhci->op_regs->cmd_ring,
 			CMD_RING_RUNNING, 0, 5 * 1000 * 1000);
 	if (ret < 0) {
 		xhci_err(xhci, "Stopped the command ring failed, "
@@ -609,7 +609,7 @@ static void xhci_giveback_urb_in_irq(struct xhci_hcd *xhci,
 
 		spin_unlock(&xhci->lock);
 		usb_hcd_giveback_urb(hcd, urb, status);
-		xhci_urb_free_priv(xhci, urb_priv);
+		xhci_urb_free_priv(urb_priv);
 		spin_lock(&xhci->lock);
 	}
 }
@@ -1110,7 +1110,7 @@ static void xhci_handle_cmd_config_ep(struct xhci_hcd *xhci, int slot_id,
 	 * is not waiting on the configure endpoint command.
 	 */
 	virt_dev = xhci->devs[slot_id];
-	ctrl_ctx = xhci_get_input_control_ctx(xhci, virt_dev->in_ctx);
+	ctrl_ctx = xhci_get_input_control_ctx(virt_dev->in_ctx);
 	if (!ctrl_ctx) {
 		xhci_warn(xhci, "Could not get input context, bad type.\n");
 		return;
@@ -1946,7 +1946,7 @@ static int process_ctrl_td(struct xhci_hcd *xhci, struct xhci_td *td,
 	if (event_trb != ep_ring->dequeue) {
 		/* The event was for the status stage */
 		if (event_trb == td->last_trb) {
-			if (td->urb->actual_length != 0) {
+			if (td->urb_length_set) {
 				/* Don't overwrite a previously set error code
 				 */
 				if ((*status == -EINPROGRESS || *status == 0) &&
@@ -1960,7 +1960,13 @@ static int process_ctrl_td(struct xhci_hcd *xhci, struct xhci_td *td,
 					td->urb->transfer_buffer_length;
 			}
 		} else {
-		/* Maybe the event was for the data stage? */
+			/*
+			 * Maybe the event was for the data stage? If so, update
+			 * already the actual_length of the URB and flag it as
+			 * set, so that it is not overwritten in the event for
+			 * the last TRB.
+			 */
+			td->urb_length_set = true;
 			td->urb->actual_length =
 				td->urb->transfer_buffer_length -
 				EVENT_TRB_LEN(le32_to_cpu(event->transfer_len));
@@ -2354,8 +2360,8 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 			status = 0;
 			break;
 		}
-		xhci_warn(xhci, "ERROR Unknown event condition, HC probably "
-				"busted\n");
+		xhci_warn(xhci, "ERROR Unknown event condition %u, HC probably busted\n",
+			  trb_comp_code);
 		goto cleanup;
 	}
 
@@ -2497,7 +2503,7 @@ cleanup:
 			urb = td->urb;
 			urb_priv = urb->hcpriv;
 
-			xhci_urb_free_priv(xhci, urb_priv);
+			xhci_urb_free_priv(urb_priv);
 
 			usb_hcd_unlink_urb_from_ep(bus_to_hcd(urb->dev->bus), urb);
 			if ((urb->actual_length != urb->transfer_buffer_length &&

@@ -1097,24 +1097,65 @@ void ath_update_max_aggr_framelen(struct ath_softc *sc, int queue, int txop)
 }
 
 static u8 ath_get_rate_txpower(struct ath_softc *sc, struct ath_buf *bf,
-			       u8 rateidx)
+			       u8 rateidx, bool is_40, bool is_cck)
 {
 	u8 max_power;
+	struct sk_buff *skb;
+	struct ath_frame_info *fi;
+	struct ieee80211_tx_info *info;
 	struct ath_hw *ah = sc->sc_ah;
 
-	if (sc->tx99_state)
+	if (sc->tx99_state || !ah->tpc_enabled)
 		return MAX_RATE_POWER;
+
+	skb = bf->bf_mpdu;
+	fi = get_frame_info(skb);
+	info = IEEE80211_SKB_CB(skb);
 
 	if (!AR_SREV_9300_20_OR_LATER(ah)) {
-		/* ar9002 is not sipported for the moment */
-		return MAX_RATE_POWER;
-	}
+		int txpower = fi->tx_power;
 
-	if (!bf->bf_state.bfs_paprd) {
-		struct sk_buff *skb = bf->bf_mpdu;
-		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-		struct ath_frame_info *fi = get_frame_info(skb);
+		if (is_40) {
+			u8 power_ht40delta;
+			struct ar5416_eeprom_def *eep = &ah->eeprom.def;
 
+			if (AR5416_VER_MASK >= AR5416_EEP_MINOR_VER_2) {
+				bool is_2ghz;
+				struct modal_eep_header *pmodal;
+
+				is_2ghz = info->band == IEEE80211_BAND_2GHZ;
+				pmodal = &eep->modalHeader[is_2ghz];
+				power_ht40delta = pmodal->ht40PowerIncForPdadc;
+			} else {
+				power_ht40delta = 2;
+			}
+			txpower += power_ht40delta;
+		}
+
+		if (AR_SREV_9287(ah) || AR_SREV_9285(ah) ||
+		    AR_SREV_9271(ah)) {
+			txpower -= 2 * AR9287_PWR_TABLE_OFFSET_DB;
+		} else if (AR_SREV_9280_20_OR_LATER(ah)) {
+			s8 power_offset;
+
+			power_offset = ah->eep_ops->get_eeprom(ah,
+							EEP_PWR_TABLE_OFFSET);
+			txpower -= 2 * power_offset;
+		}
+
+		if (OLC_FOR_AR9280_20_LATER && is_cck)
+			txpower -= 2;
+
+		txpower = max(txpower, 0);
+		max_power = min_t(u8, ah->tx_power[rateidx], txpower);
+
+		/* XXX: clamp minimum TX power at 1 for AR9160 since if
+		 * max_power is set to 0, frames are transmitted at max
+		 * TX power
+		 */
+		if (!max_power && !AR_SREV_9280_20_OR_LATER(ah))
+			max_power = 1;
+	} else if (!bf->bf_state.bfs_paprd) {
 		if (rateidx < 8 && (info->flags & IEEE80211_TX_CTL_STBC))
 			max_power = min(ah->tx_power_stbc[rateidx],
 					fi->tx_power);
@@ -1152,7 +1193,7 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf,
 	info->rtscts_rate = fi->rtscts_rate;
 
 	for (i = 0; i < ARRAY_SIZE(bf->rates); i++) {
-		bool is_40, is_sgi, is_sp;
+		bool is_40, is_sgi, is_sp, is_cck;
 		int phy;
 
 		if (!rates[i].count || (rates[i].idx < 0))
@@ -1198,7 +1239,8 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf,
 			if (rix < 8 && (tx_info->flags & IEEE80211_TX_CTL_STBC))
 				info->rates[i].RateFlags |= ATH9K_RATESERIES_STBC;
 
-			info->txpower[i] = ath_get_rate_txpower(sc, bf, rix);
+			info->txpower[i] = ath_get_rate_txpower(sc, bf, rix,
+								is_40, false);
 			continue;
 		}
 
@@ -1227,7 +1269,9 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf,
 		info->rates[i].PktDuration = ath9k_hw_computetxtime(sc->sc_ah,
 			phy, rate->bitrate * 100, len, rix, is_sp);
 
-		info->txpower[i] = ath_get_rate_txpower(sc, bf, rix);
+		is_cck = IS_CCK_RATE(info->rates[i].Rate);
+		info->txpower[i] = ath_get_rate_txpower(sc, bf, rix, false,
+							is_cck);
 	}
 
 	/* For AR5416 - RTS cannot be followed by a frame larger than 8K */
@@ -2259,7 +2303,7 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct ath_txq *txq = txctl->txq;
 	struct ath_atx_tid *tid = NULL;
 	struct ath_buf *bf;
-	bool queue, skip_uapsd = false;
+	bool queue, skip_uapsd = false, ps_resp;
 	int q, ret;
 
 	if (vif)
@@ -2267,6 +2311,8 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 
 	if (info->flags & IEEE80211_TX_CTL_TX_OFFCHAN)
 		txctl->force_channel = true;
+
+	ps_resp = !!(info->control.flags & IEEE80211_TX_CTRL_PS_RESPONSE);
 
 	ret = ath_tx_prepare(hw, skb, txctl);
 	if (ret)
@@ -2310,7 +2356,7 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 	if (txctl->an && queue)
 		tid = ath_get_skb_tid(sc, txctl->an, skb);
 
-	if (!skip_uapsd && (info->flags & IEEE80211_TX_CTL_PS_RESPONSE)) {
+	if (!skip_uapsd && ps_resp) {
 		ath_txq_unlock(sc, txq);
 		txq = sc->tx.uapsdq;
 		ath_txq_lock(sc, txq);
@@ -2443,9 +2489,12 @@ static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 	if (sc->sc_ah->caldata)
 		set_bit(PAPRD_PACKET_SENT, &sc->sc_ah->caldata->cal_flags);
 
-	if (!(tx_flags & ATH_TX_ERROR))
-		/* Frame was ACKed */
-		tx_info->flags |= IEEE80211_TX_STAT_ACK;
+	if (!(tx_flags & ATH_TX_ERROR)) {
+		if (tx_info->flags & IEEE80211_TX_CTL_NO_ACK)
+			tx_info->flags |= IEEE80211_TX_STAT_NOACK_TRANSMITTED;
+		else
+			tx_info->flags |= IEEE80211_TX_STAT_ACK;
+	}
 
 	padpos = ieee80211_hdrlen(hdr->frame_control);
 	padsize = padpos & 3;

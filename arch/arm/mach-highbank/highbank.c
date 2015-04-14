@@ -169,7 +169,7 @@ static void __init highbank_init(void)
 		platform_device_register(&highbank_cpuidle_device);
 }
 
-static const char *highbank_match[] __initconst = {
+static const char *const highbank_match[] __initconst = {
 	"calxeda,highbank",
 	"calxeda,ecx-2000",
 	NULL,

@@ -75,6 +75,18 @@ i.MX6q generic board
 Required root node properties:
     - compatible = "fsl,imx6q";
 
+Freescale Vybrid Platform Device Tree Bindings
+----------------------------------------------
+
+For the Vybrid SoC familiy all variants with DDR controller are supported,
+which is the VF5xx and VF6xx series. Out of historical reasons, in most
+places the kernel uses vf610 to refer to the whole familiy.
+
+Required root node compatible property (one of them):
+    - compatible = "fsl,vf500";
+    - compatible = "fsl,vf510";
+    - compatible = "fsl,vf600";
+    - compatible = "fsl,vf610";
 
 Freescale LS1021A Platform Device Tree Bindings
 ------------------------------------------------
@@ -112,3 +124,11 @@ Example:
 		compatible = "fsl,ls1021a-dcfg";
 		reg = <0x0 0x1ee0000 0x0 0x10000>;
 	};
+
+Freescale LS2085A SoC Device Tree Bindings
+------------------------------------------
+
+LS2085A ARMv8 based Simulator model
+Required root node properties:
+    - compatible = "fsl,ls2085a-simu", "fsl,ls2085a";
+

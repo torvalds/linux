@@ -172,12 +172,14 @@ struct mei_fw_status {
  * struct mei_me_client - representation of me (fw) client
  *
  * @list: link in me client list
+ * @refcnt: struct reference count
  * @props: client properties
  * @client_id: me client id
  * @mei_flow_ctrl_creds: flow control credits
  */
 struct mei_me_client {
 	struct list_head list;
+	struct kref refcnt;
 	struct mei_client_properties props;
 	u8 client_id;
 	u8 mei_flow_ctrl_creds;
@@ -345,9 +347,9 @@ struct mei_cl_device *mei_cl_add_device(struct mei_device *dev,
 					struct mei_cl_ops *ops);
 void mei_cl_remove_device(struct mei_cl_device *device);
 
-int __mei_cl_async_send(struct mei_cl *cl, u8 *buf, size_t length);
-int __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length);
-int __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length);
+ssize_t __mei_cl_async_send(struct mei_cl *cl, u8 *buf, size_t length);
+ssize_t __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length);
+ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length);
 void mei_cl_bus_rx_event(struct mei_cl *cl);
 void mei_cl_bus_remove_devices(struct mei_device *dev);
 int mei_cl_bus_init(void);

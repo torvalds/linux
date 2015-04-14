@@ -276,6 +276,7 @@ config BFIN_CFPCMCIA
 config AT91_CF
 	tristate "AT91 CompactFlash Controller"
 	depends on PCMCIA && ARCH_AT91
+	depends on !ARCH_MULTIPLATFORM
 	help
 	  Say Y here to support the CompactFlash controller on AT91 chips.
 	  Or choose M to compile the driver as a module named "at91_cf".

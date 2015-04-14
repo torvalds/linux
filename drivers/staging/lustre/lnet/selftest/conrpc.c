@@ -703,7 +703,7 @@ lstcon_statrpc_prep(lstcon_node_t *nd, unsigned feats, lstcon_rpc_t **crpc)
 	return 0;
 }
 
-lnet_process_id_packed_t *
+static lnet_process_id_packed_t *
 lstcon_next_id(int idx, int nkiov, lnet_kiov_t *kiov)
 {
 	lnet_process_id_packed_t *pid;

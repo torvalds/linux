@@ -144,6 +144,7 @@ static struct sk_buff *sr_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 		skb_put(skb, sizeof(padbytes));
 	}
 
+	usbnet_set_skb_tx_stats(skb, 1, 0);
 	return skb;
 }
 

@@ -827,10 +827,11 @@ static int dm_table_set_type(struct dm_table *t)
 {
 	unsigned i;
 	unsigned bio_based = 0, request_based = 0, hybrid = 0;
+	bool use_blk_mq = false;
 	struct dm_target *tgt;
 	struct dm_dev_internal *dd;
 	struct list_head *devices;
-	unsigned live_md_type;
+	unsigned live_md_type = dm_get_md_type(t->md);
 
 	for (i = 0; i < t->num_targets; i++) {
 		tgt = t->targets + i;
@@ -854,8 +855,8 @@ static int dm_table_set_type(struct dm_table *t)
 		 * Determine the type from the live device.
 		 * Default to bio-based if device is new.
 		 */
-		live_md_type = dm_get_md_type(t->md);
-		if (live_md_type == DM_TYPE_REQUEST_BASED)
+		if (live_md_type == DM_TYPE_REQUEST_BASED ||
+		    live_md_type == DM_TYPE_MQ_REQUEST_BASED)
 			request_based = 1;
 		else
 			bio_based = 1;
@@ -869,16 +870,6 @@ static int dm_table_set_type(struct dm_table *t)
 
 	BUG_ON(!request_based); /* No targets in this table */
 
-	/* Non-request-stackable devices can't be used for request-based dm */
-	devices = dm_table_get_devices(t);
-	list_for_each_entry(dd, devices, list) {
-		if (!blk_queue_stackable(bdev_get_queue(dd->dm_dev->bdev))) {
-			DMWARN("table load rejected: including"
-			       " non-request-stackable devices");
-			return -EINVAL;
-		}
-	}
-
 	/*
 	 * Request-based dm supports only tables that have a single target now.
 	 * To support multiple targets, request splitting support is needed,
@@ -890,7 +881,37 @@ static int dm_table_set_type(struct dm_table *t)
 		return -EINVAL;
 	}
 
-	t->type = DM_TYPE_REQUEST_BASED;
+	/* Non-request-stackable devices can't be used for request-based dm */
+	devices = dm_table_get_devices(t);
+	list_for_each_entry(dd, devices, list) {
+		struct request_queue *q = bdev_get_queue(dd->dm_dev->bdev);
+
+		if (!blk_queue_stackable(q)) {
+			DMERR("table load rejected: including"
+			      " non-request-stackable devices");
+			return -EINVAL;
+		}
+
+		if (q->mq_ops)
+			use_blk_mq = true;
+	}
+
+	if (use_blk_mq) {
+		/* verify _all_ devices in the table are blk-mq devices */
+		list_for_each_entry(dd, devices, list)
+			if (!bdev_get_queue(dd->dm_dev->bdev)->mq_ops) {
+				DMERR("table load rejected: not all devices"
+				      " are blk-mq request-stackable");
+				return -EINVAL;
+			}
+		t->type = DM_TYPE_MQ_REQUEST_BASED;
+
+	} else if (hybrid && list_empty(devices) && live_md_type != DM_TYPE_NONE) {
+		/* inherit live MD type */
+		t->type = live_md_type;
+
+	} else
+		t->type = DM_TYPE_REQUEST_BASED;
 
 	return 0;
 }
@@ -907,7 +928,15 @@ struct target_type *dm_table_get_immutable_target_type(struct dm_table *t)
 
 bool dm_table_request_based(struct dm_table *t)
 {
-	return dm_table_get_type(t) == DM_TYPE_REQUEST_BASED;
+	unsigned table_type = dm_table_get_type(t);
+
+	return (table_type == DM_TYPE_REQUEST_BASED ||
+		table_type == DM_TYPE_MQ_REQUEST_BASED);
+}
+
+bool dm_table_mq_request_based(struct dm_table *t)
+{
+	return dm_table_get_type(t) == DM_TYPE_MQ_REQUEST_BASED;
 }
 
 static int dm_table_alloc_md_mempools(struct dm_table *t)
@@ -1360,6 +1389,14 @@ static int queue_supports_sg_merge(struct dm_target *ti, struct dm_dev *dev,
 	return q && !test_bit(QUEUE_FLAG_NO_SG_MERGE, &q->queue_flags);
 }
 
+static int queue_supports_sg_gaps(struct dm_target *ti, struct dm_dev *dev,
+				  sector_t start, sector_t len, void *data)
+{
+	struct request_queue *q = bdev_get_queue(dev->bdev);
+
+	return q && !test_bit(QUEUE_FLAG_SG_GAPS, &q->queue_flags);
+}
+
 static bool dm_table_all_devices_attribute(struct dm_table *t,
 					   iterate_devices_callout_fn func)
 {
@@ -1479,6 +1516,11 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 		queue_flag_clear_unlocked(QUEUE_FLAG_NO_SG_MERGE, q);
 	else
 		queue_flag_set_unlocked(QUEUE_FLAG_NO_SG_MERGE, q);
+
+	if (dm_table_all_devices_attribute(t, queue_supports_sg_gaps))
+		queue_flag_clear_unlocked(QUEUE_FLAG_SG_GAPS, q);
+	else
+		queue_flag_set_unlocked(QUEUE_FLAG_SG_GAPS, q);
 
 	dm_table_set_integrity(t);
 

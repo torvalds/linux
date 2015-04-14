@@ -45,6 +45,8 @@
 #include <asm/xen/hypervisor.h>
 
 #include <xen/features.h>
+#include <linux/mm_types.h>
+#include <linux/page-flags.h>
 
 #define GNTTAB_RESERVED_XENSTORE 1
 
@@ -56,6 +58,22 @@ struct gnttab_free_callback {
 	void (*fn)(void *);
 	void *arg;
 	u16 count;
+};
+
+struct gntab_unmap_queue_data;
+
+typedef void (*gnttab_unmap_refs_done)(int result, struct gntab_unmap_queue_data *data);
+
+struct gntab_unmap_queue_data
+{
+	struct delayed_work	gnttab_work;
+	void *data;
+	gnttab_unmap_refs_done	done;
+	struct gnttab_unmap_grant_ref *unmap_ops;
+	struct gnttab_unmap_grant_ref *kunmap_ops;
+	struct page **pages;
+	unsigned int count;
+	unsigned int age;
 };
 
 int gnttab_init(void);
@@ -163,12 +181,17 @@ void gnttab_free_auto_xlat_frames(void);
 
 #define gnttab_map_vaddr(map) ((void *)(map.host_virt_addr))
 
+int gnttab_alloc_pages(int nr_pages, struct page **pages);
+void gnttab_free_pages(int nr_pages, struct page **pages);
+
 int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
 		    struct gnttab_map_grant_ref *kmap_ops,
 		    struct page **pages, unsigned int count);
 int gnttab_unmap_refs(struct gnttab_unmap_grant_ref *unmap_ops,
-		      struct gnttab_map_grant_ref *kunmap_ops,
+		      struct gnttab_unmap_grant_ref *kunmap_ops,
 		      struct page **pages, unsigned int count);
+void gnttab_unmap_refs_async(struct gntab_unmap_queue_data* item);
+
 
 /* Perform a batch of grant map/copy operations. Retry every batch slot
  * for which the hypervisor returns GNTST_eagain. This is typically due
@@ -181,5 +204,23 @@ int gnttab_unmap_refs(struct gnttab_unmap_grant_ref *unmap_ops,
  */
 void gnttab_batch_map(struct gnttab_map_grant_ref *batch, unsigned count);
 void gnttab_batch_copy(struct gnttab_copy *batch, unsigned count);
+
+
+struct xen_page_foreign {
+	domid_t domid;
+	grant_ref_t gref;
+};
+
+static inline struct xen_page_foreign *xen_page_foreign(struct page *page)
+{
+	if (!PageForeign(page))
+		return NULL;
+#if BITS_PER_LONG < 64
+	return (struct xen_page_foreign *)page->private;
+#else
+	BUILD_BUG_ON(sizeof(struct xen_page_foreign) > BITS_PER_LONG);
+	return (struct xen_page_foreign *)&page->private;
+#endif
+}
 
 #endif /* __ASM_GNTTAB_H__ */

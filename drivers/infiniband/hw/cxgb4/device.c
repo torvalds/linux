@@ -380,12 +380,12 @@ static int dump_stag(int id, void *p, void *data)
 		      "stag: idx 0x%x valid %d key 0x%x state %d pdid %d "
 		      "perm 0x%x ps %d len 0x%llx va 0x%llx\n",
 		      (u32)id<<8,
-		      G_FW_RI_TPTE_VALID(ntohl(tpte.valid_to_pdid)),
-		      G_FW_RI_TPTE_STAGKEY(ntohl(tpte.valid_to_pdid)),
-		      G_FW_RI_TPTE_STAGSTATE(ntohl(tpte.valid_to_pdid)),
-		      G_FW_RI_TPTE_PDID(ntohl(tpte.valid_to_pdid)),
-		      G_FW_RI_TPTE_PERM(ntohl(tpte.locread_to_qpid)),
-		      G_FW_RI_TPTE_PS(ntohl(tpte.locread_to_qpid)),
+		      FW_RI_TPTE_VALID_G(ntohl(tpte.valid_to_pdid)),
+		      FW_RI_TPTE_STAGKEY_G(ntohl(tpte.valid_to_pdid)),
+		      FW_RI_TPTE_STAGSTATE_G(ntohl(tpte.valid_to_pdid)),
+		      FW_RI_TPTE_PDID_G(ntohl(tpte.valid_to_pdid)),
+		      FW_RI_TPTE_PERM_G(ntohl(tpte.locread_to_qpid)),
+		      FW_RI_TPTE_PS_G(ntohl(tpte.locread_to_qpid)),
 		      ((u64)ntohl(tpte.len_hi) << 32) | ntohl(tpte.len_lo),
 		      ((u64)ntohl(tpte.va_hi) << 32) | ntohl(tpte.va_lo_fbo));
 	if (cc < space)
@@ -700,37 +700,24 @@ static const struct file_operations ep_debugfs_fops = {
 
 static int setup_debugfs(struct c4iw_dev *devp)
 {
-	struct dentry *de;
-
 	if (!devp->debugfs_root)
 		return -1;
 
-	de = debugfs_create_file("qps", S_IWUSR, devp->debugfs_root,
-				 (void *)devp, &qp_debugfs_fops);
-	if (de && de->d_inode)
-		de->d_inode->i_size = 4096;
+	debugfs_create_file_size("qps", S_IWUSR, devp->debugfs_root,
+				 (void *)devp, &qp_debugfs_fops, 4096);
 
-	de = debugfs_create_file("stags", S_IWUSR, devp->debugfs_root,
-				 (void *)devp, &stag_debugfs_fops);
-	if (de && de->d_inode)
-		de->d_inode->i_size = 4096;
+	debugfs_create_file_size("stags", S_IWUSR, devp->debugfs_root,
+				 (void *)devp, &stag_debugfs_fops, 4096);
 
-	de = debugfs_create_file("stats", S_IWUSR, devp->debugfs_root,
-			(void *)devp, &stats_debugfs_fops);
-	if (de && de->d_inode)
-		de->d_inode->i_size = 4096;
+	debugfs_create_file_size("stats", S_IWUSR, devp->debugfs_root,
+				 (void *)devp, &stats_debugfs_fops, 4096);
 
-	de = debugfs_create_file("eps", S_IWUSR, devp->debugfs_root,
-			(void *)devp, &ep_debugfs_fops);
-	if (de && de->d_inode)
-		de->d_inode->i_size = 4096;
+	debugfs_create_file_size("eps", S_IWUSR, devp->debugfs_root,
+				 (void *)devp, &ep_debugfs_fops, 4096);
 
-	if (c4iw_wr_log) {
-		de = debugfs_create_file("wr_log", S_IWUSR, devp->debugfs_root,
-					 (void *)devp, &wr_log_debugfs_fops);
-		if (de && de->d_inode)
-			de->d_inode->i_size = 4096;
-	}
+	if (c4iw_wr_log)
+		debugfs_create_file_size("wr_log", S_IWUSR, devp->debugfs_root,
+					 (void *)devp, &wr_log_debugfs_fops, 4096);
 	return 0;
 }
 

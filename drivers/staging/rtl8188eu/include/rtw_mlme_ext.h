@@ -496,7 +496,6 @@ void update_network(struct wlan_bssid_ex *dst, struct wlan_bssid_ex *src,
 		    struct adapter *adapter, bool update_ie);
 
 int get_bsstype(unsigned short capability);
-u8 *get_my_bssid(struct wlan_bssid_ex *pnetwork);
 u16 get_beacon_interval(struct wlan_bssid_ex *bss);
 
 int is_client_associated_to_ap(struct adapter *padapter);
@@ -516,7 +515,7 @@ void ERP_IE_handler(struct adapter *padapter, struct ndis_802_11_var_ie *pIE);
 void VCS_update(struct adapter *padapter, struct sta_info *psta);
 
 void update_beacon_info(struct adapter *padapter, u8 *pframe, uint len,
-		        struct sta_info *psta);
+			struct sta_info *psta);
 int rtw_check_bcn_info(struct adapter  *Adapter, u8 *pframe, u32 packet_len);
 void update_IOT_info(struct adapter *padapter);
 void update_capinfo(struct adapter *adapter, u16 updatecap);
@@ -679,7 +678,6 @@ u8 read_bbreg_hdl(struct adapter *padapter, u8 *pbuf);
 u8 write_bbreg_hdl(struct adapter *padapter, u8 *pbuf);
 u8 read_rfreg_hdl(struct adapter *padapter, u8 *pbuf);
 u8 write_rfreg_hdl(struct adapter *padapter, u8 *pbuf);
-u8 NULL_hdl(struct adapter *padapter, u8 *pbuf);
 u8 join_cmd_hdl(struct adapter *padapter, u8 *pbuf);
 u8 disconnect_hdl(struct adapter *padapter, u8 *pbuf);
 u8 createbss_hdl(struct adapter *padapter, u8 *pbuf);

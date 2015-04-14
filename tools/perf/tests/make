@@ -222,7 +222,6 @@ tarpkg:
 	@cmd="$(PERF)/tests/perf-targz-src-pkg $(PERF)"; \
 	echo "- $@: $$cmd" && echo $$cmd > $@ && \
 	( eval $$cmd ) >> $@ 2>&1
-	
 
 all: $(run) $(run_O) tarpkg
 	@echo OK

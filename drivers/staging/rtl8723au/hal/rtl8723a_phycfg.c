@@ -698,7 +698,7 @@ storePwrIndexDiffRateOffset(struct rtw_adapter *Adapter, u32 RegAddr,
  * 11/10/2008	tynli	Modify to mew files.
  *---------------------------------------------------------------------------*/
 static	int
-phy_ConfigBBWithPgHeaderFile(struct rtw_adapter *Adapter, u8 ConfigType)
+phy_ConfigBBWithPgHeaderFile(struct rtw_adapter *Adapter)
 {
 	int i;
 	u32 *Rtl819XPHY_REGArray_Table_PG;
@@ -707,17 +707,15 @@ phy_ConfigBBWithPgHeaderFile(struct rtw_adapter *Adapter, u8 ConfigType)
 	PHY_REGArrayPGLen = Rtl8723_PHY_REG_Array_PGLength;
 	Rtl819XPHY_REGArray_Table_PG = (u32 *)Rtl8723_PHY_REG_Array_PG;
 
-	if (ConfigType == BaseBand_Config_PHY_REG) {
-		for (i = 0; i < PHY_REGArrayPGLen; i = i + 3) {
-			storePwrIndexDiffRateOffset(Adapter,
-				Rtl819XPHY_REGArray_Table_PG[i],
-				Rtl819XPHY_REGArray_Table_PG[i+1],
-				Rtl819XPHY_REGArray_Table_PG[i+2]);
-		}
+	for (i = 0; i < PHY_REGArrayPGLen; i = i + 3) {
+		storePwrIndexDiffRateOffset(Adapter,
+					    Rtl819XPHY_REGArray_Table_PG[i],
+					    Rtl819XPHY_REGArray_Table_PG[i+1],
+					    Rtl819XPHY_REGArray_Table_PG[i+2]);
 	}
 
 	return _SUCCESS;
-}	/* phy_ConfigBBWithPgHeaderFile */
+}
 
 static void
 phy_BB8192C_Config_1T(struct rtw_adapter *Adapter)
@@ -768,8 +766,7 @@ phy_BB8723a_Config_ParaFile(struct rtw_adapter *Adapter)
 	if (pEEPROM->bautoload_fail_flag == false) {
 		pHalData->pwrGroupCnt = 0;
 
-		rtStatus = phy_ConfigBBWithPgHeaderFile(Adapter,
-							BaseBand_Config_PHY_REG);
+		rtStatus = phy_ConfigBBWithPgHeaderFile(Adapter);
 	}
 
 	if (rtStatus != _SUCCESS)
@@ -923,9 +920,6 @@ _PHY_SetBWMode23a92C(struct rtw_adapter *Adapter)
 	u8 regBwOpMode;
 	u8 regRRSR_RSC;
 
-	if (pHalData->rf_chip == RF_PSEUDO_11N)
-		return;
-
 	/*  There is no 40MHz mode in RF_8225. */
 	if (pHalData->rf_chip == RF_8225)
 		return;
@@ -1021,10 +1015,6 @@ _PHY_SetBWMode23a92C(struct rtw_adapter *Adapter)
 		/*  PHY_SetRF8258Bandwidth(); */
 		break;
 
-	case RF_PSEUDO_11N:
-		/*  Do Nothing */
-		break;
-
 	case RF_6052:
 		rtl8723a_phy_rf6052set_bw(Adapter, pHalData->CurrentChannelBW);
 		break;
@@ -1074,7 +1064,7 @@ PHY_SetBWMode23a8723A(struct rtw_adapter *Adapter,
 
 static void _PHY_SwChnl8723A(struct rtw_adapter *Adapter, u8 channel)
 {
-	u8 eRFPath;
+	enum RF_RADIO_PATH eRFPath;
 	u32 param1, param2;
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
 
@@ -1088,7 +1078,7 @@ static void _PHY_SwChnl8723A(struct rtw_adapter *Adapter, u8 channel)
 	for (eRFPath = 0; eRFPath < pHalData->NumTotalRFPath; eRFPath++) {
 		pHalData->RfRegChnlVal[eRFPath] =
 			(pHalData->RfRegChnlVal[eRFPath] & 0xfffffc00) | param2;
-		PHY_SetRFReg(Adapter, (enum RF_RADIO_PATH)eRFPath, param1,
+		PHY_SetRFReg(Adapter, eRFPath, param1,
 			     bRFRegOffsetMask, pHalData->RfRegChnlVal[eRFPath]);
 	}
 
@@ -1100,11 +1090,6 @@ void PHY_SwChnl8723A(struct rtw_adapter *Adapter, u8 channel)
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
 	u8 tmpchannel = pHalData->CurrentChannel;
 	bool  result = true;
-
-	if (pHalData->rf_chip == RF_PSEUDO_11N) {
-		/* return immediately if it is peudo-phy */
-		return;
-	}
 
 	if (channel == 0)
 		channel = 1;

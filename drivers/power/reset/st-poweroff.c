@@ -15,9 +15,8 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/syscon.h>
+#include <linux/reboot.h>
 #include <linux/regmap.h>
-
-#include <asm/system_misc.h>
 
 struct reset_syscfg {
 	struct regmap *regmap;
@@ -75,7 +74,8 @@ static struct reset_syscfg stid127_reset = {
 
 static struct reset_syscfg *st_restart_syscfg;
 
-static void st_restart(enum reboot_mode reboot_mode, const char *cmd)
+static int st_restart(struct notifier_block *this, unsigned long mode,
+		      void *cmd)
 {
 	/* reset syscfg updated */
 	regmap_update_bits(st_restart_syscfg->regmap,
@@ -88,7 +88,14 @@ static void st_restart(enum reboot_mode reboot_mode, const char *cmd)
 			   st_restart_syscfg->offset_rst_msk,
 			   st_restart_syscfg->mask_rst_msk,
 			   0);
+
+	return NOTIFY_DONE;
 }
+
+static struct notifier_block st_restart_nb = {
+	.notifier_call = st_restart,
+	.priority = 192,
+};
 
 static struct of_device_id st_reset_of_match[] = {
 	{
@@ -126,9 +133,7 @@ static int st_reset_probe(struct platform_device *pdev)
 		return PTR_ERR(st_restart_syscfg->regmap);
 	}
 
-	arm_pm_restart = st_restart;
-
-	return 0;
+	return register_restart_handler(&st_restart_nb);
 }
 
 static struct platform_driver st_reset_driver = {

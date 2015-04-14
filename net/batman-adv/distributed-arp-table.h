@@ -25,9 +25,7 @@
 
 #include <linux/if_arp.h>
 
-/**
- * BATADV_DAT_ADDR_MAX - maximum address value in the DHT space
- */
+/* BATADV_DAT_ADDR_MAX - maximum address value in the DHT space */
 #define BATADV_DAT_ADDR_MAX ((batadv_dat_addr_t)~(batadv_dat_addr_t)0)
 
 void batadv_dat_status_update(struct net_device *net_dev);

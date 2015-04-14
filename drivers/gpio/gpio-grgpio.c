@@ -121,7 +121,7 @@ static int grgpio_to_irq(struct gpio_chip *gc, unsigned offset)
 {
 	struct grgpio_priv *priv = grgpio_gc_to_priv(gc);
 
-	if (offset > gc->ngpio)
+	if (offset >= gc->ngpio)
 		return -ENXIO;
 
 	if (priv->lirqs[offset].index < 0)

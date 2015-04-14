@@ -455,8 +455,8 @@ static struct vb2_ops isi_video_qops = {
 	.buf_queue		= buffer_queue,
 	.start_streaming	= start_streaming,
 	.stop_streaming		= stop_streaming,
-	.wait_prepare		= soc_camera_unlock,
-	.wait_finish		= soc_camera_lock,
+	.wait_prepare		= vb2_ops_wait_prepare,
+	.wait_finish		= vb2_ops_wait_finish,
 };
 
 /* ------------------------------------------------------------------
@@ -465,6 +465,8 @@ static struct vb2_ops isi_video_qops = {
 static int isi_camera_init_videobuf(struct vb2_queue *q,
 				     struct soc_camera_device *icd)
 {
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
+
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	q->io_modes = VB2_MMAP;
 	q->drv_priv = icd;
@@ -472,6 +474,7 @@ static int isi_camera_init_videobuf(struct vb2_queue *q,
 	q->ops = &isi_video_qops;
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->lock = &ici->host_lock;
 
 	return vb2_queue_init(q);
 }
@@ -839,6 +842,8 @@ static int isi_camera_set_bus_param(struct soc_camera_device *icd)
 		cfg1 |= ISI_CFG1_EMB_SYNC;
 	if (isi->pdata.full_mode)
 		cfg1 |= ISI_CFG1_FULL_MODE;
+
+	cfg1 |= ISI_CFG1_THMASK_BEATS_16;
 
 	isi_writel(isi, ISI_CTRL, ISI_CTRL_DIS);
 	isi_writel(isi, ISI_CFG1, cfg1);

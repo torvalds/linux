@@ -34,6 +34,12 @@
 #ifndef _PAGE_PSIZE
 #define _PAGE_PSIZE		0
 #endif
+/* _PAGE_RO and _PAGE_RW shall not be defined at the same time */
+#ifndef _PAGE_RO
+#define _PAGE_RO 0
+#else
+#define _PAGE_RW 0
+#endif
 #ifndef _PMD_PRESENT_MASK
 #define _PMD_PRESENT_MASK	_PMD_PRESENT
 #endif
@@ -42,10 +48,10 @@
 #define PMD_PAGE_SIZE(pmd)	bad_call_to_PMD_PAGE_SIZE()
 #endif
 #ifndef _PAGE_KERNEL_RO
-#define _PAGE_KERNEL_RO		0
+#define _PAGE_KERNEL_RO		(_PAGE_RO)
 #endif
 #ifndef _PAGE_KERNEL_ROX
-#define _PAGE_KERNEL_ROX	(_PAGE_EXEC)
+#define _PAGE_KERNEL_ROX	(_PAGE_EXEC | _PAGE_RO)
 #endif
 #ifndef _PAGE_KERNEL_RW
 #define _PAGE_KERNEL_RW		(_PAGE_DIRTY | _PAGE_RW | _PAGE_HWWRITE)
@@ -95,13 +101,8 @@ extern unsigned long bad_call_to_PMD_PAGE_SIZE(void);
 /* Mask of bits returned by pte_pgprot() */
 #define PAGE_PROT_BITS	(_PAGE_GUARDED | _PAGE_COHERENT | _PAGE_NO_CACHE | \
 			 _PAGE_WRITETHRU | _PAGE_ENDIAN | _PAGE_4K_PFN | \
-			 _PAGE_USER | _PAGE_ACCESSED | \
+			 _PAGE_USER | _PAGE_ACCESSED | _PAGE_RO | \
 			 _PAGE_RW | _PAGE_HWWRITE | _PAGE_DIRTY | _PAGE_EXEC)
-
-#ifdef CONFIG_NUMA_BALANCING
-/* Mask of bits that distinguish present and numa ptes */
-#define _PAGE_NUMA_MASK (_PAGE_NUMA|_PAGE_PRESENT)
-#endif
 
 /*
  * We define 2 sets of base prot bits, one for basic pages (ie,
@@ -128,11 +129,14 @@ extern unsigned long bad_call_to_PMD_PAGE_SIZE(void);
  */
 #define PAGE_NONE	__pgprot(_PAGE_BASE)
 #define PAGE_SHARED	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_RW)
-#define PAGE_SHARED_X	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_RW | _PAGE_EXEC)
-#define PAGE_COPY	__pgprot(_PAGE_BASE | _PAGE_USER)
-#define PAGE_COPY_X	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_EXEC)
-#define PAGE_READONLY	__pgprot(_PAGE_BASE | _PAGE_USER)
-#define PAGE_READONLY_X	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_EXEC)
+#define PAGE_SHARED_X	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_RW | \
+				 _PAGE_EXEC)
+#define PAGE_COPY	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_RO)
+#define PAGE_COPY_X	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_RO | \
+				 _PAGE_EXEC)
+#define PAGE_READONLY	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_RO)
+#define PAGE_READONLY_X	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_RO | \
+				 _PAGE_EXEC)
 
 #define __P000	PAGE_NONE
 #define __P001	PAGE_READONLY

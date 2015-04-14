@@ -398,14 +398,3 @@ v4l2_std_id pvr2_std_get_usable(void)
 {
 	return CSTD_ALL;
 }
-
-
-/*
-  Stuff for Emacs to see, in order to encourage consistent editing style:
-  *** Local Variables: ***
-  *** mode: c ***
-  *** fill-column: 75 ***
-  *** tab-width: 8 ***
-  *** c-basic-offset: 8 ***
-  *** End: ***
-  */

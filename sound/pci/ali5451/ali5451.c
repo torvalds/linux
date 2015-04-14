@@ -25,7 +25,7 @@
  *
  */
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
@@ -1873,7 +1873,6 @@ static int snd_ali_mixer(struct snd_ali *codec)
 #ifdef CONFIG_PM_SLEEP
 static int ali_suspend(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_ali *chip = card->private_data;
 	struct snd_ali_image *im;
@@ -1914,16 +1913,11 @@ static int ali_suspend(struct device *dev)
 	outl(0xffffffff, ALI_REG(chip, ALI_STOP));
 
 	spin_unlock_irq(&chip->reg_lock);
-
-	pci_disable_device(pci);
-	pci_save_state(pci);
-	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
 static int ali_resume(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_ali *chip = card->private_data;
 	struct snd_ali_image *im;
@@ -1932,15 +1926,6 @@ static int ali_resume(struct device *dev)
 	im = chip->image;
 	if (!im)
 		return 0;
-
-	pci_set_power_state(pci, PCI_D0);
-	pci_restore_state(pci);
-	if (pci_enable_device(pci) < 0) {
-		dev_err(dev, "pci_enable_device failed, disabling device\n");
-		snd_card_disconnect(card);
-		return -EIO;
-	}
-	pci_set_master(pci);
 
 	spin_lock_irq(&chip->reg_lock);
 	

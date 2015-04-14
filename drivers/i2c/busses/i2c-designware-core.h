@@ -61,6 +61,9 @@
  * @ss_lcnt: standard speed LCNT value
  * @fs_hcnt: fast speed HCNT value
  * @fs_lcnt: fast speed LCNT value
+ * @acquire_lock: function to acquire a hardware lock on the bus
+ * @release_lock: function to release a hardware lock on the bus
+ * @pm_runtime_disabled: true if pm runtime is disabled
  *
  * HCNT and LCNT parameters can be used if the platform knows more accurate
  * values than the one computed based only on the input clock frequency.
@@ -101,6 +104,9 @@ struct dw_i2c_dev {
 	u16			ss_lcnt;
 	u16			fs_hcnt;
 	u16			fs_lcnt;
+	int			(*acquire_lock)(struct dw_i2c_dev *dev);
+	void			(*release_lock)(struct dw_i2c_dev *dev);
+	bool			pm_runtime_disabled;
 };
 
 #define ACCESS_SWAP		0x00000001
@@ -119,3 +125,9 @@ extern void i2c_dw_disable(struct dw_i2c_dev *dev);
 extern void i2c_dw_clear_int(struct dw_i2c_dev *dev);
 extern void i2c_dw_disable_int(struct dw_i2c_dev *dev);
 extern u32 i2c_dw_read_comp_param(struct dw_i2c_dev *dev);
+
+#if IS_ENABLED(CONFIG_I2C_DESIGNWARE_BAYTRAIL)
+extern int i2c_dw_eval_lock_support(struct dw_i2c_dev *dev);
+#else
+static inline int i2c_dw_eval_lock_support(struct dw_i2c_dev *dev) { return 0; }
+#endif

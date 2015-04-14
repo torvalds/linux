@@ -18,7 +18,7 @@
 /*
  * Driver: mf6x4
  * Description: Humusoft MF634 and MF624 Data acquisition card driver
- * Devices: Humusoft MF634, Humusoft MF624
+ * Devices: [Humusoft] MF634 (mf634), MF624 (mf624)
  * Author: Rostislav Lisovy <lisovy@gmail.com>
  * Status: works
  * Updated:

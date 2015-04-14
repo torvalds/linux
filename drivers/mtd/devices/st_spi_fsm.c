@@ -24,6 +24,7 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/clk.h>
 
 #include "serial_flash_cmds.h"
 
@@ -262,6 +263,7 @@ struct stfsm {
 	struct mtd_info		mtd;
 	struct mutex		lock;
 	struct flash_info       *info;
+	struct clk              *clk;
 
 	uint32_t                configuration;
 	uint32_t                fifo_dir_delay;
@@ -663,6 +665,23 @@ static struct stfsm_seq stfsm_seq_write_status = {
 		    SEQ_CFG_STARTSEQ),
 };
 
+/* Dummy sequence to read one byte of data from flash into the FIFO */
+static const struct stfsm_seq stfsm_seq_load_fifo_byte = {
+	.data_size = TRANSFER_SIZE(1),
+	.seq_opc[0] = (SEQ_OPC_PADS_1 |
+		       SEQ_OPC_CYCLES(8) |
+		       SEQ_OPC_OPCODE(SPINOR_OP_RDID)),
+	.seq = {
+		STFSM_INST_CMD1,
+		STFSM_INST_DATA_READ,
+		STFSM_INST_STOP,
+	},
+	.seq_cfg = (SEQ_CFG_PADS_1 |
+		    SEQ_CFG_READNOTWRITE |
+		    SEQ_CFG_CSDEASSERT |
+		    SEQ_CFG_STARTSEQ),
+};
+
 static int stfsm_n25q_en_32bit_addr_seq(struct stfsm_seq *seq)
 {
 	seq->seq_opc[0] = (SEQ_OPC_PADS_1 | SEQ_OPC_CYCLES(8) |
@@ -693,22 +712,6 @@ static inline int stfsm_is_idle(struct stfsm *fsm)
 static inline uint32_t stfsm_fifo_available(struct stfsm *fsm)
 {
 	return (readl(fsm->base + SPI_FAST_SEQ_STA) >> 5) & 0x7f;
-}
-
-static void stfsm_clear_fifo(struct stfsm *fsm)
-{
-	uint32_t avail;
-
-	for (;;) {
-		avail = stfsm_fifo_available(fsm);
-		if (!avail)
-			break;
-
-		while (avail) {
-			readl(fsm->base + SPI_FAST_SEQ_DATA_REG);
-			avail--;
-		}
-	}
 }
 
 static inline void stfsm_load_seq(struct stfsm *fsm,
@@ -770,6 +773,68 @@ static void stfsm_read_fifo(struct stfsm *fsm, uint32_t *buf, uint32_t size)
 		readsl(fsm->base + SPI_FAST_SEQ_DATA_REG, buf, words);
 		buf += words;
 	}
+}
+
+/*
+ * Clear the data FIFO
+ *
+ * Typically, this is only required during driver initialisation, where no
+ * assumptions can be made regarding the state of the FIFO.
+ *
+ * The process of clearing the FIFO is complicated by fact that while it is
+ * possible for the FIFO to contain an arbitrary number of bytes [1], the
+ * SPI_FAST_SEQ_STA register only reports the number of complete 32-bit words
+ * present.  Furthermore, data can only be drained from the FIFO by reading
+ * complete 32-bit words.
+ *
+ * With this in mind, a two stage process is used to the clear the FIFO:
+ *
+ *     1. Read any complete 32-bit words from the FIFO, as reported by the
+ *        SPI_FAST_SEQ_STA register.
+ *
+ *     2. Mop up any remaining bytes.  At this point, it is not known if there
+ *        are 0, 1, 2, or 3 bytes in the FIFO.  To handle all cases, a dummy FSM
+ *        sequence is used to load one byte at a time, until a complete 32-bit
+ *        word is formed; at most, 4 bytes will need to be loaded.
+ *
+ * [1] It is theoretically possible for the FIFO to contain an arbitrary number
+ *     of bits.  However, since there are no known use-cases that leave
+ *     incomplete bytes in the FIFO, only words and bytes are considered here.
+ */
+static void stfsm_clear_fifo(struct stfsm *fsm)
+{
+	const struct stfsm_seq *seq = &stfsm_seq_load_fifo_byte;
+	uint32_t words, i;
+
+	/* 1. Clear any 32-bit words */
+	words = stfsm_fifo_available(fsm);
+	if (words) {
+		for (i = 0; i < words; i++)
+			readl(fsm->base + SPI_FAST_SEQ_DATA_REG);
+		dev_dbg(fsm->dev, "cleared %d words from FIFO\n", words);
+	}
+
+	/*
+	 * 2. Clear any remaining bytes
+	 *    - Load the FIFO, one byte at a time, until a complete 32-bit word
+	 *      is available.
+	 */
+	for (i = 0, words = 0; i < 4 && !words; i++) {
+		stfsm_load_seq(fsm, seq);
+		stfsm_wait_seq(fsm);
+		words = stfsm_fifo_available(fsm);
+	}
+
+	/*    - A single word must be available now */
+	if (words != 1) {
+		dev_err(fsm->dev, "failed to clear bytes from the data FIFO\n");
+		return;
+	}
+
+	/*    - Read the 32-bit word */
+	readl(fsm->base + SPI_FAST_SEQ_DATA_REG);
+
+	dev_dbg(fsm->dev, "cleared %d byte(s) from the data FIFO\n", 4 - i);
 }
 
 static int stfsm_write_fifo(struct stfsm *fsm, const uint32_t *buf,
@@ -1521,11 +1586,11 @@ static int stfsm_write(struct stfsm *fsm, const uint8_t *buf,
 	uint32_t size_lb;
 	uint32_t size_mop;
 	uint32_t tmp[4];
+	uint32_t i;
 	uint32_t page_buf[FLASH_PAGESIZE_32];
 	uint8_t *t = (uint8_t *)&tmp;
 	const uint8_t *p;
 	int ret;
-	int i;
 
 	dev_dbg(fsm->dev, "writing %d bytes to 0x%08x\n", size, offset);
 
@@ -1843,8 +1908,7 @@ static void stfsm_set_freq(struct stfsm *fsm, uint32_t spi_freq)
 	uint32_t emi_freq;
 	uint32_t clk_div;
 
-	/* TODO: Make this dynamic */
-	emi_freq = STFSM_DEFAULT_EMI_FREQ;
+	emi_freq = clk_get_rate(fsm->clk);
 
 	/*
 	 * Calculate clk_div - values between 2 and 128
@@ -1994,6 +2058,18 @@ static int stfsm_probe(struct platform_device *pdev)
 		return PTR_ERR(fsm->base);
 	}
 
+	fsm->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(fsm->clk)) {
+		dev_err(fsm->dev, "Couldn't find EMI clock.\n");
+		return PTR_ERR(fsm->clk);
+	}
+
+	ret = clk_prepare_enable(fsm->clk);
+	if (ret) {
+		dev_err(fsm->dev, "Failed to enable EMI clock.\n");
+		return ret;
+	}
+
 	mutex_init(&fsm->lock);
 
 	ret = stfsm_init(fsm);
@@ -2058,6 +2134,28 @@ static int stfsm_remove(struct platform_device *pdev)
 	return mtd_device_unregister(&fsm->mtd);
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int stfsmfsm_suspend(struct device *dev)
+{
+	struct stfsm *fsm = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(fsm->clk);
+
+	return 0;
+}
+
+static int stfsmfsm_resume(struct device *dev)
+{
+	struct stfsm *fsm = dev_get_drvdata(dev);
+
+	clk_prepare_enable(fsm->clk);
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(stfsm_pm_ops, stfsmfsm_suspend, stfsmfsm_resume);
+
 static const struct of_device_id stfsm_match[] = {
 	{ .compatible = "st,spi-fsm", },
 	{},
@@ -2070,6 +2168,7 @@ static struct platform_driver stfsm_driver = {
 	.driver		= {
 		.name	= "st-spi-fsm",
 		.of_match_table = stfsm_match,
+		.pm     = &stfsm_pm_ops,
 	},
 };
 module_platform_driver(stfsm_driver);

@@ -21,9 +21,8 @@
 #include "si2157.h"
 
 /* state struct */
-struct si2157 {
+struct si2157_dev {
 	struct mutex i2c_mutex;
-	struct i2c_client *client;
 	struct dvb_frontend *fe;
 	bool active;
 	bool fw_loaded;

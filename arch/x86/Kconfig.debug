@@ -313,6 +313,19 @@ config DEBUG_NMI_SELFTEST
 
 	  If unsure, say N.
 
+config DEBUG_IMR_SELFTEST
+	bool "Isolated Memory Region self test"
+	default n
+	depends on INTEL_IMR
+	---help---
+	  This option enables automated sanity testing of the IMR code.
+	  Some simple tests are run to verify IMR bounds checking, alignment
+	  and overlapping. This option is really only useful if you are
+	  debugging an IMR memory map or are modifying the IMR code and want to
+	  test your changes.
+
+	  If unsure say N here.
+
 config X86_DEBUG_STATIC_CPU_HAS
 	bool "Debug alternatives"
 	depends on DEBUG_KERNEL

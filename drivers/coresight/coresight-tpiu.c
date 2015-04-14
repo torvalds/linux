@@ -201,17 +201,7 @@ static struct amba_driver tpiu_driver = {
 	.id_table	= tpiu_ids,
 };
 
-static int __init tpiu_init(void)
-{
-	return amba_driver_register(&tpiu_driver);
-}
-module_init(tpiu_init);
-
-static void __exit tpiu_exit(void)
-{
-	amba_driver_unregister(&tpiu_driver);
-}
-module_exit(tpiu_exit);
+module_amba_driver(tpiu_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("CoreSight Trace Port Interface Unit driver");

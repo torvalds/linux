@@ -31,6 +31,7 @@
 			status = "disabled";
 			reg = <0x5c000000 0x30000>;
 			interrupts = <67 68 69 70>;
+			syscon = <&omap3_scm_general>;
 			ti,davinci-ctrl-reg-offset = <0x10000>;
 			ti,davinci-ctrl-mod-reg-offset = <0>;
 			ti,davinci-ctrl-ram-offset = <0x20000>;

@@ -14,7 +14,6 @@
 #include <linux/timer.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
-#include <linux/platform_data/edma.h>
 #include <linux/i2c.h>
 #include <linux/of_platform.h>
 #include <linux/clk.h>
@@ -24,11 +23,6 @@
 
 #include <asm/dma.h>
 #include <asm/mach-types.h>
-
-#include <linux/edma.h>
-
-#include "davinci-pcm.h"
-#include "davinci-i2s.h"
 
 struct snd_soc_card_drvdata_davinci {
 	struct clk *mclk;

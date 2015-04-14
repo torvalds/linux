@@ -52,12 +52,15 @@
 #include <asm/mmu_context.h>
 #include <asm/tlbflush.h>
 
+#include "mmu_decl.h"
+
 static unsigned int first_context, last_context;
 static unsigned int next_context, nr_free_contexts;
 static unsigned long *context_map;
 static unsigned long *stale_map[NR_CPUS];
 static struct mm_struct **context_mm;
 static DEFINE_RAW_SPINLOCK(context_lock);
+static bool no_selective_tlbil;
 
 #define CTX_MAP_SIZE	\
 	(sizeof(unsigned long) * (last_context / BITS_PER_LONG + 1))
@@ -132,6 +135,38 @@ static unsigned int steal_context_smp(unsigned int id)
 	return MMU_NO_CONTEXT;
 }
 #endif  /* CONFIG_SMP */
+
+static unsigned int steal_all_contexts(void)
+{
+	struct mm_struct *mm;
+	int cpu = smp_processor_id();
+	unsigned int id;
+
+	for (id = first_context; id <= last_context; id++) {
+		/* Pick up the victim mm */
+		mm = context_mm[id];
+
+		pr_hardcont(" | steal %d from 0x%p", id, mm);
+
+		/* Mark this mm as having no context anymore */
+		mm->context.id = MMU_NO_CONTEXT;
+		if (id != first_context) {
+			context_mm[id] = NULL;
+			__clear_bit(id, context_map);
+#ifdef DEBUG_MAP_CONSISTENCY
+			mm->context.active = 0;
+#endif
+		}
+		__clear_bit(id, stale_map[cpu]);
+	}
+
+	/* Flush the TLB for all contexts (not to be used on SMP) */
+	_tlbil_all();
+
+	nr_free_contexts = last_context - first_context;
+
+	return first_context;
+}
 
 /* Note that this will also be called on SMP if all other CPUs are
  * offlined, which means that it may be called for cpu != 0. For
@@ -241,7 +276,10 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next)
 			goto stolen;
 		}
 #endif /* CONFIG_SMP */
-		id = steal_context_up(id);
+		if (no_selective_tlbil)
+			id = steal_all_contexts();
+		else
+			id = steal_context_up(id);
 		goto stolen;
 	}
 	nr_free_contexts--;
@@ -407,12 +445,15 @@ void __init mmu_context_init(void)
 	if (mmu_has_feature(MMU_FTR_TYPE_8xx)) {
 		first_context = 0;
 		last_context = 15;
+		no_selective_tlbil = true;
 	} else if (mmu_has_feature(MMU_FTR_TYPE_47x)) {
 		first_context = 1;
 		last_context = 65535;
+		no_selective_tlbil = false;
 	} else {
 		first_context = 1;
 		last_context = 255;
+		no_selective_tlbil = false;
 	}
 
 #ifdef DEBUG_CLAMP_LAST_CONTEXT

@@ -437,7 +437,7 @@ static void imx_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 	const struct imx_pin_reg *pin_reg = &info->pin_regs[pin_id];
 	unsigned long config;
 
-	if (!pin_reg || !pin_reg->conf_reg) {
+	if (!pin_reg || pin_reg->conf_reg == -1) {
 		seq_printf(s, "N/A");
 		return;
 	}

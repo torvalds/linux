@@ -126,7 +126,7 @@ static void pixcir_ts_report(struct pixcir_i2c_ts_data *ts,
 			pos[i].y = touch->y;
 		}
 
-		input_mt_assign_slots(ts->input, slots, pos, n);
+		input_mt_assign_slots(ts->input, slots, pos, n, 0);
 	}
 
 	for (i = 0; i < n; i++) {

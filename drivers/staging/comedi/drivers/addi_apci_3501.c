@@ -267,7 +267,6 @@ static irqreturn_t apci3501_interrupt(int irq, void *d)
 	struct apci3501_private *devpriv = dev->private;
 	unsigned int ui_Timer_AOWatchdog;
 	unsigned long ul_Command1;
-	int i_temp;
 
 	/*  Disable Interrupt */
 	ul_Command1 = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
@@ -285,7 +284,7 @@ static irqreturn_t apci3501_interrupt(int irq, void *d)
 	ul_Command1 = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
 	ul_Command1 = ((ul_Command1 & 0xFFFFF9FDul) | 1 << 1);
 	outl(ul_Command1, dev->iobase + APCI3501_TIMER_CTRL_REG);
-	i_temp = inl(dev->iobase + APCI3501_TIMER_STATUS_REG) & 0x1;
+	inl(dev->iobase + APCI3501_TIMER_STATUS_REG);
 
 	return IRQ_HANDLED;
 }

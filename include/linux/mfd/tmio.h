@@ -96,11 +96,6 @@
 #define TMIO_MMC_SDIO_STATUS_QUIRK	(1 << 8)
 
 /*
- * Some controllers have DMA enable/disable register
- */
-#define TMIO_MMC_HAVE_CTL_DMA_REG	(1 << 9)
-
-/*
  * Some controllers allows to set SDx actual clock
  */
 #define TMIO_MMC_CLK_ACTUAL		(1 << 10)
@@ -112,18 +107,6 @@ void tmio_core_mmc_clk_div(void __iomem *cnf, int shift, int state);
 
 struct dma_chan;
 
-struct tmio_mmc_dma {
-	void *chan_priv_tx;
-	void *chan_priv_rx;
-	int slave_id_tx;
-	int slave_id_rx;
-	int alignment_shift;
-	dma_addr_t dma_rx_offset;
-	bool (*filter)(struct dma_chan *chan, void *arg);
-};
-
-struct tmio_mmc_host;
-
 /*
  * data for the MMC controller
  */
@@ -132,19 +115,12 @@ struct tmio_mmc_data {
 	unsigned long			capabilities;
 	unsigned long			capabilities2;
 	unsigned long			flags;
-	unsigned long			bus_shift;
 	u32				ocr_mask;	/* available voltages */
-	struct tmio_mmc_dma		*dma;
-	struct device			*dev;
 	unsigned int			cd_gpio;
+	int				alignment_shift;
+	dma_addr_t			dma_rx_offset;
 	void (*set_pwr)(struct platform_device *host, int state);
 	void (*set_clk_div)(struct platform_device *host, int state);
-	int (*write16_hook)(struct tmio_mmc_host *host, int addr);
-	/* clock management callbacks */
-	int (*clk_enable)(struct platform_device *pdev, unsigned int *f);
-	void (*clk_disable)(struct platform_device *pdev);
-	int (*multi_io_quirk)(struct mmc_card *card,
-			      unsigned int direction, int blk_size);
 };
 
 /*

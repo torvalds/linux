@@ -9,8 +9,7 @@
  *
  *  Like the IA-64, we are a recent enough port (we are *starting*
  *  with glibc2.2) that we do not need to support the old non-realtime
- *  Linux signals.  Therefore we don't.  HP/UX signals will go in
- *  arch/parisc/hpux/signal.c when we figure out how to do them.
+ *  Linux signals.  Therefore we don't.
  */
 
 #include <linux/sched.h>
@@ -99,7 +98,7 @@ sys_rt_sigreturn(struct pt_regs *regs, int in_syscall)
 		sigframe_size = PARISC_RT_SIGFRAME_SIZE32;
 #endif
 
-	current_thread_info()->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_no_restart_syscall;
 
 	/* Unwind the user stack to get the rt_sigframe structure. */
 	frame = (struct rt_sigframe __user *)
@@ -476,6 +475,9 @@ insert_restart_trampoline(struct pt_regs *regs)
 	case -ERESTART_RESTARTBLOCK: {
 		/* Restart the system call - no handlers present */
 		unsigned int *usp = (unsigned int *)regs->gr[30];
+		unsigned long start = (unsigned long) &usp[2];
+		unsigned long end  = (unsigned long) &usp[5];
+		long err = 0;
 
 		/* Setup a trampoline to restart the syscall
 		 * with __NR_restart_syscall
@@ -487,23 +489,21 @@ insert_restart_trampoline(struct pt_regs *regs)
 		 * 16: ldi __NR_restart_syscall, %r20
 		 */
 #ifdef CONFIG_64BIT
-		put_user(regs->gr[31] >> 32, &usp[0]);
-		put_user(regs->gr[31] & 0xffffffff, &usp[1]);
-		put_user(0x0fc010df, &usp[2]);
+		err |= put_user(regs->gr[31] >> 32, &usp[0]);
+		err |= put_user(regs->gr[31] & 0xffffffff, &usp[1]);
+		err |= put_user(0x0fc010df, &usp[2]);
 #else
-		put_user(regs->gr[31], &usp[0]);
-		put_user(0x0fc0109f, &usp[2]);
+		err |= put_user(regs->gr[31], &usp[0]);
+		err |= put_user(0x0fc0109f, &usp[2]);
 #endif
-		put_user(0xe0008200, &usp[3]);
-		put_user(0x34140000, &usp[4]);
+		err |= put_user(0xe0008200, &usp[3]);
+		err |= put_user(0x34140000, &usp[4]);
 
-		/* Stack is 64-byte aligned, and we only need
-		 * to flush 1 cache line.
-		 * Flushing one cacheline is cheap.
-		 * "sync" on bigger (> 4 way) boxes is not.
-		 */
-		flush_user_dcache_range(regs->gr[30], regs->gr[30] + 4);
-		flush_user_icache_range(regs->gr[30], regs->gr[30] + 4);
+		WARN_ON(err);
+
+		/* flush data/instruction cache for new insns */
+		flush_user_dcache_range(start, end);
+		flush_user_icache_range(start, end);
 
 		regs->gr[31] = regs->gr[30] + 8;
 		return;

@@ -926,6 +926,8 @@ static int usbhsg_set_selfpowered(struct usb_gadget *gadget, int is_self)
 	else
 		usbhsg_status_clr(gpriv, USBHSG_STATUS_SELF_POWERED);
 
+	gadget->is_selfpowered = (is_self != 0);
+
 	return 0;
 }
 

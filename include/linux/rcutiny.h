@@ -92,17 +92,49 @@ static inline void rcu_virt_note_context_switch(int cpu)
 }
 
 /*
- * Return the number of grace periods.
+ * Return the number of grace periods started.
  */
-static inline long rcu_batches_completed(void)
+static inline unsigned long rcu_batches_started(void)
 {
 	return 0;
 }
 
 /*
- * Return the number of bottom-half grace periods.
+ * Return the number of bottom-half grace periods started.
  */
-static inline long rcu_batches_completed_bh(void)
+static inline unsigned long rcu_batches_started_bh(void)
+{
+	return 0;
+}
+
+/*
+ * Return the number of sched grace periods started.
+ */
+static inline unsigned long rcu_batches_started_sched(void)
+{
+	return 0;
+}
+
+/*
+ * Return the number of grace periods completed.
+ */
+static inline unsigned long rcu_batches_completed(void)
+{
+	return 0;
+}
+
+/*
+ * Return the number of bottom-half grace periods completed.
+ */
+static inline unsigned long rcu_batches_completed_bh(void)
+{
+	return 0;
+}
+
+/*
+ * Return the number of sched grace periods completed.
+ */
+static inline unsigned long rcu_batches_completed_sched(void)
 {
 	return 0;
 }
@@ -154,7 +186,10 @@ static inline bool rcu_is_watching(void)
 	return true;
 }
 
-
 #endif /* #else defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_RCU_TRACE) */
+
+static inline void rcu_all_qs(void)
+{
+}
 
 #endif /* __LINUX_RCUTINY_H */

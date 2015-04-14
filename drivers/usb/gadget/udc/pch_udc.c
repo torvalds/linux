@@ -1161,6 +1161,7 @@ static int pch_udc_pcd_selfpowered(struct usb_gadget *gadget, int value)
 
 	if (!gadget)
 		return -EINVAL;
+	gadget->is_selfpowered = (value != 0);
 	dev = container_of(gadget, struct pch_udc_dev, gadget);
 	if (value)
 		pch_udc_set_selfpowered(dev);

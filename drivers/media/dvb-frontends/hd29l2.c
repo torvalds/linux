@@ -22,20 +22,24 @@
 
 #include "hd29l2_priv.h"
 
+#define HD29L2_MAX_LEN (3)
+
 /* write multiple registers */
 static int hd29l2_wr_regs(struct hd29l2_priv *priv, u8 reg, u8 *val, int len)
 {
 	int ret;
-	u8 buf[2 + len];
+	u8 buf[2 + HD29L2_MAX_LEN];
 	struct i2c_msg msg[1] = {
 		{
 			.addr = priv->cfg.i2c_addr,
 			.flags = 0,
-			.len = sizeof(buf),
+			.len = 2 + len,
 			.buf = buf,
 		}
 	};
 
+	if (len > HD29L2_MAX_LEN)
+		return -EINVAL;
 	buf[0] = 0x00;
 	buf[1] = reg;
 	memcpy(&buf[2], val, len);
@@ -118,7 +122,7 @@ static int hd29l2_wr_reg_mask(struct hd29l2_priv *priv, u8 reg, u8 val, u8 mask)
 }
 
 /* read single register with mask */
-int hd29l2_rd_reg_mask(struct hd29l2_priv *priv, u8 reg, u8 *val, u8 mask)
+static int hd29l2_rd_reg_mask(struct hd29l2_priv *priv, u8 reg, u8 *val, u8 mask)
 {
 	int ret, i;
 	u8 tmp;

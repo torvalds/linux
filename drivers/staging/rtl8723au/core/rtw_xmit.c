@@ -2372,12 +2372,3 @@ int rtw_ack_tx_wait23a(struct xmit_priv *pxmitpriv, u32 timeout_ms)
 	return rtw_sctx_wait23a(pack_tx_ops);
 }
 
-void rtw_ack_tx_done23a(struct xmit_priv *pxmitpriv, int status)
-{
-	struct submit_ctx *pack_tx_ops = &pxmitpriv->ack_tx_ops;
-
-	if (pxmitpriv->ack_tx)
-		rtw23a_sctx_done_err(&pack_tx_ops, status);
-	else
-		DBG_8723A("%s ack_tx not set\n", __func__);
-}

@@ -51,9 +51,11 @@ struct regmap_async {
 struct regmap {
 	union {
 		struct mutex mutex;
-		spinlock_t spinlock;
+		struct {
+			spinlock_t spinlock;
+			unsigned long spinlock_flags;
+		};
 	};
-	unsigned long spinlock_flags;
 	regmap_lock lock;
 	regmap_unlock unlock;
 	void *lock_arg; /* This is passed to lock/unlock functions */
@@ -233,8 +235,20 @@ int _regmap_raw_write(struct regmap *map, unsigned int reg,
 
 void regmap_async_complete_cb(struct regmap_async *async, int ret);
 
+enum regmap_endian regmap_get_val_endian(struct device *dev,
+					 const struct regmap_bus *bus,
+					 const struct regmap_config *config);
+
 extern struct regcache_ops regcache_rbtree_ops;
 extern struct regcache_ops regcache_lzo_ops;
 extern struct regcache_ops regcache_flat_ops;
+
+static inline const char *regmap_name(const struct regmap *map)
+{
+	if (map->dev)
+		return dev_name(map->dev);
+
+	return map->name;
+}
 
 #endif

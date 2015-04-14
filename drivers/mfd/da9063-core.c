@@ -86,6 +86,7 @@ static const struct mfd_cell da9063_devs[] = {
 	},
 	{
 		.name		= DA9063_DRVNAME_WATCHDOG,
+		.of_compatible	= "dlg,da9063-watchdog",
 	},
 	{
 		.name		= DA9063_DRVNAME_HWMON,
@@ -101,6 +102,7 @@ static const struct mfd_cell da9063_devs[] = {
 		.name		= DA9063_DRVNAME_RTC,
 		.num_resources	= ARRAY_SIZE(da9063_rtc_resources),
 		.resources	= da9063_rtc_resources,
+		.of_compatible	= "dlg,da9063-rtc",
 	},
 	{
 		.name		= DA9063_DRVNAME_VIBRATION,

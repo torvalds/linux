@@ -21,6 +21,7 @@
 #include "rcar_du_drv.h"
 #include "rcar_du_encoder.h"
 #include "rcar_du_hdmienc.h"
+#include "rcar_du_lvdsenc.h"
 
 struct rcar_du_hdmienc {
 	struct rcar_du_encoder *renc;
@@ -36,11 +37,20 @@ static void rcar_du_hdmienc_dpms(struct drm_encoder *encoder, int mode)
 	struct rcar_du_hdmienc *hdmienc = to_rcar_hdmienc(encoder);
 	struct drm_encoder_slave_funcs *sfuncs = to_slave_funcs(encoder);
 
+	if (mode != DRM_MODE_DPMS_ON)
+		mode = DRM_MODE_DPMS_OFF;
+
 	if (hdmienc->dpms == mode)
 		return;
 
+	if (mode == DRM_MODE_DPMS_ON && hdmienc->renc->lvds)
+		rcar_du_lvdsenc_dpms(hdmienc->renc->lvds, encoder->crtc, mode);
+
 	if (sfuncs->dpms)
 		sfuncs->dpms(encoder, mode);
+
+	if (mode != DRM_MODE_DPMS_ON && hdmienc->renc->lvds)
+		rcar_du_lvdsenc_dpms(hdmienc->renc->lvds, encoder->crtc, mode);
 
 	hdmienc->dpms = mode;
 }
@@ -49,7 +59,15 @@ static bool rcar_du_hdmienc_mode_fixup(struct drm_encoder *encoder,
 				       const struct drm_display_mode *mode,
 				       struct drm_display_mode *adjusted_mode)
 {
+	struct rcar_du_hdmienc *hdmienc = to_rcar_hdmienc(encoder);
 	struct drm_encoder_slave_funcs *sfuncs = to_slave_funcs(encoder);
+
+	/* The internal LVDS encoder has a clock frequency operating range of
+	 * 30MHz to 150MHz. Clamp the clock accordingly.
+	 */
+	if (hdmienc->renc->lvds)
+		adjusted_mode->clock = clamp(adjusted_mode->clock,
+					     30000, 150000);
 
 	if (sfuncs->mode_fixup == NULL)
 		return true;

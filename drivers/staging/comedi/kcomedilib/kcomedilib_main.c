@@ -95,7 +95,7 @@ static int comedi_do_insn(struct comedi_device *dev,
 
 	if (s->type == COMEDI_SUBD_UNUSED) {
 		dev_err(dev->class_dev,
-			"%d not useable subdevice\n", insn->subdev);
+			"%d not usable subdevice\n", insn->subdev);
 		ret = -EIO;
 		goto error;
 	}

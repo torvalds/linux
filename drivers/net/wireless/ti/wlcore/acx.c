@@ -1725,7 +1725,7 @@ int wl12xx_acx_config_hangover(struct wl1271 *wl)
 	acx->decrease_delta = conf->decrease_delta;
 	acx->quiet_time = conf->quiet_time;
 	acx->increase_time = conf->increase_time;
-	acx->window_size = acx->window_size;
+	acx->window_size = conf->window_size;
 
 	ret = wl1271_cmd_configure(wl, ACX_CONFIG_HANGOVER, acx,
 				   sizeof(*acx));

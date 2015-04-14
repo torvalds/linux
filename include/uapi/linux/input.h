@@ -166,6 +166,7 @@ struct input_keymap_entry {
 #define INPUT_PROP_SEMI_MT		0x03	/* touch rectangle only */
 #define INPUT_PROP_TOPBUTTONPAD		0x04	/* softbuttons at top of pad */
 #define INPUT_PROP_POINTING_STICK	0x05	/* is a pointing stick */
+#define INPUT_PROP_ACCELEROMETER	0x06	/* has accelerometer */
 
 #define INPUT_PROP_MAX			0x1f
 #define INPUT_PROP_CNT			(INPUT_PROP_MAX + 1)
@@ -972,7 +973,8 @@ struct input_keymap_entry {
  */
 #define MT_TOOL_FINGER		0
 #define MT_TOOL_PEN		1
-#define MT_TOOL_MAX		1
+#define MT_TOOL_PALM		2
+#define MT_TOOL_MAX		2
 
 /*
  * Values describing the status of a force-feedback effect

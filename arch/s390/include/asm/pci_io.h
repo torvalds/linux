@@ -16,6 +16,7 @@
 struct zpci_iomap_entry {
 	u32 fh;
 	u8 bar;
+	u16 count;
 };
 
 extern struct zpci_iomap_entry *zpci_iomap_start;

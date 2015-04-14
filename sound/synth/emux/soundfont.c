@@ -25,7 +25,7 @@
  * of doing things so that the old sfxload utility can be used.
  * Everything may change when there is an alsa way of doing things.
  */
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <linux/export.h>
 #include <sound/core.h>

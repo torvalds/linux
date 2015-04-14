@@ -621,6 +621,9 @@ int nfs41_walk_client_list(struct nfs_client *new,
 	spin_lock(&nn->nfs_client_lock);
 	list_for_each_entry(pos, &nn->nfs_client_list, cl_share_link) {
 
+		if (pos == new)
+			goto found;
+
 		if (pos->rpc_ops != new->rpc_ops)
 			continue;
 
@@ -639,10 +642,6 @@ int nfs41_walk_client_list(struct nfs_client *new,
 			prev = pos;
 
 			status = nfs_wait_client_init_complete(pos);
-			if (pos->cl_cons_state == NFS_CS_SESSION_INITING) {
-				nfs4_schedule_lease_recovery(pos);
-				status = nfs4_wait_clnt_recover(pos);
-			}
 			spin_lock(&nn->nfs_client_lock);
 			if (status < 0)
 				break;
@@ -668,7 +667,7 @@ int nfs41_walk_client_list(struct nfs_client *new,
 		 */
 		if (!nfs4_match_client_owner_id(pos, new))
 			continue;
-
+found:
 		atomic_inc(&pos->cl_count);
 		*result = pos;
 		status = 0;
@@ -849,14 +848,15 @@ error:
  */
 struct nfs_client *nfs4_set_ds_client(struct nfs_client* mds_clp,
 		const struct sockaddr *ds_addr, int ds_addrlen,
-		int ds_proto, unsigned int ds_timeo, unsigned int ds_retrans)
+		int ds_proto, unsigned int ds_timeo, unsigned int ds_retrans,
+		u32 minor_version, rpc_authflavor_t au_flavor)
 {
 	struct nfs_client_initdata cl_init = {
 		.addr = ds_addr,
 		.addrlen = ds_addrlen,
 		.nfs_mod = &nfs_v4,
 		.proto = ds_proto,
-		.minorversion = mds_clp->cl_minorversion,
+		.minorversion = minor_version,
 		.net = mds_clp->cl_net,
 	};
 	struct rpc_timeout ds_timeout;
@@ -874,7 +874,7 @@ struct nfs_client *nfs4_set_ds_client(struct nfs_client* mds_clp,
 	 */
 	nfs_init_timeout_values(&ds_timeout, ds_proto, ds_timeo, ds_retrans);
 	clp = nfs_get_client(&cl_init, &ds_timeout, mds_clp->cl_ipaddr,
-			     mds_clp->cl_rpcclient->cl_auth->au_flavor);
+			     au_flavor);
 
 	dprintk("<-- %s %p\n", __func__, clp);
 	return clp;

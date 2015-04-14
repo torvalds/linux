@@ -27,6 +27,15 @@
 void __iomem *at91_pmc_base;
 EXPORT_SYMBOL_GPL(at91_pmc_base);
 
+void at91rm9200_idle(void)
+{
+	/*
+	 * Disable the processor clock.  The processor will be automatically
+	 * re-enabled by an interrupt or by a reset.
+	 */
+	at91_pmc_write(AT91_PMC_SCDR, AT91_PMC_PCK);
+}
+
 void at91sam9_idle(void)
 {
 	at91_pmc_write(AT91_PMC_SCDR, AT91_PMC_PCK);
@@ -80,12 +89,29 @@ static int pmc_irq_set_type(struct irq_data *d, unsigned type)
 	return 0;
 }
 
+static void pmc_irq_suspend(struct irq_data *d)
+{
+	struct at91_pmc *pmc = irq_data_get_irq_chip_data(d);
+
+	pmc->imr = pmc_read(pmc, AT91_PMC_IMR);
+	pmc_write(pmc, AT91_PMC_IDR, pmc->imr);
+}
+
+static void pmc_irq_resume(struct irq_data *d)
+{
+	struct at91_pmc *pmc = irq_data_get_irq_chip_data(d);
+
+	pmc_write(pmc, AT91_PMC_IER, pmc->imr);
+}
+
 static struct irq_chip pmc_irq = {
 	.name = "PMC",
 	.irq_disable = pmc_irq_mask,
 	.irq_mask = pmc_irq_mask,
 	.irq_unmask = pmc_irq_unmask,
 	.irq_set_type = pmc_irq_set_type,
+	.irq_suspend = pmc_irq_suspend,
+	.irq_resume = pmc_irq_resume,
 };
 
 static struct lock_class_key pmc_lock_class;
@@ -215,7 +241,8 @@ static struct at91_pmc *__init at91_pmc_init(struct device_node *np,
 		goto out_free_pmc;
 
 	pmc_write(pmc, AT91_PMC_IDR, 0xffffffff);
-	if (request_irq(pmc->virq, pmc_irq_handler, IRQF_SHARED, "pmc", pmc))
+	if (request_irq(pmc->virq, pmc_irq_handler,
+			IRQF_SHARED | IRQF_COND_SUSPEND, "pmc", pmc))
 		goto out_remove_irqdomain;
 
 	return pmc;

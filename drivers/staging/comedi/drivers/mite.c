@@ -494,9 +494,7 @@ EXPORT_SYMBOL_GPL(mite_bytes_read_from_memory_ub);
 unsigned mite_dma_tcr(struct mite_channel *mite_chan)
 {
 	struct mite_struct *mite = mite_chan->mite;
-	int lkar;
 
-	lkar = readl(mite->mite_io_addr + MITE_LKAR(mite_chan->channel));
 	return readl(mite->mite_io_addr + MITE_TCR(mite_chan->channel));
 }
 EXPORT_SYMBOL_GPL(mite_dma_tcr);

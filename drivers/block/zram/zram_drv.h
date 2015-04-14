@@ -100,24 +100,25 @@ struct zram_meta {
 
 struct zram {
 	struct zram_meta *meta;
-	struct request_queue *queue;
-	struct gendisk *disk;
 	struct zcomp *comp;
-
-	/* Prevent concurrent execution of device init, reset and R/W request */
+	struct gendisk *disk;
+	/* Prevent concurrent execution of device init */
 	struct rw_semaphore init_lock;
+	/*
+	 * the number of pages zram can consume for storing compressed data
+	 */
+	unsigned long limit_pages;
+	int max_comp_streams;
+
+	struct zram_stats stats;
+	atomic_t refcount; /* refcount for zram_meta */
+	/* wait all IO under all of cpu are done */
+	wait_queue_head_t io_done;
 	/*
 	 * This is the limit on amount of *uncompressed* worth of data
 	 * we can store in a disk.
 	 */
 	u64 disksize;	/* bytes */
-	int max_comp_streams;
-	struct zram_stats stats;
-	/*
-	 * the number of pages zram can consume for storing compressed data
-	 */
-	unsigned long limit_pages;
-
 	char compressor[10];
 };
 #endif

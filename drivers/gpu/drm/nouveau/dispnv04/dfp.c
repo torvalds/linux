@@ -623,9 +623,9 @@ static void nv04_tmds_slave_init(struct drm_encoder *encoder)
 	struct drm_device *dev = encoder->dev;
 	struct dcb_output *dcb = nouveau_encoder(encoder)->dcb;
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_i2c *i2c = nvkm_i2c(&drm->device);
-	struct nouveau_i2c_port *port = i2c->find(i2c, 2);
-	struct nouveau_i2c_board_info info[] = {
+	struct nvkm_i2c *i2c = nvxx_i2c(&drm->device);
+	struct nvkm_i2c_port *port = i2c->find(i2c, 2);
+	struct nvkm_i2c_board_info info[] = {
 		{
 		    {
 		        .type = "sil164",

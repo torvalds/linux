@@ -1,5 +1,5 @@
 /*
- * Freescale MPC85xx Memory Controller kenel module
+ * Freescale MPC85xx Memory Controller kernel module
  *
  * Parts Copyrighted (c) 2013 by Freescale Semiconductor, Inc.
  *

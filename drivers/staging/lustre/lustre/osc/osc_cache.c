@@ -1820,6 +1820,9 @@ static int try_to_add_extent_for_io(struct client_obd *cli,
 				    int *pc, unsigned int *max_pages)
 {
 	struct osc_extent *tmp;
+	struct osc_async_page *oap = list_first_entry(&ext->oe_pages,
+						      struct osc_async_page,
+						      oap_pending_item);
 
 	EASSERT((ext->oe_state == OES_CACHE || ext->oe_state == OES_LOCK_DONE),
 		ext);
@@ -1829,6 +1832,10 @@ static int try_to_add_extent_for_io(struct client_obd *cli,
 		return 0;
 
 	list_for_each_entry(tmp, rpclist, oe_link) {
+		struct osc_async_page *oap2;
+
+		oap2 = list_first_entry(&tmp->oe_pages, struct osc_async_page,
+					oap_pending_item);
 		EASSERT(tmp->oe_owner == current, tmp);
 #if 0
 		if (overlapped(tmp, ext)) {
@@ -1836,6 +1843,11 @@ static int try_to_add_extent_for_io(struct client_obd *cli,
 			EASSERT(0, ext);
 		}
 #endif
+		if (oap2cl_page(oap)->cp_type != oap2cl_page(oap2)->cp_type) {
+			CDEBUG(D_CACHE, "Do not permit different type of IO"
+					" for a same RPC\n");
+			return 0;
+		}
 
 		if (tmp->oe_srvlock != ext->oe_srvlock ||
 		    !tmp->oe_grants != !ext->oe_grants)

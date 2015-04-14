@@ -96,6 +96,7 @@ enum {
 	MLX4_QP_BIT_RRE				= 1 << 15,
 	MLX4_QP_BIT_RWE				= 1 << 14,
 	MLX4_QP_BIT_RAE				= 1 << 13,
+	MLX4_QP_BIT_FPP				= 1 <<	3,
 	MLX4_QP_BIT_RIC				= 1 <<	4,
 };
 
@@ -426,7 +427,7 @@ struct mlx4_wqe_inline_seg {
 
 enum mlx4_update_qp_attr {
 	MLX4_UPDATE_QP_SMAC		= 1 << 0,
-	MLX4_UPDATE_QP_VSD		= 1 << 2,
+	MLX4_UPDATE_QP_VSD		= 1 << 1,
 	MLX4_UPDATE_QP_SUPPORTED_ATTRS	= (1 << 2) - 1
 };
 

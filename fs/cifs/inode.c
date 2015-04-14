@@ -771,6 +771,8 @@ cifs_get_inode_info(struct inode **inode, const char *full_path,
 				cifs_buf_release(srchinf->ntwrk_buf_start);
 			}
 			kfree(srchinf);
+			if (rc)
+				goto cgii_exit;
 	} else
 		goto cgii_exit;
 
@@ -937,8 +939,6 @@ retry_iget5_locked:
 			inode->i_flags |= S_NOATIME | S_NOCMTIME;
 		if (inode->i_state & I_NEW) {
 			inode->i_ino = hash;
-			if (S_ISREG(inode->i_mode))
-				inode->i_data.backing_dev_info = sb->s_bdi;
 #ifdef CONFIG_CIFS_FSCACHE
 			/* initialize per-inode cache cookie pointer */
 			CIFS_I(inode)->fscache = NULL;

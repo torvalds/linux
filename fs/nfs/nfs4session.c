@@ -450,7 +450,7 @@ int nfs4_setup_session_slot_tables(struct nfs4_session *ses)
 	tbl = &ses->fc_slot_table;
 	tbl->session = ses;
 	status = nfs4_realloc_slot_table(tbl, ses->fc_attrs.max_reqs, 1);
-	if (status) /* -ENOMEM */
+	if (status || !(ses->flags & SESSION4_BACK_CHAN)) /* -ENOMEM */
 		return status;
 	/* Back channel */
 	tbl = &ses->bc_slot_table;

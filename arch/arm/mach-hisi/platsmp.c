@@ -10,10 +10,12 @@
 #include <linux/smp.h>
 #include <linux/io.h>
 #include <linux/of_address.h>
+#include <linux/delay.h>
 
 #include <asm/cacheflush.h>
 #include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
+#include <asm/mach/map.h>
 
 #include "core.h"
 
@@ -96,7 +98,7 @@ struct smp_operations hi3xxx_smp_ops __initdata = {
 #endif
 };
 
-static void __init hix5hd2_smp_prepare_cpus(unsigned int max_cpus)
+static void __init hisi_common_smp_prepare_cpus(unsigned int max_cpus)
 {
 	hisi_enable_scu_a9();
 }
@@ -116,7 +118,7 @@ static int hix5hd2_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	phys_addr_t jumpaddr;
 
-	jumpaddr = virt_to_phys(hix5hd2_secondary_startup);
+	jumpaddr = virt_to_phys(hisi_secondary_startup);
 	hix5hd2_set_scu_boot_addr(HIX5HD2_BOOT_ADDRESS, jumpaddr);
 	hix5hd2_set_cpu(cpu, true);
 	arch_send_wakeup_ipi_mask(cpumask_of(cpu));
@@ -125,12 +127,60 @@ static int hix5hd2_boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 
 struct smp_operations hix5hd2_smp_ops __initdata = {
-	.smp_prepare_cpus	= hix5hd2_smp_prepare_cpus,
+	.smp_prepare_cpus	= hisi_common_smp_prepare_cpus,
 	.smp_boot_secondary	= hix5hd2_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_die		= hix5hd2_cpu_die,
 #endif
 };
 
+
+#define SC_SCTL_REMAP_CLR      0x00000100
+#define HIP01_BOOT_ADDRESS     0x80000000
+#define REG_SC_CTRL            0x000
+
+void hip01_set_boot_addr(phys_addr_t start_addr, phys_addr_t jump_addr)
+{
+	void __iomem *virt;
+
+	virt = phys_to_virt(start_addr);
+
+	writel_relaxed(0xe51ff004, virt);
+	writel_relaxed(jump_addr, virt + 4);
+}
+
+static int hip01_boot_secondary(unsigned int cpu, struct task_struct *idle)
+{
+	phys_addr_t jumpaddr;
+	unsigned int remap_reg_value = 0;
+	struct device_node *node;
+
+
+	jumpaddr = virt_to_phys(hisi_secondary_startup);
+	hip01_set_boot_addr(HIP01_BOOT_ADDRESS, jumpaddr);
+
+	node = of_find_compatible_node(NULL, NULL, "hisilicon,hip01-sysctrl");
+	if (WARN_ON(!node))
+		return -1;
+	ctrl_base = of_iomap(node, 0);
+
+	/* set the secondary core boot from DDR */
+	remap_reg_value = readl_relaxed(ctrl_base + REG_SC_CTRL);
+	barrier();
+	remap_reg_value |= SC_SCTL_REMAP_CLR;
+	barrier();
+	writel_relaxed(remap_reg_value, ctrl_base + REG_SC_CTRL);
+
+	hip01_set_cpu(cpu, true);
+
+	return 0;
+}
+
+struct smp_operations hip01_smp_ops __initdata = {
+	.smp_prepare_cpus       = hisi_common_smp_prepare_cpus,
+	.smp_boot_secondary     = hip01_boot_secondary,
+};
+
 CPU_METHOD_OF_DECLARE(hi3xxx_smp, "hisilicon,hi3620-smp", &hi3xxx_smp_ops);
 CPU_METHOD_OF_DECLARE(hix5hd2_smp, "hisilicon,hix5hd2-smp", &hix5hd2_smp_ops);
+CPU_METHOD_OF_DECLARE(hip01_smp, "hisilicon,hip01-smp", &hip01_smp_ops);

@@ -525,12 +525,6 @@ static struct dma_async_tx_descriptor *cppi41_dma_prep_slave_sg(
 	return &c->txd;
 }
 
-static int cpp41_cfg_chan(struct cppi41_channel *c,
-		struct dma_slave_config *cfg)
-{
-	return 0;
-}
-
 static void cppi41_compute_td_desc(struct cppi41_desc *d)
 {
 	d->pd0 = DESC_TYPE_TEARD << DESC_TYPE;
@@ -645,28 +639,6 @@ static int cppi41_stop_chan(struct dma_chan *chan)
 	cdd->chan_busy[desc_num] = NULL;
 
 	return 0;
-}
-
-static int cppi41_dma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
-	unsigned long arg)
-{
-	struct cppi41_channel *c = to_cpp41_chan(chan);
-	int ret;
-
-	switch (cmd) {
-	case DMA_SLAVE_CONFIG:
-		ret = cpp41_cfg_chan(c, (struct dma_slave_config *) arg);
-		break;
-
-	case DMA_TERMINATE_ALL:
-		ret = cppi41_stop_chan(chan);
-		break;
-
-	default:
-		ret = -ENXIO;
-		break;
-	}
-	return ret;
 }
 
 static void cleanup_chans(struct cppi41_dd *cdd)
@@ -931,6 +903,11 @@ static const struct cppi_glue_infos *get_glue_info(struct device *dev)
 	return of_id->data;
 }
 
+#define CPPI41_DMA_BUSWIDTHS	(BIT(DMA_SLAVE_BUSWIDTH_1_BYTE) | \
+				BIT(DMA_SLAVE_BUSWIDTH_2_BYTES) | \
+				BIT(DMA_SLAVE_BUSWIDTH_3_BYTES) | \
+				BIT(DMA_SLAVE_BUSWIDTH_4_BYTES))
+
 static int cppi41_dma_probe(struct platform_device *pdev)
 {
 	struct cppi41_dd *cdd;
@@ -953,7 +930,11 @@ static int cppi41_dma_probe(struct platform_device *pdev)
 	cdd->ddev.device_tx_status = cppi41_dma_tx_status;
 	cdd->ddev.device_issue_pending = cppi41_dma_issue_pending;
 	cdd->ddev.device_prep_slave_sg = cppi41_dma_prep_slave_sg;
-	cdd->ddev.device_control = cppi41_dma_control;
+	cdd->ddev.device_terminate_all = cppi41_stop_chan;
+	cdd->ddev.directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
+	cdd->ddev.src_addr_widths = CPPI41_DMA_BUSWIDTHS;
+	cdd->ddev.dst_addr_widths = CPPI41_DMA_BUSWIDTHS;
+	cdd->ddev.residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
 	cdd->ddev.dev = dev;
 	INIT_LIST_HEAD(&cdd->ddev.channels);
 	cpp41_dma_info.dma_cap = cdd->ddev.cap_mask;
