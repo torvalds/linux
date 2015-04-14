@@ -495,12 +495,12 @@ static enum alarmtimer_restart alarm_handle_timer(struct alarm *alarm,
  */
 static int alarm_clock_getres(const clockid_t which_clock, struct timespec *tp)
 {
-	clockid_t baseid = alarm_bases[clock2alarm(which_clock)].base_clockid;
-
 	if (!alarmtimer_get_rtcdev())
 		return -EINVAL;
 
-	return hrtimer_get_res(baseid, tp);
+	tp->tv_sec = 0;
+	tp->tv_nsec = hrtimer_resolution;
+	return 0;
 }
 
 /**

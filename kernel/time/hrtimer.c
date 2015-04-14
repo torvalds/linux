@@ -1179,22 +1179,6 @@ void hrtimer_init(struct hrtimer *timer, clockid_t clock_id,
 }
 EXPORT_SYMBOL_GPL(hrtimer_init);
 
-/**
- * hrtimer_get_res - get the timer resolution for a clock
- * @which_clock: which clock to query
- * @tp:		 pointer to timespec variable to store the resolution
- *
- * Store the resolution of the clock selected by @which_clock in the
- * variable pointed to by @tp.
- */
-int hrtimer_get_res(const clockid_t which_clock, struct timespec *tp)
-{
-	tp->tv_sec = 0;
-	tp->tv_nsec = hrtimer_resolution;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(hrtimer_get_res);
-
 static void __run_hrtimer(struct hrtimer *timer, ktime_t *now)
 {
 	struct hrtimer_clock_base *base = timer->base;
