@@ -913,13 +913,13 @@ void ion_unmap_iommu(struct device *iommu_dev, struct ion_client *client,
 		goto out;
 	}
 
-	kref_put(&iommu_map->ref, ion_iommu_release);
-
 	buffer->iommu_map_cnt--;
 
 	trace_ion_iommu_unmap(client->display_name, (void*)buffer, buffer->size,
 		dev_name(iommu_dev), iommu_map->iova_addr,
 		iommu_map->mapped_size, buffer->iommu_map_cnt);
+
+	kref_put(&iommu_map->ref, ion_iommu_release);
 out:
 	mutex_unlock(&buffer->lock);
 	mutex_unlock(&client->lock);
@@ -1774,9 +1774,10 @@ static int ion_debug_heap_show(struct seq_file *s, void *unused)
 			continue;
 		total_size += buffer->size;
 		if (!buffer->handle_count) {
-			seq_printf(s, "%16.s %16u %16zu %d %d\n",
+			seq_printf(s, "%16.s %16u %16zu 0x%p %d %d\n",
 				   buffer->task_comm, buffer->pid,
-				   buffer->size, buffer->kmap_cnt,
+				   buffer->size, buffer,
+				   buffer->kmap_cnt,
 				   atomic_read(&buffer->ref.refcount));
 			total_orphaned_size += buffer->size;
 		}
@@ -1906,6 +1907,42 @@ static const struct file_operations debug_heap_bitmap_fops = {
 };
 #endif
 
+static ssize_t
+rockchip_ion_debug_write(struct file *filp, const char __user *ubuf, size_t cnt,
+		       loff_t *ppos)
+{
+	char buf[64];
+
+	if (copy_from_user(buf, ubuf, cnt>63?63:cnt)) {
+		return -EFAULT;
+	}
+	buf[cnt] = '\0';
+	ion_trace_lvl = simple_strtol(buf, NULL, 10);
+	*ppos += cnt;
+	return cnt;
+}
+
+static ssize_t
+rockchip_ion_debug_read(struct file *filp, char __user *ubuf, size_t cnt,
+		      loff_t *ppos)
+{
+	int r;
+	char buf[64];
+
+	if (*ppos)
+		return 0;
+
+	snprintf(buf, 63, "%d\n", ion_trace_lvl);
+	r = simple_read_from_buffer(ubuf, cnt, ppos, buf, strlen(buf));
+
+	return r;
+}
+
+static const struct file_operations rockchip_ion_debug_fops = {
+	.read = rockchip_ion_debug_read,
+	.write = rockchip_ion_debug_write,
+};
+
 void ion_device_add_heap(struct ion_device *dev, struct ion_heap *heap)
 {
 	struct dentry *debug_file;
@@ -1982,6 +2019,7 @@ struct ion_device *ion_device_create(long (*custom_ioctl)
 {
 	struct ion_device *idev;
 	int ret;
+	struct dentry* ion_debug;
 
 	idev = kzalloc(sizeof(struct ion_device), GFP_KERNEL);
 	if (!idev)
@@ -2015,6 +2053,14 @@ struct ion_device *ion_device_create(long (*custom_ioctl)
 #ifdef CONFIG_ION_ROCKCHIP_SNAPSHOT
 	rockchip_ion_snapshot_debugfs(idev->debug_root);
 #endif
+
+	ion_debug = debugfs_create_file("debug", 0664, idev->debug_root,
+					NULL, &rockchip_ion_debug_fops);
+	if (!ion_debug) {
+		char buf[256], *path;
+		path = dentry_path(idev->debug_root, buf, 256);
+		pr_err("Failed to create debugfs at %s/%s\n",path, "ion_debug");
+	}
 
 debugfs_done:
 
