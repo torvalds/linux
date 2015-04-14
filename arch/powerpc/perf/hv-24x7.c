@@ -1126,7 +1126,7 @@ static int h_24x7_event_init(struct perf_event *event)
 	/* Physical domains & other lpars require extra capabilities */
 	if (!caps.collect_privileged && (is_physical_domain(domain) ||
 		(event_get_lpar(event) != event_get_lpar_max()))) {
-		pr_devel("hv permisions disallow: is_physical_domain:%d, lpar=0x%llx\n",
+		pr_devel("hv permissions disallow: is_physical_domain:%d, lpar=0x%llx\n",
 				is_physical_domain(domain),
 				event_get_lpar(event));
 		return -EACCES;
