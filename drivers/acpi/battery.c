@@ -1106,7 +1106,7 @@ static int battery_notify(struct notifier_block *nb,
 		if (!acpi_battery_present(battery))
 			return 0;
 
-		if (battery->bat) {
+		if (!battery->bat) {
 			result = acpi_battery_get_info(battery);
 			if (result)
 				return result;
