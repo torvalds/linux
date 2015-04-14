@@ -1387,7 +1387,6 @@ static void srpt_handle_send_err_comp(struct srpt_rdma_ch *ch, u64 wr_id)
 {
 	struct srpt_send_ioctx *ioctx;
 	enum srpt_command_state state;
-	struct se_cmd *cmd;
 	u32 index;
 
 	atomic_inc(&ch->sq_wr_avail);
@@ -1395,7 +1394,6 @@ static void srpt_handle_send_err_comp(struct srpt_rdma_ch *ch, u64 wr_id)
 	index = idx_from_wr_id(wr_id);
 	ioctx = ch->ioctx_ring[index];
 	state = srpt_get_cmd_state(ioctx);
-	cmd = &ioctx->cmd;
 
 	WARN_ON(state != SRPT_STATE_CMD_RSP_SENT
 		&& state != SRPT_STATE_MGMT_RSP_SENT
@@ -1472,10 +1470,8 @@ static void srpt_handle_rdma_err_comp(struct srpt_rdma_ch *ch,
 				      struct srpt_send_ioctx *ioctx,
 				      enum srpt_opcode opcode)
 {
-	struct se_cmd *cmd;
 	enum srpt_command_state state;
 
-	cmd = &ioctx->cmd;
 	state = srpt_get_cmd_state(ioctx);
 	switch (opcode) {
 	case SRPT_RDMA_READ_LAST:
@@ -2176,11 +2172,8 @@ static void srpt_destroy_ch_ib(struct srpt_rdma_ch *ch)
  */
 static void __srpt_close_ch(struct srpt_rdma_ch *ch)
 {
-	struct srpt_device *sdev;
 	enum rdma_ch_state prev_state;
 	unsigned long flags;
-
-	sdev = ch->sport->sdev;
 
 	spin_lock_irqsave(&ch->spinlock, flags);
 	prev_state = ch->state;
