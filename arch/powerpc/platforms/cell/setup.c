@@ -127,12 +127,12 @@ static int cell_setup_phb(struct pci_controller *phb)
 	if (rc)
 		return rc;
 
+	phb->controller_ops = cell_pci_controller_ops;
+
 	np = phb->dn;
 	model = of_get_property(np, "model", NULL);
 	if (model == NULL || strcmp(np->name, "pci"))
 		return 0;
-
-	phb->controller_ops = cell_pci_controller_ops;
 
 	/* Setup workarounds for spider */
 	if (strcmp(model, "Spider"))
