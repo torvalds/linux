@@ -6023,7 +6023,11 @@ static void brcmf_cfg80211_reg_notifier(struct wiphy *wiphy,
 	memset(&ccreq, 0, sizeof(ccreq));
 	ccreq.rev = cpu_to_le32(-1);
 	memcpy(ccreq.ccode, req->alpha2, sizeof(req->alpha2));
-	brcmf_fil_iovar_data_set(ifp, "country", &ccreq, sizeof(ccreq));
+	if (brcmf_fil_iovar_data_set(ifp, "country", &ccreq, sizeof(ccreq))) {
+		brcmf_err("firmware rejected country setting\n");
+		return;
+	}
+	brcmf_setup_wiphybands(wiphy);
 }
 
 static void brcmf_free_wiphy(struct wiphy *wiphy)
