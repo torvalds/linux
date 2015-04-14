@@ -2216,7 +2216,7 @@ static int dtv_set_frontend(struct dvb_frontend *fe)
 		break;
 	}
 	if (rolloff)
-		c->bandwidth_hz = (c->symbol_rate * rolloff) / 100;
+		c->bandwidth_hz = mult_frac(c->symbol_rate, rolloff, 100);
 
 	/* force auto frequency inversion if requested */
 	if (dvb_force_auto_inversion)
