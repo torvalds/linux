@@ -796,44 +796,46 @@ static int EISA_ELCR(unsigned int irq)
 static int irq_polarity(int idx)
 {
 	int bus = mp_irqs[idx].srcbus;
-	int polarity;
 
 	/*
 	 * Determine IRQ line polarity (high active or low active):
 	 */
-	switch (mp_irqs[idx].irqflag & 3)
-	{
-		case 0: /* conforms, ie. bus-type dependent polarity */
-			if (test_bit(bus, mp_bus_not_pci))
-				polarity = default_ISA_polarity(idx);
-			else
-				polarity = default_PCI_polarity(idx);
-			break;
-		case 1: /* high active */
-		{
-			polarity = IOAPIC_POL_HIGH;
-			break;
-		}
-		case 2: /* reserved */
-		{
-			pr_warn("broken BIOS!!\n");
-			polarity = IOAPIC_POL_LOW;
-			break;
-		}
-		case 3: /* low active */
-		{
-			polarity = IOAPIC_POL_LOW;
-			break;
-		}
-		default: /* invalid */
-		{
-			pr_warn("broken BIOS!!\n");
-			polarity = IOAPIC_POL_LOW;
-			break;
-		}
+	switch (mp_irqs[idx].irqflag & 0x03) {
+	case 0:
+		/* conforms to spec, ie. bus-type dependent polarity */
+		if (test_bit(bus, mp_bus_not_pci))
+			return default_ISA_polarity(idx);
+		else
+			return default_PCI_polarity(idx);
+	case 1:
+		return IOAPIC_POL_HIGH;
+	case 2:
+		pr_warn("IOAPIC: Invalid polarity: 2, defaulting to low\n");
+	case 3:
+	default: /* Pointless default required due to do gcc stupidity */
+		return IOAPIC_POL_LOW;
 	}
-	return polarity;
 }
+
+#ifdef CONFIG_EISA
+static int eisa_irq_trigger(int idx, int bus, int trigger)
+{
+	switch (mp_bus_id_to_type[bus]) {
+	case MP_BUS_PCI:
+	case MP_BUS_ISA:
+		return trigger;
+	case MP_BUS_EISA:
+		return default_EISA_trigger(idx);
+	}
+	pr_warn("IOAPIC: Invalid srcbus: %d defaulting to level\n", bus);
+	return IOAPIC_LEVEL;
+}
+#else
+static inline int eisa_irq_trigger(int idx, int bus, int trigger)
+{
+	return trigger;
+}
+#endif
 
 static int irq_trigger(int idx)
 {
@@ -843,63 +845,23 @@ static int irq_trigger(int idx)
 	/*
 	 * Determine IRQ trigger mode (edge or level sensitive):
 	 */
-	switch ((mp_irqs[idx].irqflag>>2) & 3)
-	{
-		case 0: /* conforms, ie. bus-type dependent */
-			if (test_bit(bus, mp_bus_not_pci))
-				trigger = default_ISA_trigger(idx);
-			else
-				trigger = default_PCI_trigger(idx);
-#ifdef CONFIG_EISA
-			switch (mp_bus_id_to_type[bus]) {
-				case MP_BUS_ISA: /* ISA pin */
-				{
-					/* set before the switch */
-					break;
-				}
-				case MP_BUS_EISA: /* EISA pin */
-				{
-					trigger = default_EISA_trigger(idx);
-					break;
-				}
-				case MP_BUS_PCI: /* PCI pin */
-				{
-					/* set before the switch */
-					break;
-				}
-				default:
-				{
-					pr_warn("broken BIOS!!\n");
-					trigger = IOAPIC_LEVEL;
-					break;
-				}
-			}
-#endif
-			break;
-		case 1: /* edge */
-		{
-			trigger = IOAPIC_EDGE;
-			break;
-		}
-		case 2: /* reserved */
-		{
-			pr_warn("broken BIOS!!\n");
-			trigger = IOAPIC_LEVEL;
-			break;
-		}
-		case 3: /* level */
-		{
-			trigger = IOAPIC_LEVEL;
-			break;
-		}
-		default: /* invalid */
-		{
-			pr_warn("broken BIOS!!\n");
-			trigger = IOAPIC_EDGE;
-			break;
-		}
+	switch ((mp_irqs[idx].irqflag >> 2) & 0x03) {
+	case 0:
+		/* conforms to spec, ie. bus-type dependent trigger mode */
+		if (test_bit(bus, mp_bus_not_pci))
+			trigger = default_ISA_trigger(idx);
+		else
+			trigger = default_PCI_trigger(idx);
+		/* Take EISA into account */
+		return eisa_irq_trigger(idx, bus, trigger);
+	case 1:
+		return IOAPIC_EDGE;
+	case 2:
+		pr_warn("IOAPIC: Invalid trigger mode 2 defaulting to level\n");
+	case 3:
+	default: /* Pointless default required due to do gcc stupidity */
+		return IOAPIC_LEVEL;
 	}
-	return trigger;
 }
 
 void ioapic_set_alloc_attr(struct irq_alloc_info *info, int node,
