@@ -712,7 +712,6 @@ int __mm_populate(unsigned long start, unsigned long len, int ignore_errors)
 				ret = 0;
 				continue;	/* continue at next VMA */
 			}
-			ret = __mlock_posix_error_return(ret);
 			break;
 		}
 		nend = nstart + ret * PAGE_SIZE;
@@ -750,9 +749,13 @@ SYSCALL_DEFINE2(mlock, unsigned long, start, size_t, len)
 		error = do_mlock(start, len, 1);
 
 	up_write(&current->mm->mmap_sem);
-	if (!error)
-		error = __mm_populate(start, len, 0);
-	return error;
+	if (error)
+		return error;
+
+	error = __mm_populate(start, len, 0);
+	if (error)
+		return __mlock_posix_error_return(error);
+	return 0;
 }
 
 SYSCALL_DEFINE2(munlock, unsigned long, start, size_t, len)
