@@ -768,16 +768,14 @@ void __init pnv_pci_init(void)
 	ppc_md.tce_free_rm = pnv_tce_free_rm;
 	ppc_md.tce_get = pnv_tce_get;
 	set_pci_dma_ops(&dma_iommu_ops);
-
-	/* Configure MSIs */
-#ifdef CONFIG_PCI_MSI
-	ppc_md.setup_msi_irqs = pnv_setup_msi_irqs;
-	ppc_md.teardown_msi_irqs = pnv_teardown_msi_irqs;
-#endif
 }
 
 machine_subsys_initcall_sync(powernv, tce_iommu_bus_notifier_init);
 
 struct pci_controller_ops pnv_pci_controller_ops = {
 	.dma_dev_setup = pnv_pci_dma_dev_setup,
+#ifdef CONFIG_PCI_MSI
+	.setup_msi_irqs = pnv_setup_msi_irqs,
+	.teardown_msi_irqs = pnv_teardown_msi_irqs,
+#endif
 };
