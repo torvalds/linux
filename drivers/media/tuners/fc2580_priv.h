@@ -128,8 +128,10 @@ static const struct fc2580_freq_regs fc2580_freq_regs_lut[] = {
 };
 
 struct fc2580_priv {
-	const struct fc2580_config *cfg;
+	u32 clk;
+	struct i2c_client *client;
 	struct i2c_adapter *i2c;
+	u8 i2c_addr;
 };
 
 #endif

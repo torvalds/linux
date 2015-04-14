@@ -24,6 +24,21 @@
 #include <linux/kconfig.h>
 #include "dvb_frontend.h"
 
+/*
+ * I2C address
+ * 0x56, ...
+ */
+
+/**
+ * struct fc2580_platform_data - Platform data for the fc2580 driver
+ * @clk: Clock frequency (0 = internal clock).
+ * @dvb_frontend: DVB frontend.
+ */
+struct fc2580_platform_data {
+	u32 clk;
+	struct dvb_frontend *dvb_frontend;
+};
+
 struct fc2580_config {
 	/*
 	 * I2C address
