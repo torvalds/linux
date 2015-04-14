@@ -466,17 +466,6 @@ static int fc2580_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 	return 0;
 }
 
-static int fc2580_release(struct dvb_frontend *fe)
-{
-	struct fc2580_priv *priv = fe->tuner_priv;
-
-	dev_dbg(&priv->i2c->dev, "%s:\n", __func__);
-
-	kfree(fe->tuner_priv);
-
-	return 0;
-}
-
 static const struct dvb_tuner_ops fc2580_tuner_ops = {
 	.info = {
 		.name           = "FCI FC2580",
@@ -484,72 +473,12 @@ static const struct dvb_tuner_ops fc2580_tuner_ops = {
 		.frequency_max  = 862000000,
 	},
 
-	.release = fc2580_release,
-
 	.init = fc2580_init,
 	.sleep = fc2580_sleep,
 	.set_params = fc2580_set_params,
 
 	.get_if_frequency = fc2580_get_if_frequency,
 };
-
-struct dvb_frontend *fc2580_attach(struct dvb_frontend *fe,
-		struct i2c_adapter *i2c, const struct fc2580_config *cfg)
-{
-	struct fc2580_priv *priv;
-	int ret;
-	u8 chip_id;
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-
-	priv = kzalloc(sizeof(struct fc2580_priv), GFP_KERNEL);
-	if (!priv) {
-		ret = -ENOMEM;
-		dev_err(&i2c->dev, "%s: kzalloc() failed\n", KBUILD_MODNAME);
-		goto err;
-	}
-
-	priv->clk = cfg->clock;
-	priv->i2c = i2c;
-	priv->i2c_addr = cfg->i2c_addr;
-
-	/* check if the tuner is there */
-	ret = fc2580_rd_reg(priv, 0x01, &chip_id);
-	if (ret < 0)
-		goto err;
-
-	dev_dbg(&priv->i2c->dev, "%s: chip_id=%02x\n", __func__, chip_id);
-
-	switch (chip_id) {
-	case 0x56:
-	case 0x5a:
-		break;
-	default:
-		goto err;
-	}
-
-	dev_info(&priv->i2c->dev,
-			"%s: FCI FC2580 successfully identified\n",
-			KBUILD_MODNAME);
-
-	fe->tuner_priv = priv;
-	memcpy(&fe->ops.tuner_ops, &fc2580_tuner_ops,
-			sizeof(struct dvb_tuner_ops));
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 0);
-
-	return fe;
-err:
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 0);
-
-	dev_dbg(&i2c->dev, "%s: failed=%d\n", __func__, ret);
-	kfree(priv);
-	return NULL;
-}
-EXPORT_SYMBOL(fc2580_attach);
 
 static int fc2580_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
@@ -592,7 +521,6 @@ static int fc2580_probe(struct i2c_client *client,
 	fe->tuner_priv = dev;
 	memcpy(&fe->ops.tuner_ops, &fc2580_tuner_ops,
 			sizeof(struct dvb_tuner_ops));
-	fe->ops.tuner_ops.release = NULL;
 	i2c_set_clientdata(client, dev);
 
 	dev_info(&client->dev, "FCI FC2580 successfully identified\n");
