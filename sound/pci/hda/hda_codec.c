@@ -550,7 +550,7 @@ int snd_hda_bus_new(struct snd_card *card,
 	if (!bus)
 		return -ENOMEM;
 
-	err = snd_hdac_bus_init(&bus->core, card->dev, &bus_ops);
+	err = snd_hdac_bus_init(&bus->core, card->dev, &bus_ops, NULL);
 	if (err < 0) {
 		kfree(bus);
 		return err;
