@@ -1131,23 +1131,22 @@ static void __init l2c310_of_parse(const struct device_node *np,
 	}
 
 	ret = l2x0_cache_size_of_parse(np, aux_val, aux_mask, &assoc, SZ_512K);
-	if (ret)
-		return;
-
-	switch (assoc) {
-	case 16:
-		*aux_val &= ~L2X0_AUX_CTRL_ASSOC_MASK;
-		*aux_val |= L310_AUX_CTRL_ASSOCIATIVITY_16;
-		*aux_mask &= ~L2X0_AUX_CTRL_ASSOC_MASK;
-		break;
-	case 8:
-		*aux_val &= ~L2X0_AUX_CTRL_ASSOC_MASK;
-		*aux_mask &= ~L2X0_AUX_CTRL_ASSOC_MASK;
-		break;
-	default:
-		pr_err("L2C-310 OF cache associativity %d invalid, only 8 or 16 permitted\n",
-		       assoc);
-		break;
+	if (!ret) {
+		switch (assoc) {
+		case 16:
+			*aux_val &= ~L2X0_AUX_CTRL_ASSOC_MASK;
+			*aux_val |= L310_AUX_CTRL_ASSOCIATIVITY_16;
+			*aux_mask &= ~L2X0_AUX_CTRL_ASSOC_MASK;
+			break;
+		case 8:
+			*aux_val &= ~L2X0_AUX_CTRL_ASSOC_MASK;
+			*aux_mask &= ~L2X0_AUX_CTRL_ASSOC_MASK;
+			break;
+		default:
+			pr_err("L2C-310 OF cache associativity %d invalid, only 8 or 16 permitted\n",
+			       assoc);
+			break;
+		}
 	}
 
 	prefetch = l2x0_saved_regs.prefetch_ctrl;

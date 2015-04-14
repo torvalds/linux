@@ -334,7 +334,7 @@ const char *arch_vma_name(struct vm_area_struct *vma)
 }
 
 /* If possible, provide a placement hint at a random offset from the
- * stack for the signal page.
+ * stack for the sigpage and vdso pages.
  */
 static unsigned long sigpage_addr(const struct mm_struct *mm,
 				  unsigned int npages)
@@ -378,6 +378,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 {
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
+	unsigned long npages;
 	unsigned long addr;
 	unsigned long hint;
 	int ret = 0;
@@ -387,9 +388,12 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	if (!signal_page)
 		return -ENOMEM;
 
+	npages = 1; /* for sigpage */
+	npages += vdso_total_pages;
+
 	down_write(&mm->mmap_sem);
-	hint = sigpage_addr(mm, 1);
-	addr = get_unmapped_area(NULL, hint, PAGE_SIZE, 0, 0);
+	hint = sigpage_addr(mm, npages);
+	addr = get_unmapped_area(NULL, hint, npages << PAGE_SHIFT, 0, 0);
 	if (IS_ERR_VALUE(addr)) {
 		ret = addr;
 		goto up_fail;
@@ -405,6 +409,12 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	}
 
 	mm->context.sigpage = addr;
+
+	/* Unlike the sigpage, failure to install the vdso is unlikely
+	 * to be fatal to the process, so no error check needed
+	 * here.
+	 */
+	arm_install_vdso(mm, addr + PAGE_SIZE);
 
  up_fail:
 	up_write(&mm->mmap_sem);
