@@ -86,13 +86,6 @@ struct mp_chip_data {
 	bool isa_irq;
 };
 
-struct mp_pin_info {
-	int trigger;
-	int polarity;
-	int set;
-	u32 count;
-};
-
 static struct ioapic {
 	/*
 	 * # of IRQ routing registers
@@ -108,7 +101,6 @@ static struct ioapic {
 	struct mp_ioapic_gsi  gsi_config;
 	struct ioapic_domain_cfg irqdomain_cfg;
 	struct irq_domain *irqdomain;
-	struct mp_pin_info *pin_info;
 	struct resource *iomem_res;
 } ioapics[MAX_IO_APICS];
 
@@ -157,11 +149,6 @@ static inline int mp_init_irq_at_boot(int ioapic, int irq)
 		return 0;
 
 	return ioapic == 0 || mp_is_legacy_irq(irq);
-}
-
-static inline struct mp_pin_info *mp_pin_info(int ioapic_idx, int pin)
-{
-	return ioapics[ioapic_idx].pin_info + pin;
 }
 
 static inline struct irq_domain *mp_ioapic_irqdomain(int ioapic)
@@ -2432,18 +2419,12 @@ out:
 
 static int mp_irqdomain_create(int ioapic)
 {
-	size_t size;
 	struct irq_alloc_info info;
 	struct irq_domain *parent;
 	int hwirqs = mp_ioapic_pin_count(ioapic);
 	struct ioapic *ip = &ioapics[ioapic];
 	struct ioapic_domain_cfg *cfg = &ip->irqdomain_cfg;
 	struct mp_ioapic_gsi *gsi_cfg = mp_ioapic_gsi_routing(ioapic);
-
-	size = sizeof(struct mp_pin_info) * mp_ioapic_pin_count(ioapic);
-	ip->pin_info = kzalloc(size, GFP_KERNEL);
-	if (!ip->pin_info)
-		return -ENOMEM;
 
 	if (cfg->type == IOAPIC_DOMAIN_INVALID)
 		return 0;
@@ -2457,13 +2438,10 @@ static int mp_irqdomain_create(int ioapic)
 
 	ip->irqdomain = irq_domain_add_linear(cfg->dev, hwirqs, cfg->ops,
 					      (void *)(long)ioapic);
-	if (ip->irqdomain) {
-		ip->irqdomain->parent = parent;
-	} else {
-		kfree(ip->pin_info);
-		ip->pin_info = NULL;
+	if (!ip->irqdomain)
 		return -ENOMEM;
-	}
+
+	ip->irqdomain->parent = parent;
 
 	if (cfg->type == IOAPIC_DOMAIN_LEGACY ||
 	    cfg->type == IOAPIC_DOMAIN_STRICT)
@@ -2479,8 +2457,6 @@ static void ioapic_destroy_irqdomain(int idx)
 		irq_domain_remove(ioapics[idx].irqdomain);
 		ioapics[idx].irqdomain = NULL;
 	}
-	kfree(ioapics[idx].pin_info);
-	ioapics[idx].pin_info = NULL;
 }
 
 void __init setup_IO_APIC(void)
