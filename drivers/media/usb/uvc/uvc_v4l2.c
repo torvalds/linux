@@ -723,6 +723,18 @@ static int uvc_ioctl_qbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 	return uvc_queue_buffer(&stream->queue, buf);
 }
 
+static int uvc_ioctl_expbuf(struct file *file, void *fh,
+			    struct v4l2_exportbuffer *exp)
+{
+	struct uvc_fh *handle = fh;
+	struct uvc_streaming *stream = handle->stream;
+
+	if (!uvc_has_privileges(handle))
+		return -EBUSY;
+
+	return uvc_export_buffer(&stream->queue, exp);
+}
+
 static int uvc_ioctl_dqbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 {
 	struct uvc_fh *handle = fh;
@@ -1478,6 +1490,7 @@ const struct v4l2_ioctl_ops uvc_ioctl_ops = {
 	.vidioc_reqbufs = uvc_ioctl_reqbufs,
 	.vidioc_querybuf = uvc_ioctl_querybuf,
 	.vidioc_qbuf = uvc_ioctl_qbuf,
+	.vidioc_expbuf = uvc_ioctl_expbuf,
 	.vidioc_dqbuf = uvc_ioctl_dqbuf,
 	.vidioc_create_bufs = uvc_ioctl_create_bufs,
 	.vidioc_streamon = uvc_ioctl_streamon,
