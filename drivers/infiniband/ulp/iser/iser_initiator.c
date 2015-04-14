@@ -401,13 +401,13 @@ int iser_send_command(struct iscsi_conn *conn,
 	}
 
 	if (scsi_sg_count(sc)) { /* using a scatter list */
-		data_buf->buf  = scsi_sglist(sc);
+		data_buf->sg = scsi_sglist(sc);
 		data_buf->size = scsi_sg_count(sc);
 	}
 	data_buf->data_len = scsi_bufflen(sc);
 
 	if (scsi_prot_sg_count(sc)) {
-		prot_buf->buf  = scsi_prot_sglist(sc);
+		prot_buf->sg  = scsi_prot_sglist(sc);
 		prot_buf->size = scsi_prot_sg_count(sc);
 		prot_buf->data_len = (data_buf->data_len >>
 				     ilog2(sc->device->sector_size)) * 8;
@@ -674,35 +674,31 @@ void iser_task_rdma_finalize(struct iscsi_iser_task *iser_task)
 	/* if we were reading, copy back to unaligned sglist,
 	 * anyway dma_unmap and free the copy
 	 */
-	if (iser_task->data_copy[ISER_DIR_IN].copy_buf != NULL) {
+	if (iser_task->data[ISER_DIR_IN].copy_buf) {
 		is_rdma_data_aligned = 0;
 		iser_finalize_rdma_unaligned_sg(iser_task,
 						&iser_task->data[ISER_DIR_IN],
-						&iser_task->data_copy[ISER_DIR_IN],
 						ISER_DIR_IN);
 	}
 
-	if (iser_task->data_copy[ISER_DIR_OUT].copy_buf != NULL) {
+	if (iser_task->data[ISER_DIR_OUT].copy_buf) {
 		is_rdma_data_aligned = 0;
 		iser_finalize_rdma_unaligned_sg(iser_task,
 						&iser_task->data[ISER_DIR_OUT],
-						&iser_task->data_copy[ISER_DIR_OUT],
 						ISER_DIR_OUT);
 	}
 
-	if (iser_task->prot_copy[ISER_DIR_IN].copy_buf != NULL) {
+	if (iser_task->prot[ISER_DIR_IN].copy_buf) {
 		is_rdma_prot_aligned = 0;
 		iser_finalize_rdma_unaligned_sg(iser_task,
 						&iser_task->prot[ISER_DIR_IN],
-						&iser_task->prot_copy[ISER_DIR_IN],
 						ISER_DIR_IN);
 	}
 
-	if (iser_task->prot_copy[ISER_DIR_OUT].copy_buf != NULL) {
+	if (iser_task->prot[ISER_DIR_OUT].copy_buf) {
 		is_rdma_prot_aligned = 0;
 		iser_finalize_rdma_unaligned_sg(iser_task,
 						&iser_task->prot[ISER_DIR_OUT],
-						&iser_task->prot_copy[ISER_DIR_OUT],
 						ISER_DIR_OUT);
 	}
 

@@ -218,20 +218,23 @@ enum iser_data_dir {
 /**
  * struct iser_data_buf - iSER data buffer
  *
- * @buf:          pointer to the sg list
+ * @sg:           pointer to the sg list
  * @size:         num entries of this sg
  * @data_len:     total beffer byte len
  * @dma_nents:    returned by dma_map_sg
  * @copy_buf:     allocated copy buf for SGs unaligned
  *                for rdma which are copied
+ * @orig_sg:      pointer to the original sg list (in case
+ *                we used a copy)
  * @sg_single:    SG-ified clone of a non SG SC or
  *                unaligned SG
  */
 struct iser_data_buf {
-	void               *buf;
+	struct scatterlist *sg;
 	unsigned int       size;
 	unsigned long      data_len;
 	unsigned int       dma_nents;
+	struct scatterlist *orig_sg;
 	char               *copy_buf;
 	struct scatterlist sg_single;
   };
@@ -536,9 +539,7 @@ struct iser_conn {
  * @dir:              iser data direction
  * @rdma_regd:        task rdma registration desc
  * @data:             iser data buffer desc
- * @data_copy:        iser data copy buffer desc (bounce buffer)
  * @prot:             iser protection buffer desc
- * @prot_copy:        iser protection copy buffer desc (bounce buffer)
  */
 struct iscsi_iser_task {
 	struct iser_tx_desc          desc;
@@ -549,9 +550,7 @@ struct iscsi_iser_task {
 	int                          dir[ISER_DIRS_NUM];
 	struct iser_regd_buf         rdma_regd[ISER_DIRS_NUM];
 	struct iser_data_buf         data[ISER_DIRS_NUM];
-	struct iser_data_buf         data_copy[ISER_DIRS_NUM];
 	struct iser_data_buf         prot[ISER_DIRS_NUM];
-	struct iser_data_buf         prot_copy[ISER_DIRS_NUM];
 };
 
 struct iser_page_vec {
@@ -621,7 +620,6 @@ void iser_free_rx_descriptors(struct iser_conn *iser_conn);
 
 void iser_finalize_rdma_unaligned_sg(struct iscsi_iser_task *iser_task,
 				     struct iser_data_buf *mem,
-				     struct iser_data_buf *mem_copy,
 				     enum iser_data_dir cmd_dir);
 
 int  iser_reg_rdma_mem_fmr(struct iscsi_iser_task *task,
