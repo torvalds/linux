@@ -13,7 +13,7 @@
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
 #include <linux/kthread.h>
-#include <linux/debugfs.h>
+#include <linux/tracefs.h>
 #include <linux/uaccess.h>
 #include <linux/module.h>
 #include <linux/ctype.h>
@@ -480,7 +480,7 @@ static void remove_subsystem(struct ftrace_subsystem_dir *dir)
 		return;
 
 	if (!--dir->nr_events) {
-		debugfs_remove_recursive(dir->entry);
+		tracefs_remove_recursive(dir->entry);
 		list_del(&dir->list);
 		__put_system_dir(dir);
 	}
@@ -499,7 +499,7 @@ static void remove_event_file_dir(struct ftrace_event_file *file)
 		}
 		spin_unlock(&dir->d_lock);
 
-		debugfs_remove_recursive(dir);
+		tracefs_remove_recursive(dir);
 	}
 
 	list_del(&file->list);
@@ -1526,7 +1526,7 @@ event_subsystem_dir(struct trace_array *tr, const char *name,
 	} else
 		__get_system(system);
 
-	dir->entry = debugfs_create_dir(name, parent);
+	dir->entry = tracefs_create_dir(name, parent);
 	if (!dir->entry) {
 		pr_warn("Failed to create system directory %s\n", name);
 		__put_system(system);
@@ -1539,12 +1539,12 @@ event_subsystem_dir(struct trace_array *tr, const char *name,
 	dir->subsystem = system;
 	file->system = dir;
 
-	entry = debugfs_create_file("filter", 0644, dir->entry, dir,
+	entry = tracefs_create_file("filter", 0644, dir->entry, dir,
 				    &ftrace_subsystem_filter_fops);
 	if (!entry) {
 		kfree(system->filter);
 		system->filter = NULL;
-		pr_warn("Could not create debugfs '%s/filter' entry\n", name);
+		pr_warn("Could not create tracefs '%s/filter' entry\n", name);
 	}
 
 	trace_create_file("enable", 0644, dir->entry, dir,
@@ -1585,9 +1585,9 @@ event_create_dir(struct dentry *parent, struct ftrace_event_file *file)
 		d_events = parent;
 
 	name = ftrace_event_name(call);
-	file->dir = debugfs_create_dir(name, d_events);
+	file->dir = tracefs_create_dir(name, d_events);
 	if (!file->dir) {
-		pr_warn("Could not create debugfs '%s' directory\n", name);
+		pr_warn("Could not create tracefs '%s' directory\n", name);
 		return -1;
 	}
 
@@ -2228,7 +2228,7 @@ static inline int register_event_cmds(void) { return 0; }
 /*
  * The top level array has already had its ftrace_event_file
  * descriptors created in order to allow for early events to
- * be recorded. This function is called after the debugfs has been
+ * be recorded. This function is called after the tracefs has been
  * initialized, and we now have to create the files associated
  * to the events.
  */
@@ -2311,16 +2311,16 @@ create_event_toplevel_files(struct dentry *parent, struct trace_array *tr)
 	struct dentry *d_events;
 	struct dentry *entry;
 
-	entry = debugfs_create_file("set_event", 0644, parent,
+	entry = tracefs_create_file("set_event", 0644, parent,
 				    tr, &ftrace_set_event_fops);
 	if (!entry) {
-		pr_warn("Could not create debugfs 'set_event' entry\n");
+		pr_warn("Could not create tracefs 'set_event' entry\n");
 		return -ENOMEM;
 	}
 
-	d_events = debugfs_create_dir("events", parent);
+	d_events = tracefs_create_dir("events", parent);
 	if (!d_events) {
-		pr_warn("Could not create debugfs 'events' directory\n");
+		pr_warn("Could not create tracefs 'events' directory\n");
 		return -ENOMEM;
 	}
 
@@ -2412,7 +2412,7 @@ int event_trace_del_tracer(struct trace_array *tr)
 
 	down_write(&trace_event_sem);
 	__trace_remove_event_dirs(tr);
-	debugfs_remove_recursive(tr->event_dir);
+	tracefs_remove_recursive(tr->event_dir);
 	up_write(&trace_event_sem);
 
 	tr->event_dir = NULL;
@@ -2534,10 +2534,10 @@ static __init int event_trace_init(void)
 	if (IS_ERR(d_tracer))
 		return 0;
 
-	entry = debugfs_create_file("available_events", 0444, d_tracer,
+	entry = tracefs_create_file("available_events", 0444, d_tracer,
 				    tr, &ftrace_avail_fops);
 	if (!entry)
-		pr_warn("Could not create debugfs 'available_events' entry\n");
+		pr_warn("Could not create tracefs 'available_events' entry\n");
 
 	if (trace_define_common_fields())
 		pr_warn("tracing: Failed to allocate common fields");
