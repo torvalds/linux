@@ -419,16 +419,16 @@ static ktime_t __hrtimer_get_next_event(struct hrtimer_cpu_base *cpu_base)
 {
 	struct hrtimer_clock_base *base = cpu_base->clock_base;
 	ktime_t expires, expires_next = { .tv64 = KTIME_MAX };
-	int i;
+	unsigned int active = cpu_base->active_bases;
 
-	for (i = 0; i < HRTIMER_MAX_CLOCK_BASES; i++, base++) {
+	for (; active; base++, active >>= 1) {
 		struct timerqueue_node *next;
 		struct hrtimer *timer;
 
-		next = timerqueue_getnext(&base->active);
-		if (!next)
+		if (!(active & 0x01))
 			continue;
 
+		next = timerqueue_getnext(&base->active);
 		timer = container_of(next, struct hrtimer, node);
 		expires = ktime_sub(hrtimer_get_expires(timer), base->offset);
 		if (expires.tv64 < expires_next.tv64)
@@ -1214,17 +1214,16 @@ static void __run_hrtimer(struct hrtimer_cpu_base *cpu_base,
 
 static void __hrtimer_run_queues(struct hrtimer_cpu_base *cpu_base, ktime_t now)
 {
-	int i;
+	struct hrtimer_clock_base *base = cpu_base->clock_base;
+	unsigned int active = cpu_base->active_bases;
 
-	for (i = 0; i < HRTIMER_MAX_CLOCK_BASES; i++) {
-		struct hrtimer_clock_base *base;
+	for (; active; base++, active >>= 1) {
 		struct timerqueue_node *node;
 		ktime_t basenow;
 
-		if (!(cpu_base->active_bases & (1 << i)))
+		if (!(active & 0x01))
 			continue;
 
-		base = cpu_base->clock_base + i;
 		basenow = ktime_add(now, base->offset);
 
 		while ((node = timerqueue_getnext(&base->active))) {
