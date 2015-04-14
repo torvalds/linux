@@ -730,6 +730,22 @@ static void *alloc_ring(struct device *dev, size_t nelem, size_t elem_size,
  */
 static inline unsigned int sgl_len(unsigned int n)
 {
+	/* A Direct Scatter Gather List uses 32-bit lengths and 64-bit PCI DMA
+	 * addresses.  The DSGL Work Request starts off with a 32-bit DSGL
+	 * ULPTX header, then Length0, then Address0, then, for 1 <= i <= N,
+	 * repeated sequences of { Length[i], Length[i+1], Address[i],
+	 * Address[i+1] } (this ensures that all addresses are on 64-bit
+	 * boundaries).  If N is even, then Length[N+1] should be set to 0 and
+	 * Address[N+1] is omitted.
+	 *
+	 * The following calculation incorporates all of the above.  It's
+	 * somewhat hard to follow but, briefly: the "+2" accounts for the
+	 * first two flits which include the DSGL header, Length0 and
+	 * Address0; the "(3*(n-1))/2" covers the main body of list entries (3
+	 * flits for every pair of the remaining N) +1 if (n-1) is odd; and
+	 * finally the "+((n-1)&1)" adds the one remaining flit needed if
+	 * (n-1) is odd ...
+	 */
 	n--;
 	return (3 * n) / 2 + (n & 1) + 2;
 }
@@ -777,12 +793,30 @@ static inline unsigned int calc_tx_flits(const struct sk_buff *skb)
 	unsigned int flits;
 	int hdrlen = is_eth_imm(skb);
 
+	/* If the skb is small enough, we can pump it out as a work request
+	 * with only immediate data.  In that case we just have to have the
+	 * TX Packet header plus the skb data in the Work Request.
+	 */
+
 	if (hdrlen)
 		return DIV_ROUND_UP(skb->len + hdrlen, sizeof(__be64));
 
+	/* Otherwise, we're going to have to construct a Scatter gather list
+	 * of the skb body and fragments.  We also include the flits necessary
+	 * for the TX Packet Work Request and CPL.  We always have a firmware
+	 * Write Header (incorporated as part of the cpl_tx_pkt_lso and
+	 * cpl_tx_pkt structures), followed by either a TX Packet Write CPL
+	 * message or, if we're doing a Large Send Offload, an LSO CPL message
+	 * with an embedded TX Packet Write CPL message.
+	 */
 	flits = sgl_len(skb_shinfo(skb)->nr_frags + 1) + 4;
 	if (skb_shinfo(skb)->gso_size)
-		flits += 2;
+		flits += (sizeof(struct fw_eth_tx_pkt_wr) +
+			  sizeof(struct cpl_tx_pkt_lso_core) +
+			  sizeof(struct cpl_tx_pkt_core)) / sizeof(__be64);
+	else
+		flits += (sizeof(struct fw_eth_tx_pkt_wr) +
+			  sizeof(struct cpl_tx_pkt_core)) / sizeof(__be64);
 	return flits;
 }
 
