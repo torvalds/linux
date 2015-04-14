@@ -38,13 +38,15 @@ struct m88ds3103_priv {
 	struct dvb_frontend fe;
 	fe_delivery_system_t delivery_system;
 	fe_status_t fe_status;
-	u32 ber;
+	u32 dvbv3_ber; /* for old DVBv3 API read_ber */
 	bool warm; /* FW running */
 	struct i2c_adapter *i2c_adapter;
 	/* auto detect chip id to do different config */
 	u8 chip_id;
 	/* main mclk is calculated for M88RS6000 dynamically */
 	u32 mclk_khz;
+	u64 post_bit_error;
+	u64 post_bit_count;
 };
 
 struct m88ds3103_reg_val {
