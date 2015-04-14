@@ -2063,11 +2063,8 @@ static void futex_wait_queue_me(struct futex_hash_bucket *hb, struct futex_q *q,
 	queue_me(q, hb);
 
 	/* Arm the timer */
-	if (timeout) {
+	if (timeout)
 		hrtimer_start_expires(&timeout->timer, HRTIMER_MODE_ABS);
-		if (!hrtimer_active(&timeout->timer))
-			timeout->task = NULL;
-	}
 
 	/*
 	 * If we have been removed from the hash list, then another task
