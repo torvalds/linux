@@ -24,8 +24,6 @@
 
 #include <drm/drm_panel.h>
 
-#include "bridge/ptn3460.h"
-
 #include "drm_crtc.h"
 #include "drm_crtc_helper.h"
 #include "drm_edid.h"
