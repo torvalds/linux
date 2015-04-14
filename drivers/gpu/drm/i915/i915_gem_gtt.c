@@ -145,8 +145,25 @@ static int sanitize_enable_ppgtt(struct drm_device *dev, int enable_ppgtt)
 
 static void ppgtt_bind_vma(struct i915_vma *vma,
 			   enum i915_cache_level cache_level,
-			   u32 flags);
-static void ppgtt_unbind_vma(struct i915_vma *vma);
+			   u32 unused)
+{
+	u32 pte_flags = 0;
+
+	/* Currently applicable only to VLV */
+	if (vma->obj->gt_ro)
+		pte_flags |= PTE_READ_ONLY;
+
+	vma->vm->insert_entries(vma->vm, vma->obj->pages, vma->node.start,
+				cache_level, pte_flags);
+}
+
+static void ppgtt_unbind_vma(struct i915_vma *vma)
+{
+	vma->vm->clear_range(vma->vm,
+			     vma->node.start,
+			     vma->obj->base.size,
+			     true);
+}
 
 static inline gen8_pte_t gen8_pte_encode(dma_addr_t addr,
 					 enum i915_cache_level level,
@@ -1602,29 +1619,6 @@ void  i915_ppgtt_release(struct kref *kref)
 
 	ppgtt->base.cleanup(&ppgtt->base);
 	kfree(ppgtt);
-}
-
-static void
-ppgtt_bind_vma(struct i915_vma *vma,
-	       enum i915_cache_level cache_level,
-	       u32 unused)
-{
-	u32 pte_flags = 0;
-
-	/* Currently applicable only to VLV */
-	if (vma->obj->gt_ro)
-		pte_flags |= PTE_READ_ONLY;
-
-	vma->vm->insert_entries(vma->vm, vma->obj->pages, vma->node.start,
-				cache_level, pte_flags);
-}
-
-static void ppgtt_unbind_vma(struct i915_vma *vma)
-{
-	vma->vm->clear_range(vma->vm,
-			     vma->node.start,
-			     vma->obj->base.size,
-			     true);
 }
 
 extern int intel_iommu_gfx_mapped;
