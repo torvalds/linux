@@ -144,7 +144,7 @@
  * Max Tx descriptor space we allow for an Ethernet packet to be inlined
  * into a WR.
  */
-#define MAX_IMM_TX_PKT_LEN 128
+#define MAX_IMM_TX_PKT_LEN 256
 
 /*
  * Max size of a WR sent through a control Tx queue.
