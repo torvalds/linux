@@ -1063,7 +1063,7 @@ static int user_cluster_connect(struct ocfs2_cluster_connection *conn)
 	}
 
 out:
-	if (rc && lc)
+	if (rc)
 		kfree(lc);
 	return rc;
 }

@@ -3453,8 +3453,7 @@ static int ocfs2_merge_rec_right(struct ocfs2_path *left_path,
 					   subtree_index);
 	}
 out:
-	if (right_path)
-		ocfs2_free_path(right_path);
+	ocfs2_free_path(right_path);
 	return ret;
 }
 
@@ -3647,8 +3646,7 @@ static int ocfs2_merge_rec_left(struct ocfs2_path *right_path,
 						   right_path, subtree_index);
 	}
 out:
-	if (left_path)
-		ocfs2_free_path(left_path);
+	ocfs2_free_path(left_path);
 	return ret;
 }
 
@@ -4431,11 +4429,8 @@ ocfs2_figure_merge_contig_type(struct ocfs2_extent_tree *et,
 	}
 
 out:
-	if (left_path)
-		ocfs2_free_path(left_path);
-	if (right_path)
-		ocfs2_free_path(right_path);
-
+	ocfs2_free_path(left_path);
+	ocfs2_free_path(right_path);
 	return ret;
 }
 
@@ -6996,9 +6991,7 @@ out_commit:
 out:
 	if (data_ac)
 		ocfs2_free_alloc_context(data_ac);
-	if (pages)
-		kfree(pages);
-
+	kfree(pages);
 	return ret;
 }
 
