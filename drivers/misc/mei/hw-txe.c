@@ -16,6 +16,7 @@
 
 #include <linux/pci.h>
 #include <linux/jiffies.h>
+#include <linux/ktime.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/irqreturn.h>
@@ -218,26 +219,25 @@ static u32 mei_txe_aliveness_get(struct mei_device *dev)
  *
  * Polls for HICR_HOST_ALIVENESS_RESP.ALIVENESS_RESP to be set
  *
- * Return: > 0 if the expected value was received, -ETIME otherwise
+ * Return: 0 if the expected value was received, -ETIME otherwise
  */
 static int mei_txe_aliveness_poll(struct mei_device *dev, u32 expected)
 {
 	struct mei_txe_hw *hw = to_txe_hw(dev);
-	int t = 0;
+	ktime_t stop, start;
 
+	start = ktime_get();
+	stop = ktime_add(start, ms_to_ktime(SEC_ALIVENESS_WAIT_TIMEOUT));
 	do {
 		hw->aliveness = mei_txe_aliveness_get(dev);
 		if (hw->aliveness == expected) {
 			dev->pg_event = MEI_PG_EVENT_IDLE;
-			dev_dbg(dev->dev,
-				"aliveness settled after %d msecs\n", t);
-			return t;
+			dev_dbg(dev->dev, "aliveness settled after %lld usecs\n",
+				ktime_to_us(ktime_sub(ktime_get(), start)));
+			return 0;
 		}
-		mutex_unlock(&dev->device_lock);
-		msleep(MSEC_PER_SEC / 5);
-		mutex_lock(&dev->device_lock);
-		t += MSEC_PER_SEC / 5;
-	} while (t < SEC_ALIVENESS_WAIT_TIMEOUT);
+		usleep_range(20, 50);
+	} while (ktime_before(ktime_get(), stop));
 
 	dev->pg_event = MEI_PG_EVENT_IDLE;
 	dev_err(dev->dev, "aliveness timed out\n");
