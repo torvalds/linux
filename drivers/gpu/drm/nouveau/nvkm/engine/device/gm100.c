@@ -170,9 +170,7 @@ gm100_identify(struct nvkm_device *device)
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  gf110_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  gm204_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  gf100_sw_oclass;
-#if 0
-		device->oclass[NVDEV_ENGINE_GR     ] =  gm107_gr_oclass;
-#endif
+		device->oclass[NVDEV_ENGINE_GR     ] =  gm206_gr_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  gm204_disp_oclass;
 		device->oclass[NVDEV_ENGINE_CE0    ] = &gm204_ce0_oclass;
 		device->oclass[NVDEV_ENGINE_CE1    ] = &gm204_ce1_oclass;

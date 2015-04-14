@@ -129,6 +129,8 @@ int  gk104_gr_ctor(struct nvkm_object *, struct nvkm_object *,
 		     struct nvkm_object **);
 int  gk104_gr_init(struct nvkm_object *);
 
+int  gm204_gr_init(struct nvkm_object *);
+
 extern struct nvkm_ofuncs gf100_fermi_ofuncs;
 
 extern struct nvkm_oclass gf100_gr_sclass[];
@@ -136,6 +138,7 @@ extern struct nvkm_omthds gf100_gr_9097_omthds[];
 extern struct nvkm_omthds gf100_gr_90c0_omthds[];
 extern struct nvkm_oclass gf110_gr_sclass[];
 extern struct nvkm_oclass gk110_gr_sclass[];
+extern struct nvkm_oclass gm204_gr_sclass[];
 
 struct gf100_gr_init {
 	u32 addr;
@@ -259,4 +262,5 @@ extern const struct gf100_gr_init gm107_gr_init_wwdx_0[];
 extern const struct gf100_gr_init gm107_gr_init_cbm_0[];
 void gm107_gr_init_bios(struct gf100_gr_priv *);
 
+extern const struct gf100_gr_pack gm204_gr_pack_mmio[];
 #endif

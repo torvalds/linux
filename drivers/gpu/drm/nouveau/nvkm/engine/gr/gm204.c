@@ -30,7 +30,7 @@
  * Graphics object classes
  ******************************************************************************/
 
-static struct nvkm_oclass
+struct nvkm_oclass
 gm204_gr_sclass[] = {
 	{ FERMI_TWOD_A, &nvkm_object_ofuncs },
 	{ KEPLER_INLINE_TO_MEMORY_B, &nvkm_object_ofuncs },
@@ -196,7 +196,7 @@ gm204_gr_init_be_0[] = {
 	{}
 };
 
-static const struct gf100_gr_pack
+const struct gf100_gr_pack
 gm204_gr_pack_mmio[] = {
 	{ gm204_gr_init_main_0 },
 	{ gm204_gr_init_fe_0 },
@@ -248,7 +248,7 @@ gm204_gr_init_ctxctl(struct gf100_gr_priv *priv)
 	return 0;
 }
 
-static int
+int
 gm204_gr_init(struct nvkm_object *object)
 {
 	struct gf100_gr_oclass *oclass = (void *)object->oclass;

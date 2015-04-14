@@ -294,7 +294,7 @@ gm204_grctx_init_icmd_0[] = {
 	{}
 };
 
-static const struct gf100_gr_pack
+const struct gf100_gr_pack
 gm204_grctx_pack_icmd[] = {
 	{ gm204_grctx_init_icmd_0 },
 	{}
@@ -642,7 +642,7 @@ gm204_grctx_init_b197_0[] = {
 	{}
 };
 
-static const struct gf100_gr_pack
+const struct gf100_gr_pack
 gm204_grctx_pack_mthd[] = {
 	{ gm204_grctx_init_b197_0, 0xb197 },
 	{ gf100_grctx_init_902d_0, 0x902d },
@@ -723,7 +723,7 @@ gm204_grctx_init_be_0[] = {
 	{}
 };
 
-static const struct gf100_gr_pack
+const struct gf100_gr_pack
 gm204_grctx_pack_hub[] = {
 	{ gf100_grctx_init_main_0 },
 	{ gm204_grctx_init_fe_0 },
@@ -738,7 +738,7 @@ gm204_grctx_pack_hub[] = {
 	{}
 };
 
-static const struct gf100_gr_init
+const struct gf100_gr_init
 gm204_grctx_init_prop_0[] = {
 	{ 0x418400,   1, 0x04, 0x38e01e00 },
 	{ 0x418404,   1, 0x04, 0x70001fff },
@@ -764,7 +764,7 @@ gm204_grctx_init_gpc_unk_1[] = {
 	{}
 };
 
-static const struct gf100_gr_init
+const struct gf100_gr_init
 gm204_grctx_init_setup_0[] = {
 	{ 0x418800,   1, 0x04, 0x7006863a },
 	{ 0x418808,   1, 0x04, 0x00000000 },
@@ -778,7 +778,7 @@ gm204_grctx_init_setup_0[] = {
 	{}
 };
 
-static const struct gf100_gr_init
+const struct gf100_gr_init
 gm204_grctx_init_gpm_0[] = {
 	{ 0x418c10,   8, 0x04, 0x00000000 },
 	{ 0x418c40,   1, 0x04, 0xffffffff },
@@ -787,7 +787,7 @@ gm204_grctx_init_gpm_0[] = {
 	{}
 };
 
-static const struct gf100_gr_init
+const struct gf100_gr_init
 gm204_grctx_init_gpc_unk_2[] = {
 	{ 0x418e00,   1, 0x04, 0x90040000 },
 	{ 0x418e24,   1, 0x04, 0x00000000 },
@@ -880,7 +880,7 @@ gm204_grctx_init_sm_0[] = {
 	{}
 };
 
-static const struct gf100_gr_pack
+const struct gf100_gr_pack
 gm204_grctx_pack_tpc[] = {
 	{ gm204_grctx_init_pe_0 },
 	{ gm204_grctx_init_tex_0 },
@@ -906,7 +906,7 @@ gm204_grctx_init_cbm_0[] = {
 	{}
 };
 
-static const struct gf100_gr_pack
+const struct gf100_gr_pack
 gm204_grctx_pack_ppc[] = {
 	{ gm204_grctx_init_pes_0 },
 	{ gm204_grctx_init_cbm_0 },
@@ -974,7 +974,7 @@ gm204_grctx_generate_405b60(struct gf100_gr_priv *priv)
 		nv_wr32(priv, 0x405ba0 + (i * 4), gpcs[i]);
 }
 
-static void
+void
 gm204_grctx_generate_main(struct gf100_gr_priv *priv, struct gf100_grctx *info)
 {
 	struct gf100_grctx_oclass *oclass = (void *)nv_engine(priv)->cclass;
