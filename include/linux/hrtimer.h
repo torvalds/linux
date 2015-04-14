@@ -386,7 +386,7 @@ static inline int hrtimer_restart(struct hrtimer *timer)
 /* Query timers: */
 extern ktime_t hrtimer_get_remaining(const struct hrtimer *timer);
 
-extern ktime_t hrtimer_get_next_event(void);
+extern u64 hrtimer_get_next_event(void);
 
 /*
  * A timer is active, when it is enqueued into the rbtree or the
