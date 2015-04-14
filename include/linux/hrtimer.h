@@ -163,7 +163,7 @@ enum  hrtimer_base_type {
  *			and timers
  * @cpu:		cpu number
  * @active_bases:	Bitfield to mark bases with active timers
- * @clock_was_set:	Indicates that clock was set from irq context.
+ * @clock_was_set_seq:	Sequence counter of clock was set events
  * @expires_next:	absolute time of the next event which was scheduled
  *			via clock_set_next_event()
  * @in_hrtirq:		hrtimer_interrupt() is currently executing
@@ -179,7 +179,7 @@ struct hrtimer_cpu_base {
 	raw_spinlock_t			lock;
 	unsigned int			cpu;
 	unsigned int			active_bases;
-	unsigned int			clock_was_set;
+	unsigned int			clock_was_set_seq;
 #ifdef CONFIG_HIGH_RES_TIMERS
 	ktime_t				expires_next;
 	int				in_hrtirq;

@@ -602,6 +602,9 @@ static void timekeeping_update(struct timekeeper *tk, unsigned int action)
 
 	update_fast_timekeeper(&tk->tkr_mono, &tk_fast_mono);
 	update_fast_timekeeper(&tk->tkr_raw,  &tk_fast_raw);
+
+	if (action & TK_CLOCK_WAS_SET)
+		tk->clock_was_set_seq++;
 }
 
 /**
@@ -1927,15 +1930,19 @@ void do_timer(unsigned long ticks)
 
 /**
  * ktime_get_update_offsets_now - hrtimer helper
+ * @cwsseq:	pointer to check and store the clock was set sequence number
  * @offs_real:	pointer to storage for monotonic -> realtime offset
  * @offs_boot:	pointer to storage for monotonic -> boottime offset
  * @offs_tai:	pointer to storage for monotonic -> clock tai offset
  *
- * Returns current monotonic time and updates the offsets
+ * Returns current monotonic time and updates the offsets if the
+ * sequence number in @cwsseq and timekeeper.clock_was_set_seq are
+ * different.
+ *
  * Called from hrtimer_interrupt() or retrigger_next_event()
  */
-ktime_t ktime_get_update_offsets_now(ktime_t *offs_real, ktime_t *offs_boot,
-							ktime_t *offs_tai)
+ktime_t ktime_get_update_offsets_now(unsigned int *cwsseq, ktime_t *offs_real,
+				     ktime_t *offs_boot, ktime_t *offs_tai)
 {
 	struct timekeeper *tk = &tk_core.timekeeper;
 	unsigned int seq;
@@ -1947,10 +1954,12 @@ ktime_t ktime_get_update_offsets_now(ktime_t *offs_real, ktime_t *offs_boot,
 
 		base = tk->tkr_mono.base;
 		nsecs = timekeeping_get_ns(&tk->tkr_mono);
-
-		*offs_real = tk->offs_real;
-		*offs_boot = tk->offs_boot;
-		*offs_tai = tk->offs_tai;
+		if (*cwsseq != tk->clock_was_set_seq) {
+			*cwsseq = tk->clock_was_set_seq;
+			*offs_real = tk->offs_real;
+			*offs_boot = tk->offs_boot;
+			*offs_tai = tk->offs_tai;
+		}
 	} while (read_seqcount_retry(&tk_core.seq, seq));
 
 	return ktime_add_ns(base, nsecs);
