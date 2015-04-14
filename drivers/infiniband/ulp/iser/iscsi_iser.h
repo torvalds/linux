@@ -261,23 +261,6 @@ struct iser_mem_reg {
 	void *mem_h;
 };
 
-/**
- * struct iser_regd_buf - iSER buffer registration desc
- *
- * @reg:          memory registration info
- * @virt_addr:    virtual address of buffer
- * @device:       reference to iser device
- * @direction:    dma direction (for dma_unmap)
- * @data_size:    data buffer size in bytes
- */
-struct iser_regd_buf {
-	struct iser_mem_reg     reg;
-	void                    *virt_addr;
-	struct iser_device      *device;
-	enum dma_data_direction direction;
-	unsigned int            data_size;
-};
-
 enum iser_desc_type {
 	ISCSI_TX_CONTROL ,
 	ISCSI_TX_SCSI_COMMAND,
@@ -537,7 +520,7 @@ struct iser_conn {
  * @sc:               link to scsi command
  * @command_sent:     indicate if command was sent
  * @dir:              iser data direction
- * @rdma_regd:        task rdma registration desc
+ * @rdma_reg:         task rdma registration desc
  * @data:             iser data buffer desc
  * @prot:             iser protection buffer desc
  */
@@ -548,7 +531,7 @@ struct iscsi_iser_task {
 	struct scsi_cmnd	     *sc;
 	int                          command_sent;
 	int                          dir[ISER_DIRS_NUM];
-	struct iser_regd_buf         rdma_regd[ISER_DIRS_NUM];
+	struct iser_mem_reg          rdma_reg[ISER_DIRS_NUM];
 	struct iser_data_buf         data[ISER_DIRS_NUM];
 	struct iser_data_buf         prot[ISER_DIRS_NUM];
 };

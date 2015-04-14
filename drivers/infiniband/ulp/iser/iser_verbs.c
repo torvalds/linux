@@ -1220,7 +1220,7 @@ static void iser_cq_callback(struct ib_cq *cq, void *cq_context)
 u8 iser_check_task_pi_status(struct iscsi_iser_task *iser_task,
 			     enum iser_data_dir cmd_dir, sector_t *sector)
 {
-	struct iser_mem_reg *reg = &iser_task->rdma_regd[cmd_dir].reg;
+	struct iser_mem_reg *reg = &iser_task->rdma_reg[cmd_dir];
 	struct fast_reg_descriptor *desc = reg->mem_h;
 	unsigned long sector_size = iser_task->sc->device->sector_size;
 	struct ib_mr_status mr_status;

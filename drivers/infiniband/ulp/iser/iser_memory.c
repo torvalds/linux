@@ -414,7 +414,7 @@ int iser_reg_page_vec(struct ib_conn *ib_conn,
 void iser_unreg_mem_fmr(struct iscsi_iser_task *iser_task,
 			enum iser_data_dir cmd_dir)
 {
-	struct iser_mem_reg *reg = &iser_task->rdma_regd[cmd_dir].reg;
+	struct iser_mem_reg *reg = &iser_task->rdma_reg[cmd_dir];
 	int ret;
 
 	if (!reg->mem_h)
@@ -432,7 +432,7 @@ void iser_unreg_mem_fmr(struct iscsi_iser_task *iser_task,
 void iser_unreg_mem_fastreg(struct iscsi_iser_task *iser_task,
 			    enum iser_data_dir cmd_dir)
 {
-	struct iser_mem_reg *reg = &iser_task->rdma_regd[cmd_dir].reg;
+	struct iser_mem_reg *reg = &iser_task->rdma_reg[cmd_dir];
 	struct iser_conn *iser_conn = iser_task->iser_conn;
 	struct ib_conn *ib_conn = &iser_conn->ib_conn;
 	struct fast_reg_descriptor *desc = reg->mem_h;
@@ -459,13 +459,13 @@ int iser_reg_rdma_mem_fmr(struct iscsi_iser_task *iser_task,
 	struct iser_device   *device = ib_conn->device;
 	struct ib_device     *ibdev = device->ib_device;
 	struct iser_data_buf *mem = &iser_task->data[cmd_dir];
-	struct iser_regd_buf *regd_buf;
+	struct iser_mem_reg *mem_reg;
 	int aligned_len;
 	int err;
 	int i;
 	struct scatterlist *sg;
 
-	regd_buf = &iser_task->rdma_regd[cmd_dir];
+	mem_reg = &iser_task->rdma_reg[cmd_dir];
 
 	aligned_len = iser_data_buf_aligned_len(mem, ibdev);
 	if (aligned_len != mem->dma_nents) {
@@ -481,21 +481,21 @@ int iser_reg_rdma_mem_fmr(struct iscsi_iser_task *iser_task,
 	if (mem->dma_nents == 1) {
 		sg = mem->sg;
 
-		regd_buf->reg.lkey = device->mr->lkey;
-		regd_buf->reg.rkey = device->mr->rkey;
-		regd_buf->reg.len  = ib_sg_dma_len(ibdev, &sg[0]);
-		regd_buf->reg.va   = ib_sg_dma_address(ibdev, &sg[0]);
+		mem_reg->lkey = device->mr->lkey;
+		mem_reg->rkey = device->mr->rkey;
+		mem_reg->len  = ib_sg_dma_len(ibdev, &sg[0]);
+		mem_reg->va   = ib_sg_dma_address(ibdev, &sg[0]);
 
 		iser_dbg("PHYSICAL Mem.register: lkey: 0x%08X rkey: 0x%08X  "
 			 "va: 0x%08lX sz: %ld]\n",
-			 (unsigned int)regd_buf->reg.lkey,
-			 (unsigned int)regd_buf->reg.rkey,
-			 (unsigned long)regd_buf->reg.va,
-			 (unsigned long)regd_buf->reg.len);
+			 (unsigned int)mem_reg->lkey,
+			 (unsigned int)mem_reg->rkey,
+			 (unsigned long)mem_reg->va,
+			 (unsigned long)mem_reg->len);
 	} else { /* use FMR for multiple dma entries */
 		iser_page_vec_build(mem, ib_conn->fmr.page_vec, ibdev);
 		err = iser_reg_page_vec(ib_conn, ib_conn->fmr.page_vec,
-					&regd_buf->reg);
+					mem_reg);
 		if (err && err != -EAGAIN) {
 			iser_data_buf_dump(mem, ibdev);
 			iser_err("mem->dma_nents = %d (dlength = 0x%x)\n",
@@ -652,12 +652,12 @@ err:
 }
 
 static int iser_fast_reg_mr(struct iscsi_iser_task *iser_task,
-			    struct iser_regd_buf *regd_buf,
+			    struct iser_mem_reg *mem_reg,
 			    struct iser_data_buf *mem,
 			    enum iser_reg_indicator ind,
 			    struct ib_sge *sge)
 {
-	struct fast_reg_descriptor *desc = regd_buf->reg.mem_h;
+	struct fast_reg_descriptor *desc = mem_reg->mem_h;
 	struct ib_conn *ib_conn = &iser_task->iser_conn->ib_conn;
 	struct iser_device *device = ib_conn->device;
 	struct ib_device *ibdev = device->ib_device;
@@ -746,7 +746,7 @@ int iser_reg_rdma_mem_fastreg(struct iscsi_iser_task *iser_task,
 	struct iser_device *device = ib_conn->device;
 	struct ib_device *ibdev = device->ib_device;
 	struct iser_data_buf *mem = &iser_task->data[cmd_dir];
-	struct iser_regd_buf *regd_buf = &iser_task->rdma_regd[cmd_dir];
+	struct iser_mem_reg *mem_reg = &iser_task->rdma_reg[cmd_dir];
 	struct fast_reg_descriptor *desc = NULL;
 	struct ib_sge data_sge;
 	int err, aligned_len;
@@ -769,10 +769,10 @@ int iser_reg_rdma_mem_fastreg(struct iscsi_iser_task *iser_task,
 					struct fast_reg_descriptor, list);
 		list_del(&desc->list);
 		spin_unlock_irqrestore(&ib_conn->lock, flags);
-		regd_buf->reg.mem_h = desc;
+		mem_reg->mem_h = desc;
 	}
 
-	err = iser_fast_reg_mr(iser_task, regd_buf, mem,
+	err = iser_fast_reg_mr(iser_task, mem_reg, mem,
 			       ISER_DATA_KEY_VALID, &data_sge);
 	if (err)
 		goto err_reg;
@@ -793,7 +793,7 @@ int iser_reg_rdma_mem_fastreg(struct iscsi_iser_task *iser_task,
 				}
 			}
 
-			err = iser_fast_reg_mr(iser_task, regd_buf, mem,
+			err = iser_fast_reg_mr(iser_task, mem_reg, mem,
 					       ISER_PROT_KEY_VALID, &prot_sge);
 			if (err)
 				goto err_reg;
@@ -807,19 +807,19 @@ int iser_reg_rdma_mem_fastreg(struct iscsi_iser_task *iser_task,
 		}
 		desc->reg_indicators |= ISER_FASTREG_PROTECTED;
 
-		regd_buf->reg.lkey = sig_sge.lkey;
-		regd_buf->reg.rkey = desc->pi_ctx->sig_mr->rkey;
-		regd_buf->reg.va = sig_sge.addr;
-		regd_buf->reg.len = sig_sge.length;
+		mem_reg->lkey = sig_sge.lkey;
+		mem_reg->rkey = desc->pi_ctx->sig_mr->rkey;
+		mem_reg->va = sig_sge.addr;
+		mem_reg->len = sig_sge.length;
 	} else {
 		if (desc)
-			regd_buf->reg.rkey = desc->data_mr->rkey;
+			mem_reg->rkey = desc->data_mr->rkey;
 		else
-			regd_buf->reg.rkey = device->mr->rkey;
+			mem_reg->rkey = device->mr->rkey;
 
-		regd_buf->reg.lkey = data_sge.lkey;
-		regd_buf->reg.va = data_sge.addr;
-		regd_buf->reg.len = data_sge.length;
+		mem_reg->lkey = data_sge.lkey;
+		mem_reg->va = data_sge.addr;
+		mem_reg->len = data_sge.length;
 	}
 
 	return 0;
