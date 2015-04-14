@@ -592,8 +592,10 @@ static unsigned int refill_fl(struct adapter *adap, struct sge_fl *q, int n,
 	unsigned int cred = q->avail;
 	__be64 *d = &q->desc[q->pidx];
 	struct rx_sw_desc *sd = &q->sdesc[q->pidx];
+	int node;
 
 	gfp |= __GFP_NOWARN;
+	node = dev_to_node(adap->pdev_dev);
 
 	if (s->fl_pg_order == 0)
 		goto alloc_small_pages;
@@ -602,7 +604,7 @@ static unsigned int refill_fl(struct adapter *adap, struct sge_fl *q, int n,
 	 * Prefer large buffers
 	 */
 	while (n) {
-		pg = __dev_alloc_pages(gfp, s->fl_pg_order);
+		pg = alloc_pages_node(node, gfp | __GFP_COMP, s->fl_pg_order);
 		if (unlikely(!pg)) {
 			q->large_alloc_failed++;
 			break;       /* fall back to single pages */
@@ -632,7 +634,7 @@ static unsigned int refill_fl(struct adapter *adap, struct sge_fl *q, int n,
 
 alloc_small_pages:
 	while (n--) {
-		pg = __dev_alloc_page(gfp);
+		pg = alloc_pages_node(node, gfp, 0);
 		if (unlikely(!pg)) {
 			q->alloc_failed++;
 			break;
