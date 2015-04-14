@@ -414,10 +414,10 @@ enum bgmac_dma_ring_type {
  * empty.
  */
 struct bgmac_dma_ring {
-	u16 num_slots;
-	u16 start;
-	u16 end;
+	u32 start;
+	u32 end;
 
+	u16 num_slots;
 	u16 mmio_base;
 	struct bgmac_dma_desc *cpu_base;
 	dma_addr_t dma_base;
