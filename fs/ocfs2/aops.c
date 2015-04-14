@@ -772,10 +772,17 @@ static ssize_t ocfs2_direct_IO_write(struct kiocb *iocb,
 		u32 p_cpos = 0;
 		u32 v_cpos = ocfs2_bytes_to_clusters(osb->sb, offset);
 
+		ret = ocfs2_inode_lock(inode, NULL, 0);
+		if (ret < 0) {
+			mlog_errno(ret);
+			goto clean_orphan;
+		}
+
 		ret = ocfs2_get_clusters(inode, v_cpos, &p_cpos,
 				&num_clusters, &ext_flags);
 		if (ret < 0) {
 			mlog_errno(ret);
+			ocfs2_inode_unlock(inode, 0);
 			goto clean_orphan;
 		}
 
@@ -783,9 +790,11 @@ static ssize_t ocfs2_direct_IO_write(struct kiocb *iocb,
 
 		ret = blkdev_issue_zeroout(osb->sb->s_bdev,
 				p_cpos << (osb->s_clustersize_bits - 9),
-				zero_len >> 9, GFP_KERNEL, false);
+				zero_len >> 9, GFP_NOFS, false);
 		if (ret < 0)
 			mlog_errno(ret);
+
+		ocfs2_inode_unlock(inode, 0);
 	}
 
 clean_orphan:
