@@ -73,6 +73,7 @@ enum msg_type {
 	RESYNCING,
 	NEWDISK,
 	REMOVE,
+	RE_ADD,
 };
 
 struct cluster_msg {
@@ -253,7 +254,7 @@ static void recover_bitmaps(struct md_thread *thread)
 					str, ret);
 			goto clear_bit;
 		}
-		ret = bitmap_copy_from_slot(mddev, slot, &lo, &hi);
+		ret = bitmap_copy_from_slot(mddev, slot, &lo, &hi, true);
 		if (ret) {
 			pr_err("md-cluster: Could not copy data from bitmap %d\n", slot);
 			goto dlm_unlock;
@@ -412,6 +413,16 @@ static void process_remove_disk(struct mddev *mddev, struct cluster_msg *msg)
 		pr_warn("%s: %d Could not find disk(%d) to REMOVE\n", __func__, __LINE__, msg->raid_slot);
 }
 
+static void process_readd_disk(struct mddev *mddev, struct cluster_msg *msg)
+{
+	struct md_rdev *rdev = md_find_rdev_nr_rcu(mddev, msg->raid_slot);
+
+	if (rdev && test_bit(Faulty, &rdev->flags))
+		clear_bit(Faulty, &rdev->flags);
+	else
+		pr_warn("%s: %d Could not find disk(%d) which is faulty", __func__, __LINE__, msg->raid_slot);
+}
+
 static void process_recvd_msg(struct mddev *mddev, struct cluster_msg *msg)
 {
 	switch (msg->type) {
@@ -435,6 +446,11 @@ static void process_recvd_msg(struct mddev *mddev, struct cluster_msg *msg)
 		pr_info("%s: %d Received REMOVE from %d\n",
 			__func__, __LINE__, msg->slot);
 		process_remove_disk(mddev, msg);
+		break;
+	case RE_ADD:
+		pr_info("%s: %d Received RE_ADD from %d\n",
+			__func__, __LINE__, msg->slot);
+		process_readd_disk(mddev, msg);
 		break;
 	default:
 		pr_warn("%s:%d Received unknown message from %d\n",
@@ -883,6 +899,35 @@ static int remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 	return __sendmsg(cinfo, &cmsg);
 }
 
+static int gather_bitmaps(struct md_rdev *rdev)
+{
+	int sn, err;
+	sector_t lo, hi;
+	struct cluster_msg cmsg;
+	struct mddev *mddev = rdev->mddev;
+	struct md_cluster_info *cinfo = mddev->cluster_info;
+
+	cmsg.type = RE_ADD;
+	cmsg.raid_slot = rdev->desc_nr;
+	err = sendmsg(cinfo, &cmsg);
+	if (err)
+		goto out;
+
+	for (sn = 0; sn < mddev->bitmap_info.nodes; sn++) {
+		if (sn == (cinfo->slot_number - 1))
+			continue;
+		err = bitmap_copy_from_slot(mddev, sn, &lo, &hi, false);
+		if (err) {
+			pr_warn("md-cluster: Could not gather bitmaps from slot %d", sn);
+			goto out;
+		}
+		if ((hi > 0) && (lo < mddev->recovery_cp))
+			mddev->recovery_cp = lo;
+	}
+out:
+	return err;
+}
+
 static struct md_cluster_operations cluster_ops = {
 	.join   = join,
 	.leave  = leave,
@@ -898,6 +943,7 @@ static struct md_cluster_operations cluster_ops = {
 	.add_new_disk_finish = add_new_disk_finish,
 	.new_disk_ack = new_disk_ack,
 	.remove_disk = remove_disk,
+	.gather_bitmaps = gather_bitmaps,
 };
 
 static int __init cluster_init(void)

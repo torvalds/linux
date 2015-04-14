@@ -2596,8 +2596,17 @@ state_store(struct md_rdev *rdev, const char *buf, size_t len)
 		}
 	} else if (cmd_match(buf, "re-add")) {
 		if (test_bit(Faulty, &rdev->flags) && (rdev->raid_disk == -1)) {
-			clear_bit(Faulty, &rdev->flags);
-			err = add_bound_rdev(rdev);
+			/* clear_bit is performed _after_ all the devices
+			 * have their local Faulty bit cleared. If any writes
+			 * happen in the meantime in the local node, they
+			 * will land in the local bitmap, which will be synced
+			 * by this node eventually
+			 */
+			if (!mddev_is_clustered(rdev->mddev) ||
+			    (err = md_cluster_ops->gather_bitmaps(rdev)) == 0) {
+				clear_bit(Faulty, &rdev->flags);
+				err = add_bound_rdev(rdev);
+			}
 		} else
 			err = -EBUSY;
 	}

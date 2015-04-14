@@ -1851,7 +1851,7 @@ EXPORT_SYMBOL_GPL(bitmap_load);
  * to our bitmap
  */
 int bitmap_copy_from_slot(struct mddev *mddev, int slot,
-		sector_t *low, sector_t *high)
+		sector_t *low, sector_t *high, bool clear_bits)
 {
 	int rv = 0, i, j;
 	sector_t block, lo = 0, hi = 0;
@@ -1882,14 +1882,16 @@ int bitmap_copy_from_slot(struct mddev *mddev, int slot,
 		}
 	}
 
-	bitmap_update_sb(bitmap);
-	/* Setting this for the ev_page should be enough.
-	 * And we do not require both write_all and PAGE_DIRT either
-	 */
-	for (i = 0; i < bitmap->storage.file_pages; i++)
-		set_page_attr(bitmap, i, BITMAP_PAGE_DIRTY);
-	bitmap_write_all(bitmap);
-	bitmap_unplug(bitmap);
+	if (clear_bits) {
+		bitmap_update_sb(bitmap);
+		/* Setting this for the ev_page should be enough.
+		 * And we do not require both write_all and PAGE_DIRT either
+		 */
+		for (i = 0; i < bitmap->storage.file_pages; i++)
+			set_page_attr(bitmap, i, BITMAP_PAGE_DIRTY);
+		bitmap_write_all(bitmap);
+		bitmap_unplug(bitmap);
+	}
 	*low = lo;
 	*high = hi;
 err:
