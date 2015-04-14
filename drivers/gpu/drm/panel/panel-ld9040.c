@@ -367,7 +367,7 @@ static int ld9040_remove(struct spi_device *spi)
 	return 0;
 }
 
-static struct of_device_id ld9040_of_match[] = {
+static const struct of_device_id ld9040_of_match[] = {
 	{ .compatible = "samsung,ld9040" },
 	{ }
 };
