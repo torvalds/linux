@@ -368,7 +368,7 @@ int snd_hdac_regmap_add_vendor_verb(struct hdac_device *codec,
 
 	if (!p)
 		return -ENOMEM;
-	*p = verb;
+	*p = verb | 0x800; /* set GET bit */
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_regmap_add_vendor_verb);
