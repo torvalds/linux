@@ -95,6 +95,10 @@ struct media_entity {
 			u32 device;
 			u32 subdevice;
 		} alsa;
+		struct {
+			u32 major;
+			u32 minor;
+		} dev;
 		int dvb;
 
 		/* Sub-device specifications */
