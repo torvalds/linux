@@ -285,6 +285,14 @@ static const struct dev_pm_ops hda_tegra_pm = {
 	SET_SYSTEM_SLEEP_PM_OPS(hda_tegra_suspend, hda_tegra_resume)
 };
 
+static int hda_tegra_dev_disconnect(struct snd_device *device)
+{
+	struct azx *chip = device->device_data;
+
+	chip->bus.shutdown = 1;
+	return 0;
+}
+
 /*
  * destructor
  */
@@ -292,12 +300,14 @@ static int hda_tegra_dev_free(struct snd_device *device)
 {
 	struct azx *chip = device->device_data;
 
-	if (chip->initialized) {
+	if (azx_bus(chip)->chip_init) {
 		azx_stop_all_streams(chip);
 		azx_stop_chip(chip);
 	}
 
 	azx_free_stream_pages(chip);
+	azx_free_streams(chip);
+	snd_hdac_bus_exit(bus);
 
 	return 0;
 }
@@ -305,6 +315,7 @@ static int hda_tegra_dev_free(struct snd_device *device)
 static int hda_tegra_init_chip(struct azx *chip, struct platform_device *pdev)
 {
 	struct hda_tegra *hda = container_of(chip, struct hda_tegra, chip);
+	struct hdac_bus *bus = azx_bus(chip);
 	struct device *dev = hda->dev;
 	struct resource *res;
 	int err;
@@ -324,9 +335,8 @@ static int hda_tegra_init_chip(struct azx *chip, struct platform_device *pdev)
 	if (IS_ERR(hda->regs))
 		return PTR_ERR(hda->regs);
 
-	chip->remap_addr = hda->regs + HDA_BAR0;
-	azx_bus(chip)->remap_addr = chip->remap_addr; /* FIXME */
-	chip->addr = res->start + HDA_BAR0;
+	bus->remap_addr = hda->regs + HDA_BAR0;
+	bus->addr = res->start + HDA_BAR0;
 
 	err = hda_tegra_enable_clocks(hda);
 	if (err)
@@ -339,6 +349,7 @@ static int hda_tegra_init_chip(struct azx *chip, struct platform_device *pdev)
 
 static int hda_tegra_first_init(struct azx *chip, struct platform_device *pdev)
 {
+	struct hdac_bus *bus = azx_bus(chip);
 	struct snd_card *card = chip->card;
 	int err;
 	unsigned short gcap;
@@ -356,9 +367,9 @@ static int hda_tegra_first_init(struct azx *chip, struct platform_device *pdev)
 			irq_id);
 		return err;
 	}
-	chip->irq = irq_id;
+	bus->irq = irq_id;
 
-	synchronize_irq(chip->irq);
+	synchronize_irq(bus->irq);
 
 	gcap = azx_readw(chip, GCAP);
 	dev_dbg(card->dev, "chipset global capabilities = 0x%x\n", gcap);
@@ -377,18 +388,20 @@ static int hda_tegra_first_init(struct azx *chip, struct platform_device *pdev)
 	chip->playback_index_offset = chip->capture_streams;
 	chip->num_streams = chip->playback_streams + chip->capture_streams;
 
-	err = azx_alloc_stream_pages(chip);
+	/* initialize streams */
+	err = azx_init_streams(chip);
 	if (err < 0)
 		return err;
 
-	/* initialize streams */
-	azx_init_stream(chip);
+	err = azx_alloc_stream_pages(chip);
+	if (err < 0)
+		return err;
 
 	/* initialize chip */
 	azx_init_chip(chip, 1);
 
 	/* codec detection */
-	if (!chip->codec_mask) {
+	if (!bus->codec_mask) {
 		dev_err(card->dev, "no codecs found!\n");
 		return -ENODEV;
 	}
@@ -397,7 +410,7 @@ static int hda_tegra_first_init(struct azx *chip, struct platform_device *pdev)
 	strcpy(card->shortname, "tegra-hda");
 	snprintf(card->longname, sizeof(card->longname),
 		 "%s at 0x%lx irq %i",
-		 card->shortname, chip->addr, chip->irq);
+		 card->shortname, bus->addr, bus->irq);
 
 	return 0;
 }
@@ -410,6 +423,7 @@ static int hda_tegra_create(struct snd_card *card,
 			    struct hda_tegra *hda)
 {
 	static struct snd_device_ops ops = {
+		.dev_disconnect = hda_tegra_dev_disconnect,
 		.dev_free = hda_tegra_dev_free,
 	};
 	struct azx *chip;
@@ -417,12 +431,9 @@ static int hda_tegra_create(struct snd_card *card,
 
 	chip = &hda->chip;
 
-	spin_lock_init(&chip->reg_lock);
 	mutex_init(&chip->open_mutex);
 	chip->card = card;
 	chip->ops = &hda_tegra_ops;
-	chip->io_ops = &hda_tegra_io_ops;
-	chip->irq = -1;
 	chip->driver_caps = driver_caps;
 	chip->driver_type = driver_caps & 0xff;
 	chip->dev_index = 0;
@@ -469,7 +480,7 @@ static int hda_tegra_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	err = azx_bus_create(chip, NULL);
+	err = azx_bus_init(chip, NULL, &hda_tegra_io_ops);
 	if (err < 0)
 		goto out_free;
 
@@ -498,7 +509,7 @@ static int hda_tegra_probe(struct platform_device *pdev)
 		goto out_free;
 
 	chip->running = 1;
-	snd_hda_set_power_save(chip->bus, power_save * 1000);
+	snd_hda_set_power_save(&chip->bus, power_save * 1000);
 
 	return 0;
 

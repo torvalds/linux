@@ -42,8 +42,6 @@ struct hda_pcm_stream;
 
 /* bus operators */
 struct hda_bus_ops {
-	/* free the private data */
-	void (*private_free)(struct hda_bus *);
 	/* attach a PCM stream */
 	int (*attach_pcm)(struct hda_bus *bus, struct hda_codec *codec,
 			  struct hda_pcm *pcm);
@@ -73,7 +71,6 @@ struct hda_bus {
 
 	struct snd_card *card;
 
-	void *private_data;
 	struct pci_dev *pci;
 	const char *modelname;
 	struct hda_bus_ops ops;

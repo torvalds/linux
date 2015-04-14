@@ -217,6 +217,7 @@ static int azx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
 	struct azx *chip = apcm->chip;
+	struct hdac_bus *bus = azx_bus(chip);
 	struct azx_dev *azx_dev;
 	struct snd_pcm_substream *s;
 	struct hdac_stream *hstr;
@@ -257,7 +258,7 @@ static int azx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		snd_pcm_trigger_done(s, substream);
 	}
 
-	spin_lock(&chip->reg_lock);
+	spin_lock(&bus->reg_lock);
 
 	/* first, set SYNC bits of corresponding streams */
 	snd_hdac_stream_sync_trigger(hstr, true, sbits, sync_reg);
@@ -273,16 +274,16 @@ static int azx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 			snd_hdac_stream_stop(azx_stream(azx_dev));
 		}
 	}
-	spin_unlock(&chip->reg_lock);
+	spin_unlock(&bus->reg_lock);
 
 	snd_hdac_stream_sync(hstr, start, sbits);
 
-	spin_lock(&chip->reg_lock);
+	spin_lock(&bus->reg_lock);
 	/* reset SYNC bits */
 	snd_hdac_stream_sync_trigger(hstr, false, sbits, sync_reg);
 	if (start)
 		snd_hdac_stream_timecounter_init(hstr, sbits);
-	spin_unlock(&chip->reg_lock);
+	spin_unlock(&bus->reg_lock);
 	return 0;
 }
 
@@ -522,10 +523,11 @@ static void azx_pcm_free(struct snd_pcm *pcm)
 
 #define MAX_PREALLOC_SIZE	(32 * 1024 * 1024)
 
-static int azx_attach_pcm_stream(struct hda_bus *bus, struct hda_codec *codec,
+static int azx_attach_pcm_stream(struct hda_bus *_bus, struct hda_codec *codec,
 				 struct hda_pcm *cpcm)
 {
-	struct azx *chip = bus->private_data;
+	struct hdac_bus *bus = &_bus->core;
+	struct azx *chip = bus_to_azx(bus);
 	struct snd_pcm *pcm;
 	struct azx_pcm *apcm;
 	int pcm_dev = cpcm->device;
@@ -573,89 +575,6 @@ static int azx_attach_pcm_stream(struct hda_bus *bus, struct hda_codec *codec,
 	return 0;
 }
 
-/*
- * CORB / RIRB interface
- */
-static int azx_alloc_cmd_io(struct azx *chip)
-{
-	/* single page (at least 4096 bytes) must suffice for both ringbuffes */
-	return chip->io_ops->dma_alloc_pages(azx_bus(chip), SNDRV_DMA_TYPE_DEV,
-					     PAGE_SIZE, &chip->rb);
-}
-
-static void azx_init_cmd_io(struct azx *chip)
-{
-	int timeout;
-
-	spin_lock_irq(&chip->reg_lock);
-	/* CORB set up */
-	chip->corb.addr = chip->rb.addr;
-	chip->corb.buf = (u32 *)chip->rb.area;
-	azx_writel(chip, CORBLBASE, (u32)chip->corb.addr);
-	azx_writel(chip, CORBUBASE, upper_32_bits(chip->corb.addr));
-
-	/* set the corb size to 256 entries (ULI requires explicitly) */
-	azx_writeb(chip, CORBSIZE, 0x02);
-	/* set the corb write pointer to 0 */
-	azx_writew(chip, CORBWP, 0);
-
-	/* reset the corb hw read pointer */
-	azx_writew(chip, CORBRP, AZX_CORBRP_RST);
-	if (!(chip->driver_caps & AZX_DCAPS_CORBRP_SELF_CLEAR)) {
-		for (timeout = 1000; timeout > 0; timeout--) {
-			if ((azx_readw(chip, CORBRP) & AZX_CORBRP_RST) == AZX_CORBRP_RST)
-				break;
-			udelay(1);
-		}
-		if (timeout <= 0)
-			dev_err(chip->card->dev, "CORB reset timeout#1, CORBRP = %d\n",
-				azx_readw(chip, CORBRP));
-
-		azx_writew(chip, CORBRP, 0);
-		for (timeout = 1000; timeout > 0; timeout--) {
-			if (azx_readw(chip, CORBRP) == 0)
-				break;
-			udelay(1);
-		}
-		if (timeout <= 0)
-			dev_err(chip->card->dev, "CORB reset timeout#2, CORBRP = %d\n",
-				azx_readw(chip, CORBRP));
-	}
-
-	/* enable corb dma */
-	azx_writeb(chip, CORBCTL, AZX_CORBCTL_RUN);
-
-	/* RIRB set up */
-	chip->rirb.addr = chip->rb.addr + 2048;
-	chip->rirb.buf = (u32 *)(chip->rb.area + 2048);
-	chip->rirb.wp = chip->rirb.rp = 0;
-	memset(chip->rirb.cmds, 0, sizeof(chip->rirb.cmds));
-	azx_writel(chip, RIRBLBASE, (u32)chip->rirb.addr);
-	azx_writel(chip, RIRBUBASE, upper_32_bits(chip->rirb.addr));
-
-	/* set the rirb size to 256 entries (ULI requires explicitly) */
-	azx_writeb(chip, RIRBSIZE, 0x02);
-	/* reset the rirb hw write pointer */
-	azx_writew(chip, RIRBWP, AZX_RIRBWP_RST);
-	/* set N=1, get RIRB response interrupt for new entry */
-	if (chip->driver_caps & AZX_DCAPS_CTX_WORKAROUND)
-		azx_writew(chip, RINTCNT, 0xc0);
-	else
-		azx_writew(chip, RINTCNT, 1);
-	/* enable rirb dma and response irq */
-	azx_writeb(chip, RIRBCTL, AZX_RBCTL_DMA_EN | AZX_RBCTL_IRQ_EN);
-	spin_unlock_irq(&chip->reg_lock);
-}
-
-static void azx_free_cmd_io(struct azx *chip)
-{
-	spin_lock_irq(&chip->reg_lock);
-	/* disable ringbuffer DMAs */
-	azx_writeb(chip, RIRBCTL, 0);
-	azx_writeb(chip, CORBCTL, 0);
-	spin_unlock_irq(&chip->reg_lock);
-}
-
 static unsigned int azx_command_addr(u32 cmd)
 {
 	unsigned int addr = cmd >> 28;
@@ -668,92 +587,12 @@ static unsigned int azx_command_addr(u32 cmd)
 	return addr;
 }
 
-/* send a command */
-static int azx_corb_send_cmd(struct hda_bus *bus, u32 val)
-{
-	struct azx *chip = bus->private_data;
-	unsigned int addr = azx_command_addr(val);
-	unsigned int wp, rp;
-
-	spin_lock_irq(&chip->reg_lock);
-
-	/* add command to corb */
-	wp = azx_readw(chip, CORBWP);
-	if (wp == 0xffff) {
-		/* something wrong, controller likely turned to D3 */
-		spin_unlock_irq(&chip->reg_lock);
-		return -EIO;
-	}
-	wp++;
-	wp %= AZX_MAX_CORB_ENTRIES;
-
-	rp = azx_readw(chip, CORBRP);
-	if (wp == rp) {
-		/* oops, it's full */
-		spin_unlock_irq(&chip->reg_lock);
-		return -EAGAIN;
-	}
-
-	chip->rirb.cmds[addr]++;
-	chip->corb.buf[wp] = cpu_to_le32(val);
-	azx_writew(chip, CORBWP, wp);
-
-	spin_unlock_irq(&chip->reg_lock);
-
-	return 0;
-}
-
-#define AZX_RIRB_EX_UNSOL_EV	(1<<4)
-
-/* retrieve RIRB entry - called from interrupt handler */
-static void azx_update_rirb(struct azx *chip)
-{
-	unsigned int rp, wp;
-	unsigned int addr;
-	u32 res, res_ex;
-
-	wp = azx_readw(chip, RIRBWP);
-	if (wp == 0xffff) {
-		/* something wrong, controller likely turned to D3 */
-		return;
-	}
-
-	if (wp == chip->rirb.wp)
-		return;
-	chip->rirb.wp = wp;
-
-	while (chip->rirb.rp != wp) {
-		chip->rirb.rp++;
-		chip->rirb.rp %= AZX_MAX_RIRB_ENTRIES;
-
-		rp = chip->rirb.rp << 1; /* an RIRB entry is 8-bytes */
-		res_ex = le32_to_cpu(chip->rirb.buf[rp + 1]);
-		res = le32_to_cpu(chip->rirb.buf[rp]);
-		addr = res_ex & 0xf;
-		if ((addr >= AZX_MAX_CODECS) || !(chip->codec_mask & (1 << addr))) {
-			dev_err(chip->card->dev, "spurious response %#x:%#x, rp = %d, wp = %d",
-				res, res_ex,
-				chip->rirb.rp, wp);
-			snd_BUG();
-		} else if (res_ex & AZX_RIRB_EX_UNSOL_EV)
-			snd_hda_queue_unsol_event(chip->bus, res, res_ex);
-		else if (chip->rirb.cmds[addr]) {
-			chip->rirb.res[addr] = res;
-			smp_wmb();
-			chip->rirb.cmds[addr]--;
-		} else if (printk_ratelimit()) {
-			dev_err(chip->card->dev, "spurious response %#x:%#x, last cmd=%#08x\n",
-				res, res_ex,
-				chip->last_cmd[addr]);
-		}
-	}
-}
-
 /* receive a response */
-static int azx_rirb_get_response(struct hda_bus *bus, unsigned int addr,
+static int azx_rirb_get_response(struct hdac_bus *bus, unsigned int addr,
 				 unsigned int *res)
 {
-	struct azx *chip = bus->private_data;
+	struct azx *chip = bus_to_azx(bus);
+	struct hda_bus *hbus = &chip->bus;
 	unsigned long timeout;
 	unsigned long loopcounter;
 	int do_poll = 0;
@@ -762,23 +601,21 @@ static int azx_rirb_get_response(struct hda_bus *bus, unsigned int addr,
 	timeout = jiffies + msecs_to_jiffies(1000);
 
 	for (loopcounter = 0;; loopcounter++) {
-		if (chip->polling_mode || do_poll) {
-			spin_lock_irq(&chip->reg_lock);
-			azx_update_rirb(chip);
-			spin_unlock_irq(&chip->reg_lock);
-		}
-		if (!chip->rirb.cmds[addr]) {
-			smp_rmb();
-
+		spin_lock_irq(&bus->reg_lock);
+		if (chip->polling_mode || do_poll)
+			snd_hdac_bus_update_rirb(bus);
+		if (!bus->rirb.cmds[addr]) {
 			if (!do_poll)
 				chip->poll_count = 0;
 			if (res)
-				*res = chip->rirb.res[addr]; /* the last value */
+				*res = bus->rirb.res[addr]; /* the last value */
+			spin_unlock_irq(&bus->reg_lock);
 			return 0;
 		}
+		spin_unlock_irq(&bus->reg_lock);
 		if (time_after(jiffies, timeout))
 			break;
-		if (bus->needs_damn_long_delay || loopcounter > 3000)
+		if (hbus->needs_damn_long_delay || loopcounter > 3000)
 			msleep(2); /* temporary workaround */
 		else {
 			udelay(10);
@@ -786,13 +623,13 @@ static int azx_rirb_get_response(struct hda_bus *bus, unsigned int addr,
 		}
 	}
 
-	if (bus->no_response_fallback)
+	if (hbus->no_response_fallback)
 		return -EIO;
 
 	if (!chip->polling_mode && chip->poll_count < 2) {
 		dev_dbg(chip->card->dev,
 			"azx_get_response timeout, polling the codec once: last cmd=0x%08x\n",
-			chip->last_cmd[addr]);
+			bus->last_cmd[addr]);
 		do_poll = 1;
 		chip->poll_count++;
 		goto again;
@@ -802,7 +639,7 @@ static int azx_rirb_get_response(struct hda_bus *bus, unsigned int addr,
 	if (!chip->polling_mode) {
 		dev_warn(chip->card->dev,
 			 "azx_get_response timeout, switching to polling mode: last cmd=0x%08x\n",
-			 chip->last_cmd[addr]);
+			 bus->last_cmd[addr]);
 		chip->polling_mode = 1;
 		goto again;
 	}
@@ -810,8 +647,8 @@ static int azx_rirb_get_response(struct hda_bus *bus, unsigned int addr,
 	if (chip->msi) {
 		dev_warn(chip->card->dev,
 			 "No response from codec, disabling MSI: last cmd=0x%08x\n",
-			 chip->last_cmd[addr]);
-		if (chip->ops->disable_msi_reset_irq(chip) &&
+			 bus->last_cmd[addr]);
+		if (chip->ops->disable_msi_reset_irq &&
 		    chip->ops->disable_msi_reset_irq(chip) < 0)
 			return -EIO;
 		goto again;
@@ -828,20 +665,17 @@ static int azx_rirb_get_response(struct hda_bus *bus, unsigned int addr,
 	/* a fatal communication error; need either to reset or to fallback
 	 * to the single_cmd mode
 	 */
-	if (bus->allow_bus_reset && !bus->response_reset && !bus->in_reset) {
-		bus->response_reset = 1;
+	if (hbus->allow_bus_reset && !hbus->response_reset && !hbus->in_reset) {
+		hbus->response_reset = 1;
 		return -EAGAIN; /* give a chance to retry */
 	}
 
 	dev_err(chip->card->dev,
 		"azx_get_response timeout, switching to single_cmd mode: last cmd=0x%08x\n",
-		chip->last_cmd[addr]);
+		bus->last_cmd[addr]);
 	chip->single_cmd = 1;
-	bus->response_reset = 0;
-	/* release CORB/RIRB */
-	azx_free_cmd_io(chip);
-	/* disable unsolicited responses */
-	azx_writel(chip, GCTL, azx_readl(chip, GCTL) & ~AZX_GCTL_UNSOL);
+	hbus->response_reset = 0;
+	snd_hdac_bus_stop_cmd_io(bus);
 	return -EIO;
 }
 
@@ -864,7 +698,7 @@ static int azx_single_wait_for_response(struct azx *chip, unsigned int addr)
 		/* check IRV busy bit */
 		if (azx_readw(chip, IRS) & AZX_IRS_VALID) {
 			/* reuse rirb.res as the response return value */
-			chip->rirb.res[addr] = azx_readl(chip, IR);
+			azx_bus(chip)->rirb.res[addr] = azx_readl(chip, IR);
 			return 0;
 		}
 		udelay(1);
@@ -872,17 +706,18 @@ static int azx_single_wait_for_response(struct azx *chip, unsigned int addr)
 	if (printk_ratelimit())
 		dev_dbg(chip->card->dev, "get_response timeout: IRS=0x%x\n",
 			azx_readw(chip, IRS));
-	chip->rirb.res[addr] = -1;
+	azx_bus(chip)->rirb.res[addr] = -1;
 	return -EIO;
 }
 
 /* send a command */
-static int azx_single_send_cmd(struct hda_bus *bus, u32 val)
+static int azx_single_send_cmd(struct hdac_bus *bus, u32 val)
 {
-	struct azx *chip = bus->private_data;
+	struct azx *chip = bus_to_azx(bus);
 	unsigned int addr = azx_command_addr(val);
 	int timeout = 50;
 
+	bus->last_cmd[azx_command_addr(val)] = val;
 	while (timeout--) {
 		/* check ICB busy bit */
 		if (!((azx_readw(chip, IRS) & AZX_IRS_BUSY))) {
@@ -904,13 +739,11 @@ static int azx_single_send_cmd(struct hda_bus *bus, u32 val)
 }
 
 /* receive a response */
-static int azx_single_get_response(struct hda_bus *bus, unsigned int addr,
+static int azx_single_get_response(struct hdac_bus *bus, unsigned int addr,
 				   unsigned int *res)
 {
-	struct azx *chip = bus->private_data;
-
 	if (res)
-		*res = chip->rirb.res[addr];
+		*res = bus->rirb.res[addr];
 	return 0;
 }
 
@@ -922,26 +755,24 @@ static int azx_single_get_response(struct hda_bus *bus, unsigned int addr,
  */
 
 /* send a command */
-static int azx_send_cmd(struct hdac_bus *_bus, unsigned int val)
+static int azx_send_cmd(struct hdac_bus *bus, unsigned int val)
 {
-	struct hda_bus *bus = to_hda_bus(_bus);
-	struct azx *chip = bus->private_data;
+	struct azx *chip = bus_to_azx(bus);
 
 	if (chip->disabled)
 		return 0;
-	chip->last_cmd[azx_command_addr(val)] = val;
 	if (chip->single_cmd)
 		return azx_single_send_cmd(bus, val);
 	else
-		return azx_corb_send_cmd(bus, val);
+		return snd_hdac_bus_send_cmd(bus, val);
 }
 
 /* get a response */
-static int azx_get_response(struct hdac_bus *_bus, unsigned int addr,
+static int azx_get_response(struct hdac_bus *bus, unsigned int addr,
 			    unsigned int *res)
 {
-	struct hda_bus *bus = to_hda_bus(_bus);
-	struct azx *chip = bus->private_data;
+	struct azx *chip = bus_to_azx(bus);
+
 	if (chip->disabled)
 		return 0;
 	if (chip->single_cmd)
@@ -974,11 +805,12 @@ azx_get_dsp_loader_dev(struct azx *chip)
 	return NULL;
 }
 
-static int azx_load_dsp_prepare(struct hda_bus *bus, unsigned int format,
+static int azx_load_dsp_prepare(struct hda_bus *_bus, unsigned int format,
 				unsigned int byte_size,
 				struct snd_dma_buffer *bufp)
 {
-	struct azx *chip = bus->private_data;
+	struct hdac_bus *bus = &_bus->core;
+	struct azx *chip = bus_to_azx(bus);
 	struct azx_dev *azx_dev;
 	struct hdac_stream *hstr;
 	bool saved = false;
@@ -986,19 +818,19 @@ static int azx_load_dsp_prepare(struct hda_bus *bus, unsigned int format,
 
 	azx_dev = azx_get_dsp_loader_dev(chip);
 	hstr = azx_stream(azx_dev);
-	spin_lock_irq(&chip->reg_lock);
+	spin_lock_irq(&bus->reg_lock);
 	if (hstr->opened) {
 		chip->saved_azx_dev = *azx_dev;
 		saved = true;
 	}
-	spin_unlock_irq(&chip->reg_lock);
+	spin_unlock_irq(&bus->reg_lock);
 
 	err = snd_hdac_dsp_prepare(hstr, format, byte_size, bufp);
 	if (err < 0) {
-		spin_lock_irq(&chip->reg_lock);
+		spin_lock_irq(&bus->reg_lock);
 		if (saved)
 			*azx_dev = chip->saved_azx_dev;
-		spin_unlock_irq(&chip->reg_lock);
+		spin_unlock_irq(&bus->reg_lock);
 		return err;
 	}
 
@@ -1006,18 +838,20 @@ static int azx_load_dsp_prepare(struct hda_bus *bus, unsigned int format,
 	return err;
 }
 
-static void azx_load_dsp_trigger(struct hda_bus *bus, bool start)
+static void azx_load_dsp_trigger(struct hda_bus *_bus, bool start)
 {
-	struct azx *chip = bus->private_data;
+	struct hdac_bus *bus = &_bus->core;
+	struct azx *chip = bus_to_azx(bus);
 	struct azx_dev *azx_dev = azx_get_dsp_loader_dev(chip);
 
 	snd_hdac_dsp_trigger(azx_stream(azx_dev), start);
 }
 
-static void azx_load_dsp_cleanup(struct hda_bus *bus,
+static void azx_load_dsp_cleanup(struct hda_bus *_bus,
 				 struct snd_dma_buffer *dmab)
 {
-	struct azx *chip = bus->private_data;
+	struct hdac_bus *bus = &_bus->core;
+	struct azx *chip = bus_to_azx(bus);
 	struct azx_dev *azx_dev = azx_get_dsp_loader_dev(chip);
 	struct hdac_stream *hstr = azx_stream(azx_dev);
 
@@ -1025,207 +859,24 @@ static void azx_load_dsp_cleanup(struct hda_bus *bus,
 		return;
 
 	snd_hdac_dsp_cleanup(hstr, dmab);
-	spin_lock_irq(&chip->reg_lock);
+	spin_lock_irq(&bus->reg_lock);
 	if (hstr->opened)
 		*azx_dev = chip->saved_azx_dev;
 	hstr->locked = false;
-	spin_unlock_irq(&chip->reg_lock);
+	spin_unlock_irq(&bus->reg_lock);
 }
 #endif /* CONFIG_SND_HDA_DSP_LOADER */
-
-int azx_alloc_stream_pages(struct azx *chip)
-{
-	struct hdac_bus *bus = azx_bus(chip);
-	struct hdac_stream *s;
-	int err;
-
-	list_for_each_entry(s, &bus->stream_list, list) {
-		/* allocate memory for the BDL for each stream */
-		err = chip->io_ops->dma_alloc_pages(azx_bus(chip), SNDRV_DMA_TYPE_DEV,
-						 BDL_SIZE, &s->bdl);
-		if (err < 0)
-			return -ENOMEM;
-	}
-
-	/* allocate memory for the position buffer */
-	err = chip->io_ops->dma_alloc_pages(azx_bus(chip), SNDRV_DMA_TYPE_DEV,
-					 chip->num_streams * 8, &chip->posbuf);
-	if (err < 0)
-		return -ENOMEM;
-
-	/* allocate CORB/RIRB */
-	err = azx_alloc_cmd_io(chip);
-	if (err < 0)
-		return err;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(azx_alloc_stream_pages);
-
-void azx_free_stream_pages(struct azx *chip)
-{
-	struct hdac_bus *bus = azx_bus(chip);
-	struct hdac_stream *s, *next;
-
-	list_for_each_entry_safe(s, next, &bus->stream_list, list) {
-		if (s->bdl.area)
-			chip->io_ops->dma_free_pages(azx_bus(chip), &s->bdl);
-		kfree(s);
-	}
-
-	if (chip->rb.area)
-		chip->io_ops->dma_free_pages(azx_bus(chip), &chip->rb);
-	if (chip->posbuf.area)
-		chip->io_ops->dma_free_pages(azx_bus(chip), &chip->posbuf);
-}
-EXPORT_SYMBOL_GPL(azx_free_stream_pages);
-
-/*
- * Lowlevel interface
- */
-
-/* enter link reset */
-void azx_enter_link_reset(struct azx *chip)
-{
-	unsigned long timeout;
-
-	/* reset controller */
-	azx_writel(chip, GCTL, azx_readl(chip, GCTL) & ~AZX_GCTL_RESET);
-
-	timeout = jiffies + msecs_to_jiffies(100);
-	while ((azx_readb(chip, GCTL) & AZX_GCTL_RESET) &&
-			time_before(jiffies, timeout))
-		usleep_range(500, 1000);
-}
-EXPORT_SYMBOL_GPL(azx_enter_link_reset);
-
-/* exit link reset */
-static void azx_exit_link_reset(struct azx *chip)
-{
-	unsigned long timeout;
-
-	azx_writeb(chip, GCTL, azx_readb(chip, GCTL) | AZX_GCTL_RESET);
-
-	timeout = jiffies + msecs_to_jiffies(100);
-	while (!azx_readb(chip, GCTL) &&
-			time_before(jiffies, timeout))
-		usleep_range(500, 1000);
-}
-
-/* reset codec link */
-static int azx_reset(struct azx *chip, bool full_reset)
-{
-	if (!full_reset)
-		goto __skip;
-
-	/* clear STATESTS */
-	azx_writew(chip, STATESTS, STATESTS_INT_MASK);
-
-	/* reset controller */
-	azx_enter_link_reset(chip);
-
-	/* delay for >= 100us for codec PLL to settle per spec
-	 * Rev 0.9 section 5.5.1
-	 */
-	usleep_range(500, 1000);
-
-	/* Bring controller out of reset */
-	azx_exit_link_reset(chip);
-
-	/* Brent Chartrand said to wait >= 540us for codecs to initialize */
-	usleep_range(1000, 1200);
-
-      __skip:
-	/* check to see if controller is ready */
-	if (!azx_readb(chip, GCTL)) {
-		dev_dbg(chip->card->dev, "azx_reset: controller not ready!\n");
-		return -EBUSY;
-	}
-
-	/* Accept unsolicited responses */
-	if (!chip->single_cmd)
-		azx_writel(chip, GCTL, azx_readl(chip, GCTL) |
-			   AZX_GCTL_UNSOL);
-
-	/* detect codecs */
-	if (!chip->codec_mask) {
-		chip->codec_mask = azx_readw(chip, STATESTS);
-		dev_dbg(chip->card->dev, "codec_mask = 0x%x\n",
-			chip->codec_mask);
-	}
-
-	return 0;
-}
-
-/* enable interrupts */
-static void azx_int_enable(struct azx *chip)
-{
-	/* enable controller CIE and GIE */
-	azx_writel(chip, INTCTL, azx_readl(chip, INTCTL) |
-		   AZX_INT_CTRL_EN | AZX_INT_GLOBAL_EN);
-}
-
-/* disable interrupts */
-static void azx_int_disable(struct azx *chip)
-{
-	struct hdac_bus *bus = azx_bus(chip);
-	struct hdac_stream *s;
-
-	/* disable interrupts in stream descriptor */
-	list_for_each_entry(s, &bus->stream_list, list)
-		snd_hdac_stream_updateb(s, SD_CTL, SD_INT_MASK, 0);
-
-	/* disable SIE for all streams */
-	azx_writeb(chip, INTCTL, 0);
-
-	/* disable controller CIE and GIE */
-	azx_writel(chip, INTCTL, azx_readl(chip, INTCTL) &
-		   ~(AZX_INT_CTRL_EN | AZX_INT_GLOBAL_EN));
-}
-
-/* clear interrupts */
-static void azx_int_clear(struct azx *chip)
-{
-	struct hdac_bus *bus = azx_bus(chip);
-	struct hdac_stream *s;
-
-	/* clear stream status */
-	list_for_each_entry(s, &bus->stream_list, list)
-		snd_hdac_stream_writeb(s, SD_STS, SD_INT_MASK);
-
-	/* clear STATESTS */
-	azx_writew(chip, STATESTS, STATESTS_INT_MASK);
-
-	/* clear rirb status */
-	azx_writeb(chip, RIRBSTS, RIRB_INT_MASK);
-
-	/* clear int status */
-	azx_writel(chip, INTSTS, AZX_INT_CTRL_EN | AZX_INT_ALL_STREAM);
-}
 
 /*
  * reset and start the controller registers
  */
 void azx_init_chip(struct azx *chip, bool full_reset)
 {
-	if (chip->initialized)
-		return;
-
-	/* reset controller */
-	azx_reset(chip, full_reset);
-
-	/* initialize interrupts */
-	azx_int_clear(chip);
-	azx_int_enable(chip);
-
-	/* initialize the codec command I/O */
-	if (!chip->single_cmd)
-		azx_init_cmd_io(chip);
-
-	/* program the position buffer */
-	azx_writel(chip, DPLBASE, (u32)chip->posbuf.addr);
-	azx_writel(chip, DPUBASE, upper_32_bits(chip->posbuf.addr));
-
-	chip->initialized = 1;
+	if (snd_hdac_bus_init_chip(azx_bus(chip), full_reset)) {
+		/* correct RINTCNT for CXT */
+		if (chip->driver_caps & AZX_DCAPS_CTX_WORKAROUND)
+			azx_writew(chip, RINTCNT, 0xc0);
+	}
 }
 EXPORT_SYMBOL_GPL(azx_init_chip);
 
@@ -1241,21 +892,7 @@ EXPORT_SYMBOL_GPL(azx_stop_all_streams);
 
 void azx_stop_chip(struct azx *chip)
 {
-	if (!chip->initialized)
-		return;
-
-	/* disable interrupts */
-	azx_int_disable(chip);
-	azx_int_clear(chip);
-
-	/* disable CORB/RIRB */
-	azx_free_cmd_io(chip);
-
-	/* disable position buffer */
-	azx_writel(chip, DPLBASE, 0);
-	azx_writel(chip, DPUBASE, 0);
-
-	chip->initialized = 0;
+	snd_hdac_bus_stop_chip(azx_bus(chip));
 }
 EXPORT_SYMBOL_GPL(azx_stop_chip);
 
@@ -1264,16 +901,15 @@ EXPORT_SYMBOL_GPL(azx_stop_chip);
  */
 static void stream_update(struct hdac_bus *bus, struct hdac_stream *s)
 {
-	struct hda_bus *hbus = container_of(bus, struct hda_bus, core);
-	struct azx *chip = hbus->private_data;
+	struct azx *chip = bus_to_azx(bus);
 	struct azx_dev *azx_dev = stream_to_azx_dev(s);
 
 	/* check whether this IRQ is really acceptable */
 	if (!chip->ops->position_check ||
 	    chip->ops->position_check(chip, azx_dev)) {
-		spin_unlock(&chip->reg_lock);
-		snd_pcm_period_elapsed(azx_dev->core.substream);
-		spin_lock(&chip->reg_lock);
+		spin_unlock(&bus->reg_lock);
+		snd_pcm_period_elapsed(azx_stream(azx_dev)->substream);
+		spin_lock(&bus->reg_lock);
 	}
 }
 
@@ -1289,16 +925,16 @@ irqreturn_t azx_interrupt(int irq, void *dev_id)
 			return IRQ_NONE;
 #endif
 
-	spin_lock(&chip->reg_lock);
+	spin_lock(&bus->reg_lock);
 
 	if (chip->disabled) {
-		spin_unlock(&chip->reg_lock);
+		spin_unlock(&bus->reg_lock);
 		return IRQ_NONE;
 	}
 
 	status = azx_readl(chip, INTSTS);
 	if (status == 0 || status == 0xffffffff) {
-		spin_unlock(&chip->reg_lock);
+		spin_unlock(&bus->reg_lock);
 		return IRQ_NONE;
 	}
 
@@ -1310,12 +946,12 @@ irqreturn_t azx_interrupt(int irq, void *dev_id)
 		if (status & RIRB_INT_RESPONSE) {
 			if (chip->driver_caps & AZX_DCAPS_RIRB_PRE_DELAY)
 				udelay(80);
-			azx_update_rirb(chip);
+			snd_hdac_bus_update_rirb(bus);
 		}
 		azx_writeb(chip, RIRBSTS, RIRB_INT_MASK);
 	}
 
-	spin_unlock(&chip->reg_lock);
+	spin_unlock(&bus->reg_lock);
 
 	return IRQ_HANDLED;
 }
@@ -1334,7 +970,7 @@ static int probe_codec(struct azx *chip, int addr)
 		(AC_VERB_PARAMETERS << 8) | AC_PAR_VENDOR_ID;
 	struct hdac_bus *bus = azx_bus(chip);
 	int err;
-	unsigned int res;
+	unsigned int res = -1;
 
 	mutex_lock(&bus->cmd_mutex);
 	chip->probing = 1;
@@ -1350,13 +986,13 @@ static int probe_codec(struct azx *chip, int addr)
 
 static void azx_bus_reset(struct hda_bus *bus)
 {
-	struct azx *chip = bus->private_data;
+	struct azx *chip = bus_to_azx(&bus->core);
 
 	bus->in_reset = 1;
 	azx_stop_chip(chip);
 	azx_init_chip(chip, true);
-	if (chip->initialized)
-		snd_hda_bus_reset(chip->bus);
+	if (bus->core.chip_init)
+		snd_hda_bus_reset(bus);
 	bus->in_reset = 0;
 }
 
@@ -1392,17 +1028,19 @@ static struct hda_bus_ops bus_ops = {
 };
 
 /* HD-audio bus initialization */
-int azx_bus_create(struct azx *chip, const char *model)
+int azx_bus_init(struct azx *chip, const char *model,
+		 const struct hdac_io_ops *io_ops)
 {
-	struct hda_bus *bus;
+	struct hda_bus *bus = &chip->bus;
 	int err;
 
-	err = snd_hda_bus_new(chip->card, &bus_core_ops, chip->io_ops, &bus);
+	err = snd_hdac_bus_init(&bus->core, chip->card->dev, &bus_core_ops,
+				io_ops);
 	if (err < 0)
 		return err;
 
-	chip->bus = bus;
-	bus->private_data = chip;
+	bus->card = chip->card;
+	mutex_init(&bus->prepare_mutex);
 	bus->pci = chip->pci;
 	bus->modelname = model;
 	bus->ops = bus_ops;
@@ -1412,6 +1050,8 @@ int azx_bus_create(struct azx *chip, const char *model)
 		bus->core.use_posbuf = true;
 	if (chip->bdl_pos_adj)
 		bus->core.bdl_pos_adj = chip->bdl_pos_adj[chip->dev_index];
+	if (chip->driver_caps & AZX_DCAPS_CORBRP_SELF_CLEAR)
+		bus->core.corbrp_self_clear = true;
 
 	if (chip->driver_caps & AZX_DCAPS_RIRB_DELAY) {
 		dev_dbg(chip->card->dev, "Enable delay in RIRB handling\n");
@@ -1430,12 +1070,12 @@ int azx_bus_create(struct azx *chip, const char *model)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(azx_bus_create);
+EXPORT_SYMBOL_GPL(azx_bus_init);
 
 /* Probe codecs */
 int azx_probe_codecs(struct azx *chip, unsigned int max_slots)
 {
-	struct hda_bus *bus = chip->bus;
+	struct hdac_bus *bus = azx_bus(chip);
 	int c, codecs, err;
 
 	codecs = 0;
@@ -1444,14 +1084,14 @@ int azx_probe_codecs(struct azx *chip, unsigned int max_slots)
 
 	/* First try to probe all given codec slots */
 	for (c = 0; c < max_slots; c++) {
-		if ((chip->codec_mask & (1 << c)) & chip->codec_probe_mask) {
+		if ((bus->codec_mask & (1 << c)) & chip->codec_probe_mask) {
 			if (probe_codec(chip, c) < 0) {
 				/* Some BIOSen give you wrong codec addresses
 				 * that don't exist
 				 */
 				dev_warn(chip->card->dev,
 					 "Codec #%d probe error; disabling it...\n", c);
-				chip->codec_mask &= ~(1 << c);
+				bus->codec_mask &= ~(1 << c);
 				/* More badly, accessing to a non-existing
 				 * codec often screws up the controller chip,
 				 * and disturbs the further communications.
@@ -1467,9 +1107,9 @@ int azx_probe_codecs(struct azx *chip, unsigned int max_slots)
 
 	/* Then create codec instances */
 	for (c = 0; c < max_slots; c++) {
-		if ((chip->codec_mask & (1 << c)) & chip->codec_probe_mask) {
+		if ((bus->codec_mask & (1 << c)) & chip->codec_probe_mask) {
 			struct hda_codec *codec;
-			err = snd_hda_codec_new(bus, bus->card, c, &codec);
+			err = snd_hda_codec_new(&chip->bus, chip->card, c, &codec);
 			if (err < 0)
 				continue;
 			codec->jackpoll_interval = get_jackpoll_interval(chip);
@@ -1489,7 +1129,7 @@ EXPORT_SYMBOL_GPL(azx_probe_codecs);
 int azx_codec_configure(struct azx *chip)
 {
 	struct hda_codec *codec;
-	list_for_each_codec(codec, chip->bus) {
+	list_for_each_codec(codec, &chip->bus) {
 		snd_hda_codec_configure(codec);
 	}
 	return 0;
@@ -1505,7 +1145,7 @@ static int stream_direction(struct azx *chip, unsigned char index)
 }
 
 /* initialize SD streams */
-int azx_init_stream(struct azx *chip)
+int azx_init_streams(struct azx *chip)
 {
 	int i;
 	int stream_tags[2] = { 0, 0 };
@@ -1538,4 +1178,17 @@ int azx_init_stream(struct azx *chip)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(azx_init_stream);
+EXPORT_SYMBOL_GPL(azx_init_streams);
+
+void azx_free_streams(struct azx *chip)
+{
+	struct hdac_bus *bus = azx_bus(chip);
+	struct hdac_stream *s;
+
+	while (!list_empty(&bus->stream_list)) {
+		s = list_first_entry(&bus->stream_list, struct hdac_stream, list);
+		list_del(&s->list);
+		kfree(stream_to_azx_dev(s));
+	}
+}
+EXPORT_SYMBOL_GPL(azx_free_streams);
