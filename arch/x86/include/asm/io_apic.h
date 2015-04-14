@@ -150,10 +150,6 @@ struct irq_cfg;
 extern void ioapic_insert_resources(void);
 extern int arch_early_ioapic_init(void);
 
-extern void eoi_ioapic_irq(unsigned int irq, struct irq_cfg *cfg);
-
-extern void native_eoi_ioapic_pin(int apic, int pin, int vector);
-
 extern int save_ioapic_entries(void);
 extern void mask_ioapic_entries(void);
 extern int restore_ioapic_entries(void);
@@ -237,8 +233,6 @@ static inline void io_apic_modify(unsigned int apic, unsigned int reg, unsigned 
 	x86_io_apic_ops.modify(apic, reg, value);
 }
 
-extern void io_apic_eoi(unsigned int apic, unsigned int vector);
-
 extern void setup_IO_APIC(void);
 extern void enable_IO_APIC(void);
 extern void disable_IO_APIC(void);
@@ -282,7 +276,6 @@ static inline void disable_ioapic_support(void) { }
 #define native_io_apic_write		NULL
 #define native_io_apic_modify		NULL
 #define native_disable_io_apic		NULL
-#define native_eoi_ioapic_pin		NULL
 
 static inline void setup_IO_APIC(void) { }
 static inline void enable_IO_APIC(void) { }

@@ -144,5 +144,4 @@ struct x86_io_apic_ops x86_io_apic_ops = {
 	.write			= native_io_apic_write,
 	.modify			= native_io_apic_modify,
 	.disable		= native_disable_io_apic,
-	.eoi_ioapic_pin		= native_eoi_ioapic_pin,
 };
