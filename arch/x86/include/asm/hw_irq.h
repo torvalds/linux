@@ -94,14 +94,6 @@ extern void trace_call_function_single_interrupt(void);
 #define trace_kvm_posted_intr_ipi kvm_posted_intr_ipi
 #endif /* CONFIG_TRACING */
 
-#ifdef CONFIG_IRQ_REMAP
-/* AMD specific interrupt remapping information */
-struct irq_2_irte {
-	u16 devid; /* Device ID for IRTE table */
-	u16 index; /* Index into IRTE table*/
-};
-#endif	/* CONFIG_IRQ_REMAP */
-
 struct irq_domain;
 
 #ifdef	CONFIG_X86_LOCAL_APIC
@@ -184,11 +176,6 @@ struct irq_cfg {
 	unsigned int		dest_apicid;
 	u8			vector;
 	u8			move_in_progress : 1;
-#ifdef CONFIG_IRQ_REMAP
-	union {
-		struct irq_2_irte  irq_2_irte;
-	};
-#endif
 	union {
 #ifdef CONFIG_X86_IO_APIC
 		struct {

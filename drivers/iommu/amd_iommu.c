@@ -3852,6 +3852,11 @@ union irte {
 	} fields;
 };
 
+struct irq_2_irte {
+	u16 devid; /* Device ID for IRTE table */
+	u16 index; /* Index into IRTE table*/
+};
+
 struct amd_ir_data {
 	struct irq_2_irte			irq_2_irte;
 	union irte				irte_entry;
