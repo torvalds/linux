@@ -177,14 +177,6 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	return addr;
 }
 
-unsigned long randomize_et_dyn(void)
-{
-	if (current->flags & PF_RANDOMIZE)
-		return arch_mmap_rnd();
-
-	return 0UL;
-}
-
 #ifndef CONFIG_64BIT
 
 /*
