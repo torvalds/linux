@@ -2453,19 +2453,11 @@ static struct cpuset *nearest_hardwall_ancestor(struct cpuset *cs)
  * @node: is this an allowed node?
  * @gfp_mask: memory allocation flags
  *
- * If we're in interrupt, yes, we can always allocate.  If __GFP_THISNODE is
- * set, yes, we can always allocate.  If node is in our task's mems_allowed,
- * yes.  If it's not a __GFP_HARDWALL request and this node is in the nearest
- * hardwalled cpuset ancestor to this task's cpuset, yes.  If the task has been
- * OOM killed and has access to memory reserves as specified by the TIF_MEMDIE
- * flag, yes.
+ * If we're in interrupt, yes, we can always allocate.  If @node is set in
+ * current's mems_allowed, yes.  If it's not a __GFP_HARDWALL request and this
+ * node is set in the nearest hardwalled cpuset ancestor to current's cpuset,
+ * yes.  If current has access to memory reserves due to TIF_MEMDIE, yes.
  * Otherwise, no.
- *
- * The __GFP_THISNODE placement logic is really handled elsewhere,
- * by forcibly using a zonelist starting at a specified node, and by
- * (in get_page_from_freelist()) refusing to consider the zones for
- * any node on the zonelist except the first.  By the time any such
- * calls get to this routine, we should just shut up and say 'yes'.
  *
  * GFP_USER allocations are marked with the __GFP_HARDWALL bit,
  * and do not allow allocations outside the current tasks cpuset
@@ -2502,7 +2494,7 @@ int __cpuset_node_allowed(int node, gfp_t gfp_mask)
 	int allowed;			/* is allocation in zone z allowed? */
 	unsigned long flags;
 
-	if (in_interrupt() || (gfp_mask & __GFP_THISNODE))
+	if (in_interrupt())
 		return 1;
 	if (node_isset(node, current->mems_allowed))
 		return 1;

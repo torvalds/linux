@@ -1391,6 +1391,11 @@ static int __ocfs2_cluster_lock(struct ocfs2_super *osb,
 	int noqueue_attempted = 0;
 	int dlm_locked = 0;
 
+	if (!(lockres->l_flags & OCFS2_LOCK_INITIALIZED)) {
+		mlog_errno(-EINVAL);
+		return -EINVAL;
+	}
+
 	ocfs2_init_mask_waiter(&mw);
 
 	if (lockres->l_ops->flags & LOCK_TYPE_USES_LVB)
@@ -2954,7 +2959,7 @@ static int ocfs2_dlm_init_debug(struct ocfs2_super *osb)
 							 osb->osb_debug_root,
 							 osb,
 							 &ocfs2_dlm_debug_fops);
-	if (!dlm_debug->d_locking_state) {
+	if (IS_ERR_OR_NULL(dlm_debug->d_locking_state)) {
 		ret = -EINVAL;
 		mlog(ML_ERROR,
 		     "Unable to create locking state debugfs file.\n");

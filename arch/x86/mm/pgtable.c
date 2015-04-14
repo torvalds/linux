@@ -4,6 +4,7 @@
 #include <asm/pgtable.h>
 #include <asm/tlb.h>
 #include <asm/fixmap.h>
+#include <asm/mtrr.h>
 
 #define PGALLOC_GFP GFP_KERNEL | __GFP_NOTRACK | __GFP_REPEAT | __GFP_ZERO
 
@@ -58,7 +59,7 @@ void ___pte_free_tlb(struct mmu_gather *tlb, struct page *pte)
 	tlb_remove_page(tlb, pte);
 }
 
-#if PAGETABLE_LEVELS > 2
+#if CONFIG_PGTABLE_LEVELS > 2
 void ___pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd)
 {
 	struct page *page = virt_to_page(pmd);
@@ -74,14 +75,14 @@ void ___pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd)
 	tlb_remove_page(tlb, page);
 }
 
-#if PAGETABLE_LEVELS > 3
+#if CONFIG_PGTABLE_LEVELS > 3
 void ___pud_free_tlb(struct mmu_gather *tlb, pud_t *pud)
 {
 	paravirt_release_pud(__pa(pud) >> PAGE_SHIFT);
 	tlb_remove_page(tlb, virt_to_page(pud));
 }
-#endif	/* PAGETABLE_LEVELS > 3 */
-#endif	/* PAGETABLE_LEVELS > 2 */
+#endif	/* CONFIG_PGTABLE_LEVELS > 3 */
+#endif	/* CONFIG_PGTABLE_LEVELS > 2 */
 
 static inline void pgd_list_add(pgd_t *pgd)
 {
@@ -117,9 +118,9 @@ static void pgd_ctor(struct mm_struct *mm, pgd_t *pgd)
 	/* If the pgd points to a shared pagetable level (either the
 	   ptes in non-PAE, or shared PMD in PAE), then just copy the
 	   references from swapper_pg_dir. */
-	if (PAGETABLE_LEVELS == 2 ||
-	    (PAGETABLE_LEVELS == 3 && SHARED_KERNEL_PMD) ||
-	    PAGETABLE_LEVELS == 4) {
+	if (CONFIG_PGTABLE_LEVELS == 2 ||
+	    (CONFIG_PGTABLE_LEVELS == 3 && SHARED_KERNEL_PMD) ||
+	    CONFIG_PGTABLE_LEVELS == 4) {
 		clone_pgd_range(pgd + KERNEL_PGD_BOUNDARY,
 				swapper_pg_dir + KERNEL_PGD_BOUNDARY,
 				KERNEL_PGD_PTRS);
@@ -560,3 +561,67 @@ void native_set_fixmap(enum fixed_addresses idx, phys_addr_t phys,
 {
 	__native_set_fixmap(idx, pfn_pte(phys >> PAGE_SHIFT, flags));
 }
+
+#ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
+int pud_set_huge(pud_t *pud, phys_addr_t addr, pgprot_t prot)
+{
+	u8 mtrr;
+
+	/*
+	 * Do not use a huge page when the range is covered by non-WB type
+	 * of MTRRs.
+	 */
+	mtrr = mtrr_type_lookup(addr, addr + PUD_SIZE);
+	if ((mtrr != MTRR_TYPE_WRBACK) && (mtrr != 0xFF))
+		return 0;
+
+	prot = pgprot_4k_2_large(prot);
+
+	set_pte((pte_t *)pud, pfn_pte(
+		(u64)addr >> PAGE_SHIFT,
+		__pgprot(pgprot_val(prot) | _PAGE_PSE)));
+
+	return 1;
+}
+
+int pmd_set_huge(pmd_t *pmd, phys_addr_t addr, pgprot_t prot)
+{
+	u8 mtrr;
+
+	/*
+	 * Do not use a huge page when the range is covered by non-WB type
+	 * of MTRRs.
+	 */
+	mtrr = mtrr_type_lookup(addr, addr + PMD_SIZE);
+	if ((mtrr != MTRR_TYPE_WRBACK) && (mtrr != 0xFF))
+		return 0;
+
+	prot = pgprot_4k_2_large(prot);
+
+	set_pte((pte_t *)pmd, pfn_pte(
+		(u64)addr >> PAGE_SHIFT,
+		__pgprot(pgprot_val(prot) | _PAGE_PSE)));
+
+	return 1;
+}
+
+int pud_clear_huge(pud_t *pud)
+{
+	if (pud_large(*pud)) {
+		pud_clear(pud);
+		return 1;
+	}
+
+	return 0;
+}
+
+int pmd_clear_huge(pmd_t *pmd)
+{
+	if (pmd_large(*pmd)) {
+		pmd_clear(pmd);
+		return 1;
+	}
+
+	return 0;
+}
+#endif	/* CONFIG_HAVE_ARCH_HUGE_VMAP */

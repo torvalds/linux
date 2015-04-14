@@ -1,7 +1,7 @@
 config ARM64
 	def_bool y
-	select ARCH_BINFMT_ELF_RANDOMIZE_PIE
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
+	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_GCOV_PROFILE_ALL
 	select ARCH_HAS_SG_CHAIN
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
@@ -142,6 +142,13 @@ config KERNEL_MODE_NEON
 
 config FIX_EARLYCON_MEM
 	def_bool y
+
+config PGTABLE_LEVELS
+	int
+	default 2 if ARM64_64K_PAGES && ARM64_VA_BITS_42
+	default 3 if ARM64_64K_PAGES && ARM64_VA_BITS_48
+	default 3 if ARM64_4K_PAGES && ARM64_VA_BITS_39
+	default 4 if ARM64_4K_PAGES && ARM64_VA_BITS_48
 
 source "init/Kconfig"
 
@@ -412,13 +419,6 @@ config ARM64_VA_BITS
 	default 39 if ARM64_VA_BITS_39
 	default 42 if ARM64_VA_BITS_42
 	default 48 if ARM64_VA_BITS_48
-
-config ARM64_PGTABLE_LEVELS
-	int
-	default 2 if ARM64_64K_PAGES && ARM64_VA_BITS_42
-	default 3 if ARM64_64K_PAGES && ARM64_VA_BITS_48
-	default 3 if ARM64_4K_PAGES && ARM64_VA_BITS_39
-	default 4 if ARM64_4K_PAGES && ARM64_VA_BITS_48
 
 config CPU_BIG_ENDIAN
        bool "Build big-endian kernel"

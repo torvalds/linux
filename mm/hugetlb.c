@@ -3278,6 +3278,15 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		struct page *page;
 
 		/*
+		 * If we have a pending SIGKILL, don't keep faulting pages and
+		 * potentially allocating memory.
+		 */
+		if (unlikely(fatal_signal_pending(current))) {
+			remainder = 0;
+			break;
+		}
+
+		/*
 		 * Some archs (sparc64, sh*) have multiple pte_ts to
 		 * each hugepage.  We have to make sure we get the
 		 * first, for the page indexing below to work.
@@ -3735,8 +3744,7 @@ retry:
 	if (!pmd_huge(*pmd))
 		goto out;
 	if (pmd_present(*pmd)) {
-		page = pte_page(*(pte_t *)pmd) +
-			((address & ~PMD_MASK) >> PAGE_SHIFT);
+		page = pmd_page(*pmd) + ((address & ~PMD_MASK) >> PAGE_SHIFT);
 		if (flags & FOLL_GET)
 			get_page(page);
 	} else {

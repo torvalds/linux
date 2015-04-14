@@ -317,7 +317,7 @@ If the VMA passes some filtering as described in "Filtering Special Vmas"
 below, mlock_fixup() will attempt to merge the VMA with its neighbors or split
 off a subset of the VMA if the range does not cover the entire VMA.  Once the
 VMA has been merged or split or neither, mlock_fixup() will call
-__mlock_vma_pages_range() to fault in the pages via get_user_pages() and to
+populate_vma_page_range() to fault in the pages via get_user_pages() and to
 mark the pages as mlocked via mlock_vma_page().
 
 Note that the VMA being mlocked might be mapped with PROT_NONE.  In this case,
@@ -327,7 +327,7 @@ fault path or in vmscan.
 
 Also note that a page returned by get_user_pages() could be truncated or
 migrated out from under us, while we're trying to mlock it.  To detect this,
-__mlock_vma_pages_range() checks page_mapping() after acquiring the page lock.
+populate_vma_page_range() checks page_mapping() after acquiring the page lock.
 If the page is still associated with its mapping, we'll go ahead and call
 mlock_vma_page().  If the mapping is gone, we just unlock the page and move on.
 In the worst case, this will result in a page mapped in a VM_LOCKED VMA
@@ -392,7 +392,7 @@ ignored for munlock.
 
 If the VMA is VM_LOCKED, mlock_fixup() again attempts to merge or split off the
 specified range.  The range is then munlocked via the function
-__mlock_vma_pages_range() - the same function used to mlock a VMA range -
+populate_vma_page_range() - the same function used to mlock a VMA range -
 passing a flag to indicate that munlock() is being performed.
 
 Because the VMA access protections could have been changed to PROT_NONE after
@@ -402,7 +402,7 @@ get_user_pages() was enhanced to accept a flag to ignore the permissions when
 fetching the pages - all of which should be resident as a result of previous
 mlocking.
 
-For munlock(), __mlock_vma_pages_range() unlocks individual pages by calling
+For munlock(), populate_vma_page_range() unlocks individual pages by calling
 munlock_vma_page().  munlock_vma_page() unconditionally clears the PG_mlocked
 flag using TestClearPageMlocked().  As with mlock_vma_page(),
 munlock_vma_page() use the Test*PageMlocked() function to handle the case where
@@ -463,21 +463,11 @@ populate the page table.
 
 To mlock a range of memory under the unevictable/mlock infrastructure, the
 mmap() handler and task address space expansion functions call
-mlock_vma_pages_range() specifying the vma and the address range to mlock.
-mlock_vma_pages_range() filters VMAs like mlock_fixup(), as described above in
-"Filtering Special VMAs".  It will clear the VM_LOCKED flag, which will have
-already been set by the caller, in filtered VMAs.  Thus these VMA's need not be
-visited for munlock when the region is unmapped.
+populate_vma_page_range() specifying the vma and the address range to mlock.
 
-For "normal" VMAs, mlock_vma_pages_range() calls __mlock_vma_pages_range() to
-fault/allocate the pages and mlock them.  Again, like mlock_fixup(),
-mlock_vma_pages_range() downgrades the mmap semaphore to read mode before
-attempting to fault/allocate and mlock the pages and "upgrades" the semaphore
-back to write mode before returning.
-
-The callers of mlock_vma_pages_range() will have already added the memory range
+The callers of populate_vma_page_range() will have already added the memory range
 to be mlocked to the task's "locked_vm".  To account for filtered VMAs,
-mlock_vma_pages_range() returns the number of pages NOT mlocked.  All of the
+populate_vma_page_range() returns the number of pages NOT mlocked.  All of the
 callers then subtract a non-negative return value from the task's locked_vm.  A
 negative return value represent an error - for example, from get_user_pages()
 attempting to fault in a VMA with PROT_NONE access.  In this case, we leave the

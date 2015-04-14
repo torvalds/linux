@@ -1174,13 +1174,24 @@ static int __compact_finished(struct zone *zone, struct compact_control *cc,
 	/* Direct compactor: Is a suitable page free? */
 	for (order = cc->order; order < MAX_ORDER; order++) {
 		struct free_area *area = &zone->free_area[order];
+		bool can_steal;
 
 		/* Job done if page is free of the right migratetype */
 		if (!list_empty(&area->free_list[migratetype]))
 			return COMPACT_PARTIAL;
 
-		/* Job done if allocation would set block type */
-		if (order >= pageblock_order && area->nr_free)
+#ifdef CONFIG_CMA
+		/* MIGRATE_MOVABLE can fallback on MIGRATE_CMA */
+		if (migratetype == MIGRATE_MOVABLE &&
+			!list_empty(&area->free_list[MIGRATE_CMA]))
+			return COMPACT_PARTIAL;
+#endif
+		/*
+		 * Job done if allocation would steal freepages from
+		 * other migratetype buddy lists.
+		 */
+		if (find_suitable_fallback(area, order, migratetype,
+						true, &can_steal) != -1)
 			return COMPACT_PARTIAL;
 	}
 

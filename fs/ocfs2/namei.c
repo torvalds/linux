@@ -2322,10 +2322,10 @@ int ocfs2_orphan_del(struct ocfs2_super *osb,
 
 	trace_ocfs2_orphan_del(
 	     (unsigned long long)OCFS2_I(orphan_dir_inode)->ip_blkno,
-	     name, namelen);
+	     name, strlen(name));
 
 	/* find it's spot in the orphan directory */
-	status = ocfs2_find_entry(name, namelen, orphan_dir_inode,
+	status = ocfs2_find_entry(name, strlen(name), orphan_dir_inode,
 				  &lookup);
 	if (status) {
 		mlog_errno(status);
@@ -2808,7 +2808,7 @@ int ocfs2_mv_orphaned_inode_to_new(struct inode *dir,
 						       ORPHAN_DIR_SYSTEM_INODE,
 						       osb->slot_num);
 	if (!orphan_dir_inode) {
-		status = -EEXIST;
+		status = -ENOENT;
 		mlog_errno(status);
 		goto leave;
 	}

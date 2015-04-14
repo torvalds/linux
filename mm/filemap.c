@@ -202,16 +202,15 @@ void __delete_from_page_cache(struct page *page, void *shadow)
 	BUG_ON(page_mapped(page));
 
 	/*
-	 * Some filesystems seem to re-dirty the page even after
-	 * the VM has canceled the dirty bit (eg ext3 journaling).
+	 * At this point page must be either written or cleaned by truncate.
+	 * Dirty page here signals a bug and loss of unwritten data.
 	 *
-	 * Fix it up by doing a final dirty accounting check after
-	 * having removed the page entirely.
+	 * This fixes dirty accounting after removing the page entirely but
+	 * leaves PageDirty set: it has no effect for truncated page and
+	 * anyway will be cleared before returning page into buddy allocator.
 	 */
-	if (PageDirty(page) && mapping_cap_account_dirty(mapping)) {
-		dec_zone_page_state(page, NR_FILE_DIRTY);
-		dec_bdi_stat(inode_to_bdi(mapping->host), BDI_RECLAIMABLE);
-	}
+	if (WARN_ON_ONCE(PageDirty(page)))
+		account_page_cleaned(page, mapping);
 }
 
 /**

@@ -1,8 +1,8 @@
 config ARM
 	bool
 	default y
-	select ARCH_BINFMT_ELF_RANDOMIZE_PIE
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
+	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
 	select ARCH_HAVE_CUSTOM_GPIO_H
 	select ARCH_HAS_GCOV_PROFILE_ALL
@@ -285,6 +285,11 @@ config PHYS_OFFSET
 config GENERIC_BUG
 	def_bool y
 	depends on BUG
+
+config PGTABLE_LEVELS
+	int
+	default 3 if ARM_LPAE
+	default 2
 
 source "init/Kconfig"
 

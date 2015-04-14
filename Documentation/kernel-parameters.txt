@@ -1989,7 +1989,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			seconds.  Use this parameter to check at some
 			other rate.  0 disables periodic checking.
 
-	memtest=	[KNL,X86] Enable memtest
+	memtest=	[KNL,X86,ARM] Enable memtest
 			Format: <integer>
 			default : 0 <disable>
 			Specifies the number of memtest passes to be
@@ -2236,8 +2236,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	nmi_watchdog=	[KNL,BUGS=X86] Debugging features for SMP kernels
 			Format: [panic,][nopanic,][num]
-			Valid num: 0
+			Valid num: 0 or 1
 			0 - turn nmi_watchdog off
+			1 - turn nmi_watchdog on
 			When panic is specified, panic when an NMI watchdog
 			timeout occurs (or 'nopanic' to override the opposite
 			default).
@@ -2321,6 +2322,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	nofxsr		[BUGS=X86-32] Disables x86 floating point extended
 			register save and restore. The kernel will only save
 			legacy floating-point registers on task switch.
+
+	nohugeiomap	[KNL,x86] Disable kernel huge I/O mappings.
 
 	noxsave		[BUGS=X86] Disables x86 extended register state save
 			and restore using xsave. The kernel will fallback to
@@ -2464,7 +2467,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	nousb		[USB] Disable the USB subsystem
 
-	nowatchdog	[KNL] Disable the lockup detector (NMI watchdog).
+	nowatchdog	[KNL] Disable both lockup detectors, i.e.
+                        soft-lockup and NMI watchdog (hard-lockup).
 
 	nowb		[ARM]
 

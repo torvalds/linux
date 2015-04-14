@@ -335,6 +335,9 @@ void __init bootmem_init(void)
 
 	find_limits(&min, &max_low, &max_high);
 
+	early_memtest((phys_addr_t)min << PAGE_SHIFT,
+		      (phys_addr_t)max_low << PAGE_SHIFT);
+
 	/*
 	 * Sparsemem tries to allocate bootmem in memory_present(),
 	 * so must be done after the fixed reservations

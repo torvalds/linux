@@ -1312,7 +1312,9 @@ static int o2hb_debug_init(void)
 	int ret = -ENOMEM;
 
 	o2hb_debug_dir = debugfs_create_dir(O2HB_DEBUG_DIR, NULL);
-	if (!o2hb_debug_dir) {
+	if (IS_ERR_OR_NULL(o2hb_debug_dir)) {
+		ret = o2hb_debug_dir ?
+			PTR_ERR(o2hb_debug_dir) : -ENOMEM;
 		mlog_errno(ret);
 		goto bail;
 	}
@@ -1325,7 +1327,9 @@ static int o2hb_debug_init(void)
 						 sizeof(o2hb_live_node_bitmap),
 						 O2NM_MAX_NODES,
 						 o2hb_live_node_bitmap);
-	if (!o2hb_debug_livenodes) {
+	if (IS_ERR_OR_NULL(o2hb_debug_livenodes)) {
+		ret = o2hb_debug_livenodes ?
+			PTR_ERR(o2hb_debug_livenodes) : -ENOMEM;
 		mlog_errno(ret);
 		goto bail;
 	}
@@ -1338,7 +1342,9 @@ static int o2hb_debug_init(void)
 						   sizeof(o2hb_live_region_bitmap),
 						   O2NM_MAX_REGIONS,
 						   o2hb_live_region_bitmap);
-	if (!o2hb_debug_liveregions) {
+	if (IS_ERR_OR_NULL(o2hb_debug_liveregions)) {
+		ret = o2hb_debug_liveregions ?
+			PTR_ERR(o2hb_debug_liveregions) : -ENOMEM;
 		mlog_errno(ret);
 		goto bail;
 	}
@@ -1352,7 +1358,9 @@ static int o2hb_debug_init(void)
 					  sizeof(o2hb_quorum_region_bitmap),
 					  O2NM_MAX_REGIONS,
 					  o2hb_quorum_region_bitmap);
-	if (!o2hb_debug_quorumregions) {
+	if (IS_ERR_OR_NULL(o2hb_debug_quorumregions)) {
+		ret = o2hb_debug_quorumregions ?
+			PTR_ERR(o2hb_debug_quorumregions) : -ENOMEM;
 		mlog_errno(ret);
 		goto bail;
 	}
@@ -1366,7 +1374,9 @@ static int o2hb_debug_init(void)
 					  sizeof(o2hb_failed_region_bitmap),
 					  O2NM_MAX_REGIONS,
 					  o2hb_failed_region_bitmap);
-	if (!o2hb_debug_failedregions) {
+	if (IS_ERR_OR_NULL(o2hb_debug_failedregions)) {
+		ret = o2hb_debug_failedregions ?
+			PTR_ERR(o2hb_debug_failedregions) : -ENOMEM;
 		mlog_errno(ret);
 		goto bail;
 	}
@@ -2000,7 +2010,8 @@ static int o2hb_debug_region_init(struct o2hb_region *reg, struct dentry *dir)
 
 	reg->hr_debug_dir =
 		debugfs_create_dir(config_item_name(&reg->hr_item), dir);
-	if (!reg->hr_debug_dir) {
+	if (IS_ERR_OR_NULL(reg->hr_debug_dir)) {
+		ret = reg->hr_debug_dir ? PTR_ERR(reg->hr_debug_dir) : -ENOMEM;
 		mlog_errno(ret);
 		goto bail;
 	}
@@ -2013,7 +2024,9 @@ static int o2hb_debug_region_init(struct o2hb_region *reg, struct dentry *dir)
 					  O2HB_DB_TYPE_REGION_LIVENODES,
 					  sizeof(reg->hr_live_node_bitmap),
 					  O2NM_MAX_NODES, reg);
-	if (!reg->hr_debug_livenodes) {
+	if (IS_ERR_OR_NULL(reg->hr_debug_livenodes)) {
+		ret = reg->hr_debug_livenodes ?
+			PTR_ERR(reg->hr_debug_livenodes) : -ENOMEM;
 		mlog_errno(ret);
 		goto bail;
 	}
@@ -2025,7 +2038,9 @@ static int o2hb_debug_region_init(struct o2hb_region *reg, struct dentry *dir)
 					  sizeof(*(reg->hr_db_regnum)),
 					  O2HB_DB_TYPE_REGION_NUMBER,
 					  0, O2NM_MAX_NODES, reg);
-	if (!reg->hr_debug_regnum) {
+	if (IS_ERR_OR_NULL(reg->hr_debug_regnum)) {
+		ret = reg->hr_debug_regnum ?
+			PTR_ERR(reg->hr_debug_regnum) : -ENOMEM;
 		mlog_errno(ret);
 		goto bail;
 	}
@@ -2037,7 +2052,9 @@ static int o2hb_debug_region_init(struct o2hb_region *reg, struct dentry *dir)
 					  sizeof(*(reg->hr_db_elapsed_time)),
 					  O2HB_DB_TYPE_REGION_ELAPSED_TIME,
 					  0, 0, reg);
-	if (!reg->hr_debug_elapsed_time) {
+	if (IS_ERR_OR_NULL(reg->hr_debug_elapsed_time)) {
+		ret = reg->hr_debug_elapsed_time ?
+			PTR_ERR(reg->hr_debug_elapsed_time) : -ENOMEM;
 		mlog_errno(ret);
 		goto bail;
 	}
@@ -2049,13 +2066,16 @@ static int o2hb_debug_region_init(struct o2hb_region *reg, struct dentry *dir)
 					  sizeof(*(reg->hr_db_pinned)),
 					  O2HB_DB_TYPE_REGION_PINNED,
 					  0, 0, reg);
-	if (!reg->hr_debug_pinned) {
+	if (IS_ERR_OR_NULL(reg->hr_debug_pinned)) {
+		ret = reg->hr_debug_pinned ?
+			PTR_ERR(reg->hr_debug_pinned) : -ENOMEM;
 		mlog_errno(ret);
 		goto bail;
 	}
 
-	ret = 0;
+	return 0;
 bail:
+	debugfs_remove_recursive(reg->hr_debug_dir);
 	return ret;
 }
 

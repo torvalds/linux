@@ -14,6 +14,12 @@
  * Copyright (C) 2012 Parallels Inc. and Google Inc.
  * Authors: Glauber Costa and Suleiman Souhlal
  *
+ * Native page reclaim
+ * Charge lifetime sanitation
+ * Lockless page tracking & accounting
+ * Unified hierarchy configuration model
+ * Copyright (C) 2015 Red Hat, Inc., Johannes Weiner
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -1436,15 +1442,17 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
 	struct mem_cgroup *iter;
 	unsigned int i;
 
-	if (!p)
-		return;
-
 	mutex_lock(&oom_info_lock);
 	rcu_read_lock();
 
-	pr_info("Task in ");
-	pr_cont_cgroup_path(task_cgroup(p, memory_cgrp_id));
-	pr_cont(" killed as a result of limit of ");
+	if (p) {
+		pr_info("Task in ");
+		pr_cont_cgroup_path(task_cgroup(p, memory_cgrp_id));
+		pr_cont(" killed as a result of limit of ");
+	} else {
+		pr_info("Memory limit reached of cgroup ");
+	}
+
 	pr_cont_cgroup_path(memcg->css.cgroup);
 	pr_cont("\n");
 
@@ -1531,7 +1539,7 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
 		return;
 	}
 
-	check_panic_on_oom(CONSTRAINT_MEMCG, gfp_mask, order, NULL);
+	check_panic_on_oom(CONSTRAINT_MEMCG, gfp_mask, order, NULL, memcg);
 	totalpages = mem_cgroup_get_limit(memcg) ? : 1;
 	for_each_mem_cgroup_tree(iter, memcg) {
 		struct css_task_iter it;
@@ -2778,92 +2786,6 @@ void mem_cgroup_split_huge_fixup(struct page *head)
 		       HPAGE_PMD_NR);
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
-
-/**
- * mem_cgroup_move_account - move account of the page
- * @page: the page
- * @nr_pages: number of regular pages (>1 for huge pages)
- * @from: mem_cgroup which the page is moved from.
- * @to:	mem_cgroup which the page is moved to. @from != @to.
- *
- * The caller must confirm following.
- * - page is not on LRU (isolate_page() is useful.)
- * - compound_lock is held when nr_pages > 1
- *
- * This function doesn't do "charge" to new cgroup and doesn't do "uncharge"
- * from old cgroup.
- */
-static int mem_cgroup_move_account(struct page *page,
-				   unsigned int nr_pages,
-				   struct mem_cgroup *from,
-				   struct mem_cgroup *to)
-{
-	unsigned long flags;
-	int ret;
-
-	VM_BUG_ON(from == to);
-	VM_BUG_ON_PAGE(PageLRU(page), page);
-	/*
-	 * The page is isolated from LRU. So, collapse function
-	 * will not handle this page. But page splitting can happen.
-	 * Do this check under compound_page_lock(). The caller should
-	 * hold it.
-	 */
-	ret = -EBUSY;
-	if (nr_pages > 1 && !PageTransHuge(page))
-		goto out;
-
-	/*
-	 * Prevent mem_cgroup_migrate() from looking at page->mem_cgroup
-	 * of its source page while we change it: page migration takes
-	 * both pages off the LRU, but page cache replacement doesn't.
-	 */
-	if (!trylock_page(page))
-		goto out;
-
-	ret = -EINVAL;
-	if (page->mem_cgroup != from)
-		goto out_unlock;
-
-	spin_lock_irqsave(&from->move_lock, flags);
-
-	if (!PageAnon(page) && page_mapped(page)) {
-		__this_cpu_sub(from->stat->count[MEM_CGROUP_STAT_FILE_MAPPED],
-			       nr_pages);
-		__this_cpu_add(to->stat->count[MEM_CGROUP_STAT_FILE_MAPPED],
-			       nr_pages);
-	}
-
-	if (PageWriteback(page)) {
-		__this_cpu_sub(from->stat->count[MEM_CGROUP_STAT_WRITEBACK],
-			       nr_pages);
-		__this_cpu_add(to->stat->count[MEM_CGROUP_STAT_WRITEBACK],
-			       nr_pages);
-	}
-
-	/*
-	 * It is safe to change page->mem_cgroup here because the page
-	 * is referenced, charged, and isolated - we can't race with
-	 * uncharging, charging, migration, or LRU putback.
-	 */
-
-	/* caller should have done css_get */
-	page->mem_cgroup = to;
-	spin_unlock_irqrestore(&from->move_lock, flags);
-
-	ret = 0;
-
-	local_irq_disable();
-	mem_cgroup_charge_statistics(to, page, nr_pages);
-	memcg_check_events(to, page);
-	mem_cgroup_charge_statistics(from, page, -nr_pages);
-	memcg_check_events(from, page);
-	local_irq_enable();
-out_unlock:
-	unlock_page(page);
-out:
-	return ret;
-}
 
 #ifdef CONFIG_MEMCG_SWAP
 static void mem_cgroup_swap_statistics(struct mem_cgroup *memcg,
@@ -4814,6 +4736,92 @@ static struct page *mc_handle_file_pte(struct vm_area_struct *vma,
 	page = find_get_page(mapping, pgoff);
 #endif
 	return page;
+}
+
+/**
+ * mem_cgroup_move_account - move account of the page
+ * @page: the page
+ * @nr_pages: number of regular pages (>1 for huge pages)
+ * @from: mem_cgroup which the page is moved from.
+ * @to:	mem_cgroup which the page is moved to. @from != @to.
+ *
+ * The caller must confirm following.
+ * - page is not on LRU (isolate_page() is useful.)
+ * - compound_lock is held when nr_pages > 1
+ *
+ * This function doesn't do "charge" to new cgroup and doesn't do "uncharge"
+ * from old cgroup.
+ */
+static int mem_cgroup_move_account(struct page *page,
+				   unsigned int nr_pages,
+				   struct mem_cgroup *from,
+				   struct mem_cgroup *to)
+{
+	unsigned long flags;
+	int ret;
+
+	VM_BUG_ON(from == to);
+	VM_BUG_ON_PAGE(PageLRU(page), page);
+	/*
+	 * The page is isolated from LRU. So, collapse function
+	 * will not handle this page. But page splitting can happen.
+	 * Do this check under compound_page_lock(). The caller should
+	 * hold it.
+	 */
+	ret = -EBUSY;
+	if (nr_pages > 1 && !PageTransHuge(page))
+		goto out;
+
+	/*
+	 * Prevent mem_cgroup_migrate() from looking at page->mem_cgroup
+	 * of its source page while we change it: page migration takes
+	 * both pages off the LRU, but page cache replacement doesn't.
+	 */
+	if (!trylock_page(page))
+		goto out;
+
+	ret = -EINVAL;
+	if (page->mem_cgroup != from)
+		goto out_unlock;
+
+	spin_lock_irqsave(&from->move_lock, flags);
+
+	if (!PageAnon(page) && page_mapped(page)) {
+		__this_cpu_sub(from->stat->count[MEM_CGROUP_STAT_FILE_MAPPED],
+			       nr_pages);
+		__this_cpu_add(to->stat->count[MEM_CGROUP_STAT_FILE_MAPPED],
+			       nr_pages);
+	}
+
+	if (PageWriteback(page)) {
+		__this_cpu_sub(from->stat->count[MEM_CGROUP_STAT_WRITEBACK],
+			       nr_pages);
+		__this_cpu_add(to->stat->count[MEM_CGROUP_STAT_WRITEBACK],
+			       nr_pages);
+	}
+
+	/*
+	 * It is safe to change page->mem_cgroup here because the page
+	 * is referenced, charged, and isolated - we can't race with
+	 * uncharging, charging, migration, or LRU putback.
+	 */
+
+	/* caller should have done css_get */
+	page->mem_cgroup = to;
+	spin_unlock_irqrestore(&from->move_lock, flags);
+
+	ret = 0;
+
+	local_irq_disable();
+	mem_cgroup_charge_statistics(to, page, nr_pages);
+	memcg_check_events(to, page);
+	mem_cgroup_charge_statistics(from, page, -nr_pages);
+	memcg_check_events(from, page);
+	local_irq_enable();
+out_unlock:
+	unlock_page(page);
+out:
+	return ret;
 }
 
 static enum mc_target_type get_mctgt_type(struct vm_area_struct *vma,

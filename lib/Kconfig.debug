@@ -1760,6 +1760,18 @@ config TEST_UDELAY
 
 	  If unsure, say N.
 
+config MEMTEST
+	bool "Memtest"
+	depends on HAVE_MEMBLOCK
+	---help---
+	  This option adds a kernel parameter 'memtest', which allows memtest
+	  to be set.
+	        memtest=0, mean disabled; -- default
+	        memtest=1, mean do 1 test pattern;
+	        ...
+	        memtest=17, mean do 17 test patterns.
+	  If you are unsure how to answer this question, answer N.
+
 source "samples/Kconfig"
 
 source "lib/Kconfig.kgdb"
