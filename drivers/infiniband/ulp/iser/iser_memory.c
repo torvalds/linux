@@ -63,7 +63,7 @@ iser_reg_desc_put(struct ib_conn *ib_conn,
 	unsigned long flags;
 
 	spin_lock_irqsave(&ib_conn->lock, flags);
-	list_add_tail(&desc->list, &ib_conn->fastreg.pool);
+	list_add(&desc->list, &ib_conn->fastreg.pool);
 	spin_unlock_irqrestore(&ib_conn->lock, flags);
 }
 
