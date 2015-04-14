@@ -181,10 +181,10 @@ struct hrtimer_cpu_base {
 	unsigned int			active_bases;
 	unsigned int			clock_was_set_seq;
 #ifdef CONFIG_HIGH_RES_TIMERS
+	unsigned int			in_hrtirq	: 1,
+					hres_active	: 1,
+					hang_detected	: 1;
 	ktime_t				expires_next;
-	int				in_hrtirq;
-	int				hres_active;
-	int				hang_detected;
 	unsigned int			nr_events;
 	unsigned int			nr_retries;
 	unsigned int			nr_hangs;

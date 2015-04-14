@@ -492,9 +492,14 @@ static inline int hrtimer_is_hres_enabled(void)
 /*
  * Is the high resolution mode active ?
  */
+static inline int __hrtimer_hres_active(struct hrtimer_cpu_base *cpu_base)
+{
+	return cpu_base->hres_active;
+}
+
 static inline int hrtimer_hres_active(void)
 {
-	return __this_cpu_read(hrtimer_bases.hres_active);
+	return __hrtimer_hres_active(this_cpu_ptr(&hrtimer_bases));
 }
 
 /*
@@ -628,7 +633,7 @@ static void retrigger_next_event(void *arg)
 {
 	struct hrtimer_cpu_base *base = this_cpu_ptr(&hrtimer_bases);
 
-	if (!hrtimer_hres_active())
+	if (!base->hres_active)
 		return;
 
 	raw_spin_lock(&base->lock);
@@ -685,6 +690,7 @@ void clock_was_set_delayed(void)
 
 #else
 
+static inline int __hrtimer_hres_active(struct hrtimer_cpu_base *b) { return 0; }
 static inline int hrtimer_hres_active(void) { return 0; }
 static inline int hrtimer_is_hres_enabled(void) { return 0; }
 static inline int hrtimer_switch_to_hres(void) { return 0; }
@@ -862,25 +868,27 @@ static void __remove_hrtimer(struct hrtimer *timer,
 			     struct hrtimer_clock_base *base,
 			     unsigned long newstate, int reprogram)
 {
+	struct hrtimer_cpu_base *cpu_base = base->cpu_base;
 	struct timerqueue_node *next_timer;
+
 	if (!(timer->state & HRTIMER_STATE_ENQUEUED))
 		goto out;
 
 	next_timer = timerqueue_getnext(&base->active);
 	timerqueue_del(&base->active, &timer->node);
 	if (!timerqueue_getnext(&base->active))
-		base->cpu_base->active_bases &= ~(1 << base->index);
+		cpu_base->active_bases &= ~(1 << base->index);
 
 	if (&timer->node == next_timer) {
 #ifdef CONFIG_HIGH_RES_TIMERS
 		/* Reprogram the clock event device. if enabled */
-		if (reprogram && hrtimer_hres_active()) {
+		if (reprogram && cpu_base->hres_active) {
 			ktime_t expires;
 
 			expires = ktime_sub(hrtimer_get_expires(timer),
 					    base->offset);
-			if (base->cpu_base->expires_next.tv64 == expires.tv64)
-				hrtimer_force_reprogram(base->cpu_base, 1);
+			if (cpu_base->expires_next.tv64 == expires.tv64)
+				hrtimer_force_reprogram(cpu_base, 1);
 		}
 #endif
 	}
@@ -1114,7 +1122,7 @@ ktime_t hrtimer_get_next_event(void)
 
 	raw_spin_lock_irqsave(&cpu_base->lock, flags);
 
-	if (!hrtimer_hres_active())
+	if (!__hrtimer_hres_active(cpu_base))
 		mindelta = ktime_sub(__hrtimer_get_next_event(cpu_base),
 				     ktime_get());
 
@@ -1412,7 +1420,7 @@ void hrtimer_run_queues(void)
 	struct hrtimer_cpu_base *cpu_base = this_cpu_ptr(&hrtimer_bases);
 	ktime_t now;
 
-	if (hrtimer_hres_active())
+	if (__hrtimer_hres_active(cpu_base))
 		return;
 
 	raw_spin_lock(&cpu_base->lock);
