@@ -103,7 +103,7 @@ static int cma_alloc_mem(struct cma *cma, int count)
 	if (!mem)
 		return -ENOMEM;
 
-	p = cma_alloc(cma, count, CONFIG_CMA_ALIGNMENT);
+	p = cma_alloc(cma, count, 0);
 	if (!p) {
 		kfree(mem);
 		return -ENOMEM;
