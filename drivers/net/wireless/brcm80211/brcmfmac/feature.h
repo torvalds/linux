@@ -19,7 +19,9 @@
 /*
  * Features:
  *
+ * MBSS: multiple BSSID support (eg. guest network in AP mode).
  * MCHAN: multi-channel for concurrent P2P.
+ * WOWL: Wake-On-WLAN.
  */
 #define BRCMF_FEAT_LIST \
 	BRCMF_FEAT_DEF(MBSS) \
