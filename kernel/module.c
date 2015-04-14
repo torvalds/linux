@@ -2770,6 +2770,9 @@ static int find_module_sections(struct module *mod, struct load_info *info)
 	mod->trace_events = section_objs(info, "_ftrace_events",
 					 sizeof(*mod->trace_events),
 					 &mod->num_trace_events);
+	mod->trace_enums = section_objs(info, "_ftrace_enum_map",
+					sizeof(*mod->trace_enums),
+					&mod->num_trace_enums);
 #endif
 #ifdef CONFIG_TRACING
 	mod->trace_bprintk_fmt_start = section_objs(info, "__trace_printk_fmt",

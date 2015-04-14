@@ -250,7 +250,7 @@ DEFINE_FETCH_symbol(string_size)
 #define fetch_file_offset_string_size	NULL
 
 /* Fetch type information table */
-const struct fetch_type kprobes_fetch_type_table[] = {
+static const struct fetch_type kprobes_fetch_type_table[] = {
 	/* Special types */
 	[FETCH_TYPE_STRING] = __ASSIGN_FETCH_TYPE("string", string, string,
 					sizeof(u32), 1, "__data_loc char[]"),
@@ -760,7 +760,8 @@ static int create_trace_kprobe(int argc, char **argv)
 
 		/* Parse fetch argument */
 		ret = traceprobe_parse_probe_arg(arg, &tk->tp.size, parg,
-						is_return, true);
+						is_return, true,
+						kprobes_fetch_type_table);
 		if (ret) {
 			pr_info("Parse error at argument[%d]. (%d)\n", i, ret);
 			goto error;

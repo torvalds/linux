@@ -202,7 +202,7 @@ enum trace_reg {
 struct ftrace_event_call;
 
 struct ftrace_event_class {
-	char			*system;
+	const char		*system;
 	void			*probe;
 #ifdef CONFIG_PERF_EVENTS
 	void			*perf_probe;
@@ -285,7 +285,7 @@ struct ftrace_event_call {
 		struct tracepoint	*tp;
 	};
 	struct trace_event	event;
-	const char		*print_fmt;
+	char			*print_fmt;
 	struct event_filter	*filter;
 	void			*mod;
 	void			*data;

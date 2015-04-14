@@ -240,7 +240,7 @@ TRACE_EVENT(ext4_mark_inode_dirty,
 		__entry->ip	= IP;
 	),
 
-	TP_printk("dev %d,%d ino %lu caller %pF",
+	TP_printk("dev %d,%d ino %lu caller %pS",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long) __entry->ino, (void *)__entry->ip)
 );
@@ -1762,7 +1762,7 @@ TRACE_EVENT(ext4_journal_start,
 		__entry->rsv_blocks	 = rsv_blocks;
 	),
 
-	TP_printk("dev %d,%d blocks, %d rsv_blocks, %d caller %pF",
+	TP_printk("dev %d,%d blocks, %d rsv_blocks, %d caller %pS",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->blocks, __entry->rsv_blocks, (void *)__entry->ip)
 );
@@ -1784,7 +1784,7 @@ TRACE_EVENT(ext4_journal_start_reserved,
 		__entry->blocks		 = blocks;
 	),
 
-	TP_printk("dev %d,%d blocks, %d caller %pF",
+	TP_printk("dev %d,%d blocks, %d caller %pS",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->blocks, (void *)__entry->ip)
 );

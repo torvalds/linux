@@ -196,7 +196,7 @@ DEFINE_FETCH_file_offset(string)
 DEFINE_FETCH_file_offset(string_size)
 
 /* Fetch type information table */
-const struct fetch_type uprobes_fetch_type_table[] = {
+static const struct fetch_type uprobes_fetch_type_table[] = {
 	/* Special types */
 	[FETCH_TYPE_STRING] = __ASSIGN_FETCH_TYPE("string", string, string,
 					sizeof(u32), 1, "__data_loc char[]"),
@@ -535,7 +535,8 @@ static int create_trace_uprobe(int argc, char **argv)
 
 		/* Parse fetch argument */
 		ret = traceprobe_parse_probe_arg(arg, &tu->tp.size, parg,
-						 is_return, false);
+						 is_return, false,
+						 uprobes_fetch_type_table);
 		if (ret) {
 			pr_info("Parse error at argument[%d]. (%d)\n", i, ret);
 			goto error;

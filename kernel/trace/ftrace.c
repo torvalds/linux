@@ -249,6 +249,19 @@ static void update_function_graph_func(void);
 static inline void update_function_graph_func(void) { }
 #endif
 
+
+static ftrace_func_t ftrace_ops_get_list_func(struct ftrace_ops *ops)
+{
+	/*
+	 * If this is a dynamic ops or we force list func,
+	 * then it needs to call the list anyway.
+	 */
+	if (ops->flags & FTRACE_OPS_FL_DYNAMIC || FTRACE_FORCE_LIST_FUNC)
+		return ftrace_ops_list_func;
+
+	return ftrace_ops_get_func(ops);
+}
+
 static void update_ftrace_function(void)
 {
 	ftrace_func_t func;
@@ -270,7 +283,7 @@ static void update_ftrace_function(void)
 	 * then have the mcount trampoline call the function directly.
 	 */
 	} else if (ftrace_ops_list->next == &ftrace_list_end) {
-		func = ftrace_ops_get_func(ftrace_ops_list);
+		func = ftrace_ops_get_list_func(ftrace_ops_list);
 
 	} else {
 		/* Just use the default ftrace_ops */
@@ -5208,13 +5221,6 @@ static void ftrace_ops_recurs_func(unsigned long ip, unsigned long parent_ip,
  */
 ftrace_func_t ftrace_ops_get_func(struct ftrace_ops *ops)
 {
-	/*
-	 * If this is a dynamic ops or we force list func,
-	 * then it needs to call the list anyway.
-	 */
-	if (ops->flags & FTRACE_OPS_FL_DYNAMIC || FTRACE_FORCE_LIST_FUNC)
-		return ftrace_ops_list_func;
-
 	/*
 	 * If the func handles its own recursion, call it directly.
 	 * Otherwise call the recursion protected function that
