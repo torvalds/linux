@@ -879,6 +879,10 @@ static int pcan_usb_fd_init(struct peak_usb_device *dev)
 
 		pdev->usb_if = ppdev->usb_if;
 		pdev->cmd_buffer_addr = ppdev->cmd_buffer_addr;
+
+		/* do a copy of the ctrlmode[_supported] too */
+		dev->can.ctrlmode = ppdev->dev.can.ctrlmode;
+		dev->can.ctrlmode_supported = ppdev->dev.can.ctrlmode_supported;
 	}
 
 	pdev->usb_if->dev[dev->ctrl_idx] = dev;

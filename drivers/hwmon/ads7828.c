@@ -147,6 +147,9 @@ static int ads7828_probe(struct i2c_client *client,
 						    &ads2830_regmap_config);
 	}
 
+	if (IS_ERR(data->regmap))
+		return PTR_ERR(data->regmap);
+
 	data->cmd_byte = ext_vref ? ADS7828_CMD_PD1 : ADS7828_CMD_PD3;
 	if (!diff_input)
 		data->cmd_byte |= ADS7828_CMD_SD_SE;

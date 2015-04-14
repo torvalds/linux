@@ -84,7 +84,7 @@ static int ti_fapll_enable(struct clk_hw *hw)
 	struct fapll_data *fd = to_fapll(hw);
 	u32 v = readl_relaxed(fd->base);
 
-	v |= (1 << FAPLL_MAIN_PLLEN);
+	v |= FAPLL_MAIN_PLLEN;
 	writel_relaxed(v, fd->base);
 
 	return 0;
@@ -95,7 +95,7 @@ static void ti_fapll_disable(struct clk_hw *hw)
 	struct fapll_data *fd = to_fapll(hw);
 	u32 v = readl_relaxed(fd->base);
 
-	v &= ~(1 << FAPLL_MAIN_PLLEN);
+	v &= ~FAPLL_MAIN_PLLEN;
 	writel_relaxed(v, fd->base);
 }
 
@@ -104,7 +104,7 @@ static int ti_fapll_is_enabled(struct clk_hw *hw)
 	struct fapll_data *fd = to_fapll(hw);
 	u32 v = readl_relaxed(fd->base);
 
-	return v & (1 << FAPLL_MAIN_PLLEN);
+	return v & FAPLL_MAIN_PLLEN;
 }
 
 static unsigned long ti_fapll_recalc_rate(struct clk_hw *hw,

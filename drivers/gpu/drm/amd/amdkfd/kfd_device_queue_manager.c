@@ -62,10 +62,16 @@ enum KFD_MQD_TYPE get_mqd_type_from_queue_type(enum kfd_queue_type type)
 	return KFD_MQD_TYPE_CP;
 }
 
-static inline unsigned int get_first_pipe(struct device_queue_manager *dqm)
+unsigned int get_first_pipe(struct device_queue_manager *dqm)
 {
-	BUG_ON(!dqm);
+	BUG_ON(!dqm || !dqm->dev);
 	return dqm->dev->shared_resources.first_compute_pipe;
+}
+
+unsigned int get_pipes_num(struct device_queue_manager *dqm)
+{
+	BUG_ON(!dqm || !dqm->dev);
+	return dqm->dev->shared_resources.compute_pipe_count;
 }
 
 static inline unsigned int get_pipes_num_cpsch(void)

@@ -20,6 +20,9 @@
 #error "Only include this from assembly code"
 #endif
 
+#ifndef __ASM_ASSEMBLER_H
+#define __ASM_ASSEMBLER_H
+
 #include <asm/ptrace.h>
 #include <asm/thread_info.h>
 
@@ -155,3 +158,5 @@ lr	.req	x30		// link register
 #endif
 	orr	\rd, \lbits, \hbits, lsl #32
 	.endm
+
+#endif	/* __ASM_ASSEMBLER_H */

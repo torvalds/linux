@@ -482,6 +482,10 @@
 #define		SOFT_RESET_ORB				(1 << 23)
 #define		SOFT_RESET_VCE				(1 << 24)
 
+#define SRBM_READ_ERROR					0xE98
+#define SRBM_INT_CNTL					0xEA0
+#define SRBM_INT_ACK					0xEA8
+
 #define VM_L2_CNTL					0x1400
 #define		ENABLE_L2_CACHE					(1 << 0)
 #define		ENABLE_L2_FRAGMENT_PROCESSING			(1 << 1)

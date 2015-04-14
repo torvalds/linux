@@ -709,12 +709,11 @@ static int prepare_pending_reqs(struct vscsibk_info *info,
 static int scsiback_do_cmd_fn(struct vscsibk_info *info)
 {
 	struct vscsiif_back_ring *ring = &info->ring;
-	struct vscsiif_request *ring_req;
+	struct vscsiif_request ring_req;
 	struct vscsibk_pend *pending_req;
 	RING_IDX rc, rp;
 	int err, more_to_do;
 	uint32_t result;
-	uint8_t act;
 
 	rc = ring->req_cons;
 	rp = ring->sring->req_prod;
@@ -735,11 +734,10 @@ static int scsiback_do_cmd_fn(struct vscsibk_info *info)
 		if (!pending_req)
 			return 1;
 
-		ring_req = RING_GET_REQUEST(ring, rc);
+		ring_req = *RING_GET_REQUEST(ring, rc);
 		ring->req_cons = ++rc;
 
-		act = ring_req->act;
-		err = prepare_pending_reqs(info, ring_req, pending_req);
+		err = prepare_pending_reqs(info, &ring_req, pending_req);
 		if (err) {
 			switch (err) {
 			case -ENODEV:
@@ -755,9 +753,9 @@ static int scsiback_do_cmd_fn(struct vscsibk_info *info)
 			return 1;
 		}
 
-		switch (act) {
+		switch (ring_req.act) {
 		case VSCSIIF_ACT_SCSI_CDB:
-			if (scsiback_gnttab_data_map(ring_req, pending_req)) {
+			if (scsiback_gnttab_data_map(&ring_req, pending_req)) {
 				scsiback_fast_flush_area(pending_req);
 				scsiback_do_resp_with_sense(NULL,
 					DRIVER_ERROR << 24, 0, pending_req);
@@ -768,7 +766,7 @@ static int scsiback_do_cmd_fn(struct vscsibk_info *info)
 			break;
 		case VSCSIIF_ACT_SCSI_ABORT:
 			scsiback_device_action(pending_req, TMR_ABORT_TASK,
-				ring_req->ref_rqid);
+				ring_req.ref_rqid);
 			break;
 		case VSCSIIF_ACT_SCSI_RESET:
 			scsiback_device_action(pending_req, TMR_LUN_RESET, 0);

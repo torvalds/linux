@@ -344,7 +344,7 @@ static struct usb_endpoint_descriptor ss_int_source_desc = {
 	.bInterval =		USB_MS_TO_SS_INTERVAL(GZERO_INT_INTERVAL),
 };
 
-struct usb_ss_ep_comp_descriptor ss_int_source_comp_desc = {
+static struct usb_ss_ep_comp_descriptor ss_int_source_comp_desc = {
 	.bLength =		USB_DT_SS_EP_COMP_SIZE,
 	.bDescriptorType =	USB_DT_SS_ENDPOINT_COMP,
 
@@ -362,7 +362,7 @@ static struct usb_endpoint_descriptor ss_int_sink_desc = {
 	.bInterval =		USB_MS_TO_SS_INTERVAL(GZERO_INT_INTERVAL),
 };
 
-struct usb_ss_ep_comp_descriptor ss_int_sink_comp_desc = {
+static struct usb_ss_ep_comp_descriptor ss_int_sink_comp_desc = {
 	.bLength =		USB_DT_SS_EP_COMP_SIZE,
 	.bDescriptorType =	USB_DT_SS_ENDPOINT_COMP,
 

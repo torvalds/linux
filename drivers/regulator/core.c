@@ -3444,13 +3444,6 @@ static umode_t regulator_attr_is_visible(struct kobject *kobj,
 	if (attr == &dev_attr_requested_microamps.attr)
 		return rdev->desc->type == REGULATOR_CURRENT ? mode : 0;
 
-	/* all the other attributes exist to support constraints;
-	 * don't show them if there are no constraints, or if the
-	 * relevant supporting methods are missing.
-	 */
-	if (!rdev->constraints)
-		return 0;
-
 	/* constraints need specific supporting methods */
 	if (attr == &dev_attr_min_microvolts.attr ||
 	    attr == &dev_attr_max_microvolts.attr)

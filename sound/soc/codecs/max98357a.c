@@ -12,9 +12,19 @@
  * max98357a.c -- MAX98357A ALSA SoC Codec driver
  */
 
-#include <linux/module.h>
+#include <linux/device.h>
+#include <linux/err.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
+#include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
+#include <sound/pcm.h>
 #include <sound/soc.h>
+#include <sound/soc-dai.h>
+#include <sound/soc-dapm.h>
 
 #define DRV_NAME "max98357a"
 

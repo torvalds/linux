@@ -1103,7 +1103,7 @@ int t4_restart_aneg(struct adapter *adap, unsigned int mbox, unsigned int port);
 #define T4_MEMORY_WRITE	0
 #define T4_MEMORY_READ	1
 int t4_memory_rw(struct adapter *adap, int win, int mtype, u32 addr, u32 len,
-		 __be32 *buf, int dir);
+		 void *buf, int dir);
 static inline int t4_memory_write(struct adapter *adap, int mtype, u32 addr,
 				  u32 len, __be32 *buf)
 {

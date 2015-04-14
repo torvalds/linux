@@ -427,7 +427,7 @@ struct mlx4_wqe_inline_seg {
 
 enum mlx4_update_qp_attr {
 	MLX4_UPDATE_QP_SMAC		= 1 << 0,
-	MLX4_UPDATE_QP_VSD		= 1 << 2,
+	MLX4_UPDATE_QP_VSD		= 1 << 1,
 	MLX4_UPDATE_QP_SUPPORTED_ATTRS	= (1 << 2) - 1
 };
 
