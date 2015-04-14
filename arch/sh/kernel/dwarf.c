@@ -993,7 +993,7 @@ static struct unwinder dwarf_unwinder = {
 	.rating = 150,
 };
 
-static void dwarf_unwinder_cleanup(void)
+static void __init dwarf_unwinder_cleanup(void)
 {
 	struct dwarf_fde *fde, *next_fde;
 	struct dwarf_cie *cie, *next_cie;
@@ -1009,6 +1009,10 @@ static void dwarf_unwinder_cleanup(void)
 	rbtree_postorder_for_each_entry_safe(cie, next_cie, &cie_root, node)
 		kfree(cie);
 
+	if (dwarf_reg_pool)
+		mempool_destroy(dwarf_reg_pool);
+	if (dwarf_frame_pool)
+		mempool_destroy(dwarf_frame_pool);
 	kmem_cache_destroy(dwarf_reg_cachep);
 	kmem_cache_destroy(dwarf_frame_cachep);
 }
