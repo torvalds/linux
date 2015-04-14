@@ -452,7 +452,6 @@ struct bgmac {
 
 	/* Int */
 	u32 int_mask;
-	u32 int_status;
 
 	/* Current MAC state */
 	int mac_speed;
