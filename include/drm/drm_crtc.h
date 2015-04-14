@@ -975,7 +975,7 @@ struct drm_mode_set {
  * struct drm_mode_config_funcs - basic driver provided mode setting functions
  * @fb_create: create a new framebuffer object
  * @output_poll_changed: function to handle output configuration changes
- * @atomic_check: check whether a give atomic state update is possible
+ * @atomic_check: check whether a given atomic state update is possible
  * @atomic_commit: commit an atomic state update previously verified with
  * 	atomic_check()
  *
