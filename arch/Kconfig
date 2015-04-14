@@ -497,6 +497,7 @@ config ARCH_HAS_ELF_RANDOMIZE
 	  An architecture supports choosing randomized locations for
 	  stack, mmap, brk, and ET_DYN. Defined functions:
 	  - arch_mmap_rnd()
+	  - arch_randomize_brk()
 
 #
 # ABI hall of shame
