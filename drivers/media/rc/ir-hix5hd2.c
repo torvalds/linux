@@ -63,7 +63,7 @@
 
 struct hix5hd2_ir_priv {
 	int			irq;
-	void volatile __iomem	*base;
+	void __iomem		*base;
 	struct device		*dev;
 	struct rc_dev		*rdev;
 	struct regmap		*regmap;
@@ -213,8 +213,8 @@ static int hix5hd2_ir_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->base = devm_ioremap_resource(dev, res);
-	if (IS_ERR((__force void *)priv->base))
-		return PTR_ERR((__force void *)priv->base);
+	if (IS_ERR(priv->base))
+		return PTR_ERR(priv->base);
 
 	priv->irq = platform_get_irq(pdev, 0);
 	if (priv->irq < 0) {
