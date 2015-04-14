@@ -165,9 +165,9 @@ static void ppgtt_unbind_vma(struct i915_vma *vma)
 			     true);
 }
 
-static inline gen8_pte_t gen8_pte_encode(dma_addr_t addr,
-					 enum i915_cache_level level,
-					 bool valid)
+static gen8_pte_t gen8_pte_encode(dma_addr_t addr,
+				  enum i915_cache_level level,
+				  bool valid)
 {
 	gen8_pte_t pte = valid ? _PAGE_PRESENT | _PAGE_RW : 0;
 	pte |= addr;
@@ -187,9 +187,9 @@ static inline gen8_pte_t gen8_pte_encode(dma_addr_t addr,
 	return pte;
 }
 
-static inline gen8_pde_t gen8_pde_encode(struct drm_device *dev,
-					  dma_addr_t addr,
-					  enum i915_cache_level level)
+static gen8_pde_t gen8_pde_encode(struct drm_device *dev,
+				  dma_addr_t addr,
+				  enum i915_cache_level level)
 {
 	gen8_pde_t pde = _PAGE_PRESENT | _PAGE_RW;
 	pde |= addr;
@@ -299,8 +299,8 @@ static gen6_pte_t iris_pte_encode(dma_addr_t addr,
 #define i915_dma_unmap_single(px, dev) \
 	__i915_dma_unmap_single((px)->daddr, dev)
 
-static inline void __i915_dma_unmap_single(dma_addr_t daddr,
-					struct drm_device *dev)
+static void __i915_dma_unmap_single(dma_addr_t daddr,
+				    struct drm_device *dev)
 {
 	struct device *device = &dev->pdev->dev;
 
@@ -321,9 +321,9 @@ static inline void __i915_dma_unmap_single(dma_addr_t daddr,
 #define i915_dma_map_single(px, dev) \
 	i915_dma_map_page_single((px)->page, (dev), &(px)->daddr)
 
-static inline int i915_dma_map_page_single(struct page *page,
-					   struct drm_device *dev,
-					   dma_addr_t *daddr)
+static int i915_dma_map_page_single(struct page *page,
+				    struct drm_device *dev,
+				    dma_addr_t *daddr)
 {
 	struct device *device = &dev->pdev->dev;
 
@@ -1268,7 +1268,7 @@ static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
  * are switching between contexts with the same LRCA, we also must do a force
  * restore.
  */
-static inline void mark_tlbs_dirty(struct i915_hw_ppgtt *ppgtt)
+static void mark_tlbs_dirty(struct i915_hw_ppgtt *ppgtt)
 {
 	/* If current vm != vm, */
 	ppgtt->pd_dirty_rings = INTEL_INFO(ppgtt->base.dev)->ring_mask;
@@ -1625,7 +1625,7 @@ extern int intel_iommu_gfx_mapped;
 /* Certain Gen5 chipsets require require idling the GPU before
  * unmapping anything from the GTT when VT-d is enabled.
  */
-static inline bool needs_idle_maps(struct drm_device *dev)
+static bool needs_idle_maps(struct drm_device *dev)
 {
 #ifdef CONFIG_INTEL_IOMMU
 	/* Query intel_iommu to see if we need the workaround. Presumably that
@@ -1731,7 +1731,7 @@ int i915_gem_gtt_prepare_object(struct drm_i915_gem_object *obj)
 	return 0;
 }
 
-static inline void gen8_set_pte(void __iomem *addr, gen8_pte_t pte)
+static void gen8_set_pte(void __iomem *addr, gen8_pte_t pte)
 {
 #ifdef writeq
 	writeq(pte, addr);
@@ -2154,14 +2154,14 @@ static void teardown_scratch_page(struct drm_device *dev)
 	__free_page(page);
 }
 
-static inline unsigned int gen6_get_total_gtt_size(u16 snb_gmch_ctl)
+static unsigned int gen6_get_total_gtt_size(u16 snb_gmch_ctl)
 {
 	snb_gmch_ctl >>= SNB_GMCH_GGMS_SHIFT;
 	snb_gmch_ctl &= SNB_GMCH_GGMS_MASK;
 	return snb_gmch_ctl << 20;
 }
 
-static inline unsigned int gen8_get_total_gtt_size(u16 bdw_gmch_ctl)
+static unsigned int gen8_get_total_gtt_size(u16 bdw_gmch_ctl)
 {
 	bdw_gmch_ctl >>= BDW_GMCH_GGMS_SHIFT;
 	bdw_gmch_ctl &= BDW_GMCH_GGMS_MASK;
@@ -2177,7 +2177,7 @@ static inline unsigned int gen8_get_total_gtt_size(u16 bdw_gmch_ctl)
 	return bdw_gmch_ctl << 20;
 }
 
-static inline unsigned int chv_get_total_gtt_size(u16 gmch_ctrl)
+static unsigned int chv_get_total_gtt_size(u16 gmch_ctrl)
 {
 	gmch_ctrl >>= SNB_GMCH_GGMS_SHIFT;
 	gmch_ctrl &= SNB_GMCH_GGMS_MASK;
@@ -2188,14 +2188,14 @@ static inline unsigned int chv_get_total_gtt_size(u16 gmch_ctrl)
 	return 0;
 }
 
-static inline size_t gen6_get_stolen_size(u16 snb_gmch_ctl)
+static size_t gen6_get_stolen_size(u16 snb_gmch_ctl)
 {
 	snb_gmch_ctl >>= SNB_GMCH_GMS_SHIFT;
 	snb_gmch_ctl &= SNB_GMCH_GMS_MASK;
 	return snb_gmch_ctl << 25; /* 32 MB units */
 }
 
-static inline size_t gen8_get_stolen_size(u16 bdw_gmch_ctl)
+static size_t gen8_get_stolen_size(u16 bdw_gmch_ctl)
 {
 	bdw_gmch_ctl >>= BDW_GMCH_GMS_SHIFT;
 	bdw_gmch_ctl &= BDW_GMCH_GMS_MASK;
