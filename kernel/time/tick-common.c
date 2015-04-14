@@ -102,6 +102,16 @@ void tick_handle_periodic(struct clock_event_device *dev)
 
 	tick_periodic(cpu);
 
+#if defined(CONFIG_HIGH_RES_TIMERS) || defined(CONFIG_NO_HZ_COMMON)
+	/*
+	 * The cpu might have transitioned to HIGHRES or NOHZ mode via
+	 * update_process_times() -> run_local_timers() ->
+	 * hrtimer_run_queues().
+	 */
+	if (dev->event_handler != tick_handle_periodic)
+		return;
+#endif
+
 	if (dev->state != CLOCK_EVT_STATE_ONESHOT)
 		return;
 	for (;;) {

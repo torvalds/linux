@@ -413,7 +413,8 @@ enum
 	BLOCK_IOPOLL_SOFTIRQ,
 	TASKLET_SOFTIRQ,
 	SCHED_SOFTIRQ,
-	HRTIMER_SOFTIRQ,
+	HRTIMER_SOFTIRQ, /* Unused, but kept as tools rely on the
+			    numbering. Sigh! */
 	RCU_SOFTIRQ,    /* Preferable RCU should always be the last softirq */
 
 	NR_SOFTIRQS
