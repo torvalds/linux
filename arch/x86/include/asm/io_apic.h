@@ -98,9 +98,19 @@ struct IR_IO_APIC_route_entry {
 struct irq_alloc_info;
 struct irq_data;
 
-#define IOAPIC_AUTO     -1
-#define IOAPIC_EDGE     0
-#define IOAPIC_LEVEL    1
+#define IOAPIC_AUTO			-1
+#define IOAPIC_EDGE			0
+#define IOAPIC_LEVEL			1
+
+#define IOAPIC_MASKED			1
+#define IOAPIC_UNMASKED			0
+
+#define IOAPIC_POL_HIGH			0
+#define IOAPIC_POL_LOW			1
+
+#define IOAPIC_DEST_MODE_PHYSICAL	0
+#define IOAPIC_DEST_MODE_LOGICAL	1
+
 #define	IOAPIC_MAP_ALLOC		0x1
 #define	IOAPIC_MAP_CHECK		0x2
 
