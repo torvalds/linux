@@ -2843,6 +2843,7 @@ void __ieee80211_subif_start_xmit(struct sk_buff *skb,
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct sta_info *sta;
+	struct sk_buff *next;
 
 	if (unlikely(skb->len < ETH_HLEN)) {
 		kfree_skb(skb);
@@ -2864,36 +2865,57 @@ void __ieee80211_subif_start_xmit(struct sk_buff *skb,
 			goto out;
 	}
 
-	/* we cannot process non-linear frames on this path */
-	if (skb_linearize(skb)) {
-		kfree_skb(skb);
-		goto out;
-	}
+	if (skb_is_gso(skb)) {
+		struct sk_buff *segs;
 
-	/* the frame could be fragmented, software-encrypted, and other things
-	 * so we cannot really handle checksum offload with it - fix it up in
-	 * software before we handle anything else.
-	 */
-	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		if (skb->encapsulation)
-			skb_set_inner_transport_header(skb,
-						       skb_checksum_start_offset(skb));
-		else
-			skb_set_transport_header(skb,
-						 skb_checksum_start_offset(skb));
-		if (skb_checksum_help(skb))
+		segs = skb_gso_segment(skb, 0);
+		if (IS_ERR(segs)) {
 			goto out_free;
+		} else if (segs) {
+			consume_skb(skb);
+			skb = segs;
+		}
+	} else {
+		/* we cannot process non-linear frames on this path */
+		if (skb_linearize(skb)) {
+			kfree_skb(skb);
+			goto out;
+		}
+
+		/* the frame could be fragmented, software-encrypted, and other
+		 * things so we cannot really handle checksum offload with it -
+		 * fix it up in software before we handle anything else.
+		 */
+		if (skb->ip_summed == CHECKSUM_PARTIAL) {
+			if (skb->encapsulation)
+				skb_set_inner_transport_header(skb,
+							       skb_checksum_start_offset(skb));
+			else
+				skb_set_transport_header(skb,
+							 skb_checksum_start_offset(skb));
+			if (skb_checksum_help(skb))
+				goto out_free;
+		}
 	}
 
-	skb = ieee80211_build_hdr(sdata, skb, info_flags, sta);
-	if (IS_ERR(skb))
-		goto out;
+	next = skb;
+	while (next) {
+		skb = next;
+		next = skb->next;
 
-	dev->stats.tx_packets++;
-	dev->stats.tx_bytes += skb->len;
-	dev->trans_start = jiffies;
+		skb->prev = NULL;
+		skb->next = NULL;
 
-	ieee80211_xmit(sdata, sta, skb);
+		skb = ieee80211_build_hdr(sdata, skb, info_flags, sta);
+		if (IS_ERR(skb))
+			goto out;
+
+		dev->stats.tx_packets++;
+		dev->stats.tx_bytes += skb->len;
+		dev->trans_start = jiffies;
+
+		ieee80211_xmit(sdata, sta, skb);
+	}
 	goto out;
  out_free:
 	kfree_skb(skb);
