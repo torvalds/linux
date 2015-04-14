@@ -165,7 +165,7 @@ static void print_cpu(struct seq_file *m, int cpu, u64 now)
 	P(nr_events);
 	P(nr_retries);
 	P(nr_hangs);
-	P_ns(max_hang_time);
+	P(max_hang_time);
 #endif
 #undef P
 #undef P_ns

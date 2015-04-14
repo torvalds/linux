@@ -187,10 +187,10 @@ struct hrtimer_cpu_base {
 	int				in_hrtirq;
 	int				hres_active;
 	int				hang_detected;
-	unsigned long			nr_events;
-	unsigned long			nr_retries;
-	unsigned long			nr_hangs;
-	ktime_t				max_hang_time;
+	unsigned int			nr_events;
+	unsigned int			nr_retries;
+	unsigned int			nr_hangs;
+	unsigned int			max_hang_time;
 #endif
 	struct hrtimer_clock_base	clock_base[HRTIMER_MAX_CLOCK_BASES];
 };

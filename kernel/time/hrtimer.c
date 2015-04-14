@@ -1327,8 +1327,8 @@ retry:
 	cpu_base->hang_detected = 1;
 	raw_spin_unlock(&cpu_base->lock);
 	delta = ktime_sub(now, entry_time);
-	if (delta.tv64 > cpu_base->max_hang_time.tv64)
-		cpu_base->max_hang_time = delta;
+	if ((unsigned int)delta.tv64 > cpu_base->max_hang_time)
+		cpu_base->max_hang_time = (unsigned int) delta.tv64;
 	/*
 	 * Limit it to a sensible value as we enforce a longer
 	 * delay. Give the CPU at least 100ms to catch up.
