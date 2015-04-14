@@ -702,9 +702,13 @@ sbc_check_prot(struct se_device *dev, struct se_cmd *cmd, unsigned char *cdb,
 			pi_prot_type = cmd->se_sess->sess_prot_type;
 			break;
 		}
+		if (!protect)
+			return TCM_NO_SENSE;
 		/* Fallthrough */
 	default:
-		return TCM_NO_SENSE;
+		pr_err("Unable to determine pi_prot_type for CDB: 0x%02x "
+		       "PROTECT: 0x%02x\n", cdb[0], protect);
+		return TCM_INVALID_CDB_FIELD;
 	}
 
 	if (sbc_set_prot_op_checks(protect, fabric_prot, pi_prot_type, is_write, cmd))
