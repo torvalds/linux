@@ -53,11 +53,8 @@ static int iser_start_rdma_unaligned_sg(struct iscsi_iser_task *iser_task,
 	struct scatterlist *sgl = (struct scatterlist *)data->buf;
 	struct scatterlist *sg;
 	char *mem = NULL;
-	unsigned long  cmd_data_len = 0;
+	unsigned long  cmd_data_len = data->data_len;
 	int dma_nents, i;
-
-	for_each_sg(sgl, sg, data->size, i)
-		cmd_data_len += ib_sg_dma_len(dev, sg);
 
 	if (cmd_data_len > ISER_KMALLOC_THRESHOLD)
 		mem = (void *)__get_free_pages(GFP_ATOMIC,
