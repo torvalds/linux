@@ -346,13 +346,13 @@ static int bgmac_dma_rx_skb_for_slot(struct bgmac *bgmac,
 		return -ENOMEM;
 
 	/* Poison - if everything goes fine, hardware will overwrite it */
-	rx = buf;
+	rx = buf + BGMAC_RX_BUF_OFFSET;
 	rx->len = cpu_to_le16(0xdead);
 	rx->flags = cpu_to_le16(0xbeef);
 
 	/* Map skb for the DMA */
-	dma_addr = dma_map_single(dma_dev, buf, BGMAC_RX_BUF_SIZE,
-				  DMA_FROM_DEVICE);
+	dma_addr = dma_map_single(dma_dev, buf + BGMAC_RX_BUF_OFFSET,
+				  BGMAC_RX_BUF_SIZE, DMA_FROM_DEVICE);
 	if (dma_mapping_error(dma_dev, dma_addr)) {
 		bgmac_err(bgmac, "DMA mapping error\n");
 		put_page(virt_to_head_page(buf));
@@ -403,7 +403,7 @@ static int bgmac_dma_rx_read(struct bgmac *bgmac, struct bgmac_dma_ring *ring,
 	while (ring->start != ring->end) {
 		struct device *dma_dev = bgmac->core->dma_dev;
 		struct bgmac_slot_info *slot = &ring->slots[ring->start];
-		struct bgmac_rx_header *rx = slot->buf;
+		struct bgmac_rx_header *rx = slot->buf + BGMAC_RX_BUF_OFFSET;
 		struct sk_buff *skb;
 		void *buf = slot->buf;
 		u16 len, flags;
@@ -454,8 +454,10 @@ static int bgmac_dma_rx_read(struct bgmac *bgmac, struct bgmac_dma_ring *ring,
 					 BGMAC_RX_BUF_SIZE, DMA_FROM_DEVICE);
 
 			skb = build_skb(buf, BGMAC_RX_ALLOC_SIZE);
-			skb_put(skb, BGMAC_RX_FRAME_OFFSET + len);
-			skb_pull(skb, BGMAC_RX_FRAME_OFFSET);
+			skb_put(skb, BGMAC_RX_FRAME_OFFSET +
+				BGMAC_RX_BUF_OFFSET + len);
+			skb_pull(skb, BGMAC_RX_FRAME_OFFSET +
+				 BGMAC_RX_BUF_OFFSET);
 
 			skb_checksum_none_assert(skb);
 			skb->protocol = eth_type_trans(skb, bgmac->net_dev);
