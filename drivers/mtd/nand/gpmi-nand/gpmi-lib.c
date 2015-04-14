@@ -298,6 +298,11 @@ int bch_set_geometry(struct gpmi_nand_data *this)
 			| BF_BCH_FLASH0LAYOUT1_DATAN_SIZE(block_size, this),
 			r->bch_regs + HW_BCH_FLASH0LAYOUT1);
 
+	/* Set erase threshold to gf/2 for mx6qp and mx7 */
+	if (GPMI_IS_MX6QP(this) || GPMI_IS_MX7(this))
+		writel(BF_BCH_MODE_ERASE_THRESHOLD(gf_len/2),
+			r->bch_regs + HW_BCH_MODE);
+
 	/* Set *all* chip selects to use layout 0. */
 	writel(0, r->bch_regs + HW_BCH_LAYOUTSELECT);
 
