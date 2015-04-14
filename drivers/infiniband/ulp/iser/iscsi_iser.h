@@ -632,10 +632,6 @@ int  iser_connect(struct iser_conn *iser_conn,
 		  struct sockaddr *dst_addr,
 		  int non_blocking);
 
-int  iser_reg_page_vec(struct ib_conn *ib_conn,
-		       struct iser_page_vec *page_vec,
-		       struct iser_mem_reg *mem_reg);
-
 void iser_unreg_mem_fmr(struct iscsi_iser_task *iser_task,
 			enum iser_data_dir cmd_dir);
 void iser_unreg_mem_fastreg(struct iscsi_iser_task *iser_task,

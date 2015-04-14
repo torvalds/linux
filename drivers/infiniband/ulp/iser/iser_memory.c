@@ -362,6 +362,94 @@ static int fall_to_bounce_buf(struct iscsi_iser_task *iser_task,
 }
 
 /**
+ * iser_reg_page_vec - Register physical memory
+ *
+ * returns: 0 on success, errno code on failure
+ */
+static
+int iser_reg_page_vec(struct ib_conn *ib_conn,
+		      struct iser_page_vec *page_vec,
+		      struct iser_mem_reg  *mem_reg)
+{
+	struct ib_pool_fmr *mem;
+	u64		   io_addr;
+	u64		   *page_list;
+	int		   status;
+
+	page_list = page_vec->pages;
+	io_addr	  = page_list[0];
+
+	mem  = ib_fmr_pool_map_phys(ib_conn->fmr.pool,
+				    page_list,
+				    page_vec->length,
+				    io_addr);
+
+	if (IS_ERR(mem)) {
+		status = (int)PTR_ERR(mem);
+		iser_err("ib_fmr_pool_map_phys failed: %d\n", status);
+		return status;
+	}
+
+	mem_reg->lkey  = mem->fmr->lkey;
+	mem_reg->rkey  = mem->fmr->rkey;
+	mem_reg->len   = page_vec->length * SIZE_4K;
+	mem_reg->va    = io_addr;
+	mem_reg->mem_h = (void *)mem;
+
+	mem_reg->va   += page_vec->offset;
+	mem_reg->len   = page_vec->data_size;
+
+	iser_dbg("PHYSICAL Mem.register, [PHYS p_array: 0x%p, sz: %d, "
+		 "entry[0]: (0x%08lx,%ld)] -> "
+		 "[lkey: 0x%08X mem_h: 0x%p va: 0x%08lX sz: %ld]\n",
+		 page_vec, page_vec->length,
+		 (unsigned long)page_vec->pages[0],
+		 (unsigned long)page_vec->data_size,
+		 (unsigned int)mem_reg->lkey, mem_reg->mem_h,
+		 (unsigned long)mem_reg->va, (unsigned long)mem_reg->len);
+	return 0;
+}
+
+/**
+ * Unregister (previosuly registered using FMR) memory.
+ * If memory is non-FMR does nothing.
+ */
+void iser_unreg_mem_fmr(struct iscsi_iser_task *iser_task,
+			enum iser_data_dir cmd_dir)
+{
+	struct iser_mem_reg *reg = &iser_task->rdma_regd[cmd_dir].reg;
+	int ret;
+
+	if (!reg->mem_h)
+		return;
+
+	iser_dbg("PHYSICAL Mem.Unregister mem_h %p\n", reg->mem_h);
+
+	ret = ib_fmr_pool_unmap((struct ib_pool_fmr *)reg->mem_h);
+	if (ret)
+		iser_err("ib_fmr_pool_unmap failed %d\n", ret);
+
+	reg->mem_h = NULL;
+}
+
+void iser_unreg_mem_fastreg(struct iscsi_iser_task *iser_task,
+			    enum iser_data_dir cmd_dir)
+{
+	struct iser_mem_reg *reg = &iser_task->rdma_regd[cmd_dir].reg;
+	struct iser_conn *iser_conn = iser_task->iser_conn;
+	struct ib_conn *ib_conn = &iser_conn->ib_conn;
+	struct fast_reg_descriptor *desc = reg->mem_h;
+
+	if (!desc)
+		return;
+
+	reg->mem_h = NULL;
+	spin_lock_bh(&ib_conn->lock);
+	list_add_tail(&desc->list, &ib_conn->fastreg.pool);
+	spin_unlock_bh(&ib_conn->lock);
+}
+
+/**
  * iser_reg_rdma_mem_fmr - Registers memory intended for RDMA,
  * using FMR (if possible) obtaining rkey and va
  *
