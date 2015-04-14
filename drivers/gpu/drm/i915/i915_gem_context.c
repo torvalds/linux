@@ -578,11 +578,9 @@ static inline bool should_skip_switch(struct intel_engine_cs *ring,
 	if (to->remap_slice)
 		return false;
 
-	if (to->ppgtt) {
-		if (from == to && !test_bit(ring->id,
-				&to->ppgtt->pd_dirty_rings))
-			return true;
-	}
+	if (to->ppgtt && from == to &&
+	    !(intel_ring_flag(ring) & to->ppgtt->pd_dirty_rings))
+		return true;
 
 	return false;
 }
@@ -668,7 +666,7 @@ static int do_switch(struct intel_engine_cs *ring,
 			goto unpin_out;
 
 		/* Doing a PD load always reloads the page dirs */
-		clear_bit(ring->id, &to->ppgtt->pd_dirty_rings);
+		to->ppgtt->pd_dirty_rings &= ~intel_ring_flag(ring);
 	}
 
 	if (ring != &dev_priv->ring[RCS]) {
@@ -696,12 +694,14 @@ static int do_switch(struct intel_engine_cs *ring,
 		 * space. This means we must enforce that a page table load
 		 * occur when this occurs. */
 	} else if (to->ppgtt &&
-			test_and_clear_bit(ring->id, &to->ppgtt->pd_dirty_rings))
+		   (intel_ring_flag(ring) & to->ppgtt->pd_dirty_rings)) {
 		hw_flags |= MI_FORCE_RESTORE;
+		to->ppgtt->pd_dirty_rings &= ~intel_ring_flag(ring);
+	}
 
 	/* We should never emit switch_mm more than once */
 	WARN_ON(needs_pd_load_pre(ring, to) &&
-			needs_pd_load_post(ring, to, hw_flags));
+		needs_pd_load_post(ring, to, hw_flags));
 
 	ret = mi_set_context(ring, to, hw_flags);
 	if (ret)
