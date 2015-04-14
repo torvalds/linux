@@ -387,50 +387,6 @@ fail_bitmap:
 	return ERR_PTR(ret);
 }
 
-/**
- * alloc_pt_range() - Allocate a multiple page tables
- * @pd:		The page directory which will have at least @count entries
- *		available to point to the allocated page tables.
- * @pde:	First page directory entry for which we are allocating.
- * @count:	Number of pages to allocate.
- * @dev:	DRM device.
- *
- * Allocates multiple page table pages and sets the appropriate entries in the
- * page table structure within the page directory. Function cleans up after
- * itself on any failures.
- *
- * Return: 0 if allocation succeeded.
- */
-static int alloc_pt_range(struct i915_page_directory *pd, uint16_t pde, size_t count,
-			  struct drm_device *dev)
-{
-	int i, ret;
-
-	/* 512 is the max page tables per page_directory on any platform. */
-	if (WARN_ON(pde + count > I915_PDES))
-		return -EINVAL;
-
-	for (i = pde; i < pde + count; i++) {
-		struct i915_page_table *pt = alloc_pt_single(dev);
-
-		if (IS_ERR(pt)) {
-			ret = PTR_ERR(pt);
-			goto err_out;
-		}
-		WARN(pd->page_table[i],
-		     "Leaking page directory entry %d (%p)\n",
-		     i, pd->page_table[i]);
-		pd->page_table[i] = pt;
-	}
-
-	return 0;
-
-err_out:
-	while (i-- > pde)
-		unmap_and_free_pt(pd->page_table[i], dev);
-	return ret;
-}
-
 static void unmap_and_free_pd(struct i915_page_directory *pd,
 			      struct drm_device *dev)
 {
@@ -971,7 +927,7 @@ err_out:
  * space.
  *
  */
-static int gen8_ppgtt_init_common(struct i915_hw_ppgtt *ppgtt, uint64_t size)
+static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 {
 	ppgtt->scratch_pt = alloc_pt_single(ppgtt->base.dev);
 	if (IS_ERR(ppgtt->scratch_pt))
@@ -985,54 +941,15 @@ static int gen8_ppgtt_init_common(struct i915_hw_ppgtt *ppgtt, uint64_t size)
 	gen8_initialize_pd(&ppgtt->base, ppgtt->scratch_pd);
 
 	ppgtt->base.start = 0;
-	ppgtt->base.total = size;
+	ppgtt->base.total = 1ULL << 32;
 	ppgtt->base.cleanup = gen8_ppgtt_cleanup;
+	ppgtt->base.allocate_va_range = gen8_alloc_va_range;
 	ppgtt->base.insert_entries = gen8_ppgtt_insert_entries;
 	ppgtt->base.clear_range = gen8_ppgtt_clear_range;
 	ppgtt->base.unbind_vma = ppgtt_unbind_vma;
 	ppgtt->base.bind_vma = ppgtt_bind_vma;
 
 	ppgtt->switch_mm = gen8_mm_switch;
-
-	return 0;
-}
-
-static int gen8_aliasing_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
-{
-	struct drm_device *dev = ppgtt->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint64_t start = 0, size = dev_priv->gtt.base.total;
-	int ret;
-
-	ret = gen8_ppgtt_init_common(ppgtt, dev_priv->gtt.base.total);
-	if (ret)
-		return ret;
-
-	/* Aliasing PPGTT has to always work and be mapped because of the way we
-	 * use RESTORE_INHIBIT in the context switch. This will be fixed
-	 * eventually. */
-	ret = gen8_alloc_va_range(&ppgtt->base, start, size);
-	if (ret) {
-		unmap_and_free_pd(ppgtt->scratch_pd, ppgtt->base.dev);
-		unmap_and_free_pt(ppgtt->scratch_pt, ppgtt->base.dev);
-		return ret;
-	}
-
-	ppgtt->base.allocate_va_range = NULL;
-	ppgtt->base.clear_range(&ppgtt->base, 0, ppgtt->base.total, true);
-
-	return 0;
-}
-
-static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
-{
-	int ret;
-
-	ret = gen8_ppgtt_init_common(ppgtt, (1ULL << 32));
-	if (ret)
-		return ret;
-
-	ppgtt->base.allocate_va_range = gen8_alloc_va_range;
 
 	return 0;
 }
@@ -1533,7 +1450,7 @@ static void gen6_scratch_va_range(struct i915_hw_ppgtt *ppgtt,
 		ppgtt->pd.page_table[pde] = ppgtt->scratch_pt;
 }
 
-static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt, bool aliasing)
+static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 {
 	struct drm_device *dev = ppgtt->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1556,18 +1473,7 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt, bool aliasing)
 	if (ret)
 		return ret;
 
-	if (aliasing) {
-		/* preallocate all pts */
-		ret = alloc_pt_range(&ppgtt->pd, 0, I915_PDES,
-				ppgtt->base.dev);
-
-		if (ret) {
-			gen6_ppgtt_cleanup(&ppgtt->base);
-			return ret;
-		}
-	}
-
-	ppgtt->base.allocate_va_range = aliasing ? NULL : gen6_alloc_va_range;
+	ppgtt->base.allocate_va_range = gen6_alloc_va_range;
 	ppgtt->base.clear_range = gen6_ppgtt_clear_range;
 	ppgtt->base.insert_entries = gen6_ppgtt_insert_entries;
 	ppgtt->base.unbind_vma = ppgtt_unbind_vma;
@@ -1583,10 +1489,7 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt, bool aliasing)
 	ppgtt->pd_addr = (gen6_pte_t __iomem *)dev_priv->gtt.gsm +
 		ppgtt->pd.pd_offset / sizeof(gen6_pte_t);
 
-	if (aliasing)
-		ppgtt->base.clear_range(&ppgtt->base, 0, ppgtt->base.total, true);
-	else
-		gen6_scratch_va_range(ppgtt, 0, ppgtt->base.total);
+	gen6_scratch_va_range(ppgtt, 0, ppgtt->base.total);
 
 	gen6_write_page_range(dev_priv, &ppgtt->pd, 0, ppgtt->base.total);
 
@@ -1600,8 +1503,7 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt, bool aliasing)
 	return 0;
 }
 
-static int __hw_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt,
-		bool aliasing)
+static int __hw_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
@@ -1609,9 +1511,7 @@ static int __hw_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt,
 	ppgtt->base.scratch = dev_priv->gtt.base.scratch;
 
 	if (INTEL_INFO(dev)->gen < 8)
-		return gen6_ppgtt_init(ppgtt, aliasing);
-	else if (aliasing)
-		return gen8_aliasing_ppgtt_init(ppgtt);
+		return gen6_ppgtt_init(ppgtt);
 	else
 		return gen8_ppgtt_init(ppgtt);
 }
@@ -1620,7 +1520,7 @@ int i915_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret = 0;
 
-	ret = __hw_ppgtt_init(dev, ppgtt, false);
+	ret = __hw_ppgtt_init(dev, ppgtt);
 	if (ret == 0) {
 		kref_init(&ppgtt->ref);
 		drm_mm_init(&ppgtt->base.mm, ppgtt->base.start,
@@ -2255,12 +2155,26 @@ static int i915_gem_setup_global_gtt(struct drm_device *dev,
 		if (!ppgtt)
 			return -ENOMEM;
 
-		ret = __hw_ppgtt_init(dev, ppgtt, true);
+		ret = __hw_ppgtt_init(dev, ppgtt);
 		if (ret) {
 			ppgtt->base.cleanup(&ppgtt->base);
 			kfree(ppgtt);
 			return ret;
 		}
+
+		if (ppgtt->base.allocate_va_range)
+			ret = ppgtt->base.allocate_va_range(&ppgtt->base, 0,
+							    ppgtt->base.total);
+		if (ret) {
+			ppgtt->base.cleanup(&ppgtt->base);
+			kfree(ppgtt);
+			return ret;
+		}
+
+		ppgtt->base.clear_range(&ppgtt->base,
+					ppgtt->base.start,
+					ppgtt->base.total,
+					true);
 
 		dev_priv->mm.aliasing_ppgtt = ppgtt;
 	}
