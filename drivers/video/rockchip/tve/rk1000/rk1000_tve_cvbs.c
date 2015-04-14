@@ -1,5 +1,6 @@
 #include <linux/ctype.h>
 #include <linux/string.h>
+#include <linux/delay.h>
 #include "rk1000_tve.h"
 
 
@@ -68,6 +69,8 @@ int rk1000_tv_pal_init(void)
 
 static int rk1000_cvbs_set_enable(struct rk_display_device *device, int enable)
 {
+	unsigned char val;
+
 	if (cvbs_monspecs.suspend)
 		return 0;
 	if ((cvbs_monspecs.enable != enable) ||
@@ -76,8 +79,13 @@ static int rk1000_cvbs_set_enable(struct rk_display_device *device, int enable)
 			cvbs_monspecs.enable = 0;
 			rk1000_tv_standby(RK1000_TVOUT_CVBS);
 		} else if (enable == 1) {
+			val = 0x07;
+			rk1000_tv_write_block(0x03, &val, 1);
 			rk1000_switch_fb(cvbs_monspecs.mode,
 					 cvbs_monspecs.mode_set);
+			msleep(600);
+			val = 0x03;
+			rk1000_tv_write_block(0x03, &val, 1);
 			cvbs_monspecs.enable = 1;
 		}
 	}

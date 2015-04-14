@@ -150,12 +150,12 @@ int rk1000_tv_standby(int type)
 		cvbs = rk1000_tve.cvbs->enable;
 	if (cvbs || ypbpr)
 		return 0;
-	val = 0x00;
+/*	val = 0x00;
 	ret = rk1000_control_write_block(0x03, &val, 1);
 	if (ret < 0) {
 		pr_err("rk1000_control_write_block err!\n");
 		return ret;
-	}
+	} */
 	val = 0x07;
 	ret = rk1000_tv_write_block(0x03, &val, 1);
 	if (ret < 0) {
