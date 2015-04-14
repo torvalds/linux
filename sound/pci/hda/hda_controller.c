@@ -1328,8 +1328,9 @@ static int azx_single_get_response(struct hda_bus *bus, unsigned int addr,
  */
 
 /* send a command */
-static int azx_send_cmd(struct hda_bus *bus, unsigned int val)
+static int azx_send_cmd(struct hdac_bus *_bus, unsigned int val)
 {
+	struct hda_bus *bus = to_hda_bus(_bus);
 	struct azx *chip = bus->private_data;
 
 	if (chip->disabled)
@@ -1342,9 +1343,10 @@ static int azx_send_cmd(struct hda_bus *bus, unsigned int val)
 }
 
 /* get a response */
-static int azx_get_response(struct hda_bus *bus, unsigned int addr,
+static int azx_get_response(struct hdac_bus *_bus, unsigned int addr,
 			    unsigned int *res)
 {
+	struct hda_bus *bus = to_hda_bus(_bus);
 	struct azx *chip = bus->private_data;
 	if (chip->disabled)
 		return 0;
@@ -1353,6 +1355,11 @@ static int azx_get_response(struct hda_bus *bus, unsigned int addr,
 	else
 		return azx_rirb_get_response(bus, addr, res);
 }
+
+static const struct hdac_bus_ops bus_core_ops = {
+	.command = azx_send_cmd,
+	.get_response = azx_get_response,
+};
 
 #ifdef CONFIG_SND_HDA_DSP_LOADER
 /*
@@ -1762,15 +1769,16 @@ static int probe_codec(struct azx *chip, int addr)
 {
 	unsigned int cmd = (addr << 28) | (AC_NODE_ROOT << 20) |
 		(AC_VERB_PARAMETERS << 8) | AC_PAR_VENDOR_ID;
+	struct hdac_bus *bus = &chip->bus->core;
 	int err;
 	unsigned int res;
 
-	mutex_lock(&chip->bus->core.cmd_mutex);
+	mutex_lock(&bus->cmd_mutex);
 	chip->probing = 1;
-	azx_send_cmd(chip->bus, cmd);
-	err = azx_get_response(chip->bus, addr, &res);
+	azx_send_cmd(bus, cmd);
+	err = azx_get_response(bus, addr, &res);
 	chip->probing = 0;
-	mutex_unlock(&chip->bus->core.cmd_mutex);
+	mutex_unlock(&bus->cmd_mutex);
 	if (err < 0 || res == -1)
 		return -EIO;
 	dev_dbg(chip->card->dev, "codec #%d probed OK\n", addr);
@@ -1811,8 +1819,6 @@ static int get_jackpoll_interval(struct azx *chip)
 }
 
 static struct hda_bus_ops bus_ops = {
-	.command = azx_send_cmd,
-	.get_response = azx_get_response,
 	.attach_pcm = azx_attach_pcm_stream,
 	.bus_reset = azx_bus_reset,
 #ifdef CONFIG_SND_HDA_DSP_LOADER
@@ -1828,7 +1834,7 @@ int azx_bus_create(struct azx *chip, const char *model)
 	struct hda_bus *bus;
 	int err;
 
-	err = snd_hda_bus_new(chip->card, &bus);
+	err = snd_hda_bus_new(chip->card, &bus_core_ops, &bus);
 	if (err < 0)
 		return err;
 

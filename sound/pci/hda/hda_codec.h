@@ -42,10 +42,6 @@ struct hda_pcm_stream;
 
 /* bus operators */
 struct hda_bus_ops {
-	/* send a single command */
-	int (*command)(struct hda_bus *bus, unsigned int cmd);
-	/* get a response from the last command */
-	int (*get_response)(struct hda_bus *bus, unsigned int addr, unsigned int *res);
 	/* free the private data */
 	void (*private_free)(struct hda_bus *);
 	/* attach a PCM stream */
@@ -98,6 +94,9 @@ struct hda_bus {
 
 	int primary_dig_out_type;	/* primary digital out PCM type */
 };
+
+/* from hdac_bus to hda_bus */
+#define to_hda_bus(bus)		container_of(bus, struct hda_bus, core)
 
 /*
  * codec preset
@@ -327,7 +326,9 @@ struct hda_codec {
 /*
  * constructors
  */
-int snd_hda_bus_new(struct snd_card *card, struct hda_bus **busp);
+int snd_hda_bus_new(struct snd_card *card,
+		    const struct hdac_bus_ops *ops,
+		    struct hda_bus **busp);
 int snd_hda_codec_new(struct hda_bus *bus, struct snd_card *card,
 		      unsigned int codec_addr, struct hda_codec **codecp);
 int snd_hda_codec_configure(struct hda_codec *codec);

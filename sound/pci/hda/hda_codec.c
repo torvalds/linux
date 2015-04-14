@@ -507,25 +507,6 @@ static int snd_hda_bus_dev_disconnect(struct snd_device *device)
 	return 0;
 }
 
-/* hdac_bus_ops translations */
-static int _hda_bus_command(struct hdac_bus *_bus, unsigned int cmd)
-{
-	struct hda_bus *bus = container_of(_bus, struct hda_bus, core);
-	return bus->ops.command(bus, cmd);
-}
-
-static int _hda_bus_get_response(struct hdac_bus *_bus, unsigned int addr,
-				 unsigned int *res)
-{
-	struct hda_bus *bus = container_of(_bus, struct hda_bus, core);
-	return bus->ops.get_response(bus, addr, res);
-}
-
-static const struct hdac_bus_ops bus_ops = {
-	.command = _hda_bus_command,
-	.get_response = _hda_bus_get_response,
-};
-
 /**
  * snd_hda_bus_new - create a HDA bus
  * @card: the card entry
@@ -534,6 +515,7 @@ static const struct hdac_bus_ops bus_ops = {
  * Returns 0 if successful, or a negative error code.
  */
 int snd_hda_bus_new(struct snd_card *card,
+		    const struct hdac_bus_ops *ops,
 		    struct hda_bus **busp)
 {
 	struct hda_bus *bus;
@@ -550,7 +532,7 @@ int snd_hda_bus_new(struct snd_card *card,
 	if (!bus)
 		return -ENOMEM;
 
-	err = snd_hdac_bus_init(&bus->core, card->dev, &bus_ops, NULL);
+	err = snd_hdac_bus_init(&bus->core, card->dev, ops, NULL);
 	if (err < 0) {
 		kfree(bus);
 		return err;
