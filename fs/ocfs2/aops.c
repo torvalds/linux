@@ -771,7 +771,7 @@ static ssize_t ocfs2_direct_IO_write(struct kiocb *iocb,
 			if (ret < 0)
 				mlog_errno(ret);
 		}
-	} else if (written < 0 && append_write && !is_overwrite &&
+	} else if (written > 0 && append_write && !is_overwrite &&
 			!cluster_align) {
 		u32 p_cpos = 0;
 		u32 v_cpos = ocfs2_bytes_to_clusters(osb->sb, offset);
