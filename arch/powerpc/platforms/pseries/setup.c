@@ -499,13 +499,6 @@ static void __init find_and_init_phbs(void)
 			else
 				pci_clear_flags(PCI_PROBE_ONLY);
 		}
-
-#ifdef CONFIG_PPC32 /* Will be made generic soon */
-		prop = of_get_property(of_chosen,
-				"linux,pci-assign-all-buses", NULL);
-		if (prop && *prop)
-			pci_add_flags(PCI_REASSIGN_ALL_BUS);
-#endif /* CONFIG_PPC32 */
 	}
 }
 
