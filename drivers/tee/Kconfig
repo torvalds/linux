@@ -7,3 +7,13 @@ config TEE
 	help
 	  This implements a generic interface towards a Trusted Execution
 	  Environment (TEE).
+
+if TEE
+
+menu "TEE drivers"
+
+source "drivers/tee/optee/Kconfig"
+
+endmenu
+
+endif
