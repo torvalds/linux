@@ -156,13 +156,22 @@ EXPORT_SYMBOL(rknand_dma_flush_dcache);
 
 unsigned long rknand_dma_map_single(unsigned long ptr,int size,int dir)
 {
+#ifdef CONFIG_ARM64
+    __dma_map_area((void*)ptr, size, dir);
+    return ((unsigned long )virt_to_phys((void *)ptr));
+#else
     return dma_map_single(NULL,(void*)ptr,size, dir?DMA_TO_DEVICE:DMA_FROM_DEVICE);
+#endif
 }
 EXPORT_SYMBOL(rknand_dma_map_single);
 
 void rknand_dma_unmap_single(unsigned long ptr,int size,int dir)
 {
+#ifdef CONFIG_ARM64
+    __dma_unmap_area(phys_to_virt(ptr), size, dir);
+#else
     dma_unmap_single(NULL, (dma_addr_t)ptr,size, dir?DMA_TO_DEVICE:DMA_FROM_DEVICE);
+#endif
 }
 EXPORT_SYMBOL(rknand_dma_unmap_single);
 
