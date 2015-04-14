@@ -1053,7 +1053,7 @@ void eeh_add_device_early(struct pci_dn *pdn)
 	struct pci_controller *phb;
 	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
 
-	if (!edev)
+	if (!edev || !eeh_enabled())
 		return;
 
 	/* USB Bus children of PCI devices will not have BUID's */
