@@ -121,12 +121,6 @@
 #define NOMEM_TMR_IDX (SGE_NTIMERS - 1)
 
 /*
- * An FL with <= FL_STARVE_THRES buffers is starving and a periodic timer will
- * attempt to refill it.
- */
-#define FL_STARVE_THRES 4
-
-/*
  * Suspend an Ethernet Tx queue with fewer available descriptors than this.
  * This is the same as calc_tx_descs() for a TSO packet with
  * nr_frags == MAX_SKB_FRAGS.
@@ -248,9 +242,21 @@ static inline unsigned int fl_cap(const struct sge_fl *fl)
 	return fl->size - 8;   /* 1 descriptor = 8 buffers */
 }
 
-static inline bool fl_starving(const struct sge_fl *fl)
+/**
+ *	fl_starving - return whether a Free List is starving.
+ *	@adapter: pointer to the adapter
+ *	@fl: the Free List
+ *
+ *	Tests specified Free List to see whether the number of buffers
+ *	available to the hardware has falled below our "starvation"
+ *	threshold.
+ */
+static inline bool fl_starving(const struct adapter *adapter,
+			       const struct sge_fl *fl)
 {
-	return fl->avail - fl->pend_cred <= FL_STARVE_THRES;
+	const struct sge *s = &adapter->sge;
+
+	return fl->avail - fl->pend_cred <= s->fl_starve_thres;
 }
 
 static int map_skb(struct device *dev, const struct sk_buff *skb,
@@ -655,7 +661,7 @@ out:	cred = q->avail - cred;
 	q->pend_cred += cred;
 	ring_fl_db(adap, q);
 
-	if (unlikely(fl_starving(q))) {
+	if (unlikely(fl_starving(adap, q))) {
 		smp_wmb();
 		set_bit(q->cntxt_id - adap->sge.egr_start,
 			adap->sge.starving_fl);
@@ -2248,7 +2254,7 @@ static void sge_rx_timer_cb(unsigned long data)
 			clear_bit(id, s->starving_fl);
 			smp_mb__after_atomic();
 
-			if (fl_starving(fl)) {
+			if (fl_starving(adap, fl)) {
 				rxq = container_of(fl, struct sge_eth_rxq, fl);
 				if (napi_reschedule(&rxq->rspq.napi))
 					fl->starving++;
