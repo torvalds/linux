@@ -13,8 +13,8 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/compiler.h>
-#include <linux/irqdomain.h>
 #include <linux/slab.h>
+#include <asm/irqdomain.h>
 #include <asm/hw_irq.h>
 #include <asm/apic.h>
 #include <asm/i8259.h>

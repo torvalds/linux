@@ -22,7 +22,7 @@
 #ifndef __X86_IRQ_REMAPPING_H
 #define __X86_IRQ_REMAPPING_H
 
-#include <linux/irqdomain.h>
+#include <asm/irqdomain.h>
 #include <asm/hw_irq.h>
 #include <asm/io_apic.h>
 

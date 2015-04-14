@@ -11,8 +11,8 @@
 #include <linux/cpu.h>
 #include <linux/pm.h>
 #include <linux/io.h>
-#include <linux/irqdomain.h>
 
+#include <asm/irqdomain.h>
 #include <asm/fixmap.h>
 #include <asm/hpet.h>
 #include <asm/time.h>

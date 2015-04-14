@@ -12,8 +12,8 @@
 #include <linux/rbtree.h>
 #include <linux/slab.h>
 #include <linux/irq.h>
-#include <linux/irqdomain.h>
 
+#include <asm/irqdomain.h>
 #include <asm/apic.h>
 #include <asm/uv/uv_irq.h>
 #include <asm/uv/uv_hub.h>

@@ -2,6 +2,25 @@
 #define _ASM_IRQDOMAIN_H
 
 #include <linux/irqdomain.h>
+#include <asm/hw_irq.h>
+
+#ifdef CONFIG_X86_LOCAL_APIC
+enum {
+	/* Allocate contiguous CPU vectors */
+	X86_IRQ_ALLOC_CONTIGUOUS_VECTORS		= 0x1,
+};
+
+extern struct irq_domain *x86_vector_domain;
+
+extern void init_irq_alloc_info(struct irq_alloc_info *info,
+				const struct cpumask *mask);
+extern void copy_irq_alloc_info(struct irq_alloc_info *dst,
+				struct irq_alloc_info *src);
+#endif /* CONFIG_X86_LOCAL_APIC */
+
+#ifdef CONFIG_X86_IO_APIC
+struct device_node;
+struct irq_data;
 
 enum ioapic_domain_type {
 	IOAPIC_DOMAIN_INVALID,
@@ -9,9 +28,6 @@ enum ioapic_domain_type {
 	IOAPIC_DOMAIN_STRICT,
 	IOAPIC_DOMAIN_DYNAMIC,
 };
-
-struct device_node;
-struct irq_data;
 
 struct ioapic_domain_cfg {
 	enum ioapic_domain_type		type;
@@ -30,5 +46,18 @@ extern void mp_irqdomain_activate(struct irq_domain *domain,
 extern void mp_irqdomain_deactivate(struct irq_domain *domain,
 				    struct irq_data *irq_data);
 extern int mp_irqdomain_ioapic_idx(struct irq_domain *domain);
+#endif /* CONFIG_X86_IO_APIC */
+
+#ifdef CONFIG_PCI_MSI
+extern void arch_init_msi_domain(struct irq_domain *domain);
+#else
+static inline void arch_init_msi_domain(struct irq_domain *domain) { }
+#endif
+
+#ifdef CONFIG_HT_IRQ
+extern void arch_init_htirq_domain(struct irq_domain *domain);
+#else
+static inline void arch_init_htirq_domain(struct irq_domain *domain) { }
+#endif
 
 #endif

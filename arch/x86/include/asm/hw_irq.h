@@ -94,8 +94,6 @@ extern void trace_call_function_single_interrupt(void);
 #define trace_kvm_posted_intr_ipi kvm_posted_intr_ipi
 #endif /* CONFIG_TRACING */
 
-struct irq_domain;
-
 #ifdef	CONFIG_X86_LOCAL_APIC
 struct irq_data;
 struct pci_dev;
@@ -165,22 +163,11 @@ struct irq_alloc_info {
 	};
 };
 
-enum {
-	/* Allocate contiguous CPU vectors */
-	X86_IRQ_ALLOC_CONTIGUOUS_VECTORS		= 0x1,
-};
-
 struct irq_cfg {
 	unsigned int		dest_apicid;
 	u8			vector;
 };
 
-extern struct irq_domain *x86_vector_domain;
-
-extern void init_irq_alloc_info(struct irq_alloc_info *info,
-				const struct cpumask *mask);
-extern void copy_irq_alloc_info(struct irq_alloc_info *dst,
-				struct irq_alloc_info *src);
 extern struct irq_cfg *irq_cfg(unsigned int irq);
 extern struct irq_cfg *irqd_cfg(struct irq_data *irq_data);
 extern void lock_vector_lock(void);
@@ -199,17 +186,6 @@ extern void apic_ack_edge(struct irq_data *data);
 static inline void lock_vector_lock(void) {}
 static inline void unlock_vector_lock(void) {}
 #endif	/* CONFIG_X86_LOCAL_APIC */
-
-#ifdef	CONFIG_PCI_MSI
-extern void arch_init_msi_domain(struct irq_domain *domain);
-#else
-static inline void arch_init_msi_domain(struct irq_domain *domain) { }
-#endif
-#ifdef	CONFIG_HT_IRQ
-extern void arch_init_htirq_domain(struct irq_domain *domain);
-#else
-static inline void arch_init_htirq_domain(struct irq_domain *domain) { }
-#endif
 
 /* Statistics */
 extern atomic_t irq_err_count;
