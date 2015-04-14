@@ -3928,6 +3928,7 @@ csio_hw_init(struct csio_hw *hw)
 
 		evt_entry = kzalloc(sizeof(struct csio_evt_msg), GFP_KERNEL);
 		if (!evt_entry) {
+			rv = -ENOMEM;
 			csio_err(hw, "Failed to initialize eventq");
 			goto err_evtq_cleanup;
 		}
