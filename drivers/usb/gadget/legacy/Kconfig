@@ -301,6 +301,7 @@ config USB_MIDI_GADGET
 config USB_G_PRINTER
 	tristate "Printer Gadget"
 	select USB_LIBCOMPOSITE
+	select USB_F_PRINTER
 	help
 	  The Printer Gadget channels data between the USB host and a
 	  userspace program driving the print engine. The user space

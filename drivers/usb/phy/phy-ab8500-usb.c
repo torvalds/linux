@@ -893,7 +893,7 @@ static int abx500_usb_link_status_update(struct ab8500_usb *ab)
 
 /*
  * Disconnection Sequence:
- *   1. Disconect Interrupt
+ *   1. Disconnect Interrupt
  *   2. Disable regulators
  *   3. Disable AB clock
  *   4. Disable the Phy
