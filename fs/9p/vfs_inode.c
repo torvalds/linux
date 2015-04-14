@@ -1370,6 +1370,8 @@ v9fs_vfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 	return v9fs_vfs_mkspecial(dir, dentry, P9_DMSYMLINK, symname);
 }
 
+#define U32_MAX_DIGITS 10
+
 /**
  * v9fs_vfs_link - create a hardlink
  * @old_dentry: dentry for file to link to
@@ -1383,7 +1385,7 @@ v9fs_vfs_link(struct dentry *old_dentry, struct inode *dir,
 	      struct dentry *dentry)
 {
 	int retval;
-	char *name;
+	char name[1 + U32_MAX_DIGITS + 2]; /* sign + number + \n + \0 */
 	struct p9_fid *oldfid;
 
 	p9_debug(P9_DEBUG_VFS, " %lu,%pd,%pd\n",
@@ -1393,20 +1395,12 @@ v9fs_vfs_link(struct dentry *old_dentry, struct inode *dir,
 	if (IS_ERR(oldfid))
 		return PTR_ERR(oldfid);
 
-	name = __getname();
-	if (unlikely(!name)) {
-		retval = -ENOMEM;
-		goto clunk_fid;
-	}
-
 	sprintf(name, "%d\n", oldfid->fid);
 	retval = v9fs_vfs_mkspecial(dir, dentry, P9_DMLINK, name);
-	__putname(name);
 	if (!retval) {
 		v9fs_refresh_inode(oldfid, d_inode(old_dentry));
 		v9fs_invalidate_inode_attr(dir);
 	}
-clunk_fid:
 	p9_client_clunk(oldfid);
 	return retval;
 }
@@ -1425,7 +1419,7 @@ v9fs_vfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t rde
 {
 	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(dir);
 	int retval;
-	char *name;
+	char name[2 + U32_MAX_DIGITS + 1 + U32_MAX_DIGITS + 1];
 	u32 perm;
 
 	p9_debug(P9_DEBUG_VFS, " %lu,%pd mode: %hx MAJOR: %u MINOR: %u\n",
@@ -1435,26 +1429,16 @@ v9fs_vfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t rde
 	if (!new_valid_dev(rdev))
 		return -EINVAL;
 
-	name = __getname();
-	if (!name)
-		return -ENOMEM;
 	/* build extension */
 	if (S_ISBLK(mode))
 		sprintf(name, "b %u %u", MAJOR(rdev), MINOR(rdev));
 	else if (S_ISCHR(mode))
 		sprintf(name, "c %u %u", MAJOR(rdev), MINOR(rdev));
-	else if (S_ISFIFO(mode))
+	else
 		*name = 0;
-	else if (S_ISSOCK(mode))
-		*name = 0;
-	else {
-		__putname(name);
-		return -EINVAL;
-	}
 
 	perm = unixmode2p9mode(v9ses, mode);
 	retval = v9fs_vfs_mkspecial(dir, dentry, perm, name);
-	__putname(name);
 
 	return retval;
 }
