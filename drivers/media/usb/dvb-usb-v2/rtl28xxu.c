@@ -1100,11 +1100,6 @@ err:
 	return ret;
 }
 
-static const struct fc2580_config rtl2832u_fc2580_config = {
-	.i2c_addr = 0x56,
-	.clock = 16384000,
-};
-
 static struct tua9001_config rtl2832u_tua9001_config = {
 	.i2c_addr = 0x60,
 };
@@ -1187,10 +1182,26 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 			subdev = i2c_get_clientdata(client);
 		}
 		break;
-	case TUNER_RTL2832_FC2580:
-		fe = dvb_attach(fc2580_attach, adap->fe[0],
-				dev->demod_i2c_adapter,
-				&rtl2832u_fc2580_config);
+	case TUNER_RTL2832_FC2580: {
+			struct fc2580_platform_data fc2580_pdata = {
+				.dvb_frontend = adap->fe[0],
+			};
+			struct i2c_board_info board_info = {};
+
+			strlcpy(board_info.type, "fc2580", I2C_NAME_SIZE);
+			board_info.addr = 0x56;
+			board_info.platform_data = &fc2580_pdata;
+			request_module("fc2580");
+			client = i2c_new_device(dev->demod_i2c_adapter,
+						&board_info);
+			if (client == NULL || client->dev.driver == NULL)
+				break;
+			if (!try_module_get(client->dev.driver->owner)) {
+				i2c_unregister_device(client);
+				break;
+			}
+			dev->i2c_client_tuner = client;
+		}
 		break;
 	case TUNER_RTL2832_TUA9001:
 		/* enable GPIO1 and GPIO4 as output */
