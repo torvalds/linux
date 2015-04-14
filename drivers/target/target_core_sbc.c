@@ -1230,6 +1230,9 @@ sbc_dif_v1_verify(struct se_cmd *cmd, struct se_dif_v1_tuple *sdt,
 	int block_size = dev->dev_attrib.block_size;
 	__be16 csum;
 
+	if (!(cmd->prot_checks & TARGET_DIF_CHECK_GUARD))
+		goto check_ref;
+
 	csum = cpu_to_be16(crc_t10dif(p, block_size));
 
 	if (sdt->guard_tag != csum) {
@@ -1238,6 +1241,10 @@ sbc_dif_v1_verify(struct se_cmd *cmd, struct se_dif_v1_tuple *sdt,
 			be16_to_cpu(sdt->guard_tag), be16_to_cpu(csum));
 		return TCM_LOGICAL_BLOCK_GUARD_CHECK_FAILED;
 	}
+
+check_ref:
+	if (!(cmd->prot_checks & TARGET_DIF_CHECK_REFTAG))
+		return 0;
 
 	if (cmd->prot_type == TARGET_DIF_TYPE1_PROT &&
 	    be32_to_cpu(sdt->ref_tag) != (sector & 0xffffffff)) {
