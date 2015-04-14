@@ -355,10 +355,25 @@ static inline void destroy_hrtimer_on_stack(struct hrtimer *timer) { }
 #endif
 
 /* Basic timer operations: */
-extern int hrtimer_start(struct hrtimer *timer, ktime_t tim,
-			 const enum hrtimer_mode mode);
 extern int hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
 			unsigned long range_ns, const enum hrtimer_mode mode);
+
+/**
+ * hrtimer_start - (re)start an hrtimer on the current CPU
+ * @timer:	the timer to be added
+ * @tim:	expiry time
+ * @mode:	expiry mode: absolute (HRTIMER_MODE_ABS) or
+ *		relative (HRTIMER_MODE_REL)
+ *
+ * Returns:
+ *  0 on success
+ *  1 when the timer was active
+ */
+static inline int hrtimer_start(struct hrtimer *timer, ktime_t tim,
+				const enum hrtimer_mode mode)
+{
+	return hrtimer_start_range_ns(timer, tim, 0, mode);
+}
 
 extern int hrtimer_cancel(struct hrtimer *timer);
 extern int hrtimer_try_to_cancel(struct hrtimer *timer);

@@ -985,25 +985,6 @@ int hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
 EXPORT_SYMBOL_GPL(hrtimer_start_range_ns);
 
 /**
- * hrtimer_start - (re)start an hrtimer on the current CPU
- * @timer:	the timer to be added
- * @tim:	expiry time
- * @mode:	expiry mode: absolute (HRTIMER_MODE_ABS) or
- *		relative (HRTIMER_MODE_REL)
- *
- * Returns:
- *  0 on success
- *  1 when the timer was active
- */
-int
-hrtimer_start(struct hrtimer *timer, ktime_t tim, const enum hrtimer_mode mode)
-{
-	return hrtimer_start_range_ns(timer, tim, 0, mode);
-}
-EXPORT_SYMBOL_GPL(hrtimer_start);
-
-
-/**
  * hrtimer_try_to_cancel - try to deactivate a timer
  * @timer:	hrtimer to stop
  *
