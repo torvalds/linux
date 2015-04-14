@@ -72,7 +72,11 @@ int rtc_set_time(struct rtc_device *rtc, struct rtc_time *tm)
 		err = -ENODEV;
 	else if (rtc->ops->set_time)
 		err = rtc->ops->set_time(rtc->dev.parent, tm);
-	else if (rtc->ops->set_mmss) {
+	else if (rtc->ops->set_mmss64) {
+		time64_t secs64 = rtc_tm_to_time64(tm);
+
+		err = rtc->ops->set_mmss64(rtc->dev.parent, secs64);
+	} else if (rtc->ops->set_mmss) {
 		time64_t secs64 = rtc_tm_to_time64(tm);
 		err = rtc->ops->set_mmss(rtc->dev.parent, secs64);
 	} else
@@ -96,6 +100,8 @@ int rtc_set_mmss(struct rtc_device *rtc, unsigned long secs)
 
 	if (!rtc->ops)
 		err = -ENODEV;
+	else if (rtc->ops->set_mmss64)
+		err = rtc->ops->set_mmss64(rtc->dev.parent, secs);
 	else if (rtc->ops->set_mmss)
 		err = rtc->ops->set_mmss(rtc->dev.parent, secs);
 	else if (rtc->ops->read_time && rtc->ops->set_time) {

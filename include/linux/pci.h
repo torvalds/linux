@@ -406,6 +406,7 @@ struct pci_host_bridge {
 	struct list_head windows;	/* resource_entry */
 	void (*release_fn)(struct pci_host_bridge *);
 	void *release_data;
+	unsigned int ignore_reset_delay:1;	/* for entire hierarchy */
 };
 
 #define	to_pci_host_bridge(n) container_of(n, struct pci_host_bridge, dev)
@@ -509,6 +510,9 @@ static inline struct pci_dev *pci_upstream_bridge(struct pci_dev *dev)
 
 	return dev->bus->self;
 }
+
+struct device *pci_get_host_bridge_device(struct pci_dev *dev);
+void pci_put_host_bridge_device(struct device *dev);
 
 #ifdef CONFIG_PCI_MSI
 static inline bool pci_dev_msi_enabled(struct pci_dev *pci_dev)

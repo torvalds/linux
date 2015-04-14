@@ -254,6 +254,9 @@ static struct dentry *start_creating(const char *name, struct dentry *parent)
 
 	pr_debug("debugfs: creating file '%s'\n",name);
 
+	if (IS_ERR(parent))
+		return parent;
+
 	error = simple_pin_fs(&debug_fs_type, &debugfs_mount,
 			      &debugfs_mount_count);
 	if (error)

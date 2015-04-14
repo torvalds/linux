@@ -805,7 +805,15 @@ static void cleanup_device_parent(struct device *dev)
 
 static int device_add_class_symlinks(struct device *dev)
 {
+	struct device_node *of_node = dev_of_node(dev);
 	int error;
+
+	if (of_node) {
+		error = sysfs_create_link(&dev->kobj, &of_node->kobj,"of_node");
+		if (error)
+			dev_warn(dev, "Error %d creating of_node link\n",error);
+		/* An error here doesn't warrant bringing down the device */
+	}
 
 	if (!dev->class)
 		return 0;
@@ -814,7 +822,7 @@ static int device_add_class_symlinks(struct device *dev)
 				  &dev->class->p->subsys.kobj,
 				  "subsystem");
 	if (error)
-		goto out;
+		goto out_devnode;
 
 	if (dev->parent && device_is_not_partition(dev)) {
 		error = sysfs_create_link(&dev->kobj, &dev->parent->kobj,
@@ -842,12 +850,16 @@ out_device:
 
 out_subsys:
 	sysfs_remove_link(&dev->kobj, "subsystem");
-out:
+out_devnode:
+	sysfs_remove_link(&dev->kobj, "of_node");
 	return error;
 }
 
 static void device_remove_class_symlinks(struct device *dev)
 {
+	if (dev_of_node(dev))
+		sysfs_remove_link(&dev->kobj, "of_node");
+
 	if (!dev->class)
 		return;
 
@@ -1095,8 +1107,7 @@ done:
 	kobject_del(&dev->kobj);
  Error:
 	cleanup_device_parent(dev);
-	if (parent)
-		put_device(parent);
+	put_device(parent);
 name_error:
 	kfree(dev->p);
 	dev->p = NULL;

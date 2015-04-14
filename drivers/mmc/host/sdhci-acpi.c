@@ -40,7 +40,6 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/pm.h>
 #include <linux/mmc/slot-gpio.h>
-#include <linux/mmc/sdhci.h>
 
 #include "sdhci.h"
 

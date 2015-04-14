@@ -103,6 +103,7 @@ int driver_create_file(struct device_driver *drv,
 		       const struct driver_attribute *attr)
 {
 	int error;
+
 	if (drv)
 		error = sysfs_create_file(&drv->p->kobj, &attr->attr);
 	else

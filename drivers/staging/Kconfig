@@ -58,6 +58,8 @@ source "drivers/staging/iio/Kconfig"
 
 source "drivers/staging/sm7xxfb/Kconfig"
 
+source "drivers/staging/sm750fb/Kconfig"
+
 source "drivers/staging/xgifb/Kconfig"
 
 source "drivers/staging/emxx_udc/Kconfig"
@@ -107,5 +109,7 @@ source "drivers/staging/clocking-wizard/Kconfig"
 source "drivers/staging/fbtft/Kconfig"
 
 source "drivers/staging/i2o/Kconfig"
+
+source "drivers/staging/fsl-mc/Kconfig"
 
 endif # STAGING

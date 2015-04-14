@@ -724,7 +724,7 @@ F:	staging/iio/trigger/iio-trig-bfin-timer.c
 
 ANDROID DRIVERS
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-M:	Arve Hjønnevåg <arve@android.com>
+M:	Arve HjÃ¸nnevÃ¥g <arve@android.com>
 M:	Riley Andrews <riandrews@android.com>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/gregkh/staging.git
 L:	devel@driverdev.osuosl.org
@@ -1468,6 +1468,8 @@ F:	drivers/clocksource/arm_global_timer.c
 F:	drivers/i2c/busses/i2c-st.c
 F:	drivers/media/rc/st_rc.c
 F:	drivers/mmc/host/sdhci-st.c
+F:	drivers/phy/phy-miphy28lp.c
+F:	drivers/phy/phy-miphy365x.c
 F:	drivers/phy/phy-stih407-usb.c
 F:	drivers/phy/phy-stih41x-usb.c
 F:	drivers/pinctrl/pinctrl-st.c
@@ -2518,7 +2520,7 @@ F:	Documentation/zh_CN/
 
 CHIPIDEA USB HIGH SPEED DUAL ROLE CONTROLLER
 M:	Peter Chen <Peter.Chen@freescale.com>
-T:	git git://github.com/hzpeterchen/linux-usb.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/peter.chen/usb.git
 L:	linux-usb@vger.kernel.org
 S:	Maintained
 F:	drivers/usb/chipidea/
@@ -3137,12 +3139,15 @@ S:	Supported
 F:	Documentation/hwmon/da90??
 F:	drivers/gpio/gpio-da90??.c
 F:	drivers/hwmon/da90??-hwmon.c
+F:	drivers/iio/adc/da91??-*.c
 F:	drivers/input/misc/da90??_onkey.c
 F:	drivers/input/touchscreen/da9052_tsi.c
 F:	drivers/leds/leds-da90??.c
 F:	drivers/mfd/da903x.c
 F:	drivers/mfd/da90??-*.c
+F:	drivers/mfd/da91??-*.c
 F:	drivers/power/da9052-battery.c
+F:	drivers/power/da91??-*.c
 F:	drivers/regulator/da903x.c
 F:	drivers/regulator/da9???-regulator.[ch]
 F:	drivers/rtc/rtc-da90??.c
@@ -3152,6 +3157,7 @@ F:	include/linux/mfd/da903x.h
 F:	include/linux/mfd/da9052/
 F:	include/linux/mfd/da9055/
 F:	include/linux/mfd/da9063/
+F:	include/linux/mfd/da9150/
 F:	include/sound/da[79]*.h
 F:	sound/soc/codecs/da[79]*.[ch]
 
@@ -4163,6 +4169,12 @@ F:	sound/soc/fsl/fsl*
 F:	sound/soc/fsl/imx*
 F:	sound/soc/fsl/mpc8610_hpcd.c
 
+FREESCALE QORIQ MANAGEMENT COMPLEX DRIVER
+M:	J. German Rivera <German.Rivera@freescale.com>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	drivers/staging/fsl-mc/
+
 FREEVXFS FILESYSTEM
 M:	Christoph Hellwig <hch@infradead.org>
 W:	ftp://ftp.openlinux.org/pub/people/hch/vxfs
@@ -4948,6 +4960,7 @@ S:	Maintained
 F:	drivers/iio/
 F:	drivers/staging/iio/
 F:	include/linux/iio/
+F:	tools/iio/
 
 IKANOS/ADI EAGLE ADSL USB DRIVER
 M:	Matthieu Castet <castet.matthieu@free.fr>
@@ -5591,6 +5604,8 @@ S:	Supported
 F:	Documentation/*/kvm*.txt
 F:	Documentation/virtual/kvm/
 F:	arch/*/kvm/
+F:	arch/x86/kernel/kvm.c
+F:	arch/x86/kernel/kvmclock.c
 F:	arch/*/include/asm/kvm*
 F:	include/linux/kvm*
 F:	include/uapi/linux/kvm*
@@ -6564,10 +6579,8 @@ F:	drivers/mfd/
 F:	include/linux/mfd/
 
 MULTIMEDIA CARD (MMC), SECURE DIGITAL (SD) AND SDIO SUBSYSTEM
-M:	Chris Ball <chris@printf.net>
 M:	Ulf Hansson <ulf.hansson@linaro.org>
 L:	linux-mmc@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/cjb/mmc.git
 T:	git git://git.linaro.org/people/ulf.hansson/mmc.git
 S:	Maintained
 F:	drivers/mmc/
@@ -8559,6 +8572,7 @@ F:	include/uapi/linux/timex.h
 F:	kernel/time/clocksource.c
 F:	kernel/time/time*.c
 F:	kernel/time/ntp.c
+F:	tools/testing/selftests/timers/
 
 SC1200 WDT DRIVER
 M:	Zwane Mwaikambo <zwanem@gmail.com>
@@ -8667,10 +8681,8 @@ S:	Maintained
 F:	drivers/mmc/host/sdricoh_cs.c
 
 SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) DRIVER
-M:	Chris Ball <chris@printf.net>
 L:	linux-mmc@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/cjb/mmc.git
-S:	Maintained
+S:	Orphan
 F:	drivers/mmc/host/sdhci.*
 F:	drivers/mmc/host/sdhci-pltfm.[ch]
 
@@ -8686,18 +8698,12 @@ F:	include/linux/seccomp.h
 K:	\bsecure_computing
 K:	\bTIF_SECCOMP\b
 
-SECURE DIGITAL HOST CONTROLLER INTERFACE, OPEN FIRMWARE BINDINGS (SDHCI-OF)
-M:	Anton Vorontsov <anton@enomsg.org>
-L:	linuxppc-dev@lists.ozlabs.org
-L:	linux-mmc@vger.kernel.org
-S:	Maintained
-F:	drivers/mmc/host/sdhci-pltfm.[ch]
-
 SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) SAMSUNG DRIVER
 M:	Ben Dooks <ben-linux@fluff.org>
+M:	Jaehoon Chung <jh80.chung@samsung.com>
 L:	linux-mmc@vger.kernel.org
 S:	Maintained
-F:	drivers/mmc/host/sdhci-s3c.c
+F:	drivers/mmc/host/sdhci-s3c*
 
 SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) ST SPEAR DRIVER
 M:	Viresh Kumar <viresh.linux@gmail.com>
@@ -9363,6 +9369,14 @@ M:	Sudip Mukherjee <sudip@vectorindia.org>
 L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/staging/sm7xxfb/
+
+STAGING - SILICON MOTION SM750 FRAME BUFFER DRIVER
+M:	Sudip Mukherjee <sudipm.mukherjee@gmail.com>
+M:	Teddy Wang <teddy.wang@siliconmotion.com>
+M:	Sudip Mukherjee <sudip@vectorindia.org>
+L:	linux-fbdev@vger.kernel.org
+S:	Maintained
+F:	drivers/staging/sm750fb/
 
 STAGING - SLICOSS
 M:	Lior Dotan <liodot@gmail.com>
@@ -10135,6 +10149,12 @@ S:	Maintained
 F:	drivers/net/usb/cdc_*.c
 F:	include/uapi/linux/usb/cdc.h
 
+USB CHAOSKEY DRIVER
+M:	Keith Packard <keithp@keithp.com>
+L:	linux-usb@vger.kernel.org
+S:	Maintained
+F:	drivers/usb/misc/chaoskey.c
+
 USB CYPRESS C67X00 DRIVER
 M:	Peter Korsgaard <jacmet@sunsite.dk>
 L:	linux-usb@vger.kernel.org
@@ -10215,7 +10235,7 @@ F:	drivers/usb/host/ohci*
 
 USB OTG FSM (Finite State Machine)
 M:	Peter Chen <Peter.Chen@freescale.com>
-T:	git git://github.com/hzpeterchen/linux-usb.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/peter.chen/usb.git
 L:	linux-usb@vger.kernel.org
 S:	Maintained
 F:	drivers/usb/common/usb-otg-fsm.c

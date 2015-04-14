@@ -171,6 +171,7 @@ int main(void)
 #else /* CONFIG_32BIT */
 	DEFINE(__LC_DATA_EXC_CODE, offsetof(struct _lowcore, data_exc_code));
 	DEFINE(__LC_MCCK_FAIL_STOR_ADDR, offsetof(struct _lowcore, failing_storage_address));
+	DEFINE(__LC_VX_SAVE_AREA_ADDR, offsetof(struct _lowcore, vector_save_area_addr));
 	DEFINE(__LC_EXT_PARAMS2, offsetof(struct _lowcore, ext_params2));
 	DEFINE(SAVE_AREA_BASE, offsetof(struct _lowcore, floating_pt_save_area));
 	DEFINE(__LC_PASTE, offsetof(struct _lowcore, paste));

@@ -1221,8 +1221,7 @@ int omap4iss_video_register(struct iss_video *video, struct v4l2_device *vdev)
 	ret = video_register_device(&video->video, VFL_TYPE_GRABBER, -1);
 	if (ret < 0)
 		dev_err(video->iss->dev,
-			"%s: could not register video device (%d)\n",
-			__func__, ret);
+			"could not register video device (%d)\n", ret);
 
 	return ret;
 }

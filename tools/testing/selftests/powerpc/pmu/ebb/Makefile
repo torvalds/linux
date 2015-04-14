@@ -4,7 +4,7 @@ noarg:
 # The EBB handler is 64-bit code and everything links against it
 CFLAGS += -m64
 
-PROGS := reg_access_test event_attributes_test cycles_test	\
+TEST_PROGS := reg_access_test event_attributes_test cycles_test	\
 	 cycles_with_freeze_test pmc56_overflow_test		\
 	 ebb_vs_cpu_event_test cpu_event_vs_ebb_test		\
 	 cpu_event_pinned_vs_ebb_test task_event_vs_ebb_test	\
@@ -16,18 +16,15 @@ PROGS := reg_access_test event_attributes_test cycles_test	\
 	 lost_exception_test no_handler_test			\
 	 cycles_with_mmcr2_test
 
-all: $(PROGS)
+all: $(TEST_PROGS)
 
-$(PROGS): ../../harness.c ../event.c ../lib.c ebb.c ebb_handler.S trace.c busy_loop.S
+$(TEST_PROGS): ../../harness.c ../event.c ../lib.c ebb.c ebb_handler.S trace.c busy_loop.S
 
 instruction_count_test: ../loop.S
 
 lost_exception_test: ../lib.c
 
-run_tests: all
-	@-for PROG in $(PROGS); do \
-		./$$PROG; \
-	done;
+include ../../../lib.mk
 
 clean:
-	rm -f $(PROGS)
+	rm -f $(TEST_PROGS)

@@ -318,18 +318,8 @@ module_param_named(start, synth_acntpc.startup, short, S_IRUGO);
 MODULE_PARM_DESC(port, "Set the port for the synthesizer (override probing).");
 MODULE_PARM_DESC(start, "Start the synthesizer once it is loaded.");
 
-static int __init acntpc_init(void)
-{
-	return synth_add(&synth_acntpc);
-}
+module_spk_synth(synth_acntpc);
 
-static void __exit acntpc_exit(void)
-{
-	synth_remove(&synth_acntpc);
-}
-
-module_init(acntpc_init);
-module_exit(acntpc_exit);
 MODULE_AUTHOR("Kirk Reiser <kirk@braille.uwo.ca>");
 MODULE_AUTHOR("David Borowski");
 MODULE_DESCRIPTION("Speakup support for Accent PC synthesizer");

@@ -75,11 +75,11 @@ static int rtctmp;
 int proc_dolasatrtc(struct ctl_table *table, int write,
 		       void *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct timespec ts;
+	struct timespec64 ts;
 	int r;
 
 	if (!write) {
-		read_persistent_clock(&ts);
+		read_persistent_clock64(&ts);
 		rtctmp = ts.tv_sec;
 		/* check for time < 0 and set to 0 */
 		if (rtctmp < 0)

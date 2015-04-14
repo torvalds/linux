@@ -155,9 +155,8 @@ static void nrs_policy_stop_primary(struct ptlrpc_nrs *nrs)
 {
 	struct ptlrpc_nrs_policy *tmp = nrs->nrs_policy_primary;
 
-	if (tmp == NULL) {
+	if (tmp == NULL)
 		return;
-	}
 
 	nrs->nrs_policy_primary = NULL;
 
@@ -912,7 +911,6 @@ static int nrs_register_policies_locked(struct ptlrpc_nrs *nrs)
 static int nrs_svcpt_setup_locked0(struct ptlrpc_nrs *nrs,
 				   struct ptlrpc_service_part *svcpt)
 {
-	int				rc;
 	enum ptlrpc_nrs_queue_type	queue;
 
 	LASSERT(mutex_is_locked(&nrs_core.nrs_mutex));
@@ -930,9 +928,7 @@ static int nrs_svcpt_setup_locked0(struct ptlrpc_nrs *nrs,
 	INIT_LIST_HEAD(&nrs->nrs_policy_list);
 	INIT_LIST_HEAD(&nrs->nrs_policy_queued);
 
-	rc = nrs_register_policies_locked(nrs);
-
-	return rc;
+	return nrs_register_policies_locked(nrs);
 }
 
 /**

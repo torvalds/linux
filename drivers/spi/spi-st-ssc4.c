@@ -482,7 +482,7 @@ static const struct dev_pm_ops spi_st_pm = {
 	SET_RUNTIME_PM_OPS(spi_st_runtime_suspend, spi_st_runtime_resume, NULL)
 };
 
-static struct of_device_id stm_spi_match[] = {
+static const struct of_device_id stm_spi_match[] = {
 	{ .compatible = "st,comms-ssc4-spi", },
 	{},
 };

@@ -81,6 +81,7 @@ int main(void)
 #undef ENTRY
 
 	OFFSET(TSS_ist, tss_struct, x86_tss.ist);
+	OFFSET(TSS_sp0, tss_struct, x86_tss.sp0);
 	BLANK();
 
 	DEFINE(__NR_syscall_max, sizeof(syscalls_64) - 1);

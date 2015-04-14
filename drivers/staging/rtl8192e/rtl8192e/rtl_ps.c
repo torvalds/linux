@@ -37,8 +37,8 @@ static void rtl8192_hw_sleep_down(struct net_device *dev)
 	spin_lock_irqsave(&priv->rf_ps_lock, flags);
 	if (priv->RFChangeInProgress) {
 		spin_unlock_irqrestore(&priv->rf_ps_lock, flags);
-		RT_TRACE(COMP_DBG, "rtl8192_hw_sleep_down(): RF Change in "
-			 "progress!\n");
+		RT_TRACE(COMP_DBG,
+			 "rtl8192_hw_sleep_down(): RF Change in progress!\n");
 		return;
 	}
 	spin_unlock_irqrestore(&priv->rf_ps_lock, flags);
@@ -64,10 +64,11 @@ void rtl8192_hw_wakeup(struct net_device *dev)
 	spin_lock_irqsave(&priv->rf_ps_lock, flags);
 	if (priv->RFChangeInProgress) {
 		spin_unlock_irqrestore(&priv->rf_ps_lock, flags);
-		RT_TRACE(COMP_DBG, "rtl8192_hw_wakeup(): RF Change in "
-			 "progress!\n");
+		RT_TRACE(COMP_DBG,
+			 "rtl8192_hw_wakeup(): RF Change in progress!\n");
 		queue_delayed_work_rsl(priv->rtllib->wq,
-				       &priv->rtllib->hw_wakeup_wq, MSECS(10));
+				       &priv->rtllib->hw_wakeup_wq,
+				       msecs_to_jiffies(10));
 		return;
 	}
 	spin_unlock_irqrestore(&priv->rf_ps_lock, flags);
@@ -95,18 +96,18 @@ void rtl8192_hw_to_sleep(struct net_device *dev, u64 time)
 
 	spin_lock_irqsave(&priv->ps_lock, flags);
 
-	time -= MSECS(8+16+7);
+	time -= msecs_to_jiffies(8 + 16 + 7);
 
-	if ((time - jiffies) <= MSECS(MIN_SLEEP_TIME)) {
+	if ((time - jiffies) <= msecs_to_jiffies(MIN_SLEEP_TIME)) {
 		spin_unlock_irqrestore(&priv->ps_lock, flags);
-		printk(KERN_INFO "too short to sleep::%lld < %ld\n",
-		       time - jiffies, MSECS(MIN_SLEEP_TIME));
+		netdev_info(dev, "too short to sleep::%lld < %ld\n",
+			    time - jiffies, msecs_to_jiffies(MIN_SLEEP_TIME));
 		return;
 	}
 
-	if ((time - jiffies) > MSECS(MAX_SLEEP_TIME)) {
-		printk(KERN_INFO "========>too long to sleep:%lld > %ld\n",
-		       time - jiffies,  MSECS(MAX_SLEEP_TIME));
+	if ((time - jiffies) > msecs_to_jiffies(MAX_SLEEP_TIME)) {
+		netdev_info(dev, "========>too long to sleep:%lld > %ld\n",
+			    time - jiffies, msecs_to_jiffies(MAX_SLEEP_TIME));
 		spin_unlock_irqrestore(&priv->ps_lock, flags);
 		return;
 	}
@@ -201,12 +202,11 @@ void rtllib_ips_leave_wq(struct net_device *dev)
 				RT_TRACE(COMP_ERR, "%s(): RF is OFF.\n",
 					 __func__);
 				return;
-			} else {
-				printk(KERN_INFO "=========>%s(): IPSLeave\n",
-				       __func__);
-				queue_work_rsl(priv->rtllib->wq,
-					       &priv->rtllib->ips_leave_wq);
 			}
+			netdev_info(dev, "=========>%s(): IPSLeave\n",
+				    __func__);
+			queue_work_rsl(priv->rtllib->wq,
+				       &priv->rtllib->ips_leave_wq);
 		}
 	}
 }
@@ -239,8 +239,8 @@ static bool MgntActSet_802_11_PowerSaveMode(struct net_device *dev,
 		priv->rtllib->sta_sleep = LPS_IS_WAKE;
 
 		spin_lock_irqsave(&(priv->rtllib->mgmt_tx_lock), flags);
-		RT_TRACE(COMP_DBG, "LPS leave: notify AP we are awaked"
-			 " ++++++++++ SendNullFunctionData\n");
+		RT_TRACE(COMP_DBG,
+			 "LPS leave: notify AP we are awaked ++++++++++ SendNullFunctionData\n");
 		rtllib_sta_ps_send_null_frame(priv->rtllib, 0);
 		spin_unlock_irqrestore(&(priv->rtllib->mgmt_tx_lock), flags);
 	}
@@ -255,8 +255,8 @@ void LeisurePSEnter(struct net_device *dev)
 					&(priv->rtllib->PowerSaveControl);
 
 	RT_TRACE(COMP_PS, "LeisurePSEnter()...\n");
-	RT_TRACE(COMP_PS, "pPSC->bLeisurePs = %d, ieee->ps = %d,pPSC->LpsIdle"
-		 "Count is %d,RT_CHECK_FOR_HANG_PERIOD is %d\n",
+	RT_TRACE(COMP_PS,
+		 "pPSC->bLeisurePs = %d, ieee->ps = %d,pPSC->LpsIdleCount is %d,RT_CHECK_FOR_HANG_PERIOD is %d\n",
 		 pPSC->bLeisurePs, priv->rtllib->ps, pPSC->LpsIdleCount,
 		 RT_CHECK_FOR_HANG_PERIOD);
 
@@ -271,8 +271,8 @@ void LeisurePSEnter(struct net_device *dev)
 
 			if (priv->rtllib->ps == RTLLIB_PS_DISABLED) {
 
-				RT_TRACE(COMP_LPS, "LeisurePSEnter(): Enter "
-					 "802.11 power save mode...\n");
+				RT_TRACE(COMP_LPS,
+					 "LeisurePSEnter(): Enter 802.11 power save mode...\n");
 
 				if (!pPSC->bFwCtrlLPS) {
 					if (priv->rtllib->SetFwCmdHandler)
@@ -301,8 +301,8 @@ void LeisurePSLeave(struct net_device *dev)
 
 	if (pPSC->bLeisurePs) {
 		if (priv->rtllib->ps != RTLLIB_PS_DISABLED) {
-			RT_TRACE(COMP_LPS, "LeisurePSLeave(): Busy Traffic , "
-				 "Leave 802.11 power save..\n");
+			RT_TRACE(COMP_LPS,
+				 "LeisurePSLeave(): Busy Traffic , Leave 802.11 power save..\n");
 			MgntActSet_802_11_PowerSaveMode(dev,
 					 RTLLIB_PS_DISABLED);
 

@@ -55,7 +55,7 @@
 
 #include <linux/kernel.h>
 #include <linux/cpuidle.h>
-#include <linux/clockchips.h>
+#include <linux/tick.h>
 #include <trace/events/power.h>
 #include <linux/sched.h>
 #include <linux/notifier.h>
@@ -638,12 +638,12 @@ static int intel_idle(struct cpuidle_device *dev,
 		leave_mm(cpu);
 
 	if (!(lapic_timer_reliable_states & (1 << (cstate))))
-		clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &cpu);
+		tick_broadcast_enter();
 
 	mwait_idle_with_hints(eax, ecx);
 
 	if (!(lapic_timer_reliable_states & (1 << (cstate))))
-		clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &cpu);
+		tick_broadcast_exit();
 
 	return index;
 }
@@ -665,13 +665,12 @@ static void intel_idle_freeze(struct cpuidle_device *dev,
 
 static void __setup_broadcast_timer(void *arg)
 {
-	unsigned long reason = (unsigned long)arg;
-	int cpu = smp_processor_id();
+	unsigned long on = (unsigned long)arg;
 
-	reason = reason ?
-		CLOCK_EVT_NOTIFY_BROADCAST_ON : CLOCK_EVT_NOTIFY_BROADCAST_OFF;
-
-	clockevents_notify(reason, &cpu);
+	if (on)
+		tick_broadcast_enable();
+	else
+		tick_broadcast_disable();
 }
 
 static int cpu_hotplug_notify(struct notifier_block *n,

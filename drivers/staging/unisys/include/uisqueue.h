@@ -25,7 +25,6 @@
 
 #include "linux/version.h"
 #include "iochannel.h"
-#include "uniklog.h"
 #include <linux/atomic.h>
 #include <linux/semaphore.h>
 #include <linux/uuid.h>

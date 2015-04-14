@@ -50,7 +50,6 @@ zero volts).
 
 #include <asm/div64.h>
 
-#include "comedi_fc.h"
 #include <linux/timer.h>
 #include <linux/ktime.h>
 
@@ -225,19 +224,20 @@ static int waveform_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_TIMER);
-	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_NOW | TRIG_TIMER);
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_TIMER);
+	err |= comedi_check_trigger_src(&cmd->convert_src,
+					TRIG_NOW | TRIG_TIMER);
+	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
 	/* Step 2a : make sure trigger sources are unique */
 
-	err |= cfc_check_trigger_is_unique(cmd->convert_src);
-	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+	err |= comedi_check_trigger_is_unique(cmd->convert_src);
+	err |= comedi_check_trigger_is_unique(cmd->stop_src);
 
 	/* Step 2b : and mutually compatible */
 
@@ -246,26 +246,30 @@ static int waveform_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 
 	if (cmd->convert_src == TRIG_NOW)
-		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->convert_arg, 0);
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
-						 nano_per_micro);
-		if (cmd->convert_src == TRIG_TIMER)
-			err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
-					cmd->convert_arg * cmd->chanlist_len);
+		err |= comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+						    nano_per_micro);
+		if (cmd->convert_src == TRIG_TIMER) {
+			err |= comedi_check_trigger_arg_min(&cmd->
+							    scan_begin_arg,
+							    cmd->convert_arg *
+							    cmd->chanlist_len);
+		}
 	}
 
-	err |= cfc_check_trigger_arg_min(&cmd->chanlist_len, 1);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+	err |= comedi_check_trigger_arg_min(&cmd->chanlist_len, 1);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
+					   cmd->chanlist_len);
 
 	if (cmd->stop_src == TRIG_COUNT)
-		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
 	else	/* TRIG_NONE */
-		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -277,14 +281,14 @@ static int waveform_ai_cmdtest(struct comedi_device *dev,
 		/* round to nearest microsec */
 		arg = nano_per_micro *
 		      ((arg + (nano_per_micro / 2)) / nano_per_micro);
-		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
+		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
 		arg = cmd->convert_arg;
 		/* round to nearest microsec */
 		arg = nano_per_micro *
 		      ((arg + (nano_per_micro / 2)) / nano_per_micro);
-		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
+		err |= comedi_check_trigger_arg_is(&cmd->convert_arg, arg);
 	}
 
 	if (err)
@@ -420,9 +424,8 @@ static int waveform_attach(struct comedi_device *dev,
 	for (i = 0; i < s->n_chan; i++)
 		devpriv->ao_loopbacks[i] = s->maxdata / 2;
 
-	init_timer(&devpriv->timer);
-	devpriv->timer.function = waveform_ai_interrupt;
-	devpriv->timer.data = (unsigned long)dev;
+	setup_timer(&devpriv->timer, waveform_ai_interrupt,
+		    (unsigned long)dev);
 
 	dev_info(dev->class_dev,
 		 "%s: %i microvolt, %li microsecond waveform attached\n",

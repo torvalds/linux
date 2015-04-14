@@ -14,6 +14,7 @@ Required properties:
 - dma-names: Must include the following entries:
   - rx
   - tx
+- cs-gpios: Must specify the GPIOs used for chipselect lines.
 - #address-cells: Must be 1.
 - #size-cells: Must be 0.
 

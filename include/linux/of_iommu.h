@@ -12,7 +12,8 @@ extern int of_get_dma_window(struct device_node *dn, const char *prefix,
 			     size_t *size);
 
 extern void of_iommu_init(void);
-extern struct iommu_ops *of_iommu_configure(struct device *dev);
+extern struct iommu_ops *of_iommu_configure(struct device *dev,
+					struct device_node *master_np);
 
 #else
 
@@ -24,7 +25,8 @@ static inline int of_get_dma_window(struct device_node *dn, const char *prefix,
 }
 
 static inline void of_iommu_init(void) { }
-static inline struct iommu_ops *of_iommu_configure(struct device *dev)
+static inline struct iommu_ops *of_iommu_configure(struct device *dev,
+					 struct device_node *master_np)
 {
 	return NULL;
 }

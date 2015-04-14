@@ -58,9 +58,8 @@ static void usb_write_port23a_complete(struct urb *purb)
 	if (padapter->bSurpriseRemoved || padapter->bDriverStopped ||
 	    padapter->bWritePortCancel) {
 		RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
-			 ("usb_write_port23a_complete:bDriverStopped(%d) OR "
-			  "bSurpriseRemoved(%d)", padapter->bDriverStopped,
-			  padapter->bSurpriseRemoved));
+			 "usb_write_port23a_complete:bDriverStopped(%d) OR bSurpriseRemoved(%d)\n",
+			 padapter->bDriverStopped, padapter->bSurpriseRemoved);
 		DBG_8723A("%s(): TX Warning! bDriverStopped(%d) OR "
 			  "bSurpriseRemoved(%d) bWritePortCancel(%d) "
 			  "pxmitbuf->ext_tag(%x)\n", __func__,
@@ -72,14 +71,14 @@ static void usb_write_port23a_complete(struct urb *purb)
 
 	if (purb->status) {
 		RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
-			 ("usb_write_port23a_complete : purb->status(%d) "
-			  "!= 0\n", purb->status));
+			 "usb_write_port23a_complete : purb->status(%d) != 0\n",
+			 purb->status);
 		DBG_8723A("###=> urb_write_port_complete status(%d)\n",
 			  purb->status);
 		if (purb->status == -EPIPE || purb->status == -EPROTO) {
 		} else if (purb->status == -EINPROGRESS) {
 			RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
-				 ("usb_write_port23a_complete: EINPROGESS\n"));
+				 "usb_write_port23a_complete: EINPROGESS\n");
 			goto check_completion;
 		} else if (purb->status == -ENOENT) {
 			DBG_8723A("%s: -ENOENT\n", __func__);
@@ -89,18 +88,16 @@ static void usb_write_port23a_complete(struct urb *purb)
 			goto check_completion;
 		} else if (purb->status == -ESHUTDOWN) {
 			RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
-				 ("usb_write_port23a_complete: ESHUTDOWN\n"));
+				 "usb_write_port23a_complete: ESHUTDOWN\n");
 			padapter->bDriverStopped = true;
 			RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
-				 ("usb_write_port23a_complete:bDriverStopped "
-				  "= true\n"));
+				 "usb_write_port23a_complete:bDriverStopped = true\n");
 			goto check_completion;
 		} else {
 			padapter->bSurpriseRemoved = true;
 			DBG_8723A("bSurpriseRemoved = true\n");
 			RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
-				 ("usb_write_port23a_complete:bSurpriseRemoved "
-				  "= true\n"));
+				 "usb_write_port23a_complete:bSurpriseRemoved = true\n");
 			goto check_completion;
 		}
 	}
@@ -132,12 +129,12 @@ int rtl8723au_write_port(struct rtw_adapter *padapter, u32 addr, u32 cnt,
 	int status;
 	int ret = _FAIL;
 
-	RT_TRACE(_module_hci_ops_os_c_, _drv_err_, ("+usb_write_port23a\n"));
+	RT_TRACE(_module_hci_ops_os_c_, _drv_err_, "+usb_write_port23a\n");
 
 	if (padapter->bDriverStopped || padapter->bSurpriseRemoved) {
 		RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
-			 ("%s:(padapter->bDriverStopped || "
-			  "padapter->bSurpriseRemoved)!!!\n", __func__));
+			 "%s:(padapter->bDriverStopped || padapter->bSurpriseRemoved)!!!\n",
+			 __func__);
 		rtw23a_sctx_done_err(&pxmitbuf->sctx, RTW_SCTX_DONE_TX_DENY);
 		goto exit;
 	}
@@ -188,8 +185,8 @@ int rtl8723au_write_port(struct rtw_adapter *padapter, u32 addr, u32 cnt,
 				     RTW_SCTX_DONE_WRITE_PORT_ERR);
 		DBG_8723A("usb_write_port23a, status =%d\n", status);
 		RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
-			 ("usb_write_port23a(): usb_submit_urb, status =%x\n",
-			 status));
+			 "usb_write_port23a(): usb_submit_urb, status =%x\n",
+			 status);
 
 		switch (status) {
 		case -ENODEV:
@@ -201,7 +198,7 @@ int rtl8723au_write_port(struct rtw_adapter *padapter, u32 addr, u32 cnt,
 		goto exit;
 	}
 	ret = _SUCCESS;
-	RT_TRACE(_module_hci_ops_os_c_, _drv_err_, ("-usb_write_port23a\n"));
+	RT_TRACE(_module_hci_ops_os_c_, _drv_err_, "-usb_write_port23a\n");
 
 exit:
 	if (ret != _SUCCESS)
