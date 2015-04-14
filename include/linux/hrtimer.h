@@ -191,7 +191,7 @@ struct hrtimer_cpu_base {
 	unsigned int			max_hang_time;
 #endif
 	struct hrtimer_clock_base	clock_base[HRTIMER_MAX_CLOCK_BASES];
-};
+} ____cacheline_aligned;
 
 static inline void hrtimer_set_expires(struct hrtimer *timer, ktime_t time)
 {
