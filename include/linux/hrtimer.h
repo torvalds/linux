@@ -355,7 +355,7 @@ static inline void destroy_hrtimer_on_stack(struct hrtimer *timer) { }
 #endif
 
 /* Basic timer operations: */
-extern int hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
+extern void hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
 			unsigned long range_ns, const enum hrtimer_mode mode);
 
 /**
@@ -364,34 +364,30 @@ extern int hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
  * @tim:	expiry time
  * @mode:	expiry mode: absolute (HRTIMER_MODE_ABS) or
  *		relative (HRTIMER_MODE_REL)
- *
- * Returns:
- *  0 on success
- *  1 when the timer was active
  */
-static inline int hrtimer_start(struct hrtimer *timer, ktime_t tim,
-				const enum hrtimer_mode mode)
+static inline void hrtimer_start(struct hrtimer *timer, ktime_t tim,
+				 const enum hrtimer_mode mode)
 {
-	return hrtimer_start_range_ns(timer, tim, 0, mode);
+	hrtimer_start_range_ns(timer, tim, 0, mode);
 }
 
 extern int hrtimer_cancel(struct hrtimer *timer);
 extern int hrtimer_try_to_cancel(struct hrtimer *timer);
 
-static inline int hrtimer_start_expires(struct hrtimer *timer,
-						enum hrtimer_mode mode)
+static inline void hrtimer_start_expires(struct hrtimer *timer,
+					 enum hrtimer_mode mode)
 {
 	unsigned long delta;
 	ktime_t soft, hard;
 	soft = hrtimer_get_softexpires(timer);
 	hard = hrtimer_get_expires(timer);
 	delta = ktime_to_ns(ktime_sub(hard, soft));
-	return hrtimer_start_range_ns(timer, soft, delta, mode);
+	hrtimer_start_range_ns(timer, soft, delta, mode);
 }
 
-static inline int hrtimer_restart(struct hrtimer *timer)
+static inline void hrtimer_restart(struct hrtimer *timer)
 {
-	return hrtimer_start_expires(timer, HRTIMER_MODE_ABS);
+	hrtimer_start_expires(timer, HRTIMER_MODE_ABS);
 }
 
 /* Query timers: */

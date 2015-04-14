@@ -923,22 +923,18 @@ remove_hrtimer(struct hrtimer *timer, struct hrtimer_clock_base *base)
  * @delta_ns:	"slack" range for the timer
  * @mode:	expiry mode: absolute (HRTIMER_MODE_ABS) or
  *		relative (HRTIMER_MODE_REL)
- *
- * Returns:
- *  0 on success
- *  1 when the timer was active
  */
-int hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
-			   unsigned long delta_ns, const enum hrtimer_mode mode)
+void hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
+			    unsigned long delta_ns, const enum hrtimer_mode mode)
 {
 	struct hrtimer_clock_base *base, *new_base;
 	unsigned long flags;
-	int ret, leftmost;
+	int leftmost;
 
 	base = lock_hrtimer_base(timer, &flags);
 
 	/* Remove an active timer from the queue: */
-	ret = remove_hrtimer(timer, base);
+	remove_hrtimer(timer, base);
 
 	if (mode & HRTIMER_MODE_REL) {
 		tim = ktime_add_safe(tim, base->get_time());
@@ -962,11 +958,8 @@ int hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
 	timer_stats_hrtimer_set_start_info(timer);
 
 	leftmost = enqueue_hrtimer(timer, new_base);
-
-	if (!leftmost) {
-		unlock_hrtimer_base(timer, &flags);
-		return ret;
-	}
+	if (!leftmost)
+		goto unlock;
 
 	if (!hrtimer_is_hres_active(timer)) {
 		/*
@@ -977,10 +970,8 @@ int hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
 	} else {
 		hrtimer_reprogram(timer, new_base);
 	}
-
+unlock:
 	unlock_hrtimer_base(timer, &flags);
-
-	return ret;
 }
 EXPORT_SYMBOL_GPL(hrtimer_start_range_ns);
 
