@@ -130,6 +130,12 @@ struct hrtimer_sleeper {
 	struct task_struct *task;
 };
 
+#ifdef CONFIG_64BIT
+# define HRTIMER_CLOCK_BASE_ALIGN	64
+#else
+# define HRTIMER_CLOCK_BASE_ALIGN	32
+#endif
+
 /**
  * struct hrtimer_clock_base - the timer base for a specific clock
  * @cpu_base:		per cpu clock base
@@ -147,7 +153,7 @@ struct hrtimer_clock_base {
 	struct timerqueue_head	active;
 	ktime_t			(*get_time)(void);
 	ktime_t			offset;
-};
+} __attribute__((__aligned__(HRTIMER_CLOCK_BASE_ALIGN)));
 
 enum  hrtimer_base_type {
 	HRTIMER_BASE_MONOTONIC,
@@ -195,6 +201,8 @@ struct hrtimer_cpu_base {
 
 static inline void hrtimer_set_expires(struct hrtimer *timer, ktime_t time)
 {
+	BUILD_BUG_ON(sizeof(struct hrtimer_clock_base) > HRTIMER_CLOCK_BASE_ALIGN);
+
 	timer->node.expires = time;
 	timer->_softexpires = time;
 }
