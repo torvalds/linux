@@ -33,6 +33,7 @@ void snd_hdac_stream_init(struct hdac_bus *bus, struct hdac_stream *azx_dev,
 	azx_dev->index = idx;
 	azx_dev->direction = direction;
 	azx_dev->stream_tag = tag;
+	snd_hdac_dsp_lock_init(azx_dev);
 	list_add_tail(&azx_dev->list, &bus->stream_list);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_stream_init);
@@ -534,3 +535,115 @@ void snd_hdac_stream_sync(struct hdac_stream *azx_dev, bool start,
 	}
 }
 EXPORT_SYMBOL_GPL(snd_hdac_stream_sync);
+
+#ifdef CONFIG_SND_HDA_DSP_LOADER
+/**
+ * snd_hdac_dsp_prepare - prepare for DSP loading
+ * @azx_dev: HD-audio core stream used for DSP loading
+ * @format: HD-audio stream format
+ * @byte_size: data chunk byte size
+ * @bufp: allocated buffer
+ *
+ * Allocate the buffer for the given size and set up the given stream for
+ * DSP loading.  Returns the stream tag (>= 0), or a negative error code.
+ */
+int snd_hdac_dsp_prepare(struct hdac_stream *azx_dev, unsigned int format,
+			 unsigned int byte_size, struct snd_dma_buffer *bufp)
+{
+	struct hdac_bus *bus = azx_dev->bus;
+	u32 *bdl;
+	int err;
+
+	snd_hdac_dsp_lock(azx_dev);
+	spin_lock_irq(&bus->reg_lock);
+	if (azx_dev->running || azx_dev->locked) {
+		spin_unlock_irq(&bus->reg_lock);
+		err = -EBUSY;
+		goto unlock;
+	}
+	azx_dev->locked = true;
+	spin_unlock_irq(&bus->reg_lock);
+
+	err = bus->io_ops->dma_alloc_pages(bus, SNDRV_DMA_TYPE_DEV_SG,
+					   byte_size, bufp);
+	if (err < 0)
+		goto err_alloc;
+
+	azx_dev->bufsize = byte_size;
+	azx_dev->period_bytes = byte_size;
+	azx_dev->format_val = format;
+
+	snd_hdac_stream_reset(azx_dev);
+
+	/* reset BDL address */
+	snd_hdac_stream_writel(azx_dev, SD_BDLPL, 0);
+	snd_hdac_stream_writel(azx_dev, SD_BDLPU, 0);
+
+	azx_dev->frags = 0;
+	bdl = (u32 *)azx_dev->bdl.area;
+	err = setup_bdle(bus, bufp, azx_dev, &bdl, 0, byte_size, 0);
+	if (err < 0)
+		goto error;
+
+	snd_hdac_stream_setup(azx_dev);
+	snd_hdac_dsp_unlock(azx_dev);
+	return azx_dev->stream_tag;
+
+ error:
+	bus->io_ops->dma_free_pages(bus, bufp);
+ err_alloc:
+	spin_lock_irq(&bus->reg_lock);
+	azx_dev->locked = false;
+	spin_unlock_irq(&bus->reg_lock);
+ unlock:
+	snd_hdac_dsp_unlock(azx_dev);
+	return err;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_dsp_prepare);
+
+/**
+ * snd_hdac_dsp_trigger - start / stop DSP loading
+ * @azx_dev: HD-audio core stream used for DSP loading
+ * @start: trigger start or stop
+ */
+void snd_hdac_dsp_trigger(struct hdac_stream *azx_dev, bool start)
+{
+	if (start)
+		snd_hdac_stream_start(azx_dev, true);
+	else
+		snd_hdac_stream_stop(azx_dev);
+}
+EXPORT_SYMBOL_GPL(snd_hdac_dsp_trigger);
+
+/**
+ * snd_hdac_dsp_cleanup - clean up the stream from DSP loading to normal
+ * @azx_dev: HD-audio core stream used for DSP loading
+ * @dmab: buffer used by DSP loading
+ */
+void snd_hdac_dsp_cleanup(struct hdac_stream *azx_dev,
+			  struct snd_dma_buffer *dmab)
+{
+	struct hdac_bus *bus = azx_dev->bus;
+
+	if (!dmab->area || !azx_dev->locked)
+		return;
+
+	snd_hdac_dsp_lock(azx_dev);
+	/* reset BDL address */
+	snd_hdac_stream_writel(azx_dev, SD_BDLPL, 0);
+	snd_hdac_stream_writel(azx_dev, SD_BDLPU, 0);
+	snd_hdac_stream_writel(azx_dev, SD_CTL, 0);
+	azx_dev->bufsize = 0;
+	azx_dev->period_bytes = 0;
+	azx_dev->format_val = 0;
+
+	bus->io_ops->dma_free_pages(bus, dmab);
+	dmab->area = NULL;
+
+	spin_lock_irq(&bus->reg_lock);
+	azx_dev->locked = false;
+	spin_unlock_irq(&bus->reg_lock);
+	snd_hdac_dsp_unlock(azx_dev);
+}
+EXPORT_SYMBOL_GPL(snd_hdac_dsp_cleanup);
+#endif /* CONFIG_SND_HDA_DSP_LOADER */

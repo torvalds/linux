@@ -187,6 +187,11 @@ struct hdac_io_ops {
 	u16 (*reg_readw)(u16 __iomem *addr);
 	void (*reg_writeb)(u8 value, u8 __iomem *addr);
 	u8 (*reg_readb)(u8 __iomem *addr);
+	/* Allocation ops */
+	int (*dma_alloc_pages)(struct hdac_bus *bus, int type, size_t size,
+			       struct snd_dma_buffer *buf);
+	void (*dma_free_pages)(struct hdac_bus *bus,
+			       struct snd_dma_buffer *buf);
 };
 
 #define HDA_UNSOL_QUEUE_SIZE	64
@@ -374,6 +379,7 @@ struct hdac_stream {
 	bool opened:1;
 	bool running:1;
 	bool no_period_wakeup:1;
+	bool locked:1;
 
 	/* timestamp */
 	unsigned long start_wallclk;	/* start + minimum wallclk */
@@ -383,6 +389,10 @@ struct hdac_stream {
 	int delay_negative_threshold;
 
 	struct list_head list;
+#ifdef CONFIG_SND_HDA_DSP_LOADER
+	/* DSP access mutex */
+	struct mutex dsp_mutex;
+#endif
 };
 
 void snd_hdac_stream_init(struct hdac_bus *bus, struct hdac_stream *azx_dev,
@@ -439,6 +449,42 @@ void snd_hdac_stream_timecounter_init(struct hdac_stream *azx_dev,
 	snd_hdac_stream_writeb(dev, reg, \
 			       (snd_hdac_stream_readb(dev, reg) & \
 				~(mask)) | (val))
+
+#ifdef CONFIG_SND_HDA_DSP_LOADER
+/* DSP lock helpers */
+#define snd_hdac_dsp_lock_init(dev)	mutex_init(&(dev)->dsp_mutex)
+#define snd_hdac_dsp_lock(dev)		mutex_lock(&(dev)->dsp_mutex)
+#define snd_hdac_dsp_unlock(dev)	mutex_unlock(&(dev)->dsp_mutex)
+#define snd_hdac_stream_is_locked(dev)	((dev)->locked)
+/* DSP loader helpers */
+int snd_hdac_dsp_prepare(struct hdac_stream *azx_dev, unsigned int format,
+			 unsigned int byte_size, struct snd_dma_buffer *bufp);
+void snd_hdac_dsp_trigger(struct hdac_stream *azx_dev, bool start);
+void snd_hdac_dsp_cleanup(struct hdac_stream *azx_dev,
+			  struct snd_dma_buffer *dmab);
+#else /* CONFIG_SND_HDA_DSP_LOADER */
+#define snd_hdac_dsp_lock_init(dev)	do {} while (0)
+#define snd_hdac_dsp_lock(dev)		do {} while (0)
+#define snd_hdac_dsp_unlock(dev)	do {} while (0)
+#define snd_hdac_stream_is_locked(dev)	0
+
+static inline int
+snd_hdac_dsp_prepare(struct hdac_stream *azx_dev, unsigned int format,
+		     unsigned int byte_size, struct snd_dma_buffer *bufp)
+{
+	return 0;
+}
+
+static inline void snd_hdac_dsp_trigger(struct hdac_stream *azx_dev, bool start)
+{
+}
+
+static inline void snd_hdac_dsp_cleanup(struct hdac_stream *azx_dev,
+					struct snd_dma_buffer *dmab)
+{
+}
+#endif /* CONFIG_SND_HDA_DSP_LOADER */
+
 
 /*
  * generic array helpers
