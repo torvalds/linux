@@ -2808,7 +2808,7 @@ int ocfs2_mv_orphaned_inode_to_new(struct inode *dir,
 						       ORPHAN_DIR_SYSTEM_INODE,
 						       osb->slot_num);
 	if (!orphan_dir_inode) {
-		status = -EEXIST;
+		status = -ENOENT;
 		mlog_errno(status);
 		goto leave;
 	}
