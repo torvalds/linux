@@ -1208,10 +1208,12 @@ sbc_dif_generate(struct se_cmd *cmd)
 				sdt->ref_tag = cpu_to_be32(sector & 0xffffffff);
 			sdt->app_tag = 0;
 
-			pr_debug("DIF WRITE INSERT sector: %llu guard_tag: 0x%04x"
+			pr_debug("DIF %s INSERT sector: %llu guard_tag: 0x%04x"
 				 " app_tag: 0x%04x ref_tag: %u\n",
-				 (unsigned long long)sector, sdt->guard_tag,
-				 sdt->app_tag, be32_to_cpu(sdt->ref_tag));
+				 (cmd->data_direction == DMA_TO_DEVICE) ?
+				 "WRITE" : "READ", (unsigned long long)sector,
+				 sdt->guard_tag, sdt->app_tag,
+				 be32_to_cpu(sdt->ref_tag));
 
 			sector++;
 			offset += sizeof(struct se_dif_v1_tuple);
