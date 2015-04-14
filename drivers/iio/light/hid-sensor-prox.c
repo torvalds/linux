@@ -43,8 +43,6 @@ struct prox_state {
 static const struct iio_chan_spec prox_channels[] = {
 	{
 		.type = IIO_PROXIMITY,
-		.modified = 1,
-		.channel2 = IIO_NO_MOD,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_OFFSET) |
 		BIT(IIO_CHAN_INFO_SCALE) |
