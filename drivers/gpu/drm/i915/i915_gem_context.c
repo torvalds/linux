@@ -575,18 +575,12 @@ static inline bool should_skip_switch(struct intel_engine_cs *ring,
 				      struct intel_context *from,
 				      struct intel_context *to)
 {
-	struct drm_i915_private *dev_priv = ring->dev->dev_private;
-
 	if (to->remap_slice)
 		return false;
 
 	if (to->ppgtt) {
 		if (from == to && !test_bit(ring->id,
 				&to->ppgtt->pd_dirty_rings))
-			return true;
-	} else if (dev_priv->mm.aliasing_ppgtt) {
-		if (from == to && !test_bit(ring->id,
-				&dev_priv->mm.aliasing_ppgtt->pd_dirty_rings))
 			return true;
 	}
 
