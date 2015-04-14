@@ -7,8 +7,17 @@
 
 #include <linux/debugfs.h>
 #include <linux/cma.h>
+#include <linux/list.h>
+#include <linux/kernel.h>
+#include <linux/slab.h>
 
 #include "cma.h"
+
+struct cma_mem {
+	struct hlist_node node;
+	struct page *p;
+	unsigned long n;
+};
 
 static struct dentry *cma_debugfs_root;
 
@@ -23,6 +32,46 @@ static int cma_debugfs_get(void *data, u64 *val)
 
 DEFINE_SIMPLE_ATTRIBUTE(cma_debugfs_fops, cma_debugfs_get, NULL, "%llu\n");
 
+static void cma_add_to_cma_mem_list(struct cma *cma, struct cma_mem *mem)
+{
+	spin_lock(&cma->mem_head_lock);
+	hlist_add_head(&mem->node, &cma->mem_head);
+	spin_unlock(&cma->mem_head_lock);
+}
+
+static int cma_alloc_mem(struct cma *cma, int count)
+{
+	struct cma_mem *mem;
+	struct page *p;
+
+	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
+	if (!mem)
+		return -ENOMEM;
+
+	p = cma_alloc(cma, count, CONFIG_CMA_ALIGNMENT);
+	if (!p) {
+		kfree(mem);
+		return -ENOMEM;
+	}
+
+	mem->p = p;
+	mem->n = count;
+
+	cma_add_to_cma_mem_list(cma, mem);
+
+	return 0;
+}
+
+static int cma_alloc_write(void *data, u64 val)
+{
+	int pages = val;
+	struct cma *cma = data;
+
+	return cma_alloc_mem(cma, pages);
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(cma_alloc_fops, NULL, cma_alloc_write, "%llu\n");
+
 static void cma_debugfs_add_one(struct cma *cma, int idx)
 {
 	struct dentry *tmp;
@@ -33,12 +82,15 @@ static void cma_debugfs_add_one(struct cma *cma, int idx)
 
 	tmp = debugfs_create_dir(name, cma_debugfs_root);
 
+	debugfs_create_file("alloc", S_IWUSR, cma_debugfs_root, cma,
+				&cma_alloc_fops);
+
 	debugfs_create_file("base_pfn", S_IRUGO, tmp,
 				&cma->base_pfn, &cma_debugfs_fops);
 	debugfs_create_file("count", S_IRUGO, tmp,
 				&cma->count, &cma_debugfs_fops);
 	debugfs_create_file("order_per_bit", S_IRUGO, tmp,
-			&cma->order_per_bit, &cma_debugfs_fops);
+				&cma->order_per_bit, &cma_debugfs_fops);
 
 	u32s = DIV_ROUND_UP(cma_bitmap_maxno(cma), BITS_PER_BYTE * sizeof(u32));
 	debugfs_create_u32_array("bitmap", S_IRUGO, tmp, (u32*)cma->bitmap, u32s);

@@ -123,6 +123,12 @@ static int __init cma_activate_area(struct cma *cma)
 	} while (--i);
 
 	mutex_init(&cma->lock);
+
+#ifdef CONFIG_CMA_DEBUGFS
+	INIT_HLIST_HEAD(&cma->mem_head);
+	spin_lock_init(&cma->mem_head_lock);
+#endif
+
 	return 0;
 
 err:

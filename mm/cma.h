@@ -7,6 +7,10 @@ struct cma {
 	unsigned long   *bitmap;
 	unsigned int order_per_bit; /* Order of pages represented by one bit */
 	struct mutex    lock;
+#ifdef CONFIG_CMA_DEBUGFS
+	struct hlist_head mem_head;
+	spinlock_t mem_head_lock;
+#endif
 };
 
 extern struct cma cma_areas[MAX_CMA_AREAS];
