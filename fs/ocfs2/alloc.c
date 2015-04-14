@@ -6853,13 +6853,13 @@ int ocfs2_convert_inline_data_to_extents(struct inode *inode,
 		if (pages == NULL) {
 			ret = -ENOMEM;
 			mlog_errno(ret);
-			goto out;
+			return ret;
 		}
 
 		ret = ocfs2_reserve_clusters(osb, 1, &data_ac);
 		if (ret) {
 			mlog_errno(ret);
-			goto out;
+			goto free_pages;
 		}
 	}
 
@@ -6991,6 +6991,7 @@ out_commit:
 out:
 	if (data_ac)
 		ocfs2_free_alloc_context(data_ac);
+free_pages:
 	kfree(pages);
 	return ret;
 }
