@@ -36,7 +36,7 @@ struct nft_hash_elem {
 
 struct nft_hash_cmp_arg {
 	const struct nft_set		*set;
-	const struct nft_data		*key;
+	const u32			*key;
 	u8				genmask;
 };
 
@@ -62,7 +62,7 @@ static inline int nft_hash_cmp(struct rhashtable_compare_arg *arg,
 	const struct nft_hash_cmp_arg *x = arg->key;
 	const struct nft_hash_elem *he = ptr;
 
-	if (nft_data_cmp(nft_set_ext_key(&he->ext), x->key, x->set->klen))
+	if (memcmp(nft_set_ext_key(&he->ext), x->key, x->set->klen))
 		return 1;
 	if (nft_set_elem_expired(&he->ext))
 		return 1;
@@ -71,8 +71,7 @@ static inline int nft_hash_cmp(struct rhashtable_compare_arg *arg,
 	return 0;
 }
 
-static bool nft_hash_lookup(const struct nft_set *set,
-			    const struct nft_data *key,
+static bool nft_hash_lookup(const struct nft_set *set, const u32 *key,
 			    const struct nft_set_ext **ext)
 {
 	struct nft_hash *priv = nft_set_priv(set);
@@ -90,12 +89,12 @@ static bool nft_hash_lookup(const struct nft_set *set,
 	return !!he;
 }
 
-static bool nft_hash_update(struct nft_set *set, const struct nft_data *key,
+static bool nft_hash_update(struct nft_set *set, const u32 *key,
 			    void *(*new)(struct nft_set *,
 					 const struct nft_expr *,
-					 struct nft_data []),
+					 struct nft_regs *regs),
 			    const struct nft_expr *expr,
-			    struct nft_data data[],
+			    struct nft_regs *regs,
 			    const struct nft_set_ext **ext)
 {
 	struct nft_hash *priv = nft_set_priv(set);
@@ -110,7 +109,7 @@ static bool nft_hash_update(struct nft_set *set, const struct nft_data *key,
 	if (he != NULL)
 		goto out;
 
-	he = new(set, expr, data);
+	he = new(set, expr, regs);
 	if (he == NULL)
 		goto err1;
 	if (rhashtable_lookup_insert_key(&priv->ht, &arg, &he->node,
@@ -134,7 +133,7 @@ static int nft_hash_insert(const struct nft_set *set,
 	struct nft_hash_cmp_arg arg = {
 		.genmask = nft_genmask_next(read_pnet(&set->pnet)),
 		.set	 = set,
-		.key	 = &elem->key,
+		.key	 = elem->key.val.data,
 	};
 
 	return rhashtable_lookup_insert_key(&priv->ht, &arg, &he->node,
@@ -158,7 +157,7 @@ static void *nft_hash_deactivate(const struct nft_set *set,
 	struct nft_hash_cmp_arg arg = {
 		.genmask = nft_genmask_next(read_pnet(&set->pnet)),
 		.set	 = set,
-		.key	 = &elem->key,
+		.key	 = elem->key.val.data,
 	};
 
 	rcu_read_lock();
