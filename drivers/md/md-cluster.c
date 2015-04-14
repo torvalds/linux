@@ -72,6 +72,7 @@ enum msg_type {
 	METADATA_UPDATED = 0,
 	RESYNCING,
 	NEWDISK,
+	REMOVE,
 };
 
 struct cluster_msg {
@@ -401,6 +402,16 @@ static void process_metadata_update(struct mddev *mddev, struct cluster_msg *msg
 	dlm_lock_sync(cinfo->no_new_dev_lockres, DLM_LOCK_CR);
 }
 
+static void process_remove_disk(struct mddev *mddev, struct cluster_msg *msg)
+{
+	struct md_rdev *rdev = md_find_rdev_nr_rcu(mddev, msg->raid_slot);
+
+	if (rdev)
+		md_kick_rdev_from_array(rdev);
+	else
+		pr_warn("%s: %d Could not find disk(%d) to REMOVE\n", __func__, __LINE__, msg->raid_slot);
+}
+
 static void process_recvd_msg(struct mddev *mddev, struct cluster_msg *msg)
 {
 	switch (msg->type) {
@@ -419,6 +430,15 @@ static void process_recvd_msg(struct mddev *mddev, struct cluster_msg *msg)
 		pr_info("%s: %d Received message: NEWDISK from %d\n",
 			__func__, __LINE__, msg->slot);
 		process_add_new_disk(mddev, msg);
+		break;
+	case REMOVE:
+		pr_info("%s: %d Received REMOVE from %d\n",
+			__func__, __LINE__, msg->slot);
+		process_remove_disk(mddev, msg);
+		break;
+	default:
+		pr_warn("%s:%d Received unknown message from %d\n",
+			__func__, __LINE__, msg->slot);
 	}
 }
 
@@ -854,6 +874,15 @@ static int new_disk_ack(struct mddev *mddev, bool ack)
 	return 0;
 }
 
+static int remove_disk(struct mddev *mddev, struct md_rdev *rdev)
+{
+	struct cluster_msg cmsg;
+	struct md_cluster_info *cinfo = mddev->cluster_info;
+	cmsg.type = REMOVE;
+	cmsg.raid_slot = rdev->desc_nr;
+	return __sendmsg(cinfo, &cmsg);
+}
+
 static struct md_cluster_operations cluster_ops = {
 	.join   = join,
 	.leave  = leave,
@@ -868,6 +897,7 @@ static struct md_cluster_operations cluster_ops = {
 	.add_new_disk_start = add_new_disk_start,
 	.add_new_disk_finish = add_new_disk_finish,
 	.new_disk_ack = new_disk_ack,
+	.remove_disk = remove_disk,
 };
 
 static int __init cluster_init(void)

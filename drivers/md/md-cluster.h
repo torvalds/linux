@@ -22,6 +22,7 @@ struct md_cluster_operations {
 	int (*add_new_disk_start)(struct mddev *mddev, struct md_rdev *rdev);
 	int (*add_new_disk_finish)(struct mddev *mddev);
 	int (*new_disk_ack)(struct mddev *mddev, bool ack);
+	int (*remove_disk)(struct mddev *mddev, struct md_rdev *rdev);
 };
 
 #endif /* _MD_CLUSTER_H */
