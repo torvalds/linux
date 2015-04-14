@@ -4481,9 +4481,11 @@ static bool kvm_mmu_zap_collapsible_spte(struct kvm *kvm,
 		pfn = spte_to_pfn(*sptep);
 
 		/*
-		 * Only EPT supported for now; otherwise, one would need to
-		 * find out efficiently whether the guest page tables are
-		 * also using huge pages.
+		 * We cannot do huge page mapping for indirect shadow pages,
+		 * which are found on the last rmap (level = 1) when not using
+		 * tdp; such shadow pages are synced with the page table in
+		 * the guest, and the guest page table is using 4K page size
+		 * mapping if the indirect sp has level = 1.
 		 */
 		if (sp->role.direct &&
 			!kvm_is_reserved_pfn(pfn) &&
