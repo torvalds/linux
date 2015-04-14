@@ -171,11 +171,8 @@ enum {
 };
 
 struct irq_cfg {
-	cpumask_var_t		domain;
-	cpumask_var_t		old_domain;
 	unsigned int		dest_apicid;
 	u8			vector;
-	u8			move_in_progress : 1;
 };
 
 extern struct irq_domain *x86_vector_domain;
