@@ -120,9 +120,6 @@ extern int mp_irq_entries;
 /* MP IRQ source entries */
 extern struct mpc_intsrc mp_irqs[MAX_IRQ_SOURCES];
 
-/* Older SiS APIC requires we rewrite the index register */
-extern int sis_apic_bug;
-
 /* 1 if "noapic" boot option passed */
 extern int skip_ioapic_setup;
 

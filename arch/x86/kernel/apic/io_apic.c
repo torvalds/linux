@@ -18,6 +18,16 @@
  *					and Rolf G. Tews
  *					for testing these extensively
  *	Paul Diefenbaugh	:	Added full ACPI support
+ *
+ * Historical information which is worth to be preserved:
+ *
+ * - SiS APIC rmw bug:
+ *
+ *	We used to have a workaround for a bug in SiS chips which
+ *	required to rewrite the index register for a read-modify-write
+ *	operation as the chip lost the index information which was
+ *	setup for the read already. We cache the data now, so that
+ *	workaround has been removed.
  */
 
 #include <linux/mm.h>
@@ -65,17 +75,6 @@
 		for_each_pin((idx), (pin))
 #define for_each_irq_pin(entry, head) \
 	list_for_each_entry(entry, &head, list)
-
-/*
- * Is the SiS APIC rmw bug present ?
- *      -1 = don't know, 0 = no, 1 = yes
- * When doing a read-modify-write operation on IOAPIC registers, older SiS APIC
- * requires we rewrite the index register again where the read already set up
- * the index register.
- * The code to make use of sis_apic_bug has been removed, but we don't want to
- * lose this knowledge.
- */
-int sis_apic_bug = -1;
 
 static DEFINE_RAW_SPINLOCK(ioapic_lock);
 static DEFINE_MUTEX(ioapic_mutex);
@@ -2319,20 +2318,6 @@ void __init setup_IO_APIC(void)
 
 	ioapic_initialized = 1;
 }
-
-/*
- *      Called after all the initialization is done. If we didn't find any
- *      APIC bugs then we can allow the modify fast path
- */
-
-static int __init io_apic_bug_finalize(void)
-{
-	if (sis_apic_bug == -1)
-		sis_apic_bug = 0;
-	return 0;
-}
-
-late_initcall(io_apic_bug_finalize);
 
 static void resume_ioapic_id(int ioapic_idx)
 {
