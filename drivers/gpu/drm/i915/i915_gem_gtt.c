@@ -672,8 +672,10 @@ static void gen8_free_page_tables(struct i915_page_directory *pd, struct drm_dev
 	}
 }
 
-static void gen8_ppgtt_free(struct i915_hw_ppgtt *ppgtt)
+static void gen8_ppgtt_cleanup(struct i915_address_space *vm)
 {
+	struct i915_hw_ppgtt *ppgtt =
+		container_of(vm, struct i915_hw_ppgtt, base);
 	int i;
 
 	for_each_set_bit(i, ppgtt->pdp.used_pdpes, GEN8_LEGACY_PDPES) {
@@ -686,14 +688,6 @@ static void gen8_ppgtt_free(struct i915_hw_ppgtt *ppgtt)
 
 	unmap_and_free_pd(ppgtt->scratch_pd, ppgtt->base.dev);
 	unmap_and_free_pt(ppgtt->scratch_pt, ppgtt->base.dev);
-}
-
-static void gen8_ppgtt_cleanup(struct i915_address_space *vm)
-{
-	struct i915_hw_ppgtt *ppgtt =
-		container_of(vm, struct i915_hw_ppgtt, base);
-
-	gen8_ppgtt_free(ppgtt);
 }
 
 /**
@@ -1454,10 +1448,15 @@ unwind_out:
 	return ret;
 }
 
-static void gen6_ppgtt_free(struct i915_hw_ppgtt *ppgtt)
+static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
 {
+	struct i915_hw_ppgtt *ppgtt =
+		container_of(vm, struct i915_hw_ppgtt, base);
 	struct i915_page_table *pt;
 	uint32_t pde;
+
+
+	drm_mm_remove_node(&ppgtt->node);
 
 	gen6_for_all_pdes(pt, ppgtt, pde) {
 		if (pt != ppgtt->scratch_pt)
@@ -1466,16 +1465,6 @@ static void gen6_ppgtt_free(struct i915_hw_ppgtt *ppgtt)
 
 	unmap_and_free_pt(ppgtt->scratch_pt, ppgtt->base.dev);
 	unmap_and_free_pd(&ppgtt->pd, ppgtt->base.dev);
-}
-
-static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
-{
-	struct i915_hw_ppgtt *ppgtt =
-		container_of(vm, struct i915_hw_ppgtt, base);
-
-	drm_mm_remove_node(&ppgtt->node);
-
-	gen6_ppgtt_free(ppgtt);
 }
 
 static int gen6_ppgtt_allocate_page_directories(struct i915_hw_ppgtt *ppgtt)
@@ -2268,6 +2257,7 @@ static int i915_gem_setup_global_gtt(struct drm_device *dev,
 
 		ret = __hw_ppgtt_init(dev, ppgtt, true);
 		if (ret) {
+			ppgtt->base.cleanup(&ppgtt->base);
 			kfree(ppgtt);
 			return ret;
 		}
