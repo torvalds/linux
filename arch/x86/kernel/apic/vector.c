@@ -494,7 +494,7 @@ static struct irq_chip lapic_controller = {
 };
 
 #ifdef CONFIG_SMP
-void send_cleanup_vector(struct irq_cfg *cfg)
+static void __send_cleanup_vector(struct irq_cfg *cfg)
 {
 	cpumask_var_t cleanup_mask;
 
@@ -510,6 +510,12 @@ void send_cleanup_vector(struct irq_cfg *cfg)
 		free_cpumask_var(cleanup_mask);
 	}
 	cfg->move_in_progress = 0;
+}
+
+void send_cleanup_vector(struct irq_cfg *cfg)
+{
+	if (cfg->move_in_progress)
+		__send_cleanup_vector(cfg);
 }
 
 asmlinkage __visible void smp_irq_move_cleanup_interrupt(void)
@@ -582,7 +588,7 @@ static void __irq_complete_move(struct irq_cfg *cfg, unsigned vector)
 	me = smp_processor_id();
 
 	if (vector == cfg->vector && cpumask_test_cpu(me, cfg->domain))
-		send_cleanup_vector(cfg);
+		__send_cleanup_vector(cfg);
 }
 
 void irq_complete_move(struct irq_cfg *cfg)
