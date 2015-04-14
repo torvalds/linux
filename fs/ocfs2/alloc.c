@@ -3535,7 +3535,7 @@ static int ocfs2_merge_rec_left(struct ocfs2_path *right_path,
 		ret = ocfs2_get_left_path(et, right_path, &left_path);
 		if (ret) {
 			mlog_errno(ret);
-			goto out;
+			return ret;
 		}
 
 		left_el = path_leaf_el(left_path);
