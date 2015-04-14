@@ -365,6 +365,14 @@ static inline unsigned long memblock_region_reserved_end_pfn(const struct memblo
 #define __initdata_memblock
 #endif
 
+#ifdef CONFIG_MEMTEST
+extern void early_memtest(unsigned long start, unsigned long end);
+#else
+static inline void early_memtest(unsigned long start, unsigned long end)
+{
+}
+#endif
+
 #else
 static inline phys_addr_t memblock_alloc(phys_addr_t size, phys_addr_t align)
 {
