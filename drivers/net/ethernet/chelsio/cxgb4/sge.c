@@ -121,12 +121,6 @@
 #define NOMEM_TMR_IDX (SGE_NTIMERS - 1)
 
 /*
- * An FL with <= FL_STARVE_THRES buffers is starving and a periodic timer will
- * attempt to refill it.
- */
-#define FL_STARVE_THRES 4
-
-/*
  * Suspend an Ethernet Tx queue with fewer available descriptors than this.
  * This is the same as calc_tx_descs() for a TSO packet with
  * nr_frags == MAX_SKB_FRAGS.
@@ -144,7 +138,7 @@
  * Max Tx descriptor space we allow for an Ethernet packet to be inlined
  * into a WR.
  */
-#define MAX_IMM_TX_PKT_LEN 128
+#define MAX_IMM_TX_PKT_LEN 256
 
 /*
  * Max size of a WR sent through a control Tx queue.
@@ -248,9 +242,21 @@ static inline unsigned int fl_cap(const struct sge_fl *fl)
 	return fl->size - 8;   /* 1 descriptor = 8 buffers */
 }
 
-static inline bool fl_starving(const struct sge_fl *fl)
+/**
+ *	fl_starving - return whether a Free List is starving.
+ *	@adapter: pointer to the adapter
+ *	@fl: the Free List
+ *
+ *	Tests specified Free List to see whether the number of buffers
+ *	available to the hardware has falled below our "starvation"
+ *	threshold.
+ */
+static inline bool fl_starving(const struct adapter *adapter,
+			       const struct sge_fl *fl)
 {
-	return fl->avail - fl->pend_cred <= FL_STARVE_THRES;
+	const struct sge *s = &adapter->sge;
+
+	return fl->avail - fl->pend_cred <= s->fl_starve_thres;
 }
 
 static int map_skb(struct device *dev, const struct sk_buff *skb,
@@ -586,8 +592,10 @@ static unsigned int refill_fl(struct adapter *adap, struct sge_fl *q, int n,
 	unsigned int cred = q->avail;
 	__be64 *d = &q->desc[q->pidx];
 	struct rx_sw_desc *sd = &q->sdesc[q->pidx];
+	int node;
 
 	gfp |= __GFP_NOWARN;
+	node = dev_to_node(adap->pdev_dev);
 
 	if (s->fl_pg_order == 0)
 		goto alloc_small_pages;
@@ -596,7 +604,7 @@ static unsigned int refill_fl(struct adapter *adap, struct sge_fl *q, int n,
 	 * Prefer large buffers
 	 */
 	while (n) {
-		pg = __dev_alloc_pages(gfp, s->fl_pg_order);
+		pg = alloc_pages_node(node, gfp | __GFP_COMP, s->fl_pg_order);
 		if (unlikely(!pg)) {
 			q->large_alloc_failed++;
 			break;       /* fall back to single pages */
@@ -626,7 +634,7 @@ static unsigned int refill_fl(struct adapter *adap, struct sge_fl *q, int n,
 
 alloc_small_pages:
 	while (n--) {
-		pg = __dev_alloc_page(gfp);
+		pg = alloc_pages_node(node, gfp, 0);
 		if (unlikely(!pg)) {
 			q->alloc_failed++;
 			break;
@@ -655,7 +663,7 @@ out:	cred = q->avail - cred;
 	q->pend_cred += cred;
 	ring_fl_db(adap, q);
 
-	if (unlikely(fl_starving(q))) {
+	if (unlikely(fl_starving(adap, q))) {
 		smp_wmb();
 		set_bit(q->cntxt_id - adap->sge.egr_start,
 			adap->sge.starving_fl);
@@ -722,6 +730,22 @@ static void *alloc_ring(struct device *dev, size_t nelem, size_t elem_size,
  */
 static inline unsigned int sgl_len(unsigned int n)
 {
+	/* A Direct Scatter Gather List uses 32-bit lengths and 64-bit PCI DMA
+	 * addresses.  The DSGL Work Request starts off with a 32-bit DSGL
+	 * ULPTX header, then Length0, then Address0, then, for 1 <= i <= N,
+	 * repeated sequences of { Length[i], Length[i+1], Address[i],
+	 * Address[i+1] } (this ensures that all addresses are on 64-bit
+	 * boundaries).  If N is even, then Length[N+1] should be set to 0 and
+	 * Address[N+1] is omitted.
+	 *
+	 * The following calculation incorporates all of the above.  It's
+	 * somewhat hard to follow but, briefly: the "+2" accounts for the
+	 * first two flits which include the DSGL header, Length0 and
+	 * Address0; the "(3*(n-1))/2" covers the main body of list entries (3
+	 * flits for every pair of the remaining N) +1 if (n-1) is odd; and
+	 * finally the "+((n-1)&1)" adds the one remaining flit needed if
+	 * (n-1) is odd ...
+	 */
 	n--;
 	return (3 * n) / 2 + (n & 1) + 2;
 }
@@ -769,12 +793,30 @@ static inline unsigned int calc_tx_flits(const struct sk_buff *skb)
 	unsigned int flits;
 	int hdrlen = is_eth_imm(skb);
 
+	/* If the skb is small enough, we can pump it out as a work request
+	 * with only immediate data.  In that case we just have to have the
+	 * TX Packet header plus the skb data in the Work Request.
+	 */
+
 	if (hdrlen)
 		return DIV_ROUND_UP(skb->len + hdrlen, sizeof(__be64));
 
+	/* Otherwise, we're going to have to construct a Scatter gather list
+	 * of the skb body and fragments.  We also include the flits necessary
+	 * for the TX Packet Work Request and CPL.  We always have a firmware
+	 * Write Header (incorporated as part of the cpl_tx_pkt_lso and
+	 * cpl_tx_pkt structures), followed by either a TX Packet Write CPL
+	 * message or, if we're doing a Large Send Offload, an LSO CPL message
+	 * with an embedded TX Packet Write CPL message.
+	 */
 	flits = sgl_len(skb_shinfo(skb)->nr_frags + 1) + 4;
 	if (skb_shinfo(skb)->gso_size)
-		flits += 2;
+		flits += (sizeof(struct fw_eth_tx_pkt_wr) +
+			  sizeof(struct cpl_tx_pkt_lso_core) +
+			  sizeof(struct cpl_tx_pkt_core)) / sizeof(__be64);
+	else
+		flits += (sizeof(struct fw_eth_tx_pkt_wr) +
+			  sizeof(struct cpl_tx_pkt_core)) / sizeof(__be64);
 	return flits;
 }
 
@@ -2196,7 +2238,8 @@ static irqreturn_t t4_intr_msi(int irq, void *cookie)
 {
 	struct adapter *adap = cookie;
 
-	t4_slow_intr_handler(adap);
+	if (adap->flags & MASTER_PF)
+		t4_slow_intr_handler(adap);
 	process_intrq(adap);
 	return IRQ_HANDLED;
 }
@@ -2211,7 +2254,8 @@ static irqreturn_t t4_intr_intx(int irq, void *cookie)
 	struct adapter *adap = cookie;
 
 	t4_write_reg(adap, MYPF_REG(PCIE_PF_CLI_A), 0);
-	if (t4_slow_intr_handler(adap) | process_intrq(adap))
+	if (((adap->flags & MASTER_PF) && t4_slow_intr_handler(adap)) |
+	    process_intrq(adap))
 		return IRQ_HANDLED;
 	return IRQ_NONE;             /* probably shared interrupt */
 }
@@ -2248,7 +2292,7 @@ static void sge_rx_timer_cb(unsigned long data)
 			clear_bit(id, s->starving_fl);
 			smp_mb__after_atomic();
 
-			if (fl_starving(fl)) {
+			if (fl_starving(adap, fl)) {
 				rxq = container_of(fl, struct sge_eth_rxq, fl);
 				if (napi_reschedule(&rxq->rspq.napi))
 					fl->starving++;
