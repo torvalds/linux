@@ -3200,16 +3200,14 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 		return 0;
 	hdmi_switch_state = 0;
 	dev_drv->hdmi_switch = 1;
-#ifdef CONFIG_SWITCH
+
 	envp[0] = "switch screen";
 	envp[1] = kmalloc(32, GFP_KERNEL);
 	if (envp[1] == NULL)
 		return 0;
-	sprintf(envp[1], "SCREEN=%d", screen->type);
+	sprintf(envp[1], "SCREEN=%d,ENABLE=%d", screen->type, enable);
 	envp[2] = NULL;
-	kobject_uevent_env(&dev_drv->dev->kobj, KOBJ_CHANGE, envp);
-	kfree(envp[1]);
-#endif
+
 	if ((rk_fb->disp_mode == ONE_DUAL) ||
 	    (rk_fb->disp_mode == NO_DUAL)) {
 		if ((dev_drv->ops->backlight_close) &&
@@ -3237,7 +3235,6 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 		    (rk_fb->disp_policy != DISPLAY_POLICY_BOX))) {
 			dev_drv->cur_screen = dev_drv->screen0;
 			dev_drv->ops->load_screen(dev_drv, 1);
-
 			/* force modify dsp size */
 			info = rk_fb->fb[dev_drv->fb_index_base];
 			info->var.grayscale &= 0xff;
@@ -3265,6 +3262,8 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 					dev_drv->ops->open(dev_drv, i, 0);
 			}
 		}
+                kobject_uevent_env(&dev_drv->dev->kobj, KOBJ_CHANGE, envp);
+                kfree(envp[1]);
 
 		hdmi_switch_state = 0;
 		dev_drv->hdmi_switch = 0;
@@ -3314,6 +3313,9 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 	}else {
 		dev_drv->uboot_logo = 0;
 	}
+        kobject_uevent_env(&dev_drv->dev->kobj, KOBJ_CHANGE, envp);
+        kfree(envp[1]);
+
 	hdmi_switch_state = 1;
 	dev_drv->hdmi_switch = 0;
 	if ((rk_fb->disp_mode == ONE_DUAL) || (rk_fb->disp_mode == NO_DUAL)) {
