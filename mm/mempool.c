@@ -113,23 +113,24 @@ EXPORT_SYMBOL(mempool_create_node);
  *              mempool_create().
  * @new_min_nr: the new minimum number of elements guaranteed to be
  *              allocated for this pool.
- * @gfp_mask:   the usual allocation bitmask.
  *
  * This function shrinks/grows the pool. In the case of growing,
  * it cannot be guaranteed that the pool will be grown to the new
  * size immediately, but new mempool_free() calls will refill it.
+ * This function may sleep.
  *
  * Note, the caller must guarantee that no mempool_destroy is called
  * while this function is running. mempool_alloc() & mempool_free()
  * might be called (eg. from IRQ contexts) while this function executes.
  */
-int mempool_resize(mempool_t *pool, int new_min_nr, gfp_t gfp_mask)
+int mempool_resize(mempool_t *pool, int new_min_nr)
 {
 	void *element;
 	void **new_elements;
 	unsigned long flags;
 
 	BUG_ON(new_min_nr <= 0);
+	might_sleep();
 
 	spin_lock_irqsave(&pool->lock, flags);
 	if (new_min_nr <= pool->min_nr) {
@@ -145,7 +146,8 @@ int mempool_resize(mempool_t *pool, int new_min_nr, gfp_t gfp_mask)
 	spin_unlock_irqrestore(&pool->lock, flags);
 
 	/* Grow the pool */
-	new_elements = kmalloc(new_min_nr * sizeof(*new_elements), gfp_mask);
+	new_elements = kmalloc_array(new_min_nr, sizeof(*new_elements),
+				     GFP_KERNEL);
 	if (!new_elements)
 		return -ENOMEM;
 
@@ -164,7 +166,7 @@ int mempool_resize(mempool_t *pool, int new_min_nr, gfp_t gfp_mask)
 
 	while (pool->curr_nr < pool->min_nr) {
 		spin_unlock_irqrestore(&pool->lock, flags);
-		element = pool->alloc(gfp_mask, pool->pool_data);
+		element = pool->alloc(GFP_KERNEL, pool->pool_data);
 		if (!element)
 			goto out;
 		spin_lock_irqsave(&pool->lock, flags);
