@@ -191,7 +191,7 @@ static void * unflatten_dt_node(void *blob,
 	if (!pathp)
 		return mem;
 
-	allocl = l++;
+	allocl = ++l;
 
 	/* version 0x10 has a more compact unit name here instead of the full
 	 * path. we accumulate the full path size using "fpsize", we'll rebuild
