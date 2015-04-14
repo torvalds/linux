@@ -995,6 +995,8 @@ static int gen8_ppgtt_init_common(struct i915_hw_ppgtt *ppgtt, uint64_t size)
 	ppgtt->base.cleanup = gen8_ppgtt_cleanup;
 	ppgtt->base.insert_entries = gen8_ppgtt_insert_entries;
 	ppgtt->base.clear_range = gen8_ppgtt_clear_range;
+	ppgtt->base.unbind_vma = ppgtt_unbind_vma;
+	ppgtt->base.bind_vma = ppgtt_bind_vma;
 
 	ppgtt->switch_mm = gen8_mm_switch;
 
@@ -1579,6 +1581,8 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt, bool aliasing)
 	ppgtt->base.allocate_va_range = aliasing ? NULL : gen6_alloc_va_range;
 	ppgtt->base.clear_range = gen6_ppgtt_clear_range;
 	ppgtt->base.insert_entries = gen6_ppgtt_insert_entries;
+	ppgtt->base.unbind_vma = ppgtt_unbind_vma;
+	ppgtt->base.bind_vma = ppgtt_bind_vma;
 	ppgtt->base.cleanup = gen6_ppgtt_cleanup;
 	ppgtt->base.start = 0;
 	ppgtt->base.total = I915_PDES * GEN6_PTES * PAGE_SIZE;
@@ -2573,6 +2577,8 @@ static int gen8_gmch_probe(struct drm_device *dev,
 
 	dev_priv->gtt.base.clear_range = gen8_ggtt_clear_range;
 	dev_priv->gtt.base.insert_entries = gen8_ggtt_insert_entries;
+	dev_priv->gtt.base.bind_vma = ggtt_bind_vma;
+	dev_priv->gtt.base.unbind_vma = ggtt_unbind_vma;
 
 	return ret;
 }
@@ -2613,6 +2619,8 @@ static int gen6_gmch_probe(struct drm_device *dev,
 
 	dev_priv->gtt.base.clear_range = gen6_ggtt_clear_range;
 	dev_priv->gtt.base.insert_entries = gen6_ggtt_insert_entries;
+	dev_priv->gtt.base.bind_vma = ggtt_bind_vma;
+	dev_priv->gtt.base.unbind_vma = ggtt_unbind_vma;
 
 	return ret;
 }
@@ -2645,6 +2653,8 @@ static int i915_gmch_probe(struct drm_device *dev,
 
 	dev_priv->gtt.do_idle_maps = needs_idle_maps(dev_priv->dev);
 	dev_priv->gtt.base.clear_range = i915_ggtt_clear_range;
+	dev_priv->gtt.base.bind_vma = i915_ggtt_bind_vma;
+	dev_priv->gtt.base.unbind_vma = i915_ggtt_unbind_vma;
 
 	if (unlikely(dev_priv->gtt.do_idle_maps))
 		DRM_INFO("applying Ironlake quirks for intel_iommu\n");
@@ -2732,22 +2742,8 @@ __i915_gem_vma_create(struct drm_i915_gem_object *obj,
 	vma->vm = vm;
 	vma->obj = obj;
 
-	if (INTEL_INFO(vm->dev)->gen >= 6) {
-		if (i915_is_ggtt(vm)) {
-			vma->ggtt_view = *ggtt_view;
-
-			vma->unbind_vma = ggtt_unbind_vma;
-			vma->bind_vma = ggtt_bind_vma;
-		} else {
-			vma->unbind_vma = ppgtt_unbind_vma;
-			vma->bind_vma = ppgtt_bind_vma;
-		}
-	} else {
-		BUG_ON(!i915_is_ggtt(vm));
+	if (i915_is_ggtt(vm))
 		vma->ggtt_view = *ggtt_view;
-		vma->unbind_vma = i915_ggtt_unbind_vma;
-		vma->bind_vma = i915_ggtt_bind_vma;
-	}
 
 	list_add_tail(&vma->vma_link, &obj->vma_list);
 	if (!i915_is_ggtt(vm))
@@ -2957,7 +2953,7 @@ int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 			return ret;
 	}
 
-	vma->bind_vma(vma, cache_level, flags);
+	vma->vm->bind_vma(vma, cache_level, flags);
 
 	return 0;
 }
