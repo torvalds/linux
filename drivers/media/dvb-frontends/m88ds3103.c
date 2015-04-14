@@ -742,7 +742,7 @@ static int m88ds3103_get_frontend(struct dvb_frontend *fe)
 	dev_dbg(&priv->i2c->dev, "%s:\n", __func__);
 
 	if (!priv->warm || !(priv->fe_status & FE_HAS_LOCK)) {
-		ret = -EAGAIN;
+		ret = 0;
 		goto err;
 	}
 
