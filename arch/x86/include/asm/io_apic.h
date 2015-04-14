@@ -96,7 +96,7 @@ struct IR_IO_APIC_route_entry {
 } __attribute__ ((packed));
 
 struct irq_alloc_info;
-struct irq_data;
+struct ioapic_domain_cfg;
 
 #define IOAPIC_AUTO			-1
 #define IOAPIC_EDGE			0
@@ -163,23 +163,6 @@ extern int restore_ioapic_entries(void);
 extern void setup_ioapic_ids_from_mpc(void);
 extern void setup_ioapic_ids_from_mpc_nocheck(void);
 
-enum ioapic_domain_type {
-	IOAPIC_DOMAIN_INVALID,
-	IOAPIC_DOMAIN_LEGACY,
-	IOAPIC_DOMAIN_STRICT,
-	IOAPIC_DOMAIN_DYNAMIC,
-};
-
-struct device_node;
-struct irq_domain;
-struct irq_domain_ops;
-
-struct ioapic_domain_cfg {
-	enum ioapic_domain_type		type;
-	const struct irq_domain_ops	*ops;
-	struct device_node		*dev;
-};
-
 extern int mp_find_ioapic(u32 gsi);
 extern int mp_find_ioapic_pin(int ioapic, u32 gsi);
 extern int mp_map_gsi_to_irq(u32 gsi, unsigned int flags,
@@ -189,15 +172,7 @@ extern int mp_register_ioapic(int id, u32 address, u32 gsi_base,
 			      struct ioapic_domain_cfg *cfg);
 extern int mp_unregister_ioapic(u32 gsi_base);
 extern int mp_ioapic_registered(u32 gsi_base);
-extern int mp_irqdomain_alloc(struct irq_domain *domain, unsigned int virq,
-			      unsigned int nr_irqs, void *arg);
-extern void mp_irqdomain_free(struct irq_domain *domain, unsigned int virq,
-			      unsigned int nr_irqs);
-extern void mp_irqdomain_activate(struct irq_domain *domain,
-				  struct irq_data *irq_data);
-extern void mp_irqdomain_deactivate(struct irq_domain *domain,
-				    struct irq_data *irq_data);
-extern int mp_irqdomain_ioapic_idx(struct irq_domain *domain);
+
 extern void ioapic_set_alloc_attr(struct irq_alloc_info *info,
 				  int node, int trigger, int polarity);
 

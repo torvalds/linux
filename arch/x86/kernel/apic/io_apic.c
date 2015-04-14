@@ -41,13 +41,13 @@
 #include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/syscore_ops.h>
-#include <linux/irqdomain.h>
 #include <linux/freezer.h>
 #include <linux/kthread.h>
 #include <linux/jiffies.h>	/* time_after() */
 #include <linux/slab.h>
 #include <linux/bootmem.h>
 
+#include <asm/irqdomain.h>
 #include <asm/idle.h>
 #include <asm/io.h>
 #include <asm/smp.h>
@@ -2995,3 +2995,10 @@ int mp_irqdomain_ioapic_idx(struct irq_domain *domain)
 {
 	return (int)(long)domain->host_data;
 }
+
+const struct irq_domain_ops mp_ioapic_irqdomain_ops = {
+	.alloc		= mp_irqdomain_alloc,
+	.free		= mp_irqdomain_free,
+	.activate	= mp_irqdomain_activate,
+	.deactivate	= mp_irqdomain_deactivate,
+};

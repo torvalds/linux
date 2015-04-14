@@ -31,12 +31,12 @@
 #include <linux/module.h>
 #include <linux/dmi.h>
 #include <linux/irq.h>
-#include <linux/irqdomain.h>
 #include <linux/slab.h>
 #include <linux/bootmem.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
 
+#include <asm/irqdomain.h>
 #include <asm/pci_x86.h>
 #include <asm/pgtable.h>
 #include <asm/io_apic.h>
@@ -400,20 +400,13 @@ static int mp_config_acpi_gsi(struct device *dev, u32 gsi, int trigger,
 	return 0;
 }
 
-static struct irq_domain_ops acpi_irqdomain_ops = {
-	.alloc = mp_irqdomain_alloc,
-	.free = mp_irqdomain_free,
-	.activate = mp_irqdomain_activate,
-	.deactivate = mp_irqdomain_deactivate,
-};
-
 static int __init
 acpi_parse_ioapic(struct acpi_subtable_header * header, const unsigned long end)
 {
 	struct acpi_madt_io_apic *ioapic = NULL;
 	struct ioapic_domain_cfg cfg = {
 		.type = IOAPIC_DOMAIN_DYNAMIC,
-		.ops = &acpi_irqdomain_ops,
+		.ops = &mp_ioapic_irqdomain_ops,
 	};
 
 	ioapic = (struct acpi_madt_io_apic *)header;
@@ -764,7 +757,7 @@ int acpi_register_ioapic(acpi_handle handle, u64 phys_addr, u32 gsi_base)
 	u64 addr;
 	struct ioapic_domain_cfg cfg = {
 		.type = IOAPIC_DOMAIN_DYNAMIC,
-		.ops = &acpi_irqdomain_ops,
+		.ops = &mp_ioapic_irqdomain_ops,
 	};
 
 	ioapic_id = acpi_get_ioapic_id(handle, gsi_base, &addr);

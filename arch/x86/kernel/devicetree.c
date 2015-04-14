@@ -4,7 +4,6 @@
 #include <linux/bootmem.h>
 #include <linux/export.h>
 #include <linux/io.h>
-#include <linux/irqdomain.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/of.h>
@@ -17,6 +16,7 @@
 #include <linux/of_pci.h>
 #include <linux/initrd.h>
 
+#include <asm/irqdomain.h>
 #include <asm/hpet.h>
 #include <asm/apic.h>
 #include <asm/pci_x86.h>
@@ -216,11 +216,11 @@ static int dt_irqdomain_alloc(struct irq_domain *domain, unsigned int virq,
 	return mp_irqdomain_alloc(domain, virq, nr_irqs, &tmp);
 }
 
-const struct irq_domain_ops ioapic_irq_domain_ops = {
-	.alloc = dt_irqdomain_alloc,
-	.free = mp_irqdomain_free,
-	.activate = mp_irqdomain_activate,
-	.deactivate = mp_irqdomain_deactivate,
+static const struct irq_domain_ops ioapic_irq_domain_ops = {
+	.alloc		= dt_irqdomain_alloc,
+	.free		= mp_irqdomain_free,
+	.activate	= mp_irqdomain_activate,
+	.deactivate	= mp_irqdomain_deactivate,
 };
 
 static void __init dtb_add_ioapic(struct device_node *dn)
