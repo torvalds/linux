@@ -104,9 +104,9 @@ static int substream_alloc_pages(struct azx *chip,
 {
 	struct azx_dev *azx_dev = get_azx_dev(substream);
 
-	azx_dev->bufsize = 0;
-	azx_dev->period_bytes = 0;
-	azx_dev->format_val = 0;
+	azx_dev->core.bufsize = 0;
+	azx_dev->core.period_bytes = 0;
+	azx_dev->core.format_val = 0;
 	return snd_pcm_lib_malloc_pages(substream, size);
 }
 
@@ -290,12 +290,10 @@ static const struct dev_pm_ops hda_tegra_pm = {
  */
 static int hda_tegra_dev_free(struct snd_device *device)
 {
-	int i;
 	struct azx *chip = device->device_data;
 
 	if (chip->initialized) {
-		for (i = 0; i < chip->num_streams; i++)
-			azx_stream_stop(chip, &chip->azx_dev[i]);
+		azx_stop_all_streams(chip);
 		azx_stop_chip(chip);
 	}
 
@@ -377,10 +375,6 @@ static int hda_tegra_first_init(struct azx *chip, struct platform_device *pdev)
 	chip->capture_index_offset = 0;
 	chip->playback_index_offset = chip->capture_streams;
 	chip->num_streams = chip->playback_streams + chip->capture_streams;
-	chip->azx_dev = devm_kcalloc(card->dev, chip->num_streams,
-				     sizeof(*chip->azx_dev), GFP_KERNEL);
-	if (!chip->azx_dev)
-		return -ENOMEM;
 
 	err = azx_alloc_stream_pages(chip);
 	if (err < 0)

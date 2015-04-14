@@ -492,7 +492,7 @@ static void azx_init_pci(struct azx *chip)
 static int azx_get_delay_from_lpib(struct azx *chip, struct azx_dev *azx_dev,
 				   unsigned int pos)
 {
-	struct snd_pcm_substream *substream = azx_dev->substream;
+	struct snd_pcm_substream *substream = azx_dev->core.substream;
 	int stream = substream->stream;
 	unsigned int lpib_pos = azx_get_pos_lpib(chip, azx_dev);
 	int delay;
@@ -502,16 +502,16 @@ static int azx_get_delay_from_lpib(struct azx *chip, struct azx_dev *azx_dev,
 	else
 		delay = lpib_pos - pos;
 	if (delay < 0) {
-		if (delay >= azx_dev->delay_negative_threshold)
+		if (delay >= azx_dev->core.delay_negative_threshold)
 			delay = 0;
 		else
-			delay += azx_dev->bufsize;
+			delay += azx_dev->core.bufsize;
 	}
 
-	if (delay >= azx_dev->period_bytes) {
+	if (delay >= azx_dev->core.period_bytes) {
 		dev_info(chip->card->dev,
 			 "Unstable LPIB (%d >= %d); disabling LPIB delay counting\n",
-			 delay, azx_dev->period_bytes);
+			 delay, azx_dev->core.period_bytes);
 		delay = 0;
 		chip->driver_caps &= ~AZX_DCAPS_COUNT_LPIB_DELAY;
 		chip->get_delay[stream] = NULL;
@@ -551,13 +551,13 @@ static int azx_position_check(struct azx *chip, struct azx_dev *azx_dev)
  */
 static int azx_position_ok(struct azx *chip, struct azx_dev *azx_dev)
 {
-	struct snd_pcm_substream *substream = azx_dev->substream;
+	struct snd_pcm_substream *substream = azx_dev->core.substream;
 	int stream = substream->stream;
 	u32 wallclk;
 	unsigned int pos;
 
-	wallclk = azx_readl(chip, WALLCLK) - azx_dev->start_wallclk;
-	if (wallclk < (azx_dev->period_wallclk * 2) / 3)
+	wallclk = azx_readl(chip, WALLCLK) - azx_dev->core.start_wallclk;
+	if (wallclk < (azx_dev->core.period_wallclk * 2) / 3)
 		return -1;	/* bogus (too early) interrupt */
 
 	if (chip->get_position[stream])
@@ -577,17 +577,17 @@ static int azx_position_ok(struct azx *chip, struct azx_dev *azx_dev)
 		}
 	}
 
-	if (pos >= azx_dev->bufsize)
+	if (pos >= azx_dev->core.bufsize)
 		pos = 0;
 
-	if (WARN_ONCE(!azx_dev->period_bytes,
+	if (WARN_ONCE(!azx_dev->core.period_bytes,
 		      "hda-intel: zero azx_dev->period_bytes"))
 		return -1; /* this shouldn't happen! */
-	if (wallclk < (azx_dev->period_wallclk * 5) / 4 &&
-	    pos % azx_dev->period_bytes > azx_dev->period_bytes / 2)
+	if (wallclk < (azx_dev->core.period_wallclk * 5) / 4 &&
+	    pos % azx_dev->core.period_bytes > azx_dev->core.period_bytes / 2)
 		/* NG - it's below the first next period boundary */
 		return chip->bdl_pos_adj[chip->dev_index] ? 0 : -1;
-	azx_dev->start_wallclk += wallclk;
+	azx_dev->core.start_wallclk += wallclk;
 	return 1; /* OK, it's fine */
 }
 
@@ -598,7 +598,9 @@ static void azx_irq_pending_work(struct work_struct *work)
 {
 	struct hda_intel *hda = container_of(work, struct hda_intel, irq_pending_work);
 	struct azx *chip = &hda->chip;
-	int i, pending, ok;
+	struct hdac_bus *bus = azx_bus(chip);
+	struct hdac_stream *s;
+	int pending, ok;
 
 	if (!hda->irq_pending_warned) {
 		dev_info(chip->card->dev,
@@ -610,17 +612,17 @@ static void azx_irq_pending_work(struct work_struct *work)
 	for (;;) {
 		pending = 0;
 		spin_lock_irq(&chip->reg_lock);
-		for (i = 0; i < chip->num_streams; i++) {
-			struct azx_dev *azx_dev = &chip->azx_dev[i];
+		list_for_each_entry(s, &bus->stream_list, list) {
+			struct azx_dev *azx_dev = stream_to_azx_dev(s);
 			if (!azx_dev->irq_pending ||
-			    !azx_dev->substream ||
-			    !azx_dev->running)
+			    !s->substream ||
+			    !s->running)
 				continue;
 			ok = azx_position_ok(chip, azx_dev);
 			if (ok > 0) {
 				azx_dev->irq_pending = 0;
 				spin_unlock(&chip->reg_lock);
-				snd_pcm_period_elapsed(azx_dev->substream);
+				snd_pcm_period_elapsed(s->substream);
 				spin_lock(&chip->reg_lock);
 			} else if (ok < 0) {
 				pending = 0;	/* too early */
@@ -637,11 +639,14 @@ static void azx_irq_pending_work(struct work_struct *work)
 /* clear irq_pending flags and assure no on-going workq */
 static void azx_clear_irq_pending(struct azx *chip)
 {
-	int i;
+	struct hdac_bus *bus = azx_bus(chip);
+	struct hdac_stream *s;
 
 	spin_lock_irq(&chip->reg_lock);
-	for (i = 0; i < chip->num_streams; i++)
-		chip->azx_dev[i].irq_pending = 0;
+	list_for_each_entry(s, &bus->stream_list, list) {
+		struct azx_dev *azx_dev = stream_to_azx_dev(s);
+		azx_dev->irq_pending = 0;
+	}
 	spin_unlock_irq(&chip->reg_lock);
 }
 
@@ -671,7 +676,7 @@ static unsigned int azx_via_get_position(struct azx *chip,
 	unsigned int fifo_size;
 
 	link_pos = azx_sd_readl(chip, azx_dev, SD_LPIB);
-	if (azx_dev->substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+	if (azx_dev->core.substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		/* Playback, no problem using link position */
 		return link_pos;
 	}
@@ -680,8 +685,8 @@ static unsigned int azx_via_get_position(struct azx *chip,
 	/* For new chipset,
 	 * use mod to get the DMA position just like old chipset
 	 */
-	mod_dma_pos = le32_to_cpu(*azx_dev->posbuf);
-	mod_dma_pos %= azx_dev->period_bytes;
+	mod_dma_pos = le32_to_cpu(*azx_dev->core.posbuf);
+	mod_dma_pos %= azx_dev->core.period_bytes;
 
 	/* azx_dev->fifo_size can't get FIFO size of in stream.
 	 * Get from base address + offset.
@@ -697,20 +702,20 @@ static unsigned int azx_via_get_position(struct azx *chip,
 	}
 
 	if (link_pos <= fifo_size)
-		mini_pos = azx_dev->bufsize + link_pos - fifo_size;
+		mini_pos = azx_dev->core.bufsize + link_pos - fifo_size;
 	else
 		mini_pos = link_pos - fifo_size;
 
 	/* Find nearest previous boudary */
-	mod_mini_pos = mini_pos % azx_dev->period_bytes;
-	mod_link_pos = link_pos % azx_dev->period_bytes;
+	mod_mini_pos = mini_pos % azx_dev->core.period_bytes;
+	mod_link_pos = link_pos % azx_dev->core.period_bytes;
 	if (mod_link_pos >= fifo_size)
 		bound_pos = link_pos - mod_link_pos;
 	else if (mod_dma_pos >= mod_mini_pos)
 		bound_pos = mini_pos - mod_mini_pos;
 	else {
-		bound_pos = mini_pos - mod_mini_pos + azx_dev->period_bytes;
-		if (bound_pos >= azx_dev->bufsize)
+		bound_pos = mini_pos - mod_mini_pos + azx_dev->core.period_bytes;
+		if (bound_pos >= azx_dev->core.bufsize)
 			bound_pos = 0;
 	}
 
@@ -1063,7 +1068,6 @@ static int azx_free(struct azx *chip)
 {
 	struct pci_dev *pci = chip->pci;
 	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
-	int i;
 
 	if (azx_has_pm_runtime(chip) && chip->running)
 		pm_runtime_get_noresume(&pci->dev);
@@ -1082,8 +1086,7 @@ static int azx_free(struct azx *chip)
 
 	if (chip->initialized) {
 		azx_clear_irq_pending(chip);
-		for (i = 0; i < chip->num_streams; i++)
-			azx_stream_stop(chip, &chip->azx_dev[i]);
+		azx_stop_all_streams(chip);
 		azx_stop_chip(chip);
 	}
 
@@ -1097,7 +1100,6 @@ static int azx_free(struct azx *chip)
 	if (chip->region_requested)
 		pci_release_regions(chip->pci);
 	pci_disable_device(chip->pci);
-	kfree(chip->azx_dev);
 #ifdef CONFIG_SND_HDA_PATCH_LOADER
 	release_firmware(chip->fw);
 #endif
@@ -1566,10 +1568,6 @@ static int azx_first_init(struct azx *chip)
 	chip->capture_index_offset = 0;
 	chip->playback_index_offset = chip->capture_streams;
 	chip->num_streams = chip->playback_streams + chip->capture_streams;
-	chip->azx_dev = kcalloc(chip->num_streams, sizeof(*chip->azx_dev),
-				GFP_KERNEL);
-	if (!chip->azx_dev)
-		return -ENOMEM;
 
 	err = azx_alloc_stream_pages(chip);
 	if (err < 0)
@@ -1717,9 +1715,9 @@ static int substream_alloc_pages(struct azx *chip,
 	int ret;
 
 	mark_runtime_wc(chip, azx_dev, substream, false);
-	azx_dev->bufsize = 0;
-	azx_dev->period_bytes = 0;
-	azx_dev->format_val = 0;
+	azx_dev->core.bufsize = 0;
+	azx_dev->core.period_bytes = 0;
+	azx_dev->core.format_val = 0;
 	ret = snd_pcm_lib_malloc_pages(substream, size);
 	if (ret < 0)
 		return ret;

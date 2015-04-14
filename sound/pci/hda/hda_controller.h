@@ -59,36 +59,10 @@ enum {
 };
 
 struct azx_dev {
-	struct snd_dma_buffer bdl; /* BDL buffer */
-	u32 *posbuf;		/* position buffer pointer */
+	struct hdac_stream core;
 
-	unsigned int bufsize;	/* size of the play buffer in bytes */
-	unsigned int period_bytes; /* size of the period in bytes */
-	unsigned int frags;	/* number for period in the play buffer */
-	unsigned int fifo_size;	/* FIFO size */
-	unsigned long start_wallclk;	/* start + minimum wallclk */
-	unsigned long period_wallclk;	/* wallclk for period */
-
-	void __iomem *sd_addr;	/* stream descriptor pointer */
-
-	u32 sd_int_sta_mask;	/* stream int status mask */
-
-	/* pcm support */
-	struct snd_pcm_substream *substream;	/* assigned substream,
-						 * set in PCM open
-						 */
-	unsigned int format_val;	/* format value to be set in the
-					 * controller and the codec
-					 */
-	unsigned char stream_tag;	/* assigned stream */
-	unsigned char index;		/* stream index */
-	int assigned_key;		/* last device# key assigned to */
-
-	unsigned int opened:1;
-	unsigned int running:1;
 	unsigned int irq_pending:1;
 	unsigned int prepared:1;
-	unsigned int locked:1;
 	/*
 	 * For VIA:
 	 *  A flag to ensure DMA position is 0
@@ -96,18 +70,10 @@ struct azx_dev {
 	 */
 	unsigned int insufficient:1;
 	unsigned int wc_marked:1;
-	unsigned int no_period_wakeup:1;
-
-	struct timecounter  azx_tc;
-	struct cyclecounter azx_cc;
-
-	int delay_negative_threshold;
-
-#ifdef CONFIG_SND_HDA_DSP_LOADER
-	/* Allows dsp load to have sole access to the playback stream. */
-	struct mutex dsp_mutex;
-#endif
 };
+
+#define azx_stream(dev)		(&(dev)->core)
+#define stream_to_azx_dev(s)	container_of(s, struct azx_dev, core)
 
 /* CORB/RIRB */
 struct azx_rb {
@@ -181,9 +147,6 @@ struct azx {
 	spinlock_t reg_lock;
 	struct mutex open_mutex; /* Prevents concurrent open/close operations */
 
-	/* streams (x num_streams) */
-	struct azx_dev *azx_dev;
-
 	/* PCM */
 	struct list_head pcm_list; /* azx_pcm list */
 
@@ -253,17 +216,17 @@ struct azx {
 	((chip)->io_ops->reg_readb((chip)->remap_addr + AZX_REG_##reg))
 
 #define azx_sd_writel(chip, dev, reg, value) \
-	((chip)->io_ops->reg_writel(value, (dev)->sd_addr + AZX_REG_##reg))
+	snd_hdac_stream_writel(&(dev)->core, reg, value)
 #define azx_sd_readl(chip, dev, reg) \
-	((chip)->io_ops->reg_readl((dev)->sd_addr + AZX_REG_##reg))
+	snd_hdac_stream_readl(&(dev)->core, reg)
 #define azx_sd_writew(chip, dev, reg, value) \
-	((chip)->io_ops->reg_writew(value, (dev)->sd_addr + AZX_REG_##reg))
+	snd_hdac_stream_writew(&(dev)->core, reg, value)
 #define azx_sd_readw(chip, dev, reg) \
-	((chip)->io_ops->reg_readw((dev)->sd_addr + AZX_REG_##reg))
+	snd_hdac_stream_readw(&(dev)->core, reg)
 #define azx_sd_writeb(chip, dev, reg, value) \
-	((chip)->io_ops->reg_writeb(value, (dev)->sd_addr + AZX_REG_##reg))
+	snd_hdac_stream_writeb(&(dev)->core, reg, value)
 #define azx_sd_readb(chip, dev, reg) \
-	((chip)->io_ops->reg_readb((dev)->sd_addr + AZX_REG_##reg))
+	snd_hdac_stream_readb(&(dev)->core, reg)
 
 #define azx_has_pm_runtime(chip) \
 	(!AZX_DCAPS_PM_RUNTIME || ((chip)->driver_caps & AZX_DCAPS_PM_RUNTIME))
@@ -278,7 +241,7 @@ unsigned int azx_get_pos_lpib(struct azx *chip, struct azx_dev *azx_dev);
 unsigned int azx_get_pos_posbuf(struct azx *chip, struct azx_dev *azx_dev);
 
 /* Stream control. */
-void azx_stream_stop(struct azx *chip, struct azx_dev *azx_dev);
+void azx_stop_all_streams(struct azx *chip);
 
 /* Allocation functions. */
 int azx_alloc_stream_pages(struct azx *chip);
