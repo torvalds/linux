@@ -1263,10 +1263,12 @@ static void iwl_mvm_d0i3_exit_work(struct work_struct *wk)
 		ieee80211_iterate_active_interfaces(
 			mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
 			iwl_mvm_d0i3_disconnect_iter, mvm);
-
-	iwl_free_resp(&get_status_cmd);
 out:
 	iwl_mvm_d0i3_enable_tx(mvm, qos_seq);
+
+	/* qos_seq might point inside resp_pkt, so free it only now */
+	if (get_status_cmd.resp_pkt)
+		iwl_free_resp(&get_status_cmd);
 
 	/* the FW might have updated the regdomain */
 	iwl_mvm_update_changed_regdom(mvm);
