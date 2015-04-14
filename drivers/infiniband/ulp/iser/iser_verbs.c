@@ -1210,6 +1210,9 @@ iser_handle_comp_error(struct ib_conn *ib_conn,
 			iscsi_conn_failure(iser_conn->iscsi_conn,
 					   ISCSI_ERR_CONN_FAILED);
 
+	if (wc->wr_id == ISER_FASTREG_LI_WRID)
+		return;
+
 	if (is_iser_tx_desc(iser_conn, wr_id)) {
 		struct iser_tx_desc *desc = wr_id;
 
@@ -1254,13 +1257,11 @@ static void iser_handle_wc(struct ib_wc *wc)
 		else
 			iser_dbg("flush error: wr id %llx\n", wc->wr_id);
 
-		if (wc->wr_id != ISER_FASTREG_LI_WRID &&
-		    wc->wr_id != ISER_BEACON_WRID)
-			iser_handle_comp_error(ib_conn, wc);
-
-		/* complete in case all flush errors were consumed */
 		if (wc->wr_id == ISER_BEACON_WRID)
+			/* all flush errors were consumed */
 			complete(&ib_conn->flush_comp);
+		else
+			iser_handle_comp_error(ib_conn, wc);
 	}
 }
 
