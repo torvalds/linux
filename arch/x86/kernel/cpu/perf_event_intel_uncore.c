@@ -233,9 +233,8 @@ static enum hrtimer_restart uncore_pmu_hrtimer(struct hrtimer *hrtimer)
 
 void uncore_pmu_start_hrtimer(struct intel_uncore_box *box)
 {
-	__hrtimer_start_range_ns(&box->hrtimer,
-			ns_to_ktime(box->hrtimer_duration), 0,
-			HRTIMER_MODE_REL_PINNED, 0);
+	hrtimer_start(&box->hrtimer, ns_to_ktime(box->hrtimer_duration),
+		      HRTIMER_MODE_REL_PINNED);
 }
 
 void uncore_pmu_cancel_hrtimer(struct intel_uncore_box *box)
