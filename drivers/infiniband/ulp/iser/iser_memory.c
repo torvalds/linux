@@ -41,6 +41,32 @@
 
 #define ISER_KMALLOC_THRESHOLD 0x20000 /* 128K - kmalloc limit */
 
+struct fast_reg_descriptor *
+iser_reg_desc_get(struct ib_conn *ib_conn)
+{
+	struct fast_reg_descriptor *desc;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ib_conn->lock, flags);
+	desc = list_first_entry(&ib_conn->fastreg.pool,
+				struct fast_reg_descriptor, list);
+	list_del(&desc->list);
+	spin_unlock_irqrestore(&ib_conn->lock, flags);
+
+	return desc;
+}
+
+void
+iser_reg_desc_put(struct ib_conn *ib_conn,
+		  struct fast_reg_descriptor *desc)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&ib_conn->lock, flags);
+	list_add_tail(&desc->list, &ib_conn->fastreg.pool);
+	spin_unlock_irqrestore(&ib_conn->lock, flags);
+}
+
 /**
  * iser_start_rdma_unaligned_sg
  */
@@ -409,17 +435,13 @@ void iser_unreg_mem_fastreg(struct iscsi_iser_task *iser_task,
 			    enum iser_data_dir cmd_dir)
 {
 	struct iser_mem_reg *reg = &iser_task->rdma_reg[cmd_dir];
-	struct iser_conn *iser_conn = iser_task->iser_conn;
-	struct ib_conn *ib_conn = &iser_conn->ib_conn;
-	struct fast_reg_descriptor *desc = reg->mem_h;
 
-	if (!desc)
+	if (!reg->mem_h)
 		return;
 
+	iser_reg_desc_put(&iser_task->iser_conn->ib_conn,
+			  reg->mem_h);
 	reg->mem_h = NULL;
-	spin_lock_bh(&ib_conn->lock);
-	list_add_tail(&desc->list, &ib_conn->fastreg.pool);
-	spin_unlock_bh(&ib_conn->lock);
 }
 
 /**
@@ -725,7 +747,6 @@ int iser_reg_rdma_mem_fastreg(struct iscsi_iser_task *iser_task,
 	struct fast_reg_descriptor *desc = NULL;
 	struct ib_sge data_sge;
 	int err, aligned_len;
-	unsigned long flags;
 
 	aligned_len = iser_data_buf_aligned_len(mem, ibdev);
 	if (aligned_len != mem->dma_nents) {
@@ -739,11 +760,7 @@ int iser_reg_rdma_mem_fastreg(struct iscsi_iser_task *iser_task,
 
 	if (mem->dma_nents != 1 ||
 	    scsi_get_prot_op(iser_task->sc) != SCSI_PROT_NORMAL) {
-		spin_lock_irqsave(&ib_conn->lock, flags);
-		desc = list_first_entry(&ib_conn->fastreg.pool,
-					struct fast_reg_descriptor, list);
-		list_del(&desc->list);
-		spin_unlock_irqrestore(&ib_conn->lock, flags);
+		desc = iser_reg_desc_get(ib_conn);
 		mem_reg->mem_h = desc;
 	}
 
@@ -799,11 +816,8 @@ int iser_reg_rdma_mem_fastreg(struct iscsi_iser_task *iser_task,
 
 	return 0;
 err_reg:
-	if (desc) {
-		spin_lock_irqsave(&ib_conn->lock, flags);
-		list_add_tail(&desc->list, &ib_conn->fastreg.pool);
-		spin_unlock_irqrestore(&ib_conn->lock, flags);
-	}
+	if (desc)
+		iser_reg_desc_put(ib_conn, desc);
 
 	return err;
 }
