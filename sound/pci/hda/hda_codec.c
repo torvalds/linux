@@ -516,6 +516,7 @@ static int snd_hda_bus_dev_disconnect(struct snd_device *device)
  */
 int snd_hda_bus_new(struct snd_card *card,
 		    const struct hdac_bus_ops *ops,
+		    const struct hdac_io_ops *io_ops,
 		    struct hda_bus **busp)
 {
 	struct hda_bus *bus;
@@ -532,7 +533,7 @@ int snd_hda_bus_new(struct snd_card *card,
 	if (!bus)
 		return -ENOMEM;
 
-	err = snd_hdac_bus_init(&bus->core, card->dev, ops, NULL);
+	err = snd_hdac_bus_init(&bus->core, card->dev, ops, io_ops);
 	if (err < 0) {
 		kfree(bus);
 		return err;

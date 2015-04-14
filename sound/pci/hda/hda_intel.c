@@ -1365,9 +1365,11 @@ static void azx_probe_work(struct work_struct *work)
 /*
  * constructor
  */
+static const struct hdac_io_ops pci_hda_io_ops;
+static const struct hda_controller_ops pci_hda_ops;
+
 static int azx_create(struct snd_card *card, struct pci_dev *pci,
 		      int dev, unsigned int driver_caps,
-		      const struct hda_controller_ops *hda_ops,
 		      struct azx **rchip)
 {
 	static struct snd_device_ops ops = {
@@ -1394,7 +1396,8 @@ static int azx_create(struct snd_card *card, struct pci_dev *pci,
 	mutex_init(&chip->open_mutex);
 	chip->card = card;
 	chip->pci = pci;
-	chip->ops = hda_ops;
+	chip->ops = &pci_hda_ops;
+	chip->io_ops = &pci_hda_io_ops;
 	chip->irq = -1;
 	chip->driver_caps = driver_caps;
 	chip->driver_type = driver_caps & 0xff;
@@ -1681,15 +1684,16 @@ static int disable_msi_reset_irq(struct azx *chip)
 }
 
 /* DMA page allocation helpers.  */
-static int dma_alloc_pages(struct azx *chip,
+static int dma_alloc_pages(struct hdac_bus *bus,
 			   int type,
 			   size_t size,
 			   struct snd_dma_buffer *buf)
 {
+	struct azx *chip = to_hda_bus(bus)->private_data;
 	int err;
 
 	err = snd_dma_alloc_pages(type,
-				  chip->card->dev,
+				  bus->dev,
 				  size, buf);
 	if (err < 0)
 		return err;
@@ -1697,8 +1701,10 @@ static int dma_alloc_pages(struct azx *chip,
 	return 0;
 }
 
-static void dma_free_pages(struct azx *chip, struct snd_dma_buffer *buf)
+static void dma_free_pages(struct hdac_bus *bus, struct snd_dma_buffer *buf)
 {
+	struct azx *chip = to_hda_bus(bus)->private_data;
+
 	mark_pages_wc(chip, buf, false);
 	snd_dma_free_pages(buf);
 }
@@ -1740,16 +1746,19 @@ static void pcm_mmap_prepare(struct snd_pcm_substream *substream,
 #endif
 }
 
-static const struct hda_controller_ops pci_hda_ops = {
+static const struct hdac_io_ops pci_hda_io_ops = {
 	.reg_writel = pci_azx_writel,
 	.reg_readl = pci_azx_readl,
 	.reg_writew = pci_azx_writew,
 	.reg_readw = pci_azx_readw,
 	.reg_writeb = pci_azx_writeb,
 	.reg_readb = pci_azx_readb,
-	.disable_msi_reset_irq = disable_msi_reset_irq,
 	.dma_alloc_pages = dma_alloc_pages,
 	.dma_free_pages = dma_free_pages,
+};
+
+static const struct hda_controller_ops pci_hda_ops = {
+	.disable_msi_reset_irq = disable_msi_reset_irq,
 	.substream_alloc_pages = substream_alloc_pages,
 	.substream_free_pages = substream_free_pages,
 	.pcm_mmap_prepare = pcm_mmap_prepare,
@@ -1780,8 +1789,7 @@ static int azx_probe(struct pci_dev *pci,
 		return err;
 	}
 
-	err = azx_create(card, pci, dev, pci_id->driver_data,
-			 &pci_hda_ops, &chip);
+	err = azx_create(card, pci, dev, pci_id->driver_data, &chip);
 	if (err < 0)
 		goto out_free;
 	card->private_data = chip;
@@ -1862,6 +1870,10 @@ static int azx_probe_continue(struct azx *chip)
 #endif
 	}
 
+	err = azx_bus_create(chip, model[dev]);
+	if (err < 0)
+		goto out_free;
+
 	err = azx_first_init(chip);
 	if (err < 0)
 		goto out_free;
@@ -1871,10 +1883,6 @@ static int azx_probe_continue(struct azx *chip)
 #endif
 
 	/* create codec instances */
-	err = azx_bus_create(chip, model[dev]);
-	if (err < 0)
-		goto out_free;
-
 	err = azx_probe_codecs(chip, azx_max_codecs[chip->driver_type]);
 	if (err < 0)
 		goto out_free;

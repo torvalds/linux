@@ -87,13 +87,13 @@ MODULE_PARM_DESC(power_save,
 /*
  * DMA page allocation ops.
  */
-static int dma_alloc_pages(struct azx *chip, int type, size_t size,
+static int dma_alloc_pages(struct hdac_bus *bus, int type, size_t size,
 			   struct snd_dma_buffer *buf)
 {
-	return snd_dma_alloc_pages(type, chip->card->dev, size, buf);
+	return snd_dma_alloc_pages(type, bus->dev, size, buf);
 }
 
-static void dma_free_pages(struct azx *chip, struct snd_dma_buffer *buf)
+static void dma_free_pages(struct hdac_bus *bus, struct snd_dma_buffer *buf)
 {
 	snd_dma_free_pages(buf);
 }
@@ -173,7 +173,7 @@ static u8 hda_tegra_readb(u8 *addr)
 	return (v >> shift) & 0xff;
 }
 
-static const struct hda_controller_ops hda_tegra_ops = {
+static const struct hdac_io_ops hda_tegra_io_ops = {
 	.reg_writel = hda_tegra_writel,
 	.reg_readl = hda_tegra_readl,
 	.reg_writew = hda_tegra_writew,
@@ -182,6 +182,9 @@ static const struct hda_controller_ops hda_tegra_ops = {
 	.reg_readb = hda_tegra_readb,
 	.dma_alloc_pages = dma_alloc_pages,
 	.dma_free_pages = dma_free_pages,
+};
+
+static const struct hda_controller_ops hda_tegra_ops = {
 	.substream_alloc_pages = substream_alloc_pages,
 	.substream_free_pages = substream_free_pages,
 };
@@ -409,7 +412,6 @@ static int hda_tegra_first_init(struct azx *chip, struct platform_device *pdev)
  */
 static int hda_tegra_create(struct snd_card *card,
 			    unsigned int driver_caps,
-			    const struct hda_controller_ops *hda_ops,
 			    struct hda_tegra *hda)
 {
 	static struct snd_device_ops ops = {
@@ -423,7 +425,8 @@ static int hda_tegra_create(struct snd_card *card,
 	spin_lock_init(&chip->reg_lock);
 	mutex_init(&chip->open_mutex);
 	chip->card = card;
-	chip->ops = hda_ops;
+	chip->ops = &hda_tegra_ops;
+	chip->io_ops = &hda_tegra_io_ops;
 	chip->irq = -1;
 	chip->driver_caps = driver_caps;
 	chip->driver_type = driver_caps & 0xff;
@@ -471,7 +474,11 @@ static int hda_tegra_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	err = hda_tegra_create(card, driver_flags, &hda_tegra_ops, hda);
+	err = azx_bus_create(chip, NULL);
+	if (err < 0)
+		goto out_free;
+
+	err = hda_tegra_create(card, driver_flags, hda);
 	if (err < 0)
 		goto out_free;
 	card->private_data = chip;
@@ -483,10 +490,6 @@ static int hda_tegra_probe(struct platform_device *pdev)
 		goto out_free;
 
 	/* create codec instances */
-	err = azx_bus_create(chip, NULL);
-	if (err < 0)
-		goto out_free;
-
 	err = azx_probe_codecs(chip, 0);
 	if (err < 0)
 		goto out_free;

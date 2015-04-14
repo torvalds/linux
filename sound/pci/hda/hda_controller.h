@@ -125,21 +125,8 @@ struct azx;
 
 /* Functions to read/write to hda registers. */
 struct hda_controller_ops {
-	/* Register Access */
-	void (*reg_writel)(u32 value, u32 __iomem *addr);
-	u32 (*reg_readl)(u32 __iomem *addr);
-	void (*reg_writew)(u16 value, u16 __iomem *addr);
-	u16 (*reg_readw)(u16 __iomem *addr);
-	void (*reg_writeb)(u8 value, u8 __iomem *addr);
-	u8 (*reg_readb)(u8 __iomem *addr);
 	/* Disable msi if supported, PCI only */
 	int (*disable_msi_reset_irq)(struct azx *);
-	/* Allocation ops */
-	int (*dma_alloc_pages)(struct azx *chip,
-			       int type,
-			       size_t size,
-			       struct snd_dma_buffer *buf);
-	void (*dma_free_pages)(struct azx *chip, struct snd_dma_buffer *buf);
 	int (*substream_alloc_pages)(struct azx *chip,
 				     struct snd_pcm_substream *substream,
 				     size_t size);
@@ -179,6 +166,7 @@ struct azx {
 
 	/* Register interaction. */
 	const struct hda_controller_ops *ops;
+	const struct hdac_io_ops *io_ops;
 
 	/* position adjustment callbacks */
 	azx_get_pos_callback_t get_position[2];
@@ -239,6 +227,8 @@ struct azx {
 #endif
 };
 
+#define azx_bus(chip)	(&(chip)->bus->core)
+
 #ifdef CONFIG_X86
 #define azx_snoop(chip)		((chip)->snoop)
 #else
@@ -250,30 +240,30 @@ struct azx {
  */
 
 #define azx_writel(chip, reg, value) \
-	((chip)->ops->reg_writel(value, (chip)->remap_addr + AZX_REG_##reg))
+	((chip)->io_ops->reg_writel(value, (chip)->remap_addr + AZX_REG_##reg))
 #define azx_readl(chip, reg) \
-	((chip)->ops->reg_readl((chip)->remap_addr + AZX_REG_##reg))
+	((chip)->io_ops->reg_readl((chip)->remap_addr + AZX_REG_##reg))
 #define azx_writew(chip, reg, value) \
-	((chip)->ops->reg_writew(value, (chip)->remap_addr + AZX_REG_##reg))
+	((chip)->io_ops->reg_writew(value, (chip)->remap_addr + AZX_REG_##reg))
 #define azx_readw(chip, reg) \
-	((chip)->ops->reg_readw((chip)->remap_addr + AZX_REG_##reg))
+	((chip)->io_ops->reg_readw((chip)->remap_addr + AZX_REG_##reg))
 #define azx_writeb(chip, reg, value) \
-	((chip)->ops->reg_writeb(value, (chip)->remap_addr + AZX_REG_##reg))
+	((chip)->io_ops->reg_writeb(value, (chip)->remap_addr + AZX_REG_##reg))
 #define azx_readb(chip, reg) \
-	((chip)->ops->reg_readb((chip)->remap_addr + AZX_REG_##reg))
+	((chip)->io_ops->reg_readb((chip)->remap_addr + AZX_REG_##reg))
 
 #define azx_sd_writel(chip, dev, reg, value) \
-	((chip)->ops->reg_writel(value, (dev)->sd_addr + AZX_REG_##reg))
+	((chip)->io_ops->reg_writel(value, (dev)->sd_addr + AZX_REG_##reg))
 #define azx_sd_readl(chip, dev, reg) \
-	((chip)->ops->reg_readl((dev)->sd_addr + AZX_REG_##reg))
+	((chip)->io_ops->reg_readl((dev)->sd_addr + AZX_REG_##reg))
 #define azx_sd_writew(chip, dev, reg, value) \
-	((chip)->ops->reg_writew(value, (dev)->sd_addr + AZX_REG_##reg))
+	((chip)->io_ops->reg_writew(value, (dev)->sd_addr + AZX_REG_##reg))
 #define azx_sd_readw(chip, dev, reg) \
-	((chip)->ops->reg_readw((dev)->sd_addr + AZX_REG_##reg))
+	((chip)->io_ops->reg_readw((dev)->sd_addr + AZX_REG_##reg))
 #define azx_sd_writeb(chip, dev, reg, value) \
-	((chip)->ops->reg_writeb(value, (dev)->sd_addr + AZX_REG_##reg))
+	((chip)->io_ops->reg_writeb(value, (dev)->sd_addr + AZX_REG_##reg))
 #define azx_sd_readb(chip, dev, reg) \
-	((chip)->ops->reg_readb((dev)->sd_addr + AZX_REG_##reg))
+	((chip)->io_ops->reg_readb((dev)->sd_addr + AZX_REG_##reg))
 
 #define azx_has_pm_runtime(chip) \
 	(!AZX_DCAPS_PM_RUNTIME || ((chip)->driver_caps & AZX_DCAPS_PM_RUNTIME))

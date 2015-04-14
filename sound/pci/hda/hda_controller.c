@@ -985,8 +985,8 @@ static int azx_attach_pcm_stream(struct hda_bus *bus, struct hda_codec *codec,
 static int azx_alloc_cmd_io(struct azx *chip)
 {
 	/* single page (at least 4096 bytes) must suffice for both ringbuffes */
-	return chip->ops->dma_alloc_pages(chip, SNDRV_DMA_TYPE_DEV,
-					  PAGE_SIZE, &chip->rb);
+	return chip->io_ops->dma_alloc_pages(azx_bus(chip), SNDRV_DMA_TYPE_DEV,
+					     PAGE_SIZE, &chip->rb);
 }
 
 static void azx_init_cmd_io(struct azx *chip)
@@ -1396,8 +1396,8 @@ static int azx_load_dsp_prepare(struct hda_bus *bus, unsigned int format,
 	azx_dev->locked = 1;
 	spin_unlock_irq(&chip->reg_lock);
 
-	err = chip->ops->dma_alloc_pages(chip, SNDRV_DMA_TYPE_DEV_SG,
-					 byte_size, bufp);
+	err = chip->io_ops->dma_alloc_pages(&bus->core, SNDRV_DMA_TYPE_DEV_SG,
+					    byte_size, bufp);
 	if (err < 0)
 		goto err_alloc;
 
@@ -1422,7 +1422,7 @@ static int azx_load_dsp_prepare(struct hda_bus *bus, unsigned int format,
 	return azx_dev->stream_tag;
 
  error:
-	chip->ops->dma_free_pages(chip, bufp);
+	chip->io_ops->dma_free_pages(&bus->core, bufp);
  err_alloc:
 	spin_lock_irq(&chip->reg_lock);
 	if (azx_dev->opened)
@@ -1464,7 +1464,7 @@ static void azx_load_dsp_cleanup(struct hda_bus *bus,
 	azx_dev->period_bytes = 0;
 	azx_dev->format_val = 0;
 
-	chip->ops->dma_free_pages(chip, dmab);
+	chip->io_ops->dma_free_pages(&bus->core, dmab);
 	dmab->area = NULL;
 
 	spin_lock_irq(&chip->reg_lock);
@@ -1483,14 +1483,14 @@ int azx_alloc_stream_pages(struct azx *chip)
 	for (i = 0; i < chip->num_streams; i++) {
 		dsp_lock_init(&chip->azx_dev[i]);
 		/* allocate memory for the BDL for each stream */
-		err = chip->ops->dma_alloc_pages(chip, SNDRV_DMA_TYPE_DEV,
+		err = chip->io_ops->dma_alloc_pages(azx_bus(chip), SNDRV_DMA_TYPE_DEV,
 						 BDL_SIZE,
 						 &chip->azx_dev[i].bdl);
 		if (err < 0)
 			return -ENOMEM;
 	}
 	/* allocate memory for the position buffer */
-	err = chip->ops->dma_alloc_pages(chip, SNDRV_DMA_TYPE_DEV,
+	err = chip->io_ops->dma_alloc_pages(azx_bus(chip), SNDRV_DMA_TYPE_DEV,
 					 chip->num_streams * 8, &chip->posbuf);
 	if (err < 0)
 		return -ENOMEM;
@@ -1509,13 +1509,13 @@ void azx_free_stream_pages(struct azx *chip)
 	if (chip->azx_dev) {
 		for (i = 0; i < chip->num_streams; i++)
 			if (chip->azx_dev[i].bdl.area)
-				chip->ops->dma_free_pages(
-					chip, &chip->azx_dev[i].bdl);
+				chip->io_ops->dma_free_pages(azx_bus(chip),
+							     &chip->azx_dev[i].bdl);
 	}
 	if (chip->rb.area)
-		chip->ops->dma_free_pages(chip, &chip->rb);
+		chip->io_ops->dma_free_pages(azx_bus(chip), &chip->rb);
 	if (chip->posbuf.area)
-		chip->ops->dma_free_pages(chip, &chip->posbuf);
+		chip->io_ops->dma_free_pages(azx_bus(chip), &chip->posbuf);
 }
 EXPORT_SYMBOL_GPL(azx_free_stream_pages);
 
@@ -1834,7 +1834,7 @@ int azx_bus_create(struct azx *chip, const char *model)
 	struct hda_bus *bus;
 	int err;
 
-	err = snd_hda_bus_new(chip->card, &bus_core_ops, &bus);
+	err = snd_hda_bus_new(chip->card, &bus_core_ops, chip->io_ops, &bus);
 	if (err < 0)
 		return err;
 

@@ -328,6 +328,7 @@ struct hda_codec {
  */
 int snd_hda_bus_new(struct snd_card *card,
 		    const struct hdac_bus_ops *ops,
+		    const struct hdac_io_ops *io_ops,
 		    struct hda_bus **busp);
 int snd_hda_codec_new(struct hda_bus *bus, struct snd_card *card,
 		      unsigned int codec_addr, struct hda_codec **codecp);
