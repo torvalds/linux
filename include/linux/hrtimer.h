@@ -172,6 +172,7 @@ enum  hrtimer_base_type {
  * @clock_was_set_seq:	Sequence counter of clock was set events
  * @expires_next:	absolute time of the next event which was scheduled
  *			via clock_set_next_event()
+ * @next_timer:		Pointer to the first expiring timer
  * @in_hrtirq:		hrtimer_interrupt() is currently executing
  * @hres_active:	State of high resolution mode
  * @hang_detected:	The last hrtimer interrupt detected a hang
@@ -180,6 +181,10 @@ enum  hrtimer_base_type {
  * @nr_hangs:		Total number of hrtimer interrupt hangs
  * @max_hang_time:	Maximum time spent in hrtimer_interrupt
  * @clock_base:		array of clock bases for this cpu
+ *
+ * Note: next_timer is just an optimization for __remove_hrtimer().
+ *	 Do not dereference the pointer because it is not reliable on
+ *	 cross cpu removals.
  */
 struct hrtimer_cpu_base {
 	raw_spinlock_t			lock;
@@ -191,6 +196,7 @@ struct hrtimer_cpu_base {
 					hres_active	: 1,
 					hang_detected	: 1;
 	ktime_t				expires_next;
+	struct hrtimer			*next_timer;
 	unsigned int			nr_events;
 	unsigned int			nr_retries;
 	unsigned int			nr_hangs;
