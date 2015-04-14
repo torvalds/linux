@@ -1610,14 +1610,16 @@ void  i915_ppgtt_release(struct kref *kref)
 static void
 ppgtt_bind_vma(struct i915_vma *vma,
 	       enum i915_cache_level cache_level,
-	       u32 flags)
+	       u32 unused)
 {
+	u32 pte_flags = 0;
+
 	/* Currently applicable only to VLV */
 	if (vma->obj->gt_ro)
-		flags |= PTE_READ_ONLY;
+		pte_flags |= PTE_READ_ONLY;
 
 	vma->vm->insert_entries(vma->vm, vma->obj->pages, vma->node.start,
-				cache_level, flags);
+				cache_level, pte_flags);
 }
 
 static void ppgtt_unbind_vma(struct i915_vma *vma)
@@ -1986,10 +1988,11 @@ static void ggtt_bind_vma(struct i915_vma *vma,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj = vma->obj;
 	struct sg_table *pages = obj->pages;
+	u32 pte_flags = 0;
 
 	/* Currently applicable only to VLV */
 	if (obj->gt_ro)
-		flags |= PTE_READ_ONLY;
+		pte_flags |= PTE_READ_ONLY;
 
 	if (i915_is_ggtt(vma->vm))
 		pages = vma->ggtt_view.pages;
@@ -2010,7 +2013,7 @@ static void ggtt_bind_vma(struct i915_vma *vma,
 		    (cache_level != obj->cache_level)) {
 			vma->vm->insert_entries(vma->vm, pages,
 						vma->node.start,
-						cache_level, flags);
+						cache_level, pte_flags);
 			vma->bound |= GLOBAL_BIND;
 		}
 	}
@@ -2021,7 +2024,7 @@ static void ggtt_bind_vma(struct i915_vma *vma,
 		struct i915_hw_ppgtt *appgtt = dev_priv->mm.aliasing_ppgtt;
 		appgtt->base.insert_entries(&appgtt->base, pages,
 					    vma->node.start,
-					    cache_level, flags);
+					    cache_level, pte_flags);
 		vma->bound |= LOCAL_BIND;
 	}
 }

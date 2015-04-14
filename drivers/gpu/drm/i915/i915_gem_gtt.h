@@ -158,7 +158,6 @@ struct i915_vma {
 	/** Flags and address space this VMA is bound to */
 #define GLOBAL_BIND	(1<<0)
 #define LOCAL_BIND	(1<<1)
-#define PTE_READ_ONLY	(1<<2)
 	unsigned int bound : 4;
 
 	/**
@@ -261,6 +260,8 @@ struct i915_address_space {
 	gen6_pte_t (*pte_encode)(dma_addr_t addr,
 				 enum i915_cache_level level,
 				 bool valid, u32 flags); /* Create a valid PTE */
+	/* flags for pte_encode */
+#define PTE_READ_ONLY	(1<<0)
 	int (*allocate_va_range)(struct i915_address_space *vm,
 				 uint64_t start,
 				 uint64_t length);
