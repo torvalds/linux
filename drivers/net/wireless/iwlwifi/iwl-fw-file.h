@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,7 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -436,6 +436,7 @@ enum iwl_fw_dbg_monitor_mode {
  *
  * @version: version of the TLV - currently 0
  * @monitor_mode: %enum iwl_fw_dbg_monitor_mode
+ * @size_power: buffer size will be 2^(size_power + 11)
  * @base_reg: addr of the base addr register (PRPH)
  * @end_reg:  addr of the end addr register (PRPH)
  * @write_ptr_reg: the addr of the reg of the write pointer
@@ -449,7 +450,8 @@ enum iwl_fw_dbg_monitor_mode {
 struct iwl_fw_dbg_dest_tlv {
 	u8 version;
 	u8 monitor_mode;
-	u8 reserved[2];
+	u8 size_power;
+	u8 reserved;
 	__le32 base_reg;
 	__le32 end_reg;
 	__le32 write_ptr_reg;
