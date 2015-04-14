@@ -41,8 +41,7 @@ Configuration Options:
 #include "../comedidev.h"
 
 #include "comedi_isadma.h"
-#include "comedi_fc.h"
-#include "8253.h"
+#include "comedi_8254.h"
 
 /*
  * Register I/O map
@@ -116,30 +115,9 @@ static const struct pcl816_board boardtypes[] = {
 struct pcl816_private {
 	struct comedi_isadma *dma;
 	unsigned int ai_poll_ptr;	/*  how many sampes transfer poll */
-	unsigned int divisor1;
-	unsigned int divisor2;
 	unsigned int ai_cmd_running:1;
 	unsigned int ai_cmd_canceled:1;
 };
-
-static void pcl816_start_pacer(struct comedi_device *dev, bool load_counters)
-{
-	struct pcl816_private *devpriv = dev->private;
-	unsigned long timer_base = dev->iobase + PCL816_TIMER_BASE;
-
-	i8254_set_mode(timer_base, 0, 0, I8254_MODE1 | I8254_BINARY);
-	i8254_write(timer_base, 0, 0, 0x00ff);
-	udelay(1);
-
-	i8254_set_mode(timer_base, 0, 2, I8254_MODE2 | I8254_BINARY);
-	i8254_set_mode(timer_base, 0, 1, I8254_MODE2 | I8254_BINARY);
-	udelay(1);
-
-	if (load_counters) {
-		i8254_write(timer_base, 0, 2, devpriv->divisor2);
-		i8254_write(timer_base, 0, 1, devpriv->divisor1);
-	}
-}
 
 static void pcl816_ai_setup_dma(struct comedi_device *dev,
 				struct comedi_subdevice *s,
@@ -367,66 +345,61 @@ static int check_channel_list(struct comedi_device *dev,
 static int pcl816_ai_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
-	struct pcl816_private *devpriv = dev->private;
 	int err = 0;
-	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_FOLLOW);
-	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_EXT | TRIG_TIMER);
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_FOLLOW);
+	err |= comedi_check_trigger_src(&cmd->convert_src,
+					TRIG_EXT | TRIG_TIMER);
+	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
 	/* Step 2a : make sure trigger sources are unique */
 
-	err |= cfc_check_trigger_is_unique(cmd->convert_src);
-	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+	err |= comedi_check_trigger_is_unique(cmd->convert_src);
+	err |= comedi_check_trigger_is_unique(cmd->stop_src);
 
 	/* Step 2b : and mutually compatible */
 
 	if (err)
 		return 2;
 
-
 	/* Step 3: check if arguments are trivially valid */
 
-	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 
 	if (cmd->convert_src == TRIG_TIMER)
-		err |= cfc_check_trigger_arg_min(&cmd->convert_arg, 10000);
+		err |= comedi_check_trigger_arg_min(&cmd->convert_arg, 10000);
 	else	/* TRIG_EXT */
-		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->convert_arg, 0);
 
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
+					   cmd->chanlist_len);
 
 	if (cmd->stop_src == TRIG_COUNT)
-		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
 	else	/* TRIG_NONE */
-		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
 
-
 	/* step 4: fix up any arguments */
 	if (cmd->convert_src == TRIG_TIMER) {
-		arg = cmd->convert_arg;
-		i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
-					  &devpriv->divisor1,
-					  &devpriv->divisor2,
-					  &arg, cmd->flags);
-		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
+		unsigned int arg = cmd->convert_arg;
+
+		comedi_8254_cascade_ns_to_timer(dev->pacer, &arg, cmd->flags);
+		err |= comedi_check_trigger_arg_is(&cmd->convert_arg, arg);
 	}
 
 	if (err)
 		return 4;
-
 
 	/* step 5: complain about special chanlist considerations */
 
@@ -450,8 +423,6 @@ static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (devpriv->ai_cmd_running)
 		return -EBUSY;
 
-	pcl816_start_pacer(dev, false);
-
 	seglen = check_channel_list(dev, s, cmd->chanlist, cmd->chanlist_len);
 	if (seglen < 1)
 		return -EINVAL;
@@ -466,7 +437,11 @@ static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	dma->cur_dma = 0;
 	pcl816_ai_setup_dma(dev, s, 0);
 
-	pcl816_start_pacer(dev, true);
+	comedi_8254_set_mode(dev->pacer, 0, I8254_MODE1 | I8254_BINARY);
+	comedi_8254_write(dev->pacer, 0, 0x0ff);
+	udelay(1);
+	comedi_8254_update_divisors(dev->pacer);
+	comedi_8254_pacer_enable(dev->pacer, 1, 2, true);
 
 	ctrl = PCL816_CTRL_INTEN | PCL816_CTRL_DMAEN | PCL816_CTRL_DMASRC_SLOT0;
 	if (cmd->convert_src == TRIG_TIMER)
@@ -525,11 +500,7 @@ static int pcl816_ai_cancel(struct comedi_device *dev,
 	outb(PCL816_CTRL_DISABLE_TRIG, dev->iobase + PCL816_CTRL_REG);
 	pcl816_ai_clear_eoc(dev);
 
-	/* Stop pacer */
-	i8254_set_mode(dev->iobase + PCL816_TIMER_BASE, 0,
-			2, I8254_MODE0 | I8254_BINARY);
-	i8254_set_mode(dev->iobase + PCL816_TIMER_BASE, 0,
-			1, I8254_MODE0 | I8254_BINARY);
+	comedi_8254_pacer_enable(dev->pacer, 1, 2, false);
 
 	devpriv->ai_cmd_running = 0;
 	devpriv->ai_cmd_canceled = 1;
@@ -596,16 +567,9 @@ static int pcl816_do_insn_bits(struct comedi_device *dev,
 
 static void pcl816_reset(struct comedi_device *dev)
 {
-	unsigned long timer_base = dev->iobase + PCL816_TIMER_BASE;
-
 	outb(PCL816_CTRL_DISABLE_TRIG, dev->iobase + PCL816_CTRL_REG);
 	pcl816_ai_set_chan_range(dev, 0, 0);
 	pcl816_ai_clear_eoc(dev);
-
-	/* Stop pacer */
-	i8254_set_mode(timer_base, 0, 2, I8254_MODE0 | I8254_BINARY);
-	i8254_set_mode(timer_base, 0, 1, I8254_MODE0 | I8254_BINARY);
-	i8254_set_mode(timer_base, 0, 0, I8254_MODE0 | I8254_BINARY);
 
 	/* set all digital outputs low */
 	outb(0, dev->iobase + PCL816_DO_DI_LSB_REG);
@@ -661,6 +625,11 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	/* an IRQ and DMA are required to support async commands */
 	pcl816_alloc_irq_and_dma(dev, it);
+
+	dev->pacer = comedi_8254_init(dev->iobase + PCL816_TIMER_BASE,
+				      I8254_OSC_BASE_10MHZ, I8254_IO8, 0);
+	if (!dev->pacer)
+		return -ENOMEM;
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)

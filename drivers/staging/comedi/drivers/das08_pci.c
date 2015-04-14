@@ -32,9 +32,8 @@
  */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
 #include "das08.h"
 

@@ -62,7 +62,7 @@ LIST_HEAD(ldlm_cli_active_namespace_list);
 LIST_HEAD(ldlm_cli_inactive_namespace_list);
 
 struct proc_dir_entry *ldlm_type_proc_dir = NULL;
-struct proc_dir_entry *ldlm_ns_proc_dir = NULL;
+static struct proc_dir_entry *ldlm_ns_proc_dir = NULL;
 struct proc_dir_entry *ldlm_svc_proc_dir = NULL;
 
 extern unsigned int ldlm_cancel_unused_locks_before_replay;

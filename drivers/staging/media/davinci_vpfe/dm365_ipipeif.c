@@ -209,10 +209,10 @@ static int ipipeif_hw_setup(struct v4l2_subdev *sd)
 	/* Combine all the fields to make CFG1 register of IPIPEIF */
 	tmp = val = get_oneshot_mode(ipipeif->input);
 	if (tmp < 0) {
-		pr_err("ipipeif: links setup required");
+		dev_err(&sd->devnode->dev, "ipipeif: links setup required");
 		return -EINVAL;
 	}
-	val = val << ONESHOT_SHIFT;
+	val <<= ONESHOT_SHIFT;
 
 	ipipeif_source = ipipeif_get_source(ipipeif);
 	val |= ipipeif_source << INPSRC_SHIFT;
@@ -747,7 +747,6 @@ static void ipipeif_set_default_config(struct vpfe_ipipeif_device *ipipeif)
 			.clip = 4095,
 		},
 	};
-	memset(&ipipeif->config, 0, sizeof(struct ipipeif_params));
 	memcpy(&ipipeif->config, &ipipeif_defaults,
 	       sizeof(struct ipipeif_params));
 }

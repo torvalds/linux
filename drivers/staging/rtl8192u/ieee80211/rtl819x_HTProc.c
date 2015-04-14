@@ -471,12 +471,10 @@ static bool HTIOTActIsDisableMCS15(struct ieee80211_device *ieee)
 static bool HTIOTActIsDisableMCSTwoSpatialStream(struct ieee80211_device *ieee,
 						 u8 *PeerMacAddr)
 {
-	bool retValue = false;
-
 #ifdef TODO
 	// Apply for 819u only
 #endif
-	return retValue;
+	return false;
 }
 
 /********************************************************************************************************************
@@ -488,11 +486,8 @@ static bool HTIOTActIsDisableMCSTwoSpatialStream(struct ieee80211_device *ieee,
   * *****************************************************************************************************************/
 static u8 HTIOTActIsDisableEDCATurbo(struct ieee80211_device *ieee,
 				     u8 *PeerMacAddr)
-{
-	u8	retValue = false;	// default enable EDCA Turbo mode.
-	// Set specific EDCA parameter for different AP in DM handler.
-
-	return retValue;
+{	/* default enable EDCA Turbo mode. */
+	return false;
 }
 
 /********************************************************************************************************************
@@ -508,7 +503,7 @@ static u8 HTIOTActIsMgntUseCCK6M(struct ieee80211_network *network)
 	// 2008/01/25 MH Judeg if we need to use OFDM to sned MGNT frame for broadcom AP.
 	// 2008/01/28 MH We must prevent that we select null bssid to link.
 
-	if(network->broadcom_cap_exist)
+	if (network->broadcom_cap_exist)
 	{
 		retValue = 1;
 	}
@@ -625,7 +620,7 @@ void HTConstructCapabilityElement(struct ieee80211_device *ieee, u8 *posHTCap, u
 
 	// 2008.06.12
 	// For RTL819X, if pairwisekey = wep/tkip, ap is ralink, we support only MCS0~7.
-	if(ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev))
+	if (ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev))
 	{
 		int i;
 		for(i = 1; i< 16; i++)
@@ -752,7 +747,7 @@ void HTConstructRT2RTAggElement(struct ieee80211_device *ieee, u8 *posRT2RTAgg, 
 	*posRT2RTAgg++ = 0x01;
 	*posRT2RTAgg = 0x10;//*posRT2RTAgg = 0x02;
 
-	if(ieee->bSupportRemoteWakeUp) {
+	if (ieee->bSupportRemoteWakeUp) {
 		*posRT2RTAgg |= 0x08;//RT_HT_CAP_USE_WOW;
 	}
 
@@ -879,17 +874,17 @@ u8 HTGetHighestMCSRate(struct ieee80211_device *ieee, u8 *pMCSRateSet, u8 *pMCSF
 
 	for(i = 0; i < 16; i++)
 	{
-		if(availableMcsRate[i] != 0)
+		if (availableMcsRate[i] != 0)
 		{
 			bitMap = availableMcsRate[i];
 			for(j = 0; j < 8; j++)
 			{
-				if((bitMap%2) != 0)
+				if ((bitMap%2) != 0)
 				{
 					if(HTMcsToDataRate(ieee, (8*i+j)) > HTMcsToDataRate(ieee, mcsRate))
 						mcsRate = (8*i+j);
 				}
-				bitMap = bitMap>>1;
+				bitMap >>= 1;
 			}
 		}
 	}
@@ -1067,7 +1062,7 @@ void HTOnAssocRsp(struct ieee80211_device *ieee)
 
 	// Lanhsin: mark for tmp to avoid deauth by ap from  s3
 	//if(memcmp(pMgntInfo->Bssid, NETGEAR834Bv2_BROADCOM, 3)==0)
-	if(0)
+	if (0)
 		{
 
 			pHTInfo->bCurrentAMPDUEnable = false;
@@ -1303,7 +1298,7 @@ void HTUpdateSelfAndPeerSetting(struct ieee80211_device *ieee,	struct ieee80211_
 //	PHT_CAPABILITY_ELE		pPeerHTCap = (PHT_CAPABILITY_ELE)pNetwork->bssht.bdHTCapBuf;
 	PHT_INFORMATION_ELE		pPeerHTInfo = (PHT_INFORMATION_ELE)pNetwork->bssht.bdHTInfoBuf;
 
-	if(pHTInfo->bCurrentHTSupport)
+	if (pHTInfo->bCurrentHTSupport)
 	{
 		//
 		// Config current operation mode.
@@ -1328,7 +1323,7 @@ EXPORT_SYMBOL(HTUpdateSelfAndPeerSetting);
 ********************************************************************************************************************/
 u8 HTCCheck(struct ieee80211_device *ieee, u8 *pFrame)
 {
-	if(ieee->pHTInfo->bCurrentHTSupport)
+	if (ieee->pHTInfo->bCurrentHTSupport)
 	{
 		if ((IsQoSDataFrame(pFrame) && Frame_Order(pFrame)) == 1) {
 			IEEE80211_DEBUG(IEEE80211_DL_HT, "HT CONTROL FILED EXIST!!\n");
@@ -1357,7 +1352,7 @@ void HTSetConnectBwMode(struct ieee80211_device *ieee, HT_CHANNEL_WIDTH	Bandwidt
 //		return;
 
 //	spin_lock_irqsave(&(ieee->bw_spinlock), flags);
-	if(pHTInfo->bSwBwInProgress) {
+	if (pHTInfo->bSwBwInProgress) {
 //		spin_unlock_irqrestore(&(ieee->bw_spinlock), flags);
 		return;
 	}

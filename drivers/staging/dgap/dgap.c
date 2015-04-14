@@ -1361,7 +1361,6 @@ static uint dgap_get_custom_baud(struct channel_t *ch)
 {
 	u8 __iomem *vaddr;
 	ulong offset;
-	uint value;
 
 	if (!ch || ch->magic != DGAP_CHANNEL_MAGIC)
 		return 0;
@@ -1384,8 +1383,7 @@ static uint dgap_get_custom_baud(struct channel_t *ch)
 	offset = (ioread16(vaddr + ECS_SEG) << 4) + (ch->ch_portnum * 0x28)
 	       + LINE_SPEED;
 
-	value = readw(vaddr + offset);
-	return value;
+	return readw(vaddr + offset);
 }
 
 /*
@@ -2196,7 +2194,7 @@ static struct board_t *dgap_found_board(struct pci_dev *pdev, int id,
 	 * will be mapped into the low 2MB of the 4MB memory space
 	 */
 	brd->port = brd->membase + PCI_IO_OFFSET;
-	brd->port_end = brd->port + PCI_IO_SIZE;
+	brd->port_end = brd->port + PCI_IO_SIZE_DGAP;
 
 	/*
 	 * Special initialization for non-PLX boards
@@ -3979,7 +3977,6 @@ static int dgap_get_modem_info(struct channel_t *ch, unsigned int __user *value)
 	int result;
 	u8 mstat;
 	ulong lock_flags;
-	int rc;
 
 	spin_lock_irqsave(&ch->ch_lock, lock_flags);
 
@@ -4004,9 +4001,7 @@ static int dgap_get_modem_info(struct channel_t *ch, unsigned int __user *value)
 	if (mstat & D_CD(ch))
 		result |= TIOCM_CD;
 
-	rc = put_user(result, value);
-
-	return rc;
+	return put_user(result, value);
 }
 
 /*
@@ -7044,8 +7039,7 @@ static int dgap_start(void)
 
 	/* Start the poller */
 	spin_lock_irqsave(&dgap_poll_lock, flags);
-	init_timer(&dgap_poll_timer);
-	dgap_poll_timer.function = dgap_poll_handler;
+	setup_timer(&dgap_poll_timer, dgap_poll_handler, 0);
 	dgap_poll_timer.data = 0;
 	dgap_poll_time = jiffies + dgap_jiffies_from_ms(dgap_poll_tick);
 	dgap_poll_timer.expires = dgap_poll_time;

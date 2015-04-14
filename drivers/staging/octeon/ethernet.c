@@ -573,8 +573,6 @@ static const struct net_device_ops cvm_oct_pow_netdev_ops = {
 #endif
 };
 
-extern void octeon_mdiobus_force_mod_depencency(void);
-
 static struct device_node *cvm_oct_of_get_child(
 				const struct device_node *parent, int reg_val)
 {
@@ -859,7 +857,7 @@ static int cvm_oct_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id cvm_oct_match[] = {
+static const struct of_device_id cvm_oct_match[] = {
 	{
 		.compatible = "cavium,octeon-3860-pip",
 	},

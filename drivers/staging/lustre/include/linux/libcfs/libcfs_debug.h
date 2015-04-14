@@ -196,7 +196,7 @@ do {								\
 	       .msg_fn     = __func__,				\
 	       .msg_line   = __LINE__,				\
 	       .msg_cdls   = (cdls)	 };			\
-	dataname.msg_mask   = (mask);
+	dataname.msg_mask   = (mask)
 
 /**
  * Filters out logging messages based on mask and subsystem.
@@ -244,12 +244,12 @@ do {									\
 
 int libcfs_debug_msg(struct libcfs_debug_msg_data *msgdata,
 			    const char *format1, ...)
-	__attribute__ ((format (printf, 2, 3)));
+	__printf(2, 3);
 
 int libcfs_debug_vmsg2(struct libcfs_debug_msg_data *msgdata,
 			      const char *format1,
 			      va_list args, const char *format2, ...)
-	__attribute__ ((format (printf, 4, 5)));
+	__printf(4, 5);
 
 /* other external symbols that tracefile provides: */
 int cfs_trace_copyin_string(char *knl_buffer, int knl_buffer_nob,

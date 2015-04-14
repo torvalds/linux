@@ -128,7 +128,7 @@ static int find_cbdata(struct inode *inode)
 	rc = md_find_cbdata(sbi->ll_md_exp, ll_inode2fid(inode),
 			    return_if_equal, NULL);
 	if (rc != 0)
-		 return rc;
+		return rc;
 
 	lsm = ccc_inode_lsm_get(inode);
 	if (lsm == NULL)
@@ -339,13 +339,10 @@ static int ll_revalidate_dentry(struct dentry *dentry,
  */
 static int ll_revalidate_nd(struct dentry *dentry, unsigned int flags)
 {
-	int rc;
-
 	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd, flags=%u\n",
 	       dentry, flags);
 
-	rc = ll_revalidate_dentry(dentry, flags);
-	return rc;
+	return ll_revalidate_dentry(dentry, flags);
 }
 
 

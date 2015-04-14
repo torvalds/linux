@@ -582,8 +582,6 @@ static int prism2mib_privacyinvoked(struct mibrec *mib,
 				    struct p80211msg_dot11req_mibset *msg,
 				    void *data)
 {
-	int result;
-
 	if (wlandev->hostwep & HOSTWEP_DECRYPT) {
 		if (wlandev->hostwep & HOSTWEP_DECRYPT)
 			mib->parm2 |= HFA384x_WEPFLAGS_DISABLE_RXCRYPT;
@@ -591,9 +589,7 @@ static int prism2mib_privacyinvoked(struct mibrec *mib,
 			mib->parm2 |= HFA384x_WEPFLAGS_DISABLE_TXCRYPT;
 	}
 
-	result = prism2mib_flag(mib, isget, wlandev, hw, msg, data);
-
-	return result;
+	return prism2mib_flag(mib, isget, wlandev, hw, msg, data);
 }
 
 /*----------------------------------------------------------------
@@ -628,11 +624,8 @@ static int prism2mib_excludeunencrypted(struct mibrec *mib,
 					struct p80211msg_dot11req_mibset *msg,
 					void *data)
 {
-	int result;
 
-	result = prism2mib_flag(mib, isget, wlandev, hw, msg, data);
-
-	return result;
+	return prism2mib_flag(mib, isget, wlandev, hw, msg, data);
 }
 
 /*----------------------------------------------------------------

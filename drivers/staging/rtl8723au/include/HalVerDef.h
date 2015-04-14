@@ -51,30 +51,17 @@ enum hal_vendor {
 	CHIP_VENDOR_UMC		=	1,
 };
 
-enum hal_rf_type {
-	RF_TYPE_1T1R	=	0,
-	RF_TYPE_1T2R	=	1,
-	RF_TYPE_2T2R	=	2,
-	RF_TYPE_2T3R	=	3,
-	RF_TYPE_2T4R	=	4,
-	RF_TYPE_3T3R	=	5,
-	RF_TYPE_3T4R	=	6,
-	RF_TYPE_4T4R	=	7,
-};
-
 struct hal_version {
 	enum hal_ic_type	ICType;
 	enum hal_chip_type	ChipType;
 	enum hal_cut_version	CUTVersion;
 	enum hal_vendor		VendorType;
-	enum hal_rf_type	RFType;
 	u8			ROMVer;
 };
 
 /*  Get element */
 #define GET_CVID_IC_TYPE(version)	((version).ICType)
 #define GET_CVID_CHIP_TYPE(version)	((version).ChipType)
-#define GET_CVID_RF_TYPE(version)	((version).RFType)
 #define GET_CVID_MANUFACTUER(version)	((version).VendorType)
 #define GET_CVID_CUT_VERSION(version)	((version).CUTVersion)
 #define GET_CVID_ROM_VERSION(version)	(((version).ROMVer) & ROM_VERSION_MASK)
@@ -108,17 +95,8 @@ struct hal_version {
 #define IS_CHIP_VENDOR_UMC(version)		\
 	((GET_CVID_MANUFACTUER(version) == CHIP_VENDOR_UMC) ? true : false)
 
-#define IS_1T1R(version)			\
-	((GET_CVID_RF_TYPE(version) == RF_TYPE_1T1R) ? true : false)
-#define IS_1T2R(version)			\
-	((GET_CVID_RF_TYPE(version) == RF_TYPE_1T2R) ? true : false)
-#define IS_2T2R(version)			\
-	((GET_CVID_RF_TYPE(version) == RF_TYPE_2T2R) ? true : false)
-
 /* Chip version Macro. -- */
 
-#define IS_92C_SERIAL(version)					\
-	((IS_81XXC(version) && IS_2T2R(version)) ? true : false)
 #define IS_81xxC_VENDOR_UMC_A_CUT(version)			\
 	(IS_81XXC(version)?(IS_CHIP_VENDOR_UMC(version) ?	\
 	(IS_A_CUT(version) ? true : false) : false) : false)

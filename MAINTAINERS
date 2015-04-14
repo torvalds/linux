@@ -724,7 +724,7 @@ F:	staging/iio/trigger/iio-trig-bfin-timer.c
 
 ANDROID DRIVERS
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-M:	Arve Hjønnevåg <arve@android.com>
+M:	Arve HjÃ¸nnevÃ¥g <arve@android.com>
 M:	Riley Andrews <riandrews@android.com>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/gregkh/staging.git
 L:	devel@driverdev.osuosl.org
@@ -4169,6 +4169,12 @@ F:	sound/soc/fsl/fsl*
 F:	sound/soc/fsl/imx*
 F:	sound/soc/fsl/mpc8610_hpcd.c
 
+FREESCALE QORIQ MANAGEMENT COMPLEX DRIVER
+M:	J. German Rivera <German.Rivera@freescale.com>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	drivers/staging/fsl-mc/
+
 FREEVXFS FILESYSTEM
 M:	Christoph Hellwig <hch@infradead.org>
 W:	ftp://ftp.openlinux.org/pub/people/hch/vxfs
@@ -4954,6 +4960,7 @@ S:	Maintained
 F:	drivers/iio/
 F:	drivers/staging/iio/
 F:	include/linux/iio/
+F:	tools/iio/
 
 IKANOS/ADI EAGLE ADSL USB DRIVER
 M:	Matthieu Castet <castet.matthieu@free.fr>
@@ -9362,6 +9369,14 @@ M:	Sudip Mukherjee <sudip@vectorindia.org>
 L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/staging/sm7xxfb/
+
+STAGING - SILICON MOTION SM750 FRAME BUFFER DRIVER
+M:	Sudip Mukherjee <sudipm.mukherjee@gmail.com>
+M:	Teddy Wang <teddy.wang@siliconmotion.com>
+M:	Sudip Mukherjee <sudip@vectorindia.org>
+L:	linux-fbdev@vger.kernel.org
+S:	Maintained
+F:	drivers/staging/sm750fb/
 
 STAGING - SLICOSS
 M:	Lior Dotan <liodot@gmail.com>

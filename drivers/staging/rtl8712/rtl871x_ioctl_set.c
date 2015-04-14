@@ -85,7 +85,8 @@ static u8 do_join(struct _adapter *padapter)
 
 		ret = r8712_select_and_join_from_scan(pmlmepriv);
 		if (ret == _SUCCESS)
-			_set_timer(&pmlmepriv->assoc_timer, MAX_JOIN_TIMEOUT);
+			mod_timer(&pmlmepriv->assoc_timer,
+				  jiffies + msecs_to_jiffies(MAX_JOIN_TIMEOUT));
 		else {
 			if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE)) {
 				/* submit r8712_createbss_cmd to change to an
@@ -265,8 +266,7 @@ void r8712_set_802_11_infrastructure_mode(struct _adapter *padapter,
 		/* clear WIFI_STATION_STATE; WIFI_AP_STATE; WIFI_ADHOC_STATE;
 		 * WIFI_ADHOC_MASTER_STATE */
 		_clr_fwstate_(pmlmepriv, WIFI_STATION_STATE | WIFI_AP_STATE |
-			      WIFI_ADHOC_STATE | WIFI_ADHOC_MASTER_STATE |
-			      WIFI_AP_STATE);
+			      WIFI_ADHOC_STATE | WIFI_ADHOC_MASTER_STATE);
 		switch (networktype) {
 		case Ndis802_11IBSS:
 			set_fwstate(pmlmepriv, WIFI_ADHOC_STATE);

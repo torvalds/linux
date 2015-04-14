@@ -3548,7 +3548,7 @@ static int __init d40_probe(struct platform_device *pdev)
 
 	if (!plat_data) {
 		if (np) {
-			if(d40_of_probe(pdev, np)) {
+			if (d40_of_probe(pdev, np)) {
 				ret = -ENOMEM;
 				goto failure;
 			}
