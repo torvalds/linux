@@ -222,10 +222,9 @@ void mdc_open_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 	rec->cr_fsuid    = from_kuid(&init_user_ns, current_fsuid());
 	rec->cr_fsgid    = from_kgid(&init_user_ns, current_fsgid());
 	rec->cr_cap      = cfs_curproc_cap_pack();
-	if (op_data != NULL) {
-		rec->cr_fid1 = op_data->op_fid1;
-		rec->cr_fid2 = op_data->op_fid2;
-	}
+	rec->cr_fid1 = op_data->op_fid1;
+	rec->cr_fid2 = op_data->op_fid2;
+
 	rec->cr_mode     = mode;
 	cr_flags = mds_pack_open_flags(flags, mode);
 	rec->cr_rdev     = rdev;

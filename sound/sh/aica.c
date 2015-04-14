@@ -35,12 +35,12 @@
 #include <linux/timer.h>
 #include <linux/delay.h>
 #include <linux/workqueue.h>
+#include <linux/io.h>
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/pcm.h>
 #include <sound/initval.h>
 #include <sound/info.h>
-#include <asm/io.h>
 #include <asm/dma.h>
 #include <mach/sysasic.h>
 #include "aica.h"
@@ -343,11 +343,9 @@ static void spu_begin_dma(struct snd_pcm_substream *substream)
 		mod_timer(&dreamcastcard->timer, jiffies + 4);
 		return;
 	}
-	init_timer(&(dreamcastcard->timer));
-	dreamcastcard->timer.data = (unsigned long) substream;
-	dreamcastcard->timer.function = aica_period_elapsed;
-	dreamcastcard->timer.expires = jiffies + 4;
-	add_timer(&(dreamcastcard->timer));
+	setup_timer(&dreamcastcard->timer, aica_period_elapsed,
+		    (unsigned long) substream);
+	mod_timer(&dreamcastcard->timer, jiffies + 4);
 }
 
 static int snd_aicapcm_pcm_open(struct snd_pcm_substream

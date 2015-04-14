@@ -17,9 +17,8 @@
 /*
  * Driver: ni_labpc
  * Description: National Instruments Lab-PC (& compatibles)
- * Devices: (National Instruments) Lab-PC-1200 [lab-pc-1200]
- *	    (National Instruments) Lab-PC-1200AI [lab-pc-1200ai]
- *	    (National Instruments) Lab-PC+ [lab-pc+]
+ * Devices: [National Instruments] Lab-PC-1200 (lab-pc-1200),
+ *   Lab-PC-1200AI (lab-pc-1200ai), Lab-PC+ (lab-pc+)
  * Author: Frank Mori Hess <fmhess@users.sourceforge.net>
  * Status: works
  *
@@ -85,14 +84,9 @@ static const struct labpc_boardinfo labpc_boards[] = {
 
 static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	struct labpc_private *devpriv;
 	unsigned int irq = it->options[1];
 	unsigned int dma_chan = it->options[2];
 	int ret;
-
-	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
-	if (!devpriv)
-		return -ENOMEM;
 
 	ret = comedi_request_region(dev, it->options[0], 0x20);
 	if (ret)
@@ -110,11 +104,7 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void labpc_detach(struct comedi_device *dev)
 {
-	struct labpc_private *devpriv = dev->private;
-
-	if (devpriv)
-		labpc_free_dma_chan(dev);
-
+	labpc_free_dma_chan(dev);
 	comedi_legacy_detach(dev);
 }
 

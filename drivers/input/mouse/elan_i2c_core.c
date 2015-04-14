@@ -99,7 +99,7 @@ static int elan_enable_power(struct elan_tp_data *data)
 	error = regulator_enable(data->vcc);
 	if (error) {
 		dev_err(&data->client->dev,
-			"Failed to enable regulator: %d\n", error);
+			"failed to enable regulator: %d\n", error);
 		return error;
 	}
 
@@ -111,6 +111,7 @@ static int elan_enable_power(struct elan_tp_data *data)
 		msleep(30);
 	} while (--repeat > 0);
 
+	dev_err(&data->client->dev, "failed to enable power: %d\n", error);
 	return error;
 }
 
@@ -125,7 +126,7 @@ static int elan_disable_power(struct elan_tp_data *data)
 			error = regulator_disable(data->vcc);
 			if (error) {
 				dev_err(&data->client->dev,
-					"Failed to disable regulator: %d\n",
+					"failed to disable regulator: %d\n",
 					error);
 				/* Attempt to power the chip back up */
 				data->ops->power_control(data->client, true);
@@ -138,6 +139,7 @@ static int elan_disable_power(struct elan_tp_data *data)
 		msleep(30);
 	} while (--repeat > 0);
 
+	dev_err(&data->client->dev, "failed to disable power: %d\n", error);
 	return error;
 }
 
@@ -196,7 +198,6 @@ static int elan_initialize(struct elan_tp_data *data)
 		if (!error)
 			return 0;
 
-		repeat--;
 		msleep(30);
 	} while (--repeat > 0);
 
@@ -1084,16 +1085,18 @@ static int __maybe_unused elan_resume(struct device *dev)
 	}
 
 	error = elan_enable_power(data);
-	if (error)
+	if (error) {
 		dev_err(dev, "power up when resuming failed: %d\n", error);
+		goto err;
+	}
 
 	error = elan_initialize(data);
 	if (error)
 		dev_err(dev, "initialize when resuming failed: %d\n", error);
 
+err:
 	enable_irq(data->client->irq);
-
-	return 0;
+	return error;
 }
 
 static SIMPLE_DEV_PM_OPS(elan_pm_ops, elan_suspend, elan_resume);

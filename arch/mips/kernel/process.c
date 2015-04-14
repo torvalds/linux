@@ -25,6 +25,7 @@
 #include <linux/completion.h>
 #include <linux/kallsyms.h>
 #include <linux/random.h>
+#include <linux/prctl.h>
 
 #include <asm/asm.h>
 #include <asm/bootinfo.h>
@@ -561,4 +562,99 @@ static void arch_dump_stack(void *info)
 void arch_trigger_all_cpu_backtrace(bool include_self)
 {
 	smp_call_function(arch_dump_stack, NULL, 1);
+}
+
+int mips_get_process_fp_mode(struct task_struct *task)
+{
+	int value = 0;
+
+	if (!test_tsk_thread_flag(task, TIF_32BIT_FPREGS))
+		value |= PR_FP_MODE_FR;
+	if (test_tsk_thread_flag(task, TIF_HYBRID_FPREGS))
+		value |= PR_FP_MODE_FRE;
+
+	return value;
+}
+
+int mips_set_process_fp_mode(struct task_struct *task, unsigned int value)
+{
+	const unsigned int known_bits = PR_FP_MODE_FR | PR_FP_MODE_FRE;
+	unsigned long switch_count;
+	struct task_struct *t;
+
+	/* Check the value is valid */
+	if (value & ~known_bits)
+		return -EOPNOTSUPP;
+
+	/* Avoid inadvertently triggering emulation */
+	if ((value & PR_FP_MODE_FR) && cpu_has_fpu &&
+	    !(current_cpu_data.fpu_id & MIPS_FPIR_F64))
+		return -EOPNOTSUPP;
+	if ((value & PR_FP_MODE_FRE) && cpu_has_fpu && !cpu_has_fre)
+		return -EOPNOTSUPP;
+
+	/* FR = 0 not supported in MIPS R6 */
+	if (!(value & PR_FP_MODE_FR) && cpu_has_fpu && cpu_has_mips_r6)
+		return -EOPNOTSUPP;
+
+	/* Save FP & vector context, then disable FPU & MSA */
+	if (task->signal == current->signal)
+		lose_fpu(1);
+
+	/* Prevent any threads from obtaining live FP context */
+	atomic_set(&task->mm->context.fp_mode_switching, 1);
+	smp_mb__after_atomic();
+
+	/*
+	 * If there are multiple online CPUs then wait until all threads whose
+	 * FP mode is about to change have been context switched. This approach
+	 * allows us to only worry about whether an FP mode switch is in
+	 * progress when FP is first used in a tasks time slice. Pretty much all
+	 * of the mode switch overhead can thus be confined to cases where mode
+	 * switches are actually occuring. That is, to here. However for the
+	 * thread performing the mode switch it may take a while...
+	 */
+	if (num_online_cpus() > 1) {
+		spin_lock_irq(&task->sighand->siglock);
+
+		for_each_thread(task, t) {
+			if (t == current)
+				continue;
+
+			switch_count = t->nvcsw + t->nivcsw;
+
+			do {
+				spin_unlock_irq(&task->sighand->siglock);
+				cond_resched();
+				spin_lock_irq(&task->sighand->siglock);
+			} while ((t->nvcsw + t->nivcsw) == switch_count);
+		}
+
+		spin_unlock_irq(&task->sighand->siglock);
+	}
+
+	/*
+	 * There are now no threads of the process with live FP context, so it
+	 * is safe to proceed with the FP mode switch.
+	 */
+	for_each_thread(task, t) {
+		/* Update desired FP register width */
+		if (value & PR_FP_MODE_FR) {
+			clear_tsk_thread_flag(t, TIF_32BIT_FPREGS);
+		} else {
+			set_tsk_thread_flag(t, TIF_32BIT_FPREGS);
+			clear_tsk_thread_flag(t, TIF_MSA_CTX_LIVE);
+		}
+
+		/* Update desired FP single layout */
+		if (value & PR_FP_MODE_FRE)
+			set_tsk_thread_flag(t, TIF_HYBRID_FPREGS);
+		else
+			clear_tsk_thread_flag(t, TIF_HYBRID_FPREGS);
+	}
+
+	/* Allow threads to use FP again */
+	atomic_set(&task->mm->context.fp_mode_switching, 0);
+
+	return 0;
 }

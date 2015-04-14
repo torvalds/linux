@@ -583,7 +583,7 @@ nfs4_reset_recoverydir(char *recdir)
 	if (status)
 		return status;
 	status = -ENOTDIR;
-	if (S_ISDIR(path.dentry->d_inode->i_mode)) {
+	if (d_is_dir(path.dentry)) {
 		strcpy(user_recovery_dirname, recdir);
 		status = 0;
 	}
@@ -1426,7 +1426,7 @@ nfsd4_client_tracking_init(struct net *net)
 	nn->client_tracking_ops = &nfsd4_legacy_tracking_ops;
 	status = kern_path(nfs4_recoverydir(), LOOKUP_FOLLOW, &path);
 	if (!status) {
-		status = S_ISDIR(path.dentry->d_inode->i_mode);
+		status = d_is_dir(path.dentry);
 		path_put(&path);
 		if (status)
 			goto do_init;

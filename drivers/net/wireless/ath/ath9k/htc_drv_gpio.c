@@ -279,6 +279,10 @@ void ath9k_init_leds(struct ath9k_htc_priv *priv)
 	else
 		priv->ah->led_pin = ATH_LED_PIN_DEF;
 
+	if (!ath9k_htc_led_blink)
+		priv->led_cdev.default_trigger =
+			ieee80211_get_radio_led_name(priv->hw);
+
 	ath9k_configure_leds(priv);
 
 	snprintf(priv->led_name, sizeof(priv->led_name),

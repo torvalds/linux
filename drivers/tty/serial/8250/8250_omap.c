@@ -106,6 +106,28 @@ static u32 uart_read(struct uart_8250_port *up, u32 reg)
 	return readl(up->port.membase + (reg << up->port.regshift));
 }
 
+static void omap8250_set_mctrl(struct uart_port *port, unsigned int mctrl)
+{
+	struct uart_8250_port *up = up_to_u8250p(port);
+	struct omap8250_priv *priv = up->port.private_data;
+	u8 lcr;
+
+	serial8250_do_set_mctrl(port, mctrl);
+
+	/*
+	 * Turn off autoRTS if RTS is lowered and restore autoRTS setting
+	 * if RTS is raised
+	 */
+	lcr = serial_in(up, UART_LCR);
+	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
+	if ((mctrl & TIOCM_RTS) && (port->status & UPSTAT_AUTORTS))
+		priv->efr |= UART_EFR_RTS;
+	else
+		priv->efr &= ~UART_EFR_RTS;
+	serial_out(up, UART_EFR, priv->efr);
+	serial_out(up, UART_LCR, lcr);
+}
+
 /*
  * Work Around for Errata i202 (2430, 3430, 3630, 4430 and 4460)
  * The access to uart register after MDR1 Access
@@ -397,12 +419,12 @@ static void omap_8250_set_termios(struct uart_port *port,
 
 	priv->efr = 0;
 	up->mcr &= ~(UART_MCR_RTS | UART_MCR_XONANY);
-	if (termios->c_cflag & CRTSCTS && up->port.flags & UPF_HARD_FLOW) {
-		/* Enable AUTORTS and AUTOCTS */
-		priv->efr |= UART_EFR_CTS | UART_EFR_RTS;
+	up->port.status &= ~(UPSTAT_AUTOCTS | UPSTAT_AUTORTS | UPSTAT_AUTOXOFF);
 
-		/* Ensure MCR RTS is asserted */
-		up->mcr |= UART_MCR_RTS;
+	if (termios->c_cflag & CRTSCTS && up->port.flags & UPF_HARD_FLOW) {
+		/* Enable AUTOCTS (autoRTS is enabled when RTS is raised) */
+		up->port.status |= UPSTAT_AUTOCTS | UPSTAT_AUTORTS;
+		priv->efr |= UART_EFR_CTS;
 	} else	if (up->port.flags & UPF_SOFT_FLOW) {
 		/*
 		 * IXON Flag:
@@ -417,8 +439,10 @@ static void omap_8250_set_termios(struct uart_port *port,
 		 * Enable XON/XOFF flow control on output.
 		 * Transmit XON1, XOFF1
 		 */
-		if (termios->c_iflag & IXOFF)
+		if (termios->c_iflag & IXOFF) {
+			up->port.status |= UPSTAT_AUTOXOFF;
 			priv->efr |= OMAP_UART_SW_TX;
+		}
 
 		/*
 		 * IXANY Flag:
@@ -450,18 +474,18 @@ static void omap_8250_set_termios(struct uart_port *port,
 static void omap_8250_pm(struct uart_port *port, unsigned int state,
 			 unsigned int oldstate)
 {
-	struct uart_8250_port *up =
-		container_of(port, struct uart_8250_port, port);
-	struct omap8250_priv *priv = up->port.private_data;
+	struct uart_8250_port *up = up_to_u8250p(port);
+	u8 efr;
 
 	pm_runtime_get_sync(port->dev);
 	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
-	serial_out(up, UART_EFR, priv->efr | UART_EFR_ECB);
+	efr = serial_in(up, UART_EFR);
+	serial_out(up, UART_EFR, efr | UART_EFR_ECB);
 	serial_out(up, UART_LCR, 0);
 
 	serial_out(up, UART_IER, (state != 0) ? UART_IERX_SLEEP : 0);
 	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
-	serial_out(up, UART_EFR, priv->efr);
+	serial_out(up, UART_EFR, efr);
 	serial_out(up, UART_LCR, 0);
 
 	pm_runtime_mark_last_busy(port->dev);
@@ -1007,6 +1031,7 @@ static int omap8250_probe(struct platform_device *pdev)
 	up.capabilities |= UART_CAP_RPM;
 #endif
 	up.port.set_termios = omap_8250_set_termios;
+	up.port.set_mctrl = omap8250_set_mctrl;
 	up.port.pm = omap_8250_pm;
 	up.port.startup = omap_8250_startup;
 	up.port.shutdown = omap_8250_shutdown;
@@ -1248,6 +1273,46 @@ static int omap8250_runtime_resume(struct device *dev)
 }
 #endif
 
+#ifdef CONFIG_SERIAL_8250_OMAP_TTYO_FIXUP
+static int __init omap8250_console_fixup(void)
+{
+	char *omap_str;
+	char *options;
+	u8 idx;
+
+	if (strstr(boot_command_line, "console=ttyS"))
+		/* user set a ttyS based name for the console */
+		return 0;
+
+	omap_str = strstr(boot_command_line, "console=ttyO");
+	if (!omap_str)
+		/* user did not set ttyO based console, so we don't care */
+		return 0;
+
+	omap_str += 12;
+	if ('0' <= *omap_str && *omap_str <= '9')
+		idx = *omap_str - '0';
+	else
+		return 0;
+
+	omap_str++;
+	if (omap_str[0] == ',') {
+		omap_str++;
+		options = omap_str;
+	} else {
+		options = NULL;
+	}
+
+	add_preferred_console("ttyS", idx, options);
+	pr_err("WARNING: Your 'console=ttyO%d' has been replaced by 'ttyS%d'\n",
+	       idx, idx);
+	pr_err("This ensures that you still see kernel messages. Please\n");
+	pr_err("update your kernel commandline.\n");
+	return 0;
+}
+console_initcall(omap8250_console_fixup);
+#endif
+
 static const struct dev_pm_ops omap8250_dev_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(omap8250_suspend, omap8250_resume)
 	SET_RUNTIME_PM_OPS(omap8250_runtime_suspend,
@@ -1269,7 +1334,6 @@ static struct platform_driver omap8250_platform_driver = {
 		.name		= "omap8250",
 		.pm		= &omap8250_dev_pm_ops,
 		.of_match_table = omap8250_dt_ids,
-		.owner		= THIS_MODULE,
 	},
 	.probe			= omap8250_probe,
 	.remove			= omap8250_remove,

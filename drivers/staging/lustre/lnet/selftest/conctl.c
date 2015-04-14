@@ -721,7 +721,7 @@ lst_stat_query_ioctl(lstio_stat_args_t *args)
 	return rc;
 }
 
-int lst_test_add_ioctl(lstio_test_args_t *args)
+static int lst_test_add_ioctl(lstio_test_args_t *args)
 {
 	char		*batch_name;
 	char		*src_name = NULL;

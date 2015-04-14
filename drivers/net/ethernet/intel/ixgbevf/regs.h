@@ -69,6 +69,16 @@
 #define IXGBE_VFGOTC_LSB       0x02020
 #define IXGBE_VFGOTC_MSB       0x02024
 #define IXGBE_VFMPRC           0x01034
+#define IXGBE_VFMRQC           0x3000
+#define IXGBE_VFRSSRK(x)       (0x3100 + ((x) * 4))
+#define IXGBE_VFRETA(x)        (0x3200 + ((x) * 4))
+
+/* VFMRQC bits */
+#define IXGBE_VFMRQC_RSSEN              0x00000001  /* RSS Enable */
+#define IXGBE_VFMRQC_RSS_FIELD_IPV4_TCP 0x00010000
+#define IXGBE_VFMRQC_RSS_FIELD_IPV4     0x00020000
+#define IXGBE_VFMRQC_RSS_FIELD_IPV6     0x00100000
+#define IXGBE_VFMRQC_RSS_FIELD_IPV6_TCP 0x00200000
 
 #define IXGBE_WRITE_FLUSH(a) (IXGBE_READ_REG(a, IXGBE_VFSTATUS))
 

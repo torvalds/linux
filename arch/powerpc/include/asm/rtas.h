@@ -327,7 +327,7 @@ extern int rtas_suspend_cpu(struct rtas_suspend_me_data *data);
 extern int rtas_suspend_last_cpu(struct rtas_suspend_me_data *data);
 extern int rtas_online_cpus_mask(cpumask_var_t cpus);
 extern int rtas_offline_cpus_mask(cpumask_var_t cpus);
-extern int rtas_ibm_suspend_me(struct rtas_args *);
+extern int rtas_ibm_suspend_me(u64 handle, int *vasi_return);
 
 struct rtc_time;
 extern unsigned long rtas_get_boot_time(void);

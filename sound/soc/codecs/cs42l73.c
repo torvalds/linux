@@ -1347,7 +1347,7 @@ static int cs42l73_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_cs42l73 = {
+static const struct snd_soc_codec_driver soc_codec_dev_cs42l73 = {
 	.probe = cs42l73_probe,
 	.set_bias_level = cs42l73_set_bias_level,
 	.suspend_bias_off = true,
@@ -1361,7 +1361,7 @@ static struct snd_soc_codec_driver soc_codec_dev_cs42l73 = {
 	.num_controls = ARRAY_SIZE(cs42l73_snd_controls),
 };
 
-static struct regmap_config cs42l73_regmap = {
+static const struct regmap_config cs42l73_regmap = {
 	.reg_bits = 8,
 	.val_bits = 8,
 

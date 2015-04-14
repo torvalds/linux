@@ -12,9 +12,9 @@ Optional properties:
                                property is not present, then the touchscreen is
                                disabled. 5 wires is valid for i.MX28 SoC only.
 - fsl,ave-ctrl: number of samples per direction to calculate an average value.
-                Allowed value is 1 ... 31, default is 4
+                Allowed value is 1 ... 32, default is 4
 - fsl,ave-delay: delay between consecutive samples. Allowed value is
-                 1 ... 2047. It is used if 'fsl,ave-ctrl' > 1, counts at
+                 2 ... 2048. It is used if 'fsl,ave-ctrl' > 1, counts at
                  2 kHz and its default is 2 (= 1 ms)
 - fsl,settling: delay between plate switch to next sample. Allowed value is
                 1 ... 2047. It counts at 2 kHz and its default is

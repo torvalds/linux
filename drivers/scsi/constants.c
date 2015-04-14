@@ -18,13 +18,9 @@
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_dbg.h>
 
-
-
 /* Commands with service actions that change the command name */
 #define THIRD_PARTY_COPY_OUT 0x83
 #define THIRD_PARTY_COPY_IN 0x84
-
-#define VENDOR_SPECIFIC_CDB 0xc0
 
 struct sa_name_list {
 	int opcode;
@@ -37,7 +33,6 @@ struct value_name_pair {
 	const char * name;
 };
 
-#ifdef CONFIG_SCSI_CONSTANTS
 static const char * cdb_byte0_names[] = {
 /* 00-03 */ "Test Unit Ready", "Rezero Unit/Rewind", NULL, "Request Sense",
 /* 04-07 */ "Format Unit/Medium", "Read Block Limits", NULL,
@@ -261,28 +256,8 @@ static struct sa_name_list sa_names_arr[] = {
 	{0, NULL, 0},
 };
 
-#else /* ifndef CONFIG_SCSI_CONSTANTS */
-static const char *cdb_byte0_names[0];
-
-static struct sa_name_list sa_names_arr[] = {
-	{VARIABLE_LENGTH_CMD, NULL, 0},
-	{MAINTENANCE_IN, NULL, 0},
-	{MAINTENANCE_OUT, NULL, 0},
-	{PERSISTENT_RESERVE_IN, NULL, 0},
-	{PERSISTENT_RESERVE_OUT, NULL, 0},
-	{SERVICE_ACTION_IN_12, NULL, 0},
-	{SERVICE_ACTION_OUT_12, NULL, 0},
-	{SERVICE_ACTION_BIDIRECTIONAL, NULL, 0},
-	{SERVICE_ACTION_IN_16, NULL, 0},
-	{SERVICE_ACTION_OUT_16, NULL, 0},
-	{THIRD_PARTY_COPY_IN, NULL, 0},
-	{THIRD_PARTY_COPY_OUT, NULL, 0},
-	{0, NULL, 0},
-};
-#endif /* CONFIG_SCSI_CONSTANTS */
-
-static bool scsi_opcode_sa_name(int opcode, int service_action,
-				const char **cdb_name, const char **sa_name)
+bool scsi_opcode_sa_name(int opcode, int service_action,
+			 const char **cdb_name, const char **sa_name)
 {
 	struct sa_name_list *sa_name_ptr;
 	const struct value_name_pair *arr = NULL;
@@ -315,76 +290,6 @@ static bool scsi_opcode_sa_name(int opcode, int service_action,
 	return true;
 }
 
-static void print_opcode_name(const unsigned char *cdbp, size_t cdb_len)
-{
-	int sa, cdb0;
-	const char *cdb_name = NULL, *sa_name = NULL;
-
-	cdb0 = cdbp[0];
-	if (cdb0 == VARIABLE_LENGTH_CMD) {
-		if (cdb_len < 10) {
-			printk("short variable length command, len=%zu",
-			       cdb_len);
-			return;
-		}
-		sa = (cdbp[8] << 8) + cdbp[9];
-	} else
-		sa = cdbp[1] & 0x1f;
-
-	if (!scsi_opcode_sa_name(cdb0, sa, &cdb_name, &sa_name)) {
-		if (cdb_name)
-			printk("%s", cdb_name);
-		else if (cdb0 >= VENDOR_SPECIFIC_CDB)
-			printk("cdb[0]=0x%x (vendor)", cdb0);
-		else if (cdb0 >= 0x60 && cdb0 < 0x7e)
-			printk("cdb[0]=0x%x (reserved)", cdb0);
-		else
-			printk("cdb[0]=0x%x", cdb0);
-	} else {
-		if (sa_name)
-			printk("%s", sa_name);
-		else if (cdb_name)
-			printk("%s, sa=0x%x", cdb_name, sa);
-		else
-			printk("cdb[0]=0x%x, sa=0x%x", cdb0, sa);
-	}
-}
-
-void __scsi_print_command(const unsigned char *cdb, size_t cdb_len)
-{
-	int k, len;
-
-	print_opcode_name(cdb, cdb_len);
-	len = scsi_command_size(cdb);
-	if (cdb_len < len)
-		len = cdb_len;
-	/* print out all bytes in cdb */
-	for (k = 0; k < len; ++k)
-		printk(" %02x", cdb[k]);
-	printk("\n");
-}
-EXPORT_SYMBOL(__scsi_print_command);
-
-void scsi_print_command(struct scsi_cmnd *cmd)
-{
-	int k;
-
-	if (cmd->cmnd == NULL)
-		return;
-
-	scmd_printk(KERN_INFO, cmd, "CDB: ");
-	print_opcode_name(cmd->cmnd, cmd->cmd_len);
-
-	/* print out all bytes in cdb */
-	printk(":");
-	for (k = 0; k < cmd->cmd_len; ++k)
-		printk(" %02x", cmd->cmnd[k]);
-	printk("\n");
-}
-EXPORT_SYMBOL(scsi_print_command);
-
-#ifdef CONFIG_SCSI_CONSTANTS
-
 struct error_info {
 	unsigned short code12;	/* 0x0302 looks better than 0x03,0x02 */
 	const char * text;
@@ -392,7 +297,7 @@ struct error_info {
 
 /*
  * The canonical list of T10 Additional Sense Codes is available at:
- * http://www.t10.org/lists/asc-num.txt [most recent: 20130605]
+ * http://www.t10.org/lists/asc-num.txt [most recent: 20141221]
  */
 
 static const struct error_info additional[] =
@@ -421,6 +326,7 @@ static const struct error_info additional[] =
 	{0x001E, "Conflicting SA creation request"},
 	{0x001F, "Logical unit transitioning to another power condition"},
 	{0x0020, "Extended copy information available"},
+	{0x0021, "Atomic command aborted due to ACA"},
 
 	{0x0100, "No index/sector signal"},
 
@@ -446,6 +352,7 @@ static const struct error_info additional[] =
 	{0x040C, "Logical unit not accessible, target port in unavailable "
 	 "state"},
 	{0x040D, "Logical unit not ready, structure check required"},
+	{0x040E, "Logical unit not ready, security session in progress"},
 	{0x0410, "Logical unit not ready, auxiliary memory not accessible"},
 	{0x0411, "Logical unit not ready, notify (enable spinup) required"},
 	{0x0412, "Logical unit not ready, offline"},
@@ -462,6 +369,11 @@ static const struct error_info additional[] =
 	{0x041C, "Logical unit not ready, additional power use not yet "
 	 "granted"},
 	{0x041D, "Logical unit not ready, configuration in progress"},
+	{0x041E, "Logical unit not ready, microcode activation required"},
+	{0x041F, "Logical unit not ready, microcode download required"},
+	{0x0420, "Logical unit not ready, logical unit reset required"},
+	{0x0421, "Logical unit not ready, hard reset required"},
+	{0x0422, "Logical unit not ready, power cycle required"},
 
 	{0x0500, "Logical unit does not respond to selection"},
 
@@ -480,6 +392,7 @@ static const struct error_info additional[] =
 	{0x0902, "Focus servo failure"},
 	{0x0903, "Spindle servo failure"},
 	{0x0904, "Head select fault"},
+	{0x0905, "Vibration induced tracking error"},
 
 	{0x0A00, "Error log overflow"},
 
@@ -510,6 +423,7 @@ static const struct error_info additional[] =
 	{0x0C0D, "Write error - not enough unsolicited data"},
 	{0x0C0E, "Multiple write errors"},
 	{0x0C0F, "Defects in error window"},
+	{0x0C10, "Incomplete multiple atomic write operations"},
 
 	{0x0D00, "Error detected by third party temporary initiator"},
 	{0x0D01, "Third party device failure"},
@@ -635,6 +549,10 @@ static const struct error_info additional[] =
 	{0x2101, "Invalid element address"},
 	{0x2102, "Invalid address for write"},
 	{0x2103, "Invalid write crossing layer jump"},
+	{0x2104, "Unaligned write command"},
+	{0x2105, "Write boundary violation"},
+	{0x2106, "Attempt to read invalid data"},
+	{0x2107, "Read boundary violation"},
 
 	{0x2200, "Illegal function (use 20 00, 24 00, or 26 00)"},
 
@@ -691,6 +609,7 @@ static const struct error_info additional[] =
 	{0x2705, "Permanent write protect"},
 	{0x2706, "Conditional write protect"},
 	{0x2707, "Space allocation failed write protect"},
+	{0x2708, "Zone is read only"},
 
 	{0x2800, "Not ready to ready change, medium may have changed"},
 	{0x2801, "Import or export element accessed"},
@@ -743,10 +662,15 @@ static const struct error_info additional[] =
 	{0x2C0A, "Partition or collection contains user objects"},
 	{0x2C0B, "Not reserved"},
 	{0x2C0C, "Orwrite generation does not match"},
+	{0x2C0D, "Reset write pointer not allowed"},
+	{0x2C0E, "Zone is offline"},
 
 	{0x2D00, "Overwrite error on update in place"},
 
 	{0x2E00, "Insufficient time for operation"},
+	{0x2E01, "Command timeout before processing"},
+	{0x2E02, "Command timeout during processing"},
+	{0x2E03, "Command timeout during processing due to error recovery"},
 
 	{0x2F00, "Commands cleared by another initiator"},
 	{0x2F01, "Commands cleared by power loss notification"},
@@ -868,6 +792,7 @@ static const struct error_info additional[] =
 	{0x3F13, "iSCSI IP address removed"},
 	{0x3F14, "iSCSI IP address changed"},
 	{0x3F15, "Inspect referrals sense descriptors"},
+	{0x3F16, "Microcode has been changed without reset"},
 /*
  *	{0x40NN, "Ram failure"},
  *	{0x40NN, "Diagnostic failure on component nn"},
@@ -946,6 +871,11 @@ static const struct error_info additional[] =
 	{0x5306, "Volume identifier missing"},
 	{0x5307, "Duplicate volume identifier"},
 	{0x5308, "Element status unknown"},
+	{0x5309, "Data transfer device error - load failed"},
+	{0x530a, "Data transfer device error - unload failed"},
+	{0x530b, "Data transfer device error - unload missing"},
+	{0x530c, "Data transfer device error - eject failed"},
+	{0x530d, "Data transfer device error - library communication failed"},
 
 	{0x5400, "Scsi to host system interface failure"},
 
@@ -963,6 +893,7 @@ static const struct error_info additional[] =
 	{0x550B, "Insufficient power for operation"},
 	{0x550C, "Insufficient resources to create rod"},
 	{0x550D, "Insufficient resources to create rod token"},
+	{0x550E, "Insufficient zone resources"},
 
 	{0x5700, "Unable to recover table-of-contents"},
 
@@ -1247,15 +1178,12 @@ static const char * const snstext[] = {
 	"Completed",	    /* F: command completed sense data reported,
 				  may occur for successful command */
 };
-#endif
 
 /* Get sense key string or NULL if not available */
 const char *
 scsi_sense_key_string(unsigned char key) {
-#ifdef CONFIG_SCSI_CONSTANTS
 	if (key <= 0xE)
 		return snstext[key];
-#endif
 	return NULL;
 }
 EXPORT_SYMBOL(scsi_sense_key_string);
@@ -1267,7 +1195,6 @@ EXPORT_SYMBOL(scsi_sense_key_string);
 const char *
 scsi_extd_sense_format(unsigned char asc, unsigned char ascq, const char **fmt)
 {
-#ifdef CONFIG_SCSI_CONSTANTS
 	int i;
 	unsigned short code = ((asc << 8) | ascq);
 
@@ -1283,121 +1210,9 @@ scsi_extd_sense_format(unsigned char asc, unsigned char ascq, const char **fmt)
 			return additional2[i].str;
 		}
 	}
-#else
-	*fmt = NULL;
-#endif
 	return NULL;
 }
 EXPORT_SYMBOL(scsi_extd_sense_format);
-
-void
-scsi_show_extd_sense(const struct scsi_device *sdev, const char *name,
-		     unsigned char asc, unsigned char ascq)
-{
-	const char *extd_sense_fmt = NULL;
-	const char *extd_sense_str = scsi_extd_sense_format(asc, ascq,
-							    &extd_sense_fmt);
-
-	if (extd_sense_str) {
-		if (extd_sense_fmt)
-			sdev_prefix_printk(KERN_INFO, sdev, name,
-					   "Add. Sense: %s (%s%x)",
-					   extd_sense_str, extd_sense_fmt,
-					   ascq);
-		else
-			sdev_prefix_printk(KERN_INFO, sdev, name,
-					   "Add. Sense: %s", extd_sense_str);
-
-	} else {
-		sdev_prefix_printk(KERN_INFO, sdev, name,
-				   "%sASC=0x%x %sASCQ=0x%x\n",
-				   asc >= 0x80 ? "<<vendor>> " : "", asc,
-				   ascq >= 0x80 ? "<<vendor>> " : "", ascq);
-	}
-}
-EXPORT_SYMBOL(scsi_show_extd_sense);
-
-void
-scsi_show_sense_hdr(const struct scsi_device *sdev, const char *name,
-		    const struct scsi_sense_hdr *sshdr)
-{
-	const char *sense_txt;
-
-	sense_txt = scsi_sense_key_string(sshdr->sense_key);
-	if (sense_txt)
-		sdev_prefix_printk(KERN_INFO, sdev, name,
-				   "Sense Key : %s [%s]%s\n", sense_txt,
-				   scsi_sense_is_deferred(sshdr) ?
-				   "deferred" : "current",
-				   sshdr->response_code >= 0x72 ?
-				   " [descriptor]" : "");
-	else
-		sdev_prefix_printk(KERN_INFO, sdev, name,
-				   "Sense Key : 0x%x [%s]%s", sshdr->sense_key,
-				   scsi_sense_is_deferred(sshdr) ?
-				   "deferred" : "current",
-				   sshdr->response_code >= 0x72 ?
-				   " [descriptor]" : "");
-}
-EXPORT_SYMBOL(scsi_show_sense_hdr);
-
-/*
- * Print normalized SCSI sense header with a prefix.
- */
-void
-scsi_print_sense_hdr(const struct scsi_device *sdev, const char *name,
-		     const struct scsi_sense_hdr *sshdr)
-{
-	scsi_show_sense_hdr(sdev, name, sshdr);
-	scsi_show_extd_sense(sdev, name, sshdr->asc, sshdr->ascq);
-}
-EXPORT_SYMBOL(scsi_print_sense_hdr);
-
-static void
-scsi_dump_sense_buffer(const unsigned char *sense_buffer, int sense_len)
-{
-	int k, num;
-
-	num = (sense_len < 32) ? sense_len : 32;
-	printk("Unrecognized sense data (in hex):");
-	for (k = 0; k < num; ++k) {
-		if (0 == (k % 16)) {
-			printk("\n");
-			printk(KERN_INFO "        ");
-		}
-		printk("%02x ", sense_buffer[k]);
-	}
-	printk("\n");
-	return;
-}
-
-/* Normalize and print sense buffer with name prefix */
-void __scsi_print_sense(const struct scsi_device *sdev, const char *name,
-			const unsigned char *sense_buffer, int sense_len)
-{
-	struct scsi_sense_hdr sshdr;
-
-	if (!scsi_normalize_sense(sense_buffer, sense_len, &sshdr)) {
-		scsi_dump_sense_buffer(sense_buffer, sense_len);
-		return;
-	}
-	scsi_show_sense_hdr(sdev, name, &sshdr);
-	scsi_show_extd_sense(sdev, name, sshdr.asc, sshdr.ascq);
-}
-EXPORT_SYMBOL(__scsi_print_sense);
-
-/* Normalize and print sense buffer in SCSI command */
-void scsi_print_sense(const struct scsi_cmnd *cmd)
-{
-	struct gendisk *disk = cmd->request->rq_disk;
-	const char *disk_name = disk ? disk->disk_name : NULL;
-
-	__scsi_print_sense(cmd->device, disk_name, cmd->sense_buffer,
-			   SCSI_SENSE_BUFFERSIZE);
-}
-EXPORT_SYMBOL(scsi_print_sense);
-
-#ifdef CONFIG_SCSI_CONSTANTS
 
 static const char * const hostbyte_table[]={
 "DID_OK", "DID_NO_CONNECT", "DID_BUS_BUSY", "DID_TIME_OUT", "DID_BAD_TARGET",
@@ -1410,17 +1225,13 @@ static const char * const driverbyte_table[]={
 "DRIVER_OK", "DRIVER_BUSY", "DRIVER_SOFT",  "DRIVER_MEDIA", "DRIVER_ERROR",
 "DRIVER_INVALID", "DRIVER_TIMEOUT", "DRIVER_HARD", "DRIVER_SENSE"};
 
-#endif
-
 const char *scsi_hostbyte_string(int result)
 {
 	const char *hb_string = NULL;
-#ifdef CONFIG_SCSI_CONSTANTS
 	int hb = host_byte(result);
 
 	if (hb < ARRAY_SIZE(hostbyte_table))
 		hb_string = hostbyte_table[hb];
-#endif
 	return hb_string;
 }
 EXPORT_SYMBOL(scsi_hostbyte_string);
@@ -1428,17 +1239,14 @@ EXPORT_SYMBOL(scsi_hostbyte_string);
 const char *scsi_driverbyte_string(int result)
 {
 	const char *db_string = NULL;
-#ifdef CONFIG_SCSI_CONSTANTS
 	int db = driver_byte(result);
 
 	if (db < ARRAY_SIZE(driverbyte_table))
 		db_string = driverbyte_table[db];
-#endif
 	return db_string;
 }
 EXPORT_SYMBOL(scsi_driverbyte_string);
 
-#ifdef CONFIG_SCSI_CONSTANTS
 #define scsi_mlreturn_name(result)	{ result, #result }
 static const struct value_name_pair scsi_mlreturn_arr[] = {
 	scsi_mlreturn_name(NEEDS_RETRY),
@@ -1451,11 +1259,9 @@ static const struct value_name_pair scsi_mlreturn_arr[] = {
 	scsi_mlreturn_name(SCSI_RETURN_NOT_HANDLED),
 	scsi_mlreturn_name(FAST_IO_FAIL)
 };
-#endif
 
 const char *scsi_mlreturn_string(int result)
 {
-#ifdef CONFIG_SCSI_CONSTANTS
 	const struct value_name_pair *arr = scsi_mlreturn_arr;
 	int k;
 
@@ -1463,29 +1269,6 @@ const char *scsi_mlreturn_string(int result)
 		if (result == arr->value)
 			return arr->name;
 	}
-#endif
 	return NULL;
 }
 EXPORT_SYMBOL(scsi_mlreturn_string);
-
-void scsi_print_result(struct scsi_cmnd *cmd, const char *msg, int disposition)
-{
-	const char *mlret_string = scsi_mlreturn_string(disposition);
-	const char *hb_string = scsi_hostbyte_string(cmd->result);
-	const char *db_string = scsi_driverbyte_string(cmd->result);
-
-	if (hb_string || db_string)
-		scmd_printk(KERN_INFO, cmd,
-			    "%s%s Result: hostbyte=%s driverbyte=%s",
-			    msg ? msg : "",
-			    mlret_string ? mlret_string : "UNKNOWN",
-			    hb_string ? hb_string : "invalid",
-			    db_string ? db_string : "invalid");
-	else
-		scmd_printk(KERN_INFO, cmd,
-			    "%s%s Result: hostbyte=0x%02x driverbyte=0x%02x",
-			    msg ? msg : "",
-			    mlret_string ? mlret_string : "UNKNOWN",
-			    host_byte(cmd->result), driver_byte(cmd->result));
-}
-EXPORT_SYMBOL(scsi_print_result);

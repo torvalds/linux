@@ -61,7 +61,7 @@ __u64 obd_alloc;
 EXPORT_SYMBOL(obd_alloc);
 __u64 obd_pages;
 EXPORT_SYMBOL(obd_pages);
-DEFINE_SPINLOCK(obd_updatemax_lock);
+static DEFINE_SPINLOCK(obd_updatemax_lock);
 
 /* The following are visible and mutable through /proc/sys/lustre/. */
 unsigned int obd_alloc_fail_rate = 0;

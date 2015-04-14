@@ -30,5 +30,7 @@ struct nfs_server *nfs3_create_server(struct nfs_mount_info *, struct nfs_subver
 struct nfs_server *nfs3_clone_server(struct nfs_server *, struct nfs_fh *,
 				     struct nfs_fattr *, rpc_authflavor_t);
 
+/* nfs3super.c */
+extern struct nfs_subversion nfs_v3;
 
 #endif /* __LINUX_FS_NFS_NFS3_FS_H */

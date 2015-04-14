@@ -30,7 +30,7 @@
 #define XGPIO_CHANNEL_OFFSET	0x8
 
 /* Read/Write access to the GPIO registers */
-#ifdef CONFIG_ARCH_ZYNQ
+#if defined(CONFIG_ARCH_ZYNQ) || defined(CONFIG_X86)
 # define xgpio_readreg(offset)		readl(offset)
 # define xgpio_writereg(offset, val)	writel(val, offset)
 #else
@@ -40,37 +40,66 @@
 
 /**
  * struct xgpio_instance - Stores information about GPIO device
- * struct of_mm_gpio_chip mmchip: OF GPIO chip for memory mapped banks
- * gpio_state: GPIO state shadow register
- * gpio_dir: GPIO direction shadow register
- * offset: GPIO channel offset
- * gpio_lock: Lock used for synchronization
+ * @mmchip: OF GPIO chip for memory mapped banks
+ * @gpio_state: GPIO state shadow register
+ * @gpio_dir: GPIO direction shadow register
+ * @gpio_lock: Lock used for synchronization
+ * @inited: True if the port has been inited
  */
 struct xgpio_instance {
 	struct of_mm_gpio_chip mmchip;
-	u32 gpio_state;
-	u32 gpio_dir;
-	u32 offset;
-	spinlock_t gpio_lock;
+	unsigned int gpio_width[2];
+	u32 gpio_state[2];
+	u32 gpio_dir[2];
+	spinlock_t gpio_lock[2];
 };
+
+static inline int xgpio_index(struct xgpio_instance *chip, int gpio)
+{
+	if (gpio >= chip->gpio_width[0])
+		return 1;
+
+	return 0;
+}
+
+static inline int xgpio_regoffset(struct xgpio_instance *chip, int gpio)
+{
+	if (xgpio_index(chip, gpio))
+		return XGPIO_CHANNEL_OFFSET;
+
+	return 0;
+}
+
+static inline int xgpio_offset(struct xgpio_instance *chip, int gpio)
+{
+	if (xgpio_index(chip, gpio))
+		return gpio - chip->gpio_width[0];
+
+	return gpio;
+}
 
 /**
  * xgpio_get - Read the specified signal of the GPIO device.
  * @gc:     Pointer to gpio_chip device structure.
  * @gpio:   GPIO signal number.
  *
- * This function reads the specified signal of the GPIO device. It returns 0 if
- * the signal clear, 1 if signal is set or negative value on error.
+ * This function reads the specified signal of the GPIO device.
+ *
+ * Return:
+ * 0 if direction of GPIO signals is set as input otherwise it
+ * returns negative error value.
  */
 static int xgpio_get(struct gpio_chip *gc, unsigned int gpio)
 {
 	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
 	struct xgpio_instance *chip =
 	    container_of(mm_gc, struct xgpio_instance, mmchip);
+	u32 val;
 
-	void __iomem *regs = mm_gc->regs + chip->offset;
+	val = xgpio_readreg(mm_gc->regs + XGPIO_DATA_OFFSET +
+			    xgpio_regoffset(chip, gpio));
 
-	return !!(xgpio_readreg(regs + XGPIO_DATA_OFFSET) & BIT(gpio));
+	return !!(val & BIT(xgpio_offset(chip, gpio)));
 }
 
 /**
@@ -88,20 +117,21 @@ static void xgpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
 	struct xgpio_instance *chip =
 	    container_of(mm_gc, struct xgpio_instance, mmchip);
-	void __iomem *regs = mm_gc->regs;
+	int index =  xgpio_index(chip, gpio);
+	int offset =  xgpio_offset(chip, gpio);
 
-	spin_lock_irqsave(&chip->gpio_lock, flags);
+	spin_lock_irqsave(&chip->gpio_lock[index], flags);
 
 	/* Write to GPIO signal and set its direction to output */
 	if (val)
-		chip->gpio_state |= BIT(gpio);
+		chip->gpio_state[index] |= BIT(offset);
 	else
-		chip->gpio_state &= ~BIT(gpio);
+		chip->gpio_state[index] &= ~BIT(offset);
 
-	xgpio_writereg(regs + chip->offset + XGPIO_DATA_OFFSET,
-							 chip->gpio_state);
+	xgpio_writereg(mm_gc->regs + XGPIO_DATA_OFFSET +
+		       xgpio_regoffset(chip, gpio), chip->gpio_state[index]);
 
-	spin_unlock_irqrestore(&chip->gpio_lock, flags);
+	spin_unlock_irqrestore(&chip->gpio_lock[index], flags);
 }
 
 /**
@@ -109,9 +139,9 @@ static void xgpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
  * @gc:     Pointer to gpio_chip device structure.
  * @gpio:   GPIO signal number.
  *
- * This function sets the direction of specified GPIO signal as input.
- * It returns 0 if direction of GPIO signals is set as input otherwise it
- * returns negative error value.
+ * Return:
+ * 0 - if direction of GPIO signals is set as input
+ * otherwise it returns negative error value.
  */
 static int xgpio_dir_in(struct gpio_chip *gc, unsigned int gpio)
 {
@@ -119,15 +149,17 @@ static int xgpio_dir_in(struct gpio_chip *gc, unsigned int gpio)
 	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
 	struct xgpio_instance *chip =
 	    container_of(mm_gc, struct xgpio_instance, mmchip);
-	void __iomem *regs = mm_gc->regs;
+	int index =  xgpio_index(chip, gpio);
+	int offset =  xgpio_offset(chip, gpio);
 
-	spin_lock_irqsave(&chip->gpio_lock, flags);
+	spin_lock_irqsave(&chip->gpio_lock[index], flags);
 
 	/* Set the GPIO bit in shadow register and set direction as input */
-	chip->gpio_dir |= BIT(gpio);
-	xgpio_writereg(regs + chip->offset + XGPIO_TRI_OFFSET, chip->gpio_dir);
+	chip->gpio_dir[index] |= BIT(offset);
+	xgpio_writereg(mm_gc->regs + XGPIO_TRI_OFFSET +
+		       xgpio_regoffset(chip, gpio), chip->gpio_dir[index]);
 
-	spin_unlock_irqrestore(&chip->gpio_lock, flags);
+	spin_unlock_irqrestore(&chip->gpio_lock[index], flags);
 
 	return 0;
 }
@@ -138,8 +170,10 @@ static int xgpio_dir_in(struct gpio_chip *gc, unsigned int gpio)
  * @gpio:   GPIO signal number.
  * @val:    Value to be written to specified signal.
  *
- * This function sets the direction of specified GPIO signal as output. If all
- * GPIO signals of GPIO chip is configured as input then it returns
+ * This function sets the direction of specified GPIO signal as output.
+ *
+ * Return:
+ * If all GPIO signals of GPIO chip is configured as input then it returns
  * error otherwise it returns 0.
  */
 static int xgpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
@@ -148,80 +182,128 @@ static int xgpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
 	struct xgpio_instance *chip =
 	    container_of(mm_gc, struct xgpio_instance, mmchip);
-	void __iomem *regs = mm_gc->regs;
+	int index =  xgpio_index(chip, gpio);
+	int offset =  xgpio_offset(chip, gpio);
 
-	spin_lock_irqsave(&chip->gpio_lock, flags);
+	spin_lock_irqsave(&chip->gpio_lock[index], flags);
 
 	/* Write state of GPIO signal */
 	if (val)
-		chip->gpio_state |= BIT(gpio);
+		chip->gpio_state[index] |= BIT(offset);
 	else
-		chip->gpio_state &= ~BIT(gpio);
-	xgpio_writereg(regs + chip->offset + XGPIO_DATA_OFFSET,
-		       chip->gpio_state);
+		chip->gpio_state[index] &= ~BIT(offset);
+	xgpio_writereg(mm_gc->regs + XGPIO_DATA_OFFSET +
+			xgpio_regoffset(chip, gpio), chip->gpio_state[index]);
 
 	/* Clear the GPIO bit in shadow register and set direction as output */
-	chip->gpio_dir &= ~BIT(gpio);
-	xgpio_writereg(regs + chip->offset + XGPIO_TRI_OFFSET, chip->gpio_dir);
+	chip->gpio_dir[index] &= ~BIT(offset);
+	xgpio_writereg(mm_gc->regs + XGPIO_TRI_OFFSET +
+			xgpio_regoffset(chip, gpio), chip->gpio_dir[index]);
 
-	spin_unlock_irqrestore(&chip->gpio_lock, flags);
+	spin_unlock_irqrestore(&chip->gpio_lock[index], flags);
 
 	return 0;
 }
 
 /**
  * xgpio_save_regs - Set initial values of GPIO pins
- * @mm_gc: pointer to memory mapped GPIO chip structure
+ * @mm_gc: Pointer to memory mapped GPIO chip structure
  */
 static void xgpio_save_regs(struct of_mm_gpio_chip *mm_gc)
 {
 	struct xgpio_instance *chip =
 	    container_of(mm_gc, struct xgpio_instance, mmchip);
 
-	xgpio_writereg(mm_gc->regs + chip->offset + XGPIO_DATA_OFFSET,
-							chip->gpio_state);
-	xgpio_writereg(mm_gc->regs + chip->offset + XGPIO_TRI_OFFSET,
-							 chip->gpio_dir);
+	xgpio_writereg(mm_gc->regs + XGPIO_DATA_OFFSET,	chip->gpio_state[0]);
+	xgpio_writereg(mm_gc->regs + XGPIO_TRI_OFFSET, chip->gpio_dir[0]);
+
+	if (!chip->gpio_width[1])
+		return;
+
+	xgpio_writereg(mm_gc->regs + XGPIO_DATA_OFFSET + XGPIO_TRI_OFFSET,
+		       chip->gpio_state[1]);
+	xgpio_writereg(mm_gc->regs + XGPIO_TRI_OFFSET + XGPIO_TRI_OFFSET,
+		       chip->gpio_dir[1]);
+}
+
+/**
+ * xgpio_remove - Remove method for the GPIO device.
+ * @pdev: pointer to the platform device
+ *
+ * This function remove gpiochips and frees all the allocated resources.
+ */
+static int xgpio_remove(struct platform_device *pdev)
+{
+	struct xgpio_instance *chip = platform_get_drvdata(pdev);
+
+	of_mm_gpiochip_remove(&chip->mmchip);
+
+	return 0;
 }
 
 /**
  * xgpio_of_probe - Probe method for the GPIO device.
- * @np: pointer to device tree node
+ * @pdev: pointer to the platform device
  *
- * This function probes the GPIO device in the device tree. It initializes the
- * driver data structure. It returns 0, if the driver is bound to the GPIO
- * device, or a negative value if there is an error.
+ * Return:
+ * It returns 0, if the driver is bound to the GPIO device, or
+ * a negative value if there is an error.
  */
-static int xgpio_of_probe(struct device_node *np)
+static int xgpio_probe(struct platform_device *pdev)
 {
 	struct xgpio_instance *chip;
 	int status = 0;
-	const u32 *tree_info;
-	u32 ngpio;
+	struct device_node *np = pdev->dev.of_node;
+	u32 is_dual;
 
-	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
 
-	/* Update GPIO state shadow register with default value */
-	of_property_read_u32(np, "xlnx,dout-default", &chip->gpio_state);
+	platform_set_drvdata(pdev, chip);
 
-	/* By default, all pins are inputs */
-	chip->gpio_dir = 0xFFFFFFFF;
+	/* Update GPIO state shadow register with default value */
+	of_property_read_u32(np, "xlnx,dout-default", &chip->gpio_state[0]);
 
 	/* Update GPIO direction shadow register with default value */
-	of_property_read_u32(np, "xlnx,tri-default", &chip->gpio_dir);
+	if (of_property_read_u32(np, "xlnx,tri-default", &chip->gpio_dir[0]))
+		chip->gpio_dir[0] = 0xFFFFFFFF;
 
 	/*
 	 * Check device node and parent device node for device width
 	 * and assume default width of 32
 	 */
-	if (of_property_read_u32(np, "xlnx,gpio-width", &ngpio))
-		ngpio = 32;
-	chip->mmchip.gc.ngpio = (u16)ngpio;
+	if (of_property_read_u32(np, "xlnx,gpio-width", &chip->gpio_width[0]))
+		chip->gpio_width[0] = 32;
 
-	spin_lock_init(&chip->gpio_lock);
+	spin_lock_init(&chip->gpio_lock[0]);
 
+	if (of_property_read_u32(np, "xlnx,is-dual", &is_dual))
+		is_dual = 0;
+
+	if (is_dual) {
+		/* Update GPIO state shadow register with default value */
+		of_property_read_u32(np, "xlnx,dout-default-2",
+				     &chip->gpio_state[1]);
+
+		/* Update GPIO direction shadow register with default value */
+		if (of_property_read_u32(np, "xlnx,tri-default-2",
+					 &chip->gpio_dir[1]))
+			chip->gpio_dir[1] = 0xFFFFFFFF;
+
+		/*
+		 * Check device node and parent device node for device width
+		 * and assume default width of 32
+		 */
+		if (of_property_read_u32(np, "xlnx,gpio2-width",
+					 &chip->gpio_width[1]))
+			chip->gpio_width[1] = 32;
+
+		spin_lock_init(&chip->gpio_lock[1]);
+	}
+
+	chip->mmchip.gc.ngpio = chip->gpio_width[0] + chip->gpio_width[1];
+	chip->mmchip.gc.dev = &pdev->dev;
 	chip->mmchip.gc.direction_input = xgpio_dir_in;
 	chip->mmchip.gc.direction_output = xgpio_dir_out;
 	chip->mmchip.gc.get = xgpio_get;
@@ -232,61 +314,9 @@ static int xgpio_of_probe(struct device_node *np)
 	/* Call the OF gpio helper to setup and register the GPIO device */
 	status = of_mm_gpiochip_add(np, &chip->mmchip);
 	if (status) {
-		kfree(chip);
 		pr_err("%s: error in probe function with status %d\n",
 		       np->full_name, status);
 		return status;
-	}
-
-	pr_info("XGpio: %s: registered, base is %d\n", np->full_name,
-							chip->mmchip.gc.base);
-
-	tree_info = of_get_property(np, "xlnx,is-dual", NULL);
-	if (tree_info && be32_to_cpup(tree_info)) {
-		chip = kzalloc(sizeof(*chip), GFP_KERNEL);
-		if (!chip)
-			return -ENOMEM;
-
-		/* Add dual channel offset */
-		chip->offset = XGPIO_CHANNEL_OFFSET;
-
-		/* Update GPIO state shadow register with default value */
-		of_property_read_u32(np, "xlnx,dout-default-2",
-				     &chip->gpio_state);
-
-		/* By default, all pins are inputs */
-		chip->gpio_dir = 0xFFFFFFFF;
-
-		/* Update GPIO direction shadow register with default value */
-		of_property_read_u32(np, "xlnx,tri-default-2", &chip->gpio_dir);
-
-		/*
-		 * Check device node and parent device node for device width
-		 * and assume default width of 32
-		 */
-		if (of_property_read_u32(np, "xlnx,gpio2-width", &ngpio))
-			ngpio = 32;
-		chip->mmchip.gc.ngpio = (u16)ngpio;
-
-		spin_lock_init(&chip->gpio_lock);
-
-		chip->mmchip.gc.direction_input = xgpio_dir_in;
-		chip->mmchip.gc.direction_output = xgpio_dir_out;
-		chip->mmchip.gc.get = xgpio_get;
-		chip->mmchip.gc.set = xgpio_set;
-
-		chip->mmchip.save_regs = xgpio_save_regs;
-
-		/* Call the OF gpio helper to setup and register the GPIO dev */
-		status = of_mm_gpiochip_add(np, &chip->mmchip);
-		if (status) {
-			kfree(chip);
-			pr_err("%s: error in probe function with status %d\n",
-			np->full_name, status);
-			return status;
-		}
-		pr_info("XGpio: %s: dual channel registered, base is %d\n",
-					np->full_name, chip->mmchip.gc.base);
 	}
 
 	return 0;
@@ -297,19 +327,29 @@ static const struct of_device_id xgpio_of_match[] = {
 	{ /* end of list */ },
 };
 
+MODULE_DEVICE_TABLE(of, xgpio_of_match);
+
+static struct platform_driver xgpio_plat_driver = {
+	.probe		= xgpio_probe,
+	.remove		= xgpio_remove,
+	.driver		= {
+			.name = "gpio-xilinx",
+			.of_match_table	= xgpio_of_match,
+	},
+};
+
 static int __init xgpio_init(void)
 {
-	struct device_node *np;
-
-	for_each_matching_node(np, xgpio_of_match)
-		xgpio_of_probe(np);
-
-	return 0;
+	return platform_driver_register(&xgpio_plat_driver);
 }
 
-/* Make sure we get initialized before anyone else tries to use us */
 subsys_initcall(xgpio_init);
-/* No exit call at the moment as we cannot unregister of GPIO chips */
+
+static void __exit xgpio_exit(void)
+{
+	platform_driver_unregister(&xgpio_plat_driver);
+}
+module_exit(xgpio_exit);
 
 MODULE_AUTHOR("Xilinx, Inc.");
 MODULE_DESCRIPTION("Xilinx GPIO driver");

@@ -87,7 +87,7 @@ static void msg_submit(struct mbox_chan *chan)
 exit:
 	spin_unlock_irqrestore(&chan->lock, flags);
 
-	if (!err && chan->txdone_method == TXDONE_BY_POLL)
+	if (!err && (chan->txdone_method & TXDONE_BY_POLL))
 		poll_txdone((unsigned long)chan->mbox);
 }
 

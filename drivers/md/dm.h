@@ -34,9 +34,10 @@
 /*
  * Type of table and mapped_device's mempool
  */
-#define DM_TYPE_NONE		0
-#define DM_TYPE_BIO_BASED	1
-#define DM_TYPE_REQUEST_BASED	2
+#define DM_TYPE_NONE			0
+#define DM_TYPE_BIO_BASED		1
+#define DM_TYPE_REQUEST_BASED		2
+#define DM_TYPE_MQ_REQUEST_BASED	3
 
 /*
  * List of devices that a metadevice uses and should open/close.
@@ -73,6 +74,7 @@ int dm_table_any_busy_target(struct dm_table *t);
 unsigned dm_table_get_type(struct dm_table *t);
 struct target_type *dm_table_get_immutable_target_type(struct dm_table *t);
 bool dm_table_request_based(struct dm_table *t);
+bool dm_table_mq_request_based(struct dm_table *t);
 void dm_table_free_md_mempools(struct dm_table *t);
 struct dm_md_mempools *dm_table_get_md_mempools(struct dm_table *t);
 
@@ -99,7 +101,8 @@ int dm_setup_md_queue(struct mapped_device *md);
 /*
  * To check whether the target type is request-based or not (bio-based).
  */
-#define dm_target_request_based(t) ((t)->type->map_rq != NULL)
+#define dm_target_request_based(t) (((t)->type->map_rq != NULL) || \
+				    ((t)->type->clone_and_map_rq != NULL))
 
 /*
  * To check whether the target type is a hybrid (capable of being

@@ -48,15 +48,10 @@ Devices: [Quatech] DAQP-208 (daqp), DAQP-308
 */
 
 #include <linux/module.h>
-#include "../comedidev.h"
 #include <linux/semaphore.h>
-
-#include <pcmcia/cistpl.h>
-#include <pcmcia/cisreg.h>
-#include <pcmcia/ds.h>
-
 #include <linux/completion.h>
 
+#include "../comedi_pcmcia.h"
 #include "comedi_fc.h"
 
 struct daqp_private {
@@ -210,8 +205,7 @@ static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 			unsigned short data;
 
 			if (status & DAQP_STATUS_DATA_LOST) {
-				s->async->events |=
-				    COMEDI_CB_EOA | COMEDI_CB_OVERFLOW;
+				s->async->events |= COMEDI_CB_OVERFLOW;
 				dev_warn(dev->class_dev, "data lost\n");
 				break;
 			}
@@ -239,7 +233,7 @@ static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 		if (loop_limit <= 0) {
 			dev_warn(dev->class_dev,
 				 "loop_limit reached in daqp_interrupt()\n");
-			s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+			s->async->events |= COMEDI_CB_ERROR;
 		}
 
 		comedi_handle_events(dev, s);

@@ -1736,18 +1736,6 @@ char *addr_to_string(struct fddi_addr *addr)
 }
 #endif
 
-#ifdef	AM29K
-int smt_ifconfig(int argc, char *argv[])
-{
-	if (argc >= 2 && !strcmp(argv[0],"opt_bypass") &&
-	    !strcmp(argv[1],"yes")) {
-		smc->mib.fddiSMTBypassPresent = 1 ;
-		return 0;
-	}
-	return amdfddi_config(0, argc, argv);
-}
-#endif
-
 /*
  * return static mac index
  */

@@ -34,7 +34,7 @@ void mdp5_ctlm_destroy(struct mdp5_ctl_manager *ctlm);
  */
 struct mdp5_ctl *mdp5_ctlm_request(struct mdp5_ctl_manager *ctlm, struct drm_crtc *crtc);
 
-int mdp5_ctl_set_intf(struct mdp5_ctl *ctl, enum mdp5_intf intf);
+int mdp5_ctl_set_intf(struct mdp5_ctl *ctl, int intf);
 
 int mdp5_ctl_set_cursor(struct mdp5_ctl *ctl, bool enable);
 

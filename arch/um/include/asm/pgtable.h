@@ -18,7 +18,6 @@
 #define _PAGE_ACCESSED	0x080
 #define _PAGE_DIRTY	0x100
 /* If _PAGE_PRESENT is clear, we use these: */
-#define _PAGE_FILE	0x008	/* nonlinear file mapping, saved PTE; unset:swap */
 #define _PAGE_PROTNONE	0x010	/* if the user mapped it with PROT_NONE;
 				   pte_present gives true */
 
@@ -149,14 +148,6 @@ static inline int pte_write(pte_t pte)
 {
 	return((pte_get_bits(pte, _PAGE_RW)) &&
 	       !(pte_get_bits(pte, _PAGE_PROTNONE)));
-}
-
-/*
- * The following only works if pte_present() is not true.
- */
-static inline int pte_file(pte_t pte)
-{
-	return pte_get_bits(pte, _PAGE_FILE);
 }
 
 static inline int pte_dirty(pte_t pte)

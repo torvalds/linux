@@ -655,14 +655,13 @@ static int init_volumes(struct ubi_device *ubi,
 
 /**
  * check_av - check volume attaching information.
- * @ubi: UBI device description object
  * @vol: UBI volume description object
  * @av: volume attaching information
  *
  * This function returns zero if the volume attaching information is consistent
  * to the data read from the volume tabla, and %-EINVAL if not.
  */
-static int check_av(const struct ubi_device *ubi, const struct ubi_volume *vol,
+static int check_av(const struct ubi_volume *vol,
 		    const struct ubi_ainf_volume *av)
 {
 	int err;
@@ -690,7 +689,7 @@ static int check_av(const struct ubi_device *ubi, const struct ubi_volume *vol,
 	return 0;
 
 bad:
-	ubi_err(ubi, "bad attaching information, error %d", err);
+	ubi_err(vol->ubi, "bad attaching information, error %d", err);
 	ubi_dump_av(av);
 	ubi_dump_vol_info(vol);
 	return -EINVAL;
@@ -753,7 +752,7 @@ static int check_attaching_info(const struct ubi_device *ubi,
 			ubi_msg(ubi, "finish volume %d removal", av->vol_id);
 			ubi_remove_av(ai, av);
 		} else if (av) {
-			err = check_av(ubi, vol, av);
+			err = check_av(vol, av);
 			if (err)
 				return err;
 		}

@@ -95,7 +95,7 @@ u32 ctl_read(struct mdp5_ctl *ctl, u32 reg)
 }
 
 
-int mdp5_ctl_set_intf(struct mdp5_ctl *ctl, enum mdp5_intf intf)
+int mdp5_ctl_set_intf(struct mdp5_ctl *ctl, int intf)
 {
 	unsigned long flags;
 	static const enum mdp5_intfnum intfnum[] = {

@@ -325,14 +325,34 @@ void ipv6_local_rxpmtu(struct sock *sk, struct flowi6 *fl6, u32 mtu)
 	kfree_skb(skb);
 }
 
-static void ip6_datagram_prepare_pktinfo_errqueue(struct sk_buff *skb)
+/* IPv6 supports cmsg on all origins aside from SO_EE_ORIGIN_LOCAL.
+ *
+ * At one point, excluding local errors was a quick test to identify icmp/icmp6
+ * errors. This is no longer true, but the test remained, so the v6 stack,
+ * unlike v4, also honors cmsg requests on all wifi and timestamp errors.
+ *
+ * Timestamp code paths do not initialize the fields expected by cmsg:
+ * the PKTINFO fields in skb->cb[]. Fill those in here.
+ */
+static bool ip6_datagram_support_cmsg(struct sk_buff *skb,
+				      struct sock_exterr_skb *serr)
 {
-	int ifindex = skb->dev ? skb->dev->ifindex : -1;
+	if (serr->ee.ee_origin == SO_EE_ORIGIN_ICMP ||
+	    serr->ee.ee_origin == SO_EE_ORIGIN_ICMP6)
+		return true;
+
+	if (serr->ee.ee_origin == SO_EE_ORIGIN_LOCAL)
+		return false;
+
+	if (!skb->dev)
+		return false;
 
 	if (skb->protocol == htons(ETH_P_IPV6))
-		IP6CB(skb)->iif = ifindex;
+		IP6CB(skb)->iif = skb->dev->ifindex;
 	else
-		PKTINFO_SKB_CB(skb)->ipi_ifindex = ifindex;
+		PKTINFO_SKB_CB(skb)->ipi_ifindex = skb->dev->ifindex;
+
+	return true;
 }
 
 /*
@@ -369,7 +389,7 @@ int ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len, int *addr_len)
 
 	serr = SKB_EXT_ERR(skb);
 
-	if (sin) {
+	if (sin && serr->port) {
 		const unsigned char *nh = skb_network_header(skb);
 		sin->sin6_family = AF_INET6;
 		sin->sin6_flowinfo = 0;
@@ -395,14 +415,10 @@ int ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len, int *addr_len)
 	sin = &errhdr.offender;
 	memset(sin, 0, sizeof(*sin));
 
-	if (serr->ee.ee_origin != SO_EE_ORIGIN_LOCAL) {
+	if (ip6_datagram_support_cmsg(skb, serr)) {
 		sin->sin6_family = AF_INET6;
-		if (np->rxopt.all) {
-			if (serr->ee.ee_origin != SO_EE_ORIGIN_ICMP &&
-			    serr->ee.ee_origin != SO_EE_ORIGIN_ICMP6)
-				ip6_datagram_prepare_pktinfo_errqueue(skb);
+		if (np->rxopt.all)
 			ip6_datagram_recv_common_ctl(sk, msg, skb);
-		}
 		if (skb->protocol == htons(ETH_P_IPV6)) {
 			sin->sin6_addr = ipv6_hdr(skb)->saddr;
 			if (np->rxopt.all)

@@ -319,6 +319,8 @@ static void csi2_ctx_config(struct iss_csi2_device *csi2,
 {
 	u32 reg = 0;
 
+	ctx->frame = 0;
+
 	/* Set up CSI2_CTx_CTRL1 */
 	if (ctx->eof_enabled)
 		reg = CSI2_CTX_CTRL1_EOF_EN;
@@ -396,21 +398,18 @@ static void csi2_timing_config(struct iss_csi2_device *csi2,
  */
 static void csi2_irq_ctx_set(struct iss_csi2_device *csi2, int enable)
 {
-	u32 reg = CSI2_CTX_IRQ_FE;
+	const u32 mask = CSI2_CTX_IRQ_FE | CSI2_CTX_IRQ_FS;
 	int i;
-
-	if (csi2->use_fs_irq)
-		reg |= CSI2_CTX_IRQ_FS;
 
 	for (i = 0; i < 8; i++) {
 		iss_reg_write(csi2->iss, csi2->regs1, CSI2_CTX_IRQSTATUS(i),
-			      reg);
+			      mask);
 		if (enable)
 			iss_reg_set(csi2->iss, csi2->regs1,
-				    CSI2_CTX_IRQENABLE(i), reg);
+				    CSI2_CTX_IRQENABLE(i), mask);
 		else
 			iss_reg_clr(csi2->iss, csi2->regs1,
-				    CSI2_CTX_IRQENABLE(i), reg);
+				    CSI2_CTX_IRQENABLE(i), mask);
 	}
 }
 
@@ -679,8 +678,34 @@ static void csi2_isr_ctx(struct iss_csi2_device *csi2,
 	if (status & CSI2_CTX_IRQ_FS) {
 		struct iss_pipeline *pipe =
 				     to_iss_pipeline(&csi2->subdev.entity);
-		if (pipe->do_propagation)
+		u16 frame;
+		u16 delta;
+
+		frame = iss_reg_read(csi2->iss, csi2->regs1,
+				     CSI2_CTX_CTRL2(ctx->ctxnum))
+		      >> CSI2_CTX_CTRL2_FRAME_SHIFT;
+
+		if (frame == 0) {
+			/* A zero value means that the counter isn't implemented
+			 * by the source. Increment the frame number in software
+			 * in that case.
+			 */
 			atomic_inc(&pipe->frame_number);
+		} else {
+			/* Extend the 16 bit frame number to 32 bits by
+			 * computing the delta between two consecutive CSI2
+			 * frame numbers and adding it to the software frame
+			 * number. The hardware counter starts at 1 and wraps
+			 * from 0xffff to 1 without going through 0, so subtract
+			 * 1 when the counter wraps.
+			 */
+			delta = frame - ctx->frame;
+			if (frame < ctx->frame)
+				delta--;
+			ctx->frame = frame;
+
+			atomic_add(delta, &pipe->frame_number);
+		}
 	}
 
 	if (!(status & CSI2_CTX_IRQ_FE))
@@ -1039,7 +1064,6 @@ static int csi2_set_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct iss_csi2_device *csi2 = v4l2_get_subdevdata(sd);
 	struct iss_device *iss = csi2->iss;
-	struct iss_pipeline *pipe = to_iss_pipeline(&csi2->subdev.entity);
 	struct iss_video *video_out = &csi2->video_out;
 	int ret = 0;
 
@@ -1058,7 +1082,6 @@ static int csi2_set_stream(struct v4l2_subdev *sd, int enable)
 
 		if (omap4iss_csiphy_acquire(csi2->phy) < 0)
 			return -ENODEV;
-		csi2->use_fs_irq = pipe->do_propagation;
 		csi2_configure(csi2);
 		csi2_print_status(csi2);
 

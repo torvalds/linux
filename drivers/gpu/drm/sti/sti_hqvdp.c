@@ -1025,7 +1025,7 @@ static int sti_hqvdp_probe(struct platform_device *pdev)
 	/* Get clock resources */
 	hqvdp->clk = devm_clk_get(dev, "hqvdp");
 	hqvdp->clk_pix_main = devm_clk_get(dev, "pix_main");
-	if (IS_ERR(hqvdp->clk) || IS_ERR(hqvdp->clk)) {
+	if (IS_ERR(hqvdp->clk) || IS_ERR(hqvdp->clk_pix_main)) {
 		DRM_ERROR("Cannot get clocks\n");
 		return -ENXIO;
 	}

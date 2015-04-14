@@ -294,6 +294,7 @@
 #define GHWCFG4_NUM_IN_EPS_MASK			(0xf << 26)
 #define GHWCFG4_NUM_IN_EPS_SHIFT		26
 #define GHWCFG4_DED_FIFO_EN			(1 << 25)
+#define GHWCFG4_DED_FIFO_SHIFT		25
 #define GHWCFG4_SESSION_END_FILT_EN		(1 << 24)
 #define GHWCFG4_B_VALID_FILT_EN			(1 << 23)
 #define GHWCFG4_A_VALID_FILT_EN			(1 << 22)
@@ -541,6 +542,7 @@
 
 #define DIEPINT(_a)			HSOTG_REG(0x908 + ((_a) * 0x20))
 #define DOEPINT(_a)			HSOTG_REG(0xB08 + ((_a) * 0x20))
+#define DXEPINT_SETUP_RCVD		(1 << 15)
 #define DXEPINT_INEPNAKEFF		(1 << 6)
 #define DXEPINT_BACK2BACKSETUP		(1 << 6)
 #define DXEPINT_INTKNEPMIS		(1 << 5)

@@ -3,7 +3,7 @@ WM8904 audio CODEC
 This device supports I2C only.
 
 Required properties:
-  - compatible: "wlf,wm8904"
+  - compatible: "wlf,wm8904" or "wlf,wm8912"
   - reg: the I2C address of the device.
   - clock-names: "mclk"
   - clocks: reference to

@@ -348,7 +348,7 @@ static int s5k6aa_i2c_read(struct i2c_client *client, u16 addr, u16 *val)
 	msg[1].buf = rbuf;
 
 	ret = i2c_transfer(client->adapter, msg, 2);
-	*val = be16_to_cpu(*((u16 *)rbuf));
+	*val = be16_to_cpu(*((__be16 *)rbuf));
 
 	v4l2_dbg(3, debug, client, "i2c_read: 0x%04X : 0x%04x\n", addr, *val);
 
@@ -1161,17 +1161,21 @@ static int s5k6aa_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	return ret;
 }
 
-static int s5k6aa_get_crop(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
-			   struct v4l2_subdev_crop *crop)
+static int s5k6aa_get_selection(struct v4l2_subdev *sd,
+				struct v4l2_subdev_fh *fh,
+				struct v4l2_subdev_selection *sel)
 {
 	struct s5k6aa *s5k6aa = to_s5k6aa(sd);
 	struct v4l2_rect *rect;
 
-	memset(crop->reserved, 0, sizeof(crop->reserved));
+	if (sel->target != V4L2_SEL_TGT_CROP)
+		return -EINVAL;
+
+	memset(sel->reserved, 0, sizeof(sel->reserved));
 
 	mutex_lock(&s5k6aa->lock);
-	rect = __s5k6aa_get_crop_rect(s5k6aa, fh, crop->which);
-	crop->rect = *rect;
+	rect = __s5k6aa_get_crop_rect(s5k6aa, fh, sel->which);
+	sel->r = *rect;
 	mutex_unlock(&s5k6aa->lock);
 
 	v4l2_dbg(1, debug, sd, "Current crop rectangle: (%d,%d)/%dx%d\n",
@@ -1180,35 +1184,39 @@ static int s5k6aa_get_crop(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	return 0;
 }
 
-static int s5k6aa_set_crop(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
-			   struct v4l2_subdev_crop *crop)
+static int s5k6aa_set_selection(struct v4l2_subdev *sd,
+				struct v4l2_subdev_fh *fh,
+				struct v4l2_subdev_selection *sel)
 {
 	struct s5k6aa *s5k6aa = to_s5k6aa(sd);
 	struct v4l2_mbus_framefmt *mf;
 	unsigned int max_x, max_y;
 	struct v4l2_rect *crop_r;
 
-	mutex_lock(&s5k6aa->lock);
-	crop_r = __s5k6aa_get_crop_rect(s5k6aa, fh, crop->which);
+	if (sel->target != V4L2_SEL_TGT_CROP)
+		return -EINVAL;
 
-	if (crop->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
+	mutex_lock(&s5k6aa->lock);
+	crop_r = __s5k6aa_get_crop_rect(s5k6aa, fh, sel->which);
+
+	if (sel->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
 		mf = &s5k6aa->preset->mbus_fmt;
 		s5k6aa->apply_crop = 1;
 	} else {
 		mf = v4l2_subdev_get_try_format(fh, 0);
 	}
-	v4l_bound_align_image(&crop->rect.width, mf->width,
+	v4l_bound_align_image(&sel->r.width, mf->width,
 			      S5K6AA_WIN_WIDTH_MAX, 1,
-			      &crop->rect.height, mf->height,
+			      &sel->r.height, mf->height,
 			      S5K6AA_WIN_HEIGHT_MAX, 1, 0);
 
-	max_x = (S5K6AA_WIN_WIDTH_MAX - crop->rect.width) & ~1;
-	max_y = (S5K6AA_WIN_HEIGHT_MAX - crop->rect.height) & ~1;
+	max_x = (S5K6AA_WIN_WIDTH_MAX - sel->r.width) & ~1;
+	max_y = (S5K6AA_WIN_HEIGHT_MAX - sel->r.height) & ~1;
 
-	crop->rect.left = clamp_t(unsigned int, crop->rect.left, 0, max_x);
-	crop->rect.top  = clamp_t(unsigned int, crop->rect.top, 0, max_y);
+	sel->r.left = clamp_t(unsigned int, sel->r.left, 0, max_x);
+	sel->r.top  = clamp_t(unsigned int, sel->r.top, 0, max_y);
 
-	*crop_r = crop->rect;
+	*crop_r = sel->r;
 
 	mutex_unlock(&s5k6aa->lock);
 
@@ -1224,8 +1232,8 @@ static const struct v4l2_subdev_pad_ops s5k6aa_pad_ops = {
 	.enum_frame_interval	= s5k6aa_enum_frame_interval,
 	.get_fmt		= s5k6aa_get_fmt,
 	.set_fmt		= s5k6aa_set_fmt,
-	.get_crop		= s5k6aa_get_crop,
-	.set_crop		= s5k6aa_set_crop,
+	.get_selection		= s5k6aa_get_selection,
+	.set_selection		= s5k6aa_set_selection,
 };
 
 static const struct v4l2_subdev_video_ops s5k6aa_video_ops = {

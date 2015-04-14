@@ -908,9 +908,6 @@ void ipath_chip_cleanup(struct ipath_devdata *);
 /* clean up any chip type-specific stuff */
 void ipath_chip_done(void);
 
-/* check to see if we have to force ordering for write combining */
-int ipath_unordered_wc(void);
-
 void ipath_disarm_piobufs(struct ipath_devdata *, unsigned first,
 			  unsigned cnt);
 void ipath_cancel_sends(struct ipath_devdata *, int);

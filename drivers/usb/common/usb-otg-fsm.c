@@ -150,9 +150,9 @@ static int otg_set_state(struct otg_fsm *fsm, enum usb_otg_state new_state)
 		break;
 	case OTG_STATE_B_PERIPHERAL:
 		otg_chrg_vbus(fsm, 0);
-		otg_loc_conn(fsm, 1);
 		otg_loc_sof(fsm, 0);
 		otg_set_protocol(fsm, PROTO_GADGET);
+		otg_loc_conn(fsm, 1);
 		break;
 	case OTG_STATE_B_WAIT_ACON:
 		otg_chrg_vbus(fsm, 0);
@@ -213,10 +213,10 @@ static int otg_set_state(struct otg_fsm *fsm, enum usb_otg_state new_state)
 
 		break;
 	case OTG_STATE_A_PERIPHERAL:
-		otg_loc_conn(fsm, 1);
 		otg_loc_sof(fsm, 0);
 		otg_set_protocol(fsm, PROTO_GADGET);
 		otg_drv_vbus(fsm, 1);
+		otg_loc_conn(fsm, 1);
 		otg_add_timer(fsm, A_BIDL_ADIS);
 		break;
 	case OTG_STATE_A_WAIT_VFALL:

@@ -22,7 +22,7 @@
 
 #include <linux/ptp_clock_kernel.h>
 #include <linux/net_tstamp.h>
-#include <linux/clocksource.h>
+#include <linux/timecounter.h>
 
 /* compilation time flags */
 
@@ -1138,12 +1138,8 @@ struct bnx2x_port {
 	u32			link_config[LINK_CONFIG_SIZE];
 
 	u32			supported[LINK_CONFIG_SIZE];
-/* link settings - missing defines */
-#define SUPPORTED_2500baseX_Full	(1 << 15)
 
 	u32			advertising[LINK_CONFIG_SIZE];
-/* link settings - missing defines */
-#define ADVERTISED_2500baseX_Full	(1 << 15)
 
 	u32			phy_addr;
 
@@ -1815,7 +1811,7 @@ struct bnx2x {
 	int			stats_state;
 
 	/* used for synchronization of concurrent threads statistics handling */
-	spinlock_t		stats_lock;
+	struct mutex		stats_lock;
 
 	/* used by dmae command loader */
 	struct dmae_command	stats_dmae;
@@ -1939,8 +1935,6 @@ struct bnx2x {
 
 	int fp_array_size;
 	u32 dump_preset_idx;
-	bool					stats_started;
-	struct semaphore			stats_sema;
 
 	u8					phys_port_id[ETH_ALEN];
 

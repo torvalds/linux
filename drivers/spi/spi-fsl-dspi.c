@@ -106,7 +106,7 @@ struct chip_data {
 };
 
 struct fsl_dspi {
-	struct spi_bitbang	bitbang;
+	struct spi_master	*master;
 	struct platform_device	*pdev;
 
 	struct regmap		*regmap;
@@ -114,6 +114,7 @@ struct fsl_dspi {
 	struct clk		*clk;
 
 	struct spi_transfer	*cur_transfer;
+	struct spi_message	*cur_msg;
 	struct chip_data	*cur_chip;
 	size_t			len;
 	void			*tx;
@@ -123,6 +124,7 @@ struct fsl_dspi {
 	char			dataflags;
 	u8			cs;
 	u16			void_write_data;
+	u32			cs_change;
 
 	wait_queue_head_t	waitq;
 	u32			waitflags;
@@ -225,6 +227,8 @@ static int dspi_transfer_write(struct fsl_dspi *dspi)
 		if (dspi->len == 0 || tx_count == DSPI_FIFO_SIZE - 1) {
 			/* last transfer in the transfer */
 			dspi_pushr |= SPI_PUSHR_EOQ;
+			if ((dspi->cs_change) && (!dspi->len))
+				dspi_pushr &= ~SPI_PUSHR_CONT;
 		} else if (tx_word && (dspi->len == 1))
 			dspi_pushr |= SPI_PUSHR_EOQ;
 
@@ -246,6 +250,7 @@ static int dspi_transfer_read(struct fsl_dspi *dspi)
 	int rx_count = 0;
 	int rx_word = is_double_byte_mode(dspi);
 	u16 d;
+
 	while ((dspi->rx < dspi->rx_end)
 			&& (rx_count < DSPI_FIFO_SIZE)) {
 		if (rx_word) {
@@ -276,68 +281,78 @@ static int dspi_transfer_read(struct fsl_dspi *dspi)
 	return rx_count;
 }
 
-static int dspi_txrx_transfer(struct spi_device *spi, struct spi_transfer *t)
+static int dspi_transfer_one_message(struct spi_master *master,
+		struct spi_message *message)
 {
-	struct fsl_dspi *dspi = spi_master_get_devdata(spi->master);
-	dspi->cur_transfer = t;
-	dspi->cur_chip = spi_get_ctldata(spi);
-	dspi->cs = spi->chip_select;
-	dspi->void_write_data = dspi->cur_chip->void_write_data;
+	struct fsl_dspi *dspi = spi_master_get_devdata(master);
+	struct spi_device *spi = message->spi;
+	struct spi_transfer *transfer;
+	int status = 0;
+	message->actual_length = 0;
 
-	dspi->dataflags = 0;
-	dspi->tx = (void *)t->tx_buf;
-	dspi->tx_end = dspi->tx + t->len;
-	dspi->rx = t->rx_buf;
-	dspi->rx_end = dspi->rx + t->len;
-	dspi->len = t->len;
+	list_for_each_entry(transfer, &message->transfers, transfer_list) {
+		dspi->cur_transfer = transfer;
+		dspi->cur_msg = message;
+		dspi->cur_chip = spi_get_ctldata(spi);
+		dspi->cs = spi->chip_select;
+		if (dspi->cur_transfer->transfer_list.next
+				== &dspi->cur_msg->transfers)
+			transfer->cs_change = 1;
+		dspi->cs_change = transfer->cs_change;
+		dspi->void_write_data = dspi->cur_chip->void_write_data;
 
-	if (!dspi->rx)
-		dspi->dataflags |= TRAN_STATE_RX_VOID;
+		dspi->dataflags = 0;
+		dspi->tx = (void *)transfer->tx_buf;
+		dspi->tx_end = dspi->tx + transfer->len;
+		dspi->rx = transfer->rx_buf;
+		dspi->rx_end = dspi->rx + transfer->len;
+		dspi->len = transfer->len;
 
-	if (!dspi->tx)
-		dspi->dataflags |= TRAN_STATE_TX_VOID;
+		if (!dspi->rx)
+			dspi->dataflags |= TRAN_STATE_RX_VOID;
 
-	regmap_write(dspi->regmap, SPI_MCR, dspi->cur_chip->mcr_val);
-	regmap_write(dspi->regmap, SPI_CTAR(dspi->cs), dspi->cur_chip->ctar_val);
-	regmap_write(dspi->regmap, SPI_RSER, SPI_RSER_EOQFE);
+		if (!dspi->tx)
+			dspi->dataflags |= TRAN_STATE_TX_VOID;
 
-	if (t->speed_hz)
+		regmap_write(dspi->regmap, SPI_MCR, dspi->cur_chip->mcr_val);
+		regmap_update_bits(dspi->regmap, SPI_MCR,
+				SPI_MCR_CLR_TXF | SPI_MCR_CLR_RXF,
+				SPI_MCR_CLR_TXF | SPI_MCR_CLR_RXF);
 		regmap_write(dspi->regmap, SPI_CTAR(dspi->cs),
 				dspi->cur_chip->ctar_val);
+		if (transfer->speed_hz)
+			regmap_write(dspi->regmap, SPI_CTAR(dspi->cs),
+					dspi->cur_chip->ctar_val);
 
-	dspi_transfer_write(dspi);
+		regmap_write(dspi->regmap, SPI_RSER, SPI_RSER_EOQFE);
+		message->actual_length += dspi_transfer_write(dspi);
 
-	if (wait_event_interruptible(dspi->waitq, dspi->waitflags))
-		dev_err(&dspi->pdev->dev, "wait transfer complete fail!\n");
-	dspi->waitflags = 0;
+		if (wait_event_interruptible(dspi->waitq, dspi->waitflags))
+			dev_err(&dspi->pdev->dev, "wait transfer complete fail!\n");
+		dspi->waitflags = 0;
 
-	return t->len - dspi->len;
-}
-
-static void dspi_chipselect(struct spi_device *spi, int value)
-{
-	struct fsl_dspi *dspi = spi_master_get_devdata(spi->master);
-	unsigned int pushr;
-
-	regmap_read(dspi->regmap, SPI_PUSHR, &pushr);
-
-	switch (value) {
-	case BITBANG_CS_ACTIVE:
-		pushr |= SPI_PUSHR_CONT;
-		break;
-	case BITBANG_CS_INACTIVE:
-		pushr &= ~SPI_PUSHR_CONT;
-		break;
+		if (transfer->delay_usecs)
+			udelay(transfer->delay_usecs);
 	}
 
-	regmap_write(dspi->regmap, SPI_PUSHR, pushr);
+	message->status = status;
+	spi_finalize_current_message(master);
+
+	return status;
 }
 
-static int dspi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
+static int dspi_setup(struct spi_device *spi)
 {
 	struct chip_data *chip;
 	struct fsl_dspi *dspi = spi_master_get_devdata(spi->master);
 	unsigned char br = 0, pbr = 0, fmsz = 0;
+
+	if ((spi->bits_per_word >= 4) && (spi->bits_per_word <= 16)) {
+		fmsz = spi->bits_per_word - 1;
+	} else {
+		pr_err("Invalid wordsize\n");
+		return -ENODEV;
+	}
 
 	/* Only alloc on first setup */
 	chip = spi_get_ctldata(spi);
@@ -349,12 +364,6 @@ static int dspi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 
 	chip->mcr_val = SPI_MCR_MASTER | SPI_MCR_PCSIS |
 		SPI_MCR_CLR_TXF | SPI_MCR_CLR_RXF;
-	if ((spi->bits_per_word >= 4) && (spi->bits_per_word <= 16)) {
-		fmsz = spi->bits_per_word - 1;
-	} else {
-		pr_err("Invalid wordsize\n");
-		return -ENODEV;
-	}
 
 	chip->void_write_data = 0;
 
@@ -373,14 +382,6 @@ static int dspi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 	return 0;
 }
 
-static int dspi_setup(struct spi_device *spi)
-{
-	if (!spi->max_speed_hz)
-		return -EINVAL;
-
-	return dspi_setup_transfer(spi, NULL);
-}
-
 static void dspi_cleanup(struct spi_device *spi)
 {
 	struct chip_data *chip = spi_get_ctldata((struct spi_device *)spi);
@@ -395,22 +396,20 @@ static irqreturn_t dspi_interrupt(int irq, void *dev_id)
 {
 	struct fsl_dspi *dspi = (struct fsl_dspi *)dev_id;
 
-	regmap_write(dspi->regmap, SPI_SR, SPI_SR_EOQF);
+	struct spi_message *msg = dspi->cur_msg;
 
+	regmap_write(dspi->regmap, SPI_SR, SPI_SR_EOQF);
 	dspi_transfer_read(dspi);
 
 	if (!dspi->len) {
 		if (dspi->dataflags & TRAN_STATE_WORD_ODD_NUM)
 			regmap_update_bits(dspi->regmap, SPI_CTAR(dspi->cs),
-				SPI_FRAME_BITS_MASK, SPI_FRAME_BITS(16));
+			SPI_FRAME_BITS_MASK, SPI_FRAME_BITS(16));
 
 		dspi->waitflags = 1;
 		wake_up_interruptible(&dspi->waitq);
-	} else {
-		dspi_transfer_write(dspi);
-
-		return IRQ_HANDLED;
-	}
+	} else
+		msg->actual_length += dspi_transfer_write(dspi);
 
 	return IRQ_HANDLED;
 }
@@ -469,12 +468,12 @@ static int dspi_probe(struct platform_device *pdev)
 
 	dspi = spi_master_get_devdata(master);
 	dspi->pdev = pdev;
-	dspi->bitbang.master = master;
-	dspi->bitbang.chipselect = dspi_chipselect;
-	dspi->bitbang.setup_transfer = dspi_setup_transfer;
-	dspi->bitbang.txrx_bufs = dspi_txrx_transfer;
-	dspi->bitbang.master->setup = dspi_setup;
-	dspi->bitbang.master->dev.of_node = pdev->dev.of_node;
+	dspi->master = master;
+
+	master->transfer = NULL;
+	master->setup = dspi_setup;
+	master->transfer_one_message = dspi_transfer_one_message;
+	master->dev.of_node = pdev->dev.of_node;
 
 	master->cleanup = dspi_cleanup;
 	master->mode_bits = SPI_CPOL | SPI_CPHA;
@@ -535,7 +534,7 @@ static int dspi_probe(struct platform_device *pdev)
 	init_waitqueue_head(&dspi->waitq);
 	platform_set_drvdata(pdev, master);
 
-	ret = spi_bitbang_start(&dspi->bitbang);
+	ret = spi_register_master(master);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Problem registering DSPI master\n");
 		goto out_clk_put;
@@ -557,9 +556,9 @@ static int dspi_remove(struct platform_device *pdev)
 	struct fsl_dspi *dspi = spi_master_get_devdata(master);
 
 	/* Disconnect from the SPI framework */
-	spi_bitbang_stop(&dspi->bitbang);
 	clk_disable_unprepare(dspi->clk);
-	spi_master_put(dspi->bitbang.master);
+	spi_unregister_master(dspi->master);
+	spi_master_put(dspi->master);
 
 	return 0;
 }

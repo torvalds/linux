@@ -37,7 +37,7 @@ static int armada375_usb_phy_init(struct phy *phy)
 	struct armada375_cluster_phy *cluster_phy;
 	u32 reg;
 
-	cluster_phy = dev_get_drvdata(phy->dev.parent);
+	cluster_phy = phy_get_drvdata(phy);
 	if (!cluster_phy)
 		return -ENODEV;
 
@@ -118,8 +118,8 @@ static int armada375_usb_phy_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	usb_cluster_base = devm_ioremap_resource(&pdev->dev, res);
-	if (!usb_cluster_base)
-		return -ENOMEM;
+	if (IS_ERR(usb_cluster_base))
+		return PTR_ERR(usb_cluster_base);
 
 	phy = devm_phy_create(dev, NULL, &armada375_usb_phy_ops);
 	if (IS_ERR(phy)) {
@@ -131,6 +131,7 @@ static int armada375_usb_phy_probe(struct platform_device *pdev)
 	cluster_phy->reg = usb_cluster_base;
 
 	dev_set_drvdata(dev, cluster_phy);
+	phy_set_drvdata(phy, cluster_phy);
 
 	phy_provider = devm_of_phy_provider_register(&pdev->dev,
 						     armada375_usb_phy_xlate);

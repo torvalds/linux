@@ -108,7 +108,7 @@ static int autofs4_dir_open(struct inode *inode, struct file *file)
 	struct dentry *dentry = file->f_path.dentry;
 	struct autofs_sb_info *sbi = autofs4_sbi(dentry->d_sb);
 
-	DPRINTK("file=%p dentry=%p %pD", file, dentry, dentry);
+	DPRINTK("file=%p dentry=%p %pd", file, dentry, dentry);
 
 	if (autofs4_oz_mode(sbi))
 		goto out;
@@ -371,7 +371,7 @@ static struct vfsmount *autofs4_d_automount(struct path *path)
 	 * having d_mountpoint() true, so there's no need to call back
 	 * to the daemon.
 	 */
-	if (dentry->d_inode && S_ISLNK(dentry->d_inode->i_mode)) {
+	if (dentry->d_inode && d_is_symlink(dentry)) {
 		spin_unlock(&sbi->fs_lock);
 		goto done;
 	}
@@ -485,7 +485,7 @@ static int autofs4_d_manage(struct dentry *dentry, bool rcu_walk)
 		 * an incorrect ELOOP error return.
 		 */
 		if ((!d_mountpoint(dentry) && !simple_empty(dentry)) ||
-		    (dentry->d_inode && S_ISLNK(dentry->d_inode->i_mode)))
+		    (dentry->d_inode && d_is_symlink(dentry)))
 			status = -EISDIR;
 	}
 	spin_unlock(&sbi->fs_lock);

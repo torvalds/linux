@@ -569,19 +569,19 @@ static void fast_mix(struct fast_pool *f)
 	__u32 c = f->pool[2],	d = f->pool[3];
 
 	a += b;			c += d;
-	b = rol32(a, 6);	d = rol32(c, 27);
+	b = rol32(b, 6);	d = rol32(d, 27);
 	d ^= a;			b ^= c;
 
 	a += b;			c += d;
-	b = rol32(a, 16);	d = rol32(c, 14);
+	b = rol32(b, 16);	d = rol32(d, 14);
 	d ^= a;			b ^= c;
 
 	a += b;			c += d;
-	b = rol32(a, 6);	d = rol32(c, 27);
+	b = rol32(b, 6);	d = rol32(d, 27);
 	d ^= a;			b ^= c;
 
 	a += b;			c += d;
-	b = rol32(a, 16);	d = rol32(c, 14);
+	b = rol32(b, 16);	d = rol32(d, 14);
 	d ^= a;			b ^= c;
 
 	f->pool[0] = a;  f->pool[1] = b;

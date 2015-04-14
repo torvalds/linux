@@ -43,7 +43,7 @@ static int acpi_dma_parse_resource_group(const struct acpi_csrt_group *grp,
 {
 	const struct acpi_csrt_shared_info *si;
 	struct list_head resource_list;
-	struct resource_list_entry *rentry;
+	struct resource_entry *rentry;
 	resource_size_t mem = 0, irq = 0;
 	int ret;
 
@@ -56,10 +56,10 @@ static int acpi_dma_parse_resource_group(const struct acpi_csrt_group *grp,
 		return 0;
 
 	list_for_each_entry(rentry, &resource_list, node) {
-		if (resource_type(&rentry->res) == IORESOURCE_MEM)
-			mem = rentry->res.start;
-		else if (resource_type(&rentry->res) == IORESOURCE_IRQ)
-			irq = rentry->res.start;
+		if (resource_type(rentry->res) == IORESOURCE_MEM)
+			mem = rentry->res->start;
+		else if (resource_type(rentry->res) == IORESOURCE_IRQ)
+			irq = rentry->res->start;
 	}
 
 	acpi_dev_free_resource_list(&resource_list);

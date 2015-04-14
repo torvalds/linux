@@ -2,8 +2,8 @@ VERSION = 1.0
 
 BINDIR=usr/bin
 WARNFLAGS=-Wall -Wshadow -W -Wformat -Wimplicit-function-declaration -Wimplicit-int
-CFLAGS= -O1 ${WARNFLAGS} -fstack-protector
-CC=gcc
+CFLAGS+= -O1 ${WARNFLAGS} -fstack-protector
+CC=$(CROSS_COMPILE)gcc
 
 CFLAGS+=-D VERSION=\"$(VERSION)\"
 LDFLAGS+=
@@ -16,12 +16,21 @@ INSTALL_CONFIGFILE=install -m 644 -p
 CONFIG_FILE=
 CONFIG_PATH=
 
+# Static builds might require -ltinfo, for instance
+ifneq ($(findstring -static, $(LDFLAGS)),)
+STATIC := --static
+endif
+
+TMON_LIBS=-lm -lpthread
+TMON_LIBS += $(shell pkg-config --libs $(STATIC) panelw ncursesw 2> /dev/null || \
+		     pkg-config --libs $(STATIC) panel ncurses 2> /dev/null || \
+		     echo -lpanel -lncurses)
 
 OBJS = tmon.o tui.o sysfs.o pid.o
 OBJS +=
 
 tmon: $(OBJS) Makefile tmon.h
-	$(CC) ${CFLAGS} $(LDFLAGS) $(OBJS)  -o $(TARGET) -lm -lpanel -lncursesw -ltinfo -lpthread
+	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS)  -o $(TARGET) $(TMON_LIBS)
 
 valgrind: tmon
 	 sudo valgrind -v --track-origins=yes --tool=memcheck --leak-check=yes --show-reachable=yes --num-callers=20 --track-fds=yes ./$(TARGET)  1> /dev/null

@@ -165,7 +165,7 @@ nouveau_sysfs_fini(struct drm_device *dev)
 	struct nvif_device *device = &drm->device;
 
 	if (sysfs && sysfs->ctrl.priv) {
-		device_remove_file(nv_device_base(nvkm_device(device)), &dev_attr_pstate);
+		device_remove_file(nv_device_base(nvxx_device(device)), &dev_attr_pstate);
 		nvif_object_fini(&sysfs->ctrl);
 	}
 
@@ -192,7 +192,7 @@ nouveau_sysfs_init(struct drm_device *dev)
 			       NVIF_IOCTL_NEW_V0_CONTROL, NULL, 0,
 			      &sysfs->ctrl);
 	if (ret == 0)
-		device_create_file(nv_device_base(nvkm_device(device)), &dev_attr_pstate);
+		device_create_file(nv_device_base(nvxx_device(device)), &dev_attr_pstate);
 
 	return 0;
 }

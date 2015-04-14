@@ -835,13 +835,12 @@ fail:
 static int tmio_mmc_clk_update(struct tmio_mmc_host *host)
 {
 	struct mmc_host *mmc = host->mmc;
-	struct tmio_mmc_data *pdata = host->pdata;
 	int ret;
 
-	if (!pdata->clk_enable)
+	if (!host->clk_enable)
 		return -ENOTSUPP;
 
-	ret = pdata->clk_enable(host->pdev, &mmc->f_max);
+	ret = host->clk_enable(host->pdev, &mmc->f_max);
 	if (!ret)
 		mmc->f_min = mmc->f_max / 512;
 
@@ -1005,10 +1004,9 @@ static int tmio_multi_io_quirk(struct mmc_card *card,
 			       unsigned int direction, int blk_size)
 {
 	struct tmio_mmc_host *host = mmc_priv(card->host);
-	struct tmio_mmc_data *pdata = host->pdata;
 
-	if (pdata->multi_io_quirk)
-		return pdata->multi_io_quirk(card, direction, blk_size);
+	if (host->multi_io_quirk)
+		return host->multi_io_quirk(card, direction, blk_size);
 
 	return blk_size;
 }
@@ -1054,12 +1052,37 @@ static void tmio_mmc_of_parse(struct platform_device *pdev,
 		pdata->flags |= TMIO_MMC_WRPROTECT_DISABLE;
 }
 
-int tmio_mmc_host_probe(struct tmio_mmc_host **host,
-				  struct platform_device *pdev,
-				  struct tmio_mmc_data *pdata)
+struct tmio_mmc_host*
+tmio_mmc_host_alloc(struct platform_device *pdev)
 {
-	struct tmio_mmc_host *_host;
+	struct tmio_mmc_host *host;
 	struct mmc_host *mmc;
+
+	mmc = mmc_alloc_host(sizeof(struct tmio_mmc_host), &pdev->dev);
+	if (!mmc)
+		return NULL;
+
+	host = mmc_priv(mmc);
+	host->mmc = mmc;
+	host->pdev = pdev;
+
+	return host;
+}
+EXPORT_SYMBOL(tmio_mmc_host_alloc);
+
+void tmio_mmc_host_free(struct tmio_mmc_host *host)
+{
+	mmc_free_host(host->mmc);
+
+	host->mmc = NULL;
+}
+EXPORT_SYMBOL(tmio_mmc_host_free);
+
+int tmio_mmc_host_probe(struct tmio_mmc_host *_host,
+			struct tmio_mmc_data *pdata)
+{
+	struct platform_device *pdev = _host->pdev;
+	struct mmc_host *mmc = _host->mmc;
 	struct resource *res_ctl;
 	int ret;
 	u32 irq_mask = TMIO_MASK_CMD;
@@ -1067,25 +1090,17 @@ int tmio_mmc_host_probe(struct tmio_mmc_host **host,
 	tmio_mmc_of_parse(pdev, pdata);
 
 	if (!(pdata->flags & TMIO_MMC_HAS_IDLE_WAIT))
-		pdata->write16_hook = NULL;
+		_host->write16_hook = NULL;
 
 	res_ctl = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res_ctl)
 		return -EINVAL;
 
-	mmc = mmc_alloc_host(sizeof(struct tmio_mmc_host), &pdev->dev);
-	if (!mmc)
-		return -ENOMEM;
-
 	ret = mmc_of_parse(mmc);
 	if (ret < 0)
 		goto host_free;
 
-	pdata->dev = &pdev->dev;
-	_host = mmc_priv(mmc);
 	_host->pdata = pdata;
-	_host->mmc = mmc;
-	_host->pdev = pdev;
 	platform_set_drvdata(pdev, mmc);
 
 	_host->set_pwr = pdata->set_pwr;
@@ -1192,12 +1207,9 @@ int tmio_mmc_host_probe(struct tmio_mmc_host **host,
 		mmc_gpiod_request_cd_irq(mmc);
 	}
 
-	*host = _host;
-
 	return 0;
 
 host_free:
-	mmc_free_host(mmc);
 
 	return ret;
 }
@@ -1222,7 +1234,6 @@ void tmio_mmc_host_remove(struct tmio_mmc_host *host)
 	pm_runtime_disable(&pdev->dev);
 
 	iounmap(host->ctl);
-	mmc_free_host(mmc);
 }
 EXPORT_SYMBOL(tmio_mmc_host_remove);
 
@@ -1237,8 +1248,8 @@ int tmio_mmc_host_runtime_suspend(struct device *dev)
 	if (host->clk_cache)
 		tmio_mmc_clk_stop(host);
 
-	if (host->pdata->clk_disable)
-		host->pdata->clk_disable(host->pdev);
+	if (host->clk_disable)
+		host->clk_disable(host->pdev);
 
 	return 0;
 }

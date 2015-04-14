@@ -11,6 +11,7 @@ Required properties:
   BUCKA and BUCKB.
 
 Optional properties:
+- enable-gpios: platform gpio for control of BUCKA/BUCKB.
 - Any optional property defined in regulator.txt
 
 Example 1) DA9211
@@ -27,6 +28,7 @@ Example 1) DA9211
 				regulator-max-microvolt = <1570000>;
 				regulator-min-microamp 	= <2000000>;
 				regulator-max-microamp 	= <5000000>;
+				enable-gpios = <&gpio 27 0>;
 			};
 			BUCKB {
 				regulator-name = "VBUCKB";
@@ -34,11 +36,12 @@ Example 1) DA9211
 				regulator-max-microvolt = <1570000>;
 				regulator-min-microamp 	= <2000000>;
 				regulator-max-microamp 	= <5000000>;
+				enable-gpios = <&gpio 17 0>;
 			};
 		};
 	};
 
-Example 2) DA92113
+Example 2) DA9213
 	pmic: da9213@68 {
 		compatible = "dlg,da9213";
 		reg = <0x68>;
@@ -51,6 +54,7 @@ Example 2) DA92113
 				regulator-max-microvolt = <1570000>;
 				regulator-min-microamp 	= <3000000>;
 				regulator-max-microamp 	= <6000000>;
+				enable-gpios = <&gpio 27 0>;
 			};
 			BUCKB {
 				regulator-name = "VBUCKB";
@@ -58,6 +62,7 @@ Example 2) DA92113
 				regulator-max-microvolt = <1570000>;
 				regulator-min-microamp 	= <3000000>;
 				regulator-max-microamp 	= <6000000>;
+				enable-gpios = <&gpio 17 0>;
 			};
 		};
 	};

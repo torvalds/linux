@@ -467,11 +467,14 @@ static void __record_pdu(struct lacpdu *lacpdu, struct port *port)
 		/* set the partner sync. to on if the partner is sync,
 		 * and the port is matched
 		 */
-		if ((port->sm_vars & AD_PORT_MATCHED)
-		    && (lacpdu->actor_state & AD_STATE_SYNCHRONIZATION))
+		if ((port->sm_vars & AD_PORT_MATCHED) &&
+		    (lacpdu->actor_state & AD_STATE_SYNCHRONIZATION)) {
 			partner->port_state |= AD_STATE_SYNCHRONIZATION;
-		else
+			pr_debug("%s partner sync=1\n", port->slave->dev->name);
+		} else {
 			partner->port_state &= ~AD_STATE_SYNCHRONIZATION;
+			pr_debug("%s partner sync=0\n", port->slave->dev->name);
+		}
 	}
 }
 
@@ -726,6 +729,8 @@ static inline void __update_lacpdu_from_port(struct port *port)
 	lacpdu->actor_port_priority = htons(port->actor_port_priority);
 	lacpdu->actor_port = htons(port->actor_port_number);
 	lacpdu->actor_state = port->actor_oper_port_state;
+	pr_debug("update lacpdu: %s, actor port state %x\n",
+		 port->slave->dev->name, port->actor_oper_port_state);
 
 	/* lacpdu->reserved_3_1              initialized
 	 * lacpdu->tlv_type_partner_info     initialized
@@ -898,7 +903,9 @@ static void ad_mux_machine(struct port *port, bool *update_slave_arr)
 			if ((port->sm_vars & AD_PORT_SELECTED) &&
 			    (port->partner_oper.port_state & AD_STATE_SYNCHRONIZATION) &&
 			    !__check_agg_selection_timer(port)) {
-				port->sm_mux_state = AD_MUX_COLLECTING_DISTRIBUTING;
+				if (port->aggregator->is_active)
+					port->sm_mux_state =
+					    AD_MUX_COLLECTING_DISTRIBUTING;
 			} else if (!(port->sm_vars & AD_PORT_SELECTED) ||
 				   (port->sm_vars & AD_PORT_STANDBY)) {
 				/* if UNSELECTED or STANDBY */
@@ -910,12 +917,16 @@ static void ad_mux_machine(struct port *port, bool *update_slave_arr)
 				 */
 				__set_agg_ports_ready(port->aggregator, __agg_ports_are_ready(port->aggregator));
 				port->sm_mux_state = AD_MUX_DETACHED;
+			} else if (port->aggregator->is_active) {
+				port->actor_oper_port_state |=
+				    AD_STATE_SYNCHRONIZATION;
 			}
 			break;
 		case AD_MUX_COLLECTING_DISTRIBUTING:
 			if (!(port->sm_vars & AD_PORT_SELECTED) ||
 			    (port->sm_vars & AD_PORT_STANDBY) ||
-			    !(port->partner_oper.port_state & AD_STATE_SYNCHRONIZATION)) {
+			    !(port->partner_oper.port_state & AD_STATE_SYNCHRONIZATION) ||
+			    !(port->actor_oper_port_state & AD_STATE_SYNCHRONIZATION)) {
 				port->sm_mux_state = AD_MUX_ATTACHED;
 			} else {
 				/* if port state hasn't changed make
@@ -937,8 +948,10 @@ static void ad_mux_machine(struct port *port, bool *update_slave_arr)
 
 	/* check if the state machine was changed */
 	if (port->sm_mux_state != last_state) {
-		pr_debug("Mux Machine: Port=%d, Last State=%d, Curr State=%d\n",
-			 port->actor_port_number, last_state,
+		pr_debug("Mux Machine: Port=%d (%s), Last State=%d, Curr State=%d\n",
+			 port->actor_port_number,
+			 port->slave->dev->name,
+			 last_state,
 			 port->sm_mux_state);
 		switch (port->sm_mux_state) {
 		case AD_MUX_DETACHED:
@@ -953,7 +966,12 @@ static void ad_mux_machine(struct port *port, bool *update_slave_arr)
 			port->sm_mux_timer_counter = __ad_timer_to_ticks(AD_WAIT_WHILE_TIMER, 0);
 			break;
 		case AD_MUX_ATTACHED:
-			port->actor_oper_port_state |= AD_STATE_SYNCHRONIZATION;
+			if (port->aggregator->is_active)
+				port->actor_oper_port_state |=
+				    AD_STATE_SYNCHRONIZATION;
+			else
+				port->actor_oper_port_state &=
+				    ~AD_STATE_SYNCHRONIZATION;
 			port->actor_oper_port_state &= ~AD_STATE_COLLECTING;
 			port->actor_oper_port_state &= ~AD_STATE_DISTRIBUTING;
 			ad_disable_collecting_distributing(port,
@@ -963,6 +981,7 @@ static void ad_mux_machine(struct port *port, bool *update_slave_arr)
 		case AD_MUX_COLLECTING_DISTRIBUTING:
 			port->actor_oper_port_state |= AD_STATE_COLLECTING;
 			port->actor_oper_port_state |= AD_STATE_DISTRIBUTING;
+			port->actor_oper_port_state |= AD_STATE_SYNCHRONIZATION;
 			ad_enable_collecting_distributing(port,
 							  update_slave_arr);
 			port->ntt = true;
@@ -1044,8 +1063,10 @@ static void ad_rx_machine(struct lacpdu *lacpdu, struct port *port)
 
 	/* check if the State machine was changed or new lacpdu arrived */
 	if ((port->sm_rx_state != last_state) || (lacpdu)) {
-		pr_debug("Rx Machine: Port=%d, Last State=%d, Curr State=%d\n",
-			 port->actor_port_number, last_state,
+		pr_debug("Rx Machine: Port=%d (%s), Last State=%d, Curr State=%d\n",
+			 port->actor_port_number,
+			 port->slave->dev->name,
+			 last_state,
 			 port->sm_rx_state);
 		switch (port->sm_rx_state) {
 		case AD_RX_INITIALIZE:
@@ -1394,6 +1415,9 @@ static void ad_port_selection_logic(struct port *port, bool *update_slave_arr)
 
 	aggregator = __get_first_agg(port);
 	ad_agg_selection_logic(aggregator, update_slave_arr);
+
+	if (!port->aggregator->is_active)
+		port->actor_oper_port_state &= ~AD_STATE_SYNCHRONIZATION;
 }
 
 /* Decide if "agg" is a better choice for the new active aggregator that
@@ -2195,8 +2219,10 @@ static int bond_3ad_rx_indication(struct lacpdu *lacpdu, struct slave *slave,
 		switch (lacpdu->subtype) {
 		case AD_TYPE_LACPDU:
 			ret = RX_HANDLER_CONSUMED;
-			netdev_dbg(slave->bond->dev, "Received LACPDU on port %d\n",
-				   port->actor_port_number);
+			netdev_dbg(slave->bond->dev,
+				   "Received LACPDU on port %d slave %s\n",
+				   port->actor_port_number,
+				   slave->dev->name);
 			/* Protect against concurrent state machines */
 			spin_lock(&slave->bond->mode_lock);
 			ad_rx_machine(lacpdu, port);
@@ -2288,7 +2314,10 @@ void bond_3ad_adapter_duplex_changed(struct slave *slave)
 	port->actor_admin_port_key &= ~AD_DUPLEX_KEY_MASKS;
 	port->actor_oper_port_key = port->actor_admin_port_key |=
 		__get_duplex(port);
-	netdev_dbg(slave->bond->dev, "Port %d changed duplex\n", port->actor_port_number);
+	netdev_dbg(slave->bond->dev, "Port %d slave %s changed duplex\n",
+		   port->actor_port_number, slave->dev->name);
+	if (port->actor_oper_port_key & AD_DUPLEX_KEY_MASKS)
+		port->sm_vars |= AD_PORT_LACP_ENABLED;
 	/* there is no need to reselect a new aggregator, just signal the
 	 * state machines to reinitialize
 	 */

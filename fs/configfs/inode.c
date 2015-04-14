@@ -50,12 +50,6 @@ static const struct address_space_operations configfs_aops = {
 	.write_end	= simple_write_end,
 };
 
-static struct backing_dev_info configfs_backing_dev_info = {
-	.name		= "configfs",
-	.ra_pages	= 0,	/* No readahead */
-	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK,
-};
-
 static const struct inode_operations configfs_inode_operations ={
 	.setattr	= configfs_setattr,
 };
@@ -137,7 +131,6 @@ struct inode *configfs_new_inode(umode_t mode, struct configfs_dirent *sd,
 	if (inode) {
 		inode->i_ino = get_next_ino();
 		inode->i_mapping->a_ops = &configfs_aops;
-		inode->i_mapping->backing_dev_info = &configfs_backing_dev_info;
 		inode->i_op = &configfs_inode_operations;
 
 		if (sd->s_iattr) {
@@ -183,7 +176,7 @@ static void configfs_set_inode_lock_class(struct configfs_dirent *sd,
 
 #endif /* CONFIG_LOCKDEP */
 
-int configfs_create(struct dentry * dentry, umode_t mode, int (*init)(struct inode *))
+int configfs_create(struct dentry * dentry, umode_t mode, void (*init)(struct inode *))
 {
 	int error = 0;
 	struct inode *inode = NULL;
@@ -205,13 +198,7 @@ int configfs_create(struct dentry * dentry, umode_t mode, int (*init)(struct ino
 	p_inode->i_mtime = p_inode->i_ctime = CURRENT_TIME;
 	configfs_set_inode_lock_class(sd, inode);
 
-	if (init) {
-		error = init(inode);
-		if (error) {
-			iput(inode);
-			return error;
-		}
-	}
+	init(inode);
 	d_instantiate(dentry, inode);
 	if (S_ISDIR(mode) || S_ISLNK(mode))
 		dget(dentry);  /* pin link and directory dentries in core */
@@ -249,7 +236,7 @@ void configfs_drop_dentry(struct configfs_dirent * sd, struct dentry * parent)
 
 	if (dentry) {
 		spin_lock(&dentry->d_lock);
-		if (!(d_unhashed(dentry) && dentry->d_inode)) {
+		if (!d_unhashed(dentry) && dentry->d_inode) {
 			dget_dlock(dentry);
 			__d_drop(dentry);
 			spin_unlock(&dentry->d_lock);
@@ -282,14 +269,4 @@ void configfs_hash_and_remove(struct dentry * dir, const char * name)
 		}
 	}
 	mutex_unlock(&dir->d_inode->i_mutex);
-}
-
-int __init configfs_inode_init(void)
-{
-	return bdi_init(&configfs_backing_dev_info);
-}
-
-void configfs_inode_exit(void)
-{
-	bdi_destroy(&configfs_backing_dev_info);
 }

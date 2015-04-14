@@ -120,7 +120,7 @@ void trace_seq_bitmask(struct trace_seq *s, const unsigned long *maskp,
 
 	__trace_seq_init(s);
 
-	seq_buf_bitmask(&s->seq, maskp, nmaskbits);
+	seq_buf_printf(&s->seq, "%*pb", nmaskbits, maskp);
 
 	if (unlikely(seq_buf_has_overflowed(&s->seq))) {
 		s->seq.len = save_len;

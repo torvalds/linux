@@ -26,6 +26,7 @@
  *******************************************************************/
 
 #include <rdma/ib_addr.h>
+#include <rdma/ib_pma.h>
 #include "ocrdma_stats.h"
 
 static struct dentry *ocrdma_dbgfs_dir;
@@ -249,6 +250,27 @@ static char *ocrdma_rx_stats(struct ocrdma_dev *dev)
 	return stats;
 }
 
+static u64 ocrdma_sysfs_rcv_pkts(struct ocrdma_dev *dev)
+{
+	struct ocrdma_rdma_stats_resp *rdma_stats =
+		(struct ocrdma_rdma_stats_resp *)dev->stats_mem.va;
+	struct ocrdma_rx_stats *rx_stats = &rdma_stats->rx_stats;
+
+	return convert_to_64bit(rx_stats->roce_frames_lo,
+		rx_stats->roce_frames_hi) + (u64)rx_stats->roce_frame_icrc_drops
+		+ (u64)rx_stats->roce_frame_payload_len_drops;
+}
+
+static u64 ocrdma_sysfs_rcv_data(struct ocrdma_dev *dev)
+{
+	struct ocrdma_rdma_stats_resp *rdma_stats =
+		(struct ocrdma_rdma_stats_resp *)dev->stats_mem.va;
+	struct ocrdma_rx_stats *rx_stats = &rdma_stats->rx_stats;
+
+	return (convert_to_64bit(rx_stats->roce_frame_bytes_lo,
+		rx_stats->roce_frame_bytes_hi))/4;
+}
+
 static char *ocrdma_tx_stats(struct ocrdma_dev *dev)
 {
 	char *stats = dev->stats_mem.debugfs_mem, *pcur;
@@ -290,6 +312,37 @@ static char *ocrdma_tx_stats(struct ocrdma_dev *dev)
 				(u64)tx_stats->ack_timeouts);
 
 	return stats;
+}
+
+static u64 ocrdma_sysfs_xmit_pkts(struct ocrdma_dev *dev)
+{
+	struct ocrdma_rdma_stats_resp *rdma_stats =
+		(struct ocrdma_rdma_stats_resp *)dev->stats_mem.va;
+	struct ocrdma_tx_stats *tx_stats = &rdma_stats->tx_stats;
+
+	return (convert_to_64bit(tx_stats->send_pkts_lo,
+				 tx_stats->send_pkts_hi) +
+	convert_to_64bit(tx_stats->write_pkts_lo, tx_stats->write_pkts_hi) +
+	convert_to_64bit(tx_stats->read_pkts_lo, tx_stats->read_pkts_hi) +
+	convert_to_64bit(tx_stats->read_rsp_pkts_lo,
+			 tx_stats->read_rsp_pkts_hi) +
+	convert_to_64bit(tx_stats->ack_pkts_lo, tx_stats->ack_pkts_hi));
+}
+
+static u64 ocrdma_sysfs_xmit_data(struct ocrdma_dev *dev)
+{
+	struct ocrdma_rdma_stats_resp *rdma_stats =
+		(struct ocrdma_rdma_stats_resp *)dev->stats_mem.va;
+	struct ocrdma_tx_stats *tx_stats = &rdma_stats->tx_stats;
+
+	return (convert_to_64bit(tx_stats->send_bytes_lo,
+				 tx_stats->send_bytes_hi) +
+		convert_to_64bit(tx_stats->write_bytes_lo,
+				 tx_stats->write_bytes_hi) +
+		convert_to_64bit(tx_stats->read_req_bytes_lo,
+				 tx_stats->read_req_bytes_hi) +
+		convert_to_64bit(tx_stats->read_rsp_bytes_lo,
+				 tx_stats->read_rsp_bytes_hi))/4;
 }
 
 static char *ocrdma_wqe_stats(struct ocrdma_dev *dev)
@@ -432,10 +485,118 @@ static char *ocrdma_rx_dbg_stats(struct ocrdma_dev *dev)
 	return dev->stats_mem.debugfs_mem;
 }
 
+static char *ocrdma_driver_dbg_stats(struct ocrdma_dev *dev)
+{
+	char *stats = dev->stats_mem.debugfs_mem, *pcur;
+
+
+	memset(stats, 0, (OCRDMA_MAX_DBGFS_MEM));
+
+	pcur = stats;
+	pcur += ocrdma_add_stat(stats, pcur, "async_cq_err",
+				(u64)(dev->async_err_stats
+				[OCRDMA_CQ_ERROR].counter));
+	pcur += ocrdma_add_stat(stats, pcur, "async_cq_overrun_err",
+				(u64)dev->async_err_stats
+				[OCRDMA_CQ_OVERRUN_ERROR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "async_cq_qpcat_err",
+				(u64)dev->async_err_stats
+				[OCRDMA_CQ_QPCAT_ERROR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "async_qp_access_err",
+				(u64)dev->async_err_stats
+				[OCRDMA_QP_ACCESS_ERROR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "async_qp_commm_est_evt",
+				(u64)dev->async_err_stats
+				[OCRDMA_QP_COMM_EST_EVENT].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "async_sq_drained_evt",
+				(u64)dev->async_err_stats
+				[OCRDMA_SQ_DRAINED_EVENT].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "async_dev_fatal_evt",
+				(u64)dev->async_err_stats
+				[OCRDMA_DEVICE_FATAL_EVENT].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "async_srqcat_err",
+				(u64)dev->async_err_stats
+				[OCRDMA_SRQCAT_ERROR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "async_srq_limit_evt",
+				(u64)dev->async_err_stats
+				[OCRDMA_SRQ_LIMIT_EVENT].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "async_qp_last_wqe_evt",
+				(u64)dev->async_err_stats
+				[OCRDMA_QP_LAST_WQE_EVENT].counter);
+
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_loc_len_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_LOC_LEN_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_loc_qp_op_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_LOC_QP_OP_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_loc_eec_op_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_LOC_EEC_OP_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_loc_prot_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_LOC_PROT_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_wr_flush_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_WR_FLUSH_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_mw_bind_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_MW_BIND_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_bad_resp_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_BAD_RESP_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_loc_access_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_LOC_ACCESS_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_rem_inv_req_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_REM_INV_REQ_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_rem_access_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_REM_ACCESS_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_rem_op_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_REM_OP_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_retry_exc_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_RETRY_EXC_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_rnr_retry_exc_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_RNR_RETRY_EXC_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_loc_rdd_viol_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_LOC_RDD_VIOL_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_rem_inv_rd_req_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_REM_INV_RD_REQ_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_rem_abort_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_REM_ABORT_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_inv_eecn_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_INV_EECN_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_inv_eec_state_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_INV_EEC_STATE_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_fatal_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_FATAL_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_resp_timeout_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_RESP_TIMEOUT_ERR].counter);
+	pcur += ocrdma_add_stat(stats, pcur, "cqe_general_err",
+				(u64)dev->cqe_err_stats
+				[OCRDMA_CQE_GENERAL_ERR].counter);
+	return stats;
+}
+
 static void ocrdma_update_stats(struct ocrdma_dev *dev)
 {
 	ulong now = jiffies, secs;
 	int status = 0;
+	struct ocrdma_rdma_stats_resp *rdma_stats =
+		      (struct ocrdma_rdma_stats_resp *)dev->stats_mem.va;
+	struct ocrdma_rsrc_stats *rsrc_stats = &rdma_stats->act_rsrc_stats;
 
 	secs = jiffies_to_msecs(now - dev->last_stats_time) / 1000U;
 	if (secs) {
@@ -444,8 +605,72 @@ static void ocrdma_update_stats(struct ocrdma_dev *dev)
 		if (status)
 			pr_err("%s: stats mbox failed with status = %d\n",
 			       __func__, status);
+		/* Update PD counters from PD resource manager */
+		if (dev->pd_mgr->pd_prealloc_valid) {
+			rsrc_stats->dpp_pds = dev->pd_mgr->pd_dpp_count;
+			rsrc_stats->non_dpp_pds = dev->pd_mgr->pd_norm_count;
+			/* Threshold stata*/
+			rsrc_stats = &rdma_stats->th_rsrc_stats;
+			rsrc_stats->dpp_pds = dev->pd_mgr->pd_dpp_thrsh;
+			rsrc_stats->non_dpp_pds = dev->pd_mgr->pd_norm_thrsh;
+		}
 		dev->last_stats_time = jiffies;
 	}
+}
+
+static ssize_t ocrdma_dbgfs_ops_write(struct file *filp,
+					const char __user *buffer,
+					size_t count, loff_t *ppos)
+{
+	char tmp_str[32];
+	long reset;
+	int status = 0;
+	struct ocrdma_stats *pstats = filp->private_data;
+	struct ocrdma_dev *dev = pstats->dev;
+
+	if (count > 32)
+		goto err;
+
+	if (copy_from_user(tmp_str, buffer, count))
+		goto err;
+
+	tmp_str[count-1] = '\0';
+	if (kstrtol(tmp_str, 10, &reset))
+		goto err;
+
+	switch (pstats->type) {
+	case OCRDMA_RESET_STATS:
+		if (reset) {
+			status = ocrdma_mbx_rdma_stats(dev, true);
+			if (status) {
+				pr_err("Failed to reset stats = %d", status);
+				goto err;
+			}
+		}
+		break;
+	default:
+		goto err;
+	}
+
+	return count;
+err:
+	return -EFAULT;
+}
+
+int ocrdma_pma_counters(struct ocrdma_dev *dev,
+			struct ib_mad *out_mad)
+{
+	struct ib_pma_portcounters *pma_cnt;
+
+	memset(out_mad->data, 0, sizeof out_mad->data);
+	pma_cnt = (void *)(out_mad->data + 40);
+	ocrdma_update_stats(dev);
+
+	pma_cnt->port_xmit_data    = cpu_to_be32(ocrdma_sysfs_xmit_data(dev));
+	pma_cnt->port_rcv_data     = cpu_to_be32(ocrdma_sysfs_rcv_data(dev));
+	pma_cnt->port_xmit_packets = cpu_to_be32(ocrdma_sysfs_xmit_pkts(dev));
+	pma_cnt->port_rcv_packets  = cpu_to_be32(ocrdma_sysfs_rcv_pkts(dev));
+	return 0;
 }
 
 static ssize_t ocrdma_dbgfs_ops_read(struct file *filp, char __user *buffer,
@@ -492,6 +717,9 @@ static ssize_t ocrdma_dbgfs_ops_read(struct file *filp, char __user *buffer,
 	case OCRDMA_RX_DBG_STATS:
 		data = ocrdma_rx_dbg_stats(dev);
 		break;
+	case OCRDMA_DRV_STATS:
+		data = ocrdma_driver_dbg_stats(dev);
+		break;
 
 	default:
 		status = -EFAULT;
@@ -514,6 +742,7 @@ static const struct file_operations ocrdma_dbg_ops = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
 	.read = ocrdma_dbgfs_ops_read,
+	.write = ocrdma_dbgfs_ops_write,
 };
 
 void ocrdma_add_port_stats(struct ocrdma_dev *dev)
@@ -580,6 +809,18 @@ void ocrdma_add_port_stats(struct ocrdma_dev *dev)
 	dev->rx_dbg_stats.dev = dev;
 	if (!debugfs_create_file("rx_dbg_stats", S_IRUSR, dev->dir,
 				 &dev->rx_dbg_stats, &ocrdma_dbg_ops))
+		goto err;
+
+	dev->driver_stats.type = OCRDMA_DRV_STATS;
+	dev->driver_stats.dev = dev;
+	if (!debugfs_create_file("driver_dbg_stats", S_IRUSR, dev->dir,
+					&dev->driver_stats, &ocrdma_dbg_ops))
+		goto err;
+
+	dev->reset_stats.type = OCRDMA_RESET_STATS;
+	dev->reset_stats.dev = dev;
+	if (!debugfs_create_file("reset_stats", S_IRUSR, dev->dir,
+				&dev->reset_stats, &ocrdma_dbg_ops))
 		goto err;
 
 	/* Now create dma_mem for stats mbx command */

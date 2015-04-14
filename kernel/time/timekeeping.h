@@ -16,5 +16,7 @@ extern int timekeeping_inject_offset(struct timespec *ts);
 extern s32 timekeeping_get_tai_offset(void);
 extern void timekeeping_set_tai_offset(s32 tai_offset);
 extern void timekeeping_clocktai(struct timespec *ts);
+extern int timekeeping_suspend(void);
+extern void timekeeping_resume(void);
 
 #endif

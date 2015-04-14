@@ -1309,35 +1309,6 @@ static int mos7840_write(struct tty_struct *tty, struct usb_serial_port *port,
 	const unsigned char *current_position = data;
 	unsigned char *data1;
 
-#ifdef NOTMOS7840
-	Data = 0x00;
-	status = mos7840_get_uart_reg(port, LINE_CONTROL_REGISTER, &Data);
-	mos7840_port->shadowLCR = Data;
-	dev_dbg(&port->dev, "%s: LINE_CONTROL_REGISTER is %x\n", __func__, Data);
-	dev_dbg(&port->dev, "%s: mos7840_port->shadowLCR is %x\n", __func__, mos7840_port->shadowLCR);
-
-	/* Data = 0x03; */
-	/* status = mos7840_set_uart_reg(port,LINE_CONTROL_REGISTER,Data); */
-	/* mos7840_port->shadowLCR=Data;//Need to add later */
-
-	Data |= SERIAL_LCR_DLAB;	/* data latch enable in LCR 0x80 */
-	status = mos7840_set_uart_reg(port, LINE_CONTROL_REGISTER, Data);
-
-	/* Data = 0x0c; */
-	/* status = mos7840_set_uart_reg(port,DIVISOR_LATCH_LSB,Data); */
-	Data = 0x00;
-	status = mos7840_get_uart_reg(port, DIVISOR_LATCH_LSB, &Data);
-	dev_dbg(&port->dev, "%s: DLL value is %x\n", __func__, Data);
-
-	Data = 0x0;
-	status = mos7840_get_uart_reg(port, DIVISOR_LATCH_MSB, &Data);
-	dev_dbg(&port->dev, "%s: DLM value is %x\n", __func__, Data);
-
-	Data = Data & ~SERIAL_LCR_DLAB;
-	dev_dbg(&port->dev, "%s: mos7840_port->shadowLCR is %x\n", __func__, mos7840_port->shadowLCR);
-	status = mos7840_set_uart_reg(port, LINE_CONTROL_REGISTER, Data);
-#endif
-
 	if (mos7840_port_paranoia_check(port, __func__))
 		return -1;
 
@@ -1614,37 +1585,6 @@ static int mos7840_calc_baud_rate_divisor(struct usb_serial_port *port,
 		*clk_sel_val = 0x70;
 	}
 	return 0;
-
-#ifdef NOTMCS7840
-
-	for (i = 0; i < ARRAY_SIZE(mos7840_divisor_table); i++) {
-		if (mos7840_divisor_table[i].BaudRate == baudrate) {
-			*divisor = mos7840_divisor_table[i].Divisor;
-			return 0;
-		}
-	}
-
-	/* After trying for all the standard baud rates    *
-	 * Try calculating the divisor for this baud rate  */
-
-	if (baudrate > 75 && baudrate < 230400) {
-		/* get the divisor */
-		custom = (__u16) (230400L / baudrate);
-
-		/* Check for round off */
-		round1 = (__u16) (2304000L / baudrate);
-		round = (__u16) (round1 - (custom * 10));
-		if (round > 4)
-			custom++;
-		*divisor = custom;
-
-		dev_dbg(&port->dev, " Baud %d = %d\n", baudrate, custom);
-		return 0;
-	}
-
-	dev_dbg(&port->dev, "%s", " Baud calculation Failed...\n");
-	return -1;
-#endif
 }
 
 /*****************************************************************************

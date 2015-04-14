@@ -43,7 +43,7 @@ static struct qib_mcast_qp *qib_mcast_qp_alloc(struct qib_qp *qp)
 {
 	struct qib_mcast_qp *mqp;
 
-	mqp = kmalloc(sizeof *mqp, GFP_KERNEL);
+	mqp = kmalloc(sizeof(*mqp), GFP_KERNEL);
 	if (!mqp)
 		goto bail;
 
@@ -75,7 +75,7 @@ static struct qib_mcast *qib_mcast_alloc(union ib_gid *mgid)
 {
 	struct qib_mcast *mcast;
 
-	mcast = kmalloc(sizeof *mcast, GFP_KERNEL);
+	mcast = kmalloc(sizeof(*mcast), GFP_KERNEL);
 	if (!mcast)
 		goto bail;
 

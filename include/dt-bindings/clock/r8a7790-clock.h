@@ -97,6 +97,7 @@
 #define R8A7790_CLK_LVDS0		26
 
 /* MSTP8 */
+#define R8A7790_CLK_MLB			2
 #define R8A7790_CLK_VIN3		8
 #define R8A7790_CLK_VIN2		9
 #define R8A7790_CLK_VIN1		10

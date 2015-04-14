@@ -1,9 +1,9 @@
 noarg:
 	$(MAKE) -C ../
 
-PROGS := hugetlb_vs_thp_test
+PROGS := hugetlb_vs_thp_test subpage_prot
 
-all: $(PROGS)
+all: $(PROGS) tempfile
 
 $(PROGS): ../harness.c
 
@@ -12,7 +12,10 @@ run_tests: all
 		./$$PROG; \
 	done;
 
+tempfile:
+	dd if=/dev/zero of=tempfile bs=64k count=1
+
 clean:
-	rm -f $(PROGS)
+	rm -f $(PROGS) tempfile
 
 .PHONY: all run_tests clean

@@ -56,8 +56,8 @@
 struct solo_snd_pcm {
 	int				on;
 	spinlock_t			lock;
-	struct solo_dev		*solo_dev;
-	unsigned char			*g723_buf;
+	struct solo_dev			*solo_dev;
+	u8				*g723_buf;
 	dma_addr_t			g723_dma;
 };
 

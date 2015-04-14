@@ -3289,6 +3289,7 @@ int radeon_atom_get_voltage_evv(struct radeon_device *rdev,
 
 	args.in.ucVoltageType = VOLTAGE_TYPE_VDDC;
 	args.in.ucVoltageMode = ATOM_GET_VOLTAGE_EVV_VOLTAGE;
+	args.in.usVoltageLevel = cpu_to_le16(virtual_voltage_id);
 	args.in.ulSCLKFreq =
 		cpu_to_le32(rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk.entries[entry_id].clk);
 

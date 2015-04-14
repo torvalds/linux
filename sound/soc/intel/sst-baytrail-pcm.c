@@ -320,11 +320,6 @@ static struct snd_pcm_ops sst_byt_pcm_ops = {
 	.mmap		= sst_byt_pcm_mmap,
 };
 
-static void sst_byt_pcm_free(struct snd_pcm *pcm)
-{
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static int sst_byt_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_pcm *pcm = rtd->pcm;
@@ -403,7 +398,6 @@ static struct snd_soc_platform_driver byt_soc_platform = {
 	.remove		= sst_byt_pcm_remove,
 	.ops		= &sst_byt_pcm_ops,
 	.pcm_new	= sst_byt_pcm_new,
-	.pcm_free	= sst_byt_pcm_free,
 };
 
 static const struct snd_soc_component_driver byt_dai_component = {

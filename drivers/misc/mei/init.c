@@ -341,6 +341,8 @@ void mei_stop(struct mei_device *dev)
 
 	dev->dev_state = MEI_DEV_POWER_DOWN;
 	mei_reset(dev);
+	/* move device to disabled state unconditionally */
+	dev->dev_state = MEI_DEV_DISABLED;
 
 	mutex_unlock(&dev->device_lock);
 

@@ -417,8 +417,7 @@ static int hgafb_pan_display(struct fb_var_screeninfo *var,
 			     struct fb_info *info)
 {
 	if (var->vmode & FB_VMODE_YWRAP) {
-		if (var->yoffset < 0 || 
-		    var->yoffset >= info->var.yres_virtual ||
+		if (var->yoffset >= info->var.yres_virtual ||
 		    var->xoffset)
 			return -EINVAL;
 	} else {

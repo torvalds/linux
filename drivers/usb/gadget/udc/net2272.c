@@ -1132,13 +1132,10 @@ net2272_wakeup(struct usb_gadget *_gadget)
 static int
 net2272_set_selfpowered(struct usb_gadget *_gadget, int value)
 {
-	struct net2272 *dev;
-
 	if (!_gadget)
 		return -ENODEV;
-	dev = container_of(_gadget, struct net2272, gadget);
 
-	dev->is_selfpowered = value;
+	_gadget->is_selfpowered = (value != 0);
 
 	return 0;
 }
@@ -1844,7 +1841,7 @@ net2272_handle_stat0_irqs(struct net2272 *dev, u8 stat)
 			case USB_RECIP_DEVICE:
 				if (u.r.wLength > 2)
 					goto do_stall;
-				if (dev->is_selfpowered)
+				if (dev->gadget.is_selfpowered)
 					status = (1 << USB_DEVICE_SELF_POWERED);
 
 				/* don't bother with a request object! */

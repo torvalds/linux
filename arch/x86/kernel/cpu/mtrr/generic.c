@@ -678,8 +678,8 @@ static void prepare_set(void) __acquires(set_atomicity_lock)
 
 	/* Save value of CR4 and clear Page Global Enable (bit 7) */
 	if (cpu_has_pge) {
-		cr4 = read_cr4();
-		write_cr4(cr4 & ~X86_CR4_PGE);
+		cr4 = __read_cr4();
+		__write_cr4(cr4 & ~X86_CR4_PGE);
 	}
 
 	/* Flush all TLBs via a mov %cr3, %reg; mov %reg, %cr3 */
@@ -708,7 +708,7 @@ static void post_set(void) __releases(set_atomicity_lock)
 
 	/* Restore value of CR4 */
 	if (cpu_has_pge)
-		write_cr4(cr4);
+		__write_cr4(cr4);
 	raw_spin_unlock(&set_atomicity_lock);
 }
 

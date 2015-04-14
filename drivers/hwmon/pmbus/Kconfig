@@ -57,7 +57,7 @@ config SENSORS_LTC2978
 	  be called ltc2978.
 
 config SENSORS_LTC2978_REGULATOR
-	boolean "Regulator support for LTC2978 and compatibles"
+	bool "Regulator support for LTC2978 and compatibles"
 	depends on SENSORS_LTC2978 && REGULATOR
 	help
 	  If you say yes here you get regulator support for Linear

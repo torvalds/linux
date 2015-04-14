@@ -1069,9 +1069,16 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		}
 
 		if (sta && rates_updated) {
-			drv_sta_rc_update(local, sdata, &sta->sta,
-					  IEEE80211_RC_SUPP_RATES_CHANGED);
+			u32 changed = IEEE80211_RC_SUPP_RATES_CHANGED;
+			u8 rx_nss = sta->sta.rx_nss;
+
+			/* Force rx_nss recalculation */
+			sta->sta.rx_nss = 0;
 			rate_control_rate_init(sta);
+			if (sta->sta.rx_nss != rx_nss)
+				changed |= IEEE80211_RC_NSS_CHANGED;
+
+			drv_sta_rc_update(local, sdata, &sta->sta, changed);
 		}
 
 		rcu_read_unlock();

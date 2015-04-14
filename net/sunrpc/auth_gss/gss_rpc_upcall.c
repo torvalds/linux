@@ -217,6 +217,8 @@ static void gssp_free_receive_pages(struct gssx_arg_accept_sec_context *arg)
 
 	for (i = 0; i < arg->npages && arg->pages[i]; i++)
 		__free_page(arg->pages[i]);
+
+	kfree(arg->pages);
 }
 
 static int gssp_alloc_receive_pages(struct gssx_arg_accept_sec_context *arg)

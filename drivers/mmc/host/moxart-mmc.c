@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
+#include <linux/errno.h>
 #include <linux/interrupt.h>
 #include <linux/blkdev.h>
 #include <linux/dma-mapping.h>
@@ -562,7 +563,6 @@ static int moxart_probe(struct platform_device *pdev)
 	struct dma_slave_config cfg;
 	struct clk *clk;
 	void __iomem *reg_mmc;
-	dma_cap_mask_t mask;
 	int irq, ret;
 	u32 i;
 
@@ -586,9 +586,8 @@ static int moxart_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	clk = of_clk_get(node, 0);
+	clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(clk)) {
-		dev_err(dev, "of_clk_get failed\n");
 		ret = PTR_ERR(clk);
 		goto out;
 	}
@@ -599,10 +598,9 @@ static int moxart_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	mmc_of_parse(mmc);
-
-	dma_cap_zero(mask);
-	dma_cap_set(DMA_SLAVE, mask);
+	ret = mmc_of_parse(mmc);
+	if (ret)
+		goto out;
 
 	host = mmc_priv(mmc);
 	host->mmc = mmc;
@@ -611,8 +609,8 @@ static int moxart_probe(struct platform_device *pdev)
 	host->timeout = msecs_to_jiffies(1000);
 	host->sysclk = clk_get_rate(clk);
 	host->fifo_width = readl(host->base + REG_FEATURE) << 2;
-	host->dma_chan_tx = of_dma_request_slave_channel(node, "tx");
-	host->dma_chan_rx = of_dma_request_slave_channel(node, "rx");
+	host->dma_chan_tx = dma_request_slave_channel_reason(dev, "tx");
+	host->dma_chan_rx = dma_request_slave_channel_reason(dev, "rx");
 
 	spin_lock_init(&host->lock);
 
@@ -622,6 +620,11 @@ static int moxart_probe(struct platform_device *pdev)
 	mmc->ocr_avail = 0xffff00;	/* Support 2.0v - 3.6v power. */
 
 	if (IS_ERR(host->dma_chan_tx) || IS_ERR(host->dma_chan_rx)) {
+		if (PTR_ERR(host->dma_chan_tx) == -EPROBE_DEFER ||
+		    PTR_ERR(host->dma_chan_rx) == -EPROBE_DEFER) {
+			ret = -EPROBE_DEFER;
+			goto out;
+		}
 		dev_dbg(dev, "PIO mode transfer enabled\n");
 		host->have_dma = false;
 	} else {
@@ -700,9 +703,6 @@ static int moxart_remove(struct platform_device *pdev)
 		writel(readl(host->base + REG_CLOCK_CONTROL) | CLK_OFF,
 		       host->base + REG_CLOCK_CONTROL);
 	}
-
-	kfree(host);
-
 	return 0;
 }
 

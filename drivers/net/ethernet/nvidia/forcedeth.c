@@ -2462,9 +2462,9 @@ static netdev_tx_t nv_start_xmit_optimized(struct sk_buff *skb,
 			 NV_TX2_CHECKSUM_L3 | NV_TX2_CHECKSUM_L4 : 0;
 
 	/* vlan tag */
-	if (vlan_tx_tag_present(skb))
+	if (skb_vlan_tag_present(skb))
 		start_tx->txvlan = cpu_to_le32(NV_TX3_VLAN_TAG_PRESENT |
-					vlan_tx_tag_get(skb));
+					skb_vlan_tag_get(skb));
 	else
 		start_tx->txvlan = 0;
 

@@ -12,8 +12,8 @@
 #include "img-ir-hw.h"
 
 /* Convert Sharp data to a scancode */
-static int img_ir_sharp_scancode(int len, u64 raw, enum rc_type *protocol,
-				 u32 *scancode, u64 enabled_protocols)
+static int img_ir_sharp_scancode(int len, u64 raw, u64 enabled_protocols,
+				 struct img_ir_scancode_req *request)
 {
 	unsigned int addr, cmd, exp, chk;
 
@@ -32,8 +32,8 @@ static int img_ir_sharp_scancode(int len, u64 raw, enum rc_type *protocol,
 		/* probably the second half of the message */
 		return -EINVAL;
 
-	*protocol = RC_TYPE_SHARP;
-	*scancode = addr << 8 | cmd;
+	request->protocol = RC_TYPE_SHARP;
+	request->scancode = addr << 8 | cmd;
 	return IMG_IR_SCANCODE;
 }
 

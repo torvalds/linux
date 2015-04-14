@@ -228,12 +228,12 @@ int libcfs_kkuc_group_foreach(int group, libcfs_kkuc_cb_t cb_func,
 	if (kkuc_groups[group].next == NULL)
 		return 0;
 
-	down_read(&kg_sem);
+	down_write(&kg_sem);
 	list_for_each_entry(reg, &kkuc_groups[group], kr_chain) {
 		if (reg->kr_fp != NULL)
 			rc = cb_func(reg->kr_data, cb_arg);
 	}
-	up_read(&kg_sem);
+	up_write(&kg_sem);
 
 	return rc;
 }

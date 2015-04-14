@@ -75,9 +75,12 @@ do {									\
 #endif
 
 #define __clear_software_ll_bit()					\
-do {									\
-	if (!__builtin_constant_p(cpu_has_llsc) || !cpu_has_llsc)	\
-		ll_bit = 0;						\
+do {	if (cpu_has_rw_llb) {						\
+		write_c0_lladdr(0);					\
+	} else {							\
+		if (!__builtin_constant_p(cpu_has_llsc) || !cpu_has_llsc)\
+			ll_bit = 0;					\
+	}								\
 } while (0)
 
 #define switch_to(prev, next, last)					\

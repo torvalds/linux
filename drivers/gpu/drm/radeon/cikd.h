@@ -482,6 +482,10 @@
 #define		SOFT_RESET_ORB				(1 << 23)
 #define		SOFT_RESET_VCE				(1 << 24)
 
+#define SRBM_READ_ERROR					0xE98
+#define SRBM_INT_CNTL					0xEA0
+#define SRBM_INT_ACK					0xEA8
+
 #define VM_L2_CNTL					0x1400
 #define		ENABLE_L2_CACHE					(1 << 0)
 #define		ENABLE_L2_FRAGMENT_PROCESSING			(1 << 1)
@@ -2125,6 +2129,7 @@
 #define VCE_UENC_REG_CLOCK_GATING	0x207c0
 #define VCE_SYS_INT_EN			0x21300
 #	define VCE_SYS_INT_TRAP_INTERRUPT_EN	(1 << 3)
+#define VCE_LMI_VCPU_CACHE_40BIT_BAR	0x2145c
 #define VCE_LMI_CTRL2			0x21474
 #define VCE_LMI_CTRL			0x21498
 #define VCE_LMI_VM_CTRL			0x214a0

@@ -166,6 +166,7 @@ static inline bool sb_has_quota_active(struct super_block *sb, int type)
  */
 extern const struct dquot_operations dquot_operations;
 extern const struct quotactl_ops dquot_quotactl_ops;
+extern const struct quotactl_ops dquot_quotactl_sysfile_ops;
 
 #else
 
@@ -385,5 +386,7 @@ static inline void dquot_release_reservation_block(struct inode *inode,
 {
 	__dquot_free_space(inode, nr << inode->i_blkbits, DQUOT_SPACE_RESERVE);
 }
+
+unsigned int qtype_enforce_flag(int type);
 
 #endif /* _LINUX_QUOTAOPS_ */

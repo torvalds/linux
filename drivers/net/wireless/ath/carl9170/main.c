@@ -1690,9 +1690,9 @@ found:
 		survey->filled |= SURVEY_INFO_IN_USE;
 
 	if (ar->fw.hw_counters) {
-		survey->filled |= SURVEY_INFO_CHANNEL_TIME |
-				  SURVEY_INFO_CHANNEL_TIME_BUSY |
-				  SURVEY_INFO_CHANNEL_TIME_TX;
+		survey->filled |= SURVEY_INFO_TIME |
+				  SURVEY_INFO_TIME_BUSY |
+				  SURVEY_INFO_TIME_TX;
 	}
 
 	return 0;

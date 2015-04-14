@@ -42,6 +42,7 @@ mflags-$(CONFIG_MARCH_Z9_109) := -march=z9-109
 mflags-$(CONFIG_MARCH_Z10)    := -march=z10
 mflags-$(CONFIG_MARCH_Z196)   := -march=z196
 mflags-$(CONFIG_MARCH_ZEC12)  := -march=zEC12
+mflags-$(CONFIG_MARCH_Z13)   := -march=z13
 
 aflags-y += $(mflags-y)
 cflags-y += $(mflags-y)
@@ -53,6 +54,7 @@ cflags-$(CONFIG_MARCH_Z9_109_TUNE)	+= -mtune=z9-109
 cflags-$(CONFIG_MARCH_Z10_TUNE)		+= -mtune=z10
 cflags-$(CONFIG_MARCH_Z196_TUNE)	+= -mtune=z196
 cflags-$(CONFIG_MARCH_ZEC12_TUNE)	+= -mtune=zEC12
+cflags-$(CONFIG_MARCH_Z13_TUNE)	+= -mtune=z13
 
 #KBUILD_IMAGE is necessary for make rpm
 KBUILD_IMAGE	:=arch/s390/boot/image
@@ -83,6 +85,16 @@ endif
 
 ifeq ($(call cc-option-yn,-mwarn-dynamicstack),y)
 cflags-$(CONFIG_WARN_DYNAMIC_STACK) += -mwarn-dynamicstack
+endif
+
+ifdef CONFIG_FUNCTION_TRACER
+# make use of hotpatch feature if the compiler supports it
+cc_hotpatch	:= -mhotpatch=0,3
+ifeq ($(call cc-option-yn,$(cc_hotpatch)),y)
+CC_FLAGS_FTRACE := $(cc_hotpatch)
+KBUILD_AFLAGS	+= -DCC_USING_HOTPATCH
+KBUILD_CFLAGS	+= -DCC_USING_HOTPATCH
+endif
 endif
 
 KBUILD_CFLAGS	+= -mbackchain -msoft-float $(cflags-y)

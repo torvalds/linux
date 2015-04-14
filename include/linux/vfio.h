@@ -26,6 +26,7 @@
  * @ioctl: Perform ioctl(2) on device file descriptor, supporting VFIO_DEVICE_*
  *         operations documented below
  * @mmap: Perform mmap(2) on a region of the device file descriptor
+ * @request: Request for the bus driver to release the device
  */
 struct vfio_device_ops {
 	char	*name;
@@ -38,6 +39,7 @@ struct vfio_device_ops {
 	long	(*ioctl)(void *device_data, unsigned int cmd,
 			 unsigned long arg);
 	int	(*mmap)(void *device_data, struct vm_area_struct *vma);
+	void	(*request)(void *device_data, unsigned int count);
 };
 
 extern int vfio_add_group_dev(struct device *dev,

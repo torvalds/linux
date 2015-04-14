@@ -423,7 +423,7 @@ xfs_compat_attrmulti_by_handle(
 
 	ops = memdup_user(compat_ptr(am_hreq.ops), size);
 	if (IS_ERR(ops)) {
-		error = -PTR_ERR(ops);
+		error = PTR_ERR(ops);
 		goto out_dput;
 	}
 

@@ -47,6 +47,7 @@
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
 #include <xen/balloon.h>
+#include <xen/grant_table.h>
 #include "common.h"
 
 /*
@@ -100,7 +101,7 @@ module_param(log_stats, int, 0644);
 
 #define BLKBACK_INVALID_HANDLE (~0)
 
-/* Number of free pages to remove on each call to free_xenballooned_pages */
+/* Number of free pages to remove on each call to gnttab_free_pages */
 #define NUM_BATCH_FREE_PAGES 10
 
 static inline int get_free_page(struct xen_blkif *blkif, struct page **page)
@@ -111,7 +112,7 @@ static inline int get_free_page(struct xen_blkif *blkif, struct page **page)
 	if (list_empty(&blkif->free_pages)) {
 		BUG_ON(blkif->free_pages_num != 0);
 		spin_unlock_irqrestore(&blkif->free_pages_lock, flags);
-		return alloc_xenballooned_pages(1, page, false);
+		return gnttab_alloc_pages(1, page);
 	}
 	BUG_ON(blkif->free_pages_num == 0);
 	page[0] = list_first_entry(&blkif->free_pages, struct page, lru);
@@ -151,14 +152,14 @@ static inline void shrink_free_pagepool(struct xen_blkif *blkif, int num)
 		blkif->free_pages_num--;
 		if (++num_pages == NUM_BATCH_FREE_PAGES) {
 			spin_unlock_irqrestore(&blkif->free_pages_lock, flags);
-			free_xenballooned_pages(num_pages, page);
+			gnttab_free_pages(num_pages, page);
 			spin_lock_irqsave(&blkif->free_pages_lock, flags);
 			num_pages = 0;
 		}
 	}
 	spin_unlock_irqrestore(&blkif->free_pages_lock, flags);
 	if (num_pages != 0)
-		free_xenballooned_pages(num_pages, page);
+		gnttab_free_pages(num_pages, page);
 }
 
 #define vaddr(page) ((unsigned long)pfn_to_kaddr(page_to_pfn(page)))
@@ -262,6 +263,17 @@ static void put_persistent_gnt(struct xen_blkif *blkif,
 	atomic_dec(&blkif->persistent_gnt_in_use);
 }
 
+static void free_persistent_gnts_unmap_callback(int result,
+						struct gntab_unmap_queue_data *data)
+{
+	struct completion *c = data->data;
+
+	/* BUG_ON used to reproduce existing behaviour,
+	   but is this the best way to deal with this? */
+	BUG_ON(result);
+	complete(c);
+}
+
 static void free_persistent_gnts(struct xen_blkif *blkif, struct rb_root *root,
                                  unsigned int num)
 {
@@ -269,8 +281,17 @@ static void free_persistent_gnts(struct xen_blkif *blkif, struct rb_root *root,
 	struct page *pages[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	struct persistent_gnt *persistent_gnt;
 	struct rb_node *n;
-	int ret = 0;
 	int segs_to_unmap = 0;
+	struct gntab_unmap_queue_data unmap_data;
+	struct completion unmap_completion;
+
+	init_completion(&unmap_completion);
+
+	unmap_data.data = &unmap_completion;
+	unmap_data.done = &free_persistent_gnts_unmap_callback;
+	unmap_data.pages = pages;
+	unmap_data.unmap_ops = unmap;
+	unmap_data.kunmap_ops = NULL;
 
 	foreach_grant_safe(persistent_gnt, n, root, node) {
 		BUG_ON(persistent_gnt->handle ==
@@ -285,9 +306,11 @@ static void free_persistent_gnts(struct xen_blkif *blkif, struct rb_root *root,
 
 		if (++segs_to_unmap == BLKIF_MAX_SEGMENTS_PER_REQUEST ||
 			!rb_next(&persistent_gnt->node)) {
-			ret = gnttab_unmap_refs(unmap, NULL, pages,
-				segs_to_unmap);
-			BUG_ON(ret);
+
+			unmap_data.count = segs_to_unmap;
+			gnttab_unmap_refs_async(&unmap_data);
+			wait_for_completion(&unmap_completion);
+
 			put_free_pages(blkif, pages, segs_to_unmap);
 			segs_to_unmap = 0;
 		}
@@ -653,18 +676,14 @@ void xen_blkbk_free_caches(struct xen_blkif *blkif)
 	shrink_free_pagepool(blkif, 0 /* All */);
 }
 
-/*
- * Unmap the grant references, and also remove the M2P over-rides
- * used in the 'pending_req'.
- */
-static void xen_blkbk_unmap(struct xen_blkif *blkif,
-                            struct grant_page *pages[],
-                            int num)
+static unsigned int xen_blkbk_unmap_prepare(
+	struct xen_blkif *blkif,
+	struct grant_page **pages,
+	unsigned int num,
+	struct gnttab_unmap_grant_ref *unmap_ops,
+	struct page **unmap_pages)
 {
-	struct gnttab_unmap_grant_ref unmap[BLKIF_MAX_SEGMENTS_PER_REQUEST];
-	struct page *unmap_pages[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	unsigned int i, invcount = 0;
-	int ret;
 
 	for (i = 0; i < num; i++) {
 		if (pages[i]->persistent_gnt != NULL) {
@@ -674,21 +693,95 @@ static void xen_blkbk_unmap(struct xen_blkif *blkif,
 		if (pages[i]->handle == BLKBACK_INVALID_HANDLE)
 			continue;
 		unmap_pages[invcount] = pages[i]->page;
-		gnttab_set_unmap_op(&unmap[invcount], vaddr(pages[i]->page),
+		gnttab_set_unmap_op(&unmap_ops[invcount], vaddr(pages[i]->page),
 				    GNTMAP_host_map, pages[i]->handle);
 		pages[i]->handle = BLKBACK_INVALID_HANDLE;
-		if (++invcount == BLKIF_MAX_SEGMENTS_PER_REQUEST) {
-			ret = gnttab_unmap_refs(unmap, NULL, unmap_pages,
-			                        invcount);
+		invcount++;
+       }
+
+       return invcount;
+}
+
+static void xen_blkbk_unmap_and_respond_callback(int result, struct gntab_unmap_queue_data *data)
+{
+	struct pending_req* pending_req = (struct pending_req*) (data->data);
+	struct xen_blkif *blkif = pending_req->blkif;
+
+	/* BUG_ON used to reproduce existing behaviour,
+	   but is this the best way to deal with this? */
+	BUG_ON(result);
+
+	put_free_pages(blkif, data->pages, data->count);
+	make_response(blkif, pending_req->id,
+		      pending_req->operation, pending_req->status);
+	free_req(blkif, pending_req);
+	/*
+	 * Make sure the request is freed before releasing blkif,
+	 * or there could be a race between free_req and the
+	 * cleanup done in xen_blkif_free during shutdown.
+	 *
+	 * NB: The fact that we might try to wake up pending_free_wq
+	 * before drain_complete (in case there's a drain going on)
+	 * it's not a problem with our current implementation
+	 * because we can assure there's no thread waiting on
+	 * pending_free_wq if there's a drain going on, but it has
+	 * to be taken into account if the current model is changed.
+	 */
+	if (atomic_dec_and_test(&blkif->inflight) && atomic_read(&blkif->drain)) {
+		complete(&blkif->drain_complete);
+	}
+	xen_blkif_put(blkif);
+}
+
+static void xen_blkbk_unmap_and_respond(struct pending_req *req)
+{
+	struct gntab_unmap_queue_data* work = &req->gnttab_unmap_data;
+	struct xen_blkif *blkif = req->blkif;
+	struct grant_page **pages = req->segments;
+	unsigned int invcount;
+
+	invcount = xen_blkbk_unmap_prepare(blkif, pages, req->nr_pages,
+					   req->unmap, req->unmap_pages);
+
+	work->data = req;
+	work->done = xen_blkbk_unmap_and_respond_callback;
+	work->unmap_ops = req->unmap;
+	work->kunmap_ops = NULL;
+	work->pages = req->unmap_pages;
+	work->count = invcount;
+
+	gnttab_unmap_refs_async(&req->gnttab_unmap_data);
+}
+
+
+/*
+ * Unmap the grant references.
+ *
+ * This could accumulate ops up to the batch size to reduce the number
+ * of hypercalls, but since this is only used in error paths there's
+ * no real need.
+ */
+static void xen_blkbk_unmap(struct xen_blkif *blkif,
+                            struct grant_page *pages[],
+                            int num)
+{
+	struct gnttab_unmap_grant_ref unmap[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+	struct page *unmap_pages[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+	unsigned int invcount = 0;
+	int ret;
+
+	while (num) {
+		unsigned int batch = min(num, BLKIF_MAX_SEGMENTS_PER_REQUEST);
+		
+		invcount = xen_blkbk_unmap_prepare(blkif, pages, batch,
+						   unmap, unmap_pages);
+		if (invcount) {
+			ret = gnttab_unmap_refs(unmap, NULL, unmap_pages, invcount);
 			BUG_ON(ret);
 			put_free_pages(blkif, unmap_pages, invcount);
-			invcount = 0;
 		}
-	}
-	if (invcount) {
-		ret = gnttab_unmap_refs(unmap, NULL, unmap_pages, invcount);
-		BUG_ON(ret);
-		put_free_pages(blkif, unmap_pages, invcount);
+		pages += batch;
+		num -= batch;
 	}
 }
 
@@ -982,32 +1075,8 @@ static void __end_block_io_op(struct pending_req *pending_req, int error)
 	 * the grant references associated with 'request' and provide
 	 * the proper response on the ring.
 	 */
-	if (atomic_dec_and_test(&pending_req->pendcnt)) {
-		struct xen_blkif *blkif = pending_req->blkif;
-
-		xen_blkbk_unmap(blkif,
-		                pending_req->segments,
-		                pending_req->nr_pages);
-		make_response(blkif, pending_req->id,
-			      pending_req->operation, pending_req->status);
-		free_req(blkif, pending_req);
-		/*
-		 * Make sure the request is freed before releasing blkif,
-		 * or there could be a race between free_req and the
-		 * cleanup done in xen_blkif_free during shutdown.
-		 *
-		 * NB: The fact that we might try to wake up pending_free_wq
-		 * before drain_complete (in case there's a drain going on)
-		 * it's not a problem with our current implementation
-		 * because we can assure there's no thread waiting on
-		 * pending_free_wq if there's a drain going on, but it has
-		 * to be taken into account if the current model is changed.
-		 */
-		if (atomic_dec_and_test(&blkif->inflight) && atomic_read(&blkif->drain)) {
-			complete(&blkif->drain_complete);
-		}
-		xen_blkif_put(blkif);
-	}
+	if (atomic_dec_and_test(&pending_req->pendcnt))
+		xen_blkbk_unmap_and_respond(pending_req);
 }
 
 /*

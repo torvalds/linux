@@ -88,7 +88,7 @@ static int raumfeld_cs4270_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	unsigned int fmt, clk = 0;
+	unsigned int clk = 0;
 	int ret = 0;
 
 	switch (params_rate(params)) {
@@ -112,25 +112,12 @@ static int raumfeld_cs4270_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	fmt = SND_SOC_DAIFMT_I2S |
-	      SND_SOC_DAIFMT_NB_NF |
-	      SND_SOC_DAIFMT_CBS_CFS;
-
-	/* setup the CODEC DAI */
-	ret = snd_soc_dai_set_fmt(codec_dai, fmt);
-	if (ret < 0)
-		return ret;
-
 	ret = snd_soc_dai_set_sysclk(codec_dai, 0, clk, 0);
 	if (ret < 0)
 		return ret;
 
 	/* setup the CPU DAI */
 	ret = snd_soc_dai_set_pll(cpu_dai, 0, 0, 0, clk);
-	if (ret < 0)
-		return ret;
-
-	ret = snd_soc_dai_set_fmt(cpu_dai, fmt);
 	if (ret < 0)
 		return ret;
 
@@ -169,9 +156,8 @@ static int raumfeld_ak4104_hw_params(struct snd_pcm_substream *substream,
 				     struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	int fmt, ret = 0, clk = 0;
+	int ret = 0, clk = 0;
 
 	switch (params_rate(params)) {
 	case 44100:
@@ -194,19 +180,8 @@ static int raumfeld_ak4104_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF;
-
-	/* setup the CODEC DAI */
-	ret = snd_soc_dai_set_fmt(codec_dai, fmt | SND_SOC_DAIFMT_CBS_CFS);
-	if (ret < 0)
-		return ret;
-
 	/* setup the CPU DAI */
 	ret = snd_soc_dai_set_pll(cpu_dai, 0, 0, 0, clk);
-	if (ret < 0)
-		return ret;
-
-	ret = snd_soc_dai_set_fmt(cpu_dai, fmt | SND_SOC_DAIFMT_CBS_CFS);
 	if (ret < 0)
 		return ret;
 
@@ -233,6 +208,9 @@ static struct snd_soc_ops raumfeld_ak4104_ops = {
 	.platform_name	= "pxa-pcm-audio",		\
 	.codec_dai_name	= "cs4270-hifi",		\
 	.codec_name	= "cs4270.0-0048",	\
+	.dai_fmt	= SND_SOC_DAIFMT_I2S |		\
+			  SND_SOC_DAIFMT_NB_NF |        \
+			  SND_SOC_DAIFMT_CBS_CFS,       \
 	.ops		= &raumfeld_cs4270_ops,		\
 }
 
@@ -243,6 +221,9 @@ static struct snd_soc_ops raumfeld_ak4104_ops = {
 	.cpu_dai_name	= "pxa-ssp-dai.1",		\
 	.codec_dai_name	= "ak4104-hifi",		\
 	.platform_name	= "pxa-pcm-audio",		\
+	.dai_fmt	= SND_SOC_DAIFMT_I2S |		\
+			  SND_SOC_DAIFMT_NB_NF |	\
+			  SND_SOC_DAIFMT_CBS_CFS,       \
 	.ops		= &raumfeld_ak4104_ops,		\
 	.codec_name	= "spi0.0",			\
 }

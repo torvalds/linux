@@ -77,12 +77,3 @@ struct dvb_frontend *mxl111sf_tuner_attach(struct dvb_frontend *fe,
 #endif
 
 #endif /* __MXL111SF_TUNER_H__ */
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-basic-offset: 8
- * End:
- */
-

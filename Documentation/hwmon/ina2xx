@@ -26,6 +26,12 @@ Supported chips:
     Datasheet: Publicly available at the Texas Instruments website
                http://www.ti.com/
 
+  * Texas Instruments INA231
+    Prefix: 'ina231'
+    Addresses: I2C 0x40 - 0x4f
+    Datasheet: Publicly available at the Texas Instruments website
+               http://www.ti.com/
+
 Author: Lothar Felten <l-felten@ti.com>
 
 Description
@@ -41,9 +47,18 @@ interface. The INA220 monitors both shunt drop and supply voltage.
 The INA226 is a current shunt and power monitor with an I2C interface.
 The INA226 monitors both a shunt voltage drop and bus supply voltage.
 
-The INA230 is a high or low side current shunt and power monitor with an I2C
-interface. The INA230 monitors both a shunt voltage drop and bus supply voltage.
+INA230 and INA231 are high or low side current shunt and power monitors
+with an I2C interface. The chips monitor both a shunt voltage drop and
+bus supply voltage.
 
-The shunt value in micro-ohms can be set via platform data or device tree.
-Please refer to the Documentation/devicetree/bindings/i2c/ina2xx.txt for bindings
+The shunt value in micro-ohms can be set via platform data or device tree at
+compile-time or via the shunt_resistor attribute in sysfs at run-time. Please
+refer to the Documentation/devicetree/bindings/i2c/ina2xx.txt for bindings
 if the device tree is used.
+
+Additionally ina226 supports update_interval attribute as described in
+Documentation/hwmon/sysfs-interface. Internally the interval is the sum of
+bus and shunt voltage conversion times multiplied by the averaging rate. We
+don't touch the conversion times and only modify the number of averages. The
+lower limit of the update_interval is 2 ms, the upper limit is 2253 ms.
+The actual programmed interval may vary from the desired value.

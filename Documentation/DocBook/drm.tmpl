@@ -239,6 +239,14 @@
               Driver supports dedicated render nodes.
             </para></listitem>
           </varlistentry>
+          <varlistentry>
+            <term>DRIVER_ATOMIC</term>
+            <listitem><para>
+              Driver supports atomic properties.  In this case the driver
+              must implement appropriate obj->atomic_get_property() vfuncs
+              for any modeset objects with driver specific properties.
+            </para></listitem>
+          </varlistentry>
         </variablelist>
       </sect3>
       <sect3>
@@ -1377,7 +1385,7 @@ int max_width, max_height;</synopsis>
       <itemizedlist>
         <listitem>
         DRM_PLANE_TYPE_PRIMARY represents a "main" plane for a CRTC.  Primary
-        planes are the planes operated upon by by CRTC modesetting and flipping
+        planes are the planes operated upon by CRTC modesetting and flipping
         operations described in <xref linkend="drm-kms-crtcops"/>.
         </listitem>
         <listitem>
@@ -2362,6 +2370,7 @@ void intel_crt_init(struct drm_device *dev)
     </sect2>
     <sect2>
       <title>Modeset Helper Functions Reference</title>
+!Iinclude/drm/drm_crtc_helper.h
 !Edrivers/gpu/drm/drm_crtc_helper.c
 !Pdrivers/gpu/drm/drm_crtc_helper.c overview
     </sect2>
@@ -2564,8 +2573,8 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >Description/Restrictions</td>
 	</tr>
 	<tr>
-	<td rowspan="25" valign="top" >DRM</td>
-	<td rowspan="4" valign="top" >Generic</td>
+	<td rowspan="36" valign="top" >DRM</td>
+	<td rowspan="5" valign="top" >Connector</td>
 	<td valign="top" >“EDID”</td>
 	<td valign="top" >BLOB | IMMUTABLE</td>
 	<td valign="top" >0</td>
@@ -2594,12 +2603,89 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >Contains tiling information for a connector.</td>
 	</tr>
 	<tr>
-	<td rowspan="1" valign="top" >Plane</td>
+	<td valign="top" >“CRTC_ID”</td>
+	<td valign="top" >OBJECT</td>
+	<td valign="top" >DRM_MODE_OBJECT_CRTC</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >CRTC that connector is attached to (atomic)</td>
+	</tr>
+	<tr>
+	<td rowspan="11" valign="top" >Plane</td>
 	<td valign="top" >“type”</td>
 	<td valign="top" >ENUM | IMMUTABLE</td>
 	<td valign="top" >{ "Overlay", "Primary", "Cursor" }</td>
 	<td valign="top" >Plane</td>
 	<td valign="top" >Plane type</td>
+	</tr>
+	<tr>
+	<td valign="top" >“SRC_X”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=UINT_MAX</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >Scanout source x coordinate in 16.16 fixed point (atomic)</td>
+	</tr>
+	<tr>
+	<td valign="top" >“SRC_Y”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=UINT_MAX</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >Scanout source y coordinate in 16.16 fixed point (atomic)</td>
+	</tr>
+	<tr>
+	<td valign="top" >“SRC_W”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=UINT_MAX</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >Scanout source width in 16.16 fixed point (atomic)</td>
+	</tr>
+	<tr>
+	<td valign="top" >“SRC_H”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=UINT_MAX</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >Scanout source height in 16.16 fixed point (atomic)</td>
+	</tr>
+	<tr>
+	<td valign="top" >“CRTC_X”</td>
+	<td valign="top" >SIGNED_RANGE</td>
+	<td valign="top" >Min=INT_MIN, Max=INT_MAX</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >Scanout CRTC (destination) x coordinate (atomic)</td>
+	</tr>
+	<tr>
+	<td valign="top" >“CRTC_Y”</td>
+	<td valign="top" >SIGNED_RANGE</td>
+	<td valign="top" >Min=INT_MIN, Max=INT_MAX</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >Scanout CRTC (destination) y coordinate (atomic)</td>
+	</tr>
+	<tr>
+	<td valign="top" >“CRTC_W”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=UINT_MAX</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >Scanout CRTC (destination) width (atomic)</td>
+	</tr>
+	<tr>
+	<td valign="top" >“CRTC_H”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=UINT_MAX</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >Scanout CRTC (destination) height (atomic)</td>
+	</tr>
+	<tr>
+	<td valign="top" >“FB_ID”</td>
+	<td valign="top" >OBJECT</td>
+	<td valign="top" >DRM_MODE_OBJECT_FB</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >Scanout framebuffer (atomic)</td>
+	</tr>
+	<tr>
+	<td valign="top" >“CRTC_ID”</td>
+	<td valign="top" >OBJECT</td>
+	<td valign="top" >DRM_MODE_OBJECT_CRTC</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >CRTC that plane is attached to (atomic)</td>
 	</tr>
 	<tr>
 	<td rowspan="2" valign="top" >DVI-I</td>
@@ -3883,6 +3969,7 @@ int num_ioctls;</synopsis>
         <title>Runtime Power Management</title>
 !Pdrivers/gpu/drm/i915/intel_runtime_pm.c runtime pm
 !Idrivers/gpu/drm/i915/intel_runtime_pm.c
+!Idrivers/gpu/drm/i915/intel_uncore.c
       </sect2>
       <sect2>
         <title>Interrupt Handling</title>
@@ -3932,6 +4019,11 @@ int num_ioctls;</synopsis>
         </para>
       </sect2>
       <sect2>
+        <title>Atomic Plane Helpers</title>
+!Pdrivers/gpu/drm/i915/intel_atomic_plane.c atomic plane helpers
+!Idrivers/gpu/drm/i915/intel_atomic_plane.c
+      </sect2>
+      <sect2>
         <title>Output Probing</title>
         <para>
 	  This section covers output probing and related infrastructure like the
@@ -3949,6 +4041,11 @@ int num_ioctls;</synopsis>
 	<title>Panel Self Refresh PSR (PSR/SRD)</title>
 !Pdrivers/gpu/drm/i915/intel_psr.c Panel Self Refresh (PSR/SRD)
 !Idrivers/gpu/drm/i915/intel_psr.c
+      </sect2>
+      <sect2>
+	<title>Frame Buffer Compression (FBC)</title>
+!Pdrivers/gpu/drm/i915/intel_fbc.c Frame Buffer Compression (FBC)
+!Idrivers/gpu/drm/i915/intel_fbc.c
       </sect2>
       <sect2>
         <title>DPIO</title>
@@ -4054,9 +4151,30 @@ int num_ioctls;</synopsis>
 !Idrivers/gpu/drm/i915/i915_cmd_parser.c
       </sect2>
       <sect2>
+        <title>Batchbuffer Pools</title>
+!Pdrivers/gpu/drm/i915/i915_gem_batch_pool.c batch pool
+!Idrivers/gpu/drm/i915/i915_gem_batch_pool.c
+      </sect2>
+      <sect2>
         <title>Logical Rings, Logical Ring Contexts and Execlists</title>
 !Pdrivers/gpu/drm/i915/intel_lrc.c Logical Rings, Logical Ring Contexts and Execlists
 !Idrivers/gpu/drm/i915/intel_lrc.c
+      </sect2>
+      <sect2>
+        <title>Global GTT views</title>
+!Pdrivers/gpu/drm/i915/i915_gem_gtt.c Global GTT views
+!Idrivers/gpu/drm/i915/i915_gem_gtt.c
+      </sect2>
+      <sect2>
+        <title>Buffer Object Eviction</title>
+	<para>
+	  This section documents the interface function for evicting buffer
+	  objects to make space available in the virtual gpu address spaces.
+	  Note that this is mostly orthogonal to shrinking buffer objects
+	  caches, which has the goal to make main memory (shared with the gpu
+	  through the unified memory architecture) available.
+	</para>
+!Idrivers/gpu/drm/i915/i915_gem_evict.c
       </sect2>
     </sect1>
 

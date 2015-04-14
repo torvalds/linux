@@ -238,6 +238,13 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
+static struct net *vlan_get_link_net(const struct net_device *dev)
+{
+	struct net_device *real_dev = vlan_dev_priv(dev)->real_dev;
+
+	return dev_net(real_dev);
+}
+
 struct rtnl_link_ops vlan_link_ops __read_mostly = {
 	.kind		= "vlan",
 	.maxtype	= IFLA_VLAN_MAX,
@@ -250,6 +257,7 @@ struct rtnl_link_ops vlan_link_ops __read_mostly = {
 	.dellink	= unregister_vlan_dev,
 	.get_size	= vlan_get_size,
 	.fill_info	= vlan_fill_info,
+	.get_link_net	= vlan_get_link_net,
 };
 
 int __init vlan_netlink_init(void)

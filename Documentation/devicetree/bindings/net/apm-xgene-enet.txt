@@ -4,7 +4,10 @@ Ethernet nodes are defined to describe on-chip ethernet interfaces in
 APM X-Gene SoC.
 
 Required properties for all the ethernet interfaces:
-- compatible: Should be "apm,xgene-enet"
+- compatible: Should state binding information from the following list,
+  - "apm,xgene-enet":    RGMII based 1G interface
+  - "apm,xgene1-sgenet": SGMII based 1G interface
+  - "apm,xgene1-xgenet": XFI based 10G interface
 - reg: Address and length of the register set for the device. It contains the
   information of registers in the same order as described by reg-names
 - reg-names: Should contain the register set names

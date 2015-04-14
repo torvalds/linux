@@ -43,15 +43,24 @@ size_t ovs_key_attr_size(void);
 void ovs_match_init(struct sw_flow_match *match,
 		    struct sw_flow_key *key, struct sw_flow_mask *mask);
 
-int ovs_nla_put_flow(const struct sw_flow_key *,
-		     const struct sw_flow_key *, struct sk_buff *);
+int ovs_nla_put_key(const struct sw_flow_key *, const struct sw_flow_key *,
+		    int attr, bool is_mask, struct sk_buff *);
 int ovs_nla_get_flow_metadata(const struct nlattr *, struct sw_flow_key *,
 			      bool log);
+
+int ovs_nla_put_identifier(const struct sw_flow *flow, struct sk_buff *skb);
+int ovs_nla_put_masked_key(const struct sw_flow *flow, struct sk_buff *skb);
+int ovs_nla_put_mask(const struct sw_flow *flow, struct sk_buff *skb);
 
 int ovs_nla_get_match(struct sw_flow_match *, const struct nlattr *key,
 		      const struct nlattr *mask, bool log);
 int ovs_nla_put_egress_tunnel_key(struct sk_buff *,
 				  const struct ovs_tunnel_info *);
+
+bool ovs_nla_get_ufid(struct sw_flow_id *, const struct nlattr *, bool log);
+int ovs_nla_get_identifier(struct sw_flow_id *sfid, const struct nlattr *ufid,
+			   const struct sw_flow_key *key, bool log);
+u32 ovs_nla_get_ufid_flags(const struct nlattr *attr);
 
 int ovs_nla_copy_actions(const struct nlattr *attr,
 			 const struct sw_flow_key *key,

@@ -15,6 +15,7 @@
 #ifndef __LINUX_CLK_TI_H__
 #define __LINUX_CLK_TI_H__
 
+#include <linux/clk-provider.h>
 #include <linux/clkdev.h>
 
 /**
@@ -217,6 +218,13 @@ struct ti_dt_clk {
 /* Maximum number of clock memmaps */
 #define CLK_MAX_MEMMAPS			4
 
+/* Static memmap indices */
+enum {
+	TI_CLKM_CM = 0,
+	TI_CLKM_PRM,
+	TI_CLKM_SCRM,
+};
+
 typedef void (*ti_of_clk_init_cb_t)(struct clk_hw *, struct device_node *);
 
 /**
@@ -263,6 +271,8 @@ int omap3_noncore_dpll_set_rate_and_parent(struct clk_hw *hw,
 					   u8 index);
 long omap3_noncore_dpll_determine_rate(struct clk_hw *hw,
 				       unsigned long rate,
+				       unsigned long min_rate,
+				       unsigned long max_rate,
 				       unsigned long *best_parent_rate,
 				       struct clk_hw **best_parent_clk);
 unsigned long omap4_dpll_regm4xen_recalc(struct clk_hw *hw,
@@ -272,6 +282,8 @@ long omap4_dpll_regm4xen_round_rate(struct clk_hw *hw,
 				    unsigned long *parent_rate);
 long omap4_dpll_regm4xen_determine_rate(struct clk_hw *hw,
 					unsigned long rate,
+					unsigned long min_rate,
+					unsigned long max_rate,
 					unsigned long *best_parent_rate,
 					struct clk_hw **best_parent_clk);
 u8 omap2_init_dpll_parent(struct clk_hw *hw);
@@ -347,5 +359,18 @@ extern const struct clk_hw_omap_ops clkhwops_iclk_wait;
 extern const struct clk_hw_omap_ops clkhwops_omap3430es2_iclk_ssi_wait;
 extern const struct clk_hw_omap_ops clkhwops_omap3430es2_iclk_dss_usbhost_wait;
 extern const struct clk_hw_omap_ops clkhwops_omap3430es2_iclk_hsotgusb_wait;
+
+#ifdef CONFIG_ATAGS
+int omap3430_clk_legacy_init(void);
+int omap3430es1_clk_legacy_init(void);
+int omap36xx_clk_legacy_init(void);
+int am35xx_clk_legacy_init(void);
+#else
+static inline int omap3430_clk_legacy_init(void) { return -ENXIO; }
+static inline int omap3430es1_clk_legacy_init(void) { return -ENXIO; }
+static inline int omap36xx_clk_legacy_init(void) { return -ENXIO; }
+static inline int am35xx_clk_legacy_init(void) { return -ENXIO; }
+#endif
+
 
 #endif

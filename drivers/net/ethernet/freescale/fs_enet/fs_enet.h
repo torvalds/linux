@@ -134,6 +134,7 @@ struct fs_enet_private {
 	void __iomem *ring_base;
 	struct sk_buff **rx_skbuff;
 	struct sk_buff **tx_skbuff;
+	char *mapped_as_page;
 	cbd_t __iomem *rx_bd_base;	/* Address of Rx and Tx buffers.    */
 	cbd_t __iomem *tx_bd_base;
 	cbd_t __iomem *dirty_tx;	/* ring entries to be free()ed.     */

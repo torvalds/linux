@@ -2131,8 +2131,8 @@ static int xudc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, udc);
 
-	dev_vdbg(&pdev->dev, "%s at 0x%08X mapped to 0x%08X %s\n",
-		 driver_name, (u32)res->start, (u32 __force)udc->addr,
+	dev_vdbg(&pdev->dev, "%s at 0x%08X mapped to %p %s\n",
+		 driver_name, (u32)res->start, udc->addr,
 		 udc->dma_enabled ? "with DMA" : "without DMA");
 
 	return 0;

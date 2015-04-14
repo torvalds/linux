@@ -17,7 +17,7 @@
  */
 
 #ifndef _ELAN_I2C_H
-#define _ELAN_i2C_H
+#define _ELAN_I2C_H
 
 #include <linux/types.h>
 

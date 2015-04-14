@@ -715,7 +715,6 @@ static struct tegra_clk tegra114_clks[tegra_clk_max] __initdata = {
 	[tegra_clk_sbc2_8] = { .dt_id = TEGRA114_CLK_SBC2, .present = true },
 	[tegra_clk_sbc3_8] = { .dt_id = TEGRA114_CLK_SBC3, .present = true },
 	[tegra_clk_i2c5] = { .dt_id = TEGRA114_CLK_I2C5, .present = true },
-	[tegra_clk_dsia] = { .dt_id = TEGRA114_CLK_DSIA, .present = true },
 	[tegra_clk_mipi] = { .dt_id = TEGRA114_CLK_MIPI, .present = true },
 	[tegra_clk_hdmi] = { .dt_id = TEGRA114_CLK_HDMI, .present = true },
 	[tegra_clk_csi] = { .dt_id = TEGRA114_CLK_CSI, .present = true },
@@ -739,7 +738,6 @@ static struct tegra_clk tegra114_clks[tegra_clk_max] __initdata = {
 	[tegra_clk_dtv] = { .dt_id = TEGRA114_CLK_DTV, .present = true },
 	[tegra_clk_ndspeed] = { .dt_id = TEGRA114_CLK_NDSPEED, .present = true },
 	[tegra_clk_i2cslow] = { .dt_id = TEGRA114_CLK_I2CSLOW, .present = true },
-	[tegra_clk_dsib] = { .dt_id = TEGRA114_CLK_DSIB, .present = true },
 	[tegra_clk_tsec] = { .dt_id = TEGRA114_CLK_TSEC, .present = true },
 	[tegra_clk_xusb_host] = { .dt_id = TEGRA114_CLK_XUSB_HOST, .present = true },
 	[tegra_clk_msenc] = { .dt_id = TEGRA114_CLK_MSENC, .present = true },
@@ -1223,6 +1221,14 @@ static __init void tegra114_periph_clk_init(void __iomem *clk_base,
 			       CLK_SET_RATE_NO_REPARENT,
 			       clk_base + PLLD2_BASE, 25, 1, 0, &pll_d2_lock);
 	clks[TEGRA114_CLK_DSIB_MUX] = clk;
+
+	clk = tegra_clk_register_periph_gate("dsia", "dsia_mux", 0, clk_base,
+					     0, 48, periph_clk_enb_refcnt);
+	clks[TEGRA114_CLK_DSIA] = clk;
+
+	clk = tegra_clk_register_periph_gate("dsib", "dsib_mux", 0, clk_base,
+					     0, 82, periph_clk_enb_refcnt);
+	clks[TEGRA114_CLK_DSIB] = clk;
 
 	/* emc mux */
 	clk = clk_register_mux(NULL, "emc_mux", mux_pllmcp_clkm,

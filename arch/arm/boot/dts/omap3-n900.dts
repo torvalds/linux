@@ -16,6 +16,13 @@
 	model = "Nokia N900";
 	compatible = "nokia,omap3-n900", "ti,omap3430", "ti,omap3";
 
+	aliases {
+		i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+	};
+
 	cpus {
 		cpu@0 {
 			cpu0-supply = <&vcc>;
@@ -307,7 +314,7 @@
 	regulator-name = "V28";
 	regulator-min-microvolt = <2800000>;
 	regulator-max-microvolt = <2800000>;
-	regulator-always-on; /* due battery cover sensor */
+	regulator-always-on; /* due to battery cover sensor */
 };
 
 &vaux2 {
@@ -365,7 +372,6 @@
 	regulator-name = "VIO";
 	regulator-min-microvolt = <1800000>;
 	regulator-max-microvolt = <1800000>;
-
 };
 
 &vintana1 {
@@ -705,7 +711,7 @@
 		compatible = "smsc,lan91c94";
 		interrupt-parent = <&gpio2>;
 		interrupts = <22 IRQ_TYPE_LEVEL_HIGH>;	/* gpio54 */
-		reg = <1 0x300 0xf>;		/* 16 byte IO range at offset 0x300 */
+		reg = <1 0 0xf>;		/* 16 byte IO range */
 		bank-width = <2>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&ethernet_pins>;

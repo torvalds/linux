@@ -5,7 +5,7 @@ config DRM_IMX
 	select VIDEOMODE_HELPERS
 	select DRM_GEM_CMA_HELPER
 	select DRM_KMS_CMA_HELPER
-	depends on DRM && (ARCH_MXC || ARCH_MULTIPLATFORM)
+	depends on DRM && (ARCH_MXC || ARCH_MULTIPLATFORM) && HAVE_DMA_ATTRS
 	depends on IMX_IPUV3_CORE
 	help
 	  enable i.MX graphics support
@@ -49,6 +49,7 @@ config DRM_IMX_IPUV3
 
 config DRM_IMX_HDMI
 	tristate "Freescale i.MX DRM HDMI"
+	select DRM_DW_HDMI
 	depends on DRM_IMX
 	help
 	  Choose this if you want to use HDMI on i.MX6.

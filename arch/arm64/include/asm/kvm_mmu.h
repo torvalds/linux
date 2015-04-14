@@ -118,6 +118,27 @@ static inline void kvm_set_s2pmd_writable(pmd_t *pmd)
 	pmd_val(*pmd) |= PMD_S2_RDWR;
 }
 
+static inline void kvm_set_s2pte_readonly(pte_t *pte)
+{
+	pte_val(*pte) = (pte_val(*pte) & ~PTE_S2_RDWR) | PTE_S2_RDONLY;
+}
+
+static inline bool kvm_s2pte_readonly(pte_t *pte)
+{
+	return (pte_val(*pte) & PTE_S2_RDWR) == PTE_S2_RDONLY;
+}
+
+static inline void kvm_set_s2pmd_readonly(pmd_t *pmd)
+{
+	pmd_val(*pmd) = (pmd_val(*pmd) & ~PMD_S2_RDWR) | PMD_S2_RDONLY;
+}
+
+static inline bool kvm_s2pmd_readonly(pmd_t *pmd)
+{
+	return (pmd_val(*pmd) & PMD_S2_RDWR) == PMD_S2_RDONLY;
+}
+
+
 #define kvm_pgd_addr_end(addr, end)	pgd_addr_end(addr, end)
 #define kvm_pud_addr_end(addr, end)	pud_addr_end(addr, end)
 #define kvm_pmd_addr_end(addr, end)	pmd_addr_end(addr, end)
@@ -137,6 +158,8 @@ static inline void kvm_set_s2pmd_writable(pmd_t *pmd)
 #define PTRS_PER_S2_PGD		(1 << PTRS_PER_S2_PGD_SHIFT)
 #define S2_PGD_ORDER		get_order(PTRS_PER_S2_PGD * sizeof(pgd_t))
 
+#define kvm_pgd_index(addr)	(((addr) >> PGDIR_SHIFT) & (PTRS_PER_S2_PGD - 1))
+
 /*
  * If we are concatenating first level stage-2 page tables, we would have less
  * than or equal to 16 pointers in the fake PGD, because that's what the
@@ -149,43 +172,6 @@ static inline void kvm_set_s2pmd_writable(pmd_t *pmd)
 #else
 #define KVM_PREALLOC_LEVEL	(0)
 #endif
-
-/**
- * kvm_prealloc_hwpgd - allocate inital table for VTTBR
- * @kvm:	The KVM struct pointer for the VM.
- * @pgd:	The kernel pseudo pgd
- *
- * When the kernel uses more levels of page tables than the guest, we allocate
- * a fake PGD and pre-populate it to point to the next-level page table, which
- * will be the real initial page table pointed to by the VTTBR.
- *
- * When KVM_PREALLOC_LEVEL==2, we allocate a single page for the PMD and
- * the kernel will use folded pud.  When KVM_PREALLOC_LEVEL==1, we
- * allocate 2 consecutive PUD pages.
- */
-static inline int kvm_prealloc_hwpgd(struct kvm *kvm, pgd_t *pgd)
-{
-	unsigned int i;
-	unsigned long hwpgd;
-
-	if (KVM_PREALLOC_LEVEL == 0)
-		return 0;
-
-	hwpgd = __get_free_pages(GFP_KERNEL | __GFP_ZERO, PTRS_PER_S2_PGD_SHIFT);
-	if (!hwpgd)
-		return -ENOMEM;
-
-	for (i = 0; i < PTRS_PER_S2_PGD; i++) {
-		if (KVM_PREALLOC_LEVEL == 1)
-			pgd_populate(NULL, pgd + i,
-				     (pud_t *)hwpgd + i * PTRS_PER_PUD);
-		else if (KVM_PREALLOC_LEVEL == 2)
-			pud_populate(NULL, pud_offset(pgd, 0) + i,
-				     (pmd_t *)hwpgd + i * PTRS_PER_PMD);
-	}
-
-	return 0;
-}
 
 static inline void *kvm_get_hwpgd(struct kvm *kvm)
 {
@@ -203,12 +189,11 @@ static inline void *kvm_get_hwpgd(struct kvm *kvm)
 	return pmd_offset(pud, 0);
 }
 
-static inline void kvm_free_hwpgd(struct kvm *kvm)
+static inline unsigned int kvm_get_hwpgd_size(void)
 {
-	if (KVM_PREALLOC_LEVEL > 0) {
-		unsigned long hwpgd = (unsigned long)kvm_get_hwpgd(kvm);
-		free_pages(hwpgd, PTRS_PER_S2_PGD_SHIFT);
-	}
+	if (KVM_PREALLOC_LEVEL > 0)
+		return PTRS_PER_S2_PGD * PAGE_SIZE;
+	return PTRS_PER_S2_PGD * sizeof(pgd_t);
 }
 
 static inline bool kvm_page_empty(void *ptr)

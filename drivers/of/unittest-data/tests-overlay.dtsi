@@ -68,6 +68,48 @@
 					status = "disabled";
 					reg = <8>;
 				};
+
+				i2c-test-bus {
+					compatible = "selftest-i2c-bus";
+					status = "okay";
+					reg = <50>;
+
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					test-selftest12 {
+						reg = <8>;
+						compatible = "selftest-i2c-dev";
+						status = "disabled";
+					};
+
+					test-selftest13 {
+						reg = <9>;
+						compatible = "selftest-i2c-dev";
+						status = "okay";
+					};
+
+					test-selftest14 {
+						reg = <10>;
+						compatible = "selftest-i2c-mux";
+						status = "okay";
+
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						i2c@0 {
+							#address-cells = <1>;
+							#size-cells = <0>;
+							reg = <0>;
+
+							test-mux-dev {
+								reg = <32>;
+								compatible = "selftest-i2c-dev";
+								status = "okay";
+							};
+						};
+					};
+				};
 			};
 		};
 
@@ -231,5 +273,57 @@
 				};
 			};
 		};
+
+		/* test enable using absolute target path (i2c) */
+		overlay12 {
+			fragment@0 {
+				target-path = "/testcase-data/overlay-node/test-bus/i2c-test-bus/test-selftest12";
+				__overlay__ {
+					status = "okay";
+				};
+			};
+		};
+
+		/* test disable using absolute target path (i2c) */
+		overlay13 {
+			fragment@0 {
+				target-path = "/testcase-data/overlay-node/test-bus/i2c-test-bus/test-selftest13";
+				__overlay__ {
+					status = "disabled";
+				};
+			};
+		};
+
+		/* test mux overlay */
+		overlay15 {
+			fragment@0 {
+				target-path = "/testcase-data/overlay-node/test-bus/i2c-test-bus";
+				__overlay__ {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					test-selftest15 {
+						reg = <11>;
+						compatible = "selftest-i2c-mux";
+						status = "okay";
+
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						i2c@0 {
+							#address-cells = <1>;
+							#size-cells = <0>;
+							reg = <0>;
+
+							test-mux-dev {
+								reg = <32>;
+								compatible = "selftest-i2c-dev";
+								status = "okay";
+							};
+						};
+					};
+				};
+			};
+		};
+
 	};
 };

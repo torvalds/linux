@@ -61,7 +61,7 @@ struct ocfb_dev {
 	/* flag indicating whether the regs are little endian accessed */
 	int little_endian;
 	/* Physical and virtual addresses of framebuffer */
-	phys_addr_t fb_phys;
+	dma_addr_t fb_phys;
 	void __iomem *fb_virt;
 	u32 pseudo_palette[PALETTE_SIZE];
 };

@@ -201,6 +201,10 @@ static acpi_status acpi_gpiochip_request_interrupt(struct acpi_resource *ares,
 	if (!handler)
 		return AE_BAD_PARAMETER;
 
+	pin = acpi_gpiochip_pin_to_gpio_offset(chip, pin);
+	if (pin < 0)
+		return AE_BAD_PARAMETER;
+
 	desc = gpiochip_request_own_desc(chip, pin, "ACPI:Event");
 	if (IS_ERR(desc)) {
 		dev_err(chip->dev, "Failed to request GPIO\n");
@@ -550,6 +554,12 @@ acpi_gpio_adr_space_handler(u32 function, acpi_physical_address address,
 		struct acpi_gpio_connection *conn;
 		struct gpio_desc *desc;
 		bool found;
+
+		pin = acpi_gpiochip_pin_to_gpio_offset(chip, pin);
+		if (pin < 0) {
+			status = AE_BAD_PARAMETER;
+			goto out;
+		}
 
 		mutex_lock(&achip->conn_lock);
 

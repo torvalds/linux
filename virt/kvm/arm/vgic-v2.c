@@ -72,6 +72,8 @@ static void vgic_v2_sync_lr_elrsr(struct kvm_vcpu *vcpu, int lr,
 {
 	if (!(lr_desc.state & LR_STATE_MASK))
 		vcpu->arch.vgic_cpu.vgic_v2.vgic_elrsr |= (1ULL << lr);
+	else
+		vcpu->arch.vgic_cpu.vgic_v2.vgic_elrsr &= ~(1ULL << lr);
 }
 
 static u64 vgic_v2_get_elrsr(const struct kvm_vcpu *vcpu)
@@ -82,6 +84,11 @@ static u64 vgic_v2_get_elrsr(const struct kvm_vcpu *vcpu)
 static u64 vgic_v2_get_eisr(const struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.vgic_cpu.vgic_v2.vgic_eisr;
+}
+
+static void vgic_v2_clear_eisr(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.vgic_cpu.vgic_v2.vgic_eisr = 0;
 }
 
 static u32 vgic_v2_get_interrupt_status(const struct kvm_vcpu *vcpu)
@@ -148,6 +155,7 @@ static const struct vgic_ops vgic_v2_ops = {
 	.sync_lr_elrsr		= vgic_v2_sync_lr_elrsr,
 	.get_elrsr		= vgic_v2_get_elrsr,
 	.get_eisr		= vgic_v2_get_eisr,
+	.clear_eisr		= vgic_v2_clear_eisr,
 	.get_interrupt_status	= vgic_v2_get_interrupt_status,
 	.enable_underflow	= vgic_v2_enable_underflow,
 	.disable_underflow	= vgic_v2_disable_underflow,
@@ -229,12 +237,16 @@ int vgic_v2_probe(struct device_node *vgic_node,
 		goto out_unmap;
 	}
 
+	vgic->can_emulate_gicv2 = true;
+	kvm_register_device_ops(&kvm_arm_vgic_v2_ops, KVM_DEV_TYPE_ARM_VGIC_V2);
+
 	vgic->vcpu_base = vcpu_res.start;
 
 	kvm_info("%s@%llx IRQ%d\n", vgic_node->name,
 		 vctrl_res.start, vgic->maint_irq);
 
 	vgic->type = VGIC_V2;
+	vgic->max_gic_vcpus = VGIC_V2_MAX_CPUS;
 	*ops = &vgic_v2_ops;
 	*params = vgic;
 	goto out;

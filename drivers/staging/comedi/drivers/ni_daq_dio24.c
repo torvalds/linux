@@ -32,11 +32,7 @@ the PCMCIA interface.
 */
 
 #include <linux/module.h>
-#include "../comedidev.h"
-
-#include <pcmcia/cistpl.h>
-#include <pcmcia/cisreg.h>
-#include <pcmcia/ds.h>
+#include "../comedi_pcmcia.h"
 
 #include "8255.h"
 

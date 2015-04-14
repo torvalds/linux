@@ -44,7 +44,8 @@
 #include "chip.h"
 #include "firmware.h"
 
-#define DCMD_RESP_TIMEOUT  2000	/* In milli second */
+#define DCMD_RESP_TIMEOUT	2000	/* In milli second */
+#define CTL_DONE_TIMEOUT	2000	/* In milli second */
 
 #ifdef DEBUG
 
@@ -495,9 +496,9 @@ struct brcmf_sdio {
 	u8 *ctrl_frame_buf;
 	u16 ctrl_frame_len;
 	bool ctrl_frame_stat;
+	int ctrl_frame_err;
 
 	spinlock_t txq_lock;		/* protect bus->txq */
-	struct semaphore tx_seq_lock;	/* protect bus->tx_seq */
 	wait_queue_head_t ctrl_wait;
 	wait_queue_head_t dcmd_resp_wait;
 
@@ -514,7 +515,6 @@ struct brcmf_sdio {
 	bool txoff;		/* Transmit flow-controlled */
 	struct brcmf_sdio_count sdcnt;
 	bool sr_enabled; /* SaveRestore enabled */
-	bool sleeping; /* SDIO bus sleeping */
 
 	u8 tx_hdrlen;		/* sdio bus header length for tx packet */
 	bool txglom;		/* host tx glomming enable flag */
@@ -608,6 +608,8 @@ static const struct sdiod_drive_str sdiod_drvstr_tab2_3v3[] = {
 #define BCM4330_NVRAM_NAME		"brcm/brcmfmac4330-sdio.txt"
 #define BCM4334_FIRMWARE_NAME		"brcm/brcmfmac4334-sdio.bin"
 #define BCM4334_NVRAM_NAME		"brcm/brcmfmac4334-sdio.txt"
+#define BCM43340_FIRMWARE_NAME		"brcm/brcmfmac43340-sdio.bin"
+#define BCM43340_NVRAM_NAME		"brcm/brcmfmac43340-sdio.txt"
 #define BCM4335_FIRMWARE_NAME		"brcm/brcmfmac4335-sdio.bin"
 #define BCM4335_NVRAM_NAME		"brcm/brcmfmac4335-sdio.txt"
 #define BCM43362_FIRMWARE_NAME		"brcm/brcmfmac43362-sdio.bin"
@@ -629,6 +631,8 @@ MODULE_FIRMWARE(BCM4330_FIRMWARE_NAME);
 MODULE_FIRMWARE(BCM4330_NVRAM_NAME);
 MODULE_FIRMWARE(BCM4334_FIRMWARE_NAME);
 MODULE_FIRMWARE(BCM4334_NVRAM_NAME);
+MODULE_FIRMWARE(BCM43340_FIRMWARE_NAME);
+MODULE_FIRMWARE(BCM43340_NVRAM_NAME);
 MODULE_FIRMWARE(BCM4335_FIRMWARE_NAME);
 MODULE_FIRMWARE(BCM4335_NVRAM_NAME);
 MODULE_FIRMWARE(BCM43362_FIRMWARE_NAME);
@@ -660,6 +664,7 @@ static const struct brcmf_firmware_names brcmf_fwname_data[] = {
 	{ BRCM_CC_4329_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4329) },
 	{ BRCM_CC_4330_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4330) },
 	{ BRCM_CC_4334_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4334) },
+	{ BRCM_CC_43340_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM43340) },
 	{ BRCM_CC_4335_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4335) },
 	{ BRCM_CC_43362_CHIP_ID, 0xFFFFFFFE, BRCMF_FIRMWARE_NVRAM(BCM43362) },
 	{ BRCM_CC_4339_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4339) },
@@ -1008,12 +1013,12 @@ brcmf_sdio_bus_sleep(struct brcmf_sdio *bus, bool sleep, bool pendok)
 
 	brcmf_dbg(SDIO, "Enter: request %s currently %s\n",
 		  (sleep ? "SLEEP" : "WAKE"),
-		  (bus->sleeping ? "SLEEP" : "WAKE"));
+		  (bus->sdiodev->sleeping ? "SLEEP" : "WAKE"));
 
 	/* If SR is enabled control bus state with KSO */
 	if (bus->sr_enabled) {
 		/* Done if we're already in the requested state */
-		if (sleep == bus->sleeping)
+		if (sleep == bus->sdiodev->sleeping)
 			goto end;
 
 		/* Going to sleep */
@@ -1045,12 +1050,7 @@ brcmf_sdio_bus_sleep(struct brcmf_sdio *bus, bool sleep, bool pendok)
 			bus->idlecount = 0;
 			err = brcmf_sdio_kso_control(bus, true);
 		}
-		if (!err) {
-			/* Change state */
-			bus->sleeping = sleep;
-			brcmf_dbg(SDIO, "new state %s\n",
-				  (sleep ? "SLEEP" : "WAKE"));
-		} else {
+		if (err) {
 			brcmf_err("error while changing bus sleep state %d\n",
 				  err);
 			goto done;
@@ -1065,6 +1065,11 @@ end:
 	} else {
 		brcmf_sdio_clkctl(bus, CLK_AVAIL, pendok);
 	}
+	bus->sdiodev->sleeping = sleep;
+	if (sleep)
+		wake_up(&bus->sdiodev->idle_wait);
+	brcmf_dbg(SDIO, "new state %s\n",
+		  (sleep ? "SLEEP" : "WAKE"));
 done:
 	brcmf_dbg(SDIO, "Exit: err=%d\n", err);
 	return err;
@@ -1904,7 +1909,7 @@ static uint brcmf_sdio_readframes(struct brcmf_sdio *bus, uint maxframes)
 	bus->rxpending = true;
 
 	for (rd->seq_num = bus->rx_seq, rxleft = maxframes;
-	     !bus->rxskip && rxleft && brcmf_bus_ready(bus->sdiodev->bus_if);
+	     !bus->rxskip && rxleft && bus->sdiodev->state == BRCMF_STATE_DATA;
 	     rd->seq_num++, rxleft--) {
 
 		/* Handle glomming separately */
@@ -2371,8 +2376,6 @@ static uint brcmf_sdio_sendfromq(struct brcmf_sdio *bus, uint maxframes)
 	/* Send frames until the limit or some other event */
 	for (cnt = 0; (cnt < maxframes) && data_ok(bus);) {
 		pkt_num = 1;
-		if (down_interruptible(&bus->tx_seq_lock))
-			return cnt;
 		if (bus->txglom)
 			pkt_num = min_t(u8, bus->tx_max - bus->tx_seq,
 					bus->sdiodev->txglomsz);
@@ -2388,13 +2391,10 @@ static uint brcmf_sdio_sendfromq(struct brcmf_sdio *bus, uint maxframes)
 			__skb_queue_tail(&pktq, pkt);
 		}
 		spin_unlock_bh(&bus->txq_lock);
-		if (i == 0) {
-			up(&bus->tx_seq_lock);
+		if (i == 0)
 			break;
-		}
 
 		ret = brcmf_sdio_txpkt(bus, &pktq, SDPCM_DATA_CHANNEL);
-		up(&bus->tx_seq_lock);
 
 		cnt += i;
 
@@ -2415,7 +2415,7 @@ static uint brcmf_sdio_sendfromq(struct brcmf_sdio *bus, uint maxframes)
 	}
 
 	/* Deflow-control stack if needed */
-	if ((bus->sdiodev->bus_if->state == BRCMF_BUS_DATA) &&
+	if ((bus->sdiodev->state == BRCMF_STATE_DATA) &&
 	    bus->txoff && (pktq_len(&bus->txq) < TXLOW)) {
 		bus->txoff = false;
 		brcmf_txflowblock(bus->sdiodev->dev, false);
@@ -2503,7 +2503,7 @@ static void brcmf_sdio_bus_stop(struct device *dev)
 		bus->watchdog_tsk = NULL;
 	}
 
-	if (bus_if->state == BRCMF_BUS_DOWN) {
+	if (sdiodev->state != BRCMF_STATE_NOMEDIUM) {
 		sdio_claim_host(sdiodev->func[1]);
 
 		/* Enable clock for device interrupts */
@@ -2538,8 +2538,7 @@ static void brcmf_sdio_bus_stop(struct device *dev)
 	brcmu_pktq_flush(&bus->txq, true, NULL, NULL);
 
 	/* Clear any held glomming stuff */
-	if (bus->glomd)
-		brcmu_pkt_buf_free_skb(bus->glomd);
+	brcmu_pkt_buf_free_skb(bus->glomd);
 	brcmf_sdio_free_glom(bus);
 
 	/* Clear rx control and wake any waiters */
@@ -2604,6 +2603,21 @@ static int brcmf_sdio_intr_rstatus(struct brcmf_sdio *bus)
 	return ret;
 }
 
+static int brcmf_sdio_pm_resume_wait(struct brcmf_sdio_dev *sdiodev)
+{
+#ifdef CONFIG_PM_SLEEP
+	int retry;
+
+	/* Wait for possible resume to complete */
+	retry = 0;
+	while ((atomic_read(&sdiodev->suspend)) && (retry++ != 50))
+		msleep(20);
+	if (atomic_read(&sdiodev->suspend))
+		return -EIO;
+#endif
+	return 0;
+}
+
 static void brcmf_sdio_dpc(struct brcmf_sdio *bus)
 {
 	u32 newstatus = 0;
@@ -2613,6 +2627,9 @@ static void brcmf_sdio_dpc(struct brcmf_sdio *bus)
 	int err = 0;
 
 	brcmf_dbg(TRACE, "Enter\n");
+
+	if (brcmf_sdio_pm_resume_wait(bus->sdiodev))
+		return;
 
 	sdio_claim_host(bus->sdiodev->func[1]);
 
@@ -2720,17 +2737,14 @@ static void brcmf_sdio_dpc(struct brcmf_sdio *bus)
 	brcmf_sdio_clrintr(bus);
 
 	if (bus->ctrl_frame_stat && (bus->clkstate == CLK_AVAIL) &&
-	    (down_interruptible(&bus->tx_seq_lock) == 0)) {
-		if (data_ok(bus)) {
-			sdio_claim_host(bus->sdiodev->func[1]);
-			err = brcmf_sdio_tx_ctrlframe(bus,  bus->ctrl_frame_buf,
-						      bus->ctrl_frame_len);
-			sdio_release_host(bus->sdiodev->func[1]);
-
-			bus->ctrl_frame_stat = false;
-			brcmf_sdio_wait_event_wakeup(bus);
-		}
-		up(&bus->tx_seq_lock);
+	    data_ok(bus)) {
+		sdio_claim_host(bus->sdiodev->func[1]);
+		err = brcmf_sdio_tx_ctrlframe(bus,  bus->ctrl_frame_buf,
+					      bus->ctrl_frame_len);
+		sdio_release_host(bus->sdiodev->func[1]);
+		bus->ctrl_frame_err = err;
+		bus->ctrl_frame_stat = false;
+		brcmf_sdio_wait_event_wakeup(bus);
 	}
 	/* Send queued frames (limit 1 if rx may still be pending) */
 	if ((bus->clkstate == CLK_AVAIL) && !atomic_read(&bus->fcstate) &&
@@ -2741,7 +2755,7 @@ static void brcmf_sdio_dpc(struct brcmf_sdio *bus)
 		brcmf_sdio_sendfromq(bus, framecnt);
 	}
 
-	if (!brcmf_bus_ready(bus->sdiodev->bus_if) || (err != 0)) {
+	if ((bus->sdiodev->state != BRCMF_STATE_DATA) || (err != 0)) {
 		brcmf_err("failed backplane access over SDIO, halting operation\n");
 		atomic_set(&bus->intstatus, 0);
 	} else if (atomic_read(&bus->intstatus) ||
@@ -2942,43 +2956,30 @@ brcmf_sdio_bus_txctl(struct device *dev, unsigned char *msg, uint msglen)
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
 	struct brcmf_sdio *bus = sdiodev->bus;
-	int ret = -1;
+	int ret;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	if (down_interruptible(&bus->tx_seq_lock))
-		return -EINTR;
-
-	if (!data_ok(bus)) {
-		brcmf_dbg(INFO, "No bus credit bus->tx_max %d, bus->tx_seq %d\n",
-			  bus->tx_max, bus->tx_seq);
-		up(&bus->tx_seq_lock);
-		/* Send from dpc */
-		bus->ctrl_frame_buf = msg;
-		bus->ctrl_frame_len = msglen;
-		bus->ctrl_frame_stat = true;
-
-		wait_event_interruptible_timeout(bus->ctrl_wait,
-						 !bus->ctrl_frame_stat,
-						 msecs_to_jiffies(2000));
-
-		if (!bus->ctrl_frame_stat) {
-			brcmf_dbg(SDIO, "ctrl_frame_stat == false\n");
-			ret = 0;
-		} else {
-			brcmf_dbg(SDIO, "ctrl_frame_stat == true\n");
-			bus->ctrl_frame_stat = false;
-			if (down_interruptible(&bus->tx_seq_lock))
-				return -EINTR;
-			ret = -1;
-		}
+	/* Send from dpc */
+	bus->ctrl_frame_buf = msg;
+	bus->ctrl_frame_len = msglen;
+	bus->ctrl_frame_stat = true;
+	if (atomic_read(&bus->dpc_tskcnt) == 0) {
+		atomic_inc(&bus->dpc_tskcnt);
+		queue_work(bus->brcmf_wq, &bus->datawork);
 	}
-	if (ret == -1) {
-		sdio_claim_host(bus->sdiodev->func[1]);
-		brcmf_sdio_bus_sleep(bus, false, false);
-		ret = brcmf_sdio_tx_ctrlframe(bus, msg, msglen);
-		sdio_release_host(bus->sdiodev->func[1]);
-		up(&bus->tx_seq_lock);
+
+	wait_event_interruptible_timeout(bus->ctrl_wait, !bus->ctrl_frame_stat,
+					 msecs_to_jiffies(CTL_DONE_TIMEOUT));
+
+	if (!bus->ctrl_frame_stat) {
+		brcmf_dbg(SDIO, "ctrl_frame complete, err=%d\n",
+			  bus->ctrl_frame_err);
+		ret = bus->ctrl_frame_err;
+	} else {
+		brcmf_dbg(SDIO, "ctrl_frame timeout\n");
+		bus->ctrl_frame_stat = false;
+		ret = -ETIMEDOUT;
 	}
 
 	if (ret)
@@ -2986,7 +2987,7 @@ brcmf_sdio_bus_txctl(struct device *dev, unsigned char *msg, uint msglen)
 	else
 		bus->sdcnt.tx_ctlpkts++;
 
-	return ret ? -EIO : 0;
+	return ret;
 }
 
 #ifdef DEBUG
@@ -3409,8 +3410,8 @@ static int brcmf_sdio_download_firmware(struct brcmf_sdio *bus,
 		goto err;
 	}
 
-	/* Allow HT Clock now that the ARM is running. */
-	brcmf_bus_change_state(bus->sdiodev->bus_if, BRCMF_BUS_LOAD);
+	/* Allow full data communication using DPC from now on. */
+	bus->sdiodev->state = BRCMF_STATE_DATA;
 	bcmerror = 0;
 
 err:
@@ -3556,7 +3557,7 @@ void brcmf_sdio_isr(struct brcmf_sdio *bus)
 		return;
 	}
 
-	if (!brcmf_bus_ready(bus->sdiodev->bus_if)) {
+	if (bus->sdiodev->state != BRCMF_STATE_DATA) {
 		brcmf_err("bus is down. we have nothing to do\n");
 		return;
 	}
@@ -3579,10 +3580,6 @@ void brcmf_sdio_isr(struct brcmf_sdio *bus)
 
 static bool brcmf_sdio_bus_watchdog(struct brcmf_sdio *bus)
 {
-#ifdef DEBUG
-	struct brcmf_bus *bus_if = dev_get_drvdata(bus->sdiodev->dev);
-#endif	/* DEBUG */
-
 	brcmf_dbg(TIMER, "Enter\n");
 
 	/* Poll period: check device if appropriate. */
@@ -3626,7 +3623,7 @@ static bool brcmf_sdio_bus_watchdog(struct brcmf_sdio *bus)
 	}
 #ifdef DEBUG
 	/* Poll for console output periodically */
-	if (bus_if && bus_if->state == BRCMF_BUS_DATA &&
+	if (bus->sdiodev->state == BRCMF_STATE_DATA &&
 	    bus->console_interval != 0) {
 		bus->console.count += BRCMF_WD_POLL_MS;
 		if (bus->console.count >= bus->console_interval) {
@@ -3811,7 +3808,7 @@ static u32 brcmf_sdio_buscore_read32(void *ctx, u32 addr)
 	u32 val, rev;
 
 	val = brcmf_sdiod_regrl(sdiodev, addr, NULL);
-	if (sdiodev->func[0]->device == BRCM_SDIO_4335_4339_DEVICE_ID &&
+	if (sdiodev->func[0]->device == SDIO_DEVICE_ID_BROADCOM_4335_4339 &&
 	    addr == CORE_CC_REG(SI_ENUM_BASE, chipid)) {
 		rev = (val & CID_REV_MASK) >> CID_REV_SHIFT;
 		if (rev >= 2) {
@@ -3866,11 +3863,6 @@ brcmf_sdio_probe_attach(struct brcmf_sdio *bus)
 			  err, BRCMF_INIT_CLKCTL1, clkctl);
 		goto fail;
 	}
-
-	/* SDIO register access works so moving
-	 * state from UNKNOWN to DOWN.
-	 */
-	brcmf_bus_change_state(bus->sdiodev->bus_if, BRCMF_BUS_DOWN);
 
 	bus->ci = brcmf_chip_attach(bus->sdiodev, &brcmf_sdio_buscore_ops);
 	if (IS_ERR(bus->ci)) {
@@ -4005,17 +3997,15 @@ static void brcmf_sdio_firmware_callback(struct device *dev,
 
 	brcmf_dbg(TRACE, "Enter: dev=%s\n", dev_name(dev));
 
-	/* try to download image and nvram to the dongle */
-	if (bus_if->state == BRCMF_BUS_DOWN) {
-		bus->alp_only = true;
-		err = brcmf_sdio_download_firmware(bus, code, nvram, nvram_len);
-		if (err)
-			goto fail;
-		bus->alp_only = false;
-	}
-
 	if (!bus_if->drvr)
 		return;
+
+	/* try to download image and nvram to the dongle */
+	bus->alp_only = true;
+	err = brcmf_sdio_download_firmware(bus, code, nvram, nvram_len);
+	if (err)
+		goto fail;
+	bus->alp_only = false;
 
 	/* Start the watchdog timer */
 	bus->sdcnt.tickcnt = 0;
@@ -4142,7 +4132,6 @@ struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 
 	spin_lock_init(&bus->rxctl_lock);
 	spin_lock_init(&bus->txq_lock);
-	sema_init(&bus->tx_seq_lock, 1);
 	init_waitqueue_head(&bus->ctrl_wait);
 	init_waitqueue_head(&bus->dcmd_resp_wait);
 
@@ -4213,7 +4202,6 @@ struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 	bus->idleclock = BRCMF_IDLE_ACTIVE;
 
 	/* SR state */
-	bus->sleeping = false;
 	bus->sr_enabled = false;
 
 	brcmf_sdio_debugfs_create(bus);
@@ -4254,7 +4242,7 @@ void brcmf_sdio_remove(struct brcmf_sdio *bus)
 			destroy_workqueue(bus->brcmf_wq);
 
 		if (bus->ci) {
-			if (bus->sdiodev->bus_if->state == BRCMF_BUS_DOWN) {
+			if (bus->sdiodev->state != BRCMF_STATE_NOMEDIUM) {
 				sdio_claim_host(bus->sdiodev->func[1]);
 				brcmf_sdio_clkctl(bus, CLK_AVAIL, false);
 				/* Leave the device in state where it is
@@ -4289,7 +4277,7 @@ void brcmf_sdio_wd_timer(struct brcmf_sdio *bus, uint wdtick)
 	}
 
 	/* don't start the wd until fw is loaded */
-	if (bus->sdiodev->bus_if->state != BRCMF_BUS_DATA)
+	if (bus->sdiodev->state != BRCMF_STATE_DATA)
 		return;
 
 	if (wdtick) {

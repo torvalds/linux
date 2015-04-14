@@ -188,12 +188,11 @@ static int tiadc_buffer_preenable(struct iio_dev *indio_dev)
 static int tiadc_buffer_postenable(struct iio_dev *indio_dev)
 {
 	struct tiadc_device *adc_dev = iio_priv(indio_dev);
-	struct iio_buffer *buffer = indio_dev->buffer;
 	unsigned int enb = 0;
 	u8 bit;
 
 	tiadc_step_config(indio_dev);
-	for_each_set_bit(bit, buffer->scan_mask, adc_dev->channels)
+	for_each_set_bit(bit, indio_dev->active_scan_mask, adc_dev->channels)
 		enb |= (get_adc_step_bit(adc_dev, bit) << 1);
 	adc_dev->buffer_en_ch_steps = enb;
 
@@ -249,7 +248,7 @@ static int tiadc_iio_buffered_hardware_setup(struct iio_dev *indio_dev,
 	struct iio_buffer *buffer;
 	int ret;
 
-	buffer = iio_kfifo_allocate(indio_dev);
+	buffer = iio_kfifo_allocate();
 	if (!buffer)
 		return -ENOMEM;
 
@@ -263,16 +262,8 @@ static int tiadc_iio_buffered_hardware_setup(struct iio_dev *indio_dev,
 	indio_dev->setup_ops = setup_ops;
 	indio_dev->modes |= INDIO_BUFFER_HARDWARE;
 
-	ret = iio_buffer_register(indio_dev,
-				  indio_dev->channels,
-				  indio_dev->num_channels);
-	if (ret)
-		goto error_free_irq;
-
 	return 0;
 
-error_free_irq:
-	free_irq(irq, indio_dev);
 error_kfifo_free:
 	iio_kfifo_free(indio_dev->buffer);
 	return ret;
@@ -284,7 +275,6 @@ static void tiadc_iio_buffered_hardware_remove(struct iio_dev *indio_dev)
 
 	free_irq(adc_dev->mfd_tscadc->irq, indio_dev);
 	iio_kfifo_free(indio_dev->buffer);
-	iio_buffer_unregister(indio_dev);
 }
 
 

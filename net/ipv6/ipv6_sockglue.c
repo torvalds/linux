@@ -996,13 +996,9 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		lock_sock(sk);
 		skb = np->pktoptions;
 		if (skb)
-			atomic_inc(&skb->users);
-		release_sock(sk);
-
-		if (skb) {
 			ip6_datagram_recv_ctl(sk, &msg, skb);
-			kfree_skb(skb);
-		} else {
+		release_sock(sk);
+		if (!skb) {
 			if (np->rxopt.bits.rxinfo) {
 				struct in6_pktinfo src_info;
 				src_info.ipi6_ifindex = np->mcast_oif ? np->mcast_oif :

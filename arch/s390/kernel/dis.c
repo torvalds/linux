@@ -137,7 +137,7 @@ enum {
 	INSTR_RSI_RRP,
 	INSTR_RSL_LRDFU, INSTR_RSL_R0RD,
 	INSTR_RSY_AARD, INSTR_RSY_CCRD, INSTR_RSY_RRRD, INSTR_RSY_RURD,
-	INSTR_RSY_RDRM,
+	INSTR_RSY_RDRM, INSTR_RSY_RMRD,
 	INSTR_RS_AARD, INSTR_RS_CCRD, INSTR_RS_R0RD, INSTR_RS_RRRD,
 	INSTR_RS_RURD,
 	INSTR_RXE_FRRD, INSTR_RXE_RRRD, INSTR_RXE_RRRDM,
@@ -226,7 +226,6 @@ static const struct s390_operand operands[] =
 	[U16_32] = { 16, 32, 0 },
 	[J16_16] = { 16, 16, OPERAND_PCREL },
 	[J16_32] = { 16, 32, OPERAND_PCREL },
-	[I16_32] = { 16, 32, OPERAND_SIGNED },
 	[I24_24] = { 24, 24, OPERAND_SIGNED },
 	[J32_16] = { 32, 16, OPERAND_PCREL },
 	[I32_16] = { 32, 16, OPERAND_SIGNED },
@@ -308,6 +307,7 @@ static const unsigned char formats[][7] = {
 	[INSTR_RSY_AARD]  = { 0xff, A_8,A_12,D20_20,B_16,0,0 },
 	[INSTR_RSY_CCRD]  = { 0xff, C_8,C_12,D20_20,B_16,0,0 },
 	[INSTR_RSY_RDRM]  = { 0xff, R_8,D20_20,B_16,U4_12,0,0 },
+	[INSTR_RSY_RMRD]  = { 0xff, R_8,U4_12,D20_20,B_16,0,0 },
 	[INSTR_RSY_RRRD]  = { 0xff, R_8,R_12,D20_20,B_16,0,0 },
 	[INSTR_RSY_RURD]  = { 0xff, R_8,U4_12,D20_20,B_16,0,0 },
 	[INSTR_RS_AARD]	  = { 0xff, A_8,A_12,D_20,B_16,0,0 },
@@ -451,7 +451,8 @@ enum {
 	LONG_INSN_VERLLV,
 	LONG_INSN_VESRAV,
 	LONG_INSN_VESRLV,
-	LONG_INSN_VSBCBI
+	LONG_INSN_VSBCBI,
+	LONG_INSN_STCCTM
 };
 
 static char *long_insn_name[] = {
@@ -531,6 +532,7 @@ static char *long_insn_name[] = {
 	[LONG_INSN_VESRAV] = "vesrav",
 	[LONG_INSN_VESRLV] = "vesrlv",
 	[LONG_INSN_VSBCBI] = "vsbcbi",
+	[LONG_INSN_STCCTM] = "stcctm",
 };
 
 static struct s390_insn opcode[] = {
@@ -1656,6 +1658,7 @@ static struct s390_insn opcode_eb[] = {
 	{ "lric", 0x60, INSTR_RSY_RDRM },
 	{ "stric", 0x61, INSTR_RSY_RDRM },
 	{ "mric", 0x62, INSTR_RSY_RDRM },
+	{ { 0, LONG_INSN_STCCTM }, 0x17, INSTR_RSY_RMRD },
 #endif
 	{ "rll", 0x1d, INSTR_RSY_RRRD },
 	{ "mvclu", 0x8e, INSTR_RSY_RRRD },

@@ -1419,8 +1419,7 @@ int ubi_self_check_all_ff(struct ubi_device *ubi, int pnum, int offset, int len)
 
 fail:
 	ubi_err(ubi, "self-check failed for PEB %d", pnum);
-	ubi_msg(ubi, "hex dump of the %d-%d region",
-		 offset, offset + len);
+	ubi_msg(ubi, "hex dump of the %d-%d region", offset, offset + len);
 	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1, buf, len, 1);
 	err = -EINVAL;
 error:

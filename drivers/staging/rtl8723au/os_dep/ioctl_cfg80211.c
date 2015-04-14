@@ -1091,17 +1091,17 @@ static int cfg80211_rtw_get_station(struct wiphy *wiphy,
 			goto exit;
 		}
 
-		sinfo->filled |= STATION_INFO_SIGNAL;
+		sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL);
 		sinfo->signal = translate_percentage_to_dbm(padapter->recvpriv.
 							    signal_strength);
 
-		sinfo->filled |= STATION_INFO_TX_BITRATE;
+		sinfo->filled |= BIT(NL80211_STA_INFO_TX_BITRATE);
 		sinfo->txrate.legacy = rtw_get_cur_max_rate(padapter);
 
-		sinfo->filled |= STATION_INFO_RX_PACKETS;
+		sinfo->filled |= BIT(NL80211_STA_INFO_RX_PACKETS);
 		sinfo->rx_packets = sta_rx_data_pkts(psta);
 
-		sinfo->filled |= STATION_INFO_TX_PACKETS;
+		sinfo->filled |= BIT(NL80211_STA_INFO_TX_PACKETS);
 		sinfo->tx_packets = psta->sta_stats.tx_pkts;
 	}
 
@@ -1468,9 +1468,8 @@ static int rtw_cfg80211_set_wpa_version(struct security_priv *psecuritypriv,
 		return 0;
 	}
 
-	if (wpa_version & (NL80211_WPA_VERSION_1 | NL80211_WPA_VERSION_2)) {
+	if (wpa_version & (NL80211_WPA_VERSION_1 | NL80211_WPA_VERSION_2))
 		psecuritypriv->ndisauthtype = Ndis802_11AuthModeWPAPSK;
-	}
 
 /*
 	if (wpa_version & NL80211_WPA_VERSION_2)
@@ -2363,7 +2362,7 @@ void rtw_cfg80211_indicate_sta_assoc(struct rtw_adapter *padapter,
 			ie_offset = offsetof(struct ieee80211_mgmt,
 					     u.reassoc_req.variable);
 
-		sinfo.filled = STATION_INFO_ASSOC_REQ_IES;
+		sinfo.filled = 0;
 		sinfo.assoc_req_ies = pmgmt_frame + ie_offset;
 		sinfo.assoc_req_ies_len = frame_len - ie_offset;
 		cfg80211_new_sta(ndev, hdr->addr2, &sinfo, GFP_ATOMIC);

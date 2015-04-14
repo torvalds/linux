@@ -123,6 +123,7 @@ struct uart_port {
 	void			(*set_termios)(struct uart_port *,
 				               struct ktermios *new,
 				               struct ktermios *old);
+	void			(*set_mctrl)(struct uart_port *, unsigned int);
 	int			(*startup)(struct uart_port *port);
 	void			(*shutdown)(struct uart_port *port);
 	void			(*throttle)(struct uart_port *port);
@@ -142,13 +143,13 @@ struct uart_port {
 	unsigned char		iotype;			/* io access style */
 	unsigned char		unused1;
 
-#define UPIO_PORT		(0)			/* 8b I/O port access */
-#define UPIO_HUB6		(1)			/* Hub6 ISA card */
-#define UPIO_MEM		(2)			/* 8b MMIO access */
-#define UPIO_MEM32		(3)			/* 32b little endian */
-#define UPIO_MEM32BE		(4)			/* 32b big endian */
-#define UPIO_AU			(5)			/* Au1x00 and RT288x type IO */
-#define UPIO_TSI		(6)			/* Tsi108/109 type IO */
+#define UPIO_PORT		(SERIAL_IO_PORT)	/* 8b I/O port access */
+#define UPIO_HUB6		(SERIAL_IO_HUB6)	/* Hub6 ISA card */
+#define UPIO_MEM		(SERIAL_IO_MEM)		/* 8b MMIO access */
+#define UPIO_MEM32		(SERIAL_IO_MEM32)	/* 32b little endian */
+#define UPIO_AU			(SERIAL_IO_AU)		/* Au1x00 and RT288x type IO */
+#define UPIO_TSI		(SERIAL_IO_TSI)		/* Tsi108/109 type IO */
+#define UPIO_MEM32BE		(SERIAL_IO_MEM32BE)	/* 32b big endian */
 
 	unsigned int		read_status_mask;	/* driver specific */
 	unsigned int		ignore_status_mask;	/* driver specific */
@@ -190,8 +191,10 @@ struct uart_port {
 #define UPF_NO_TXEN_TEST	((__force upf_t) (1 << 15))
 #define UPF_MAGIC_MULTIPLIER	((__force upf_t) ASYNC_MAGIC_MULTIPLIER /* 16 */ )
 
-/* Port has hardware-assisted h/w flow control (iow, auto-RTS *not* auto-CTS) */
-#define UPF_HARD_FLOW		((__force upf_t) (1 << 21))
+/* Port has hardware-assisted h/w flow control */
+#define UPF_AUTO_CTS		((__force upf_t) (1 << 20))
+#define UPF_AUTO_RTS		((__force upf_t) (1 << 21))
+#define UPF_HARD_FLOW		((__force upf_t) (UPF_AUTO_CTS | UPF_AUTO_RTS))
 /* Port has hardware-assisted s/w flow control */
 #define UPF_SOFT_FLOW		((__force upf_t) (1 << 22))
 #define UPF_CONS_FLOW		((__force upf_t) (1 << 23))
@@ -213,11 +216,17 @@ struct uart_port {
 #error Change mask not equivalent to userspace-visible bit defines
 #endif
 
-	/* status must be updated while holding port lock */
+	/*
+	 * Must hold termios_rwsem, port mutex and port lock to change;
+	 * can hold any one lock to read.
+	 */
 	upstat_t		status;
 
 #define UPSTAT_CTS_ENABLE	((__force upstat_t) (1 << 0))
 #define UPSTAT_DCD_ENABLE	((__force upstat_t) (1 << 1))
+#define UPSTAT_AUTORTS		((__force upstat_t) (1 << 2))
+#define UPSTAT_AUTOCTS		((__force upstat_t) (1 << 3))
+#define UPSTAT_AUTOXOFF		((__force upstat_t) (1 << 4))
 
 	int			hw_stopped;		/* sw-assisted CTS flow state */
 	unsigned int		mctrl;			/* current modem ctrl settings */
@@ -389,6 +398,13 @@ static inline int uart_tx_stopped(struct uart_port *port)
 static inline bool uart_cts_enabled(struct uart_port *uport)
 {
 	return !!(uport->status & UPSTAT_CTS_ENABLE);
+}
+
+static inline bool uart_softcts_mode(struct uart_port *uport)
+{
+	upstat_t mask = UPSTAT_CTS_ENABLE | UPSTAT_AUTOCTS;
+
+	return ((uport->status & mask) == UPSTAT_CTS_ENABLE);
 }
 
 /*

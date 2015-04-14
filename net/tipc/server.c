@@ -35,6 +35,7 @@
 
 #include "server.h"
 #include "core.h"
+#include "socket.h"
 #include <net/sock.h>
 
 /* Number of messages to send before rescheduling */
@@ -255,7 +256,8 @@ static int tipc_receive_from_sock(struct tipc_conn *con)
 		goto out_close;
 	}
 
-	s->tipc_conn_recvmsg(con->conid, &addr, con->usr_data, buf, ret);
+	s->tipc_conn_recvmsg(sock_net(con->sock->sk), con->conid, &addr,
+			     con->usr_data, buf, ret);
 
 	kmem_cache_free(s->rcvbuf_cache, buf);
 
@@ -307,7 +309,7 @@ static struct socket *tipc_create_listen_sock(struct tipc_conn *con)
 	struct socket *sock = NULL;
 	int ret;
 
-	ret = tipc_sock_create_local(s->type, &sock);
+	ret = tipc_sock_create_local(s->net, s->type, &sock);
 	if (ret < 0)
 		return NULL;
 	ret = kernel_setsockopt(sock, SOL_TIPC, TIPC_IMPORTANCE,

@@ -66,7 +66,7 @@ int nv04_dac_output_offset(struct drm_encoder *encoder)
 static int sample_load_twice(struct drm_device *dev, bool sense[2])
 {
 	struct nvif_device *device = &nouveau_drm(dev)->device;
-	struct nouveau_timer *ptimer = nvkm_timer(device);
+	struct nvkm_timer *ptimer = nvxx_timer(device);
 	int i;
 
 	for (i = 0; i < 2; i++) {
@@ -80,17 +80,17 @@ static int sample_load_twice(struct drm_device *dev, bool sense[2])
 		 * use a 10ms timeout (guards against crtc being inactive, in
 		 * which case blank state would never change)
 		 */
-		if (!nouveau_timer_wait_eq(ptimer, 10000000,
-					   NV_PRMCIO_INP0__COLOR,
-					   0x00000001, 0x00000000))
+		if (!nvkm_timer_wait_eq(ptimer, 10000000,
+					NV_PRMCIO_INP0__COLOR,
+					0x00000001, 0x00000000))
 			return -EBUSY;
-		if (!nouveau_timer_wait_eq(ptimer, 10000000,
-					   NV_PRMCIO_INP0__COLOR,
-					   0x00000001, 0x00000001))
+		if (!nvkm_timer_wait_eq(ptimer, 10000000,
+					NV_PRMCIO_INP0__COLOR,
+					0x00000001, 0x00000001))
 			return -EBUSY;
-		if (!nouveau_timer_wait_eq(ptimer, 10000000,
-					   NV_PRMCIO_INP0__COLOR,
-					   0x00000001, 0x00000000))
+		if (!nvkm_timer_wait_eq(ptimer, 10000000,
+					NV_PRMCIO_INP0__COLOR,
+					0x00000001, 0x00000000))
 			return -EBUSY;
 
 		udelay(100);
@@ -232,7 +232,7 @@ uint32_t nv17_dac_sample_load(struct drm_encoder *encoder)
 	struct drm_device *dev = encoder->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvif_device *device = &nouveau_drm(dev)->device;
-	struct nouveau_gpio *gpio = nvkm_gpio(device);
+	struct nvkm_gpio *gpio = nvxx_gpio(device);
 	struct dcb_output *dcb = nouveau_encoder(encoder)->dcb;
 	uint32_t sample, testval, regoffset = nv04_dac_output_offset(encoder);
 	uint32_t saved_powerctrl_2 = 0, saved_powerctrl_4 = 0, saved_routput,

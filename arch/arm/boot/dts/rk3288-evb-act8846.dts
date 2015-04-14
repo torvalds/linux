@@ -17,7 +17,34 @@
 	compatible = "rockchip,rk3288-evb-act8846", "rockchip,rk3288";
 };
 
+&cpu0 {
+	cpu0-supply = <&vdd_cpu>;
+};
+
 &i2c0 {
+	clock-frequency = <400000>;
+
+	vdd_cpu: syr827@40 {
+		compatible = "silergy,syr827";
+		fcs,suspend-voltage-selector = <1>;
+		reg = <0x40>;
+		regulator-name = "vdd_cpu";
+		regulator-min-microvolt = <850000>;
+		regulator-max-microvolt = <1350000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	vdd_gpu: syr828@41 {
+		compatible = "silergy,syr828";
+		fcs,suspend-voltage-selector = <1>;
+		reg = <0x41>;
+		regulator-name = "vdd_gpu";
+		regulator-min-microvolt = <850000>;
+		regulator-max-microvolt = <1350000>;
+		regulator-always-on;
+	};
+
 	hym8563@51 {
 		compatible = "haoyu,hym8563";
 		reg = <0x51>;

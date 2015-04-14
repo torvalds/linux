@@ -314,6 +314,7 @@ enum omapdss_version {
 	OMAPDSS_VER_OMAP4,		/* All other OMAP4s */
 	OMAPDSS_VER_OMAP5,
 	OMAPDSS_VER_AM43xx,
+	OMAPDSS_VER_DRA7xx,
 };
 
 /* Board specific data */
@@ -688,6 +689,7 @@ struct omapdss_dsi_ops {
 };
 
 struct omap_dss_device {
+	struct kobject kobj;
 	struct device *dev;
 
 	struct module *owner;

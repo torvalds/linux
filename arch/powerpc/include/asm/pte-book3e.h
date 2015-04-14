@@ -10,7 +10,6 @@
 
 /* Architected bits */
 #define _PAGE_PRESENT	0x000001 /* software: pte contains a translation */
-#define _PAGE_FILE	0x000002 /* (!present only) software: pte holds file offset */
 #define _PAGE_SW1	0x000002
 #define _PAGE_BAP_SR	0x000004
 #define _PAGE_BAP_UR	0x000008

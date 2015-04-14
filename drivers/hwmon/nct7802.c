@@ -779,7 +779,7 @@ static bool nct7802_regmap_is_volatile(struct device *dev, unsigned int reg)
 	return reg != REG_BANK && reg <= 0x20;
 }
 
-static struct regmap_config nct7802_regmap_config = {
+static const struct regmap_config nct7802_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.cache_type = REGCACHE_RBTREE,

@@ -27,6 +27,8 @@
 #include <linux/regulator/consumer.h>
 #include "ahci.h"
 
+#define DRV_NAME "ahci-sunxi"
+
 /* Insmod parameters */
 static bool enable_pmp;
 module_param(enable_pmp, bool, 0);
@@ -169,6 +171,10 @@ static const struct ata_port_info ahci_sunxi_port_info = {
 	.port_ops	= &ahci_platform_ops,
 };
 
+static struct scsi_host_template ahci_platform_sht = {
+	AHCI_SHT(DRV_NAME),
+};
+
 static int ahci_sunxi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -200,7 +206,8 @@ static int ahci_sunxi_probe(struct platform_device *pdev)
 	if (!enable_pmp)
 		hpriv->flags |= AHCI_HFLAG_NO_PMP;
 
-	rc = ahci_platform_init_host(pdev, hpriv, &ahci_sunxi_port_info);
+	rc = ahci_platform_init_host(pdev, hpriv, &ahci_sunxi_port_info,
+				     &ahci_platform_sht);
 	if (rc)
 		goto disable_resources;
 
@@ -251,7 +258,7 @@ static struct platform_driver ahci_sunxi_driver = {
 	.probe = ahci_sunxi_probe,
 	.remove = ata_platform_remove_one,
 	.driver = {
-		.name = "ahci-sunxi",
+		.name = DRV_NAME,
 		.of_match_table = ahci_sunxi_of_match,
 		.pm = &ahci_sunxi_pm_ops,
 	},

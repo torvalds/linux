@@ -735,6 +735,7 @@ int rockchip_drm_crtc_mode_config(struct drm_crtc *crtc,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(rockchip_drm_crtc_mode_config);
 
 static int vop_crtc_enable_vblank(struct drm_crtc *crtc)
 {

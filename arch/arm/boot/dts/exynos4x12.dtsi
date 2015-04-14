@@ -19,6 +19,7 @@
 
 #include "exynos4.dtsi"
 #include "exynos4x12-pinctrl.dtsi"
+#include "exynos4-cpu-thermal.dtsi"
 
 / {
 	aliases {
@@ -52,6 +53,21 @@
 	pd_isp: isp-power-domain@10023CA0 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10023CA0 0x20>;
+		#power-domain-cells = <0>;
+	};
+
+	l2c: l2-cache-controller@10502000 {
+		compatible = "arm,pl310-cache";
+		reg = <0x10502000 0x1000>;
+		cache-unified;
+		cache-level = <2>;
+		arm,tag-latency = <2 2 1>;
+		arm,data-latency = <3 2 1>;
+		arm,double-linefill = <1>;
+		arm,double-linefill-incr = <0>;
+		arm,double-linefill-wrap = <1>;
+		arm,prefetch-drop = <1>;
+		arm,prefetch-offset = <7>;
 	};
 
 	clock: clock-controller@10030000 {
@@ -195,7 +211,7 @@
 			compatible = "samsung,exynos4212-fimc-lite";
 			reg = <0x12390000 0x1000>;
 			interrupts = <0 105 0>;
-			samsung,power-domain = <&pd_isp>;
+			power-domains = <&pd_isp>;
 			clocks = <&clock CLK_FIMC_LITE0>;
 			clock-names = "flite";
 			status = "disabled";
@@ -205,7 +221,7 @@
 			compatible = "samsung,exynos4212-fimc-lite";
 			reg = <0x123A0000 0x1000>;
 			interrupts = <0 106 0>;
-			samsung,power-domain = <&pd_isp>;
+			power-domains = <&pd_isp>;
 			clocks = <&clock CLK_FIMC_LITE1>;
 			clock-names = "flite";
 			status = "disabled";
@@ -215,7 +231,7 @@
 			compatible = "samsung,exynos4212-fimc-is", "simple-bus";
 			reg = <0x12000000 0x260000>;
 			interrupts = <0 90 0>, <0 95 0>;
-			samsung,power-domain = <&pd_isp>;
+			power-domains = <&pd_isp>;
 			clocks = <&clock CLK_FIMC_LITE0>,
 				 <&clock CLK_FIMC_LITE1>, <&clock CLK_PPMUISPX>,
 				 <&clock CLK_PPMUISPMX>,
@@ -225,7 +241,7 @@
 				 <&clock CLK_DIV_ISP0>,<&clock CLK_DIV_ISP1>,
 				 <&clock CLK_DIV_MCUISP0>,
 				 <&clock CLK_DIV_MCUISP1>,
-				 <&clock CLK_SCLK_UART_ISP>,
+				 <&clock CLK_UART_ISP_SCLK>,
 				 <&clock CLK_ACLK200>, <&clock CLK_DIV_ACLK200>,
 				 <&clock CLK_ACLK400_MCUISP>,
 				 <&clock CLK_DIV_ACLK400_MCUISP>;
@@ -281,5 +297,16 @@
 		clocks = <&clock 383>;
 		clock-names = "tmu_apbif";
 		status = "disabled";
+	};
+
+	hdmi: hdmi@12D00000 {
+		compatible = "samsung,exynos4212-hdmi";
+	};
+
+	mixer: mixer@12C10000 {
+		compatible = "samsung,exynos4212-mixer";
+		clock-names = "mixer", "hdmi", "sclk_hdmi", "vp";
+		clocks = <&clock CLK_MIXER>, <&clock CLK_HDMI>,
+			 <&clock CLK_SCLK_HDMI>, <&clock CLK_VP>;
 	};
 };

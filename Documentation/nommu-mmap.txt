@@ -43,12 +43,12 @@ and it's also much more restricted in the latter case:
            even if this was created by another process.
 
          - If possible, the file mapping will be directly on the backing device
-           if the backing device has the BDI_CAP_MAP_DIRECT capability and
+           if the backing device has the NOMMU_MAP_DIRECT capability and
            appropriate mapping protection capabilities. Ramfs, romfs, cramfs
            and mtd might all permit this.
 
 	 - If the backing device device can't or won't permit direct sharing,
-           but does have the BDI_CAP_MAP_COPY capability, then a copy of the
+           but does have the NOMMU_MAP_COPY capability, then a copy of the
            appropriate bit of the file will be read into a contiguous bit of
            memory and any extraneous space beyond the EOF will be cleared
 
@@ -220,7 +220,7 @@ directly (can't be copied).
 
 The file->f_op->mmap() operation will be called to actually inaugurate the
 mapping. It can be rejected at that point. Returning the ENOSYS error will
-cause the mapping to be copied instead if BDI_CAP_MAP_COPY is specified.
+cause the mapping to be copied instead if NOMMU_MAP_COPY is specified.
 
 The vm_ops->close() routine will be invoked when the last mapping on a chardev
 is removed. An existing mapping will be shared, partially or not, if possible
@@ -232,7 +232,7 @@ want to handle it, despite the fact it's got an operation. For instance, it
 might try directing the call to a secondary driver which turns out not to
 implement it. Such is the case for the framebuffer driver which attempts to
 direct the call to the device-specific driver. Under such circumstances, the
-mapping request will be rejected if BDI_CAP_MAP_COPY is not specified, and a
+mapping request will be rejected if NOMMU_MAP_COPY is not specified, and a
 copy mapped otherwise.
 
 IMPORTANT NOTE:

@@ -33,9 +33,17 @@ usb1: ehci@00800000 {
 AT91 USB device controller
 
 Required properties:
- - compatible: Should be "atmel,at91rm9200-udc"
+ - compatible: Should be one of the following
+	       "atmel,at91rm9200-udc"
+	       "atmel,at91sam9260-udc"
+	       "atmel,at91sam9261-udc"
+	       "atmel,at91sam9263-udc"
  - reg: Address and length of the register set for the device
  - interrupts: Should contain macb interrupt
+ - clocks: Should reference the peripheral and the AHB clocks
+ - clock-names: Should contains two strings
+		"pclk" for the peripheral clock
+		"hclk" for the AHB clock
 
 Optional properties:
  - atmel,vbus-gpio: If present, specifies a gpio that needs to be
@@ -51,7 +59,10 @@ usb1: gadget@fffa4000 {
 Atmel High-Speed USB device controller
 
 Required properties:
- - compatible: Should be "atmel,at91sam9rl-udc"
+ - compatible: Should be one of the following
+	       "at91sam9rl-udc"
+	       "at91sam9g45-udc"
+	       "sama5d3-udc"
  - reg: Address and length of the register set for the device
  - interrupts: Should contain usba interrupt
  - ep childnode: To specify the number of endpoints and their properties.

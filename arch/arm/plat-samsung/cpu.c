@@ -40,10 +40,14 @@ void __init s3c64xx_init_cpu(void)
 	}
 
 	samsung_cpu_rev = 0;
+
+	pr_info("Samsung CPU ID: 0x%08lx\n", samsung_cpu_id);
 }
 
 void __init s5p_init_cpu(void __iomem *cpuid_addr)
 {
 	samsung_cpu_id = __raw_readl(cpuid_addr);
 	samsung_cpu_rev = samsung_cpu_id & 0xFF;
+
+	pr_info("Samsung CPU ID: 0x%08lx\n", samsung_cpu_id);
 }

@@ -34,6 +34,8 @@ struct usb_hcd;
  *			after initialization.
  * @no_io_watchdog:	set to 1 if the controller does not need the I/O
  *			watchdog to run.
+ * @reset_on_resume:	set to 1 if the controller needs to be reset after
+ * 			a suspend / resume cycle (but can't detect that itself).
  *
  * These are general configuration options for the EHCI controller. All of
  * these options are activating more or less workarounds for some hardware.
@@ -45,6 +47,8 @@ struct usb_ehci_pdata {
 	unsigned	big_endian_desc:1;
 	unsigned	big_endian_mmio:1;
 	unsigned	no_io_watchdog:1;
+	unsigned	reset_on_resume:1;
+	unsigned	dma_mask_64:1;
 
 	/* Turn on all power and clocks */
 	int (*power_on)(struct platform_device *pdev);
