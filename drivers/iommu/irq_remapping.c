@@ -25,11 +25,6 @@ int no_x2apic_optout;
 static int disable_irq_remap;
 static struct irq_remap_ops *remap_ops;
 
-static bool irq_remapped(struct irq_cfg *cfg)
-{
-	return (cfg->remapped == 1);
-}
-
 static void irq_remapping_disable_io_apic(void)
 {
 	/*
@@ -140,14 +135,6 @@ int __init irq_remap_enable_fault_handling(void)
 	return remap_ops->enable_faulting();
 }
 
-void free_remapped_irq(int irq)
-{
-	struct irq_cfg *cfg = irq_cfg(irq);
-
-	if (irq_remapped(cfg) && remap_ops->free_irq)
-		remap_ops->free_irq(irq);
-}
-
 void panic_if_irq_remap(const char *msg)
 {
 	if (irq_remapping_enabled)
@@ -157,26 +144,6 @@ void panic_if_irq_remap(const char *msg)
 void ir_ack_apic_edge(struct irq_data *data)
 {
 	ack_APIC_irq();
-}
-
-static void ir_print_prefix(struct irq_data *data, struct seq_file *p)
-{
-	seq_printf(p, " IR-%s", data->chip->name);
-}
-
-void irq_remap_modify_chip_defaults(struct irq_chip *chip)
-{
-	chip->irq_print_chip = ir_print_prefix;
-	chip->irq_ack = ir_ack_apic_edge;
-}
-
-bool setup_remapped_irq(int irq, struct irq_cfg *cfg, struct irq_chip *chip)
-{
-	if (!irq_remapped(cfg))
-		return false;
-	irq_set_status_flags(irq, IRQ_MOVE_PCNTXT);
-	irq_remap_modify_chip_defaults(chip);
-	return true;
 }
 
 /**

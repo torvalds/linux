@@ -26,12 +26,7 @@
 #include <asm/hw_irq.h>
 #include <asm/io_apic.h>
 
-struct IO_APIC_route_entry;
-struct io_apic_irq_attr;
-struct irq_chip;
 struct msi_msg;
-struct pci_dev;
-struct irq_cfg;
 struct irq_alloc_info;
 
 #ifdef CONFIG_IRQ_REMAP
@@ -42,13 +37,7 @@ extern int irq_remapping_enable(void);
 extern void irq_remapping_disable(void);
 extern int irq_remapping_reenable(int);
 extern int irq_remap_enable_fault_handling(void);
-extern void free_remapped_irq(int irq);
 extern void panic_if_irq_remap(const char *msg);
-extern bool setup_remapped_irq(int irq,
-			       struct irq_cfg *cfg,
-			       struct irq_chip *chip);
-
-void irq_remap_modify_chip_defaults(struct irq_chip *chip);
 
 extern struct irq_domain *
 irq_remapping_get_ir_irq_domain(struct irq_alloc_info *info);
@@ -72,21 +61,9 @@ static inline int irq_remapping_enable(void) { return -ENODEV; }
 static inline void irq_remapping_disable(void) { }
 static inline int irq_remapping_reenable(int eim) { return -ENODEV; }
 static inline int irq_remap_enable_fault_handling(void) { return -ENODEV; }
-static inline void free_remapped_irq(int irq) { }
 
 static inline void panic_if_irq_remap(const char *msg)
 {
-}
-
-static inline void irq_remap_modify_chip_defaults(struct irq_chip *chip)
-{
-}
-
-static inline bool setup_remapped_irq(int irq,
-				      struct irq_cfg *cfg,
-				      struct irq_chip *chip)
-{
-	return false;
 }
 
 static inline struct irq_domain *
