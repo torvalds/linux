@@ -392,12 +392,9 @@ int iser_reg_page_vec(struct ib_conn *ib_conn,
 
 	mem_reg->lkey  = mem->fmr->lkey;
 	mem_reg->rkey  = mem->fmr->rkey;
-	mem_reg->len   = page_vec->length * SIZE_4K;
-	mem_reg->va    = io_addr;
-	mem_reg->mem_h = (void *)mem;
-
-	mem_reg->va   += page_vec->offset;
 	mem_reg->len   = page_vec->data_size;
+	mem_reg->va    = io_addr + page_vec->offset;
+	mem_reg->mem_h = (void *)mem;
 
 	iser_dbg("PHYSICAL Mem.register, [PHYS p_array: 0x%p, sz: %d, "
 		 "entry[0]: (0x%08lx,%ld)] -> "
