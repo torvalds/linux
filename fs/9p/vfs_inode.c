@@ -1224,54 +1224,6 @@ ino_t v9fs_qid2ino(struct p9_qid *qid)
 }
 
 /**
- * v9fs_readlink - read a symlink's location (internal version)
- * @dentry: dentry for symlink
- * @buffer: buffer to load symlink location into
- * @buflen: length of buffer
- *
- */
-
-static int v9fs_readlink(struct dentry *dentry, char *buffer, int buflen)
-{
-	int retval;
-
-	struct v9fs_session_info *v9ses;
-	struct p9_fid *fid;
-	struct p9_wstat *st;
-
-	p9_debug(P9_DEBUG_VFS, " %pd\n", dentry);
-	retval = -EPERM;
-	v9ses = v9fs_dentry2v9ses(dentry);
-	fid = v9fs_fid_lookup(dentry);
-	if (IS_ERR(fid))
-		return PTR_ERR(fid);
-
-	if (!v9fs_proto_dotu(v9ses))
-		return -EBADF;
-
-	st = p9_client_stat(fid);
-	if (IS_ERR(st))
-		return PTR_ERR(st);
-
-	if (!(st->mode & P9_DMSYMLINK)) {
-		retval = -EINVAL;
-		goto done;
-	}
-
-	/* copy extension buffer into buffer */
-	retval = min(strlen(st->extension)+1, (size_t)buflen);
-	memcpy(buffer, st->extension, retval);
-
-	p9_debug(P9_DEBUG_VFS, "%pd -> %s (%.*s)\n",
-		 dentry, st->extension, buflen, buffer);
-
-done:
-	p9stat_free(st);
-	kfree(st);
-	return retval;
-}
-
-/**
  * v9fs_vfs_follow_link - follow a symlink path
  * @dentry: dentry for symlink
  * @nd: nameidata
@@ -1280,44 +1232,35 @@ done:
 
 static void *v9fs_vfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
-	int len = 0;
-	char *link = __getname();
+	struct v9fs_session_info *v9ses = v9fs_dentry2v9ses(dentry);
+	struct p9_fid *fid = v9fs_fid_lookup(dentry);
+	struct p9_wstat *st;
 
 	p9_debug(P9_DEBUG_VFS, "%pd\n", dentry);
 
-	if (!link)
-		link = ERR_PTR(-ENOMEM);
-	else {
-		len = v9fs_readlink(dentry, link, PATH_MAX);
+	if (IS_ERR(fid))
+		return ERR_CAST(fid);
 
-		if (len < 0) {
-			__putname(link);
-			link = ERR_PTR(len);
-		} else
-			link[min(len, PATH_MAX-1)] = 0;
+	if (!v9fs_proto_dotu(v9ses))
+		return ERR_PTR(-EBADF);
+
+	st = p9_client_stat(fid);
+	if (IS_ERR(st))
+		return ERR_CAST(st);
+
+	if (!(st->mode & P9_DMSYMLINK)) {
+		p9stat_free(st);
+		kfree(st);
+		return ERR_PTR(-EINVAL);
 	}
-	nd_set_link(nd, link);
+	if (strlen(st->extension) >= PATH_MAX)
+		st->extension[PATH_MAX - 1] = '\0';
 
+	nd_set_link(nd, st->extension);
+	st->extension = NULL;
+	p9stat_free(st);
+	kfree(st);
 	return NULL;
-}
-
-/**
- * v9fs_vfs_put_link - release a symlink path
- * @dentry: dentry for symlink
- * @nd: nameidata
- * @p: unused
- *
- */
-
-void
-v9fs_vfs_put_link(struct dentry *dentry, struct nameidata *nd, void *p)
-{
-	char *s = nd_get_link(nd);
-
-	p9_debug(P9_DEBUG_VFS, " %pd %s\n",
-		 dentry, IS_ERR(s) ? "<error>" : s);
-	if (!IS_ERR(s))
-		__putname(s);
 }
 
 /**
@@ -1514,7 +1457,7 @@ static const struct inode_operations v9fs_file_inode_operations = {
 static const struct inode_operations v9fs_symlink_inode_operations = {
 	.readlink = generic_readlink,
 	.follow_link = v9fs_vfs_follow_link,
-	.put_link = v9fs_vfs_put_link,
+	.put_link = kfree_put_link,
 	.getattr = v9fs_vfs_getattr,
 	.setattr = v9fs_vfs_setattr,
 };

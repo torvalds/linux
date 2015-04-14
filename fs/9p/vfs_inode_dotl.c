@@ -912,33 +912,18 @@ error:
 static void *
 v9fs_vfs_follow_link_dotl(struct dentry *dentry, struct nameidata *nd)
 {
-	int retval;
-	struct p9_fid *fid;
-	char *link = __getname();
+	struct p9_fid *fid = v9fs_fid_lookup(dentry);
 	char *target;
+	int retval;
 
 	p9_debug(P9_DEBUG_VFS, "%pd\n", dentry);
 
-	if (!link) {
-		link = ERR_PTR(-ENOMEM);
-		goto ndset;
-	}
-	fid = v9fs_fid_lookup(dentry);
-	if (IS_ERR(fid)) {
-		__putname(link);
-		link = ERR_CAST(fid);
-		goto ndset;
-	}
+	if (IS_ERR(fid))
+		return ERR_CAST(fid);
 	retval = p9_client_readlink(fid, &target);
-	if (!retval) {
-		strcpy(link, target);
-		kfree(target);
-		goto ndset;
-	}
-	__putname(link);
-	link = ERR_PTR(retval);
-ndset:
-	nd_set_link(nd, link);
+	if (retval)
+		return ERR_PTR(retval);
+	nd_set_link(nd, target);
 	return NULL;
 }
 
@@ -1006,7 +991,7 @@ const struct inode_operations v9fs_file_inode_operations_dotl = {
 const struct inode_operations v9fs_symlink_inode_operations_dotl = {
 	.readlink = generic_readlink,
 	.follow_link = v9fs_vfs_follow_link_dotl,
-	.put_link = v9fs_vfs_put_link,
+	.put_link = kfree_put_link,
 	.getattr = v9fs_vfs_getattr_dotl,
 	.setattr = v9fs_vfs_setattr_dotl,
 	.setxattr = generic_setxattr,
