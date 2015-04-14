@@ -454,10 +454,10 @@ static int kvm_s390_set_tod_low(struct kvm *kvm, struct kvm_device_attr *attr)
 
 	mutex_lock(&kvm->lock);
 	kvm->arch.epoch = gtod - host_tod;
-	kvm_for_each_vcpu(vcpu_idx, cur_vcpu, kvm) {
+	kvm_s390_vcpu_block_all(kvm);
+	kvm_for_each_vcpu(vcpu_idx, cur_vcpu, kvm)
 		cur_vcpu->arch.sie_block->epoch = kvm->arch.epoch;
-		exit_sie(cur_vcpu);
-	}
+	kvm_s390_vcpu_unblock_all(kvm);
 	mutex_unlock(&kvm->lock);
 	return 0;
 }
@@ -1414,12 +1414,12 @@ int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu)
 	return kvm_s390_vcpu_has_irq(vcpu, 0);
 }
 
-void s390_vcpu_block(struct kvm_vcpu *vcpu)
+void kvm_s390_vcpu_block(struct kvm_vcpu *vcpu)
 {
 	atomic_set_mask(PROG_BLOCK_SIE, &vcpu->arch.sie_block->prog20);
 }
 
-void s390_vcpu_unblock(struct kvm_vcpu *vcpu)
+void kvm_s390_vcpu_unblock(struct kvm_vcpu *vcpu)
 {
 	atomic_clear_mask(PROG_BLOCK_SIE, &vcpu->arch.sie_block->prog20);
 }
