@@ -97,9 +97,6 @@ const struct i915_ggtt_view i915_ggtt_view_rotated = {
         .type = I915_GGTT_VIEW_ROTATED
 };
 
-static void bdw_setup_private_ppat(struct drm_i915_private *dev_priv);
-static void chv_setup_private_ppat(struct drm_i915_private *dev_priv);
-
 static int sanitize_enable_ppgtt(struct drm_device *dev, int enable_ppgtt)
 {
 	bool has_aliasing_ppgtt;
@@ -1727,59 +1724,6 @@ void i915_gem_suspend_gtt_mappings(struct drm_device *dev)
 	i915_ggtt_flush(dev_priv);
 }
 
-void i915_gem_restore_gtt_mappings(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *obj;
-	struct i915_address_space *vm;
-
-	i915_check_and_clear_faults(dev);
-
-	/* First fill our portion of the GTT with scratch pages */
-	dev_priv->gtt.base.clear_range(&dev_priv->gtt.base,
-				       dev_priv->gtt.base.start,
-				       dev_priv->gtt.base.total,
-				       true);
-
-	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
-		struct i915_vma *vma = i915_gem_obj_to_vma(obj,
-							   &dev_priv->gtt.base);
-		if (!vma)
-			continue;
-
-		i915_gem_clflush_object(obj, obj->pin_display);
-		WARN_ON(i915_vma_bind(vma, obj->cache_level, PIN_UPDATE));
-	}
-
-
-	if (INTEL_INFO(dev)->gen >= 8) {
-		if (IS_CHERRYVIEW(dev) || IS_BROXTON(dev))
-			chv_setup_private_ppat(dev_priv);
-		else
-			bdw_setup_private_ppat(dev_priv);
-
-		return;
-	}
-
-	if (USES_PPGTT(dev)) {
-		list_for_each_entry(vm, &dev_priv->vm_list, global_link) {
-			/* TODO: Perhaps it shouldn't be gen6 specific */
-
-			struct i915_hw_ppgtt *ppgtt =
-					container_of(vm, struct i915_hw_ppgtt,
-						     base);
-
-			if (i915_is_ggtt(vm))
-				ppgtt = dev_priv->mm.aliasing_ppgtt;
-
-			gen6_write_page_range(dev_priv, &ppgtt->pd,
-					      0, ppgtt->base.total);
-		}
-	}
-
-	i915_ggtt_flush(dev_priv);
-}
-
 int i915_gem_gtt_prepare_object(struct drm_i915_gem_object *obj)
 {
 	if (obj->has_dma_mapping)
@@ -2601,6 +2545,59 @@ int i915_gem_gtt_init(struct drm_device *dev)
 	DRM_DEBUG_DRIVER("ppgtt mode: %i\n", i915.enable_ppgtt);
 
 	return 0;
+}
+
+void i915_gem_restore_gtt_mappings(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_gem_object *obj;
+	struct i915_address_space *vm;
+
+	i915_check_and_clear_faults(dev);
+
+	/* First fill our portion of the GTT with scratch pages */
+	dev_priv->gtt.base.clear_range(&dev_priv->gtt.base,
+				       dev_priv->gtt.base.start,
+				       dev_priv->gtt.base.total,
+				       true);
+
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
+		struct i915_vma *vma = i915_gem_obj_to_vma(obj,
+							   &dev_priv->gtt.base);
+		if (!vma)
+			continue;
+
+		i915_gem_clflush_object(obj, obj->pin_display);
+		WARN_ON(i915_vma_bind(vma, obj->cache_level, PIN_UPDATE));
+	}
+
+
+	if (INTEL_INFO(dev)->gen >= 8) {
+		if (IS_CHERRYVIEW(dev) || IS_BROXTON(dev))
+			chv_setup_private_ppat(dev_priv);
+		else
+			bdw_setup_private_ppat(dev_priv);
+
+		return;
+	}
+
+	if (USES_PPGTT(dev)) {
+		list_for_each_entry(vm, &dev_priv->vm_list, global_link) {
+			/* TODO: Perhaps it shouldn't be gen6 specific */
+
+			struct i915_hw_ppgtt *ppgtt =
+					container_of(vm, struct i915_hw_ppgtt,
+						     base);
+
+			if (i915_is_ggtt(vm))
+				ppgtt = dev_priv->mm.aliasing_ppgtt;
+
+			gen6_write_page_range(dev_priv, &ppgtt->pd,
+					      0, ppgtt->base.total);
+		}
+	}
+
+	i915_ggtt_flush(dev_priv);
 }
 
 static struct i915_vma *
