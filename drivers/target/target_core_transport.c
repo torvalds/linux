@@ -328,19 +328,27 @@ void __transport_register_session(
 	se_sess->se_tpg = se_tpg;
 	se_sess->fabric_sess_ptr = fabric_sess_ptr;
 	/*
-	 * Determine if fabric allows for T10-PI feature bits to be exposed
-	 * to initiators for device backends with !dev->dev_attrib.pi_prot_type
-	 */
-	if (tfo->tpg_check_prot_fabric_only)
-		se_sess->sess_prot_type = tfo->tpg_check_prot_fabric_only(se_tpg);
-
-	/*
 	 * Used by struct se_node_acl's under ConfigFS to locate active se_session-t
 	 *
 	 * Only set for struct se_session's that will actually be moving I/O.
 	 * eg: *NOT* discovery sessions.
 	 */
 	if (se_nacl) {
+		/*
+		 *
+		 * Determine if fabric allows for T10-PI feature bits exposed to
+		 * initiators for device backends with !dev->dev_attrib.pi_prot_type.
+		 *
+		 * If so, then always save prot_type on a per se_node_acl node
+		 * basis and re-instate the previous sess_prot_type to avoid
+		 * disabling PI from below any previously initiator side
+		 * registered LUNs.
+		 */
+		if (se_nacl->saved_prot_type)
+			se_sess->sess_prot_type = se_nacl->saved_prot_type;
+		else if (tfo->tpg_check_prot_fabric_only)
+			se_sess->sess_prot_type = se_nacl->saved_prot_type =
+					tfo->tpg_check_prot_fabric_only(se_tpg);
 		/*
 		 * If the fabric module supports an ISID based TransportID,
 		 * save this value in binary from the fabric I_T Nexus now.

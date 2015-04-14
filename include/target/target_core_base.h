@@ -589,6 +589,7 @@ struct se_node_acl {
 	bool			acl_stop:1;
 	u32			queue_depth;
 	u32			acl_index;
+	enum target_prot_type	saved_prot_type;
 #define MAX_ACL_TAG_SIZE 64
 	char			acl_tag[MAX_ACL_TAG_SIZE];
 	/* Used for PR SPEC_I_PT=1 and REGISTER_AND_MOVE */
