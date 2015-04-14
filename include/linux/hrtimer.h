@@ -137,7 +137,6 @@ struct hrtimer_sleeper {
  *			timer to a base on another cpu.
  * @clockid:		clock id for per_cpu support
  * @active:		red black tree root node for the active timers
- * @resolution:		the resolution of the clock, in nanoseconds
  * @get_time:		function to retrieve the current time of the clock
  * @softirq_time:	the time when running the hrtimer queue in the softirq
  * @offset:		offset of this clock to the monotonic base
@@ -147,7 +146,6 @@ struct hrtimer_clock_base {
 	int			index;
 	clockid_t		clockid;
 	struct timerqueue_head	active;
-	ktime_t			resolution;
 	ktime_t			(*get_time)(void);
 	ktime_t			softirq_time;
 	ktime_t			offset;
@@ -295,10 +293,14 @@ extern void hrtimer_peek_ahead_timers(void);
 
 extern void clock_was_set_delayed(void);
 
+extern unsigned int hrtimer_resolution;
+
 #else
 
 # define MONOTONIC_RES_NSEC	LOW_RES_NSEC
 # define KTIME_MONOTONIC_RES	KTIME_LOW_RES
+
+#define hrtimer_resolution	LOW_RES_NSEC
 
 static inline void hrtimer_peek_ahead_timers(void) { }
 
