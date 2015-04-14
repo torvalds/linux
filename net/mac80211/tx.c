@@ -2466,6 +2466,13 @@ void ieee80211_check_fast_xmit(struct sta_info *sta)
 	fc = cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA);
 
 	switch (sdata->vif.type) {
+	case NL80211_IFTYPE_ADHOC:
+		/* DA SA BSSID */
+		build.da_offs = offsetof(struct ieee80211_hdr, addr1);
+		build.sa_offs = offsetof(struct ieee80211_hdr, addr2);
+		memcpy(hdr->addr3, sdata->u.ibss.bssid, ETH_ALEN);
+		build.hdr_len = 24;
+		break;
 	case NL80211_IFTYPE_STATION:
 		if (test_sta_flag(sta, WLAN_STA_TDLS_PEER)) {
 			/* DA SA BSSID */
