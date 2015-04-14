@@ -595,7 +595,7 @@ static int queue_manag(void *data)
 	cpg->eng_st = ENGINE_IDLE;
 	do {
 		struct crypto_async_request *async_req = NULL;
-		struct crypto_async_request *backlog;
+		struct crypto_async_request *backlog = NULL;
 
 		__set_current_state(TASK_INTERRUPTIBLE);
 
