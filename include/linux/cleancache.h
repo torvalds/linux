@@ -5,6 +5,10 @@
 #include <linux/exportfs.h>
 #include <linux/mm.h>
 
+#define CLEANCACHE_NO_POOL		-1
+#define CLEANCACHE_NO_BACKEND		-2
+#define CLEANCACHE_NO_BACKEND_SHARED	-3
+
 #define CLEANCACHE_KEY_MAX 6
 
 /*
