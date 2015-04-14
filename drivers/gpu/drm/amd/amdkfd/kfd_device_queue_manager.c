@@ -430,9 +430,10 @@ static int unregister_process_nocpsch(struct device_queue_manager *dqm,
 
 	BUG_ON(!dqm || !qpd);
 
-	BUG_ON(!list_empty(&qpd->queues_list));
+	pr_debug("In func %s\n", __func__);
 
-	pr_debug("kfd: In func %s\n", __func__);
+	pr_debug("qpd->queues_list is %s\n",
+			list_empty(&qpd->queues_list) ? "empty" : "not empty");
 
 	retval = 0;
 	mutex_lock(&dqm->lock);
