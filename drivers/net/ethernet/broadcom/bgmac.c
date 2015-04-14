@@ -562,18 +562,26 @@ static void bgmac_dma_ring_desc_free(struct bgmac *bgmac,
 			  ring->dma_base);
 }
 
+static void bgmac_dma_cleanup(struct bgmac *bgmac)
+{
+	int i;
+
+	for (i = 0; i < BGMAC_MAX_TX_RINGS; i++)
+		bgmac_dma_tx_ring_free(bgmac, &bgmac->tx_ring[i]);
+
+	for (i = 0; i < BGMAC_MAX_RX_RINGS; i++)
+		bgmac_dma_rx_ring_free(bgmac, &bgmac->rx_ring[i]);
+}
+
 static void bgmac_dma_free(struct bgmac *bgmac)
 {
 	int i;
 
-	for (i = 0; i < BGMAC_MAX_TX_RINGS; i++) {
-		bgmac_dma_tx_ring_free(bgmac, &bgmac->tx_ring[i]);
+	for (i = 0; i < BGMAC_MAX_TX_RINGS; i++)
 		bgmac_dma_ring_desc_free(bgmac, &bgmac->tx_ring[i]);
-	}
-	for (i = 0; i < BGMAC_MAX_RX_RINGS; i++) {
-		bgmac_dma_rx_ring_free(bgmac, &bgmac->rx_ring[i]);
+
+	for (i = 0; i < BGMAC_MAX_RX_RINGS; i++)
 		bgmac_dma_ring_desc_free(bgmac, &bgmac->rx_ring[i]);
-	}
 }
 
 static int bgmac_dma_alloc(struct bgmac *bgmac)
@@ -621,8 +629,6 @@ static int bgmac_dma_alloc(struct bgmac *bgmac)
 	}
 
 	for (i = 0; i < BGMAC_MAX_RX_RINGS; i++) {
-		int j;
-
 		ring = &bgmac->rx_ring[i];
 		ring->num_slots = BGMAC_RX_RING_SLOTS;
 		ring->mmio_base = ring_base[i];
@@ -645,15 +651,6 @@ static int bgmac_dma_alloc(struct bgmac *bgmac)
 			ring->index_base = lower_32_bits(ring->dma_base);
 		else
 			ring->index_base = 0;
-
-		/* Alloc RX slots */
-		for (j = 0; j < ring->num_slots; j++) {
-			err = bgmac_dma_rx_skb_for_slot(bgmac, &ring->slots[j]);
-			if (err) {
-				bgmac_err(bgmac, "Can't allocate skb for slot in RX ring\n");
-				goto err_dma_free;
-			}
-		}
 	}
 
 	return 0;
@@ -663,10 +660,10 @@ err_dma_free:
 	return -ENOMEM;
 }
 
-static void bgmac_dma_init(struct bgmac *bgmac)
+static int bgmac_dma_init(struct bgmac *bgmac)
 {
 	struct bgmac_dma_ring *ring;
-	int i;
+	int i, err;
 
 	for (i = 0; i < BGMAC_MAX_TX_RINGS; i++) {
 		ring = &bgmac->tx_ring[i];
@@ -698,8 +695,13 @@ static void bgmac_dma_init(struct bgmac *bgmac)
 		if (ring->unaligned)
 			bgmac_dma_rx_enable(bgmac, ring);
 
-		for (j = 0; j < ring->num_slots; j++)
+		for (j = 0; j < ring->num_slots; j++) {
+			err = bgmac_dma_rx_skb_for_slot(bgmac, &ring->slots[j]);
+			if (err)
+				goto error;
+
 			bgmac_dma_rx_setup_desc(bgmac, ring, j);
+		}
 
 		bgmac_write(bgmac, ring->mmio_base + BGMAC_DMA_RX_INDEX,
 			    ring->index_base +
@@ -708,6 +710,12 @@ static void bgmac_dma_init(struct bgmac *bgmac)
 		ring->start = 0;
 		ring->end = 0;
 	}
+
+	return 0;
+
+error:
+	bgmac_dma_cleanup(bgmac);
+	return err;
 }
 
 /**************************************************
@@ -1183,11 +1191,8 @@ static void bgmac_enable(struct bgmac *bgmac)
 }
 
 /* http://bcm-v4.sipsolutions.net/mac-gbit/gmac/chipinit */
-static void bgmac_chip_init(struct bgmac *bgmac, bool full_init)
+static void bgmac_chip_init(struct bgmac *bgmac)
 {
-	struct bgmac_dma_ring *ring;
-	int i;
-
 	/* 1 interrupt per received frame */
 	bgmac_write(bgmac, BGMAC_INT_RECV_LAZY, 1 << BGMAC_IRL_FC_SHIFT);
 
@@ -1205,16 +1210,7 @@ static void bgmac_chip_init(struct bgmac *bgmac, bool full_init)
 
 	bgmac_write(bgmac, BGMAC_RXMAX_LENGTH, 32 + ETHER_MAX_LEN);
 
-	if (full_init) {
-		bgmac_dma_init(bgmac);
-		if (1) /* FIXME: is there any case we don't want IRQs? */
-			bgmac_chip_intrs_on(bgmac);
-	} else {
-		for (i = 0; i < BGMAC_MAX_RX_RINGS; i++) {
-			ring = &bgmac->rx_ring[i];
-			bgmac_dma_rx_enable(bgmac, ring);
-		}
-	}
+	bgmac_chip_intrs_on(bgmac);
 
 	bgmac_enable(bgmac);
 }
@@ -1274,23 +1270,27 @@ static int bgmac_open(struct net_device *net_dev)
 	int err = 0;
 
 	bgmac_chip_reset(bgmac);
+
+	err = bgmac_dma_init(bgmac);
+	if (err)
+		return err;
+
 	/* Specs say about reclaiming rings here, but we do that in DMA init */
-	bgmac_chip_init(bgmac, true);
+	bgmac_chip_init(bgmac);
 
 	err = request_irq(bgmac->core->irq, bgmac_interrupt, IRQF_SHARED,
 			  KBUILD_MODNAME, net_dev);
 	if (err < 0) {
 		bgmac_err(bgmac, "IRQ request error: %d!\n", err);
-		goto err_out;
+		bgmac_dma_cleanup(bgmac);
+		return err;
 	}
 	napi_enable(&bgmac->napi);
 
 	phy_start(bgmac->phy_dev);
 
 	netif_carrier_on(net_dev);
-
-err_out:
-	return err;
+	return 0;
 }
 
 static int bgmac_stop(struct net_device *net_dev)
@@ -1306,6 +1306,7 @@ static int bgmac_stop(struct net_device *net_dev)
 	free_irq(bgmac->core->irq, net_dev);
 
 	bgmac_chip_reset(bgmac);
+	bgmac_dma_cleanup(bgmac);
 
 	return 0;
 }
