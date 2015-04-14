@@ -102,7 +102,7 @@ void jfs_error(struct super_block *sb, const char *fmt, ...)
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	pr_err("ERROR: (device %s): %pf: %pV\n",
+	pr_err("ERROR: (device %s): %ps: %pV\n",
 	       sb->s_id, __builtin_return_address(0), &vaf);
 
 	va_end(args);
