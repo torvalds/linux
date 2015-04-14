@@ -445,6 +445,13 @@ static int bgmac_dma_rx_read(struct bgmac *bgmac, struct bgmac_dma_ring *ring,
 				break;
 			}
 
+			if (len > BGMAC_RX_ALLOC_SIZE) {
+				bgmac_err(bgmac, "Found oversized packet at slot %d, DMA issue!\n",
+					  ring->start);
+				put_page(virt_to_head_page(buf));
+				break;
+			}
+
 			/* Omit CRC. */
 			len -= ETH_FCS_LEN;
 
