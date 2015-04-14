@@ -66,9 +66,11 @@ static int bc_set_next(ktime_t expires, struct clock_event_device *bc)
 	 * hrtimer_{start/cancel} functions call into tracing,
 	 * calls to these functions must be bound within RCU_NONIDLE.
 	 */
-	RCU_NONIDLE(bc_moved = (hrtimer_try_to_cancel(&bctimer) >= 0) ?
-		!hrtimer_start(&bctimer, expires, HRTIMER_MODE_ABS_PINNED) :
-			0);
+	RCU_NONIDLE({
+			bc_moved = hrtimer_try_to_cancel(&bctimer) >= 0;
+			if (bc_moved)
+				hrtimer_start(&bctimer, expires,
+					      HRTIMER_MODE_ABS_PINNED);});
 	if (bc_moved) {
 		/* Bind the "device" to the cpu */
 		bc->bound_on = smp_processor_id();
