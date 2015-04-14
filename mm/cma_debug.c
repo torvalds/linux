@@ -10,6 +10,7 @@
 #include <linux/list.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/mm_types.h>
 
 #include "cma.h"
 
@@ -38,6 +39,60 @@ static void cma_add_to_cma_mem_list(struct cma *cma, struct cma_mem *mem)
 	hlist_add_head(&mem->node, &cma->mem_head);
 	spin_unlock(&cma->mem_head_lock);
 }
+
+static struct cma_mem *cma_get_entry_from_list(struct cma *cma)
+{
+	struct cma_mem *mem = NULL;
+
+	spin_lock(&cma->mem_head_lock);
+	if (!hlist_empty(&cma->mem_head)) {
+		mem = hlist_entry(cma->mem_head.first, struct cma_mem, node);
+		hlist_del_init(&mem->node);
+	}
+	spin_unlock(&cma->mem_head_lock);
+
+	return mem;
+}
+
+static int cma_free_mem(struct cma *cma, int count)
+{
+	struct cma_mem *mem = NULL;
+
+	while (count) {
+		mem = cma_get_entry_from_list(cma);
+		if (mem == NULL)
+			return 0;
+
+		if (mem->n <= count) {
+			cma_release(cma, mem->p, mem->n);
+			count -= mem->n;
+			kfree(mem);
+		} else if (cma->order_per_bit == 0) {
+			cma_release(cma, mem->p, count);
+			mem->p += count;
+			mem->n -= count;
+			count = 0;
+			cma_add_to_cma_mem_list(cma, mem);
+		} else {
+			pr_debug("cma: cannot release partial block when order_per_bit != 0\n");
+			cma_add_to_cma_mem_list(cma, mem);
+			break;
+		}
+	}
+
+	return 0;
+
+}
+
+static int cma_free_write(void *data, u64 val)
+{
+	int pages = val;
+	struct cma *cma = data;
+
+	return cma_free_mem(cma, pages);
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(cma_free_fops, NULL, cma_free_write, "%llu\n");
 
 static int cma_alloc_mem(struct cma *cma, int count)
 {
@@ -84,6 +139,9 @@ static void cma_debugfs_add_one(struct cma *cma, int idx)
 
 	debugfs_create_file("alloc", S_IWUSR, cma_debugfs_root, cma,
 				&cma_alloc_fops);
+
+	debugfs_create_file("free", S_IWUSR, cma_debugfs_root, cma,
+				&cma_free_fops);
 
 	debugfs_create_file("base_pfn", S_IRUGO, tmp,
 				&cma->base_pfn, &cma_debugfs_fops);
