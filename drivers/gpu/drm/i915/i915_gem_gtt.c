@@ -92,6 +92,9 @@
  *
  */
 
+static int
+i915_get_ggtt_vma_pages(struct i915_vma *vma);
+
 const struct i915_ggtt_view i915_ggtt_view_normal;
 const struct i915_ggtt_view i915_ggtt_view_rotated = {
         .type = I915_GGTT_VIEW_ROTATED
@@ -143,9 +146,9 @@ static int sanitize_enable_ppgtt(struct drm_device *dev, int enable_ppgtt)
 		return has_aliasing_ppgtt ? 1 : 0;
 }
 
-static void ppgtt_bind_vma(struct i915_vma *vma,
-			   enum i915_cache_level cache_level,
-			   u32 unused)
+static int ppgtt_bind_vma(struct i915_vma *vma,
+			  enum i915_cache_level cache_level,
+			  u32 unused)
 {
 	u32 pte_flags = 0;
 
@@ -155,6 +158,8 @@ static void ppgtt_bind_vma(struct i915_vma *vma,
 
 	vma->vm->insert_entries(vma->vm, vma->obj->pages, vma->node.start,
 				cache_level, pte_flags);
+
+	return 0;
 }
 
 static void ppgtt_unbind_vma(struct i915_vma *vma)
@@ -1898,22 +1903,26 @@ static void i915_ggtt_clear_range(struct i915_address_space *vm,
 	intel_gtt_clear_range(first_entry, num_entries);
 }
 
-static void ggtt_bind_vma(struct i915_vma *vma,
-			  enum i915_cache_level cache_level,
-			  u32 flags)
+static int ggtt_bind_vma(struct i915_vma *vma,
+			 enum i915_cache_level cache_level,
+			 u32 flags)
 {
 	struct drm_device *dev = vma->vm->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj = vma->obj;
 	struct sg_table *pages = obj->pages;
 	u32 pte_flags = 0;
+	int ret;
+
+	ret = i915_get_ggtt_vma_pages(vma);
+	if (ret)
+		return ret;
+	pages = vma->ggtt_view.pages;
 
 	/* Currently applicable only to VLV */
 	if (obj->gt_ro)
 		pte_flags |= PTE_READ_ONLY;
 
-	if (i915_is_ggtt(vma->vm))
-		pages = vma->ggtt_view.pages;
 
 	if (!dev_priv->mm.aliasing_ppgtt || flags & GLOBAL_BIND) {
 		vma->vm->insert_entries(vma->vm, pages,
@@ -1929,6 +1938,8 @@ static void ggtt_bind_vma(struct i915_vma *vma,
 					    vma->node.start,
 					    cache_level, pte_flags);
 	}
+
+	return 0;
 }
 
 static void ggtt_unbind_vma(struct i915_vma *vma)
@@ -2749,7 +2760,7 @@ err_st_alloc:
 	return ERR_PTR(ret);
 }
 
-static inline int
+static int
 i915_get_ggtt_vma_pages(struct i915_vma *vma)
 {
 	int ret = 0;
@@ -2793,8 +2804,8 @@ i915_get_ggtt_vma_pages(struct i915_vma *vma)
 int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 		  u32 flags)
 {
+	int ret = 0;
 	u32 bind_flags = 0;
-	int ret;
 
 	if (vma->vm->allocate_va_range) {
 		trace_i915_va_alloc(vma->vm, vma->node.start,
@@ -2808,12 +2819,6 @@ int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 			return ret;
 	}
 
-	if (i915_is_ggtt(vma->vm)) {
-		ret = i915_get_ggtt_vma_pages(vma);
-		if (ret)
-			return 0;
-	}
-
 	if (flags & PIN_GLOBAL)
 		bind_flags |= GLOBAL_BIND;
 	if (flags & PIN_USER)
@@ -2825,7 +2830,9 @@ int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 		bind_flags &= ~vma->bound;
 
 	if (bind_flags)
-		vma->vm->bind_vma(vma, cache_level, bind_flags);
+		ret = vma->vm->bind_vma(vma, cache_level, bind_flags);
+	if (ret)
+		return ret;
 
 	vma->bound |= bind_flags;
 

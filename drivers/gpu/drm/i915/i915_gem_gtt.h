@@ -278,9 +278,9 @@ struct i915_address_space {
 	 * setting the valid PTE entries to a reserved scratch page. */
 	void (*unbind_vma)(struct i915_vma *vma);
 	/* Map an object into an address space with the given cache flags. */
-	void (*bind_vma)(struct i915_vma *vma,
-			 enum i915_cache_level cache_level,
-			 u32 flags);
+	int (*bind_vma)(struct i915_vma *vma,
+			enum i915_cache_level cache_level,
+			u32 flags);
 };
 
 /* The Graphics Translation Table is the way in which GEN hardware translates a
