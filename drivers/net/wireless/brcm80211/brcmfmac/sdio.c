@@ -3555,10 +3555,6 @@ void brcmf_sdio_isr(struct brcmf_sdio *bus)
 		return;
 	}
 
-	if (bus->sdiodev->state != BRCMF_SDIOD_DATA) {
-		brcmf_err("bus is down. we have nothing to do\n");
-		return;
-	}
 	/* Count the interrupt call */
 	bus->sdcnt.intrcount++;
 	if (in_interrupt())
