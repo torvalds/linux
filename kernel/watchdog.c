@@ -679,6 +679,29 @@ static void watchdog_disable_all_cpus(void)
 }
 
 /*
+ * Update the run state of the lockup detectors.
+ */
+static int proc_watchdog_update(void)
+{
+	int err = 0;
+
+	/*
+	 * Watchdog threads won't be started if they are already active.
+	 * The 'watchdog_running' variable in watchdog_*_all_cpus() takes
+	 * care of this. If those threads are already active, the sample
+	 * period will be updated and the lockup detectors will be enabled
+	 * or disabled 'on the fly'.
+	 */
+	if (watchdog_enabled && watchdog_thresh)
+		err = watchdog_enable_all_cpus(true);
+	else
+		watchdog_disable_all_cpus();
+
+	return err;
+
+}
+
+/*
  * proc handler for /proc/sys/kernel/nmi_watchdog,watchdog_thresh
  */
 
