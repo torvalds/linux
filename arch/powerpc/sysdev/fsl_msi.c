@@ -405,6 +405,7 @@ static int fsl_of_msi_probe(struct platform_device *dev)
 	const struct fsl_msi_feature *features;
 	int len;
 	u32 offset;
+	struct pci_controller *phb;
 
 	match = of_match_device(fsl_of_msi_ids, &dev->dev);
 	if (!match)
@@ -541,14 +542,20 @@ static int fsl_of_msi_probe(struct platform_device *dev)
 
 	list_add_tail(&msi->list, &msi_head);
 
-	/* The multiple setting ppc_md.setup_msi_irqs will not harm things */
-	if (!ppc_md.setup_msi_irqs) {
-		ppc_md.setup_msi_irqs = fsl_setup_msi_irqs;
-		ppc_md.teardown_msi_irqs = fsl_teardown_msi_irqs;
-	} else if (ppc_md.setup_msi_irqs != fsl_setup_msi_irqs) {
-		dev_err(&dev->dev, "Different MSI driver already installed!\n");
-		err = -ENODEV;
-		goto error_out;
+	/*
+	 * Apply the MSI ops to all the controllers.
+	 * It doesn't hurt to reassign the same ops,
+	 * but bail out if we find another MSI driver.
+	 */
+	list_for_each_entry(phb, &hose_list, list_node) {
+		if (!phb->controller_ops.setup_msi_irqs) {
+			phb->controller_ops.setup_msi_irqs = fsl_setup_msi_irqs;
+			phb->controller_ops.teardown_msi_irqs = fsl_teardown_msi_irqs;
+		} else if (phb->controller_ops.setup_msi_irqs != fsl_setup_msi_irqs) {
+			dev_err(&dev->dev, "Different MSI driver already installed!\n");
+			err = -ENODEV;
+			goto error_out;
+		}
 	}
 	return 0;
 error_out:
