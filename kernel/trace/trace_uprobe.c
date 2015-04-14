@@ -1006,7 +1006,7 @@ __uprobe_perf_filter(struct trace_uprobe_filter *filter, struct mm_struct *mm)
 		return true;
 
 	list_for_each_entry(event, &filter->perf_events, hw.tp_list) {
-		if (event->hw.tp_target->mm == mm)
+		if (event->hw.target->mm == mm)
 			return true;
 	}
 
@@ -1016,7 +1016,7 @@ __uprobe_perf_filter(struct trace_uprobe_filter *filter, struct mm_struct *mm)
 static inline bool
 uprobe_filter_event(struct trace_uprobe *tu, struct perf_event *event)
 {
-	return __uprobe_perf_filter(&tu->filter, event->hw.tp_target->mm);
+	return __uprobe_perf_filter(&tu->filter, event->hw.target->mm);
 }
 
 static int uprobe_perf_close(struct trace_uprobe *tu, struct perf_event *event)
@@ -1024,10 +1024,10 @@ static int uprobe_perf_close(struct trace_uprobe *tu, struct perf_event *event)
 	bool done;
 
 	write_lock(&tu->filter.rwlock);
-	if (event->hw.tp_target) {
+	if (event->hw.target) {
 		list_del(&event->hw.tp_list);
 		done = tu->filter.nr_systemwide ||
-			(event->hw.tp_target->flags & PF_EXITING) ||
+			(event->hw.target->flags & PF_EXITING) ||
 			uprobe_filter_event(tu, event);
 	} else {
 		tu->filter.nr_systemwide--;
@@ -1047,7 +1047,7 @@ static int uprobe_perf_open(struct trace_uprobe *tu, struct perf_event *event)
 	int err;
 
 	write_lock(&tu->filter.rwlock);
-	if (event->hw.tp_target) {
+	if (event->hw.target) {
 		/*
 		 * event->parent != NULL means copy_process(), we can avoid
 		 * uprobe_apply(). current->mm must be probed and we can rely

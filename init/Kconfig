@@ -1526,7 +1526,7 @@ config EVENTFD
 
 # syscall, maps, verifier
 config BPF_SYSCALL
-	bool "Enable bpf() system call" if EXPERT
+	bool "Enable bpf() system call"
 	select ANON_INODES
 	select BPF
 	default n

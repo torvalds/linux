@@ -16,6 +16,7 @@
 #include <linux/file.h>
 #include <linux/license.h>
 #include <linux/filter.h>
+#include <linux/version.h>
 
 static LIST_HEAD(bpf_map_types);
 
@@ -467,7 +468,7 @@ struct bpf_prog *bpf_prog_get(u32 ufd)
 }
 
 /* last field in 'union bpf_attr' used by this command */
-#define	BPF_PROG_LOAD_LAST_FIELD log_buf
+#define	BPF_PROG_LOAD_LAST_FIELD kern_version
 
 static int bpf_prog_load(union bpf_attr *attr)
 {
@@ -490,6 +491,10 @@ static int bpf_prog_load(union bpf_attr *attr)
 	is_gpl = license_is_gpl_compatible(license);
 
 	if (attr->insn_cnt >= BPF_MAXINSNS)
+		return -EINVAL;
+
+	if (type == BPF_PROG_TYPE_KPROBE &&
+	    attr->kern_version != LINUX_VERSION_CODE)
 		return -EINVAL;
 
 	/* plain bpf_prog allocation */
