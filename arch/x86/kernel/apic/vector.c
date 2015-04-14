@@ -68,9 +68,6 @@ static struct irq_cfg *alloc_irq_cfg(int node)
 		goto out_cfg;
 	if (!zalloc_cpumask_var_node(&cfg->old_domain, GFP_KERNEL, node))
 		goto out_domain;
-#ifdef	CONFIG_X86_IO_APIC
-	INIT_LIST_HEAD(&cfg->irq_2_pin);
-#endif
 	return cfg;
 out_domain:
 	free_cpumask_var(cfg->domain);

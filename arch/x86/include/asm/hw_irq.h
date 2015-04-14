@@ -176,13 +176,6 @@ struct irq_cfg {
 	unsigned int		dest_apicid;
 	u8			vector;
 	u8			move_in_progress : 1;
-	union {
-#ifdef CONFIG_X86_IO_APIC
-		struct {
-			struct list_head	irq_2_pin;
-		};
-#endif
-	};
 };
 
 extern struct irq_domain *x86_vector_domain;
