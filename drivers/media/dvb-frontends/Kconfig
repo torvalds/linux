@@ -223,6 +223,13 @@ config DVB_CX24117
 	help
 	  A Dual DVB-S/S2 tuner module. Say Y when you want to support this frontend.
 
+config DVB_CX24120
+	tristate "Conexant CX24120 based"
+	depends on DVB_CORE && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  A DVB-S/DVB-S2 tuner module. Say Y when you want to support this frontend.
+
 config DVB_SI21XX
 	tristate "Silicon Labs SI21XX based"
 	depends on DVB_CORE && I2C
