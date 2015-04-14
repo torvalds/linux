@@ -206,13 +206,13 @@ out:
 }
 
 /**
- * __mlock_vma_pages_range() -  mlock a range of pages in the vma.
+ * populate_vma_page_range() -  populate a range of pages in the vma.
  * @vma:   target vma
  * @start: start address
  * @end:   end address
  * @nonblocking:
  *
- * This takes care of making the pages present too.
+ * This takes care of mlocking the pages too if VM_LOCKED is set.
  *
  * return 0 on success, negative error code on error.
  *
@@ -224,7 +224,7 @@ out:
  * If @nonblocking is non-NULL, it must held for read only and may be
  * released.  If it's released, *@nonblocking will be set to 0.
  */
-long __mlock_vma_pages_range(struct vm_area_struct *vma,
+long populate_vma_page_range(struct vm_area_struct *vma,
 		unsigned long start, unsigned long end, int *nonblocking)
 {
 	struct mm_struct *mm = vma->vm_mm;
@@ -596,7 +596,7 @@ success:
 	/*
 	 * vm_flags is protected by the mmap_sem held in write mode.
 	 * It's okay if try_to_unmap_one unmaps a page just after we
-	 * set VM_LOCKED, __mlock_vma_pages_range will bring it back.
+	 * set VM_LOCKED, populate_vma_page_range will bring it back.
 	 */
 
 	if (lock)
@@ -702,11 +702,11 @@ int __mm_populate(unsigned long start, unsigned long len, int ignore_errors)
 		if (nstart < vma->vm_start)
 			nstart = vma->vm_start;
 		/*
-		 * Now fault in a range of pages. __mlock_vma_pages_range()
+		 * Now fault in a range of pages. populate_vma_page_range()
 		 * double checks the vma flags, so that it won't mlock pages
 		 * if the vma was already munlocked.
 		 */
-		ret = __mlock_vma_pages_range(vma, nstart, nend, &locked);
+		ret = populate_vma_page_range(vma, nstart, nend, &locked);
 		if (ret < 0) {
 			if (ignore_errors) {
 				ret = 0;
