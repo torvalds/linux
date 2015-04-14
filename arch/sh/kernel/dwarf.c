@@ -1180,17 +1180,13 @@ static int __init dwarf_unwinder_init(void)
 			sizeof(struct dwarf_reg), 0,
 			SLAB_PANIC | SLAB_HWCACHE_ALIGN | SLAB_NOTRACK, NULL);
 
-	dwarf_frame_pool = mempool_create(DWARF_FRAME_MIN_REQ,
-					  mempool_alloc_slab,
-					  mempool_free_slab,
-					  dwarf_frame_cachep);
+	dwarf_frame_pool = mempool_create_slab_pool(DWARF_FRAME_MIN_REQ,
+						    dwarf_frame_cachep);
 	if (!dwarf_frame_pool)
 		goto out;
 
-	dwarf_reg_pool = mempool_create(DWARF_REG_MIN_REQ,
-					 mempool_alloc_slab,
-					 mempool_free_slab,
-					 dwarf_reg_cachep);
+	dwarf_reg_pool = mempool_create_slab_pool(DWARF_REG_MIN_REQ,
+						  dwarf_reg_cachep);
 	if (!dwarf_reg_pool)
 		goto out;
 
