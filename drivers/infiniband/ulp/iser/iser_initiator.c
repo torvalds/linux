@@ -409,8 +409,8 @@ int iser_send_command(struct iscsi_conn *conn,
 	if (scsi_prot_sg_count(sc)) {
 		prot_buf->buf  = scsi_prot_sglist(sc);
 		prot_buf->size = scsi_prot_sg_count(sc);
-		prot_buf->data_len = data_buf->data_len >>
-				     ilog2(sc->device->sector_size) * 8;
+		prot_buf->data_len = (data_buf->data_len >>
+				     ilog2(sc->device->sector_size)) * 8;
 	}
 
 	if (hdr->flags & ISCSI_FLAG_CMD_READ) {
