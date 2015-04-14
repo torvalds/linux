@@ -386,6 +386,19 @@ static void bgmac_dma_rx_setup_desc(struct bgmac *bgmac,
 	dma_desc->ctl1 = cpu_to_le32(ctl1);
 }
 
+static void bgmac_dma_rx_poison_buf(struct device *dma_dev,
+				    struct bgmac_slot_info *slot)
+{
+	struct bgmac_rx_header *rx = slot->buf + BGMAC_RX_BUF_OFFSET;
+
+	dma_sync_single_for_cpu(dma_dev, slot->dma_addr, BGMAC_RX_BUF_SIZE,
+				DMA_FROM_DEVICE);
+	rx->len = cpu_to_le16(0xdead);
+	rx->flags = cpu_to_le16(0xbeef);
+	dma_sync_single_for_device(dma_dev, slot->dma_addr, BGMAC_RX_BUF_SIZE,
+				   DMA_FROM_DEVICE);
+}
+
 static int bgmac_dma_rx_read(struct bgmac *bgmac, struct bgmac_dma_ring *ring,
 			     int weight)
 {
@@ -406,52 +419,34 @@ static int bgmac_dma_rx_read(struct bgmac *bgmac, struct bgmac_dma_ring *ring,
 		struct bgmac_rx_header *rx = slot->buf + BGMAC_RX_BUF_OFFSET;
 		struct sk_buff *skb;
 		void *buf = slot->buf;
+		dma_addr_t dma_addr = slot->dma_addr;
 		u16 len, flags;
 
-		/* Unmap buffer to make it accessible to the CPU */
-		dma_sync_single_for_cpu(dma_dev, slot->dma_addr,
-					BGMAC_RX_BUF_SIZE, DMA_FROM_DEVICE);
-
-		/* Get info from the header */
-		len = le16_to_cpu(rx->len);
-		flags = le16_to_cpu(rx->flags);
-
 		do {
-			dma_addr_t old_dma_addr = slot->dma_addr;
-			int err;
+			/* Prepare new skb as replacement */
+			if (bgmac_dma_rx_skb_for_slot(bgmac, slot)) {
+				bgmac_dma_rx_poison_buf(dma_dev, slot);
+				break;
+			}
+
+			/* Unmap buffer to make it accessible to the CPU */
+			dma_unmap_single(dma_dev, dma_addr,
+					 BGMAC_RX_BUF_SIZE, DMA_FROM_DEVICE);
+
+			/* Get info from the header */
+			len = le16_to_cpu(rx->len);
+			flags = le16_to_cpu(rx->flags);
 
 			/* Check for poison and drop or pass the packet */
 			if (len == 0xdead && flags == 0xbeef) {
 				bgmac_err(bgmac, "Found poisoned packet at slot %d, DMA issue!\n",
 					  ring->start);
-				dma_sync_single_for_device(dma_dev,
-							   slot->dma_addr,
-							   BGMAC_RX_BUF_SIZE,
-							   DMA_FROM_DEVICE);
+				put_page(virt_to_head_page(buf));
 				break;
 			}
 
 			/* Omit CRC. */
 			len -= ETH_FCS_LEN;
-
-			/* Prepare new skb as replacement */
-			err = bgmac_dma_rx_skb_for_slot(bgmac, slot);
-			if (err) {
-				/* Poison the old skb */
-				rx->len = cpu_to_le16(0xdead);
-				rx->flags = cpu_to_le16(0xbeef);
-
-				dma_sync_single_for_device(dma_dev,
-							   slot->dma_addr,
-							   BGMAC_RX_BUF_SIZE,
-							   DMA_FROM_DEVICE);
-				break;
-			}
-			bgmac_dma_rx_setup_desc(bgmac, ring, ring->start);
-
-			/* Unmap old skb, we'll pass it to the netfif */
-			dma_unmap_single(dma_dev, old_dma_addr,
-					 BGMAC_RX_BUF_SIZE, DMA_FROM_DEVICE);
 
 			skb = build_skb(buf, BGMAC_RX_ALLOC_SIZE);
 			skb_put(skb, BGMAC_RX_FRAME_OFFSET +
@@ -464,6 +459,8 @@ static int bgmac_dma_rx_read(struct bgmac *bgmac, struct bgmac_dma_ring *ring,
 			napi_gro_receive(&bgmac->napi, skb);
 			handled++;
 		} while (0);
+
+		bgmac_dma_rx_setup_desc(bgmac, ring, ring->start);
 
 		if (++ring->start >= BGMAC_RX_RING_SLOTS)
 			ring->start = 0;
@@ -532,14 +529,14 @@ static void bgmac_dma_rx_ring_free(struct bgmac *bgmac,
 
 	for (i = 0; i < ring->num_slots; i++) {
 		slot = &ring->slots[i];
-		if (!slot->buf)
+		if (!slot->dma_addr)
 			continue;
 
-		if (slot->dma_addr)
-			dma_unmap_single(dma_dev, slot->dma_addr,
-					 BGMAC_RX_BUF_SIZE,
-					 DMA_FROM_DEVICE);
+		dma_unmap_single(dma_dev, slot->dma_addr,
+				 BGMAC_RX_BUF_SIZE,
+				 DMA_FROM_DEVICE);
 		put_page(virt_to_head_page(slot->buf));
+		slot->dma_addr = 0;
 	}
 }
 
