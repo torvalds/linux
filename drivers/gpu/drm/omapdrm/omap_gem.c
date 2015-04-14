@@ -828,6 +828,7 @@ int omap_gem_put_paddr(struct drm_gem_object *obj)
 				dev_err(obj->dev->dev,
 					"could not release unmap: %d\n", ret);
 			}
+			omap_obj->paddr = 0;
 			omap_obj->block = NULL;
 		}
 	}
@@ -1272,13 +1273,16 @@ unlock:
 void omap_gem_free_object(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
+	struct omap_drm_private *priv = dev->dev_private;
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
 
 	evict(obj);
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
+	spin_lock(&priv->list_lock);
 	list_del(&omap_obj->mm_list);
+	spin_unlock(&priv->list_lock);
 
 	drm_gem_free_mmap_offset(obj);
 
@@ -1358,8 +1362,8 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 		/* currently don't allow cached buffers.. there is some caching
 		 * stuff that needs to be handled better
 		 */
-		flags &= ~(OMAP_BO_CACHED|OMAP_BO_UNCACHED);
-		flags |= OMAP_BO_WC;
+		flags &= ~(OMAP_BO_CACHED|OMAP_BO_WC|OMAP_BO_UNCACHED);
+		flags |= tiler_get_cpu_cache_flags();
 
 		/* align dimensions to slot boundaries... */
 		tiler_align(gem2fmt(flags),
@@ -1376,7 +1380,9 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 	if (!omap_obj)
 		goto fail;
 
+	spin_lock(&priv->list_lock);
 	list_add(&omap_obj->mm_list, &priv->obj_list);
+	spin_unlock(&priv->list_lock);
 
 	obj = &omap_obj->base;
 

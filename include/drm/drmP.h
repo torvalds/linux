@@ -253,7 +253,6 @@ struct drm_ioctl_desc {
 	unsigned int cmd;
 	int flags;
 	drm_ioctl_t *func;
-	unsigned int cmd_drv;
 	const char *name;
 };
 
@@ -262,8 +261,13 @@ struct drm_ioctl_desc {
  * ioctl, for use by drm_ioctl().
  */
 
-#define DRM_IOCTL_DEF_DRV(ioctl, _func, _flags)			\
-	[DRM_IOCTL_NR(DRM_##ioctl)] = {.cmd = DRM_##ioctl, .func = _func, .flags = _flags, .cmd_drv = DRM_IOCTL_##ioctl, .name = #ioctl}
+#define DRM_IOCTL_DEF_DRV(ioctl, _func, _flags)				\
+	[DRM_IOCTL_NR(DRM_IOCTL_##ioctl) - DRM_COMMAND_BASE] = {	\
+		.cmd = DRM_IOCTL_##ioctl,				\
+		.func = _func,						\
+		.flags = _flags,					\
+		.name = #ioctl						\
+	 }
 
 /* Event queued up for userspace to read */
 struct drm_pending_event {

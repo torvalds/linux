@@ -903,6 +903,12 @@ EXPORT_SYMBOL(drm_mode_duplicate);
  */
 bool drm_mode_equal(const struct drm_display_mode *mode1, const struct drm_display_mode *mode2)
 {
+	if (!mode1 && !mode2)
+		return true;
+
+	if (!mode1 || !mode2)
+		return false;
+
 	/* do clock check convert to PICOS so fb modes get matched
 	 * the same */
 	if (mode1->clock && mode2->clock) {
@@ -1148,7 +1154,7 @@ EXPORT_SYMBOL(drm_mode_sort);
 /**
  * drm_mode_connector_list_update - update the mode list for the connector
  * @connector: the connector to update
- * @merge_type_bits: whether to merge or overright type bits.
+ * @merge_type_bits: whether to merge or overwrite type bits
  *
  * This moves the modes from the @connector probed_modes list
  * to the actual mode list. It compares the probed mode against the current

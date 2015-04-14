@@ -4541,12 +4541,116 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_cache_sharing_fops,
 			i915_cache_sharing_get, i915_cache_sharing_set,
 			"%llu\n");
 
+struct sseu_dev_status {
+	unsigned int slice_total;
+	unsigned int subslice_total;
+	unsigned int subslice_per_slice;
+	unsigned int eu_total;
+	unsigned int eu_per_subslice;
+};
+
+static void cherryview_sseu_device_status(struct drm_device *dev,
+					  struct sseu_dev_status *stat)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	const int ss_max = 2;
+	int ss;
+	u32 sig1[ss_max], sig2[ss_max];
+
+	sig1[0] = I915_READ(CHV_POWER_SS0_SIG1);
+	sig1[1] = I915_READ(CHV_POWER_SS1_SIG1);
+	sig2[0] = I915_READ(CHV_POWER_SS0_SIG2);
+	sig2[1] = I915_READ(CHV_POWER_SS1_SIG2);
+
+	for (ss = 0; ss < ss_max; ss++) {
+		unsigned int eu_cnt;
+
+		if (sig1[ss] & CHV_SS_PG_ENABLE)
+			/* skip disabled subslice */
+			continue;
+
+		stat->slice_total = 1;
+		stat->subslice_per_slice++;
+		eu_cnt = ((sig1[ss] & CHV_EU08_PG_ENABLE) ? 0 : 2) +
+			 ((sig1[ss] & CHV_EU19_PG_ENABLE) ? 0 : 2) +
+			 ((sig1[ss] & CHV_EU210_PG_ENABLE) ? 0 : 2) +
+			 ((sig2[ss] & CHV_EU311_PG_ENABLE) ? 0 : 2);
+		stat->eu_total += eu_cnt;
+		stat->eu_per_subslice = max(stat->eu_per_subslice, eu_cnt);
+	}
+	stat->subslice_total = stat->subslice_per_slice;
+}
+
+static void gen9_sseu_device_status(struct drm_device *dev,
+				    struct sseu_dev_status *stat)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int s_max = 3, ss_max = 4;
+	int s, ss;
+	u32 s_reg[s_max], eu_reg[2*s_max], eu_mask[2];
+
+	/* BXT has a single slice and at most 3 subslices. */
+	if (IS_BROXTON(dev)) {
+		s_max = 1;
+		ss_max = 3;
+	}
+
+	for (s = 0; s < s_max; s++) {
+		s_reg[s] = I915_READ(GEN9_SLICE_PGCTL_ACK(s));
+		eu_reg[2*s] = I915_READ(GEN9_SS01_EU_PGCTL_ACK(s));
+		eu_reg[2*s + 1] = I915_READ(GEN9_SS23_EU_PGCTL_ACK(s));
+	}
+
+	eu_mask[0] = GEN9_PGCTL_SSA_EU08_ACK |
+		     GEN9_PGCTL_SSA_EU19_ACK |
+		     GEN9_PGCTL_SSA_EU210_ACK |
+		     GEN9_PGCTL_SSA_EU311_ACK;
+	eu_mask[1] = GEN9_PGCTL_SSB_EU08_ACK |
+		     GEN9_PGCTL_SSB_EU19_ACK |
+		     GEN9_PGCTL_SSB_EU210_ACK |
+		     GEN9_PGCTL_SSB_EU311_ACK;
+
+	for (s = 0; s < s_max; s++) {
+		unsigned int ss_cnt = 0;
+
+		if ((s_reg[s] & GEN9_PGCTL_SLICE_ACK) == 0)
+			/* skip disabled slice */
+			continue;
+
+		stat->slice_total++;
+
+		if (IS_SKYLAKE(dev))
+			ss_cnt = INTEL_INFO(dev)->subslice_per_slice;
+
+		for (ss = 0; ss < ss_max; ss++) {
+			unsigned int eu_cnt;
+
+			if (IS_BROXTON(dev) &&
+			    !(s_reg[s] & (GEN9_PGCTL_SS_ACK(ss))))
+				/* skip disabled subslice */
+				continue;
+
+			if (IS_BROXTON(dev))
+				ss_cnt++;
+
+			eu_cnt = 2 * hweight32(eu_reg[2*s + ss/2] &
+					       eu_mask[ss%2]);
+			stat->eu_total += eu_cnt;
+			stat->eu_per_subslice = max(stat->eu_per_subslice,
+						    eu_cnt);
+		}
+
+		stat->subslice_total += ss_cnt;
+		stat->subslice_per_slice = max(stat->subslice_per_slice,
+					       ss_cnt);
+	}
+}
+
 static int i915_sseu_status(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned int s_tot = 0, ss_tot = 0, ss_per = 0, eu_tot = 0, eu_per = 0;
+	struct sseu_dev_status stat;
 
 	if ((INTEL_INFO(dev)->gen < 8) || IS_BROADWELL(dev))
 		return -ENODEV;
@@ -4570,79 +4674,22 @@ static int i915_sseu_status(struct seq_file *m, void *unused)
 		   yesno(INTEL_INFO(dev)->has_eu_pg));
 
 	seq_puts(m, "SSEU Device Status\n");
+	memset(&stat, 0, sizeof(stat));
 	if (IS_CHERRYVIEW(dev)) {
-		const int ss_max = 2;
-		int ss;
-		u32 sig1[ss_max], sig2[ss_max];
-
-		sig1[0] = I915_READ(CHV_POWER_SS0_SIG1);
-		sig1[1] = I915_READ(CHV_POWER_SS1_SIG1);
-		sig2[0] = I915_READ(CHV_POWER_SS0_SIG2);
-		sig2[1] = I915_READ(CHV_POWER_SS1_SIG2);
-
-		for (ss = 0; ss < ss_max; ss++) {
-			unsigned int eu_cnt;
-
-			if (sig1[ss] & CHV_SS_PG_ENABLE)
-				/* skip disabled subslice */
-				continue;
-
-			s_tot = 1;
-			ss_per++;
-			eu_cnt = ((sig1[ss] & CHV_EU08_PG_ENABLE) ? 0 : 2) +
-				 ((sig1[ss] & CHV_EU19_PG_ENABLE) ? 0 : 2) +
-				 ((sig1[ss] & CHV_EU210_PG_ENABLE) ? 0 : 2) +
-				 ((sig2[ss] & CHV_EU311_PG_ENABLE) ? 0 : 2);
-			eu_tot += eu_cnt;
-			eu_per = max(eu_per, eu_cnt);
-		}
-		ss_tot = ss_per;
-	} else if (IS_SKYLAKE(dev)) {
-		const int s_max = 3, ss_max = 4;
-		int s, ss;
-		u32 s_reg[s_max], eu_reg[2*s_max], eu_mask[2];
-
-		s_reg[0] = I915_READ(GEN9_SLICE0_PGCTL_ACK);
-		s_reg[1] = I915_READ(GEN9_SLICE1_PGCTL_ACK);
-		s_reg[2] = I915_READ(GEN9_SLICE2_PGCTL_ACK);
-		eu_reg[0] = I915_READ(GEN9_SLICE0_SS01_EU_PGCTL_ACK);
-		eu_reg[1] = I915_READ(GEN9_SLICE0_SS23_EU_PGCTL_ACK);
-		eu_reg[2] = I915_READ(GEN9_SLICE1_SS01_EU_PGCTL_ACK);
-		eu_reg[3] = I915_READ(GEN9_SLICE1_SS23_EU_PGCTL_ACK);
-		eu_reg[4] = I915_READ(GEN9_SLICE2_SS01_EU_PGCTL_ACK);
-		eu_reg[5] = I915_READ(GEN9_SLICE2_SS23_EU_PGCTL_ACK);
-		eu_mask[0] = GEN9_PGCTL_SSA_EU08_ACK |
-			     GEN9_PGCTL_SSA_EU19_ACK |
-			     GEN9_PGCTL_SSA_EU210_ACK |
-			     GEN9_PGCTL_SSA_EU311_ACK;
-		eu_mask[1] = GEN9_PGCTL_SSB_EU08_ACK |
-			     GEN9_PGCTL_SSB_EU19_ACK |
-			     GEN9_PGCTL_SSB_EU210_ACK |
-			     GEN9_PGCTL_SSB_EU311_ACK;
-
-		for (s = 0; s < s_max; s++) {
-			if ((s_reg[s] & GEN9_PGCTL_SLICE_ACK) == 0)
-				/* skip disabled slice */
-				continue;
-
-			s_tot++;
-			ss_per = INTEL_INFO(dev)->subslice_per_slice;
-			ss_tot += ss_per;
-			for (ss = 0; ss < ss_max; ss++) {
-				unsigned int eu_cnt;
-
-				eu_cnt = 2 * hweight32(eu_reg[2*s + ss/2] &
-						       eu_mask[ss%2]);
-				eu_tot += eu_cnt;
-				eu_per = max(eu_per, eu_cnt);
-			}
-		}
+		cherryview_sseu_device_status(dev, &stat);
+	} else if (INTEL_INFO(dev)->gen >= 9) {
+		gen9_sseu_device_status(dev, &stat);
 	}
-	seq_printf(m, "  Enabled Slice Total: %u\n", s_tot);
-	seq_printf(m, "  Enabled Subslice Total: %u\n", ss_tot);
-	seq_printf(m, "  Enabled Subslice Per Slice: %u\n", ss_per);
-	seq_printf(m, "  Enabled EU Total: %u\n", eu_tot);
-	seq_printf(m, "  Enabled EU Per Subslice: %u\n", eu_per);
+	seq_printf(m, "  Enabled Slice Total: %u\n",
+		   stat.slice_total);
+	seq_printf(m, "  Enabled Subslice Total: %u\n",
+		   stat.subslice_total);
+	seq_printf(m, "  Enabled Subslice Per Slice: %u\n",
+		   stat.subslice_per_slice);
+	seq_printf(m, "  Enabled EU Total: %u\n",
+		   stat.eu_total);
+	seq_printf(m, "  Enabled EU Per Subslice: %u\n",
+		   stat.eu_per_subslice);
 
 	return 0;
 }

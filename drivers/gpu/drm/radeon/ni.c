@@ -828,6 +828,35 @@ out:
 	return err;
 }
 
+/**
+ * cayman_get_allowed_info_register - fetch the register for the info ioctl
+ *
+ * @rdev: radeon_device pointer
+ * @reg: register offset in bytes
+ * @val: register value
+ *
+ * Returns 0 for success or -EINVAL for an invalid register
+ *
+ */
+int cayman_get_allowed_info_register(struct radeon_device *rdev,
+				     u32 reg, u32 *val)
+{
+	switch (reg) {
+	case GRBM_STATUS:
+	case GRBM_STATUS_SE0:
+	case GRBM_STATUS_SE1:
+	case SRBM_STATUS:
+	case SRBM_STATUS2:
+	case (DMA_STATUS_REG + DMA0_REGISTER_OFFSET):
+	case (DMA_STATUS_REG + DMA1_REGISTER_OFFSET):
+	case UVD_STATUS:
+		*val = RREG32(reg);
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
 int tn_get_temp(struct radeon_device *rdev)
 {
 	u32 temp = RREG32_SMC(TN_CURRENT_GNB_TEMP) & 0x7ff;

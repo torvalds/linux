@@ -1203,7 +1203,7 @@ static int isp1760_udc_start(struct usb_gadget *gadget,
 
 	if (udc->driver) {
 		dev_err(udc->isp->dev, "UDC already has a gadget driver\n");
-		spin_unlock(&udc->lock);
+		spin_unlock_irqrestore(&udc->lock, flags);
 		return -EBUSY;
 	}
 

@@ -207,6 +207,27 @@ static void atmel_hlcdc_crtc_enable(struct drm_crtc *c)
 	crtc->enabled = true;
 }
 
+void atmel_hlcdc_crtc_suspend(struct drm_crtc *c)
+{
+	struct atmel_hlcdc_crtc *crtc = drm_crtc_to_atmel_hlcdc_crtc(c);
+
+	if (crtc->enabled) {
+		atmel_hlcdc_crtc_disable(c);
+		/* save enable state for resume */
+		crtc->enabled = true;
+	}
+}
+
+void atmel_hlcdc_crtc_resume(struct drm_crtc *c)
+{
+	struct atmel_hlcdc_crtc *crtc = drm_crtc_to_atmel_hlcdc_crtc(c);
+
+	if (crtc->enabled) {
+		crtc->enabled = false;
+		atmel_hlcdc_crtc_enable(c);
+	}
+}
+
 static int atmel_hlcdc_crtc_atomic_check(struct drm_crtc *c,
 					 struct drm_crtc_state *s)
 {

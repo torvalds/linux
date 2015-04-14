@@ -322,7 +322,7 @@ static void intel_wait_ddi_buf_idle(struct drm_i915_private *dev_priv,
 	uint32_t reg = DDI_BUF_CTL(port);
 	int i;
 
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < 16; i++) {
 		udelay(1);
 		if (I915_READ(reg) & DDI_BUF_IS_IDLE)
 			return;

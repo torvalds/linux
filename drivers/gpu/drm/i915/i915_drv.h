@@ -130,7 +130,7 @@ enum transcoder {
  *
  * This value doesn't count the cursor plane.
  */
-#define I915_MAX_PLANES	3
+#define I915_MAX_PLANES	4
 
 enum plane {
 	PLANE_A = 0,
@@ -2319,6 +2319,7 @@ struct drm_i915_cmd_table {
 #define IS_HASWELL(dev)	(INTEL_INFO(dev)->is_haswell)
 #define IS_BROADWELL(dev)	(!INTEL_INFO(dev)->is_valleyview && IS_GEN8(dev))
 #define IS_SKYLAKE(dev)	(INTEL_INFO(dev)->is_skylake)
+#define IS_BROXTON(dev)	(!INTEL_INFO(dev)->is_skylake && IS_GEN9(dev))
 #define IS_MOBILE(dev)		(INTEL_INFO(dev)->is_mobile)
 #define IS_HSW_EARLY_SDV(dev)	(IS_HASWELL(dev) && \
 				 (INTEL_DEVID(dev) & 0xFF00) == 0x0C00)
@@ -2342,6 +2343,10 @@ struct drm_i915_cmd_table {
 #define SKL_REVID_C0		(0x2)
 #define SKL_REVID_D0		(0x3)
 #define SKL_REVID_E0		(0x4)
+
+#define BXT_REVID_A0		(0x0)
+#define BXT_REVID_B0		(0x3)
+#define BXT_REVID_C0		(0x6)
 
 /*
  * The genX designation typically refers to the render engine, so render

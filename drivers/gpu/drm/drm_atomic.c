@@ -134,6 +134,7 @@ void drm_atomic_state_clear(struct drm_atomic_state *state)
 
 		connector->funcs->atomic_destroy_state(connector,
 						       state->connector_states[i]);
+		state->connectors[i] = NULL;
 		state->connector_states[i] = NULL;
 	}
 
@@ -145,6 +146,7 @@ void drm_atomic_state_clear(struct drm_atomic_state *state)
 
 		crtc->funcs->atomic_destroy_state(crtc,
 						  state->crtc_states[i]);
+		state->crtcs[i] = NULL;
 		state->crtc_states[i] = NULL;
 	}
 
@@ -156,6 +158,7 @@ void drm_atomic_state_clear(struct drm_atomic_state *state)
 
 		plane->funcs->atomic_destroy_state(plane,
 						   state->plane_states[i]);
+		state->planes[i] = NULL;
 		state->plane_states[i] = NULL;
 	}
 }
@@ -170,6 +173,9 @@ EXPORT_SYMBOL(drm_atomic_state_clear);
  */
 void drm_atomic_state_free(struct drm_atomic_state *state)
 {
+	if (!state)
+		return;
+
 	drm_atomic_state_clear(state);
 
 	DRM_DEBUG_ATOMIC("Freeing atomic state %p\n", state);
@@ -248,11 +254,14 @@ int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
 	struct drm_mode_config *config = &dev->mode_config;
 
 	/* FIXME: Mode prop is missing, which also controls ->enable. */
-	if (property == config->prop_active) {
+	if (property == config->prop_active)
 		state->active = val;
-	} else if (crtc->funcs->atomic_set_property)
+	else if (crtc->funcs->atomic_set_property)
 		return crtc->funcs->atomic_set_property(crtc, state, property, val);
-	return -EINVAL;
+	else
+		return -EINVAL;
+
+	return 0;
 }
 EXPORT_SYMBOL(drm_atomic_crtc_set_property);
 
@@ -266,9 +275,17 @@ int drm_atomic_crtc_get_property(struct drm_crtc *crtc,
 		const struct drm_crtc_state *state,
 		struct drm_property *property, uint64_t *val)
 {
-	if (crtc->funcs->atomic_get_property)
+	struct drm_device *dev = crtc->dev;
+	struct drm_mode_config *config = &dev->mode_config;
+
+	if (property == config->prop_active)
+		*val = state->active;
+	else if (crtc->funcs->atomic_get_property)
 		return crtc->funcs->atomic_get_property(crtc, state, property, val);
-	return -EINVAL;
+	else
+		return -EINVAL;
+
+	return 0;
 }
 
 /**

@@ -76,6 +76,7 @@ static struct fb_ops exynos_drm_fb_ops = {
 };
 
 static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
+				     struct drm_fb_helper_surface_size *sizes,
 				     struct drm_framebuffer *fb)
 {
 	struct fb_info *fbi = helper->fbdev;
@@ -85,7 +86,7 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 	unsigned long offset;
 
 	drm_fb_helper_fill_fix(fbi, fb->pitches[0], fb->depth);
-	drm_fb_helper_fill_var(fbi, helper, fb->width, fb->height);
+	drm_fb_helper_fill_var(fbi, helper, sizes->fb_width, sizes->fb_height);
 
 	/* RGB formats use only one buffer */
 	buffer = exynos_drm_fb_buffer(fb, 0);
@@ -189,7 +190,7 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 		goto err_destroy_framebuffer;
 	}
 
-	ret = exynos_drm_fbdev_update(helper, helper->fb);
+	ret = exynos_drm_fbdev_update(helper, sizes, helper->fb);
 	if (ret < 0)
 		goto err_dealloc_cmap;
 

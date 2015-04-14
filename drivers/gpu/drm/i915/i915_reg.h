@@ -1148,6 +1148,7 @@ enum skl_disp_power_wells {
 /* control register for cpu gtt access */
 #define TILECTL				0x101000
 #define   TILECTL_SWZCTL			(1 << 0)
+#define   TILECTL_TLBPF			(1 << 1)
 #define   TILECTL_TLB_PREFETCH_DIS	(1 << 2)
 #define   TILECTL_BACKSNOOP_DIS		(1 << 3)
 
@@ -1552,9 +1553,7 @@ enum skl_disp_power_wells {
 #define   GEN9_F2_SS_DIS_SHIFT		20
 #define   GEN9_F2_SS_DIS_MASK		(0xf << GEN9_F2_SS_DIS_SHIFT)
 
-#define GEN8_EU_DISABLE0		0x9134
-#define GEN8_EU_DISABLE1		0x9138
-#define GEN8_EU_DISABLE2		0x913c
+#define GEN9_EU_DISABLE(slice)		(0x9134 + (slice)*0x4)
 
 #define GEN6_BSD_SLEEP_PSMI_CONTROL	0x12050
 #define   GEN6_BSD_SLEEP_MSG_DISABLE	(1 << 0)
@@ -5347,9 +5346,11 @@ enum skl_disp_power_wells {
 #define  GEN8_PIPE_VSYNC		(1 << 1)
 #define  GEN8_PIPE_VBLANK		(1 << 0)
 #define  GEN9_PIPE_CURSOR_FAULT		(1 << 11)
+#define  GEN9_PIPE_PLANE4_FAULT		(1 << 10)
 #define  GEN9_PIPE_PLANE3_FAULT		(1 << 9)
 #define  GEN9_PIPE_PLANE2_FAULT		(1 << 8)
 #define  GEN9_PIPE_PLANE1_FAULT		(1 << 7)
+#define  GEN9_PIPE_PLANE4_FLIP_DONE	(1 << 6)
 #define  GEN9_PIPE_PLANE3_FLIP_DONE	(1 << 5)
 #define  GEN9_PIPE_PLANE2_FLIP_DONE	(1 << 4)
 #define  GEN9_PIPE_PLANE1_FLIP_DONE	(1 << 3)
@@ -5360,6 +5361,7 @@ enum skl_disp_power_wells {
 	 GEN8_PIPE_PRIMARY_FAULT)
 #define GEN9_DE_PIPE_IRQ_FAULT_ERRORS \
 	(GEN9_PIPE_CURSOR_FAULT | \
+	 GEN9_PIPE_PLANE4_FAULT | \
 	 GEN9_PIPE_PLANE3_FAULT | \
 	 GEN9_PIPE_PLANE2_FAULT | \
 	 GEN9_PIPE_PLANE1_FAULT)
@@ -5476,6 +5478,10 @@ enum skl_disp_power_wells {
 #define  HDC_FORCE_CONTEXT_SAVE_RESTORE_NON_COHERENT	(1<<5)
 #define  HDC_FORCE_NON_COHERENT			(1<<4)
 #define  HDC_BARRIER_PERFORMANCE_DISABLE	(1<<10)
+
+/* GEN9 chicken */
+#define SLICE_ECO_CHICKEN0			0x7308
+#define   PIXEL_MASK_CAMMING_DISABLE		(1 << 14)
 
 /* WaCatErrorRejectionIssue */
 #define GEN7_SQ_CHICKEN_MBCUNIT_CONFIG		0x9030
@@ -6236,6 +6242,7 @@ enum skl_disp_power_wells {
 #define GEN8_UCGCTL6				0x9430
 #define   GEN8_GAPSUNIT_CLOCK_GATE_DISABLE	(1<<24)
 #define   GEN8_SDEUNIT_CLOCK_GATE_DISABLE	(1<<14)
+#define   GEN8_HDCUNIT_CLOCK_GATE_DISABLE_HDCREQ (1<<28)
 
 #define GEN6_GFXPAUSE				0xA000
 #define GEN6_RPNSWREQ				0xA008
@@ -6403,17 +6410,12 @@ enum skl_disp_power_wells {
 #define CHV_POWER_SS1_SIG2		0xa72c
 #define   CHV_EU311_PG_ENABLE		(1<<1)
 
-#define GEN9_SLICE0_PGCTL_ACK		0x804c
-#define GEN9_SLICE1_PGCTL_ACK		0x8050
-#define GEN9_SLICE2_PGCTL_ACK		0x8054
+#define GEN9_SLICE_PGCTL_ACK(slice)	(0x804c + (slice)*0x4)
 #define   GEN9_PGCTL_SLICE_ACK		(1 << 0)
+#define   GEN9_PGCTL_SS_ACK(subslice)	(1 << (2 + (subslice)*2))
 
-#define GEN9_SLICE0_SS01_EU_PGCTL_ACK	0x805c
-#define GEN9_SLICE0_SS23_EU_PGCTL_ACK	0x8060
-#define GEN9_SLICE1_SS01_EU_PGCTL_ACK	0x8064
-#define GEN9_SLICE1_SS23_EU_PGCTL_ACK	0x8068
-#define GEN9_SLICE2_SS01_EU_PGCTL_ACK	0x806c
-#define GEN9_SLICE2_SS23_EU_PGCTL_ACK	0x8070
+#define GEN9_SS01_EU_PGCTL_ACK(slice)	(0x805c + (slice)*0x8)
+#define GEN9_SS23_EU_PGCTL_ACK(slice)	(0x8060 + (slice)*0x8)
 #define   GEN9_PGCTL_SSA_EU08_ACK	(1 << 0)
 #define   GEN9_PGCTL_SSA_EU19_ACK	(1 << 2)
 #define   GEN9_PGCTL_SSA_EU210_ACK	(1 << 4)

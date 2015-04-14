@@ -425,8 +425,8 @@ static void tegra_plane_reset(struct drm_plane *plane)
 {
 	struct tegra_plane_state *state;
 
-	if (plane->state && plane->state->fb)
-		drm_framebuffer_unreference(plane->state->fb);
+	if (plane->state)
+		__drm_atomic_helper_plane_destroy_state(plane, plane->state);
 
 	kfree(plane->state);
 	plane->state = NULL;
@@ -443,12 +443,14 @@ static struct drm_plane_state *tegra_plane_atomic_duplicate_state(struct drm_pla
 	struct tegra_plane_state *state = to_tegra_plane_state(plane->state);
 	struct tegra_plane_state *copy;
 
-	copy = kmemdup(state, sizeof(*state), GFP_KERNEL);
+	copy = kmalloc(sizeof(*copy), GFP_KERNEL);
 	if (!copy)
 		return NULL;
 
-	if (copy->base.fb)
-		drm_framebuffer_reference(copy->base.fb);
+	__drm_atomic_helper_plane_duplicate_state(plane, &copy->base);
+	copy->tiling = state->tiling;
+	copy->format = state->format;
+	copy->swap = state->swap;
 
 	return &copy->base;
 }
@@ -456,9 +458,7 @@ static struct drm_plane_state *tegra_plane_atomic_duplicate_state(struct drm_pla
 static void tegra_plane_atomic_destroy_state(struct drm_plane *plane,
 					     struct drm_plane_state *state)
 {
-	if (state->fb)
-		drm_framebuffer_unreference(state->fb);
-
+	__drm_atomic_helper_plane_destroy_state(plane, state);
 	kfree(state);
 }
 
@@ -908,6 +908,15 @@ static int tegra_dc_add_planes(struct drm_device *drm, struct tegra_dc *dc)
 	return 0;
 }
 
+u32 tegra_dc_get_vblank_counter(struct tegra_dc *dc)
+{
+	if (dc->syncpt)
+		return host1x_syncpt_read(dc->syncpt);
+
+	/* fallback to software emulated VBLANK counter */
+	return drm_crtc_vblank_count(&dc->base);
+}
+
 void tegra_dc_enable_vblank(struct tegra_dc *dc)
 {
 	unsigned long value, flags;
@@ -995,6 +1004,9 @@ static void tegra_crtc_reset(struct drm_crtc *crtc)
 {
 	struct tegra_dc_state *state;
 
+	if (crtc->state)
+		__drm_atomic_helper_crtc_destroy_state(crtc, crtc->state);
+
 	kfree(crtc->state);
 	crtc->state = NULL;
 
@@ -1011,14 +1023,15 @@ tegra_crtc_atomic_duplicate_state(struct drm_crtc *crtc)
 	struct tegra_dc_state *state = to_dc_state(crtc->state);
 	struct tegra_dc_state *copy;
 
-	copy = kmemdup(state, sizeof(*state), GFP_KERNEL);
+	copy = kmalloc(sizeof(*copy), GFP_KERNEL);
 	if (!copy)
 		return NULL;
 
-	copy->base.mode_changed = false;
-	copy->base.active_changed = false;
-	copy->base.planes_changed = false;
-	copy->base.event = NULL;
+	__drm_atomic_helper_crtc_duplicate_state(crtc, &copy->base);
+	copy->clk = state->clk;
+	copy->pclk = state->pclk;
+	copy->div = state->div;
+	copy->planes = state->planes;
 
 	return &copy->base;
 }
@@ -1026,6 +1039,7 @@ tegra_crtc_atomic_duplicate_state(struct drm_crtc *crtc)
 static void tegra_crtc_atomic_destroy_state(struct drm_crtc *crtc,
 					    struct drm_crtc_state *state)
 {
+	__drm_atomic_helper_crtc_destroy_state(crtc, state);
 	kfree(state);
 }
 
@@ -1152,32 +1166,27 @@ static int tegra_dc_set_timings(struct tegra_dc *dc,
 	return 0;
 }
 
-int tegra_dc_setup_clock(struct tegra_dc *dc, struct clk *parent,
-			 unsigned long pclk, unsigned int div)
-{
-	u32 value;
-	int err;
-
-	err = clk_set_parent(dc->clk, parent);
-	if (err < 0) {
-		dev_err(dc->dev, "failed to set parent clock: %d\n", err);
-		return err;
-	}
-
-	DRM_DEBUG_KMS("rate: %lu, div: %u\n", clk_get_rate(dc->clk), div);
-
-	value = SHIFT_CLK_DIVIDER(div) | PIXEL_CLK_DIVIDER_PCD1;
-	tegra_dc_writel(dc, value, DC_DISP_DISP_CLOCK_CONTROL);
-
-	return 0;
-}
-
+/**
+ * tegra_dc_state_setup_clock - check clock settings and store them in atomic
+ *     state
+ * @dc: display controller
+ * @crtc_state: CRTC atomic state
+ * @clk: parent clock for display controller
+ * @pclk: pixel clock
+ * @div: shift clock divider
+ *
+ * Returns:
+ * 0 on success or a negative error-code on failure.
+ */
 int tegra_dc_state_setup_clock(struct tegra_dc *dc,
 			       struct drm_crtc_state *crtc_state,
 			       struct clk *clk, unsigned long pclk,
 			       unsigned int div)
 {
 	struct tegra_dc_state *state = to_dc_state(crtc_state);
+
+	if (!clk_has_parent(dc->clk, clk))
+		return -EINVAL;
 
 	state->clk = clk;
 	state->pclk = pclk;
@@ -1294,9 +1303,7 @@ static void tegra_crtc_atomic_flush(struct drm_crtc *crtc)
 static const struct drm_crtc_helper_funcs tegra_crtc_helper_funcs = {
 	.disable = tegra_crtc_disable,
 	.mode_fixup = tegra_crtc_mode_fixup,
-	.mode_set = drm_helper_crtc_mode_set,
 	.mode_set_nofb = tegra_crtc_mode_set_nofb,
-	.mode_set_base = drm_helper_crtc_mode_set_base,
 	.prepare = tegra_crtc_prepare,
 	.commit = tegra_crtc_commit,
 	.atomic_check = tegra_crtc_atomic_check,
@@ -1631,7 +1638,6 @@ static int tegra_dc_init(struct host1x_client *client)
 	struct tegra_drm *tegra = drm->dev_private;
 	struct drm_plane *primary = NULL;
 	struct drm_plane *cursor = NULL;
-	unsigned int syncpt;
 	u32 value;
 	int err;
 
@@ -1700,13 +1706,15 @@ static int tegra_dc_init(struct host1x_client *client)
 	}
 
 	/* initialize display controller */
-	if (dc->pipe)
-		syncpt = SYNCPT_VBLANK1;
-	else
-		syncpt = SYNCPT_VBLANK0;
+	if (dc->syncpt) {
+		u32 syncpt = host1x_syncpt_id(dc->syncpt);
 
-	tegra_dc_writel(dc, 0x00000100, DC_CMD_GENERAL_INCR_SYNCPT_CNTRL);
-	tegra_dc_writel(dc, 0x100 | syncpt, DC_CMD_CONT_SYNCPT_VSYNC);
+		value = SYNCPT_CNTRL_NO_STALL;
+		tegra_dc_writel(dc, value, DC_CMD_GENERAL_INCR_SYNCPT_CNTRL);
+
+		value = SYNCPT_VSYNC_ENABLE | syncpt;
+		tegra_dc_writel(dc, value, DC_CMD_CONT_SYNCPT_VSYNC);
+	}
 
 	value = WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT | WIN_A_OF_INT;
 	tegra_dc_writel(dc, value, DC_CMD_INT_TYPE);
@@ -1874,6 +1882,7 @@ static int tegra_dc_parse_dt(struct tegra_dc *dc)
 
 static int tegra_dc_probe(struct platform_device *pdev)
 {
+	unsigned long flags = HOST1X_SYNCPT_CLIENT_MANAGED;
 	const struct of_device_id *id;
 	struct resource *regs;
 	struct tegra_dc *dc;
@@ -1965,6 +1974,10 @@ static int tegra_dc_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	dc->syncpt = host1x_syncpt_request(&pdev->dev, flags);
+	if (!dc->syncpt)
+		dev_warn(&pdev->dev, "failed to allocate syncpoint\n");
+
 	platform_set_drvdata(pdev, dc);
 
 	return 0;
@@ -1974,6 +1987,8 @@ static int tegra_dc_remove(struct platform_device *pdev)
 {
 	struct tegra_dc *dc = platform_get_drvdata(pdev);
 	int err;
+
+	host1x_syncpt_free(dc->syncpt);
 
 	err = host1x_client_unregister(&dc->client);
 	if (err < 0) {

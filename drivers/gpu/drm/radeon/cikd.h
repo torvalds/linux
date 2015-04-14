@@ -2088,6 +2088,8 @@
 #	define CLK_OD(x)				((x) << 6)
 #	define CLK_OD_MASK				(0x1f << 6)
 
+#define UVD_STATUS					0xf6bc
+
 /* UVD clocks */
 
 #define CG_DCLK_CNTL			0xC050009C
@@ -2129,6 +2131,7 @@
 #define VCE_UENC_REG_CLOCK_GATING	0x207c0
 #define VCE_SYS_INT_EN			0x21300
 #	define VCE_SYS_INT_TRAP_INTERRUPT_EN	(1 << 3)
+#define VCE_LMI_VCPU_CACHE_40BIT_BAR	0x2145c
 #define VCE_LMI_CTRL2			0x21474
 #define VCE_LMI_CTRL			0x21498
 #define VCE_LMI_VM_CTRL			0x214a0
