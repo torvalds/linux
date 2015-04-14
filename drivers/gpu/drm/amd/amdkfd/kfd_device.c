@@ -182,6 +182,32 @@ static void iommu_pasid_shutdown_callback(struct pci_dev *pdev, int pasid)
 		kfd_unbind_process_from_device(dev, pasid);
 }
 
+/*
+ * This function called by IOMMU driver on PPR failure
+ */
+static int iommu_invalid_ppr_cb(struct pci_dev *pdev, int pasid,
+		unsigned long address, u16 flags)
+{
+	struct kfd_dev *dev;
+
+	dev_warn(kfd_device,
+			"Invalid PPR device %x:%x.%x pasid %d address 0x%lX flags 0x%X",
+			PCI_BUS_NUM(pdev->devfn),
+			PCI_SLOT(pdev->devfn),
+			PCI_FUNC(pdev->devfn),
+			pasid,
+			address,
+			flags);
+
+	dev = kfd_device_by_pci_dev(pdev);
+	BUG_ON(dev == NULL);
+
+	kfd_signal_iommu_event(dev, pasid, address,
+			flags & PPR_FAULT_WRITE, flags & PPR_FAULT_EXEC);
+
+	return AMD_IOMMU_INV_PRI_RSP_INVALID;
+}
+
 bool kgd2kfd_device_init(struct kfd_dev *kfd,
 			 const struct kgd2kfd_shared_resources *gpu_resources)
 {
@@ -251,6 +277,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	}
 	amd_iommu_set_invalidate_ctx_cb(kfd->pdev,
 						iommu_pasid_shutdown_callback);
+	amd_iommu_set_invalid_ppr_cb(kfd->pdev, iommu_invalid_ppr_cb);
 
 	kfd->dqm = device_queue_manager_init(kfd);
 	if (!kfd->dqm) {
@@ -316,6 +343,7 @@ void kgd2kfd_suspend(struct kfd_dev *kfd)
 	if (kfd->init_complete) {
 		kfd->dqm->ops.stop(kfd->dqm);
 		amd_iommu_set_invalidate_ctx_cb(kfd->pdev, NULL);
+		amd_iommu_set_invalid_ppr_cb(kfd->pdev, NULL);
 		amd_iommu_free_device(kfd->pdev);
 	}
 }
@@ -335,6 +363,7 @@ int kgd2kfd_resume(struct kfd_dev *kfd)
 			return -ENXIO;
 		amd_iommu_set_invalidate_ctx_cb(kfd->pdev,
 						iommu_pasid_shutdown_callback);
+		amd_iommu_set_invalid_ppr_cb(kfd->pdev, iommu_invalid_ppr_cb);
 		kfd->dqm->ops.start(kfd->dqm);
 	}
 

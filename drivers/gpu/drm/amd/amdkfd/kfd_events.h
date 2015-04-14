@@ -28,6 +28,7 @@
 #include <linux/types.h>
 #include <linux/list.h>
 #include "kfd_priv.h"
+#include <uapi/linux/kfd_ioctl.h>
 
 #define KFD_EVENT_ID_NONSIGNAL_MASK 0x80000000U
 #define KFD_FIRST_NONSIGNAL_EVENT_ID KFD_EVENT_ID_NONSIGNAL_MASK
@@ -61,6 +62,11 @@ struct kfd_event {
 	struct signal_page *signal_page;
 	unsigned int signal_slot_index;
 	uint64_t __user *user_signal_address;
+
+	/* type specific data */
+	union {
+		struct kfd_hsa_memory_exception_data memory_exception_data;
+	};
 };
 
 #define KFD_EVENT_TIMEOUT_IMMEDIATE 0
@@ -69,6 +75,7 @@ struct kfd_event {
 /* Matching HSA_EVENTTYPE */
 #define KFD_EVENT_TYPE_SIGNAL 0
 #define KFD_EVENT_TYPE_DEBUG 5
+#define KFD_EVENT_TYPE_MEMORY 8
 
 extern void kfd_signal_event_interrupt(unsigned int pasid, uint32_t partial_id,
 					uint32_t valid_id_bits);

@@ -693,11 +693,14 @@ void kfd_event_init_process(struct kfd_process *p);
 void kfd_event_free_process(struct kfd_process *p);
 int kfd_event_mmap(struct kfd_process *process, struct vm_area_struct *vma);
 int kfd_wait_on_events(struct kfd_process *p,
-		       uint32_t num_events, const uint32_t __user *event_ids,
+		       uint32_t num_events, void __user *data,
 		       bool all, uint32_t user_timeout_ms,
 		       enum kfd_event_wait_result *wait_result);
 void kfd_signal_event_interrupt(unsigned int pasid, uint32_t partial_id,
 				uint32_t valid_id_bits);
+void kfd_signal_iommu_event(struct kfd_dev *dev,
+		unsigned int pasid, unsigned long address,
+		bool is_write_requested, bool is_execute_requested);
 int kfd_set_event(struct kfd_process *p, uint32_t event_id);
 int kfd_reset_event(struct kfd_process *p, uint32_t event_id);
 int kfd_event_create(struct file *devkfd, struct kfd_process *p,
