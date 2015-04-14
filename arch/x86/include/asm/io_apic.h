@@ -208,22 +208,11 @@ extern void disable_ioapic_support(void);
 
 extern void __init native_io_apic_init_mappings(void);
 extern unsigned int native_io_apic_read(unsigned int apic, unsigned int reg);
-extern void native_io_apic_write(unsigned int apic, unsigned int reg, unsigned int val);
-extern void native_io_apic_modify(unsigned int apic, unsigned int reg, unsigned int val);
 extern void native_disable_io_apic(void);
 
 static inline unsigned int io_apic_read(unsigned int apic, unsigned int reg)
 {
 	return x86_io_apic_ops.read(apic, reg);
-}
-
-static inline void io_apic_write(unsigned int apic, unsigned int reg, unsigned int value)
-{
-	x86_io_apic_ops.write(apic, reg, value);
-}
-static inline void io_apic_modify(unsigned int apic, unsigned int reg, unsigned int value)
-{
-	x86_io_apic_ops.modify(apic, reg, value);
 }
 
 extern void setup_IO_APIC(void);
@@ -266,8 +255,6 @@ static inline void mp_save_irq(struct mpc_intsrc *m) { };
 static inline void disable_ioapic_support(void) { }
 #define native_io_apic_init_mappings	NULL
 #define native_io_apic_read		NULL
-#define native_io_apic_write		NULL
-#define native_io_apic_modify		NULL
 #define native_disable_io_apic		NULL
 
 static inline void setup_IO_APIC(void) { }
