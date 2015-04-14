@@ -377,7 +377,7 @@ static struct spi_driver ld9040_driver = {
 	.probe = ld9040_probe,
 	.remove = ld9040_remove,
 	.driver = {
-		.name = "ld9040",
+		.name = "panel-samsung-ld9040",
 		.owner = THIS_MODULE,
 		.of_match_table = ld9040_of_match,
 	},
