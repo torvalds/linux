@@ -834,9 +834,7 @@ static void perf_cpu_hrtimer_restart(struct perf_cpu_context *cpuctx)
 	if (hrtimer_active(hr))
 		return;
 
-	if (!hrtimer_callback_running(hr))
-		__hrtimer_start_range_ns(hr, cpuctx->hrtimer_interval,
-					 0, HRTIMER_MODE_REL_PINNED, 0);
+	hrtimer_start(hr, cpuctx->hrtimer_interval, HRTIMER_MODE_REL_PINNED);
 }
 
 void perf_pmu_disable(struct pmu *pmu)
@@ -6843,9 +6841,8 @@ static void perf_swevent_start_hrtimer(struct perf_event *event)
 	} else {
 		period = max_t(u64, 10000, hwc->sample_period);
 	}
-	__hrtimer_start_range_ns(&hwc->hrtimer,
-				ns_to_ktime(period), 0,
-				HRTIMER_MODE_REL_PINNED, 0);
+	hrtimer_start(&hwc->hrtimer, ns_to_ktime(period),
+		      HRTIMER_MODE_REL_PINNED);
 }
 
 static void perf_swevent_cancel_hrtimer(struct perf_event *event)
