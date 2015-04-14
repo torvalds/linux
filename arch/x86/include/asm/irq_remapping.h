@@ -42,11 +42,6 @@ extern int irq_remapping_enable(void);
 extern void irq_remapping_disable(void);
 extern int irq_remapping_reenable(int);
 extern int irq_remap_enable_fault_handling(void);
-extern int setup_ioapic_remapped_entry(int irq,
-				       struct IO_APIC_route_entry *entry,
-				       unsigned int destination,
-				       int vector,
-				       struct io_apic_irq_attr *attr);
 extern void free_remapped_irq(int irq);
 extern void panic_if_irq_remap(const char *msg);
 extern bool setup_remapped_irq(int irq,
@@ -77,14 +72,6 @@ static inline int irq_remapping_enable(void) { return -ENODEV; }
 static inline void irq_remapping_disable(void) { }
 static inline int irq_remapping_reenable(int eim) { return -ENODEV; }
 static inline int irq_remap_enable_fault_handling(void) { return -ENODEV; }
-static inline int setup_ioapic_remapped_entry(int irq,
-					      struct IO_APIC_route_entry *entry,
-					      unsigned int destination,
-					      int vector,
-					      struct io_apic_irq_attr *attr)
-{
-	return -ENODEV;
-}
 static inline void free_remapped_irq(int irq) { }
 
 static inline void panic_if_irq_remap(const char *msg)

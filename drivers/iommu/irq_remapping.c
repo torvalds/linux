@@ -62,7 +62,6 @@ static void __init irq_remapping_modify_x86_ops(void)
 {
 	x86_io_apic_ops.disable		= irq_remapping_disable_io_apic;
 	x86_io_apic_ops.set_affinity	= set_remapped_irq_affinity;
-	x86_io_apic_ops.setup_entry	= setup_ioapic_remapped_entry;
 	x86_io_apic_ops.eoi_ioapic_pin	= eoi_ioapic_pin_remapped;
 }
 
@@ -156,18 +155,6 @@ int __init irq_remap_enable_fault_handling(void)
 		return -ENODEV;
 
 	return remap_ops->enable_faulting();
-}
-
-int setup_ioapic_remapped_entry(int irq,
-				struct IO_APIC_route_entry *entry,
-				unsigned int destination, int vector,
-				struct io_apic_irq_attr *attr)
-{
-	if (!remap_ops->setup_ioapic_entry)
-		return -ENODEV;
-
-	return remap_ops->setup_ioapic_entry(irq, entry, destination,
-					     vector, attr);
 }
 
 static int set_remapped_irq_affinity(struct irq_data *data,

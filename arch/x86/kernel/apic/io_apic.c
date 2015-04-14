@@ -1296,30 +1296,6 @@ static inline int IO_APIC_irq_trigger(int irq)
 }
 #endif
 
-int native_setup_ioapic_entry(int irq, struct IO_APIC_route_entry *entry,
-			      unsigned int destination, int vector,
-			      struct io_apic_irq_attr *attr)
-{
-	memset(entry, 0, sizeof(*entry));
-
-	entry->delivery_mode = apic->irq_delivery_mode;
-	entry->dest_mode     = apic->irq_dest_mode;
-	entry->dest	     = destination;
-	entry->vector	     = vector;
-	entry->mask	     = 0;			/* enable IRQ */
-	entry->trigger	     = attr->trigger;
-	entry->polarity	     = attr->polarity;
-
-	/*
-	 * Mask level triggered irqs.
-	 * Use IRQ_DELAYED_DISABLE for edge triggered irqs.
-	 */
-	if (attr->trigger)
-		entry->mask = 1;
-
-	return 0;
-}
-
 static void __init setup_IO_APIC_irqs(void)
 {
 	unsigned int ioapic, pin;
