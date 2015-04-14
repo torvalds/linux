@@ -12,6 +12,7 @@
  */
 
 /dts-v1/;
+#include <dt-bindings/gpio/gpio.h>
 #include "imx23.dtsi"
 
 / {
@@ -122,7 +123,7 @@
 
 		user {
 			label = "green";
-			gpios = <&gpio2 1 1>;
+			gpios = <&gpio2 1 GPIO_ACTIVE_HIGH>;
 		};
 	};
 };
