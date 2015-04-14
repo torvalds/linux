@@ -1876,19 +1876,16 @@ static void gen6_ggtt_clear_range(struct i915_address_space *vm,
 	readl(gtt_base);
 }
 
-
-static void i915_ggtt_bind_vma(struct i915_vma *vma,
-			       enum i915_cache_level cache_level,
-			       u32 unused)
+static void i915_ggtt_insert_entries(struct i915_address_space *vm,
+				     struct sg_table *pages,
+				     uint64_t start,
+				     enum i915_cache_level cache_level, u32 unused)
 {
-	const unsigned long entry = vma->node.start >> PAGE_SHIFT;
 	unsigned int flags = (cache_level == I915_CACHE_NONE) ?
 		AGP_USER_MEMORY : AGP_USER_CACHED_MEMORY;
 
-	BUG_ON(!i915_is_ggtt(vma->vm));
-	intel_gtt_insert_sg_entries(vma->ggtt_view.pages, entry, flags);
+	intel_gtt_insert_sg_entries(pages, start >> PAGE_SHIFT, flags);
 
-	vma->bound |= GLOBAL_BIND;
 }
 
 static void i915_ggtt_clear_range(struct i915_address_space *vm,
@@ -1899,15 +1896,6 @@ static void i915_ggtt_clear_range(struct i915_address_space *vm,
 	unsigned first_entry = start >> PAGE_SHIFT;
 	unsigned num_entries = length >> PAGE_SHIFT;
 	intel_gtt_clear_range(first_entry, num_entries);
-}
-
-static void i915_ggtt_unbind_vma(struct i915_vma *vma)
-{
-	const unsigned int first = vma->node.start >> PAGE_SHIFT;
-	const unsigned int size = vma->obj->base.size >> PAGE_SHIFT;
-
-	BUG_ON(!i915_is_ggtt(vma->vm));
-	intel_gtt_clear_range(first, size);
 }
 
 static void ggtt_bind_vma(struct i915_vma *vma,
@@ -2471,9 +2459,10 @@ static int i915_gmch_probe(struct drm_device *dev,
 	intel_gtt_get(gtt_total, stolen, mappable_base, mappable_end);
 
 	dev_priv->gtt.do_idle_maps = needs_idle_maps(dev_priv->dev);
+	dev_priv->gtt.base.insert_entries = i915_ggtt_insert_entries;
 	dev_priv->gtt.base.clear_range = i915_ggtt_clear_range;
-	dev_priv->gtt.base.bind_vma = i915_ggtt_bind_vma;
-	dev_priv->gtt.base.unbind_vma = i915_ggtt_unbind_vma;
+	dev_priv->gtt.base.bind_vma = ggtt_bind_vma;
+	dev_priv->gtt.base.unbind_vma = ggtt_unbind_vma;
 
 	if (unlikely(dev_priv->gtt.do_idle_maps))
 		DRM_INFO("applying Ironlake quirks for intel_iommu\n");
