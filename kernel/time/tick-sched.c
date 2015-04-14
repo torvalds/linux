@@ -696,11 +696,9 @@ static ktime_t tick_nohz_stop_sched_tick(struct tick_sched *ts,
 		if (ts->nohz_mode == NOHZ_MODE_HIGHRES) {
 			hrtimer_start(&ts->sched_timer, expires,
 				      HRTIMER_MODE_ABS_PINNED);
-			/* Check, if the timer was already in the past */
-			if (hrtimer_active(&ts->sched_timer))
-				goto out;
+			goto out;
 		} else if (!tick_program_event(expires, 0))
-				goto out;
+			goto out;
 		/*
 		 * We are past the event already. So we crossed a
 		 * jiffie boundary. Update jiffies and raise the
@@ -888,8 +886,6 @@ static void tick_nohz_restart(struct tick_sched *ts, ktime_t now)
 		if (ts->nohz_mode == NOHZ_MODE_HIGHRES) {
 			hrtimer_start_expires(&ts->sched_timer,
 					      HRTIMER_MODE_ABS_PINNED);
-			/* Check, if the timer was already in the past */
-			if (hrtimer_active(&ts->sched_timer))
 				break;
 		} else {
 			if (!tick_program_event(
@@ -1167,15 +1163,8 @@ void tick_setup_sched_timer(void)
 		hrtimer_add_expires_ns(&ts->sched_timer, offset);
 	}
 
-	for (;;) {
-		hrtimer_forward(&ts->sched_timer, now, tick_period);
-		hrtimer_start_expires(&ts->sched_timer,
-				      HRTIMER_MODE_ABS_PINNED);
-		/* Check, if the timer was already in the past */
-		if (hrtimer_active(&ts->sched_timer))
-			break;
-		now = ktime_get();
-	}
+	hrtimer_forward(&ts->sched_timer, now, tick_period);
+	hrtimer_start_expires(&ts->sched_timer, HRTIMER_MODE_ABS_PINNED);
 
 #ifdef CONFIG_NO_HZ_COMMON
 	if (tick_nohz_enabled) {
