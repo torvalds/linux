@@ -994,6 +994,7 @@ static int gen8_ppgtt_init_common(struct i915_hw_ppgtt *ppgtt, uint64_t size)
 	ppgtt->base.total = size;
 	ppgtt->base.cleanup = gen8_ppgtt_cleanup;
 	ppgtt->base.insert_entries = gen8_ppgtt_insert_entries;
+	ppgtt->base.clear_range = gen8_ppgtt_clear_range;
 
 	ppgtt->switch_mm = gen8_mm_switch;
 
@@ -1022,7 +1023,6 @@ static int gen8_aliasing_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	}
 
 	ppgtt->base.allocate_va_range = NULL;
-	ppgtt->base.clear_range = gen8_ppgtt_clear_range;
 	ppgtt->base.clear_range(&ppgtt->base, 0, ppgtt->base.total, true);
 
 	return 0;
@@ -1037,7 +1037,6 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 		return ret;
 
 	ppgtt->base.allocate_va_range = gen8_alloc_va_range;
-	ppgtt->base.clear_range = gen8_ppgtt_clear_range;
 
 	return 0;
 }
