@@ -2027,6 +2027,7 @@ static const struct usb_device_id af9035_id_table[] = {
 		&af9035_props, "Asus U3100Mini Plus", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_TERRATEC, 0x00aa,
 		&af9035_props, "TerraTec Cinergy T Stick (rev. 2)", NULL) },
+
 	/* IT9135 devices */
 	{ DVB_USB_DEVICE(USB_VID_ITETECH, USB_PID_ITETECH_IT9135,
 		&af9035_props, "ITE 9135 Generic", RC_MAP_IT913X_V1) },
@@ -2052,9 +2053,6 @@ static const struct usb_device_id af9035_id_table[] = {
 	{ DVB_USB_DEVICE(USB_VID_KWORLD_2, USB_PID_CTVDIGDUAL_V2,
 		&af9035_props, "Digital Dual TV Receiver CTVDIGDUAL_V2",
 							RC_MAP_IT913X_V1) },
-	/* IT930x devices */
-	{ DVB_USB_DEVICE(USB_VID_ITETECH, USB_PID_ITETECH_IT9303,
-		&it930x_props, "ITE 9303 Generic", NULL) },
 	/* XXX: that same ID [0ccd:0099] is used by af9015 driver too */
 	{ DVB_USB_DEVICE(USB_VID_TERRATEC, 0x0099,
 		&af9035_props, "TerraTec Cinergy T Stick Dual RC (rev. 2)",
@@ -2067,6 +2065,10 @@ static const struct usb_device_id af9035_id_table[] = {
 		&af9035_props, "PCTV AndroiDTV (78e)", RC_MAP_IT913X_V1) },
 	{ DVB_USB_DEVICE(USB_VID_PCTV, USB_PID_PCTV_79E,
 		&af9035_props, "PCTV microStick (79e)", RC_MAP_IT913X_V2) },
+
+	/* IT930x devices */
+	{ DVB_USB_DEVICE(USB_VID_ITETECH, USB_PID_ITETECH_IT9303,
+		&it930x_props, "ITE 9303 Generic", NULL) },
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, af9035_id_table);
