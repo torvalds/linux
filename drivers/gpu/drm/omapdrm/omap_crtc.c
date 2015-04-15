@@ -359,7 +359,7 @@ static void omap_crtc_vblank_irq(struct omap_drm_irq *irq, uint32_t irqstatus)
 	complete(&omap_crtc->completion);
 }
 
-int omap_crtc_flush(struct drm_crtc *crtc)
+static int omap_crtc_flush(struct drm_crtc *crtc)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 
