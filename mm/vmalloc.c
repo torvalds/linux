@@ -765,7 +765,7 @@ struct vmap_block {
 	spinlock_t lock;
 	struct vmap_area *va;
 	unsigned long free, dirty;
-	DECLARE_BITMAP(dirty_map, VMAP_BBMAP_BITS);
+	unsigned long dirty_min, dirty_max; /*< dirty range */
 	struct list_head free_list;
 	struct rcu_head rcu_head;
 	struct list_head purge;
@@ -851,7 +851,8 @@ static void *new_vmap_block(unsigned int order, gfp_t gfp_mask)
 	BUG_ON(VMAP_BBMAP_BITS <= (1UL << order));
 	vb->free = VMAP_BBMAP_BITS - (1UL << order);
 	vb->dirty = 0;
-	bitmap_zero(vb->dirty_map, VMAP_BBMAP_BITS);
+	vb->dirty_min = VMAP_BBMAP_BITS;
+	vb->dirty_max = 0;
 	INIT_LIST_HEAD(&vb->free_list);
 
 	vb_idx = addr_to_vb_idx(va->va_start);
@@ -902,7 +903,8 @@ static void purge_fragmented_blocks(int cpu)
 		if (vb->free + vb->dirty == VMAP_BBMAP_BITS && vb->dirty != VMAP_BBMAP_BITS) {
 			vb->free = 0; /* prevent further allocs after releasing lock */
 			vb->dirty = VMAP_BBMAP_BITS; /* prevent purging it again */
-			bitmap_fill(vb->dirty_map, VMAP_BBMAP_BITS);
+			vb->dirty_min = 0;
+			vb->dirty_max = VMAP_BBMAP_BITS;
 			spin_lock(&vbq->lock);
 			list_del_rcu(&vb->free_list);
 			spin_unlock(&vbq->lock);
@@ -995,6 +997,7 @@ static void vb_free(const void *addr, unsigned long size)
 	order = get_order(size);
 
 	offset = (unsigned long)addr & (VMAP_BLOCK_SIZE - 1);
+	offset >>= PAGE_SHIFT;
 
 	vb_idx = addr_to_vb_idx((unsigned long)addr);
 	rcu_read_lock();
@@ -1005,7 +1008,10 @@ static void vb_free(const void *addr, unsigned long size)
 	vunmap_page_range((unsigned long)addr, (unsigned long)addr + size);
 
 	spin_lock(&vb->lock);
-	BUG_ON(bitmap_allocate_region(vb->dirty_map, offset >> PAGE_SHIFT, order));
+
+	/* Expand dirty range */
+	vb->dirty_min = min(vb->dirty_min, offset);
+	vb->dirty_max = max(vb->dirty_max, offset + (1UL << order));
 
 	vb->dirty += 1UL << order;
 	if (vb->dirty == VMAP_BBMAP_BITS) {
@@ -1044,25 +1050,18 @@ void vm_unmap_aliases(void)
 
 		rcu_read_lock();
 		list_for_each_entry_rcu(vb, &vbq->free, free_list) {
-			int i, j;
-
 			spin_lock(&vb->lock);
-			i = find_first_bit(vb->dirty_map, VMAP_BBMAP_BITS);
-			if (i < VMAP_BBMAP_BITS) {
+			if (vb->dirty) {
+				unsigned long va_start = vb->va->va_start;
 				unsigned long s, e;
 
-				j = find_last_bit(vb->dirty_map,
-							VMAP_BBMAP_BITS);
-				j = j + 1; /* need exclusive index */
+				s = va_start + (vb->dirty_min << PAGE_SHIFT);
+				e = va_start + (vb->dirty_max << PAGE_SHIFT);
 
-				s = vb->va->va_start + (i << PAGE_SHIFT);
-				e = vb->va->va_start + (j << PAGE_SHIFT);
+				start = min(s, start);
+				end   = max(e, end);
+
 				flush = 1;
-
-				if (s < start)
-					start = s;
-				if (e > end)
-					end = e;
 			}
 			spin_unlock(&vb->lock);
 		}
