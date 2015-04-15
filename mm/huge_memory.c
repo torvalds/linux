@@ -110,10 +110,6 @@ static int set_recommended_min_free_kbytes(void)
 	int nr_zones = 0;
 	unsigned long recommended_min;
 
-	/* khugepaged thread has stopped to failed to start */
-	if (!khugepaged_thread)
-		return 0;
-
 	for_each_populated_zone(zone)
 		nr_zones++;
 
@@ -145,9 +141,8 @@ static int set_recommended_min_free_kbytes(void)
 	setup_per_zone_wmarks();
 	return 0;
 }
-late_initcall(set_recommended_min_free_kbytes);
 
-static int start_khugepaged(void)
+static int start_stop_khugepaged(void)
 {
 	int err = 0;
 	if (khugepaged_enabled()) {
@@ -158,6 +153,7 @@ static int start_khugepaged(void)
 			pr_err("khugepaged: kthread_run(khugepaged) failed\n");
 			err = PTR_ERR(khugepaged_thread);
 			khugepaged_thread = NULL;
+			goto fail;
 		}
 
 		if (!list_empty(&khugepaged_scan.mm_head))
@@ -168,7 +164,7 @@ static int start_khugepaged(void)
 		kthread_stop(khugepaged_thread);
 		khugepaged_thread = NULL;
 	}
-
+fail:
 	return err;
 }
 
@@ -302,7 +298,7 @@ static ssize_t enabled_store(struct kobject *kobj,
 		int err;
 
 		mutex_lock(&khugepaged_mutex);
-		err = start_khugepaged();
+		err = start_stop_khugepaged();
 		mutex_unlock(&khugepaged_mutex);
 
 		if (err)
@@ -651,10 +647,12 @@ static int __init hugepage_init(void)
 	 * where the extra memory used could hurt more than TLB overhead
 	 * is likely to save.  The admin can still enable it through /sys.
 	 */
-	if (totalram_pages < (512 << (20 - PAGE_SHIFT)))
+	if (totalram_pages < (512 << (20 - PAGE_SHIFT))) {
 		transparent_hugepage_flags = 0;
+		return 0;
+	}
 
-	err = start_khugepaged();
+	err = start_stop_khugepaged();
 	if (err)
 		goto err_khugepaged;
 
