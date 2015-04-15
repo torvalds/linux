@@ -267,21 +267,34 @@ call, then it is required that system administrator mount a file system of
 type hugetlbfs:
 
   mount -t hugetlbfs \
-	-o uid=<value>,gid=<value>,mode=<value>,size=<value>,nr_inodes=<value> \
-	none /mnt/huge
+	-o uid=<value>,gid=<value>,mode=<value>,pagesize=<value>,size=<value>,\
+	min_size=<value>,nr_inodes=<value> none /mnt/huge
 
 This command mounts a (pseudo) filesystem of type hugetlbfs on the directory
 /mnt/huge.  Any files created on /mnt/huge uses huge pages.  The uid and gid
 options sets the owner and group of the root of the file system.  By default
 the uid and gid of the current process are taken.  The mode option sets the
 mode of root of file system to value & 01777.  This value is given in octal.
-By default the value 0755 is picked. The size option sets the maximum value of
-memory (huge pages) allowed for that filesystem (/mnt/huge). The size is
-rounded down to HPAGE_SIZE.  The option nr_inodes sets the maximum number of
-inodes that /mnt/huge can use.  If the size or nr_inodes option is not
-provided on command line then no limits are set.  For size and nr_inodes
-options, you can use [G|g]/[M|m]/[K|k] to represent giga/mega/kilo. For
-example, size=2K has the same meaning as size=2048.
+By default the value 0755 is picked. If the paltform supports multiple huge
+page sizes, the pagesize option can be used to specify the huge page size and
+associated pool.  pagesize is specified in bytes.  If pagesize is not specified
+the paltform's default huge page size and associated pool will be used. The
+size option sets the maximum value of memory (huge pages) allowed for that
+filesystem (/mnt/huge).  The size option can be specified in bytes, or as a
+percentage of the specified huge page pool (nr_hugepages).  The size is
+rounded down to HPAGE_SIZE boundary.  The min_size option sets the minimum
+value of memory (huge pages) allowed for the filesystem.  min_size can be
+specified in the same way as size, either bytes or a percentage of the
+huge page pool.  At mount time, the number of huge pages specified by
+min_size are reserved for use by the filesystem.  If there are not enough
+free huge pages available, the mount will fail.  As huge pages are allocated
+to the filesystem and freed, the reserve count is adjusted so that the sum
+of allocated and reserved huge pages is always at least min_size.  The option
+nr_inodes sets the maximum number of inodes that /mnt/huge can use.  If the
+size, min_size or nr_inodes option is not provided on command line then
+no limits are set.  For pagesize, size, min_size and nr_inodes options, you
+can use [G|g]/[M|m]/[K|k] to represent giga/mega/kilo. For example, size=2K
+has the same meaning as size=2048.
 
 While read system calls are supported on files that reside on hugetlb
 file systems, write system calls are not.
