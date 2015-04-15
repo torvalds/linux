@@ -4504,19 +4504,12 @@ void kvm_mmu_zap_collapsible_sptes(struct kvm *kvm,
 	bool flush = false;
 	unsigned long *rmapp;
 	unsigned long last_index, index;
-	gfn_t gfn_start, gfn_end;
 
 	spin_lock(&kvm->mmu_lock);
 
-	gfn_start = memslot->base_gfn;
-	gfn_end = memslot->base_gfn + memslot->npages - 1;
-
-	if (gfn_start >= gfn_end)
-		goto out;
-
 	rmapp = memslot->arch.rmap[0];
-	last_index = gfn_to_index(gfn_end, memslot->base_gfn,
-					PT_PAGE_TABLE_LEVEL);
+	last_index = gfn_to_index(memslot->base_gfn + memslot->npages - 1,
+				memslot->base_gfn, PT_PAGE_TABLE_LEVEL);
 
 	for (index = 0; index <= last_index; ++index, ++rmapp) {
 		if (*rmapp)
@@ -4534,7 +4527,6 @@ void kvm_mmu_zap_collapsible_sptes(struct kvm *kvm,
 	if (flush)
 		kvm_flush_remote_tlbs(kvm);
 
-out:
 	spin_unlock(&kvm->mmu_lock);
 }
 
