@@ -1804,7 +1804,6 @@ pvr_sync_clean_freelist(void)
 			continue;
 		}
 
-        kernel->cleanup_sync=NULL;
 		/* Remove the entry from the free list. */
 		list_move_tail(&kernel->list, &unlocked_free_list);
 	}
