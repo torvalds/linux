@@ -950,13 +950,9 @@ void page_address_init(void);
 #define page_address_init()  do { } while(0)
 #endif
 
+extern void *page_rmapping(struct page *page);
+extern struct anon_vma *page_anon_vma(struct page *page);
 extern struct address_space *page_mapping(struct page *page);
-
-/* Neutral page->mapping pointer to address_space or anon_vma or other */
-static inline void *page_rmapping(struct page *page)
-{
-	return (void *)((unsigned long)page->mapping & ~PAGE_MAPPING_FLAGS);
-}
 
 extern struct address_space *__page_file_mapping(struct page *);
 
