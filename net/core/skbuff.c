@@ -2865,7 +2865,6 @@ static void skb_ts_finish(struct ts_config *conf, struct ts_state *state)
  * @from: search offset
  * @to: search limit
  * @config: textsearch configuration
- * @state: uninitialized textsearch state variable
  *
  * Finds a pattern in the skb data according to the specified
  * textsearch configuration. Use textsearch_next() to retrieve
@@ -2873,17 +2872,17 @@ static void skb_ts_finish(struct ts_config *conf, struct ts_state *state)
  * to the first occurrence or UINT_MAX if no match was found.
  */
 unsigned int skb_find_text(struct sk_buff *skb, unsigned int from,
-			   unsigned int to, struct ts_config *config,
-			   struct ts_state *state)
+			   unsigned int to, struct ts_config *config)
 {
+	struct ts_state state;
 	unsigned int ret;
 
 	config->get_next_block = skb_ts_get_next_block;
 	config->finish = skb_ts_finish;
 
-	skb_prepare_seq_read(skb, from, to, TS_SKB_CB(state));
+	skb_prepare_seq_read(skb, from, to, TS_SKB_CB(&state));
 
-	ret = textsearch_find(config, state);
+	ret = textsearch_find(config, &state);
 	return (ret <= to - from ? ret : UINT_MAX);
 }
 EXPORT_SYMBOL(skb_find_text);
@@ -3207,10 +3206,9 @@ int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 	struct skb_shared_info *pinfo, *skbinfo = skb_shinfo(skb);
 	unsigned int offset = skb_gro_offset(skb);
 	unsigned int headlen = skb_headlen(skb);
-	struct sk_buff *nskb, *lp, *p = *head;
 	unsigned int len = skb_gro_len(skb);
+	struct sk_buff *lp, *p = *head;
 	unsigned int delta_truesize;
-	unsigned int headroom;
 
 	if (unlikely(p->len + len >= 65536))
 		return -E2BIG;
@@ -3277,48 +3275,6 @@ int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 		NAPI_GRO_CB(skb)->free = NAPI_GRO_FREE_STOLEN_HEAD;
 		goto done;
 	}
-	/* switch back to head shinfo */
-	pinfo = skb_shinfo(p);
-
-	if (pinfo->frag_list)
-		goto merge;
-	if (skb_gro_len(p) != pinfo->gso_size)
-		return -E2BIG;
-
-	headroom = skb_headroom(p);
-	nskb = alloc_skb(headroom + skb_gro_offset(p), GFP_ATOMIC);
-	if (unlikely(!nskb))
-		return -ENOMEM;
-
-	__copy_skb_header(nskb, p);
-	nskb->mac_len = p->mac_len;
-
-	skb_reserve(nskb, headroom);
-	__skb_put(nskb, skb_gro_offset(p));
-
-	skb_set_mac_header(nskb, skb_mac_header(p) - p->data);
-	skb_set_network_header(nskb, skb_network_offset(p));
-	skb_set_transport_header(nskb, skb_transport_offset(p));
-
-	__skb_pull(p, skb_gro_offset(p));
-	memcpy(skb_mac_header(nskb), skb_mac_header(p),
-	       p->data - skb_mac_header(p));
-
-	skb_shinfo(nskb)->frag_list = p;
-	skb_shinfo(nskb)->gso_size = pinfo->gso_size;
-	pinfo->gso_size = 0;
-	__skb_header_release(p);
-	NAPI_GRO_CB(nskb)->last = p;
-
-	nskb->data_len += p->len;
-	nskb->truesize += p->truesize;
-	nskb->len += p->len;
-
-	*head = nskb;
-	nskb->next = p->next;
-	p->next = NULL;
-
-	p = nskb;
 
 merge:
 	delta_truesize = skb->truesize;
@@ -3795,7 +3751,6 @@ void skb_complete_wifi_ack(struct sk_buff *skb, bool acked)
 	sock_put(sk);
 }
 EXPORT_SYMBOL_GPL(skb_complete_wifi_ack);
-
 
 /**
  * skb_partial_csum_set - set up and verify partial csum values for packet

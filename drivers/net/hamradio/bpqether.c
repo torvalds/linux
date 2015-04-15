@@ -251,6 +251,9 @@ static netdev_tx_t bpq_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct net_device *orig_dev;
 	int size;
 
+	if (skb->protocol == htons(ETH_P_IP))
+		return ax25_ip_xmit(skb);
+
 	/*
 	 * Just to be *really* sure not to send anything if the interface
 	 * is down, the ethernet device may have gone.

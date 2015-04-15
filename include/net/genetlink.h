@@ -92,9 +92,7 @@ struct genl_info {
 	struct genlmsghdr *	genlhdr;
 	void *			userhdr;
 	struct nlattr **	attrs;
-#ifdef CONFIG_NET_NS
-	struct net *		_net;
-#endif
+	possible_net_t		_net;
 	void *			user_ptr[2];
 	struct sock *		dst_sk;
 };

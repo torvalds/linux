@@ -291,13 +291,20 @@ rsvp_delete_filter(struct tcf_proto *tp, struct rsvp_filter *f)
 	kfree_rcu(f, rcu);
 }
 
-static void rsvp_destroy(struct tcf_proto *tp)
+static bool rsvp_destroy(struct tcf_proto *tp, bool force)
 {
 	struct rsvp_head *data = rtnl_dereference(tp->root);
 	int h1, h2;
 
 	if (data == NULL)
-		return;
+		return true;
+
+	if (!force) {
+		for (h1 = 0; h1 < 256; h1++) {
+			if (rcu_access_pointer(data->ht[h1]))
+				return false;
+		}
+	}
 
 	RCU_INIT_POINTER(tp->root, NULL);
 
@@ -319,6 +326,7 @@ static void rsvp_destroy(struct tcf_proto *tp)
 		}
 	}
 	kfree_rcu(data, rcu);
+	return true;
 }
 
 static int rsvp_delete(struct tcf_proto *tp, unsigned long arg)

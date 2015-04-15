@@ -272,6 +272,8 @@ void i40evf_update_stats(struct i40evf_adapter *adapter);
 void i40evf_reset_interrupt_capability(struct i40evf_adapter *adapter);
 int i40evf_init_interrupt_scheme(struct i40evf_adapter *adapter);
 void i40evf_irq_enable_queues(struct i40evf_adapter *adapter, u32 mask);
+void i40evf_free_all_tx_resources(struct i40evf_adapter *adapter);
+void i40evf_free_all_rx_resources(struct i40evf_adapter *adapter);
 
 void i40e_napi_add_all(struct i40evf_adapter *adapter);
 void i40e_napi_del_all(struct i40evf_adapter *adapter);

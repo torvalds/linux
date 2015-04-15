@@ -55,8 +55,8 @@ struct rng_ctx {
 	struct crypto_rng *drng;
 };
 
-static int rng_recvmsg(struct kiocb *unused, struct socket *sock,
-		       struct msghdr *msg, size_t len, int flags)
+static int rng_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
+		       int flags)
 {
 	struct sock *sk = sock->sk;
 	struct alg_sock *ask = alg_sk(sk);

@@ -4144,7 +4144,7 @@ static int hw_del_addr(struct ksz_hw *hw, u8 *mac_addr)
 
 	for (i = 0; i < hw->addr_list_size; i++) {
 		if (ether_addr_equal(hw->address[i], mac_addr)) {
-			memset(hw->address[i], 0, ETH_ALEN);
+			eth_zero_addr(hw->address[i]);
 			writel(0, hw->io + ADD_ADDR_INCR * i +
 				KS_ADD_ADDR_0_HI);
 			return 0;

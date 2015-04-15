@@ -610,59 +610,27 @@ void __sock_tx_timestamp(const struct sock *sk, __u8 *tx_flags)
 }
 EXPORT_SYMBOL(__sock_tx_timestamp);
 
-static inline int __sock_sendmsg_nosec(struct kiocb *iocb, struct socket *sock,
-				       struct msghdr *msg, size_t size)
+static inline int sock_sendmsg_nosec(struct socket *sock, struct msghdr *msg)
 {
-	return sock->ops->sendmsg(iocb, sock, msg, size);
-}
-
-static inline int __sock_sendmsg(struct kiocb *iocb, struct socket *sock,
-				 struct msghdr *msg, size_t size)
-{
-	int err = security_socket_sendmsg(sock, msg, size);
-
-	return err ?: __sock_sendmsg_nosec(iocb, sock, msg, size);
-}
-
-static int do_sock_sendmsg(struct socket *sock, struct msghdr *msg,
-			   size_t size, bool nosec)
-{
-	struct kiocb iocb;
-	int ret;
-
-	init_sync_kiocb(&iocb, NULL);
-	ret = nosec ? __sock_sendmsg_nosec(&iocb, sock, msg, size) :
-		      __sock_sendmsg(&iocb, sock, msg, size);
+	int ret = sock->ops->sendmsg(sock, msg, msg_data_left(msg));
 	BUG_ON(ret == -EIOCBQUEUED);
 	return ret;
 }
 
-int sock_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
+int sock_sendmsg(struct socket *sock, struct msghdr *msg)
 {
-	return do_sock_sendmsg(sock, msg, size, false);
+	int err = security_socket_sendmsg(sock, msg,
+					  msg_data_left(msg));
+
+	return err ?: sock_sendmsg_nosec(sock, msg);
 }
 EXPORT_SYMBOL(sock_sendmsg);
-
-static int sock_sendmsg_nosec(struct socket *sock, struct msghdr *msg, size_t size)
-{
-	return do_sock_sendmsg(sock, msg, size, true);
-}
 
 int kernel_sendmsg(struct socket *sock, struct msghdr *msg,
 		   struct kvec *vec, size_t num, size_t size)
 {
-	mm_segment_t oldfs = get_fs();
-	int result;
-
-	set_fs(KERNEL_DS);
-	/*
-	 * the following is safe, since for compiler definitions of kvec and
-	 * iovec are identical, yielding the same in-core layout and alignment
-	 */
-	iov_iter_init(&msg->msg_iter, WRITE, (struct iovec *)vec, num, size);
-	result = sock_sendmsg(sock, msg, size);
-	set_fs(oldfs);
-	return result;
+	iov_iter_kvec(&msg->msg_iter, WRITE | ITER_KVEC, vec, num, size);
+	return sock_sendmsg(sock, msg);
 }
 EXPORT_SYMBOL(kernel_sendmsg);
 
@@ -730,9 +698,9 @@ EXPORT_SYMBOL_GPL(__sock_recv_wifi_status);
 static inline void sock_recv_drops(struct msghdr *msg, struct sock *sk,
 				   struct sk_buff *skb)
 {
-	if (sock_flag(sk, SOCK_RXQ_OVFL) && skb && skb->dropcount)
+	if (sock_flag(sk, SOCK_RXQ_OVFL) && skb && SOCK_SKB_CB(skb)->dropcount)
 		put_cmsg(msg, SOL_SOCKET, SO_RXQ_OVFL,
-			sizeof(__u32), &skb->dropcount);
+			sizeof(__u32), &SOCK_SKB_CB(skb)->dropcount);
 }
 
 void __sock_recv_ts_and_drops(struct msghdr *msg, struct sock *sk,
@@ -743,44 +711,20 @@ void __sock_recv_ts_and_drops(struct msghdr *msg, struct sock *sk,
 }
 EXPORT_SYMBOL_GPL(__sock_recv_ts_and_drops);
 
-static inline int __sock_recvmsg_nosec(struct kiocb *iocb, struct socket *sock,
-				       struct msghdr *msg, size_t size, int flags)
+static inline int sock_recvmsg_nosec(struct socket *sock, struct msghdr *msg,
+				     size_t size, int flags)
 {
-	return sock->ops->recvmsg(iocb, sock, msg, size, flags);
+	return sock->ops->recvmsg(sock, msg, size, flags);
 }
 
-static inline int __sock_recvmsg(struct kiocb *iocb, struct socket *sock,
-				 struct msghdr *msg, size_t size, int flags)
+int sock_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
+		 int flags)
 {
 	int err = security_socket_recvmsg(sock, msg, size, flags);
 
-	return err ?: __sock_recvmsg_nosec(iocb, sock, msg, size, flags);
-}
-
-int sock_recvmsg(struct socket *sock, struct msghdr *msg,
-		 size_t size, int flags)
-{
-	struct kiocb iocb;
-	int ret;
-
-	init_sync_kiocb(&iocb, NULL);
-	ret = __sock_recvmsg(&iocb, sock, msg, size, flags);
-	BUG_ON(ret == -EIOCBQUEUED);
-	return ret;
+	return err ?: sock_recvmsg_nosec(sock, msg, size, flags);
 }
 EXPORT_SYMBOL(sock_recvmsg);
-
-static int sock_recvmsg_nosec(struct socket *sock, struct msghdr *msg,
-			      size_t size, int flags)
-{
-	struct kiocb iocb;
-	int ret;
-
-	init_sync_kiocb(&iocb, NULL);
-	ret = __sock_recvmsg_nosec(&iocb, sock, msg, size, flags);
-	BUG_ON(ret == -EIOCBQUEUED);
-	return ret;
-}
 
 /**
  * kernel_recvmsg - Receive a message from a socket (kernel space)
@@ -803,12 +747,8 @@ int kernel_recvmsg(struct socket *sock, struct msghdr *msg,
 	mm_segment_t oldfs = get_fs();
 	int result;
 
+	iov_iter_kvec(&msg->msg_iter, READ | ITER_KVEC, vec, num, size);
 	set_fs(KERNEL_DS);
-	/*
-	 * the following is safe, since for compiler definitions of kvec and
-	 * iovec are identical, yielding the same in-core layout and alignment
-	 */
-	iov_iter_init(&msg->msg_iter, READ, (struct iovec *)vec, num, size);
 	result = sock_recvmsg(sock, msg, size, flags);
 	set_fs(oldfs);
 	return result;
@@ -846,7 +786,8 @@ static ssize_t sock_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
 	struct file *file = iocb->ki_filp;
 	struct socket *sock = file->private_data;
-	struct msghdr msg = {.msg_iter = *to};
+	struct msghdr msg = {.msg_iter = *to,
+			     .msg_iocb = iocb};
 	ssize_t res;
 
 	if (file->f_flags & O_NONBLOCK)
@@ -858,8 +799,7 @@ static ssize_t sock_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	if (!iov_iter_count(to))	/* Match SYS5 behaviour */
 		return 0;
 
-	res = __sock_recvmsg(iocb, sock, &msg,
-			     iov_iter_count(to), msg.msg_flags);
+	res = sock_recvmsg(sock, &msg, iov_iter_count(to), msg.msg_flags);
 	*to = msg.msg_iter;
 	return res;
 }
@@ -868,7 +808,8 @@ static ssize_t sock_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
 	struct socket *sock = file->private_data;
-	struct msghdr msg = {.msg_iter = *from};
+	struct msghdr msg = {.msg_iter = *from,
+			     .msg_iocb = iocb};
 	ssize_t res;
 
 	if (iocb->ki_pos != 0)
@@ -880,7 +821,7 @@ static ssize_t sock_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (sock->type == SOCK_SEQPACKET)
 		msg.msg_flags |= MSG_EOR;
 
-	res = __sock_sendmsg(iocb, sock, &msg, iov_iter_count(from));
+	res = sock_sendmsg(sock, &msg);
 	*from = msg.msg_iter;
 	return res;
 }
@@ -1697,18 +1638,14 @@ SYSCALL_DEFINE6(sendto, int, fd, void __user *, buff, size_t, len,
 	struct iovec iov;
 	int fput_needed;
 
-	if (len > INT_MAX)
-		len = INT_MAX;
-	if (unlikely(!access_ok(VERIFY_READ, buff, len)))
-		return -EFAULT;
+	err = import_single_range(WRITE, buff, len, &iov, &msg.msg_iter);
+	if (unlikely(err))
+		return err;
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
 	if (!sock)
 		goto out;
 
-	iov.iov_base = buff;
-	iov.iov_len = len;
 	msg.msg_name = NULL;
-	iov_iter_init(&msg.msg_iter, WRITE, &iov, 1, len);
 	msg.msg_control = NULL;
 	msg.msg_controllen = 0;
 	msg.msg_namelen = 0;
@@ -1722,7 +1659,7 @@ SYSCALL_DEFINE6(sendto, int, fd, void __user *, buff, size_t, len,
 	if (sock->file->f_flags & O_NONBLOCK)
 		flags |= MSG_DONTWAIT;
 	msg.msg_flags = flags;
-	err = sock_sendmsg(sock, &msg, len);
+	err = sock_sendmsg(sock, &msg);
 
 out_put:
 	fput_light(sock->file, fput_needed);
@@ -1757,26 +1694,22 @@ SYSCALL_DEFINE6(recvfrom, int, fd, void __user *, ubuf, size_t, size,
 	int err, err2;
 	int fput_needed;
 
-	if (size > INT_MAX)
-		size = INT_MAX;
-	if (unlikely(!access_ok(VERIFY_WRITE, ubuf, size)))
-		return -EFAULT;
+	err = import_single_range(READ, ubuf, size, &iov, &msg.msg_iter);
+	if (unlikely(err))
+		return err;
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
 	if (!sock)
 		goto out;
 
 	msg.msg_control = NULL;
 	msg.msg_controllen = 0;
-	iov.iov_len = size;
-	iov.iov_base = ubuf;
-	iov_iter_init(&msg.msg_iter, READ, &iov, 1, size);
 	/* Save some cycles and don't copy the address if not needed */
 	msg.msg_name = addr ? (struct sockaddr *)&address : NULL;
 	/* We assume all kernel code knows the size of sockaddr_storage */
 	msg.msg_namelen = 0;
 	if (sock->file->f_flags & O_NONBLOCK)
 		flags |= MSG_DONTWAIT;
-	err = sock_recvmsg(sock, &msg, size, flags);
+	err = sock_recvmsg(sock, &msg, iov_iter_count(&msg.msg_iter), flags);
 
 	if (err >= 0 && addr != NULL) {
 		err2 = move_addr_to_user(&address,
@@ -1896,10 +1829,10 @@ struct used_address {
 	unsigned int name_len;
 };
 
-static ssize_t copy_msghdr_from_user(struct msghdr *kmsg,
-				     struct user_msghdr __user *umsg,
-				     struct sockaddr __user **save_addr,
-				     struct iovec **iov)
+static int copy_msghdr_from_user(struct msghdr *kmsg,
+				 struct user_msghdr __user *umsg,
+				 struct sockaddr __user **save_addr,
+				 struct iovec **iov)
 {
 	struct sockaddr __user *uaddr;
 	struct iovec __user *uiov;
@@ -1943,13 +1876,10 @@ static ssize_t copy_msghdr_from_user(struct msghdr *kmsg,
 	if (nr_segs > UIO_MAXIOV)
 		return -EMSGSIZE;
 
-	err = rw_copy_check_uvector(save_addr ? READ : WRITE,
-				    uiov, nr_segs,
-				    UIO_FASTIOV, *iov, iov);
-	if (err >= 0)
-		iov_iter_init(&kmsg->msg_iter, save_addr ? READ : WRITE,
-			      *iov, nr_segs, err);
-	return err;
+	kmsg->msg_iocb = NULL;
+
+	return import_iovec(save_addr ? READ : WRITE, uiov, nr_segs,
+			    UIO_FASTIOV, iov, &kmsg->msg_iter);
 }
 
 static int ___sys_sendmsg(struct socket *sock, struct user_msghdr __user *msg,
@@ -1964,7 +1894,7 @@ static int ___sys_sendmsg(struct socket *sock, struct user_msghdr __user *msg,
 	    __attribute__ ((aligned(sizeof(__kernel_size_t))));
 	/* 20 is size of ipv6_pktinfo */
 	unsigned char *ctl_buf = ctl;
-	int ctl_len, total_len;
+	int ctl_len;
 	ssize_t err;
 
 	msg_sys->msg_name = &address;
@@ -1974,8 +1904,7 @@ static int ___sys_sendmsg(struct socket *sock, struct user_msghdr __user *msg,
 	else
 		err = copy_msghdr_from_user(msg_sys, msg, NULL, &iov);
 	if (err < 0)
-		goto out_freeiov;
-	total_len = err;
+		return err;
 
 	err = -ENOBUFS;
 
@@ -2022,10 +1951,10 @@ static int ___sys_sendmsg(struct socket *sock, struct user_msghdr __user *msg,
 	    used_address->name_len == msg_sys->msg_namelen &&
 	    !memcmp(&used_address->name, msg_sys->msg_name,
 		    used_address->name_len)) {
-		err = sock_sendmsg_nosec(sock, msg_sys, total_len);
+		err = sock_sendmsg_nosec(sock, msg_sys);
 		goto out_freectl;
 	}
-	err = sock_sendmsg(sock, msg_sys, total_len);
+	err = sock_sendmsg(sock, msg_sys);
 	/*
 	 * If this is sendmmsg() and sending to current destination address was
 	 * successful, remember it.
@@ -2041,8 +1970,7 @@ out_freectl:
 	if (ctl_buf != ctl)
 		sock_kfree_s(sock->sk, ctl_buf, ctl_len);
 out_freeiov:
-	if (iov != iovstack)
-		kfree(iov);
+	kfree(iov);
 	return err;
 }
 
@@ -2167,8 +2095,8 @@ static int ___sys_recvmsg(struct socket *sock, struct user_msghdr __user *msg,
 	else
 		err = copy_msghdr_from_user(msg_sys, msg, &uaddr, &iov);
 	if (err < 0)
-		goto out_freeiov;
-	total_len = err;
+		return err;
+	total_len = iov_iter_count(&msg_sys->msg_iter);
 
 	cmsg_ptr = (unsigned long)msg_sys->msg_control;
 	msg_sys->msg_flags = flags & (MSG_CMSG_CLOEXEC|MSG_CMSG_COMPAT);
@@ -2206,8 +2134,7 @@ static int ___sys_recvmsg(struct socket *sock, struct user_msghdr __user *msg,
 	err = len;
 
 out_freeiov:
-	if (iov != iovstack)
-		kfree(iov);
+	kfree(iov);
 	return err;
 }
 

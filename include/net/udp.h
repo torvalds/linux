@@ -194,6 +194,8 @@ int udp_lib_get_port(struct sock *sk, unsigned short snum,
 		     int (*)(const struct sock *, const struct sock *),
 		     unsigned int hash2_nulladdr);
 
+u32 udp_flow_hashrnd(void);
+
 static inline __be16 udp_flow_src_port(struct net *net, struct sk_buff *skb,
 				       int min, int max, bool use_eth)
 {
@@ -205,12 +207,19 @@ static inline __be16 udp_flow_src_port(struct net *net, struct sk_buff *skb,
 	}
 
 	hash = skb_get_hash(skb);
-	if (unlikely(!hash) && use_eth) {
-		/* Can't find a normal hash, caller has indicated an Ethernet
-		 * packet so use that to compute a hash.
-		 */
-		hash = jhash(skb->data, 2 * ETH_ALEN,
-			     (__force u32) skb->protocol);
+	if (unlikely(!hash)) {
+		if (use_eth) {
+			/* Can't find a normal hash, caller has indicated an
+			 * Ethernet packet so use that to compute a hash.
+			 */
+			hash = jhash(skb->data, 2 * ETH_ALEN,
+				     (__force u32) skb->protocol);
+		} else {
+			/* Can't derive any sort of hash for the packet, set
+			 * to some consistent random value.
+			 */
+			hash = udp_flow_hashrnd();
+		}
 	}
 
 	/* Since this is being sent on the wire obfuscate hash a bit
@@ -229,8 +238,7 @@ int udp_get_port(struct sock *sk, unsigned short snum,
 		 int (*saddr_cmp)(const struct sock *,
 				  const struct sock *));
 void udp_err(struct sk_buff *, u32);
-int udp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
-		size_t len);
+int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len);
 int udp_push_pending_frames(struct sock *sk);
 void udp_flush_pending_frames(struct sock *sk);
 void udp4_hwcsum(struct sk_buff *skb, __be32 src, __be32 dst);

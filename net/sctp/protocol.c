@@ -1322,8 +1322,7 @@ static __init int sctp_init(void)
 	int max_share;
 	int order;
 
-	BUILD_BUG_ON(sizeof(struct sctp_ulpevent) >
-		     sizeof(((struct sk_buff *) 0)->cb));
+	sock_skb_cb_check_size(sizeof(struct sctp_ulpevent));
 
 	/* Allocate bind_bucket and chunk caches. */
 	status = -ENOBUFS;

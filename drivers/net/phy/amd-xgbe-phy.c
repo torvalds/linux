@@ -78,6 +78,7 @@
 #include <linux/bitops.h>
 #include <linux/property.h>
 #include <linux/acpi.h>
+#include <linux/jiffies.h>
 
 MODULE_AUTHOR("Tom Lendacky <thomas.lendacky@amd.com>");
 MODULE_LICENSE("Dual BSD/GPL");
@@ -99,6 +100,8 @@ MODULE_DESCRIPTION("AMD 10GbE (amd-xgbe) PHY driver");
 #define XGBE_PHY_SPEED_1000		0
 #define XGBE_PHY_SPEED_2500		1
 #define XGBE_PHY_SPEED_10000		2
+
+#define XGBE_AN_MS_TIMEOUT		500
 
 #define XGBE_AN_INT_CMPLT		0x01
 #define XGBE_AN_INC_LINK		0x02
@@ -434,6 +437,7 @@ struct amd_xgbe_phy_priv {
 	unsigned int an_supported;
 	unsigned int parallel_detect;
 	unsigned int fec_ability;
+	unsigned long an_start;
 
 	unsigned int lpm_ctrl;		/* CTRL1 for resume */
 };
@@ -902,7 +906,22 @@ static enum amd_xgbe_phy_an amd_xgbe_an_page_received(struct phy_device *phydev)
 {
 	struct amd_xgbe_phy_priv *priv = phydev->priv;
 	enum amd_xgbe_phy_rx *state;
+	unsigned long an_timeout;
 	int ret;
+
+	if (!priv->an_start) {
+		priv->an_start = jiffies;
+	} else {
+		an_timeout = priv->an_start +
+			     msecs_to_jiffies(XGBE_AN_MS_TIMEOUT);
+		if (time_after(jiffies, an_timeout)) {
+			/* Auto-negotiation timed out, reset state */
+			priv->kr_state = AMD_XGBE_RX_BPA;
+			priv->kx_state = AMD_XGBE_RX_BPA;
+
+			priv->an_start = jiffies;
+		}
+	}
 
 	state = amd_xgbe_phy_in_kr_mode(phydev) ? &priv->kr_state
 						: &priv->kx_state;
@@ -932,8 +951,8 @@ static enum amd_xgbe_phy_an amd_xgbe_an_incompat_link(struct phy_device *phydev)
 	if (amd_xgbe_phy_in_kr_mode(phydev)) {
 		priv->kr_state = AMD_XGBE_RX_ERROR;
 
-		if (!(phydev->supported & SUPPORTED_1000baseKX_Full) &&
-		    !(phydev->supported & SUPPORTED_2500baseX_Full))
+		if (!(phydev->advertising & SUPPORTED_1000baseKX_Full) &&
+		    !(phydev->advertising & SUPPORTED_2500baseX_Full))
 			return AMD_XGBE_AN_NO_LINK;
 
 		if (priv->kx_state != AMD_XGBE_RX_BPA)
@@ -941,7 +960,7 @@ static enum amd_xgbe_phy_an amd_xgbe_an_incompat_link(struct phy_device *phydev)
 	} else {
 		priv->kx_state = AMD_XGBE_RX_ERROR;
 
-		if (!(phydev->supported & SUPPORTED_10000baseKR_Full))
+		if (!(phydev->advertising & SUPPORTED_10000baseKR_Full))
 			return AMD_XGBE_AN_NO_LINK;
 
 		if (priv->kr_state != AMD_XGBE_RX_BPA)
@@ -1078,6 +1097,7 @@ again:
 		priv->an_state = AMD_XGBE_AN_READY;
 		priv->kr_state = AMD_XGBE_RX_BPA;
 		priv->kx_state = AMD_XGBE_RX_BPA;
+		priv->an_start = 0;
 	}
 
 	if (cur_state != priv->an_state)
@@ -1101,7 +1121,7 @@ static int amd_xgbe_an_init(struct phy_device *phydev)
 	if (ret < 0)
 		return ret;
 
-	if (phydev->supported & SUPPORTED_10000baseR_FEC)
+	if (phydev->advertising & SUPPORTED_10000baseR_FEC)
 		ret |= 0xc000;
 	else
 		ret &= ~0xc000;
@@ -1113,13 +1133,13 @@ static int amd_xgbe_an_init(struct phy_device *phydev)
 	if (ret < 0)
 		return ret;
 
-	if (phydev->supported & SUPPORTED_10000baseKR_Full)
+	if (phydev->advertising & SUPPORTED_10000baseKR_Full)
 		ret |= 0x80;
 	else
 		ret &= ~0x80;
 
-	if ((phydev->supported & SUPPORTED_1000baseKX_Full) ||
-	    (phydev->supported & SUPPORTED_2500baseX_Full))
+	if ((phydev->advertising & SUPPORTED_1000baseKX_Full) ||
+	    (phydev->advertising & SUPPORTED_2500baseX_Full))
 		ret |= 0x20;
 	else
 		ret &= ~0x20;
@@ -1131,12 +1151,12 @@ static int amd_xgbe_an_init(struct phy_device *phydev)
 	if (ret < 0)
 		return ret;
 
-	if (phydev->supported & SUPPORTED_Pause)
+	if (phydev->advertising & SUPPORTED_Pause)
 		ret |= 0x400;
 	else
 		ret &= ~0x400;
 
-	if (phydev->supported & SUPPORTED_Asym_Pause)
+	if (phydev->advertising & SUPPORTED_Asym_Pause)
 		ret |= 0x800;
 	else
 		ret &= ~0x800;
@@ -1212,38 +1232,14 @@ static int amd_xgbe_phy_config_init(struct phy_device *phydev)
 		priv->an_irq_allocated = 1;
 	}
 
-	ret = phy_read_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_10GBR_FEC_ABILITY);
-	if (ret < 0)
-		return ret;
-	priv->fec_ability = ret & XGBE_PHY_FEC_MASK;
-
-	/* Initialize supported features */
-	phydev->supported = SUPPORTED_Autoneg;
-	phydev->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
-	phydev->supported |= SUPPORTED_Backplane;
-	phydev->supported |= SUPPORTED_10000baseKR_Full;
-	switch (priv->speed_set) {
-	case AMD_XGBE_PHY_SPEEDSET_1000_10000:
-		phydev->supported |= SUPPORTED_1000baseKX_Full;
-		break;
-	case AMD_XGBE_PHY_SPEEDSET_2500_10000:
-		phydev->supported |= SUPPORTED_2500baseX_Full;
-		break;
-	}
-
-	if (priv->fec_ability & XGBE_PHY_FEC_ENABLE)
-		phydev->supported |= SUPPORTED_10000baseR_FEC;
-
-	phydev->advertising = phydev->supported;
-
 	/* Set initial mode - call the mode setting routines
 	 * directly to insure we are properly configured
 	 */
-	if (phydev->supported & SUPPORTED_10000baseKR_Full)
+	if (phydev->advertising & SUPPORTED_10000baseKR_Full)
 		ret = amd_xgbe_phy_xgmii_mode(phydev);
-	else if (phydev->supported & SUPPORTED_1000baseKX_Full)
+	else if (phydev->advertising & SUPPORTED_1000baseKX_Full)
 		ret = amd_xgbe_phy_gmii_mode(phydev);
-	else if (phydev->supported & SUPPORTED_2500baseX_Full)
+	else if (phydev->advertising & SUPPORTED_2500baseX_Full)
 		ret = amd_xgbe_phy_gmii_2500_mode(phydev);
 	else
 		ret = -EINVAL;
@@ -1315,10 +1311,10 @@ static int __amd_xgbe_phy_config_aneg(struct phy_device *phydev)
 	disable_irq(priv->an_irq);
 
 	/* Start auto-negotiation in a supported mode */
-	if (phydev->supported & SUPPORTED_10000baseKR_Full)
+	if (phydev->advertising & SUPPORTED_10000baseKR_Full)
 		ret = amd_xgbe_phy_set_mode(phydev, AMD_XGBE_MODE_KR);
-	else if ((phydev->supported & SUPPORTED_1000baseKX_Full) ||
-		 (phydev->supported & SUPPORTED_2500baseX_Full))
+	else if ((phydev->advertising & SUPPORTED_1000baseKX_Full) ||
+		 (phydev->advertising & SUPPORTED_2500baseX_Full))
 		ret = amd_xgbe_phy_set_mode(phydev, AMD_XGBE_MODE_KX);
 	else
 		ret = -EINVAL;
@@ -1746,6 +1742,29 @@ static int amd_xgbe_phy_probe(struct phy_device *phydev)
 		       sizeof(priv->serdes_dfe_tap_ena));
 	}
 
+	/* Initialize supported features */
+	phydev->supported = SUPPORTED_Autoneg;
+	phydev->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
+	phydev->supported |= SUPPORTED_Backplane;
+	phydev->supported |= SUPPORTED_10000baseKR_Full;
+	switch (priv->speed_set) {
+	case AMD_XGBE_PHY_SPEEDSET_1000_10000:
+		phydev->supported |= SUPPORTED_1000baseKX_Full;
+		break;
+	case AMD_XGBE_PHY_SPEEDSET_2500_10000:
+		phydev->supported |= SUPPORTED_2500baseX_Full;
+		break;
+	}
+
+	ret = phy_read_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_10GBR_FEC_ABILITY);
+	if (ret < 0)
+		return ret;
+	priv->fec_ability = ret & XGBE_PHY_FEC_MASK;
+	if (priv->fec_ability & XGBE_PHY_FEC_ENABLE)
+		phydev->supported |= SUPPORTED_10000baseR_FEC;
+
+	phydev->advertising = phydev->supported;
+
 	phydev->priv = priv;
 
 	if (!priv->adev || acpi_disabled)
@@ -1817,6 +1836,7 @@ static struct phy_driver amd_xgbe_phy_driver[] = {
 		.phy_id_mask		= XGBE_PHY_MASK,
 		.name			= "AMD XGBE PHY",
 		.features		= 0,
+		.flags			= PHY_IS_INTERNAL,
 		.probe			= amd_xgbe_phy_probe,
 		.remove			= amd_xgbe_phy_remove,
 		.soft_reset		= amd_xgbe_phy_soft_reset,

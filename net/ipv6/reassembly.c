@@ -430,7 +430,7 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *prev,
 		int i, plen = 0;
 
 		clone = alloc_skb(0, GFP_ATOMIC);
-		if (clone == NULL)
+		if (!clone)
 			goto out_oom;
 		clone->next = head->next;
 		head->next = clone;
@@ -552,7 +552,7 @@ static int ipv6_frag_rcv(struct sk_buff *skb)
 
 	fq = fq_find(net, fhdr->identification, &hdr->saddr, &hdr->daddr,
 		     ip6_frag_ecn(hdr));
-	if (fq != NULL) {
+	if (fq) {
 		int ret;
 
 		spin_lock(&fq->q.lock);
@@ -632,7 +632,7 @@ static int __net_init ip6_frags_ns_sysctl_register(struct net *net)
 	table = ip6_frags_ns_ctl_table;
 	if (!net_eq(net, &init_net)) {
 		table = kmemdup(table, sizeof(ip6_frags_ns_ctl_table), GFP_KERNEL);
-		if (table == NULL)
+		if (!table)
 			goto err_alloc;
 
 		table[0].data = &net->ipv6.frags.high_thresh;
@@ -648,7 +648,7 @@ static int __net_init ip6_frags_ns_sysctl_register(struct net *net)
 	}
 
 	hdr = register_net_sysctl(net, "net/ipv6", table);
-	if (hdr == NULL)
+	if (!hdr)
 		goto err_reg;
 
 	net->ipv6.sysctl.frags_hdr = hdr;

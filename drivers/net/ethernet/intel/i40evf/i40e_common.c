@@ -51,6 +51,7 @@ i40e_status i40e_set_mac_type(struct i40e_hw *hw)
 		case I40E_DEV_ID_QSFP_B:
 		case I40E_DEV_ID_QSFP_C:
 		case I40E_DEV_ID_10G_BASE_T:
+		case I40E_DEV_ID_20G_KR2:
 			hw->mac.type = I40E_MAC_XL710;
 			break;
 		case I40E_DEV_ID_VF:
@@ -85,46 +86,53 @@ void i40evf_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask, void *desc,
 {
 	struct i40e_aq_desc *aq_desc = (struct i40e_aq_desc *)desc;
 	u16 len = le16_to_cpu(aq_desc->datalen);
-	u8 *aq_buffer = (u8 *)buffer;
-	u32 data[4];
-	u32 i = 0;
+	u8 *buf = (u8 *)buffer;
+	u16 i = 0;
 
 	if ((!(mask & hw->debug_mask)) || (desc == NULL))
 		return;
 
 	i40e_debug(hw, mask,
 		   "AQ CMD: opcode 0x%04X, flags 0x%04X, datalen 0x%04X, retval 0x%04X\n",
-		   aq_desc->opcode, aq_desc->flags, aq_desc->datalen,
-		   aq_desc->retval);
+		   le16_to_cpu(aq_desc->opcode),
+		   le16_to_cpu(aq_desc->flags),
+		   le16_to_cpu(aq_desc->datalen),
+		   le16_to_cpu(aq_desc->retval));
 	i40e_debug(hw, mask, "\tcookie (h,l) 0x%08X 0x%08X\n",
-		   aq_desc->cookie_high, aq_desc->cookie_low);
+		   le32_to_cpu(aq_desc->cookie_high),
+		   le32_to_cpu(aq_desc->cookie_low));
 	i40e_debug(hw, mask, "\tparam (0,1)  0x%08X 0x%08X\n",
-		   aq_desc->params.internal.param0,
-		   aq_desc->params.internal.param1);
+		   le32_to_cpu(aq_desc->params.internal.param0),
+		   le32_to_cpu(aq_desc->params.internal.param1));
 	i40e_debug(hw, mask, "\taddr (h,l)   0x%08X 0x%08X\n",
-		   aq_desc->params.external.addr_high,
-		   aq_desc->params.external.addr_low);
+		   le32_to_cpu(aq_desc->params.external.addr_high),
+		   le32_to_cpu(aq_desc->params.external.addr_low));
 
 	if ((buffer != NULL) && (aq_desc->datalen != 0)) {
-		memset(data, 0, sizeof(data));
 		i40e_debug(hw, mask, "AQ CMD Buffer:\n");
 		if (buf_len < len)
 			len = buf_len;
-		for (i = 0; i < len; i++) {
-			data[((i % 16) / 4)] |=
-				((u32)aq_buffer[i]) << (8 * (i % 4));
-			if ((i % 16) == 15) {
-				i40e_debug(hw, mask,
-					   "\t0x%04X  %08X %08X %08X %08X\n",
-					   i - 15, data[0], data[1], data[2],
-					   data[3]);
-				memset(data, 0, sizeof(data));
-			}
+		/* write the full 16-byte chunks */
+		for (i = 0; i < (len - 16); i += 16)
+			i40e_debug(hw, mask,
+				   "\t0x%04X  %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X\n",
+				   i, buf[i], buf[i + 1], buf[i + 2],
+				   buf[i + 3], buf[i + 4], buf[i + 5],
+				   buf[i + 6], buf[i + 7], buf[i + 8],
+				   buf[i + 9], buf[i + 10], buf[i + 11],
+				   buf[i + 12], buf[i + 13], buf[i + 14],
+				   buf[i + 15]);
+		/* write whatever's left over without overrunning the buffer */
+		if (i < len) {
+			char d_buf[80];
+			int j = 0;
+
+			memset(d_buf, 0, sizeof(d_buf));
+			j += sprintf(d_buf, "\t0x%04X ", i);
+			while (i < len)
+				j += sprintf(&d_buf[j], " %02X", buf[i++]);
+			i40e_debug(hw, mask, "%s\n", d_buf);
 		}
-		if ((i % 16) != 0)
-			i40e_debug(hw, mask, "\t0x%04X  %08X %08X %08X %08X\n",
-				   i - (i % 16), data[0], data[1], data[2],
-				   data[3]);
 	}
 }
 
@@ -534,7 +542,6 @@ struct i40e_rx_ptype_decoded i40evf_ptype_lookup[] = {
 	I40E_PTT_UNUSED_ENTRY(254),
 	I40E_PTT_UNUSED_ENTRY(255)
 };
-
 
 /**
  * i40e_aq_send_msg_to_pf

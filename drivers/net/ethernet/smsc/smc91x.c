@@ -2204,27 +2204,17 @@ static int try_toggle_control_gpio(struct device *dev,
 				   int value, unsigned int nsdelay)
 {
 	struct gpio_desc *gpio = *desc;
-	int res;
+	enum gpiod_flags flags = value ? GPIOD_OUT_LOW : GPIOD_OUT_HIGH;
 
-	gpio = devm_gpiod_get_index(dev, name, index);
-	if (IS_ERR(gpio)) {
-		if (PTR_ERR(gpio) == -ENOENT) {
-			*desc = NULL;
-			return 0;
-		}
-
+	gpio = devm_gpiod_get_index_optional(dev, name, index, flags);
+	if (IS_ERR(gpio))
 		return PTR_ERR(gpio);
+
+	if (gpio) {
+		if (nsdelay)
+			usleep_range(nsdelay, 2 * nsdelay);
+		gpiod_set_value_cansleep(gpio, value);
 	}
-	res = gpiod_direction_output(gpio, !value);
-	if (res) {
-		dev_err(dev, "unable to toggle gpio %s: %i\n", name, res);
-		devm_gpiod_put(dev, gpio);
-		gpio = NULL;
-		return res;
-	}
-	if (nsdelay)
-		usleep_range(nsdelay, 2 * nsdelay);
-	gpiod_set_value_cansleep(gpio, value);
 	*desc = gpio;
 
 	return 0;

@@ -6729,7 +6729,7 @@ static int perf_event_set_bpf_prog(struct perf_event *event, u32 prog_fd)
 	if (IS_ERR(prog))
 		return PTR_ERR(prog);
 
-	if (prog->aux->prog_type != BPF_PROG_TYPE_KPROBE) {
+	if (prog->type != BPF_PROG_TYPE_KPROBE) {
 		/* valid fd, but invalid bpf program type */
 		bpf_prog_put(prog);
 		return -EINVAL;

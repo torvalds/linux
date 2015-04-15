@@ -571,7 +571,7 @@ qcaspi_spi_thread(void *data)
 			}
 
 			/* can only handle other interrupts
-			 * if sync has occured
+			 * if sync has occurred
 			 */
 			if (qca->sync == QCASPI_SYNC_READY) {
 				if (intr_cause & SPI_INT_PKT_AVLBL)

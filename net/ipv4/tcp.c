@@ -496,7 +496,7 @@ unsigned int tcp_poll(struct file *file, struct socket *sock, poll_table *wait)
 
 	/* Connected or passive Fast Open socket? */
 	if (sk->sk_state != TCP_SYN_SENT &&
-	    (sk->sk_state != TCP_SYN_RECV || tp->fastopen_rsk != NULL)) {
+	    (sk->sk_state != TCP_SYN_RECV || tp->fastopen_rsk)) {
 		int target = sock_rcvlowat(sk, 0, INT_MAX);
 
 		if (tp->urg_seq == tp->copied_seq &&
@@ -1028,7 +1028,7 @@ static inline int select_size(const struct sock *sk, bool sg)
 
 void tcp_free_fastopen_req(struct tcp_sock *tp)
 {
-	if (tp->fastopen_req != NULL) {
+	if (tp->fastopen_req) {
 		kfree(tp->fastopen_req);
 		tp->fastopen_req = NULL;
 	}
@@ -1042,12 +1042,12 @@ static int tcp_sendmsg_fastopen(struct sock *sk, struct msghdr *msg,
 
 	if (!(sysctl_tcp_fastopen & TFO_CLIENT_ENABLE))
 		return -EOPNOTSUPP;
-	if (tp->fastopen_req != NULL)
+	if (tp->fastopen_req)
 		return -EALREADY; /* Another Fast Open is in progress */
 
 	tp->fastopen_req = kzalloc(sizeof(struct tcp_fastopen_request),
 				   sk->sk_allocation);
-	if (unlikely(tp->fastopen_req == NULL))
+	if (unlikely(!tp->fastopen_req))
 		return -ENOBUFS;
 	tp->fastopen_req->data = msg;
 	tp->fastopen_req->size = size;
@@ -1060,8 +1060,7 @@ static int tcp_sendmsg_fastopen(struct sock *sk, struct msghdr *msg,
 	return err;
 }
 
-int tcp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
-		size_t size)
+int tcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
@@ -1120,7 +1119,7 @@ int tcp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 
 	sg = !!(sk->sk_route_caps & NETIF_F_SG);
 
-	while (iov_iter_count(&msg->msg_iter)) {
+	while (msg_data_left(msg)) {
 		int copy = 0;
 		int max = size_goal;
 
@@ -1164,8 +1163,8 @@ new_segment:
 		}
 
 		/* Try to append data to the end of skb. */
-		if (copy > iov_iter_count(&msg->msg_iter))
-			copy = iov_iter_count(&msg->msg_iter);
+		if (copy > msg_data_left(msg))
+			copy = msg_data_left(msg);
 
 		/* Where to copy to? */
 		if (skb_availroom(skb) > 0) {
@@ -1222,7 +1221,7 @@ new_segment:
 		tcp_skb_pcount_set(skb, 0);
 
 		copied += copy;
-		if (!iov_iter_count(&msg->msg_iter)) {
+		if (!msg_data_left(msg)) {
 			tcp_tx_timestamp(sk, skb);
 			goto out;
 		}
@@ -1539,8 +1538,8 @@ EXPORT_SYMBOL(tcp_read_sock);
  *	Probably, code can be easily improved even more.
  */
 
-int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
-		size_t len, int nonblock, int flags, int *addr_len)
+int tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int nonblock,
+		int flags, int *addr_len)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	int copied = 0;
@@ -1914,18 +1913,19 @@ EXPORT_SYMBOL_GPL(tcp_set_state);
 
 static const unsigned char new_state[16] = {
   /* current state:        new state:      action:	*/
-  /* (Invalid)		*/ TCP_CLOSE,
-  /* TCP_ESTABLISHED	*/ TCP_FIN_WAIT1 | TCP_ACTION_FIN,
-  /* TCP_SYN_SENT	*/ TCP_CLOSE,
-  /* TCP_SYN_RECV	*/ TCP_FIN_WAIT1 | TCP_ACTION_FIN,
-  /* TCP_FIN_WAIT1	*/ TCP_FIN_WAIT1,
-  /* TCP_FIN_WAIT2	*/ TCP_FIN_WAIT2,
-  /* TCP_TIME_WAIT	*/ TCP_CLOSE,
-  /* TCP_CLOSE		*/ TCP_CLOSE,
-  /* TCP_CLOSE_WAIT	*/ TCP_LAST_ACK  | TCP_ACTION_FIN,
-  /* TCP_LAST_ACK	*/ TCP_LAST_ACK,
-  /* TCP_LISTEN		*/ TCP_CLOSE,
-  /* TCP_CLOSING	*/ TCP_CLOSING,
+  [0 /* (Invalid) */]	= TCP_CLOSE,
+  [TCP_ESTABLISHED]	= TCP_FIN_WAIT1 | TCP_ACTION_FIN,
+  [TCP_SYN_SENT]	= TCP_CLOSE,
+  [TCP_SYN_RECV]	= TCP_FIN_WAIT1 | TCP_ACTION_FIN,
+  [TCP_FIN_WAIT1]	= TCP_FIN_WAIT1,
+  [TCP_FIN_WAIT2]	= TCP_FIN_WAIT2,
+  [TCP_TIME_WAIT]	= TCP_CLOSE,
+  [TCP_CLOSE]		= TCP_CLOSE,
+  [TCP_CLOSE_WAIT]	= TCP_LAST_ACK  | TCP_ACTION_FIN,
+  [TCP_LAST_ACK]	= TCP_LAST_ACK,
+  [TCP_LISTEN]		= TCP_CLOSE,
+  [TCP_CLOSING]		= TCP_CLOSING,
+  [TCP_NEW_SYN_RECV]	= TCP_CLOSE,	/* should not happen ! */
 };
 
 static int tcp_close_state(struct sock *sk)
@@ -2138,7 +2138,7 @@ adjudge_to_death:
 		 * aborted (e.g., closed with unread data) before 3WHS
 		 * finishes.
 		 */
-		if (req != NULL)
+		if (req)
 			reqsk_fastopen_remove(sk, req, false);
 		inet_csk_destroy_sock(sk);
 	}
@@ -2776,7 +2776,7 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 		break;
 
 	case TCP_FASTOPEN:
-		if (icsk->icsk_accept_queue.fastopenq != NULL)
+		if (icsk->icsk_accept_queue.fastopenq)
 			val = icsk->icsk_accept_queue.fastopenq->max_qlen;
 		else
 			val = 0;
@@ -2960,7 +2960,7 @@ void tcp_done(struct sock *sk)
 
 	tcp_set_state(sk, TCP_CLOSE);
 	tcp_clear_xmit_timers(sk);
-	if (req != NULL)
+	if (req)
 		reqsk_fastopen_remove(sk, req, false);
 
 	sk->sk_shutdown = SHUTDOWN_MASK;
@@ -3001,12 +3001,11 @@ static void __init tcp_init_mem(void)
 
 void __init tcp_init(void)
 {
-	struct sk_buff *skb = NULL;
 	unsigned long limit;
 	int max_rshare, max_wshare, cnt;
 	unsigned int i;
 
-	BUILD_BUG_ON(sizeof(struct tcp_skb_cb) > sizeof(skb->cb));
+	sock_skb_cb_check_size(sizeof(struct tcp_skb_cb));
 
 	percpu_counter_init(&tcp_sockets_allocated, 0, GFP_KERNEL);
 	percpu_counter_init(&tcp_orphan_count, 0, GFP_KERNEL);

@@ -293,7 +293,7 @@ void cw1200_remove_interface(struct ieee80211_hw *dev,
 	}
 	priv->vif = NULL;
 	priv->mode = NL80211_IFTYPE_MONITOR;
-	memset(priv->mac_addr, 0, ETH_ALEN);
+	eth_zero_addr(priv->mac_addr);
 	memset(&priv->p2p_ps_modeinfo, 0, sizeof(priv->p2p_ps_modeinfo));
 	cw1200_free_keys(priv);
 	cw1200_setup_mac(priv);
@@ -1240,8 +1240,8 @@ static void cw1200_do_join(struct cw1200_common *priv)
 
 	bssid = priv->vif->bss_conf.bssid;
 
-	bss = cfg80211_get_bss(priv->hw->wiphy, priv->channel,
-			bssid, NULL, 0, 0, 0);
+	bss = cfg80211_get_bss(priv->hw->wiphy, priv->channel, bssid, NULL, 0,
+			       IEEE80211_BSS_TYPE_ANY, IEEE80211_PRIVACY_ANY);
 
 	if (!bss && !conf->ibss_joined) {
 		wsm_unlock_tx(priv);

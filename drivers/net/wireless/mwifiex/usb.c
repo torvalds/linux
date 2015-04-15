@@ -193,7 +193,7 @@ static void mwifiex_usb_rx_complete(struct urb *urb)
 		dev_dbg(adapter->dev, "info: recv_length=%d, status=%d\n",
 			recv_length, status);
 		if (status == -EINPROGRESS) {
-			queue_work(adapter->workqueue, &adapter->main_work);
+			mwifiex_queue_main_work(adapter);
 
 			/* urb for data_ep is re-submitted now;
 			 * urb for cmd_ep will be re-submitted in callback
@@ -262,7 +262,7 @@ static void mwifiex_usb_tx_complete(struct urb *urb)
 					    urb->status ? -1 : 0);
 	}
 
-	queue_work(adapter->workqueue, &adapter->main_work);
+	mwifiex_queue_main_work(adapter);
 
 	return;
 }
@@ -1006,7 +1006,7 @@ static int mwifiex_pm_wakeup_card(struct mwifiex_adapter *adapter)
 {
 	/* Simulation of HS_AWAKE event */
 	adapter->pm_wakeup_fw_try = false;
-	del_timer_sync(&adapter->wakeup_timer);
+	del_timer(&adapter->wakeup_timer);
 	adapter->pm_wakeup_card_req = false;
 	adapter->ps_state = PS_STATE_AWAKE;
 
