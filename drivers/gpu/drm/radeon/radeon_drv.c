@@ -89,9 +89,10 @@
  *   2.40.0 - Add RADEON_GEM_GTT_WC/UC, flush HDP cache before submitting
  *            CS to GPU on >= r600
  *   2.41.0 - evergreen/cayman: Add SET_BASE/DRAW_INDIRECT command parsing support
+ *   2.42.0 - Add VCE/VUI (Video Usability Information) support
  */
 #define KMS_DRIVER_MAJOR	2
-#define KMS_DRIVER_MINOR	41
+#define KMS_DRIVER_MINOR	42
 #define KMS_DRIVER_PATCHLEVEL	0
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
 int radeon_driver_unload_kms(struct drm_device *dev);
