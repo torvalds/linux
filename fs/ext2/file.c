@@ -92,8 +92,6 @@ int ext2_fsync(struct file *file, loff_t start, loff_t end, int datasync)
  */
 const struct file_operations ext2_file_operations = {
 	.llseek		= generic_file_llseek,
-	.read		= new_sync_read,
-	.write		= new_sync_write,
 	.read_iter	= generic_file_read_iter,
 	.write_iter	= generic_file_write_iter,
 	.unlocked_ioctl = ext2_ioctl,
@@ -111,8 +109,6 @@ const struct file_operations ext2_file_operations = {
 #ifdef CONFIG_FS_DAX
 const struct file_operations ext2_dax_file_operations = {
 	.llseek		= generic_file_llseek,
-	.read		= new_sync_read,
-	.write		= new_sync_write,
 	.read_iter	= generic_file_read_iter,
 	.write_iter	= generic_file_write_iter,
 	.unlocked_ioctl = ext2_ioctl,

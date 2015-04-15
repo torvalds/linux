@@ -240,12 +240,10 @@ static int udf_release_file(struct inode *inode, struct file *filp)
 }
 
 const struct file_operations udf_file_operations = {
-	.read			= new_sync_read,
 	.read_iter		= generic_file_read_iter,
 	.unlocked_ioctl		= udf_ioctl,
 	.open			= generic_file_open,
 	.mmap			= generic_file_mmap,
-	.write			= new_sync_write,
 	.write_iter		= udf_file_write_iter,
 	.release		= udf_release_file,
 	.fsync			= generic_file_fsync,

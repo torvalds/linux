@@ -75,6 +75,7 @@
 #include <linux/sysfs.h>
 #include <linux/miscdevice.h>
 #include <linux/falloc.h>
+#include <linux/uio.h>
 #include "loop.h"
 
 #include <asm/uaccess.h>
@@ -229,13 +230,14 @@ lo_do_transfer(struct loop_device *lo, int cmd,
 static int __do_lo_send_write(struct file *file,
 		u8 *buf, const int len, loff_t pos)
 {
+	struct kvec kvec = {.iov_base = buf, .iov_len = len};
+	struct iov_iter from;
 	ssize_t bw;
-	mm_segment_t old_fs = get_fs();
+
+	iov_iter_kvec(&from, ITER_KVEC | WRITE, &kvec, 1, len);
 
 	file_start_write(file);
-	set_fs(get_ds());
-	bw = file->f_op->write(file, buf, len, &pos);
-	set_fs(old_fs);
+	bw = vfs_iter_write(file, &from, &pos);
 	file_end_write(file);
 	if (likely(bw == len))
 		return 0;
@@ -767,7 +769,7 @@ static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 		goto out_putf;
 
 	if (!(file->f_mode & FMODE_WRITE) || !(mode & FMODE_WRITE) ||
-	    !file->f_op->write)
+	    !file->f_op->write_iter)
 		lo_flags |= LO_FLAGS_READ_ONLY;
 
 	lo_blocksize = S_ISBLK(inode->i_mode) ?

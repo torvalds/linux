@@ -692,8 +692,7 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 	nr_events *= 2;
 
 	/* Prevent overflows */
-	if ((nr_events > (0x10000000U / sizeof(struct io_event))) ||
-	    (nr_events > (0x10000000U / sizeof(struct kiocb)))) {
+	if (nr_events > (0x10000000U / sizeof(struct io_event))) {
 		pr_debug("ENOMEM: nr_events too high\n");
 		return ERR_PTR(-EINVAL);
 	}
@@ -1356,8 +1355,6 @@ SYSCALL_DEFINE1(io_destroy, aio_context_t, ctx)
 	return -EINVAL;
 }
 
-typedef ssize_t (aio_rw_op)(struct kiocb *, const struct iovec *,
-			    unsigned long, loff_t);
 typedef ssize_t (rw_iter_op)(struct kiocb *, struct iov_iter *);
 
 static int aio_setup_vectored_rw(int rw, char __user *buf, size_t len,
@@ -1386,7 +1383,6 @@ static ssize_t aio_run_iocb(struct kiocb *req, unsigned opcode,
 	ssize_t ret;
 	int rw;
 	fmode_t mode;
-	aio_rw_op *rw_op;
 	rw_iter_op *iter_op;
 	struct iovec inline_vecs[UIO_FASTIOV], *iovec = inline_vecs;
 	struct iov_iter iter;
@@ -1396,7 +1392,6 @@ static ssize_t aio_run_iocb(struct kiocb *req, unsigned opcode,
 	case IOCB_CMD_PREADV:
 		mode	= FMODE_READ;
 		rw	= READ;
-		rw_op	= file->f_op->aio_read;
 		iter_op	= file->f_op->read_iter;
 		goto rw_common;
 
@@ -1404,14 +1399,13 @@ static ssize_t aio_run_iocb(struct kiocb *req, unsigned opcode,
 	case IOCB_CMD_PWRITEV:
 		mode	= FMODE_WRITE;
 		rw	= WRITE;
-		rw_op	= file->f_op->aio_write;
 		iter_op	= file->f_op->write_iter;
 		goto rw_common;
 rw_common:
 		if (unlikely(!(file->f_mode & mode)))
 			return -EBADF;
 
-		if (!rw_op && !iter_op)
+		if (!iter_op)
 			return -EINVAL;
 
 		if (opcode == IOCB_CMD_PREADV || opcode == IOCB_CMD_PWRITEV)
@@ -1431,21 +1425,10 @@ rw_common:
 
 		len = ret;
 
-		/* XXX: move/kill - rw_verify_area()? */
-		/* This matches the pread()/pwrite() logic */
-		if (req->ki_pos < 0) {
-			ret = -EINVAL;
-			break;
-		}
-
 		if (rw == WRITE)
 			file_start_write(file);
 
-		if (iter_op) {
-			ret = iter_op(req, &iter);
-		} else {
-			ret = rw_op(req, iter.iov, iter.nr_segs, req->ki_pos);
-		}
+		ret = iter_op(req, &iter);
 
 		if (rw == WRITE)
 			file_end_write(file);

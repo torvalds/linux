@@ -22,13 +22,10 @@
 #include <asm/unistd.h>
 
 typedef ssize_t (*io_fn_t)(struct file *, char __user *, size_t, loff_t *);
-typedef ssize_t (*iov_fn_t)(struct kiocb *, const struct iovec *,
-		unsigned long, loff_t);
 typedef ssize_t (*iter_fn_t)(struct kiocb *, struct iov_iter *);
 
 const struct file_operations generic_ro_fops = {
 	.llseek		= generic_file_llseek,
-	.read		= new_sync_read,
 	.read_iter	= generic_file_read_iter,
 	.mmap		= generic_file_readonly_mmap,
 	.splice_read	= generic_file_splice_read,
@@ -411,24 +408,7 @@ int rw_verify_area(int read_write, struct file *file, const loff_t *ppos, size_t
 	return count > MAX_RW_COUNT ? MAX_RW_COUNT : count;
 }
 
-ssize_t do_sync_read(struct file *filp, char __user *buf, size_t len, loff_t *ppos)
-{
-	struct iovec iov = { .iov_base = buf, .iov_len = len };
-	struct kiocb kiocb;
-	ssize_t ret;
-
-	init_sync_kiocb(&kiocb, filp);
-	kiocb.ki_pos = *ppos;
-
-	ret = filp->f_op->aio_read(&kiocb, &iov, 1, kiocb.ki_pos);
-	BUG_ON(ret == -EIOCBQUEUED);
-	*ppos = kiocb.ki_pos;
-	return ret;
-}
-
-EXPORT_SYMBOL(do_sync_read);
-
-ssize_t new_sync_read(struct file *filp, char __user *buf, size_t len, loff_t *ppos)
+static ssize_t new_sync_read(struct file *filp, char __user *buf, size_t len, loff_t *ppos)
 {
 	struct iovec iov = { .iov_base = buf, .iov_len = len };
 	struct kiocb kiocb;
@@ -445,24 +425,17 @@ ssize_t new_sync_read(struct file *filp, char __user *buf, size_t len, loff_t *p
 	return ret;
 }
 
-EXPORT_SYMBOL(new_sync_read);
-
 ssize_t __vfs_read(struct file *file, char __user *buf, size_t count,
 		   loff_t *pos)
 {
-	ssize_t ret;
-
 	if (file->f_op->read)
-		ret = file->f_op->read(file, buf, count, pos);
-	else if (file->f_op->aio_read)
-		ret = do_sync_read(file, buf, count, pos);
+		return file->f_op->read(file, buf, count, pos);
 	else if (file->f_op->read_iter)
-		ret = new_sync_read(file, buf, count, pos);
+		return new_sync_read(file, buf, count, pos);
 	else
-		ret = -EINVAL;
-
-	return ret;
+		return -EINVAL;
 }
+EXPORT_SYMBOL(__vfs_read);
 
 ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
 {
@@ -491,24 +464,7 @@ ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
 
 EXPORT_SYMBOL(vfs_read);
 
-ssize_t do_sync_write(struct file *filp, const char __user *buf, size_t len, loff_t *ppos)
-{
-	struct iovec iov = { .iov_base = (void __user *)buf, .iov_len = len };
-	struct kiocb kiocb;
-	ssize_t ret;
-
-	init_sync_kiocb(&kiocb, filp);
-	kiocb.ki_pos = *ppos;
-
-	ret = filp->f_op->aio_write(&kiocb, &iov, 1, kiocb.ki_pos);
-	BUG_ON(ret == -EIOCBQUEUED);
-	*ppos = kiocb.ki_pos;
-	return ret;
-}
-
-EXPORT_SYMBOL(do_sync_write);
-
-ssize_t new_sync_write(struct file *filp, const char __user *buf, size_t len, loff_t *ppos)
+static ssize_t new_sync_write(struct file *filp, const char __user *buf, size_t len, loff_t *ppos)
 {
 	struct iovec iov = { .iov_base = (void __user *)buf, .iov_len = len };
 	struct kiocb kiocb;
@@ -525,7 +481,17 @@ ssize_t new_sync_write(struct file *filp, const char __user *buf, size_t len, lo
 	return ret;
 }
 
-EXPORT_SYMBOL(new_sync_write);
+ssize_t __vfs_write(struct file *file, const char __user *p, size_t count,
+		    loff_t *pos)
+{
+	if (file->f_op->write)
+		return file->f_op->write(file, p, count, pos);
+	else if (file->f_op->write_iter)
+		return new_sync_write(file, p, count, pos);
+	else
+		return -EINVAL;
+}
+EXPORT_SYMBOL(__vfs_write);
 
 ssize_t __kernel_write(struct file *file, const char *buf, size_t count, loff_t *pos)
 {
@@ -541,12 +507,7 @@ ssize_t __kernel_write(struct file *file, const char *buf, size_t count, loff_t 
 	p = (__force const char __user *)buf;
 	if (count > MAX_RW_COUNT)
 		count =  MAX_RW_COUNT;
-	if (file->f_op->write)
-		ret = file->f_op->write(file, p, count, pos);
-	else if (file->f_op->aio_write)
-		ret = do_sync_write(file, p, count, pos);
-	else
-		ret = new_sync_write(file, p, count, pos);
+	ret = __vfs_write(file, p, count, pos);
 	set_fs(old_fs);
 	if (ret > 0) {
 		fsnotify_modify(file);
@@ -573,12 +534,7 @@ ssize_t vfs_write(struct file *file, const char __user *buf, size_t count, loff_
 	if (ret >= 0) {
 		count = ret;
 		file_start_write(file);
-		if (file->f_op->write)
-			ret = file->f_op->write(file, buf, count, pos);
-		else if (file->f_op->aio_write)
-			ret = do_sync_write(file, buf, count, pos);
-		else
-			ret = new_sync_write(file, buf, count, pos);
+		ret = __vfs_write(file, buf, count, pos);
 		if (ret > 0) {
 			fsnotify_modify(file);
 			add_wchar(current, ret);
@@ -710,21 +666,6 @@ static ssize_t do_iter_readv_writev(struct file *filp, struct iov_iter *iter,
 	return ret;
 }
 
-static ssize_t do_sync_readv_writev(struct file *filp, struct iov_iter *iter,
-		loff_t *ppos, iov_fn_t fn)
-{
-	struct kiocb kiocb;
-	ssize_t ret;
-
-	init_sync_kiocb(&kiocb, filp);
-	kiocb.ki_pos = *ppos;
-
-	ret = fn(&kiocb, iter->iov, iter->nr_segs, kiocb.ki_pos);
-	BUG_ON(ret == -EIOCBQUEUED);
-	*ppos = kiocb.ki_pos;
-	return ret;
-}
-
 /* Do it by hand, with file-ops */
 static ssize_t do_loop_readv_writev(struct file *filp, struct iov_iter *iter,
 		loff_t *ppos, io_fn_t fn)
@@ -839,7 +780,6 @@ static ssize_t do_readv_writev(int type, struct file *file,
 	struct iov_iter iter;
 	ssize_t ret;
 	io_fn_t fn;
-	iov_fn_t fnv;
 	iter_fn_t iter_fn;
 
 	ret = import_iovec(type, uvector, nr_segs,
@@ -854,22 +794,17 @@ static ssize_t do_readv_writev(int type, struct file *file,
 	if (ret < 0)
 		goto out;
 
-	fnv = NULL;
 	if (type == READ) {
 		fn = file->f_op->read;
-		fnv = file->f_op->aio_read;
 		iter_fn = file->f_op->read_iter;
 	} else {
 		fn = (io_fn_t)file->f_op->write;
-		fnv = file->f_op->aio_write;
 		iter_fn = file->f_op->write_iter;
 		file_start_write(file);
 	}
 
 	if (iter_fn)
 		ret = do_iter_readv_writev(file, &iter, pos, iter_fn);
-	else if (fnv)
-		ret = do_sync_readv_writev(file, &iter, pos, fnv);
 	else
 		ret = do_loop_readv_writev(file, &iter, pos, fn);
 
@@ -1019,7 +954,6 @@ static ssize_t compat_do_readv_writev(int type, struct file *file,
 	struct iov_iter iter;
 	ssize_t ret;
 	io_fn_t fn;
-	iov_fn_t fnv;
 	iter_fn_t iter_fn;
 
 	ret = compat_import_iovec(type, uvector, nr_segs,
@@ -1034,22 +968,17 @@ static ssize_t compat_do_readv_writev(int type, struct file *file,
 	if (ret < 0)
 		goto out;
 
-	fnv = NULL;
 	if (type == READ) {
 		fn = file->f_op->read;
-		fnv = file->f_op->aio_read;
 		iter_fn = file->f_op->read_iter;
 	} else {
 		fn = (io_fn_t)file->f_op->write;
-		fnv = file->f_op->aio_write;
 		iter_fn = file->f_op->write_iter;
 		file_start_write(file);
 	}
 
 	if (iter_fn)
 		ret = do_iter_readv_writev(file, &iter, pos, iter_fn);
-	else if (fnv)
-		ret = do_sync_readv_writev(file, &iter, pos, fnv);
 	else
 		ret = do_loop_readv_writev(file, &iter, pos, fn);
 
