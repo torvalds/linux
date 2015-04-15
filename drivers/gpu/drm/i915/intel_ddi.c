@@ -155,8 +155,17 @@ static const struct ddi_buf_trans skl_ddi_translations_edp[] = {
 
 
 static const struct ddi_buf_trans skl_ddi_translations_hdmi[] = {
-					/* Idx	NT mV   T mV    db  */
-	{ 0x00004014, 0x00000087 },	/* 0:	800	1000	2   */
+	{ 0x00000018, 0x000000ac },
+	{ 0x00005012, 0x0000009d },
+	{ 0x00007011, 0x00000088 },
+	{ 0x00000018, 0x000000a1 },
+	{ 0x00000018, 0x00000098 },
+	{ 0x00004013, 0x00000088 },
+	{ 0x00006012, 0x00000087 },
+	{ 0x00000018, 0x000000df },
+	{ 0x00003015, 0x00000087 },
+	{ 0x00003015, 0x000000c7 },
+	{ 0x00000018, 0x000000c7 },
 };
 
 enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder)
@@ -214,16 +223,9 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
 			n_edp_entries = ARRAY_SIZE(skl_ddi_translations_dp);
 		}
 
-		/*
-		 * On SKL, the recommendation from the hw team is to always use
-		 * a certain type of level shifter (and thus the corresponding
-		 * 800mV+2dB entry). Given that's the only validated entry, we
-		 * override what is in the VBT, at least until further notice.
-		 */
-		hdmi_level = 0;
 		ddi_translations_hdmi = skl_ddi_translations_hdmi;
 		n_hdmi_entries = ARRAY_SIZE(skl_ddi_translations_hdmi);
-		hdmi_default_entry = 0;
+		hdmi_default_entry = 7;
 	} else if (IS_BROADWELL(dev)) {
 		ddi_translations_fdi = bdw_ddi_translations_fdi;
 		ddi_translations_dp = bdw_ddi_translations_dp;
