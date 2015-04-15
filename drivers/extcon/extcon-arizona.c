@@ -1185,7 +1185,6 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to allocate extcon device\n");
 		return -ENOMEM;
 	}
-	info->edev->name = "Headset Jack";
 
 	ret = devm_extcon_dev_register(&pdev->dev, info->edev);
 	if (ret < 0) {
