@@ -632,7 +632,9 @@ static int children_seq_show(struct seq_file *seq, void *v)
 	pid_t pid;
 
 	pid = pid_nr_ns(v, inode->i_sb->s_fs_info);
-	return seq_printf(seq, "%d ", pid);
+	seq_printf(seq, "%d ", pid);
+
+	return 0;
 }
 
 static void *children_seq_start(struct seq_file *seq, loff_t *pos)
