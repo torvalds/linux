@@ -370,7 +370,7 @@ def tcm_mod_build_configfs(proto_ident, fabric_mod_dir_var, fabric_mod_name):
 	buf += "};\n\n"
 
 	buf += "static const struct target_core_fabric_ops " + fabric_mod_name + "_ops = {\n"
-	buf += "	.module				= THIS_MODULE\n",
+	buf += "	.module				= THIS_MODULE,\n"
 	buf += "	.name				= " + fabric_mod_name + ",\n"
 	buf += "	.get_fabric_proto_ident		= " + fabric_mod_name + "_get_fabric_proto_ident,\n"
 	buf += "	.get_fabric_name		= " + fabric_mod_name + "_get_fabric_name,\n"
