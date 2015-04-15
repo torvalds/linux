@@ -127,7 +127,7 @@ static const struct fc2580_freq_regs fc2580_freq_regs_lut[] = {
 		0x0a, 0xa0, 0x50, 0x14},
 };
 
-struct fc2580_priv {
+struct fc2580_dev {
 	u32 clk;
 	struct i2c_client *client;
 	struct i2c_adapter *i2c;
