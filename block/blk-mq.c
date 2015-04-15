@@ -1522,8 +1522,6 @@ static int blk_mq_alloc_bitmap(struct blk_mq_ctxmap *bitmap, int node)
 	if (!bitmap->map)
 		return -ENOMEM;
 
-	bitmap->map_size = num_maps;
-
 	total = nr_cpu_ids;
 	for (i = 0; i < num_maps; i++) {
 		bitmap->map[i].depth = min(total, bitmap->bits_per_word);
@@ -1764,8 +1762,6 @@ static void blk_mq_init_cpu_queues(struct request_queue *q,
 			continue;
 
 		hctx = q->mq_ops->map_queue(q, i);
-		cpumask_set_cpu(i, hctx->cpumask);
-		hctx->nr_ctx++;
 
 		/*
 		 * Set local node, IFF we have more than one hw queue. If
@@ -1802,6 +1798,8 @@ static void blk_mq_map_swqueue(struct request_queue *q)
 	}
 
 	queue_for_each_hw_ctx(q, hctx, i) {
+		struct blk_mq_ctxmap *map = &hctx->ctx_map;
+
 		/*
 		 * If no software queues are mapped to this hardware queue,
 		 * disable it and free the request entries.
@@ -1816,6 +1814,13 @@ static void blk_mq_map_swqueue(struct request_queue *q)
 			}
 			continue;
 		}
+
+		/*
+		 * Set the map size to the number of mapped software queues.
+		 * This is more accurate and more efficient than looping
+		 * over all possibly mapped software queues.
+		 */
+		map->map_size = hctx->nr_ctx / map->bits_per_word;
 
 		/*
 		 * Initialize batch roundrobin counts
