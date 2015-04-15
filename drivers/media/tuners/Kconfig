@@ -234,7 +234,7 @@ config MEDIA_TUNER_M88RS6000T
 	  Montage M88RS6000 internal tuner.
 
 config MEDIA_TUNER_TUA9001
-	tristate "Infineon TUA 9001 silicon tuner"
+	tristate "Infineon TUA9001 silicon tuner"
 	depends on MEDIA_SUPPORT && I2C
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
