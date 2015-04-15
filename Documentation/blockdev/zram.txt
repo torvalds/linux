@@ -133,6 +133,17 @@ File /sys/block/zram<id>/stat
 Represents block layer statistics. Read Documentation/block/stat.txt for
 details.
 
+File /sys/block/zram<id>/io_stat
+
+The stat file represents device's I/O statistics not accounted by block
+layer and, thus, not available in zram<id>/stat file. It consists of a
+single line of text and contains the following stats separated by
+whitespace:
+	failed_reads
+	failed_writes
+	invalid_io
+	notify_free
+
 8) Deactivate:
 	swapoff /dev/zram0
 	umount /dev/zram1

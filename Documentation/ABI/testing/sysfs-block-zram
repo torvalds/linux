@@ -149,3 +149,12 @@ Description:
 		The compact file is write-only and trigger compaction for
 		allocator zrm uses. The allocator moves some objects so that
 		it could free fragment space.
+
+What:		/sys/block/zram<id>/io_stat
+Date:		August 2015
+Contact:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Description:
+		The io_stat file is read-only and accumulates device's I/O
+		statistics not accounted by block layer. For example,
+		failed_reads, failed_writes, etc. File format is similar to
+		block layer statistics file format.
