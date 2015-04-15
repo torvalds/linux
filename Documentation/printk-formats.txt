@@ -54,6 +54,7 @@ Struct Resources:
 
 	For printing struct resources. The 'R' and 'r' specifiers result in a
 	printed resource with ('R') or without ('r') a decoded flags member.
+	Passed by reference.
 
 Physical addresses types phys_addr_t:
 
@@ -132,6 +133,8 @@ MAC/FDDI addresses:
 	specifier to use reversed byte order suitable for visual interpretation
 	of Bluetooth addresses which are in the little endian order.
 
+	Passed by reference.
+
 IPv4 addresses:
 
 	%pI4	1.2.3.4
@@ -146,6 +149,8 @@ IPv4 addresses:
 	host, network, big or little endian order addresses respectively. Where
 	no specifier is provided the default network/big endian order is used.
 
+	Passed by reference.
+
 IPv6 addresses:
 
 	%pI6	0001:0002:0003:0004:0005:0006:0007:0008
@@ -159,6 +164,8 @@ IPv6 addresses:
 	The additional 'c' specifier can be used with the 'I' specifier to
 	print a compressed IPv6 address as described by
 	http://tools.ietf.org/html/rfc5952
+
+	Passed by reference.
 
 IPv4/IPv6 addresses (generic, with port, flowinfo, scope):
 
@@ -186,6 +193,8 @@ IPv4/IPv6 addresses (generic, with port, flowinfo, scope):
 	specifiers can be used as well and are ignored in case of an IPv6
 	address.
 
+	Passed by reference.
+
 	Further examples:
 
 	%pISfc		1.2.3.4		or [1:2:3:4:5:6:7:8]/123456789
@@ -207,6 +216,8 @@ UUID/GUID addresses:
 	Where no additional specifiers are used the default little endian
 	order with lower case hex characters will be printed.
 
+	Passed by reference.
+
 dentry names:
 	%pd{,2,3,4}
 	%pD{,2,3,4}
@@ -215,6 +226,8 @@ dentry names:
 	a mix of old and new ones, but it won't oops.  %pd dentry is a safer
 	equivalent of %s dentry->d_name.name we used to use, %pd<n> prints
 	n last components.  %pD does the same thing for struct file.
+
+	Passed by reference.
 
 struct va_format:
 
@@ -230,6 +243,8 @@ struct va_format:
 
 	Do not use this feature without some mechanism to verify the
 	correctness of the format string and va_list arguments.
+
+	Passed by reference.
 
 u64 SHOULD be printed with %llu/%llx:
 
