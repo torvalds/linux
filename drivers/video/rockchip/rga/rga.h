@@ -120,7 +120,7 @@ typedef struct rga_img_info_t
     unsigned long yrgb_addr;      /* yrgb    mem addr         */
     unsigned long uv_addr;        /* cb/cr   mem addr         */
     unsigned long v_addr;         /* cr      mem addr         */
-    unsigned long format;         //definition by RK_FORMAT
+    unsigned int format;         //definition by RK_FORMAT
 
     unsigned short act_w;
     unsigned short act_h;
