@@ -466,7 +466,7 @@ struct drm_crtc {
 	int framedur_ns, linedur_ns, pixeldur_ns;
 
 	/* if you are using the helper */
-	void *helper_private;
+	const void *helper_private;
 
 	struct drm_object_properties properties;
 
@@ -596,7 +596,7 @@ struct drm_encoder {
 	struct drm_crtc *crtc;
 	struct drm_bridge *bridge;
 	const struct drm_encoder_funcs *funcs;
-	void *helper_private;
+	const void *helper_private;
 };
 
 /* should we poll this connector for connects and disconnects */
@@ -700,7 +700,7 @@ struct drm_connector {
 	/* requested DPMS state */
 	int dpms;
 
-	void *helper_private;
+	const void *helper_private;
 
 	/* forced on connector */
 	struct drm_cmdline_mode cmdline_mode;
@@ -863,7 +863,7 @@ struct drm_plane {
 
 	enum drm_plane_type type;
 
-	void *helper_private;
+	const void *helper_private;
 
 	struct drm_plane_state *state;
 };
@@ -974,7 +974,7 @@ struct drm_mode_set {
  * struct drm_mode_config_funcs - basic driver provided mode setting functions
  * @fb_create: create a new framebuffer object
  * @output_poll_changed: function to handle output configuration changes
- * @atomic_check: check whether a give atomic state update is possible
+ * @atomic_check: check whether a given atomic state update is possible
  * @atomic_commit: commit an atomic state update previously verified with
  * 	atomic_check()
  *

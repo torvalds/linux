@@ -780,7 +780,7 @@ drm_atomic_set_crtc_for_plane(struct drm_plane_state *plane_state,
 EXPORT_SYMBOL(drm_atomic_set_crtc_for_plane);
 
 /**
- * drm_atomic_set_fb_for_plane - set crtc for plane
+ * drm_atomic_set_fb_for_plane - set framebuffer for plane
  * @plane_state: atomic state object for the plane
  * @fb: fb to use for the plane
  *
@@ -909,14 +909,13 @@ int
 drm_atomic_connectors_for_crtc(struct drm_atomic_state *state,
 			       struct drm_crtc *crtc)
 {
+	struct drm_connector *connector;
+	struct drm_connector_state *conn_state;
+
 	int i, num_connected_connectors = 0;
 
-	for (i = 0; i < state->num_connector; i++) {
-		struct drm_connector_state *conn_state;
-
-		conn_state = state->connector_states[i];
-
-		if (conn_state && conn_state->crtc == crtc)
+	for_each_connector_in_state(state, connector, conn_state, i) {
+		if (conn_state->crtc == crtc)
 			num_connected_connectors++;
 	}
 
@@ -933,7 +932,7 @@ EXPORT_SYMBOL(drm_atomic_connectors_for_crtc);
  *
  * This function should be used by legacy entry points which don't understand
  * -EDEADLK semantics. For simplicity this one will grab all modeset locks after
- *  the slowpath completed.
+ * the slowpath completed.
  */
 void drm_atomic_legacy_backoff(struct drm_atomic_state *state)
 {
@@ -968,19 +967,16 @@ int drm_atomic_check_only(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
 	struct drm_mode_config *config = &dev->mode_config;
-	int nplanes = config->num_total_plane;
-	int ncrtcs = config->num_crtc;
+	struct drm_plane *plane;
+	struct drm_plane_state *plane_state;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
 	int i, ret = 0;
 
 	DRM_DEBUG_ATOMIC("checking %p\n", state);
 
-	for (i = 0; i < nplanes; i++) {
-		struct drm_plane *plane = state->planes[i];
-
-		if (!plane)
-			continue;
-
-		ret = drm_atomic_plane_check(plane, state->plane_states[i]);
+	for_each_plane_in_state(state, plane, plane_state, i) {
+		ret = drm_atomic_plane_check(plane, plane_state);
 		if (ret) {
 			DRM_DEBUG_ATOMIC("[PLANE:%d] atomic core check failed\n",
 					 plane->base.id);
@@ -988,13 +984,8 @@ int drm_atomic_check_only(struct drm_atomic_state *state)
 		}
 	}
 
-	for (i = 0; i < ncrtcs; i++) {
-		struct drm_crtc *crtc = state->crtcs[i];
-
-		if (!crtc)
-			continue;
-
-		ret = drm_atomic_crtc_check(crtc, state->crtc_states[i]);
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		ret = drm_atomic_crtc_check(crtc, crtc_state);
 		if (ret) {
 			DRM_DEBUG_ATOMIC("[CRTC:%d] atomic core check failed\n",
 					 crtc->base.id);
@@ -1006,13 +997,7 @@ int drm_atomic_check_only(struct drm_atomic_state *state)
 		ret = config->funcs->atomic_check(state->dev, state);
 
 	if (!state->allow_modeset) {
-		for (i = 0; i < ncrtcs; i++) {
-			struct drm_crtc *crtc = state->crtcs[i];
-			struct drm_crtc_state *crtc_state = state->crtc_states[i];
-
-			if (!crtc)
-				continue;
-
+		for_each_crtc_in_state(state, crtc, crtc_state, i) {
 			if (crtc_state->mode_changed ||
 			    crtc_state->active_changed) {
 				DRM_DEBUG_ATOMIC("[CRTC:%d] requires full modeset\n",
@@ -1210,6 +1195,8 @@ int drm_mode_atomic_ioctl(struct drm_device *dev,
 	struct drm_atomic_state *state;
 	struct drm_modeset_acquire_ctx ctx;
 	struct drm_plane *plane;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
 	unsigned plane_mask = 0;
 	int ret = 0;
 	unsigned int i, j;
@@ -1313,14 +1300,8 @@ retry:
 	}
 
 	if (arg->flags & DRM_MODE_PAGE_FLIP_EVENT) {
-		int ncrtcs = dev->mode_config.num_crtc;
-
-		for (i = 0; i < ncrtcs; i++) {
-			struct drm_crtc_state *crtc_state = state->crtc_states[i];
+		for_each_crtc_in_state(state, crtc, crtc_state, i) {
 			struct drm_pending_vblank_event *e;
-
-			if (!crtc_state)
-				continue;
 
 			e = create_vblank_event(dev, file_priv, arg->user_data);
 			if (!e) {
@@ -1373,14 +1354,7 @@ fail:
 		goto backoff;
 
 	if (arg->flags & DRM_MODE_PAGE_FLIP_EVENT) {
-		int ncrtcs = dev->mode_config.num_crtc;
-
-		for (i = 0; i < ncrtcs; i++) {
-			struct drm_crtc_state *crtc_state = state->crtc_states[i];
-
-			if (!crtc_state)
-				continue;
-
+		for_each_crtc_in_state(state, crtc, crtc_state, i) {
 			destroy_vblank_event(dev, file_priv, crtc_state->event);
 			crtc_state->event = NULL;
 		}

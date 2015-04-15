@@ -238,7 +238,7 @@ static void drm_fb_helper_restore_lut_atomic(struct drm_crtc *crtc)
 int drm_fb_helper_debug_enter(struct fb_info *info)
 {
 	struct drm_fb_helper *helper = info->par;
-	struct drm_crtc_helper_funcs *funcs;
+	const struct drm_crtc_helper_funcs *funcs;
 	int i;
 
 	list_for_each_entry(helper, &kernel_fb_helper_list, kernel_fb_list) {
@@ -285,7 +285,7 @@ int drm_fb_helper_debug_leave(struct fb_info *info)
 {
 	struct drm_fb_helper *helper = info->par;
 	struct drm_crtc *crtc;
-	struct drm_crtc_helper_funcs *funcs;
+	const struct drm_crtc_helper_funcs *funcs;
 	struct drm_framebuffer *fb;
 	int i;
 
@@ -765,7 +765,7 @@ int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info)
 {
 	struct drm_fb_helper *fb_helper = info->par;
 	struct drm_device *dev = fb_helper->dev;
-	struct drm_crtc_helper_funcs *crtc_funcs;
+	const struct drm_crtc_helper_funcs *crtc_funcs;
 	u16 *red, *green, *blue, *transp;
 	struct drm_crtc *crtc;
 	int i, j, rc = 0;
@@ -1551,7 +1551,7 @@ static int drm_pick_crtcs(struct drm_fb_helper *fb_helper,
 	int c, o;
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_connector *connector;
-	struct drm_connector_helper_funcs *connector_funcs;
+	const struct drm_connector_helper_funcs *connector_funcs;
 	struct drm_encoder *encoder;
 	int my_score, best_score, score;
 	struct drm_fb_helper_crtc **crtcs, *crtc;

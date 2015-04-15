@@ -358,7 +358,7 @@ static bool nv04_dac_mode_fixup(struct drm_encoder *encoder,
 
 static void nv04_dac_prepare(struct drm_encoder *encoder)
 {
-	struct drm_encoder_helper_funcs *helper = encoder->helper_private;
+	const struct drm_encoder_helper_funcs *helper = encoder->helper_private;
 	struct drm_device *dev = encoder->dev;
 	int head = nouveau_crtc(encoder->crtc)->index;
 
@@ -409,7 +409,7 @@ static void nv04_dac_commit(struct drm_encoder *encoder)
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_drm *drm = nouveau_drm(encoder->dev);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
-	struct drm_encoder_helper_funcs *helper = encoder->helper_private;
+	const struct drm_encoder_helper_funcs *helper = encoder->helper_private;
 
 	helper->dpms(encoder, DRM_MODE_DPMS_ON);
 

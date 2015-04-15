@@ -2101,7 +2101,7 @@ static void hdmi_dpms(struct exynos_drm_display *display, int mode)
 	struct hdmi_context *hdata = display_to_hdmi(display);
 	struct drm_encoder *encoder = hdata->encoder;
 	struct drm_crtc *crtc = encoder->crtc;
-	struct drm_crtc_helper_funcs *funcs = NULL;
+	const struct drm_crtc_helper_funcs *funcs = NULL;
 
 	DRM_DEBUG_KMS("mode %d\n", mode);
 

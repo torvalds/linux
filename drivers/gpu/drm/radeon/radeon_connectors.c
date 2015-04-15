@@ -157,7 +157,7 @@ int radeon_get_monitor_bpc(struct drm_connector *connector)
 		if (connector->display_info.bpc)
 			bpc = connector->display_info.bpc;
 		else if (ASIC_IS_DCE41(rdev) || ASIC_IS_DCE5(rdev)) {
-			struct drm_connector_helper_funcs *connector_funcs =
+			const struct drm_connector_helper_funcs *connector_funcs =
 				connector->helper_private;
 			struct drm_encoder *encoder = connector_funcs->best_encoder(connector);
 			struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
@@ -247,7 +247,7 @@ radeon_connector_update_scratch_regs(struct drm_connector *connector, enum drm_c
 	struct radeon_device *rdev = dev->dev_private;
 	struct drm_encoder *best_encoder = NULL;
 	struct drm_encoder *encoder = NULL;
-	struct drm_connector_helper_funcs *connector_funcs = connector->helper_private;
+	const struct drm_connector_helper_funcs *connector_funcs = connector->helper_private;
 	bool connected;
 	int i;
 
@@ -724,7 +724,7 @@ static int radeon_connector_set_property(struct drm_connector *connector, struct
 		if (connector->encoder)
 			radeon_encoder = to_radeon_encoder(connector->encoder);
 		else {
-			struct drm_connector_helper_funcs *connector_funcs = connector->helper_private;
+			const struct drm_connector_helper_funcs *connector_funcs = connector->helper_private;
 			radeon_encoder = to_radeon_encoder(connector_funcs->best_encoder(connector));
 		}
 
@@ -751,7 +751,7 @@ static int radeon_connector_set_property(struct drm_connector *connector, struct
 		if (connector->encoder)
 			radeon_encoder = to_radeon_encoder(connector->encoder);
 		else {
-			struct drm_connector_helper_funcs *connector_funcs = connector->helper_private;
+			const struct drm_connector_helper_funcs *connector_funcs = connector->helper_private;
 			radeon_encoder = to_radeon_encoder(connector_funcs->best_encoder(connector));
 		}
 
@@ -762,7 +762,7 @@ static int radeon_connector_set_property(struct drm_connector *connector, struct
 
 		if (connector->encoder->crtc) {
 			struct drm_crtc *crtc  = connector->encoder->crtc;
-			struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+			const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 			struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 
 			radeon_crtc->output_csc = radeon_encoder->output_csc;
@@ -942,7 +942,7 @@ static int radeon_lvds_set_property(struct drm_connector *connector,
 	if (connector->encoder)
 		radeon_encoder = to_radeon_encoder(connector->encoder);
 	else {
-		struct drm_connector_helper_funcs *connector_funcs = connector->helper_private;
+		const struct drm_connector_helper_funcs *connector_funcs = connector->helper_private;
 		radeon_encoder = to_radeon_encoder(connector_funcs->best_encoder(connector));
 	}
 
@@ -1010,7 +1010,7 @@ radeon_vga_detect(struct drm_connector *connector, bool force)
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	struct drm_encoder *encoder;
-	struct drm_encoder_helper_funcs *encoder_funcs;
+	const struct drm_encoder_helper_funcs *encoder_funcs;
 	bool dret = false;
 	enum drm_connector_status ret = connector_status_disconnected;
 	int r;
@@ -1140,7 +1140,7 @@ static enum drm_connector_status
 radeon_tv_detect(struct drm_connector *connector, bool force)
 {
 	struct drm_encoder *encoder;
-	struct drm_encoder_helper_funcs *encoder_funcs;
+	const struct drm_encoder_helper_funcs *encoder_funcs;
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	enum drm_connector_status ret = connector_status_disconnected;
 	int r;
@@ -1220,7 +1220,7 @@ radeon_dvi_detect(struct drm_connector *connector, bool force)
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	struct drm_encoder *encoder = NULL;
-	struct drm_encoder_helper_funcs *encoder_funcs;
+	const struct drm_encoder_helper_funcs *encoder_funcs;
 	int i, r;
 	enum drm_connector_status ret = connector_status_disconnected;
 	bool dret = false, broken_edid = false;
@@ -1684,7 +1684,7 @@ radeon_dp_detect(struct drm_connector *connector, bool force)
 			if (radeon_ddc_probe(radeon_connector, true)) /* try DDC */
 				ret = connector_status_connected;
 			else if (radeon_connector->dac_load_detect) { /* try load detection */
-				struct drm_encoder_helper_funcs *encoder_funcs = encoder->helper_private;
+				const struct drm_encoder_helper_funcs *encoder_funcs = encoder->helper_private;
 				ret = encoder_funcs->detect(encoder, connector);
 			}
 		}
