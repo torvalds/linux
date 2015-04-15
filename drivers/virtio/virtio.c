@@ -280,7 +280,7 @@ static struct bus_type virtio_bus = {
 
 bool virtio_device_is_legacy_only(struct virtio_device_id id)
 {
-	return id.device == VIRTIO_ID_BALLOON;
+	return false;
 }
 EXPORT_SYMBOL_GPL(virtio_device_is_legacy_only);
 
