@@ -3198,13 +3198,20 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
                		dev_drv->id);
 	if (enable == 2 /*&& dev_drv->enable*/)
 		return 0;
+	pr_info("switch:en=%d,lcdc_id=%d,screen type=%d,cur type=%d\n",
+		enable, lcdc_id, screen->type, dev_drv->cur_screen->type);
+
+	mutex_lock(&dev_drv->switch_screen);
 	hdmi_switch_state = 0;
 	dev_drv->hdmi_switch = 1;
 
 	envp[0] = "switch screen";
 	envp[1] = kmalloc(32, GFP_KERNEL);
-	if (envp[1] == NULL)
+	if (envp[1] == NULL) {
+		pr_err("switch screen kmalloc envp[1] fail\n");
+		mutex_unlock(&dev_drv->switch_screen);
 		return 0;
+	}
 	sprintf(envp[1], "SCREEN=%d,ENABLE=%d", screen->type, enable);
 	envp[2] = NULL;
 
@@ -3226,6 +3233,7 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 		/* if screen type is different, we do not disable lcdc. */
 		if (dev_drv->cur_screen->type != screen->type) {
 			dev_drv->hdmi_switch = 0;
+			mutex_unlock(&dev_drv->switch_screen);
 			return 0;
 		}
 
@@ -3267,6 +3275,7 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 
 		hdmi_switch_state = 0;
 		dev_drv->hdmi_switch = 0;
+		mutex_unlock(&dev_drv->switch_screen);
 		return 0;
 	} else {
 		if (dev_drv->screen1)
@@ -3329,6 +3338,7 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 		    (rk_fb->disp_mode == ONE_DUAL))
 			dev_drv->ops->backlight_close(dev_drv, 0);
 	}
+	mutex_unlock(&dev_drv->switch_screen);
 	return 0;
 }
 
@@ -3607,6 +3617,7 @@ static int init_lcdc_device_driver(struct rk_fb *rk_fb,
 	mutex_init(&dev_drv->fb_win_id_mutex);
 	mutex_init(&dev_drv->win_config);
 	mutex_init(&dev_drv->front_lock);
+	mutex_init(&dev_drv->switch_screen);
 	dev_drv->ops->fb_win_remap(dev_drv, dev_drv->fb_win_map);
 	dev_drv->first_frame = 1;
 	dev_drv->overscan.left = 100;

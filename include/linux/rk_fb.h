@@ -615,6 +615,7 @@ struct rk_lcdc_driver {
 	struct mutex fb_win_id_mutex;
 	struct mutex win_config;
 
+	struct mutex switch_screen; /*for switch screen*/
 	struct completion frame_done;	/*sync for pan_display,whe we set a new
 					  frame address to lcdc register,we must
 					  make sure the frame begain to display*/
