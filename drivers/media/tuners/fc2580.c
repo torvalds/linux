@@ -33,11 +33,6 @@
  *   fc2580_wr_regs()
  *   fc2580_rd_regs()
  * could not be used for accessing more than one register at once.
- *
- * TODO:
- * Currently it blind writes bunch of static registers from the
- * fc2580_freq_regs_lut[] when fc2580_set_params() is called. Add some
- * logic to reduce unneeded register writes.
  */
 
 /* write multiple registers */
@@ -137,107 +132,110 @@ static int fc2580_wr_reg_ff(struct fc2580_priv *priv, u8 reg, u8 val)
 		return fc2580_wr_regs(priv, reg, &val, 1);
 }
 
+
 static int fc2580_set_params(struct dvb_frontend *fe)
 {
 	struct fc2580_priv *priv = fe->tuner_priv;
+	struct i2c_client *client = priv->client;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	int ret = 0, i;
-	unsigned int r_val, n_val, k_val, k_val_reg, f_ref;
-	u8 tmp_val, r18_val;
+	int ret, i;
+	unsigned int uitmp, div_ref, div_ref_val, div_n, k, k_cw, div_out;
 	u64 f_vco;
+	u8 u8tmp, synth_config;
+	unsigned long timeout;
 
-	/*
-	 * Fractional-N synthesizer/PLL.
-	 * Most likely all those PLL calculations are not correct. I am not
-	 * sure, but it looks like it is divider based Fractional-N synthesizer.
-	 * There is divider for reference clock too?
-	 * Anyhow, synthesizer calculation results seems to be quite correct.
-	 */
-
-	dev_dbg(&priv->i2c->dev, "%s: delivery_system=%d frequency=%d " \
-			"bandwidth_hz=%d\n", __func__,
-			c->delivery_system, c->frequency, c->bandwidth_hz);
+	dev_dbg(&client->dev,
+		"delivery_system=%u frequency=%u bandwidth_hz=%u\n",
+		c->delivery_system, c->frequency, c->bandwidth_hz);
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 
-	/* PLL */
+	/*
+	 * Fractional-N synthesizer
+	 *
+	 *                      +---------------------------------------+
+	 *                      v                                       |
+	 *  Fref   +----+     +----+     +-------+         +----+     +------+     +---+
+	 * ------> | /R | --> | PD | --> |  VCO  | ------> | /2 | --> | /N.F | <-- | K |
+	 *         +----+     +----+     +-------+         +----+     +------+     +---+
+	 *                                 |
+	 *                                 |
+	 *                                 v
+	 *                               +-------+  Fout
+	 *                               | /Rout | ------>
+	 *                               +-------+
+	 */
 	for (i = 0; i < ARRAY_SIZE(fc2580_pll_lut); i++) {
 		if (c->frequency <= fc2580_pll_lut[i].freq)
 			break;
 	}
-
-	if (i == ARRAY_SIZE(fc2580_pll_lut))
+	if (i == ARRAY_SIZE(fc2580_pll_lut)) {
+		ret = -EINVAL;
 		goto err;
+	}
 
-	f_vco = c->frequency;
-	f_vco *= fc2580_pll_lut[i].div;
-
-	if (f_vco >= 2600000000UL)
-		tmp_val = 0x0e | fc2580_pll_lut[i].band;
+	#define DIV_PRE_N 2
+	#define F_REF priv->clk
+	div_out = fc2580_pll_lut[i].div_out;
+	f_vco = (u64) c->frequency * div_out;
+	synth_config = fc2580_pll_lut[i].band;
+	if (f_vco < 2600000000ULL)
+		synth_config |= 0x06;
 	else
-		tmp_val = 0x06 | fc2580_pll_lut[i].band;
+		synth_config |= 0x0e;
 
-	ret = fc2580_wr_reg(priv, 0x02, tmp_val);
-	if (ret < 0)
-		goto err;
-
-	if (f_vco >= 2UL * 76 * priv->clk) {
-		r_val = 1;
-		r18_val = 0x00;
-	} else if (f_vco >= 1UL * 76 * priv->clk) {
-		r_val = 2;
-		r18_val = 0x10;
+	/* select reference divider R (keep PLL div N in valid range) */
+	#define DIV_N_MIN 76
+	if (f_vco >= div_u64((u64) DIV_PRE_N * DIV_N_MIN * F_REF, 1)) {
+		div_ref = 1;
+		div_ref_val = 0x00;
+	} else if (f_vco >= div_u64((u64) DIV_PRE_N * DIV_N_MIN * F_REF, 2)) {
+		div_ref = 2;
+		div_ref_val = 0x10;
 	} else {
-		r_val = 4;
-		r18_val = 0x20;
+		div_ref = 4;
+		div_ref_val = 0x20;
 	}
 
-	f_ref = 2UL * priv->clk / r_val;
-	n_val = div_u64_rem(f_vco, f_ref, &k_val);
-	k_val_reg = div_u64(1ULL * k_val * (1 << 20), f_ref);
+	/* calculate PLL integer and fractional control word */
+	uitmp = DIV_PRE_N * F_REF / div_ref;
+	div_n = div_u64_rem(f_vco, uitmp, &k);
+	k_cw = div_u64((u64) k * 0x100000, uitmp);
 
-	ret = fc2580_wr_reg(priv, 0x18, r18_val | ((k_val_reg >> 16) & 0xff));
+	dev_dbg(&client->dev,
+		"frequency=%u f_vco=%llu F_REF=%u div_ref=%u div_n=%u k=%u div_out=%u k_cw=%0x\n",
+		c->frequency, f_vco, F_REF, div_ref, div_n, k, div_out, k_cw);
+
+	ret = fc2580_wr_reg(priv, 0x02, synth_config);
 	if (ret < 0)
 		goto err;
 
-	ret = fc2580_wr_reg(priv, 0x1a, (k_val_reg >> 8) & 0xff);
+	ret = fc2580_wr_reg(priv, 0x18, div_ref_val << 0 | k_cw >> 16);
 	if (ret < 0)
 		goto err;
 
-	ret = fc2580_wr_reg(priv, 0x1b, (k_val_reg >> 0) & 0xff);
+	ret = fc2580_wr_reg(priv, 0x1a, (k_cw >> 8) & 0xff);
 	if (ret < 0)
 		goto err;
 
-	ret = fc2580_wr_reg(priv, 0x1c, n_val);
+	ret = fc2580_wr_reg(priv, 0x1b, (k_cw >> 0) & 0xff);
 	if (ret < 0)
 		goto err;
 
-	if (priv->clk >= 28000000) {
-		ret = fc2580_wr_reg(priv, 0x4b, 0x22);
-		if (ret < 0)
-			goto err;
-	}
-
-	if (fc2580_pll_lut[i].band == 0x00) {
-		if (c->frequency <= 794000000)
-			tmp_val = 0x9f;
-		else
-			tmp_val = 0x8f;
-
-		ret = fc2580_wr_reg(priv, 0x2d, tmp_val);
-		if (ret < 0)
-			goto err;
-	}
+	ret = fc2580_wr_reg(priv, 0x1c, div_n);
+	if (ret < 0)
+		goto err;
 
 	/* registers */
 	for (i = 0; i < ARRAY_SIZE(fc2580_freq_regs_lut); i++) {
 		if (c->frequency <= fc2580_freq_regs_lut[i].freq)
 			break;
 	}
-
-	if (i == ARRAY_SIZE(fc2580_freq_regs_lut))
+	if (i == ARRAY_SIZE(fc2580_freq_regs_lut)) {
+		ret = -EINVAL;
 		goto err;
+	}
 
 	ret = fc2580_wr_reg_ff(priv, 0x25, fc2580_freq_regs_lut[i].r25_val);
 	if (ret < 0)
@@ -340,16 +338,18 @@ static int fc2580_set_params(struct dvb_frontend *fe)
 		if (c->bandwidth_hz <= fc2580_if_filter_lut[i].freq)
 			break;
 	}
-
-	if (i == ARRAY_SIZE(fc2580_if_filter_lut))
+	if (i == ARRAY_SIZE(fc2580_if_filter_lut)) {
+		ret = -EINVAL;
 		goto err;
+	}
 
 	ret = fc2580_wr_reg(priv, 0x36, fc2580_if_filter_lut[i].r36_val);
 	if (ret < 0)
 		goto err;
 
-	ret = fc2580_wr_reg(priv, 0x37, div_u64(1ULL * priv->clk *
-			fc2580_if_filter_lut[i].mul, 1000000000));
+	u8tmp = div_u64((u64) priv->clk * fc2580_if_filter_lut[i].mul,
+			1000000000);
+	ret = fc2580_wr_reg(priv, 0x37, u8tmp);
 	if (ret < 0)
 		goto err;
 
@@ -357,36 +357,25 @@ static int fc2580_set_params(struct dvb_frontend *fe)
 	if (ret < 0)
 		goto err;
 
-	/* calibration? */
-	ret = fc2580_wr_reg(priv, 0x2e, 0x09);
-	if (ret < 0)
-		goto err;
-
-	for (i = 0; i < 5; i++) {
-		ret = fc2580_rd_reg(priv, 0x2f, &tmp_val);
-		if (ret < 0)
+	timeout = jiffies + msecs_to_jiffies(30);
+	for (uitmp = ~0xc0; !time_after(jiffies, timeout) && uitmp != 0xc0;) {
+		/* trigger filter */
+		ret = fc2580_wr_reg(priv, 0x2e, 0x09);
+		if (ret)
 			goto err;
 
-		/* done when [7:6] are set */
-		if ((tmp_val & 0xc0) == 0xc0)
-			break;
+		/* locked when [7:6] are set (val: d7 6MHz, d5 7MHz, cd 8MHz) */
+		ret = fc2580_rd_reg(priv, 0x2f, &u8tmp);
+		if (ret)
+			goto err;
+		uitmp = u8tmp & 0xc0;
 
 		ret = fc2580_wr_reg(priv, 0x2e, 0x01);
-		if (ret < 0)
+		if (ret)
 			goto err;
-
-		ret = fc2580_wr_reg(priv, 0x2e, 0x09);
-		if (ret < 0)
-			goto err;
-
-		usleep_range(5000, 25000);
 	}
-
-	dev_dbg(&priv->i2c->dev, "%s: loop=%i\n", __func__, i);
-
-	ret = fc2580_wr_reg(priv, 0x2e, 0x01);
-	if (ret < 0)
-		goto err;
+	if (uitmp != 0xc0)
+		dev_dbg(&client->dev, "filter did not lock %02x\n", uitmp);
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
@@ -396,7 +385,7 @@ err:
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
 
-	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&client->dev, "failed=%d\n", ret);
 	return ret;
 }
 
