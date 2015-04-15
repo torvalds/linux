@@ -77,8 +77,26 @@
 			interrupts = < 8 >;
 		};
 
+		/*
+		 * According to DW Mobile Storage databook it is required
+		 * to use  "Hold Register" if card is enumerated in SDR12 or
+		 * SDR25 modes.
+		 *
+		 * Utilization of "Hold Register" is already implemented via
+		 * dw_mci_pltfm_prepare_command() which in its turn gets
+		 * used through dw_mci_drv_data->prepare_command call-back.
+		 * This call-back is used in Altera Socfpga platform and so
+		 * we may reuse it saying that we're compatible with their
+		 * "altr,socfpga-dw-mshc".
+		 *
+		 * Most probably "Hold Register" utilization is platform-
+		 * independent requirement which means that single unified
+		 * "snps,dw-mshc" should be enough for all users of DW MMC once
+		 * dw_mci_pltfm_prepare_command() is used in generic platform
+		 * code.
+		 */
 		mmc@0x15000 {
-			compatible = "snps,dw-mshc";
+			compatible = "altr,socfpga-dw-mshc";
 			reg = < 0x15000 0x400 >;
 			num-slots = < 1 >;
 			fifo-depth = < 16 >;
