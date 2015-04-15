@@ -62,9 +62,27 @@ do {							\
 		groups_free(group_info);		\
 } while (0)
 
-extern struct group_info *groups_alloc(int);
 extern struct group_info init_groups;
+#ifdef CONFIG_MULTIUSER
+extern struct group_info *groups_alloc(int);
 extern void groups_free(struct group_info *);
+
+extern int in_group_p(kgid_t);
+extern int in_egroup_p(kgid_t);
+#else
+static inline void groups_free(struct group_info *group_info)
+{
+}
+
+static inline int in_group_p(kgid_t grp)
+{
+        return 1;
+}
+static inline int in_egroup_p(kgid_t grp)
+{
+        return 1;
+}
+#endif
 extern int set_current_groups(struct group_info *);
 extern void set_groups(struct cred *, struct group_info *);
 extern int groups_search(const struct group_info *, kgid_t);
@@ -73,9 +91,6 @@ extern bool may_setgroups(void);
 /* access the groups "array" with this macro */
 #define GROUP_AT(gi, i) \
 	((gi)->blocks[(i) / NGROUPS_PER_BLOCK][(i) % NGROUPS_PER_BLOCK])
-
-extern int in_group_p(kgid_t);
-extern int in_egroup_p(kgid_t);
 
 /*
  * The security context of a task
