@@ -1,5 +1,3 @@
-#ifdef CONFIG_SCHED_AUTOGROUP
-
 #include "sched.h"
 
 #include <linux/proc_fs.h>
@@ -249,5 +247,3 @@ int autogroup_path(struct task_group *tg, char *buf, int buflen)
 	return snprintf(buf, buflen, "%s-%ld", "/autogroup", tg->autogroup->id);
 }
 #endif /* CONFIG_SCHED_DEBUG */
-
-#endif /* CONFIG_SCHED_AUTOGROUP */
