@@ -8,6 +8,21 @@ If variable is of Type,		use printk format specifier:
 		unsigned long long	%llu or %llx
 		size_t			%zu or %zx
 		ssize_t			%zd or %zx
+		s32			%d or %x
+		u32			%u or %x
+		s64			%lld or %llx
+		u64			%llu or %llx
+
+If <type> is dependent on a config option for its size (e.g., sector_t,
+blkcnt_t) or is architecture-dependent for its size (e.g., tcflag_t), use a
+format specifier of its largest possible type and explicitly cast to it.
+Example:
+
+	printk("test: sector number/total blocks: %llu/%llu\n",
+		(unsigned long long)sector, (unsigned long long)blockcount);
+
+Reminder: sizeof() result is of type size_t.
+
 
 Raw pointer value SHOULD be printed with %p. The kernel supports
 the following extended format specifiers for pointer types:
@@ -246,23 +261,6 @@ struct va_format:
 
 	Passed by reference.
 
-u64 SHOULD be printed with %llu/%llx:
-
-	printk("%llu", u64_var);
-
-s64 SHOULD be printed with %lld/%llx:
-
-	printk("%lld", s64_var);
-
-If <type> is dependent on a config option for its size (e.g., sector_t,
-blkcnt_t) or is architecture-dependent for its size (e.g., tcflag_t), use a
-format specifier of its largest possible type and explicitly cast to it.
-Example:
-
-	printk("test: sector number/total blocks: %llu/%llu\n",
-		(unsigned long long)sector, (unsigned long long)blockcount);
-
-Reminder: sizeof() result is of type size_t.
 
 Thank you for your cooperation and attention.
 
