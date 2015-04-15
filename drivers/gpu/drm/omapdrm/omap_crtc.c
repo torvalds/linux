@@ -368,8 +368,6 @@ static int omap_crtc_flush(struct drm_crtc *crtc)
 	WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
 	WARN_ON(omap_crtc->vblank_irq.registered);
 
-	dispc_runtime_get();
-
 	if (dispc_mgr_is_enabled(omap_crtc->channel)) {
 		dispc_mgr_go(omap_crtc->channel);
 		omap_irq_register(crtc->dev, &omap_crtc->vblank_irq);
@@ -378,8 +376,6 @@ static int omap_crtc_flush(struct drm_crtc *crtc)
 						     msecs_to_jiffies(100)));
 		reinit_completion(&omap_crtc->completion);
 	}
-
-	dispc_runtime_put();
 
 	return 0;
 }
