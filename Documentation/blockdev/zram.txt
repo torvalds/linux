@@ -98,20 +98,40 @@ size of the disk when not in use so a huge zram is wasteful.
 	mount /dev/zram1 /tmp
 
 7) Stats:
-	Per-device statistics are exported as various nodes under
-	/sys/block/zram<id>/
-		disksize
-		num_reads
-		num_writes
-		failed_reads
-		failed_writes
-		invalid_io
-		notify_free
-		zero_pages
-		orig_data_size
-		compr_data_size
-		mem_used_total
-		mem_used_max
+Per-device statistics are exported as various nodes under /sys/block/zram<id>/
+
+A brief description of exported device attritbutes. For more details please
+read Documentation/ABI/testing/sysfs-block-zram.
+
+Name            access            description
+----            ------            -----------
+disksize          RW    show and set the device's disk size
+initstate         RO    shows the initialization state of the device
+reset             WO    trigger device reset
+num_reads         RO    the number of reads
+failed_reads      RO    the number of failed reads
+num_write         RO    the number of writes
+failed_writes     RO    the number of failed writes
+invalid_io        RO    the number of non-page-size-aligned I/O requests
+max_comp_streams  RW    the number of possible concurrent compress operations
+comp_algorithm    RW    show and change the compression algorithm
+notify_free       RO    the number of notifications to free pages (either
+                        slot free notifications or REQ_DISCARD requests)
+zero_pages        RO    the number of zero filled pages written to this disk
+orig_data_size    RO    uncompressed size of data stored in this disk
+compr_data_size   RO    compressed size of data stored in this disk
+mem_used_total    RO    the amount of memory allocated for this disk
+mem_used_max      RW    the maximum amount memory zram have consumed to
+                        store compressed data
+mem_limit         RW    the maximum amount of memory ZRAM can use to store
+                        the compressed data
+num_migrated      RO    the number of objects migrated migrated by compaction
+
+
+File /sys/block/zram<id>/stat
+
+Represents block layer statistics. Read Documentation/block/stat.txt for
+details.
 
 8) Deactivate:
 	swapoff /dev/zram0
