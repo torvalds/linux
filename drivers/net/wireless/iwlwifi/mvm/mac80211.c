@@ -737,6 +737,60 @@ static inline bool iwl_enable_tx_ampdu(const struct iwl_cfg *cfg)
 	return true;
 }
 
+#define CHECK_BA_TRIGGER(_mvm, _trig, _tid_bm, _tid, _fmt...)	\
+	do {							\
+		if (!(le16_to_cpu(_tid_bm) & BIT(_tid)))	\
+			break;					\
+		iwl_mvm_fw_dbg_collect_trig(_mvm, _trig, _fmt);	\
+	} while (0)
+
+static void
+iwl_mvm_ampdu_check_trigger(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			    struct ieee80211_sta *sta, u16 tid, u16 rx_ba_ssn,
+			    enum ieee80211_ampdu_mlme_action action)
+{
+	struct iwl_fw_dbg_trigger_tlv *trig;
+	struct iwl_fw_dbg_trigger_ba *ba_trig;
+
+	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_BA))
+		return;
+
+	trig = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_BA);
+	ba_trig = (void *)trig->data;
+
+	if (!iwl_fw_dbg_trigger_check_stop(mvm, vif, trig))
+		return;
+
+	switch (action) {
+	case IEEE80211_AMPDU_TX_OPERATIONAL: {
+		struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+		struct iwl_mvm_tid_data *tid_data = &mvmsta->tid_data[tid];
+
+		CHECK_BA_TRIGGER(mvm, trig, ba_trig->tx_ba_start, tid,
+				 "TX AGG START: MAC %pM tid %d ssn %d\n",
+				 sta->addr, tid, tid_data->ssn);
+		break;
+		}
+	case IEEE80211_AMPDU_TX_STOP_CONT:
+		CHECK_BA_TRIGGER(mvm, trig, ba_trig->tx_ba_stop, tid,
+				 "TX AGG STOP: MAC %pM tid %d\n",
+				 sta->addr, tid);
+		break;
+	case IEEE80211_AMPDU_RX_START:
+		CHECK_BA_TRIGGER(mvm, trig, ba_trig->rx_ba_start, tid,
+				 "RX AGG START: MAC %pM tid %d ssn %d\n",
+				 sta->addr, tid, rx_ba_ssn);
+		break;
+	case IEEE80211_AMPDU_RX_STOP:
+		CHECK_BA_TRIGGER(mvm, trig, ba_trig->rx_ba_stop, tid,
+				 "RX AGG STOP: MAC %pM tid %d\n",
+				 sta->addr, tid);
+		break;
+	default:
+		break;
+	}
+}
+
 static int iwl_mvm_mac_ampdu_action(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
 				    enum ieee80211_ampdu_mlme_action action,
@@ -812,6 +866,16 @@ static int iwl_mvm_mac_ampdu_action(struct ieee80211_hw *hw,
 		WARN_ON_ONCE(1);
 		ret = -EINVAL;
 		break;
+	}
+
+	if (!ret) {
+		u16 rx_ba_ssn = 0;
+
+		if (action == IEEE80211_AMPDU_RX_START)
+			rx_ba_ssn = *ssn;
+
+		iwl_mvm_ampdu_check_trigger(mvm, vif, sta, tid,
+					    rx_ba_ssn, action);
 	}
 	mutex_unlock(&mvm->mutex);
 
@@ -3904,9 +3968,9 @@ static void iwl_mvm_mac_sta_statistics(struct ieee80211_hw *hw,
 	mutex_unlock(&mvm->mutex);
 }
 
-static void iwl_mvm_mac_event_callback(struct ieee80211_hw *hw,
-				       struct ieee80211_vif *vif,
-				       const struct ieee80211_event *event)
+static void iwl_mvm_event_mlme_callback(struct iwl_mvm *mvm,
+					struct ieee80211_vif *vif,
+					const struct ieee80211_event *event)
 {
 #define CHECK_MLME_TRIGGER(_mvm, _trig, _buf, _cnt, _fmt...)	\
 	do {							\
@@ -3915,7 +3979,6 @@ static void iwl_mvm_mac_event_callback(struct ieee80211_hw *hw,
 		iwl_mvm_fw_dbg_collect_trig(_mvm, _trig, _fmt);\
 	} while (0)
 
-	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_fw_dbg_trigger_tlv *trig;
 	struct iwl_fw_dbg_trigger_mlme *trig_mlme;
 
@@ -3957,6 +4020,75 @@ static void iwl_mvm_mac_event_callback(struct ieee80211_hw *hw,
 				   "DEAUTH TX %d", event->u.mlme.reason);
 	}
 #undef CHECK_MLME_TRIGGER
+}
+
+static void iwl_mvm_event_bar_rx_callback(struct iwl_mvm *mvm,
+					  struct ieee80211_vif *vif,
+					  const struct ieee80211_event *event)
+{
+	struct iwl_fw_dbg_trigger_tlv *trig;
+	struct iwl_fw_dbg_trigger_ba *ba_trig;
+
+	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_BA))
+		return;
+
+	trig = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_BA);
+	ba_trig = (void *)trig->data;
+	if (!iwl_fw_dbg_trigger_check_stop(mvm, vif, trig))
+		return;
+
+	if (!(le16_to_cpu(ba_trig->rx_bar) & BIT(event->u.ba.tid)))
+		return;
+
+	iwl_mvm_fw_dbg_collect_trig(mvm, trig,
+				    "BAR received from %pM, tid %d, ssn %d",
+				    event->u.ba.sta->addr, event->u.ba.tid,
+				    event->u.ba.ssn);
+}
+
+static void
+iwl_mvm_event_frame_timeout_callback(struct iwl_mvm *mvm,
+				     struct ieee80211_vif *vif,
+				     const struct ieee80211_event *event)
+{
+	struct iwl_fw_dbg_trigger_tlv *trig;
+	struct iwl_fw_dbg_trigger_ba *ba_trig;
+
+	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_BA))
+		return;
+
+	trig = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_BA);
+	ba_trig = (void *)trig->data;
+	if (!iwl_fw_dbg_trigger_check_stop(mvm, vif, trig))
+		return;
+
+	if (!(le16_to_cpu(ba_trig->frame_timeout) & BIT(event->u.ba.tid)))
+		return;
+
+	iwl_mvm_fw_dbg_collect_trig(mvm, trig,
+				    "Frame from %pM timed out, tid %d",
+				    event->u.ba.sta->addr, event->u.ba.tid);
+}
+
+static void iwl_mvm_mac_event_callback(struct ieee80211_hw *hw,
+				       struct ieee80211_vif *vif,
+				       const struct ieee80211_event *event)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+
+	switch (event->type) {
+	case MLME_EVENT:
+		iwl_mvm_event_mlme_callback(mvm, vif, event);
+		break;
+	case BAR_RX_EVENT:
+		iwl_mvm_event_bar_rx_callback(mvm, vif, event);
+		break;
+	case BA_FRAME_TIMEOUT:
+		iwl_mvm_event_frame_timeout_callback(mvm, vif, event);
+		break;
+	default:
+		break;
+	}
 }
 
 const struct ieee80211_ops iwl_mvm_hw_ops = {

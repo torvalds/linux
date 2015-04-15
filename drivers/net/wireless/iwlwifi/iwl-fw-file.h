@@ -664,6 +664,33 @@ struct iwl_fw_dbg_trigger_time_event {
 } __packed;
 
 /**
+ * struct iwl_fw_dbg_trigger_ba - configures BlockAck related trigger
+ * rx_ba_start: tid bitmap to configure on what tid the trigger should occur
+ *	when an Rx BlockAck session is started.
+ * rx_ba_stop: tid bitmap to configure on what tid the trigger should occur
+ *	when an Rx BlockAck session is stopped.
+ * tx_ba_start: tid bitmap to configure on what tid the trigger should occur
+ *	when a Tx BlockAck session is started.
+ * tx_ba_stop: tid bitmap to configure on what tid the trigger should occur
+ *	when a Tx BlockAck session is stopped.
+ * rx_bar: tid bitmap to configure on what tid the trigger should occur
+ *	when a BAR is received (for a Tx BlockAck session).
+ * tx_bar: tid bitmap to configure on what tid the trigger should occur
+ *	when a BAR is send (for an Rx BlocAck session).
+ * frame_timeout: tid bitmap to configure on what tid the trigger should occur
+ *	when a frame times out in the reodering buffer.
+ */
+struct iwl_fw_dbg_trigger_ba {
+	__le16 rx_ba_start;
+	__le16 rx_ba_stop;
+	__le16 tx_ba_start;
+	__le16 tx_ba_stop;
+	__le16 rx_bar;
+	__le16 tx_bar;
+	__le16 frame_timeout;
+} __packed;
+
+/**
  * struct iwl_fw_dbg_conf_tlv - a TLV that describes a debug configuration.
  * @id: conf id
  * @usniffer: should the uSniffer image be used
