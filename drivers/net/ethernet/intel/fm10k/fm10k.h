@@ -1,5 +1,5 @@
 /* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -235,6 +235,9 @@ struct fm10k_vxlan_port {
 	__be16			port;
 };
 
+/* one work queue for entire driver */
+extern struct workqueue_struct *fm10k_workqueue;
+
 struct fm10k_intfc {
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	struct net_device *netdev;
@@ -266,7 +269,6 @@ struct fm10k_intfc {
 	u64 tx_csum_errors;
 	u64 alloc_failed;
 	u64 rx_csum_errors;
-	u64 rx_errors;
 
 	u64 tx_bytes_nic;
 	u64 tx_packets_nic;
@@ -458,6 +460,9 @@ void fm10k_down(struct fm10k_intfc *interface);
 void fm10k_update_stats(struct fm10k_intfc *interface);
 void fm10k_service_event_schedule(struct fm10k_intfc *interface);
 void fm10k_update_rx_drop_en(struct fm10k_intfc *interface);
+#ifdef CONFIG_NET_POLL_CONTROLLER
+void fm10k_netpoll(struct net_device *netdev);
+#endif
 
 /* Netdev */
 struct net_device *fm10k_alloc_netdev(void);

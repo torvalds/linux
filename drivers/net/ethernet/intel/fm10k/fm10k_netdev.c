@@ -1,5 +1,5 @@
 /* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -770,14 +770,14 @@ static int fm10k_update_vid(struct net_device *netdev, u16 vid, bool set)
 	if (hw->mac.vlan_override)
 		return -EACCES;
 
-	/* if default VLAN is already present do nothing */
-	if (vid == hw->mac.default_vid)
-		return -EBUSY;
-
 	/* update active_vlans bitmask */
 	set_bit(vid, interface->active_vlans);
 	if (!set)
 		clear_bit(vid, interface->active_vlans);
+
+	/* if default VLAN is already present do nothing */
+	if (vid == hw->mac.default_vid)
+		return 0;
 
 	fm10k_mbx_lock(interface);
 
@@ -970,14 +970,7 @@ static void fm10k_set_rx_mode(struct net_device *dev)
 
 	fm10k_mbx_lock(interface);
 
-	/* synchronize all of the addresses */
-	if (xcast_mode != FM10K_XCAST_MODE_PROMISC) {
-		__dev_uc_sync(dev, fm10k_uc_sync, fm10k_uc_unsync);
-		if (xcast_mode != FM10K_XCAST_MODE_ALLMULTI)
-			__dev_mc_sync(dev, fm10k_mc_sync, fm10k_mc_unsync);
-	}
-
-	/* if we aren't changing modes there is nothing to do */
+	/* update xcast mode first, but only if it changed */
 	if (interface->xcast_mode != xcast_mode) {
 		/* update VLAN table */
 		if (xcast_mode == FM10K_XCAST_MODE_PROMISC)
@@ -990,6 +983,13 @@ static void fm10k_set_rx_mode(struct net_device *dev)
 
 		/* record updated xcast mode state */
 		interface->xcast_mode = xcast_mode;
+	}
+
+	/* synchronize all of the addresses */
+	if (xcast_mode != FM10K_XCAST_MODE_PROMISC) {
+		__dev_uc_sync(dev, fm10k_uc_sync, fm10k_uc_unsync);
+		if (xcast_mode != FM10K_XCAST_MODE_ALLMULTI)
+			__dev_mc_sync(dev, fm10k_mc_sync, fm10k_mc_unsync);
 	}
 
 	fm10k_mbx_unlock(interface);
@@ -1051,15 +1051,15 @@ void fm10k_restore_rx_state(struct fm10k_intfc *interface)
 					   vid, true, 0);
 	}
 
+	/* update xcast mode before syncronizing addresses */
+	hw->mac.ops.update_xcast_mode(hw, glort, xcast_mode);
+
 	/* synchronize all of the addresses */
 	if (xcast_mode != FM10K_XCAST_MODE_PROMISC) {
 		__dev_uc_sync(netdev, fm10k_uc_sync, fm10k_uc_unsync);
 		if (xcast_mode != FM10K_XCAST_MODE_ALLMULTI)
 			__dev_mc_sync(netdev, fm10k_mc_sync, fm10k_mc_unsync);
 	}
-
-	/* update xcast mode */
-	hw->mac.ops.update_xcast_mode(hw, glort, xcast_mode);
 
 	fm10k_mbx_unlock(interface);
 
@@ -1126,7 +1126,7 @@ static struct rtnl_link_stats64 *fm10k_get_stats64(struct net_device *netdev,
 	}
 
 	for (i = 0; i < interface->num_tx_queues; i++) {
-		ring = ACCESS_ONCE(interface->rx_ring[i]);
+		ring = ACCESS_ONCE(interface->tx_ring[i]);
 
 		if (!ring)
 			continue;
@@ -1382,6 +1382,9 @@ static const struct net_device_ops fm10k_netdev_ops = {
 	.ndo_do_ioctl		= fm10k_ioctl,
 	.ndo_dfwd_add_station	= fm10k_dfwd_add_station,
 	.ndo_dfwd_del_station	= fm10k_dfwd_del_station,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= fm10k_netpoll,
+#endif
 	.ndo_features_check	= fm10k_features_check,
 };
 

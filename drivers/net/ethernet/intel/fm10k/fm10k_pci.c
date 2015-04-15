@@ -1,5 +1,5 @@
 /* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -94,7 +94,7 @@ void fm10k_service_event_schedule(struct fm10k_intfc *interface)
 {
 	if (!test_bit(__FM10K_SERVICE_DISABLE, &interface->state) &&
 	    !test_and_set_bit(__FM10K_SERVICE_SCHED, &interface->state))
-		schedule_work(&interface->service_task);
+		queue_work(fm10k_workqueue, &interface->service_task);
 }
 
 static void fm10k_service_event_complete(struct fm10k_intfc *interface)
@@ -191,7 +191,6 @@ static void fm10k_reset_subtask(struct fm10k_intfc *interface)
 	interface->flags &= ~FM10K_FLAG_RESET_REQUESTED;
 
 	netdev_err(interface->netdev, "Reset interface\n");
-	interface->tx_timeout_count++;
 
 	fm10k_reinit(interface);
 }
@@ -357,11 +356,10 @@ void fm10k_update_stats(struct fm10k_intfc *interface)
 	net_stats->rx_packets = pkts;
 	interface->alloc_failed = alloc_failed;
 	interface->rx_csum_errors = rx_csum_errors;
-	interface->rx_errors = rx_errors;
 
 	hw->mac.ops.update_hw_stats(hw, &interface->stats);
 
-	for (i = 0; i < FM10K_MAX_QUEUES_PF; i++) {
+	for (i = 0; i < hw->mac.max_queues; i++) {
 		struct fm10k_hw_stats_q *q = &interface->stats.q[i];
 
 		tx_bytes_nic += q->tx_bytes.count;
@@ -378,7 +376,7 @@ void fm10k_update_stats(struct fm10k_intfc *interface)
 	interface->rx_drops_nic = rx_drops_nic;
 
 	/* Fill out the OS statistics structure */
-	net_stats->rx_errors = interface->stats.xec.count;
+	net_stats->rx_errors = rx_errors;
 	net_stats->rx_dropped = interface->stats.nodesc_drop.count;
 }
 
@@ -808,7 +806,7 @@ static void fm10k_napi_enable_all(struct fm10k_intfc *interface)
 	}
 }
 
-static irqreturn_t fm10k_msix_clean_rings(int irq, void *data)
+static irqreturn_t fm10k_msix_clean_rings(int __always_unused irq, void *data)
 {
 	struct fm10k_q_vector *q_vector = data;
 
@@ -818,7 +816,7 @@ static irqreturn_t fm10k_msix_clean_rings(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t fm10k_msix_mbx_vf(int irq, void *data)
+static irqreturn_t fm10k_msix_mbx_vf(int __always_unused irq, void *data)
 {
 	struct fm10k_intfc *interface = data;
 	struct fm10k_hw *hw = &interface->hw;
@@ -840,6 +838,28 @@ static irqreturn_t fm10k_msix_mbx_vf(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+/**
+ *  fm10k_netpoll - A Polling 'interrupt' handler
+ *  @netdev: network interface device structure
+ *
+ *  This is used by netconsole to send skbs without having to re-enable
+ *  interrupts. It's not called while the normal interrupt routine is executing.
+ **/
+void fm10k_netpoll(struct net_device *netdev)
+{
+	struct fm10k_intfc *interface = netdev_priv(netdev);
+	int i;
+
+	/* if interface is down do nothing */
+	if (test_bit(__FM10K_DOWN, &interface->state))
+		return;
+
+	for (i = 0; i < interface->num_q_vectors; i++)
+		fm10k_msix_clean_rings(0, interface->q_vector[i]);
+}
+
+#endif
 #define FM10K_ERR_MSG(type) case (type): error = #type; break
 static void fm10k_print_fault(struct fm10k_intfc *interface, int type,
 			      struct fm10k_fault *fault)
@@ -964,7 +984,7 @@ static void fm10k_reset_drop_on_empty(struct fm10k_intfc *interface, u32 eicr)
 	}
 }
 
-static irqreturn_t fm10k_msix_mbx_pf(int irq, void *data)
+static irqreturn_t fm10k_msix_mbx_pf(int __always_unused irq, void *data)
 {
 	struct fm10k_intfc *interface = data;
 	struct fm10k_hw *hw = &interface->hw;
@@ -986,6 +1006,7 @@ static irqreturn_t fm10k_msix_mbx_pf(int irq, void *data)
 	/* service mailboxes */
 	if (fm10k_mbx_trylock(interface)) {
 		mbx->ops.process(hw, mbx);
+		/* handle VFLRE events */
 		fm10k_iov_event(interface);
 		fm10k_mbx_unlock(interface);
 	}
@@ -1002,6 +1023,8 @@ static irqreturn_t fm10k_msix_mbx_pf(int irq, void *data)
 
 	/* we should validate host state after interrupt event */
 	hw->mac.get_host_state = 1;
+
+	/* validate host state, and handle VF mailboxes in the service task */
 	fm10k_service_event_schedule(interface);
 
 	/* re-enable mailbox interrupt and indicate 20us delay */
@@ -1069,7 +1092,7 @@ static s32 fm10k_mbx_mac_addr(struct fm10k_hw *hw, u32 **results,
 }
 
 static s32 fm10k_1588_msg_vf(struct fm10k_hw *hw, u32 **results,
-			     struct fm10k_mbx_info *mbx)
+			     struct fm10k_mbx_info __always_unused *mbx)
 {
 	struct fm10k_intfc *interface;
 	u64 timestamp;
@@ -1089,7 +1112,7 @@ static s32 fm10k_1588_msg_vf(struct fm10k_hw *hw, u32 **results,
 
 /* generic error handler for mailbox issues */
 static s32 fm10k_mbx_error(struct fm10k_hw *hw, u32 **results,
-			   struct fm10k_mbx_info *mbx)
+			   struct fm10k_mbx_info __always_unused *mbx)
 {
 	struct fm10k_intfc *interface;
 	struct pci_dev *pdev;
@@ -1165,7 +1188,7 @@ static s32 fm10k_lport_map(struct fm10k_hw *hw, u32 **results,
 }
 
 static s32 fm10k_update_pvid(struct fm10k_hw *hw, u32 **results,
-			     struct fm10k_mbx_info *mbx)
+			     struct fm10k_mbx_info __always_unused *mbx)
 {
 	struct fm10k_intfc *interface;
 	u16 glort, pvid;
@@ -1206,7 +1229,7 @@ static s32 fm10k_update_pvid(struct fm10k_hw *hw, u32 **results,
 }
 
 static s32 fm10k_1588_msg_pf(struct fm10k_hw *hw, u32 **results,
-			     struct fm10k_mbx_info *mbx)
+			     struct fm10k_mbx_info __always_unused *mbx)
 {
 	struct fm10k_swapi_1588_timestamp timestamp;
 	struct fm10k_iov_data *iov_data;
@@ -1488,7 +1511,7 @@ void fm10k_up(struct fm10k_intfc *interface)
 	/* enable transmits */
 	netif_tx_start_all_queues(interface->netdev);
 
-	/* kick off the service timer */
+	/* kick off the service timer now */
 	hw->mac.get_host_state = 1;
 	mod_timer(&interface->service_timer, jiffies);
 }
@@ -1527,8 +1550,6 @@ void fm10k_down(struct fm10k_intfc *interface)
 
 	/* disable polling routines */
 	fm10k_napi_disable_all(interface);
-
-	del_timer_sync(&interface->service_timer);
 
 	/* capture stats one last time before stopping interface */
 	fm10k_update_stats(interface);
@@ -1654,6 +1675,9 @@ static int fm10k_sw_init(struct fm10k_intfc *interface,
 	setup_timer(&interface->service_timer, &fm10k_service_timer,
 		    (unsigned long)interface);
 	INIT_WORK(&interface->service_task, fm10k_service_task);
+
+	/* kick off service timer now, even when interface is down */
+	mod_timer(&interface->service_timer, (HZ * 2) + jiffies);
 
 	/* Intitialize timestamp data */
 	fm10k_ts_init(interface);
@@ -1871,6 +1895,8 @@ static void fm10k_remove(struct pci_dev *pdev)
 	struct fm10k_intfc *interface = pci_get_drvdata(pdev);
 	struct net_device *netdev = interface->netdev;
 
+	del_timer_sync(&interface->service_timer);
+
 	set_bit(__FM10K_SERVICE_DISABLE, &interface->state);
 	cancel_work_sync(&interface->service_task);
 
@@ -1984,7 +2010,8 @@ static int fm10k_resume(struct pci_dev *pdev)
  * a sleep state.  The fm10k hardware does not support wake on lan so the
  * driver simply needs to shut down the device so it is in a low power state.
  **/
-static int fm10k_suspend(struct pci_dev *pdev, pm_message_t state)
+static int fm10k_suspend(struct pci_dev *pdev,
+			 pm_message_t __always_unused state)
 {
 	struct fm10k_intfc *interface = pci_get_drvdata(pdev);
 	struct net_device *netdev = interface->netdev;

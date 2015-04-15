@@ -329,6 +329,9 @@ static s32 fm10k_update_xc_addr_pf(struct fm10k_hw *hw, u16 glort,
 	struct fm10k_mac_update mac_update;
 	u32 msg[5];
 
+	/* clear set bit from VLAN ID */
+	vid &= ~FM10K_VLAN_CLEAR;
+
 	/* if glort or vlan are not valid return error */
 	if (!fm10k_glort_valid_pf(hw, glort) || vid >= FM10K_VLAN_TABLE_VID_MAX)
 		return FM10K_ERR_PARAM;
@@ -676,7 +679,8 @@ static s32 fm10k_iov_assign_resources_pf(struct fm10k_hw *hw, u16 num_vfs,
 	/* loop through unallocated rings assigning them back to PF */
 	for (i = FM10K_MAX_QUEUES_PF; i < vf_q_idx; i++) {
 		fm10k_write_reg(hw, FM10K_TXDCTL(i), 0);
-		fm10k_write_reg(hw, FM10K_TXQCTL(i), FM10K_TXQCTL_PF | vid);
+		fm10k_write_reg(hw, FM10K_TXQCTL(i), FM10K_TXQCTL_PF |
+				FM10K_TXQCTL_UNLIMITED_BW | vid);
 		fm10k_write_reg(hw, FM10K_RXQCTL(i), FM10K_RXQCTL_PF);
 	}
 
@@ -1249,8 +1253,8 @@ s32 fm10k_iov_msg_mac_vlan_pf(struct fm10k_hw *hw, u32 **results,
 		}
 
 		/* notify switch of request for new multicast address */
-		err = hw->mac.ops.update_mc_addr(hw, vf_info->glort, mac,
-						 !(vlan & FM10K_VLAN_CLEAR), 0);
+		err = hw->mac.ops.update_mc_addr(hw, vf_info->glort, mac, vlan,
+						 !(vlan & FM10K_VLAN_CLEAR));
 	}
 
 	return err;

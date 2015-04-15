@@ -1,5 +1,5 @@
 /* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -123,6 +123,18 @@ static u16 fm10k_fifo_head_drop(struct fm10k_mbx_fifo *fifo)
 	fifo->head += len;
 
 	return len;
+}
+
+/**
+ *  fm10k_fifo_drop_all - Drop all messages in FIFO
+ *  @fifo: pointer to FIFO
+ *
+ *  This function resets the head pointer to drop all messages in the FIFO,
+ *  and ensure the FIFO is empty.
+ **/
+static void fm10k_fifo_drop_all(struct fm10k_mbx_fifo *fifo)
+{
+	fifo->head = fifo->tail;
 }
 
 /**
@@ -315,7 +327,7 @@ static u16 fm10k_mbx_validate_msg_size(struct fm10k_mbx_info *mbx, u16 len)
 	} while (total_len < len);
 
 	/* message extends out of pushed section, but fits in FIFO */
-	if ((len < total_len) && (msg_len <= mbx->rx.size))
+	if ((len < total_len) && (msg_len <= mbx->max_size))
 		return 0;
 
 	/* return length of invalid section */
@@ -326,8 +338,7 @@ static u16 fm10k_mbx_validate_msg_size(struct fm10k_mbx_info *mbx, u16 len)
  *  fm10k_mbx_write_copy - pulls data off of Tx FIFO and places it in mbmem
  *  @mbx: pointer to mailbox
  *
- *  This function will take a section of the Rx FIFO and copy it into the
-		mbx->tail--;
+ *  This function will take a section of the Tx FIFO and copy it into the
  *  mailbox memory.  The offset in mbmem is based on the lower bits of the
  *  tail and len determines the length to copy.
  **/
@@ -818,7 +829,7 @@ static void fm10k_mbx_write(struct fm10k_hw *hw, struct fm10k_mbx_info *mbx)
 	/* write new msg header to notify recipient of change */
 	fm10k_write_reg(hw, mbmem, mbx->mbx_hdr);
 
-	/* write mailbox to sent interrupt */
+	/* write mailbox to send interrupt */
 	if (mbx->mbx_lock)
 		fm10k_write_reg(hw, mbx->mbx_reg, mbx->mbx_lock);
 
@@ -1052,8 +1063,11 @@ static void fm10k_mbx_reset_work(struct fm10k_mbx_info *mbx)
  *  @mbx: pointer to mailbox
  *  @size: new value for max_size
  *
- *  This function will update the max_size value and drop any outgoing messages
- *  from the head of the Tx FIFO that are larger than max_size.
+ *  This function updates the max_size value and drops any outgoing messages
+ *  at the head of the Tx FIFO if they are larger than max_size. It does not
+ *  drop all messages, as this is too difficult to parse and remove them from
+ *  the FIFO. Instead, rely on the checking to ensure that messages larger
+ *  than max_size aren't pushed into the memory buffer.
  **/
 static void fm10k_mbx_update_max_size(struct fm10k_mbx_info *mbx, u16 size)
 {
@@ -1371,9 +1385,11 @@ static void fm10k_mbx_disconnect(struct fm10k_hw *hw,
 		timeout -= FM10K_MBX_POLL_DELAY;
 	} while ((timeout > 0) && (mbx->state != FM10K_STATE_CLOSED));
 
-	/* in case we didn't close just force the mailbox into shutdown */
+	/* in case we didn't close, just force the mailbox into shutdown and
+	 * drop all left over messages in the FIFO.
+	 */
 	fm10k_mbx_connect_reset(mbx);
-	fm10k_mbx_update_max_size(mbx, 0);
+	fm10k_fifo_drop_all(&mbx->tx);
 
 	fm10k_write_reg(hw, mbx->mbmem_reg, 0);
 }

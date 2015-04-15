@@ -1,5 +1,5 @@
 /* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -319,7 +319,8 @@ static int fm10k_ptp_settime(struct ptp_clock_info *ptp,
 }
 
 static int fm10k_ptp_enable(struct ptp_clock_info *ptp,
-			    struct ptp_clock_request *rq, int on)
+			    struct ptp_clock_request *rq,
+			    int __always_unused on)
 {
 	struct ptp_clock_time *t = &rq->perout.period;
 	struct fm10k_intfc *interface;
