@@ -718,11 +718,24 @@ static int rt5677_set_dsp_vad(struct snd_soc_codec *codec, bool on)
 			RT5677_LDO1_SEL_MASK, 0x0);
 		regmap_update_bits(rt5677->regmap, RT5677_PWR_ANLG2,
 			RT5677_PWR_LDO1, RT5677_PWR_LDO1);
-		regmap_update_bits(rt5677->regmap, RT5677_GLB_CLK1,
-			RT5677_MCLK_SRC_MASK, RT5677_MCLK2_SRC);
-		regmap_update_bits(rt5677->regmap, RT5677_GLB_CLK2,
-			RT5677_PLL2_PR_SRC_MASK | RT5677_DSP_CLK_SRC_MASK,
-			RT5677_PLL2_PR_SRC_MCLK2 | RT5677_DSP_CLK_SRC_BYPASS);
+		switch (rt5677->type) {
+		case RT5677:
+			regmap_update_bits(rt5677->regmap, RT5677_GLB_CLK1,
+				RT5677_MCLK_SRC_MASK, RT5677_MCLK2_SRC);
+			regmap_update_bits(rt5677->regmap, RT5677_GLB_CLK2,
+				RT5677_PLL2_PR_SRC_MASK |
+				RT5677_DSP_CLK_SRC_MASK,
+				RT5677_PLL2_PR_SRC_MCLK2 |
+				RT5677_DSP_CLK_SRC_BYPASS);
+			break;
+		case RT5676:
+			regmap_update_bits(rt5677->regmap, RT5677_GLB_CLK2,
+				RT5677_DSP_CLK_SRC_MASK,
+				RT5677_DSP_CLK_SRC_BYPASS);
+			break;
+		default:
+			break;
+		}
 		regmap_write(rt5677->regmap, RT5677_PWR_DSP2, 0x07ff);
 		regmap_write(rt5677->regmap, RT5677_PWR_DSP1, 0x07fd);
 		rt5677_set_dsp_mode(codec, true);
@@ -1020,6 +1033,169 @@ static int can_use_asrc(struct snd_soc_dapm_widget *source,
 
 	return 0;
 }
+
+/**
+ * rt5677_sel_asrc_clk_src - select ASRC clock source for a set of filters
+ * @codec: SoC audio codec device.
+ * @filter_mask: mask of filters.
+ * @clk_src: clock source
+ *
+ * The ASRC function is for asynchronous MCLK and LRCK. Also, since RT5677 can
+ * only support standard 32fs or 64fs i2s format, ASRC should be enabled to
+ * support special i2s clock format such as Intel's 100fs(100 * sampling rate).
+ * ASRC function will track i2s clock and generate a corresponding system clock
+ * for codec. This function provides an API to select the clock source for a
+ * set of filters specified by the mask. And the codec driver will turn on ASRC
+ * for these filters if ASRC is selected as their clock source.
+ */
+int rt5677_sel_asrc_clk_src(struct snd_soc_codec *codec,
+		unsigned int filter_mask, unsigned int clk_src)
+{
+	struct rt5677_priv *rt5677 = snd_soc_codec_get_drvdata(codec);
+	unsigned int asrc3_mask = 0, asrc3_value = 0;
+	unsigned int asrc4_mask = 0, asrc4_value = 0;
+	unsigned int asrc5_mask = 0, asrc5_value = 0;
+	unsigned int asrc6_mask = 0, asrc6_value = 0;
+	unsigned int asrc7_mask = 0, asrc7_value = 0;
+
+	switch (clk_src) {
+	case RT5677_CLK_SEL_SYS:
+	case RT5677_CLK_SEL_I2S1_ASRC:
+	case RT5677_CLK_SEL_I2S2_ASRC:
+	case RT5677_CLK_SEL_I2S3_ASRC:
+	case RT5677_CLK_SEL_I2S4_ASRC:
+	case RT5677_CLK_SEL_I2S5_ASRC:
+	case RT5677_CLK_SEL_I2S6_ASRC:
+	case RT5677_CLK_SEL_SYS2:
+	case RT5677_CLK_SEL_SYS3:
+	case RT5677_CLK_SEL_SYS4:
+	case RT5677_CLK_SEL_SYS5:
+	case RT5677_CLK_SEL_SYS6:
+	case RT5677_CLK_SEL_SYS7:
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	/* ASRC 3 */
+	if (filter_mask & RT5677_DA_STEREO_FILTER) {
+		asrc3_mask |= RT5677_DA_STO_CLK_SEL_MASK;
+		asrc3_value = (asrc3_value & ~RT5677_DA_STO_CLK_SEL_MASK)
+			| (clk_src << RT5677_DA_STO_CLK_SEL_SFT);
+	}
+
+	if (filter_mask & RT5677_DA_MONO2_L_FILTER) {
+		asrc3_mask |= RT5677_DA_MONO2L_CLK_SEL_MASK;
+		asrc3_value = (asrc3_value & ~RT5677_DA_MONO2L_CLK_SEL_MASK)
+			| (clk_src << RT5677_DA_MONO2L_CLK_SEL_SFT);
+	}
+
+	if (filter_mask & RT5677_DA_MONO2_R_FILTER) {
+		asrc3_mask |= RT5677_DA_MONO2R_CLK_SEL_MASK;
+		asrc3_value = (asrc3_value & ~RT5677_DA_MONO2R_CLK_SEL_MASK)
+			| (clk_src << RT5677_DA_MONO2R_CLK_SEL_SFT);
+	}
+
+	if (asrc3_mask)
+		regmap_update_bits(rt5677->regmap, RT5677_ASRC_3, asrc3_mask,
+			asrc3_value);
+
+	/* ASRC 4 */
+	if (filter_mask & RT5677_DA_MONO3_L_FILTER) {
+		asrc4_mask |= RT5677_DA_MONO3L_CLK_SEL_MASK;
+		asrc4_value = (asrc4_value & ~RT5677_DA_MONO3L_CLK_SEL_MASK)
+			| (clk_src << RT5677_DA_MONO3L_CLK_SEL_SFT);
+	}
+
+	if (filter_mask & RT5677_DA_MONO3_R_FILTER) {
+		asrc4_mask |= RT5677_DA_MONO3R_CLK_SEL_MASK;
+		asrc4_value = (asrc4_value & ~RT5677_DA_MONO3R_CLK_SEL_MASK)
+			| (clk_src << RT5677_DA_MONO3R_CLK_SEL_SFT);
+	}
+
+	if (filter_mask & RT5677_DA_MONO4_L_FILTER) {
+		asrc4_mask |= RT5677_DA_MONO4L_CLK_SEL_MASK;
+		asrc4_value = (asrc4_value & ~RT5677_DA_MONO4L_CLK_SEL_MASK)
+			| (clk_src << RT5677_DA_MONO4L_CLK_SEL_SFT);
+	}
+
+	if (filter_mask & RT5677_DA_MONO4_R_FILTER) {
+		asrc4_mask |= RT5677_DA_MONO4R_CLK_SEL_MASK;
+		asrc4_value = (asrc4_value & ~RT5677_DA_MONO4R_CLK_SEL_MASK)
+			| (clk_src << RT5677_DA_MONO4R_CLK_SEL_SFT);
+	}
+
+	if (asrc4_mask)
+		regmap_update_bits(rt5677->regmap, RT5677_ASRC_4, asrc4_mask,
+			asrc4_value);
+
+	/* ASRC 5 */
+	if (filter_mask & RT5677_AD_STEREO1_FILTER) {
+		asrc5_mask |= RT5677_AD_STO1_CLK_SEL_MASK;
+		asrc5_value = (asrc5_value & ~RT5677_AD_STO1_CLK_SEL_MASK)
+			| (clk_src << RT5677_AD_STO1_CLK_SEL_SFT);
+	}
+
+	if (filter_mask & RT5677_AD_STEREO2_FILTER) {
+		asrc5_mask |= RT5677_AD_STO2_CLK_SEL_MASK;
+		asrc5_value = (asrc5_value & ~RT5677_AD_STO2_CLK_SEL_MASK)
+			| (clk_src << RT5677_AD_STO2_CLK_SEL_SFT);
+	}
+
+	if (filter_mask & RT5677_AD_STEREO3_FILTER) {
+		asrc5_mask |= RT5677_AD_STO3_CLK_SEL_MASK;
+		asrc5_value = (asrc5_value & ~RT5677_AD_STO3_CLK_SEL_MASK)
+			| (clk_src << RT5677_AD_STO3_CLK_SEL_SFT);
+	}
+
+	if (filter_mask & RT5677_AD_STEREO4_FILTER) {
+		asrc5_mask |= RT5677_AD_STO4_CLK_SEL_MASK;
+		asrc5_value = (asrc5_value & ~RT5677_AD_STO4_CLK_SEL_MASK)
+			| (clk_src << RT5677_AD_STO4_CLK_SEL_SFT);
+	}
+
+	if (asrc5_mask)
+		regmap_update_bits(rt5677->regmap, RT5677_ASRC_5, asrc5_mask,
+			asrc5_value);
+
+	/* ASRC 6 */
+	if (filter_mask & RT5677_AD_MONO_L_FILTER) {
+		asrc6_mask |= RT5677_AD_MONOL_CLK_SEL_MASK;
+		asrc6_value = (asrc6_value & ~RT5677_AD_MONOL_CLK_SEL_MASK)
+			| (clk_src << RT5677_AD_MONOL_CLK_SEL_SFT);
+	}
+
+	if (filter_mask & RT5677_AD_MONO_R_FILTER) {
+		asrc6_mask |= RT5677_AD_MONOR_CLK_SEL_MASK;
+		asrc6_value = (asrc6_value & ~RT5677_AD_MONOR_CLK_SEL_MASK)
+			| (clk_src << RT5677_AD_MONOR_CLK_SEL_SFT);
+	}
+
+	if (asrc6_mask)
+		regmap_update_bits(rt5677->regmap, RT5677_ASRC_6, asrc6_mask,
+			asrc6_value);
+
+	/* ASRC 7 */
+	if (filter_mask & RT5677_DSP_OB_0_3_FILTER) {
+		asrc7_mask |= RT5677_DSP_OB_0_3_CLK_SEL_MASK;
+		asrc7_value = (asrc7_value & ~RT5677_DSP_OB_0_3_CLK_SEL_MASK)
+			| (clk_src << RT5677_DSP_OB_0_3_CLK_SEL_SFT);
+	}
+
+	if (filter_mask & RT5677_DSP_OB_4_7_FILTER) {
+		asrc7_mask |= RT5677_DSP_OB_4_7_CLK_SEL_MASK;
+		asrc7_value = (asrc7_value & ~RT5677_DSP_OB_4_7_CLK_SEL_MASK)
+			| (clk_src << RT5677_DSP_OB_4_7_CLK_SEL_SFT);
+	}
+
+	if (asrc7_mask)
+		regmap_update_bits(rt5677->regmap, RT5677_ASRC_7, asrc7_mask,
+			asrc7_value);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rt5677_sel_asrc_clk_src);
 
 /* Digital Mixer */
 static const struct snd_kcontrol_new rt5677_sto1_adc_l_mix[] = {
@@ -4500,10 +4676,10 @@ static int rt5677_suspend(struct snd_soc_codec *codec)
 	if (!rt5677->dsp_vad_en) {
 		regcache_cache_only(rt5677->regmap, true);
 		regcache_mark_dirty(rt5677->regmap);
-	}
 
-	if (gpio_is_valid(rt5677->pow_ldo2))
-		gpio_set_value_cansleep(rt5677->pow_ldo2, 0);
+		if (gpio_is_valid(rt5677->pow_ldo2))
+			gpio_set_value_cansleep(rt5677->pow_ldo2, 0);
+	}
 
 	return 0;
 }
@@ -4512,12 +4688,12 @@ static int rt5677_resume(struct snd_soc_codec *codec)
 {
 	struct rt5677_priv *rt5677 = snd_soc_codec_get_drvdata(codec);
 
-	if (gpio_is_valid(rt5677->pow_ldo2)) {
-		gpio_set_value_cansleep(rt5677->pow_ldo2, 1);
-		msleep(10);
-	}
-
 	if (!rt5677->dsp_vad_en) {
+		if (gpio_is_valid(rt5677->pow_ldo2)) {
+			gpio_set_value_cansleep(rt5677->pow_ldo2, 1);
+			msleep(10);
+		}
+
 		regcache_cache_only(rt5677->regmap, false);
 		regcache_sync(rt5677->regmap);
 	}
@@ -4733,7 +4909,8 @@ static const struct regmap_config rt5677_regmap = {
 };
 
 static const struct i2c_device_id rt5677_i2c_id[] = {
-	{ "rt5677", 0 },
+	{ "rt5677", RT5677 },
+	{ "rt5676", RT5676 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rt5677_i2c_id);
@@ -4849,6 +5026,8 @@ static int rt5677_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, rt5677);
+
+	rt5677->type = id->driver_data;
 
 	if (pdata)
 		rt5677->pdata = *pdata;

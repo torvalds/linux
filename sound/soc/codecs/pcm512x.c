@@ -54,6 +54,9 @@ struct pcm512x_priv {
 	int pll_d;
 	int pll_p;
 	unsigned long real_pll;
+	unsigned long overclock_pll;
+	unsigned long overclock_dac;
+	unsigned long overclock_dsp;
 };
 
 /*
@@ -224,6 +227,90 @@ static bool pcm512x_volatile(struct device *dev, unsigned int reg)
 	}
 }
 
+static int pcm512x_overclock_pll_get(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct pcm512x_priv *pcm512x = snd_soc_codec_get_drvdata(codec);
+
+	ucontrol->value.integer.value[0] = pcm512x->overclock_pll;
+	return 0;
+}
+
+static int pcm512x_overclock_pll_put(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct pcm512x_priv *pcm512x = snd_soc_codec_get_drvdata(codec);
+
+	switch (codec->dapm.bias_level) {
+	case SND_SOC_BIAS_OFF:
+	case SND_SOC_BIAS_STANDBY:
+		break;
+	default:
+		return -EBUSY;
+	}
+
+	pcm512x->overclock_pll = ucontrol->value.integer.value[0];
+	return 0;
+}
+
+static int pcm512x_overclock_dsp_get(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct pcm512x_priv *pcm512x = snd_soc_codec_get_drvdata(codec);
+
+	ucontrol->value.integer.value[0] = pcm512x->overclock_dsp;
+	return 0;
+}
+
+static int pcm512x_overclock_dsp_put(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct pcm512x_priv *pcm512x = snd_soc_codec_get_drvdata(codec);
+
+	switch (codec->dapm.bias_level) {
+	case SND_SOC_BIAS_OFF:
+	case SND_SOC_BIAS_STANDBY:
+		break;
+	default:
+		return -EBUSY;
+	}
+
+	pcm512x->overclock_dsp = ucontrol->value.integer.value[0];
+	return 0;
+}
+
+static int pcm512x_overclock_dac_get(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct pcm512x_priv *pcm512x = snd_soc_codec_get_drvdata(codec);
+
+	ucontrol->value.integer.value[0] = pcm512x->overclock_dac;
+	return 0;
+}
+
+static int pcm512x_overclock_dac_put(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct pcm512x_priv *pcm512x = snd_soc_codec_get_drvdata(codec);
+
+	switch (codec->dapm.bias_level) {
+	case SND_SOC_BIAS_OFF:
+	case SND_SOC_BIAS_STANDBY:
+		break;
+	default:
+		return -EBUSY;
+	}
+
+	pcm512x->overclock_dac = ucontrol->value.integer.value[0];
+	return 0;
+}
+
 static const DECLARE_TLV_DB_SCALE(digital_tlv, -10350, 50, 1);
 static const DECLARE_TLV_DB_SCALE(analog_tlv, -600, 600, 0);
 static const DECLARE_TLV_DB_SCALE(boost_tlv, 0, 80, 0);
@@ -304,9 +391,9 @@ static const struct soc_enum pcm512x_veds =
 static const struct snd_kcontrol_new pcm512x_controls[] = {
 SOC_DOUBLE_R_TLV("Digital Playback Volume", PCM512x_DIGITAL_VOLUME_2,
 		 PCM512x_DIGITAL_VOLUME_3, 0, 255, 1, digital_tlv),
-SOC_DOUBLE_TLV("Playback Volume", PCM512x_ANALOG_GAIN_CTRL,
+SOC_DOUBLE_TLV("Analogue Playback Volume", PCM512x_ANALOG_GAIN_CTRL,
 	       PCM512x_LAGN_SHIFT, PCM512x_RAGN_SHIFT, 1, 1, analog_tlv),
-SOC_DOUBLE_TLV("Playback Boost Volume", PCM512x_ANALOG_GAIN_BOOST,
+SOC_DOUBLE_TLV("Analogue Playback Boost Volume", PCM512x_ANALOG_GAIN_BOOST,
 	       PCM512x_AGBL_SHIFT, PCM512x_AGBR_SHIFT, 1, 0, boost_tlv),
 SOC_DOUBLE("Digital Playback Switch", PCM512x_MUTE, PCM512x_RQML_SHIFT,
 	   PCM512x_RQMR_SHIFT, 1, 1),
@@ -328,6 +415,13 @@ SOC_ENUM("Volume Ramp Up Rate", pcm512x_vnuf),
 SOC_ENUM("Volume Ramp Up Step", pcm512x_vnus),
 SOC_ENUM("Volume Ramp Down Emergency Rate", pcm512x_vedf),
 SOC_ENUM("Volume Ramp Down Emergency Step", pcm512x_veds),
+
+SOC_SINGLE_EXT("Max Overclock PLL", SND_SOC_NOPM, 0, 20, 0,
+	       pcm512x_overclock_pll_get, pcm512x_overclock_pll_put),
+SOC_SINGLE_EXT("Max Overclock DSP", SND_SOC_NOPM, 0, 40, 0,
+	       pcm512x_overclock_dsp_get, pcm512x_overclock_dsp_put),
+SOC_SINGLE_EXT("Max Overclock DAC", SND_SOC_NOPM, 0, 40, 0,
+	       pcm512x_overclock_dac_get, pcm512x_overclock_dac_put),
 };
 
 static const struct snd_soc_dapm_widget pcm512x_dapm_widgets[] = {
@@ -346,6 +440,45 @@ static const struct snd_soc_dapm_route pcm512x_dapm_routes[] = {
 	{ "OUTR", NULL, "DACR" },
 };
 
+static unsigned long pcm512x_pll_max(struct pcm512x_priv *pcm512x)
+{
+	return 25000000 + 25000000 * pcm512x->overclock_pll / 100;
+}
+
+static unsigned long pcm512x_dsp_max(struct pcm512x_priv *pcm512x)
+{
+	return 50000000 + 50000000 * pcm512x->overclock_dsp / 100;
+}
+
+static unsigned long pcm512x_dac_max(struct pcm512x_priv *pcm512x,
+				     unsigned long rate)
+{
+	return rate + rate * pcm512x->overclock_dac / 100;
+}
+
+static unsigned long pcm512x_sck_max(struct pcm512x_priv *pcm512x)
+{
+	if (!pcm512x->pll_out)
+		return 25000000;
+	return pcm512x_pll_max(pcm512x);
+}
+
+static unsigned long pcm512x_ncp_target(struct pcm512x_priv *pcm512x,
+					unsigned long dac_rate)
+{
+	/*
+	 * If the DAC is not actually overclocked, use the good old
+	 * NCP target rate...
+	 */
+	if (dac_rate <= 6144000)
+		return 1536000;
+	/*
+	 * ...but if the DAC is in fact overclocked, bump the NCP target
+	 * rate to get the recommended dividers even when overclocking.
+	 */
+	return pcm512x_dac_max(pcm512x, 1536000);
+}
+
 static const u32 pcm512x_dai_rates[] = {
 	8000, 11025, 16000, 22050, 32000, 44100, 48000, 64000,
 	88200, 96000, 176400, 192000, 384000,
@@ -359,6 +492,7 @@ static const struct snd_pcm_hw_constraint_list constraints_slave = {
 static int pcm512x_hw_rule_rate(struct snd_pcm_hw_params *params,
 				struct snd_pcm_hw_rule *rule)
 {
+	struct pcm512x_priv *pcm512x = rule->private;
 	struct snd_interval ranges[2];
 	int frame_size;
 
@@ -377,7 +511,7 @@ static int pcm512x_hw_rule_rate(struct snd_pcm_hw_params *params,
 		 */
 		memset(ranges, 0, sizeof(ranges));
 		ranges[0].min = 8000;
-		ranges[0].max = 25000000 / frame_size / 2;
+		ranges[0].max = pcm512x_sck_max(pcm512x) / frame_size / 2;
 		ranges[1].min = DIV_ROUND_UP(16000000, frame_size);
 		ranges[1].max = 384000;
 		break;
@@ -408,7 +542,7 @@ static int pcm512x_dai_startup_master(struct snd_pcm_substream *substream,
 		return snd_pcm_hw_rule_add(substream->runtime, 0,
 					   SNDRV_PCM_HW_PARAM_RATE,
 					   pcm512x_hw_rule_rate,
-					   NULL,
+					   pcm512x,
 					   SNDRV_PCM_HW_PARAM_FRAME_BITS,
 					   SNDRV_PCM_HW_PARAM_CHANNELS, -1);
 
@@ -517,6 +651,8 @@ static unsigned long pcm512x_find_sck(struct snd_soc_dai *dai,
 				      unsigned long bclk_rate)
 {
 	struct device *dev = dai->dev;
+	struct snd_soc_codec *codec = dai->codec;
+	struct pcm512x_priv *pcm512x = snd_soc_codec_get_drvdata(codec);
 	unsigned long sck_rate;
 	int pow2;
 
@@ -527,9 +663,10 @@ static unsigned long pcm512x_find_sck(struct snd_soc_dai *dai,
 	 * as many factors of 2 as possible, as that makes it easier
 	 * to find a fast DAC rate
 	 */
-	pow2 = 1 << fls((25000000 - 16000000) / bclk_rate);
+	pow2 = 1 << fls((pcm512x_pll_max(pcm512x) - 16000000) / bclk_rate);
 	for (; pow2; pow2 >>= 1) {
-		sck_rate = rounddown(25000000, bclk_rate * pow2);
+		sck_rate = rounddown(pcm512x_pll_max(pcm512x),
+				     bclk_rate * pow2);
 		if (sck_rate >= 16000000)
 			break;
 	}
@@ -576,8 +713,8 @@ static int pcm512x_find_pll_coeff(struct snd_soc_dai *dai,
 
 	/* pllin_rate / P (or here, den) cannot be greater than 20 MHz */
 	if (pllin_rate / den > 20000000 && num < 8) {
-		num *= 20000000 / (pllin_rate / den);
-		den *= 20000000 / (pllin_rate / den);
+		num *= DIV_ROUND_UP(pllin_rate / den, 20000000);
+		den *= DIV_ROUND_UP(pllin_rate / den, 20000000);
 	}
 	dev_dbg(dev, "num / den = %lu / %lu\n", num, den);
 
@@ -678,7 +815,7 @@ static unsigned long pcm512x_pllin_dac_rate(struct snd_soc_dai *dai,
 		return 0; /* futile, quit early */
 
 	/* run DAC no faster than 6144000 Hz */
-	for (dac_rate = rounddown(6144000, osr_rate);
+	for (dac_rate = rounddown(pcm512x_dac_max(pcm512x, 6144000), osr_rate);
 	     dac_rate;
 	     dac_rate -= osr_rate) {
 
@@ -805,7 +942,7 @@ static int pcm512x_set_dividers(struct snd_soc_dai *dai,
 	osr_rate = 16 * sample_rate;
 
 	/* run DSP no faster than 50 MHz */
-	dsp_div = mck_rate > 50000000 ? 2 : 1;
+	dsp_div = mck_rate > pcm512x_dsp_max(pcm512x) ? 2 : 1;
 
 	dac_rate = pcm512x_pllin_dac_rate(dai, osr_rate, pllin_rate);
 	if (dac_rate) {
@@ -836,7 +973,8 @@ static int pcm512x_set_dividers(struct snd_soc_dai *dai,
 		dacsrc_rate = pllin_rate;
 	} else {
 		/* run DAC no faster than 6144000 Hz */
-		unsigned long dac_mul = 6144000 / osr_rate;
+		unsigned long dac_mul = pcm512x_dac_max(pcm512x, 6144000)
+			/ osr_rate;
 		unsigned long sck_mul = sck_rate / osr_rate;
 
 		for (; dac_mul; dac_mul--) {
@@ -863,26 +1001,28 @@ static int pcm512x_set_dividers(struct snd_soc_dai *dai,
 		dacsrc_rate = sck_rate;
 	}
 
+	osr_div = DIV_ROUND_CLOSEST(dac_rate, osr_rate);
+	if (osr_div > 128) {
+		dev_err(dev, "Failed to find OSR divider\n");
+		return -EINVAL;
+	}
+
 	dac_div = DIV_ROUND_CLOSEST(dacsrc_rate, dac_rate);
 	if (dac_div > 128) {
 		dev_err(dev, "Failed to find DAC divider\n");
 		return -EINVAL;
 	}
+	dac_rate = dacsrc_rate / dac_div;
 
-	ncp_div = DIV_ROUND_CLOSEST(dacsrc_rate / dac_div, 1536000);
-	if (ncp_div > 128 || dacsrc_rate / dac_div / ncp_div > 2048000) {
+	ncp_div = DIV_ROUND_CLOSEST(dac_rate,
+				    pcm512x_ncp_target(pcm512x, dac_rate));
+	if (ncp_div > 128 || dac_rate / ncp_div > 2048000) {
 		/* run NCP no faster than 2048000 Hz, but why? */
-		ncp_div = DIV_ROUND_UP(dacsrc_rate / dac_div, 2048000);
+		ncp_div = DIV_ROUND_UP(dac_rate, 2048000);
 		if (ncp_div > 128) {
 			dev_err(dev, "Failed to find NCP divider\n");
 			return -EINVAL;
 		}
-	}
-
-	osr_div = DIV_ROUND_CLOSEST(dac_rate, osr_rate);
-	if (osr_div > 128) {
-		dev_err(dev, "Failed to find OSR divider\n");
-		return -EINVAL;
 	}
 
 	idac = mck_rate / (dsp_div * sample_rate);
@@ -937,11 +1077,11 @@ static int pcm512x_set_dividers(struct snd_soc_dai *dai,
 		return ret;
 	}
 
-	if (sample_rate <= 48000)
+	if (sample_rate <= pcm512x_dac_max(pcm512x, 48000))
 		fssp = PCM512x_FSSP_48KHZ;
-	else if (sample_rate <= 96000)
+	else if (sample_rate <= pcm512x_dac_max(pcm512x, 96000))
 		fssp = PCM512x_FSSP_96KHZ;
-	else if (sample_rate <= 192000)
+	else if (sample_rate <= pcm512x_dac_max(pcm512x, 192000))
 		fssp = PCM512x_FSSP_192KHZ;
 	else
 		fssp = PCM512x_FSSP_384KHZ;
