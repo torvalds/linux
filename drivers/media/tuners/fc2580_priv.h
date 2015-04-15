@@ -22,6 +22,7 @@
 #define FC2580_PRIV_H
 
 #include "fc2580.h"
+#include <linux/regmap.h>
 #include <linux/math64.h>
 
 struct fc2580_reg_val {
@@ -130,8 +131,7 @@ static const struct fc2580_freq_regs fc2580_freq_regs_lut[] = {
 struct fc2580_dev {
 	u32 clk;
 	struct i2c_client *client;
-	struct i2c_adapter *i2c;
-	u8 i2c_addr;
+	struct regmap *regmap;
 };
 
 #endif

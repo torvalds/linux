@@ -220,6 +220,7 @@ config MEDIA_TUNER_E4000
 config MEDIA_TUNER_FC2580
 	tristate "FCI FC2580 silicon tuner"
 	depends on MEDIA_SUPPORT && I2C
+	select REGMAP_I2C
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  FCI FC2580 silicon tuner driver.
