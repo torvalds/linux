@@ -10,13 +10,8 @@
 /*
  * Size of kernel stack for each process
  */
-#ifndef CONFIG_64BIT
-#define THREAD_ORDER 1
-#define ASYNC_ORDER  1
-#else /* CONFIG_64BIT */
 #define THREAD_ORDER 2
 #define ASYNC_ORDER  2
-#endif /* CONFIG_64BIT */
 
 #define THREAD_SIZE (PAGE_SIZE << THREAD_ORDER)
 #define ASYNC_SIZE  (PAGE_SIZE << ASYNC_ORDER)
@@ -66,6 +61,8 @@ static inline struct thread_info *current_thread_info(void)
 	return (struct thread_info *) S390_lowcore.thread_info;
 }
 
+void arch_release_task_struct(struct task_struct *tsk);
+
 #define THREAD_SIZE_ORDER THREAD_ORDER
 
 #endif
@@ -99,10 +96,6 @@ static inline struct thread_info *current_thread_info(void)
 #define _TIF_31BIT		(1<<TIF_31BIT)
 #define _TIF_SINGLE_STEP	(1<<TIF_SINGLE_STEP)
 
-#ifdef CONFIG_64BIT
 #define is_32bit_task()		(test_thread_flag(TIF_31BIT))
-#else
-#define is_32bit_task()		(1)
-#endif
 
 #endif /* _ASM_THREAD_INFO_H */

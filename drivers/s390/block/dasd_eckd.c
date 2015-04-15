@@ -1633,7 +1633,6 @@ static void dasd_eckd_kick_validate_server(struct dasd_device *device)
 
 static u32 get_fcx_max_data(struct dasd_device *device)
 {
-#if defined(CONFIG_64BIT)
 	int tpm, mdc;
 	int fcx_in_css, fcx_in_gneq, fcx_in_features;
 	struct dasd_eckd_private *private;
@@ -1657,9 +1656,6 @@ static u32 get_fcx_max_data(struct dasd_device *device)
 		return 0;
 	} else
 		return mdc * FCX_MAX_DATA_FACTOR;
-#else
-	return 0;
-#endif
 }
 
 /*
@@ -2615,10 +2611,8 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_cmd_single(
 			/* Eckd can only do full blocks. */
 			return ERR_PTR(-EINVAL);
 		count += bv.bv_len >> (block->s2b_shift + 9);
-#if defined(CONFIG_64BIT)
 		if (idal_is_needed (page_address(bv.bv_page), bv.bv_len))
 			cidaw += bv.bv_len >> (block->s2b_shift + 9);
-#endif
 	}
 	/* Paranoia. */
 	if (count != last_rec - first_rec + 1)
