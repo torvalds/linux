@@ -58,9 +58,6 @@ static void __invalidate_dcache(unsigned long start, unsigned long end)
 	end += (cpuinfo.dcache_line_size - 1);
 	end &= ~(cpuinfo.dcache_line_size - 1);
 
-	if (end > start + cpuinfo.dcache_size)
-		end = start + cpuinfo.dcache_size;
-
 	for (addr = start; addr < end; addr += cpuinfo.dcache_line_size) {
 		__asm__ __volatile__ ("   initda 0(%0)\n"
 					: /* Outputs */
