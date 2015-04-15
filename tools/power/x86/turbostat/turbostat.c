@@ -1381,12 +1381,41 @@ int parse_int_file(const char *fmt, ...)
 }
 
 /*
- * cpu_is_first_sibling_in_core(cpu)
- * return 1 if given CPU is 1st HT sibling in the core
+ * get_cpu_position_in_core(cpu)
+ * return the position of the CPU among its HT siblings in the core
+ * return -1 if the sibling is not in list
  */
-int cpu_is_first_sibling_in_core(int cpu)
+int get_cpu_position_in_core(int cpu)
 {
-	return cpu == parse_int_file("/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", cpu);
+	char path[64];
+	FILE *filep;
+	int this_cpu;
+	char character;
+	int i;
+
+	sprintf(path,
+		"/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list",
+		cpu);
+	filep = fopen(path, "r");
+	if (filep == NULL) {
+		perror(path);
+		exit(1);
+	}
+
+	for (i = 0; i < topo.num_threads_per_core; i++) {
+		fscanf(filep, "%d", &this_cpu);
+		if (this_cpu == cpu) {
+			fclose(filep);
+			return i;
+		}
+
+		/* Account for no separator after last thread*/
+		if (i != (topo.num_threads_per_core - 1))
+			fscanf(filep, "%c", &character);
+	}
+
+	fclose(filep);
+	return -1;
 }
 
 /*
@@ -1412,25 +1441,31 @@ int get_num_ht_siblings(int cpu)
 {
 	char path[80];
 	FILE *filep;
-	int sib1, sib2;
-	int matches;
+	int sib1;
+	int matches = 0;
 	char character;
+	char str[100];
+	char *ch;
 
 	sprintf(path, "/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", cpu);
 	filep = fopen_or_die(path, "r");
+
 	/*
 	 * file format:
-	 * if a pair of number with a character between: 2 siblings (eg. 1-2, or 1,4)
-	 * otherwinse 1 sibling (self).
+	 * A ',' separated or '-' separated set of numbers
+	 * (eg 1-2 or 1,3,4,5)
 	 */
-	matches = fscanf(filep, "%d%c%d\n", &sib1, &character, &sib2);
+	fscanf(filep, "%d%c\n", &sib1, &character);
+	fseek(filep, 0, SEEK_SET);
+	fgets(str, 100, filep);
+	ch = strchr(str, character);
+	while (ch != NULL) {
+		matches++;
+		ch = strchr(ch+1, character);
+	}
 
 	fclose(filep);
-
-	if (matches == 3)
-		return 2;
-	else
-		return 1;
+	return matches+1;
 }
 
 /*
@@ -2755,13 +2790,9 @@ int initialize_counters(int cpu_id)
 
 	my_package_id = get_physical_package_id(cpu_id);
 	my_core_id = get_core_id(cpu_id);
-
-	if (cpu_is_first_sibling_in_core(cpu_id)) {
-		my_thread_id = 0;
+	my_thread_id = get_cpu_position_in_core(cpu_id);
+	if (!my_thread_id)
 		topo.num_cores++;
-	} else {
-		my_thread_id = 1;
-	}
 
 	init_counter(EVEN_COUNTERS, my_thread_id, my_core_id, my_package_id, cpu_id);
 	init_counter(ODD_COUNTERS, my_thread_id, my_core_id, my_package_id, cpu_id);
