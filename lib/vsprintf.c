@@ -17,6 +17,7 @@
  */
 
 #include <stdarg.h>
+#include <linux/clk-provider.h>
 #include <linux/module.h>	/* for KSYM_SYMBOL_LEN */
 #include <linux/types.h>
 #include <linux/string.h>
@@ -1315,6 +1316,30 @@ char *address_val(char *buf, char *end, const void *addr,
 	return number(buf, end, num, spec);
 }
 
+static noinline_for_stack
+char *clock(char *buf, char *end, struct clk *clk, struct printf_spec spec,
+	    const char *fmt)
+{
+	if (!IS_ENABLED(CONFIG_HAVE_CLK) || !clk)
+		return string(buf, end, NULL, spec);
+
+	switch (fmt[1]) {
+	case 'r':
+		return number(buf, end, clk_get_rate(clk), spec);
+
+	case 'n':
+	default:
+#ifdef CONFIG_COMMON_CLK
+		return string(buf, end, __clk_get_name(clk), spec);
+#else
+		spec.base = 16;
+		spec.field_width = sizeof(unsigned long) * 2 + 2;
+		spec.flags |= SPECIAL | SMALL | ZEROPAD;
+		return number(buf, end, (unsigned long)clk, spec);
+#endif
+	}
+}
+
 int kptr_restrict __read_mostly;
 
 /*
@@ -1397,6 +1422,11 @@ int kptr_restrict __read_mostly;
  *           (default assumed to be phys_addr_t, passed by reference)
  * - 'd[234]' For a dentry name (optionally 2-4 last components)
  * - 'D[234]' Same as 'd' but for a struct file
+ * - 'C' For a clock, it prints the name (Common Clock Framework) or address
+ *       (legacy clock framework) of the clock
+ * - 'Cn' For a clock, it prints the name (Common Clock Framework) or address
+ *        (legacy clock framework) of the clock
+ * - 'Cr' For a clock, it prints the current rate of the clock
  *
  * Note: The difference between 'S' and 'F' is that on ia64 and ppc64
  * function pointers are really function descriptors, which contain a
@@ -1541,6 +1571,8 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 		return address_val(buf, end, ptr, spec, fmt);
 	case 'd':
 		return dentry_name(buf, end, ptr, spec, fmt);
+	case 'C':
+		return clock(buf, end, ptr, spec, fmt);
 	case 'D':
 		return dentry_name(buf, end,
 				   ((const struct file *)ptr)->f_path.dentry,
@@ -1785,6 +1817,11 @@ qualifier:
  * %*pE[achnops] print an escaped buffer
  * %*ph[CDN] a variable-length hex string with a separator (supports up to 64
  *           bytes of the input)
+ * %pC output the name (Common Clock Framework) or address (legacy clock
+ *     framework) of a clock
+ * %pCn output the name (Common Clock Framework) or address (legacy clock
+ *      framework) of a clock
+ * %pCr output the current rate of a clock
  * %n is ignored
  *
  * ** Please update Documentation/printk-formats.txt when making changes **
