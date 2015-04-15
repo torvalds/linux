@@ -95,48 +95,6 @@ config MAGIC_SYSRQ
 	  The keys are documented in <file:Documentation/sysrq.txt>. Don't say Y
 	  unless you really know what this hack does.
 
-config SMP
-	bool "Symmetric multi-processing support"
-	default n
-	depends on BROKEN
-	help
-	  This option enables UML SMP support.
-	  It is NOT related to having a real SMP box. Not directly, at least.
-
-	  UML implements virtual SMP by allowing as many processes to run
-	  simultaneously on the host as there are virtual processors configured.
-
-	  Obviously, if the host is a uniprocessor, those processes will
-	  timeshare, but, inside UML, will appear to be running simultaneously.
-	  If the host is a multiprocessor, then UML processes may run
-	  simultaneously, depending on the host scheduler.
-
-	  This, however, is supported only in TT mode. So, if you use the SKAS
-	  patch on your host, switching to TT mode and enabling SMP usually
-	  gives	you worse performances.
-	  Also, since the support for SMP has been under-developed, there could
-	  be some bugs being exposed by enabling SMP.
-
-	  If you don't know what to do, say N.
-
-config NR_CPUS
-	int "Maximum number of CPUs (2-32)"
-	range 2 32
-	depends on SMP
-	default "32"
-
-config HIGHMEM
-	bool "Highmem support"
-	depends on !64BIT && BROKEN
-	default n
-	help
-	  This was used to allow UML to run with big amounts of memory.
-	  Currently it is unstable, so if unsure say N.
-
-	  To use big amounts of memory, it is recommended enable static
-	  linking (i.e. CONFIG_STATIC_LINK) - this should allow the
-	  guest to use up to 2.75G of memory.
-
 config KERNEL_STACK_ORDER
 	int "Kernel stack size order"
 	default 1 if 64BIT
