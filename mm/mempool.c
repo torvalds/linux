@@ -12,6 +12,7 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/highmem.h>
+#include <linux/kasan.h>
 #include <linux/kmemleak.h>
 #include <linux/export.h>
 #include <linux/mempool.h>
@@ -101,10 +102,31 @@ static inline void poison_element(mempool_t *pool, void *element)
 }
 #endif /* CONFIG_DEBUG_SLAB || CONFIG_SLUB_DEBUG_ON */
 
+static void kasan_poison_element(mempool_t *pool, void *element)
+{
+	if (pool->alloc == mempool_alloc_slab)
+		kasan_slab_free(pool->pool_data, element);
+	if (pool->alloc == mempool_kmalloc)
+		kasan_kfree(element);
+	if (pool->alloc == mempool_alloc_pages)
+		kasan_free_pages(element, (unsigned long)pool->pool_data);
+}
+
+static void kasan_unpoison_element(mempool_t *pool, void *element)
+{
+	if (pool->alloc == mempool_alloc_slab)
+		kasan_slab_alloc(pool->pool_data, element);
+	if (pool->alloc == mempool_kmalloc)
+		kasan_krealloc(element, (size_t)pool->pool_data);
+	if (pool->alloc == mempool_alloc_pages)
+		kasan_alloc_pages(element, (unsigned long)pool->pool_data);
+}
+
 static void add_element(mempool_t *pool, void *element)
 {
 	BUG_ON(pool->curr_nr >= pool->min_nr);
 	poison_element(pool, element);
+	kasan_poison_element(pool, element);
 	pool->elements[pool->curr_nr++] = element;
 }
 
@@ -114,6 +136,7 @@ static void *remove_element(mempool_t *pool)
 
 	BUG_ON(pool->curr_nr < 0);
 	check_element(pool, element);
+	kasan_unpoison_element(pool, element);
 	return element;
 }
 
