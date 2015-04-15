@@ -874,9 +874,18 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 				   DP_AUX_CH_CTL_TIME_OUT_ERROR |
 				   DP_AUX_CH_CTL_RECEIVE_ERROR);
 
-			if (status & (DP_AUX_CH_CTL_TIME_OUT_ERROR |
-				      DP_AUX_CH_CTL_RECEIVE_ERROR))
+			if (status & DP_AUX_CH_CTL_TIME_OUT_ERROR)
 				continue;
+
+			/* DP CTS 1.2 Core Rev 1.1, 4.2.1.1 & 4.2.1.2
+			 *   400us delay required for errors and timeouts
+			 *   Timeout errors from the HW already meet this
+			 *   requirement so skip to next iteration
+			 */
+			if (status & DP_AUX_CH_CTL_RECEIVE_ERROR) {
+				usleep_range(400, 500);
+				continue;
+			}
 			if (status & DP_AUX_CH_CTL_DONE)
 				break;
 		}
