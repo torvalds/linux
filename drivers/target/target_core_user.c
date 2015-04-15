@@ -344,8 +344,11 @@ static int tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 
 		entry = (void *) mb + CMDR_OFF + cmd_head;
 		tcmu_flush_dcache_range(entry, sizeof(*entry));
-		tcmu_hdr_set_op(&entry->hdr, TCMU_OP_PAD);
-		tcmu_hdr_set_len(&entry->hdr, pad_size);
+		tcmu_hdr_set_op(&entry->hdr.len_op, TCMU_OP_PAD);
+		tcmu_hdr_set_len(&entry->hdr.len_op, pad_size);
+		entry->hdr.cmd_id = 0; /* not used for PAD */
+		entry->hdr.kflags = 0;
+		entry->hdr.uflags = 0;
 
 		UPDATE_HEAD(mb->cmd_head, pad_size, udev->cmdr_size);
 
@@ -355,9 +358,11 @@ static int tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 
 	entry = (void *) mb + CMDR_OFF + cmd_head;
 	tcmu_flush_dcache_range(entry, sizeof(*entry));
-	tcmu_hdr_set_op(&entry->hdr, TCMU_OP_CMD);
-	tcmu_hdr_set_len(&entry->hdr, command_size);
-	entry->cmd_id = tcmu_cmd->cmd_id;
+	tcmu_hdr_set_op(&entry->hdr.len_op, TCMU_OP_CMD);
+	tcmu_hdr_set_len(&entry->hdr.len_op, command_size);
+	entry->hdr.cmd_id = tcmu_cmd->cmd_id;
+	entry->hdr.kflags = 0;
+	entry->hdr.uflags = 0;
 
 	/*
 	 * Fix up iovecs, and handle if allocation in data ring wrapped.
@@ -407,6 +412,8 @@ static int tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 		kunmap_atomic(from);
 	}
 	entry->req.iov_cnt = iov_cnt;
+	entry->req.iov_bidi_cnt = 0;
+	entry->req.iov_dif_cnt = 0;
 
 	/* All offsets relative to mb_addr, not start of entry! */
 	cdb_off = CMDR_OFF + cmd_head + base_command_size;
@@ -461,6 +468,17 @@ static void tcmu_handle_completion(struct tcmu_cmd *cmd, struct tcmu_cmd_entry *
 		/* cmd has been completed already from timeout, just reclaim data
 		   ring space */
 		UPDATE_HEAD(udev->data_tail, cmd->data_length, udev->data_size);
+		return;
+	}
+
+	if (entry->hdr.uflags & TCMU_UFLAG_UNKNOWN_OP) {
+		UPDATE_HEAD(udev->data_tail, cmd->data_length, udev->data_size);
+		pr_warn("TCMU: Userspace set UNKNOWN_OP flag on se_cmd %p\n",
+			cmd->se_cmd);
+		transport_generic_request_failure(cmd->se_cmd,
+			TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE);
+		cmd->se_cmd = NULL;
+		kmem_cache_free(tcmu_cmd_cache, cmd);
 		return;
 	}
 
@@ -542,14 +560,16 @@ static unsigned int tcmu_handle_completions(struct tcmu_dev *udev)
 
 		tcmu_flush_dcache_range(entry, sizeof(*entry));
 
-		if (tcmu_hdr_get_op(&entry->hdr) == TCMU_OP_PAD) {
-			UPDATE_HEAD(udev->cmdr_last_cleaned, tcmu_hdr_get_len(&entry->hdr), udev->cmdr_size);
+		if (tcmu_hdr_get_op(entry->hdr.len_op) == TCMU_OP_PAD) {
+			UPDATE_HEAD(udev->cmdr_last_cleaned,
+				    tcmu_hdr_get_len(entry->hdr.len_op),
+				    udev->cmdr_size);
 			continue;
 		}
-		WARN_ON(tcmu_hdr_get_op(&entry->hdr) != TCMU_OP_CMD);
+		WARN_ON(tcmu_hdr_get_op(entry->hdr.len_op) != TCMU_OP_CMD);
 
 		spin_lock(&udev->commands_lock);
-		cmd = idr_find(&udev->commands, entry->cmd_id);
+		cmd = idr_find(&udev->commands, entry->hdr.cmd_id);
 		if (cmd)
 			idr_remove(&udev->commands, cmd->cmd_id);
 		spin_unlock(&udev->commands_lock);
@@ -562,7 +582,9 @@ static unsigned int tcmu_handle_completions(struct tcmu_dev *udev)
 
 		tcmu_handle_completion(cmd, entry);
 
-		UPDATE_HEAD(udev->cmdr_last_cleaned, tcmu_hdr_get_len(&entry->hdr), udev->cmdr_size);
+		UPDATE_HEAD(udev->cmdr_last_cleaned,
+			    tcmu_hdr_get_len(entry->hdr.len_op),
+			    udev->cmdr_size);
 
 		handled++;
 	}
@@ -840,14 +862,14 @@ static int tcmu_configure_device(struct se_device *dev)
 	udev->data_size = TCMU_RING_SIZE - CMDR_SIZE;
 
 	mb = udev->mb_addr;
-	mb->version = 1;
+	mb->version = TCMU_MAILBOX_VERSION;
 	mb->cmdr_off = CMDR_OFF;
 	mb->cmdr_size = udev->cmdr_size;
 
 	WARN_ON(!PAGE_ALIGNED(udev->data_off));
 	WARN_ON(udev->data_size % PAGE_SIZE);
 
-	info->version = "1";
+	info->version = xstr(TCMU_MAILBOX_VERSION);
 
 	info->mem[0].name = "tcm-user command & data buffer";
 	info->mem[0].addr = (phys_addr_t) udev->mb_addr;
