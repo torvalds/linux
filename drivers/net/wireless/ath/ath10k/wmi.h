@@ -149,6 +149,7 @@ enum wmi_service {
 	WMI_SERVICE_MDNS_OFFLOAD,
 	WMI_SERVICE_SAP_AUTH_OFFLOAD,
 	WMI_SERVICE_ATF,
+	WMI_SERVICE_COEX_GPIO,
 
 	/* keep last */
 	WMI_SERVICE_MAX,
@@ -179,6 +180,7 @@ enum wmi_10x_service {
 	WMI_10X_SERVICE_FORCE_FW_HANG,
 	WMI_10X_SERVICE_SMART_ANTENNA_HW_SUPPORT,
 	WMI_10X_SERVICE_ATF,
+	WMI_10X_SERVICE_COEX_GPIO,
 };
 
 enum wmi_main_service {
@@ -296,6 +298,7 @@ static inline char *wmi_service_name(int service_id)
 	SVCSTR(WMI_SERVICE_MDNS_OFFLOAD);
 	SVCSTR(WMI_SERVICE_SAP_AUTH_OFFLOAD);
 	SVCSTR(WMI_SERVICE_ATF);
+	SVCSTR(WMI_SERVICE_COEX_GPIO);
 	default:
 		return NULL;
 	}
@@ -361,6 +364,8 @@ static inline void wmi_10x_svc_map(const __le32 *in, unsigned long *out,
 	       WMI_SERVICE_SMART_ANTENNA_HW_SUPPORT, len);
 	SVCMAP(WMI_10X_SERVICE_ATF,
 	       WMI_SERVICE_ATF, len);
+	SVCMAP(WMI_10X_SERVICE_COEX_GPIO,
+	       WMI_SERVICE_COEX_GPIO, len);
 }
 
 static inline void wmi_main_svc_map(const __le32 *in, unsigned long *out,
@@ -1960,6 +1965,7 @@ struct wmi_resource_config_10x {
 enum wmi_10_2_feature_mask {
 	WMI_10_2_RX_BATCH_MODE = BIT(0),
 	WMI_10_2_ATF_CONFIG    = BIT(1),
+	WMI_10_2_COEX_GPIO     = BIT(3),
 };
 
 struct wmi_resource_config_10_2 {
