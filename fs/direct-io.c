@@ -253,7 +253,9 @@ static ssize_t dio_complete(struct dio *dio, loff_t offset, ssize_t ret,
 	if (dio->end_io && dio->result)
 		dio->end_io(dio->iocb, offset, transferred, dio->private);
 
-	inode_dio_done(dio->inode);
+	if (!(dio->flags & DIO_SKIP_DIO_COUNT))
+		inode_dio_end(dio->inode);
+
 	if (is_async) {
 		if (dio->rw & WRITE) {
 			int err;
@@ -1195,7 +1197,8 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 	/*
 	 * Will be decremented at I/O completion time.
 	 */
-	atomic_inc(&inode->i_dio_count);
+	if (!(dio->flags & DIO_SKIP_DIO_COUNT))
+		inode_dio_begin(inode);
 
 	retval = 0;
 	sdio.blkbits = blkbits;

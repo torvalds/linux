@@ -152,7 +152,8 @@ blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, loff_t offset)
 	struct inode *inode = file->f_mapping->host;
 
 	return __blockdev_direct_IO(iocb, inode, I_BDEV(inode), iter, offset,
-				    blkdev_get_block, NULL, NULL, 0);
+				    blkdev_get_block, NULL, NULL,
+				    DIO_SKIP_DIO_COUNT);
 }
 
 int __sync_blockdev(struct block_device *bdev, int wait)

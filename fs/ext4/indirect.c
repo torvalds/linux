@@ -682,11 +682,11 @@ retry:
 		 * via ext4_inode_block_unlocked_dio(). Check inode's state
 		 * while holding extra i_dio_count ref.
 		 */
-		atomic_inc(&inode->i_dio_count);
+		inode_dio_begin(inode);
 		smp_mb();
 		if (unlikely(ext4_test_inode_state(inode,
 						    EXT4_STATE_DIOREAD_LOCK))) {
-			inode_dio_done(inode);
+			inode_dio_end(inode);
 			goto locked;
 		}
 		if (IS_DAX(inode))
@@ -697,7 +697,7 @@ retry:
 						   inode->i_sb->s_bdev, iter,
 						   offset, ext4_get_block, NULL,
 						   NULL, 0);
-		inode_dio_done(inode);
+		inode_dio_end(inode);
 	} else {
 locked:
 		if (IS_DAX(inode))
