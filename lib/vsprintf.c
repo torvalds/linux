@@ -1235,8 +1235,12 @@ char *escaped_string(char *buf, char *end, u8 *addr, struct printf_spec spec,
 
 	len = spec.field_width < 0 ? 1 : spec.field_width;
 
-	/* Ignore the error. We print as many characters as we can */
-	string_escape_mem(addr, len, &buf, end - buf, flags, NULL);
+	/*
+	 * string_escape_mem() writes as many characters as it can to
+	 * the given buffer, and returns the total size of the output
+	 * had the buffer been big enough.
+	 */
+	buf += string_escape_mem(addr, len, buf, buf < end ? end - buf : 0, flags, NULL);
 
 	return buf;
 }

@@ -99,8 +99,8 @@ static inline void task_name(struct seq_file *m, struct task_struct *p)
 	buf = m->buf + m->count;
 
 	/* Ignore error for now */
-	string_escape_str(tcomm, &buf, m->size - m->count,
-			  ESCAPE_SPACE | ESCAPE_SPECIAL, "\n\\");
+	buf += string_escape_str(tcomm, buf, m->size - m->count,
+				 ESCAPE_SPACE | ESCAPE_SPECIAL, "\n\\");
 
 	m->count = buf - m->buf;
 	seq_putc(m, '\n');

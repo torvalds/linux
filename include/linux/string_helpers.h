@@ -47,22 +47,22 @@ static inline int string_unescape_any_inplace(char *buf)
 #define ESCAPE_ANY_NP		(ESCAPE_ANY | ESCAPE_NP)
 #define ESCAPE_HEX		0x20
 
-int string_escape_mem(const char *src, size_t isz, char **dst, size_t osz,
+int string_escape_mem(const char *src, size_t isz, char *dst, size_t osz,
 		unsigned int flags, const char *esc);
 
 static inline int string_escape_mem_any_np(const char *src, size_t isz,
-		char **dst, size_t osz, const char *esc)
+		char *dst, size_t osz, const char *esc)
 {
 	return string_escape_mem(src, isz, dst, osz, ESCAPE_ANY_NP, esc);
 }
 
-static inline int string_escape_str(const char *src, char **dst, size_t sz,
+static inline int string_escape_str(const char *src, char *dst, size_t sz,
 		unsigned int flags, const char *esc)
 {
 	return string_escape_mem(src, strlen(src), dst, sz, flags, esc);
 }
 
-static inline int string_escape_str_any_np(const char *src, char **dst,
+static inline int string_escape_str_any_np(const char *src, char *dst,
 		size_t sz, const char *esc)
 {
 	return string_escape_str(src, dst, sz, ESCAPE_ANY_NP, esc);
