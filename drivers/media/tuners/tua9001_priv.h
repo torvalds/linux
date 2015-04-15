@@ -27,8 +27,10 @@ struct reg_val {
 };
 
 struct tua9001_priv {
-	struct tua9001_config *cfg;
+	struct i2c_client *client;
 	struct i2c_adapter *i2c;
+	u8 i2c_addr;
+	struct dvb_frontend *fe;
 };
 
 #endif
