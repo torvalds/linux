@@ -386,7 +386,7 @@ char *number(char *buf, char *end, unsigned long long num,
 	/* we are called with base 8, 10 or 16, only, thus don't need "G..."  */
 	static const char digits[16] = "0123456789ABCDEF"; /* "GHIJKLMNOPQRSTUVWXYZ"; */
 
-	char tmp[66];
+	char tmp[3 * sizeof(num)];
 	char sign;
 	char locase;
 	int need_pfx = ((spec.flags & SPECIAL) && spec.base != 10);
@@ -423,11 +423,6 @@ char *number(char *buf, char *end, unsigned long long num,
 	i = 0;
 	if (num < spec.base)
 		tmp[i++] = digits[num] | locase;
-	/* Generic code, for any base:
-	else do {
-		tmp[i++] = (digits[do_div(num,base)] | locase);
-	} while (num != 0);
-	*/
 	else if (spec.base != 10) { /* 8 or 16 */
 		int mask = spec.base - 1;
 		int shift = 3;
