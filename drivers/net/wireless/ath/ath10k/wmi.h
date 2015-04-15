@@ -148,6 +148,7 @@ enum wmi_service {
 	WMI_SERVICE_STA_RX_IPA_OFFLOAD_SUPPORT,
 	WMI_SERVICE_MDNS_OFFLOAD,
 	WMI_SERVICE_SAP_AUTH_OFFLOAD,
+	WMI_SERVICE_ATF,
 
 	/* keep last */
 	WMI_SERVICE_MAX,
@@ -177,6 +178,7 @@ enum wmi_10x_service {
 	WMI_10X_SERVICE_SMART_ANTENNA_SW_SUPPORT,
 	WMI_10X_SERVICE_FORCE_FW_HANG,
 	WMI_10X_SERVICE_SMART_ANTENNA_HW_SUPPORT,
+	WMI_10X_SERVICE_ATF,
 };
 
 enum wmi_main_service {
@@ -293,6 +295,7 @@ static inline char *wmi_service_name(int service_id)
 	SVCSTR(WMI_SERVICE_STA_RX_IPA_OFFLOAD_SUPPORT);
 	SVCSTR(WMI_SERVICE_MDNS_OFFLOAD);
 	SVCSTR(WMI_SERVICE_SAP_AUTH_OFFLOAD);
+	SVCSTR(WMI_SERVICE_ATF);
 	default:
 		return NULL;
 	}
@@ -356,6 +359,8 @@ static inline void wmi_10x_svc_map(const __le32 *in, unsigned long *out,
 	       WMI_SERVICE_FORCE_FW_HANG, len);
 	SVCMAP(WMI_10X_SERVICE_SMART_ANTENNA_HW_SUPPORT,
 	       WMI_SERVICE_SMART_ANTENNA_HW_SUPPORT, len);
+	SVCMAP(WMI_10X_SERVICE_ATF,
+	       WMI_SERVICE_ATF, len);
 }
 
 static inline void wmi_main_svc_map(const __le32 *in, unsigned long *out,
