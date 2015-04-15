@@ -262,9 +262,9 @@ void drm_gem_cma_describe(struct drm_gem_cma_object *cma_obj, struct seq_file *m
 	if (obj->map_list.map)
 		off = (uint64_t)obj->map_list.hash.key;
 
-	seq_printf(m, "%2d (%2d) %08llx %08Zx %p %d",
+	seq_printf(m, "%2d (%2d) %08llx %pad %p %zd",
 			obj->name, obj->refcount.refcount.counter,
-			off, cma_obj->paddr, cma_obj->vaddr, obj->size);
+			off, &cma_obj->paddr, cma_obj->vaddr, obj->size);
 
 	seq_printf(m, "\n");
 }
