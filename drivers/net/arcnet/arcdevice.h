@@ -164,6 +164,7 @@ do {									\
 #define CONFIGcmd       0x05	/* define configuration */
 #define CFLAGScmd       0x06	/* clear flags */
 #define TESTcmd         0x07	/* load test flags */
+#define STARTIOcmd      0x18	/* start internal operation */
 
 /* flags for "clear flags" command */
 #define RESETclear      0x08	/* power-on-reset */

@@ -86,6 +86,7 @@ struct com20020_dev {
 /* in the CONFIG register */
 #define RESETcfg	0x80	/* put card in reset state */
 #define TXENcfg		0x20	/* enable TX */
+#define XTOcfg(x)	((x) << 3)	/* extended timeout */
 
 /* in SETUP register */
 #define PROMISCset	0x10	/* enable RCV_ALL */

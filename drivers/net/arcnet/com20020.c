@@ -94,9 +94,9 @@ int com20020_check(struct net_device *dev)
 	int ioaddr = dev->base_addr, status;
 	struct arcnet_local *lp = netdev_priv(dev);
 
-	arcnet_outb(0x18 | 0x80, ioaddr, COM20020_REG_W_CONFIG);
+	arcnet_outb(XTOcfg(3) | RESETcfg, ioaddr, COM20020_REG_W_CONFIG);
 	udelay(5);
-	arcnet_outb(0x18 , ioaddr, COM20020_REG_W_CONFIG);
+	arcnet_outb(XTOcfg(3), ioaddr, COM20020_REG_W_CONFIG);
 	mdelay(RESETtime);
 
 	lp->setup = lp->clockm ? 0 : (lp->clockp << 1);
@@ -115,10 +115,10 @@ int com20020_check(struct net_device *dev)
 
 		/* must now write the magic "restart operation" command */
 		mdelay(1);
-		arcnet_outb(0x18, ioaddr, COM20020_REG_W_COMMAND);
+		arcnet_outb(STARTIOcmd, ioaddr, COM20020_REG_W_COMMAND);
 	}
 
-	lp->config = 0x21 | (lp->timeout << 3) | (lp->backplane << 2);
+	lp->config = TXENcfg | (lp->timeout << 3) | (lp->backplane << 2) | SUB_NODE;
 	/* set node ID to 0x42 (but transmitter is disabled, so it's okay) */
 	arcnet_outb(lp->config, ioaddr, COM20020_REG_W_CONFIG);
 	arcnet_outb(0x42, ioaddr, COM20020_REG_W_XREG);
@@ -132,7 +132,8 @@ int com20020_check(struct net_device *dev)
 	arc_printk(D_INIT_REASONS, dev, "status after reset: %X\n", status);
 
 	/* Enable TX */
-	arcnet_outb(0x39, ioaddr, COM20020_REG_W_CONFIG);
+	lp->config |= TXENcfg;
+	arcnet_outb(lp->config, ioaddr, COM20020_REG_W_CONFIG);
 	arcnet_outb(arcnet_inb(ioaddr, 8), ioaddr, COM20020_REG_W_XREG);
 
 	arcnet_outb(CFLAGScmd | RESETclear | CONFIGclear,
@@ -211,10 +212,10 @@ int com20020_found(struct net_device *dev, int shared)
 
 		/* must now write the magic "restart operation" command */
 		mdelay(1);
-		arcnet_outb(0x18, ioaddr, COM20020_REG_W_COMMAND);
+		arcnet_outb(STARTIOcmd, ioaddr, COM20020_REG_W_COMMAND);
 	}
 
-	lp->config = 0x20 | (lp->timeout << 3) | (lp->backplane << 2) | 1;
+	lp->config = TXENcfg | (lp->timeout << 3) | (lp->backplane << 2) | SUB_NODE;
 	/* Default 0x38 + register: Node ID */
 	arcnet_outb(lp->config, ioaddr, COM20020_REG_W_CONFIG);
 	arcnet_outb(dev->dev_addr[0], ioaddr, COM20020_REG_W_XREG);
@@ -280,7 +281,7 @@ static int com20020_reset(struct net_device *dev, int really_reset)
 
 	if (really_reset) {
 		/* reset the card */
-		arcnet_outb(lp->config | 0x80, ioaddr, COM20020_REG_W_CONFIG);
+		arcnet_outb(lp->config | RESETcfg, ioaddr, COM20020_REG_W_CONFIG);
 		udelay(5);
 		arcnet_outb(lp->config, ioaddr, COM20020_REG_W_CONFIG);
 		mdelay(RESETtime * 2);
