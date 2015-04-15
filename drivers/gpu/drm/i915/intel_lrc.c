@@ -393,6 +393,26 @@ static void execlists_context_unqueue(struct intel_engine_cs *ring)
 		}
 	}
 
+	if (IS_GEN8(ring->dev) || IS_GEN9(ring->dev)) {
+		/*
+		 * WaIdleLiteRestore: make sure we never cause a lite
+		 * restore with HEAD==TAIL
+		 */
+		if (req0 && req0->elsp_submitted) {
+			/*
+			 * Apply the wa NOOPS to prevent ring:HEAD == req:TAIL
+			 * as we resubmit the request. See gen8_emit_request()
+			 * for where we prepare the padding after the end of the
+			 * request.
+			 */
+			struct intel_ringbuffer *ringbuf;
+
+			ringbuf = req0->ctx->engine[ring->id].ringbuf;
+			req0->tail += 8;
+			req0->tail &= ringbuf->size - 1;
+		}
+	}
+
 	WARN_ON(req1 && req1->elsp_submitted);
 
 	execlists_submit_contexts(ring, req0->ctx, req0->tail,
@@ -1315,7 +1335,12 @@ static int gen8_emit_request(struct intel_ringbuffer *ringbuf,
 	u32 cmd;
 	int ret;
 
-	ret = intel_logical_ring_begin(ringbuf, request->ctx, 6);
+	/*
+	 * Reserve space for 2 NOOPs at the end of each request to be
+	 * used as a workaround for not being allowed to do lite
+	 * restore with HEAD==TAIL (WaIdleLiteRestore).
+	 */
+	ret = intel_logical_ring_begin(ringbuf, request->ctx, 8);
 	if (ret)
 		return ret;
 
@@ -1332,6 +1357,14 @@ static int gen8_emit_request(struct intel_ringbuffer *ringbuf,
 	intel_logical_ring_emit(ringbuf, MI_USER_INTERRUPT);
 	intel_logical_ring_emit(ringbuf, MI_NOOP);
 	intel_logical_ring_advance_and_submit(ringbuf, request->ctx, request);
+
+	/*
+	 * Here we add two extra NOOPs as padding to avoid
+	 * lite restore of a context with HEAD==TAIL.
+	 */
+	intel_logical_ring_emit(ringbuf, MI_NOOP);
+	intel_logical_ring_emit(ringbuf, MI_NOOP);
+	intel_logical_ring_advance(ringbuf);
 
 	return 0;
 }
