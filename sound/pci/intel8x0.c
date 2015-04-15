@@ -3101,13 +3101,13 @@ static int snd_intel8x0_create(struct snd_card *card,
 		chip->bmaddr = pci_iomap(pci, 3, 0);
 	else
 		chip->bmaddr = pci_iomap(pci, 1, 0);
+
+ port_inited:
 	if (!chip->bmaddr) {
 		dev_err(card->dev, "Controller space ioremap problem\n");
 		snd_intel8x0_free(chip);
 		return -EIO;
 	}
-
- port_inited:
 	chip->bdbars_count = bdbars[device_type];
 
 	/* initialize offsets */
