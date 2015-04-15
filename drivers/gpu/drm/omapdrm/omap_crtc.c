@@ -365,7 +365,6 @@ static int omap_crtc_flush(struct drm_crtc *crtc)
 
 	DBG("%s: GO", omap_crtc->name);
 
-	WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
 	WARN_ON(omap_crtc->vblank_irq.registered);
 
 	if (dispc_mgr_is_enabled(omap_crtc->channel)) {
