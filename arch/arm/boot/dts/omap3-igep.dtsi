@@ -22,7 +22,6 @@
 		compatible = "ti,omap-twl4030";
 		ti,model = "igep2";
 		ti,mcbsp = <&mcbsp2>;
-		ti,codec = <&twl_audio>;
 	};
 
 	vdd33: regulator-vdd33 {
