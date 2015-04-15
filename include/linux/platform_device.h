@@ -59,7 +59,7 @@ extern int platform_add_devices(struct platform_device **, int);
 
 struct platform_device_info {
 		struct device *parent;
-		struct acpi_dev_node acpi_node;
+		struct fwnode_handle *fwnode;
 
 		const char *name;
 		int id;

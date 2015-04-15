@@ -614,6 +614,19 @@ static void core_set_pstate(struct cpudata *cpudata, int pstate)
 	wrmsrl_on_cpu(cpudata->cpu, MSR_IA32_PERF_CTL, val);
 }
 
+static int knl_get_turbo_pstate(void)
+{
+	u64 value;
+	int nont, ret;
+
+	rdmsrl(MSR_NHM_TURBO_RATIO_LIMIT, value);
+	nont = core_get_max_pstate();
+	ret = (((value) >> 8) & 0xFF);
+	if (ret <= nont)
+		ret = nont;
+	return ret;
+}
+
 static struct cpu_defaults core_params = {
 	.pid_policy = {
 		.sample_rate_ms = 10,
@@ -648,6 +661,23 @@ static struct cpu_defaults byt_params = {
 		.set = byt_set_pstate,
 		.get_scaling = byt_get_scaling,
 		.get_vid = byt_get_vid,
+	},
+};
+
+static struct cpu_defaults knl_params = {
+	.pid_policy = {
+		.sample_rate_ms = 10,
+		.deadband = 0,
+		.setpoint = 97,
+		.p_gain_pct = 20,
+		.d_gain_pct = 0,
+		.i_gain_pct = 0,
+	},
+	.funcs = {
+		.get_max = core_get_max_pstate,
+		.get_min = core_get_min_pstate,
+		.get_turbo = knl_get_turbo_pstate,
+		.set = core_set_pstate,
 	},
 };
 
@@ -865,6 +895,7 @@ static const struct x86_cpu_id intel_pstate_cpu_ids[] = {
 	ICPU(0x4e, core_params),
 	ICPU(0x4f, core_params),
 	ICPU(0x56, core_params),
+	ICPU(0x57, knl_params),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_pstate_cpu_ids);
@@ -1024,23 +1055,9 @@ static unsigned int force_load;
 
 static int intel_pstate_msrs_not_valid(void)
 {
-	/* Check that all the msr's we are using are valid. */
-	u64 aperf, mperf, tmp;
-
-	rdmsrl(MSR_IA32_APERF, aperf);
-	rdmsrl(MSR_IA32_MPERF, mperf);
-
 	if (!pstate_funcs.get_max() ||
 	    !pstate_funcs.get_min() ||
 	    !pstate_funcs.get_turbo())
-		return -ENODEV;
-
-	rdmsrl(MSR_IA32_APERF, tmp);
-	if (!(tmp - aperf))
-		return -ENODEV;
-
-	rdmsrl(MSR_IA32_MPERF, tmp);
-	if (!(tmp - mperf))
 		return -ENODEV;
 
 	return 0;

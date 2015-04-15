@@ -3477,6 +3477,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			improve throughput, but will also increase the
 			amount of memory reserved for use by the client.
 
+	suspend.pm_test_delay=
+			[SUSPEND]
+			Sets the number of seconds to remain in a suspend test
+			mode before resuming the system (see
+			/sys/power/pm_test). Only available when CONFIG_PM_DEBUG
+			is set. Default value is 5.
+
 	swapaccount=[0|1]
 			[KNL] Enable accounting of swap in memory resource
 			controller if no parameter or 1 is given or disable
