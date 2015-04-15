@@ -341,10 +341,10 @@ int num_to_str(char *buf, int size, unsigned long long num)
 }
 
 #define SIGN	1		/* unsigned/signed, must be 1 */
-#define ZEROPAD	2		/* pad with zero */
+#define LEFT	2		/* left justified */
 #define PLUS	4		/* show plus */
 #define SPACE	8		/* space if plus */
-#define LEFT	16		/* left justified */
+#define ZEROPAD	16		/* pad with zero, must be 16 == '0' - ' ' */
 #define SMALL	32		/* use lowercase in hex (must be 32 == 0x20) */
 #define SPECIAL	64		/* prefix hex with "0x", octal with "0" */
 
@@ -467,7 +467,8 @@ char *number(char *buf, char *end, unsigned long long num,
 	}
 	/* zero or space padding */
 	if (!(spec.flags & LEFT)) {
-		char c = (spec.flags & ZEROPAD) ? '0' : ' ';
+		char c = ' ' + (spec.flags & ZEROPAD);
+		BUILD_BUG_ON(' ' + ZEROPAD != '0');
 		while (--spec.field_width >= 0) {
 			if (buf < end)
 				*buf = c;
