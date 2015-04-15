@@ -46,7 +46,8 @@ int machine_kexec_prepare(struct kimage *image)
 	 * and implements CPU hotplug for the current HW. If not, we won't be
 	 * able to kexec reliably, so fail the prepare operation.
 	 */
-	if (num_possible_cpus() > 1 && !platform_can_cpu_hotplug())
+	if (num_possible_cpus() > 1 && platform_can_secondary_boot() &&
+	    !platform_can_cpu_hotplug())
 		return -EINVAL;
 
 	/*
