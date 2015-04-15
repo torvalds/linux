@@ -1046,6 +1046,15 @@ struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev, int index)
 #endif /* CONFIG_OF */
 EXPORT_SYMBOL_GPL(extcon_get_edev_by_phandle);
 
+/**
+ * extcon_get_edev_name() - Get the name of the extcon device.
+ * @edev:	the extcon device
+ */
+const char *extcon_get_edev_name(struct extcon_dev *edev)
+{
+	return !edev ? NULL : edev->name;
+}
+
 static int __init extcon_class_init(void)
 {
 	return create_extcon_class();

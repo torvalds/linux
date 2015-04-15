@@ -259,6 +259,10 @@ extern int extcon_unregister_notifier(struct extcon_dev *edev,
  * This function use phandle of devicetree to get extcon device directly.
  */
 extern struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev, int index);
+
+/* Following API to get information of extcon device */
+extern const char *extcon_get_edev_name(struct extcon_dev *edev);
+
 #else /* CONFIG_EXTCON */
 static inline int extcon_dev_register(struct extcon_dev *edev)
 {
