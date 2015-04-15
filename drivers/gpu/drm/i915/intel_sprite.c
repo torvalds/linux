@@ -33,6 +33,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_rect.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_plane_helper.h>
 #include "intel_drv.h"
 #include <drm/i915_drm.h>
@@ -197,80 +198,17 @@ skl_update_plane(struct drm_plane *drm_plane, struct drm_crtc *crtc,
 	u32 tile_height, plane_offset, plane_size;
 	unsigned int rotation;
 	int x_offset, y_offset;
+	struct intel_crtc_state *crtc_state = to_intel_crtc(crtc)->config;
+	int scaler_id;
 
 	plane_ctl = PLANE_CTL_ENABLE |
 		PLANE_CTL_PIPE_CSC_ENABLE;
 
-	switch (fb->pixel_format) {
-	case DRM_FORMAT_RGB565:
-		plane_ctl |= PLANE_CTL_FORMAT_RGB_565;
-		break;
-	case DRM_FORMAT_XBGR8888:
-		plane_ctl |= PLANE_CTL_FORMAT_XRGB_8888 | PLANE_CTL_ORDER_RGBX;
-		break;
-	case DRM_FORMAT_XRGB8888:
-		plane_ctl |= PLANE_CTL_FORMAT_XRGB_8888;
-		break;
-	/*
-	 * XXX: For ARBG/ABGR formats we default to expecting scanout buffers
-	 * to be already pre-multiplied. We need to add a knob (or a different
-	 * DRM_FORMAT) for user-space to configure that.
-	 */
-	case DRM_FORMAT_ABGR8888:
-		plane_ctl |= PLANE_CTL_FORMAT_XRGB_8888 |
-			     PLANE_CTL_ORDER_RGBX |
-			     PLANE_CTL_ALPHA_SW_PREMULTIPLY;
-		break;
-	case DRM_FORMAT_ARGB8888:
-		plane_ctl |= PLANE_CTL_FORMAT_XRGB_8888 |
-			     PLANE_CTL_ALPHA_SW_PREMULTIPLY;
-		break;
-	case DRM_FORMAT_YUYV:
-		plane_ctl |= PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_YUYV;
-		break;
-	case DRM_FORMAT_YVYU:
-		plane_ctl |= PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_YVYU;
-		break;
-	case DRM_FORMAT_UYVY:
-		plane_ctl |= PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_UYVY;
-		break;
-	case DRM_FORMAT_VYUY:
-		plane_ctl |= PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_VYUY;
-		break;
-	default:
-		BUG();
-	}
-
-	switch (fb->modifier[0]) {
-	case DRM_FORMAT_MOD_NONE:
-		break;
-	case I915_FORMAT_MOD_X_TILED:
-		plane_ctl |= PLANE_CTL_TILED_X;
-		break;
-	case I915_FORMAT_MOD_Y_TILED:
-		plane_ctl |= PLANE_CTL_TILED_Y;
-		break;
-	case I915_FORMAT_MOD_Yf_TILED:
-		plane_ctl |= PLANE_CTL_TILED_YF;
-		break;
-	default:
-		MISSING_CASE(fb->modifier[0]);
-	}
+	plane_ctl |= skl_plane_ctl_format(fb->pixel_format);
+	plane_ctl |= skl_plane_ctl_tiling(fb->modifier[0]);
 
 	rotation = drm_plane->state->rotation;
-	switch (rotation) {
-	case BIT(DRM_ROTATE_90):
-		plane_ctl |= PLANE_CTL_ROTATE_90;
-		break;
-
-	case BIT(DRM_ROTATE_180):
-		plane_ctl |= PLANE_CTL_ROTATE_180;
-		break;
-
-	case BIT(DRM_ROTATE_270):
-		plane_ctl |= PLANE_CTL_ROTATE_270;
-		break;
-	}
+	plane_ctl |= skl_plane_ctl_rotation(rotation);
 
 	intel_update_sprite_watermarks(drm_plane, crtc, src_w, src_h,
 				       pixel_size, true,
@@ -278,6 +216,8 @@ skl_update_plane(struct drm_plane *drm_plane, struct drm_crtc *crtc,
 
 	stride_div = intel_fb_stride_alignment(dev, fb->modifier[0],
 					       fb->pixel_format);
+
+	scaler_id = to_intel_plane_state(drm_plane->state)->scaler_id;
 
 	/* Sizes are 0 based */
 	src_w--;
@@ -316,8 +256,27 @@ skl_update_plane(struct drm_plane *drm_plane, struct drm_crtc *crtc,
 
 	I915_WRITE(PLANE_OFFSET(pipe, plane), plane_offset);
 	I915_WRITE(PLANE_STRIDE(pipe, plane), stride);
-	I915_WRITE(PLANE_POS(pipe, plane), (crtc_y << 16) | crtc_x);
 	I915_WRITE(PLANE_SIZE(pipe, plane), plane_size);
+
+	/* program plane scaler */
+	if (scaler_id >= 0) {
+		uint32_t ps_ctrl = 0;
+
+		DRM_DEBUG_KMS("plane = %d PS_PLANE_SEL(plane) = 0x%x\n", plane,
+			PS_PLANE_SEL(plane));
+		ps_ctrl = PS_SCALER_EN | PS_PLANE_SEL(plane) |
+			crtc_state->scaler_state.scalers[scaler_id].mode;
+		I915_WRITE(SKL_PS_CTRL(pipe, scaler_id), ps_ctrl);
+		I915_WRITE(SKL_PS_PWR_GATE(pipe, scaler_id), 0);
+		I915_WRITE(SKL_PS_WIN_POS(pipe, scaler_id), (crtc_x << 16) | crtc_y);
+		I915_WRITE(SKL_PS_WIN_SZ(pipe, scaler_id),
+			((crtc_w + 1) << 16)|(crtc_h + 1));
+
+		I915_WRITE(PLANE_POS(pipe, plane), 0);
+	} else {
+		I915_WRITE(PLANE_POS(pipe, plane), (crtc_y << 16) | crtc_x);
+	}
+
 	I915_WRITE(PLANE_CTL(pipe, plane), plane_ctl);
 	I915_WRITE(PLANE_SURF(pipe, plane), surf_addr);
 	POSTING_READ(PLANE_SURF(pipe, plane));
@@ -894,7 +853,9 @@ static int
 intel_check_sprite_plane(struct drm_plane *plane,
 			 struct intel_plane_state *state)
 {
+	struct drm_device *dev = plane->dev;
 	struct intel_crtc *intel_crtc = to_intel_crtc(state->base.crtc);
+	struct intel_crtc_state *crtc_state;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct drm_framebuffer *fb = state->base.fb;
 	int crtc_x, crtc_y;
@@ -906,8 +867,11 @@ intel_check_sprite_plane(struct drm_plane *plane,
 	int hscale, vscale;
 	int max_scale, min_scale;
 	int pixel_size;
+	int ret;
 
 	intel_crtc = intel_crtc ? intel_crtc : to_intel_crtc(plane->crtc);
+	crtc_state = state->base.state ?
+		intel_atomic_get_crtc_state(state->base.state, intel_crtc) : NULL;
 
 	if (!fb) {
 		state->visible = false;
@@ -933,6 +897,11 @@ intel_check_sprite_plane(struct drm_plane *plane,
 	 */
 	max_scale = intel_plane->max_downscale << 16;
 	min_scale = intel_plane->can_scale ? 1 : (1 << 16);
+
+	if (INTEL_INFO(dev)->gen >= 9) {
+		min_scale = 1;
+		max_scale = skl_max_scale(intel_crtc, crtc_state);
+	}
 
 	drm_rect_rotate(src, fb->width << 16, fb->height << 16,
 			state->base.rotation);
@@ -1029,8 +998,8 @@ intel_check_sprite_plane(struct drm_plane *plane,
 		width_bytes = ((src_x * pixel_size) & 63) +
 					src_w * pixel_size;
 
-		if (src_w > 2048 || src_h > 2048 ||
-		    width_bytes > 4096 || fb->pitches[0] > 4096) {
+		if (INTEL_INFO(dev)->gen < 9 && (src_w > 2048 || src_h > 2048 ||
+		    width_bytes > 4096 || fb->pitches[0] > 4096)) {
 			DRM_DEBUG_KMS("Source dimensions exceed hardware limits\n");
 			return -EINVAL;
 		}
@@ -1082,6 +1051,13 @@ finish:
 			intel_crtc->atomic.update_sprite_watermarks |=
 				(1 << drm_plane_index(plane));
 		}
+	}
+
+	if (INTEL_INFO(dev)->gen >= 9) {
+		ret = skl_update_scaler_users(intel_crtc, crtc_state, intel_plane,
+			state, 0);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -1296,12 +1272,7 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 		}
 		break;
 	case 9:
-		/*
-		 * FIXME: Skylake planes can be scaled (with some restrictions),
-		 * but this is for another time.
-		 */
-		intel_plane->can_scale = false;
-		intel_plane->max_downscale = 1;
+		intel_plane->can_scale = true;
 		intel_plane->update_plane = skl_update_plane;
 		intel_plane->disable_plane = skl_disable_plane;
 		state->scaler_id = -1;
