@@ -90,6 +90,10 @@ static int arc_pmu_cache_event(u64 config)
 	if (ret == CACHE_OP_UNSUPPORTED)
 		return -ENOENT;
 
+	pr_debug("init cache event: type/op/result %d/%d/%d with h/w %d \'%s\'\n",
+		 cache_type, cache_op, cache_result, ret,
+		 arc_pmu_ev_hw_map[ret]);
+
 	return ret;
 }
 
@@ -106,8 +110,9 @@ static int arc_pmu_event_init(struct perf_event *event)
 		if (arc_pmu->ev_hw_idx[event->attr.config] < 0)
 			return -ENOENT;
 		hwc->config = arc_pmu->ev_hw_idx[event->attr.config];
-		pr_debug("initializing event %d with cfg %d\n",
-			 (int) event->attr.config, (int) hwc->config);
+		pr_debug("init event %d with h/w %d \'%s\'\n",
+			 (int) event->attr.config, (int) hwc->config,
+			 arc_pmu_ev_hw_map[event->attr.config]);
 		return 0;
 	case PERF_TYPE_HW_CACHE:
 		ret = arc_pmu_cache_event(event->attr.config);
@@ -260,19 +265,22 @@ static int arc_pmu_device_probe(struct platform_device *pdev)
 		arc_pmu->n_counters, arc_pmu->counter_size, cc_bcr.c);
 
 	cc_name.str[8] = 0;
-	for (i = 0; i < PERF_COUNT_HW_MAX; i++)
+	for (i = 0; i < PERF_COUNT_ARC_HW_MAX; i++)
 		arc_pmu->ev_hw_idx[i] = -1;
 
+	/* loop thru all available h/w condition indexes */
 	for (j = 0; j < cc_bcr.c; j++) {
 		write_aux_reg(ARC_REG_CC_INDEX, j);
 		cc_name.indiv.word0 = read_aux_reg(ARC_REG_CC_NAME0);
 		cc_name.indiv.word1 = read_aux_reg(ARC_REG_CC_NAME1);
+
+		/* See if it has been mapped to a perf event_id */
 		for (i = 0; i < ARRAY_SIZE(arc_pmu_ev_hw_map); i++) {
 			if (arc_pmu_ev_hw_map[i] &&
 			    !strcmp(arc_pmu_ev_hw_map[i], cc_name.str) &&
 			    strlen(arc_pmu_ev_hw_map[i])) {
-				pr_debug("mapping %d to idx %d with name %s\n",
-					 i, j, cc_name.str);
+				pr_debug("mapping perf event %2d to h/w event \'%8s\' (idx %d)\n",
+					 i, cc_name.str, j);
 				arc_pmu->ev_hw_idx[i] = j;
 			}
 		}
