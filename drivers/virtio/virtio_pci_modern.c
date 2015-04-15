@@ -615,9 +615,6 @@ int virtio_pci_modern_probe(struct virtio_pci_device *vp_dev)
 	}
 	vp_dev->vdev.id.vendor = pci_dev->subsystem_vendor;
 
-	if (virtio_device_is_legacy_only(vp_dev->vdev.id))
-		return -ENODEV;
-
 	/* check for a common config: if not, use legacy mode (bar 0). */
 	common = virtio_pci_find_capability(pci_dev, VIRTIO_PCI_CAP_COMMON_CFG,
 					    IORESOURCE_IO | IORESOURCE_MEM);
