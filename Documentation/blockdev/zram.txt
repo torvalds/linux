@@ -144,6 +144,18 @@ whitespace:
 	invalid_io
 	notify_free
 
+File /sys/block/zram<id>/mm_stat
+
+The stat file represents device's mm statistics. It consists of a single
+line of text and contains the following stats separated by whitespace:
+	orig_data_size
+	compr_data_size
+	mem_used_total
+	mem_limit
+	mem_used_max
+	zero_pages
+	num_migrated
+
 8) Deactivate:
 	swapoff /dev/zram0
 	umount /dev/zram1

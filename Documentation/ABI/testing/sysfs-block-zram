@@ -158,3 +158,11 @@ Description:
 		statistics not accounted by block layer. For example,
 		failed_reads, failed_writes, etc. File format is similar to
 		block layer statistics file format.
+
+What:		/sys/block/zram<id>/mm_stat
+Date:		August 2015
+Contact:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Description:
+		The mm_stat file is read-only and represents device's mm
+		statistics (orig_data_size, compr_data_size, etc.) in a format
+		similar to block layer statistics file format.
