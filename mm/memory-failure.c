@@ -1586,8 +1586,18 @@ static int soft_offline_huge_page(struct page *page, int flags)
 	}
 	unlock_page(hpage);
 
-	/* Keep page count to indicate a given hugepage is isolated. */
-	list_move(&hpage->lru, &pagelist);
+	ret = isolate_huge_page(hpage, &pagelist);
+	if (ret) {
+		/*
+		 * get_any_page() and isolate_huge_page() takes a refcount each,
+		 * so need to drop one here.
+		 */
+		put_page(hpage);
+	} else {
+		pr_info("soft offline: %#lx hugepage failed to isolate\n", pfn);
+		return -EBUSY;
+	}
+
 	ret = migrate_pages(&pagelist, new_page, NULL, MPOL_MF_MOVE_ALL,
 				MIGRATE_SYNC, MR_MEMORY_FAILURE);
 	if (ret) {
