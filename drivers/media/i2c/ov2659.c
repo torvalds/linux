@@ -1340,8 +1340,8 @@ static struct ov2659_platform_data *
 ov2659_get_pdata(struct i2c_client *client)
 {
 	struct ov2659_platform_data *pdata;
+	struct v4l2_of_endpoint *bus_cfg;
 	struct device_node *endpoint;
-	int ret;
 
 	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_node)
 		return client->dev.platform_data;
@@ -1350,18 +1350,27 @@ ov2659_get_pdata(struct i2c_client *client)
 	if (!endpoint)
 		return NULL;
 
+	bus_cfg = v4l2_of_alloc_parse_endpoint(endpoint);
+	if (IS_ERR(bus_cfg)) {
+		pdata = NULL;
+		goto done;
+	}
+
 	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		goto done;
 
-	ret = of_property_read_u64(endpoint, "link-frequencies",
-				   &pdata->link_frequency);
-	if (ret) {
-		dev_err(&client->dev, "link-frequencies property not found\n");
+	if (!bus_cfg->nr_of_link_frequencies) {
+		dev_err(&client->dev,
+			"link-frequencies property not found or too many\n");
 		pdata = NULL;
+		goto done;
 	}
 
+	pdata->link_frequency = bus_cfg->link_frequencies[0];
+
 done:
+	v4l2_of_free_endpoint(bus_cfg);
 	of_node_put(endpoint);
 	return pdata;
 }
