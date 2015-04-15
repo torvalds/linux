@@ -1369,6 +1369,12 @@ static void wacom_set_default_phy(struct wacom_features *features)
 
 static void wacom_calculate_res(struct wacom_features *features)
 {
+	/* set unit to "100th of a mm" for devices not reported by HID */
+	if (!features->unit) {
+		features->unit = 0x11;
+		features->unitExpo = -3;
+	}
+
 	features->x_resolution = wacom_calc_hid_res(features->x_max,
 						    features->x_phy,
 						    features->unit,
@@ -1476,12 +1482,6 @@ static int wacom_probe(struct hid_device *hdev,
 	wacom_retrieve_hid_descriptor(hdev, features);
 
 	wacom_setup_device_quirks(wacom);
-
-	/* set unit to "100th of a mm" for devices not reported by HID */
-	if (!features->unit) {
-		features->unit = 0x11;
-		features->unitExpo = -3;
-	}
 	wacom_calculate_res(features);
 
 	strlcpy(wacom_wac->name, features->name, sizeof(wacom_wac->name));
