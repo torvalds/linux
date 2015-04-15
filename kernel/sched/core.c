@@ -92,10 +92,13 @@
 
 void start_bandwidth_timer(struct hrtimer *period_timer, ktime_t period)
 {
-	if (hrtimer_active(period_timer))
-		return;
+	/*
+	 * Do not forward the expiration time of active timers;
+	 * we do not want to loose an overrun.
+	 */
+	if (!hrtimer_active(period_timer))
+		hrtimer_forward_now(period_timer, period);
 
-	hrtimer_forward_now(period_timer, period);
 	hrtimer_start_expires(period_timer, HRTIMER_MODE_ABS_PINNED);
 }
 
@@ -8113,10 +8116,8 @@ static int tg_set_cfs_bandwidth(struct task_group *tg, u64 period, u64 quota)
 
 	__refill_cfs_bandwidth_runtime(cfs_b);
 	/* restart the period timer (if active) to handle new period expiry */
-	if (runtime_enabled && cfs_b->timer_active) {
-		/* force a reprogram */
-		__start_cfs_bandwidth(cfs_b, true);
-	}
+	if (runtime_enabled)
+		start_cfs_bandwidth(cfs_b);
 	raw_spin_unlock_irq(&cfs_b->lock);
 
 	for_each_online_cpu(i) {

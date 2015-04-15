@@ -215,7 +215,7 @@ struct cfs_bandwidth {
 	s64 hierarchical_quota;
 	u64 runtime_expires;
 
-	int idle, timer_active;
+	int idle;
 	struct hrtimer period_timer, slack_timer;
 	struct list_head throttled_cfs_rq;
 
@@ -306,7 +306,7 @@ extern void init_cfs_bandwidth(struct cfs_bandwidth *cfs_b);
 extern int sched_group_set_shares(struct task_group *tg, unsigned long shares);
 
 extern void __refill_cfs_bandwidth_runtime(struct cfs_bandwidth *cfs_b);
-extern void __start_cfs_bandwidth(struct cfs_bandwidth *cfs_b, bool force);
+extern void start_cfs_bandwidth(struct cfs_bandwidth *cfs_b);
 extern void unthrottle_cfs_rq(struct cfs_rq *cfs_rq);
 
 extern void free_rt_sched_group(struct task_group *tg);

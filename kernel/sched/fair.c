@@ -3476,16 +3476,7 @@ static int assign_cfs_rq_runtime(struct cfs_rq *cfs_rq)
 	if (cfs_b->quota == RUNTIME_INF)
 		amount = min_amount;
 	else {
-		/*
-		 * If the bandwidth pool has become inactive, then at least one
-		 * period must have elapsed since the last consumption.
-		 * Refresh the global state and ensure bandwidth timer becomes
-		 * active.
-		 */
-		if (!cfs_b->timer_active) {
-			__refill_cfs_bandwidth_runtime(cfs_b);
-			__start_cfs_bandwidth(cfs_b, false);
-		}
+		start_cfs_bandwidth(cfs_b);
 
 		if (cfs_b->runtime > 0) {
 			amount = min(cfs_b->runtime, min_amount);
@@ -3634,6 +3625,7 @@ static void throttle_cfs_rq(struct cfs_rq *cfs_rq)
 	struct cfs_bandwidth *cfs_b = tg_cfs_bandwidth(cfs_rq->tg);
 	struct sched_entity *se;
 	long task_delta, dequeue = 1;
+	bool empty;
 
 	se = cfs_rq->tg->se[cpu_of(rq_of(cfs_rq))];
 
@@ -3663,13 +3655,21 @@ static void throttle_cfs_rq(struct cfs_rq *cfs_rq)
 	cfs_rq->throttled = 1;
 	cfs_rq->throttled_clock = rq_clock(rq);
 	raw_spin_lock(&cfs_b->lock);
+	empty = list_empty(&cfs_rq->throttled_list);
+
 	/*
 	 * Add to the _head_ of the list, so that an already-started
 	 * distribute_cfs_runtime will not see us
 	 */
 	list_add_rcu(&cfs_rq->throttled_list, &cfs_b->throttled_cfs_rq);
-	if (!cfs_b->timer_active)
-		__start_cfs_bandwidth(cfs_b, false);
+
+	/*
+	 * If we're the first throttled task, make sure the bandwidth
+	 * timer is running.
+	 */
+	if (empty)
+		start_cfs_bandwidth(cfs_b);
+
 	raw_spin_unlock(&cfs_b->lock);
 }
 
@@ -3784,13 +3784,6 @@ static int do_sched_cfs_period_timer(struct cfs_bandwidth *cfs_b, int overrun)
 	if (cfs_b->idle && !throttled)
 		goto out_deactivate;
 
-	/*
-	 * if we have relooped after returning idle once, we need to update our
-	 * status as actually running, so that other cpus doing
-	 * __start_cfs_bandwidth will stop trying to cancel us.
-	 */
-	cfs_b->timer_active = 1;
-
 	__refill_cfs_bandwidth_runtime(cfs_b);
 
 	if (!throttled) {
@@ -3835,7 +3828,6 @@ static int do_sched_cfs_period_timer(struct cfs_bandwidth *cfs_b, int overrun)
 	return 0;
 
 out_deactivate:
-	cfs_b->timer_active = 0;
 	return 1;
 }
 
@@ -3999,6 +3991,7 @@ static enum hrtimer_restart sched_cfs_slack_timer(struct hrtimer *timer)
 {
 	struct cfs_bandwidth *cfs_b =
 		container_of(timer, struct cfs_bandwidth, slack_timer);
+
 	do_sched_cfs_slack_timer(cfs_b);
 
 	return HRTIMER_NORESTART;
@@ -4008,15 +4001,12 @@ static enum hrtimer_restart sched_cfs_period_timer(struct hrtimer *timer)
 {
 	struct cfs_bandwidth *cfs_b =
 		container_of(timer, struct cfs_bandwidth, period_timer);
-	ktime_t now;
 	int overrun;
 	int idle = 0;
 
 	raw_spin_lock(&cfs_b->lock);
 	for (;;) {
-		now = hrtimer_cb_get_time(timer);
-		overrun = hrtimer_forward(timer, now, cfs_b->period);
-
+		overrun = hrtimer_forward_now(timer, cfs_b->period);
 		if (!overrun)
 			break;
 
@@ -4047,27 +4037,8 @@ static void init_cfs_rq_runtime(struct cfs_rq *cfs_rq)
 	INIT_LIST_HEAD(&cfs_rq->throttled_list);
 }
 
-/* requires cfs_b->lock, may release to reprogram timer */
-void __start_cfs_bandwidth(struct cfs_bandwidth *cfs_b, bool force)
+void start_cfs_bandwidth(struct cfs_bandwidth *cfs_b)
 {
-	/*
-	 * The timer may be active because we're trying to set a new bandwidth
-	 * period or because we're racing with the tear-down path
-	 * (timer_active==0 becomes visible before the hrtimer call-back
-	 * terminates).  In either case we ensure that it's re-programmed
-	 */
-	while (unlikely(hrtimer_active(&cfs_b->period_timer)) &&
-	       hrtimer_try_to_cancel(&cfs_b->period_timer) < 0) {
-		/* bounce the lock to allow do_sched_cfs_period_timer to run */
-		raw_spin_unlock(&cfs_b->lock);
-		cpu_relax();
-		raw_spin_lock(&cfs_b->lock);
-		/* if someone else restarted the timer then we're done */
-		if (!force && cfs_b->timer_active)
-			return;
-	}
-
-	cfs_b->timer_active = 1;
 	start_bandwidth_timer(&cfs_b->period_timer, cfs_b->period);
 }
 
