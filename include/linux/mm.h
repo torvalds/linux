@@ -251,6 +251,9 @@ struct vm_operations_struct {
 	 * writable, if an error is returned it will cause a SIGBUS */
 	int (*page_mkwrite)(struct vm_area_struct *vma, struct vm_fault *vmf);
 
+	/* same as page_mkwrite when using VM_PFNMAP|VM_MIXEDMAP */
+	int (*pfn_mkwrite)(struct vm_area_struct *vma, struct vm_fault *vmf);
+
 	/* called by access_process_vm when get_user_pages() fails, typically
 	 * for use by special VMAs that can switch between memory and hardware
 	 */
