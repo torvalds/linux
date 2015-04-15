@@ -4321,7 +4321,8 @@ static int rk3368_lcdc_set_bcsh(struct rk_lcdc_driver *dev_drv, bool enable)
 	return 0;
 }
 
-static int rk3368_lcdc_dsp_black(struct rk_lcdc_driver *dev_drv, int enable)
+static int __maybe_unused
+rk3368_lcdc_dsp_black(struct rk_lcdc_driver *dev_drv, int enable)
 {
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
@@ -4424,7 +4425,7 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.dump_reg = rk3368_lcdc_reg_dump,
 	.cfg_done = rk3368_lcdc_config_done,
 	.set_irq_to_cpu = rk3368_lcdc_set_irq_to_cpu,
-	.dsp_black = rk3368_lcdc_dsp_black,
+	/*.dsp_black = rk3368_lcdc_dsp_black,*/
 	.backlight_close = rk3368_lcdc_backlight_close,
 	.mmu_en    = rk3368_lcdc_mmu_en,
 	.set_overscan   = rk3368_lcdc_set_overscan,
