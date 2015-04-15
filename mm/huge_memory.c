@@ -67,6 +67,7 @@ static unsigned int khugepaged_max_ptes_none __read_mostly = HPAGE_PMD_NR-1;
 
 static int khugepaged(void *none);
 static int khugepaged_slab_init(void);
+static void khugepaged_slab_exit(void);
 
 #define MM_SLOTS_HASH_BITS 10
 static __read_mostly DEFINE_HASHTABLE(mm_slots_hash, MM_SLOTS_HASH_BITS);
@@ -634,13 +635,15 @@ static int __init hugepage_init(void)
 
 	err = hugepage_init_sysfs(&hugepage_kobj);
 	if (err)
-		return err;
+		goto err_sysfs;
 
 	err = khugepaged_slab_init();
 	if (err)
-		goto out;
+		goto err_slab;
 
-	register_shrinker(&huge_zero_page_shrinker);
+	err = register_shrinker(&huge_zero_page_shrinker);
+	if (err)
+		goto err_hzp_shrinker;
 
 	/*
 	 * By default disable transparent hugepages on smaller systems,
@@ -650,11 +653,18 @@ static int __init hugepage_init(void)
 	if (totalram_pages < (512 << (20 - PAGE_SHIFT)))
 		transparent_hugepage_flags = 0;
 
-	start_khugepaged();
+	err = start_khugepaged();
+	if (err)
+		goto err_khugepaged;
 
 	return 0;
-out:
+err_khugepaged:
+	unregister_shrinker(&huge_zero_page_shrinker);
+err_hzp_shrinker:
+	khugepaged_slab_exit();
+err_slab:
 	hugepage_exit_sysfs(hugepage_kobj);
+err_sysfs:
 	return err;
 }
 subsys_initcall(hugepage_init);
@@ -1972,6 +1982,11 @@ static int __init khugepaged_slab_init(void)
 		return -ENOMEM;
 
 	return 0;
+}
+
+static void __init khugepaged_slab_exit(void)
+{
+	kmem_cache_destroy(mm_slot_cache);
 }
 
 static inline struct mm_slot *alloc_mm_slot(void)
