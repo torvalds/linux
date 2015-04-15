@@ -21,7 +21,6 @@
 #ifndef TUA9001_H
 #define TUA9001_H
 
-#include <linux/kconfig.h>
 #include "dvb_frontend.h"
 
 /*
@@ -35,13 +34,6 @@
  */
 struct tua9001_platform_data {
 	struct dvb_frontend *dvb_frontend;
-};
-
-struct tua9001_config {
-	/*
-	 * I2C address
-	 */
-	u8 i2c_addr;
 };
 
 /*
@@ -63,17 +55,5 @@ struct tua9001_config {
 #define TUA9001_CMD_CEN     0
 #define TUA9001_CMD_RESETN  1
 #define TUA9001_CMD_RXEN    2
-
-#if IS_REACHABLE(CONFIG_MEDIA_TUNER_TUA9001)
-extern struct dvb_frontend *tua9001_attach(struct dvb_frontend *fe,
-		struct i2c_adapter *i2c, struct tua9001_config *cfg);
-#else
-static inline struct dvb_frontend *tua9001_attach(struct dvb_frontend *fe,
-		struct i2c_adapter *i2c, struct tua9001_config *cfg)
-{
-	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
-	return NULL;
-}
-#endif
 
 #endif

@@ -47,23 +47,6 @@ static int tua9001_wr_reg(struct tua9001_priv *priv, u8 reg, u16 val)
 	return ret;
 }
 
-static int tua9001_release(struct dvb_frontend *fe)
-{
-	struct tua9001_priv *priv = fe->tuner_priv;
-	int ret = 0;
-
-	dev_dbg(&priv->i2c->dev, "%s:\n", __func__);
-
-	if (fe->callback)
-		ret = fe->callback(priv->i2c, DVB_FRONTEND_COMPONENT_TUNER,
-				TUA9001_CMD_CEN, 0);
-
-	kfree(fe->tuner_priv);
-	fe->tuner_priv = NULL;
-
-	return ret;
-}
-
 static int tua9001_init(struct dvb_frontend *fe)
 {
 	struct tua9001_priv *priv = fe->tuner_priv;
@@ -96,18 +79,11 @@ static int tua9001_init(struct dvb_frontend *fe)
 			goto err;
 	}
 
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1); /* open i2c-gate */
-
 	for (i = 0; i < ARRAY_SIZE(data); i++) {
 		ret = tua9001_wr_reg(priv, data[i].reg, data[i].val);
 		if (ret < 0)
-			goto err_i2c_gate_ctrl;
+			goto err;
 	}
-
-err_i2c_gate_ctrl:
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 0); /* close i2c-gate */
 err:
 	if (ret < 0)
 		dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
@@ -181,32 +157,25 @@ static int tua9001_set_params(struct dvb_frontend *fe)
 	data[1].reg = 0x1f;
 	data[1].val = frequency;
 
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1); /* open i2c-gate */
-
 	if (fe->callback) {
 		ret = fe->callback(priv->i2c, DVB_FRONTEND_COMPONENT_TUNER,
 				TUA9001_CMD_RXEN, 0);
 		if (ret < 0)
-			goto err_i2c_gate_ctrl;
+			goto err;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(data); i++) {
 		ret = tua9001_wr_reg(priv, data[i].reg, data[i].val);
 		if (ret < 0)
-			goto err_i2c_gate_ctrl;
+			goto err;
 	}
 
 	if (fe->callback) {
 		ret = fe->callback(priv->i2c, DVB_FRONTEND_COMPONENT_TUNER,
 				TUA9001_CMD_RXEN, 1);
 		if (ret < 0)
-			goto err_i2c_gate_ctrl;
+			goto err;
 	}
-
-err_i2c_gate_ctrl:
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 0); /* close i2c-gate */
 err:
 	if (ret < 0)
 		dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
@@ -234,60 +203,12 @@ static const struct dvb_tuner_ops tua9001_tuner_ops = {
 		.frequency_step = 0,
 	},
 
-	.release = tua9001_release,
-
 	.init = tua9001_init,
 	.sleep = tua9001_sleep,
 	.set_params = tua9001_set_params,
 
 	.get_if_frequency = tua9001_get_if_frequency,
 };
-
-struct dvb_frontend *tua9001_attach(struct dvb_frontend *fe,
-		struct i2c_adapter *i2c, struct tua9001_config *cfg)
-{
-	struct tua9001_priv *priv = NULL;
-	int ret;
-
-	priv = kzalloc(sizeof(struct tua9001_priv), GFP_KERNEL);
-	if (priv == NULL)
-		return NULL;
-
-	priv->i2c_addr = cfg->i2c_addr;
-	priv->i2c = i2c;
-
-	if (fe->callback) {
-		ret = fe->callback(priv->i2c, DVB_FRONTEND_COMPONENT_TUNER,
-				TUA9001_CMD_CEN, 1);
-		if (ret < 0)
-			goto err;
-
-		ret = fe->callback(priv->i2c, DVB_FRONTEND_COMPONENT_TUNER,
-				TUA9001_CMD_RXEN, 0);
-		if (ret < 0)
-			goto err;
-
-		ret = fe->callback(priv->i2c, DVB_FRONTEND_COMPONENT_TUNER,
-				TUA9001_CMD_RESETN, 1);
-		if (ret < 0)
-			goto err;
-	}
-
-	dev_info(&priv->i2c->dev,
-			"%s: Infineon TUA 9001 successfully attached\n",
-			KBUILD_MODNAME);
-
-	memcpy(&fe->ops.tuner_ops, &tua9001_tuner_ops,
-			sizeof(struct dvb_tuner_ops));
-
-	fe->tuner_priv = priv;
-	return fe;
-err:
-	dev_dbg(&i2c->dev, "%s: failed=%d\n", __func__, ret);
-	kfree(priv);
-	return NULL;
-}
-EXPORT_SYMBOL(tua9001_attach);
 
 static int tua9001_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
@@ -331,7 +252,6 @@ static int tua9001_probe(struct i2c_client *client,
 	fe->tuner_priv = dev;
 	memcpy(&fe->ops.tuner_ops, &tua9001_tuner_ops,
 			sizeof(struct dvb_tuner_ops));
-	fe->ops.tuner_ops.release = NULL;
 	i2c_set_clientdata(client, dev);
 
 	dev_info(&client->dev, "Infineon TUA 9001 successfully attached\n");
