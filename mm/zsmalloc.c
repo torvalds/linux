@@ -1711,8 +1711,6 @@ static unsigned long __zs_compact(struct zs_pool *pool,
 	struct page *dst_page = NULL;
 	unsigned long nr_total_migrated = 0;
 
-	cond_resched();
-
 	spin_lock(&class->lock);
 	while ((src_page = isolate_source_page(class))) {
 
