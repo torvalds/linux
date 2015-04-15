@@ -7,4 +7,7 @@
 extern int sha1_update_arm(struct shash_desc *desc, const u8 *data,
 			   unsigned int len);
 
+extern int sha1_finup_arm(struct shash_desc *desc, const u8 *data,
+			   unsigned int len, u8 *out);
+
 #endif

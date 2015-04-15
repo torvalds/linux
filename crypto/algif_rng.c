@@ -87,7 +87,7 @@ static int rng_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 		return genlen;
 
 	err = memcpy_to_msg(msg, result, len);
-	memzero_explicit(result, genlen);
+	memzero_explicit(result, len);
 
 	return err ? err : len;
 }

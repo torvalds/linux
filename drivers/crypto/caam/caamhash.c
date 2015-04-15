@@ -1172,6 +1172,7 @@ static int ahash_final_no_ctx(struct ahash_request *req)
 		return -ENOMEM;
 	}
 
+	edesc->sec4_sg_bytes = 0;
 	sh_len = desc_len(sh_desc);
 	desc = edesc->hw_desc;
 	init_job_desc_shared(desc, ptr, sh_len, HDR_SHARE_DEFER | HDR_REVERSE);
