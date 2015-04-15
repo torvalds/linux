@@ -296,7 +296,6 @@ static void tc3589x_keypad_close(struct input_dev *input)
 	tc3589x_keypad_disable(keypad);
 }
 
-#ifdef CONFIG_OF
 static const struct tc3589x_keypad_platform_data *
 tc3589x_keypad_of_probe(struct device *dev)
 {
@@ -346,14 +345,6 @@ tc3589x_keypad_of_probe(struct device *dev)
 
 	return plat;
 }
-#else
-static inline const struct tc3589x_keypad_platform_data *
-tc3589x_keypad_of_probe(struct device *dev)
-{
-	return ERR_PTR(-ENODEV);
-}
-#endif
-
 
 static int tc3589x_keypad_probe(struct platform_device *pdev)
 {
