@@ -460,6 +460,12 @@ static inline unsigned short mem_cgroup_id(struct mem_cgroup *memcg)
 	return memcg->css.id;
 }
 
+/*
+ * A helper function to get mem_cgroup from ID. must be called under
+ * rcu_read_lock().  The caller is responsible for calling
+ * css_tryget_online() if the mem_cgroup is used for charging. (dropping
+ * refcnt from swap can be called against removed memcg.)
+ */
 static inline struct mem_cgroup *mem_cgroup_from_id(unsigned short id)
 {
 	struct cgroup_subsys_state *css;
@@ -2349,20 +2355,6 @@ static void cancel_charge(struct mem_cgroup *memcg, unsigned int nr_pages)
 }
 
 /*
- * A helper function to get mem_cgroup from ID. must be called under
- * rcu_read_lock().  The caller is responsible for calling
- * css_tryget_online() if the mem_cgroup is used for charging. (dropping
- * refcnt from swap can be called against removed memcg.)
- */
-static struct mem_cgroup *mem_cgroup_lookup(unsigned short id)
-{
-	/* ID 0 is unused ID */
-	if (!id)
-		return NULL;
-	return mem_cgroup_from_id(id);
-}
-
-/*
  * try_get_mem_cgroup_from_page - look up page's memcg association
  * @page: the page
  *
@@ -2388,7 +2380,7 @@ struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
 		ent.val = page_private(page);
 		id = lookup_swap_cgroup_id(ent);
 		rcu_read_lock();
-		memcg = mem_cgroup_lookup(id);
+		memcg = mem_cgroup_from_id(id);
 		if (memcg && !css_tryget_online(&memcg->css))
 			memcg = NULL;
 		rcu_read_unlock();
@@ -5869,7 +5861,7 @@ void mem_cgroup_uncharge_swap(swp_entry_t entry)
 
 	id = swap_cgroup_record(entry, 0);
 	rcu_read_lock();
-	memcg = mem_cgroup_lookup(id);
+	memcg = mem_cgroup_from_id(id);
 	if (memcg) {
 		if (!mem_cgroup_is_root(memcg))
 			page_counter_uncharge(&memcg->memsw, 1);
