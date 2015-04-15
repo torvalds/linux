@@ -16,32 +16,6 @@
 
 #include "tua9001_priv.h"
 
-/* write register */
-static int tua9001_wr_reg(struct tua9001_dev *dev, u8 reg, u16 val)
-{
-	struct i2c_client *client = dev->client;
-	int ret;
-	u8 buf[3] = { reg, (val >> 8) & 0xff, (val >> 0) & 0xff };
-	struct i2c_msg msg[1] = {
-		{
-			.addr = client->addr,
-			.flags = 0,
-			.len = sizeof(buf),
-			.buf = buf,
-		}
-	};
-
-	ret = i2c_transfer(client->adapter, msg, 1);
-	if (ret == 1) {
-		ret = 0;
-	} else {
-		dev_warn(&client->dev, "i2c wr failed=%d reg=%02x\n", ret, reg);
-		ret = -EREMOTEIO;
-	}
-
-	return ret;
-}
-
 static int tua9001_init(struct dvb_frontend *fe)
 {
 	struct tua9001_dev *dev = fe->tuner_priv;
@@ -76,7 +50,7 @@ static int tua9001_init(struct dvb_frontend *fe)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(data); i++) {
-		ret = tua9001_wr_reg(dev, data[i].reg, data[i].val);
+		ret = regmap_write(dev->regmap, data[i].reg, data[i].val);
 		if (ret)
 			goto err;
 	}
@@ -166,7 +140,7 @@ static int tua9001_set_params(struct dvb_frontend *fe)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(data); i++) {
-		ret = tua9001_wr_reg(dev, data[i].reg, data[i].val);
+		ret = regmap_write(dev->regmap, data[i].reg, data[i].val);
 		if (ret)
 			goto err;
 	}
@@ -216,6 +190,10 @@ static int tua9001_probe(struct i2c_client *client,
 	struct tua9001_platform_data *pdata = client->dev.platform_data;
 	struct dvb_frontend *fe = pdata->dvb_frontend;
 	int ret;
+	static const struct regmap_config regmap_config = {
+		.reg_bits =  8,
+		.val_bits = 16,
+	};
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
@@ -223,8 +201,13 @@ static int tua9001_probe(struct i2c_client *client,
 		goto err;
 	}
 
-	dev->client = client;
 	dev->fe = pdata->dvb_frontend;
+	dev->client = client;
+	dev->regmap = devm_regmap_init_i2c(client, &regmap_config);
+	if (IS_ERR(dev->regmap)) {
+		ret = PTR_ERR(dev->regmap);
+		goto err_kfree;
+	}
 
 	if (fe->callback) {
 		ret = fe->callback(client->adapter,
