@@ -206,11 +206,18 @@ int wifi_platform_bus_enumerate(wifi_adapter_info_t *adapter, bool device_presen
 
 }
 
+#if defined(CUSTOMER_HW)
+int rockchip_wifi_mac_addr(unsigned char *buf);
+#endif
 int wifi_platform_get_mac_addr(wifi_adapter_info_t *adapter, unsigned char *buf)
 {
-	struct wifi_platform_data *plat_data;
+	//struct wifi_platform_data *plat_data;
 
 	DHD_ERROR(("%s\n", __FUNCTION__));
+
+#if defined(CUSTOMER_HW)
+        return rockchip_wifi_mac_addr(buf);
+#else
 	if (!buf || !adapter || !adapter->wifi_plat_data)
 		return -EINVAL;
 	plat_data = adapter->wifi_plat_data;
@@ -218,6 +225,7 @@ int wifi_platform_get_mac_addr(wifi_adapter_info_t *adapter, unsigned char *buf)
 		return plat_data->get_mac_addr(buf);
 	}
 	return -EOPNOTSUPP;
+#endif
 }
 
 void *wifi_platform_get_country_code(wifi_adapter_info_t *adapter, char *ccode)
