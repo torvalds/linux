@@ -125,6 +125,7 @@ mxicy	Macronix International Co., Ltd.
 national	National Semiconductor
 neonode		Neonode Inc.
 netgear	NETGEAR
+netlogic	Broadcom Corporation (formerly NetLogic Microsystems)
 newhaven	Newhaven Display International
 nintendo	Nintendo
 nokia	Nokia
