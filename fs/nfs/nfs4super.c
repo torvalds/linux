@@ -3,12 +3,12 @@
  */
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/nfs_idmap.h>
 #include <linux/nfs4_mount.h>
 #include <linux/nfs_fs.h>
 #include "delegation.h"
 #include "internal.h"
 #include "nfs4_fs.h"
+#include "nfs4idmap.h"
 #include "dns_resolve.h"
 #include "pnfs.h"
 #include "nfs.h"

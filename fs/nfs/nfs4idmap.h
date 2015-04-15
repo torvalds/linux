@@ -1,5 +1,5 @@
 /*
- * include/linux/nfs_idmap.h
+ * fs/nfs/nfs4idmap.h
  *
  *  UID and GID to name mapping for clients.
  *
