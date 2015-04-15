@@ -37,6 +37,33 @@ Transport queue pair.  Network data is copied between socket buffers and the
 Transport queue pair buffer.  The Transport client may be used for other things
 besides Netdev, however no other applications have yet been written.
 
+### NTB Ping Pong Test Client (ntb\_pingpong)
+
+The Ping Pong test client serves as a demonstration to exercise the doorbell
+and scratchpad registers of NTB hardware, and as an example simple NTB client.
+Ping Pong enables the link when started, waits for the NTB link to come up, and
+then proceeds to read and write the doorbell scratchpad registers of the NTB.
+The peers interrupt each other using a bit mask of doorbell bits, which is
+shifted by one in each round, to test the behavior of multiple doorbell bits
+and interrupt vectors.  The Ping Pong driver also reads the first local
+scratchpad, and writes the value plus one to the first peer scratchpad, each
+round before writing the peer doorbell register.
+
+Module Parameters:
+
+* unsafe - Some hardware has known issues with scratchpad and doorbell
+	registers.  By default, Ping Pong will not attempt to exercise such
+	hardware.  You may override this behavior at your own risk by setting
+	unsafe=1.
+* delay\_ms - Specify the delay between receiving a doorbell
+	interrupt event and setting the peer doorbell register for the next
+	round.
+* init\_db - Specify the doorbell bits to start new series of rounds.  A new
+	series begins once all the doorbell bits have been shifted out of
+	range.
+* dyndbg - It is suggested to specify dyndbg=+p when loading this module, and
+	then to observe debugging output on the console.
+
 ## NTB Hardware Drivers
 
 NTB hardware drivers should register devices with the NTB core driver.  After

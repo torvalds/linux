@@ -1,0 +1,8 @@
+config NTB_PINGPONG
+	tristate "NTB Ping Pong Test Client"
+	help
+	 This is a simple ping pong driver that exercises the scratchpads and
+	 doorbells of the ntb hardware.  This driver may be used to test that
+	 your ntb hardware and drivers are functioning at a basic level.
+
+	 If unsure, say N.
