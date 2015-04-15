@@ -225,7 +225,6 @@ struct i40evf_adapter {
 #define I40E_FLAG_RX_CSUM_ENABLED                I40EVF_FLAG_RX_CSUM_ENABLED
 	/* flags for admin queue service task */
 	u32 aq_required;
-	u32 aq_pending;
 #define I40EVF_FLAG_AQ_ENABLE_QUEUES		(u32)(1)
 #define I40EVF_FLAG_AQ_DISABLE_QUEUES		(u32)(1 << 1)
 #define I40EVF_FLAG_AQ_ADD_MAC_FILTER		(u32)(1 << 2)
