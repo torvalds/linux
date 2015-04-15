@@ -110,7 +110,8 @@ static int set_recommended_min_free_kbytes(void)
 	int nr_zones = 0;
 	unsigned long recommended_min;
 
-	if (!khugepaged_enabled())
+	/* khugepaged thread has stopped to failed to start */
+	if (!khugepaged_thread)
 		return 0;
 
 	for_each_populated_zone(zone)
