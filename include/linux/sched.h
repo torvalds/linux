@@ -125,7 +125,6 @@ struct sched_attr {
 	u64 sched_period;
 };
 
-struct exec_domain;
 struct futex_pi_state;
 struct robust_list_head;
 struct bio_list;
@@ -2310,11 +2309,6 @@ extern struct task_struct *curr_task(int cpu);
 extern void set_curr_task(int cpu, struct task_struct *p);
 
 void yield(void);
-
-/*
- * The default (Linux) execution domain.
- */
-extern struct exec_domain	default_exec_domain;
 
 union thread_union {
 	struct thread_info thread_info;
