@@ -637,7 +637,6 @@ void ib_umem_odp_unmap_dma_pages(struct ib_umem *umem, u64 virt,
 		idx = (addr - ib_umem_start(umem)) / PAGE_SIZE;
 		if (umem->odp_data->page_list[idx]) {
 			struct page *page = umem->odp_data->page_list[idx];
-			struct page *head_page = compound_head(page);
 			dma_addr_t dma = umem->odp_data->dma_list[idx];
 			dma_addr_t dma_addr = dma & ODP_DMA_ADDR_MASK;
 
@@ -645,7 +644,8 @@ void ib_umem_odp_unmap_dma_pages(struct ib_umem *umem, u64 virt,
 
 			ib_dma_unmap_page(dev, dma_addr, PAGE_SIZE,
 					  DMA_BIDIRECTIONAL);
-			if (dma & ODP_WRITE_ALLOWED_BIT)
+			if (dma & ODP_WRITE_ALLOWED_BIT) {
+				struct page *head_page = compound_head(page);
 				/*
 				 * set_page_dirty prefers being called with
 				 * the page lock. However, MMU notifiers are
@@ -656,6 +656,7 @@ void ib_umem_odp_unmap_dma_pages(struct ib_umem *umem, u64 virt,
 				 * be removed.
 				 */
 				set_page_dirty(head_page);
+			}
 			/* on demand pinning support */
 			if (!umem->context->invalidate_range)
 				put_page(page);
