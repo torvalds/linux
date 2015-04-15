@@ -1398,11 +1398,6 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
 	/* extra space in chunk to keep the handle */
 	size += ZS_HANDLE_SIZE;
 	class = pool->size_class[get_size_class_index(size)];
-	/* In huge class size, we store the handle into first_page->private */
-	if (class->huge) {
-		size -= ZS_HANDLE_SIZE;
-		class = pool->size_class[get_size_class_index(size)];
-	}
 
 	spin_lock(&class->lock);
 	first_page = find_get_zspage(class);
