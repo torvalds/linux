@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Martin Peres
+ * Copyright 2015 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,44 +19,39 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: Martin Peres
+ * Authors: Ben Skeggs
  */
-#include "priv.h"
+#include "gk104.h"
 
-struct gm107_fuse_priv {
-	struct nvkm_fuse base;
+#include <nvif/class.h>
+
+static struct nvkm_oclass
+gm204_fifo_sclass[] = {
+	{ MAXWELL_CHANNEL_GPFIFO_A, &gk104_fifo_chan_ofuncs },
+	{}
 };
 
-static u32
-gm107_fuse_rd32(struct nvkm_object *object, u64 addr)
-{
-	struct gf100_fuse_priv *priv = (void *)object;
-	return nv_rd32(priv, 0x21100 + addr);
-}
-
-
 static int
-gm107_fuse_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+gm204_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		struct nvkm_oclass *oclass, void *data, u32 size,
 		struct nvkm_object **pobject)
 {
-	struct gm107_fuse_priv *priv;
-	int ret;
-
-	ret = nvkm_fuse_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-
+	int ret = gk104_fifo_ctor(parent, engine, oclass, data, size, pobject);
+	if (ret == 0) {
+		struct gk104_fifo_priv *priv = (void *)*pobject;
+		nv_engine(priv)->sclass = gm204_fifo_sclass;
+	}
 	return ret;
 }
 
-struct nvkm_oclass
-gm107_fuse_oclass = {
-	.handle = NV_SUBDEV(FUSE, 0x117),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gm107_fuse_ctor,
-		.dtor = _nvkm_fuse_dtor,
-		.init = _nvkm_fuse_init,
-		.fini = _nvkm_fuse_fini,
-		.rd32 = gm107_fuse_rd32,
+struct nvkm_oclass *
+gm204_fifo_oclass = &(struct gk104_fifo_impl) {
+	.base.handle = NV_ENGINE(FIFO, 0x24),
+	.base.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = gm204_fifo_ctor,
+		.dtor = gk104_fifo_dtor,
+		.init = gk104_fifo_init,
+		.fini = _nvkm_fifo_fini,
 	},
-};
+	.channels = 4096,
+}.base;

@@ -29,7 +29,7 @@ struct nvkm_hwsq {
 	u32 data;
 	struct {
 		u8 data[512];
-		u8 size;
+		u16 size;
 	} c;
 };
 

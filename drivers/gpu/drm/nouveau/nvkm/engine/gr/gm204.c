@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Red Hat Inc.
+ * Copyright 2015 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,20 +24,18 @@
 #include "gf100.h"
 #include "ctxgf100.h"
 
-#include <subdev/pmu.h>
-
 #include <nvif/class.h>
 
 /*******************************************************************************
  * Graphics object classes
  ******************************************************************************/
 
-static struct nvkm_oclass
-gk104_gr_sclass[] = {
+struct nvkm_oclass
+gm204_gr_sclass[] = {
 	{ FERMI_TWOD_A, &nvkm_object_ofuncs },
-	{ KEPLER_INLINE_TO_MEMORY_A, &nvkm_object_ofuncs },
-	{ KEPLER_A, &gf100_fermi_ofuncs, gf100_gr_9097_omthds },
-	{ KEPLER_COMPUTE_A, &nvkm_object_ofuncs, gf100_gr_90c0_omthds },
+	{ KEPLER_INLINE_TO_MEMORY_B, &nvkm_object_ofuncs },
+	{ MAXWELL_B, &gf100_fermi_ofuncs, gf100_gr_9097_omthds },
+	{ MAXWELL_COMPUTE_B, &nvkm_object_ofuncs, gf100_gr_90c0_omthds },
 	{}
 };
 
@@ -45,13 +43,13 @@ gk104_gr_sclass[] = {
  * PGRAPH register lists
  ******************************************************************************/
 
-const struct gf100_gr_init
-gk104_gr_init_main_0[] = {
-	{ 0x400080,   1, 0x04, 0x003083c2 },
-	{ 0x400088,   1, 0x04, 0x0001ffe7 },
-	{ 0x40008c,   1, 0x04, 0x00000000 },
+static const struct gf100_gr_init
+gm204_gr_init_main_0[] = {
+	{ 0x400080,   1, 0x04, 0x003003e2 },
+	{ 0x400088,   1, 0x04, 0xe007bfe7 },
+	{ 0x40008c,   1, 0x04, 0x00060000 },
 	{ 0x400090,   1, 0x04, 0x00000030 },
-	{ 0x40013c,   1, 0x04, 0x003901f7 },
+	{ 0x40013c,   1, 0x04, 0x003901f3 },
 	{ 0x400140,   1, 0x04, 0x00000100 },
 	{ 0x400144,   1, 0x04, 0x00000000 },
 	{ 0x400148,   1, 0x04, 0x00000110 },
@@ -62,92 +60,136 @@ gk104_gr_init_main_0[] = {
 };
 
 static const struct gf100_gr_init
-gk104_gr_init_ds_0[] = {
+gm204_gr_init_fe_0[] = {
+	{ 0x40415c,   1, 0x04, 0x00000000 },
+	{ 0x404170,   1, 0x04, 0x00000000 },
+	{ 0x4041b4,   1, 0x04, 0x00000000 },
+	{ 0x4041b8,   1, 0x04, 0x00000010 },
+	{}
+};
+
+static const struct gf100_gr_init
+gm204_gr_init_ds_0[] = {
+	{ 0x40583c,   1, 0x04, 0x00000000 },
 	{ 0x405844,   1, 0x04, 0x00ffffff },
+	{ 0x40584c,   1, 0x04, 0x00000001 },
 	{ 0x405850,   1, 0x04, 0x00000000 },
-	{ 0x405900,   1, 0x04, 0x0000ff34 },
+	{ 0x405900,   1, 0x04, 0x00000000 },
 	{ 0x405908,   1, 0x04, 0x00000000 },
-	{ 0x405928,   2, 0x04, 0x00000000 },
 	{}
 };
 
 static const struct gf100_gr_init
-gk104_gr_init_sked_0[] = {
+gm204_gr_init_sked_0[] = {
 	{ 0x407010,   1, 0x04, 0x00000000 },
+	{ 0x407040,   1, 0x04, 0x80440434 },
+	{ 0x407048,   1, 0x04, 0x00000008 },
 	{}
 };
 
 static const struct gf100_gr_init
-gk104_gr_init_cwd_0[] = {
-	{ 0x405b50,   1, 0x04, 0x00000000 },
-	{}
-};
-
-static const struct gf100_gr_init
-gk104_gr_init_gpc_unk_1[] = {
-	{ 0x418d00,   1, 0x04, 0x00000000 },
-	{ 0x418d28,   2, 0x04, 0x00000000 },
-	{ 0x418f00,   1, 0x04, 0x00000000 },
-	{ 0x418f08,   1, 0x04, 0x00000000 },
-	{ 0x418f20,   2, 0x04, 0x00000000 },
-	{ 0x418e00,   1, 0x04, 0x00000060 },
-	{ 0x418e08,   1, 0x04, 0x00000000 },
-	{ 0x418e1c,   2, 0x04, 0x00000000 },
-	{}
-};
-
-const struct gf100_gr_init
-gk104_gr_init_tpccs_0[] = {
+gm204_gr_init_tpccs_0[] = {
+	{ 0x419d60,   1, 0x04, 0x0000003f },
+	{ 0x419d88,   3, 0x04, 0x00000000 },
+	{ 0x419dc4,   1, 0x04, 0x00000000 },
+	{ 0x419dc8,   1, 0x04, 0x00000501 },
+	{ 0x419dd0,   1, 0x04, 0x00000000 },
+	{ 0x419dd4,   1, 0x04, 0x00000100 },
+	{ 0x419dd8,   1, 0x04, 0x00000001 },
+	{ 0x419ddc,   1, 0x04, 0x00000002 },
+	{ 0x419de0,   1, 0x04, 0x00000001 },
+	{ 0x419de8,   1, 0x04, 0x000000cc },
+	{ 0x419dec,   1, 0x04, 0x00000000 },
+	{ 0x419df0,   1, 0x04, 0x000000cc },
+	{ 0x419df4,   1, 0x04, 0x00000000 },
 	{ 0x419d0c,   1, 0x04, 0x00000000 },
 	{ 0x419d10,   1, 0x04, 0x00000014 },
 	{}
 };
 
-const struct gf100_gr_init
-gk104_gr_init_pe_0[] = {
+static const struct gf100_gr_init
+gm204_gr_init_pe_0[] = {
+	{ 0x419900,   1, 0x04, 0x000000ff },
+	{ 0x419810,   1, 0x04, 0x00000000 },
 	{ 0x41980c,   1, 0x04, 0x00000010 },
 	{ 0x419844,   1, 0x04, 0x00000000 },
+	{ 0x419838,   1, 0x04, 0x000000ff },
 	{ 0x419850,   1, 0x04, 0x00000004 },
 	{ 0x419854,   2, 0x04, 0x00000000 },
+	{ 0x419894,   3, 0x04, 0x00100401 },
 	{}
 };
 
 static const struct gf100_gr_init
-gk104_gr_init_l1c_0[] = {
-	{ 0x419c98,   1, 0x04, 0x00000000 },
-	{ 0x419ca8,   1, 0x04, 0x00000000 },
-	{ 0x419cb0,   1, 0x04, 0x01000000 },
-	{ 0x419cb4,   1, 0x04, 0x00000000 },
-	{ 0x419cb8,   1, 0x04, 0x00b08bea },
-	{ 0x419c84,   1, 0x04, 0x00010384 },
-	{ 0x419cbc,   1, 0x04, 0x28137646 },
-	{ 0x419cc0,   2, 0x04, 0x00000000 },
-	{ 0x419c80,   1, 0x04, 0x00020232 },
-	{}
-};
-
-static const struct gf100_gr_init
-gk104_gr_init_sm_0[] = {
+gm204_gr_init_sm_0[] = {
+	{ 0x419e30,   1, 0x04, 0x000000ff },
 	{ 0x419e00,   1, 0x04, 0x00000000 },
 	{ 0x419ea0,   1, 0x04, 0x00000000 },
 	{ 0x419ee4,   1, 0x04, 0x00000000 },
 	{ 0x419ea4,   1, 0x04, 0x00000100 },
 	{ 0x419ea8,   1, 0x04, 0x00000000 },
-	{ 0x419eb4,   4, 0x04, 0x00000000 },
-	{ 0x419edc,   1, 0x04, 0x00000000 },
-	{ 0x419f00,   1, 0x04, 0x00000000 },
-	{ 0x419f74,   1, 0x04, 0x00000555 },
+	{ 0x419ee8,   1, 0x04, 0x00000091 },
+	{ 0x419eb4,   1, 0x04, 0x00000000 },
+	{ 0x419ebc,   2, 0x04, 0x00000000 },
+	{ 0x419edc,   1, 0x04, 0x000c1810 },
+	{ 0x419ed8,   1, 0x04, 0x00000000 },
+	{ 0x419ee0,   1, 0x04, 0x00000000 },
 	{}
 };
 
-const struct gf100_gr_init
-gk104_gr_init_be_0[] = {
+static const struct gf100_gr_init
+gm204_gr_init_l1c_1[] = {
+	{ 0x419cf8,   2, 0x04, 0x00000000 },
+	{}
+};
+
+static const struct gf100_gr_init
+gm204_gr_init_sm_1[] = {
+	{ 0x419f74,   1, 0x04, 0x00055155 },
+	{ 0x419f80,   4, 0x04, 0x00000000 },
+	{}
+};
+
+static const struct gf100_gr_init
+gm204_gr_init_l1c_2[] = {
+	{ 0x419ccc,   2, 0x04, 0x00000000 },
+	{ 0x419c80,   1, 0x04, 0x3f006022 },
+	{ 0x419c88,   1, 0x04, 0x00210000 },
+	{}
+};
+
+static const struct gf100_gr_init
+gm204_gr_init_pes_0[] = {
+	{ 0x41be50,   1, 0x04, 0x000000ff },
+	{ 0x41be04,   1, 0x04, 0x00000000 },
+	{ 0x41be08,   1, 0x04, 0x00000004 },
+	{ 0x41be0c,   1, 0x04, 0x00000008 },
+	{ 0x41be10,   1, 0x04, 0x2e3b8bc7 },
+	{ 0x41be14,   2, 0x04, 0x00000000 },
+	{ 0x41be3c,   5, 0x04, 0x00100401 },
+	{}
+};
+
+static const struct gf100_gr_init
+gm204_gr_init_be_0[] = {
+	{ 0x408890,   1, 0x04, 0x000000ff },
 	{ 0x40880c,   1, 0x04, 0x00000000 },
 	{ 0x408850,   1, 0x04, 0x00000004 },
+	{ 0x408878,   1, 0x04, 0x01b4201c },
+	{ 0x40887c,   1, 0x04, 0x80004c55 },
+	{ 0x408880,   1, 0x04, 0x0018c258 },
+	{ 0x408884,   1, 0x04, 0x0000160f },
+	{ 0x408974,   1, 0x04, 0x000000ff },
 	{ 0x408910,   9, 0x04, 0x00000000 },
 	{ 0x408950,   1, 0x04, 0x00000000 },
 	{ 0x408954,   1, 0x04, 0x0000ffff },
 	{ 0x408958,   1, 0x04, 0x00000034 },
+	{ 0x40895c,   1, 0x04, 0x84b17403 },
+	{ 0x408960,   1, 0x04, 0x04c1884f },
+	{ 0x408964,   1, 0x04, 0x04714445 },
+	{ 0x408968,   1, 0x04, 0x0280802f },
+	{ 0x40896c,   1, 0x04, 0x04304856 },
+	{ 0x408970,   1, 0x04, 0x00012800 },
 	{ 0x408984,   1, 0x04, 0x00000000 },
 	{ 0x408988,   1, 0x04, 0x08040201 },
 	{ 0x40898c,   1, 0x04, 0x80402010 },
@@ -155,72 +197,89 @@ gk104_gr_init_be_0[] = {
 };
 
 const struct gf100_gr_pack
-gk104_gr_pack_mmio[] = {
-	{ gk104_gr_init_main_0 },
-	{ gf100_gr_init_fe_0 },
+gm204_gr_pack_mmio[] = {
+	{ gm204_gr_init_main_0 },
+	{ gm204_gr_init_fe_0 },
 	{ gf100_gr_init_pri_0 },
 	{ gf100_gr_init_rstr2d_0 },
-	{ gf119_gr_init_pd_0 },
-	{ gk104_gr_init_ds_0 },
-	{ gf100_gr_init_scc_0 },
-	{ gk104_gr_init_sked_0 },
-	{ gk104_gr_init_cwd_0 },
-	{ gf119_gr_init_prop_0 },
-	{ gf108_gr_init_gpc_unk_0 },
+	{ gf100_gr_init_pd_0 },
+	{ gm204_gr_init_ds_0 },
+	{ gm107_gr_init_scc_0 },
+	{ gm204_gr_init_sked_0 },
+	{ gk110_gr_init_cwd_0 },
+	{ gm107_gr_init_prop_0 },
+	{ gk208_gr_init_gpc_unk_0 },
 	{ gf100_gr_init_setup_0 },
 	{ gf100_gr_init_crstr_0 },
-	{ gf108_gr_init_setup_1 },
-	{ gf100_gr_init_zcull_0 },
-	{ gf119_gr_init_gpm_0 },
-	{ gk104_gr_init_gpc_unk_1 },
+	{ gm107_gr_init_setup_1 },
+	{ gm107_gr_init_zcull_0 },
+	{ gf100_gr_init_gpm_0 },
+	{ gm107_gr_init_gpc_unk_1 },
 	{ gf100_gr_init_gcc_0 },
-	{ gk104_gr_init_tpccs_0 },
-	{ gf119_gr_init_tex_0 },
-	{ gk104_gr_init_pe_0 },
-	{ gk104_gr_init_l1c_0 },
+	{ gm204_gr_init_tpccs_0 },
+	{ gm107_gr_init_tex_0 },
+	{ gm204_gr_init_pe_0 },
+	{ gm107_gr_init_l1c_0 },
 	{ gf100_gr_init_mpc_0 },
-	{ gk104_gr_init_sm_0 },
-	{ gf117_gr_init_pes_0 },
-	{ gf117_gr_init_wwdx_0 },
-	{ gf117_gr_init_cbm_0 },
-	{ gk104_gr_init_be_0 },
-	{ gf100_gr_init_fe_1 },
+	{ gm204_gr_init_sm_0 },
+	{ gm204_gr_init_l1c_1 },
+	{ gm204_gr_init_sm_1 },
+	{ gm204_gr_init_l1c_2 },
+	{ gm204_gr_init_pes_0 },
+	{ gm107_gr_init_wwdx_0 },
+	{ gm107_gr_init_cbm_0 },
+	{ gm204_gr_init_be_0 },
 	{}
+};
+
+const struct gf100_gr_pack *
+gm204_gr_data[] = {
+	gm204_gr_pack_mmio,
+	NULL
 };
 
 /*******************************************************************************
  * PGRAPH engine/subdev functions
  ******************************************************************************/
 
+static int
+gm204_gr_init_ctxctl(struct gf100_gr_priv *priv)
+{
+	return 0;
+}
+
 int
-gk104_gr_init(struct nvkm_object *object)
+gm204_gr_init(struct nvkm_object *object)
 {
 	struct gf100_gr_oclass *oclass = (void *)object->oclass;
 	struct gf100_gr_priv *priv = (void *)object;
-	struct nvkm_pmu *pmu = nvkm_pmu(priv);
 	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, priv->tpc_total);
 	u32 data[TPC_MAX / 8] = {};
 	u8  tpcnr[GPC_MAX];
-	int gpc, tpc, rop;
+	int gpc, tpc, ppc, rop;
 	int ret, i;
-
-	if (pmu)
-		pmu->pgob(pmu, false);
+	u32 tmp;
 
 	ret = nvkm_gr_init(&priv->base);
 	if (ret)
 		return ret;
 
-	nv_wr32(priv, GPC_BCAST(0x0880), 0x00000000);
-	nv_wr32(priv, GPC_BCAST(0x08a4), 0x00000000);
-	nv_wr32(priv, GPC_BCAST(0x0888), 0x00000000);
-	nv_wr32(priv, GPC_BCAST(0x088c), 0x00000000);
-	nv_wr32(priv, GPC_BCAST(0x0890), 0x00000000);
-	nv_wr32(priv, GPC_BCAST(0x0894), 0x00000000);
-	nv_wr32(priv, GPC_BCAST(0x08b4), priv->unk4188b4->addr >> 8);
-	nv_wr32(priv, GPC_BCAST(0x08b8), priv->unk4188b8->addr >> 8);
+	tmp = nv_rd32(priv, 0x100c80); /*XXX: mask? */
+	nv_wr32(priv, 0x418880, 0x00001000 | (tmp & 0x00000fff));
+	nv_wr32(priv, 0x418890, 0x00000000);
+	nv_wr32(priv, 0x418894, 0x00000000);
+	nv_wr32(priv, 0x4188b4, priv->unk4188b4->addr >> 8);
+	nv_wr32(priv, 0x4188b8, priv->unk4188b8->addr >> 8);
+	nv_mask(priv, 0x4188b0, 0x00040000, 0x00040000);
+
+	/*XXX: belongs in fb */
+	nv_wr32(priv, 0x100cc8, priv->unk4188b4->addr >> 8);
+	nv_wr32(priv, 0x100ccc, priv->unk4188b8->addr >> 8);
+	nv_mask(priv, 0x100cc4, 0x00040000, 0x00040000);
 
 	gf100_gr_mmio(priv, oclass->mmio);
+
+	gm107_gr_init_bios(priv);
 
 	nv_wr32(priv, GPC_UNIT(0, 0x3018), 0x00000001);
 
@@ -250,15 +309,15 @@ gk104_gr_init(struct nvkm_object *object)
 
 	nv_wr32(priv, GPC_BCAST(0x3fd4), magicgpc918);
 	nv_wr32(priv, GPC_BCAST(0x08ac), nv_rd32(priv, 0x100800));
+	nv_wr32(priv, GPC_BCAST(0x033c), nv_rd32(priv, 0x100804));
 
 	nv_wr32(priv, 0x400500, 0x00010001);
-
 	nv_wr32(priv, 0x400100, 0xffffffff);
 	nv_wr32(priv, 0x40013c, 0xffffffff);
-
-	nv_wr32(priv, 0x409ffc, 0x00000000);
-	nv_wr32(priv, 0x409c14, 0x00003e3e);
-	nv_wr32(priv, 0x409c24, 0x000f0001);
+	nv_wr32(priv, 0x400124, 0x00000002);
+	nv_wr32(priv, 0x409c24, 0x000e0000);
+	nv_wr32(priv, 0x405848, 0xc0000000);
+	nv_wr32(priv, 0x40584c, 0x00000001);
 	nv_wr32(priv, 0x404000, 0xc0000000);
 	nv_wr32(priv, 0x404600, 0xc0000000);
 	nv_wr32(priv, 0x408030, 0xc0000000);
@@ -268,10 +327,11 @@ gk104_gr_init(struct nvkm_object *object)
 	nv_wr32(priv, 0x405840, 0xc0000000);
 	nv_wr32(priv, 0x405844, 0x00ffffff);
 	nv_mask(priv, 0x419cc0, 0x00000008, 0x00000008);
-	nv_mask(priv, 0x419eb4, 0x00001000, 0x00001000);
 
 	for (gpc = 0; gpc < priv->gpc_nr; gpc++) {
-		nv_wr32(priv, GPC_UNIT(gpc, 0x3038), 0xc0000000);
+	printk(KERN_ERR "ppc %d %d\n", gpc, priv->ppc_nr[gpc]);
+		for (ppc = 0; ppc < priv->ppc_nr[gpc]; ppc++)
+			nv_wr32(priv, PPC_UNIT(gpc, ppc, 0x038), 0xc0000000);
 		nv_wr32(priv, GPC_UNIT(gpc, 0x0420), 0xc0000000);
 		nv_wr32(priv, GPC_UNIT(gpc, 0x0900), 0xc0000000);
 		nv_wr32(priv, GPC_UNIT(gpc, 0x1028), 0xc0000000);
@@ -282,16 +342,17 @@ gk104_gr_init(struct nvkm_object *object)
 			nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x224), 0xc0000000);
 			nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x48c), 0xc0000000);
 			nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x084), 0xc0000000);
-			nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x644), 0x001ffffe);
-			nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x64c), 0x0000000f);
+			nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x430), 0xc0000000);
+			nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x644), 0x00dffffe);
+			nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x64c), 0x00000005);
 		}
 		nv_wr32(priv, GPC_UNIT(gpc, 0x2c90), 0xffffffff);
 		nv_wr32(priv, GPC_UNIT(gpc, 0x2c94), 0xffffffff);
 	}
 
 	for (rop = 0; rop < priv->rop_nr; rop++) {
-		nv_wr32(priv, ROP_UNIT(rop, 0x144), 0xc0000000);
-		nv_wr32(priv, ROP_UNIT(rop, 0x070), 0xc0000000);
+		nv_wr32(priv, ROP_UNIT(rop, 0x144), 0x40000000);
+		nv_wr32(priv, ROP_UNIT(rop, 0x070), 0x40000000);
 		nv_wr32(priv, ROP_UNIT(rop, 0x204), 0xffffffff);
 		nv_wr32(priv, ROP_UNIT(rop, 0x208), 0xffffffff);
 	}
@@ -303,57 +364,24 @@ gk104_gr_init(struct nvkm_object *object)
 	nv_wr32(priv, 0x40011c, 0xffffffff);
 	nv_wr32(priv, 0x400134, 0xffffffff);
 
-	nv_wr32(priv, 0x400054, 0x34ce3464);
+	nv_wr32(priv, 0x400054, 0x2c350f63);
 
 	gf100_gr_zbc_init(priv);
 
-	return gf100_gr_init_ctxctl(priv);
+	return gm204_gr_init_ctxctl(priv);
 }
-
-int
-gk104_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	      struct nvkm_oclass *oclass, void *data, u32 size,
-	      struct nvkm_object **pobject)
-{
-	struct nvkm_pmu *pmu = nvkm_pmu(parent);
-	if (pmu)
-		pmu->pgob(pmu, false);
-	return gf100_gr_ctor(parent, engine, oclass, data, size, pobject);
-}
-
-#include "fuc/hubgk104.fuc3.h"
-
-static struct gf100_gr_ucode
-gk104_gr_fecs_ucode = {
-	.code.data = gk104_grhub_code,
-	.code.size = sizeof(gk104_grhub_code),
-	.data.data = gk104_grhub_data,
-	.data.size = sizeof(gk104_grhub_data),
-};
-
-#include "fuc/gpcgk104.fuc3.h"
-
-static struct gf100_gr_ucode
-gk104_gr_gpccs_ucode = {
-	.code.data = gk104_grgpc_code,
-	.code.size = sizeof(gk104_grgpc_code),
-	.data.data = gk104_grgpc_data,
-	.data.size = sizeof(gk104_grgpc_data),
-};
 
 struct nvkm_oclass *
-gk104_gr_oclass = &(struct gf100_gr_oclass) {
-	.base.handle = NV_ENGINE(GR, 0xe4),
+gm204_gr_oclass = &(struct gf100_gr_oclass) {
+	.base.handle = NV_ENGINE(GR, 0x24),
 	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gk104_gr_ctor,
+		.ctor = gf100_gr_ctor,
 		.dtor = gf100_gr_dtor,
-		.init = gk104_gr_init,
+		.init = gm204_gr_init,
 		.fini = _nvkm_gr_fini,
 	},
-	.cclass = &gk104_grctx_oclass,
-	.sclass = gk104_gr_sclass,
-	.mmio = gk104_gr_pack_mmio,
-	.fecs.ucode = &gk104_gr_fecs_ucode,
-	.gpccs.ucode = &gk104_gr_gpccs_ucode,
-	.ppc_nr = 1,
+	.cclass = &gm204_grctx_oclass,
+	.sclass =  gm204_gr_sclass,
+	.mmio = gm204_gr_pack_mmio,
+	.ppc_nr = 2,
 }.base;

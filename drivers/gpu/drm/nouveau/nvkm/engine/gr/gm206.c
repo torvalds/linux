@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Martin Peres
+ * Copyright 2015 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,44 +19,22 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: Martin Peres
+ * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-#include "priv.h"
+#include "gf100.h"
+#include "ctxgf100.h"
 
-struct gm107_fuse_priv {
-	struct nvkm_fuse base;
-};
-
-static u32
-gm107_fuse_rd32(struct nvkm_object *object, u64 addr)
-{
-	struct gf100_fuse_priv *priv = (void *)object;
-	return nv_rd32(priv, 0x21100 + addr);
-}
-
-
-static int
-gm107_fuse_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		struct nvkm_oclass *oclass, void *data, u32 size,
-		struct nvkm_object **pobject)
-{
-	struct gm107_fuse_priv *priv;
-	int ret;
-
-	ret = nvkm_fuse_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-
-	return ret;
-}
-
-struct nvkm_oclass
-gm107_fuse_oclass = {
-	.handle = NV_SUBDEV(FUSE, 0x117),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gm107_fuse_ctor,
-		.dtor = _nvkm_fuse_dtor,
-		.init = _nvkm_fuse_init,
-		.fini = _nvkm_fuse_fini,
-		.rd32 = gm107_fuse_rd32,
+struct nvkm_oclass *
+gm206_gr_oclass = &(struct gf100_gr_oclass) {
+	.base.handle = NV_ENGINE(GR, 0x26),
+	.base.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = gf100_gr_ctor,
+		.dtor = gf100_gr_dtor,
+		.init = gm204_gr_init,
+		.fini = _nvkm_gr_fini,
 	},
-};
+	.cclass = &gm206_grctx_oclass,
+	.sclass =  gm204_gr_sclass,
+	.mmio = gm204_gr_pack_mmio,
+	.ppc_nr = 2,
+}.base;
