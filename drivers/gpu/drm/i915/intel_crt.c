@@ -851,7 +851,7 @@ void intel_crt_init(struct drm_device *dev)
 	if (!crt)
 		return;
 
-	intel_connector = kzalloc(sizeof(*intel_connector), GFP_KERNEL);
+	intel_connector = intel_connector_alloc();
 	if (!intel_connector) {
 		kfree(crt);
 		return;

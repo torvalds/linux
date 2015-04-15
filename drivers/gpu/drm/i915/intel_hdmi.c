@@ -1515,11 +1515,6 @@ static void chv_hdmi_pre_enable(struct intel_encoder *encoder)
 
 	/* Program Tx latency optimal setting */
 	for (i = 0; i < 4; i++) {
-		/* Set the latency optimal bit */
-		data = (i == 1) ? 0x0 : 0x6;
-		vlv_dpio_write(dev_priv, pipe, CHV_TX_DW11(ch, i),
-				data << DPIO_FRC_LATENCY_SHFIT);
-
 		/* Set the upar bit */
 		data = (i == 1) ? 0x0 : 0x1;
 		vlv_dpio_write(dev_priv, pipe, CHV_TX_DW14(ch, i),
@@ -1755,7 +1750,7 @@ void intel_hdmi_init(struct drm_device *dev, int hdmi_reg, enum port port)
 	if (!intel_dig_port)
 		return;
 
-	intel_connector = kzalloc(sizeof(*intel_connector), GFP_KERNEL);
+	intel_connector = intel_connector_alloc();
 	if (!intel_connector) {
 		kfree(intel_dig_port);
 		return;
