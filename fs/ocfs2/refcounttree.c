@@ -4276,7 +4276,7 @@ static int ocfs2_reflink(struct dentry *old_dentry, struct inode *dir,
 	error = posix_acl_create(dir, &mode, &default_acl, &acl);
 	if (error) {
 		mlog_errno(error);
-		goto out;
+		return error;
 	}
 
 	error = ocfs2_create_inode_in_orphan(dir, mode,

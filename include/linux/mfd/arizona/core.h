@@ -24,6 +24,7 @@ enum arizona_type {
 	WM5102 = 1,
 	WM5110 = 2,
 	WM8997 = 3,
+	WM8280 = 4,
 };
 
 #define ARIZONA_IRQ_GP1                    0

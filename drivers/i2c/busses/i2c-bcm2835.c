@@ -147,7 +147,7 @@ static int bcm2835_i2c_xfer_msg(struct bcm2835_i2c_dev *i2c_dev,
 				struct i2c_msg *msg)
 {
 	u32 c;
-	int time_left;
+	unsigned long time_left;
 
 	i2c_dev->msg_buf = msg->buf;
 	i2c_dev->msg_buf_remaining = msg->len;

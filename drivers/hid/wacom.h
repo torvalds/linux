@@ -131,13 +131,6 @@ static inline void wacom_schedule_work(struct wacom_wac *wacom_wac)
 	schedule_work(&wacom->work);
 }
 
-static inline void wacom_notify_battery(struct wacom_wac *wacom_wac)
-{
-	struct wacom *wacom = container_of(wacom_wac, struct wacom, wacom_wac);
-
-	power_supply_changed(wacom->battery);
-}
-
 extern const struct hid_device_id wacom_ids[];
 
 void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len);
@@ -151,4 +144,5 @@ void wacom_wac_usage_mapping(struct hid_device *hdev,
 int wacom_wac_event(struct hid_device *hdev, struct hid_field *field,
 		struct hid_usage *usage, __s32 value);
 void wacom_wac_report(struct hid_device *hdev, struct hid_report *report);
+void wacom_battery_work(struct work_struct *work);
 #endif

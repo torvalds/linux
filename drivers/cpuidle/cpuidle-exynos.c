@@ -19,7 +19,6 @@
 #include <linux/of.h>
 #include <linux/platform_data/cpuidle-exynos.h>
 
-#include <asm/proc-fns.h>
 #include <asm/suspend.h>
 #include <asm/cpuidle.h>
 

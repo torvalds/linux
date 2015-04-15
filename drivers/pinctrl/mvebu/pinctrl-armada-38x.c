@@ -389,7 +389,7 @@ static struct mvebu_mpp_mode armada_38x_mpp_modes[] = {
 
 static struct mvebu_pinctrl_soc_info armada_38x_pinctrl_info;
 
-static struct of_device_id armada_38x_pinctrl_of_match[] = {
+static const struct of_device_id armada_38x_pinctrl_of_match[] = {
 	{
 		.compatible = "marvell,mv88f6810-pinctrl",
 		.data       = (void *) V_88F6810,

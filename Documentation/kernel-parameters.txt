@@ -1989,7 +1989,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			seconds.  Use this parameter to check at some
 			other rate.  0 disables periodic checking.
 
-	memtest=	[KNL,X86] Enable memtest
+	memtest=	[KNL,X86,ARM] Enable memtest
 			Format: <integer>
 			default : 0 <disable>
 			Specifies the number of memtest passes to be
@@ -2236,8 +2236,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	nmi_watchdog=	[KNL,BUGS=X86] Debugging features for SMP kernels
 			Format: [panic,][nopanic,][num]
-			Valid num: 0
+			Valid num: 0 or 1
 			0 - turn nmi_watchdog off
+			1 - turn nmi_watchdog on
 			When panic is specified, panic when an NMI watchdog
 			timeout occurs (or 'nopanic' to override the opposite
 			default).
@@ -2321,6 +2322,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	nofxsr		[BUGS=X86-32] Disables x86 floating point extended
 			register save and restore. The kernel will only save
 			legacy floating-point registers on task switch.
+
+	nohugeiomap	[KNL,x86] Disable kernel huge I/O mappings.
 
 	noxsave		[BUGS=X86] Disables x86 extended register state save
 			and restore using xsave. The kernel will fallback to
@@ -2464,7 +2467,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	nousb		[USB] Disable the USB subsystem
 
-	nowatchdog	[KNL] Disable the lockup detector (NMI watchdog).
+	nowatchdog	[KNL] Disable both lockup detectors, i.e.
+                        soft-lockup and NMI watchdog (hard-lockup).
 
 	nowb		[ARM]
 
@@ -2969,6 +2973,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Set maximum number of finished RCU callbacks to
 			process in one batch.
 
+	rcutree.gp_init_delay=	[KNL]
+			Set the number of jiffies to delay each step of
+			RCU grace-period initialization.  This only has
+			effect when CONFIG_RCU_TORTURE_TEST_SLOW_INIT is
+			set.
+
 	rcutree.rcu_fanout_leaf= [KNL]
 			Increase the number of CPUs assigned to each
 			leaf rcu_node structure.  Useful for very large
@@ -2992,11 +3002,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			value is one, and maximum value is HZ.
 
 	rcutree.kthread_prio= 	 [KNL,BOOT]
-			Set the SCHED_FIFO priority of the RCU
-			per-CPU kthreads (rcuc/N). This value is also
-			used for the priority of the RCU boost threads
-			(rcub/N). Valid values are 1-99 and the default
-			is 1 (the least-favored priority).
+			Set the SCHED_FIFO priority of the RCU per-CPU
+			kthreads (rcuc/N). This value is also used for
+			the priority of the RCU boost threads (rcub/N)
+			and for the RCU grace-period kthreads (rcu_bh,
+			rcu_preempt, and rcu_sched). If RCU_BOOST is
+			set, valid values are 1-99 and the default is 1
+			(the least-favored priority).  Otherwise, when
+			RCU_BOOST is not set, valid values are 0-99 and
+			the default is zero (non-realtime operation).
 
 	rcutree.rcu_nocb_leader_stride= [KNL]
 			Set the number of NOCB kthread groups, which
@@ -3462,6 +3476,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			server. Increasing these values may allow you to
 			improve throughput, but will also increase the
 			amount of memory reserved for use by the client.
+
+	suspend.pm_test_delay=
+			[SUSPEND]
+			Sets the number of seconds to remain in a suspend test
+			mode before resuming the system (see
+			/sys/power/pm_test). Only available when CONFIG_PM_DEBUG
+			is set. Default value is 5.
 
 	swapaccount=[0|1]
 			[KNL] Enable accounting of swap in memory resource

@@ -76,10 +76,8 @@ static inline struct map_groups *map_groups__get(struct map_groups *mg)
 
 void map_groups__put(struct map_groups *mg);
 
-static inline struct kmap *map__kmap(struct map *map)
-{
-	return (struct kmap *)(map + 1);
-}
+struct kmap *map__kmap(struct map *map);
+struct map_groups *map__kmaps(struct map *map);
 
 static inline u64 map__map_ip(struct map *map, u64 ip)
 {

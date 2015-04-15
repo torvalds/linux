@@ -147,6 +147,11 @@ config ARCH_DEFCONFIG
 	default "arch/tile/configs/tilepro_defconfig" if !TILEGX
 	default "arch/tile/configs/tilegx_defconfig" if TILEGX
 
+config PGTABLE_LEVELS
+	int
+	default 3 if 64BIT
+	default 2
+
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"

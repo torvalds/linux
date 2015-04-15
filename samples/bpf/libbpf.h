@@ -13,7 +13,7 @@ int bpf_get_next_key(int fd, void *key, void *next_key);
 
 int bpf_prog_load(enum bpf_prog_type prog_type,
 		  const struct bpf_insn *insns, int insn_len,
-		  const char *license);
+		  const char *license, int kern_version);
 
 #define LOG_BUF_SIZE 65536
 extern char bpf_log_buf[LOG_BUF_SIZE];
@@ -182,4 +182,7 @@ extern char bpf_log_buf[LOG_BUF_SIZE];
 /* create RAW socket and bind to interface 'name' */
 int open_raw_sock(const char *name);
 
+struct perf_event_attr;
+int perf_event_open(struct perf_event_attr *attr, int pid, int cpu,
+		    int group_fd, unsigned long flags);
 #endif

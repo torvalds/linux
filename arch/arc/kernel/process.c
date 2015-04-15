@@ -155,8 +155,6 @@ int copy_thread(unsigned long clone_flags,
  */
 void start_thread(struct pt_regs * regs, unsigned long pc, unsigned long usp)
 {
-	set_fs(USER_DS); /* user space */
-
 	regs->sp = usp;
 	regs->ret = pc;
 

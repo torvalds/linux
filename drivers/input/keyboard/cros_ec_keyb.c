@@ -338,7 +338,7 @@ static int cros_ec_keyb_resume(struct device *dev)
 	 * wake source (e.g. the lid is open and the user might press a key to
 	 * wake) then the key scan buffer should be preserved.
 	 */
-	if (ckdev->ec->was_wake_device)
+	if (!ckdev->ec->was_wake_device)
 		cros_ec_keyb_clear_keyboard(ckdev);
 
 	return 0;

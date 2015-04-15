@@ -601,6 +601,7 @@ static int i2c_imx_dma_write(struct imx_i2c_struct *i2c_imx,
 					struct i2c_msg *msgs)
 {
 	int result;
+	unsigned long time_left;
 	unsigned int temp = 0;
 	unsigned long orig_jiffies = jiffies;
 	struct imx_i2c_dma *dma = i2c_imx->dma;
@@ -624,10 +625,10 @@ static int i2c_imx_dma_write(struct imx_i2c_struct *i2c_imx,
 	 */
 	imx_i2c_write_reg(msgs->addr << 1, i2c_imx, IMX_I2C_I2DR);
 	reinit_completion(&i2c_imx->dma->cmd_complete);
-	result = wait_for_completion_timeout(
+	time_left = wait_for_completion_timeout(
 				&i2c_imx->dma->cmd_complete,
 				msecs_to_jiffies(DMA_TIMEOUT));
-	if (result == 0) {
+	if (time_left == 0) {
 		dmaengine_terminate_all(dma->chan_using);
 		return -ETIMEDOUT;
 	}
@@ -663,6 +664,7 @@ static int i2c_imx_dma_read(struct imx_i2c_struct *i2c_imx,
 			struct i2c_msg *msgs, bool is_lastmsg)
 {
 	int result;
+	unsigned long time_left;
 	unsigned int temp;
 	unsigned long orig_jiffies = jiffies;
 	struct imx_i2c_dma *dma = i2c_imx->dma;
@@ -682,10 +684,10 @@ static int i2c_imx_dma_read(struct imx_i2c_struct *i2c_imx,
 		return result;
 
 	reinit_completion(&i2c_imx->dma->cmd_complete);
-	result = wait_for_completion_timeout(
+	time_left = wait_for_completion_timeout(
 				&i2c_imx->dma->cmd_complete,
 				msecs_to_jiffies(DMA_TIMEOUT));
-	if (result == 0) {
+	if (time_left == 0) {
 		dmaengine_terminate_all(dma->chan_using);
 		return -ETIMEDOUT;
 	}

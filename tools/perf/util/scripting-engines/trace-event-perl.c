@@ -214,6 +214,11 @@ static void define_event_symbols(struct event_format *event,
 		define_event_symbols(event, ev_name, args->hex.field);
 		define_event_symbols(event, ev_name, args->hex.size);
 		break;
+	case PRINT_INT_ARRAY:
+		define_event_symbols(event, ev_name, args->int_array.field);
+		define_event_symbols(event, ev_name, args->int_array.count);
+		define_event_symbols(event, ev_name, args->int_array.el_size);
+		break;
 	case PRINT_BSTRING:
 	case PRINT_DYNAMIC_ARRAY:
 	case PRINT_STRING:
@@ -355,10 +360,9 @@ static void perl_process_event_generic(union perf_event *event,
 static void perl_process_event(union perf_event *event,
 			       struct perf_sample *sample,
 			       struct perf_evsel *evsel,
-			       struct thread *thread,
-			       struct addr_location *al __maybe_unused)
+			       struct addr_location *al)
 {
-	perl_process_tracepoint(sample, evsel, thread);
+	perl_process_tracepoint(sample, evsel, al->thread);
 	perl_process_event_generic(event, sample, evsel);
 }
 

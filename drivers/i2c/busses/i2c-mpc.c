@@ -29,6 +29,7 @@
 #include <linux/delay.h>
 
 #include <asm/mpc52xx.h>
+#include <asm/mpc85xx.h>
 #include <sysdev/fsl_soc.h>
 
 #define DRV_NAME "mpc-i2c"
@@ -95,8 +96,9 @@ static irqreturn_t mpc_i2c_isr(int irq, void *dev_id)
 		i2c->interrupt = readb(i2c->base + MPC_I2C_SR);
 		writeb(0, i2c->base + MPC_I2C_SR);
 		wake_up(&i2c->queue);
+		return IRQ_HANDLED;
 	}
-	return IRQ_HANDLED;
+	return IRQ_NONE;
 }
 
 /* Sometimes 9th clock pulse isn't generated, and slave doesn't release
@@ -346,6 +348,33 @@ static u32 mpc_i2c_get_sec_cfg_8xxx(void)
 	return val;
 }
 
+static u32 mpc_i2c_get_prescaler_8xxx(void)
+{
+	/* mpc83xx and mpc82xx all have prescaler 1 */
+	u32 prescaler = 1;
+
+	/* mpc85xx */
+	if (pvr_version_is(PVR_VER_E500V1) || pvr_version_is(PVR_VER_E500V2)
+		|| pvr_version_is(PVR_VER_E500MC)
+		|| pvr_version_is(PVR_VER_E5500)
+		|| pvr_version_is(PVR_VER_E6500)) {
+		unsigned int svr = mfspr(SPRN_SVR);
+
+		if ((SVR_SOC_VER(svr) == SVR_8540)
+			|| (SVR_SOC_VER(svr) == SVR_8541)
+			|| (SVR_SOC_VER(svr) == SVR_8560)
+			|| (SVR_SOC_VER(svr) == SVR_8555)
+			|| (SVR_SOC_VER(svr) == SVR_8610))
+			/* the above 85xx SoCs have prescaler 1 */
+			prescaler = 1;
+		else
+			/* all the other 85xx have prescaler 2 */
+			prescaler = 2;
+	}
+
+	return prescaler;
+}
+
 static int mpc_i2c_get_fdr_8xxx(struct device_node *node, u32 clock,
 					  u32 prescaler, u32 *real_clk)
 {
@@ -363,7 +392,7 @@ static int mpc_i2c_get_fdr_8xxx(struct device_node *node, u32 clock,
 	if (of_device_is_compatible(node, "fsl,mpc8544-i2c"))
 		prescaler = mpc_i2c_get_sec_cfg_8xxx() ? 3 : 2;
 	if (!prescaler)
-		prescaler = 1;
+		prescaler = mpc_i2c_get_prescaler_8xxx();
 
 	divider = fsl_get_sys_freq() / clock / prescaler;
 

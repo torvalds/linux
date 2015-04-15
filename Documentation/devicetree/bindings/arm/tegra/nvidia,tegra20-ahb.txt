@@ -5,9 +5,12 @@ Required properties:
   Tegra30, must contain "nvidia,tegra30-ahb".  Otherwise, must contain
   '"nvidia,<chip>-ahb", "nvidia,tegra30-ahb"' where <chip> is tegra124,
   tegra132, or tegra210.
-- reg : Should contain 1 register ranges(address and length)
+- reg : Should contain 1 register ranges(address and length).  For
+  Tegra20, Tegra30, and Tegra114 chips, the value must be <0x6000c004
+  0x10c>.  For Tegra124, Tegra132 and Tegra210 chips, the value should
+  be be <0x6000c000 0x150>.
 
-Example:
+Example (for a Tegra20 chip):
 	ahb: ahb@6000c004 {
 		compatible = "nvidia,tegra20-ahb";
 		reg = <0x6000c004 0x10c>; /* AHB Arbitration + Gizmo Controller */

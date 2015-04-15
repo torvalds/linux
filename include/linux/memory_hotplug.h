@@ -192,6 +192,9 @@ extern void get_page_bootmem(unsigned long ingo, struct page *page,
 void get_online_mems(void);
 void put_online_mems(void);
 
+void mem_hotplug_begin(void);
+void mem_hotplug_done(void);
+
 #else /* ! CONFIG_MEMORY_HOTPLUG */
 /*
  * Stub functions for when hotplug is off
@@ -230,6 +233,9 @@ static inline int try_online_node(int nid)
 
 static inline void get_online_mems(void) {}
 static inline void put_online_mems(void) {}
+
+static inline void mem_hotplug_begin(void) {}
+static inline void mem_hotplug_done(void) {}
 
 #endif /* ! CONFIG_MEMORY_HOTPLUG */
 

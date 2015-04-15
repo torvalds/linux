@@ -332,6 +332,7 @@ extern int of_count_phandle_with_args(const struct device_node *np,
 
 extern void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align));
 extern int of_alias_get_id(struct device_node *np, const char *stem);
+extern int of_alias_get_highest_id(const char *stem);
 
 extern int of_machine_is_compatible(const char *compat);
 
@@ -590,6 +591,11 @@ static inline int of_count_phandle_with_args(struct device_node *np,
 }
 
 static inline int of_alias_get_id(struct device_node *np, const char *stem)
+{
+	return -ENOSYS;
+}
+
+static inline int of_alias_get_highest_id(const char *stem)
 {
 	return -ENOSYS;
 }

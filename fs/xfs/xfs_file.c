@@ -38,7 +38,6 @@
 #include "xfs_icache.h"
 #include "xfs_pnfs.h"
 
-#include <linux/aio.h>
 #include <linux/dcache.h>
 #include <linux/falloc.h>
 #include <linux/pagevec.h>

@@ -12,7 +12,6 @@
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM i915
-#define TRACE_SYSTEM_STRING __stringify(TRACE_SYSTEM)
 #define TRACE_INCLUDE_FILE i915_trace
 
 /* pipe updates */

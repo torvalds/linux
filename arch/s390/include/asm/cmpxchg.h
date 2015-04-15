@@ -80,15 +80,10 @@ extern void __cmpxchg_double_called_with_bad_pointer(void);
 ({									\
 	__typeof__(p1) __p1 = (p1);					\
 	__typeof__(p2) __p2 = (p2);					\
-	int __ret;							\
 	BUILD_BUG_ON(sizeof(*(p1)) != sizeof(long));			\
 	BUILD_BUG_ON(sizeof(*(p2)) != sizeof(long));			\
 	VM_BUG_ON((unsigned long)((__p1) + 1) != (unsigned long)(__p2));\
-	if (sizeof(long) == 4)						\
-		__ret = __cmpxchg_double_4(__p1, __p2, o1, o2, n1, n2);	\
-	else								\
-		__ret = __cmpxchg_double_8(__p1, __p2, o1, o2, n1, n2);	\
-	__ret;								\
+	__cmpxchg_double_8(__p1, __p2, o1, o2, n1, n2);			\
 })
 
 #define system_has_cmpxchg_double()	1

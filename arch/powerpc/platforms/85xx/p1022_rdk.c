@@ -50,14 +50,14 @@ void p1022rdk_set_pixel_clock(unsigned int pixclock)
 	/* Map the global utilities registers. */
 	guts_np = of_find_compatible_node(NULL, NULL, "fsl,p1022-guts");
 	if (!guts_np) {
-		pr_err("p1022rdk: missing global utilties device node\n");
+		pr_err("p1022rdk: missing global utilities device node\n");
 		return;
 	}
 
 	guts = of_iomap(guts_np, 0);
 	of_node_put(guts_np);
 	if (!guts) {
-		pr_err("p1022rdk: could not map global utilties device\n");
+		pr_err("p1022rdk: could not map global utilities device\n");
 		return;
 	}
 

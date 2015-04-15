@@ -41,6 +41,9 @@ extern int cu_walk_functions_at(Dwarf_Die *cu_die, Dwarf_Addr addr,
 /* Ensure that this DIE is a subprogram and definition (not declaration) */
 extern bool die_is_func_def(Dwarf_Die *dw_die);
 
+/* Ensure that this DIE is an instance of a subprogram */
+extern bool die_is_func_instance(Dwarf_Die *dw_die);
+
 /* Compare diename and tname */
 extern bool die_compare_name(Dwarf_Die *dw_die, const char *tname);
 

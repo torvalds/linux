@@ -42,6 +42,7 @@ if ARCH_VEXPRESS
 config ARCH_VEXPRESS_CORTEX_A5_A9_ERRATA
 	bool "Enable A5 and A9 only errata work-arounds"
 	default y
+	select ARM_ERRATA_643719 if SMP
 	select ARM_ERRATA_720789
 	select PL310_ERRATA_753970 if CACHE_L2X0
 	help

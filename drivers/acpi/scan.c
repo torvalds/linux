@@ -114,7 +114,12 @@ int acpi_scan_add_handler_with_hotplug(struct acpi_scan_handler *handler,
 	return 0;
 }
 
-/*
+/**
+ * create_pnp_modalias - Create hid/cid(s) string for modalias and uevent
+ * @acpi_dev: ACPI device object.
+ * @modalias: Buffer to print into.
+ * @size: Size of the buffer.
+ *
  * Creates hid/cid(s) string needed for modalias and uevent
  * e.g. on a device with hid:IBM0001 and cid:ACPI0001 you get:
  * char *modalias: "acpi:IBM0001:ACPI0001"
@@ -122,68 +127,98 @@ int acpi_scan_add_handler_with_hotplug(struct acpi_scan_handler *handler,
  *         -EINVAL: output error
  *         -ENOMEM: output is truncated
 */
-static int create_modalias(struct acpi_device *acpi_dev, char *modalias,
-			   int size)
+static int create_pnp_modalias(struct acpi_device *acpi_dev, char *modalias,
+			       int size)
 {
 	int len;
 	int count;
 	struct acpi_hardware_id *id;
 
-	if (list_empty(&acpi_dev->pnp.ids))
+	/*
+	 * Since we skip PRP0001 from the modalias below, 0 should be returned
+	 * if PRP0001 is the only ACPI/PNP ID in the device's list.
+	 */
+	count = 0;
+	list_for_each_entry(id, &acpi_dev->pnp.ids, list)
+		if (strcmp(id->id, "PRP0001"))
+			count++;
+
+	if (!count)
 		return 0;
 
-	/*
-	 * If the device has PRP0001 we expose DT compatible modalias
-	 * instead in form of of:NnameTCcompatible.
-	 */
-	if (acpi_dev->data.of_compatible) {
-		struct acpi_buffer buf = { ACPI_ALLOCATE_BUFFER };
-		const union acpi_object *of_compatible, *obj;
-		int i, nval;
-		char *c;
+	len = snprintf(modalias, size, "acpi:");
+	if (len <= 0)
+		return len;
 
-		acpi_get_name(acpi_dev->handle, ACPI_SINGLE_NAME, &buf);
-		/* DT strings are all in lower case */
-		for (c = buf.pointer; *c != '\0'; c++)
-			*c = tolower(*c);
+	size -= len;
 
-		len = snprintf(modalias, size, "of:N%sT", (char *)buf.pointer);
-		ACPI_FREE(buf.pointer);
+	list_for_each_entry(id, &acpi_dev->pnp.ids, list) {
+		if (!strcmp(id->id, "PRP0001"))
+			continue;
 
-		of_compatible = acpi_dev->data.of_compatible;
-		if (of_compatible->type == ACPI_TYPE_PACKAGE) {
-			nval = of_compatible->package.count;
-			obj = of_compatible->package.elements;
-		} else { /* Must be ACPI_TYPE_STRING. */
-			nval = 1;
-			obj = of_compatible;
-		}
-		for (i = 0; i < nval; i++, obj++) {
-			count = snprintf(&modalias[len], size, "C%s",
-					 obj->string.pointer);
-			if (count < 0)
-				return -EINVAL;
-			if (count >= size)
-				return -ENOMEM;
+		count = snprintf(&modalias[len], size, "%s:", id->id);
+		if (count < 0)
+			return -EINVAL;
 
-			len += count;
-			size -= count;
-		}
-	} else {
-		len = snprintf(modalias, size, "acpi:");
-		size -= len;
+		if (count >= size)
+			return -ENOMEM;
 
-		list_for_each_entry(id, &acpi_dev->pnp.ids, list) {
-			count = snprintf(&modalias[len], size, "%s:", id->id);
-			if (count < 0)
-				return -EINVAL;
-			if (count >= size)
-				return -ENOMEM;
-			len += count;
-			size -= count;
-		}
+		len += count;
+		size -= count;
 	}
+	modalias[len] = '\0';
+	return len;
+}
 
+/**
+ * create_of_modalias - Creates DT compatible string for modalias and uevent
+ * @acpi_dev: ACPI device object.
+ * @modalias: Buffer to print into.
+ * @size: Size of the buffer.
+ *
+ * Expose DT compatible modalias as of:NnameTCcompatible.  This function should
+ * only be called for devices having PRP0001 in their list of ACPI/PNP IDs.
+ */
+static int create_of_modalias(struct acpi_device *acpi_dev, char *modalias,
+			      int size)
+{
+	struct acpi_buffer buf = { ACPI_ALLOCATE_BUFFER };
+	const union acpi_object *of_compatible, *obj;
+	int len, count;
+	int i, nval;
+	char *c;
+
+	acpi_get_name(acpi_dev->handle, ACPI_SINGLE_NAME, &buf);
+	/* DT strings are all in lower case */
+	for (c = buf.pointer; *c != '\0'; c++)
+		*c = tolower(*c);
+
+	len = snprintf(modalias, size, "of:N%sT", (char *)buf.pointer);
+	ACPI_FREE(buf.pointer);
+
+	if (len <= 0)
+		return len;
+
+	of_compatible = acpi_dev->data.of_compatible;
+	if (of_compatible->type == ACPI_TYPE_PACKAGE) {
+		nval = of_compatible->package.count;
+		obj = of_compatible->package.elements;
+	} else { /* Must be ACPI_TYPE_STRING. */
+		nval = 1;
+		obj = of_compatible;
+	}
+	for (i = 0; i < nval; i++, obj++) {
+		count = snprintf(&modalias[len], size, "C%s",
+				 obj->string.pointer);
+		if (count < 0)
+			return -EINVAL;
+
+		if (count >= size)
+			return -ENOMEM;
+
+		len += count;
+		size -= count;
+	}
 	modalias[len] = '\0';
 	return len;
 }
@@ -194,7 +229,8 @@ static int create_modalias(struct acpi_device *acpi_dev, char *modalias,
  *
  * Check if the given device has an ACPI companion and if that companion has
  * a valid list of PNP IDs, and if the device is the first (primary) physical
- * device associated with it.
+ * device associated with it.  Return the companion pointer if that's the case
+ * or NULL otherwise.
  *
  * If multiple physical devices are attached to a single ACPI companion, we need
  * to be careful.  The usage scenario for this kind of relationship is that all
@@ -208,31 +244,69 @@ static int create_modalias(struct acpi_device *acpi_dev, char *modalias,
  * resources available from it but they will be matched normally using functions
  * provided by their bus types (and analogously for their modalias).
  */
-static bool acpi_companion_match(const struct device *dev)
+static struct acpi_device *acpi_companion_match(const struct device *dev)
 {
 	struct acpi_device *adev;
-	bool ret;
+	struct mutex *physical_node_lock;
 
 	adev = ACPI_COMPANION(dev);
 	if (!adev)
-		return false;
+		return NULL;
 
 	if (list_empty(&adev->pnp.ids))
-		return false;
+		return NULL;
 
-	mutex_lock(&adev->physical_node_lock);
+	physical_node_lock = &adev->physical_node_lock;
+	mutex_lock(physical_node_lock);
 	if (list_empty(&adev->physical_node_list)) {
-		ret = false;
+		adev = NULL;
 	} else {
 		const struct acpi_device_physical_node *node;
 
 		node = list_first_entry(&adev->physical_node_list,
 					struct acpi_device_physical_node, node);
-		ret = node->dev == dev;
+		if (node->dev != dev)
+			adev = NULL;
 	}
-	mutex_unlock(&adev->physical_node_lock);
+	mutex_unlock(physical_node_lock);
 
-	return ret;
+	return adev;
+}
+
+static int __acpi_device_uevent_modalias(struct acpi_device *adev,
+					 struct kobj_uevent_env *env)
+{
+	int len;
+
+	if (!adev)
+		return -ENODEV;
+
+	if (list_empty(&adev->pnp.ids))
+		return 0;
+
+	if (add_uevent_var(env, "MODALIAS="))
+		return -ENOMEM;
+
+	len = create_pnp_modalias(adev, &env->buf[env->buflen - 1],
+				  sizeof(env->buf) - env->buflen);
+	if (len < 0)
+		return len;
+
+	env->buflen += len;
+	if (!adev->data.of_compatible)
+		return 0;
+
+	if (len > 0 && add_uevent_var(env, "MODALIAS="))
+		return -ENOMEM;
+
+	len = create_of_modalias(adev, &env->buf[env->buflen - 1],
+				 sizeof(env->buf) - env->buflen);
+	if (len < 0)
+		return len;
+
+	env->buflen += len;
+
+	return 0;
 }
 
 /*
@@ -243,21 +317,40 @@ static bool acpi_companion_match(const struct device *dev)
  */
 int acpi_device_uevent_modalias(struct device *dev, struct kobj_uevent_env *env)
 {
-	int len;
-
-	if (!acpi_companion_match(dev))
-		return -ENODEV;
-
-	if (add_uevent_var(env, "MODALIAS="))
-		return -ENOMEM;
-	len = create_modalias(ACPI_COMPANION(dev), &env->buf[env->buflen - 1],
-				sizeof(env->buf) - env->buflen);
-	if (len <= 0)
-		return len;
-	env->buflen += len;
-	return 0;
+	return __acpi_device_uevent_modalias(acpi_companion_match(dev), env);
 }
 EXPORT_SYMBOL_GPL(acpi_device_uevent_modalias);
+
+static int __acpi_device_modalias(struct acpi_device *adev, char *buf, int size)
+{
+	int len, count;
+
+	if (!adev)
+		return -ENODEV;
+
+	if (list_empty(&adev->pnp.ids))
+		return 0;
+
+	len = create_pnp_modalias(adev, buf, size - 1);
+	if (len < 0) {
+		return len;
+	} else if (len > 0) {
+		buf[len++] = '\n';
+		size -= len;
+	}
+	if (!adev->data.of_compatible)
+		return len;
+
+	count = create_of_modalias(adev, buf + len, size - 1);
+	if (count < 0) {
+		return count;
+	} else if (count > 0) {
+		len += count;
+		buf[len++] = '\n';
+	}
+
+	return len;
+}
 
 /*
  * Creates modalias sysfs attribute for ACPI enumerated devices.
@@ -267,29 +360,13 @@ EXPORT_SYMBOL_GPL(acpi_device_uevent_modalias);
  */
 int acpi_device_modalias(struct device *dev, char *buf, int size)
 {
-	int len;
-
-	if (!acpi_companion_match(dev))
-		return -ENODEV;
-
-	len = create_modalias(ACPI_COMPANION(dev), buf, size -1);
-	if (len <= 0)
-		return len;
-	buf[len++] = '\n';
-	return len;
+	return __acpi_device_modalias(acpi_companion_match(dev), buf, size);
 }
 EXPORT_SYMBOL_GPL(acpi_device_modalias);
 
 static ssize_t
 acpi_device_modalias_show(struct device *dev, struct device_attribute *attr, char *buf) {
-	struct acpi_device *acpi_dev = to_acpi_device(dev);
-	int len;
-
-	len = create_modalias(acpi_dev, buf, 1024);
-	if (len <= 0)
-		return len;
-	buf[len++] = '\n';
-	return len;
+	return __acpi_device_modalias(to_acpi_device(dev), buf, 1024);
 }
 static DEVICE_ATTR(modalias, 0444, acpi_device_modalias_show, NULL);
 
@@ -894,8 +971,51 @@ static void acpi_device_remove_files(struct acpi_device *dev)
 			ACPI Bus operations
    -------------------------------------------------------------------------- */
 
+/**
+ * acpi_of_match_device - Match device object using the "compatible" property.
+ * @adev: ACPI device object to match.
+ * @of_match_table: List of device IDs to match against.
+ *
+ * If @dev has an ACPI companion which has the special PRP0001 device ID in its
+ * list of identifiers and a _DSD object with the "compatible" property, use
+ * that property to match against the given list of identifiers.
+ */
+static bool acpi_of_match_device(struct acpi_device *adev,
+				 const struct of_device_id *of_match_table)
+{
+	const union acpi_object *of_compatible, *obj;
+	int i, nval;
+
+	if (!adev)
+		return false;
+
+	of_compatible = adev->data.of_compatible;
+	if (!of_match_table || !of_compatible)
+		return false;
+
+	if (of_compatible->type == ACPI_TYPE_PACKAGE) {
+		nval = of_compatible->package.count;
+		obj = of_compatible->package.elements;
+	} else { /* Must be ACPI_TYPE_STRING. */
+		nval = 1;
+		obj = of_compatible;
+	}
+	/* Now we can look for the driver DT compatible strings */
+	for (i = 0; i < nval; i++, obj++) {
+		const struct of_device_id *id;
+
+		for (id = of_match_table; id->compatible[0]; id++)
+			if (!strcasecmp(obj->string.pointer, id->compatible))
+				return true;
+	}
+
+	return false;
+}
+
 static const struct acpi_device_id *__acpi_match_device(
-	struct acpi_device *device, const struct acpi_device_id *ids)
+	struct acpi_device *device,
+	const struct acpi_device_id *ids,
+	const struct of_device_id *of_ids)
 {
 	const struct acpi_device_id *id;
 	struct acpi_hardware_id *hwid;
@@ -904,14 +1024,27 @@ static const struct acpi_device_id *__acpi_match_device(
 	 * If the device is not present, it is unnecessary to load device
 	 * driver for it.
 	 */
-	if (!device->status.present)
+	if (!device || !device->status.present)
 		return NULL;
 
-	for (id = ids; id->id[0]; id++)
-		list_for_each_entry(hwid, &device->pnp.ids, list)
+	list_for_each_entry(hwid, &device->pnp.ids, list) {
+		/* First, check the ACPI/PNP IDs provided by the caller. */
+		for (id = ids; id->id[0]; id++)
 			if (!strcmp((char *) id->id, hwid->id))
 				return id;
 
+		/*
+		 * Next, check the special "PRP0001" ID and try to match the
+		 * "compatible" property if found.
+		 *
+		 * The id returned by the below is not valid, but the only
+		 * caller passing non-NULL of_ids here is only interested in
+		 * whether or not the return value is NULL.
+		 */
+		if (!strcmp("PRP0001", hwid->id)
+		    && acpi_of_match_device(device, of_ids))
+			return id;
+	}
 	return NULL;
 }
 
@@ -929,68 +1062,26 @@ static const struct acpi_device_id *__acpi_match_device(
 const struct acpi_device_id *acpi_match_device(const struct acpi_device_id *ids,
 					       const struct device *dev)
 {
-	struct acpi_device *adev;
-	acpi_handle handle = ACPI_HANDLE(dev);
-
-	if (!ids || !handle || acpi_bus_get_device(handle, &adev))
-		return NULL;
-
-	if (!acpi_companion_match(dev))
-		return NULL;
-
-	return __acpi_match_device(adev, ids);
+	return __acpi_match_device(acpi_companion_match(dev), ids, NULL);
 }
 EXPORT_SYMBOL_GPL(acpi_match_device);
 
 int acpi_match_device_ids(struct acpi_device *device,
 			  const struct acpi_device_id *ids)
 {
-	return __acpi_match_device(device, ids) ? 0 : -ENOENT;
+	return __acpi_match_device(device, ids, NULL) ? 0 : -ENOENT;
 }
 EXPORT_SYMBOL(acpi_match_device_ids);
-
-/* Performs match against special "PRP0001" shoehorn ACPI ID */
-static bool acpi_of_driver_match_device(struct device *dev,
-					const struct device_driver *drv)
-{
-	const union acpi_object *of_compatible, *obj;
-	struct acpi_device *adev;
-	int i, nval;
-
-	adev = ACPI_COMPANION(dev);
-	if (!adev)
-		return false;
-
-	of_compatible = adev->data.of_compatible;
-	if (!drv->of_match_table || !of_compatible)
-		return false;
-
-	if (of_compatible->type == ACPI_TYPE_PACKAGE) {
-		nval = of_compatible->package.count;
-		obj = of_compatible->package.elements;
-	} else { /* Must be ACPI_TYPE_STRING. */
-		nval = 1;
-		obj = of_compatible;
-	}
-	/* Now we can look for the driver DT compatible strings */
-	for (i = 0; i < nval; i++, obj++) {
-		const struct of_device_id *id;
-
-		for (id = drv->of_match_table; id->compatible[0]; id++)
-			if (!strcasecmp(obj->string.pointer, id->compatible))
-				return true;
-	}
-
-	return false;
-}
 
 bool acpi_driver_match_device(struct device *dev,
 			      const struct device_driver *drv)
 {
 	if (!drv->acpi_match_table)
-		return acpi_of_driver_match_device(dev, drv);
+		return acpi_of_match_device(ACPI_COMPANION(dev),
+					    drv->of_match_table);
 
-	return !!acpi_match_device(drv->acpi_match_table, dev);
+	return !!__acpi_match_device(acpi_companion_match(dev),
+				     drv->acpi_match_table, drv->of_match_table);
 }
 EXPORT_SYMBOL_GPL(acpi_driver_match_device);
 
@@ -1031,20 +1122,7 @@ static int acpi_bus_match(struct device *dev, struct device_driver *drv)
 
 static int acpi_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
-	struct acpi_device *acpi_dev = to_acpi_device(dev);
-	int len;
-
-	if (list_empty(&acpi_dev->pnp.ids))
-		return 0;
-
-	if (add_uevent_var(env, "MODALIAS="))
-		return -ENOMEM;
-	len = create_modalias(acpi_dev, &env->buf[env->buflen - 1],
-			      sizeof(env->buf) - env->buflen);
-	if (len <= 0)
-		return len;
-	env->buflen += len;
-	return 0;
+	return __acpi_device_uevent_modalias(to_acpi_device(dev), env);
 }
 
 static void acpi_device_notify(acpi_handle handle, u32 event, void *data)
@@ -1062,10 +1140,10 @@ static void acpi_device_notify_fixed(void *data)
 	acpi_device_notify(NULL, ACPI_FIXED_HARDWARE_EVENT, device);
 }
 
-static acpi_status acpi_device_fixed_event(void *data)
+static u32 acpi_device_fixed_event(void *data)
 {
 	acpi_os_execute(OSL_NOTIFY_HANDLER, acpi_device_notify_fixed, data);
-	return AE_OK;
+	return ACPI_INTERRUPT_HANDLED;
 }
 
 static int acpi_device_install_notify_handler(struct acpi_device *device)

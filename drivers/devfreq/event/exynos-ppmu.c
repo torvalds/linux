@@ -194,7 +194,7 @@ static int exynos_ppmu_get_event(struct devfreq_event_dev *edev,
 	return 0;
 }
 
-static struct devfreq_event_ops exynos_ppmu_ops = {
+static const struct devfreq_event_ops exynos_ppmu_ops = {
 	.disable = exynos_ppmu_disable,
 	.set_event = exynos_ppmu_set_event,
 	.get_event = exynos_ppmu_get_event,

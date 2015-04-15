@@ -20,6 +20,7 @@
 
 #include <linux/rbtree.h>
 #include <linux/string.h>
+#include <locale.h>
 
 struct alloc_stat;
 typedef int (*sort_fn_t)(struct alloc_stat *, struct alloc_stat *);
@@ -275,10 +276,10 @@ static void __print_result(struct rb_root *root, struct perf_session *session,
 	struct rb_node *next;
 	struct machine *machine = &session->machines.host;
 
-	printf("%.102s\n", graph_dotted_line);
+	printf("%.105s\n", graph_dotted_line);
 	printf(" %-34s |",  is_caller ? "Callsite": "Alloc Ptr");
 	printf(" Total_alloc/Per | Total_req/Per   | Hit      | Ping-pong | Frag\n");
-	printf("%.102s\n", graph_dotted_line);
+	printf("%.105s\n", graph_dotted_line);
 
 	next = rb_first(root);
 
@@ -304,7 +305,7 @@ static void __print_result(struct rb_root *root, struct perf_session *session,
 			snprintf(buf, sizeof(buf), "%#" PRIx64 "", addr);
 		printf(" %-34s |", buf);
 
-		printf(" %9llu/%-5lu | %9llu/%-5lu | %8lu | %8lu | %6.3f%%\n",
+		printf(" %9llu/%-5lu | %9llu/%-5lu | %8lu | %9lu | %6.3f%%\n",
 		       (unsigned long long)data->bytes_alloc,
 		       (unsigned long)data->bytes_alloc / data->hit,
 		       (unsigned long long)data->bytes_req,
@@ -317,21 +318,21 @@ static void __print_result(struct rb_root *root, struct perf_session *session,
 	}
 
 	if (n_lines == -1)
-		printf(" ...                                | ...             | ...             | ...    | ...      | ...   \n");
+		printf(" ...                                | ...             | ...             | ...      | ...       | ...   \n");
 
-	printf("%.102s\n", graph_dotted_line);
+	printf("%.105s\n", graph_dotted_line);
 }
 
 static void print_summary(void)
 {
 	printf("\nSUMMARY\n=======\n");
-	printf("Total bytes requested: %lu\n", total_requested);
-	printf("Total bytes allocated: %lu\n", total_allocated);
-	printf("Total bytes wasted on internal fragmentation: %lu\n",
+	printf("Total bytes requested: %'lu\n", total_requested);
+	printf("Total bytes allocated: %'lu\n", total_allocated);
+	printf("Total bytes wasted on internal fragmentation: %'lu\n",
 	       total_allocated - total_requested);
 	printf("Internal fragmentation: %f%%\n",
 	       fragmentation(total_requested, total_allocated));
-	printf("Cross CPU allocations: %lu/%lu\n", nr_cross_allocs, nr_allocs);
+	printf("Cross CPU allocations: %'lu/%'lu\n", nr_cross_allocs, nr_allocs);
 }
 
 static void print_result(struct perf_session *session)
@@ -426,7 +427,7 @@ static int __cmd_kmem(struct perf_session *session)
 	}
 
 	setup_pager();
-	err = perf_session__process_events(session, &perf_kmem);
+	err = perf_session__process_events(session);
 	if (err != 0)
 		goto out;
 	sort_result();
@@ -559,6 +560,7 @@ static int setup_sorting(struct list_head *sort_list, const char *arg)
 {
 	char *tok;
 	char *str = strdup(arg);
+	char *pos = str;
 
 	if (!str) {
 		pr_err("%s: strdup failed\n", __func__);
@@ -566,7 +568,7 @@ static int setup_sorting(struct list_head *sort_list, const char *arg)
 	}
 
 	while (true) {
-		tok = strsep(&str, ",");
+		tok = strsep(&pos, ",");
 		if (!tok)
 			break;
 		if (sort_dimension__add(tok, sort_list) < 0) {
@@ -660,8 +662,13 @@ static int __cmd_record(int argc, const char **argv)
 int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	const char * const default_sort_order = "frag,hit,bytes";
+	struct perf_data_file file = {
+		.mode = PERF_DATA_MODE_READ,
+	};
 	const struct option kmem_options[] = {
 	OPT_STRING('i', "input", &input_name, "file", "input file name"),
+	OPT_INCR('v', "verbose", &verbose,
+		    "be more verbose (show symbol address, etc)"),
 	OPT_CALLBACK_NOOPT(0, "caller", NULL, NULL,
 			   "show per-callsite statistics", parse_caller_opt),
 	OPT_CALLBACK_NOOPT(0, "alloc", NULL, NULL,
@@ -671,6 +678,7 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 		     parse_sort_opt),
 	OPT_CALLBACK('l', "line", NULL, "num", "show n lines", parse_line_opt),
 	OPT_BOOLEAN(0, "raw-ip", &raw_ip, "show raw ip instead of symbol"),
+	OPT_BOOLEAN('f', "force", &file.force, "don't complain, do it"),
 	OPT_END()
 	};
 	const char *const kmem_subcommands[] = { "record", "stat", NULL };
@@ -679,10 +687,6 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 		NULL
 	};
 	struct perf_session *session;
-	struct perf_data_file file = {
-		.path = input_name,
-		.mode = PERF_DATA_MODE_READ,
-	};
 	int ret = -1;
 
 	argc = parse_options_subcommand(argc, argv, kmem_options,
@@ -696,6 +700,8 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 		return __cmd_record(argc, argv);
 	}
 
+	file.path = input_name;
+
 	session = perf_session__new(&file, false, &perf_kmem);
 	if (session == NULL)
 		return -1;
@@ -703,6 +709,8 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 	symbol__init(&session->header.env);
 
 	if (!strcmp(argv[0], "stat")) {
+		setlocale(LC_ALL, "");
+
 		if (cpu__setup_cpunode_map())
 			goto out_delete;
 

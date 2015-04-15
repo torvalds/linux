@@ -214,8 +214,6 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	regs->r2 = (unsigned long)&frame->uc;
 	regs->bpc = (unsigned long)ksig->ka.sa.sa_handler;
 
-	set_fs(USER_DS);
-
 #if DEBUG_SIG
 	printk("SIG deliver (%s:%d): sp=%p pc=%p\n",
 		current->comm, current->pid, frame, regs->pc);

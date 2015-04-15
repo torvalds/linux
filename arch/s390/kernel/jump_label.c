@@ -78,7 +78,7 @@ static void __jump_label_transform(struct jump_entry *entry,
 		if (memcmp((void *)entry->code, &old, sizeof(old)))
 			jump_label_bug(entry, &old, &new);
 	}
-	probe_kernel_write((void *)entry->code, &new, sizeof(new));
+	s390_kernel_write((void *)entry->code, &new, sizeof(new));
 }
 
 static int __sm_arch_jump_label_transform(void *data)
