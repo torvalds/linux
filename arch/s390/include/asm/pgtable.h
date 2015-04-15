@@ -423,6 +423,15 @@ static inline int mm_has_pgste(struct mm_struct *mm)
 	return 0;
 }
 
+static inline int mm_alloc_pgste(struct mm_struct *mm)
+{
+#ifdef CONFIG_PGSTE
+	if (unlikely(mm->context.alloc_pgste))
+		return 1;
+#endif
+	return 0;
+}
+
 /*
  * In the case that a guest uses storage keys
  * faults should no longer be backed by zero pages
