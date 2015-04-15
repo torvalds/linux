@@ -188,6 +188,24 @@ static inline void task_state(struct seq_file *m, struct pid_namespace *ns,
 			   from_kgid_munged(user_ns, GROUP_AT(group_info, g)));
 	put_cred(cred);
 
+#ifdef CONFIG_PID_NS
+	seq_puts(m, "\nNStgid:");
+	for (g = ns->level; g <= pid->level; g++)
+		seq_printf(m, "\t%d",
+			task_tgid_nr_ns(p, pid->numbers[g].ns));
+	seq_puts(m, "\nNSpid:");
+	for (g = ns->level; g <= pid->level; g++)
+		seq_printf(m, "\t%d",
+			task_pid_nr_ns(p, pid->numbers[g].ns));
+	seq_puts(m, "\nNSpgid:");
+	for (g = ns->level; g <= pid->level; g++)
+		seq_printf(m, "\t%d",
+			task_pgrp_nr_ns(p, pid->numbers[g].ns));
+	seq_puts(m, "\nNSsid:");
+	for (g = ns->level; g <= pid->level; g++)
+		seq_printf(m, "\t%d",
+			task_session_nr_ns(p, pid->numbers[g].ns));
+#endif
 	seq_putc(m, '\n');
 }
 
