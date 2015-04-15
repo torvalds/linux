@@ -149,10 +149,3 @@ Description:
 		The compact file is write-only and trigger compaction for
 		allocator zrm uses. The allocator moves some objects so that
 		it could free fragment space.
-
-What:		/sys/block/zram<id>/num_migrated
-Date:		August 2015
-Contact:	Minchan Kim <minchan@kernel.org>
-Description:
-		The compact file is read-only and shows how many object
-		migrated by compaction.
