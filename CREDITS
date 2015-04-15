@@ -508,6 +508,10 @@ E: paul@paulbristow.net
 W: http://paulbristow.net/linux/idefloppy.html
 D: Maintainer of IDE/ATAPI floppy driver
 
+N: Stefano Brivio
+E: stefano.brivio@polimi.it
+D: Broadcom B43 driver
+
 N: Dominik Brodowski
 E: linux@brodo.de
 W: http://www.brodo.de/
