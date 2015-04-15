@@ -324,6 +324,17 @@ static int f2fs_symlink(struct inode *dir, struct dentry *dentry,
 	d_instantiate(dentry, inode);
 	unlock_new_inode(inode);
 
+	/*
+	 * Let's flush symlink data in order to avoid broken symlink as much as
+	 * possible. Nevertheless, fsyncing is the best way, but there is no
+	 * way to get a file descriptor in order to flush that.
+	 *
+	 * Note that, it needs to do dir->fsync to make this recoverable.
+	 * If the symlink path is stored into inline_data, there is no
+	 * performance regression.
+	 */
+	filemap_write_and_wait_range(inode->i_mapping, 0, symlen - 1);
+
 	if (IS_DIRSYNC(dir))
 		f2fs_sync_fs(sbi->sb, 1);
 	return err;
