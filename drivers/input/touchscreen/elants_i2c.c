@@ -1410,6 +1410,7 @@ static struct i2c_driver elants_i2c_driver = {
 		.pm = &elants_i2c_pm_ops,
 		.acpi_match_table = ACPI_PTR(elants_acpi_id),
 		.of_match_table = of_match_ptr(elants_of_match),
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
 module_i2c_driver(elants_i2c_driver);
