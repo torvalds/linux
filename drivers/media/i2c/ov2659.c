@@ -1102,7 +1102,7 @@ static int ov2659_set_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	unsigned int index = ARRAY_SIZE(ov2659_formats);
+	int index = ARRAY_SIZE(ov2659_formats);
 	struct v4l2_mbus_framefmt *mf = &fmt->format;
 	const struct ov2659_framesize *size = NULL;
 	struct ov2659 *ov2659 = to_ov2659(sd);
