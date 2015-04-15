@@ -1154,6 +1154,7 @@ static int create_device(struct zram *zram, int device_id)
 	if (!zram->disk) {
 		pr_warn("Error allocating disk structure for device %d\n",
 			device_id);
+		ret = -ENOMEM;
 		goto out_free_queue;
 	}
 
