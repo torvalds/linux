@@ -21,8 +21,8 @@
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
-#include "core.h"
-#include "pinctrl-utils.h"
+#include "../core.h"
+#include "../pinctrl-utils.h"
 
 /* BCM281XX Pin Control Registers Definitions */
 

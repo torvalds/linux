@@ -1,0 +1,56 @@
+#
+# Broadcom pinctrl drivers
+#
+
+config PINCTRL_BCM281XX
+	bool "Broadcom BCM281xx pinctrl driver"
+	depends on OF && (ARCH_BCM_MOBILE || COMPILE_TEST)
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select REGMAP_MMIO
+	help
+	  Say Y here to support Broadcom BCM281xx pinctrl driver, which is used
+	  for the BCM281xx SoC family, including BCM11130, BCM11140, BCM11351,
+	  BCM28145, and BCM28155 SoCs.  This driver requires the pinctrl
+	  framework.  GPIO is provided by a separate GPIO driver.
+
+config PINCTRL_BCM2835
+	bool
+	select PINMUX
+	select PINCONF
+
+config PINCTRL_CYGNUS_GPIO
+	bool "Broadcom Cygnus GPIO (with PINCONF) driver"
+	depends on OF_GPIO && ARCH_BCM_CYGNUS
+	select GPIOLIB_IRQCHIP
+	select PINCONF
+	select GENERIC_PINCONF
+	default ARCH_BCM_CYGNUS
+	help
+	  Say yes here to enable the Broadcom Cygnus GPIO driver.
+
+	  The Broadcom Cygnus SoC has 3 GPIO controllers including the ASIU
+	  GPIO controller (ASIU), the chipCommonG GPIO controller (CCM), and
+	  the always-ON GPIO controller (CRMU/AON). All 3 GPIO controllers are
+	  supported by this driver.
+
+	  All 3 Cygnus GPIO controllers support basic PINCONF functions such
+	  as bias pull up, pull down, and drive strength configurations, when
+	  these pins are muxed to GPIO.
+
+	  Pins from the ASIU GPIO can be individually muxed to GPIO function,
+	  through interaction with the Cygnus IOMUX controller.
+
+config PINCTRL_CYGNUS_MUX
+	bool "Broadcom Cygnus IOMUX driver"
+	depends on (ARCH_BCM_CYGNUS || COMPILE_TEST)
+	select PINMUX
+	select GENERIC_PINCONF
+	default ARCH_BCM_CYGNUS
+	help
+	  Say yes here to enable the Broadcom Cygnus IOMUX driver.
+
+	  The Broadcom Cygnus IOMUX driver supports group based IOMUX
+	  configuration, with the exception that certain individual pins
+	  can be overrided to GPIO function
