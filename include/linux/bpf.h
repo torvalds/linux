@@ -32,23 +32,19 @@ struct bpf_map {
 	u32 key_size;
 	u32 value_size;
 	u32 max_entries;
-	struct bpf_map_ops *ops;
+	const struct bpf_map_ops *ops;
 	struct work_struct work;
 };
 
 struct bpf_map_type_list {
 	struct list_head list_node;
-	struct bpf_map_ops *ops;
+	const struct bpf_map_ops *ops;
 	enum bpf_map_type type;
 };
 
-void bpf_register_map_type(struct bpf_map_type_list *tl);
-void bpf_map_put(struct bpf_map *map);
-struct bpf_map *bpf_map_get(struct fd f);
-
 /* function argument constraints */
 enum bpf_arg_type {
-	ARG_ANYTHING = 0,	/* any argument is ok */
+	ARG_DONTCARE = 0,	/* unused argument in helper function */
 
 	/* the following constraints used to prototype
 	 * bpf_map_lookup/update/delete_elem() functions
@@ -62,6 +58,9 @@ enum bpf_arg_type {
 	 */
 	ARG_PTR_TO_STACK,	/* any pointer to eBPF program stack */
 	ARG_CONST_STACK_SIZE,	/* number of bytes accessed from stack */
+
+	ARG_PTR_TO_CTX,		/* pointer to context */
+	ARG_ANYTHING,		/* any (initialized) argument is ok */
 };
 
 /* type of values returned from helper functions */
@@ -105,11 +104,14 @@ struct bpf_verifier_ops {
 	 * with 'type' (read or write) is allowed
 	 */
 	bool (*is_valid_access)(int off, int size, enum bpf_access_type type);
+
+	u32 (*convert_ctx_access)(int dst_reg, int src_reg, int ctx_off,
+				  struct bpf_insn *insn);
 };
 
 struct bpf_prog_type_list {
 	struct list_head list_node;
-	struct bpf_verifier_ops *ops;
+	const struct bpf_verifier_ops *ops;
 	enum bpf_prog_type type;
 };
 
@@ -117,20 +119,25 @@ struct bpf_prog;
 
 struct bpf_prog_aux {
 	atomic_t refcnt;
-	bool is_gpl_compatible;
-	enum bpf_prog_type prog_type;
-	struct bpf_verifier_ops *ops;
-	struct bpf_map **used_maps;
 	u32 used_map_cnt;
+	const struct bpf_verifier_ops *ops;
+	struct bpf_map **used_maps;
 	struct bpf_prog *prog;
 	struct work_struct work;
 };
 
 #ifdef CONFIG_BPF_SYSCALL
 void bpf_register_prog_type(struct bpf_prog_type_list *tl);
+void bpf_register_map_type(struct bpf_map_type_list *tl);
 
-void bpf_prog_put(struct bpf_prog *prog);
 struct bpf_prog *bpf_prog_get(u32 ufd);
+void bpf_prog_put(struct bpf_prog *prog);
+
+struct bpf_map *bpf_map_get(struct fd f);
+void bpf_map_put(struct bpf_map *map);
+
+/* verify correctness of eBPF program */
+int bpf_check(struct bpf_prog **fp, union bpf_attr *attr);
 #else
 static inline void bpf_register_prog_type(struct bpf_prog_type_list *tl)
 {
@@ -144,14 +151,14 @@ static inline struct bpf_prog *bpf_prog_get(u32 ufd)
 static inline void bpf_prog_put(struct bpf_prog *prog)
 {
 }
-#endif
-
-/* verify correctness of eBPF program */
-int bpf_check(struct bpf_prog *fp, union bpf_attr *attr);
+#endif /* CONFIG_BPF_SYSCALL */
 
 /* verifier prototypes for helper functions called from eBPF programs */
-extern struct bpf_func_proto bpf_map_lookup_elem_proto;
-extern struct bpf_func_proto bpf_map_update_elem_proto;
-extern struct bpf_func_proto bpf_map_delete_elem_proto;
+extern const struct bpf_func_proto bpf_map_lookup_elem_proto;
+extern const struct bpf_func_proto bpf_map_update_elem_proto;
+extern const struct bpf_func_proto bpf_map_delete_elem_proto;
+
+extern const struct bpf_func_proto bpf_get_prandom_u32_proto;
+extern const struct bpf_func_proto bpf_get_smp_processor_id_proto;
 
 #endif /* _LINUX_BPF_H */

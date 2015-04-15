@@ -659,6 +659,7 @@ mwifiex_del_ba_tbl(struct mwifiex_private *priv, int tid, u8 *peer_mac,
 {
 	struct mwifiex_rx_reorder_tbl *tbl;
 	struct mwifiex_tx_ba_stream_tbl *ptx_tbl;
+	struct mwifiex_ra_list_tbl *ra_list;
 	u8 cleanup_rx_reorder_tbl;
 	unsigned long flags;
 
@@ -686,7 +687,11 @@ mwifiex_del_ba_tbl(struct mwifiex_private *priv, int tid, u8 *peer_mac,
 				"event: TID, RA not found in table\n");
 			return;
 		}
-
+		ra_list = mwifiex_wmm_get_ralist_node(priv, tid, peer_mac);
+		if (ra_list) {
+			ra_list->amsdu_in_ampdu = false;
+			ra_list->ba_status = BA_SETUP_NONE;
+		}
 		spin_lock_irqsave(&priv->tx_ba_stream_tbl_lock, flags);
 		mwifiex_11n_delete_tx_ba_stream_tbl_entry(priv, ptx_tbl);
 		spin_unlock_irqrestore(&priv->tx_ba_stream_tbl_lock, flags);

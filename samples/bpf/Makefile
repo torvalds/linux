@@ -29,6 +29,7 @@ always += tracex1_kern.o
 always += tracex2_kern.o
 always += tracex3_kern.o
 always += tracex4_kern.o
+always += tcbpf1_kern.o
 
 HOSTCFLAGS += -I$(objtree)/usr/include
 

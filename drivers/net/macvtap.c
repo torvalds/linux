@@ -1130,16 +1130,15 @@ static const struct file_operations macvtap_fops = {
 #endif
 };
 
-static int macvtap_sendmsg(struct kiocb *iocb, struct socket *sock,
-			   struct msghdr *m, size_t total_len)
+static int macvtap_sendmsg(struct socket *sock, struct msghdr *m,
+			   size_t total_len)
 {
 	struct macvtap_queue *q = container_of(sock, struct macvtap_queue, sock);
 	return macvtap_get_user(q, m, &m->msg_iter, m->msg_flags & MSG_DONTWAIT);
 }
 
-static int macvtap_recvmsg(struct kiocb *iocb, struct socket *sock,
-			   struct msghdr *m, size_t total_len,
-			   int flags)
+static int macvtap_recvmsg(struct socket *sock, struct msghdr *m,
+			   size_t total_len, int flags)
 {
 	struct macvtap_queue *q = container_of(sock, struct macvtap_queue, sock);
 	int ret;

@@ -11,6 +11,12 @@
 
 #define DEBUG_EXPR	0
 
+static int expr_eq(struct expr *e1, struct expr *e2);
+static struct expr *expr_eliminate_yn(struct expr *e);
+static struct expr *expr_extract_eq_and(struct expr **ep1, struct expr **ep2);
+static struct expr *expr_extract_eq_or(struct expr **ep1, struct expr **ep2);
+static void expr_extract_eq(enum expr_type type, struct expr **ep, struct expr **ep1, struct expr **ep2);
+
 struct expr *expr_alloc_symbol(struct symbol *sym)
 {
 	struct expr *e = xcalloc(1, sizeof(*e));
@@ -186,7 +192,7 @@ void expr_eliminate_eq(struct expr **ep1, struct expr **ep2)
 #undef e1
 #undef e2
 
-int expr_eq(struct expr *e1, struct expr *e2)
+static int expr_eq(struct expr *e1, struct expr *e2)
 {
 	int res, old_count;
 
@@ -228,7 +234,7 @@ int expr_eq(struct expr *e1, struct expr *e2)
 	return 0;
 }
 
-struct expr *expr_eliminate_yn(struct expr *e)
+static struct expr *expr_eliminate_yn(struct expr *e)
 {
 	struct expr *tmp;
 
@@ -823,7 +829,7 @@ bool expr_depends_symbol(struct expr *dep, struct symbol *sym)
  	return false;
 }
 
-struct expr *expr_extract_eq_and(struct expr **ep1, struct expr **ep2)
+static struct expr *expr_extract_eq_and(struct expr **ep1, struct expr **ep2)
 {
 	struct expr *tmp = NULL;
 	expr_extract_eq(E_AND, &tmp, ep1, ep2);
@@ -834,7 +840,7 @@ struct expr *expr_extract_eq_and(struct expr **ep1, struct expr **ep2)
 	return tmp;
 }
 
-struct expr *expr_extract_eq_or(struct expr **ep1, struct expr **ep2)
+static struct expr *expr_extract_eq_or(struct expr **ep1, struct expr **ep2)
 {
 	struct expr *tmp = NULL;
 	expr_extract_eq(E_OR, &tmp, ep1, ep2);
@@ -845,7 +851,7 @@ struct expr *expr_extract_eq_or(struct expr **ep1, struct expr **ep2)
 	return tmp;
 }
 
-void expr_extract_eq(enum expr_type type, struct expr **ep, struct expr **ep1, struct expr **ep2)
+static void expr_extract_eq(enum expr_type type, struct expr **ep, struct expr **ep1, struct expr **ep2)
 {
 #define e1 (*ep1)
 #define e2 (*ep2)
@@ -976,11 +982,8 @@ tristate expr_calc_value(struct expr *e)
 	}
 }
 
-int expr_compare_type(enum expr_type t1, enum expr_type t2)
+static int expr_compare_type(enum expr_type t1, enum expr_type t2)
 {
-#if 0
-	return 1;
-#else
 	if (t1 == t2)
 		return 0;
 	switch (t1) {
@@ -1005,7 +1008,6 @@ int expr_compare_type(enum expr_type t1, enum expr_type t2)
 	}
 	printf("[%dgt%d?]", t1, t2);
 	return 0;
-#endif
 }
 
 static inline struct expr *

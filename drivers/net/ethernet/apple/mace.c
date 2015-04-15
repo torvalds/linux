@@ -720,7 +720,7 @@ static irqreturn_t mace_interrupt(int irq, void *dev_id)
 	    mace_reset(dev);
 		/*
 		 * XXX mace likes to hang the machine after a xmtfs error.
-		 * This is hard to reproduce, reseting *may* help
+		 * This is hard to reproduce, resetting *may* help
 		 */
 	}
 	cp = mp->tx_cmds + NCMDS_TX * i;
@@ -984,7 +984,7 @@ static irqreturn_t mace_rxdma_intr(int irq, void *dev_id)
     return IRQ_HANDLED;
 }
 
-static struct of_device_id mace_match[] =
+static const struct of_device_id mace_match[] =
 {
 	{
 	.name 		= "mace",

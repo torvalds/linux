@@ -1256,28 +1256,28 @@ TRACE_EVENT(drv_set_rekey_data,
 		  LOCAL_PR_ARG, VIF_PR_ARG)
 );
 
-TRACE_EVENT(drv_rssi_callback,
+TRACE_EVENT(drv_event_callback,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sub_if_data *sdata,
-		 enum ieee80211_rssi_event rssi_event),
+		 const struct ieee80211_event *_event),
 
-	TP_ARGS(local, sdata, rssi_event),
+	TP_ARGS(local, sdata, _event),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
 		VIF_ENTRY
-		__field(u32, rssi_event)
+		__field(u32, type)
 	),
 
 	TP_fast_assign(
 		LOCAL_ASSIGN;
 		VIF_ASSIGN;
-		__entry->rssi_event = rssi_event;
+		__entry->type = _event->type;
 	),
 
 	TP_printk(
-		LOCAL_PR_FMT VIF_PR_FMT " rssi_event:%d",
-		LOCAL_PR_ARG, VIF_PR_ARG, __entry->rssi_event
+		LOCAL_PR_FMT VIF_PR_FMT " event:%d",
+		LOCAL_PR_ARG, VIF_PR_ARG, __entry->type
 	)
 );
 
@@ -2309,6 +2309,37 @@ TRACE_EVENT(drv_tdls_recv_channel_switch,
 		__entry->timestamp, __entry->switch_time,
 		__entry->switch_timeout, __entry->peer_initiator,
 		CHANDEF_PR_ARG, STA_PR_ARG
+	)
+);
+
+TRACE_EVENT(drv_wake_tx_queue,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct txq_info *txq),
+
+	TP_ARGS(local, sdata, txq),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		STA_ENTRY
+		__field(u8, ac)
+		__field(u8, tid)
+	),
+
+	TP_fast_assign(
+		struct ieee80211_sta *sta = txq->txq.sta;
+
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		STA_ASSIGN;
+		__entry->ac = txq->txq.ac;
+		__entry->tid = txq->txq.tid;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT  VIF_PR_FMT  STA_PR_FMT " ac:%d tid:%d",
+		LOCAL_PR_ARG, VIF_PR_ARG, STA_PR_ARG, __entry->ac, __entry->tid
 	)
 );
 

@@ -100,6 +100,8 @@ static int adf_ring_show(struct seq_file *sfile, void *v)
 		empty = READ_CSR_E_STAT(csr, bank->bank_number);
 
 		seq_puts(sfile, "------- Ring configuration -------\n");
+		seq_printf(sfile, "ring name: %s\n",
+			   ring->ring_debug->ring_name);
 		seq_printf(sfile, "ring num %d, bank num %d\n",
 			   ring->ring_number, ring->bank->bank_number);
 		seq_printf(sfile, "head %x, tail %x, empty: %d\n",

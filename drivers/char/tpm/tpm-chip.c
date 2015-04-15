@@ -170,6 +170,41 @@ static void tpm_dev_del_device(struct tpm_chip *chip)
 	device_unregister(&chip->dev);
 }
 
+static int tpm1_chip_register(struct tpm_chip *chip)
+{
+	int rc;
+
+	if (chip->flags & TPM_CHIP_FLAG_TPM2)
+		return 0;
+
+	rc = tpm_sysfs_add_device(chip);
+	if (rc)
+		return rc;
+
+	rc = tpm_add_ppi(chip);
+	if (rc) {
+		tpm_sysfs_del_device(chip);
+		return rc;
+	}
+
+	chip->bios_dir = tpm_bios_log_setup(chip->devname);
+
+	return 0;
+}
+
+static void tpm1_chip_unregister(struct tpm_chip *chip)
+{
+	if (chip->flags & TPM_CHIP_FLAG_TPM2)
+		return;
+
+	if (chip->bios_dir)
+		tpm_bios_log_teardown(chip->bios_dir);
+
+	tpm_remove_ppi(chip);
+
+	tpm_sysfs_del_device(chip);
+}
+
 /*
  * tpm_chip_register() - create a character device for the TPM chip
  * @chip: TPM chip to use.
@@ -185,22 +220,13 @@ int tpm_chip_register(struct tpm_chip *chip)
 {
 	int rc;
 
-	/* Populate sysfs for TPM1 devices. */
-	if (!(chip->flags & TPM_CHIP_FLAG_TPM2)) {
-		rc = tpm_sysfs_add_device(chip);
-		if (rc)
-			goto del_misc;
-
-		rc = tpm_add_ppi(chip);
-		if (rc)
-			goto del_sysfs;
-
-		chip->bios_dir = tpm_bios_log_setup(chip->devname);
-	}
+	rc = tpm1_chip_register(chip);
+	if (rc)
+		return rc;
 
 	rc = tpm_dev_add_device(chip);
 	if (rc)
-		return rc;
+		goto out_err;
 
 	/* Make the chip available. */
 	spin_lock(&driver_lock);
@@ -210,10 +236,8 @@ int tpm_chip_register(struct tpm_chip *chip)
 	chip->flags |= TPM_CHIP_FLAG_REGISTERED;
 
 	return 0;
-del_sysfs:
-	tpm_sysfs_del_device(chip);
-del_misc:
-	tpm_dev_del_device(chip);
+out_err:
+	tpm1_chip_unregister(chip);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(tpm_chip_register);
@@ -238,13 +262,7 @@ void tpm_chip_unregister(struct tpm_chip *chip)
 	spin_unlock(&driver_lock);
 	synchronize_rcu();
 
-	if (!(chip->flags & TPM_CHIP_FLAG_TPM2)) {
-		if (chip->bios_dir)
-			tpm_bios_log_teardown(chip->bios_dir);
-		tpm_remove_ppi(chip);
-		tpm_sysfs_del_device(chip);
-	}
-
+	tpm1_chip_unregister(chip);
 	tpm_dev_del_device(chip);
 }
 EXPORT_SYMBOL_GPL(tpm_chip_unregister);

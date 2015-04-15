@@ -32,7 +32,7 @@ bool b43legacy_is_hw_radio_enabled(struct b43legacy_wldev *dev)
 	if (dev->dev->id.revision >= 3) {
 		if (!(b43legacy_read32(dev, B43legacy_MMIO_RADIO_HWENABLED_HI)
 		      & B43legacy_MMIO_RADIO_HWENABLED_HI_MASK))
-			return 1;
+			return true;
 	} else {
 		/* To prevent CPU fault on PPC, do not read a register
 		 * unless the interface is started; however, on resume
@@ -40,12 +40,12 @@ bool b43legacy_is_hw_radio_enabled(struct b43legacy_wldev *dev)
 		 * that happens, unconditionally return TRUE.
 		 */
 		if (b43legacy_status(dev) < B43legacy_STAT_STARTED)
-			return 1;
+			return true;
 		if (b43legacy_read16(dev, B43legacy_MMIO_RADIO_HWENABLED_LO)
 		    & B43legacy_MMIO_RADIO_HWENABLED_LO_MASK)
-			return 1;
+			return true;
 	}
-	return 0;
+	return false;
 }
 
 /* The poll callback for the hardware button. */

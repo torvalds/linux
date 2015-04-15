@@ -356,6 +356,9 @@ struct fm10k_hw;
 #define FM10K_QUEUE_DISABLE_TIMEOUT		100
 #define FM10K_RESET_TIMEOUT			150
 
+/* Maximum supported combined inner and outer header length for encapsulation */
+#define FM10K_TUNNEL_HEADER_LENGTH	184
+
 /* VF registers */
 #define FM10K_VFCTRL		0x00000
 #define FM10K_VFCTRL_RST			0x00000008
@@ -593,7 +596,7 @@ struct fm10k_vf_info {
 	u16			sw_vid;		/* Switch API assigned VLAN */
 	u16			pf_vid;		/* PF assigned Default VLAN */
 	u8			mac[ETH_ALEN];	/* PF Default MAC address */
-	u8			vsi;		/* VSI idenfifier */
+	u8			vsi;		/* VSI identifier */
 	u8			vf_idx;		/* which VF this is */
 	u8			vf_flags;	/* flags indicating what modes
 						 * are supported for the port

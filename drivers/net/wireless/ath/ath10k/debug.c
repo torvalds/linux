@@ -243,6 +243,16 @@ static void ath10k_debug_fw_stats_pdevs_free(struct list_head *head)
 	}
 }
 
+static void ath10k_debug_fw_stats_vdevs_free(struct list_head *head)
+{
+	struct ath10k_fw_stats_vdev *i, *tmp;
+
+	list_for_each_entry_safe(i, tmp, head, list) {
+		list_del(&i->list);
+		kfree(i);
+	}
+}
+
 static void ath10k_debug_fw_stats_peers_free(struct list_head *head)
 {
 	struct ath10k_fw_stats_peer *i, *tmp;
@@ -258,6 +268,7 @@ static void ath10k_debug_fw_stats_reset(struct ath10k *ar)
 	spin_lock_bh(&ar->data_lock);
 	ar->debug.fw_stats_done = false;
 	ath10k_debug_fw_stats_pdevs_free(&ar->debug.fw_stats.pdevs);
+	ath10k_debug_fw_stats_vdevs_free(&ar->debug.fw_stats.vdevs);
 	ath10k_debug_fw_stats_peers_free(&ar->debug.fw_stats.peers);
 	spin_unlock_bh(&ar->data_lock);
 }
@@ -273,14 +284,27 @@ static size_t ath10k_debug_fw_stats_num_peers(struct list_head *head)
 	return num;
 }
 
+static size_t ath10k_debug_fw_stats_num_vdevs(struct list_head *head)
+{
+	struct ath10k_fw_stats_vdev *i;
+	size_t num = 0;
+
+	list_for_each_entry(i, head, list)
+		++num;
+
+	return num;
+}
+
 void ath10k_debug_fw_stats_process(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct ath10k_fw_stats stats = {};
 	bool is_start, is_started, is_end;
 	size_t num_peers;
+	size_t num_vdevs;
 	int ret;
 
 	INIT_LIST_HEAD(&stats.pdevs);
+	INIT_LIST_HEAD(&stats.vdevs);
 	INIT_LIST_HEAD(&stats.peers);
 
 	spin_lock_bh(&ar->data_lock);
@@ -308,6 +332,7 @@ void ath10k_debug_fw_stats_process(struct ath10k *ar, struct sk_buff *skb)
 	}
 
 	num_peers = ath10k_debug_fw_stats_num_peers(&ar->debug.fw_stats.peers);
+	num_vdevs = ath10k_debug_fw_stats_num_vdevs(&ar->debug.fw_stats.vdevs);
 	is_start = (list_empty(&ar->debug.fw_stats.pdevs) &&
 		    !list_empty(&stats.pdevs));
 	is_end = (!list_empty(&ar->debug.fw_stats.pdevs) &&
@@ -330,7 +355,13 @@ void ath10k_debug_fw_stats_process(struct ath10k *ar, struct sk_buff *skb)
 			goto free;
 		}
 
+		if (num_vdevs >= BITS_PER_LONG) {
+			ath10k_warn(ar, "dropping fw vdev stats\n");
+			goto free;
+		}
+
 		list_splice_tail_init(&stats.peers, &ar->debug.fw_stats.peers);
+		list_splice_tail_init(&stats.vdevs, &ar->debug.fw_stats.vdevs);
 	}
 
 	complete(&ar->debug.fw_stats_complete);
@@ -340,6 +371,7 @@ free:
 	 * resources if that is not the case.
 	 */
 	ath10k_debug_fw_stats_pdevs_free(&stats.pdevs);
+	ath10k_debug_fw_stats_vdevs_free(&stats.vdevs);
 	ath10k_debug_fw_stats_peers_free(&stats.peers);
 
 unlock:
@@ -363,7 +395,10 @@ static int ath10k_debug_fw_stats_request(struct ath10k *ar)
 
 		reinit_completion(&ar->debug.fw_stats_complete);
 
-		ret = ath10k_wmi_request_stats(ar, WMI_REQUEST_PEER_STAT);
+		ret = ath10k_wmi_request_stats(ar,
+					       WMI_STAT_PDEV |
+					       WMI_STAT_VDEV |
+					       WMI_STAT_PEER);
 		if (ret) {
 			ath10k_warn(ar, "could not request stats (%d)\n", ret);
 			return ret;
@@ -395,8 +430,11 @@ static void ath10k_fw_stats_fill(struct ath10k *ar,
 	unsigned int len = 0;
 	unsigned int buf_len = ATH10K_FW_STATS_BUF_SIZE;
 	const struct ath10k_fw_stats_pdev *pdev;
+	const struct ath10k_fw_stats_vdev *vdev;
 	const struct ath10k_fw_stats_peer *peer;
 	size_t num_peers;
+	size_t num_vdevs;
+	int i;
 
 	spin_lock_bh(&ar->data_lock);
 
@@ -408,6 +446,7 @@ static void ath10k_fw_stats_fill(struct ath10k *ar,
 	}
 
 	num_peers = ath10k_debug_fw_stats_num_peers(&fw_stats->peers);
+	num_vdevs = ath10k_debug_fw_stats_num_vdevs(&fw_stats->vdevs);
 
 	len += scnprintf(buf + len, buf_len - len, "\n");
 	len += scnprintf(buf + len, buf_len - len, "%30s\n",
@@ -528,6 +567,65 @@ static void ath10k_fw_stats_fill(struct ath10k *ar,
 			 "PHY errors drops", pdev->phy_err_drop);
 	len += scnprintf(buf + len, buf_len - len, "%30s %10d\n",
 			 "MPDU errors (FCS, MIC, ENC)", pdev->mpdu_errs);
+
+	len += scnprintf(buf + len, buf_len - len, "\n");
+	len += scnprintf(buf + len, buf_len - len, "%30s (%zu)\n",
+			 "ath10k VDEV stats", num_vdevs);
+	len += scnprintf(buf + len, buf_len - len, "%30s\n\n",
+				 "=================");
+
+	list_for_each_entry(vdev, &fw_stats->vdevs, list) {
+		len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+				 "vdev id", vdev->vdev_id);
+		len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+				 "beacon snr", vdev->beacon_snr);
+		len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+				 "data snr", vdev->data_snr);
+		len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+				 "num rx frames", vdev->num_rx_frames);
+		len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+				 "num rts fail", vdev->num_rts_fail);
+		len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+				 "num rts success", vdev->num_rts_success);
+		len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+				 "num rx err", vdev->num_rx_err);
+		len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+				 "num rx discard", vdev->num_rx_discard);
+		len += scnprintf(buf + len, buf_len - len, "%30s %u\n",
+				 "num tx not acked", vdev->num_tx_not_acked);
+
+		for (i = 0 ; i < ARRAY_SIZE(vdev->num_tx_frames); i++)
+			len += scnprintf(buf + len, buf_len - len,
+					"%25s [%02d] %u\n",
+					 "num tx frames", i,
+					 vdev->num_tx_frames[i]);
+
+		for (i = 0 ; i < ARRAY_SIZE(vdev->num_tx_frames_retries); i++)
+			len += scnprintf(buf + len, buf_len - len,
+					"%25s [%02d] %u\n",
+					 "num tx frames retries", i,
+					 vdev->num_tx_frames_retries[i]);
+
+		for (i = 0 ; i < ARRAY_SIZE(vdev->num_tx_frames_failures); i++)
+			len += scnprintf(buf + len, buf_len - len,
+					"%25s [%02d] %u\n",
+					 "num tx frames failures", i,
+					 vdev->num_tx_frames_failures[i]);
+
+		for (i = 0 ; i < ARRAY_SIZE(vdev->tx_rate_history); i++)
+			len += scnprintf(buf + len, buf_len - len,
+					"%25s [%02d] 0x%08x\n",
+					 "tx rate history", i,
+					 vdev->tx_rate_history[i]);
+
+		for (i = 0 ; i < ARRAY_SIZE(vdev->beacon_rssi_history); i++)
+			len += scnprintf(buf + len, buf_len - len,
+					"%25s [%02d] %u\n",
+					 "beacon rssi history", i,
+					 vdev->beacon_rssi_history[i]);
+
+		len += scnprintf(buf + len, buf_len - len, "\n");
+	}
 
 	len += scnprintf(buf + len, buf_len - len, "\n");
 	len += scnprintf(buf + len, buf_len - len, "%30s (%zu)\n",
@@ -1900,6 +1998,7 @@ int ath10k_debug_create(struct ath10k *ar)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&ar->debug.fw_stats.pdevs);
+	INIT_LIST_HEAD(&ar->debug.fw_stats.vdevs);
 	INIT_LIST_HEAD(&ar->debug.fw_stats.peers);
 
 	return 0;

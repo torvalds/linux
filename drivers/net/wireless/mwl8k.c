@@ -1277,7 +1277,7 @@ static inline void mwl8k_save_beacon(struct ieee80211_hw *hw,
 	struct mwl8k_priv *priv = hw->priv;
 
 	priv->capture_beacon = false;
-	memset(priv->capture_bssid, 0, ETH_ALEN);
+	eth_zero_addr(priv->capture_bssid);
 
 	/*
 	 * Use GFP_ATOMIC as rxq_process is called from

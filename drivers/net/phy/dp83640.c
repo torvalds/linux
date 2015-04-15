@@ -257,7 +257,7 @@ static void ext_write(int broadcast, struct phy_device *phydev,
 
 /* Caller must hold extreg_lock. */
 static int tdr_write(int bc, struct phy_device *dev,
-		     const struct timespec *ts, u16 cmd)
+		     const struct timespec64 *ts, u16 cmd)
 {
 	ext_write(bc, dev, PAGE4, PTP_TDR, ts->tv_nsec & 0xffff);/* ns[15:0]  */
 	ext_write(bc, dev, PAGE4, PTP_TDR, ts->tv_nsec >> 16);   /* ns[31:16] */
@@ -411,12 +411,12 @@ static int ptp_dp83640_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	struct dp83640_clock *clock =
 		container_of(ptp, struct dp83640_clock, caps);
 	struct phy_device *phydev = clock->chosen->phydev;
-	struct timespec ts;
+	struct timespec64 ts;
 	int err;
 
 	delta += ADJTIME_FIX;
 
-	ts = ns_to_timespec(delta);
+	ts = ns_to_timespec64(delta);
 
 	mutex_lock(&clock->extreg_lock);
 
@@ -427,7 +427,8 @@ static int ptp_dp83640_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	return err;
 }
 
-static int ptp_dp83640_gettime(struct ptp_clock_info *ptp, struct timespec *ts)
+static int ptp_dp83640_gettime(struct ptp_clock_info *ptp,
+			       struct timespec64 *ts)
 {
 	struct dp83640_clock *clock =
 		container_of(ptp, struct dp83640_clock, caps);
@@ -452,7 +453,7 @@ static int ptp_dp83640_gettime(struct ptp_clock_info *ptp, struct timespec *ts)
 }
 
 static int ptp_dp83640_settime(struct ptp_clock_info *ptp,
-			       const struct timespec *ts)
+			       const struct timespec64 *ts)
 {
 	struct dp83640_clock *clock =
 		container_of(ptp, struct dp83640_clock, caps);
@@ -605,7 +606,7 @@ static void recalibrate(struct dp83640_clock *clock)
 {
 	s64 now, diff;
 	struct phy_txts event_ts;
-	struct timespec ts;
+	struct timespec64 ts;
 	struct list_head *this;
 	struct dp83640_private *tmp;
 	struct phy_device *master = clock->chosen->phydev;
@@ -697,7 +698,7 @@ static void recalibrate(struct dp83640_clock *clock)
 		diff = now - (s64) phy2txts(&event_ts);
 		pr_info("slave offset %lld nanoseconds\n", diff);
 		diff += ADJTIME_FIX;
-		ts = ns_to_timespec(diff);
+		ts = ns_to_timespec64(diff);
 		tdr_write(0, tmp->phydev, &ts, PTP_STEP_CLK);
 	}
 
@@ -998,8 +999,8 @@ static void dp83640_clock_init(struct dp83640_clock *clock, struct mii_bus *bus)
 	clock->caps.pps		= 0;
 	clock->caps.adjfreq	= ptp_dp83640_adjfreq;
 	clock->caps.adjtime	= ptp_dp83640_adjtime;
-	clock->caps.gettime	= ptp_dp83640_gettime;
-	clock->caps.settime	= ptp_dp83640_settime;
+	clock->caps.gettime64	= ptp_dp83640_gettime;
+	clock->caps.settime64	= ptp_dp83640_settime;
 	clock->caps.enable	= ptp_dp83640_enable;
 	clock->caps.verify	= ptp_dp83640_verify;
 	/*

@@ -1,5 +1,5 @@
 /*
- * Linux network driver for Brocade Converged Network Adapter.
+ * Linux network driver for QLogic BR-series Converged Network Adapter.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License (GPL) Version 2 as
@@ -11,9 +11,10 @@
  * General Public License for more details.
  */
 /*
- * Copyright (c) 2005-2011 Brocade Communications Systems, Inc.
+ * Copyright (c) 2005-2014 Brocade Communications Systems, Inc.
+ * Copyright (c) 2014-2015 QLogic Corporation
  * All rights reserved
- * www.brocade.com
+ * www.qlogic.com
  */
 
 /* File for interrupt macros and functions */
@@ -362,7 +363,7 @@ struct bna_txq_wi_vector {
 
 /*  TxQ Entry Structure
  *
- *  BEWARE:  Load values into this structure with correct endianess.
+ *  BEWARE:  Load values into this structure with correct endianness.
  */
 struct bna_txq_entry {
 	union {

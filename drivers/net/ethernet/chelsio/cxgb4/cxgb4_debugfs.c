@@ -1775,6 +1775,8 @@ do { \
 		int n = min(4, adap->sge.rdmaqs - 4 * rdma_idx);
 
 		S("QType:", "RDMA-CPL");
+		S("Interface:",
+		  rx[i].rspq.netdev ? rx[i].rspq.netdev->name : "N/A");
 		R("RspQ ID:", rspq.abs_id);
 		R("RspQ size:", rspq.size);
 		R("RspQE size:", rspq.iqe_len);
@@ -1794,6 +1796,8 @@ do { \
 		int n = min(4, adap->sge.rdmaciqs - 4 * ciq_idx);
 
 		S("QType:", "RDMA-CIQ");
+		S("Interface:",
+		  rx[i].rspq.netdev ? rx[i].rspq.netdev->name : "N/A");
 		R("RspQ ID:", rspq.abs_id);
 		R("RspQ size:", rspq.size);
 		R("RspQE size:", rspq.iqe_len);
