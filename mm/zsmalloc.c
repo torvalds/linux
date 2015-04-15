@@ -1678,14 +1678,14 @@ static struct page *alloc_target_page(struct size_class *class)
 static void putback_zspage(struct zs_pool *pool, struct size_class *class,
 				struct page *first_page)
 {
-	int class_idx;
 	enum fullness_group fullness;
 
 	BUG_ON(!is_first_page(first_page));
 
-	get_zspage_mapping(first_page, &class_idx, &fullness);
+	fullness = get_fullness_group(first_page);
 	insert_zspage(first_page, class, fullness);
-	fullness = fix_fullness_group(class, first_page);
+	set_zspage_mapping(first_page, class->index, fullness);
+
 	if (fullness == ZS_EMPTY) {
 		zs_stat_dec(class, OBJ_ALLOCATED, get_maxobj_per_zspage(
 			class->size, class->pages_per_zspage));
