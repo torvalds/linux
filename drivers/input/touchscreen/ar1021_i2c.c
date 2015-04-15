@@ -157,7 +157,7 @@ static const struct i2c_device_id ar1021_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ar1021_i2c_id);
 
-static struct of_device_id ar1021_i2c_of_match[] = {
+static const struct of_device_id ar1021_i2c_of_match[] = {
 	{ .compatible = "microchip,ar1021-i2c", },
 	{ }
 };

@@ -37,6 +37,7 @@ capella	Capella Microsystems, Inc
 cavium	Cavium, Inc.
 cdns	Cadence Design Systems Inc.
 chipidea	Chipidea, Inc
+chipone		ChipOne
 chipspark	ChipSPARK
 chrp	Common Hardware Reference Platform
 chunghwa	Chunghwa Picture Tubes Ltd.
@@ -78,6 +79,7 @@ geniatech	Geniatech, Inc.
 giantplus	Giantplus Technology Co., Ltd.
 globalscale	Globalscale Technologies, Inc.
 gmt	Global Mixed-mode Technology, Inc.
+goodix	Shenzhen Huiding Technology Co., Ltd.
 google	Google, Inc.
 gumstix	Gumstix, Inc.
 gw	Gateworks Corporation

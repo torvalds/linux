@@ -2525,6 +2525,13 @@ L:	linux-usb@vger.kernel.org
 S:	Maintained
 F:	drivers/usb/chipidea/
 
+CHIPONE ICN8318 I2C TOUCHSCREEN DRIVER
+M:	Hans de Goede <hdegoede@redhat.com>
+L:	linux-input@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/input/touchscreen/chipone_icn8318.txt
+F:	drivers/input/touchscreen/chipone_icn8318.c
+
 CHROME HARDWARE PLATFORM SUPPORT
 M:	Olof Johansson <olof@lixom.net>
 S:	Maintained

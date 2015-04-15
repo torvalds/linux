@@ -369,7 +369,8 @@ struct input_keymap_entry {
 #define KEY_MSDOS		151
 #define KEY_COFFEE		152	/* AL Terminal Lock/Screensaver */
 #define KEY_SCREENLOCK		KEY_COFFEE
-#define KEY_DIRECTION		153
+#define KEY_ROTATE_DISPLAY	153	/* Display orientation for e.g. tablets */
+#define KEY_DIRECTION		KEY_ROTATE_DISPLAY
 #define KEY_CYCLEWINDOWS	154
 #define KEY_MAIL		155
 #define KEY_BOOKMARKS		156	/* AC Bookmarks */

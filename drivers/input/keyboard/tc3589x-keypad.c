@@ -70,6 +70,28 @@
 #define TC3589x_KBD_INT_CLR	0x1
 
 /**
+ * struct tc35893_keypad_platform_data - platform specific keypad data
+ * @keymap_data:        matrix scan code table for keycodes
+ * @krow:               mask for available rows, value is 0xFF
+ * @kcol:               mask for available columns, value is 0xFF
+ * @debounce_period:    platform specific debounce time
+ * @settle_time:        platform specific settle down time
+ * @irqtype:            type of interrupt, falling or rising edge
+ * @enable_wakeup:      specifies if keypad event can wake up system from sleep
+ * @no_autorepeat:      flag for auto repetition
+ */
+struct tc3589x_keypad_platform_data {
+	const struct matrix_keymap_data *keymap_data;
+	u8                      krow;
+	u8                      kcol;
+	u8                      debounce_period;
+	u8                      settle_time;
+	unsigned long           irqtype;
+	bool                    enable_wakeup;
+	bool                    no_autorepeat;
+};
+
+/**
  * struct tc_keypad - data structure used by keypad driver
  * @tc3589x:    pointer to tc35893
  * @input:      pointer to input device object
@@ -354,13 +376,10 @@ static int tc3589x_keypad_probe(struct platform_device *pdev)
 	const struct tc3589x_keypad_platform_data *plat;
 	int error, irq;
 
-	plat = tc3589x->pdata->keypad;
-	if (!plat) {
-		plat = tc3589x_keypad_of_probe(&pdev->dev);
-		if (IS_ERR(plat)) {
-			dev_err(&pdev->dev, "invalid keypad platform data\n");
-			return PTR_ERR(plat);
-		}
+	plat = tc3589x_keypad_of_probe(&pdev->dev);
+	if (IS_ERR(plat)) {
+		dev_err(&pdev->dev, "invalid keypad platform data\n");
+		return PTR_ERR(plat);
 	}
 
 	irq = platform_get_irq(pdev, 0);
