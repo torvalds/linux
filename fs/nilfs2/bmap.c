@@ -152,9 +152,7 @@ static int nilfs_bmap_do_insert(struct nilfs_bmap *bmap, __u64 key, __u64 ptr)
  *
  * %-EEXIST - A record associated with @key already exist.
  */
-int nilfs_bmap_insert(struct nilfs_bmap *bmap,
-		      unsigned long key,
-		      unsigned long rec)
+int nilfs_bmap_insert(struct nilfs_bmap *bmap, __u64 key, unsigned long rec)
 {
 	int ret;
 
@@ -191,19 +189,16 @@ static int nilfs_bmap_do_delete(struct nilfs_bmap *bmap, __u64 key)
 	return bmap->b_ops->bop_delete(bmap, key);
 }
 
-int nilfs_bmap_last_key(struct nilfs_bmap *bmap, unsigned long *key)
+int nilfs_bmap_last_key(struct nilfs_bmap *bmap, __u64 *keyp)
 {
-	__u64 lastkey;
 	int ret;
 
 	down_read(&bmap->b_sem);
-	ret = bmap->b_ops->bop_last_key(bmap, &lastkey);
+	ret = bmap->b_ops->bop_last_key(bmap, keyp);
 	up_read(&bmap->b_sem);
 
 	if (ret < 0)
 		ret = nilfs_bmap_convert_error(bmap, __func__, ret);
-	else
-		*key = lastkey;
 	return ret;
 }
 
@@ -224,7 +219,7 @@ int nilfs_bmap_last_key(struct nilfs_bmap *bmap, unsigned long *key)
  *
  * %-ENOENT - A record associated with @key does not exist.
  */
-int nilfs_bmap_delete(struct nilfs_bmap *bmap, unsigned long key)
+int nilfs_bmap_delete(struct nilfs_bmap *bmap, __u64 key)
 {
 	int ret;
 
@@ -235,7 +230,7 @@ int nilfs_bmap_delete(struct nilfs_bmap *bmap, unsigned long key)
 	return nilfs_bmap_convert_error(bmap, __func__, ret);
 }
 
-static int nilfs_bmap_do_truncate(struct nilfs_bmap *bmap, unsigned long key)
+static int nilfs_bmap_do_truncate(struct nilfs_bmap *bmap, __u64 key)
 {
 	__u64 lastkey;
 	int ret;
@@ -276,7 +271,7 @@ static int nilfs_bmap_do_truncate(struct nilfs_bmap *bmap, unsigned long key)
  *
  * %-ENOMEM - Insufficient amount of memory available.
  */
-int nilfs_bmap_truncate(struct nilfs_bmap *bmap, unsigned long key)
+int nilfs_bmap_truncate(struct nilfs_bmap *bmap, __u64 key)
 {
 	int ret;
 
