@@ -565,6 +565,7 @@ static int __ftrace_set_clr_event(struct trace_array *tr, const char *match,
 static int ftrace_set_clr_event(struct trace_array *tr, char *buf, int set)
 {
 	char *event = NULL, *sub = NULL, *match;
+	int ret;
 
 	/*
 	 * The buf format can be <subsystem>:<event-name>
@@ -590,7 +591,13 @@ static int ftrace_set_clr_event(struct trace_array *tr, char *buf, int set)
 			event = NULL;
 	}
 
-	return __ftrace_set_clr_event(tr, match, sub, event, set);
+	ret = __ftrace_set_clr_event(tr, match, sub, event, set);
+
+	/* Put back the colon to allow this to be called again */
+	if (buf)
+		*(buf - 1) = ':';
+
+	return ret;
 }
 
 /**
