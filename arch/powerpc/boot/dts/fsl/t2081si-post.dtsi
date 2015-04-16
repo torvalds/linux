@@ -417,7 +417,7 @@
 			compatible = "fsl,qoriq-core-mux-2.0";
 			clocks = <&pll0 0>, <&pll0 1>, <&pll0 2>,
 				 <&pll1 0>, <&pll1 1>, <&pll1 2>;
-			clock-names = "pll0", "pll0-div2", "pll1-div4",
+			clock-names = "pll0", "pll0-div2", "pll0-div4",
 				"pll1", "pll1-div2", "pll1-div4";
 			clock-output-names = "cmux0";
 		};
@@ -428,7 +428,7 @@
 			compatible = "fsl,qoriq-core-mux-2.0";
 			clocks = <&pll0 0>, <&pll0 1>, <&pll0 2>,
 				 <&pll1 0>, <&pll1 1>, <&pll1 2>;
-			clock-names = "pll0", "pll0-div2", "pll1-div4",
+			clock-names = "pll0", "pll0-div2", "pll0-div4",
 				"pll1", "pll1-div2", "pll1-div4";
 			clock-output-names = "cmux1";
 		};
