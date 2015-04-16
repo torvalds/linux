@@ -452,7 +452,7 @@ void ipu_cpmem_set_yuv_planar(struct ipuv3_channel *ch,
 }
 EXPORT_SYMBOL_GPL(ipu_cpmem_set_yuv_planar);
 
-static const struct ipu_rgb def_rgb_32 = {
+static const struct ipu_rgb def_xrgb_32 = {
 	.red	= { .offset = 16, .length = 8, },
 	.green	= { .offset =  8, .length = 8, },
 	.blue	= { .offset =  0, .length = 8, },
@@ -460,11 +460,27 @@ static const struct ipu_rgb def_rgb_32 = {
 	.bits_per_pixel = 32,
 };
 
-static const struct ipu_rgb def_bgr_32 = {
+static const struct ipu_rgb def_xbgr_32 = {
 	.red	= { .offset =  0, .length = 8, },
 	.green	= { .offset =  8, .length = 8, },
 	.blue	= { .offset = 16, .length = 8, },
 	.transp = { .offset = 24, .length = 8, },
+	.bits_per_pixel = 32,
+};
+
+static const struct ipu_rgb def_rgbx_32 = {
+	.red	= { .offset = 24, .length = 8, },
+	.green	= { .offset = 16, .length = 8, },
+	.blue	= { .offset =  8, .length = 8, },
+	.transp = { .offset =  0, .length = 8, },
+	.bits_per_pixel = 32,
+};
+
+static const struct ipu_rgb def_bgrx_32 = {
+	.red	= { .offset =  8, .length = 8, },
+	.green	= { .offset = 16, .length = 8, },
+	.blue	= { .offset = 24, .length = 8, },
+	.transp = { .offset =  0, .length = 8, },
 	.bits_per_pixel = 32,
 };
 
@@ -595,11 +611,19 @@ int ipu_cpmem_set_fmt(struct ipuv3_channel *ch, u32 drm_fourcc)
 		break;
 	case DRM_FORMAT_ABGR8888:
 	case DRM_FORMAT_XBGR8888:
-		ipu_cpmem_set_format_rgb(ch, &def_bgr_32);
+		ipu_cpmem_set_format_rgb(ch, &def_xbgr_32);
 		break;
 	case DRM_FORMAT_ARGB8888:
 	case DRM_FORMAT_XRGB8888:
-		ipu_cpmem_set_format_rgb(ch, &def_rgb_32);
+		ipu_cpmem_set_format_rgb(ch, &def_xrgb_32);
+		break;
+	case DRM_FORMAT_RGBA8888:
+	case DRM_FORMAT_RGBX8888:
+		ipu_cpmem_set_format_rgb(ch, &def_rgbx_32);
+		break;
+	case DRM_FORMAT_BGRA8888:
+	case DRM_FORMAT_BGRX8888:
+		ipu_cpmem_set_format_rgb(ch, &def_bgrx_32);
 		break;
 	case DRM_FORMAT_BGR888:
 		ipu_cpmem_set_format_rgb(ch, &def_bgr_24);
