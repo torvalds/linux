@@ -4791,6 +4791,16 @@ sub process {
 			}
 		}
 
+# check for __read_mostly with const non-pointer (should just be const)
+		if ($line =~ /\b__read_mostly\b/ &&
+		    $line =~ /($Type)\s*$Ident/ && $1 !~ /\*\s*$/ && $1 =~ /\bconst\b/) {
+			if (ERROR("CONST_READ_MOSTLY",
+				  "Invalid use of __read_mostly with const type\n" . $herecurr) &&
+			    $fix) {
+				$fixed[$fixlinenr] =~ s/\s+__read_mostly\b//;
+			}
+		}
+
 # don't use __constant_<foo> functions outside of include/uapi/
 		if ($realfile !~ m@^include/uapi/@ &&
 		    $line =~ /(__constant_(?:htons|ntohs|[bl]e(?:16|32|64)_to_cpu|cpu_to_[bl]e(?:16|32|64)))\s*\(/) {
