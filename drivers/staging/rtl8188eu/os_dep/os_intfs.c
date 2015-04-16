@@ -569,8 +569,8 @@ static uint loadparam(struct adapter *padapter,  struct  net_device *pnetdev)
 	registry_par->bAcceptAddbaReq = (u8)rtw_AcceptAddbaReq;
 	registry_par->antdiv_cfg = (u8)rtw_antdiv_cfg;
 	registry_par->antdiv_type = (u8)rtw_antdiv_type;
-	registry_par->hwpdn_mode = (u8)rtw_hwpdn_mode;/* 0:disable, 1:enable, 2:by EFUSE config */
-	registry_par->hwpwrp_detect = (u8)rtw_hwpwrp_detect;/* 0:disable, 1:enable */
+	registry_par->hwpdn_mode = (u8)rtw_hwpdn_mode;
+	registry_par->hwpwrp_detect = (u8)rtw_hwpwrp_detect;
 	registry_par->hw_wps_pbc = (u8)rtw_hw_wps_pbc;
 
 	registry_par->max_roaming_times = (u8)rtw_max_roaming_times;
