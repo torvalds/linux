@@ -44,7 +44,7 @@ static int strcmp_xattr_acl(const char *name)
 	return -1;
 }
 
-static inline int is_known_namespace(const char *name)
+static bool is_known_namespace(const char *name)
 {
 	if (strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN) &&
 	    strncmp(name, XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN) &&
