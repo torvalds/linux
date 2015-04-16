@@ -23,12 +23,12 @@ static struct test {
 		.func = test__vmlinux_matches_kallsyms,
 	},
 	{
-		.desc = "detect open syscall event",
-		.func = test__open_syscall_event,
+		.desc = "detect openat syscall event",
+		.func = test__openat_syscall_event,
 	},
 	{
-		.desc = "detect open syscall event on all cpus",
-		.func = test__open_syscall_event_on_all_cpus,
+		.desc = "detect openat syscall event on all cpus",
+		.func = test__openat_syscall_event_on_all_cpus,
 	},
 	{
 		.desc = "read samples using the mmap interface",
@@ -73,8 +73,8 @@ static struct test {
 		.func = test__perf_evsel__tp_sched_test,
 	},
 	{
-		.desc = "Generate and check syscalls:sys_enter_open event fields",
-		.func = test__syscall_open_tp_fields,
+		.desc = "Generate and check syscalls:sys_enter_openat event fields",
+		.func = test__syscall_openat_tp_fields,
 	},
 	{
 		.desc = "struct perf_event_attr setup",

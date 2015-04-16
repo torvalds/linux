@@ -3,11 +3,11 @@
 #include "debug.h"
 #include "tests.h"
 
-int test__open_syscall_event(void)
+int test__openat_syscall_event(void)
 {
 	int err = -1, fd;
 	struct perf_evsel *evsel;
-	unsigned int nr_open_calls = 111, i;
+	unsigned int nr_openat_calls = 111, i;
 	struct thread_map *threads = thread_map__new(-1, getpid(), UINT_MAX);
 	char sbuf[STRERR_BUFSIZE];
 
@@ -16,7 +16,7 @@ int test__open_syscall_event(void)
 		return -1;
 	}
 
-	evsel = perf_evsel__newtp("syscalls", "sys_enter_open");
+	evsel = perf_evsel__newtp("syscalls", "sys_enter_openat");
 	if (evsel == NULL) {
 		if (tracefs_configured())
 			pr_debug("is tracefs mounted on /sys/kernel/tracing?\n");
@@ -34,8 +34,8 @@ int test__open_syscall_event(void)
 		goto out_evsel_delete;
 	}
 
-	for (i = 0; i < nr_open_calls; ++i) {
-		fd = open("/etc/passwd", O_RDONLY);
+	for (i = 0; i < nr_openat_calls; ++i) {
+		fd = openat(0, "/etc/passwd", O_RDONLY);
 		close(fd);
 	}
 
@@ -44,9 +44,9 @@ int test__open_syscall_event(void)
 		goto out_close_fd;
 	}
 
-	if (evsel->counts->cpu[0].val != nr_open_calls) {
+	if (evsel->counts->cpu[0].val != nr_openat_calls) {
 		pr_debug("perf_evsel__read_on_cpu: expected to intercept %d calls, got %" PRIu64 "\n",
-			 nr_open_calls, evsel->counts->cpu[0].val);
+			 nr_openat_calls, evsel->counts->cpu[0].val);
 		goto out_close_fd;
 	}
 
