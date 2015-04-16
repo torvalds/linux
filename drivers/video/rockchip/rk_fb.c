@@ -1273,6 +1273,8 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var,
 	u16 uv_x_off, uv_y_off, uv_y_act;
 	u8 is_pic_yuv = 0;
 
+	if (dev_drv->suspend_flag)
+		return 0;
 	win_id = dev_drv->ops->fb_get_win_id(dev_drv, info->fix.id);
 	if (win_id < 0)
 		return -ENODEV;
@@ -2864,6 +2866,8 @@ static int rk_fb_set_par(struct fb_info *info)
 	u16 uv_x_off, uv_y_off, uv_y_act;
 	u8 is_pic_yuv = 0;
 	/*var->pixclock = dev_drv->pixclock;*/
+	if (dev_drv->suspend_flag)
+		return 0;
 	win_id = dev_drv->ops->fb_get_win_id(dev_drv, info->fix.id);
 	if (win_id < 0)
 		return -ENODEV;
