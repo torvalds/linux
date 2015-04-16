@@ -107,18 +107,22 @@ static int azx_pcm_hw_params(struct snd_pcm_substream *substream,
 {
 	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
 	struct azx *chip = apcm->chip;
+	struct azx_dev *azx_dev = get_azx_dev(substream);
 	int ret;
 
-	dsp_lock(get_azx_dev(substream));
-	if (dsp_is_locked(get_azx_dev(substream))) {
+	dsp_lock(azx_dev);
+	if (dsp_is_locked(azx_dev)) {
 		ret = -EBUSY;
 		goto unlock;
 	}
 
+	azx_dev->core.bufsize = 0;
+	azx_dev->core.period_bytes = 0;
+	azx_dev->core.format_val = 0;
 	ret = chip->ops->substream_alloc_pages(chip, substream,
 					  params_buffer_bytes(hw_params));
 unlock:
-	dsp_unlock(get_azx_dev(substream));
+	dsp_unlock(azx_dev);
 	return ret;
 }
 

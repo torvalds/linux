@@ -104,9 +104,6 @@ static int substream_alloc_pages(struct azx *chip,
 {
 	struct azx_dev *azx_dev = get_azx_dev(substream);
 
-	azx_dev->core.bufsize = 0;
-	azx_dev->core.period_bytes = 0;
-	azx_dev->core.format_val = 0;
 	return snd_pcm_lib_malloc_pages(substream, size);
 }
 
