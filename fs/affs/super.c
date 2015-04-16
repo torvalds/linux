@@ -468,7 +468,7 @@ got_root:
 		return -EINVAL;
 	}
 
-	if (mount_flags & AFFS_MOUNT_SF_VERBOSE) {
+	if (affs_test_opt(mount_flags, SF_VERBOSE)) {
 		u8 len = AFFS_ROOT_TAIL(sb, root_bh)->disk_name[0];
 		pr_notice("Mounting volume \"%.*s\": Type=%.3s\\%c, Blocksize=%d\n",
 			len > 31 ? 31 : len,
@@ -479,7 +479,7 @@ got_root:
 	sb->s_flags |= MS_NODEV | MS_NOSUID;
 
 	sbi->s_data_blksize = sb->s_blocksize;
-	if (sbi->s_flags & AFFS_MOUNT_SF_OFS)
+	if (affs_test_opt(sbi->s_flags, SF_OFS))
 		sbi->s_data_blksize -= 24;
 
 	tmp_flags = sb->s_flags;
@@ -494,7 +494,7 @@ got_root:
 	if (IS_ERR(root_inode))
 		return PTR_ERR(root_inode);
 
-	if (AFFS_SB(sb)->s_flags & AFFS_MOUNT_SF_INTL)
+	if (affs_test_opt(AFFS_SB(sb)->s_flags, SF_INTL))
 		sb->s_d_op = &affs_intl_dentry_operations;
 	else
 		sb->s_d_op = &affs_dentry_operations;

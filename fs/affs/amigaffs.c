@@ -472,7 +472,8 @@ bool
 affs_nofilenametruncate(const struct dentry *dentry)
 {
 	struct inode *inode = dentry->d_inode;
-	return AFFS_SB(inode->i_sb)->s_flags & AFFS_MOUNT_SF_NO_TRUNCATE;
+
+	return affs_test_opt(AFFS_SB(inode->i_sb)->s_flags, SF_NO_TRUNCATE);
 
 }
 
