@@ -98,6 +98,7 @@ int ext4_generate_encryption_key(struct inode *inode)
 	struct ext4_encryption_key *master_key;
 	struct ext4_encryption_context ctx;
 	struct user_key_payload *ukp;
+	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	int res = ext4_xattr_get(inode, EXT4_XATTR_INDEX_ENCRYPTION,
 				 EXT4_XATTR_NAME_ENCRYPTION_CONTEXT,
 				 &ctx, sizeof(ctx));
@@ -109,6 +110,20 @@ int ext4_generate_encryption_key(struct inode *inode)
 	}
 	res = 0;
 
+	if (S_ISREG(inode->i_mode))
+		crypt_key->mode = ctx.contents_encryption_mode;
+	else if (S_ISDIR(inode->i_mode) || S_ISLNK(inode->i_mode))
+		crypt_key->mode = ctx.filenames_encryption_mode;
+	else {
+		printk(KERN_ERR "ext4 crypto: Unsupported inode type.\n");
+		BUG();
+	}
+	crypt_key->size = ext4_encryption_key_size(crypt_key->mode);
+	BUG_ON(!crypt_key->size);
+	if (DUMMY_ENCRYPTION_ENABLED(sbi)) {
+		memset(crypt_key->raw, 0x42, EXT4_AES_256_XTS_KEY_SIZE);
+		goto out;
+	}
 	memcpy(full_key_descriptor, EXT4_KEY_DESC_PREFIX,
 	       EXT4_KEY_DESC_PREFIX_SIZE);
 	sprintf(full_key_descriptor + EXT4_KEY_DESC_PREFIX_SIZE,
@@ -129,21 +144,9 @@ int ext4_generate_encryption_key(struct inode *inode)
 		goto out;
 	}
 	master_key = (struct ext4_encryption_key *)ukp->data;
-
-	if (S_ISREG(inode->i_mode))
-		crypt_key->mode = ctx.contents_encryption_mode;
-	else if (S_ISDIR(inode->i_mode) || S_ISLNK(inode->i_mode))
-		crypt_key->mode = ctx.filenames_encryption_mode;
-	else {
-		printk(KERN_ERR "ext4 crypto: Unsupported inode type.\n");
-		BUG();
-	}
-	crypt_key->size = ext4_encryption_key_size(crypt_key->mode);
-	BUG_ON(!crypt_key->size);
 	BUILD_BUG_ON(EXT4_AES_128_ECB_KEY_SIZE !=
 		     EXT4_KEY_DERIVATION_NONCE_SIZE);
 	BUG_ON(master_key->size != EXT4_AES_256_XTS_KEY_SIZE);
-	BUG_ON(crypt_key->size < EXT4_AES_256_CBC_KEY_SIZE);
 	res = ext4_derive_key_aes(ctx.nonce, master_key->raw, crypt_key->raw);
 out:
 	if (keyring_key)

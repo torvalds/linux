@@ -2582,7 +2582,8 @@ retry:
 		ext4_set_aops(inode);
 		err = 0;
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
-		if (!err && ext4_encrypted_inode(dir)) {
+		if (!err && (ext4_encrypted_inode(dir) ||
+			     DUMMY_ENCRYPTION_ENABLED(EXT4_SB(dir->i_sb)))) {
 			err = ext4_inherit_context(dir, inode);
 			if (err) {
 				clear_nlink(inode);
@@ -2777,7 +2778,8 @@ retry:
 	if (err)
 		goto out_clear_inode;
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
-	if (ext4_encrypted_inode(dir)) {
+	if (ext4_encrypted_inode(dir) ||
+	    DUMMY_ENCRYPTION_ENABLED(EXT4_SB(dir->i_sb))) {
 		err = ext4_inherit_context(dir, inode);
 		if (err)
 			goto out_clear_inode;
@@ -3202,7 +3204,8 @@ static int ext4_symlink(struct inode *dir,
 	disk_link.len = len + 1;
 	disk_link.name = (char *) symname;
 
-	encryption_required = ext4_encrypted_inode(dir);
+	encryption_required = (ext4_encrypted_inode(dir) ||
+			       DUMMY_ENCRYPTION_ENABLED(EXT4_SB(dir->i_sb)));
 	if (encryption_required)
 		disk_link.len = encrypted_symlink_data_len(len) + 1;
 	if (disk_link.len > dir->i_sb->s_blocksize)
