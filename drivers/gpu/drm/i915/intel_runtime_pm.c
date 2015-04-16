@@ -49,7 +49,8 @@
  * present for a given platform.
  */
 
-#define GEN9_ENABLE_DC5(dev) (IS_SKYLAKE(dev))
+#define GEN9_ENABLE_DC5(dev) 0
+#define SKL_ENABLE_DC6(dev) IS_SKYLAKE(dev)
 
 #define for_each_power_well(i, power_well, domain_mask, power_domains)	\
 	for (i = 0;							\
@@ -495,6 +496,16 @@ static void gen9_disable_dc5(struct drm_i915_private *dev_priv)
 	POSTING_READ(DC_STATE_EN);
 }
 
+static void skl_enable_dc6(struct drm_i915_private *dev_priv)
+{
+	/* TODO: Implementation to be done. */
+}
+
+static void skl_disable_dc6(struct drm_i915_private *dev_priv)
+{
+	/* TODO: Implementation to be done. */
+}
+
 static void skl_set_power_well(struct drm_i915_private *dev_priv,
 			struct i915_power_well *power_well, bool enable)
 {
@@ -542,9 +553,21 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 				!I915_READ(HSW_PWR_WELL_BIOS),
 				"Invalid for power well status to be enabled, unless done by the BIOS, \
 				when request is to disable!\n");
-			if (GEN9_ENABLE_DC5(dev) &&
-				power_well->data == SKL_DISP_PW_2)
-				gen9_disable_dc5(dev_priv);
+			if ((GEN9_ENABLE_DC5(dev) || SKL_ENABLE_DC6(dev)) &&
+				power_well->data == SKL_DISP_PW_2) {
+				if (SKL_ENABLE_DC6(dev)) {
+					skl_disable_dc6(dev_priv);
+					/*
+					 * DDI buffer programming unnecessary during driver-load/resume
+					 * as it's already done during modeset initialization then.
+					 * It's also invalid here as encoder list is still uninitialized.
+					 */
+					if (!dev_priv->power_domains.initializing)
+						intel_prepare_ddi(dev);
+				} else {
+					gen9_disable_dc5(dev_priv);
+				}
+			}
 			I915_WRITE(HSW_PWR_WELL_DRIVER, tmp | req_mask);
 		}
 
@@ -562,17 +585,23 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 			POSTING_READ(HSW_PWR_WELL_DRIVER);
 			DRM_DEBUG_KMS("Disabling %s\n", power_well->name);
 
-			if (GEN9_ENABLE_DC5(dev) &&
+			if ((GEN9_ENABLE_DC5(dev) || SKL_ENABLE_DC6(dev)) &&
 				power_well->data == SKL_DISP_PW_2) {
 				enum csr_state state;
-
+				/* TODO: wait for a completion event or
+				 * similar here instead of busy
+				 * waiting using wait_for function.
+				 */
 				wait_for((state = intel_csr_load_status_get(dev_priv)) !=
 						FW_UNINITIALIZED, 1000);
 				if (state != FW_LOADED)
 					DRM_ERROR("CSR firmware not ready (%d)\n",
 							state);
 				else
-					gen9_enable_dc5(dev_priv);
+					if (SKL_ENABLE_DC6(dev))
+						skl_enable_dc6(dev_priv);
+					else
+						gen9_enable_dc5(dev_priv);
 			}
 		}
 	}
