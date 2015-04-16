@@ -224,11 +224,9 @@ void rtw_proc_init_one(struct net_device *dev)
 					  rtw_proc);
 		dir_dev = padapter->dir_dev;
 		if (dir_dev == NULL) {
-			if (rtw_proc_cnt == 0) {
-				if (rtw_proc) {
-					remove_proc_entry(rtw_proc_name, init_net.proc_net);
-					rtw_proc = NULL;
-				}
+			if (rtw_proc_cnt == 0 && rtw_proc) {
+				remove_proc_entry(rtw_proc_name, init_net.proc_net);
+				rtw_proc = NULL;
 			}
 
 			pr_info("Unable to create dir_dev directory\n");
