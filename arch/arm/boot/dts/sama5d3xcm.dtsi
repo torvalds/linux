@@ -67,12 +67,6 @@
 					rxd3-skew-ps = <400>;
 				};
 			};
-
-			pmc: pmc@fffffc00 {
-				main: mainck {
-					clock-frequency = <12000000>;
-				};
-			};
 		};
 
 		nand0: nand@60000000 {
