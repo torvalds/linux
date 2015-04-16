@@ -659,6 +659,8 @@ xfs_file_dio_aio_write(
 	int			iolock;
 	size_t			count = iov_iter_count(from);
 	loff_t			pos = iocb->ki_pos;
+	loff_t			end;
+	struct iov_iter		data;
 	struct xfs_buftarg	*target = XFS_IS_REALTIME_INODE(ip) ?
 					mp->m_rtdev_targp : mp->m_ddev_targp;
 
@@ -698,10 +700,11 @@ xfs_file_dio_aio_write(
 	if (ret)
 		goto out;
 	iov_iter_truncate(from, count);
+	end = pos + count - 1;
 
 	if (mapping->nrpages) {
 		ret = filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
-						    pos, pos + count - 1);
+						   pos, end);
 		if (ret)
 			goto out;
 		/*
@@ -711,7 +714,7 @@ xfs_file_dio_aio_write(
 		 */
 		ret = invalidate_inode_pages2_range(VFS_I(ip)->i_mapping,
 					pos >> PAGE_CACHE_SHIFT,
-					(pos + count - 1) >> PAGE_CACHE_SHIFT);
+					end >> PAGE_CACHE_SHIFT);
 		WARN_ON_ONCE(ret);
 		ret = 0;
 	}
@@ -728,8 +731,22 @@ xfs_file_dio_aio_write(
 	}
 
 	trace_xfs_file_direct_write(ip, count, iocb->ki_pos, 0);
-	ret = generic_file_direct_write(iocb, from, pos);
 
+	data = *from;
+	ret = mapping->a_ops->direct_IO(WRITE, iocb, &data, pos);
+
+	/* see generic_file_direct_write() for why this is necessary */
+	if (mapping->nrpages) {
+		invalidate_inode_pages2_range(mapping,
+					      pos >> PAGE_CACHE_SHIFT,
+					      end >> PAGE_CACHE_SHIFT);
+	}
+
+	if (ret > 0) {
+		pos += ret;
+		iov_iter_advance(from, ret);
+		iocb->ki_pos = pos;
+	}
 out:
 	xfs_rw_iunlock(ip, iolock);
 
