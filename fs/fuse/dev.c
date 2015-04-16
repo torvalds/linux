@@ -710,28 +710,26 @@ struct fuse_copy_state {
 	struct fuse_conn *fc;
 	int write;
 	struct fuse_req *req;
-	const struct iovec *iov;
+	struct iov_iter *iter;
 	struct pipe_buffer *pipebufs;
 	struct pipe_buffer *currbuf;
 	struct pipe_inode_info *pipe;
 	unsigned long nr_segs;
-	unsigned long seglen;
-	unsigned long addr;
 	struct page *pg;
 	unsigned len;
 	unsigned offset;
 	unsigned move_pages:1;
 };
 
-static void fuse_copy_init(struct fuse_copy_state *cs, struct fuse_conn *fc,
+static void fuse_copy_init(struct fuse_copy_state *cs,
+			   struct fuse_conn *fc,
 			   int write,
-			   const struct iovec *iov, unsigned long nr_segs)
+			   struct iov_iter *iter)
 {
 	memset(cs, 0, sizeof(*cs));
 	cs->fc = fc;
 	cs->write = write;
-	cs->iov = iov;
-	cs->nr_segs = nr_segs;
+	cs->iter = iter;
 }
 
 /* Unmap and put previous page of userspace buffer */
@@ -799,22 +797,16 @@ static int fuse_copy_fill(struct fuse_copy_state *cs)
 			cs->nr_segs++;
 		}
 	} else {
-		if (!cs->seglen) {
-			BUG_ON(!cs->nr_segs);
-			cs->seglen = cs->iov[0].iov_len;
-			cs->addr = (unsigned long) cs->iov[0].iov_base;
-			cs->iov++;
-			cs->nr_segs--;
-		}
-		err = get_user_pages_fast(cs->addr, 1, cs->write, &page);
+		size_t off;
+		err = iov_iter_get_pages(cs->iter, &page, PAGE_SIZE, 1, &off);
 		if (err < 0)
 			return err;
-		BUG_ON(err != 1);
+		BUG_ON(!err);
+		cs->len = err;
+		cs->offset = off;
 		cs->pg = page;
-		cs->offset = cs->addr % PAGE_SIZE;
-		cs->len = min(PAGE_SIZE - cs->offset, cs->seglen);
-		cs->seglen -= cs->len;
-		cs->addr += cs->len;
+		cs->offset = off;
+		iov_iter_advance(cs->iter, err);
 	}
 
 	return lock_request(cs->fc, cs->req);
@@ -1363,8 +1355,7 @@ static int fuse_dev_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static ssize_t fuse_dev_read(struct kiocb *iocb, const struct iovec *iov,
-			      unsigned long nr_segs, loff_t pos)
+static ssize_t fuse_dev_read(struct kiocb *iocb, struct iov_iter *to)
 {
 	struct fuse_copy_state cs;
 	struct file *file = iocb->ki_filp;
@@ -1372,9 +1363,12 @@ static ssize_t fuse_dev_read(struct kiocb *iocb, const struct iovec *iov,
 	if (!fc)
 		return -EPERM;
 
-	fuse_copy_init(&cs, fc, 1, iov, nr_segs);
+	if (!iter_is_iovec(to))
+		return -EINVAL;
 
-	return fuse_dev_do_read(fc, file, &cs, iov_length(iov, nr_segs));
+	fuse_copy_init(&cs, fc, 1, to);
+
+	return fuse_dev_do_read(fc, file, &cs, iov_iter_count(to));
 }
 
 static ssize_t fuse_dev_splice_read(struct file *in, loff_t *ppos,
@@ -1394,7 +1388,7 @@ static ssize_t fuse_dev_splice_read(struct file *in, loff_t *ppos,
 	if (!bufs)
 		return -ENOMEM;
 
-	fuse_copy_init(&cs, fc, 1, NULL, 0);
+	fuse_copy_init(&cs, fc, 1, NULL);
 	cs.pipebufs = bufs;
 	cs.pipe = pipe;
 	ret = fuse_dev_do_read(fc, in, &cs, len);
@@ -1970,17 +1964,19 @@ static ssize_t fuse_dev_do_write(struct fuse_conn *fc,
 	return err;
 }
 
-static ssize_t fuse_dev_write(struct kiocb *iocb, const struct iovec *iov,
-			      unsigned long nr_segs, loff_t pos)
+static ssize_t fuse_dev_write(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct fuse_copy_state cs;
 	struct fuse_conn *fc = fuse_get_conn(iocb->ki_filp);
 	if (!fc)
 		return -EPERM;
 
-	fuse_copy_init(&cs, fc, 0, iov, nr_segs);
+	if (!iter_is_iovec(from))
+		return -EINVAL;
 
-	return fuse_dev_do_write(fc, &cs, iov_length(iov, nr_segs));
+	fuse_copy_init(&cs, fc, 0, from);
+
+	return fuse_dev_do_write(fc, &cs, iov_iter_count(from));
 }
 
 static ssize_t fuse_dev_splice_write(struct pipe_inode_info *pipe,
@@ -2043,8 +2039,9 @@ static ssize_t fuse_dev_splice_write(struct pipe_inode_info *pipe,
 	}
 	pipe_unlock(pipe);
 
-	fuse_copy_init(&cs, fc, 0, NULL, nbuf);
+	fuse_copy_init(&cs, fc, 0, NULL);
 	cs.pipebufs = bufs;
+	cs.nr_segs = nbuf;
 	cs.pipe = pipe;
 
 	if (flags & SPLICE_F_MOVE)
@@ -2232,11 +2229,9 @@ const struct file_operations fuse_dev_operations = {
 	.owner		= THIS_MODULE,
 	.open		= fuse_dev_open,
 	.llseek		= no_llseek,
-	.read		= do_sync_read,
-	.aio_read	= fuse_dev_read,
+	.read_iter	= fuse_dev_read,
 	.splice_read	= fuse_dev_splice_read,
-	.write		= do_sync_write,
-	.aio_write	= fuse_dev_write,
+	.write_iter	= fuse_dev_write,
 	.splice_write	= fuse_dev_splice_write,
 	.poll		= fuse_dev_poll,
 	.release	= fuse_dev_release,

@@ -1675,7 +1675,7 @@ static const struct i2c_device_id rt5631_i2c_id[] = {
 MODULE_DEVICE_TABLE(i2c, rt5631_i2c_id);
 
 #ifdef CONFIG_OF
-static struct of_device_id rt5631_i2c_dt_ids[] = {
+static const struct of_device_id rt5631_i2c_dt_ids[] = {
 	{ .compatible = "realtek,rt5631"},
 	{ .compatible = "realtek,alc5631"},
 	{ }

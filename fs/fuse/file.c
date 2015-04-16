@@ -1401,55 +1401,33 @@ static ssize_t __fuse_direct_read(struct fuse_io_priv *io,
 	return res;
 }
 
-static ssize_t fuse_direct_read(struct file *file, char __user *buf,
-				     size_t count, loff_t *ppos)
+static ssize_t fuse_direct_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
-	struct fuse_io_priv io = { .async = 0, .file = file };
-	struct iovec iov = { .iov_base = buf, .iov_len = count };
-	struct iov_iter ii;
-	iov_iter_init(&ii, READ, &iov, 1, count);
-	return __fuse_direct_read(&io, &ii, ppos);
+	struct fuse_io_priv io = { .async = 0, .file = iocb->ki_filp };
+	return __fuse_direct_read(&io, to, &iocb->ki_pos);
 }
 
-static ssize_t __fuse_direct_write(struct fuse_io_priv *io,
-				   struct iov_iter *iter,
-				   loff_t *ppos)
+static ssize_t fuse_direct_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
-	struct file *file = io->file;
+	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
-	size_t count = iov_iter_count(iter);
-	ssize_t res;
-
-
-	res = generic_write_checks(file, ppos, &count, 0);
-	if (!res) {
-		iov_iter_truncate(iter, count);
-		res = fuse_direct_io(io, iter, ppos, FUSE_DIO_WRITE);
-	}
-
-	fuse_invalidate_attr(inode);
-
-	return res;
-}
-
-static ssize_t fuse_direct_write(struct file *file, const char __user *buf,
-				 size_t count, loff_t *ppos)
-{
-	struct iovec iov = { .iov_base = (void __user *)buf, .iov_len = count };
-	struct inode *inode = file_inode(file);
-	ssize_t res;
 	struct fuse_io_priv io = { .async = 0, .file = file };
-	struct iov_iter ii;
-	iov_iter_init(&ii, WRITE, &iov, 1, count);
+	size_t count = iov_iter_count(from);
+	ssize_t res;
 
 	if (is_bad_inode(inode))
 		return -EIO;
 
 	/* Don't allow parallel writes to the same file */
 	mutex_lock(&inode->i_mutex);
-	res = __fuse_direct_write(&io, &ii, ppos);
+	res = generic_write_checks(file, &iocb->ki_pos, &count, 0);
+	if (!res) {
+		iov_iter_truncate(from, count);
+		res = fuse_direct_io(&io, from, &iocb->ki_pos, FUSE_DIO_WRITE);
+	}
+	fuse_invalidate_attr(inode);
 	if (res > 0)
-		fuse_write_update_size(inode, *ppos);
+		fuse_write_update_size(inode, iocb->ki_pos);
 	mutex_unlock(&inode->i_mutex);
 
 	return res;
@@ -2862,10 +2840,17 @@ fuse_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter,
 	if (io->async && is_sync_kiocb(iocb))
 		io->done = &wait;
 
-	if (rw == WRITE)
-		ret = __fuse_direct_write(io, iter, &pos);
-	else
+	if (rw == WRITE) {
+		ret = generic_write_checks(file, &pos, &count, 0);
+		if (!ret) {
+			iov_iter_truncate(iter, count);
+			ret = fuse_direct_io(io, iter, &pos, FUSE_DIO_WRITE);
+		}
+
+		fuse_invalidate_attr(inode);
+	} else {
 		ret = __fuse_direct_read(io, iter, &pos);
+	}
 
 	if (io->async) {
 		fuse_aio_complete(io, ret < 0 ? ret : 0, -1);
@@ -2968,9 +2953,7 @@ out:
 
 static const struct file_operations fuse_file_operations = {
 	.llseek		= fuse_file_llseek,
-	.read		= new_sync_read,
 	.read_iter	= fuse_file_read_iter,
-	.write		= new_sync_write,
 	.write_iter	= fuse_file_write_iter,
 	.mmap		= fuse_file_mmap,
 	.open		= fuse_open,
@@ -2988,8 +2971,8 @@ static const struct file_operations fuse_file_operations = {
 
 static const struct file_operations fuse_direct_io_file_operations = {
 	.llseek		= fuse_file_llseek,
-	.read		= fuse_direct_read,
-	.write		= fuse_direct_write,
+	.read_iter	= fuse_direct_read_iter,
+	.write_iter	= fuse_direct_write_iter,
 	.mmap		= fuse_direct_mmap,
 	.open		= fuse_open,
 	.flush		= fuse_flush,

@@ -65,15 +65,20 @@ static unsigned int odev_poll(struct file *file, poll_table * wait);
  * module interface
  */
 
+static struct snd_seq_driver seq_oss_synth_driver = {
+	.driver = {
+		.name = KBUILD_MODNAME,
+		.probe = snd_seq_oss_synth_probe,
+		.remove = snd_seq_oss_synth_remove,
+	},
+	.id = SNDRV_SEQ_DEV_ID_OSS,
+	.argsize = sizeof(struct snd_seq_oss_reg),
+};
+
 static int __init alsa_seq_oss_init(void)
 {
 	int rc;
-	static struct snd_seq_dev_ops ops = {
-		snd_seq_oss_synth_register,
-		snd_seq_oss_synth_unregister,
-	};
 
-	snd_seq_autoload_lock();
 	if ((rc = register_device()) < 0)
 		goto error;
 	if ((rc = register_proc()) < 0) {
@@ -86,8 +91,8 @@ static int __init alsa_seq_oss_init(void)
 		goto error;
 	}
 
-	if ((rc = snd_seq_device_register_driver(SNDRV_SEQ_DEV_ID_OSS, &ops,
-						 sizeof(struct snd_seq_oss_reg))) < 0) {
+	rc = snd_seq_driver_register(&seq_oss_synth_driver);
+	if (rc < 0) {
 		snd_seq_oss_delete_client();
 		unregister_proc();
 		unregister_device();
@@ -98,13 +103,12 @@ static int __init alsa_seq_oss_init(void)
 	snd_seq_oss_synth_init();
 
  error:
-	snd_seq_autoload_unlock();
 	return rc;
 }
 
 static void __exit alsa_seq_oss_exit(void)
 {
-	snd_seq_device_unregister_driver(SNDRV_SEQ_DEV_ID_OSS);
+	snd_seq_driver_unregister(&seq_oss_synth_driver);
 	snd_seq_oss_delete_client();
 	unregister_proc();
 	unregister_device();

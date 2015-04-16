@@ -1,0 +1,25 @@
+config SND_SOC_QCOM
+	tristate "ASoC support for QCOM platforms"
+	help
+          Say Y or M if you want to add support to use audio devices
+          in Qualcomm Technologies SOC-based platforms.
+
+config SND_SOC_LPASS_CPU
+	tristate
+	depends on SND_SOC_QCOM
+	select REGMAP_MMIO
+
+config SND_SOC_LPASS_PLATFORM
+	tristate
+	depends on SND_SOC_QCOM
+	select REGMAP_MMIO
+
+config SND_SOC_STORM
+	tristate "ASoC I2S support for Storm boards"
+	depends on (ARCH_QCOM && SND_SOC_QCOM) || COMPILE_TEST
+	select SND_SOC_LPASS_CPU
+	select SND_SOC_LPASS_PLATFORM
+	select SND_SOC_MAX98357A
+	help
+          Say Y or M if you want add support for SoC audio on the
+          Qualcomm Technologies IPQ806X-based Storm board.

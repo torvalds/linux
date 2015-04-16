@@ -1388,10 +1388,7 @@ struct inode *ext2_iget (struct super_block *sb, unsigned long ino)
 
 	if (S_ISREG(inode->i_mode)) {
 		inode->i_op = &ext2_file_inode_operations;
-		if (test_opt(inode->i_sb, DAX)) {
-			inode->i_mapping->a_ops = &ext2_aops;
-			inode->i_fop = &ext2_dax_file_operations;
-		} else if (test_opt(inode->i_sb, NOBH)) {
+		if (test_opt(inode->i_sb, NOBH)) {
 			inode->i_mapping->a_ops = &ext2_nobh_aops;
 			inode->i_fop = &ext2_file_operations;
 		} else {

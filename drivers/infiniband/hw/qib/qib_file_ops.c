@@ -43,6 +43,7 @@
 #include <asm/pgtable.h>
 #include <linux/delay.h>
 #include <linux/export.h>
+#include <linux/uio.h>
 
 #include "qib.h"
 #include "qib_common.h"
@@ -54,15 +55,19 @@
 static int qib_open(struct inode *, struct file *);
 static int qib_close(struct inode *, struct file *);
 static ssize_t qib_write(struct file *, const char __user *, size_t, loff_t *);
-static ssize_t qib_aio_write(struct kiocb *, const struct iovec *,
-			     unsigned long, loff_t);
+static ssize_t qib_write_iter(struct kiocb *, struct iov_iter *);
 static unsigned int qib_poll(struct file *, struct poll_table_struct *);
 static int qib_mmapf(struct file *, struct vm_area_struct *);
 
+/*
+ * This is really, really weird shit - write() and writev() here
+ * have completely unrelated semantics.  Sucky userland ABI,
+ * film at 11.
+ */
 static const struct file_operations qib_file_ops = {
 	.owner = THIS_MODULE,
 	.write = qib_write,
-	.aio_write = qib_aio_write,
+	.write_iter = qib_write_iter,
 	.open = qib_open,
 	.release = qib_close,
 	.poll = qib_poll,
@@ -2248,17 +2253,16 @@ bail:
 	return ret;
 }
 
-static ssize_t qib_aio_write(struct kiocb *iocb, const struct iovec *iov,
-			     unsigned long dim, loff_t off)
+static ssize_t qib_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct qib_filedata *fp = iocb->ki_filp->private_data;
 	struct qib_ctxtdata *rcd = ctxt_fp(iocb->ki_filp);
 	struct qib_user_sdma_queue *pq = fp->pq;
 
-	if (!dim || !pq)
+	if (!iter_is_iovec(from) || !from->nr_segs || !pq)
 		return -EINVAL;
-
-	return qib_user_sdma_writev(rcd, pq, iov, dim);
+			 
+	return qib_user_sdma_writev(rcd, pq, from->iov, from->nr_segs);
 }
 
 static struct class *qib_class;

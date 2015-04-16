@@ -4090,10 +4090,7 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
 
 	if (S_ISREG(inode->i_mode)) {
 		inode->i_op = &ext4_file_inode_operations;
-		if (test_opt(inode->i_sb, DAX))
-			inode->i_fop = &ext4_dax_file_operations;
-		else
-			inode->i_fop = &ext4_file_operations;
+		inode->i_fop = &ext4_file_operations;
 		ext4_set_aops(inode);
 	} else if (S_ISDIR(inode->i_mode)) {
 		inode->i_op = &ext4_dir_inode_operations;
