@@ -908,8 +908,10 @@ static int mv88e6xxx_set_port_state(struct dsa_switch *ds, int port, u8 state)
 	mutex_lock(&ps->smi_mutex);
 
 	reg = _mv88e6xxx_reg_read(ds, REG_PORT(port), PORT_CONTROL);
-	if (reg < 0)
+	if (reg < 0) {
+		ret = reg;
 		goto abort;
+	}
 
 	oldstate = reg & PORT_CONTROL_STATE_MASK;
 	if (oldstate != state) {
