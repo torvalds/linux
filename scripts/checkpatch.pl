@@ -1898,6 +1898,7 @@ sub process {
 
 	my $in_header_lines = $file ? 0 : 1;
 	my $in_commit_log = 0;		#Scanning lines before patch
+	my $commit_log_long_line = 0;
 	my $reported_maintainer_file = 0;
 	my $non_utf8_charset = 0;
 
@@ -2231,6 +2232,14 @@ sub process {
 		if ($in_commit_log && $line =~ /^\s*change-id:/i) {
 			ERROR("GERRIT_CHANGE_ID",
 			      "Remove Gerrit Change-Id's before submitting upstream.\n" . $herecurr);
+		}
+
+# Check for line lengths > 75 in commit log, warn once
+		if ($in_commit_log && !$commit_log_long_line &&
+		    length($line) > 75) {
+			WARN("COMMIT_LOG_LONG_LINE",
+			     "Possible unwrapped commit description (prefer a maximum 75 chars per line)\n" . $herecurr);
+			$commit_log_long_line = 1;
 		}
 
 # Check for git id commit length and improperly formed commit descriptions
