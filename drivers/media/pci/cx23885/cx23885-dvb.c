@@ -1190,6 +1190,7 @@ static int dvb_register(struct cx23885_tsport *port)
 	struct i2c_board_info info;
 	struct i2c_adapter *adapter;
 	struct i2c_client *client_demod = NULL, *client_tuner = NULL;
+	struct i2c_client *client_sec = NULL;
 	const struct m88ds3103_config *p_m88ds3103_config = NULL;
 	int (*p_set_voltage)(struct dvb_frontend *fe, fe_sec_voltage_t voltage) = NULL;
 	int mfe_shared = 0; /* bus not shared by default */
@@ -2242,6 +2243,14 @@ static int dvb_register(struct cx23885_tsport *port)
 	return 0;
 
 frontend_detach:
+	/* remove I2C client for SEC */
+	client_sec = port->i2c_client_sec;
+	if (client_sec) {
+		module_put(client_sec->dev.driver->owner);
+		i2c_unregister_device(client_sec);
+		port->i2c_client_sec = NULL;
+	}
+
 	/* remove I2C client for tuner */
 	client_tuner = port->i2c_client_tuner;
 	if (client_tuner) {
@@ -2338,6 +2347,13 @@ int cx23885_dvb_unregister(struct cx23885_tsport *port)
 
 	/* remove I2C client for CI */
 	client = port->i2c_client_ci;
+	if (client) {
+		module_put(client->dev.driver->owner);
+		i2c_unregister_device(client);
+	}
+
+	/* remove I2C client for SEC */
+	client = port->i2c_client_sec;
 	if (client) {
 		module_put(client->dev.driver->owner);
 		i2c_unregister_device(client);
