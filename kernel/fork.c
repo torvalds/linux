@@ -253,7 +253,26 @@ EXPORT_SYMBOL_GPL(__put_task_struct);
 
 void __init __weak arch_task_cache_init(void) { }
 
-void __init fork_init(unsigned long mempages)
+/*
+ * set_max_threads
+ */
+static void set_max_threads(void)
+{
+	/*
+	 * The default maximum number of threads is set to a safe
+	 * value: the thread structures can take up at most one
+	 * eighth of the memory.
+	 */
+	max_threads = totalram_pages / (8 * THREAD_SIZE / PAGE_SIZE);
+
+	/*
+	 * we need to allow at least 20 threads to boot a system
+	 */
+	if (max_threads < 20)
+		max_threads = 20;
+}
+
+void __init fork_init(void)
 {
 #ifndef CONFIG_ARCH_TASK_STRUCT_ALLOCATOR
 #ifndef ARCH_MIN_TASKALIGN
@@ -268,18 +287,7 @@ void __init fork_init(unsigned long mempages)
 	/* do the arch specific task caches init */
 	arch_task_cache_init();
 
-	/*
-	 * The default maximum number of threads is set to a safe
-	 * value: the thread structures can take up at most one
-	 * eighth of the memory.
-	 */
-	max_threads = mempages / (8 * THREAD_SIZE / PAGE_SIZE);
-
-	/*
-	 * we need to allow at least 20 threads to boot a system
-	 */
-	if (max_threads < 20)
-		max_threads = 20;
+	set_max_threads();
 
 	init_task.signal->rlim[RLIMIT_NPROC].rlim_cur = max_threads/2;
 	init_task.signal->rlim[RLIMIT_NPROC].rlim_max = max_threads/2;
