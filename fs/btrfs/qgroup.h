@@ -98,6 +98,8 @@ int btrfs_qgroup_record_ref(struct btrfs_trans_handle *trans,
 			    u64 bytenr, u64 num_bytes,
 			    enum btrfs_qgroup_operation_type type,
 			    int mod_seq);
+int btrfs_qgroup_prepare_account_extents(struct btrfs_trans_handle *trans,
+					 struct btrfs_fs_info *fs_info);
 struct btrfs_qgroup_extent_record
 *btrfs_qgroup_insert_dirty_extent(struct btrfs_delayed_ref_root *delayed_refs,
 				  struct btrfs_qgroup_extent_record *record);

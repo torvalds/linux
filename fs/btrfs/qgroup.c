@@ -1553,6 +1553,33 @@ int btrfs_qgroup_record_ref(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
+int btrfs_qgroup_prepare_account_extents(struct btrfs_trans_handle *trans,
+					 struct btrfs_fs_info *fs_info)
+{
+	struct btrfs_qgroup_extent_record *record;
+	struct btrfs_delayed_ref_root *delayed_refs;
+	struct rb_node *node;
+	int ret = 0;
+
+	delayed_refs = &trans->transaction->delayed_refs;
+
+	/*
+	 * No need to do lock, since this function will only be called in
+	 * btrfs_commmit_transaction().
+	 */
+	node = rb_first(&delayed_refs->dirty_extent_root);
+	while (node) {
+		record = rb_entry(node, struct btrfs_qgroup_extent_record,
+				  node);
+		ret = btrfs_find_all_roots(NULL, fs_info, record->bytenr, 0,
+					   &record->old_roots);
+		if (ret < 0)
+			break;
+		node = rb_next(node);
+	}
+	return ret;
+}
+
 struct btrfs_qgroup_extent_record
 *btrfs_qgroup_insert_dirty_extent(struct btrfs_delayed_ref_root *delayed_refs,
 				  struct btrfs_qgroup_extent_record *record)
