@@ -19,6 +19,9 @@
 #ifndef __BTRFS_QGROUP__
 #define __BTRFS_QGROUP__
 
+#include "ulist.h"
+#include "delayed-ref.h"
+
 /*
  * A description of the operations, all of these operations only happen when we
  * are adding the 1st reference for that subvolume in the case of adding space
@@ -58,6 +61,17 @@ struct btrfs_qgroup_operation {
 	struct list_head list;
 };
 
+/*
+ * Record a dirty extent, and info qgroup to update quota on it
+ * TODO: Use kmem cache to alloc it.
+ */
+struct btrfs_qgroup_extent_record {
+	struct rb_node node;
+	u64 bytenr;
+	u64 num_bytes;
+	struct ulist *old_roots;
+};
+
 int btrfs_quota_enable(struct btrfs_trans_handle *trans,
 		       struct btrfs_fs_info *fs_info);
 int btrfs_quota_disable(struct btrfs_trans_handle *trans,
@@ -84,6 +98,9 @@ int btrfs_qgroup_record_ref(struct btrfs_trans_handle *trans,
 			    u64 bytenr, u64 num_bytes,
 			    enum btrfs_qgroup_operation_type type,
 			    int mod_seq);
+struct btrfs_qgroup_extent_record
+*btrfs_qgroup_insert_dirty_extent(struct btrfs_delayed_ref_root *delayed_refs,
+				  struct btrfs_qgroup_extent_record *record);
 int btrfs_delayed_qgroup_accounting(struct btrfs_trans_handle *trans,
 				    struct btrfs_fs_info *fs_info);
 void btrfs_remove_qgroup_operation(struct btrfs_trans_handle *trans,

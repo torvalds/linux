@@ -1553,6 +1553,37 @@ int btrfs_qgroup_record_ref(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
+struct btrfs_qgroup_extent_record
+*btrfs_qgroup_insert_dirty_extent(struct btrfs_delayed_ref_root *delayed_refs,
+				  struct btrfs_qgroup_extent_record *record)
+{
+	struct rb_node **p = &delayed_refs->dirty_extent_root.rb_node;
+	struct rb_node *parent_node = NULL;
+	struct btrfs_qgroup_extent_record *entry;
+	u64 bytenr = record->bytenr;
+
+	while (*p) {
+		parent_node = *p;
+		entry = rb_entry(parent_node, struct btrfs_qgroup_extent_record,
+				 node);
+		if (bytenr < entry->bytenr)
+			p = &(*p)->rb_left;
+		else if (bytenr > entry->bytenr)
+			p = &(*p)->rb_right;
+		else
+			return entry;
+	}
+
+	rb_link_node(&record->node, parent_node, p);
+	rb_insert_color(&record->node, &delayed_refs->dirty_extent_root);
+	return NULL;
+}
+
+/*
+ * The easy accounting, if we are adding/removing the only ref for an extent
+ * then this qgroup and all of the parent qgroups get their refrence and
+ * exclusive counts adjusted.
+ */
 static int qgroup_excl_accounting(struct btrfs_fs_info *fs_info,
 				  struct btrfs_qgroup_operation *oper)
 {
