@@ -828,6 +828,9 @@ static int count_process_nodes(int process_nr)
 		td = g->threads + task_nr;
 
 		node = numa_node_of_cpu(td->curr_cpu);
+		if (node < 0) /* curr_cpu was likely still -1 */
+			return 0;
+
 		node_present[node] = 1;
 	}
 
@@ -881,6 +884,11 @@ static void calc_convergence_compression(int *strong)
 
 	for (p = 0; p < g->p.nr_proc; p++) {
 		unsigned int nodes = count_process_nodes(p);
+
+		if (!nodes) {
+			*strong = 0;
+			return;
+		}
 
 		nodes_min = min(nodes, nodes_min);
 		nodes_max = max(nodes, nodes_max);
