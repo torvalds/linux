@@ -274,7 +274,7 @@ static struct l3_flagmux_data dra_l3_flagmux_clk1 = {
 
 static struct l3_target_data dra_l3_target_data_clk2[] = {
 	{0x0,	"HOST CLK1",},
-	{0x0,	"HOST CLK2",},
+	{0x800000, "HOST CLK2",},
 	{0xdead, L3_TARGET_NOT_SUPPORTED,},
 	{0x3400, "SHA2_2",},
 	{0x0900, "BB2D",},
