@@ -1997,26 +1997,8 @@ static int __btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 					   bytenr, num_bytes, parent,
 					   root_objectid, owner, offset,
 					   refs_to_add, extent_op);
-	if ((ret < 0 && ret != -EAGAIN) || (!ret && no_quota))
+	if ((ret < 0 && ret != -EAGAIN) || !ret)
 		goto out;
-	/*
-	 * Ok we were able to insert an inline extent and it appears to be a new
-	 * reference, deal with the qgroup accounting.
-	 */
-	if (!ret && !no_quota) {
-		ASSERT(root->fs_info->quota_enabled);
-		leaf = path->nodes[0];
-		btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
-		item = btrfs_item_ptr(leaf, path->slots[0],
-				      struct btrfs_extent_item);
-		if (btrfs_extent_refs(leaf, item) > (u64)refs_to_add)
-			type = BTRFS_QGROUP_OPER_ADD_SHARED;
-		btrfs_release_path(path);
-
-		ret = btrfs_qgroup_record_ref(trans, fs_info, root_objectid,
-					      bytenr, num_bytes, type, 0);
-		goto out;
-	}
 
 	/*
 	 * Ok we had -EAGAIN which means we didn't have space to insert and
@@ -2035,13 +2017,6 @@ static int __btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 
 	btrfs_mark_buffer_dirty(leaf);
 	btrfs_release_path(path);
-
-	if (!no_quota) {
-		ret = btrfs_qgroup_record_ref(trans, fs_info, root_objectid,
-					      bytenr, num_bytes, type, 0);
-		if (ret)
-			goto out;
-	}
 
 	path->reada = 1;
 	path->leave_spinning = 1;
@@ -2839,9 +2814,6 @@ again:
 		goto again;
 	}
 out:
-	ret = btrfs_delayed_qgroup_accounting(trans, root->fs_info);
-	if (ret)
-		return ret;
 	assert_qgroups_uptodate(trans);
 	return 0;
 }
@@ -6383,18 +6355,6 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 	}
 	btrfs_release_path(path);
 
-	/* Deal with the quota accounting */
-	if (!ret && last_ref && !no_quota) {
-		int mod_seq = 0;
-
-		if (owner_objectid >= BTRFS_FIRST_FREE_OBJECTID &&
-		    type == BTRFS_QGROUP_OPER_SUB_SHARED)
-			mod_seq = 1;
-
-		ret = btrfs_qgroup_record_ref(trans, info, root_objectid,
-					      bytenr, num_bytes, type,
-					      mod_seq);
-	}
 out:
 	btrfs_free_path(path);
 	return ret;
@@ -7330,13 +7290,6 @@ static int alloc_reserved_file_extent(struct btrfs_trans_handle *trans,
 	btrfs_mark_buffer_dirty(path->nodes[0]);
 	btrfs_free_path(path);
 
-	/* Always set parent to 0 here since its exclusive anyway. */
-	ret = btrfs_qgroup_record_ref(trans, fs_info, root_objectid,
-				      ins->objectid, ins->offset,
-				      BTRFS_QGROUP_OPER_ADD_EXCL, 0);
-	if (ret)
-		return ret;
-
 	ret = update_block_group(trans, root, ins->objectid, ins->offset, 1);
 	if (ret) { /* -ENOENT, logic error */
 		btrfs_err(fs_info, "update block group failed for %llu %llu",
@@ -7417,14 +7370,6 @@ static int alloc_reserved_tree_block(struct btrfs_trans_handle *trans,
 
 	btrfs_mark_buffer_dirty(leaf);
 	btrfs_free_path(path);
-
-	if (!no_quota) {
-		ret = btrfs_qgroup_record_ref(trans, fs_info, root_objectid,
-					      ins->objectid, num_bytes,
-					      BTRFS_QGROUP_OPER_ADD_EXCL, 0);
-		if (ret)
-			return ret;
-	}
 
 	ret = update_block_group(trans, root, ins->objectid, root->nodesize,
 				 1);
@@ -7782,12 +7727,18 @@ reada:
 	wc->reada_slot = slot;
 }
 
+/*
+ * TODO: Modify related function to add related node/leaf to dirty_extent_root,
+ * for later qgroup accounting.
+ *
+ * Current, this function does nothing.
+ */
 static int account_leaf_items(struct btrfs_trans_handle *trans,
 			      struct btrfs_root *root,
 			      struct extent_buffer *eb)
 {
 	int nr = btrfs_header_nritems(eb);
-	int i, extent_type, ret;
+	int i, extent_type;
 	struct btrfs_key key;
 	struct btrfs_file_extent_item *fi;
 	u64 bytenr, num_bytes;
@@ -7810,13 +7761,6 @@ static int account_leaf_items(struct btrfs_trans_handle *trans,
 			continue;
 
 		num_bytes = btrfs_file_extent_disk_num_bytes(eb, fi);
-
-		ret = btrfs_qgroup_record_ref(trans, root->fs_info,
-					      root->objectid,
-					      bytenr, num_bytes,
-					      BTRFS_QGROUP_OPER_SUB_SUBTREE, 0);
-		if (ret)
-			return ret;
 	}
 	return 0;
 }
@@ -7885,6 +7829,8 @@ static int adjust_slots_upwards(struct btrfs_root *root,
 
 /*
  * root_eb is the subtree root and is locked before this function is called.
+ * TODO: Modify this function to mark all (including complete shared node)
+ * to dirty_extent_root to allow it get accounted in qgroup.
  */
 static int account_shared_subtree(struct btrfs_trans_handle *trans,
 				  struct btrfs_root *root,
@@ -7962,16 +7908,6 @@ walk_down:
 			btrfs_tree_read_lock(eb);
 			btrfs_set_lock_blocking_rw(eb, BTRFS_READ_LOCK);
 			path->locks[level] = BTRFS_READ_LOCK_BLOCKING;
-
-			ret = btrfs_qgroup_record_ref(trans, root->fs_info,
-						root->objectid,
-						child_bytenr,
-						root->nodesize,
-						BTRFS_QGROUP_OPER_SUB_SUBTREE,
-						0);
-			if (ret)
-				goto out;
-
 		}
 
 		if (level == 0) {
@@ -8566,24 +8502,6 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 				goto out_end_trans;
 			}
 
-			/*
-			 * Qgroup update accounting is run from
-			 * delayed ref handling. This usually works
-			 * out because delayed refs are normally the
-			 * only way qgroup updates are added. However,
-			 * we may have added updates during our tree
-			 * walk so run qgroups here to make sure we
-			 * don't lose any updates.
-			 */
-			ret = btrfs_delayed_qgroup_accounting(trans,
-							      root->fs_info);
-			if (ret)
-				printk_ratelimited(KERN_ERR "BTRFS: Failure %d "
-						   "running qgroup updates "
-						   "during snapshot delete. "
-						   "Quota is out of sync, "
-						   "rescan required.\n", ret);
-
 			btrfs_end_transaction_throttle(trans, tree_root);
 			if (!for_reloc && btrfs_need_cleaner_sleep(root)) {
 				pr_debug("BTRFS: drop snapshot early exit\n");
@@ -8637,14 +8555,6 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 	}
 	root_dropped = true;
 out_end_trans:
-	ret = btrfs_delayed_qgroup_accounting(trans, tree_root->fs_info);
-	if (ret)
-		printk_ratelimited(KERN_ERR "BTRFS: Failure %d "
-				   "running qgroup updates "
-				   "during snapshot delete. "
-				   "Quota is out of sync, "
-				   "rescan required.\n", ret);
-
 	btrfs_end_transaction_throttle(trans, tree_root);
 out_free:
 	kfree(wc);

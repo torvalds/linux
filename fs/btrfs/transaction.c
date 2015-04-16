@@ -1967,6 +1967,13 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 		goto scrub_continue;
 	}
 
+	/* Reocrd old roots for later qgroup accounting */
+	ret = btrfs_qgroup_prepare_account_extents(trans, root->fs_info);
+	if (ret) {
+		mutex_unlock(&root->fs_info->reloc_mutex);
+		goto scrub_continue;
+	}
+
 	/*
 	 * make sure none of the code above managed to slip in a
 	 * delayed item
@@ -2007,6 +2014,17 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	 * safe to free the root of tree log roots
 	 */
 	btrfs_free_log_root_tree(trans, root->fs_info);
+
+	/*
+	 * Since fs roots are all committed, we can get a quite accurate
+	 * new_roots. So let's do quota accounting.
+	 */
+	ret = btrfs_qgroup_account_extents(trans, root->fs_info);
+	if (ret < 0) {
+		mutex_unlock(&root->fs_info->tree_log_mutex);
+		mutex_unlock(&root->fs_info->reloc_mutex);
+		goto scrub_continue;
+	}
 
 	ret = commit_cowonly_roots(trans, root);
 	if (ret) {
