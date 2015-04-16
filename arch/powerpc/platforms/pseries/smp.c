@@ -197,16 +197,14 @@ static void pSeries_cause_ipi_mux(int cpu, unsigned long data)
 		xics_cause_ipi(cpu, data);
 }
 
-static __init int pSeries_smp_probe(void)
+static __init void pSeries_smp_probe(void)
 {
-	int ret = xics_smp_probe();
+	xics_smp_probe();
 
 	if (cpu_has_feature(CPU_FTR_DBELL)) {
 		xics_cause_ipi = smp_ops->cause_ipi;
 		smp_ops->cause_ipi = pSeries_cause_ipi_mux;
 	}
-
-	return ret;
 }
 
 static struct smp_ops_t pSeries_mpic_smp_ops = {

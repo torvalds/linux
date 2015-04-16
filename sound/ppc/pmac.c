@@ -240,7 +240,7 @@ static int snd_pmac_pcm_prepare(struct snd_pmac *chip, struct pmac_stream *rec, 
 	 */
 	spin_lock_irq(&chip->reg_lock);
 	snd_pmac_dma_stop(rec);
-	st_le16(&chip->extra_dma.cmds->command, DBDMA_STOP);
+	chip->extra_dma.cmds->command = cpu_to_le16(DBDMA_STOP);
 	snd_pmac_dma_set_command(rec, &chip->extra_dma);
 	snd_pmac_dma_run(rec, RUN);
 	spin_unlock_irq(&chip->reg_lock);
@@ -251,15 +251,15 @@ static int snd_pmac_pcm_prepare(struct snd_pmac *chip, struct pmac_stream *rec, 
 	 */
 	offset = runtime->dma_addr;
 	for (i = 0, cp = rec->cmd.cmds; i < rec->nperiods; i++, cp++) {
-		st_le32(&cp->phy_addr, offset);
-		st_le16(&cp->req_count, rec->period_size);
-		/*st_le16(&cp->res_count, 0);*/
-		st_le16(&cp->xfer_status, 0);
+		cp->phy_addr = cpu_to_le32(offset);
+		cp->req_count = cpu_to_le16(rec->period_size);
+		/*cp->res_count = cpu_to_le16(0);*/
+		cp->xfer_status = cpu_to_le16(0);
 		offset += rec->period_size;
 	}
 	/* make loop */
-	st_le16(&cp->command, DBDMA_NOP + BR_ALWAYS);
-	st_le32(&cp->cmd_dep, rec->cmd.addr);
+	cp->command = cpu_to_le16(DBDMA_NOP + BR_ALWAYS);
+	cp->cmd_dep = cpu_to_le32(rec->cmd.addr);
 
 	snd_pmac_dma_stop(rec);
 	snd_pmac_dma_set_command(rec, &rec->cmd);
@@ -328,7 +328,7 @@ static snd_pcm_uframes_t snd_pmac_pcm_pointer(struct snd_pmac *chip,
 #if 1 /* hmm.. how can we get the current dma pointer?? */
 	int stat;
 	volatile struct dbdma_cmd __iomem *cp = &rec->cmd.cmds[rec->cur_period];
-	stat = ld_le16(&cp->xfer_status);
+	stat = le16_to_cpu(cp->xfer_status);
 	if (stat & (ACTIVE|DEAD)) {
 		count = in_le16(&cp->res_count);
 		if (count)
@@ -427,26 +427,26 @@ static inline void snd_pmac_pcm_dead_xfer(struct pmac_stream *rec,
 		memcpy((void *)emergency_dbdma.cmds, (void *)cp,
 		       sizeof(struct dbdma_cmd));
 		emergency_in_use = 1;
-		st_le16(&cp->xfer_status, 0);
-		st_le16(&cp->req_count, rec->period_size);
+		cp->xfer_status = cpu_to_le16(0);
+		cp->req_count = cpu_to_le16(rec->period_size);
 		cp = emergency_dbdma.cmds;
 	}
 
 	/* now bump the values to reflect the amount
 	   we haven't yet shifted */
-	req = ld_le16(&cp->req_count);
-	res = ld_le16(&cp->res_count);
-	phy = ld_le32(&cp->phy_addr);
+	req = le16_to_cpu(cp->req_count);
+	res = le16_to_cpu(cp->res_count);
+	phy = le32_to_cpu(cp->phy_addr);
 	phy += (req - res);
-	st_le16(&cp->req_count, res);
-	st_le16(&cp->res_count, 0);
-	st_le16(&cp->xfer_status, 0);
-	st_le32(&cp->phy_addr, phy);
+	cp->req_count = cpu_to_le16(res);
+	cp->res_count = cpu_to_le16(0);
+	cp->xfer_status = cpu_to_le16(0);
+	cp->phy_addr = cpu_to_le32(phy);
 
-	st_le32(&cp->cmd_dep, rec->cmd.addr
+	cp->cmd_dep = cpu_to_le32(rec->cmd.addr
 		+ sizeof(struct dbdma_cmd)*((rec->cur_period+1)%rec->nperiods));
 
-	st_le16(&cp->command, OUTPUT_MORE | BR_ALWAYS | INTR_ALWAYS);
+	cp->command = cpu_to_le16(OUTPUT_MORE | BR_ALWAYS | INTR_ALWAYS);
 
 	/* point at our patched up command block */
 	out_le32(&rec->dma->cmdptr, emergency_dbdma.addr);
@@ -475,7 +475,7 @@ static void snd_pmac_pcm_update(struct snd_pmac *chip, struct pmac_stream *rec)
 			else
 				cp = &rec->cmd.cmds[rec->cur_period];
 
-			stat = ld_le16(&cp->xfer_status);
+			stat = le16_to_cpu(cp->xfer_status);
 
 			if (stat & DEAD) {
 				snd_pmac_pcm_dead_xfer(rec, cp);
@@ -489,9 +489,9 @@ static void snd_pmac_pcm_update(struct snd_pmac *chip, struct pmac_stream *rec)
 				break;
 
 			/*printk(KERN_DEBUG "update frag %d\n", rec->cur_period);*/
-			st_le16(&cp->xfer_status, 0);
-			st_le16(&cp->req_count, rec->period_size);
-			/*st_le16(&cp->res_count, 0);*/
+			cp->xfer_status = cpu_to_le16(0);
+			cp->req_count = cpu_to_le16(rec->period_size);
+			/*cp->res_count = cpu_to_le16(0);*/
 			rec->cur_period++;
 			if (rec->cur_period >= rec->nperiods) {
 				rec->cur_period = 0;
@@ -760,11 +760,11 @@ void snd_pmac_beep_dma_start(struct snd_pmac *chip, int bytes, unsigned long add
 	struct pmac_stream *rec = &chip->playback;
 
 	snd_pmac_dma_stop(rec);
-	st_le16(&chip->extra_dma.cmds->req_count, bytes);
-	st_le16(&chip->extra_dma.cmds->xfer_status, 0);
-	st_le32(&chip->extra_dma.cmds->cmd_dep, chip->extra_dma.addr);
-	st_le32(&chip->extra_dma.cmds->phy_addr, addr);
-	st_le16(&chip->extra_dma.cmds->command, OUTPUT_MORE + BR_ALWAYS);
+	chip->extra_dma.cmds->req_count = cpu_to_le16(bytes);
+	chip->extra_dma.cmds->xfer_status = cpu_to_le16(0);
+	chip->extra_dma.cmds->cmd_dep = cpu_to_le32(chip->extra_dma.addr);
+	chip->extra_dma.cmds->phy_addr = cpu_to_le32(addr);
+	chip->extra_dma.cmds->command = cpu_to_le16(OUTPUT_MORE + BR_ALWAYS);
 	out_le32(&chip->awacs->control,
 		 (in_le32(&chip->awacs->control) & ~0x1f00)
 		 | (speed << 8));
@@ -776,7 +776,7 @@ void snd_pmac_beep_dma_start(struct snd_pmac *chip, int bytes, unsigned long add
 void snd_pmac_beep_dma_stop(struct snd_pmac *chip)
 {
 	snd_pmac_dma_stop(&chip->playback);
-	st_le16(&chip->extra_dma.cmds->command, DBDMA_STOP);
+	chip->extra_dma.cmds->command = cpu_to_le16(DBDMA_STOP);
 	snd_pmac_pcm_set_format(chip); /* reset format */
 }
 
