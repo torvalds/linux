@@ -13,6 +13,8 @@
 #include <linux/delay.h>
 #include <linux/random.h>
 #include <linux/sizes.h>
+#include <asm/div64.h>
+
 #include "greybus.h"
 
 struct gb_loopback_stats {
@@ -248,12 +250,16 @@ static void gb_loopback_update_stats(struct gb_loopback_stats *stats,
 					u64 elapsed_nsecs)
 {
 	u32 avg;
+	u64 tmp;
 
 	if (elapsed_nsecs >= NSEC_PER_SEC) {
-		if (!stats->count)
-			avg = stats->sum * (elapsed_nsecs / NSEC_PER_SEC);
-		else
+		if (!stats->count) {
+			tmp = elapsed_nsecs;
+			do_div(tmp, NSEC_PER_SEC);
+			avg = stats->sum * tmp;
+		} else {
 			avg = stats->sum / stats->count;
+		}
 		if (stats->min > avg)
 			stats->min = avg;
 		if (stats->max < avg)
@@ -281,10 +287,11 @@ static void gb_loopback_latency_update(struct gb_loopback *gb,
 					struct timeval *tlat)
 {
 	u32 lat;
-	u64 nsecs;
+	u64 tmp;
 
-	nsecs = timeval_to_ns(tlat);
-	lat = nsecs / NSEC_PER_MSEC;
+	tmp = timeval_to_ns(tlat);
+	do_div(tmp, NSEC_PER_MSEC);
+	lat = tmp;
 
 	if (gb->latency.min > lat)
 		gb->latency.min = lat;
