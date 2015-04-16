@@ -28,6 +28,7 @@
 struct tda10071_priv {
 	struct i2c_adapter *i2c;
 	struct dvb_frontend fe;
+	struct i2c_client *client;
 	struct tda10071_config cfg;
 
 	u8 meas_count[2];

@@ -1313,6 +1313,101 @@ static struct dvb_frontend_ops tda10071_ops = {
 	.set_voltage = tda10071_set_voltage,
 };
 
+static struct dvb_frontend *tda10071_get_dvb_frontend(struct i2c_client *client)
+{
+	struct tda10071_priv *dev = i2c_get_clientdata(client);
+
+	dev_dbg(&client->dev, "\n");
+
+	return &dev->fe;
+}
+
+static int tda10071_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
+{
+	struct tda10071_priv *dev;
+	struct tda10071_platform_data *pdata = client->dev.platform_data;
+	int ret;
+	u8 u8tmp;
+
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	dev->client = client;
+	dev->i2c = client->adapter;
+	dev->cfg.demod_i2c_addr = client->addr;
+	dev->cfg.i2c_wr_max = pdata->i2c_wr_max;
+	dev->cfg.ts_mode = pdata->ts_mode;
+	dev->cfg.spec_inv = pdata->spec_inv;
+	dev->cfg.xtal = pdata->clk;
+	dev->cfg.pll_multiplier = pdata->pll_multiplier;
+	dev->cfg.tuner_i2c_addr = pdata->tuner_i2c_addr;
+
+	/* chip ID */
+	ret = tda10071_rd_reg(dev, 0xff, &u8tmp);
+	if (ret || u8tmp != 0x0f)
+		goto err_kfree;
+
+	/* chip type */
+	ret = tda10071_rd_reg(dev, 0xdd, &u8tmp);
+	if (ret || u8tmp != 0x00)
+		goto err_kfree;
+
+	/* chip version */
+	ret = tda10071_rd_reg(dev, 0xfe, &u8tmp);
+	if (ret || u8tmp != 0x01)
+		goto err_kfree;
+
+	/* create dvb_frontend */
+	memcpy(&dev->fe.ops, &tda10071_ops, sizeof(struct dvb_frontend_ops));
+	dev->fe.ops.release = NULL;
+	dev->fe.demodulator_priv = dev;
+	i2c_set_clientdata(client, dev);
+
+	/* setup callbacks */
+	pdata->get_dvb_frontend = tda10071_get_dvb_frontend;
+
+	dev_info(&client->dev, "NXP TDA10071 successfully identified\n");
+	return 0;
+err_kfree:
+	kfree(dev);
+err:
+	dev_dbg(&client->dev, "failed=%d\n", ret);
+	return ret;
+}
+
+static int tda10071_remove(struct i2c_client *client)
+{
+	struct tda10071_dev *dev = i2c_get_clientdata(client);
+
+	dev_dbg(&client->dev, "\n");
+
+	kfree(dev);
+	return 0;
+}
+
+static const struct i2c_device_id tda10071_id_table[] = {
+	{"tda10071_cx24118", 0},
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, tda10071_id_table);
+
+static struct i2c_driver tda10071_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "tda10071",
+		.suppress_bind_attrs = true,
+	},
+	.probe		= tda10071_probe,
+	.remove		= tda10071_remove,
+	.id_table	= tda10071_id_table,
+};
+
+module_i2c_driver(tda10071_driver);
+
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
 MODULE_DESCRIPTION("NXP TDA10071 DVB-S/S2 demodulator driver");
 MODULE_LICENSE("GPL");
