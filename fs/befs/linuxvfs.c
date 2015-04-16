@@ -51,7 +51,7 @@ static int befs_nls2utf(struct super_block *sb, const char *in, int in_len,
 static void befs_put_super(struct super_block *);
 static int befs_remount(struct super_block *, int *, char *);
 static int befs_statfs(struct dentry *, struct kstatfs *);
-static int parse_options(char *, befs_mount_options *);
+static int parse_options(char *, struct befs_mount_options *);
 
 static const struct super_operations befs_sops = {
 	.alloc_inode	= befs_alloc_inode,	/* allocate a new inode */
@@ -669,7 +669,7 @@ static const match_table_t befs_tokens = {
 };
 
 static int
-parse_options(char *options, befs_mount_options * opts)
+parse_options(char *options, struct befs_mount_options *opts)
 {
 	char *p;
 	substring_t args[MAX_OPT_ARGS];

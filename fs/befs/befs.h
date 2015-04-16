@@ -19,14 +19,14 @@ typedef u64 befs_blocknr_t;
  * BeFS in memory structures
  */
 
-typedef struct befs_mount_options {
+struct befs_mount_options {
 	kgid_t gid;
 	kuid_t uid;
 	int use_gid;
 	int use_uid;
 	int debug;
 	char *iocharset;
-} befs_mount_options;
+};
 
 typedef struct befs_sb_info {
 	u32 magic1;
@@ -52,7 +52,7 @@ typedef struct befs_sb_info {
 	befs_inode_addr indices;
 	u32 magic3;
 
-	befs_mount_options mount_opts;
+	struct befs_mount_options mount_opts;
 	struct nls_table *nls;
 
 } befs_sb_info;
