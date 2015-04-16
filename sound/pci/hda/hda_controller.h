@@ -404,7 +404,7 @@ struct azx {
 	((chip)->ops->reg_readb((dev)->sd_addr + AZX_REG_##reg))
 
 #define azx_has_pm_runtime(chip) \
-	(!AZX_DCAPS_PM_RUNTIME || ((chip)->driver_caps & AZX_DCAPS_PM_RUNTIME))
+	((chip)->driver_caps & AZX_DCAPS_PM_RUNTIME)
 
 /* PCM setup */
 static inline struct azx_dev *get_azx_dev(struct snd_pcm_substream *substream)
