@@ -230,87 +230,6 @@ static int isl29018_read_proximity_ir(struct isl29018_chip *chip, int scheme,
 }
 
 /* Sysfs interface */
-/* range */
-static ssize_t show_range(struct device *dev,
-			struct device_attribute *attr, char *buf)
-{
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct isl29018_chip *chip = iio_priv(indio_dev);
-
-	return sprintf(buf, "%u\n", chip->range);
-}
-
-static ssize_t store_range(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct isl29018_chip *chip = iio_priv(indio_dev);
-	int status;
-	unsigned long lval;
-	unsigned int new_range;
-
-	if (kstrtoul(buf, 10, &lval))
-		return -EINVAL;
-
-	if (!(lval == 1000UL || lval == 4000UL ||
-			lval == 16000UL || lval == 64000UL)) {
-		dev_err(dev, "The range is not supported\n");
-		return -EINVAL;
-	}
-
-	mutex_lock(&chip->lock);
-	status = isl29018_set_range(chip, lval, &new_range);
-	if (status < 0) {
-		mutex_unlock(&chip->lock);
-		dev_err(dev,
-			"Error in setting max range with err %d\n", status);
-		return status;
-	}
-	chip->range = new_range;
-	mutex_unlock(&chip->lock);
-
-	return count;
-}
-
-/* resolution */
-static ssize_t show_resolution(struct device *dev,
-			struct device_attribute *attr, char *buf)
-{
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct isl29018_chip *chip = iio_priv(indio_dev);
-
-	return sprintf(buf, "%u\n", chip->adc_bit);
-}
-
-static ssize_t store_resolution(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct isl29018_chip *chip = iio_priv(indio_dev);
-	int status;
-	unsigned int val;
-	unsigned int new_adc_bit;
-
-	if (kstrtouint(buf, 10, &val))
-		return -EINVAL;
-	if (!(val == 4 || val == 8 || val == 12 || val == 16)) {
-		dev_err(dev, "The resolution is not supported\n");
-		return -EINVAL;
-	}
-
-	mutex_lock(&chip->lock);
-	status = isl29018_set_resolution(chip, val, &new_adc_bit);
-	if (status < 0) {
-		mutex_unlock(&chip->lock);
-		dev_err(dev, "Error in setting resolution\n");
-		return status;
-	}
-	chip->adc_bit = new_adc_bit;
-	mutex_unlock(&chip->lock);
-
-	return count;
-}
-
 /* proximity scheme */
 static ssize_t show_prox_infrared_suppression(struct device *dev,
 			struct device_attribute *attr, char *buf)
@@ -447,11 +366,6 @@ static const struct iio_chan_spec isl29023_channels[] = {
 	ISL29018_IR_CHANNEL,
 };
 
-static IIO_DEVICE_ATTR(range, S_IRUGO | S_IWUSR, show_range, store_range, 0);
-static IIO_CONST_ATTR(range_available, "1000 4000 16000 64000");
-static IIO_CONST_ATTR(adc_resolution_available, "4 8 12 16");
-static IIO_DEVICE_ATTR(adc_resolution, S_IRUGO | S_IWUSR,
-					show_resolution, store_resolution, 0);
 static IIO_DEVICE_ATTR(proximity_on_chip_ambient_infrared_suppression,
 					S_IRUGO | S_IWUSR,
 					show_prox_infrared_suppression,
@@ -460,19 +374,11 @@ static IIO_DEVICE_ATTR(proximity_on_chip_ambient_infrared_suppression,
 #define ISL29018_DEV_ATTR(name) (&iio_dev_attr_##name.dev_attr.attr)
 #define ISL29018_CONST_ATTR(name) (&iio_const_attr_##name.dev_attr.attr)
 static struct attribute *isl29018_attributes[] = {
-	ISL29018_DEV_ATTR(range),
-	ISL29018_CONST_ATTR(range_available),
-	ISL29018_DEV_ATTR(adc_resolution),
-	ISL29018_CONST_ATTR(adc_resolution_available),
 	ISL29018_DEV_ATTR(proximity_on_chip_ambient_infrared_suppression),
 	NULL
 };
 
 static struct attribute *isl29023_attributes[] = {
-	ISL29018_DEV_ATTR(range),
-	ISL29018_CONST_ATTR(range_available),
-	ISL29018_DEV_ATTR(adc_resolution),
-	ISL29018_CONST_ATTR(adc_resolution_available),
 	NULL
 };
 
