@@ -4009,12 +4009,12 @@ sub process {
 			}
 		}
 
-# Return of what appears to be an errno should normally be -'ve
-		if ($line =~ /^.\s*return\s*(E[A-Z]*)\s*;/) {
+# Return of what appears to be an errno should normally be negative
+		if ($sline =~ /\breturn(?:\s*\(+\s*|\s+)(E[A-Z]+)(?:\s*\)+\s*|\s*)[;:,]/) {
 			my $name = $1;
 			if ($name ne 'EOF' && $name ne 'ERROR') {
 				WARN("USE_NEGATIVE_ERRNO",
-				     "return of an errno should typically be -ve (return -$1)\n" . $herecurr);
+				     "return of an errno should typically be negative (ie: return -$1)\n" . $herecurr);
 			}
 		}
 
