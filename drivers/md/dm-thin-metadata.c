@@ -1417,6 +1417,63 @@ int dm_thin_find_block(struct dm_thin_device *td, dm_block_t block,
 	return r;
 }
 
+/* FIXME: write a more efficient one in btree */
+int dm_thin_find_mapped_range(struct dm_thin_device *td,
+			      dm_block_t begin, dm_block_t end,
+			      dm_block_t *thin_begin, dm_block_t *thin_end,
+			      dm_block_t *pool_begin, bool *maybe_shared)
+{
+	int r;
+	dm_block_t pool_end;
+	struct dm_thin_lookup_result lookup;
+
+	if (end < begin)
+		return -ENODATA;
+
+	/*
+	 * Find first mapped block.
+	 */
+	while (begin < end) {
+		r = dm_thin_find_block(td, begin, true, &lookup);
+		if (r) {
+			if (r != -ENODATA)
+				return r;
+		} else
+			break;
+
+		begin++;
+	}
+
+	if (begin == end)
+		return -ENODATA;
+
+	*thin_begin = begin;
+	*pool_begin = lookup.block;
+	*maybe_shared = lookup.shared;
+
+	begin++;
+	pool_end = *pool_begin + 1;
+	while (begin != end) {
+		r = dm_thin_find_block(td, begin, true, &lookup);
+		if (r) {
+			if (r == -ENODATA)
+				break;
+			else
+				return r;
+		}
+
+		if ((lookup.block != pool_end) ||
+		    (lookup.shared != *maybe_shared))
+			break;
+
+		pool_end++;
+		begin++;
+	}
+
+	*thin_end = begin;
+	return 0;
+}
+
 static int __insert(struct dm_thin_device *td, dm_block_t block,
 		    dm_block_t data_block)
 {
