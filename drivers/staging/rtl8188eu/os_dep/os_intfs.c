@@ -622,8 +622,8 @@ static struct net_device_stats *rtw_net_get_stats(struct net_device *pnetdev)
 	struct xmit_priv *pxmitpriv = &(padapter->xmitpriv);
 	struct recv_priv *precvpriv = &(padapter->recvpriv);
 
-	padapter->stats.tx_packets = pxmitpriv->tx_pkts;/* pxmitpriv->tx_pkts++; */
-	padapter->stats.rx_packets = precvpriv->rx_pkts;/* precvpriv->rx_pkts++; */
+	padapter->stats.tx_packets = pxmitpriv->tx_pkts;
+	padapter->stats.rx_packets = precvpriv->rx_pkts;
 	padapter->stats.tx_dropped = pxmitpriv->tx_drop;
 	padapter->stats.rx_dropped = precvpriv->rx_drop;
 	padapter->stats.tx_bytes = pxmitpriv->tx_bytes;
