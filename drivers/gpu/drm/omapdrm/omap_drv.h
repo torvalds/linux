@@ -109,6 +109,7 @@ struct omap_drm_private {
 
 	/* atomic commit */
 	struct {
+		struct list_head events;
 		wait_queue_head_t wait;
 		u32 pending;
 		spinlock_t lock;	/* Protects commit.pending */
@@ -142,7 +143,6 @@ void omap_fbdev_free(struct drm_device *dev);
 
 const struct omap_video_timings *omap_crtc_timings(struct drm_crtc *crtc);
 enum omap_channel omap_crtc_channel(struct drm_crtc *crtc);
-void omap_crtc_cancel_page_flip(struct drm_crtc *crtc, struct drm_file *file);
 void omap_crtc_pre_init(void);
 void omap_crtc_pre_uninit(void);
 struct drm_crtc *omap_crtc_init(struct drm_device *dev,

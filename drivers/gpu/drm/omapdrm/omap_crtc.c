@@ -254,30 +254,6 @@ static const struct dss_mgr_ops mgr_ops = {
  * Setup, Flush and Page Flip
  */
 
-void omap_crtc_cancel_page_flip(struct drm_crtc *crtc, struct drm_file *file)
-{
-	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-	struct drm_pending_vblank_event *event;
-	struct drm_device *dev = crtc->dev;
-	unsigned long flags;
-
-	/* Destroy the pending vertical blanking event associated with the
-	 * pending page flip, if any, and disable vertical blanking interrupts.
-	 */
-
-	spin_lock_irqsave(&dev->event_lock, flags);
-
-	event = omap_crtc->event;
-	omap_crtc->event = NULL;
-
-	if (event && event->base.file_priv == file) {
-		event->base.destroy(&event->base);
-		drm_crtc_vblank_put(crtc);
-	}
-
-	spin_unlock_irqrestore(&dev->event_lock, flags);
-}
-
 static void omap_crtc_complete_page_flip(struct drm_crtc *crtc)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
@@ -291,7 +267,17 @@ static void omap_crtc_complete_page_flip(struct drm_crtc *crtc)
 	omap_crtc->event = NULL;
 
 	if (event) {
-		drm_crtc_send_vblank_event(crtc, event);
+		list_del(&event->base.link);
+
+		/*
+		 * Queue the event for delivery if it's still linked to a file
+		 * handle, otherwise just destroy it.
+		 */
+		if (event->base.file_priv)
+			drm_crtc_send_vblank_event(crtc, event);
+		else
+			event->base.destroy(&event->base);
+
 		wake_up(&omap_crtc->flip_wait);
 		drm_crtc_vblank_put(crtc);
 	}
