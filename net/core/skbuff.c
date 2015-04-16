@@ -4124,18 +4124,21 @@ EXPORT_SYMBOL(skb_try_coalesce);
  */
 void skb_scrub_packet(struct sk_buff *skb, bool xnet)
 {
-	if (xnet)
-		skb_orphan(skb);
 	skb->tstamp.tv64 = 0;
 	skb->pkt_type = PACKET_HOST;
 	skb->skb_iif = 0;
 	skb->ignore_df = 0;
 	skb_dst_drop(skb);
-	skb->mark = 0;
 	skb_sender_cpu_clear(skb);
 	secpath_reset(skb);
 	nf_reset(skb);
 	nf_reset_trace(skb);
+
+	if (!xnet)
+		return;
+
+	skb_orphan(skb);
+	skb->mark = 0;
 }
 EXPORT_SYMBOL_GPL(skb_scrub_packet);
 
