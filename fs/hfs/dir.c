@@ -197,7 +197,7 @@ static int hfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 
 	inode = hfs_new_inode(dir, &dentry->d_name, mode);
 	if (!inode)
-		return -ENOSPC;
+		return -ENOMEM;
 
 	res = hfs_cat_create(inode->i_ino, dir, &dentry->d_name, inode);
 	if (res) {
@@ -226,7 +226,7 @@ static int hfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 
 	inode = hfs_new_inode(dir, &dentry->d_name, S_IFDIR | mode);
 	if (!inode)
-		return -ENOSPC;
+		return -ENOMEM;
 
 	res = hfs_cat_create(inode->i_ino, dir, &dentry->d_name, inode);
 	if (res) {
