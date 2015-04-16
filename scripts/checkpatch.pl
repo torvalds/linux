@@ -1690,7 +1690,7 @@ sub fix_inserted_deleted_lines {
 	foreach my $old_line (@{$linesRef}) {
 		my $save_line = 1;
 		my $line = $old_line;	#don't modify the array
-		if ($line =~ /^(?:\+\+\+\|\-\-\-)\s+\S+/) {	#new filename
+		if ($line =~ /^(?:\+\+\+|\-\-\-)\s+\S+/) {	#new filename
 			$delta_offset = 0;
 		} elsif ($line =~ /^\@\@ -\d+,\d+ \+\d+,\d+ \@\@/) {	#new hunk
 			$range_last_linenr = $new_linenr;
