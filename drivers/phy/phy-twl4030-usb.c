@@ -396,8 +396,6 @@ static int twl4030_usb_runtime_suspend(struct device *dev)
 	struct twl4030_usb *twl = dev_get_drvdata(dev);
 
 	dev_dbg(twl->dev, "%s\n", __func__);
-	if (pm_runtime_suspended(dev))
-		return 0;
 
 	__twl4030_phy_power(twl, 0);
 	regulator_disable(twl->usb1v5);
@@ -413,8 +411,6 @@ static int twl4030_usb_runtime_resume(struct device *dev)
 	int res;
 
 	dev_dbg(twl->dev, "%s\n", __func__);
-	if (pm_runtime_active(dev))
-		return 0;
 
 	res = regulator_enable(twl->usb3v1);
 	if (res)
