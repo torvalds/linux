@@ -2455,6 +2455,122 @@ static int btrfs_qgroup_account(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
+static int
+btrfs_qgroup_account_extent(struct btrfs_trans_handle *trans,
+			    struct btrfs_fs_info *fs_info,
+			    u64 bytenr, u64 num_bytes,
+			    struct ulist *old_roots, struct ulist *new_roots)
+{
+	struct ulist *qgroups = NULL;
+	struct ulist *tmp = NULL;
+	u64 seq;
+	u64 nr_new_roots = 0;
+	u64 nr_old_roots = 0;
+	int ret = 0;
+
+	if (new_roots)
+		nr_new_roots = new_roots->nnodes;
+	if (old_roots)
+		nr_old_roots = old_roots->nnodes;
+
+	if (!fs_info->quota_enabled)
+		goto out_free;
+	BUG_ON(!fs_info->quota_root);
+
+	qgroups = ulist_alloc(GFP_NOFS);
+	if (!qgroups) {
+		ret = -ENOMEM;
+		goto out_free;
+	}
+	tmp = ulist_alloc(GFP_NOFS);
+	if (!tmp) {
+		ret = -ENOMEM;
+		goto out_free;
+	}
+
+	mutex_lock(&fs_info->qgroup_rescan_lock);
+	if (fs_info->qgroup_flags & BTRFS_QGROUP_STATUS_FLAG_RESCAN) {
+		if (fs_info->qgroup_rescan_progress.objectid <= bytenr) {
+			mutex_unlock(&fs_info->qgroup_rescan_lock);
+			ret = 0;
+			goto out_free;
+		}
+	}
+	mutex_unlock(&fs_info->qgroup_rescan_lock);
+
+	spin_lock(&fs_info->qgroup_lock);
+	seq = fs_info->qgroup_seq;
+
+	/* Update old refcnts using old_roots */
+	ret = qgroup_update_refcnt(fs_info, old_roots, tmp, qgroups, seq,
+				   UPDATE_OLD);
+	if (ret < 0)
+		goto out;
+
+	/* Update new refcnts using new_roots */
+	ret = qgroup_update_refcnt(fs_info, new_roots, tmp, qgroups, seq,
+				   UPDATE_NEW);
+	if (ret < 0)
+		goto out;
+
+	qgroup_update_counters(fs_info, qgroups, nr_old_roots, nr_new_roots,
+			       num_bytes, seq);
+
+	/*
+	 * Bump qgroup_seq to avoid seq overlap
+	 */
+	fs_info->qgroup_seq += max(nr_old_roots, nr_new_roots) + 1;
+out:
+	spin_unlock(&fs_info->qgroup_lock);
+out_free:
+	ulist_free(tmp);
+	ulist_free(qgroups);
+	ulist_free(old_roots);
+	ulist_free(new_roots);
+	return ret;
+}
+
+int btrfs_qgroup_account_extents(struct btrfs_trans_handle *trans,
+				 struct btrfs_fs_info *fs_info)
+{
+	struct btrfs_qgroup_extent_record *record;
+	struct btrfs_delayed_ref_root *delayed_refs;
+	struct ulist *new_roots = NULL;
+	struct rb_node *node;
+	int ret = 0;
+
+	delayed_refs = &trans->transaction->delayed_refs;
+	while ((node = rb_first(&delayed_refs->dirty_extent_root))) {
+		record = rb_entry(node, struct btrfs_qgroup_extent_record,
+				  node);
+
+		if (!ret) {
+			/*
+			 * Use (u64)-1 as time_seq to do special search, which
+			 * doesn't lock tree or delayed_refs and search current
+			 * root. It's safe inside commit_transaction().
+			 */
+			ret = btrfs_find_all_roots(trans, fs_info,
+					record->bytenr, (u64)-1, &new_roots);
+			if (ret < 0)
+				goto cleanup;
+			ret = btrfs_qgroup_account_extent(trans, fs_info,
+					record->bytenr, record->num_bytes,
+					record->old_roots, new_roots);
+			record->old_roots = NULL;
+			new_roots = NULL;
+		}
+cleanup:
+		ulist_free(record->old_roots);
+		ulist_free(new_roots);
+		new_roots = NULL;
+		rb_erase(node, &delayed_refs->dirty_extent_root);
+		kfree(record);
+
+	}
+	return ret;
+}
+
 /*
  * Needs to be called everytime we run delayed refs, even if there is an error
  * in order to cleanup outstanding operations.
