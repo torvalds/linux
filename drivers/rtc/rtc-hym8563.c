@@ -309,7 +309,7 @@ static unsigned long hym8563_clkout_recalc_rate(struct clk_hw *hw,
 	struct i2c_client *client = hym8563->client;
 	int ret = i2c_smbus_read_byte_data(client, HYM8563_CLKOUT);
 
-	if (ret < 0 || ret & HYM8563_CLKOUT_DISABLE)
+	if (ret < 0)
 		return 0;
 
 	ret &= HYM8563_CLKOUT_MASK;
