@@ -459,6 +459,12 @@ static void assert_can_disable_dc5(struct drm_i915_private *dev_priv)
 {
 	bool pg2_enabled = intel_display_power_well_is_enabled(dev_priv,
 					SKL_DISP_PW_2);
+	/*
+	 * During initialization, the firmware may not be loaded yet.
+	 * We still want to make sure that the DC enabling flag is cleared.
+	 */
+	if (dev_priv->power_domains.initializing)
+		return;
 
 	WARN(!pg2_enabled, "PG2 not enabled to disable DC5.\n");
 	WARN(dev_priv->pm.suspended,
@@ -496,12 +502,39 @@ static void gen9_disable_dc5(struct drm_i915_private *dev_priv)
 	POSTING_READ(DC_STATE_EN);
 }
 
-static void skl_enable_dc6(struct drm_i915_private *dev_priv)
+static void assert_can_enable_dc6(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
+
+	WARN(!IS_SKYLAKE(dev), "Platform doesn't support DC6.\n");
+	WARN(!HAS_RUNTIME_PM(dev), "Runtime PM not enabled.\n");
+	WARN(I915_READ(UTIL_PIN_CTL) & UTIL_PIN_ENABLE,
+		"Backlight is not disabled.\n");
+	WARN((I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC6),
+		"DC6 already programmed to be enabled.\n");
+
+	assert_csr_loaded(dev_priv);
+}
+
+static void assert_can_disable_dc6(struct drm_i915_private *dev_priv)
+{
+	/*
+	 * During initialization, the firmware may not be loaded yet.
+	 * We still want to make sure that the DC enabling flag is cleared.
+	 */
+	if (dev_priv->power_domains.initializing)
+		return;
+
+	assert_csr_loaded(dev_priv);
+	WARN(!(I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC6),
+		"DC6 already programmed to be disabled.\n");
+}
+
+static void skl_enable_dc6(struct drm_i915_private *dev_priv)
+{
 	uint32_t val;
 
-	WARN_ON(!IS_SKYLAKE(dev));
+	assert_can_enable_dc6(dev_priv);
 
 	DRM_DEBUG_KMS("Enabling DC6\n");
 
@@ -516,10 +549,9 @@ static void skl_enable_dc6(struct drm_i915_private *dev_priv)
 
 static void skl_disable_dc6(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
 	uint32_t val;
 
-	WARN_ON(!IS_SKYLAKE(dev));
+	assert_can_disable_dc6(dev_priv);
 
 	DRM_DEBUG_KMS("Disabling DC6\n");
 
