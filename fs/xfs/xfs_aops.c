@@ -1249,6 +1249,47 @@ xfs_map_direct(
 	}
 }
 
+
+/*
+ * If this is O_DIRECT or the mpage code calling tell them how large the mapping
+ * is, so that we can avoid repeated get_blocks calls.
+ *
+ * If the mapping spans EOF, then we have to break the mapping up as the mapping
+ * for blocks beyond EOF must be marked new so that sub block regions can be
+ * correctly zeroed. We can't do this for mappings within EOF unless the mapping
+ * was just allocated or is unwritten, otherwise the callers would overwrite
+ * existing data with zeros. Hence we have to split the mapping into a range up
+ * to and including EOF, and a second mapping for beyond EOF.
+ */
+static void
+xfs_map_trim_size(
+	struct inode		*inode,
+	sector_t		iblock,
+	struct buffer_head	*bh_result,
+	struct xfs_bmbt_irec	*imap,
+	xfs_off_t		offset,
+	ssize_t			size)
+{
+	xfs_off_t		mapping_size;
+
+	mapping_size = imap->br_startoff + imap->br_blockcount - iblock;
+	mapping_size <<= inode->i_blkbits;
+
+	ASSERT(mapping_size > 0);
+	if (mapping_size > size)
+		mapping_size = size;
+	if (offset < i_size_read(inode) &&
+	    offset + mapping_size >= i_size_read(inode)) {
+		/* limit mapping to block that spans EOF */
+		mapping_size = roundup_64(i_size_read(inode) - offset,
+					  1 << inode->i_blkbits);
+	}
+	if (mapping_size > LONG_MAX)
+		mapping_size = LONG_MAX;
+
+	bh_result->b_size = mapping_size;
+}
+
 STATIC int
 __xfs_get_blocks(
 	struct inode		*inode,
@@ -1347,6 +1388,11 @@ __xfs_get_blocks(
 		goto out_unlock;
 	}
 
+	/* trim mapping down to size requested */
+	if (direct || size > (1 << inode->i_blkbits))
+		xfs_map_trim_size(inode, iblock, bh_result,
+				  &imap, offset, size);
+
 	/*
 	 * For unwritten extents do not report a disk address in the buffered
 	 * read case (treat as if we're reading into a hole).
@@ -1390,39 +1436,6 @@ __xfs_get_blocks(
 			set_buffer_mapped(bh_result);
 			set_buffer_delay(bh_result);
 		}
-	}
-
-	/*
-	 * If this is O_DIRECT or the mpage code calling tell them how large
-	 * the mapping is, so that we can avoid repeated get_blocks calls.
-	 *
-	 * If the mapping spans EOF, then we have to break the mapping up as the
-	 * mapping for blocks beyond EOF must be marked new so that sub block
-	 * regions can be correctly zeroed. We can't do this for mappings within
-	 * EOF unless the mapping was just allocated or is unwritten, otherwise
-	 * the callers would overwrite existing data with zeros. Hence we have
-	 * to split the mapping into a range up to and including EOF, and a
-	 * second mapping for beyond EOF.
-	 */
-	if (direct || size > (1 << inode->i_blkbits)) {
-		xfs_off_t		mapping_size;
-
-		mapping_size = imap.br_startoff + imap.br_blockcount - iblock;
-		mapping_size <<= inode->i_blkbits;
-
-		ASSERT(mapping_size > 0);
-		if (mapping_size > size)
-			mapping_size = size;
-		if (offset < i_size_read(inode) &&
-		    offset + mapping_size >= i_size_read(inode)) {
-			/* limit mapping to block that spans EOF */
-			mapping_size = roundup_64(i_size_read(inode) - offset,
-						  1 << inode->i_blkbits);
-		}
-		if (mapping_size > LONG_MAX)
-			mapping_size = LONG_MAX;
-
-		bh_result->b_size = mapping_size;
 	}
 
 	return 0;
