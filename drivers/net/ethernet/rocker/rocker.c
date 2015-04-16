@@ -4759,6 +4759,7 @@ static int rocker_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	if (pci_resource_len(pdev, 0) < ROCKER_PCI_BAR0_SIZE) {
 		dev_err(&pdev->dev, "invalid PCI region size\n");
+		err = -EINVAL;
 		goto err_pci_resource_len_check;
 	}
 
