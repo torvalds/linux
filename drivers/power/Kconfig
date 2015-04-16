@@ -388,6 +388,13 @@ config CHARGER_BQ24190
 	help
 	  Say Y to enable support for the TI BQ24190 battery charger.
 
+config CHARGER_BQ24257
+	tristate "TI BQ24257 battery charger driver"
+	depends on I2C && GPIOLIB
+	depends on REGMAP_I2C
+	help
+	  Say Y to enable support for the TI BQ24257 battery charger.
+
 config CHARGER_BQ24735
 	tristate "TI BQ24735 battery charger support"
 	depends on I2C && GPIOLIB
