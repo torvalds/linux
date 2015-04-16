@@ -583,6 +583,15 @@ static int spi_unmap_msg(struct spi_master *master, struct spi_message *msg)
 	rx_dev = master->dma_rx->device->dev;
 
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
+		/*
+		 * Restore the original value of tx_buf or rx_buf if they are
+		 * NULL.
+		 */
+		if (xfer->tx_buf == master->dummy_tx)
+			xfer->tx_buf = NULL;
+		if (xfer->rx_buf == master->dummy_rx)
+			xfer->rx_buf = NULL;
+
 		if (!master->can_dma(master, msg->spi, xfer))
 			continue;
 
