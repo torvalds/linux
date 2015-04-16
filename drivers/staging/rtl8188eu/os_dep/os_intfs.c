@@ -746,7 +746,6 @@ struct net_device *rtw_init_netdev(struct adapter *old_padapter)
 	pnetdev->watchdog_timeo = HZ*3; /* 3 second timeout */
 	pnetdev->wireless_handlers = (struct iw_handler_def *)&rtw_handlers_def;
 
-	/* step 2. */
 	loadparam(padapter, pnetdev);
 
 	return pnetdev;
