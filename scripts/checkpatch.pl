@@ -3845,6 +3845,14 @@ sub process {
 					    	$ok = 1;
 					}
 
+					# for asm volatile statements
+					# ignore a colon with another
+					# colon immediately before or after
+					if (($op eq ':') &&
+					    ($ca =~ /:$/ || $cc =~ /^:/)) {
+						$ok = 1;
+					}
+
 					# messages are ERROR, but ?: are CHK
 					if ($ok == 0) {
 						my $msg_type = \&ERROR;
