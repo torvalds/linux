@@ -32,8 +32,10 @@
 
 struct m88ds3103_priv {
 	struct i2c_adapter *i2c;
+	struct i2c_client *client;
 	/* mutex needed due to own tuner I2C adapter */
 	struct mutex i2c_mutex;
+	struct m88ds3103_config config;
 	const struct m88ds3103_config *cfg;
 	struct dvb_frontend fe;
 	fe_delivery_system_t delivery_system;
