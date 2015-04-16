@@ -88,7 +88,6 @@ static int tua9001_set_params(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret, i;
 	u16 val;
-	u32 frequency;
 	struct tua9001_reg_val data[2];
 
 	dev_dbg(&client->dev,
@@ -122,14 +121,8 @@ static int tua9001_set_params(struct dvb_frontend *fe)
 
 	data[0].reg = 0x04;
 	data[0].val = val;
-
-	frequency = (c->frequency - 150000000);
-	frequency /= 100;
-	frequency *= 48;
-	frequency /= 10000;
-
 	data[1].reg = 0x1f;
-	data[1].val = frequency;
+	data[1].val = div_u64((u64) (c->frequency - 150000000) * 48, 1000000);
 
 	if (fe->callback) {
 		ret = fe->callback(client->adapter,
