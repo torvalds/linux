@@ -900,7 +900,7 @@ static int _mv88e6xxx_flush_fid(struct dsa_switch *ds, int fid)
 static int mv88e6xxx_set_port_state(struct dsa_switch *ds, int port, u8 state)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	int reg, ret;
+	int reg, ret = 0;
 	u8 oldstate;
 
 	mutex_lock(&ps->smi_mutex);
