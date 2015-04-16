@@ -92,7 +92,7 @@ struct s5m_rtc_info {
 	struct regmap *regmap;
 	struct rtc_device *rtc_dev;
 	int irq;
-	int device_type;
+	enum sec_device_type device_type;
 	int rtc_24hr_mode;
 	const struct s5m_rtc_reg_config	*regs;
 };
@@ -668,7 +668,7 @@ static int s5m_rtc_probe(struct platform_device *pdev)
 	if (!info)
 		return -ENOMEM;
 
-	switch (pdata->device_type) {
+	switch (platform_get_device_id(pdev)->driver_data) {
 	case S2MPS14X:
 	case S2MPS13X:
 		regmap_cfg = &s2mps14_rtc_regmap_config;
@@ -686,7 +686,9 @@ static int s5m_rtc_probe(struct platform_device *pdev)
 		alarm_irq = S5M8767_IRQ_RTCA1;
 		break;
 	default:
-		dev_err(&pdev->dev, "Device type is not supported by RTC driver\n");
+		dev_err(&pdev->dev,
+				"Device type %lu is not supported by RTC driver\n",
+				platform_get_device_id(pdev)->driver_data);
 		return -ENODEV;
 	}
 
@@ -706,7 +708,7 @@ static int s5m_rtc_probe(struct platform_device *pdev)
 
 	info->dev = &pdev->dev;
 	info->s5m87xx = s5m87xx;
-	info->device_type = s5m87xx->device_type;
+	info->device_type = platform_get_device_id(pdev)->driver_data;
 
 	if (s5m87xx->irq_data) {
 		info->irq = regmap_irq_get_virq(s5m87xx->irq_data, alarm_irq);
