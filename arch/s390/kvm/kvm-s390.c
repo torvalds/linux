@@ -1720,6 +1720,8 @@ static bool ibs_enabled(struct kvm_vcpu *vcpu)
 
 static int kvm_s390_handle_requests(struct kvm_vcpu *vcpu)
 {
+	if (!vcpu->requests)
+		return 0;
 retry:
 	s390_vcpu_unblock(vcpu);
 	/*
