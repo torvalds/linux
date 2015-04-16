@@ -31,7 +31,6 @@
  * interface into the I2C driver, I believe.
  */
 
-#include <linux/version.h>
 #if defined(MODVERSIONS)
 #include <linux/modversions.h>
 #endif
