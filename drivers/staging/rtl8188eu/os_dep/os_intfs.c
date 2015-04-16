@@ -205,13 +205,16 @@ void rtw_proc_init_one(struct net_device *dev)
 	if (rtw_proc == NULL) {
 		memcpy(rtw_proc_name, DRV_NAME, sizeof(DRV_NAME));
 
-		rtw_proc = create_proc_entry(rtw_proc_name, S_IFDIR, init_net.proc_net);
+		rtw_proc = create_proc_entry(rtw_proc_name, S_IFDIR,
+					     init_net.proc_net);
 		if (rtw_proc == NULL) {
 			DBG_88E(KERN_ERR "Unable to create rtw_proc directory\n");
 			return;
 		}
 
-		entry = create_proc_read_entry("ver_info", S_IFREG | S_IRUGO, rtw_proc, proc_get_drv_version, dev);
+		entry = create_proc_read_entry("ver_info", S_IFREG | S_IRUGO,
+					       rtw_proc, proc_get_drv_version,
+					       dev);
 		if (!entry) {
 			pr_info("Unable to create_proc_read_entry!\n");
 			return;
@@ -376,15 +379,17 @@ void rtw_proc_init_one(struct net_device *dev)
 
 	rtw_hal_get_hwreg(padapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
 	if ((RF_1T2R == rf_type) || (RF_1T1R == rf_type)) {
-		entry = create_proc_read_entry("rf_reg_dump3", S_IFREG | S_IRUGO,
-					   dir_dev, proc_get_rf_reg_dump3, dev);
+		entry = create_proc_read_entry("rf_reg_dump3",
+					       S_IFREG | S_IRUGO, dir_dev,
+					       proc_get_rf_reg_dump3, dev);
 		if (!entry) {
 			pr_info("Unable to create_proc_read_entry!\n");
 			return;
 		}
 
-		entry = create_proc_read_entry("rf_reg_dump4", S_IFREG | S_IRUGO,
-					   dir_dev, proc_get_rf_reg_dump4, dev);
+		entry = create_proc_read_entry("rf_reg_dump4",
+					       S_IFREG | S_IRUGO, dir_dev,
+					       proc_get_rf_reg_dump4, dev);
 		if (!entry) {
 			pr_info("Unable to create_proc_read_entry!\n");
 			return;
@@ -753,7 +758,8 @@ u32 rtw_start_drv_threads(struct adapter *padapter)
 
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+rtw_start_drv_threads\n"));
 
-	padapter->cmdThread = kthread_run(rtw_cmd_thread, padapter, "RTW_CMD_THREAD");
+	padapter->cmdThread = kthread_run(rtw_cmd_thread, padapter,
+					  "RTW_CMD_THREAD");
 	if (IS_ERR(padapter->cmdThread))
 		_status = _FAIL;
 	else
