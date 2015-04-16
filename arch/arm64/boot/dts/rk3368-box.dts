@@ -594,7 +594,7 @@
 &fb {
 	rockchip,disp-mode = <NO_DUAL>;
 	rockchip,uboot-logo-on = <1>;
-	rockchip,disp-policy = <DISPLAY_POLICY_BOX>;
+	rockchip,disp-policy = <DISPLAY_POLICY_BOX_TEMP>;
 };
 
 &disp_timings {
