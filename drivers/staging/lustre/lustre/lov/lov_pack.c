@@ -438,8 +438,7 @@ int lov_getstripe(struct obd_export *exp, struct lov_stripe_md *lsm,
 	if (copy_from_user(&lum, lump, lum_size)) {
 		rc = -EFAULT;
 		goto out_set;
-	}
-	else if ((lum.lmm_magic != LOV_USER_MAGIC) &&
+	} else if ((lum.lmm_magic != LOV_USER_MAGIC) &&
 		 (lum.lmm_magic != LOV_USER_MAGIC_V3)) {
 		rc = -EINVAL;
 		goto out_set;

@@ -146,7 +146,6 @@ evict_again:
 			atomic_inc(&fq->refcnt);
 			spin_unlock(&hb->chain_lock);
 			del_timer_sync(&fq->timer);
-			WARN_ON(atomic_read(&fq->refcnt) != 1);
 			inet_frag_put(fq, f);
 			goto evict_again;
 		}
@@ -285,7 +284,8 @@ static inline void fq_unlink(struct inet_frag_queue *fq, struct inet_frags *f)
 	struct inet_frag_bucket *hb;
 
 	hb = get_frag_bucket_locked(fq, f);
-	hlist_del(&fq->list);
+	if (!(fq->flags & INET_FRAG_EVICTED))
+		hlist_del(&fq->list);
 	spin_unlock(&hb->chain_lock);
 }
 
@@ -385,7 +385,7 @@ static struct inet_frag_queue *inet_frag_alloc(struct netns_frags *nf,
 	}
 
 	q = kmem_cache_zalloc(f->frags_cachep, GFP_ATOMIC);
-	if (q == NULL)
+	if (!q)
 		return NULL;
 
 	q->net = nf;
@@ -406,7 +406,7 @@ static struct inet_frag_queue *inet_frag_create(struct netns_frags *nf,
 	struct inet_frag_queue *q;
 
 	q = inet_frag_alloc(nf, f, arg);
-	if (q == NULL)
+	if (!q)
 		return NULL;
 
 	return inet_frag_intern(nf, q, f, arg);
@@ -458,6 +458,6 @@ void inet_frag_maybe_warn_overflow(struct inet_frag_queue *q,
 		". Dropping fragment.\n";
 
 	if (PTR_ERR(q) == -ENOBUFS)
-		LIMIT_NETDEBUG(KERN_WARNING "%s%s", prefix, msg);
+		net_dbg_ratelimited("%s%s", prefix, msg);
 }
 EXPORT_SYMBOL(inet_frag_maybe_warn_overflow);

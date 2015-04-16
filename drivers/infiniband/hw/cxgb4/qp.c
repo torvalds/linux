@@ -271,9 +271,9 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	res_wr = (struct fw_ri_res_wr *)__skb_put(skb, wr_len);
 	memset(res_wr, 0, wr_len);
 	res_wr->op_nres = cpu_to_be32(
-			FW_WR_OP(FW_RI_RES_WR) |
-			V_FW_RI_RES_WR_NRES(2) |
-			FW_WR_COMPL(1));
+			FW_WR_OP_V(FW_RI_RES_WR) |
+			FW_RI_RES_WR_NRES_V(2) |
+			FW_WR_COMPL_F);
 	res_wr->len16_pkd = cpu_to_be32(DIV_ROUND_UP(wr_len, 16));
 	res_wr->cookie = (unsigned long) &wr_wait;
 	res = res_wr->res;
@@ -287,19 +287,19 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 		rdev->hw_queue.t4_eq_status_entries;
 
 	res->u.sqrq.fetchszm_to_iqid = cpu_to_be32(
-		V_FW_RI_RES_WR_HOSTFCMODE(0) |	/* no host cidx updates */
-		V_FW_RI_RES_WR_CPRIO(0) |	/* don't keep in chip cache */
-		V_FW_RI_RES_WR_PCIECHN(0) |	/* set by uP at ri_init time */
-		(t4_sq_onchip(&wq->sq) ? F_FW_RI_RES_WR_ONCHIP : 0) |
-		V_FW_RI_RES_WR_IQID(scq->cqid));
+		FW_RI_RES_WR_HOSTFCMODE_V(0) |	/* no host cidx updates */
+		FW_RI_RES_WR_CPRIO_V(0) |	/* don't keep in chip cache */
+		FW_RI_RES_WR_PCIECHN_V(0) |	/* set by uP at ri_init time */
+		(t4_sq_onchip(&wq->sq) ? FW_RI_RES_WR_ONCHIP_F : 0) |
+		FW_RI_RES_WR_IQID_V(scq->cqid));
 	res->u.sqrq.dcaen_to_eqsize = cpu_to_be32(
-		V_FW_RI_RES_WR_DCAEN(0) |
-		V_FW_RI_RES_WR_DCACPU(0) |
-		V_FW_RI_RES_WR_FBMIN(2) |
-		V_FW_RI_RES_WR_FBMAX(2) |
-		V_FW_RI_RES_WR_CIDXFTHRESHO(0) |
-		V_FW_RI_RES_WR_CIDXFTHRESH(0) |
-		V_FW_RI_RES_WR_EQSIZE(eqsize));
+		FW_RI_RES_WR_DCAEN_V(0) |
+		FW_RI_RES_WR_DCACPU_V(0) |
+		FW_RI_RES_WR_FBMIN_V(2) |
+		FW_RI_RES_WR_FBMAX_V(2) |
+		FW_RI_RES_WR_CIDXFTHRESHO_V(0) |
+		FW_RI_RES_WR_CIDXFTHRESH_V(0) |
+		FW_RI_RES_WR_EQSIZE_V(eqsize));
 	res->u.sqrq.eqid = cpu_to_be32(wq->sq.qid);
 	res->u.sqrq.eqaddr = cpu_to_be64(wq->sq.dma_addr);
 	res++;
@@ -312,18 +312,18 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	eqsize = wq->rq.size * T4_RQ_NUM_SLOTS +
 		rdev->hw_queue.t4_eq_status_entries;
 	res->u.sqrq.fetchszm_to_iqid = cpu_to_be32(
-		V_FW_RI_RES_WR_HOSTFCMODE(0) |	/* no host cidx updates */
-		V_FW_RI_RES_WR_CPRIO(0) |	/* don't keep in chip cache */
-		V_FW_RI_RES_WR_PCIECHN(0) |	/* set by uP at ri_init time */
-		V_FW_RI_RES_WR_IQID(rcq->cqid));
+		FW_RI_RES_WR_HOSTFCMODE_V(0) |	/* no host cidx updates */
+		FW_RI_RES_WR_CPRIO_V(0) |	/* don't keep in chip cache */
+		FW_RI_RES_WR_PCIECHN_V(0) |	/* set by uP at ri_init time */
+		FW_RI_RES_WR_IQID_V(rcq->cqid));
 	res->u.sqrq.dcaen_to_eqsize = cpu_to_be32(
-		V_FW_RI_RES_WR_DCAEN(0) |
-		V_FW_RI_RES_WR_DCACPU(0) |
-		V_FW_RI_RES_WR_FBMIN(2) |
-		V_FW_RI_RES_WR_FBMAX(2) |
-		V_FW_RI_RES_WR_CIDXFTHRESHO(0) |
-		V_FW_RI_RES_WR_CIDXFTHRESH(0) |
-		V_FW_RI_RES_WR_EQSIZE(eqsize));
+		FW_RI_RES_WR_DCAEN_V(0) |
+		FW_RI_RES_WR_DCACPU_V(0) |
+		FW_RI_RES_WR_FBMIN_V(2) |
+		FW_RI_RES_WR_FBMAX_V(2) |
+		FW_RI_RES_WR_CIDXFTHRESHO_V(0) |
+		FW_RI_RES_WR_CIDXFTHRESH_V(0) |
+		FW_RI_RES_WR_EQSIZE_V(eqsize));
 	res->u.sqrq.eqid = cpu_to_be32(wq->rq.qid);
 	res->u.sqrq.eqaddr = cpu_to_be64(wq->rq.dma_addr);
 
@@ -444,19 +444,19 @@ static int build_rdma_send(struct t4_sq *sq, union t4_wr *wqe,
 	case IB_WR_SEND:
 		if (wr->send_flags & IB_SEND_SOLICITED)
 			wqe->send.sendop_pkd = cpu_to_be32(
-				V_FW_RI_SEND_WR_SENDOP(FW_RI_SEND_WITH_SE));
+				FW_RI_SEND_WR_SENDOP_V(FW_RI_SEND_WITH_SE));
 		else
 			wqe->send.sendop_pkd = cpu_to_be32(
-				V_FW_RI_SEND_WR_SENDOP(FW_RI_SEND));
+				FW_RI_SEND_WR_SENDOP_V(FW_RI_SEND));
 		wqe->send.stag_inv = 0;
 		break;
 	case IB_WR_SEND_WITH_INV:
 		if (wr->send_flags & IB_SEND_SOLICITED)
 			wqe->send.sendop_pkd = cpu_to_be32(
-				V_FW_RI_SEND_WR_SENDOP(FW_RI_SEND_WITH_SE_INV));
+				FW_RI_SEND_WR_SENDOP_V(FW_RI_SEND_WITH_SE_INV));
 		else
 			wqe->send.sendop_pkd = cpu_to_be32(
-				V_FW_RI_SEND_WR_SENDOP(FW_RI_SEND_WITH_INV));
+				FW_RI_SEND_WR_SENDOP_V(FW_RI_SEND_WITH_INV));
 		wqe->send.stag_inv = cpu_to_be32(wr->ex.invalidate_rkey);
 		break;
 
@@ -1082,10 +1082,10 @@ static void post_terminate(struct c4iw_qp *qhp, struct t4_cqe *err_cqe,
 
 	wqe = (struct fw_ri_wr *)__skb_put(skb, sizeof(*wqe));
 	memset(wqe, 0, sizeof *wqe);
-	wqe->op_compl = cpu_to_be32(FW_WR_OP(FW_RI_INIT_WR));
+	wqe->op_compl = cpu_to_be32(FW_WR_OP_V(FW_RI_INIT_WR));
 	wqe->flowid_len16 = cpu_to_be32(
-		FW_WR_FLOWID(qhp->ep->hwtid) |
-		FW_WR_LEN16(DIV_ROUND_UP(sizeof *wqe, 16)));
+		FW_WR_FLOWID_V(qhp->ep->hwtid) |
+		FW_WR_LEN16_V(DIV_ROUND_UP(sizeof(*wqe), 16)));
 
 	wqe->u.terminate.type = FW_RI_TYPE_TERMINATE;
 	wqe->u.terminate.immdlen = cpu_to_be32(sizeof *term);
@@ -1204,11 +1204,11 @@ static int rdma_fini(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 	wqe = (struct fw_ri_wr *)__skb_put(skb, sizeof(*wqe));
 	memset(wqe, 0, sizeof *wqe);
 	wqe->op_compl = cpu_to_be32(
-		FW_WR_OP(FW_RI_INIT_WR) |
-		FW_WR_COMPL(1));
+		FW_WR_OP_V(FW_RI_INIT_WR) |
+		FW_WR_COMPL_F);
 	wqe->flowid_len16 = cpu_to_be32(
-		FW_WR_FLOWID(ep->hwtid) |
-		FW_WR_LEN16(DIV_ROUND_UP(sizeof *wqe, 16)));
+		FW_WR_FLOWID_V(ep->hwtid) |
+		FW_WR_LEN16_V(DIV_ROUND_UP(sizeof(*wqe), 16)));
 	wqe->cookie = (unsigned long) &ep->com.wr_wait;
 
 	wqe->u.fini.type = FW_RI_TYPE_FINI;
@@ -1273,18 +1273,18 @@ static int rdma_init(struct c4iw_dev *rhp, struct c4iw_qp *qhp)
 	wqe = (struct fw_ri_wr *)__skb_put(skb, sizeof(*wqe));
 	memset(wqe, 0, sizeof *wqe);
 	wqe->op_compl = cpu_to_be32(
-		FW_WR_OP(FW_RI_INIT_WR) |
-		FW_WR_COMPL(1));
+		FW_WR_OP_V(FW_RI_INIT_WR) |
+		FW_WR_COMPL_F);
 	wqe->flowid_len16 = cpu_to_be32(
-		FW_WR_FLOWID(qhp->ep->hwtid) |
-		FW_WR_LEN16(DIV_ROUND_UP(sizeof *wqe, 16)));
+		FW_WR_FLOWID_V(qhp->ep->hwtid) |
+		FW_WR_LEN16_V(DIV_ROUND_UP(sizeof(*wqe), 16)));
 
 	wqe->cookie = (unsigned long) &qhp->ep->com.wr_wait;
 
 	wqe->u.init.type = FW_RI_TYPE_INIT;
 	wqe->u.init.mpareqbit_p2ptype =
-		V_FW_RI_WR_MPAREQBIT(qhp->attr.mpa_attr.initiator) |
-		V_FW_RI_WR_P2PTYPE(qhp->attr.mpa_attr.p2p_type);
+		FW_RI_WR_MPAREQBIT_V(qhp->attr.mpa_attr.initiator) |
+		FW_RI_WR_P2PTYPE_V(qhp->attr.mpa_attr.p2p_type);
 	wqe->u.init.mpa_attrs = FW_RI_MPA_IETF_ENABLE;
 	if (qhp->attr.mpa_attr.recv_marker_enabled)
 		wqe->u.init.mpa_attrs |= FW_RI_MPA_RX_MARKER_ENABLE;
@@ -1538,9 +1538,9 @@ err:
 	set_state(qhp, C4IW_QP_STATE_ERROR);
 	free = 1;
 	abort = 1;
-	wake_up(&qhp->wait);
 	BUG_ON(!ep);
 	flush_qp(qhp);
+	wake_up(&qhp->wait);
 out:
 	mutex_unlock(&qhp->mutex);
 
@@ -1776,7 +1776,7 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 		if (mm5) {
 			mm5->key = uresp.ma_sync_key;
 			mm5->addr = (pci_resource_start(rhp->rdev.lldi.pdev, 0)
-				    + A_PCIE_MA_SYNC) & PAGE_MASK;
+				    + PCIE_MA_SYNC_A) & PAGE_MASK;
 			mm5->len = PAGE_SIZE;
 			insert_mmap(ucontext, mm5);
 		}

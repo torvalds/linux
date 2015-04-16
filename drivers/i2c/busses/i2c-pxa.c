@@ -885,7 +885,9 @@ static void i2c_pxa_irq_txempty(struct pxa_i2c *i2c, u32 isr)
 		return; /* ignore */
 	}
 
-	if (isr & ISR_BED) {
+	if ((isr & ISR_BED) &&
+		(!((i2c->msg->flags & I2C_M_IGNORE_NAK) &&
+			(isr & ISR_ACKNAK)))) {
 		int ret = BUS_ERROR;
 
 		/*
@@ -919,12 +921,14 @@ static void i2c_pxa_irq_txempty(struct pxa_i2c *i2c, u32 isr)
 		icr |= ICR_ALDIE | ICR_TB;
 
 		/*
-		 * If this is the last byte of the last message, send
-		 * a STOP.
+		 * If this is the last byte of the last message or last byte
+		 * of any message with I2C_M_STOP (e.g. SCCB), send a STOP.
 		 */
-		if (i2c->msg_ptr == i2c->msg->len &&
-		    i2c->msg_idx == i2c->msg_num - 1)
-			icr |= ICR_STOP;
+		if ((i2c->msg_ptr == i2c->msg->len) &&
+			((i2c->msg->flags & I2C_M_STOP) ||
+			(i2c->msg_idx == i2c->msg_num - 1)))
+				icr |= ICR_STOP;
+
 	} else if (i2c->msg_idx < i2c->msg_num - 1) {
 		/*
 		 * Next segment of the message.
@@ -1071,7 +1075,8 @@ static int i2c_pxa_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num
 
 static u32 i2c_pxa_functionality(struct i2c_adapter *adap)
 {
-	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
+	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL |
+		I2C_FUNC_PROTOCOL_MANGLING | I2C_FUNC_NOSTART;
 }
 
 static const struct i2c_algorithm i2c_pxa_algorithm = {
@@ -1328,7 +1333,6 @@ static struct platform_driver i2c_pxa_driver = {
 	.remove		= i2c_pxa_remove,
 	.driver		= {
 		.name	= "pxa2xx-i2c",
-		.owner	= THIS_MODULE,
 		.pm	= I2C_PXA_DEV_PM_OPS,
 		.of_match_table = i2c_pxa_dt_ids,
 	},

@@ -47,6 +47,11 @@ struct btrfs_transaction {
 	atomic_t num_writers;
 	atomic_t use_count;
 
+	/*
+	 * true if there is free bgs operations in this transaction
+	 */
+	int have_free_bgs;
+
 	/* Be protected by fs_info->trans_lock when we want to change it. */
 	enum btrfs_trans_state state;
 	struct list_head list;
@@ -56,7 +61,10 @@ struct btrfs_transaction {
 	wait_queue_head_t commit_wait;
 	struct list_head pending_snapshots;
 	struct list_head pending_chunks;
+	struct list_head pending_ordered;
 	struct list_head switch_commits;
+	struct list_head dirty_bgs;
+	spinlock_t dirty_bgs_lock;
 	struct btrfs_delayed_ref_root delayed_refs;
 	int aborted;
 };
@@ -105,6 +113,7 @@ struct btrfs_trans_handle {
 	 */
 	struct btrfs_root *root;
 	struct seq_list delayed_ref_elem;
+	struct list_head ordered;
 	struct list_head qgroup_ref_list;
 	struct list_head new_bgs;
 };
@@ -145,8 +154,6 @@ struct btrfs_trans_handle *btrfs_attach_transaction_barrier(
 					struct btrfs_root *root);
 struct btrfs_trans_handle *btrfs_start_ioctl_transaction(struct btrfs_root *root);
 int btrfs_wait_for_commit(struct btrfs_root *root, u64 transid);
-int btrfs_write_and_wait_transaction(struct btrfs_trans_handle *trans,
-				     struct btrfs_root *root);
 
 void btrfs_add_dead_root(struct btrfs_root *root);
 int btrfs_defrag_root(struct btrfs_root *root);
@@ -170,4 +177,6 @@ int btrfs_wait_marked_extents(struct btrfs_root *root,
 int btrfs_transaction_blocked(struct btrfs_fs_info *info);
 int btrfs_transaction_in_commit(struct btrfs_fs_info *info);
 void btrfs_put_transaction(struct btrfs_transaction *transaction);
+void btrfs_apply_pending_changes(struct btrfs_fs_info *fs_info);
+
 #endif

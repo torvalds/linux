@@ -147,6 +147,9 @@ static int __init linkstation_probe(void)
 
 	if (!of_flat_dt_is_compatible(root, "linkstation"))
 		return 0;
+
+	pm_power_off = linkstation_power_off;
+
 	return 1;
 }
 
@@ -158,7 +161,6 @@ define_machine(linkstation){
 	.show_cpuinfo 		= linkstation_show_cpuinfo,
 	.get_irq 		= mpic_get_irq,
 	.restart 		= linkstation_restart,
-	.power_off 		= linkstation_power_off,
 	.halt	 		= linkstation_halt,
 	.calibrate_decr 	= generic_calibrate_decr,
 };

@@ -77,7 +77,6 @@ MODULE_DEVICE_TABLE(platform, bt_sco_driver_ids);
 static struct platform_driver bt_sco_driver = {
 	.driver = {
 		.name = "bt-sco",
-		.owner = THIS_MODULE,
 	},
 	.probe = bt_sco_probe,
 	.remove = bt_sco_remove,
@@ -87,5 +86,5 @@ static struct platform_driver bt_sco_driver = {
 module_platform_driver(bt_sco_driver);
 
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
-MODULE_DESCRIPTION("ASoC generic bluethooth sco link driver");
+MODULE_DESCRIPTION("ASoC generic bluetooth sco link driver");
 MODULE_LICENSE("GPL");

@@ -190,30 +190,24 @@ void acpi_table_print_madt_entry(struct acpi_subtable_header *header)
 	}
 }
 
-
 int __init
-acpi_table_parse_entries(char *id,
-			     unsigned long table_size,
-			     int entry_id,
-			     acpi_tbl_entry_handler handler,
-			     unsigned int max_entries)
+acpi_parse_entries(char *id, unsigned long table_size,
+		acpi_tbl_entry_handler handler,
+		struct acpi_table_header *table_header,
+		int entry_id, unsigned int max_entries)
 {
-	struct acpi_table_header *table_header = NULL;
 	struct acpi_subtable_header *entry;
-	unsigned int count = 0;
+	int count = 0;
 	unsigned long table_end;
-	acpi_size tbl_size;
 
 	if (acpi_disabled)
 		return -ENODEV;
 
-	if (!handler)
+	if (!id || !handler)
 		return -EINVAL;
 
-	if (strncmp(id, ACPI_SIG_MADT, 4) == 0)
-		acpi_get_table_with_size(id, acpi_apic_instance, &table_header, &tbl_size);
-	else
-		acpi_get_table_with_size(id, 0, &table_header, &tbl_size);
+	if (!table_size)
+		return -EINVAL;
 
 	if (!table_header) {
 		pr_warn("%4.4s not present\n", id);
@@ -230,9 +224,12 @@ acpi_table_parse_entries(char *id,
 	while (((unsigned long)entry) + sizeof(struct acpi_subtable_header) <
 	       table_end) {
 		if (entry->type == entry_id
-		    && (!max_entries || count++ < max_entries))
+		    && (!max_entries || count < max_entries)) {
 			if (handler(entry, table_end))
-				goto err;
+				return -EINVAL;
+
+			count++;
+		}
 
 		/*
 		 * If entry->length is 0, break from this loop to avoid
@@ -240,22 +237,53 @@ acpi_table_parse_entries(char *id,
 		 */
 		if (entry->length == 0) {
 			pr_err("[%4.4s:0x%02x] Invalid zero length\n", id, entry_id);
-			goto err;
+			return -EINVAL;
 		}
 
 		entry = (struct acpi_subtable_header *)
 		    ((unsigned long)entry + entry->length);
 	}
+
 	if (max_entries && count > max_entries) {
 		pr_warn("[%4.4s:0x%02x] ignored %i entries of %i found\n",
 			id, entry_id, count - max_entries, count);
 	}
 
+	return count;
+}
+
+int __init
+acpi_table_parse_entries(char *id,
+			 unsigned long table_size,
+			 int entry_id,
+			 acpi_tbl_entry_handler handler,
+			 unsigned int max_entries)
+{
+	struct acpi_table_header *table_header = NULL;
+	acpi_size tbl_size;
+	int count;
+	u32 instance = 0;
+
+	if (acpi_disabled)
+		return -ENODEV;
+
+	if (!id || !handler)
+		return -EINVAL;
+
+	if (!strncmp(id, ACPI_SIG_MADT, 4))
+		instance = acpi_apic_instance;
+
+	acpi_get_table_with_size(id, instance, &table_header, &tbl_size);
+	if (!table_header) {
+		pr_warn("%4.4s not present\n", id);
+		return -ENODEV;
+	}
+
+	count = acpi_parse_entries(id, table_size, handler, table_header,
+			entry_id, max_entries);
+
 	early_acpi_os_unmap_memory((char *)table_header, tbl_size);
 	return count;
-err:
-	early_acpi_os_unmap_memory((char *)table_header, tbl_size);
-	return -EINVAL;
 }
 
 int __init

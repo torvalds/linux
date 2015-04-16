@@ -267,7 +267,7 @@ static void dm_check_rate_adaptive(struct net_device *dev)
 	bool bshort_gi_enabled = false;
 	static u8 ping_rssi_state;
 
-	if (IS_NIC_DOWN(priv)) {
+	if (!priv->up) {
 		RT_TRACE(COMP_RATE, "<---- dm_check_rate_adaptive(): driver is going to unload\n");
 		return;
 	}
@@ -378,19 +378,16 @@ static void dm_bandwidth_autoswitch(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	if (priv->CurrentChannelBW == HT_CHANNEL_WIDTH_20 ||
-	   !priv->rtllib->bandwidth_auto_switch.bautoswitch_enable) {
+	   !priv->rtllib->bandwidth_auto_switch.bautoswitch_enable)
 		return;
+	if (priv->rtllib->bandwidth_auto_switch.bforced_tx20Mhz == false) {
+		if (priv->undecorated_smoothed_pwdb <=
+		    priv->rtllib->bandwidth_auto_switch.threshold_40Mhzto20Mhz)
+			priv->rtllib->bandwidth_auto_switch.bforced_tx20Mhz = true;
 	} else {
-		if (priv->rtllib->bandwidth_auto_switch.bforced_tx20Mhz == false) {
-			if (priv->undecorated_smoothed_pwdb <=
-			    priv->rtllib->bandwidth_auto_switch.threshold_40Mhzto20Mhz)
-				priv->rtllib->bandwidth_auto_switch.bforced_tx20Mhz = true;
-		} else {
-			if (priv->undecorated_smoothed_pwdb >=
-			    priv->rtllib->bandwidth_auto_switch.threshold_20Mhzto40Mhz)
-				priv->rtllib->bandwidth_auto_switch.bforced_tx20Mhz = false;
-
-		}
+		if (priv->undecorated_smoothed_pwdb >=
+		    priv->rtllib->bandwidth_auto_switch.threshold_20Mhzto40Mhz)
+			priv->rtllib->bandwidth_auto_switch.bforced_tx20Mhz = false;
 	}
 }
 
@@ -501,7 +498,7 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 					write_nic_byte(dev, FW_Busy_Flag, 0);
 					return;
 				}
-				if ((priv->rtllib->eRFPowerState != eRfOn)) {
+				if (priv->rtllib->eRFPowerState != eRfOn) {
 					RT_TRACE(COMP_POWER_TRACKING,
 						 "we are in power save, so return\n");
 					write_nic_byte(dev, Pw_Track_Flag, 0);
@@ -581,148 +578,148 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 					 "priv->CCKPresentAttentuation = %d\n",
 					 priv->CCKPresentAttentuation);
 				return;
-			} else {
-				if (Avg_TSSI_Meas_from_driver < TSSI_13dBm - E_FOR_TX_POWER_TRACK) {
-					if (RF_Type == RF_2T4R) {
+			}
+			if (Avg_TSSI_Meas_from_driver < TSSI_13dBm - E_FOR_TX_POWER_TRACK) {
+				if (RF_Type == RF_2T4R) {
 
-						if ((priv->rfa_txpowertrackingindex > 0) &&
-						    (priv->rfc_txpowertrackingindex > 0)) {
-							priv->rfa_txpowertrackingindex--;
-							if (priv->rfa_txpowertrackingindex_real > 4) {
-								priv->rfa_txpowertrackingindex_real--;
-								rtl8192_setBBreg(dev,
-									 rOFDM0_XATxIQImbalance,
-									 bMaskDWord,
-									 priv->txbbgain_table[priv->rfa_txpowertrackingindex_real].txbbgain_value);
-							}
-
-							priv->rfc_txpowertrackingindex--;
-							if (priv->rfc_txpowertrackingindex_real > 4) {
-								priv->rfc_txpowertrackingindex_real--;
-								rtl8192_setBBreg(dev,
-									 rOFDM0_XCTxIQImbalance,
-									 bMaskDWord,
-									 priv->txbbgain_table[priv->rfc_txpowertrackingindex_real].txbbgain_value);
-							}
-						} else {
-							rtl8192_setBBreg(dev, rOFDM0_XATxIQImbalance,
-									 bMaskDWord,
-									 priv->txbbgain_table[4].txbbgain_value);
-							rtl8192_setBBreg(dev,
-									 rOFDM0_XCTxIQImbalance,
-									 bMaskDWord, priv->txbbgain_table[4].txbbgain_value);
-						}
-					} else {
-						if (priv->rfa_txpowertrackingindex > 0) {
-							priv->rfa_txpowertrackingindex--;
-							if (priv->rfa_txpowertrackingindex_real > 4) {
-								priv->rfa_txpowertrackingindex_real--;
-								rtl8192_setBBreg(dev,
-										 rOFDM0_XATxIQImbalance,
-										 bMaskDWord,
-										 priv->txbbgain_table[priv->rfa_txpowertrackingindex_real].txbbgain_value);
-							}
-						} else
-							rtl8192_setBBreg(dev, rOFDM0_XATxIQImbalance,
-									 bMaskDWord, priv->txbbgain_table[4].txbbgain_value);
-
-					}
-				} else {
-					if (RF_Type == RF_2T4R) {
-						if ((priv->rfa_txpowertrackingindex <
-						    TxBBGainTableLength - 1) &&
-						    (priv->rfc_txpowertrackingindex <
-						    TxBBGainTableLength - 1)) {
-							priv->rfa_txpowertrackingindex++;
-							priv->rfa_txpowertrackingindex_real++;
+					if ((priv->rfa_txpowertrackingindex > 0) &&
+					    (priv->rfc_txpowertrackingindex > 0)) {
+						priv->rfa_txpowertrackingindex--;
+						if (priv->rfa_txpowertrackingindex_real > 4) {
+							priv->rfa_txpowertrackingindex_real--;
 							rtl8192_setBBreg(dev,
 								 rOFDM0_XATxIQImbalance,
 								 bMaskDWord,
-								 priv->txbbgain_table
-								 [priv->rfa_txpowertrackingindex_real].txbbgain_value);
-							priv->rfc_txpowertrackingindex++;
-							priv->rfc_txpowertrackingindex_real++;
+								 priv->txbbgain_table[priv->rfa_txpowertrackingindex_real].txbbgain_value);
+						}
+
+						priv->rfc_txpowertrackingindex--;
+						if (priv->rfc_txpowertrackingindex_real > 4) {
+							priv->rfc_txpowertrackingindex_real--;
 							rtl8192_setBBreg(dev,
 								 rOFDM0_XCTxIQImbalance,
 								 bMaskDWord,
 								 priv->txbbgain_table[priv->rfc_txpowertrackingindex_real].txbbgain_value);
-						} else {
-							rtl8192_setBBreg(dev,
-								 rOFDM0_XATxIQImbalance,
-								 bMaskDWord,
-								 priv->txbbgain_table[TxBBGainTableLength - 1].txbbgain_value);
-							rtl8192_setBBreg(dev,
-								 rOFDM0_XCTxIQImbalance,
-								 bMaskDWord, priv->txbbgain_table[TxBBGainTableLength - 1].txbbgain_value);
 						}
 					} else {
-						if (priv->rfa_txpowertrackingindex < (TxBBGainTableLength - 1)) {
-							priv->rfa_txpowertrackingindex++;
-							priv->rfa_txpowertrackingindex_real++;
-							rtl8192_setBBreg(dev, rOFDM0_XATxIQImbalance,
+						rtl8192_setBBreg(dev, rOFDM0_XATxIQImbalance,
+								 bMaskDWord,
+								 priv->txbbgain_table[4].txbbgain_value);
+						rtl8192_setBBreg(dev,
+								 rOFDM0_XCTxIQImbalance,
+								 bMaskDWord, priv->txbbgain_table[4].txbbgain_value);
+					}
+				} else {
+					if (priv->rfa_txpowertrackingindex > 0) {
+						priv->rfa_txpowertrackingindex--;
+						if (priv->rfa_txpowertrackingindex_real > 4) {
+							priv->rfa_txpowertrackingindex_real--;
+							rtl8192_setBBreg(dev,
+									 rOFDM0_XATxIQImbalance,
 									 bMaskDWord,
 									 priv->txbbgain_table[priv->rfa_txpowertrackingindex_real].txbbgain_value);
-						} else
-							rtl8192_setBBreg(dev, rOFDM0_XATxIQImbalance,
-									 bMaskDWord,
-									 priv->txbbgain_table[TxBBGainTableLength - 1].txbbgain_value);
-					}
-				}
-				if (RF_Type == RF_2T4R) {
-					priv->CCKPresentAttentuation_difference
-						= priv->rfa_txpowertrackingindex - priv->rfa_txpowertracking_default;
-				} else {
-					priv->CCKPresentAttentuation_difference
-						= priv->rfa_txpowertrackingindex_real - priv->rfa_txpowertracking_default;
-				}
-
-				if (priv->CurrentChannelBW == HT_CHANNEL_WIDTH_20)
-					priv->CCKPresentAttentuation =
-						 priv->CCKPresentAttentuation_20Mdefault +
-						 priv->CCKPresentAttentuation_difference;
-				else
-					priv->CCKPresentAttentuation =
-						 priv->CCKPresentAttentuation_40Mdefault +
-						 priv->CCKPresentAttentuation_difference;
-
-				if (priv->CCKPresentAttentuation > (CCKTxBBGainTableLength-1))
-					priv->CCKPresentAttentuation = CCKTxBBGainTableLength-1;
-				if (priv->CCKPresentAttentuation < 0)
-					priv->CCKPresentAttentuation = 0;
-
-				if (priv->CCKPresentAttentuation > -1 &&
-				    priv->CCKPresentAttentuation < CCKTxBBGainTableLength) {
-					if (priv->rtllib->current_network.channel == 14 &&
-					    !priv->bcck_in_ch14) {
-						priv->bcck_in_ch14 = true;
-						dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
-					} else if (priv->rtllib->current_network.channel != 14 && priv->bcck_in_ch14) {
-						priv->bcck_in_ch14 = false;
-						dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
+						}
 					} else
-						dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
-				}
-				RT_TRACE(COMP_POWER_TRACKING,
-					 "priv->rfa_txpowertrackingindex = %d\n",
-					 priv->rfa_txpowertrackingindex);
-				RT_TRACE(COMP_POWER_TRACKING,
-					 "priv->rfa_txpowertrackingindex_real = %d\n",
-					 priv->rfa_txpowertrackingindex_real);
-				RT_TRACE(COMP_POWER_TRACKING,
-					 "priv->CCKPresentAttentuation_difference = %d\n",
-					 priv->CCKPresentAttentuation_difference);
-				RT_TRACE(COMP_POWER_TRACKING,
-					 "priv->CCKPresentAttentuation = %d\n",
-					 priv->CCKPresentAttentuation);
+						rtl8192_setBBreg(dev, rOFDM0_XATxIQImbalance,
+								 bMaskDWord, priv->txbbgain_table[4].txbbgain_value);
 
-				if (priv->CCKPresentAttentuation_difference <= -12 || priv->CCKPresentAttentuation_difference >= 24) {
-					priv->rtllib->bdynamic_txpower_enable = true;
-					write_nic_byte(dev, Pw_Track_Flag, 0);
-					write_nic_byte(dev, FW_Busy_Flag, 0);
-					RT_TRACE(COMP_POWER_TRACKING, "tx power track--->limited\n");
-					return;
+				}
+			} else {
+				if (RF_Type == RF_2T4R) {
+					if ((priv->rfa_txpowertrackingindex <
+					    TxBBGainTableLength - 1) &&
+					    (priv->rfc_txpowertrackingindex <
+					    TxBBGainTableLength - 1)) {
+						priv->rfa_txpowertrackingindex++;
+						priv->rfa_txpowertrackingindex_real++;
+						rtl8192_setBBreg(dev,
+							 rOFDM0_XATxIQImbalance,
+							 bMaskDWord,
+							 priv->txbbgain_table
+							 [priv->rfa_txpowertrackingindex_real].txbbgain_value);
+						priv->rfc_txpowertrackingindex++;
+						priv->rfc_txpowertrackingindex_real++;
+						rtl8192_setBBreg(dev,
+							 rOFDM0_XCTxIQImbalance,
+							 bMaskDWord,
+							 priv->txbbgain_table[priv->rfc_txpowertrackingindex_real].txbbgain_value);
+					} else {
+						rtl8192_setBBreg(dev,
+							 rOFDM0_XATxIQImbalance,
+							 bMaskDWord,
+							 priv->txbbgain_table[TxBBGainTableLength - 1].txbbgain_value);
+						rtl8192_setBBreg(dev,
+							 rOFDM0_XCTxIQImbalance,
+							 bMaskDWord, priv->txbbgain_table[TxBBGainTableLength - 1].txbbgain_value);
+					}
+				} else {
+					if (priv->rfa_txpowertrackingindex < (TxBBGainTableLength - 1)) {
+						priv->rfa_txpowertrackingindex++;
+						priv->rfa_txpowertrackingindex_real++;
+						rtl8192_setBBreg(dev, rOFDM0_XATxIQImbalance,
+								 bMaskDWord,
+								 priv->txbbgain_table[priv->rfa_txpowertrackingindex_real].txbbgain_value);
+					} else
+						rtl8192_setBBreg(dev, rOFDM0_XATxIQImbalance,
+								 bMaskDWord,
+								 priv->txbbgain_table[TxBBGainTableLength - 1].txbbgain_value);
 				}
 			}
+			if (RF_Type == RF_2T4R) {
+				priv->CCKPresentAttentuation_difference
+					= priv->rfa_txpowertrackingindex - priv->rfa_txpowertracking_default;
+			} else {
+				priv->CCKPresentAttentuation_difference
+					= priv->rfa_txpowertrackingindex_real - priv->rfa_txpowertracking_default;
+			}
+
+			if (priv->CurrentChannelBW == HT_CHANNEL_WIDTH_20)
+				priv->CCKPresentAttentuation =
+					 priv->CCKPresentAttentuation_20Mdefault +
+					 priv->CCKPresentAttentuation_difference;
+			else
+				priv->CCKPresentAttentuation =
+					 priv->CCKPresentAttentuation_40Mdefault +
+					 priv->CCKPresentAttentuation_difference;
+
+			if (priv->CCKPresentAttentuation > (CCKTxBBGainTableLength-1))
+				priv->CCKPresentAttentuation = CCKTxBBGainTableLength-1;
+			if (priv->CCKPresentAttentuation < 0)
+				priv->CCKPresentAttentuation = 0;
+
+			if (priv->CCKPresentAttentuation > -1 &&
+			    priv->CCKPresentAttentuation < CCKTxBBGainTableLength) {
+				if (priv->rtllib->current_network.channel == 14 &&
+				    !priv->bcck_in_ch14) {
+					priv->bcck_in_ch14 = true;
+					dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
+				} else if (priv->rtllib->current_network.channel != 14 && priv->bcck_in_ch14) {
+					priv->bcck_in_ch14 = false;
+					dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
+				} else
+					dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
+			}
+			RT_TRACE(COMP_POWER_TRACKING,
+				 "priv->rfa_txpowertrackingindex = %d\n",
+				 priv->rfa_txpowertrackingindex);
+			RT_TRACE(COMP_POWER_TRACKING,
+				 "priv->rfa_txpowertrackingindex_real = %d\n",
+				 priv->rfa_txpowertrackingindex_real);
+			RT_TRACE(COMP_POWER_TRACKING,
+				 "priv->CCKPresentAttentuation_difference = %d\n",
+				 priv->CCKPresentAttentuation_difference);
+			RT_TRACE(COMP_POWER_TRACKING,
+				 "priv->CCKPresentAttentuation = %d\n",
+				 priv->CCKPresentAttentuation);
+
+			if (priv->CCKPresentAttentuation_difference <= -12 || priv->CCKPresentAttentuation_difference >= 24) {
+				priv->rtllib->bdynamic_txpower_enable = true;
+				write_nic_byte(dev, Pw_Track_Flag, 0);
+				write_nic_byte(dev, FW_Busy_Flag, 0);
+				RT_TRACE(COMP_POWER_TRACKING, "tx power track--->limited\n");
+				return;
+			}
+
 			write_nic_byte(dev, Pw_Track_Flag, 0);
 			Avg_TSSI_Meas_from_driver = 0;
 			for (k = 0; k < 5; k++)
@@ -757,8 +754,8 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device *dev)
 		for (i = 0; i < CCK_Table_length; i++) {
 			if (TempCCk == (u32)CCKSwingTable_Ch1_Ch13[i][0]) {
 				priv->CCK_index = (u8) i;
-				RT_TRACE(COMP_POWER_TRACKING, "Initial reg0x%x"
-					 " = 0x%x, CCK_index = 0x%x\n",
+				RT_TRACE(COMP_POWER_TRACKING,
+					 "Initial reg0x%x = 0x%x, CCK_index = 0x%x\n",
 					 rCCK0_TxFilter1, TempCCk,
 					 priv->CCK_index);
 				break;
@@ -803,8 +800,8 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device *dev)
 
 	priv->Record_CCK_20Mindex = tmpCCK20Mindex;
 	priv->Record_CCK_40Mindex = tmpCCK40Mindex;
-	RT_TRACE(COMP_POWER_TRACKING, "Record_CCK_20Mindex / Record_CCK_40"
-		 "Mindex = %d / %d.\n",
+	RT_TRACE(COMP_POWER_TRACKING,
+		 "Record_CCK_20Mindex / Record_CCK_40Mindex = %d / %d.\n",
 		 priv->Record_CCK_20Mindex, priv->Record_CCK_40Mindex);
 
 	if (priv->rtllib->current_network.channel == 14 &&
@@ -1401,13 +1398,12 @@ static void dm_CheckTXPowerTracking_ThermalMeter(struct net_device *dev)
 		TxPowerCheckCnt = 5;
 	else
 		TxPowerCheckCnt = 2;
-	if (!priv->btxpower_tracking) {
+	if (!priv->btxpower_tracking)
 		return;
-	} else {
-		if (priv->txpower_count  <= TxPowerCheckCnt) {
-			priv->txpower_count++;
-			return;
-		}
+
+	if (priv->txpower_count  <= TxPowerCheckCnt) {
+		priv->txpower_count++;
+		return;
 	}
 
 	if (!TM_Trigger) {
@@ -1419,14 +1415,12 @@ static void dm_CheckTXPowerTracking_ThermalMeter(struct net_device *dev)
 		}
 		TM_Trigger = 1;
 		return;
-	} else {
-	    printk(KERN_INFO "===============>Schedule TxPowerTrackingWorkItem\n");
-
-		queue_delayed_work_rsl(priv->priv_wq, &priv->txpower_tracking_wq, 0);
-		TM_Trigger = 0;
-		}
-
 	}
+	netdev_info(dev, "===============>Schedule TxPowerTrackingWorkItem\n");
+	queue_delayed_work_rsl(priv->priv_wq, &priv->txpower_tracking_wq, 0);
+	TM_Trigger = 0;
+
+}
 
 static void dm_check_txpower_tracking(struct net_device *dev)
 {
@@ -1446,34 +1440,30 @@ static void dm_CCKTxPowerAdjust_TSSI(struct net_device *dev, bool  bInCH14)
 	TempVal = 0;
 	if (!bInCH14) {
 		TempVal = (u32)(priv->cck_txbbgain_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[0] +
-			  (priv->cck_txbbgain_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[1]<<8)) ;
+			  (priv->cck_txbbgain_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[1]<<8));
 
 		rtl8192_setBBreg(dev, rCCK0_TxFilter1, bMaskHWord, TempVal);
-		TempVal = 0;
 		TempVal = (u32)(priv->cck_txbbgain_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[2] +
 			  (priv->cck_txbbgain_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[3]<<8) +
 			  (priv->cck_txbbgain_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[4]<<16)+
 			  (priv->cck_txbbgain_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[5]<<24));
 		rtl8192_setBBreg(dev, rCCK0_TxFilter2, bMaskDWord, TempVal);
-		TempVal = 0;
 		TempVal = (u32)(priv->cck_txbbgain_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[6] +
-			  (priv->cck_txbbgain_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[7]<<8)) ;
+			  (priv->cck_txbbgain_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[7]<<8));
 
 		rtl8192_setBBreg(dev, rCCK0_DebugPort, bMaskLWord, TempVal);
 	} else {
 		TempVal = (u32)(priv->cck_txbbgain_ch14_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[0] +
-			  (priv->cck_txbbgain_ch14_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[1]<<8)) ;
+			  (priv->cck_txbbgain_ch14_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[1]<<8));
 
 		rtl8192_setBBreg(dev, rCCK0_TxFilter1, bMaskHWord, TempVal);
-		TempVal = 0;
 		TempVal = (u32)(priv->cck_txbbgain_ch14_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[2] +
 			  (priv->cck_txbbgain_ch14_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[3]<<8) +
 			  (priv->cck_txbbgain_ch14_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[4]<<16)+
 			  (priv->cck_txbbgain_ch14_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[5]<<24));
 		rtl8192_setBBreg(dev, rCCK0_TxFilter2, bMaskDWord, TempVal);
-		TempVal = 0;
 		TempVal = (u32)(priv->cck_txbbgain_ch14_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[6] +
-			  (priv->cck_txbbgain_ch14_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[7]<<8)) ;
+			  (priv->cck_txbbgain_ch14_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[7]<<8));
 
 		rtl8192_setBBreg(dev, rCCK0_DebugPort, bMaskLWord, TempVal);
 	}
@@ -1489,11 +1479,10 @@ static void dm_CCKTxPowerAdjust_ThermalMeter(struct net_device *dev,	bool  bInCH
 	TempVal = 0;
 	if (!bInCH14) {
 		TempVal =	CCKSwingTable_Ch1_Ch13[priv->CCK_index][0] +
-					(CCKSwingTable_Ch1_Ch13[priv->CCK_index][1]<<8) ;
+					(CCKSwingTable_Ch1_Ch13[priv->CCK_index][1]<<8);
 		rtl8192_setBBreg(dev, rCCK0_TxFilter1, bMaskHWord, TempVal);
 		RT_TRACE(COMP_POWER_TRACKING, "CCK not chnl 14, reg 0x%x = 0x%x\n",
 			rCCK0_TxFilter1, TempVal);
-		TempVal = 0;
 		TempVal =	CCKSwingTable_Ch1_Ch13[priv->CCK_index][2] +
 					(CCKSwingTable_Ch1_Ch13[priv->CCK_index][3]<<8) +
 					(CCKSwingTable_Ch1_Ch13[priv->CCK_index][4]<<16)+
@@ -1501,21 +1490,19 @@ static void dm_CCKTxPowerAdjust_ThermalMeter(struct net_device *dev,	bool  bInCH
 		rtl8192_setBBreg(dev, rCCK0_TxFilter2, bMaskDWord, TempVal);
 		RT_TRACE(COMP_POWER_TRACKING, "CCK not chnl 14, reg 0x%x = 0x%x\n",
 			rCCK0_TxFilter2, TempVal);
-		TempVal = 0;
 		TempVal =	CCKSwingTable_Ch1_Ch13[priv->CCK_index][6] +
-					(CCKSwingTable_Ch1_Ch13[priv->CCK_index][7]<<8) ;
+					(CCKSwingTable_Ch1_Ch13[priv->CCK_index][7]<<8);
 
 		rtl8192_setBBreg(dev, rCCK0_DebugPort, bMaskLWord, TempVal);
 		RT_TRACE(COMP_POWER_TRACKING, "CCK not chnl 14, reg 0x%x = 0x%x\n",
 			rCCK0_DebugPort, TempVal);
 	} else {
 		TempVal =	CCKSwingTable_Ch14[priv->CCK_index][0] +
-					(CCKSwingTable_Ch14[priv->CCK_index][1]<<8) ;
+					(CCKSwingTable_Ch14[priv->CCK_index][1]<<8);
 
 		rtl8192_setBBreg(dev, rCCK0_TxFilter1, bMaskHWord, TempVal);
 		RT_TRACE(COMP_POWER_TRACKING, "CCK chnl 14, reg 0x%x = 0x%x\n",
 			rCCK0_TxFilter1, TempVal);
-		TempVal = 0;
 		TempVal =	CCKSwingTable_Ch14[priv->CCK_index][2] +
 					(CCKSwingTable_Ch14[priv->CCK_index][3]<<8) +
 					(CCKSwingTable_Ch14[priv->CCK_index][4]<<16)+
@@ -1523,9 +1510,8 @@ static void dm_CCKTxPowerAdjust_ThermalMeter(struct net_device *dev,	bool  bInCH
 		rtl8192_setBBreg(dev, rCCK0_TxFilter2, bMaskDWord, TempVal);
 		RT_TRACE(COMP_POWER_TRACKING, "CCK chnl 14, reg 0x%x = 0x%x\n",
 			rCCK0_TxFilter2, TempVal);
-		TempVal = 0;
 		TempVal =	CCKSwingTable_Ch14[priv->CCK_index][6] +
-					(CCKSwingTable_Ch14[priv->CCK_index][7]<<8) ;
+					(CCKSwingTable_Ch14[priv->CCK_index][7]<<8);
 
 		rtl8192_setBBreg(dev, rCCK0_DebugPort, bMaskLWord, TempVal);
 		RT_TRACE(COMP_POWER_TRACKING, "CCK chnl 14, reg 0x%x = 0x%x\n",
@@ -1577,7 +1563,7 @@ void dm_restore_dynamic_mechanism_state(struct net_device *dev)
 	u32	reg_ratr = priv->rate_adaptive.last_ratr;
 	u32 ratr_value;
 
-	if (IS_NIC_DOWN(priv)) {
+	if (!priv->up) {
 		RT_TRACE(COMP_RATE, "<---- dm_restore_dynamic_mechanism_state(): driver is going to unload\n");
 		return;
 	}
@@ -1669,8 +1655,8 @@ void dm_change_dynamic_initgain_thresh(struct net_device *dev,
 		dm_digtable.rssi_low_thresh = dm_value;
 	} else if (dm_type == DIG_TYPE_THRESH_HIGHPWR_HIGH) {
 		dm_digtable.rssi_high_power_highthresh = dm_value;
-	} else if (dm_type == DIG_TYPE_THRESH_HIGHPWR_HIGH) {
-		dm_digtable.rssi_high_power_highthresh = dm_value;
+	} else if (dm_type == DIG_TYPE_THRESH_HIGHPWR_LOW) {
+		dm_digtable.rssi_high_power_lowthresh = dm_value;
 	} else if (dm_type == DIG_TYPE_ENABLE) {
 		dm_digtable.dig_state		= DM_STA_DIG_MAX;
 		dm_digtable.dig_enable_flag	= true;
@@ -1838,12 +1824,11 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 	if ((priv->undecorated_smoothed_pwdb > dm_digtable.rssi_low_thresh) &&
 		(priv->undecorated_smoothed_pwdb < dm_digtable.rssi_high_thresh))
 		return;
-	if ((priv->undecorated_smoothed_pwdb <= dm_digtable.rssi_low_thresh)) {
+	if (priv->undecorated_smoothed_pwdb <= dm_digtable.rssi_low_thresh) {
 		if (dm_digtable.dig_state == DM_STA_DIG_OFF &&
 			(priv->reset_count == reset_cnt))
 			return;
-		else
-			reset_cnt = priv->reset_count;
+		reset_cnt = priv->reset_count;
 
 		dm_digtable.dig_highpwr_state = DM_STA_DIG_MAX;
 		dm_digtable.dig_state = DM_STA_DIG_OFF;
@@ -1865,19 +1850,18 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 		return;
 	}
 
-	if ((priv->undecorated_smoothed_pwdb >= dm_digtable.rssi_high_thresh)) {
+	if (priv->undecorated_smoothed_pwdb >= dm_digtable.rssi_high_thresh) {
 		u8 reset_flag = 0;
 
 		if (dm_digtable.dig_state == DM_STA_DIG_ON &&
 		    (priv->reset_count == reset_cnt)) {
 			dm_ctrl_initgain_byrssi_highpwr(dev);
 			return;
-		} else {
-			if (priv->reset_count != reset_cnt)
-				reset_flag = 1;
-
-			reset_cnt = priv->reset_count;
 		}
+		if (priv->reset_count != reset_cnt)
+			reset_flag = 1;
+
+		reset_cnt = priv->reset_count;
 
 		dm_digtable.dig_state = DM_STA_DIG_ON;
 
@@ -1919,8 +1903,7 @@ static void dm_ctrl_initgain_byrssi_highpwr(struct net_device *dev)
 		if (dm_digtable.dig_highpwr_state == DM_STA_DIG_ON &&
 			(priv->reset_count == reset_cnt_highpwr))
 			return;
-		else
-			dm_digtable.dig_highpwr_state = DM_STA_DIG_ON;
+		dm_digtable.dig_highpwr_state = DM_STA_DIG_ON;
 
 		if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)
 				write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x10);
@@ -1930,8 +1913,7 @@ static void dm_ctrl_initgain_byrssi_highpwr(struct net_device *dev)
 		if (dm_digtable.dig_highpwr_state == DM_STA_DIG_OFF &&
 			(priv->reset_count == reset_cnt_highpwr))
 			return;
-		else
-			dm_digtable.dig_highpwr_state = DM_STA_DIG_OFF;
+		dm_digtable.dig_highpwr_state = DM_STA_DIG_OFF;
 
 		if (priv->undecorated_smoothed_pwdb < dm_digtable.rssi_high_power_lowthresh &&
 			 priv->undecorated_smoothed_pwdb >= dm_digtable.rssi_high_thresh) {
@@ -2016,7 +1998,7 @@ static void dm_pd_th(struct net_device *dev)
 		if (dm_digtable.CurSTAConnectState == DIG_STA_CONNECT) {
 			if (dm_digtable.rssi_val >= dm_digtable.rssi_high_power_highthresh)
 				dm_digtable.curpd_thstate = DIG_PD_AT_HIGH_POWER;
-			else if ((dm_digtable.rssi_val <= dm_digtable.rssi_low_thresh))
+			else if (dm_digtable.rssi_val <= dm_digtable.rssi_low_thresh)
 				dm_digtable.curpd_thstate = DIG_PD_AT_LOW_POWER;
 			else if ((dm_digtable.rssi_val >= dm_digtable.rssi_high_thresh) &&
 					(dm_digtable.rssi_val < dm_digtable.rssi_high_power_lowthresh))
@@ -2073,9 +2055,9 @@ static	void dm_cs_ratio(struct net_device *dev)
 
 	if (dm_digtable.PreSTAConnectState == dm_digtable.CurSTAConnectState) {
 		if (dm_digtable.CurSTAConnectState == DIG_STA_CONNECT) {
-			if ((dm_digtable.rssi_val <= dm_digtable.rssi_low_thresh))
+			if (dm_digtable.rssi_val <= dm_digtable.rssi_low_thresh)
 				dm_digtable.curcs_ratio_state = DIG_CS_RATIO_LOWER;
-			else if ((dm_digtable.rssi_val >= dm_digtable.rssi_high_thresh))
+			else if (dm_digtable.rssi_val >= dm_digtable.rssi_high_thresh)
 				dm_digtable.curcs_ratio_state = DIG_CS_RATIO_HIGHER;
 			else
 				dm_digtable.curcs_ratio_state = dm_digtable.precs_ratio_state;
@@ -2139,10 +2121,10 @@ static void dm_check_edca_turbo(struct net_device *dev)
 		static int wb_tmp;
 
 		if (wb_tmp == 0) {
-			printk(KERN_INFO "%s():iot peer is %s, bssid:"
-			       " %pM\n", __func__,
-			       peername[pHTInfo->IOTPeer],
-			       priv->rtllib->current_network.bssid);
+			netdev_info(dev,
+				    "%s():iot peer is %s, bssid: %pM\n",
+				    __func__, peername[pHTInfo->IOTPeer],
+				    priv->rtllib->current_network.bssid);
 			wb_tmp = 1;
 		}
 	}
@@ -2646,9 +2628,10 @@ void dm_fsync_timer_callback(unsigned long data)
 		}
 		priv->rate_record = rate_count;
 		priv->rateCountDiffRecord = rate_count_diff;
-		RT_TRACE(COMP_HALDM, "rateRecord %d rateCount %d, rate"
-			 "Countdiff %d bSwitchFsync %d\n", priv->rate_record,
-			 rate_count, rate_count_diff, priv->bswitch_fsync);
+		RT_TRACE(COMP_HALDM,
+			 "rateRecord %d rateCount %d, rateCountdiff %d bSwitchFsync %d\n",
+			 priv->rate_record, rate_count, rate_count_diff,
+			 priv->bswitch_fsync);
 		if (priv->undecorated_smoothed_pwdb >
 		    priv->rtllib->fsync_rssi_threshold &&
 		    bSwitchFromCountDiff) {
@@ -2673,14 +2656,14 @@ void dm_fsync_timer_callback(unsigned long data)
 			if (timer_pending(&priv->fsync_timer))
 				del_timer_sync(&priv->fsync_timer);
 			priv->fsync_timer.expires = jiffies +
-				 MSECS(priv->rtllib->fsync_time_interval *
+				 msecs_to_jiffies(priv->rtllib->fsync_time_interval *
 				 priv->rtllib->fsync_multiple_timeinterval);
 			add_timer(&priv->fsync_timer);
 		} else {
 			if (timer_pending(&priv->fsync_timer))
 				del_timer_sync(&priv->fsync_timer);
 			priv->fsync_timer.expires = jiffies +
-				 MSECS(priv->rtllib->fsync_time_interval);
+				 msecs_to_jiffies(priv->rtllib->fsync_time_interval);
 			add_timer(&priv->fsync_timer);
 		}
 	} else {
@@ -2693,9 +2676,10 @@ void dm_fsync_timer_callback(unsigned long data)
 		write_nic_dword(dev, rOFDM0_RxDetector2, 0x465c52cd);
 	}
 	RT_TRACE(COMP_HALDM, "ContinueDiffCount %d\n", priv->ContinueDiffCount);
-	RT_TRACE(COMP_HALDM, "rateRecord %d rateCount %d, rateCountdiff %d "
-		 "bSwitchFsync %d\n", priv->rate_record, rate_count,
-		 rate_count_diff, priv->bswitch_fsync);
+	RT_TRACE(COMP_HALDM,
+		 "rateRecord %d rateCount %d, rateCountdiff %d bSwitchFsync %d\n",
+		 priv->rate_record, rate_count, rate_count_diff,
+		 priv->bswitch_fsync);
 }
 
 static void dm_StartHWFsync(struct net_device *dev)
@@ -2770,7 +2754,7 @@ static void dm_StartSWFsync(struct net_device *dev)
 	if (timer_pending(&priv->fsync_timer))
 		del_timer_sync(&priv->fsync_timer);
 	priv->fsync_timer.expires = jiffies +
-				    MSECS(priv->rtllib->fsync_time_interval);
+				    msecs_to_jiffies(priv->rtllib->fsync_time_interval);
 	add_timer(&priv->fsync_timer);
 
 	write_nic_dword(dev, rOFDM0_RxDetector2, 0x465c12cd);
@@ -2786,12 +2770,14 @@ void dm_check_fsync(struct net_device *dev)
 	static u8 reg_c38_State = RegC38_Default;
 	static u32 reset_cnt;
 
-	RT_TRACE(COMP_HALDM, "RSSI %d TimeInterval %d MultipleTimeInterval "
-		 "%d\n", priv->rtllib->fsync_rssi_threshold,
+	RT_TRACE(COMP_HALDM,
+		 "RSSI %d TimeInterval %d MultipleTimeInterval %d\n",
+		 priv->rtllib->fsync_rssi_threshold,
 		 priv->rtllib->fsync_time_interval,
 		 priv->rtllib->fsync_multiple_timeinterval);
-	RT_TRACE(COMP_HALDM, "RateBitmap 0x%x FirstDiffRateThreshold %d Second"
-		 "DiffRateThreshold %d\n", priv->rtllib->fsync_rate_bitmap,
+	RT_TRACE(COMP_HALDM,
+		 "RateBitmap 0x%x FirstDiffRateThreshold %d SecondDiffRateThreshold %d\n",
+		 priv->rtllib->fsync_rate_bitmap,
 		 priv->rtllib->fsync_firstdiff_ratethreshold,
 		 priv->rtllib->fsync_seconddiff_ratethreshold);
 

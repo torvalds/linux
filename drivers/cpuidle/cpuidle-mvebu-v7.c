@@ -37,10 +37,10 @@ static int mvebu_v7_enter_idle(struct cpuidle_device *dev,
 		deepidle = true;
 
 	ret = mvebu_v7_cpu_suspend(deepidle);
+	cpu_pm_exit();
+
 	if (ret)
 		return ret;
-
-	cpu_pm_exit();
 
 	return index;
 }
@@ -50,20 +50,18 @@ static struct cpuidle_driver armadaxp_idle_driver = {
 	.states[0]		= ARM_CPUIDLE_WFI_STATE,
 	.states[1]		= {
 		.enter			= mvebu_v7_enter_idle,
-		.exit_latency		= 10,
+		.exit_latency		= 100,
 		.power_usage		= 50,
-		.target_residency	= 100,
-		.flags			= CPUIDLE_FLAG_TIME_VALID,
+		.target_residency	= 1000,
 		.name			= "MV CPU IDLE",
 		.desc			= "CPU power down",
 	},
 	.states[2]		= {
 		.enter			= mvebu_v7_enter_idle,
-		.exit_latency		= 100,
+		.exit_latency		= 1000,
 		.power_usage		= 5,
-		.target_residency	= 1000,
-		.flags			= CPUIDLE_FLAG_TIME_VALID |
-						MVEBU_V7_FLAG_DEEP_IDLE,
+		.target_residency	= 10000,
+		.flags			= MVEBU_V7_FLAG_DEEP_IDLE,
 		.name			= "MV CPU DEEP IDLE",
 		.desc			= "CPU and L2 Fabric power down",
 	},
@@ -78,8 +76,7 @@ static struct cpuidle_driver armada370_idle_driver = {
 		.exit_latency		= 100,
 		.power_usage		= 5,
 		.target_residency	= 1000,
-		.flags			= (CPUIDLE_FLAG_TIME_VALID |
-					   MVEBU_V7_FLAG_DEEP_IDLE),
+		.flags			= MVEBU_V7_FLAG_DEEP_IDLE,
 		.name			= "Deep Idle",
 		.desc			= "CPU and L2 Fabric power down",
 	},
@@ -94,7 +91,6 @@ static struct cpuidle_driver armada38x_idle_driver = {
 		.exit_latency		= 10,
 		.power_usage		= 5,
 		.target_residency	= 100,
-		.flags			= CPUIDLE_FLAG_TIME_VALID,
 		.name			= "Idle",
 		.desc			= "CPU and SCU power down",
 	},
@@ -118,7 +114,6 @@ static int mvebu_v7_cpuidle_probe(struct platform_device *pdev)
 static struct platform_driver armadaxp_cpuidle_plat_driver = {
 	.driver = {
 		.name = "cpuidle-armada-xp",
-		.owner = THIS_MODULE,
 	},
 	.probe = mvebu_v7_cpuidle_probe,
 };
@@ -128,7 +123,6 @@ module_platform_driver(armadaxp_cpuidle_plat_driver);
 static struct platform_driver armada370_cpuidle_plat_driver = {
 	.driver = {
 		.name = "cpuidle-armada-370",
-		.owner = THIS_MODULE,
 	},
 	.probe = mvebu_v7_cpuidle_probe,
 };
@@ -138,7 +132,6 @@ module_platform_driver(armada370_cpuidle_plat_driver);
 static struct platform_driver armada38x_cpuidle_plat_driver = {
 	.driver = {
 		.name = "cpuidle-armada-38x",
-		.owner = THIS_MODULE,
 	},
 	.probe = mvebu_v7_cpuidle_probe,
 };

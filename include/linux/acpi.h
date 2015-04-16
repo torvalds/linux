@@ -27,7 +27,9 @@
 
 #include <linux/errno.h>
 #include <linux/ioport.h>	/* for struct resource */
+#include <linux/resource_ext.h>
 #include <linux/device.h>
+#include <linux/property.h>
 
 #ifndef _LINUX
 #define _LINUX
@@ -51,9 +53,15 @@ static inline acpi_handle acpi_device_handle(struct acpi_device *adev)
 	return adev ? adev->handle : NULL;
 }
 
-#define ACPI_COMPANION(dev)		((dev)->acpi_node.companion)
-#define ACPI_COMPANION_SET(dev, adev)	ACPI_COMPANION(dev) = (adev)
+#define ACPI_COMPANION(dev)		acpi_node((dev)->fwnode)
+#define ACPI_COMPANION_SET(dev, adev)	set_primary_fwnode(dev, (adev) ? \
+	acpi_fwnode_handle(adev) : NULL)
 #define ACPI_HANDLE(dev)		acpi_device_handle(ACPI_COMPANION(dev))
+
+static inline bool has_acpi_companion(struct device *dev)
+{
+	return is_acpi_node(dev->fwnode);
+}
 
 static inline void acpi_preset_companion(struct device *dev,
 					 struct acpi_device *parent, u64 addr)
@@ -123,6 +131,10 @@ int acpi_numa_init (void);
 
 int acpi_table_init (void);
 int acpi_table_parse(char *id, acpi_tbl_table_handler handler);
+int __init acpi_parse_entries(char *id, unsigned long table_size,
+			      acpi_tbl_entry_handler handler,
+			      struct acpi_table_header *table_header,
+			      int entry_id, unsigned int max_entries);
 int __init acpi_table_parse_entries(char *id, unsigned long table_size,
 				    int entry_id,
 				    acpi_tbl_entry_handler handler,
@@ -142,12 +154,17 @@ void acpi_numa_arch_fixup(void);
 
 #ifdef CONFIG_ACPI_HOTPLUG_CPU
 /* Arch dependent functions for cpu hotplug support */
-int acpi_map_lsapic(acpi_handle handle, int physid, int *pcpu);
-int acpi_unmap_lsapic(int cpu);
+int acpi_map_cpu(acpi_handle handle, int physid, int *pcpu);
+int acpi_unmap_cpu(int cpu);
 #endif /* CONFIG_ACPI_HOTPLUG_CPU */
+
+#ifdef CONFIG_ACPI_HOTPLUG_IOAPIC
+int acpi_get_ioapic_id(acpi_handle handle, u32 gsi_base, u64 *phys_addr);
+#endif
 
 int acpi_register_ioapic(acpi_handle handle, u64 phys_addr, u32 gsi_base);
 int acpi_unregister_ioapic(acpi_handle handle, u32 gsi_base);
+int acpi_ioapic_registered(acpi_handle handle, u32 gsi_base);
 void acpi_irq_stats_init(void);
 extern u32 acpi_irq_handled;
 extern u32 acpi_irq_not_handled;
@@ -282,22 +299,25 @@ extern int pnpacpi_disabled;
 bool acpi_dev_resource_memory(struct acpi_resource *ares, struct resource *res);
 bool acpi_dev_resource_io(struct acpi_resource *ares, struct resource *res);
 bool acpi_dev_resource_address_space(struct acpi_resource *ares,
-				     struct resource *res);
+				     struct resource_win *win);
 bool acpi_dev_resource_ext_address_space(struct acpi_resource *ares,
-					 struct resource *res);
+					 struct resource_win *win);
 unsigned long acpi_dev_irq_flags(u8 triggering, u8 polarity, u8 shareable);
 bool acpi_dev_resource_interrupt(struct acpi_resource *ares, int index,
 				 struct resource *res);
-
-struct resource_list_entry {
-	struct list_head node;
-	struct resource res;
-};
 
 void acpi_dev_free_resource_list(struct list_head *list);
 int acpi_dev_get_resources(struct acpi_device *adev, struct list_head *list,
 			   int (*preproc)(struct acpi_resource *, void *),
 			   void *preproc_data);
+int acpi_dev_filter_resource_type(struct acpi_resource *ares,
+				  unsigned long types);
+
+static inline int acpi_dev_filter_resource_type_cb(struct acpi_resource *ares,
+						   void *arg)
+{
+	return acpi_dev_filter_resource_type(ares, (unsigned long)arg);
+}
 
 int acpi_check_resource_conflict(const struct resource *res);
 
@@ -423,14 +443,11 @@ extern int acpi_nvs_for_each_region(int (*func)(__u64, __u64, void *),
 const struct acpi_device_id *acpi_match_device(const struct acpi_device_id *ids,
 					       const struct device *dev);
 
-static inline bool acpi_driver_match_device(struct device *dev,
-					    const struct device_driver *drv)
-{
-	return !!acpi_match_device(drv->acpi_match_table, dev);
-}
-
+extern bool acpi_driver_match_device(struct device *dev,
+				     const struct device_driver *drv);
 int acpi_device_uevent_modalias(struct device *, struct kobj_uevent_env *);
 int acpi_device_modalias(struct device *, char *, int);
+void acpi_walk_dep_device_list(acpi_handle handle);
 
 struct platform_device *acpi_create_platform_device(struct acpi_device *);
 #define ACPI_PTR(_ptr)	(_ptr)
@@ -442,6 +459,28 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *);
 #define ACPI_COMPANION(dev)		(NULL)
 #define ACPI_COMPANION_SET(dev, adev)	do { } while (0)
 #define ACPI_HANDLE(dev)		(NULL)
+
+struct fwnode_handle;
+
+static inline bool is_acpi_node(struct fwnode_handle *fwnode)
+{
+	return false;
+}
+
+static inline struct acpi_device *acpi_node(struct fwnode_handle *fwnode)
+{
+	return NULL;
+}
+
+static inline struct fwnode_handle *acpi_fwnode_handle(struct acpi_device *adev)
+{
+	return NULL;
+}
+
+static inline bool has_acpi_companion(struct device *dev)
+{
+	return false;
+}
 
 static inline const char *acpi_dev_name(struct acpi_device *adev)
 {
@@ -553,16 +592,26 @@ static inline void arch_reserve_mem_area(acpi_physical_address addr,
 #define acpi_os_set_prepare_sleep(func, pm1a_ctrl, pm1b_ctrl) do { } while (0)
 #endif
 
-#if defined(CONFIG_ACPI) && defined(CONFIG_PM_RUNTIME)
+#if defined(CONFIG_ACPI) && defined(CONFIG_PM)
 int acpi_dev_runtime_suspend(struct device *dev);
 int acpi_dev_runtime_resume(struct device *dev);
 int acpi_subsys_runtime_suspend(struct device *dev);
 int acpi_subsys_runtime_resume(struct device *dev);
+struct acpi_device *acpi_dev_pm_get_node(struct device *dev);
+int acpi_dev_pm_attach(struct device *dev, bool power_on);
 #else
 static inline int acpi_dev_runtime_suspend(struct device *dev) { return 0; }
 static inline int acpi_dev_runtime_resume(struct device *dev) { return 0; }
 static inline int acpi_subsys_runtime_suspend(struct device *dev) { return 0; }
 static inline int acpi_subsys_runtime_resume(struct device *dev) { return 0; }
+static inline struct acpi_device *acpi_dev_pm_get_node(struct device *dev)
+{
+	return NULL;
+}
+static inline int acpi_dev_pm_attach(struct device *dev, bool power_on)
+{
+	return -ENODEV;
+}
 #endif
 
 #if defined(CONFIG_ACPI) && defined(CONFIG_PM_SLEEP)
@@ -583,20 +632,6 @@ static inline int acpi_subsys_suspend_late(struct device *dev) { return 0; }
 static inline int acpi_subsys_resume_early(struct device *dev) { return 0; }
 static inline int acpi_subsys_suspend(struct device *dev) { return 0; }
 static inline int acpi_subsys_freeze(struct device *dev) { return 0; }
-#endif
-
-#if defined(CONFIG_ACPI) && defined(CONFIG_PM)
-struct acpi_device *acpi_dev_pm_get_node(struct device *dev);
-int acpi_dev_pm_attach(struct device *dev, bool power_on);
-#else
-static inline struct acpi_device *acpi_dev_pm_get_node(struct device *dev)
-{
-	return NULL;
-}
-static inline int acpi_dev_pm_attach(struct device *dev, bool power_on)
-{
-	return -ENODEV;
-}
 #endif
 
 #ifdef CONFIG_ACPI
@@ -657,6 +692,116 @@ do {									\
 	0;								\
 })
 #endif
+#endif
+
+struct acpi_gpio_params {
+	unsigned int crs_entry_index;
+	unsigned int line_index;
+	bool active_low;
+};
+
+struct acpi_gpio_mapping {
+	const char *name;
+	const struct acpi_gpio_params *data;
+	unsigned int size;
+};
+
+#if defined(CONFIG_ACPI) && defined(CONFIG_GPIOLIB)
+int acpi_dev_add_driver_gpios(struct acpi_device *adev,
+			      const struct acpi_gpio_mapping *gpios);
+
+static inline void acpi_dev_remove_driver_gpios(struct acpi_device *adev)
+{
+	if (adev)
+		adev->driver_gpios = NULL;
+}
+#else
+static inline int acpi_dev_add_driver_gpios(struct acpi_device *adev,
+			      const struct acpi_gpio_mapping *gpios)
+{
+	return -ENXIO;
+}
+static inline void acpi_dev_remove_driver_gpios(struct acpi_device *adev) {}
+#endif
+
+/* Device properties */
+
+#define MAX_ACPI_REFERENCE_ARGS	8
+struct acpi_reference_args {
+	struct acpi_device *adev;
+	size_t nargs;
+	u64 args[MAX_ACPI_REFERENCE_ARGS];
+};
+
+#ifdef CONFIG_ACPI
+int acpi_dev_get_property(struct acpi_device *adev, const char *name,
+			  acpi_object_type type, const union acpi_object **obj);
+int acpi_dev_get_property_array(struct acpi_device *adev, const char *name,
+				acpi_object_type type,
+				const union acpi_object **obj);
+int acpi_dev_get_property_reference(struct acpi_device *adev,
+				    const char *name, size_t index,
+				    struct acpi_reference_args *args);
+
+int acpi_dev_prop_get(struct acpi_device *adev, const char *propname,
+		      void **valptr);
+int acpi_dev_prop_read_single(struct acpi_device *adev, const char *propname,
+			      enum dev_prop_type proptype, void *val);
+int acpi_dev_prop_read(struct acpi_device *adev, const char *propname,
+		       enum dev_prop_type proptype, void *val, size_t nval);
+
+struct acpi_device *acpi_get_next_child(struct device *dev,
+					struct acpi_device *child);
+#else
+static inline int acpi_dev_get_property(struct acpi_device *adev,
+					const char *name, acpi_object_type type,
+					const union acpi_object **obj)
+{
+	return -ENXIO;
+}
+static inline int acpi_dev_get_property_array(struct acpi_device *adev,
+					      const char *name,
+					      acpi_object_type type,
+					      const union acpi_object **obj)
+{
+	return -ENXIO;
+}
+static inline int acpi_dev_get_property_reference(struct acpi_device *adev,
+				const char *name, const char *cells_name,
+				size_t index, struct acpi_reference_args *args)
+{
+	return -ENXIO;
+}
+
+static inline int acpi_dev_prop_get(struct acpi_device *adev,
+				    const char *propname,
+				    void **valptr)
+{
+	return -ENXIO;
+}
+
+static inline int acpi_dev_prop_read_single(struct acpi_device *adev,
+					    const char *propname,
+					    enum dev_prop_type proptype,
+					    void *val)
+{
+	return -ENXIO;
+}
+
+static inline int acpi_dev_prop_read(struct acpi_device *adev,
+				     const char *propname,
+				     enum dev_prop_type proptype,
+				     void *val, size_t nval)
+{
+	return -ENXIO;
+}
+
+static inline struct acpi_device *acpi_get_next_child(struct device *dev,
+						      struct acpi_device *child)
+{
+	return NULL;
+}
+
 #endif
 
 #endif	/*_LINUX_ACPI_H*/

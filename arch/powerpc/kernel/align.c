@@ -908,7 +908,7 @@ int fix_alignment(struct pt_regs *regs)
 		flush_fp_to_thread(current);
 	}
 
-	if ((nb == 16)) {
+	if (nb == 16) {
 		if (flags & F) {
 			/* Special case for 16-byte FP loads and stores */
 			PPC_WARN_ALIGNMENT(fp_pair, regs);

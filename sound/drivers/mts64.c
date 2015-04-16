@@ -604,21 +604,11 @@ static struct snd_kcontrol_new mts64_ctl_smpte_time_frames = {
 static int snd_mts64_ctl_smpte_fps_info(struct snd_kcontrol *kctl,
 					struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[5] = { "24",
-				  "25",
-				  "29.97",
-				  "30D",
-				  "30"    };
+	static const char * const texts[5] = {
+		"24", "25", "29.97", "30D", "30"
+	};
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 5;
-	if (uinfo->value.enumerated.item > 4)
-		uinfo->value.enumerated.item = 4;
-	strcpy(uinfo->value.enumerated.name,
-	       texts[uinfo->value.enumerated.item]);
-	
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 5, texts);
 }
 
 static int snd_mts64_ctl_smpte_fps_get(struct snd_kcontrol *kctl,
@@ -1040,7 +1030,6 @@ static struct platform_driver snd_mts64_driver = {
 	.remove = snd_mts64_remove,
 	.driver = {
 		.name = PLATFORM_DRIVER,
-		.owner	= THIS_MODULE,
 	}
 };
 

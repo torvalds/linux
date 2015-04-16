@@ -169,6 +169,17 @@
 						shunt-resistor = <1000>;
 					};
 				};
+
+				i2c@3 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x3>;
+
+					adt7461@4c {
+						compatible = "adi,adt7461";
+						reg = <0x4c>;
+					};
+				};
 			};
 		};
 

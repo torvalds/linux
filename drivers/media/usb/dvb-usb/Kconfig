@@ -130,7 +130,6 @@ config DVB_USB_CXUSB
 
 	  Medion MD95700 hybrid USB2.0 device.
 	  DViCO FusionHDTV (Bluebird) USB2.0 devices
-	  TechnoTrend TVStick CT2-4400 and CT2-4650 CI devices
 
 config DVB_USB_M920X
 	tristate "Uli m920x DVB-T USB2.0 support"

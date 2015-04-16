@@ -404,17 +404,17 @@
 				 */
 				eth_snowball_mode: eth_snowball {
 					snowball_mux {
-						ste,function = "sm";
-						ste,pins = "sm_b_1";
+						function = "sm";
+						groups = "sm_b_1";
 					};
 					/* LAN IRQ pin */
 					snowball_cfg1 {
-						ste,pins = "GPIO140_B11";
+						pins = "GPIO140_B11";
 						ste,config = <&in_nopull>;
 					};
 					/* LAN reset pin */
 					snowball_cfg2 {
-						ste,pins = "GPIO141_C12";
+						pins = "GPIO141_C12";
 						ste,config = <&gpio_out_hi>;
 					};
 
@@ -423,11 +423,11 @@
 			sdi0 {
 				sdi0_default_mode: sdi0_default {
 					snowball_mux {
-						ste,function = "mc0";
-						ste,pins = "mc0dat31dir_a_1";
+						function = "mc0";
+						groups = "mc0dat31dir_a_1";
 					};
 					snowball_cfg1 {
-						ste,pins = "GPIO21_AB3"; /* DAT31DIR */
+						pins = "GPIO21_AB3"; /* DAT31DIR */
 						ste,config = <&out_hi>;
 					};
 
@@ -436,19 +436,19 @@
 			ssp0 {
 				ssp0_snowball_mode: ssp0_snowball_default {
 					snowball_mux {
-						ste,function = "ssp0";
-						ste,pins = "ssp0_a_1";
+						function = "ssp0";
+						groups = "ssp0_a_1";
 					};
 					snowball_cfg1 {
-						ste,pins = "GPIO144_B13"; /* FRM */
+						pins = "GPIO144_B13"; /* FRM */
 						ste,config = <&gpio_out_hi>;
 					};
 					snowball_cfg2 {
-						ste,pins = "GPIO145_C13"; /* RXD */
+						pins = "GPIO145_C13"; /* RXD */
 						ste,config = <&in_pd>;
 					};
 					snowball_cfg3 {
-						ste,pins =
+						pins =
 						"GPIO146_D13", /* TXD */
 						"GPIO143_D12"; /* CLK */
 						ste,config = <&out_lo>;
@@ -459,7 +459,7 @@
 			gpio_led {
 				gpioled_snowball_mode: gpioled_default {
 					snowball_cfg1 {
-						ste,pins = "GPIO142_C11";
+						pins = "GPIO142_C11";
 						ste,config = <&gpio_out_hi>;
 					};
 
@@ -469,7 +469,7 @@
 				accel_snowball_mode: accel_snowball {
 					/* Accelerometer lines */
 					snowball_cfg1 {
-						ste,pins =
+						pins =
 						"GPIO163_C20", /* ACCEL_IRQ1 */
 						"GPIO164_B21"; /* ACCEL_IRQ2 */
 						ste,config = <&gpio_in_pu>;
@@ -479,7 +479,7 @@
 			magnetometer {
 				magneto_snowball_mode: magneto_snowball {
 					snowball_cfg1 {
-						ste,pins = "GPIO165_C21"; /* MAG_DRDY */
+						pins = "GPIO165_C21"; /* MAG_DRDY */
 						ste,config = <&gpio_in_pu>;
 					};
 				};
@@ -491,7 +491,7 @@
 					 * pull low to reset state
 					 */
 					snowball_cfg1 {
-						ste,pins = "GPIO171_D23"; /* GBF_ENA_RESET */
+						pins = "GPIO171_D23"; /* GBF_ENA_RESET */
 						ste,config = <&gpio_out_lo>;
 					};
 				 };
@@ -503,13 +503,13 @@
 					 * These are plain GPIO pins used by WLAN
 					 */
 					snowball_cfg1 {
-						ste,pins =
+						pins =
 						"GPIO161_D21", /* WLAN_PMU_EN */
 						"GPIO215_AH13"; /* WLAN_ENA */
 						ste,config = <&gpio_out_lo>;
 					};
 					snowball_cfg2 {
-						ste,pins = "GPIO216_AG12"; /* WLAN_IRQ */
+						pins = "GPIO216_AG12"; /* WLAN_IRQ */
 						ste,config = <&gpio_in_pu>;
 					};
 				};

@@ -124,20 +124,18 @@ static int xgene_enet_ecc_init(struct xgene_enet_pdata *p)
 {
 	struct net_device *ndev = p->ndev;
 	u32 data;
-	int i;
+	int i = 0;
 
 	xgene_enet_wr_diag_csr(p, ENET_CFG_MEM_RAM_SHUTDOWN_ADDR, 0);
-	for (i = 0; i < 10 && data != ~0U ; i++) {
+	do {
 		usleep_range(100, 110);
 		data = xgene_enet_rd_diag_csr(p, ENET_BLOCK_MEM_RDY_ADDR);
-	}
+		if (data == ~0U)
+			return 0;
+	} while (++i < 10);
 
-	if (data != ~0U) {
-		netdev_err(ndev, "Failed to release memory from shutdown\n");
-		return -ENODEV;
-	}
-
-	return 0;
+	netdev_err(ndev, "Failed to release memory from shutdown\n");
+	return -ENODEV;
 }
 
 static void xgene_enet_config_ring_if_assoc(struct xgene_enet_pdata *p)
@@ -228,6 +226,7 @@ static u32 xgene_enet_link_status(struct xgene_enet_pdata *p)
 static void xgene_sgmac_init(struct xgene_enet_pdata *p)
 {
 	u32 data, loop = 10;
+	u32 offset = p->port_id * 4;
 
 	xgene_sgmac_reset(p);
 
@@ -274,9 +273,9 @@ static void xgene_sgmac_init(struct xgene_enet_pdata *p)
 	xgene_enet_wr_csr(p, RSIF_RAM_DBG_REG0_ADDR, 0);
 
 	/* Bypass traffic gating */
-	xgene_enet_wr_csr(p, CFG_LINK_AGGR_RESUME_0_ADDR, TX_PORT0);
+	xgene_enet_wr_csr(p, CFG_LINK_AGGR_RESUME_0_ADDR + offset, TX_PORT0);
 	xgene_enet_wr_csr(p, CFG_BYPASS_ADDR, RESUME_TX);
-	xgene_enet_wr_csr(p, SG_RX_DV_GATE_REG_0_ADDR, RESUME_RX0);
+	xgene_enet_wr_csr(p, SG_RX_DV_GATE_REG_0_ADDR + offset, RESUME_RX0);
 }
 
 static void xgene_sgmac_rxtx(struct xgene_enet_pdata *p, u32 bits, bool set)
@@ -313,27 +312,33 @@ static void xgene_sgmac_tx_disable(struct xgene_enet_pdata *p)
 	xgene_sgmac_rxtx(p, TX_EN, false);
 }
 
-static void xgene_enet_reset(struct xgene_enet_pdata *p)
+static int xgene_enet_reset(struct xgene_enet_pdata *p)
 {
+	if (!xgene_ring_mgr_init(p))
+		return -ENODEV;
+
 	clk_prepare_enable(p->clk);
 	clk_disable_unprepare(p->clk);
 	clk_prepare_enable(p->clk);
 
 	xgene_enet_ecc_init(p);
 	xgene_enet_config_ring_if_assoc(p);
+
+	return 0;
 }
 
 static void xgene_enet_cle_bypass(struct xgene_enet_pdata *p,
 				  u32 dst_ring_num, u16 bufpool_id)
 {
 	u32 data, fpsel;
+	u32 offset = p->port_id * MAC_OFFSET;
 
 	data = CFG_CLE_BYPASS_EN0;
-	xgene_enet_wr_csr(p, CLE_BYPASS_REG0_0_ADDR, data);
+	xgene_enet_wr_csr(p, CLE_BYPASS_REG0_0_ADDR + offset, data);
 
 	fpsel = xgene_enet_ring_bufnum(bufpool_id) - 0x20;
 	data = CFG_CLE_DSTQID0(dst_ring_num) | CFG_CLE_FPSEL0(fpsel);
-	xgene_enet_wr_csr(p, CLE_BYPASS_REG1_0_ADDR, data);
+	xgene_enet_wr_csr(p, CLE_BYPASS_REG1_0_ADDR + offset, data);
 }
 
 static void xgene_enet_shutdown(struct xgene_enet_pdata *p)

@@ -458,7 +458,7 @@ static const struct snd_kcontrol_new rt5640_specific_snd_controls[] = {
 static int set_dmic_clk(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct rt5640_priv *rt5640 = snd_soc_codec_get_drvdata(codec);
 	int idx = -EINVAL;
 
@@ -475,9 +475,10 @@ static int set_dmic_clk(struct snd_soc_dapm_widget *w,
 static int is_sys_clk_from_pll(struct snd_soc_dapm_widget *source,
 			 struct snd_soc_dapm_widget *sink)
 {
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(source->dapm);
 	unsigned int val;
 
-	val = snd_soc_read(source->codec, RT5640_GLB_CLK);
+	val = snd_soc_read(codec, RT5640_GLB_CLK);
 	val &= RT5640_SCLK_SRC_MASK;
 	if (val == RT5640_SCLK_SRC_PLL1)
 		return 1;
@@ -963,7 +964,7 @@ static void rt5640_pmu_depop(struct snd_soc_codec *codec)
 static int rt5640_hp_event(struct snd_soc_dapm_widget *w,
 			   struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct rt5640_priv *rt5640 = snd_soc_codec_get_drvdata(codec);
 
 	switch (event) {
@@ -987,7 +988,7 @@ static int rt5640_hp_event(struct snd_soc_dapm_widget *w,
 static int rt5640_hp_power_event(struct snd_soc_dapm_widget *w,
 			   struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -1003,7 +1004,7 @@ static int rt5640_hp_power_event(struct snd_soc_dapm_widget *w,
 static int rt5640_hp_post_event(struct snd_soc_dapm_widget *w,
 			   struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct rt5640_priv *rt5640 = snd_soc_codec_get_drvdata(codec);
 
 	switch (event) {
@@ -2124,6 +2125,7 @@ MODULE_DEVICE_TABLE(of, rt5640_of_match);
 static struct acpi_device_id rt5640_acpi_match[] = {
 	{ "INT33CA", 0 },
 	{ "10EC5640", 0 },
+	{ "10EC5642", 0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, rt5640_acpi_match);

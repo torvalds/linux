@@ -1057,7 +1057,7 @@ static int mpc52xx_fec_of_resume(struct platform_device *op)
 }
 #endif
 
-static struct of_device_id mpc52xx_fec_match[] = {
+static const struct of_device_id mpc52xx_fec_match[] = {
 	{ .compatible = "fsl,mpc5200b-fec", },
 	{ .compatible = "fsl,mpc5200-fec", },
 	{ .compatible = "mpc5200-fec", },
@@ -1069,7 +1069,6 @@ MODULE_DEVICE_TABLE(of, mpc52xx_fec_match);
 static struct platform_driver mpc52xx_fec_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = mpc52xx_fec_match,
 	},
 	.probe		= mpc52xx_fec_probe,

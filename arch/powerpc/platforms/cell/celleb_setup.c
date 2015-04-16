@@ -142,6 +142,7 @@ static int __init celleb_probe_beat(void)
 	powerpc_firmware_features |= FW_FEATURE_CELLEB_ALWAYS
 		| FW_FEATURE_BEAT | FW_FEATURE_LPAR;
 	hpte_init_beat_v3();
+	pm_power_off = beat_power_off;
 
 	return 1;
 }
@@ -190,6 +191,7 @@ static int __init celleb_probe_native(void)
 
 	powerpc_firmware_features |= FW_FEATURE_CELLEB_ALWAYS;
 	hpte_init_native();
+	pm_power_off = rtas_power_off;
 
 	return 1;
 }
@@ -204,7 +206,6 @@ define_machine(celleb_beat) {
 	.setup_arch		= celleb_setup_arch_beat,
 	.show_cpuinfo		= celleb_show_cpuinfo,
 	.restart		= beat_restart,
-	.power_off		= beat_power_off,
 	.halt			= beat_halt,
 	.get_rtc_time		= beat_get_rtc_time,
 	.set_rtc_time		= beat_set_rtc_time,
@@ -230,7 +231,6 @@ define_machine(celleb_native) {
 	.setup_arch		= celleb_setup_arch_native,
 	.show_cpuinfo		= celleb_show_cpuinfo,
 	.restart		= rtas_restart,
-	.power_off		= rtas_power_off,
 	.halt			= rtas_halt,
 	.get_boot_time		= rtas_get_boot_time,
 	.get_rtc_time		= rtas_get_rtc_time,

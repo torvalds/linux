@@ -42,9 +42,8 @@ for my needs.
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/uaccess.h>
-#include <linux/usb.h>
 
-#include "../comedidev.h"
+#include "../comedi_usb.h"
 
 #define DT9812_DIAGS_BOARD_INFO_ADDR	0xFBFF
 #define DT9812_MAX_WRITE_CMD_PIPE_SIZE	32
@@ -804,7 +803,7 @@ static int dt9812_auto_attach(struct comedi_device *dev,
 	/* Digital Output subdevice */
 	s = &dev->subdevices[1];
 	s->type		= COMEDI_SUBD_DO;
-	s->subdev_flags	= SDF_WRITEABLE;
+	s->subdev_flags	= SDF_WRITABLE;
 	s->n_chan	= 8;
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;
@@ -822,7 +821,7 @@ static int dt9812_auto_attach(struct comedi_device *dev,
 	/* Analog Output subdevice */
 	s = &dev->subdevices[3];
 	s->type		= COMEDI_SUBD_AO;
-	s->subdev_flags	= SDF_WRITEABLE;
+	s->subdev_flags	= SDF_WRITABLE;
 	s->n_chan	= 2;
 	s->maxdata	= 0x0fff;
 	s->range_table	= is_unipolar ? &range_unipolar2_5 : &range_bipolar10;

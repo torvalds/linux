@@ -224,8 +224,8 @@ int ptlrpc_register_bulk(struct ptlrpc_request *req)
 		      total_md - desc->bd_md_count);
 	spin_unlock(&desc->bd_lock);
 
-	CDEBUG(D_NET, "Setup %u bulk %s buffers: %u pages %u bytes, "
-	       "xid x%#llx-%#llx, portal %u\n", desc->bd_md_count,
+	CDEBUG(D_NET, "Setup %u bulk %s buffers: %u pages %u bytes, xid x%#llx-%#llx, portal %u\n",
+	       desc->bd_md_count,
 	       desc->bd_type == BULK_GET_SOURCE ? "get-source" : "put-sink",
 	       desc->bd_iov_count, desc->bd_nob,
 	       desc->bd_last_xid, req->rq_xid, desc->bd_portal);
@@ -337,8 +337,7 @@ static void ptlrpc_at_set_reply(struct ptlrpc_request *req, int flags)
 
 	if (req->rq_reqmsg &&
 	    !(lustre_msghdr_get_flags(req->rq_reqmsg) & MSGHDR_AT_SUPPORT)) {
-		CDEBUG(D_ADAPTTO, "No early reply support: flags=%#x "
-		       "req_flags=%#x magic=%d:%x/%x len=%d\n",
+		CDEBUG(D_ADAPTTO, "No early reply support: flags=%#x req_flags=%#x magic=%d:%x/%x len=%d\n",
 		       flags, lustre_msg_get_flags(req->rq_reqmsg),
 		       lustre_msg_is_v1(req->rq_reqmsg),
 		       lustre_msg_get_magic(req->rq_reqmsg),
@@ -384,12 +383,13 @@ int ptlrpc_send_reply(struct ptlrpc_request *req, int flags)
 		       req->rq_export->exp_obd->obd_minor);
 	}
 
-	/* In order to keep interoprability with the client (< 2.3) which
+	/* In order to keep interoperability with the client (< 2.3) which
 	 * doesn't have pb_jobid in ptlrpc_body, We have to shrink the
 	 * ptlrpc_body in reply buffer to ptlrpc_body_v2, otherwise, the
 	 * reply buffer on client will be overflow.
 	 *
-	 * XXX Remove this whenever we drop the interoprability with such client.
+	 * XXX Remove this whenever we drop the interoperability with
+	 * such client.
 	 */
 	req->rq_replen = lustre_shrink_msg(req->rq_repmsg, 0,
 					   sizeof(struct ptlrpc_body_v2), 1);

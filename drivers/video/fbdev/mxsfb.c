@@ -172,6 +172,8 @@ struct mxsfb_info {
 	struct fb_info fb_info;
 	struct platform_device *pdev;
 	struct clk *clk;
+	struct clk *clk_axi;
+	struct clk *clk_disp_axi;
 	void __iomem *base;	/* registers */
 	unsigned allocated_size;
 	int enabled;
@@ -331,6 +333,11 @@ static void mxsfb_enable_controller(struct fb_info *fb_info)
 		}
 	}
 
+	if (host->clk_axi)
+		clk_prepare_enable(host->clk_axi);
+
+	if (host->clk_disp_axi)
+		clk_prepare_enable(host->clk_disp_axi);
 	clk_prepare_enable(host->clk);
 	clk_set_rate(host->clk, PICOS2KHZ(fb_info->var.pixclock) * 1000U);
 
@@ -374,6 +381,10 @@ static void mxsfb_disable_controller(struct fb_info *fb_info)
 	writel(reg & ~VDCTRL4_SYNC_SIGNALS_ON, host->base + LCDC_VDCTRL4);
 
 	clk_disable_unprepare(host->clk);
+	if (host->clk_disp_axi)
+		clk_disable_unprepare(host->clk_disp_axi);
+	if (host->clk_axi)
+		clk_disable_unprepare(host->clk_axi);
 
 	host->enabled = 0;
 
@@ -866,6 +877,14 @@ static int mxsfb_probe(struct platform_device *pdev)
 		ret = PTR_ERR(host->clk);
 		goto fb_release;
 	}
+
+	host->clk_axi = devm_clk_get(&host->pdev->dev, "axi");
+	if (IS_ERR(host->clk_axi))
+		host->clk_axi = NULL;
+
+	host->clk_disp_axi = devm_clk_get(&host->pdev->dev, "disp_axi");
+	if (IS_ERR(host->clk_disp_axi))
+		host->clk_disp_axi = NULL;
 
 	host->reg_lcd = devm_regulator_get(&pdev->dev, "lcd");
 	if (IS_ERR(host->reg_lcd))

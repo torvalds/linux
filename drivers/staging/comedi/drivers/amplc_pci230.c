@@ -35,7 +35,7 @@
  * automatically.
  *
  * The PCI230+ and PCI260+ have the same PCI device IDs as the PCI230 and
- * PCI260, but can be distinguished by the the size of the PCI regions.  A
+ * PCI260, but can be distinguished by the size of the PCI regions.  A
  * card will be configured as a "+" model if detected as such.
  *
  * Subdevices:
@@ -181,14 +181,12 @@
  */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
-#include "comedi_fc.h"
-#include "8253.h"
+#include "comedi_8254.h"
 #include "8255.h"
 
 /*
@@ -206,10 +204,6 @@
 #define PCI230_PPI_X_C		0x02	/* User PPI (82C55) port C */
 #define PCI230_PPI_X_CMD	0x03	/* User PPI (82C55) control word */
 #define PCI230_Z2_CT_BASE	0x14	/* 82C54 counter/timer base */
-#define PCI230_Z2_CT0		0x14	/* 82C54 counter/timer 0 */
-#define PCI230_Z2_CT1		0x15	/* 82C54 counter/timer 1 */
-#define PCI230_Z2_CT2		0x16	/* 82C54 counter/timer 2 */
-#define PCI230_Z2_CTC		0x17	/* 82C54 counter/timer control word */
 #define PCI230_ZCLK_SCE		0x1A	/* Group Z Clock Configuration */
 #define PCI230_ZGAT_SCE		0x1D	/* Group Z Gate Configuration */
 #define PCI230_INT_SCE		0x1E	/* Interrupt source mask (w) */
@@ -377,12 +371,6 @@
 #define CLK_EXT		7	/* external clock */
 /* Macro to construct clock input configuration register value. */
 #define CLK_CONFIG(chan, src)	((((chan) & 3) << 3) | ((src) & 7))
-/* Timebases in ns. */
-#define TIMEBASE_10MHZ		100
-#define TIMEBASE_1MHZ		1000
-#define TIMEBASE_100KHZ		10000
-#define TIMEBASE_10KHZ		100000
-#define TIMEBASE_1KHZ		1000000
 
 /*
  * Counter/timer gate input configuration sources.
@@ -490,9 +478,6 @@ struct pci230_private {
 	spinlock_t ai_stop_spinlock;	/* Spin lock for stopping AI command */
 	spinlock_t ao_stop_spinlock;	/* Spin lock for stopping AO command */
 	unsigned long daqio;		/* PCI230's DAQ I/O space */
-	unsigned int ai_scan_count;	/* Number of AI scans remaining */
-	unsigned int ai_scan_pos;	/* Current position within AI scan */
-	unsigned int ao_scan_count;	/* Number of AO scans remaining.  */
 	int intr_cpuid;			/* ID of CPU running ISR */
 	unsigned short hwver;		/* Hardware version (for '+' models) */
 	unsigned short adccon;		/* ADCCON register value */
@@ -510,11 +495,11 @@ struct pci230_private {
 
 /* PCI230 clock source periods in ns */
 static const unsigned int pci230_timebase[8] = {
-	[CLK_10MHZ] = TIMEBASE_10MHZ,
-	[CLK_1MHZ] = TIMEBASE_1MHZ,
-	[CLK_100KHZ] = TIMEBASE_100KHZ,
-	[CLK_10KHZ] = TIMEBASE_10KHZ,
-	[CLK_1KHZ] = TIMEBASE_1KHZ,
+	[CLK_10MHZ]	= I8254_OSC_BASE_10MHZ,
+	[CLK_1MHZ]	= I8254_OSC_BASE_1MHZ,
+	[CLK_100KHZ]	= I8254_OSC_BASE_100KHZ,
+	[CLK_10KHZ]	= I8254_OSC_BASE_10KHZ,
+	[CLK_1KHZ]	= I8254_OSC_BASE_1KHZ,
 };
 
 /* PCI230 analogue input range table */
@@ -698,7 +683,7 @@ static void pci230_ct_setup_ns_mode(struct comedi_device *dev, unsigned int ct,
 	unsigned int count;
 
 	/* Set mode. */
-	i8254_set_mode(dev->iobase + PCI230_Z2_CT_BASE, 0, ct, mode);
+	comedi_8254_set_mode(dev->pacer, ct, mode);
 	/* Determine clock source and count. */
 	clk_src = pci230_choose_clk_count(ns, &count, flags);
 	/* Program clock source. */
@@ -707,13 +692,13 @@ static void pci230_ct_setup_ns_mode(struct comedi_device *dev, unsigned int ct,
 	if (count >= 65536)
 		count = 0;
 
-	i8254_write(dev->iobase + PCI230_Z2_CT_BASE, 0, ct, count);
+	comedi_8254_write(dev->pacer, ct, count);
 }
 
 static void pci230_cancel_ct(struct comedi_device *dev, unsigned int ct)
 {
-	i8254_set_mode(dev->iobase + PCI230_Z2_CT_BASE, 0, ct, I8254_MODE1);
 	/* Counter ct, 8254 mode 1, initial count not written. */
+	comedi_8254_set_mode(dev->pacer, ct, I8254_MODE1);
 }
 
 static int pci230_ai_eoc(struct comedi_device *dev,
@@ -763,7 +748,7 @@ static int pci230_ai_insn_read(struct comedi_device *dev,
 	 */
 	adccon = PCI230_ADC_TRIG_Z2CT2 | PCI230_ADC_FIFO_EN;
 	/* Set Z2-CT2 output low to avoid any false triggers. */
-	i8254_set_mode(dev->iobase + PCI230_Z2_CT_BASE, 0, 2, I8254_MODE0);
+	comedi_8254_set_mode(dev->pacer, 2, I8254_MODE0);
 	devpriv->ai_bipolar = comedi_range_is_bipolar(s, range);
 	if (aref == AREF_DIFF) {
 		/* Differential. */
@@ -814,10 +799,8 @@ static int pci230_ai_insn_read(struct comedi_device *dev,
 		 * Trigger conversion by toggling Z2-CT2 output
 		 * (finish with output high).
 		 */
-		i8254_set_mode(dev->iobase + PCI230_Z2_CT_BASE, 0,
-			       2, I8254_MODE0);
-		i8254_set_mode(dev->iobase + PCI230_Z2_CT_BASE, 0,
-			       2, I8254_MODE1);
+		comedi_8254_set_mode(dev->pacer, 2, I8254_MODE0);
+		comedi_8254_set_mode(dev->pacer, 2, I8254_MODE1);
 
 		/* wait for conversion to end */
 		ret = comedi_timeout(dev, s, insn, pci230_ai_eoc, 0);
@@ -901,7 +884,7 @@ static int pci230_ao_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_INT);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_INT);
 
 	tmp = TRIG_TIMER | TRIG_INT;
 	if (thisboard->min_hwver > 0 && devpriv->hwver >= 2) {
@@ -921,19 +904,19 @@ static int pci230_ao_cmdtest(struct comedi_device *dev,
 		 */
 		tmp |= TRIG_EXT;
 	}
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src, tmp);
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src, tmp);
 
-	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_NOW);
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
 	/* Step 2a : make sure trigger sources are unique */
 
-	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
-	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+	err |= comedi_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= comedi_check_trigger_is_unique(cmd->stop_src);
 
 	/* Step 2b : and mutually compatible */
 
@@ -942,7 +925,7 @@ static int pci230_ao_cmdtest(struct comedi_device *dev,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 
 #define MAX_SPEED_AO	8000	/* 8000 ns => 125 kHz */
 /*
@@ -953,10 +936,10 @@ static int pci230_ao_cmdtest(struct comedi_device *dev,
 
 	switch (cmd->scan_begin_src) {
 	case TRIG_TIMER:
-		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
-						 MAX_SPEED_AO);
-		err |= cfc_check_trigger_arg_max(&cmd->scan_begin_arg,
-						 MIN_SPEED_AO);
+		err |= comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+						    MAX_SPEED_AO);
+		err |= comedi_check_trigger_arg_max(&cmd->scan_begin_arg,
+						    MIN_SPEED_AO);
 		break;
 	case TRIG_EXT:
 		/*
@@ -981,16 +964,17 @@ static int pci230_ao_cmdtest(struct comedi_device *dev,
 		}
 		break;
 	default:
-		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 		break;
 	}
 
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
+					   cmd->chanlist_len);
 
 	if (cmd->stop_src == TRIG_COUNT)
-		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
 	else	/* TRIG_NONE */
-		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -1074,37 +1058,27 @@ static void pci230_ao_stop(struct comedi_device *dev,
 static void pci230_handle_ao_nofifo(struct comedi_device *dev,
 				    struct comedi_subdevice *s)
 {
-	struct pci230_private *devpriv = dev->private;
-	unsigned short data;
-	int i, ret;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
+	unsigned short data;
+	int i;
 
-	if (cmd->stop_src == TRIG_COUNT && devpriv->ao_scan_count == 0)
+	if (cmd->stop_src == TRIG_COUNT && async->scans_done >= cmd->stop_arg)
 		return;
+
 	for (i = 0; i < cmd->chanlist_len; i++) {
 		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
 
-		/* Read sample from Comedi's circular buffer. */
-		ret = comedi_buf_get(s, &data);
-		if (ret == 0) {
-			s->async->events |= COMEDI_CB_OVERFLOW;
-			pci230_ao_stop(dev, s);
-			dev_err(dev->class_dev, "AO buffer underrun\n");
+		if (!comedi_buf_read_samples(s, &data, 1)) {
+			async->events |= COMEDI_CB_OVERFLOW;
 			return;
 		}
 		pci230_ao_write_nofifo(dev, data, chan);
 		s->readback[chan] = data;
 	}
-	async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
-	if (cmd->stop_src == TRIG_COUNT) {
-		devpriv->ao_scan_count--;
-		if (devpriv->ao_scan_count == 0) {
-			/* End of acquisition. */
-			async->events |= COMEDI_CB_EOA;
-			pci230_ao_stop(dev, s);
-		}
-	}
+
+	if (cmd->stop_src == TRIG_COUNT && async->scans_done >= cmd->stop_arg)
+		async->events |= COMEDI_CB_EOA;
 }
 
 /*
@@ -1117,26 +1091,18 @@ static bool pci230_handle_ao_fifo(struct comedi_device *dev,
 	struct pci230_private *devpriv = dev->private;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
-	unsigned int num_scans;
+	unsigned int num_scans = comedi_nscans_left(s, 0);
 	unsigned int room;
 	unsigned short dacstat;
 	unsigned int i, n;
 	unsigned int events = 0;
-	bool running;
 
 	/* Get DAC FIFO status. */
 	dacstat = inw(devpriv->daqio + PCI230_DACCON);
-	/* Determine number of scans available in buffer. */
-	num_scans = comedi_buf_read_n_available(s) / cfc_bytes_per_scan(s);
-	if (cmd->stop_src == TRIG_COUNT) {
-		/* Fixed number of scans. */
-		if (num_scans > devpriv->ao_scan_count)
-			num_scans = devpriv->ao_scan_count;
-		if (devpriv->ao_scan_count == 0) {
-			/* End of acquisition. */
-			events |= COMEDI_CB_EOA;
-		}
-	}
+
+	if (cmd->stop_src == TRIG_COUNT && num_scans == 0)
+		events |= COMEDI_CB_EOA;
+
 	if (events == 0) {
 		/* Check for FIFO underrun. */
 		if (dacstat & PCI230P2_DAC_FIFO_UNDERRUN_LATCHED) {
@@ -1175,27 +1141,22 @@ static bool pci230_handle_ao_fifo(struct comedi_device *dev,
 				unsigned int chan = CR_CHAN(cmd->chanlist[i]);
 				unsigned short datum;
 
-				comedi_buf_get(s, &datum);
+				comedi_buf_read_samples(s, &datum, 1);
 				pci230_ao_write_fifo(dev, datum, chan);
 				s->readback[chan] = datum;
 			}
 		}
-		events |= COMEDI_CB_EOS | COMEDI_CB_BLOCK;
-		if (cmd->stop_src == TRIG_COUNT) {
-			devpriv->ao_scan_count -= num_scans;
-			if (devpriv->ao_scan_count == 0) {
-				/*
-				 * All data for the command has been written
-				 * to FIFO.  Set FIFO interrupt trigger level
-				 * to 'empty'.
-				 */
-				devpriv->daccon =
-				    (devpriv->daccon &
-				     ~PCI230P2_DAC_INT_FIFO_MASK) |
-				    PCI230P2_DAC_INT_FIFO_EMPTY;
-				outw(devpriv->daccon,
-				     devpriv->daqio + PCI230_DACCON);
-			}
+
+		if (cmd->stop_src == TRIG_COUNT &&
+		    async->scans_done >= cmd->stop_arg) {
+			/*
+			 * All data for the command has been written
+			 * to FIFO.  Set FIFO interrupt trigger level
+			 * to 'empty'.
+			 */
+			devpriv->daccon &= ~PCI230P2_DAC_INT_FIFO_MASK;
+			devpriv->daccon |= PCI230P2_DAC_INT_FIFO_EMPTY;
+			outw(devpriv->daccon, devpriv->daqio + PCI230_DACCON);
 		}
 		/* Check if FIFO underrun occurred while writing to FIFO. */
 		dacstat = inw(devpriv->daqio + PCI230_DACCON);
@@ -1204,15 +1165,8 @@ static bool pci230_handle_ao_fifo(struct comedi_device *dev,
 			events |= COMEDI_CB_OVERFLOW | COMEDI_CB_ERROR;
 		}
 	}
-	if (events & (COMEDI_CB_EOA | COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW)) {
-		/* Stopping AO due to completion or error. */
-		pci230_ao_stop(dev, s);
-		running = false;
-	} else {
-		running = true;
-	}
 	async->events |= events;
-	return running;
+	return !(async->events & COMEDI_CB_CANCEL_MASK);
 }
 
 static int pci230_ao_inttrig_scan_begin(struct comedi_device *dev,
@@ -1235,7 +1189,7 @@ static int pci230_ao_inttrig_scan_begin(struct comedi_device *dev,
 		/* Not using DAC FIFO. */
 		spin_unlock_irqrestore(&devpriv->ao_stop_spinlock, irqflags);
 		pci230_handle_ao_nofifo(dev, s);
-		comedi_event(dev, s);
+		comedi_handle_events(dev, s);
 	} else {
 		/* Using DAC FIFO. */
 		/* Read DACSWTRIG register to trigger conversion. */
@@ -1265,7 +1219,7 @@ static void pci230_ao_start(struct comedi_device *dev,
 
 		/* Preload FIFO data. */
 		run = pci230_handle_ao_fifo(dev, s);
-		comedi_event(dev, s);
+		comedi_handle_events(dev, s);
 		if (!run) {
 			/* Stopped. */
 			return;
@@ -1353,8 +1307,6 @@ static int pci230_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		if (!pci230_claim_shared(dev, RES_Z2CT1, OWNER_AOCMD))
 			return -EBUSY;
 	}
-
-	devpriv->ao_scan_count = cmd->stop_arg;
 
 	/*
 	 * Set range - see analogue output range table; 0 => unipolar 10V,
@@ -1555,7 +1507,7 @@ static int pci230_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
 
 	tmp = TRIG_FOLLOW | TRIG_TIMER | TRIG_INT;
 	if (thisboard->have_dio || thisboard->min_hwver > 0) {
@@ -1567,21 +1519,21 @@ static int pci230_ai_cmdtest(struct comedi_device *dev,
 		 */
 		tmp |= TRIG_EXT;
 	}
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src, tmp);
-	err |= cfc_check_trigger_src(&cmd->convert_src,
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src, tmp);
+	err |= comedi_check_trigger_src(&cmd->convert_src,
 					TRIG_TIMER | TRIG_INT | TRIG_EXT);
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
 	/* Step 2a : make sure trigger sources are unique */
 
-	err |= cfc_check_trigger_is_unique(cmd->start_src);
-	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
-	err |= cfc_check_trigger_is_unique(cmd->convert_src);
-	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+	err |= comedi_check_trigger_is_unique(cmd->start_src);
+	err |= comedi_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= comedi_check_trigger_is_unique(cmd->convert_src);
+	err |= comedi_check_trigger_is_unique(cmd->stop_src);
 
 	/* Step 2b : and mutually compatible */
 
@@ -1598,7 +1550,7 @@ static int pci230_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 
 #define MAX_SPEED_AI_SE		3200	/* PCI230 SE:   3200 ns => 312.5 kHz */
 #define MAX_SPEED_AI_DIFF	8000	/* PCI230 DIFF: 8000 ns => 125 kHz */
@@ -1633,10 +1585,10 @@ static int pci230_ai_cmdtest(struct comedi_device *dev,
 			max_speed_ai = MAX_SPEED_AI_PLUS;
 		}
 
-		err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
-						 max_speed_ai);
-		err |= cfc_check_trigger_arg_max(&cmd->convert_arg,
-						 MIN_SPEED_AI);
+		err |= comedi_check_trigger_arg_min(&cmd->convert_arg,
+						    max_speed_ai);
+		err |= comedi_check_trigger_arg_max(&cmd->convert_arg,
+						    MIN_SPEED_AI);
 	} else if (cmd->convert_src == TRIG_EXT) {
 		/*
 		 * external trigger
@@ -1671,18 +1623,20 @@ static int pci230_ai_cmdtest(struct comedi_device *dev,
 			 * convert_arg == 0 => trigger on -ve edge.
 			 * convert_arg == 1 => trigger on +ve edge.
 			 */
-			err |= cfc_check_trigger_arg_max(&cmd->convert_arg, 1);
+			err |= comedi_check_trigger_arg_max(&cmd->convert_arg,
+							    1);
 		}
 	} else {
-		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->convert_arg, 0);
 	}
 
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
+					   cmd->chanlist_len);
 
 	if (cmd->stop_src == TRIG_COUNT)
-		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
 	else	/* TRIG_NONE */
-		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (cmd->scan_begin_src == TRIG_EXT) {
 		/*
@@ -1707,7 +1661,7 @@ static int pci230_ai_cmdtest(struct comedi_device *dev,
 			err |= -EINVAL;
 
 	} else {
-		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 	}
 
 	if (err)
@@ -1754,19 +1708,15 @@ static void pci230_ai_update_fifo_trigger_level(struct comedi_device *dev,
 {
 	struct pci230_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned int scanlen = cmd->scan_end_arg;
 	unsigned int wake;
 	unsigned short triglev;
 	unsigned short adccon;
 
 	if (cmd->flags & CMDF_WAKE_EOS)
-		wake = scanlen - devpriv->ai_scan_pos;
-	else if (cmd->stop_src != TRIG_COUNT ||
-		 devpriv->ai_scan_count >= PCI230_ADC_FIFOLEVEL_HALFFULL ||
-		 scanlen >= PCI230_ADC_FIFOLEVEL_HALFFULL)
-		wake = PCI230_ADC_FIFOLEVEL_HALFFULL;
+		wake = cmd->scan_end_arg - s->async->cur_chan;
 	else
-		wake = devpriv->ai_scan_count * scanlen - devpriv->ai_scan_pos;
+		wake = comedi_nsamples_left(s, PCI230_ADC_FIFOLEVEL_HALFFULL);
+
 	if (wake >= PCI230_ADC_FIFOLEVEL_HALFFULL) {
 		triglev = PCI230_ADC_INT_FIFO_HALF;
 	} else if (wake > 1 && devpriv->hwver > 0) {
@@ -1806,8 +1756,8 @@ static int pci230_ai_inttrig_convert(struct comedi_device *dev,
 	 * Trigger conversion by toggling Z2-CT2 output.
 	 * Finish with output high.
 	 */
-	i8254_set_mode(dev->iobase + PCI230_Z2_CT_BASE, 0, 2, I8254_MODE0);
-	i8254_set_mode(dev->iobase + PCI230_Z2_CT_BASE, 0, 2, I8254_MODE1);
+	comedi_8254_set_mode(dev->pacer, 2, I8254_MODE0);
+	comedi_8254_set_mode(dev->pacer, 2, I8254_MODE1);
 	/*
 	 * Delay.  Should driver be responsible for this?  An
 	 * alternative would be to wait until conversion is complete,
@@ -2059,28 +2009,17 @@ static void pci230_handle_ai(struct comedi_device *dev,
 	struct pci230_private *devpriv = dev->private;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
-	unsigned int scanlen = cmd->scan_end_arg;
-	unsigned int events = 0;
 	unsigned int status_fifo;
 	unsigned int i;
 	unsigned int todo;
 	unsigned int fifoamount;
+	unsigned short val;
 
 	/* Determine number of samples to read. */
-	if (cmd->stop_src != TRIG_COUNT) {
-		todo = PCI230_ADC_FIFOLEVEL_HALFFULL;
-	} else if (devpriv->ai_scan_count == 0) {
-		todo = 0;
-	} else if (devpriv->ai_scan_count > PCI230_ADC_FIFOLEVEL_HALFFULL ||
-		   scanlen > PCI230_ADC_FIFOLEVEL_HALFFULL) {
-		todo = PCI230_ADC_FIFOLEVEL_HALFFULL;
-	} else {
-		todo = devpriv->ai_scan_count * scanlen - devpriv->ai_scan_pos;
-		if (todo > PCI230_ADC_FIFOLEVEL_HALFFULL)
-			todo = PCI230_ADC_FIFOLEVEL_HALFFULL;
-	}
+	todo = comedi_nsamples_left(s, PCI230_ADC_FIFOLEVEL_HALFFULL);
 	if (todo == 0)
 		return;
+
 	fifoamount = 0;
 	for (i = 0; i < todo; i++) {
 		if (fifoamount == 0) {
@@ -2092,7 +2031,7 @@ static void pci230_handle_ai(struct comedi_device *dev,
 				 * unnoticed by the caller.
 				 */
 				dev_err(dev->class_dev, "AI FIFO overrun\n");
-				events |= COMEDI_CB_OVERFLOW | COMEDI_CB_ERROR;
+				async->events |= COMEDI_CB_ERROR;
 				break;
 			} else if (status_fifo & PCI230_ADC_FIFO_EMPTY) {
 				/* FIFO empty. */
@@ -2111,37 +2050,23 @@ static void pci230_handle_ai(struct comedi_device *dev,
 				fifoamount = 1;
 			}
 		}
-		/* Read sample and store in Comedi's circular buffer. */
-		if (comedi_buf_put(s, pci230_ai_read(dev)) == 0) {
-			events |= COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW;
-			dev_err(dev->class_dev, "AI buffer overflow\n");
+
+		val = pci230_ai_read(dev);
+		if (!comedi_buf_write_samples(s, &val, 1))
+			break;
+
+		fifoamount--;
+
+		if (cmd->stop_src == TRIG_COUNT &&
+		    async->scans_done >= cmd->stop_arg) {
+			async->events |= COMEDI_CB_EOA;
 			break;
 		}
-		fifoamount--;
-		devpriv->ai_scan_pos++;
-		if (devpriv->ai_scan_pos == scanlen) {
-			/* End of scan. */
-			devpriv->ai_scan_pos = 0;
-			devpriv->ai_scan_count--;
-			async->events |= COMEDI_CB_EOS;
-		}
 	}
-	if (cmd->stop_src == TRIG_COUNT && devpriv->ai_scan_count == 0) {
-		/* End of acquisition. */
-		events |= COMEDI_CB_EOA;
-	} else {
-		/* More samples required, tell Comedi to block. */
-		events |= COMEDI_CB_BLOCK;
-	}
-	async->events |= events;
-	if (async->events & (COMEDI_CB_EOA | COMEDI_CB_ERROR |
-			     COMEDI_CB_OVERFLOW)) {
-		/* disable hardware conversions */
-		pci230_ai_stop(dev, s);
-	} else {
-		/* update FIFO interrupt trigger level */
+
+	/* update FIFO interrupt trigger level if still running */
+	if (!(async->events & COMEDI_CB_CANCEL_MASK))
 		pci230_ai_update_fifo_trigger_level(dev, s);
-	}
 }
 
 static int pci230_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
@@ -2176,9 +2101,6 @@ static int pci230_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* Claim resources. */
 	if (!pci230_claim_shared(dev, res_mask, OWNER_AICMD))
 		return -EBUSY;
-
-	devpriv->ai_scan_count = cmd->stop_arg;
-	devpriv->ai_scan_pos = 0;	/* Position within scan. */
 
 	/*
 	 * Steps:
@@ -2256,7 +2178,7 @@ static int pci230_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	 * Set counter/timer 2 output high for use as the initial start
 	 * conversion source.
 	 */
-	i8254_set_mode(dev->iobase + PCI230_Z2_CT_BASE, 0, 2, I8254_MODE1);
+	comedi_8254_set_mode(dev->pacer, 2, I8254_MODE1);
 
 	/*
 	 * Temporarily use CT2 output as conversion trigger source and
@@ -2355,7 +2277,8 @@ static irqreturn_t pci230_interrupt(int irq, void *d)
 	unsigned char status_int, valid_status_int, temp_ier;
 	struct comedi_device *dev = (struct comedi_device *)d;
 	struct pci230_private *devpriv = dev->private;
-	struct comedi_subdevice *s;
+	struct comedi_subdevice *s_ao = dev->write_subdev;
+	struct comedi_subdevice *s_ai = dev->read_subdev;
 	unsigned long irqflags;
 
 	/* Read interrupt status/enable register. */
@@ -2385,23 +2308,14 @@ static irqreturn_t pci230_interrupt(int irq, void *d)
 	 * two.
 	 */
 
-	if (valid_status_int & PCI230_INT_ZCLK_CT1) {
-		s = dev->write_subdev;
-		pci230_handle_ao_nofifo(dev, s);
-		comedi_event(dev, s);
-	}
+	if (valid_status_int & PCI230_INT_ZCLK_CT1)
+		pci230_handle_ao_nofifo(dev, s_ao);
 
-	if (valid_status_int & PCI230P2_INT_DAC) {
-		s = dev->write_subdev;
-		pci230_handle_ao_fifo(dev, s);
-		comedi_event(dev, s);
-	}
+	if (valid_status_int & PCI230P2_INT_DAC)
+		pci230_handle_ao_fifo(dev, s_ao);
 
-	if (valid_status_int & PCI230_INT_ADC) {
-		s = dev->read_subdev;
-		pci230_handle_ai(dev, s);
-		comedi_event(dev, s);
-	}
+	if (valid_status_int & PCI230_INT_ADC)
+		pci230_handle_ai(dev, s_ai);
 
 	/* Reenable interrupts. */
 	spin_lock_irqsave(&devpriv->isr_spinlock, irqflags);
@@ -2409,6 +2323,9 @@ static irqreturn_t pci230_interrupt(int irq, void *d)
 		outb(devpriv->ier, dev->iobase + PCI230_INT_SCE);
 	devpriv->intr_running = false;
 	spin_unlock_irqrestore(&devpriv->isr_spinlock, irqflags);
+
+	comedi_handle_events(dev, s_ao);
+	comedi_handle_events(dev, s_ai);
 
 	return IRQ_HANDLED;
 }
@@ -2465,7 +2382,7 @@ static int pci230_auto_attach(struct comedi_device *dev,
 	spin_lock_init(&devpriv->ao_stop_spinlock);
 
 	dev->board_ptr = pci230_find_pci_board(pci_dev);
-	if (dev->board_ptr == NULL) {
+	if (!dev->board_ptr) {
 		dev_err(dev->class_dev,
 			"amplc_pci230: BUG! cannot determine board type!\n");
 		return -EINVAL;
@@ -2553,6 +2470,11 @@ static int pci230_auto_attach(struct comedi_device *dev,
 			dev->irq = pci_dev->irq;
 	}
 
+	dev->pacer = comedi_8254_init(dev->iobase + PCI230_Z2_CT_BASE,
+				      0, I8254_IO8, 0);
+	if (!dev->pacer)
+		return -ENOMEM;
+
 	rc = comedi_alloc_subdevices(dev, 3);
 	if (rc)
 		return rc;
@@ -2583,7 +2505,6 @@ static int pci230_auto_attach(struct comedi_device *dev,
 		s->maxdata = (1 << thisboard->ao_bits) - 1;
 		s->range_table = &pci230_ao_range;
 		s->insn_write = pci230_ao_insn_write;
-		s->insn_read = comedi_readback_insn_read;
 		s->len_chanlist = 2;
 		if (dev->irq) {
 			dev->write_subdev = s;

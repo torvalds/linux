@@ -219,7 +219,7 @@ void *module_alloc(unsigned long size)
 	 * init_data correctly */
 	return __vmalloc_node_range(size, 1, VMALLOC_START, VMALLOC_END,
 				    GFP_KERNEL | __GFP_HIGHMEM,
-				    PAGE_KERNEL_RWX, NUMA_NO_NODE,
+				    PAGE_KERNEL_RWX, 0, NUMA_NO_NODE,
 				    __builtin_return_address(0));
 }
 
@@ -298,14 +298,10 @@ static inline unsigned long count_stubs(const Elf_Rela *rela, unsigned long n)
 }
 #endif
 
-
-/* Free memory returned from module_alloc */
-void module_free(struct module *mod, void *module_region)
+void module_arch_freeing_init(struct module *mod)
 {
 	kfree(mod->arch.section);
 	mod->arch.section = NULL;
-
-	vfree(module_region);
 }
 
 /* Additional bytes needed in front of individual sections */

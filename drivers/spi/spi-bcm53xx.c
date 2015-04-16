@@ -44,7 +44,7 @@ static int bcm53xxspi_wait(struct bcm53xxspi *b53spi, unsigned int timeout_ms)
 	u32 tmp;
 
 	/* SPE bit has to be 0 before we read MSPI STATUS */
-	deadline = jiffies + BCM53XXSPI_SPE_TIMEOUT_MS * HZ / 1000;
+	deadline = jiffies + msecs_to_jiffies(BCM53XXSPI_SPE_TIMEOUT_MS);
 	do {
 		tmp = bcm53xxspi_read(b53spi, B53SPI_MSPI_SPCR2);
 		if (!(tmp & B53SPI_MSPI_SPCR2_SPE))
@@ -56,7 +56,7 @@ static int bcm53xxspi_wait(struct bcm53xxspi *b53spi, unsigned int timeout_ms)
 		goto spi_timeout;
 
 	/* Check status */
-	deadline = jiffies + timeout_ms * HZ / 1000;
+	deadline = jiffies + msecs_to_jiffies(timeout_ms);
 	do {
 		tmp = bcm53xxspi_read(b53spi, B53SPI_MSPI_MSPI_STATUS);
 		if (tmp & B53SPI_MSPI_MSPI_STATUS_SPIF) {
@@ -216,7 +216,7 @@ static struct spi_board_info bcm53xx_info = {
 
 static const struct bcma_device_id bcm53xxspi_bcma_tbl[] = {
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_NS_QSPI, BCMA_ANY_REV, BCMA_ANY_CLASS),
-	BCMA_CORETABLE_END
+	{},
 };
 MODULE_DEVICE_TABLE(bcma, bcm53xxspi_bcma_tbl);
 

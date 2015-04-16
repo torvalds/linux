@@ -277,11 +277,48 @@ static struct cgroup_subsys_state *cgroup_e_css(struct cgroup *cgrp,
 	if (!(cgrp->root->subsys_mask & (1 << ss->id)))
 		return NULL;
 
+	/*
+	 * This function is used while updating css associations and thus
+	 * can't test the csses directly.  Use ->child_subsys_mask.
+	 */
 	while (cgroup_parent(cgrp) &&
 	       !(cgroup_parent(cgrp)->child_subsys_mask & (1 << ss->id)))
 		cgrp = cgroup_parent(cgrp);
 
 	return cgroup_css(cgrp, ss);
+}
+
+/**
+ * cgroup_get_e_css - get a cgroup's effective css for the specified subsystem
+ * @cgrp: the cgroup of interest
+ * @ss: the subsystem of interest
+ *
+ * Find and get the effective css of @cgrp for @ss.  The effective css is
+ * defined as the matching css of the nearest ancestor including self which
+ * has @ss enabled.  If @ss is not mounted on the hierarchy @cgrp is on,
+ * the root css is returned, so this function always returns a valid css.
+ * The returned css must be put using css_put().
+ */
+struct cgroup_subsys_state *cgroup_get_e_css(struct cgroup *cgrp,
+					     struct cgroup_subsys *ss)
+{
+	struct cgroup_subsys_state *css;
+
+	rcu_read_lock();
+
+	do {
+		css = cgroup_css(cgrp, ss);
+
+		if (css && css_tryget_online(css))
+			goto out_unlock;
+		cgrp = cgroup_parent(cgrp);
+	} while (cgrp);
+
+	css = init_css_set.subsys[ss->id];
+	css_get(css);
+out_unlock:
+	rcu_read_unlock();
+	return css;
 }
 
 /* convenient tests for these bits */
@@ -1019,31 +1056,30 @@ static void cgroup_put(struct cgroup *cgrp)
 }
 
 /**
- * cgroup_refresh_child_subsys_mask - update child_subsys_mask
+ * cgroup_calc_child_subsys_mask - calculate child_subsys_mask
  * @cgrp: the target cgroup
+ * @subtree_control: the new subtree_control mask to consider
  *
  * On the default hierarchy, a subsystem may request other subsystems to be
  * enabled together through its ->depends_on mask.  In such cases, more
  * subsystems than specified in "cgroup.subtree_control" may be enabled.
  *
- * This function determines which subsystems need to be enabled given the
- * current @cgrp->subtree_control and records it in
- * @cgrp->child_subsys_mask.  The resulting mask is always a superset of
- * @cgrp->subtree_control and follows the usual hierarchy rules.
+ * This function calculates which subsystems need to be enabled if
+ * @subtree_control is to be applied to @cgrp.  The returned mask is always
+ * a superset of @subtree_control and follows the usual hierarchy rules.
  */
-static void cgroup_refresh_child_subsys_mask(struct cgroup *cgrp)
+static unsigned int cgroup_calc_child_subsys_mask(struct cgroup *cgrp,
+						  unsigned int subtree_control)
 {
 	struct cgroup *parent = cgroup_parent(cgrp);
-	unsigned int cur_ss_mask = cgrp->subtree_control;
+	unsigned int cur_ss_mask = subtree_control;
 	struct cgroup_subsys *ss;
 	int ssid;
 
 	lockdep_assert_held(&cgroup_mutex);
 
-	if (!cgroup_on_dfl(cgrp)) {
-		cgrp->child_subsys_mask = cur_ss_mask;
-		return;
-	}
+	if (!cgroup_on_dfl(cgrp))
+		return cur_ss_mask;
 
 	while (true) {
 		unsigned int new_ss_mask = cur_ss_mask;
@@ -1067,7 +1103,20 @@ static void cgroup_refresh_child_subsys_mask(struct cgroup *cgrp)
 		cur_ss_mask = new_ss_mask;
 	}
 
-	cgrp->child_subsys_mask = cur_ss_mask;
+	return cur_ss_mask;
+}
+
+/**
+ * cgroup_refresh_child_subsys_mask - update child_subsys_mask
+ * @cgrp: the target cgroup
+ *
+ * Update @cgrp->child_subsys_mask according to the current
+ * @cgrp->subtree_control using cgroup_calc_child_subsys_mask().
+ */
+static void cgroup_refresh_child_subsys_mask(struct cgroup *cgrp)
+{
+	cgrp->child_subsys_mask =
+		cgroup_calc_child_subsys_mask(cgrp, cgrp->subtree_control);
 }
 
 /**
@@ -1860,7 +1909,7 @@ static void cgroup_kill_sb(struct super_block *sb)
 	 *
 	 * And don't kill the default root.
 	 */
-	if (css_has_online_children(&root->cgrp.self) ||
+	if (!list_empty(&root->cgrp.self.children) ||
 	    root == &cgrp_dfl_root)
 		cgroup_put(&root->cgrp);
 	else
@@ -2641,7 +2690,7 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 					    loff_t off)
 {
 	unsigned int enable = 0, disable = 0;
-	unsigned int css_enable, css_disable, old_ctrl, new_ctrl;
+	unsigned int css_enable, css_disable, old_sc, new_sc, old_ss, new_ss;
 	struct cgroup *cgrp, *child;
 	struct cgroup_subsys *ss;
 	char *tok;
@@ -2693,36 +2742,6 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 				ret = -ENOENT;
 				goto out_unlock;
 			}
-
-			/*
-			 * @ss is already enabled through dependency and
-			 * we'll just make it visible.  Skip draining.
-			 */
-			if (cgrp->child_subsys_mask & (1 << ssid))
-				continue;
-
-			/*
-			 * Because css offlining is asynchronous, userland
-			 * might try to re-enable the same controller while
-			 * the previous instance is still around.  In such
-			 * cases, wait till it's gone using offline_waitq.
-			 */
-			cgroup_for_each_live_child(child, cgrp) {
-				DEFINE_WAIT(wait);
-
-				if (!cgroup_css(child, ss))
-					continue;
-
-				cgroup_get(child);
-				prepare_to_wait(&child->offline_waitq, &wait,
-						TASK_UNINTERRUPTIBLE);
-				cgroup_kn_unlock(of->kn);
-				schedule();
-				finish_wait(&child->offline_waitq, &wait);
-				cgroup_put(child);
-
-				return restart_syscall();
-			}
 		} else if (disable & (1 << ssid)) {
 			if (!(cgrp->subtree_control & (1 << ssid))) {
 				disable &= ~(1 << ssid);
@@ -2758,17 +2777,46 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 	 * subsystems than specified may need to be enabled or disabled
 	 * depending on subsystem dependencies.
 	 */
-	cgrp->subtree_control |= enable;
-	cgrp->subtree_control &= ~disable;
+	old_sc = cgrp->subtree_control;
+	old_ss = cgrp->child_subsys_mask;
+	new_sc = (old_sc | enable) & ~disable;
+	new_ss = cgroup_calc_child_subsys_mask(cgrp, new_sc);
 
-	old_ctrl = cgrp->child_subsys_mask;
-	cgroup_refresh_child_subsys_mask(cgrp);
-	new_ctrl = cgrp->child_subsys_mask;
-
-	css_enable = ~old_ctrl & new_ctrl;
-	css_disable = old_ctrl & ~new_ctrl;
+	css_enable = ~old_ss & new_ss;
+	css_disable = old_ss & ~new_ss;
 	enable |= css_enable;
 	disable |= css_disable;
+
+	/*
+	 * Because css offlining is asynchronous, userland might try to
+	 * re-enable the same controller while the previous instance is
+	 * still around.  In such cases, wait till it's gone using
+	 * offline_waitq.
+	 */
+	for_each_subsys(ss, ssid) {
+		if (!(css_enable & (1 << ssid)))
+			continue;
+
+		cgroup_for_each_live_child(child, cgrp) {
+			DEFINE_WAIT(wait);
+
+			if (!cgroup_css(child, ss))
+				continue;
+
+			cgroup_get(child);
+			prepare_to_wait(&child->offline_waitq, &wait,
+					TASK_UNINTERRUPTIBLE);
+			cgroup_kn_unlock(of->kn);
+			schedule();
+			finish_wait(&child->offline_waitq, &wait);
+			cgroup_put(child);
+
+			return restart_syscall();
+		}
+	}
+
+	cgrp->subtree_control = new_sc;
+	cgrp->child_subsys_mask = new_ss;
 
 	/*
 	 * Create new csses or make the existing ones visible.  A css is
@@ -2825,6 +2873,24 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 		}
 	}
 
+	/*
+	 * The effective csses of all the descendants (excluding @cgrp) may
+	 * have changed.  Subsystems can optionally subscribe to this event
+	 * by implementing ->css_e_css_changed() which is invoked if any of
+	 * the effective csses seen from the css's cgroup may have changed.
+	 */
+	for_each_subsys(ss, ssid) {
+		struct cgroup_subsys_state *this_css = cgroup_css(cgrp, ss);
+		struct cgroup_subsys_state *css;
+
+		if (!ss->css_e_css_changed || !this_css)
+			continue;
+
+		css_for_each_descendant_pre(css, this_css)
+			if (css != this_css)
+				ss->css_e_css_changed(css);
+	}
+
 	kernfs_activate(cgrp->kn);
 	ret = 0;
 out_unlock:
@@ -2832,9 +2898,8 @@ out_unlock:
 	return ret ?: nbytes;
 
 err_undo_css:
-	cgrp->subtree_control &= ~enable;
-	cgrp->subtree_control |= disable;
-	cgroup_refresh_child_subsys_mask(cgrp);
+	cgrp->subtree_control = old_sc;
+	cgrp->child_subsys_mask = old_ss;
 
 	for_each_subsys(ss, ssid) {
 		if (!(enable & (1 << ssid)))
@@ -3012,7 +3077,7 @@ static int cgroup_add_file(struct cgroup *cgrp, struct cftype *cft)
 #endif
 	kn = __kernfs_create_file(cgrp->kn, cgroup_file_name(cgrp, cft, name),
 				  cgroup_file_mode(cft), 0, cft->kf_ops, cft,
-				  NULL, false, key);
+				  NULL, key);
 	if (IS_ERR(kn))
 		return PTR_ERR(kn);
 
@@ -3741,10 +3806,7 @@ static void *pidlist_allocate(int count)
 
 static void pidlist_free(void *p)
 {
-	if (is_vmalloc_addr(p))
-		vfree(p);
-	else
-		kfree(p);
+	kvfree(p);
 }
 
 /*
@@ -4134,7 +4196,9 @@ static void *cgroup_pidlist_next(struct seq_file *s, void *v, loff_t *pos)
 
 static int cgroup_pidlist_show(struct seq_file *s, void *v)
 {
-	return seq_printf(s, "%d\n", *(int *)v);
+	seq_printf(s, "%d\n", *(int *)v);
+
+	return 0;
 }
 
 static u64 cgroup_read_notify_on_release(struct cgroup_subsys_state *css,
@@ -4308,16 +4372,20 @@ static void css_free_work_fn(struct work_struct *work)
 {
 	struct cgroup_subsys_state *css =
 		container_of(work, struct cgroup_subsys_state, destroy_work);
+	struct cgroup_subsys *ss = css->ss;
 	struct cgroup *cgrp = css->cgroup;
 
 	percpu_ref_exit(&css->refcnt);
 
-	if (css->ss) {
+	if (ss) {
 		/* css free path */
+		int id = css->id;
+
 		if (css->parent)
 			css_put(css->parent);
 
-		css->ss->css_free(css);
+		ss->css_free(css);
+		cgroup_idr_remove(&ss->css_idr, id);
 		cgroup_put(cgrp);
 	} else {
 		/* cgroup free path */
@@ -4369,7 +4437,9 @@ static void css_release_work_fn(struct work_struct *work)
 
 	if (ss) {
 		/* css release path */
-		cgroup_idr_remove(&ss->css_idr, css->id);
+		cgroup_idr_replace(&ss->css_idr, NULL, css->id);
+		if (ss->css_released)
+			ss->css_released(css);
 	} else {
 		/* cgroup release path */
 		cgroup_idr_remove(&cgrp->root->cgroup_idr, cgrp->id);
@@ -4969,6 +5039,9 @@ int __init cgroup_init(void)
 			WARN_ON(cgroup_add_dfl_cftypes(ss, ss->dfl_cftypes));
 			WARN_ON(cgroup_add_legacy_cftypes(ss, ss->legacy_cftypes));
 		}
+
+		if (ss->bind)
+			ss->bind(init_css_set.subsys[ssid]);
 	}
 
 	cgroup_kobj = kobject_create_and_add("cgroup", fs_kobj);
@@ -5380,7 +5453,7 @@ struct cgroup_subsys_state *css_tryget_online_from_dir(struct dentry *dentry,
 struct cgroup_subsys_state *css_from_id(int id, struct cgroup_subsys *ss)
 {
 	WARN_ON_ONCE(!rcu_read_lock_held());
-	return idr_find(&ss->css_idr, id);
+	return id > 0 ? idr_find(&ss->css_idr, id) : NULL;
 }
 
 #ifdef CONFIG_CGROUP_DEBUG

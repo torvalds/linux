@@ -10,6 +10,9 @@
 # of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
+# Cygnus
+obj-$(CONFIG_ARCH_BCM_CYGNUS) +=  bcm_cygnus.o
+
 # BCM281XX
 obj-$(CONFIG_ARCH_BCM_281XX)	+= board_bcm281xx.o
 
@@ -38,5 +41,7 @@ obj-$(CONFIG_ARCH_BCM_5301X)	+= bcm_5301x.o
 obj-$(CONFIG_ARCH_BCM_63XX)	:= bcm63xx.o
 
 ifeq ($(CONFIG_ARCH_BRCMSTB),y)
+CFLAGS_platsmp-brcmstb.o	+= -march=armv7-a
 obj-y				+= brcmstb.o
+obj-$(CONFIG_SMP)		+= headsmp-brcmstb.o platsmp-brcmstb.o
 endif

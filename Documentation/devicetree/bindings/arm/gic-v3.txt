@@ -49,11 +49,29 @@ Optional
   occupied by the redistributors. Required if more than one such
   region is present.
 
+Sub-nodes:
+
+GICv3 has one or more Interrupt Translation Services (ITS) that are
+used to route Message Signalled Interrupts (MSI) to the CPUs.
+
+These nodes must have the following properties:
+- compatible : Should at least contain  "arm,gic-v3-its".
+- msi-controller : Boolean property. Identifies the node as an MSI controller
+- reg: Specifies the base physical address and size of the ITS
+  registers.
+
+The main GIC node must contain the appropriate #address-cells,
+#size-cells and ranges properties for the reg property of all ITS
+nodes.
+
 Examples:
 
 	gic: interrupt-controller@2cf00000 {
 		compatible = "arm,gic-v3";
 		#interrupt-cells = <3>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
 		interrupt-controller;
 		reg = <0x0 0x2f000000 0 0x10000>,	// GICD
 		      <0x0 0x2f100000 0 0x200000>,	// GICR
@@ -61,11 +79,20 @@ Examples:
 		      <0x0 0x2c010000 0 0x2000>,	// GICH
 		      <0x0 0x2c020000 0 0x2000>;	// GICV
 		interrupts = <1 9 4>;
+
+		gic-its@2c200000 {
+			compatible = "arm,gic-v3-its";
+			msi-controller;
+			reg = <0x0 0x2c200000 0 0x200000>;
+		};
 	};
 
 	gic: interrupt-controller@2c010000 {
 		compatible = "arm,gic-v3";
 		#interrupt-cells = <3>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
 		interrupt-controller;
 		redistributor-stride = <0x0 0x40000>;	// 256kB stride
 		#redistributor-regions = <2>;
@@ -76,4 +103,16 @@ Examples:
 		      <0x0 0x2c060000 0 0x2000>,	// GICH
 		      <0x0 0x2c080000 0 0x2000>;	// GICV
 		interrupts = <1 9 4>;
+
+		gic-its@2c200000 {
+			compatible = "arm,gic-v3-its";
+			msi-controller;
+			reg = <0x0 0x2c200000 0 0x200000>;
+		};
+
+		gic-its@2c400000 {
+			compatible = "arm,gic-v3-its";
+			msi-controller;
+			reg = <0x0 0x2c400000 0 0x200000>;
+		};
 	};

@@ -460,7 +460,7 @@ static int soc_camera_init_user_formats(struct soc_camera_device *icd)
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	unsigned int i, fmts = 0, raw_fmts = 0;
 	int ret;
-	enum v4l2_mbus_pixelcode code;
+	u32 code;
 
 	while (!v4l2_subdev_call(sd, video, enum_mbus_fmt, raw_fmts, &code))
 		raw_fmts++;
@@ -842,22 +842,6 @@ static unsigned int soc_camera_poll(struct file *file, poll_table *pt)
 	mutex_unlock(&ici->host_lock);
 	return res;
 }
-
-void soc_camera_lock(struct vb2_queue *vq)
-{
-	struct soc_camera_device *icd = vb2_get_drv_priv(vq);
-	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
-	mutex_lock(&ici->host_lock);
-}
-EXPORT_SYMBOL(soc_camera_lock);
-
-void soc_camera_unlock(struct vb2_queue *vq)
-{
-	struct soc_camera_device *icd = vb2_get_drv_priv(vq);
-	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
-	mutex_unlock(&ici->host_lock);
-}
-EXPORT_SYMBOL(soc_camera_unlock);
 
 static struct v4l2_file_operations soc_camera_fops = {
 	.owner		= THIS_MODULE,
@@ -1681,7 +1665,7 @@ eclkreg:
 eaddpdev:
 	platform_device_put(sasc->pdev);
 eallocpdev:
-	devm_kfree(ici->v4l2_dev.dev, sasc);
+	devm_kfree(ici->v4l2_dev.dev, info);
 	dev_err(ici->v4l2_dev.dev, "group probe failed: %d\n", ret);
 
 	return ret;
@@ -1813,8 +1797,6 @@ eadddev:
 		mutex_unlock(&ici->clk_lock);
 	}
 eadd:
-	video_device_release(icd->vdev);
-	icd->vdev = NULL;
 	if (icd->vdev) {
 		video_device_release(icd->vdev);
 		icd->vdev = NULL;
@@ -2236,7 +2218,6 @@ static struct platform_driver __refdata soc_camera_pdrv = {
 	.remove  = soc_camera_pdrv_remove,
 	.driver  = {
 		.name	= "soc-camera-pdrv",
-		.owner	= THIS_MODULE,
 	},
 };
 

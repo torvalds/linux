@@ -32,7 +32,7 @@
 #include <linux/wireless.h>
 #include <linux/kmod.h>
 #include <linux/module.h>
-
+#include <linux/etherdevice.h>
 #include "rtllib.h"
 struct modes_unit {
 	char *mode_string;
@@ -65,7 +65,7 @@ static inline char *rtl819x_translate_scan(struct rtllib_device *ieee,
 	/* First entry *MUST* be the AP MAC address */
 	iwe.cmd = SIOCGIWAP;
 	iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
-	memcpy(iwe.u.ap_addr.sa_data, network->bssid, ETH_ALEN);
+	ether_addr_copy(iwe.u.ap_addr.sa_data, network->bssid);
 	start = iwe_stream_add_event_rsl(info, start, stop,
 					 &iwe, IW_EV_ADDR_LEN);
 	/* Remaining entries will be displayed in the order we provide them */
@@ -74,7 +74,7 @@ static inline char *rtl819x_translate_scan(struct rtllib_device *ieee,
 	iwe.cmd = SIOCGIWESSID;
 	iwe.u.data.flags = 1;
 	if (network->ssid_len > 0) {
-		iwe.u.data.length = min(network->ssid_len, (u8)32);
+		iwe.u.data.length = min_t(u8, network->ssid_len, 32);
 		start = iwe_stream_add_point_rsl(info, start, stop, &iwe,
 						 network->ssid);
 	} else if (network->hidden_ssid_len == 0) {
@@ -82,7 +82,7 @@ static inline char *rtl819x_translate_scan(struct rtllib_device *ieee,
 		start = iwe_stream_add_point_rsl(info, start, stop,
 						 &iwe, "<hidden>");
 	} else {
-		iwe.u.data.length = min(network->hidden_ssid_len, (u8)32);
+		iwe.u.data.length = min_t(u8, network->hidden_ssid_len, 32);
 		start = iwe_stream_add_point_rsl(info, start, stop, &iwe,
 						 network->hidden_ssid);
 	}
@@ -113,8 +113,6 @@ static inline char *rtl819x_translate_scan(struct rtllib_device *ieee,
 
 	/* Add frequency/channel */
 	iwe.cmd = SIOCGIWFREQ;
-/*	iwe.u.freq.m = rtllib_frequency(network->channel, network->mode);
-	iwe.u.freq.e = 3; */
 	iwe.u.freq.m = network->channel;
 	iwe.u.freq.e = 0;
 	iwe.u.freq.i = 0;
@@ -241,7 +239,8 @@ static inline char *rtl819x_translate_scan(struct rtllib_device *ieee,
 	}
 
 	/* Add EXTRA: Age to display seconds since last beacon/probe response
-	 * for given network. */
+	 * for given network.
+	 */
 	iwe.cmd = IWEVCUSTOM;
 	p = custom;
 	p += snprintf(p, MAX_CUSTOM_LEN - (p - custom),
@@ -282,8 +281,7 @@ int rtllib_wx_get_scan(struct rtllib_device *ieee,
 			ev = rtl819x_translate_scan(ieee, ev, stop, network,
 						    info);
 		else
-			RTLLIB_DEBUG_SCAN("Not showing network '%s ("
-				" %pM)' due to age (%lums).\n",
+			RTLLIB_DEBUG_SCAN("Not showing network '%s ( %pM)' due to age (%lums).\n",
 				escape_essid(network->ssid,
 					     network->ssid_len),
 				network->bssid,
@@ -338,13 +336,14 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 			RTLLIB_DEBUG_WX("Disabling encryption.\n");
 
 		/* Check all the keys to see if any are still configured,
-		 * and if no key index was provided, de-init them all */
+		 * and if no key index was provided, de-init them all
+		 */
 		for (i = 0; i < NUM_WEP_KEYS; i++) {
 			if (ieee->crypt_info.crypt[i] != NULL) {
 				if (key_provided)
 					break;
 				lib80211_crypt_delayed_deinit(&ieee->crypt_info,
-							    &ieee->crypt_info.crypt[i]);
+						    &ieee->crypt_info.crypt[i]);
 			}
 		}
 
@@ -365,7 +364,8 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 	if (*crypt != NULL && (*crypt)->ops != NULL &&
 	    strcmp((*crypt)->ops->name, "R-WEP") != 0) {
 		/* changing to use WEP; deinit previously used algorithm
-		 * on this key */
+		 * on this key
+		 */
 		lib80211_crypt_delayed_deinit(&ieee->crypt_info, crypt);
 	}
 
@@ -390,9 +390,9 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 			kfree(new_crypt);
 			new_crypt = NULL;
 
-			printk(KERN_WARNING "%s: could not initialize WEP: "
-			       "load module rtllib_crypt_wep\n",
-			       dev->name);
+			netdev_warn(dev,
+				    "%s: could not initialize WEP: load module rtllib_crypt_wep\n",
+				    dev->name);
 			return -EOPNOTSUPP;
 		}
 		*crypt = new_crypt;
@@ -413,7 +413,8 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 				       (*crypt)->priv);
 		sec.flags |= (1 << key);
 		/* This ensures a key will be activated if no key is
-		 * explicitly set */
+		 * explicitly set
+		 */
 		if (key == sec.active_key)
 			sec.flags |= SEC_ACTIVE_KEY;
 		ieee->crypt_info.tx_keyidx = key;
@@ -423,11 +424,9 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 					     NULL, (*crypt)->priv);
 		if (len == 0) {
 			/* Set a default key of all 0 */
-			printk(KERN_INFO "Setting key %d to all zero.\n",
+			netdev_info(ieee->dev, "Setting key %d to all zero.\n",
 					   key);
 
-			RTLLIB_DEBUG_WX("Setting key %d to all zero.\n",
-					   key);
 			memset(sec.keys[key], 0, 13);
 			(*crypt)->ops->set_key(sec.keys[key], 13, NULL,
 					       (*crypt)->priv);
@@ -437,8 +436,8 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 
 		/* No key data - just set the default TX key index */
 		if (key_provided) {
-			RTLLIB_DEBUG_WX(
-				"Setting key %d to default Tx key.\n", key);
+			RTLLIB_DEBUG_WX("Setting key %d to default Tx key.\n",
+					key);
 			ieee->crypt_info.tx_keyidx = key;
 			sec.active_key = key;
 			sec.flags |= SEC_ACTIVE_KEY;
@@ -454,7 +453,8 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 			   "OPEN" : "SHARED KEY");
 
 	/* For now we just support WEP, so only set that security level...
-	 * TODO: When WPA is added this is one place that needs to change */
+	 * TODO: When WPA is added this is one place that needs to change
+	 */
 	sec.flags |= SEC_LEVEL;
 	sec.level = SEC_LEVEL_1; /* 40 and 104 bit WEP */
 
@@ -465,11 +465,12 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 	 * generate new IEEE 802.11 authentication which may end up in looping
 	 * with IEEE 802.1X.  If your hardware requires a reset after WEP
 	 * configuration (for example... Prism2), implement the reset_port in
-	 * the callbacks structures used to initialize the 802.11 stack. */
+	 * the callbacks structures used to initialize the 802.11 stack.
+	 */
 	if (ieee->reset_on_keychange &&
 	    ieee->iw_mode != IW_MODE_INFRA &&
 	    ieee->reset_port && ieee->reset_port(dev)) {
-		printk(KERN_DEBUG "%s: reset_port failed\n", dev->name);
+		netdev_dbg(dev, "%s: reset_port failed\n", dev->name);
 		return -EINVAL;
 	}
 	return 0;
@@ -596,7 +597,7 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 		ret = -EINVAL;
 		goto done;
 	}
-	printk(KERN_INFO "alg name:%s\n", alg);
+	netdev_info(dev, "alg name:%s\n", alg);
 
 	ops = lib80211_get_crypto_ops(alg);
 	if (ops == NULL) {
@@ -608,9 +609,7 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 		ops = lib80211_get_crypto_ops(alg);
 	}
 	if (ops == NULL) {
-		RTLLIB_DEBUG_WX("%s: unknown crypto alg %d\n",
-				   dev->name, ext->alg);
-		printk(KERN_INFO "========>unknown crypto alg %d\n", ext->alg);
+		netdev_info(dev, "========>unknown crypto alg %d\n", ext->alg);
 		ret = -EINVAL;
 		goto done;
 	}
@@ -641,8 +640,7 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 	if (ext->key_len > 0 && (*crypt)->ops->set_key &&
 	    (*crypt)->ops->set_key(ext->key, ext->key_len, ext->rx_seq,
 				   (*crypt)->priv) < 0) {
-		RTLLIB_DEBUG_WX("%s: key setting failed\n", dev->name);
-		printk(KERN_INFO "key setting failed\n");
+		netdev_info(dev, "key setting failed\n");
 		ret = -EINVAL;
 		goto done;
 	}
@@ -759,9 +757,9 @@ int rtllib_wx_set_mlme(struct rtllib_device *ieee,
 
 	case IW_MLME_DISASSOC:
 		if (deauth)
-			printk(KERN_INFO "disauth packet !\n");
+			netdev_info(ieee->dev, "disauth packet !\n");
 		else
-			printk(KERN_INFO "dis associate packet!\n");
+			netdev_info(ieee->dev, "dis associate packet!\n");
 
 		ieee->cannot_notify = true;
 
@@ -797,8 +795,7 @@ int rtllib_wx_set_auth(struct rtllib_device *ieee,
 	case IW_AUTH_CIPHER_PAIRWISE:
 	case IW_AUTH_CIPHER_GROUP:
 	case IW_AUTH_KEY_MGMT:
-		/*
-		 * Host AP driver does not use these parameters and allows
+		/* Host AP driver does not use these parameters and allows
 		 * wpa_supplicant to control them internally.
 		 */
 		break;

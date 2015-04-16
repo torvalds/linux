@@ -623,7 +623,6 @@ static int hi6421_regulator_probe(struct platform_device *pdev)
 static struct platform_driver hi6421_regulator_driver = {
 	.driver = {
 		.name	= "hi6421-regulator",
-		.owner  = THIS_MODULE,
 	},
 	.probe	= hi6421_regulator_probe,
 };

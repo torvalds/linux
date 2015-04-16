@@ -518,7 +518,7 @@ void INFTL_dumpVUchains(struct INFTLrecord *s)
 	pr_debug("INFTL Virtual Unit Chains:\n");
 	for (logical = 0; logical < s->nb_blocks; logical++) {
 		block = s->VUtable[logical];
-		if (block > s->nb_blocks)
+		if (block >= s->nb_blocks)
 			continue;
 		pr_debug("  LOGICAL %d --> %d ", logical, block);
 		for (i = 0; i < s->nb_blocks; i++) {

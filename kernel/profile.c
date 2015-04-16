@@ -422,8 +422,7 @@ void profile_tick(int type)
 
 static int prof_cpu_mask_proc_show(struct seq_file *m, void *v)
 {
-	seq_cpumask(m, prof_cpu_mask);
-	seq_putc(m, '\n');
+	seq_printf(m, "%*pb\n", cpumask_pr_args(prof_cpu_mask));
 	return 0;
 }
 

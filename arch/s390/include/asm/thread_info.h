@@ -10,13 +10,8 @@
 /*
  * Size of kernel stack for each process
  */
-#ifndef CONFIG_64BIT
-#define THREAD_ORDER 1
-#define ASYNC_ORDER  1
-#else /* CONFIG_64BIT */
 #define THREAD_ORDER 2
 #define ASYNC_ORDER  2
-#endif /* CONFIG_64BIT */
 
 #define THREAD_SIZE (PAGE_SIZE << THREAD_ORDER)
 #define ASYNC_SIZE  (PAGE_SIZE << ASYNC_ORDER)
@@ -34,12 +29,10 @@
  */
 struct thread_info {
 	struct task_struct	*task;		/* main task structure */
-	struct exec_domain	*exec_domain;	/* execution domain */
 	unsigned long		flags;		/* low level flags */
 	unsigned long		sys_call_table;	/* System call table address */
 	unsigned int		cpu;		/* current CPU */
 	int			preempt_count;	/* 0 => preemptable, <0 => BUG */
-	struct restart_block	restart_block;
 	unsigned int		system_call;
 	__u64			user_timer;
 	__u64			system_timer;
@@ -52,13 +45,9 @@ struct thread_info {
 #define INIT_THREAD_INFO(tsk)			\
 {						\
 	.task		= &tsk,			\
-	.exec_domain	= &default_exec_domain,	\
 	.flags		= 0,			\
 	.cpu		= 0,			\
 	.preempt_count	= INIT_PREEMPT_COUNT,	\
-	.restart_block	= {			\
-		.fn = do_no_restart_syscall,	\
-	},					\
 }
 
 #define init_thread_info	(init_thread_union.thread_info)
@@ -69,6 +58,8 @@ static inline struct thread_info *current_thread_info(void)
 {
 	return (struct thread_info *) S390_lowcore.thread_info;
 }
+
+void arch_release_task_struct(struct task_struct *tsk);
 
 #define THREAD_SIZE_ORDER THREAD_ORDER
 
@@ -103,10 +94,6 @@ static inline struct thread_info *current_thread_info(void)
 #define _TIF_31BIT		(1<<TIF_31BIT)
 #define _TIF_SINGLE_STEP	(1<<TIF_SINGLE_STEP)
 
-#ifdef CONFIG_64BIT
 #define is_32bit_task()		(test_thread_flag(TIF_31BIT))
-#else
-#define is_32bit_task()		(1)
-#endif
 
 #endif /* _ASM_THREAD_INFO_H */

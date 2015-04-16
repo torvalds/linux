@@ -18,6 +18,7 @@
 #include "util/stat.h"
 #include "util/top.h"
 #include "util/data.h"
+#include "util/ordered-events.h"
 
 #include <sys/prctl.h>
 #ifdef HAVE_TIMERFD_SUPPORT
@@ -730,9 +731,9 @@ static s64 perf_kvm__mmap_read_idx(struct perf_kvm_stat *kvm, int idx,
 			return -1;
 		}
 
-		err = perf_session_queue_event(kvm->session, event, &kvm->tool, &sample, 0);
+		err = perf_session__queue_event(kvm->session, event, &sample, 0);
 		/*
-		 * FIXME: Here we can't consume the event, as perf_session_queue_event will
+		 * FIXME: Here we can't consume the event, as perf_session__queue_event will
 		 *        point to it, and it'll get possibly overwritten by the kernel.
 		 */
 		perf_evlist__mmap_consume(kvm->evlist, idx);
@@ -783,8 +784,10 @@ static int perf_kvm__mmap_read(struct perf_kvm_stat *kvm)
 
 	/* flush queue after each round in which we processed events */
 	if (ntotal) {
-		kvm->session->ordered_events.next_flush = flush_time;
-		err = kvm->tool.finished_round(&kvm->tool, NULL, kvm->session);
+		struct ordered_events *oe = &kvm->session->ordered_events;
+
+		oe->next_flush = flush_time;
+		err = ordered_events__flush(oe, OE_FLUSH__ROUND);
 		if (err) {
 			if (kvm->lost_events)
 				pr_info("\nLost events: %" PRIu64 "\n\n",
@@ -1044,6 +1047,7 @@ static int read_events(struct perf_kvm_stat *kvm)
 	struct perf_data_file file = {
 		.path = kvm->file_name,
 		.mode = PERF_DATA_MODE_READ,
+		.force = kvm->force,
 	};
 
 	kvm->tool = eops;
@@ -1066,7 +1070,7 @@ static int read_events(struct perf_kvm_stat *kvm)
 	if (ret < 0)
 		return ret;
 
-	return perf_session__process_events(kvm->session, &kvm->tool);
+	return perf_session__process_events(kvm->session);
 }
 
 static int parse_target_str(struct perf_kvm_stat *kvm)
@@ -1132,6 +1136,10 @@ kvm_events_record(struct perf_kvm_stat *kvm, int argc, const char **argv)
 		"-m", "1024",
 		"-c", "1",
 	};
+	const char * const kvm_stat_record_usage[] = {
+		"perf kvm stat record [<options>]",
+		NULL
+	};
 	const char * const *events_tp;
 	events_tp_size = 0;
 
@@ -1159,6 +1167,27 @@ kvm_events_record(struct perf_kvm_stat *kvm, int argc, const char **argv)
 	for (j = 1; j < (unsigned int)argc; j++, i++)
 		rec_argv[i] = argv[j];
 
+	set_option_flag(record_options, 'e', "event", PARSE_OPT_HIDDEN);
+	set_option_flag(record_options, 0, "filter", PARSE_OPT_HIDDEN);
+	set_option_flag(record_options, 'R', "raw-samples", PARSE_OPT_HIDDEN);
+
+	set_option_flag(record_options, 'F', "freq", PARSE_OPT_DISABLED);
+	set_option_flag(record_options, 0, "group", PARSE_OPT_DISABLED);
+	set_option_flag(record_options, 'g', NULL, PARSE_OPT_DISABLED);
+	set_option_flag(record_options, 0, "call-graph", PARSE_OPT_DISABLED);
+	set_option_flag(record_options, 'd', "data", PARSE_OPT_DISABLED);
+	set_option_flag(record_options, 'T', "timestamp", PARSE_OPT_DISABLED);
+	set_option_flag(record_options, 'P', "period", PARSE_OPT_DISABLED);
+	set_option_flag(record_options, 'n', "no-samples", PARSE_OPT_DISABLED);
+	set_option_flag(record_options, 'N', "no-buildid-cache", PARSE_OPT_DISABLED);
+	set_option_flag(record_options, 'B', "no-buildid", PARSE_OPT_DISABLED);
+	set_option_flag(record_options, 'G', "cgroup", PARSE_OPT_DISABLED);
+	set_option_flag(record_options, 'b', "branch-any", PARSE_OPT_DISABLED);
+	set_option_flag(record_options, 'j', "branch-filter", PARSE_OPT_DISABLED);
+	set_option_flag(record_options, 'W', "weight", PARSE_OPT_DISABLED);
+	set_option_flag(record_options, 0, "transaction", PARSE_OPT_DISABLED);
+
+	record_usage = kvm_stat_record_usage;
 	return cmd_record(i, rec_argv, NULL);
 }
 
@@ -1176,6 +1205,7 @@ kvm_events_report(struct perf_kvm_stat *kvm, int argc, const char **argv)
 			    " time (sort by avg time)"),
 		OPT_STRING('p', "pid", &kvm->opts.target.pid, "pid",
 			   "analyze events only for given process id(s)"),
+		OPT_BOOLEAN('f', "force", &kvm->force, "don't complain, do it"),
 		OPT_END()
 	};
 
@@ -1268,7 +1298,8 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 		OPT_UINTEGER('d', "display", &kvm->display_time,
 			"time in seconds between display updates"),
 		OPT_STRING(0, "event", &kvm->report_event, "report event",
-			"event for reporting: vmexit, mmio, ioport"),
+			"event for reporting: "
+			"vmexit, mmio (x86 only), ioport (x86 only)"),
 		OPT_INTEGER(0, "vcpu", &kvm->trace_vcpu,
 			"vcpu id to report"),
 		OPT_STRING('k', "key", &kvm->sort_key, "sort-key",

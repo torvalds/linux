@@ -78,11 +78,6 @@ static inline bool sr_kp(u32 sr_raw)
 	return (sr_raw & 0x20000000) ? true: false;
 }
 
-static inline bool sr_nx(u32 sr_raw)
-{
-	return (sr_raw & 0x10000000) ? true: false;
-}
-
 static int kvmppc_mmu_book3s_32_xlate_bat(struct kvm_vcpu *vcpu, gva_t eaddr,
 					  struct kvmppc_pte *pte, bool data,
 					  bool iswrite);

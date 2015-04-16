@@ -50,10 +50,6 @@ struct zpci_fmb {
 	atomic64_t unmapped_pages;
 } __packed __aligned(16);
 
-#define ZPCI_MSI_VEC_BITS	11
-#define ZPCI_MSI_VEC_MAX	(1 << ZPCI_MSI_VEC_BITS)
-#define ZPCI_MSI_VEC_MASK	(ZPCI_MSI_VEC_MAX - 1)
-
 enum zpci_state {
 	ZPCI_FN_STATE_RESERVED,
 	ZPCI_FN_STATE_STANDBY,
@@ -90,6 +86,7 @@ struct zpci_dev {
 
 	/* IRQ stuff */
 	u64		msi_addr;	/* MSI address */
+	unsigned int	max_msi;	/* maximum number of MSI's */
 	struct airq_iv *aibv;		/* adapter interrupt bit vector */
 	unsigned int	aisb;		/* number of the summary bit */
 

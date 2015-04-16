@@ -109,6 +109,9 @@
 #define UVC_GUID_FORMAT_RGBP \
 	{ 'R',  'G',  'B',  'P', 0x00, 0x00, 0x10, 0x00, \
 	 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}
+#define UVC_GUID_FORMAT_BGR3 \
+	{ 0x7d, 0xeb, 0x36, 0xe4, 0x4f, 0x52, 0xce, 0x11, \
+	 0x9f, 0x53, 0x00, 0x20, 0xaf, 0x0b, 0xa7, 0x70}
 #define UVC_GUID_FORMAT_M420 \
 	{ 'M',  '4',  '2',  '0', 0x00, 0x00, 0x10, 0x00, \
 	 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}
@@ -148,6 +151,7 @@
 #define UVC_QUIRK_PROBE_DEF		0x00000100
 #define UVC_QUIRK_RESTRICT_FRAME_RATE	0x00000200
 #define UVC_QUIRK_RESTORE_CTRLS_ON_INIT	0x00000400
+#define UVC_QUIRK_FORCE_Y8		0x00000800
 
 /* Format flags */
 #define UVC_FMT_FLAG_COMPRESSED		0x00000001
@@ -457,7 +461,6 @@ struct uvc_streaming {
 	struct uvc_format *def_format;
 	struct uvc_format *cur_format;
 	struct uvc_frame *cur_frame;
-	size_t frame_size;
 
 	/* Protect access to ctrl, cur_format, cur_frame and hardware video
 	 * probe control.
@@ -580,7 +583,6 @@ struct uvc_driver {
 #define UVC_TRACE_FORMAT	(1 << 3)
 #define UVC_TRACE_CAPTURE	(1 << 4)
 #define UVC_TRACE_CALLS		(1 << 5)
-#define UVC_TRACE_IOCTL		(1 << 6)
 #define UVC_TRACE_FRAME		(1 << 7)
 #define UVC_TRACE_SUSPEND	(1 << 8)
 #define UVC_TRACE_STATUS	(1 << 9)
@@ -624,9 +626,9 @@ extern struct uvc_entity *uvc_entity_by_id(struct uvc_device *dev, int id);
 /* Video buffers queue management. */
 extern int uvc_queue_init(struct uvc_video_queue *queue,
 		enum v4l2_buf_type type, int drop_corrupted);
-extern int uvc_alloc_buffers(struct uvc_video_queue *queue,
+extern void uvc_queue_release(struct uvc_video_queue *queue);
+extern int uvc_request_buffers(struct uvc_video_queue *queue,
 		struct v4l2_requestbuffers *rb);
-extern void uvc_free_buffers(struct uvc_video_queue *queue);
 extern int uvc_query_buffer(struct uvc_video_queue *queue,
 		struct v4l2_buffer *v4l2_buf);
 extern int uvc_create_buffers(struct uvc_video_queue *queue,
@@ -635,7 +637,10 @@ extern int uvc_queue_buffer(struct uvc_video_queue *queue,
 		struct v4l2_buffer *v4l2_buf);
 extern int uvc_dequeue_buffer(struct uvc_video_queue *queue,
 		struct v4l2_buffer *v4l2_buf, int nonblocking);
-extern int uvc_queue_enable(struct uvc_video_queue *queue, int enable);
+extern int uvc_queue_streamon(struct uvc_video_queue *queue,
+			      enum v4l2_buf_type type);
+extern int uvc_queue_streamoff(struct uvc_video_queue *queue,
+			       enum v4l2_buf_type type);
 extern void uvc_queue_cancel(struct uvc_video_queue *queue, int disconnect);
 extern struct uvc_buffer *uvc_queue_next_buffer(struct uvc_video_queue *queue,
 		struct uvc_buffer *buf);
@@ -654,6 +659,7 @@ static inline int uvc_queue_streaming(struct uvc_video_queue *queue)
 }
 
 /* V4L2 interface */
+extern const struct v4l2_ioctl_ops uvc_ioctl_ops;
 extern const struct v4l2_file_operations uvc_fops;
 
 /* Media controller */

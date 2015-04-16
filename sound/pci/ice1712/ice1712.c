@@ -620,10 +620,9 @@ static int snd_ice1712_playback_ds_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_ice1712 *ice = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	u32 period_size, buf_size, rate, tmp, chn;
+	u32 period_size, rate, tmp, chn;
 
 	period_size = snd_pcm_lib_period_bytes(substream) - 1;
-	buf_size = snd_pcm_lib_buffer_bytes(substream) - 1;
 	tmp = 0x0064;
 	if (snd_pcm_format_width(runtime->format) == 16)
 		tmp &= ~0x04;
@@ -881,13 +880,11 @@ static struct snd_pcm_ops snd_ice1712_capture_ops = {
 	.pointer =	snd_ice1712_capture_pointer,
 };
 
-static int snd_ice1712_pcm(struct snd_ice1712 *ice, int device, struct snd_pcm **rpcm)
+static int snd_ice1712_pcm(struct snd_ice1712 *ice, int device)
 {
 	struct snd_pcm *pcm;
 	int err;
 
-	if (rpcm)
-		*rpcm = NULL;
 	err = snd_pcm_new(ice->card, "ICE1712 consumer", device, 1, 1, &pcm);
 	if (err < 0)
 		return err;
@@ -903,22 +900,17 @@ static int snd_ice1712_pcm(struct snd_ice1712 *ice, int device, struct snd_pcm *
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
 					      snd_dma_pci_data(ice->pci), 64*1024, 64*1024);
 
-	if (rpcm)
-		*rpcm = pcm;
-
 	dev_warn(ice->card->dev,
 		 "Consumer PCM code does not work well at the moment --jk\n");
 
 	return 0;
 }
 
-static int snd_ice1712_pcm_ds(struct snd_ice1712 *ice, int device, struct snd_pcm **rpcm)
+static int snd_ice1712_pcm_ds(struct snd_ice1712 *ice, int device)
 {
 	struct snd_pcm *pcm;
 	int err;
 
-	if (rpcm)
-		*rpcm = NULL;
 	err = snd_pcm_new(ice->card, "ICE1712 consumer (DS)", device, 6, 0, &pcm);
 	if (err < 0)
 		return err;
@@ -932,9 +924,6 @@ static int snd_ice1712_pcm_ds(struct snd_ice1712 *ice, int device, struct snd_pc
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
 					      snd_dma_pci_data(ice->pci), 64*1024, 128*1024);
-
-	if (rpcm)
-		*rpcm = pcm;
 
 	return 0;
 }
@@ -1261,13 +1250,11 @@ static struct snd_pcm_ops snd_ice1712_capture_pro_ops = {
 	.pointer =	snd_ice1712_capture_pro_pointer,
 };
 
-static int snd_ice1712_pcm_profi(struct snd_ice1712 *ice, int device, struct snd_pcm **rpcm)
+static int snd_ice1712_pcm_profi(struct snd_ice1712 *ice, int device)
 {
 	struct snd_pcm *pcm;
 	int err;
 
-	if (rpcm)
-		*rpcm = NULL;
 	err = snd_pcm_new(ice->card, "ICE1712 multi", device, 1, 1, &pcm);
 	if (err < 0)
 		return err;
@@ -1283,8 +1270,6 @@ static int snd_ice1712_pcm_profi(struct snd_ice1712 *ice, int device, struct snd
 					      snd_dma_pci_data(ice->pci), 256*1024, 256*1024);
 
 	ice->pcm_pro = pcm;
-	if (rpcm)
-		*rpcm = pcm;
 
 	if (ice->cs8427) {
 		/* assign channels to iec958 */
@@ -1295,10 +1280,7 @@ static int snd_ice1712_pcm_profi(struct snd_ice1712 *ice, int device, struct snd
 			return err;
 	}
 
-	err = snd_ice1712_build_pro_mixer(ice);
-	if (err < 0)
-		return err;
-	return 0;
+	return snd_ice1712_build_pro_mixer(ice);
 }
 
 /*
@@ -1545,10 +1527,9 @@ static int snd_ice1712_ac97_mixer(struct snd_ice1712 *ice)
 			dev_warn(ice->card->dev,
 				 "cannot initialize ac97 for consumer, skipped\n");
 		else {
-			err = snd_ctl_add(ice->card, snd_ctl_new1(&snd_ice1712_mixer_digmix_route_ac97, ice));
-			if (err < 0)
-				return err;
-			return 0;
+			return snd_ctl_add(ice->card,
+			snd_ctl_new1(&snd_ice1712_mixer_digmix_route_ac97,
+				     ice));
 		}
 	}
 
@@ -1839,13 +1820,7 @@ static int snd_ice1712_pro_internal_clock_info(struct snd_kcontrol *kcontrol,
 		"96000",	/* 12: 7 */
 		"IEC958 Input",	/* 13: -- */
 	};
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 14;
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 14, texts);
 }
 
 static int snd_ice1712_pro_internal_clock_get(struct snd_kcontrol *kcontrol,
@@ -1930,13 +1905,7 @@ static int snd_ice1712_pro_internal_clock_default_info(struct snd_kcontrol *kcon
 		"96000",	/* 12: 7 */
 		/* "IEC958 Input",	13: -- */
 	};
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 13;
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 13, texts);
 }
 
 static int snd_ice1712_pro_internal_clock_default_get(struct snd_kcontrol *kcontrol,
@@ -2057,15 +2026,8 @@ static int snd_ice1712_pro_route_info(struct snd_kcontrol *kcontrol,
 		"IEC958 In L", "IEC958 In R", /* 9-10 */
 		"Digital Mixer", /* 11 - optional */
 	};
-
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items =
-		snd_ctl_get_ioffidx(kcontrol, &uinfo->id) < 2 ? 12 : 11;
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	int num_items = snd_ctl_get_ioffidx(kcontrol, &uinfo->id) < 2 ? 12 : 11;
+	return snd_ctl_enum_info(uinfo, 1, num_items, texts);
 }
 
 static int snd_ice1712_pro_route_analog_get(struct snd_kcontrol *kcontrol,
@@ -2516,11 +2478,8 @@ static int snd_ice1712_build_controls(struct snd_ice1712 *ice)
 	err = snd_ctl_add(ice->card, snd_ctl_new1(&snd_ice1712_mixer_pro_volume_rate, ice));
 	if (err < 0)
 		return err;
-	err = snd_ctl_add(ice->card, snd_ctl_new1(&snd_ice1712_mixer_pro_peak, ice));
-	if (err < 0)
-		return err;
-
-	return 0;
+	return snd_ctl_add(ice->card,
+			   snd_ctl_new1(&snd_ice1712_mixer_pro_peak, ice));
 }
 
 static int snd_ice1712_free(struct snd_ice1712 *ice)
@@ -2718,14 +2677,14 @@ static int snd_ice1712_probe(struct pci_dev *pci,
 	c = &no_matched;
  __found:
 
-	err = snd_ice1712_pcm_profi(ice, pcm_dev++, NULL);
+	err = snd_ice1712_pcm_profi(ice, pcm_dev++);
 	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
 
 	if (ice_has_con_ac97(ice)) {
-		err = snd_ice1712_pcm(ice, pcm_dev++, NULL);
+		err = snd_ice1712_pcm(ice, pcm_dev++);
 		if (err < 0) {
 			snd_card_free(card);
 			return err;
@@ -2753,7 +2712,7 @@ static int snd_ice1712_probe(struct pci_dev *pci,
 	}
 
 	if (ice_has_con_ac97(ice)) {
-		err = snd_ice1712_pcm_ds(ice, pcm_dev++, NULL);
+		err = snd_ice1712_pcm_ds(ice, pcm_dev++);
 		if (err < 0) {
 			snd_card_free(card);
 			return err;
@@ -2825,7 +2784,6 @@ static void snd_ice1712_remove(struct pci_dev *pci)
 #ifdef CONFIG_PM_SLEEP
 static int snd_ice1712_suspend(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_ice1712 *ice = card->private_data;
 
@@ -2847,32 +2805,17 @@ static int snd_ice1712_suspend(struct device *dev)
 
 	if (ice->pm_suspend)
 		ice->pm_suspend(ice);
-
-	pci_disable_device(pci);
-	pci_save_state(pci);
-	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
 static int snd_ice1712_resume(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_ice1712 *ice = card->private_data;
 	int rate;
 
 	if (!ice->pm_suspend_enabled)
 		return 0;
-
-	pci_set_power_state(pci, PCI_D0);
-	pci_restore_state(pci);
-
-	if (pci_enable_device(pci) < 0) {
-		snd_card_disconnect(card);
-		return -EIO;
-	}
-
-	pci_set_master(pci);
 
 	if (ice->cur_rate)
 		rate = ice->cur_rate;
@@ -2905,8 +2848,7 @@ static int snd_ice1712_resume(struct device *dev)
 	outw(ice->pm_saved_spdif_ctrl, ICEMT(ice, ROUTE_SPDOUT));
 	outw(ice->pm_saved_route, ICEMT(ice, ROUTE_PSDOUT03));
 
-	if (ice->ac97)
-		snd_ac97_resume(ice->ac97);
+	snd_ac97_resume(ice->ac97);
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;

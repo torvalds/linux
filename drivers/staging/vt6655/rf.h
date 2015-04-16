@@ -30,7 +30,6 @@
 #ifndef __RF_H__
 #define __RF_H__
 
-#include "ttype.h"
 #include "device.h"
 
 /*---------------------  Export Definitions -------------------------*/
@@ -74,13 +73,13 @@
 
 /*---------------------  Export Functions  --------------------------*/
 
-bool IFRFbWriteEmbedded(void __iomem *dwIoBase, unsigned long dwData);
-bool RFbSelectChannel(void __iomem *dwIoBase, unsigned char byRFType, unsigned char byChannel);
+bool IFRFbWriteEmbedded(struct vnt_private *, unsigned long dwData);
+bool RFbSelectChannel(struct vnt_private *, unsigned char byRFType, u16);
 bool RFbInit(
 	struct vnt_private *
 );
-bool RFvWriteWakeProgSyn(void __iomem *dwIoBase, unsigned char byRFType, unsigned int uChannel);
-bool RFbSetPower(struct vnt_private *, unsigned int uRATE, unsigned int uCH);
+bool RFvWriteWakeProgSyn(struct vnt_private *, unsigned char byRFType, u16);
+bool RFbSetPower(struct vnt_private *, unsigned int uRATE, u16);
 bool RFbRawSetPower(
 	struct vnt_private *,
 	unsigned char byPwr,
@@ -95,7 +94,7 @@ RFvRSSITodBm(
 );
 
 //{{ RobertYu: 20050104
-bool RFbAL7230SelectChannelPostProcess(void __iomem *dwIoBase, unsigned char byOldChannel, unsigned char byNewChannel);
+bool RFbAL7230SelectChannelPostProcess(struct vnt_private *, u16, u16);
 //}} RobertYu
 
 #endif // __RF_H__

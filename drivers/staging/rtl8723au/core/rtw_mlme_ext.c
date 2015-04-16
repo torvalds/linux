@@ -331,6 +331,7 @@ rtw_update_TSF(struct mlme_ext_priv *pmlmeext, struct ieee80211_mgmt *mgmt)
 int rtw_ch_set_search_ch23a(struct rt_channel_info *ch_set, const u32 ch)
 {
 	int i;
+
 	for (i = 0; ch_set[i]. ChannelNum != 0; i++) {
 		if (ch == ch_set[i].ChannelNum)
 			break;
@@ -566,7 +567,6 @@ static u8 init_channel_set(struct rtw_adapter *padapter, u8 cplan,
 
 int init_mlme_ext_priv23a(struct rtw_adapter *padapter)
 {
-	int res = _SUCCESS;
 	struct registry_priv *pregistrypriv = &padapter->registrypriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -593,7 +593,7 @@ int init_mlme_ext_priv23a(struct rtw_adapter *padapter)
 	pmlmeext->mlmeext_init = true;
 
 	pmlmeext->active_keep_alive_check = true;
-	return res;
+	return _SUCCESS;
 }
 
 void free_mlme_ext_priv23a (struct mlme_ext_priv *pmlmeext)
@@ -657,8 +657,8 @@ void mgt_dispatcher23a(struct rtw_adapter *padapter,
 
 	if (index > 13) {
 		RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_,
-			 ("Currently we do not support reserved sub-fr-type ="
-			  "%d\n", index));
+			 "Currently we do not support reserved sub-fr-type =%d\n",
+			 index);
 		return;
 	}
 	ptable += index;
@@ -680,8 +680,7 @@ void mgt_dispatcher23a(struct rtw_adapter *padapter,
 	}
 
 #ifdef CONFIG_8723AU_AP_MODE
-	switch (stype)
-	{
+	switch (stype) {
 	case IEEE80211_STYPE_AUTH:
 		if (check_fwstate(pmlmepriv, WIFI_AP_STATE))
 			ptable->func = &OnAuth23a;
@@ -969,8 +968,7 @@ OnAuth23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	pstat = rtw_get_stainfo23a(pstapriv, sa);
 	if (!pstat) {
 		/*  allocate a new one */
-		DBG_8723A("going to alloc stainfo for sa ="MAC_FMT"\n",
-			  MAC_ARG(sa));
+		DBG_8723A("going to alloc stainfo for sa =%pM\n", sa);
 		pstat = rtw_alloc_stainfo23a(pstapriv, sa, GFP_ATOMIC);
 		if (!pstat) {
 			DBG_8723A(" Exceed the upper limit of supported "
@@ -1397,8 +1395,8 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	/* now parse all ieee802_11 ie to point to elems */
 
 	if (rtw_validate_frame_ies(pos, left)) {
-		DBG_8723A("STA " MAC_FMT " sent invalid association request\n",
-			  MAC_ARG(pstat->hwaddr));
+		DBG_8723A("STA %pM sent invalid association request\n",
+			  pstat->hwaddr);
 		status = WLAN_STATUS_UNSPECIFIED_FAILURE;
 		goto OnAssocReq23aFail;
 	}
@@ -1408,8 +1406,8 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	p = cfg80211_find_ie(WLAN_EID_SSID, pos, left);
 	if (!p || p[1] == 0) {
 		/*  broadcast ssid, however it is not allowed in assocreq */
-		DBG_8723A("STA " MAC_FMT " sent invalid association request "
-			  "lacking an SSID\n", MAC_ARG(pstat->hwaddr));
+		DBG_8723A("STA %pM sent invalid association request lacking an SSID\n",
+			  pstat->hwaddr);
 		status = WLAN_STATUS_UNSPECIFIED_FAILURE;
 		goto OnAssocReq23aFail;
 	} else {
@@ -1538,9 +1536,8 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 		int copy_len;
 
 		if (psecuritypriv->wpa_psk == 0) {
-			DBG_8723A("STA " MAC_FMT ": WPA/RSN IE in association "
-			"request, but AP don't support WPA/RSN\n",
-				  MAC_ARG(pstat->hwaddr));
+			DBG_8723A("STA %pM: WPA/RSN IE in association request, but AP don't support WPA/RSN\n",
+				  pstat->hwaddr);
 
 			status = WLAN_STATUS_INVALID_IE;
 
@@ -1572,6 +1569,7 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	pstat->uapsd_bk = 0;
 	if (pmlmepriv->qos_option) {
 		const u8 *end = pos + left;
+
 		p = pos;
 
 		for (;;) {
@@ -1614,8 +1612,8 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 					else
 						pstat->uapsd_be = 0;
 
+					break;
 				}
-				break;
 			} else {
 				break;
 			}
@@ -1645,8 +1643,8 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	if (pstat->flags & WLAN_STA_HT &&
 	    (pstat->wpa2_pairwise_cipher & WPA_CIPHER_TKIP ||
 	     pstat->wpa_pairwise_cipher & WPA_CIPHER_TKIP)) {
-		DBG_8723A("HT: " MAC_FMT " tried to use TKIP with HT "
-			  "association\n", MAC_ARG(pstat->hwaddr));
+		DBG_8723A("HT: %pM tried to use TKIP with HT association\n",
+			  pstat->hwaddr);
 
 		/* status = WLAN_STATUS_CIPHER_REJECTED_PER_POLICY; */
 		/* goto OnAssocReq23aFail; */
@@ -2335,12 +2333,9 @@ static int update_hidden_ssid(u8 *ies, u32 ies_len, u8 hidden_ssid_mode)
 	   __func__, hidden_ssid_mode, ssid_ie, ssid_len_ori); */
 
 	if (ssid_ie && ssid_len_ori > 0) {
-		switch (hidden_ssid_mode)
-		{
+		switch (hidden_ssid_mode) {
 		case 1:
 			next_ie = ssid_ie + 2 + ssid_len_ori;
-			remain_len = 0;
-
 			remain_len = ies_len -(next_ie-ies);
 
 			ssid_ie[1] = 0;
@@ -2599,7 +2594,9 @@ static void issue_probersp(struct rtw_adapter *padapter, unsigned char *da,
 		if (ssid_ie && cur_network->Ssid.ssid_len) {
 			uint remainder_ielen;
 			u8 *remainder_ie;
+
 			remainder_ie = ssid_ie + 2;
+
 			remainder_ielen = pframe - remainder_ie;
 
 			DBG_8723A_LEVEL(_drv_warning_, "%s(%s): "
@@ -2688,7 +2685,7 @@ static int _issue_probereq(struct rtw_adapter *padapter,
 	u8 bc_addr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_notice_,
-		 ("+%s\n", __func__));
+		 "+%s\n", __func__);
 
 	pmgntframe = alloc_mgtxmitframe23a(pxmitpriv);
 	if (!pmgntframe)
@@ -2759,7 +2756,7 @@ static int _issue_probereq(struct rtw_adapter *padapter,
 	pattrib->last_txcmdsz = pattrib->pktlen;
 
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_notice_,
-		 ("issuing probe_req, tx_len =%d\n", pattrib->last_txcmdsz));
+		 "issuing probe_req, tx_len =%d\n", pattrib->last_txcmdsz);
 
 	if (wait_ack) {
 		ret = dump_mgntframe23a_and_wait_ack23a(padapter, pmgntframe);
@@ -2807,17 +2804,16 @@ static int issue_probereq_ex(struct rtw_adapter *padapter,
 
 	if (try_cnt && wait_ms) {
 		if (da)
-			DBG_8723A("%s(%s): to "MAC_FMT", ch:%u%s, %d/%d "
-				  "in %u ms\n",	__func__,
-				  padapter->pnetdev->name,
-				  MAC_ARG(da), rtw_get_oper_ch23a(padapter),
-				  ret == _SUCCESS?", acked":"", i, try_cnt,
+			DBG_8723A("%s(%s): to %pM, ch:%u%s, %d/%d in %u ms\n",
+				  __func__, padapter->pnetdev->name,
+				  da, rtw_get_oper_ch23a(padapter),
+				  ret == _SUCCESS ? ", acked" : "", i, try_cnt,
 				  jiffies_to_msecs(jiffies - start));
 		else
 			DBG_8723A("%s(%s):, ch:%u%s, %d/%d in %u ms\n",
 				  __func__, padapter->pnetdev->name,
 				  rtw_get_oper_ch23a(padapter),
-				  ret == _SUCCESS?", acked":"", i, try_cnt,
+				  ret == _SUCCESS ? ", acked" : "", i, try_cnt,
 				  jiffies_to_msecs(jiffies - start));
 	}
 exit:
@@ -2862,6 +2858,7 @@ static void issue_auth(struct rtw_adapter *padapter, struct sta_info *psta,
 	if (psta) { /*  for AP mode */
 #ifdef CONFIG_8723AU_AP_MODE
 		unsigned short val16;
+
 		ether_addr_copy(mgmt->da, psta->hwaddr);
 		ether_addr_copy(mgmt->sa, myid(&padapter->eeprompriv));
 		ether_addr_copy(mgmt->bssid, myid(&padapter->eeprompriv));
@@ -3306,6 +3303,7 @@ static void issue_assocreq(struct rtw_adapter *padapter)
 			    !memcmp(p + 2, WMM_OUI23A, 4) ||
 			    !memcmp(p + 2, WPS_OUI23A, 4)) {
 				u8 plen = p[1];
+
 				if (!padapter->registrypriv.wifi_spec) {
 					/* Commented by Kurt 20110629 */
 					/* In some older APs, WPS handshake */
@@ -3459,17 +3457,16 @@ int issue_nulldata23a(struct rtw_adapter *padapter, unsigned char *da,
 
 	if (try_cnt && wait_ms) {
 		if (da)
-			DBG_8723A("%s(%s): to "MAC_FMT", ch:%u%s, %d/%d "
-				  "in %u ms\n", __func__,
-				  padapter->pnetdev->name,
-				  MAC_ARG(da), rtw_get_oper_ch23a(padapter),
-				  ret == _SUCCESS?", acked":"", i, try_cnt,
+			DBG_8723A("%s(%s): to %pM, ch:%u%s, %d/%d in %u ms\n",
+				  __func__, padapter->pnetdev->name,
+				  da, rtw_get_oper_ch23a(padapter),
+				  ret == _SUCCESS ? ", acked" : "", i, try_cnt,
 				  jiffies_to_msecs(jiffies - start));
 		else
 			DBG_8723A("%s(%s):, ch:%u%s, %d/%d in %u ms\n",
 				  __func__, padapter->pnetdev->name,
 				  rtw_get_oper_ch23a(padapter),
-				  ret == _SUCCESS?", acked":"", i, try_cnt,
+				  ret == _SUCCESS ? ", acked" : "", i, try_cnt,
 				  jiffies_to_msecs(jiffies - start));
 	}
 exit:
@@ -3586,17 +3583,16 @@ int issue_qos_nulldata23a(struct rtw_adapter *padapter, unsigned char *da,
 
 	if (try_cnt && wait_ms) {
 		if (da)
-			DBG_8723A("%s(%s): to "MAC_FMT", ch:%u%s, %d/%d "
-				  "in %u ms\n", __func__,
-				  padapter->pnetdev->name,
-				  MAC_ARG(da), rtw_get_oper_ch23a(padapter),
-				  ret == _SUCCESS?", acked":"", i, try_cnt,
+			DBG_8723A("%s(%s): to %pM, ch:%u%s, %d/%d in %u ms\n",
+				  __func__, padapter->pnetdev->name,
+				  da, rtw_get_oper_ch23a(padapter),
+				  ret == _SUCCESS ? ", acked" : "", i, try_cnt,
 				  jiffies_to_msecs(jiffies - start));
 		else
 			DBG_8723A("%s(%s):, ch:%u%s, %d/%d in %u ms\n",
 				  __func__, padapter->pnetdev->name,
 				  rtw_get_oper_ch23a(padapter),
-				  ret == _SUCCESS?", acked":"", i, try_cnt,
+				  ret == _SUCCESS ? ", acked" : "", i, try_cnt,
 				  jiffies_to_msecs(jiffies - start));
 	}
 exit:
@@ -3614,7 +3610,7 @@ static int _issue_deauth(struct rtw_adapter *padapter, unsigned char *da,
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	int ret = _FAIL;
 
-	/* DBG_8723A("%s to "MAC_FMT"\n", __func__, MAC_ARG(da)); */
+	/* DBG_8723A("%s to %pM\n", __func__, da); */
 
 	pmgntframe = alloc_mgtxmitframe23a(pxmitpriv);
 	if (!pmgntframe)
@@ -3659,7 +3655,7 @@ exit:
 int issue_deauth23a(struct rtw_adapter *padapter, unsigned char *da,
 		    unsigned short reason)
 {
-	DBG_8723A("%s to "MAC_FMT"\n", __func__, MAC_ARG(da));
+	DBG_8723A("%s to %pM\n", __func__, da);
 	return _issue_deauth(padapter, da, reason, false);
 }
 
@@ -3691,17 +3687,16 @@ static int issue_deauth_ex(struct rtw_adapter *padapter, u8 *da,
 
 	if (try_cnt && wait_ms) {
 		if (da)
-			DBG_8723A("%s(%s): to "MAC_FMT", ch:%u%s, %d/%d "
-				  "in %u ms\n", __func__,
-				  padapter->pnetdev->name,
-				  MAC_ARG(da), rtw_get_oper_ch23a(padapter),
-				  ret == _SUCCESS?", acked":"", i, try_cnt,
+			DBG_8723A("%s(%s): to %pM, ch:%u%s, %d/%d in %u ms\n",
+				  __func__, padapter->pnetdev->name,
+				  da, rtw_get_oper_ch23a(padapter),
+				  ret == _SUCCESS ? ", acked" : "", i, try_cnt,
 				  jiffies_to_msecs(jiffies - start));
 		else
 			DBG_8723A("%s(%s):, ch:%u%s, %d/%d in %u ms\n",
 				  __func__, padapter->pnetdev->name,
 				  rtw_get_oper_ch23a(padapter),
-				  ret == _SUCCESS?", acked":"", i, try_cnt,
+				  ret == _SUCCESS ? ", acked" : "", i, try_cnt,
 				  jiffies_to_msecs(jiffies - start));
 	}
 exit:
@@ -3718,8 +3713,8 @@ void issue_action_spct_ch_switch23a(struct rtw_adapter *padapter,
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 
-	DBG_8723A("%s(%s): ra ="MAC_FMT", ch:%u, offset:%u\n", __func__,
-		  padapter->pnetdev->name, MAC_ARG(ra), new_ch, ch_offset);
+	DBG_8723A("%s(%s): ra=%pM, ch:%u, offset:%u\n",
+		  __func__, padapter->pnetdev->name, ra, new_ch, ch_offset);
 
 	pmgntframe = alloc_mgtxmitframe23a(pxmitpriv);
 	if (!pmgntframe)
@@ -3766,7 +3761,6 @@ void issue_action_BA23a(struct rtw_adapter *padapter,
 {
 	u16 start_seq;
 	u16 BA_para_set;
-	u16 BA_timeout_value;
 	u16 BA_starting_seqctrl;
 	u16 BA_para;
 	int max_rx_ampdu_factor;
@@ -3841,16 +3835,14 @@ void issue_action_BA23a(struct rtw_adapter *padapter,
 				IEEE80211_ADDBA_PARAM_BUF_SIZE_MASK;
 		} else {
 			/* immediate ack & 64 buffer size */
-			BA_para_set = (0x1002 | ((status & 0xf) << 2));
+			BA_para_set = 0x1002 | ((status & 0xf) << 2);
 		}
 
 		put_unaligned_le16(BA_para_set,
 				   &mgmt->u.action.u.addba_req.capab);
 
-		BA_timeout_value = 5000;/*  5ms */
-		BA_timeout_value = cpu_to_le16(BA_timeout_value);
-		put_unaligned_le16(BA_timeout_value,
-				   &mgmt->u.action.u.addba_req.timeout);
+		/*  5ms */
+		put_unaligned_le16(5000, &mgmt->u.action.u.addba_req.timeout);
 
 		psta = rtw_get_stainfo23a(pstapriv, raddr);
 		if (psta) {
@@ -3997,7 +3989,7 @@ int send_beacon23a(struct rtw_adapter *padapter)
 			yield();
 			bxmitok = rtl8723a_get_bcn_valid(padapter);
 			poll++;
-		} while ((poll % 10) != 0 && bxmitok == false &&
+		} while ((poll % 10) != 0 && !bxmitok &&
 			 !padapter->bSurpriseRemoved &&
 			 !padapter->bDriverStopped);
 
@@ -4070,6 +4062,7 @@ static void rtw_site_survey(struct rtw_adapter *padapter)
 		if (ScanType == SCAN_ACTIVE) /* obey the channel plan setting... */
 		{
 			int i;
+
 			for (i = 0;i<RTW_SSID_SCAN_AMOUNT;i++) {
 				if (pmlmeext->sitesurvey_res.ssid[i].ssid_len) {
 					/* todo: to issue two probe req??? */
@@ -4197,9 +4190,9 @@ static struct wlan_bssid_ex *collect_bss_info(struct rtw_adapter *padapter,
 	/* get the signal strength */
 	/*  in dBM.raw data */
 	bssid->Rssi = precv_frame->attrib.phy_info.RecvSignalPower;
-	bssid->PhyInfo.SignalQuality =
+	bssid->SignalQuality =
 		precv_frame->attrib.phy_info.SignalQuality;/* in percentage */
-	bssid->PhyInfo.SignalStrength =
+	bssid->SignalStrength =
 		precv_frame->attrib.phy_info.SignalStrength;/* in percentage */
 
 	/*  checking SSID */
@@ -4293,6 +4286,7 @@ static struct wlan_bssid_ex *collect_bss_info(struct rtw_adapter *padapter,
 				     bssid->IELength);
 		if (p && p[1] > 0) {
 			struct ieee80211_ht_cap *pHT_caps;
+
 			pHT_caps = (struct ieee80211_ht_cap *)(p + 2);
 
 			if (pHT_caps->cap_info &
@@ -4305,7 +4299,7 @@ static struct wlan_bssid_ex *collect_bss_info(struct rtw_adapter *padapter,
 
 	/*  mark bss info receiving from nearby channel as SignalQuality 101 */
 	if (bssid->DSConfig != rtw_get_oper_ch23a(padapter))
-		bssid->PhyInfo.SignalQuality = 101;
+		bssid->SignalQuality = 101;
 
 	return bssid;
 fail:
@@ -4319,6 +4313,7 @@ static void start_create_ibss(struct rtw_adapter *padapter)
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *pnetwork = &pmlmeinfo->network;
+
 	pmlmeext->cur_channel = (u8)pnetwork->DSConfig;
 	pmlmeinfo->bcn_interval = pnetwork->beacon_interval;
 
@@ -4343,7 +4338,8 @@ static void start_create_ibss(struct rtw_adapter *padapter)
 
 		/* issue beacon */
 		if (send_beacon23a(padapter) == _FAIL) {
-			RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_, ("issuing beacon frame fail....\n"));
+			RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_,
+				 "issuing beacon frame fail....\n");
 
 			report_join_res23a(padapter, -1);
 			pmlmeinfo->state = MSR_NOLINK;
@@ -4354,9 +4350,7 @@ static void start_create_ibss(struct rtw_adapter *padapter)
 			report_join_res23a(padapter, 1);
 			pmlmeinfo->state |= WIFI_FW_ASSOC_SUCCESS;
 		}
-	}
-	else
-	{
+	} else {
 		DBG_8723A("%s: invalid cap:%x\n", __func__, caps);
 		return;
 	}
@@ -4414,9 +4408,7 @@ static void start_clnt_join(struct rtw_adapter *padapter)
 		pmlmeinfo->state = MSR_ADHOC;
 
 		report_join_res23a(padapter, 1);
-	}
-	else
-	{
+	} else {
 		/* DBG_8723A("marc: invalid cap:%x\n", caps); */
 		return;
 	}
@@ -4480,16 +4472,12 @@ int receive_disconnect23a(struct rtw_adapter *padapter,
 
 	DBG_8723A("%s\n", __func__);
 
-	if ((pmlmeinfo->state&0x03) == MSR_INFRA)
-	{
-		if (pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS)
-		{
+	if ((pmlmeinfo->state&0x03) == MSR_INFRA) {
+		if (pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS) {
 			pmlmeinfo->state = MSR_NOLINK;
 			report_del_sta_event23a(padapter, MacAddr, reason);
 
-		}
-		else if (pmlmeinfo->state & WIFI_FW_LINKING_STATE)
-		{
+		} else if (pmlmeinfo->state & WIFI_FW_LINKING_STATE) {
 			pmlmeinfo->state = MSR_NOLINK;
 			report_join_res23a(padapter, -2);
 		}
@@ -4535,7 +4523,7 @@ static void process_80211d(struct rtw_adapter *padapter,
 
 		p += 3;
 		RT_TRACE(_module_rtl871x_mlme_c_, _drv_notice_,
-			 ("%s: 802.11d country =%s\n", __func__, country));
+			 "%s: 802.11d country =%s\n", __func__, country);
 
 		i = 0;
 		while ((ie - p) >= 3) {
@@ -4712,9 +4700,8 @@ static void process_80211d(struct rtw_adapter *padapter,
 
 				chplan_new[i].ScanType = SCAN_ACTIVE;
 				RT_TRACE(_module_rtl871x_mlme_c_, _drv_notice_,
-					 ("%s: change channel %d scan type "
-					  "from passive to active\n",
-					  __func__, channel));
+					 "%s: change channel %d scan type from passive to active\n",
+					 __func__, channel);
 			}
 			break;
 		}
@@ -4749,7 +4736,7 @@ void report_survey_event23a(struct rtw_adapter *padapter,
 	if (!pcmd_obj)
 		return;
 
-	cmdsz = (sizeof(struct survey_event) + sizeof(struct C2HEvent_Header));
+	cmdsz = sizeof(struct survey_event) + sizeof(struct C2HEvent_Header);
 	pevtcmd = kzalloc(cmdsz, GFP_ATOMIC);
 	if (!pevtcmd) {
 		kfree(pcmd_obj);
@@ -4800,7 +4787,7 @@ void report_surveydone_event23a(struct rtw_adapter *padapter)
 	if (!pcmd_obj)
 		return;
 
-	cmdsz = (sizeof(struct surveydone_event) + sizeof(struct C2HEvent_Header));
+	cmdsz = sizeof(struct surveydone_event) + sizeof(struct C2HEvent_Header);
 	pevtcmd = kzalloc(cmdsz, GFP_ATOMIC);
 	if (!pevtcmd) {
 		kfree(pcmd_obj);
@@ -4844,7 +4831,7 @@ void report_join_res23a(struct rtw_adapter *padapter, int res)
 	if (!pcmd_obj)
 		return;
 
-	cmdsz = (sizeof(struct joinbss_event) + sizeof(struct C2HEvent_Header));
+	cmdsz = sizeof(struct joinbss_event) + sizeof(struct C2HEvent_Header);
 	pevtcmd = kzalloc(cmdsz, GFP_ATOMIC);
 	if (!pevtcmd) {
 		kfree(pcmd_obj);
@@ -4866,7 +4853,7 @@ void report_join_res23a(struct rtw_adapter *padapter, int res)
 	pjoinbss_evt = (struct joinbss_event*)(pevtcmd + sizeof(struct C2HEvent_Header));
 	memcpy((unsigned char *)&pjoinbss_evt->network.network,
 	       &pmlmeinfo->network, sizeof(struct wlan_bssid_ex));
-	pjoinbss_evt->network.join_res	= pjoinbss_evt->network.aid = res;
+	pjoinbss_evt->network.join_res = res;
 
 	DBG_8723A("report_join_res23a(%d)\n", res);
 
@@ -4894,7 +4881,7 @@ void report_del_sta_event23a(struct rtw_adapter *padapter,
 	if (!pcmd_obj)
 		return;
 
-	cmdsz = (sizeof(struct stadel_event) + sizeof(struct C2HEvent_Header));
+	cmdsz = sizeof(struct stadel_event) + sizeof(struct C2HEvent_Header);
 	pevtcmd = kzalloc(cmdsz, GFP_ATOMIC);
 	if (!pevtcmd) {
 		kfree(pcmd_obj);
@@ -4922,7 +4909,7 @@ void report_del_sta_event23a(struct rtw_adapter *padapter,
 	if (psta)
 		mac_id = (int)psta->mac_id;
 	else
-		mac_id = (-1);
+		mac_id = -1;
 
 	pdel_sta_evt->mac_id = mac_id;
 
@@ -4948,7 +4935,7 @@ void report_add_sta_event23a(struct rtw_adapter *padapter,
 	if (!pcmd_obj)
 		return;
 
-	cmdsz = (sizeof(struct stassoc_event) + sizeof(struct C2HEvent_Header));
+	cmdsz = sizeof(struct stassoc_event) + sizeof(struct C2HEvent_Header);
 	pevtcmd = kzalloc(cmdsz, GFP_ATOMIC);
 	if (!pevtcmd) {
 		kfree(pcmd_obj);
@@ -4995,8 +4982,7 @@ void update_sta_info23a(struct rtw_adapter *padapter, struct sta_info *psta)
 	VCS_update23a(padapter, psta);
 
 	/* HT */
-	if (pmlmepriv->htpriv.ht_option)
-	{
+	if (pmlmepriv->htpriv.ht_option) {
 		psta->htpriv.ht_option = true;
 
 		psta->htpriv.ampdu_enable = pmlmepriv->htpriv.ampdu_enable;
@@ -5006,9 +4992,7 @@ void update_sta_info23a(struct rtw_adapter *padapter, struct sta_info *psta)
 
 		psta->qos_option = true;
 
-	}
-	else
-	{
+	} else {
 		psta->htpriv.ht_option = false;
 
 		psta->htpriv.ampdu_enable = false;
@@ -5050,12 +5034,10 @@ void mlmeext_joinbss_event_callback23a(struct rtw_adapter *padapter,
 		goto exit_mlmeext_joinbss_event_callback23a;
 	}
 
-	if ((pmlmeinfo->state&0x03) == MSR_ADHOC)
-	{
+	if ((pmlmeinfo->state&0x03) == MSR_ADHOC) {
 		/* for bc/mc */
 		psta_bmc = rtw_get_bcmc_stainfo23a(padapter);
-		if (psta_bmc)
-		{
+		if (psta_bmc) {
 			pmlmeinfo->FW_sta_info[psta_bmc->mac_id].psta = psta_bmc;
 			update_bmc_sta_support_rate23a(padapter, psta_bmc->mac_id);
 			Update_RA_Entry23a(padapter, psta_bmc);
@@ -5086,8 +5068,7 @@ void mlmeext_joinbss_event_callback23a(struct rtw_adapter *padapter,
 	set_channel_bwmode23a(padapter, pmlmeext->cur_channel, pmlmeext->cur_ch_offset, pmlmeext->cur_bwmode);
 
 	psta = rtw_get_stainfo23a(pstapriv, cur_network->MacAddress);
-	if (psta) /* only for infra. mode */
-	{
+	if (psta) { /* only for infra. mode */
 		pmlmeinfo->FW_sta_info[psta->mac_id].psta = psta;
 
 		/* DBG_8723A("set_sta_rate23a\n"); */
@@ -5123,8 +5104,7 @@ void mlmeext_sta_add_event_callback23a(struct rtw_adapter *padapter,
 
 	if ((pmlmeinfo->state & 0x03) == MSR_ADHOC) {
 	/* adhoc master or sta_count>1 */
-		if (pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS)
-		{
+		if (pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS) {
 			/* nothing to do */
 		} else { /* adhoc client */
 			/*  correcting TSF */
@@ -5962,7 +5942,7 @@ int set_stakey_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 
 			/* 0~3 for default key, cmd_id = macid + 3,
 			   macid = aid+1; */
-			cam_id = (psta->mac_id + 3);
+			cam_id = psta->mac_id + 3;
 
 			DBG_8723A("Write CAM, mac_addr =%x:%x:%x:%x:%x:%x, "
 				  "cam_entry =%d\n", pparm->addr[0],
@@ -6077,7 +6057,7 @@ int mlme_evt_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	/*  checking if event code is valid */
 	if (evt_code >= MAX_C2HEVT) {
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
-			 ("\nEvent Code(%d) mismatch!\n", evt_code));
+			 "Event Code(%d) mismatch!\n", evt_code);
 		goto _abort_event_;
 	}
 
@@ -6085,8 +6065,8 @@ int mlme_evt_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	if (wlanevents[evt_code].parmsize != 0 &&
 	    wlanevents[evt_code].parmsize != evt_sz) {
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
-			 ("\nEvent(%d) Parm Size mismatch (%d vs %d)!\n",
-			  evt_code, wlanevents[evt_code].parmsize, evt_sz));
+			 "Event(%d) Parm Size mismatch (%d vs %d)!\n",
+			 evt_code, wlanevents[evt_code].parmsize, evt_sz);
 		goto _abort_event_;
 	}
 

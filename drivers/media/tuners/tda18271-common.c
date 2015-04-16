@@ -178,7 +178,7 @@ int tda18271_read_extended(struct dvb_frontend *fe)
 		    (i != R_EB17) &&
 		    (i != R_EB19) &&
 		    (i != R_EB20))
-		regs[i] = regdump[i];
+			regs[i] = regdump[i];
 	}
 
 	if (tda18271_debug & DBG_REG)

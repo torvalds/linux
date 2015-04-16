@@ -56,20 +56,6 @@ static int smartq_hifi_hw_params(struct snd_pcm_substream *substream,
 		break;
 	}
 
-	/* set codec DAI configuration */
-	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
-					     SND_SOC_DAIFMT_NB_NF |
-					     SND_SOC_DAIFMT_CBS_CFS);
-	if (ret < 0)
-		return ret;
-
-	/* set cpu DAI configuration */
-	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
-					   SND_SOC_DAIFMT_NB_NF |
-					   SND_SOC_DAIFMT_CBS_CFS);
-	if (ret < 0)
-		return ret;
-
 	/* Use PCLK for I2S signal generation */
 	ret = snd_soc_dai_set_sysclk(cpu_dai, SAMSUNG_I2S_RCLKSRC_0,
 					0, SND_SOC_CLOCK_IN);
@@ -165,13 +151,10 @@ static int smartq_wm8987_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_disable_pin(dapm, "Headphone Jack");
 
 	/* Headphone jack detection */
-	err = snd_soc_jack_new(codec, "Headphone Jack",
-			       SND_JACK_HEADPHONE, &smartq_jack);
-	if (err)
-		return err;
-
-	err = snd_soc_jack_add_pins(&smartq_jack, ARRAY_SIZE(smartq_jack_pins),
-				    smartq_jack_pins);
+	err = snd_soc_card_jack_new(rtd->card, "Headphone Jack",
+				    SND_JACK_HEADPHONE, &smartq_jack,
+				    smartq_jack_pins,
+				    ARRAY_SIZE(smartq_jack_pins));
 	if (err)
 		return err;
 
@@ -199,6 +182,8 @@ static struct snd_soc_dai_link smartq_dai[] = {
 		.platform_name	= "samsung-i2s.0",
 		.codec_name	= "wm8750.0-0x1a",
 		.init		= smartq_wm8987_init,
+		.dai_fmt	= SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+				  SND_SOC_DAIFMT_CBS_CFS,
 		.ops		= &smartq_hifi_ops,
 	},
 };

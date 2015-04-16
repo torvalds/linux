@@ -163,7 +163,7 @@ static struct irqaction pxa_ost0_irq = {
 	.dev_id		= &ckevt_pxa_osmr0,
 };
 
-static void pxa_timer_common_init(int irq, unsigned long clock_tick_rate)
+static void __init pxa_timer_common_init(int irq, unsigned long clock_tick_rate)
 {
 	timer_writel(0, OIER);
 	timer_writel(OSSR_M0 | OSSR_M1 | OSSR_M2 | OSSR_M3, OSSR);

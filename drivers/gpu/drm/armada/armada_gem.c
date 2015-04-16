@@ -226,7 +226,7 @@ struct armada_gem_object *armada_gem_alloc_object(struct drm_device *dev,
 
 	obj->dev_addr = DMA_ERROR_CODE;
 
-	mapping = obj->obj.filp->f_path.dentry->d_inode->i_mapping;
+	mapping = file_inode(obj->obj.filp)->i_mapping;
 	mapping_set_gfp_mask(mapping, GFP_HIGHUSER | __GFP_RECLAIMABLE);
 
 	DRM_DEBUG_DRIVER("alloc obj %p size %zu\n", obj, size);

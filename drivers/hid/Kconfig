@@ -27,7 +27,8 @@ if HID
 
 config HID_BATTERY_STRENGTH
 	bool "Battery level reporting for HID devices"
-	depends on HID && POWER_SUPPLY && HID = POWER_SUPPLY
+	depends on HID
+	select POWER_SUPPLY
 	default n
 	---help---
 	This option adds support of reporting battery strength (for HID devices
@@ -91,7 +92,7 @@ menu "Special HID drivers"
 	depends on HID
 
 config HID_A4TECH
-	tristate "A4 tech mice" if EXPERT
+	tristate "A4 tech mice"
 	depends on HID
 	default !EXPERT
 	---help---
@@ -112,7 +113,7 @@ config HID_ACRUX_FF
 	game controllers.
 
 config HID_APPLE
-	tristate "Apple {i,Power,Mac}Books" if EXPERT
+	tristate "Apple {i,Power,Mac}Books"
 	depends on HID
 	default !EXPERT
 	---help---
@@ -140,21 +141,31 @@ config HID_AUREAL
 	Support for Aureal Cy se W-01RN Remote Controller and other Aureal derived remotes.
 
 config HID_BELKIN
-	tristate "Belkin Flip KVM and Wireless keyboard" if EXPERT
+	tristate "Belkin Flip KVM and Wireless keyboard"
 	depends on HID
 	default !EXPERT
 	---help---
 	Support for Belkin Flip KVM and Wireless keyboard.
 
+config HID_BETOP_FF
+	tristate "Betop Production Inc. force feedback support"
+	depends on USB_HID
+	select INPUT_FF_MEMLESS
+	---help---
+	Say Y here if you want to enable force feedback support for devices by
+	BETOP Production Ltd.
+	Currently the following devices are known to be supported:
+	 - BETOP 2185 PC & BFM MODE
+
 config HID_CHERRY
-	tristate "Cherry Cymotion keyboard" if EXPERT
+	tristate "Cherry Cymotion keyboard"
 	depends on HID
 	default !EXPERT
 	---help---
 	Support for Cherry Cymotion keyboard.
 
 config HID_CHICONY
-	tristate "Chicony Tactical pad" if EXPERT
+	tristate "Chicony Tactical pad"
 	depends on HID
 	default !EXPERT
 	---help---
@@ -185,7 +196,7 @@ config HID_CP2112
 	customizable USB descriptor fields are exposed as sysfs attributes.
 
 config HID_CYPRESS
-	tristate "Cypress mouse and barcode readers" if EXPERT
+	tristate "Cypress mouse and barcode readers"
 	depends on HID
 	default !EXPERT
 	---help---
@@ -234,7 +245,7 @@ config HID_ELO
 	different devices than those handled by CONFIG_TOUCHSCREEN_USB_ELO.
 
 config HID_EZKEY
-	tristate "Ezkey BTC 8193 keyboard" if EXPERT
+	tristate "Ezkey BTC 8193 keyboard"
 	depends on HID
 	default !EXPERT
 	---help---
@@ -275,12 +286,6 @@ config HID_GT683R
 	Currently the following devices are know to be supported:
 	  - MSI GT683R
 
-config HID_HUION
-	tristate "Huion tablets"
-	depends on USB_HID
-	---help---
-	Support for Huion 580 tablet.
-
 config HID_KEYTOUCH
 	tristate "Keytouch HID devices"
 	depends on HID
@@ -301,9 +306,9 @@ config HID_KYE
 
 config HID_UCLOGIC
 	tristate "UC-Logic"
-	depends on HID
+	depends on USB_HID
 	---help---
-	Support for UC-Logic tablets.
+	Support for UC-Logic and Huion tablets.
 
 config HID_WALTOP
 	tristate "Waltop"
@@ -333,7 +338,7 @@ config HID_TWINHAN
 	Support for Twinhan IR remote control.
 
 config HID_KENSINGTON
-	tristate "Kensington Slimblade Trackball" if EXPERT
+	tristate "Kensington Slimblade Trackball"
 	depends on HID
 	default !EXPERT
 	---help---
@@ -361,7 +366,7 @@ config HID_LENOVO
 	- ThinkPad Compact USB Keyboard with TrackPoint (supports Fn keys)
 
 config HID_LOGITECH
-	tristate "Logitech devices" if EXPERT
+	tristate "Logitech devices"
 	depends on HID
 	default !EXPERT
 	---help---
@@ -371,12 +376,24 @@ config HID_LOGITECH_DJ
 	tristate "Logitech Unifying receivers full support"
 	depends on HIDRAW
 	depends on HID_LOGITECH
+	select HID_LOGITECH_HIDPP
 	---help---
 	Say Y if you want support for Logitech Unifying receivers and devices.
 	Unifying receivers are capable of pairing up to 6 Logitech compliant
 	devices to the same receiver. Without this driver it will be handled by
 	generic USB_HID driver and all incoming events will be multiplexed
 	into a single mouse and a single keyboard device.
+
+config HID_LOGITECH_HIDPP
+	tristate "Logitech HID++ devices support"
+	depends on HID_LOGITECH
+	---help---
+	Support for Logitech devices relyingon the HID++ Logitech specification
+
+	Say Y if you want support for Logitech devices relying on the HID++
+	specification. Such devices are the various Logitech Touchpads (T650,
+	T651, TK820), some mice (Zone Touch mouse), or even keyboards (Solar
+	Keyboard).
 
 config LOGITECH_FF
 	bool "Logitech force feedback support"
@@ -438,14 +455,14 @@ config HID_MAGICMOUSE
 	Apple Wireless "Magic" Mouse and the Apple Wireless "Magic" Trackpad.
 
 config HID_MICROSOFT
-	tristate "Microsoft non-fully HID-compliant devices" if EXPERT
+	tristate "Microsoft non-fully HID-compliant devices"
 	depends on HID
 	default !EXPERT
 	---help---
 	Support for Microsoft devices that are not fully compliant with HID standard.
 
 config HID_MONTEREY
-	tristate "Monterey Genius KB29E keyboard" if EXPERT
+	tristate "Monterey Genius KB29E keyboard"
 	depends on HID
 	default !EXPERT
 	---help---
@@ -613,6 +630,12 @@ config HID_PICOLCD_CIR
 	---help---
 	  Provide access to PicoLCD's CIR interface via remote control (LIRC).
 
+config HID_PLANTRONICS
+	tristate "Plantronics USB HID Driver"
+	depends on HID
+	---help---
+	Provides HID support for Plantronics telephony devices.
+
 config HID_PRIMAX
 	tristate "Primax non-fully HID-compliant devices"
 	depends on HID
@@ -629,7 +652,7 @@ config HID_ROCCAT
 	support for its special functionalities.
 
 config HID_SAITEK
-	tristate "Saitek non-fully HID-compliant devices"
+	tristate "Saitek (Mad Catz) non-fully HID-compliant devices"
 	depends on HID
 	---help---
 	Support for Saitek devices that are not fully compliant with the
@@ -637,6 +660,7 @@ config HID_SAITEK
 
 	Supported devices:
 	- PS1000 Dual Analog Pad
+	- R.A.T.9 Gaming Mouse
 	- R.A.T.7 Gaming Mouse
 	- M.M.O.7 Gaming Mouse
 
@@ -853,6 +877,21 @@ config HID_SENSOR_HUB
 	  drivers can use the service provided by this driver to register
 	  for events and handle data streams. Each sensor driver can format
 	  data and present to user mode using input or IIO interface.
+
+config HID_SENSOR_CUSTOM_SENSOR
+	tristate "HID Sensors hub custom sensor support"
+	depends on HID_SENSOR_HUB
+	default n
+	---help---
+	  HID Sensor hub specification allows definition of some custom and
+	  generic sensors. Unlike other HID sensors, they can't be exported
+	  via Linux IIO because of custom fields. This is up to the manufacturer
+	  to decide how to interpret these special sensor ids and process in
+	  the user space. Currently some manufacturers are using these ids for
+	  sensor calibration and debugging other sensors. Manufacturers
+	  should't use these special custom sensor ids to export any of the
+	  standard sensors.
+	  Select this config option for custom/generic sensor support.
 
 endmenu
 

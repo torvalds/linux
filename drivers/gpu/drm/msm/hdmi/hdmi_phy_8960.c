@@ -510,7 +510,7 @@ struct hdmi_phy *hdmi_phy_8960_init(struct hdmi *hdmi)
 
 #ifdef CONFIG_COMMON_CLK
 	phy_8960->pll_hw.init = &pll_init;
-	phy_8960->pll = devm_clk_register(hdmi->dev->dev, &phy_8960->pll_hw);
+	phy_8960->pll = devm_clk_register(&hdmi->pdev->dev, &phy_8960->pll_hw);
 	if (IS_ERR(phy_8960->pll)) {
 		ret = PTR_ERR(phy_8960->pll);
 		phy_8960->pll = NULL;

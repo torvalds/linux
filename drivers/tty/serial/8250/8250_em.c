@@ -102,10 +102,8 @@ static int serial8250_em_probe(struct platform_device *pdev)
 	}
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		dev_err(&pdev->dev, "unable to allocate private data\n");
+	if (!priv)
 		return -ENOMEM;
-	}
 
 	priv->sclk = devm_clk_get(&pdev->dev, "sclk");
 	if (IS_ERR(priv->sclk)) {
@@ -161,7 +159,6 @@ static struct platform_driver serial8250_em_platform_driver = {
 	.driver = {
 		.name		= "serial8250-em",
 		.of_match_table = serial8250_em_dt_ids,
-		.owner		= THIS_MODULE,
 	},
 	.probe			= serial8250_em_probe,
 	.remove			= serial8250_em_remove,

@@ -599,7 +599,6 @@ static SIMPLE_DEV_PM_OPS(ehrpwm_pwm_pm_ops, ehrpwm_pwm_suspend,
 static struct platform_driver ehrpwm_pwm_driver = {
 	.driver = {
 		.name	= "ehrpwm",
-		.owner	= THIS_MODULE,
 		.of_match_table = ehrpwm_of_match,
 		.pm	= &ehrpwm_pwm_pm_ops,
 	},

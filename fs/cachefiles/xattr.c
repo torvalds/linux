@@ -51,9 +51,8 @@ int cachefiles_check_object_type(struct cachefiles_object *object)
 	}
 
 	if (ret != -EEXIST) {
-		pr_err("Can't set xattr on %*.*s [%lu] (err %d)\n",
-		       dentry->d_name.len, dentry->d_name.len,
-		       dentry->d_name.name, dentry->d_inode->i_ino,
+		pr_err("Can't set xattr on %pd [%lu] (err %d)\n",
+		       dentry, dentry->d_inode->i_ino,
 		       -ret);
 		goto error;
 	}
@@ -64,9 +63,8 @@ int cachefiles_check_object_type(struct cachefiles_object *object)
 		if (ret == -ERANGE)
 			goto bad_type_length;
 
-		pr_err("Can't read xattr on %*.*s [%lu] (err %d)\n",
-		       dentry->d_name.len, dentry->d_name.len,
-		       dentry->d_name.name, dentry->d_inode->i_ino,
+		pr_err("Can't read xattr on %pd [%lu] (err %d)\n",
+		       dentry, dentry->d_inode->i_ino,
 		       -ret);
 		goto error;
 	}
@@ -92,9 +90,8 @@ bad_type_length:
 
 bad_type:
 	xtype[2] = 0;
-	pr_err("Cache object %*.*s [%lu] type %s not %s\n",
-	       dentry->d_name.len, dentry->d_name.len,
-	       dentry->d_name.name, dentry->d_inode->i_ino,
+	pr_err("Cache object %pd [%lu] type %s not %s\n",
+	       dentry, dentry->d_inode->i_ino,
 	       xtype, type);
 	ret = -EIO;
 	goto error;

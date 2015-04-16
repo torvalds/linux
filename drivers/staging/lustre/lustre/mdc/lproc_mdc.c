@@ -38,21 +38,22 @@
 #include <linux/vfs.h>
 #include "../include/obd_class.h"
 #include "../include/lprocfs_status.h"
+#include "mdc_internal.h"
 
 static int mdc_max_rpcs_in_flight_seq_show(struct seq_file *m, void *v)
 {
 	struct obd_device *dev = m->private;
 	struct client_obd *cli = &dev->u.cli;
-	int rc;
 
 	client_obd_list_lock(&cli->cl_loi_list_lock);
-	rc = seq_printf(m, "%u\n", cli->cl_max_rpcs_in_flight);
+	seq_printf(m, "%u\n", cli->cl_max_rpcs_in_flight);
 	client_obd_list_unlock(&cli->cl_loi_list_lock);
-	return rc;
+
+	return 0;
 }
 
 static ssize_t mdc_max_rpcs_in_flight_seq_write(struct file *file,
-						const char *buffer,
+						const char __user *buffer,
 						size_t count,
 						loff_t *off)
 {
@@ -82,8 +83,9 @@ static int mdc_kuc_open(struct inode *inode, struct file *file)
 }
 
 /* temporary for testing */
-static ssize_t mdc_kuc_write(struct file *file, const char *buffer,
-			     size_t count, loff_t *off)
+static ssize_t mdc_kuc_write(struct file *file,
+				const char __user *buffer,
+				size_t count, loff_t *off)
 {
 	struct obd_device *obd =
 			((struct seq_file *)file->private_data)->private;
@@ -105,6 +107,8 @@ static ssize_t mdc_kuc_write(struct file *file, const char *buffer,
 		/* for mockup below */ 2 * cfs_size_round(sizeof(*hai));
 
 	OBD_ALLOC(lh, len);
+	if (!lh)
+		return -ENOMEM;
 
 	lh->kuc_magic = KUC_MAGIC;
 	lh->kuc_transport = KUC_TRANSPORT_HSM;

@@ -18,6 +18,7 @@
 #include <linux/pm_domain.h>
 #include <linux/amba/bus.h>
 #include <linux/sizes.h>
+#include <linux/limits.h>
 
 #include <asm/irq.h>
 
@@ -43,6 +44,10 @@ static int amba_match(struct device *dev, struct device_driver *drv)
 	struct amba_device *pcdev = to_amba_device(dev);
 	struct amba_driver *pcdrv = to_amba_driver(drv);
 
+	/* When driver_override is set, only bind to the matching driver */
+	if (pcdev->driver_override)
+		return !strcmp(pcdev->driver_override, drv->name);
+
 	return amba_lookup(pcdrv->id_table, pcdev) != NULL;
 }
 
@@ -57,6 +62,47 @@ static int amba_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 	retval = add_uevent_var(env, "MODALIAS=amba:d%08X", pcdev->periphid);
 	return retval;
+}
+
+static ssize_t driver_override_show(struct device *_dev,
+				    struct device_attribute *attr, char *buf)
+{
+	struct amba_device *dev = to_amba_device(_dev);
+
+	if (!dev->driver_override)
+		return 0;
+
+	return sprintf(buf, "%s\n", dev->driver_override);
+}
+
+static ssize_t driver_override_store(struct device *_dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct amba_device *dev = to_amba_device(_dev);
+	char *driver_override, *old = dev->driver_override, *cp;
+
+	if (count > PATH_MAX)
+		return -EINVAL;
+
+	driver_override = kstrndup(buf, count, GFP_KERNEL);
+	if (!driver_override)
+		return -ENOMEM;
+
+	cp = strchr(driver_override, '\n');
+	if (cp)
+		*cp = '\0';
+
+	if (strlen(driver_override)) {
+		dev->driver_override = driver_override;
+	} else {
+	       kfree(driver_override);
+	       dev->driver_override = NULL;
+	}
+
+	kfree(old);
+
+	return count;
 }
 
 #define amba_attr_func(name,fmt,arg...)					\
@@ -81,6 +127,7 @@ amba_attr_func(resource, "\t%016llx\t%016llx\t%016lx\n",
 static struct device_attribute amba_dev_attrs[] = {
 	__ATTR_RO(id),
 	__ATTR_RO(resource),
+	__ATTR_RW(driver_override),
 	__ATTR_NULL,
 };
 
@@ -95,8 +142,12 @@ static int amba_pm_runtime_suspend(struct device *dev)
 	struct amba_device *pcdev = to_amba_device(dev);
 	int ret = pm_generic_runtime_suspend(dev);
 
-	if (ret == 0 && dev->driver)
-		clk_disable_unprepare(pcdev->pclk);
+	if (ret == 0 && dev->driver) {
+		if (pm_runtime_is_irq_safe(dev))
+			clk_disable(pcdev->pclk);
+		else
+			clk_disable_unprepare(pcdev->pclk);
+	}
 
 	return ret;
 }
@@ -107,7 +158,10 @@ static int amba_pm_runtime_resume(struct device *dev)
 	int ret;
 
 	if (dev->driver) {
-		ret = clk_prepare_enable(pcdev->pclk);
+		if (pm_runtime_is_irq_safe(dev))
+			ret = clk_enable(pcdev->pclk);
+		else
+			ret = clk_prepare_enable(pcdev->pclk);
 		/* Failure is probably fatal to the system, but... */
 		if (ret)
 			return ret;
@@ -115,7 +169,7 @@ static int amba_pm_runtime_resume(struct device *dev)
 
 	return pm_generic_runtime_resume(dev);
 }
-#endif
+#endif /* CONFIG_PM */
 
 static const struct dev_pm_ops amba_pm = {
 	.suspend	= pm_generic_suspend,
@@ -124,7 +178,7 @@ static const struct dev_pm_ops amba_pm = {
 	.thaw		= pm_generic_thaw,
 	.poweroff	= pm_generic_poweroff,
 	.restore	= pm_generic_restore,
-	SET_PM_RUNTIME_PM_OPS(
+	SET_RUNTIME_PM_OPS(
 		amba_pm_runtime_suspend,
 		amba_pm_runtime_resume,
 		NULL
@@ -336,7 +390,7 @@ int amba_device_add(struct amba_device *dev, struct resource *parent)
 
 		amba_put_disable_pclk(dev);
 
-		if (cid == AMBA_CID)
+		if (cid == AMBA_CID || cid == CORESIGHT_CID)
 			dev->periphid = pid;
 
 		if (!dev->periphid)

@@ -26,7 +26,6 @@
  */
 struct thread_info {
 	struct task_struct	*task;		/* main task structure */
-	struct exec_domain	*exec_domain;	/* execution domain */
 	unsigned long		flags;		/* low level flags */
 	unsigned long		status;		/* thread-synchronous flags */
 	__u32			homecache_cpu;	/* CPU we are homecached on */
@@ -36,7 +35,6 @@ struct thread_info {
 
 	mm_segment_t		addr_limit;	/* thread address space
 						   (KERNEL_DS or USER_DS) */
-	struct restart_block	restart_block;
 	struct single_step_state *step_state;	/* single step state
 						   (if non-zero) */
 	int			align_ctl;	/* controls unaligned access */
@@ -52,14 +50,10 @@ struct thread_info {
 #define INIT_THREAD_INFO(tsk)			\
 {						\
 	.task		= &tsk,			\
-	.exec_domain	= &default_exec_domain,	\
 	.flags		= 0,			\
 	.cpu		= 0,			\
 	.preempt_count	= INIT_PREEMPT_COUNT,	\
 	.addr_limit	= KERNEL_DS,		\
-	.restart_block	= {			\
-		.fn = do_no_restart_syscall,	\
-	},					\
 	.step_state	= NULL,			\
 	.align_ctl	= 0,			\
 }

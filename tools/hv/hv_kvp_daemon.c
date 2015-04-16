@@ -43,6 +43,7 @@
 #include <fcntl.h>
 #include <dirent.h>
 #include <net/if.h>
+#include <getopt.h>
 
 /*
  * KVP protocol: The user mode component first registers with the
@@ -146,7 +147,6 @@ static void kvp_release_lock(int pool)
 static void kvp_update_file(int pool)
 {
 	FILE *filep;
-	size_t bytes_written;
 
 	/*
 	 * We are going to write our in-memory registry out to
@@ -162,8 +162,7 @@ static void kvp_update_file(int pool)
 		exit(EXIT_FAILURE);
 	}
 
-	bytes_written = fwrite(kvp_file_info[pool].records,
-				sizeof(struct kvp_record),
+	fwrite(kvp_file_info[pool].records, sizeof(struct kvp_record),
 				kvp_file_info[pool].num_records, filep);
 
 	if (ferror(filep) || fclose(filep)) {
@@ -309,7 +308,7 @@ static int kvp_file_init(void)
 	return 0;
 }
 
-static int kvp_key_delete(int pool, const char *key, int key_size)
+static int kvp_key_delete(int pool, const __u8 *key, int key_size)
 {
 	int i;
 	int j, k;
@@ -352,8 +351,8 @@ static int kvp_key_delete(int pool, const char *key, int key_size)
 	return 1;
 }
 
-static int kvp_key_add_or_modify(int pool, const char *key, int key_size, const char *value,
-			int value_size)
+static int kvp_key_add_or_modify(int pool, const __u8 *key, int key_size,
+				 const __u8 *value, int value_size)
 {
 	int i;
 	int num_records;
@@ -406,7 +405,7 @@ static int kvp_key_add_or_modify(int pool, const char *key, int key_size, const 
 	return 0;
 }
 
-static int kvp_get_value(int pool, const char *key, int key_size, char *value,
+static int kvp_get_value(int pool, const __u8 *key, int key_size, __u8 *value,
 			int value_size)
 {
 	int i;
@@ -438,8 +437,8 @@ static int kvp_get_value(int pool, const char *key, int key_size, char *value,
 	return 1;
 }
 
-static int kvp_pool_enumerate(int pool, int index, char *key, int key_size,
-				char *value, int value_size)
+static int kvp_pool_enumerate(int pool, int index, __u8 *key, int key_size,
+				__u8 *value, int value_size)
 {
 	struct kvp_record *record;
 
@@ -660,7 +659,7 @@ static char *kvp_if_name_to_mac(char *if_name)
 	char    *p, *x;
 	char    buf[256];
 	char addr_file[256];
-	int i;
+	unsigned int i;
 	char *mac_addr = NULL;
 
 	snprintf(addr_file, sizeof(addr_file), "%s%s%s", "/sys/class/net/",
@@ -699,7 +698,7 @@ static char *kvp_mac_to_if_name(char *mac)
 	char    buf[256];
 	char *kvp_net_dir = "/sys/class/net/";
 	char dev_id[256];
-	int i;
+	unsigned int i;
 
 	dir = opendir(kvp_net_dir);
 	if (dir == NULL)
@@ -749,7 +748,7 @@ static char *kvp_mac_to_if_name(char *mac)
 
 
 static void kvp_process_ipconfig_file(char *cmd,
-					char *config_buf, int len,
+					char *config_buf, unsigned int len,
 					int element_size, int offset)
 {
 	char buf[256];
@@ -767,7 +766,7 @@ static void kvp_process_ipconfig_file(char *cmd,
 	if (offset == 0)
 		memset(config_buf, 0, len);
 	while ((p = fgets(buf, sizeof(buf), file)) != NULL) {
-		if ((len - strlen(config_buf)) < (element_size + 1))
+		if (len < strlen(config_buf) + element_size + 1)
 			break;
 
 		x = strchr(p, '\n');
@@ -915,7 +914,7 @@ static int kvp_process_ip_address(void *addrp,
 
 static int
 kvp_get_ip_info(int family, char *if_name, int op,
-		 void  *out_buffer, int length)
+		 void  *out_buffer, unsigned int length)
 {
 	struct ifaddrs *ifap;
 	struct ifaddrs *curp;
@@ -1018,8 +1017,7 @@ kvp_get_ip_info(int family, char *if_name, int op,
 					weight += hweight32(&w[i]);
 
 				sprintf(cidr_mask, "/%d", weight);
-				if ((length - sn_offset) <
-					(strlen(cidr_mask) + 1))
+				if (length < sn_offset + strlen(cidr_mask) + 1)
 					goto gather_ipaddr;
 
 				if (sn_offset == 0)
@@ -1307,15 +1305,16 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 	if (error)
 		goto setval_error;
 
+	/*
+	 * The dhcp_enabled flag is only for IPv4. In the case the host only
+	 * injects an IPv6 address, the flag is true, but we still need to
+	 * proceed to parse and pass the IPv6 information to the
+	 * disto-specific script hv_set_ifconfig.
+	 */
 	if (new_val->dhcp_enabled) {
 		error = kvp_write_file(file, "BOOTPROTO", "", "dhcp");
 		if (error)
 			goto setval_error;
-
-		/*
-		 * We are done!.
-		 */
-		goto setval_done;
 
 	} else {
 		error = kvp_write_file(file, "BOOTPROTO", "", "none");
@@ -1344,7 +1343,6 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 	if (error)
 		goto setval_error;
 
-setval_done:
 	fclose(file);
 
 	/*
@@ -1417,7 +1415,15 @@ netlink_send(int fd, struct cn_msg *msg)
 	return sendmsg(fd, &message, 0);
 }
 
-int main(void)
+void print_usage(char *argv[])
+{
+	fprintf(stderr, "Usage: %s [options]\n"
+		"Options are:\n"
+		"  -n, --no-daemon        stay in foreground, don't daemonize\n"
+		"  -h, --help             print this help\n", argv[0]);
+}
+
+int main(int argc, char *argv[])
 {
 	int fd, len, nl_group;
 	int error;
@@ -1435,9 +1441,30 @@ int main(void)
 	struct hv_kvp_ipaddr_value *kvp_ip_val;
 	char *kvp_recv_buffer;
 	size_t kvp_recv_buffer_len;
+	int daemonize = 1, long_index = 0, opt;
 
-	if (daemon(1, 0))
+	static struct option long_options[] = {
+		{"help",	no_argument,	   0,  'h' },
+		{"no-daemon",	no_argument,	   0,  'n' },
+		{0,		0,		   0,  0   }
+	};
+
+	while ((opt = getopt_long(argc, argv, "hn", long_options,
+				  &long_index)) != -1) {
+		switch (opt) {
+		case 'n':
+			daemonize = 0;
+			break;
+		case 'h':
+		default:
+			print_usage(argv);
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	if (daemonize && daemon(1, 0))
 		return 1;
+
 	openlog("KVP", 0, LOG_USER);
 	syslog(LOG_INFO, "KVP starting; pid is:%d", getpid());
 
@@ -1529,8 +1556,15 @@ int main(void)
 				addr_p, &addr_l);
 
 		if (len < 0) {
+			int saved_errno = errno;
 			syslog(LOG_ERR, "recvfrom failed; pid:%u error:%d %s",
 					addr.nl_pid, errno, strerror(errno));
+
+			if (saved_errno == ENOBUFS) {
+				syslog(LOG_ERR, "receive error: ignored");
+				continue;
+			}
+
 			close(fd);
 			return -1;
 		}
@@ -1733,8 +1767,15 @@ kvp_done:
 
 		len = netlink_send(fd, incoming_cn_msg);
 		if (len < 0) {
+			int saved_errno = errno;
 			syslog(LOG_ERR, "net_link send failed; error: %d %s", errno,
 					strerror(errno));
+
+			if (saved_errno == ENOMEM || saved_errno == ENOBUFS) {
+				syslog(LOG_ERR, "send error: ignored");
+				continue;
+			}
+
 			exit(EXIT_FAILURE);
 		}
 	}

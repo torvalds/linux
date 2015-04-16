@@ -98,7 +98,7 @@
 #endif
 #if !defined (CONFIG_ARM_LPAE) && \
 	(L_PTE_XN+L_PTE_USER+L_PTE_RDONLY+L_PTE_DIRTY+L_PTE_YOUNG+\
-	 L_PTE_FILE+L_PTE_PRESENT) > L_PTE_SHARED
+	 L_PTE_PRESENT) > L_PTE_SHARED
 #error Invalid Linux PTE bit settings
 #endif
 #endif	/* CONFIG_MMU */
@@ -330,4 +330,32 @@ ENTRY(\name\()_tlb_fns)
 .macro globl_equ x, y
 	.globl	\x
 	.equ	\x, \y
+.endm
+
+.macro	initfn, func, base
+	.long	\func - \base
+.endm
+
+	/*
+	 * Macro to calculate the log2 size for the protection region
+	 * registers. This calculates rd = log2(size) - 1.  tmp must
+	 * not be the same register as rd.
+	 */
+.macro	pr_sz, rd, size, tmp
+	mov	\tmp, \size, lsr #12
+	mov	\rd, #11
+1:	movs	\tmp, \tmp, lsr #1
+	addne	\rd, \rd, #1
+	bne	1b
+.endm
+
+	/*
+	 * Macro to generate a protection region register value
+	 * given a pre-masked address, size, and enable bit.
+	 * Corrupts size.
+	 */
+.macro	pr_val, dest, addr, size, enable
+	pr_sz	\dest, \size, \size		@ calculate log2(size) - 1
+	orr	\dest, \addr, \dest, lsl #1	@ mask in the region size
+	orr	\dest, \dest, \enable
 .endm

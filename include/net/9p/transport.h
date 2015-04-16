@@ -34,7 +34,6 @@
  * @list: used to maintain a list of currently available transports
  * @name: the human-readable name of the transport
  * @maxsize: transport provided maximum packet size
- * @pref: Preferences of this transport
  * @def: set if this transport should be considered the default
  * @create: member function to create a new connection on this transport
  * @close: member function to discard a connection on this transport
@@ -62,7 +61,7 @@ struct p9_trans_module {
 	int (*cancel) (struct p9_client *, struct p9_req_t *req);
 	int (*cancelled)(struct p9_client *, struct p9_req_t *req);
 	int (*zc_request)(struct p9_client *, struct p9_req_t *,
-			  char *, char *, int , int, int, int);
+			  struct iov_iter *, struct iov_iter *, int , int, int);
 };
 
 void v9fs_register_trans(struct p9_trans_module *m);

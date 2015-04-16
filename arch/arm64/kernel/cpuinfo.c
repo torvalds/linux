@@ -18,6 +18,7 @@
 #include <asm/cachetype.h>
 #include <asm/cpu.h>
 #include <asm/cputype.h>
+#include <asm/cpufeature.h>
 
 #include <linux/bitops.h>
 #include <linux/bug.h>
@@ -34,6 +35,7 @@
  */
 DEFINE_PER_CPU(struct cpuinfo_arm64, cpu_data);
 static struct cpuinfo_arm64 boot_cpu_data;
+static bool mixed_endian_el0 = true;
 
 static char *icache_policy_str[] = {
 	[ICACHE_POLICY_RESERVED] = "RESERVED/UNKNOWN",
@@ -65,6 +67,26 @@ static void cpuinfo_detect_icache_policy(struct cpuinfo_arm64 *info)
 		set_bit(ICACHEF_AIVIVT, &__icache_flags);
 
 	pr_info("Detected %s I-cache on CPU%d\n", icache_policy_str[l1ip], cpu);
+}
+
+bool cpu_supports_mixed_endian_el0(void)
+{
+	return id_aa64mmfr0_mixed_endian_el0(read_cpuid(ID_AA64MMFR0_EL1));
+}
+
+bool system_supports_mixed_endian_el0(void)
+{
+	return mixed_endian_el0;
+}
+
+static void update_mixed_endian_el0_support(struct cpuinfo_arm64 *info)
+{
+	mixed_endian_el0 &= id_aa64mmfr0_mixed_endian_el0(info->reg_id_aa64mmfr0);
+}
+
+static void update_cpu_features(struct cpuinfo_arm64 *info)
+{
+	update_mixed_endian_el0_support(info);
 }
 
 static int check_reg_mask(char *name, u64 mask, u64 boot, u64 cur, int cpu)
@@ -111,6 +133,15 @@ static void cpuinfo_sanity_check(struct cpuinfo_arm64 *cur)
 	diff |= CHECK(cntfrq, boot, cur, cpu);
 
 	/*
+	 * The kernel uses self-hosted debug features and expects CPUs to
+	 * support identical debug features. We presently need CTX_CMPs, WRPs,
+	 * and BRPs to be identical.
+	 * ID_AA64DFR1 is currently RES0.
+	 */
+	diff |= CHECK(id_aa64dfr0, boot, cur, cpu);
+	diff |= CHECK(id_aa64dfr1, boot, cur, cpu);
+
+	/*
 	 * Even in big.LITTLE, processors should be identical instruction-set
 	 * wise.
 	 */
@@ -137,25 +168,35 @@ static void cpuinfo_sanity_check(struct cpuinfo_arm64 *cur)
 	 * If we have AArch32, we care about 32-bit features for compat. These
 	 * registers should be RES0 otherwise.
 	 */
+	diff |= CHECK(id_dfr0, boot, cur, cpu);
 	diff |= CHECK(id_isar0, boot, cur, cpu);
 	diff |= CHECK(id_isar1, boot, cur, cpu);
 	diff |= CHECK(id_isar2, boot, cur, cpu);
 	diff |= CHECK(id_isar3, boot, cur, cpu);
 	diff |= CHECK(id_isar4, boot, cur, cpu);
 	diff |= CHECK(id_isar5, boot, cur, cpu);
-	diff |= CHECK(id_mmfr0, boot, cur, cpu);
+	/*
+	 * Regardless of the value of the AuxReg field, the AIFSR, ADFSR, and
+	 * ACTLR formats could differ across CPUs and therefore would have to
+	 * be trapped for virtualization anyway.
+	 */
+	diff |= CHECK_MASK(id_mmfr0, 0xff0fffff, boot, cur, cpu);
 	diff |= CHECK(id_mmfr1, boot, cur, cpu);
 	diff |= CHECK(id_mmfr2, boot, cur, cpu);
 	diff |= CHECK(id_mmfr3, boot, cur, cpu);
 	diff |= CHECK(id_pfr0, boot, cur, cpu);
 	diff |= CHECK(id_pfr1, boot, cur, cpu);
 
+	diff |= CHECK(mvfr0, boot, cur, cpu);
+	diff |= CHECK(mvfr1, boot, cur, cpu);
+	diff |= CHECK(mvfr2, boot, cur, cpu);
+
 	/*
 	 * Mismatched CPU features are a recipe for disaster. Don't even
 	 * pretend to support them.
 	 */
 	WARN_TAINT_ONCE(diff, TAINT_CPU_OUT_OF_SPEC,
-			"Unsupported CPU feature variation.");
+			"Unsupported CPU feature variation.\n");
 }
 
 static void __cpuinfo_store_cpu(struct cpuinfo_arm64 *info)
@@ -165,6 +206,8 @@ static void __cpuinfo_store_cpu(struct cpuinfo_arm64 *info)
 	info->reg_dczid = read_cpuid(DCZID_EL0);
 	info->reg_midr = read_cpuid_id();
 
+	info->reg_id_aa64dfr0 = read_cpuid(ID_AA64DFR0_EL1);
+	info->reg_id_aa64dfr1 = read_cpuid(ID_AA64DFR1_EL1);
 	info->reg_id_aa64isar0 = read_cpuid(ID_AA64ISAR0_EL1);
 	info->reg_id_aa64isar1 = read_cpuid(ID_AA64ISAR1_EL1);
 	info->reg_id_aa64mmfr0 = read_cpuid(ID_AA64MMFR0_EL1);
@@ -172,6 +215,7 @@ static void __cpuinfo_store_cpu(struct cpuinfo_arm64 *info)
 	info->reg_id_aa64pfr0 = read_cpuid(ID_AA64PFR0_EL1);
 	info->reg_id_aa64pfr1 = read_cpuid(ID_AA64PFR1_EL1);
 
+	info->reg_id_dfr0 = read_cpuid(ID_DFR0_EL1);
 	info->reg_id_isar0 = read_cpuid(ID_ISAR0_EL1);
 	info->reg_id_isar1 = read_cpuid(ID_ISAR1_EL1);
 	info->reg_id_isar2 = read_cpuid(ID_ISAR2_EL1);
@@ -185,7 +229,14 @@ static void __cpuinfo_store_cpu(struct cpuinfo_arm64 *info)
 	info->reg_id_pfr0 = read_cpuid(ID_PFR0_EL1);
 	info->reg_id_pfr1 = read_cpuid(ID_PFR1_EL1);
 
+	info->reg_mvfr0 = read_cpuid(MVFR0_EL1);
+	info->reg_mvfr1 = read_cpuid(MVFR1_EL1);
+	info->reg_mvfr2 = read_cpuid(MVFR2_EL1);
+
 	cpuinfo_detect_icache_policy(info);
+
+	check_local_cpu_errata();
+	update_cpu_features(info);
 }
 
 void cpuinfo_store_cpu(void)
@@ -201,16 +252,4 @@ void __init cpuinfo_store_boot_cpu(void)
 	__cpuinfo_store_cpu(info);
 
 	boot_cpu_data = *info;
-}
-
-u64 __attribute_const__ icache_get_ccsidr(void)
-{
-	u64 ccsidr;
-
-	WARN_ON(preemptible());
-
-	/* Select L1 I-cache and read its size ID register */
-	asm("msr csselr_el1, %1; isb; mrs %0, ccsidr_el1"
-	    : "=r"(ccsidr) : "r"(1L));
-	return ccsidr;
 }

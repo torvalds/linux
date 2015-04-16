@@ -27,6 +27,7 @@
 #include <linux/of.h>
 #include <linux/reset.h>
 #include <linux/regulator/consumer.h>
+#include <soc/tegra/fuse.h>
 #include <soc/tegra/pmc.h>
 
 #include "nouveau_drm.h"
@@ -128,6 +129,7 @@ static int nouveau_platform_probe(struct platform_device *pdev)
 	}
 
 	device->gpu = gpu;
+	device->gpu_speedo = tegra_sku_info.gpu_speedo_value;
 
 	err = drm_dev_register(drm, 0);
 	if (err < 0)
@@ -150,7 +152,7 @@ static int nouveau_platform_remove(struct platform_device *pdev)
 {
 	struct drm_device *drm_dev = platform_get_drvdata(pdev);
 	struct nouveau_drm *drm = nouveau_drm(drm_dev);
-	struct nouveau_device *device = nvkm_device(&drm->device);
+	struct nvkm_device *device = nvxx_device(&drm->device);
 	struct nouveau_platform_gpu *gpu = nv_device_to_platform(device)->gpu;
 
 	nouveau_drm_device_remove(drm_dev);
@@ -175,9 +177,3 @@ struct platform_driver nouveau_platform_driver = {
 	.probe = nouveau_platform_probe,
 	.remove = nouveau_platform_remove,
 };
-
-module_platform_driver(nouveau_platform_driver);
-
-MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_LICENSE("GPL and additional rights");

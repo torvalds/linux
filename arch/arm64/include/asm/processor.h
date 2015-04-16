@@ -31,6 +31,7 @@
 
 #include <asm/fpsimd.h>
 #include <asm/hw_breakpoint.h>
+#include <asm/pgtable-hwdef.h>
 #include <asm/ptrace.h>
 #include <asm/types.h>
 
@@ -44,7 +45,8 @@
 #define STACK_TOP		STACK_TOP_MAX
 #endif /* CONFIG_COMPAT */
 
-#define ARCH_LOW_ADDRESS_LIMIT	PHYS_MASK
+extern phys_addr_t arm64_dma_phys_limit;
+#define ARCH_LOW_ADDRESS_LIMIT	(arm64_dma_phys_limit - 1)
 #endif /* __KERNEL__ */
 
 struct debug_info {
@@ -122,9 +124,6 @@ struct task_struct;
 
 /* Free all resources held by a thread. */
 extern void release_thread(struct task_struct *);
-
-/* Prepare to copy thread state - unlazy all lazy status */
-#define prepare_to_copy(tsk)	do { } while (0)
 
 unsigned long get_wchan(struct task_struct *p);
 

@@ -579,6 +579,17 @@ static const struct dmi_system_id video_vendor_dmi_table[] __initconst = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 5741"),
 		},
 	},
+	{
+		/*
+		 * Note no video_set_backlight_video_vendor, we must use the
+		 * acer interface, as there is no native backlight interface.
+		 */
+		.ident = "Acer KAV80",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "KAV80"),
+		},
+	},
 	{}
 };
 
@@ -2106,7 +2117,6 @@ static void acer_platform_shutdown(struct platform_device *device)
 static struct platform_driver acer_platform_driver = {
 	.driver = {
 		.name = "acer-wmi",
-		.owner = THIS_MODULE,
 		.pm = &acer_pm,
 	},
 	.probe = acer_platform_probe,

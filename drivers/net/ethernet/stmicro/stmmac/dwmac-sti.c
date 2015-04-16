@@ -1,4 +1,4 @@
-/**
+/*
  * dwmac-sti.c - STMicroelectronics DWMAC Specific Glue layer
  *
  * Copyright (C) 2003-2014 STMicroelectronics (R&D) Limited
@@ -22,6 +22,8 @@
 #include <linux/of.h>
 #include <linux/of_net.h>
 
+#include "stmmac_platform.h"
+
 #define DWMAC_125MHZ	125000000
 #define DWMAC_50MHZ	50000000
 #define DWMAC_25MHZ	25000000
@@ -35,9 +37,8 @@
 #define IS_PHY_IF_MODE_GBIT(iface)	(IS_PHY_IF_MODE_RGMII(iface) || \
 					 iface == PHY_INTERFACE_MODE_GMII)
 
-/* STiH4xx register definitions (STiH415/STiH416/STiH407/STiH410 families) */
-
-/**
+/* STiH4xx register definitions (STiH415/STiH416/STiH407/STiH410 families)
+ *
  * Below table summarizes the clock requirement and clock sources for
  * supported phy interface modes with link speeds.
  * ________________________________________________
@@ -76,9 +77,7 @@
 #define STIH4XX_ETH_SEL_INTERNAL_NOTEXT_PHYCLK	BIT(7)
 #define STIH4XX_ETH_SEL_TXCLK_NOT_CLK125	BIT(6)
 
-/* STiD127 register definitions */
-
-/**
+/* STiD127 register definitions
  *-----------------------
  * src	 |BIT(6)| BIT(7)|
  *-----------------------
@@ -104,13 +103,13 @@
 #define EN_MASK		GENMASK(1, 1)
 #define EN		BIT(1)
 
-/**
+/*
  * 3 bits [4:2]
  *	000-GMII/MII
  *	001-RGMII
  *	010-SGMII
  *	100-RMII
-*/
+ */
 #define MII_PHY_SEL_MASK	GENMASK(4, 2)
 #define ETH_PHY_SEL_RMII	BIT(4)
 #define ETH_PHY_SEL_SGMII	BIT(3)
@@ -123,7 +122,7 @@ struct sti_dwmac {
 	bool ext_phyclk;	/* Clock from external PHY */
 	u32 tx_retime_src;	/* TXCLK Retiming*/
 	struct clk *clk;	/* PHY clock */
-	int ctrl_reg;		/* GMAC glue-logic control register */
+	u32 ctrl_reg;		/* GMAC glue-logic control register */
 	int clk_sel_reg;	/* GMAC ext clk selection register */
 	struct device *dev;
 	struct regmap *regmap;
@@ -286,11 +285,6 @@ static int sti_dwmac_parse_data(struct sti_dwmac *dwmac,
 	if (!np)
 		return -EINVAL;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "sti-ethconf");
-	if (!res)
-		return -ENODATA;
-	dwmac->ctrl_reg = res->start;
-
 	/* clk selection from extra syscfg register */
 	dwmac->clk_sel_reg = -ENXIO;
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "sti-clkconf");
@@ -301,6 +295,12 @@ static int sti_dwmac_parse_data(struct sti_dwmac *dwmac,
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
+	err = of_property_read_u32_index(np, "st,syscon", 1, &dwmac->ctrl_reg);
+	if (err) {
+		dev_err(dev, "Can't get sysconfig ctrl offset (%d)\n", err);
+		return err;
+	}
+
 	dwmac->dev = dev;
 	dwmac->interface = of_get_phy_mode(np);
 	dwmac->regmap = regmap;
@@ -310,16 +310,16 @@ static int sti_dwmac_parse_data(struct sti_dwmac *dwmac,
 
 	if (IS_PHY_IF_MODE_GBIT(dwmac->interface)) {
 		const char *rs;
-		dwmac->tx_retime_src = TX_RETIME_SRC_CLKGEN;
 
 		err = of_property_read_string(np, "st,tx-retime-src", &rs);
-		if (err < 0)
+		if (err < 0) {
 			dev_warn(dev, "Use internal clock source\n");
-
-		if (!strcasecmp(rs, "clk_125"))
+			dwmac->tx_retime_src = TX_RETIME_SRC_CLKGEN;
+		} else if (!strcasecmp(rs, "clk_125")) {
 			dwmac->tx_retime_src = TX_RETIME_SRC_CLK_125;
-		else if (!strcasecmp(rs, "txclk"))
+		} else if (!strcasecmp(rs, "txclk")) {
 			dwmac->tx_retime_src = TX_RETIME_SRC_TXCLK;
+		}
 
 		dwmac->speed = SPEED_1000;
 	}

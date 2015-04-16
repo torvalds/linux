@@ -43,7 +43,7 @@ void irlan_filter_request(struct irlan_cb *self, struct sk_buff *skb)
 	if ((self->provider.filter_type == IRLAN_DIRECTED) &&
 	    (self->provider.filter_operation == DYNAMIC))
 	{
-		IRDA_DEBUG(0, "Giving peer a dynamic Ethernet address\n");
+		pr_debug("Giving peer a dynamic Ethernet address\n");
 		self->provider.mac_address[0] = 0x40;
 		self->provider.mac_address[1] = 0x00;
 		self->provider.mac_address[2] = 0x00;
@@ -73,7 +73,7 @@ void irlan_filter_request(struct irlan_cb *self, struct sk_buff *skb)
 	if ((self->provider.filter_type == IRLAN_DIRECTED) &&
 	    (self->provider.filter_mode == FILTER))
 	{
-		IRDA_DEBUG(0, "Directed filter on\n");
+		pr_debug("Directed filter on\n");
 		skb->data[0] = 0x00; /* Success */
 		skb->data[1] = 0x00;
 		return;
@@ -81,7 +81,7 @@ void irlan_filter_request(struct irlan_cb *self, struct sk_buff *skb)
 	if ((self->provider.filter_type == IRLAN_DIRECTED) &&
 	    (self->provider.filter_mode == NONE))
 	{
-		IRDA_DEBUG(0, "Directed filter off\n");
+		pr_debug("Directed filter off\n");
 		skb->data[0] = 0x00; /* Success */
 		skb->data[1] = 0x00;
 		return;
@@ -90,7 +90,7 @@ void irlan_filter_request(struct irlan_cb *self, struct sk_buff *skb)
 	if ((self->provider.filter_type == IRLAN_BROADCAST) &&
 	    (self->provider.filter_mode == FILTER))
 	{
-		IRDA_DEBUG(0, "Broadcast filter on\n");
+		pr_debug("Broadcast filter on\n");
 		skb->data[0] = 0x00; /* Success */
 		skb->data[1] = 0x00;
 		return;
@@ -98,7 +98,7 @@ void irlan_filter_request(struct irlan_cb *self, struct sk_buff *skb)
 	if ((self->provider.filter_type == IRLAN_BROADCAST) &&
 	    (self->provider.filter_mode == NONE))
 	{
-		IRDA_DEBUG(0, "Broadcast filter off\n");
+		pr_debug("Broadcast filter off\n");
 		skb->data[0] = 0x00; /* Success */
 		skb->data[1] = 0x00;
 		return;
@@ -106,7 +106,7 @@ void irlan_filter_request(struct irlan_cb *self, struct sk_buff *skb)
 	if ((self->provider.filter_type == IRLAN_MULTICAST) &&
 	    (self->provider.filter_mode == FILTER))
 	{
-		IRDA_DEBUG(0, "Multicast filter on\n");
+		pr_debug("Multicast filter on\n");
 		skb->data[0] = 0x00; /* Success */
 		skb->data[1] = 0x00;
 		return;
@@ -114,7 +114,7 @@ void irlan_filter_request(struct irlan_cb *self, struct sk_buff *skb)
 	if ((self->provider.filter_type == IRLAN_MULTICAST) &&
 	    (self->provider.filter_mode == NONE))
 	{
-		IRDA_DEBUG(0, "Multicast filter off\n");
+		pr_debug("Multicast filter off\n");
 		skb->data[0] = 0x00; /* Success */
 		skb->data[1] = 0x00;
 		return;
@@ -122,7 +122,7 @@ void irlan_filter_request(struct irlan_cb *self, struct sk_buff *skb)
 	if ((self->provider.filter_type == IRLAN_MULTICAST) &&
 	    (self->provider.filter_operation == GET))
 	{
-		IRDA_DEBUG(0, "Multicast filter get\n");
+		pr_debug("Multicast filter get\n");
 		skb->data[0] = 0x00; /* Success? */
 		skb->data[1] = 0x02;
 		irlan_insert_string_param(skb, "FILTER_MODE", "NONE");
@@ -132,7 +132,7 @@ void irlan_filter_request(struct irlan_cb *self, struct sk_buff *skb)
 	skb->data[0] = 0x00; /* Command not supported */
 	skb->data[1] = 0x00;
 
-	IRDA_DEBUG(0, "Not implemented!\n");
+	pr_debug("Not implemented!\n");
 }
 
 /*
@@ -143,18 +143,15 @@ void irlan_filter_request(struct irlan_cb *self, struct sk_buff *skb)
  */
 void irlan_check_command_param(struct irlan_cb *self, char *param, char *value)
 {
-	IRDA_DEBUG(4, "%s()\n", __func__ );
-
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);
 
-	IRDA_DEBUG(4, "%s, %s\n", param, value);
+	pr_debug("%s, %s\n", param, value);
 
 	/*
 	 *  This is experimental!! DB.
 	 */
 	 if (strcmp(param, "MODE") == 0) {
-		IRDA_DEBUG(0, "%s()\n", __func__ );
 		self->use_udata = TRUE;
 		return;
 	}

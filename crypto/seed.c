@@ -476,3 +476,4 @@ module_exit(seed_fini);
 MODULE_DESCRIPTION("SEED Cipher Algorithm");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Hye-Shik Chang <perky@FreeBSD.org>, Kim Hyun <hkim@kisa.or.kr>");
+MODULE_ALIAS_CRYPTO("seed");

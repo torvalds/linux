@@ -408,10 +408,10 @@ static ssize_t show_fw_ver(struct device *dev, struct device_attribute *attr,
 	PDBG("%s dev 0x%p\n", __func__, dev);
 
 	return sprintf(buf, "%u.%u.%u.%u\n",
-			FW_HDR_FW_VER_MAJOR_GET(c4iw_dev->rdev.lldi.fw_vers),
-			FW_HDR_FW_VER_MINOR_GET(c4iw_dev->rdev.lldi.fw_vers),
-			FW_HDR_FW_VER_MICRO_GET(c4iw_dev->rdev.lldi.fw_vers),
-			FW_HDR_FW_VER_BUILD_GET(c4iw_dev->rdev.lldi.fw_vers));
+			FW_HDR_FW_VER_MAJOR_G(c4iw_dev->rdev.lldi.fw_vers),
+			FW_HDR_FW_VER_MINOR_G(c4iw_dev->rdev.lldi.fw_vers),
+			FW_HDR_FW_VER_MICRO_G(c4iw_dev->rdev.lldi.fw_vers),
+			FW_HDR_FW_VER_BUILD_G(c4iw_dev->rdev.lldi.fw_vers));
 }
 
 static ssize_t show_hca(struct device *dev, struct device_attribute *attr,

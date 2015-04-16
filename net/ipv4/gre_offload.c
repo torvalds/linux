@@ -47,7 +47,7 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 
 	greh = (struct gre_base_hdr *)skb_transport_header(skb);
 
-	ghl = skb_inner_network_header(skb) - skb_transport_header(skb);
+	ghl = skb_inner_mac_header(skb) - skb_transport_header(skb);
 	if (unlikely(ghl < sizeof(*greh)))
 		goto out;
 
@@ -68,7 +68,7 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 	skb->mac_len = skb_inner_network_offset(skb);
 
 	/* segment inner packet. */
-	enc_features = skb->dev->hw_enc_features & netif_skb_features(skb);
+	enc_features = skb->dev->hw_enc_features & features;
 	segs = skb_mac_gso_segment(skb, enc_features);
 	if (IS_ERR_OR_NULL(segs)) {
 		skb_gso_error_unwind(skb, protocol, ghl, mac_offset, mac_len);
@@ -149,7 +149,7 @@ static struct sk_buff **gre_gro_receive(struct sk_buff **head,
 
 	rcu_read_lock();
 	ptype = gro_find_receive_by_type(type);
-	if (ptype == NULL)
+	if (!ptype)
 		goto out_unlock;
 
 	grehlen = GRE_HEADER_SECTION;
@@ -243,10 +243,13 @@ static int gre_gro_complete(struct sk_buff *skb, int nhoff)
 
 	rcu_read_lock();
 	ptype = gro_find_complete_by_type(type);
-	if (ptype != NULL)
+	if (ptype)
 		err = ptype->callbacks.gro_complete(skb, nhoff + grehlen);
 
 	rcu_read_unlock();
+
+	skb_set_inner_mac_header(skb, nhoff + grehlen);
+
 	return err;
 }
 

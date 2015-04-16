@@ -576,7 +576,7 @@ static inline int core_alua_state_standby(
 	case SEND_DIAGNOSTIC:
 	case READ_CAPACITY:
 		return 0;
-	case SERVICE_ACTION_IN:
+	case SERVICE_ACTION_IN_16:
 		switch (cdb[1] & 0x1f) {
 		case SAI_READ_CAPACITY_16:
 			return 0;

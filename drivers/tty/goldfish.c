@@ -155,9 +155,9 @@ static struct tty_driver *goldfish_tty_console_device(struct console *c,
 
 static int goldfish_tty_console_setup(struct console *co, char *options)
 {
-	if ((unsigned)co->index > goldfish_tty_line_count)
+	if ((unsigned)co->index >= goldfish_tty_line_count)
 		return -ENODEV;
-	if (goldfish_ttys[co->index].base == 0)
+	if (!goldfish_ttys[co->index].base)
 		return -ENODEV;
 	return 0;
 }
@@ -229,7 +229,6 @@ static int goldfish_tty_probe(struct platform_device *pdev)
 {
 	struct goldfish_tty *qtty;
 	int ret = -EINVAL;
-	int i;
 	struct resource *r;
 	struct device *ttydev;
 	void __iomem *base;
@@ -293,7 +292,6 @@ static int goldfish_tty_probe(struct platform_device *pdev)
 	mutex_unlock(&goldfish_tty_lock);
 	return 0;
 
-	tty_unregister_device(goldfish_tty_driver, i);
 err_tty_register_device_failed:
 	free_irq(irq, pdev);
 err_request_irq_failed:
@@ -317,7 +315,7 @@ static int goldfish_tty_remove(struct platform_device *pdev)
 	unregister_console(&qtty->console);
 	tty_unregister_device(goldfish_tty_driver, pdev->id);
 	iounmap(qtty->base);
-	qtty->base = 0;
+	qtty->base = NULL;
 	free_irq(qtty->irq, pdev);
 	goldfish_tty_current_line_count--;
 	if (goldfish_tty_current_line_count == 0)

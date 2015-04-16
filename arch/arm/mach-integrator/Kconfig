@@ -1,3 +1,26 @@
+config ARCH_INTEGRATOR
+	bool "ARM Ltd. Integrator family" if (ARCH_MULTI_V4T || ARCH_MULTI_V5 || ARCH_MULTI_V6)
+	select ARM_AMBA
+	select ARM_PATCH_PHYS_VIRT if MMU
+	select AUTO_ZRELADDR
+	select COMMON_CLK
+	select COMMON_CLK_VERSATILE
+	select GENERIC_CLOCKEVENTS
+	select HAVE_TCM
+	select ICST
+	select MFD_SYSCON
+	select MULTI_IRQ_HANDLER
+	select PLAT_VERSATILE
+	select POWER_RESET
+	select POWER_RESET_VERSATILE
+	select POWER_SUPPLY
+	select SOC_INTEGRATOR_CM
+	select SPARSE_IRQ
+	select USE_OF
+	select VERSATILE_FPGA_IRQ
+	help
+	  Support for ARM's Integrator platform.
+
 if ARCH_INTEGRATOR
 
 menu "Integrator Options"

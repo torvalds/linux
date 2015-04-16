@@ -60,16 +60,16 @@ static int dma_iommu_map_sg(struct device *dev, struct scatterlist *sglist,
 			    int nelems, enum dma_data_direction direction,
 			    struct dma_attrs *attrs)
 {
-	return iommu_map_sg(dev, get_iommu_table_base(dev), sglist, nelems,
-			    device_to_mask(dev), direction, attrs);
+	return ppc_iommu_map_sg(dev, get_iommu_table_base(dev), sglist, nelems,
+				device_to_mask(dev), direction, attrs);
 }
 
 static void dma_iommu_unmap_sg(struct device *dev, struct scatterlist *sglist,
 		int nelems, enum dma_data_direction direction,
 		struct dma_attrs *attrs)
 {
-	iommu_unmap_sg(get_iommu_table_base(dev), sglist, nelems, direction,
-		       attrs);
+	ppc_iommu_unmap_sg(get_iommu_table_base(dev), sglist, nelems,
+			   direction, attrs);
 }
 
 /* We support DMA to/from any memory page via the iommu */

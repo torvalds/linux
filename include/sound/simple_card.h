@@ -16,10 +16,10 @@
 
 struct asoc_simple_dai {
 	const char *name;
-	unsigned int fmt;
 	unsigned int sysclk;
 	int slots;
 	int slot_width;
+	struct clk *clk;
 };
 
 struct asoc_simple_card_info {

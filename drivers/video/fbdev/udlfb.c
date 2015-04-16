@@ -922,8 +922,7 @@ static void dlfb_free(struct kref *kref)
 {
 	struct dlfb_data *dev = container_of(kref, struct dlfb_data, kref);
 
-	if (dev->backing_buffer)
-		vfree(dev->backing_buffer);
+	vfree(dev->backing_buffer);
 
 	kfree(dev->edid);
 
@@ -953,8 +952,7 @@ static void dlfb_free_framebuffer(struct dlfb_data *dev)
 			fb_dealloc_cmap(&info->cmap);
 		if (info->monspecs.modedb)
 			fb_destroy_modedb(info->monspecs.modedb);
-		if (info->screen_base)
-			vfree(info->screen_base);
+		vfree(info->screen_base);
 
 		fb_destroy_modelist(&info->modelist);
 
@@ -1203,8 +1201,7 @@ static int dlfb_realloc_framebuffer(struct dlfb_data *dev, struct fb_info *info)
 		if (!new_back)
 			pr_info("No shadow/backing buffer allocated\n");
 		else {
-			if (dev->backing_buffer)
-				vfree(dev->backing_buffer);
+			vfree(dev->backing_buffer);
 			dev->backing_buffer = new_back;
 		}
 	}

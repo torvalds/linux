@@ -22,7 +22,6 @@
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/fcntl.h>
-#include <linux/aio.h>
 #include <linux/poll.h>
 #include <linux/init.h>
 #include <linux/ioctl.h>
@@ -303,7 +302,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 			 size_t length, loff_t *offset)
 {
 	struct mei_cl *cl = file->private_data;
-	struct mei_me_client *me_cl;
+	struct mei_me_client *me_cl = NULL;
 	struct mei_cl_cb *write_cb = NULL;
 	struct mei_device *dev;
 	unsigned long timeout = 0;
@@ -399,12 +398,14 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 				"amthif write failed with status = %d\n", rets);
 			goto out;
 		}
+		mei_me_cl_put(me_cl);
 		mutex_unlock(&dev->device_lock);
 		return length;
 	}
 
 	rets = mei_cl_write(cl, write_cb, false);
 out:
+	mei_me_cl_put(me_cl);
 	mutex_unlock(&dev->device_lock);
 	if (rets < 0)
 		mei_io_cb_free(write_cb);
@@ -433,24 +434,19 @@ static int mei_ioctl_connect_client(struct file *file,
 	cl = file->private_data;
 	dev = cl->dev;
 
-	if (dev->dev_state != MEI_DEV_ENABLED) {
-		rets = -ENODEV;
-		goto end;
-	}
+	if (dev->dev_state != MEI_DEV_ENABLED)
+		return -ENODEV;
 
 	if (cl->state != MEI_FILE_INITIALIZING &&
-	    cl->state != MEI_FILE_DISCONNECTED) {
-		rets = -EBUSY;
-		goto end;
-	}
+	    cl->state != MEI_FILE_DISCONNECTED)
+		return  -EBUSY;
 
 	/* find ME client we're trying to connect to */
 	me_cl = mei_me_cl_by_uuid(dev, &data->in_client_uuid);
 	if (!me_cl || me_cl->props.fixed_address) {
 		dev_dbg(dev->dev, "Cannot connect to FW Client UUID = %pUl\n",
 				&data->in_client_uuid);
-		rets = -ENOTTY;
-		goto end;
+		return  -ENOTTY;
 	}
 
 	cl->me_client_id = me_cl->client_id;
@@ -487,17 +483,16 @@ static int mei_ioctl_connect_client(struct file *file,
 		goto end;
 	}
 
-
 	/* prepare the output buffer */
 	client = &data->out_client_properties;
 	client->max_msg_length = me_cl->props.max_msg_length;
 	client->protocol_version = me_cl->props.protocol_version;
 	dev_dbg(dev->dev, "Can connect?\n");
 
-
 	rets = mei_cl_connect(cl, file);
 
 end:
+	mei_me_cl_put(me_cl);
 	return rets;
 }
 
@@ -631,6 +626,44 @@ out:
 	return mask;
 }
 
+/**
+ * fw_status_show - mei device attribute show method
+ *
+ * @device: device pointer
+ * @attr: attribute pointer
+ * @buf:  char out buffer
+ *
+ * Return: number of the bytes printed into buf or error
+ */
+static ssize_t fw_status_show(struct device *device,
+		struct device_attribute *attr, char *buf)
+{
+	struct mei_device *dev = dev_get_drvdata(device);
+	struct mei_fw_status fw_status;
+	int err, i;
+	ssize_t cnt = 0;
+
+	mutex_lock(&dev->device_lock);
+	err = mei_fw_status(dev, &fw_status);
+	mutex_unlock(&dev->device_lock);
+	if (err) {
+		dev_err(device, "read fw_status error = %d\n", err);
+		return err;
+	}
+
+	for (i = 0; i < fw_status.count; i++)
+		cnt += scnprintf(buf + cnt, PAGE_SIZE - cnt, "%08X\n",
+				fw_status.status[i]);
+	return cnt;
+}
+static DEVICE_ATTR_RO(fw_status);
+
+static struct attribute *mei_attrs[] = {
+	&dev_attr_fw_status.attr,
+	NULL
+};
+ATTRIBUTE_GROUPS(mei);
+
 /*
  * file operations structure will be used for mei char device.
  */
@@ -710,8 +743,9 @@ int mei_register(struct mei_device *dev, struct device *parent)
 		goto err_dev_add;
 	}
 
-	clsdev = device_create(mei_class, parent, devno,
-			 NULL, "mei%d", dev->minor);
+	clsdev = device_create_with_groups(mei_class, parent, devno,
+					   dev, mei_groups,
+					   "mei%d", dev->minor);
 
 	if (IS_ERR(clsdev)) {
 		dev_err(parent, "unable to create device %d:%d\n",

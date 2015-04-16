@@ -1,5 +1,5 @@
 /*
- * Linux network driver for Brocade Converged Network Adapter.
+ * Linux network driver for QLogic BR-series Converged Network Adapter.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License (GPL) Version 2 as
@@ -11,9 +11,10 @@
  * General Public License for more details.
  */
 /*
- * Copyright (c) 2005-2010 Brocade Communications Systems, Inc.
+ * Copyright (c) 2005-2014 Brocade Communications Systems, Inc.
+ * Copyright (c) 2014-2015 QLogic Corporation
  * All rights reserved
- * www.brocade.com
+ * www.qlogic.com
  */
 #include <linux/bitops.h>
 #include <linux/netdevice.h>
@@ -2054,7 +2055,7 @@ bnad_init_rx_config(struct bnad *bnad, struct bna_rx_config *rx_config)
 				 BFI_ENET_RSS_IPV4_TCP);
 		rx_config->rss_config.hash_mask =
 				bnad->num_rxp_per_rx - 1;
-		get_random_bytes(rx_config->rss_config.toeplitz_hash_key,
+		netdev_rss_key_fill(rx_config->rss_config.toeplitz_hash_key,
 			sizeof(rx_config->rss_config.toeplitz_hash_key));
 	} else {
 		rx_config->rss_status = BNA_STATUS_T_DISABLED;
@@ -2824,8 +2825,8 @@ bnad_txq_wi_prepare(struct bnad *bnad, struct bna_tcb *tcb,
 	u32 gso_size;
 	u16 vlan_tag = 0;
 
-	if (vlan_tx_tag_present(skb)) {
-		vlan_tag = (u16)vlan_tx_tag_get(skb);
+	if (skb_vlan_tag_present(skb)) {
+		vlan_tag = (u16)skb_vlan_tag_get(skb);
 		flags |= (BNA_TXQ_WI_CF_INS_PRIO | BNA_TXQ_WI_CF_INS_VLAN);
 	}
 	if (test_bit(BNAD_RF_CEE_RUNNING, &bnad->run_flags)) {
@@ -3867,7 +3868,7 @@ bnad_module_init(void)
 {
 	int err;
 
-	pr_info("Brocade 10G Ethernet driver - version: %s\n",
+	pr_info("QLogic BR-series 10G Ethernet driver - version: %s\n",
 			BNAD_VERSION);
 
 	bfa_nw_ioc_auto_recover(bnad_ioc_auto_recover);
@@ -3894,7 +3895,7 @@ module_exit(bnad_module_exit);
 
 MODULE_AUTHOR("Brocade");
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Brocade 10G PCIe Ethernet driver");
+MODULE_DESCRIPTION("QLogic BR-series 10G PCIe Ethernet driver");
 MODULE_VERSION(BNAD_VERSION);
 MODULE_FIRMWARE(CNA_FW_FILE_CT);
 MODULE_FIRMWARE(CNA_FW_FILE_CT2);

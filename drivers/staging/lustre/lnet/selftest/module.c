@@ -55,53 +55,41 @@ static int lst_init_step = LST_INIT_NONE;
 struct cfs_wi_sched *lst_sched_serial;
 struct cfs_wi_sched **lst_sched_test;
 
-void
+static void
 lnet_selftest_fini(void)
 {
 	int	i;
 
 	switch (lst_init_step) {
-		case LST_INIT_CONSOLE:
-			lstcon_console_fini();
-		case LST_INIT_FW:
-			sfw_shutdown();
-		case LST_INIT_RPC:
-			srpc_shutdown();
-		case LST_INIT_WI_TEST:
-			for (i = 0;
-			     i < cfs_cpt_number(lnet_cpt_table()); i++) {
-				if (lst_sched_test[i] == NULL)
-					continue;
-				cfs_wi_sched_destroy(lst_sched_test[i]);
-			}
-			LIBCFS_FREE(lst_sched_test,
-				    sizeof(lst_sched_test[0]) *
-				    cfs_cpt_number(lnet_cpt_table()));
-			lst_sched_test = NULL;
+	case LST_INIT_CONSOLE:
+		lstcon_console_fini();
+	case LST_INIT_FW:
+		sfw_shutdown();
+	case LST_INIT_RPC:
+		srpc_shutdown();
+	case LST_INIT_WI_TEST:
+		for (i = 0;
+		     i < cfs_cpt_number(lnet_cpt_table()); i++) {
+			if (lst_sched_test[i] == NULL)
+				continue;
+			cfs_wi_sched_destroy(lst_sched_test[i]);
+		}
+		LIBCFS_FREE(lst_sched_test,
+			    sizeof(lst_sched_test[0]) *
+			    cfs_cpt_number(lnet_cpt_table()));
+		lst_sched_test = NULL;
 
-		case LST_INIT_WI_SERIAL:
-			cfs_wi_sched_destroy(lst_sched_serial);
-			lst_sched_serial = NULL;
-		case LST_INIT_NONE:
-			break;
-		default:
-			LBUG();
+	case LST_INIT_WI_SERIAL:
+		cfs_wi_sched_destroy(lst_sched_serial);
+		lst_sched_serial = NULL;
+	case LST_INIT_NONE:
+		break;
+	default:
+		LBUG();
 	}
-	return;
 }
 
-void
-lnet_selftest_structure_assertion(void)
-{
-	CLASSERT(sizeof(srpc_msg_t) == 160);
-	CLASSERT(sizeof(srpc_test_reqst_t) == 70);
-	CLASSERT(offsetof(srpc_msg_t, msg_body.tes_reqst.tsr_concur) == 72);
-	CLASSERT(offsetof(srpc_msg_t, msg_body.tes_reqst.tsr_ndest) == 78);
-	CLASSERT(sizeof(srpc_stat_reply_t) == 136);
-	CLASSERT(sizeof(srpc_stat_reqst_t) == 28);
-}
-
-int
+static int
 lnet_selftest_init(void)
 {
 	int	nscheds;
@@ -130,8 +118,8 @@ lnet_selftest_init(void)
 		rc = cfs_wi_sched_create("lst_t", lnet_cpt_table(), i,
 					 nthrs, &lst_sched_test[i]);
 		if (rc != 0) {
-			CERROR("Failed to create CPT affinity WI scheduler "
-			       "%d for LST\n", i);
+			CERROR("Failed to create CPT affinity WI scheduler %d for LST\n",
+			       i);
 			goto error;
 		}
 	}

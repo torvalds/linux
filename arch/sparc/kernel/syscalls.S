@@ -6,11 +6,21 @@ sys64_execve:
 	jmpl	%g1, %g0
 	 flushw
 
+sys64_execveat:
+	set	sys_execveat, %g1
+	jmpl	%g1, %g0
+	 flushw
+
 #ifdef CONFIG_COMPAT
 sunos_execv:
 	mov	%g0, %o2
 sys32_execve:
 	set	compat_sys_execve, %g1
+	jmpl	%g1, %g0
+	 flushw
+
+sys32_execveat:
+	set	compat_sys_execveat, %g1
 	jmpl	%g1, %g0
 	 flushw
 #endif

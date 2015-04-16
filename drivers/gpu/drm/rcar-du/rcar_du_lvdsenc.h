@@ -16,7 +16,6 @@
 
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/platform_data/rcar-du.h>
 
 struct rcar_drm_crtc;
 struct rcar_du_lvdsenc;

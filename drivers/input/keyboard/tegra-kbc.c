@@ -822,7 +822,6 @@ static struct platform_driver tegra_kbc_driver = {
 	.probe		= tegra_kbc_probe,
 	.driver	= {
 		.name	= "tegra-kbc",
-		.owner  = THIS_MODULE,
 		.pm	= &tegra_kbc_pm_ops,
 		.of_match_table = tegra_kbc_of_match,
 	},

@@ -398,6 +398,12 @@ void __init pxa27x_init_irq(void)
 	pxa_init_irq(34, pxa27x_set_wake);
 }
 
+void __init pxa27x_dt_init_irq(void)
+{
+	if (IS_ENABLED(CONFIG_OF))
+		pxa_dt_irq_init(pxa27x_set_wake);
+}
+
 static struct map_desc pxa27x_io_desc[] __initdata = {
 	{	/* Mem Ctl */
 		.virtual	= (unsigned long)SMEMC_VIRT,

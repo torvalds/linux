@@ -1945,7 +1945,7 @@ megaraid_abort_and_reset(adapter_t *adapter, Scsi_Cmnd *cmd, int aor)
 	     cmd->device->id, (u32)cmd->device->lun);
 
 	if(list_empty(&adapter->pending_list))
-		return FALSE;
+		return FAILED;
 
 	list_for_each_safe(pos, next, &adapter->pending_list) {
 
@@ -1968,7 +1968,7 @@ megaraid_abort_and_reset(adapter_t *adapter, Scsi_Cmnd *cmd, int aor)
 					(aor==SCB_ABORT) ? "ABORTING":"RESET",
 					scb->idx);
 
-				return FALSE;
+				return FAILED;
 			}
 			else {
 
@@ -1993,12 +1993,12 @@ megaraid_abort_and_reset(adapter_t *adapter, Scsi_Cmnd *cmd, int aor)
 				list_add_tail(SCSI_LIST(cmd),
 						&adapter->completed_list);
 
-				return TRUE;
+				return SUCCESS;
 			}
 		}
 	}
 
-	return FALSE;
+	return FAILED;
 }
 
 static inline int
@@ -2240,7 +2240,7 @@ proc_show_battery(struct seq_file *m, void *v)
 		goto free_pdev;
 
 	if( mega_adapinq(adapter, dma_handle) != 0 ) {
-		seq_printf(m, "Adapter inquiry failed.\n");
+		seq_puts(m, "Adapter inquiry failed.\n");
 		printk(KERN_WARNING "megaraid: inquiry failed.\n");
 		goto free_inquiry;
 	}

@@ -143,7 +143,6 @@ static const struct of_device_id snd_soc_pxa_audio_match[] = {
 static struct platform_driver pxa_pcm_driver = {
 	.driver = {
 		.name = "pxa-pcm-audio",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(snd_soc_pxa_audio_match),
 	},
 

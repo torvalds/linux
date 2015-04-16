@@ -820,12 +820,9 @@ static int fsi_clk_enable(struct device *dev,
 			return ret;
 		}
 
-		if (clock->xck)
-			clk_enable(clock->xck);
-		if (clock->ick)
-			clk_enable(clock->ick);
-		if (clock->div)
-			clk_enable(clock->div);
+		clk_enable(clock->xck);
+		clk_enable(clock->ick);
+		clk_enable(clock->div);
 
 		clock->count++;
 	}
@@ -842,12 +839,9 @@ static int fsi_clk_disable(struct device *dev,
 		return -EINVAL;
 
 	if (1 == clock->count--) {
-		if (clock->xck)
-			clk_disable(clock->xck);
-		if (clock->ick)
-			clk_disable(clock->ick);
-		if (clock->div)
-			clk_disable(clock->div);
+		clk_disable(clock->xck);
+		clk_disable(clock->ick);
+		clk_disable(clock->div);
 	}
 
 	return 0;
@@ -1711,8 +1705,7 @@ static const struct snd_soc_dai_ops fsi_dai_ops = {
 static struct snd_pcm_hardware fsi_pcm_hardware = {
 	.info =		SNDRV_PCM_INFO_INTERLEAVED	|
 			SNDRV_PCM_INFO_MMAP		|
-			SNDRV_PCM_INFO_MMAP_VALID	|
-			SNDRV_PCM_INFO_PAUSE,
+			SNDRV_PCM_INFO_MMAP_VALID,
 	.buffer_bytes_max	= 64 * 1024,
 	.period_bytes_min	= 32,
 	.period_bytes_max	= 8192,
@@ -1769,11 +1762,6 @@ static struct snd_pcm_ops fsi_pcm_ops = {
 #define PREALLOC_BUFFER		(32 * 1024)
 #define PREALLOC_BUFFER_MAX	(32 * 1024)
 
-static void fsi_pcm_free(struct snd_pcm *pcm)
-{
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static int fsi_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
 	return snd_pcm_lib_preallocate_pages_for_all(
@@ -1825,7 +1813,6 @@ static struct snd_soc_dai_driver fsi_soc_dai[] = {
 static struct snd_soc_platform_driver fsi_soc_platform = {
 	.ops		= &fsi_pcm_ops,
 	.pcm_new	= fsi_pcm_new,
-	.pcm_free	= fsi_pcm_free,
 };
 
 static const struct snd_soc_component_driver fsi_soc_component = {
@@ -1889,7 +1876,40 @@ static void fsi_handler_init(struct fsi_priv *fsi,
 	}
 }
 
-static struct of_device_id fsi_of_match[];
+static const struct fsi_core fsi1_core = {
+	.ver	= 1,
+
+	/* Interrupt */
+	.int_st	= INT_ST,
+	.iemsk	= IEMSK,
+	.imsk	= IMSK,
+};
+
+static const struct fsi_core fsi2_core = {
+	.ver	= 2,
+
+	/* Interrupt */
+	.int_st	= CPU_INT_ST,
+	.iemsk	= CPU_IEMSK,
+	.imsk	= CPU_IMSK,
+	.a_mclk	= A_MST_CTLR,
+	.b_mclk	= B_MST_CTLR,
+};
+
+static const struct of_device_id fsi_of_match[] = {
+	{ .compatible = "renesas,sh_fsi",	.data = &fsi1_core},
+	{ .compatible = "renesas,sh_fsi2",	.data = &fsi2_core},
+	{},
+};
+MODULE_DEVICE_TABLE(of, fsi_of_match);
+
+static const struct platform_device_id fsi_id_table[] = {
+	{ "sh_fsi",	(kernel_ulong_t)&fsi1_core },
+	{ "sh_fsi2",	(kernel_ulong_t)&fsi2_core },
+	{},
+};
+MODULE_DEVICE_TABLE(platform, fsi_id_table);
+
 static int fsi_probe(struct platform_device *pdev)
 {
 	struct fsi_master *master;
@@ -2085,40 +2105,6 @@ static struct dev_pm_ops fsi_pm_ops = {
 	.resume			= fsi_resume,
 };
 
-static struct fsi_core fsi1_core = {
-	.ver	= 1,
-
-	/* Interrupt */
-	.int_st	= INT_ST,
-	.iemsk	= IEMSK,
-	.imsk	= IMSK,
-};
-
-static struct fsi_core fsi2_core = {
-	.ver	= 2,
-
-	/* Interrupt */
-	.int_st	= CPU_INT_ST,
-	.iemsk	= CPU_IEMSK,
-	.imsk	= CPU_IMSK,
-	.a_mclk	= A_MST_CTLR,
-	.b_mclk	= B_MST_CTLR,
-};
-
-static struct of_device_id fsi_of_match[] = {
-	{ .compatible = "renesas,sh_fsi",	.data = &fsi1_core},
-	{ .compatible = "renesas,sh_fsi2",	.data = &fsi2_core},
-	{},
-};
-MODULE_DEVICE_TABLE(of, fsi_of_match);
-
-static struct platform_device_id fsi_id_table[] = {
-	{ "sh_fsi",	(kernel_ulong_t)&fsi1_core },
-	{ "sh_fsi2",	(kernel_ulong_t)&fsi2_core },
-	{},
-};
-MODULE_DEVICE_TABLE(platform, fsi_id_table);
-
 static struct platform_driver fsi_driver = {
 	.driver 	= {
 		.name	= "fsi-pcm-audio",
@@ -2132,7 +2118,7 @@ static struct platform_driver fsi_driver = {
 
 module_platform_driver(fsi_driver);
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("SuperH onchip FSI audio driver");
 MODULE_AUTHOR("Kuninori Morimoto <morimoto.kuninori@renesas.com>");
 MODULE_ALIAS("platform:fsi-pcm-audio");

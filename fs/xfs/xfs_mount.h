@@ -162,18 +162,29 @@ typedef struct xfs_mount {
 	struct delayed_work	m_reclaim_work;	/* background inode reclaim */
 	struct delayed_work	m_eofblocks_work; /* background eof blocks
 						     trimming */
-	__int64_t		m_update_flags;	/* sb flags we need to update
-						   on the next remount,rw */
+	bool			m_update_sb;	/* sb needs update in mount */
 	int64_t			m_low_space[XFS_LOWSP_MAX];
 						/* low free space thresholds */
 	struct xfs_kobj		m_kobj;
 
+	struct workqueue_struct *m_buf_workqueue;
 	struct workqueue_struct	*m_data_workqueue;
 	struct workqueue_struct	*m_unwritten_workqueue;
 	struct workqueue_struct	*m_cil_workqueue;
 	struct workqueue_struct	*m_reclaim_workqueue;
 	struct workqueue_struct	*m_log_workqueue;
 	struct workqueue_struct *m_eofblocks_workqueue;
+
+	/*
+	 * Generation of the filesysyem layout.  This is incremented by each
+	 * growfs, and used by the pNFS server to ensure the client updates
+	 * its view of the block device once it gets a layout that might
+	 * reference the newly added blocks.  Does not need to be persistent
+	 * as long as we only allow file system size increments, but if we
+	 * ever support shrinks it would have to be persisted in addition
+	 * to various other kinds of pain inflicted on the pNFS server.
+	 */
+	__uint32_t		m_generation;
 } xfs_mount_t;
 
 /*
@@ -320,10 +331,7 @@ typedef struct xfs_mod_sb {
 
 /*
  * Per-ag incore structure, copies of information in agf and agi, to improve the
- * performance of allocation group selection. This is defined for the kernel
- * only, and hence is defined here instead of in xfs_ag.h. You need the struct
- * xfs_mount to be defined to look up a xfs_perag anyway (via mp->m_perag_tree),
- * so this doesn't introduce any strange header file dependencies.
+ * performance of allocation group selection.
  */
 typedef struct xfs_perag {
 	struct xfs_mount *pag_mount;	/* owner filesystem */
@@ -380,11 +388,11 @@ extern void	xfs_unmountfs(xfs_mount_t *);
 extern int	xfs_mod_incore_sb(xfs_mount_t *, xfs_sb_field_t, int64_t, int);
 extern int	xfs_mod_incore_sb_batch(xfs_mount_t *, xfs_mod_sb_t *,
 			uint, int);
-extern int	xfs_mount_log_sb(xfs_mount_t *, __int64_t);
+extern int	xfs_mount_log_sb(xfs_mount_t *);
 extern struct xfs_buf *xfs_getsb(xfs_mount_t *, int);
 extern int	xfs_readsb(xfs_mount_t *, int);
 extern void	xfs_freesb(xfs_mount_t *);
-extern int	xfs_fs_writable(xfs_mount_t *);
+extern bool	xfs_fs_writable(struct xfs_mount *mp, int level);
 extern int	xfs_sb_validate_fsb_count(struct xfs_sb *, __uint64_t);
 
 extern int	xfs_dev_is_read_only(struct xfs_mount *, char *);

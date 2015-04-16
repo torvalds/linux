@@ -1501,7 +1501,7 @@ static void pcs_free_resources(struct pcs_device *pcs)
 		}							\
 	} while (0);
 
-static struct of_device_id pcs_of_match[];
+static const struct of_device_id pcs_of_match[];
 
 static int pcs_add_gpio_func(struct device_node *node, struct pcs_device *pcs)
 {
@@ -2000,7 +2000,7 @@ static const struct pcs_soc_data pinconf_single = {
 	.flags = PCS_FEAT_PINCONF,
 };
 
-static struct of_device_id pcs_of_match[] = {
+static const struct of_device_id pcs_of_match[] = {
 	{ .compatible = "ti,omap3-padconf", .data = &pinctrl_single_omap_wkup },
 	{ .compatible = "ti,omap4-padconf", .data = &pinctrl_single_omap_wkup },
 	{ .compatible = "ti,omap5-padconf", .data = &pinctrl_single_omap_wkup },
@@ -2016,7 +2016,6 @@ static struct platform_driver pcs_driver = {
 	.probe		= pcs_probe,
 	.remove		= pcs_remove,
 	.driver = {
-		.owner		= THIS_MODULE,
 		.name		= DRIVER_NAME,
 		.of_match_table	= pcs_of_match,
 	},

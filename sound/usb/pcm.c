@@ -482,6 +482,11 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 	/* set interface */
 	if (subs->interface != fmt->iface ||
 	    subs->altset_idx != fmt->altset_idx) {
+
+		err = snd_usb_select_mode_quirk(subs, fmt);
+		if (err < 0)
+			return -EIO;
+
 		err = usb_set_interface(dev, fmt->iface, fmt->altsetting);
 		if (err < 0) {
 			dev_err(&dev->dev,
@@ -1459,6 +1464,14 @@ static void prepare_playback_urb(struct snd_usb_substream *subs,
 	subs->last_frame_number = usb_get_current_frame_number(subs->dev);
 	subs->last_frame_number &= 0xFF; /* keep 8 LSBs */
 
+	if (subs->trigger_tstamp_pending_update) {
+		/* this is the first actual URB submitted,
+		 * update trigger timestamp to reflect actual start time
+		 */
+		snd_pcm_gettime(runtime, &runtime->trigger_tstamp);
+		subs->trigger_tstamp_pending_update = false;
+	}
+
 	spin_unlock_irqrestore(&subs->lock, flags);
 	urb->transfer_buffer_length = bytes;
 	if (period_elapsed)
@@ -1545,6 +1558,7 @@ static int snd_usb_substream_playback_trigger(struct snd_pcm_substream *substrea
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
+		subs->trigger_tstamp_pending_update = true;
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		subs->data_endpoint->prepare_data_urb = prepare_playback_urb;
 		subs->data_endpoint->retire_data_urb = retire_playback_urb;

@@ -145,7 +145,7 @@ static void ld9040_dcs_write(struct ld9040 *ctx, const u8 *data, size_t len)
 	if (ctx->error < 0 || len == 0)
 		return;
 
-	dev_dbg(ctx->dev, "writing dcs seq: %*ph\n", len, data);
+	dev_dbg(ctx->dev, "writing dcs seq: %*ph\n", (int)len, data);
 	ret = ld9040_spi_write_word(ctx, *data);
 
 	while (!ret && --len) {
@@ -154,8 +154,8 @@ static void ld9040_dcs_write(struct ld9040 *ctx, const u8 *data, size_t len)
 	}
 
 	if (ret) {
-		dev_err(ctx->dev, "error %d writing dcs seq: %*ph\n", ret, len,
-			data);
+		dev_err(ctx->dev, "error %d writing dcs seq: %*ph\n", ret,
+			(int)len, data);
 		ctx->error = ret;
 	}
 
@@ -336,16 +336,11 @@ static int ld9040_probe(struct spi_device *spi)
 	if (ret < 0)
 		return ret;
 
-	ctx->reset_gpio = devm_gpiod_get(dev, "reset");
+	ctx->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(ctx->reset_gpio)) {
 		dev_err(dev, "cannot get reset-gpios %ld\n",
 			PTR_ERR(ctx->reset_gpio));
 		return PTR_ERR(ctx->reset_gpio);
-	}
-	ret = gpiod_direction_output(ctx->reset_gpio, 1);
-	if (ret < 0) {
-		dev_err(dev, "cannot configure reset-gpios %d\n", ret);
-		return ret;
 	}
 
 	spi->bits_per_word = 9;

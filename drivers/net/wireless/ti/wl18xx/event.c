@@ -47,6 +47,19 @@ int wl18xx_wait_for_event(struct wl1271 *wl, enum wlcore_wait_event event,
 	return wlcore_cmd_wait_for_event_or_timeout(wl, local_event, timeout);
 }
 
+static const char *wl18xx_radar_type_decode(u8 radar_type)
+{
+	switch (radar_type) {
+	case RADAR_TYPE_REGULAR:
+		return "REGULAR";
+	case RADAR_TYPE_CHIRP:
+		return "CHIRP";
+	case RADAR_TYPE_NONE:
+	default:
+		return "N/A";
+	}
+}
+
 static int wlcore_smart_config_sync_event(struct wl1271 *wl, u8 sync_channel,
 					  u8 sync_band)
 {
@@ -64,7 +77,7 @@ static int wlcore_smart_config_sync_event(struct wl1271 *wl, u8 sync_channel,
 	wl1271_debug(DEBUG_EVENT,
 		     "SMART_CONFIG_SYNC_EVENT_ID, freq: %d (chan: %d band %d)",
 		     freq, sync_channel, sync_band);
-	skb = cfg80211_vendor_event_alloc(wl->hw->wiphy, 20,
+	skb = cfg80211_vendor_event_alloc(wl->hw->wiphy, NULL, 20,
 					  WLCORE_VENDOR_EVENT_SC_SYNC,
 					  GFP_KERNEL);
 
@@ -85,7 +98,7 @@ static int wlcore_smart_config_decode_event(struct wl1271 *wl,
 	wl1271_debug(DEBUG_EVENT, "SMART_CONFIG_DECODE_EVENT_ID");
 	wl1271_dump_ascii(DEBUG_EVENT, "SSID:", ssid, ssid_len);
 
-	skb = cfg80211_vendor_event_alloc(wl->hw->wiphy,
+	skb = cfg80211_vendor_event_alloc(wl->hw->wiphy, NULL,
 					  ssid_len + pwd_len + 20,
 					  WLCORE_VENDOR_EVENT_SC_DECODE,
 					  GFP_KERNEL);
@@ -113,6 +126,14 @@ int wl18xx_process_mailbox_events(struct wl1271 *wl)
 
 		if (wl->scan_wlvif)
 			wl18xx_scan_completed(wl, wl->scan_wlvif);
+	}
+
+	if (vector & RADAR_DETECTED_EVENT_ID) {
+		wl1271_info("radar event: channel %d type %s",
+			    mbox->radar_channel,
+			    wl18xx_radar_type_decode(mbox->radar_type));
+
+		ieee80211_radar_detected(wl->hw);
 	}
 
 	if (vector & PERIODIC_SCAN_REPORT_EVENT_ID) {

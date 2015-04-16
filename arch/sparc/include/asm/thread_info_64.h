@@ -31,7 +31,6 @@
 #include <asm/types.h>
 
 struct task_struct;
-struct exec_domain;
 
 struct thread_info {
 	/* D$ line 1 */
@@ -44,7 +43,6 @@ struct thread_info {
 	/* D$ line 2 */
 	unsigned long		fault_address;
 	struct pt_regs		*kregs;
-	struct exec_domain	*exec_domain;
 	int			preempt_count;	/* 0 => preemptable, <0 => BUG */
 	__u8			new_child;
 	__u8			current_ds;
@@ -57,8 +55,6 @@ struct thread_info {
 
 	unsigned long		gsr[7];
 	unsigned long		xfsr[7];
-
-	struct restart_block	restart_block;
 
 	struct pt_regs		*kern_una_regs;
 	unsigned int		kern_una_insn;
@@ -82,20 +78,18 @@ struct thread_info {
 #define TI_KSP		0x00000018
 #define TI_FAULT_ADDR	0x00000020
 #define TI_KREGS	0x00000028
-#define TI_EXEC_DOMAIN	0x00000030
-#define TI_PRE_COUNT	0x00000038
-#define TI_NEW_CHILD	0x0000003c
-#define TI_CURRENT_DS	0x0000003d
-#define TI_CPU		0x0000003e
-#define TI_UTRAPS	0x00000040
-#define TI_REG_WINDOW	0x00000048
-#define TI_RWIN_SPTRS	0x000003c8
-#define TI_GSR		0x00000400
-#define TI_XFSR		0x00000438
-#define TI_RESTART_BLOCK 0x00000470
-#define TI_KUNA_REGS	0x000004a0
-#define TI_KUNA_INSN	0x000004a8
-#define TI_FPREGS	0x000004c0
+#define TI_PRE_COUNT	0x00000030
+#define TI_NEW_CHILD	0x00000034
+#define TI_CURRENT_DS	0x00000035
+#define TI_CPU		0x00000036
+#define TI_UTRAPS	0x00000038
+#define TI_REG_WINDOW	0x00000040
+#define TI_RWIN_SPTRS	0x000003c0
+#define TI_GSR		0x000003f8
+#define TI_XFSR		0x00000430
+#define TI_KUNA_REGS	0x00000468
+#define TI_KUNA_INSN	0x00000470
+#define TI_FPREGS	0x00000480
 
 /* We embed this in the uppermost byte of thread_info->flags */
 #define FAULT_CODE_WRITE	0x01	/* Write access, implies D-TLB	   */
@@ -122,11 +116,7 @@ struct thread_info {
 {							\
 	.task		=	&tsk,			\
 	.current_ds	=	ASI_P,			\
-	.exec_domain	=	&default_exec_domain,	\
 	.preempt_count	=	INIT_PREEMPT_COUNT,	\
-	.restart_block	= {				\
-		.fn	=	do_no_restart_syscall,	\
-	},						\
 }
 
 #define init_thread_info	(init_thread_union.thread_info)

@@ -10,10 +10,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
  * Written by:
  * Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
  * Sergey Lapin <slapin@ossfans.org>
@@ -24,110 +20,130 @@
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
 #include <linux/crc-ccitt.h>
+#include <asm/unaligned.h>
 
+#include <net/rtnetlink.h>
 #include <net/ieee802154_netdev.h>
 #include <net/mac802154.h>
-#include <net/wpan-phy.h>
+#include <net/cfg802154.h>
 
-#include "mac802154.h"
+#include "ieee802154_i.h"
+#include "driver-ops.h"
 
 /* IEEE 802.15.4 transceivers can sleep during the xmit session, so process
  * packets through the workqueue.
  */
-struct xmit_work {
+struct ieee802154_xmit_cb {
 	struct sk_buff *skb;
 	struct work_struct work;
-	struct mac802154_priv *priv;
-	u8 chan;
-	u8 page;
+	struct ieee802154_local *local;
 };
 
-static void mac802154_xmit_worker(struct work_struct *work)
+static struct ieee802154_xmit_cb ieee802154_xmit_cb;
+
+static void ieee802154_xmit_worker(struct work_struct *work)
 {
-	struct xmit_work *xw = container_of(work, struct xmit_work, work);
-	struct mac802154_sub_if_data *sdata;
+	struct ieee802154_xmit_cb *cb =
+		container_of(work, struct ieee802154_xmit_cb, work);
+	struct ieee802154_local *local = cb->local;
+	struct sk_buff *skb = cb->skb;
+	struct net_device *dev = skb->dev;
 	int res;
 
-	mutex_lock(&xw->priv->phy->pib_lock);
-	if (xw->priv->phy->current_channel != xw->chan ||
-	    xw->priv->phy->current_page != xw->page) {
-		res = xw->priv->ops->set_channel(&xw->priv->hw,
-						  xw->page,
-						  xw->chan);
-		if (res) {
-			pr_debug("set_channel failed\n");
-			goto out;
-		}
+	rtnl_lock();
 
-		xw->priv->phy->current_channel = xw->chan;
-		xw->priv->phy->current_page = xw->page;
-	}
+	/* check if ifdown occurred while schedule */
+	if (!netif_running(dev))
+		goto err_tx;
 
-	res = xw->priv->ops->xmit(&xw->priv->hw, xw->skb);
+	res = drv_xmit_sync(local, skb);
 	if (res)
-		pr_debug("transmission failed\n");
+		goto err_tx;
 
-out:
-	mutex_unlock(&xw->priv->phy->pib_lock);
+	ieee802154_xmit_complete(&local->hw, skb, false);
 
+	dev->stats.tx_packets++;
+	dev->stats.tx_bytes += skb->len;
+
+	rtnl_unlock();
+
+	return;
+
+err_tx:
 	/* Restart the netif queue on each sub_if_data object. */
-	rcu_read_lock();
-	list_for_each_entry_rcu(sdata, &xw->priv->slaves, list)
-		netif_wake_queue(sdata->dev);
-	rcu_read_unlock();
-
-	dev_kfree_skb(xw->skb);
-
-	kfree(xw);
+	ieee802154_wake_queue(&local->hw);
+	rtnl_unlock();
+	kfree_skb(skb);
+	netdev_dbg(dev, "transmission failed\n");
 }
 
-netdev_tx_t mac802154_tx(struct mac802154_priv *priv, struct sk_buff *skb,
-			 u8 page, u8 chan)
+static netdev_tx_t
+ieee802154_tx(struct ieee802154_local *local, struct sk_buff *skb)
 {
-	struct xmit_work *work;
-	struct mac802154_sub_if_data *sdata;
+	struct net_device *dev = skb->dev;
+	int ret;
 
-	if (!(priv->phy->channels_supported[page] & (1 << chan))) {
-		WARN_ON(1);
-		goto err_tx;
-	}
-
-	mac802154_monitors_rx(mac802154_to_priv(&priv->hw), skb);
-
-	if (!(priv->hw.flags & IEEE802154_HW_OMIT_CKSUM)) {
+	if (!(local->hw.flags & IEEE802154_HW_TX_OMIT_CKSUM)) {
 		u16 crc = crc_ccitt(0, skb->data, skb->len);
-		u8 *data = skb_put(skb, 2);
 
-		data[0] = crc & 0xff;
-		data[1] = crc >> 8;
+		put_unaligned_le16(crc, skb_put(skb, 2));
 	}
 
-	if (skb_cow_head(skb, priv->hw.extra_tx_headroom))
+	if (skb_cow_head(skb, local->hw.extra_tx_headroom))
 		goto err_tx;
-
-	work = kzalloc(sizeof(*work), GFP_ATOMIC);
-	if (!work) {
-		kfree_skb(skb);
-		return NETDEV_TX_BUSY;
-	}
 
 	/* Stop the netif queue on each sub_if_data object. */
-	rcu_read_lock();
-	list_for_each_entry_rcu(sdata, &priv->slaves, list)
-		netif_stop_queue(sdata->dev);
-	rcu_read_unlock();
+	ieee802154_stop_queue(&local->hw);
 
-	INIT_WORK(&work->work, mac802154_xmit_worker);
-	work->skb = skb;
-	work->priv = priv;
-	work->page = page;
-	work->chan = chan;
+	/* async is priority, otherwise sync is fallback */
+	if (local->ops->xmit_async) {
+		ret = drv_xmit_async(local, skb);
+		if (ret) {
+			ieee802154_wake_queue(&local->hw);
+			goto err_tx;
+		}
 
-	queue_work(priv->dev_workqueue, &work->work);
+		dev->stats.tx_packets++;
+		dev->stats.tx_bytes += skb->len;
+	} else {
+		INIT_WORK(&ieee802154_xmit_cb.work, ieee802154_xmit_worker);
+		ieee802154_xmit_cb.skb = skb;
+		ieee802154_xmit_cb.local = local;
+
+		queue_work(local->workqueue, &ieee802154_xmit_cb.work);
+	}
 
 	return NETDEV_TX_OK;
 
 err_tx:
 	kfree_skb(skb);
 	return NETDEV_TX_OK;
+}
+
+netdev_tx_t
+ieee802154_monitor_start_xmit(struct sk_buff *skb, struct net_device *dev)
+{
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+
+	skb->skb_iif = dev->ifindex;
+
+	return ieee802154_tx(sdata->local, skb);
+}
+
+netdev_tx_t
+ieee802154_subif_start_xmit(struct sk_buff *skb, struct net_device *dev)
+{
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+	int rc;
+
+	rc = mac802154_llsec_encrypt(&sdata->sec, skb);
+	if (rc) {
+		netdev_warn(dev, "encryption failed: %i\n", rc);
+		kfree_skb(skb);
+		return NETDEV_TX_OK;
+	}
+
+	skb->skb_iif = dev->ifindex;
+
+	return ieee802154_tx(sdata->local, skb);
 }

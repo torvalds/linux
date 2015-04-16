@@ -193,8 +193,8 @@ static int af9035_wr_reg_mask(struct dvb_usb_device *d, u32 reg, u8 val,
 	return af9035_wr_regs(d, reg, &val, 1);
 }
 
-static int af9035_add_i2c_dev(struct dvb_usb_device *d, char *type, u8 addr,
-		void *platform_data, struct i2c_adapter *adapter)
+static int af9035_add_i2c_dev(struct dvb_usb_device *d, const char *type,
+		u8 addr, void *platform_data, struct i2c_adapter *adapter)
 {
 	int ret, num;
 	struct state *state = d_to_priv(d);
@@ -221,7 +221,7 @@ static int af9035_add_i2c_dev(struct dvb_usb_device *d, char *type, u8 addr,
 		goto err;
 	}
 
-	request_module(board_info.type);
+	request_module("%s", board_info.type);
 
 	/* register I2C device */
 	client = i2c_new_device(adapter, &board_info);
@@ -1171,6 +1171,7 @@ static int it930x_frontend_attach(struct dvb_usb_adapter *adap)
 
 	dev_dbg(&d->udev->dev, "adap->id=%d\n", adap->id);
 
+	memset(&si2168_config, 0, sizeof(si2168_config));
 	si2168_config.i2c_adapter = &adapter;
 	si2168_config.fe = &adap->fe[0];
 	si2168_config.ts_mode = SI2168_TS_SERIAL;

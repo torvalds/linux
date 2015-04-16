@@ -87,6 +87,31 @@
 #define ST_GYRO_2_DRDY_IRQ_INT2_MASK		0x08
 #define ST_GYRO_2_MULTIREAD_BIT			true
 
+/* CUSTOM VALUES FOR SENSOR 3 */
+#define ST_GYRO_3_WAI_EXP			0xd7
+#define ST_GYRO_3_ODR_ADDR			0x20
+#define ST_GYRO_3_ODR_MASK			0xc0
+#define ST_GYRO_3_ODR_AVL_95HZ_VAL		0x00
+#define ST_GYRO_3_ODR_AVL_190HZ_VAL		0x01
+#define ST_GYRO_3_ODR_AVL_380HZ_VAL		0x02
+#define ST_GYRO_3_ODR_AVL_760HZ_VAL		0x03
+#define ST_GYRO_3_PW_ADDR			0x20
+#define ST_GYRO_3_PW_MASK			0x08
+#define ST_GYRO_3_FS_ADDR			0x23
+#define ST_GYRO_3_FS_MASK			0x30
+#define ST_GYRO_3_FS_AVL_250_VAL		0x00
+#define ST_GYRO_3_FS_AVL_500_VAL		0x01
+#define ST_GYRO_3_FS_AVL_2000_VAL		0x02
+#define ST_GYRO_3_FS_AVL_250_GAIN		IIO_DEGREE_TO_RAD(8750)
+#define ST_GYRO_3_FS_AVL_500_GAIN		IIO_DEGREE_TO_RAD(17500)
+#define ST_GYRO_3_FS_AVL_2000_GAIN		IIO_DEGREE_TO_RAD(70000)
+#define ST_GYRO_3_BDU_ADDR			0x23
+#define ST_GYRO_3_BDU_MASK			0x80
+#define ST_GYRO_3_DRDY_IRQ_ADDR			0x22
+#define ST_GYRO_3_DRDY_IRQ_INT2_MASK		0x08
+#define ST_GYRO_3_MULTIREAD_BIT			true
+
+
 static const struct iio_chan_spec st_gyro_16bit_channels[] = {
 	ST_SENSORS_LSM_CHANNELS(IIO_ANGL_VEL,
 			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
@@ -103,7 +128,7 @@ static const struct iio_chan_spec st_gyro_16bit_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(3)
 };
 
-static const struct st_sensors st_gyro_sensors[] = {
+static const struct st_sensor_settings st_gyro_sensors_settings[] = {
 	{
 		.wai = ST_GYRO_1_WAI_EXP,
 		.sensors_supported = {
@@ -225,6 +250,64 @@ static const struct st_sensors st_gyro_sensors[] = {
 		.multi_read_bit = ST_GYRO_2_MULTIREAD_BIT,
 		.bootime = 2,
 	},
+	{
+		.wai = ST_GYRO_3_WAI_EXP,
+		.sensors_supported = {
+			[0] = L3GD20_GYRO_DEV_NAME,
+		},
+		.ch = (struct iio_chan_spec *)st_gyro_16bit_channels,
+		.odr = {
+			.addr = ST_GYRO_3_ODR_ADDR,
+			.mask = ST_GYRO_3_ODR_MASK,
+			.odr_avl = {
+				{ 95, ST_GYRO_3_ODR_AVL_95HZ_VAL, },
+				{ 190, ST_GYRO_3_ODR_AVL_190HZ_VAL, },
+				{ 380, ST_GYRO_3_ODR_AVL_380HZ_VAL, },
+				{ 760, ST_GYRO_3_ODR_AVL_760HZ_VAL, },
+			},
+		},
+		.pw = {
+			.addr = ST_GYRO_3_PW_ADDR,
+			.mask = ST_GYRO_3_PW_MASK,
+			.value_on = ST_SENSORS_DEFAULT_POWER_ON_VALUE,
+			.value_off = ST_SENSORS_DEFAULT_POWER_OFF_VALUE,
+		},
+		.enable_axis = {
+			.addr = ST_SENSORS_DEFAULT_AXIS_ADDR,
+			.mask = ST_SENSORS_DEFAULT_AXIS_MASK,
+		},
+		.fs = {
+			.addr = ST_GYRO_3_FS_ADDR,
+			.mask = ST_GYRO_3_FS_MASK,
+			.fs_avl = {
+				[0] = {
+					.num = ST_GYRO_FS_AVL_250DPS,
+					.value = ST_GYRO_3_FS_AVL_250_VAL,
+					.gain = ST_GYRO_3_FS_AVL_250_GAIN,
+				},
+				[1] = {
+					.num = ST_GYRO_FS_AVL_500DPS,
+					.value = ST_GYRO_3_FS_AVL_500_VAL,
+					.gain = ST_GYRO_3_FS_AVL_500_GAIN,
+				},
+				[2] = {
+					.num = ST_GYRO_FS_AVL_2000DPS,
+					.value = ST_GYRO_3_FS_AVL_2000_VAL,
+					.gain = ST_GYRO_3_FS_AVL_2000_GAIN,
+				},
+			},
+		},
+		.bdu = {
+			.addr = ST_GYRO_3_BDU_ADDR,
+			.mask = ST_GYRO_3_BDU_MASK,
+		},
+		.drdy_irq = {
+			.addr = ST_GYRO_3_DRDY_IRQ_ADDR,
+			.mask_int2 = ST_GYRO_3_DRDY_IRQ_INT2_MASK,
+		},
+		.multi_read_bit = ST_GYRO_3_MULTIREAD_BIT,
+		.bootime = 2,
+	},
 };
 
 static int st_gyro_read_raw(struct iio_dev *indio_dev,
@@ -309,8 +392,7 @@ static const struct iio_trigger_ops st_gyro_trigger_ops = {
 #define ST_GYRO_TRIGGER_OPS NULL
 #endif
 
-int st_gyro_common_probe(struct iio_dev *indio_dev,
-					struct st_sensors_platform_data *pdata)
+int st_gyro_common_probe(struct iio_dev *indio_dev)
 {
 	struct st_sensor_data *gdata = iio_priv(indio_dev);
 	int irq = gdata->get_irq_data_ready(indio_dev);
@@ -322,20 +404,22 @@ int st_gyro_common_probe(struct iio_dev *indio_dev,
 	st_sensors_power_enable(indio_dev);
 
 	err = st_sensors_check_device_support(indio_dev,
-				ARRAY_SIZE(st_gyro_sensors), st_gyro_sensors);
+					ARRAY_SIZE(st_gyro_sensors_settings),
+					st_gyro_sensors_settings);
 	if (err < 0)
 		return err;
 
 	gdata->num_data_channels = ST_GYRO_NUMBER_DATA_CHANNELS;
-	gdata->multiread_bit = gdata->sensor->multi_read_bit;
-	indio_dev->channels = gdata->sensor->ch;
+	gdata->multiread_bit = gdata->sensor_settings->multi_read_bit;
+	indio_dev->channels = gdata->sensor_settings->ch;
 	indio_dev->num_channels = ST_SENSORS_NUMBER_ALL_CHANNELS;
 
 	gdata->current_fullscale = (struct st_sensor_fullscale_avl *)
-						&gdata->sensor->fs.fs_avl[0];
-	gdata->odr = gdata->sensor->odr.odr_avl[0].hz;
+					&gdata->sensor_settings->fs.fs_avl[0];
+	gdata->odr = gdata->sensor_settings->odr.odr_avl[0].hz;
 
-	err = st_sensors_init_sensor(indio_dev, pdata);
+	err = st_sensors_init_sensor(indio_dev,
+				(struct st_sensors_platform_data *)&gyro_pdata);
 	if (err < 0)
 		return err;
 

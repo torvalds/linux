@@ -576,8 +576,13 @@ void kobject_del(struct kobject *kobj)
  */
 struct kobject *kobject_get(struct kobject *kobj)
 {
-	if (kobj)
+	if (kobj) {
+		if (!kobj->state_initialized)
+			WARN(1, KERN_WARNING "kobject: '%s' (%p): is not "
+			       "initialized, yet kobject_get() is being "
+			       "called.\n", kobject_name(kobj), kobj);
 		kref_get(&kobj->kref);
+	}
 	return kobj;
 }
 
@@ -976,7 +981,7 @@ const struct kobj_ns_type_operations *kobj_child_ns_ops(struct kobject *parent)
 {
 	const struct kobj_ns_type_operations *ops = NULL;
 
-	if (parent && parent->ktype->child_ns_type)
+	if (parent && parent->ktype && parent->ktype->child_ns_type)
 		ops = parent->ktype->child_ns_type(parent);
 
 	return ops;

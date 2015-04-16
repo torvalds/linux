@@ -171,10 +171,11 @@ do {						\
 static inline void elf_common_init(struct thread_struct *t,
 				   struct pt_regs *regs, const u16 ds)
 {
-	regs->ax = regs->bx = regs->cx = regs->dx = 0;
-	regs->si = regs->di = regs->bp = 0;
+	/* Commented-out registers are cleared in stub_execve */
+	/*regs->ax = regs->bx =*/ regs->cx = regs->dx = 0;
+	regs->si = regs->di /*= regs->bp*/ = 0;
 	regs->r8 = regs->r9 = regs->r10 = regs->r11 = 0;
-	regs->r12 = regs->r13 = regs->r14 = regs->r15 = 0;
+	/*regs->r12 = regs->r13 = regs->r14 = regs->r15 = 0;*/
 	t->fs = t->gs = 0;
 	t->fsindex = t->gsindex = 0;
 	t->ds = t->es = ds;
@@ -338,9 +339,6 @@ extern int compat_arch_setup_additional_pages(struct linux_binprm *bprm,
 					      int uses_interp);
 #define compat_arch_setup_additional_pages compat_arch_setup_additional_pages
 
-extern unsigned long arch_randomize_brk(struct mm_struct *mm);
-#define arch_randomize_brk arch_randomize_brk
-
 /*
  * True on X86_32 or when emulating IA32 on X86_64
  */
@@ -365,6 +363,7 @@ enum align_flags {
 struct va_alignment {
 	int flags;
 	unsigned long mask;
+	unsigned long bits;
 } ____cacheline_aligned;
 
 extern struct va_alignment va_align;

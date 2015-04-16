@@ -159,18 +159,19 @@ static struct fileIdentDesc *udf_find_entry(struct inode *dir,
 	struct udf_inode_info *dinfo = UDF_I(dir);
 	int isdotdot = child->len == 2 &&
 		child->name[0] == '.' && child->name[1] == '.';
+	struct super_block *sb = dir->i_sb;
 
 	size = udf_ext0_offset(dir) + dir->i_size;
 	f_pos = udf_ext0_offset(dir);
 
 	fibh->sbh = fibh->ebh = NULL;
-	fibh->soffset = fibh->eoffset = f_pos & (dir->i_sb->s_blocksize - 1);
+	fibh->soffset = fibh->eoffset = f_pos & (sb->s_blocksize - 1);
 	if (dinfo->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB) {
-		if (inode_bmap(dir, f_pos >> dir->i_sb->s_blocksize_bits, &epos,
+		if (inode_bmap(dir, f_pos >> sb->s_blocksize_bits, &epos,
 		    &eloc, &elen, &offset) != (EXT_RECORDED_ALLOCATED >> 30))
 			goto out_err;
-		block = udf_get_lb_pblock(dir->i_sb, &eloc, offset);
-		if ((++offset << dir->i_sb->s_blocksize_bits) < elen) {
+		block = udf_get_lb_pblock(sb, &eloc, offset);
+		if ((++offset << sb->s_blocksize_bits) < elen) {
 			if (dinfo->i_alloc_type == ICBTAG_FLAG_AD_SHORT)
 				epos.offset -= sizeof(struct short_ad);
 			else if (dinfo->i_alloc_type == ICBTAG_FLAG_AD_LONG)
@@ -178,7 +179,7 @@ static struct fileIdentDesc *udf_find_entry(struct inode *dir,
 		} else
 			offset = 0;
 
-		fibh->sbh = fibh->ebh = udf_tread(dir->i_sb, block);
+		fibh->sbh = fibh->ebh = udf_tread(sb, block);
 		if (!fibh->sbh)
 			goto out_err;
 	}
@@ -217,12 +218,12 @@ static struct fileIdentDesc *udf_find_entry(struct inode *dir,
 		}
 
 		if ((cfi->fileCharacteristics & FID_FILE_CHAR_DELETED) != 0) {
-			if (!UDF_QUERY_FLAG(dir->i_sb, UDF_FLAG_UNDELETE))
+			if (!UDF_QUERY_FLAG(sb, UDF_FLAG_UNDELETE))
 				continue;
 		}
 
 		if ((cfi->fileCharacteristics & FID_FILE_CHAR_HIDDEN) != 0) {
-			if (!UDF_QUERY_FLAG(dir->i_sb, UDF_FLAG_UNHIDE))
+			if (!UDF_QUERY_FLAG(sb, UDF_FLAG_UNHIDE))
 				continue;
 		}
 
@@ -233,7 +234,7 @@ static struct fileIdentDesc *udf_find_entry(struct inode *dir,
 		if (!lfi)
 			continue;
 
-		flen = udf_get_filename(dir->i_sb, nameptr, fname, lfi);
+		flen = udf_get_filename(sb, nameptr, lfi, fname, UDF_NAME_LEN);
 		if (flen && udf_match(flen, fname, child->len, child->name))
 			goto out_ok;
 	}

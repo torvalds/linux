@@ -72,6 +72,11 @@ enum {
 
 int snd_hda_jack_detect_state(struct hda_codec *codec, hda_nid_t nid);
 
+/**
+ * snd_hda_jack_detect - Detect the jack
+ * @codec: the HDA codec
+ * @nid: pin NID to check jack detection
+ */
 static inline bool snd_hda_jack_detect(struct hda_codec *codec, hda_nid_t nid)
 {
 	return snd_hda_jack_detect_state(codec, nid) != HDA_JACK_NOT_PRESENT;

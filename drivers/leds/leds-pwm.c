@@ -121,9 +121,6 @@ static int led_pwm_add(struct device *dev, struct led_pwm_priv *priv,
 		return ret;
 	}
 
-	if (child)
-		led_data->period = pwm_get_period(led_data->pwm);
-
 	led_data->can_sleep = pwm_can_sleep(led_data->pwm);
 	if (led_data->can_sleep)
 		INIT_WORK(&led_data->work, led_pwm_work);
@@ -232,7 +229,6 @@ static struct platform_driver led_pwm_driver = {
 	.remove		= led_pwm_remove,
 	.driver		= {
 		.name	= "leds_pwm",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_pwm_leds_match,
 	},
 };

@@ -42,7 +42,7 @@ static void _write_clktrctrl(u8 c, s16 module, u32 mask)
 	omap2_cm_write_mod_reg(v, module, OMAP2_CM_CLKSTCTRL);
 }
 
-bool omap3xxx_cm_is_clkdm_in_hwsup(s16 module, u32 mask)
+static bool omap3xxx_cm_is_clkdm_in_hwsup(s16 module, u32 mask)
 {
 	u32 v;
 
@@ -53,22 +53,22 @@ bool omap3xxx_cm_is_clkdm_in_hwsup(s16 module, u32 mask)
 	return (v == OMAP34XX_CLKSTCTRL_ENABLE_AUTO) ? 1 : 0;
 }
 
-void omap3xxx_cm_clkdm_enable_hwsup(s16 module, u32 mask)
+static void omap3xxx_cm_clkdm_enable_hwsup(s16 module, u32 mask)
 {
 	_write_clktrctrl(OMAP34XX_CLKSTCTRL_ENABLE_AUTO, module, mask);
 }
 
-void omap3xxx_cm_clkdm_disable_hwsup(s16 module, u32 mask)
+static void omap3xxx_cm_clkdm_disable_hwsup(s16 module, u32 mask)
 {
 	_write_clktrctrl(OMAP34XX_CLKSTCTRL_DISABLE_AUTO, module, mask);
 }
 
-void omap3xxx_cm_clkdm_force_sleep(s16 module, u32 mask)
+static void omap3xxx_cm_clkdm_force_sleep(s16 module, u32 mask)
 {
 	_write_clktrctrl(OMAP34XX_CLKSTCTRL_FORCE_SLEEP, module, mask);
 }
 
-void omap3xxx_cm_clkdm_force_wakeup(s16 module, u32 mask)
+static void omap3xxx_cm_clkdm_force_wakeup(s16 module, u32 mask)
 {
 	_write_clktrctrl(OMAP34XX_CLKSTCTRL_FORCE_WAKEUP, module, mask);
 }
@@ -79,6 +79,7 @@ void omap3xxx_cm_clkdm_force_wakeup(s16 module, u32 mask)
 
 /**
  * omap3xxx_cm_wait_module_ready - wait for a module to leave idle or standby
+ * @part: PRCM partition, ignored for OMAP3
  * @prcm_mod: PRCM module offset
  * @idlest_id: CM_IDLESTx register ID (i.e., x = 1, 2, 3)
  * @idlest_shift: shift of the bit in the CM_IDLEST* register to check
@@ -87,7 +88,8 @@ void omap3xxx_cm_clkdm_force_wakeup(s16 module, u32 mask)
  * (@prcm_mod, @idlest_id, @idlest_shift) is clocked.  Return 0 upon
  * success or -EBUSY if the module doesn't enable in time.
  */
-int omap3xxx_cm_wait_module_ready(s16 prcm_mod, u8 idlest_id, u8 idlest_shift)
+static int omap3xxx_cm_wait_module_ready(u8 part, s16 prcm_mod, u16 idlest_id,
+					 u8 idlest_shift)
 {
 	int ena = 0, i = 0;
 	u8 cm_idlest_reg;
@@ -116,8 +118,9 @@ int omap3xxx_cm_wait_module_ready(s16 prcm_mod, u8 idlest_id, u8 idlest_shift)
  * XXX This function is only needed until absolute register addresses are
  * removed from the OMAP struct clk records.
  */
-int omap3xxx_cm_split_idlest_reg(void __iomem *idlest_reg, s16 *prcm_inst,
-				 u8 *idlest_reg_id)
+static int omap3xxx_cm_split_idlest_reg(void __iomem *idlest_reg,
+					s16 *prcm_inst,
+					u8 *idlest_reg_id)
 {
 	unsigned long offs;
 	u8 idlest_offs;

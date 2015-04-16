@@ -8,7 +8,7 @@
  */
 
 /dts-v1/;
-/include/ "mmp2.dtsi"
+#include "mmp2.dtsi"
 
 / {
 	model = "Marvell MMP2 Brownstone Development Board";

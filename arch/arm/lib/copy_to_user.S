@@ -12,6 +12,7 @@
 
 #include <linux/linkage.h>
 #include <asm/assembler.h>
+#include <asm/unwind.h>
 
 /*
  * Prototype:
@@ -80,6 +81,10 @@
 	stmdb	sp!, {r0, r2, r3, \reg1, \reg2}
 	.endm
 
+	.macro usave reg1 reg2
+	UNWIND(	.save {r0, r2, r3, \reg1, \reg2}	)
+	.endm
+
 	.macro exit reg1 reg2
 	add	sp, sp, #8
 	ldmfd	sp!, {r0, \reg1, \reg2}
@@ -95,7 +100,7 @@ WEAK(__copy_to_user)
 ENDPROC(__copy_to_user)
 ENDPROC(__copy_to_user_std)
 
-	.pushsection .fixup,"ax"
+	.pushsection .text.fixup,"ax"
 	.align 0
 	copy_abort_preamble
 	ldmfd	sp!, {r1, r2, r3}

@@ -20,6 +20,7 @@
 #include "omap_drv.h"
 
 #include <drm/drm_mode.h>
+#include <drm/drm_plane_helper.h>
 #include "drm_crtc.h"
 #include "drm_crtc_helper.h"
 

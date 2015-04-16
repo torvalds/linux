@@ -20,6 +20,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/ctype.h>
+#include <linux/string_helpers.h>
 #include <asm/uaccess.h>
 #include <linux/poll.h>
 #include <linux/seq_file.h>
@@ -920,7 +921,7 @@ static unsigned int cache_poll(struct file *filp, poll_table *wait,
 	poll_wait(filp, &queue_wait, wait);
 
 	/* alway allow write */
-	mask = POLL_OUT | POLLWRNORM;
+	mask = POLLOUT | POLLWRNORM;
 
 	if (!rp)
 		return mask;
@@ -1067,30 +1068,17 @@ void qword_add(char **bpp, int *lp, char *str)
 {
 	char *bp = *bpp;
 	int len = *lp;
-	char c;
+	int ret;
 
 	if (len < 0) return;
 
-	while ((c=*str++) && len)
-		switch(c) {
-		case ' ':
-		case '\t':
-		case '\n':
-		case '\\':
-			if (len >= 4) {
-				*bp++ = '\\';
-				*bp++ = '0' + ((c & 0300)>>6);
-				*bp++ = '0' + ((c & 0070)>>3);
-				*bp++ = '0' + ((c & 0007)>>0);
-			}
-			len -= 4;
-			break;
-		default:
-			*bp++ = c;
-			len--;
-		}
-	if (c || len <1) len = -1;
-	else {
+	ret = string_escape_str(str, bp, len, ESCAPE_OCTAL, "\\ \n\t");
+	if (ret >= len) {
+		bp += len;
+		len = -1;
+	} else {
+		bp += ret;
+		len -= ret;
 		*bp++ = ' ';
 		len--;
 	}

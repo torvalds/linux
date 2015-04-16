@@ -28,7 +28,12 @@
 /* Runtime PM autosuspend timeout: PM is fairly light on this driver */
 #define SPI_AUTOSUSPEND_TIMEOUT		200
 
-#define ORION_NUM_CHIPSELECTS		1 /* only one slave is supported*/
+/* Some SoCs using this driver support up to 8 chip selects.
+ * It is up to the implementer to only use the chip selects
+ * that are available.
+ */
+#define ORION_NUM_CHIPSELECTS		8
+
 #define ORION_SPI_WAIT_RDY_MAX_LOOP	2000 /* in usec */
 
 #define ORION_SPI_IF_CTRL_REG		0x00
@@ -44,6 +49,10 @@
 #define ARMADA_SPI_CLK_PRESCALE_MASK	0xDF
 #define ORION_SPI_MODE_MASK		(ORION_SPI_MODE_CPOL | \
 					 ORION_SPI_MODE_CPHA)
+#define ORION_SPI_CS_MASK	0x1C
+#define ORION_SPI_CS_SHIFT	2
+#define ORION_SPI_CS(cs)	((cs << ORION_SPI_CS_SHIFT) & \
+					ORION_SPI_CS_MASK)
 
 enum orion_spi_type {
 	ORION_SPI,
@@ -215,9 +224,18 @@ orion_spi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 	return 0;
 }
 
-static void orion_spi_set_cs(struct orion_spi *orion_spi, int enable)
+static void orion_spi_set_cs(struct spi_device *spi, bool enable)
 {
-	if (enable)
+	struct orion_spi *orion_spi;
+
+	orion_spi = spi_master_get_devdata(spi->master);
+
+	orion_spi_clrbits(orion_spi, ORION_SPI_IF_CTRL_REG, ORION_SPI_CS_MASK);
+	orion_spi_setbits(orion_spi, ORION_SPI_IF_CTRL_REG,
+				ORION_SPI_CS(spi->chip_select));
+
+	/* Chip select logic is inverted from spi_set_cs */
+	if (!enable)
 		orion_spi_setbits(orion_spi, ORION_SPI_IF_CTRL_REG, 0x1);
 	else
 		orion_spi_clrbits(orion_spi, ORION_SPI_IF_CTRL_REG, 0x1);
@@ -332,64 +350,31 @@ out:
 	return xfer->len - count;
 }
 
-static int orion_spi_transfer_one_message(struct spi_master *master,
-					   struct spi_message *m)
+static int orion_spi_transfer_one(struct spi_master *master,
+					struct spi_device *spi,
+					struct spi_transfer *t)
 {
-	struct orion_spi *orion_spi = spi_master_get_devdata(master);
-	struct spi_device *spi = m->spi;
-	struct spi_transfer *t = NULL;
-	int par_override = 0;
 	int status = 0;
-	int cs_active = 0;
 
-	/* Load defaults */
-	status = orion_spi_setup_transfer(spi, NULL);
-
+	status = orion_spi_setup_transfer(spi, t);
 	if (status < 0)
-		goto msg_done;
+		return status;
 
-	list_for_each_entry(t, &m->transfers, transfer_list) {
-		if (par_override || t->speed_hz || t->bits_per_word) {
-			par_override = 1;
-			status = orion_spi_setup_transfer(spi, t);
-			if (status < 0)
-				break;
-			if (!t->speed_hz && !t->bits_per_word)
-				par_override = 0;
-		}
+	if (t->len)
+		orion_spi_write_read(spi, t);
 
-		if (!cs_active) {
-			orion_spi_set_cs(orion_spi, 1);
-			cs_active = 1;
-		}
+	return status;
+}
 
-		if (t->len)
-			m->actual_length += orion_spi_write_read(spi, t);
-
-		if (t->delay_usecs)
-			udelay(t->delay_usecs);
-
-		if (t->cs_change) {
-			orion_spi_set_cs(orion_spi, 0);
-			cs_active = 0;
-		}
-	}
-
-msg_done:
-	if (cs_active)
-		orion_spi_set_cs(orion_spi, 0);
-
-	m->status = status;
-	spi_finalize_current_message(master);
-
-	return 0;
+static int orion_spi_setup(struct spi_device *spi)
+{
+	return orion_spi_setup_transfer(spi, NULL);
 }
 
 static int orion_spi_reset(struct orion_spi *orion_spi)
 {
 	/* Verify that the CS is deasserted */
-	orion_spi_set_cs(orion_spi, 0);
-
+	orion_spi_clrbits(orion_spi, ORION_SPI_IF_CTRL_REG, 0x1);
 	return 0;
 }
 
@@ -442,9 +427,10 @@ static int orion_spi_probe(struct platform_device *pdev)
 
 	/* we support only mode 0, and no options */
 	master->mode_bits = SPI_CPHA | SPI_CPOL;
-
-	master->transfer_one_message = orion_spi_transfer_one_message;
+	master->set_cs = orion_spi_set_cs;
+	master->transfer_one = orion_spi_transfer_one;
 	master->num_chipselect = ORION_NUM_CHIPSELECTS;
+	master->setup = orion_spi_setup;
 	master->bits_per_word_mask = SPI_BPW_MASK(8) | SPI_BPW_MASK(16);
 	master->auto_runtime_pm = true;
 
@@ -454,7 +440,7 @@ static int orion_spi_probe(struct platform_device *pdev)
 	spi->master = master;
 
 	of_id = of_match_device(orion_spi_of_match_table, &pdev->dev);
-	devdata = of_id->data;
+	devdata = (of_id) ? of_id->data : &orion_spi_dev_data;
 	spi->devdata = devdata;
 
 	spi->clk = devm_clk_get(&pdev->dev, NULL);
@@ -523,7 +509,7 @@ static int orion_spi_remove(struct platform_device *pdev)
 
 MODULE_ALIAS("platform:" DRIVER_NAME);
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int orion_spi_runtime_suspend(struct device *dev)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
@@ -551,7 +537,6 @@ static const struct dev_pm_ops orion_spi_pm_ops = {
 static struct platform_driver orion_spi_driver = {
 	.driver = {
 		.name	= DRIVER_NAME,
-		.owner	= THIS_MODULE,
 		.pm	= &orion_spi_pm_ops,
 		.of_match_table = of_match_ptr(orion_spi_of_match_table),
 	},

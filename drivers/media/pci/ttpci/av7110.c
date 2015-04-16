@@ -1219,11 +1219,14 @@ static int stop_ts_capture(struct av7110 *budget)
 
 static int start_ts_capture(struct av7110 *budget)
 {
+	unsigned y;
+
 	dprintk(2, "budget: %p\n", budget);
 
 	if (budget->feeding1)
 		return ++budget->feeding1;
-	memset(budget->grabbing, 0x00, TS_BUFLEN);
+	for (y = 0; y < TS_HEIGHT; y++)
+		memset(budget->grabbing + y * TS_WIDTH, 0x00, TS_WIDTH);
 	budget->ttbp = 0;
 	SAA7146_ISR_CLEAR(budget->dev, MASK_10);  /* VPE */
 	SAA7146_IER_ENABLE(budget->dev, MASK_10); /* VPE */

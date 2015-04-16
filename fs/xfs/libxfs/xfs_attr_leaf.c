@@ -24,7 +24,6 @@
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
 #include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
@@ -41,7 +40,6 @@
 #include "xfs_trace.h"
 #include "xfs_buf_item.h"
 #include "xfs_cksum.h"
-#include "xfs_dinode.h"
 #include "xfs_dir2.h"
 
 
@@ -405,7 +403,7 @@ xfs_sbversion_add_attr2(xfs_mount_t *mp, xfs_trans_t *tp)
 		if (!xfs_sb_version_hasattr2(&mp->m_sb)) {
 			xfs_sb_version_addattr2(&mp->m_sb);
 			spin_unlock(&mp->m_sb_lock);
-			xfs_mod_sb(tp, XFS_SB_VERSIONNUM | XFS_SB_FEATURES2);
+			xfs_log_sb(tp);
 		} else
 			spin_unlock(&mp->m_sb_lock);
 	}

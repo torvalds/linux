@@ -98,20 +98,79 @@ size of the disk when not in use so a huge zram is wasteful.
 	mount /dev/zram1 /tmp
 
 7) Stats:
-	Per-device statistics are exported as various nodes under
-	/sys/block/zram<id>/
-		disksize
-		num_reads
-		num_writes
-		failed_reads
-		failed_writes
-		invalid_io
-		notify_free
-		zero_pages
-		orig_data_size
-		compr_data_size
-		mem_used_total
-		mem_used_max
+Per-device statistics are exported as various nodes under /sys/block/zram<id>/
+
+A brief description of exported device attritbutes. For more details please
+read Documentation/ABI/testing/sysfs-block-zram.
+
+Name            access            description
+----            ------            -----------
+disksize          RW    show and set the device's disk size
+initstate         RO    shows the initialization state of the device
+reset             WO    trigger device reset
+num_reads         RO    the number of reads
+failed_reads      RO    the number of failed reads
+num_write         RO    the number of writes
+failed_writes     RO    the number of failed writes
+invalid_io        RO    the number of non-page-size-aligned I/O requests
+max_comp_streams  RW    the number of possible concurrent compress operations
+comp_algorithm    RW    show and change the compression algorithm
+notify_free       RO    the number of notifications to free pages (either
+                        slot free notifications or REQ_DISCARD requests)
+zero_pages        RO    the number of zero filled pages written to this disk
+orig_data_size    RO    uncompressed size of data stored in this disk
+compr_data_size   RO    compressed size of data stored in this disk
+mem_used_total    RO    the amount of memory allocated for this disk
+mem_used_max      RW    the maximum amount memory zram have consumed to
+                        store compressed data
+mem_limit         RW    the maximum amount of memory ZRAM can use to store
+                        the compressed data
+num_migrated      RO    the number of objects migrated migrated by compaction
+
+
+WARNING
+=======
+per-stat sysfs attributes are considered to be deprecated.
+The basic strategy is:
+-- the existing RW nodes will be downgraded to WO nodes (in linux 4.11)
+-- deprecated RO sysfs nodes will eventually be removed (in linux 4.11)
+
+The list of deprecated attributes can be found here:
+Documentation/ABI/obsolete/sysfs-block-zram
+
+Basically, every attribute that has its own read accessible sysfs node
+(e.g. num_reads) *AND* is accessible via one of the stat files (zram<id>/stat
+or zram<id>/io_stat or zram<id>/mm_stat) is considered to be deprecated.
+
+User space is advised to use the following files to read the device statistics.
+
+File /sys/block/zram<id>/stat
+
+Represents block layer statistics. Read Documentation/block/stat.txt for
+details.
+
+File /sys/block/zram<id>/io_stat
+
+The stat file represents device's I/O statistics not accounted by block
+layer and, thus, not available in zram<id>/stat file. It consists of a
+single line of text and contains the following stats separated by
+whitespace:
+	failed_reads
+	failed_writes
+	invalid_io
+	notify_free
+
+File /sys/block/zram<id>/mm_stat
+
+The stat file represents device's mm statistics. It consists of a single
+line of text and contains the following stats separated by whitespace:
+	orig_data_size
+	compr_data_size
+	mem_used_total
+	mem_limit
+	mem_used_max
+	zero_pages
+	num_migrated
 
 8) Deactivate:
 	swapoff /dev/zram0

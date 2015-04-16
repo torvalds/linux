@@ -16,6 +16,8 @@
 #include <linux/types.h>
 #include <linux/skbuff.h>
 #include <linux/filter.h>
+#include <linux/bpf.h>
+
 #include <net/rtnetlink.h>
 #include <net/pkt_cls.h>
 #include <net/sock.h>
@@ -23,6 +25,8 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Daniel Borkmann <dborkman@redhat.com>");
 MODULE_DESCRIPTION("TC BPF based classifier");
+
+#define CLS_BPF_NAME_LEN	256
 
 struct cls_bpf_head {
 	struct list_head plist;
@@ -32,18 +36,24 @@ struct cls_bpf_head {
 
 struct cls_bpf_prog {
 	struct bpf_prog *filter;
-	struct sock_filter *bpf_ops;
-	struct tcf_exts exts;
-	struct tcf_result res;
 	struct list_head link;
+	struct tcf_result res;
+	struct tcf_exts exts;
 	u32 handle;
-	u16 bpf_len;
+	union {
+		u32 bpf_fd;
+		u16 bpf_num_ops;
+	};
+	struct sock_filter *bpf_ops;
+	const char *bpf_name;
 	struct tcf_proto *tp;
 	struct rcu_head rcu;
 };
 
 static const struct nla_policy bpf_policy[TCA_BPF_MAX + 1] = {
 	[TCA_BPF_CLASSID]	= { .type = NLA_U32 },
+	[TCA_BPF_FD]		= { .type = NLA_U32 },
+	[TCA_BPF_NAME]		= { .type = NLA_NUL_STRING, .len = CLS_BPF_NAME_LEN },
 	[TCA_BPF_OPS_LEN]	= { .type = NLA_U16 },
 	[TCA_BPF_OPS]		= { .type = NLA_BINARY,
 				    .len = sizeof(struct sock_filter) * BPF_MAXINSNS },
@@ -54,8 +64,10 @@ static int cls_bpf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 {
 	struct cls_bpf_head *head = rcu_dereference_bh(tp->root);
 	struct cls_bpf_prog *prog;
-	int ret;
+	int ret = -1;
 
+	/* Needed here for accessing maps. */
+	rcu_read_lock();
 	list_for_each_entry_rcu(prog, &head->plist, link) {
 		int filter_res = BPF_PROG_RUN(prog->filter, skb);
 
@@ -70,10 +82,16 @@ static int cls_bpf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 		if (ret < 0)
 			continue;
 
-		return ret;
+		break;
 	}
+	rcu_read_unlock();
 
-	return -1;
+	return ret;
+}
+
+static bool cls_bpf_is_ebpf(const struct cls_bpf_prog *prog)
+{
+	return !prog->bpf_ops;
 }
 
 static int cls_bpf_init(struct tcf_proto *tp)
@@ -94,8 +112,12 @@ static void cls_bpf_delete_prog(struct tcf_proto *tp, struct cls_bpf_prog *prog)
 {
 	tcf_exts_destroy(&prog->exts);
 
-	bpf_prog_destroy(prog->filter);
+	if (cls_bpf_is_ebpf(prog))
+		bpf_prog_put(prog->filter);
+	else
+		bpf_prog_destroy(prog->filter);
 
+	kfree(prog->bpf_name);
 	kfree(prog->bpf_ops);
 	kfree(prog);
 }
@@ -109,25 +131,22 @@ static void __cls_bpf_delete_prog(struct rcu_head *rcu)
 
 static int cls_bpf_delete(struct tcf_proto *tp, unsigned long arg)
 {
-	struct cls_bpf_head *head = rtnl_dereference(tp->root);
-	struct cls_bpf_prog *prog, *todel = (struct cls_bpf_prog *) arg;
+	struct cls_bpf_prog *prog = (struct cls_bpf_prog *) arg;
 
-	list_for_each_entry(prog, &head->plist, link) {
-		if (prog == todel) {
-			list_del_rcu(&prog->link);
-			tcf_unbind_filter(tp, &prog->res);
-			call_rcu(&prog->rcu, __cls_bpf_delete_prog);
-			return 0;
-		}
-	}
+	list_del_rcu(&prog->link);
+	tcf_unbind_filter(tp, &prog->res);
+	call_rcu(&prog->rcu, __cls_bpf_delete_prog);
 
-	return -ENOENT;
+	return 0;
 }
 
-static void cls_bpf_destroy(struct tcf_proto *tp)
+static bool cls_bpf_destroy(struct tcf_proto *tp, bool force)
 {
 	struct cls_bpf_head *head = rtnl_dereference(tp->root);
 	struct cls_bpf_prog *prog, *tmp;
+
+	if (!force && !list_empty(&head->plist))
+		return false;
 
 	list_for_each_entry_safe(prog, tmp, &head->plist, link) {
 		list_del_rcu(&prog->link);
@@ -137,6 +156,7 @@ static void cls_bpf_destroy(struct tcf_proto *tp)
 
 	RCU_INIT_POINTER(tp->root, NULL);
 	kfree_rcu(head, rcu);
+	return true;
 }
 
 static unsigned long cls_bpf_get(struct tcf_proto *tp, u32 handle)
@@ -148,7 +168,7 @@ static unsigned long cls_bpf_get(struct tcf_proto *tp, u32 handle)
 	if (head == NULL)
 		return 0UL;
 
-	list_for_each_entry_rcu(prog, &head->plist, link) {
+	list_for_each_entry(prog, &head->plist, link) {
 		if (prog->handle == handle) {
 			ret = (unsigned long) prog;
 			break;
@@ -158,8 +178,84 @@ static unsigned long cls_bpf_get(struct tcf_proto *tp, u32 handle)
 	return ret;
 }
 
-static void cls_bpf_put(struct tcf_proto *tp, unsigned long f)
+static int cls_bpf_prog_from_ops(struct nlattr **tb,
+				 struct cls_bpf_prog *prog, u32 classid)
 {
+	struct sock_filter *bpf_ops;
+	struct sock_fprog_kern fprog_tmp;
+	struct bpf_prog *fp;
+	u16 bpf_size, bpf_num_ops;
+	int ret;
+
+	bpf_num_ops = nla_get_u16(tb[TCA_BPF_OPS_LEN]);
+	if (bpf_num_ops > BPF_MAXINSNS || bpf_num_ops == 0)
+		return -EINVAL;
+
+	bpf_size = bpf_num_ops * sizeof(*bpf_ops);
+	if (bpf_size != nla_len(tb[TCA_BPF_OPS]))
+		return -EINVAL;
+
+	bpf_ops = kzalloc(bpf_size, GFP_KERNEL);
+	if (bpf_ops == NULL)
+		return -ENOMEM;
+
+	memcpy(bpf_ops, nla_data(tb[TCA_BPF_OPS]), bpf_size);
+
+	fprog_tmp.len = bpf_num_ops;
+	fprog_tmp.filter = bpf_ops;
+
+	ret = bpf_prog_create(&fp, &fprog_tmp);
+	if (ret < 0) {
+		kfree(bpf_ops);
+		return ret;
+	}
+
+	prog->bpf_ops = bpf_ops;
+	prog->bpf_num_ops = bpf_num_ops;
+	prog->bpf_name = NULL;
+
+	prog->filter = fp;
+	prog->res.classid = classid;
+
+	return 0;
+}
+
+static int cls_bpf_prog_from_efd(struct nlattr **tb,
+				 struct cls_bpf_prog *prog, u32 classid)
+{
+	struct bpf_prog *fp;
+	char *name = NULL;
+	u32 bpf_fd;
+
+	bpf_fd = nla_get_u32(tb[TCA_BPF_FD]);
+
+	fp = bpf_prog_get(bpf_fd);
+	if (IS_ERR(fp))
+		return PTR_ERR(fp);
+
+	if (fp->type != BPF_PROG_TYPE_SCHED_CLS) {
+		bpf_prog_put(fp);
+		return -EINVAL;
+	}
+
+	if (tb[TCA_BPF_NAME]) {
+		name = kmemdup(nla_data(tb[TCA_BPF_NAME]),
+			       nla_len(tb[TCA_BPF_NAME]),
+			       GFP_KERNEL);
+		if (!name) {
+			bpf_prog_put(fp);
+			return -ENOMEM;
+		}
+	}
+
+	prog->bpf_ops = NULL;
+	prog->bpf_fd = bpf_fd;
+	prog->bpf_name = name;
+
+	prog->filter = fp;
+	prog->res.classid = classid;
+
+	return 0;
 }
 
 static int cls_bpf_modify_existing(struct net *net, struct tcf_proto *tp,
@@ -167,15 +263,16 @@ static int cls_bpf_modify_existing(struct net *net, struct tcf_proto *tp,
 				   unsigned long base, struct nlattr **tb,
 				   struct nlattr *est, bool ovr)
 {
-	struct sock_filter *bpf_ops;
 	struct tcf_exts exts;
-	struct sock_fprog_kern tmp;
-	struct bpf_prog *fp;
-	u16 bpf_size, bpf_len;
+	bool is_bpf, is_ebpf;
 	u32 classid;
 	int ret;
 
-	if (!tb[TCA_BPF_OPS_LEN] || !tb[TCA_BPF_OPS] || !tb[TCA_BPF_CLASSID])
+	is_bpf = tb[TCA_BPF_OPS_LEN] && tb[TCA_BPF_OPS];
+	is_ebpf = tb[TCA_BPF_FD];
+
+	if ((!is_bpf && !is_ebpf) || (is_bpf && is_ebpf) ||
+	    !tb[TCA_BPF_CLASSID])
 		return -EINVAL;
 
 	tcf_exts_init(&exts, TCA_BPF_ACT, TCA_BPF_POLICE);
@@ -184,57 +281,39 @@ static int cls_bpf_modify_existing(struct net *net, struct tcf_proto *tp,
 		return ret;
 
 	classid = nla_get_u32(tb[TCA_BPF_CLASSID]);
-	bpf_len = nla_get_u16(tb[TCA_BPF_OPS_LEN]);
-	if (bpf_len > BPF_MAXINSNS || bpf_len == 0) {
-		ret = -EINVAL;
-		goto errout;
+
+	ret = is_bpf ? cls_bpf_prog_from_ops(tb, prog, classid) :
+		       cls_bpf_prog_from_efd(tb, prog, classid);
+	if (ret < 0) {
+		tcf_exts_destroy(&exts);
+		return ret;
 	}
-
-	bpf_size = bpf_len * sizeof(*bpf_ops);
-	bpf_ops = kzalloc(bpf_size, GFP_KERNEL);
-	if (bpf_ops == NULL) {
-		ret = -ENOMEM;
-		goto errout;
-	}
-
-	memcpy(bpf_ops, nla_data(tb[TCA_BPF_OPS]), bpf_size);
-
-	tmp.len = bpf_len;
-	tmp.filter = bpf_ops;
-
-	ret = bpf_prog_create(&fp, &tmp);
-	if (ret)
-		goto errout_free;
-
-	prog->bpf_len = bpf_len;
-	prog->bpf_ops = bpf_ops;
-	prog->filter = fp;
-	prog->res.classid = classid;
 
 	tcf_bind_filter(tp, &prog->res, base);
 	tcf_exts_change(tp, &prog->exts, &exts);
 
 	return 0;
-errout_free:
-	kfree(bpf_ops);
-errout:
-	tcf_exts_destroy(&exts);
-	return ret;
 }
 
 static u32 cls_bpf_grab_new_handle(struct tcf_proto *tp,
 				   struct cls_bpf_head *head)
 {
 	unsigned int i = 0x80000000;
+	u32 handle;
 
 	do {
 		if (++head->hgen == 0x7FFFFFFF)
 			head->hgen = 1;
 	} while (--i > 0 && cls_bpf_get(tp, head->hgen));
-	if (i == 0)
-		pr_err("Insufficient number of handles\n");
 
-	return i;
+	if (unlikely(i == 0)) {
+		pr_err("Insufficient number of handles\n");
+		handle = 0;
+	} else {
+		handle = head->hgen;
+	}
+
+	return handle;
 }
 
 static int cls_bpf_change(struct net *net, struct sk_buff *in_skb,
@@ -297,11 +376,43 @@ errout:
 	return ret;
 }
 
+static int cls_bpf_dump_bpf_info(const struct cls_bpf_prog *prog,
+				 struct sk_buff *skb)
+{
+	struct nlattr *nla;
+
+	if (nla_put_u16(skb, TCA_BPF_OPS_LEN, prog->bpf_num_ops))
+		return -EMSGSIZE;
+
+	nla = nla_reserve(skb, TCA_BPF_OPS, prog->bpf_num_ops *
+			  sizeof(struct sock_filter));
+	if (nla == NULL)
+		return -EMSGSIZE;
+
+	memcpy(nla_data(nla), prog->bpf_ops, nla_len(nla));
+
+	return 0;
+}
+
+static int cls_bpf_dump_ebpf_info(const struct cls_bpf_prog *prog,
+				  struct sk_buff *skb)
+{
+	if (nla_put_u32(skb, TCA_BPF_FD, prog->bpf_fd))
+		return -EMSGSIZE;
+
+	if (prog->bpf_name &&
+	    nla_put_string(skb, TCA_BPF_NAME, prog->bpf_name))
+		return -EMSGSIZE;
+
+	return 0;
+}
+
 static int cls_bpf_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 			struct sk_buff *skb, struct tcmsg *tm)
 {
 	struct cls_bpf_prog *prog = (struct cls_bpf_prog *) fh;
-	struct nlattr *nest, *nla;
+	struct nlattr *nest;
+	int ret;
 
 	if (prog == NULL)
 		return skb->len;
@@ -314,15 +425,13 @@ static int cls_bpf_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 
 	if (nla_put_u32(skb, TCA_BPF_CLASSID, prog->res.classid))
 		goto nla_put_failure;
-	if (nla_put_u16(skb, TCA_BPF_OPS_LEN, prog->bpf_len))
-		goto nla_put_failure;
 
-	nla = nla_reserve(skb, TCA_BPF_OPS, prog->bpf_len *
-			  sizeof(struct sock_filter));
-	if (nla == NULL)
+	if (cls_bpf_is_ebpf(prog))
+		ret = cls_bpf_dump_ebpf_info(prog, skb);
+	else
+		ret = cls_bpf_dump_bpf_info(prog, skb);
+	if (ret)
 		goto nla_put_failure;
-
-	memcpy(nla_data(nla), prog->bpf_ops, nla_len(nla));
 
 	if (tcf_exts_dump(skb, &prog->exts) < 0)
 		goto nla_put_failure;
@@ -344,7 +453,7 @@ static void cls_bpf_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 	struct cls_bpf_head *head = rtnl_dereference(tp->root);
 	struct cls_bpf_prog *prog;
 
-	list_for_each_entry_rcu(prog, &head->plist, link) {
+	list_for_each_entry(prog, &head->plist, link) {
 		if (arg->count < arg->skip)
 			goto skip;
 		if (arg->fn(tp, (unsigned long) prog, arg) < 0) {
@@ -363,7 +472,6 @@ static struct tcf_proto_ops cls_bpf_ops __read_mostly = {
 	.init		=	cls_bpf_init,
 	.destroy	=	cls_bpf_destroy,
 	.get		=	cls_bpf_get,
-	.put		=	cls_bpf_put,
 	.change		=	cls_bpf_change,
 	.delete		=	cls_bpf_delete,
 	.walk		=	cls_bpf_walk,

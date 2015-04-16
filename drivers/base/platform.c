@@ -101,6 +101,15 @@ int platform_get_irq(struct platform_device *dev, unsigned int num)
 	}
 
 	r = platform_get_resource(dev, IORESOURCE_IRQ, num);
+	/*
+	 * The resources may pass trigger flags to the irqs that need
+	 * to be set up. It so happens that the trigger flags for
+	 * IORESOURCE_BITS correspond 1-to-1 to the IRQF_TRIGGER*
+	 * settings.
+	 */
+	if (r && r->flags & IORESOURCE_BITS)
+		irqd_set_trigger_type(irq_get_irq_data(r->start),
+				      r->flags & IORESOURCE_BITS);
 
 	return r ? r->start : -ENXIO;
 #endif
@@ -454,7 +463,7 @@ struct platform_device *platform_device_register_full(
 		goto err_alloc;
 
 	pdev->dev.parent = pdevinfo->parent;
-	ACPI_COMPANION_SET(&pdev->dev, pdevinfo->acpi_node.companion);
+	pdev->dev.fwnode = pdevinfo->fwnode;
 
 	if (pdevinfo->dma_mask) {
 		/*
@@ -580,9 +589,10 @@ void platform_driver_unregister(struct platform_driver *drv)
 EXPORT_SYMBOL_GPL(platform_driver_unregister);
 
 /**
- * platform_driver_probe - register driver for non-hotpluggable device
+ * __platform_driver_probe - register driver for non-hotpluggable device
  * @drv: platform driver structure
  * @probe: the driver probe routine, probably from an __init section
+ * @module: module which will be the owner of the driver
  *
  * Use this instead of platform_driver_register() when you know the device
  * is not hotpluggable and has already been registered, and you want to
@@ -598,8 +608,8 @@ EXPORT_SYMBOL_GPL(platform_driver_unregister);
  * Returns zero if the driver registered and bound to a device, else returns
  * a negative error code and with the driver not registered.
  */
-int __init_or_module platform_driver_probe(struct platform_driver *drv,
-		int (*probe)(struct platform_device *))
+int __init_or_module __platform_driver_probe(struct platform_driver *drv,
+		int (*probe)(struct platform_device *), struct module *module)
 {
 	int retval, code;
 
@@ -614,7 +624,7 @@ int __init_or_module platform_driver_probe(struct platform_driver *drv,
 
 	/* temporary section violation during probe() */
 	drv->probe = probe;
-	retval = code = platform_driver_register(drv);
+	retval = code = __platform_driver_register(drv, module);
 
 	/*
 	 * Fixup that section violation, being paranoid about code scanning
@@ -633,27 +643,28 @@ int __init_or_module platform_driver_probe(struct platform_driver *drv,
 		platform_driver_unregister(drv);
 	return retval;
 }
-EXPORT_SYMBOL_GPL(platform_driver_probe);
+EXPORT_SYMBOL_GPL(__platform_driver_probe);
 
 /**
- * platform_create_bundle - register driver and create corresponding device
+ * __platform_create_bundle - register driver and create corresponding device
  * @driver: platform driver structure
  * @probe: the driver probe routine, probably from an __init section
  * @res: set of resources that needs to be allocated for the device
  * @n_res: number of resources
  * @data: platform specific data for this platform device
  * @size: size of platform specific data
+ * @module: module which will be the owner of the driver
  *
  * Use this in legacy-style modules that probe hardware directly and
  * register a single platform device and corresponding platform driver.
  *
  * Returns &struct platform_device pointer on success, or ERR_PTR() on error.
  */
-struct platform_device * __init_or_module platform_create_bundle(
+struct platform_device * __init_or_module __platform_create_bundle(
 			struct platform_driver *driver,
 			int (*probe)(struct platform_device *),
 			struct resource *res, unsigned int n_res,
-			const void *data, size_t size)
+			const void *data, size_t size, struct module *module)
 {
 	struct platform_device *pdev;
 	int error;
@@ -676,7 +687,7 @@ struct platform_device * __init_or_module platform_create_bundle(
 	if (error)
 		goto err_pdev_put;
 
-	error = platform_driver_probe(driver, probe);
+	error = __platform_driver_probe(driver, probe, module);
 	if (error)
 		goto err_pdev_del;
 
@@ -689,7 +700,7 @@ err_pdev_put:
 err_out:
 	return ERR_PTR(error);
 }
-EXPORT_SYMBOL_GPL(platform_create_bundle);
+EXPORT_SYMBOL_GPL(__platform_create_bundle);
 
 /* modalias support enables more hands-off userspace setup:
  * (a) environment variable lets new-style hotplug events work once system is
@@ -1006,6 +1017,7 @@ int __init platform_bus_init(void)
 	error =  bus_register(&platform_bus_type);
 	if (error)
 		device_unregister(&platform_bus);
+	of_platform_register_reconfig_notifier();
 	return error;
 }
 

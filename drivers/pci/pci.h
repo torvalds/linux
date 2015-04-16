@@ -6,6 +6,8 @@
 
 extern const unsigned char pcie_link_speed[];
 
+bool pcie_cap_has_lnkctl(const struct pci_dev *dev);
+
 /* Functions internal to the PCI core code */
 
 int pci_create_sysfs_dev_files(struct pci_dev *pdev);
@@ -48,6 +50,10 @@ int pci_probe_reset_function(struct pci_dev *dev);
  *		for given device (the device's wake-up capability has to be
  *		enabled by @sleep_wake for this feature to work)
  *
+ * @need_resume: returns 'true' if the given device (which is currently
+ *		suspended) needs to be resumed to be configured for system
+ *		wakeup.
+ *
  * If given platform is generally capable of power managing PCI devices, all of
  * these callbacks are mandatory.
  */
@@ -57,6 +63,7 @@ struct pci_platform_pm_ops {
 	pci_power_t (*choose_state)(struct pci_dev *dev);
 	int (*sleep_wake)(struct pci_dev *dev, bool enable);
 	int (*run_wake)(struct pci_dev *dev, bool enable);
+	bool (*need_resume)(struct pci_dev *dev);
 };
 
 int pci_set_platform_pm(struct pci_platform_pm_ops *ops);
@@ -65,6 +72,7 @@ void pci_power_up(struct pci_dev *dev);
 void pci_disable_enabled_device(struct pci_dev *dev);
 int pci_finish_runtime_suspend(struct pci_dev *dev);
 int __pci_pme_wakeup(struct pci_dev *dev, void *ign);
+bool pci_dev_keep_suspended(struct pci_dev *dev);
 void pci_config_pm_runtime_get(struct pci_dev *dev);
 void pci_config_pm_runtime_put(struct pci_dev *dev);
 void pci_pm_init(struct pci_dev *dev);
@@ -206,6 +214,7 @@ void __pci_bus_size_bridges(struct pci_bus *bus,
 void __pci_bus_assign_resources(const struct pci_bus *bus,
 				struct list_head *realloc_head,
 				struct list_head *fail_head);
+bool pci_bus_clip_resource(struct pci_dev *dev, int idx);
 
 /**
  * pci_ari_enabled - query ARI forwarding status
@@ -251,8 +260,7 @@ static inline void pci_restore_ats_state(struct pci_dev *dev)
 #ifdef CONFIG_PCI_IOV
 int pci_iov_init(struct pci_dev *dev);
 void pci_iov_release(struct pci_dev *dev);
-int pci_iov_resource_bar(struct pci_dev *dev, int resno,
-			 enum pci_bar_type *type);
+int pci_iov_resource_bar(struct pci_dev *dev, int resno);
 resource_size_t pci_sriov_resource_alignment(struct pci_dev *dev, int resno);
 void pci_restore_iov_state(struct pci_dev *dev);
 int pci_iov_bus_range(struct pci_bus *bus);
@@ -266,8 +274,7 @@ static inline void pci_iov_release(struct pci_dev *dev)
 
 {
 }
-static inline int pci_iov_resource_bar(struct pci_dev *dev, int resno,
-				       enum pci_bar_type *type)
+static inline int pci_iov_resource_bar(struct pci_dev *dev, int resno)
 {
 	return 0;
 }
@@ -313,5 +320,7 @@ static inline int pci_dev_specific_reset(struct pci_dev *dev, int probe)
 	return -ENOTTY;
 }
 #endif
+
+struct pci_host_bridge *pci_find_host_bridge(struct pci_bus *bus);
 
 #endif /* DRIVERS_PCI_H */

@@ -79,4 +79,4 @@ endchoice
 
 config PCIE_PME
 	def_bool y
-	depends on PCIEPORTBUS && PM_RUNTIME
+	depends on PCIEPORTBUS && PM

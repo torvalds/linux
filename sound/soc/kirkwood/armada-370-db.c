@@ -134,7 +134,6 @@ static const struct of_device_id a370db_dt_ids[] = {
 static struct platform_driver a370db_driver = {
 	.driver		= {
 		.name	= "a370db-audio",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(a370db_dt_ids),
 	},
 	.probe		= a370db_probe,

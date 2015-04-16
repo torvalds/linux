@@ -16,6 +16,14 @@
 	model = "Armadeus Systems APF51Dev docking/development board";
 	compatible = "armadeus,imx51-apf51dev", "armadeus,imx51-apf51", "fsl,imx51";
 
+	backlight@bl1{
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_backlight>;
+		compatible = "gpio-backlight";
+		gpios = <&gpio3 4 GPIO_ACTIVE_HIGH>;
+		default-on;
+	};
+
 	display@di1 {
 		compatible = "fsl,imx-parallel-display";
 		interface-pix-fmt = "bgr666";
@@ -114,6 +122,12 @@
 	pinctrl-0 = <&pinctrl_hog>;
 
 	imx51-apf51dev {
+		pinctrl_backlight: bl1grp {
+			fsl,pins = <
+				MX51_PAD_DI1_D1_CS__GPIO3_4 0x1F5
+			>;
+		};
+
 		pinctrl_hog: hoggrp {
 			fsl,pins = <
 				MX51_PAD_EIM_EB2__GPIO2_22   0x0C5

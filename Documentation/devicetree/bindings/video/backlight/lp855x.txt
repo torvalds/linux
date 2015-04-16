@@ -12,6 +12,7 @@ Optional properties:
   - pwm-period: PWM period value. Set only PWM input mode used (u32)
   - rom-addr: Register address of ROM area to be updated (u8)
   - rom-val: Register value to be updated (u8)
+  - power-supply: Regulator which controls the 3V rail
 
 Example:
 
@@ -56,6 +57,7 @@ Example:
 	backlight@2c {
 		compatible = "ti,lp8557";
 		reg = <0x2c>;
+		power-supply = <&backlight_vdd>;
 
 		dev-ctrl = /bits/ 8 <0x41>;
 		init-brt = /bits/ 8 <0x0a>;

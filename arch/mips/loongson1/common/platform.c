@@ -16,8 +16,10 @@
 #include <linux/usb/ehci_pdriver.h>
 #include <asm-generic/sizes.h>
 
+#include <cpufreq.h>
 #include <loongson1.h>
 
+/* 8250/16550 compatible UART */
 #define LS1X_UART(_id)						\
 	{							\
 		.mapbase	= LS1X_UART ## _id ## _BASE,	\
@@ -27,7 +29,7 @@
 		.type		= PORT_16550A,			\
 	}
 
-static struct plat_serial8250_port ls1x_serial8250_port[] = {
+static struct plat_serial8250_port ls1x_serial8250_pdata[] = {
 	LS1X_UART(0),
 	LS1X_UART(1),
 	LS1X_UART(2),
@@ -35,11 +37,11 @@ static struct plat_serial8250_port ls1x_serial8250_port[] = {
 	{},
 };
 
-struct platform_device ls1x_uart_device = {
+struct platform_device ls1x_uart_pdev = {
 	.name		= "serial8250",
 	.id		= PLAT8250_DEV_PLATFORM,
 	.dev		= {
-		.platform_data = ls1x_serial8250_port,
+		.platform_data = ls1x_serial8250_pdata,
 	},
 };
 
@@ -48,16 +50,97 @@ void __init ls1x_serial_setup(struct platform_device *pdev)
 	struct clk *clk;
 	struct plat_serial8250_port *p;
 
-	clk = clk_get(NULL, pdev->name);
-	if (IS_ERR(clk))
-		panic("unable to get %s clock, err=%ld",
-			pdev->name, PTR_ERR(clk));
+	clk = clk_get(&pdev->dev, pdev->name);
+	if (IS_ERR(clk)) {
+		pr_err("unable to get %s clock, err=%ld",
+		       pdev->name, PTR_ERR(clk));
+		return;
+	}
+	clk_prepare_enable(clk);
 
 	for (p = pdev->dev.platform_data; p->flags != 0; ++p)
 		p->uartclk = clk_get_rate(clk);
 }
 
+/* CPUFreq */
+static struct plat_ls1x_cpufreq ls1x_cpufreq_pdata = {
+	.clk_name	= "cpu_clk",
+	.osc_clk_name	= "osc_33m_clk",
+	.max_freq	= 266 * 1000,
+	.min_freq	= 33 * 1000,
+};
+
+struct platform_device ls1x_cpufreq_pdev = {
+	.name		= "ls1x-cpufreq",
+	.dev		= {
+		.platform_data = &ls1x_cpufreq_pdata,
+	},
+};
+
 /* Synopsys Ethernet GMAC */
+static struct stmmac_mdio_bus_data ls1x_mdio_bus_data = {
+	.phy_mask	= 0,
+};
+
+static struct stmmac_dma_cfg ls1x_eth_dma_cfg = {
+	.pbl		= 1,
+};
+
+int ls1x_eth_mux_init(struct platform_device *pdev, void *priv)
+{
+	struct plat_stmmacenet_data *plat_dat = NULL;
+	u32 val;
+
+	val = __raw_readl(LS1X_MUX_CTRL1);
+
+	plat_dat = dev_get_platdata(&pdev->dev);
+	if (plat_dat->bus_id) {
+		__raw_writel(__raw_readl(LS1X_MUX_CTRL0) | GMAC1_USE_UART1 |
+			     GMAC1_USE_UART0, LS1X_MUX_CTRL0);
+		switch (plat_dat->interface) {
+		case PHY_INTERFACE_MODE_RGMII:
+			val &= ~(GMAC1_USE_TXCLK | GMAC1_USE_PWM23);
+			break;
+		case PHY_INTERFACE_MODE_MII:
+			val |= (GMAC1_USE_TXCLK | GMAC1_USE_PWM23);
+			break;
+		default:
+			pr_err("unsupported mii mode %d\n",
+			       plat_dat->interface);
+			return -ENOTSUPP;
+		}
+		val &= ~GMAC1_SHUT;
+	} else {
+		switch (plat_dat->interface) {
+		case PHY_INTERFACE_MODE_RGMII:
+			val &= ~(GMAC0_USE_TXCLK | GMAC0_USE_PWM01);
+			break;
+		case PHY_INTERFACE_MODE_MII:
+			val |= (GMAC0_USE_TXCLK | GMAC0_USE_PWM01);
+			break;
+		default:
+			pr_err("unsupported mii mode %d\n",
+			       plat_dat->interface);
+			return -ENOTSUPP;
+		}
+		val &= ~GMAC0_SHUT;
+	}
+	__raw_writel(val, LS1X_MUX_CTRL1);
+
+	return 0;
+}
+
+static struct plat_stmmacenet_data ls1x_eth0_pdata = {
+	.bus_id		= 0,
+	.phy_addr	= -1,
+	.interface	= PHY_INTERFACE_MODE_MII,
+	.mdio_bus_data	= &ls1x_mdio_bus_data,
+	.dma_cfg	= &ls1x_eth_dma_cfg,
+	.has_gmac	= 1,
+	.tx_coe		= 1,
+	.init		= ls1x_eth_mux_init,
+};
+
 static struct resource ls1x_eth0_resources[] = {
 	[0] = {
 		.start	= LS1X_GMAC0_BASE,
@@ -71,25 +154,47 @@ static struct resource ls1x_eth0_resources[] = {
 	},
 };
 
-static struct stmmac_mdio_bus_data ls1x_mdio_bus_data = {
-	.phy_mask	= 0,
-};
-
-static struct plat_stmmacenet_data ls1x_eth_data = {
-	.bus_id		= 0,
-	.phy_addr	= -1,
-	.mdio_bus_data	= &ls1x_mdio_bus_data,
-	.has_gmac	= 1,
-	.tx_coe		= 1,
-};
-
-struct platform_device ls1x_eth0_device = {
+struct platform_device ls1x_eth0_pdev = {
 	.name		= "stmmaceth",
 	.id		= 0,
 	.num_resources	= ARRAY_SIZE(ls1x_eth0_resources),
 	.resource	= ls1x_eth0_resources,
 	.dev		= {
-		.platform_data = &ls1x_eth_data,
+		.platform_data = &ls1x_eth0_pdata,
+	},
+};
+
+static struct plat_stmmacenet_data ls1x_eth1_pdata = {
+	.bus_id		= 1,
+	.phy_addr	= -1,
+	.interface	= PHY_INTERFACE_MODE_MII,
+	.mdio_bus_data	= &ls1x_mdio_bus_data,
+	.dma_cfg	= &ls1x_eth_dma_cfg,
+	.has_gmac	= 1,
+	.tx_coe		= 1,
+	.init		= ls1x_eth_mux_init,
+};
+
+static struct resource ls1x_eth1_resources[] = {
+	[0] = {
+		.start	= LS1X_GMAC1_BASE,
+		.end	= LS1X_GMAC1_BASE + SZ_64K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.name	= "macirq",
+		.start	= LS1X_GMAC1_IRQ,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device ls1x_eth1_pdev = {
+	.name		= "stmmaceth",
+	.id		= 1,
+	.num_resources	= ARRAY_SIZE(ls1x_eth1_resources),
+	.resource	= ls1x_eth1_resources,
+	.dev		= {
+		.platform_data = &ls1x_eth1_pdata,
 	},
 };
 
@@ -111,7 +216,7 @@ static struct resource ls1x_ehci_resources[] = {
 static struct usb_ehci_pdata ls1x_ehci_pdata = {
 };
 
-struct platform_device ls1x_ehci_device = {
+struct platform_device ls1x_ehci_pdev = {
 	.name		= "ehci-platform",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(ls1x_ehci_resources),
@@ -123,7 +228,7 @@ struct platform_device ls1x_ehci_device = {
 };
 
 /* Real Time Clock */
-struct platform_device ls1x_rtc_device = {
+struct platform_device ls1x_rtc_pdev = {
 	.name		= "ls1x-rtc",
 	.id		= -1,
 };

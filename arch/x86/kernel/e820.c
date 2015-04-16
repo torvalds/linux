@@ -184,9 +184,9 @@ void __init e820_print_map(char *who)
  * overwritten in the same location, starting at biosmap.
  *
  * The integer pointed to by pnr_map must be valid on entry (the
- * current number of valid entries located at biosmap) and will
- * be updated on return, with the new number of valid entries
- * (something no more than max_nr_map.)
+ * current number of valid entries located at biosmap). If the
+ * sanitizing succeeds the *pnr_map will be updated with the new
+ * number of valid entries (something no more than max_nr_map).
  *
  * The return value from sanitize_e820_map() is zero if it
  * successfully 'sanitized' the map entries passed in, and is -1
@@ -561,23 +561,15 @@ u64 __init e820_remove_range(u64 start, u64 size, unsigned old_type,
 
 void __init update_e820(void)
 {
-	u32 nr_map;
-
-	nr_map = e820.nr_map;
-	if (sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &nr_map))
+	if (sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map))
 		return;
-	e820.nr_map = nr_map;
 	printk(KERN_INFO "e820: modified physical RAM map:\n");
 	e820_print_map("modified");
 }
 static void __init update_e820_saved(void)
 {
-	u32 nr_map;
-
-	nr_map = e820_saved.nr_map;
-	if (sanitize_e820_map(e820_saved.map, ARRAY_SIZE(e820_saved.map), &nr_map))
-		return;
-	e820_saved.nr_map = nr_map;
+	sanitize_e820_map(e820_saved.map, ARRAY_SIZE(e820_saved.map),
+				&e820_saved.nr_map);
 }
 #define MAX_GAP_END 0x100000000ull
 /*
@@ -669,7 +661,7 @@ void __init parse_e820_ext(u64 phys_addr, u32 data_len)
 	extmap = (struct e820entry *)(sdata->data);
 	__append_e820_map(extmap, entries);
 	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
-	early_iounmap(sdata, data_len);
+	early_memunmap(sdata, data_len);
 	printk(KERN_INFO "e820: extended physical RAM map:\n");
 	e820_print_map("extended");
 }
@@ -898,11 +890,9 @@ early_param("memmap", parse_memmap_opt);
 void __init finish_e820_parsing(void)
 {
 	if (userdef) {
-		u32 nr = e820.nr_map;
-
-		if (sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &nr) < 0)
+		if (sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map),
+					&e820.nr_map) < 0)
 			early_panic("Invalid user supplied memory map");
-		e820.nr_map = nr;
 
 		printk(KERN_INFO "e820: user-defined physical RAM map:\n");
 		e820_print_map("user");
@@ -1114,8 +1104,8 @@ void __init memblock_find_dma_reserve(void)
 	 * at first, and assume boot_mem will not take below MAX_DMA_PFN
 	 */
 	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, NULL) {
-		start_pfn = min_t(unsigned long, start_pfn, MAX_DMA_PFN);
-		end_pfn = min_t(unsigned long, end_pfn, MAX_DMA_PFN);
+		start_pfn = min(start_pfn, MAX_DMA_PFN);
+		end_pfn = min(end_pfn, MAX_DMA_PFN);
 		nr_pages += end_pfn - start_pfn;
 	}
 

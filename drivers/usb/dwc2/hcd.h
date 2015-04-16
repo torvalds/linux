@@ -668,9 +668,6 @@ extern irqreturn_t dwc2_handle_hcd_intr(struct dwc2_hsotg *hsotg);
  */
 extern void dwc2_hcd_stop(struct dwc2_hsotg *hsotg);
 
-extern void dwc2_hcd_start(struct dwc2_hsotg *hsotg);
-extern void dwc2_hcd_disconnect(struct dwc2_hsotg *hsotg);
-
 /**
  * dwc2_hcd_is_b_host() - Returns 1 if core currently is acting as B host,
  * and 0 otherwise
@@ -678,13 +675,6 @@ extern void dwc2_hcd_disconnect(struct dwc2_hsotg *hsotg);
  * @hsotg: The DWC2 HCD
  */
 extern int dwc2_hcd_is_b_host(struct dwc2_hsotg *hsotg);
-
-/**
- * dwc2_hcd_get_frame_number() - Returns current frame number
- *
- * @hsotg: The DWC2 HCD
- */
-extern int dwc2_hcd_get_frame_number(struct dwc2_hsotg *hsotg);
 
 /**
  * dwc2_hcd_dump_state() - Dumps hsotg state

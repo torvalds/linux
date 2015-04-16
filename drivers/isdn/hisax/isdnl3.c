@@ -153,7 +153,7 @@ void
 newl3state(struct l3_process *pc, int state)
 {
 	if (pc->debug & L3_DEB_STATE)
-		l3_debug(pc->st, "newstate cr %d %d --> %d",
+		l3_debug(pc->st, "%s cr %d %d --> %d", __func__,
 			 pc->callref & 0x7F,
 			 pc->state, state);
 	pc->state = state;

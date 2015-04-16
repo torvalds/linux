@@ -158,17 +158,15 @@ int r8712_free_recvframe(union recv_frame *precvframe,
 static void update_recvframe_attrib_from_recvstat(struct rx_pkt_attrib *pattrib,
 					   struct recv_stat *prxstat)
 {
-	u32 *pphy_info;
-	struct phy_stat *pphy_stat;
 	u16 drvinfo_sz = 0;
 
 	drvinfo_sz = (le32_to_cpu(prxstat->rxdw0)&0x000f0000)>>16;
-	drvinfo_sz = drvinfo_sz<<3;
+	drvinfo_sz <<= 3;
 	/*TODO:
 	 * Offset 0 */
 	pattrib->bdecrypted = ((le32_to_cpu(prxstat->rxdw0) & BIT(27)) >> 27)
 				 ? 0 : 1;
-	pattrib->crc_err = ((le32_to_cpu(prxstat->rxdw0) & BIT(14)) >> 14);
+	pattrib->crc_err = (le32_to_cpu(prxstat->rxdw0) & BIT(14)) >> 14;
 	/*Offset 4*/
 	/*Offset 8*/
 	/*Offset 12*/
@@ -189,10 +187,6 @@ static void update_recvframe_attrib_from_recvstat(struct rx_pkt_attrib *pattrib,
 	/*Offset 16*/
 	/*Offset 20*/
 	/*phy_info*/
-	if (drvinfo_sz) {
-		pphy_stat = (struct phy_stat *)(prxstat+1);
-		pphy_info = (u32 *)prxstat+1;
-	}
 }
 
 /*perform defrag*/
@@ -200,7 +194,7 @@ static union recv_frame *recvframe_defrag(struct _adapter *adapter,
 				   struct  __queue *defrag_q)
 {
 	struct list_head *plist, *phead;
-	u8	*data, wlanhdr_offset;
+	u8 wlanhdr_offset;
 	u8	curfragnum;
 	struct recv_frame_hdr *pfhdr, *pnfhdr;
 	union recv_frame *prframe, *pnextrframe;
@@ -223,7 +217,6 @@ static union recv_frame *recvframe_defrag(struct _adapter *adapter,
 	curfragnum++;
 	plist = &defrag_q->queue;
 	plist = plist->next;
-	data = get_recvframe_data(prframe);
 	while (end_of_queue_search(phead, plist) == false) {
 		pnextrframe = LIST_CONTAINOR(plist, union recv_frame, u);
 		pnfhdr = &pnextrframe->u.hdr;
@@ -436,22 +429,18 @@ void r8712_rxcmd_event_hdl(struct _adapter *padapter, void *prxcmdbuf)
 {
 	uint voffset;
 	u8 *poffset;
-	u16 pkt_len, cmd_len, drvinfo_sz;
-	u8 eid, cmd_seq;
+	u16 cmd_len, drvinfo_sz;
 	struct recv_stat *prxstat;
 
 	poffset = (u8 *)prxcmdbuf;
 	voffset = *(uint *)poffset;
-	pkt_len = le32_to_cpu(voffset) & 0x00003fff;
 	prxstat = (struct recv_stat *)prxcmdbuf;
-	drvinfo_sz = ((le32_to_cpu(prxstat->rxdw0) & 0x000f0000) >> 16);
-	drvinfo_sz = drvinfo_sz << 3;
+	drvinfo_sz = (le32_to_cpu(prxstat->rxdw0) & 0x000f0000) >> 16;
+	drvinfo_sz <<= 3;
 	poffset += RXDESC_SIZE + drvinfo_sz;
 	do {
 		voffset  = *(uint *)poffset;
 		cmd_len = (u16)(le32_to_cpu(voffset) & 0xffff);
-		cmd_seq = (u8)((le32_to_cpu(voffset) >> 24) & 0x7f);
-		eid = (u8)((le32_to_cpu(voffset) >> 16) & 0xff);
 		r8712_event_handle(padapter, (uint *)poffset);
 		poffset += (cmd_len + 8);/*8 bytes alignment*/
 	} while (le32_to_cpu(voffset) & BIT(31));
@@ -533,11 +522,10 @@ int r8712_recv_indicatepkts_in_order(struct _adapter *padapter,
 	if (bforced == true) {
 		if (list_empty(phead))
 			return true;
-		else {
-			prframe = LIST_CONTAINOR(plist, union recv_frame, u);
-			pattrib = &prframe->u.hdr.attrib;
-			preorder_ctrl->indicate_seq = pattrib->seq_num;
-		}
+
+		prframe = LIST_CONTAINOR(plist, union recv_frame, u);
+		pattrib = &prframe->u.hdr.attrib;
+		preorder_ctrl->indicate_seq = pattrib->seq_num;
 	}
 	/* Prepare indication list and indication.
 	 * Check if there is any packet need indicate. */
@@ -616,12 +604,12 @@ static int recv_indicatepkt_reorder(struct _adapter *padapter,
 	 */
 	if (r8712_recv_indicatepkts_in_order(padapter, preorder_ctrl, false) ==
 	    true) {
-		_set_timer(&preorder_ctrl->reordering_ctrl_timer,
-			   REORDER_WAIT_TIME);
+		mod_timer(&preorder_ctrl->reordering_ctrl_timer,
+			  jiffies + msecs_to_jiffies(REORDER_WAIT_TIME));
 		spin_unlock_irqrestore(&ppending_recvframe_queue->lock, irql);
 	} else {
 		spin_unlock_irqrestore(&ppending_recvframe_queue->lock, irql);
-		_cancel_timer_ex(&preorder_ctrl->reordering_ctrl_timer);
+		del_timer(&preorder_ctrl->reordering_ctrl_timer);
 	}
 	return _SUCCESS;
 _err_exit:
@@ -761,7 +749,7 @@ static void query_rx_phy_status(struct _adapter *padapter,
 		 */
 		if (!cck_highpwr) {
 			report = pcck_buf->cck_agc_rpt & 0xc0;
-			report = report >> 6;
+			report >>= 6;
 			switch (report) {
 			/* Modify the RF RNA gain value to -40, -20,
 			 * -2, 14 by Jenyu's suggestion
@@ -787,7 +775,7 @@ static void query_rx_phy_status(struct _adapter *padapter,
 		} else {
 			report = ((u8)(le32_to_cpu(pphy_stat->phydw1) >> 8)) &
 				 0x60;
-			report = report >> 5;
+			report >>= 5;
 			switch (report) {
 			case 0x3:
 				rx_pwr_all = -40 - ((pcck_buf->cck_agc_rpt &
@@ -1051,7 +1039,7 @@ static int recvbuf2recvframe(struct _adapter *padapter, struct sk_buff *pskb)
 		frag = (le32_to_cpu(prxstat->rxdw2) >> 12) & 0xf;
 		/* uint 2^3 = 8 bytes */
 		drvinfo_sz = (le32_to_cpu(prxstat->rxdw0) & 0x000f0000) >> 16;
-		drvinfo_sz = drvinfo_sz<<3;
+		drvinfo_sz <<= 3;
 		if (pkt_len <= 0)
 			goto  _exit_recvbuf2recvframe;
 		/* Qos data, wireless lan header length is 26 */

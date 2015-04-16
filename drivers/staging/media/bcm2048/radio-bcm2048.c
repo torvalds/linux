@@ -1448,8 +1448,8 @@ static void bcm2048_parse_rds_pi(struct bcm2048_device *bdev)
 		/* Block A match, only data without crc errors taken */
 		if (bdev->rds_info.radio_text[i] == BCM2048_RDS_BLOCK_A) {
 
-			pi = ((bdev->rds_info.radio_text[i+1] << 8) +
-				bdev->rds_info.radio_text[i+2]);
+			pi = (bdev->rds_info.radio_text[i+1] << 8) +
+				bdev->rds_info.radio_text[i+2];
 
 			if (!bdev->rds_info.rds_pi) {
 				bdev->rds_info.rds_pi = pi;
@@ -1503,8 +1503,8 @@ static int bcm2048_parse_rt_match_b(struct bcm2048_device *bdev, int i)
 	if ((bdev->rds_info.radio_text[i] & BCM2048_RDS_BLOCK_MASK) ==
 		BCM2048_RDS_BLOCK_B) {
 
-		rt_id = (bdev->rds_info.radio_text[i+1] &
-			BCM2048_RDS_BLOCK_MASK);
+		rt_id = bdev->rds_info.radio_text[i+1] &
+			BCM2048_RDS_BLOCK_MASK;
 		rt_group_b = bdev->rds_info.radio_text[i+1] &
 			BCM2048_RDS_GROUP_AB_MASK;
 		rt_ab = bdev->rds_info.radio_text[i+2] &
@@ -1792,7 +1792,7 @@ static int bcm2048_get_rds_data(struct bcm2048_device *bdev, char *data)
 		goto unlock;
 	}
 
-	data_buffer = kzalloc(BCM2048_MAX_RDS_RADIO_TEXT*5, GFP_KERNEL);
+	data_buffer = kcalloc(BCM2048_MAX_RDS_RADIO_TEXT, 5, GFP_KERNEL);
 	if (!data_buffer) {
 		err = -ENOMEM;
 		goto unlock;
@@ -2245,8 +2245,7 @@ static ssize_t bcm2048_fops_read(struct file *file, char __user *buf,
 
 		tmpbuf[i] = bdev->rds_info.radio_text[bdev->rd_index+i+2];
 		tmpbuf[i+1] = bdev->rds_info.radio_text[bdev->rd_index+i+1];
-		tmpbuf[i+2] = ((bdev->rds_info.radio_text[bdev->rd_index+i]
-				& 0xf0) >> 4);
+		tmpbuf[i+2] = (bdev->rds_info.radio_text[bdev->rd_index + i] & 0xf0) >> 4;
 		if ((bdev->rds_info.radio_text[bdev->rd_index+i] &
 			BCM2048_RDS_CRC_MASK) == BCM2048_RDS_CRC_UNRECOVARABLE)
 			tmpbuf[i+2] |= 0x80;
@@ -2327,9 +2326,10 @@ static int bcm2048_vidioc_querycap(struct file *file, void *priv,
 	strlcpy(capability->card, BCM2048_DRIVER_CARD,
 		sizeof(capability->card));
 	snprintf(capability->bus_info, 32, "I2C: 0x%X", bdev->client->addr);
-	capability->version = BCM2048_DRIVER_VERSION;
-	capability->capabilities = V4L2_CAP_TUNER | V4L2_CAP_RADIO |
+	capability->device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO |
 					V4L2_CAP_HW_FREQ_SEEK;
+	capability->capabilities = capability->device_caps |
+		V4L2_CAP_DEVICE_CAPS;
 
 	return 0;
 }
@@ -2683,9 +2683,7 @@ static int __exit bcm2048_i2c_driver_remove(struct i2c_client *client)
 		vd = bdev->videodev;
 
 		bcm2048_sysfs_unregister_properties(bdev, ARRAY_SIZE(attrs));
-
-		if (vd)
-			video_unregister_device(vd);
+		video_unregister_device(vd);
 
 		if (bdev->power_state)
 			bcm2048_set_power_state(bdev, BCM2048_POWER_OFF);
@@ -2698,8 +2696,6 @@ static int __exit bcm2048_i2c_driver_remove(struct i2c_client *client)
 		kfree(bdev);
 	}
 
-	i2c_set_clientdata(client, NULL);
-
 	return 0;
 }
 
@@ -2707,7 +2703,7 @@ static int __exit bcm2048_i2c_driver_remove(struct i2c_client *client)
  *	bcm2048_i2c_driver - i2c driver interface
  */
 static const struct i2c_device_id bcm2048_id[] = {
-	{ "bcm2048" , 0 },
+	{ "bcm2048", 0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(i2c, bcm2048_id);
@@ -2721,22 +2717,7 @@ static struct i2c_driver bcm2048_i2c_driver = {
 	.id_table	= bcm2048_id,
 };
 
-/*
- *	Module Interface
- */
-static int __init bcm2048_module_init(void)
-{
-	pr_info(BCM2048_DRIVER_DESC "\n");
-
-	return i2c_add_driver(&bcm2048_i2c_driver);
-}
-module_init(bcm2048_module_init);
-
-static void __exit bcm2048_module_exit(void)
-{
-	i2c_del_driver(&bcm2048_i2c_driver);
-}
-module_exit(bcm2048_module_exit);
+module_i2c_driver(bcm2048_i2c_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR(BCM2048_DRIVER_AUTHOR);

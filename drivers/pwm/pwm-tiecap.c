@@ -331,7 +331,6 @@ static SIMPLE_DEV_PM_OPS(ecap_pwm_pm_ops, ecap_pwm_suspend, ecap_pwm_resume);
 static struct platform_driver ecap_pwm_driver = {
 	.driver = {
 		.name	= "ecap",
-		.owner	= THIS_MODULE,
 		.of_match_table = ecap_of_match,
 		.pm	= &ecap_pwm_pm_ops,
 	},

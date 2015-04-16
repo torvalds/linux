@@ -41,8 +41,13 @@ static inline acpi_handle acpi_pci_get_bridge_handle(struct pci_bus *pbus)
 
 	if (pci_is_root_bus(pbus))
 		dev = pbus->bridge;
-	else
+	else {
+		/* If pbus is a virtual bus, there is no bridge to it */
+		if (!pbus->self)
+			return NULL;
+
 		dev = &pbus->self->dev;
+	}
 
 	return ACPI_HANDLE(dev);
 }
@@ -71,6 +76,11 @@ static inline void acpiphp_enumerate_slots(struct pci_bus *bus) { }
 static inline void acpiphp_remove_slots(struct pci_bus *bus) { }
 static inline void acpiphp_check_host_bridge(struct acpi_device *adev) { }
 #endif
+
+extern const u8 pci_acpi_dsm_uuid[];
+#define DEVICE_LABEL_DSM	0x07
+#define RESET_DELAY_DSM		0x08
+#define FUNCTION_DELAY_DSM	0x09
 
 #else	/* CONFIG_ACPI */
 static inline void acpi_pci_add_bus(struct pci_bus *bus) { }

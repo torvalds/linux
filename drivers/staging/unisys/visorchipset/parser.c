@@ -29,9 +29,9 @@
  * incoming payloads.  This serves as a throttling mechanism.
  */
 #define MAX_CONTROLVM_PAYLOAD_BYTES (1024*128)
-static ulong Controlvm_Payload_Bytes_Buffered;
+static ulong controlvm_payload_bytes_buffered;
 
-struct PARSER_CONTEXT_Tag {
+struct parser_context {
 	ulong allocbytes;
 	ulong param_bytes;
 	u8 *curr;
@@ -40,41 +40,36 @@ struct PARSER_CONTEXT_Tag {
 	char data[0];
 };
 
-static PARSER_CONTEXT *
-parser_init_guts(u64 addr, u32 bytes, BOOL isLocal,
-		 BOOL hasStandardPayloadHeader, BOOL *tryAgain)
+static struct parser_context *
+parser_init_guts(u64 addr, u32 bytes, BOOL local,
+		 BOOL standard_payload_header, BOOL *retry)
 {
-	int allocbytes = sizeof(PARSER_CONTEXT) + bytes;
-	PARSER_CONTEXT *rc = NULL;
-	PARSER_CONTEXT *ctx = NULL;
-	MEMREGION *rgn = NULL;
-	ULTRA_CONTROLVM_PARAMETERS_HEADER *phdr = NULL;
+	int allocbytes = sizeof(struct parser_context) + bytes;
+	struct parser_context *rc = NULL;
+	struct parser_context *ctx = NULL;
+	struct memregion *rgn = NULL;
+	struct spar_controlvm_parameters_header *phdr = NULL;
 
-	if (tryAgain)
-		*tryAgain = FALSE;
-	if (!hasStandardPayloadHeader)
+	if (retry)
+		*retry = FALSE;
+	if (!standard_payload_header)
 		/* alloc and 0 extra byte to ensure payload is
 		 * '\0'-terminated
 		 */
 		allocbytes++;
-	if ((Controlvm_Payload_Bytes_Buffered + bytes)
+	if ((controlvm_payload_bytes_buffered + bytes)
 	    > MAX_CONTROLVM_PAYLOAD_BYTES) {
-		ERRDRV("%s (%s:%d) - prevented allocation of %d bytes to prevent exceeding throttling max (%d)",
-		       __func__, __FILE__, __LINE__, allocbytes,
-		       MAX_CONTROLVM_PAYLOAD_BYTES);
-		if (tryAgain)
-			*tryAgain = TRUE;
+		if (retry)
+			*retry = TRUE;
 		rc = NULL;
-		goto Away;
+		goto cleanup;
 	}
 	ctx = kzalloc(allocbytes, GFP_KERNEL|__GFP_NORETRY);
-	if (ctx == NULL) {
-		ERRDRV("%s (%s:%d) - failed to allocate %d bytes",
-		       __func__, __FILE__, __LINE__, allocbytes);
-		if (tryAgain)
-			*tryAgain = TRUE;
+	if (!ctx) {
+		if (retry)
+			*retry = TRUE;
 		rc = NULL;
-		goto Away;
+		goto cleanup;
 	}
 
 	ctx->allocbytes = allocbytes;
@@ -82,15 +77,12 @@ parser_init_guts(u64 addr, u32 bytes, BOOL isLocal,
 	ctx->curr = NULL;
 	ctx->bytes_remaining = 0;
 	ctx->byte_stream = FALSE;
-	if (isLocal) {
+	if (local) {
 		void *p;
 
 		if (addr > virt_to_phys(high_memory - 1)) {
-			ERRDRV("%s - bad local address (0x%-16.16Lx for %lu)",
-			       __func__,
-			       (unsigned long long) addr, (ulong) bytes);
 			rc = NULL;
-			goto Away;
+			goto cleanup;
 		}
 		p = __va((ulong) (addr));
 		memcpy(ctx->data, p, bytes);
@@ -98,52 +90,42 @@ parser_init_guts(u64 addr, u32 bytes, BOOL isLocal,
 		rgn = visor_memregion_create(addr, bytes);
 		if (!rgn) {
 			rc = NULL;
-			goto Away;
+			goto cleanup;
 		}
 		if (visor_memregion_read(rgn, 0, ctx->data, bytes) < 0) {
 			rc = NULL;
-			goto Away;
+			goto cleanup;
 		}
 	}
-	if (!hasStandardPayloadHeader) {
+	if (!standard_payload_header) {
 		ctx->byte_stream = TRUE;
 		rc = ctx;
-		goto Away;
+		goto cleanup;
 	}
-	phdr = (ULTRA_CONTROLVM_PARAMETERS_HEADER *) (ctx->data);
-	if (phdr->TotalLength != bytes) {
-		ERRDRV("%s - bad total length %lu (should be %lu)",
-		       __func__,
-		       (ulong) (phdr->TotalLength), (ulong) (bytes));
+	phdr = (struct spar_controlvm_parameters_header *)(ctx->data);
+	if (phdr->total_length != bytes) {
 		rc = NULL;
-		goto Away;
+		goto cleanup;
 	}
-	if (phdr->TotalLength < phdr->HeaderLength) {
-		ERRDRV("%s - total length < header length (%lu < %lu)",
-		       __func__,
-		       (ulong) (phdr->TotalLength),
-		       (ulong) (phdr->HeaderLength));
+	if (phdr->total_length < phdr->header_length) {
 		rc = NULL;
-		goto Away;
+		goto cleanup;
 	}
-	if (phdr->HeaderLength < sizeof(ULTRA_CONTROLVM_PARAMETERS_HEADER)) {
-		ERRDRV("%s - header is too small (%lu < %lu)",
-		       __func__,
-		       (ulong) (phdr->HeaderLength),
-		       (ulong) (sizeof(ULTRA_CONTROLVM_PARAMETERS_HEADER)));
+	if (phdr->header_length <
+	    sizeof(struct spar_controlvm_parameters_header)) {
 		rc = NULL;
-		goto Away;
+		goto cleanup;
 	}
 
 	rc = ctx;
-Away:
+cleanup:
 	if (rgn) {
 		visor_memregion_destroy(rgn);
 		rgn = NULL;
 	}
-	if (rc)
-		Controlvm_Payload_Bytes_Buffered += ctx->param_bytes;
-	else {
+	if (rc) {
+		controlvm_payload_bytes_buffered += ctx->param_bytes;
+	} else {
 		if (ctx) {
 			parser_done(ctx);
 			ctx = NULL;
@@ -152,27 +134,27 @@ Away:
 	return rc;
 }
 
-PARSER_CONTEXT *
-parser_init(u64 addr, u32 bytes, BOOL isLocal, BOOL *tryAgain)
+struct parser_context *
+parser_init(u64 addr, u32 bytes, BOOL local, BOOL *retry)
 {
-	return parser_init_guts(addr, bytes, isLocal, TRUE, tryAgain);
+	return parser_init_guts(addr, bytes, local, TRUE, retry);
 }
 
 /* Call this instead of parser_init() if the payload area consists of just
- * a sequence of bytes, rather than a ULTRA_CONTROLVM_PARAMETERS_HEADER
+ * a sequence of bytes, rather than a struct spar_controlvm_parameters_header
  * structures.  Afterwards, you can call parser_simpleString_get() or
  * parser_byteStream_get() to obtain the data.
  */
-PARSER_CONTEXT *
-parser_init_byteStream(u64 addr, u32 bytes, BOOL isLocal, BOOL *tryAgain)
+struct parser_context *
+parser_init_byte_stream(u64 addr, u32 bytes, BOOL local, BOOL *retry)
 {
-	return parser_init_guts(addr, bytes, isLocal, FALSE, tryAgain);
+	return parser_init_guts(addr, bytes, local, FALSE, retry);
 }
 
 /* Obtain '\0'-terminated copy of string in payload area.
  */
 char *
-parser_simpleString_get(PARSER_CONTEXT *ctx)
+parser_simpleString_get(struct parser_context *ctx)
 {
 	if (!ctx->byte_stream)
 		return NULL;
@@ -183,60 +165,52 @@ parser_simpleString_get(PARSER_CONTEXT *ctx)
 
 /* Obtain a copy of the buffer in the payload area.
  */
-void *
-parser_byteStream_get(PARSER_CONTEXT *ctx, ulong *nbytes)
+void *parser_byte_stream_get(struct parser_context *ctx, ulong *nbytes)
 {
 	if (!ctx->byte_stream)
 		return NULL;
 	if (nbytes)
 		*nbytes = ctx->param_bytes;
-	return (void *) ctx->data;
+	return (void *)ctx->data;
 }
 
 uuid_le
-parser_id_get(PARSER_CONTEXT *ctx)
+parser_id_get(struct parser_context *ctx)
 {
-	ULTRA_CONTROLVM_PARAMETERS_HEADER *phdr = NULL;
+	struct spar_controlvm_parameters_header *phdr = NULL;
 
-	if (ctx == NULL) {
-		ERRDRV("%s (%s:%d) - no context",
-		       __func__, __FILE__, __LINE__);
+	if (ctx == NULL)
 		return NULL_UUID_LE;
-	}
-	phdr = (ULTRA_CONTROLVM_PARAMETERS_HEADER *) (ctx->data);
-	return phdr->Id;
+	phdr = (struct spar_controlvm_parameters_header *)(ctx->data);
+	return phdr->id;
 }
 
 void
-parser_param_start(PARSER_CONTEXT *ctx, PARSER_WHICH_STRING which_string)
+parser_param_start(struct parser_context *ctx, PARSER_WHICH_STRING which_string)
 {
-	ULTRA_CONTROLVM_PARAMETERS_HEADER *phdr = NULL;
+	struct spar_controlvm_parameters_header *phdr = NULL;
 
-	if (ctx == NULL) {
-		ERRDRV("%s (%s:%d) - no context",
-		       __func__, __FILE__, __LINE__);
+	if (ctx == NULL)
 		goto Away;
-	}
-	phdr = (ULTRA_CONTROLVM_PARAMETERS_HEADER *) (ctx->data);
+	phdr = (struct spar_controlvm_parameters_header *)(ctx->data);
 	switch (which_string) {
 	case PARSERSTRING_INITIATOR:
-		ctx->curr = ctx->data + phdr->InitiatorOffset;
-		ctx->bytes_remaining = phdr->InitiatorLength;
+		ctx->curr = ctx->data + phdr->initiator_offset;
+		ctx->bytes_remaining = phdr->initiator_length;
 		break;
 	case PARSERSTRING_TARGET:
-		ctx->curr = ctx->data + phdr->TargetOffset;
-		ctx->bytes_remaining = phdr->TargetLength;
+		ctx->curr = ctx->data + phdr->target_offset;
+		ctx->bytes_remaining = phdr->target_length;
 		break;
 	case PARSERSTRING_CONNECTION:
-		ctx->curr = ctx->data + phdr->ConnectionOffset;
-		ctx->bytes_remaining = phdr->ConnectionLength;
+		ctx->curr = ctx->data + phdr->connection_offset;
+		ctx->bytes_remaining = phdr->connection_length;
 		break;
 	case PARSERSTRING_NAME:
-		ctx->curr = ctx->data + phdr->NameOffset;
-		ctx->bytes_remaining = phdr->NameLength;
+		ctx->curr = ctx->data + phdr->name_offset;
+		ctx->bytes_remaining = phdr->name_length;
 		break;
 	default:
-		ERRDRV("%s - bad which_string %d", __func__, which_string);
 		break;
 	}
 
@@ -245,11 +219,11 @@ Away:
 }
 
 void
-parser_done(PARSER_CONTEXT *ctx)
+parser_done(struct parser_context *ctx)
 {
 	if (!ctx)
 		return;
-	Controlvm_Payload_Bytes_Buffered -= ctx->param_bytes;
+	controlvm_payload_bytes_buffered -= ctx->param_bytes;
 	kfree(ctx);
 }
 
@@ -288,7 +262,7 @@ string_length_no_trail(char *s, int len)
  *    parameter
  */
 void *
-parser_param_get(PARSER_CONTEXT *ctx, char *nam, int namesize)
+parser_param_get(struct parser_context *ctx, char *nam, int namesize)
 {
 	u8 *pscan, *pnam = nam;
 	ulong nscan;
@@ -319,25 +293,18 @@ parser_param_get(PARSER_CONTEXT *ctx, char *nam, int namesize)
 	}
 
 	while (*pscan != ':') {
-		if (namesize <= 0) {
-			ERRDRV("%s - name too big", __func__);
+		if (namesize <= 0)
 			return NULL;
-		}
 		*pnam = toupper(*pscan);
 		pnam++;
 		namesize--;
 		pscan++;
 		nscan--;
-		if (nscan == 0) {
-			ERRDRV("%s - unexpected end of input parsing name",
-			       __func__);
+		if (nscan == 0)
 			return NULL;
-		}
 	}
-	if (namesize <= 0) {
-		ERRDRV("%s - name too big", __func__);
+	if (namesize <= 0)
 		return NULL;
-	}
 	*pnam = '\0';
 	nam[string_length_no_trail(nam, strlen(nam))] = '\0';
 
@@ -348,26 +315,17 @@ parser_param_get(PARSER_CONTEXT *ctx, char *nam, int namesize)
 	while (isspace(*pscan)) {
 		pscan++;
 		nscan--;
-		if (nscan == 0) {
-			ERRDRV("%s - unexpected end of input looking for value",
-			       __func__);
+		if (nscan == 0)
 			return NULL;
-		}
 	}
-	if (nscan == 0) {
-		ERRDRV("%s - unexpected end of input looking for value",
-		       __func__);
+	if (nscan == 0)
 		return NULL;
-	}
 	if (*pscan == '\'' || *pscan == '"') {
 		closing_quote = *pscan;
 		pscan++;
 		nscan--;
-		if (nscan == 0) {
-			ERRDRV("%s - unexpected end of input after %c",
-			       __func__, closing_quote);
+		if (nscan == 0)
 			return NULL;
-		}
 	}
 
 	/* look for a separator character, terminator character, or
@@ -375,10 +333,8 @@ parser_param_get(PARSER_CONTEXT *ctx, char *nam, int namesize)
 	 */
 	for (i = 0, value_length = -1; i < nscan; i++) {
 		if (closing_quote) {
-			if (pscan[i] == '\0') {
-				ERRDRV("%s - unexpected end of input parsing quoted value", __func__);
+			if (pscan[i] == '\0')
 				return NULL;
-			}
 			if (pscan[i] == closing_quote) {
 				value_length = i;
 				break;
@@ -391,10 +347,8 @@ parser_param_get(PARSER_CONTEXT *ctx, char *nam, int namesize)
 		}
 	}
 	if (value_length < 0) {
-		if (closing_quote) {
-			ERRDRV("%s - unexpected end of input parsing quoted value", __func__);
+		if (closing_quote)
 			return NULL;
-		}
 		value_length = nscan;
 	}
 	orig_value_length = value_length;
@@ -431,7 +385,6 @@ parser_param_get(PARSER_CONTEXT *ctx, char *nam, int namesize)
 				pscan++;
 				nscan--;
 			} else if (*pscan != '\0') {
-				ERRDRV("%s - missing separator after quoted string", __func__);
 				kfree(value);
 				value = NULL;
 				return NULL;
@@ -444,7 +397,7 @@ parser_param_get(PARSER_CONTEXT *ctx, char *nam, int namesize)
 }
 
 void *
-parser_string_get(PARSER_CONTEXT *ctx)
+parser_string_get(struct parser_context *ctx)
 {
 	u8 *pscan;
 	ulong nscan;

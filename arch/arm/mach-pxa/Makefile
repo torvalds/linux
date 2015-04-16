@@ -21,6 +21,7 @@ obj-$(CONFIG_CPU_PXA930)	+= pxa930.o
 
 # Device Tree support
 obj-$(CONFIG_MACH_PXA3XX_DT)	+= pxa-dt.o
+obj-$(CONFIG_MACH_PXA27X_DT)	+= pxa-dt.o
 
 # Intel/Marvell Dev Platforms
 obj-$(CONFIG_ARCH_LUBBOCK)	+= lubbock.o

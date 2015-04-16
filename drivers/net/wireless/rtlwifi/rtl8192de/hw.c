@@ -546,7 +546,7 @@ static bool _rtl92de_llt_table_init(struct ieee80211_hw *hw)
 		txpktbuf_bndy = 246;
 		value8 = 0;
 		value32 = 0x80bf0d29;
-	} else if (rtlpriv->rtlhal.macphymode != SINGLEMAC_SINGLEPHY) {
+	} else {
 		maxPage = 127;
 		txpktbuf_bndy = 123;
 		value8 = 0;
@@ -1126,7 +1126,7 @@ static int _rtl92de_set_media_status(struct ieee80211_hw *hw,
 		break;
 
 	}
-	rtl_write_byte(rtlpriv, REG_CR + 2, bt_msr);
+	rtl_write_byte(rtlpriv, MSR, bt_msr);
 	rtlpriv->cfg->ops->led_control(hw, ledaction);
 	if ((bt_msr & MSR_MASK) == MSR_AP)
 		rtl_write_byte(rtlpriv, REG_BCNTCFG + 1, 0x00);

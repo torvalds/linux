@@ -327,9 +327,6 @@ static int psc_dma_new(struct snd_soc_pcm_runtime *rtd)
 			goto capture_alloc_err;
 	}
 
-	if (rtd->codec->ac97)
-		rtd->codec->ac97->private_data = psc_dma;
-
 	return 0;
 
  capture_alloc_err:

@@ -22,6 +22,7 @@
 #include <asm/cpufeature.h>
 #include <asm/percpu.h>
 #include <asm/nops.h>
+#include <asm/bootparam.h>
 
 /* Physical address */
 #define pa(X) ((X) - __PAGE_OFFSET)
@@ -90,7 +91,7 @@ ENTRY(startup_32)
 	
 	/* test KEEP_SEGMENTS flag to see if the bootloader is asking
 		us to not reload segments */
-	testb $(1<<6), BP_loadflags(%esi)
+	testb $KEEP_SEGMENTS, BP_loadflags(%esi)
 	jnz 2f
 
 /*

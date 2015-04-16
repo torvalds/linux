@@ -212,6 +212,8 @@ static int psb_driver_unload(struct drm_device *dev)
 		}
 		if (dev_priv->aux_pdev)
 			pci_dev_put(dev_priv->aux_pdev);
+		if (dev_priv->lpc_pdev)
+			pci_dev_put(dev_priv->lpc_pdev);
 
 		/* Destroy VBT data */
 		psb_intel_destroy_bios(dev);
@@ -280,6 +282,24 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 			DRM_DEBUG_KMS("Couldn't find aux pci device");
 		}
 		dev_priv->gmbus_reg = dev_priv->aux_reg;
+
+		dev_priv->lpc_pdev = pci_get_bus_and_slot(0, PCI_DEVFN(31, 0));
+		if (dev_priv->lpc_pdev) {
+			pci_read_config_word(dev_priv->lpc_pdev, PSB_LPC_GBA,
+				&dev_priv->lpc_gpio_base);
+			pci_write_config_dword(dev_priv->lpc_pdev, PSB_LPC_GBA,
+				(u32)dev_priv->lpc_gpio_base | (1L<<31));
+			pci_read_config_word(dev_priv->lpc_pdev, PSB_LPC_GBA,
+				&dev_priv->lpc_gpio_base);
+			dev_priv->lpc_gpio_base &= 0xffc0;
+			if (dev_priv->lpc_gpio_base)
+				DRM_DEBUG_KMS("Found LPC GPIO at 0x%04x\n",
+						dev_priv->lpc_gpio_base);
+			else {
+				pci_dev_put(dev_priv->lpc_pdev);
+				dev_priv->lpc_pdev = NULL;
+			}
+		}
 	} else {
 		dev_priv->gmbus_reg = dev_priv->vdc_reg;
 	}

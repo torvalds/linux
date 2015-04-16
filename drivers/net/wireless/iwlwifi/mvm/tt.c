@@ -64,15 +64,12 @@
  *****************************************************************************/
 
 #include "mvm.h"
-#include "iwl-config.h"
-#include "iwl-io.h"
-#include "iwl-csr.h"
-#include "iwl-prph.h"
 
 #define IWL_MVM_TEMP_NOTIF_WAIT_TIMEOUT	HZ
 
 static void iwl_mvm_enter_ctkill(struct iwl_mvm *mvm)
 {
+	struct iwl_mvm_tt_mgmt *tt = &mvm->thermal_throttle;
 	u32 duration = mvm->thermal_throttle.params->ct_kill_duration;
 
 	if (test_bit(IWL_MVM_STATUS_HW_CTKILL, &mvm->status))
@@ -81,12 +78,15 @@ static void iwl_mvm_enter_ctkill(struct iwl_mvm *mvm)
 	IWL_ERR(mvm, "Enter CT Kill\n");
 	iwl_mvm_set_hw_ctkill_state(mvm, true);
 
+	tt->throttle = false;
+	tt->dynamic_smps = false;
+
 	/* Don't schedule an exit work if we're in test mode, since
 	 * the temperature will not change unless we manually set it
 	 * again (or disable testing).
 	 */
 	if (!mvm->temperature_test)
-		schedule_delayed_work(&mvm->thermal_throttle.ct_kill_exit,
+		schedule_delayed_work(&tt->ct_kill_exit,
 				      round_jiffies_relative(duration * HZ));
 }
 
@@ -99,30 +99,79 @@ static void iwl_mvm_exit_ctkill(struct iwl_mvm *mvm)
 	iwl_mvm_set_hw_ctkill_state(mvm, false);
 }
 
-static bool iwl_mvm_temp_notif(struct iwl_notif_wait_data *notif_wait,
-			       struct iwl_rx_packet *pkt, void *data)
+void iwl_mvm_tt_temp_changed(struct iwl_mvm *mvm, u32 temp)
 {
-	struct iwl_mvm *mvm =
-		container_of(notif_wait, struct iwl_mvm, notif_wait);
-	int *temp = data;
+	/* ignore the notification if we are in test mode */
+	if (mvm->temperature_test)
+		return;
+
+	if (mvm->temperature == temp)
+		return;
+
+	mvm->temperature = temp;
+	iwl_mvm_tt_handler(mvm);
+}
+
+static int iwl_mvm_temp_notif_parse(struct iwl_mvm *mvm,
+				    struct iwl_rx_packet *pkt)
+{
 	struct iwl_dts_measurement_notif *notif;
 	int len = iwl_rx_packet_payload_len(pkt);
+	int temp;
 
 	if (WARN_ON_ONCE(len != sizeof(*notif))) {
 		IWL_ERR(mvm, "Invalid DTS_MEASUREMENT_NOTIFICATION\n");
-		return true;
+		return -EINVAL;
 	}
 
 	notif = (void *)pkt->data;
 
-	*temp = le32_to_cpu(notif->temp);
+	temp = le32_to_cpu(notif->temp);
 
 	/* shouldn't be negative, but since it's s32, make sure it isn't */
-	if (WARN_ON_ONCE(*temp < 0))
-		*temp = 0;
+	if (WARN_ON_ONCE(temp < 0))
+		temp = 0;
 
-	IWL_DEBUG_TEMP(mvm, "DTS_MEASUREMENT_NOTIFICATION - %d\n", *temp);
+	IWL_DEBUG_TEMP(mvm, "DTS_MEASUREMENT_NOTIFICATION - %d\n", temp);
+
+	return temp;
+}
+
+static bool iwl_mvm_temp_notif_wait(struct iwl_notif_wait_data *notif_wait,
+				    struct iwl_rx_packet *pkt, void *data)
+{
+	struct iwl_mvm *mvm =
+		container_of(notif_wait, struct iwl_mvm, notif_wait);
+	int *temp = data;
+	int ret;
+
+	ret = iwl_mvm_temp_notif_parse(mvm, pkt);
+	if (ret < 0)
+		return true;
+
+	*temp = ret;
+
 	return true;
+}
+
+int iwl_mvm_temp_notif(struct iwl_mvm *mvm,
+		       struct iwl_rx_cmd_buffer *rxb,
+		       struct iwl_device_cmd *cmd)
+{
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	int temp;
+
+	/* the notification is handled synchronously in ctkill, so skip here */
+	if (test_bit(IWL_MVM_STATUS_HW_CTKILL, &mvm->status))
+		return 0;
+
+	temp = iwl_mvm_temp_notif_parse(mvm, pkt);
+	if (temp < 0)
+		return 0;
+
+	iwl_mvm_tt_temp_changed(mvm, temp);
+
+	return 0;
 }
 
 static int iwl_mvm_get_temp_cmd(struct iwl_mvm *mvm)
@@ -145,7 +194,7 @@ int iwl_mvm_get_temp(struct iwl_mvm *mvm)
 
 	iwl_init_notification_wait(&mvm->notif_wait, &wait_temp_notif,
 				   temp_notif, ARRAY_SIZE(temp_notif),
-				   iwl_mvm_temp_notif, &temp);
+				   iwl_mvm_temp_notif_wait, &temp);
 
 	ret = iwl_mvm_get_temp_cmd(mvm);
 	if (ret) {
@@ -407,6 +456,7 @@ void iwl_mvm_tt_initialize(struct iwl_mvm *mvm, u32 min_backoff)
 		tt->params = &iwl7000_tt_params;
 
 	tt->throttle = false;
+	tt->dynamic_smps = false;
 	tt->min_backoff = min_backoff;
 	INIT_DELAYED_WORK(&tt->ct_kill_exit, check_exit_ctkill);
 }

@@ -1224,7 +1224,6 @@ MODULE_DEVICE_TABLE(of, fsmc_nand_id_table);
 static struct platform_driver fsmc_nand_driver = {
 	.remove = fsmc_nand_remove,
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "fsmc-nand",
 		.of_match_table = of_match_ptr(fsmc_nand_id_table),
 		.pm = &fsmc_nand_pm_ops,

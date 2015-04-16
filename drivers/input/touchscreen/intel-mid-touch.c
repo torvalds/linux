@@ -644,7 +644,6 @@ static int mrstouch_probe(struct platform_device *pdev)
 static struct platform_driver mrstouch_driver = {
 	.driver = {
 		.name	= "pmic_touch",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= mrstouch_probe,
 };

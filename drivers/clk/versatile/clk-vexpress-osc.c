@@ -70,7 +70,6 @@ static struct clk_ops vexpress_osc_ops = {
 
 static int vexpress_osc_probe(struct platform_device *pdev)
 {
-	struct clk_lookup *cl = pdev->dev.platform_data; /* Non-DT lookup */
 	struct clk_init_data init;
 	struct vexpress_osc *osc;
 	struct clk *clk;
@@ -105,12 +104,6 @@ static int vexpress_osc_probe(struct platform_device *pdev)
 		return PTR_ERR(clk);
 
 	of_clk_add_provider(pdev->dev.of_node, of_clk_src_simple_get, clk);
-
-	/* Only happens for non-DT cases */
-	if (cl) {
-		cl->clk = clk;
-		clkdev_add(cl);
-	}
 
 	dev_dbg(&pdev->dev, "Registered clock '%s'\n", init.name);
 

@@ -80,7 +80,7 @@ static void pvr2_context_set_notify(struct pvr2_context *mp, int fl)
 static void pvr2_context_destroy(struct pvr2_context *mp)
 {
 	pvr2_trace(PVR2_TRACE_CTXT,"pvr2_context %p (destroy)",mp);
-	if (mp->hdw) pvr2_hdw_destroy(mp->hdw);
+	pvr2_hdw_destroy(mp->hdw);
 	pvr2_context_set_notify(mp, 0);
 	mutex_lock(&pvr2_context_mutex);
 	if (mp->exist_next) {
@@ -418,14 +418,3 @@ struct pvr2_ioread *pvr2_channel_create_mpeg_stream(
 	pvr2_ioread_set_sync_key(cp,stream_sync_key,sizeof(stream_sync_key));
 	return cp;
 }
-
-
-/*
-  Stuff for Emacs to see, in order to encourage consistent editing style:
-  *** Local Variables: ***
-  *** mode: c ***
-  *** fill-column: 75 ***
-  *** tab-width: 8 ***
-  *** c-basic-offset: 8 ***
-  *** End: ***
-  */

@@ -58,7 +58,7 @@ int __init early_init_dt_scan_fw_dump(unsigned long node,
 	const __be32 *sections;
 	int i, num_sections;
 	int size;
-	const int *token;
+	const __be32 *token;
 
 	if (depth != 1 || strcmp(uname, "rtas") != 0)
 		return 0;
@@ -72,7 +72,7 @@ int __init early_init_dt_scan_fw_dump(unsigned long node,
 		return 1;
 
 	fw_dump.fadump_supported = 1;
-	fw_dump.ibm_configure_kernel_dump = *token;
+	fw_dump.ibm_configure_kernel_dump = be32_to_cpu(*token);
 
 	/*
 	 * The 'ibm,kernel-dump' rtas node is present only if there is
@@ -147,11 +147,11 @@ static unsigned long init_fadump_mem_struct(struct fadump_mem_struct *fdm,
 	memset(fdm, 0, sizeof(struct fadump_mem_struct));
 	addr = addr & PAGE_MASK;
 
-	fdm->header.dump_format_version = 0x00000001;
-	fdm->header.dump_num_sections = 3;
+	fdm->header.dump_format_version = cpu_to_be32(0x00000001);
+	fdm->header.dump_num_sections = cpu_to_be16(3);
 	fdm->header.dump_status_flag = 0;
 	fdm->header.offset_first_dump_section =
-		(u32)offsetof(struct fadump_mem_struct, cpu_state_data);
+		cpu_to_be32((u32)offsetof(struct fadump_mem_struct, cpu_state_data));
 
 	/*
 	 * Fields for disk dump option.
@@ -167,27 +167,27 @@ static unsigned long init_fadump_mem_struct(struct fadump_mem_struct *fdm,
 
 	/* Kernel dump sections */
 	/* cpu state data section. */
-	fdm->cpu_state_data.request_flag = FADUMP_REQUEST_FLAG;
-	fdm->cpu_state_data.source_data_type = FADUMP_CPU_STATE_DATA;
+	fdm->cpu_state_data.request_flag = cpu_to_be32(FADUMP_REQUEST_FLAG);
+	fdm->cpu_state_data.source_data_type = cpu_to_be16(FADUMP_CPU_STATE_DATA);
 	fdm->cpu_state_data.source_address = 0;
-	fdm->cpu_state_data.source_len = fw_dump.cpu_state_data_size;
-	fdm->cpu_state_data.destination_address = addr;
+	fdm->cpu_state_data.source_len = cpu_to_be64(fw_dump.cpu_state_data_size);
+	fdm->cpu_state_data.destination_address = cpu_to_be64(addr);
 	addr += fw_dump.cpu_state_data_size;
 
 	/* hpte region section */
-	fdm->hpte_region.request_flag = FADUMP_REQUEST_FLAG;
-	fdm->hpte_region.source_data_type = FADUMP_HPTE_REGION;
+	fdm->hpte_region.request_flag = cpu_to_be32(FADUMP_REQUEST_FLAG);
+	fdm->hpte_region.source_data_type = cpu_to_be16(FADUMP_HPTE_REGION);
 	fdm->hpte_region.source_address = 0;
-	fdm->hpte_region.source_len = fw_dump.hpte_region_size;
-	fdm->hpte_region.destination_address = addr;
+	fdm->hpte_region.source_len = cpu_to_be64(fw_dump.hpte_region_size);
+	fdm->hpte_region.destination_address = cpu_to_be64(addr);
 	addr += fw_dump.hpte_region_size;
 
 	/* RMA region section */
-	fdm->rmr_region.request_flag = FADUMP_REQUEST_FLAG;
-	fdm->rmr_region.source_data_type = FADUMP_REAL_MODE_REGION;
-	fdm->rmr_region.source_address = RMA_START;
-	fdm->rmr_region.source_len = fw_dump.boot_memory_size;
-	fdm->rmr_region.destination_address = addr;
+	fdm->rmr_region.request_flag = cpu_to_be32(FADUMP_REQUEST_FLAG);
+	fdm->rmr_region.source_data_type = cpu_to_be16(FADUMP_REAL_MODE_REGION);
+	fdm->rmr_region.source_address = cpu_to_be64(RMA_START);
+	fdm->rmr_region.source_len = cpu_to_be64(fw_dump.boot_memory_size);
+	fdm->rmr_region.destination_address = cpu_to_be64(addr);
 	addr += fw_dump.boot_memory_size;
 
 	return addr;
@@ -272,7 +272,7 @@ int __init fadump_reserve_mem(void)
 	 * first kernel.
 	 */
 	if (fdm_active)
-		fw_dump.boot_memory_size = fdm_active->rmr_region.source_len;
+		fw_dump.boot_memory_size = be64_to_cpu(fdm_active->rmr_region.source_len);
 	else
 		fw_dump.boot_memory_size = fadump_calculate_reserve_size();
 
@@ -314,8 +314,8 @@ int __init fadump_reserve_mem(void)
 				(unsigned long)(base >> 20));
 
 		fw_dump.fadumphdr_addr =
-				fdm_active->rmr_region.destination_address +
-				fdm_active->rmr_region.source_len;
+				be64_to_cpu(fdm_active->rmr_region.destination_address) +
+				be64_to_cpu(fdm_active->rmr_region.source_len);
 		pr_debug("fadumphdr_addr = %p\n",
 				(void *) fw_dump.fadumphdr_addr);
 	} else {
@@ -472,9 +472,9 @@ fadump_read_registers(struct fadump_reg_entry *reg_entry, struct pt_regs *regs)
 {
 	memset(regs, 0, sizeof(struct pt_regs));
 
-	while (reg_entry->reg_id != REG_ID("CPUEND")) {
-		fadump_set_regval(regs, reg_entry->reg_id,
-					reg_entry->reg_value);
+	while (be64_to_cpu(reg_entry->reg_id) != REG_ID("CPUEND")) {
+		fadump_set_regval(regs, be64_to_cpu(reg_entry->reg_id),
+					be64_to_cpu(reg_entry->reg_value));
 		reg_entry++;
 	}
 	reg_entry++;
@@ -603,20 +603,20 @@ static int __init fadump_build_cpu_notes(const struct fadump_mem_struct *fdm)
 	if (!fdm->cpu_state_data.bytes_dumped)
 		return -EINVAL;
 
-	addr = fdm->cpu_state_data.destination_address;
+	addr = be64_to_cpu(fdm->cpu_state_data.destination_address);
 	vaddr = __va(addr);
 
 	reg_header = vaddr;
-	if (reg_header->magic_number != REGSAVE_AREA_MAGIC) {
+	if (be64_to_cpu(reg_header->magic_number) != REGSAVE_AREA_MAGIC) {
 		printk(KERN_ERR "Unable to read register save area.\n");
 		return -ENOENT;
 	}
 	pr_debug("--------CPU State Data------------\n");
-	pr_debug("Magic Number: %llx\n", reg_header->magic_number);
-	pr_debug("NumCpuOffset: %x\n", reg_header->num_cpu_offset);
+	pr_debug("Magic Number: %llx\n", be64_to_cpu(reg_header->magic_number));
+	pr_debug("NumCpuOffset: %x\n", be32_to_cpu(reg_header->num_cpu_offset));
 
-	vaddr += reg_header->num_cpu_offset;
-	num_cpus = *((u32 *)(vaddr));
+	vaddr += be32_to_cpu(reg_header->num_cpu_offset);
+	num_cpus = be32_to_cpu(*((__be32 *)(vaddr)));
 	pr_debug("NumCpus     : %u\n", num_cpus);
 	vaddr += sizeof(u32);
 	reg_entry = (struct fadump_reg_entry *)vaddr;
@@ -639,13 +639,13 @@ static int __init fadump_build_cpu_notes(const struct fadump_mem_struct *fdm)
 		fdh = __va(fw_dump.fadumphdr_addr);
 
 	for (i = 0; i < num_cpus; i++) {
-		if (reg_entry->reg_id != REG_ID("CPUSTRT")) {
+		if (be64_to_cpu(reg_entry->reg_id) != REG_ID("CPUSTRT")) {
 			printk(KERN_ERR "Unable to read CPU state data\n");
 			rc = -ENOENT;
 			goto error_out;
 		}
 		/* Lower 4 bytes of reg_value contains logical cpu id */
-		cpu = reg_entry->reg_value & FADUMP_CPU_ID_MASK;
+		cpu = be64_to_cpu(reg_entry->reg_value) & FADUMP_CPU_ID_MASK;
 		if (fdh && !cpumask_test_cpu(cpu, &fdh->cpu_online_mask)) {
 			SKIP_TO_NEXT_CPU(reg_entry);
 			continue;
@@ -692,7 +692,7 @@ static int __init process_fadump(const struct fadump_mem_struct *fdm_active)
 		return -EINVAL;
 
 	/* Check if the dump data is valid. */
-	if ((fdm_active->header.dump_status_flag == FADUMP_ERROR_FLAG) ||
+	if ((be16_to_cpu(fdm_active->header.dump_status_flag) == FADUMP_ERROR_FLAG) ||
 			(fdm_active->cpu_state_data.error_flags != 0) ||
 			(fdm_active->rmr_region.error_flags != 0)) {
 		printk(KERN_ERR "Dump taken by platform is not valid\n");
@@ -828,7 +828,7 @@ static void fadump_setup_crash_memory_ranges(void)
 static inline unsigned long fadump_relocate(unsigned long paddr)
 {
 	if (paddr > RMA_START && paddr < fw_dump.boot_memory_size)
-		return fdm.rmr_region.destination_address + paddr;
+		return be64_to_cpu(fdm.rmr_region.destination_address) + paddr;
 	else
 		return paddr;
 }
@@ -902,7 +902,7 @@ static int fadump_create_elfcore_headers(char *bufp)
 			 * to the specified destination_address. Hence set
 			 * the correct offset.
 			 */
-			phdr->p_offset = fdm.rmr_region.destination_address;
+			phdr->p_offset = be64_to_cpu(fdm.rmr_region.destination_address);
 		}
 
 		phdr->p_paddr = mbase;
@@ -951,7 +951,7 @@ static void register_fadump(void)
 
 	fadump_setup_crash_memory_ranges();
 
-	addr = fdm.rmr_region.destination_address + fdm.rmr_region.source_len;
+	addr = be64_to_cpu(fdm.rmr_region.destination_address) + be64_to_cpu(fdm.rmr_region.source_len);
 	/* Initialize fadump crash info header. */
 	addr = init_fadump_header(addr);
 	vaddr = __va(addr);
@@ -1023,7 +1023,7 @@ void fadump_cleanup(void)
 	/* Invalidate the registration only if dump is active. */
 	if (fw_dump.dump_active) {
 		init_fadump_mem_struct(&fdm,
-			fdm_active->cpu_state_data.destination_address);
+			be64_to_cpu(fdm_active->cpu_state_data.destination_address));
 		fadump_invalidate_dump(&fdm);
 	}
 }
@@ -1063,7 +1063,7 @@ static void fadump_invalidate_release_mem(void)
 		return;
 	}
 
-	destination_address = fdm_active->cpu_state_data.destination_address;
+	destination_address = be64_to_cpu(fdm_active->cpu_state_data.destination_address);
 	fadump_cleanup();
 	mutex_unlock(&fadump_mutex);
 
@@ -1183,31 +1183,31 @@ static int fadump_region_show(struct seq_file *m, void *private)
 	seq_printf(m,
 			"CPU : [%#016llx-%#016llx] %#llx bytes, "
 			"Dumped: %#llx\n",
-			fdm_ptr->cpu_state_data.destination_address,
-			fdm_ptr->cpu_state_data.destination_address +
-			fdm_ptr->cpu_state_data.source_len - 1,
-			fdm_ptr->cpu_state_data.source_len,
-			fdm_ptr->cpu_state_data.bytes_dumped);
+			be64_to_cpu(fdm_ptr->cpu_state_data.destination_address),
+			be64_to_cpu(fdm_ptr->cpu_state_data.destination_address) +
+			be64_to_cpu(fdm_ptr->cpu_state_data.source_len) - 1,
+			be64_to_cpu(fdm_ptr->cpu_state_data.source_len),
+			be64_to_cpu(fdm_ptr->cpu_state_data.bytes_dumped));
 	seq_printf(m,
 			"HPTE: [%#016llx-%#016llx] %#llx bytes, "
 			"Dumped: %#llx\n",
-			fdm_ptr->hpte_region.destination_address,
-			fdm_ptr->hpte_region.destination_address +
-			fdm_ptr->hpte_region.source_len - 1,
-			fdm_ptr->hpte_region.source_len,
-			fdm_ptr->hpte_region.bytes_dumped);
+			be64_to_cpu(fdm_ptr->hpte_region.destination_address),
+			be64_to_cpu(fdm_ptr->hpte_region.destination_address) +
+			be64_to_cpu(fdm_ptr->hpte_region.source_len) - 1,
+			be64_to_cpu(fdm_ptr->hpte_region.source_len),
+			be64_to_cpu(fdm_ptr->hpte_region.bytes_dumped));
 	seq_printf(m,
 			"DUMP: [%#016llx-%#016llx] %#llx bytes, "
 			"Dumped: %#llx\n",
-			fdm_ptr->rmr_region.destination_address,
-			fdm_ptr->rmr_region.destination_address +
-			fdm_ptr->rmr_region.source_len - 1,
-			fdm_ptr->rmr_region.source_len,
-			fdm_ptr->rmr_region.bytes_dumped);
+			be64_to_cpu(fdm_ptr->rmr_region.destination_address),
+			be64_to_cpu(fdm_ptr->rmr_region.destination_address) +
+			be64_to_cpu(fdm_ptr->rmr_region.source_len) - 1,
+			be64_to_cpu(fdm_ptr->rmr_region.source_len),
+			be64_to_cpu(fdm_ptr->rmr_region.bytes_dumped));
 
 	if (!fdm_active ||
 		(fw_dump.reserve_dump_area_start ==
-		fdm_ptr->cpu_state_data.destination_address))
+		be64_to_cpu(fdm_ptr->cpu_state_data.destination_address)))
 		goto out;
 
 	/* Dump is active. Show reserved memory region. */
@@ -1215,10 +1215,10 @@ static int fadump_region_show(struct seq_file *m, void *private)
 			"    : [%#016llx-%#016llx] %#llx bytes, "
 			"Dumped: %#llx\n",
 			(unsigned long long)fw_dump.reserve_dump_area_start,
-			fdm_ptr->cpu_state_data.destination_address - 1,
-			fdm_ptr->cpu_state_data.destination_address -
+			be64_to_cpu(fdm_ptr->cpu_state_data.destination_address) - 1,
+			be64_to_cpu(fdm_ptr->cpu_state_data.destination_address) -
 			fw_dump.reserve_dump_area_start,
-			fdm_ptr->cpu_state_data.destination_address -
+			be64_to_cpu(fdm_ptr->cpu_state_data.destination_address) -
 			fw_dump.reserve_dump_area_start);
 out:
 	if (fdm_active)

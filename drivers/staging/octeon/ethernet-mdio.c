@@ -130,19 +130,6 @@ static void cvm_oct_note_carrier(struct octeon_ethernet *priv,
 	}
 }
 
-void cvm_oct_set_carrier(struct octeon_ethernet *priv,
-			 cvmx_helper_link_info_t link_info)
-{
-	cvm_oct_note_carrier(priv, link_info);
-	if (link_info.s.link_up) {
-		if (!netif_carrier_ok(priv->netdev))
-			netif_carrier_on(priv->netdev);
-	} else {
-		if (netif_carrier_ok(priv->netdev))
-			netif_carrier_off(priv->netdev);
-	}
-}
-
 void cvm_oct_adjust_link(struct net_device *dev)
 {
 	struct octeon_ethernet *priv = netdev_priv(dev);

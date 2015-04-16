@@ -1869,7 +1869,6 @@ static struct platform_driver omapfb_driver = {
 	.resume		= omapfb_resume,
 	.driver		= {
 		.name	= MODULE_NAME,
-		.owner	= THIS_MODULE,
 	},
 };
 

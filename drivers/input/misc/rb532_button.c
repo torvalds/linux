@@ -96,7 +96,6 @@ static struct platform_driver rb532_button_driver = {
 	.remove = rb532_button_remove,
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 	},
 };
 module_platform_driver(rb532_button_driver);

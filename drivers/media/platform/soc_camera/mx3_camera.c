@@ -435,14 +435,16 @@ static struct vb2_ops mx3_videobuf_ops = {
 	.buf_queue	= mx3_videobuf_queue,
 	.buf_cleanup	= mx3_videobuf_release,
 	.buf_init	= mx3_videobuf_init,
-	.wait_prepare	= soc_camera_unlock,
-	.wait_finish	= soc_camera_lock,
+	.wait_prepare	= vb2_ops_wait_prepare,
+	.wait_finish	= vb2_ops_wait_finish,
 	.stop_streaming	= mx3_stop_streaming,
 };
 
 static int mx3_camera_init_videobuf(struct vb2_queue *q,
 				     struct soc_camera_device *icd)
 {
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
+
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	q->io_modes = VB2_MMAP | VB2_USERPTR;
 	q->drv_priv = icd;
@@ -450,6 +452,7 @@ static int mx3_camera_init_videobuf(struct vb2_queue *q,
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->buf_struct_size = sizeof(struct mx3_camera_buffer);
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->lock = &ici->host_lock;
 
 	return vb2_queue_init(q);
 }
@@ -656,7 +659,7 @@ static int mx3_camera_get_formats(struct soc_camera_device *icd, unsigned int id
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct device *dev = icd->parent;
 	int formats = 0, ret;
-	enum v4l2_mbus_pixelcode code;
+	u32 code;
 	const struct soc_mbus_pixelfmt *fmt;
 
 	ret = v4l2_subdev_call(sd, video, enum_mbus_fmt, idx, &code);
@@ -677,7 +680,7 @@ static int mx3_camera_get_formats(struct soc_camera_device *icd, unsigned int id
 		return 0;
 
 	switch (code) {
-	case V4L2_MBUS_FMT_SBGGR10_1X10:
+	case MEDIA_BUS_FMT_SBGGR10_1X10:
 		formats++;
 		if (xlate) {
 			xlate->host_fmt	= &mx3_camera_formats[0];
@@ -687,7 +690,7 @@ static int mx3_camera_get_formats(struct soc_camera_device *icd, unsigned int id
 				mx3_camera_formats[0].name, code);
 		}
 		break;
-	case V4L2_MBUS_FMT_Y10_1X10:
+	case MEDIA_BUS_FMT_Y10_1X10:
 		formats++;
 		if (xlate) {
 			xlate->host_fmt	= &mx3_camera_formats[1];
@@ -967,7 +970,8 @@ static int mx3_camera_querycap(struct soc_camera_host *ici,
 {
 	/* cap->name is set by the firendly caller:-> */
 	strlcpy(cap->card, "i.MX3x Camera", sizeof(cap->card));
-	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
+	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 
 	return 0;
 }
@@ -1253,7 +1257,6 @@ static int mx3_camera_remove(struct platform_device *pdev)
 static struct platform_driver mx3_camera_driver = {
 	.driver		= {
 		.name	= MX3_CAM_DRV_NAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= mx3_camera_probe,
 	.remove		= mx3_camera_remove,

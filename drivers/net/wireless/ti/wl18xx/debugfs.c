@@ -22,9 +22,12 @@
 
 #include "../wlcore/debugfs.h"
 #include "../wlcore/wlcore.h"
+#include "../wlcore/debug.h"
+#include "../wlcore/ps.h"
 
 #include "wl18xx.h"
 #include "acx.h"
+#include "cmd.h"
 #include "debugfs.h"
 
 #define WL18XX_DEBUGFS_FWSTATS_FILE(a, b, c) \
@@ -136,7 +139,7 @@ WL18XX_DEBUGFS_FWSTATS_FILE(rx_filter, protection_filter, "%u");
 WL18XX_DEBUGFS_FWSTATS_FILE(rx_filter, accum_arp_pend_requests, "%u");
 WL18XX_DEBUGFS_FWSTATS_FILE(rx_filter, max_arp_queue_dep, "%u");
 
-WL18XX_DEBUGFS_FWSTATS_FILE(rx_rate, rx_frames_per_rates, "%u");
+WL18XX_DEBUGFS_FWSTATS_FILE_ARRAY(rx_rate, rx_frames_per_rates, 50);
 
 WL18XX_DEBUGFS_FWSTATS_FILE_ARRAY(aggr_size, tx_agg_vs_rate,
 				  AGGR_STATS_TX_AGG*AGGR_STATS_TX_RATE);
@@ -235,6 +238,45 @@ out:
 
 static const struct file_operations clear_fw_stats_ops = {
 	.write = clear_fw_stats_write,
+	.open = simple_open,
+	.llseek = default_llseek,
+};
+
+static ssize_t radar_detection_write(struct file *file,
+				     const char __user *user_buf,
+				     size_t count, loff_t *ppos)
+{
+	struct wl1271 *wl = file->private_data;
+	int ret;
+	u8 channel;
+
+	ret = kstrtou8_from_user(user_buf, count, 10, &channel);
+	if (ret < 0) {
+		wl1271_warning("illegal channel");
+		return -EINVAL;
+	}
+
+	mutex_lock(&wl->mutex);
+
+	if (unlikely(wl->state != WLCORE_STATE_ON))
+		goto out;
+
+	ret = wl1271_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
+
+	ret = wl18xx_cmd_radar_detection_debug(wl, channel);
+	if (ret < 0)
+		count = ret;
+
+	wl1271_ps_elp_sleep(wl);
+out:
+	mutex_unlock(&wl->mutex);
+	return count;
+}
+
+static const struct file_operations radar_detection_ops = {
+	.write = radar_detection_write,
 	.open = simple_open,
 	.llseek = default_llseek,
 };
@@ -390,6 +432,7 @@ int wl18xx_debugfs_add_files(struct wl1271 *wl,
 	DEBUGFS_FWSTATS_ADD(mem, fw_gen_free_mem_blks);
 
 	DEBUGFS_ADD(conf, moddir);
+	DEBUGFS_ADD(radar_detection, moddir);
 
 	return 0;
 

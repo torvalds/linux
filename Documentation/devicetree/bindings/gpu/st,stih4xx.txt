@@ -68,7 +68,7 @@ STMicroelectronics stih4xx platforms
     number of clocks may depend of the SoC type.
   - clock-names: names of the clocks listed in clocks property in the same
     order.
-  - hdmi,hpd-gpio: gpio id to detect if an hdmi cable is plugged or not.
+  - ddc: phandle of an I2C controller used for DDC EDID probing
 
 sti-hda:
   Required properties:
@@ -82,6 +82,38 @@ sti-hda:
     See ../clocks/clock-bindings.txt for details.
   - clock-names: names of the clocks listed in clocks property in the same
     order.
+
+sti-dvo:
+  Required properties:
+  must be a child of sti-tvout
+  - compatible: "st,stih<chip>-dvo"
+  - reg: Physical base address of the IP registers and length of memory mapped region.
+  - reg-names: names of the mapped memory regions listed in regs property in
+    the same order.
+  - clocks: from common clock binding: handle hardware IP needed clocks, the
+    number of clocks may depend of the SoC type.
+    See ../clocks/clock-bindings.txt for details.
+  - clock-names: names of the clocks listed in clocks property in the same
+    order.
+  - pinctrl-0: pin control handle
+  - pinctrl-name: names of the pin control to use
+  - sti,panel: phandle of the panel connected to the DVO output
+
+sti-hqvdp:
+  must be a child of sti-display-subsystem
+  Required properties:
+  - compatible: "st,stih<chip>-hqvdp"
+  - reg: Physical base address of the IP registers and length of memory mapped region.
+  - clocks: from common clock binding: handle hardware IP needed clocks, the
+    number of clocks may depend of the SoC type.
+    See ../clocks/clock-bindings.txt for details.
+  - clock-names: names of the clocks listed in clocks property in the same
+    order.
+  - resets: resets to be used by the device
+    See ../reset/reset.txt for details.
+  - reset-names: names of the resets listed in resets property in the same
+    order.
+  - st,vtg: phandle on vtg main device node.
 
 Example:
 
@@ -173,7 +205,6 @@ Example:
 				interrupt-names	= "irq";
 				clock-names	= "pix", "tmds", "phy", "audio";
 				clocks          = <&clockgen_c_vcc CLK_S_PIX_HDMI>, <&clockgen_c_vcc CLK_S_TMDS_HDMI>, <&clockgen_c_vcc CLK_S_HDMI_REJECT_PLL>, <&clockgen_b1 CLK_S_PCM_0>;
-				hdmi,hpd-gpio	= <&PIO2 5>;
 			};
 
 			sti-hda@fe85a000 {
@@ -183,7 +214,30 @@ Example:
 				clock-names	= "pix", "hddac";
 				clocks          = <&clockgen_c_vcc CLK_S_PIX_HD>, <&clockgen_c_vcc CLK_S_HDDAC>;
 			};
+
+			sti-dvo@8d00400 {
+				compatible	= "st,stih407-dvo";
+				reg		= <0x8d00400 0x200>;
+				reg-names	= "dvo-reg";
+				clock-names	= "dvo_pix", "dvo",
+						  "main_parent", "aux_parent";
+				clocks		= <&clk_s_d2_flexgen CLK_PIX_DVO>, <&clk_s_d2_flexgen CLK_DVO>,
+						  <&clk_s_d2_quadfs 0>, <&clk_s_d2_quadfs 1>;
+				pinctrl-names	= "default";
+				pinctrl-0	= <&pinctrl_dvo>;
+				sti,panel	= <&panel_dvo>;
+			};
 		};
+
+		sti-hqvdp@9c000000 {
+				compatible	= "st,stih407-hqvdp";
+				reg		= <0x9C00000 0x100000>;
+				clock-names	= "hqvdp", "pix_main";
+				clocks		= <&clk_s_c0_flexgen CLK_MAIN_DISP>, <&clk_s_d2_flexgen CLK_PIX_MAIN_DISP>;
+				reset-names     = "hqvdp";
+				resets          = <&softreset STIH407_HDQVDP_SOFTRESET>;
+				st,vtg		= <&vtg_main>;
+			};
 	};
 	...
 };

@@ -1282,7 +1282,6 @@ static const struct dev_pm_ops nct6683_dev_pm_ops = {
 
 static struct platform_driver nct6683_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= DRVNAME,
 		.pm	= NCT6683_DEV_PM_OPS,
 	},

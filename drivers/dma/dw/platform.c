@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/clk.h>
+#include <linux/pm_runtime.h>
 #include <linux/platform_device.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
@@ -24,6 +25,8 @@
 #include <linux/acpi_dma.h>
 
 #include "internal.h"
+
+#define DRV_NAME	"dw_dmac"
 
 static struct dma_chan *dw_dma_of_xlate(struct of_phandle_args *dma_spec,
 					struct of_dma *ofdma)
@@ -99,7 +102,7 @@ dw_dma_parse_dt(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct dw_dma_platform_data *pdata;
-	u32 tmp, arr[4];
+	u32 tmp, arr[DW_DMA_MAX_NR_MASTERS];
 
 	if (!np) {
 		dev_err(&pdev->dev, "Missing DT data\n");
@@ -126,7 +129,7 @@ dw_dma_parse_dt(struct platform_device *pdev)
 		pdata->block_size = tmp;
 
 	if (!of_property_read_u32(np, "dma-masters", &tmp)) {
-		if (tmp > 4)
+		if (tmp > DW_DMA_MAX_NR_MASTERS)
 			return NULL;
 
 		pdata->nr_masters = tmp;
@@ -185,6 +188,8 @@ static int dw_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
+	pm_runtime_enable(&pdev->dev);
+
 	err = dw_dma_probe(chip, pdata);
 	if (err)
 		goto err_dw_dma_probe;
@@ -205,6 +210,7 @@ static int dw_probe(struct platform_device *pdev)
 	return 0;
 
 err_dw_dma_probe:
+	pm_runtime_disable(&pdev->dev);
 	clk_disable_unprepare(chip->clk);
 	return err;
 }
@@ -217,6 +223,7 @@ static int dw_remove(struct platform_device *pdev)
 		of_dma_controller_free(pdev->dev.of_node);
 
 	dw_dma_remove(chip);
+	pm_runtime_disable(&pdev->dev);
 	clk_disable_unprepare(chip->clk);
 
 	return 0;
@@ -279,7 +286,7 @@ static struct platform_driver dw_driver = {
 	.remove		= dw_remove,
 	.shutdown       = dw_shutdown,
 	.driver = {
-		.name	= "dw_dmac",
+		.name	= DRV_NAME,
 		.pm	= &dw_dev_pm_ops,
 		.of_match_table = of_match_ptr(dw_dma_of_id_table),
 		.acpi_match_table = ACPI_PTR(dw_dma_acpi_id_table),
@@ -300,3 +307,4 @@ module_exit(dw_exit);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Synopsys DesignWare DMA Controller platform driver");
+MODULE_ALIAS("platform:" DRV_NAME);

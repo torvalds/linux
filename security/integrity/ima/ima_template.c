@@ -24,6 +24,7 @@ static struct ima_template_desc defined_templates[] = {
 	{.name = IMA_TEMPLATE_IMA_NAME, .fmt = IMA_TEMPLATE_IMA_FMT},
 	{.name = "ima-ng", .fmt = "d-ng|n-ng"},
 	{.name = "ima-sig", .fmt = "d-ng|n-ng|sig"},
+	{.name = "", .fmt = ""},	/* placeholder for a custom format */
 };
 
 static struct ima_template_field supported_fields[] = {
@@ -41,19 +42,28 @@ static struct ima_template_field supported_fields[] = {
 
 static struct ima_template_desc *ima_template;
 static struct ima_template_desc *lookup_template_desc(const char *name);
+static int template_desc_init_fields(const char *template_fmt,
+				     struct ima_template_field ***fields,
+				     int *num_fields);
 
 static int __init ima_template_setup(char *str)
 {
 	struct ima_template_desc *template_desc;
 	int template_len = strlen(str);
 
+	if (ima_template)
+		return 1;
+
 	/*
 	 * Verify that a template with the supplied name exists.
 	 * If not, use CONFIG_IMA_DEFAULT_TEMPLATE.
 	 */
 	template_desc = lookup_template_desc(str);
-	if (!template_desc)
+	if (!template_desc) {
+		pr_err("template %s not found, using %s\n",
+		       str, CONFIG_IMA_DEFAULT_TEMPLATE);
 		return 1;
+	}
 
 	/*
 	 * Verify whether the current hash algorithm is supported
@@ -69,6 +79,25 @@ static int __init ima_template_setup(char *str)
 	return 1;
 }
 __setup("ima_template=", ima_template_setup);
+
+static int __init ima_template_fmt_setup(char *str)
+{
+	int num_templates = ARRAY_SIZE(defined_templates);
+
+	if (ima_template)
+		return 1;
+
+	if (template_desc_init_fields(str, NULL, NULL) < 0) {
+		pr_err("format string '%s' not valid, using template %s\n",
+		       str, CONFIG_IMA_DEFAULT_TEMPLATE);
+		return 1;
+	}
+
+	defined_templates[num_templates - 1].fmt = str;
+	ima_template = defined_templates + num_templates - 1;
+	return 1;
+}
+__setup("ima_template_fmt=", ima_template_fmt_setup);
 
 static struct ima_template_desc *lookup_template_desc(const char *name)
 {
@@ -113,43 +142,46 @@ static int template_desc_init_fields(const char *template_fmt,
 				     struct ima_template_field ***fields,
 				     int *num_fields)
 {
-	char *c, *template_fmt_copy, *template_fmt_ptr;
+	const char *template_fmt_ptr;
+	struct ima_template_field *found_fields[IMA_TEMPLATE_NUM_FIELDS_MAX];
 	int template_num_fields = template_fmt_size(template_fmt);
-	int i, result = 0;
+	int i, len;
 
-	if (template_num_fields > IMA_TEMPLATE_NUM_FIELDS_MAX)
+	if (template_num_fields > IMA_TEMPLATE_NUM_FIELDS_MAX) {
+		pr_err("format string '%s' contains too many fields\n",
+		       template_fmt);
 		return -EINVAL;
-
-	/* copying is needed as strsep() modifies the original buffer */
-	template_fmt_copy = kstrdup(template_fmt, GFP_KERNEL);
-	if (template_fmt_copy == NULL)
-		return -ENOMEM;
-
-	*fields = kzalloc(template_num_fields * sizeof(*fields), GFP_KERNEL);
-	if (*fields == NULL) {
-		result = -ENOMEM;
-		goto out;
 	}
 
-	template_fmt_ptr = template_fmt_copy;
-	for (i = 0; (c = strsep(&template_fmt_ptr, "|")) != NULL &&
-	     i < template_num_fields; i++) {
-		struct ima_template_field *f = lookup_template_field(c);
+	for (i = 0, template_fmt_ptr = template_fmt; i < template_num_fields;
+	     i++, template_fmt_ptr += len + 1) {
+		char tmp_field_id[IMA_TEMPLATE_FIELD_ID_MAX_LEN + 1];
 
-		if (!f) {
-			result = -ENOENT;
-			goto out;
+		len = strchrnul(template_fmt_ptr, '|') - template_fmt_ptr;
+		if (len == 0 || len > IMA_TEMPLATE_FIELD_ID_MAX_LEN) {
+			pr_err("Invalid field with length %d\n", len);
+			return -EINVAL;
 		}
-		(*fields)[i] = f;
+
+		memcpy(tmp_field_id, template_fmt_ptr, len);
+		tmp_field_id[len] = '\0';
+		found_fields[i] = lookup_template_field(tmp_field_id);
+		if (!found_fields[i]) {
+			pr_err("field '%s' not found\n", tmp_field_id);
+			return -ENOENT;
+		}
 	}
-	*num_fields = i;
-out:
-	if (result < 0) {
-		kfree(*fields);
-		*fields = NULL;
+
+	if (fields && num_fields) {
+		*fields = kmalloc_array(i, sizeof(*fields), GFP_KERNEL);
+		if (*fields == NULL)
+			return -ENOMEM;
+
+		memcpy(*fields, found_fields, i * sizeof(*fields));
+		*num_fields = i;
 	}
-	kfree(template_fmt_copy);
-	return result;
+
+	return 0;
 }
 
 struct ima_template_desc *ima_template_desc_current(void)
@@ -163,8 +195,15 @@ struct ima_template_desc *ima_template_desc_current(void)
 int __init ima_init_template(void)
 {
 	struct ima_template_desc *template = ima_template_desc_current();
+	int result;
 
-	return template_desc_init_fields(template->fmt,
-					 &(template->fields),
-					 &(template->num_fields));
+	result = template_desc_init_fields(template->fmt,
+					   &(template->fields),
+					   &(template->num_fields));
+	if (result < 0)
+		pr_err("template %s init failed, result: %d\n",
+		       (strlen(template->name) ?
+		       template->name : template->fmt), result);
+
+	return result;
 }

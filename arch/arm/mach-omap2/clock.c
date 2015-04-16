@@ -23,7 +23,6 @@
 #include <linux/clk-provider.h>
 #include <linux/io.h>
 #include <linux/bitops.h>
-#include <linux/clk-private.h>
 #include <asm/cpu.h>
 
 #include <trace/events/power.h>
@@ -171,7 +170,8 @@ static void _omap2_module_wait_ready(struct clk_hw_omap *clk)
 		_wait_idlest_generic(clk, idlest_reg, (1 << idlest_bit),
 				     idlest_val, __clk_get_name(clk->hw.clk));
 	} else {
-		cm_wait_module_ready(prcm_mod, idlest_reg_id, idlest_bit);
+		omap_cm_wait_module_ready(0, prcm_mod, idlest_reg_id,
+					  idlest_bit);
 	};
 }
 
@@ -619,6 +619,9 @@ void omap2_clk_enable_init_clocks(const char **clk_names, u8 num_clocks)
 
 	for (i = 0; i < num_clocks; i++) {
 		init_clk = clk_get(NULL, clk_names[i]);
+		if (WARN(IS_ERR(init_clk), "could not find init clock %s\n",
+				clk_names[i]))
+			continue;
 		clk_prepare_enable(init_clk);
 	}
 }
@@ -627,21 +630,6 @@ const struct clk_hw_omap_ops clkhwops_wait = {
 	.find_idlest	= omap2_clk_dflt_find_idlest,
 	.find_companion	= omap2_clk_dflt_find_companion,
 };
-
-/**
- * omap_clocks_register - register an array of omap_clk
- * @ocs: pointer to an array of omap_clk to register
- */
-void __init omap_clocks_register(struct omap_clk oclks[], int cnt)
-{
-	struct omap_clk *c;
-
-	for (c = oclks; c < oclks + cnt; c++) {
-		clkdev_add(&c->lk);
-		if (!__clk_init(NULL, c->lk.clk))
-			omap2_init_clk_hw_omap_clocks(c->lk.clk);
-	}
-}
 
 /**
  * omap2_clk_switch_mpurate_at_boot - switch ARM MPU rate by boot-time argument
@@ -771,4 +759,8 @@ void __init ti_clk_init_features(void)
 		ti_clk_features.cm_idlest_val = OMAP24XX_CM_IDLEST_VAL;
 	else if (cpu_is_omap34xx())
 		ti_clk_features.cm_idlest_val = OMAP34XX_CM_IDLEST_VAL;
+
+	/* On OMAP3430 ES1.0, DPLL4 can't be re-programmed */
+	if (omap_rev() == OMAP3430_REV_ES1_0)
+		ti_clk_features.flags |= TI_CLK_DPLL4_DENY_REPROGRAM;
 }

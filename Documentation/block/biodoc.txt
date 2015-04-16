@@ -827,10 +827,6 @@ but in the event of any barrier requests in the tag queue we need to ensure
 that requests are restarted in the order they were queue. This may happen
 if the driver needs to use blk_queue_invalidate_tags().
 
-Tagging also defines a new request flag, REQ_QUEUED. This is set whenever
-a request is currently tagged. You should not use this flag directly,
-blk_rq_tagged(rq) is the portable way to do so.
-
 3.3 I/O Submission
 
 The routine submit_bio() is used to submit a single io. Higher level i/o
@@ -946,7 +942,11 @@ elevator_allow_merge_fn		called whenever the block layer determines
 				request safely. The io scheduler may still
 				want to stop a merge at this point if it
 				results in some sort of conflict internally,
-				this hook allows it to do that.
+				this hook allows it to do that. Note however
+				that two *requests* can still be merged at later
+				time. Currently the io scheduler has no way to
+				prevent that. It can only learn about the fact
+				from elevator_merge_req_fn callback.
 
 elevator_dispatch_fn*		fills the dispatch queue with ready requests.
 				I/O schedulers are free to postpone requests by

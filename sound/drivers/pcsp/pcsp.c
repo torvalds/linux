@@ -13,7 +13,7 @@
 #include <sound/pcm.h>
 #include <linux/input.h>
 #include <linux/delay.h>
-#include <asm/bitops.h>
+#include <linux/bitops.h>
 #include "pcsp_input.h"
 #include "pcsp.h"
 
@@ -221,7 +221,6 @@ static void pcsp_shutdown(struct platform_device *dev)
 static struct platform_driver pcsp_platform_driver = {
 	.driver		= {
 		.name	= "pcspkr",
-		.owner	= THIS_MODULE,
 		.pm	= PCSP_PM_OPS,
 	},
 	.probe		= pcsp_probe,

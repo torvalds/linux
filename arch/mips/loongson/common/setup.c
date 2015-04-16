@@ -10,6 +10,7 @@
 #include <linux/module.h>
 
 #include <asm/wbflush.h>
+#include <asm/bootinfo.h>
 
 #include <loongson.h>
 

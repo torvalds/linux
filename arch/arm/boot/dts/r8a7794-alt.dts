@@ -20,7 +20,8 @@
 	};
 
 	chosen {
-		bootargs = "console=ttySC0,38400 ignore_loglevel rw root=/dev/nfs ip=dhcp";
+		bootargs = "ignore_loglevel rw root=/dev/nfs ip=dhcp";
+		stdout-path = &scif2;
 	};
 
 	memory@40000000 {
@@ -39,9 +40,9 @@
 };
 
 &cmt0 {
-	status = "ok";
+	status = "okay";
 };
 
 &scif2 {
-	status = "ok";
+	status = "okay";
 };

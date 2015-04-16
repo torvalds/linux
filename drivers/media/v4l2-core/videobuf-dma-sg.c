@@ -145,12 +145,11 @@ struct videobuf_dmabuf *videobuf_to_dma(struct videobuf_buffer *buf)
 }
 EXPORT_SYMBOL_GPL(videobuf_to_dma);
 
-void videobuf_dma_init(struct videobuf_dmabuf *dma)
+static void videobuf_dma_init(struct videobuf_dmabuf *dma)
 {
 	memset(dma, 0, sizeof(*dma));
 	dma->magic = MAGIC_DMABUF;
 }
-EXPORT_SYMBOL_GPL(videobuf_dma_init);
 
 static int videobuf_dma_init_user_locked(struct videobuf_dmabuf *dma,
 			int direction, unsigned long data, unsigned long size)
@@ -195,7 +194,7 @@ static int videobuf_dma_init_user_locked(struct videobuf_dmabuf *dma,
 	return 0;
 }
 
-int videobuf_dma_init_user(struct videobuf_dmabuf *dma, int direction,
+static int videobuf_dma_init_user(struct videobuf_dmabuf *dma, int direction,
 			   unsigned long data, unsigned long size)
 {
 	int ret;
@@ -206,9 +205,8 @@ int videobuf_dma_init_user(struct videobuf_dmabuf *dma, int direction,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(videobuf_dma_init_user);
 
-int videobuf_dma_init_kernel(struct videobuf_dmabuf *dma, int direction,
+static int videobuf_dma_init_kernel(struct videobuf_dmabuf *dma, int direction,
 			     int nr_pages)
 {
 	int i;
@@ -267,9 +265,8 @@ out_free_pages:
 	return -ENOMEM;
 
 }
-EXPORT_SYMBOL_GPL(videobuf_dma_init_kernel);
 
-int videobuf_dma_init_overlay(struct videobuf_dmabuf *dma, int direction,
+static int videobuf_dma_init_overlay(struct videobuf_dmabuf *dma, int direction,
 			      dma_addr_t addr, int nr_pages)
 {
 	dprintk(1, "init overlay [%d pages @ bus 0x%lx]\n",
@@ -284,9 +281,8 @@ int videobuf_dma_init_overlay(struct videobuf_dmabuf *dma, int direction,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(videobuf_dma_init_overlay);
 
-int videobuf_dma_map(struct device *dev, struct videobuf_dmabuf *dma)
+static int videobuf_dma_map(struct device *dev, struct videobuf_dmabuf *dma)
 {
 	MAGIC_CHECK(dma->magic, MAGIC_DMABUF);
 	BUG_ON(0 == dma->nr_pages);
@@ -328,7 +324,6 @@ int videobuf_dma_map(struct device *dev, struct videobuf_dmabuf *dma)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(videobuf_dma_map);
 
 int videobuf_dma_unmap(struct device *dev, struct videobuf_dmabuf *dma)
 {

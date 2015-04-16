@@ -79,7 +79,7 @@ struct mmc_command {
 #define mmc_cmd_type(cmd)	((cmd)->flags & MMC_CMD_MASK)
 
 	unsigned int		retries;	/* max number of retries */
-	unsigned int		error;		/* command error */
+	int			error;		/* command error */
 
 /*
  * Standard errno values are used for errors, but some have specific
@@ -108,7 +108,7 @@ struct mmc_data {
 	unsigned int		timeout_clks;	/* data timeout (in clocks) */
 	unsigned int		blksz;		/* data block size */
 	unsigned int		blocks;		/* number of blocks */
-	unsigned int		error;		/* data error */
+	int			error;		/* data error */
 	unsigned int		flags;
 
 #define MMC_DATA_WRITE	(1 << 8)
@@ -154,7 +154,8 @@ extern void mmc_start_bkops(struct mmc_card *card, bool from_exception);
 extern int __mmc_switch(struct mmc_card *, u8, u8, u8, unsigned int, bool,
 			bool, bool);
 extern int mmc_switch(struct mmc_card *, u8, u8, u8, unsigned int);
-extern int mmc_send_ext_csd(struct mmc_card *card, u8 *ext_csd);
+extern int mmc_send_tuning(struct mmc_host *host);
+extern int mmc_get_ext_csd(struct mmc_card *card, u8 **new_ext_csd);
 
 #define MMC_ERASE_ARG		0x00000000
 #define MMC_SECURE_ERASE_ARG	0x80000000
@@ -181,7 +182,6 @@ extern int mmc_set_blocklen(struct mmc_card *card, unsigned int blocklen);
 extern int mmc_set_blockcount(struct mmc_card *card, unsigned int blockcount,
 			      bool is_rel_write);
 extern int mmc_hw_reset(struct mmc_host *host);
-extern int mmc_hw_reset_check(struct mmc_host *host);
 extern int mmc_can_reset(struct mmc_card *card);
 
 extern void mmc_set_data_timeout(struct mmc_data *, const struct mmc_card *);

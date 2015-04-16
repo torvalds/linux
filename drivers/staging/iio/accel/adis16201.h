@@ -34,24 +34,24 @@
 #define ADIS16201_GLOB_CMD       0x3E /* Operation, system command register */
 
 /* MSC_CTRL */
-#define ADIS16201_MSC_CTRL_SELF_TEST_EN	        (1 << 8)  /* Self-test enable */
-#define ADIS16201_MSC_CTRL_DATA_RDY_EN	        (1 << 2)  /* Data-ready enable: 1 = enabled, 0 = disabled */
-#define ADIS16201_MSC_CTRL_ACTIVE_HIGH	        (1 << 1)  /* Data-ready polarity: 1 = active high, 0 = active low */
-#define ADIS16201_MSC_CTRL_DATA_RDY_DIO1	(1 << 0)  /* Data-ready line selection: 1 = DIO1, 0 = DIO0 */
+#define ADIS16201_MSC_CTRL_SELF_TEST_EN	        BIT(8)  /* Self-test enable */
+#define ADIS16201_MSC_CTRL_DATA_RDY_EN	        BIT(2)  /* Data-ready enable: 1 = enabled, 0 = disabled */
+#define ADIS16201_MSC_CTRL_ACTIVE_HIGH	        BIT(1)  /* Data-ready polarity: 1 = active high, 0 = active low */
+#define ADIS16201_MSC_CTRL_DATA_RDY_DIO1	BIT(0)  /* Data-ready line selection: 1 = DIO1, 0 = DIO0 */
 
 /* DIAG_STAT */
-#define ADIS16201_DIAG_STAT_ALARM2        (1<<9) /* Alarm 2 status: 1 = alarm active, 0 = alarm inactive */
-#define ADIS16201_DIAG_STAT_ALARM1        (1<<8) /* Alarm 1 status: 1 = alarm active, 0 = alarm inactive */
+#define ADIS16201_DIAG_STAT_ALARM2        BIT(9) /* Alarm 2 status: 1 = alarm active, 0 = alarm inactive */
+#define ADIS16201_DIAG_STAT_ALARM1        BIT(8) /* Alarm 1 status: 1 = alarm active, 0 = alarm inactive */
 #define ADIS16201_DIAG_STAT_SPI_FAIL_BIT   3 /* SPI communications failure */
 #define ADIS16201_DIAG_STAT_FLASH_UPT_BIT  2 /* Flash update failure */
 #define ADIS16201_DIAG_STAT_POWER_HIGH_BIT 1 /* Power supply above 3.625 V */
 #define ADIS16201_DIAG_STAT_POWER_LOW_BIT  0 /* Power supply below 3.15 V */
 
 /* GLOB_CMD */
-#define ADIS16201_GLOB_CMD_SW_RESET	(1<<7)
-#define ADIS16201_GLOB_CMD_FACTORY_CAL	(1<<1)
+#define ADIS16201_GLOB_CMD_SW_RESET	BIT(7)
+#define ADIS16201_GLOB_CMD_FACTORY_CAL	BIT(1)
 
-#define ADIS16201_ERROR_ACTIVE          (1<<14)
+#define ADIS16201_ERROR_ACTIVE          BIT(14)
 
 enum adis16201_scan {
 	ADIS16201_SCAN_ACC_X,

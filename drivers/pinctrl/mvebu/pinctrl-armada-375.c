@@ -399,7 +399,7 @@ static struct mvebu_mpp_mode mv88f6720_mpp_modes[] = {
 
 static struct mvebu_pinctrl_soc_info armada_375_pinctrl_info;
 
-static struct of_device_id armada_375_pinctrl_of_match[] = {
+static const struct of_device_id armada_375_pinctrl_of_match[] = {
 	{ .compatible = "marvell,mv88f6720-pinctrl" },
 	{ },
 };
@@ -445,7 +445,6 @@ static int armada_375_pinctrl_remove(struct platform_device *pdev)
 static struct platform_driver armada_375_pinctrl_driver = {
 	.driver = {
 		.name = "armada-375-pinctrl",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(armada_375_pinctrl_of_match),
 	},
 	.probe = armada_375_pinctrl_probe,

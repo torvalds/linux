@@ -62,6 +62,7 @@ static void clp_store_query_pci_fngrp(struct zpci_dev *zdev,
 	zdev->tlb_refresh = response->refresh;
 	zdev->dma_mask = response->dasm;
 	zdev->msi_addr = response->msia;
+	zdev->max_msi = response->noi;
 	zdev->fmb_update = response->mui;
 
 	switch (response->version) {

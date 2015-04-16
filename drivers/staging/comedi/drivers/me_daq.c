@@ -19,8 +19,7 @@
 /*
  * Driver: me_daq
  * Description: Meilhaus PCI data acquisition cards
- * Devices: (Meilhaus) ME-2600i [me-2600i]
- *          (Meilhaus) ME-2000i [me-2000i]
+ * Devices: [Meilhaus] ME-2600i (me-2600i), ME-2000i (me-2000i)
  * Author: Michael Hillmann <hillmann@syscongroup.de>
  * Status: experimental
  *
@@ -31,11 +30,10 @@
  */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
 #include "plx9052.h"
 
@@ -175,7 +173,7 @@ struct me_private_data {
 
 static inline void sleep(unsigned sec)
 {
-	current->state = TASK_INTERRUPTIBLE;
+	__set_current_state(TASK_INTERRUPTIBLE);
 	schedule_timeout(sec * HZ);
 }
 
@@ -511,13 +509,12 @@ static int me_auto_attach(struct comedi_device *dev,
 	s = &dev->subdevices[1];
 	if (board->has_ao) {
 		s->type		= COMEDI_SUBD_AO;
-		s->subdev_flags	= SDF_WRITEABLE | SDF_COMMON;
+		s->subdev_flags	= SDF_WRITABLE | SDF_COMMON;
 		s->n_chan	= 4;
 		s->maxdata	= 0x0fff;
 		s->len_chanlist	= 4;
 		s->range_table	= &me_ao_range;
 		s->insn_write	= me_ao_insn_write;
-		s->insn_read	= comedi_readback_insn_read;
 
 		ret = comedi_alloc_subdev_readback(s);
 		if (ret)
@@ -528,7 +525,7 @@ static int me_auto_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[2];
 	s->type		= COMEDI_SUBD_DIO;
-	s->subdev_flags	= SDF_READABLE | SDF_WRITEABLE;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
 	s->n_chan	= 32;
 	s->maxdata	= 1;
 	s->len_chanlist	= 32;

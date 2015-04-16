@@ -60,12 +60,14 @@
 		cpu@200 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
+			next-level-cache = <&L2>;
 			reg = <0x200>;
 		};
 
 		cpu@201 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
+			next-level-cache = <&L2>;
 			reg = <0x201>;
 		};
 	};

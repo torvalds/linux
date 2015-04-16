@@ -13,6 +13,7 @@ struct trace_array;
 struct trace_buffer;
 struct tracer;
 struct dentry;
+struct bpf_prog;
 
 struct trace_print_flags {
 	unsigned long		mask;
@@ -43,6 +44,10 @@ const char *ftrace_print_bitmask_seq(struct trace_seq *p, void *bitmask_ptr,
 
 const char *ftrace_print_hex_seq(struct trace_seq *p,
 				 const unsigned char *buf, int len);
+
+const char *ftrace_print_array_seq(struct trace_seq *p,
+				   const void *buf, int buf_len,
+				   size_t el_size);
 
 struct trace_iterator;
 struct trace_event;
@@ -138,6 +143,17 @@ enum print_line_t {
 	TRACE_TYPE_NO_CONSUME	= 3	/* Handled but ask to not consume */
 };
 
+/*
+ * Several functions return TRACE_TYPE_PARTIAL_LINE if the trace_seq
+ * overflowed, and TRACE_TYPE_HANDLED otherwise. This helper function
+ * simplifies those functions and keeps them in sync.
+ */
+static inline enum print_line_t trace_handle_return(struct trace_seq *s)
+{
+	return trace_seq_has_overflowed(s) ?
+		TRACE_TYPE_PARTIAL_LINE : TRACE_TYPE_HANDLED;
+}
+
 void tracing_generic_entry_update(struct trace_entry *entry,
 				  unsigned long flags,
 				  int pc);
@@ -187,7 +203,7 @@ enum trace_reg {
 struct ftrace_event_call;
 
 struct ftrace_event_class {
-	char			*system;
+	const char		*system;
 	void			*probe;
 #ifdef CONFIG_PERF_EVENTS
 	void			*perf_probe;
@@ -237,6 +253,7 @@ enum {
 	TRACE_EVENT_FL_WAS_ENABLED_BIT,
 	TRACE_EVENT_FL_USE_CALL_FILTER_BIT,
 	TRACE_EVENT_FL_TRACEPOINT_BIT,
+	TRACE_EVENT_FL_KPROBE_BIT,
 };
 
 /*
@@ -250,6 +267,7 @@ enum {
  *                     it is best to clear the buffers that used it).
  *  USE_CALL_FILTER - For ftrace internal events, don't use file filter
  *  TRACEPOINT    - Event is a tracepoint
+ *  KPROBE        - Event is a kprobe
  */
 enum {
 	TRACE_EVENT_FL_FILTERED		= (1 << TRACE_EVENT_FL_FILTERED_BIT),
@@ -259,6 +277,7 @@ enum {
 	TRACE_EVENT_FL_WAS_ENABLED	= (1 << TRACE_EVENT_FL_WAS_ENABLED_BIT),
 	TRACE_EVENT_FL_USE_CALL_FILTER	= (1 << TRACE_EVENT_FL_USE_CALL_FILTER_BIT),
 	TRACE_EVENT_FL_TRACEPOINT	= (1 << TRACE_EVENT_FL_TRACEPOINT_BIT),
+	TRACE_EVENT_FL_KPROBE		= (1 << TRACE_EVENT_FL_KPROBE_BIT),
 };
 
 struct ftrace_event_call {
@@ -270,7 +289,7 @@ struct ftrace_event_call {
 		struct tracepoint	*tp;
 	};
 	struct trace_event	event;
-	const char		*print_fmt;
+	char			*print_fmt;
 	struct event_filter	*filter;
 	void			*mod;
 	void			*data;
@@ -288,6 +307,7 @@ struct ftrace_event_call {
 #ifdef CONFIG_PERF_EVENTS
 	int				perf_refcount;
 	struct hlist_head __percpu	*perf_events;
+	struct bpf_prog			*prog;
 
 	int	(*perf_perm)(struct ftrace_event_call *,
 			     struct perf_event *);
@@ -533,6 +553,15 @@ event_trigger_unlock_commit_regs(struct ftrace_event_file *file,
 		event_triggers_post_call(file, tt);
 }
 
+#ifdef CONFIG_BPF_SYSCALL
+unsigned int trace_call_bpf(struct bpf_prog *prog, void *ctx);
+#else
+static inline unsigned int trace_call_bpf(struct bpf_prog *prog, void *ctx)
+{
+	return 1;
+}
+#endif
+
 enum {
 	FILTER_OTHER = 0,
 	FILTER_STATIC_STRING,
@@ -584,7 +613,7 @@ extern int  ftrace_profile_set_filter(struct perf_event *event, int event_id,
 				     char *filter_str);
 extern void ftrace_profile_free_filter(struct perf_event *event);
 extern void *perf_trace_buf_prepare(int size, unsigned short type,
-				    struct pt_regs *regs, int *rctxp);
+				    struct pt_regs **regs, int *rctxp);
 
 static inline void
 perf_trace_buf_submit(void *raw_data, int size, int rctx, u64 addr,

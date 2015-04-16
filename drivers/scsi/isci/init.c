@@ -158,7 +158,6 @@ static struct scsi_host_template isci_sht = {
 	.scan_finished			= isci_host_scan_finished,
 	.scan_start			= isci_host_start,
 	.change_queue_depth		= sas_change_queue_depth,
-	.change_queue_type		= sas_change_queue_type,
 	.bios_param			= sas_bios_param,
 	.can_queue			= ISCI_CAN_QUEUE_VAL,
 	.cmd_per_lun			= 1,
@@ -172,6 +171,8 @@ static struct scsi_host_template isci_sht = {
 	.target_destroy			= sas_target_destroy,
 	.ioctl				= sas_ioctl,
 	.shost_attrs			= isci_host_attrs,
+	.use_blk_tags			= 1,
+	.track_queue_depth		= 1,
 };
 
 static struct sas_domain_function_template isci_transport_ops  = {
@@ -258,8 +259,6 @@ static int isci_register_sas_ha(struct isci_host *isci_host)
 	sas_ha->sas_port = sas_ports;
 	sas_ha->num_phys = SCI_MAX_PHYS;
 
-	sas_ha->lldd_queue_size = ISCI_CAN_QUEUE_VAL;
-	sas_ha->lldd_max_execute_num = 1;
 	sas_ha->strict_wide_ports = 1;
 
 	sas_register_ha(sas_ha);

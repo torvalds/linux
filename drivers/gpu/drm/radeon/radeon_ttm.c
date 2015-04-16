@@ -196,9 +196,32 @@ static void radeon_evict_flags(struct ttm_buffer_object *bo,
 	rbo = container_of(bo, struct radeon_bo, tbo);
 	switch (bo->mem.mem_type) {
 	case TTM_PL_VRAM:
-		if (rbo->rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready == false)
+		if (rbo->rdev->ring[radeon_copy_ring_index(rbo->rdev)].ready == false)
 			radeon_ttm_placement_from_domain(rbo, RADEON_GEM_DOMAIN_CPU);
-		else
+		else if (rbo->rdev->mc.visible_vram_size < rbo->rdev->mc.real_vram_size &&
+			 bo->mem.start < (rbo->rdev->mc.visible_vram_size >> PAGE_SHIFT)) {
+			unsigned fpfn = rbo->rdev->mc.visible_vram_size >> PAGE_SHIFT;
+			int i;
+
+			/* Try evicting to the CPU inaccessible part of VRAM
+			 * first, but only set GTT as busy placement, so this
+			 * BO will be evicted to GTT rather than causing other
+			 * BOs to be evicted from VRAM
+			 */
+			radeon_ttm_placement_from_domain(rbo, RADEON_GEM_DOMAIN_VRAM |
+							 RADEON_GEM_DOMAIN_GTT);
+			rbo->placement.num_busy_placement = 0;
+			for (i = 0; i < rbo->placement.num_placement; i++) {
+				if (rbo->placements[i].flags & TTM_PL_FLAG_VRAM) {
+					if (rbo->placements[0].fpfn < fpfn)
+						rbo->placements[0].fpfn = fpfn;
+				} else {
+					rbo->placement.busy_placement =
+						&rbo->placements[i];
+					rbo->placement.num_busy_placement = 1;
+				}
+			}
+		} else
 			radeon_ttm_placement_from_domain(rbo, RADEON_GEM_DOMAIN_GTT);
 		break;
 	case TTM_PL_TT:
@@ -574,6 +597,10 @@ static void radeon_ttm_tt_unpin_userptr(struct ttm_tt *ttm)
 	int write = !(gtt->userflags & RADEON_GEM_USERPTR_READONLY);
 	enum dma_data_direction direction = write ?
 		DMA_BIDIRECTIONAL : DMA_TO_DEVICE;
+
+	/* double check that we don't free the table twice */
+	if (!ttm->sg->sgl)
+		return;
 
 	/* free the sg table and pages again */
 	dma_unmap_sg(rdev->dev, ttm->sg->sgl, ttm->sg->nents, direction);

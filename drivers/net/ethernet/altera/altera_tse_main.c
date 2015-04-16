@@ -89,7 +89,7 @@ MODULE_PARM_DESC(dma_tx_num, "Number of descriptors in the TX list");
 
 #define TXQUEUESTOP_THRESHHOLD	2
 
-static struct of_device_id altera_tse_ids[];
+static const struct of_device_id altera_tse_ids[];
 
 static inline u32 tse_tx_avail(struct altera_tse_private *priv)
 {
@@ -105,11 +105,11 @@ static int altera_tse_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 
 	/* set MDIO address */
 	csrwr32((mii_id & 0x1f), priv->mac_dev,
-		tse_csroffs(mdio_phy0_addr));
+		tse_csroffs(mdio_phy1_addr));
 
 	/* get the data */
 	return csrrd32(priv->mac_dev,
-		       tse_csroffs(mdio_phy0) + regnum * 4) & 0xffff;
+		       tse_csroffs(mdio_phy1) + regnum * 4) & 0xffff;
 }
 
 static int altera_tse_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
@@ -120,10 +120,10 @@ static int altera_tse_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 
 	/* set MDIO address */
 	csrwr32((mii_id & 0x1f), priv->mac_dev,
-		tse_csroffs(mdio_phy0_addr));
+		tse_csroffs(mdio_phy1_addr));
 
 	/* write the data */
-	csrwr32(value, priv->mac_dev, tse_csroffs(mdio_phy0) + regnum * 4);
+	csrwr32(value, priv->mac_dev, tse_csroffs(mdio_phy1) + regnum * 4);
 	return 0;
 }
 
@@ -376,7 +376,8 @@ static int tse_rx(struct altera_tse_private *priv, int limit)
 	u16 pktlength;
 	u16 pktstatus;
 
-	while ((rxstatus = priv->dmaops->get_rx_status(priv)) != 0) {
+	while (((rxstatus = priv->dmaops->get_rx_status(priv)) != 0) &&
+	       (count < limit))  {
 		pktstatus = rxstatus >> 16;
 		pktlength = rxstatus & 0xffff;
 
@@ -491,28 +492,27 @@ static int tse_poll(struct napi_struct *napi, int budget)
 	struct altera_tse_private *priv =
 			container_of(napi, struct altera_tse_private, napi);
 	int rxcomplete = 0;
-	int txcomplete = 0;
 	unsigned long int flags;
 
-	txcomplete = tse_tx_complete(priv);
+	tse_tx_complete(priv);
 
 	rxcomplete = tse_rx(priv, budget);
 
-	if (rxcomplete >= budget || txcomplete > 0)
-		return rxcomplete;
+	if (rxcomplete < budget) {
 
-	napi_gro_flush(napi, false);
-	__napi_complete(napi);
+		napi_gro_flush(napi, false);
+		__napi_complete(napi);
 
-	netdev_dbg(priv->dev,
-		   "NAPI Complete, did %d packets with budget %d\n",
-		   txcomplete+rxcomplete, budget);
+		netdev_dbg(priv->dev,
+			   "NAPI Complete, did %d packets with budget %d\n",
+			   rxcomplete, budget);
 
-	spin_lock_irqsave(&priv->rxdma_irq_lock, flags);
-	priv->dmaops->enable_rxirq(priv);
-	priv->dmaops->enable_txirq(priv);
-	spin_unlock_irqrestore(&priv->rxdma_irq_lock, flags);
-	return rxcomplete + txcomplete;
+		spin_lock_irqsave(&priv->rxdma_irq_lock, flags);
+		priv->dmaops->enable_rxirq(priv);
+		priv->dmaops->enable_txirq(priv);
+		spin_unlock_irqrestore(&priv->rxdma_irq_lock, flags);
+	}
+	return rxcomplete;
 }
 
 /* DMA TX & RX FIFO interrupt routing
@@ -521,7 +521,6 @@ static irqreturn_t altera_isr(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct altera_tse_private *priv;
-	unsigned long int flags;
 
 	if (unlikely(!dev)) {
 		pr_err("%s: invalid dev pointer\n", __func__);
@@ -529,20 +528,20 @@ static irqreturn_t altera_isr(int irq, void *dev_id)
 	}
 	priv = netdev_priv(dev);
 
-	/* turn off desc irqs and enable napi rx */
-	spin_lock_irqsave(&priv->rxdma_irq_lock, flags);
-
-	if (likely(napi_schedule_prep(&priv->napi))) {
-		priv->dmaops->disable_rxirq(priv);
-		priv->dmaops->disable_txirq(priv);
-		__napi_schedule(&priv->napi);
-	}
-
+	spin_lock(&priv->rxdma_irq_lock);
 	/* reset IRQs */
 	priv->dmaops->clear_rxirq(priv);
 	priv->dmaops->clear_txirq(priv);
+	spin_unlock(&priv->rxdma_irq_lock);
 
-	spin_unlock_irqrestore(&priv->rxdma_irq_lock, flags);
+	if (likely(napi_schedule_prep(&priv->napi))) {
+		spin_lock(&priv->rxdma_irq_lock);
+		priv->dmaops->disable_rxirq(priv);
+		priv->dmaops->disable_txirq(priv);
+		spin_unlock(&priv->rxdma_irq_lock);
+		__napi_schedule(&priv->napi);
+	}
+
 
 	return IRQ_HANDLED;
 }
@@ -1099,8 +1098,12 @@ static int tse_open(struct net_device *dev)
 
 	spin_lock(&priv->mac_cfg_lock);
 	ret = reset_mac(priv);
+	/* Note that reset_mac will fail if the clocks are gated by the PHY
+	 * due to the PHY being put into isolation or power down mode.
+	 * This is not an error if reset fails due to no clock.
+	 */
 	if (ret)
-		netdev_err(dev, "Cannot reset MAC core (error: %d)\n", ret);
+		netdev_dbg(dev, "Cannot reset MAC core (error: %d)\n", ret);
 
 	ret = init_mac(priv);
 	spin_unlock(&priv->mac_cfg_lock);
@@ -1170,10 +1173,6 @@ tx_request_irq_error:
 init_error:
 	free_skbufs(dev);
 alloc_skbuf_error:
-	if (priv->phydev) {
-		phy_disconnect(priv->phydev);
-		priv->phydev = NULL;
-	}
 phy_error:
 	return ret;
 }
@@ -1186,12 +1185,9 @@ static int tse_shutdown(struct net_device *dev)
 	int ret;
 	unsigned long int flags;
 
-	/* Stop and disconnect the PHY */
-	if (priv->phydev) {
+	/* Stop the PHY */
+	if (priv->phydev)
 		phy_stop(priv->phydev);
-		phy_disconnect(priv->phydev);
-		priv->phydev = NULL;
-	}
 
 	netif_stop_queue(dev);
 	napi_disable(&priv->napi);
@@ -1211,8 +1207,12 @@ static int tse_shutdown(struct net_device *dev)
 	spin_lock(&priv->tx_lock);
 
 	ret = reset_mac(priv);
+	/* Note that reset_mac will fail if the clocks are gated by the PHY
+	 * due to the PHY being put into isolation or power down mode.
+	 * This is not an error if reset fails due to no clock.
+	 */
 	if (ret)
-		netdev_err(dev, "Cannot reset MAC core (error: %d)\n", ret);
+		netdev_dbg(dev, "Cannot reset MAC core (error: %d)\n", ret);
 	priv->dmaops->reset_dma(priv);
 	free_skbufs(dev);
 
@@ -1406,7 +1406,7 @@ static int altera_tse_probe(struct platform_device *pdev)
 	}
 
 	if (of_property_read_u32(pdev->dev.of_node, "tx-fifo-depth",
-				 &priv->rx_fifo_depth)) {
+				 &priv->tx_fifo_depth)) {
 		dev_err(&pdev->dev, "cannot obtain tx-fifo-depth\n");
 		ret = -ENXIO;
 		goto err_free_netdev;
@@ -1525,6 +1525,10 @@ err_free_netdev:
 static int altera_tse_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct altera_tse_private *priv = netdev_priv(ndev);
+
+	if (priv->phydev)
+		phy_disconnect(priv->phydev);
 
 	platform_set_drvdata(pdev, NULL);
 	altera_tse_mdio_destroy(ndev);
@@ -1572,7 +1576,7 @@ static const struct altera_dmaops altera_dtype_msgdma = {
 	.start_rxdma = msgdma_start_rxdma,
 };
 
-static struct of_device_id altera_tse_ids[] = {
+static const struct of_device_id altera_tse_ids[] = {
 	{ .compatible = "altr,tse-msgdma-1.0", .data = &altera_dtype_msgdma, },
 	{ .compatible = "altr,tse-1.0", .data = &altera_dtype_sgdma, },
 	{ .compatible = "ALTR,tse-1.0", .data = &altera_dtype_sgdma, },
@@ -1587,7 +1591,6 @@ static struct platform_driver altera_tse_driver = {
 	.resume		= NULL,
 	.driver		= {
 		.name	= ALTERA_TSE_RESOURCE_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = altera_tse_ids,
 	},
 };

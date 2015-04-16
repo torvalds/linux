@@ -396,7 +396,8 @@ static int sh_vou_querycap(struct file *file, void  *priv,
 	dev_dbg(vou_dev->v4l2_dev.dev, "%s()\n", __func__);
 
 	strlcpy(cap->card, "SuperH VOU", sizeof(cap->card));
-	cap->capabilities = V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_STREAMING;
+	cap->device_caps = V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_STREAMING;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -680,7 +681,7 @@ static int sh_vou_s_fmt_vid_out(struct file *file, void *priv,
 	struct sh_vou_geometry geo;
 	struct v4l2_mbus_framefmt mbfmt = {
 		/* Revisit: is this the correct code? */
-		.code = V4L2_MBUS_FMT_YUYV8_2X8,
+		.code = MEDIA_BUS_FMT_YUYV8_2X8,
 		.field = V4L2_FIELD_INTERLACED,
 		.colorspace = V4L2_COLORSPACE_SMPTE170M,
 	};
@@ -733,7 +734,7 @@ static int sh_vou_s_fmt_vid_out(struct file *file, void *priv,
 	/* Sanity checks */
 	if ((unsigned)mbfmt.width > VOU_MAX_IMAGE_WIDTH ||
 	    (unsigned)mbfmt.height > img_height_max ||
-	    mbfmt.code != V4L2_MBUS_FMT_YUYV8_2X8)
+	    mbfmt.code != MEDIA_BUS_FMT_YUYV8_2X8)
 		return -EIO;
 
 	if (mbfmt.width != geo.output.width ||
@@ -943,7 +944,7 @@ static int sh_vou_s_crop(struct file *file, void *fh, const struct v4l2_crop *a)
 	struct sh_vou_geometry geo;
 	struct v4l2_mbus_framefmt mbfmt = {
 		/* Revisit: is this the correct code? */
-		.code = V4L2_MBUS_FMT_YUYV8_2X8,
+		.code = MEDIA_BUS_FMT_YUYV8_2X8,
 		.field = V4L2_FIELD_INTERLACED,
 		.colorspace = V4L2_COLORSPACE_SMPTE170M,
 	};
@@ -994,7 +995,7 @@ static int sh_vou_s_crop(struct file *file, void *fh, const struct v4l2_crop *a)
 	/* Sanity checks */
 	if ((unsigned)mbfmt.width > VOU_MAX_IMAGE_WIDTH ||
 	    (unsigned)mbfmt.height > img_height_max ||
-	    mbfmt.code != V4L2_MBUS_FMT_YUYV8_2X8)
+	    mbfmt.code != MEDIA_BUS_FMT_YUYV8_2X8)
 		return -EIO;
 
 	geo.output.width = mbfmt.width;
@@ -1449,7 +1450,6 @@ static struct platform_driver __refdata sh_vou = {
 	.remove  = sh_vou_remove,
 	.driver  = {
 		.name	= "sh-vou",
-		.owner	= THIS_MODULE,
 	},
 };
 

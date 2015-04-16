@@ -28,6 +28,7 @@
 struct reset_control;
 struct clk;
 struct regulator;
+struct platform_driver;
 
 struct nouveau_platform_gpu {
 	struct reset_control *rst;
@@ -38,12 +39,16 @@ struct nouveau_platform_gpu {
 };
 
 struct nouveau_platform_device {
-	struct nouveau_device device;
+	struct nvkm_device device;
 
 	struct nouveau_platform_gpu *gpu;
+
+	int gpu_speedo;
 };
 
 #define nv_device_to_platform(d)                                               \
 	container_of(d, struct nouveau_platform_device, device)
+
+extern struct platform_driver nouveau_platform_driver;
 
 #endif

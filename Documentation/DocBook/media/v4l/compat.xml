@@ -2566,11 +2566,27 @@ fields changed from _s32 to _u32.
 	  <para>Added compound control types and &VIDIOC-QUERY-EXT-CTRL;.
 	  </para>
         </listitem>
+      </orderedlist>
+    </section>
+
+    <section>
       <title>V4L2 in Linux 3.18</title>
       <orderedlist>
 	<listitem>
 	  <para>Added <constant>V4L2_CID_PAN_SPEED</constant> and
  <constant>V4L2_CID_TILT_SPEED</constant> camera controls.</para>
+	</listitem>
+      </orderedlist>
+    </section>
+
+    <section>
+      <title>V4L2 in Linux 3.19</title>
+      <orderedlist>
+	<listitem>
+	  <para>Rewrote Colorspace chapter, added new &v4l2-ycbcr-encoding;
+and &v4l2-quantization; fields to &v4l2-pix-format;, &v4l2-pix-format-mplane;
+and &v4l2-mbus-framefmt;.
+	  </para>
 	</listitem>
       </orderedlist>
     </section>

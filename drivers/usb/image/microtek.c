@@ -299,9 +299,7 @@ static inline void mts_show_command(struct scsi_cmnd *srb)
 	MTS_DEBUG( "Command %s (%d bytes)\n", what, srb->cmd_len);
 
  out:
-	MTS_DEBUG( "  %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
-	       srb->cmnd[0], srb->cmnd[1], srb->cmnd[2], srb->cmnd[3], srb->cmnd[4], srb->cmnd[5],
-	       srb->cmnd[6], srb->cmnd[7], srb->cmnd[8], srb->cmnd[9]);
+	MTS_DEBUG( "  %10ph\n", srb->cmnd);
 }
 
 #else

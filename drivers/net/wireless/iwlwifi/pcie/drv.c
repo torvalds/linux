@@ -367,7 +367,13 @@ static const struct pci_device_id iwl_hw_card_ids[] = {
 
 /* 3165 Series */
 	{IWL_PCI_DEVICE(0x3165, 0x4010, iwl3165_2ac_cfg)},
-	{IWL_PCI_DEVICE(0x3165, 0x4210, iwl3165_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x3165, 0x4012, iwl3165_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x3165, 0x4410, iwl3165_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x3165, 0x4510, iwl3165_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x3165, 0x4110, iwl3165_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x3166, 0x4310, iwl3165_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x3166, 0x4210, iwl3165_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x3165, 0x8010, iwl3165_2ac_cfg)},
 
 /* 7265 Series */
 	{IWL_PCI_DEVICE(0x095A, 0x5010, iwl7265_2ac_cfg)},
@@ -409,8 +415,35 @@ static const struct pci_device_id iwl_hw_card_ids[] = {
 
 /* 8000 Series */
 	{IWL_PCI_DEVICE(0x24F3, 0x0010, iwl8260_2ac_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x0004, iwl8260_2n_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x1010, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x0110, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x1110, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x0050, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x0250, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x1050, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x0150, iwl8260_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24F4, 0x0030, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F4, 0x1130, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F4, 0x1030, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0xC010, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0xD010, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F4, 0xC030, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F4, 0xD030, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0xC050, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0xD050, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x8010, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x9010, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F4, 0x8030, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F4, 0x9030, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x8050, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x9050, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x0004, iwl8260_2n_cfg)},
+	{IWL_PCI_DEVICE(0x24F5, 0x0010, iwl4165_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F6, 0x0030, iwl4165_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x0810, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x0910, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x0850, iwl8260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x0950, iwl8260_2ac_cfg)},
 #endif /* CONFIG_IWLMVM */
 
 	{0}
@@ -499,6 +532,7 @@ static void set_dflt_pwr_limit(struct iwl_trans *trans, struct pci_dev *pdev) {}
 static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	const struct iwl_cfg *cfg = (struct iwl_cfg *)(ent->driver_data);
+	const struct iwl_cfg *cfg_7265d __maybe_unused = NULL;
 	struct iwl_trans *iwl_trans;
 	struct iwl_trans_pcie *trans_pcie;
 	int ret;
@@ -506,6 +540,27 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	iwl_trans = iwl_trans_pcie_alloc(pdev, ent, cfg);
 	if (IS_ERR(iwl_trans))
 		return PTR_ERR(iwl_trans);
+
+#if IS_ENABLED(CONFIG_IWLMVM)
+	/*
+	 * special-case 7265D, it has the same PCI IDs.
+	 *
+	 * Note that because we already pass the cfg to the transport above,
+	 * all the parameters that the transport uses must, until that is
+	 * changed, be identical to the ones in the 7265D configuration.
+	 */
+	if (cfg == &iwl7265_2ac_cfg)
+		cfg_7265d = &iwl7265d_2ac_cfg;
+	else if (cfg == &iwl7265_2n_cfg)
+		cfg_7265d = &iwl7265d_2n_cfg;
+	else if (cfg == &iwl7265_n_cfg)
+		cfg_7265d = &iwl7265d_n_cfg;
+	if (cfg_7265d &&
+	    (iwl_trans->hw_rev & CSR_HW_REV_TYPE_MSK) == CSR_HW_REV_TYPE_7265D) {
+		cfg = cfg_7265d;
+		iwl_trans->cfg = cfg_7265d;
+	}
+#endif
 
 	pci_set_drvdata(pdev, iwl_trans);
 

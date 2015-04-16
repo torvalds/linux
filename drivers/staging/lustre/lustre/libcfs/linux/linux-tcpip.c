@@ -43,7 +43,7 @@
 /* For sys_open & sys_close */
 #include <linux/syscalls.h>
 
-int
+static int
 libcfs_sock_ioctl(int cmd, unsigned long arg)
 {
 	mm_segment_t	oldmm = get_fs();
@@ -279,8 +279,7 @@ libcfs_sock_write (struct socket *sock, void *buffer, int nob, int timeout)
 			rc = kernel_setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO,
 					     (char *)&tv, sizeof(tv));
 			if (rc != 0) {
-				CERROR("Can't set socket send timeout "
-				       "%ld.%06d: %d\n",
+				CERROR("Can't set socket send timeout %ld.%06d: %d\n",
 				       (long)tv.tv_sec, (int)tv.tv_usec, rc);
 				return rc;
 			}
@@ -544,18 +543,16 @@ libcfs_sock_accept (struct socket **newsockp, struct socket *sock)
 
 	newsock->ops = sock->ops;
 
-	set_current_state(TASK_INTERRUPTIBLE);
-	add_wait_queue(sk_sleep(sock->sk), &wait);
-
 	rc = sock->ops->accept(sock, newsock, O_NONBLOCK);
 	if (rc == -EAGAIN) {
 		/* Nothing ready, so wait for activity */
+		set_current_state(TASK_INTERRUPTIBLE);
+		add_wait_queue(sk_sleep(sock->sk), &wait);
 		schedule();
+		remove_wait_queue(sk_sleep(sock->sk), &wait);
+		set_current_state(TASK_RUNNING);
 		rc = sock->ops->accept(sock, newsock, O_NONBLOCK);
 	}
-
-	remove_wait_queue(sk_sleep(sock->sk), &wait);
-	set_current_state(TASK_RUNNING);
 
 	if (rc != 0)
 		goto failed;

@@ -252,17 +252,57 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 	set_pte_ext(ptep, pteval, ext);
 }
 
-#define PTE_BIT_FUNC(fn,op) \
-static inline pte_t pte_##fn(pte_t pte) { pte_val(pte) op; return pte; }
+static inline pte_t clear_pte_bit(pte_t pte, pgprot_t prot)
+{
+	pte_val(pte) &= ~pgprot_val(prot);
+	return pte;
+}
 
-PTE_BIT_FUNC(wrprotect, |= L_PTE_RDONLY);
-PTE_BIT_FUNC(mkwrite,   &= ~L_PTE_RDONLY);
-PTE_BIT_FUNC(mkclean,   &= ~L_PTE_DIRTY);
-PTE_BIT_FUNC(mkdirty,   |= L_PTE_DIRTY);
-PTE_BIT_FUNC(mkold,     &= ~L_PTE_YOUNG);
-PTE_BIT_FUNC(mkyoung,   |= L_PTE_YOUNG);
-PTE_BIT_FUNC(mkexec,   &= ~L_PTE_XN);
-PTE_BIT_FUNC(mknexec,   |= L_PTE_XN);
+static inline pte_t set_pte_bit(pte_t pte, pgprot_t prot)
+{
+	pte_val(pte) |= pgprot_val(prot);
+	return pte;
+}
+
+static inline pte_t pte_wrprotect(pte_t pte)
+{
+	return set_pte_bit(pte, __pgprot(L_PTE_RDONLY));
+}
+
+static inline pte_t pte_mkwrite(pte_t pte)
+{
+	return clear_pte_bit(pte, __pgprot(L_PTE_RDONLY));
+}
+
+static inline pte_t pte_mkclean(pte_t pte)
+{
+	return clear_pte_bit(pte, __pgprot(L_PTE_DIRTY));
+}
+
+static inline pte_t pte_mkdirty(pte_t pte)
+{
+	return set_pte_bit(pte, __pgprot(L_PTE_DIRTY));
+}
+
+static inline pte_t pte_mkold(pte_t pte)
+{
+	return clear_pte_bit(pte, __pgprot(L_PTE_YOUNG));
+}
+
+static inline pte_t pte_mkyoung(pte_t pte)
+{
+	return set_pte_bit(pte, __pgprot(L_PTE_YOUNG));
+}
+
+static inline pte_t pte_mkexec(pte_t pte)
+{
+	return clear_pte_bit(pte, __pgprot(L_PTE_XN));
+}
+
+static inline pte_t pte_mknexec(pte_t pte)
+{
+	return set_pte_bit(pte, __pgprot(L_PTE_XN));
+}
 
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
@@ -278,12 +318,12 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
  *
  *   3 3 2 2 2 2 2 2 2 2 2 2 1 1 1 1 1 1 1 1 1 1
  *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
- *   <--------------- offset ----------------------> < type -> 0 0 0
+ *   <--------------- offset ------------------------> < type -> 0 0
  *
- * This gives us up to 31 swap files and 64GB per swap file.  Note that
+ * This gives us up to 31 swap files and 128GB per swap file.  Note that
  * the offset field is always non-zero.
  */
-#define __SWP_TYPE_SHIFT	3
+#define __SWP_TYPE_SHIFT	2
 #define __SWP_TYPE_BITS		5
 #define __SWP_TYPE_MASK		((1 << __SWP_TYPE_BITS) - 1)
 #define __SWP_OFFSET_SHIFT	(__SWP_TYPE_BITS + __SWP_TYPE_SHIFT)
@@ -301,20 +341,6 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
  * is increased beyond what we presently support.
  */
 #define MAX_SWAPFILES_CHECK() BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > __SWP_TYPE_BITS)
-
-/*
- * Encode and decode a file entry.  File entries are stored in the Linux
- * page tables as follows:
- *
- *   3 3 2 2 2 2 2 2 2 2 2 2 1 1 1 1 1 1 1 1 1 1
- *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
- *   <----------------------- offset ------------------------> 1 0 0
- */
-#define pte_file(pte)		(pte_val(pte) & L_PTE_FILE)
-#define pte_to_pgoff(x)		(pte_val(x) >> 3)
-#define pgoff_to_pte(x)		__pte(((x) << 3) | L_PTE_FILE)
-
-#define PTE_FILE_MAX_BITS	29
 
 /* Needs to be defined here and not in linux/mm.h, as it is arch dependent */
 /* FIXME: this is not correct */

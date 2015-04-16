@@ -26,43 +26,8 @@ struct xfs_ifork;
 struct xfs_inode;
 struct xfs_mount;
 struct xfs_trans;
+struct xfs_bmalloca;
 
-/*
- * Argument structure for xfs_bmap_alloc.
- */
-struct xfs_bmalloca {
-	xfs_fsblock_t		*firstblock; /* i/o first block allocated */
-	struct xfs_bmap_free	*flist;	/* bmap freelist */
-	struct xfs_trans	*tp;	/* transaction pointer */
-	struct xfs_inode	*ip;	/* incore inode pointer */
-	struct xfs_bmbt_irec	prev;	/* extent before the new one */
-	struct xfs_bmbt_irec	got;	/* extent after, or delayed */
-
-	xfs_fileoff_t		offset;	/* offset in file filling in */
-	xfs_extlen_t		length;	/* i/o length asked/allocated */
-	xfs_fsblock_t		blkno;	/* starting block of new extent */
-
-	struct xfs_btree_cur	*cur;	/* btree cursor */
-	xfs_extnum_t		idx;	/* current extent index */
-	int			nallocs;/* number of extents alloc'd */
-	int			logflags;/* flags for transaction logging */
-
-	xfs_extlen_t		total;	/* total blocks needed for xaction */
-	xfs_extlen_t		minlen;	/* minimum allocation size (blocks) */
-	xfs_extlen_t		minleft; /* amount must be left after alloc */
-	bool			eof;	/* set if allocating past last extent */
-	bool			wasdel;	/* replacing a delayed allocation */
-	bool			userdata;/* set if is user data */
-	bool			aeof;	/* allocated space at eof */
-	bool			conv;	/* overwriting unwritten extents */
-	int			flags;
-	struct completion	*done;
-	struct work_struct	work;
-	int			result;
-};
-
-int	xfs_bmap_finish(struct xfs_trans **tp, struct xfs_bmap_free *flist,
-			int *committed);
 int	xfs_bmap_rtalloc(struct xfs_bmalloca *ap);
 int	xfs_bmap_eof(struct xfs_inode *ip, xfs_fileoff_t endoff,
 		     int whichfork, int *eof);

@@ -534,6 +534,8 @@ static int hpb_dmae_chan_probe(struct hpb_dmae_device *hpbdev, int id)
 
 static int hpb_dmae_probe(struct platform_device *pdev)
 {
+	const enum dma_slave_buswidth widths = DMA_SLAVE_BUSWIDTH_1_BYTE |
+		DMA_SLAVE_BUSWIDTH_2_BYTES | DMA_SLAVE_BUSWIDTH_4_BYTES;
 	struct hpb_dmae_pdata *pdata = pdev->dev.platform_data;
 	struct hpb_dmae_device *hpbdev;
 	struct dma_device *dma_dev;
@@ -595,6 +597,10 @@ static int hpb_dmae_probe(struct platform_device *pdev)
 
 	dma_cap_set(DMA_MEMCPY, dma_dev->cap_mask);
 	dma_cap_set(DMA_SLAVE, dma_dev->cap_mask);
+	dma_dev->src_addr_widths = widths;
+	dma_dev->dst_addr_widths = widths;
+	dma_dev->directions = BIT(DMA_MEM_TO_DEV) | BIT(DMA_DEV_TO_MEM);
+	dma_dev->residue_granularity = DMA_RESIDUE_GRANULARITY_DESCRIPTOR;
 
 	hpbdev->shdma_dev.ops = &hpb_dmae_ops;
 	hpbdev->shdma_dev.desc_size = sizeof(struct hpb_desc);
@@ -619,7 +625,6 @@ error:
 
 static void hpb_dmae_chan_remove(struct hpb_dmae_device *hpbdev)
 {
-	struct dma_device *dma_dev = &hpbdev->shdma_dev.dma_dev;
 	struct shdma_chan *schan;
 	int i;
 
@@ -628,7 +633,6 @@ static void hpb_dmae_chan_remove(struct hpb_dmae_device *hpbdev)
 
 		shdma_chan_remove(schan);
 	}
-	dma_dev->chancnt = 0;
 }
 
 static int hpb_dmae_remove(struct platform_device *pdev)
@@ -655,7 +659,6 @@ static struct platform_driver hpb_dmae_driver = {
 	.remove		= hpb_dmae_remove,
 	.shutdown	= hpb_dmae_shutdown,
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "hpb-dma-engine",
 	},
 };

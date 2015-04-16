@@ -13,7 +13,7 @@
  *
  * Transaction substance:
  *  At first, 6 data exist. Following to the data, parameters for each command
- *  exist. All of the parameters are 32 bit alighed to big endian.
+ *  exist. All of the parameters are 32 bit aligned to big endian.
  *   data[0]:	Length of transaction substance
  *   data[1]:	Transaction version
  *   data[2]:	Sequence number. This is incremented by the device
@@ -124,7 +124,7 @@ copy_resp_to_buf(struct snd_efw *efw, void *data, size_t length, int *rcode)
 	spin_lock_irq(&efw->lock);
 
 	t = (struct snd_efw_transaction *)data;
-	length = min_t(size_t, t->length * sizeof(t->length), length);
+	length = min_t(size_t, be32_to_cpu(t->length) * sizeof(u32), length);
 
 	if (efw->push_ptr < efw->pull_ptr)
 		capacity = (unsigned int)(efw->pull_ptr - efw->push_ptr);

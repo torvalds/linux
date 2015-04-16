@@ -30,13 +30,12 @@
 #define __UPC_H__
 
 #include "device.h"
-#include "ttype.h"
 
 /*---------------------  Export Definitions -------------------------*/
 
-//
-//  For memory mapped IO
-//
+
+/* For memory mapped IO */
+
 
 #define VNSvInPortB(dwIOAddress, pbyData)				\
 do {									\
@@ -87,4 +86,4 @@ do {								\
 
 /*---------------------  Export Functions  --------------------------*/
 
-#endif // __UPC_H__
+#endif /* __UPC_H__ */

@@ -73,7 +73,7 @@
  * those commands required by the parser. This generally works because command
  * opcode ranges have standard command length encodings. So for commands that
  * the parser does not need to check, it can easily skip them. This is
- * implementated via a per-ring length decoding vfunc.
+ * implemented via a per-ring length decoding vfunc.
  *
  * Unfortunately, there are a number of commands that do not follow the standard
  * length encoding for their opcode range, primarily amongst the MI_* commands.
@@ -138,6 +138,11 @@ static const struct drm_i915_cmd_descriptor common_cmds[] = {
 			.mask = MI_GLOBAL_GTT,
 			.expected = 0,
 	      }},						       ),
+	/*
+	 * MI_BATCH_BUFFER_START requires some special handling. It's not
+	 * really a 'skip' action but it doesn't seem like it's worth adding
+	 * a new action. See i915_parse_cmds().
+	 */
 	CMD(  MI_BATCH_BUFFER_START,            SMI,   !F,  0xFF,   S  ),
 };
 
@@ -147,6 +152,7 @@ static const struct drm_i915_cmd_descriptor render_cmds[] = {
 	CMD(  MI_PREDICATE,                     SMI,    F,  1,      S  ),
 	CMD(  MI_TOPOLOGY_FILTER,               SMI,    F,  1,      S  ),
 	CMD(  MI_DISPLAY_FLIP,                  SMI,   !F,  0xFF,   R  ),
+	CMD(  MI_SET_APPID,                     SMI,    F,  1,      S  ),
 	CMD(  MI_SET_CONTEXT,                   SMI,   !F,  0xFF,   R  ),
 	CMD(  MI_URB_CLEAR,                     SMI,   !F,  0xFF,   S  ),
 	CMD(  MI_STORE_DWORD_IMM,               SMI,   !F,  0x3F,   B,
@@ -205,6 +211,7 @@ static const struct drm_i915_cmd_descriptor hsw_render_cmds[] = {
 	CMD(  MI_SET_PREDICATE,                 SMI,    F,  1,      S  ),
 	CMD(  MI_RS_CONTROL,                    SMI,    F,  1,      S  ),
 	CMD(  MI_URB_ATOMIC_ALLOC,              SMI,    F,  1,      S  ),
+	CMD(  MI_SET_APPID,                     SMI,    F,  1,      S  ),
 	CMD(  MI_RS_CONTEXT,                    SMI,    F,  1,      S  ),
 	CMD(  MI_LOAD_SCAN_LINES_INCL,          SMI,   !F,  0x3F,   M  ),
 	CMD(  MI_LOAD_SCAN_LINES_EXCL,          SMI,   !F,  0x3F,   R  ),
@@ -224,6 +231,7 @@ static const struct drm_i915_cmd_descriptor hsw_render_cmds[] = {
 
 static const struct drm_i915_cmd_descriptor video_cmds[] = {
 	CMD(  MI_ARB_ON_OFF,                    SMI,    F,  1,      R  ),
+	CMD(  MI_SET_APPID,                     SMI,    F,  1,      S  ),
 	CMD(  MI_STORE_DWORD_IMM,               SMI,   !F,  0xFF,   B,
 	      .bits = {{
 			.offset = 0,
@@ -267,6 +275,7 @@ static const struct drm_i915_cmd_descriptor video_cmds[] = {
 
 static const struct drm_i915_cmd_descriptor vecs_cmds[] = {
 	CMD(  MI_ARB_ON_OFF,                    SMI,    F,  1,      R  ),
+	CMD(  MI_SET_APPID,                     SMI,    F,  1,      S  ),
 	CMD(  MI_STORE_DWORD_IMM,               SMI,   !F,  0xFF,   B,
 	      .bits = {{
 			.offset = 0,
@@ -396,6 +405,7 @@ static const struct drm_i915_cmd_table hsw_blt_ring_cmds[] = {
 #define REG64(addr) (addr), (addr + sizeof(u32))
 
 static const u32 gen7_render_regs[] = {
+	REG64(GPGPU_THREADS_DISPATCHED),
 	REG64(HS_INVOCATION_COUNT),
 	REG64(DS_INVOCATION_COUNT),
 	REG64(IA_VERTICES_COUNT),
@@ -408,6 +418,8 @@ static const u32 gen7_render_regs[] = {
 	REG64(PS_INVOCATION_COUNT),
 	REG64(PS_DEPTH_COUNT),
 	OACONTROL, /* Only allowed for LRI and SRM. See below. */
+	REG64(MI_PREDICATE_SRC0),
+	REG64(MI_PREDICATE_SRC1),
 	GEN7_3DPRIM_END_OFFSET,
 	GEN7_3DPRIM_START_VERTEX,
 	GEN7_3DPRIM_VERTEX_COUNT,
@@ -474,13 +486,17 @@ static u32 gen7_bsd_get_cmd_length_mask(u32 cmd_header)
 	u32 client = (cmd_header & INSTR_CLIENT_MASK) >> INSTR_CLIENT_SHIFT;
 	u32 subclient =
 		(cmd_header & INSTR_SUBCLIENT_MASK) >> INSTR_SUBCLIENT_SHIFT;
+	u32 op = (cmd_header & INSTR_26_TO_24_MASK) >> INSTR_26_TO_24_SHIFT;
 
 	if (client == INSTR_MI_CLIENT)
 		return 0x3F;
 	else if (client == INSTR_RC_CLIENT) {
-		if (subclient == INSTR_MEDIA_SUBCLIENT)
-			return 0xFFF;
-		else
+		if (subclient == INSTR_MEDIA_SUBCLIENT) {
+			if (op == 6)
+				return 0xFFFF;
+			else
+				return 0xFFF;
+		} else
 			return 0xFF;
 	}
 
@@ -709,13 +725,13 @@ int i915_cmd_parser_init_ring(struct intel_engine_cs *ring)
 	BUG_ON(!validate_cmds_sorted(ring, cmd_tables, cmd_table_count));
 	BUG_ON(!validate_regs_sorted(ring));
 
-	if (hash_empty(ring->cmd_hash)) {
-		ret = init_hash_table(ring, cmd_tables, cmd_table_count);
-		if (ret) {
-			DRM_ERROR("CMD: cmd_parser_init failed!\n");
-			fini_hash_table(ring);
-			return ret;
-		}
+	WARN_ON(!hash_empty(ring->cmd_hash));
+
+	ret = init_hash_table(ring, cmd_tables, cmd_table_count);
+	if (ret) {
+		DRM_ERROR("CMD: cmd_parser_init failed!\n");
+		fini_hash_table(ring);
+		return ret;
 	}
 
 	ring->needs_cmd_parser = true;
@@ -833,12 +849,75 @@ finish:
 	return (u32*)addr;
 }
 
+/* Returns a vmap'd pointer to dest_obj, which the caller must unmap */
+static u32 *copy_batch(struct drm_i915_gem_object *dest_obj,
+		       struct drm_i915_gem_object *src_obj,
+		       u32 batch_start_offset,
+		       u32 batch_len)
+{
+	int ret = 0;
+	int needs_clflush = 0;
+	u32 *src_base, *dest_base = NULL;
+	u32 *src_addr, *dest_addr;
+	u32 offset = batch_start_offset / sizeof(*dest_addr);
+	u32 end = batch_start_offset + batch_len;
+
+	if (end > dest_obj->base.size || end > src_obj->base.size)
+		return ERR_PTR(-E2BIG);
+
+	ret = i915_gem_obj_prepare_shmem_read(src_obj, &needs_clflush);
+	if (ret) {
+		DRM_DEBUG_DRIVER("CMD: failed to prep read\n");
+		return ERR_PTR(ret);
+	}
+
+	src_base = vmap_batch(src_obj);
+	if (!src_base) {
+		DRM_DEBUG_DRIVER("CMD: Failed to vmap batch\n");
+		ret = -ENOMEM;
+		goto unpin_src;
+	}
+
+	src_addr = src_base + offset;
+
+	if (needs_clflush)
+		drm_clflush_virt_range((char *)src_addr, batch_len);
+
+	ret = i915_gem_object_set_to_cpu_domain(dest_obj, true);
+	if (ret) {
+		DRM_DEBUG_DRIVER("CMD: Failed to set batch CPU domain\n");
+		goto unmap_src;
+	}
+
+	dest_base = vmap_batch(dest_obj);
+	if (!dest_base) {
+		DRM_DEBUG_DRIVER("CMD: Failed to vmap shadow batch\n");
+		ret = -ENOMEM;
+		goto unmap_src;
+	}
+
+	dest_addr = dest_base + offset;
+
+	if (batch_start_offset != 0)
+		memset((u8 *)dest_base, 0, batch_start_offset);
+
+	memcpy(dest_addr, src_addr, batch_len);
+	memset((u8 *)dest_addr + batch_len, 0, dest_obj->base.size - end);
+
+unmap_src:
+	vunmap(src_base);
+unpin_src:
+	i915_gem_object_unpin_pages(src_obj);
+
+	return ret ? ERR_PTR(ret) : dest_base;
+}
+
 /**
  * i915_needs_cmd_parser() - should a given ring use software command parsing?
  * @ring: the ring in question
  *
  * Only certain platforms require software batch buffer command parsing, and
- * only when enabled via module paramter.
+ * only when enabled via module parameter.
  *
  * Return: true if the ring requires software command parsing
  */
@@ -847,12 +926,7 @@ bool i915_needs_cmd_parser(struct intel_engine_cs *ring)
 	if (!ring->needs_cmd_parser)
 		return false;
 
-	/*
-	 * XXX: VLV is Gen7 and therefore has cmd_tables, but has PPGTT
-	 * disabled. That will cause all of the parser's PPGTT checks to
-	 * fail. For now, disable parsing when PPGTT is off.
-	 */
-	if (USES_PPGTT(ring->dev))
+	if (!USES_PPGTT(ring->dev))
 		return false;
 
 	return (i915.enable_cmd_parser == 1);
@@ -888,8 +962,10 @@ static bool check_cmd(const struct intel_engine_cs *ring,
 		 * OACONTROL writes to only MI_LOAD_REGISTER_IMM commands.
 		 */
 		if (reg_addr == OACONTROL) {
-			if (desc->cmd.value == MI_LOAD_REGISTER_MEM)
+			if (desc->cmd.value == MI_LOAD_REGISTER_MEM) {
+				DRM_DEBUG_DRIVER("CMD: Rejected LRM to OACONTROL\n");
 				return false;
+			}
 
 			if (desc->cmd.value == MI_LOAD_REGISTER_IMM(1))
 				*oacontrol_set = (cmd[2] != 0);
@@ -952,43 +1028,51 @@ static bool check_cmd(const struct intel_engine_cs *ring,
  * i915_parse_cmds() - parse a submitted batch buffer for privilege violations
  * @ring: the ring on which the batch is to execute
  * @batch_obj: the batch buffer in question
+ * @shadow_batch_obj: copy of the batch buffer in question
  * @batch_start_offset: byte offset in the batch at which execution starts
+ * @batch_len: length of the commands in batch_obj
  * @is_master: is the submitting process the drm master?
  *
  * Parses the specified batch buffer looking for privilege violations as
  * described in the overview.
  *
- * Return: non-zero if the parser finds violations or otherwise fails
+ * Return: non-zero if the parser finds violations or otherwise fails; -EACCES
+ * if the batch appears legal but should use hardware parsing
  */
 int i915_parse_cmds(struct intel_engine_cs *ring,
 		    struct drm_i915_gem_object *batch_obj,
+		    struct drm_i915_gem_object *shadow_batch_obj,
 		    u32 batch_start_offset,
+		    u32 batch_len,
 		    bool is_master)
 {
 	int ret = 0;
 	u32 *cmd, *batch_base, *batch_end;
 	struct drm_i915_cmd_descriptor default_desc = { 0 };
-	int needs_clflush = 0;
 	bool oacontrol_set = false; /* OACONTROL tracking. See check_cmd() */
 
-	ret = i915_gem_obj_prepare_shmem_read(batch_obj, &needs_clflush);
+	ret = i915_gem_obj_ggtt_pin(shadow_batch_obj, 4096, 0);
 	if (ret) {
-		DRM_DEBUG_DRIVER("CMD: failed to prep read\n");
-		return ret;
+		DRM_DEBUG_DRIVER("CMD: Failed to pin shadow batch\n");
+		return -1;
 	}
 
-	batch_base = vmap_batch(batch_obj);
-	if (!batch_base) {
-		DRM_DEBUG_DRIVER("CMD: Failed to vmap batch\n");
-		i915_gem_object_unpin_pages(batch_obj);
-		return -ENOMEM;
+	batch_base = copy_batch(shadow_batch_obj, batch_obj,
+				batch_start_offset, batch_len);
+	if (IS_ERR(batch_base)) {
+		DRM_DEBUG_DRIVER("CMD: Failed to copy batch\n");
+		i915_gem_object_ggtt_unpin(shadow_batch_obj);
+		return PTR_ERR(batch_base);
 	}
-
-	if (needs_clflush)
-		drm_clflush_virt_range((char *)batch_base, batch_obj->base.size);
 
 	cmd = batch_base + (batch_start_offset / sizeof(*cmd));
-	batch_end = cmd + (batch_obj->base.size / sizeof(*batch_end));
+
+	/*
+	 * We use the batch length as size because the shadow object is as
+	 * large or larger and copy_batch() will write MI_NOPs to the extra
+	 * space. Parsing should be faster in some cases this way.
+	 */
+	batch_end = cmd + (batch_len / sizeof(*batch_end));
 
 	while (cmd < batch_end) {
 		const struct drm_i915_cmd_descriptor *desc;
@@ -1002,6 +1086,16 @@ int i915_parse_cmds(struct intel_engine_cs *ring,
 			DRM_DEBUG_DRIVER("CMD: Unrecognized command: 0x%08X\n",
 					 *cmd);
 			ret = -EINVAL;
+			break;
+		}
+
+		/*
+		 * If the batch buffer contains a chained batch, return an
+		 * error that tells the caller to abort and dispatch the
+		 * workload as a non-secure batch.
+		 */
+		if (desc->cmd.value == MI_BATCH_BUFFER_START) {
+			ret = -EACCES;
 			break;
 		}
 
@@ -1038,8 +1132,7 @@ int i915_parse_cmds(struct intel_engine_cs *ring,
 	}
 
 	vunmap(batch_base);
-
-	i915_gem_object_unpin_pages(batch_obj);
+	i915_gem_object_ggtt_unpin(shadow_batch_obj);
 
 	return ret;
 }
@@ -1059,6 +1152,9 @@ int i915_cmd_parser_get_version(void)
 	 *
 	 * 1. Initial version. Checks batches and reports violations, but leaves
 	 *    hardware parsing enabled (so does not allow new use cases).
+	 * 2. Allow access to the MI_PREDICATE_SRC0 and
+	 *    MI_PREDICATE_SRC1 registers.
+	 * 3. Allow access to the GPGPU_THREADS_DISPATCHED register.
 	 */
-	return 1;
+	return 3;
 }

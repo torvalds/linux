@@ -279,11 +279,6 @@ static inline u32 i5100_recmema_rank(u32 a)
 	return i5100_nrecmema_rank(a);
 }
 
-static inline u32 i5100_recmema_dm_buf_id(u32 a)
-{
-	return i5100_nrecmema_dm_buf_id(a);
-}
-
 static inline u32 i5100_recmemb_cas(u32 a)
 {
 	return i5100_nrecmemb_cas(a);

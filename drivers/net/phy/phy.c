@@ -236,6 +236,25 @@ static inline unsigned int phy_find_valid(unsigned int idx, u32 features)
 }
 
 /**
+ * phy_check_valid - check if there is a valid PHY setting which matches
+ *		     speed, duplex, and feature mask
+ * @speed: speed to match
+ * @duplex: duplex to match
+ * @features: A mask of the valid settings
+ *
+ * Description: Returns true if there is a valid setting, false otherwise.
+ */
+static inline bool phy_check_valid(int speed, int duplex, u32 features)
+{
+	unsigned int idx;
+
+	idx = phy_find_valid(phy_find_setting(speed, duplex), features);
+
+	return settings[idx].speed == speed && settings[idx].duplex == duplex &&
+		(settings[idx].setting & features);
+}
+
+/**
  * phy_sanitize_settings - make sure the PHY is set to supported speed and duplex
  * @phydev: the target phy_device struct
  *
@@ -352,6 +371,7 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 {
 	struct mii_ioctl_data *mii_data = if_mii(ifr);
 	u16 val = mii_data->val_in;
+	bool change_autoneg = false;
 
 	switch (cmd) {
 	case SIOCGMIIPHY:
@@ -367,22 +387,29 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 		if (mii_data->phy_id == phydev->addr) {
 			switch (mii_data->reg_num) {
 			case MII_BMCR:
-				if ((val & (BMCR_RESET | BMCR_ANENABLE)) == 0)
+				if ((val & (BMCR_RESET | BMCR_ANENABLE)) == 0) {
+					if (phydev->autoneg == AUTONEG_ENABLE)
+						change_autoneg = true;
 					phydev->autoneg = AUTONEG_DISABLE;
-				else
+					if (val & BMCR_FULLDPLX)
+						phydev->duplex = DUPLEX_FULL;
+					else
+						phydev->duplex = DUPLEX_HALF;
+					if (val & BMCR_SPEED1000)
+						phydev->speed = SPEED_1000;
+					else if (val & BMCR_SPEED100)
+						phydev->speed = SPEED_100;
+					else phydev->speed = SPEED_10;
+				}
+				else {
+					if (phydev->autoneg == AUTONEG_DISABLE)
+						change_autoneg = true;
 					phydev->autoneg = AUTONEG_ENABLE;
-				if (!phydev->autoneg && (val & BMCR_FULLDPLX))
-					phydev->duplex = DUPLEX_FULL;
-				else
-					phydev->duplex = DUPLEX_HALF;
-				if (!phydev->autoneg && (val & BMCR_SPEED1000))
-					phydev->speed = SPEED_1000;
-				else if (!phydev->autoneg &&
-					 (val & BMCR_SPEED100))
-					phydev->speed = SPEED_100;
+				}
 				break;
 			case MII_ADVERTISE:
-				phydev->advertising = val;
+				phydev->advertising = mii_adv_to_ethtool_adv_t(val);
+				change_autoneg = true;
 				break;
 			default:
 				/* do nothing */
@@ -396,6 +423,10 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 		if (mii_data->reg_num == MII_BMCR &&
 		    val & BMCR_RESET)
 			return phy_init_hw(phydev);
+
+		if (change_autoneg)
+			return phy_start_aneg(phydev);
+
 		return 0;
 
 	case SIOCSHWTSTAMP:
@@ -426,6 +457,9 @@ int phy_start_aneg(struct phy_device *phydev)
 
 	if (AUTONEG_DISABLE == phydev->autoneg)
 		phy_sanitize_settings(phydev);
+
+	/* Invalidate LP advertising flags */
+	phydev->lp_advertising = 0;
 
 	err = phydev->drv->config_aneg(phydev);
 	if (err < 0)
@@ -1030,7 +1064,6 @@ int phy_init_eee(struct phy_device *phydev, bool clk_stop_enable)
 		int eee_lp, eee_cap, eee_adv;
 		u32 lp, cap, adv;
 		int status;
-		unsigned int idx;
 
 		/* Read phy status to properly get the right settings */
 		status = phy_read_status(phydev);
@@ -1062,8 +1095,7 @@ int phy_init_eee(struct phy_device *phydev, bool clk_stop_enable)
 
 		adv = mmd_eee_adv_to_ethtool_adv_t(eee_adv);
 		lp = mmd_eee_adv_to_ethtool_adv_t(eee_lp);
-		idx = phy_find_setting(phydev->speed, phydev->duplex);
-		if (!(lp & adv & settings[idx].setting))
+		if (!phy_check_valid(phydev->speed, phydev->duplex, lp & adv))
 			goto eee_exit_err;
 
 		if (clk_stop_enable) {

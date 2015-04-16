@@ -603,7 +603,8 @@ int client_disconnect_export(struct obd_export *exp)
 		/* obd_force == local only */
 		ldlm_cli_cancel_unused(obd->obd_namespace, NULL,
 				       obd->obd_force ? LCF_LOCAL : 0, NULL);
-		ldlm_namespace_free_prior(obd->obd_namespace, imp, obd->obd_force);
+		ldlm_namespace_free_prior(obd->obd_namespace, imp,
+					  obd->obd_force);
 	}
 
 	/* There's no need to hold sem while disconnecting an import,
@@ -858,8 +859,8 @@ void ldlm_dump_export_locks(struct obd_export *exp)
 	if (!list_empty(&exp->exp_locks_list)) {
 		struct ldlm_lock *lock;
 
-		CERROR("dumping locks for export %p,"
-		       "ignore if the unmount doesn't hang\n", exp);
+		CERROR("dumping locks for export %p,ignore if the unmount doesn't hang\n",
+		       exp);
 		list_for_each_entry(lock, &exp->exp_locks_list,
 					l_exp_refs_link)
 			LDLM_ERROR(lock, "lock:");

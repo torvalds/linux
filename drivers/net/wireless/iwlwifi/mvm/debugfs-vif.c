@@ -268,7 +268,7 @@ static ssize_t iwl_dbgfs_mac_params_read(struct file *file,
 		sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[ap_sta_id],
 						lockdep_is_held(&mvm->mutex));
 		if (!IS_ERR_OR_NULL(sta)) {
-			struct iwl_mvm_sta *mvm_sta = (void *)sta->drv_priv;
+			struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 
 			pos += scnprintf(buf+pos, bufsz-pos,
 					 "ap_sta_id %d - reduced Tx power %d\n",
@@ -517,6 +517,85 @@ static ssize_t iwl_dbgfs_low_latency_read(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, sizeof(buf));
 }
 
+static ssize_t iwl_dbgfs_uapsd_misbehaving_read(struct file *file,
+						char __user *user_buf,
+						size_t count, loff_t *ppos)
+{
+	struct ieee80211_vif *vif = file->private_data;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	char buf[20];
+	int len;
+
+	len = sprintf(buf, "%pM\n", mvmvif->uapsd_misbehaving_bssid);
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t iwl_dbgfs_uapsd_misbehaving_write(struct ieee80211_vif *vif,
+						 char *buf, size_t count,
+						 loff_t *ppos)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm *mvm = mvmvif->mvm;
+	bool ret;
+
+	mutex_lock(&mvm->mutex);
+	ret = mac_pton(buf, mvmvif->uapsd_misbehaving_bssid);
+	mutex_unlock(&mvm->mutex);
+
+	return ret ? count : -EINVAL;
+}
+
+static ssize_t iwl_dbgfs_rx_phyinfo_write(struct ieee80211_vif *vif, char *buf,
+					  size_t count, loff_t *ppos)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm *mvm = mvmvif->mvm;
+	struct ieee80211_chanctx_conf *chanctx_conf;
+	struct iwl_mvm_phy_ctxt *phy_ctxt;
+	u16 value;
+	int ret;
+
+	ret = kstrtou16(buf, 0, &value);
+	if (ret)
+		return ret;
+
+	mutex_lock(&mvm->mutex);
+	rcu_read_lock();
+
+	chanctx_conf = rcu_dereference(vif->chanctx_conf);
+	/* make sure the channel context is assigned */
+	if (!chanctx_conf) {
+		rcu_read_unlock();
+		mutex_unlock(&mvm->mutex);
+		return -EINVAL;
+	}
+
+	phy_ctxt = &mvm->phy_ctxts[*(u16 *)chanctx_conf->drv_priv];
+	rcu_read_unlock();
+
+	mvm->dbgfs_rx_phyinfo = value;
+
+	ret = iwl_mvm_phy_ctxt_changed(mvm, phy_ctxt, &chanctx_conf->min_def,
+				       chanctx_conf->rx_chains_static,
+				       chanctx_conf->rx_chains_dynamic);
+	mutex_unlock(&mvm->mutex);
+
+	return ret ?: count;
+}
+
+static ssize_t iwl_dbgfs_rx_phyinfo_read(struct file *file,
+					 char __user *user_buf,
+					 size_t count, loff_t *ppos)
+{
+	struct ieee80211_vif *vif = file->private_data;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	char buf[8];
+
+	snprintf(buf, sizeof(buf), "0x%04x\n", mvmvif->mvm->dbgfs_rx_phyinfo);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, sizeof(buf));
+}
+
 #define MVM_DEBUGFS_WRITE_FILE_OPS(name, bufsz) \
 	_MVM_DEBUGFS_WRITE_FILE_OPS(name, bufsz, struct ieee80211_vif)
 #define MVM_DEBUGFS_READ_WRITE_FILE_OPS(name, bufsz) \
@@ -531,6 +610,8 @@ MVM_DEBUGFS_READ_FILE_OPS(mac_params);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(pm_params, 32);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(bf_params, 256);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(low_latency, 10);
+MVM_DEBUGFS_READ_WRITE_FILE_OPS(uapsd_misbehaving, 20);
+MVM_DEBUGFS_READ_WRITE_FILE_OPS(rx_phyinfo, 10);
 
 void iwl_mvm_vif_dbgfs_register(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
@@ -546,7 +627,6 @@ void iwl_mvm_vif_dbgfs_register(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		return;
 
 	mvmvif->dbgfs_dir = debugfs_create_dir("iwlmvm", dbgfs_dir);
-	mvmvif->mvm = mvm;
 
 	if (!mvmvif->dbgfs_dir) {
 		IWL_ERR(mvm, "Failed to create debugfs directory under %s\n",
@@ -563,6 +643,10 @@ void iwl_mvm_vif_dbgfs_register(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	MVM_DEBUGFS_ADD_FILE_VIF(mac_params, mvmvif->dbgfs_dir, S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE_VIF(low_latency, mvmvif->dbgfs_dir,
+				 S_IRUSR | S_IWUSR);
+	MVM_DEBUGFS_ADD_FILE_VIF(uapsd_misbehaving, mvmvif->dbgfs_dir,
+				 S_IRUSR | S_IWUSR);
+	MVM_DEBUGFS_ADD_FILE_VIF(rx_phyinfo, mvmvif->dbgfs_dir,
 				 S_IRUSR | S_IWUSR);
 
 	if (vif->type == NL80211_IFTYPE_STATION && !vif->p2p &&

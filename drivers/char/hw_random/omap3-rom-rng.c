@@ -126,7 +126,6 @@ static int omap3_rom_rng_remove(struct platform_device *pdev)
 static struct platform_driver omap3_rom_rng_driver = {
 	.driver = {
 		.name		= "omap3-rom-rng",
-		.owner		= THIS_MODULE,
 	},
 	.probe		= omap3_rom_rng_probe,
 	.remove		= omap3_rom_rng_remove,

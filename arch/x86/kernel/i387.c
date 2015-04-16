@@ -13,11 +13,25 @@
 #include <asm/sigcontext.h>
 #include <asm/processor.h>
 #include <asm/math_emu.h>
+#include <asm/tlbflush.h>
 #include <asm/uaccess.h>
 #include <asm/ptrace.h>
 #include <asm/i387.h>
 #include <asm/fpu-internal.h>
 #include <asm/user.h>
+
+static DEFINE_PER_CPU(bool, in_kernel_fpu);
+
+void kernel_fpu_disable(void)
+{
+	WARN_ON(this_cpu_read(in_kernel_fpu));
+	this_cpu_write(in_kernel_fpu, true);
+}
+
+void kernel_fpu_enable(void)
+{
+	this_cpu_write(in_kernel_fpu, false);
+}
 
 /*
  * Were we in an interrupt that interrupted kernel mode?
@@ -28,13 +42,16 @@
  * be set (so that the clts/stts pair does nothing that is
  * visible in the interrupted kernel thread).
  *
- * Except for the eagerfpu case when we return 1 unless we've already
- * been eager and saved the state in kernel_fpu_begin().
+ * Except for the eagerfpu case when we return true; in the likely case
+ * the thread has FPU but we are not going to set/clear TS.
  */
 static inline bool interrupted_kernel_fpu_idle(void)
 {
+	if (this_cpu_read(in_kernel_fpu))
+		return false;
+
 	if (use_eager_fpu())
-		return __thread_has_fpu(current);
+		return true;
 
 	return !__thread_has_fpu(current) &&
 		(read_cr0() & X86_CR0_TS);
@@ -51,7 +68,7 @@ static inline bool interrupted_kernel_fpu_idle(void)
 static inline bool interrupted_user_mode(void)
 {
 	struct pt_regs *regs = get_irq_regs();
-	return regs && user_mode_vm(regs);
+	return regs && user_mode(regs);
 }
 
 /*
@@ -73,32 +90,30 @@ void __kernel_fpu_begin(void)
 {
 	struct task_struct *me = current;
 
+	this_cpu_write(in_kernel_fpu, true);
+
 	if (__thread_has_fpu(me)) {
-		__thread_clear_has_fpu(me);
 		__save_init_fpu(me);
-		/* We do 'stts()' in __kernel_fpu_end() */
-	} else if (!use_eager_fpu()) {
+	} else {
 		this_cpu_write(fpu_owner_task, NULL);
-		clts();
+		if (!use_eager_fpu())
+			clts();
 	}
 }
 EXPORT_SYMBOL(__kernel_fpu_begin);
 
 void __kernel_fpu_end(void)
 {
-	if (use_eager_fpu()) {
-		/*
-		 * For eager fpu, most the time, tsk_used_math() is true.
-		 * Restore the user math as we are done with the kernel usage.
-		 * At few instances during thread exit, signal handling etc,
-		 * tsk_used_math() is false. Those few places will take proper
-		 * actions, so we don't need to restore the math here.
-		 */
-		if (likely(tsk_used_math(current)))
-			math_state_restore();
-	} else {
+	struct task_struct *me = current;
+
+	if (__thread_has_fpu(me)) {
+		if (WARN_ON(restore_fpu_checking(me)))
+			fpu_reset_state(me);
+	} else if (!use_eager_fpu()) {
 		stts();
 	}
+
+	this_cpu_write(in_kernel_fpu, false);
 }
 EXPORT_SYMBOL(__kernel_fpu_end);
 
@@ -106,10 +121,13 @@ void unlazy_fpu(struct task_struct *tsk)
 {
 	preempt_disable();
 	if (__thread_has_fpu(tsk)) {
-		__save_init_fpu(tsk);
-		__thread_fpu_end(tsk);
-	} else
-		tsk->thread.fpu_counter = 0;
+		if (use_eager_fpu()) {
+			__save_fpu(tsk);
+		} else {
+			__save_init_fpu(tsk);
+			__thread_fpu_end(tsk);
+		}
+	}
 	preempt_enable();
 }
 EXPORT_SYMBOL(unlazy_fpu);
@@ -180,7 +198,7 @@ void fpu_init(void)
 	if (cpu_has_xmm)
 		cr4_mask |= X86_CR4_OSXMMEXCPT;
 	if (cr4_mask)
-		set_in_cr4(cr4_mask);
+		cr4_set_bits(cr4_mask);
 
 	cr0 = read_cr0();
 	cr0 &= ~(X86_CR0_TS|X86_CR0_EM); /* clear TS and EM */
@@ -207,11 +225,12 @@ void fpu_finit(struct fpu *fpu)
 		return;
 	}
 
+	memset(fpu->state, 0, xstate_size);
+
 	if (cpu_has_fxsr) {
 		fx_finit(&fpu->state->fxsave);
 	} else {
 		struct i387_fsave_struct *fp = &fpu->state->fsave;
-		memset(fp, 0, xstate_size);
 		fp->cwd = 0xffff037fu;
 		fp->swd = 0xffff0000u;
 		fp->twd = 0xffffffffu;
@@ -233,7 +252,7 @@ int init_fpu(struct task_struct *tsk)
 	if (tsk_used_math(tsk)) {
 		if (cpu_has_fpu && tsk == current)
 			unlazy_fpu(tsk);
-		tsk->thread.fpu.last_cpu = ~0;
+		task_disable_lazy_fpu_restore(tsk);
 		return 0;
 	}
 
@@ -322,6 +341,7 @@ int xstateregs_get(struct task_struct *target, const struct user_regset *regset,
 		unsigned int pos, unsigned int count,
 		void *kbuf, void __user *ubuf)
 {
+	struct xsave_struct *xsave = &target->thread.fpu.state->xsave;
 	int ret;
 
 	if (!cpu_has_xsave)
@@ -336,14 +356,12 @@ int xstateregs_get(struct task_struct *target, const struct user_regset *regset,
 	 * memory layout in the thread struct, so that we can copy the entire
 	 * xstateregs to the user using one user_regset_copyout().
 	 */
-	memcpy(&target->thread.fpu.state->fxsave.sw_reserved,
-	       xstate_fx_sw_bytes, sizeof(xstate_fx_sw_bytes));
-
+	memcpy(&xsave->i387.sw_reserved,
+		xstate_fx_sw_bytes, sizeof(xstate_fx_sw_bytes));
 	/*
 	 * Copy the xstate memory layout.
 	 */
-	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				  &target->thread.fpu.state->xsave, 0, -1);
+	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf, xsave, 0, -1);
 	return ret;
 }
 
@@ -351,8 +369,8 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
 		  unsigned int pos, unsigned int count,
 		  const void *kbuf, const void __user *ubuf)
 {
+	struct xsave_struct *xsave = &target->thread.fpu.state->xsave;
 	int ret;
-	struct xsave_hdr_struct *xsave_hdr;
 
 	if (!cpu_has_xsave)
 		return -ENODEV;
@@ -361,22 +379,16 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
 	if (ret)
 		return ret;
 
-	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-				 &target->thread.fpu.state->xsave, 0, -1);
-
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, xsave, 0, -1);
 	/*
 	 * mxcsr reserved bits must be masked to zero for security reasons.
 	 */
-	target->thread.fpu.state->fxsave.mxcsr &= mxcsr_feature_mask;
-
-	xsave_hdr = &target->thread.fpu.state->xsave.xsave_hdr;
-
-	xsave_hdr->xstate_bv &= pcntxt_mask;
+	xsave->i387.mxcsr &= mxcsr_feature_mask;
+	xsave->xsave_hdr.xstate_bv &= pcntxt_mask;
 	/*
 	 * These bits must be zero.
 	 */
-	memset(xsave_hdr->reserved, 0, 48);
-
+	memset(&xsave->xsave_hdr.reserved, 0, 48);
 	return ret;
 }
 

@@ -23,6 +23,7 @@
 
 #define AMBA_NR_IRQS	9
 #define AMBA_CID	0xb105f00d
+#define CORESIGHT_CID	0xb105900d
 
 struct clk;
 
@@ -32,6 +33,7 @@ struct amba_device {
 	struct clk		*pclk;
 	unsigned int		periphid;
 	unsigned int		irq[AMBA_NR_IRQS];
+	char			*driver_override;
 };
 
 struct amba_driver {
@@ -91,11 +93,25 @@ struct amba_device *amba_find_device(const char *, struct device *, unsigned int
 int amba_request_regions(struct amba_device *, const char *);
 void amba_release_regions(struct amba_device *);
 
-#define amba_pclk_enable(d)	\
-	(IS_ERR((d)->pclk) ? 0 : clk_enable((d)->pclk))
+static inline int amba_pclk_enable(struct amba_device *dev)
+{
+	return clk_enable(dev->pclk);
+}
 
-#define amba_pclk_disable(d)	\
-	do { if (!IS_ERR((d)->pclk)) clk_disable((d)->pclk); } while (0)
+static inline void amba_pclk_disable(struct amba_device *dev)
+{
+	clk_disable(dev->pclk);
+}
+
+static inline int amba_pclk_prepare(struct amba_device *dev)
+{
+	return clk_prepare(dev->pclk);
+}
+
+static inline void amba_pclk_unprepare(struct amba_device *dev)
+{
+	clk_unprepare(dev->pclk);
+}
 
 /* Some drivers don't use the struct amba_device */
 #define AMBA_CONFIG_BITS(a) (((a) >> 24) & 0xff)

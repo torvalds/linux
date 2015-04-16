@@ -120,8 +120,8 @@ struct dtv_properties {
 </para>
 <informaltable><tgroup cols="1"><tbody><row><entry
  align="char">
-<para>This ioctl call sets one or more frontend properties. This call only
- requires read-only access to the device.</para>
+<para>This ioctl call sets one or more frontend properties. This call
+ requires read/write access to the device.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
 <para>SYNOPSIS

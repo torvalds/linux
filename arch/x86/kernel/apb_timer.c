@@ -135,14 +135,6 @@ static inline void apbt_clear_mapping(void)
 	apbt_virt_address = NULL;
 }
 
-/*
- * APBT timer interrupt enable / disable
- */
-static inline int is_apbt_capable(void)
-{
-	return apbt_virt_address ? 1 : 0;
-}
-
 static int __init apbt_clockevent_register(void)
 {
 	struct sfi_timer_table_entry *mtmr;
@@ -185,8 +177,6 @@ static void apbt_setup_irq(struct apbt_dev *adev)
 
 	irq_modify_status(adev->irq, 0, IRQ_MOVE_PCNTXT);
 	irq_set_affinity(adev->irq, cpumask_of(adev->cpu));
-	/* APB timer irqs are set up as mp_irqs, timer is edge type */
-	__irq_set_handler(adev->irq, handle_edge_irq, 0, "edge");
 }
 
 /* Should be called with per cpu */

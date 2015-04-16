@@ -180,7 +180,10 @@
 #define		DIG_THERM_DPM(x)			((x) << 14)
 #define		DIG_THERM_DPM_MASK			0x003FC000
 #define		DIG_THERM_DPM_SHIFT			14
-
+#define	CG_THERMAL_STATUS				0x704
+#define		FDO_PWM_DUTY(x)				((x) << 9)
+#define		FDO_PWM_DUTY_MASK			(0xff << 9)
+#define		FDO_PWM_DUTY_SHIFT			9
 #define	CG_THERMAL_INT					0x708
 #define		DIG_THERM_INTH(x)			((x) << 8)
 #define		DIG_THERM_INTH_MASK			0x0000FF00
@@ -191,6 +194,10 @@
 #define 	THERM_INT_MASK_HIGH			(1 << 24)
 #define 	THERM_INT_MASK_LOW			(1 << 25)
 
+#define	CG_MULT_THERMAL_CTRL					0x710
+#define		TEMP_SEL(x)					((x) << 20)
+#define		TEMP_SEL_MASK					(0xff << 20)
+#define		TEMP_SEL_SHIFT					20
 #define	CG_MULT_THERMAL_STATUS					0x714
 #define		ASIC_MAX_TEMP(x)				((x) << 0)
 #define		ASIC_MAX_TEMP_MASK				0x000001ff
@@ -198,6 +205,37 @@
 #define		CTF_TEMP(x)					((x) << 9)
 #define		CTF_TEMP_MASK					0x0003fe00
 #define		CTF_TEMP_SHIFT					9
+
+#define	CG_FDO_CTRL0					0x754
+#define		FDO_STATIC_DUTY(x)			((x) << 0)
+#define		FDO_STATIC_DUTY_MASK			0x000000FF
+#define		FDO_STATIC_DUTY_SHIFT			0
+#define	CG_FDO_CTRL1					0x758
+#define		FMAX_DUTY100(x)				((x) << 0)
+#define		FMAX_DUTY100_MASK			0x000000FF
+#define		FMAX_DUTY100_SHIFT			0
+#define	CG_FDO_CTRL2					0x75C
+#define		TMIN(x)					((x) << 0)
+#define		TMIN_MASK				0x000000FF
+#define		TMIN_SHIFT				0
+#define		FDO_PWM_MODE(x)				((x) << 11)
+#define		FDO_PWM_MODE_MASK			(7 << 11)
+#define		FDO_PWM_MODE_SHIFT			11
+#define		TACH_PWM_RESP_RATE(x)			((x) << 25)
+#define		TACH_PWM_RESP_RATE_MASK			(0x7f << 25)
+#define		TACH_PWM_RESP_RATE_SHIFT		25
+
+#define CG_TACH_CTRL                                    0x770
+#       define EDGE_PER_REV(x)                          ((x) << 0)
+#       define EDGE_PER_REV_MASK                        (0x7 << 0)
+#       define EDGE_PER_REV_SHIFT                       0
+#       define TARGET_PERIOD(x)                         ((x) << 3)
+#       define TARGET_PERIOD_MASK                       0xfffffff8
+#       define TARGET_PERIOD_SHIFT                      3
+#define CG_TACH_STATUS                                  0x774
+#       define TACH_PERIOD(x)                           ((x) << 0)
+#       define TACH_PERIOD_MASK                         0xffffffff
+#       define TACH_PERIOD_SHIFT                        0
 
 #define GENERAL_PWRMGT                                  0x780
 #       define GLOBAL_PWRMGT_EN                         (1 << 0)
@@ -319,6 +357,10 @@
 
 #define	CC_SYS_RB_BACKEND_DISABLE			0xe80
 #define	GC_USER_SYS_RB_BACKEND_DISABLE			0xe84
+
+#define SRBM_READ_ERROR					0xE98
+#define SRBM_INT_CNTL					0xEA0
+#define SRBM_INT_ACK					0xEA8
 
 #define	SRBM_STATUS2				        0x0EC4
 #define		DMA_BUSY 				(1 << 5)
@@ -862,6 +904,16 @@
 
 /* 0x6e98, 0x7a98, 0x10698, 0x11298, 0x11e98, 0x12a98 */
 #define CRTC_STATUS_FRAME_COUNT                         0x6e98
+
+/* Audio clocks */
+#define DCCG_AUDIO_DTO_SOURCE                           0x05ac
+#       define DCCG_AUDIO_DTO0_SOURCE_SEL(x) ((x) << 0) /* crtc0 - crtc5 */
+#       define DCCG_AUDIO_DTO_SEL            (1 << 4)   /* 0=dto0 1=dto1 */
+
+#define DCCG_AUDIO_DTO0_PHASE                           0x05b0
+#define DCCG_AUDIO_DTO0_MODULE                          0x05b4
+#define DCCG_AUDIO_DTO1_PHASE                           0x05c0
+#define DCCG_AUDIO_DTO1_MODULE                          0x05c4
 
 #define AFMT_AUDIO_SRC_CONTROL                          0x713c
 #define		AFMT_AUDIO_SRC_SELECT(x)		(((x) & 7) << 0)
@@ -1594,6 +1646,23 @@
 #define	PACKET3_MPEG_INDEX				0x3A
 #define	PACKET3_COPY_DW					0x3B
 #define	PACKET3_WAIT_REG_MEM				0x3C
+#define		WAIT_REG_MEM_FUNCTION(x)                ((x) << 0)
+                /* 0 - always
+		 * 1 - <
+		 * 2 - <=
+		 * 3 - ==
+		 * 4 - !=
+		 * 5 - >=
+		 * 6 - >
+		 */
+#define		WAIT_REG_MEM_MEM_SPACE(x)               ((x) << 4)
+                /* 0 - reg
+		 * 1 - mem
+		 */
+#define		WAIT_REG_MEM_ENGINE(x)                  ((x) << 8)
+                /* 0 - me
+		 * 1 - pfp
+		 */
 #define	PACKET3_MEM_WRITE				0x3D
 #define	PACKET3_COPY_DATA				0x40
 #define	PACKET3_CP_DMA					0x41
@@ -1797,6 +1866,7 @@
 #define	DMA_PACKET_TRAP					  0x7
 #define	DMA_PACKET_SRBM_WRITE				  0x9
 #define	DMA_PACKET_CONSTANT_FILL			  0xd
+#define	DMA_PACKET_POLL_REG_MEM				  0xe
 #define	DMA_PACKET_NOP					  0xf
 
 #define VCE_STATUS					0x20004

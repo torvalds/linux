@@ -30,6 +30,12 @@
 
 struct acpi_dmar_header;
 
+#ifdef	CONFIG_X86
+# define	DMAR_UNITS_SUPPORTED	MAX_IO_APICS
+#else
+# define	DMAR_UNITS_SUPPORTED	64
+#endif
+
 /* DMAR Flags */
 #define DMAR_INTR_REMAP		0x1
 #define DMAR_X2APIC_OPT_OUT	0x2
@@ -120,28 +126,60 @@ extern int dmar_remove_dev_scope(struct dmar_pci_notify_info *info,
 /* Intel IOMMU detection */
 extern int detect_intel_iommu(void);
 extern int enable_drhd_fault_handling(void);
+extern int dmar_device_add(acpi_handle handle);
+extern int dmar_device_remove(acpi_handle handle);
+
+static inline int dmar_res_noop(struct acpi_dmar_header *hdr, void *arg)
+{
+	return 0;
+}
 
 #ifdef CONFIG_INTEL_IOMMU
 extern int iommu_detected, no_iommu;
 extern int intel_iommu_init(void);
-extern int dmar_parse_one_rmrr(struct acpi_dmar_header *header);
-extern int dmar_parse_one_atsr(struct acpi_dmar_header *header);
+extern int dmar_parse_one_rmrr(struct acpi_dmar_header *header, void *arg);
+extern int dmar_parse_one_atsr(struct acpi_dmar_header *header, void *arg);
+extern int dmar_check_one_atsr(struct acpi_dmar_header *hdr, void *arg);
+extern int dmar_release_one_atsr(struct acpi_dmar_header *hdr, void *arg);
+extern int dmar_iommu_hotplug(struct dmar_drhd_unit *dmaru, bool insert);
 extern int dmar_iommu_notify_scope_dev(struct dmar_pci_notify_info *info);
 #else /* !CONFIG_INTEL_IOMMU: */
 static inline int intel_iommu_init(void) { return -ENODEV; }
-static inline int dmar_parse_one_rmrr(struct acpi_dmar_header *header)
-{
-	return 0;
-}
-static inline int dmar_parse_one_atsr(struct acpi_dmar_header *header)
-{
-	return 0;
-}
+
+#define	dmar_parse_one_rmrr		dmar_res_noop
+#define	dmar_parse_one_atsr		dmar_res_noop
+#define	dmar_check_one_atsr		dmar_res_noop
+#define	dmar_release_one_atsr		dmar_res_noop
+
 static inline int dmar_iommu_notify_scope_dev(struct dmar_pci_notify_info *info)
 {
 	return 0;
 }
+
+static inline int dmar_iommu_hotplug(struct dmar_drhd_unit *dmaru, bool insert)
+{
+	return 0;
+}
 #endif /* CONFIG_INTEL_IOMMU */
+
+#ifdef CONFIG_IRQ_REMAP
+extern int dmar_ir_hotplug(struct dmar_drhd_unit *dmaru, bool insert);
+#else  /* CONFIG_IRQ_REMAP */
+static inline int dmar_ir_hotplug(struct dmar_drhd_unit *dmaru, bool insert)
+{ return 0; }
+#endif /* CONFIG_IRQ_REMAP */
+
+#else /* CONFIG_DMAR_TABLE */
+
+static inline int dmar_device_add(void *handle)
+{
+	return 0;
+}
+
+static inline int dmar_device_remove(void *handle)
+{
+	return 0;
+}
 
 #endif /* CONFIG_DMAR_TABLE */
 

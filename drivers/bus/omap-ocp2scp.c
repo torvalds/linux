@@ -77,7 +77,6 @@ static struct platform_driver omap_ocp2scp_driver = {
 	.remove		= omap_ocp2scp_remove,
 	.driver		= {
 		.name	= "omap-ocp2scp",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(omap_ocp2scp_id_table),
 	},
 };

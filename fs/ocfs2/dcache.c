@@ -172,7 +172,7 @@ struct dentry *ocfs2_find_local_alias(struct inode *inode,
 	struct dentry *dentry;
 
 	spin_lock(&inode->i_lock);
-	hlist_for_each_entry(dentry, &inode->i_dentry, d_alias) {
+	hlist_for_each_entry(dentry, &inode->i_dentry, d_u.d_alias) {
 		spin_lock(&dentry->d_lock);
 		if (ocfs2_match_dentry(dentry, parent_blkno, skip_unhashed)) {
 			trace_ocfs2_find_local_alias(dentry->d_name.len,
@@ -251,8 +251,8 @@ int ocfs2_dentry_attach_lock(struct dentry *dentry,
 
 	if (dl) {
 		mlog_bug_on_msg(dl->dl_parent_blkno != parent_blkno,
-				" \"%.*s\": old parent: %llu, new: %llu\n",
-				dentry->d_name.len, dentry->d_name.name,
+				" \"%pd\": old parent: %llu, new: %llu\n",
+				dentry,
 				(unsigned long long)parent_blkno,
 				(unsigned long long)dl->dl_parent_blkno);
 		return 0;
@@ -277,8 +277,8 @@ int ocfs2_dentry_attach_lock(struct dentry *dentry,
 				(unsigned long long)OCFS2_I(inode)->ip_blkno);
 
 		mlog_bug_on_msg(dl->dl_parent_blkno != parent_blkno,
-				" \"%.*s\": old parent: %llu, new: %llu\n",
-				dentry->d_name.len, dentry->d_name.name,
+				" \"%pd\": old parent: %llu, new: %llu\n",
+				dentry,
 				(unsigned long long)parent_blkno,
 				(unsigned long long)dl->dl_parent_blkno);
 
@@ -406,17 +406,15 @@ static void ocfs2_dentry_iput(struct dentry *dentry, struct inode *inode)
 			if (inode)
 				ino = (unsigned long long)OCFS2_I(inode)->ip_blkno;
 			mlog(ML_ERROR, "Dentry is missing cluster lock. "
-			     "inode: %llu, d_flags: 0x%x, d_name: %.*s\n",
-			     ino, dentry->d_flags, dentry->d_name.len,
-			     dentry->d_name.name);
+			     "inode: %llu, d_flags: 0x%x, d_name: %pd\n",
+			     ino, dentry->d_flags, dentry);
 		}
 
 		goto out;
 	}
 
-	mlog_bug_on_msg(dl->dl_count == 0, "dentry: %.*s, count: %u\n",
-			dentry->d_name.len, dentry->d_name.name,
-			dl->dl_count);
+	mlog_bug_on_msg(dl->dl_count == 0, "dentry: %pd, count: %u\n",
+			dentry, dl->dl_count);
 
 	ocfs2_dentry_lock_put(OCFS2_SB(dentry->d_sb), dl);
 

@@ -74,8 +74,8 @@ static int imx_ssi_set_dai_tdm_slot(struct snd_soc_dai *cpu_dai,
 	sccr |= SSI_STCCR_DC(slots - 1);
 	writel(sccr, ssi->base + SSI_SRCCR);
 
-	writel(tx_mask, ssi->base + SSI_STMSK);
-	writel(rx_mask, ssi->base + SSI_SRMSK);
+	writel(~tx_mask, ssi->base + SSI_STMSK);
+	writel(~rx_mask, ssi->base + SSI_SRMSK);
 
 	return 0;
 }
@@ -340,7 +340,6 @@ static const struct snd_soc_dai_ops imx_ssi_pcm_dai_ops = {
 	.set_fmt	= imx_ssi_set_dai_fmt,
 	.set_clkdiv	= imx_ssi_set_dai_clkdiv,
 	.set_sysclk	= imx_ssi_set_dai_sysclk,
-	.xlate_tdm_slot_mask = fsl_asoc_xlate_tdm_slot_mask,
 	.set_tdm_slot	= imx_ssi_set_dai_tdm_slot,
 	.trigger	= imx_ssi_trigger,
 };
@@ -382,7 +381,7 @@ static struct snd_soc_dai_driver imx_ssi_dai = {
 
 static struct snd_soc_dai_driver imx_ac97_dai = {
 	.probe = imx_ssi_dai_probe,
-	.ac97_control = 1,
+	.bus_control = true,
 	.playback = {
 		.stream_name = "AC97 Playback",
 		.channels_min = 2,
@@ -647,7 +646,6 @@ static struct platform_driver imx_ssi_driver = {
 
 	.driver = {
 		.name = "imx-ssi",
-		.owner = THIS_MODULE,
 	},
 };
 

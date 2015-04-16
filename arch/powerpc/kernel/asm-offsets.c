@@ -489,7 +489,6 @@ int main(void)
 	DEFINE(KVM_HOST_LPID, offsetof(struct kvm, arch.host_lpid));
 	DEFINE(KVM_HOST_LPCR, offsetof(struct kvm, arch.host_lpcr));
 	DEFINE(KVM_HOST_SDR1, offsetof(struct kvm, arch.host_sdr1));
-	DEFINE(KVM_TLBIE_LOCK, offsetof(struct kvm, arch.tlbie_lock));
 	DEFINE(KVM_NEED_FLUSH, offsetof(struct kvm, arch.need_tlb_flush.bits));
 	DEFINE(KVM_ENABLED_HCALLS, offsetof(struct kvm, arch.enabled_hcalls));
 	DEFINE(KVM_LPCR, offsetof(struct kvm, arch.lpcr));
@@ -499,6 +498,7 @@ int main(void)
 	DEFINE(VCPU_DAR, offsetof(struct kvm_vcpu, arch.shregs.dar));
 	DEFINE(VCPU_VPA, offsetof(struct kvm_vcpu, arch.vpa.pinned_addr));
 	DEFINE(VCPU_VPA_DIRTY, offsetof(struct kvm_vcpu, arch.vpa.dirty));
+	DEFINE(VCPU_HEIR, offsetof(struct kvm_vcpu, arch.emul_inst));
 #endif
 #ifdef CONFIG_PPC_BOOK3S
 	DEFINE(VCPU_VCPUID, offsetof(struct kvm_vcpu, vcpu_id));
@@ -644,8 +644,19 @@ int main(void)
 	HSTATE_FIELD(HSTATE_SAVED_XIRR, saved_xirr);
 	HSTATE_FIELD(HSTATE_HOST_IPI, host_ipi);
 	HSTATE_FIELD(HSTATE_PTID, ptid);
-	HSTATE_FIELD(HSTATE_MMCR, host_mmcr);
-	HSTATE_FIELD(HSTATE_PMC, host_pmc);
+	HSTATE_FIELD(HSTATE_MMCR0, host_mmcr[0]);
+	HSTATE_FIELD(HSTATE_MMCR1, host_mmcr[1]);
+	HSTATE_FIELD(HSTATE_MMCRA, host_mmcr[2]);
+	HSTATE_FIELD(HSTATE_SIAR, host_mmcr[3]);
+	HSTATE_FIELD(HSTATE_SDAR, host_mmcr[4]);
+	HSTATE_FIELD(HSTATE_MMCR2, host_mmcr[5]);
+	HSTATE_FIELD(HSTATE_SIER, host_mmcr[6]);
+	HSTATE_FIELD(HSTATE_PMC1, host_pmc[0]);
+	HSTATE_FIELD(HSTATE_PMC2, host_pmc[1]);
+	HSTATE_FIELD(HSTATE_PMC3, host_pmc[2]);
+	HSTATE_FIELD(HSTATE_PMC4, host_pmc[3]);
+	HSTATE_FIELD(HSTATE_PMC5, host_pmc[4]);
+	HSTATE_FIELD(HSTATE_PMC6, host_pmc[5]);
 	HSTATE_FIELD(HSTATE_PURR, host_purr);
 	HSTATE_FIELD(HSTATE_SPURR, host_spurr);
 	HSTATE_FIELD(HSTATE_DSCR, host_dscr);
@@ -727,10 +738,14 @@ int main(void)
 #endif
 
 #ifdef CONFIG_PPC_POWERNV
-	DEFINE(OPAL_MC_GPR3, offsetof(struct opal_machine_check_event, gpr3));
-	DEFINE(OPAL_MC_SRR0, offsetof(struct opal_machine_check_event, srr0));
-	DEFINE(OPAL_MC_SRR1, offsetof(struct opal_machine_check_event, srr1));
-	DEFINE(PACA_OPAL_MC_EVT, offsetof(struct paca_struct, opal_mc_evt));
+	DEFINE(PACA_CORE_IDLE_STATE_PTR,
+			offsetof(struct paca_struct, core_idle_state_ptr));
+	DEFINE(PACA_THREAD_IDLE_STATE,
+			offsetof(struct paca_struct, thread_idle_state));
+	DEFINE(PACA_THREAD_MASK,
+			offsetof(struct paca_struct, thread_mask));
+	DEFINE(PACA_SUBCORE_SIBLING_MASK,
+			offsetof(struct paca_struct, subcore_sibling_mask));
 #endif
 
 	return 0;

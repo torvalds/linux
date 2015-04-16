@@ -29,6 +29,7 @@
 #include <linux/module.h>
 #include <linux/math64.h>
 #include <linux/vmalloc.h>
+#include <linux/io.h>
 
 #include <sound/core.h>
 #include <sound/control.h>
@@ -42,7 +43,6 @@
 
 #include <asm/byteorder.h>
 #include <asm/current.h>
-#include <asm/io.h>
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
@@ -1428,10 +1428,8 @@ static void snd_hdsp_midi_output_timer(unsigned long data)
 	   leaving istimer wherever it was set before.
 	*/
 
-	if (hmidi->istimer) {
-		hmidi->timer.expires = 1 + jiffies;
-		add_timer(&hmidi->timer);
-	}
+	if (hmidi->istimer)
+		mod_timer(&hmidi->timer, 1 + jiffies);
 
 	spin_unlock_irqrestore (&hmidi->lock, flags);
 }
@@ -1445,11 +1443,9 @@ static void snd_hdsp_midi_output_trigger(struct snd_rawmidi_substream *substream
 	spin_lock_irqsave (&hmidi->lock, flags);
 	if (up) {
 		if (!hmidi->istimer) {
-			init_timer(&hmidi->timer);
-			hmidi->timer.function = snd_hdsp_midi_output_timer;
-			hmidi->timer.data = (unsigned long) hmidi;
-			hmidi->timer.expires = 1 + jiffies;
-			add_timer(&hmidi->timer);
+			setup_timer(&hmidi->timer, snd_hdsp_midi_output_timer,
+				    (unsigned long) hmidi);
+			mod_timer(&hmidi->timer, 1 + jiffies);
 			hmidi->istimer++;
 		}
 	} else {
@@ -1680,16 +1676,13 @@ static int hdsp_set_spdif_input(struct hdsp *hdsp, int in)
 
 static int snd_hdsp_info_spdif_in(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[4] = {"Optical", "Coaxial", "Internal", "AES"};
+	static const char * const texts[4] = {
+		"Optical", "Coaxial", "Internal", "AES"
+	};
 	struct hdsp *hdsp = snd_kcontrol_chip(kcontrol);
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = ((hdsp->io_type == H9632) ? 4 : 3);
-	if (uinfo->value.enumerated.item > ((hdsp->io_type == H9632) ? 3 : 2))
-		uinfo->value.enumerated.item = ((hdsp->io_type == H9632) ? 3 : 2);
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, (hdsp->io_type == H9632) ? 4 : 3,
+				 texts);
 }
 
 static int snd_hdsp_get_spdif_in(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
@@ -1786,16 +1779,14 @@ static int snd_hdsp_put_toggle_setting(struct snd_kcontrol *kcontrol,
 
 static int snd_hdsp_info_spdif_sample_rate(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[] = {"32000", "44100", "48000", "64000", "88200", "96000", "None", "128000", "176400", "192000"};
+	static const char * const texts[] = {
+		"32000", "44100", "48000", "64000", "88200", "96000",
+		"None", "128000", "176400", "192000"
+	};
 	struct hdsp *hdsp = snd_kcontrol_chip(kcontrol);
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = (hdsp->io_type == H9632) ? 10 : 7;
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, (hdsp->io_type == H9632) ? 10 : 7,
+				 texts);
 }
 
 static int snd_hdsp_get_spdif_sample_rate(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
@@ -1872,14 +1863,13 @@ static int snd_hdsp_get_system_sample_rate(struct snd_kcontrol *kcontrol, struct
 static int snd_hdsp_info_autosync_sample_rate(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	struct hdsp *hdsp = snd_kcontrol_chip(kcontrol);
-	static char *texts[] = {"32000", "44100", "48000", "64000", "88200", "96000", "None", "128000", "176400", "192000"};
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = (hdsp->io_type == H9632) ? 10 : 7 ;
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	static const char * const texts[] = {
+		"32000", "44100", "48000", "64000", "88200", "96000",
+		"None", "128000", "176400", "192000"
+	};
+
+	return snd_ctl_enum_info(uinfo, 1, (hdsp->io_type == H9632) ? 10 : 7,
+				 texts);
 }
 
 static int snd_hdsp_get_autosync_sample_rate(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
@@ -1940,15 +1930,9 @@ static int hdsp_system_clock_mode(struct hdsp *hdsp)
 
 static int snd_hdsp_info_system_clock_mode(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[] = {"Master", "Slave" };
+	static const char * const texts[] = {"Master", "Slave" };
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 2;
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 2, texts);
 }
 
 static int snd_hdsp_get_system_clock_mode(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
@@ -2049,19 +2033,16 @@ static int hdsp_set_clock_source(struct hdsp *hdsp, int mode)
 
 static int snd_hdsp_info_clock_source(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[] = {"AutoSync", "Internal 32.0 kHz", "Internal 44.1 kHz", "Internal 48.0 kHz", "Internal 64.0 kHz", "Internal 88.2 kHz", "Internal 96.0 kHz", "Internal 128 kHz", "Internal 176.4 kHz", "Internal 192.0 KHz" };
+	static const char * const texts[] = {
+		"AutoSync", "Internal 32.0 kHz", "Internal 44.1 kHz",
+		"Internal 48.0 kHz", "Internal 64.0 kHz", "Internal 88.2 kHz",
+		"Internal 96.0 kHz", "Internal 128 kHz", "Internal 176.4 kHz",
+		"Internal 192.0 KHz"
+	};
 	struct hdsp *hdsp = snd_kcontrol_chip(kcontrol);
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	if (hdsp->io_type == H9632)
-	    uinfo->value.enumerated.items = 10;
-	else
-	    uinfo->value.enumerated.items = 7;
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, (hdsp->io_type == H9632) ? 10 : 7,
+				 texts);
 }
 
 static int snd_hdsp_get_clock_source(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
@@ -2165,15 +2146,9 @@ static int hdsp_set_da_gain(struct hdsp *hdsp, int mode)
 
 static int snd_hdsp_info_da_gain(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[] = {"Hi Gain", "+4 dBu", "-10 dbV"};
+	static const char * const texts[] = {"Hi Gain", "+4 dBu", "-10 dbV"};
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 3;
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 3, texts);
 }
 
 static int snd_hdsp_get_da_gain(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
@@ -2250,15 +2225,9 @@ static int hdsp_set_ad_gain(struct hdsp *hdsp, int mode)
 
 static int snd_hdsp_info_ad_gain(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[] = {"-10 dBV", "+4 dBu", "Lo Gain"};
+	static const char * const texts[] = {"-10 dBV", "+4 dBu", "Lo Gain"};
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 3;
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 3, texts);
 }
 
 static int snd_hdsp_get_ad_gain(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
@@ -2335,15 +2304,9 @@ static int hdsp_set_phone_gain(struct hdsp *hdsp, int mode)
 
 static int snd_hdsp_info_phone_gain(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[] = {"0 dB", "-6 dB", "-12 dB"};
+	static const char * const texts[] = {"0 dB", "-6 dB", "-12 dB"};
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 3;
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 3, texts);
 }
 
 static int snd_hdsp_get_phone_gain(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
@@ -2439,31 +2402,28 @@ static int hdsp_set_pref_sync_ref(struct hdsp *hdsp, int pref)
 
 static int snd_hdsp_info_pref_sync_ref(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[] = {"Word", "IEC958", "ADAT1", "ADAT Sync", "ADAT2", "ADAT3" };
+	static const char * const texts[] = {
+		"Word", "IEC958", "ADAT1", "ADAT Sync", "ADAT2", "ADAT3"
+	};
 	struct hdsp *hdsp = snd_kcontrol_chip(kcontrol);
-
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
+	int num_items;
 
 	switch (hdsp->io_type) {
 	case Digiface:
 	case H9652:
-		uinfo->value.enumerated.items = 6;
+		num_items = 6;
 		break;
 	case Multiface:
-		uinfo->value.enumerated.items = 4;
+		num_items = 4;
 		break;
 	case H9632:
-		uinfo->value.enumerated.items = 3;
+		num_items = 3;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, num_items, texts);
 }
 
 static int snd_hdsp_get_pref_sync_ref(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
@@ -2543,15 +2503,11 @@ static int hdsp_autosync_ref(struct hdsp *hdsp)
 
 static int snd_hdsp_info_autosync_ref(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[] = {"Word", "ADAT Sync", "IEC958", "None", "ADAT1", "ADAT2", "ADAT3" };
+	static const char * const texts[] = {
+		"Word", "ADAT Sync", "IEC958", "None", "ADAT1", "ADAT2", "ADAT3"
+	};
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 7;
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 7, texts);
 }
 
 static int snd_hdsp_get_autosync_ref(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
@@ -2738,14 +2694,9 @@ static int snd_hdsp_put_mixer(struct snd_kcontrol *kcontrol, struct snd_ctl_elem
 
 static int snd_hdsp_info_sync_check(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[] = {"No Lock", "Lock", "Sync" };
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 3;
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	static const char * const texts[] = {"No Lock", "Lock", "Sync" };
+
+	return snd_ctl_enum_info(uinfo, 1, 3, texts);
 }
 
 static int hdsp_wc_sync_check(struct hdsp *hdsp)
@@ -3101,15 +3052,11 @@ static int snd_hdsp_put_rpm_input12(struct snd_kcontrol *kcontrol, struct snd_ct
 
 static int snd_hdsp_info_rpm_input(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[] = {"Phono +6dB", "Phono 0dB", "Phono -6dB", "Line 0dB", "Line -6dB"};
+	static const char * const texts[] = {
+		"Phono +6dB", "Phono 0dB", "Phono -6dB", "Line 0dB", "Line -6dB"
+	};
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 5;
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 5, texts);
 }
 
 
@@ -3234,15 +3181,9 @@ static int snd_hdsp_put_rpm_bypass(struct snd_kcontrol *kcontrol, struct snd_ctl
 
 static int snd_hdsp_info_rpm_bypass(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[] = {"On", "Off"};
+	static const char * const texts[] = {"On", "Off"};
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 2;
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 2, texts);
 }
 
 
@@ -3291,15 +3232,9 @@ static int snd_hdsp_put_rpm_disconnect(struct snd_kcontrol *kcontrol, struct snd
 
 static int snd_hdsp_info_rpm_disconnect(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[] = {"On", "Off"};
+	static const char * const texts[] = {"On", "Off"};
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 2;
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 2, texts);
 }
 
 static struct snd_kcontrol_new snd_hdsp_rpm_controls[] = {
@@ -5368,12 +5303,9 @@ static int snd_hdsp_free(struct hdsp *hdsp)
 
 	snd_hdsp_free_buffers(hdsp);
 
-	if (hdsp->firmware)
-		release_firmware(hdsp->firmware);
+	release_firmware(hdsp->firmware);
 	vfree(hdsp->fw_uploaded);
-
-	if (hdsp->iobase)
-		iounmap(hdsp->iobase);
+	iounmap(hdsp->iobase);
 
 	if (hdsp->port)
 		pci_release_regions(hdsp->pci);

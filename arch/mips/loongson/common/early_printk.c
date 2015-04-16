@@ -30,7 +30,7 @@ void prom_putchar(char c)
 	int timeout;
 	unsigned char *uart_base;
 
-	uart_base = (unsigned char *)_loongson_uart_base;
+	uart_base = (unsigned char *)_loongson_uart_base[0];
 	timeout = 1024;
 
 	while (((serial_in(uart_base, UART_LSR) & UART_LSR_THRE) == 0) &&

@@ -76,6 +76,7 @@ int mei_wd_host_init(struct mei_device *dev)
 
 	cl->me_client_id = me_cl->client_id;
 	cl->cl_uuid = me_cl->props.protocol_name;
+	mei_me_cl_put(me_cl);
 
 	ret = mei_cl_link(cl, MEI_WD_HOST_CLIENT_ID);
 
@@ -270,15 +271,18 @@ static int mei_wd_ops_stop(struct watchdog_device *wd_dev)
 static int mei_wd_ops_ping(struct watchdog_device *wd_dev)
 {
 	struct mei_device *dev;
+	struct mei_cl *cl;
 	int ret;
 
 	dev = watchdog_get_drvdata(wd_dev);
 	if (!dev)
 		return -ENODEV;
 
+	cl = &dev->wd_cl;
+
 	mutex_lock(&dev->device_lock);
 
-	if (dev->wd_cl.state != MEI_FILE_CONNECTED) {
+	if (cl->state != MEI_FILE_CONNECTED) {
 		dev_err(dev->dev, "wd: not connected.\n");
 		ret = -ENODEV;
 		goto end;
@@ -286,12 +290,12 @@ static int mei_wd_ops_ping(struct watchdog_device *wd_dev)
 
 	dev->wd_state = MEI_WD_RUNNING;
 
-	ret = mei_cl_flow_ctrl_creds(&dev->wd_cl);
+	ret = mei_cl_flow_ctrl_creds(cl);
 	if (ret < 0)
 		goto end;
+
 	/* Check if we can send the ping to HW*/
 	if (ret && mei_hbuf_acquire(dev)) {
-
 		dev_dbg(dev->dev, "wd: sending ping\n");
 
 		ret = mei_wd_send(dev);

@@ -436,7 +436,8 @@ static int da9052_regulator_probe(struct platform_device *pdev)
 			if (!of_node_cmp(np->name,
 					 regulator->info->reg_desc.name)) {
 				config.init_data = of_get_regulator_init_data(
-					&pdev->dev, np);
+					&pdev->dev, np,
+					&regulator->info->reg_desc);
 				config.of_node = np;
 				break;
 			}
@@ -463,7 +464,6 @@ static struct platform_driver da9052_regulator_driver = {
 	.probe = da9052_regulator_probe,
 	.driver = {
 		.name = "da9052-regulator",
-		.owner = THIS_MODULE,
 	},
 };
 

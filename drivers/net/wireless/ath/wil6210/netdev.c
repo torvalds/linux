@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2015 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,6 @@
  */
 
 #include <linux/etherdevice.h>
-
 #include "wil6210.h"
 #include "txrx.h"
 
@@ -41,7 +40,7 @@ static int wil_change_mtu(struct net_device *ndev, int new_mtu)
 {
 	struct wil6210_priv *wil = ndev_to_wil(ndev);
 
-	if (new_mtu < 68 || new_mtu > (TX_BUF_LEN - ETH_HLEN)) {
+	if (new_mtu < 68 || new_mtu > mtu_max) {
 		wil_err(wil, "invalid MTU %d\n", new_mtu);
 		return -EINVAL;
 	}
@@ -83,7 +82,7 @@ static int wil6210_netdev_poll_rx(struct napi_struct *napi, int budget)
 	wil_rx_handle(wil, &quota);
 	done = budget - quota;
 
-	if (done <= 1) { /* burst ends - only one packet processed */
+	if (done < budget) {
 		napi_complete(napi);
 		wil6210_unmask_irq_rx(wil);
 		wil_dbg_txrx(wil, "NAPI RX complete\n");
@@ -111,7 +110,7 @@ static int wil6210_netdev_poll_tx(struct napi_struct *napi, int budget)
 		tx_done += wil_tx_complete(wil, i);
 	}
 
-	if (tx_done <= 1) { /* burst ends - only one packet processed */
+	if (tx_done < budget) {
 		napi_complete(napi);
 		wil6210_unmask_irq_tx(wil);
 		wil_dbg_txrx(wil, "NAPI TX complete\n");
@@ -120,6 +119,12 @@ static int wil6210_netdev_poll_tx(struct napi_struct *napi, int budget)
 	wil_dbg_txrx(wil, "NAPI TX poll(%d) done %d\n", budget, tx_done);
 
 	return min(tx_done, budget);
+}
+
+static void wil_dev_setup(struct net_device *dev)
+{
+	ether_setup(dev);
+	dev->tx_queue_len = WIL_TX_Q_LEN_DEFAULT;
 }
 
 void *wil_if_alloc(struct device *dev, void __iomem *csr)
@@ -153,7 +158,7 @@ void *wil_if_alloc(struct device *dev, void __iomem *csr)
 	ch = wdev->wiphy->bands[IEEE80211_BAND_60GHZ]->channels;
 	cfg80211_chandef_create(&wdev->preset_chandef, ch, NL80211_CHAN_NO_HT);
 
-	ndev = alloc_netdev(0, "wlan%d", NET_NAME_UNKNOWN, ether_setup);
+	ndev = alloc_netdev(0, "wlan%d", NET_NAME_UNKNOWN, wil_dev_setup);
 	if (!ndev) {
 		dev_err(dev, "alloc_netdev_mqs failed\n");
 		rc = -ENOMEM;
@@ -174,7 +179,7 @@ void *wil_if_alloc(struct device *dev, void __iomem *csr)
 	netif_napi_add(ndev, &wil->napi_tx, wil6210_netdev_poll_tx,
 		       WIL6210_NAPI_BUDGET);
 
-	wil_link_off(wil);
+	netif_tx_stop_all_queues(ndev);
 
 	return wil;
 
@@ -216,8 +221,6 @@ int wil_if_add(struct wil6210_priv *wil)
 		dev_err(&ndev->dev, "Failed to register netdev: %d\n", rc);
 		return rc;
 	}
-
-	wil_link_off(wil);
 
 	return 0;
 }

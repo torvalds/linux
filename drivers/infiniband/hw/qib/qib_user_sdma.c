@@ -50,7 +50,7 @@
 /* expected size of headers (for dma_pool) */
 #define QIB_USER_SDMA_EXP_HEADER_LENGTH 64
 /* attempt to drain the queue for 5secs */
-#define QIB_USER_SDMA_DRAIN_TIMEOUT 500
+#define QIB_USER_SDMA_DRAIN_TIMEOUT 250
 
 /*
  * track how many times a process open this driver.
@@ -226,6 +226,7 @@ qib_user_sdma_queue_create(struct device *dev, int unit, int ctxt, int sctxt)
 		sdma_rb_node->refcount++;
 	} else {
 		int ret;
+
 		sdma_rb_node = kmalloc(sizeof(
 			struct qib_user_sdma_rb_node), GFP_KERNEL);
 		if (!sdma_rb_node)
@@ -936,6 +937,7 @@ static int qib_user_sdma_queue_pkts(const struct qib_devdata *dd,
 
 			if (tiddma) {
 				char *tidsm = (char *)pkt + pktsize;
+
 				cfur = copy_from_user(tidsm,
 					iov[idx].iov_base, tidsmsize);
 				if (cfur) {
@@ -1142,7 +1144,7 @@ void qib_user_sdma_queue_drain(struct qib_pportdata *ppd,
 		qib_user_sdma_hwqueue_clean(ppd);
 		qib_user_sdma_queue_clean(ppd, pq);
 		mutex_unlock(&pq->lock);
-		msleep(10);
+		msleep(20);
 	}
 
 	if (pq->num_pending || pq->num_sending) {
@@ -1316,8 +1318,6 @@ retry:
 
 	if (nfree && !list_empty(pktlist))
 		goto retry;
-
-	return;
 }
 
 /* pq->lock must be held, get packets on the wire... */

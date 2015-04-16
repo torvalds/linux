@@ -18,10 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
  * MA 02111-1307 USA
- *
- * This driver provides system reboot functionality for APM X-Gene SoC.
- * For system shutdown, this is board specify. If a board designer
- * implements GPIO shutdown, use the gpio-poweroff.c driver.
  */
 #include <linux/io.h>
 #include <linux/of_device.h>
@@ -70,38 +66,12 @@ static void syscon_led_set(struct led_classdev *led_cdev,
 		dev_err(sled->cdev.dev, "error updating LED status\n");
 }
 
-static const struct of_device_id syscon_match[] = {
-	{ .compatible = "syscon", },
-	{},
-};
-
-static int __init syscon_leds_init(void)
+static int __init syscon_leds_spawn(struct device_node *np,
+				    struct device *dev,
+				    struct regmap *map)
 {
-	const struct of_device_id *devid;
-	struct device_node *np;
 	struct device_node *child;
-	struct regmap *map;
-	struct platform_device *pdev;
-	struct device *dev;
 	int ret;
-
-	np = of_find_matching_node_and_match(NULL, syscon_match,
-					     &devid);
-	if (!np)
-		return -ENODEV;
-
-	map = syscon_node_to_regmap(np);
-	if (IS_ERR(map))
-		return PTR_ERR(map);
-
-	/*
-	 * If the map is there, the device should be there, we allocate
-	 * memory on the syscon device's behalf here.
-	 */
-	pdev = of_find_device_by_node(np);
-	if (!pdev)
-		return -ENODEV;
-	dev = &pdev->dev;
 
 	for_each_available_child_of_node(np, child) {
 		struct syscon_led *sled;
@@ -150,7 +120,6 @@ static int __init syscon_leds_init(void)
 				if (ret < 0)
 					return ret;
 			}
-
 		}
 		sled->cdev.brightness_set = syscon_led_set;
 
@@ -160,7 +129,39 @@ static int __init syscon_leds_init(void)
 
 		dev_info(dev, "registered LED %s\n", sled->cdev.name);
 	}
+	return 0;
+}
 
-       return 0;
+static int __init syscon_leds_init(void)
+{
+	struct device_node *np;
+
+	for_each_of_allnodes(np) {
+		struct platform_device *pdev;
+		struct regmap *map;
+		int ret;
+
+		if (!of_device_is_compatible(np, "syscon"))
+			continue;
+
+		map = syscon_node_to_regmap(np);
+		if (IS_ERR(map)) {
+			pr_err("error getting regmap for syscon LEDs\n");
+			continue;
+		}
+
+		/*
+		 * If the map is there, the device should be there, we allocate
+		 * memory on the syscon device's behalf here.
+		 */
+		pdev = of_find_device_by_node(np);
+		if (!pdev)
+			return -ENODEV;
+		ret = syscon_leds_spawn(np, &pdev->dev, map);
+		if (ret)
+			dev_err(&pdev->dev, "could not spawn syscon LEDs\n");
+	}
+
+	return 0;
 }
 device_initcall(syscon_leds_init);

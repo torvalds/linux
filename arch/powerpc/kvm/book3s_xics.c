@@ -327,7 +327,7 @@ static bool icp_try_to_deliver(struct kvmppc_icp *icp, u32 irq, u8 priority,
 		 icp->server_num);
 
 	do {
-		old_state = new_state = ACCESS_ONCE(icp->state);
+		old_state = new_state = READ_ONCE(icp->state);
 
 		*reject = 0;
 
@@ -512,7 +512,7 @@ static void icp_down_cppr(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 	 * in virtual mode.
 	 */
 	do {
-		old_state = new_state = ACCESS_ONCE(icp->state);
+		old_state = new_state = READ_ONCE(icp->state);
 
 		/* Down_CPPR */
 		new_state.cppr = new_cppr;
@@ -567,7 +567,7 @@ static noinline unsigned long kvmppc_h_xirr(struct kvm_vcpu *vcpu)
 	 * pending priority
 	 */
 	do {
-		old_state = new_state = ACCESS_ONCE(icp->state);
+		old_state = new_state = READ_ONCE(icp->state);
 
 		xirr = old_state.xisr | (((u32)old_state.cppr) << 24);
 		if (!old_state.xisr)
@@ -613,13 +613,28 @@ static noinline int kvmppc_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
 	 * there might be a previously-rejected interrupt needing
 	 * to be resent.
 	 *
-	 * If the CPPR is less favored, then we might be replacing
-	 * an interrupt, and thus need to possibly reject it as in
-	 *
 	 * ICP state: Check_IPI
+	 *
+	 * If the CPPR is less favored, then we might be replacing
+	 * an interrupt, and thus need to possibly reject it.
+	 *
+	 * ICP State: IPI
+	 *
+	 * Besides rejecting any pending interrupts, we also
+	 * update XISR and pending_pri to mark IPI as pending.
+	 *
+	 * PAPR does not describe this state, but if the MFRR is being
+	 * made less favored than its earlier value, there might be
+	 * a previously-rejected interrupt needing to be resent.
+	 * Ideally, we would want to resend only if
+	 *	prio(pending_interrupt) < mfrr &&
+	 *	prio(pending_interrupt) < cppr
+	 * where pending interrupt is the one that was rejected. But
+	 * we don't have that state, so we simply trigger a resend
+	 * whenever the MFRR is made less favored.
 	 */
 	do {
-		old_state = new_state = ACCESS_ONCE(icp->state);
+		old_state = new_state = READ_ONCE(icp->state);
 
 		/* Set_MFRR */
 		new_state.mfrr = mfrr;
@@ -629,13 +644,14 @@ static noinline int kvmppc_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
 		resend = false;
 		if (mfrr < new_state.cppr) {
 			/* Reject a pending interrupt if not an IPI */
-			if (mfrr <= new_state.pending_pri)
+			if (mfrr <= new_state.pending_pri) {
 				reject = new_state.xisr;
-			new_state.pending_pri = mfrr;
-			new_state.xisr = XICS_IPI;
+				new_state.pending_pri = mfrr;
+				new_state.xisr = XICS_IPI;
+			}
 		}
 
-		if (mfrr > old_state.mfrr && mfrr > new_state.cppr) {
+		if (mfrr > old_state.mfrr) {
 			resend = new_state.need_resend;
 			new_state.need_resend = 0;
 		}
@@ -663,7 +679,7 @@ static int kvmppc_h_ipoll(struct kvm_vcpu *vcpu, unsigned long server)
 		if (!icp)
 			return H_PARAMETER;
 	}
-	state = ACCESS_ONCE(icp->state);
+	state = READ_ONCE(icp->state);
 	kvmppc_set_gpr(vcpu, 4, ((u32)state.cppr << 24) | state.xisr);
 	kvmppc_set_gpr(vcpu, 5, state.mfrr);
 	return H_SUCCESS;
@@ -705,7 +721,7 @@ static noinline void kvmppc_h_cppr(struct kvm_vcpu *vcpu, unsigned long cppr)
 				      BOOK3S_INTERRUPT_EXTERNAL_LEVEL);
 
 	do {
-		old_state = new_state = ACCESS_ONCE(icp->state);
+		old_state = new_state = READ_ONCE(icp->state);
 
 		reject = 0;
 		new_state.cppr = cppr;
@@ -789,7 +805,7 @@ static noinline int kvmppc_xics_rm_complete(struct kvm_vcpu *vcpu, u32 hcall)
 	if (icp->rm_action & XICS_RM_KICK_VCPU)
 		kvmppc_fast_vcpu_kick(icp->rm_kick_target);
 	if (icp->rm_action & XICS_RM_CHECK_RESEND)
-		icp_check_resend(xics, icp);
+		icp_check_resend(xics, icp->rm_resend_icp);
 	if (icp->rm_action & XICS_RM_REJECT)
 		icp_deliver_irq(xics, icp, icp->rm_reject);
 	if (icp->rm_action & XICS_RM_NOTIFY_EOI)
@@ -869,7 +885,7 @@ static int xics_debug_show(struct seq_file *m, void *private)
 		if (!icp)
 			continue;
 
-		state.raw = ACCESS_ONCE(icp->state.raw);
+		state.raw = READ_ONCE(icp->state.raw);
 		seq_printf(m, "cpu server %#lx XIRR:%#x PPRI:%#x CPPR:%#x MFRR:%#x OUT:%d NR:%d\n",
 			   icp->server_num, state.xisr,
 			   state.pending_pri, state.cppr, state.mfrr,
@@ -1066,7 +1082,7 @@ int kvmppc_xics_set_icp(struct kvm_vcpu *vcpu, u64 icpval)
 	 * the ICS states before the ICP states.
 	 */
 	do {
-		old_state = ACCESS_ONCE(icp->state);
+		old_state = READ_ONCE(icp->state);
 
 		if (new_state.mfrr <= old_state.mfrr) {
 			resend = false;

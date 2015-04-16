@@ -1252,12 +1252,7 @@ static int serial_hsu_resume(struct pci_dev *pdev)
 	}
 	return 0;
 }
-#else
-#define serial_hsu_suspend	NULL
-#define serial_hsu_resume	NULL
-#endif
 
-#ifdef CONFIG_PM_RUNTIME
 static int serial_hsu_runtime_idle(struct device *dev)
 {
 	pm_schedule_suspend(dev, 500);
@@ -1274,6 +1269,8 @@ static int serial_hsu_runtime_resume(struct device *dev)
 	return 0;
 }
 #else
+#define serial_hsu_suspend		NULL
+#define serial_hsu_resume		NULL
 #define serial_hsu_runtime_idle		NULL
 #define serial_hsu_runtime_suspend	NULL
 #define serial_hsu_runtime_resume	NULL
@@ -1371,7 +1368,7 @@ static void hsu_global_init(void)
 	hsu->iolen = 0x1000;
 
 	if (!(request_mem_region(hsu->paddr, hsu->iolen, "HSU global")))
-		pr_warning("HSU: error in request mem region\n");
+		pr_warn("HSU: error in request mem region\n");
 
 	hsu->reg = ioremap_nocache((unsigned long)hsu->paddr, hsu->iolen);
 	if (!hsu->reg) {

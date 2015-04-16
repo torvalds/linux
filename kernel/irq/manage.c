@@ -68,14 +68,20 @@ static void __synchronize_hardirq(struct irq_desc *desc)
  *	Do not use this for shutdown scenarios where you must be sure
  *	that all parts (hardirq and threaded handler) have completed.
  *
+ *	Returns: false if a threaded handler is active.
+ *
  *	This function may be called - with care - from IRQ context.
  */
-void synchronize_hardirq(unsigned int irq)
+bool synchronize_hardirq(unsigned int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 
-	if (desc)
+	if (desc) {
 		__synchronize_hardirq(desc);
+		return !atomic_read(&desc->threads_active);
+	}
+
+	return true;
 }
 EXPORT_SYMBOL(synchronize_hardirq);
 
@@ -183,6 +189,7 @@ int irq_do_set_affinity(struct irq_data *data, const struct cpumask *mask,
 	ret = chip->irq_set_affinity(data, mask, force);
 	switch (ret) {
 	case IRQ_SET_MASK_OK:
+	case IRQ_SET_MASK_OK_DONE:
 		cpumask_copy(data->affinity, mask);
 	case IRQ_SET_MASK_OK_NOCOPY:
 		irq_set_thread_affinity(desc);
@@ -242,6 +249,9 @@ int irq_set_affinity_hint(unsigned int irq, const struct cpumask *m)
 		return -EINVAL;
 	desc->affinity_hint = m;
 	irq_put_desc_unlock(desc, flags);
+	/* set the initial affinity to prevent every interrupt being on CPU0 */
+	if (m)
+		__irq_set_affinity(irq, m, false);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(irq_set_affinity_hint);
@@ -436,6 +446,32 @@ void disable_irq(unsigned int irq)
 }
 EXPORT_SYMBOL(disable_irq);
 
+/**
+ *	disable_hardirq - disables an irq and waits for hardirq completion
+ *	@irq: Interrupt to disable
+ *
+ *	Disable the selected interrupt line.  Enables and Disables are
+ *	nested.
+ *	This function waits for any pending hard IRQ handlers for this
+ *	interrupt to complete before returning. If you use this function while
+ *	holding a resource the hard IRQ handler may need you will deadlock.
+ *
+ *	When used to optimistically disable an interrupt from atomic context
+ *	the return value must be checked.
+ *
+ *	Returns: false if a threaded handler is active.
+ *
+ *	This function may be called - with care - from IRQ context.
+ */
+bool disable_hardirq(unsigned int irq)
+{
+	if (!__disable_irq_nosync(irq))
+		return synchronize_hardirq(irq);
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(disable_hardirq);
+
 void __enable_irq(struct irq_desc *desc, unsigned int irq)
 {
 	switch (desc->depth) {
@@ -600,6 +636,7 @@ int __irq_set_trigger(struct irq_desc *desc, unsigned int irq,
 
 	switch (ret) {
 	case IRQ_SET_MASK_OK:
+	case IRQ_SET_MASK_OK_DONE:
 		irqd_clear(&desc->irq_data, IRQD_TRIGGER_MASK);
 		irqd_set(&desc->irq_data, flags);
 
@@ -1469,8 +1506,13 @@ int request_threaded_irq(unsigned int irq, irq_handler_t handler,
 	 * otherwise we'll have trouble later trying to figure out
 	 * which interrupt is which (messes up the interrupt freeing
 	 * logic etc).
+	 *
+	 * Also IRQF_COND_SUSPEND only makes sense for shared interrupts and
+	 * it cannot be set along with IRQF_NO_SUSPEND.
 	 */
-	if ((irqflags & IRQF_SHARED) && !dev_id)
+	if (((irqflags & IRQF_SHARED) && !dev_id) ||
+	    (!(irqflags & IRQF_SHARED) && (irqflags & IRQF_COND_SUSPEND)) ||
+	    ((irqflags & IRQF_NO_SUSPEND) && (irqflags & IRQF_COND_SUSPEND)))
 		return -EINVAL;
 
 	desc = irq_to_desc(irq);
@@ -1755,4 +1797,95 @@ int request_percpu_irq(unsigned int irq, irq_handler_t handler,
 		kfree(action);
 
 	return retval;
+}
+
+/**
+ *	irq_get_irqchip_state - returns the irqchip state of a interrupt.
+ *	@irq: Interrupt line that is forwarded to a VM
+ *	@which: One of IRQCHIP_STATE_* the caller wants to know about
+ *	@state: a pointer to a boolean where the state is to be storeed
+ *
+ *	This call snapshots the internal irqchip state of an
+ *	interrupt, returning into @state the bit corresponding to
+ *	stage @which
+ *
+ *	This function should be called with preemption disabled if the
+ *	interrupt controller has per-cpu registers.
+ */
+int irq_get_irqchip_state(unsigned int irq, enum irqchip_irq_state which,
+			  bool *state)
+{
+	struct irq_desc *desc;
+	struct irq_data *data;
+	struct irq_chip *chip;
+	unsigned long flags;
+	int err = -EINVAL;
+
+	desc = irq_get_desc_buslock(irq, &flags, 0);
+	if (!desc)
+		return err;
+
+	data = irq_desc_get_irq_data(desc);
+
+	do {
+		chip = irq_data_get_irq_chip(data);
+		if (chip->irq_get_irqchip_state)
+			break;
+#ifdef CONFIG_IRQ_DOMAIN_HIERARCHY
+		data = data->parent_data;
+#else
+		data = NULL;
+#endif
+	} while (data);
+
+	if (data)
+		err = chip->irq_get_irqchip_state(data, which, state);
+
+	irq_put_desc_busunlock(desc, flags);
+	return err;
+}
+
+/**
+ *	irq_set_irqchip_state - set the state of a forwarded interrupt.
+ *	@irq: Interrupt line that is forwarded to a VM
+ *	@which: State to be restored (one of IRQCHIP_STATE_*)
+ *	@val: Value corresponding to @which
+ *
+ *	This call sets the internal irqchip state of an interrupt,
+ *	depending on the value of @which.
+ *
+ *	This function should be called with preemption disabled if the
+ *	interrupt controller has per-cpu registers.
+ */
+int irq_set_irqchip_state(unsigned int irq, enum irqchip_irq_state which,
+			  bool val)
+{
+	struct irq_desc *desc;
+	struct irq_data *data;
+	struct irq_chip *chip;
+	unsigned long flags;
+	int err = -EINVAL;
+
+	desc = irq_get_desc_buslock(irq, &flags, 0);
+	if (!desc)
+		return err;
+
+	data = irq_desc_get_irq_data(desc);
+
+	do {
+		chip = irq_data_get_irq_chip(data);
+		if (chip->irq_set_irqchip_state)
+			break;
+#ifdef CONFIG_IRQ_DOMAIN_HIERARCHY
+		data = data->parent_data;
+#else
+		data = NULL;
+#endif
+	} while (data);
+
+	if (data)
+		err = chip->irq_set_irqchip_state(data, which, val);
+
+	irq_put_desc_busunlock(desc, flags);
+	return err;
 }

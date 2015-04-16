@@ -16,10 +16,12 @@
 #include <linux/init.h>
 #include <linux/clk-provider.h>
 #include <linux/of_address.h>
+#include <linux/of_fdt.h>
 #include <linux/of_platform.h>
 #include <linux/io.h>
 #include <linux/clocksource.h>
 #include <linux/dma-mapping.h>
+#include <linux/memblock.h>
 #include <linux/mbus.h>
 #include <linux/signal.h>
 #include <linux/slab.h>
@@ -55,6 +57,54 @@ void __iomem *mvebu_get_scu_base(void)
 {
 	return scu_base;
 }
+
+/*
+ * When returning from suspend, the platform goes through the
+ * bootloader, which executes its DDR3 training code. This code has
+ * the unfortunate idea of using the first 10 KB of each DRAM bank to
+ * exercise the RAM and calculate the optimal timings. Therefore, this
+ * area of RAM is overwritten, and shouldn't be used by the kernel if
+ * suspend/resume is supported.
+ */
+
+#ifdef CONFIG_SUSPEND
+#define MVEBU_DDR_TRAINING_AREA_SZ (10 * SZ_1K)
+static int __init mvebu_scan_mem(unsigned long node, const char *uname,
+				 int depth, void *data)
+{
+	const char *type = of_get_flat_dt_prop(node, "device_type", NULL);
+	const __be32 *reg, *endp;
+	int l;
+
+	if (type == NULL || strcmp(type, "memory"))
+		return 0;
+
+	reg = of_get_flat_dt_prop(node, "linux,usable-memory", &l);
+	if (reg == NULL)
+		reg = of_get_flat_dt_prop(node, "reg", &l);
+	if (reg == NULL)
+		return 0;
+
+	endp = reg + (l / sizeof(__be32));
+	while ((endp - reg) >= (dt_root_addr_cells + dt_root_size_cells)) {
+		u64 base, size;
+
+		base = dt_mem_next_cell(dt_root_addr_cells, &reg);
+		size = dt_mem_next_cell(dt_root_size_cells, &reg);
+
+		memblock_reserve(base, MVEBU_DDR_TRAINING_AREA_SZ);
+	}
+
+	return 0;
+}
+
+static void __init mvebu_memblock_reserve(void)
+{
+	of_scan_flat_dt(mvebu_scan_mem, NULL);
+}
+#else
+static void __init mvebu_memblock_reserve(void) {}
+#endif
 
 /*
  * Early versions of Armada 375 SoC have a bug where the BootROM
@@ -124,76 +174,12 @@ static void __init i2c_quirk(void)
 	return;
 }
 
-#define A375_Z1_THERMAL_FIXUP_OFFSET 0xc
-
-static void __init thermal_quirk(void)
-{
-	struct device_node *np;
-	u32 dev, rev;
-	int res;
-
-	/*
-	 * The early SoC Z1 revision needs a quirk to be applied in order
-	 * for the thermal controller to work properly. This quirk breaks
-	 * the thermal support if applied on a SoC that doesn't need it,
-	 * so we enforce the SoC revision to be known.
-	 */
-	res = mvebu_get_soc_id(&dev, &rev);
-	if (res < 0 || (res == 0 && rev > ARMADA_375_Z1_REV))
-		return;
-
-	for_each_compatible_node(np, NULL, "marvell,armada375-thermal") {
-		struct property *prop;
-		__be32 newval, *newprop, *oldprop;
-		int len;
-
-		/*
-		 * The register offset is at a wrong location. This quirk
-		 * creates a new reg property as a clone of the previous
-		 * one and corrects the offset.
-		 */
-		oldprop = (__be32 *)of_get_property(np, "reg", &len);
-		if (!oldprop)
-			continue;
-
-		/* Create a duplicate of the 'reg' property */
-		prop = kzalloc(sizeof(*prop), GFP_KERNEL);
-		prop->length = len;
-		prop->name = kstrdup("reg", GFP_KERNEL);
-		prop->value = kzalloc(len, GFP_KERNEL);
-		memcpy(prop->value, oldprop, len);
-
-		/* Fixup the register offset of the second entry */
-		oldprop += 2;
-		newprop = (__be32 *)prop->value + 2;
-		newval = cpu_to_be32(be32_to_cpu(*oldprop) -
-				     A375_Z1_THERMAL_FIXUP_OFFSET);
-		*newprop = newval;
-		of_update_property(np, prop);
-
-		/*
-		 * The thermal controller needs some quirk too, so let's change
-		 * the compatible string to reflect this and allow the driver
-		 * the take the necessary action.
-		 */
-		prop = kzalloc(sizeof(*prop), GFP_KERNEL);
-		prop->name = kstrdup("compatible", GFP_KERNEL);
-		prop->length = sizeof("marvell,armada375-z1-thermal");
-		prop->value = kstrdup("marvell,armada375-z1-thermal",
-						GFP_KERNEL);
-		of_update_property(np, prop);
-	}
-	return;
-}
-
 static void __init mvebu_dt_init(void)
 {
-	if (of_machine_is_compatible("plathome,openblocks-ax3-4"))
+	if (of_machine_is_compatible("marvell,armadaxp"))
 		i2c_quirk();
-	if (of_machine_is_compatible("marvell,a375-db")) {
+	if (of_machine_is_compatible("marvell,a375-db"))
 		external_abort_quirk();
-		thermal_quirk();
-	}
 
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
@@ -206,10 +192,16 @@ static const char * const armada_370_xp_dt_compat[] = {
 DT_MACHINE_START(ARMADA_370_XP_DT, "Marvell Armada 370/XP (Device Tree)")
 	.l2c_aux_val	= 0,
 	.l2c_aux_mask	= ~0,
+/*
+ * The following field (.smp) is still needed to ensure backward
+ * compatibility with old Device Trees that were not specifying the
+ * cpus enable-method property.
+ */
 	.smp		= smp_ops(armada_xp_smp_ops),
 	.init_machine	= mvebu_dt_init,
 	.init_irq       = mvebu_init_irq,
 	.restart	= mvebu_restart,
+	.reserve        = mvebu_memblock_reserve,
 	.dt_compat	= armada_370_xp_dt_compat,
 MACHINE_END
 

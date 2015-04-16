@@ -69,7 +69,7 @@ struct ip6frag_skb_cb {
 
 #define FRAG6_CB(skb)	((struct ip6frag_skb_cb *)((skb)->cb))
 
-static inline u8 ip6_frag_ecn(const struct ipv6hdr *ipv6h)
+static u8 ip6_frag_ecn(const struct ipv6hdr *ipv6h)
 {
 	return 1 << (ipv6_get_dsfield(ipv6h) & INET_ECN_MASK);
 }
@@ -178,7 +178,7 @@ static void ip6_frag_expire(unsigned long data)
 	ip6_expire_frag_queue(net, fq, &ip6_frags);
 }
 
-static __inline__ struct frag_queue *
+static struct frag_queue *
 fq_find(struct net *net, __be32 id, const struct in6_addr *src,
 	const struct in6_addr *dst, u8 ecn)
 {
@@ -429,7 +429,8 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *prev,
 		struct sk_buff *clone;
 		int i, plen = 0;
 
-		if ((clone = alloc_skb(0, GFP_ATOMIC)) == NULL)
+		clone = alloc_skb(0, GFP_ATOMIC);
+		if (!clone)
 			goto out_oom;
 		clone->next = head->next;
 		head->next = clone;
@@ -551,7 +552,7 @@ static int ipv6_frag_rcv(struct sk_buff *skb)
 
 	fq = fq_find(net, fhdr->identification, &hdr->saddr, &hdr->daddr,
 		     ip6_frag_ecn(hdr));
-	if (fq != NULL) {
+	if (fq) {
 		int ret;
 
 		spin_lock(&fq->q.lock);
@@ -631,7 +632,7 @@ static int __net_init ip6_frags_ns_sysctl_register(struct net *net)
 	table = ip6_frags_ns_ctl_table;
 	if (!net_eq(net, &init_net)) {
 		table = kmemdup(table, sizeof(ip6_frags_ns_ctl_table), GFP_KERNEL);
-		if (table == NULL)
+		if (!table)
 			goto err_alloc;
 
 		table[0].data = &net->ipv6.frags.high_thresh;
@@ -647,7 +648,7 @@ static int __net_init ip6_frags_ns_sysctl_register(struct net *net)
 	}
 
 	hdr = register_net_sysctl(net, "net/ipv6", table);
-	if (hdr == NULL)
+	if (!hdr)
 		goto err_reg;
 
 	net->ipv6.sysctl.frags_hdr = hdr;
@@ -684,21 +685,21 @@ static void ip6_frags_sysctl_unregister(void)
 	unregister_net_sysctl_table(ip6_ctl_header);
 }
 #else
-static inline int ip6_frags_ns_sysctl_register(struct net *net)
+static int ip6_frags_ns_sysctl_register(struct net *net)
 {
 	return 0;
 }
 
-static inline void ip6_frags_ns_sysctl_unregister(struct net *net)
+static void ip6_frags_ns_sysctl_unregister(struct net *net)
 {
 }
 
-static inline int ip6_frags_sysctl_register(void)
+static int ip6_frags_sysctl_register(void)
 {
 	return 0;
 }
 
-static inline void ip6_frags_sysctl_unregister(void)
+static void ip6_frags_sysctl_unregister(void)
 {
 }
 #endif

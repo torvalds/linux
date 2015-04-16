@@ -41,6 +41,8 @@
 #include <drm/drm_gem.h>
 
 #include "drm_crtc_helper.h"
+#include "radeon_kfd.h"
+
 /*
  * KMS wrapper.
  * - 2.0.0 - initial interface
@@ -86,9 +88,10 @@
  *   2.39.0 - Add INFO query for number of active CUs
  *   2.40.0 - Add RADEON_GEM_GTT_WC/UC, flush HDP cache before submitting
  *            CS to GPU on >= r600
+ *   2.41.0 - evergreen/cayman: Add SET_BASE/DRAW_INDIRECT command parsing support
  */
 #define KMS_DRIVER_MAJOR	2
-#define KMS_DRIVER_MINOR	40
+#define KMS_DRIVER_MINOR	41
 #define KMS_DRIVER_PATCHLEVEL	0
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
 int radeon_driver_unload_kms(struct drm_device *dev);
@@ -654,12 +657,15 @@ static int __init radeon_init(void)
 #endif
 	}
 
+	radeon_kfd_init();
+
 	/* let modprobe override vga console setting */
 	return drm_pci_init(driver, pdriver);
 }
 
 static void __exit radeon_exit(void)
 {
+	radeon_kfd_fini();
 	drm_pci_exit(driver, pdriver);
 	radeon_unregister_atpx_handler();
 }

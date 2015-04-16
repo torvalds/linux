@@ -32,10 +32,13 @@ config GCOV_KERNEL
 	Note that the debugfs filesystem has to be mounted to access
 	profiling data.
 
+config ARCH_HAS_GCOV_PROFILE_ALL
+	def_bool n
+
 config GCOV_PROFILE_ALL
 	bool "Profile entire Kernel"
 	depends on GCOV_KERNEL
-	depends on SUPERH || S390 || X86 || PPC || MICROBLAZE || ARM
+	depends on ARCH_HAS_GCOV_PROFILE_ALL
 	default n
 	---help---
 	This options activates profiling for the entire kernel.

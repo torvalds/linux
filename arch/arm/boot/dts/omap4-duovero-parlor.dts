@@ -177,6 +177,7 @@
 
 &hdmi {
 	status = "ok";
+	vdda-supply = <&vdac>;
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&dss_hdmi_pins>;

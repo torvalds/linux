@@ -167,6 +167,17 @@ config DEBUG_INFO_DWARF4
 	  But it significantly improves the success of resolving
 	  variables in gdb on optimized code.
 
+config GDB_SCRIPTS
+	bool "Provide GDB scripts for kernel debugging"
+	depends on DEBUG_INFO
+	help
+	  This creates the required links to GDB helper scripts in the
+	  build directory. If you load vmlinux into gdb, the helper
+	  scripts will be automatically imported by gdb as well, and
+	  additional functions are available to analyze a Linux kernel
+	  instance. See Documentation/gdb-kernel-debugging.txt for further
+	  details.
+
 config ENABLE_WARN_DEPRECATED
 	bool "Enable __deprecated logic"
 	default y
@@ -226,6 +237,22 @@ config UNUSED_SYMBOLS
 	  mail to the linux kernel mailing list mentioning the symbol and why
 	  you really need it, and what the merge plan to the mainline kernel for
 	  your module is.
+
+config PAGE_OWNER
+	bool "Track page owner"
+	depends on DEBUG_KERNEL && STACKTRACE_SUPPORT
+	select DEBUG_FS
+	select STACKTRACE
+	select PAGE_EXTENSION
+	help
+	  This keeps track of what call chain is the owner of a page, may
+	  help to find bare alloc_page(s) leaks. Even if you include this
+	  feature on your build, it is disabled in default. You should pass
+	  "page_owner=on" to boot parameter in order to enable it. Eats
+	  a fair amount of memory if enabled. See tools/vm/page_owner_sort.c
+	  for user-space helper.
+
+	  If unsure, say N.
 
 config DEBUG_FS
 	bool "Debug Filesystem"
@@ -620,7 +647,7 @@ config DEBUG_STACKOVERFLOW
 	depends on DEBUG_KERNEL && HAVE_DEBUG_STACKOVERFLOW
 	---help---
 	  Say Y here if you want to check for overflows of kernel, IRQ
-	  and exception stacks (if your archicture uses them). This
+	  and exception stacks (if your architecture uses them). This
 	  option will show detailed messages if free stack space drops
 	  below a certain limit.
 
@@ -634,6 +661,8 @@ config DEBUG_STACKOVERFLOW
 	  If in doubt, say "N".
 
 source "lib/Kconfig.kmemcheck"
+
+source "lib/Kconfig.kasan"
 
 endmenu # "Memory Debugging"
 
@@ -835,6 +864,19 @@ config SCHED_STACK_END_CHECK
 	  This is to ensure no erroneous behaviour occurs which could result in
 	  data corruption or a sporadic crash at a later stage once the region
 	  is examined. The runtime overhead introduced is minimal.
+
+config DEBUG_TIMEKEEPING
+	bool "Enable extra timekeeping sanity checking"
+	help
+	  This option will enable additional timekeeping sanity checks
+	  which may be helpful when diagnosing issues where timekeeping
+	  problems are suspected.
+
+	  This may include checks in the timekeeping hotpaths, so this
+	  option may have a (very small) performance impact to some
+	  workloads.
+
+	  If unsure, say N.
 
 config TIMER_STATS
 	bool "Collect kernel timers statistics"
@@ -1151,16 +1193,7 @@ config DEBUG_CREDENTIALS
 menu "RCU Debugging"
 
 config PROVE_RCU
-	bool "RCU debugging: prove RCU correctness"
-	depends on PROVE_LOCKING
-	default n
-	help
-	 This feature enables lockdep extensions that check for correct
-	 use of RCU APIs.  This is currently under development.  Say Y
-	 if you want to debug RCU usage or help work on the PROVE_RCU
-	 feature.
-
-	 Say N if you are unsure.
+	def_bool PROVE_LOCKING
 
 config PROVE_RCU_REPEATEDLY
 	bool "RCU debugging: don't disable PROVE_RCU on first splat"
@@ -1199,6 +1232,7 @@ config RCU_TORTURE_TEST
 	tristate "torture tests for RCU"
 	depends on DEBUG_KERNEL
 	select TORTURE_TEST
+	select SRCU
 	default n
 	help
 	  This option provides a kernel module that runs torture tests
@@ -1227,6 +1261,30 @@ config RCU_TORTURE_TEST_RUNNABLE
 	  Say N here if you want the RCU torture tests to start only
 	  after being manually enabled via /proc.
 
+config RCU_TORTURE_TEST_SLOW_INIT
+	bool "Slow down RCU grace-period initialization to expose races"
+	depends on RCU_TORTURE_TEST
+	help
+	  This option makes grace-period initialization block for a
+	  few jiffies between initializing each pair of consecutive
+	  rcu_node structures.	This helps to expose races involving
+	  grace-period initialization, in other words, it makes your
+	  kernel less stable.  It can also greatly increase grace-period
+	  latency, especially on systems with large numbers of CPUs.
+	  This is useful when torture-testing RCU, but in almost no
+	  other circumstance.
+
+	  Say Y here if you want your system to crash and hang more often.
+	  Say N if you want a sane system.
+
+config RCU_TORTURE_TEST_SLOW_INIT_DELAY
+	int "How much to slow down RCU grace-period initialization"
+	range 0 5
+	default 3
+	help
+	  This option specifies the number of jiffies to wait between
+	  each rcu_node structure initialization.
+
 config RCU_CPU_STALL_TIMEOUT
 	int "RCU CPU stall timeout in seconds"
 	depends on RCU_STALL_COMMON
@@ -1238,22 +1296,10 @@ config RCU_CPU_STALL_TIMEOUT
 	  RCU grace period persists, additional CPU stall warnings are
 	  printed at more widely spaced intervals.
 
-config RCU_CPU_STALL_VERBOSE
-	bool "Print additional per-task information for RCU_CPU_STALL_DETECTOR"
-	depends on TREE_PREEMPT_RCU
-	default y
-	help
-	  This option causes RCU to printk detailed per-task information
-	  for any tasks that are stalling the current RCU grace period.
-
-	  Say N if you are unsure.
-
-	  Say Y if you want to enable such checks.
-
 config RCU_CPU_STALL_INFO
 	bool "Print additional diagnostics on RCU CPU stall"
-	depends on (TREE_RCU || TREE_PREEMPT_RCU) && DEBUG_KERNEL
-	default n
+	depends on (TREE_RCU || PREEMPT_RCU) && DEBUG_KERNEL
+	default y
 	help
 	  For each stalled CPU that is aware of the current RCU grace
 	  period, print out additional per-CPU diagnostic information
@@ -1575,6 +1621,9 @@ config ASYNC_RAID6_TEST
 
 	  If unsure, say N.
 
+config TEST_HEXDUMP
+	tristate "Test functions located in the hexdump module at runtime"
+
 config TEST_STRING_HELPERS
 	tristate "Test functions located in the string_helpers module at runtime"
 
@@ -1582,7 +1631,7 @@ config TEST_KSTRTOX
 	tristate "Test kstrto*() family of functions at runtime"
 
 config TEST_RHASHTABLE
-	bool "Perform selftest on resizable hash table"
+	tristate "Perform selftest on resizable hash table"
 	default n
 	help
 	  Enable this option to test the rhashtable functions at boot.
@@ -1710,6 +1759,18 @@ config TEST_UDELAY
 	  that udelay() is working properly.
 
 	  If unsure, say N.
+
+config MEMTEST
+	bool "Memtest"
+	depends on HAVE_MEMBLOCK
+	---help---
+	  This option adds a kernel parameter 'memtest', which allows memtest
+	  to be set.
+	        memtest=0, mean disabled; -- default
+	        memtest=1, mean do 1 test pattern;
+	        ...
+	        memtest=17, mean do 17 test patterns.
+	  If you are unsure how to answer this question, answer N.
 
 source "samples/Kconfig"
 

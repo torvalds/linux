@@ -1,7 +1,7 @@
 Rockchip Successive Approximation Register (SAR) A/D Converter bindings
 
 Required properties:
-- compatible: Should be "rockchip,saradc"
+- compatible: Should be "rockchip,saradc" or "rockchip,rk3066-tsadc"
 - reg: physical base address of the controller and length of memory mapped
        region.
 - interrupts: The interrupt number to the cpu. The interrupt specifier format

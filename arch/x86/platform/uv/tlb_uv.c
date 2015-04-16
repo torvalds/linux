@@ -415,7 +415,7 @@ static void reset_with_ipi(struct pnmask *distribution, struct bau_control *bcp)
 	struct reset_args reset_args;
 
 	reset_args.sender = sender;
-	cpus_clear(*mask);
+	cpumask_clear(mask);
 	/* find a single cpu for each uvhub in this distribution mask */
 	maskbits = sizeof(struct pnmask) * BITSPERBYTE;
 	/* each bit is a pnode relative to the partition base pnode */
@@ -425,7 +425,7 @@ static void reset_with_ipi(struct pnmask *distribution, struct bau_control *bcp)
 			continue;
 		apnode = pnode + bcp->partition_base_pnode;
 		cpu = pnode_to_first_cpu(apnode, smaster);
-		cpu_set(cpu, *mask);
+		cpumask_set_cpu(cpu, mask);
 	}
 
 	/* IPI all cpus; preemption is already disabled */
@@ -1126,7 +1126,7 @@ const struct cpumask *uv_flush_tlb_others(const struct cpumask *cpumask,
 	/* don't actually do a shootdown of the local cpu */
 	cpumask_andnot(flush_mask, cpumask, cpumask_of(cpu));
 
-	if (cpu_isset(cpu, *cpumask))
+	if (cpumask_test_cpu(cpu, cpumask))
 		stat->s_ntargself++;
 
 	bau_desc = bcp->descriptor_base;
@@ -1367,23 +1367,25 @@ static int ptc_seq_show(struct seq_file *file, void *data)
 
 	cpu = *(loff_t *)data;
 	if (!cpu) {
-		seq_printf(file,
-		 "# cpu bauoff sent stime self locals remotes ncpus localhub ");
-		seq_printf(file,
-			"remotehub numuvhubs numuvhubs16 numuvhubs8 ");
-		seq_printf(file,
-			"numuvhubs4 numuvhubs2 numuvhubs1 dto snacks retries ");
-		seq_printf(file,
-			"rok resetp resett giveup sto bz throt disable ");
-		seq_printf(file,
-			"enable wars warshw warwaits enters ipidis plugged ");
-		seq_printf(file,
-			"ipiover glim cong swack recv rtime all one mult ");
-		seq_printf(file,
-			"none retry canc nocan reset rcan\n");
+		seq_puts(file,
+			 "# cpu bauoff sent stime self locals remotes ncpus localhub ");
+		seq_puts(file, "remotehub numuvhubs numuvhubs16 numuvhubs8 ");
+		seq_puts(file,
+			 "numuvhubs4 numuvhubs2 numuvhubs1 dto snacks retries ");
+		seq_puts(file,
+			 "rok resetp resett giveup sto bz throt disable ");
+		seq_puts(file,
+			 "enable wars warshw warwaits enters ipidis plugged ");
+		seq_puts(file,
+			 "ipiover glim cong swack recv rtime all one mult ");
+		seq_puts(file, "none retry canc nocan reset rcan\n");
 	}
 	if (cpu < num_possible_cpus() && cpu_online(cpu)) {
 		bcp = &per_cpu(bau_control, cpu);
+		if (bcp->nobau) {
+			seq_printf(file, "cpu %d bau disabled\n", cpu);
+			return 0;
+		}
 		stat = bcp->statp;
 		/* source side statistics */
 		seq_printf(file,

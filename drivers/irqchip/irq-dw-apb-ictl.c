@@ -50,6 +50,21 @@ static void dw_apb_ictl_handler(unsigned int irq, struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
+#ifdef CONFIG_PM
+static void dw_apb_ictl_resume(struct irq_data *d)
+{
+	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
+	struct irq_chip_type *ct = irq_data_get_chip_type(d);
+
+	irq_gc_lock(gc);
+	writel_relaxed(~0, gc->reg_base + ct->regs.enable);
+	writel_relaxed(*ct->mask_cache, gc->reg_base + ct->regs.mask);
+	irq_gc_unlock(gc);
+}
+#else
+#define dw_apb_ictl_resume	NULL
+#endif /* CONFIG_PM */
+
 static int __init dw_apb_ictl_init(struct device_node *np,
 				   struct device_node *parent)
 {
@@ -94,16 +109,16 @@ static int __init dw_apb_ictl_init(struct device_node *np,
 	 */
 
 	/* mask and enable all interrupts */
-	writel(~0, iobase + APB_INT_MASK_L);
-	writel(~0, iobase + APB_INT_MASK_H);
-	writel(~0, iobase + APB_INT_ENABLE_L);
-	writel(~0, iobase + APB_INT_ENABLE_H);
+	writel_relaxed(~0, iobase + APB_INT_MASK_L);
+	writel_relaxed(~0, iobase + APB_INT_MASK_H);
+	writel_relaxed(~0, iobase + APB_INT_ENABLE_L);
+	writel_relaxed(~0, iobase + APB_INT_ENABLE_H);
 
-	reg = readl(iobase + APB_INT_ENABLE_H);
+	reg = readl_relaxed(iobase + APB_INT_ENABLE_H);
 	if (reg)
 		nrirqs = 32 + fls(reg);
 	else
-		nrirqs = fls(readl(iobase + APB_INT_ENABLE_L));
+		nrirqs = fls(readl_relaxed(iobase + APB_INT_ENABLE_L));
 
 	domain = irq_domain_add_linear(np, nrirqs,
 				       &irq_generic_chip_ops, NULL);
@@ -115,6 +130,7 @@ static int __init dw_apb_ictl_init(struct device_node *np,
 
 	ret = irq_alloc_domain_generic_chips(domain, 32, (nrirqs > 32) ? 2 : 1,
 					     np->name, handle_level_irq, clr, 0,
+					     IRQ_GC_MASK_CACHE_PER_TYPE |
 					     IRQ_GC_INIT_MASK_CACHE);
 	if (ret) {
 		pr_err("%s: unable to alloc irq domain gc\n", np->full_name);
@@ -126,13 +142,17 @@ static int __init dw_apb_ictl_init(struct device_node *np,
 	gc->reg_base = iobase;
 
 	gc->chip_types[0].regs.mask = APB_INT_MASK_L;
+	gc->chip_types[0].regs.enable = APB_INT_ENABLE_L;
 	gc->chip_types[0].chip.irq_mask = irq_gc_mask_set_bit;
 	gc->chip_types[0].chip.irq_unmask = irq_gc_mask_clr_bit;
+	gc->chip_types[0].chip.irq_resume = dw_apb_ictl_resume;
 
 	if (nrirqs > 32) {
 		gc->chip_types[1].regs.mask = APB_INT_MASK_H;
+		gc->chip_types[1].regs.enable = APB_INT_ENABLE_H;
 		gc->chip_types[1].chip.irq_mask = irq_gc_mask_set_bit;
 		gc->chip_types[1].chip.irq_unmask = irq_gc_mask_clr_bit;
+		gc->chip_types[1].chip.irq_resume = dw_apb_ictl_resume;
 	}
 
 	irq_set_handler_data(irq, gc);

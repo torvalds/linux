@@ -2,6 +2,7 @@
 #define _AF_NETLINK_H
 
 #include <linux/rhashtable.h>
+#include <linux/atomic.h>
 #include <net/sock.h>
 
 #define NLGRPSZ(x)	(ALIGN(x, sizeof(unsigned long) * 8) / 8)
@@ -39,8 +40,8 @@ struct netlink_sock {
 	struct mutex		*cb_mutex;
 	struct mutex		cb_def_mutex;
 	void			(*netlink_rcv)(struct sk_buff *skb);
-	int			(*netlink_bind)(int group);
-	void			(*netlink_unbind)(int group);
+	int			(*netlink_bind)(struct net *net, int group);
+	void			(*netlink_unbind)(struct net *net, int group);
 	struct module		*module;
 #ifdef CONFIG_NETLINK_MMAP
 	struct mutex		pg_vec_lock;
@@ -50,6 +51,7 @@ struct netlink_sock {
 #endif /* CONFIG_NETLINK_MMAP */
 
 	struct rhash_head	node;
+	struct rcu_head		rcu;
 };
 
 static inline struct netlink_sock *nlk_sk(struct sock *sk)
@@ -65,14 +67,13 @@ struct netlink_table {
 	unsigned int		groups;
 	struct mutex		*cb_mutex;
 	struct module		*module;
-	int			(*bind)(int group);
-	void			(*unbind)(int group);
+	int			(*bind)(struct net *net, int group);
+	void			(*unbind)(struct net *net, int group);
 	bool			(*compare)(struct net *net, struct sock *sock);
 	int			registered;
 };
 
 extern struct netlink_table *nl_table;
 extern rwlock_t nl_table_lock;
-extern struct mutex nl_sk_hash_lock;
 
 #endif

@@ -132,7 +132,7 @@ static ssize_t store_uframe_periodic_max(struct device *dev,
 
 		if (allocated_max > uframe_periodic_max) {
 			ehci_info(ehci,
-				"cannot decrease uframe_periodic_max becase "
+				"cannot decrease uframe_periodic_max because "
 				"periodic bandwidth is already allocated "
 				"(%u > %u)\n",
 				allocated_max, uframe_periodic_max);

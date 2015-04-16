@@ -20,7 +20,7 @@
 #include <linux/bitmap.h>
 #include <linux/slab.h>
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int sh_pm_runtime_suspend(struct device *dev)
 {
 	int ret;
@@ -68,7 +68,7 @@ static struct dev_pm_domain default_pm_domain = {
 
 #define DEFAULT_PM_DOMAIN_PTR	NULL
 
-#endif /* CONFIG_PM_RUNTIME */
+#endif /* CONFIG_PM */
 
 static struct pm_clk_notifier_block platform_bus_notifier = {
 	.pm_domain = DEFAULT_PM_DOMAIN_PTR,
@@ -81,7 +81,9 @@ static int __init sh_pm_runtime_init(void)
 		if (!of_machine_is_compatible("renesas,emev2") &&
 		    !of_machine_is_compatible("renesas,r7s72100") &&
 		    !of_machine_is_compatible("renesas,r8a73a4") &&
+#ifndef CONFIG_PM_GENERIC_DOMAINS_OF
 		    !of_machine_is_compatible("renesas,r8a7740") &&
+#endif
 		    !of_machine_is_compatible("renesas,r8a7778") &&
 		    !of_machine_is_compatible("renesas,r8a7779") &&
 		    !of_machine_is_compatible("renesas,r8a7790") &&

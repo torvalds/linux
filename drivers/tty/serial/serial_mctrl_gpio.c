@@ -44,15 +44,21 @@ static const struct {
 void mctrl_gpio_set(struct mctrl_gpios *gpios, unsigned int mctrl)
 {
 	enum mctrl_gpio_idx i;
+	struct gpio_desc *desc_array[UART_GPIO_MAX];
+	int value_array[UART_GPIO_MAX];
+	unsigned int count = 0;
 
 	if (IS_ERR_OR_NULL(gpios))
 		return;
 
 	for (i = 0; i < UART_GPIO_MAX; i++)
 		if (!IS_ERR_OR_NULL(gpios->gpio[i]) &&
-		    mctrl_gpios_desc[i].dir_out)
-			gpiod_set_value(gpios->gpio[i],
-					!!(mctrl & mctrl_gpios_desc[i].mctrl));
+		    mctrl_gpios_desc[i].dir_out) {
+			desc_array[count] = gpios->gpio[i];
+			value_array[count] = !!(mctrl & mctrl_gpios_desc[i].mctrl);
+			count++;
+		}
+	gpiod_set_array(count, desc_array, value_array);
 }
 EXPORT_SYMBOL_GPL(mctrl_gpio_set);
 

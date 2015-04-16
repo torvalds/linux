@@ -196,6 +196,7 @@ enum tpacpi_hkey_event_t {
 	/* Key-related user-interface events */
 	TP_HKEY_EV_KEY_NUMLOCK		= 0x6000, /* NumLock key pressed */
 	TP_HKEY_EV_KEY_FN		= 0x6005, /* Fn key pressed? E420 */
+	TP_HKEY_EV_KEY_FN_ESC           = 0x6060, /* Fn+Esc key pressed X240 */
 
 	/* Thermal events */
 	TP_HKEY_EV_ALARM_BAT_HOT	= 0x6011, /* battery too hot */
@@ -972,7 +973,6 @@ static void tpacpi_shutdown_handler(struct platform_device *pdev)
 static struct platform_driver tpacpi_pdriver = {
 	.driver = {
 		.name = TPACPI_DRVR_NAME,
-		.owner = THIS_MODULE,
 		.pm = &tpacpi_pm,
 	},
 	.shutdown = tpacpi_shutdown_handler,
@@ -981,7 +981,6 @@ static struct platform_driver tpacpi_pdriver = {
 static struct platform_driver tpacpi_hwmon_pdriver = {
 	.driver = {
 		.name = TPACPI_HWMON_DRVR_NAME,
-		.owner = THIS_MODULE,
 	},
 };
 
@@ -3458,7 +3457,7 @@ enum ADAPTIVE_KEY_MODE {
 	LAYFLAT_MODE
 };
 
-const int adaptive_keyboard_modes[] = {
+static const int adaptive_keyboard_modes[] = {
 	HOME_MODE,
 /*	WEB_BROWSER_MODE = 2,
 	WEB_CONFERENCE_MODE = 3, */
@@ -3714,6 +3713,7 @@ static bool hotkey_notify_6xxx(const u32 hkey,
 
 	case TP_HKEY_EV_KEY_NUMLOCK:
 	case TP_HKEY_EV_KEY_FN:
+	case TP_HKEY_EV_KEY_FN_ESC:
 		/* key press events, we just ignore them as long as the EC
 		 * is still reporting them in the normal keyboard stream */
 		*send_acpi_ev = false;
@@ -6559,6 +6559,17 @@ static struct ibm_struct brightness_driver_data = {
  * bits 3-0 (volume).  Other bits in NVRAM may have other functions,
  * such as bit 7 which is used to detect repeated presses of MUTE,
  * and we leave them unchanged.
+ *
+ * On newer Lenovo ThinkPads, the EC can automatically change the volume
+ * in response to user input.  Unfortunately, this rarely works well.
+ * The laptop changes the state of its internal MUTE gate and, on some
+ * models, sends KEY_MUTE, causing any user code that responds to the
+ * mute button to get confused.  The hardware MUTE gate is also
+ * unnecessary, since user code can handle the mute button without
+ * kernel or EC help.
+ *
+ * To avoid confusing userspace, we simply disable all EC-based mute
+ * and volume controls when possible.
  */
 
 #ifdef CONFIG_THINKPAD_ACPI_ALSA_SUPPORT
@@ -6613,11 +6624,21 @@ enum tpacpi_volume_capabilities {
 	TPACPI_VOL_CAP_MAX
 };
 
+enum tpacpi_mute_btn_mode {
+	TP_EC_MUTE_BTN_LATCH  = 0,	/* Mute mutes; up/down unmutes */
+	/* We don't know what mode 1 is. */
+	TP_EC_MUTE_BTN_NONE   = 2,	/* Mute and up/down are just keys */
+	TP_EC_MUTE_BTN_TOGGLE = 3,	/* Mute toggles; up/down unmutes */
+};
+
 static enum tpacpi_volume_access_mode volume_mode =
 	TPACPI_VOL_MODE_MAX;
 
 static enum tpacpi_volume_capabilities volume_capabilities;
 static bool volume_control_allowed;
+static bool software_mute_requested = true;
+static bool software_mute_active;
+static int software_mute_orig_mode;
 
 /*
  * Used to syncronize writers to TP_EC_AUDIO and
@@ -6634,6 +6655,8 @@ static void tpacpi_volume_checkpoint_nvram(void)
 	if (volume_mode != TPACPI_VOL_MODE_ECNVRAM)
 		return;
 	if (!volume_control_allowed)
+		return;
+	if (software_mute_active)
 		return;
 
 	vdbg_printk(TPACPI_DBG_MIXER,
@@ -6695,6 +6718,12 @@ static int volume_set_status_ec(const u8 status)
 		return -EIO;
 
 	dbg_printk(TPACPI_DBG_MIXER, "set EC mixer to 0x%02x\n", status);
+
+	/*
+	 * On X200s, and possibly on others, it can take a while for
+	 * reads to become correct.
+	 */
+	msleep(1);
 
 	return 0;
 }
@@ -6776,6 +6805,57 @@ static int __volume_set_volume_ec(const u8 vol)
 unlock:
 	mutex_unlock(&volume_mutex);
 	return rc;
+}
+
+static int volume_set_software_mute(bool startup)
+{
+	int result;
+
+	if (!tpacpi_is_lenovo())
+		return -ENODEV;
+
+	if (startup) {
+		if (!acpi_evalf(ec_handle, &software_mute_orig_mode,
+				"HAUM", "qd"))
+			return -EIO;
+
+		dbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_MIXER,
+			    "Initial HAUM setting was %d\n",
+			    software_mute_orig_mode);
+	}
+
+	if (!acpi_evalf(ec_handle, &result, "SAUM", "qdd",
+			(int)TP_EC_MUTE_BTN_NONE))
+		return -EIO;
+
+	if (result != TP_EC_MUTE_BTN_NONE)
+		pr_warn("Unexpected SAUM result %d\n",
+			result);
+
+	/*
+	 * In software mute mode, the standard codec controls take
+	 * precendence, so we unmute the ThinkPad HW switch at
+	 * startup.  Just on case there are SAUM-capable ThinkPads
+	 * with level controls, set max HW volume as well.
+	 */
+	if (tp_features.mixer_no_level_control)
+		result = volume_set_mute(false);
+	else
+		result = volume_set_status(TP_EC_VOLUME_MAX);
+
+	if (result != 0)
+		pr_warn("Failed to unmute the HW mute switch\n");
+
+	return 0;
+}
+
+static void volume_exit_software_mute(void)
+{
+	int r;
+
+	if (!acpi_evalf(ec_handle, &r, "SAUM", "qdd", software_mute_orig_mode)
+	    || r != software_mute_orig_mode)
+		pr_warn("Failed to restore mute mode\n");
 }
 
 static int volume_alsa_set_volume(const u8 vol)
@@ -6885,7 +6965,12 @@ static void volume_suspend(void)
 
 static void volume_resume(void)
 {
-	volume_alsa_notify_change();
+	if (software_mute_active) {
+		if (volume_set_software_mute(false) < 0)
+			pr_warn("Failed to restore software mute\n");
+	} else {
+		volume_alsa_notify_change();
+	}
 }
 
 static void volume_shutdown(void)
@@ -6901,6 +6986,9 @@ static void volume_exit(void)
 	}
 
 	tpacpi_volume_checkpoint_nvram();
+
+	if (software_mute_active)
+		volume_exit_software_mute();
 }
 
 static int __init volume_create_alsa_mixer(void)
@@ -7085,16 +7173,20 @@ static int __init volume_init(struct ibm_init_struct *iibm)
 			"mute is supported, volume control is %s\n",
 			str_supported(!tp_features.mixer_no_level_control));
 
-	rc = volume_create_alsa_mixer();
-	if (rc) {
-		pr_err("Could not create the ALSA mixer interface\n");
-		return rc;
-	}
+	if (software_mute_requested && volume_set_software_mute(true) == 0) {
+		software_mute_active = true;
+	} else {
+		rc = volume_create_alsa_mixer();
+		if (rc) {
+			pr_err("Could not create the ALSA mixer interface\n");
+			return rc;
+		}
 
-	pr_info("Console audio control enabled, mode: %s\n",
-		(volume_control_allowed) ?
-			"override (read/write)" :
-			"monitor (read only)");
+		pr_info("Console audio control enabled, mode: %s\n",
+			(volume_control_allowed) ?
+				"override (read/write)" :
+				"monitor (read only)");
+	}
 
 	vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_MIXER,
 		"registering volume hotkeys as change notification\n");
@@ -8793,17 +8885,31 @@ static bool __pure __init tpacpi_is_fw_digit(const char c)
 	return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z');
 }
 
-/* Most models: xxyTkkWW (#.##c); Ancient 570/600 and -SL lacks (#.##c) */
 static bool __pure __init tpacpi_is_valid_fw_id(const char * const s,
 						const char t)
 {
-	return s && strlen(s) >= 8 &&
+	/*
+	 * Most models: xxyTkkWW (#.##c)
+	 * Ancient 570/600 and -SL lacks (#.##c)
+	 */
+	if (s && strlen(s) >= 8 &&
 		tpacpi_is_fw_digit(s[0]) &&
 		tpacpi_is_fw_digit(s[1]) &&
 		s[2] == t &&
 		(s[3] == 'T' || s[3] == 'N') &&
 		tpacpi_is_fw_digit(s[4]) &&
-		tpacpi_is_fw_digit(s[5]);
+		tpacpi_is_fw_digit(s[5]))
+		return true;
+
+	/* New models: xxxyTkkW (#.##c); T550 and some others */
+	return s && strlen(s) >= 8 &&
+		tpacpi_is_fw_digit(s[0]) &&
+		tpacpi_is_fw_digit(s[1]) &&
+		tpacpi_is_fw_digit(s[2]) &&
+		s[3] == t &&
+		(s[4] == 'T' || s[4] == 'N') &&
+		tpacpi_is_fw_digit(s[5]) &&
+		tpacpi_is_fw_digit(s[6]);
 }
 
 /* returns 0 - probe ok, or < 0 - probe error.
@@ -9090,6 +9196,10 @@ module_param_named(volume_control, volume_control_allowed, bool, 0444);
 MODULE_PARM_DESC(volume_control,
 		 "Enables software override for the console audio "
 		 "control when true");
+
+module_param_named(software_mute, software_mute_requested, bool, 0444);
+MODULE_PARM_DESC(software_mute,
+		 "Request full software mute control");
 
 /* ALSA module API parameters */
 module_param_named(index, alsa_index, int, 0444);

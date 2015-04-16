@@ -335,7 +335,7 @@ static int target_xcopy_parse_segment_descriptors(struct se_cmd *se_cmd,
 			desc += XCOPY_SEGMENT_DESC_LEN;
 			break;
 		default:
-			pr_err("XCOPY unspported segment descriptor"
+			pr_err("XCOPY unsupported segment descriptor"
 				"type: 0x%02x\n", desc[0]);
 			goto out;
 		}

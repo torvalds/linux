@@ -10,6 +10,9 @@ Required properties:
 Recommended properties :
 - interrupts : standard interrupt property.
 - clock-frequency : desired I2C bus clock frequency in Hz.
+- ti,has-pfunc: boolean; if defined, it indicates that SoC supports PFUNC
+	registers. PFUNC registers allow to switch I2C pins to function as
+	GPIOs, so they can by toggled manually.
 
 Example (enbw_cmc board):
 	i2c@1c22000 {

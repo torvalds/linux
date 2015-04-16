@@ -100,41 +100,41 @@
 		uart0 {
 			uart0_default_mux: uart0_mux {
 				u0_default_mux {
-					ste,function = "u0";
-					ste,pins = "u0_a_1";
+					function = "u0";
+					groups = "u0_a_1";
 				};
 			};
 		};
 		uart1 {
 			uart1_default_mux: uart1_mux {
 				u1_default_mux {
-					ste,function = "u1";
-					ste,pins = "u1_a_1";
+					function = "u1";
+					groups = "u1_a_1";
 				};
 			};
 		};
 		mmcsd {
 			mmcsd_default_mux: mmcsd_mux {
 				mmcsd_default_mux {
-					ste,function = "mmcsd";
-					ste,pins = "mmcsd_a_1";
+					function = "mmcsd";
+					groups = "mmcsd_a_1", "mmcsd_b_1";
 				};
 			};
 			mmcsd_default_mode: mmcsd_default {
 				mmcsd_default_cfg1 {
 					/* MCCLK */
-					ste,pins = "GPIO8_B10";
+					pins = "GPIO8_B10";
 					ste,output = <0>;
 				};
 				mmcsd_default_cfg2 {
-					/* MCCMDDIR, MCDAT0DIR, MCDAT31DIR */
-					ste,pins = "GPIO10_C11", "GPIO15_A12",
-					"GPIO16_C13";
+					/* MCCMDDIR, MCDAT0DIR, MCDAT31DIR, MCDATDIR2 */
+					pins = "GPIO10_C11", "GPIO15_A12",
+					"GPIO16_C13", "GPIO23_D15";
 					ste,output = <1>;
 				};
 				mmcsd_default_cfg3 {
 					/* MCCMD, MCDAT3-0, MCMSFBCLK */
-					ste,pins = "GPIO9_A10", "GPIO11_B11",
+					pins = "GPIO9_A10", "GPIO11_B11",
 					"GPIO12_A11", "GPIO13_C12",
 					"GPIO14_B12", "GPIO24_C15";
 					ste,input = <1>;
@@ -144,13 +144,13 @@
 		i2c0 {
 			i2c0_default_mux: i2c0_mux {
 				i2c0_default_mux {
-					ste,function = "i2c0";
-					ste,pins = "i2c0_a_1";
+					function = "i2c0";
+					groups = "i2c0_a_1";
 				};
 			};
 			i2c0_default_mode: i2c0_default {
 				i2c0_default_cfg {
-					ste,pins = "GPIO62_D3", "GPIO63_D2";
+					pins = "GPIO62_D3", "GPIO63_D2";
 					ste,input = <0>;
 				};
 			};
@@ -158,21 +158,13 @@
 		i2c1 {
 			i2c1_default_mux: i2c1_mux {
 				i2c1_default_mux {
-					ste,function = "i2c1";
-					ste,pins = "i2c1_a_1";
+					function = "i2c1";
+					groups = "i2c1_a_1";
 				};
 			};
 			i2c1_default_mode: i2c1_default {
 				i2c1_default_cfg {
-					ste,pins = "GPIO53_L4", "GPIO54_L3";
-					ste,input = <0>;
-				};
-			};
-		};
-		i2c2 {
-			i2c2_default_mode: i2c2_default {
-				i2c2_default_cfg {
-					ste,pins = "GPIO73_C21", "GPIO74_C20";
+					pins = "GPIO53_L4", "GPIO54_L3";
 					ste,input = <0>;
 				};
 			};
@@ -182,8 +174,6 @@
 	src: src@101e0000 {
 		compatible = "stericsson,nomadik-src";
 		reg = <0x101e0000 0x1000>;
-		disable-sxtalo;
-		disable-mxtalo;
 
 		/*
 		 * MXTAL "Main Chrystal" is a chrystal oscillator @19.2 MHz
@@ -683,18 +673,6 @@
 		};
 	};
 
-	external-bus@34000000 {
-		compatible = "simple-bus";
-		reg = <0x34000000 0x1000000>;
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges = <0 0x34000000 0x1000000>;
-		ethernet@300 {
-			compatible = "smsc,lan91c111";
-			reg = <0x300 0x0fd00>;
-		};
-	};
-
 	/* I2C0 connected to the STw4811 power management chip */
 	i2c0 {
 		compatible = "st,nomadik-i2c", "arm,primecell";
@@ -746,22 +724,6 @@
 		lis3lv02dl@1d {
 			   compatible = "st,lis3lv02dl";
 			   reg = <0x1d>;
-		};
-	};
-
-	/* I2C2 connected to the USB portions of the STw4811 only */
-	i2c2 {
-		compatible = "i2c-gpio";
-		gpios = <&gpio2 10 0>, /* sda */
-			<&gpio2 9 0>; /* scl */
-		#address-cells = <1>;
-		#size-cells = <0>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&i2c2_default_mode>;
-
-		stw4811@2d {
-			   compatible = "st,stw4811-usb";
-			   reg = <0x2d>;
 		};
 	};
 
@@ -844,7 +806,6 @@
 			bus-width = <4>;
 			cap-mmc-highspeed;
 			cap-sd-highspeed;
-			cd-gpios = <&gpio3 15 GPIO_ACTIVE_LOW>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&mmcsd_default_mux>, <&mmcsd_default_mode>;
 			vmmc-supply = <&vmmc_regulator>;

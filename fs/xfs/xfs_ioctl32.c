@@ -25,8 +25,6 @@
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
-#include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
 #include "xfs_itable.h"
@@ -425,7 +423,7 @@ xfs_compat_attrmulti_by_handle(
 
 	ops = memdup_user(compat_ptr(am_hreq.ops), size);
 	if (IS_ERR(ops)) {
-		error = -PTR_ERR(ops);
+		error = PTR_ERR(ops);
 		goto out_dput;
 	}
 

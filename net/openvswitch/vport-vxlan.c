@@ -24,6 +24,7 @@
 #include <linux/net.h>
 #include <linux/rculist.h>
 #include <linux/udp.h>
+#include <linux/module.h>
 
 #include <net/icmp.h>
 #include <net/ip.h>
@@ -39,6 +40,7 @@
 
 #include "datapath.h"
 #include "vport.h"
+#include "vport-vxlan.h"
 
 /**
  * struct vxlan_port - Keeps track of open UDP ports
@@ -48,7 +50,10 @@
 struct vxlan_port {
 	struct vxlan_sock *vs;
 	char name[IFNAMSIZ];
+	u32 exts; /* VXLAN_F_* in <net/vxlan.h> */
 };
+
+static struct vport_ops ovs_vxlan_vport_ops;
 
 static inline struct vxlan_port *vxlan_vport(const struct vport *vport)
 {
@@ -56,17 +61,30 @@ static inline struct vxlan_port *vxlan_vport(const struct vport *vport)
 }
 
 /* Called with rcu_read_lock and BH disabled. */
-static void vxlan_rcv(struct vxlan_sock *vs, struct sk_buff *skb, __be32 vx_vni)
+static void vxlan_rcv(struct vxlan_sock *vs, struct sk_buff *skb,
+		      struct vxlan_metadata *md)
 {
 	struct ovs_tunnel_info tun_info;
+	struct vxlan_port *vxlan_port;
 	struct vport *vport = vs->data;
 	struct iphdr *iph;
+	struct ovs_vxlan_opts opts = {
+		.gbp = md->gbp,
+	};
 	__be64 key;
+	__be16 flags;
+
+	flags = TUNNEL_KEY | (udp_hdr(skb)->check != 0 ? TUNNEL_CSUM : 0);
+	vxlan_port = vxlan_vport(vport);
+	if (vxlan_port->exts & VXLAN_F_GBP && md->gbp)
+		flags |= TUNNEL_VXLAN_OPT;
 
 	/* Save outer tunnel values */
 	iph = ip_hdr(skb);
-	key = cpu_to_be64(ntohl(vx_vni) >> 8);
-	ovs_flow_tun_info_init(&tun_info, iph, key, TUNNEL_KEY, NULL, 0);
+	key = cpu_to_be64(ntohl(md->vni) >> 8);
+	ovs_flow_tun_info_init(&tun_info, iph,
+			       udp_hdr(skb)->source, udp_hdr(skb)->dest,
+			       key, flags, &opts, sizeof(opts));
 
 	ovs_vport_receive(vport, skb, &tun_info);
 }
@@ -78,6 +96,21 @@ static int vxlan_get_options(const struct vport *vport, struct sk_buff *skb)
 
 	if (nla_put_u16(skb, OVS_TUNNEL_ATTR_DST_PORT, ntohs(dst_port)))
 		return -EMSGSIZE;
+
+	if (vxlan_port->exts) {
+		struct nlattr *exts;
+
+		exts = nla_nest_start(skb, OVS_TUNNEL_ATTR_EXTENSION);
+		if (!exts)
+			return -EMSGSIZE;
+
+		if (vxlan_port->exts & VXLAN_F_GBP &&
+		    nla_put_flag(skb, OVS_VXLAN_EXT_GBP))
+			return -EMSGSIZE;
+
+		nla_nest_end(skb, exts);
+	}
+
 	return 0;
 }
 
@@ -88,6 +121,31 @@ static void vxlan_tnl_destroy(struct vport *vport)
 	vxlan_sock_release(vxlan_port->vs);
 
 	ovs_vport_deferred_free(vport);
+}
+
+static const struct nla_policy exts_policy[OVS_VXLAN_EXT_MAX+1] = {
+	[OVS_VXLAN_EXT_GBP]	= { .type = NLA_FLAG, },
+};
+
+static int vxlan_configure_exts(struct vport *vport, struct nlattr *attr)
+{
+	struct nlattr *exts[OVS_VXLAN_EXT_MAX+1];
+	struct vxlan_port *vxlan_port;
+	int err;
+
+	if (nla_len(attr) < sizeof(struct nlattr))
+		return -EINVAL;
+
+	err = nla_parse_nested(exts, OVS_VXLAN_EXT_MAX, attr, exts_policy);
+	if (err < 0)
+		return err;
+
+	vxlan_port = vxlan_vport(vport);
+
+	if (exts[OVS_VXLAN_EXT_GBP])
+		vxlan_port->exts |= VXLAN_F_GBP;
+
+	return 0;
 }
 
 static struct vport *vxlan_tnl_create(const struct vport_parms *parms)
@@ -122,7 +180,17 @@ static struct vport *vxlan_tnl_create(const struct vport_parms *parms)
 	vxlan_port = vxlan_vport(vport);
 	strncpy(vxlan_port->name, parms->name, IFNAMSIZ);
 
-	vs = vxlan_sock_add(net, htons(dst_port), vxlan_rcv, vport, true, 0);
+	a = nla_find_nested(options, OVS_TUNNEL_ATTR_EXTENSION);
+	if (a) {
+		err = vxlan_configure_exts(vport, a);
+		if (err) {
+			ovs_vport_free(vport);
+			goto error;
+		}
+	}
+
+	vs = vxlan_sock_add(net, htons(dst_port), vxlan_rcv, vport, true,
+			    vxlan_port->exts);
 	if (IS_ERR(vs)) {
 		ovs_vport_free(vport);
 		return (void *)vs;
@@ -135,17 +203,35 @@ error:
 	return ERR_PTR(err);
 }
 
+static int vxlan_ext_gbp(struct sk_buff *skb)
+{
+	const struct ovs_tunnel_info *tun_info;
+	const struct ovs_vxlan_opts *opts;
+
+	tun_info = OVS_CB(skb)->egress_tun_info;
+	opts = tun_info->options;
+
+	if (tun_info->tunnel.tun_flags & TUNNEL_VXLAN_OPT &&
+	    tun_info->options_len >= sizeof(*opts))
+		return opts->gbp;
+	else
+		return 0;
+}
+
 static int vxlan_tnl_send(struct vport *vport, struct sk_buff *skb)
 {
 	struct net *net = ovs_dp_get_net(vport->dp);
 	struct vxlan_port *vxlan_port = vxlan_vport(vport);
-	__be16 dst_port = inet_sk(vxlan_port->vs->sock->sk)->inet_sport;
-	struct ovs_key_ipv4_tunnel *tun_key;
+	struct sock *sk = vxlan_port->vs->sock->sk;
+	__be16 dst_port = inet_sk(sk)->inet_sport;
+	const struct ovs_key_ipv4_tunnel *tun_key;
+	struct vxlan_metadata md = {0};
 	struct rtable *rt;
 	struct flowi4 fl;
 	__be16 src_port;
 	__be16 df;
 	int err;
+	u32 vxflags;
 
 	if (unlikely(!OVS_CB(skb)->egress_tun_info)) {
 		err = -EINVAL;
@@ -153,15 +239,7 @@ static int vxlan_tnl_send(struct vport *vport, struct sk_buff *skb)
 	}
 
 	tun_key = &OVS_CB(skb)->egress_tun_info->tunnel;
-	/* Route lookup */
-	memset(&fl, 0, sizeof(fl));
-	fl.daddr = tun_key->ipv4_dst;
-	fl.saddr = tun_key->ipv4_src;
-	fl.flowi4_tos = RT_TOS(tun_key->ipv4_tos);
-	fl.flowi4_mark = skb->mark;
-	fl.flowi4_proto = IPPROTO_UDP;
-
-	rt = ip_route_output_key(net, &fl);
+	rt = ovs_tunnel_route_lookup(net, tun_key, skb->mark, &fl, IPPROTO_UDP);
 	if (IS_ERR(rt)) {
 		err = PTR_ERR(rt);
 		goto error;
@@ -173,17 +251,40 @@ static int vxlan_tnl_send(struct vport *vport, struct sk_buff *skb)
 	skb->ignore_df = 1;
 
 	src_port = udp_flow_src_port(net, skb, 0, 0, true);
+	md.vni = htonl(be64_to_cpu(tun_key->tun_id) << 8);
+	md.gbp = vxlan_ext_gbp(skb);
+	vxflags = vxlan_port->exts |
+		      (tun_key->tun_flags & TUNNEL_CSUM ? VXLAN_F_UDP_CSUM : 0);
 
-	err = vxlan_xmit_skb(vxlan_port->vs, rt, skb,
-			     fl.saddr, tun_key->ipv4_dst,
+	err = vxlan_xmit_skb(rt, sk, skb, fl.saddr, tun_key->ipv4_dst,
 			     tun_key->ipv4_tos, tun_key->ipv4_ttl, df,
 			     src_port, dst_port,
-			     htonl(be64_to_cpu(tun_key->tun_id) << 8),
-			     false);
+			     &md, false, vxflags);
 	if (err < 0)
 		ip_rt_put(rt);
-error:
 	return err;
+error:
+	kfree_skb(skb);
+	return err;
+}
+
+static int vxlan_get_egress_tun_info(struct vport *vport, struct sk_buff *skb,
+				     struct ovs_tunnel_info *egress_tun_info)
+{
+	struct net *net = ovs_dp_get_net(vport->dp);
+	struct vxlan_port *vxlan_port = vxlan_vport(vport);
+	__be16 dst_port = inet_sk(vxlan_port->vs->sock->sk)->inet_sport;
+	__be16 src_port;
+	int port_min;
+	int port_max;
+
+	inet_get_local_port_range(net, &port_min, &port_max);
+	src_port = udp_flow_src_port(net, skb, 0, 0, true);
+
+	return ovs_tunnel_get_egress_info(egress_tun_info, net,
+					  OVS_CB(skb)->egress_tun_info,
+					  IPPROTO_UDP, skb->mark,
+					  src_port, dst_port);
 }
 
 static const char *vxlan_get_name(const struct vport *vport)
@@ -192,11 +293,30 @@ static const char *vxlan_get_name(const struct vport *vport)
 	return vxlan_port->name;
 }
 
-const struct vport_ops ovs_vxlan_vport_ops = {
+static struct vport_ops ovs_vxlan_vport_ops = {
 	.type		= OVS_VPORT_TYPE_VXLAN,
 	.create		= vxlan_tnl_create,
 	.destroy	= vxlan_tnl_destroy,
 	.get_name	= vxlan_get_name,
 	.get_options	= vxlan_get_options,
 	.send		= vxlan_tnl_send,
+	.get_egress_tun_info	= vxlan_get_egress_tun_info,
+	.owner		= THIS_MODULE,
 };
+
+static int __init ovs_vxlan_tnl_init(void)
+{
+	return ovs_vport_ops_register(&ovs_vxlan_vport_ops);
+}
+
+static void __exit ovs_vxlan_tnl_exit(void)
+{
+	ovs_vport_ops_unregister(&ovs_vxlan_vport_ops);
+}
+
+module_init(ovs_vxlan_tnl_init);
+module_exit(ovs_vxlan_tnl_exit);
+
+MODULE_DESCRIPTION("OVS: VXLAN switching port");
+MODULE_LICENSE("GPL");
+MODULE_ALIAS("vport-type-4");

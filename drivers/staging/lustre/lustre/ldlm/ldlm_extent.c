@@ -151,7 +151,8 @@ static inline int lock_mode_to_index(ldlm_mode_t mode)
 
 	LASSERT(mode != 0);
 	LASSERT(IS_PO2(mode));
-	for (index = -1; mode; index++, mode >>= 1) ;
+	for (index = -1; mode; index++)
+		mode >>= 1;
 	LASSERT(index < LCK_MODE_NUM);
 	return index;
 }
@@ -182,7 +183,9 @@ void ldlm_extent_add_lock(struct ldlm_resource *res,
 	root = &res->lr_itree[idx].lit_root;
 	found = interval_insert(&node->li_node, root);
 	if (found) { /* The policy group found. */
-		struct ldlm_interval *tmp = ldlm_interval_detach(lock);
+		struct ldlm_interval *tmp;
+
+		tmp = ldlm_interval_detach(lock);
 		LASSERT(tmp != NULL);
 		ldlm_interval_free(tmp);
 		ldlm_interval_attach(to_ldlm_interval(found), lock);

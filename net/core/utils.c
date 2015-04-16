@@ -33,9 +33,6 @@
 #include <asm/byteorder.h>
 #include <asm/uaccess.h>
 
-int net_msg_warn __read_mostly = 1;
-EXPORT_SYMBOL(net_msg_warn);
-
 DEFINE_RATELIMIT_STATE(net_ratelimit_state, 5 * HZ, 10);
 /*
  * All net warning printk()s should be guarded by this function.

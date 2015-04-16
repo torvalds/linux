@@ -49,6 +49,7 @@ enum ath_reset_type {
 	RESET_TYPE_MAC_HANG,
 	RESET_TYPE_BEACON_STUCK,
 	RESET_TYPE_MCI,
+	RESET_TYPE_CALIBRATION,
 	__RESET_TYPE_MAX
 };
 
@@ -195,12 +196,11 @@ struct ath_tx_stats {
 #define TXSTATS sc->debug.stats.txstats
 #define PR(str, elem)							\
 	do {								\
-		len += scnprintf(buf + len, size - len,			\
-				 "%s%13u%11u%10u%10u\n", str,		\
-				 TXSTATS[PR_QNUM(IEEE80211_AC_BE)].elem,\
-				 TXSTATS[PR_QNUM(IEEE80211_AC_BK)].elem,\
-				 TXSTATS[PR_QNUM(IEEE80211_AC_VI)].elem,\
-				 TXSTATS[PR_QNUM(IEEE80211_AC_VO)].elem); \
+		seq_printf(file, "%s%13u%11u%10u%10u\n", str,		\
+			   TXSTATS[PR_QNUM(IEEE80211_AC_BE)].elem,\
+			   TXSTATS[PR_QNUM(IEEE80211_AC_BK)].elem,\
+			   TXSTATS[PR_QNUM(IEEE80211_AC_VI)].elem,\
+			   TXSTATS[PR_QNUM(IEEE80211_AC_VO)].elem); \
 	} while(0)
 
 struct ath_rx_rate_stats {

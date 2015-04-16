@@ -15,7 +15,6 @@
 #define __RCAR_DU_CRTC_H__
 
 #include <linux/mutex.h>
-#include <linux/platform_data/rcar-du.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
@@ -27,6 +26,7 @@ struct rcar_du_crtc {
 	struct drm_crtc crtc;
 
 	struct clk *clock;
+	struct clk *extclock;
 	unsigned int mmio_offset;
 	unsigned int index;
 	bool started;
@@ -40,6 +40,15 @@ struct rcar_du_crtc {
 };
 
 #define to_rcar_crtc(c)	container_of(c, struct rcar_du_crtc, crtc)
+
+enum rcar_du_output {
+	RCAR_DU_OUTPUT_DPAD0,
+	RCAR_DU_OUTPUT_DPAD1,
+	RCAR_DU_OUTPUT_LVDS0,
+	RCAR_DU_OUTPUT_LVDS1,
+	RCAR_DU_OUTPUT_TCON,
+	RCAR_DU_OUTPUT_MAX,
+};
 
 int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index);
 void rcar_du_crtc_enable_vblank(struct rcar_du_crtc *rcrtc, bool enable);

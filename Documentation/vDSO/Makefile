@@ -10,3 +10,6 @@ always := $(hostprogs-y)
 HOSTCFLAGS := -I$(objtree)/usr/include -std=gnu99
 HOSTCFLAGS_vdso_standalone_test_x86.o := -fno-asynchronous-unwind-tables -fno-stack-protector
 HOSTLOADLIBES_vdso_standalone_test_x86 := -nostdlib
+ifeq ($(CONFIG_X86_32),y)
+HOSTLOADLIBES_vdso_standalone_test_x86 += -lgcc_s
+endif

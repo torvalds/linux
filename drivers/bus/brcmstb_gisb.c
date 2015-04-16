@@ -23,34 +23,102 @@
 #include <linux/list.h>
 #include <linux/of.h>
 #include <linux/bitops.h>
+#include <linux/pm.h>
 
+#ifdef CONFIG_ARM
 #include <asm/bug.h>
 #include <asm/signal.h>
+#endif
 
-#define ARB_TIMER			0x008
-#define ARB_ERR_CAP_CLR			0x7e4
 #define  ARB_ERR_CAP_CLEAR		(1 << 0)
-#define ARB_ERR_CAP_HI_ADDR		0x7e8
-#define ARB_ERR_CAP_ADDR		0x7ec
-#define ARB_ERR_CAP_DATA		0x7f0
-#define ARB_ERR_CAP_STATUS		0x7f4
 #define  ARB_ERR_CAP_STATUS_TIMEOUT	(1 << 12)
 #define  ARB_ERR_CAP_STATUS_TEA		(1 << 11)
 #define  ARB_ERR_CAP_STATUS_BS_SHIFT	(1 << 2)
 #define  ARB_ERR_CAP_STATUS_BS_MASK	0x3c
 #define  ARB_ERR_CAP_STATUS_WRITE	(1 << 1)
 #define  ARB_ERR_CAP_STATUS_VALID	(1 << 0)
-#define ARB_ERR_CAP_MASTER		0x7f8
+
+enum {
+	ARB_TIMER,
+	ARB_ERR_CAP_CLR,
+	ARB_ERR_CAP_HI_ADDR,
+	ARB_ERR_CAP_ADDR,
+	ARB_ERR_CAP_DATA,
+	ARB_ERR_CAP_STATUS,
+	ARB_ERR_CAP_MASTER,
+};
+
+static const int gisb_offsets_bcm7038[] = {
+	[ARB_TIMER]		= 0x00c,
+	[ARB_ERR_CAP_CLR]	= 0x0c4,
+	[ARB_ERR_CAP_HI_ADDR]	= -1,
+	[ARB_ERR_CAP_ADDR]	= 0x0c8,
+	[ARB_ERR_CAP_DATA]	= 0x0cc,
+	[ARB_ERR_CAP_STATUS]	= 0x0d0,
+	[ARB_ERR_CAP_MASTER]	= -1,
+};
+
+static const int gisb_offsets_bcm7400[] = {
+	[ARB_TIMER]		= 0x00c,
+	[ARB_ERR_CAP_CLR]	= 0x0c8,
+	[ARB_ERR_CAP_HI_ADDR]	= -1,
+	[ARB_ERR_CAP_ADDR]	= 0x0cc,
+	[ARB_ERR_CAP_DATA]	= 0x0d0,
+	[ARB_ERR_CAP_STATUS]	= 0x0d4,
+	[ARB_ERR_CAP_MASTER]	= 0x0d8,
+};
+
+static const int gisb_offsets_bcm7435[] = {
+	[ARB_TIMER]		= 0x00c,
+	[ARB_ERR_CAP_CLR]	= 0x168,
+	[ARB_ERR_CAP_HI_ADDR]	= -1,
+	[ARB_ERR_CAP_ADDR]	= 0x16c,
+	[ARB_ERR_CAP_DATA]	= 0x170,
+	[ARB_ERR_CAP_STATUS]	= 0x174,
+	[ARB_ERR_CAP_MASTER]	= 0x178,
+};
+
+static const int gisb_offsets_bcm7445[] = {
+	[ARB_TIMER]		= 0x008,
+	[ARB_ERR_CAP_CLR]	= 0x7e4,
+	[ARB_ERR_CAP_HI_ADDR]	= 0x7e8,
+	[ARB_ERR_CAP_ADDR]	= 0x7ec,
+	[ARB_ERR_CAP_DATA]	= 0x7f0,
+	[ARB_ERR_CAP_STATUS]	= 0x7f4,
+	[ARB_ERR_CAP_MASTER]	= 0x7f8,
+};
 
 struct brcmstb_gisb_arb_device {
 	void __iomem	*base;
+	const int	*gisb_offsets;
 	struct mutex	lock;
 	struct list_head next;
 	u32 valid_mask;
 	const char *master_names[sizeof(u32) * BITS_PER_BYTE];
+	u32 saved_timeout;
 };
 
 static LIST_HEAD(brcmstb_gisb_arb_device_list);
+
+static u32 gisb_read(struct brcmstb_gisb_arb_device *gdev, int reg)
+{
+	int offset = gdev->gisb_offsets[reg];
+
+	/* return 1 if the hardware doesn't have ARB_ERR_CAP_MASTER */
+	if (offset == -1)
+		return 1;
+
+	return ioread32(gdev->base + offset);
+}
+
+static void gisb_write(struct brcmstb_gisb_arb_device *gdev, u32 val, int reg)
+{
+	int offset = gdev->gisb_offsets[reg];
+
+	if (offset == -1)
+		return;
+	iowrite32(val, gdev->base + reg);
+}
 
 static ssize_t gisb_arb_get_timeout(struct device *dev,
 				    struct device_attribute *attr,
@@ -61,7 +129,7 @@ static ssize_t gisb_arb_get_timeout(struct device *dev,
 	u32 timeout;
 
 	mutex_lock(&gdev->lock);
-	timeout = ioread32(gdev->base + ARB_TIMER);
+	timeout = gisb_read(gdev, ARB_TIMER);
 	mutex_unlock(&gdev->lock);
 
 	return sprintf(buf, "%d", timeout);
@@ -83,7 +151,7 @@ static ssize_t gisb_arb_set_timeout(struct device *dev,
 		return -EINVAL;
 
 	mutex_lock(&gdev->lock);
-	iowrite32(val, gdev->base + ARB_TIMER);
+	gisb_write(gdev, val, ARB_TIMER);
 	mutex_unlock(&gdev->lock);
 
 	return count;
@@ -110,18 +178,18 @@ static int brcmstb_gisb_arb_decode_addr(struct brcmstb_gisb_arb_device *gdev,
 	const char *m_name;
 	char m_fmt[11];
 
-	cap_status = ioread32(gdev->base + ARB_ERR_CAP_STATUS);
+	cap_status = gisb_read(gdev, ARB_ERR_CAP_STATUS);
 
 	/* Invalid captured address, bail out */
 	if (!(cap_status & ARB_ERR_CAP_STATUS_VALID))
 		return 1;
 
 	/* Read the address and master */
-	arb_addr = ioread32(gdev->base + ARB_ERR_CAP_ADDR) & 0xffffffff;
+	arb_addr = gisb_read(gdev, ARB_ERR_CAP_ADDR) & 0xffffffff;
 #if (IS_ENABLED(CONFIG_PHYS_ADDR_T_64BIT))
-	arb_addr |= (u64)ioread32(gdev->base + ARB_ERR_CAP_HI_ADDR) << 32;
+	arb_addr |= (u64)gisb_read(gdev, ARB_ERR_CAP_HI_ADDR) << 32;
 #endif
-	master = ioread32(gdev->base + ARB_ERR_CAP_MASTER);
+	master = gisb_read(gdev, ARB_ERR_CAP_MASTER);
 
 	m_name = brcmstb_gisb_master_to_str(gdev, master);
 	if (!m_name) {
@@ -136,11 +204,12 @@ static int brcmstb_gisb_arb_decode_addr(struct brcmstb_gisb_arb_device *gdev,
 		m_name);
 
 	/* clear the GISB error */
-	iowrite32(ARB_ERR_CAP_CLEAR, gdev->base + ARB_ERR_CAP_CLR);
+	gisb_write(gdev, ARB_ERR_CAP_CLEAR, ARB_ERR_CAP_CLR);
 
 	return 0;
 }
 
+#ifdef CONFIG_ARM
 static int brcmstb_bus_error_handler(unsigned long addr, unsigned int fsr,
 				     struct pt_regs *regs)
 {
@@ -159,12 +228,7 @@ static int brcmstb_bus_error_handler(unsigned long addr, unsigned int fsr,
 
 	return ret;
 }
-
-void __init brcmstb_hook_fault_code(void)
-{
-	hook_fault_code(22, brcmstb_bus_error_handler, SIGBUS, 0,
-			"imprecise external abort");
-}
+#endif
 
 static irqreturn_t brcmstb_gisb_timeout_handler(int irq, void *dev_id)
 {
@@ -192,10 +256,20 @@ static struct attribute_group gisb_arb_sysfs_attr_group = {
 	.attrs = gisb_arb_sysfs_attrs,
 };
 
-static int brcmstb_gisb_arb_probe(struct platform_device *pdev)
+static const struct of_device_id brcmstb_gisb_arb_of_match[] = {
+	{ .compatible = "brcm,gisb-arb",         .data = gisb_offsets_bcm7445 },
+	{ .compatible = "brcm,bcm7445-gisb-arb", .data = gisb_offsets_bcm7445 },
+	{ .compatible = "brcm,bcm7435-gisb-arb", .data = gisb_offsets_bcm7435 },
+	{ .compatible = "brcm,bcm7400-gisb-arb", .data = gisb_offsets_bcm7400 },
+	{ .compatible = "brcm,bcm7038-gisb-arb", .data = gisb_offsets_bcm7038 },
+	{ },
+};
+
+static int __init brcmstb_gisb_arb_probe(struct platform_device *pdev)
 {
 	struct device_node *dn = pdev->dev.of_node;
 	struct brcmstb_gisb_arb_device *gdev;
+	const struct of_device_id *of_id;
 	struct resource *r;
 	int err, timeout_irq, tea_irq;
 	unsigned int num_masters, j = 0;
@@ -215,6 +289,13 @@ static int brcmstb_gisb_arb_probe(struct platform_device *pdev)
 	gdev->base = devm_ioremap_resource(&pdev->dev, r);
 	if (IS_ERR(gdev->base))
 		return PTR_ERR(gdev->base);
+
+	of_id = of_match_node(brcmstb_gisb_arb_of_match, dn);
+	if (!of_id) {
+		pr_err("failed to look up compatible string\n");
+		return -EINVAL;
+	}
+	gdev->gisb_offsets = of_id->data;
 
 	err = devm_request_irq(&pdev->dev, timeout_irq,
 				brcmstb_gisb_timeout_handler, 0, pdev->name,
@@ -261,29 +342,62 @@ static int brcmstb_gisb_arb_probe(struct platform_device *pdev)
 
 	list_add_tail(&gdev->next, &brcmstb_gisb_arb_device_list);
 
+#ifdef CONFIG_ARM
+	hook_fault_code(22, brcmstb_bus_error_handler, SIGBUS, 0,
+			"imprecise external abort");
+#endif
+
 	dev_info(&pdev->dev, "registered mem: %p, irqs: %d, %d\n",
 			gdev->base, timeout_irq, tea_irq);
 
 	return 0;
 }
 
-static const struct of_device_id brcmstb_gisb_arb_of_match[] = {
-	{ .compatible = "brcm,gisb-arb" },
-	{ },
+#ifdef CONFIG_PM_SLEEP
+static int brcmstb_gisb_arb_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct brcmstb_gisb_arb_device *gdev = platform_get_drvdata(pdev);
+
+	gdev->saved_timeout = gisb_read(gdev, ARB_TIMER);
+
+	return 0;
+}
+
+/* Make sure we provide the same timeout value that was configured before, and
+ * do this before the GISB timeout interrupt handler has any chance to run.
+ */
+static int brcmstb_gisb_arb_resume_noirq(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct brcmstb_gisb_arb_device *gdev = platform_get_drvdata(pdev);
+
+	gisb_write(gdev, gdev->saved_timeout, ARB_TIMER);
+
+	return 0;
+}
+#else
+#define brcmstb_gisb_arb_suspend       NULL
+#define brcmstb_gisb_arb_resume_noirq  NULL
+#endif
+
+static const struct dev_pm_ops brcmstb_gisb_arb_pm_ops = {
+	.suspend	= brcmstb_gisb_arb_suspend,
+	.resume_noirq	= brcmstb_gisb_arb_resume_noirq,
 };
 
 static struct platform_driver brcmstb_gisb_arb_driver = {
-	.probe	= brcmstb_gisb_arb_probe,
 	.driver = {
 		.name	= "brcm-gisb-arb",
-		.owner	= THIS_MODULE,
 		.of_match_table = brcmstb_gisb_arb_of_match,
+		.pm	= &brcmstb_gisb_arb_pm_ops,
 	},
 };
 
 static int __init brcm_gisb_driver_init(void)
 {
-	return platform_driver_register(&brcmstb_gisb_arb_driver);
+	return platform_driver_probe(&brcmstb_gisb_arb_driver,
+				     brcmstb_gisb_arb_probe);
 }
 
 module_init(brcm_gisb_driver_init);

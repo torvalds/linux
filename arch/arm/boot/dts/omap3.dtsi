@@ -79,7 +79,7 @@
 	 * hierarchy.
 	 */
 	ocp {
-		compatible = "simple-bus";
+		compatible = "ti,omap3-l3-smx", "simple-bus";
 		reg = <0x68000000 0x10000>;
 		interrupts = <9 10>;
 		#address-cells = <1>;
@@ -92,6 +92,8 @@
 			ti,hwmods = "aes";
 			reg = <0x480c5000 0x50>;
 			interrupts = <0>;
+			dmas = <&sdma 65 &sdma 66>;
+			dma-names = "tx", "rx";
 		};
 
 		prm: prm@48306000 {
@@ -155,8 +157,8 @@
 				     <14>,
 				     <15>;
 			#dma-cells = <1>;
-			#dma-channels = <32>;
-			#dma-requests = <96>;
+			dma-channels = <32>;
+			dma-requests = <96>;
 		};
 
 		omap3_pmx_core: pinmux@48002030 {
@@ -332,6 +334,7 @@
 			ti,hwmods = "mailbox";
 			reg = <0x48094000 0x200>;
 			interrupts = <26>;
+			#mbox-cells = <1>;
 			ti,mbox-num-users = <2>;
 			ti,mbox-num-fifos = <2>;
 			mbox_dsp: dsp {
@@ -549,6 +552,8 @@
 			ti,hwmods = "sham";
 			reg = <0x480c3000 0x64>;
 			interrupts = <49>;
+			dmas = <&sdma 69>;
+			dma-names = "rx";
 		};
 
 		smartreflex_core: smartreflex@480cb000 {

@@ -12,7 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 
-#include "bonding.h"
+#include <net/bonding.h>
 
 struct slave_attribute {
 	struct attribute attr;

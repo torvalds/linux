@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -531,7 +531,9 @@ acpi_decode_pld_buffer(u8 *in_buffer,
 	ACPI_MOVE_32_TO_32(&dword, &buffer[0]);
 	pld_info->revision = ACPI_PLD_GET_REVISION(&dword);
 	pld_info->ignore_color = ACPI_PLD_GET_IGNORE_COLOR(&dword);
-	pld_info->color = ACPI_PLD_GET_COLOR(&dword);
+	pld_info->red = ACPI_PLD_GET_RED(&dword);
+	pld_info->green = ACPI_PLD_GET_GREEN(&dword);
+	pld_info->blue = ACPI_PLD_GET_BLUE(&dword);
 
 	/* Second 32-bit DWord */
 

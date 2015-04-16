@@ -251,7 +251,8 @@ static inline void native_load_tls(struct thread_struct *t, unsigned int cpu)
 		gdt[GDT_ENTRY_TLS_MIN + i] = t->tls_array[i];
 }
 
-#define _LDT_empty(info)				\
+/* This intentionally ignores lm, since 32-bit apps don't have that field. */
+#define LDT_empty(info)					\
 	((info)->base_addr		== 0	&&	\
 	 (info)->limit			== 0	&&	\
 	 (info)->contents		== 0	&&	\
@@ -261,11 +262,18 @@ static inline void native_load_tls(struct thread_struct *t, unsigned int cpu)
 	 (info)->seg_not_present	== 1	&&	\
 	 (info)->useable		== 0)
 
-#ifdef CONFIG_X86_64
-#define LDT_empty(info) (_LDT_empty(info) && ((info)->lm == 0))
-#else
-#define LDT_empty(info) (_LDT_empty(info))
-#endif
+/* Lots of programs expect an all-zero user_desc to mean "no segment at all". */
+static inline bool LDT_zero(const struct user_desc *info)
+{
+	return (info->base_addr		== 0 &&
+		info->limit		== 0 &&
+		info->contents		== 0 &&
+		info->read_exec_only	== 0 &&
+		info->seg_32bit		== 0 &&
+		info->limit_in_pages	== 0 &&
+		info->seg_not_present	== 0 &&
+		info->useable		== 0);
+}
 
 static inline void clear_LDT(void)
 {
@@ -368,11 +376,16 @@ static inline void _set_gate(int gate, unsigned type, void *addr,
  * Pentium F0 0F bugfix can have resulted in the mapped
  * IDT being write-protected.
  */
-#define set_intr_gate(n, addr)						\
+#define set_intr_gate_notrace(n, addr)					\
 	do {								\
 		BUG_ON((unsigned)n > 0xFF);				\
 		_set_gate(n, GATE_INTERRUPT, (void *)addr, 0, 0,	\
 			  __KERNEL_CS);					\
+	} while (0)
+
+#define set_intr_gate(n, addr)						\
+	do {								\
+		set_intr_gate_notrace(n, addr);				\
 		_trace_set_gate(n, GATE_INTERRUPT, (void *)trace_##addr,\
 				0, 0, __KERNEL_CS);			\
 	} while (0)

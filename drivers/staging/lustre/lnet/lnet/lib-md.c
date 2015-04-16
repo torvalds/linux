@@ -123,7 +123,7 @@ lnet_md_build(lnet_libmd_t *lmd, lnet_md_t *umd, int unlink)
 
 		lmd->md_length = total_length;
 
-		if ((umd->options & LNET_MD_MAX_SIZE) != 0 && /* max size used */
+		if ((umd->options & LNET_MD_MAX_SIZE) != 0 && /* use max size */
 		    (umd->max_size < 0 ||
 		     umd->max_size > total_length)) /* illegal max_size */
 			return -EINVAL;
@@ -218,7 +218,7 @@ lnet_md_deconstruct(lnet_libmd_t *lmd, lnet_md_t *umd)
 	lnet_eq2handle(&umd->eq_handle, lmd->md_eq);
 }
 
-int
+static int
 lnet_md_validate(lnet_md_t *umd)
 {
 	if (umd->start == NULL && umd->length != 0) {

@@ -204,8 +204,7 @@ static struct sha1_hash_ctx *sha1_ctx_mgr_resubmit(struct sha1_ctx_mgr *mgr, str
 			continue;
 		}
 
-		if (ctx)
-			ctx->status = HASH_CTX_STS_IDLE;
+		ctx->status = HASH_CTX_STS_IDLE;
 		return ctx;
 	}
 
@@ -695,7 +694,8 @@ static struct shash_alg sha1_mb_shash_alg = {
 		 * use ASYNC flag as some buffers in multi-buffer
 		 * algo may not have completed before hashing thread sleep
 		 */
-		.cra_flags	 = CRYPTO_ALG_TYPE_SHASH | CRYPTO_ALG_ASYNC,
+		.cra_flags	 = CRYPTO_ALG_TYPE_SHASH | CRYPTO_ALG_ASYNC |
+				   CRYPTO_ALG_INTERNAL,
 		.cra_blocksize	 = SHA1_BLOCK_SIZE,
 		.cra_module	 = THIS_MODULE,
 		.cra_list	 = LIST_HEAD_INIT(sha1_mb_shash_alg.base.cra_list),
@@ -771,7 +771,9 @@ static int sha1_mb_async_init_tfm(struct crypto_tfm *tfm)
 	struct sha1_mb_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct mcryptd_hash_ctx *mctx;
 
-	mcryptd_tfm = mcryptd_alloc_ahash("__intel_sha1-mb", 0, 0);
+	mcryptd_tfm = mcryptd_alloc_ahash("__intel_sha1-mb",
+					  CRYPTO_ALG_INTERNAL,
+					  CRYPTO_ALG_INTERNAL);
 	if (IS_ERR(mcryptd_tfm))
 		return PTR_ERR(mcryptd_tfm);
 	mctx = crypto_ahash_ctx(&mcryptd_tfm->base);
@@ -829,7 +831,7 @@ static unsigned long sha1_mb_flusher(struct mcryptd_alg_cstate *cstate)
 	while (!list_empty(&cstate->work_list)) {
 		rctx = list_entry(cstate->work_list.next,
 				struct mcryptd_hash_request_ctx, waiter);
-		if time_before(cur_time, rctx->tag.expire)
+		if (time_before(cur_time, rctx->tag.expire))
 			break;
 		kernel_fpu_begin();
 		sha_ctx = (struct sha1_hash_ctx *) sha1_ctx_mgr_flush(cstate->mgr);
@@ -932,4 +934,4 @@ module_exit(sha1_mb_mod_fini);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SHA1 Secure Hash Algorithm, multi buffer accelerated");
 
-MODULE_ALIAS("sha1");
+MODULE_ALIAS_CRYPTO("sha1");

@@ -80,7 +80,6 @@ static struct platform_driver spdif_dir_driver = {
 	.remove		= spdif_dir_remove,
 	.driver		= {
 		.name	= "spdif-dir",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(spdif_dir_dt_ids),
 	},
 };

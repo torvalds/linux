@@ -30,49 +30,73 @@
 #include <linux/buffer_head.h>
 #include "udf_i.h"
 
-static void udf_pc_to_char(struct super_block *sb, unsigned char *from,
-			   int fromlen, unsigned char *to)
+static int udf_pc_to_char(struct super_block *sb, unsigned char *from,
+			  int fromlen, unsigned char *to, int tolen)
 {
 	struct pathComponent *pc;
 	int elen = 0;
+	int comp_len;
 	unsigned char *p = to;
 
+	/* Reserve one byte for terminating \0 */
+	tolen--;
 	while (elen < fromlen) {
 		pc = (struct pathComponent *)(from + elen);
+		elen += sizeof(struct pathComponent);
 		switch (pc->componentType) {
 		case 1:
 			/*
 			 * Symlink points to some place which should be agreed
  			 * upon between originator and receiver of the media. Ignore.
 			 */
-			if (pc->lengthComponentIdent > 0)
+			if (pc->lengthComponentIdent > 0) {
+				elen += pc->lengthComponentIdent;
 				break;
+			}
 			/* Fall through */
 		case 2:
+			if (tolen == 0)
+				return -ENAMETOOLONG;
 			p = to;
 			*p++ = '/';
+			tolen--;
 			break;
 		case 3:
+			if (tolen < 3)
+				return -ENAMETOOLONG;
 			memcpy(p, "../", 3);
 			p += 3;
+			tolen -= 3;
 			break;
 		case 4:
+			if (tolen < 2)
+				return -ENAMETOOLONG;
 			memcpy(p, "./", 2);
 			p += 2;
+			tolen -= 2;
 			/* that would be . - just ignore */
 			break;
 		case 5:
-			p += udf_get_filename(sb, pc->componentIdent, p,
-					      pc->lengthComponentIdent);
+			elen += pc->lengthComponentIdent;
+			if (elen > fromlen)
+				return -EIO;
+			comp_len = udf_get_filename(sb, pc->componentIdent,
+						    pc->lengthComponentIdent,
+						    p, tolen);
+			p += comp_len;
+			tolen -= comp_len;
+			if (tolen == 0)
+				return -ENAMETOOLONG;
 			*p++ = '/';
+			tolen--;
 			break;
 		}
-		elen += sizeof(struct pathComponent) + pc->lengthComponentIdent;
 	}
 	if (p > to + 1)
 		p[-1] = '\0';
 	else
 		p[0] = '\0';
+	return 0;
 }
 
 static int udf_symlink_filler(struct file *file, struct page *page)
@@ -80,10 +104,16 @@ static int udf_symlink_filler(struct file *file, struct page *page)
 	struct inode *inode = page->mapping->host;
 	struct buffer_head *bh = NULL;
 	unsigned char *symlink;
-	int err = -EIO;
+	int err;
 	unsigned char *p = kmap(page);
 	struct udf_inode_info *iinfo;
 	uint32_t pos;
+
+	/* We don't support symlinks longer than one block */
+	if (inode->i_size > inode->i_sb->s_blocksize) {
+		err = -ENAMETOOLONG;
+		goto out_unmap;
+	}
 
 	iinfo = UDF_I(inode);
 	pos = udf_block_map(inode, 0);
@@ -94,14 +124,18 @@ static int udf_symlink_filler(struct file *file, struct page *page)
 	} else {
 		bh = sb_bread(inode->i_sb, pos);
 
-		if (!bh)
-			goto out;
+		if (!bh) {
+			err = -EIO;
+			goto out_unlock_inode;
+		}
 
 		symlink = bh->b_data;
 	}
 
-	udf_pc_to_char(inode->i_sb, symlink, inode->i_size, p);
+	err = udf_pc_to_char(inode->i_sb, symlink, inode->i_size, p, PAGE_SIZE);
 	brelse(bh);
+	if (err)
+		goto out_unlock_inode;
 
 	up_read(&iinfo->i_data_sem);
 	SetPageUptodate(page);
@@ -109,9 +143,10 @@ static int udf_symlink_filler(struct file *file, struct page *page)
 	unlock_page(page);
 	return 0;
 
-out:
+out_unlock_inode:
 	up_read(&iinfo->i_data_sem);
 	SetPageError(page);
+out_unmap:
 	kunmap(page);
 	unlock_page(page);
 	return err;

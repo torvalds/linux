@@ -112,8 +112,8 @@ mISDN_sock_cmsg(struct sock *sk, struct msghdr *msg, struct sk_buff *skb)
 }
 
 static int
-mISDN_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
-		   struct msghdr *msg, size_t len, int flags)
+mISDN_sock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
+		   int flags)
 {
 	struct sk_buff		*skb;
 	struct sock		*sk = sock->sk;
@@ -163,7 +163,7 @@ mISDN_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 	memcpy(skb_push(skb, MISDN_HEADER_LEN), mISDN_HEAD_P(skb),
 	       MISDN_HEADER_LEN);
 
-	err = skb_copy_datagram_iovec(skb, 0, msg->msg_iov, copied);
+	err = skb_copy_datagram_msg(skb, 0, msg, copied);
 
 	mISDN_sock_cmsg(sk, msg, skb);
 
@@ -173,8 +173,7 @@ mISDN_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 }
 
 static int
-mISDN_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
-		   struct msghdr *msg, size_t len)
+mISDN_sock_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 {
 	struct sock		*sk = sock->sk;
 	struct sk_buff		*skb;
@@ -203,7 +202,7 @@ mISDN_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 	if (!skb)
 		goto done;
 
-	if (memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len)) {
+	if (memcpy_from_msg(skb_put(skb, len), msg, len)) {
 		err = -EFAULT;
 		goto done;
 	}

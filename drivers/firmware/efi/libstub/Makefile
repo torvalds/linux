@@ -19,8 +19,23 @@ KBUILD_CFLAGS			:= $(cflags-y) \
 				   $(call cc-option,-fno-stack-protector)
 
 GCOV_PROFILE			:= n
+KASAN_SANITIZE			:= n
 
 lib-y				:= efi-stub-helper.o
 lib-$(CONFIG_EFI_ARMSTUB)	+= arm-stub.o fdt.o
 
 CFLAGS_fdt.o			+= -I$(srctree)/scripts/dtc/libfdt/
+
+#
+# arm64 puts the stub in the kernel proper, which will unnecessarily retain all
+# code indefinitely unless it is annotated as __init/__initdata/__initconst etc.
+# So let's apply the __init annotations at the section level, by prefixing
+# the section names directly. This will ensure that even all the inline string
+# literals are covered.
+#
+extra-$(CONFIG_ARM64)		:= $(lib-y)
+lib-$(CONFIG_ARM64)		:= $(patsubst %.o,%.init.o,$(lib-y))
+
+OBJCOPYFLAGS := --prefix-alloc-sections=.init
+$(obj)/%.init.o: $(obj)/%.o FORCE
+	$(call if_changed,objcopy)

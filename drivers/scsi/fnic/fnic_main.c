@@ -95,12 +95,10 @@ static int fnic_slave_alloc(struct scsi_device *sdev)
 {
 	struct fc_rport *rport = starget_to_rport(scsi_target(sdev));
 
-	sdev->tagged_supported = 1;
-
 	if (!rport || fc_remote_port_chkready(rport))
 		return -ENXIO;
 
-	scsi_activate_tcq(sdev, fnic_max_qdepth);
+	scsi_change_queue_depth(sdev, fnic_max_qdepth);
 	return 0;
 }
 
@@ -112,8 +110,7 @@ static struct scsi_host_template fnic_host_template = {
 	.eh_device_reset_handler = fnic_device_reset,
 	.eh_host_reset_handler = fnic_host_reset,
 	.slave_alloc = fnic_slave_alloc,
-	.change_queue_depth = fc_change_queue_depth,
-	.change_queue_type = fc_change_queue_type,
+	.change_queue_depth = scsi_change_queue_depth,
 	.this_id = -1,
 	.cmd_per_lun = 3,
 	.can_queue = FNIC_DFLT_IO_REQ,
@@ -121,6 +118,8 @@ static struct scsi_host_template fnic_host_template = {
 	.sg_tablesize = FNIC_MAX_SG_DESC_CNT,
 	.max_sectors = 0xffff,
 	.shost_attrs = fnic_attrs,
+	.use_blk_tags = 1,
+	.track_queue_depth = 1,
 };
 
 static void
@@ -438,21 +437,30 @@ static int fnic_dev_wait(struct vnic_dev *vdev,
 	unsigned long time;
 	int done;
 	int err;
+	int count;
+
+	count = 0;
 
 	err = start(vdev, arg);
 	if (err)
 		return err;
 
-	/* Wait for func to complete...2 seconds max */
+	/* Wait for func to complete.
+	* Sometime schedule_timeout_uninterruptible take long time
+	* to wake up so we do not retry as we are only waiting for
+	* 2 seconds in while loop. By adding count, we make sure
+	* we try atleast three times before returning -ETIMEDOUT
+	*/
 	time = jiffies + (HZ * 2);
 	do {
 		err = finished(vdev, &done);
+		count++;
 		if (err)
 			return err;
 		if (done)
 			return 0;
 		schedule_timeout_uninterruptible(HZ / 10);
-	} while (time_after(time, jiffies));
+	} while (time_after(time, jiffies) || (count < 3));
 
 	return -ETIMEDOUT;
 }

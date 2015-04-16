@@ -1881,7 +1881,6 @@ MODULE_DEVICE_TABLE(of, fsl_diu_match);
 static struct platform_driver fsl_diu_driver = {
 	.driver = {
 		.name = "fsl-diu-fb",
-		.owner = THIS_MODULE,
 		.of_match_table = fsl_diu_match,
 	},
 	.probe  	= fsl_diu_probe,

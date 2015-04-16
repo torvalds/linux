@@ -247,6 +247,25 @@ struct vio_net_desc {
 	struct ldc_trans_cookie	cookies[0];
 };
 
+struct vio_net_dext {
+	u8		flags;
+#define VNET_PKT_HASH			0x01
+#define	VNET_PKT_HCK_IPV4_HDRCKSUM	0x02
+#define	VNET_PKT_HCK_FULLCKSUM		0x04
+#define	VNET_PKT_IPV4_LSO		0x08
+#define	VNET_PKT_HCK_IPV4_HDRCKSUM_OK	0x10
+#define	VNET_PKT_HCK_FULLCKSUM_OK	0x20
+
+	u8		vnet_hashval;
+	u16		ipv4_lso_mss;
+	u32		resv3;
+};
+
+static inline struct vio_net_dext *vio_net_ext(struct vio_net_desc *desc)
+{
+	return (struct vio_net_dext *)&desc->cookies[2];
+}
+
 #define VIO_MAX_RING_COOKIES	24
 
 struct vio_dring_state {
@@ -279,6 +298,21 @@ static inline u32 vio_dring_avail(struct vio_dring_state *dr,
 {
 	return (dr->pending -
 		((dr->prod - dr->cons) & (ring_size - 1)) - 1);
+}
+
+static inline u32 vio_dring_next(struct vio_dring_state *dr, u32 index)
+{
+	if (++index == dr->num_entries)
+		index = 0;
+	return index;
+}
+
+static inline u32 vio_dring_prev(struct vio_dring_state *dr, u32 index)
+{
+	if (index == 0)
+		return dr->num_entries - 1;
+	else
+		return index - 1;
 }
 
 #define VIO_MAX_TYPE_LEN	32

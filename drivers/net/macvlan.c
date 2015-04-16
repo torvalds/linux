@@ -272,7 +272,7 @@ static void macvlan_process_broadcast(struct work_struct *w)
 	struct sk_buff *skb;
 	struct sk_buff_head list;
 
-	skb_queue_head_init(&list);
+	__skb_queue_head_init(&list);
 
 	spin_lock_bh(&port->bc_queue.lock);
 	skb_queue_splice_tail_init(&port->bc_queue, &list);
@@ -550,7 +550,6 @@ static int macvlan_hard_header(struct sk_buff *skb, struct net_device *dev,
 
 static const struct header_ops macvlan_hard_header_ops = {
 	.create  	= macvlan_hard_header,
-	.rebuild	= eth_rebuild_header,
 	.parse		= eth_header_parse,
 	.cache		= eth_header_cache,
 	.cache_update	= eth_header_cache_update,
@@ -742,11 +741,12 @@ static struct lock_class_key macvlan_netdev_xmit_lock_key;
 static struct lock_class_key macvlan_netdev_addr_lock_key;
 
 #define ALWAYS_ON_FEATURES \
-	(NETIF_F_SG | NETIF_F_GEN_CSUM | NETIF_F_GSO_SOFTWARE | NETIF_F_LLTX)
+	(NETIF_F_SG | NETIF_F_GEN_CSUM | NETIF_F_GSO_SOFTWARE | NETIF_F_LLTX | \
+	 NETIF_F_GSO_ROBUST)
 
 #define MACVLAN_FEATURES \
 	(NETIF_F_SG | NETIF_F_ALL_CSUM | NETIF_F_HIGHDMA | NETIF_F_FRAGLIST | \
-	 NETIF_F_GSO | NETIF_F_TSO | NETIF_F_UFO | NETIF_F_GSO_ROBUST | \
+	 NETIF_F_GSO | NETIF_F_TSO | NETIF_F_UFO | NETIF_F_LRO | \
 	 NETIF_F_TSO_ECN | NETIF_F_TSO6 | NETIF_F_GRO | NETIF_F_RXCSUM | \
 	 NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_HW_VLAN_STAG_FILTER)
 
@@ -783,9 +783,9 @@ static int macvlan_init(struct net_device *dev)
 				  (lowerdev->state & MACVLAN_STATE_MASK);
 	dev->features 		= lowerdev->features & MACVLAN_FEATURES;
 	dev->features		|= ALWAYS_ON_FEATURES;
+	dev->hw_features	|= NETIF_F_LRO;
 	dev->vlan_features	= lowerdev->vlan_features & MACVLAN_FEATURES;
 	dev->gso_max_size	= lowerdev->gso_max_size;
-	dev->iflink		= lowerdev->ifindex;
 	dev->hard_header_len	= lowerdev->hard_header_len;
 
 	macvlan_set_lockdep_class(dev);
@@ -872,7 +872,7 @@ static int macvlan_vlan_rx_kill_vid(struct net_device *dev,
 
 static int macvlan_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 			   struct net_device *dev,
-			   const unsigned char *addr,
+			   const unsigned char *addr, u16 vid,
 			   u16 flags)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
@@ -897,7 +897,7 @@ static int macvlan_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 
 static int macvlan_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 			   struct net_device *dev,
-			   const unsigned char *addr)
+			   const unsigned char *addr, u16 vid)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
 	int err = -EINVAL;
@@ -935,15 +935,15 @@ static netdev_features_t macvlan_fix_features(struct net_device *dev,
 					      netdev_features_t features)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
+	netdev_features_t lowerdev_features = vlan->lowerdev->features;
 	netdev_features_t mask;
 
 	features |= NETIF_F_ALL_FOR_ALL;
 	features &= (vlan->set_features | ~MACVLAN_FEATURES);
 	mask = features;
 
-	features = netdev_increment_features(vlan->lowerdev->features,
-					     features,
-					     mask);
+	lowerdev_features &= (features | ~NETIF_F_LRO);
+	features = netdev_increment_features(lowerdev_features, features, mask);
 	features |= ALWAYS_ON_FEATURES;
 	features &= ~NETIF_F_NETNS_LOCAL;
 
@@ -994,6 +994,13 @@ static void macvlan_dev_netpoll_cleanup(struct net_device *dev)
 }
 #endif	/* CONFIG_NET_POLL_CONTROLLER */
 
+static int macvlan_dev_get_iflink(const struct net_device *dev)
+{
+	struct macvlan_dev *vlan = netdev_priv(dev);
+
+	return vlan->lowerdev->ifindex;
+}
+
 static const struct ethtool_ops macvlan_ethtool_ops = {
 	.get_link		= ethtool_op_get_link,
 	.get_settings		= macvlan_ethtool_get_settings,
@@ -1024,6 +1031,7 @@ static const struct net_device_ops macvlan_netdev_ops = {
 	.ndo_netpoll_setup	= macvlan_dev_netpoll_setup,
 	.ndo_netpoll_cleanup	= macvlan_dev_netpoll_cleanup,
 #endif
+	.ndo_get_iflink		= macvlan_dev_get_iflink,
 };
 
 void macvlan_common_setup(struct net_device *dev)
@@ -1055,6 +1063,9 @@ static int macvlan_port_create(struct net_device *dev)
 	if (dev->type != ARPHRD_ETHER || dev->flags & IFF_LOOPBACK)
 		return -EINVAL;
 
+	if (netif_is_ipvlan_port(dev))
+		return -EBUSY;
+
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
 	if (port == NULL)
 		return -ENOMEM;
@@ -1082,9 +1093,15 @@ static void macvlan_port_destroy(struct net_device *dev)
 {
 	struct macvlan_port *port = macvlan_port_get_rtnl(dev);
 
-	cancel_work_sync(&port->bc_work);
 	dev->priv_flags &= ~IFF_MACVLAN_PORT;
 	netdev_rx_handler_unregister(dev);
+
+	/* After this point, no packet can schedule bc_work anymore,
+	 * but we need to cancel it and purge left skbs if any.
+	 */
+	cancel_work_sync(&port->bc_work);
+	__skb_queue_purge(&port->bc_queue);
+
 	kfree_rcu(port, rcu);
 }
 
@@ -1460,11 +1477,17 @@ int macvlan_link_register(struct rtnl_link_ops *ops)
 };
 EXPORT_SYMBOL_GPL(macvlan_link_register);
 
+static struct net *macvlan_get_link_net(const struct net_device *dev)
+{
+	return dev_net(macvlan_dev_real_dev(dev));
+}
+
 static struct rtnl_link_ops macvlan_link_ops = {
 	.kind		= "macvlan",
 	.setup		= macvlan_setup,
 	.newlink	= macvlan_newlink,
 	.dellink	= macvlan_dellink,
+	.get_link_net	= macvlan_get_link_net,
 };
 
 static int macvlan_device_event(struct notifier_block *unused,

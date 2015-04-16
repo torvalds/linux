@@ -34,6 +34,7 @@
 #include <linux/module.h>
 #include <drm/drmP.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_displayid.h>
 
 #define version_greater(edid, maj, min) \
 	(((edid)->version > (maj)) || \
@@ -1014,6 +1015,27 @@ module_param_named(edid_fixup, edid_fixup, int, 0400);
 MODULE_PARM_DESC(edid_fixup,
 		 "Minimum number of valid EDID header bytes (0-8, default 6)");
 
+static void drm_get_displayid(struct drm_connector *connector,
+			      struct edid *edid);
+
+static int drm_edid_block_checksum(const u8 *raw_edid)
+{
+	int i;
+	u8 csum = 0;
+	for (i = 0; i < EDID_LENGTH; i++)
+		csum += raw_edid[i];
+
+	return csum;
+}
+
+static bool drm_edid_is_zero(const u8 *in_edid, int length)
+{
+	if (memchr_inv(in_edid, 0, length))
+		return false;
+
+	return true;
+}
+
 /**
  * drm_edid_block_valid - Sanity check the EDID block (base or extension)
  * @raw_edid: pointer to raw EDID block
@@ -1027,8 +1049,7 @@ MODULE_PARM_DESC(edid_fixup,
  */
 bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid)
 {
-	int i;
-	u8 csum = 0;
+	u8 csum;
 	struct edid *edid = (struct edid *)raw_edid;
 
 	if (WARN_ON(!raw_edid))
@@ -1048,8 +1069,7 @@ bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid)
 		}
 	}
 
-	for (i = 0; i < EDID_LENGTH; i++)
-		csum += raw_edid[i];
+	csum = drm_edid_block_checksum(raw_edid);
 	if (csum) {
 		if (print_bad_edid) {
 			DRM_ERROR("EDID checksum is invalid, remainder is %d\n", csum);
@@ -1080,9 +1100,13 @@ bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid)
 
 bad:
 	if (print_bad_edid) {
-		printk(KERN_ERR "Raw EDID:\n");
-		print_hex_dump(KERN_ERR, " \t", DUMP_PREFIX_NONE, 16, 1,
+		if (drm_edid_is_zero(raw_edid, EDID_LENGTH)) {
+			printk(KERN_ERR "EDID block is all zeroes\n");
+		} else {
+			printk(KERN_ERR "Raw EDID:\n");
+			print_hex_dump(KERN_ERR, " \t", DUMP_PREFIX_NONE, 16, 1,
 			       raw_edid, EDID_LENGTH, false);
+		}
 	}
 	return false;
 }
@@ -1115,7 +1139,7 @@ EXPORT_SYMBOL(drm_edid_is_valid);
 #define DDC_SEGMENT_ADDR 0x30
 /**
  * drm_do_probe_ddc_edid() - get EDID information via I2C
- * @adapter: I2C device adaptor
+ * @data: I2C device adapter
  * @buf: EDID data buffer to be filled
  * @block: 128 byte EDID block to start fetching from
  * @len: EDID data buffer length to fetch
@@ -1125,9 +1149,9 @@ EXPORT_SYMBOL(drm_edid_is_valid);
  * Return: 0 on success or -1 on failure.
  */
 static int
-drm_do_probe_ddc_edid(struct i2c_adapter *adapter, unsigned char *buf,
-		      int block, int len)
+drm_do_probe_ddc_edid(void *data, u8 *buf, unsigned int block, size_t len)
 {
+	struct i2c_adapter *adapter = data;
 	unsigned char start = block * EDID_LENGTH;
 	unsigned char segment = block >> 1;
 	unsigned char xfers = segment ? 3 : 2;
@@ -1176,16 +1200,26 @@ drm_do_probe_ddc_edid(struct i2c_adapter *adapter, unsigned char *buf,
 	return ret == xfers ? 0 : -1;
 }
 
-static bool drm_edid_is_zero(u8 *in_edid, int length)
-{
-	if (memchr_inv(in_edid, 0, length))
-		return false;
-
-	return true;
-}
-
-static u8 *
-drm_do_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
+/**
+ * drm_do_get_edid - get EDID data using a custom EDID block read function
+ * @connector: connector we're probing
+ * @get_edid_block: EDID block read function
+ * @data: private data passed to the block read function
+ *
+ * When the I2C adapter connected to the DDC bus is hidden behind a device that
+ * exposes a different interface to read EDID blocks this function can be used
+ * to get EDID data using a custom block read function.
+ *
+ * As in the general case the DDC bus is accessible by the kernel at the I2C
+ * level, drivers must make all reasonable efforts to expose it as an I2C
+ * adapter and use drm_get_edid() instead of abusing this function.
+ *
+ * Return: Pointer to valid EDID or NULL if we couldn't find any.
+ */
+struct edid *drm_do_get_edid(struct drm_connector *connector,
+	int (*get_edid_block)(void *data, u8 *buf, unsigned int block,
+			      size_t len),
+	void *data)
 {
 	int i, j = 0, valid_extensions = 0;
 	u8 *block, *new;
@@ -1196,7 +1230,7 @@ drm_do_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
 
 	/* base block fetch */
 	for (i = 0; i < 4; i++) {
-		if (drm_do_probe_ddc_edid(adapter, block, 0, EDID_LENGTH))
+		if (get_edid_block(data, block, 0, EDID_LENGTH))
 			goto out;
 		if (drm_edid_block_valid(block, 0, print_bad_edid))
 			break;
@@ -1210,7 +1244,7 @@ drm_do_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
 
 	/* if there's no extensions, we're done */
 	if (block[0x7e] == 0)
-		return block;
+		return (struct edid *)block;
 
 	new = krealloc(block, (block[0x7e] + 1) * EDID_LENGTH, GFP_KERNEL);
 	if (!new)
@@ -1219,7 +1253,7 @@ drm_do_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
 
 	for (j = 1; j <= block[0x7e]; j++) {
 		for (i = 0; i < 4; i++) {
-			if (drm_do_probe_ddc_edid(adapter,
+			if (get_edid_block(data,
 				  block + (valid_extensions + 1) * EDID_LENGTH,
 				  j, EDID_LENGTH))
 				goto out;
@@ -1247,7 +1281,7 @@ drm_do_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
 		block = new;
 	}
 
-	return block;
+	return (struct edid *)block;
 
 carp:
 	if (print_bad_edid) {
@@ -1260,6 +1294,7 @@ out:
 	kfree(block);
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(drm_do_get_edid);
 
 /**
  * drm_probe_ddc() - probe DDC presence
@@ -1289,11 +1324,14 @@ EXPORT_SYMBOL(drm_probe_ddc);
 struct edid *drm_get_edid(struct drm_connector *connector,
 			  struct i2c_adapter *adapter)
 {
-	struct edid *edid = NULL;
+	struct edid *edid;
 
-	if (drm_probe_ddc(adapter))
-		edid = (struct edid *)drm_do_get_edid(connector, adapter);
+	if (!drm_probe_ddc(adapter))
+		return NULL;
 
+	edid = drm_do_get_edid(connector, drm_do_probe_ddc_edid, adapter);
+	if (edid)
+		drm_get_displayid(connector, edid);
 	return edid;
 }
 EXPORT_SYMBOL(drm_get_edid);
@@ -2389,7 +2427,7 @@ add_detailed_modes(struct drm_connector *connector, struct edid *edid,
 /*
  * Search EDID for CEA extension block.
  */
-static u8 *drm_find_cea_extension(struct edid *edid)
+static u8 *drm_find_edid_extension(struct edid *edid, int ext_id)
 {
 	u8 *edid_ext = NULL;
 	int i;
@@ -2401,7 +2439,7 @@ static u8 *drm_find_cea_extension(struct edid *edid)
 	/* Find CEA extension */
 	for (i = 0; i < edid->extensions; i++) {
 		edid_ext = (u8 *)edid + EDID_LENGTH * (i + 1);
-		if (edid_ext[0] == CEA_EXT)
+		if (edid_ext[0] == ext_id)
 			break;
 	}
 
@@ -2409,6 +2447,16 @@ static u8 *drm_find_cea_extension(struct edid *edid)
 		return NULL;
 
 	return edid_ext;
+}
+
+static u8 *drm_find_cea_extension(struct edid *edid)
+{
+	return drm_find_edid_extension(edid, CEA_EXT);
+}
+
+static u8 *drm_find_displayid_extension(struct edid *edid)
+{
+	return drm_find_edid_extension(edid, DISPLAYID_EXT);
 }
 
 /*
@@ -3128,9 +3176,12 @@ void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 		}
 	}
 	eld[5] |= sad_count << 4;
-	eld[2] = (20 + mnl + sad_count * 3 + 3) / 4;
 
-	DRM_DEBUG_KMS("ELD size %d, SAD count %d\n", (int)eld[2], sad_count);
+	eld[DRM_ELD_BASELINE_ELD_LEN] =
+		DIV_ROUND_UP(drm_eld_calc_baseline_block_size(eld), 4);
+
+	DRM_DEBUG_KMS("ELD size %d, SAD count %d\n",
+		      drm_eld_size(eld), sad_count);
 }
 EXPORT_SYMBOL(drm_edid_to_eld);
 
@@ -3868,3 +3919,123 @@ drm_hdmi_vendor_infoframe_from_display_mode(struct hdmi_vendor_infoframe *frame,
 	return 0;
 }
 EXPORT_SYMBOL(drm_hdmi_vendor_infoframe_from_display_mode);
+
+static int drm_parse_display_id(struct drm_connector *connector,
+				u8 *displayid, int length,
+				bool is_edid_extension)
+{
+	/* if this is an EDID extension the first byte will be 0x70 */
+	int idx = 0;
+	struct displayid_hdr *base;
+	struct displayid_block *block;
+	u8 csum = 0;
+	int i;
+
+	if (is_edid_extension)
+		idx = 1;
+
+	base = (struct displayid_hdr *)&displayid[idx];
+
+	DRM_DEBUG_KMS("base revision 0x%x, length %d, %d %d\n",
+		      base->rev, base->bytes, base->prod_id, base->ext_count);
+
+	if (base->bytes + 5 > length - idx)
+		return -EINVAL;
+
+	for (i = idx; i <= base->bytes + 5; i++) {
+		csum += displayid[i];
+	}
+	if (csum) {
+		DRM_ERROR("DisplayID checksum invalid, remainder is %d\n", csum);
+		return -EINVAL;
+	}
+
+	block = (struct displayid_block *)&displayid[idx + 4];
+	DRM_DEBUG_KMS("block id %d, rev %d, len %d\n",
+		      block->tag, block->rev, block->num_bytes);
+
+	switch (block->tag) {
+	case DATA_BLOCK_TILED_DISPLAY: {
+		struct displayid_tiled_block *tile = (struct displayid_tiled_block *)block;
+
+		u16 w, h;
+		u8 tile_v_loc, tile_h_loc;
+		u8 num_v_tile, num_h_tile;
+		struct drm_tile_group *tg;
+
+		w = tile->tile_size[0] | tile->tile_size[1] << 8;
+		h = tile->tile_size[2] | tile->tile_size[3] << 8;
+
+		num_v_tile = (tile->topo[0] & 0xf) | (tile->topo[2] & 0x30);
+		num_h_tile = (tile->topo[0] >> 4) | ((tile->topo[2] >> 2) & 0x30);
+		tile_v_loc = (tile->topo[1] & 0xf) | ((tile->topo[2] & 0x3) << 4);
+		tile_h_loc = (tile->topo[1] >> 4) | (((tile->topo[2] >> 2) & 0x3) << 4);
+
+		connector->has_tile = true;
+		if (tile->tile_cap & 0x80)
+			connector->tile_is_single_monitor = true;
+
+		connector->num_h_tile = num_h_tile + 1;
+		connector->num_v_tile = num_v_tile + 1;
+		connector->tile_h_loc = tile_h_loc;
+		connector->tile_v_loc = tile_v_loc;
+		connector->tile_h_size = w + 1;
+		connector->tile_v_size = h + 1;
+
+		DRM_DEBUG_KMS("tile cap 0x%x\n", tile->tile_cap);
+		DRM_DEBUG_KMS("tile_size %d x %d\n", w + 1, h + 1);
+		DRM_DEBUG_KMS("topo num tiles %dx%d, location %dx%d\n",
+		       num_h_tile + 1, num_v_tile + 1, tile_h_loc, tile_v_loc);
+		DRM_DEBUG_KMS("vend %c%c%c\n", tile->topology_id[0], tile->topology_id[1], tile->topology_id[2]);
+
+		tg = drm_mode_get_tile_group(connector->dev, tile->topology_id);
+		if (!tg) {
+			tg = drm_mode_create_tile_group(connector->dev, tile->topology_id);
+		}
+		if (!tg)
+			return -ENOMEM;
+
+		if (connector->tile_group != tg) {
+			/* if we haven't got a pointer,
+			   take the reference, drop ref to old tile group */
+			if (connector->tile_group) {
+				drm_mode_put_tile_group(connector->dev, connector->tile_group);
+			}
+			connector->tile_group = tg;
+		} else
+			/* if same tile group, then release the ref we just took. */
+			drm_mode_put_tile_group(connector->dev, tg);
+	}
+		break;
+	default:
+		printk("unknown displayid tag %d\n", block->tag);
+		break;
+	}
+	return 0;
+}
+
+static void drm_get_displayid(struct drm_connector *connector,
+			      struct edid *edid)
+{
+	void *displayid = NULL;
+	int ret;
+	connector->has_tile = false;
+	displayid = drm_find_displayid_extension(edid);
+	if (!displayid) {
+		/* drop reference to any tile group we had */
+		goto out_drop_ref;
+	}
+
+	ret = drm_parse_display_id(connector, displayid, EDID_LENGTH, true);
+	if (ret < 0)
+		goto out_drop_ref;
+	if (!connector->has_tile)
+		goto out_drop_ref;
+	return;
+out_drop_ref:
+	if (connector->tile_group) {
+		drm_mode_put_tile_group(connector->dev, connector->tile_group);
+		connector->tile_group = NULL;
+	}
+	return;
+}

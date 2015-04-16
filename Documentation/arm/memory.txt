@@ -41,7 +41,7 @@ fffe8000	fffeffff	DTCM mapping area for platforms with
 fffe0000	fffe7fff	ITCM mapping area for platforms with
 				ITCM mounted inside the CPU.
 
-ffc00000	ffdfffff	Fixmap mapping region.  Addresses provided
+ffc00000	ffefffff	Fixmap mapping region.  Addresses provided
 				by fix_to_virt() will be located here.
 
 fee00000	feffffff	Mapping of PCI I/O space. This is a static

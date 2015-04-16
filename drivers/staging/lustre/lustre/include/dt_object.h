@@ -617,7 +617,7 @@ struct dt_index_operations {
 		int	   (*load)(const struct lu_env *env,
 				      const struct dt_it *di, __u64 hash);
 		int	(*key_rec)(const struct lu_env *env,
-				      const struct dt_it *di, void* key_rec);
+				      const struct dt_it *di, void *key_rec);
 	} dio_it;
 };
 
@@ -667,7 +667,7 @@ static inline int lu_device_is_dt(const struct lu_device *d)
 	return ergo(d != NULL, d->ld_type->ldt_tags & LU_DEVICE_DT);
 }
 
-static inline struct dt_device * lu2dt_dev(struct lu_device *l)
+static inline struct dt_device *lu2dt_dev(struct lu_device *l)
 {
 	LASSERT(lu_device_is_dt(l));
 	return container_of0(l, struct dt_device, dd_lu_dev);

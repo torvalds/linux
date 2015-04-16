@@ -206,7 +206,6 @@ static int __exit mxc_rnga_remove(struct platform_device *pdev)
 static struct platform_driver mxc_rnga_driver = {
 	.driver = {
 		   .name = "mxc_rnga",
-		   .owner = THIS_MODULE,
 		   },
 	.remove = __exit_p(mxc_rnga_remove),
 };

@@ -191,7 +191,6 @@ struct lpc32xx_udc {
 	bool			enabled;
 	bool			clocked;
 	bool			suspended;
-	bool			selfpowered;
 	int                     ep0state;
 	atomic_t                enabled_ep_cnt;
 	wait_queue_head_t       ep_disable_wait_queue;
@@ -547,7 +546,7 @@ static int proc_udc_show(struct seq_file *s, void *unused)
 		   udc->vbus ? "present" : "off",
 		   udc->enabled ? (udc->vbus ? "active" : "enabled") :
 		   "disabled",
-		   udc->selfpowered ? "self" : "VBUS",
+		   udc->gadget.is_selfpowered ? "self" : "VBUS",
 		   udc->suspended ? ", suspended" : "",
 		   udc->driver ? udc->driver->driver.name : "(none)");
 
@@ -582,8 +581,7 @@ static void create_debug_file(struct lpc32xx_udc *udc)
 
 static void remove_debug_file(struct lpc32xx_udc *udc)
 {
-	if (udc->pde)
-		debugfs_remove(udc->pde);
+	debugfs_remove(udc->pde);
 }
 
 #else
@@ -1805,23 +1803,14 @@ static int lpc32xx_ep_queue(struct usb_ep *_ep,
 	req = container_of(_req, struct lpc32xx_request, req);
 	ep = container_of(_ep, struct lpc32xx_ep, ep);
 
-	if (!_req || !_req->complete || !_req->buf ||
+	if (!_ep || !_req || !_req->complete || !_req->buf ||
 	    !list_empty(&req->queue))
 		return -EINVAL;
 
 	udc = ep->udc;
 
-	if (!_ep) {
-		dev_dbg(udc->dev, "invalid ep\n");
-		return -EINVAL;
-	}
-
-
-	if ((!udc) || (!udc->driver) ||
-	    (udc->gadget.speed == USB_SPEED_UNKNOWN)) {
-		dev_dbg(udc->dev, "invalid device\n");
-		return -EINVAL;
-	}
+	if (udc->gadget.speed == USB_SPEED_UNKNOWN)
+		return -EPIPE;
 
 	if (ep->lep) {
 		struct lpc32xx_usbd_dd_gad *dd;
@@ -2213,7 +2202,7 @@ static int udc_get_status(struct lpc32xx_udc *udc, u16 reqtype, u16 wIndex)
 		break; /* Not supported */
 
 	case USB_RECIP_DEVICE:
-		ep0buff = (udc->selfpowered << USB_DEVICE_SELF_POWERED);
+		ep0buff = udc->gadget.is_selfpowered;
 		if (udc->dev_status & (1 << USB_DEVICE_REMOTE_WAKEUP))
 			ep0buff |= (1 << USB_DEVICE_REMOTE_WAKEUP);
 		break;
@@ -2499,10 +2488,7 @@ static int lpc32xx_wakeup(struct usb_gadget *gadget)
 
 static int lpc32xx_set_selfpowered(struct usb_gadget *gadget, int is_on)
 {
-	struct lpc32xx_udc *udc = to_udc(gadget);
-
-	/* Always self-powered */
-	udc->selfpowered = (is_on != 0);
+	gadget->is_selfpowered = (is_on != 0);
 
 	return 0;
 }
@@ -2559,7 +2545,7 @@ static int lpc32xx_pullup(struct usb_gadget *gadget, int is_on)
 }
 
 static int lpc32xx_start(struct usb_gadget *, struct usb_gadget_driver *);
-static int lpc32xx_stop(struct usb_gadget *, struct usb_gadget_driver *);
+static int lpc32xx_stop(struct usb_gadget *);
 
 static const struct usb_gadget_ops lpc32xx_udc_ops = {
 	.get_frame		= lpc32xx_get_frame,
@@ -2947,7 +2933,7 @@ static int lpc32xx_start(struct usb_gadget *gadget,
 	udc->driver = driver;
 	udc->gadget.dev.of_node = udc->dev->of_node;
 	udc->enabled = 1;
-	udc->selfpowered = 1;
+	udc->gadget.is_selfpowered = 1;
 	udc->vbus = 0;
 
 	/* Force VBUS process once to check for cable insertion */
@@ -2961,14 +2947,10 @@ static int lpc32xx_start(struct usb_gadget *gadget,
 	return 0;
 }
 
-static int lpc32xx_stop(struct usb_gadget *gadget,
-			struct usb_gadget_driver *driver)
+static int lpc32xx_stop(struct usb_gadget *gadget)
 {
 	int i;
 	struct lpc32xx_udc *udc = to_udc(gadget);
-
-	if (!driver || driver != udc->driver)
-		return -EINVAL;
 
 	for (i = IRQ_USB_LP; i <= IRQ_USB_ATX; i++)
 		disable_irq(udc->udp_irq[i]);
@@ -3410,7 +3392,6 @@ static struct platform_driver lpc32xx_udc_driver = {
 	.resume		= lpc32xx_udc_resume,
 	.driver		= {
 		.name	= (char *) driver_name,
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(lpc32xx_udc_of_match),
 	},
 };

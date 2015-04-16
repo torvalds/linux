@@ -30,6 +30,8 @@
 #define AFFS_AC_SIZE		(AFFS_CACHE_SIZE/sizeof(struct affs_ext_key)/2)
 #define AFFS_AC_MASK		(AFFS_AC_SIZE-1)
 
+#define AFFSNAMEMAX 30U
+
 struct affs_ext_key {
 	u32	ext;				/* idx of the extended block */
 	u32	key;				/* block number */
@@ -135,8 +137,10 @@ extern void	affs_fix_checksum(struct super_block *sb, struct buffer_head *bh);
 extern void	secs_to_datestamp(time_t secs, struct affs_date *ds);
 extern umode_t	prot_to_mode(u32 prot);
 extern void	mode_to_prot(struct inode *inode);
+__printf(3, 4)
 extern void	affs_error(struct super_block *sb, const char *function,
 			   const char *fmt, ...);
+__printf(3, 4)
 extern void	affs_warning(struct super_block *sb, const char *function,
 			     const char *fmt, ...);
 extern bool	affs_nofilenametruncate(const struct dentry *dentry);

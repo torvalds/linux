@@ -144,6 +144,11 @@ static bool e1000_clean_rx_irq(struct e1000_adapter *adapter,
 static bool e1000_clean_jumbo_rx_irq(struct e1000_adapter *adapter,
 				     struct e1000_rx_ring *rx_ring,
 				     int *work_done, int work_to_do);
+static void e1000_alloc_dummy_rx_buffers(struct e1000_adapter *adapter,
+					 struct e1000_rx_ring *rx_ring,
+					 int cleaned_count)
+{
+}
 static void e1000_alloc_rx_buffers(struct e1000_adapter *adapter,
 				   struct e1000_rx_ring *rx_ring,
 				   int cleaned_count);
@@ -516,6 +521,7 @@ void e1000_down(struct e1000_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 	u32 rctl, tctl;
 
+	netif_carrier_off(netdev);
 
 	/* disable receives in the hardware */
 	rctl = er32(RCTL);
@@ -544,7 +550,6 @@ void e1000_down(struct e1000_adapter *adapter)
 
 	adapter->link_speed = 0;
 	adapter->link_duplex = 0;
-	netif_carrier_off(netdev);
 
 	e1000_reset(adapter);
 	e1000_clean_all_tx_rings(adapter);
@@ -1075,7 +1080,10 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 				  NETIF_F_HW_CSUM |
 				  NETIF_F_SG);
 
-	netdev->priv_flags |= IFF_UNICAST_FLT;
+	/* Do not set IFF_UNICAST_FLT for VMWare's 82545EM */
+	if (hw->device_id != E1000_DEV_ID_82545EM_COPPER ||
+	    hw->subsystem_vendor_id != PCI_VENDOR_ID_VMWARE)
+		netdev->priv_flags |= IFF_UNICAST_FLT;
 
 	adapter->en_mng_pt = e1000_enable_mng_pass_thru(hw);
 
@@ -1108,7 +1116,7 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		if (e1000_read_mac_addr(hw))
 			e_err(probe, "EEPROM Read Error\n");
 	}
-	/* don't block initalization here due to bad MAC address */
+	/* don't block initialization here due to bad MAC address */
 	memcpy(netdev->dev_addr, hw->mac_addr, netdev->addr_len);
 
 	if (!is_valid_ether_addr(netdev->dev_addr))
@@ -2974,7 +2982,6 @@ static void e1000_tx_queue(struct e1000_adapter *adapter,
 			   struct e1000_tx_ring *tx_ring, int tx_flags,
 			   int count)
 {
-	struct e1000_hw *hw = &adapter->hw;
 	struct e1000_tx_desc *tx_desc = NULL;
 	struct e1000_tx_buffer *buffer_info;
 	u32 txd_upper = 0, txd_lower = E1000_TXD_CMD_IFCS;
@@ -3028,11 +3035,6 @@ static void e1000_tx_queue(struct e1000_adapter *adapter,
 	wmb();
 
 	tx_ring->next_to_use = i;
-	writel(i, hw->hw_addr + tx_ring->tdt);
-	/* we need this if more than one processor can write to our tail
-	 * at a time, it synchronizes IO on IA64/Altix systems
-	 */
-	mmiowb();
 }
 
 /* 82547 workaround to avoid controller hang in half-duplex environment.
@@ -3133,12 +3135,8 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 	 * packets may get corrupted during padding by HW.
 	 * To WA this issue, pad all small packets manually.
 	 */
-	if (skb->len < ETH_ZLEN) {
-		if (skb_pad(skb, ETH_ZLEN - skb->len))
-			return NETDEV_TX_OK;
-		skb->len = ETH_ZLEN;
-		skb_set_tail_pointer(skb, ETH_ZLEN);
-	}
+	if (eth_skb_pad(skb))
+		return NETDEV_TX_OK;
 
 	mss = skb_shinfo(skb)->gso_size;
 	/* The controller does a simple calculation to
@@ -3227,9 +3225,10 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 		return NETDEV_TX_BUSY;
 	}
 
-	if (vlan_tx_tag_present(skb)) {
+	if (skb_vlan_tag_present(skb)) {
 		tx_flags |= E1000_TX_FLAGS_VLAN;
-		tx_flags |= (vlan_tx_tag_get(skb) << E1000_TX_FLAGS_VLAN_SHIFT);
+		tx_flags |= (skb_vlan_tag_get(skb) <<
+			     E1000_TX_FLAGS_VLAN_SHIFT);
 	}
 
 	first = tx_ring->next_to_use;
@@ -3264,6 +3263,15 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 		/* Make sure there is space in the ring for the next send. */
 		e1000_maybe_stop_tx(netdev, tx_ring, MAX_SKB_FRAGS + 2);
 
+		if (!skb->xmit_more ||
+		    netif_xmit_stopped(netdev_get_tx_queue(netdev, 0))) {
+			writel(tx_ring->next_to_use, hw->hw_addr + tx_ring->tdt);
+			/* we need this if more than one processor can write to
+			 * our tail at a time, it synchronizes IO on IA64/Altix
+			 * systems
+			 */
+			mmiowb();
+		}
 	} else {
 		dev_kfree_skb_any(skb);
 		tx_ring->buffer_info[first].time_stamp = 0;
@@ -3549,8 +3557,11 @@ static int e1000_change_mtu(struct net_device *netdev, int new_mtu)
 		msleep(1);
 	/* e1000_down has a dependency on max_frame_size */
 	hw->max_frame_size = max_frame;
-	if (netif_running(netdev))
+	if (netif_running(netdev)) {
+		/* prevent buffers from being reallocated */
+		adapter->alloc_rx_buf = e1000_alloc_dummy_rx_buffers;
 		e1000_down(adapter);
+	}
 
 	/* NOTE: netdev_alloc_skb reserves 16 bytes, and typically NET_IP_ALIGN
 	 * means we reserve 2 more, this pushes us to allocate from the next
@@ -3845,7 +3856,7 @@ static bool e1000_clean_tx_irq(struct e1000_adapter *adapter,
 	while ((eop_desc->upper.data & cpu_to_le32(E1000_TXD_STAT_DD)) &&
 	       (count < tx_ring->count)) {
 		bool cleaned = false;
-		rmb();	/* read buffer_info after eop_desc */
+		dma_rmb();	/* read buffer_info after eop_desc */
 		for ( ; !cleaned; count++) {
 			tx_desc = E1000_TX_DESC(*tx_ring, i);
 			buffer_info = &tx_ring->buffer_info[i];
@@ -4101,7 +4112,7 @@ static bool e1000_tbi_should_accept(struct e1000_adapter *adapter,
 static struct sk_buff *e1000_alloc_rx_skb(struct e1000_adapter *adapter,
 					  unsigned int bufsz)
 {
-	struct sk_buff *skb = netdev_alloc_skb_ip_align(adapter->netdev, bufsz);
+	struct sk_buff *skb = napi_alloc_skb(&adapter->napi, bufsz);
 
 	if (unlikely(!skb))
 		adapter->alloc_rx_buff_failed++;
@@ -4143,7 +4154,7 @@ static bool e1000_clean_jumbo_rx_irq(struct e1000_adapter *adapter,
 		if (*work_done >= work_to_do)
 			break;
 		(*work_done)++;
-		rmb(); /* read descriptor and rx_buffer_info after status DD */
+		dma_rmb(); /* read descriptor and rx_buffer_info after status DD */
 
 		status = rx_desc->status;
 
@@ -4364,7 +4375,7 @@ static bool e1000_clean_rx_irq(struct e1000_adapter *adapter,
 		if (*work_done >= work_to_do)
 			break;
 		(*work_done)++;
-		rmb(); /* read descriptor and rx_buffer_info after status DD */
+		dma_rmb(); /* read descriptor and rx_buffer_info after status DD */
 
 		status = rx_desc->status;
 		length = le16_to_cpu(rx_desc->length);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Qualcomm Atheros, Inc.
+ * Copyright (c) 2014-2015 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -446,13 +446,11 @@ static int wil_fw_load(struct wil6210_priv *wil, const void *data, size_t size)
 		if (size >= sizeof(*hdr)) {
 			wil_err_fw(wil, "Stop at offset %ld"
 				   " record type %d [%zd bytes]\n",
-				   (const void *)hdr - data,
+				   (long)((const void *)hdr - data),
 				   le16_to_cpu(hdr->type), hdr_sz);
 		}
 		return -EINVAL;
 	}
-	/* Mark FW as loaded from host */
-	S(RGF_USER_USAGE_6, 1);
 
 	return rc;
 }
@@ -471,7 +469,7 @@ int wil_request_firmware(struct wil6210_priv *wil, const char *name)
 	size_t sz;
 	const void *d;
 
-	rc = request_firmware(&fw, name, wil_to_pcie_dev(wil));
+	rc = request_firmware(&fw, name, wil_to_dev(wil));
 	if (rc) {
 		wil_err_fw(wil, "Failed to load firmware %s\n", name);
 		return rc;

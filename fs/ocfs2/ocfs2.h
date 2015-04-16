@@ -144,6 +144,12 @@ enum ocfs2_unlock_action {
 						     * before the upconvert
 						     * has completed */
 
+#define OCFS2_LOCK_NONBLOCK_FINISHED (0x00001000) /* NONBLOCK cluster
+						   * lock has already
+						   * returned, do not block
+						   * dc thread from
+						   * downconverting */
+
 struct ocfs2_lock_res_ops;
 
 typedef void (*ocfs2_lock_callback)(int status, unsigned long data);
@@ -201,6 +207,11 @@ struct ocfs2_lock_res {
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map	 l_lockdep_map;
 #endif
+};
+
+enum ocfs2_orphan_reco_type {
+	ORPHAN_NO_NEED_TRUNCATE = 0,
+	ORPHAN_NEED_TRUNCATE,
 };
 
 enum ocfs2_orphan_scan_state {
@@ -273,6 +284,8 @@ enum ocfs2_mount_options
 						     writes */
 	OCFS2_MOUNT_HB_NONE = 1 << 13, /* No heartbeat */
 	OCFS2_MOUNT_HB_GLOBAL = 1 << 14, /* Global heartbeat */
+
+	OCFS2_MOUNT_JOURNAL_ASYNC_COMMIT = 1 << 15,  /* Journal Async Commit */
 };
 
 #define OCFS2_OSB_SOFT_RO	0x0001
@@ -486,6 +499,14 @@ static inline int ocfs2_writes_unwritten_extents(struct ocfs2_super *osb)
 		return 1;
 	return 0;
 }
+
+static inline int ocfs2_supports_append_dio(struct ocfs2_super *osb)
+{
+	if (osb->s_feature_incompat & OCFS2_FEATURE_INCOMPAT_APPEND_DIO)
+		return 1;
+	return 0;
+}
+
 
 static inline int ocfs2_supports_inline_data(struct ocfs2_super *osb)
 {
@@ -715,6 +736,16 @@ static inline unsigned int ocfs2_clusters_for_bytes(struct super_block *sb,
 	/* OCFS2 just cannot have enough clusters to overflow this */
 	clusters = (unsigned int)(bytes >> cl_bits);
 
+	return clusters;
+}
+
+static inline unsigned int ocfs2_bytes_to_clusters(struct super_block *sb,
+		u64 bytes)
+{
+	int cl_bits = OCFS2_SB(sb)->s_clustersize_bits;
+	unsigned int clusters;
+
+	clusters = (unsigned int)(bytes >> cl_bits);
 	return clusters;
 }
 

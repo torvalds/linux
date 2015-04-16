@@ -342,22 +342,13 @@ struct dev_pm_ops {
 #define SET_LATE_SYSTEM_SLEEP_PM_OPS(suspend_fn, resume_fn)
 #endif
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 #define SET_RUNTIME_PM_OPS(suspend_fn, resume_fn, idle_fn) \
 	.runtime_suspend = suspend_fn, \
 	.runtime_resume = resume_fn, \
 	.runtime_idle = idle_fn,
 #else
 #define SET_RUNTIME_PM_OPS(suspend_fn, resume_fn, idle_fn)
-#endif
-
-#ifdef CONFIG_PM
-#define SET_PM_RUNTIME_PM_OPS(suspend_fn, resume_fn, idle_fn) \
-	.runtime_suspend = suspend_fn, \
-	.runtime_resume = resume_fn, \
-	.runtime_idle = idle_fn,
-#else
-#define SET_PM_RUNTIME_PM_OPS(suspend_fn, resume_fn, idle_fn)
 #endif
 
 /*
@@ -538,11 +529,7 @@ enum rpm_request {
 };
 
 struct wakeup_source;
-
-struct pm_domain_data {
-	struct list_head list_node;
-	struct device *dev;
-};
+struct pm_domain_data;
 
 struct pm_subsys_data {
 	spinlock_t lock;
@@ -576,7 +563,7 @@ struct dev_pm_info {
 #else
 	unsigned int		should_wakeup:1;
 #endif
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	struct timer_list	suspend_timer;
 	unsigned long		timer_expires;
 	struct work_struct	work;
@@ -610,16 +597,24 @@ struct dev_pm_info {
 
 extern void update_pm_runtime_accounting(struct device *dev);
 extern int dev_pm_get_subsys_data(struct device *dev);
-extern int dev_pm_put_subsys_data(struct device *dev);
+extern void dev_pm_put_subsys_data(struct device *dev);
 
 /*
  * Power domains provide callbacks that are executed during system suspend,
  * hibernation, system resume and during runtime PM transitions along with
  * subsystem-level and driver-level callbacks.
+ *
+ * @detach: Called when removing a device from the domain.
+ * @activate: Called before executing probe routines for bus types and drivers.
+ * @sync: Called after successful driver probe.
+ * @dismiss: Called after unsuccessful driver probe and after driver removal.
  */
 struct dev_pm_domain {
 	struct dev_pm_ops	ops;
 	void (*detach)(struct device *dev, bool power_off);
+	int (*activate)(struct device *dev);
+	void (*sync)(struct device *dev);
+	void (*dismiss)(struct device *dev);
 };
 
 /*

@@ -84,6 +84,11 @@ struct cpuinfo_mips {
 	 * (shifted by _CACHE_SHIFT)
 	 */
 	unsigned int		writecombine;
+	/*
+	 * Simple counter to prevent enabling HTW in nested
+	 * htw_start/htw_stop calls
+	 */
+	unsigned int		htw_seq;
 } __attribute__((aligned(SMP_CACHE_BYTES)));
 
 extern struct cpuinfo_mips cpu_data[];

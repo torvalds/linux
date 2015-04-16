@@ -106,7 +106,6 @@ static void store_sigregs(void)
 {
 	save_access_regs(current->thread.acrs);
 	save_fp_ctl(&current->thread.fp_regs.fpc);
-#ifdef CONFIG_64BIT
 	if (current->thread.vxrs) {
 		int i;
 
@@ -115,7 +114,6 @@ static void store_sigregs(void)
 			current->thread.fp_regs.fprs[i] =
 				*(freg_t *)(current->thread.vxrs + i);
 	} else
-#endif
 		save_fp_regs(current->thread.fp_regs.fprs);
 }
 
@@ -124,7 +122,6 @@ static void load_sigregs(void)
 {
 	restore_access_regs(current->thread.acrs);
 	/* restore_fp_ctl is done in restore_sigregs */
-#ifdef CONFIG_64BIT
 	if (current->thread.vxrs) {
 		int i;
 
@@ -133,7 +130,6 @@ static void load_sigregs(void)
 				current->thread.fp_regs.fprs[i];
 		restore_vx_regs(current->thread.vxrs);
 	} else
-#endif
 		restore_fp_regs(current->thread.fp_regs.fprs);
 }
 
@@ -162,7 +158,7 @@ static int restore_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 	_sigregs user_sregs;
 
 	/* Alwys make any pending restarted system call return -EINTR */
-	current_thread_info()->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_no_restart_syscall;
 
 	if (__copy_from_user(&user_sregs, sregs, sizeof(user_sregs)))
 		return -EFAULT;
@@ -200,7 +196,6 @@ static int restore_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 static int save_sigregs_ext(struct pt_regs *regs,
 			    _sigregs_ext __user *sregs_ext)
 {
-#ifdef CONFIG_64BIT
 	__u64 vxrs[__NUM_VXRS_LOW];
 	int i;
 
@@ -215,14 +210,12 @@ static int save_sigregs_ext(struct pt_regs *regs,
 				   sizeof(sregs_ext->vxrs_high)))
 			return -EFAULT;
 	}
-#endif
 	return 0;
 }
 
 static int restore_sigregs_ext(struct pt_regs *regs,
 			       _sigregs_ext __user *sregs_ext)
 {
-#ifdef CONFIG_64BIT
 	__u64 vxrs[__NUM_VXRS_LOW];
 	int i;
 
@@ -237,7 +230,6 @@ static int restore_sigregs_ext(struct pt_regs *regs,
 		for (i = 0; i < __NUM_VXRS_LOW; i++)
 			*((__u64 *)(current->thread.vxrs + i) + 1) = vxrs[i];
 	}
-#endif
 	return 0;
 }
 
@@ -309,16 +301,6 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs * regs, size_t frame_size)
 	return (void __user *)((sp - frame_size) & -8ul);
 }
 
-static inline int map_signal(int sig)
-{
-	if (current_thread_info()->exec_domain
-	    && current_thread_info()->exec_domain->signal_invmap
-	    && sig < 32)
-		return current_thread_info()->exec_domain->signal_invmap[sig];
-	else
-		return sig;
-}
-
 static int setup_frame(int sig, struct k_sigaction *ka,
 		       sigset_t *set, struct pt_regs * regs)
 {
@@ -371,7 +353,7 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 		restorer = (unsigned long) ka->sa.sa_restorer | PSW_ADDR_AMODE;
 	} else {
 		/* Signal frame without vector registers are short ! */
-		__u16 __user *svc = (void *) frame + frame_size - 2;
+		__u16 __user *svc = (void __user *) frame + frame_size - 2;
 		if (__put_user(S390_SYSCALL_OPCODE | __NR_sigreturn, svc))
 			return -EFAULT;
 		restorer = (unsigned long) svc | PSW_ADDR_AMODE;
@@ -386,7 +368,7 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 		(regs->psw.mask & ~PSW_MASK_ASC);
 	regs->psw.addr = (unsigned long) ka->sa.sa_handler | PSW_ADDR_AMODE;
 
-	regs->gprs[2] = map_signal(sig);
+	regs->gprs[2] = sig;
 	regs->gprs[3] = (unsigned long) &frame->sc;
 
 	/* We forgot to include these in the sigcontext.
@@ -416,13 +398,11 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	 * included in the signal frame on a 31-bit system.
 	 */
 	uc_flags = 0;
-#ifdef CONFIG_64BIT
 	if (MACHINE_HAS_VX) {
 		frame_size += sizeof(_sigregs_ext);
 		if (current->thread.vxrs)
 			uc_flags |= UC_VXRS;
 	}
-#endif
 	frame = get_sigframe(&ksig->ka, regs, frame_size);
 	if (frame == (void __user *) -1UL)
 		return -EFAULT;
@@ -468,7 +448,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 		(regs->psw.mask & ~PSW_MASK_ASC);
 	regs->psw.addr = (unsigned long) ksig->ka.sa.sa_handler | PSW_ADDR_AMODE;
 
-	regs->gprs[2] = map_signal(ksig->sig);
+	regs->gprs[2] = ksig->sig;
 	regs->gprs[3] = (unsigned long) &frame->info;
 	regs->gprs[4] = (unsigned long) &frame->uc;
 	regs->gprs[5] = task_thread_info(current)->last_break;

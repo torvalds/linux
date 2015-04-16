@@ -656,7 +656,6 @@ static struct platform_driver pata_s3c_driver = {
 	.id_table	= pata_s3c_driver_ids,
 	.driver		= {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 #ifdef CONFIG_PM_SLEEP
 		.pm	= &pata_s3c_pm_ops,
 #endif

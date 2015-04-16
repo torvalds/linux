@@ -423,17 +423,18 @@ exit:
 static int dac33_playback_event(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {
-	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(w->codec);
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		if (likely(dac33->substream)) {
-			dac33_calculate_times(dac33->substream, w->codec);
-			dac33_prepare_chip(dac33->substream, w->codec);
+			dac33_calculate_times(dac33->substream, codec);
+			dac33_prepare_chip(dac33->substream, codec);
 		}
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		dac33_disable_digital(w->codec);
+		dac33_disable_digital(codec);
 		break;
 	}
 	return 0;
@@ -1435,8 +1436,6 @@ err_power:
 static int dac33_soc_remove(struct snd_soc_codec *codec)
 {
 	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
-
-	dac33_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	if (dac33->irq >= 0) {
 		free_irq(dac33->irq, dac33->codec);

@@ -178,7 +178,6 @@ MODULE_DEVICE_TABLE(of, apc_match);
 static struct platform_driver apc_driver = {
 	.driver = {
 		.name = "apc",
-		.owner = THIS_MODULE,
 		.of_match_table = apc_match,
 	},
 	.probe		= apc_probe,

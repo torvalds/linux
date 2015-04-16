@@ -29,7 +29,6 @@ config CPU_S3C2410
 	default y
 	select CPU_ARM920T
 	select S3C2410_COMMON_CLK
-	select S3C2410_DMA if S3C24XX_DMA
 	select ARM_S3C2410_CPUFREQ if ARM_S3C24XX_CPUFREQ
 	select S3C2410_PM if PM
 	help
@@ -40,7 +39,6 @@ config CPU_S3C2412
 	bool "SAMSUNG S3C2412"
 	select CPU_ARM926T
 	select S3C2412_COMMON_CLK
-	select S3C2412_DMA if S3C24XX_DMA
 	select S3C2412_PM if PM
 	help
 	  Support for the S3C2412 and S3C2413 SoCs from the S3C24XX line
@@ -50,7 +48,6 @@ config CPU_S3C2416
 	select CPU_ARM926T
 	select S3C2416_PM if PM
 	select S3C2443_COMMON_CLK
-	select S3C2443_DMA if S3C24XX_DMA
 	help
 	  Support for the S3C2416 SoC from the S3C24XX line
 
@@ -59,7 +56,6 @@ config CPU_S3C2440
 	select CPU_ARM920T
 	select S3C2410_COMMON_CLK
 	select S3C2410_PM if PM
-	select S3C2440_DMA if S3C24XX_DMA
 	help
 	  Support for S3C2440 Samsung Mobile CPU based systems.
 
@@ -67,7 +63,6 @@ config CPU_S3C2442
 	bool "SAMSUNG S3C2442"
 	select CPU_ARM920T
 	select S3C2410_COMMON_CLK
-	select S3C2410_DMA if S3C24XX_DMA
 	select S3C2410_PM if PM
 	help
 	  Support for S3C2442 Samsung Mobile CPU based systems.
@@ -80,7 +75,6 @@ config CPU_S3C2443
 	bool "SAMSUNG S3C2443"
 	select CPU_ARM920T
 	select S3C2443_COMMON_CLK
-	select S3C2443_DMA if S3C24XX_DMA
 	help
 	  Support for the S3C2443 SoC from the S3C24XX line
 
@@ -113,27 +107,6 @@ config S3C24XX_SETUP_TS
 	bool
 	help
 	  Compile in platform device definition for Samsung TouchScreen.
-
-config S3C24XX_DMA
-	bool "S3C2410 DMA support (deprecated)"
-	select S3C_DMA
-	help
-	  S3C2410 DMA support. This is needed for drivers like sound which
-	  use the S3C2410's DMA system to move data to and from the
-	  peripheral blocks.
-
-config S3C2410_DMA_DEBUG
-	bool "S3C2410 DMA support debug"
-	depends on S3C2410_DMA
-	help
-	  Enable debugging output for the DMA code. This option sends info
-	  to the kernel log, at priority KERN_DEBUG.
-
-config S3C2410_DMA
-	bool
-	depends on S3C24XX_DMA && (CPU_S3C2410 || CPU_S3C2442)
-	help
-	  DMA device selection for S3C2410 and compatible CPUs
 
 config S3C2410_PM
 	bool
@@ -325,11 +298,6 @@ config CPU_S3C2412_ONLY
 		   !CPU_S3C2442 && !CPU_S3C2443
 	default y
 
-config S3C2412_DMA
-	bool
-	help
-	  Internal config node for S3C2412 DMA support
-
 config S3C2412_PM
 	bool
 	select S3C2412_PM_SLEEP
@@ -437,11 +405,6 @@ config MACH_S3C2416_DT
 endif	# CPU_S3C2416
 
 if CPU_S3C2440
-
-config S3C2440_DMA
-	bool
-	help
-	  Support for S3C2440 specific DMA code5A
 
 config S3C2440_XTAL_12000000
 	bool
@@ -600,11 +563,6 @@ config MACH_RX1950
 endif	# CPU_S3C2442
 
 if CPU_S3C2443 || CPU_S3C2416
-
-config S3C2443_DMA
-	bool
-	help
-	  Internal config node for S3C2443 DMA support
 
 config S3C2443_SETUP_SPI
 	bool

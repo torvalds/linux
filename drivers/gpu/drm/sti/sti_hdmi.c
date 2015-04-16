@@ -42,8 +42,17 @@
 #define HDMI_SW_DI_1_PKT_WORD5          0x0228
 #define HDMI_SW_DI_1_PKT_WORD6          0x022C
 #define HDMI_SW_DI_CFG                  0x0230
+#define HDMI_SW_DI_2_HEAD_WORD          0x0600
+#define HDMI_SW_DI_2_PKT_WORD0          0x0604
+#define HDMI_SW_DI_2_PKT_WORD1          0x0608
+#define HDMI_SW_DI_2_PKT_WORD2          0x060C
+#define HDMI_SW_DI_2_PKT_WORD3          0x0610
+#define HDMI_SW_DI_2_PKT_WORD4          0x0614
+#define HDMI_SW_DI_2_PKT_WORD5          0x0618
+#define HDMI_SW_DI_2_PKT_WORD6          0x061C
 
 #define HDMI_IFRAME_SLOT_AVI            1
+#define HDMI_IFRAME_SLOT_AUDIO          2
 
 #define  XCAT(prefix, x, suffix)        prefix ## x ## suffix
 #define  HDMI_SW_DI_N_HEAD_WORD(x)      XCAT(HDMI_SW_DI_, x, _HEAD_WORD)
@@ -99,6 +108,10 @@
 
 #define HDMI_STA_SW_RST                 BIT(1)
 
+#define HDMI_INFOFRAME_HEADER_TYPE(x)    (((x) & 0xff) <<  0)
+#define HDMI_INFOFRAME_HEADER_VERSION(x) (((x) & 0xff) <<  8)
+#define HDMI_INFOFRAME_HEADER_LEN(x)     (((x) & 0x0f) << 16)
+
 struct sti_hdmi_connector {
 	struct drm_connector drm_connector;
 	struct drm_encoder *encoder;
@@ -130,8 +143,7 @@ static irqreturn_t hdmi_irq_thread(int irq, void *arg)
 
 	/* Hot plug/unplug IRQ */
 	if (hdmi->irq_status & HDMI_INT_HOT_PLUG) {
-		/* read gpio to get the status */
-		hdmi->hpd = gpio_get_value(hdmi->hpd_gpio);
+		hdmi->hpd = readl(hdmi->regs + HDMI_STA) & HDMI_STA_HOT_PLUG;
 		if (hdmi->drm_dev)
 			drm_helper_hpd_irq_event(hdmi->drm_dev);
 	}
@@ -229,6 +241,90 @@ static void hdmi_config(struct sti_hdmi *hdmi)
 }
 
 /**
+ * Helper to concatenate infoframe in 32 bits word
+ *
+ * @ptr: pointer on the hdmi internal structure
+ * @data: infoframe to write
+ * @size: size to write
+ */
+static inline unsigned int hdmi_infoframe_subpack(const u8 *ptr, size_t size)
+{
+	unsigned long value = 0;
+	size_t i;
+
+	for (i = size; i > 0; i--)
+		value = (value << 8) | ptr[i - 1];
+
+	return value;
+}
+
+/**
+ * Helper to write info frame
+ *
+ * @hdmi: pointer on the hdmi internal structure
+ * @data: infoframe to write
+ * @size: size to write
+ */
+static void hdmi_infoframe_write_infopack(struct sti_hdmi *hdmi, const u8 *data)
+{
+	const u8 *ptr = data;
+	u32 val, slot, mode, i;
+	u32 head_offset, pack_offset;
+	size_t size;
+
+	switch (*ptr) {
+	case HDMI_INFOFRAME_TYPE_AVI:
+		slot = HDMI_IFRAME_SLOT_AVI;
+		mode = HDMI_IFRAME_FIELD;
+		head_offset = HDMI_SW_DI_N_HEAD_WORD(HDMI_IFRAME_SLOT_AVI);
+		pack_offset = HDMI_SW_DI_N_PKT_WORD0(HDMI_IFRAME_SLOT_AVI);
+		size = HDMI_AVI_INFOFRAME_SIZE;
+		break;
+
+	case HDMI_INFOFRAME_TYPE_AUDIO:
+		slot = HDMI_IFRAME_SLOT_AUDIO;
+		mode = HDMI_IFRAME_FRAME;
+		head_offset = HDMI_SW_DI_N_HEAD_WORD(HDMI_IFRAME_SLOT_AUDIO);
+		pack_offset = HDMI_SW_DI_N_PKT_WORD0(HDMI_IFRAME_SLOT_AUDIO);
+		size = HDMI_AUDIO_INFOFRAME_SIZE;
+		break;
+
+	default:
+		DRM_ERROR("unsupported infoframe type: %#x\n", *ptr);
+		return;
+	}
+
+	/* Disable transmission slot for updated infoframe */
+	val = hdmi_read(hdmi, HDMI_SW_DI_CFG);
+	val &= ~HDMI_IFRAME_CFG_DI_N(HDMI_IFRAME_MASK, slot);
+	hdmi_write(hdmi, val, HDMI_SW_DI_CFG);
+
+	val = HDMI_INFOFRAME_HEADER_TYPE(*ptr++);
+	val |= HDMI_INFOFRAME_HEADER_VERSION(*ptr++);
+	val |= HDMI_INFOFRAME_HEADER_LEN(*ptr++);
+	writel(val, hdmi->regs + head_offset);
+
+	/*
+	 * Each subpack contains 4 bytes
+	 * The First Bytes of the first subpacket must contain the checksum
+	 * Packet size in increase by one.
+	 */
+	for (i = 0; i < size; i += sizeof(u32)) {
+		size_t num;
+
+		num = min_t(size_t, size - i, sizeof(u32));
+		val = hdmi_infoframe_subpack(ptr, num);
+		ptr += sizeof(u32);
+		writel(val, hdmi->regs + pack_offset + i);
+	}
+
+	/* Enable transmission slot for updated infoframe */
+	val = hdmi_read(hdmi, HDMI_SW_DI_CFG);
+	val |= HDMI_IFRAME_CFG_DI_N(HDMI_IFRAME_FIELD, slot);
+	hdmi_write(hdmi, val, HDMI_SW_DI_CFG);
+}
+
+/**
  * Prepare and configure the AVI infoframe
  *
  * AVI infoframe are transmitted at least once per two video field and
@@ -244,8 +340,6 @@ static int hdmi_avi_infoframe_config(struct sti_hdmi *hdmi)
 	struct drm_display_mode *mode = &hdmi->mode;
 	struct hdmi_avi_infoframe infoframe;
 	u8 buffer[HDMI_INFOFRAME_SIZE(AVI)];
-	u8 *frame = buffer + HDMI_INFOFRAME_HEADER_SIZE;
-	u32 val;
 	int ret;
 
 	DRM_DEBUG_DRIVER("\n");
@@ -267,46 +361,43 @@ static int hdmi_avi_infoframe_config(struct sti_hdmi *hdmi)
 		return ret;
 	}
 
-	/* Disable transmission slot for AVI infoframe */
-	val = hdmi_read(hdmi, HDMI_SW_DI_CFG);
-	val &= ~HDMI_IFRAME_CFG_DI_N(HDMI_IFRAME_MASK, HDMI_IFRAME_SLOT_AVI);
-	hdmi_write(hdmi, val, HDMI_SW_DI_CFG);
+	hdmi_infoframe_write_infopack(hdmi, buffer);
 
-	/* Infoframe header */
-	val = buffer[0x0];
-	val |= buffer[0x1] << 8;
-	val |= buffer[0x2] << 16;
-	hdmi_write(hdmi, val, HDMI_SW_DI_N_HEAD_WORD(HDMI_IFRAME_SLOT_AVI));
+	return 0;
+}
 
-	/* Infoframe packet bytes */
-	val = frame[0x0];
-	val |= frame[0x1] << 8;
-	val |= frame[0x2] << 16;
-	val |= frame[0x3] << 24;
-	hdmi_write(hdmi, val, HDMI_SW_DI_N_PKT_WORD0(HDMI_IFRAME_SLOT_AVI));
+/**
+ * Prepare and configure the AUDIO infoframe
+ *
+ * AUDIO infoframe are transmitted once per frame and
+ * contains information about HDMI transmission mode such as audio codec,
+ * sample size, ...
+ *
+ * @hdmi: pointer on the hdmi internal structure
+ *
+ * Return negative value if error occurs
+ */
+static int hdmi_audio_infoframe_config(struct sti_hdmi *hdmi)
+{
+	struct hdmi_audio_infoframe infofame;
+	u8 buffer[HDMI_INFOFRAME_SIZE(AUDIO)];
+	int ret;
 
-	val = frame[0x4];
-	val |= frame[0x5] << 8;
-	val |= frame[0x6] << 16;
-	val |= frame[0x7] << 24;
-	hdmi_write(hdmi, val, HDMI_SW_DI_N_PKT_WORD1(HDMI_IFRAME_SLOT_AVI));
+	ret = hdmi_audio_infoframe_init(&infofame);
+	if (ret < 0) {
+		DRM_ERROR("failed to setup audio infoframe: %d\n", ret);
+		return ret;
+	}
 
-	val = frame[0x8];
-	val |= frame[0x9] << 8;
-	val |= frame[0xA] << 16;
-	val |= frame[0xB] << 24;
-	hdmi_write(hdmi, val, HDMI_SW_DI_N_PKT_WORD2(HDMI_IFRAME_SLOT_AVI));
+	infofame.channels = 2;
 
-	val = frame[0xC];
-	hdmi_write(hdmi, val, HDMI_SW_DI_N_PKT_WORD3(HDMI_IFRAME_SLOT_AVI));
+	ret = hdmi_audio_infoframe_pack(&infofame, buffer, sizeof(buffer));
+	if (ret < 0) {
+		DRM_ERROR("failed to pack audio infoframe: %d\n", ret);
+		return ret;
+	}
 
-	/* Enable transmission slot for AVI infoframe
-	 * According to the hdmi specification, AVI infoframe should be
-	 * transmitted at least once per two video fields
-	 */
-	val = hdmi_read(hdmi, HDMI_SW_DI_CFG);
-	val |= HDMI_IFRAME_CFG_DI_N(HDMI_IFRAME_FIELD, HDMI_IFRAME_SLOT_AVI);
-	hdmi_write(hdmi, val, HDMI_SW_DI_CFG);
+	hdmi_infoframe_write_infopack(hdmi, buffer);
 
 	return 0;
 }
@@ -427,6 +518,10 @@ static void sti_hdmi_pre_enable(struct drm_bridge *bridge)
 	if (hdmi_avi_infoframe_config(hdmi))
 		DRM_ERROR("Unable to configure AVI infoframe\n");
 
+	/* Program AUDIO infoframe */
+	if (hdmi_audio_infoframe_config(hdmi))
+		DRM_ERROR("Unable to configure AUDIO infoframe\n");
+
 	/* Sw reset */
 	hdmi_swreset(hdmi);
 }
@@ -463,34 +558,25 @@ static void sti_hdmi_bridge_nope(struct drm_bridge *bridge)
 	/* do nothing */
 }
 
-static void sti_hdmi_brigde_destroy(struct drm_bridge *bridge)
-{
-	drm_bridge_cleanup(bridge);
-	kfree(bridge);
-}
-
 static const struct drm_bridge_funcs sti_hdmi_bridge_funcs = {
 	.pre_enable = sti_hdmi_pre_enable,
 	.enable = sti_hdmi_bridge_nope,
 	.disable = sti_hdmi_disable,
 	.post_disable = sti_hdmi_bridge_nope,
 	.mode_set = sti_hdmi_set_mode,
-	.destroy = sti_hdmi_brigde_destroy,
 };
 
 static int sti_hdmi_connector_get_modes(struct drm_connector *connector)
 {
-	struct i2c_adapter *i2c_adap;
+	struct sti_hdmi_connector *hdmi_connector
+		= to_sti_hdmi_connector(connector);
+	struct sti_hdmi *hdmi = hdmi_connector->hdmi;
 	struct edid *edid;
 	int count;
 
 	DRM_DEBUG_DRIVER("\n");
 
-	i2c_adap = i2c_get_adapter(1);
-	if (!i2c_adap)
-		goto fail;
-
-	edid = drm_get_edid(connector, i2c_adap);
+	edid = drm_get_edid(connector, hdmi->ddc_adapt);
 	if (!edid)
 		goto fail;
 
@@ -603,32 +689,42 @@ static int sti_hdmi_bind(struct device *dev, struct device *master, void *data)
 	struct sti_hdmi_connector *connector;
 	struct drm_connector *drm_connector;
 	struct drm_bridge *bridge;
-	struct i2c_adapter *i2c_adap;
+	struct device_node *ddc;
 	int err;
 
-	i2c_adap = i2c_get_adapter(1);
-	if (!i2c_adap)
-		return -EPROBE_DEFER;
+	ddc = of_parse_phandle(dev->of_node, "ddc", 0);
+	if (ddc) {
+		hdmi->ddc_adapt = of_find_i2c_adapter_by_node(ddc);
+		if (!hdmi->ddc_adapt) {
+			err = -EPROBE_DEFER;
+			of_node_put(ddc);
+			return err;
+		}
+
+		of_node_put(ddc);
+	}
 
 	/* Set the drm device handle */
 	hdmi->drm_dev = drm_dev;
 
 	encoder = sti_hdmi_find_encoder(drm_dev);
 	if (!encoder)
-		return -ENOMEM;
+		goto err_adapt;
 
 	connector = devm_kzalloc(dev, sizeof(*connector), GFP_KERNEL);
 	if (!connector)
-		return -ENOMEM;
+		goto err_adapt;
+
 
 	connector->hdmi = hdmi;
 
 	bridge = devm_kzalloc(dev, sizeof(*bridge), GFP_KERNEL);
 	if (!bridge)
-		return -ENOMEM;
+		goto err_adapt;
 
 	bridge->driver_private = hdmi;
-	drm_bridge_init(drm_dev, bridge, &sti_hdmi_bridge_funcs);
+	bridge->funcs = &sti_hdmi_bridge_funcs;
+	drm_bridge_attach(drm_dev, bridge);
 
 	encoder->bridge = bridge;
 	connector->encoder = encoder;
@@ -660,8 +756,9 @@ static int sti_hdmi_bind(struct device *dev, struct device *master, void *data)
 err_sysfs:
 	drm_connector_unregister(drm_connector);
 err_connector:
-	drm_bridge_cleanup(bridge);
 	drm_connector_cleanup(drm_connector);
+err_adapt:
+	put_device(&hdmi->ddc_adapt->dev);
 	return -EINVAL;
 }
 
@@ -757,13 +854,7 @@ static int sti_hdmi_probe(struct platform_device *pdev)
 		return PTR_ERR(hdmi->clk_audio);
 	}
 
-	hdmi->hpd_gpio = of_get_named_gpio(np, "hdmi,hpd-gpio", 0);
-	if (hdmi->hpd_gpio < 0) {
-		DRM_ERROR("Failed to get hdmi hpd-gpio\n");
-		return -EIO;
-	}
-
-	hdmi->hpd = gpio_get_value(hdmi->hpd_gpio);
+	hdmi->hpd = readl(hdmi->regs + HDMI_STA) & HDMI_STA_HOT_PLUG;
 
 	init_waitqueue_head(&hdmi->wait_event);
 
@@ -788,6 +879,11 @@ static int sti_hdmi_probe(struct platform_device *pdev)
 
 static int sti_hdmi_remove(struct platform_device *pdev)
 {
+	struct sti_hdmi *hdmi = dev_get_drvdata(&pdev->dev);
+
+	if (hdmi->ddc_adapt)
+		put_device(&hdmi->ddc_adapt->dev);
+
 	component_del(&pdev->dev, &sti_hdmi_ops);
 	return 0;
 }

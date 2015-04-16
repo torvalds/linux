@@ -16,6 +16,7 @@
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/clk.h>
+#include <linux/mutex.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -57,6 +58,7 @@ struct max98095_priv {
 	unsigned int mic2pre;
 	struct snd_soc_jack *headphone_jack;
 	struct snd_soc_jack *mic_jack;
+	struct mutex lock;
 };
 
 static const struct reg_default max98095_reg_def[] = {
@@ -864,7 +866,7 @@ static const struct snd_kcontrol_new max98095_right_ADC_mixer_controls[] = {
 static int max98095_mic_event(struct snd_soc_dapm_widget *w,
 			     struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
 
 	switch (event) {
@@ -894,7 +896,7 @@ static int max98095_mic_event(struct snd_soc_dapm_widget *w,
 static int max98095_line_pga(struct snd_soc_dapm_widget *w,
 			     int event, u8 channel)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
 	u8 *state;
 
@@ -942,7 +944,7 @@ static int max98095_pga_in2_event(struct snd_soc_dapm_widget *w,
 static int max98095_lineout_event(struct snd_soc_dapm_widget *w,
 			     struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -1803,7 +1805,7 @@ static int max98095_put_eq_enum(struct snd_kcontrol *kcontrol,
 	regsave = snd_soc_read(codec, M98095_088_CFG_LEVEL);
 	snd_soc_update_bits(codec, M98095_088_CFG_LEVEL, regmask, 0);
 
-	mutex_lock(&codec->mutex);
+	mutex_lock(&max98095->lock);
 	snd_soc_update_bits(codec, M98095_00F_HOST_CFG, M98095_SEG, M98095_SEG);
 	m98095_eq_band(codec, channel, 0, coef_set->band1);
 	m98095_eq_band(codec, channel, 1, coef_set->band2);
@@ -1811,7 +1813,7 @@ static int max98095_put_eq_enum(struct snd_kcontrol *kcontrol,
 	m98095_eq_band(codec, channel, 3, coef_set->band4);
 	m98095_eq_band(codec, channel, 4, coef_set->band5);
 	snd_soc_update_bits(codec, M98095_00F_HOST_CFG, M98095_SEG, 0);
-	mutex_unlock(&codec->mutex);
+	mutex_unlock(&max98095->lock);
 
 	/* Restore the original on/off state */
 	snd_soc_update_bits(codec, M98095_088_CFG_LEVEL, regmask, regsave);
@@ -1957,12 +1959,12 @@ static int max98095_put_bq_enum(struct snd_kcontrol *kcontrol,
 	regsave = snd_soc_read(codec, M98095_088_CFG_LEVEL);
 	snd_soc_update_bits(codec, M98095_088_CFG_LEVEL, regmask, 0);
 
-	mutex_lock(&codec->mutex);
+	mutex_lock(&max98095->lock);
 	snd_soc_update_bits(codec, M98095_00F_HOST_CFG, M98095_SEG, M98095_SEG);
 	m98095_biquad_band(codec, channel, 0, coef_set->band1);
 	m98095_biquad_band(codec, channel, 1, coef_set->band2);
 	snd_soc_update_bits(codec, M98095_00F_HOST_CFG, M98095_SEG, 0);
-	mutex_unlock(&codec->mutex);
+	mutex_unlock(&max98095->lock);
 
 	/* Restore the original on/off state */
 	snd_soc_update_bits(codec, M98095_088_CFG_LEVEL, regmask, regsave);
@@ -2317,9 +2319,6 @@ static int max98095_probe(struct snd_soc_codec *codec)
 
 	snd_soc_write(codec, M98095_097_PWR_SYS, M98095_PWRSV);
 
-	/* initialize registers cache to hardware default */
-	max98095_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
 	snd_soc_write(codec, M98095_048_MIX_DAC_LR,
 		M98095_DAI1L_TO_DACL|M98095_DAI1R_TO_DACR);
 
@@ -2359,8 +2358,6 @@ static int max98095_remove(struct snd_soc_codec *codec)
 	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
 	struct i2c_client *client = to_i2c_client(codec->dev);
 
-	max98095_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
 	if (max98095->headphone_jack || max98095->mic_jack)
 		max98095_jack_detect_disable(codec);
 
@@ -2394,6 +2391,8 @@ static int max98095_i2c_probe(struct i2c_client *i2c,
 				GFP_KERNEL);
 	if (max98095 == NULL)
 		return -ENOMEM;
+
+	mutex_init(&max98095->lock);
 
 	max98095->regmap = devm_regmap_init_i2c(i2c, &max98095_regmap);
 	if (IS_ERR(max98095->regmap)) {

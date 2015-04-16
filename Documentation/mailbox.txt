@@ -53,7 +53,7 @@ static void message_from_remote(struct mbox_client *cl, void *mssg)
 {
 	struct demo_client *dc = container_of(mbox_client,
 						struct demo_client, cl);
-	if (dc->aysnc) {
+	if (dc->async) {
 		if (is_an_ack(mssg)) {
 			/* An ACK to our last sample sent */
 			return; /* Or do something else here */

@@ -37,6 +37,10 @@ extern int hypfs_vm_init(void);
 extern void hypfs_vm_exit(void);
 extern int hypfs_vm_create_files(struct dentry *root);
 
+/* VM diagnose 0c */
+int hypfs_diag0c_init(void);
+void hypfs_diag0c_exit(void);
+
 /* Set Partition-Resource Parameter */
 int hypfs_sprp_init(void);
 void hypfs_sprp_exit(void);
@@ -49,7 +53,6 @@ struct hypfs_dbfs_data {
 	void			*buf_free_ptr;
 	size_t			size;
 	struct hypfs_dbfs_file	*dbfs_file;
-	struct kref		kref;
 };
 
 struct hypfs_dbfs_file {
@@ -61,8 +64,6 @@ struct hypfs_dbfs_file {
 					   unsigned long);
 
 	/* Private data for hypfs_dbfs.c */
-	struct hypfs_dbfs_data	*data;
-	struct delayed_work	data_free_work;
 	struct mutex		lock;
 	struct dentry		*dentry;
 };

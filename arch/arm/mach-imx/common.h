@@ -61,7 +61,6 @@ struct platform_device *mxc_register_gpio(char *name, int id,
 void mxc_set_cpu_type(unsigned int type);
 void mxc_restart(enum reboot_mode, const char *);
 void mxc_arch_reset_init(void __iomem *);
-void mxc_arch_reset_init_dt(void);
 int mx51_revision(void);
 int mx53_revision(void);
 void imx_set_aips(void __iomem *);
@@ -71,6 +70,10 @@ void imx_set_soc_revision(unsigned int rev);
 unsigned int imx_get_soc_revision(void);
 void imx_init_revision_from_anatop(void);
 struct device *imx_soc_device_init(void);
+void imx6_enable_rbc(bool enable);
+void imx_gpc_set_arm_power_in_lpm(bool power_off);
+void imx_gpc_set_arm_power_up_timing(u32 sw2iso, u32 sw);
+void imx_gpc_set_arm_power_down_timing(u32 sw2iso, u32 sw);
 
 enum mxc_cpu_pwr_mode {
 	WAIT_CLOCKED,		/* wfi only */
@@ -108,14 +111,15 @@ void imx_gpc_pre_suspend(bool arm_power_off);
 void imx_gpc_post_resume(void);
 void imx_gpc_mask_all(void);
 void imx_gpc_restore_all(void);
-void imx_gpc_irq_mask(struct irq_data *d);
-void imx_gpc_irq_unmask(struct irq_data *d);
+void imx_gpc_hwirq_mask(unsigned int hwirq);
+void imx_gpc_hwirq_unmask(unsigned int hwirq);
 void imx_anatop_init(void);
 void imx_anatop_pre_suspend(void);
 void imx_anatop_post_resume(void);
 int imx6q_set_lpm(enum mxc_cpu_pwr_mode mode);
 void imx6q_set_int_mem_clk_lpm(bool enable);
 void imx6sl_set_wait_clk(bool enter);
+int imx_mmdc_get_ddr_type(void);
 
 void imx_cpu_die(unsigned int cpu);
 int imx_cpu_kill(unsigned int cpu);
@@ -157,5 +161,6 @@ static inline void imx_init_l2cache(void) {}
 #endif
 
 extern struct smp_operations imx_smp_ops;
+extern struct smp_operations ls1021a_smp_ops;
 
 #endif

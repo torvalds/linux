@@ -551,10 +551,10 @@ void rtw_update_registrypriv_dev_network(struct adapter *adapter);
 
 void rtw_get_encrypt_decrypt_from_registrypriv(struct adapter *adapter);
 
-void _rtw_join_timeout_handler(void *function_context);
-void rtw_scan_timeout_handler(void *function_context);
+void _rtw_join_timeout_handler(unsigned long data);
+void rtw_scan_timeout_handler(unsigned long data);
 
-void rtw_dynamic_check_timer_handlder(void *function_context);
+void rtw_dynamic_check_timer_handlder(unsigned long data);
 #define rtw_is_scan_deny(adapter) false
 #define rtw_clear_scan_deny(adapter) do {} while (0)
 #define rtw_set_scan_deny_timer_hdl(adapter) do {} while (0)

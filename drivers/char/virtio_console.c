@@ -142,6 +142,7 @@ struct ports_device {
 	 * notification
 	 */
 	struct work_struct control_work;
+	struct work_struct config_work;
 
 	struct list_head ports;
 
@@ -355,7 +356,7 @@ static inline bool use_multiport(struct ports_device *portdev)
 	 */
 	if (!portdev->vdev)
 		return 0;
-	return portdev->vdev->features[0] & (1 << VIRTIO_CONSOLE_F_MULTIPORT);
+	return __virtio_test_bit(portdev->vdev, VIRTIO_CONSOLE_F_MULTIPORT);
 }
 
 static DEFINE_SPINLOCK(dma_bufs_lock);
@@ -566,9 +567,9 @@ static ssize_t __send_control_msg(struct ports_device *portdev, u32 port_id,
 	if (!use_multiport(portdev))
 		return 0;
 
-	cpkt.id = port_id;
-	cpkt.event = event;
-	cpkt.value = value;
+	cpkt.id = cpu_to_virtio32(portdev->vdev, port_id);
+	cpkt.event = cpu_to_virtio16(portdev->vdev, event);
+	cpkt.value = cpu_to_virtio16(portdev->vdev, value);
 
 	vq = portdev->c_ovq;
 
@@ -669,8 +670,8 @@ done:
  * Give out the data that's requested from the buffer that we have
  * queued up.
  */
-static ssize_t fill_readbuf(struct port *port, char *out_buf, size_t out_count,
-			    bool to_user)
+static ssize_t fill_readbuf(struct port *port, char __user *out_buf,
+			    size_t out_count, bool to_user)
 {
 	struct port_buffer *buf;
 	unsigned long flags;
@@ -688,7 +689,8 @@ static ssize_t fill_readbuf(struct port *port, char *out_buf, size_t out_count,
 		if (ret)
 			return -EFAULT;
 	} else {
-		memcpy(out_buf, buf->buf + buf->offset, out_count);
+		memcpy((__force char *)out_buf, buf->buf + buf->offset,
+		       out_count);
 	}
 
 	buf->offset += out_count;
@@ -1162,7 +1164,7 @@ static int get_chars(u32 vtermno, char *buf, int count)
 	/* If we don't have an input queue yet, we can't get input. */
 	BUG_ON(!port->in_vq);
 
-	return fill_readbuf(port, buf, count, false);
+	return fill_readbuf(port, (__force char __user *)buf, count, false);
 }
 
 static void resize_console(struct port *port)
@@ -1449,8 +1451,6 @@ static int add_port(struct ports_device *portdev, u32 id)
 	spin_lock_init(&port->outvq_lock);
 	init_waitqueue_head(&port->waitqueue);
 
-	virtio_device_ready(portdev->vdev);
-
 	/* Fill the in_vq with buffers so the host can send us data. */
 	nr_added_bufs = fill_queue(port->in_vq, &port->inbuf_lock);
 	if (!nr_added_bufs) {
@@ -1604,7 +1604,8 @@ static void unplug_port(struct port *port)
 }
 
 /* Any private messages that the Host and Guest want to share */
-static void handle_control_message(struct ports_device *portdev,
+static void handle_control_message(struct virtio_device *vdev,
+				   struct ports_device *portdev,
 				   struct port_buffer *buf)
 {
 	struct virtio_console_control *cpkt;
@@ -1614,15 +1615,16 @@ static void handle_control_message(struct ports_device *portdev,
 
 	cpkt = (struct virtio_console_control *)(buf->buf + buf->offset);
 
-	port = find_port_by_id(portdev, cpkt->id);
-	if (!port && cpkt->event != VIRTIO_CONSOLE_PORT_ADD) {
+	port = find_port_by_id(portdev, virtio32_to_cpu(vdev, cpkt->id));
+	if (!port &&
+	    cpkt->event != cpu_to_virtio16(vdev, VIRTIO_CONSOLE_PORT_ADD)) {
 		/* No valid header at start of buffer.  Drop it. */
 		dev_dbg(&portdev->vdev->dev,
 			"Invalid index %u in control packet\n", cpkt->id);
 		return;
 	}
 
-	switch (cpkt->event) {
+	switch (virtio16_to_cpu(vdev, cpkt->event)) {
 	case VIRTIO_CONSOLE_PORT_ADD:
 		if (port) {
 			dev_dbg(&portdev->vdev->dev,
@@ -1630,13 +1632,15 @@ static void handle_control_message(struct ports_device *portdev,
 			send_control_msg(port, VIRTIO_CONSOLE_PORT_READY, 1);
 			break;
 		}
-		if (cpkt->id >= portdev->config.max_nr_ports) {
+		if (virtio32_to_cpu(vdev, cpkt->id) >=
+		    portdev->config.max_nr_ports) {
 			dev_warn(&portdev->vdev->dev,
-				"Request for adding port with out-of-bound id %u, max. supported id: %u\n",
+				"Request for adding port with "
+				"out-of-bound id %u, max. supported id: %u\n",
 				cpkt->id, portdev->config.max_nr_ports - 1);
 			break;
 		}
-		add_port(portdev, cpkt->id);
+		add_port(portdev, virtio32_to_cpu(vdev, cpkt->id));
 		break;
 	case VIRTIO_CONSOLE_PORT_REMOVE:
 		unplug_port(port);
@@ -1672,7 +1676,7 @@ static void handle_control_message(struct ports_device *portdev,
 		break;
 	}
 	case VIRTIO_CONSOLE_PORT_OPEN:
-		port->host_connected = cpkt->value;
+		port->host_connected = virtio16_to_cpu(vdev, cpkt->value);
 		wake_up_interruptible(&port->waitqueue);
 		/*
 		 * If the host port got closed and the host had any
@@ -1754,7 +1758,7 @@ static void control_work_handler(struct work_struct *work)
 		buf->len = len;
 		buf->offset = 0;
 
-		handle_control_message(portdev, buf);
+		handle_control_message(vq->vdev, portdev, buf);
 
 		spin_lock(&portdev->c_ivq_lock);
 		if (add_inbuf(portdev->c_ivq, buf) < 0) {
@@ -1834,10 +1838,21 @@ static void config_intr(struct virtio_device *vdev)
 
 	portdev = vdev->priv;
 
+	if (!use_multiport(portdev))
+		schedule_work(&portdev->config_work);
+}
+
+static void config_work_handler(struct work_struct *work)
+{
+	struct ports_device *portdev;
+
+	portdev = container_of(work, struct ports_device, control_work);
 	if (!use_multiport(portdev)) {
+		struct virtio_device *vdev;
 		struct port *port;
 		u16 rows, cols;
 
+		vdev = portdev->vdev;
 		virtio_cread(vdev, struct virtio_console_config, cols, &cols);
 		virtio_cread(vdev, struct virtio_console_config, rows, &rows);
 
@@ -1983,6 +1998,15 @@ static int virtcons_probe(struct virtio_device *vdev)
 	bool multiport;
 	bool early = early_put_chars != NULL;
 
+	/* We only need a config space if features are offered */
+	if (!vdev->config->get &&
+	    (virtio_has_feature(vdev, VIRTIO_CONSOLE_F_SIZE)
+	     || virtio_has_feature(vdev, VIRTIO_CONSOLE_F_MULTIPORT))) {
+		dev_err(&vdev->dev, "%s failure: config access disabled\n",
+			__func__);
+		return -EINVAL;
+	}
+
 	/* Ensure to read early_put_chars now */
 	barrier();
 
@@ -2026,12 +2050,16 @@ static int virtcons_probe(struct virtio_device *vdev)
 	spin_lock_init(&portdev->ports_lock);
 	INIT_LIST_HEAD(&portdev->ports);
 
+	virtio_device_ready(portdev->vdev);
+
+	INIT_WORK(&portdev->config_work, &config_work_handler);
+	INIT_WORK(&portdev->control_work, &control_work_handler);
+
 	if (multiport) {
 		unsigned int nr_added_bufs;
 
 		spin_lock_init(&portdev->c_ivq_lock);
 		spin_lock_init(&portdev->c_ovq_lock);
-		INIT_WORK(&portdev->control_work, &control_work_handler);
 
 		nr_added_bufs = fill_queue(portdev->c_ivq,
 					   &portdev->c_ivq_lock);
@@ -2099,6 +2127,8 @@ static void virtcons_remove(struct virtio_device *vdev)
 	/* Finish up work that's lined up */
 	if (use_multiport(portdev))
 		cancel_work_sync(&portdev->control_work);
+	else
+		cancel_work_sync(&portdev->config_work);
 
 	list_for_each_entry_safe(port, port2, &portdev->ports, list)
 		unplug_port(port);
@@ -2150,6 +2180,7 @@ static int virtcons_freeze(struct virtio_device *vdev)
 
 	virtqueue_disable_cb(portdev->c_ivq);
 	cancel_work_sync(&portdev->control_work);
+	cancel_work_sync(&portdev->config_work);
 	/*
 	 * Once more: if control_work_handler() was running, it would
 	 * enable the cb as the last step.

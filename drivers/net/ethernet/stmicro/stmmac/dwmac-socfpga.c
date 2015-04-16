@@ -23,7 +23,9 @@
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/stmmac.h>
+
 #include "stmmac.h"
+#include "stmmac_platform.h"
 
 #define SYSMGR_EMACGRP_CTRL_PHYSEL_ENUM_GMII_MII 0x0
 #define SYSMGR_EMACGRP_CTRL_PHYSEL_ENUM_RGMII 0x1
@@ -89,7 +91,9 @@ static int socfpga_dwmac_parse_data(struct socfpga_dwmac *dwmac, struct device *
 						  STMMAC_RESOURCE_NAME);
 	if (IS_ERR(dwmac->stmmac_rst)) {
 		dev_info(dev, "Could not get reset control!\n");
-		return -EINVAL;
+		if (PTR_ERR(dwmac->stmmac_rst) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+		dwmac->stmmac_rst = NULL;
 	}
 
 	dwmac->interface = of_get_phy_mode(np);

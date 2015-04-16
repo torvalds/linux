@@ -1,0 +1,28 @@
+menu "Kernel hacking"
+
+config TRACE_IRQFLAGS_SUPPORT
+	def_bool y
+
+source "lib/Kconfig.debug"
+
+config DEBUG_STACK_USAGE
+	bool "Enable stack utilization instrumentation"
+	depends on DEBUG_KERNEL
+	help
+	  Enables the display of the minimum amount of free stack which each
+	  task has ever had available in the sysrq-T and sysrq-P debug output.
+
+	  This option will slow down process creation somewhat.
+
+config EARLY_PRINTK
+	bool "Activate early kernel debugging"
+	default y
+	select SERIAL_CORE_CONSOLE
+	depends on SERIAL_ALTERA_JTAGUART_CONSOLE || SERIAL_ALTERA_UART_CONSOLE
+	help
+	  Enable early printk on console
+	  This is useful for kernel debugging when your machine crashes very
+	  early before the console code is initialized.
+	  You should normally say N here, unless you want to debug such a crash.
+
+endmenu

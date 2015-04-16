@@ -167,7 +167,6 @@ static struct platform_driver txx9wdt_driver = {
 	.shutdown = txx9wdt_shutdown,
 	.driver = {
 		.name = "txx9wdt",
-		.owner = THIS_MODULE,
 	},
 };
 

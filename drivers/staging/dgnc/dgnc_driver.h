@@ -12,12 +12,6 @@
  * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
  * PURPOSE.  See the GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- *	NOTE: THIS IS A SHARED HEADER. DO NOT CHANGE CODING STYLE!!!
- *
  *************************************************************************
  *
  * Driver includes
@@ -31,9 +25,7 @@
 #include <linux/tty.h>	  /* To pick up the various tty structs/defines */
 #include <linux/interrupt.h>	/* For irqreturn_t type */
 
-#include "dgnc_types.h"		/* Additional types needed by the Digi header files */
 #include "digi.h"		/* Digi specific ioctl header */
-#include "dgnc_kcompat.h"	/* Kernel 2.4/2.6 compat includes */
 #include "dgnc_sysfs.h"		/* Support for SYSFS */
 
 /*************************************************************************
@@ -42,52 +34,13 @@
  *
  *************************************************************************/
 
-/*
- * Driver identification, error and debugging statments
- *
- * In theory, you can change all occurrences of "digi" in the next
- * three lines, and the driver printk's will all automagically change.
- *
- * APR((fmt, args, ...));	Always prints message
- */
+/* Driver identification and error statments */
 #define	PROCSTR		"dgnc"			/* /proc entries	 */
 #define	DEVSTR		"/dev/dg/dgnc"		/* /dev entries		 */
-#define	DRVSTR		"dgnc"			/* Driver name string
-						 * displayed by APR	 */
-#define	APR(args)	do { printk(DRVSTR": "); printk args; \
-			   } while (0)
-#define	RAPR(args)	do { printk args; } while (0)
+#define	DRVSTR		"dgnc"			/* Driver name string	 */
+#define	DG_PART		"40002369_F"		/* RPM part number	 */
 
 #define TRC_TO_CONSOLE 1
-
-/*
- * Debugging levels can be set using debug insmod variable
- * They can also be compiled out completely.
- */
-
-#define	DBG_INIT		(dgnc_debug & 0x01)
-#define	DBG_BASIC		(dgnc_debug & 0x02)
-#define	DBG_CORE		(dgnc_debug & 0x04)
-
-#define	DBG_OPEN		(dgnc_debug & 0x08)
-#define	DBG_CLOSE		(dgnc_debug & 0x10)
-#define	DBG_READ		(dgnc_debug & 0x20)
-#define	DBG_WRITE		(dgnc_debug & 0x40)
-
-#define	DBG_IOCTL		(dgnc_debug & 0x80)
-
-#define	DBG_PROC		(dgnc_debug & 0x100)
-#define	DBG_PARAM		(dgnc_debug & 0x200)
-#define	DBG_PSCAN		(dgnc_debug & 0x400)
-#define	DBG_EVENT		(dgnc_debug & 0x800)
-
-#define	DBG_DRAIN		(dgnc_debug & 0x1000)
-#define	DBG_MSIGS		(dgnc_debug & 0x2000)
-
-#define	DBG_MGMT		(dgnc_debug & 0x4000)
-#define	DBG_INTR		(dgnc_debug & 0x8000)
-
-#define	DBG_CARR		(dgnc_debug & 0x10000)
 
 /* Number of boards we support at once. */
 #define	MAXBOARDS	20
@@ -134,8 +87,6 @@
 #define   _POSIX_VDISABLE '\0'
 #endif
 
-#define SNIFF_MAX	65536		/* Sniff buffer size (2^n) */
-#define SNIFF_MASK	(SNIFF_MAX - 1)	/* Sniff wrap mask */
 
 /*
  * All the possible states the driver can be while being loaded.
@@ -253,8 +204,8 @@ struct dgnc_board {
 	struct tty_driver	PrintDriver;
 	char		PrintName[200];
 
-	uint		dgnc_Major_Serial_Registered;
-	uint		dgnc_Major_TransparentPrint_Registered;
+	bool		dgnc_Major_Serial_Registered;
+	bool		dgnc_Major_TransparentPrint_Registered;
 
 	uint		dgnc_Serial_Major;
 	uint		dgnc_TransparentPrint_Major;
@@ -341,13 +292,6 @@ struct un_t {
 #define CH_BAUD0	0x08000		/* Used for checking B0 transitions */
 #define CH_FORCED_STOP  0x20000		/* Output is forcibly stopped	*/
 #define CH_FORCED_STOPI 0x40000		/* Input is forcibly stopped	*/
-
-/*
- * Definitions for ch_sniff_flags
- */
-#define SNIFF_OPEN	0x1
-#define SNIFF_WAIT_DATA	0x2
-#define SNIFF_WAIT_SPACE 0x4
 
 
 /* Our Read/Error/Write queue sizes */
@@ -442,24 +386,15 @@ struct channel_t {
 	struct proc_dir_entry *proc_entry_pointer;
 	struct dgnc_proc_entry *dgnc_channel_table;
 
-	uint ch_sniff_in;
-	uint ch_sniff_out;
-	char *ch_sniff_buf;		/* Sniff buffer for proc */
-	ulong ch_sniff_flags;		/* Channel flags		*/
-	wait_queue_head_t ch_sniff_wait;
 };
 
 /*
  * Our Global Variables.
  */
-extern uint		dgnc_Major;		/* Our driver/mgmt major	*/
-extern int		dgnc_debug;		/* Debug variable		*/
-extern int		dgnc_rawreadok;		/* Set if user wants rawreads	*/
-extern int		dgnc_poll_tick;		/* Poll interval - 20 ms	*/
-extern int		dgnc_trcbuf_size;	/* Size of the ringbuffer	*/
-extern spinlock_t	dgnc_global_lock;	/* Driver global spinlock	*/
-extern uint		dgnc_NumBoards;		/* Total number of boards	*/
-extern struct dgnc_board	*dgnc_Board[MAXBOARDS];	/* Array of board structs	*/
-extern char		*dgnc_state_text[];	/* Array of state text		*/
+extern uint		dgnc_Major;		/* Our driver/mgmt major */
+extern int		dgnc_poll_tick;		/* Poll interval - 20 ms */
+extern spinlock_t	dgnc_global_lock;	/* Driver global spinlock */
+extern uint		dgnc_NumBoards;		/* Total number of boards */
+extern struct dgnc_board	*dgnc_Board[MAXBOARDS];	/* Array of board structs */
 
 #endif

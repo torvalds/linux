@@ -37,8 +37,8 @@
 #include <net/arp.h>
 #include <net/ipv6.h>
 #include <asm/byteorder.h>
-#include "bonding.h"
-#include "bond_alb.h"
+#include <net/bonding.h>
+#include <net/bond_alb.h>
 
 
 
@@ -475,12 +475,8 @@ static void rlb_update_client(struct rlb_client_info *client_info)
 		skb->dev = client_info->slave->dev;
 
 		if (client_info->vlan_id) {
-			skb = vlan_put_tag(skb, htons(ETH_P_8021Q), client_info->vlan_id);
-			if (!skb) {
-				netdev_err(client_info->slave->bond->dev,
-					   "failed to insert VLAN tag\n");
-				continue;
-			}
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
+					       client_info->vlan_id);
 		}
 
 		arp_xmit(skb);
@@ -951,13 +947,8 @@ static void alb_send_lp_vid(struct slave *slave, u8 mac_addr[],
 	skb->priority = TC_PRIO_CONTROL;
 	skb->dev = slave->dev;
 
-	if (vid) {
-		skb = vlan_put_tag(skb, vlan_proto, vid);
-		if (!skb) {
-			netdev_err(slave->bond->dev, "failed to insert VLAN tag\n");
-			return;
-		}
-	}
+	if (vid)
+		__vlan_hwaccel_put_tag(skb, vlan_proto, vid);
 
 	dev_queue_xmit(skb);
 }
@@ -1326,7 +1317,7 @@ static int bond_do_alb_xmit(struct sk_buff *skb, struct bonding *bond,
 	}
 
 	/* no suitable interface, frame not sent */
-	dev_kfree_skb_any(skb);
+	bond_tx_drop(bond->dev, skb);
 out:
 	return NETDEV_TX_OK;
 }

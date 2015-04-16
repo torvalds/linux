@@ -105,6 +105,30 @@
 			gpio = <&gpio3 27 0>;
 			enable-active-high;
 		};
+
+		reg_peri_3v3: regulator@5 {
+			compatible = "regulator-fixed";
+			reg = <5>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_peri_3v3>;
+			regulator-name = "peri_3v3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpios = <&gpio4 16 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			regulator-always-on;
+		};
+
+		reg_enet_3v3: regulator@6 {
+			compatible = "regulator-fixed";
+			reg = <6>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_enet_3v3>;
+			regulator-name = "enet_3v3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpios = <&gpio2 6 GPIO_ACTIVE_LOW>;
+		};
 	};
 
 	sound {
@@ -133,7 +157,30 @@
 &fec1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet1>;
+	phy-supply = <&reg_enet_3v3>;
 	phy-mode = "rgmii";
+	phy-handle = <&ethphy1>;
+	status = "okay";
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ethphy1: ethernet-phy@1 {
+			reg = <1>;
+		};
+
+		ethphy2: ethernet-phy@2 {
+			reg = <2>;
+		};
+	};
+};
+
+&fec2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_enet2>;
+	phy-mode = "rgmii";
+	phy-handle = <&ethphy2>;
 	status = "okay";
 };
 
@@ -304,6 +351,32 @@
 	status = "okay";
 };
 
+&snvs_poweroff {
+	status = "okay";
+};
+
+&qspi2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_qspi2>;
+	status = "okay";
+
+	flash0: s25fl128s@0 {
+		reg = <0>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "spansion,s25fl128s";
+		spi-max-frequency = <66000000>;
+	};
+
+	flash1: s25fl128s@1 {
+		reg = <1>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "spansion,s25fl128s";
+		spi-max-frequency = <66000000>;
+	};
+};
+
 &ssi2 {
 	status = "okay";
 };
@@ -394,6 +467,30 @@
 				MX6SX_PAD_RGMII1_RD2__ENET1_RX_DATA_2	0x3081
 				MX6SX_PAD_RGMII1_RD3__ENET1_RX_DATA_3	0x3081
 				MX6SX_PAD_RGMII1_RX_CTL__ENET1_RX_EN	0x3081
+				MX6SX_PAD_ENET2_RX_CLK__ENET2_REF_CLK_25M	0x91
+			>;
+		};
+
+		pinctrl_enet_3v3: enet3v3grp {
+			fsl,pins = <
+				MX6SX_PAD_ENET2_COL__GPIO2_IO_6		0x80000000
+			>;
+		};
+
+		pinctrl_enet2: enet2grp {
+			fsl,pins = <
+				MX6SX_PAD_RGMII2_TXC__ENET2_RGMII_TXC	0xa0b9
+				MX6SX_PAD_RGMII2_TD0__ENET2_TX_DATA_0	0xa0b1
+				MX6SX_PAD_RGMII2_TD1__ENET2_TX_DATA_1	0xa0b1
+				MX6SX_PAD_RGMII2_TD2__ENET2_TX_DATA_2	0xa0b1
+				MX6SX_PAD_RGMII2_TD3__ENET2_TX_DATA_3	0xa0b1
+				MX6SX_PAD_RGMII2_TX_CTL__ENET2_TX_EN	0xa0b1
+				MX6SX_PAD_RGMII2_RXC__ENET2_RX_CLK	0x3081
+				MX6SX_PAD_RGMII2_RD0__ENET2_RX_DATA_0	0x3081
+				MX6SX_PAD_RGMII2_RD1__ENET2_RX_DATA_1	0x3081
+				MX6SX_PAD_RGMII2_RD2__ENET2_RX_DATA_2	0x3081
+				MX6SX_PAD_RGMII2_RD3__ENET2_RX_DATA_3	0x3081
+				MX6SX_PAD_RGMII2_RX_CTL__ENET2_RX_EN	0x3081
 			>;
 		};
 
@@ -452,9 +549,32 @@
 			>;
 		};
 
+		pinctrl_peri_3v3: peri3v3grp {
+			fsl,pins = <
+				MX6SX_PAD_QSPI1A_DATA0__GPIO4_IO_16	0x80000000
+			>;
+		};
+
 		pinctrl_pwm3: pwm3grp-1 {
 			fsl,pins = <
 				MX6SX_PAD_SD1_DATA2__PWM3_OUT 0x110b0
+			>;
+		};
+
+		pinctrl_qspi2: qspi2grp {
+			fsl,pins = <
+				MX6SX_PAD_NAND_WP_B__QSPI2_A_DATA_0     0x70f1
+				MX6SX_PAD_NAND_READY_B__QSPI2_A_DATA_1  0x70f1
+				MX6SX_PAD_NAND_CE0_B__QSPI2_A_DATA_2    0x70f1
+				MX6SX_PAD_NAND_CE1_B__QSPI2_A_DATA_3    0x70f1
+				MX6SX_PAD_NAND_CLE__QSPI2_A_SCLK        0x70f1
+				MX6SX_PAD_NAND_ALE__QSPI2_A_SS0_B       0x70f1
+				MX6SX_PAD_NAND_DATA01__QSPI2_B_DATA_0   0x70f1
+				MX6SX_PAD_NAND_DATA00__QSPI2_B_DATA_1   0x70f1
+				MX6SX_PAD_NAND_WE_B__QSPI2_B_DATA_2     0x70f1
+				MX6SX_PAD_NAND_RE_B__QSPI2_B_DATA_3     0x70f1
+				MX6SX_PAD_NAND_DATA02__QSPI2_B_SCLK     0x70f1
+				MX6SX_PAD_NAND_DATA03__QSPI2_B_SS0_B    0x70f1
 			>;
 		};
 

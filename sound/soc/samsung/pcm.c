@@ -626,7 +626,6 @@ static struct platform_driver s3c_pcm_driver = {
 	.remove = s3c_pcm_dev_remove,
 	.driver = {
 		.name = "samsung-pcm",
-		.owner = THIS_MODULE,
 	},
 };
 

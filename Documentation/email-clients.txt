@@ -77,6 +77,17 @@ should appear, and then pressing CTRL-R let you specify the patch file
 to insert into the message.
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Claws Mail (GUI)
+
+Works. Some people use this successfully for patches.
+
+To insert a patch use Message->Insert File (CTRL+i) or an external editor.
+
+If the inserted patch has to be edited in the Claws composition window
+"Auto wrapping" in Configuration->Preferences->Compose->Wrapping should be
+disabled.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Evolution (GUI)
 
 Some people use this successfully for patches.

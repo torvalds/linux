@@ -1612,7 +1612,6 @@ ks8695_drv_remove(struct platform_device *pdev)
 static struct platform_driver ks8695_driver = {
 	.driver = {
 		.name	= MODULENAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ks8695_probe,
 	.remove		= ks8695_drv_remove,

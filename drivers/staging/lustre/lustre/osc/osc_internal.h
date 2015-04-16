@@ -160,11 +160,6 @@ static inline unsigned long rpcs_in_flight(struct client_obd *cli)
 	return cli->cl_r_in_flight + cli->cl_w_in_flight;
 }
 
-#ifndef min_t
-#define min_t(type, x, y) \
-	({ type __x = (x); type __y = (y); __x < __y ? __x: __y; })
-#endif
-
 struct osc_device {
 	struct cl_device    od_cl;
 	struct obd_export  *od_exp;

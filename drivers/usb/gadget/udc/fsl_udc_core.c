@@ -1236,9 +1236,8 @@ static int fsl_pullup(struct usb_gadget *gadget, int is_on)
 
 static int fsl_udc_start(struct usb_gadget *g,
 		struct usb_gadget_driver *driver);
-static int fsl_udc_stop(struct usb_gadget *g,
-		struct usb_gadget_driver *driver);
-/* defined in gadget.h */
+static int fsl_udc_stop(struct usb_gadget *g);
+
 static const struct usb_gadget_ops fsl_gadget_ops = {
 	.get_frame = fsl_get_frame,
 	.wakeup = fsl_wakeup,
@@ -1338,7 +1337,7 @@ static void ch9getstatus(struct fsl_udc *udc, u8 request_type, u16 value,
 
 	if ((request_type & USB_RECIP_MASK) == USB_RECIP_DEVICE) {
 		/* Get device status */
-		tmp = 1 << USB_DEVICE_SELF_POWERED;
+		tmp = udc->gadget.is_selfpowered;
 		tmp |= udc->remote_wakeup << USB_DEVICE_REMOTE_WAKEUP;
 	} else if ((request_type & USB_RECIP_MASK) == USB_RECIP_INTERFACE) {
 		/* Get interface status */
@@ -1772,7 +1771,7 @@ static void bus_resume(struct fsl_udc *udc)
 }
 
 /* Clear up all ep queues */
-static int reset_queues(struct fsl_udc *udc)
+static int reset_queues(struct fsl_udc *udc, bool bus_reset)
 {
 	u8 pipe;
 
@@ -1781,7 +1780,10 @@ static int reset_queues(struct fsl_udc *udc)
 
 	/* report disconnect; the driver is already quiesced */
 	spin_unlock(&udc->lock);
-	udc->driver->disconnect(&udc->gadget);
+	if (bus_reset)
+		usb_gadget_udc_reset(&udc->gadget, udc->driver);
+	else
+		udc->driver->disconnect(&udc->gadget);
 	spin_lock(&udc->lock);
 
 	return 0;
@@ -1835,7 +1837,7 @@ static void reset_irq(struct fsl_udc *udc)
 		udc->bus_reset = 1;
 		/* Reset all the queues, include XD, dTD, EP queue
 		 * head and TR Queue */
-		reset_queues(udc);
+		reset_queues(udc, true);
 		udc->usb_state = USB_STATE_DEFAULT;
 	} else {
 		VDBG("Controller reset");
@@ -1844,7 +1846,7 @@ static void reset_irq(struct fsl_udc *udc)
 		dr_controller_setup(udc);
 
 		/* Reset all internal used Queues */
-		reset_queues(udc);
+		reset_queues(udc, false);
 
 		ep0_setup(udc);
 
@@ -1946,6 +1948,7 @@ static int fsl_udc_start(struct usb_gadget *g,
 	/* hook up the driver */
 	udc_controller->driver = driver;
 	spin_unlock_irqrestore(&udc_controller->lock, flags);
+	g->is_selfpowered = 1;
 
 	if (!IS_ERR_OR_NULL(udc_controller->transceiver)) {
 		/* Suspend the controller until OTG enable it */
@@ -1975,8 +1978,7 @@ static int fsl_udc_start(struct usb_gadget *g,
 }
 
 /* Disconnect from gadget driver */
-static int fsl_udc_stop(struct usb_gadget *g,
-		struct usb_gadget_driver *driver)
+static int fsl_udc_stop(struct usb_gadget *g)
 {
 	struct fsl_ep *loop_ep;
 	unsigned long flags;
@@ -2528,7 +2530,7 @@ static int __exit fsl_udc_remove(struct platform_device *pdev)
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct fsl_usb2_platform_data *pdata = dev_get_platdata(&pdev->dev);
 
-	DECLARE_COMPLETION(done);
+	DECLARE_COMPLETION_ONSTACK(done);
 
 	if (!udc_controller)
 		return -ENODEV;
@@ -2669,7 +2671,6 @@ static struct platform_driver udc_driver = {
 	.resume		= fsl_udc_resume,
 	.driver		= {
 			.name = driver_name,
-			.owner = THIS_MODULE,
 			/* udc suspend/resume called from OTG driver */
 			.suspend = fsl_udc_otg_suspend,
 			.resume  = fsl_udc_otg_resume,

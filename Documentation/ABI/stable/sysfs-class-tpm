@@ -1,4 +1,4 @@
-What:		/sys/class/misc/tpmX/device/
+What:		/sys/class/tpm/tpmX/device/
 Date:		April 2005
 KernelVersion:	2.6.12
 Contact:	tpmdd-devel@lists.sf.net
@@ -6,7 +6,7 @@ Description:	The device/ directory under a specific TPM instance exposes
 		the properties of that TPM chip
 
 
-What:		/sys/class/misc/tpmX/device/active
+What:		/sys/class/tpm/tpmX/device/active
 Date:		April 2006
 KernelVersion:	2.6.17
 Contact:	tpmdd-devel@lists.sf.net
@@ -18,7 +18,7 @@ Description:	The "active" property prints a '1' if the TPM chip is accepting
 		section 17 for more information on which commands are
 		available.
 
-What:		/sys/class/misc/tpmX/device/cancel
+What:		/sys/class/tpm/tpmX/device/cancel
 Date:		June 2005
 KernelVersion:	2.6.13
 Contact:	tpmdd-devel@lists.sf.net
@@ -26,7 +26,7 @@ Description:	The "cancel" property allows you to cancel the currently
 		pending TPM command. Writing any value to cancel will call the
 		TPM vendor specific cancel operation.
 
-What:		/sys/class/misc/tpmX/device/caps
+What:		/sys/class/tpm/tpmX/device/caps
 Date:		April 2005
 KernelVersion:	2.6.12
 Contact:	tpmdd-devel@lists.sf.net
@@ -43,7 +43,7 @@ Description:	The "caps" property contains TPM manufacturer and version info.
 		the chip supports. Firmware version is that of the chip and
 		is manufacturer specific.
 
-What:		/sys/class/misc/tpmX/device/durations
+What:		/sys/class/tpm/tpmX/device/durations
 Date:		March 2011
 KernelVersion:	3.1
 Contact:	tpmdd-devel@lists.sf.net
@@ -66,7 +66,7 @@ Description:	The "durations" property shows the 3 vendor-specific values
 		scaled to be displayed in usecs. In this case "[adjusted]"
 		will be displayed in place of "[original]".
 
-What:		/sys/class/misc/tpmX/device/enabled
+What:		/sys/class/tpm/tpmX/device/enabled
 Date:		April 2006
 KernelVersion:	2.6.17
 Contact:	tpmdd-devel@lists.sf.net
@@ -75,7 +75,7 @@ Description:	The "enabled" property prints a '1' if the TPM chip is enabled,
 		may be visible but produce a '0' after some operation that
 		disables the TPM.
 
-What:		/sys/class/misc/tpmX/device/owned
+What:		/sys/class/tpm/tpmX/device/owned
 Date:		April 2006
 KernelVersion:	2.6.17
 Contact:	tpmdd-devel@lists.sf.net
@@ -83,7 +83,7 @@ Description:	The "owned" property produces a '1' if the TPM_TakeOwnership
 		ordinal has been executed successfully in the chip. A '0'
 		indicates that ownership hasn't been taken.
 
-What:		/sys/class/misc/tpmX/device/pcrs
+What:		/sys/class/tpm/tpmX/device/pcrs
 Date:		April 2005
 KernelVersion:	2.6.12
 Contact:	tpmdd-devel@lists.sf.net
@@ -106,7 +106,7 @@ Description:	The "pcrs" property will dump the current value of all Platform
 		1.2 chips, PCRs represent SHA-1 hashes, which are 20 bytes
 		long. Use the "caps" property to determine TPM version.
 
-What:		/sys/class/misc/tpmX/device/pubek
+What:		/sys/class/tpm/tpmX/device/pubek
 Date:		April 2005
 KernelVersion:	2.6.12
 Contact:	tpmdd-devel@lists.sf.net
@@ -158,7 +158,7 @@ Description:	The "pubek" property will return the TPM's public endorsement
 		Modulus Length: 256 (bytes)
 		Modulus:	The 256 byte Endorsement Key modulus
 
-What:		/sys/class/misc/tpmX/device/temp_deactivated
+What:		/sys/class/tpm/tpmX/device/temp_deactivated
 Date:		April 2006
 KernelVersion:	2.6.17
 Contact:	tpmdd-devel@lists.sf.net
@@ -167,7 +167,7 @@ Description:	The "temp_deactivated" property returns a '1' if the chip has
 		cycle. Whether a warm boot (reboot) will clear a TPM chip
 		from a temp_deactivated state is platform specific.
 
-What:		/sys/class/misc/tpmX/device/timeouts
+What:		/sys/class/tpm/tpmX/device/timeouts
 Date:		March 2011
 KernelVersion:	3.1
 Contact:	tpmdd-devel@lists.sf.net

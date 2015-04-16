@@ -1,0 +1,7 @@
+#
+# Broadcom BCM3384 boards
+#
+platform-$(CONFIG_BCM3384)	+= bcm3384/
+cflags-$(CONFIG_BCM3384)	+=					\
+		-I$(srctree)/arch/mips/include/asm/mach-bcm3384/
+load-$(CONFIG_BCM3384)		:= 0xffffffff80010000

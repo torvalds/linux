@@ -425,7 +425,6 @@ static SIMPLE_DEV_PM_OPS(ske_keypad_dev_pm_ops,
 static struct platform_driver ske_keypad_driver = {
 	.driver = {
 		.name = "nmk-ske-keypad",
-		.owner  = THIS_MODULE,
 		.pm = &ske_keypad_dev_pm_ops,
 	},
 	.remove = ske_keypad_remove,

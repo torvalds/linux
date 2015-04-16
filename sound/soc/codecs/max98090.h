@@ -12,6 +12,12 @@
 #define _MAX98090_H
 
 /*
+ * The default operating frequency for a DMIC attached to the codec.
+ * This can be overridden by a device tree property.
+ */
+#define MAX98090_DEFAULT_DMIC_FREQ		2500000
+
+/*
  * MAX98090 Register Definitions
  */
 
@@ -1518,8 +1524,10 @@ struct max98090_priv {
 	struct max98090_pdata *pdata;
 	struct clk *mclk;
 	unsigned int sysclk;
+	unsigned int pclk;
 	unsigned int bclk;
 	unsigned int lrclk;
+	u32 dmic_freq;
 	struct max98090_cdata dai[1];
 	int jack_state;
 	struct delayed_work jack_work;

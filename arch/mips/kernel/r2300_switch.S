@@ -120,6 +120,9 @@ LEAF(_restore_fp)
 
 #define FPU_DEFAULT  0x00000000
 
+	.set push
+	SET_HARDFLOAT
+
 LEAF(_init_fpu)
 	mfc0	t0, CP0_STATUS
 	li	t1, ST0_CU1
@@ -165,3 +168,5 @@ LEAF(_init_fpu)
 	mtc1	t0, $f31
 	jr	ra
 	END(_init_fpu)
+
+	.set pop

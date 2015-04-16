@@ -31,6 +31,7 @@ static struct clk *step_clk;
 static struct clk *pll2_pfd2_396m_clk;
 
 static struct device *cpu_dev;
+static bool free_opp;
 static struct cpufreq_frequency_table *freq_table;
 static unsigned int transition_latency;
 
@@ -207,11 +208,14 @@ static int imx6q_cpufreq_probe(struct platform_device *pdev)
 			goto put_reg;
 		}
 
+		/* Because we have added the OPPs here, we must free them */
+		free_opp = true;
+
 		num = dev_pm_opp_get_opp_count(cpu_dev);
 		if (num < 0) {
 			ret = num;
 			dev_err(cpu_dev, "no OPP table is found: %d\n", ret);
-			goto put_reg;
+			goto out_free_opp;
 		}
 	}
 
@@ -306,6 +310,9 @@ soc_opp_out:
 
 free_freq_table:
 	dev_pm_opp_free_cpufreq_table(cpu_dev, &freq_table);
+out_free_opp:
+	if (free_opp)
+		of_free_opp_table(cpu_dev);
 put_reg:
 	if (!IS_ERR(arm_reg))
 		regulator_put(arm_reg);
@@ -332,6 +339,8 @@ static int imx6q_cpufreq_remove(struct platform_device *pdev)
 {
 	cpufreq_unregister_driver(&imx6q_cpufreq_driver);
 	dev_pm_opp_free_cpufreq_table(cpu_dev, &freq_table);
+	if (free_opp)
+		of_free_opp_table(cpu_dev);
 	regulator_put(arm_reg);
 	if (!IS_ERR(pu_reg))
 		regulator_put(pu_reg);
@@ -348,7 +357,6 @@ static int imx6q_cpufreq_remove(struct platform_device *pdev)
 static struct platform_driver imx6q_cpufreq_platdrv = {
 	.driver = {
 		.name	= "imx6q-cpufreq",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= imx6q_cpufreq_probe,
 	.remove		= imx6q_cpufreq_remove,

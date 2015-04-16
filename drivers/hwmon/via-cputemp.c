@@ -205,7 +205,6 @@ static int via_cputemp_remove(struct platform_device *pdev)
 
 static struct platform_driver via_cputemp_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = DRVNAME,
 	},
 	.probe = via_cputemp_probe,

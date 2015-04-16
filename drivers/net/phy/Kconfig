@@ -26,7 +26,7 @@ config AMD_PHY
 
 config AMD_XGBE_PHY
 	tristate "Driver for the AMD 10GbE (amd-xgbe) PHYs"
-	depends on OF
+	depends on (OF || ACPI) && HAS_IOMEM
 	---help---
 	  Currently supports the AMD 10GbE PHY
 
@@ -68,8 +68,8 @@ config SMSC_PHY
 config BROADCOM_PHY
 	tristate "Drivers for Broadcom PHYs"
 	---help---
-	  Currently supports the BCM5411, BCM5421, BCM5461, BCM5464, BCM5481
-	  and BCM5482 PHYs.
+	  Currently supports the BCM5411, BCM5421, BCM5461, BCM54616S, BCM5464,
+	  BCM5481 and BCM5482 PHYs.
 
 config BCM63XX_PHY
 	tristate "Drivers for Broadcom 63xx SOCs internal PHY"
@@ -119,8 +119,8 @@ config MICREL_PHY
 	  Supports the KSZ9021, VSC8201, KS8001 PHYs.
 
 config FIXED_PHY
-	bool "Driver for MDIO Bus/PHY emulation with fixed speed/link PHYs"
-	depends on PHYLIB=y
+	tristate "Driver for MDIO Bus/PHY emulation with fixed speed/link PHYs"
+	depends on PHYLIB
 	---help---
 	  Adds the platform "fixed" MDIO Bus to cover the boards that use
 	  PHYs that are not connected to the real MDIO bus.

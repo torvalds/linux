@@ -8,6 +8,7 @@ static inline void ack_bad_irq(int irq)
 {
 	extern unsigned long irq_err_count;
 	irq_err_count++;
+	pr_crit("unexpected IRQ trap at vector %02x\n", irq);
 }
 
 void set_irq_flags(unsigned int irq, unsigned int flags);

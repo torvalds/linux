@@ -92,7 +92,7 @@ extern int set_foreign_p2m_mapping(struct gnttab_map_grant_ref *map_ops,
 				   struct page **pages, unsigned int count);
 
 extern int clear_foreign_p2m_mapping(struct gnttab_unmap_grant_ref *unmap_ops,
-				     struct gnttab_map_grant_ref *kmap_ops,
+				     struct gnttab_unmap_grant_ref *kunmap_ops,
 				     struct page **pages, unsigned int count);
 
 bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn);
@@ -106,5 +106,9 @@ static inline bool set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 
 #define xen_remap(cookie, size) ioremap_cache((cookie), (size))
 #define xen_unmap(cookie) iounmap((cookie))
+
+bool xen_arch_need_swiotlb(struct device *dev,
+			   unsigned long pfn,
+			   unsigned long mfn);
 
 #endif /* _ASM_ARM_XEN_PAGE_H */

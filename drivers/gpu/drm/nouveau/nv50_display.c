@@ -26,6 +26,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_plane_helper.h>
 #include <drm/drm_dp_helper.h>
 
 #include <nvif/class.h>
@@ -65,15 +66,29 @@ static int
 nv50_chan_create(struct nvif_object *disp, const u32 *oclass, u8 head,
 		 void *data, u32 size, struct nv50_chan *chan)
 {
+	const u32 handle = (oclass[0] << 16) | head;
+	u32 sclass[8];
+	int ret, i;
+
+	ret = nvif_object_sclass(disp, sclass, ARRAY_SIZE(sclass));
+	WARN_ON(ret > ARRAY_SIZE(sclass));
+	if (ret < 0)
+		return ret;
+
 	while (oclass[0]) {
-		int ret = nvif_object_init(disp, NULL, (oclass[0] << 16) | head,
-					   oclass[0], data, size,
-					  &chan->user);
-		if (oclass++, ret == 0) {
-			nvif_object_map(&chan->user);
-			return ret;
+		for (i = 0; i < ARRAY_SIZE(sclass); i++) {
+			if (sclass[i] == oclass[0]) {
+				ret = nvif_object_init(disp, NULL, handle,
+						       oclass[0], data, size,
+						       &chan->user);
+				if (ret == 0)
+					nvif_object_map(&chan->user);
+				return ret;
+			}
 		}
+		oclass++;
 	}
+
 	return -ENOSYS;
 }
 
@@ -185,7 +200,7 @@ nv50_dmac_destroy(struct nv50_dmac *dmac, struct nvif_object *disp)
 	nv50_chan_destroy(&dmac->base);
 
 	if (dmac->ptr) {
-		struct pci_dev *pdev = nvkm_device(nvif_device(disp))->pdev;
+		struct pci_dev *pdev = nvxx_device(nvif_device(disp))->pdev;
 		pci_free_consistent(pdev, PAGE_SIZE, dmac->ptr, dmac->handle);
 	}
 }
@@ -202,7 +217,7 @@ nv50_dmac_create(struct nvif_object *disp, const u32 *oclass, u8 head,
 
 	mutex_init(&dmac->lock);
 
-	dmac->ptr = pci_alloc_consistent(nvkm_device(device)->pdev,
+	dmac->ptr = pci_alloc_consistent(nvxx_device(device)->pdev,
 					 PAGE_SIZE, &dmac->handle);
 	if (!dmac->ptr)
 		return -ENOMEM;
@@ -265,6 +280,7 @@ nv50_core_create(struct nvif_object *disp, u64 syncbuf, struct nv50_mast *core)
 		.pushbuf = 0xb0007d00,
 	};
 	static const u32 oclass[] = {
+		GM204_DISP_CORE_CHANNEL_DMA,
 		GM107_DISP_CORE_CHANNEL_DMA,
 		GK110_DISP_CORE_CHANNEL_DMA,
 		GK104_DISP_CORE_CHANNEL_DMA,
@@ -404,9 +420,9 @@ evo_wait(void *evoc, int nr)
 		dmac->ptr[put] = 0x20000000;
 
 		nvif_wr32(&dmac->base.user, 0x0000, 0x00000000);
-		if (!nvkm_wait(&dmac->base.user, 0x0004, ~0, 0x00000000)) {
+		if (!nvxx_wait(&dmac->base.user, 0x0004, ~0, 0x00000000)) {
 			mutex_unlock(&dmac->lock);
-			nv_error(nvkm_object(&dmac->base.user), "channel stalled\n");
+			nv_error(nvxx_object(&dmac->base.user), "channel stalled\n");
 			return NULL;
 		}
 
@@ -424,8 +440,21 @@ evo_kick(u32 *push, void *evoc)
 	mutex_unlock(&dmac->lock);
 }
 
+#if 1
 #define evo_mthd(p,m,s) *((p)++) = (((s) << 18) | (m))
 #define evo_data(p,d)   *((p)++) = (d)
+#else
+#define evo_mthd(p,m,s) do {                                                   \
+	const u32 _m = (m), _s = (s);                                          \
+	printk(KERN_ERR "%04x %d %s\n", _m, _s, __func__);                     \
+	*((p)++) = ((_s << 18) | _m);                                          \
+} while(0)
+#define evo_data(p,d) do {                                                     \
+	const u32 _d = (d);                                                    \
+	printk(KERN_ERR "\t%08x\n", _d);                                       \
+	*((p)++) = _d;                                                         \
+} while(0)
+#endif
 
 static bool
 evo_sync_wait(void *data)
@@ -451,7 +480,7 @@ evo_sync(struct drm_device *dev)
 		evo_data(push, 0x00000000);
 		evo_data(push, 0x00000000);
 		evo_kick(push, mast);
-		if (nv_wait_cb(nvkm_device(device), evo_sync_wait, disp->sync))
+		if (nv_wait_cb(nvxx_device(device), evo_sync_wait, disp->sync))
 			return 0;
 	}
 
@@ -506,7 +535,7 @@ nv50_display_flip_stop(struct drm_crtc *crtc)
 		evo_kick(push, flip.chan);
 	}
 
-	nv_wait_cb(nvkm_device(device), nv50_display_flip_wait, &flip);
+	nv_wait_cb(nvxx_device(device), nv50_display_flip_wait, &flip);
 }
 
 int
@@ -519,6 +548,10 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	struct nv50_sync *sync = nv50_sync(crtc);
 	u32 *push;
 	int ret;
+
+	if (crtc->primary->fb->width != fb->width ||
+	    crtc->primary->fb->height != fb->height)
+		return -EINVAL;
 
 	swap_interval <<= 4;
 	if (swap_interval == 0)
@@ -699,8 +732,11 @@ nv50_crtc_set_scale(struct nouveau_crtc *nv_crtc, bool update)
 	 * effectively handles NONE/FULL scaling
 	 */
 	nv_connector = nouveau_crtc_connector_get(nv_crtc);
-	if (nv_connector && nv_connector->native_mode)
+	if (nv_connector && nv_connector->native_mode) {
 		mode = nv_connector->scaling_mode;
+		if (nv_connector->scaling_full) /* non-EDID LVDS/eDP mode */
+			mode = DRM_MODE_SCALE_FULLSCREEN;
+	}
 
 	if (mode != DRM_MODE_SCALE_NONE)
 		omode = nv_connector->native_mode;
@@ -787,6 +823,22 @@ nv50_crtc_set_scale(struct nouveau_crtc *nv_crtc, bool update)
 		}
 	}
 
+	return 0;
+}
+
+static int
+nv50_crtc_set_raster_vblank_dmi(struct nouveau_crtc *nv_crtc, u32 usec)
+{
+	struct nv50_mast *mast = nv50_mast(nv_crtc->base.dev);
+	u32 *push;
+
+	push = evo_wait(mast, 8);
+	if (!push)
+		return -ENOMEM;
+
+	evo_mthd(push, 0x0828 + (nv_crtc->index * 0x400), 1);
+	evo_data(push, usec);
+	evo_kick(push, mast);
 	return 0;
 }
 
@@ -893,6 +945,7 @@ nv50_crtc_cursor_show(struct nouveau_crtc *nv_crtc)
 		}
 		evo_kick(push, mast);
 	}
+	nv_crtc->cursor.visible = true;
 }
 
 static void
@@ -918,6 +971,7 @@ nv50_crtc_cursor_hide(struct nouveau_crtc *nv_crtc)
 		}
 		evo_kick(push, mast);
 	}
+	nv_crtc->cursor.visible = false;
 }
 
 static void
@@ -925,7 +979,7 @@ nv50_crtc_cursor_show_hide(struct nouveau_crtc *nv_crtc, bool show, bool update)
 {
 	struct nv50_mast *mast = nv50_mast(nv_crtc->base.dev);
 
-	if (show)
+	if (show && nv_crtc->cursor.nvbo)
 		nv50_crtc_cursor_show(nv_crtc);
 	else
 		nv50_crtc_cursor_hide(nv_crtc);
@@ -1025,7 +1079,7 @@ nv50_crtc_commit(struct drm_crtc *crtc)
 		evo_kick(push, mast);
 	}
 
-	nv50_crtc_cursor_show_hide(nv_crtc, nv_crtc->cursor.visible, true);
+	nv50_crtc_cursor_show_hide(nv_crtc, true, true);
 	nv50_display_flip_next(crtc, crtc->primary->fb, NULL, 1);
 }
 
@@ -1044,7 +1098,7 @@ nv50_crtc_swap_fbs(struct drm_crtc *crtc, struct drm_framebuffer *old_fb)
 	struct nv50_head *head = nv50_head(crtc);
 	int ret;
 
-	ret = nouveau_bo_pin(nvfb->nvbo, TTM_PL_FLAG_VRAM);
+	ret = nouveau_bo_pin(nvfb->nvbo, TTM_PL_FLAG_VRAM, true);
 	if (ret == 0) {
 		if (head->image)
 			nouveau_bo_unpin(head->image);
@@ -1104,14 +1158,14 @@ nv50_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *umode,
 			evo_mthd(push, 0x0804 + (nv_crtc->index * 0x400), 2);
 			evo_data(push, 0x00800000 | mode->clock);
 			evo_data(push, (ilace == 2) ? 2 : 0);
-			evo_mthd(push, 0x0810 + (nv_crtc->index * 0x400), 8);
+			evo_mthd(push, 0x0810 + (nv_crtc->index * 0x400), 6);
 			evo_data(push, 0x00000000);
 			evo_data(push, (vactive << 16) | hactive);
 			evo_data(push, ( vsynce << 16) | hsynce);
 			evo_data(push, (vblanke << 16) | hblanke);
 			evo_data(push, (vblanks << 16) | hblanks);
 			evo_data(push, (vblan2e << 16) | vblan2s);
-			evo_data(push, vblankus);
+			evo_mthd(push, 0x082c + (nv_crtc->index * 0x400), 1);
 			evo_data(push, 0x00000000);
 			evo_mthd(push, 0x0900 + (nv_crtc->index * 0x400), 2);
 			evo_data(push, 0x00000311);
@@ -1141,6 +1195,11 @@ nv50_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *umode,
 	nv_connector = nouveau_crtc_connector_get(nv_crtc);
 	nv50_crtc_set_dither(nv_crtc, false);
 	nv50_crtc_set_scale(nv_crtc, false);
+
+	/* G94 only accepts this after setting scale */
+	if (nv50_vers(mast) < GF110_DISP_CORE_CHANNEL_DMA)
+		nv50_crtc_set_raster_vblank_dmi(nv_crtc, vblankus);
+
 	nv50_crtc_set_color_vibrance(nv_crtc, false);
 	nv50_crtc_set_image(nv_crtc, crtc->primary->fb, x, y, false);
 	return 0;
@@ -1221,12 +1280,11 @@ nv50_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 {
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
-	struct drm_gem_object *gem;
-	struct nouveau_bo *nvbo;
-	bool visible = (handle != 0);
-	int i, ret = 0;
+	struct drm_gem_object *gem = NULL;
+	struct nouveau_bo *nvbo = NULL;
+	int ret = 0;
 
-	if (visible) {
+	if (handle) {
 		if (width != 64 || height != 64)
 			return -EINVAL;
 
@@ -1235,33 +1293,31 @@ nv50_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 			return -ENOENT;
 		nvbo = nouveau_gem_object(gem);
 
-		ret = nouveau_bo_map(nvbo);
-		if (ret == 0) {
-			for (i = 0; i < 64 * 64; i++) {
-				u32 v = nouveau_bo_rd32(nvbo, i);
-				nouveau_bo_wr32(nv_crtc->cursor.nvbo, i, v);
-			}
-			nouveau_bo_unmap(nvbo);
-		}
-
-		drm_gem_object_unreference_unlocked(gem);
+		ret = nouveau_bo_pin(nvbo, TTM_PL_FLAG_VRAM, true);
 	}
 
-	if (visible != nv_crtc->cursor.visible) {
-		nv50_crtc_cursor_show_hide(nv_crtc, visible, true);
-		nv_crtc->cursor.visible = visible;
+	if (ret == 0) {
+		if (nv_crtc->cursor.nvbo)
+			nouveau_bo_unpin(nv_crtc->cursor.nvbo);
+		nouveau_bo_ref(nvbo, &nv_crtc->cursor.nvbo);
 	}
+	drm_gem_object_unreference_unlocked(gem);
 
+	nv50_crtc_cursor_show_hide(nv_crtc, true, true);
 	return ret;
 }
 
 static int
 nv50_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 {
+	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct nv50_curs *curs = nv50_curs(crtc);
 	struct nv50_chan *chan = nv50_chan(curs);
 	nvif_wr32(&chan->user, 0x0084, (y << 16) | (x & 0xffff));
 	nvif_wr32(&chan->user, 0x0080, 0x00000000);
+
+	nv_crtc->cursor_saved_x = x;
+	nv_crtc->cursor_saved_y = y;
 	return 0;
 }
 
@@ -1280,6 +1336,14 @@ nv50_crtc_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
 	}
 
 	nv50_crtc_lut_load(crtc);
+}
+
+static void
+nv50_crtc_cursor_restore(struct nouveau_crtc *nv_crtc, int x, int y)
+{
+	nv50_crtc_cursor_move(&nv_crtc->base, x, y);
+
+	nv50_crtc_cursor_show_hide(nv_crtc, true, true);
 }
 
 static void
@@ -1306,7 +1370,7 @@ nv50_crtc_destroy(struct drm_crtc *crtc)
 		nouveau_bo_unpin(head->image);
 	nouveau_bo_ref(NULL, &head->image);
 
-	nouveau_bo_unmap(nv_crtc->cursor.nvbo);
+	/*XXX: ditto */
 	if (nv_crtc->cursor.nvbo)
 		nouveau_bo_unpin(nv_crtc->cursor.nvbo);
 	nouveau_bo_ref(NULL, &nv_crtc->cursor.nvbo);
@@ -1341,16 +1405,6 @@ static const struct drm_crtc_funcs nv50_crtc_func = {
 	.page_flip = nouveau_crtc_page_flip,
 };
 
-static void
-nv50_cursor_set_pos(struct nouveau_crtc *nv_crtc, int x, int y)
-{
-}
-
-static void
-nv50_cursor_set_offset(struct nouveau_crtc *nv_crtc, uint32_t offset)
-{
-}
-
 static int
 nv50_crtc_create(struct drm_device *dev, int index)
 {
@@ -1369,8 +1423,7 @@ nv50_crtc_create(struct drm_device *dev, int index)
 	head->base.set_color_vibrance = nv50_crtc_set_color_vibrance;
 	head->base.color_vibrance = 50;
 	head->base.vibrant_hue = 0;
-	head->base.cursor.set_offset = nv50_cursor_set_offset;
-	head->base.cursor.set_pos = nv50_cursor_set_pos;
+	head->base.cursor.set_pos = nv50_crtc_cursor_restore;
 	for (i = 0; i < 256; i++) {
 		head->base.lut.r[i] = i << 8;
 		head->base.lut.g[i] = i << 8;
@@ -1385,7 +1438,7 @@ nv50_crtc_create(struct drm_device *dev, int index)
 	ret = nouveau_bo_new(dev, 8192, 0x100, TTM_PL_FLAG_VRAM,
 			     0, 0x0000, NULL, NULL, &head->base.lut.nvbo);
 	if (!ret) {
-		ret = nouveau_bo_pin(head->base.lut.nvbo, TTM_PL_FLAG_VRAM);
+		ret = nouveau_bo_pin(head->base.lut.nvbo, TTM_PL_FLAG_VRAM, true);
 		if (!ret) {
 			ret = nouveau_bo_map(head->base.lut.nvbo);
 			if (ret)
@@ -1398,26 +1451,8 @@ nv50_crtc_create(struct drm_device *dev, int index)
 	if (ret)
 		goto out;
 
-	nv50_crtc_lut_load(crtc);
-
 	/* allocate cursor resources */
 	ret = nv50_curs_create(disp->disp, index, &head->curs);
-	if (ret)
-		goto out;
-
-	ret = nouveau_bo_new(dev, 64 * 64 * 4, 0x100, TTM_PL_FLAG_VRAM,
-			     0, 0x0000, NULL, NULL, &head->base.cursor.nvbo);
-	if (!ret) {
-		ret = nouveau_bo_pin(head->base.cursor.nvbo, TTM_PL_FLAG_VRAM);
-		if (!ret) {
-			ret = nouveau_bo_map(head->base.cursor.nvbo);
-			if (ret)
-				nouveau_bo_unpin(head->base.lut.nvbo);
-		}
-		if (ret)
-			nouveau_bo_ref(NULL, &head->base.cursor.nvbo);
-	}
-
 	if (ret)
 		goto out;
 
@@ -1447,6 +1482,41 @@ out:
 }
 
 /******************************************************************************
+ * Encoder helpers
+ *****************************************************************************/
+static bool
+nv50_encoder_mode_fixup(struct drm_encoder *encoder,
+			const struct drm_display_mode *mode,
+			struct drm_display_mode *adjusted_mode)
+{
+	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct nouveau_connector *nv_connector;
+
+	nv_connector = nouveau_encoder_connector_get(nv_encoder);
+	if (nv_connector && nv_connector->native_mode) {
+		nv_connector->scaling_full = false;
+		if (nv_connector->scaling_mode == DRM_MODE_SCALE_NONE) {
+			switch (nv_connector->type) {
+			case DCB_CONNECTOR_LVDS:
+			case DCB_CONNECTOR_LVDS_SPWG:
+			case DCB_CONNECTOR_eDP:
+				/* force use of scaler for non-edid modes */
+				if (adjusted_mode->type & DRM_MODE_TYPE_DRIVER)
+					return true;
+				nv_connector->scaling_full = true;
+				break;
+			default:
+				return true;
+			}
+		}
+
+		drm_mode_copy(adjusted_mode, nv_connector->native_mode);
+	}
+
+	return true;
+}
+
+/******************************************************************************
  * DAC
  *****************************************************************************/
 static void
@@ -1471,26 +1541,6 @@ nv50_dac_dpms(struct drm_encoder *encoder, int mode)
 	};
 
 	nvif_mthd(disp->disp, 0, &args, sizeof(args));
-}
-
-static bool
-nv50_dac_mode_fixup(struct drm_encoder *encoder,
-		    const struct drm_display_mode *mode,
-		    struct drm_display_mode *adjusted_mode)
-{
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nouveau_connector *nv_connector;
-
-	nv_connector = nouveau_encoder_connector_get(nv_encoder);
-	if (nv_connector && nv_connector->native_mode) {
-		if (nv_connector->scaling_mode != DRM_MODE_SCALE_NONE) {
-			int id = adjusted_mode->base.id;
-			*adjusted_mode = *nv_connector->native_mode;
-			adjusted_mode->base.id = id;
-		}
-	}
-
-	return true;
 }
 
 static void
@@ -1610,7 +1660,7 @@ nv50_dac_destroy(struct drm_encoder *encoder)
 
 static const struct drm_encoder_helper_funcs nv50_dac_hfunc = {
 	.dpms = nv50_dac_dpms,
-	.mode_fixup = nv50_dac_mode_fixup,
+	.mode_fixup = nv50_encoder_mode_fixup,
 	.prepare = nv50_dac_disconnect,
 	.commit = nv50_dac_commit,
 	.mode_set = nv50_dac_mode_set,
@@ -1627,7 +1677,7 @@ static int
 nv50_dac_create(struct drm_connector *connector, struct dcb_output *dcbe)
 {
 	struct nouveau_drm *drm = nouveau_drm(connector->dev);
-	struct nouveau_i2c *i2c = nvkm_i2c(&drm->device);
+	struct nvkm_i2c *i2c = nvxx_i2c(&drm->device);
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
 	int type = DRM_MODE_ENCODER_DAC;
@@ -1680,7 +1730,8 @@ nv50_audio_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode)
 	drm_edid_to_eld(&nv_connector->base, nv_connector->edid);
 	memcpy(args.data, nv_connector->base.eld, sizeof(args.data));
 
-	nvif_mthd(disp->disp, 0, &args, sizeof(args.base) + args.data[2] * 4);
+	nvif_mthd(disp->disp, 0, &args,
+		  sizeof(args.base) + drm_eld_size(args.data));
 }
 
 static void
@@ -1812,26 +1863,6 @@ nv50_sor_dpms(struct drm_encoder *encoder, int mode)
 	} else {
 		nvif_mthd(disp->disp, 0, &args, sizeof(args));
 	}
-}
-
-static bool
-nv50_sor_mode_fixup(struct drm_encoder *encoder,
-		    const struct drm_display_mode *mode,
-		    struct drm_display_mode *adjusted_mode)
-{
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nouveau_connector *nv_connector;
-
-	nv_connector = nouveau_encoder_connector_get(nv_encoder);
-	if (nv_connector && nv_connector->native_mode) {
-		if (nv_connector->scaling_mode != DRM_MODE_SCALE_NONE) {
-			int id = adjusted_mode->base.id;
-			*adjusted_mode = *nv_connector->native_mode;
-			adjusted_mode->base.id = id;
-		}
-	}
-
-	return true;
 }
 
 static void
@@ -2015,7 +2046,7 @@ nv50_sor_destroy(struct drm_encoder *encoder)
 
 static const struct drm_encoder_helper_funcs nv50_sor_hfunc = {
 	.dpms = nv50_sor_dpms,
-	.mode_fixup = nv50_sor_mode_fixup,
+	.mode_fixup = nv50_encoder_mode_fixup,
 	.prepare = nv50_sor_disconnect,
 	.commit = nv50_sor_commit,
 	.mode_set = nv50_sor_mode_set,
@@ -2031,7 +2062,7 @@ static int
 nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 {
 	struct nouveau_drm *drm = nouveau_drm(connector->dev);
-	struct nouveau_i2c *i2c = nvkm_i2c(&drm->device);
+	struct nvkm_i2c *i2c = nvxx_i2c(&drm->device);
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
 	int type;
@@ -2092,18 +2123,8 @@ nv50_pior_mode_fixup(struct drm_encoder *encoder,
 		     const struct drm_display_mode *mode,
 		     struct drm_display_mode *adjusted_mode)
 {
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nouveau_connector *nv_connector;
-
-	nv_connector = nouveau_encoder_connector_get(nv_encoder);
-	if (nv_connector && nv_connector->native_mode) {
-		if (nv_connector->scaling_mode != DRM_MODE_SCALE_NONE) {
-			int id = adjusted_mode->base.id;
-			*adjusted_mode = *nv_connector->native_mode;
-			adjusted_mode->base.id = id;
-		}
-	}
-
+	if (!nv50_encoder_mode_fixup(encoder, mode, adjusted_mode))
+		return false;
 	adjusted_mode->clock *= 2;
 	return true;
 }
@@ -2212,8 +2233,8 @@ static int
 nv50_pior_create(struct drm_connector *connector, struct dcb_output *dcbe)
 {
 	struct nouveau_drm *drm = nouveau_drm(connector->dev);
-	struct nouveau_i2c *i2c = nvkm_i2c(&drm->device);
-	struct nouveau_i2c_port *ddc = NULL;
+	struct nvkm_i2c *i2c = nvxx_i2c(&drm->device);
+	struct nvkm_i2c_port *ddc = NULL;
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
 	int type;
@@ -2352,11 +2373,6 @@ nv50_fb_ctor(struct drm_framebuffer *fb)
 	u8 kind = nouveau_bo_tile_layout(nvbo) >> 8;
 	u8 tile = nvbo->tile_mode;
 
-	if (nvbo->tile_flags & NOUVEAU_GEM_TILE_NONCONTIG) {
-		NV_ERROR(drm, "framebuffer requires contiguous bo\n");
-		return -EINVAL;
-	}
-
 	if (drm->device.info.chipset >= 0xc0)
 		tile >>= 4; /* yep.. */
 
@@ -2412,6 +2428,8 @@ nv50_display_init(struct drm_device *dev)
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nv50_sync *sync = nv50_sync(crtc);
+
+		nv50_crtc_lut_load(crtc);
 		nouveau_bo_wr32(disp->sync, sync->addr / 4, sync->data);
 	}
 
@@ -2470,7 +2488,7 @@ nv50_display_create(struct drm_device *dev)
 	ret = nouveau_bo_new(dev, 4096, 0x1000, TTM_PL_FLAG_VRAM,
 			     0, 0x0000, NULL, NULL, &disp->sync);
 	if (!ret) {
-		ret = nouveau_bo_pin(disp->sync, TTM_PL_FLAG_VRAM);
+		ret = nouveau_bo_pin(disp->sync, TTM_PL_FLAG_VRAM, true);
 		if (!ret) {
 			ret = nouveau_bo_map(disp->sync);
 			if (ret)

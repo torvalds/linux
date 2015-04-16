@@ -7997,10 +7997,7 @@ static int ncr53c8xx_slave_configure(struct scsi_device *device)
 	if (depth_to_use > MAX_TAGS)
 		depth_to_use = MAX_TAGS;
 
-	scsi_adjust_queue_depth(device,
-				(device->tagged_supported ?
-				 MSG_SIMPLE_TAG : 0),
-				depth_to_use);
+	scsi_change_queue_depth(device, depth_to_use);
 
 	/*
 	**	Since the queue depth is not tunable under Linux,

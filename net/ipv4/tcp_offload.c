@@ -29,8 +29,8 @@ static void tcp_gso_tstamp(struct sk_buff *skb, unsigned int ts_seq,
 	}
 }
 
-struct sk_buff *tcp4_gso_segment(struct sk_buff *skb,
-				 netdev_features_t features)
+static struct sk_buff *tcp4_gso_segment(struct sk_buff *skb,
+					netdev_features_t features)
 {
 	if (!pskb_may_pull(skb, sizeof(struct tcphdr)))
 		return ERR_PTR(-EINVAL);
@@ -94,9 +94,9 @@ struct sk_buff *tcp_gso_segment(struct sk_buff *skb,
 			       SKB_GSO_GRE_CSUM |
 			       SKB_GSO_IPIP |
 			       SKB_GSO_SIT |
-			       SKB_GSO_MPLS |
 			       SKB_GSO_UDP_TUNNEL |
 			       SKB_GSO_UDP_TUNNEL_CSUM |
+			       SKB_GSO_TUNNEL_REMCSUM |
 			       0) ||
 			     !(type & (SKB_GSO_TCPV4 | SKB_GSO_TCPV6))))
 			goto out;

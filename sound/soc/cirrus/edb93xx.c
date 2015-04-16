@@ -113,7 +113,6 @@ static int edb93xx_remove(struct platform_device *pdev)
 static struct platform_driver edb93xx_driver = {
 	.driver		= {
 		.name	= "edb93xx-audio",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= edb93xx_probe,
 	.remove		= edb93xx_remove,

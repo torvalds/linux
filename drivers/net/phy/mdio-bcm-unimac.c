@@ -187,7 +187,7 @@ static int unimac_mdio_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id unimac_mdio_ids[] = {
+static const struct of_device_id unimac_mdio_ids[] = {
 	{ .compatible = "brcm,genet-mdio-v4", },
 	{ .compatible = "brcm,genet-mdio-v3", },
 	{ .compatible = "brcm,genet-mdio-v2", },
@@ -199,7 +199,6 @@ static struct of_device_id unimac_mdio_ids[] = {
 static struct platform_driver unimac_mdio_driver = {
 	.driver = {
 		.name = "unimac-mdio",
-		.owner = THIS_MODULE,
 		.of_match_table = unimac_mdio_ids,
 	},
 	.probe	= unimac_mdio_probe,

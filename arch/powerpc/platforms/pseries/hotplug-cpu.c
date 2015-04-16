@@ -272,7 +272,7 @@ static int pseries_add_processor(struct device_node *np)
 		 */
 		printk(KERN_ERR "Cannot add cpu %s; this system configuration"
 		       " supports %d logical cpus.\n", np->full_name,
-		       cpumask_weight(cpu_possible_mask));
+		       num_possible_cpus());
 		goto out_unlock;
 	}
 
@@ -340,16 +340,17 @@ static void pseries_remove_processor(struct device_node *np)
 }
 
 static int pseries_smp_notifier(struct notifier_block *nb,
-				unsigned long action, void *node)
+				unsigned long action, void *data)
 {
+	struct of_reconfig_data *rd = data;
 	int err = 0;
 
 	switch (action) {
 	case OF_RECONFIG_ATTACH_NODE:
-		err = pseries_add_processor(node);
+		err = pseries_add_processor(rd->dn);
 		break;
 	case OF_RECONFIG_DETACH_NODE:
-		pseries_remove_processor(node);
+		pseries_remove_processor(rd->dn);
 		break;
 	}
 	return notifier_from_errno(err);

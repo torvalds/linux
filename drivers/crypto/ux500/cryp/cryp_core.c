@@ -479,13 +479,13 @@ static void cryp_dma_setup_channel(struct cryp_device_data *device_data,
 		.dst_addr = device_data->phybase + CRYP_DMA_TX_FIFO,
 		.dst_addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES,
 		.dst_maxburst = 4,
-        };
+	};
 	struct dma_slave_config cryp2mem = {
 		.direction = DMA_DEV_TO_MEM,
 		.src_addr = device_data->phybase + CRYP_DMA_RX_FIFO,
 		.src_addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES,
 		.src_maxburst = 4,
-        };
+	};
 
 	dma_cap_zero(device_data->dma.mask);
 	dma_cap_set(DMA_SLAVE, device_data->dma.mask);
@@ -606,12 +606,12 @@ static void cryp_dma_done(struct cryp_ctx *ctx)
 	dev_dbg(ctx->device->dev, "[%s]: ", __func__);
 
 	chan = ctx->device->dma.chan_mem2cryp;
-	dmaengine_device_control(chan, DMA_TERMINATE_ALL, 0);
+	dmaengine_terminate_all(chan);
 	dma_unmap_sg(chan->device->dev, ctx->device->dma.sg_src,
 		     ctx->device->dma.sg_src_len, DMA_TO_DEVICE);
 
 	chan = ctx->device->dma.chan_cryp2mem;
-	dmaengine_device_control(chan, DMA_TERMINATE_ALL, 0);
+	dmaengine_terminate_all(chan);
 	dma_unmap_sg(chan->device->dev, ctx->device->dma.sg_dst,
 		     ctx->device->dma.sg_dst_len, DMA_FROM_DEVICE);
 }
@@ -814,7 +814,7 @@ static int get_nents(struct scatterlist *sg, int nbytes)
 
 	while (nbytes > 0) {
 		nbytes -= sg->length;
-		sg = scatterwalk_sg_next(sg);
+		sg = sg_next(sg);
 		nents++;
 	}
 
@@ -1688,6 +1688,7 @@ static void ux500_cryp_shutdown(struct platform_device *pdev)
 
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int ux500_cryp_suspend(struct device *dev)
 {
 	int ret;
@@ -1768,12 +1769,13 @@ static int ux500_cryp_resume(struct device *dev)
 
 	return ret;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(ux500_cryp_pm, ux500_cryp_suspend, ux500_cryp_resume);
 
 static const struct of_device_id ux500_cryp_match[] = {
-        { .compatible = "stericsson,ux500-cryp" },
-        { },
+	{ .compatible = "stericsson,ux500-cryp" },
+	{ },
 };
 
 static struct platform_driver cryp_driver = {
@@ -1781,7 +1783,6 @@ static struct platform_driver cryp_driver = {
 	.remove = ux500_cryp_remove,
 	.shutdown = ux500_cryp_shutdown,
 	.driver = {
-		.owner = THIS_MODULE,
 		.name  = "cryp1",
 		.of_match_table = ux500_cryp_match,
 		.pm    = &ux500_cryp_pm,
@@ -1810,7 +1811,7 @@ module_exit(ux500_cryp_mod_fini);
 module_param(cryp_mode, int, 0);
 
 MODULE_DESCRIPTION("Driver for ST-Ericsson UX500 CRYP crypto engine.");
-MODULE_ALIAS("aes-all");
-MODULE_ALIAS("des-all");
+MODULE_ALIAS_CRYPTO("aes-all");
+MODULE_ALIAS_CRYPTO("des-all");
 
 MODULE_LICENSE("GPL");

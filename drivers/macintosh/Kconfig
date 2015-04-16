@@ -204,16 +204,6 @@ config THERM_ADT746X
           iBook G4, and the ATI based aluminium PowerBooks, allowing slightly
 	  better fan behaviour by default, and some manual control.
 
-config THERM_PM72
-	tristate "Support for thermal management on PowerMac G5 (AGP)"
-	depends on I2C && I2C_POWERMAC && PPC_PMAC64
-	default n
-	help
-	  This driver provides thermostat and fan control for the desktop
-	  G5 machines.
-
-	  This is deprecated, use windfarm instead.
-
 config WINDFARM
 	tristate "New PowerMac thermal control infrastructure"
 	depends on PPC

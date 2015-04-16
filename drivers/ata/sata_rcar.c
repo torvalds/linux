@@ -2,8 +2,8 @@
  * Renesas R-Car SATA driver
  *
  * Author: Vladimir Barinov <source@cogentembedded.com>
- * Copyright (C) 2013 Cogent Embedded, Inc.
- * Copyright (C) 2013 Renesas Solutions Corp.
+ * Copyright (C) 2013-2015 Cogent Embedded, Inc.
+ * Copyright (C) 2013-2015 Renesas Solutions Corp.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -146,6 +146,7 @@
 enum sata_rcar_type {
 	RCAR_GEN1_SATA,
 	RCAR_GEN2_SATA,
+	RCAR_R8A7790_ES1_SATA,
 };
 
 struct sata_rcar_priv {
@@ -763,6 +764,9 @@ static void sata_rcar_setup_port(struct ata_host *host)
 	ap->udma_mask	= ATA_UDMA6;
 	ap->flags	|= ATA_FLAG_SATA;
 
+	if (priv->type == RCAR_R8A7790_ES1_SATA)
+		ap->flags	|= ATA_FLAG_NO_DIPM;
+
 	ioaddr->cmd_addr = base + SDATA_REG;
 	ioaddr->ctl_addr = base + SSDEVCON_REG;
 	ioaddr->scr_addr = base + SCRSSTS_REG;
@@ -792,6 +796,7 @@ static void sata_rcar_init_controller(struct ata_host *host)
 		sata_rcar_gen1_phy_init(priv);
 		break;
 	case RCAR_GEN2_SATA:
+	case RCAR_R8A7790_ES1_SATA:
 		sata_rcar_gen2_phy_init(priv);
 		break;
 	default:
@@ -838,7 +843,15 @@ static struct of_device_id sata_rcar_match[] = {
 		.data = (void *)RCAR_GEN2_SATA
 	},
 	{
+		.compatible = "renesas,sata-r8a7790-es1",
+		.data = (void *)RCAR_R8A7790_ES1_SATA
+	},
+	{
 		.compatible = "renesas,sata-r8a7791",
+		.data = (void *)RCAR_GEN2_SATA
+	},
+	{
+		.compatible = "renesas,sata-r8a7793",
 		.data = (void *)RCAR_GEN2_SATA
 	},
 	{ },
@@ -849,7 +862,9 @@ static const struct platform_device_id sata_rcar_id_table[] = {
 	{ "sata_rcar", RCAR_GEN1_SATA }, /* Deprecated by "sata-r8a7779" */
 	{ "sata-r8a7779", RCAR_GEN1_SATA },
 	{ "sata-r8a7790", RCAR_GEN2_SATA },
+	{ "sata-r8a7790-es1", RCAR_R8A7790_ES1_SATA },
 	{ "sata-r8a7791", RCAR_GEN2_SATA },
+	{ "sata-r8a7793", RCAR_GEN2_SATA },
 	{ },
 };
 MODULE_DEVICE_TABLE(platform, sata_rcar_id_table);
@@ -977,9 +992,30 @@ static int sata_rcar_resume(struct device *dev)
 	return 0;
 }
 
+static int sata_rcar_restore(struct device *dev)
+{
+	struct ata_host *host = dev_get_drvdata(dev);
+	struct sata_rcar_priv *priv = host->private_data;
+
+	clk_prepare_enable(priv->clk);
+
+	sata_rcar_setup_port(host);
+
+	/* initialize host controller */
+	sata_rcar_init_controller(host);
+
+	ata_host_resume(host);
+
+	return 0;
+}
+
 static const struct dev_pm_ops sata_rcar_pm_ops = {
 	.suspend	= sata_rcar_suspend,
 	.resume		= sata_rcar_resume,
+	.freeze		= sata_rcar_suspend,
+	.thaw		= sata_rcar_resume,
+	.poweroff	= sata_rcar_suspend,
+	.restore	= sata_rcar_restore,
 };
 #endif
 
@@ -989,7 +1025,6 @@ static struct platform_driver sata_rcar_driver = {
 	.id_table	= sata_rcar_id_table,
 	.driver = {
 		.name		= DRV_NAME,
-		.owner		= THIS_MODULE,
 		.of_match_table	= sata_rcar_match,
 #ifdef CONFIG_PM_SLEEP
 		.pm		= &sata_rcar_pm_ops,

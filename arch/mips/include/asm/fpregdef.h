@@ -14,6 +14,20 @@
 
 #include <asm/sgidefs.h>
 
+/*
+ * starting with binutils 2.24.51.20140729, MIPS binutils warn about mixing
+ * hardfloat and softfloat object files.  The kernel build uses soft-float by
+ * default, so we also need to pass -msoft-float along to GAS if it supports it.
+ * But this in turn causes assembler errors in files which access hardfloat
+ * registers.  We detect if GAS supports "-msoft-float" in the Makefile and
+ * explicitly put ".set hardfloat" where floating point registers are touched.
+ */
+#ifdef GAS_HAS_SET_HARDFLOAT
+#define SET_HARDFLOAT .set hardfloat
+#else
+#define SET_HARDFLOAT
+#endif
+
 #if _MIPS_SIM == _MIPS_SIM_ABI32
 
 /*

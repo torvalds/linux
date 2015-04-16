@@ -109,6 +109,13 @@ int dm_tm_ref(struct dm_transaction_manager *tm, dm_block_t b,
 struct dm_block_manager *dm_tm_get_bm(struct dm_transaction_manager *tm);
 
 /*
+ * If you're using a non-blocking clone the tm will build up a list of
+ * requested blocks that weren't in core.  This call will request those
+ * blocks to be prefetched.
+ */
+void dm_tm_issue_prefetches(struct dm_transaction_manager *tm);
+
+/*
  * A little utility that ties the knot by producing a transaction manager
  * that has a space map managed by the transaction manager...
  *

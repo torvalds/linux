@@ -74,7 +74,6 @@ MODULE_DEVICE_TABLE(of, sirf_audio_port_of_match);
 static struct platform_driver sirf_audio_port_driver = {
 	.driver = {
 		.name = "sirf-audio-port",
-		.owner = THIS_MODULE,
 		.of_match_table = sirf_audio_port_of_match,
 	},
 	.probe = sirf_audio_port_probe,

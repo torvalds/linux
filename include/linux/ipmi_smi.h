@@ -98,12 +98,11 @@ struct ipmi_smi_handlers {
 	   operation is not allowed to fail.  If an error occurs, it
 	   should report back the error in a received message.  It may
 	   do this in the current call context, since no write locks
-	   are held when this is run.  If the priority is > 0, the
-	   message will go into a high-priority queue and be sent
-	   first.  Otherwise, it goes into a normal-priority queue. */
+	   are held when this is run.  Message are delivered one at
+	   a time by the message handler, a new message will not be
+	   delivered until the previous message is returned. */
 	void (*sender)(void                *send_info,
-		       struct ipmi_smi_msg *msg,
-		       int                 priority);
+		       struct ipmi_smi_msg *msg);
 
 	/* Called by the upper layer to request that we try to get
 	   events from the BMC we are attached to. */
@@ -212,7 +211,6 @@ int ipmi_register_smi(struct ipmi_smi_handlers *handlers,
 		      void                     *send_info,
 		      struct ipmi_device_id    *device_id,
 		      struct device            *dev,
-		      const char               *sysfs_name,
 		      unsigned char            slave_addr);
 
 /*

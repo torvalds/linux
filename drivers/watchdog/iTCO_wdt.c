@@ -51,6 +51,7 @@
 #define DRV_VERSION	"1.11"
 
 /* Includes */
+#include <linux/acpi.h>			/* For ACPI support */
 #include <linux/module.h>		/* For module specific items */
 #include <linux/moduleparam.h>		/* For new moduleparam's */
 #include <linux/types.h>		/* For standard types (like size_t) */
@@ -103,6 +104,8 @@ static struct {		/* this is private data for the iTCO_wdt device */
 	struct platform_device *dev;
 	/* the PCI-device */
 	struct pci_dev *pdev;
+	/* whether or not the watchdog has been suspended */
+	bool suspended;
 } iTCO_wdt_private;
 
 /* module parameters */
@@ -571,13 +574,60 @@ static void iTCO_wdt_shutdown(struct platform_device *dev)
 	iTCO_wdt_stop(NULL);
 }
 
+#ifdef CONFIG_PM_SLEEP
+/*
+ * Suspend-to-idle requires this, because it stops the ticks and timekeeping, so
+ * the watchdog cannot be pinged while in that state.  In ACPI sleep states the
+ * watchdog is stopped by the platform firmware.
+ */
+
+#ifdef CONFIG_ACPI
+static inline bool need_suspend(void)
+{
+	return acpi_target_system_state() == ACPI_STATE_S0;
+}
+#else
+static inline bool need_suspend(void) { return true; }
+#endif
+
+static int iTCO_wdt_suspend_noirq(struct device *dev)
+{
+	int ret = 0;
+
+	iTCO_wdt_private.suspended = false;
+	if (watchdog_active(&iTCO_wdt_watchdog_dev) && need_suspend()) {
+		ret = iTCO_wdt_stop(&iTCO_wdt_watchdog_dev);
+		if (!ret)
+			iTCO_wdt_private.suspended = true;
+	}
+	return ret;
+}
+
+static int iTCO_wdt_resume_noirq(struct device *dev)
+{
+	if (iTCO_wdt_private.suspended)
+		iTCO_wdt_start(&iTCO_wdt_watchdog_dev);
+
+	return 0;
+}
+
+static struct dev_pm_ops iTCO_wdt_pm = {
+	.suspend_noirq = iTCO_wdt_suspend_noirq,
+	.resume_noirq = iTCO_wdt_resume_noirq,
+};
+
+#define ITCO_WDT_PM_OPS	(&iTCO_wdt_pm)
+#else
+#define ITCO_WDT_PM_OPS	NULL
+#endif /* CONFIG_PM_SLEEP */
+
 static struct platform_driver iTCO_wdt_driver = {
 	.probe          = iTCO_wdt_probe,
 	.remove         = iTCO_wdt_remove,
 	.shutdown       = iTCO_wdt_shutdown,
 	.driver         = {
-		.owner  = THIS_MODULE,
 		.name   = DRV_NAME,
+		.pm     = ITCO_WDT_PM_OPS,
 	},
 };
 

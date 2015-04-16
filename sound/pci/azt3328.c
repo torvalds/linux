@@ -179,7 +179,7 @@
  *  - use MMIO (memory-mapped I/O)? Slightly faster access, e.g. for gameport.
  */
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/init.h>
 #include <linux/bug.h> /* WARN_ONCE */
 #include <linux/pci.h>
@@ -1034,11 +1034,6 @@ snd_azf3328_info_mixer_enum(struct snd_kcontrol *kcontrol,
 	const char * const *p = NULL;
 
 	snd_azf3328_mixer_reg_decode(&reg, kcontrol->private_value);
-        uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-        uinfo->count = (reg.reg == IDX_MIXER_REC_SELECT) ? 2 : 1;
-        uinfo->value.enumerated.items = reg.enum_c;
-        if (uinfo->value.enumerated.item > reg.enum_c - 1U)
-                uinfo->value.enumerated.item = reg.enum_c - 1U;
 	if (reg.reg == IDX_MIXER_ADVCTL2) {
 		switch(reg.lchan_shift) {
 		case 8: /* modem out sel */
@@ -1051,12 +1046,12 @@ snd_azf3328_info_mixer_enum(struct snd_kcontrol *kcontrol,
 			p = texts4;
 			break;
 		}
-	} else
-	if (reg.reg == IDX_MIXER_REC_SELECT)
+	} else if (reg.reg == IDX_MIXER_REC_SELECT)
 		p = texts3;
 
-	strcpy(uinfo->value.enumerated.name, p[uinfo->value.enumerated.item]);
-        return 0;
+	return snd_ctl_enum_info(uinfo,
+				 (reg.reg == IDX_MIXER_REC_SELECT) ? 2 : 1,
+				 reg.enum_c, p);
 }
 
 static int
@@ -1390,8 +1385,8 @@ snd_azf3328_ctrl_codec_activity(struct snd_azf3328 *chip,
 					.running)
 			     &&  (!chip->codecs[peer_codecs[codec_type].other2]
 					.running));
-		 }
-		 if (call_function)
+		}
+		if (call_function)
 			snd_azf3328_ctrl_enable_codecs(chip, enable);
 
 		/* ...and adjust clock, too
@@ -2131,7 +2126,8 @@ static struct snd_pcm_ops snd_azf3328_i2s_out_ops = {
 static int
 snd_azf3328_pcm(struct snd_azf3328 *chip)
 {
-enum { AZF_PCMDEV_STD, AZF_PCMDEV_I2S_OUT, NUM_AZF_PCMDEVS }; /* pcm devices */
+	/* pcm devices */
+	enum { AZF_PCMDEV_STD, AZF_PCMDEV_I2S_OUT, NUM_AZF_PCMDEVS };
 
 	struct snd_pcm *pcm;
 	int err;
@@ -2699,7 +2695,6 @@ snd_azf3328_resume_ac97(const struct snd_azf3328 *chip)
 static int
 snd_azf3328_suspend(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_azf3328 *chip = card->private_data;
 	u16 *saved_regs_ctrl_u16;
@@ -2725,28 +2720,14 @@ snd_azf3328_suspend(struct device *dev)
 		ARRAY_SIZE(chip->saved_regs_mpu), chip->saved_regs_mpu);
 	snd_azf3328_suspend_regs(chip, chip->opl3_io,
 		ARRAY_SIZE(chip->saved_regs_opl3), chip->saved_regs_opl3);
-
-	pci_disable_device(pci);
-	pci_save_state(pci);
-	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
 static int
 snd_azf3328_resume(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	const struct snd_azf3328 *chip = card->private_data;
-
-	pci_set_power_state(pci, PCI_D0);
-	pci_restore_state(pci);
-	if (pci_enable_device(pci) < 0) {
-		dev_err(dev, "pci_enable_device failed, disabling device\n");
-		snd_card_disconnect(card);
-		return -EIO;
-	}
-	pci_set_master(pci);
 
 	snd_azf3328_resume_regs(chip, chip->saved_regs_game, chip->game_io,
 					ARRAY_SIZE(chip->saved_regs_game));

@@ -2,23 +2,55 @@
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
-#include <linux/page-debug-flags.h>
+#include <linux/page_ext.h>
 #include <linux/poison.h>
 #include <linux/ratelimit.h>
 
+static bool page_poisoning_enabled __read_mostly;
+
+static bool need_page_poisoning(void)
+{
+	if (!debug_pagealloc_enabled())
+		return false;
+
+	return true;
+}
+
+static void init_page_poisoning(void)
+{
+	if (!debug_pagealloc_enabled())
+		return;
+
+	page_poisoning_enabled = true;
+}
+
+struct page_ext_operations page_poisoning_ops = {
+	.need = need_page_poisoning,
+	.init = init_page_poisoning,
+};
+
 static inline void set_page_poison(struct page *page)
 {
-	__set_bit(PAGE_DEBUG_FLAG_POISON, &page->debug_flags);
+	struct page_ext *page_ext;
+
+	page_ext = lookup_page_ext(page);
+	__set_bit(PAGE_EXT_DEBUG_POISON, &page_ext->flags);
 }
 
 static inline void clear_page_poison(struct page *page)
 {
-	__clear_bit(PAGE_DEBUG_FLAG_POISON, &page->debug_flags);
+	struct page_ext *page_ext;
+
+	page_ext = lookup_page_ext(page);
+	__clear_bit(PAGE_EXT_DEBUG_POISON, &page_ext->flags);
 }
 
 static inline bool page_poison(struct page *page)
 {
-	return test_bit(PAGE_DEBUG_FLAG_POISON, &page->debug_flags);
+	struct page_ext *page_ext;
+
+	page_ext = lookup_page_ext(page);
+	return test_bit(PAGE_EXT_DEBUG_POISON, &page_ext->flags);
 }
 
 static void poison_page(struct page *page)
@@ -93,8 +125,11 @@ static void unpoison_pages(struct page *page, int n)
 		unpoison_page(page + i);
 }
 
-void kernel_map_pages(struct page *page, int numpages, int enable)
+void __kernel_map_pages(struct page *page, int numpages, int enable)
 {
+	if (!page_poisoning_enabled)
+		return;
+
 	if (enable)
 		unpoison_pages(page, numpages);
 	else

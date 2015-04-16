@@ -23,11 +23,9 @@
  */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 #include "addi_watchdog.h"
-#include "comedi_fc.h"
 
 /*
  * PCI bar 1 I/O Register map - Digital input/output
@@ -163,7 +161,7 @@ static int apci1516_auto_attach(struct comedi_device *dev,
 	s = &dev->subdevices[1];
 	if (this_board->do_nchan) {
 		s->type		= COMEDI_SUBD_DO;
-		s->subdev_flags	= SDF_WRITEABLE;
+		s->subdev_flags	= SDF_WRITABLE;
 		s->n_chan	= this_board->do_nchan;
 		s->maxdata	= 1;
 		s->range_table	= &range_digital;

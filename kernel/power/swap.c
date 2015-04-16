@@ -30,6 +30,7 @@
 #include <linux/atomic.h>
 #include <linux/kthread.h>
 #include <linux/crc32.h>
+#include <linux/ktime.h>
 
 #include "power.h"
 
@@ -445,8 +446,8 @@ static int save_image(struct swap_map_handle *handle,
 	int nr_pages;
 	int err2;
 	struct bio *bio;
-	struct timeval start;
-	struct timeval stop;
+	ktime_t start;
+	ktime_t stop;
 
 	printk(KERN_INFO "PM: Saving image data pages (%u pages)...\n",
 		nr_to_write);
@@ -455,7 +456,7 @@ static int save_image(struct swap_map_handle *handle,
 		m = 1;
 	nr_pages = 0;
 	bio = NULL;
-	do_gettimeofday(&start);
+	start = ktime_get();
 	while (1) {
 		ret = snapshot_read_next(snapshot);
 		if (ret <= 0)
@@ -469,12 +470,12 @@ static int save_image(struct swap_map_handle *handle,
 		nr_pages++;
 	}
 	err2 = hib_wait_on_bio_chain(&bio);
-	do_gettimeofday(&stop);
+	stop = ktime_get();
 	if (!ret)
 		ret = err2;
 	if (!ret)
 		printk(KERN_INFO "PM: Image saving done.\n");
-	swsusp_show_speed(&start, &stop, nr_to_write, "Wrote");
+	swsusp_show_speed(start, stop, nr_to_write, "Wrote");
 	return ret;
 }
 
@@ -580,8 +581,8 @@ static int save_image_lzo(struct swap_map_handle *handle,
 	int nr_pages;
 	int err2;
 	struct bio *bio;
-	struct timeval start;
-	struct timeval stop;
+	ktime_t start;
+	ktime_t stop;
 	size_t off;
 	unsigned thr, run_threads, nr_threads;
 	unsigned char *page = NULL;
@@ -674,7 +675,7 @@ static int save_image_lzo(struct swap_map_handle *handle,
 		m = 1;
 	nr_pages = 0;
 	bio = NULL;
-	do_gettimeofday(&start);
+	start = ktime_get();
 	for (;;) {
 		for (thr = 0; thr < nr_threads; thr++) {
 			for (off = 0; off < LZO_UNC_SIZE; off += PAGE_SIZE) {
@@ -759,12 +760,12 @@ static int save_image_lzo(struct swap_map_handle *handle,
 
 out_finish:
 	err2 = hib_wait_on_bio_chain(&bio);
-	do_gettimeofday(&stop);
+	stop = ktime_get();
 	if (!ret)
 		ret = err2;
 	if (!ret)
 		printk(KERN_INFO "PM: Image saving done.\n");
-	swsusp_show_speed(&start, &stop, nr_to_write, "Wrote");
+	swsusp_show_speed(start, stop, nr_to_write, "Wrote");
 out_clean:
 	if (crc) {
 		if (crc->thr)
@@ -965,8 +966,8 @@ static int load_image(struct swap_map_handle *handle,
 {
 	unsigned int m;
 	int ret = 0;
-	struct timeval start;
-	struct timeval stop;
+	ktime_t start;
+	ktime_t stop;
 	struct bio *bio;
 	int err2;
 	unsigned nr_pages;
@@ -978,7 +979,7 @@ static int load_image(struct swap_map_handle *handle,
 		m = 1;
 	nr_pages = 0;
 	bio = NULL;
-	do_gettimeofday(&start);
+	start = ktime_get();
 	for ( ; ; ) {
 		ret = snapshot_write_next(snapshot);
 		if (ret <= 0)
@@ -996,7 +997,7 @@ static int load_image(struct swap_map_handle *handle,
 		nr_pages++;
 	}
 	err2 = hib_wait_on_bio_chain(&bio);
-	do_gettimeofday(&stop);
+	stop = ktime_get();
 	if (!ret)
 		ret = err2;
 	if (!ret) {
@@ -1005,7 +1006,7 @@ static int load_image(struct swap_map_handle *handle,
 		if (!snapshot_image_loaded(snapshot))
 			ret = -ENODATA;
 	}
-	swsusp_show_speed(&start, &stop, nr_to_read, "Read");
+	swsusp_show_speed(start, stop, nr_to_read, "Read");
 	return ret;
 }
 
@@ -1067,8 +1068,8 @@ static int load_image_lzo(struct swap_map_handle *handle,
 	int ret = 0;
 	int eof = 0;
 	struct bio *bio;
-	struct timeval start;
-	struct timeval stop;
+	ktime_t start;
+	ktime_t stop;
 	unsigned nr_pages;
 	size_t off;
 	unsigned i, thr, run_threads, nr_threads;
@@ -1190,7 +1191,7 @@ static int load_image_lzo(struct swap_map_handle *handle,
 		m = 1;
 	nr_pages = 0;
 	bio = NULL;
-	do_gettimeofday(&start);
+	start = ktime_get();
 
 	ret = snapshot_write_next(snapshot);
 	if (ret <= 0)
@@ -1343,7 +1344,7 @@ out_finish:
 		wait_event(crc->done, atomic_read(&crc->stop));
 		atomic_set(&crc->stop, 0);
 	}
-	do_gettimeofday(&stop);
+	stop = ktime_get();
 	if (!ret) {
 		printk(KERN_INFO "PM: Image loading done.\n");
 		snapshot_write_finalize(snapshot);
@@ -1359,7 +1360,7 @@ out_finish:
 			}
 		}
 	}
-	swsusp_show_speed(&start, &stop, nr_to_read, "Read");
+	swsusp_show_speed(start, stop, nr_to_read, "Read");
 out_clean:
 	for (i = 0; i < ring_size; i++)
 		free_page((unsigned long)page[i]);
@@ -1374,7 +1375,7 @@ out_clean:
 				kthread_stop(data[thr].thr);
 		vfree(data);
 	}
-	if (page) vfree(page);
+	vfree(page);
 
 	return ret;
 }

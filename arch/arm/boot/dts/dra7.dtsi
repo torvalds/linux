@@ -13,14 +13,13 @@
 #include "skeleton.dtsi"
 
 #define MAX_SOURCES 400
-#define DIRECT_IRQ(irq) (MAX_SOURCES + irq)
 
 / {
 	#address-cells = <1>;
 	#size-cells = <1>;
 
 	compatible = "ti,dra7xx";
-	interrupt-parent = <&gic>;
+	interrupt-parent = <&crossbar_mpu>;
 
 	aliases {
 		i2c0 = &i2c1;
@@ -34,6 +33,14 @@
 		serial3 = &uart4;
 		serial4 = &uart5;
 		serial5 = &uart6;
+		serial6 = &uart7;
+		serial7 = &uart8;
+		serial8 = &uart9;
+		serial9 = &uart10;
+		ethernet0 = &cpsw_emac0;
+		ethernet1 = &cpsw_emac1;
+		d_can0 = &dcan1;
+		d_can1 = &dcan2;
 	};
 
 	timer {
@@ -42,18 +49,27 @@
 			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>,
 			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>,
 			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>;
+		interrupt-parent = <&gic>;
 	};
 
 	gic: interrupt-controller@48211000 {
 		compatible = "arm,cortex-a15-gic";
 		interrupt-controller;
 		#interrupt-cells = <3>;
-		arm,routable-irqs = <192>;
 		reg = <0x48211000 0x1000>,
 		      <0x48212000 0x1000>,
 		      <0x48214000 0x2000>,
 		      <0x48216000 0x2000>;
 		interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_HIGH)>;
+		interrupt-parent = <&gic>;
+	};
+
+	wakeupgen: interrupt-controller@48281000 {
+		compatible = "ti,omap5-wugen-mpu", "ti,omap4-wugen-mpu";
+		interrupt-controller;
+		#interrupt-cells = <3>;
+		reg = <0x48281000 0x1000>;
+		interrupt-parent = <&gic>;
 	};
 
 	/*
@@ -83,8 +99,8 @@
 		ti,hwmods = "l3_main_1", "l3_main_2";
 		reg = <0x44000000 0x1000000>,
 		      <0x45000000 0x1000>;
-		interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI DIRECT_IRQ(10) IRQ_TYPE_LEVEL_HIGH>;
+		interrupts-extended = <&crossbar_mpu GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
+				      <&wakeupgen GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 
 		prm: prm@4ae06000 {
 			compatible = "ti,dra7-prm";
@@ -201,6 +217,11 @@
 			ti,hwmods = "counter_32k";
 		};
 
+		dra7_ctrl_core: ctrl_core@4a002000 {
+			compatible = "syscon";
+			reg = <0x4a002000 0x6d0>;
+		};
+
 		dra7_ctrl_general: tisyscon@4a002e00 {
 			compatible = "syscon";
 			reg = <0x4a002e00 0x7c>;
@@ -236,8 +257,8 @@
 				     <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 			#dma-cells = <1>;
-			#dma-channels = <32>;
-			#dma-requests = <127>;
+			dma-channels = <32>;
+			dma-requests = <127>;
 		};
 
 		gpio1: gpio@4ae10000 {
@@ -331,61 +352,73 @@
 		uart1: serial@4806a000 {
 			compatible = "ti,omap4-uart";
 			reg = <0x4806a000 0x100>;
-			interrupts-extended = <&gic GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts-extended = <&crossbar_mpu GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "uart1";
 			clock-frequency = <48000000>;
 			status = "disabled";
+			dmas = <&sdma 49>, <&sdma 50>;
+			dma-names = "tx", "rx";
 		};
 
 		uart2: serial@4806c000 {
 			compatible = "ti,omap4-uart";
 			reg = <0x4806c000 0x100>;
-			interrupts-extended = <&gic GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "uart2";
 			clock-frequency = <48000000>;
 			status = "disabled";
+			dmas = <&sdma 51>, <&sdma 52>;
+			dma-names = "tx", "rx";
 		};
 
 		uart3: serial@48020000 {
 			compatible = "ti,omap4-uart";
 			reg = <0x48020000 0x100>;
-			interrupts-extended = <&gic GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "uart3";
 			clock-frequency = <48000000>;
 			status = "disabled";
+			dmas = <&sdma 53>, <&sdma 54>;
+			dma-names = "tx", "rx";
 		};
 
 		uart4: serial@4806e000 {
 			compatible = "ti,omap4-uart";
 			reg = <0x4806e000 0x100>;
-			interrupts-extended = <&gic GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "uart4";
 			clock-frequency = <48000000>;
                         status = "disabled";
+			dmas = <&sdma 55>, <&sdma 56>;
+			dma-names = "tx", "rx";
 		};
 
 		uart5: serial@48066000 {
 			compatible = "ti,omap4-uart";
 			reg = <0x48066000 0x100>;
-			interrupts-extended = <&gic GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "uart5";
 			clock-frequency = <48000000>;
 			status = "disabled";
+			dmas = <&sdma 63>, <&sdma 64>;
+			dma-names = "tx", "rx";
 		};
 
 		uart6: serial@48068000 {
 			compatible = "ti,omap4-uart";
 			reg = <0x48068000 0x100>;
-			interrupts-extended = <&gic GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "uart6";
 			clock-frequency = <48000000>;
 			status = "disabled";
+			dmas = <&sdma 79>, <&sdma 80>;
+			dma-names = "tx", "rx";
 		};
 
 		uart7: serial@48420000 {
 			compatible = "ti,omap4-uart";
 			reg = <0x48420000 0x100>;
-			interrupts-extended = <&gic GIC_SPI 218 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 218 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "uart7";
 			clock-frequency = <48000000>;
 			status = "disabled";
@@ -394,7 +427,7 @@
 		uart8: serial@48422000 {
 			compatible = "ti,omap4-uart";
 			reg = <0x48422000 0x100>;
-			interrupts-extended = <&gic GIC_SPI 219 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 219 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "uart8";
 			clock-frequency = <48000000>;
 			status = "disabled";
@@ -403,7 +436,7 @@
 		uart9: serial@48424000 {
 			compatible = "ti,omap4-uart";
 			reg = <0x48424000 0x100>;
-			interrupts-extended = <&gic GIC_SPI 220 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 220 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "uart9";
 			clock-frequency = <48000000>;
 			status = "disabled";
@@ -412,7 +445,7 @@
 		uart10: serial@4ae2b000 {
 			compatible = "ti,omap4-uart";
 			reg = <0x4ae2b000 0x100>;
-			interrupts-extended = <&gic GIC_SPI 221 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 221 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "uart10";
 			clock-frequency = <48000000>;
 			status = "disabled";
@@ -421,7 +454,11 @@
 		mailbox1: mailbox@4a0f4000 {
 			compatible = "ti,omap4-mailbox";
 			reg = <0x4a0f4000 0x200>;
+			interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "mailbox1";
+			#mbox-cells = <1>;
 			ti,mbox-num-users = <3>;
 			ti,mbox-num-fifos = <8>;
 			status = "disabled";
@@ -430,7 +467,12 @@
 		mailbox2: mailbox@4883a000 {
 			compatible = "ti,omap4-mailbox";
 			reg = <0x4883a000 0x200>;
+			interrupts = <GIC_SPI 237 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 239 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "mailbox2";
+			#mbox-cells = <1>;
 			ti,mbox-num-users = <4>;
 			ti,mbox-num-fifos = <12>;
 			status = "disabled";
@@ -439,7 +481,12 @@
 		mailbox3: mailbox@4883c000 {
 			compatible = "ti,omap4-mailbox";
 			reg = <0x4883c000 0x200>;
+			interrupts = <GIC_SPI 241 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 242 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 243 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 244 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "mailbox3";
+			#mbox-cells = <1>;
 			ti,mbox-num-users = <4>;
 			ti,mbox-num-fifos = <12>;
 			status = "disabled";
@@ -448,7 +495,12 @@
 		mailbox4: mailbox@4883e000 {
 			compatible = "ti,omap4-mailbox";
 			reg = <0x4883e000 0x200>;
+			interrupts = <GIC_SPI 245 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 246 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 247 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 248 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "mailbox4";
+			#mbox-cells = <1>;
 			ti,mbox-num-users = <4>;
 			ti,mbox-num-fifos = <12>;
 			status = "disabled";
@@ -457,7 +509,12 @@
 		mailbox5: mailbox@48840000 {
 			compatible = "ti,omap4-mailbox";
 			reg = <0x48840000 0x200>;
+			interrupts = <GIC_SPI 249 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 250 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 251 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 252 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "mailbox5";
+			#mbox-cells = <1>;
 			ti,mbox-num-users = <4>;
 			ti,mbox-num-fifos = <12>;
 			status = "disabled";
@@ -466,7 +523,12 @@
 		mailbox6: mailbox@48842000 {
 			compatible = "ti,omap4-mailbox";
 			reg = <0x48842000 0x200>;
+			interrupts = <GIC_SPI 253 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 254 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 255 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 256 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "mailbox6";
+			#mbox-cells = <1>;
 			ti,mbox-num-users = <4>;
 			ti,mbox-num-fifos = <12>;
 			status = "disabled";
@@ -475,7 +537,12 @@
 		mailbox7: mailbox@48844000 {
 			compatible = "ti,omap4-mailbox";
 			reg = <0x48844000 0x200>;
+			interrupts = <GIC_SPI 257 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 258 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 259 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 260 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "mailbox7";
+			#mbox-cells = <1>;
 			ti,mbox-num-users = <4>;
 			ti,mbox-num-fifos = <12>;
 			status = "disabled";
@@ -484,7 +551,12 @@
 		mailbox8: mailbox@48846000 {
 			compatible = "ti,omap4-mailbox";
 			reg = <0x48846000 0x200>;
+			interrupts = <GIC_SPI 261 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 262 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 263 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 264 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "mailbox8";
+			#mbox-cells = <1>;
 			ti,mbox-num-users = <4>;
 			ti,mbox-num-fifos = <12>;
 			status = "disabled";
@@ -493,7 +565,12 @@
 		mailbox9: mailbox@4885e000 {
 			compatible = "ti,omap4-mailbox";
 			reg = <0x4885e000 0x200>;
+			interrupts = <GIC_SPI 265 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 266 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 267 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 268 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "mailbox9";
+			#mbox-cells = <1>;
 			ti,mbox-num-users = <4>;
 			ti,mbox-num-fifos = <12>;
 			status = "disabled";
@@ -502,7 +579,12 @@
 		mailbox10: mailbox@48860000 {
 			compatible = "ti,omap4-mailbox";
 			reg = <0x48860000 0x200>;
+			interrupts = <GIC_SPI 269 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 270 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 271 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 272 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "mailbox10";
+			#mbox-cells = <1>;
 			ti,mbox-num-users = <4>;
 			ti,mbox-num-fifos = <12>;
 			status = "disabled";
@@ -511,7 +593,12 @@
 		mailbox11: mailbox@48862000 {
 			compatible = "ti,omap4-mailbox";
 			reg = <0x48862000 0x200>;
+			interrupts = <GIC_SPI 273 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 274 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 275 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 276 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "mailbox11";
+			#mbox-cells = <1>;
 			ti,mbox-num-users = <4>;
 			ti,mbox-num-fifos = <12>;
 			status = "disabled";
@@ -520,7 +607,12 @@
 		mailbox12: mailbox@48864000 {
 			compatible = "ti,omap4-mailbox";
 			reg = <0x48864000 0x200>;
+			interrupts = <GIC_SPI 277 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 278 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 279 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 280 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "mailbox12";
+			#mbox-cells = <1>;
 			ti,mbox-num-users = <4>;
 			ti,mbox-num-fifos = <12>;
 			status = "disabled";
@@ -529,7 +621,12 @@
 		mailbox13: mailbox@48802000 {
 			compatible = "ti,omap4-mailbox";
 			reg = <0x48802000 0x200>;
+			interrupts = <GIC_SPI 379 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 380 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 381 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 382 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "mailbox13";
+			#mbox-cells = <1>;
 			ti,mbox-num-users = <4>;
 			ti,mbox-num-fifos = <12>;
 			status = "disabled";
@@ -653,7 +750,7 @@
 		};
 
 		wdt2: wdt@4ae14000 {
-			compatible = "ti,omap4-wdt";
+			compatible = "ti,omap3-wdt";
 			reg = <0x4ae14000 0x80>;
 			interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "wd_timer2";
@@ -1001,8 +1098,8 @@
 				      <0x4A096800 0x40>; /* pll_ctrl */
 				reg-names = "phy_rx", "phy_tx", "pll_ctrl";
 				ctrl-module = <&omap_control_sata>;
-				clocks = <&sys_clkin1>;
-				clock-names = "sysclk";
+				clocks = <&sys_clkin1>, <&sata_ref_clk>;
+				clock-names = "sysclk", "refclk";
 				#phy-cells = <0>;
 			};
 
@@ -1022,8 +1119,6 @@
 					      "wkupclk", "refclk",
 					      "div-clk", "phy-div";
 				#phy-cells = <0>;
-				id = <1>;
-				ti,hwmods = "pcie1-phy";
 			};
 
 			pcie2_phy: pciephy@4a095000 {
@@ -1042,8 +1137,6 @@
 					      "wkupclk", "refclk",
 					      "div-clk", "phy-div";
 				#phy-cells = <0>;
-				ti,hwmods = "pcie2-phy";
-				id = <2>;
 				status = "disabled";
 			};
 		};
@@ -1073,6 +1166,15 @@
 			clocks = <&sys_clkin1>;
 			clock-names = "sysclk";
 			status = "disabled";
+		};
+
+		rtc@48838000 {
+			compatible = "ti,am3352-rtc";
+			reg = <0x48838000 0x100>;
+			interrupts = <GIC_SPI 217 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 217 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "rtcss";
+			clocks = <&sys_32k_ck>;
 		};
 
 		omap_control_usb2phy1: control-phy@4a002300 {
@@ -1141,7 +1243,7 @@
 			};
 		};
 
-		omap_dwc3_1@48880000 {
+		omap_dwc3_1: omap_dwc3_1@48880000 {
 			compatible = "ti,dwc3";
 			ti,hwmods = "usb_otg_ss1";
 			reg = <0x48880000 0x10000>;
@@ -1159,10 +1261,12 @@
 				tx-fifo-resize;
 				maximum-speed = "super-speed";
 				dr_mode = "otg";
+				snps,dis_u3_susphy_quirk;
+				snps,dis_u2_susphy_quirk;
 			};
 		};
 
-		omap_dwc3_2@488c0000 {
+		omap_dwc3_2: omap_dwc3_2@488c0000 {
 			compatible = "ti,dwc3";
 			ti,hwmods = "usb_otg_ss2";
 			reg = <0x488c0000 0x10000>;
@@ -1180,11 +1284,13 @@
 				tx-fifo-resize;
 				maximum-speed = "high-speed";
 				dr_mode = "otg";
+				snps,dis_u3_susphy_quirk;
+				snps,dis_u2_susphy_quirk;
 			};
 		};
 
 		/* IRQ for DWC3_3 and DWC3_4 need IRQ crossbar */
-		omap_dwc3_3@48900000 {
+		omap_dwc3_3: omap_dwc3_3@48900000 {
 			compatible = "ti,dwc3";
 			ti,hwmods = "usb_otg_ss3";
 			reg = <0x48900000 0x10000>;
@@ -1201,26 +1307,8 @@
 				tx-fifo-resize;
 				maximum-speed = "high-speed";
 				dr_mode = "otg";
-			};
-		};
-
-		omap_dwc3_4@48940000 {
-			compatible = "ti,dwc3";
-			ti,hwmods = "usb_otg_ss4";
-			reg = <0x48940000 0x10000>;
-			interrupts = <GIC_SPI 346 IRQ_TYPE_LEVEL_HIGH>;
-			#address-cells = <1>;
-			#size-cells = <1>;
-			utmi-mode = <2>;
-			ranges;
-			status = "disabled";
-			usb4: usb@48950000 {
-				compatible = "snps,dwc3";
-				reg = <0x48950000 0x17000>;
-				interrupts = <GIC_SPI 345 IRQ_TYPE_LEVEL_HIGH>;
-				tx-fifo-resize;
-				maximum-speed = "high-speed";
-				dr_mode = "otg";
+				snps,dis_u3_susphy_quirk;
+				snps,dis_u2_susphy_quirk;
 			};
 		};
 
@@ -1255,15 +1343,96 @@
 			status = "disabled";
 		};
 
-		crossbar_mpu: crossbar@4a020000 {
+		crossbar_mpu: crossbar@4a002a48 {
 			compatible = "ti,irq-crossbar";
 			reg = <0x4a002a48 0x130>;
+			interrupt-controller;
+			interrupt-parent = <&wakeupgen>;
+			#interrupt-cells = <3>;
 			ti,max-irqs = <160>;
 			ti,max-crossbar-sources = <MAX_SOURCES>;
 			ti,reg-size = <2>;
 			ti,irqs-reserved = <0 1 2 3 5 6 131 132>;
 			ti,irqs-skip = <10 133 139 140>;
 			ti,irqs-safe-map = <0>;
+		};
+
+		mac: ethernet@4a100000 {
+			compatible = "ti,cpsw";
+			ti,hwmods = "gmac";
+			clocks = <&dpll_gmac_ck>, <&gmac_gmii_ref_clk_div>;
+			clock-names = "fck", "cpts";
+			cpdma_channels = <8>;
+			ale_entries = <1024>;
+			bd_ram_size = <0x2000>;
+			no_bd_ram = <0>;
+			rx_descs = <64>;
+			mac_control = <0x20>;
+			slaves = <2>;
+			active_slave = <0>;
+			cpts_clock_mult = <0x80000000>;
+			cpts_clock_shift = <29>;
+			reg = <0x48484000 0x1000
+			       0x48485200 0x2E00>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			/*
+			 * rx_thresh_pend
+			 * rx_pend
+			 * tx_pend
+			 * misc_pend
+			 */
+			interrupts = <GIC_SPI 334 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 335 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 336 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 337 IRQ_TYPE_LEVEL_HIGH>;
+			ranges;
+			status = "disabled";
+
+			davinci_mdio: mdio@48485000 {
+				compatible = "ti,davinci_mdio";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				ti,hwmods = "davinci_mdio";
+				bus_freq = <1000000>;
+				reg = <0x48485000 0x100>;
+			};
+
+			cpsw_emac0: slave@48480200 {
+				/* Filled in by U-Boot */
+				mac-address = [ 00 00 00 00 00 00 ];
+			};
+
+			cpsw_emac1: slave@48480300 {
+				/* Filled in by U-Boot */
+				mac-address = [ 00 00 00 00 00 00 ];
+			};
+
+			phy_sel: cpsw-phy-sel@4a002554 {
+				compatible = "ti,dra7xx-cpsw-phy-sel";
+				reg= <0x4a002554 0x4>;
+				reg-names = "gmii-sel";
+			};
+		};
+
+		dcan1: can@481cc000 {
+			compatible = "ti,dra7-d_can";
+			ti,hwmods = "dcan1";
+			reg = <0x4ae3c000 0x2000>;
+			syscon-raminit = <&dra7_ctrl_core 0x558 0>;
+			interrupts = <GIC_SPI 222 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&dcan1_sys_clk_mux>;
+			status = "disabled";
+		};
+
+		dcan2: can@481d0000 {
+			compatible = "ti,dra7-d_can";
+			ti,hwmods = "dcan2";
+			reg = <0x48480000 0x2000>;
+			syscon-raminit = <&dra7_ctrl_core 0x558 1>;
+			interrupts = <GIC_SPI 225 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&sys_clkin1>;
+			status = "disabled";
 		};
 	};
 };

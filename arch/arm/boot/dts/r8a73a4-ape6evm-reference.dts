@@ -21,7 +21,8 @@
 	};
 
 	chosen {
-		bootargs = "console=ttySC0,115200 ignore_loglevel rw";
+		bootargs = "ignore_loglevel rw";
+		stdout-path = &scifa0;
 	};
 
 	memory@40000000 {
@@ -66,7 +67,7 @@
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
-		ranges = <0 0 0 0x80000000>;
+		ranges = <0 0 0 0x20000000>;
 	};
 };
 
@@ -91,6 +92,10 @@
 		1462500  995000
 	>;
 	voltage-tolerance = <1>; /* 1% */
+};
+
+&cmt1 {
+	status = "okay";
 };
 
 &pfc {

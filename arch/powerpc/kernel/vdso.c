@@ -20,7 +20,6 @@
 #include <linux/user.h>
 #include <linux/elf.h>
 #include <linux/security.h>
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 
 #include <asm/pgtable.h>

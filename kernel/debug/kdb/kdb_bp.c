@@ -531,22 +531,29 @@ void __init kdb_initbptab(void)
 	for (i = 0, bp = kdb_breakpoints; i < KDB_MAXBPT; i++, bp++)
 		bp->bp_free = 1;
 
-	kdb_register_repeat("bp", kdb_bp, "[<vaddr>]",
-		"Set/Display breakpoints", 0, KDB_REPEAT_NO_ARGS);
-	kdb_register_repeat("bl", kdb_bp, "[<vaddr>]",
-		"Display breakpoints", 0, KDB_REPEAT_NO_ARGS);
+	kdb_register_flags("bp", kdb_bp, "[<vaddr>]",
+		"Set/Display breakpoints", 0,
+		KDB_ENABLE_FLOW_CTRL | KDB_REPEAT_NO_ARGS);
+	kdb_register_flags("bl", kdb_bp, "[<vaddr>]",
+		"Display breakpoints", 0,
+		KDB_ENABLE_FLOW_CTRL | KDB_REPEAT_NO_ARGS);
 	if (arch_kgdb_ops.flags & KGDB_HW_BREAKPOINT)
-		kdb_register_repeat("bph", kdb_bp, "[<vaddr>]",
-		"[datar [length]|dataw [length]]   Set hw brk", 0, KDB_REPEAT_NO_ARGS);
-	kdb_register_repeat("bc", kdb_bc, "<bpnum>",
-		"Clear Breakpoint", 0, KDB_REPEAT_NONE);
-	kdb_register_repeat("be", kdb_bc, "<bpnum>",
-		"Enable Breakpoint", 0, KDB_REPEAT_NONE);
-	kdb_register_repeat("bd", kdb_bc, "<bpnum>",
-		"Disable Breakpoint", 0, KDB_REPEAT_NONE);
+		kdb_register_flags("bph", kdb_bp, "[<vaddr>]",
+		"[datar [length]|dataw [length]]   Set hw brk", 0,
+		KDB_ENABLE_FLOW_CTRL | KDB_REPEAT_NO_ARGS);
+	kdb_register_flags("bc", kdb_bc, "<bpnum>",
+		"Clear Breakpoint", 0,
+		KDB_ENABLE_FLOW_CTRL);
+	kdb_register_flags("be", kdb_bc, "<bpnum>",
+		"Enable Breakpoint", 0,
+		KDB_ENABLE_FLOW_CTRL);
+	kdb_register_flags("bd", kdb_bc, "<bpnum>",
+		"Disable Breakpoint", 0,
+		KDB_ENABLE_FLOW_CTRL);
 
-	kdb_register_repeat("ss", kdb_ss, "",
-		"Single Step", 1, KDB_REPEAT_NO_ARGS);
+	kdb_register_flags("ss", kdb_ss, "",
+		"Single Step", 1,
+		KDB_ENABLE_FLOW_CTRL | KDB_REPEAT_NO_ARGS);
 	/*
 	 * Architecture dependent initialization.
 	 */

@@ -1454,7 +1454,6 @@ extern int is_valid_ar_handle(struct drbd_request *, sector_t);
 
 
 /* drbd_nl.c */
-extern int drbd_msg_put_info(struct sk_buff *skb, const char *info);
 extern void drbd_suspend_io(struct drbd_device *device);
 extern void drbd_resume_io(struct drbd_device *device);
 extern char *ppsize(char *buf, unsigned long long size);
@@ -1558,52 +1557,31 @@ extern void drbd_set_recv_tcq(struct drbd_device *device, int tcq_enabled);
 extern void _drbd_clear_done_ee(struct drbd_device *device, struct list_head *to_be_freed);
 extern int drbd_connected(struct drbd_peer_device *);
 
-/* Yes, there is kernel_setsockopt, but only since 2.6.18.
- * So we have our own copy of it here. */
-static inline int drbd_setsockopt(struct socket *sock, int level, int optname,
-				  char *optval, int optlen)
-{
-	mm_segment_t oldfs = get_fs();
-	char __user *uoptval;
-	int err;
-
-	uoptval = (char __user __force *)optval;
-
-	set_fs(KERNEL_DS);
-	if (level == SOL_SOCKET)
-		err = sock_setsockopt(sock, level, optname, uoptval, optlen);
-	else
-		err = sock->ops->setsockopt(sock, level, optname, uoptval,
-					    optlen);
-	set_fs(oldfs);
-	return err;
-}
-
 static inline void drbd_tcp_cork(struct socket *sock)
 {
 	int val = 1;
-	(void) drbd_setsockopt(sock, SOL_TCP, TCP_CORK,
+	(void) kernel_setsockopt(sock, SOL_TCP, TCP_CORK,
 			(char*)&val, sizeof(val));
 }
 
 static inline void drbd_tcp_uncork(struct socket *sock)
 {
 	int val = 0;
-	(void) drbd_setsockopt(sock, SOL_TCP, TCP_CORK,
+	(void) kernel_setsockopt(sock, SOL_TCP, TCP_CORK,
 			(char*)&val, sizeof(val));
 }
 
 static inline void drbd_tcp_nodelay(struct socket *sock)
 {
 	int val = 1;
-	(void) drbd_setsockopt(sock, SOL_TCP, TCP_NODELAY,
+	(void) kernel_setsockopt(sock, SOL_TCP, TCP_NODELAY,
 			(char*)&val, sizeof(val));
 }
 
 static inline void drbd_tcp_quickack(struct socket *sock)
 {
 	int val = 2;
-	(void) drbd_setsockopt(sock, SOL_TCP, TCP_QUICKACK,
+	(void) kernel_setsockopt(sock, SOL_TCP, TCP_QUICKACK,
 			(char*)&val, sizeof(val));
 }
 
@@ -1662,14 +1640,13 @@ extern void drbd_advance_rs_marks(struct drbd_device *device, unsigned long stil
 
 enum update_sync_bits_mode { RECORD_RS_FAILED, SET_OUT_OF_SYNC, SET_IN_SYNC };
 extern int __drbd_change_sync(struct drbd_device *device, sector_t sector, int size,
-		enum update_sync_bits_mode mode,
-		const char *file, const unsigned int line);
+		enum update_sync_bits_mode mode);
 #define drbd_set_in_sync(device, sector, size) \
-	__drbd_change_sync(device, sector, size, SET_IN_SYNC, __FILE__, __LINE__)
+	__drbd_change_sync(device, sector, size, SET_IN_SYNC)
 #define drbd_set_out_of_sync(device, sector, size) \
-	__drbd_change_sync(device, sector, size, SET_OUT_OF_SYNC, __FILE__, __LINE__)
+	__drbd_change_sync(device, sector, size, SET_OUT_OF_SYNC)
 #define drbd_rs_failed_io(device, sector, size) \
-	__drbd_change_sync(device, sector, size, RECORD_RS_FAILED, __FILE__, __LINE__)
+	__drbd_change_sync(device, sector, size, RECORD_RS_FAILED)
 extern void drbd_al_shrink(struct drbd_device *device);
 extern int drbd_initialize_al(struct drbd_device *, void *);
 

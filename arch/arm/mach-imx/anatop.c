@@ -30,8 +30,11 @@
 #define ANADIG_DIGPROG_IMX6SL	0x280
 
 #define BM_ANADIG_REG_2P5_ENABLE_WEAK_LINREG	0x40000
+#define BM_ANADIG_REG_2P5_ENABLE_PULLDOWN	0x8
 #define BM_ANADIG_REG_CORE_FET_ODRIVE		0x20000000
 #define BM_ANADIG_ANA_MISC0_STOP_MODE_CONFIG	0x1000
+/* Below MISC0_DISCON_HIGH_SNVS is only for i.MX6SL */
+#define BM_ANADIG_ANA_MISC0_DISCON_HIGH_SNVS	0x2000
 #define BM_ANADIG_USB_CHRG_DETECT_CHK_CHRG_B	0x80000
 #define BM_ANADIG_USB_CHRG_DETECT_EN_B		0x100000
 
@@ -56,16 +59,43 @@ static void imx_anatop_enable_fet_odrive(bool enable)
 		BM_ANADIG_REG_CORE_FET_ODRIVE);
 }
 
+static inline void imx_anatop_enable_2p5_pulldown(bool enable)
+{
+	regmap_write(anatop, ANADIG_REG_2P5 + (enable ? REG_SET : REG_CLR),
+		BM_ANADIG_REG_2P5_ENABLE_PULLDOWN);
+}
+
+static inline void imx_anatop_disconnect_high_snvs(bool enable)
+{
+	regmap_write(anatop, ANADIG_ANA_MISC0 + (enable ? REG_SET : REG_CLR),
+		BM_ANADIG_ANA_MISC0_DISCON_HIGH_SNVS);
+}
+
 void imx_anatop_pre_suspend(void)
 {
-	imx_anatop_enable_weak2p5(true);
+	if (imx_mmdc_get_ddr_type() == IMX_DDR_TYPE_LPDDR2)
+		imx_anatop_enable_2p5_pulldown(true);
+	else
+		imx_anatop_enable_weak2p5(true);
+
 	imx_anatop_enable_fet_odrive(true);
+
+	if (cpu_is_imx6sl())
+		imx_anatop_disconnect_high_snvs(true);
 }
 
 void imx_anatop_post_resume(void)
 {
+	if (imx_mmdc_get_ddr_type() == IMX_DDR_TYPE_LPDDR2)
+		imx_anatop_enable_2p5_pulldown(false);
+	else
+		imx_anatop_enable_weak2p5(false);
+
 	imx_anatop_enable_fet_odrive(false);
-	imx_anatop_enable_weak2p5(false);
+
+	if (cpu_is_imx6sl())
+		imx_anatop_disconnect_high_snvs(false);
+
 }
 
 static void imx_anatop_usb_chrg_detect_disable(void)

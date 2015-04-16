@@ -522,10 +522,10 @@ error_hs3:
 error_hs2:
 error_hs1:
 	memset(hs, 0, 3*sizeof(hs[0]));
-	memset(&keydvt_out, 0, sizeof(keydvt_out));
-	memset(&keydvt_in, 0, sizeof(keydvt_in));
-	memset(&ccm_n, 0, sizeof(ccm_n));
-	memset(mic, 0, sizeof(mic));
+	memzero_explicit(&keydvt_out, sizeof(keydvt_out));
+	memzero_explicit(&keydvt_in, sizeof(keydvt_in));
+	memzero_explicit(&ccm_n, sizeof(ccm_n));
+	memzero_explicit(mic, sizeof(mic));
 	if (result < 0)
 		wusb_dev_set_encryption(usb_dev, 0);
 error_dev_set_encryption:

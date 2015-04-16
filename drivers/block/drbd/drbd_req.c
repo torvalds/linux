@@ -36,29 +36,15 @@ static bool drbd_may_do_local_read(struct drbd_device *device, sector_t sector, 
 /* Update disk stats at start of I/O request */
 static void _drbd_start_io_acct(struct drbd_device *device, struct drbd_request *req)
 {
-	const int rw = bio_data_dir(req->master_bio);
-	int cpu;
-	cpu = part_stat_lock();
-	part_round_stats(cpu, &device->vdisk->part0);
-	part_stat_inc(cpu, &device->vdisk->part0, ios[rw]);
-	part_stat_add(cpu, &device->vdisk->part0, sectors[rw], req->i.size >> 9);
-	(void) cpu; /* The macro invocations above want the cpu argument, I do not like
-		       the compiler warning about cpu only assigned but never used... */
-	part_inc_in_flight(&device->vdisk->part0, rw);
-	part_stat_unlock();
+	generic_start_io_acct(bio_data_dir(req->master_bio), req->i.size >> 9,
+			      &device->vdisk->part0);
 }
 
 /* Update disk stats when completing request upwards */
 static void _drbd_end_io_acct(struct drbd_device *device, struct drbd_request *req)
 {
-	int rw = bio_data_dir(req->master_bio);
-	unsigned long duration = jiffies - req->start_jif;
-	int cpu;
-	cpu = part_stat_lock();
-	part_stat_add(cpu, &device->vdisk->part0, ticks[rw], duration);
-	part_round_stats(cpu, &device->vdisk->part0);
-	part_dec_in_flight(&device->vdisk->part0, rw);
-	part_stat_unlock();
+	generic_end_io_acct(bio_data_dir(req->master_bio),
+			    &device->vdisk->part0, req->start_jif);
 }
 
 static struct drbd_request *drbd_req_new(struct drbd_device *device,
@@ -1545,6 +1531,7 @@ int drbd_merge_bvec(struct request_queue *q, struct bvec_merge_data *bvm, struct
 		struct request_queue * const b =
 			device->ldev->backing_bdev->bd_disk->queue;
 		if (b->merge_bvec_fn) {
+			bvm->bi_bdev = device->ldev->backing_bdev;
 			backing_limit = b->merge_bvec_fn(b, bvm, bvec);
 			limit = min(limit, backing_limit);
 		}
@@ -1628,7 +1615,7 @@ void request_timer_fn(unsigned long data)
 		 time_after(now, req_peer->pre_send_jif + ent) &&
 		!time_in_range(now, connection->last_reconnect_jif, connection->last_reconnect_jif + ent)) {
 		drbd_warn(device, "Remote failed to finish a request within ko-count * timeout\n");
-		_drbd_set_state(_NS(device, conn, C_TIMEOUT), CS_VERBOSE | CS_HARD, NULL);
+		_conn_request_state(connection, NS(conn, C_TIMEOUT), CS_VERBOSE | CS_HARD);
 	}
 	if (dt && oldest_submit_jif != now &&
 		 time_after(now, oldest_submit_jif + dt) &&

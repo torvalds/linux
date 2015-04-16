@@ -434,7 +434,6 @@ static SIMPLE_DEV_PM_OPS(bfin_rtc_pm_ops, bfin_rtc_suspend, bfin_rtc_resume);
 static struct platform_driver bfin_rtc_driver = {
 	.driver		= {
 		.name	= "rtc-bfin",
-		.owner	= THIS_MODULE,
 		.pm	= &bfin_rtc_pm_ops,
 	},
 	.probe		= bfin_rtc_probe,

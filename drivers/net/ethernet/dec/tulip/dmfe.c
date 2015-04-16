@@ -653,7 +653,7 @@ static void dmfe_init_dm910x(struct DEVICE *dev)
 	if ( !(db->media_mode & DMFE_AUTO) )
 		db->op_mode = db->media_mode; 	/* Force Mode */
 
-	/* Initialize Transmit/Receive decriptor and CR3/4 */
+	/* Initialize Transmit/Receive descriptor and CR3/4 */
 	dmfe_descriptor_init(dev);
 
 	/* Init CR6 to program DM910x operation */
@@ -2265,7 +2265,7 @@ static int __init dmfe_init_module(void)
 
 static void __exit dmfe_cleanup_module(void)
 {
-	DMFE_DBUG(0, "dmfe_clean_module() ", debug);
+	DMFE_DBUG(0, "dmfe_cleanup_module() ", debug);
 	pci_unregister_driver(&dmfe_driver);
 }
 

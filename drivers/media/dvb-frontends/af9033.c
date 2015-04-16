@@ -291,6 +291,12 @@ static int af9033_init(struct dvb_frontend *fe)
 		if (clock_adc_lut[i].clock == dev->cfg.clock)
 			break;
 	}
+	if (i == ARRAY_SIZE(clock_adc_lut)) {
+		dev_err(&dev->client->dev,
+			"Couldn't find ADC config for clock=%d\n",
+			dev->cfg.clock);
+		goto err;
+	}
 
 	adc_cw = af9033_div(dev, clock_adc_lut[i].adc, 1000000ul, 19ul);
 	buf[0] = (adc_cw >>  0) & 0xff;
@@ -580,7 +586,15 @@ static int af9033_set_frontend(struct dvb_frontend *fe)
 				break;
 			}
 		}
-		ret =  af9033_wr_regs(dev, 0x800001,
+		if (i == ARRAY_SIZE(coeff_lut)) {
+			dev_err(&dev->client->dev,
+				"Couldn't find LUT config for clock=%d\n",
+				dev->cfg.clock);
+			ret = -EINVAL;
+			goto err;
+		}
+
+		ret = af9033_wr_regs(dev, 0x800001,
 				coeff_lut[i].val, sizeof(coeff_lut[i].val));
 	}
 
@@ -591,6 +605,13 @@ static int af9033_set_frontend(struct dvb_frontend *fe)
 		for (i = 0; i < ARRAY_SIZE(clock_adc_lut); i++) {
 			if (clock_adc_lut[i].clock == dev->cfg.clock)
 				break;
+		}
+		if (i == ARRAY_SIZE(clock_adc_lut)) {
+			dev_err(&dev->client->dev,
+				"Couldn't find ADC clock for clock=%d\n",
+				dev->cfg.clock);
+			ret = -EINVAL;
+			goto err;
 		}
 		adc_freq = clock_adc_lut[i].adc;
 
@@ -849,29 +870,97 @@ static int af9033_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 	struct af9033_dev *dev = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &dev->fe.dtv_property_cache;
+	int ret;
+	u8 u8tmp;
 
 	/* use DVBv5 CNR */
-	if (c->cnr.stat[0].scale == FE_SCALE_DECIBEL)
-		*snr = div_s64(c->cnr.stat[0].svalue, 100); /* 1000x => 10x */
-	else
+	if (c->cnr.stat[0].scale == FE_SCALE_DECIBEL) {
+		/* Return 0.1 dB for AF9030 and 0-0xffff for IT9130. */
+		if (dev->is_af9035) {
+			/* 1000x => 10x (0.1 dB) */
+			*snr = div_s64(c->cnr.stat[0].svalue, 100);
+		} else {
+			/* 1000x => 1x (1 dB) */
+			*snr = div_s64(c->cnr.stat[0].svalue, 1000);
+
+			/* read current modulation */
+			ret = af9033_rd_reg(dev, 0x80f903, &u8tmp);
+			if (ret)
+				goto err;
+
+			/* scale value to 0x0000-0xffff */
+			switch ((u8tmp >> 0) & 3) {
+			case 0:
+				*snr = *snr * 0xffff / 23;
+				break;
+			case 1:
+				*snr = *snr * 0xffff / 26;
+				break;
+			case 2:
+				*snr = *snr * 0xffff / 32;
+				break;
+			default:
+				goto err;
+			}
+		}
+	} else {
 		*snr = 0;
+	}
 
 	return 0;
+
+err:
+	dev_dbg(&dev->client->dev, "failed=%d\n", ret);
+
+	return ret;
 }
 
 static int af9033_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 {
 	struct af9033_dev *dev = fe->demodulator_priv;
-	int ret;
-	u8 strength2;
+	struct dtv_frontend_properties *c = &dev->fe.dtv_property_cache;
+	int ret, tmp, power_real;
+	u8 u8tmp, gain_offset, buf[7];
 
-	/* read signal strength of 0-100 scale */
-	ret = af9033_rd_reg(dev, 0x800048, &strength2);
-	if (ret < 0)
-		goto err;
+	if (dev->is_af9035) {
+		/* read signal strength of 0-100 scale */
+		ret = af9033_rd_reg(dev, 0x800048, &u8tmp);
+		if (ret < 0)
+			goto err;
 
-	/* scale value to 0x0000-0xffff */
-	*strength = strength2 * 0xffff / 100;
+		/* scale value to 0x0000-0xffff */
+		*strength = u8tmp * 0xffff / 100;
+	} else {
+		ret = af9033_rd_reg(dev, 0x8000f7, &u8tmp);
+		if (ret < 0)
+			goto err;
+
+		ret = af9033_rd_regs(dev, 0x80f900, buf, 7);
+		if (ret < 0)
+			goto err;
+
+		if (c->frequency <= 300000000)
+			gain_offset = 7; /* VHF */
+		else
+			gain_offset = 4; /* UHF */
+
+		power_real = (u8tmp - 100 - gain_offset) -
+			power_reference[((buf[3] >> 0) & 3)][((buf[6] >> 0) & 7)];
+
+		if (power_real < -15)
+			tmp = 0;
+		else if ((power_real >= -15) && (power_real < 0))
+			tmp = (2 * (power_real + 15)) / 3;
+		else if ((power_real >= 0) && (power_real < 20))
+			tmp = 4 * power_real + 10;
+		else if ((power_real >= 20) && (power_real < 35))
+			tmp = (2 * (power_real - 20)) / 3 + 90;
+		else
+			tmp = 100;
+
+		/* scale value to 0x0000-0xffff */
+		*strength = tmp * 0xffff / 100;
+	}
 
 	return 0;
 
@@ -1010,6 +1099,33 @@ static void af9033_stat_work(struct work_struct *work)
 			goto err;
 
 		snr_val = (buf[2] << 16) | (buf[1] << 8) | (buf[0] << 0);
+
+		/* read superframe number */
+		ret = af9033_rd_reg(dev, 0x80f78b, &u8tmp);
+		if (ret)
+			goto err;
+
+		if (u8tmp)
+			snr_val /= u8tmp;
+
+		/* read current transmission mode */
+		ret = af9033_rd_reg(dev, 0x80f900, &u8tmp);
+		if (ret)
+			goto err;
+
+		switch ((u8tmp >> 0) & 3) {
+		case 0:
+			snr_val *= 4;
+			break;
+		case 1:
+			snr_val *= 1;
+			break;
+		case 2:
+			snr_val *= 2;
+			break;
+		default:
+			goto err_schedule_delayed_work;
+		}
 
 		/* read current modulation */
 		ret = af9033_rd_reg(dev, 0x80f903, &u8tmp);

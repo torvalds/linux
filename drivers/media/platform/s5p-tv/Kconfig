@@ -8,8 +8,8 @@
 
 config VIDEO_SAMSUNG_S5P_TV
 	bool "Samsung TV driver for S5P platform"
-	depends on PM_RUNTIME
-	depends on PLAT_S5P || ARCH_EXYNOS || COMPILE_TEST
+	depends on PM
+	depends on ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
 	default n
 	---help---
 	  Say Y here to enable selecting the TV output devices for
@@ -20,6 +20,7 @@ if VIDEO_SAMSUNG_S5P_TV
 config VIDEO_SAMSUNG_S5P_HDMI
 	tristate "Samsung HDMI Driver"
 	depends on VIDEO_V4L2
+	depends on I2C
 	depends on VIDEO_SAMSUNG_S5P_TV
 	select VIDEO_SAMSUNG_S5P_HDMIPHY
 	help

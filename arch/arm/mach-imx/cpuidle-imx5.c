@@ -24,7 +24,6 @@ static struct cpuidle_driver imx5_cpuidle_driver = {
 		.enter            = imx5_cpuidle_enter,
 		.exit_latency     = 2,
 		.target_residency = 1,
-		.flags            = CPUIDLE_FLAG_TIME_VALID,
 		.name             = "IMX5 SRPG",
 		.desc             = "CPU state retained,powered off",
 	},

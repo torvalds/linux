@@ -69,12 +69,4 @@ extern void __iomem *ioremap(phys_addr_t address, unsigned long size);
 
 #include <asm-generic/io.h>
 
-#define readb_relaxed	readb
-#define readw_relaxed	readw
-#define readl_relaxed	readl
-
-#define writeb_relaxed	writeb
-#define writew_relaxed	writew
-#define writel_relaxed	writel
-
 #endif /* _ASM_MICROBLAZE_IO_H */

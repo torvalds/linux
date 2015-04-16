@@ -29,9 +29,7 @@
  * Policy Table
  */
 struct ip6addrlbl_entry {
-#ifdef CONFIG_NET_NS
-	struct net *lbl_net;
-#endif
+	possible_net_t lbl_net;
 	struct in6_addr prefix;
 	int prefixlen;
 	int ifindex;
@@ -129,9 +127,6 @@ static const __net_initconst struct ip6addrlbl_init_table
 /* Object management */
 static inline void ip6addrlbl_free(struct ip6addrlbl_entry *p)
 {
-#ifdef CONFIG_NET_NS
-	release_net(p->lbl_net);
-#endif
 	kfree(p);
 }
 
@@ -240,9 +235,7 @@ static struct ip6addrlbl_entry *ip6addrlbl_alloc(struct net *net,
 	newp->addrtype = addrtype;
 	newp->label = label;
 	INIT_HLIST_NODE(&newp->list);
-#ifdef CONFIG_NET_NS
-	newp->lbl_net = hold_net(net);
-#endif
+	write_pnet(&newp->lbl_net, net);
 	atomic_set(&newp->refcnt, 1);
 	return newp;
 }
@@ -484,13 +477,14 @@ static int ip6addrlbl_fill(struct sk_buff *skb,
 
 	ip6addrlbl_putmsg(nlh, p->prefixlen, p->ifindex, lseq);
 
-	if (nla_put(skb, IFAL_ADDRESS, 16, &p->prefix) < 0 ||
+	if (nla_put_in6_addr(skb, IFAL_ADDRESS, &p->prefix) < 0 ||
 	    nla_put_u32(skb, IFAL_LABEL, p->label) < 0) {
 		nlmsg_cancel(skb, nlh);
 		return -EMSGSIZE;
 	}
 
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 }
 
 static int ip6addrlbl_dump(struct sk_buff *skb, struct netlink_callback *cb)
@@ -510,7 +504,7 @@ static int ip6addrlbl_dump(struct sk_buff *skb, struct netlink_callback *cb)
 					      cb->nlh->nlmsg_seq,
 					      RTM_NEWADDRLABEL,
 					      NLM_F_MULTI);
-			if (err <= 0)
+			if (err < 0)
 				break;
 		}
 		idx++;

@@ -64,10 +64,10 @@ void dquot_destroy(struct dquot *dquot);
 int __dquot_alloc_space(struct inode *inode, qsize_t number, int flags);
 void __dquot_free_space(struct inode *inode, qsize_t number, int flags);
 
-int dquot_alloc_inode(const struct inode *inode);
+int dquot_alloc_inode(struct inode *inode);
 
 int dquot_claim_space_nodirty(struct inode *inode, qsize_t number);
-void dquot_free_inode(const struct inode *inode);
+void dquot_free_inode(struct inode *inode);
 void dquot_reclaim_space_nodirty(struct inode *inode, qsize_t number);
 
 int dquot_disable(struct super_block *sb, int type, unsigned int flags);
@@ -98,9 +98,9 @@ int dquot_quota_sync(struct super_block *sb, int type);
 int dquot_get_dqinfo(struct super_block *sb, int type, struct if_dqinfo *ii);
 int dquot_set_dqinfo(struct super_block *sb, int type, struct if_dqinfo *ii);
 int dquot_get_dqblk(struct super_block *sb, struct kqid id,
-		struct fs_disk_quota *di);
+		struct qc_dqblk *di);
 int dquot_set_dqblk(struct super_block *sb, struct kqid id,
-		struct fs_disk_quota *di);
+		struct qc_dqblk *di);
 
 int __dquot_transfer(struct inode *inode, struct dquot **transfer_to);
 int dquot_transfer(struct inode *inode, struct iattr *iattr);
@@ -166,6 +166,7 @@ static inline bool sb_has_quota_active(struct super_block *sb, int type)
  */
 extern const struct dquot_operations dquot_operations;
 extern const struct quotactl_ops dquot_quotactl_ops;
+extern const struct quotactl_ops dquot_quotactl_sysfile_ops;
 
 #else
 
@@ -213,12 +214,12 @@ static inline void dquot_drop(struct inode *inode)
 {
 }
 
-static inline int dquot_alloc_inode(const struct inode *inode)
+static inline int dquot_alloc_inode(struct inode *inode)
 {
 	return 0;
 }
 
-static inline void dquot_free_inode(const struct inode *inode)
+static inline void dquot_free_inode(struct inode *inode)
 {
 }
 
@@ -385,5 +386,7 @@ static inline void dquot_release_reservation_block(struct inode *inode,
 {
 	__dquot_free_space(inode, nr << inode->i_blkbits, DQUOT_SPACE_RESERVE);
 }
+
+unsigned int qtype_enforce_flag(int type);
 
 #endif /* _LINUX_QUOTAOPS_ */

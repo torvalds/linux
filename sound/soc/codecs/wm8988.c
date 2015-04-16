@@ -244,7 +244,7 @@ SOC_DOUBLE_R_TLV("Output 2 Playback Volume", WM8988_LOUT2V, WM8988_ROUT2V,
 static int wm8988_lrc_control(struct snd_soc_dapm_widget *w,
 			      struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	u16 adctl2 = snd_soc_read(codec, WM8988_ADCTL2);
 
 	/* Use the DAC to gate LRC if active, otherwise use ADC */
@@ -793,21 +793,6 @@ static struct snd_soc_dai_driver wm8988_dai = {
 	.symmetric_rates = 1,
 };
 
-static int wm8988_suspend(struct snd_soc_codec *codec)
-{
-	struct wm8988_priv *wm8988 = snd_soc_codec_get_drvdata(codec);
-
-	wm8988_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	regcache_mark_dirty(wm8988->regmap);
-	return 0;
-}
-
-static int wm8988_resume(struct snd_soc_codec *codec)
-{
-	wm8988_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	return 0;
-}
-
 static int wm8988_probe(struct snd_soc_codec *codec)
 {
 	int ret = 0;
@@ -825,23 +810,13 @@ static int wm8988_probe(struct snd_soc_codec *codec)
 	snd_soc_update_bits(codec, WM8988_ROUT2V, 0x0100, 0x0100);
 	snd_soc_update_bits(codec, WM8988_RINVOL, 0x0100, 0x0100);
 
-	wm8988_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
 	return 0;
 }
 
-static int wm8988_remove(struct snd_soc_codec *codec)
-{
-	wm8988_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static struct snd_soc_codec_driver soc_codec_dev_wm8988 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8988 = {
 	.probe =	wm8988_probe,
-	.remove =	wm8988_remove,
-	.suspend =	wm8988_suspend,
-	.resume =	wm8988_resume,
 	.set_bias_level = wm8988_set_bias_level,
+	.suspend_bias_off = true,
 
 	.controls = wm8988_snd_controls,
 	.num_controls = ARRAY_SIZE(wm8988_snd_controls),
@@ -851,7 +826,7 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8988 = {
 	.num_dapm_routes = ARRAY_SIZE(wm8988_dapm_routes),
 };
 
-static struct regmap_config wm8988_regmap = {
+static const struct regmap_config wm8988_regmap = {
 	.reg_bits = 7,
 	.val_bits = 9,
 

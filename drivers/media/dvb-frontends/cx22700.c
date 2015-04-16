@@ -169,6 +169,9 @@ static int cx22700_set_tps(struct cx22700_state *state,
 
 	cx22700_writereg (state, 0x04, val);
 
+	if (p->code_rate_HP - FEC_1_2 >= sizeof(fec_tab) ||
+	    p->code_rate_LP - FEC_1_2 >= sizeof(fec_tab))
+		return -EINVAL;
 	val = fec_tab[p->code_rate_HP - FEC_1_2] << 3;
 	val |= fec_tab[p->code_rate_LP - FEC_1_2];
 

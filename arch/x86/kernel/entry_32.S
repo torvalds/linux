@@ -395,10 +395,13 @@ sysenter_past_esp:
 	/*CFI_REL_OFFSET cs, 0*/
 	/*
 	 * Push current_thread_info()->sysenter_return to the stack.
-	 * A tiny bit of offset fixup is necessary - 4*4 means the 4 words
-	 * pushed above; +8 corresponds to copy_thread's esp0 setting.
+	 * A tiny bit of offset fixup is necessary: TI_sysenter_return
+	 * is relative to thread_info, which is at the bottom of the
+	 * kernel stack page.  4*4 means the 4 words pushed above;
+	 * TOP_OF_KERNEL_STACK_PADDING takes us to the top of the stack;
+	 * and THREAD_SIZE takes us to the bottom.
 	 */
-	pushl_cfi ((TI_sysenter_return)-THREAD_SIZE+8+4*4)(%esp)
+	pushl_cfi ((TI_sysenter_return) - THREAD_SIZE + TOP_OF_KERNEL_STACK_PADDING + 4*4)(%esp)
 	CFI_REL_OFFSET eip, 0
 
 	pushl_cfi %eax
@@ -432,7 +435,7 @@ sysenter_after_call:
 	TRACE_IRQS_OFF
 	movl TI_flags(%ebp), %ecx
 	testl $_TIF_ALLWORK_MASK, %ecx
-	jne sysexit_audit
+	jnz sysexit_audit
 sysenter_exit:
 /* if something modifies registers it must also disable sysexit */
 	movl PT_EIP(%esp), %edx
@@ -447,21 +450,20 @@ sysenter_exit:
 sysenter_audit:
 	testl $(_TIF_WORK_SYSCALL_ENTRY & ~_TIF_SYSCALL_AUDIT),TI_flags(%ebp)
 	jnz syscall_trace_entry
-	addl $4,%esp
-	CFI_ADJUST_CFA_OFFSET -4
-	movl %esi,4(%esp)		/* 5th arg: 4th syscall arg */
-	movl %edx,(%esp)		/* 4th arg: 3rd syscall arg */
-	/* %ecx already in %ecx		   3rd arg: 2nd syscall arg */
-	movl %ebx,%edx			/* 2nd arg: 1st syscall arg */
-	/* %eax already in %eax		   1st arg: syscall number */
+	/* movl PT_EAX(%esp), %eax	already set, syscall number: 1st arg to audit */
+	movl PT_EBX(%esp), %edx		/* ebx/a0: 2nd arg to audit */
+	/* movl PT_ECX(%esp), %ecx	already set, a1: 3nd arg to audit */
+	pushl_cfi PT_ESI(%esp)		/* a3: 5th arg */
+	pushl_cfi PT_EDX+4(%esp)	/* a2: 4th arg */
 	call __audit_syscall_entry
-	pushl_cfi %ebx
+	popl_cfi %ecx /* get that remapped edx off the stack */
+	popl_cfi %ecx /* get that remapped esi off the stack */
 	movl PT_EAX(%esp),%eax		/* reload syscall number */
 	jmp sysenter_do_call
 
 sysexit_audit:
 	testl $(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT), %ecx
-	jne syscall_exit_work
+	jnz syscall_exit_work
 	TRACE_IRQS_ON
 	ENABLE_INTERRUPTS(CLBR_ANY)
 	movl %eax,%edx		/* second arg, syscall return value */
@@ -473,7 +475,7 @@ sysexit_audit:
 	TRACE_IRQS_OFF
 	movl TI_flags(%ebp), %ecx
 	testl $(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT), %ecx
-	jne syscall_exit_work
+	jnz syscall_exit_work
 	movl PT_EAX(%esp),%eax	/* reload syscall return value */
 	jmp sysenter_exit
 #endif
@@ -511,7 +513,7 @@ syscall_exit:
 	TRACE_IRQS_OFF
 	movl TI_flags(%ebp), %ecx
 	testl $_TIF_ALLWORK_MASK, %ecx	# current->work
-	jne syscall_exit_work
+	jnz syscall_exit_work
 
 restore_all:
 	TRACE_IRQS_IRET
@@ -613,7 +615,7 @@ work_notifysig:				# deal with pending signals and
 #ifdef CONFIG_VM86
 	testl $X86_EFLAGS_VM, PT_EFLAGS(%esp)
 	movl %esp, %eax
-	jne work_notifysig_v86		# returning to kernel-space or
+	jnz work_notifysig_v86		# returning to kernel-space or
 					# vm86-space
 1:
 #else
@@ -721,42 +723,21 @@ END(sysenter_badsys)
 .endm
 
 /*
- * Build the entry stubs and pointer table with some assembler magic.
- * We pack 7 stubs into a single 32-byte chunk, which will fit in a
- * single cache line on all modern x86 implementations.
+ * Build the entry stubs with some assembler magic.
+ * We pack 1 stub into every 8-byte block.
  */
-.section .init.rodata,"a"
-ENTRY(interrupt)
-.section .entry.text, "ax"
-	.p2align 5
-	.p2align CONFIG_X86_L1_CACHE_SHIFT
+	.align 8
 ENTRY(irq_entries_start)
 	RING0_INT_FRAME
-vector=FIRST_EXTERNAL_VECTOR
-.rept (NR_VECTORS-FIRST_EXTERNAL_VECTOR+6)/7
-	.balign 32
-  .rept	7
-    .if vector < NR_VECTORS
-      .if vector <> FIRST_EXTERNAL_VECTOR
+    vector=FIRST_EXTERNAL_VECTOR
+    .rept (FIRST_SYSTEM_VECTOR - FIRST_EXTERNAL_VECTOR)
+	pushl_cfi $(~vector+0x80)	/* Note: always in signed byte range */
+    vector=vector+1
+	jmp	common_interrupt
 	CFI_ADJUST_CFA_OFFSET -4
-      .endif
-1:	pushl_cfi $(~vector+0x80)	/* Note: always in signed byte range */
-      .if ((vector-FIRST_EXTERNAL_VECTOR)%7) <> 6
-	jmp 2f
-      .endif
-      .previous
-	.long 1b
-      .section .entry.text, "ax"
-vector=vector+1
-    .endif
-  .endr
-2:	jmp common_interrupt
-.endr
+	.align	8
+    .endr
 END(irq_entries_start)
-
-.previous
-END(interrupt)
-.previous
 
 /*
  * the CPU automatically disables interrupts when executing an IRQ vector,
@@ -817,15 +798,9 @@ ENTRY(simd_coprocessor_error)
 	pushl_cfi $0
 #ifdef CONFIG_X86_INVD_BUG
 	/* AMD 486 bug: invd from userspace calls exception 19 instead of #GP */
-661:	pushl_cfi $do_general_protection
-662:
-.section .altinstructions,"a"
-	altinstruction_entry 661b, 663f, X86_FEATURE_XMM, 662b-661b, 664f-663f
-.previous
-.section .altinstr_replacement,"ax"
-663:	pushl $do_simd_coprocessor_error
-664:
-.previous
+	ALTERNATIVE "pushl_cfi $do_general_protection",	\
+		    "pushl $do_simd_coprocessor_error", \
+		    X86_FEATURE_XMM
 #else
 	pushl_cfi $do_simd_coprocessor_error
 #endif
@@ -983,6 +958,9 @@ ENTRY(xen_hypervisor_callback)
 ENTRY(xen_do_upcall)
 1:	mov %esp, %eax
 	call xen_evtchn_do_upcall
+#ifndef CONFIG_PREEMPT
+	call xen_maybe_preempt_hcall
+#endif
 	jmp  ret_from_intr
 	CFI_ENDPROC
 ENDPROC(xen_hypervisor_callback)
@@ -1192,10 +1170,10 @@ ENTRY(ftrace_graph_caller)
 	pushl %eax
 	pushl %ecx
 	pushl %edx
-	movl 0xc(%esp), %edx
-	lea 0x4(%ebp), %eax
+	movl 0xc(%esp), %eax
+	lea 0x4(%ebp), %edx
 	movl (%ebp), %ecx
-	subl $MCOUNT_INSN_SIZE, %edx
+	subl $MCOUNT_INSN_SIZE, %eax
 	call prepare_ftrace_return
 	popl %edx
 	popl %ecx
@@ -1238,20 +1216,13 @@ error_code:
 	/*CFI_REL_OFFSET es, 0*/
 	pushl_cfi %ds
 	/*CFI_REL_OFFSET ds, 0*/
-	pushl_cfi %eax
-	CFI_REL_OFFSET eax, 0
-	pushl_cfi %ebp
-	CFI_REL_OFFSET ebp, 0
-	pushl_cfi %edi
-	CFI_REL_OFFSET edi, 0
-	pushl_cfi %esi
-	CFI_REL_OFFSET esi, 0
-	pushl_cfi %edx
-	CFI_REL_OFFSET edx, 0
-	pushl_cfi %ecx
-	CFI_REL_OFFSET ecx, 0
-	pushl_cfi %ebx
-	CFI_REL_OFFSET ebx, 0
+	pushl_cfi_reg eax
+	pushl_cfi_reg ebp
+	pushl_cfi_reg edi
+	pushl_cfi_reg esi
+	pushl_cfi_reg edx
+	pushl_cfi_reg ecx
+	pushl_cfi_reg ebx
 	cld
 	movl $(__KERNEL_PERCPU), %ecx
 	movl %ecx, %fs

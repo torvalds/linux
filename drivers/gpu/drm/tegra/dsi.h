@@ -21,9 +21,16 @@
 #define DSI_INT_STATUS			0x0d
 #define DSI_INT_MASK			0x0e
 #define DSI_HOST_CONTROL		0x0f
+#define DSI_HOST_CONTROL_FIFO_RESET	(1 << 21)
+#define DSI_HOST_CONTROL_CRC_RESET	(1 << 20)
+#define DSI_HOST_CONTROL_TX_TRIG_SOL	(0 << 12)
+#define DSI_HOST_CONTROL_TX_TRIG_FIFO	(1 << 12)
+#define DSI_HOST_CONTROL_TX_TRIG_HOST	(2 << 12)
 #define DSI_HOST_CONTROL_RAW		(1 << 6)
 #define DSI_HOST_CONTROL_HS		(1 << 5)
-#define DSI_HOST_CONTROL_BTA		(1 << 2)
+#define DSI_HOST_CONTROL_FIFO_SEL	(1 << 4)
+#define DSI_HOST_CONTROL_IMM_BTA	(1 << 3)
+#define DSI_HOST_CONTROL_PKT_BTA	(1 << 2)
 #define DSI_HOST_CONTROL_CS		(1 << 1)
 #define DSI_HOST_CONTROL_ECC		(1 << 0)
 #define DSI_CONTROL			0x10
@@ -39,9 +46,13 @@
 #define DSI_SOL_DELAY			0x11
 #define DSI_MAX_THRESHOLD		0x12
 #define DSI_TRIGGER			0x13
+#define DSI_TRIGGER_HOST		(1 << 1)
+#define DSI_TRIGGER_VIDEO		(1 << 0)
 #define DSI_TX_CRC			0x14
 #define DSI_STATUS			0x15
 #define DSI_STATUS_IDLE			(1 << 10)
+#define DSI_STATUS_UNDERFLOW		(1 <<  9)
+#define DSI_STATUS_OVERFLOW		(1 <<  8)
 #define DSI_INIT_SEQ_CONTROL		0x1a
 #define DSI_INIT_SEQ_DATA_0		0x1b
 #define DSI_INIT_SEQ_DATA_1		0x1c
@@ -104,6 +115,7 @@
 #define DSI_PAD_CONTROL_3		0x51
 #define DSI_PAD_CONTROL_4		0x52
 #define DSI_GANGED_MODE_CONTROL		0x53
+#define DSI_GANGED_MODE_CONTROL_ENABLE	(1 << 0)
 #define DSI_GANGED_MODE_START		0x54
 #define DSI_GANGED_MODE_SIZE		0x55
 #define DSI_RAW_DATA_BYTE_COUNT		0x56

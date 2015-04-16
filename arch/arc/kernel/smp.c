@@ -26,8 +26,10 @@
 #include <asm/setup.h>
 #include <asm/mach_desc.h>
 
+#ifndef CONFIG_ARC_HAS_LLSC
 arch_spinlock_t smp_atomic_ops_lock = __ARCH_SPIN_LOCK_UNLOCKED;
 arch_spinlock_t smp_bitops_lock = __ARCH_SPIN_LOCK_UNLOCKED;
+#endif
 
 struct plat_smp_ops  plat_smp_ops;
 
@@ -219,7 +221,7 @@ static void ipi_send_msg_one(int cpu, enum ipi_msg_type msg)
 	 * and read back old value
 	 */
 	do {
-		new = old = *ipi_data_ptr;
+		new = old = ACCESS_ONCE(*ipi_data_ptr);
 		new |= 1U << msg;
 	} while (cmpxchg(ipi_data_ptr, old, new) != old);
 

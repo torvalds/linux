@@ -503,7 +503,6 @@ static struct platform_driver cdns_wdt_driver = {
 	.shutdown	= cdns_wdt_shutdown,
 	.driver		= {
 		.name	= "cdns-wdt",
-		.owner	= THIS_MODULE,
 		.of_match_table = cdns_wdt_of_match,
 		.pm	= &cdns_wdt_pm_ops,
 	},

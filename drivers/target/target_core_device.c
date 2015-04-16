@@ -650,6 +650,18 @@ static u32 se_dev_align_max_sectors(u32 max_sectors, u32 block_size)
 	return aligned_max_sectors;
 }
 
+bool se_dev_check_wce(struct se_device *dev)
+{
+	bool wce = false;
+
+	if (dev->transport->get_write_cache)
+		wce = dev->transport->get_write_cache(dev);
+	else if (dev->dev_attrib.emulate_write_cache > 0)
+		wce = true;
+
+	return wce;
+}
+
 int se_dev_set_max_unmap_lba_count(
 	struct se_device *dev,
 	u32 max_unmap_lba_count)
@@ -659,6 +671,7 @@ int se_dev_set_max_unmap_lba_count(
 			dev, dev->dev_attrib.max_unmap_lba_count);
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_max_unmap_lba_count);
 
 int se_dev_set_max_unmap_block_desc_count(
 	struct se_device *dev,
@@ -670,6 +683,7 @@ int se_dev_set_max_unmap_block_desc_count(
 			dev, dev->dev_attrib.max_unmap_block_desc_count);
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_max_unmap_block_desc_count);
 
 int se_dev_set_unmap_granularity(
 	struct se_device *dev,
@@ -680,6 +694,7 @@ int se_dev_set_unmap_granularity(
 			dev, dev->dev_attrib.unmap_granularity);
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_unmap_granularity);
 
 int se_dev_set_unmap_granularity_alignment(
 	struct se_device *dev,
@@ -690,6 +705,7 @@ int se_dev_set_unmap_granularity_alignment(
 			dev, dev->dev_attrib.unmap_granularity_alignment);
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_unmap_granularity_alignment);
 
 int se_dev_set_max_write_same_len(
 	struct se_device *dev,
@@ -700,6 +716,7 @@ int se_dev_set_max_write_same_len(
 			dev, dev->dev_attrib.max_write_same_len);
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_max_write_same_len);
 
 static void dev_set_t10_wwn_model_alias(struct se_device *dev)
 {
@@ -738,6 +755,7 @@ int se_dev_set_emulate_model_alias(struct se_device *dev, int flag)
 
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_emulate_model_alias);
 
 int se_dev_set_emulate_dpo(struct se_device *dev, int flag)
 {
@@ -753,6 +771,7 @@ int se_dev_set_emulate_dpo(struct se_device *dev, int flag)
 
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_emulate_dpo);
 
 int se_dev_set_emulate_fua_write(struct se_device *dev, int flag)
 {
@@ -760,10 +779,14 @@ int se_dev_set_emulate_fua_write(struct se_device *dev, int flag)
 		pr_err("Illegal value %d\n", flag);
 		return -EINVAL;
 	}
-
 	if (flag &&
-	    dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV) {
-		pr_err("emulate_fua_write not supported for pSCSI\n");
+	    dev->transport->get_write_cache) {
+		pr_warn("emulate_fua_write not supported for this device, ignoring\n");
+		return 0;
+	}
+	if (dev->export_count) {
+		pr_err("emulate_fua_write cannot be changed with active"
+		       " exports: %d\n", dev->export_count);
 		return -EINVAL;
 	}
 	dev->dev_attrib.emulate_fua_write = flag;
@@ -771,6 +794,7 @@ int se_dev_set_emulate_fua_write(struct se_device *dev, int flag)
 			dev, dev->dev_attrib.emulate_fua_write);
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_emulate_fua_write);
 
 int se_dev_set_emulate_fua_read(struct se_device *dev, int flag)
 {
@@ -786,6 +810,7 @@ int se_dev_set_emulate_fua_read(struct se_device *dev, int flag)
 
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_emulate_fua_read);
 
 int se_dev_set_emulate_write_cache(struct se_device *dev, int flag)
 {
@@ -794,21 +819,21 @@ int se_dev_set_emulate_write_cache(struct se_device *dev, int flag)
 		return -EINVAL;
 	}
 	if (flag &&
-	    dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV) {
-		pr_err("emulate_write_cache not supported for pSCSI\n");
-		return -EINVAL;
-	}
-	if (flag &&
 	    dev->transport->get_write_cache) {
 		pr_err("emulate_write_cache not supported for this device\n");
 		return -EINVAL;
 	}
-
+	if (dev->export_count) {
+		pr_err("emulate_write_cache cannot be changed with active"
+		       " exports: %d\n", dev->export_count);
+		return -EINVAL;
+	}
 	dev->dev_attrib.emulate_write_cache = flag;
 	pr_debug("dev[%p]: SE Device WRITE_CACHE_EMULATION flag: %d\n",
 			dev, dev->dev_attrib.emulate_write_cache);
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_emulate_write_cache);
 
 int se_dev_set_emulate_ua_intlck_ctrl(struct se_device *dev, int flag)
 {
@@ -829,6 +854,7 @@ int se_dev_set_emulate_ua_intlck_ctrl(struct se_device *dev, int flag)
 
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_emulate_ua_intlck_ctrl);
 
 int se_dev_set_emulate_tas(struct se_device *dev, int flag)
 {
@@ -849,6 +875,7 @@ int se_dev_set_emulate_tas(struct se_device *dev, int flag)
 
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_emulate_tas);
 
 int se_dev_set_emulate_tpu(struct se_device *dev, int flag)
 {
@@ -870,6 +897,7 @@ int se_dev_set_emulate_tpu(struct se_device *dev, int flag)
 				dev, flag);
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_emulate_tpu);
 
 int se_dev_set_emulate_tpws(struct se_device *dev, int flag)
 {
@@ -891,6 +919,7 @@ int se_dev_set_emulate_tpws(struct se_device *dev, int flag)
 				dev, flag);
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_emulate_tpws);
 
 int se_dev_set_emulate_caw(struct se_device *dev, int flag)
 {
@@ -904,6 +933,7 @@ int se_dev_set_emulate_caw(struct se_device *dev, int flag)
 
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_emulate_caw);
 
 int se_dev_set_emulate_3pc(struct se_device *dev, int flag)
 {
@@ -917,6 +947,7 @@ int se_dev_set_emulate_3pc(struct se_device *dev, int flag)
 
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_emulate_3pc);
 
 int se_dev_set_pi_prot_type(struct se_device *dev, int flag)
 {
@@ -970,6 +1001,7 @@ int se_dev_set_pi_prot_type(struct se_device *dev, int flag)
 
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_pi_prot_type);
 
 int se_dev_set_pi_prot_format(struct se_device *dev, int flag)
 {
@@ -1005,6 +1037,7 @@ int se_dev_set_pi_prot_format(struct se_device *dev, int flag)
 
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_pi_prot_format);
 
 int se_dev_set_enforce_pr_isids(struct se_device *dev, int flag)
 {
@@ -1017,6 +1050,7 @@ int se_dev_set_enforce_pr_isids(struct se_device *dev, int flag)
 		(dev->dev_attrib.enforce_pr_isids) ? "Enabled" : "Disabled");
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_enforce_pr_isids);
 
 int se_dev_set_force_pr_aptpl(struct se_device *dev, int flag)
 {
@@ -1034,6 +1068,7 @@ int se_dev_set_force_pr_aptpl(struct se_device *dev, int flag)
 	pr_debug("dev[%p]: SE Device force_pr_aptpl: %d\n", dev, flag);
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_force_pr_aptpl);
 
 int se_dev_set_is_nonrot(struct se_device *dev, int flag)
 {
@@ -1046,6 +1081,7 @@ int se_dev_set_is_nonrot(struct se_device *dev, int flag)
 	       dev, flag);
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_is_nonrot);
 
 int se_dev_set_emulate_rest_reord(struct se_device *dev, int flag)
 {
@@ -1058,6 +1094,7 @@ int se_dev_set_emulate_rest_reord(struct se_device *dev, int flag)
 	pr_debug("dev[%p]: SE Device emulate_rest_reord: %d\n", dev, flag);
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_emulate_rest_reord);
 
 /*
  * Note, this can only be called on unexported SE Device Object.
@@ -1076,85 +1113,21 @@ int se_dev_set_queue_depth(struct se_device *dev, u32 queue_depth)
 		return -EINVAL;
 	}
 
-	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV) {
+	if (queue_depth > dev->dev_attrib.queue_depth) {
 		if (queue_depth > dev->dev_attrib.hw_queue_depth) {
-			pr_err("dev[%p]: Passed queue_depth: %u"
-				" exceeds TCM/SE_Device TCQ: %u\n",
-				dev, queue_depth,
+			pr_err("dev[%p]: Passed queue_depth:"
+				" %u exceeds TCM/SE_Device MAX"
+				" TCQ: %u\n", dev, queue_depth,
 				dev->dev_attrib.hw_queue_depth);
 			return -EINVAL;
 		}
-	} else {
-		if (queue_depth > dev->dev_attrib.queue_depth) {
-			if (queue_depth > dev->dev_attrib.hw_queue_depth) {
-				pr_err("dev[%p]: Passed queue_depth:"
-					" %u exceeds TCM/SE_Device MAX"
-					" TCQ: %u\n", dev, queue_depth,
-					dev->dev_attrib.hw_queue_depth);
-				return -EINVAL;
-			}
-		}
 	}
-
 	dev->dev_attrib.queue_depth = dev->queue_depth = queue_depth;
 	pr_debug("dev[%p]: SE Device TCQ Depth changed to: %u\n",
 			dev, queue_depth);
 	return 0;
 }
-
-int se_dev_set_fabric_max_sectors(struct se_device *dev, u32 fabric_max_sectors)
-{
-	int block_size = dev->dev_attrib.block_size;
-
-	if (dev->export_count) {
-		pr_err("dev[%p]: Unable to change SE Device"
-			" fabric_max_sectors while export_count is %d\n",
-			dev, dev->export_count);
-		return -EINVAL;
-	}
-	if (!fabric_max_sectors) {
-		pr_err("dev[%p]: Illegal ZERO value for"
-			" fabric_max_sectors\n", dev);
-		return -EINVAL;
-	}
-	if (fabric_max_sectors < DA_STATUS_MAX_SECTORS_MIN) {
-		pr_err("dev[%p]: Passed fabric_max_sectors: %u less than"
-			" DA_STATUS_MAX_SECTORS_MIN: %u\n", dev, fabric_max_sectors,
-				DA_STATUS_MAX_SECTORS_MIN);
-		return -EINVAL;
-	}
-	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV) {
-		if (fabric_max_sectors > dev->dev_attrib.hw_max_sectors) {
-			pr_err("dev[%p]: Passed fabric_max_sectors: %u"
-				" greater than TCM/SE_Device max_sectors:"
-				" %u\n", dev, fabric_max_sectors,
-				dev->dev_attrib.hw_max_sectors);
-			 return -EINVAL;
-		}
-	} else {
-		if (fabric_max_sectors > DA_STATUS_MAX_SECTORS_MAX) {
-			pr_err("dev[%p]: Passed fabric_max_sectors: %u"
-				" greater than DA_STATUS_MAX_SECTORS_MAX:"
-				" %u\n", dev, fabric_max_sectors,
-				DA_STATUS_MAX_SECTORS_MAX);
-			return -EINVAL;
-		}
-	}
-	/*
-	 * Align max_sectors down to PAGE_SIZE to follow transport_allocate_data_tasks()
-	 */
-	if (!block_size) {
-		block_size = 512;
-		pr_warn("Defaulting to 512 for zero block_size\n");
-	}
-	fabric_max_sectors = se_dev_align_max_sectors(fabric_max_sectors,
-						      block_size);
-
-	dev->dev_attrib.fabric_max_sectors = fabric_max_sectors;
-	pr_debug("dev[%p]: SE Device max_sectors changed to %u\n",
-			dev, fabric_max_sectors);
-	return 0;
-}
+EXPORT_SYMBOL(se_dev_set_queue_depth);
 
 int se_dev_set_optimal_sectors(struct se_device *dev, u32 optimal_sectors)
 {
@@ -1164,15 +1137,10 @@ int se_dev_set_optimal_sectors(struct se_device *dev, u32 optimal_sectors)
 			dev, dev->export_count);
 		return -EINVAL;
 	}
-	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV) {
-		pr_err("dev[%p]: Passed optimal_sectors cannot be"
-				" changed for TCM/pSCSI\n", dev);
-		return -EINVAL;
-	}
-	if (optimal_sectors > dev->dev_attrib.fabric_max_sectors) {
+	if (optimal_sectors > dev->dev_attrib.hw_max_sectors) {
 		pr_err("dev[%p]: Passed optimal_sectors %u cannot be"
-			" greater than fabric_max_sectors: %u\n", dev,
-			optimal_sectors, dev->dev_attrib.fabric_max_sectors);
+			" greater than hw_max_sectors: %u\n", dev,
+			optimal_sectors, dev->dev_attrib.hw_max_sectors);
 		return -EINVAL;
 	}
 
@@ -1181,6 +1149,7 @@ int se_dev_set_optimal_sectors(struct se_device *dev, u32 optimal_sectors)
 			dev, optimal_sectors);
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_optimal_sectors);
 
 int se_dev_set_block_size(struct se_device *dev, u32 block_size)
 {
@@ -1201,13 +1170,6 @@ int se_dev_set_block_size(struct se_device *dev, u32 block_size)
 		return -EINVAL;
 	}
 
-	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV) {
-		pr_err("dev[%p]: Not allowed to change block_size for"
-			" Physical Device, use for Linux/SCSI to change"
-			" block_size for underlying hardware\n", dev);
-		return -EINVAL;
-	}
-
 	dev->dev_attrib.block_size = block_size;
 	pr_debug("dev[%p]: SE Device block_size changed to %u\n",
 			dev, block_size);
@@ -1218,6 +1180,7 @@ int se_dev_set_block_size(struct se_device *dev, u32 block_size)
 
 	return 0;
 }
+EXPORT_SYMBOL(se_dev_set_block_size);
 
 struct se_lun *core_dev_add_lun(
 	struct se_portal_group *tpg,
@@ -1571,8 +1534,6 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	dev->dev_attrib.unmap_granularity_alignment =
 				DA_UNMAP_GRANULARITY_ALIGNMENT_DEFAULT;
 	dev->dev_attrib.max_write_same_len = DA_MAX_WRITE_SAME_LEN;
-	dev->dev_attrib.fabric_max_sectors = DA_FABRIC_MAX_SECTORS;
-	dev->dev_attrib.optimal_sectors = DA_FABRIC_MAX_SECTORS;
 
 	xcopy_lun = &dev->xcopy_lun;
 	xcopy_lun->lun_se_dev = dev;
@@ -1599,8 +1560,6 @@ int target_configure_device(struct se_device *dev)
 	ret = dev->transport->configure_device(dev);
 	if (ret)
 		goto out;
-	dev->dev_flags |= DF_CONFIGURED;
-
 	/*
 	 * XXX: there is not much point to have two different values here..
 	 */
@@ -1613,6 +1572,7 @@ int target_configure_device(struct se_device *dev)
 	dev->dev_attrib.hw_max_sectors =
 		se_dev_align_max_sectors(dev->dev_attrib.hw_max_sectors,
 					 dev->dev_attrib.hw_block_size);
+	dev->dev_attrib.optimal_sectors = dev->dev_attrib.hw_max_sectors;
 
 	dev->dev_index = scsi_get_new_index(SCSI_DEVICE_INDEX);
 	dev->creation_time = get_jiffies_64();
@@ -1660,6 +1620,8 @@ int target_configure_device(struct se_device *dev)
 	mutex_lock(&g_device_mutex);
 	list_add_tail(&dev->g_dev_node, &g_device_list);
 	mutex_unlock(&g_device_mutex);
+
+	dev->dev_flags |= DF_CONFIGURED;
 
 	return 0;
 

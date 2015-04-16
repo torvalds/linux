@@ -12,6 +12,7 @@
 
 #include <linux/linkage.h>
 #include <asm/assembler.h>
+#include <asm/unwind.h>
 
 /*
  * Prototype:
@@ -75,6 +76,10 @@
 	.macro enter reg1 reg2
 	mov	r3, #0
 	stmdb	sp!, {r0, r2, r3, \reg1, \reg2}
+	.endm
+
+	.macro usave reg1 reg2
+	UNWIND(	.save {r0, r2, r3, \reg1, \reg2}	)
 	.endm
 
 	.macro exit reg1 reg2

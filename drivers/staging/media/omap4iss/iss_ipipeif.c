@@ -24,12 +24,12 @@
 #include "iss_ipipeif.h"
 
 static const unsigned int ipipeif_fmts[] = {
-	V4L2_MBUS_FMT_SGRBG10_1X10,
-	V4L2_MBUS_FMT_SRGGB10_1X10,
-	V4L2_MBUS_FMT_SBGGR10_1X10,
-	V4L2_MBUS_FMT_SGBRG10_1X10,
-	V4L2_MBUS_FMT_UYVY8_1X16,
-	V4L2_MBUS_FMT_YUYV8_1X16,
+	MEDIA_BUS_FMT_SGRBG10_1X10,
+	MEDIA_BUS_FMT_SRGGB10_1X10,
+	MEDIA_BUS_FMT_SBGGR10_1X10,
+	MEDIA_BUS_FMT_SGBRG10_1X10,
+	MEDIA_BUS_FMT_UYVY8_1X16,
+	MEDIA_BUS_FMT_YUYV8_1X16,
 };
 
 /*
@@ -140,8 +140,8 @@ static void ipipeif_configure(struct iss_ipipeif_device *ipipeif)
 
 	/* Select ISIF/IPIPEIF input format */
 	switch (format->code) {
-	case V4L2_MBUS_FMT_UYVY8_1X16:
-	case V4L2_MBUS_FMT_YUYV8_1X16:
+	case MEDIA_BUS_FMT_UYVY8_1X16:
+	case MEDIA_BUS_FMT_YUYV8_1X16:
 		iss_reg_update(iss, OMAP4_ISS_MEM_ISP_ISIF, ISIF_MODESET,
 			       ISIF_MODESET_CCDMD | ISIF_MODESET_INPMOD_MASK |
 			       ISIF_MODESET_CCDW_MASK,
@@ -151,25 +151,25 @@ static void ipipeif_configure(struct iss_ipipeif_device *ipipeif)
 			       IPIPEIF_CFG2_YUV8, IPIPEIF_CFG2_YUV16);
 
 		break;
-	case V4L2_MBUS_FMT_SGRBG10_1X10:
+	case MEDIA_BUS_FMT_SGRBG10_1X10:
 		isif_ccolp = ISIF_CCOLP_CP0_F0_GR |
 			ISIF_CCOLP_CP1_F0_R |
 			ISIF_CCOLP_CP2_F0_B |
 			ISIF_CCOLP_CP3_F0_GB;
 		goto cont_raw;
-	case V4L2_MBUS_FMT_SRGGB10_1X10:
+	case MEDIA_BUS_FMT_SRGGB10_1X10:
 		isif_ccolp = ISIF_CCOLP_CP0_F0_R |
 			ISIF_CCOLP_CP1_F0_GR |
 			ISIF_CCOLP_CP2_F0_GB |
 			ISIF_CCOLP_CP3_F0_B;
 		goto cont_raw;
-	case V4L2_MBUS_FMT_SBGGR10_1X10:
+	case MEDIA_BUS_FMT_SBGGR10_1X10:
 		isif_ccolp = ISIF_CCOLP_CP0_F0_B |
 			ISIF_CCOLP_CP1_F0_GB |
 			ISIF_CCOLP_CP2_F0_GR |
 			ISIF_CCOLP_CP3_F0_R;
 		goto cont_raw;
-	case V4L2_MBUS_FMT_SGBRG10_1X10:
+	case MEDIA_BUS_FMT_SGBRG10_1X10:
 		isif_ccolp = ISIF_CCOLP_CP0_F0_GB |
 			ISIF_CCOLP_CP1_F0_B |
 			ISIF_CCOLP_CP2_F0_R |
@@ -242,23 +242,6 @@ static void ipipeif_isr_buffer(struct iss_ipipeif_device *ipipeif)
 }
 
 /*
- * ipipeif_isif0_isr - Handle ISIF0 event
- * @ipipeif: Pointer to ISP IPIPEIF device.
- *
- * Executes LSC deferred enablement before next frame starts.
- */
-static void ipipeif_isif0_isr(struct iss_ipipeif_device *ipipeif)
-{
-	struct iss_pipeline *pipe =
-			     to_iss_pipeline(&ipipeif->subdev.entity);
-	if (pipe->do_propagation)
-		atomic_inc(&pipe->frame_number);
-
-	if (ipipeif->output & IPIPEIF_OUTPUT_MEMORY)
-		ipipeif_isr_buffer(ipipeif);
-}
-
-/*
  * omap4iss_ipipeif_isr - Configure ipipeif during interframe time.
  * @ipipeif: Pointer to ISP IPIPEIF device.
  * @events: IPIPEIF events
@@ -269,8 +252,9 @@ void omap4iss_ipipeif_isr(struct iss_ipipeif_device *ipipeif, u32 events)
 					     &ipipeif->stopping))
 		return;
 
-	if (events & ISP5_IRQ_ISIF_INT(0))
-		ipipeif_isif0_isr(ipipeif);
+	if ((events & ISP5_IRQ_ISIF_INT(0)) &&
+	    (ipipeif->output & IPIPEIF_OUTPUT_MEMORY))
+		ipipeif_isr_buffer(ipipeif);
 }
 
 /* -----------------------------------------------------------------------------
@@ -415,7 +399,7 @@ ipipeif_try_format(struct iss_ipipeif_device *ipipeif,
 
 		/* If not found, use SGRBG10 as default */
 		if (i >= ARRAY_SIZE(ipipeif_fmts))
-			fmt->code = V4L2_MBUS_FMT_SGRBG10_1X10;
+			fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
 
 		/* Clamp the input size. */
 		fmt->width = clamp_t(u32, width, 1, 8192);
@@ -625,7 +609,7 @@ static int ipipeif_init_formats(struct v4l2_subdev *sd,
 	memset(&format, 0, sizeof(format));
 	format.pad = IPIPEIF_PAD_SINK;
 	format.which = fh ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
-	format.format.code = V4L2_MBUS_FMT_SGRBG10_1X10;
+	format.format.code = MEDIA_BUS_FMT_SGRBG10_1X10;
 	format.format.width = 4096;
 	format.format.height = 4096;
 	ipipeif_set_format(sd, fh, &format);

@@ -308,7 +308,6 @@ struct inode *fuse_iget(struct super_block *sb, u64 nodeid,
 		if (!fc->writeback_cache || !S_ISREG(attr->mode))
 			inode->i_flags |= S_NOCMTIME;
 		inode->i_generation = generation;
-		inode->i_data.backing_dev_info = &fc->bdi;
 		fuse_init_inode(inode, attr);
 		unlock_new_inode(inode);
 	} else if ((inode->i_mode ^ attr->mode) & S_IFMT) {
@@ -376,28 +375,13 @@ static void fuse_bdi_destroy(struct fuse_conn *fc)
 		bdi_destroy(&fc->bdi);
 }
 
-void fuse_conn_kill(struct fuse_conn *fc)
-{
-	spin_lock(&fc->lock);
-	fc->connected = 0;
-	fc->blocked = 0;
-	fc->initialized = 1;
-	spin_unlock(&fc->lock);
-	/* Flush all readers on this fs */
-	kill_fasync(&fc->fasync, SIGIO, POLL_IN);
-	wake_up_all(&fc->waitq);
-	wake_up_all(&fc->blocked_waitq);
-	wake_up_all(&fc->reserved_req_waitq);
-}
-EXPORT_SYMBOL_GPL(fuse_conn_kill);
-
 static void fuse_put_super(struct super_block *sb)
 {
 	struct fuse_conn *fc = get_fuse_conn_super(sb);
 
 	fuse_send_destroy(fc);
 
-	fuse_conn_kill(fc);
+	fuse_abort_conn(fc);
 	mutex_lock(&fuse_mutex);
 	list_del(&fc->entry);
 	fuse_ctl_remove_conn(fc);
@@ -425,7 +409,7 @@ static int fuse_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct super_block *sb = dentry->d_sb;
 	struct fuse_conn *fc = get_fuse_conn_super(sb);
-	struct fuse_req *req;
+	FUSE_ARGS(args);
 	struct fuse_statfs_out outarg;
 	int err;
 
@@ -434,23 +418,16 @@ static int fuse_statfs(struct dentry *dentry, struct kstatfs *buf)
 		return 0;
 	}
 
-	req = fuse_get_req_nopages(fc);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
-
 	memset(&outarg, 0, sizeof(outarg));
-	req->in.numargs = 0;
-	req->in.h.opcode = FUSE_STATFS;
-	req->in.h.nodeid = get_node_id(dentry->d_inode);
-	req->out.numargs = 1;
-	req->out.args[0].size =
-		fc->minor < 4 ? FUSE_COMPAT_STATFS_SIZE : sizeof(outarg);
-	req->out.args[0].value = &outarg;
-	fuse_request_send(fc, req);
-	err = req->out.h.error;
+	args.in.numargs = 0;
+	args.in.h.opcode = FUSE_STATFS;
+	args.in.h.nodeid = get_node_id(dentry->d_inode);
+	args.out.numargs = 1;
+	args.out.args[0].size = sizeof(outarg);
+	args.out.args[0].value = &outarg;
+	err = fuse_simple_request(fc, &args);
 	if (!err)
 		convert_fuse_statfs(buf, &outarg.st);
-	fuse_put_request(fc, req);
 	return err;
 }
 
@@ -919,7 +896,7 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 		fc->max_write = max_t(unsigned, 4096, fc->max_write);
 		fc->conn_init = 1;
 	}
-	fc->initialized = 1;
+	fuse_set_initialized(fc);
 	wake_up_all(&fc->blocked_waitq);
 }
 

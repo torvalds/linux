@@ -181,17 +181,13 @@ static struct clocksource timer_cs = {
 	.rating	= 100,
 	.read	= timer_cs_read,
 	.mask	= CLOCKSOURCE_MASK(64),
-	.shift	= 2,
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
 static __init int setup_timer_cs(void)
 {
 	timer_cs_enabled = 1;
-	timer_cs.mult = clocksource_hz2mult(sparc_config.clock_rate,
-	                                    timer_cs.shift);
-
-	return clocksource_register(&timer_cs);
+	return clocksource_register_hz(&timer_cs, sparc_config.clock_rate);
 }
 
 #ifdef CONFIG_SMP
@@ -322,7 +318,6 @@ static struct platform_driver clock_driver = {
 	.probe		= clock_probe,
 	.driver = {
 		.name = "rtc",
-		.owner = THIS_MODULE,
 		.of_match_table = clock_match,
 	},
 };

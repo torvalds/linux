@@ -467,7 +467,7 @@ static void _rtl_init_deferred_work(struct ieee80211_hw *hw)
 		    rtl_easy_concurrent_retrytimer_callback, (unsigned long)hw);
 	/* <2> work queue */
 	rtlpriv->works.hw = hw;
-	rtlpriv->works.rtl_wq = alloc_workqueue(rtlpriv->cfg->name, 0, 0);
+	rtlpriv->works.rtl_wq = alloc_workqueue("%s", 0, 0, rtlpriv->cfg->name);
 	INIT_DELAYED_WORK(&rtlpriv->works.watchdog_wq,
 			  (void *)rtl_watchdog_wq_callback);
 	INIT_DELAYED_WORK(&rtlpriv->works.ips_nic_off_wq,
@@ -867,63 +867,135 @@ static u8 _rtl_get_highest_n_rate(struct ieee80211_hw *hw,
  *
  * B/G rate:
  * (rx_status->flag & RX_FLAG_HT) = 0,
- * DESC92_RATE1M-->DESC92_RATE54M ==> idx is 0-->11,
+ * DESC_RATE1M-->DESC_RATE54M ==> idx is 0-->11,
  *
  * N rate:
  * (rx_status->flag & RX_FLAG_HT) = 1,
- * DESC92_RATEMCS0-->DESC92_RATEMCS15 ==> idx is 0-->15
+ * DESC_RATEMCS0-->DESC_RATEMCS15 ==> idx is 0-->15
  *
  * 5G band:rx_status->band == IEEE80211_BAND_5GHZ
  * A rate:
  * (rx_status->flag & RX_FLAG_HT) = 0,
- * DESC92_RATE6M-->DESC92_RATE54M ==> idx is 0-->7,
+ * DESC_RATE6M-->DESC_RATE54M ==> idx is 0-->7,
  *
  * N rate:
  * (rx_status->flag & RX_FLAG_HT) = 1,
- * DESC92_RATEMCS0-->DESC92_RATEMCS15 ==> idx is 0-->15
+ * DESC_RATEMCS0-->DESC_RATEMCS15 ==> idx is 0-->15
+ *
+ * VHT rates:
+ * DESC_RATEVHT1SS_MCS0-->DESC_RATEVHT1SS_MCS9 ==> idx is 0-->9
+ * DESC_RATEVHT2SS_MCS0-->DESC_RATEVHT2SS_MCS9 ==> idx is 0-->9
  */
-int rtlwifi_rate_mapping(struct ieee80211_hw *hw,
-			 bool isht, u8 desc_rate, bool first_ampdu)
+int rtlwifi_rate_mapping(struct ieee80211_hw *hw, bool isht, bool isvht,
+			 u8 desc_rate)
 {
 	int rate_idx;
 
+	if (isvht) {
+		switch (desc_rate) {
+		case DESC_RATEVHT1SS_MCS0:
+			rate_idx = 0;
+			break;
+		case DESC_RATEVHT1SS_MCS1:
+			rate_idx = 1;
+			break;
+		case DESC_RATEVHT1SS_MCS2:
+			rate_idx = 2;
+			break;
+		case DESC_RATEVHT1SS_MCS3:
+			rate_idx = 3;
+			break;
+		case DESC_RATEVHT1SS_MCS4:
+			rate_idx = 4;
+			break;
+		case DESC_RATEVHT1SS_MCS5:
+			rate_idx = 5;
+			break;
+		case DESC_RATEVHT1SS_MCS6:
+			rate_idx = 6;
+			break;
+		case DESC_RATEVHT1SS_MCS7:
+			rate_idx = 7;
+			break;
+		case DESC_RATEVHT1SS_MCS8:
+			rate_idx = 8;
+			break;
+		case DESC_RATEVHT1SS_MCS9:
+			rate_idx = 9;
+			break;
+		case DESC_RATEVHT2SS_MCS0:
+			rate_idx = 0;
+			break;
+		case DESC_RATEVHT2SS_MCS1:
+			rate_idx = 1;
+			break;
+		case DESC_RATEVHT2SS_MCS2:
+			rate_idx = 2;
+			break;
+		case DESC_RATEVHT2SS_MCS3:
+			rate_idx = 3;
+			break;
+		case DESC_RATEVHT2SS_MCS4:
+			rate_idx = 4;
+			break;
+		case DESC_RATEVHT2SS_MCS5:
+			rate_idx = 5;
+			break;
+		case DESC_RATEVHT2SS_MCS6:
+			rate_idx = 6;
+			break;
+		case DESC_RATEVHT2SS_MCS7:
+			rate_idx = 7;
+			break;
+		case DESC_RATEVHT2SS_MCS8:
+			rate_idx = 8;
+			break;
+		case DESC_RATEVHT2SS_MCS9:
+			rate_idx = 9;
+			break;
+		default:
+			rate_idx = 0;
+			break;
+		}
+		return rate_idx;
+	}
 	if (false == isht) {
 		if (IEEE80211_BAND_2GHZ == hw->conf.chandef.chan->band) {
 			switch (desc_rate) {
-			case DESC92_RATE1M:
+			case DESC_RATE1M:
 				rate_idx = 0;
 				break;
-			case DESC92_RATE2M:
+			case DESC_RATE2M:
 				rate_idx = 1;
 				break;
-			case DESC92_RATE5_5M:
+			case DESC_RATE5_5M:
 				rate_idx = 2;
 				break;
-			case DESC92_RATE11M:
+			case DESC_RATE11M:
 				rate_idx = 3;
 				break;
-			case DESC92_RATE6M:
+			case DESC_RATE6M:
 				rate_idx = 4;
 				break;
-			case DESC92_RATE9M:
+			case DESC_RATE9M:
 				rate_idx = 5;
 				break;
-			case DESC92_RATE12M:
+			case DESC_RATE12M:
 				rate_idx = 6;
 				break;
-			case DESC92_RATE18M:
+			case DESC_RATE18M:
 				rate_idx = 7;
 				break;
-			case DESC92_RATE24M:
+			case DESC_RATE24M:
 				rate_idx = 8;
 				break;
-			case DESC92_RATE36M:
+			case DESC_RATE36M:
 				rate_idx = 9;
 				break;
-			case DESC92_RATE48M:
+			case DESC_RATE48M:
 				rate_idx = 10;
 				break;
-			case DESC92_RATE54M:
+			case DESC_RATE54M:
 				rate_idx = 11;
 				break;
 			default:
@@ -932,28 +1004,28 @@ int rtlwifi_rate_mapping(struct ieee80211_hw *hw,
 			}
 		} else {
 			switch (desc_rate) {
-			case DESC92_RATE6M:
+			case DESC_RATE6M:
 				rate_idx = 0;
 				break;
-			case DESC92_RATE9M:
+			case DESC_RATE9M:
 				rate_idx = 1;
 				break;
-			case DESC92_RATE12M:
+			case DESC_RATE12M:
 				rate_idx = 2;
 				break;
-			case DESC92_RATE18M:
+			case DESC_RATE18M:
 				rate_idx = 3;
 				break;
-			case DESC92_RATE24M:
+			case DESC_RATE24M:
 				rate_idx = 4;
 				break;
-			case DESC92_RATE36M:
+			case DESC_RATE36M:
 				rate_idx = 5;
 				break;
-			case DESC92_RATE48M:
+			case DESC_RATE48M:
 				rate_idx = 6;
 				break;
-			case DESC92_RATE54M:
+			case DESC_RATE54M:
 				rate_idx = 7;
 				break;
 			default:
@@ -963,52 +1035,52 @@ int rtlwifi_rate_mapping(struct ieee80211_hw *hw,
 		}
 	} else {
 		switch (desc_rate) {
-		case DESC92_RATEMCS0:
+		case DESC_RATEMCS0:
 			rate_idx = 0;
 			break;
-		case DESC92_RATEMCS1:
+		case DESC_RATEMCS1:
 			rate_idx = 1;
 			break;
-		case DESC92_RATEMCS2:
+		case DESC_RATEMCS2:
 			rate_idx = 2;
 			break;
-		case DESC92_RATEMCS3:
+		case DESC_RATEMCS3:
 			rate_idx = 3;
 			break;
-		case DESC92_RATEMCS4:
+		case DESC_RATEMCS4:
 			rate_idx = 4;
 			break;
-		case DESC92_RATEMCS5:
+		case DESC_RATEMCS5:
 			rate_idx = 5;
 			break;
-		case DESC92_RATEMCS6:
+		case DESC_RATEMCS6:
 			rate_idx = 6;
 			break;
-		case DESC92_RATEMCS7:
+		case DESC_RATEMCS7:
 			rate_idx = 7;
 			break;
-		case DESC92_RATEMCS8:
+		case DESC_RATEMCS8:
 			rate_idx = 8;
 			break;
-		case DESC92_RATEMCS9:
+		case DESC_RATEMCS9:
 			rate_idx = 9;
 			break;
-		case DESC92_RATEMCS10:
+		case DESC_RATEMCS10:
 			rate_idx = 10;
 			break;
-		case DESC92_RATEMCS11:
+		case DESC_RATEMCS11:
 			rate_idx = 11;
 			break;
-		case DESC92_RATEMCS12:
+		case DESC_RATEMCS12:
 			rate_idx = 12;
 			break;
-		case DESC92_RATEMCS13:
+		case DESC_RATEMCS13:
 			rate_idx = 13;
 			break;
-		case DESC92_RATEMCS14:
+		case DESC_RATEMCS14:
 			rate_idx = 14;
 			break;
-		case DESC92_RATEMCS15:
+		case DESC_RATEMCS15:
 			rate_idx = 15;
 			break;
 		default:
@@ -1243,7 +1315,8 @@ static void setup_arp_tx(struct rtl_priv *rtlpriv, struct rtl_ps_ctl *ppsc)
 }
 
 /*should call before software enc*/
-u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
+u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx,
+		       bool is_enc)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
@@ -1272,7 +1345,9 @@ u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 		break;
 	}
 
-	offset = mac_hdr_len + SNAP_SIZE + encrypt_header_len;
+	offset = mac_hdr_len + SNAP_SIZE;
+	if (is_enc)
+		offset += encrypt_header_len;
 	ether_type = be16_to_cpup((__be16 *)(skb->data + offset));
 
 	if (ETH_P_IP == ether_type) {
@@ -1314,8 +1389,11 @@ u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 		}
 
 		return true;
-	} else if (0x86DD == ether_type) {
-		return true;
+	} else if (ETH_P_IPV6 == ether_type) {
+		/* TODO: Handle any IPv6 cases that need special handling.
+		 * For now, always return false
+		 */
+		goto end;
 	}
 
 end:

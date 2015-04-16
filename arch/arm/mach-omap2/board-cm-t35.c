@@ -25,6 +25,7 @@
 #include <linux/input/matrix_keypad.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
+#include <linux/omap-gpmc.h>
 #include <linux/platform_data/gpio-omap.h>
 
 #include <linux/platform_data/at24.h>
@@ -51,8 +52,6 @@
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "hsmmc.h"
 #include "common-board-devices.h"
-#include "gpmc.h"
-#include "gpmc-nand.h"
 
 #define CM_T35_GPIO_PENDOWN		57
 #define SB_T35_USB_HUB_RESET_GPIO	167

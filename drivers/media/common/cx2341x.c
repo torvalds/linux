@@ -931,6 +931,35 @@ static void cx2341x_calc_audio_properties(struct cx2341x_mpeg_params *params)
 	}
 }
 
+/* Check for correctness of the ctrl's value based on the data from
+   struct v4l2_queryctrl and the available menu items. Note that
+   menu_items may be NULL, in that case it is ignored. */
+static int v4l2_ctrl_check(struct v4l2_ext_control *ctrl, struct v4l2_queryctrl *qctrl,
+		const char * const *menu_items)
+{
+	if (qctrl->flags & V4L2_CTRL_FLAG_DISABLED)
+		return -EINVAL;
+	if (qctrl->flags & V4L2_CTRL_FLAG_GRABBED)
+		return -EBUSY;
+	if (qctrl->type == V4L2_CTRL_TYPE_STRING)
+		return 0;
+	if (qctrl->type == V4L2_CTRL_TYPE_BUTTON ||
+	    qctrl->type == V4L2_CTRL_TYPE_INTEGER64 ||
+	    qctrl->type == V4L2_CTRL_TYPE_CTRL_CLASS)
+		return 0;
+	if (ctrl->value < qctrl->minimum || ctrl->value > qctrl->maximum)
+		return -ERANGE;
+	if (qctrl->type == V4L2_CTRL_TYPE_MENU && menu_items != NULL) {
+		if (menu_items[ctrl->value] == NULL ||
+		    menu_items[ctrl->value][0] == '\0')
+			return -EINVAL;
+	}
+	if (qctrl->type == V4L2_CTRL_TYPE_BITMASK &&
+			(ctrl->value & ~qctrl->maximum))
+		return -ERANGE;
+	return 0;
+}
+
 int cx2341x_ext_ctrls(struct cx2341x_mpeg_params *params, int busy,
 		  struct v4l2_ext_controls *ctrls, unsigned int cmd)
 {

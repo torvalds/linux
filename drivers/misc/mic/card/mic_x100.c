@@ -255,7 +255,6 @@ static struct platform_driver __refdata mic_platform_driver = {
 	.shutdown = mic_platform_shutdown,
 	.driver         = {
 		.name   = mic_driver_name,
-		.owner	= THIS_MODULE,
 	},
 };
 

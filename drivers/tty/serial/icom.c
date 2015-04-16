@@ -1550,8 +1550,10 @@ static int icom_probe(struct pci_dev *dev,
 
 	icom_adapter->base_addr = pci_ioremap_bar(dev, 0);
 
-	if (!icom_adapter->base_addr)
+	if (!icom_adapter->base_addr) {
+		retval = -ENOMEM;
 		goto probe_exit1;
+	}
 
 	 /* save off irq and request irq line */
 	 if ( (retval = request_irq(dev->irq, icom_interrupt,

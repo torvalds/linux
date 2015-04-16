@@ -10,6 +10,7 @@
 	aliases {
 		rtc0 = "/i2c@0,7000d000/pmic@40";
 		rtc1 = "/rtc@0,7000e000";
+		serial0 = &uarta;
 	};
 
 	memory {
@@ -1130,6 +1131,8 @@
 		clock-names = "pll_a", "pll_a_out0", "mclk";
 
 		nvidia,hp-det-gpios = <&gpio TEGRA_GPIO(I, 7) GPIO_ACTIVE_HIGH>;
+		nvidia,mic-det-gpios =
+				<&gpio TEGRA_GPIO(R, 7) GPIO_ACTIVE_HIGH>;
 	};
 };
 

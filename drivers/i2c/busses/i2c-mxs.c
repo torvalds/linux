@@ -568,6 +568,7 @@ static int mxs_i2c_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg,
 	int ret;
 	int flags;
 	int use_pio = 0;
+	unsigned long time_left;
 
 	flags = stop ? MXS_I2C_CTRL0_POST_SEND_STOP : 0;
 
@@ -599,9 +600,9 @@ static int mxs_i2c_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg,
 		if (ret)
 			return ret;
 
-		ret = wait_for_completion_timeout(&i2c->cmd_complete,
+		time_left = wait_for_completion_timeout(&i2c->cmd_complete,
 						msecs_to_jiffies(1000));
-		if (ret == 0)
+		if (!time_left)
 			goto timeout;
 
 		ret = i2c->cmd_err;
@@ -811,7 +812,7 @@ static int mxs_i2c_probe(struct platform_device *pdev)
 	struct resource *res;
 	int err, irq;
 
-	i2c = devm_kzalloc(dev, sizeof(struct mxs_i2c_dev), GFP_KERNEL);
+	i2c = devm_kzalloc(dev, sizeof(*i2c), GFP_KERNEL);
 	if (!i2c)
 		return -ENOMEM;
 
@@ -893,7 +894,6 @@ static int mxs_i2c_remove(struct platform_device *pdev)
 static struct platform_driver mxs_i2c_driver = {
 	.driver = {
 		   .name = DRIVER_NAME,
-		   .owner = THIS_MODULE,
 		   .of_match_table = mxs_i2c_dt_ids,
 		   },
 	.probe = mxs_i2c_probe,

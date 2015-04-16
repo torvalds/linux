@@ -16,6 +16,8 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/netfilter_bridge.h>
+#include <linux/neighbour.h>
+#include <net/arp.h>
 #include <linux/export.h>
 #include <linux/rculist.h>
 #include "br_private.h"
@@ -53,12 +55,72 @@ static int br_pass_frame_up(struct sk_buff *skb)
 	if (!skb)
 		return NET_RX_DROP;
 
-	return NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_IN, skb, indev, NULL,
-		       netif_receive_skb);
+	return NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_IN, NULL, skb,
+		       indev, NULL,
+		       netif_receive_skb_sk);
+}
+
+static void br_do_proxy_arp(struct sk_buff *skb, struct net_bridge *br,
+			    u16 vid, struct net_bridge_port *p)
+{
+	struct net_device *dev = br->dev;
+	struct neighbour *n;
+	struct arphdr *parp;
+	u8 *arpptr, *sha;
+	__be32 sip, tip;
+
+	BR_INPUT_SKB_CB(skb)->proxyarp_replied = false;
+
+	if (dev->flags & IFF_NOARP)
+		return;
+
+	if (!pskb_may_pull(skb, arp_hdr_len(dev))) {
+		dev->stats.tx_dropped++;
+		return;
+	}
+	parp = arp_hdr(skb);
+
+	if (parp->ar_pro != htons(ETH_P_IP) ||
+	    parp->ar_op != htons(ARPOP_REQUEST) ||
+	    parp->ar_hln != dev->addr_len ||
+	    parp->ar_pln != 4)
+		return;
+
+	arpptr = (u8 *)parp + sizeof(struct arphdr);
+	sha = arpptr;
+	arpptr += dev->addr_len;	/* sha */
+	memcpy(&sip, arpptr, sizeof(sip));
+	arpptr += sizeof(sip);
+	arpptr += dev->addr_len;	/* tha */
+	memcpy(&tip, arpptr, sizeof(tip));
+
+	if (ipv4_is_loopback(tip) ||
+	    ipv4_is_multicast(tip))
+		return;
+
+	n = neigh_lookup(&arp_tbl, &tip, dev);
+	if (n) {
+		struct net_bridge_fdb_entry *f;
+
+		if (!(n->nud_state & NUD_VALID)) {
+			neigh_release(n);
+			return;
+		}
+
+		f = __br_fdb_get(br, n->ha, vid);
+		if (f && ((p->flags & BR_PROXYARP) ||
+			  (f->dst && (f->dst->flags & BR_PROXYARP_WIFI)))) {
+			arp_send(ARPOP_REPLY, ETH_P_ARP, sip, skb->dev, tip,
+				 sha, n->ha, sha);
+			BR_INPUT_SKB_CB(skb)->proxyarp_replied = true;
+		}
+
+		neigh_release(n);
+	}
 }
 
 /* note: already called with rcu_read_lock */
-int br_handle_frame_finish(struct sk_buff *skb)
+int br_handle_frame_finish(struct sock *sk, struct sk_buff *skb)
 {
 	const unsigned char *dest = eth_hdr(skb)->h_dest;
 	struct net_bridge_port *p = br_port_get_rcu(skb->dev);
@@ -96,6 +158,9 @@ int br_handle_frame_finish(struct sk_buff *skb)
 		skb2 = skb;
 
 	dst = NULL;
+
+	if (IS_ENABLED(CONFIG_INET) && skb->protocol == htons(ETH_P_ARP))
+		br_do_proxy_arp(skb, br, vid, p);
 
 	if (is_broadcast_ether_addr(dest)) {
 		skb2 = skb;
@@ -143,7 +208,7 @@ drop:
 EXPORT_SYMBOL_GPL(br_handle_frame_finish);
 
 /* note: already called with rcu_read_lock */
-static int br_handle_local_finish(struct sk_buff *skb)
+static int br_handle_local_finish(struct sock *sk, struct sk_buff *skb)
 {
 	struct net_bridge_port *p = br_port_get_rcu(skb->dev);
 	u16 vid = 0;
@@ -213,8 +278,8 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 		}
 
 		/* Deliver packet to local host only */
-		if (NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_IN, skb, skb->dev,
-			    NULL, br_handle_local_finish)) {
+		if (NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_IN, NULL, skb,
+			    skb->dev, NULL, br_handle_local_finish)) {
 			return RX_HANDLER_CONSUMED; /* consumed by filter */
 		} else {
 			*pskb = skb;
@@ -238,7 +303,8 @@ forward:
 		if (ether_addr_equal(p->br->dev->dev_addr, dest))
 			skb->pkt_type = PACKET_HOST;
 
-		NF_HOOK(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING, skb, skb->dev, NULL,
+		NF_HOOK(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING, NULL, skb,
+			skb->dev, NULL,
 			br_handle_frame_finish);
 		break;
 	default:

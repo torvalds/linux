@@ -106,7 +106,6 @@ struct lp872x {
 	struct device *dev;
 	enum lp872x_id chipid;
 	struct lp872x_platform_data *pdata;
-	struct regulator_dev **regulators;
 	int num_regulators;
 	enum lp872x_dvs_state dvs_pin;
 	int dvs_gpio;
@@ -801,8 +800,6 @@ static int lp872x_regulator_register(struct lp872x *lp)
 			dev_err(lp->dev, "regulator register err");
 			return PTR_ERR(rdev);
 		}
-
-		*(lp->regulators + i) = rdev;
 	}
 
 	return 0;
@@ -906,7 +903,7 @@ static struct lp872x_platform_data
 static int lp872x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 {
 	struct lp872x *lp;
-	int ret, size, num_regulators;
+	int ret;
 	const int lp872x_num_regulators[] = {
 		[LP8720] = LP8720_NUM_REGULATORS,
 		[LP8725] = LP8725_NUM_REGULATORS,
@@ -918,38 +915,27 @@ static int lp872x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 
 	lp = devm_kzalloc(&cl->dev, sizeof(struct lp872x), GFP_KERNEL);
 	if (!lp)
-		goto err_mem;
+		return -ENOMEM;
 
-	num_regulators = lp872x_num_regulators[id->driver_data];
-	size = sizeof(struct regulator_dev *) * num_regulators;
-
-	lp->regulators = devm_kzalloc(&cl->dev, size, GFP_KERNEL);
-	if (!lp->regulators)
-		goto err_mem;
+	lp->num_regulators = lp872x_num_regulators[id->driver_data];
 
 	lp->regmap = devm_regmap_init_i2c(cl, &lp872x_regmap_config);
 	if (IS_ERR(lp->regmap)) {
 		ret = PTR_ERR(lp->regmap);
 		dev_err(&cl->dev, "regmap init i2c err: %d\n", ret);
-		goto err_dev;
+		return ret;
 	}
 
 	lp->dev = &cl->dev;
 	lp->pdata = dev_get_platdata(&cl->dev);
 	lp->chipid = id->driver_data;
-	lp->num_regulators = num_regulators;
 	i2c_set_clientdata(cl, lp);
 
 	ret = lp872x_config(lp);
 	if (ret)
-		goto err_dev;
+		return ret;
 
 	return lp872x_regulator_register(lp);
-
-err_mem:
-	return -ENOMEM;
-err_dev:
-	return ret;
 }
 
 static const struct of_device_id lp872x_dt_ids[] = {

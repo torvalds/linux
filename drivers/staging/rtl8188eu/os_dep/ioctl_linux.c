@@ -32,6 +32,8 @@
 
 #include <rtw_iol.h>
 #include <linux/vmalloc.h>
+#include <linux/etherdevice.h>
+
 #include "osdep_intf.h"
 
 #define RTL_IOCTL_WPA_SUPPLICANT	(SIOCIWFIRSTPRIV + 30)
@@ -92,7 +94,7 @@ void rtw_indicate_wx_disassoc_event(struct adapter *padapter)
 	memset(&wrqu, 0, sizeof(union iwreq_data));
 
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-	memset(wrqu.ap_addr.sa_data, 0, ETH_ALEN);
+	eth_zero_addr(wrqu.ap_addr.sa_data);
 
 	DBG_88E_LEVEL(_drv_always_, "indicate disassoc\n");
 	wireless_send_event(padapter->pnetdev, SIOCGIWAP, &wrqu, NULL);
@@ -361,7 +363,7 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param, 
 	param->u.crypt.err = 0;
 	param->u.crypt.alg[IEEE_CRYPT_ALG_NAME_LEN - 1] = '\0';
 
-	if (param_len < (u32) ((u8 *)param->u.crypt.key - (u8 *)param) + param->u.crypt.key_len) {
+	if (param_len < (u32)((u8 *)param->u.crypt.key - (u8 *)param) + param->u.crypt.key_len) {
 		ret =  -EINVAL;
 		goto exit;
 	}
@@ -512,13 +514,11 @@ static int rtw_set_wpa_ie(struct adapter *padapter, char *pie, unsigned short ie
 	}
 
 	if (ielen) {
-		buf = kzalloc(ielen, GFP_KERNEL);
+		buf = kmemdup(pie, ielen, GFP_KERNEL);
 		if (buf == NULL) {
 			ret =  -ENOMEM;
 			goto exit;
 		}
-
-		memcpy(buf, pie, ielen);
 
 		/* dump */
 		{
@@ -829,7 +829,7 @@ static int rtw_wx_set_pmkid(struct net_device *dev,
 		for (j = 0; j < NUM_PMKID_CACHE; j++) {
 			if (!memcmp(psecuritypriv->PMKIDList[j].Bssid, strIssueBssid, ETH_ALEN)) {
 				/*  BSSID is matched, the same AP => Remove this PMKID information and reset it. */
-				memset(psecuritypriv->PMKIDList[j].Bssid, 0x00, ETH_ALEN);
+				eth_zero_addr(psecuritypriv->PMKIDList[j].Bssid);
 				psecuritypriv->PMKIDList[j].bUsed = false;
 				break;
 			}
@@ -1030,7 +1030,7 @@ static int rtw_wx_get_wap(struct net_device *dev,
 
 	wrqu->ap_addr.sa_family = ARPHRD_ETHER;
 
-	memset(wrqu->ap_addr.sa_data, 0, ETH_ALEN);
+	eth_zero_addr(wrqu->ap_addr.sa_data);
 
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_, ("rtw_wx_get_wap\n"));
 
@@ -1039,7 +1039,7 @@ static int rtw_wx_get_wap(struct net_device *dev,
 	    ((check_fwstate(pmlmepriv, WIFI_AP_STATE)) == true))
 		memcpy(wrqu->ap_addr.sa_data, pcur_bss->MacAddress, ETH_ALEN);
 	else
-		memset(wrqu->ap_addr.sa_data, 0, ETH_ALEN);
+		eth_zero_addr(wrqu->ap_addr.sa_data);
 	return 0;
 }
 
@@ -1136,7 +1136,8 @@ static int rtw_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 		struct iw_scan_req *req = (struct iw_scan_req *)extra;
 
 		if (wrqu->data.flags & IW_SCAN_THIS_ESSID) {
-			int len = min((int)req->essid_len, IW_ESSID_MAX_SIZE);
+			int len = min_t(int, req->essid_len,
+					IW_ESSID_MAX_SIZE);
 
 			memcpy(ssid[0].Ssid, req->essid, len);
 			ssid[0].SsidLength = len;
@@ -1417,7 +1418,7 @@ static int rtw_wx_set_rate(struct net_device *dev,
 			      struct iw_request_info *a,
 			      union iwreq_data *wrqu, char *extra)
 {
-	int i, ret = 0;
+	int i;
 	u8 datarates[NumRates];
 	u32	target_rate = wrqu->bitrate.value;
 	u32	fixed = wrqu->bitrate.fixed;
@@ -1490,7 +1491,7 @@ set_rate:
 		RT_TRACE(_module_rtl871x_ioctl_os_c, _drv_info_, ("datarate_inx =%d\n", datarates[i]));
 	}
 
-	return ret;
+	return 0;
 }
 
 static int rtw_wx_get_rate(struct net_device *dev,
@@ -1797,11 +1798,9 @@ static int rtw_wx_set_gen_ie(struct net_device *dev,
 			     struct iw_request_info *info,
 			     union iwreq_data *wrqu, char *extra)
 {
-	int ret;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 
-	ret = rtw_set_wpa_ie(padapter, extra, wrqu->data.length);
-	return ret;
+	return rtw_set_wpa_ie(padapter, extra, wrqu->data.length);
 }
 
 static int rtw_wx_set_auth(struct net_device *dev,
@@ -2699,10 +2698,8 @@ static int rtw_set_wps_beacon(struct net_device *dev, struct ieee_param *param, 
 
 	ie_len = len-12-2;/*  12 = param header, 2:no packed */
 
-	if (pmlmepriv->wps_beacon_ie) {
-		kfree(pmlmepriv->wps_beacon_ie);
-		pmlmepriv->wps_beacon_ie = NULL;
-	}
+	kfree(pmlmepriv->wps_beacon_ie);
+	pmlmepriv->wps_beacon_ie = NULL;
 
 	if (ie_len > 0) {
 		pmlmepriv->wps_beacon_ie = rtw_malloc(ie_len);
@@ -2736,10 +2733,8 @@ static int rtw_set_wps_probe_resp(struct net_device *dev, struct ieee_param *par
 
 	ie_len = len-12-2;/*  12 = param header, 2:no packed */
 
-	if (pmlmepriv->wps_probe_resp_ie) {
-		kfree(pmlmepriv->wps_probe_resp_ie);
-		pmlmepriv->wps_probe_resp_ie = NULL;
-	}
+	kfree(pmlmepriv->wps_probe_resp_ie);
+	pmlmepriv->wps_probe_resp_ie = NULL;
 
 	if (ie_len > 0) {
 		pmlmepriv->wps_probe_resp_ie = rtw_malloc(ie_len);
@@ -2768,10 +2763,8 @@ static int rtw_set_wps_assoc_resp(struct net_device *dev, struct ieee_param *par
 
 	ie_len = len-12-2;/*  12 = param header, 2:no packed */
 
-	if (pmlmepriv->wps_assoc_resp_ie) {
-		kfree(pmlmepriv->wps_assoc_resp_ie);
-		pmlmepriv->wps_assoc_resp_ie = NULL;
-	}
+	kfree(pmlmepriv->wps_assoc_resp_ie);
+	pmlmepriv->wps_assoc_resp_ie = NULL;
 
 	if (ie_len > 0) {
 		pmlmepriv->wps_assoc_resp_ie = rtw_malloc(ie_len);

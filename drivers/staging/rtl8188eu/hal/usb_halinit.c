@@ -1096,10 +1096,8 @@ static void Hal_EfuseParseMACAddr_8188EU(struct adapter *adapt, u8 *hwinfo, bool
 		memcpy(eeprom->mac_addr, &hwinfo[EEPROM_MAC_ADDR_88EU], ETH_ALEN);
 	}
 	RT_TRACE(_module_hci_hal_init_c_, _drv_notice_,
-		 ("Hal_EfuseParseMACAddr_8188EU: Permanent Address = %02x-%02x-%02x-%02x-%02x-%02x\n",
-		 eeprom->mac_addr[0], eeprom->mac_addr[1],
-		 eeprom->mac_addr[2], eeprom->mac_addr[3],
-		 eeprom->mac_addr[4], eeprom->mac_addr[5]));
+		 ("Hal_EfuseParseMACAddr_8188EU: Permanent Address = %pM\n",
+		 eeprom->mac_addr));
 }
 
 static void
@@ -1352,7 +1350,7 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 
 			/*  Set RTS initial rate */
 			while (BrateCfg > 0x1) {
-				BrateCfg = (BrateCfg >> 1);
+				BrateCfg >>= 1;
 				RateIndex++;
 			}
 			/*  Ziv - Check */
@@ -1673,7 +1671,7 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 			pRegToSet = RegToSet_Normal; /*  0xb972a841; */
 			FactorToSet = *((u8 *)val);
 			if (FactorToSet <= 3) {
-				FactorToSet = (1<<(FactorToSet + 2));
+				FactorToSet = 1 << (FactorToSet + 2);
 				if (FactorToSet > 0xf)
 					FactorToSet = 0xf;
 
@@ -2012,7 +2010,7 @@ static u8 SetHalDefVar8188EUsb(struct adapter *Adapter, enum hal_def_variable eV
 			u8 bRSSIDump = *((u8 *)pValue);
 			struct odm_dm_struct *dm_ocm = &(haldata->odmpriv);
 			if (bRSSIDump)
-				dm_ocm->DebugComponents	=	ODM_COMP_DIG|ODM_COMP_FA_CNT	;
+				dm_ocm->DebugComponents	=	ODM_COMP_DIG|ODM_COMP_FA_CNT;
 			else
 				dm_ocm->DebugComponents	= 0;
 		}

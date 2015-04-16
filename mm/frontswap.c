@@ -182,7 +182,7 @@ void __frontswap_init(unsigned type, unsigned long *map)
 	if (frontswap_ops)
 		frontswap_ops->init(type);
 	else {
-		BUG_ON(type > MAX_SWAPFILES);
+		BUG_ON(type >= MAX_SWAPFILES);
 		set_bit(type, need_init);
 	}
 }
@@ -244,8 +244,10 @@ int __frontswap_store(struct page *page)
 		  the (older) page from frontswap
 		 */
 		inc_frontswap_failed_stores();
-		if (dup)
+		if (dup) {
 			__frontswap_clear(sis, offset);
+			frontswap_ops->invalidate_page(type, offset);
+		}
 	}
 	if (frontswap_writethrough_enabled)
 		/* report failure so swap also writes to swap device */

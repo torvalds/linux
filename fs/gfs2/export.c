@@ -69,10 +69,12 @@ struct get_name_filldir {
 	char *name;
 };
 
-static int get_name_filldir(void *opaque, const char *name, int length,
-			    loff_t offset, u64 inum, unsigned int type)
+static int get_name_filldir(struct dir_context *ctx, const char *name,
+			    int length, loff_t offset, u64 inum,
+			    unsigned int type)
 {
-	struct get_name_filldir *gnfd = opaque;
+	struct get_name_filldir *gnfd =
+		container_of(ctx, struct get_name_filldir, ctx);
 
 	if (inum != gnfd->inum.no_addr)
 		return 0;

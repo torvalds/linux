@@ -1415,7 +1415,6 @@ static int caif_hsi_newlink(struct net *src_net, struct net_device *dev,
 
 	cfhsi = netdev_priv(dev);
 	cfhsi_netlink_parms(data, cfhsi);
-	dev_net_set(cfhsi->ndev, src_net);
 
 	get_ops = symbol_get(cfhsi_get_ops);
 	if (!get_ops) {

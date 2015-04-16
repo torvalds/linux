@@ -91,16 +91,16 @@ struct soc_mbus_pixelfmt {
  * @fmt:	pixel format description
  */
 struct soc_mbus_lookup {
-	enum v4l2_mbus_pixelcode	code;
+	u32	code;
 	struct soc_mbus_pixelfmt	fmt;
 };
 
 const struct soc_mbus_pixelfmt *soc_mbus_find_fmtdesc(
-	enum v4l2_mbus_pixelcode code,
+	u32 code,
 	const struct soc_mbus_lookup *lookup,
 	int n);
 const struct soc_mbus_pixelfmt *soc_mbus_get_fmtdesc(
-	enum v4l2_mbus_pixelcode code);
+	u32 code);
 s32 soc_mbus_bytes_per_line(u32 width, const struct soc_mbus_pixelfmt *mf);
 s32 soc_mbus_image_size(const struct soc_mbus_pixelfmt *mf,
 			u32 bytes_per_line, u32 height);

@@ -246,6 +246,7 @@ static int pl011_sgbuf_init(struct dma_chan *chan, struct pl011_sgbuf *sg,
 	sg_set_page(&sg->sg, phys_to_page(dma_addr),
 		PL011_DMA_BUFFER_SIZE, offset_in_page(dma_addr));
 	sg_dma_address(&sg->sg) = dma_addr;
+	sg_dma_len(&sg->sg) = PL011_DMA_BUFFER_SIZE;
 
 	return 0;
 }
@@ -321,10 +322,26 @@ static void pl011_dma_probe_initcall(struct device *dev, struct uart_amba_port *
 			.src_maxburst = uap->fifosize >> 2,
 			.device_fc = false,
 		};
+		struct dma_slave_caps caps;
 
+		/*
+		 * Some DMA controllers provide information on their capabilities.
+		 * If the controller does, check for suitable residue processing
+		 * otherwise assime all is well.
+		 */
+		if (0 == dma_get_slave_caps(chan, &caps)) {
+			if (caps.residue_granularity ==
+					DMA_RESIDUE_GRANULARITY_DESCRIPTOR) {
+				dma_release_channel(chan);
+				dev_info(uap->port.dev,
+					"RX DMA disabled - no residue processing\n");
+				return;
+			}
+		}
 		dmaengine_slave_config(chan, &rx_conf);
 		uap->dmarx.chan = chan;
 
+		uap->dmarx.auto_poll_rate = false;
 		if (plat && plat->dma_rx_poll_enable) {
 			/* Set poll rate if specified. */
 			if (plat->dma_rx_poll_rate) {
@@ -345,9 +362,24 @@ static void pl011_dma_probe_initcall(struct device *dev, struct uart_amba_port *
 					plat->dma_rx_poll_timeout;
 			else
 				uap->dmarx.poll_timeout = 3000;
-		} else
-			uap->dmarx.auto_poll_rate = false;
+		} else if (!plat && dev->of_node) {
+			uap->dmarx.auto_poll_rate = of_property_read_bool(
+						dev->of_node, "auto-poll");
+			if (uap->dmarx.auto_poll_rate) {
+				u32 x;
 
+				if (0 == of_property_read_u32(dev->of_node,
+						"poll-rate-ms", &x))
+					uap->dmarx.poll_rate = x;
+				else
+					uap->dmarx.poll_rate = 100;
+				if (0 == of_property_read_u32(dev->of_node,
+						"poll-timeout-ms", &x))
+					uap->dmarx.poll_timeout = x;
+				else
+					uap->dmarx.poll_timeout = 3000;
+			}
+		}
 		dev_info(uap->port.dev, "DMA channel RX %s\n",
 			 dma_chan_name(uap->dmarx.chan));
 	}
@@ -501,7 +533,11 @@ static int pl011_dma_tx_refill(struct uart_amba_port *uap)
 		memcpy(&dmatx->buf[0], &xmit->buf[xmit->tail], count);
 	else {
 		size_t first = UART_XMIT_SIZE - xmit->tail;
-		size_t second = xmit->head;
+		size_t second;
+
+		if (first > count)
+			first = count;
+		second = count - first;
 
 		memcpy(&dmatx->buf[0], &xmit->buf[xmit->tail], first);
 		if (second)
@@ -988,7 +1024,7 @@ static void pl011_dma_startup(struct uart_amba_port *uap)
 	if (!uap->dmatx.chan)
 		return;
 
-	uap->dmatx.buf = kmalloc(PL011_DMA_BUFFER_SIZE, GFP_KERNEL);
+	uap->dmatx.buf = kmalloc(PL011_DMA_BUFFER_SIZE, GFP_KERNEL | __GFP_DMA);
 	if (!uap->dmatx.buf) {
 		dev_err(uap->port.dev, "no memory for DMA TX buffer\n");
 		uap->port.fifosize = uap->fifosize;
@@ -1689,6 +1725,8 @@ static void pl011_shutdown(struct uart_port *port)
 			plat->exit();
 	}
 
+	if (uap->port.ops->flush_buffer)
+		uap->port.ops->flush_buffer(port);
 }
 
 static void

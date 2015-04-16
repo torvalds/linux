@@ -48,7 +48,7 @@ MODULE_DEVICE_TABLE(pci, atl1c_pci_tbl);
 
 MODULE_AUTHOR("Jie Yang");
 MODULE_AUTHOR("Qualcomm Atheros Inc., <nic-devel@qualcomm.com>");
-MODULE_DESCRIPTION("Qualcom Atheros 100/1000M Ethernet Network Driver");
+MODULE_DESCRIPTION("Qualcomm Atheros 100/1000M Ethernet Network Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(ATL1C_DRV_VERSION);
 
@@ -752,7 +752,7 @@ static void atl1c_patch_assign(struct atl1c_hw *hw)
 
 	if (hw->device_id == PCI_DEVICE_ID_ATHEROS_L2C_B2 &&
 	    hw->revision_id == L2CB_V21) {
-		/* config acess mode */
+		/* config access mode */
 		pci_write_config_dword(pdev, REG_PCIE_IND_ACC_ADDR,
 				       REG_PCIE_DEV_MISC_CTRL);
 		pci_read_config_dword(pdev, REG_PCIE_IND_ACC_DATA, &misc_ctrl);
@@ -2235,8 +2235,8 @@ static netdev_tx_t atl1c_xmit_frame(struct sk_buff *skb,
 		return NETDEV_TX_OK;
 	}
 
-	if (unlikely(vlan_tx_tag_present(skb))) {
-		u16 vlan = vlan_tx_tag_get(skb);
+	if (unlikely(skb_vlan_tag_present(skb))) {
+		u16 vlan = skb_vlan_tag_get(skb);
 		__le16 tag;
 
 		vlan = cpu_to_le16(vlan);

@@ -16,7 +16,7 @@
 
 /* for isl3886 register definitions used on ver 1 devices */
 #include "p54pci.h"
-#include "net2280.h"
+#include <linux/usb/net2280.h>
 
 /* pci */
 #define NET2280_BASE		0x10000000
@@ -92,6 +92,17 @@ enum net2280_op_type {
 	NET2280_DEV_CFG_U32	= 0x088F,
 	NET2280_DEV_CFG_U16	= 0x0883
 };
+
+struct net2280_reg_write {
+	__le16 port;
+	__le32 addr;
+	__le32 val;
+} __packed;
+
+struct net2280_reg_read {
+	__le16 port;
+	__le32 addr;
+} __packed;
 
 #define P54U_FW_BLOCK 2048
 

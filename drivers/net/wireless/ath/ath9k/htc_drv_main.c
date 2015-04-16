@@ -149,7 +149,7 @@ static void ath9k_htc_set_mac_bssid_mask(struct ath9k_htc_priv *priv,
 	 * when matching addresses.
 	 */
 	iter_data.hw_macaddr = NULL;
-	memset(&iter_data.mask, 0xff, ETH_ALEN);
+	eth_broadcast_addr(iter_data.mask);
 
 	if (vif)
 		ath9k_htc_bssid_iter(&iter_data, vif->addr, vif);
@@ -314,6 +314,10 @@ static int ath9k_htc_set_channel(struct ath9k_htc_priv *priv,
 	mod_timer(&priv->tx.cleanup_timer,
 		  jiffies + msecs_to_jiffies(ATH9K_HTC_TX_CLEANUP_INTERVAL));
 
+	/* perform spectral scan if requested. */
+	if (test_bit(ATH_OP_SCANNING, &common->op_flags) &&
+		     priv->spec_priv.spectral_mode == SPECTRAL_CHANSCAN)
+		ath9k_cmn_spectral_scan_trigger(common, &priv->spec_priv);
 err:
 	ath9k_htc_ps_restore(priv);
 	return ret;
@@ -1443,7 +1447,7 @@ static int ath9k_htc_set_key(struct ieee80211_hw *hw,
 			key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
 			if (key->cipher == WLAN_CIPHER_SUITE_TKIP)
 				key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
-			if (priv->ah->sw_mgmt_crypto &&
+			if (priv->ah->sw_mgmt_crypto_tx &&
 			    key->cipher == WLAN_CIPHER_SUITE_CCMP)
 				key->flags |= IEEE80211_KEY_FLAG_SW_MGMT_TX;
 			ret = 0;
@@ -1687,7 +1691,9 @@ static int ath9k_htc_ampdu_action(struct ieee80211_hw *hw,
 	return ret;
 }
 
-static void ath9k_htc_sw_scan_start(struct ieee80211_hw *hw)
+static void ath9k_htc_sw_scan_start(struct ieee80211_hw *hw,
+				    struct ieee80211_vif *vif,
+				    const u8 *mac_addr)
 {
 	struct ath9k_htc_priv *priv = hw->priv;
 	struct ath_common *common = ath9k_hw_common(priv->ah);
@@ -1701,7 +1707,8 @@ static void ath9k_htc_sw_scan_start(struct ieee80211_hw *hw)
 	mutex_unlock(&priv->mutex);
 }
 
-static void ath9k_htc_sw_scan_complete(struct ieee80211_hw *hw)
+static void ath9k_htc_sw_scan_complete(struct ieee80211_hw *hw,
+				       struct ieee80211_vif *vif)
 {
 	struct ath9k_htc_priv *priv = hw->priv;
 	struct ath_common *common = ath9k_hw_common(priv->ah);

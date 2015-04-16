@@ -128,6 +128,8 @@ static struct regulator_ops max77693_charger_ops = {
 #define regulator_desc_esafeout(_num)	{			\
 	.name		= "ESAFEOUT"#_num,			\
 	.id		= MAX77693_ESAFEOUT##_num,		\
+	.of_match	= of_match_ptr("ESAFEOUT"#_num),	\
+	.regulators_node	= of_match_ptr("regulators"),	\
 	.n_voltages	= 4,					\
 	.ops		= &max77693_safeout_ops,		\
 	.type		= REGULATOR_VOLTAGE,			\
@@ -139,12 +141,14 @@ static struct regulator_ops max77693_charger_ops = {
 	.enable_mask	= SAFEOUT_CTRL_ENSAFEOUT##_num##_MASK ,	\
 }
 
-static struct regulator_desc regulators[] = {
+static const struct regulator_desc regulators[] = {
 	regulator_desc_esafeout(1),
 	regulator_desc_esafeout(2),
 	{
 		.name = "CHARGER",
 		.id = MAX77693_CHARGER,
+		.of_match = of_match_ptr("CHARGER"),
+		.regulators_node = of_match_ptr("regulators"),
 		.ops = &max77693_charger_ops,
 		.type = REGULATOR_CURRENT,
 		.owner = THIS_MODULE,
@@ -154,102 +158,23 @@ static struct regulator_desc regulators[] = {
 	},
 };
 
-#ifdef CONFIG_OF
-static int max77693_pmic_dt_parse_rdata(struct device *dev,
-					struct max77693_regulator_data **rdata)
-{
-	struct device_node *np;
-	struct of_regulator_match *rmatch;
-	struct max77693_regulator_data *tmp;
-	int i, matched = 0;
-
-	np = of_get_child_by_name(dev->parent->of_node, "regulators");
-	if (!np)
-		return -EINVAL;
-
-	rmatch = devm_kzalloc(dev,
-		 sizeof(*rmatch) * ARRAY_SIZE(regulators), GFP_KERNEL);
-	if (!rmatch) {
-		of_node_put(np);
-		return -ENOMEM;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(regulators); i++)
-		rmatch[i].name = regulators[i].name;
-
-	matched = of_regulator_match(dev, np, rmatch, ARRAY_SIZE(regulators));
-	of_node_put(np);
-	if (matched <= 0)
-		return matched;
-	*rdata = devm_kzalloc(dev, sizeof(**rdata) * matched, GFP_KERNEL);
-	if (!(*rdata))
-		return -ENOMEM;
-
-	tmp = *rdata;
-
-	for (i = 0; i < matched; i++) {
-		tmp->initdata = rmatch[i].init_data;
-		tmp->of_node = rmatch[i].of_node;
-		tmp->id = regulators[i].id;
-		tmp++;
-	}
-
-	return matched;
-}
-#else
-static int max77693_pmic_dt_parse_rdata(struct device *dev,
-					struct max77693_regulator_data **rdata)
-{
-	return 0;
-}
-#endif /* CONFIG_OF */
-
-static int max77693_pmic_init_rdata(struct device *dev,
-				    struct max77693_regulator_data **rdata)
-{
-	struct max77693_platform_data *pdata;
-	int num_regulators = 0;
-
-	pdata = dev_get_platdata(dev->parent);
-	if (pdata) {
-		*rdata = pdata->regulators;
-		num_regulators = pdata->num_regulators;
-	}
-
-	if (!(*rdata) && dev->parent->of_node)
-		num_regulators = max77693_pmic_dt_parse_rdata(dev, rdata);
-
-	return num_regulators;
-}
-
 static int max77693_pmic_probe(struct platform_device *pdev)
 {
 	struct max77693_dev *iodev = dev_get_drvdata(pdev->dev.parent);
-	struct max77693_regulator_data *rdata = NULL;
-	int num_rdata, i;
-	struct regulator_config config;
+	int i;
+	struct regulator_config config = { };
 
-	num_rdata = max77693_pmic_init_rdata(&pdev->dev, &rdata);
-	if (!rdata || num_rdata <= 0) {
-		dev_err(&pdev->dev, "No init data supplied.\n");
-		return -ENODEV;
-	}
-
-	config.dev = &pdev->dev;
+	config.dev = iodev->dev;
 	config.regmap = iodev->regmap;
 
-	for (i = 0; i < num_rdata; i++) {
-		int id = rdata[i].id;
+	for (i = 0; i < ARRAY_SIZE(regulators); i++) {
 		struct regulator_dev *rdev;
 
-		config.init_data = rdata[i].initdata;
-		config.of_node = rdata[i].of_node;
-
 		rdev = devm_regulator_register(&pdev->dev,
-						&regulators[id], &config);
+						&regulators[i], &config);
 		if (IS_ERR(rdev)) {
 			dev_err(&pdev->dev,
-				"Failed to initialize regulator-%d\n", id);
+				"Failed to initialize regulator-%d\n", i);
 			return PTR_ERR(rdev);
 		}
 	}
@@ -267,7 +192,6 @@ MODULE_DEVICE_TABLE(platform, max77693_pmic_id);
 static struct platform_driver max77693_pmic_driver = {
 	.driver = {
 		   .name = "max77693-pmic",
-		   .owner = THIS_MODULE,
 		   },
 	.probe = max77693_pmic_probe,
 	.id_table = max77693_pmic_id,

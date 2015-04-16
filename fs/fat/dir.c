@@ -702,10 +702,11 @@ static int fat_readdir(struct file *file, struct dir_context *ctx)
 }
 
 #define FAT_IOCTL_FILLDIR_FUNC(func, dirent_type)			   \
-static int func(void *__buf, const char *name, int name_len,		   \
+static int func(struct dir_context *ctx, const char *name, int name_len,   \
 			     loff_t offset, u64 ino, unsigned int d_type)  \
 {									   \
-	struct fat_ioctl_filldir_callback *buf = __buf;			   \
+	struct fat_ioctl_filldir_callback *buf =			   \
+		container_of(ctx, struct fat_ioctl_filldir_callback, ctx); \
 	struct dirent_type __user *d1 = buf->dirent;			   \
 	struct dirent_type __user *d2 = d1 + 1;				   \
 									   \

@@ -105,11 +105,8 @@ static irqreturn_t solo_isr(int irq, void *data)
 	if (!status)
 		return IRQ_NONE;
 
-	if (status & ~solo_dev->irq_mask) {
-		solo_reg_write(solo_dev, SOLO_IRQ_STAT,
-			       status & ~solo_dev->irq_mask);
-		status &= solo_dev->irq_mask;
-	}
+	/* Acknowledge all interrupts immediately */
+	solo_reg_write(solo_dev, SOLO_IRQ_STAT, status);
 
 	if (status & SOLO_IRQ_PCI_ERR)
 		solo_p2m_error_isr(solo_dev);
@@ -131,9 +128,6 @@ static irqreturn_t solo_isr(int irq, void *data)
 
 	if (status & SOLO_IRQ_G723)
 		solo_g723_isr(solo_dev);
-
-	/* Clear all interrupts handled */
-	solo_reg_write(solo_dev, SOLO_IRQ_STAT, status);
 
 	return IRQ_HANDLED;
 }
@@ -188,7 +182,7 @@ static ssize_t eeprom_store(struct device *dev, struct device_attribute *attr,
 {
 	struct solo_dev *solo_dev =
 		container_of(dev, struct solo_dev, dev);
-	unsigned short *p = (unsigned short *)buf;
+	u16 *p = (u16 *)buf;
 	int i;
 
 	if (count & 0x1)
@@ -218,7 +212,7 @@ static ssize_t eeprom_show(struct device *dev, struct device_attribute *attr,
 {
 	struct solo_dev *solo_dev =
 		container_of(dev, struct solo_dev, dev);
-	unsigned short *p = (unsigned short *)buf;
+	u16 *p = (u16 *)buf;
 	int count = (full_eeprom ? 128 : 64);
 	int i;
 

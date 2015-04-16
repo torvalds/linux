@@ -90,7 +90,7 @@ static void fdb_rcu_free(struct rcu_head *head)
  * are then updated with the new information.
  * Called under RTNL.
  */
-static void fdb_add_hw(struct net_bridge *br, const unsigned char *addr)
+static void fdb_add_hw_addr(struct net_bridge *br, const unsigned char *addr)
 {
 	int err;
 	struct net_bridge_port *p;
@@ -118,7 +118,7 @@ undo:
  * the ports with needed information.
  * Called under RTNL.
  */
-static void fdb_del_hw(struct net_bridge *br, const unsigned char *addr)
+static void fdb_del_hw_addr(struct net_bridge *br, const unsigned char *addr)
 {
 	struct net_bridge_port *p;
 
@@ -133,7 +133,7 @@ static void fdb_del_hw(struct net_bridge *br, const unsigned char *addr)
 static void fdb_delete(struct net_bridge *br, struct net_bridge_fdb_entry *f)
 {
 	if (f->is_static)
-		fdb_del_hw(br, f->addr.addr);
+		fdb_del_hw_addr(br, f->addr.addr);
 
 	hlist_del_rcu(&f->hlist);
 	fdb_notify(br, f, RTM_DELNEIGH);
@@ -481,6 +481,7 @@ static struct net_bridge_fdb_entry *fdb_create(struct hlist_head *head,
 		fdb->is_local = 0;
 		fdb->is_static = 0;
 		fdb->added_by_user = 0;
+		fdb->added_by_external_learn = 0;
 		fdb->updated = fdb->used = jiffies;
 		hlist_add_head_rcu(&fdb->hlist, head);
 	}
@@ -514,7 +515,7 @@ static int fdb_insert(struct net_bridge *br, struct net_bridge_port *source,
 		return -ENOMEM;
 
 	fdb->is_local = fdb->is_static = 1;
-	fdb_add_hw(br, addr);
+	fdb_add_hw_addr(br, addr);
 	fdb_notify(br, fdb, RTM_NEWNEIGH);
 	return 0;
 }
@@ -613,7 +614,7 @@ static int fdb_fill_info(struct sk_buff *skb, const struct net_bridge *br,
 	ndm->ndm_family	 = AF_BRIDGE;
 	ndm->ndm_pad1    = 0;
 	ndm->ndm_pad2    = 0;
-	ndm->ndm_flags	 = 0;
+	ndm->ndm_flags	 = fdb->added_by_external_learn ? NTF_EXT_LEARNED : 0;
 	ndm->ndm_type	 = 0;
 	ndm->ndm_ifindex = fdb->dst ? fdb->dst->dev->ifindex : br->dev->ifindex;
 	ndm->ndm_state   = fdb_to_nud(fdb);
@@ -632,7 +633,8 @@ static int fdb_fill_info(struct sk_buff *skb, const struct net_bridge *br,
 	if (fdb->vlan_id && nla_put(skb, NDA_VLAN, sizeof(u16), &fdb->vlan_id))
 		goto nla_put_failure;
 
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 nla_put_failure:
 	nlmsg_cancel(skb, nlh);
@@ -685,6 +687,9 @@ int br_fdb_dump(struct sk_buff *skb,
 	if (!(dev->priv_flags & IFF_EBRIDGE))
 		goto out;
 
+	if (!filter_dev)
+		idx = ndo_dflt_fdb_dump(skb, cb, dev, NULL, idx);
+
 	for (i = 0; i < BR_HASH_SIZE; i++) {
 		struct net_bridge_fdb_entry *f;
 
@@ -696,7 +701,7 @@ int br_fdb_dump(struct sk_buff *skb,
 			    (!f->dst || f->dst->dev != filter_dev)) {
 				if (filter_dev != dev)
 					goto skip;
-				/* !f->dst is a speacial case for bridge
+				/* !f->dst is a special case for bridge
 				 * It means the MAC belongs to the bridge
 				 * Therefore need a little more filtering
 				 * we only want to dump the !f->dst case
@@ -704,6 +709,8 @@ int br_fdb_dump(struct sk_buff *skb,
 				if (f->dst)
 					goto skip;
 			}
+			if (!filter_dev && f->dst)
+				goto skip;
 
 			if (fdb_fill_info(skb, br, f,
 					  NETLINK_CB(cb->skb).portid,
@@ -754,19 +761,19 @@ static int fdb_add_entry(struct net_bridge_port *source, const __u8 *addr,
 			fdb->is_local = 1;
 			if (!fdb->is_static) {
 				fdb->is_static = 1;
-				fdb_add_hw(br, addr);
+				fdb_add_hw_addr(br, addr);
 			}
 		} else if (state & NUD_NOARP) {
 			fdb->is_local = 0;
 			if (!fdb->is_static) {
 				fdb->is_static = 1;
-				fdb_add_hw(br, addr);
+				fdb_add_hw_addr(br, addr);
 			}
 		} else {
 			fdb->is_local = 0;
 			if (fdb->is_static) {
 				fdb->is_static = 0;
-				fdb_del_hw(br, addr);
+				fdb_del_hw_addr(br, addr);
 			}
 		}
 
@@ -805,31 +812,15 @@ static int __br_fdb_add(struct ndmsg *ndm, struct net_bridge_port *p,
 /* Add new permanent fdb entry with RTM_NEWNEIGH */
 int br_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 	       struct net_device *dev,
-	       const unsigned char *addr, u16 nlh_flags)
+	       const unsigned char *addr, u16 vid, u16 nlh_flags)
 {
 	struct net_bridge_port *p;
 	int err = 0;
 	struct net_port_vlans *pv;
-	unsigned short vid = VLAN_N_VID;
 
 	if (!(ndm->ndm_state & (NUD_PERMANENT|NUD_NOARP|NUD_REACHABLE))) {
 		pr_info("bridge: RTM_NEWNEIGH with invalid state %#x\n", ndm->ndm_state);
 		return -EINVAL;
-	}
-
-	if (tb[NDA_VLAN]) {
-		if (nla_len(tb[NDA_VLAN]) != sizeof(unsigned short)) {
-			pr_info("bridge: RTM_NEWNEIGH with invalid vlan\n");
-			return -EINVAL;
-		}
-
-		vid = nla_get_u16(tb[NDA_VLAN]);
-
-		if (!vid || vid >= VLAN_VID_MASK) {
-			pr_info("bridge: RTM_NEWNEIGH with invalid vlan id %d\n",
-				vid);
-			return -EINVAL;
-		}
 	}
 
 	if (is_zero_ether_addr(addr)) {
@@ -845,7 +836,7 @@ int br_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 	}
 
 	pv = nbp_get_vlan_info(p);
-	if (vid != VLAN_N_VID) {
+	if (vid) {
 		if (!pv || !test_bit(vid, pv->vlan_bitmap)) {
 			pr_info("bridge: RTM_NEWNEIGH with unconfigured "
 				"vlan %d on port %s\n", vid, dev->name);
@@ -855,10 +846,9 @@ int br_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 		/* VID was specified, so use it. */
 		err = __br_fdb_add(ndm, p, addr, nlh_flags, vid);
 	} else {
-		if (!pv || bitmap_empty(pv->vlan_bitmap, VLAN_N_VID)) {
-			err = __br_fdb_add(ndm, p, addr, nlh_flags, 0);
+		err = __br_fdb_add(ndm, p, addr, nlh_flags, 0);
+		if (err || !pv)
 			goto out;
-		}
 
 		/* We have vlans configured on this port and user didn't
 		 * specify a VLAN.  To be nice, add/update entry for every
@@ -903,27 +893,12 @@ static int __br_fdb_delete(struct net_bridge_port *p,
 /* Remove neighbor entry with RTM_DELNEIGH */
 int br_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
 		  struct net_device *dev,
-		  const unsigned char *addr)
+		  const unsigned char *addr, u16 vid)
 {
 	struct net_bridge_port *p;
 	int err;
 	struct net_port_vlans *pv;
-	unsigned short vid = VLAN_N_VID;
 
-	if (tb[NDA_VLAN]) {
-		if (nla_len(tb[NDA_VLAN]) != sizeof(unsigned short)) {
-			pr_info("bridge: RTM_NEWNEIGH with invalid vlan\n");
-			return -EINVAL;
-		}
-
-		vid = nla_get_u16(tb[NDA_VLAN]);
-
-		if (!vid || vid >= VLAN_VID_MASK) {
-			pr_info("bridge: RTM_NEWNEIGH with invalid vlan id %d\n",
-				vid);
-			return -EINVAL;
-		}
-	}
 	p = br_port_get_rtnl(dev);
 	if (p == NULL) {
 		pr_info("bridge: RTM_DELNEIGH %s not a bridge port\n",
@@ -932,7 +907,7 @@ int br_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
 	}
 
 	pv = nbp_get_vlan_info(p);
-	if (vid != VLAN_N_VID) {
+	if (vid) {
 		if (!pv || !test_bit(vid, pv->vlan_bitmap)) {
 			pr_info("bridge: RTM_DELNEIGH with unconfigured "
 				"vlan %d on port %s\n", vid, dev->name);
@@ -941,16 +916,15 @@ int br_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
 
 		err = __br_fdb_delete(p, addr, vid);
 	} else {
-		if (!pv || bitmap_empty(pv->vlan_bitmap, VLAN_N_VID)) {
-			err = __br_fdb_delete(p, addr, 0);
+		err = -ENOENT;
+		err &= __br_fdb_delete(p, addr, 0);
+		if (!pv)
 			goto out;
-		}
 
 		/* We have vlans configured on this port and user didn't
 		 * specify a VLAN.  To be nice, add/update entry for every
 		 * vlan on this port.
 		 */
-		err = -ENOENT;
 		for_each_set_bit(vid, pv->vlan_bitmap, VLAN_N_VID) {
 			err &= __br_fdb_delete(p, addr, vid);
 		}
@@ -1013,4 +987,62 @@ void br_fdb_unsync_static(struct net_bridge *br, struct net_bridge_port *p)
 			dev_uc_del(p->dev, fdb->addr.addr);
 		}
 	}
+}
+
+int br_fdb_external_learn_add(struct net_bridge *br, struct net_bridge_port *p,
+			      const unsigned char *addr, u16 vid)
+{
+	struct hlist_head *head;
+	struct net_bridge_fdb_entry *fdb;
+	int err = 0;
+
+	ASSERT_RTNL();
+	spin_lock_bh(&br->hash_lock);
+
+	head = &br->hash[br_mac_hash(addr, vid)];
+	fdb = fdb_find(head, addr, vid);
+	if (!fdb) {
+		fdb = fdb_create(head, p, addr, vid);
+		if (!fdb) {
+			err = -ENOMEM;
+			goto err_unlock;
+		}
+		fdb->added_by_external_learn = 1;
+		fdb_notify(br, fdb, RTM_NEWNEIGH);
+	} else if (fdb->added_by_external_learn) {
+		/* Refresh entry */
+		fdb->updated = fdb->used = jiffies;
+	} else if (!fdb->added_by_user) {
+		/* Take over SW learned entry */
+		fdb->added_by_external_learn = 1;
+		fdb->updated = jiffies;
+		fdb_notify(br, fdb, RTM_NEWNEIGH);
+	}
+
+err_unlock:
+	spin_unlock_bh(&br->hash_lock);
+
+	return err;
+}
+
+int br_fdb_external_learn_del(struct net_bridge *br, struct net_bridge_port *p,
+			      const unsigned char *addr, u16 vid)
+{
+	struct hlist_head *head;
+	struct net_bridge_fdb_entry *fdb;
+	int err = 0;
+
+	ASSERT_RTNL();
+	spin_lock_bh(&br->hash_lock);
+
+	head = &br->hash[br_mac_hash(addr, vid)];
+	fdb = fdb_find(head, addr, vid);
+	if (fdb && fdb->added_by_external_learn)
+		fdb_delete(br, fdb);
+	else
+		err = -ENOENT;
+
+	spin_unlock_bh(&br->hash_lock);
+
+	return err;
 }

@@ -609,6 +609,10 @@ static int __init init_pci_cap_basic_perm(struct perm_bits *perm)
 
 	/* Sometimes used by sw, just virtualize */
 	p_setb(perm, PCI_INTERRUPT_LINE, (u8)ALL_VIRT, (u8)ALL_WRITE);
+
+	/* Virtualize interrupt pin to allow hiding INTx */
+	p_setb(perm, PCI_INTERRUPT_PIN, (u8)ALL_VIRT, (u8)NO_WRITE);
+
 	return 0;
 }
 
@@ -1444,6 +1448,9 @@ int vfio_config_init(struct vfio_pci_device *vdev)
 		*(__le16 *)&vconfig[PCI_VENDOR_ID] = cpu_to_le16(pdev->vendor);
 		*(__le16 *)&vconfig[PCI_DEVICE_ID] = cpu_to_le16(pdev->device);
 	}
+
+	if (!IS_ENABLED(CONFIG_VFIO_PCI_INTX))
+		vconfig[PCI_INTERRUPT_PIN] = 0;
 
 	ret = vfio_cap_init(vdev);
 	if (ret)

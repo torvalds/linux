@@ -568,6 +568,12 @@ static int pidff_upload_effect(struct input_dev *dev, struct ff_effect *effect,
 	int type_id;
 	int error;
 
+	pidff->block_load[PID_EFFECT_BLOCK_INDEX].value[0] = 0;
+	if (old) {
+		pidff->block_load[PID_EFFECT_BLOCK_INDEX].value[0] =
+			pidff->pid_id[effect->id];
+	}
+
 	switch (effect->type) {
 	case FF_CONSTANT:
 		if (!old) {
@@ -1252,6 +1258,8 @@ int hid_pidff_init(struct hid_device *hid)
 
 	pidff->hid = hid;
 
+	hid_device_io_start(hid);
+
 	pidff_find_reports(hid, HID_OUTPUT_REPORT, pidff);
 	pidff_find_reports(hid, HID_FEATURE_REPORT, pidff);
 
@@ -1315,9 +1323,13 @@ int hid_pidff_init(struct hid_device *hid)
 
 	hid_info(dev, "Force feedback for USB HID PID devices by Anssi Hannula <anssi.hannula@gmail.com>\n");
 
+	hid_device_io_stop(hid);
+
 	return 0;
 
  fail:
+	hid_device_io_stop(hid);
+
 	kfree(pidff);
 	return error;
 }

@@ -39,14 +39,12 @@ Status: in development
 #include <linux/poll.h>
 
 struct serial2002_range_table_t {
-
 	/*  HACK... */
 	int length;
 	struct comedi_krange range;
 };
 
 struct serial2002_private {
-
 	int port;		/*  /dev/ttyS<port> */
 	int speed;		/*  baudrate */
 	struct file *tty;
@@ -110,22 +108,14 @@ static int serial2002_tty_write(struct file *f, unsigned char *buf, int count)
 {
 	const char __user *p = (__force const char __user *)buf;
 	int result;
+	loff_t offset = 0;
 	mm_segment_t oldfs;
 
 	oldfs = get_fs();
 	set_fs(KERNEL_DS);
-	f->f_pos = 0;
-	result = f->f_op->write(f, p, count, &f->f_pos);
+	result = __vfs_write(f, p, count, &offset);
 	set_fs(oldfs);
 	return result;
-}
-
-static int serial2002_tty_readb(struct file *f, unsigned char *buf)
-{
-	char __user *p = (__force char __user *)buf;
-
-	f->f_pos = 0;
-	return f->f_op->read(f, p, 1, &f->f_pos);
 }
 
 static void serial2002_tty_read_poll_wait(struct file *f, int timeout)
@@ -145,8 +135,8 @@ static void serial2002_tty_read_poll_wait(struct file *f, int timeout)
 			break;
 		}
 		do_gettimeofday(&now);
-		elapsed = (1000000 * (now.tv_sec - start.tv_sec) +
-			  now.tv_usec - start.tv_usec);
+		elapsed = 1000000 * (now.tv_sec - start.tv_sec) +
+			  now.tv_usec - start.tv_usec;
 		if (elapsed > timeout)
 			break;
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -163,13 +153,15 @@ static int serial2002_tty_read(struct file *f, int timeout)
 	result = -1;
 	if (!IS_ERR(f)) {
 		mm_segment_t oldfs;
+		char __user *p = (__force char __user *)&ch;
+		loff_t offset = 0;
 
 		oldfs = get_fs();
 		set_fs(KERNEL_DS);
 		if (f->f_op->poll) {
 			serial2002_tty_read_poll_wait(f, timeout);
 
-			if (serial2002_tty_readb(f, &ch) == 1)
+			if (__vfs_read(f, p, 1, &offset) == 1)
 				result = ch;
 		} else {
 			/* Device does not support poll, busy wait */
@@ -180,7 +172,7 @@ static int serial2002_tty_read(struct file *f, int timeout)
 				if (retries >= timeout)
 					break;
 
-				if (serial2002_tty_readb(f, &ch) == 1) {
+				if (__vfs_read(f, p, 1, &offset) == 1) {
 					result = ch;
 					break;
 				}
@@ -300,7 +292,6 @@ static struct serial_data serial2002_read(struct file *f, int timeout)
 		}
 	}
 	return result;
-
 }
 
 static void serial2002_write(struct file *f, struct serial_data data)
@@ -742,7 +733,7 @@ static int serial2002_attach(struct comedi_device *dev,
 	/* digital output subdevice */
 	s = &dev->subdevices[1];
 	s->type		= COMEDI_SUBD_DO;
-	s->subdev_flags	= SDF_WRITEABLE;
+	s->subdev_flags	= SDF_WRITABLE;
 	s->n_chan	= 0;
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;
@@ -760,7 +751,7 @@ static int serial2002_attach(struct comedi_device *dev,
 	/* analog output subdevice */
 	s = &dev->subdevices[3];
 	s->type		= COMEDI_SUBD_AO;
-	s->subdev_flags	= SDF_WRITEABLE;
+	s->subdev_flags	= SDF_WRITABLE;
 	s->n_chan	= 0;
 	s->maxdata	= 1;
 	s->range_table	= NULL;

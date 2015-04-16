@@ -77,8 +77,6 @@
 #define DA_UNMAP_GRANULARITY_ALIGNMENT_DEFAULT	0
 /* Default max_write_same_len, disabled by default */
 #define DA_MAX_WRITE_SAME_LEN			0
-/* Default max transfer length */
-#define DA_FABRIC_MAX_SECTORS			8192
 /* Use a model alias based on the configfs backend device name */
 #define DA_EMULATE_MODEL_ALIAS			0
 /* Emulation for Direct Page Out */
@@ -409,7 +407,7 @@ struct t10_reservation {
 	/* Activate Persistence across Target Power Loss enabled
 	 * for SCSI device */
 	int pr_aptpl_active;
-#define PR_APTPL_BUF_LEN			8192
+#define PR_APTPL_BUF_LEN			262144
 	u32 pr_generation;
 	spinlock_t registration_lock;
 	spinlock_t aptpl_reg_lock;
@@ -475,6 +473,12 @@ struct se_dif_v1_tuple {
 	__be16			app_tag;
 	__be32			ref_tag;
 };
+
+/* for sam_task_attr */
+#define TCM_SIMPLE_TAG	0x20
+#define TCM_HEAD_TAG	0x21
+#define TCM_ORDERED_TAG	0x22
+#define TCM_ACA_TAG	0x24
 
 struct se_cmd {
 	/* SAM response code being sent to initiator */
@@ -688,7 +692,6 @@ struct se_dev_attrib {
 	u32		hw_block_size;
 	u32		block_size;
 	u32		hw_max_sectors;
-	u32		fabric_max_sectors;
 	u32		optimal_sectors;
 	u32		hw_queue_depth;
 	u32		queue_depth;

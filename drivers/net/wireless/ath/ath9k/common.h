@@ -24,6 +24,7 @@
 #include "common-init.h"
 #include "common-beacon.h"
 #include "common-debug.h"
+#include "common-spectral.h"
 
 /* Common header for Atheros 802.11n base driver cores */
 
@@ -53,7 +54,7 @@ struct ath_beacon_config {
 	u16 dtim_period;
 	u16 bmiss_timeout;
 	u8 dtim_count;
-	bool enable_beacon;
+	u8 enable_beacon;
 	bool ibss_creator;
 	u32 nexttbtt;
 	u32 intval;

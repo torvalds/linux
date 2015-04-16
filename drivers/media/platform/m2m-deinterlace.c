@@ -1101,7 +1101,6 @@ static struct platform_driver deinterlace_pdrv = {
 	.remove		= deinterlace_remove,
 	.driver		= {
 		.name	= MEM2MEM_NAME,
-		.owner	= THIS_MODULE,
 	},
 };
 module_platform_driver(deinterlace_pdrv);

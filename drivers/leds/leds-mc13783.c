@@ -134,9 +134,7 @@ static struct mc13xxx_leds_platform_data __init *mc13xxx_led_probe_dt(
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
-	of_node_get(dev->parent->of_node);
-
-	parent = of_find_node_by_name(dev->parent->of_node, "leds");
+	parent = of_get_child_by_name(dev->parent->of_node, "leds");
 	if (!parent)
 		goto out_node_put;
 
@@ -325,7 +323,6 @@ MODULE_DEVICE_TABLE(platform, mc13xxx_led_id_table);
 static struct platform_driver mc13xxx_led_driver = {
 	.driver	= {
 		.name	= "mc13xxx-led",
-		.owner	= THIS_MODULE,
 	},
 	.remove		= mc13xxx_led_remove,
 	.id_table	= mc13xxx_led_id_table,

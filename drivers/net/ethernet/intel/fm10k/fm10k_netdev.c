@@ -1,5 +1,5 @@
 /* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -356,7 +356,7 @@ static void fm10k_free_all_rx_resources(struct fm10k_intfc *interface)
  * fm10k_request_glort_range - Request GLORTs for use in configuring rules
  * @interface: board private structure
  *
- * This function allocates a range of glorts for this inteface to use.
+ * This function allocates a range of glorts for this interface to use.
  **/
 static void fm10k_request_glort_range(struct fm10k_intfc *interface)
 {
@@ -609,7 +609,7 @@ static netdev_tx_t fm10k_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	int err;
 
 	if ((skb->protocol ==  htons(ETH_P_8021Q)) &&
-	    !vlan_tx_tag_present(skb)) {
+	    !skb_vlan_tag_present(skb)) {
 		/* FM10K only supports hardware tagging, any tags in frame
 		 * are considered 2nd level or "outer" tags
 		 */
@@ -770,18 +770,18 @@ static int fm10k_update_vid(struct net_device *netdev, u16 vid, bool set)
 	if (hw->mac.vlan_override)
 		return -EACCES;
 
-	/* if default VLAN is already present do nothing */
-	if (vid == hw->mac.default_vid)
-		return -EBUSY;
-
 	/* update active_vlans bitmask */
 	set_bit(vid, interface->active_vlans);
 	if (!set)
 		clear_bit(vid, interface->active_vlans);
 
+	/* if default VLAN is already present do nothing */
+	if (vid == hw->mac.default_vid)
+		return 0;
+
 	fm10k_mbx_lock(interface);
 
-	/* only need to update the VLAN if not in promiscous mode */
+	/* only need to update the VLAN if not in promiscuous mode */
 	if (!(netdev->flags & IFF_PROMISC)) {
 		err = hw->mac.ops.update_vlan(hw, vid, 0, set);
 		if (err)
@@ -970,14 +970,7 @@ static void fm10k_set_rx_mode(struct net_device *dev)
 
 	fm10k_mbx_lock(interface);
 
-	/* syncronize all of the addresses */
-	if (xcast_mode != FM10K_XCAST_MODE_PROMISC) {
-		__dev_uc_sync(dev, fm10k_uc_sync, fm10k_uc_unsync);
-		if (xcast_mode != FM10K_XCAST_MODE_ALLMULTI)
-			__dev_mc_sync(dev, fm10k_mc_sync, fm10k_mc_unsync);
-	}
-
-	/* if we aren't changing modes there is nothing to do */
+	/* update xcast mode first, but only if it changed */
 	if (interface->xcast_mode != xcast_mode) {
 		/* update VLAN table */
 		if (xcast_mode == FM10K_XCAST_MODE_PROMISC)
@@ -990,6 +983,13 @@ static void fm10k_set_rx_mode(struct net_device *dev)
 
 		/* record updated xcast mode state */
 		interface->xcast_mode = xcast_mode;
+	}
+
+	/* synchronize all of the addresses */
+	if (xcast_mode != FM10K_XCAST_MODE_PROMISC) {
+		__dev_uc_sync(dev, fm10k_uc_sync, fm10k_uc_unsync);
+		if (xcast_mode != FM10K_XCAST_MODE_ALLMULTI)
+			__dev_mc_sync(dev, fm10k_mc_sync, fm10k_mc_unsync);
 	}
 
 	fm10k_mbx_unlock(interface);
@@ -1051,15 +1051,15 @@ void fm10k_restore_rx_state(struct fm10k_intfc *interface)
 					   vid, true, 0);
 	}
 
-	/* syncronize all of the addresses */
+	/* update xcast mode before syncronizing addresses */
+	hw->mac.ops.update_xcast_mode(hw, glort, xcast_mode);
+
+	/* synchronize all of the addresses */
 	if (xcast_mode != FM10K_XCAST_MODE_PROMISC) {
 		__dev_uc_sync(netdev, fm10k_uc_sync, fm10k_uc_unsync);
 		if (xcast_mode != FM10K_XCAST_MODE_ALLMULTI)
 			__dev_mc_sync(netdev, fm10k_mc_sync, fm10k_mc_unsync);
 	}
-
-	/* update xcast mode */
-	hw->mac.ops.update_xcast_mode(hw, glort, xcast_mode);
 
 	fm10k_mbx_unlock(interface);
 
@@ -1126,7 +1126,7 @@ static struct rtnl_link_stats64 *fm10k_get_stats64(struct net_device *netdev,
 	}
 
 	for (i = 0; i < interface->num_tx_queues; i++) {
-		ring = ACCESS_ONCE(interface->rx_ring[i]);
+		ring = ACCESS_ONCE(interface->tx_ring[i]);
 
 		if (!ring)
 			continue;
@@ -1350,6 +1350,16 @@ static void fm10k_dfwd_del_station(struct net_device *dev, void *priv)
 	}
 }
 
+static netdev_features_t fm10k_features_check(struct sk_buff *skb,
+					      struct net_device *dev,
+					      netdev_features_t features)
+{
+	if (!skb->encapsulation || fm10k_tx_encap_offload(skb))
+		return features;
+
+	return features & ~(NETIF_F_ALL_CSUM | NETIF_F_GSO_MASK);
+}
+
 static const struct net_device_ops fm10k_netdev_ops = {
 	.ndo_open		= fm10k_open,
 	.ndo_stop		= fm10k_close,
@@ -1372,6 +1382,10 @@ static const struct net_device_ops fm10k_netdev_ops = {
 	.ndo_do_ioctl		= fm10k_ioctl,
 	.ndo_dfwd_add_station	= fm10k_dfwd_add_station,
 	.ndo_dfwd_del_station	= fm10k_dfwd_del_station,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= fm10k_netpoll,
+#endif
+	.ndo_features_check	= fm10k_features_check,
 };
 
 #define DEFAULT_DEBUG_LEVEL_SHIFT 3
@@ -1414,13 +1428,12 @@ struct net_device *fm10k_alloc_netdev(void)
 	dev->vlan_features |= dev->features;
 
 	/* configure tunnel offloads */
-	dev->hw_enc_features = NETIF_F_IP_CSUM |
-			       NETIF_F_TSO |
-			       NETIF_F_TSO6 |
-			       NETIF_F_TSO_ECN |
-			       NETIF_F_GSO_UDP_TUNNEL |
-			       NETIF_F_IPV6_CSUM |
-			       NETIF_F_SG;
+	dev->hw_enc_features |= NETIF_F_IP_CSUM |
+				NETIF_F_TSO |
+				NETIF_F_TSO6 |
+				NETIF_F_TSO_ECN |
+				NETIF_F_GSO_UDP_TUNNEL |
+				NETIF_F_IPV6_CSUM;
 
 	/* we want to leave these both on as we cannot disable VLAN tag
 	 * insertion or stripping on the hardware since it is contained

@@ -112,6 +112,20 @@ config GPIO_MAX730X
 
 comment "Memory mapped GPIO drivers:"
 
+config GPIO_74XX_MMIO
+	tristate "GPIO driver for 74xx-ICs with MMIO access"
+	depends on OF_GPIO
+	select GPIO_GENERIC
+	help
+	  Say yes here to support GPIO functionality for 74xx-compatible ICs
+	  with MMIO access. Compatible models include:
+	    1 bit:	741G125 (Input), 741G74 (Output)
+	    2 bits:	742G125 (Input), 7474 (Output)
+	    4 bits:	74125 (Input), 74175 (Output)
+	    6 bits:	74365 (Input), 74174 (Output)
+	    8 bits:	74244 (Input), 74273 (Output)
+	    16 bits:	741624 (Input), 7416374 (Output)
+
 config GPIO_CLPS711X
 	tristate "CLPS711X GPIO support"
 	depends on ARCH_CLPS711X || COMPILE_TEST
@@ -134,6 +148,8 @@ config GPIO_GENERIC_PLATFORM
 
 config GPIO_DWAPB
 	tristate "Synopsys DesignWare APB GPIO driver"
+	depends on ARM
+	depends on OF_GPIO
 	select GPIO_GENERIC
 	select GENERIC_IRQ_CHIP
 	help
@@ -181,9 +197,16 @@ config GPIO_F7188X
 	  To compile this driver as a module, choose M here: the module will
 	  be called f7188x-gpio.
 
+config GPIO_MB86S7X
+	bool "GPIO support for Fujitsu MB86S7x Platforms"
+	depends on ARCH_MB86S7X
+	help
+	  Say yes here to support the GPIO controller in Fujitsu MB86S70 SoCs.
+
 config GPIO_MOXART
 	bool "MOXART GPIO support"
 	depends on ARCH_MOXART
+	select GPIO_GENERIC
 	help
 	  Select this option to enable GPIO driver for
 	  MOXA ART SoC devices.
@@ -269,6 +292,7 @@ config GPIO_PXA
 config GPIO_RCAR
 	tristate "Renesas R-Car GPIO"
 	depends on ARM && (ARCH_SHMOBILE || COMPILE_TEST)
+	select GPIOLIB_IRQCHIP
 	help
 	  Say yes here to support GPIO on Renesas R-Car SoCs.
 
@@ -333,6 +357,13 @@ config GPIO_TZ1090_PDC
 	help
 	  Say yes here to support Toumaz Xenif TZ1090 PDC GPIOs.
 
+config GPIO_VF610
+	def_bool y
+	depends on ARCH_MXC && SOC_VF610
+	select GPIOLIB_IRQCHIP
+	help
+	  Say yes here to support Vybrid vf610 GPIOs.
+
 config GPIO_XGENE
 	bool "APM X-Gene GPIO controller support"
 	depends on ARM64 && OF_GPIO
@@ -342,9 +373,17 @@ config GPIO_XGENE
 	  the generic flash controller's address and data pins. Say yes
 	  here to enable the GFC GPIO functionality.
 
+config GPIO_XGENE_SB
+	tristate "APM X-Gene GPIO standby controller support"
+	depends on ARCH_XGENE && OF_GPIO
+	select GPIO_GENERIC
+	help
+	  This driver supports the GPIO block within the APM X-Gene
+	  Standby Domain. Say yes here to enable the GPIO functionality.
+
 config GPIO_XILINX
-	bool "Xilinx GPIO support"
-	depends on PPC_OF || MICROBLAZE || ARCH_ZYNQ
+	tristate "Xilinx GPIO support"
+	depends on OF_GPIO && (PPC || MICROBLAZE || ARCH_ZYNQ || X86)
 	help
 	  Say yes here to support the Xilinx FPGA GPIO device
 
@@ -371,24 +410,31 @@ config GPIO_VR41XX
 	  Say yes here to support the NEC VR4100 series General-purpose I/O Uint
 
 config GPIO_SCH
-	tristate "Intel SCH/TunnelCreek/Centerton GPIO"
+	tristate "Intel SCH/TunnelCreek/Centerton/Quark X1000 GPIO"
 	depends on PCI && X86
 	select MFD_CORE
 	select LPC_SCH
 	help
 	  Say yes here to support GPIO interface on Intel Poulsbo SCH,
-	  Intel Tunnel Creek processor or Intel Centerton processor.
+	  Intel Tunnel Creek processor, Intel Centerton processor or
+	  Intel Quark X1000 SoC.
+
 	  The Intel SCH contains a total of 14 GPIO pins. Ten GPIOs are
 	  powered by the core power rail and are turned off during sleep
 	  modes (S3 and higher). The remaining four GPIOs are powered by
 	  the Intel SCH suspend power supply. These GPIOs remain
 	  active during S3. The suspend powered GPIOs can be used to wake the
 	  system from the Suspend-to-RAM state.
+
 	  The Intel Tunnel Creek processor has 5 GPIOs powered by the
 	  core power rail and 9 from suspend power supply.
+
 	  The Intel Centerton processor has a total of 30 GPIO pins.
 	  Twenty-one are powered by the core power rail and 9 from the
 	  suspend power supply.
+
+	  The Intel Quark X1000 SoC has 2 GPIOs powered by the core
+	  power well and 6 from the suspend power well.
 
 config GPIO_ICH
 	tristate "Intel ICH GPIO"
@@ -427,6 +473,7 @@ config GPIO_VX855
 config GPIO_GE_FPGA
 	bool "GE FPGA based GPIO"
 	depends on GE_FPGA
+	select GPIO_GENERIC
 	help
 	  Support for common GPIO functionality provided on some GE Single Board
 	  Computers.
@@ -496,6 +543,7 @@ config GPIO_MAX7300
 config GPIO_MAX732X
 	tristate "MAX7319, MAX7320-7327 I2C Port Expanders"
 	depends on I2C
+	select IRQ_DOMAIN
 	help
 	  Say yes here to support the MAX7319, MAX7320-7327 series of I2C
 	  Port Expanders. Each IO port on these chips has a fixed role of
@@ -590,6 +638,7 @@ config GPIO_RC5T583
 config GPIO_SX150X
 	bool "Semtech SX150x I2C GPIO expander"
 	depends on I2C=y
+	select GPIOLIB_IRQCHIP
 	default n
 	help
 	  Say yes here to provide support for Semtech SX150-series I2C
@@ -601,6 +650,7 @@ config GPIO_SX150X
 config GPIO_STMPE
 	bool "STMPE GPIOs"
 	depends on MFD_STMPE
+	depends on OF_GPIO
 	select GPIOLIB_IRQCHIP
 	help
 	  This enables support for the GPIOs found on the STMPE I/O
@@ -619,6 +669,7 @@ config GPIO_STP_XWAY
 config GPIO_TC3589X
 	bool "TC3589X GPIOs"
 	depends on MFD_TC3589X
+	depends on OF_GPIO
 	select GPIOLIB_IRQCHIP
 	help
 	  This enables support for the GPIOs found on the TC3589X
@@ -904,5 +955,17 @@ config GPIO_VIPERBOARD
           See viperboard API specification and Nano
           River Tech's viperboard.h for detailed meaning
           of the module parameters.
+
+config GPIO_DLN2
+	tristate "Diolan DLN2 GPIO support"
+	depends on MFD_DLN2
+	select GPIOLIB_IRQCHIP
+
+	help
+	  Select this option to enable GPIO driver for the Diolan DLN2
+	  board.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called gpio-dln2.
 
 endif

@@ -40,13 +40,12 @@
 #include <linux/compiler.h>
 #include <linux/delay.h>
 #include <linux/module.h>
+#include <linux/io.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/initval.h>
 #include <sound/ac97_codec.h>
-
-#include <asm/io.h>
 
 #include "ad1889.h"
 #include "ac97/ac97_id.h"
@@ -623,13 +622,10 @@ snd_ad1889_interrupt(int irq, void *dev_id)
 }
 
 static int
-snd_ad1889_pcm_init(struct snd_ad1889 *chip, int device, struct snd_pcm **rpcm)
+snd_ad1889_pcm_init(struct snd_ad1889 *chip, int device)
 {
 	int err;
 	struct snd_pcm *pcm;
-
-	if (rpcm)
-		*rpcm = NULL;
 
 	err = snd_pcm_new(chip->card, chip->card->driver, device, 1, 1, &pcm);
 	if (err < 0)
@@ -658,9 +654,6 @@ snd_ad1889_pcm_init(struct snd_ad1889 *chip, int device, struct snd_pcm **rpcm)
 		return err;
 	}
 	
-	if (rpcm)
-		*rpcm = pcm;
-	
 	return 0;
 }
 
@@ -681,7 +674,7 @@ snd_ad1889_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffe
 	
 	/* WARQ is at offset 12 */
 	tmp = (reg & AD_DS_WSMC_WARQ) ?
-			(((reg & AD_DS_WSMC_WARQ >> 12) & 0x01) ? 12 : 18) : 4;
+		((((reg & AD_DS_WSMC_WARQ) >> 12) & 0x01) ? 12 : 18) : 4;
 	tmp /= (reg & AD_DS_WSMC_WAST) ? 2 : 1;
 	
 	snd_iprintf(buffer, "Wave FIFO: %d %s words\n\n", tmp,
@@ -693,7 +686,7 @@ snd_ad1889_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffe
 	
 	/* SYRQ is at offset 4 */
 	tmp = (reg & AD_DS_WSMC_SYRQ) ?
-			(((reg & AD_DS_WSMC_SYRQ >> 4) & 0x01) ? 12 : 18) : 4;
+		((((reg & AD_DS_WSMC_SYRQ) >> 4) & 0x01) ? 12 : 18) : 4;
 	tmp /= (reg & AD_DS_WSMC_WAST) ? 2 : 1;
 	
 	snd_iprintf(buffer, "Synthesis FIFO: %d %s words\n\n", tmp,
@@ -709,7 +702,7 @@ snd_ad1889_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffe
 	
 	/* ACRQ is at offset 4 */
 	tmp = (reg & AD_DS_RAMC_ACRQ) ?
-			(((reg & AD_DS_RAMC_ACRQ >> 4) & 0x01) ? 12 : 18) : 4;
+		((((reg & AD_DS_RAMC_ACRQ) >> 4) & 0x01) ? 12 : 18) : 4;
 	tmp /= (reg & AD_DS_RAMC_ADST) ? 2 : 1;
 	
 	snd_iprintf(buffer, "ADC FIFO: %d %s words\n\n", tmp,
@@ -720,7 +713,7 @@ snd_ad1889_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffe
 			
 	/* RERQ is at offset 12 */
 	tmp = (reg & AD_DS_RAMC_RERQ) ?
-			(((reg & AD_DS_RAMC_RERQ >> 12) & 0x01) ? 12 : 18) : 4;
+		((((reg & AD_DS_RAMC_RERQ) >> 12) & 0x01) ? 12 : 18) : 4;
 	tmp /= (reg & AD_DS_RAMC_ADST) ? 2 : 1;
 	
 	snd_iprintf(buffer, "Resampler FIFO: %d %s words\n\n", tmp,
@@ -754,7 +747,7 @@ snd_ad1889_proc_init(struct snd_ad1889 *chip)
 		snd_info_set_text_ops(entry, chip, snd_ad1889_proc_read);
 }
 
-static struct ac97_quirk ac97_quirks[] = {
+static const struct ac97_quirk ac97_quirks[] = {
 	{
 		.subvendor = 0x11d4,	/* AD */
 		.subdevice = 0x1889,	/* AD1889 */
@@ -859,12 +852,9 @@ snd_ad1889_free(struct snd_ad1889 *chip)
 		free_irq(chip->irq, chip);
 
 skip_hw:
-	if (chip->iobase)
-		iounmap(chip->iobase);
-
+	iounmap(chip->iobase);
 	pci_release_regions(chip->pci);
 	pci_disable_device(chip->pci);
-
 	kfree(chip);
 	return 0;
 }
@@ -1016,7 +1006,7 @@ snd_ad1889_probe(struct pci_dev *pci,
 	if (err < 0)
 		goto free_and_ret;
 	
-	err = snd_ad1889_pcm_init(chip, 0, NULL);
+	err = snd_ad1889_pcm_init(chip, 0);
 	if (err < 0)
 		goto free_and_ret;
 

@@ -168,7 +168,7 @@ MSR_KVM_ASYNC_PF_EN: 0x4b564d02
 	64 byte memory area which must be in guest RAM and must be
 	zeroed. Bits 5-2 are reserved and should be zero. Bit 0 is 1
 	when asynchronous page faults are enabled on the vcpu 0 when
-	disabled. Bit 2 is 1 if asynchronous page faults can be injected
+	disabled. Bit 1 is 1 if asynchronous page faults can be injected
 	when vcpu is in cpl == 0.
 
 	First 4 byte of 64 byte memory location will be written to by

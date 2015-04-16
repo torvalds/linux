@@ -55,7 +55,7 @@ static int soc_button_lookup_gpio(struct device *dev, int acpi_index)
 	struct gpio_desc *desc;
 	int gpio;
 
-	desc = gpiod_get_index(dev, KBUILD_MODNAME, acpi_index);
+	desc = gpiod_get_index(dev, KBUILD_MODNAME, acpi_index, GPIOD_ASIS);
 	if (IS_ERR(desc))
 		return PTR_ERR(desc);
 
@@ -195,7 +195,7 @@ static int soc_button_probe(struct platform_device *pdev)
 
 static struct soc_button_info soc_button_PNP0C40[] = {
 	{ "power", 0, EV_KEY, KEY_POWER, false, true },
-	{ "home", 1, EV_KEY, KEY_HOME, false, true },
+	{ "home", 1, EV_KEY, KEY_LEFTMETA, false, true },
 	{ "volume_up", 2, EV_KEY, KEY_VOLUMEUP, true, false },
 	{ "volume_down", 3, EV_KEY, KEY_VOLUMEDOWN, true, false },
 	{ "rotation_lock", 4, EV_SW, SW_ROTATE_LOCK, false, false },
@@ -214,7 +214,6 @@ static struct platform_driver soc_button_driver = {
 	.remove		= soc_button_remove,
 	.driver		= {
 		.name = KBUILD_MODNAME,
-		.owner = THIS_MODULE,
 		.acpi_match_table = ACPI_PTR(soc_button_acpi_match),
 	},
 };

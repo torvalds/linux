@@ -138,7 +138,7 @@ static void llt_ndlc_requeue_data_pending(struct llt_ndlc *ndlc)
 		default:
 			pr_err("UNKNOWN Packet Control Byte=%d\n", pcb);
 			kfree_skb(skb);
-			break;
+			continue;
 		}
 		skb_queue_head(&ndlc->send_q, skb);
 	}
@@ -256,17 +256,16 @@ int ndlc_probe(void *phy_id, struct nfc_phy_ops *phy_ops, struct device *dev,
 	struct llt_ndlc *ndlc;
 
 	ndlc = devm_kzalloc(dev, sizeof(struct llt_ndlc), GFP_KERNEL);
-	if (!ndlc) {
-		nfc_err(dev, "Cannot allocate memory for ndlc.\n");
+	if (!ndlc)
 		return -ENOMEM;
-	}
+
 	ndlc->ops = phy_ops;
 	ndlc->phy_id = phy_id;
 	ndlc->dev = dev;
 
 	*ndlc_id = ndlc;
 
-	/* start timers */
+	/* initialize timers */
 	init_timer(&ndlc->t1_timer);
 	ndlc->t1_timer.data = (unsigned long)ndlc;
 	ndlc->t1_timer.function = ndlc_t1_timeout;
@@ -297,6 +296,5 @@ void ndlc_remove(struct llt_ndlc *ndlc)
 	skb_queue_purge(&ndlc->send_q);
 
 	st21nfcb_nci_remove(ndlc->ndev);
-	kfree(ndlc);
 }
 EXPORT_SYMBOL(ndlc_remove);

@@ -49,6 +49,12 @@
 #define ST21NFCA_LR_BITS_PAYLOAD_SIZE_254B 0x30
 #define ST21NFCA_GB_BIT  0x02
 
+#define ST21NFCA_EVT_SEND_DATA		0x10
+#define ST21NFCA_EVT_FIELD_ON           0x11
+#define ST21NFCA_EVT_CARD_DEACTIVATED   0x12
+#define ST21NFCA_EVT_CARD_ACTIVATED     0x13
+#define ST21NFCA_EVT_FIELD_OFF          0x14
+
 #define ST21NFCA_EVT_CARD_F_BITRATE 0x16
 #define ST21NFCA_EVT_READER_F_BITRATE 0x13
 #define	ST21NFCA_PSL_REQ_SEND_SPEED(brs) (brs & 0x38)
@@ -372,8 +378,8 @@ exit:
 	return r;
 }
 
-int st21nfca_tm_event_send_data(struct nfc_hci_dev *hdev, struct sk_buff *skb,
-				u8 gate)
+static int st21nfca_tm_event_send_data(struct nfc_hci_dev *hdev,
+				struct sk_buff *skb)
 {
 	u8 cmd0, cmd1;
 	int r;
@@ -400,7 +406,42 @@ int st21nfca_tm_event_send_data(struct nfc_hci_dev *hdev, struct sk_buff *skb,
 	}
 	return r;
 }
-EXPORT_SYMBOL(st21nfca_tm_event_send_data);
+
+/*
+ * Returns:
+ * <= 0: driver handled the event, skb consumed
+ *    1: driver does not handle the event, please do standard processing
+ */
+int st21nfca_dep_event_received(struct nfc_hci_dev *hdev,
+				u8 event, struct sk_buff *skb)
+{
+	int r = 0;
+	struct st21nfca_hci_info *info = nfc_hci_get_clientdata(hdev);
+
+	pr_debug("dep event: %d\n", event);
+
+	switch (event) {
+	case ST21NFCA_EVT_CARD_ACTIVATED:
+		info->dep_info.curr_nfc_dep_pni = 0;
+		break;
+	case ST21NFCA_EVT_CARD_DEACTIVATED:
+		break;
+	case ST21NFCA_EVT_FIELD_ON:
+		break;
+	case ST21NFCA_EVT_FIELD_OFF:
+		break;
+	case ST21NFCA_EVT_SEND_DATA:
+		r = st21nfca_tm_event_send_data(hdev, skb);
+		if (r < 0)
+			return r;
+		return 0;
+	default:
+		return 1;
+	}
+	kfree_skb(skb);
+	return r;
+}
+EXPORT_SYMBOL(st21nfca_dep_event_received);
 
 static void st21nfca_im_send_psl_req(struct nfc_hci_dev *hdev, u8 did, u8 bsi,
 				     u8 bri, u8 lri)

@@ -626,6 +626,7 @@ int knav_queue_push(void *qhandle, dma_addr_t dma,
 	atomic_inc(&qh->stats.pushes);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(knav_queue_push);
 
 /**
  * knav_queue_pop()	- pop data (or descriptor) from the head of a queue
@@ -663,6 +664,7 @@ dma_addr_t knav_queue_pop(void *qhandle, unsigned *size)
 	atomic_inc(&qh->stats.pops);
 	return dma;
 }
+EXPORT_SYMBOL_GPL(knav_queue_pop);
 
 /* carve out descriptors and push into queue */
 static void kdesc_fill_pool(struct knav_pool *pool)
@@ -717,12 +719,14 @@ dma_addr_t knav_pool_desc_virt_to_dma(void *ph, void *virt)
 	struct knav_pool *pool = ph;
 	return pool->region->dma_start + (virt - pool->region->virt_start);
 }
+EXPORT_SYMBOL_GPL(knav_pool_desc_virt_to_dma);
 
 void *knav_pool_desc_dma_to_virt(void *ph, dma_addr_t dma)
 {
 	struct knav_pool *pool = ph;
 	return pool->region->virt_start + (dma - pool->region->dma_start);
 }
+EXPORT_SYMBOL_GPL(knav_pool_desc_dma_to_virt);
 
 /**
  * knav_pool_create()	- Create a pool of descriptors
@@ -785,7 +789,7 @@ void *knav_pool_create(const char *name,
 		dev_err(kdev->dev, "out of descs in region(%d) for pool(%s)\n",
 			region_id, name);
 		ret = -ENOMEM;
-		goto err;
+		goto err_unlock;
 	}
 
 	/* Region maintains a sorted (by region offset) list of pools
@@ -815,15 +819,16 @@ void *knav_pool_create(const char *name,
 		dev_err(kdev->dev, "pool(%s) create failed: fragmented desc pool in region(%d)\n",
 			name, region_id);
 		ret = -ENOMEM;
-		goto err;
+		goto err_unlock;
 	}
 
 	mutex_unlock(&knav_dev_lock);
 	kdesc_fill_pool(pool);
 	return pool;
 
-err:
+err_unlock:
 	mutex_unlock(&knav_dev_lock);
+err:
 	kfree(pool->name);
 	devm_kfree(kdev->dev, pool);
 	return ERR_PTR(ret);
@@ -877,6 +882,7 @@ void *knav_pool_desc_get(void *ph)
 	data = knav_pool_desc_dma_to_virt(pool, dma);
 	return data;
 }
+EXPORT_SYMBOL_GPL(knav_pool_desc_get);
 
 /**
  * knav_pool_desc_put()	- return a descriptor to the pool
@@ -889,6 +895,7 @@ void knav_pool_desc_put(void *ph, void *desc)
 	dma = knav_pool_desc_virt_to_dma(pool, desc);
 	knav_queue_push(pool->queue, dma, pool->region->desc_size, 0);
 }
+EXPORT_SYMBOL_GPL(knav_pool_desc_put);
 
 /**
  * knav_pool_desc_map()	- Map descriptor for DMA transfer
@@ -915,6 +922,7 @@ int knav_pool_desc_map(void *ph, void *desc, unsigned size,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(knav_pool_desc_map);
 
 /**
  * knav_pool_desc_unmap()	- Unmap descriptor after DMA transfer
@@ -937,6 +945,7 @@ void *knav_pool_desc_unmap(void *ph, dma_addr_t dma, unsigned dma_sz)
 	prefetch(desc);
 	return desc;
 }
+EXPORT_SYMBOL_GPL(knav_pool_desc_unmap);
 
 /**
  * knav_pool_count()	- Get the number of descriptors in pool.
@@ -948,6 +957,7 @@ int knav_pool_count(void *ph)
 	struct knav_pool *pool = ph;
 	return knav_queue_get_count(pool->queue);
 }
+EXPORT_SYMBOL_GPL(knav_pool_count);
 
 static void knav_queue_setup_region(struct knav_device *kdev,
 					struct knav_region *region)
@@ -1305,14 +1315,14 @@ static void knav_free_queue_ranges(struct knav_device *kdev)
 static void knav_queue_free_regions(struct knav_device *kdev)
 {
 	struct knav_region *region;
-	struct knav_pool *pool;
+	struct knav_pool *pool, *tmp;
 	unsigned size;
 
 	for (;;) {
 		region = first_region(kdev);
 		if (!region)
 			break;
-		list_for_each_entry(pool, &region->pools, region_inst)
+		list_for_each_entry_safe(pool, tmp, &region->pools, region_inst)
 			knav_pool_destroy(pool);
 
 		size = region->virt_end - region->virt_start;
@@ -1639,7 +1649,7 @@ static int knav_queue_init_queues(struct knav_device *kdev)
 	size = (1 << kdev->inst_shift) * kdev->num_queues_in_use;
 	kdev->instances = devm_kzalloc(kdev->dev, size, GFP_KERNEL);
 	if (!kdev->instances)
-		return -1;
+		return -ENOMEM;
 
 	for_each_queue_range(kdev, range) {
 		if (range->ops && range->ops->init_range)
@@ -1804,7 +1814,6 @@ static struct platform_driver keystone_qmss_driver = {
 	.remove		= knav_queue_remove,
 	.driver		= {
 		.name	= "keystone-navigator-qmss",
-		.owner	= THIS_MODULE,
 		.of_match_table = keystone_qmss_of_match,
 	},
 };

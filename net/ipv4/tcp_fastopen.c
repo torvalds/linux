@@ -134,13 +134,14 @@ static bool tcp_fastopen_create_child(struct sock *sk,
 	struct tcp_sock *tp;
 	struct request_sock_queue *queue = &inet_csk(sk)->icsk_accept_queue;
 	struct sock *child;
+	u32 end_seq;
 
 	req->num_retrans = 0;
 	req->num_timeout = 0;
 	req->sk = NULL;
 
 	child = inet_csk(sk)->icsk_af_ops->syn_recv_sock(sk, skb, req, NULL);
-	if (child == NULL)
+	if (!child)
 		return false;
 
 	spin_lock(&queue->fastopenq->lock);
@@ -154,12 +155,7 @@ static bool tcp_fastopen_create_child(struct sock *sk,
 	tp = tcp_sk(child);
 
 	tp->fastopen_rsk = req;
-	/* Do a hold on the listner sk so that if the listener is being
-	 * closed, the child that has been accepted can live on and still
-	 * access listen_lock.
-	 */
-	sock_hold(sk);
-	tcp_rsk(req)->listener = sk;
+	tcp_rsk(req)->tfo_listener = true;
 
 	/* RFC1323: The window in SYN & SYN/ACK segments is never
 	 * scaled. So correct it appropriately.
@@ -173,6 +169,7 @@ static bool tcp_fastopen_create_child(struct sock *sk,
 	inet_csk_reset_xmit_timer(child, ICSK_TIME_RETRANS,
 				  TCP_TIMEOUT_INIT, TCP_RTO_MAX);
 
+	atomic_set(&req->rsk_refcnt, 1);
 	/* Add the child socket directly into the accept queue */
 	inet_csk_reqsk_queue_add(sk, req, child);
 
@@ -185,27 +182,41 @@ static bool tcp_fastopen_create_child(struct sock *sk,
 
 	/* Queue the data carried in the SYN packet. We need to first
 	 * bump skb's refcnt because the caller will attempt to free it.
+	 * Note that IPv6 might also have used skb_get() trick
+	 * in tcp_v6_conn_request() to keep this SYN around (treq->pktopts)
+	 * So we need to eventually get a clone of the packet,
+	 * before inserting it in sk_receive_queue.
 	 *
 	 * XXX (TFO) - we honor a zero-payload TFO request for now,
 	 * (any reason not to?) but no need to queue the skb since
 	 * there is no data. How about SYN+FIN?
 	 */
-	if (TCP_SKB_CB(skb)->end_seq != TCP_SKB_CB(skb)->seq + 1) {
-		skb = skb_get(skb);
-		skb_dst_drop(skb);
-		__skb_pull(skb, tcp_hdr(skb)->doff * 4);
-		skb_set_owner_r(skb, child);
-		__skb_queue_tail(&child->sk_receive_queue, skb);
-		tp->syn_data_acked = 1;
+	end_seq = TCP_SKB_CB(skb)->end_seq;
+	if (end_seq != TCP_SKB_CB(skb)->seq + 1) {
+		struct sk_buff *skb2;
+
+		if (unlikely(skb_shared(skb)))
+			skb2 = skb_clone(skb, GFP_ATOMIC);
+		else
+			skb2 = skb_get(skb);
+
+		if (likely(skb2)) {
+			skb_dst_drop(skb2);
+			__skb_pull(skb2, tcp_hdrlen(skb));
+			skb_set_owner_r(skb2, child);
+			__skb_queue_tail(&child->sk_receive_queue, skb2);
+			tp->syn_data_acked = 1;
+		} else {
+			end_seq = TCP_SKB_CB(skb)->seq + 1;
+		}
 	}
-	tcp_rsk(req)->rcv_nxt = tp->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
+	tcp_rsk(req)->rcv_nxt = tp->rcv_nxt = end_seq;
 	sk->sk_data_ready(sk);
 	bh_unlock_sock(child);
 	sock_put(child);
-	WARN_ON(req->sk == NULL);
+	WARN_ON(!req->sk);
 	return true;
 }
-EXPORT_SYMBOL(tcp_fastopen_create_child);
 
 static bool tcp_fastopen_queue_check(struct sock *sk)
 {
@@ -222,14 +233,14 @@ static bool tcp_fastopen_queue_check(struct sock *sk)
 	 * temporarily vs a server not supporting Fast Open at all.
 	 */
 	fastopenq = inet_csk(sk)->icsk_accept_queue.fastopenq;
-	if (fastopenq == NULL || fastopenq->max_qlen == 0)
+	if (!fastopenq || fastopenq->max_qlen == 0)
 		return false;
 
 	if (fastopenq->qlen >= fastopenq->max_qlen) {
 		struct request_sock *req1;
 		spin_lock(&fastopenq->lock);
 		req1 = fastopenq->rskq_rst_head;
-		if ((req1 == NULL) || time_after(req1->expires, jiffies)) {
+		if (!req1 || time_after(req1->rsk_timer.expires, jiffies)) {
 			spin_unlock(&fastopenq->lock);
 			NET_INC_STATS_BH(sock_net(sk),
 					 LINUX_MIB_TCPFASTOPENLISTENOVERFLOW);
@@ -238,7 +249,7 @@ static bool tcp_fastopen_queue_check(struct sock *sk)
 		fastopenq->rskq_rst_head = req1->dl_next;
 		fastopenq->qlen--;
 		spin_unlock(&fastopenq->lock);
-		reqsk_free(req1);
+		reqsk_put(req1);
 	}
 	return true;
 }
@@ -255,6 +266,9 @@ bool tcp_try_fastopen(struct sock *sk, struct sk_buff *skb,
 	struct tcp_fastopen_cookie valid_foc = { .len = -1 };
 	bool syn_data = TCP_SKB_CB(skb)->end_seq != TCP_SKB_CB(skb)->seq + 1;
 
+	if (foc->len == 0) /* Client requests a cookie */
+		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPFASTOPENCOOKIEREQD);
+
 	if (!((sysctl_tcp_fastopen & TFO_SERVER_ENABLE) &&
 	      (syn_data || foc->len >= 0) &&
 	      tcp_fastopen_queue_check(sk))) {
@@ -265,7 +279,8 @@ bool tcp_try_fastopen(struct sock *sk, struct sk_buff *skb,
 	if (syn_data && (sysctl_tcp_fastopen & TFO_SERVER_COOKIE_NOT_REQD))
 		goto fastopen;
 
-	if (tcp_fastopen_cookie_gen(req, skb, &valid_foc) &&
+	if (foc->len >= 0 &&  /* Client presents or requests a cookie */
+	    tcp_fastopen_cookie_gen(req, skb, &valid_foc) &&
 	    foc->len == TCP_FASTOPEN_COOKIE_SIZE &&
 	    foc->len == valid_foc.len &&
 	    !memcmp(foc->val, valid_foc.val, foc->len)) {
@@ -284,11 +299,11 @@ fastopen:
 					 LINUX_MIB_TCPFASTOPENPASSIVE);
 			return true;
 		}
-	}
+		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPFASTOPENPASSIVEFAIL);
+	} else if (foc->len > 0) /* Client presents an invalid cookie */
+		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPFASTOPENPASSIVEFAIL);
 
-	NET_INC_STATS_BH(sock_net(sk), foc->len ?
-			 LINUX_MIB_TCPFASTOPENPASSIVEFAIL :
-			 LINUX_MIB_TCPFASTOPENCOOKIEREQD);
+	valid_foc.exp = foc->exp;
 	*foc = valid_foc;
 	return false;
 }

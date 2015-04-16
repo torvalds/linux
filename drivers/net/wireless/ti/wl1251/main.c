@@ -468,7 +468,7 @@ static void wl1251_op_stop(struct ieee80211_hw *hw)
 	wl1251_tx_flush(wl);
 	wl1251_power_off(wl);
 
-	memset(wl->bssid, 0, ETH_ALEN);
+	eth_zero_addr(wl->bssid);
 	wl->listen_int = 1;
 	wl->bss_type = MAX_BSS_TYPE;
 
@@ -500,6 +500,7 @@ static int wl1251_op_add_interface(struct ieee80211_hw *hw,
 	int ret = 0;
 
 	vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER |
+			     IEEE80211_VIF_SUPPORTS_UAPSD |
 			     IEEE80211_VIF_SUPPORTS_CQM_RSSI;
 
 	wl1251_debug(DEBUG_MAC80211, "mac80211 add interface type %d mac %pM",
@@ -546,7 +547,7 @@ static void wl1251_op_remove_interface(struct ieee80211_hw *hw,
 	mutex_lock(&wl->mutex);
 	wl1251_debug(DEBUG_MAC80211, "mac80211 remove interface");
 	wl->vif = NULL;
-	memset(wl->bssid, 0, ETH_ALEN);
+	eth_zero_addr(wl->bssid);
 	mutex_unlock(&wl->mutex);
 }
 
@@ -1029,7 +1030,7 @@ static int wl1251_op_hw_scan(struct ieee80211_hw *hw,
 			goto out_sleep;
 	}
 
-	skb = ieee80211_probereq_get(wl->hw, wl->vif, ssid, ssid_len,
+	skb = ieee80211_probereq_get(wl->hw, wl->vif->addr, ssid, ssid_len,
 				     req->ie_len);
 	if (!skb) {
 		ret = -ENOMEM;
@@ -1480,9 +1481,7 @@ int wl1251_init_ieee80211(struct wl1251 *wl)
 	/* unit us */
 	/* FIXME: find a proper value */
 
-	wl->hw->flags = IEEE80211_HW_SIGNAL_DBM |
-		IEEE80211_HW_SUPPORTS_PS |
-		IEEE80211_HW_SUPPORTS_UAPSD;
+	wl->hw->flags = IEEE80211_HW_SIGNAL_DBM | IEEE80211_HW_SUPPORTS_PS;
 
 	wl->hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 					 BIT(NL80211_IFTYPE_ADHOC);
@@ -1609,7 +1608,7 @@ int wl1251_free_hw(struct wl1251 *wl)
 }
 EXPORT_SYMBOL_GPL(wl1251_free_hw);
 
-MODULE_DESCRIPTION("TI wl1251 Wireles LAN Driver Core");
+MODULE_DESCRIPTION("TI wl1251 Wireless LAN Driver Core");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kalle Valo <kvalo@adurom.com>");
 MODULE_FIRMWARE(WL1251_FW_NAME);

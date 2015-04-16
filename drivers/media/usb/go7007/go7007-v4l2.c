@@ -252,7 +252,7 @@ static int set_capture_size(struct go7007 *go, struct v4l2_format *fmt, int try)
 	if (go->board_info->sensor_flags & GO7007_SENSOR_SCALING) {
 		struct v4l2_mbus_framefmt mbus_fmt;
 
-		mbus_fmt.code = V4L2_MBUS_FMT_FIXED;
+		mbus_fmt.code = MEDIA_BUS_FMT_FIXED;
 		mbus_fmt.width = fmt ? fmt->fmt.pix.width : width;
 		mbus_fmt.height = height;
 		go->encoder_h_halve = 0;

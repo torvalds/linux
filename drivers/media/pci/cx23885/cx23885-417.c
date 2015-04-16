@@ -1148,6 +1148,7 @@ static int queue_setup(struct vb2_queue *q, const struct v4l2_format *fmt,
 	dev->ts1.ts_packet_count = mpeglines;
 	*num_planes = 1;
 	sizes[0] = mpeglinesize * mpeglines;
+	alloc_ctxs[0] = dev->alloc_ctx;
 	*num_buffers = mpegbufs;
 	return 0;
 }
@@ -1166,11 +1167,8 @@ static void buffer_finish(struct vb2_buffer *vb)
 	struct cx23885_dev *dev = vb->vb2_queue->drv_priv;
 	struct cx23885_buffer *buf = container_of(vb,
 		struct cx23885_buffer, vb);
-	struct sg_table *sgt = vb2_dma_sg_plane_desc(vb, 0);
 
 	cx23885_free_buffer(dev, buf);
-
-	dma_unmap_sg(&dev->pci->dev, sgt->sgl, sgt->nents, DMA_FROM_DEVICE);
 }
 
 static void buffer_queue(struct vb2_buffer *vb)
@@ -1341,14 +1339,13 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	strlcpy(cap->driver, dev->name, sizeof(cap->driver));
 	strlcpy(cap->card, cx23885_boards[tsport->dev->board].name,
 		sizeof(cap->card));
-	sprintf(cap->bus_info, "PCI:%s", pci_name(dev->pci));
-	cap->capabilities =
-		V4L2_CAP_VIDEO_CAPTURE |
-		V4L2_CAP_READWRITE     |
-		V4L2_CAP_STREAMING     |
-		0;
+	sprintf(cap->bus_info, "PCIe:%s", pci_name(dev->pci));
+	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
+			   V4L2_CAP_STREAMING;
 	if (dev->tuner_type != TUNER_ABSENT)
-		cap->capabilities |= V4L2_CAP_TUNER;
+		cap->device_caps |= V4L2_CAP_TUNER;
+	cap->capabilities = cap->device_caps | V4L2_CAP_VBI_CAPTURE |
+		V4L2_CAP_AUDIO | V4L2_CAP_DEVICE_CAPS;
 
 	return 0;
 }

@@ -38,7 +38,7 @@ int ieee754sp_isnan(union ieee754sp x)
 static inline int ieee754sp_issnan(union ieee754sp x)
 {
 	assert(ieee754sp_isnan(x));
-	return (SPMANT(x) & SP_MBIT(SP_FBITS-1));
+	return SPMANT(x) & SP_MBIT(SP_FBITS - 1);
 }
 
 

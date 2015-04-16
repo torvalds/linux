@@ -48,6 +48,7 @@ static int radeon_process_i2c_ch(struct radeon_i2c_chan *chan,
 	memset(&args, 0, sizeof(args));
 
 	mutex_lock(&chan->mutex);
+	mutex_lock(&rdev->mode_info.atom_context->scratch_mutex);
 
 	base = (unsigned char *)rdev->mode_info.atom_context->scratch;
 
@@ -82,7 +83,7 @@ static int radeon_process_i2c_ch(struct radeon_i2c_chan *chan,
 	args.ucSlaveAddr = slave_addr << 1;
 	args.ucLineNumber = chan->rec.i2c_id;
 
-	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+	atom_execute_table_scratch_unlocked(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 
 	/* error */
 	if (args.ucStatus != HW_ASSISTED_I2C_STATUS_SUCCESS) {
@@ -95,6 +96,7 @@ static int radeon_process_i2c_ch(struct radeon_i2c_chan *chan,
 		radeon_atom_copy_swap(buf, base, num, false);
 
 done:
+	mutex_unlock(&rdev->mode_info.atom_context->scratch_mutex);
 	mutex_unlock(&chan->mutex);
 
 	return r;

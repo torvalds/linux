@@ -626,7 +626,6 @@ MODULE_DEVICE_TABLE(of, hv_match);
 static struct platform_driver hv_driver = {
 	.driver = {
 		.name = "hv",
-		.owner = THIS_MODULE,
 		.of_match_table = hv_match,
 	},
 	.probe		= hv_probe,

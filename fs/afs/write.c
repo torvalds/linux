@@ -14,7 +14,6 @@
 #include <linux/pagemap.h>
 #include <linux/writeback.h>
 #include <linux/pagevec.h>
-#include <linux/aio.h>
 #include "internal.h"
 
 static int afs_write_back_from_locked_page(struct afs_writeback *wb,
@@ -682,14 +681,13 @@ int afs_writeback_all(struct afs_vnode *vnode)
  */
 int afs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
-	struct dentry *dentry = file->f_path.dentry;
-	struct inode *inode = file->f_mapping->host;
+	struct inode *inode = file_inode(file);
 	struct afs_writeback *wb, *xwb;
-	struct afs_vnode *vnode = AFS_FS_I(dentry->d_inode);
+	struct afs_vnode *vnode = AFS_FS_I(inode);
 	int ret;
 
-	_enter("{%x:%u},{n=%s},%d",
-	       vnode->fid.vid, vnode->fid.vnode, dentry->d_name.name,
+	_enter("{%x:%u},{n=%pD},%d",
+	       vnode->fid.vid, vnode->fid.vnode, file,
 	       datasync);
 
 	ret = filemap_write_and_wait_range(inode->i_mapping, start, end);

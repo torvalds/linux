@@ -56,6 +56,14 @@
 #define PPSMC_STATEFLAG_DEEPSLEEP_THROTTLE 0x20
 #define PPSMC_STATEFLAG_DEEPSLEEP_BYPASS   0x40
 
+#define FDO_MODE_HARDWARE 0
+#define FDO_MODE_PIECE_WISE_LINEAR 1
+
+enum FAN_CONTROL {
+	FAN_CONTROL_FUZZY,
+	FAN_CONTROL_TABLE
+};
+
 #define PPSMC_Result_OK             ((uint8_t)0x01)
 #define PPSMC_Result_Failed         ((uint8_t)0xFF)
 
@@ -79,6 +87,8 @@ typedef uint8_t PPSMC_Result;
 #define PPSMC_MSG_DisableCac                ((uint8_t)0x54)
 #define PPSMC_TDPClampingActive             ((uint8_t)0x59)
 #define PPSMC_TDPClampingInactive           ((uint8_t)0x5A)
+#define PPSMC_StartFanControl               ((uint8_t)0x5B)
+#define PPSMC_StopFanControl                ((uint8_t)0x5C)
 #define PPSMC_MSG_NoDisplay                 ((uint8_t)0x5D)
 #define PPSMC_MSG_HasDisplay                ((uint8_t)0x5E)
 #define PPSMC_MSG_UVDPowerOFF               ((uint8_t)0x60)
@@ -106,6 +116,7 @@ typedef uint8_t PPSMC_Result;
 #define PPSMC_MSG_SAMUDPM_SetEnabledMask      ((uint16_t) 0x130)
 #define PPSMC_MSG_MCLKDPM_ForceState          ((uint16_t) 0x131)
 #define PPSMC_MSG_MCLKDPM_NoForcedLevel       ((uint16_t) 0x132)
+#define PPSMC_MSG_Thermal_Cntl_Disable        ((uint16_t) 0x133)
 #define PPSMC_MSG_Voltage_Cntl_Disable        ((uint16_t) 0x135)
 #define PPSMC_MSG_PCIeDPM_Enable              ((uint16_t) 0x136)
 #define PPSMC_MSG_PCIeDPM_Disable             ((uint16_t) 0x13d)
@@ -149,6 +160,10 @@ typedef uint8_t PPSMC_Result;
 #define PPSMC_MSG_MASTER_DeepSleep_ON         ((uint16_t) 0x18F)
 #define PPSMC_MSG_MASTER_DeepSleep_OFF        ((uint16_t) 0x190)
 #define PPSMC_MSG_Remove_DC_Clamp             ((uint16_t) 0x191)
+#define PPSMC_MSG_SetFanPwmMax                ((uint16_t) 0x19A)
+
+#define PPSMC_MSG_ENABLE_THERMAL_DPM          ((uint16_t) 0x19C)
+#define PPSMC_MSG_DISABLE_THERMAL_DPM         ((uint16_t) 0x19D)
 
 #define PPSMC_MSG_API_GetSclkFrequency        ((uint16_t) 0x200)
 #define PPSMC_MSG_API_GetMclkFrequency        ((uint16_t) 0x201)
@@ -157,10 +172,11 @@ typedef uint8_t PPSMC_Result;
 #define PPSMC_MSG_DPM_Config                ((uint32_t) 0x102)
 #define PPSMC_MSG_DPM_ForceState            ((uint32_t) 0x104)
 #define PPSMC_MSG_PG_SIMD_Config            ((uint32_t) 0x108)
-#define PPSMC_MSG_DPM_N_LevelsDisabled      ((uint32_t) 0x112)
+#define PPSMC_MSG_Thermal_Cntl_Enable       ((uint32_t) 0x10a)
 #define PPSMC_MSG_Voltage_Cntl_Enable       ((uint32_t) 0x109)
 #define PPSMC_MSG_VCEPowerOFF               ((uint32_t) 0x10e)
 #define PPSMC_MSG_VCEPowerON                ((uint32_t) 0x10f)
+#define PPSMC_MSG_DPM_N_LevelsDisabled      ((uint32_t) 0x112)
 #define PPSMC_MSG_DCE_RemoveVoltageAdjustment   ((uint32_t) 0x11d)
 #define PPSMC_MSG_DCE_AllowVoltageAdjustment    ((uint32_t) 0x11e)
 #define PPSMC_MSG_EnableBAPM                ((uint32_t) 0x120)

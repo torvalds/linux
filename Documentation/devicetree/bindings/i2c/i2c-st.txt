@@ -31,7 +31,7 @@ i2c0: i2c@fed40000 {
 	compatible	= "st,comms-ssc4-i2c";
 	reg		= <0xfed40000 0x110>;
 	interrupts	=  <GIC_SPI 187 IRQ_TYPE_LEVEL_HIGH>;
-	clocks		= <&CLK_S_ICN_REG_0>;
+	clocks		= <&clk_s_a0_ls CLK_ICN_REG>;
 	clock-names	= "ssc";
 	clock-frequency = <400000>;
 	pinctrl-names	= "default";

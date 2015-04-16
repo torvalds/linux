@@ -45,9 +45,6 @@ enum ap_peer {
 #define RTL_TX_DESC_SIZE	32
 #define RTL_TX_HEADER_SIZE	(RTL_TX_DESC_SIZE + RTL_TX_DUMMY_SIZE)
 
-#define HT_AMSDU_SIZE_4K	3839
-#define HT_AMSDU_SIZE_8K	7935
-
 #define MAX_BIT_RATE_40MHZ_MCS15	300	/* Mbps */
 #define MAX_BIT_RATE_40MHZ_MCS7		150	/* Mbps */
 
@@ -60,9 +57,6 @@ enum ap_peer {
 #define MAX_BIT_RATE_SHORT_GI_1NSS_80MHZ_MCS7	325	/* Mbps */
 #define MAX_BIT_RATE_LONG_GI_1NSS_80MHZ_MCS9	390	/* Mbps */
 #define MAX_BIT_RATE_LONG_GI_1NSS_80MHZ_MCS7	293	/* Mbps */
-
-#define RTL_RATE_COUNT_LEGACY		12
-#define RTL_CHANNEL_COUNT		14
 
 #define FRAME_OFFSET_FRAME_CONTROL	0
 #define FRAME_OFFSET_DURATION		2
@@ -123,13 +117,13 @@ void rtl_watch_dog_timer_callback(unsigned long data);
 void rtl_deinit_deferred_work(struct ieee80211_hw *hw);
 
 bool rtl_action_proc(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx);
-int rtlwifi_rate_mapping(struct ieee80211_hw *hw,
-			 bool isht, u8 desc_rate, bool first_ampdu);
+int rtlwifi_rate_mapping(struct ieee80211_hw *hw, bool isht,
+			 bool isvht, u8 desc_rate);
 bool rtl_tx_mgmt_proc(struct ieee80211_hw *hw, struct sk_buff *skb);
-u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx);
+u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx,
+		       bool is_enc);
 
 void rtl_beacon_statistic(struct ieee80211_hw *hw, struct sk_buff *skb);
-void rtl_watch_dog_timer_callback(unsigned long data);
 int rtl_tx_agg_start(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct ieee80211_sta *sta, u16 tid, u16 *ssn);
 int rtl_tx_agg_stop(struct ieee80211_hw *hw, struct ieee80211_vif *vif,

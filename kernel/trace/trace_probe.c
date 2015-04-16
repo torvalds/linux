@@ -40,7 +40,8 @@ const char *reserved_field_names[] = {
 int PRINT_TYPE_FUNC_NAME(type)(struct trace_seq *s, const char *name,	\
 				void *data, void *ent)			\
 {									\
-	return trace_seq_printf(s, " %s=" fmt, name, *(type *)data);	\
+	trace_seq_printf(s, " %s=" fmt, name, *(type *)data);		\
+	return !trace_seq_has_overflowed(s);				\
 }									\
 const char PRINT_TYPE_FMT_NAME(type)[] = fmt;				\
 NOKPROBE_SYMBOL(PRINT_TYPE_FUNC_NAME(type));
@@ -61,10 +62,11 @@ int PRINT_TYPE_FUNC_NAME(string)(struct trace_seq *s, const char *name,
 	int len = *(u32 *)data >> 16;
 
 	if (!len)
-		return trace_seq_printf(s, " %s=(fault)", name);
+		trace_seq_printf(s, " %s=(fault)", name);
 	else
-		return trace_seq_printf(s, " %s=\"%s\"", name,
-					(const char *)get_loc_data(data, ent));
+		trace_seq_printf(s, " %s=\"%s\"", name,
+				 (const char *)get_loc_data(data, ent));
+	return !trace_seq_has_overflowed(s);
 }
 NOKPROBE_SYMBOL(PRINT_TYPE_FUNC_NAME(string));
 
@@ -354,16 +356,13 @@ static int parse_probe_vars(char *arg, const struct fetch_type *t,
 
 /* Recursive argument parser */
 static int parse_probe_arg(char *arg, const struct fetch_type *t,
-		     struct fetch_param *f, bool is_return, bool is_kprobe)
+		     struct fetch_param *f, bool is_return, bool is_kprobe,
+		     const struct fetch_type *ftbl)
 {
-	const struct fetch_type *ftbl;
 	unsigned long param;
 	long offset;
 	char *tmp;
 	int ret = 0;
-
-	ftbl = is_kprobe ? kprobes_fetch_type_table : uprobes_fetch_type_table;
-	BUG_ON(ftbl == NULL);
 
 	switch (arg[0]) {
 	case '$':
@@ -445,7 +444,7 @@ static int parse_probe_arg(char *arg, const struct fetch_type *t,
 			dprm->fetch_size = get_fetch_size_function(t,
 							dprm->fetch, ftbl);
 			ret = parse_probe_arg(arg, t2, &dprm->orig, is_return,
-							is_kprobe);
+							is_kprobe, ftbl);
 			if (ret)
 				kfree(dprm);
 			else {
@@ -503,14 +502,11 @@ static int __parse_bitfield_probe_arg(const char *bf,
 
 /* String length checking wrapper */
 int traceprobe_parse_probe_arg(char *arg, ssize_t *size,
-		struct probe_arg *parg, bool is_return, bool is_kprobe)
+		struct probe_arg *parg, bool is_return, bool is_kprobe,
+		const struct fetch_type *ftbl)
 {
-	const struct fetch_type *ftbl;
 	const char *t;
 	int ret;
-
-	ftbl = is_kprobe ? kprobes_fetch_type_table : uprobes_fetch_type_table;
-	BUG_ON(ftbl == NULL);
 
 	if (strlen(arg) > MAX_ARGSTR_LEN) {
 		pr_info("Argument is too long.: %s\n",  arg);
@@ -533,7 +529,8 @@ int traceprobe_parse_probe_arg(char *arg, ssize_t *size,
 	}
 	parg->offset = *size;
 	*size += parg->type->size;
-	ret = parse_probe_arg(arg, parg->type, &parg->fetch, is_return, is_kprobe);
+	ret = parse_probe_arg(arg, parg->type, &parg->fetch, is_return,
+			      is_kprobe, ftbl);
 
 	if (ret >= 0 && t != NULL)
 		ret = __parse_bitfield_probe_arg(t, parg->type, &parg->fetch);

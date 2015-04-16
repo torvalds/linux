@@ -69,8 +69,12 @@ static void udbg_uart_putc(char c)
 
 static int udbg_uart_getc_poll(void)
 {
-	if (!udbg_uart_in || !(udbg_uart_in(UART_LSR) & LSR_DR))
+	if (!udbg_uart_in)
+		return -1;
+
+	if (!(udbg_uart_in(UART_LSR) & LSR_DR))
 		return udbg_uart_in(UART_RBR);
+
 	return -1;
 }
 

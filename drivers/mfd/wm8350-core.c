@@ -308,7 +308,7 @@ int wm8350_device_init(struct wm8350 *wm8350, int irq,
 		goto err;
 	}
 
-	mode = id2 & WM8350_CONF_STS_MASK >> 10;
+	mode = (id2 & WM8350_CONF_STS_MASK) >> 10;
 	cust_id = id2 & WM8350_CUST_ID_MASK;
 	chip_rev = (id2 & WM8350_CHIP_REV_MASK) >> 12;
 	dev_info(wm8350->dev,

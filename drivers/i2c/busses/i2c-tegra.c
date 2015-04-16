@@ -286,6 +286,7 @@ static int tegra_i2c_empty_rx_fifo(struct tegra_i2c_dev *i2c_dev)
 	if (rx_fifo_avail > 0 && buf_remaining > 0) {
 		BUG_ON(buf_remaining > 3);
 		val = i2c_readl(i2c_dev, I2C_RX_FIFO);
+		val = cpu_to_le32(val);
 		memcpy(buf, &val, buf_remaining);
 		buf_remaining = 0;
 		rx_fifo_avail--;
@@ -344,6 +345,7 @@ static int tegra_i2c_fill_tx_fifo(struct tegra_i2c_dev *i2c_dev)
 	if (tx_fifo_avail > 0 && buf_remaining > 0) {
 		BUG_ON(buf_remaining > 3);
 		memcpy(&val, buf, buf_remaining);
+		val = le32_to_cpu(val);
 
 		/* Again update before writing to FIFO to make sure isr sees. */
 		i2c_dev->msg_buf_remaining = 0;
@@ -530,7 +532,7 @@ static int tegra_i2c_xfer_msg(struct tegra_i2c_dev *i2c_dev,
 {
 	u32 packet_header;
 	u32 int_mask;
-	int ret;
+	unsigned long time_left;
 
 	tegra_i2c_flush_fifos(i2c_dev);
 
@@ -583,18 +585,20 @@ static int tegra_i2c_xfer_msg(struct tegra_i2c_dev *i2c_dev,
 	dev_dbg(i2c_dev->dev, "unmasked irq: %02x\n",
 		i2c_readl(i2c_dev, I2C_INT_MASK));
 
-	ret = wait_for_completion_timeout(&i2c_dev->msg_complete, TEGRA_I2C_TIMEOUT);
+	time_left = wait_for_completion_timeout(&i2c_dev->msg_complete,
+						TEGRA_I2C_TIMEOUT);
 	tegra_i2c_mask_irq(i2c_dev, int_mask);
 
-	if (ret == 0) {
+	if (time_left == 0) {
 		dev_err(i2c_dev->dev, "i2c transfer timed out\n");
 
 		tegra_i2c_init(i2c_dev);
 		return -ETIMEDOUT;
 	}
 
-	dev_dbg(i2c_dev->dev, "transfer complete: %d %d %d\n",
-		ret, completion_done(&i2c_dev->msg_complete), i2c_dev->msg_err);
+	dev_dbg(i2c_dev->dev, "transfer complete: %lu %d %d\n",
+		time_left, completion_done(&i2c_dev->msg_complete),
+		i2c_dev->msg_err);
 
 	if (likely(i2c_dev->msg_err == I2C_ERR_NONE))
 		return 0;
@@ -893,7 +897,6 @@ static struct platform_driver tegra_i2c_driver = {
 	.remove  = tegra_i2c_remove,
 	.driver  = {
 		.name  = "tegra-i2c",
-		.owner = THIS_MODULE,
 		.of_match_table = tegra_i2c_of_match,
 		.pm    = TEGRA_I2C_PM,
 	},

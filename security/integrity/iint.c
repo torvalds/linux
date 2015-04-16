@@ -19,13 +19,13 @@
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/rbtree.h>
+#include <linux/file.h>
+#include <linux/uaccess.h>
 #include "integrity.h"
 
 static struct rb_root integrity_iint_tree = RB_ROOT;
 static DEFINE_RWLOCK(integrity_iint_lock);
 static struct kmem_cache *iint_cache __read_mostly;
-
-int iint_initialized;
 
 /*
  * __integrity_iint_find - return the iint associated with an inode
@@ -166,7 +166,89 @@ static int __init integrity_iintcache_init(void)
 	iint_cache =
 	    kmem_cache_create("iint_cache", sizeof(struct integrity_iint_cache),
 			      0, SLAB_PANIC, init_once);
-	iint_initialized = 1;
 	return 0;
 }
 security_initcall(integrity_iintcache_init);
+
+
+/*
+ * integrity_kernel_read - read data from the file
+ *
+ * This is a function for reading file content instead of kernel_read().
+ * It does not perform locking checks to ensure it cannot be blocked.
+ * It does not perform security checks because it is irrelevant for IMA.
+ *
+ */
+int integrity_kernel_read(struct file *file, loff_t offset,
+			  char *addr, unsigned long count)
+{
+	mm_segment_t old_fs;
+	char __user *buf = (char __user *)addr;
+	ssize_t ret;
+
+	if (!(file->f_mode & FMODE_READ))
+		return -EBADF;
+
+	old_fs = get_fs();
+	set_fs(get_ds());
+	ret = __vfs_read(file, buf, count, &offset);
+	set_fs(old_fs);
+
+	return ret;
+}
+
+/*
+ * integrity_read_file - read entire file content into the buffer
+ *
+ * This is function opens a file, allocates the buffer of required
+ * size, read entire file content to the buffer and closes the file
+ *
+ * It is used only by init code.
+ *
+ */
+int __init integrity_read_file(const char *path, char **data)
+{
+	struct file *file;
+	loff_t size;
+	char *buf;
+	int rc = -EINVAL;
+
+	file = filp_open(path, O_RDONLY, 0);
+	if (IS_ERR(file)) {
+		rc = PTR_ERR(file);
+		pr_err("Unable to open file: %s (%d)", path, rc);
+		return rc;
+	}
+
+	size = i_size_read(file_inode(file));
+	if (size <= 0)
+		goto out;
+
+	buf = kmalloc(size, GFP_KERNEL);
+	if (!buf) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	rc = integrity_kernel_read(file, 0, buf, size);
+	if (rc < 0)
+		kfree(buf);
+	else if (rc != size)
+		rc = -EIO;
+	else
+		*data = buf;
+out:
+	fput(file);
+	return rc;
+}
+
+/*
+ * integrity_load_keys - load integrity keys hook
+ *
+ * Hooks is called from init/main.c:kernel_init_freeable()
+ * when rootfs is ready
+ */
+void __init integrity_load_keys(void)
+{
+	ima_load_x509();
+}

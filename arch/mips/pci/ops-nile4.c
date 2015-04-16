@@ -13,8 +13,6 @@
 
 volatile unsigned long *const vrc_pciregs = (void *) Vrc5074_BASE;
 
-static DEFINE_SPINLOCK(nile4_pci_lock);
-
 static int nile4_pcibios_config_access(unsigned char access_type,
 	struct pci_bus *bus, unsigned int devfn, int where, u32 *val)
 {
@@ -76,7 +74,6 @@ static int nile4_pcibios_config_access(unsigned char access_type,
 static int nile4_pcibios_read(struct pci_bus *bus, unsigned int devfn,
 	int where, int size, u32 *val)
 {
-	unsigned long flags;
 	u32 data = 0;
 	int err;
 
@@ -85,11 +82,8 @@ static int nile4_pcibios_read(struct pci_bus *bus, unsigned int devfn,
 	else if ((size == 4) && (where & 3))
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 
-	spin_lock_irqsave(&nile4_pci_lock, flags);
 	err = nile4_pcibios_config_access(PCI_ACCESS_READ, bus, devfn, where,
-					&data);
-	spin_unlock_irqrestore(&nile4_pci_lock, flags);
-
+					  &data);
 	if (err)
 		return err;
 
@@ -106,7 +100,6 @@ static int nile4_pcibios_read(struct pci_bus *bus, unsigned int devfn,
 static int nile4_pcibios_write(struct pci_bus *bus, unsigned int devfn,
 	int where, int size, u32 val)
 {
-	unsigned long flags;
 	u32 data = 0;
 	int err;
 
@@ -115,11 +108,8 @@ static int nile4_pcibios_write(struct pci_bus *bus, unsigned int devfn,
 	else if ((size == 4) && (where & 3))
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 
-	spin_lock_irqsave(&nile4_pci_lock, flags);
 	err = nile4_pcibios_config_access(PCI_ACCESS_READ, bus, devfn, where,
 					  &data);
-	spin_unlock_irqrestore(&nile4_pci_lock, flags);
-
 	if (err)
 		return err;
 

@@ -803,7 +803,6 @@ static struct platform_driver knav_dma_driver = {
 	.remove	= knav_dma_remove,
 	.driver = {
 		.name		= "keystone-navigator-dma",
-		.owner		= THIS_MODULE,
 		.of_match_table	= of_match,
 	},
 };

@@ -27,7 +27,6 @@
 #include <linux/namei.h>
 #include <linux/log2.h>
 #include <linux/cleancache.h>
-#include <linux/aio.h>
 #include <asm/uaccess.h>
 #include "internal.h"
 
@@ -49,23 +48,15 @@ inline struct block_device *I_BDEV(struct inode *inode)
 }
 EXPORT_SYMBOL(I_BDEV);
 
-/*
- * Move the inode from its current bdi to a new bdi.  Make sure the inode
- * is clean before moving so that it doesn't linger on the old bdi.
- */
-static void bdev_inode_switch_bdi(struct inode *inode,
-			struct backing_dev_info *dst)
+static void bdev_write_inode(struct inode *inode)
 {
-	while (true) {
-		spin_lock(&inode->i_lock);
-		if (!(inode->i_state & I_DIRTY)) {
-			inode->i_data.backing_dev_info = dst;
-			spin_unlock(&inode->i_lock);
-			return;
-		}
+	spin_lock(&inode->i_lock);
+	while (inode->i_state & I_DIRTY) {
 		spin_unlock(&inode->i_lock);
 		WARN_ON_ONCE(write_inode_now(inode, true));
+		spin_lock(&inode->i_lock);
 	}
+	spin_unlock(&inode->i_lock);
 }
 
 /* Kill _all_ buffers and pagecache , dirty or not.. */
@@ -235,7 +226,10 @@ struct super_block *freeze_bdev(struct block_device *bdev)
 	sb = get_active_super(bdev);
 	if (!sb)
 		goto out;
-	error = freeze_super(sb);
+	if (sb->s_op->freeze_super)
+		error = sb->s_op->freeze_super(sb);
+	else
+		error = freeze_super(sb);
 	if (error) {
 		deactivate_super(sb);
 		bdev->bd_fsfreeze_count--;
@@ -272,7 +266,10 @@ int thaw_bdev(struct block_device *bdev, struct super_block *sb)
 	if (!sb)
 		goto out;
 
-	error = thaw_super(sb);
+	if (sb->s_op->thaw_super)
+		error = sb->s_op->thaw_super(sb);
+	else
+		error = thaw_super(sb);
 	if (error) {
 		bdev->bd_fsfreeze_count++;
 		mutex_unlock(&bdev->bd_fsfreeze_mutex);
@@ -422,6 +419,46 @@ int bdev_write_page(struct block_device *bdev, sector_t sector,
 	return result;
 }
 EXPORT_SYMBOL_GPL(bdev_write_page);
+
+/**
+ * bdev_direct_access() - Get the address for directly-accessibly memory
+ * @bdev: The device containing the memory
+ * @sector: The offset within the device
+ * @addr: Where to put the address of the memory
+ * @pfn: The Page Frame Number for the memory
+ * @size: The number of bytes requested
+ *
+ * If a block device is made up of directly addressable memory, this function
+ * will tell the caller the PFN and the address of the memory.  The address
+ * may be directly dereferenced within the kernel without the need to call
+ * ioremap(), kmap() or similar.  The PFN is suitable for inserting into
+ * page tables.
+ *
+ * Return: negative errno if an error occurs, otherwise the number of bytes
+ * accessible at this address.
+ */
+long bdev_direct_access(struct block_device *bdev, sector_t sector,
+			void **addr, unsigned long *pfn, long size)
+{
+	long avail;
+	const struct block_device_operations *ops = bdev->bd_disk->fops;
+
+	if (size < 0)
+		return size;
+	if (!ops->direct_access)
+		return -EOPNOTSUPP;
+	if ((sector + DIV_ROUND_UP(size, 512)) >
+					part_nr_sects_read(bdev->bd_part))
+		return -ERANGE;
+	sector += get_start_sect(bdev);
+	if (sector % (PAGE_SIZE / 512))
+		return -EINVAL;
+	avail = ops->direct_access(bdev, sector, addr, pfn, size);
+	if (!avail)
+		return -ERANGE;
+	return min(avail, size);
+}
+EXPORT_SYMBOL_GPL(bdev_direct_access);
 
 /*
  * pseudo-fs
@@ -578,7 +615,6 @@ struct block_device *bdget(dev_t dev)
 		inode->i_bdev = bdev;
 		inode->i_data.a_ops = &def_blk_aops;
 		mapping_set_gfp_mask(&inode->i_data, GFP_USER);
-		inode->i_data.backing_dev_info = &default_backing_dev_info;
 		spin_lock(&bdev_lock);
 		list_add(&bdev->bd_list, &all_bdevs);
 		spin_unlock(&bdev_lock);
@@ -1139,8 +1175,6 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 		bdev->bd_queue = disk->queue;
 		bdev->bd_contains = bdev;
 		if (!partno) {
-			struct backing_dev_info *bdi;
-
 			ret = -ENXIO;
 			bdev->bd_part = disk_get_part(disk, partno);
 			if (!bdev->bd_part)
@@ -1166,11 +1200,8 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 				}
 			}
 
-			if (!ret) {
+			if (!ret)
 				bd_set_size(bdev,(loff_t)get_capacity(disk)<<9);
-				bdi = blk_get_backing_dev_info(bdev);
-				bdev_inode_switch_bdi(bdev->bd_inode, bdi);
-			}
 
 			/*
 			 * If the device is invalidated, rescan partition
@@ -1197,8 +1228,6 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 			if (ret)
 				goto out_clear;
 			bdev->bd_contains = whole;
-			bdev_inode_switch_bdi(bdev->bd_inode,
-				whole->bd_inode->i_data.backing_dev_info);
 			bdev->bd_part = disk_get_part(disk, partno);
 			if (!(disk->flags & GENHD_FL_UP) ||
 			    !bdev->bd_part || !bdev->bd_part->nr_sects) {
@@ -1238,7 +1267,6 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 	bdev->bd_disk = NULL;
 	bdev->bd_part = NULL;
 	bdev->bd_queue = NULL;
-	bdev_inode_switch_bdi(bdev->bd_inode, &default_backing_dev_info);
 	if (bdev != bdev->bd_contains)
 		__blkdev_put(bdev->bd_contains, mode, 1);
 	bdev->bd_contains = NULL;
@@ -1458,11 +1486,11 @@ static void __blkdev_put(struct block_device *bdev, fmode_t mode, int for_part)
 		WARN_ON_ONCE(bdev->bd_holders);
 		sync_blockdev(bdev);
 		kill_bdev(bdev);
-		/* ->release can cause the old bdi to disappear,
-		 * so must switch it out first
+		/*
+		 * ->release can cause the queue to disappear, so flush all
+		 * dirty data before.
 		 */
-		bdev_inode_switch_bdi(bdev->bd_inode,
-					&default_backing_dev_info);
+		bdev_write_inode(bdev->bd_inode);
 	}
 	if (bdev->bd_contains == bdev) {
 		if (disk->fops->release)
@@ -1585,7 +1613,7 @@ ssize_t blkdev_write_iter(struct kiocb *iocb, struct iov_iter *from)
 }
 EXPORT_SYMBOL_GPL(blkdev_write_iter);
 
-static ssize_t blkdev_read_iter(struct kiocb *iocb, struct iov_iter *to)
+ssize_t blkdev_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *bd_inode = file->f_mapping->host;
@@ -1599,6 +1627,7 @@ static ssize_t blkdev_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	iov_iter_truncate(to, size);
 	return generic_file_read_iter(iocb, to);
 }
+EXPORT_SYMBOL_GPL(blkdev_read_iter);
 
 /*
  * Try to release a page associated with block device when the system
@@ -1630,8 +1659,6 @@ const struct file_operations def_blk_fops = {
 	.open		= blkdev_open,
 	.release	= blkdev_close,
 	.llseek		= block_llseek,
-	.read		= new_sync_read,
-	.write		= new_sync_write,
 	.read_iter	= blkdev_read_iter,
 	.write_iter	= blkdev_write_iter,
 	.mmap		= generic_file_mmap,

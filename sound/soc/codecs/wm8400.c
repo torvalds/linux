@@ -58,12 +58,10 @@ static struct regulator_bulk_data power[] = {
 
 /* codec private data */
 struct wm8400_priv {
-	struct snd_soc_codec *codec;
 	struct wm8400 *wm8400;
 	u16 fake_register;
 	unsigned int sysclk;
 	unsigned int pcmclk;
-	struct work_struct work;
 	int fll_in, fll_out;
 };
 
@@ -326,6 +324,7 @@ SOC_SINGLE("RIN34 Mute Switch", WM8400_RIGHT_LINE_INPUT_3_4_VOLUME,
 static int outmixer_event (struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol * kcontrol, int event)
 {
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	u32 reg_shift = mc->shift;
@@ -334,7 +333,7 @@ static int outmixer_event (struct snd_soc_dapm_widget *w,
 
 	switch (reg_shift) {
 	case WM8400_SPEAKER_MIXER | (WM8400_LDSPK << 8) :
-		reg = snd_soc_read(w->codec, WM8400_OUTPUT_MIXER1);
+		reg = snd_soc_read(codec, WM8400_OUTPUT_MIXER1);
 		if (reg & WM8400_LDLO) {
 			printk(KERN_WARNING
 			"Cannot set as Output Mixer 1 LDLO Set\n");
@@ -342,7 +341,7 @@ static int outmixer_event (struct snd_soc_dapm_widget *w,
 		}
 		break;
 	case WM8400_SPEAKER_MIXER | (WM8400_RDSPK << 8):
-		reg = snd_soc_read(w->codec, WM8400_OUTPUT_MIXER2);
+		reg = snd_soc_read(codec, WM8400_OUTPUT_MIXER2);
 		if (reg & WM8400_RDRO) {
 			printk(KERN_WARNING
 			"Cannot set as Output Mixer 2 RDRO Set\n");
@@ -350,7 +349,7 @@ static int outmixer_event (struct snd_soc_dapm_widget *w,
 		}
 		break;
 	case WM8400_OUTPUT_MIXER1 | (WM8400_LDLO << 8):
-		reg = snd_soc_read(w->codec, WM8400_SPEAKER_MIXER);
+		reg = snd_soc_read(codec, WM8400_SPEAKER_MIXER);
 		if (reg & WM8400_LDSPK) {
 			printk(KERN_WARNING
 			"Cannot set as Speaker Mixer LDSPK Set\n");
@@ -358,7 +357,7 @@ static int outmixer_event (struct snd_soc_dapm_widget *w,
 		}
 		break;
 	case WM8400_OUTPUT_MIXER2 | (WM8400_RDRO << 8):
-		reg = snd_soc_read(w->codec, WM8400_SPEAKER_MIXER);
+		reg = snd_soc_read(codec, WM8400_SPEAKER_MIXER);
 		if (reg & WM8400_RDSPK) {
 			printk(KERN_WARNING
 			"Cannot set as Speaker Mixer RDSPK Set\n");
@@ -1278,30 +1277,6 @@ static struct snd_soc_dai_driver wm8400_dai = {
 	.ops = &wm8400_dai_ops,
 };
 
-static int wm8400_suspend(struct snd_soc_codec *codec)
-{
-	wm8400_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
-
-static int wm8400_resume(struct snd_soc_codec *codec)
-{
-	wm8400_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	return 0;
-}
-
-static void wm8400_probe_deferred(struct work_struct *work)
-{
-	struct wm8400_priv *priv = container_of(work, struct wm8400_priv,
-						work);
-	struct snd_soc_codec *codec = priv->codec;
-
-	/* charge output caps */
-	wm8400_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-}
-
 static int wm8400_codec_probe(struct snd_soc_codec *codec)
 {
 	struct wm8400 *wm8400 = dev_get_platdata(codec->dev);
@@ -1316,7 +1291,6 @@ static int wm8400_codec_probe(struct snd_soc_codec *codec)
 
 	snd_soc_codec_set_drvdata(codec, priv);
 	priv->wm8400 = wm8400;
-	priv->codec = codec;
 
 	ret = devm_regulator_bulk_get(wm8400->dev,
 				 ARRAY_SIZE(power), &power[0]);
@@ -1324,8 +1298,6 @@ static int wm8400_codec_probe(struct snd_soc_codec *codec)
 		dev_err(codec->dev, "Failed to get regulators: %d\n", ret);
 		return ret;
 	}
-
-	INIT_WORK(&priv->work, wm8400_probe_deferred);
 
 	wm8400_codec_reset(codec);
 
@@ -1343,8 +1315,6 @@ static int wm8400_codec_probe(struct snd_soc_codec *codec)
 	snd_soc_write(codec, WM8400_LEFT_OUTPUT_VOLUME, 0x50 | (1<<8));
 	snd_soc_write(codec, WM8400_RIGHT_OUTPUT_VOLUME, 0x50 | (1<<8));
 
-	if (!schedule_work(&priv->work))
-		return -EINVAL;
 	return 0;
 }
 
@@ -1369,10 +1339,9 @@ static struct regmap *wm8400_get_regmap(struct device *dev)
 static struct snd_soc_codec_driver soc_codec_dev_wm8400 = {
 	.probe =	wm8400_codec_probe,
 	.remove =	wm8400_codec_remove,
-	.suspend =	wm8400_suspend,
-	.resume =	wm8400_resume,
 	.get_regmap =	wm8400_get_regmap,
 	.set_bias_level = wm8400_set_bias_level,
+	.suspend_bias_off = true,
 
 	.controls = wm8400_snd_controls,
 	.num_controls = ARRAY_SIZE(wm8400_snd_controls),
@@ -1397,7 +1366,6 @@ static int wm8400_remove(struct platform_device *pdev)
 static struct platform_driver wm8400_codec_driver = {
 	.driver = {
 		   .name = "wm8400-codec",
-		   .owner = THIS_MODULE,
 		   },
 	.probe = wm8400_probe,
 	.remove = wm8400_remove,

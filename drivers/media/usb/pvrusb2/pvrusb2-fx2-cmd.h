@@ -60,13 +60,3 @@
 #define FX2CMD_ONAIR_DTV_POWER_OFF     0xa3u
 
 #endif /* _PVRUSB2_FX2_CMD_H_ */
-
-/*
-  Stuff for Emacs to see, in order to encourage consistent editing style:
-  *** Local Variables: ***
-  *** mode: c ***
-  *** fill-column: 75 ***
-  *** tab-width: 8 ***
-  *** c-basic-offset: 8 ***
-  *** End: ***
-  */

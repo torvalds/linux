@@ -16,14 +16,8 @@
 #define __MACH_ARMADA_370_XP_H
 
 #ifdef CONFIG_SMP
-#include <linux/cpumask.h>
-
-#define ARMADA_XP_MAX_CPUS 4
-
 void armada_xp_secondary_startup(void);
 extern struct smp_operations armada_xp_smp_ops;
 #endif
-
-int armada_370_xp_pmsu_idle_enter(unsigned long deepidle);
 
 #endif /* __MACH_ARMADA_370_XP_H */

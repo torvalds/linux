@@ -1,5 +1,5 @@
 # List of programs to build
-hostprogs-y := disable-tsc-ctxt-sw-stress-test disable-tsc-on-off-stress-test disable-tsc-test
+hostprogs-$(CONFIG_X86) := disable-tsc-ctxt-sw-stress-test disable-tsc-on-off-stress-test disable-tsc-test
 # Tell kbuild to always build the programs
 always := $(hostprogs-y)
 

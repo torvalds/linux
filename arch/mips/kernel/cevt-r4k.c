@@ -14,7 +14,6 @@
 
 #include <asm/time.h>
 #include <asm/cevt-r4k.h>
-#include <asm/gic.h>
 
 static int mips_next_event(unsigned long delta,
 			   struct clock_event_device *evt)
@@ -40,7 +39,7 @@ int cp0_timer_irq_installed;
 
 irqreturn_t c0_compare_interrupt(int irq, void *dev_id)
 {
-	const int r2 = cpu_has_mips_r2;
+	const int r2 = cpu_has_mips_r2_r6;
 	struct clock_event_device *cd;
 	int cpu = smp_processor_id();
 
@@ -85,10 +84,7 @@ void mips_event_handler(struct clock_event_device *dev)
  */
 static int c0_compare_int_pending(void)
 {
-#ifdef CONFIG_IRQ_GIC
-	if (cpu_has_veic)
-		return gic_get_timer_pending();
-#endif
+	/* When cpu_has_mips_r2, this checks Cause.TI instead of Cause.IP7 */
 	return (read_c0_cause() >> cp0_compare_irq_shift) & (1ul << CAUSEB_IP);
 }
 

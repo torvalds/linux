@@ -158,6 +158,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define TLV_TYPE_POWER_GROUP        (PROPRIETARY_TLV_BASE_ID + 84)
 #define TLV_TYPE_BSS_SCAN_RSP       (PROPRIETARY_TLV_BASE_ID + 86)
 #define TLV_TYPE_BSS_SCAN_INFO      (PROPRIETARY_TLV_BASE_ID + 87)
+#define TLV_TYPE_CHANRPT_11H_BASIC  (PROPRIETARY_TLV_BASE_ID + 91)
 #define TLV_TYPE_UAP_RETRY_LIMIT    (PROPRIETARY_TLV_BASE_ID + 93)
 #define TLV_TYPE_WAPI_IE            (PROPRIETARY_TLV_BASE_ID + 94)
 #define TLV_TYPE_UAP_MGMT_FRAME     (PROPRIETARY_TLV_BASE_ID + 104)
@@ -172,6 +173,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define TLV_TYPE_TDLS_IDLE_TIMEOUT  (PROPRIETARY_TLV_BASE_ID + 194)
 #define TLV_TYPE_SCAN_CHANNEL_GAP   (PROPRIETARY_TLV_BASE_ID + 197)
 #define TLV_TYPE_API_REV            (PROPRIETARY_TLV_BASE_ID + 199)
+#define TLV_TYPE_CHANNEL_STATS      (PROPRIETARY_TLV_BASE_ID + 198)
 
 #define MWIFIEX_TX_DATA_BUF_SIZE_2K        2048
 
@@ -195,6 +197,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 
 #define ISSUPP_11NENABLED(FwCapInfo) (FwCapInfo & BIT(11))
 #define ISSUPP_TDLS_ENABLED(FwCapInfo) (FwCapInfo & BIT(14))
+#define ISSUPP_SDIO_SPA_ENABLED(FwCapInfo) (FwCapInfo & BIT(16))
 
 #define MWIFIEX_DEF_HT_CAP	(IEEE80211_HT_CAP_DSSSCCK40 | \
 				 (1 << IEEE80211_HT_CAP_RX_STBC_SHIFT) | \
@@ -232,6 +235,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define ISSUPP_RXLDPC(Dot11nDevCap) (Dot11nDevCap & BIT(22))
 #define ISSUPP_BEAMFORMING(Dot11nDevCap) (Dot11nDevCap & BIT(30))
 #define ISALLOWED_CHANWIDTH40(ht_param) (ht_param & BIT(2))
+#define GETSUPP_TXBASTREAMS(Dot11nDevCap) ((Dot11nDevCap >> 18) & 0xF)
 
 /* httxcfg bitmap
  * 0		reserved
@@ -334,6 +338,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define HostCmd_CMD_11N_ADDBA_RSP                     0x00cf
 #define HostCmd_CMD_11N_DELBA                         0x00d0
 #define HostCmd_CMD_RECONFIGURE_TX_BUFF               0x00d9
+#define HostCmd_CMD_CHAN_REPORT_REQUEST               0x00dd
 #define HostCmd_CMD_AMSDU_AGGR_CTRL                   0x00df
 #define HostCmd_CMD_TXPWR_CFG                         0x00d1
 #define HostCmd_CMD_TX_RATE_CFG                       0x00d6
@@ -349,6 +354,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define HostCmd_CMD_REMAIN_ON_CHAN                    0x010d
 #define HostCmd_CMD_11AC_CFG			      0x0112
 #define HostCmd_CMD_TDLS_OPER                         0x0122
+#define HostCmd_CMD_SDIO_SP_RX_AGGR_CFG               0x0223
 
 #define PROTOCOL_NO_SECURITY        0x01
 #define PROTOCOL_STATIC_WEP         0x02
@@ -491,8 +497,11 @@ enum P2P_MODES {
 #define EVENT_HOSTWAKE_STAIE		0x0000004d
 #define EVENT_CHANNEL_SWITCH_ANN        0x00000050
 #define EVENT_TDLS_GENERIC_EVENT        0x00000052
+#define EVENT_RADAR_DETECTED		0x00000053
+#define EVENT_CHANNEL_REPORT_RDY        0x00000054
 #define EVENT_EXT_SCAN_REPORT           0x00000058
 #define EVENT_REMAIN_ON_CHAN_EXPIRED    0x0000005f
+#define EVENT_TX_STATUS_REPORT		0x00000074
 
 #define EVENT_ID_MASK                   0xffff
 #define BSS_NUM_MASK                    0xf
@@ -516,9 +525,11 @@ enum P2P_MODES {
 #define TYPE_OR				(MAX_OPERAND+5)
 #define MEF_MODE_HOST_SLEEP			1
 #define MEF_ACTION_ALLOW_AND_WAKEUP_HOST	3
+#define MEF_ACTION_AUTO_ARP                    0x10
 #define MWIFIEX_CRITERIA_BROADCAST	BIT(0)
 #define MWIFIEX_CRITERIA_UNICAST	BIT(1)
 #define MWIFIEX_CRITERIA_MULTICAST	BIT(3)
+#define MWIFIEX_MAX_SUPPORTED_IPADDR              4
 
 #define ACT_TDLS_DELETE            0x00
 #define ACT_TDLS_CREATE            0x01
@@ -526,6 +537,8 @@ enum P2P_MODES {
 #define TDLS_EVENT_LINK_TEAR_DOWN  3
 
 #define MWIFIEX_FW_V15		   15
+
+#define MWIFIEX_MASTER_RADAR_DET_MASK BIT(1)
 
 struct mwifiex_ie_types_header {
 	__le16 type;
@@ -541,6 +554,7 @@ struct mwifiex_ie_types_data {
 #define MWIFIEX_TxPD_POWER_MGMT_LAST_PACKET 0x08
 #define MWIFIEX_TXPD_FLAGS_TDLS_PACKET      0x10
 #define MWIFIEX_RXPD_FLAGS_TDLS_PACKET      0x01
+#define MWIFIEX_TXPD_FLAGS_REQ_TX_STATUS    0x20
 
 struct txpd {
 	u8 bss_type;
@@ -552,7 +566,9 @@ struct txpd {
 	u8 priority;
 	u8 flags;
 	u8 pkt_delay_2ms;
-	u8 reserved1;
+	u8 reserved1[2];
+	u8 tx_token_id;
+	u8 reserved[2];
 } __packed;
 
 struct rxpd {
@@ -583,6 +599,7 @@ struct rxpd {
 	 * [Bit 7] Reserved
 	 */
 	u8 ht_info;
+	u8 reserved[3];
 	u8 flags;
 } __packed;
 
@@ -596,8 +613,9 @@ struct uap_txpd {
 	u8 priority;
 	u8 flags;
 	u8 pkt_delay_2ms;
-	u8 reserved1;
-	__le32 reserved2;
+	u8 reserved1[2];
+	u8 tx_token_id;
+	u8 reserved[2];
 };
 
 struct uap_rxpd {
@@ -610,6 +628,16 @@ struct uap_rxpd {
 	u8 priority;
 	u8 reserved1;
 };
+
+struct mwifiex_fw_chan_stats {
+	u8 chan_num;
+	u8 bandcfg;
+	u8 flags;
+	s8 noise;
+	__le16 total_bss;
+	__le16 cca_scan_dur;
+	__le16 cca_busy_dur;
+} __packed;
 
 enum mwifiex_chan_scan_mode_bitmasks {
 	MWIFIEX_PASSIVE_SCAN = BIT(0),
@@ -658,6 +686,11 @@ struct mwifiex_ie_types_scan_chan_gap {
 	struct mwifiex_ie_types_header header;
 	/* time gap in TUs to be used between two consecutive channels scan */
 	__le16 chan_gap;
+} __packed;
+
+struct mwifiex_ietypes_chanstats {
+	struct mwifiex_ie_types_header header;
+	struct mwifiex_fw_chan_stats chanstats[0];
 } __packed;
 
 struct mwifiex_ie_types_wildcard_ssid_params {
@@ -1054,6 +1087,8 @@ struct host_cmd_ds_802_11_get_log {
 	__le32 tx_frame;
 	__le32 reserved;
 	__le32 wep_icv_err_cnt[4];
+	__le32 bcn_rcv_cnt;
+	__le32 bcn_miss_cnt;
 };
 
 /* Enumeration for rate format */
@@ -1191,6 +1226,30 @@ struct host_cmd_ds_tdls_oper {
 	u8 peer_mac[ETH_ALEN];
 } __packed;
 
+struct mwifiex_chan_desc {
+	__le16 start_freq;
+	u8 chan_width;
+	u8 chan_num;
+} __packed;
+
+struct host_cmd_ds_chan_rpt_req {
+	struct mwifiex_chan_desc chan_desc;
+	__le32 msec_dwell_time;
+} __packed;
+
+struct host_cmd_ds_chan_rpt_event {
+	__le32 result;
+	__le64 start_tsf;
+	__le32 duration;
+	u8 tlvbuf[0];
+} __packed;
+
+struct host_cmd_sdio_sp_rx_aggr_cfg {
+	u8 action;
+	u8 enable;
+	__le16 block_size;
+} __packed;
+
 struct mwifiex_fixed_bcn_param {
 	__le64 timestamp;
 	__le16 beacon_period;
@@ -1205,6 +1264,12 @@ struct mwifiex_event_scan_result {
 	u8 reserved[3];
 	__le16 buf_size;
 	u8 num_of_set;
+} __packed;
+
+struct tx_status_event {
+	u8 packet_type;
+	u8 tx_token_id;
+	u8 status;
 } __packed;
 
 #define MWIFIEX_USER_SCAN_CHAN_MAX             50
@@ -1761,6 +1826,39 @@ struct mwifiex_ie_types_rssi_threshold {
 	u8 evt_freq;
 } __packed;
 
+#define MWIFIEX_DFS_REC_HDR_LEN		8
+#define MWIFIEX_DFS_REC_HDR_NUM		10
+#define MWIFIEX_BIN_COUNTER_LEN		7
+
+struct mwifiex_radar_det_event {
+	__le32 detect_count;
+	u8 reg_domain;  /*1=fcc, 2=etsi, 3=mic*/
+	u8 det_type;  /*0=none, 1=pw(chirp), 2=pri(radar)*/
+	__le16 pw_chirp_type;
+	u8 pw_chirp_idx;
+	u8 pw_value;
+	u8 pri_radar_type;
+	u8 pri_bincnt;
+	u8 bin_counter[MWIFIEX_BIN_COUNTER_LEN];
+	u8 num_dfs_records;
+	u8 dfs_record_hdr[MWIFIEX_DFS_REC_HDR_NUM][MWIFIEX_DFS_REC_HDR_LEN];
+	__le32 passed;
+} __packed;
+
+struct meas_rpt_map {
+	u8 rssi:3;
+	u8 unmeasured:1;
+	u8 radar:1;
+	u8 unidentified_sig:1;
+	u8 ofdm_preamble:1;
+	u8 bss:1;
+} __packed;
+
+struct mwifiex_ie_types_chan_rpt_data {
+	struct mwifiex_ie_types_header header;
+	struct meas_rpt_map map;
+} __packed;
+
 struct host_cmd_ds_802_11_subsc_evt {
 	__le16 action;
 	__le16 events;
@@ -1873,6 +1971,8 @@ struct host_cmd_ds_command {
 		struct host_cmd_11ac_vht_cfg vht_cfg;
 		struct host_cmd_ds_coalesce_cfg coalesce_cfg;
 		struct host_cmd_ds_tdls_oper tdls_oper;
+		struct host_cmd_ds_chan_rpt_req chan_rpt_req;
+		struct host_cmd_sdio_sp_rx_aggr_cfg sdio_rx_aggr_cfg;
 	} params;
 } __packed;
 

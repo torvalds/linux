@@ -29,6 +29,7 @@
 #include <linux/delay.h>
 
 #include <asm/mpc52xx.h>
+#include <asm/mpc85xx.h>
 #include <sysdev/fsl_soc.h>
 
 #define DRV_NAME "mpc-i2c"
@@ -95,8 +96,9 @@ static irqreturn_t mpc_i2c_isr(int irq, void *dev_id)
 		i2c->interrupt = readb(i2c->base + MPC_I2C_SR);
 		writeb(0, i2c->base + MPC_I2C_SR);
 		wake_up(&i2c->queue);
+		return IRQ_HANDLED;
 	}
-	return IRQ_HANDLED;
+	return IRQ_NONE;
 }
 
 /* Sometimes 9th clock pulse isn't generated, and slave doesn't release
@@ -124,7 +126,7 @@ static void mpc_i2c_fixup(struct mpc_i2c *i2c)
 static int i2c_wait(struct mpc_i2c *i2c, unsigned timeout, int writing)
 {
 	unsigned long orig_jiffies = jiffies;
-	u32 x;
+	u32 cmd_err;
 	int result = 0;
 
 	if (!i2c->irq) {
@@ -133,11 +135,11 @@ static int i2c_wait(struct mpc_i2c *i2c, unsigned timeout, int writing)
 			if (time_after(jiffies, orig_jiffies + timeout)) {
 				dev_dbg(i2c->dev, "timeout\n");
 				writeccr(i2c, 0);
-				result = -EIO;
+				result = -ETIMEDOUT;
 				break;
 			}
 		}
-		x = readb(i2c->base + MPC_I2C_SR);
+		cmd_err = readb(i2c->base + MPC_I2C_SR);
 		writeb(0, i2c->base + MPC_I2C_SR);
 	} else {
 		/* Interrupt mode */
@@ -150,28 +152,28 @@ static int i2c_wait(struct mpc_i2c *i2c, unsigned timeout, int writing)
 			result = -ETIMEDOUT;
 		}
 
-		x = i2c->interrupt;
+		cmd_err = i2c->interrupt;
 		i2c->interrupt = 0;
 	}
 
 	if (result < 0)
 		return result;
 
-	if (!(x & CSR_MCF)) {
+	if (!(cmd_err & CSR_MCF)) {
 		dev_dbg(i2c->dev, "unfinished\n");
 		return -EIO;
 	}
 
-	if (x & CSR_MAL) {
+	if (cmd_err & CSR_MAL) {
 		dev_dbg(i2c->dev, "MAL\n");
-		return -EIO;
+		return -EAGAIN;
 	}
 
-	if (writing && (x & CSR_RXAK)) {
+	if (writing && (cmd_err & CSR_RXAK)) {
 		dev_dbg(i2c->dev, "No RXAK\n");
 		/* generate stop */
 		writeccr(i2c, CCR_MEN);
-		return -EIO;
+		return -ENXIO;
 	}
 	return 0;
 }
@@ -346,6 +348,33 @@ static u32 mpc_i2c_get_sec_cfg_8xxx(void)
 	return val;
 }
 
+static u32 mpc_i2c_get_prescaler_8xxx(void)
+{
+	/* mpc83xx and mpc82xx all have prescaler 1 */
+	u32 prescaler = 1;
+
+	/* mpc85xx */
+	if (pvr_version_is(PVR_VER_E500V1) || pvr_version_is(PVR_VER_E500V2)
+		|| pvr_version_is(PVR_VER_E500MC)
+		|| pvr_version_is(PVR_VER_E5500)
+		|| pvr_version_is(PVR_VER_E6500)) {
+		unsigned int svr = mfspr(SPRN_SVR);
+
+		if ((SVR_SOC_VER(svr) == SVR_8540)
+			|| (SVR_SOC_VER(svr) == SVR_8541)
+			|| (SVR_SOC_VER(svr) == SVR_8560)
+			|| (SVR_SOC_VER(svr) == SVR_8555)
+			|| (SVR_SOC_VER(svr) == SVR_8610))
+			/* the above 85xx SoCs have prescaler 1 */
+			prescaler = 1;
+		else
+			/* all the other 85xx have prescaler 2 */
+			prescaler = 2;
+	}
+
+	return prescaler;
+}
+
 static int mpc_i2c_get_fdr_8xxx(struct device_node *node, u32 clock,
 					  u32 prescaler, u32 *real_clk)
 {
@@ -363,7 +392,7 @@ static int mpc_i2c_get_fdr_8xxx(struct device_node *node, u32 clock,
 	if (of_device_is_compatible(node, "fsl,mpc8544-i2c"))
 		prescaler = mpc_i2c_get_sec_cfg_8xxx() ? 3 : 2;
 	if (!prescaler)
-		prescaler = 1;
+		prescaler = mpc_i2c_get_prescaler_8xxx();
 
 	divider = fsl_get_sys_freq() / clock / prescaler;
 
@@ -813,7 +842,6 @@ static struct platform_driver mpc_i2c_driver = {
 	.probe		= fsl_i2c_probe,
 	.remove		= fsl_i2c_remove,
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = DRV_NAME,
 		.of_match_table = mpc_i2c_of_match,
 		.pm = MPC_I2C_PM_OPS,

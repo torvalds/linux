@@ -53,6 +53,12 @@
  *	data as needed by the implementation including this code. Called
  *	upon code entry.
  *
+ * usave reg1 reg2
+ *
+ *	Unwind annotation macro is corresponding for 'enter' macro.
+ *	It tell unwinder that preserved some provided registers on the stack
+ *	and additional data by a prior 'enter' macro.
+ *
  * exit reg1 reg2
  *
  *	Restore registers with the values previously saved with the
@@ -67,7 +73,12 @@
  */
 
 
+	UNWIND(	.fnstart			)
 		enter	r4, lr
+	UNWIND(	.fnend				)
+
+	UNWIND(	.fnstart			)
+		usave	r4, lr			  @ in first stmdb block
 
 		subs	r2, r2, #4
 		blt	8f
@@ -79,6 +90,11 @@
 
 1:		subs	r2, r2, #(28)
 		stmfd	sp!, {r5 - r8}
+	UNWIND(	.fnend				)
+
+	UNWIND(	.fnstart			)
+		usave	r4, lr
+	UNWIND(	.save	{r5 - r8}		) @ in second stmfd block
 		blt	5f
 
 	CALGN(	ands	ip, r0, #31		)
@@ -144,7 +160,10 @@
 	CALGN(	bcs	2b			)
 
 7:		ldmfd	sp!, {r5 - r8}
+	UNWIND(	.fnend				) @ end of second stmfd block
 
+	UNWIND(	.fnstart			)
+		usave	r4, lr			  @ still in first stmdb block
 8:		movs	r2, r2, lsl #31
 		ldr1b	r1, r3, ne, abort=21f
 		ldr1b	r1, r4, cs, abort=21f
@@ -173,10 +192,13 @@
 		ldr1w	r1, lr, abort=21f
 		beq	17f
 		bgt	18f
+	UNWIND(	.fnend				)
 
 
 		.macro	forward_copy_shift pull push
 
+	UNWIND(	.fnstart			)
+		usave	r4, lr			  @ still in first stmdb block
 		subs	r2, r2, #28
 		blt	14f
 
@@ -187,7 +209,11 @@
 	CALGN(	bcc	15f			)
 
 11:		stmfd	sp!, {r5 - r9}
+	UNWIND(	.fnend				)
 
+	UNWIND(	.fnstart			)
+		usave	r4, lr
+	UNWIND(	.save	{r5 - r9}		) @ in new second stmfd block
 	PLD(	pld	[r1, #0]		)
 	PLD(	subs	r2, r2, #96		)
 	PLD(	pld	[r1, #28]		)
@@ -221,7 +247,10 @@
 	PLD(	bge	13b			)
 
 		ldmfd	sp!, {r5 - r9}
+	UNWIND(	.fnend				) @ end of the second stmfd block
 
+	UNWIND(	.fnstart			)
+		usave	r4, lr			  @ still in first stmdb block
 14:		ands	ip, r2, #28
 		beq	16f
 
@@ -236,6 +265,7 @@
 
 16:		sub	r1, r1, #(\push / 8)
 		b	8b
+	UNWIND(	.fnend				)
 
 		.endm
 

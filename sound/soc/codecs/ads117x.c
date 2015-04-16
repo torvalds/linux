@@ -78,7 +78,6 @@ static int ads117x_remove(struct platform_device *pdev)
 static struct platform_driver ads117x_codec_driver = {
 	.driver = {
 			.name = "ads117x-codec",
-			.owner = THIS_MODULE,
 	},
 
 	.probe = ads117x_probe,

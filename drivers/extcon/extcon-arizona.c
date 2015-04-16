@@ -1149,6 +1149,7 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 		}
 		break;
 	case WM5110:
+	case WM8280:
 		switch (arizona->rev) {
 		case 0 ... 2:
 			break;
@@ -1469,7 +1470,6 @@ static int arizona_extcon_remove(struct platform_device *pdev)
 static struct platform_driver arizona_extcon_driver = {
 	.driver		= {
 		.name	= "arizona-extcon",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= arizona_extcon_probe,
 	.remove		= arizona_extcon_remove,

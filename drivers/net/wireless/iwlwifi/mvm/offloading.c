@@ -67,7 +67,7 @@
 #include "mvm.h"
 
 void iwl_mvm_set_wowlan_qos_seq(struct iwl_mvm_sta *mvm_ap_sta,
-				struct iwl_wowlan_config_cmd_v2 *cmd)
+				struct iwl_wowlan_config_cmd *cmd)
 {
 	int i;
 

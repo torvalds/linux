@@ -512,10 +512,9 @@ dt3155_ioc_querycap(struct file *filp, void *p, struct v4l2_capability *cap)
 	strcpy(cap->driver, DT3155_NAME);
 	strcpy(cap->card, DT3155_NAME " frame grabber");
 	sprintf(cap->bus_info, "PCI:%s", pci_name(pd->pdev));
-	cap->version =
-	       KERNEL_VERSION(DT3155_VER_MAJ, DT3155_VER_MIN, DT3155_VER_EXT);
-	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE |
+	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE |
 				DT3155_CAPTURE_METHOD;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 

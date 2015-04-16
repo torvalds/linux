@@ -303,7 +303,6 @@ static void sh_wdt_shutdown(struct platform_device *pdev)
 static struct platform_driver sh_wdt_driver = {
 	.driver		= {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 	},
 
 	.probe		= sh_wdt_probe,

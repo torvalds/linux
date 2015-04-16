@@ -45,7 +45,7 @@
  *    c. if the trend is THERMAL_TREND_RAISE_FULL, do nothing
  *    d. if the trend is THERMAL_TREND_DROP_FULL, use lower limit,
  *       if the cooling state already equals lower limit,
- *       deactive the thermal instance
+ *       deactivate the thermal instance
  */
 static unsigned long get_target_state(struct thermal_instance *instance,
 				enum thermal_trend trend, bool throttle)
@@ -169,7 +169,7 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz, int trip)
 }
 
 /**
- * step_wise_throttle - throttles devices asscciated with the given zone
+ * step_wise_throttle - throttles devices associated with the given zone
  * @tz - thermal_zone_device
  * @trip - the trip point
  * @trip_type - type of the trip point

@@ -64,7 +64,7 @@ struct map_groups {
 	int		 refcnt;
 };
 
-struct map_groups *map_groups__new(void);
+struct map_groups *map_groups__new(struct machine *machine);
 void map_groups__delete(struct map_groups *mg);
 bool map_groups__empty(struct map_groups *mg);
 
@@ -76,10 +76,8 @@ static inline struct map_groups *map_groups__get(struct map_groups *mg)
 
 void map_groups__put(struct map_groups *mg);
 
-static inline struct kmap *map__kmap(struct map *map)
-{
-	return (struct kmap *)(map + 1);
-}
+struct kmap *map__kmap(struct map *map);
+struct map_groups *map__kmaps(struct map *map);
 
 static inline u64 map__map_ip(struct map *map, u64 ip)
 {
@@ -116,6 +114,22 @@ struct thread;
 #define map__for_each_symbol(map, pos, n)	\
 	dso__for_each_symbol(map->dso, pos, n, map->type)
 
+/* map__for_each_symbol_with_name - iterate over the symbols in the given map
+ *                                  that have the given name
+ *
+ * @map: the 'struct map *' in which symbols itereated
+ * @sym_name: the symbol name
+ * @pos: the 'struct symbol *' to use as a loop cursor
+ * @filter: to use when loading the DSO
+ */
+#define __map__for_each_symbol_by_name(map, sym_name, pos, filter)	\
+	for (pos = map__find_symbol_by_name(map, sym_name, filter);	\
+	     pos && strcmp(pos->name, sym_name) == 0;		\
+	     pos = symbol__next_by_name(pos))
+
+#define map__for_each_symbol_by_name(map, sym_name, pos)		\
+	__map__for_each_symbol_by_name(map, sym_name, (pos), NULL)
+
 typedef int (*symbol_filter_t)(struct map *map, struct symbol *sym);
 
 void map__init(struct map *map, enum map_type type,
@@ -150,7 +164,7 @@ void maps__remove(struct rb_root *maps, struct map *map);
 struct map *maps__find(struct rb_root *maps, u64 addr);
 struct map *maps__first(struct rb_root *maps);
 struct map *maps__next(struct map *map);
-void map_groups__init(struct map_groups *mg);
+void map_groups__init(struct map_groups *mg, struct machine *machine);
 void map_groups__exit(struct map_groups *mg);
 int map_groups__clone(struct map_groups *mg,
 		      struct map_groups *parent, enum map_type type);

@@ -15,7 +15,6 @@
 #define __RCAR_DU_DRV_H__
 
 #include <linux/kernel.h>
-#include <linux/platform_data/rcar-du.h>
 
 #include "rcar_du_crtc.h"
 #include "rcar_du_group.h"
@@ -28,7 +27,7 @@ struct rcar_du_device;
 struct rcar_du_lvdsenc;
 
 #define RCAR_DU_FEATURE_CRTC_IRQ_CLOCK	(1 << 0)	/* Per-CRTC IRQ and clock */
-#define RCAR_DU_FEATURE_DEFR8		(1 << 1)	/* Has DEFR8 register */
+#define RCAR_DU_FEATURE_EXT_CTRL_REGS	(1 << 1)	/* Has extended control registers */
 
 #define RCAR_DU_QUIRK_ALIGN_128B	(1 << 0)	/* Align pitches to 128 bytes */
 #define RCAR_DU_QUIRK_LVDS_LANES	(1 << 1)	/* LVDS lanes 1 and 3 inverted */
@@ -67,7 +66,6 @@ struct rcar_du_device_info {
 
 struct rcar_du_device {
 	struct device *dev;
-	const struct rcar_du_platform_data *pdata;
 	const struct rcar_du_device_info *info;
 
 	void __iomem *mmio;

@@ -256,9 +256,15 @@ enum {
 	IPSET_COUNTER_GT,
 };
 
-struct ip_set_counter_match {
+/* Backward compatibility for set match v3 */
+struct ip_set_counter_match0 {
 	__u8 op;
 	__u64 value;
+};
+
+struct ip_set_counter_match {
+	__aligned_u64 value;
+	__u8 op;
 };
 
 /* Interface to iptables/ip6tables */

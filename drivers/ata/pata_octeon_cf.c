@@ -1059,7 +1059,6 @@ static struct platform_driver octeon_cf_driver = {
 	.probe		= octeon_cf_probe,
 	.driver		= {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = octeon_cf_match,
 		.shutdown = octeon_cf_shutdown
 	},

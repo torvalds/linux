@@ -287,6 +287,13 @@ static const cxl_p2n_reg_t CXL_PSL_WED_An     = {0x0A0};
 #define CXL_PE_SOFTWARE_STATE_S (1ul << (31 - 30)) /* Suspend */
 #define CXL_PE_SOFTWARE_STATE_T (1ul << (31 - 31)) /* Terminate */
 
+/****** CXL_PSL_RXCTL_An (Implementation Specific) **************************
+ * Controls AFU Hang Pulse, which sets the timeout for the AFU to respond to
+ * the PSL for any response (except MMIO). Timeouts will occur between 1x to 2x
+ * of the hang pulse frequency.
+ */
+#define CXL_PSL_RXCTL_AFUHP_4S      0x7000000000000000ULL
+
 /* SPA->sw_command_status */
 #define CXL_SPA_SW_CMD_MASK         0xffff000000000000ULL
 #define CXL_SPA_SW_CMD_TERMINATE    0x0001000000000000ULL
@@ -336,6 +343,8 @@ struct cxl_sste {
 struct cxl_afu {
 	irq_hw_number_t psl_hwirq;
 	irq_hw_number_t serr_hwirq;
+	char *err_irq_name;
+	char *psl_irq_name;
 	unsigned int serr_virq;
 	void __iomem *p1n_mmio;
 	void __iomem *p2n_mmio;
@@ -349,7 +358,7 @@ struct cxl_afu {
 	struct device *chardev_s, *chardev_m, *chardev_d;
 	struct idr contexts_idr;
 	struct dentry *debugfs;
-	spinlock_t contexts_lock;
+	struct mutex contexts_lock;
 	struct mutex spa_mutex;
 	spinlock_t afu_cntl_lock;
 
@@ -373,10 +382,20 @@ struct cxl_afu {
 	int slice;
 	int modes_supported;
 	int current_mode;
+	int crs_num;
+	u64 crs_len;
+	u64 crs_offset;
+	struct list_head crs;
 	enum prefault_modes prefault_mode;
 	bool psa;
 	bool pp_psa;
 	bool enabled;
+};
+
+
+struct cxl_irq_name {
+	struct list_head list;
+	char *name;
 };
 
 /*
@@ -389,6 +408,10 @@ struct cxl_context {
 	/* Problem state MMIO */
 	phys_addr_t psn_phys;
 	u64 psn_size;
+
+	/* Used to unmap any mmaps when force detaching */
+	struct address_space *mapping;
+	struct mutex mapping_lock;
 
 	spinlock_t sste_lock; /* Protects segment table entries */
 	struct cxl_sste *sstp;
@@ -403,6 +426,7 @@ struct cxl_context {
 
 	unsigned long *irq_bitmap; /* Accessed from IRQ context */
 	struct cxl_irq_ranges irqs;
+	struct list_head irq_names;
 	u64 fault_addr;
 	u64 fault_dsisr;
 	u64 afu_err;
@@ -444,6 +468,7 @@ struct cxl {
 	struct dentry *trace;
 	struct dentry *psl_err_chk;
 	struct dentry *debugfs;
+	char *irq_name;
 	struct bin_attribute cxl_attr;
 	int adapter_num;
 	int user_irqs;
@@ -467,6 +492,8 @@ void cxl_release_one_irq(struct cxl *adapter, int hwirq);
 int cxl_alloc_irq_ranges(struct cxl_irq_ranges *irqs, struct cxl *adapter, unsigned int num);
 void cxl_release_irq_ranges(struct cxl_irq_ranges *irqs, struct cxl *adapter);
 int cxl_setup_irq(struct cxl *adapter, unsigned int hwirq, unsigned int virq);
+int cxl_update_image_control(struct cxl *adapter);
+int cxl_reset(struct cxl *adapter);
 
 /* common == phyp + powernv */
 struct cxl_process_element_common {
@@ -528,6 +555,15 @@ static inline void __iomem *_cxl_p2n_addr(struct cxl_afu *afu, cxl_p2n_reg_t reg
 #define cxl_p2n_read(afu, reg) \
 	in_be64(_cxl_p2n_addr(afu, reg))
 
+
+#define cxl_afu_cr_read64(afu, cr, off) \
+	in_le64((afu)->afu_desc_mmio + (afu)->crs_offset + ((cr) * (afu)->crs_len) + (off))
+#define cxl_afu_cr_read32(afu, cr, off) \
+	in_le32((afu)->afu_desc_mmio + (afu)->crs_offset + ((cr) * (afu)->crs_len) + (off))
+u16 cxl_afu_cr_read16(struct cxl_afu *afu, int cr, u64 off);
+u8 cxl_afu_cr_read8(struct cxl_afu *afu, int cr, u64 off);
+
+
 struct cxl_calls {
 	void (*cxl_slbia)(struct mm_struct *mm);
 	struct module *owner;
@@ -563,9 +599,6 @@ int _cxl_afu_deactivate_mode(struct cxl_afu *afu, int mode);
 int cxl_afu_deactivate_mode(struct cxl_afu *afu);
 int cxl_afu_select_best_mode(struct cxl_afu *afu);
 
-unsigned int cxl_map_irq(struct cxl *adapter, irq_hw_number_t hwirq,
-		         irq_handler_t handler, void *cookie);
-void cxl_unmap_irq(unsigned int virq, void *cookie);
 int cxl_register_psl_irq(struct cxl_afu *afu);
 void cxl_release_psl_irq(struct cxl_afu *afu);
 int cxl_register_psl_err_irq(struct cxl *adapter);
@@ -592,7 +625,8 @@ int cxl_alloc_sst(struct cxl_context *ctx);
 void init_cxl_native(void);
 
 struct cxl_context *cxl_context_alloc(void);
-int cxl_context_init(struct cxl_context *ctx, struct cxl_afu *afu, bool master);
+int cxl_context_init(struct cxl_context *ctx, struct cxl_afu *afu, bool master,
+		     struct address_space *mapping);
 void cxl_context_free(struct cxl_context *ctx);
 int cxl_context_iomap(struct cxl_context *ctx, struct vm_area_struct *vma);
 
@@ -612,7 +646,7 @@ int cxl_attach_process(struct cxl_context *ctx, bool kernel, u64 wed,
 			    u64 amr);
 int cxl_detach_process(struct cxl_context *ctx);
 
-int cxl_get_irq(struct cxl_context *ctx, struct cxl_irq_info *info);
+int cxl_get_irq(struct cxl_afu *afu, struct cxl_irq_info *info);
 int cxl_ack_irq(struct cxl_context *ctx, u64 tfc, u64 psl_reset_mask);
 
 int cxl_check_error(struct cxl_afu *afu);

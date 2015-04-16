@@ -71,7 +71,7 @@ static void print_cfs_group_stats(struct seq_file *m, int cpu, struct task_group
 	if (!se) {
 		struct sched_avg *avg = &cpu_rq(cpu)->avg;
 		P(avg->runnable_avg_sum);
-		P(avg->runnable_avg_period);
+		P(avg->avg_period);
 		return;
 	}
 
@@ -94,8 +94,10 @@ static void print_cfs_group_stats(struct seq_file *m, int cpu, struct task_group
 	P(se->load.weight);
 #ifdef CONFIG_SMP
 	P(se->avg.runnable_avg_sum);
-	P(se->avg.runnable_avg_period);
+	P(se->avg.running_avg_sum);
+	P(se->avg.avg_period);
 	P(se->avg.load_avg_contrib);
+	P(se->avg.utilization_avg_contrib);
 	P(se->avg.decay_count);
 #endif
 #undef PN
@@ -214,6 +216,8 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 			cfs_rq->runnable_load_avg);
 	SEQ_printf(m, "  .%-30s: %ld\n", "blocked_load_avg",
 			cfs_rq->blocked_load_avg);
+	SEQ_printf(m, "  .%-30s: %ld\n", "utilization_load_avg",
+			cfs_rq->utilization_load_avg);
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	SEQ_printf(m, "  .%-30s: %ld\n", "tg_load_contrib",
 			cfs_rq->tg_load_contrib);
@@ -261,6 +265,12 @@ void print_rt_rq(struct seq_file *m, int cpu, struct rt_rq *rt_rq)
 #undef P
 }
 
+void print_dl_rq(struct seq_file *m, int cpu, struct dl_rq *dl_rq)
+{
+	SEQ_printf(m, "\ndl_rq[%d]:\n", cpu);
+	SEQ_printf(m, "  .%-30s: %ld\n", "dl_nr_running", dl_rq->dl_nr_running);
+}
+
 extern __read_mostly int sched_clock_running;
 
 static void print_cpu(struct seq_file *m, int cpu)
@@ -299,6 +309,7 @@ do {									\
 	PN(next_balance);
 	SEQ_printf(m, "  .%-30s: %ld\n", "curr->pid", (long)(task_pid_nr(rq->curr)));
 	PN(clock);
+	PN(clock_task);
 	P(cpu_load[0]);
 	P(cpu_load[1]);
 	P(cpu_load[2]);
@@ -329,6 +340,7 @@ do {									\
 	spin_lock_irqsave(&sched_debug_lock, flags);
 	print_cfs_stats(m, cpu);
 	print_rt_stats(m, cpu);
+	print_dl_stats(m, cpu);
 
 	print_rq(m, rq, cpu);
 	spin_unlock_irqrestore(&sched_debug_lock, flags);
@@ -528,8 +540,8 @@ static void sched_show_numa(struct task_struct *p, struct seq_file *m)
 			unsigned long nr_faults = -1;
 			int cpu_current, home_node;
 
-			if (p->numa_faults_memory)
-				nr_faults = p->numa_faults_memory[2*node + i];
+			if (p->numa_faults)
+				nr_faults = p->numa_faults[2*node + i];
 
 			cpu_current = !i ? (task_node(p) == node) :
 				(pol && node_isset(node, pol->v.nodes));
@@ -628,8 +640,10 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 	P(se.load.weight);
 #ifdef CONFIG_SMP
 	P(se.avg.runnable_avg_sum);
-	P(se.avg.runnable_avg_period);
+	P(se.avg.running_avg_sum);
+	P(se.avg.avg_period);
 	P(se.avg.load_avg_contrib);
+	P(se.avg.utilization_avg_contrib);
 	P(se.avg.decay_count);
 #endif
 	P(policy);

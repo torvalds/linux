@@ -314,7 +314,7 @@ unsigned radeon_ring_backup(struct radeon_device *rdev, struct radeon_ring *ring
 	}
 
 	/* and then save the content of the ring */
-	*data = kmalloc_array(size, sizeof(uint32_t), GFP_KERNEL);
+	*data = drm_malloc_ab(size, sizeof(uint32_t));
 	if (!*data) {
 		mutex_unlock(&rdev->ring_lock);
 		return 0;
@@ -356,7 +356,7 @@ int radeon_ring_restore(struct radeon_device *rdev, struct radeon_ring *ring,
 	}
 
 	radeon_ring_unlock_commit(rdev, ring, false);
-	kfree(data);
+	drm_free_large(data);
 	return 0;
 }
 
@@ -495,7 +495,7 @@ static int radeon_debugfs_ring_info(struct seq_file *m, void *data)
 	seq_printf(m, "%u free dwords in ring\n", ring->ring_free_dw);
 	seq_printf(m, "%u dwords in ring\n", count);
 
-	if (!ring->ready)
+	if (!ring->ring)
 		return 0;
 
 	/* print 8 dw before current rptr as often it's the last executed

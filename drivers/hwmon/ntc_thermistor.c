@@ -486,6 +486,10 @@ static const struct attribute_group ntc_attr_group = {
 	.attrs = ntc_attributes,
 };
 
+static const struct thermal_zone_of_device_ops ntc_of_thermal_ops = {
+	.get_temp = ntc_read_temp,
+};
+
 static int ntc_thermistor_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id =
@@ -579,7 +583,7 @@ static int ntc_thermistor_probe(struct platform_device *pdev)
 								pdev_id->name);
 
 	data->tz = thermal_zone_of_sensor_register(data->dev, 0, data->dev,
-						ntc_read_temp, NULL);
+						   &ntc_of_thermal_ops);
 	if (IS_ERR(data->tz)) {
 		dev_dbg(&pdev->dev, "Failed to register to thermal fw.\n");
 		data->tz = NULL;
@@ -609,7 +613,6 @@ static int ntc_thermistor_remove(struct platform_device *pdev)
 static struct platform_driver ntc_thermistor_driver = {
 	.driver = {
 		.name = "ntc-thermistor",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(ntc_match),
 	},
 	.probe = ntc_thermistor_probe,

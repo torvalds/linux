@@ -1135,7 +1135,6 @@ static struct platform_driver s3c24xx_nand_driver = {
 	.id_table	= s3c24xx_driver_ids,
 	.driver		= {
 		.name	= "s3c24xx-nand",
-		.owner	= THIS_MODULE,
 	},
 };
 

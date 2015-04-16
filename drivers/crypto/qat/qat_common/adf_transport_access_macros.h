@@ -83,14 +83,14 @@
 #define ADF_MAX_RING_SIZE ADF_RING_SIZE_4M
 #define ADF_DEFAULT_RING_SIZE ADF_RING_SIZE_16K
 
-/* Valid internal msg size values internal */
+/* Valid internal msg size values */
 #define ADF_MSG_SIZE_32 0x01
 #define ADF_MSG_SIZE_64 0x02
 #define ADF_MSG_SIZE_128 0x04
 #define ADF_MIN_MSG_SIZE ADF_MSG_SIZE_32
 #define ADF_MAX_MSG_SIZE ADF_MSG_SIZE_128
 
-/* Size to bytes conversion macros for ring and msg values */
+/* Size to bytes conversion macros for ring and msg size values */
 #define ADF_MSG_SIZE_TO_BYTES(SIZE) (SIZE << 5)
 #define ADF_BYTES_TO_MSG_SIZE(SIZE) (SIZE >> 5)
 #define ADF_SIZE_TO_RING_SIZE_IN_BYTES(SIZE) ((1 << (SIZE - 1)) << 7)
@@ -100,8 +100,11 @@
 #define ADF_RING_SIZE_BYTES_MIN(SIZE) ((SIZE < ADF_RING_SIZE_4K) ? \
 				ADF_RING_SIZE_4K : SIZE)
 #define ADF_RING_SIZE_MODULO(SIZE) (SIZE + 0x6)
+#define ADF_SIZE_TO_POW(SIZE) ((((SIZE & 0x4) >> 1) | ((SIZE & 0x4) >> 2) | \
+				SIZE) & ~0x4)
+/* Max outstanding requests */
 #define ADF_MAX_INFLIGHTS(RING_SIZE, MSG_SIZE) \
-	((((1 << (RING_SIZE - 1)) << 4) >> MSG_SIZE) - 1)
+	((((1 << (RING_SIZE - 1)) << 3) >> ADF_SIZE_TO_POW(MSG_SIZE)) - 1)
 #define BUILD_RING_CONFIG(size)	\
 	((ADF_RING_NEAR_WATERMARK_0 << ADF_RING_CONFIG_NEAR_FULL_WM) \
 	| (ADF_RING_NEAR_WATERMARK_0 << ADF_RING_CONFIG_NEAR_EMPTY_WM) \

@@ -32,7 +32,6 @@
 #include <linux/security.h>
 #include <linux/bootmem.h>
 #include <linux/memblock.h>
-#include <linux/aio.h>
 #include <linux/syscalls.h>
 #include <linux/kexec.h>
 #include <linux/kdb.h>
@@ -46,6 +45,7 @@
 #include <linux/irq_work.h>
 #include <linux/utsname.h>
 #include <linux/ctype.h>
+#include <linux/uio.h>
 
 #include <asm/uaccess.h>
 
@@ -61,9 +61,6 @@ int console_printk[4] = {
 	CONSOLE_LOGLEVEL_MIN,		/* minimum_console_loglevel */
 	CONSOLE_LOGLEVEL_DEFAULT,	/* default_console_loglevel */
 };
-
-/* Deferred messaged from sched code are marked by this special level */
-#define SCHED_MESSAGE_LOGLEVEL -2
 
 /*
  * Low level drivers may need that to know if they can schedule in
@@ -480,7 +477,7 @@ static int syslog_action_restricted(int type)
 	       type != SYSLOG_ACTION_SIZE_BUFFER;
 }
 
-static int check_syslog_permissions(int type, bool from_file)
+int check_syslog_permissions(int type, bool from_file)
 {
 	/*
 	 * If this is from /proc/kmsg and we've already opened it, then we've
@@ -524,7 +521,7 @@ static ssize_t devkmsg_write(struct kiocb *iocb, struct iov_iter *from)
 	int i;
 	int level = default_message_loglevel;
 	int facility = 1;	/* LOG_USER */
-	size_t len = iocb->ki_nbytes;
+	size_t len = iov_iter_count(from);
 	ssize_t ret = len;
 
 	if (len > LOG_LINE_MAX)
@@ -938,8 +935,8 @@ static int __init ignore_loglevel_setup(char *str)
 
 early_param("ignore_loglevel", ignore_loglevel_setup);
 module_param(ignore_loglevel, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(ignore_loglevel, "ignore loglevel setting, to"
-	"print all kernel messages to the console.");
+MODULE_PARM_DESC(ignore_loglevel,
+		 "ignore loglevel setting (prints all kernel messages to the console)");
 
 #ifdef CONFIG_BOOT_PRINTK_DELAY
 
@@ -1259,7 +1256,7 @@ static int syslog_print_all(char __user *buf, int size, bool clear)
 int do_syslog(int type, char __user *buf, int len, bool from_file)
 {
 	bool clear = false;
-	static int saved_console_loglevel = -1;
+	static int saved_console_loglevel = LOGLEVEL_DEFAULT;
 	int error;
 
 	error = check_syslog_permissions(type, from_file);
@@ -1316,15 +1313,15 @@ int do_syslog(int type, char __user *buf, int len, bool from_file)
 		break;
 	/* Disable logging to console */
 	case SYSLOG_ACTION_CONSOLE_OFF:
-		if (saved_console_loglevel == -1)
+		if (saved_console_loglevel == LOGLEVEL_DEFAULT)
 			saved_console_loglevel = console_loglevel;
 		console_loglevel = minimum_console_loglevel;
 		break;
 	/* Enable logging to console */
 	case SYSLOG_ACTION_CONSOLE_ON:
-		if (saved_console_loglevel != -1) {
+		if (saved_console_loglevel != LOGLEVEL_DEFAULT) {
 			console_loglevel = saved_console_loglevel;
-			saved_console_loglevel = -1;
+			saved_console_loglevel = LOGLEVEL_DEFAULT;
 		}
 		break;
 	/* Set level of messages printed to console */
@@ -1336,7 +1333,7 @@ int do_syslog(int type, char __user *buf, int len, bool from_file)
 			len = minimum_console_loglevel;
 		console_loglevel = len;
 		/* Implicitly re-enable logging to console */
-		saved_console_loglevel = -1;
+		saved_console_loglevel = LOGLEVEL_DEFAULT;
 		error = 0;
 		break;
 	/* Number of chars in the log buffer */
@@ -1422,16 +1419,16 @@ static void call_console_drivers(int level, const char *text, size_t len)
 }
 
 /*
- * Zap console related locks when oopsing. Only zap at most once
- * every 10 seconds, to leave time for slow consoles to print a
- * full oops.
+ * Zap console related locks when oopsing.
+ * To leave time for slow consoles to print a full oops,
+ * only zap at most once every 30 seconds.
  */
 static void zap_locks(void)
 {
 	static unsigned long oops_timestamp;
 
 	if (time_after_eq(jiffies, oops_timestamp) &&
-			!time_after(jiffies, oops_timestamp + 30 * HZ))
+	    !time_after(jiffies, oops_timestamp + 30 * HZ))
 		return;
 
 	oops_timestamp = jiffies;
@@ -1627,10 +1624,10 @@ asmlinkage int vprintk_emit(int facility, int level,
 	int printed_len = 0;
 	bool in_sched = false;
 	/* cpu currently holding logbuf_lock in this function */
-	static volatile unsigned int logbuf_cpu = UINT_MAX;
+	static unsigned int logbuf_cpu = UINT_MAX;
 
-	if (level == SCHED_MESSAGE_LOGLEVEL) {
-		level = -1;
+	if (level == LOGLEVEL_SCHED) {
+		level = LOGLEVEL_DEFAULT;
 		in_sched = true;
 	}
 
@@ -1695,8 +1692,9 @@ asmlinkage int vprintk_emit(int facility, int level,
 			const char *end_of_header = printk_skip_level(text);
 			switch (kern_level) {
 			case '0' ... '7':
-				if (level == -1)
+				if (level == LOGLEVEL_DEFAULT)
 					level = kern_level - '0';
+				/* fallthrough */
 			case 'd':	/* KERN_DEFAULT */
 				lflags |= LOG_PREFIX;
 			}
@@ -1710,7 +1708,7 @@ asmlinkage int vprintk_emit(int facility, int level,
 		}
 	}
 
-	if (level == -1)
+	if (level == LOGLEVEL_DEFAULT)
 		level = default_message_loglevel;
 
 	if (dict)
@@ -1788,7 +1786,7 @@ EXPORT_SYMBOL(vprintk_emit);
 
 asmlinkage int vprintk(const char *fmt, va_list args)
 {
-	return vprintk_emit(0, -1, NULL, 0, fmt, args);
+	return vprintk_emit(0, LOGLEVEL_DEFAULT, NULL, 0, fmt, args);
 }
 EXPORT_SYMBOL(vprintk);
 
@@ -1806,6 +1804,30 @@ asmlinkage int printk_emit(int facility, int level,
 	return r;
 }
 EXPORT_SYMBOL(printk_emit);
+
+int vprintk_default(const char *fmt, va_list args)
+{
+	int r;
+
+#ifdef CONFIG_KGDB_KDB
+	if (unlikely(kdb_trap_printk)) {
+		r = vkdb_printf(KDB_MSGSRC_PRINTK, fmt, args);
+		return r;
+	}
+#endif
+	r = vprintk_emit(0, LOGLEVEL_DEFAULT, NULL, 0, fmt, args);
+
+	return r;
+}
+EXPORT_SYMBOL_GPL(vprintk_default);
+
+/*
+ * This allows printk to be diverted to another function per cpu.
+ * This is useful for calling printk functions from within NMI
+ * without worrying about race conditions that can lock up the
+ * box.
+ */
+DEFINE_PER_CPU(printk_func_t, printk_func) = vprintk_default;
 
 /**
  * printk - print a kernel message
@@ -1830,19 +1852,21 @@ EXPORT_SYMBOL(printk_emit);
  */
 asmlinkage __visible int printk(const char *fmt, ...)
 {
+	printk_func_t vprintk_func;
 	va_list args;
 	int r;
 
-#ifdef CONFIG_KGDB_KDB
-	if (unlikely(kdb_trap_printk)) {
-		va_start(args, fmt);
-		r = vkdb_printf(fmt, args);
-		va_end(args);
-		return r;
-	}
-#endif
 	va_start(args, fmt);
-	r = vprintk_emit(0, -1, NULL, 0, fmt, args);
+
+	/*
+	 * If a caller overrides the per_cpu printk_func, then it needs
+	 * to disable preemption when calling printk(). Otherwise
+	 * the printk_func should be set to the default. No need to
+	 * disable preemption here.
+	 */
+	vprintk_func = this_cpu_read(printk_func);
+	r = vprintk_func(fmt, args);
+
 	va_end(args);
 
 	return r;
@@ -1876,28 +1900,28 @@ static size_t msg_print_text(const struct printk_log *msg, enum log_flags prev,
 			     bool syslog, char *buf, size_t size) { return 0; }
 static size_t cont_print_text(char *text, size_t size) { return 0; }
 
+/* Still needs to be defined for users */
+DEFINE_PER_CPU(printk_func_t, printk_func);
+
 #endif /* CONFIG_PRINTK */
 
 #ifdef CONFIG_EARLY_PRINTK
 struct console *early_console;
 
-void early_vprintk(const char *fmt, va_list ap)
-{
-	if (early_console) {
-		char buf[512];
-		int n = vscnprintf(buf, sizeof(buf), fmt, ap);
-
-		early_console->write(early_console, buf, n);
-	}
-}
-
 asmlinkage __visible void early_printk(const char *fmt, ...)
 {
 	va_list ap;
+	char buf[512];
+	int n;
+
+	if (!early_console)
+		return;
 
 	va_start(ap, fmt);
-	early_vprintk(fmt, ap);
+	n = vscnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
+
+	early_console->write(early_console, buf, n);
 }
 #endif
 
@@ -2440,6 +2464,7 @@ void register_console(struct console *newcon)
 	for (i = 0, c = console_cmdline;
 	     i < MAX_CMDLINECONSOLES && c->name[0];
 	     i++, c++) {
+		BUILD_BUG_ON(sizeof(c->name) != sizeof(newcon->name));
 		if (strcmp(c->name, newcon->name) != 0)
 			continue;
 		if (newcon->index >= 0 &&
@@ -2634,7 +2659,7 @@ int printk_deferred(const char *fmt, ...)
 
 	preempt_disable();
 	va_start(args, fmt);
-	r = vprintk_emit(0, SCHED_MESSAGE_LOGLEVEL, NULL, 0, fmt, args);
+	r = vprintk_emit(0, LOGLEVEL_SCHED, NULL, 0, fmt, args);
 	va_end(args);
 
 	__this_cpu_or(printk_pending, PRINTK_PENDING_OUTPUT);

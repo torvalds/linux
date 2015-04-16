@@ -38,7 +38,6 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 
 int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 {
-	vcpu->arch.hcr = HCR_GUEST_MASK;
 	return 0;
 }
 
@@ -110,22 +109,6 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	return -EINVAL;
 }
 
-#ifndef CONFIG_KVM_ARM_TIMER
-
-#define NUM_TIMER_REGS 0
-
-static int copy_timer_indices(struct kvm_vcpu *vcpu, u64 __user *uindices)
-{
-	return 0;
-}
-
-static bool is_timer_reg(u64 index)
-{
-	return false;
-}
-
-#else
-
 #define NUM_TIMER_REGS 3
 
 static bool is_timer_reg(u64 index)
@@ -152,8 +135,6 @@ static int copy_timer_indices(struct kvm_vcpu *vcpu, u64 __user *uindices)
 
 	return 0;
 }
-
-#endif
 
 static int set_timer_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 {
@@ -272,31 +253,6 @@ int __attribute_const__ kvm_target_cpu(void)
 	default:
 		return -EINVAL;
 	}
-}
-
-int kvm_vcpu_set_target(struct kvm_vcpu *vcpu,
-			const struct kvm_vcpu_init *init)
-{
-	unsigned int i;
-
-	/* We can only cope with guest==host and only on A15/A7 (for now). */
-	if (init->target != kvm_target_cpu())
-		return -EINVAL;
-
-	vcpu->arch.target = init->target;
-	bitmap_zero(vcpu->arch.features, KVM_VCPU_MAX_FEATURES);
-
-	/* -ENOENT for unknown features, -EINVAL for invalid combinations. */
-	for (i = 0; i < sizeof(init->features) * 8; i++) {
-		if (test_bit(i, (void *)init->features)) {
-			if (i >= KVM_VCPU_MAX_FEATURES)
-				return -ENOENT;
-			set_bit(i, vcpu->arch.features);
-		}
-	}
-
-	/* Now we know what it is, we can reset it. */
-	return kvm_reset_vcpu(vcpu);
 }
 
 int kvm_vcpu_preferred_target(struct kvm_vcpu_init *init)

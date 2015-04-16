@@ -15,9 +15,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 /* Jon's code is based on 6lowpan implementation for Contiki which is:
@@ -56,6 +53,8 @@
 #include <net/6lowpan.h>
 #include <net/ipv6.h>
 #include <net/af_ieee802154.h>
+
+#include "nhc.h"
 
 /* Uncompress address function for source and
  * destination address(non-multicast).
@@ -171,37 +170,6 @@ static int uncompress_context_based_src_addr(struct sk_buff *skb,
 	return 0;
 }
 
-static int skb_deliver(struct sk_buff *skb, struct ipv6hdr *hdr,
-		       struct net_device *dev, skb_delivery_cb deliver_skb)
-{
-	struct sk_buff *new;
-	int stat;
-
-	new = skb_copy_expand(skb, sizeof(struct ipv6hdr), skb_tailroom(skb),
-			      GFP_ATOMIC);
-	kfree_skb(skb);
-
-	if (!new)
-		return -ENOMEM;
-
-	skb_push(new, sizeof(struct ipv6hdr));
-	skb_reset_network_header(new);
-	skb_copy_to_linear_data(new, hdr, sizeof(struct ipv6hdr));
-
-	new->protocol = htons(ETH_P_IPV6);
-	new->pkt_type = PACKET_HOST;
-	new->dev = dev;
-
-	raw_dump_table(__func__, "raw skb data dump before receiving",
-		       new->data, new->len);
-
-	stat = deliver_skb(new, dev);
-
-	kfree_skb(new);
-
-	return stat;
-}
-
 /* Uncompress function for multicast destination address,
  * when M bit is set.
  */
@@ -258,84 +226,15 @@ static int lowpan_uncompress_multicast_daddr(struct sk_buff *skb,
 	return 0;
 }
 
-static int uncompress_udp_header(struct sk_buff *skb, struct udphdr *uh)
-{
-	bool fail;
-	u8 tmp = 0, val = 0;
-
-	fail = lowpan_fetch_skb(skb, &tmp, sizeof(tmp));
-
-	if ((tmp & LOWPAN_NHC_UDP_MASK) == LOWPAN_NHC_UDP_ID) {
-		pr_debug("UDP header uncompression\n");
-		switch (tmp & LOWPAN_NHC_UDP_CS_P_11) {
-		case LOWPAN_NHC_UDP_CS_P_00:
-			fail |= lowpan_fetch_skb(skb, &uh->source,
-						 sizeof(uh->source));
-			fail |= lowpan_fetch_skb(skb, &uh->dest,
-						 sizeof(uh->dest));
-			break;
-		case LOWPAN_NHC_UDP_CS_P_01:
-			fail |= lowpan_fetch_skb(skb, &uh->source,
-						 sizeof(uh->source));
-			fail |= lowpan_fetch_skb(skb, &val, sizeof(val));
-			uh->dest = htons(val + LOWPAN_NHC_UDP_8BIT_PORT);
-			break;
-		case LOWPAN_NHC_UDP_CS_P_10:
-			fail |= lowpan_fetch_skb(skb, &val, sizeof(val));
-			uh->source = htons(val + LOWPAN_NHC_UDP_8BIT_PORT);
-			fail |= lowpan_fetch_skb(skb, &uh->dest,
-						 sizeof(uh->dest));
-			break;
-		case LOWPAN_NHC_UDP_CS_P_11:
-			fail |= lowpan_fetch_skb(skb, &val, sizeof(val));
-			uh->source = htons(LOWPAN_NHC_UDP_4BIT_PORT +
-					   (val >> 4));
-			uh->dest = htons(LOWPAN_NHC_UDP_4BIT_PORT +
-					 (val & 0x0f));
-			break;
-		default:
-			pr_debug("ERROR: unknown UDP format\n");
-			goto err;
-		}
-
-		pr_debug("uncompressed UDP ports: src = %d, dst = %d\n",
-			 ntohs(uh->source), ntohs(uh->dest));
-
-		/* checksum */
-		if (tmp & LOWPAN_NHC_UDP_CS_C) {
-			pr_debug_ratelimited("checksum elided currently not supported\n");
-			goto err;
-		} else {
-			fail |= lowpan_fetch_skb(skb, &uh->check,
-						 sizeof(uh->check));
-		}
-
-		/* UDP length needs to be infered from the lower layers
-		 * here, we obtain the hint from the remaining size of the
-		 * frame
-		 */
-		uh->len = htons(skb->len + sizeof(struct udphdr));
-		pr_debug("uncompressed UDP length: src = %d", ntohs(uh->len));
-	} else {
-		pr_debug("ERROR: unsupported NH format\n");
-		goto err;
-	}
-
-	if (fail)
-		goto err;
-
-	return 0;
-err:
-	return -EINVAL;
-}
-
 /* TTL uncompression values */
 static const u8 lowpan_ttl_values[] = { 0, 1, 64, 255 };
 
-int lowpan_process_data(struct sk_buff *skb, struct net_device *dev,
-			const u8 *saddr, const u8 saddr_type, const u8 saddr_len,
-			const u8 *daddr, const u8 daddr_type, const u8 daddr_len,
-			u8 iphc0, u8 iphc1, skb_delivery_cb deliver_skb)
+int
+lowpan_header_decompress(struct sk_buff *skb, struct net_device *dev,
+			 const u8 *saddr, const u8 saddr_type,
+			 const u8 saddr_len, const u8 *daddr,
+			 const u8 daddr_type, const u8 daddr_len,
+			 u8 iphc0, u8 iphc1)
 {
 	struct ipv6hdr hdr = {};
 	u8 tmp, num_context = 0;
@@ -348,7 +247,7 @@ int lowpan_process_data(struct sk_buff *skb, struct net_device *dev,
 	if (iphc1 & LOWPAN_IPHC_CID) {
 		pr_debug("CID flag is set, increase header with one\n");
 		if (lowpan_fetch_skb(skb, &num_context, sizeof(num_context)))
-			goto drop;
+			return -EINVAL;
 	}
 
 	hdr.version = 6;
@@ -360,7 +259,7 @@ int lowpan_process_data(struct sk_buff *skb, struct net_device *dev,
 	 */
 	case 0: /* 00b */
 		if (lowpan_fetch_skb(skb, &tmp, sizeof(tmp)))
-			goto drop;
+			return -EINVAL;
 
 		memcpy(&hdr.flow_lbl, &skb->data[0], 3);
 		skb_pull(skb, 3);
@@ -373,7 +272,7 @@ int lowpan_process_data(struct sk_buff *skb, struct net_device *dev,
 	 */
 	case 2: /* 10b */
 		if (lowpan_fetch_skb(skb, &tmp, sizeof(tmp)))
-			goto drop;
+			return -EINVAL;
 
 		hdr.priority = ((tmp >> 2) & 0x0f);
 		hdr.flow_lbl[0] = ((tmp << 6) & 0xC0) | ((tmp >> 2) & 0x30);
@@ -383,7 +282,7 @@ int lowpan_process_data(struct sk_buff *skb, struct net_device *dev,
 	 */
 	case 1: /* 01b */
 		if (lowpan_fetch_skb(skb, &tmp, sizeof(tmp)))
-			goto drop;
+			return -EINVAL;
 
 		hdr.flow_lbl[0] = (skb->data[0] & 0x0F) | ((tmp >> 2) & 0x30);
 		memcpy(&hdr.flow_lbl[1], &skb->data[0], 2);
@@ -400,7 +299,7 @@ int lowpan_process_data(struct sk_buff *skb, struct net_device *dev,
 	if ((iphc0 & LOWPAN_IPHC_NH_C) == 0) {
 		/* Next header is carried inline */
 		if (lowpan_fetch_skb(skb, &hdr.nexthdr, sizeof(hdr.nexthdr)))
-			goto drop;
+			return -EINVAL;
 
 		pr_debug("NH flag is set, next header carried inline: %02x\n",
 			 hdr.nexthdr);
@@ -412,7 +311,7 @@ int lowpan_process_data(struct sk_buff *skb, struct net_device *dev,
 	} else {
 		if (lowpan_fetch_skb(skb, &hdr.hop_limit,
 				     sizeof(hdr.hop_limit)))
-			goto drop;
+			return -EINVAL;
 	}
 
 	/* Extract SAM to the tmp variable */
@@ -431,7 +330,7 @@ int lowpan_process_data(struct sk_buff *skb, struct net_device *dev,
 
 	/* Check on error of previous branch */
 	if (err)
-		goto drop;
+		return -EINVAL;
 
 	/* Extract DAM to the tmp variable */
 	tmp = ((iphc1 & LOWPAN_IPHC_DAM_11) >> LOWPAN_IPHC_DAM_BIT) & 0x03;
@@ -446,7 +345,7 @@ int lowpan_process_data(struct sk_buff *skb, struct net_device *dev,
 								tmp);
 
 			if (err)
-				goto drop;
+				return -EINVAL;
 		}
 	} else {
 		err = uncompress_addr(skb, &hdr.daddr, tmp, daddr,
@@ -454,37 +353,18 @@ int lowpan_process_data(struct sk_buff *skb, struct net_device *dev,
 		pr_debug("dest: stateless compression mode %d dest %pI6c\n",
 			 tmp, &hdr.daddr);
 		if (err)
-			goto drop;
+			return -EINVAL;
 	}
 
-	/* UDP data uncompression */
+	/* Next header data uncompression */
 	if (iphc0 & LOWPAN_IPHC_NH_C) {
-		struct udphdr uh;
-		struct sk_buff *new;
-
-		if (uncompress_udp_header(skb, &uh))
-			goto drop;
-
-		/* replace the compressed UDP head by the uncompressed UDP
-		 * header
-		 */
-		new = skb_copy_expand(skb, sizeof(struct udphdr),
-				      skb_tailroom(skb), GFP_ATOMIC);
-		kfree_skb(skb);
-
-		if (!new)
-			return -ENOMEM;
-
-		skb = new;
-
-		skb_push(skb, sizeof(struct udphdr));
-		skb_reset_transport_header(skb);
-		skb_copy_to_linear_data(skb, &uh, sizeof(struct udphdr));
-
-		raw_dump_table(__func__, "raw UDP header dump",
-			       (u8 *)&uh, sizeof(uh));
-
-		hdr.nexthdr = UIP_PROTO_UDP;
+		err = lowpan_nhc_do_uncompression(skb, dev, &hdr);
+		if (err < 0)
+			return err;
+	} else {
+		err = skb_cow(skb, sizeof(hdr));
+		if (unlikely(err))
+			return err;
 	}
 
 	hdr.payload_len = htons(skb->len);
@@ -497,15 +377,15 @@ int lowpan_process_data(struct sk_buff *skb, struct net_device *dev,
 		hdr.version, ntohs(hdr.payload_len), hdr.nexthdr,
 		hdr.hop_limit, &hdr.daddr);
 
+	skb_push(skb, sizeof(hdr));
+	skb_reset_network_header(skb);
+	skb_copy_to_linear_data(skb, &hdr, sizeof(hdr));
+
 	raw_dump_table(__func__, "raw header dump", (u8 *)&hdr, sizeof(hdr));
 
-	return skb_deliver(skb, &hdr, dev, deliver_skb);
-
-drop:
-	kfree_skb(skb);
-	return -EINVAL;
+	return 0;
 }
-EXPORT_SYMBOL_GPL(lowpan_process_data);
+EXPORT_SYMBOL_GPL(lowpan_header_decompress);
 
 static u8 lowpan_compress_addr_64(u8 **hc_ptr, u8 shift,
 				  const struct in6_addr *ipaddr,
@@ -533,63 +413,6 @@ static u8 lowpan_compress_addr_64(u8 **hc_ptr, u8 shift,
 	return rol8(val, shift);
 }
 
-static void compress_udp_header(u8 **hc_ptr, struct sk_buff *skb)
-{
-	struct udphdr *uh = udp_hdr(skb);
-	u8 tmp;
-
-	if (((ntohs(uh->source) & LOWPAN_NHC_UDP_4BIT_MASK) ==
-	     LOWPAN_NHC_UDP_4BIT_PORT) &&
-	    ((ntohs(uh->dest) & LOWPAN_NHC_UDP_4BIT_MASK) ==
-	     LOWPAN_NHC_UDP_4BIT_PORT)) {
-		pr_debug("UDP header: both ports compression to 4 bits\n");
-		/* compression value */
-		tmp = LOWPAN_NHC_UDP_CS_P_11;
-		lowpan_push_hc_data(hc_ptr, &tmp, sizeof(tmp));
-		/* source and destination port */
-		tmp = ntohs(uh->dest) - LOWPAN_NHC_UDP_4BIT_PORT +
-		      ((ntohs(uh->source) - LOWPAN_NHC_UDP_4BIT_PORT) << 4);
-		lowpan_push_hc_data(hc_ptr, &tmp, sizeof(tmp));
-	} else if ((ntohs(uh->dest) & LOWPAN_NHC_UDP_8BIT_MASK) ==
-			LOWPAN_NHC_UDP_8BIT_PORT) {
-		pr_debug("UDP header: remove 8 bits of dest\n");
-		/* compression value */
-		tmp = LOWPAN_NHC_UDP_CS_P_01;
-		lowpan_push_hc_data(hc_ptr, &tmp, sizeof(tmp));
-		/* source port */
-		lowpan_push_hc_data(hc_ptr, &uh->source, sizeof(uh->source));
-		/* destination port */
-		tmp = ntohs(uh->dest) - LOWPAN_NHC_UDP_8BIT_PORT;
-		lowpan_push_hc_data(hc_ptr, &tmp, sizeof(tmp));
-	} else if ((ntohs(uh->source) & LOWPAN_NHC_UDP_8BIT_MASK) ==
-			LOWPAN_NHC_UDP_8BIT_PORT) {
-		pr_debug("UDP header: remove 8 bits of source\n");
-		/* compression value */
-		tmp = LOWPAN_NHC_UDP_CS_P_10;
-		lowpan_push_hc_data(hc_ptr, &tmp, sizeof(tmp));
-		/* source port */
-		tmp = ntohs(uh->source) - LOWPAN_NHC_UDP_8BIT_PORT;
-		lowpan_push_hc_data(hc_ptr, &tmp, sizeof(tmp));
-		/* destination port */
-		lowpan_push_hc_data(hc_ptr, &uh->dest, sizeof(uh->dest));
-	} else {
-		pr_debug("UDP header: can't compress\n");
-		/* compression value */
-		tmp = LOWPAN_NHC_UDP_CS_P_00;
-		lowpan_push_hc_data(hc_ptr, &tmp, sizeof(tmp));
-		/* source port */
-		lowpan_push_hc_data(hc_ptr, &uh->source, sizeof(uh->source));
-		/* destination port */
-		lowpan_push_hc_data(hc_ptr, &uh->dest, sizeof(uh->dest));
-	}
-
-	/* checksum is always inline */
-	lowpan_push_hc_data(hc_ptr, &uh->check, sizeof(uh->check));
-
-	/* skip the UDP header */
-	skb_pull(skb, sizeof(struct udphdr));
-}
-
 int lowpan_header_compress(struct sk_buff *skb, struct net_device *dev,
 			   unsigned short type, const void *_daddr,
 			   const void *_saddr, unsigned int len)
@@ -597,7 +420,7 @@ int lowpan_header_compress(struct sk_buff *skb, struct net_device *dev,
 	u8 tmp, iphc0, iphc1, *hc_ptr;
 	struct ipv6hdr *hdr;
 	u8 head[100] = {};
-	int addr_type;
+	int ret, addr_type;
 
 	if (type != ETH_P_IPV6)
 		return -EINVAL;
@@ -674,13 +497,12 @@ int lowpan_header_compress(struct sk_buff *skb, struct net_device *dev,
 
 	/* NOTE: payload length is always compressed */
 
-	/* Next Header is compress if UDP */
-	if (hdr->nexthdr == UIP_PROTO_UDP)
-		iphc0 |= LOWPAN_IPHC_NH_C;
-
-	if ((iphc0 & LOWPAN_IPHC_NH_C) == 0)
-		lowpan_push_hc_data(&hc_ptr, &hdr->nexthdr,
-				    sizeof(hdr->nexthdr));
+	/* Check if we provide the nhc format for nexthdr and compression
+	 * functionality. If not nexthdr is handled inline and not compressed.
+	 */
+	ret = lowpan_nhc_check_compression(skb, hdr, &hc_ptr, &iphc0);
+	if (ret < 0)
+		return ret;
 
 	/* Hop limit
 	 * if 1:   compress, encoding is 01
@@ -766,9 +588,12 @@ int lowpan_header_compress(struct sk_buff *skb, struct net_device *dev,
 		}
 	}
 
-	/* UDP header compression */
-	if (hdr->nexthdr == UIP_PROTO_UDP)
-		compress_udp_header(&hc_ptr, skb);
+	/* next header compression */
+	if (iphc0 & LOWPAN_IPHC_NH_C) {
+		ret = lowpan_nhc_do_compression(skb, hdr, &hc_ptr);
+		if (ret < 0)
+			return ret;
+	}
 
 	head[0] = iphc0;
 	head[1] = iphc1;
@@ -785,5 +610,19 @@ int lowpan_header_compress(struct sk_buff *skb, struct net_device *dev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(lowpan_header_compress);
+
+static int __init lowpan_module_init(void)
+{
+	request_module_nowait("nhc_dest");
+	request_module_nowait("nhc_fragment");
+	request_module_nowait("nhc_hop");
+	request_module_nowait("nhc_ipv6");
+	request_module_nowait("nhc_mobility");
+	request_module_nowait("nhc_routing");
+	request_module_nowait("nhc_udp");
+
+	return 0;
+}
+module_init(lowpan_module_init);
 
 MODULE_LICENSE("GPL");

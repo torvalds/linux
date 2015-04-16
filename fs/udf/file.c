@@ -34,7 +34,7 @@
 #include <linux/errno.h>
 #include <linux/pagemap.h>
 #include <linux/buffer_head.h>
-#include <linux/aio.h>
+#include <linux/uio.h>
 
 #include "udf_i.h"
 #include "udf_sb.h"
@@ -122,7 +122,7 @@ static ssize_t udf_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
 	int err, pos;
-	size_t count = iocb->ki_nbytes;
+	size_t count = iov_iter_count(from);
 	struct udf_inode_info *iinfo = UDF_I(inode);
 
 	mutex_lock(&inode->i_mutex);
@@ -224,7 +224,7 @@ out:
 static int udf_release_file(struct inode *inode, struct file *filp)
 {
 	if (filp->f_mode & FMODE_WRITE &&
-	    atomic_read(&inode->i_writecount) > 1) {
+	    atomic_read(&inode->i_writecount) == 1) {
 		/*
 		 * Grab i_mutex to avoid races with writes changing i_size
 		 * while we are running.
@@ -240,12 +240,10 @@ static int udf_release_file(struct inode *inode, struct file *filp)
 }
 
 const struct file_operations udf_file_operations = {
-	.read			= new_sync_read,
 	.read_iter		= generic_file_read_iter,
 	.unlocked_ioctl		= udf_ioctl,
 	.open			= generic_file_open,
 	.mmap			= generic_file_mmap,
-	.write			= new_sync_write,
 	.write_iter		= udf_file_write_iter,
 	.release		= udf_release_file,
 	.fsync			= generic_file_fsync,

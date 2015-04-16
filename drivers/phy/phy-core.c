@@ -26,6 +26,7 @@
 static struct class *phy_class;
 static DEFINE_MUTEX(phy_provider_mutex);
 static LIST_HEAD(phy_provider_list);
+static LIST_HEAD(phys);
 static DEFINE_IDA(phy_ida);
 
 static void devm_phy_release(struct device *dev, void *res)
@@ -51,37 +52,84 @@ static void devm_phy_consume(struct device *dev, void *res)
 
 static int devm_phy_match(struct device *dev, void *res, void *match_data)
 {
-	return res == match_data;
+	struct phy **phy = res;
+
+	return *phy == match_data;
 }
 
-static struct phy *phy_lookup(struct device *device, const char *port)
+/**
+ * phy_create_lookup() - allocate and register PHY/device association
+ * @phy: the phy of the association
+ * @con_id: connection ID string on device
+ * @dev_id: the device of the association
+ *
+ * Creates and registers phy_lookup entry.
+ */
+int phy_create_lookup(struct phy *phy, const char *con_id, const char *dev_id)
 {
-	unsigned int count;
-	struct phy *phy;
-	struct device *dev;
-	struct phy_consumer *consumers;
-	struct class_dev_iter iter;
+	struct phy_lookup *pl;
 
-	class_dev_iter_init(&iter, phy_class, NULL, NULL);
-	while ((dev = class_dev_iter_next(&iter))) {
-		phy = to_phy(dev);
+	if (!phy || !dev_id || !con_id)
+		return -EINVAL;
 
-		if (!phy->init_data)
-			continue;
-		count = phy->init_data->num_consumers;
-		consumers = phy->init_data->consumers;
-		while (count--) {
-			if (!strcmp(consumers->dev_name, dev_name(device)) &&
-					!strcmp(consumers->port, port)) {
-				class_dev_iter_exit(&iter);
-				return phy;
-			}
-			consumers++;
+	pl = kzalloc(sizeof(*pl), GFP_KERNEL);
+	if (!pl)
+		return -ENOMEM;
+
+	pl->dev_id = dev_id;
+	pl->con_id = con_id;
+	pl->phy = phy;
+
+	mutex_lock(&phy_provider_mutex);
+	list_add_tail(&pl->node, &phys);
+	mutex_unlock(&phy_provider_mutex);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(phy_create_lookup);
+
+/**
+ * phy_remove_lookup() - find and remove PHY/device association
+ * @phy: the phy of the association
+ * @con_id: connection ID string on device
+ * @dev_id: the device of the association
+ *
+ * Finds and unregisters phy_lookup entry that was created with
+ * phy_create_lookup().
+ */
+void phy_remove_lookup(struct phy *phy, const char *con_id, const char *dev_id)
+{
+	struct phy_lookup *pl;
+
+	if (!phy || !dev_id || !con_id)
+		return;
+
+	mutex_lock(&phy_provider_mutex);
+	list_for_each_entry(pl, &phys, node)
+		if (pl->phy == phy && !strcmp(pl->dev_id, dev_id) &&
+		    !strcmp(pl->con_id, con_id)) {
+			list_del(&pl->node);
+			kfree(pl);
+			break;
 		}
-	}
+	mutex_unlock(&phy_provider_mutex);
+}
+EXPORT_SYMBOL_GPL(phy_remove_lookup);
 
-	class_dev_iter_exit(&iter);
-	return ERR_PTR(-ENODEV);
+static struct phy *phy_find(struct device *dev, const char *con_id)
+{
+	const char *dev_id = dev_name(dev);
+	struct phy_lookup *p, *pl = NULL;
+
+	mutex_lock(&phy_provider_mutex);
+	list_for_each_entry(p, &phys, node)
+		if (!strcmp(p->dev_id, dev_id) && !strcmp(p->con_id, con_id)) {
+			pl = p;
+			break;
+		}
+	mutex_unlock(&phy_provider_mutex);
+
+	return pl ? pl->phy : ERR_PTR(-ENODEV);
 }
 
 static struct phy_provider *of_phy_provider_lookup(struct device_node *node)
@@ -177,6 +225,7 @@ int phy_init(struct phy *phy)
 	ret = phy_pm_runtime_get_sync(phy);
 	if (ret < 0 && ret != -ENOTSUPP)
 		return ret;
+	ret = 0; /* Override possible ret == -ENOTSUPP */
 
 	mutex_lock(&phy->mutex);
 	if (phy->init_count == 0 && phy->ops->init) {
@@ -185,8 +234,6 @@ int phy_init(struct phy *phy)
 			dev_err(&phy->dev, "phy init failed --> %d\n", ret);
 			goto out;
 		}
-	} else {
-		ret = 0; /* Override possible ret == -ENOTSUPP */
 	}
 	++phy->init_count;
 
@@ -207,6 +254,7 @@ int phy_exit(struct phy *phy)
 	ret = phy_pm_runtime_get_sync(phy);
 	if (ret < 0 && ret != -ENOTSUPP)
 		return ret;
+	ret = 0; /* Override possible ret == -ENOTSUPP */
 
 	mutex_lock(&phy->mutex);
 	if (phy->init_count == 1 && phy->ops->exit) {
@@ -241,6 +289,7 @@ int phy_power_on(struct phy *phy)
 	ret = phy_pm_runtime_get_sync(phy);
 	if (ret < 0 && ret != -ENOTSUPP)
 		return ret;
+	ret = 0; /* Override possible ret == -ENOTSUPP */
 
 	mutex_lock(&phy->mutex);
 	if (phy->power_count == 0 && phy->ops->power_on) {
@@ -249,8 +298,6 @@ int phy_power_on(struct phy *phy)
 			dev_err(&phy->dev, "phy poweron failed --> %d\n", ret);
 			goto out;
 		}
-	} else {
-		ret = 0; /* Override possible ret == -ENOTSUPP */
 	}
 	++phy->power_count;
 	mutex_unlock(&phy->mutex);
@@ -414,21 +461,13 @@ struct phy *of_phy_simple_xlate(struct device *dev, struct of_phandle_args
 {
 	struct phy *phy;
 	struct class_dev_iter iter;
-	struct device_node *node = dev->of_node;
-	struct device_node *child;
 
 	class_dev_iter_init(&iter, phy_class, NULL, NULL);
 	while ((dev = class_dev_iter_next(&iter))) {
 		phy = to_phy(dev);
-		if (node != phy->dev.of_node) {
-			for_each_child_of_node(node, child) {
-				if (child == phy->dev.of_node)
-					goto phy_found;
-			}
+		if (args->np != phy->dev.of_node)
 			continue;
-		}
 
-phy_found:
 		class_dev_iter_exit(&iter);
 		return phy;
 	}
@@ -463,7 +502,7 @@ struct phy *phy_get(struct device *dev, const char *string)
 			string);
 		phy = _of_phy_get(dev->of_node, index);
 	} else {
-		phy = phy_lookup(dev, string);
+		phy = phy_find(dev, string);
 	}
 	if (IS_ERR(phy))
 		return phy;
@@ -588,13 +627,11 @@ EXPORT_SYMBOL_GPL(devm_of_phy_get);
  * @dev: device that is creating the new phy
  * @node: device node of the phy
  * @ops: function pointers for performing phy operations
- * @init_data: contains the list of PHY consumers or NULL
  *
  * Called to create a phy using phy framework.
  */
 struct phy *phy_create(struct device *dev, struct device_node *node,
-		       const struct phy_ops *ops,
-		       struct phy_init_data *init_data)
+		       const struct phy_ops *ops)
 {
 	int ret;
 	int id;
@@ -632,7 +669,6 @@ struct phy *phy_create(struct device *dev, struct device_node *node,
 	phy->dev.of_node = node ?: dev->of_node;
 	phy->id = id;
 	phy->ops = ops;
-	phy->init_data = init_data;
 
 	ret = dev_set_name(&phy->dev, "phy-%s.%d", dev_name(dev), id);
 	if (ret)
@@ -667,7 +703,6 @@ EXPORT_SYMBOL_GPL(phy_create);
  * @dev: device that is creating the new phy
  * @node: device node of the phy
  * @ops: function pointers for performing phy operations
- * @init_data: contains the list of PHY consumers or NULL
  *
  * Creates a new PHY device adding it to the PHY class.
  * While at that, it also associates the device with the phy using devres.
@@ -675,8 +710,7 @@ EXPORT_SYMBOL_GPL(phy_create);
  * then, devres data is freed.
  */
 struct phy *devm_phy_create(struct device *dev, struct device_node *node,
-			    const struct phy_ops *ops,
-			    struct phy_init_data *init_data)
+			    const struct phy_ops *ops)
 {
 	struct phy **ptr, *phy;
 
@@ -684,7 +718,7 @@ struct phy *devm_phy_create(struct device *dev, struct device_node *node,
 	if (!ptr)
 		return ERR_PTR(-ENOMEM);
 
-	phy = phy_create(dev, node, ops, init_data);
+	phy = phy_create(dev, node, ops);
 	if (!IS_ERR(phy)) {
 		*ptr = phy;
 		devres_add(dev, ptr);

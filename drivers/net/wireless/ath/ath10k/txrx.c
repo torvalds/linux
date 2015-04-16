@@ -64,7 +64,13 @@ void ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 		return;
 	}
 
-	msdu = htt->pending_tx[tx_done->msdu_id];
+	msdu = idr_find(&htt->pending_tx, tx_done->msdu_id);
+	if (!msdu) {
+		ath10k_warn(ar, "received tx completion for invalid msdu_id: %d\n",
+			    tx_done->msdu_id);
+		return;
+	}
+
 	skb_cb = ATH10K_SKB_CB(msdu);
 
 	dma_unmap_single(dev, skb_cb->paddr, msdu->len, DMA_TO_DEVICE);
@@ -78,6 +84,7 @@ void ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 
 	info = IEEE80211_SKB_CB(msdu);
 	memset(&info->status, 0, sizeof(info->status));
+	trace_ath10k_txrx_tx_unref(ar, tx_done->msdu_id);
 
 	if (tx_done->discard) {
 		ieee80211_free_txskb(htt->ar->hw, msdu);
@@ -94,7 +101,6 @@ void ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 	/* we do not own the msdu anymore */
 
 exit:
-	htt->pending_tx[tx_done->msdu_id] = NULL;
 	ath10k_htt_tx_free_msdu_id(htt, tx_done->msdu_id);
 	__ath10k_htt_tx_dec_pending(htt);
 	if (htt->num_pending_tx == 0)
@@ -145,7 +151,8 @@ static int ath10k_wait_for_peer_common(struct ath10k *ar, int vdev_id,
 			mapped = !!ath10k_peer_find(ar, vdev_id, addr);
 			spin_unlock_bh(&ar->data_lock);
 
-			mapped == expect_mapped;
+			(mapped == expect_mapped ||
+			 test_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags));
 		}), 3*HZ);
 
 	if (ret <= 0)

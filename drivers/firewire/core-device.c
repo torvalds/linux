@@ -115,6 +115,9 @@ static int textual_leaf_to_string(const u32 *block, char *buf, size_t size)
  *
  * The string is taken from a minimal ASCII text descriptor leaf after
  * the immediate entry with @key.  The string is zero-terminated.
+ * An overlong string is silently truncated such that it and the
+ * zero byte fit into @size.
+ *
  * Returns strlen(buf) or a negative error code.
  */
 int fw_csr_string(const u32 *directory, int key, char *buf, size_t size)

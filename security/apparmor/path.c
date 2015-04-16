@@ -114,7 +114,7 @@ static int d_namespace_path(struct path *path, char *buf, int buflen,
 	 *    security_path hooks as a deleted dentry except without an inode
 	 *    allocated.
 	 */
-	if (d_unlinked(path->dentry) && path->dentry->d_inode &&
+	if (d_unlinked(path->dentry) && d_is_positive(path->dentry) &&
 	    !(flags & PATH_MEDIATE_DELETED)) {
 			error = -ENOENT;
 			goto out;

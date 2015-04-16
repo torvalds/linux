@@ -214,13 +214,14 @@ static int mpr_touchkey_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	mpr121 = kzalloc(sizeof(struct mpr121_touchkey), GFP_KERNEL);
-	input_dev = input_allocate_device();
-	if (!mpr121 || !input_dev) {
-		dev_err(&client->dev, "Failed to allocate memory\n");
-		error = -ENOMEM;
-		goto err_free_mem;
-	}
+	mpr121 = devm_kzalloc(&client->dev, sizeof(*mpr121),
+			      GFP_KERNEL);
+	if (!mpr121)
+		return -ENOMEM;
+
+	input_dev = devm_input_allocate_device(&client->dev);
+	if (!input_dev)
+		return -ENOMEM;
 
 	mpr121->client = client;
 	mpr121->input_dev = input_dev;
@@ -243,42 +244,24 @@ static int mpr_touchkey_probe(struct i2c_client *client,
 	error = mpr121_phys_init(pdata, mpr121, client);
 	if (error) {
 		dev_err(&client->dev, "Failed to init register\n");
-		goto err_free_mem;
+		return error;
 	}
 
-	error = request_threaded_irq(client->irq, NULL,
+	error = devm_request_threaded_irq(&client->dev, client->irq, NULL,
 				     mpr_touchkey_interrupt,
 				     IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 				     client->dev.driver->name, mpr121);
 	if (error) {
 		dev_err(&client->dev, "Failed to register interrupt\n");
-		goto err_free_mem;
+		return error;
 	}
 
 	error = input_register_device(input_dev);
 	if (error)
-		goto err_free_irq;
+		return error;
 
 	i2c_set_clientdata(client, mpr121);
 	device_init_wakeup(&client->dev, pdata->wakeup);
-
-	return 0;
-
-err_free_irq:
-	free_irq(client->irq, mpr121);
-err_free_mem:
-	input_free_device(input_dev);
-	kfree(mpr121);
-	return error;
-}
-
-static int mpr_touchkey_remove(struct i2c_client *client)
-{
-	struct mpr121_touchkey *mpr121 = i2c_get_clientdata(client);
-
-	free_irq(client->irq, mpr121);
-	input_unregister_device(mpr121->input_dev);
-	kfree(mpr121);
 
 	return 0;
 }
@@ -327,7 +310,6 @@ static struct i2c_driver mpr_touchkey_driver = {
 	},
 	.id_table	= mpr121_id,
 	.probe		= mpr_touchkey_probe,
-	.remove		= mpr_touchkey_remove,
 };
 
 module_i2c_driver(mpr_touchkey_driver);

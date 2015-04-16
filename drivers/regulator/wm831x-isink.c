@@ -224,7 +224,6 @@ static struct platform_driver wm831x_isink_driver = {
 	.probe = wm831x_isink_probe,
 	.driver		= {
 		.name	= "wm831x-isink",
-		.owner	= THIS_MODULE,
 	},
 };
 

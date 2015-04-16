@@ -717,7 +717,6 @@ static struct platform_driver i2c_bfin_twi_driver = {
 	.remove		= i2c_bfin_twi_remove,
 	.driver		= {
 		.name	= "i2c-bfin-twi",
-		.owner	= THIS_MODULE,
 		.pm	= I2C_BFIN_TWI_PM_OPS,
 	},
 };

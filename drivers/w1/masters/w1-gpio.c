@@ -228,7 +228,6 @@ static int w1_gpio_resume(struct platform_device *pdev)
 static struct platform_driver w1_gpio_driver = {
 	.driver = {
 		.name	= "w1-gpio",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(w1_gpio_dt_ids),
 	},
 	.probe = w1_gpio_probe,

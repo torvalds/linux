@@ -1723,7 +1723,6 @@ static const struct of_device_id of_sm501_match_tbl[] = {
 static struct platform_driver sm501_plat_driver = {
 	.driver		= {
 		.name	= "sm501",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_sm501_match_tbl,
 	},
 	.probe		= sm501_plat_probe,

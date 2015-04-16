@@ -60,6 +60,7 @@ config USB_SERIAL_SIMPLE
 		- Suunto ANT+ USB device.
 		- Medtronic CareLink USB device
 		- Fundamental Software dongle.
+		- Google USB serial devices
 		- HP4x calculators
 		- a number of Motorola phones
 		- Novatel Wireless GPS receivers
@@ -606,10 +607,10 @@ config USB_SERIAL_CYBERJACK
 	  If unsure, say N.
 
 config USB_SERIAL_XIRCOM
-	tristate "USB Xircom / Entregra Single Port Serial Driver"
+	tristate "USB Xircom / Entrega Single Port Serial Driver"
 	select USB_EZUSB_FX2
 	help
-	  Say Y here if you want to use a Xircom or Entregra single port USB to
+	  Say Y here if you want to use a Xircom or Entrega single port USB to
 	  serial converter device.  This driver makes use of firmware
 	  developed from scratch by Brian Warner.
 

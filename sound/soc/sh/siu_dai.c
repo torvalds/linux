@@ -845,7 +845,6 @@ static int siu_remove(struct platform_device *pdev)
 
 static struct platform_driver siu_driver = {
 	.driver 	= {
-		.owner	= THIS_MODULE,
 		.name	= "siu-pcm-audio",
 	},
 	.probe		= siu_probe,

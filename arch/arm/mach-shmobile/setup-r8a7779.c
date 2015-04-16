@@ -13,10 +13,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -52,14 +48,14 @@
 #include "r8a7779.h"
 
 static struct map_desc r8a7779_io_desc[] __initdata = {
-	/* 2M entity map for 0xf0000000 (MPCORE) */
+	/* 2M identity mapping for 0xf0000000 (MPCORE) */
 	{
 		.virtual	= 0xf0000000,
 		.pfn		= __phys_to_pfn(0xf0000000),
 		.length		= SZ_2M,
 		.type		= MT_DEVICE_NONSHARED
 	},
-	/* 16M entity map for 0xfexxxxxx (DMAC-S/HPBREG/INTC2/LRAM/DBSC) */
+	/* 16M identity mapping for 0xfexxxxxx (DMAC-S/HPBREG/INTC2/LRAM/DBSC) */
 	{
 		.virtual	= 0xfe000000,
 		.pfn		= __phys_to_pfn(0xfe000000),
@@ -70,6 +66,7 @@ static struct map_desc r8a7779_io_desc[] __initdata = {
 
 void __init r8a7779_map_io(void)
 {
+	debug_ll_io_init();
 	iotable_init(r8a7779_io_desc, ARRAY_SIZE(r8a7779_io_desc));
 }
 
@@ -683,7 +680,7 @@ void __init r8a7779_add_early_devices(void)
 
 	/* Early serial console setup is not included here due to
 	 * memory map collisions. The SCIF serial ports in r8a7779
-	 * are difficult to entity map 1:1 due to collision with the
+	 * are difficult to identity map 1:1 due to collision with the
 	 * virtual memory range used by the coherent DMA code on ARM.
 	 *
 	 * Anyone wanting to debug early can remove UPF_IOREMAP from
@@ -716,17 +713,19 @@ void __init r8a7779_init_late(void)
 }
 
 #ifdef CONFIG_USE_OF
-static int r8a7779_set_wake(struct irq_data *data, unsigned int on)
-{
-	return 0; /* always allow wakeup */
-}
-
 void __init r8a7779_init_irq_dt(void)
 {
-	gic_arch_extn.irq_set_wake = r8a7779_set_wake;
+#ifdef CONFIG_ARCH_SHMOBILE_LEGACY
+	void __iomem *gic_dist_base = ioremap_nocache(0xf0001000, 0x1000);
+	void __iomem *gic_cpu_base = ioremap_nocache(0xf0000100, 0x1000);
+#endif
+	gic_set_irqchip_flags(IRQCHIP_SKIP_SET_WAKE);
 
+#ifdef CONFIG_ARCH_SHMOBILE_LEGACY
+	gic_init(0, 29, gic_dist_base, gic_cpu_base);
+#else
 	irqchip_init();
-
+#endif
 	/* route all interrupts to ARM */
 	__raw_writel(0xffffffff, INT2NTSR0);
 	__raw_writel(0x3fffffff, INT2NTSR1);

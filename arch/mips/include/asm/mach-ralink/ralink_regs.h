@@ -26,6 +26,13 @@ static inline u32 rt_sysc_r32(unsigned reg)
 	return __raw_readl(rt_sysc_membase + reg);
 }
 
+static inline void rt_sysc_m32(u32 clr, u32 set, unsigned reg)
+{
+	u32 val = rt_sysc_r32(reg) & ~clr;
+
+	__raw_writel(val | set, rt_sysc_membase + reg);
+}
+
 static inline void rt_memc_w32(u32 val, unsigned reg)
 {
 	__raw_writel(val, rt_memc_membase + reg);

@@ -21,7 +21,7 @@ static DEFINE_PER_CPU_ALIGNED(spinlock_t, cpc_core_lock);
 
 static DEFINE_PER_CPU_ALIGNED(unsigned long, cpc_core_lock_flags);
 
-phys_t __weak mips_cpc_phys_base(void)
+phys_addr_t __weak mips_cpc_phys_base(void)
 {
 	u32 cpc_base;
 
@@ -44,7 +44,7 @@ phys_t __weak mips_cpc_phys_base(void)
 
 int mips_cpc_probe(void)
 {
-	phys_t addr;
+	phys_addr_t addr;
 	unsigned cpu;
 
 	for_each_possible_cpu(cpu)

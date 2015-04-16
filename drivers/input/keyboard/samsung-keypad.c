@@ -463,7 +463,7 @@ static int samsung_keypad_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int samsung_keypad_runtime_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -602,7 +602,6 @@ static struct platform_driver samsung_keypad_driver = {
 	.remove		= samsung_keypad_remove,
 	.driver		= {
 		.name	= "samsung-keypad",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(samsung_keypad_dt_match),
 		.pm	= &samsung_keypad_pm_ops,
 	},

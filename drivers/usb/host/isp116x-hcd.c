@@ -943,12 +943,15 @@ static void isp116x_hub_descriptor(struct isp116x *isp116x,
 {
 	u32 reg = isp116x->rhdesca;
 
-	desc->bDescriptorType = 0x29;
+	desc->bDescriptorType = USB_DT_HUB;
 	desc->bDescLength = 9;
 	desc->bHubContrCurrent = 0;
 	desc->bNbrPorts = (u8) (reg & 0x3);
 	/* Power switching, device type, overcurrent. */
-	desc->wHubCharacteristics = cpu_to_le16((u16) ((reg >> 8) & 0x1f));
+	desc->wHubCharacteristics = cpu_to_le16((u16) ((reg >> 8) &
+						       (HUB_CHAR_LPSM |
+							HUB_CHAR_COMPOUND |
+							HUB_CHAR_OCPM)));
 	desc->bPwrOn2PwrGood = (u8) ((reg >> 24) & 0xff);
 	/* ports removable, and legacy PortPwrCtrlMask */
 	desc->u.hs.DeviceRemovable[0] = 0;
@@ -1487,7 +1490,7 @@ static int isp116x_bus_resume(struct usb_hcd *hcd)
 	spin_unlock_irq(&isp116x->lock);
 
 	hcd->state = HC_STATE_RESUMING;
-	msleep(20);
+	msleep(USB_RESUME_TIMEOUT);
 
 	/* Go operational */
 	spin_lock_irq(&isp116x->lock);
@@ -1707,7 +1710,6 @@ static struct platform_driver isp116x_driver = {
 	.resume = isp116x_resume,
 	.driver = {
 		.name = hcd_name,
-		.owner	= THIS_MODULE,
 	},
 };
 

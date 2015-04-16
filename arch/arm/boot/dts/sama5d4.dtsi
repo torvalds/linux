@@ -9,12 +9,12 @@
  * licensing only applies to this file, and not this project as a
  * whole.
  *
- *  a) This library is free software; you can redistribute it and/or
+ *  a) This file is free software; you can redistribute it and/or
  *     modify it under the terms of the GNU General Public License as
  *     published by the Free Software Foundation; either version 2 of the
  *     License, or (at your option) any later version.
  *
- *     This library is distributed in the hope that it will be useful,
+ *     This file is distributed in the hope that it will be useful,
  *     but WITHOUT ANY WARRANTY; without even the implied warranty of
  *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *     GNU General Public License for more details.
@@ -45,6 +45,7 @@
 
 #include "skeleton.dtsi"
 #include <dt-bindings/clock/at91.h>
+#include <dt-bindings/dma/at91.h>
 #include <dt-bindings/pinctrl/at91.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/gpio/gpio.h>
@@ -61,9 +62,11 @@
 		gpio0 = &pioA;
 		gpio1 = &pioB;
 		gpio2 = &pioC;
+		gpio3 = &pioD;
 		gpio4 = &pioE;
 		tcb0 = &tcb0;
 		tcb1 = &tcb1;
+		i2c0 = &i2c0;
 		i2c2 = &i2c2;
 	};
 	cpus {
@@ -100,6 +103,11 @@
 			#clock-cells = <0>;
 			clock-frequency = <1000000>;
 		};
+	};
+
+	ns_sram: sram@00210000 {
+		compatible = "mmio-sram";
+		reg = <0x00210000 0x10000>;
 	};
 
 	ahb {
@@ -252,7 +260,7 @@
 			compatible = "atmel,at91sam9g45-ehci", "usb-ehci";
 			reg = <0x00600000 0x100000>;
 			interrupts = <46 IRQ_TYPE_LEVEL_HIGH 2>;
-			clocks = <&usb>, <&uhphs_clk>, <&uhpck>;
+			clocks = <&utmi>, <&uhphs_clk>, <&uhpck>;
 			clock-names = "usb_clk", "ehci_clk", "uhpck";
 			status = "disabled";
 		};
@@ -266,7 +274,7 @@
 		};
 
 		nand0: nand@80000000 {
-			compatible = "atmel,at91rm9200-nand";
+			compatible = "atmel,sama5d4-nand", "atmel,at91rm9200-nand";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
@@ -302,11 +310,29 @@
 			#size-cells = <1>;
 			ranges;
 
+			dma1: dma-controller@f0004000 {
+				compatible = "atmel,sama5d4-dma";
+				reg = <0xf0004000 0x200>;
+				interrupts = <50 IRQ_TYPE_LEVEL_HIGH 0>;
+				#dma-cells = <1>;
+				clocks = <&dma1_clk>;
+				clock-names = "dma_clk";
+			};
+
 			ramc0: ramc@f0010000 {
 				compatible = "atmel,sama5d3-ddramc";
 				reg = <0xf0010000 0x200>;
 				clocks = <&ddrck>, <&mpddr_clk>;
 				clock-names = "ddrck", "mpddr";
+			};
+
+			dma0: dma-controller@f0014000 {
+				compatible = "atmel,sama5d4-dma";
+				reg = <0xf0014000 0x200>;
+				interrupts = <8 IRQ_TYPE_LEVEL_HIGH 0>;
+				#dma-cells = <1>;
+				clocks = <&dma0_clk>;
+				clock-names = "dma_clk";
 			};
 
 			pmc: pmc@f0018000 {
@@ -436,8 +462,8 @@
 
 					lcdck: lcdck {
 						#clock-cells = <0>;
-						reg = <4>;
-						clocks = <&smd>;
+						reg = <3>;
+						clocks = <&mck>;
 					};
 
 					smdck: smdck {
@@ -745,7 +771,7 @@
 						reg = <50>;
 					};
 
-					lcd_clk: lcd_clk {
+					lcdc_clk: lcdc_clk {
 						#clock-cells = <0>;
 						reg = <51>;
 					};
@@ -761,6 +787,10 @@
 				compatible = "atmel,hsmci";
 				reg = <0xf8000000 0x600>;
 				interrupts = <35 IRQ_TYPE_LEVEL_HIGH 0>;
+				dmas = <&dma1
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
+					| AT91_XDMAC_DT_PERID(0))>;
+				dma-names = "rxtx";
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_mmc0_clk_cmd_dat0 &pinctrl_mmc0_dat1_3>;
 				status = "disabled";
@@ -776,6 +806,13 @@
 				compatible = "atmel,at91rm9200-spi";
 				reg = <0xf8010000 0x100>;
 				interrupts = <37 IRQ_TYPE_LEVEL_HIGH 3>;
+				dmas = <&dma1
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
+					| AT91_XDMAC_DT_PERID(10))>,
+				       <&dma1
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
+					| AT91_XDMAC_DT_PERID(11))>;
+				dma-names = "tx", "rx";
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_spi0>;
 				clocks = <&spi0_clk>;
@@ -787,6 +824,13 @@
 				compatible = "atmel,at91sam9x5-i2c";
 				reg = <0xf8014000 0x4000>;
 				interrupts = <32 IRQ_TYPE_LEVEL_HIGH 6>;
+				dmas = <&dma1
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
+					| AT91_XDMAC_DT_PERID(2))>,
+				       <&dma1
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
+					| AT91_XDMAC_DT_PERID(3))>;
+				dma-names = "tx", "rx";
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_i2c0>;
 				#address-cells = <1>;
@@ -817,7 +861,14 @@
 			i2c2: i2c@f8024000 {
 				compatible = "atmel,at91sam9x5-i2c";
 				reg = <0xf8024000 0x4000>;
-				interrupts = <34 4 6>;
+				interrupts = <34 IRQ_TYPE_LEVEL_HIGH 6>;
+				dmas = <&dma1
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
+					| AT91_XDMAC_DT_PERID(6))>,
+				       <&dma1
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
+					| AT91_XDMAC_DT_PERID(7))>;
+				dma-names = "tx", "rx";
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_i2c2>;
 				#address-cells = <1>;
@@ -826,10 +877,19 @@
 				status = "disabled";
 			};
 
+			sfr: sfr@f8028000 {
+				compatible = "atmel,sama5d4-sfr", "syscon";
+				reg = <0xf8028000 0x60>;
+			};
+
 			mmc1: mmc@fc000000 {
 				compatible = "atmel,hsmci";
 				reg = <0xfc000000 0x600>;
 				interrupts = <36 IRQ_TYPE_LEVEL_HIGH 0>;
+				dmas = <&dma1
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
+					| AT91_XDMAC_DT_PERID(1))>;
+				dma-names = "rxtx";
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_mmc1_clk_cmd_dat0 &pinctrl_mmc1_dat1_3>;
 				status = "disabled";
@@ -843,6 +903,13 @@
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xfc008000 0x100>;
 				interrupts = <29 IRQ_TYPE_LEVEL_HIGH 5>;
+				dmas = <&dma1
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
+					| AT91_XDMAC_DT_PERID(16))>,
+				       <&dma1
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
+					| AT91_XDMAC_DT_PERID(17))>;
+				dma-names = "tx", "rx";
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_usart2 &pinctrl_usart2_rts &pinctrl_usart2_cts>;
 				clocks = <&usart2_clk>;
@@ -854,6 +921,13 @@
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xfc00c000 0x100>;
 				interrupts = <30 IRQ_TYPE_LEVEL_HIGH 5>;
+				dmas = <&dma1
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
+					| AT91_XDMAC_DT_PERID(18))>,
+				       <&dma1
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
+					| AT91_XDMAC_DT_PERID(19))>;
+				dma-names = "tx", "rx";
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_usart3>;
 				clocks = <&usart3_clk>;
@@ -865,6 +939,13 @@
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xfc010000 0x100>;
 				interrupts = <31 IRQ_TYPE_LEVEL_HIGH 5>;
+				dmas = <&dma1
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
+					| AT91_XDMAC_DT_PERID(20))>,
+				       <&dma1
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
+					| AT91_XDMAC_DT_PERID(21))>;
+				dma-names = "tx", "rx";
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_usart4>;
 				clocks = <&usart4_clk>;
@@ -939,7 +1020,7 @@
 
 			pit: timer@fc068630 {
 				compatible = "atmel,at91sam9260-pit";
-				reg = <0xfc068630 0xf>;
+				reg = <0xfc068630 0x10>;
 				interrupts = <3 IRQ_TYPE_LEVEL_HIGH 5>;
 				clocks = <&h32ck>;
 			};
@@ -1040,6 +1121,18 @@
 					interrupt-controller;
 					#interrupt-cells = <2>;
 					clocks = <&pioC_clk>;
+				};
+
+				pioD: gpio@fc068000 {
+					compatible = "atmel,at91sam9x5-gpio", "atmel,at91rm9200-gpio";
+					reg = <0xfc068000 0x100>;
+					interrupts = <5 IRQ_TYPE_LEVEL_HIGH 1>;
+					#gpio-cells = <2>;
+					gpio-controller;
+					interrupt-controller;
+					#interrupt-cells = <2>;
+					clocks = <&pioD_clk>;
+					status = "disabled";
 				};
 
 				pioE: gpio@fc06d000 {

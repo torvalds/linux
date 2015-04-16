@@ -37,18 +37,19 @@
 
 static const struct pci_device_id mei_txe_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, 0x0F18)}, /* Baytrail */
+	{PCI_VDEVICE(INTEL, 0x2298)}, /* Cherrytrail */
 
 	{0, }
 };
 MODULE_DEVICE_TABLE(pci, mei_txe_pci_tbl);
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static inline void mei_txe_set_pm_domain(struct mei_device *dev);
 static inline void mei_txe_unset_pm_domain(struct mei_device *dev);
 #else
 static inline void mei_txe_set_pm_domain(struct mei_device *dev) {}
 static inline void mei_txe_unset_pm_domain(struct mei_device *dev) {}
-#endif /* CONFIG_PM_RUNTIME */
+#endif /* CONFIG_PM */
 
 static void mei_txe_pci_iounmap(struct pci_dev *pdev, struct mei_txe_hw *hw)
 {
@@ -295,7 +296,7 @@ static int mei_txe_pci_resume(struct device *device)
 }
 #endif /* CONFIG_PM_SLEEP */
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int mei_txe_pm_runtime_idle(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
@@ -401,9 +402,7 @@ static inline void mei_txe_unset_pm_domain(struct mei_device *dev)
 	/* stop using pm callbacks if any */
 	dev->dev->pm_domain = NULL;
 }
-#endif /* CONFIG_PM_RUNTIME */
 
-#ifdef CONFIG_PM
 static const struct dev_pm_ops mei_txe_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(mei_txe_pci_suspend,
 				mei_txe_pci_resume)

@@ -164,7 +164,7 @@ struct st_sensor_transfer_function {
 };
 
 /**
- * struct st_sensors - ST sensors list
+ * struct st_sensor_settings - ST specific sensor settings
  * @wai: Contents of WhoAmI register.
  * @sensors_supported: List of supported sensors by struct itself.
  * @ch: IIO channels for the sensor.
@@ -177,7 +177,7 @@ struct st_sensor_transfer_function {
  * @multi_read_bit: Use or not particular bit for [I2C/SPI] multi-read.
  * @bootime: samples to discard when sensor passing from power-down to power-up.
  */
-struct st_sensors {
+struct st_sensor_settings {
 	u8 wai;
 	char sensors_supported[ST_SENSORS_MAX_4WAI][ST_SENSORS_MAX_NAME];
 	struct iio_chan_spec *ch;
@@ -196,7 +196,7 @@ struct st_sensors {
  * struct st_sensor_data - ST sensor device status
  * @dev: Pointer to instance of struct device (I2C or SPI).
  * @trig: The trigger in use by the core driver.
- * @sensor: Pointer to the current sensor struct in use.
+ * @sensor_settings: Pointer to the specific sensor settings in use.
  * @current_fullscale: Maximum range of measure by the sensor.
  * @vdd: Pointer to sensor's Vdd power supply
  * @vdd_io: Pointer to sensor's Vdd-IO power supply
@@ -213,7 +213,7 @@ struct st_sensors {
 struct st_sensor_data {
 	struct device *dev;
 	struct iio_trigger *trig;
-	struct st_sensors *sensor;
+	struct st_sensor_settings *sensor_settings;
 	struct st_sensor_fullscale_avl *current_fullscale;
 	struct regulator *vdd;
 	struct regulator *vdd_io;
@@ -279,7 +279,7 @@ int st_sensors_read_info_raw(struct iio_dev *indio_dev,
 				struct iio_chan_spec const *ch, int *val);
 
 int st_sensors_check_device_support(struct iio_dev *indio_dev,
-			int num_sensors_list, const struct st_sensors *sensors);
+	int num_sensors_list, const struct st_sensor_settings *sensor_settings);
 
 ssize_t st_sensors_sysfs_sampling_frequency_avail(struct device *dev,
 				struct device_attribute *attr, char *buf);

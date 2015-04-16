@@ -266,7 +266,7 @@
 
 			s35390a: s35390a@30 {
 				status = "disabled";
-				compatible = "ssi,s35390a";
+				compatible = "sii,s35390a";
 				reg = <0x30>;
 			};
 		};

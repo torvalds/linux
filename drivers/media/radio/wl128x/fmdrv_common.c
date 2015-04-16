@@ -1256,7 +1256,7 @@ static int fm_download_firmware(struct fmdev *fmdev, const u8 *fw_name)
 		fmerr("Unable to read firmware(%s) content\n", fw_name);
 		return ret;
 	}
-	fmdbg("Firmware(%s) length : %d bytes\n", fw_name, fw_entry->size);
+	fmdbg("Firmware(%s) length : %zu bytes\n", fw_name, fw_entry->size);
 
 	fw_data = (void *)fw_entry->data;
 	fw_len = fw_entry->size;

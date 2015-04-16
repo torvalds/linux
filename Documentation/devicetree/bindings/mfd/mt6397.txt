@@ -1,0 +1,70 @@
+MediaTek MT6397 Multifunction Device Driver
+
+MT6397 is a multifunction device with the following sub modules:
+- Regulator
+- RTC
+- Audio codec
+- GPIO
+- Clock
+
+It is interfaced to host controller using SPI interface by a proprietary hardware
+called PMIC wrapper or pwrap. MT6397 MFD is a child device of pwrap.
+See the following for pwarp node definitions:
+Documentation/devicetree/bindings/soc/pwrap.txt
+
+This document describes the binding for MFD device and its sub module.
+
+Required properties:
+compatible: "mediatek,mt6397"
+
+Optional subnodes:
+
+- rtc
+	Required properties:
+		- compatible: "mediatek,mt6397-rtc"
+- regulators
+	Required properties:
+		- compatible: "mediatek,mt6397-regulator"
+	see Documentation/devicetree/bindings/regulator/mt6397-regulator.txt
+- codec
+	Required properties:
+		- compatible: "mediatek,mt6397-codec"
+- clk
+	Required properties:
+		- compatible: "mediatek,mt6397-clk"
+
+Example:
+	pwrap: pwrap@1000f000 {
+		compatible = "mediatek,mt8135-pwrap";
+
+		...
+
+		pmic {
+			compatible = "mediatek,mt6397";
+
+			codec: mt6397codec {
+				compatible = "mediatek,mt6397-codec";
+			};
+
+			regulators {
+				compatible = "mediatek,mt6397-regulator";
+
+				mt6397_vpca15_reg: buck_vpca15 {
+					regulator-compatible = "buck_vpca15";
+					regulator-name = "vpca15";
+					regulator-min-microvolt = <850000>;
+					regulator-max-microvolt = <1400000>;
+					regulator-ramp-delay = <12500>;
+					regulator-always-on;
+				};
+
+				mt6397_vgp4_reg: ldo_vgp4 {
+					regulator-compatible = "ldo_vgp4";
+					regulator-name = "vgp4";
+					regulator-min-microvolt = <1200000>;
+					regulator-max-microvolt = <3300000>;
+					regulator-enable-ramp-delay = <218>;
+				};
+			};
+		};
+	};

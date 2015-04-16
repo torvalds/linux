@@ -202,14 +202,16 @@ static void tty_buffer_free(struct tty_port *port, struct tty_buffer *b)
 /**
  *	tty_buffer_flush		-	flush full tty buffers
  *	@tty: tty to flush
+ *	@ld:  optional ldisc ptr (must be referenced)
  *
- *	flush all the buffers containing receive data.
+ *	flush all the buffers containing receive data. If ld != NULL,
+ *	flush the ldisc input buffer.
  *
  *	Locking: takes buffer lock to ensure single-threaded flip buffer
  *		 'consumer'
  */
 
-void tty_buffer_flush(struct tty_struct *tty)
+void tty_buffer_flush(struct tty_struct *tty, struct tty_ldisc *ld)
 {
 	struct tty_port *port = tty->port;
 	struct tty_bufhead *buf = &port->buf;
@@ -223,6 +225,10 @@ void tty_buffer_flush(struct tty_struct *tty)
 		buf->head = next;
 	}
 	buf->head->read = buf->head->commit;
+
+	if (ld && ld->ops->flush_buffer)
+		ld->ops->flush_buffer(tty);
+
 	atomic_dec(&buf->priority);
 	mutex_unlock(&buf->lock);
 }
@@ -551,3 +557,9 @@ int tty_buffer_set_limit(struct tty_port *port, int limit)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(tty_buffer_set_limit);
+
+/* slave ptys can claim nested buffer lock when handling BRK and INTR */
+void tty_buffer_set_lock_subclass(struct tty_port *port)
+{
+	lockdep_set_subclass(&port->buf.lock, TTY_LOCK_SLAVE);
+}

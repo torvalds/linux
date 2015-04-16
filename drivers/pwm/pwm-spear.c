@@ -252,7 +252,6 @@ MODULE_DEVICE_TABLE(of, spear_pwm_of_match);
 static struct platform_driver spear_pwm_driver = {
 	.driver = {
 		.name = "spear-pwm",
-		.owner = THIS_MODULE,
 		.of_match_table = spear_pwm_of_match,
 	},
 	.probe = spear_pwm_probe,

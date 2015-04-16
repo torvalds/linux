@@ -2181,8 +2181,7 @@ sh_mobile_lcdc_channel_fb_cleanup(struct sh_mobile_lcdc_chan *ch)
 	if (!info || !info->device)
 		return;
 
-	if (ch->sglist)
-		vfree(ch->sglist);
+	vfree(ch->sglist);
 
 	fb_dealloc_cmap(&info->cmap);
 	framebuffer_release(info);
@@ -2849,7 +2848,6 @@ err1:
 static struct platform_driver sh_mobile_lcdc_driver = {
 	.driver		= {
 		.name		= "sh_mobile_lcdc_fb",
-		.owner		= THIS_MODULE,
 		.pm		= &sh_mobile_lcdc_dev_pm_ops,
 	},
 	.probe		= sh_mobile_lcdc_probe,

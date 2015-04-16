@@ -152,7 +152,7 @@ void nfs_fattr_map_and_free_names(struct nfs_server *server, struct nfs_fattr *f
 		nfs_fattr_free_group_name(fattr);
 }
 
-static int nfs_map_string_to_numeric(const char *name, size_t namelen, __u32 *res)
+int nfs_map_string_to_numeric(const char *name, size_t namelen, __u32 *res)
 {
 	unsigned long val;
 	char buf[16];
@@ -166,6 +166,7 @@ static int nfs_map_string_to_numeric(const char *name, size_t namelen, __u32 *re
 	*res = val;
 	return 1;
 }
+EXPORT_SYMBOL_GPL(nfs_map_string_to_numeric);
 
 static int nfs_map_numeric_to_string(__u32 id, char *buf, size_t buflen)
 {

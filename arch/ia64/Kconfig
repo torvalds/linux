@@ -1,3 +1,8 @@
+config PGTABLE_LEVELS
+	int "Page Table Levels" if !IA64_PAGE_SIZE_64KB
+	range 3 4 if !IA64_PAGE_SIZE_64KB
+	default 3
+
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
@@ -11,7 +16,6 @@ config IA64
 	select PCI if (!IA64_HP_SIM)
 	select ACPI if (!IA64_HP_SIM)
 	select ARCH_MIGHT_HAVE_ACPI_PDC if ACPI
-	select PM if (!IA64_HP_SIM)
 	select HAVE_UNSTABLE_SCHED_CLOCK
 	select HAVE_IDE
 	select HAVE_OPROFILE
@@ -21,7 +25,6 @@ config IA64
 	select HAVE_DYNAMIC_FTRACE if (!ITANIUM)
 	select HAVE_FUNCTION_TRACER
 	select HAVE_DMA_ATTRS
-	select HAVE_KVM
 	select TTY
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_DMA_API_DEBUG
@@ -233,6 +236,7 @@ config IA64_SGI_UV
 config IA64_HP_SIM
 	bool "Ski-simulator"
 	select SWIOTLB
+	depends on !PM
 
 endchoice
 
@@ -284,19 +288,6 @@ config IA64_PAGE_SIZE_16KB
 config IA64_PAGE_SIZE_64KB
 	depends on !ITANIUM
 	bool "64KB"
-
-endchoice
-
-choice
-	prompt "Page Table Levels"
-	default PGTABLE_3
-
-config PGTABLE_3
-	bool "3 Levels"
-
-config PGTABLE_4
-	depends on !IA64_PAGE_SIZE_64KB
-	bool "4 Levels"
 
 endchoice
 
@@ -639,8 +630,6 @@ source "arch/ia64/Kconfig.debug"
 source "security/Kconfig"
 
 source "crypto/Kconfig"
-
-source "arch/ia64/kvm/Kconfig"
 
 source "lib/Kconfig"
 

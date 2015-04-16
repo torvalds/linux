@@ -126,7 +126,6 @@ static const struct comedi_lrange range_dt2801_ai_pgl_unipolar = {
 };
 
 struct dt2801_board {
-
 	const char *name;
 	int boardcode;
 	int ad_diff;
@@ -280,7 +279,7 @@ static int dt2801_writedata2(struct comedi_device *dev, unsigned int data)
 	ret = dt2801_writedata(dev, data & 0xff);
 	if (ret < 0)
 		return ret;
-	ret = dt2801_writedata(dev, (data >> 8));
+	ret = dt2801_writedata(dev, data >> 8);
 	if (ret < 0)
 		return ret;
 
@@ -597,7 +596,6 @@ havetype:
 	devpriv->dac_range_types[0] = dac_range_lkup(it->options[4]);
 	devpriv->dac_range_types[1] = dac_range_lkup(it->options[5]);
 	s->insn_write = dt2801_ao_insn_write;
-	s->insn_read = comedi_readback_insn_read;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)

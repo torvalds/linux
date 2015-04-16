@@ -2,6 +2,8 @@
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  *
+ * Copyright (c) 2014 The Linux Foundation. All rights reserved.
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published by
  * the Free Software Foundation.
@@ -24,6 +26,81 @@
 
 #include "adreno_common.xml.h"
 #include "adreno_pm4.xml.h"
+
+#define REG_ADRENO_DEFINE(_offset, _reg) [_offset] = (_reg) + 1
+/**
+ * adreno_regs: List of registers that are used in across all
+ * 3D devices. Each device type has different offset value for the same
+ * register, so an array of register offsets are declared for every device
+ * and are indexed by the enumeration values defined in this enum
+ */
+enum adreno_regs {
+	REG_ADRENO_CP_DEBUG,
+	REG_ADRENO_CP_ME_RAM_WADDR,
+	REG_ADRENO_CP_ME_RAM_DATA,
+	REG_ADRENO_CP_PFP_UCODE_DATA,
+	REG_ADRENO_CP_PFP_UCODE_ADDR,
+	REG_ADRENO_CP_WFI_PEND_CTR,
+	REG_ADRENO_CP_RB_BASE,
+	REG_ADRENO_CP_RB_RPTR_ADDR,
+	REG_ADRENO_CP_RB_RPTR,
+	REG_ADRENO_CP_RB_WPTR,
+	REG_ADRENO_CP_PROTECT_CTRL,
+	REG_ADRENO_CP_ME_CNTL,
+	REG_ADRENO_CP_RB_CNTL,
+	REG_ADRENO_CP_IB1_BASE,
+	REG_ADRENO_CP_IB1_BUFSZ,
+	REG_ADRENO_CP_IB2_BASE,
+	REG_ADRENO_CP_IB2_BUFSZ,
+	REG_ADRENO_CP_TIMESTAMP,
+	REG_ADRENO_CP_ME_RAM_RADDR,
+	REG_ADRENO_CP_ROQ_ADDR,
+	REG_ADRENO_CP_ROQ_DATA,
+	REG_ADRENO_CP_MERCIU_ADDR,
+	REG_ADRENO_CP_MERCIU_DATA,
+	REG_ADRENO_CP_MERCIU_DATA2,
+	REG_ADRENO_CP_MEQ_ADDR,
+	REG_ADRENO_CP_MEQ_DATA,
+	REG_ADRENO_CP_HW_FAULT,
+	REG_ADRENO_CP_PROTECT_STATUS,
+	REG_ADRENO_SCRATCH_ADDR,
+	REG_ADRENO_SCRATCH_UMSK,
+	REG_ADRENO_SCRATCH_REG2,
+	REG_ADRENO_RBBM_STATUS,
+	REG_ADRENO_RBBM_PERFCTR_CTL,
+	REG_ADRENO_RBBM_PERFCTR_LOAD_CMD0,
+	REG_ADRENO_RBBM_PERFCTR_LOAD_CMD1,
+	REG_ADRENO_RBBM_PERFCTR_LOAD_CMD2,
+	REG_ADRENO_RBBM_PERFCTR_PWR_1_LO,
+	REG_ADRENO_RBBM_INT_0_MASK,
+	REG_ADRENO_RBBM_INT_0_STATUS,
+	REG_ADRENO_RBBM_AHB_ERROR_STATUS,
+	REG_ADRENO_RBBM_PM_OVERRIDE2,
+	REG_ADRENO_RBBM_AHB_CMD,
+	REG_ADRENO_RBBM_INT_CLEAR_CMD,
+	REG_ADRENO_RBBM_SW_RESET_CMD,
+	REG_ADRENO_RBBM_CLOCK_CTL,
+	REG_ADRENO_RBBM_AHB_ME_SPLIT_STATUS,
+	REG_ADRENO_RBBM_AHB_PFP_SPLIT_STATUS,
+	REG_ADRENO_VPC_DEBUG_RAM_SEL,
+	REG_ADRENO_VPC_DEBUG_RAM_READ,
+	REG_ADRENO_VSC_SIZE_ADDRESS,
+	REG_ADRENO_VFD_CONTROL_0,
+	REG_ADRENO_VFD_INDEX_MAX,
+	REG_ADRENO_SP_VS_PVT_MEM_ADDR_REG,
+	REG_ADRENO_SP_FS_PVT_MEM_ADDR_REG,
+	REG_ADRENO_SP_VS_OBJ_START_REG,
+	REG_ADRENO_SP_FS_OBJ_START_REG,
+	REG_ADRENO_PA_SC_AA_CONFIG,
+	REG_ADRENO_SQ_GPR_MANAGEMENT,
+	REG_ADRENO_SQ_INST_STORE_MANAGMENT,
+	REG_ADRENO_TP0_CHICKEN,
+	REG_ADRENO_RBBM_RBBM_CTL,
+	REG_ADRENO_UCHE_INVALIDATE0,
+	REG_ADRENO_RBBM_PERFCTR_LOAD_VALUE_LO,
+	REG_ADRENO_RBBM_PERFCTR_LOAD_VALUE_HI,
+	REG_ADRENO_REGISTER_MAX,
+};
 
 struct adreno_rev {
 	uint8_t  core;
@@ -76,6 +153,13 @@ struct adreno_gpu {
 	struct adreno_rbmemptrs *memptrs;
 	struct drm_gem_object *memptrs_bo;
 	uint32_t memptrs_iova;
+
+	/*
+	 * Register offsets are different between some GPUs.
+	 * GPU specific offsets will be exported by GPU specific
+	 * code (a3xx_gpu.c) and stored in this common location.
+	 */
+	const unsigned int *reg_offsets;
 };
 #define to_adreno_gpu(x) container_of(x, struct adreno_gpu, base)
 
@@ -128,6 +212,16 @@ static inline bool adreno_is_a330v2(struct adreno_gpu *gpu)
 	return adreno_is_a330(gpu) && (gpu->rev.patchid > 0);
 }
 
+static inline bool adreno_is_a4xx(struct adreno_gpu *gpu)
+{
+	return (gpu->revn >= 400) && (gpu->revn < 500);
+}
+
+static inline int adreno_is_a420(struct adreno_gpu *gpu)
+{
+	return gpu->revn == 420;
+}
+
 int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value);
 int adreno_hw_init(struct msm_gpu *gpu);
 uint32_t adreno_last_fence(struct msm_gpu *gpu);
@@ -171,5 +265,37 @@ OUT_PKT3(struct msm_ringbuffer *ring, uint8_t opcode, uint16_t cnt)
 	OUT_RING(ring, CP_TYPE3_PKT | ((cnt-1) << 16) | ((opcode & 0xFF) << 8));
 }
 
+/*
+ * adreno_checkreg_off() - Checks the validity of a register enum
+ * @gpu:		Pointer to struct adreno_gpu
+ * @offset_name:	The register enum that is checked
+ */
+static inline bool adreno_reg_check(struct adreno_gpu *gpu,
+		enum adreno_regs offset_name)
+{
+	if (offset_name >= REG_ADRENO_REGISTER_MAX ||
+			!gpu->reg_offsets[offset_name]) {
+		BUG();
+	}
+	return true;
+}
+
+static inline u32 adreno_gpu_read(struct adreno_gpu *gpu,
+		enum adreno_regs offset_name)
+{
+	u32 reg = gpu->reg_offsets[offset_name];
+	u32 val = 0;
+	if(adreno_reg_check(gpu,offset_name))
+		val = gpu_read(&gpu->base, reg - 1);
+	return val;
+}
+
+static inline void adreno_gpu_write(struct adreno_gpu *gpu,
+		enum adreno_regs offset_name, u32 data)
+{
+	u32 reg = gpu->reg_offsets[offset_name];
+	if(adreno_reg_check(gpu, offset_name))
+		gpu_write(&gpu->base, reg - 1, data);
+}
 
 #endif /* __ADRENO_GPU_H__ */

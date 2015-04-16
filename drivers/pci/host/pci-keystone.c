@@ -119,7 +119,7 @@ static void ks_pcie_msi_irq_handler(unsigned int irq, struct irq_desc *desc)
 	struct pcie_port *pp = &ks_pcie->pp;
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 
-	dev_dbg(pp->dev, "ks_pci_msi_irq_handler, irq %d\n", irq);
+	dev_dbg(pp->dev, "%s, irq %d\n", __func__, irq);
 
 	/*
 	 * The chained irq handler installation would have replaced normal
@@ -197,7 +197,7 @@ static int ks_pcie_get_irq_controller_info(struct keystone_pcie *ks_pcie,
 	 */
 	for (temp = 0; temp < max_host_irqs; temp++) {
 		host_irqs[temp] = irq_of_parse_and_map(*np_temp, temp);
-		if (host_irqs[temp] < 0)
+		if (!host_irqs[temp])
 			break;
 	}
 	if (temp) {
@@ -353,10 +353,9 @@ static int __init ks_pcie_probe(struct platform_device *pdev)
 
 	ks_pcie = devm_kzalloc(&pdev->dev, sizeof(*ks_pcie),
 				GFP_KERNEL);
-	if (!ks_pcie) {
-		dev_err(dev, "no memory for keystone pcie\n");
+	if (!ks_pcie)
 		return -ENOMEM;
-	}
+
 	pp = &ks_pcie->pp;
 
 	/* initialize SerDes Phy if present */
@@ -403,7 +402,6 @@ static struct platform_driver ks_pcie_driver __refdata = {
 	.remove = __exit_p(ks_pcie_remove),
 	.driver = {
 		.name	= "keystone-pcie",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(ks_pcie_of_match),
 	},
 };

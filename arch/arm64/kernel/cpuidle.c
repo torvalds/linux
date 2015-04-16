@@ -15,7 +15,7 @@
 #include <asm/cpuidle.h>
 #include <asm/cpu_ops.h>
 
-int cpu_init_idle(unsigned int cpu)
+int arm_cpuidle_init(unsigned int cpu)
 {
 	int ret = -EOPNOTSUPP;
 	struct device_node *cpu_node = of_cpu_device_node_get(cpu);
@@ -28,4 +28,24 @@ int cpu_init_idle(unsigned int cpu)
 
 	of_node_put(cpu_node);
 	return ret;
+}
+
+/**
+ * cpu_suspend() - function to enter a low-power idle state
+ * @arg: argument to pass to CPU suspend operations
+ *
+ * Return: 0 on success, -EOPNOTSUPP if CPU suspend hook not initialized, CPU
+ * operations back-end error code otherwise.
+ */
+int cpu_suspend(unsigned long arg)
+{
+	int cpu = smp_processor_id();
+
+	/*
+	 * If cpu_ops have not been registered or suspend
+	 * has not been initialized, cpu_suspend call fails early.
+	 */
+	if (!cpu_ops[cpu] || !cpu_ops[cpu]->cpu_suspend)
+		return -EOPNOTSUPP;
+	return cpu_ops[cpu]->cpu_suspend(arg);
 }

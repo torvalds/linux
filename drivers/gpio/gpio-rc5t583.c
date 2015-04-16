@@ -155,7 +155,6 @@ static int rc5t583_gpio_remove(struct platform_device *pdev)
 static struct platform_driver rc5t583_gpio_driver = {
 	.driver = {
 		.name    = "rc5t583-gpio",
-		.owner   = THIS_MODULE,
 	},
 	.probe		= rc5t583_gpio_probe,
 	.remove		= rc5t583_gpio_remove,

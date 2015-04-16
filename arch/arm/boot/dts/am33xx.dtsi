@@ -83,6 +83,11 @@
 		};
 	};
 
+	am33xx_control_module: control_module@4a002000 {
+		compatible = "syscon";
+		reg = <0x44e10000 0x7fc>;
+	};
+
 	am33xx_pinmux: pinmux@44e10800 {
 		compatible = "pinctrl-single";
 		reg = <0x44e10800 0x0238>;
@@ -204,6 +209,8 @@
 			reg = <0x44e09000 0x2000>;
 			interrupts = <72>;
 			status = "disabled";
+			dmas = <&edma 26>, <&edma 27>;
+			dma-names = "tx", "rx";
 		};
 
 		uart1: serial@48022000 {
@@ -213,6 +220,8 @@
 			reg = <0x48022000 0x2000>;
 			interrupts = <73>;
 			status = "disabled";
+			dmas = <&edma 28>, <&edma 29>;
+			dma-names = "tx", "rx";
 		};
 
 		uart2: serial@48024000 {
@@ -222,6 +231,8 @@
 			reg = <0x48024000 0x2000>;
 			interrupts = <74>;
 			status = "disabled";
+			dmas = <&edma 30>, <&edma 31>;
+			dma-names = "tx", "rx";
 		};
 
 		uart3: serial@481a6000 {
@@ -333,20 +344,24 @@
 			interrupts = <91>;
 		};
 
-		dcan0: d_can@481cc000 {
-			compatible = "bosch,d_can";
+		dcan0: can@481cc000 {
+			compatible = "ti,am3352-d_can";
 			ti,hwmods = "d_can0";
-			reg = <0x481cc000 0x2000
-				0x44e10644 0x4>;
+			reg = <0x481cc000 0x2000>;
+			clocks = <&dcan0_fck>;
+			clock-names = "fck";
+			syscon-raminit = <&am33xx_control_module 0x644 0>;
 			interrupts = <52>;
 			status = "disabled";
 		};
 
-		dcan1: d_can@481d0000 {
-			compatible = "bosch,d_can";
+		dcan1: can@481d0000 {
+			compatible = "ti,am3352-d_can";
 			ti,hwmods = "d_can1";
-			reg = <0x481d0000 0x2000
-				0x44e10644 0x4>;
+			reg = <0x481d0000 0x2000>;
+			clocks = <&dcan1_fck>;
+			clock-names = "fck";
+			syscon-raminit = <&am33xx_control_module 0x644 1>;
 			interrupts = <55>;
 			status = "disabled";
 		};
@@ -356,6 +371,7 @@
 			reg = <0x480C8000 0x200>;
 			interrupts = <77>;
 			ti,hwmods = "mailbox";
+			#mbox-cells = <1>;
 			ti,mbox-num-users = <4>;
 			ti,mbox-num-fifos = <8>;
 			mbox_wkupm3: wkup_m3 {
@@ -419,7 +435,7 @@
 		};
 
 		rtc: rtc@44e3e000 {
-			compatible = "ti,da830-rtc";
+			compatible = "ti,am3352-rtc", "ti,da830-rtc";
 			reg = <0x44e3e000 0x1000>;
 			interrupts = <75
 				      76>;

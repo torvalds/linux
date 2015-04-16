@@ -228,8 +228,7 @@ int llog_cat_close(const struct lu_env *env, struct llog_handle *cathandle)
 		    (llh->llh_count == 1)) {
 			rc = llog_destroy(env, loghandle);
 			if (rc)
-				CERROR("%s: failure destroying log during "
-				       "cleanup: rc = %d\n",
+				CERROR("%s: failure destroying log during cleanup: rc = %d\n",
 				       loghandle->lgh_ctxt->loc_obd->obd_name,
 				       rc);
 
@@ -527,8 +526,9 @@ int llog_cat_cancel_records(const struct lu_env *env,
 }
 EXPORT_SYMBOL(llog_cat_cancel_records);
 
-int llog_cat_process_cb(const struct lu_env *env, struct llog_handle *cat_llh,
-			struct llog_rec_hdr *rec, void *data)
+static int llog_cat_process_cb(const struct lu_env *env,
+			       struct llog_handle *cat_llh,
+			       struct llog_rec_hdr *rec, void *data)
 {
 	struct llog_process_data *d = data;
 	struct llog_logid_rec *lir = (struct llog_logid_rec *)rec;
@@ -692,7 +692,7 @@ int llog_cat_reverse_process(const struct lu_env *env,
 }
 EXPORT_SYMBOL(llog_cat_reverse_process);
 
-int llog_cat_set_first_idx(struct llog_handle *cathandle, int index)
+static int llog_cat_set_first_idx(struct llog_handle *cathandle, int index)
 {
 	struct llog_log_hdr *llh = cathandle->lgh_hdr;
 	int i, bitmap_size, idx;
@@ -746,13 +746,12 @@ int llog_cat_cleanup(const struct lu_env *env, struct llog_handle *cathandle,
 	llog_cat_set_first_idx(cathandle, index);
 	rc = llog_cancel_rec(env, cathandle, index);
 	if (rc == 0)
-		CDEBUG(D_HA, "cancel plain log at index"
-		       " %u of catalog "DOSTID"\n",
+		CDEBUG(D_HA, "cancel plain log at index %u of catalog " DOSTID "\n",
 		       index, POSTID(&cathandle->lgh_id.lgl_oi));
 	return rc;
 }
 
-int cat_cancel_cb(const struct lu_env *env, struct llog_handle *cathandle,
+static int cat_cancel_cb(const struct lu_env *env, struct llog_handle *cathandle,
 		  struct llog_rec_hdr *rec, void *data)
 {
 	struct llog_logid_rec	*lir = (struct llog_logid_rec *)rec;
@@ -796,7 +795,6 @@ int cat_cancel_cb(const struct lu_env *env, struct llog_handle *cathandle,
 
 	return rc;
 }
-EXPORT_SYMBOL(cat_cancel_cb);
 
 /* helper to initialize catalog llog and process it to cancel */
 int llog_cat_init_and_process(const struct lu_env *env,
@@ -810,8 +808,8 @@ int llog_cat_init_and_process(const struct lu_env *env,
 
 	rc = llog_process_or_fork(env, llh, cat_cancel_cb, NULL, NULL, false);
 	if (rc)
-		CERROR("%s: llog_process() with cat_cancel_cb failed: rc = "
-		       "%d\n", llh->lgh_ctxt->loc_obd->obd_name, rc);
+		CERROR("%s: llog_process() with cat_cancel_cb failed: rc = %d\n",
+		       llh->lgh_ctxt->loc_obd->obd_name, rc);
 	return 0;
 }
 EXPORT_SYMBOL(llog_cat_init_and_process);

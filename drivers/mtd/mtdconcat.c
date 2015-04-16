@@ -311,7 +311,8 @@ concat_write_oob(struct mtd_info *mtd, loff_t to, struct mtd_oob_ops *ops)
 			devops.len = subdev->size - to;
 
 		err = mtd_write_oob(subdev, to, &devops);
-		ops->retlen += devops.oobretlen;
+		ops->retlen += devops.retlen;
+		ops->oobretlen += devops.oobretlen;
 		if (err)
 			return err;
 
@@ -732,8 +733,6 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
 
 	concat->mtd.ecc_stats.badblocks = subdev[0]->ecc_stats.badblocks;
 
-	concat->mtd.backing_dev_info = subdev[0]->backing_dev_info;
-
 	concat->subdev[0] = subdev[0];
 
 	for (i = 1; i < num_devs; i++) {
@@ -760,14 +759,6 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
 				concat->mtd.flags |=
 				    subdev[i]->flags & MTD_WRITEABLE;
 		}
-
-		/* only permit direct mapping if the BDIs are all the same
-		 * - copy-mapping is still permitted
-		 */
-		if (concat->mtd.backing_dev_info !=
-		    subdev[i]->backing_dev_info)
-			concat->mtd.backing_dev_info =
-				&default_backing_dev_info;
 
 		concat->mtd.size += subdev[i]->size;
 		concat->mtd.ecc_stats.badblocks +=

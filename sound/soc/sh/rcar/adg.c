@@ -57,8 +57,7 @@ static u32 rsnd_adg_ssi_ws_timing_gen2(struct rsnd_dai_stream *io)
 	return (0x6 + ws) << 8;
 }
 
-int rsnd_adg_set_cmd_timsel_gen2(struct rsnd_dai *rdai,
-				 struct rsnd_mod *mod,
+int rsnd_adg_set_cmd_timsel_gen2(struct rsnd_mod *mod,
 				 struct rsnd_dai_stream *io)
 {
 	int id = rsnd_mod_id(mod);
@@ -75,12 +74,11 @@ int rsnd_adg_set_cmd_timsel_gen2(struct rsnd_dai *rdai,
 	return 0;
 }
 
-static int rsnd_adg_set_src_timsel_gen2(struct rsnd_dai *rdai,
-					struct rsnd_mod *mod,
+static int rsnd_adg_set_src_timsel_gen2(struct rsnd_mod *mod,
 					struct rsnd_dai_stream *io,
 					u32 timsel)
 {
-	int is_play = rsnd_dai_is_play(rdai, io);
+	int is_play = rsnd_io_is_play(io);
 	int id = rsnd_mod_id(mod);
 	int shift = (id % 2) ? 16 : 0;
 	u32 mask, ws;
@@ -122,7 +120,6 @@ static int rsnd_adg_set_src_timsel_gen2(struct rsnd_dai *rdai,
 }
 
 int rsnd_adg_set_convert_clk_gen2(struct rsnd_mod *mod,
-				  struct rsnd_dai *rdai,
 				  struct rsnd_dai_stream *io,
 				  unsigned int src_rate,
 				  unsigned int dst_rate)
@@ -178,7 +175,7 @@ int rsnd_adg_set_convert_clk_gen2(struct rsnd_mod *mod,
 		return -EIO;
 	}
 
-	ret = rsnd_adg_set_src_timsel_gen2(rdai, mod, io, val);
+	ret = rsnd_adg_set_src_timsel_gen2(mod, io, val);
 	if (ret < 0) {
 		dev_err(dev, "timsel error\n");
 		return ret;
@@ -186,16 +183,17 @@ int rsnd_adg_set_convert_clk_gen2(struct rsnd_mod *mod,
 
 	rsnd_mod_bset(mod, DIV_EN, en, en);
 
+	dev_dbg(dev, "convert rate %d <-> %d\n", src_rate, dst_rate);
+
 	return 0;
 }
 
 int rsnd_adg_set_convert_timing_gen2(struct rsnd_mod *mod,
-				     struct rsnd_dai *rdai,
 				     struct rsnd_dai_stream *io)
 {
 	u32 val = rsnd_adg_ssi_ws_timing_gen2(io);
 
-	return rsnd_adg_set_src_timsel_gen2(rdai, mod, io, val);
+	return rsnd_adg_set_src_timsel_gen2(mod, io, val);
 }
 
 int rsnd_adg_set_convert_clk_gen1(struct rsnd_priv *priv,
@@ -430,13 +428,11 @@ int rsnd_adg_probe(struct platform_device *pdev,
 	adg->clk[CLKI]	= devm_clk_get(dev, "clk_i");
 
 	for_each_rsnd_clk(clk, adg, i)
-		dev_dbg(dev, "clk %d : %p\n", i, clk);
+		dev_dbg(dev, "clk %d : %p : %ld\n", i, clk, clk_get_rate(clk));
 
 	rsnd_adg_ssi_clk_init(priv, adg);
 
 	priv->adg = adg;
-
-	dev_dbg(dev, "adg probed\n");
 
 	return 0;
 }

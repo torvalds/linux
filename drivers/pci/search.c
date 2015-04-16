@@ -271,8 +271,7 @@ static struct pci_dev *pci_get_dev_by_id(const struct pci_device_id *id,
 			      match_pci_dev_by_id);
 	if (dev)
 		pdev = to_pci_dev(dev);
-	if (from)
-		pci_dev_put(from);
+	pci_dev_put(from);
 	return pdev;
 }
 

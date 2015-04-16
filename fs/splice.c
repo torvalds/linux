@@ -32,7 +32,6 @@
 #include <linux/gfp.h>
 #include <linux/socket.h>
 #include <linux/compat.h>
-#include <linux/aio.h>
 #include "internal.h"
 
 /*
@@ -524,6 +523,9 @@ ssize_t generic_file_splice_read(struct file *in, loff_t *ppos,
 	loff_t isize, left;
 	int ret;
 
+	if (IS_DAX(in->f_mapping->host))
+		return default_file_splice_read(in, ppos, pipe, len, flags);
+
 	isize = i_size_read(in->f_mapping->host);
 	if (unlikely(*ppos >= isize))
 		return 0;
@@ -961,7 +963,6 @@ iter_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 	splice_from_pipe_begin(&sd);
 	while (sd.total_len) {
 		struct iov_iter from;
-		struct kiocb kiocb;
 		size_t left;
 		int n, idx;
 
@@ -1005,29 +1006,15 @@ iter_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 			left -= this_len;
 		}
 
-		/* ... iov_iter */
-		from.type = ITER_BVEC | WRITE;
-		from.bvec = array;
-		from.nr_segs = n;
-		from.count = sd.total_len - left;
-		from.iov_offset = 0;
-
-		/* ... and iocb */
-		init_sync_kiocb(&kiocb, out);
-		kiocb.ki_pos = sd.pos;
-		kiocb.ki_nbytes = sd.total_len - left;
-
-		/* now, send it */
-		ret = out->f_op->write_iter(&kiocb, &from);
-		if (-EIOCBQUEUED == ret)
-			ret = wait_on_sync_kiocb(&kiocb);
-
+		iov_iter_bvec(&from, ITER_BVEC | WRITE, array, n,
+			      sd.total_len - left);
+		ret = vfs_iter_write(out, &from, &sd.pos);
 		if (ret <= 0)
 			break;
 
 		sd.num_spliced += ret;
 		sd.total_len -= ret;
-		*ppos = sd.pos = kiocb.ki_pos;
+		*ppos = sd.pos;
 
 		/* dismiss the fully eaten buffers, adjust the partial one */
 		while (ret) {
@@ -1330,6 +1317,7 @@ long do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
 
 	return ret;
 }
+EXPORT_SYMBOL(do_splice_direct);
 
 static int splice_pipe_to_pipe(struct pipe_inode_info *ipipe,
 			       struct pipe_inode_info *opipe,
@@ -1548,34 +1536,29 @@ static long vmsplice_to_user(struct file *file, const struct iovec __user *uiov,
 	struct iovec iovstack[UIO_FASTIOV];
 	struct iovec *iov = iovstack;
 	struct iov_iter iter;
-	ssize_t count;
 
 	pipe = get_pipe_info(file);
 	if (!pipe)
 		return -EBADF;
 
-	ret = rw_copy_check_uvector(READ, uiov, nr_segs,
-				    ARRAY_SIZE(iovstack), iovstack, &iov);
-	if (ret <= 0)
-		goto out;
+	ret = import_iovec(READ, uiov, nr_segs,
+			   ARRAY_SIZE(iovstack), &iov, &iter);
+	if (ret < 0)
+		return ret;
 
-	count = ret;
-	iov_iter_init(&iter, READ, iov, nr_segs, count);
-
+	sd.total_len = iov_iter_count(&iter);
 	sd.len = 0;
-	sd.total_len = count;
 	sd.flags = flags;
 	sd.u.data = &iter;
 	sd.pos = 0;
 
-	pipe_lock(pipe);
-	ret = __splice_from_pipe(pipe, &sd, pipe_to_user);
-	pipe_unlock(pipe);
+	if (sd.total_len) {
+		pipe_lock(pipe);
+		ret = __splice_from_pipe(pipe, &sd, pipe_to_user);
+		pipe_unlock(pipe);
+	}
 
-out:
-	if (iov != iovstack)
-		kfree(iov);
-
+	kfree(iov);
 	return ret;
 }
 

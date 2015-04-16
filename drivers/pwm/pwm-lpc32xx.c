@@ -168,7 +168,6 @@ MODULE_DEVICE_TABLE(of, lpc32xx_pwm_dt_ids);
 static struct platform_driver lpc32xx_pwm_driver = {
 	.driver = {
 		.name = "lpc32xx-pwm",
-		.owner = THIS_MODULE,
 		.of_match_table = lpc32xx_pwm_dt_ids,
 	},
 	.probe = lpc32xx_pwm_probe,

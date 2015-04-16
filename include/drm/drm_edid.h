@@ -27,12 +27,14 @@
 
 #define EDID_LENGTH 128
 #define DDC_ADDR 0x50
+#define DDC_ADDR2 0x52 /* E-DDC 1.2 - where DisplayID can hide */
 
 #define CEA_EXT	    0x02
 #define VTB_EXT	    0x10
 #define DI_EXT	    0x40
 #define LS_EXT	    0x50
 #define MI_EXT	    0x60
+#define DISPLAYID_EXT 0x70
 
 struct est_timings {
 	u8 t1;
@@ -207,6 +209,61 @@ struct detailed_timing {
 #define DRM_EDID_HDMI_DC_30               (1 << 4)
 #define DRM_EDID_HDMI_DC_Y444             (1 << 3)
 
+/* ELD Header Block */
+#define DRM_ELD_HEADER_BLOCK_SIZE	4
+
+#define DRM_ELD_VER			0
+# define DRM_ELD_VER_SHIFT		3
+# define DRM_ELD_VER_MASK		(0x1f << 3)
+
+#define DRM_ELD_BASELINE_ELD_LEN	2	/* in dwords! */
+
+/* ELD Baseline Block for ELD_Ver == 2 */
+#define DRM_ELD_CEA_EDID_VER_MNL	4
+# define DRM_ELD_CEA_EDID_VER_SHIFT	5
+# define DRM_ELD_CEA_EDID_VER_MASK	(7 << 5)
+# define DRM_ELD_CEA_EDID_VER_NONE	(0 << 5)
+# define DRM_ELD_CEA_EDID_VER_CEA861	(1 << 5)
+# define DRM_ELD_CEA_EDID_VER_CEA861A	(2 << 5)
+# define DRM_ELD_CEA_EDID_VER_CEA861BCD	(3 << 5)
+# define DRM_ELD_MNL_SHIFT		0
+# define DRM_ELD_MNL_MASK		(0x1f << 0)
+
+#define DRM_ELD_SAD_COUNT_CONN_TYPE	5
+# define DRM_ELD_SAD_COUNT_SHIFT	4
+# define DRM_ELD_SAD_COUNT_MASK		(0xf << 4)
+# define DRM_ELD_CONN_TYPE_SHIFT	2
+# define DRM_ELD_CONN_TYPE_MASK		(3 << 2)
+# define DRM_ELD_CONN_TYPE_HDMI		(0 << 2)
+# define DRM_ELD_CONN_TYPE_DP		(1 << 2)
+# define DRM_ELD_SUPPORTS_AI		(1 << 1)
+# define DRM_ELD_SUPPORTS_HDCP		(1 << 0)
+
+#define DRM_ELD_AUD_SYNCH_DELAY		6	/* in units of 2 ms */
+# define DRM_ELD_AUD_SYNCH_DELAY_MAX	0xfa	/* 500 ms */
+
+#define DRM_ELD_SPEAKER			7
+# define DRM_ELD_SPEAKER_RLRC		(1 << 6)
+# define DRM_ELD_SPEAKER_FLRC		(1 << 5)
+# define DRM_ELD_SPEAKER_RC		(1 << 4)
+# define DRM_ELD_SPEAKER_RLR		(1 << 3)
+# define DRM_ELD_SPEAKER_FC		(1 << 2)
+# define DRM_ELD_SPEAKER_LFE		(1 << 1)
+# define DRM_ELD_SPEAKER_FLR		(1 << 0)
+
+#define DRM_ELD_PORT_ID			8	/* offsets 8..15 inclusive */
+# define DRM_ELD_PORT_ID_LEN		8
+
+#define DRM_ELD_MANUFACTURER_NAME0	16
+#define DRM_ELD_MANUFACTURER_NAME1	17
+
+#define DRM_ELD_PRODUCT_CODE0		18
+#define DRM_ELD_PRODUCT_CODE1		19
+
+#define DRM_ELD_MONITOR_NAME_STRING	20	/* offsets 20..(20+mnl-1) inclusive */
+
+#define DRM_ELD_CEA_SAD(mnl, sad)	(20 + (mnl) + 3 * (sad))
+
 struct edid {
 	u8 header[8];
 	/* Vendor & product info */
@@ -278,5 +335,57 @@ drm_hdmi_avi_infoframe_from_display_mode(struct hdmi_avi_infoframe *frame,
 int
 drm_hdmi_vendor_infoframe_from_display_mode(struct hdmi_vendor_infoframe *frame,
 					    const struct drm_display_mode *mode);
+
+/**
+ * drm_eld_mnl - Get ELD monitor name length in bytes.
+ * @eld: pointer to an eld memory structure with mnl set
+ */
+static inline int drm_eld_mnl(const uint8_t *eld)
+{
+	return (eld[DRM_ELD_CEA_EDID_VER_MNL] & DRM_ELD_MNL_MASK) >> DRM_ELD_MNL_SHIFT;
+}
+
+/**
+ * drm_eld_sad_count - Get ELD SAD count.
+ * @eld: pointer to an eld memory structure with sad_count set
+ */
+static inline int drm_eld_sad_count(const uint8_t *eld)
+{
+	return (eld[DRM_ELD_SAD_COUNT_CONN_TYPE] & DRM_ELD_SAD_COUNT_MASK) >>
+		DRM_ELD_SAD_COUNT_SHIFT;
+}
+
+/**
+ * drm_eld_calc_baseline_block_size - Calculate baseline block size in bytes
+ * @eld: pointer to an eld memory structure with mnl and sad_count set
+ *
+ * This is a helper for determining the payload size of the baseline block, in
+ * bytes, for e.g. setting the Baseline_ELD_Len field in the ELD header block.
+ */
+static inline int drm_eld_calc_baseline_block_size(const uint8_t *eld)
+{
+	return DRM_ELD_MONITOR_NAME_STRING - DRM_ELD_HEADER_BLOCK_SIZE +
+		drm_eld_mnl(eld) + drm_eld_sad_count(eld) * 3;
+}
+
+/**
+ * drm_eld_size - Get ELD size in bytes
+ * @eld: pointer to a complete eld memory structure
+ *
+ * The returned value does not include the vendor block. It's vendor specific,
+ * and comprises of the remaining bytes in the ELD memory buffer after
+ * drm_eld_size() bytes of header and baseline block.
+ *
+ * The returned value is guaranteed to be a multiple of 4.
+ */
+static inline int drm_eld_size(const uint8_t *eld)
+{
+	return DRM_ELD_HEADER_BLOCK_SIZE + eld[DRM_ELD_BASELINE_ELD_LEN] * 4;
+}
+
+struct edid *drm_do_get_edid(struct drm_connector *connector,
+	int (*get_edid_block)(void *data, u8 *buf, unsigned int block,
+			      size_t len),
+	void *data);
 
 #endif /* __DRM_EDID_H__ */

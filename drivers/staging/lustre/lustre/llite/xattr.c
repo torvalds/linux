@@ -201,8 +201,7 @@ int ll_setxattr_common(struct inode *inode, const char *name,
 #endif
 	if (rc) {
 		if (rc == -EOPNOTSUPP && xattr_type == XATTR_USER_T) {
-			LCONSOLE_INFO("Disabling user_xattr feature because "
-				      "it is not supported on the server\n");
+			LCONSOLE_INFO("Disabling user_xattr feature because it is not supported on the server\n");
 			sbi->ll_flags &= ~LL_SBI_USER_XATTR;
 		}
 		return rc;
@@ -234,6 +233,9 @@ int ll_setxattr(struct dentry *dentry, const char *name,
 		struct lov_user_md *lump = (struct lov_user_md *)value;
 		int rc = 0;
 
+		if (size != 0 && size < sizeof(struct lov_user_md))
+			return -EINVAL;
+
 		/* Attributes that are saved via getxattr will always have
 		 * the stripe_offset as 0.  Instead, the MDS should be
 		 * allowed to pick the starting OST index.   b=17846 */
@@ -241,14 +243,11 @@ int ll_setxattr(struct dentry *dentry, const char *name,
 			lump->lmm_stripe_offset = -1;
 
 		if (lump != NULL && S_ISREG(inode->i_mode)) {
-			struct file f;
 			int flags = FMODE_WRITE;
 			int lum_size = (lump->lmm_magic == LOV_USER_MAGIC_V1) ?
 				sizeof(*lump) : sizeof(struct lov_user_md_v3);
 
-			memset(&f, 0, sizeof(f)); /* f.f_flags is used below */
-			f.f_dentry = dentry;
-			rc = ll_lov_setstripe_ea_info(inode, &f, flags, lump,
+			rc = ll_lov_setstripe_ea_info(inode, dentry, flags, lump,
 						      lum_size);
 			/* b10667: rc always be 0 here for now */
 			rc = 0;
@@ -519,8 +518,8 @@ ssize_t ll_getxattr(struct dentry *dentry, const char *name,
 		}
 
 		if (size < lmmsize) {
-			CERROR("server bug: replied size %d > %d for %s (%s)\n",
-			       lmmsize, (int)size, dentry->d_name.name, name);
+			CERROR("server bug: replied size %d > %d for %pd (%s)\n",
+			       lmmsize, (int)size, dentry, name);
 			rc = -ERANGE;
 			goto out;
 		}

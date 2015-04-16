@@ -64,7 +64,6 @@ struct sti_compositor_data {
  * @layer: array of layers
  * @nb_mixers: number of mixers for this compositor
  * @nb_layers: number of layers (GDP,VID,...) for this compositor
- * @enable: true if compositor is enable else false
  * @vtg_vblank_nb: callback for VTG VSYNC notification
  */
 struct sti_compositor {
@@ -83,7 +82,6 @@ struct sti_compositor {
 	struct sti_layer *layer[STI_MAX_LAYER];
 	int nb_mixers;
 	int nb_layers;
-	bool enable;
 	struct notifier_block vtg_vblank_nb;
 };
 

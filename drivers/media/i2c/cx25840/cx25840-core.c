@@ -879,7 +879,7 @@ void cx25840_std_setup(struct i2c_client *client)
 	/* Sets horizontal blanking delay and active lines */
 	cx25840_write(client, 0x470, hblank);
 	cx25840_write(client, 0x471,
-			0xff & (((hblank >> 8) & 0x3) | (hactive << 4)));
+		      (((hblank >> 8) & 0x3) | (hactive << 4)) & 0xff);
 	cx25840_write(client, 0x472, hactive >> 4);
 
 	/* Sets burst gate delay */
@@ -888,13 +888,13 @@ void cx25840_std_setup(struct i2c_client *client)
 	/* Sets vertical blanking delay and active duration */
 	cx25840_write(client, 0x474, vblank);
 	cx25840_write(client, 0x475,
-			0xff & (((vblank >> 8) & 0x3) | (vactive << 4)));
+		      (((vblank >> 8) & 0x3) | (vactive << 4)) & 0xff);
 	cx25840_write(client, 0x476, vactive >> 4);
 	cx25840_write(client, 0x477, vblank656);
 
 	/* Sets src decimation rate */
-	cx25840_write(client, 0x478, 0xff & src_decimation);
-	cx25840_write(client, 0x479, 0xff & (src_decimation >> 8));
+	cx25840_write(client, 0x478, src_decimation & 0xff);
+	cx25840_write(client, 0x479, (src_decimation >> 8) & 0xff);
 
 	/* Sets Luma and UV Low pass filters */
 	cx25840_write(client, 0x47a, luma_lpf << 6 | ((uv_lpf << 4) & 0x30));
@@ -904,8 +904,8 @@ void cx25840_std_setup(struct i2c_client *client)
 
 	/* Sets SC Step*/
 	cx25840_write(client, 0x47c, sc);
-	cx25840_write(client, 0x47d, 0xff & sc >> 8);
-	cx25840_write(client, 0x47e, 0xff & sc >> 16);
+	cx25840_write(client, 0x47d, (sc >> 8) & 0xff);
+	cx25840_write(client, 0x47e, (sc >> 16) & 0xff);
 
 	/* Sets VBI parameters */
 	if (std & V4L2_STD_625_50) {
@@ -1373,7 +1373,7 @@ static int cx25840_s_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt 
 	int HSC, VSC, Vsrc, Hsrc, filter, Vlines;
 	int is_50Hz = !(state->std & V4L2_STD_525_60);
 
-	if (fmt->code != V4L2_MBUS_FMT_FIXED)
+	if (fmt->code != MEDIA_BUS_FMT_FIXED)
 		return -EINVAL;
 
 	fmt->field = V4L2_FIELD_INTERLACED;

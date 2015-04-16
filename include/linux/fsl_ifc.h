@@ -29,7 +29,16 @@
 #include <linux/of_platform.h>
 #include <linux/interrupt.h>
 
-#define FSL_IFC_BANK_COUNT 4
+/*
+ * The actual number of banks implemented depends on the IFC version
+ *    - IFC version 1.0 implements 4 banks.
+ *    - IFC version 1.1 onward implements 8 banks.
+ */
+#define FSL_IFC_BANK_COUNT 8
+
+#define FSL_IFC_VERSION_MASK	0x0F0F0000
+#define FSL_IFC_VERSION_1_0_0	0x01000000
+#define FSL_IFC_VERSION_1_1_0	0x01010000
 
 /*
  * CSPR - Chip Select Property Register
@@ -776,23 +785,23 @@ struct fsl_ifc_regs {
 		__be32 cspr;
 		u32 res2;
 	} cspr_cs[FSL_IFC_BANK_COUNT];
-	u32 res3[0x19];
+	u32 res3[0xd];
 	struct {
 		__be32 amask;
 		u32 res4[0x2];
 	} amask_cs[FSL_IFC_BANK_COUNT];
-	u32 res5[0x18];
+	u32 res5[0xc];
 	struct {
 		__be32 csor;
 		__be32 csor_ext;
 		u32 res6;
 	} csor_cs[FSL_IFC_BANK_COUNT];
-	u32 res7[0x18];
+	u32 res7[0xc];
 	struct {
 		__be32 ftim[4];
 		u32 res8[0x8];
 	} ftim_cs[FSL_IFC_BANK_COUNT];
-	u32 res9[0x60];
+	u32 res9[0x30];
 	__be32 rb_stat;
 	u32 res10[0x2];
 	__be32 ifc_gcr;
@@ -827,6 +836,8 @@ struct fsl_ifc_ctrl {
 	int				nand_irq;
 	spinlock_t			lock;
 	void				*nand;
+	int				version;
+	int				banks;
 
 	u32 nand_stat;
 	wait_queue_head_t nand_wait;

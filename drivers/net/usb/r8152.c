@@ -24,9 +24,10 @@
 #include <net/ip6_checksum.h>
 #include <uapi/linux/mdio.h>
 #include <linux/mdio.h>
+#include <linux/usb/cdc.h>
 
 /* Version Information */
-#define DRIVER_VERSION "v1.07.0 (2014/10/09)"
+#define DRIVER_VERSION "v1.08.0 (2015/01/13)"
 #define DRIVER_AUTHOR "Realtek linux nic maintainers <nic_swsd@realtek.com>"
 #define DRIVER_DESC "Realtek RTL8152/RTL8153 Based USB Ethernet Adapters"
 #define MODULENAME "r8152"
@@ -39,6 +40,7 @@
 #define PLA_RXFIFO_CTRL0	0xc0a0
 #define PLA_RXFIFO_CTRL1	0xc0a4
 #define PLA_RXFIFO_CTRL2	0xc0a8
+#define PLA_DMY_REG0		0xc0b0
 #define PLA_FMC			0xc0b4
 #define PLA_CFG_WOL		0xc0b6
 #define PLA_TEREDO_CFG		0xc0bc
@@ -89,14 +91,21 @@
 #define PLA_BP_7		0xfc36
 #define PLA_BP_EN		0xfc38
 
+#define USB_USB2PHY		0xb41e
+#define USB_SSPHYLINK2		0xb428
 #define USB_U2P3_CTRL		0xb460
+#define USB_CSR_DUMMY1		0xb464
+#define USB_CSR_DUMMY2		0xb466
 #define USB_DEV_STAT		0xb808
+#define USB_CONNECT_TIMER	0xcbf8
+#define USB_BURST_SIZE		0xcfc0
 #define USB_USB_CTRL		0xd406
 #define USB_PHY_CTRL		0xd408
 #define USB_TX_AGG		0xd40a
 #define USB_RX_BUF_TH		0xd40c
 #define USB_USB_TIMER		0xd428
-#define USB_RX_EARLY_AGG	0xd42c
+#define USB_RX_EARLY_TIMEOUT	0xd42c
+#define USB_RX_EARLY_SIZE	0xd42e
 #define USB_PM_CTRL_STATUS	0xd432
 #define USB_TX_DMA		0xd434
 #define USB_TOLERANCE		0xd490
@@ -168,6 +177,9 @@
 /* PLA_TXFIFO_CTRL */
 #define TXFIFO_THR_NORMAL	0x00400008
 #define TXFIFO_THR_NORMAL2	0x01000008
+
+/* PLA_DMY_REG0 */
+#define ECM_ALDPS		0x0002
 
 /* PLA_FMC */
 #define FMC_FCR_MCU_EN		0x0001
@@ -288,6 +300,20 @@
 /* PLA_BOOT_CTRL */
 #define AUTOLOAD_DONE		0x0002
 
+/* USB_USB2PHY */
+#define USB2PHY_SUSPEND		0x0001
+#define USB2PHY_L1		0x0002
+
+/* USB_SSPHYLINK2 */
+#define pwd_dn_scale_mask	0x3ffe
+#define pwd_dn_scale(x)		((x) << 1)
+
+/* USB_CSR_DUMMY1 */
+#define DYNAMIC_BURST		0x0001
+
+/* USB_CSR_DUMMY2 */
+#define EP4_FULL_FC		0x0001
+
 /* USB_DEV_STAT */
 #define STAT_SPEED_MASK		0x0006
 #define STAT_SPEED_HIGH		0x0000
@@ -324,18 +350,22 @@
 /* USB_MISC_0 */
 #define PCUT_STATUS		0x0001
 
-/* USB_RX_EARLY_AGG */
-#define EARLY_AGG_SUPPER	0x0e832981
-#define EARLY_AGG_HIGH		0x0e837a12
-#define EARLY_AGG_SLOW		0x0e83ffff
+/* USB_RX_EARLY_TIMEOUT */
+#define COALESCE_SUPER		 85000U
+#define COALESCE_HIGH		250000U
+#define COALESCE_SLOW		524280U
 
 /* USB_WDT11_CTRL */
 #define TIMER11_EN		0x0001
 
 /* USB_LPM_CTRL */
+/* bit 4 ~ 5: fifo empty boundary */
+#define FIFO_EMPTY_1FB		0x30	/* 0x1fb * 64 = 32448 bytes */
+/* bit 2 ~ 3: LMP timer */
 #define LPM_TIMER_MASK		0x0c
 #define LPM_TIMER_500MS		0x04	/* 500 ms */
 #define LPM_TIMER_500US		0x0c	/* 500 us */
+#define ROK_EXIT_LPM		0x02
 
 /* USB_AFE_CTRL2 */
 #define SEN_VAL_MASK		0xf800
@@ -447,6 +477,7 @@ enum rtl_register_content {
 #define RTL8152_RMS		(VLAN_ETH_FRAME_LEN + VLAN_HLEN)
 #define RTL8153_RMS		RTL8153_MAX_PACKET
 #define RTL8152_TX_TIMEOUT	(5 * HZ)
+#define RTL8152_NAPI_WEIGHT	64
 
 /* rtl8152 flags */
 enum rtl8152_flags {
@@ -456,22 +487,16 @@ enum rtl8152_flags {
 	RTL8152_LINK_CHG,
 	SELECTIVE_SUSPEND,
 	PHY_RESET,
-	SCHEDULE_TASKLET,
+	SCHEDULE_NAPI,
 };
 
 /* Define these values to match your device */
 #define VENDOR_ID_REALTEK		0x0bda
-#define PRODUCT_ID_RTL8152		0x8152
-#define PRODUCT_ID_RTL8153		0x8153
-
 #define VENDOR_ID_SAMSUNG		0x04e8
-#define PRODUCT_ID_SAMSUNG		0xa101
+#define VENDOR_ID_LENOVO		0x17ef
 
 #define MCU_TYPE_PLA			0x0100
 #define MCU_TYPE_USB			0x0000
-
-#define REALTEK_USB_DEVICE(vend, prod)	\
-	USB_DEVICE_INTERFACE_CLASS(vend, prod, USB_CLASS_VENDOR_SPEC)
 
 struct tally_counter {
 	__le64	tx_packets;
@@ -486,7 +511,7 @@ struct tally_counter {
 	__le64	rx_broadcast;
 	__le32	rx_multicast;
 	__le16	tx_aborted;
-	__le16	tx_underun;
+	__le16	tx_underrun;
 };
 
 struct rx_desc {
@@ -494,16 +519,16 @@ struct rx_desc {
 #define RX_LEN_MASK			0x7fff
 
 	__le32 opts2;
-#define RD_UDP_CS			(1 << 23)
-#define RD_TCP_CS			(1 << 22)
-#define RD_IPV6_CS			(1 << 20)
-#define RD_IPV4_CS			(1 << 19)
+#define RD_UDP_CS			BIT(23)
+#define RD_TCP_CS			BIT(22)
+#define RD_IPV6_CS			BIT(20)
+#define RD_IPV4_CS			BIT(19)
 
 	__le32 opts3;
-#define IPF				(1 << 23) /* IP checksum fail */
-#define UDPF				(1 << 22) /* UDP checksum fail */
-#define TCPF				(1 << 21) /* TCP checksum fail */
-#define RX_VLAN_TAG			(1 << 16)
+#define IPF				BIT(23) /* IP checksum fail */
+#define UDPF				BIT(22) /* UDP checksum fail */
+#define TCPF				BIT(21) /* TCP checksum fail */
+#define RX_VLAN_TAG			BIT(16)
 
 	__le32 opts4;
 	__le32 opts5;
@@ -512,24 +537,24 @@ struct rx_desc {
 
 struct tx_desc {
 	__le32 opts1;
-#define TX_FS			(1 << 31) /* First segment of a packet */
-#define TX_LS			(1 << 30) /* Final segment of a packet */
-#define GTSENDV4		(1 << 28)
-#define GTSENDV6		(1 << 27)
+#define TX_FS			BIT(31) /* First segment of a packet */
+#define TX_LS			BIT(30) /* Final segment of a packet */
+#define GTSENDV4		BIT(28)
+#define GTSENDV6		BIT(27)
 #define GTTCPHO_SHIFT		18
 #define GTTCPHO_MAX		0x7fU
 #define TX_LEN_MAX		0x3ffffU
 
 	__le32 opts2;
-#define UDP_CS			(1 << 31) /* Calculate UDP/IP checksum */
-#define TCP_CS			(1 << 30) /* Calculate TCP/IP checksum */
-#define IPV4_CS			(1 << 29) /* Calculate IPv4 checksum */
-#define IPV6_CS			(1 << 28) /* Calculate IPv6 checksum */
+#define UDP_CS			BIT(31) /* Calculate UDP/IP checksum */
+#define TCP_CS			BIT(30) /* Calculate TCP/IP checksum */
+#define IPV4_CS			BIT(29) /* Calculate IPv4 checksum */
+#define IPV6_CS			BIT(28) /* Calculate IPv6 checksum */
 #define MSS_SHIFT		17
 #define MSS_MAX			0x7ffU
 #define TCPHO_SHIFT		17
 #define TCPHO_MAX		0x7ffU
-#define TX_VLAN_TAG			(1 << 16)
+#define TX_VLAN_TAG		BIT(16)
 };
 
 struct r8152;
@@ -555,14 +580,14 @@ struct tx_agg {
 struct r8152 {
 	unsigned long flags;
 	struct usb_device *udev;
-	struct tasklet_struct tl;
+	struct napi_struct napi;
 	struct usb_interface *intf;
 	struct net_device *netdev;
 	struct urb *intr_urb;
 	struct tx_agg tx_info[RTL8152_MAX_TX];
 	struct rx_agg rx_info[RTL8152_MAX_RX];
 	struct list_head rx_done, tx_free;
-	struct sk_buff_head tx_queue;
+	struct sk_buff_head tx_queue, rx_queue;
 	spinlock_t rx_lock, tx_lock;
 	struct delayed_work schedule;
 	struct mii_if_info mii;
@@ -583,10 +608,10 @@ struct r8152 {
 	u32 saved_wolopts;
 	u32 msg_enable;
 	u32 tx_qlen;
+	u32 coalesce;
 	u16 ocp_base;
 	u8 *intr_buff;
 	u8 version;
-	u8 speed;
 };
 
 enum rtl_version {
@@ -690,6 +715,9 @@ static int generic_ocp_read(struct r8152 *tp, u16 index, u16 size,
 		}
 	}
 
+	if (ret == -ENODEV)
+		set_bit(RTL8152_UNPLUG, &tp->flags);
+
 	return ret;
 }
 
@@ -757,6 +785,9 @@ static int generic_ocp_write(struct r8152 *tp, u16 index, u16 byteen,
 	}
 
 error1:
+	if (ret == -ENODEV)
+		set_bit(RTL8152_UNPLUG, &tp->flags);
+
 	return ret;
 }
 
@@ -833,9 +864,6 @@ static void ocp_write_word(struct r8152 *tp, u16 type, u16 index, u32 data)
 		index &= ~3;
 	}
 
-	generic_ocp_read(tp, index, sizeof(tmp), &tmp, type);
-
-	data |= __le32_to_cpu(tmp) & ~mask;
 	tmp = __cpu_to_le32(data);
 
 	generic_ocp_write(tp, index, byen, sizeof(tmp), &tmp, type);
@@ -874,9 +902,6 @@ static void ocp_write_byte(struct r8152 *tp, u16 type, u16 index, u32 data)
 		index &= ~3;
 	}
 
-	generic_ocp_read(tp, index, sizeof(tmp), &tmp, type);
-
-	data |= __le32_to_cpu(tmp) & ~mask;
 	tmp = __cpu_to_le32(data);
 
 	generic_ocp_write(tp, index, byen, sizeof(tmp), &tmp, type);
@@ -924,12 +949,6 @@ static void sram_write(struct r8152 *tp, u16 addr, u16 data)
 {
 	ocp_reg_write(tp, OCP_SRAM_ADDR, addr);
 	ocp_reg_write(tp, OCP_SRAM_DATA, data);
-}
-
-static u16 sram_read(struct r8152 *tp, u16 addr)
-{
-	ocp_reg_write(tp, OCP_SRAM_ADDR, addr);
-	return ocp_reg_read(tp, OCP_SRAM_DATA);
 }
 
 static int read_mii_word(struct net_device *netdev, int phy_id, int reg)
@@ -1030,7 +1049,6 @@ static void read_bulk_callback(struct urb *urb)
 	int status = urb->status;
 	struct rx_agg *agg;
 	struct r8152 *tp;
-	int result;
 
 	agg = urb->context;
 	if (!agg)
@@ -1063,7 +1081,7 @@ static void read_bulk_callback(struct urb *urb)
 		spin_lock(&tp->rx_lock);
 		list_add_tail(&agg->list, &tp->rx_done);
 		spin_unlock(&tp->rx_lock);
-		tasklet_schedule(&tp->tl);
+		napi_schedule(&tp->napi);
 		return;
 	case -ESHUTDOWN:
 		set_bit(RTL8152_UNPLUG, &tp->flags);
@@ -1081,15 +1099,7 @@ static void read_bulk_callback(struct urb *urb)
 		break;
 	}
 
-	result = r8152_submit_rx(tp, agg, GFP_ATOMIC);
-	if (result == -ENODEV) {
-		netif_device_detach(tp->netdev);
-	} else if (result) {
-		spin_lock(&tp->rx_lock);
-		list_add_tail(&agg->list, &tp->rx_done);
-		spin_unlock(&tp->rx_lock);
-		tasklet_schedule(&tp->tl);
-	}
+	r8152_submit_rx(tp, agg, GFP_ATOMIC);
 }
 
 static void write_bulk_callback(struct urb *urb)
@@ -1135,7 +1145,7 @@ static void write_bulk_callback(struct urb *urb)
 		return;
 
 	if (!skb_queue_empty(&tp->tx_queue))
-		tasklet_schedule(&tp->tl);
+		napi_schedule(&tp->napi);
 }
 
 static void intr_callback(struct urb *urb)
@@ -1162,6 +1172,9 @@ static void intr_callback(struct urb *urb)
 	case -ESHUTDOWN:
 		netif_device_detach(tp->netdev);
 	case -ENOENT:
+	case -EPROTO:
+		netif_info(tp, intr, tp->netdev,
+			   "Stop submitting intr, status %d\n", status);
 		return;
 	case -EOVERFLOW:
 		netif_info(tp, intr, tp->netdev, "intr status -EOVERFLOW\n");
@@ -1174,12 +1187,12 @@ static void intr_callback(struct urb *urb)
 
 	d = urb->transfer_buffer;
 	if (INTR_LINK & __le16_to_cpu(d[0])) {
-		if (!(tp->speed & LINK_STATUS)) {
+		if (!netif_carrier_ok(tp->netdev)) {
 			set_bit(RTL8152_LINK_CHG, &tp->flags);
 			schedule_delayed_work(&tp->schedule, 0);
 		}
 	} else {
-		if (tp->speed & LINK_STATUS) {
+		if (netif_carrier_ok(tp->netdev)) {
 			set_bit(RTL8152_LINK_CHG, &tp->flags);
 			schedule_delayed_work(&tp->schedule, 0);
 		}
@@ -1187,11 +1200,13 @@ static void intr_callback(struct urb *urb)
 
 resubmit:
 	res = usb_submit_urb(urb, GFP_ATOMIC);
-	if (res == -ENODEV)
+	if (res == -ENODEV) {
+		set_bit(RTL8152_UNPLUG, &tp->flags);
 		netif_device_detach(tp->netdev);
-	else if (res)
+	} else if (res) {
 		netif_err(tp, intr, tp->netdev,
 			  "can't resubmit intr, status %d\n", res);
+	}
 }
 
 static inline void *rx_agg_align(void *data)
@@ -1247,9 +1262,9 @@ static int alloc_all_mem(struct r8152 *tp)
 
 	spin_lock_init(&tp->rx_lock);
 	spin_lock_init(&tp->tx_lock);
-	INIT_LIST_HEAD(&tp->rx_done);
 	INIT_LIST_HEAD(&tp->tx_free);
 	skb_queue_head_init(&tp->tx_queue);
+	skb_queue_head_init(&tp->rx_queue);
 
 	for (i = 0; i < RTL8152_MAX_RX; i++) {
 		buf = kmalloc_node(agg_buf_sz, GFP_KERNEL, node);
@@ -1346,18 +1361,6 @@ static struct tx_agg *r8152_get_tx_agg(struct r8152 *tp)
 	return agg;
 }
 
-static inline __be16 get_protocol(struct sk_buff *skb)
-{
-	__be16 protocol;
-
-	if (skb->protocol == htons(ETH_P_8021Q))
-		protocol = vlan_eth_hdr(skb)->h_vlan_encapsulated_proto;
-	else
-		protocol = skb->protocol;
-
-	return protocol;
-}
-
 /* r8152_csum_workaround()
  * The hw limites the value the transport offset. When the offset is out of the
  * range, calculate the checksum by sw.
@@ -1426,10 +1429,10 @@ static int msdn_giant_send_check(struct sk_buff *skb)
 
 static inline void rtl_tx_vlan_tag(struct tx_desc *desc, struct sk_buff *skb)
 {
-	if (vlan_tx_tag_present(skb)) {
+	if (skb_vlan_tag_present(skb)) {
 		u32 opts2;
 
-		opts2 = TX_VLAN_TAG | swab16(vlan_tx_tag_get(skb));
+		opts2 = TX_VLAN_TAG | swab16(skb_vlan_tag_get(skb));
 		desc->opts2 |= cpu_to_le32(opts2);
 	}
 }
@@ -1463,7 +1466,7 @@ static int r8152_tx_csum(struct r8152 *tp, struct tx_desc *desc,
 			goto unavailable;
 		}
 
-		switch (get_protocol(skb)) {
+		switch (vlan_get_protocol(skb)) {
 		case htons(ETH_P_IP):
 			opts1 |= GTSENDV4;
 			break;
@@ -1494,7 +1497,7 @@ static int r8152_tx_csum(struct r8152 *tp, struct tx_desc *desc,
 			goto unavailable;
 		}
 
-		switch (get_protocol(skb)) {
+		switch (vlan_get_protocol(skb)) {
 		case htons(ETH_P_IP):
 			opts2 |= IPV4_CS;
 			ip_protocol = ip_hdr(skb)->protocol;
@@ -1654,13 +1657,32 @@ return_result:
 	return checksum;
 }
 
-static void rx_bottom(struct r8152 *tp)
+static int rx_bottom(struct r8152 *tp, int budget)
 {
 	unsigned long flags;
 	struct list_head *cursor, *next, rx_queue;
+	int ret = 0, work_done = 0;
+
+	if (!skb_queue_empty(&tp->rx_queue)) {
+		while (work_done < budget) {
+			struct sk_buff *skb = __skb_dequeue(&tp->rx_queue);
+			struct net_device *netdev = tp->netdev;
+			struct net_device_stats *stats = &netdev->stats;
+			unsigned int pkt_len;
+
+			if (!skb)
+				break;
+
+			pkt_len = skb->len;
+			napi_gro_receive(&tp->napi, skb);
+			work_done++;
+			stats->rx_packets++;
+			stats->rx_bytes += pkt_len;
+		}
+	}
 
 	if (list_empty(&tp->rx_done))
-		return;
+		goto out1;
 
 	INIT_LIST_HEAD(&rx_queue);
 	spin_lock_irqsave(&tp->rx_lock, flags);
@@ -1673,7 +1695,6 @@ static void rx_bottom(struct r8152 *tp)
 		int len_used = 0;
 		struct urb *urb;
 		u8 *rx_data;
-		int ret;
 
 		list_del_init(cursor);
 
@@ -1714,9 +1735,14 @@ static void rx_bottom(struct r8152 *tp)
 			skb_put(skb, pkt_len);
 			skb->protocol = eth_type_trans(skb, netdev);
 			rtl_rx_vlan_tag(rx_desc, skb);
-			netif_receive_skb(skb);
-			stats->rx_packets++;
-			stats->rx_bytes += pkt_len;
+			if (work_done < budget) {
+				napi_gro_receive(&tp->napi, skb);
+				work_done++;
+				stats->rx_packets++;
+				stats->rx_bytes += pkt_len;
+			} else {
+				__skb_queue_tail(&tp->rx_queue, skb);
+			}
 
 find_next_rx:
 			rx_data = rx_agg_align(rx_data + pkt_len + CRC_SIZE);
@@ -1726,14 +1752,22 @@ find_next_rx:
 		}
 
 submit:
-		ret = r8152_submit_rx(tp, agg, GFP_ATOMIC);
-		if (ret && ret != -ENODEV) {
-			spin_lock_irqsave(&tp->rx_lock, flags);
-			list_add_tail(&agg->list, &tp->rx_done);
-			spin_unlock_irqrestore(&tp->rx_lock, flags);
-			tasklet_schedule(&tp->tl);
+		if (!ret) {
+			ret = r8152_submit_rx(tp, agg, GFP_ATOMIC);
+		} else {
+			urb->actual_length = 0;
+			list_add_tail(&agg->list, next);
 		}
 	}
+
+	if (!list_empty(&rx_queue)) {
+		spin_lock_irqsave(&tp->rx_lock, flags);
+		list_splice_tail(&rx_queue, &tp->rx_done);
+		spin_unlock_irqrestore(&tp->rx_lock, flags);
+	}
+
+out1:
+	return work_done;
 }
 
 static void tx_bottom(struct r8152 *tp)
@@ -1755,6 +1789,7 @@ static void tx_bottom(struct r8152 *tp)
 			struct net_device *netdev = tp->netdev;
 
 			if (res == -ENODEV) {
+				set_bit(RTL8152_UNPLUG, &tp->flags);
 				netif_device_detach(netdev);
 			} else {
 				struct net_device_stats *stats = &netdev->stats;
@@ -1772,12 +1807,8 @@ static void tx_bottom(struct r8152 *tp)
 	} while (res == 0);
 }
 
-static void bottom_half(unsigned long data)
+static void bottom_half(struct r8152 *tp)
 {
-	struct r8152 *tp;
-
-	tp = (struct r8152 *)data;
-
 	if (test_bit(RTL8152_UNPLUG, &tp->flags))
 		return;
 
@@ -1789,18 +1820,62 @@ static void bottom_half(unsigned long data)
 	if (!netif_carrier_ok(tp->netdev))
 		return;
 
-	rx_bottom(tp);
+	clear_bit(SCHEDULE_NAPI, &tp->flags);
+
 	tx_bottom(tp);
+}
+
+static int r8152_poll(struct napi_struct *napi, int budget)
+{
+	struct r8152 *tp = container_of(napi, struct r8152, napi);
+	int work_done;
+
+	work_done = rx_bottom(tp, budget);
+	bottom_half(tp);
+
+	if (work_done < budget) {
+		napi_complete(napi);
+		if (!list_empty(&tp->rx_done))
+			napi_schedule(napi);
+	}
+
+	return work_done;
 }
 
 static
 int r8152_submit_rx(struct r8152 *tp, struct rx_agg *agg, gfp_t mem_flags)
 {
+	int ret;
+
+	/* The rx would be stopped, so skip submitting */
+	if (test_bit(RTL8152_UNPLUG, &tp->flags) ||
+	    !test_bit(WORK_ENABLE, &tp->flags) || !netif_carrier_ok(tp->netdev))
+		return 0;
+
 	usb_fill_bulk_urb(agg->urb, tp->udev, usb_rcvbulkpipe(tp->udev, 1),
 			  agg->head, agg_buf_sz,
 			  (usb_complete_t)read_bulk_callback, agg);
 
-	return usb_submit_urb(agg->urb, mem_flags);
+	ret = usb_submit_urb(agg->urb, mem_flags);
+	if (ret == -ENODEV) {
+		set_bit(RTL8152_UNPLUG, &tp->flags);
+		netif_device_detach(tp->netdev);
+	} else if (ret) {
+		struct urb *urb = agg->urb;
+		unsigned long flags;
+
+		urb->actual_length = 0;
+		spin_lock_irqsave(&tp->rx_lock, flags);
+		list_add_tail(&agg->list, &tp->rx_done);
+		spin_unlock_irqrestore(&tp->rx_lock, flags);
+
+		netif_err(tp, rx_err, tp->netdev,
+			  "Couldn't submit rx[%p], ret = %d\n", agg, ret);
+
+		napi_schedule(&tp->napi);
+	}
+
+	return ret;
 }
 
 static void rtl_drop_queued_tx(struct r8152 *tp)
@@ -1837,7 +1912,7 @@ static void rtl8152_set_rx_mode(struct net_device *netdev)
 {
 	struct r8152 *tp = netdev_priv(netdev);
 
-	if (tp->speed & LINK_STATUS) {
+	if (netif_carrier_ok(netdev)) {
 		set_bit(RTL8152_SET_RX_MODE, &tp->flags);
 		schedule_delayed_work(&tp->schedule, 0);
 	}
@@ -1889,6 +1964,22 @@ static void _rtl8152_set_rx_mode(struct net_device *netdev)
 	netif_wake_queue(netdev);
 }
 
+static netdev_features_t
+rtl8152_features_check(struct sk_buff *skb, struct net_device *dev,
+		       netdev_features_t features)
+{
+	u32 mss = skb_shinfo(skb)->gso_size;
+	int max_offset = mss ? GTTCPHO_MAX : TCPHO_MAX;
+	int offset = skb_transport_offset(skb);
+
+	if ((mss || skb->ip_summed == CHECKSUM_PARTIAL) && offset > max_offset)
+		features &= ~(NETIF_F_ALL_CSUM | NETIF_F_GSO_MASK);
+	else if ((skb->len + sizeof(struct tx_desc)) > agg_buf_sz)
+		features &= ~NETIF_F_GSO_MASK;
+
+	return features;
+}
+
 static netdev_tx_t rtl8152_start_xmit(struct sk_buff *skb,
 				      struct net_device *netdev)
 {
@@ -1900,11 +1991,11 @@ static netdev_tx_t rtl8152_start_xmit(struct sk_buff *skb,
 
 	if (!list_empty(&tp->tx_free)) {
 		if (test_bit(SELECTIVE_SUSPEND, &tp->flags)) {
-			set_bit(SCHEDULE_TASKLET, &tp->flags);
+			set_bit(SCHEDULE_NAPI, &tp->flags);
 			schedule_delayed_work(&tp->schedule, 0);
 		} else {
 			usb_mark_last_busy(tp->udev);
-			tasklet_schedule(&tp->tl);
+			napi_schedule(&tp->napi);
 		}
 	} else if (skb_queue_len(&tp->tx_queue) > tp->tx_qlen) {
 		netif_stop_queue(netdev);
@@ -1983,12 +2074,33 @@ static int rtl_start_rx(struct r8152 *tp)
 {
 	int i, ret = 0;
 
+	napi_disable(&tp->napi);
 	INIT_LIST_HEAD(&tp->rx_done);
 	for (i = 0; i < RTL8152_MAX_RX; i++) {
 		INIT_LIST_HEAD(&tp->rx_info[i].list);
 		ret = r8152_submit_rx(tp, &tp->rx_info[i], GFP_KERNEL);
 		if (ret)
 			break;
+	}
+	napi_enable(&tp->napi);
+
+	if (ret && ++i < RTL8152_MAX_RX) {
+		struct list_head rx_queue;
+		unsigned long flags;
+
+		INIT_LIST_HEAD(&rx_queue);
+
+		do {
+			struct rx_agg *agg = &tp->rx_info[i++];
+			struct urb *urb = agg->urb;
+
+			urb->actual_length = 0;
+			list_add_tail(&agg->list, &rx_queue);
+		} while (i < RTL8152_MAX_RX);
+
+		spin_lock_irqsave(&tp->rx_lock, flags);
+		list_splice_tail(&rx_queue, &tp->rx_done);
+		spin_unlock_irqrestore(&tp->rx_lock, flags);
 	}
 
 	return ret;
@@ -2000,6 +2112,9 @@ static int rtl_stop_rx(struct r8152 *tp)
 
 	for (i = 0; i < RTL8152_MAX_RX; i++)
 		usb_kill_urb(tp->rx_info[i].urb);
+
+	while (!skb_queue_empty(&tp->rx_queue))
+		dev_kfree_skb(__skb_dequeue(&tp->rx_queue));
 
 	return 0;
 }
@@ -2016,7 +2131,7 @@ static int rtl_enable(struct r8152 *tp)
 
 	rxdy_gated_en(tp, false);
 
-	return rtl_start_rx(tp);
+	return 0;
 }
 
 static int rtl8152_enable(struct r8152 *tp)
@@ -2030,28 +2145,19 @@ static int rtl8152_enable(struct r8152 *tp)
 	return rtl_enable(tp);
 }
 
-static void r8153_set_rx_agg(struct r8152 *tp)
+static void r8153_set_rx_early_timeout(struct r8152 *tp)
 {
-	u8 speed;
+	u32 ocp_data = tp->coalesce / 8;
 
-	speed = rtl8152_get_speed(tp);
-	if (speed & _1000bps) {
-		if (tp->udev->speed == USB_SPEED_SUPER) {
-			ocp_write_dword(tp, MCU_TYPE_USB, USB_RX_BUF_TH,
-					RX_THR_SUPPER);
-			ocp_write_dword(tp, MCU_TYPE_USB, USB_RX_EARLY_AGG,
-					EARLY_AGG_SUPPER);
-		} else {
-			ocp_write_dword(tp, MCU_TYPE_USB, USB_RX_BUF_TH,
-					RX_THR_HIGH);
-			ocp_write_dword(tp, MCU_TYPE_USB, USB_RX_EARLY_AGG,
-					EARLY_AGG_HIGH);
-		}
-	} else {
-		ocp_write_dword(tp, MCU_TYPE_USB, USB_RX_BUF_TH, RX_THR_SLOW);
-		ocp_write_dword(tp, MCU_TYPE_USB, USB_RX_EARLY_AGG,
-				EARLY_AGG_SLOW);
-	}
+	ocp_write_word(tp, MCU_TYPE_USB, USB_RX_EARLY_TIMEOUT, ocp_data);
+}
+
+static void r8153_set_rx_early_size(struct r8152 *tp)
+{
+	u32 mtu = tp->netdev->mtu;
+	u32 ocp_data = (agg_buf_sz - mtu - VLAN_ETH_HLEN - VLAN_HLEN) / 4;
+
+	ocp_write_word(tp, MCU_TYPE_USB, USB_RX_EARLY_SIZE, ocp_data);
 }
 
 static int rtl8153_enable(struct r8152 *tp)
@@ -2061,7 +2167,8 @@ static int rtl8153_enable(struct r8152 *tp)
 
 	set_tx_qlen(tp);
 	rtl_set_eee_plus(tp);
-	r8153_set_rx_agg(tp);
+	r8153_set_rx_early_timeout(tp);
+	r8153_set_rx_early_size(tp);
 
 	return rtl_enable(tp);
 }
@@ -2475,24 +2582,18 @@ static void r8153_hw_phy_cfg(struct r8152 *tp)
 	data = ocp_reg_read(tp, OCP_POWER_CFG);
 	data |= EN_10M_PLLOFF;
 	ocp_reg_write(tp, OCP_POWER_CFG, data);
-	data = sram_read(tp, SRAM_IMPEDANCE);
-	data &= ~RX_DRIVING_MASK;
-	sram_write(tp, SRAM_IMPEDANCE, data);
+	sram_write(tp, SRAM_IMPEDANCE, 0x0b13);
 
 	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_PHY_PWR);
 	ocp_data |= PFM_PWM_SWITCH;
 	ocp_write_word(tp, MCU_TYPE_PLA, PLA_PHY_PWR, ocp_data);
 
-	data = sram_read(tp, SRAM_LPF_CFG);
-	data |= LPF_AUTO_TUNE;
-	sram_write(tp, SRAM_LPF_CFG, data);
+	/* Enable LPF corner auto tune */
+	sram_write(tp, SRAM_LPF_CFG, 0xf70f);
 
-	data = sram_read(tp, SRAM_10M_AMP1);
-	data |= GDAC_IB_UPALL;
-	sram_write(tp, SRAM_10M_AMP1, data);
-	data = sram_read(tp, SRAM_10M_AMP2);
-	data |= AMP_DN;
-	sram_write(tp, SRAM_10M_AMP2, data);
+	/* Adjust 10M Amplitude */
+	sram_write(tp, SRAM_10M_AMP1, 0x00af);
+	sram_write(tp, SRAM_10M_AMP2, 0x0208);
 
 	set_bit(PHY_RESET, &tp->flags);
 }
@@ -2827,33 +2928,36 @@ static void set_carrier(struct r8152 *tp)
 	speed = rtl8152_get_speed(tp);
 
 	if (speed & LINK_STATUS) {
-		if (!(tp->speed & LINK_STATUS)) {
+		if (!netif_carrier_ok(netdev)) {
 			tp->rtl_ops.enable(tp);
 			set_bit(RTL8152_SET_RX_MODE, &tp->flags);
 			netif_carrier_on(netdev);
+			rtl_start_rx(tp);
 		}
 	} else {
-		if (tp->speed & LINK_STATUS) {
+		if (netif_carrier_ok(netdev)) {
 			netif_carrier_off(netdev);
-			tasklet_disable(&tp->tl);
+			napi_disable(&tp->napi);
 			tp->rtl_ops.disable(tp);
-			tasklet_enable(&tp->tl);
+			napi_enable(&tp->napi);
 		}
 	}
-	tp->speed = speed;
 }
 
 static void rtl_work_func_t(struct work_struct *work)
 {
 	struct r8152 *tp = container_of(work, struct r8152, schedule.work);
 
+	/* If the device is unplugged or !netif_running(), the workqueue
+	 * doesn't need to wake the device, and could return directly.
+	 */
+	if (test_bit(RTL8152_UNPLUG, &tp->flags) || !netif_running(tp->netdev))
+		return;
+
 	if (usb_autopm_get_interface(tp->intf) < 0)
 		return;
 
 	if (!test_bit(WORK_ENABLE, &tp->flags))
-		goto out1;
-
-	if (test_bit(RTL8152_UNPLUG, &tp->flags))
 		goto out1;
 
 	if (!mutex_trylock(&tp->control)) {
@@ -2867,10 +2971,11 @@ static void rtl_work_func_t(struct work_struct *work)
 	if (test_bit(RTL8152_SET_RX_MODE, &tp->flags))
 		_rtl8152_set_rx_mode(tp->netdev);
 
-	if (test_bit(SCHEDULE_TASKLET, &tp->flags) &&
-	    (tp->speed & LINK_STATUS)) {
-		clear_bit(SCHEDULE_TASKLET, &tp->flags);
-		tasklet_schedule(&tp->tl);
+	/* don't schedule napi before linking */
+	if (test_bit(SCHEDULE_NAPI, &tp->flags) &&
+	    netif_carrier_ok(tp->netdev)) {
+		clear_bit(SCHEDULE_NAPI, &tp->flags);
+		napi_schedule(&tp->napi);
 	}
 
 	if (test_bit(PHY_RESET, &tp->flags))
@@ -2891,6 +2996,8 @@ static int rtl8152_open(struct net_device *netdev)
 	if (res)
 		goto out;
 
+	netif_carrier_off(netdev);
+
 	res = usb_autopm_get_interface(tp->intf);
 	if (res < 0) {
 		free_all_mem(tp);
@@ -2904,7 +3011,9 @@ static int rtl8152_open(struct net_device *netdev)
 		clear_bit(WORK_ENABLE, &tp->flags);
 		usb_kill_urb(tp->intr_urb);
 		cancel_delayed_work_sync(&tp->schedule);
-		if (tp->speed & LINK_STATUS)
+
+		/* disable the tx/rx, if the workqueue has enabled them. */
+		if (netif_carrier_ok(netdev))
 			tp->rtl_ops.disable(tp);
 	}
 
@@ -2913,7 +3022,6 @@ static int rtl8152_open(struct net_device *netdev)
 	rtl8152_set_speed(tp, AUTONEG_ENABLE,
 			  tp->mii.supports_gmii ? SPEED_1000 : SPEED_100,
 			  DUPLEX_FULL);
-	tp->speed = 0;
 	netif_carrier_off(netdev);
 	netif_start_queue(netdev);
 	set_bit(WORK_ENABLE, &tp->flags);
@@ -2925,6 +3033,8 @@ static int rtl8152_open(struct net_device *netdev)
 		netif_warn(tp, ifup, netdev, "intr_urb submit failed: %d\n",
 			   res);
 		free_all_mem(tp);
+	} else {
+		napi_enable(&tp->napi);
 	}
 
 	mutex_unlock(&tp->control);
@@ -2940,14 +3050,16 @@ static int rtl8152_close(struct net_device *netdev)
 	struct r8152 *tp = netdev_priv(netdev);
 	int res = 0;
 
+	napi_disable(&tp->napi);
 	clear_bit(WORK_ENABLE, &tp->flags);
 	usb_kill_urb(tp->intr_urb);
 	cancel_delayed_work_sync(&tp->schedule);
 	netif_stop_queue(netdev);
 
 	res = usb_autopm_get_interface(tp->intf);
-	if (res < 0) {
+	if (res < 0 || test_bit(RTL8152_UNPLUG, &tp->flags)) {
 		rtl_drop_queued_tx(tp);
+		rtl_stop_rx(tp);
 	} else {
 		mutex_lock(&tp->control);
 
@@ -2955,14 +3067,9 @@ static int rtl8152_close(struct net_device *netdev)
 		 * be disable when autoresume occurs, because the
 		 * netif_running() would be false.
 		 */
-		if (test_bit(SELECTIVE_SUSPEND, &tp->flags)) {
-			rtl_runtime_suspend_enable(tp, false);
-			clear_bit(SELECTIVE_SUSPEND, &tp->flags);
-		}
+		rtl_runtime_suspend_enable(tp, false);
 
-		tasklet_disable(&tp->tl);
 		tp->rtl_ops.down(tp);
-		tasklet_enable(&tp->tl);
 
 		mutex_unlock(&tp->control);
 
@@ -3146,6 +3253,32 @@ static void r8153_init(struct r8152 *tp)
 
 	r8153_u2p3en(tp, false);
 
+	if (tp->version == RTL_VER_04) {
+		ocp_data = ocp_read_word(tp, MCU_TYPE_USB, USB_SSPHYLINK2);
+		ocp_data &= ~pwd_dn_scale_mask;
+		ocp_data |= pwd_dn_scale(96);
+		ocp_write_word(tp, MCU_TYPE_USB, USB_SSPHYLINK2, ocp_data);
+
+		ocp_data = ocp_read_byte(tp, MCU_TYPE_USB, USB_USB2PHY);
+		ocp_data |= USB2PHY_L1 | USB2PHY_SUSPEND;
+		ocp_write_byte(tp, MCU_TYPE_USB, USB_USB2PHY, ocp_data);
+	} else if (tp->version == RTL_VER_05) {
+		ocp_data = ocp_read_byte(tp, MCU_TYPE_PLA, PLA_DMY_REG0);
+		ocp_data &= ~ECM_ALDPS;
+		ocp_write_byte(tp, MCU_TYPE_PLA, PLA_DMY_REG0, ocp_data);
+
+		ocp_data = ocp_read_byte(tp, MCU_TYPE_USB, USB_CSR_DUMMY1);
+		if (ocp_read_word(tp, MCU_TYPE_USB, USB_BURST_SIZE) == 0)
+			ocp_data &= ~DYNAMIC_BURST;
+		else
+			ocp_data |= DYNAMIC_BURST;
+		ocp_write_byte(tp, MCU_TYPE_USB, USB_CSR_DUMMY1, ocp_data);
+	}
+
+	ocp_data = ocp_read_byte(tp, MCU_TYPE_USB, USB_CSR_DUMMY2);
+	ocp_data |= EP4_FULL_FC;
+	ocp_write_byte(tp, MCU_TYPE_USB, USB_CSR_DUMMY2, ocp_data);
+
 	ocp_data = ocp_read_word(tp, MCU_TYPE_USB, USB_WDT11_CTRL);
 	ocp_data &= ~TIMER11_EN;
 	ocp_write_word(tp, MCU_TYPE_USB, USB_WDT11_CTRL, ocp_data);
@@ -3154,18 +3287,19 @@ static void r8153_init(struct r8152 *tp)
 	ocp_data &= ~LED_MODE_MASK;
 	ocp_write_word(tp, MCU_TYPE_PLA, PLA_LED_FEATURE, ocp_data);
 
-	ocp_data = ocp_read_byte(tp, MCU_TYPE_USB, USB_LPM_CTRL);
-	ocp_data &= ~LPM_TIMER_MASK;
-	if (tp->udev->speed == USB_SPEED_SUPER)
-		ocp_data |= LPM_TIMER_500US;
-	else
+	ocp_data = FIFO_EMPTY_1FB | ROK_EXIT_LPM;
+	if (tp->version == RTL_VER_04 && tp->udev->speed != USB_SPEED_SUPER)
 		ocp_data |= LPM_TIMER_500MS;
+	else
+		ocp_data |= LPM_TIMER_500US;
 	ocp_write_byte(tp, MCU_TYPE_USB, USB_LPM_CTRL, ocp_data);
 
 	ocp_data = ocp_read_word(tp, MCU_TYPE_USB, USB_AFE_CTRL2);
 	ocp_data &= ~SEN_VAL_MASK;
 	ocp_data |= SEN_VAL_NORMAL | SEL_RXIDLE;
 	ocp_write_word(tp, MCU_TYPE_USB, USB_AFE_CTRL2, ocp_data);
+
+	ocp_write_word(tp, MCU_TYPE_USB, USB_CONNECT_TIMER, 0x0001);
 
 	r8153_power_cut_en(tp, false);
 	r8153_u1u2en(tp, true);
@@ -3205,10 +3339,10 @@ static int rtl8152_suspend(struct usb_interface *intf, pm_message_t message)
 		netif_device_detach(netdev);
 	}
 
-	if (netif_running(netdev)) {
+	if (netif_running(netdev) && test_bit(WORK_ENABLE, &tp->flags)) {
 		clear_bit(WORK_ENABLE, &tp->flags);
 		usb_kill_urb(tp->intr_urb);
-		tasklet_disable(&tp->tl);
+		napi_disable(&tp->napi);
 		if (test_bit(SELECTIVE_SUSPEND, &tp->flags)) {
 			rtl_stop_rx(tp);
 			rtl_runtime_suspend_enable(tp, true);
@@ -3216,7 +3350,7 @@ static int rtl8152_suspend(struct usb_interface *intf, pm_message_t message)
 			cancel_delayed_work_sync(&tp->schedule);
 			tp->rtl_ops.down(tp);
 		}
-		tasklet_enable(&tp->tl);
+		napi_enable(&tp->napi);
 	}
 out1:
 	mutex_unlock(&tp->control);
@@ -3240,7 +3374,7 @@ static int rtl8152_resume(struct usb_interface *intf)
 			rtl_runtime_suspend_enable(tp, false);
 			clear_bit(SELECTIVE_SUSPEND, &tp->flags);
 			set_bit(WORK_ENABLE, &tp->flags);
-			if (tp->speed & LINK_STATUS)
+			if (netif_carrier_ok(tp->netdev))
 				rtl_start_rx(tp);
 		} else {
 			tp->rtl_ops.up(tp);
@@ -3248,11 +3382,12 @@ static int rtl8152_resume(struct usb_interface *intf)
 					  tp->mii.supports_gmii ?
 					  SPEED_1000 : SPEED_100,
 					  DUPLEX_FULL);
-			tp->speed = 0;
 			netif_carrier_off(tp->netdev);
 			set_bit(WORK_ENABLE, &tp->flags);
 		}
 		usb_submit_urb(tp->intr_urb, GFP_KERNEL);
+	} else if (test_bit(SELECTIVE_SUSPEND, &tp->flags)) {
+		clear_bit(SELECTIVE_SUSPEND, &tp->flags);
 	}
 
 	mutex_unlock(&tp->control);
@@ -3420,7 +3555,7 @@ static void rtl8152_get_ethtool_stats(struct net_device *dev,
 	data[9] = le64_to_cpu(tally.rx_broadcast);
 	data[10] = le32_to_cpu(tally.rx_multicast);
 	data[11] = le16_to_cpu(tally.tx_aborted);
-	data[12] = le16_to_cpu(tally.tx_underun);
+	data[12] = le16_to_cpu(tally.tx_underrun);
 }
 
 static void rtl8152_get_strings(struct net_device *dev, u32 stringset, u8 *data)
@@ -3558,11 +3693,88 @@ out:
 	return ret;
 }
 
+static int rtl8152_nway_reset(struct net_device *dev)
+{
+	struct r8152 *tp = netdev_priv(dev);
+	int ret;
+
+	ret = usb_autopm_get_interface(tp->intf);
+	if (ret < 0)
+		goto out;
+
+	mutex_lock(&tp->control);
+
+	ret = mii_nway_restart(&tp->mii);
+
+	mutex_unlock(&tp->control);
+
+	usb_autopm_put_interface(tp->intf);
+
+out:
+	return ret;
+}
+
+static int rtl8152_get_coalesce(struct net_device *netdev,
+				struct ethtool_coalesce *coalesce)
+{
+	struct r8152 *tp = netdev_priv(netdev);
+
+	switch (tp->version) {
+	case RTL_VER_01:
+	case RTL_VER_02:
+		return -EOPNOTSUPP;
+	default:
+		break;
+	}
+
+	coalesce->rx_coalesce_usecs = tp->coalesce;
+
+	return 0;
+}
+
+static int rtl8152_set_coalesce(struct net_device *netdev,
+				struct ethtool_coalesce *coalesce)
+{
+	struct r8152 *tp = netdev_priv(netdev);
+	int ret;
+
+	switch (tp->version) {
+	case RTL_VER_01:
+	case RTL_VER_02:
+		return -EOPNOTSUPP;
+	default:
+		break;
+	}
+
+	if (coalesce->rx_coalesce_usecs > COALESCE_SLOW)
+		return -EINVAL;
+
+	ret = usb_autopm_get_interface(tp->intf);
+	if (ret < 0)
+		return ret;
+
+	mutex_lock(&tp->control);
+
+	if (tp->coalesce != coalesce->rx_coalesce_usecs) {
+		tp->coalesce = coalesce->rx_coalesce_usecs;
+
+		if (netif_running(tp->netdev) && netif_carrier_ok(netdev))
+			r8153_set_rx_early_timeout(tp);
+	}
+
+	mutex_unlock(&tp->control);
+
+	usb_autopm_put_interface(tp->intf);
+
+	return ret;
+}
+
 static struct ethtool_ops ops = {
 	.get_drvinfo = rtl8152_get_drvinfo,
 	.get_settings = rtl8152_get_settings,
 	.set_settings = rtl8152_set_settings,
 	.get_link = ethtool_op_get_link,
+	.nway_reset = rtl8152_nway_reset,
 	.get_msglevel = rtl8152_get_msglevel,
 	.set_msglevel = rtl8152_set_msglevel,
 	.get_wol = rtl8152_get_wol,
@@ -3570,6 +3782,8 @@ static struct ethtool_ops ops = {
 	.get_strings = rtl8152_get_strings,
 	.get_sset_count = rtl8152_get_sset_count,
 	.get_ethtool_stats = rtl8152_get_ethtool_stats,
+	.get_coalesce = rtl8152_get_coalesce,
+	.set_coalesce = rtl8152_set_coalesce,
 	.get_eee = rtl_ethtool_get_eee,
 	.set_eee = rtl_ethtool_set_eee,
 };
@@ -3621,6 +3835,7 @@ out:
 static int rtl8152_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct r8152 *tp = netdev_priv(dev);
+	int ret;
 
 	switch (tp->version) {
 	case RTL_VER_01:
@@ -3633,9 +3848,22 @@ static int rtl8152_change_mtu(struct net_device *dev, int new_mtu)
 	if (new_mtu < 68 || new_mtu > RTL8153_MAX_MTU)
 		return -EINVAL;
 
+	ret = usb_autopm_get_interface(tp->intf);
+	if (ret < 0)
+		return ret;
+
+	mutex_lock(&tp->control);
+
 	dev->mtu = new_mtu;
 
-	return 0;
+	if (netif_running(dev) && netif_carrier_ok(dev))
+		r8153_set_rx_early_size(tp);
+
+	mutex_unlock(&tp->control);
+
+	usb_autopm_put_interface(tp->intf);
+
+	return ret;
 }
 
 static const struct net_device_ops rtl8152_netdev_ops = {
@@ -3649,6 +3877,7 @@ static const struct net_device_ops rtl8152_netdev_ops = {
 	.ndo_set_mac_address	= rtl8152_set_mac_address,
 	.ndo_change_mtu		= rtl8152_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_features_check	= rtl8152_features_check,
 };
 
 static void r8152b_get_version(struct r8152 *tp)
@@ -3702,65 +3931,42 @@ static void rtl8153_unload(struct r8152 *tp)
 	r8153_power_cut_en(tp, false);
 }
 
-static int rtl_ops_init(struct r8152 *tp, const struct usb_device_id *id)
+static int rtl_ops_init(struct r8152 *tp)
 {
 	struct rtl_ops *ops = &tp->rtl_ops;
-	int ret = -ENODEV;
+	int ret = 0;
 
-	switch (id->idVendor) {
-	case VENDOR_ID_REALTEK:
-		switch (id->idProduct) {
-		case PRODUCT_ID_RTL8152:
-			ops->init		= r8152b_init;
-			ops->enable		= rtl8152_enable;
-			ops->disable		= rtl8152_disable;
-			ops->up			= rtl8152_up;
-			ops->down		= rtl8152_down;
-			ops->unload		= rtl8152_unload;
-			ops->eee_get		= r8152_get_eee;
-			ops->eee_set		= r8152_set_eee;
-			ret = 0;
-			break;
-		case PRODUCT_ID_RTL8153:
-			ops->init		= r8153_init;
-			ops->enable		= rtl8153_enable;
-			ops->disable		= rtl8153_disable;
-			ops->up			= rtl8153_up;
-			ops->down		= rtl8153_down;
-			ops->unload		= rtl8153_unload;
-			ops->eee_get		= r8153_get_eee;
-			ops->eee_set		= r8153_set_eee;
-			ret = 0;
-			break;
-		default:
-			break;
-		}
+	switch (tp->version) {
+	case RTL_VER_01:
+	case RTL_VER_02:
+		ops->init		= r8152b_init;
+		ops->enable		= rtl8152_enable;
+		ops->disable		= rtl8152_disable;
+		ops->up			= rtl8152_up;
+		ops->down		= rtl8152_down;
+		ops->unload		= rtl8152_unload;
+		ops->eee_get		= r8152_get_eee;
+		ops->eee_set		= r8152_set_eee;
 		break;
 
-	case VENDOR_ID_SAMSUNG:
-		switch (id->idProduct) {
-		case PRODUCT_ID_SAMSUNG:
-			ops->init		= r8153_init;
-			ops->enable		= rtl8153_enable;
-			ops->disable		= rtl8153_disable;
-			ops->up			= rtl8153_up;
-			ops->down		= rtl8153_down;
-			ops->unload		= rtl8153_unload;
-			ops->eee_get		= r8153_get_eee;
-			ops->eee_set		= r8153_set_eee;
-			ret = 0;
-			break;
-		default:
-			break;
-		}
+	case RTL_VER_03:
+	case RTL_VER_04:
+	case RTL_VER_05:
+		ops->init		= r8153_init;
+		ops->enable		= rtl8153_enable;
+		ops->disable		= rtl8153_disable;
+		ops->up			= rtl8153_up;
+		ops->down		= rtl8153_down;
+		ops->unload		= rtl8153_unload;
+		ops->eee_get		= r8153_get_eee;
+		ops->eee_set		= r8153_set_eee;
 		break;
 
 	default:
+		ret = -ENODEV;
+		netif_err(tp, probe, tp->netdev, "Unknown Device\n");
 		break;
 	}
-
-	if (ret)
-		netif_err(tp, probe, tp->netdev, "Unknown Device\n");
 
 	return ret;
 }
@@ -3793,11 +3999,11 @@ static int rtl8152_probe(struct usb_interface *intf,
 	tp->netdev = netdev;
 	tp->intf = intf;
 
-	ret = rtl_ops_init(tp, id);
+	r8152b_get_version(tp);
+	ret = rtl_ops_init(tp);
 	if (ret)
 		goto out;
 
-	tasklet_init(&tp->tl, bottom_half, (unsigned long)tp);
 	mutex_init(&tp->control);
 	INIT_DELAYED_WORK(&tp->schedule, rtl_work_func_t);
 
@@ -3811,8 +4017,7 @@ static int rtl8152_probe(struct usb_interface *intf,
 	netdev->hw_features = NETIF_F_RXCSUM | NETIF_F_IP_CSUM | NETIF_F_SG |
 			      NETIF_F_TSO | NETIF_F_FRAGLIST |
 			      NETIF_F_IPV6_CSUM | NETIF_F_TSO6 |
-			      NETIF_F_HW_VLAN_CTAG_RX |
-			      NETIF_F_HW_VLAN_CTAG_TX;
+			      NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_CTAG_TX;
 	netdev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO |
 				NETIF_F_HIGHDMA | NETIF_F_FRAGLIST |
 				NETIF_F_IPV6_CSUM | NETIF_F_TSO6;
@@ -3826,15 +4031,26 @@ static int rtl8152_probe(struct usb_interface *intf,
 	tp->mii.phy_id_mask = 0x3f;
 	tp->mii.reg_num_mask = 0x1f;
 	tp->mii.phy_id = R8152_PHY_ID;
-	tp->mii.supports_gmii = 0;
+
+	switch (udev->speed) {
+	case USB_SPEED_SUPER:
+		tp->coalesce = COALESCE_SUPER;
+		break;
+	case USB_SPEED_HIGH:
+		tp->coalesce = COALESCE_HIGH;
+		break;
+	default:
+		tp->coalesce = COALESCE_SLOW;
+		break;
+	}
 
 	intf->needs_remote_wakeup = 1;
 
-	r8152b_get_version(tp);
 	tp->rtl_ops.init(tp);
 	set_ethernet_addr(tp);
 
 	usb_set_intfdata(intf, tp);
+	netif_napi_add(netdev, &tp->napi, r8152_poll, RTL8152_NAPI_WEIGHT);
 
 	ret = register_netdev(netdev);
 	if (ret != 0) {
@@ -3853,6 +4069,7 @@ static int rtl8152_probe(struct usb_interface *intf,
 	return 0;
 
 out1:
+	netif_napi_del(&tp->napi);
 	usb_set_intfdata(intf, NULL);
 out:
 	free_netdev(netdev);
@@ -3870,18 +4087,35 @@ static void rtl8152_disconnect(struct usb_interface *intf)
 		if (udev->state == USB_STATE_NOTATTACHED)
 			set_bit(RTL8152_UNPLUG, &tp->flags);
 
-		tasklet_kill(&tp->tl);
+		netif_napi_del(&tp->napi);
 		unregister_netdev(tp->netdev);
 		tp->rtl_ops.unload(tp);
 		free_netdev(tp->netdev);
 	}
 }
 
+#define REALTEK_USB_DEVICE(vend, prod)	\
+	.match_flags = USB_DEVICE_ID_MATCH_DEVICE | \
+		       USB_DEVICE_ID_MATCH_INT_CLASS, \
+	.idVendor = (vend), \
+	.idProduct = (prod), \
+	.bInterfaceClass = USB_CLASS_VENDOR_SPEC \
+}, \
+{ \
+	.match_flags = USB_DEVICE_ID_MATCH_INT_INFO | \
+		       USB_DEVICE_ID_MATCH_DEVICE, \
+	.idVendor = (vend), \
+	.idProduct = (prod), \
+	.bInterfaceClass = USB_CLASS_COMM, \
+	.bInterfaceSubClass = USB_CDC_SUBCLASS_ETHERNET, \
+	.bInterfaceProtocol = USB_CDC_PROTO_NONE
+
 /* table of devices that work with this driver */
 static struct usb_device_id rtl8152_table[] = {
-	{USB_DEVICE(VENDOR_ID_REALTEK, PRODUCT_ID_RTL8152)},
-	{USB_DEVICE(VENDOR_ID_REALTEK, PRODUCT_ID_RTL8153)},
-	{USB_DEVICE(VENDOR_ID_SAMSUNG, PRODUCT_ID_SAMSUNG)},
+	{REALTEK_USB_DEVICE(VENDOR_ID_REALTEK, 0x8152)},
+	{REALTEK_USB_DEVICE(VENDOR_ID_REALTEK, 0x8153)},
+	{REALTEK_USB_DEVICE(VENDOR_ID_SAMSUNG, 0xa101)},
+	{REALTEK_USB_DEVICE(VENDOR_ID_LENOVO,  0x7205)},
 	{}
 };
 

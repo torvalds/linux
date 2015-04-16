@@ -43,15 +43,13 @@ struct extent_status;
 	{ EXT4_GET_BLOCKS_METADATA_NOFAIL,	"METADATA_NOFAIL" },	\
 	{ EXT4_GET_BLOCKS_NO_NORMALIZE,		"NO_NORMALIZE" },	\
 	{ EXT4_GET_BLOCKS_KEEP_SIZE,		"KEEP_SIZE" },		\
-	{ EXT4_GET_BLOCKS_NO_LOCK,		"NO_LOCK" },		\
-	{ EXT4_GET_BLOCKS_NO_PUT_HOLE,		"NO_PUT_HOLE" })
+	{ EXT4_GET_BLOCKS_NO_LOCK,		"NO_LOCK" })
 
 #define show_mflags(flags) __print_flags(flags, "",	\
 	{ EXT4_MAP_NEW,		"N" },			\
 	{ EXT4_MAP_MAPPED,	"M" },			\
 	{ EXT4_MAP_UNWRITTEN,	"U" },			\
-	{ EXT4_MAP_BOUNDARY,	"B" },			\
-	{ EXT4_MAP_FROM_CLUSTER, "C" })
+	{ EXT4_MAP_BOUNDARY,	"B" })
 
 #define show_free_flags(flags) __print_flags(flags, "|",	\
 	{ EXT4_FREE_BLOCKS_METADATA,		"METADATA" },	\
@@ -74,6 +72,36 @@ struct extent_status;
 	{ FALLOC_FL_COLLAPSE_RANGE,	"COLLAPSE_RANGE"},	\
 	{ FALLOC_FL_ZERO_RANGE,		"ZERO_RANGE"})
 
+
+TRACE_EVENT(ext4_other_inode_update_time,
+	TP_PROTO(struct inode *inode, ino_t orig_ino),
+
+	TP_ARGS(inode, orig_ino),
+
+	TP_STRUCT__entry(
+		__field(	dev_t,	dev			)
+		__field(	ino_t,	ino			)
+		__field(	ino_t,	orig_ino		)
+		__field(	uid_t,	uid			)
+		__field(	gid_t,	gid			)
+		__field(	__u16, mode			)
+	),
+
+	TP_fast_assign(
+		__entry->orig_ino = orig_ino;
+		__entry->dev	= inode->i_sb->s_dev;
+		__entry->ino	= inode->i_ino;
+		__entry->uid	= i_uid_read(inode);
+		__entry->gid	= i_gid_read(inode);
+		__entry->mode	= inode->i_mode;
+	),
+
+	TP_printk("dev %d,%d orig_ino %lu ino %lu mode 0%o uid %u gid %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  (unsigned long) __entry->orig_ino,
+		  (unsigned long) __entry->ino, __entry->mode,
+		  __entry->uid, __entry->gid)
+);
 
 TRACE_EVENT(ext4_free_inode,
 	TP_PROTO(struct inode *inode),
@@ -212,7 +240,7 @@ TRACE_EVENT(ext4_mark_inode_dirty,
 		__entry->ip	= IP;
 	),
 
-	TP_printk("dev %d,%d ino %lu caller %pF",
+	TP_printk("dev %d,%d ino %lu caller %pS",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long) __entry->ino, (void *)__entry->ip)
 );
@@ -1734,7 +1762,7 @@ TRACE_EVENT(ext4_journal_start,
 		__entry->rsv_blocks	 = rsv_blocks;
 	),
 
-	TP_printk("dev %d,%d blocks, %d rsv_blocks, %d caller %pF",
+	TP_printk("dev %d,%d blocks, %d rsv_blocks, %d caller %pS",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->blocks, __entry->rsv_blocks, (void *)__entry->ip)
 );
@@ -1756,7 +1784,7 @@ TRACE_EVENT(ext4_journal_start_reserved,
 		__entry->blocks		 = blocks;
 	),
 
-	TP_printk("dev %d,%d blocks, %d caller %pF",
+	TP_printk("dev %d,%d blocks, %d caller %pS",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->blocks, (void *)__entry->ip)
 );
@@ -2452,15 +2480,14 @@ TRACE_EVENT(ext4_collapse_range,
 
 TRACE_EVENT(ext4_es_shrink,
 	TP_PROTO(struct super_block *sb, int nr_shrunk, u64 scan_time,
-		 int skip_precached, int nr_skipped, int retried),
+		 int nr_skipped, int retried),
 
-	TP_ARGS(sb, nr_shrunk, scan_time, skip_precached, nr_skipped, retried),
+	TP_ARGS(sb, nr_shrunk, scan_time, nr_skipped, retried),
 
 	TP_STRUCT__entry(
 		__field(	dev_t,		dev		)
 		__field(	int,		nr_shrunk	)
 		__field(	unsigned long long, scan_time	)
-		__field(	int,		skip_precached	)
 		__field(	int,		nr_skipped	)
 		__field(	int,		retried		)
 	),
@@ -2469,16 +2496,14 @@ TRACE_EVENT(ext4_es_shrink,
 		__entry->dev		= sb->s_dev;
 		__entry->nr_shrunk	= nr_shrunk;
 		__entry->scan_time	= div_u64(scan_time, 1000);
-		__entry->skip_precached = skip_precached;
 		__entry->nr_skipped	= nr_skipped;
 		__entry->retried	= retried;
 	),
 
-	TP_printk("dev %d,%d nr_shrunk %d, scan_time %llu skip_precached %d "
+	TP_printk("dev %d,%d nr_shrunk %d, scan_time %llu "
 		  "nr_skipped %d retried %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->nr_shrunk,
-		  __entry->scan_time, __entry->skip_precached,
-		  __entry->nr_skipped, __entry->retried)
+		  __entry->scan_time, __entry->nr_skipped, __entry->retried)
 );
 
 #endif /* _TRACE_EXT4_H */

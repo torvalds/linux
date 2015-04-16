@@ -29,6 +29,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/omap-dma.h>
+#include <linux/omap-gpmc.h>
 #include <linux/platform_data/gpio-omap.h>
 
 #include <trace/events/power.h>
@@ -43,7 +44,6 @@
 #include "common.h"
 #include "cm3xxx.h"
 #include "cm-regbits-34xx.h"
-#include "gpmc.h"
 #include "prm-regbits-34xx.h"
 #include "prm3xxx.h"
 #include "pm.h"

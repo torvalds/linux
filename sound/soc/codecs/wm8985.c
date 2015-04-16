@@ -961,29 +961,6 @@ static int wm8985_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int wm8985_suspend(struct snd_soc_codec *codec)
-{
-	wm8985_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static int wm8985_resume(struct snd_soc_codec *codec)
-{
-	wm8985_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	return 0;
-}
-#else
-#define wm8985_suspend NULL
-#define wm8985_resume NULL
-#endif
-
-static int wm8985_remove(struct snd_soc_codec *codec)
-{
-	wm8985_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static int wm8985_probe(struct snd_soc_codec *codec)
 {
 	size_t i;
@@ -1023,7 +1000,6 @@ static int wm8985_probe(struct snd_soc_codec *codec)
 	snd_soc_update_bits(codec, WM8985_BIAS_CTRL, WM8985_BIASCUT,
 			    WM8985_BIASCUT);
 
-	wm8985_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	return 0;
 
 err_reg_enable:
@@ -1064,10 +1040,8 @@ static struct snd_soc_dai_driver wm8985_dai = {
 
 static struct snd_soc_codec_driver soc_codec_dev_wm8985 = {
 	.probe = wm8985_probe,
-	.remove = wm8985_remove,
-	.suspend = wm8985_suspend,
-	.resume = wm8985_resume,
 	.set_bias_level = wm8985_set_bias_level,
+	.suspend_bias_off = true,
 
 	.controls = wm8985_snd_controls,
 	.num_controls = ARRAY_SIZE(wm8985_snd_controls),

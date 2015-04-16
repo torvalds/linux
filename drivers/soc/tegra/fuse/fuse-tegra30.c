@@ -56,7 +56,7 @@ struct tegra_fuse_info {
 
 static void __iomem *fuse_base;
 static struct clk *fuse_clk;
-static struct tegra_fuse_info *fuse_info;
+static const struct tegra_fuse_info *fuse_info;
 
 u32 tegra30_fuse_readl(const unsigned int offset)
 {
@@ -78,18 +78,18 @@ u32 tegra30_fuse_readl(const unsigned int offset)
 	return val;
 }
 
-static struct tegra_fuse_info tegra30_info = {
+static const struct tegra_fuse_info tegra30_info = {
 	.size			= 0x2a4,
 	.spare_bit		= 0x144,
 	.speedo_idx		= SPEEDO_TEGRA30,
 };
 
-static struct tegra_fuse_info tegra114_info = {
+static const struct tegra_fuse_info tegra114_info = {
 	.size			= 0x2a0,
 	.speedo_idx		= SPEEDO_TEGRA114,
 };
 
-static struct tegra_fuse_info tegra124_info = {
+static const struct tegra_fuse_info tegra124_info = {
 	.size			= 0x300,
 	.speedo_idx		= SPEEDO_TEGRA124,
 };
@@ -130,7 +130,6 @@ static struct platform_driver tegra30_fuse_driver = {
 	.probe = tegra30_fuse_probe,
 	.driver = {
 		.name = "tegra_fuse",
-		.owner = THIS_MODULE,
 		.of_match_table = tegra30_fuse_of_match,
 	}
 };
@@ -183,6 +182,7 @@ static void __init legacy_fuse_init(void)
 		fuse_info = &tegra114_info;
 		break;
 	case TEGRA124:
+	case TEGRA132:
 		fuse_info = &tegra124_info;
 		break;
 	default:

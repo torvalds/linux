@@ -11,22 +11,6 @@
  * but WITHOUT ANY WARRANTY, EXPRESS OR IMPLIED; without even the
  * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
  * PURPOSE.  See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- *
- *      NOTE TO LINUX KERNEL HACKERS:  DO NOT REFORMAT THIS CODE!
- *
- *      This is shared code between Digi's CVS archive and the
- *      Linux Kernel sources.
- *      Changing the source just for reformatting needlessly breaks
- *      our CVS diff history.
- *
- *      Send any bug fixes/changes to:  Eng.Linux at digi dot com.
- *      Thank you.
- *
  */
 
 
@@ -63,39 +47,6 @@ static ssize_t dgnc_driver_maxboards_show(struct device_driver *ddp, char *buf)
 }
 static DRIVER_ATTR(maxboards, S_IRUSR, dgnc_driver_maxboards_show, NULL);
 
-static ssize_t dgnc_driver_debug_show(struct device_driver *ddp, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "0x%x\n", dgnc_debug);
-}
-
-static ssize_t dgnc_driver_debug_store(struct device_driver *ddp, const char *buf, size_t count)
-{
-	int ret;
-
-	ret = sscanf(buf, "0x%x\n", &dgnc_debug);
-	if (ret != 1)
-		return -EINVAL;
-	return count;
-}
-static DRIVER_ATTR(debug, (S_IRUSR | S_IWUSR), dgnc_driver_debug_show, dgnc_driver_debug_store);
-
-
-static ssize_t dgnc_driver_rawreadok_show(struct device_driver *ddp, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "0x%x\n", dgnc_rawreadok);
-}
-
-static ssize_t dgnc_driver_rawreadok_store(struct device_driver *ddp, const char *buf, size_t count)
-{
-	int ret;
-
-	ret = sscanf(buf, "0x%x\n", &dgnc_rawreadok);
-	if (ret != 1)
-		return -EINVAL;
-	return count;
-}
-static DRIVER_ATTR(rawreadok, (S_IRUSR | S_IWUSR), dgnc_driver_rawreadok_show, dgnc_driver_rawreadok_store);
-
 
 static ssize_t dgnc_driver_pollrate_show(struct device_driver *ddp, char *buf)
 {
@@ -122,11 +73,9 @@ void dgnc_create_driver_sysfiles(struct pci_driver *dgnc_driver)
 	rc |= driver_create_file(driverfs, &driver_attr_version);
 	rc |= driver_create_file(driverfs, &driver_attr_boards);
 	rc |= driver_create_file(driverfs, &driver_attr_maxboards);
-	rc |= driver_create_file(driverfs, &driver_attr_debug);
-	rc |= driver_create_file(driverfs, &driver_attr_rawreadok);
 	rc |= driver_create_file(driverfs, &driver_attr_pollrate);
 	if (rc)
-		printk(KERN_ERR "DGNC: sysfs driver_create_file failed!\n");
+		pr_err("DGNC: sysfs driver_create_file failed!\n");
 }
 
 
@@ -137,8 +86,6 @@ void dgnc_remove_driver_sysfiles(struct pci_driver *dgnc_driver)
 	driver_remove_file(driverfs, &driver_attr_version);
 	driver_remove_file(driverfs, &driver_attr_boards);
 	driver_remove_file(driverfs, &driver_attr_maxboards);
-	driver_remove_file(driverfs, &driver_attr_debug);
-	driver_remove_file(driverfs, &driver_attr_rawreadok);
 	driver_remove_file(driverfs, &driver_attr_pollrate);
 }
 
@@ -397,7 +344,7 @@ void dgnc_create_ports_sysfiles(struct dgnc_board *bd)
 	rc |= device_create_file(&(bd->pdev->dev), &dev_attr_vpd);
 	rc |= device_create_file(&(bd->pdev->dev), &dev_attr_serial_number);
 	if (rc)
-		printk(KERN_ERR "DGNC: sysfs device_create_file failed!\n");
+		dev_err(&bd->pdev->dev, "dgnc: sysfs device_create_file failed!\n");
 }
 
 

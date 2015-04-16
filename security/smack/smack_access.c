@@ -130,7 +130,8 @@ int smk_access(struct smack_known *subject, struct smack_known *object,
 
 	/*
 	 * Hardcoded comparisons.
-	 *
+	 */
+	/*
 	 * A star subject can't access any object.
 	 */
 	if (subject == &smack_known_star) {
@@ -142,8 +143,7 @@ int smk_access(struct smack_known *subject, struct smack_known *object,
 	 * Tasks cannot be assigned the internet label.
 	 * An internet subject can access any object.
 	 */
-	if (object == &smack_known_web ||
-	    subject == &smack_known_web)
+	if (object == &smack_known_web || subject == &smack_known_web)
 		goto out_audit;
 	/*
 	 * A star object can be accessed by any subject.
@@ -157,10 +157,11 @@ int smk_access(struct smack_known *subject, struct smack_known *object,
 	if (subject->smk_known == object->smk_known)
 		goto out_audit;
 	/*
-	 * A hat subject can read any object.
-	 * A floor object can be read by any subject.
+	 * A hat subject can read or lock any object.
+	 * A floor object can be read or locked by any subject.
 	 */
-	if ((request & MAY_ANYREAD) == request) {
+	if ((request & MAY_ANYREAD) == request ||
+	    (request & MAY_LOCK) == request) {
 		if (object == &smack_known_floor)
 			goto out_audit;
 		if (subject == &smack_known_hat)
@@ -189,10 +190,20 @@ int smk_access(struct smack_known *subject, struct smack_known *object,
 	 * succeed because of "b" rules.
 	 */
 	if (may & MAY_BRINGUP)
-		rc = MAY_BRINGUP;
+		rc = SMACK_BRINGUP_ALLOW;
 #endif
 
 out_audit:
+
+#ifdef CONFIG_SECURITY_SMACK_BRINGUP
+	if (rc < 0) {
+		if (object == smack_unconfined)
+			rc = SMACK_UNCONFINED_OBJECT;
+		if (subject == smack_unconfined)
+			rc = SMACK_UNCONFINED_SUBJECT;
+	}
+#endif
+
 #ifdef CONFIG_AUDIT
 	if (a)
 		smack_log(subject->smk_known, object->smk_known,
@@ -338,19 +349,16 @@ static void smack_log_callback(struct audit_buffer *ab, void *a)
 void smack_log(char *subject_label, char *object_label, int request,
 	       int result, struct smk_audit_info *ad)
 {
+#ifdef CONFIG_SECURITY_SMACK_BRINGUP
+	char request_buffer[SMK_NUM_ACCESS_TYPE + 5];
+#else
 	char request_buffer[SMK_NUM_ACCESS_TYPE + 1];
+#endif
 	struct smack_audit_data *sad;
 	struct common_audit_data *a = &ad->a;
 
-#ifdef CONFIG_SECURITY_SMACK_BRINGUP
-	/*
-	 * The result may be positive in bringup mode.
-	 */
-	if (result > 0)
-		result = 0;
-#endif
 	/* check if we have to log the current event */
-	if (result != 0 && (log_policy & SMACK_AUDIT_DENIED) == 0)
+	if (result < 0 && (log_policy & SMACK_AUDIT_DENIED) == 0)
 		return;
 	if (result == 0 && (log_policy & SMACK_AUDIT_ACCEPT) == 0)
 		return;
@@ -364,6 +372,21 @@ void smack_log(char *subject_label, char *object_label, int request,
 	smack_str_from_perm(request_buffer, request);
 	sad->subject = subject_label;
 	sad->object  = object_label;
+#ifdef CONFIG_SECURITY_SMACK_BRINGUP
+	/*
+	 * The result may be positive in bringup mode.
+	 * A positive result is an allow, but not for normal reasons.
+	 * Mark it as successful, but don't filter it out even if
+	 * the logging policy says to do so.
+	 */
+	if (result == SMACK_UNCONFINED_SUBJECT)
+		strcat(request_buffer, "(US)");
+	else if (result == SMACK_UNCONFINED_OBJECT)
+		strcat(request_buffer, "(UO)");
+
+	if (result > 0)
+		result = 0;
+#endif
 	sad->request = request_buffer;
 	sad->result  = result;
 
@@ -452,10 +475,9 @@ char *smk_parse_smack(const char *string, int len)
 		return NULL;
 
 	smack = kzalloc(i + 1, GFP_KERNEL);
-	if (smack != NULL) {
-		strncpy(smack, string, i + 1);
-		smack[i] = '\0';
-	}
+	if (smack != NULL)
+		strncpy(smack, string, i);
+
 	return smack;
 }
 

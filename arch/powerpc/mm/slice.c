@@ -645,35 +645,6 @@ void slice_set_user_psize(struct mm_struct *mm, unsigned int psize)
 	spin_unlock_irqrestore(&slice_convert_lock, flags);
 }
 
-void slice_set_psize(struct mm_struct *mm, unsigned long address,
-		     unsigned int psize)
-{
-	unsigned char *hpsizes;
-	unsigned long i, flags;
-	u64 *lpsizes;
-
-	spin_lock_irqsave(&slice_convert_lock, flags);
-	if (address < SLICE_LOW_TOP) {
-		i = GET_LOW_SLICE_INDEX(address);
-		lpsizes = &mm->context.low_slices_psize;
-		*lpsizes = (*lpsizes & ~(0xful << (i * 4))) |
-			((unsigned long) psize << (i * 4));
-	} else {
-		int index, mask_index;
-		i = GET_HIGH_SLICE_INDEX(address);
-		hpsizes = mm->context.high_slices_psize;
-		mask_index = i & 0x1;
-		index = i >> 1;
-		hpsizes[index] = (hpsizes[index] &
-				  ~(0xf << (mask_index * 4))) |
-			(((unsigned long)psize) << (mask_index * 4));
-	}
-
-	spin_unlock_irqrestore(&slice_convert_lock, flags);
-
-	copro_flush_all_slbs(mm);
-}
-
 void slice_set_range_psize(struct mm_struct *mm, unsigned long start,
 			   unsigned long len, unsigned int psize)
 {
@@ -682,6 +653,7 @@ void slice_set_range_psize(struct mm_struct *mm, unsigned long start,
 	slice_convert(mm, mask, psize);
 }
 
+#ifdef CONFIG_HUGETLB_PAGE
 /*
  * is_hugepage_only_range() is used by generic code to verify whether
  * a normal mmap mapping (non hugetlbfs) is valid on a given area.
@@ -726,4 +698,4 @@ int is_hugepage_only_range(struct mm_struct *mm, unsigned long addr,
 #endif
 	return !slice_check_fit(mask, available);
 }
-
+#endif

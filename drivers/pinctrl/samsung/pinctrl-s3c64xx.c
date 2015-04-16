@@ -68,32 +68,32 @@
 #define EINT_CON_MASK		0xF
 #define EINT_CON_LEN		4
 
-static struct samsung_pin_bank_type bank_type_4bit_off = {
+static const struct samsung_pin_bank_type bank_type_4bit_off = {
 	.fld_width = { 4, 1, 2, 0, 2, 2, },
 	.reg_offset = { 0x00, 0x04, 0x08, 0, 0x0c, 0x10, },
 };
 
-static struct samsung_pin_bank_type bank_type_4bit_alive = {
+static const struct samsung_pin_bank_type bank_type_4bit_alive = {
 	.fld_width = { 4, 1, 2, },
 	.reg_offset = { 0x00, 0x04, 0x08, },
 };
 
-static struct samsung_pin_bank_type bank_type_4bit2_off = {
+static const struct samsung_pin_bank_type bank_type_4bit2_off = {
 	.fld_width = { 4, 1, 2, 0, 2, 2, },
 	.reg_offset = { 0x00, 0x08, 0x0c, 0, 0x10, 0x14, },
 };
 
-static struct samsung_pin_bank_type bank_type_4bit2_alive = {
+static const struct samsung_pin_bank_type bank_type_4bit2_alive = {
 	.fld_width = { 4, 1, 2, },
 	.reg_offset = { 0x00, 0x08, 0x0c, },
 };
 
-static struct samsung_pin_bank_type bank_type_2bit_off = {
+static const struct samsung_pin_bank_type bank_type_2bit_off = {
 	.fld_width = { 2, 1, 2, 0, 2, 2, },
 	.reg_offset = { 0x00, 0x04, 0x08, 0, 0x0c, 0x10, },
 };
 
-static struct samsung_pin_bank_type bank_type_2bit_alive = {
+static const struct samsung_pin_bank_type bank_type_2bit_alive = {
 	.fld_width = { 2, 1, 2, },
 	.reg_offset = { 0x00, 0x04, 0x08, },
 };
@@ -272,7 +272,7 @@ static void s3c64xx_irq_set_handler(unsigned int irq, unsigned int type)
 static void s3c64xx_irq_set_function(struct samsung_pinctrl_drv_data *d,
 					struct samsung_pin_bank *bank, int pin)
 {
-	struct samsung_pin_bank_type *bank_type = bank->type;
+	const struct samsung_pin_bank_type *bank_type = bank->type;
 	unsigned long flags;
 	void __iomem *reg;
 	u8 shift;
@@ -468,8 +468,8 @@ static int s3c64xx_eint_gpio_init(struct samsung_pinctrl_drv_data *d)
 	}
 
 	nr_domains = 0;
-	bank = d->ctrl->pin_banks;
-	for (i = 0; i < d->ctrl->nr_banks; ++i, ++bank) {
+	bank = d->pin_banks;
+	for (i = 0; i < d->nr_banks; ++i, ++bank) {
 		unsigned int nr_eints;
 		unsigned int mask;
 
@@ -497,9 +497,9 @@ static int s3c64xx_eint_gpio_init(struct samsung_pinctrl_drv_data *d)
 	}
 	data->drvdata = d;
 
-	bank = d->ctrl->pin_banks;
+	bank = d->pin_banks;
 	nr_domains = 0;
-	for (i = 0; i < d->ctrl->nr_banks; ++i, ++bank) {
+	for (i = 0; i < d->nr_banks; ++i, ++bank) {
 		if (bank->eint_type != EINT_TYPE_GPIO)
 			continue;
 
@@ -735,8 +735,8 @@ static int s3c64xx_eint_eint0_init(struct samsung_pinctrl_drv_data *d)
 		irq_set_handler_data(irq, data);
 	}
 
-	bank = d->ctrl->pin_banks;
-	for (i = 0; i < d->ctrl->nr_banks; ++i, ++bank) {
+	bank = d->pin_banks;
+	for (i = 0; i < d->nr_banks; ++i, ++bank) {
 		struct s3c64xx_eint0_domain_data *ddata;
 		unsigned int nr_eints;
 		unsigned int mask;
@@ -780,7 +780,7 @@ static int s3c64xx_eint_eint0_init(struct samsung_pinctrl_drv_data *d)
 }
 
 /* pin banks of s3c64xx pin-controller 0 */
-static struct samsung_pin_bank s3c64xx_pin_banks0[] = {
+static const struct samsung_pin_bank_data s3c64xx_pin_banks0[] __initconst = {
 	PIN_BANK_4BIT_EINTG(8, 0x000, "gpa", 0),
 	PIN_BANK_4BIT_EINTG(7, 0x020, "gpb", 8),
 	PIN_BANK_4BIT_EINTG(8, 0x040, "gpc", 16),
@@ -804,13 +804,12 @@ static struct samsung_pin_bank s3c64xx_pin_banks0[] = {
  * Samsung pinctrl driver data for S3C64xx SoC. S3C64xx SoC includes
  * one gpio/pin-mux/pinconfig controller.
  */
-struct samsung_pin_ctrl s3c64xx_pin_ctrl[] = {
+const struct samsung_pin_ctrl s3c64xx_pin_ctrl[] __initconst = {
 	{
 		/* pin-controller instance 1 data */
 		.pin_banks	= s3c64xx_pin_banks0,
 		.nr_banks	= ARRAY_SIZE(s3c64xx_pin_banks0),
 		.eint_gpio_init = s3c64xx_eint_gpio_init,
 		.eint_wkup_init = s3c64xx_eint_eint0_init,
-		.label		= "S3C64xx-GPIO",
 	},
 };

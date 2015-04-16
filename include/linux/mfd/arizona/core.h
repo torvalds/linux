@@ -24,6 +24,7 @@ enum arizona_type {
 	WM5102 = 1,
 	WM5110 = 2,
 	WM8997 = 3,
+	WM8280 = 4,
 };
 
 #define ARIZONA_IRQ_GP1                    0
@@ -141,6 +142,7 @@ struct arizona {
 
 	uint16_t dac_comp_coeff;
 	uint8_t dac_comp_enabled;
+	struct mutex dac_comp_lock;
 };
 
 int arizona_clk32k_enable(struct arizona *arizona);

@@ -189,19 +189,6 @@ static ssize_t twa_show_stats(struct device *dev,
 	return len;
 } /* End twa_show_stats() */
 
-/* This function will set a devices queue depth */
-static int twa_change_queue_depth(struct scsi_device *sdev, int queue_depth,
-				  int reason)
-{
-	if (reason != SCSI_QDEPTH_DEFAULT)
-		return -EOPNOTSUPP;
-
-	if (queue_depth > TW_Q_LENGTH-2)
-		queue_depth = TW_Q_LENGTH-2;
-	scsi_adjust_queue_depth(sdev, MSG_ORDERED_TAG, queue_depth);
-	return queue_depth;
-} /* End twa_change_queue_depth() */
-
 /* Create sysfs 'stats' entry */
 static struct device_attribute twa_host_stats_attr = {
 	.attr = {
@@ -621,7 +608,8 @@ static int twa_check_srl(TW_Device_Extension *tw_dev, int *flashed)
 	}
 
 	/* Load rest of compatibility struct */
-	strncpy(tw_dev->tw_compat_info.driver_version, TW_DRIVER_VERSION, strlen(TW_DRIVER_VERSION));
+	strlcpy(tw_dev->tw_compat_info.driver_version, TW_DRIVER_VERSION,
+		sizeof(tw_dev->tw_compat_info.driver_version));
 	tw_dev->tw_compat_info.driver_srl_high = TW_CURRENT_DRIVER_SRL;
 	tw_dev->tw_compat_info.driver_branch_high = TW_CURRENT_DRIVER_BRANCH;
 	tw_dev->tw_compat_info.driver_build_high = TW_CURRENT_DRIVER_BUILD;
@@ -2016,7 +2004,7 @@ static struct scsi_host_template driver_template = {
 	.queuecommand		= twa_scsi_queue,
 	.eh_host_reset_handler	= twa_scsi_eh_reset,
 	.bios_param		= twa_scsi_biosparam,
-	.change_queue_depth	= twa_change_queue_depth,
+	.change_queue_depth	= scsi_change_queue_depth,
 	.can_queue		= TW_Q_LENGTH-2,
 	.slave_configure	= twa_slave_configure,
 	.this_id		= -1,

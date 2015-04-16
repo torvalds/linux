@@ -292,7 +292,6 @@ static inline int mpipe_instance(struct net_device *dev)
  */
 static bool network_cpus_init(void)
 {
-	char buf[1024];
 	int rc;
 
 	if (network_cpus_string == NULL)
@@ -314,8 +313,8 @@ static bool network_cpus_init(void)
 		return false;
 	}
 
-	cpulist_scnprintf(buf, sizeof(buf), &network_cpus_map);
-	pr_info("Linux network CPUs: %s\n", buf);
+	pr_info("Linux network CPUs: %*pbl\n",
+		cpumask_pr_args(&network_cpus_map));
 	return true;
 }
 
@@ -839,7 +838,8 @@ static int ptp_mpipe_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	return ret;
 }
 
-static int ptp_mpipe_gettime(struct ptp_clock_info *ptp, struct timespec *ts)
+static int ptp_mpipe_gettime(struct ptp_clock_info *ptp,
+			     struct timespec64 *ts)
 {
 	int ret = 0;
 	struct mpipe_data *md = container_of(ptp, struct mpipe_data, caps);
@@ -851,7 +851,7 @@ static int ptp_mpipe_gettime(struct ptp_clock_info *ptp, struct timespec *ts)
 }
 
 static int ptp_mpipe_settime(struct ptp_clock_info *ptp,
-			     const struct timespec *ts)
+			     const struct timespec64 *ts)
 {
 	int ret = 0;
 	struct mpipe_data *md = container_of(ptp, struct mpipe_data, caps);
@@ -877,8 +877,8 @@ static struct ptp_clock_info ptp_mpipe_caps = {
 	.pps		= 0,
 	.adjfreq	= ptp_mpipe_adjfreq,
 	.adjtime	= ptp_mpipe_adjtime,
-	.gettime	= ptp_mpipe_gettime,
-	.settime	= ptp_mpipe_settime,
+	.gettime64	= ptp_mpipe_gettime,
+	.settime64	= ptp_mpipe_settime,
 	.enable		= ptp_mpipe_enable,
 };
 

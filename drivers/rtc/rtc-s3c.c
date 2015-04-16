@@ -535,13 +535,15 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 	}
 	clk_prepare_enable(info->rtc_clk);
 
-	info->rtc_src_clk = devm_clk_get(&pdev->dev, "rtc_src");
-	if (IS_ERR(info->rtc_src_clk)) {
-		dev_err(&pdev->dev, "failed to find rtc source clock\n");
-		return PTR_ERR(info->rtc_src_clk);
+	if (info->data->needs_src_clk) {
+		info->rtc_src_clk = devm_clk_get(&pdev->dev, "rtc_src");
+		if (IS_ERR(info->rtc_src_clk)) {
+			dev_err(&pdev->dev,
+				"failed to find rtc source clock\n");
+			return PTR_ERR(info->rtc_src_clk);
+		}
+		clk_prepare_enable(info->rtc_src_clk);
 	}
-	clk_prepare_enable(info->rtc_src_clk);
-
 
 	/* check to see if everything is setup correctly */
 	if (info->data->enable)
@@ -847,6 +849,7 @@ static struct s3c_rtc_data const s3c2443_rtc_data = {
 
 static struct s3c_rtc_data const s3c6410_rtc_data = {
 	.max_user_freq		= 32768,
+	.needs_src_clk		= true,
 	.irq_handler		= s3c6410_rtc_irq,
 	.set_freq		= s3c6410_rtc_setfreq,
 	.enable_tick		= s3c6410_rtc_enable_tick,
@@ -894,7 +897,6 @@ static struct platform_driver s3c_rtc_driver = {
 	.remove		= s3c_rtc_remove,
 	.driver		= {
 		.name	= "s3c-rtc",
-		.owner	= THIS_MODULE,
 		.pm	= &s3c_rtc_pm_ops,
 		.of_match_table	= of_match_ptr(s3c_rtc_dt_match),
 	},

@@ -29,6 +29,7 @@
 static u32 mem_addr;
 static u32 dbg_txdesc_index;
 static u32 dbg_vring_index; /* 24+ for Rx, 0..23 for Tx */
+u32 vring_idle_trsh = 16; /* HW fetches up to 16 descriptors at once */
 
 enum dbg_off_type {
 	doff_u32 = 0,
@@ -50,6 +51,7 @@ static void wil_print_vring(struct seq_file *s, struct wil6210_priv *wil,
 			    char _s, char _h)
 {
 	void __iomem *x = wmi_addr(wil, vring->hwtail);
+	u32 v;
 
 	seq_printf(s, "VRING %s = {\n", name);
 	seq_printf(s, "  pa     = %pad\n", &vring->pa);
@@ -58,10 +60,12 @@ static void wil_print_vring(struct seq_file *s, struct wil6210_priv *wil,
 	seq_printf(s, "  swtail = %d\n", vring->swtail);
 	seq_printf(s, "  swhead = %d\n", vring->swhead);
 	seq_printf(s, "  hwtail = [0x%08x] -> ", vring->hwtail);
-	if (x)
-		seq_printf(s, "0x%08x\n", ioread32(x));
-	else
+	if (x) {
+		v = ioread32(x);
+		seq_printf(s, "0x%08x = %d\n", v, v);
+	} else {
 		seq_puts(s, "???\n");
+	}
 
 	if (vring->va && (vring->size < 1025)) {
 		uint i;
@@ -99,20 +103,36 @@ static int wil_vring_debugfs_show(struct seq_file *s, void *data)
 				   % vring->size;
 			int avail = vring->size - used - 1;
 			char name[10];
+			char sidle[10];
 			/* performance monitoring */
 			cycles_t now = get_cycles();
-			cycles_t idle = txdata->idle * 100;
-			cycles_t total = now - txdata->begin;
+			uint64_t idle = txdata->idle * 100;
+			uint64_t total = now - txdata->begin;
 
-			do_div(idle, total);
+			if (total != 0) {
+				do_div(idle, total);
+				snprintf(sidle, sizeof(sidle), "%3d%%",
+					 (int)idle);
+			} else {
+				snprintf(sidle, sizeof(sidle), "N/A");
+			}
 			txdata->begin = now;
 			txdata->idle = 0ULL;
 
 			snprintf(name, sizeof(name), "tx_%2d", i);
 
-			seq_printf(s, "\n%pM CID %d TID %d [%3d|%3d] idle %3d%%\n",
-				   wil->sta[cid].addr, cid, tid, used, avail,
-				   (int)idle);
+			if (cid < WIL6210_MAX_CID)
+				seq_printf(s,
+					   "\n%pM CID %d TID %d BACK([%u] %u TU A%s) [%3d|%3d] idle %s\n",
+					   wil->sta[cid].addr, cid, tid,
+					   txdata->agg_wsize,
+					   txdata->agg_timeout,
+					   txdata->agg_amsdu ? "+" : "-",
+					   used, avail, sidle);
+			else
+				seq_printf(s,
+					   "\nBroadcast [%3d|%3d] idle %s\n",
+					   used, avail, sidle);
 
 			wil_print_vring(s, wil, name, vring, '_', 'H');
 		}
@@ -384,24 +404,67 @@ static int wil6210_debugfs_create_pseudo_ISR(struct wil6210_priv *wil,
 	return 0;
 }
 
-static const struct dbg_off itr_cnt_off[] = {
+static const struct dbg_off lgc_itr_cnt_off[] = {
 	{"TRSH", S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_CNT_TRSH), doff_io32},
 	{"DATA", S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_CNT_DATA), doff_io32},
 	{"CTL",  S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_CNT_CRL), doff_io32},
 	{},
 };
 
+static const struct dbg_off tx_itr_cnt_off[] = {
+	{"TRSH", S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_TX_CNT_TRSH),
+	 doff_io32},
+	{"DATA", S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_TX_CNT_DATA),
+	 doff_io32},
+	{"CTL",  S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_TX_CNT_CTL),
+	 doff_io32},
+	{"IDL_TRSH", S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_TX_IDL_CNT_TRSH),
+	 doff_io32},
+	{"IDL_DATA", S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_TX_IDL_CNT_DATA),
+	 doff_io32},
+	{"IDL_CTL",  S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_TX_IDL_CNT_CTL),
+	 doff_io32},
+	{},
+};
+
+static const struct dbg_off rx_itr_cnt_off[] = {
+	{"TRSH", S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_RX_CNT_TRSH),
+	 doff_io32},
+	{"DATA", S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_RX_CNT_DATA),
+	 doff_io32},
+	{"CTL",  S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_RX_CNT_CTL),
+	 doff_io32},
+	{"IDL_TRSH", S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_RX_IDL_CNT_TRSH),
+	 doff_io32},
+	{"IDL_DATA", S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_RX_IDL_CNT_DATA),
+	 doff_io32},
+	{"IDL_CTL",  S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_RX_IDL_CNT_CTL),
+	 doff_io32},
+	{},
+};
+
 static int wil6210_debugfs_create_ITR_CNT(struct wil6210_priv *wil,
 					  struct dentry *parent)
 {
-	struct dentry *d = debugfs_create_dir("ITR_CNT", parent);
+	struct dentry *d, *dtx, *drx;
 
+	d = debugfs_create_dir("ITR_CNT", parent);
 	if (IS_ERR_OR_NULL(d))
 		return -ENODEV;
 
-	wil6210_debugfs_init_offset(wil, d, (void * __force)wil->csr,
-				    itr_cnt_off);
+	dtx = debugfs_create_dir("TX", d);
+	drx = debugfs_create_dir("RX", d);
+	if (IS_ERR_OR_NULL(dtx) || IS_ERR_OR_NULL(drx))
+		return -ENODEV;
 
+	wil6210_debugfs_init_offset(wil, d, (void * __force)wil->csr,
+				    lgc_itr_cnt_off);
+
+	wil6210_debugfs_init_offset(wil, dtx, (void * __force)wil->csr,
+				    tx_itr_cnt_off);
+
+	wil6210_debugfs_init_offset(wil, drx, (void * __force)wil->csr,
+				    rx_itr_cnt_off);
 	return 0;
 }
 
@@ -500,7 +563,7 @@ static ssize_t wil_write_file_reset(struct file *file, const char __user *buf,
 	dev_close(ndev);
 	ndev->flags &= ~IFF_UP;
 	rtnl_unlock();
-	wil_reset(wil);
+	wil_reset(wil, true);
 
 	return len;
 }
@@ -558,6 +621,87 @@ static const struct file_operations fops_rxon = {
 	.open  = simple_open,
 };
 
+/* block ack control, write:
+ * - "add <ringid> <agg_size> <timeout>" to trigger ADDBA
+ * - "del_tx <ringid> <reason>" to trigger DELBA for Tx side
+ * - "del_rx <CID> <TID> <reason>" to trigger DELBA for Rx side
+ */
+static ssize_t wil_write_back(struct file *file, const char __user *buf,
+			      size_t len, loff_t *ppos)
+{
+	struct wil6210_priv *wil = file->private_data;
+	int rc;
+	char *kbuf = kmalloc(len + 1, GFP_KERNEL);
+	char cmd[9];
+	int p1, p2, p3;
+
+	if (!kbuf)
+		return -ENOMEM;
+
+	rc = simple_write_to_buffer(kbuf, len, ppos, buf, len);
+	if (rc != len) {
+		kfree(kbuf);
+		return rc >= 0 ? -EIO : rc;
+	}
+
+	kbuf[len] = '\0';
+	rc = sscanf(kbuf, "%8s %d %d %d", cmd, &p1, &p2, &p3);
+	kfree(kbuf);
+
+	if (rc < 0)
+		return rc;
+	if (rc < 2)
+		return -EINVAL;
+
+	if (0 == strcmp(cmd, "add")) {
+		if (rc < 3) {
+			wil_err(wil, "BACK: add require at least 2 params\n");
+			return -EINVAL;
+		}
+		if (rc < 4)
+			p3 = 0;
+		wmi_addba(wil, p1, p2, p3);
+	} else if (0 == strcmp(cmd, "del_tx")) {
+		if (rc < 3)
+			p2 = WLAN_REASON_QSTA_LEAVE_QBSS;
+		wmi_delba_tx(wil, p1, p2);
+	} else if (0 == strcmp(cmd, "del_rx")) {
+		if (rc < 3) {
+			wil_err(wil,
+				"BACK: del_rx require at least 2 params\n");
+			return -EINVAL;
+		}
+		if (rc < 4)
+			p3 = WLAN_REASON_QSTA_LEAVE_QBSS;
+		wmi_delba_rx(wil, mk_cidxtid(p1, p2), p3);
+	} else {
+		wil_err(wil, "BACK: Unrecognized command \"%s\"\n", cmd);
+		return -EINVAL;
+	}
+
+	return len;
+}
+
+static ssize_t wil_read_back(struct file *file, char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	static const char text[] = "block ack control, write:\n"
+	" - \"add <ringid> <agg_size> <timeout>\" to trigger ADDBA\n"
+	"If missing, <timeout> defaults to 0\n"
+	" - \"del_tx <ringid> <reason>\" to trigger DELBA for Tx side\n"
+	" - \"del_rx <CID> <TID> <reason>\" to trigger DELBA for Rx side\n"
+	"If missing, <reason> set to \"STA_LEAVING\" (36)\n";
+
+	return simple_read_from_buffer(user_buf, count, ppos, text,
+				       sizeof(text));
+}
+
+static const struct file_operations fops_back = {
+	.read = wil_read_back,
+	.write = wil_write_back,
+	.open  = simple_open,
+};
+
 /*---tx_mgmt---*/
 /* Write mgmt frame to this file to send it */
 static ssize_t wil_write_file_txmgmt(struct file *file, const char __user *buf,
@@ -573,8 +717,10 @@ static ssize_t wil_write_file_txmgmt(struct file *file, const char __user *buf,
 	if (!frame)
 		return -ENOMEM;
 
-	if (copy_from_user(frame, buf, len))
+	if (copy_from_user(frame, buf, len)) {
+		kfree(frame);
 		return -EIO;
+	}
 
 	params.buf = frame;
 	params.len = len;
@@ -614,8 +760,10 @@ static ssize_t wil_write_file_wmi(struct file *file, const char __user *buf,
 		return -ENOMEM;
 
 	rc = simple_write_to_buffer(wmi, len, ppos, buf, len);
-	if (rc < 0)
+	if (rc < 0) {
+		kfree(wmi);
 		return rc;
+	}
 
 	cmd = &wmi[1];
 	cmdid = le16_to_cpu(wmi->id);
@@ -1112,7 +1260,8 @@ static void wil_print_rxtid(struct seq_file *s, struct wil_tid_ampdu_rx *r)
 	int i;
 	u16 index = ((r->head_seq_num - r->ssn) & 0xfff) % r->buf_size;
 
-	seq_printf(s, "0x%03x [", r->head_seq_num);
+	seq_printf(s, "([%2d] %3d TU) 0x%03x [", r->buf_size, r->timeout,
+		   r->head_seq_num);
 	for (i = 0; i < r->buf_size; i++) {
 		if (i == index)
 			seq_printf(s, "%c", r->reorder_buf[i] ? 'O' : '|');
@@ -1123,10 +1272,10 @@ static void wil_print_rxtid(struct seq_file *s, struct wil_tid_ampdu_rx *r)
 }
 
 static int wil_sta_debugfs_show(struct seq_file *s, void *data)
+__acquires(&p->tid_rx_lock) __releases(&p->tid_rx_lock)
 {
 	struct wil6210_priv *wil = s->private;
 	int i, tid;
-	unsigned long flags;
 
 	for (i = 0; i < ARRAY_SIZE(wil->sta); i++) {
 		struct wil_sta_info *p = &wil->sta[i];
@@ -1147,7 +1296,7 @@ static int wil_sta_debugfs_show(struct seq_file *s, void *data)
 			   (p->data_port_open ? " data_port_open" : ""));
 
 		if (p->status == wil_sta_connected) {
-			spin_lock_irqsave(&p->tid_rx_lock, flags);
+			spin_lock_bh(&p->tid_rx_lock);
 			for (tid = 0; tid < WIL_STA_TID_NUM; tid++) {
 				struct wil_tid_ampdu_rx *r = p->tid_rx[tid];
 
@@ -1156,7 +1305,7 @@ static int wil_sta_debugfs_show(struct seq_file *s, void *data)
 					wil_print_rxtid(s, r);
 				}
 			}
-			spin_unlock_irqrestore(&p->tid_rx_lock, flags);
+			spin_unlock_bh(&p->tid_rx_lock);
 		}
 	}
 
@@ -1213,6 +1362,7 @@ static const struct {
 	{"rxon",		  S_IWUSR,	&fops_rxon},
 	{"tx_mgmt",		  S_IWUSR,	&fops_txmgmt},
 	{"wmi_send",		  S_IWUSR,	&fops_wmi},
+	{"back",	S_IRUGO | S_IWUSR,	&fops_back},
 	{"temp",	S_IRUGO,		&fops_temp},
 	{"freq",	S_IRUGO,		&fops_freq},
 	{"link",	S_IRUGO,		&fops_link},
@@ -1256,11 +1406,12 @@ static void wil6210_debugfs_init_isr(struct wil6210_priv *wil,
 
 /* fields in struct wil6210_priv */
 static const struct dbg_off dbg_wil_off[] = {
-	WIL_FIELD(secure_pcp,	S_IRUGO | S_IWUSR,	doff_u32),
-	WIL_FIELD(status,	S_IRUGO | S_IWUSR,	doff_ulong),
+	WIL_FIELD(privacy,	S_IRUGO,		doff_u32),
+	WIL_FIELD(status[0],	S_IRUGO | S_IWUSR,	doff_ulong),
 	WIL_FIELD(fw_version,	S_IRUGO,		doff_u32),
 	WIL_FIELD(hw_version,	S_IRUGO,		doff_x32),
 	WIL_FIELD(recovery_count, S_IRUGO,		doff_u32),
+	WIL_FIELD(ap_isolate,	S_IRUGO,		doff_u32),
 	{},
 };
 
@@ -1276,6 +1427,8 @@ static const struct dbg_off dbg_statics[] = {
 	{"desc_index",	S_IRUGO | S_IWUSR, (ulong)&dbg_txdesc_index, doff_u32},
 	{"vring_index",	S_IRUGO | S_IWUSR, (ulong)&dbg_vring_index, doff_u32},
 	{"mem_addr",	S_IRUGO | S_IWUSR, (ulong)&mem_addr, doff_u32},
+	{"vring_idle_trsh", S_IRUGO | S_IWUSR, (ulong)&vring_idle_trsh,
+	 doff_u32},
 	{},
 };
 

@@ -1,4 +1,4 @@
-/**
+/*
  * dwmac-sunxi.c - Allwinner sunxi DWMAC specific glue layer
  *
  * Copyright (C) 2013 Chen-Yu Tsai
@@ -21,6 +21,8 @@
 #include <linux/phy.h>
 #include <linux/of_net.h>
 #include <linux/regulator/consumer.h>
+
+#include "stmmac_platform.h"
 
 struct sunxi_priv_data {
 	int interface;

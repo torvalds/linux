@@ -415,10 +415,8 @@ static int adpt_slave_configure(struct scsi_device * device)
 	pHba = (adpt_hba *) host->hostdata[0];
 
 	if (host->can_queue && device->tagged_supported) {
-		scsi_adjust_queue_depth(device, MSG_SIMPLE_TAG,
+		scsi_change_queue_depth(device,
 				host->can_queue - 1);
-	} else {
-		scsi_adjust_queue_depth(device, 0, 1);
 	}
 	return 0;
 }
@@ -570,7 +568,7 @@ static int adpt_show_info(struct seq_file *m, struct Scsi_Host *host)
 	seq_printf(m, "\tpost fifo size  = %d\n\treply fifo size = %d\n\tsg table size   = %d\n\n",
 			host->can_queue, (int) pHba->reply_fifo_size , host->sg_tablesize);
 
-	seq_printf(m, "Devices:\n");
+	seq_puts(m, "Devices:\n");
 	for(chan = 0; chan < MAX_CHANNEL; chan++) {
 		for(id = 0; id < MAX_ID; id++) {
 			d = pHba->channel[chan].device[id];

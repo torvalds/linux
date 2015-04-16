@@ -365,23 +365,17 @@ static __be64 *gfs2_dir_get_hash_table(struct gfs2_inode *ip)
 
 	ret = gfs2_dir_read_data(ip, hc, hsize);
 	if (ret < 0) {
-		if (is_vmalloc_addr(hc))
-			vfree(hc);
-		else
-			kfree(hc);
+		kvfree(hc);
 		return ERR_PTR(ret);
 	}
 
 	spin_lock(&inode->i_lock);
-	if (ip->i_hash_cache) {
-		if (is_vmalloc_addr(hc))
-			vfree(hc);
-		else
-			kfree(hc);
-	} else {
+	if (likely(!ip->i_hash_cache)) {
 		ip->i_hash_cache = hc;
+		hc = NULL;
 	}
 	spin_unlock(&inode->i_lock);
+	kvfree(hc);
 
 	return ip->i_hash_cache;
 }
@@ -396,10 +390,7 @@ void gfs2_dir_hash_inval(struct gfs2_inode *ip)
 {
 	__be64 *hc = ip->i_hash_cache;
 	ip->i_hash_cache = NULL;
-	if (is_vmalloc_addr(hc))
-		vfree(hc);
-	else
-		kfree(hc);
+	kvfree(hc);
 }
 
 static inline int gfs2_dirent_sentinel(const struct gfs2_dirent *dent)
@@ -1168,10 +1159,7 @@ fail:
 	gfs2_dinode_out(dip, dibh->b_data);
 	brelse(dibh);
 out_kfree:
-	if (is_vmalloc_addr(hc2))
-		vfree(hc2);
-	else
-		kfree(hc2);
+	kvfree(hc2);
 	return error;
 }
 
@@ -1302,14 +1290,6 @@ static void *gfs2_alloc_sort_buffer(unsigned size)
 	return ptr;
 }
 
-static void gfs2_free_sort_buffer(void *ptr)
-{
-	if (is_vmalloc_addr(ptr))
-		vfree(ptr);
-	else
-		kfree(ptr);
-}
-
 static int gfs2_dir_read_leaf(struct inode *inode, struct dir_context *ctx,
 			      int *copied, unsigned *depth,
 			      u64 leaf_no)
@@ -1393,7 +1373,7 @@ static int gfs2_dir_read_leaf(struct inode *inode, struct dir_context *ctx,
 out_free:
 	for(i = 0; i < leaf; i++)
 		brelse(larr[i]);
-	gfs2_free_sort_buffer(larr);
+	kvfree(larr);
 out:
 	return error;
 }
@@ -1829,7 +1809,7 @@ int gfs2_dir_del(struct gfs2_inode *dip, const struct dentry *dentry)
 		gfs2_consist_inode(dip);
 	dip->i_entries--;
 	dip->i_inode.i_mtime = dip->i_inode.i_ctime = tv;
-	if (S_ISDIR(dentry->d_inode->i_mode))
+	if (d_is_dir(dentry))
 		drop_nlink(&dip->i_inode);
 	mark_inode_dirty(&dip->i_inode);
 
@@ -1916,7 +1896,8 @@ static int leaf_dealloc(struct gfs2_inode *dip, u32 index, u32 len,
 
 	ht = kzalloc(size, GFP_NOFS | __GFP_NOWARN);
 	if (ht == NULL)
-		ht = vzalloc(size);
+		ht = __vmalloc(size, GFP_NOFS | __GFP_NOWARN | __GFP_ZERO,
+			       PAGE_KERNEL);
 	if (!ht)
 		return -ENOMEM;
 
@@ -2004,10 +1985,7 @@ out_rlist:
 	gfs2_rlist_free(&rlist);
 	gfs2_quota_unhold(dip);
 out:
-	if (is_vmalloc_addr(ht))
-		vfree(ht);
-	else
-		kfree(ht);
+	kvfree(ht);
 	return error;
 }
 

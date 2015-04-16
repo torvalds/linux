@@ -488,6 +488,7 @@ static int m88ts2022_probe(struct i2c_client *client,
 	case 0x83:
 		break;
 	default:
+		ret = -ENODEV;
 		goto err;
 	}
 
@@ -505,6 +506,7 @@ static int m88ts2022_probe(struct i2c_client *client,
 		u8tmp = 0x6c;
 		break;
 	default:
+		ret = -EINVAL;
 		goto err;
 	}
 

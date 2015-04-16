@@ -91,7 +91,6 @@ static void usbipd_help(void)
 static int recv_request_import(int sockfd)
 {
 	struct op_import_request req;
-	struct op_common reply;
 	struct usbip_exported_device *edev;
 	struct usbip_usb_device pdu_udev;
 	struct list_head *i;
@@ -100,7 +99,6 @@ static int recv_request_import(int sockfd)
 	int rc;
 
 	memset(&req, 0, sizeof(req));
-	memset(&reply, 0, sizeof(reply));
 
 	rc = usbip_net_recv(sockfd, &req, sizeof(req));
 	if (rc < 0) {

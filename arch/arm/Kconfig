@@ -1,10 +1,11 @@
 config ARM
 	bool
 	default y
-	select ARCH_BINFMT_ELF_RANDOMIZE_PIE
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
+	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
 	select ARCH_HAVE_CUSTOM_GPIO_H
+	select ARCH_HAS_GCOV_PROFILE_ALL
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_SUPPORTS_ATOMIC_RMW
 	select ARCH_USE_BUILTIN_BSWAP
@@ -20,6 +21,7 @@ config ARM
 	select GENERIC_IDLE_POLL_SETUP
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
+	select GENERIC_IRQ_SHOW_LEVEL
 	select GENERIC_PCI_IOMAP
 	select GENERIC_SCHED_CLOCK
 	select GENERIC_SMP_IDLE_THREAD
@@ -28,6 +30,7 @@ config ARM
 	select HANDLE_DOMAIN_IRQ
 	select HARDIRQS_SW_RESEND
 	select HAVE_ARCH_AUDITSYSCALL if (AEABI && !OABI_COMPAT)
+	select HAVE_ARCH_BITREVERSE if (CPU_32v7M || CPU_32v7) && !CPU_32v6
 	select HAVE_ARCH_JUMP_LABEL if !XIP_KERNEL
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_SECCOMP_FILTER if (AEABI && !OABI_COMPAT)
@@ -59,6 +62,7 @@ config ARM
 	select HAVE_MEMBLOCK
 	select HAVE_MOD_ARCH_SPECIFIC if ARM_UNWIND
 	select HAVE_OPROFILE if (HAVE_PERF_EVENTS)
+	select HAVE_OPTPROBES if !THUMB2_KERNEL
 	select HAVE_PERF_EVENTS
 	select HAVE_PERF_REGS
 	select HAVE_PERF_USER_STACK_DUMP
@@ -283,6 +287,11 @@ config GENERIC_BUG
 	def_bool y
 	depends on BUG
 
+config PGTABLE_LEVELS
+	int
+	default 3 if ARM_LPAE
+	default 2
+
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
@@ -320,24 +329,6 @@ config ARCH_MULTIPLATFORM
 	select SPARSE_IRQ
 	select USE_OF
 
-config ARCH_INTEGRATOR
-	bool "ARM Ltd. Integrator family"
-	select ARM_AMBA
-	select ARM_PATCH_PHYS_VIRT if MMU
-	select AUTO_ZRELADDR
-	select COMMON_CLK
-	select COMMON_CLK_VERSATILE
-	select GENERIC_CLOCKEVENTS
-	select HAVE_TCM
-	select ICST
-	select MULTI_IRQ_HANDLER
-	select PLAT_VERSATILE
-	select SPARSE_IRQ
-	select USE_OF
-	select VERSATILE_FPGA_IRQ
-	help
-	  Support for ARM's Integrator platform.
-
 config ARCH_REALVIEW
 	bool "ARM Ltd. RealView family"
 	select ARCH_WANT_OPTIONAL_GPIOLIB
@@ -350,6 +341,7 @@ config ARCH_REALVIEW
 	select ICST
 	select NEED_MACH_MEMORY_H
 	select PLAT_VERSATILE
+	select PLAT_VERSATILE_SCHED_CLOCK
 	help
 	  This enables support for ARM Ltd RealView boards.
 
@@ -365,6 +357,7 @@ config ARCH_VERSATILE
 	select ICST
 	select PLAT_VERSATILE
 	select PLAT_VERSATILE_CLOCK
+	select PLAT_VERSATILE_SCHED_CLOCK
 	select VERSATILE_FPGA_IRQ
 	help
 	  This enables support for ARM Ltd Versatile board.
@@ -376,10 +369,11 @@ config ARCH_AT91
 	select IRQ_DOMAIN
 	select NEED_MACH_IO_H if PCCARD
 	select PINCTRL
-	select PINCTRL_AT91 if USE_OF
+	select PINCTRL_AT91
+	select USE_OF
 	help
 	  This enables support for systems based on Atmel
-	  AT91RM9200 and AT91SAM9* processors.
+	  AT91RM9200, AT91SAM9 and SAMA5 processors.
 
 config ARCH_CLPS711X
 	bool "Cirrus Logic CLPS711x/EP721x/EP731x-based"
@@ -631,6 +625,7 @@ config ARCH_PXA
 	select GENERIC_CLOCKEVENTS
 	select GPIO_PXA
 	select HAVE_IDE
+	select IRQ_DOMAIN
 	select MULTI_IRQ_HANDLER
 	select PLAT_PXA
 	select SPARSE_IRQ
@@ -702,7 +697,9 @@ config ARCH_SA1100
 	select CPU_SA1100
 	select GENERIC_CLOCKEVENTS
 	select HAVE_IDE
+	select IRQ_DOMAIN
 	select ISA
+	select MULTI_IRQ_HANDLER
 	select NEED_MACH_MEMORY_H
 	select SPARSE_IRQ
 	help
@@ -854,6 +851,8 @@ config ARCH_VIRT
 #
 source "arch/arm/mach-mvebu/Kconfig"
 
+source "arch/arm/mach-asm9260/Kconfig"
+
 source "arch/arm/mach-at91/Kconfig"
 
 source "arch/arm/mach-axxia/Kconfig"
@@ -867,6 +866,8 @@ source "arch/arm/mach-clps711x/Kconfig"
 source "arch/arm/mach-cns3xxx/Kconfig"
 
 source "arch/arm/mach-davinci/Kconfig"
+
+source "arch/arm/mach-digicolor/Kconfig"
 
 source "arch/arm/mach-dove/Kconfig"
 
@@ -1063,7 +1064,7 @@ config ARM_ERRATA_430973
 	depends on CPU_V7
 	help
 	  This option enables the workaround for the 430973 Cortex-A8
-	  (r1p0..r1p2) erratum. If a code sequence containing an ARM/Thumb
+	  r1p* erratum. If a code sequence containing an ARM/Thumb
 	  interworking branch is replaced with another code sequence at the
 	  same virtual address, whether due to self-modifying code or virtual
 	  to physical address re-mapping, Cortex-A8 does not recover from the
@@ -1132,6 +1133,7 @@ config ARM_ERRATA_742231
 config ARM_ERRATA_643719
 	bool "ARM errata: LoUIS bit field in CLIDR register is incorrect"
 	depends on CPU_V7 && SMP
+	default y
 	help
 	  This option enables the workaround for the 643719 Cortex-A9 (prior to
 	  r1p0) erratum. On affected cores the LoUIS bit field of the CLIDR
@@ -1259,9 +1261,6 @@ source "arch/arm/common/Kconfig"
 
 menu "Bus support"
 
-config ARM_AMBA
-	bool
-
 config ISA
 	bool
 	help
@@ -1291,6 +1290,9 @@ config PCI
 config PCI_DOMAINS
 	bool
 	depends on PCI
+
+config PCI_DOMAINS_GENERIC
+	def_bool PCI_DOMAINS
 
 config PCI_NANOENGINE
 	bool "BSE nanoEngine PCI support"
@@ -1349,7 +1351,7 @@ config SMP
 	  If you don't know what to do here, say N.
 
 config SMP_ON_UP
-	bool "Allow booting SMP kernel on uniprocessor systems (EXPERIMENTAL)"
+	bool "Allow booting SMP kernel on uniprocessor systems"
 	depends on SMP && !XIP_KERNEL && MMU
 	default y
 	help
@@ -1501,7 +1503,7 @@ config ARM_PSCI
 # selected platforms.
 config ARCH_NR_GPIO
 	int
-	default 1024 if ARCH_SHMOBILE || ARCH_TEGRA
+	default 1024 if ARCH_SHMOBILE || ARCH_TEGRA || ARCH_ZYNQ
 	default 512 if ARCH_EXYNOS || ARCH_KEYSTONE || SOC_OMAP5 || \
 		SOC_DRA7XX || ARCH_S3C24XX || ARCH_S3C64XX || ARCH_S5PV210
 	default 416 if ARCH_SUNXI
@@ -2131,16 +2133,6 @@ menu "Userspace binary formats"
 
 source "fs/Kconfig.binfmt"
 
-config ARTHUR
-	tristate "RISC OS personality"
-	depends on !AEABI
-	help
-	  Say Y here to include the kernel code necessary if you want to run
-	  Acorn RISC OS/Arthur binaries under Linux. This code is still very
-	  experimental; if this sounds frightening, say N and sleep in peace.
-	  You can also say M here to compile this support as a module (which
-	  will be called arthur).
-
 endmenu
 
 menu "Power management options"
@@ -2173,6 +2165,9 @@ source "arch/arm/Kconfig.debug"
 source "security/Kconfig"
 
 source "crypto/Kconfig"
+if CRYPTO
+source "arch/arm/crypto/Kconfig"
+endif
 
 source "lib/Kconfig"
 

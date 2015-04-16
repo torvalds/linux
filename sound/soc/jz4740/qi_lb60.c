@@ -77,25 +77,18 @@ static int qi_lb60_probe(struct platform_device *pdev)
 {
 	struct qi_lb60 *qi_lb60;
 	struct snd_soc_card *card = &qi_lb60_card;
-	int ret;
 
 	qi_lb60 = devm_kzalloc(&pdev->dev, sizeof(*qi_lb60), GFP_KERNEL);
 	if (!qi_lb60)
 		return -ENOMEM;
 
-	qi_lb60->snd_gpio = devm_gpiod_get(&pdev->dev, "snd");
+	qi_lb60->snd_gpio = devm_gpiod_get(&pdev->dev, "snd", GPIOD_OUT_LOW);
 	if (IS_ERR(qi_lb60->snd_gpio))
 		return PTR_ERR(qi_lb60->snd_gpio);
-	ret = gpiod_direction_output(qi_lb60->snd_gpio, 0);
-	if (ret)
-		return ret;
 
-	qi_lb60->amp_gpio = devm_gpiod_get(&pdev->dev, "amp");
+	qi_lb60->amp_gpio = devm_gpiod_get(&pdev->dev, "amp", GPIOD_OUT_LOW);
 	if (IS_ERR(qi_lb60->amp_gpio))
 		return PTR_ERR(qi_lb60->amp_gpio);
-	ret = gpiod_direction_output(qi_lb60->amp_gpio, 0);
-	if (ret)
-		return ret;
 
 	card->dev = &pdev->dev;
 
@@ -107,7 +100,6 @@ static int qi_lb60_probe(struct platform_device *pdev)
 static struct platform_driver qi_lb60_driver = {
 	.driver		= {
 		.name	= "qi-lb60-audio",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= qi_lb60_probe,
 };

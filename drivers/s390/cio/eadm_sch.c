@@ -31,7 +31,7 @@
 MODULE_DESCRIPTION("driver for s390 eadm subchannels");
 MODULE_LICENSE("GPL");
 
-#define EADM_TIMEOUT (5 * HZ)
+#define EADM_TIMEOUT (7 * HZ)
 static DEFINE_SPINLOCK(list_lock);
 static LIST_HEAD(eadm_list);
 

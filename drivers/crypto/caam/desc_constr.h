@@ -192,6 +192,8 @@ static inline void append_##cmd(u32 *desc, unsigned int len, u32 options) \
 	PRINT_POS; \
 	append_cmd(desc, CMD_##op | len | options); \
 }
+
+APPEND_CMD_LEN(seq_load, SEQ_LOAD)
 APPEND_CMD_LEN(seq_store, SEQ_STORE)
 APPEND_CMD_LEN(seq_fifo_load, SEQ_FIFO_LOAD)
 APPEND_CMD_LEN(seq_fifo_store, SEQ_FIFO_STORE)

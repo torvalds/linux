@@ -26,6 +26,10 @@
 #include "11n.h"
 #include "11ac.h"
 
+static bool disable_auto_ds;
+module_param(disable_auto_ds, bool, 0);
+MODULE_PARM_DESC(disable_auto_ds,
+		 "deepsleep enabled=0(default), deepsleep disabled=1");
 /*
  * This function prepares command to set/get RSSI information.
  *
@@ -1366,22 +1370,29 @@ mwifiex_cmd_mef_cfg(struct mwifiex_private *priv,
 		    struct mwifiex_ds_mef_cfg *mef)
 {
 	struct host_cmd_ds_mef_cfg *mef_cfg = &cmd->params.mef_cfg;
+	struct mwifiex_fw_mef_entry *mef_entry = NULL;
 	u8 *pos = (u8 *)mef_cfg;
+	u16 i;
 
 	cmd->command = cpu_to_le16(HostCmd_CMD_MEF_CFG);
 
 	mef_cfg->criteria = cpu_to_le32(mef->criteria);
 	mef_cfg->num_entries = cpu_to_le16(mef->num_entries);
 	pos += sizeof(*mef_cfg);
-	mef_cfg->mef_entry->mode = mef->mef_entry->mode;
-	mef_cfg->mef_entry->action = mef->mef_entry->action;
-	pos += sizeof(*(mef_cfg->mef_entry));
 
-	if (mwifiex_cmd_append_rpn_expression(priv, mef->mef_entry, &pos))
-		return -1;
+	for (i = 0; i < mef->num_entries; i++) {
+		mef_entry = (struct mwifiex_fw_mef_entry *)pos;
+		mef_entry->mode = mef->mef_entry[i].mode;
+		mef_entry->action = mef->mef_entry[i].action;
+		pos += sizeof(*mef_cfg->mef_entry);
 
-	mef_cfg->mef_entry->exprsize =
-			cpu_to_le16(pos - mef_cfg->mef_entry->expr);
+		if (mwifiex_cmd_append_rpn_expression(priv,
+						      &mef->mef_entry[i], &pos))
+			return -1;
+
+		mef_entry->exprsize =
+			cpu_to_le16(pos - mef_entry->expr);
+	}
 	cmd->size = cpu_to_le16((u16) (pos - (u8 *)mef_cfg) + S_DS_GEN);
 
 	return 0;
@@ -1660,6 +1671,25 @@ mwifiex_cmd_tdls_oper(struct mwifiex_private *priv,
 
 	return 0;
 }
+
+/* This function prepares command of sdio rx aggr info. */
+static int mwifiex_cmd_sdio_rx_aggr_cfg(struct host_cmd_ds_command *cmd,
+					u16 cmd_action, void *data_buf)
+{
+	struct host_cmd_sdio_sp_rx_aggr_cfg *cfg =
+					&cmd->params.sdio_rx_aggr_cfg;
+
+	cmd->command = cpu_to_le16(HostCmd_CMD_SDIO_SP_RX_AGGR_CFG);
+	cmd->size =
+		cpu_to_le16(sizeof(struct host_cmd_sdio_sp_rx_aggr_cfg) +
+			    S_DS_GEN);
+	cfg->action = cmd_action;
+	if (cmd_action == HostCmd_ACT_GEN_SET)
+		cfg->enable = *(u8 *)data_buf;
+
+	return 0;
+}
+
 /*
  * This function prepares the commands before sending them to the firmware.
  *
@@ -1893,6 +1923,14 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 	case HostCmd_CMD_TDLS_OPER:
 		ret = mwifiex_cmd_tdls_oper(priv, cmd_ptr, data_buf);
 		break;
+	case HostCmd_CMD_CHAN_REPORT_REQUEST:
+		ret = mwifiex_cmd_issue_chan_report_request(priv, cmd_ptr,
+							    data_buf);
+		break;
+	case HostCmd_CMD_SDIO_SP_RX_AGGR_CFG:
+		ret = mwifiex_cmd_sdio_rx_aggr_cfg(cmd_ptr, cmd_action,
+						   data_buf);
+		break;
 	default:
 		dev_err(priv->adapter->dev,
 			"PREP_CMD: unknown cmd- %#x\n", cmd_no);
@@ -1907,6 +1945,8 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
  *
  * This is called after firmware download to bring the card to
  * working state.
+ * Function is also called during reinitialization of virtual
+ * interfaces.
  *
  * The following commands are issued sequentially -
  *      - Set PCI-Express host buffer configuration (PCIE only)
@@ -1921,7 +1961,7 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
  *      - Set 11d control
  *      - Set MAC control (this must be the last command to initialize firmware)
  */
-int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta)
+int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta, bool init)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
 	int ret;
@@ -1930,6 +1970,7 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta)
 	struct mwifiex_ds_auto_ds auto_ds;
 	enum state_11d_t state_11d;
 	struct mwifiex_ds_11n_tx_cfg tx_cfg;
+	u8 sdio_sp_rx_aggr_enable;
 
 	if (first_sta) {
 		if (priv->adapter->iface_type == MWIFIEX_PCIE) {
@@ -1972,6 +2013,22 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta)
 				       HostCmd_ACT_GEN_GET, 0, NULL, true);
 		if (ret)
 			return -1;
+
+		/** Set SDIO Single Port RX Aggr Info */
+		if (priv->adapter->iface_type == MWIFIEX_SDIO &&
+		    ISSUPP_SDIO_SPA_ENABLED(priv->adapter->fw_cap_info)) {
+			sdio_sp_rx_aggr_enable = true;
+			ret = mwifiex_send_cmd(priv,
+					       HostCmd_CMD_SDIO_SP_RX_AGGR_CFG,
+					       HostCmd_ACT_GEN_SET, 0,
+					       &sdio_sp_rx_aggr_enable,
+					       true);
+			if (ret) {
+				dev_err(priv->adapter->dev,
+					"error while enabling SP aggregation..disable it");
+				adapter->sdio_rx_aggr_enable = false;
+			}
+		}
 
 		/* Reconfigure tx buf size */
 		ret = mwifiex_send_cmd(priv, HostCmd_CMD_RECONFIGURE_TX_BUFF,
@@ -2031,7 +2088,8 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta)
 	if (ret)
 		return -1;
 
-	if (first_sta && priv->adapter->iface_type != MWIFIEX_USB &&
+	if (!disable_auto_ds &&
+	    first_sta && priv->adapter->iface_type != MWIFIEX_USB &&
 	    priv->bss_type != MWIFIEX_BSS_TYPE_UAP) {
 		/* Enable auto deep sleep */
 		auto_ds.auto_ds = DEEP_SLEEP_ON;
@@ -2054,9 +2112,6 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta)
 				"11D: failed to enable 11D\n");
 	}
 
-	/* set last_init_cmd before sending the command */
-	priv->adapter->last_init_cmd = HostCmd_CMD_11N_CFG;
-
 	/* Send cmd to FW to configure 11n specific configuration
 	 * (Short GI, Channel BW, Green field support etc.) for transmit
 	 */
@@ -2064,7 +2119,11 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta)
 	ret = mwifiex_send_cmd(priv, HostCmd_CMD_11N_CFG,
 			       HostCmd_ACT_GEN_SET, 0, &tx_cfg, true);
 
-	ret = -EINPROGRESS;
+	if (init) {
+		/* set last_init_cmd before sending the command */
+		priv->adapter->last_init_cmd = HostCmd_CMD_11N_CFG;
+		ret = -EINPROGRESS;
+	}
 
 	return ret;
 }

@@ -57,6 +57,21 @@ do {							\
 #define sysfs_attr_init(attr) do {} while (0)
 #endif
 
+/**
+ * struct attribute_group - data structure used to declare an attribute group.
+ * @name:	Optional: Attribute group name
+ *		If specified, the attribute group will be created in
+ *		a new subdirectory with this name.
+ * @is_visible:	Optional: Function to return permissions associated with an
+ *		attribute of the group. Will be called repeatedly for each
+ *		attribute in the group. Only read/write permissions as well as
+ *		SYSFS_PREALLOC are accepted. Must return 0 if an attribute is
+ *		not visible. The returned value will replace static permissions
+ *		defined in struct attribute or struct bin_attribute.
+ * @attrs:	Pointer to NULL terminated list of attributes.
+ * @bin_attrs:	Pointer to NULL terminated list of binary attributes.
+ *		Either attrs or bin_attrs or both must be provided.
+ */
 struct attribute_group {
 	const char		*name;
 	umode_t			(*is_visible)(struct kobject *,
@@ -70,9 +85,18 @@ struct attribute_group {
  * for examples..
  */
 
+#define SYSFS_PREALLOC 010000
+
 #define __ATTR(_name, _mode, _show, _store) {				\
 	.attr = {.name = __stringify(_name),				\
 		 .mode = VERIFY_OCTAL_PERMISSIONS(_mode) },		\
+	.show	= _show,						\
+	.store	= _store,						\
+}
+
+#define __ATTR_PREALLOC(_name, _mode, _show, _store) {			\
+	.attr = {.name = __stringify(_name),				\
+		 .mode = SYSFS_PREALLOC | VERIFY_OCTAL_PERMISSIONS(_mode) },\
 	.show	= _show,						\
 	.store	= _store,						\
 }

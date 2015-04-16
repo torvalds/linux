@@ -157,7 +157,6 @@ static struct platform_zone *zone_data;
 static struct platform_driver platform_driver = {
 	.driver = {
 		   .name = "alienware-wmi",
-		   .owner = THIS_MODULE,
 		   }
 };
 

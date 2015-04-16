@@ -1,5 +1,5 @@
 /*
- *  linux/arch/x86_64/kernel/head.S -- start in 32bit and switch to 64bit
+ *  linux/arch/x86/kernel/head_64.S -- start in 32bit and switch to 64bit
  *
  *  Copyright (C) 2000 Andrea Arcangeli <andrea@suse.de> SuSE
  *  Copyright (C) 2000 Pavel Machek <pavel@suse.cz>
@@ -56,7 +56,7 @@ startup_64:
 	 * %rsi holds a physical pointer to real_mode_data.
 	 *
 	 * We come here either directly from a 64bit bootloader, or from
-	 * arch/x86_64/boot/compressed/head.S.
+	 * arch/x86/boot/compressed/head_64.S.
 	 *
 	 * We only come here initially at boot nothing else comes here.
 	 *
@@ -146,7 +146,7 @@ startup_64:
 	leaq	level2_kernel_pgt(%rip), %rdi
 	leaq	4096(%rdi), %r8
 	/* See if it is a valid page table entry */
-1:	testq	$1, 0(%rdi)
+1:	testb	$1, 0(%rdi)
 	jz	2f
 	addq	%rbp, 0(%rdi)
 	/* Go to the next page */
@@ -514,8 +514,38 @@ ENTRY(phys_base)
 	/* This must match the first entry in level2_kernel_pgt */
 	.quad   0x0000000000000000
 
+#ifdef CONFIG_KASAN
+#define FILL(VAL, COUNT)				\
+	.rept (COUNT) ;					\
+	.quad	(VAL) ;					\
+	.endr
+
+NEXT_PAGE(kasan_zero_pte)
+	FILL(kasan_zero_page - __START_KERNEL_map + _KERNPG_TABLE, 512)
+NEXT_PAGE(kasan_zero_pmd)
+	FILL(kasan_zero_pte - __START_KERNEL_map + _KERNPG_TABLE, 512)
+NEXT_PAGE(kasan_zero_pud)
+	FILL(kasan_zero_pmd - __START_KERNEL_map + _KERNPG_TABLE, 512)
+
+#undef FILL
+#endif
+
+
 #include "../../x86/xen/xen-head.S"
 	
 	__PAGE_ALIGNED_BSS
 NEXT_PAGE(empty_zero_page)
 	.skip PAGE_SIZE
+
+#ifdef CONFIG_KASAN
+/*
+ * This page used as early shadow. We don't use empty_zero_page
+ * at early stages, stack instrumentation could write some garbage
+ * to this page.
+ * Latter we reuse it as zero shadow for large ranges of memory
+ * that allowed to access, but not instrumented by kasan
+ * (vmalloc/vmemmap ...).
+ */
+NEXT_PAGE(kasan_zero_page)
+	.skip PAGE_SIZE
+#endif

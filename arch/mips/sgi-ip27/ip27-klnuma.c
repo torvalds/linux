@@ -125,8 +125,7 @@ unsigned long node_getfirstfree(cnodeid_t cnode)
 #endif
 	offset = PAGE_ALIGN((unsigned long)(&_end)) - loadbase;
 	if ((cnode == 0) || (cpu_isset(cnode, ktext_repmask)))
-		return (TO_NODE(nasid, offset) >> PAGE_SHIFT);
+		return TO_NODE(nasid, offset) >> PAGE_SHIFT;
 	else
-		return (KDM_TO_PHYS(PAGE_ALIGN(SYMMON_STK_ADDR(nasid, 0))) >>
-								PAGE_SHIFT);
+		return KDM_TO_PHYS(PAGE_ALIGN(SYMMON_STK_ADDR(nasid, 0))) >> PAGE_SHIFT;
 }

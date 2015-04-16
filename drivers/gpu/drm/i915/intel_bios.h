@@ -46,7 +46,7 @@ struct bdb_header {
 	u16 version;			/**< decimal */
 	u16 header_size;		/**< in bytes */
 	u16 bdb_size;			/**< in bytes */
-};
+} __packed;
 
 /* strictly speaking, this is a "skip" block, but it has interesting info */
 struct vbios_data {
@@ -80,7 +80,7 @@ struct vbios_data {
 #define BDB_EXT_MMIO_REGS	  6
 #define BDB_SWF_IO		  7
 #define BDB_SWF_MMIO		  8
-#define BDB_DOT_CLOCK_TABLE	  9
+#define BDB_PSR			  9
 #define BDB_MODE_REMOVAL_TABLE	 10
 #define BDB_CHILD_DEVICE_TABLE	 11
 #define BDB_DRIVER_FEATURES	 12
@@ -252,7 +252,7 @@ union child_device_config {
 	/* This one should also be safe to use anywhere, even without version
 	 * checks. */
 	struct common_child_dev_config common;
-};
+} __packed;
 
 struct bdb_general_definitions {
 	/* DDC GPIO */
@@ -556,6 +556,26 @@ struct bdb_edp {
 	u16 edp_t3_optimization;
 } __packed;
 
+struct psr_table {
+	/* Feature bits */
+	u8 full_link:1;
+	u8 require_aux_to_wakeup:1;
+	u8 feature_bits_rsvd:6;
+
+	/* Wait times */
+	u8 idle_frames:4;
+	u8 lines_to_wait:3;
+	u8 wait_times_rsvd:1;
+
+	/* TP wake up time in multiple of 100 */
+	u16 tp1_wakeup_time;
+	u16 tp2_tp3_wakeup_time;
+} __packed;
+
+struct bdb_psr {
+	struct psr_table psr_table[16];
+} __packed;
+
 void intel_setup_bios(struct drm_device *dev);
 int intel_parse_bios(struct drm_device *dev);
 
@@ -798,7 +818,8 @@ struct mipi_config {
 #define DUAL_LINK_PIXEL_ALT	2
 	u16 dual_link:2;
 	u16 lane_cnt:2;
-	u16 rsvd3:12;
+	u16 pixel_overlap:3;
+	u16 rsvd3:9;
 
 	u16 rsvd4;
 
@@ -888,12 +909,12 @@ struct mipi_pps_data {
 	u16 bl_disable_delay;
 	u16 panel_off_delay;
 	u16 panel_power_cycle_delay;
-};
+} __packed;
 
 struct bdb_mipi_config {
 	struct mipi_config config[MAX_MIPI_CONFIGURATIONS];
 	struct mipi_pps_data pps[MAX_MIPI_CONFIGURATIONS];
-};
+} __packed;
 
 /* Block 53 contains MIPI sequences as needed by the panel
  * for enabling it. This block can be variable in size and
@@ -902,7 +923,7 @@ struct bdb_mipi_config {
 struct bdb_mipi_sequence {
 	u8 version;
 	u8 data[0];
-};
+} __packed;
 
 /* MIPI Sequnece Block definitions */
 enum mipi_seq {

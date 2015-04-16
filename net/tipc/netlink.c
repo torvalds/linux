@@ -1,7 +1,7 @@
 /*
  * net/tipc/netlink.c: TIPC configuration handling
  *
- * Copyright (c) 2005-2006, Ericsson AB
+ * Copyright (c) 2005-2006, 2014, Ericsson AB
  * Copyright (c) 2005-2007, Wind River Systems
  * All rights reserved.
  *
@@ -35,59 +35,136 @@
  */
 
 #include "core.h"
-#include "config.h"
+#include "socket.h"
+#include "name_table.h"
+#include "bearer.h"
+#include "link.h"
+#include "node.h"
+#include "net.h"
 #include <net/genetlink.h>
 
-static int handle_cmd(struct sk_buff *skb, struct genl_info *info)
-{
-	struct sk_buff *rep_buf;
-	struct nlmsghdr *rep_nlh;
-	struct nlmsghdr *req_nlh = info->nlhdr;
-	struct tipc_genlmsghdr *req_userhdr = info->userhdr;
-	int hdr_space = nlmsg_total_size(GENL_HDRLEN + TIPC_GENL_HDRLEN);
-	u16 cmd;
+static const struct nla_policy tipc_nl_policy[TIPC_NLA_MAX + 1] = {
+	[TIPC_NLA_UNSPEC]	= { .type = NLA_UNSPEC, },
+	[TIPC_NLA_BEARER]	= { .type = NLA_NESTED, },
+	[TIPC_NLA_SOCK]		= { .type = NLA_NESTED, },
+	[TIPC_NLA_PUBL]		= { .type = NLA_NESTED, },
+	[TIPC_NLA_LINK]		= { .type = NLA_NESTED, },
+	[TIPC_NLA_MEDIA]	= { .type = NLA_NESTED, },
+	[TIPC_NLA_NODE]		= { .type = NLA_NESTED, },
+	[TIPC_NLA_NET]		= { .type = NLA_NESTED, },
+	[TIPC_NLA_NAME_TABLE]	= { .type = NLA_NESTED, }
+};
 
-	if ((req_userhdr->cmd & 0xC000) && (!netlink_capable(skb, CAP_NET_ADMIN)))
-		cmd = TIPC_CMD_NOT_NET_ADMIN;
-	else
-		cmd = req_userhdr->cmd;
-
-	rep_buf = tipc_cfg_do_cmd(req_userhdr->dest, cmd,
-			nlmsg_data(req_nlh) + GENL_HDRLEN + TIPC_GENL_HDRLEN,
-			nlmsg_attrlen(req_nlh, GENL_HDRLEN + TIPC_GENL_HDRLEN),
-			hdr_space);
-
-	if (rep_buf) {
-		skb_push(rep_buf, hdr_space);
-		rep_nlh = nlmsg_hdr(rep_buf);
-		memcpy(rep_nlh, req_nlh, hdr_space);
-		rep_nlh->nlmsg_len = rep_buf->len;
-		genlmsg_unicast(&init_net, rep_buf, NETLINK_CB(skb).portid);
-	}
-
-	return 0;
-}
-
-static struct genl_family tipc_genl_family = {
+/* Users of the legacy API (tipc-config) can't handle that we add operations,
+ * so we have a separate genl handling for the new API.
+ */
+struct genl_family tipc_genl_family = {
 	.id		= GENL_ID_GENERATE,
-	.name		= TIPC_GENL_NAME,
-	.version	= TIPC_GENL_VERSION,
-	.hdrsize	= TIPC_GENL_HDRLEN,
-	.maxattr	= 0,
+	.name		= TIPC_GENL_V2_NAME,
+	.version	= TIPC_GENL_V2_VERSION,
+	.hdrsize	= 0,
+	.maxattr	= TIPC_NLA_MAX,
+	.netnsok	= true,
 };
 
-static struct genl_ops tipc_genl_ops[] = {
+static const struct genl_ops tipc_genl_v2_ops[] = {
 	{
-		.cmd		= TIPC_GENL_CMD,
-		.doit		= handle_cmd,
+		.cmd	= TIPC_NL_BEARER_DISABLE,
+		.doit	= tipc_nl_bearer_disable,
+		.policy = tipc_nl_policy,
 	},
+	{
+		.cmd	= TIPC_NL_BEARER_ENABLE,
+		.doit	= tipc_nl_bearer_enable,
+		.policy = tipc_nl_policy,
+	},
+	{
+		.cmd	= TIPC_NL_BEARER_GET,
+		.doit	= tipc_nl_bearer_get,
+		.dumpit	= tipc_nl_bearer_dump,
+		.policy = tipc_nl_policy,
+	},
+	{
+		.cmd	= TIPC_NL_BEARER_SET,
+		.doit	= tipc_nl_bearer_set,
+		.policy = tipc_nl_policy,
+	},
+	{
+		.cmd	= TIPC_NL_SOCK_GET,
+		.dumpit	= tipc_nl_sk_dump,
+		.policy = tipc_nl_policy,
+	},
+	{
+		.cmd	= TIPC_NL_PUBL_GET,
+		.dumpit	= tipc_nl_publ_dump,
+		.policy = tipc_nl_policy,
+	},
+	{
+		.cmd	= TIPC_NL_LINK_GET,
+		.doit   = tipc_nl_link_get,
+		.dumpit	= tipc_nl_link_dump,
+		.policy = tipc_nl_policy,
+	},
+	{
+		.cmd	= TIPC_NL_LINK_SET,
+		.doit	= tipc_nl_link_set,
+		.policy = tipc_nl_policy,
+	},
+	{
+		.cmd	= TIPC_NL_LINK_RESET_STATS,
+		.doit   = tipc_nl_link_reset_stats,
+		.policy = tipc_nl_policy,
+	},
+	{
+		.cmd	= TIPC_NL_MEDIA_GET,
+		.doit	= tipc_nl_media_get,
+		.dumpit	= tipc_nl_media_dump,
+		.policy = tipc_nl_policy,
+	},
+	{
+		.cmd	= TIPC_NL_MEDIA_SET,
+		.doit	= tipc_nl_media_set,
+		.policy = tipc_nl_policy,
+	},
+	{
+		.cmd	= TIPC_NL_NODE_GET,
+		.dumpit	= tipc_nl_node_dump,
+		.policy = tipc_nl_policy,
+	},
+	{
+		.cmd	= TIPC_NL_NET_GET,
+		.dumpit	= tipc_nl_net_dump,
+		.policy = tipc_nl_policy,
+	},
+	{
+		.cmd	= TIPC_NL_NET_SET,
+		.doit	= tipc_nl_net_set,
+		.policy = tipc_nl_policy,
+	},
+	{
+		.cmd	= TIPC_NL_NAME_TABLE_GET,
+		.dumpit	= tipc_nl_name_table_dump,
+		.policy = tipc_nl_policy,
+	}
 };
+
+int tipc_nlmsg_parse(const struct nlmsghdr *nlh, struct nlattr ***attr)
+{
+	u32 maxattr = tipc_genl_family.maxattr;
+
+	*attr = tipc_genl_family.attrbuf;
+	if (!*attr)
+		return -EOPNOTSUPP;
+
+	return nlmsg_parse(nlh, GENL_HDRLEN, *attr, maxattr, tipc_nl_policy);
+}
 
 int tipc_netlink_start(void)
 {
 	int res;
 
-	res = genl_register_family_with_ops(&tipc_genl_family, tipc_genl_ops);
+	res = genl_register_family_with_ops(&tipc_genl_family,
+					    tipc_genl_v2_ops);
 	if (res) {
 		pr_err("Failed to register netlink interface\n");
 		return res;

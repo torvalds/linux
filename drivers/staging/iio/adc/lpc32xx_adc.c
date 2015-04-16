@@ -116,7 +116,7 @@ static const struct iio_chan_spec lpc32xx_adc_iio_channels[] = {
 
 static irqreturn_t lpc32xx_adc_isr(int irq, void *dev_id)
 {
-	struct lpc32xx_adc_info *info = (struct lpc32xx_adc_info *) dev_id;
+	struct lpc32xx_adc_info *info = dev_id;
 
 	/* Read value and clear irq */
 	info->value = __raw_readl(LPC32XX_ADC_VALUE(info->adc_base)) &
@@ -204,7 +204,6 @@ static struct platform_driver lpc32xx_adc_driver = {
 	.probe		= lpc32xx_adc_probe,
 	.driver		= {
 		.name	= MOD_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(lpc32xx_adc_match),
 	},
 };

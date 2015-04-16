@@ -250,14 +250,14 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"FM Transmitter", NULL, "LLOUT"},
 	{"FM Transmitter", NULL, "RLOUT"},
 
-	{"DMic Rate 64", NULL, "Mic Bias"},
-	{"Mic Bias", NULL, "DMic"},
+	{"DMic Rate 64", NULL, "DMic"},
+	{"DMic", NULL, "Mic Bias"},
 
 	{"b LINE2R", NULL, "MONO_LOUT"},
 	{"Earphone", NULL, "b HPLOUT"},
 
-	{"LINE1L", NULL, "b Mic Bias"},
-	{"b Mic Bias", NULL, "HS Mic"}
+	{"LINE1L", NULL, "HS Mic"},
+	{"HS Mic", NULL, "b Mic Bias"},
 };
 
 static const char * const spk_function[] = {"Off", "On"};
@@ -311,9 +311,9 @@ static int rx51_aic34_init(struct snd_soc_pcm_runtime *rtd)
 	}
 
 	/* AV jack detection */
-	err = snd_soc_jack_new(codec, "AV Jack",
-			       SND_JACK_HEADSET | SND_JACK_VIDEOOUT,
-			       &rx51_av_jack);
+	err = snd_soc_card_jack_new(rtd->card, "AV Jack",
+				    SND_JACK_HEADSET | SND_JACK_VIDEOOUT,
+				    &rx51_av_jack, NULL, 0);
 	if (err) {
 		dev_err(card->dev, "Failed to add AV Jack\n");
 		return err;
@@ -519,7 +519,6 @@ MODULE_DEVICE_TABLE(of, rx51_audio_of_match);
 static struct platform_driver rx51_soc_driver = {
 	.driver = {
 		.name = "rx51-audio",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(rx51_audio_of_match),
 	},
 	.probe = rx51_soc_probe,

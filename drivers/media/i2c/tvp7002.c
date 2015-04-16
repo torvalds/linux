@@ -626,7 +626,7 @@ static int tvp7002_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *f
 
 	f->width = bt->width;
 	f->height = bt->height;
-	f->code = V4L2_MBUS_FMT_YUYV10_1X20;
+	f->code = MEDIA_BUS_FMT_YUYV10_1X20;
 	f->field = device->current_timings->scanmode;
 	f->colorspace = device->current_timings->color_space;
 
@@ -756,12 +756,12 @@ static int tvp7002_s_register(struct v4l2_subdev *sd,
  */
 
 static int tvp7002_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned index,
-					enum v4l2_mbus_pixelcode *code)
+					u32 *code)
 {
 	/* Check requested format index is within range */
 	if (index)
 		return -EINVAL;
-	*code = V4L2_MBUS_FMT_YUYV10_1X20;
+	*code = MEDIA_BUS_FMT_YUYV10_1X20;
 	return 0;
 }
 
@@ -859,7 +859,7 @@ tvp7002_enum_mbus_code(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	if (code->index != 0)
 		return -EINVAL;
 
-	code->code = V4L2_MBUS_FMT_YUYV10_1X20;
+	code->code = MEDIA_BUS_FMT_YUYV10_1X20;
 
 	return 0;
 }
@@ -878,7 +878,7 @@ tvp7002_get_pad_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 {
 	struct tvp7002 *tvp7002 = to_tvp7002(sd);
 
-	fmt->format.code = V4L2_MBUS_FMT_YUYV10_1X20;
+	fmt->format.code = MEDIA_BUS_FMT_YUYV10_1X20;
 	fmt->format.width = tvp7002->current_timings->timings.bt.width;
 	fmt->format.height = tvp7002->current_timings->timings.bt.height;
 	fmt->format.field = tvp7002->current_timings->scanmode;

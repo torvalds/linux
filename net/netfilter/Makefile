@@ -51,6 +51,7 @@ nf_nat-y	:= nf_nat_core.o nf_nat_proto_unknown.o nf_nat_proto_common.o \
 obj-$(CONFIG_NF_LOG_COMMON) += nf_log_common.o
 
 obj-$(CONFIG_NF_NAT) += nf_nat.o
+obj-$(CONFIG_NF_NAT_REDIRECT) += nf_nat_redirect.o
 
 # NAT protocols (nf_nat)
 obj-$(CONFIG_NF_NAT_PROTO_DCCP) += nf_nat_proto_dccp.o
@@ -69,7 +70,7 @@ obj-$(CONFIG_NETFILTER_SYNPROXY) += nf_synproxy_core.o
 
 # nf_tables
 nf_tables-objs += nf_tables_core.o nf_tables_api.o
-nf_tables-objs += nft_immediate.o nft_cmp.o nft_lookup.o
+nf_tables-objs += nft_immediate.o nft_cmp.o nft_lookup.o nft_dynset.o
 nf_tables-objs += nft_bitwise.o nft_byteorder.o nft_payload.o
 
 obj-$(CONFIG_NF_TABLES)		+= nf_tables.o
@@ -88,6 +89,7 @@ obj-$(CONFIG_NFT_HASH)		+= nft_hash.o
 obj-$(CONFIG_NFT_COUNTER)	+= nft_counter.o
 obj-$(CONFIG_NFT_LOG)		+= nft_log.o
 obj-$(CONFIG_NFT_MASQ)		+= nft_masq.o
+obj-$(CONFIG_NFT_REDIR)		+= nft_redir.o
 
 # generic X tables 
 obj-$(CONFIG_NETFILTER_XTABLES) += x_tables.o xt_tcpudp.o

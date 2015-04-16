@@ -57,14 +57,14 @@ static struct v4l2_mbus_framefmt m5mols_default_ffmt[M5MOLS_RESTYPE_MAX] = {
 	[M5MOLS_RESTYPE_MONITOR] = {
 		.width		= 1920,
 		.height		= 1080,
-		.code		= V4L2_MBUS_FMT_VYUY8_2X8,
+		.code		= MEDIA_BUS_FMT_VYUY8_2X8,
 		.field		= V4L2_FIELD_NONE,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 	},
 	[M5MOLS_RESTYPE_CAPTURE] = {
 		.width		= 1920,
 		.height		= 1080,
-		.code		= V4L2_MBUS_FMT_JPEG_1X8,
+		.code		= MEDIA_BUS_FMT_JPEG_1X8,
 		.field		= V4L2_FIELD_NONE,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 	},
@@ -125,9 +125,9 @@ static u32 m5mols_swap_byte(u8 *data, u8 length)
 	if (length == 1)
 		return *data;
 	else if (length == 2)
-		return be16_to_cpu(*((u16 *)data));
+		return be16_to_cpu(*((__be16 *)data));
 	else
-		return be32_to_cpu(*((u32 *)data));
+		return be32_to_cpu(*((__be32 *)data));
 }
 
 /**
@@ -454,11 +454,6 @@ static int m5mols_get_version(struct v4l2_subdev *sd)
 			return ret;
 	}
 
-	ver->fw = be16_to_cpu(ver->fw);
-	ver->hw = be16_to_cpu(ver->hw);
-	ver->param = be16_to_cpu(ver->param);
-	ver->awb = be16_to_cpu(ver->awb);
-
 	v4l2_info(sd, "Manufacturer\t[%s]\n",
 			is_manufacturer(info, REG_SAMSUNG_ELECTRO) ?
 			"Samsung Electro-Machanics" :
@@ -479,7 +474,7 @@ static int m5mols_get_version(struct v4l2_subdev *sd)
  * __find_restype - Lookup M-5MOLS resolution type according to pixel code
  * @code: pixel code
  */
-static enum m5mols_restype __find_restype(enum v4l2_mbus_pixelcode code)
+static enum m5mols_restype __find_restype(u32 code)
 {
 	enum m5mols_restype type = M5MOLS_RESTYPE_MONITOR;
 

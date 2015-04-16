@@ -148,14 +148,14 @@ int __init xics_smp_probe(void)
 	/* Register all the IPIs */
 	xics_request_ipi();
 
-	return cpumask_weight(cpu_possible_mask);
+	return num_possible_cpus();
 }
 
 #endif /* CONFIG_SMP */
 
 void xics_teardown_cpu(void)
 {
-	struct xics_cppr *os_cppr = &__get_cpu_var(xics_cppr);
+	struct xics_cppr *os_cppr = this_cpu_ptr(&xics_cppr);
 
 	/*
 	 * we have to reset the cppr index to 0 because we're

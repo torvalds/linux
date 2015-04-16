@@ -450,7 +450,7 @@ nouveau_display_create(struct drm_device *dev)
 	drm_mode_create_dvi_i_properties(dev);
 
 	dev->mode_config.funcs = &nouveau_mode_config_funcs;
-	dev->mode_config.fb_base = nv_device_resource_start(nvkm_device(&drm->device), 1);
+	dev->mode_config.fb_base = nv_device_resource_start(nvxx_device(&drm->device), 1);
 
 	dev->mode_config.min_width = 0;
 	dev->mode_config.min_height = 0;
@@ -479,6 +479,7 @@ nouveau_display_create(struct drm_device *dev)
 
 	if (nouveau_modeset != 2 && drm->vbios.dcb.entries) {
 		static const u16 oclass[] = {
+			GM204_DISP,
 			GM107_DISP,
 			GK110_DISP,
 			GK104_DISP,
@@ -568,9 +569,11 @@ nouveau_display_suspend(struct drm_device *dev, bool runtime)
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-
-		nouveau_bo_unmap(nv_crtc->cursor.nvbo);
-		nouveau_bo_unpin(nv_crtc->cursor.nvbo);
+		if (nv_crtc->cursor.nvbo) {
+			if (nv_crtc->cursor.set_offset)
+				nouveau_bo_unmap(nv_crtc->cursor.nvbo);
+			nouveau_bo_unpin(nv_crtc->cursor.nvbo);
+		}
 	}
 
 	return 0;
@@ -591,16 +594,18 @@ nouveau_display_resume(struct drm_device *dev, bool runtime)
 		if (!nouveau_fb || !nouveau_fb->nvbo)
 			continue;
 
-		ret = nouveau_bo_pin(nouveau_fb->nvbo, TTM_PL_FLAG_VRAM);
+		ret = nouveau_bo_pin(nouveau_fb->nvbo, TTM_PL_FLAG_VRAM, true);
 		if (ret)
 			NV_ERROR(drm, "Could not pin framebuffer\n");
 	}
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+		if (!nv_crtc->cursor.nvbo)
+			continue;
 
-		ret = nouveau_bo_pin(nv_crtc->cursor.nvbo, TTM_PL_FLAG_VRAM);
-		if (!ret)
+		ret = nouveau_bo_pin(nv_crtc->cursor.nvbo, TTM_PL_FLAG_VRAM, true);
+		if (!ret && nv_crtc->cursor.set_offset)
 			ret = nouveau_bo_map(nv_crtc->cursor.nvbo);
 		if (ret)
 			NV_ERROR(drm, "Could not pin/map cursor.\n");
@@ -630,9 +635,12 @@ nouveau_display_resume(struct drm_device *dev, bool runtime)
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-		u32 offset = nv_crtc->cursor.nvbo->bo.offset;
 
-		nv_crtc->cursor.set_offset(nv_crtc, offset);
+		if (!nv_crtc->cursor.nvbo)
+			continue;
+
+		if (nv_crtc->cursor.set_offset)
+			nv_crtc->cursor.set_offset(nv_crtc, nv_crtc->cursor.nvbo->bo.offset);
 		nv_crtc->cursor.set_pos(nv_crtc, nv_crtc->cursor_saved_x,
 						 nv_crtc->cursor_saved_y);
 	}
@@ -710,7 +718,7 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		return -ENOMEM;
 
 	if (new_bo != old_bo) {
-		ret = nouveau_bo_pin(new_bo, TTM_PL_FLAG_VRAM);
+		ret = nouveau_bo_pin(new_bo, TTM_PL_FLAG_VRAM, true);
 		if (ret)
 			goto fail_free;
 	}

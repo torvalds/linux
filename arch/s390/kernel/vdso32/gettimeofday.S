@@ -19,6 +19,7 @@
 	.type  __kernel_gettimeofday,@function
 __kernel_gettimeofday:
 	.cfi_startproc
+	ahi	%r15,-16
 	basr	%r5,0
 0:	al	%r5,13f-0b(%r5)			/* get &_vdso_data */
 1:	ltr	%r3,%r3				/* check if tz is NULL */
@@ -29,30 +30,30 @@ __kernel_gettimeofday:
 	l	%r4,__VDSO_UPD_COUNT+4(%r5)	/* load update counter */
 	tml	%r4,0x0001			/* pending update ? loop */
 	jnz	1b
-	stcke	24(%r15)			/* Store TOD clock */
-	lm	%r0,%r1,25(%r15)
+	stcke	0(%r15)				/* Store TOD clock */
+	lm	%r0,%r1,1(%r15)
 	s	%r0,__VDSO_XTIME_STAMP(%r5)	/* TOD - cycle_last */
 	sl	%r1,__VDSO_XTIME_STAMP+4(%r5)
 	brc	3,3f
 	ahi	%r0,-1
 3:	ms	%r0,__VDSO_TK_MULT(%r5)		/*  * tk->mult */
-	st	%r0,24(%r15)
+	st	%r0,0(%r15)
 	l	%r0,__VDSO_TK_MULT(%r5)
 	ltr	%r1,%r1
 	mr	%r0,%r0
 	jnm	4f
 	a	%r0,__VDSO_TK_MULT(%r5)
-4:	al	%r0,24(%r15)
+4:	al	%r0,0(%r15)
 	al	%r0,__VDSO_XTIME_NSEC(%r5)	/*  + xtime */
 	al	%r1,__VDSO_XTIME_NSEC+4(%r5)
 	brc	12,5f
 	ahi	%r0,1
-5:	mvc	24(4,%r15),__VDSO_XTIME_SEC+4(%r5)
+5:	mvc	0(4,%r15),__VDSO_XTIME_SEC+4(%r5)
 	cl	%r4,__VDSO_UPD_COUNT+4(%r5)	/* check update counter */
 	jne	1b
 	l	%r4,__VDSO_TK_SHIFT(%r5)	/* Timekeeper shift */
 	srdl	%r0,0(%r4)			/*  >> tk->shift */
-	l	%r4,24(%r15)			/* get tv_sec from stack */
+	l	%r4,0(%r15)			/* get tv_sec from stack */
 	basr	%r5,0
 6:	ltr	%r0,%r0
 	jnz	7f
@@ -71,6 +72,7 @@ __kernel_gettimeofday:
 9:	srl	%r0,6
 	st	%r0,4(%r2)			/* store tv->tv_usec */
 10:	slr	%r2,%r2
+	ahi	%r15,16
 	br	%r14
 11:	.long	1000000000
 12:	.long	274877907

@@ -249,6 +249,7 @@ static int tfp410_probe(struct platform_device *pdev)
 	dssdev->output_type = OMAP_DISPLAY_TYPE_DVI;
 	dssdev->owner = THIS_MODULE;
 	dssdev->phy.dpi.data_lines = ddata->data_lines;
+	dssdev->port_num = 1;
 
 	r = omapdss_register_output(dssdev);
 	if (r) {
@@ -296,8 +297,8 @@ static struct platform_driver tfp410_driver = {
 	.remove	= __exit_p(tfp410_remove),
 	.driver	= {
 		.name	= "tfp410",
-		.owner	= THIS_MODULE,
 		.of_match_table = tfp410_of_match,
+		.suppress_bind_attrs = true,
 	},
 };
 

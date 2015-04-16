@@ -1087,7 +1087,6 @@ MODULE_DEVICE_TABLE(platform, sht15_device_ids);
 static struct platform_driver sht15_driver = {
 	.driver = {
 		.name = "sht15",
-		.owner = THIS_MODULE,
 	},
 	.probe = sht15_probe,
 	.remove = sht15_remove,

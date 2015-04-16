@@ -473,6 +473,25 @@ void blk_queue_bypass_end(struct request_queue *q)
 }
 EXPORT_SYMBOL_GPL(blk_queue_bypass_end);
 
+void blk_set_queue_dying(struct request_queue *q)
+{
+	queue_flag_set_unlocked(QUEUE_FLAG_DYING, q);
+
+	if (q->mq_ops)
+		blk_mq_wake_waiters(q);
+	else {
+		struct request_list *rl;
+
+		blk_queue_for_each_rl(rl, q) {
+			if (rl->rq_pool) {
+				wake_up(&rl->wait[BLK_RW_SYNC]);
+				wake_up(&rl->wait[BLK_RW_ASYNC]);
+			}
+		}
+	}
+}
+EXPORT_SYMBOL_GPL(blk_set_queue_dying);
+
 /**
  * blk_cleanup_queue - shutdown a request queue
  * @q: request queue to shutdown
@@ -486,7 +505,7 @@ void blk_cleanup_queue(struct request_queue *q)
 
 	/* mark @q DYING, no new request or merges will be allowed afterwards */
 	mutex_lock(&q->sysfs_lock);
-	queue_flag_set_unlocked(QUEUE_FLAG_DYING, q);
+	blk_set_queue_dying(q);
 	spin_lock_irq(lock);
 
 	/*
@@ -524,6 +543,9 @@ void blk_cleanup_queue(struct request_queue *q)
 	/* @q won't process any more request, flush async actions */
 	del_timer_sync(&q->backing_dev_info.laptop_mode_wb_timer);
 	blk_sync_queue(q);
+
+	if (q->mq_ops)
+		blk_mq_free_queue(q);
 
 	spin_lock_irq(lock);
 	if (q->queue_lock != &q->__queue_lock)
@@ -585,7 +607,7 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 	q->backing_dev_info.ra_pages =
 			(VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
 	q->backing_dev_info.state = 0;
-	q->backing_dev_info.capabilities = BDI_CAP_MAP_COPY;
+	q->backing_dev_info.capabilities = 0;
 	q->backing_dev_info.name = "block";
 	q->node = node_id;
 
@@ -1266,7 +1288,7 @@ void blk_requeue_request(struct request_queue *q, struct request *rq)
 	blk_clear_rq_complete(rq);
 	trace_block_rq_requeue(q, rq);
 
-	if (blk_rq_tagged(rq))
+	if (rq->cmd_flags & REQ_QUEUED)
 		blk_queue_end_tag(q, rq);
 
 	BUG_ON(blk_queued_rq(rq));
@@ -1325,7 +1347,7 @@ void part_round_stats(int cpu, struct hd_struct *part)
 }
 EXPORT_SYMBOL_GPL(part_round_stats);
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static void blk_pm_put_request(struct request *rq)
 {
 	if (rq->q->dev && !(rq->cmd_flags & REQ_PM) && !--rq->q->nr_pending)
@@ -2026,6 +2048,13 @@ int blk_insert_cloned_request(struct request_queue *q, struct request *rq)
 	    should_fail_request(&rq->rq_disk->part0, blk_rq_bytes(rq)))
 		return -EIO;
 
+	if (q->mq_ops) {
+		if (blk_queue_io_stat(q))
+			blk_account_io_start(rq, true);
+		blk_mq_insert_request(rq, false, true, true);
+		return 0;
+	}
+
 	spin_lock_irqsave(q->queue_lock, flags);
 	if (unlikely(blk_queue_dying(q))) {
 		spin_unlock_irqrestore(q->queue_lock, flags);
@@ -2134,7 +2163,7 @@ void blk_account_io_done(struct request *req)
 	}
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 /*
  * Don't process normal requests when queue is suspended
  * or in the process of suspending/resuming
@@ -2554,7 +2583,7 @@ EXPORT_SYMBOL_GPL(blk_unprep_request);
  */
 void blk_finish_request(struct request *req, int error)
 {
-	if (blk_rq_tagged(req))
+	if (req->cmd_flags & REQ_QUEUED)
 		blk_queue_end_tag(req->q, req);
 
 	BUG_ON(blk_queued_rq(req));
@@ -2885,7 +2914,7 @@ EXPORT_SYMBOL_GPL(blk_rq_unprep_clone);
 static void __blk_rq_prep_clone(struct request *dst, struct request *src)
 {
 	dst->cpu = src->cpu;
-	dst->cmd_flags = (src->cmd_flags & REQ_CLONE_MASK) | REQ_NOMERGE;
+	dst->cmd_flags |= (src->cmd_flags & REQ_CLONE_MASK) | REQ_NOMERGE;
 	dst->cmd_type = src->cmd_type;
 	dst->__sector = blk_rq_pos(src);
 	dst->__data_len = blk_rq_bytes(src);
@@ -2922,8 +2951,6 @@ int blk_rq_prep_clone(struct request *rq, struct request *rq_src,
 
 	if (!bs)
 		bs = fs_bio_set;
-
-	blk_rq_init(NULL, rq);
 
 	__rq_for_each_bio(bio_src, rq_src) {
 		bio = bio_clone_fast(bio_src, gfp_mask, bs);
@@ -3159,7 +3186,7 @@ void blk_finish_plug(struct blk_plug *plug)
 }
 EXPORT_SYMBOL(blk_finish_plug);
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 /**
  * blk_pm_runtime_init - Block layer runtime PM initialization routine
  * @q: the queue of the device

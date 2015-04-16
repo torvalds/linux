@@ -34,10 +34,26 @@ static unsigned long get_align_mask(void)
 	return va_align.mask;
 }
 
+/*
+ * To avoid aliasing in the I$ on AMD F15h, the bits defined by the
+ * va_align.bits, [12:upper_bit), are set to a random value instead of
+ * zeroing them. This random value is computed once per boot. This form
+ * of ASLR is known as "per-boot ASLR".
+ *
+ * To achieve this, the random value is added to the info.align_offset
+ * value before calling vm_unmapped_area() or ORed directly to the
+ * address.
+ */
+static unsigned long get_align_bits(void)
+{
+	return va_align.bits & get_align_mask();
+}
+
 unsigned long align_vdso_addr(unsigned long addr)
 {
 	unsigned long align_mask = get_align_mask();
-	return (addr + align_mask) & ~align_mask;
+	addr = (addr + align_mask) & ~align_mask;
+	return addr | get_align_bits();
 }
 
 static int __init control_va_addr_alignment(char *str)
@@ -135,8 +151,12 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	info.length = len;
 	info.low_limit = begin;
 	info.high_limit = end;
-	info.align_mask = filp ? get_align_mask() : 0;
+	info.align_mask = 0;
 	info.align_offset = pgoff << PAGE_SHIFT;
+	if (filp) {
+		info.align_mask = get_align_mask();
+		info.align_offset += get_align_bits();
+	}
 	return vm_unmapped_area(&info);
 }
 
@@ -174,8 +194,12 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	info.length = len;
 	info.low_limit = PAGE_SIZE;
 	info.high_limit = mm->mmap_base;
-	info.align_mask = filp ? get_align_mask() : 0;
+	info.align_mask = 0;
 	info.align_offset = pgoff << PAGE_SHIFT;
+	if (filp) {
+		info.align_mask = get_align_mask();
+		info.align_offset += get_align_bits();
+	}
 	addr = vm_unmapped_area(&info);
 	if (!(addr & ~PAGE_MASK))
 		return addr;

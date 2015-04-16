@@ -36,6 +36,13 @@ struct cfg80211_registered_device {
 	 * the country on the country IE changed. */
 	char country_ie_alpha2[2];
 
+	/*
+	 * the driver requests the regulatory core to set this regulatory
+	 * domain as the wiphy's. Only used for %REGULATORY_WIPHY_SELF_MANAGED
+	 * devices using the regulatory_set_wiphy_regd() API
+	 */
+	const struct ieee80211_regdomain *requested_regd;
+
 	/* If a Country IE has been received this tells us the environment
 	 * which its telling us its in. This defaults to ENVIRON_ANY */
 	enum environment_cap env;
@@ -63,7 +70,7 @@ struct cfg80211_registered_device {
 	u32 bss_generation;
 	struct cfg80211_scan_request *scan_req; /* protected by RTNL */
 	struct sk_buff *scan_msg;
-	struct cfg80211_sched_scan_request *sched_scan_req;
+	struct cfg80211_sched_scan_request __rcu *sched_scan_req;
 	unsigned long suspend_at;
 	struct work_struct scan_done_wk;
 	struct work_struct sched_scan_results_wk;
@@ -83,6 +90,8 @@ struct cfg80211_registered_device {
 	spinlock_t destroy_list_lock;
 	struct list_head destroy_list;
 	struct work_struct destroy_work;
+
+	struct work_struct sched_scan_stop_wk;
 
 	/* must be last because of the way we do wiphy_priv(),
 	 * and it should at least be aligned to NETDEV_ALIGN */
@@ -111,6 +120,7 @@ cfg80211_rdev_free_wowlan(struct cfg80211_registered_device *rdev)
 	    rdev->wiphy.wowlan_config->tcp->sock)
 		sock_release(rdev->wiphy.wowlan_config->tcp->sock);
 	kfree(rdev->wiphy.wowlan_config->tcp);
+	kfree(rdev->wiphy.wowlan_config->nd_config);
 	kfree(rdev->wiphy.wowlan_config);
 #endif
 }
@@ -289,6 +299,18 @@ int cfg80211_leave_mesh(struct cfg80211_registered_device *rdev,
 int cfg80211_set_mesh_channel(struct cfg80211_registered_device *rdev,
 			      struct wireless_dev *wdev,
 			      struct cfg80211_chan_def *chandef);
+
+/* OCB */
+int __cfg80211_join_ocb(struct cfg80211_registered_device *rdev,
+			struct net_device *dev,
+			struct ocb_setup *setup);
+int cfg80211_join_ocb(struct cfg80211_registered_device *rdev,
+		      struct net_device *dev,
+		      struct ocb_setup *setup);
+int __cfg80211_leave_ocb(struct cfg80211_registered_device *rdev,
+			 struct net_device *dev);
+int cfg80211_leave_ocb(struct cfg80211_registered_device *rdev,
+		       struct net_device *dev);
 
 /* AP */
 int __cfg80211_stop_ap(struct cfg80211_registered_device *rdev,

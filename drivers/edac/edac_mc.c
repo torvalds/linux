@@ -125,27 +125,27 @@ static void edac_mc_dump_mci(struct mem_ctl_info *mci)
 
 #endif				/* CONFIG_EDAC_DEBUG */
 
-/*
- * keep those in sync with the enum mem_type
- */
 const char * const edac_mem_types[] = {
-	"Empty csrow",
-	"Reserved csrow type",
-	"Unknown csrow type",
-	"Fast page mode RAM",
-	"Extended data out RAM",
-	"Burst Extended data out RAM",
-	"Single data rate SDRAM",
-	"Registered single data rate SDRAM",
-	"Double data rate SDRAM",
-	"Registered Double data rate SDRAM",
-	"Rambus DRAM",
-	"Unbuffered DDR2 RAM",
-	"Fully buffered DDR2",
-	"Registered DDR2 RAM",
-	"Rambus XDR",
-	"Unbuffered DDR3 RAM",
-	"Registered DDR3 RAM",
+	[MEM_EMPTY]	= "Empty csrow",
+	[MEM_RESERVED]	= "Reserved csrow type",
+	[MEM_UNKNOWN]	= "Unknown csrow type",
+	[MEM_FPM]	= "Fast page mode RAM",
+	[MEM_EDO]	= "Extended data out RAM",
+	[MEM_BEDO]	= "Burst Extended data out RAM",
+	[MEM_SDR]	= "Single data rate SDRAM",
+	[MEM_RDR]	= "Registered single data rate SDRAM",
+	[MEM_DDR]	= "Double data rate SDRAM",
+	[MEM_RDDR]	= "Registered Double data rate SDRAM",
+	[MEM_RMBS]	= "Rambus DRAM",
+	[MEM_DDR2]	= "Unbuffered DDR2 RAM",
+	[MEM_FB_DDR2]	= "Fully buffered DDR2",
+	[MEM_RDDR2]	= "Registered DDR2 RAM",
+	[MEM_XDR]	= "Rambus XDR",
+	[MEM_DDR3]	= "Unbuffered DDR3 RAM",
+	[MEM_RDDR3]	= "Registered DDR3 RAM",
+	[MEM_LRDDR3]	= "Load-Reduced DDR3 RAM",
+	[MEM_DDR4]	= "Unbuffered DDR4 RAM",
+	[MEM_RDDR4]	= "Registered DDR4 RAM",
 };
 EXPORT_SYMBOL_GPL(edac_mem_types);
 
@@ -710,9 +710,10 @@ struct mem_ctl_info *edac_mc_find(int idx)
 EXPORT_SYMBOL(edac_mc_find);
 
 /**
- * edac_mc_add_mc: Insert the 'mci' structure into the mci global list and
- *                 create sysfs entries associated with mci structure
+ * edac_mc_add_mc_with_groups: Insert the 'mci' structure into the mci
+ *	global list and create sysfs entries associated with mci structure
  * @mci: pointer to the mci structure to be added to the list
+ * @groups: optional attribute groups for the driver-specific sysfs entries
  *
  * Return:
  *	0	Success
@@ -720,7 +721,8 @@ EXPORT_SYMBOL(edac_mc_find);
  */
 
 /* FIXME - should a warning be printed if no error detection? correction? */
-int edac_mc_add_mc(struct mem_ctl_info *mci)
+int edac_mc_add_mc_with_groups(struct mem_ctl_info *mci,
+			       const struct attribute_group **groups)
 {
 	int ret = -EINVAL;
 	edac_dbg(0, "\n");
@@ -771,7 +773,7 @@ int edac_mc_add_mc(struct mem_ctl_info *mci)
 
 	mci->bus = &mc_bus[mci->mc_idx];
 
-	if (edac_create_sysfs_mci_device(mci)) {
+	if (edac_create_sysfs_mci_device(mci, groups)) {
 		edac_mc_printk(mci, KERN_WARNING,
 			"failed to create sysfs device\n");
 		goto fail1;
@@ -805,7 +807,7 @@ fail0:
 	mutex_unlock(&mem_ctls_mutex);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(edac_mc_add_mc);
+EXPORT_SYMBOL_GPL(edac_mc_add_mc_with_groups);
 
 /**
  * edac_mc_del_mc: Remove sysfs entries for specified mci structure and

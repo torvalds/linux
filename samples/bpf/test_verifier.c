@@ -14,6 +14,7 @@
 #include <linux/unistd.h>
 #include <string.h>
 #include <linux/filter.h>
+#include <stddef.h>
 #include "libbpf.h"
 
 #define MAX_INSNS 512
@@ -209,6 +210,17 @@ static struct bpf_test tests[] = {
 		.result = REJECT,
 	},
 	{
+		"program doesn't init R0 before exit in all branches",
+		.insns = {
+			BPF_JMP_IMM(BPF_JGE, BPF_REG_1, 0, 2),
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 2),
+			BPF_EXIT_INSN(),
+		},
+		.errstr = "R0 !read_ok",
+		.result = REJECT,
+	},
+	{
 		"stack out of bounds",
 		.insns = {
 			BPF_ST_MEM(BPF_DW, BPF_REG_10, 8, 0),
@@ -250,7 +262,7 @@ static struct bpf_test tests[] = {
 			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
 			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
 			BPF_LD_MAP_FD(BPF_REG_1, 0),
-			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_unspec),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_map_lookup_elem),
 			BPF_EXIT_INSN(),
 		},
 		.fixup = {2},
@@ -277,7 +289,8 @@ static struct bpf_test tests[] = {
 			BPF_LDX_MEM(BPF_DW, BPF_REG_2, BPF_REG_10, -8),
 
 			/* should be able to access R0 = *(R2 + 8) */
-			BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_2, 8),
+			/* BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_2, 8), */
+			BPF_MOV64_REG(BPF_REG_0, BPF_REG_2),
 			BPF_EXIT_INSN(),
 		},
 		.result = ACCEPT,
@@ -406,7 +419,7 @@ static struct bpf_test tests[] = {
 			BPF_ALU64_REG(BPF_MOV, BPF_REG_2, BPF_REG_10),
 			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
 			BPF_LD_MAP_FD(BPF_REG_1, 0),
-			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_unspec),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_map_delete_elem),
 			BPF_EXIT_INSN(),
 		},
 		.errstr = "fd 0 is not pointing to valid bpf_map",
@@ -419,7 +432,7 @@ static struct bpf_test tests[] = {
 			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
 			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
 			BPF_LD_MAP_FD(BPF_REG_1, 0),
-			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_unspec),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_map_lookup_elem),
 			BPF_ST_MEM(BPF_DW, BPF_REG_0, 0, 0),
 			BPF_EXIT_INSN(),
 		},
@@ -434,7 +447,7 @@ static struct bpf_test tests[] = {
 			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
 			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
 			BPF_LD_MAP_FD(BPF_REG_1, 0),
-			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_unspec),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_map_lookup_elem),
 			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 1),
 			BPF_ST_MEM(BPF_DW, BPF_REG_0, 4, 0),
 			BPF_EXIT_INSN(),
@@ -450,7 +463,7 @@ static struct bpf_test tests[] = {
 			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
 			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
 			BPF_LD_MAP_FD(BPF_REG_1, 0),
-			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_unspec),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_map_lookup_elem),
 			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 2),
 			BPF_ST_MEM(BPF_DW, BPF_REG_0, 0, 0),
 			BPF_EXIT_INSN(),
@@ -537,7 +550,7 @@ static struct bpf_test tests[] = {
 			BPF_ST_MEM(BPF_DW, BPF_REG_2, -56, 0),
 			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -56),
 			BPF_LD_MAP_FD(BPF_REG_1, 0),
-			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_unspec),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_map_delete_elem),
 			BPF_EXIT_INSN(),
 		},
 		.fixup = {24},
@@ -591,6 +604,123 @@ static struct bpf_test tests[] = {
 		},
 		.result = ACCEPT,
 	},
+	{
+		"jump test 5",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_MOV64_REG(BPF_REG_3, BPF_REG_2),
+			BPF_JMP_IMM(BPF_JGE, BPF_REG_1, 0, 2),
+			BPF_STX_MEM(BPF_DW, BPF_REG_2, BPF_REG_3, -8),
+			BPF_JMP_IMM(BPF_JA, 0, 0, 2),
+			BPF_STX_MEM(BPF_DW, BPF_REG_2, BPF_REG_2, -8),
+			BPF_JMP_IMM(BPF_JA, 0, 0, 0),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_JMP_IMM(BPF_JGE, BPF_REG_1, 0, 2),
+			BPF_STX_MEM(BPF_DW, BPF_REG_2, BPF_REG_3, -8),
+			BPF_JMP_IMM(BPF_JA, 0, 0, 2),
+			BPF_STX_MEM(BPF_DW, BPF_REG_2, BPF_REG_2, -8),
+			BPF_JMP_IMM(BPF_JA, 0, 0, 0),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_JMP_IMM(BPF_JGE, BPF_REG_1, 0, 2),
+			BPF_STX_MEM(BPF_DW, BPF_REG_2, BPF_REG_3, -8),
+			BPF_JMP_IMM(BPF_JA, 0, 0, 2),
+			BPF_STX_MEM(BPF_DW, BPF_REG_2, BPF_REG_2, -8),
+			BPF_JMP_IMM(BPF_JA, 0, 0, 0),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_JMP_IMM(BPF_JGE, BPF_REG_1, 0, 2),
+			BPF_STX_MEM(BPF_DW, BPF_REG_2, BPF_REG_3, -8),
+			BPF_JMP_IMM(BPF_JA, 0, 0, 2),
+			BPF_STX_MEM(BPF_DW, BPF_REG_2, BPF_REG_2, -8),
+			BPF_JMP_IMM(BPF_JA, 0, 0, 0),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_JMP_IMM(BPF_JGE, BPF_REG_1, 0, 2),
+			BPF_STX_MEM(BPF_DW, BPF_REG_2, BPF_REG_3, -8),
+			BPF_JMP_IMM(BPF_JA, 0, 0, 2),
+			BPF_STX_MEM(BPF_DW, BPF_REG_2, BPF_REG_2, -8),
+			BPF_JMP_IMM(BPF_JA, 0, 0, 0),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+	},
+	{
+		"access skb fields ok",
+		.insns = {
+			BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, len)),
+			BPF_JMP_IMM(BPF_JGE, BPF_REG_0, 0, 1),
+			BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, mark)),
+			BPF_JMP_IMM(BPF_JGE, BPF_REG_0, 0, 1),
+			BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, pkt_type)),
+			BPF_JMP_IMM(BPF_JGE, BPF_REG_0, 0, 1),
+			BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, queue_mapping)),
+			BPF_JMP_IMM(BPF_JGE, BPF_REG_0, 0, 0),
+			BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, protocol)),
+			BPF_JMP_IMM(BPF_JGE, BPF_REG_0, 0, 0),
+			BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, vlan_present)),
+			BPF_JMP_IMM(BPF_JGE, BPF_REG_0, 0, 0),
+			BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, vlan_tci)),
+			BPF_JMP_IMM(BPF_JGE, BPF_REG_0, 0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+	},
+	{
+		"access skb fields bad1",
+		.insns = {
+			BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1, -4),
+			BPF_EXIT_INSN(),
+		},
+		.errstr = "invalid bpf_context access",
+		.result = REJECT,
+	},
+	{
+		"access skb fields bad2",
+		.insns = {
+			BPF_JMP_IMM(BPF_JGE, BPF_REG_1, 0, 9),
+			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, 1),
+			BPF_EXIT_INSN(),
+			BPF_MOV64_REG(BPF_REG_1, BPF_REG_0),
+			BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, pkt_type)),
+			BPF_EXIT_INSN(),
+		},
+		.fixup = {4},
+		.errstr = "different pointers",
+		.result = REJECT,
+	},
+	{
+		"access skb fields bad3",
+		.insns = {
+			BPF_JMP_IMM(BPF_JGE, BPF_REG_1, 0, 2),
+			BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, pkt_type)),
+			BPF_EXIT_INSN(),
+			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, 1),
+			BPF_EXIT_INSN(),
+			BPF_MOV64_REG(BPF_REG_1, BPF_REG_0),
+			BPF_JMP_IMM(BPF_JA, 0, 0, -12),
+		},
+		.fixup = {6},
+		.errstr = "different pointers",
+		.result = REJECT,
+	},
 };
 
 static int probe_filter_length(struct bpf_insn *fp)
@@ -609,7 +739,7 @@ static int create_map(void)
 	long long key, value = 0;
 	int map_fd;
 
-	map_fd = bpf_create_map(BPF_MAP_TYPE_UNSPEC, sizeof(key), sizeof(value), 1024);
+	map_fd = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(key), sizeof(value), 1024);
 	if (map_fd < 0) {
 		printf("failed to create map '%s'\n", strerror(errno));
 	}
@@ -619,7 +749,7 @@ static int create_map(void)
 
 static int test(void)
 {
-	int prog_fd, i;
+	int prog_fd, i, pass_cnt = 0, err_cnt = 0;
 
 	for (i = 0; i < ARRAY_SIZE(tests); i++) {
 		struct bpf_insn *prog = tests[i].insns;
@@ -637,30 +767,34 @@ static int test(void)
 		}
 		printf("#%d %s ", i, tests[i].descr);
 
-		prog_fd = bpf_prog_load(BPF_PROG_TYPE_UNSPEC, prog,
+		prog_fd = bpf_prog_load(BPF_PROG_TYPE_SOCKET_FILTER, prog,
 					prog_len * sizeof(struct bpf_insn),
-					"GPL");
+					"GPL", 0);
 
 		if (tests[i].result == ACCEPT) {
 			if (prog_fd < 0) {
 				printf("FAIL\nfailed to load prog '%s'\n",
 				       strerror(errno));
 				printf("%s", bpf_log_buf);
+				err_cnt++;
 				goto fail;
 			}
 		} else {
 			if (prog_fd >= 0) {
 				printf("FAIL\nunexpected success to load\n");
 				printf("%s", bpf_log_buf);
+				err_cnt++;
 				goto fail;
 			}
 			if (strstr(bpf_log_buf, tests[i].errstr) == 0) {
 				printf("FAIL\nunexpected error message: %s",
 				       bpf_log_buf);
+				err_cnt++;
 				goto fail;
 			}
 		}
 
+		pass_cnt++;
 		printf("OK\n");
 fail:
 		if (map_fd >= 0)
@@ -668,6 +802,7 @@ fail:
 		close(prog_fd);
 
 	}
+	printf("Summary: %d PASSED, %d FAILED\n", pass_cnt, err_cnt);
 
 	return 0;
 }

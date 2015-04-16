@@ -117,6 +117,7 @@ struct keyring_search_context {
 #define KEYRING_SEARCH_NO_UPDATE_TIME	0x0004	/* Don't update times */
 #define KEYRING_SEARCH_NO_CHECK_PERM	0x0008	/* Don't check permissions */
 #define KEYRING_SEARCH_DETECT_TOO_DEEP	0x0010	/* Give an error on excessive depth */
+#define KEYRING_SEARCH_SKIP_EXPIRED	0x0020	/* Ignore expired keys (intention to replace) */
 
 	int (*iterator)(const void *object, void *iterator_data);
 
@@ -242,9 +243,10 @@ extern long keyctl_instantiate_key_iov(key_serial_t,
 				       unsigned, key_serial_t);
 extern long keyctl_invalidate_key(key_serial_t);
 
+struct iov_iter;
 extern long keyctl_instantiate_key_common(key_serial_t,
-					  const struct iovec *,
-					  unsigned, size_t, key_serial_t);
+					  struct iov_iter *,
+					  key_serial_t);
 #ifdef CONFIG_PERSISTENT_KEYRINGS
 extern long keyctl_get_persistent(uid_t, key_serial_t);
 extern unsigned persistent_keyring_expiry;

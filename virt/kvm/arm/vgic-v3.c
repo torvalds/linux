@@ -34,6 +34,7 @@
 #define GICH_LR_VIRTUALID		(0x3ffUL << 0)
 #define GICH_LR_PHYSID_CPUID_SHIFT	(10)
 #define GICH_LR_PHYSID_CPUID		(7UL << GICH_LR_PHYSID_CPUID_SHIFT)
+#define ICH_LR_VIRTUALID_MASK		(BIT_ULL(32) - 1)
 
 /*
  * LRs are stored in reverse order in memory. make sure we index them
@@ -48,12 +49,17 @@ static struct vgic_lr vgic_v3_get_lr(const struct kvm_vcpu *vcpu, int lr)
 	struct vgic_lr lr_desc;
 	u64 val = vcpu->arch.vgic_cpu.vgic_v3.vgic_lr[LR_INDEX(lr)];
 
-	lr_desc.irq	= val & GICH_LR_VIRTUALID;
-	if (lr_desc.irq <= 15)
-		lr_desc.source	= (val >> GICH_LR_PHYSID_CPUID_SHIFT) & 0x7;
+	if (vcpu->kvm->arch.vgic.vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3)
+		lr_desc.irq = val & ICH_LR_VIRTUALID_MASK;
 	else
-		lr_desc.source = 0;
-	lr_desc.state	= 0;
+		lr_desc.irq = val & GICH_LR_VIRTUALID;
+
+	lr_desc.source = 0;
+	if (lr_desc.irq <= 15 &&
+	    vcpu->kvm->arch.vgic.vgic_model == KVM_DEV_TYPE_ARM_VGIC_V2)
+		lr_desc.source = (val >> GICH_LR_PHYSID_CPUID_SHIFT) & 0x7;
+
+	lr_desc.state = 0;
 
 	if (val & ICH_LR_PENDING_BIT)
 		lr_desc.state |= LR_STATE_PENDING;
@@ -68,8 +74,20 @@ static struct vgic_lr vgic_v3_get_lr(const struct kvm_vcpu *vcpu, int lr)
 static void vgic_v3_set_lr(struct kvm_vcpu *vcpu, int lr,
 			   struct vgic_lr lr_desc)
 {
-	u64 lr_val = (((u32)lr_desc.source << GICH_LR_PHYSID_CPUID_SHIFT) |
-		      lr_desc.irq);
+	u64 lr_val;
+
+	lr_val = lr_desc.irq;
+
+	/*
+	 * Currently all guest IRQs are Group1, as Group0 would result
+	 * in a FIQ in the guest, which it wouldn't expect.
+	 * Eventually we want to make this configurable, so we may revisit
+	 * this in the future.
+	 */
+	if (vcpu->kvm->arch.vgic.vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3)
+		lr_val |= ICH_LR_GROUP;
+	else
+		lr_val |= (u32)lr_desc.source << GICH_LR_PHYSID_CPUID_SHIFT;
 
 	if (lr_desc.state & LR_STATE_PENDING)
 		lr_val |= ICH_LR_PENDING_BIT;
@@ -86,6 +104,8 @@ static void vgic_v3_sync_lr_elrsr(struct kvm_vcpu *vcpu, int lr,
 {
 	if (!(lr_desc.state & LR_STATE_MASK))
 		vcpu->arch.vgic_cpu.vgic_v3.vgic_elrsr |= (1U << lr);
+	else
+		vcpu->arch.vgic_cpu.vgic_v3.vgic_elrsr &= ~(1U << lr);
 }
 
 static u64 vgic_v3_get_elrsr(const struct kvm_vcpu *vcpu)
@@ -96,6 +116,11 @@ static u64 vgic_v3_get_elrsr(const struct kvm_vcpu *vcpu)
 static u64 vgic_v3_get_eisr(const struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.vgic_cpu.vgic_v3.vgic_eisr;
+}
+
+static void vgic_v3_clear_eisr(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.vgic_cpu.vgic_v3.vgic_eisr = 0;
 }
 
 static u32 vgic_v3_get_interrupt_status(const struct kvm_vcpu *vcpu)
@@ -145,15 +170,27 @@ static void vgic_v3_set_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcrp)
 
 static void vgic_v3_enable(struct kvm_vcpu *vcpu)
 {
+	struct vgic_v3_cpu_if *vgic_v3 = &vcpu->arch.vgic_cpu.vgic_v3;
+
 	/*
 	 * By forcing VMCR to zero, the GIC will restore the binary
 	 * points to their reset values. Anything else resets to zero
 	 * anyway.
 	 */
-	vcpu->arch.vgic_cpu.vgic_v3.vgic_vmcr = 0;
+	vgic_v3->vgic_vmcr = 0;
+
+	/*
+	 * If we are emulating a GICv3, we do it in an non-GICv2-compatible
+	 * way, so we force SRE to 1 to demonstrate this to the guest.
+	 * This goes with the spec allowing the value to be RAO/WI.
+	 */
+	if (vcpu->kvm->arch.vgic.vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3)
+		vgic_v3->vgic_sre = ICC_SRE_EL1_SRE;
+	else
+		vgic_v3->vgic_sre = 0;
 
 	/* Get the show on the road... */
-	vcpu->arch.vgic_cpu.vgic_v3.vgic_hcr = ICH_HCR_EN;
+	vgic_v3->vgic_hcr = ICH_HCR_EN;
 }
 
 static const struct vgic_ops vgic_v3_ops = {
@@ -162,6 +199,7 @@ static const struct vgic_ops vgic_v3_ops = {
 	.sync_lr_elrsr		= vgic_v3_sync_lr_elrsr,
 	.get_elrsr		= vgic_v3_get_elrsr,
 	.get_eisr		= vgic_v3_get_eisr,
+	.clear_eisr		= vgic_v3_clear_eisr,
 	.get_interrupt_status	= vgic_v3_get_interrupt_status,
 	.enable_underflow	= vgic_v3_enable_underflow,
 	.disable_underflow	= vgic_v3_disable_underflow,
@@ -205,35 +243,37 @@ int vgic_v3_probe(struct device_node *vgic_node,
 	 * maximum of 16 list registers. Just ignore bit 4...
 	 */
 	vgic->nr_lr = (ich_vtr_el2 & 0xf) + 1;
+	vgic->can_emulate_gicv2 = false;
 
 	if (of_property_read_u32(vgic_node, "#redistributor-regions", &gicv_idx))
 		gicv_idx = 1;
 
 	gicv_idx += 3; /* Also skip GICD, GICC, GICH */
 	if (of_address_to_resource(vgic_node, gicv_idx, &vcpu_res)) {
-		kvm_err("Cannot obtain GICV region\n");
-		ret = -ENXIO;
-		goto out;
-	}
-
-	if (!PAGE_ALIGNED(vcpu_res.start)) {
-		kvm_err("GICV physical address 0x%llx not page aligned\n",
+		kvm_info("GICv3: no GICV resource entry\n");
+		vgic->vcpu_base = 0;
+	} else if (!PAGE_ALIGNED(vcpu_res.start)) {
+		pr_warn("GICV physical address 0x%llx not page aligned\n",
 			(unsigned long long)vcpu_res.start);
-		ret = -ENXIO;
-		goto out;
-	}
-
-	if (!PAGE_ALIGNED(resource_size(&vcpu_res))) {
-		kvm_err("GICV size 0x%llx not a multiple of page size 0x%lx\n",
+		vgic->vcpu_base = 0;
+	} else if (!PAGE_ALIGNED(resource_size(&vcpu_res))) {
+		pr_warn("GICV size 0x%llx not a multiple of page size 0x%lx\n",
 			(unsigned long long)resource_size(&vcpu_res),
 			PAGE_SIZE);
-		ret = -ENXIO;
-		goto out;
+		vgic->vcpu_base = 0;
+	} else {
+		vgic->vcpu_base = vcpu_res.start;
+		vgic->can_emulate_gicv2 = true;
+		kvm_register_device_ops(&kvm_arm_vgic_v2_ops,
+					KVM_DEV_TYPE_ARM_VGIC_V2);
 	}
+	if (vgic->vcpu_base == 0)
+		kvm_info("disabling GICv2 emulation\n");
+	kvm_register_device_ops(&kvm_arm_vgic_v3_ops, KVM_DEV_TYPE_ARM_VGIC_V3);
 
-	vgic->vcpu_base = vcpu_res.start;
 	vgic->vctrl_base = NULL;
 	vgic->type = VGIC_V3;
+	vgic->max_gic_vcpus = KVM_MAX_VCPUS;
 
 	kvm_info("%s@%llx IRQ%d\n", vgic_node->name,
 		 vcpu_res.start, vgic->maint_irq);

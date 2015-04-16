@@ -925,7 +925,7 @@ static int o2net_send_tcp_msg(struct socket *sock, struct kvec *vec,
 			      size_t veclen, size_t total)
 {
 	int ret;
-	struct msghdr msg;
+	struct msghdr msg = {.msg_flags = 0,};
 
 	if (sock == NULL) {
 		ret = -EINVAL;
@@ -1016,7 +1016,8 @@ void o2net_fill_node_map(unsigned long *map, unsigned bytes)
 
 	memset(map, 0, bytes);
 	for (node = 0; node < O2NM_MAX_NODES; ++node) {
-		o2net_tx_can_proceed(o2net_nn_from_num(node), &sc, &ret);
+		if (!o2net_tx_can_proceed(o2net_nn_from_num(node), &sc, &ret))
+			continue;
 		if (!ret) {
 			set_bit(node, map);
 			sc_put(sc);
@@ -1736,7 +1737,7 @@ static void o2net_connect_expired(struct work_struct *work)
 		     o2net_idle_timeout() / 1000,
 		     o2net_idle_timeout() % 1000);
 
-		o2net_set_nn_state(nn, NULL, 0, -ENOTCONN);
+		o2net_set_nn_state(nn, NULL, 0, 0);
 	}
 	spin_unlock(&nn->nn_lock);
 }

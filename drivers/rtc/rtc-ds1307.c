@@ -35,7 +35,7 @@ enum ds_type {
 	ds_1388,
 	ds_3231,
 	m41t00,
-	mcp7941x,
+	mcp794xx,
 	rx_8025,
 	last_ds_type /* always last */
 	/* rs5c372 too?  different address... */
@@ -46,7 +46,7 @@ enum ds_type {
 #define DS1307_REG_SECS		0x00	/* 00-59 */
 #	define DS1307_BIT_CH		0x80
 #	define DS1340_BIT_nEOSC		0x80
-#	define MCP7941X_BIT_ST		0x80
+#	define MCP794XX_BIT_ST		0x80
 #define DS1307_REG_MIN		0x01	/* 00-59 */
 #define DS1307_REG_HOUR		0x02	/* 00-23, or 1-12{am,pm} */
 #	define DS1307_BIT_12HR		0x40	/* in REG_HOUR */
@@ -54,7 +54,7 @@ enum ds_type {
 #	define DS1340_BIT_CENTURY_EN	0x80	/* in REG_HOUR */
 #	define DS1340_BIT_CENTURY	0x40	/* in REG_HOUR */
 #define DS1307_REG_WDAY		0x03	/* 01-07 */
-#	define MCP7941X_BIT_VBATEN	0x08
+#	define MCP794XX_BIT_VBATEN	0x08
 #define DS1307_REG_MDAY		0x04	/* 01-31 */
 #define DS1307_REG_MONTH	0x05	/* 01-12 */
 #	define DS1337_BIT_CENTURY	0x80	/* in REG_MONTH */
@@ -159,7 +159,7 @@ static struct chip_desc chips[last_ds_type] = {
 	[ds_3231] = {
 		.alarm		= 1,
 	},
-	[mcp7941x] = {
+	[mcp794xx] = {
 		.alarm		= 1,
 		/* this is battery backed SRAM */
 		.nvram_offset	= 0x20,
@@ -176,7 +176,8 @@ static const struct i2c_device_id ds1307_id[] = {
 	{ "ds1340", ds_1340 },
 	{ "ds3231", ds_3231 },
 	{ "m41t00", m41t00 },
-	{ "mcp7941x", mcp7941x },
+	{ "mcp7940x", mcp794xx },
+	{ "mcp7941x", mcp794xx },
 	{ "pt7c4338", ds_1307 },
 	{ "rx8025", rx_8025 },
 	{ }
@@ -439,14 +440,14 @@ static int ds1307_set_time(struct device *dev, struct rtc_time *t)
 		buf[DS1307_REG_HOUR] |= DS1340_BIT_CENTURY_EN
 				| DS1340_BIT_CENTURY;
 		break;
-	case mcp7941x:
+	case mcp794xx:
 		/*
 		 * these bits were cleared when preparing the date/time
 		 * values and need to be set again before writing the
 		 * buffer out to the device.
 		 */
-		buf[DS1307_REG_SECS] |= MCP7941X_BIT_ST;
-		buf[DS1307_REG_WDAY] |= MCP7941X_BIT_VBATEN;
+		buf[DS1307_REG_SECS] |= MCP794XX_BIT_ST;
+		buf[DS1307_REG_WDAY] |= MCP794XX_BIT_VBATEN;
 		break;
 	default:
 		break;
@@ -614,26 +615,26 @@ static const struct rtc_class_ops ds13xx_rtc_ops = {
 /*----------------------------------------------------------------------*/
 
 /*
- * Alarm support for mcp7941x devices.
+ * Alarm support for mcp794xx devices.
  */
 
-#define MCP7941X_REG_CONTROL		0x07
-#	define MCP7941X_BIT_ALM0_EN	0x10
-#	define MCP7941X_BIT_ALM1_EN	0x20
-#define MCP7941X_REG_ALARM0_BASE	0x0a
-#define MCP7941X_REG_ALARM0_CTRL	0x0d
-#define MCP7941X_REG_ALARM1_BASE	0x11
-#define MCP7941X_REG_ALARM1_CTRL	0x14
-#	define MCP7941X_BIT_ALMX_IF	(1 << 3)
-#	define MCP7941X_BIT_ALMX_C0	(1 << 4)
-#	define MCP7941X_BIT_ALMX_C1	(1 << 5)
-#	define MCP7941X_BIT_ALMX_C2	(1 << 6)
-#	define MCP7941X_BIT_ALMX_POL	(1 << 7)
-#	define MCP7941X_MSK_ALMX_MATCH	(MCP7941X_BIT_ALMX_C0 | \
-					 MCP7941X_BIT_ALMX_C1 | \
-					 MCP7941X_BIT_ALMX_C2)
+#define MCP794XX_REG_CONTROL		0x07
+#	define MCP794XX_BIT_ALM0_EN	0x10
+#	define MCP794XX_BIT_ALM1_EN	0x20
+#define MCP794XX_REG_ALARM0_BASE	0x0a
+#define MCP794XX_REG_ALARM0_CTRL	0x0d
+#define MCP794XX_REG_ALARM1_BASE	0x11
+#define MCP794XX_REG_ALARM1_CTRL	0x14
+#	define MCP794XX_BIT_ALMX_IF	(1 << 3)
+#	define MCP794XX_BIT_ALMX_C0	(1 << 4)
+#	define MCP794XX_BIT_ALMX_C1	(1 << 5)
+#	define MCP794XX_BIT_ALMX_C2	(1 << 6)
+#	define MCP794XX_BIT_ALMX_POL	(1 << 7)
+#	define MCP794XX_MSK_ALMX_MATCH	(MCP794XX_BIT_ALMX_C0 | \
+					 MCP794XX_BIT_ALMX_C1 | \
+					 MCP794XX_BIT_ALMX_C2)
 
-static void mcp7941x_work(struct work_struct *work)
+static void mcp794xx_work(struct work_struct *work)
 {
 	struct ds1307 *ds1307 = container_of(work, struct ds1307, work);
 	struct i2c_client *client = ds1307->client;
@@ -642,22 +643,22 @@ static void mcp7941x_work(struct work_struct *work)
 	mutex_lock(&ds1307->rtc->ops_lock);
 
 	/* Check and clear alarm 0 interrupt flag. */
-	reg = i2c_smbus_read_byte_data(client, MCP7941X_REG_ALARM0_CTRL);
+	reg = i2c_smbus_read_byte_data(client, MCP794XX_REG_ALARM0_CTRL);
 	if (reg < 0)
 		goto out;
-	if (!(reg & MCP7941X_BIT_ALMX_IF))
+	if (!(reg & MCP794XX_BIT_ALMX_IF))
 		goto out;
-	reg &= ~MCP7941X_BIT_ALMX_IF;
-	ret = i2c_smbus_write_byte_data(client, MCP7941X_REG_ALARM0_CTRL, reg);
+	reg &= ~MCP794XX_BIT_ALMX_IF;
+	ret = i2c_smbus_write_byte_data(client, MCP794XX_REG_ALARM0_CTRL, reg);
 	if (ret < 0)
 		goto out;
 
 	/* Disable alarm 0. */
-	reg = i2c_smbus_read_byte_data(client, MCP7941X_REG_CONTROL);
+	reg = i2c_smbus_read_byte_data(client, MCP794XX_REG_CONTROL);
 	if (reg < 0)
 		goto out;
-	reg &= ~MCP7941X_BIT_ALM0_EN;
-	ret = i2c_smbus_write_byte_data(client, MCP7941X_REG_CONTROL, reg);
+	reg &= ~MCP794XX_BIT_ALM0_EN;
+	ret = i2c_smbus_write_byte_data(client, MCP794XX_REG_CONTROL, reg);
 	if (ret < 0)
 		goto out;
 
@@ -669,7 +670,7 @@ out:
 	mutex_unlock(&ds1307->rtc->ops_lock);
 }
 
-static int mcp7941x_read_alarm(struct device *dev, struct rtc_wkalrm *t)
+static int mcp794xx_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct ds1307 *ds1307 = i2c_get_clientdata(client);
@@ -680,11 +681,11 @@ static int mcp7941x_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 		return -EINVAL;
 
 	/* Read control and alarm 0 registers. */
-	ret = ds1307->read_block_data(client, MCP7941X_REG_CONTROL, 10, regs);
+	ret = ds1307->read_block_data(client, MCP794XX_REG_CONTROL, 10, regs);
 	if (ret < 0)
 		return ret;
 
-	t->enabled = !!(regs[0] & MCP7941X_BIT_ALM0_EN);
+	t->enabled = !!(regs[0] & MCP794XX_BIT_ALM0_EN);
 
 	/* Report alarm 0 time assuming 24-hour and day-of-month modes. */
 	t->time.tm_sec = bcd2bin(ds1307->regs[3] & 0x7f);
@@ -701,14 +702,14 @@ static int mcp7941x_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 		"enabled=%d polarity=%d irq=%d match=%d\n", __func__,
 		t->time.tm_sec, t->time.tm_min, t->time.tm_hour,
 		t->time.tm_wday, t->time.tm_mday, t->time.tm_mon, t->enabled,
-		!!(ds1307->regs[6] & MCP7941X_BIT_ALMX_POL),
-		!!(ds1307->regs[6] & MCP7941X_BIT_ALMX_IF),
-		(ds1307->regs[6] & MCP7941X_MSK_ALMX_MATCH) >> 4);
+		!!(ds1307->regs[6] & MCP794XX_BIT_ALMX_POL),
+		!!(ds1307->regs[6] & MCP794XX_BIT_ALMX_IF),
+		(ds1307->regs[6] & MCP794XX_MSK_ALMX_MATCH) >> 4);
 
 	return 0;
 }
 
-static int mcp7941x_set_alarm(struct device *dev, struct rtc_wkalrm *t)
+static int mcp794xx_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct ds1307 *ds1307 = i2c_get_clientdata(client);
@@ -725,7 +726,7 @@ static int mcp7941x_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 		t->enabled, t->pending);
 
 	/* Read control and alarm 0 registers. */
-	ret = ds1307->read_block_data(client, MCP7941X_REG_CONTROL, 10, regs);
+	ret = ds1307->read_block_data(client, MCP794XX_REG_CONTROL, 10, regs);
 	if (ret < 0)
 		return ret;
 
@@ -738,23 +739,23 @@ static int mcp7941x_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	regs[8] = bin2bcd(t->time.tm_mon) + 1;
 
 	/* Clear the alarm 0 interrupt flag. */
-	regs[6] &= ~MCP7941X_BIT_ALMX_IF;
+	regs[6] &= ~MCP794XX_BIT_ALMX_IF;
 	/* Set alarm match: second, minute, hour, day, date, month. */
-	regs[6] |= MCP7941X_MSK_ALMX_MATCH;
+	regs[6] |= MCP794XX_MSK_ALMX_MATCH;
 
 	if (t->enabled)
-		regs[0] |= MCP7941X_BIT_ALM0_EN;
+		regs[0] |= MCP794XX_BIT_ALM0_EN;
 	else
-		regs[0] &= ~MCP7941X_BIT_ALM0_EN;
+		regs[0] &= ~MCP794XX_BIT_ALM0_EN;
 
-	ret = ds1307->write_block_data(client, MCP7941X_REG_CONTROL, 10, regs);
+	ret = ds1307->write_block_data(client, MCP794XX_REG_CONTROL, 10, regs);
 	if (ret < 0)
 		return ret;
 
 	return 0;
 }
 
-static int mcp7941x_alarm_irq_enable(struct device *dev, unsigned int enabled)
+static int mcp794xx_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct ds1307 *ds1307 = i2c_get_clientdata(client);
@@ -763,24 +764,24 @@ static int mcp7941x_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	if (!test_bit(HAS_ALARM, &ds1307->flags))
 		return -EINVAL;
 
-	reg = i2c_smbus_read_byte_data(client, MCP7941X_REG_CONTROL);
+	reg = i2c_smbus_read_byte_data(client, MCP794XX_REG_CONTROL);
 	if (reg < 0)
 		return reg;
 
 	if (enabled)
-		reg |= MCP7941X_BIT_ALM0_EN;
+		reg |= MCP794XX_BIT_ALM0_EN;
 	else
-		reg &= ~MCP7941X_BIT_ALM0_EN;
+		reg &= ~MCP794XX_BIT_ALM0_EN;
 
-	return i2c_smbus_write_byte_data(client, MCP7941X_REG_CONTROL, reg);
+	return i2c_smbus_write_byte_data(client, MCP794XX_REG_CONTROL, reg);
 }
 
-static const struct rtc_class_ops mcp7941x_rtc_ops = {
+static const struct rtc_class_ops mcp794xx_rtc_ops = {
 	.read_time	= ds1307_get_time,
 	.set_time	= ds1307_set_time,
-	.read_alarm	= mcp7941x_read_alarm,
-	.set_alarm	= mcp7941x_set_alarm,
-	.alarm_irq_enable = mcp7941x_alarm_irq_enable,
+	.read_alarm	= mcp794xx_read_alarm,
+	.set_alarm	= mcp794xx_set_alarm,
+	.alarm_irq_enable = mcp794xx_alarm_irq_enable,
 };
 
 /*----------------------------------------------------------------------*/
@@ -1049,10 +1050,10 @@ static int ds1307_probe(struct i2c_client *client,
 	case ds_1388:
 		ds1307->offset = 1; /* Seconds starts at 1 */
 		break;
-	case mcp7941x:
-		rtc_ops = &mcp7941x_rtc_ops;
+	case mcp794xx:
+		rtc_ops = &mcp794xx_rtc_ops;
 		if (ds1307->client->irq > 0 && chip->alarm) {
-			INIT_WORK(&ds1307->work, mcp7941x_work);
+			INIT_WORK(&ds1307->work, mcp794xx_work);
 			want_irq = true;
 		}
 		break;
@@ -1117,18 +1118,18 @@ read_rtc:
 			dev_warn(&client->dev, "SET TIME!\n");
 		}
 		break;
-	case mcp7941x:
+	case mcp794xx:
 		/* make sure that the backup battery is enabled */
-		if (!(ds1307->regs[DS1307_REG_WDAY] & MCP7941X_BIT_VBATEN)) {
+		if (!(ds1307->regs[DS1307_REG_WDAY] & MCP794XX_BIT_VBATEN)) {
 			i2c_smbus_write_byte_data(client, DS1307_REG_WDAY,
 					ds1307->regs[DS1307_REG_WDAY]
-					| MCP7941X_BIT_VBATEN);
+					| MCP794XX_BIT_VBATEN);
 		}
 
 		/* clock halted?  turn it on, so clock can tick. */
-		if (!(tmp & MCP7941X_BIT_ST)) {
+		if (!(tmp & MCP794XX_BIT_ST)) {
 			i2c_smbus_write_byte_data(client, DS1307_REG_SECS,
-					MCP7941X_BIT_ST);
+					MCP794XX_BIT_ST);
 			dev_warn(&client->dev, "SET TIME!\n");
 			goto read_rtc;
 		}

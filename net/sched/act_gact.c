@@ -1,5 +1,5 @@
 /*
- * net/sched/gact.c	Generic actions
+ * net/sched/act_gact.c		Generic actions
  *
  *		This program is free software; you can redistribute it and/or
  *		modify it under the terms of the GNU General Public License

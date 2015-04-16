@@ -86,6 +86,7 @@ config LOONGSON_MACH3X
 	select LOONGSON_MC146818
 	select ZONE_DMA32
 	select LEFI_FIRMWARE_INTERFACE
+	select PHYS48_TO_HT40
 	help
 		Generic Loongson 3 family machines utilize the 3A/3B revision
 		of Loongson processor and RS780/SBX00 chipset.
@@ -103,6 +104,18 @@ config CS5536_MFGPT
 	  switched on you can not use high resolution timers.
 
 	  If you want to enable the Loongson2 CPUFreq Driver, Please enable
+	  this option at first, otherwise, You will get wrong system time.
+
+	  If unsure, say Yes.
+
+config RS780_HPET
+	bool "RS780/SBX00 HPET Timer"
+	depends on LOONGSON_MACH3X
+	select MIPS_EXTERNAL_TIMER
+	help
+	  This option enables the hpet timer of AMD RS780/SBX00.
+
+	  If you want to enable the Loongson3 CPUFreq Driver, Please enable
 	  this option at first, otherwise, You will get wrong system time.
 
 	  If unsure, say Yes.
@@ -130,6 +143,10 @@ config SWIOTLB
 	select IOMMU_HELPER
 	select NEED_SG_DMA_LENGTH
 	select NEED_DMA_MAP_STATE
+
+config PHYS48_TO_HT40
+	bool
+	default y if CPU_LOONGSON3
 
 config LOONGSON_MC146818
 	bool

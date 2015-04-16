@@ -241,6 +241,10 @@ static inline void writeq(u64 val, unsigned long addr)
 #define readw_relaxed readw
 #define readl_relaxed readl
 #define readq_relaxed readq
+#define writeb_relaxed writeb
+#define writew_relaxed writew
+#define writel_relaxed writel
+#define writeq_relaxed writeq
 
 #define ioread8 readb
 #define ioread16 readw
@@ -392,8 +396,7 @@ extern void ioport_unmap(void __iomem *addr);
 static inline long ioport_panic(void)
 {
 #ifdef __tilegx__
-	panic("PCI IO space support is disabled. Configure the kernel with"
-	      " CONFIG_TILE_PCI_IO to enable it");
+	panic("PCI IO space support is disabled. Configure the kernel with CONFIG_TILE_PCI_IO to enable it");
 #else
 	panic("inb/outb and friends do not exist on tile");
 #endif
@@ -402,7 +405,7 @@ static inline long ioport_panic(void)
 
 static inline void __iomem *ioport_map(unsigned long port, unsigned int len)
 {
-	pr_info("ioport_map: mapping IO resources is unsupported on tile.\n");
+	pr_info("ioport_map: mapping IO resources is unsupported on tile\n");
 	return NULL;
 }
 

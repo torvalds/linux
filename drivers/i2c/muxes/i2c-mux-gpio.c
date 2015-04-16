@@ -76,10 +76,9 @@ static int i2c_mux_gpio_probe_dt(struct gpiomux *mux,
 		return -ENODEV;
 	}
 	adapter = of_find_i2c_adapter_by_node(adapter_np);
-	if (!adapter) {
-		dev_err(&pdev->dev, "Cannot find parent bus\n");
+	if (!adapter)
 		return -EPROBE_DEFER;
-	}
+
 	mux->data.parent = i2c_adapter_id(adapter);
 	put_device(&adapter->dev);
 
@@ -177,11 +176,8 @@ static int i2c_mux_gpio_probe(struct platform_device *pdev)
 	}
 
 	parent = i2c_get_adapter(mux->data.parent);
-	if (!parent) {
-		dev_err(&pdev->dev, "Parent adapter (%d) not found\n",
-			mux->data.parent);
+	if (!parent)
 		return -EPROBE_DEFER;
-	}
 
 	mux->parent = parent;
 	mux->gpio_base = gpio_base;
@@ -280,7 +276,6 @@ static struct platform_driver i2c_mux_gpio_driver = {
 	.probe	= i2c_mux_gpio_probe,
 	.remove	= i2c_mux_gpio_remove,
 	.driver	= {
-		.owner	= THIS_MODULE,
 		.name	= "i2c-mux-gpio",
 		.of_match_table = i2c_mux_gpio_of_match,
 	},

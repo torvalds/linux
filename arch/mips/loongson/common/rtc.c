@@ -14,7 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/mc146818rtc.h>
 
-struct resource loongson_rtc_resources[] = {
+static struct resource loongson_rtc_resources[] = {
 	{
 		.start	= RTC_PORT(0),
 		.end	= RTC_PORT(1),

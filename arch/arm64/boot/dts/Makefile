@@ -1,10 +1,9 @@
-dtb-$(CONFIG_ARCH_THUNDER) += thunder-88xx.dtb
-dtb-$(CONFIG_ARCH_VEXPRESS) += rtsm_ve-aemv8a.dtb foundation-v8.dtb
-dtb-$(CONFIG_ARCH_XGENE) += apm-mustang.dtb
+dts-dirs += amd
+dts-dirs += apm
+dts-dirs += arm
+dts-dirs += cavium
+dts-dirs += exynos
+dts-dirs += freescale
+dts-dirs += mediatek
 
-targets += dtbs
-targets += $(dtb-y)
-
-dtbs: $(addprefix $(obj)/, $(dtb-y))
-
-clean-files := *.dtb
+subdir-y	:= $(dts-dirs)

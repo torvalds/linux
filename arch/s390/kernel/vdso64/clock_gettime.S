@@ -19,14 +19,13 @@
 	.type  __kernel_clock_gettime,@function
 __kernel_clock_gettime:
 	.cfi_startproc
+	aghi	%r15,-16
 	larl	%r5,_vdso_data
 	cghi	%r2,__CLOCK_REALTIME_COARSE
 	je	4f
 	cghi	%r2,__CLOCK_REALTIME
 	je	5f
-	cghi	%r2,__CLOCK_THREAD_CPUTIME_ID
-	je	9f
-	cghi	%r2,-2		/* Per-thread CPUCLOCK with PID=0, VIRT=1 */
+	cghi	%r2,-3		/* Per-thread CPUCLOCK with PID=0, VIRT=1 */
 	je	9f
 	cghi	%r2,__CLOCK_MONOTONIC_COARSE
 	je	3f
@@ -37,10 +36,10 @@ __kernel_clock_gettime:
 0:	lg	%r4,__VDSO_UPD_COUNT(%r5)	/* load update counter */
 	tmll	%r4,0x0001			/* pending update ? loop */
 	jnz	0b
-	stcke	48(%r15)			/* Store TOD clock */
+	stcke	0(%r15)				/* Store TOD clock */
 	lgf	%r2,__VDSO_TK_SHIFT(%r5)	/* Timekeeper shift */
 	lg	%r0,__VDSO_WTOM_SEC(%r5)
-	lg	%r1,49(%r15)
+	lg	%r1,1(%r15)
 	sg	%r1,__VDSO_XTIME_STAMP(%r5)	/* TOD - cycle_last */
 	msgf	%r1,__VDSO_TK_MULT(%r5)		/*  * tk->mult */
 	alg	%r1,__VDSO_WTOM_NSEC(%r5)
@@ -56,6 +55,7 @@ __kernel_clock_gettime:
 2:	stg	%r0,0(%r3)			/* store tp->tv_sec */
 	stg	%r1,8(%r3)			/* store tp->tv_nsec */
 	lghi	%r2,0
+	aghi	%r15,16
 	br	%r14
 
 	/* CLOCK_MONOTONIC_COARSE */
@@ -82,9 +82,9 @@ __kernel_clock_gettime:
 5:	lg	%r4,__VDSO_UPD_COUNT(%r5)	/* load update counter */
 	tmll	%r4,0x0001			/* pending update ? loop */
 	jnz	5b
-	stcke	48(%r15)			/* Store TOD clock */
+	stcke	0(%r15)				/* Store TOD clock */
 	lgf	%r2,__VDSO_TK_SHIFT(%r5)	/* Timekeeper shift */
-	lg	%r1,49(%r15)
+	lg	%r1,1(%r15)
 	sg	%r1,__VDSO_XTIME_STAMP(%r5)	/* TOD - cycle_last */
 	msgf	%r1,__VDSO_TK_MULT(%r5)		/*  * tk->mult */
 	alg	%r1,__VDSO_XTIME_NSEC(%r5)	/*  + tk->xtime_nsec */
@@ -101,9 +101,10 @@ __kernel_clock_gettime:
 7:	stg	%r0,0(%r3)			/* store tp->tv_sec */
 	stg	%r1,8(%r3)			/* store tp->tv_nsec */
 	lghi	%r2,0
+	aghi	%r15,16
 	br	%r14
 
-	/* CLOCK_THREAD_CPUTIME_ID for this thread */
+	/* CPUCLOCK_VIRT for this thread */
 9:	icm	%r0,15,__VDSO_ECTG_OK(%r5)
 	jz	12f
 	ear	%r2,%a4
@@ -134,11 +135,13 @@ __kernel_clock_gettime:
 	slgr	%r4,%r0				/* r4 = tv_nsec */
 	stg	%r4,8(%r3)
 	lghi	%r2,0
+	aghi	%r15,16
 	br	%r14
 
 	/* Fallback to system call */
 12:	lghi	%r1,__NR_clock_gettime
 	svc	0
+	aghi	%r15,16
 	br	%r14
 
 13:	.quad	1000000000

@@ -836,7 +836,6 @@ static struct platform_driver bf5xx_nand_driver = {
 	.remove		= bf5xx_nand_remove,
 	.driver		= {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 	},
 };
 

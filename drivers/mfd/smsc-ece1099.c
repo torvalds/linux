@@ -24,7 +24,7 @@
 #include <linux/mfd/smsc.h>
 #include <linux/of_platform.h>
 
-static struct regmap_config smsc_regmap_config = {
+static const struct regmap_config smsc_regmap_config = {
 		.reg_bits = 8,
 		.val_bits = 8,
 		.max_register = SMSC_VEN_ID_H,

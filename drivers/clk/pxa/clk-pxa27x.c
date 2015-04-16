@@ -111,7 +111,7 @@ PARENTS(pxa27x_membus) = { "lcd_base", "lcd_base" };
 	PXA_CKEN_1RATE(dev_id, con_id, bit, parents,			\
 		       &CKEN, CKEN_ ## bit, CLK_IGNORE_UNUSED)
 
-static struct pxa_clk_cken pxa27x_clocks[] = {
+static struct desc_clk_cken pxa27x_clocks[] __initdata = {
 	PXA27X_PBUS_CKEN("pxa2xx-uart.0", NULL, FFUART, 2, 42, 1),
 	PXA27X_PBUS_CKEN("pxa2xx-uart.1", NULL, BTUART, 2, 42, 1),
 	PXA27X_PBUS_CKEN("pxa2xx-uart.2", NULL, STUART, 2, 42, 1),
@@ -322,7 +322,7 @@ static unsigned long clk_pxa27x_memory_get_rate(struct clk_hw *hw,
 	unsigned long ccsr = CCSR;
 
 	osc_forced = ccsr & (1 << CCCR_CPDIS_BIT);
-	a = cccr & CCCR_A_BIT;
+	a = cccr & (1 << CCCR_A_BIT);
 	l  = ccsr & CCSR_L_MASK;
 
 	if (osc_forced || a)
@@ -341,7 +341,7 @@ static u8 clk_pxa27x_memory_get_parent(struct clk_hw *hw)
 	unsigned long ccsr = CCSR;
 
 	osc_forced = ccsr & (1 << CCCR_CPDIS_BIT);
-	a = cccr & CCCR_A_BIT;
+	a = cccr & (1 << CCCR_A_BIT);
 	if (osc_forced)
 		return PXA_MEM_13Mhz;
 	if (a)
@@ -368,3 +368,10 @@ static int __init pxa27x_clocks_init(void)
 	return clk_pxa_cken_init(pxa27x_clocks, ARRAY_SIZE(pxa27x_clocks));
 }
 postcore_initcall(pxa27x_clocks_init);
+
+static void __init pxa27x_dt_clocks_init(struct device_node *np)
+{
+	pxa27x_clocks_init();
+	clk_pxa_dt_common_init(np);
+}
+CLK_OF_DECLARE(pxa_clks, "marvell,pxa270-clocks", pxa27x_dt_clocks_init);

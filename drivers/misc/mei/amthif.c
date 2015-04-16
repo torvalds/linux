@@ -19,7 +19,6 @@
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/fcntl.h>
-#include <linux/aio.h>
 #include <linux/ioctl.h>
 #include <linux/cdev.h>
 #include <linux/list.h>
@@ -97,23 +96,25 @@ int mei_amthif_host_init(struct mei_device *dev)
 	/* allocate storage for ME message buffer */
 	msg_buf = kcalloc(dev->iamthif_mtu,
 			sizeof(unsigned char), GFP_KERNEL);
-	if (!msg_buf)
-		return -ENOMEM;
+	if (!msg_buf) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	dev->iamthif_msg_buf = msg_buf;
 
 	ret = mei_cl_link(cl, MEI_IAMTHIF_HOST_CLIENT_ID);
-
 	if (ret < 0) {
-		dev_err(dev->dev,
-			"amthif: failed link client %d\n", ret);
-		return ret;
+		dev_err(dev->dev, "amthif: failed cl_link %d\n", ret);
+		goto out;
 	}
 
 	ret = mei_cl_connect(cl, NULL);
 
 	dev->iamthif_state = MEI_IAMTHIF_IDLE;
 
+out:
+	mei_me_cl_put(me_cl);
 	return ret;
 }
 
@@ -262,6 +263,7 @@ out:
 static int mei_amthif_send_cmd(struct mei_device *dev, struct mei_cl_cb *cb)
 {
 	struct mei_msg_hdr mei_hdr;
+	struct mei_cl *cl;
 	int ret;
 
 	if (!dev || !cb)
@@ -277,8 +279,9 @@ static int mei_amthif_send_cmd(struct mei_device *dev, struct mei_cl_cb *cb)
 	dev->iamthif_msg_buf_size = cb->request_buffer.size;
 	memcpy(dev->iamthif_msg_buf, cb->request_buffer.data,
 	       cb->request_buffer.size);
+	cl = &dev->iamthif_cl;
 
-	ret = mei_cl_flow_ctrl_creds(&dev->iamthif_cl);
+	ret = mei_cl_flow_ctrl_creds(cl);
 	if (ret < 0)
 		return ret;
 
@@ -292,8 +295,8 @@ static int mei_amthif_send_cmd(struct mei_device *dev, struct mei_cl_cb *cb)
 			mei_hdr.msg_complete = 1;
 		}
 
-		mei_hdr.host_addr = dev->iamthif_cl.host_client_id;
-		mei_hdr.me_addr = dev->iamthif_cl.me_client_id;
+		mei_hdr.host_addr = cl->host_client_id;
+		mei_hdr.me_addr = cl->me_client_id;
 		mei_hdr.reserved = 0;
 		mei_hdr.internal = 0;
 		dev->iamthif_msg_buf_index += mei_hdr.length;
@@ -302,7 +305,7 @@ static int mei_amthif_send_cmd(struct mei_device *dev, struct mei_cl_cb *cb)
 			return ret;
 
 		if (mei_hdr.msg_complete) {
-			if (mei_cl_flow_ctrl_reduce(&dev->iamthif_cl))
+			if (mei_cl_flow_ctrl_reduce(cl))
 				return -EIO;
 			dev->iamthif_flow_control_pending = true;
 			dev->iamthif_state = MEI_IAMTHIF_FLOW_CONTROL;
@@ -360,8 +363,7 @@ int mei_amthif_write(struct mei_device *dev, struct mei_cl_cb *cb)
 void mei_amthif_run_next_cmd(struct mei_device *dev)
 {
 	struct mei_cl_cb *cb;
-	struct mei_cl_cb *next;
-	int status;
+	int ret;
 
 	if (!dev)
 		return;
@@ -376,16 +378,14 @@ void mei_amthif_run_next_cmd(struct mei_device *dev)
 
 	dev_dbg(dev->dev, "complete amthif cmd_list cb.\n");
 
-	list_for_each_entry_safe(cb, next, &dev->amthif_cmd_list.list, list) {
-		list_del(&cb->list);
-		if (!cb->cl)
-			continue;
-		status = mei_amthif_send_cmd(dev, cb);
-		if (status)
-			dev_warn(dev->dev, "amthif write failed status = %d\n",
-						status);
-		break;
-	}
+	cb = list_first_entry_or_null(&dev->amthif_cmd_list.list,
+					typeof(*cb), list);
+	if (!cb)
+		return;
+	list_del(&cb->list);
+	ret =  mei_amthif_send_cmd(dev, cb);
+	if (ret)
+		dev_warn(dev->dev, "amthif write failed status = %d\n", ret);
 }
 
 
@@ -535,9 +535,6 @@ int mei_amthif_irq_read_msg(struct mei_device *dev,
 
 	cb = dev->iamthif_current_cb;
 	dev->iamthif_current_cb = NULL;
-
-	if (!cb->cl)
-		return -ENODEV;
 
 	dev->iamthif_stall_timer = 0;
 	cb->buf_idx = dev->iamthif_msg_buf_index;

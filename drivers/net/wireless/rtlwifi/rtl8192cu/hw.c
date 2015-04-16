@@ -1000,6 +1000,7 @@ int rtl92cu_hw_init(struct ieee80211_hw *hw)
 	local_save_flags(flags);
 	local_irq_enable();
 
+	rtlhal->fw_ready = false;
 	rtlhal->hw_type = HARDWARE_TYPE_RTL8192CU;
 	err = _rtl92cu_init_mac(hw);
 	if (err) {
@@ -1013,6 +1014,8 @@ int rtl92cu_hw_init(struct ieee80211_hw *hw)
 		err = 1;
 		goto exit;
 	}
+
+	rtlhal->fw_ready = true;
 	rtlhal->last_hmeboxnum = 0; /* h2c */
 	_rtl92cu_phy_param_tab_init(hw);
 	rtl92cu_phy_mac_config(hw);
@@ -1361,7 +1364,7 @@ static int _rtl92cu_set_media_status(struct ieee80211_hw *hw,
 			 "Network type %d not supported!\n", type);
 		goto error_out;
 	}
-	rtl_write_byte(rtlpriv, (MSR), bt_msr);
+	rtl_write_byte(rtlpriv, MSR, bt_msr);
 	rtlpriv->cfg->ops->led_control(hw, ledaction);
 	if ((bt_msr & MSR_MASK) == MSR_AP)
 		rtl_write_byte(rtlpriv, REG_BCNTCFG + 1, 0x00);
@@ -1468,8 +1471,7 @@ static void _InitBeaconParameters(struct ieee80211_hw *hw)
 		rtl_write_word(rtlpriv, REG_BCNTCFG, 0x66FF);
 }
 
-static void _beacon_function_enable(struct ieee80211_hw *hw, bool Enable,
-				    bool Linked)
+static void _beacon_function_enable(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
@@ -1509,11 +1511,12 @@ void rtl92cu_set_beacon_related_registers(struct ieee80211_hw *hw)
 	/* TODO: Modify later (Find the right parameters)
 	 * NOTE: Fix test chip's bug (about contention windows's randomness) */
 	if ((mac->opmode == NL80211_IFTYPE_ADHOC) ||
+	    (mac->opmode == NL80211_IFTYPE_MESH_POINT) ||
 	    (mac->opmode == NL80211_IFTYPE_AP)) {
 		rtl_write_byte(rtlpriv, REG_RXTSF_OFFSET_CCK, 0x50);
 		rtl_write_byte(rtlpriv, REG_RXTSF_OFFSET_OFDM, 0x50);
 	}
-	_beacon_function_enable(hw, true, true);
+	_beacon_function_enable(hw);
 }
 
 void rtl92cu_set_beacon_interval(struct ieee80211_hw *hw)
@@ -1585,11 +1588,27 @@ void rtl92cu_get_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 	case HW_VAR_DATA_FILTER:
 		*((u16 *) (val)) = rtl_read_word(rtlpriv, REG_RXFLTMAP2);
 		break;
+	case HAL_DEF_WOWLAN:
+		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 			 "switch case not processed\n");
 		break;
 	}
+}
+
+static bool usb_cmd_send_packet(struct ieee80211_hw *hw, struct sk_buff *skb)
+{
+  /* Currently nothing happens here.
+   * Traffic stops after some seconds in WPA2 802.11n mode.
+   * Maybe because rtl8192cu chip should be set from here?
+   * If I understand correctly, the realtek vendor driver sends some urbs
+   * if its "here".
+   *
+   * This is maybe necessary:
+   * rtlpriv->cfg->ops->fill_tx_cmddesc(hw, buffer, 1, 1, skb);
+   */
+	return true;
 }
 
 void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
@@ -1853,7 +1872,7 @@ void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 					acm_ctrl &= (~AcmHw_ViqEn);
 					break;
 				case AC3_VO:
-					acm_ctrl &= (~AcmHw_BeqEn);
+					acm_ctrl &= (~AcmHw_VoqEn);
 					break;
 				default:
 					RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
@@ -1939,7 +1958,8 @@ void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 					recover = true;
 				rtl_write_byte(rtlpriv, REG_FWHW_TXQ_CTRL + 2,
 					       tmp_reg422 & (~BIT(6)));
-				rtl92c_set_fw_rsvdpagepkt(hw, 0);
+				rtl92c_set_fw_rsvdpagepkt(hw,
+							  &usb_cmd_send_packet);
 				_rtl92cu_set_bcn_ctrl_reg(hw, BIT(3), 0);
 				_rtl92cu_set_bcn_ctrl_reg(hw, 0, BIT(4));
 				if (recover)

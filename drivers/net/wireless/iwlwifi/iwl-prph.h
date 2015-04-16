@@ -99,6 +99,7 @@
 
 #define APMG_PCIDEV_STT_VAL_PERSIST_DIS	(0x00000200)
 #define APMG_PCIDEV_STT_VAL_L1_ACT_DIS	(0x00000800)
+#define APMG_PCIDEV_STT_VAL_WAKE_ME	(0x00004000)
 
 #define APMG_RTC_INT_STT_RFKILL		(0x10000000)
 
@@ -107,9 +108,10 @@
 
 /* Device NMI register */
 #define DEVICE_SET_NMI_REG 0x00a01c30
-#define DEVICE_SET_NMI_VAL 0x1
-#define DEVICE_SET_NMI_8000B_REG 0x00a01c24
-#define DEVICE_SET_NMI_8000B_VAL 0x1000000
+#define DEVICE_SET_NMI_VAL_HW BIT(0)
+#define DEVICE_SET_NMI_VAL_DRV BIT(7)
+#define DEVICE_SET_NMI_8000_REG 0x00a01c24
+#define DEVICE_SET_NMI_8000_VAL 0x1000000
 
 /* Shared registers (0x0..0x3ff, via target indirect or periphery */
 #define SHR_BASE	0x00a10000
@@ -250,6 +252,7 @@
 #define SCD_QUEUE_CTX_REG2_WIN_SIZE_MSK		(0x0000007F)
 #define SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS	(16)
 #define SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK	(0x007F0000)
+#define SCD_GP_CTRL_ENABLE_31_QUEUES		BIT(0)
 
 /* Context Data */
 #define SCD_CONTEXT_MEM_LOWER_BOUND	(SCD_MEM_LOWER_BOUND + 0x600)
@@ -283,31 +286,8 @@
 #define SCD_CHAINEXT_EN		(SCD_BASE + 0x244)
 #define SCD_AGGR_SEL		(SCD_BASE + 0x248)
 #define SCD_INTERRUPT_MASK	(SCD_BASE + 0x108)
+#define SCD_GP_CTRL		(SCD_BASE + 0x1a8)
 #define SCD_EN_CTRL		(SCD_BASE + 0x254)
-
-static inline unsigned int SCD_QUEUE_WRPTR(unsigned int chnl)
-{
-	if (chnl < 20)
-		return SCD_BASE + 0x18 + chnl * 4;
-	WARN_ON_ONCE(chnl >= 32);
-	return SCD_BASE + 0x284 + (chnl - 20) * 4;
-}
-
-static inline unsigned int SCD_QUEUE_RDPTR(unsigned int chnl)
-{
-	if (chnl < 20)
-		return SCD_BASE + 0x68 + chnl * 4;
-	WARN_ON_ONCE(chnl >= 32);
-	return SCD_BASE + 0x2B4 + (chnl - 20) * 4;
-}
-
-static inline unsigned int SCD_QUEUE_STATUS_BITS(unsigned int chnl)
-{
-	if (chnl < 20)
-		return SCD_BASE + 0x10c + chnl * 4;
-	WARN_ON_ONCE(chnl >= 32);
-	return SCD_BASE + 0x384 + (chnl - 20) * 4;
-}
 
 /*********************** END TX SCHEDULER *************************************/
 
@@ -315,24 +295,7 @@ static inline unsigned int SCD_QUEUE_STATUS_BITS(unsigned int chnl)
 #define OSC_CLK				(0xa04068)
 #define OSC_CLK_FORCE_CONTROL		(0x8)
 
-/* SECURE boot registers */
-#define LMPM_SECURE_BOOT_CONFIG_ADDR	(0x100)
-enum secure_boot_config_reg {
-	LMPM_SECURE_BOOT_CONFIG_INSPECTOR_BURNED_IN_OTP	= 0x00000001,
-	LMPM_SECURE_BOOT_CONFIG_INSPECTOR_NOT_REQ	= 0x00000002,
-};
-
-#define LMPM_SECURE_BOOT_CPU1_STATUS_ADDR	(0x1E30)
-#define LMPM_SECURE_BOOT_CPU2_STATUS_ADDR	(0x1E34)
-enum secure_boot_status_reg {
-	LMPM_SECURE_BOOT_CPU_STATUS_VERF_STATUS		= 0x00000001,
-	LMPM_SECURE_BOOT_CPU_STATUS_VERF_COMPLETED	= 0x00000002,
-	LMPM_SECURE_BOOT_CPU_STATUS_VERF_SUCCESS	= 0x00000004,
-	LMPM_SECURE_BOOT_CPU_STATUS_VERF_FAIL		= 0x00000008,
-	LMPM_SECURE_BOOT_CPU_STATUS_SIGN_VERF_FAIL	= 0x00000010,
-	LMPM_SECURE_BOOT_STATUS_SUCCESS			= 0x00000003,
-};
-
+#define FH_UCODE_LOAD_STATUS		(0x1AF0)
 #define CSR_UCODE_LOAD_STATUS_ADDR	(0x1E70)
 enum secure_load_status_reg {
 	LMPM_CPU_UCODE_LOADING_STARTED			= 0x00000001,
@@ -352,20 +315,72 @@ enum secure_load_status_reg {
 #define LMPM_SECURE_CPU1_HDR_MEM_SPACE		(0x420000)
 #define LMPM_SECURE_CPU2_HDR_MEM_SPACE		(0x420400)
 
-#define LMPM_SECURE_TIME_OUT	(100)
-
 /* Rx FIFO */
 #define RXF_SIZE_ADDR			(0xa00c88)
+#define RXF_RD_D_SPACE			(0xa00c40)
+#define RXF_RD_WR_PTR			(0xa00c50)
+#define RXF_RD_RD_PTR			(0xa00c54)
+#define RXF_RD_FENCE_PTR		(0xa00c4c)
+#define RXF_SET_FENCE_MODE		(0xa00c14)
+#define RXF_LD_WR2FENCE		(0xa00c1c)
+#define RXF_FIFO_RD_FENCE_INC		(0xa00c68)
 #define RXF_SIZE_BYTE_CND_POS		(7)
 #define RXF_SIZE_BYTE_CNT_MSK		(0x3ff << RXF_SIZE_BYTE_CND_POS)
+#define RXF_DIFF_FROM_PREV		(0x200)
 
 #define RXF_LD_FENCE_OFFSET_ADDR	(0xa00c10)
 #define RXF_FIFO_RD_FENCE_ADDR		(0xa00c0c)
 
+/* Tx FIFO */
+#define TXF_FIFO_ITEM_CNT		(0xa00438)
+#define TXF_WR_PTR			(0xa00414)
+#define TXF_RD_PTR			(0xa00410)
+#define TXF_FENCE_PTR			(0xa00418)
+#define TXF_LOCK_FENCE			(0xa00424)
+#define TXF_LARC_NUM			(0xa0043c)
+#define TXF_READ_MODIFY_DATA		(0xa00448)
+#define TXF_READ_MODIFY_ADDR		(0xa0044c)
+
 /* FW monitor */
+#define MON_BUFF_SAMPLE_CTL		(0xa03c00)
 #define MON_BUFF_BASE_ADDR		(0xa03c3c)
 #define MON_BUFF_END_ADDR		(0xa03c40)
 #define MON_BUFF_WRPTR			(0xa03c44)
 #define MON_BUFF_CYCLE_CNT		(0xa03c48)
+
+#define DBGC_IN_SAMPLE			(0xa03c00)
+
+/* enable the ID buf for read */
+#define WFPM_PS_CTL_CLR			0xA0300C
+#define WFMP_MAC_ADDR_0			0xA03080
+#define WFMP_MAC_ADDR_1			0xA03084
+#define LMPM_PMG_EN			0xA01CEC
+#define RADIO_REG_SYS_MANUAL_DFT_0	0xAD4078
+#define RFIC_REG_RD			0xAD0470
+#define WFPM_CTRL_REG			0xA03030
+enum {
+	ENABLE_WFPM = BIT(31),
+	WFPM_AUX_CTL_AUX_IF_MAC_OWNER_MSK	= 0x80000000,
+};
+
+#define AUX_MISC_REG			0xA200B0
+enum {
+	HW_STEP_LOCATION_BITS = 24,
+};
+
+#define AUX_MISC_MASTER1_EN		0xA20818
+enum aux_misc_master1_en {
+	AUX_MISC_MASTER1_EN_SBE_MSK	= 0x1,
+};
+
+#define AUX_MISC_MASTER1_SMPHR_STATUS	0xA20800
+#define RSA_ENABLE			0xA24B08
+#define PREG_AUX_BUS_WPROT_0		0xA04CC0
+
+/* FW chicken bits */
+#define LMPM_CHICK			0xA01FF8
+enum {
+	LMPM_CHICK_EXTENDED_ADDR_SPACE = BIT(0),
+};
 
 #endif				/* __iwl_prph_h__ */

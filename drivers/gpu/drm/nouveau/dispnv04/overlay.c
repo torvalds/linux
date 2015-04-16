@@ -126,7 +126,7 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 			return -ERANGE;
 	}
 
-	ret = nouveau_bo_pin(nv_fb->nvbo, TTM_PL_FLAG_VRAM);
+	ret = nouveau_bo_pin(nv_fb->nvbo, TTM_PL_FLAG_VRAM, false);
 	if (ret)
 		return ret;
 
@@ -373,7 +373,7 @@ nv04_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	if (crtc_w < src_w || crtc_h < src_h)
 		return -ERANGE;
 
-	ret = nouveau_bo_pin(nv_fb->nvbo, TTM_PL_FLAG_VRAM);
+	ret = nouveau_bo_pin(nv_fb->nvbo, TTM_PL_FLAG_VRAM, false);
 	if (ret)
 		return ret;
 

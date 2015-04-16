@@ -4336,7 +4336,7 @@ static void bnx2x_q_fill_init_general_data(struct bnx2x *bp,
 		test_bit(BNX2X_Q_FLG_FCOE, flags) ?
 		LLFC_TRAFFIC_TYPE_FCOE : LLFC_TRAFFIC_TYPE_NW;
 
-	gen_data->fp_hsi_ver = ETH_FP_HSI_VERSION;
+	gen_data->fp_hsi_ver = params->fp_hsi;
 
 	DP(BNX2X_MSG_SP, "flags: active %d, cos %d, stats en %d\n",
 	   gen_data->activate_flg, gen_data->cos, gen_data->statistics_en_flg);

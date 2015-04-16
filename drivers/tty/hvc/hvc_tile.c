@@ -178,7 +178,6 @@ static struct platform_driver hvc_tile_driver = {
 	.shutdown	= hvc_tile_shutdown,
 	.driver         = {
 		.name   = "hvc-tile",
-		.owner  = THIS_MODULE,
 	}
 };
 #endif

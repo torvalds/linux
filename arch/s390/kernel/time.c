@@ -61,10 +61,11 @@ static DEFINE_PER_CPU(struct clock_event_device, comparators);
 /*
  * Scheduler clock - returns current time in nanosec units.
  */
-unsigned long long notrace __kprobes sched_clock(void)
+unsigned long long notrace sched_clock(void)
 {
 	return tod_to_ns(get_tod_clock_monotonic());
 }
+NOKPROBE_SYMBOL(sched_clock);
 
 /*
  * Monotonic_clock - returns # of nanoseconds passed since time_init()
@@ -214,20 +215,20 @@ void update_vsyscall(struct timekeeper *tk)
 {
 	u64 nsecps;
 
-	if (tk->tkr.clock != &clocksource_tod)
+	if (tk->tkr_mono.clock != &clocksource_tod)
 		return;
 
 	/* Make userspace gettimeofday spin until we're done. */
 	++vdso_data->tb_update_count;
 	smp_wmb();
-	vdso_data->xtime_tod_stamp = tk->tkr.cycle_last;
+	vdso_data->xtime_tod_stamp = tk->tkr_mono.cycle_last;
 	vdso_data->xtime_clock_sec = tk->xtime_sec;
-	vdso_data->xtime_clock_nsec = tk->tkr.xtime_nsec;
+	vdso_data->xtime_clock_nsec = tk->tkr_mono.xtime_nsec;
 	vdso_data->wtom_clock_sec =
 		tk->xtime_sec + tk->wall_to_monotonic.tv_sec;
-	vdso_data->wtom_clock_nsec = tk->tkr.xtime_nsec +
-		+ ((u64) tk->wall_to_monotonic.tv_nsec << tk->tkr.shift);
-	nsecps = (u64) NSEC_PER_SEC << tk->tkr.shift;
+	vdso_data->wtom_clock_nsec = tk->tkr_mono.xtime_nsec +
+		+ ((u64) tk->wall_to_monotonic.tv_nsec << tk->tkr_mono.shift);
+	nsecps = (u64) NSEC_PER_SEC << tk->tkr_mono.shift;
 	while (vdso_data->wtom_clock_nsec >= nsecps) {
 		vdso_data->wtom_clock_nsec -= nsecps;
 		vdso_data->wtom_clock_sec++;
@@ -235,7 +236,7 @@ void update_vsyscall(struct timekeeper *tk)
 
 	vdso_data->xtime_coarse_sec = tk->xtime_sec;
 	vdso_data->xtime_coarse_nsec =
-		(long)(tk->tkr.xtime_nsec >> tk->tkr.shift);
+		(long)(tk->tkr_mono.xtime_nsec >> tk->tkr_mono.shift);
 	vdso_data->wtom_coarse_sec =
 		vdso_data->xtime_coarse_sec + tk->wall_to_monotonic.tv_sec;
 	vdso_data->wtom_coarse_nsec =
@@ -245,8 +246,8 @@ void update_vsyscall(struct timekeeper *tk)
 		vdso_data->wtom_coarse_sec++;
 	}
 
-	vdso_data->tk_mult = tk->tkr.mult;
-	vdso_data->tk_shift = tk->tkr.shift;
+	vdso_data->tk_mult = tk->tkr_mono.mult;
+	vdso_data->tk_shift = tk->tkr_mono.shift;
 	smp_wmb();
 	++vdso_data->tb_update_count;
 }
@@ -282,7 +283,7 @@ void __init time_init(void)
 	if (register_external_irq(EXT_IRQ_TIMING_ALERT, timing_alert_interrupt))
 		panic("Couldn't request external interrupt 0x1406");
 
-	if (clocksource_register(&clocksource_tod) != 0)
+	if (__clocksource_register(&clocksource_tod) != 0)
 		panic("Could not register TOD clock source");
 
 	/* Enable TOD clock interrupts on the boot cpu. */

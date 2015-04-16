@@ -33,6 +33,7 @@
 
 struct fw_head {
 	u32			mask;
+	bool			mask_set;
 	struct fw_filter __rcu	*ht[HTSIZE];
 	struct rcu_head		rcu;
 };
@@ -111,12 +112,16 @@ static unsigned long fw_get(struct tcf_proto *tp, u32 handle)
 	return 0;
 }
 
-static void fw_put(struct tcf_proto *tp, unsigned long f)
-{
-}
-
 static int fw_init(struct tcf_proto *tp)
 {
+	struct fw_head *head;
+
+	head = kzalloc(sizeof(struct fw_head), GFP_KERNEL);
+	if (head == NULL)
+		return -ENOBUFS;
+
+	head->mask_set = false;
+	rcu_assign_pointer(tp->root, head);
 	return 0;
 }
 
@@ -128,14 +133,20 @@ static void fw_delete_filter(struct rcu_head *head)
 	kfree(f);
 }
 
-static void fw_destroy(struct tcf_proto *tp)
+static bool fw_destroy(struct tcf_proto *tp, bool force)
 {
 	struct fw_head *head = rtnl_dereference(tp->root);
 	struct fw_filter *f;
 	int h;
 
 	if (head == NULL)
-		return;
+		return true;
+
+	if (!force) {
+		for (h = 0; h < HTSIZE; h++)
+			if (rcu_access_pointer(head->ht[h]))
+				return false;
+	}
 
 	for (h = 0; h < HTSIZE; h++) {
 		while ((f = rtnl_dereference(head->ht[h])) != NULL) {
@@ -147,6 +158,7 @@ static void fw_destroy(struct tcf_proto *tp)
 	}
 	RCU_INIT_POINTER(tp->root, NULL);
 	kfree_rcu(head, rcu);
+	return true;
 }
 
 static int fw_delete(struct tcf_proto *tp, unsigned long arg)
@@ -290,17 +302,11 @@ static int fw_change(struct net *net, struct sk_buff *in_skb,
 	if (!handle)
 		return -EINVAL;
 
-	if (head == NULL) {
-		u32 mask = 0xFFFFFFFF;
+	if (!head->mask_set) {
+		head->mask = 0xFFFFFFFF;
 		if (tb[TCA_FW_MASK])
-			mask = nla_get_u32(tb[TCA_FW_MASK]);
-
-		head = kzalloc(sizeof(struct fw_head), GFP_KERNEL);
-		if (head == NULL)
-			return -ENOBUFS;
-		head->mask = mask;
-
-		rcu_assign_pointer(tp->root, head);
+			head->mask = nla_get_u32(tb[TCA_FW_MASK]);
+		head->mask_set = true;
 	}
 
 	f = kzalloc(sizeof(struct fw_filter), GFP_KERNEL);
@@ -360,7 +366,6 @@ static int fw_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 {
 	struct fw_head *head = rtnl_dereference(tp->root);
 	struct fw_filter *f = (struct fw_filter *)fh;
-	unsigned char *b = skb_tail_pointer(skb);
 	struct nlattr *nest;
 
 	if (f == NULL)
@@ -401,7 +406,7 @@ static int fw_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 	return skb->len;
 
 nla_put_failure:
-	nlmsg_trim(skb, b);
+	nla_nest_cancel(skb, nest);
 	return -1;
 }
 
@@ -411,7 +416,6 @@ static struct tcf_proto_ops cls_fw_ops __read_mostly = {
 	.init		=	fw_init,
 	.destroy	=	fw_destroy,
 	.get		=	fw_get,
-	.put		=	fw_put,
 	.change		=	fw_change,
 	.delete		=	fw_delete,
 	.walk		=	fw_walk,

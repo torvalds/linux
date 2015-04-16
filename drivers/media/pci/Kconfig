@@ -46,6 +46,7 @@ source "drivers/media/pci/pt3/Kconfig"
 source "drivers/media/pci/mantis/Kconfig"
 source "drivers/media/pci/ngene/Kconfig"
 source "drivers/media/pci/ddbridge/Kconfig"
+source "drivers/media/pci/smipcie/Kconfig"
 endif
 
 endif #MEDIA_PCI_SUPPORT

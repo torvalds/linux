@@ -21,11 +21,31 @@ const struct nla_policy nft_masq_policy[NFTA_MASQ_MAX + 1] = {
 };
 EXPORT_SYMBOL_GPL(nft_masq_policy);
 
+int nft_masq_validate(const struct nft_ctx *ctx,
+		      const struct nft_expr *expr,
+		      const struct nft_data **data)
+{
+	int err;
+
+	err = nft_chain_validate_dependency(ctx->chain, NFT_CHAIN_T_NAT);
+	if (err < 0)
+		return err;
+
+	return nft_chain_validate_hooks(ctx->chain,
+				        (1 << NF_INET_POST_ROUTING));
+}
+EXPORT_SYMBOL_GPL(nft_masq_validate);
+
 int nft_masq_init(const struct nft_ctx *ctx,
 		  const struct nft_expr *expr,
 		  const struct nlattr * const tb[])
 {
 	struct nft_masq *priv = nft_expr_priv(expr);
+	int err;
+
+	err = nft_masq_validate(ctx, expr, NULL);
+	if (err)
+		return err;
 
 	if (tb[NFTA_MASQ_FLAGS] == NULL)
 		return 0;

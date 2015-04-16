@@ -342,7 +342,7 @@ int main(int argc, char *argv[])
 				iobuf[i].requested = ret;
 				printf("submit: %d requests buf: %d\n", ret, i);
 			} else
-				perror("unable to submit reqests");
+				perror("unable to submit requests");
 		}
 
 		/* if event is ready to read */

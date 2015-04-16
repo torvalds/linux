@@ -30,18 +30,91 @@
 #include "i915_trace.h"
 #include "intel_drv.h"
 
+/**
+ * DOC: Global GTT views
+ *
+ * Background and previous state
+ *
+ * Historically objects could exists (be bound) in global GTT space only as
+ * singular instances with a view representing all of the object's backing pages
+ * in a linear fashion. This view will be called a normal view.
+ *
+ * To support multiple views of the same object, where the number of mapped
+ * pages is not equal to the backing store, or where the layout of the pages
+ * is not linear, concept of a GGTT view was added.
+ *
+ * One example of an alternative view is a stereo display driven by a single
+ * image. In this case we would have a framebuffer looking like this
+ * (2x2 pages):
+ *
+ *    12
+ *    34
+ *
+ * Above would represent a normal GGTT view as normally mapped for GPU or CPU
+ * rendering. In contrast, fed to the display engine would be an alternative
+ * view which could look something like this:
+ *
+ *   1212
+ *   3434
+ *
+ * In this example both the size and layout of pages in the alternative view is
+ * different from the normal view.
+ *
+ * Implementation and usage
+ *
+ * GGTT views are implemented using VMAs and are distinguished via enum
+ * i915_ggtt_view_type and struct i915_ggtt_view.
+ *
+ * A new flavour of core GEM functions which work with GGTT bound objects were
+ * added with the _view suffix. They take the struct i915_ggtt_view parameter
+ * encapsulating all metadata required to implement a view.
+ *
+ * As a helper for callers which are only interested in the normal view,
+ * globally const i915_ggtt_view_normal singleton instance exists. All old core
+ * GEM API functions, the ones not taking the view parameter, are operating on,
+ * or with the normal GGTT view.
+ *
+ * Code wanting to add or use a new GGTT view needs to:
+ *
+ * 1. Add a new enum with a suitable name.
+ * 2. Extend the metadata in the i915_ggtt_view structure if required.
+ * 3. Add support to i915_get_vma_pages().
+ *
+ * New views are required to build a scatter-gather table from within the
+ * i915_get_vma_pages function. This table is stored in the vma.ggtt_view and
+ * exists for the lifetime of an VMA.
+ *
+ * Core API is designed to have copy semantics which means that passed in
+ * struct i915_ggtt_view does not need to be persistent (left around after
+ * calling the core API functions).
+ *
+ */
+
+const struct i915_ggtt_view i915_ggtt_view_normal;
+
 static void bdw_setup_private_ppat(struct drm_i915_private *dev_priv);
 static void chv_setup_private_ppat(struct drm_i915_private *dev_priv);
 
 static int sanitize_enable_ppgtt(struct drm_device *dev, int enable_ppgtt)
 {
-	if (enable_ppgtt == 0 || !HAS_ALIASING_PPGTT(dev))
+	bool has_aliasing_ppgtt;
+	bool has_full_ppgtt;
+
+	has_aliasing_ppgtt = INTEL_INFO(dev)->gen >= 6;
+	has_full_ppgtt = INTEL_INFO(dev)->gen >= 7;
+
+	/*
+	 * We don't allow disabling PPGTT for gen9+ as it's a requirement for
+	 * execlists, the sole mechanism available to submit work.
+	 */
+	if (INTEL_INFO(dev)->gen < 9 &&
+	    (enable_ppgtt == 0 || !has_aliasing_ppgtt))
 		return 0;
 
 	if (enable_ppgtt == 1)
 		return 1;
 
-	if (enable_ppgtt == 2 && HAS_PPGTT(dev))
+	if (enable_ppgtt == 2 && has_full_ppgtt)
 		return 2;
 
 #ifdef CONFIG_INTEL_IOMMU
@@ -59,7 +132,10 @@ static int sanitize_enable_ppgtt(struct drm_device *dev, int enable_ppgtt)
 		return 0;
 	}
 
-	return HAS_ALIASING_PPGTT(dev) ? 1 : 0;
+	if (INTEL_INFO(dev)->gen >= 8 && i915.enable_execlists)
+		return 2;
+	else
+		return has_aliasing_ppgtt ? 1 : 0;
 }
 
 
@@ -119,7 +195,7 @@ static gen6_gtt_pte_t snb_pte_encode(dma_addr_t addr,
 		pte |= GEN6_PTE_UNCACHED;
 		break;
 	default:
-		WARN_ON(1);
+		MISSING_CASE(level);
 	}
 
 	return pte;
@@ -143,7 +219,7 @@ static gen6_gtt_pte_t ivb_pte_encode(dma_addr_t addr,
 		pte |= GEN6_PTE_UNCACHED;
 		break;
 	default:
-		WARN_ON(1);
+		MISSING_CASE(level);
 	}
 
 	return pte;
@@ -156,9 +232,6 @@ static gen6_gtt_pte_t byt_pte_encode(dma_addr_t addr,
 	gen6_gtt_pte_t pte = valid ? GEN6_PTE_VALID : 0;
 	pte |= GEN6_PTE_ADDR_ENCODE(addr);
 
-	/* Mark the page as writeable.  Other platforms don't have a
-	 * setting for read-only/writable, so this matches that behavior.
-	 */
 	if (!(flags & PTE_READ_ONLY))
 		pte |= BYT_PTE_WRITEABLE;
 
@@ -1072,7 +1145,7 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 
 	ppgtt->base.clear_range(&ppgtt->base, 0, ppgtt->base.total, true);
 
-	DRM_DEBUG_DRIVER("Allocated pde space (%ldM) at GTT entry: %lx\n",
+	DRM_DEBUG_DRIVER("Allocated pde space (%lldM) at GTT entry: %llx\n",
 			 ppgtt->node.size >> 20,
 			 ppgtt->node.start / PAGE_SIZE);
 
@@ -1092,10 +1165,8 @@ static int __hw_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
 
 	if (INTEL_INFO(dev)->gen < 8)
 		return gen6_ppgtt_init(ppgtt);
-	else if (IS_GEN8(dev))
-		return gen8_ppgtt_init(ppgtt, dev_priv->gtt.base.total);
 	else
-		BUG();
+		return gen8_ppgtt_init(ppgtt, dev_priv->gtt.base.total);
 }
 int i915_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
 {
@@ -1136,7 +1207,7 @@ int i915_ppgtt_init_hw(struct drm_device *dev)
 	else if (INTEL_INFO(dev)->gen >= 8)
 		gen8_ppgtt_enable(dev);
 	else
-		WARN_ON(1);
+		MISSING_CASE(INTEL_INFO(dev)->gen);
 
 	if (ppgtt) {
 		for_each_ring(ring, dev_priv, i) {
@@ -1166,6 +1237,8 @@ i915_ppgtt_create(struct drm_device *dev, struct drm_i915_file_private *fpriv)
 
 	ppgtt->file_priv = fpriv;
 
+	trace_i915_ppgtt_create(&ppgtt->base);
+
 	return ppgtt;
 }
 
@@ -1173,6 +1246,8 @@ void  i915_ppgtt_release(struct kref *kref)
 {
 	struct i915_hw_ppgtt *ppgtt =
 		container_of(kref, struct i915_hw_ppgtt, ref);
+
+	trace_i915_ppgtt_release(&ppgtt->base);
 
 	/* vmas should already be unbound */
 	WARN_ON(!list_empty(&ppgtt->base.active_list));
@@ -1258,7 +1333,7 @@ void i915_check_and_clear_faults(struct drm_device *dev)
 		fault_reg = I915_READ(RING_FAULT_REG(ring));
 		if (fault_reg & RING_FAULT_VALID) {
 			DRM_DEBUG_DRIVER("Unexpected fault\n"
-					 "\tAddr: 0x%08lx\\n"
+					 "\tAddr: 0x%08lx\n"
 					 "\tAddress space: %s\n"
 					 "\tSource ID: %d\n"
 					 "\tType: %d\n",
@@ -1327,9 +1402,12 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 		/* The bind_vma code tries to be smart about tracking mappings.
 		 * Unfortunately above, we've just wiped out the mappings
 		 * without telling our object about it. So we need to fake it.
+		 *
+		 * Bind is not expected to fail since this is only called on
+		 * resume and assumption is all requirements exist already.
 		 */
-		obj->has_global_gtt_mapping = 0;
-		vma->bind_vma(vma, obj->cache_level, GLOBAL_BIND);
+		vma->bound &= ~GLOBAL_BIND;
+		WARN_ON(i915_vma_bind(vma, obj->cache_level, GLOBAL_BIND));
 	}
 
 
@@ -1524,8 +1602,8 @@ static void i915_ggtt_bind_vma(struct i915_vma *vma,
 		AGP_USER_MEMORY : AGP_USER_CACHED_MEMORY;
 
 	BUG_ON(!i915_is_ggtt(vma->vm));
-	intel_gtt_insert_sg_entries(vma->obj->pages, entry, flags);
-	vma->obj->has_global_gtt_mapping = 1;
+	intel_gtt_insert_sg_entries(vma->ggtt_view.pages, entry, flags);
+	vma->bound = GLOBAL_BIND;
 }
 
 static void i915_ggtt_clear_range(struct i915_address_space *vm,
@@ -1544,7 +1622,7 @@ static void i915_ggtt_unbind_vma(struct i915_vma *vma)
 	const unsigned int size = vma->obj->base.size >> PAGE_SHIFT;
 
 	BUG_ON(!i915_is_ggtt(vma->vm));
-	vma->obj->has_global_gtt_mapping = 0;
+	vma->bound = 0;
 	intel_gtt_clear_range(first, size);
 }
 
@@ -1572,24 +1650,24 @@ static void ggtt_bind_vma(struct i915_vma *vma,
 	 * flags. At all other times, the GPU will use the aliasing PPGTT.
 	 */
 	if (!dev_priv->mm.aliasing_ppgtt || flags & GLOBAL_BIND) {
-		if (!obj->has_global_gtt_mapping ||
+		if (!(vma->bound & GLOBAL_BIND) ||
 		    (cache_level != obj->cache_level)) {
-			vma->vm->insert_entries(vma->vm, obj->pages,
+			vma->vm->insert_entries(vma->vm, vma->ggtt_view.pages,
 						vma->node.start,
 						cache_level, flags);
-			obj->has_global_gtt_mapping = 1;
+			vma->bound |= GLOBAL_BIND;
 		}
 	}
 
 	if (dev_priv->mm.aliasing_ppgtt &&
-	    (!obj->has_aliasing_ppgtt_mapping ||
+	    (!(vma->bound & LOCAL_BIND) ||
 	     (cache_level != obj->cache_level))) {
 		struct i915_hw_ppgtt *appgtt = dev_priv->mm.aliasing_ppgtt;
 		appgtt->base.insert_entries(&appgtt->base,
-					    vma->obj->pages,
+					    vma->ggtt_view.pages,
 					    vma->node.start,
 					    cache_level, flags);
-		vma->obj->has_aliasing_ppgtt_mapping = 1;
+		vma->bound |= LOCAL_BIND;
 	}
 }
 
@@ -1599,21 +1677,21 @@ static void ggtt_unbind_vma(struct i915_vma *vma)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj = vma->obj;
 
-	if (obj->has_global_gtt_mapping) {
+	if (vma->bound & GLOBAL_BIND) {
 		vma->vm->clear_range(vma->vm,
 				     vma->node.start,
 				     obj->base.size,
 				     true);
-		obj->has_global_gtt_mapping = 0;
+		vma->bound &= ~GLOBAL_BIND;
 	}
 
-	if (obj->has_aliasing_ppgtt_mapping) {
+	if (vma->bound & LOCAL_BIND) {
 		struct i915_hw_ppgtt *appgtt = dev_priv->mm.aliasing_ppgtt;
 		appgtt->base.clear_range(&appgtt->base,
 					 vma->node.start,
 					 obj->base.size,
 					 true);
-		obj->has_aliasing_ppgtt_mapping = 0;
+		vma->bound &= ~LOCAL_BIND;
 	}
 }
 
@@ -1635,8 +1713,8 @@ void i915_gem_gtt_finish_object(struct drm_i915_gem_object *obj)
 
 static void i915_gtt_color_adjust(struct drm_mm_node *node,
 				  unsigned long color,
-				  unsigned long *start,
-				  unsigned long *end)
+				  u64 *start,
+				  u64 *end)
 {
 	if (node->color != color)
 		*start += 4096;
@@ -1650,10 +1728,10 @@ static void i915_gtt_color_adjust(struct drm_mm_node *node,
 	}
 }
 
-int i915_gem_setup_global_gtt(struct drm_device *dev,
-			      unsigned long start,
-			      unsigned long mappable_end,
-			      unsigned long end)
+static int i915_gem_setup_global_gtt(struct drm_device *dev,
+				     unsigned long start,
+				     unsigned long mappable_end,
+				     unsigned long end)
 {
 	/* Let GEM Manage all of the aperture.
 	 *
@@ -1691,7 +1769,7 @@ int i915_gem_setup_global_gtt(struct drm_device *dev,
 			DRM_DEBUG_KMS("Reservation failed: %i\n", ret);
 			return ret;
 		}
-		obj->has_global_gtt_mapping = 1;
+		vma->bound |= GLOBAL_BIND;
 	}
 
 	dev_priv->gtt.base.start = start;
@@ -1764,7 +1842,6 @@ static int setup_scratch_page(struct drm_device *dev)
 	page = alloc_page(GFP_KERNEL | GFP_DMA32 | __GFP_ZERO);
 	if (page == NULL)
 		return -ENOMEM;
-	get_page(page);
 	set_pages_uc(page, 1);
 
 #ifdef CONFIG_INTEL_IOMMU
@@ -1789,7 +1866,6 @@ static void teardown_scratch_page(struct drm_device *dev)
 	set_pages_wb(page, 1);
 	pci_unmap_page(dev->pdev, dev_priv->gtt.base.scratch.addr,
 		       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
-	put_page(page);
 	__free_page(page);
 }
 
@@ -1859,6 +1935,18 @@ static size_t chv_get_stolen_size(u16 gmch_ctrl)
 		return (gmch_ctrl - 0x17 + 9) << 22;
 }
 
+static size_t gen9_get_stolen_size(u16 gen9_gmch_ctl)
+{
+	gen9_gmch_ctl >>= BDW_GMCH_GMS_SHIFT;
+	gen9_gmch_ctl &= BDW_GMCH_GMS_MASK;
+
+	if (gen9_gmch_ctl < 0xf0)
+		return gen9_gmch_ctl << 25; /* 32 MB units */
+	else
+		/* 4MB increments starting at 0xf0 for 4MB */
+		return (gen9_gmch_ctl - 0xf0 + 1) << 22;
+}
+
 static int ggtt_probe_common(struct drm_device *dev,
 			     size_t gtt_size)
 {
@@ -1902,6 +1990,22 @@ static void bdw_setup_private_ppat(struct drm_i915_private *dev_priv)
 	      GEN8_PPAT(6, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(2)) |
 	      GEN8_PPAT(7, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(3));
 
+	if (!USES_PPGTT(dev_priv->dev))
+		/* Spec: "For GGTT, there is NO pat_sel[2:0] from the entry,
+		 * so RTL will always use the value corresponding to
+		 * pat_sel = 000".
+		 * So let's disable cache for GGTT to avoid screen corruptions.
+		 * MOCS still can be used though.
+		 * - System agent ggtt writes (i.e. cpu gtt mmaps) already work
+		 * before this patch, i.e. the same uncached + snooping access
+		 * like on gen6/7 seems to be in effect.
+		 * - So this just fixes blitter/render access. Again it looks
+		 * like it's not just uncached access, but uncached + snooping.
+		 * So we can still hold onto all our assumptions wrt cpu
+		 * clflushing on LLC machines.
+		 */
+		pat = GEN8_PPAT(0, GEN8_PPAT_UC);
+
 	/* XXX: spec defines this as 2 distinct registers. It's unclear if a 64b
 	 * write would work. */
 	I915_WRITE(GEN8_PRIVATE_PAT, pat);
@@ -1918,9 +2022,17 @@ static void chv_setup_private_ppat(struct drm_i915_private *dev_priv)
 	 * Only the snoop bit has meaning for CHV, the rest is
 	 * ignored.
 	 *
-	 * Note that the harware enforces snooping for all page
-	 * table accesses. The snoop bit is actually ignored for
-	 * PDEs.
+	 * The hardware will never snoop for certain types of accesses:
+	 * - CPU GTT (GMADR->GGTT->no snoop->memory)
+	 * - PPGTT page tables
+	 * - some other special cycles
+	 *
+	 * As with BDW, we also need to consider the following for GT accesses:
+	 * "For GGTT, there is NO pat_sel[2:0] from the entry,
+	 * so RTL will always use the value corresponding to
+	 * pat_sel = 000".
+	 * Which means we must set the snoop bit in PAT entry 0
+	 * in order to keep the global status page working.
 	 */
 	pat = GEN8_PPAT(0, CHV_PPAT_SNOOP) |
 	      GEN8_PPAT(1, 0) |
@@ -1955,7 +2067,10 @@ static int gen8_gmch_probe(struct drm_device *dev,
 
 	pci_read_config_word(dev->pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
 
-	if (IS_CHERRYVIEW(dev)) {
+	if (INTEL_INFO(dev)->gen >= 9) {
+		*stolen = gen9_get_stolen_size(snb_gmch_ctl);
+		gtt_size = gen8_get_total_gtt_size(snb_gmch_ctl);
+	} else if (IS_CHERRYVIEW(dev)) {
 		*stolen = chv_get_stolen_size(snb_gmch_ctl);
 		gtt_size = chv_get_total_gtt_size(snb_gmch_ctl);
 	} else {
@@ -2114,7 +2229,8 @@ int i915_gem_gtt_init(struct drm_device *dev)
 }
 
 static struct i915_vma *__i915_gem_vma_create(struct drm_i915_gem_object *obj,
-					      struct i915_address_space *vm)
+					      struct i915_address_space *vm,
+					      const struct i915_ggtt_view *view)
 {
 	struct i915_vma *vma = kzalloc(sizeof(*vma), GFP_KERNEL);
 	if (vma == NULL)
@@ -2125,11 +2241,9 @@ static struct i915_vma *__i915_gem_vma_create(struct drm_i915_gem_object *obj,
 	INIT_LIST_HEAD(&vma->exec_list);
 	vma->vm = vm;
 	vma->obj = obj;
+	vma->ggtt_view = *view;
 
-	switch (INTEL_INFO(vm->dev)->gen) {
-	case 8:
-	case 7:
-	case 6:
+	if (INTEL_INFO(vm->dev)->gen >= 6) {
 		if (i915_is_ggtt(vm)) {
 			vma->unbind_vma = ggtt_unbind_vma;
 			vma->bind_vma = ggtt_bind_vma;
@@ -2137,39 +2251,73 @@ static struct i915_vma *__i915_gem_vma_create(struct drm_i915_gem_object *obj,
 			vma->unbind_vma = ppgtt_unbind_vma;
 			vma->bind_vma = ppgtt_bind_vma;
 		}
-		break;
-	case 5:
-	case 4:
-	case 3:
-	case 2:
+	} else {
 		BUG_ON(!i915_is_ggtt(vm));
 		vma->unbind_vma = i915_ggtt_unbind_vma;
 		vma->bind_vma = i915_ggtt_bind_vma;
-		break;
-	default:
-		BUG();
 	}
 
-	/* Keep GGTT vmas first to make debug easier */
-	if (i915_is_ggtt(vm))
-		list_add(&vma->vma_link, &obj->vma_list);
-	else {
-		list_add_tail(&vma->vma_link, &obj->vma_list);
+	list_add_tail(&vma->vma_link, &obj->vma_list);
+	if (!i915_is_ggtt(vm))
 		i915_ppgtt_get(i915_vm_to_ppgtt(vm));
-	}
 
 	return vma;
 }
 
 struct i915_vma *
-i915_gem_obj_lookup_or_create_vma(struct drm_i915_gem_object *obj,
-				  struct i915_address_space *vm)
+i915_gem_obj_lookup_or_create_vma_view(struct drm_i915_gem_object *obj,
+				       struct i915_address_space *vm,
+				       const struct i915_ggtt_view *view)
 {
 	struct i915_vma *vma;
 
-	vma = i915_gem_obj_to_vma(obj, vm);
+	vma = i915_gem_obj_to_vma_view(obj, vm, view);
 	if (!vma)
-		vma = __i915_gem_vma_create(obj, vm);
+		vma = __i915_gem_vma_create(obj, vm, view);
 
 	return vma;
+}
+
+static inline
+int i915_get_vma_pages(struct i915_vma *vma)
+{
+	if (vma->ggtt_view.pages)
+		return 0;
+
+	if (vma->ggtt_view.type == I915_GGTT_VIEW_NORMAL)
+		vma->ggtt_view.pages = vma->obj->pages;
+	else
+		WARN_ONCE(1, "GGTT view %u not implemented!\n",
+			  vma->ggtt_view.type);
+
+	if (!vma->ggtt_view.pages) {
+		DRM_ERROR("Failed to get pages for VMA view type %u!\n",
+			  vma->ggtt_view.type);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/**
+ * i915_vma_bind - Sets up PTEs for an VMA in it's corresponding address space.
+ * @vma: VMA to map
+ * @cache_level: mapping cache level
+ * @flags: flags like global or local mapping
+ *
+ * DMA addresses are taken from the scatter-gather table of this object (or of
+ * this VMA in case of non-default GGTT views) and PTE entries set up.
+ * Note that DMA addresses are also the only part of the SG table we care about.
+ */
+int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
+		  u32 flags)
+{
+	int ret = i915_get_vma_pages(vma);
+
+	if (ret)
+		return ret;
+
+	vma->bind_vma(vma, cache_level, flags);
+
+	return 0;
 }

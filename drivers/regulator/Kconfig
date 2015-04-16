@@ -414,6 +414,14 @@ config REGULATOR_MAX77802
 	  Exynos5420/Exynos5800 SoCs to control various voltages.
 	  It includes support for control of voltage and ramp speed.
 
+config REGULATOR_MAX77843
+	tristate "Maxim 77843 regulator"
+	depends on MFD_MAX77843
+	help
+	  This driver controls a Maxim 77843 regulator.
+	  The regulator include two 'SAFEOUT' for USB(Universal Serial Bus)
+	  This is suitable for Exynos5433 SoC chips.
+
 config REGULATOR_MC13XXX_CORE
 	tristate
 
@@ -432,6 +440,15 @@ config REGULATOR_MC13892
 	help
 	  Say y here to support the regulators found on the Freescale MC13892
 	  PMIC.
+
+config REGULATOR_MT6397
+	tristate "MediaTek MT6397 PMIC"
+	depends on MFD_MT6397
+	help
+	  Say y here to select this option to enable the power regulator of
+	  MediaTek MT6397 PMIC.
+	  This driver supports the control of different power rails of device
+	  through regulator interface.
 
 config REGULATOR_PALMAS
 	tristate "TI Palmas PMIC Regulators"
@@ -521,6 +538,14 @@ config REGULATOR_RN5T618
 	help
 	  Say y here to support the regulators found on Ricoh RN5T618 PMIC.
 
+config REGULATOR_RT5033
+	tristate "Richtek RT5033 Regulators"
+	depends on MFD_RT5033
+	help
+	  This adds support for voltage and current regulators in Richtek
+	  RT5033 PMIC. The device supports multiple regulators like
+	  current source, LDO and Buck.
+
 config REGULATOR_S2MPA01
 	tristate "Samsung S2MPA01 voltage regulator"
 	depends on MFD_SEC_CORE
@@ -529,13 +554,13 @@ config REGULATOR_S2MPA01
 	 via I2C bus. S2MPA01 has 10 Bucks and 26 LDO outputs.
 
 config REGULATOR_S2MPS11
-	tristate "Samsung S2MPS11/S2MPS14/S2MPU02 voltage regulator"
+	tristate "Samsung S2MPS11/S2MPS13/S2MPS14/S2MPU02 voltage regulator"
 	depends on MFD_SEC_CORE
 	help
-	 This driver supports a Samsung S2MPS11/S2MPS14/S2MPU02 voltage output
-	 regulator via I2C bus. The chip is comprised of high efficient Buck
-	 converters including Dual-Phase Buck converter, Buck-Boost converter,
-	 various LDOs.
+	 This driver supports a Samsung S2MPS11/S2MPS13/S2MPS14/S2MPU02 voltage
+	 output regulator via I2C bus. The chip is comprised of high efficient
+	 Buck converters including Dual-Phase Buck converter, Buck-Boost
+	 converter, various LDOs.
 
 config REGULATOR_S5M8767
 	tristate "Samsung S5M8767A voltage regulator"
@@ -547,7 +572,7 @@ config REGULATOR_S5M8767
 
 config REGULATOR_SKY81452
 	tristate "Skyworks Solutions SKY81452 voltage regulator"
-	depends on SKY81452
+	depends on MFD_SKY81452
 	help
 	  This driver supports Skyworks SKY81452 voltage output regulator
 	  via I2C bus. SKY81452 has one voltage linear regulator can be

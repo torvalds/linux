@@ -942,6 +942,9 @@ xilinx_vdma_dma_prep_interleaved(struct dma_chan *dchan,
 	if (!xt->numf || !xt->sgl[0].size)
 		return NULL;
 
+	if (xt->frame_size != 1)
+		return NULL;
+
 	/* Allocate a transaction descriptor. */
 	desc = xilinx_vdma_alloc_tx_descriptor(chan);
 	if (!desc)
@@ -960,7 +963,7 @@ xilinx_vdma_dma_prep_interleaved(struct dma_chan *dchan,
 	hw = &segment->hw;
 	hw->vsize = xt->numf;
 	hw->hsize = xt->sgl[0].size;
-	hw->stride = xt->sgl[0].icg <<
+	hw->stride = (xt->sgl[0].icg + xt->sgl[0].size) <<
 			XILINX_VDMA_FRMDLY_STRIDE_STRIDE_SHIFT;
 	hw->stride |= chan->config.frm_dly <<
 			XILINX_VDMA_FRMDLY_STRIDE_FRMDLY_SHIFT;
@@ -971,9 +974,11 @@ xilinx_vdma_dma_prep_interleaved(struct dma_chan *dchan,
 		hw->buf_addr = xt->src_start;
 
 	/* Link the previous next descriptor to current */
-	prev = list_last_entry(&desc->segments,
-				struct xilinx_vdma_tx_segment, node);
-	prev->hw.next_desc = segment->phys;
+	if (!list_empty(&desc->segments)) {
+		prev = list_last_entry(&desc->segments,
+				       struct xilinx_vdma_tx_segment, node);
+		prev->hw.next_desc = segment->phys;
+	}
 
 	/* Insert the segment into the descriptor segments list. */
 	list_add_tail(&segment->node, &desc->segments);
@@ -996,13 +1001,17 @@ error:
  * xilinx_vdma_terminate_all - Halt the channel and free descriptors
  * @chan: Driver specific VDMA Channel pointer
  */
-static void xilinx_vdma_terminate_all(struct xilinx_vdma_chan *chan)
+static int xilinx_vdma_terminate_all(struct dma_chan *dchan)
 {
+	struct xilinx_vdma_chan *chan = to_xilinx_chan(dchan);
+
 	/* Halt the DMA engine */
 	xilinx_vdma_halt(chan);
 
 	/* Remove and free all of the descriptors in the lists */
 	xilinx_vdma_free_descriptors(chan);
+
+	return 0;
 }
 
 /**
@@ -1069,27 +1078,6 @@ int xilinx_vdma_channel_set_config(struct dma_chan *dchan,
 	return 0;
 }
 EXPORT_SYMBOL(xilinx_vdma_channel_set_config);
-
-/**
- * xilinx_vdma_device_control - Configure DMA channel of the device
- * @dchan: DMA Channel pointer
- * @cmd: DMA control command
- * @arg: Channel configuration
- *
- * Return: '0' on success and failure value on error
- */
-static int xilinx_vdma_device_control(struct dma_chan *dchan,
-				      enum dma_ctrl_cmd cmd, unsigned long arg)
-{
-	struct xilinx_vdma_chan *chan = to_xilinx_chan(dchan);
-
-	if (cmd != DMA_TERMINATE_ALL)
-		return -ENXIO;
-
-	xilinx_vdma_terminate_all(chan);
-
-	return 0;
-}
 
 /* -----------------------------------------------------------------------------
  * Probe and remove
@@ -1295,7 +1283,7 @@ static int xilinx_vdma_probe(struct platform_device *pdev)
 				xilinx_vdma_free_chan_resources;
 	xdev->common.device_prep_interleaved_dma =
 				xilinx_vdma_dma_prep_interleaved;
-	xdev->common.device_control = xilinx_vdma_device_control;
+	xdev->common.device_terminate_all = xilinx_vdma_terminate_all;
 	xdev->common.device_tx_status = xilinx_vdma_tx_status;
 	xdev->common.device_issue_pending = xilinx_vdma_issue_pending;
 

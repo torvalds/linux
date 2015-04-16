@@ -109,7 +109,20 @@ typedef gen8_gtt_pte_t gen8_ppgtt_pde_t;
 #define GEN8_PPAT_ELLC_OVERRIDE		(0<<2)
 #define GEN8_PPAT(i, x)			((uint64_t) (x) << ((i) * 8))
 
+enum i915_ggtt_view_type {
+	I915_GGTT_VIEW_NORMAL = 0,
+};
+
+struct i915_ggtt_view {
+	enum i915_ggtt_view_type type;
+
+	struct sg_table *pages;
+};
+
+extern const struct i915_ggtt_view i915_ggtt_view_normal;
+
 enum i915_cache_level;
+
 /**
  * A VMA represents a GEM BO that is bound into an address space. Therefore, a
  * VMA's presence cannot be guaranteed before binding, or after unbinding the
@@ -122,6 +135,21 @@ struct i915_vma {
 	struct drm_mm_node node;
 	struct drm_i915_gem_object *obj;
 	struct i915_address_space *vm;
+
+	/** Flags and address space this VMA is bound to */
+#define GLOBAL_BIND	(1<<0)
+#define LOCAL_BIND	(1<<1)
+#define PTE_READ_ONLY	(1<<2)
+	unsigned int bound : 4;
+
+	/**
+	 * Support different GGTT views into the same object.
+	 * This means there can be multiple VMA mappings per object and per VM.
+	 * i915_ggtt_view_type is used to distinguish between those entries.
+	 * The default one of zero (I915_GGTT_VIEW_NORMAL) is default and also
+	 * assumed in GEM functions which take no ggtt view parameter.
+	 */
+	struct i915_ggtt_view ggtt_view;
 
 	/** This object's place on the active/inactive lists */
 	struct list_head mm_list;
@@ -140,11 +168,10 @@ struct i915_vma {
 
 	/**
 	 * How many users have pinned this object in GTT space. The following
-	 * users can each hold at most one reference: pwrite/pread, pin_ioctl
-	 * (via user_pin_count), execbuffer (objects are not allowed multiple
-	 * times for the same batchbuffer), and the framebuffer code. When
-	 * switching/pageflipping, the framebuffer code has at most two buffers
-	 * pinned per crtc.
+	 * users can each hold at most one reference: pwrite/pread, execbuffer
+	 * (objects are not allowed multiple times for the same batchbuffer),
+	 * and the framebuffer code. When switching/pageflipping, the
+	 * framebuffer code has at most two buffers pinned per crtc.
 	 *
 	 * In the worst case this is 1 + 1 + 1 + 2*2 = 7. That would fit into 3
 	 * bits with absolutely no headroom. So use 4 bits. */
@@ -155,8 +182,6 @@ struct i915_vma {
 	 * setting the valid PTE entries to a reserved scratch page. */
 	void (*unbind_vma)(struct i915_vma *vma);
 	/* Map an object into an address space with the given cache flags. */
-#define GLOBAL_BIND (1<<0)
-#define PTE_READ_ONLY (1<<1)
 	void (*bind_vma)(struct i915_vma *vma,
 			 enum i915_cache_level cache_level,
 			 u32 flags);
@@ -178,7 +203,7 @@ struct i915_address_space {
 	 * List of objects currently involved in rendering.
 	 *
 	 * Includes buffers having the contents of their GPU caches
-	 * flushed, not necessarily primitives.  last_rendering_seqno
+	 * flushed, not necessarily primitives. last_read_req
 	 * represents when the rendering involved will be completed.
 	 *
 	 * A reference is held on the buffer while on this list.
@@ -189,7 +214,7 @@ struct i915_address_space {
 	 * LRU list of objects which are not in the ringbuffer and
 	 * are ready to unbind, but are still in the GTT.
 	 *
-	 * last_rendering_seqno is 0 while an object is in this list.
+	 * last_read_req is NULL while an object is in this list.
 	 *
 	 * A reference is not held on the buffer while on this list,
 	 * as merely being GTT-bound shouldn't prevent its being
@@ -270,8 +295,6 @@ struct i915_hw_ppgtt {
 
 int i915_gem_gtt_init(struct drm_device *dev);
 void i915_gem_init_global_gtt(struct drm_device *dev);
-int i915_gem_setup_global_gtt(struct drm_device *dev, unsigned long start,
-			      unsigned long mappable_end, unsigned long end);
 void i915_global_gtt_cleanup(struct drm_device *dev);
 
 

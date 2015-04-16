@@ -30,30 +30,21 @@ Devices: [ComputerBoards] PC-CARD DAS16/16 (cb_das16_cs), PC-CARD DAS16/16-AO
 Author: ds
 Updated: Mon, 04 Nov 2002 20:04:21 -0800
 Status: experimental
-
-
 */
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 
-#include "../comedidev.h"
+#include "../comedi_pcmcia.h"
 
-#include <pcmcia/cistpl.h>
-#include <pcmcia/ds.h>
-
-#include "comedi_fc.h"
-#include "8253.h"
+#include "comedi_8254.h"
 
 #define DAS16CS_ADC_DATA		0
 #define DAS16CS_DIO_MUX			2
 #define DAS16CS_MISC1			4
 #define DAS16CS_MISC2			6
-#define DAS16CS_CTR0			8
-#define DAS16CS_CTR1			10
-#define DAS16CS_CTR2			12
-#define DAS16CS_CTR_CONTROL		14
+#define DAS16CS_TIMER_BASE		8
 #define DAS16CS_DIO			16
 
 struct das16cs_board {
@@ -282,6 +273,11 @@ static int das16cs_auto_attach(struct comedi_device *dev,
 	if (!devpriv)
 		return -ENOMEM;
 
+	dev->pacer = comedi_8254_init(dev->iobase + DAS16CS_TIMER_BASE,
+				      I8254_OSC_BASE_10MHZ, I8254_IO16, 0);
+	if (!dev->pacer)
+		return -ENOMEM;
+
 	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)
 		return ret;
@@ -305,7 +301,6 @@ static int das16cs_auto_attach(struct comedi_device *dev,
 		s->maxdata	= 0xffff;
 		s->range_table	= &range_bipolar10;
 		s->insn_write	= &das16cs_ao_insn_write;
-		s->insn_read	= comedi_readback_insn_read;
 
 		ret = comedi_alloc_subdev_readback(s);
 		if (ret)

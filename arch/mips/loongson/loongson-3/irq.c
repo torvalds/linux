@@ -9,7 +9,7 @@
 
 #include "smp.h"
 
-unsigned int ht_irq[] = {1, 3, 4, 5, 6, 7, 8, 12, 14, 15};
+unsigned int ht_irq[] = {0, 1, 3, 4, 5, 6, 7, 8, 12, 14, 15};
 
 static void ht_irqdispatch(void)
 {
@@ -55,8 +55,8 @@ static inline void mask_loongson_irq(struct irq_data *d)
 	/* Workaround: UART IRQ may deliver to any core */
 	if (d->irq == LOONGSON_UART_IRQ) {
 		int cpu = smp_processor_id();
-		int node_id = cpu / loongson_sysconf.cores_per_node;
-		int core_id = cpu % loongson_sysconf.cores_per_node;
+		int node_id = cpu_logical_map(cpu) / loongson_sysconf.cores_per_node;
+		int core_id = cpu_logical_map(cpu) % loongson_sysconf.cores_per_node;
 		u64 intenclr_addr = smp_group[node_id] |
 			(u64)(&LOONGSON_INT_ROUTER_INTENCLR);
 		u64 introuter_lpc_addr = smp_group[node_id] |
@@ -72,8 +72,8 @@ static inline void unmask_loongson_irq(struct irq_data *d)
 	/* Workaround: UART IRQ may deliver to any core */
 	if (d->irq == LOONGSON_UART_IRQ) {
 		int cpu = smp_processor_id();
-		int node_id = cpu / loongson_sysconf.cores_per_node;
-		int core_id = cpu % loongson_sysconf.cores_per_node;
+		int node_id = cpu_logical_map(cpu) / loongson_sysconf.cores_per_node;
+		int core_id = cpu_logical_map(cpu) % loongson_sysconf.cores_per_node;
 		u64 intenset_addr = smp_group[node_id] |
 			(u64)(&LOONGSON_INT_ROUTER_INTENSET);
 		u64 introuter_lpc_addr = smp_group[node_id] |
@@ -102,10 +102,12 @@ void irq_router_init(void)
 	int i;
 
 	/* route LPC int to cpu core0 int 0 */
-	LOONGSON_INT_ROUTER_LPC = LOONGSON_INT_CORE0_INT0;
+	LOONGSON_INT_ROUTER_LPC =
+		LOONGSON_INT_COREx_INTy(loongson_sysconf.boot_cpu_id, 0);
 	/* route HT1 int0 ~ int7 to cpu core0 INT1*/
 	for (i = 0; i < 8; i++)
-		LOONGSON_INT_ROUTER_HT1(i) = LOONGSON_INT_CORE0_INT1;
+		LOONGSON_INT_ROUTER_HT1(i) =
+			LOONGSON_INT_COREx_INTy(loongson_sysconf.boot_cpu_id, 1);
 	/* enable HT1 interrupt */
 	LOONGSON_HT1_INTN_EN(0) = 0xffffffff;
 	/* enable router interrupt intenset */

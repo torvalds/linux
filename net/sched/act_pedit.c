@@ -1,5 +1,5 @@
 /*
- * net/sched/pedit.c	Generic packet editor
+ * net/sched/act_pedit.c	Generic packet editor
  *
  *		This program is free software; you can redistribute it and/or
  *		modify it under the terms of the GNU General Public License

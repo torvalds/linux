@@ -27,7 +27,7 @@ char *prom_getenv(char *envname)
 	i = strlen(envname);
 
 	while (*env) {
-		if (strncmp(envname, *env, i) == 0 && *(*env+i) == '=')
+		if (strncmp(envname, *env, i) == 0 && *(*env + i) == '=')
 			return *env + i + 1;
 		env++;
 	}
@@ -49,7 +49,7 @@ void __init prom_init_cmdline(void)
 	for (i = 1; i < prom_argc; i++) {
 		strcpy(c, prom_argv[i]);
 		c += strlen(prom_argv[i]);
-		if (i < prom_argc-1)
+		if (i < prom_argc - 1)
 			*c++ = ' ';
 	}
 	*c = 0;
@@ -57,6 +57,7 @@ void __init prom_init_cmdline(void)
 
 void __init prom_init(void)
 {
+	void __iomem *uart_base;
 	prom_argc = fw_arg0;
 	prom_argv = (char **)fw_arg1;
 	prom_envp = (char **)fw_arg2;
@@ -65,23 +66,18 @@ void __init prom_init(void)
 
 	memsize = env_or_default("memsize", DEFAULT_MEMSIZE);
 	highmemsize = env_or_default("highmemsize", 0x0);
+
+	if (strstr(arcs_cmdline, "console=ttyS3"))
+		uart_base = ioremap_nocache(LS1X_UART3_BASE, 0x0f);
+	else if (strstr(arcs_cmdline, "console=ttyS2"))
+		uart_base = ioremap_nocache(LS1X_UART2_BASE, 0x0f);
+	else if (strstr(arcs_cmdline, "console=ttyS1"))
+		uart_base = ioremap_nocache(LS1X_UART1_BASE, 0x0f);
+	else
+		uart_base = ioremap_nocache(LS1X_UART0_BASE, 0x0f);
+	setup_8250_early_printk_port((unsigned long)uart_base, 0, 0);
 }
 
 void __init prom_free_prom_memory(void)
 {
-}
-
-#define PORT(offset)	(u8 *)(KSEG1ADDR(LS1X_UART0_BASE + offset))
-
-void prom_putchar(char c)
-{
-	int timeout;
-
-	timeout = 1024;
-
-	while (((readb(PORT(UART_LSR)) & UART_LSR_THRE) == 0)
-			&& (timeout-- > 0))
-		;
-
-	writeb(c, PORT(UART_TX));
 }

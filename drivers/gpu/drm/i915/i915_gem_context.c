@@ -88,6 +88,7 @@
 #include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
+#include "i915_trace.h"
 
 /* This is a HW constraint. The value below is the largest known requirement
  * I've seen in a spec to date, and that was a workaround for a non-shipping
@@ -136,6 +137,8 @@ void i915_gem_context_free(struct kref *ctx_ref)
 {
 	struct intel_context *ctx = container_of(ctx_ref,
 						 typeof(*ctx), ref);
+
+	trace_i915_context_free(ctx);
 
 	if (i915.enable_execlists)
 		intel_lr_context_free(ctx);
@@ -219,6 +222,8 @@ __create_hw_context(struct drm_device *dev,
 	 * is no remap info, it will be a NOP. */
 	ctx->remap_slice = (1 << NUM_L3_SLICES(dev)) - 1;
 
+	ctx->hang_stats.ban_period_seconds = DRM_I915_CTX_BAN_PERIOD;
+
 	return ctx;
 
 err_out:
@@ -273,6 +278,8 @@ i915_gem_create_context(struct drm_device *dev,
 
 		ctx->ppgtt = ppgtt;
 	}
+
+	trace_i915_context_create(ctx);
 
 	return ctx;
 
@@ -403,14 +410,25 @@ int i915_gem_context_enable(struct drm_i915_private *dev_priv)
 
 	BUG_ON(!dev_priv->ring[RCS].default_context);
 
-	if (i915.enable_execlists)
-		return 0;
+	if (i915.enable_execlists) {
+		for_each_ring(ring, dev_priv, i) {
+			if (ring->init_context) {
+				ret = ring->init_context(ring,
+						ring->default_context);
+				if (ret) {
+					DRM_ERROR("ring init context: %d\n",
+							ret);
+					return ret;
+				}
+			}
+		}
 
-	for_each_ring(ring, dev_priv, i) {
-		ret = i915_switch_context(ring, ring->default_context);
-		if (ret)
-			return ret;
-	}
+	} else
+		for_each_ring(ring, dev_priv, i) {
+			ret = i915_switch_context(ring, ring->default_context);
+			if (ret)
+				return ret;
+		}
 
 	return 0;
 }
@@ -468,7 +486,12 @@ mi_set_context(struct intel_engine_cs *ring,
 	       u32 hw_flags)
 {
 	u32 flags = hw_flags | MI_MM_SPACE_GTT;
-	int ret;
+	const int num_rings =
+		/* Use an extended w/a on ivb+ if signalling from other rings */
+		i915_semaphore_is_enabled(ring->dev) ?
+		hweight32(INTEL_INFO(ring->dev)->ring_mask) - 1 :
+		0;
+	int len, i, ret;
 
 	/* w/a: If Flush TLB Invalidation Mode is enabled, driver must do a TLB
 	 * invalidation prior to MI_SET_CONTEXT. On GEN6 we don't set the value
@@ -485,15 +508,31 @@ mi_set_context(struct intel_engine_cs *ring,
 	if (!IS_HASWELL(ring->dev) && INTEL_INFO(ring->dev)->gen < 8)
 		flags |= (MI_SAVE_EXT_STATE_EN | MI_RESTORE_EXT_STATE_EN);
 
-	ret = intel_ring_begin(ring, 6);
+
+	len = 4;
+	if (INTEL_INFO(ring->dev)->gen >= 7)
+		len += 2 + (num_rings ? 4*num_rings + 2 : 0);
+
+	ret = intel_ring_begin(ring, len);
 	if (ret)
 		return ret;
 
 	/* WaProgramMiArbOnOffAroundMiSetContext:ivb,vlv,hsw,bdw,chv */
-	if (INTEL_INFO(ring->dev)->gen >= 7)
+	if (INTEL_INFO(ring->dev)->gen >= 7) {
 		intel_ring_emit(ring, MI_ARB_ON_OFF | MI_ARB_DISABLE);
-	else
-		intel_ring_emit(ring, MI_NOOP);
+		if (num_rings) {
+			struct intel_engine_cs *signaller;
+
+			intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(num_rings));
+			for_each_ring(signaller, to_i915(ring->dev), i) {
+				if (signaller == ring)
+					continue;
+
+				intel_ring_emit(ring, RING_PSMI_CTL(signaller->mmio_base));
+				intel_ring_emit(ring, _MASKED_BIT_ENABLE(GEN6_PSMI_SLEEP_MSG_DISABLE));
+			}
+		}
+	}
 
 	intel_ring_emit(ring, MI_NOOP);
 	intel_ring_emit(ring, MI_SET_CONTEXT);
@@ -505,10 +544,21 @@ mi_set_context(struct intel_engine_cs *ring,
 	 */
 	intel_ring_emit(ring, MI_NOOP);
 
-	if (INTEL_INFO(ring->dev)->gen >= 7)
+	if (INTEL_INFO(ring->dev)->gen >= 7) {
+		if (num_rings) {
+			struct intel_engine_cs *signaller;
+
+			intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(num_rings));
+			for_each_ring(signaller, to_i915(ring->dev), i) {
+				if (signaller == ring)
+					continue;
+
+				intel_ring_emit(ring, RING_PSMI_CTL(signaller->mmio_base));
+				intel_ring_emit(ring, _MASKED_BIT_DISABLE(GEN6_PSMI_SLEEP_MSG_DISABLE));
+			}
+		}
 		intel_ring_emit(ring, MI_ARB_ON_OFF | MI_ARB_ENABLE);
-	else
-		intel_ring_emit(ring, MI_NOOP);
+	}
 
 	intel_ring_advance(ring);
 
@@ -522,6 +572,7 @@ static int do_switch(struct intel_engine_cs *ring,
 	struct intel_context *from = ring->last_context;
 	u32 hw_flags = 0;
 	bool uninitialized = false;
+	struct i915_vma *vma;
 	int ret, i;
 
 	if (from != NULL && ring == &dev_priv->ring[RCS]) {
@@ -548,6 +599,7 @@ static int do_switch(struct intel_engine_cs *ring,
 	from = ring->last_context;
 
 	if (to->ppgtt) {
+		trace_switch_mm(ring, to);
 		ret = to->ppgtt->switch_mm(to->ppgtt, ring);
 		if (ret)
 			goto unpin_out;
@@ -571,10 +623,14 @@ static int do_switch(struct intel_engine_cs *ring,
 	if (ret)
 		goto unpin_out;
 
-	if (!to->legacy_hw_ctx.rcs_state->has_global_gtt_mapping) {
-		struct i915_vma *vma = i915_gem_obj_to_vma(to->legacy_hw_ctx.rcs_state,
-							   &dev_priv->gtt.base);
-		vma->bind_vma(vma, to->legacy_hw_ctx.rcs_state->cache_level, GLOBAL_BIND);
+	vma = i915_gem_obj_to_ggtt(to->legacy_hw_ctx.rcs_state);
+	if (!(vma->bound & GLOBAL_BIND)) {
+		ret = i915_vma_bind(vma,
+				    to->legacy_hw_ctx.rcs_state->cache_level,
+				    GLOBAL_BIND);
+		/* This shouldn't ever fail. */
+		if (WARN_ONCE(ret, "GGTT context bind failed!"))
+			goto unpin_out;
 	}
 
 	if (!to->legacy_hw_ctx.initialized || i915_gem_context_is_default(to))
@@ -613,7 +669,8 @@ static int do_switch(struct intel_engine_cs *ring,
 		 * swapped, but there is no way to do that yet.
 		 */
 		from->legacy_hw_ctx.rcs_state->dirty = 1;
-		BUG_ON(from->legacy_hw_ctx.rcs_state->ring != ring);
+		BUG_ON(i915_gem_request_get_ring(
+			from->legacy_hw_ctx.rcs_state->last_read_req) != ring);
 
 		/* obj is kept alive until the next request by its active ref */
 		i915_gem_object_ggtt_unpin(from->legacy_hw_ctx.rcs_state);
@@ -629,14 +686,10 @@ done:
 
 	if (uninitialized) {
 		if (ring->init_context) {
-			ret = ring->init_context(ring);
+			ret = ring->init_context(ring, to);
 			if (ret)
 				DRM_ERROR("ring init context: %d\n", ret);
 		}
-
-		ret = i915_gem_render_state_init(ring);
-		if (ret)
-			DRM_ERROR("init render state: %d\n", ret);
 	}
 
 	return 0;
@@ -740,4 +793,73 @@ int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 
 	DRM_DEBUG_DRIVER("HW context %d destroyed\n", args->ctx_id);
 	return 0;
+}
+
+int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
+				    struct drm_file *file)
+{
+	struct drm_i915_file_private *file_priv = file->driver_priv;
+	struct drm_i915_gem_context_param *args = data;
+	struct intel_context *ctx;
+	int ret;
+
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		return ret;
+
+	ctx = i915_gem_context_get(file_priv, args->ctx_id);
+	if (IS_ERR(ctx)) {
+		mutex_unlock(&dev->struct_mutex);
+		return PTR_ERR(ctx);
+	}
+
+	args->size = 0;
+	switch (args->param) {
+	case I915_CONTEXT_PARAM_BAN_PERIOD:
+		args->value = ctx->hang_stats.ban_period_seconds;
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+	mutex_unlock(&dev->struct_mutex);
+
+	return ret;
+}
+
+int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
+				    struct drm_file *file)
+{
+	struct drm_i915_file_private *file_priv = file->driver_priv;
+	struct drm_i915_gem_context_param *args = data;
+	struct intel_context *ctx;
+	int ret;
+
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		return ret;
+
+	ctx = i915_gem_context_get(file_priv, args->ctx_id);
+	if (IS_ERR(ctx)) {
+		mutex_unlock(&dev->struct_mutex);
+		return PTR_ERR(ctx);
+	}
+
+	switch (args->param) {
+	case I915_CONTEXT_PARAM_BAN_PERIOD:
+		if (args->size)
+			ret = -EINVAL;
+		else if (args->value < ctx->hang_stats.ban_period_seconds &&
+			 !capable(CAP_SYS_ADMIN))
+			ret = -EPERM;
+		else
+			ctx->hang_stats.ban_period_seconds = args->value;
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+	mutex_unlock(&dev->struct_mutex);
+
+	return ret;
 }

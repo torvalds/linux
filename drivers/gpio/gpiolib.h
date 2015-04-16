@@ -17,6 +17,8 @@
 
 enum of_gpio_flags;
 
+struct acpi_device;
+
 /**
  * struct acpi_gpio_info - ACPI GPIO specific information
  * @gpioint: if %true this GPIO is of type GpioInt otherwise type is GpioIo
@@ -34,7 +36,8 @@ void acpi_gpiochip_remove(struct gpio_chip *chip);
 void acpi_gpiochip_request_interrupts(struct gpio_chip *chip);
 void acpi_gpiochip_free_interrupts(struct gpio_chip *chip);
 
-struct gpio_desc *acpi_get_gpiod_by_index(struct device *dev, int index,
+struct gpio_desc *acpi_get_gpiod_by_index(struct acpi_device *adev,
+					  const char *propname, int index,
 					  struct acpi_gpio_info *info);
 #else
 static inline void acpi_gpiochip_add(struct gpio_chip *chip) { }
@@ -47,8 +50,8 @@ static inline void
 acpi_gpiochip_free_interrupts(struct gpio_chip *chip) { }
 
 static inline struct gpio_desc *
-acpi_get_gpiod_by_index(struct device *dev, int index,
-			struct acpi_gpio_info *info)
+acpi_get_gpiod_by_index(struct acpi_device *adev, const char *propname,
+			int index, struct acpi_gpio_info *info)
 {
 	return ERR_PTR(-ENOSYS);
 }
@@ -76,6 +79,7 @@ struct gpio_desc {
 #define FLAG_OPEN_DRAIN	7	/* Gpio is open drain type */
 #define FLAG_OPEN_SOURCE 8	/* Gpio is open source type */
 #define FLAG_USED_AS_IRQ 9	/* GPIO is connected to an IRQ */
+#define FLAG_SYSFS_DIR	10	/* show sysfs direction attribute */
 
 #define ID_SHIFT	16	/* add new flags before this one */
 

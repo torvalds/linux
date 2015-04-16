@@ -4,8 +4,6 @@
 #include <asm/metag_mem.h>
 
 #define nop()		asm volatile ("NOP")
-#define mb()		wmb()
-#define rmb()		barrier()
 
 #ifdef CONFIG_METAG_META21
 
@@ -41,13 +39,13 @@ static inline void wr_fence(void)
 
 #endif /* !CONFIG_METAG_META21 */
 
-static inline void wmb(void)
-{
-	/* flush writes through the write combiner */
-	wr_fence();
-}
+/* flush writes through the write combiner */
+#define mb()		wr_fence()
+#define rmb()		barrier()
+#define wmb()		mb()
 
-#define read_barrier_depends()  do { } while (0)
+#define dma_rmb()	rmb()
+#define dma_wmb()	wmb()
 
 #ifndef CONFIG_SMP
 #define fence()		do { } while (0)
@@ -82,7 +80,10 @@ static inline void fence(void)
 #define smp_wmb()       barrier()
 #endif
 #endif
-#define smp_read_barrier_depends()     do { } while (0)
+
+#define read_barrier_depends()		do { } while (0)
+#define smp_read_barrier_depends()	do { } while (0)
+
 #define set_mb(var, value) do { var = value; smp_mb(); } while (0)
 
 #define smp_store_release(p, v)						\

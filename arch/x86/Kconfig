@@ -17,6 +17,7 @@ config X86_64
 	depends on 64BIT
 	select X86_DEV_DMA_OPS
 	select ARCH_USE_CMPXCHG_LOCKREF
+	select HAVE_LIVEPATCH
 
 ### Arch settings
 config X86
@@ -24,6 +25,7 @@ config X86
 	select ARCH_MIGHT_HAVE_ACPI_PDC if ACPI
 	select ARCH_HAS_DEBUG_STRICT_USER_COPY_CHECKS
 	select ARCH_HAS_FAST_MULTIPLIER
+	select ARCH_HAS_GCOV_PROFILE_ALL
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_MIGHT_HAVE_PC_SERIO
 	select HAVE_AOUT if X86_32
@@ -83,8 +85,9 @@ config X86
 	select HAVE_CMPXCHG_LOCAL
 	select HAVE_CMPXCHG_DOUBLE
 	select HAVE_ARCH_KMEMCHECK
+	select HAVE_ARCH_KASAN if X86_64 && SPARSEMEM_VMEMMAP
 	select HAVE_USER_RETURN_NOTIFIER
-	select ARCH_BINFMT_ELF_RANDOMIZE_PIE
+	select ARCH_HAS_ELF_RANDOMIZE
 	select HAVE_ARCH_JUMP_LABEL
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 	select SPARSE_IRQ
@@ -96,6 +99,7 @@ config X86
 	select IRQ_FORCED_THREADING
 	select HAVE_BPF_JIT if X86_64
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
+	select HAVE_ARCH_HUGE_VMAP if X86_64 || (X86_32 && X86_PAE)
 	select ARCH_HAS_SG_CHAIN
 	select CLKEVT_I8253
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
@@ -137,10 +141,15 @@ config X86
 	select HAVE_ACPI_APEI_NMI if ACPI
 	select ACPI_LEGACY_TABLES_LOOKUP if ACPI
 	select X86_FEATURE_NAMES if PROC_FS
+	select SRCU
 
 config INSTRUCTION_DECODER
 	def_bool y
 	depends on KPROBES || PERF_EVENTS || UPROBES
+
+config PERF_EVENTS_INTEL_UNCORE
+	def_bool y
+	depends on PERF_EVENTS && CPU_SUP_INTEL && PCI
 
 config OUTPUT_FORMAT
 	string
@@ -227,12 +236,10 @@ config ARCH_WANT_GENERAL_HUGETLB
 	def_bool y
 
 config ZONE_DMA32
-	bool
-	default X86_64
+	def_bool y if X86_64
 
 config AUDIT_ARCH
-	bool
-	default X86_64
+	def_bool y if X86_64
 
 config ARCH_SUPPORTS_OPTIMIZED_INLINING
 	def_bool y
@@ -270,6 +277,12 @@ config ARCH_SUPPORTS_UPROBES
 
 config FIX_EARLYCON_MEM
 	def_bool y
+
+config PGTABLE_LEVELS
+	int
+	default 4 if X86_64
+	default 3 if X86_PAE
+	default 2
 
 source "init/Kconfig"
 source "kernel/Kconfig.freezer"
@@ -480,6 +493,23 @@ config X86_INTEL_MID
 	  Intel MID platforms are based on an Intel processor and chipset which
 	  consume less power than most of the x86 derivatives.
 
+config X86_INTEL_QUARK
+	bool "Intel Quark platform support"
+	depends on X86_32
+	depends on X86_EXTENDED_PLATFORM
+	depends on X86_PLATFORM_DEVICES
+	depends on X86_TSC
+	depends on PCI
+	depends on PCI_GOANY
+	depends on X86_IO_APIC
+	select IOSF_MBI
+	select INTEL_IMR
+	select COMMON_CLK
+	---help---
+	  Select to include support for Quark X1000 SoC.
+	  Say Y here if you have a Quark based system such as the Arduino
+	  compatible Intel Galileo.
+
 config X86_INTEL_LPSS
 	bool "Intel Low Power Subsystem Support"
 	depends on ACPI
@@ -490,6 +520,17 @@ config X86_INTEL_LPSS
 	  found on Intel Lynxpoint PCH. Selecting this option enables
 	  things like clock tree (common clock framework) and pincontrol
 	  which are needed by the LPSS peripheral drivers.
+
+config X86_AMD_PLATFORM_DEVICE
+	bool "AMD ACPI2Platform devices support"
+	depends on ACPI
+	select COMMON_CLK
+	select PINCTRL
+	---help---
+	  Select to interpret AMD specific ACPI device to platform device
+	  such as I2C, UART, GPIO found on AMD Carrizo and later chipsets.
+	  I2C and UART depend on COMMON_CLK to set clock. GPIO driver is
+	  implemented under PINCTRL subsystem.
 
 config IOSF_MBI
 	tristate "Intel SoC IOSF Sideband support for SoC platforms"
@@ -680,17 +721,6 @@ endif #HYPERVISOR_GUEST
 config NO_BOOTMEM
 	def_bool y
 
-config MEMTEST
-	bool "Memtest"
-	---help---
-	  This option adds a kernel parameter 'memtest', which allows memtest
-	  to be set.
-	        memtest=0, mean disabled; -- default
-	        memtest=1, mean do 1 test pattern;
-	        ...
-	        memtest=4, mean do 4 test patterns.
-	  If you are unsure how to answer this question, answer N.
-
 source "arch/x86/Kconfig.cpu"
 
 config HPET_TIMER
@@ -850,9 +880,14 @@ config SCHED_MC
 
 source "kernel/Kconfig.preempt"
 
+config UP_LATE_INIT
+       def_bool y
+       depends on !SMP && X86_LOCAL_APIC
+
 config X86_UP_APIC
-	bool "Local APIC support on uniprocessors"
-	depends on X86_32 && !SMP && !X86_32_NON_STANDARD && !PCI_MSI
+	bool "Local APIC support on uniprocessors" if !PCI_MSI
+	default PCI_MSI
+	depends on X86_32 && !SMP && !X86_32_NON_STANDARD
 	---help---
 	  A local APIC (Advanced Programmable Interrupt Controller) is an
 	  integrated interrupt controller in the CPU. If you have a single-CPU
@@ -878,11 +913,11 @@ config X86_UP_IOAPIC
 config X86_LOCAL_APIC
 	def_bool y
 	depends on X86_64 || SMP || X86_32_NON_STANDARD || X86_UP_APIC || PCI_MSI
+	select GENERIC_IRQ_LEGACY_ALLOC_HWIRQ
 
 config X86_IO_APIC
 	def_bool y
-	depends on X86_64 || SMP || X86_32_NON_STANDARD || X86_UP_IOAPIC || PCI_MSI
-	select GENERIC_IRQ_LEGACY_ALLOC_HWIRQ
+	depends on X86_LOCAL_APIC || X86_UP_IOAPIC
 	select IRQ_DOMAIN
 
 config X86_REROUTE_FOR_BROKEN_BOOT_IRQS
@@ -984,6 +1019,24 @@ config X86_ESPFIX64
 	def_bool y
 	depends on X86_16BIT && X86_64
 
+config X86_VSYSCALL_EMULATION
+       bool "Enable vsyscall emulation" if EXPERT
+       default y
+       depends on X86_64
+       ---help---
+	 This enables emulation of the legacy vsyscall page.  Disabling
+	 it is roughly equivalent to booting with vsyscall=none, except
+	 that it will also disable the helpful warning if a program
+	 tries to use a vsyscall.  With this option set to N, offending
+	 programs will just segfault, citing addresses of the form
+	 0xffffffffff600?00.
+
+	 This option is required by many programs built before 2013, and
+	 care should be used even with newer programs if set to N.
+
+	 Disabling this option saves about 7K of kernel size and
+	 possibly 4K of additional runtime pagetable memory.
+
 config TOSHIBA
 	tristate "Toshiba Laptop support"
 	depends on X86_32
@@ -1083,10 +1136,10 @@ config MICROCODE_OLD_INTERFACE
 	depends on MICROCODE
 
 config MICROCODE_INTEL_EARLY
-	def_bool n
+	bool
 
 config MICROCODE_AMD_EARLY
-	def_bool n
+	bool
 
 config MICROCODE_EARLY
 	bool "Early load microcode"
@@ -1238,14 +1291,14 @@ config ARCH_DMA_ADDR_T_64BIT
 	def_bool y
 	depends on X86_64 || HIGHMEM64G
 
-config DIRECT_GBPAGES
-	bool "Enable 1GB pages for kernel pagetables" if EXPERT
-	default y
-	depends on X86_64
+config X86_DIRECT_GBPAGES
+	def_bool y
+	depends on X86_64 && !DEBUG_PAGEALLOC && !KMEMCHECK
 	---help---
-	  Allow the kernel linear mapping to use 1GB pages on CPUs that
-	  support it. This can improve the kernel's performance a tiny bit by
-	  reducing TLB pressure. If in doubt, say "Y".
+	  Certain kernel features effectively disable kernel
+	  linear 1 GB mappings (even if the CPU otherwise
+	  supports them), so don't confuse the user by printing
+	  that we have them enabled.
 
 # Common NUMA Features
 config NUMA
@@ -1567,6 +1620,32 @@ config X86_SMAP
 
 	  If unsure, say Y.
 
+config X86_INTEL_MPX
+	prompt "Intel MPX (Memory Protection Extensions)"
+	def_bool n
+	depends on CPU_SUP_INTEL
+	---help---
+	  MPX provides hardware features that can be used in
+	  conjunction with compiler-instrumented code to check
+	  memory references.  It is designed to detect buffer
+	  overflow or underflow bugs.
+
+	  This option enables running applications which are
+	  instrumented or otherwise use MPX.  It does not use MPX
+	  itself inside the kernel or to protect the kernel
+	  against bad memory references.
+
+	  Enabling this option will make the kernel larger:
+	  ~8k of kernel text and 36 bytes of data on a 64-bit
+	  defconfig.  It adds a long to the 'mm_struct' which
+	  will increase the kernel memory overhead of each
+	  process and adds some branches to paths used during
+	  exec() and munmap().
+
+	  For details, see Documentation/x86/intel_mpx.txt
+
+	  If unsure, say N.
+
 config EFI
 	bool "EFI runtime service support"
 	depends on ACPI
@@ -1659,14 +1738,11 @@ config KEXEC_VERIFY_SIG
 	depends on KEXEC_FILE
 	---help---
 	  This option makes kernel signature verification mandatory for
-	  kexec_file_load() syscall. If kernel is signature can not be
-	  verified, kexec_file_load() will fail.
+	  the kexec_file_load() syscall.
 
-	  This option enforces signature verification at generic level.
-	  One needs to enable signature verification for type of kernel
-	  image being loaded to make sure it works. For example, enable
-	  bzImage signature verification option to be able to load and
-	  verify signatures of bzImage. Otherwise kernel loading will fail.
+	  In addition to that option, you need to enable signature
+	  verification for the corresponding kernel image type being
+	  loaded in order for this to work.
 
 config KEXEC_BZIMAGE_VERIFY_SIG
 	bool "Enable bzImage signature verification support"
@@ -1958,6 +2034,8 @@ config CMDLINE_OVERRIDE
 
 	  This is used to work around broken boot loaders.  This should
 	  be set to 'N' under normal conditions.
+
+source "kernel/livepatch/Kconfig"
 
 endmenu
 

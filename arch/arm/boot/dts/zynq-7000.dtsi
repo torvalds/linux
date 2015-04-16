@@ -30,7 +30,6 @@
 				/* kHz    uV */
 				666667  1000000
 				333334  1000000
-				222223  1000000
 			>;
 		};
 
@@ -65,7 +64,7 @@
 		interrupt-parent = <&intc>;
 		ranges;
 
-		adc@f8007100 {
+		adc: adc@f8007100 {
 			compatible = "xlnx,zynq-xadc-1.00.a";
 			reg = <0xf8007100 0x20>;
 			interrupts = <0 7 4>;
@@ -137,7 +136,7 @@
 			      <0xF8F00100 0x100>;
 		};
 
-		L2: cache-controller {
+		L2: cache-controller@f8f02000 {
 			compatible = "arm,pl310-cache";
 			reg = <0xF8F02000 0x1000>;
 			arm,data-latency = <3 2 2>;
@@ -146,10 +145,10 @@
 			cache-level = <2>;
 		};
 
-		memory-controller@f8006000 {
+		mc: memory-controller@f8006000 {
 			compatible = "xlnx,zynq-ddrc-a05";
 			reg = <0xf8006000 0x1000>;
-		} ;
+		};
 
 		uart0: serial@e0000000 {
 			compatible = "xlnx,xuartps", "cdns,uart-r1p8";
@@ -195,7 +194,7 @@
 
 		gem0: ethernet@e000b000 {
 			compatible = "cdns,gem";
-			reg = <0xe000b000 0x4000>;
+			reg = <0xe000b000 0x1000>;
 			status = "disabled";
 			interrupts = <0 22 4>;
 			clocks = <&clkc 30>, <&clkc 30>, <&clkc 13>;
@@ -206,7 +205,7 @@
 
 		gem1: ethernet@e000c000 {
 			compatible = "cdns,gem";
-			reg = <0xe000c000 0x4000>;
+			reg = <0xe000c000 0x1000>;
 			status = "disabled";
 			interrupts = <0 45 4>;
 			clocks = <&clkc 31>, <&clkc 31>, <&clkc 14>;
@@ -238,13 +237,12 @@
 		slcr: slcr@f8000000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
-			compatible = "xlnx,zynq-slcr", "syscon";
+			compatible = "xlnx,zynq-slcr", "syscon", "simple-bus";
 			reg = <0xF8000000 0x1000>;
 			ranges;
 			clkc: clkc@100 {
 				#clock-cells = <1>;
 				compatible = "xlnx,ps7-clkc";
-				ps-clk-frequency = <33333333>;
 				fclk-enable = <0>;
 				clock-output-names = "armpll", "ddrpll", "iopll", "cpu_6or4x",
 						"cpu_3or2x", "cpu_2x", "cpu_1x", "ddr2x", "ddr3x",
@@ -258,6 +256,12 @@
 						"gpio_aper", "lqspi_aper", "smc_aper", "swdt",
 						"dbg_trc", "dbg_apb";
 				reg = <0x100 0x100>;
+			};
+
+			pinctrl0: pinctrl@700 {
+				compatible = "xlnx,pinctrl-zynq";
+				reg = <0x700 0x200>;
+				syscon = <&slcr>;
 			};
 		};
 
@@ -314,6 +318,35 @@
 			compatible = "arm,cortex-a9-twd-timer";
 			reg = <0xf8f00600 0x20>;
 			clocks = <&clkc 4>;
+		};
+
+		usb0: usb@e0002000 {
+			compatible = "xlnx,zynq-usb-2.20a", "chipidea,usb2";
+			status = "disabled";
+			clocks = <&clkc 28>;
+			interrupt-parent = <&intc>;
+			interrupts = <0 21 4>;
+			reg = <0xe0002000 0x1000>;
+			phy_type = "ulpi";
+		};
+
+		usb1: usb@e0003000 {
+			compatible = "xlnx,zynq-usb-2.20a", "chipidea,usb2";
+			status = "disabled";
+			clocks = <&clkc 29>;
+			interrupt-parent = <&intc>;
+			interrupts = <0 44 4>;
+			reg = <0xe0003000 0x1000>;
+			phy_type = "ulpi";
+		};
+
+		watchdog0: watchdog@f8005000 {
+			clocks = <&clkc 45>;
+			compatible = "cdns,wdt-r1p2";
+			interrupt-parent = <&intc>;
+			interrupts = <0 9 1>;
+			reg = <0xf8005000 0x1000>;
+			timeout-sec = <10>;
 		};
 	};
 };

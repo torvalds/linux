@@ -7,7 +7,9 @@
 
 #define VDSO__MAP_NAME "[vdso]"
 
-#define DSO__NAME_VDSO "[vdso]"
+#define DSO__NAME_VDSO    "[vdso]"
+#define DSO__NAME_VDSO32  "[vdso32]"
+#define DSO__NAME_VDSOX32 "[vdsox32]"
 
 static inline bool is_vdso_map(const char *filename)
 {

@@ -7,7 +7,8 @@
  *  publishhed by the Free Software Foundation.
  */
 
-/include/ "skeleton.dtsi"
+#include "skeleton.dtsi"
+#include <dt-bindings/clock/marvell,mmp2.h>
 
 / {
 	aliases {
@@ -135,6 +136,8 @@
 				compatible = "mrvl,mmp-uart";
 				reg = <0xd4030000 0x1000>;
 				interrupts = <27>;
+				clocks = <&soc_clocks MMP2_CLK_UART0>;
+				resets = <&soc_clocks MMP2_CLK_UART0>;
 				status = "disabled";
 			};
 
@@ -142,6 +145,8 @@
 				compatible = "mrvl,mmp-uart";
 				reg = <0xd4017000 0x1000>;
 				interrupts = <28>;
+				clocks = <&soc_clocks MMP2_CLK_UART1>;
+				resets = <&soc_clocks MMP2_CLK_UART1>;
 				status = "disabled";
 			};
 
@@ -149,6 +154,8 @@
 				compatible = "mrvl,mmp-uart";
 				reg = <0xd4018000 0x1000>;
 				interrupts = <24>;
+				clocks = <&soc_clocks MMP2_CLK_UART2>;
+				resets = <&soc_clocks MMP2_CLK_UART2>;
 				status = "disabled";
 			};
 
@@ -156,6 +163,8 @@
 				compatible = "mrvl,mmp-uart";
 				reg = <0xd4016000 0x1000>;
 				interrupts = <46>;
+				clocks = <&soc_clocks MMP2_CLK_UART3>;
+				resets = <&soc_clocks MMP2_CLK_UART3>;
 				status = "disabled";
 			};
 
@@ -168,6 +177,8 @@
 				#gpio-cells = <2>;
 				interrupts = <49>;
 				interrupt-names = "gpio_mux";
+				clocks = <&soc_clocks MMP2_CLK_GPIO>;
+				resets = <&soc_clocks MMP2_CLK_GPIO>;
 				interrupt-controller;
 				#interrupt-cells = <1>;
 				ranges;
@@ -201,6 +212,8 @@
 				compatible = "mrvl,mmp-twsi";
 				reg = <0xd4011000 0x1000>;
 				interrupts = <7>;
+				clocks = <&soc_clocks MMP2_CLK_TWSI0>;
+				resets = <&soc_clocks MMP2_CLK_TWSI0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 				mrvl,i2c-fast-mode;
@@ -211,6 +224,8 @@
 				compatible = "mrvl,mmp-twsi";
 				reg = <0xd4025000 0x1000>;
 				interrupts = <58>;
+				clocks = <&soc_clocks MMP2_CLK_TWSI1>;
+				resets = <&soc_clocks MMP2_CLK_TWSI1>;
 				status = "disabled";
 			};
 
@@ -220,8 +235,20 @@
 				interrupts = <1 0>;
 				interrupt-names = "rtc 1Hz", "rtc alarm";
 				interrupt-parent = <&intcmux5>;
+				clocks = <&soc_clocks MMP2_CLK_RTC>;
+				resets = <&soc_clocks MMP2_CLK_RTC>;
 				status = "disabled";
 			};
+		};
+
+		soc_clocks: clocks{
+			compatible = "marvell,mmp2-clock";
+			reg = <0xd4050000 0x1000>,
+			      <0xd4282800 0x400>,
+			      <0xd4015000 0x1000>;
+			reg-names = "mpmu", "apmu", "apbc";
+			#clock-cells = <1>;
+			#reset-cells = <1>;
 		};
 	};
 };

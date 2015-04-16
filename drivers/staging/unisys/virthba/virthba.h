@@ -19,13 +19,9 @@
  * Unisys Virtual HBA driver header
  */
 
-
-
 #ifndef __VIRTHBA_H__
 #define __VIRTHBA_H__
 
-
 #define VIRTHBA_VERSION "01.00"
-
 
 #endif /* __VIRTHBA_H__ */

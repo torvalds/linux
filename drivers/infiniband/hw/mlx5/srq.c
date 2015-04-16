@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -141,7 +141,7 @@ static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 	return 0;
 
 err_in:
-	mlx5_vfree(*in);
+	kvfree(*in);
 
 err_umem:
 	ib_umem_release(srq->umem);
@@ -164,8 +164,6 @@ static int create_srq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_srq *srq,
 		mlx5_ib_warn(dev, "alloc dbell rec failed\n");
 		return err;
 	}
-
-	*srq->db.db = 0;
 
 	if (mlx5_buf_alloc(dev->mdev, buf_size, PAGE_SIZE * 2, &srq->buf)) {
 		mlx5_ib_dbg(dev, "buf alloc failed\n");
@@ -209,7 +207,7 @@ static int create_srq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_srq *srq,
 	return 0;
 
 err_in:
-	mlx5_vfree(*in);
+	kvfree(*in);
 
 err_buf:
 	mlx5_buf_free(dev->mdev, &srq->buf);
@@ -306,7 +304,7 @@ struct ib_srq *mlx5_ib_create_srq(struct ib_pd *pd,
 	in->ctx.pd = cpu_to_be32(to_mpd(pd)->pdn);
 	in->ctx.db_record = cpu_to_be64(srq->db.dma);
 	err = mlx5_core_create_srq(dev->mdev, &srq->msrq, in, inlen);
-	mlx5_vfree(in);
+	kvfree(in);
 	if (err) {
 		mlx5_ib_dbg(dev, "create SRQ failed, err %d\n", err);
 		goto err_usr_kern_srq;

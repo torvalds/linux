@@ -102,6 +102,8 @@ static int sunxi_reset_init(struct device_node *np)
 		goto err_alloc;
 	}
 
+	spin_lock_init(&data->lock);
+
 	data->rcdev.owner = THIS_MODULE;
 	data->rcdev.nr_resets = size * 32;
 	data->rcdev.ops = &sunxi_reset_ops;
@@ -157,6 +159,8 @@ static int sunxi_reset_probe(struct platform_device *pdev)
 	if (IS_ERR(data->membase))
 		return PTR_ERR(data->membase);
 
+	spin_lock_init(&data->lock);
+
 	data->rcdev.owner = THIS_MODULE;
 	data->rcdev.nr_resets = resource_size(res) * 32;
 	data->rcdev.ops = &sunxi_reset_ops;
@@ -179,7 +183,6 @@ static struct platform_driver sunxi_reset_driver = {
 	.remove	= sunxi_reset_remove,
 	.driver = {
 		.name		= "sunxi-reset",
-		.owner		= THIS_MODULE,
 		.of_match_table	= sunxi_reset_dt_ids,
 	},
 };

@@ -19,7 +19,7 @@
 
 static DEFINE_PER_CPU(struct s390_idle_data, s390_idle);
 
-void __kprobes enabled_wait(void)
+void enabled_wait(void)
 {
 	struct s390_idle_data *idle = this_cpu_ptr(&s390_idle);
 	unsigned long long idle_time;
@@ -35,31 +35,32 @@ void __kprobes enabled_wait(void)
 	/* Call the assembler magic in entry.S */
 	psw_idle(idle, psw_mask);
 
+	trace_hardirqs_off();
+
 	/* Account time spent with enabled wait psw loaded as idle time. */
-	idle->sequence++;
-	smp_wmb();
+	write_seqcount_begin(&idle->seqcount);
 	idle_time = idle->clock_idle_exit - idle->clock_idle_enter;
 	idle->clock_idle_enter = idle->clock_idle_exit = 0ULL;
 	idle->idle_time += idle_time;
 	idle->idle_count++;
 	account_idle_time(idle_time);
-	smp_wmb();
-	idle->sequence++;
+	write_seqcount_end(&idle->seqcount);
 }
+NOKPROBE_SYMBOL(enabled_wait);
 
 static ssize_t show_idle_count(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct s390_idle_data *idle = &per_cpu(s390_idle, dev->id);
 	unsigned long long idle_count;
-	unsigned int sequence;
+	unsigned int seq;
 
 	do {
-		sequence = ACCESS_ONCE(idle->sequence);
+		seq = read_seqcount_begin(&idle->seqcount);
 		idle_count = ACCESS_ONCE(idle->idle_count);
 		if (ACCESS_ONCE(idle->clock_idle_enter))
 			idle_count++;
-	} while ((sequence & 1) || (ACCESS_ONCE(idle->sequence) != sequence));
+	} while (read_seqcount_retry(&idle->seqcount, seq));
 	return sprintf(buf, "%llu\n", idle_count);
 }
 DEVICE_ATTR(idle_count, 0444, show_idle_count, NULL);
@@ -69,15 +70,15 @@ static ssize_t show_idle_time(struct device *dev,
 {
 	struct s390_idle_data *idle = &per_cpu(s390_idle, dev->id);
 	unsigned long long now, idle_time, idle_enter, idle_exit;
-	unsigned int sequence;
+	unsigned int seq;
 
 	do {
 		now = get_tod_clock();
-		sequence = ACCESS_ONCE(idle->sequence);
+		seq = read_seqcount_begin(&idle->seqcount);
 		idle_time = ACCESS_ONCE(idle->idle_time);
 		idle_enter = ACCESS_ONCE(idle->clock_idle_enter);
 		idle_exit = ACCESS_ONCE(idle->clock_idle_exit);
-	} while ((sequence & 1) || (ACCESS_ONCE(idle->sequence) != sequence));
+	} while (read_seqcount_retry(&idle->seqcount, seq));
 	idle_time += idle_enter ? ((idle_exit ? : now) - idle_enter) : 0;
 	return sprintf(buf, "%llu\n", idle_time >> 12);
 }
@@ -87,14 +88,14 @@ cputime64_t arch_cpu_idle_time(int cpu)
 {
 	struct s390_idle_data *idle = &per_cpu(s390_idle, cpu);
 	unsigned long long now, idle_enter, idle_exit;
-	unsigned int sequence;
+	unsigned int seq;
 
 	do {
 		now = get_tod_clock();
-		sequence = ACCESS_ONCE(idle->sequence);
+		seq = read_seqcount_begin(&idle->seqcount);
 		idle_enter = ACCESS_ONCE(idle->clock_idle_enter);
 		idle_exit = ACCESS_ONCE(idle->clock_idle_exit);
-	} while ((sequence & 1) || (ACCESS_ONCE(idle->sequence) != sequence));
+	} while (read_seqcount_retry(&idle->seqcount, seq));
 	return idle_enter ? ((idle_exit ?: now) - idle_enter) : 0;
 }
 

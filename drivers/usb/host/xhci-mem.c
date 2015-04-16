@@ -535,7 +535,7 @@ static void xhci_free_container_ctx(struct xhci_hcd *xhci,
 	kfree(ctx);
 }
 
-struct xhci_input_control_ctx *xhci_get_input_control_ctx(struct xhci_hcd *xhci,
+struct xhci_input_control_ctx *xhci_get_input_control_ctx(
 					      struct xhci_container_ctx *ctx)
 {
 	if (ctx->type != XHCI_CTX_TYPE_INPUT)
@@ -784,8 +784,7 @@ void xhci_setup_streams_ep_input_ctx(struct xhci_hcd *xhci,
  * Reinstalls the "normal" endpoint ring (at its previous dequeue mark,
  * not at the beginning of the ring).
  */
-void xhci_setup_no_streams_ep_input_ctx(struct xhci_hcd *xhci,
-		struct xhci_ep_ctx *ep_ctx,
+void xhci_setup_no_streams_ep_input_ctx(struct xhci_ep_ctx *ep_ctx,
 		struct xhci_virt_ep *ep)
 {
 	dma_addr_t addr;
@@ -833,9 +832,8 @@ void xhci_free_stream_info(struct xhci_hcd *xhci,
 static void xhci_init_endpoint_timer(struct xhci_hcd *xhci,
 		struct xhci_virt_ep *ep)
 {
-	init_timer(&ep->stop_cmd_timer);
-	ep->stop_cmd_timer.data = (unsigned long) ep;
-	ep->stop_cmd_timer.function = xhci_stop_endpoint_command_watchdog;
+	setup_timer(&ep->stop_cmd_timer, xhci_stop_endpoint_command_watchdog,
+		    (unsigned long)ep);
 	ep->xhci = xhci;
 }
 
@@ -1342,8 +1340,7 @@ static u32 xhci_get_endpoint_mult(struct usb_device *udev,
 	return ep->ss_ep_comp.bmAttributes;
 }
 
-static u32 xhci_get_endpoint_type(struct usb_device *udev,
-		struct usb_host_endpoint *ep)
+static u32 xhci_get_endpoint_type(struct usb_host_endpoint *ep)
 {
 	int in;
 	u32 type;
@@ -1376,8 +1373,7 @@ static u32 xhci_get_endpoint_type(struct usb_device *udev,
  * Basically, this is the maxpacket size, multiplied by the burst size
  * and mult size.
  */
-static u32 xhci_get_max_esit_payload(struct xhci_hcd *xhci,
-		struct usb_device *udev,
+static u32 xhci_get_max_esit_payload(struct usb_device *udev,
 		struct usb_host_endpoint *ep)
 {
 	int max_burst;
@@ -1418,7 +1414,7 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 	ep_index = xhci_get_endpoint_index(&ep->desc);
 	ep_ctx = xhci_get_ep_ctx(xhci, virt_dev->in_ctx, ep_index);
 
-	endpoint_type = xhci_get_endpoint_type(udev, ep);
+	endpoint_type = xhci_get_endpoint_type(ep);
 	if (!endpoint_type)
 		return -EINVAL;
 	ep_ctx->ep_info2 = cpu_to_le32(endpoint_type);
@@ -1484,7 +1480,7 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 	}
 	ep_ctx->ep_info2 |= cpu_to_le32(MAX_PACKET(max_packet) |
 			MAX_BURST(max_burst));
-	max_esit_payload = xhci_get_max_esit_payload(xhci, udev, ep);
+	max_esit_payload = xhci_get_max_esit_payload(udev, ep);
 	ep_ctx->tx_info = cpu_to_le32(MAX_ESIT_PAYLOAD_FOR_EP(max_esit_payload));
 
 	/*
@@ -1773,7 +1769,7 @@ struct xhci_command *xhci_alloc_command(struct xhci_hcd *xhci,
 	return command;
 }
 
-void xhci_urb_free_priv(struct xhci_hcd *xhci, struct urb_priv *urb_priv)
+void xhci_urb_free_priv(struct urb_priv *urb_priv)
 {
 	if (urb_priv) {
 		kfree(urb_priv->td[0]);
@@ -1926,7 +1922,7 @@ static int xhci_test_trb_in_td(struct xhci_hcd *xhci,
 }
 
 /* TRB math checks for xhci_trb_in_td(), using the command and event rings. */
-static int xhci_check_trb_in_td_math(struct xhci_hcd *xhci, gfp_t mem_flags)
+static int xhci_check_trb_in_td_math(struct xhci_hcd *xhci)
 {
 	struct {
 		dma_addr_t		input_dma;
@@ -2452,7 +2448,7 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 						flags);
 	if (!xhci->event_ring)
 		goto fail;
-	if (xhci_check_trb_in_td_math(xhci, flags) < 0)
+	if (xhci_check_trb_in_td_math(xhci) < 0)
 		goto fail;
 
 	xhci->erst.entries = dma_alloc_coherent(dev,
@@ -2509,9 +2505,8 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	xhci_print_ir_set(xhci, 0);
 
 	/* init command timeout timer */
-	init_timer(&xhci->cmd_timer);
-	xhci->cmd_timer.data = (unsigned long) xhci;
-	xhci->cmd_timer.function = xhci_handle_command_timeout;
+	setup_timer(&xhci->cmd_timer, xhci_handle_command_timeout,
+		    (unsigned long)xhci);
 
 	/*
 	 * XXX: Might need to set the Interrupter Moderation Register to

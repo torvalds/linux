@@ -73,7 +73,7 @@ static int snd_vortex_midi(vortex_t *vortex)
 	/* Check if anything is OK. */
 	temp = hwread(vortex->mmio, VORTEX_MIDI_DATA);
 	if (temp != MPU401_ACK /*0xfe */ ) {
-		pr_err( "midi port doesn't acknowledge!\n");
+		dev_err(vortex->card->dev, "midi port doesn't acknowledge!\n");
 		return -ENODEV;
 	}
 	/* Enable MPU401 interrupts. */

@@ -16,7 +16,7 @@
 void __iomem *mips_cm_base;
 void __iomem *mips_cm_l2sync_base;
 
-phys_t __mips_cm_phys_base(void)
+phys_addr_t __mips_cm_phys_base(void)
 {
 	u32 config3 = read_c0_config3();
 	u32 cmgcr;
@@ -30,10 +30,10 @@ phys_t __mips_cm_phys_base(void)
 	return (cmgcr & MIPS_CMGCRF_BASE) << (36 - 32);
 }
 
-phys_t mips_cm_phys_base(void)
+phys_addr_t mips_cm_phys_base(void)
 	__attribute__((weak, alias("__mips_cm_phys_base")));
 
-phys_t __mips_cm_l2sync_phys_base(void)
+phys_addr_t __mips_cm_l2sync_phys_base(void)
 {
 	u32 base_reg;
 
@@ -49,13 +49,13 @@ phys_t __mips_cm_l2sync_phys_base(void)
 	return mips_cm_phys_base() + MIPS_CM_GCR_SIZE;
 }
 
-phys_t mips_cm_l2sync_phys_base(void)
+phys_addr_t mips_cm_l2sync_phys_base(void)
 	__attribute__((weak, alias("__mips_cm_l2sync_phys_base")));
 
 static void mips_cm_probe_l2sync(void)
 {
 	unsigned major_rev;
-	phys_t addr;
+	phys_addr_t addr;
 
 	/* L2-only sync was introduced with CM major revision 6 */
 	major_rev = (read_gcr_rev() & CM_GCR_REV_MAJOR_MSK) >>
@@ -78,7 +78,7 @@ static void mips_cm_probe_l2sync(void)
 
 int mips_cm_probe(void)
 {
-	phys_t addr;
+	phys_addr_t addr;
 	u32 base_reg;
 
 	addr = mips_cm_phys_base();

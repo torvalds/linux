@@ -271,7 +271,9 @@ sn_pci_controller_fixup(int segment, int busnum, struct pci_bus *bus)
  	if (bus == NULL) {
 		kfree(res);
 		kfree(controller);
+		return;
 	}
+	pci_bus_add_devices(bus);
 }
 
 /*

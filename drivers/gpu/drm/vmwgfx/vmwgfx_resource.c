@@ -1222,7 +1222,7 @@ vmw_resource_check_buffer(struct vmw_resource *res,
 	val_buf->bo = ttm_bo_reference(&res->backup->base);
 	val_buf->shared = false;
 	list_add_tail(&val_buf->head, &val_list);
-	ret = ttm_eu_reserve_buffers(NULL, &val_list, interruptible);
+	ret = ttm_eu_reserve_buffers(NULL, &val_list, interruptible, NULL);
 	if (unlikely(ret != 0))
 		goto out_no_reserve;
 

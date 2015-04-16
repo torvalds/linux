@@ -178,7 +178,7 @@ msi_irq_allocated:
 	pci_write_config_word(dev, dev->msi_cap + PCI_MSI_FLAGS, control);
 
 	irq_set_msi_desc(irq, desc);
-	write_msi_msg(irq, &msg);
+	pci_write_msi_msg(irq, &msg);
 	return 0;
 }
 

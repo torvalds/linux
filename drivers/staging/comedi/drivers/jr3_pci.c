@@ -39,14 +39,13 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/ctype.h>
 #include <linux/jiffies.h>
 #include <linux/slab.h>
 #include <linux/timer.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
 #include "jr3_pci.h"
 
@@ -706,8 +705,6 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 	if (!devpriv)
 		return -ENOMEM;
 
-	init_timer(&devpriv->timer);
-
 	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
@@ -775,8 +772,7 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 		spriv->next_time_max = jiffies + msecs_to_jiffies(2000);
 	}
 
-	devpriv->timer.data = (unsigned long)dev;
-	devpriv->timer.function = jr3_pci_poll_dev;
+	setup_timer(&devpriv->timer, jr3_pci_poll_dev, (unsigned long)dev);
 	devpriv->timer.expires = jiffies + msecs_to_jiffies(1000);
 	add_timer(&devpriv->timer);
 

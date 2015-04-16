@@ -191,6 +191,7 @@ struct i40evf_adapter {
 	struct i40e_q_vector *q_vector[MAX_MSIX_Q_VECTORS];
 	struct list_head vlan_filter_list;
 	char misc_vector_name[IFNAMSIZ + 9];
+	int num_active_queues;
 
 	/* TX */
 	struct i40e_ring *tx_rings[I40E_MAX_VSI_QP];
@@ -243,7 +244,7 @@ struct i40evf_adapter {
 	struct i40e_hw hw; /* defined in i40e_type.h */
 
 	enum i40evf_state_t state;
-	volatile unsigned long crit_section;
+	unsigned long crit_section;
 
 	struct work_struct watchdog_task;
 	bool netdev_registered;
@@ -271,6 +272,8 @@ void i40evf_update_stats(struct i40evf_adapter *adapter);
 void i40evf_reset_interrupt_capability(struct i40evf_adapter *adapter);
 int i40evf_init_interrupt_scheme(struct i40evf_adapter *adapter);
 void i40evf_irq_enable_queues(struct i40evf_adapter *adapter, u32 mask);
+void i40evf_free_all_tx_resources(struct i40evf_adapter *adapter);
+void i40evf_free_all_rx_resources(struct i40evf_adapter *adapter);
 
 void i40e_napi_add_all(struct i40evf_adapter *adapter);
 void i40e_napi_del_all(struct i40evf_adapter *adapter);

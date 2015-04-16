@@ -622,7 +622,6 @@ static struct platform_driver ep93xxfb_driver = {
 	.remove		= ep93xxfb_remove,
 	.driver = {
 		.name	= "ep93xx-fb",
-		.owner	= THIS_MODULE,
 	},
 };
 module_platform_driver(ep93xxfb_driver);

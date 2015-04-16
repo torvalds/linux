@@ -47,13 +47,11 @@ static int of_flash_remove(struct platform_device *dev)
 		return 0;
 	dev_set_drvdata(&dev->dev, NULL);
 
-	if (info->cmtd != info->list[0].mtd) {
+	if (info->cmtd) {
 		mtd_device_unregister(info->cmtd);
-		mtd_concat_destroy(info->cmtd);
+		if (info->cmtd != info->list[0].mtd)
+			mtd_concat_destroy(info->cmtd);
 	}
-
-	if (info->cmtd)
-		mtd_device_unregister(info->cmtd);
 
 	for (i = 0; i < info->list_size; i++) {
 		if (info->list[i].mtd)
@@ -271,6 +269,16 @@ static int of_flash_probe(struct platform_device *dev)
 			info->list[i].mtd = obsolete_probe(dev,
 							   &info->list[i].map);
 		}
+
+		/* Fall back to mapping region as ROM */
+		if (!info->list[i].mtd) {
+			dev_warn(&dev->dev,
+				"do_map_probe() failed for type %s\n",
+				 probe_type);
+
+			info->list[i].mtd = do_map_probe("map_rom",
+							 &info->list[i].map);
+		}
 		mtd_list[i] = info->list[i].mtd;
 
 		err = -ENXIO;
@@ -354,7 +362,6 @@ MODULE_DEVICE_TABLE(of, of_flash_match);
 static struct platform_driver of_flash_driver = {
 	.driver = {
 		.name = "of-flash",
-		.owner = THIS_MODULE,
 		.of_match_table = of_flash_match,
 	},
 	.probe		= of_flash_probe,

@@ -32,6 +32,7 @@ Optional properties:
     specified, default value is 0.
   - samsung,i2c-max-bus-freq: Desired frequency in Hz of the bus. If not
     specified, the default value in Hz is 100000.
+  - samsung,sysreg-phandle - handle to syscon used to control the system registers
 
 Example:
 

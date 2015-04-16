@@ -301,21 +301,11 @@ enum WIFI_REG_DOMAIN {
 #define GetPrivacy(pbuf)					\
 	(((*(__le16 *)(pbuf)) & cpu_to_le16(_PRIVACY_)) != 0)
 
-#define ClearPrivacy(pbuf)	\
-	*(__le16 *)(pbuf) &= (~cpu_to_le16(_PRIVACY_))
-
-
 #define GetOrder(pbuf)					\
 	(((*(__le16 *)(pbuf)) & cpu_to_le16(_ORDER_)) != 0)
 
 #define GetFrameType(pbuf)				\
 	(le16_to_cpu(*(__le16 *)(pbuf)) & (BIT(3) | BIT(2)))
-
-#define SetFrameType(pbuf, type)	\
-	do {	\
-		*(unsigned short *)(pbuf) &= __constant_cpu_to_le16(~(BIT(3) | BIT(2))); \
-		*(unsigned short *)(pbuf) |= __constant_cpu_to_le16(type); \
-	} while (0)
 
 #define GetFrameSubType(pbuf)	(le16_to_cpu(*(__le16 *)(pbuf)) & (BIT(7) |\
 	 BIT(6) | BIT(5) | BIT(4) | BIT(3) | BIT(2)))
@@ -332,17 +322,6 @@ enum WIFI_REG_DOMAIN {
 
 #define GetFragNum(pbuf)			\
 	(le16_to_cpu(*(__le16 *)((size_t)(pbuf) + 22)) & 0x0f)
-
-#define GetTupleCache(pbuf)			\
-	(cpu_to_le16(*(unsigned short *)((size_t)(pbuf) + 22)))
-
-#define SetFragNum(pbuf, num) \
-	do {    \
-		*(unsigned short *)((size_t)(pbuf) + 22) = \
-			((*(unsigned short *)((size_t)(pbuf) + 22)) &	\
-			le16_to_cpu(~(0x000f))) | \
-			cpu_to_le16(0x0f & (num));     \
-	} while (0)
 
 #define SetSeqNum(pbuf, num) \
 	do {    \
@@ -370,14 +349,7 @@ enum WIFI_REG_DOMAIN {
 
 #define GetAMsdu(pbuf) (((le16_to_cpu(*(__le16 *)pbuf)) >> 7) & 0x1)
 
-#define SetAMsdu(pbuf, amsdu)	\
-	*(__le16 *)(pbuf) |= cpu_to_le16((amsdu & 1) << 7)
-
 #define GetAid(pbuf)	(le16_to_cpu(*(__le16 *)((size_t)(pbuf) + 2)) & 0x3fff)
-
-#define GetTid(pbuf)	(le16_to_cpu(*(__le16 *)((size_t)(pbuf) +	\
-			(((GetToDs(pbuf)<<1) | GetFrDs(pbuf)) == 3 ?	\
-			30 : 24))) & 0x000f)
 
 #define GetAddr1Ptr(pbuf)	((unsigned char *)((size_t)(pbuf) + 4))
 
@@ -766,27 +738,27 @@ enum ht_cap_ampdu_factor {
 #define OP_MODE_20MHZ_HT_STA_ASSOCED    2
 #define OP_MODE_MIXED                   3
 
-#define HT_INFO_HT_PARAM_SECONDARY_CHNL_OFF_MASK	((u8) BIT(0) | BIT(1))
-#define HT_INFO_HT_PARAM_SECONDARY_CHNL_ABOVE		((u8) BIT(0))
-#define HT_INFO_HT_PARAM_SECONDARY_CHNL_BELOW		((u8) BIT(0) | BIT(1))
-#define HT_INFO_HT_PARAM_REC_TRANS_CHNL_WIDTH		((u8) BIT(2))
-#define HT_INFO_HT_PARAM_RIFS_MODE			((u8) BIT(3))
-#define HT_INFO_HT_PARAM_CTRL_ACCESS_ONLY		((u8) BIT(4))
-#define HT_INFO_HT_PARAM_SRV_INTERVAL_GRANULARITY	((u8) BIT(5))
+#define HT_INFO_HT_PARAM_SECONDARY_CHNL_OFF_MASK	((u8)BIT(0) | BIT(1))
+#define HT_INFO_HT_PARAM_SECONDARY_CHNL_ABOVE		((u8)BIT(0))
+#define HT_INFO_HT_PARAM_SECONDARY_CHNL_BELOW		((u8)BIT(0) | BIT(1))
+#define HT_INFO_HT_PARAM_REC_TRANS_CHNL_WIDTH		((u8)BIT(2))
+#define HT_INFO_HT_PARAM_RIFS_MODE			((u8)BIT(3))
+#define HT_INFO_HT_PARAM_CTRL_ACCESS_ONLY		((u8)BIT(4))
+#define HT_INFO_HT_PARAM_SRV_INTERVAL_GRANULARITY	((u8)BIT(5))
 
 #define HT_INFO_OPERATION_MODE_OP_MODE_MASK	\
-		((u16) (0x0001 | 0x0002))
+		((u16)(0x0001 | 0x0002))
 #define HT_INFO_OPERATION_MODE_OP_MODE_OFFSET		0
-#define HT_INFO_OPERATION_MODE_NON_GF_DEVS_PRESENT	((u8) BIT(2))
-#define HT_INFO_OPERATION_MODE_TRANSMIT_BURST_LIMIT	((u8) BIT(3))
-#define HT_INFO_OPERATION_MODE_NON_HT_STA_PRESENT	((u8) BIT(4))
+#define HT_INFO_OPERATION_MODE_NON_GF_DEVS_PRESENT	((u8)BIT(2))
+#define HT_INFO_OPERATION_MODE_TRANSMIT_BURST_LIMIT	((u8)BIT(3))
+#define HT_INFO_OPERATION_MODE_NON_HT_STA_PRESENT	((u8)BIT(4))
 
-#define HT_INFO_STBC_PARAM_DUAL_BEACON		((u16) BIT(6))
-#define HT_INFO_STBC_PARAM_DUAL_STBC_PROTECT	((u16) BIT(7))
-#define HT_INFO_STBC_PARAM_SECONDARY_BC		((u16) BIT(8))
-#define HT_INFO_STBC_PARAM_LSIG_TXOP_PROTECT_ALLOWED	((u16) BIT(9))
-#define HT_INFO_STBC_PARAM_PCO_ACTIVE		((u16) BIT(10))
-#define HT_INFO_STBC_PARAM_PCO_PHASE		((u16) BIT(11))
+#define HT_INFO_STBC_PARAM_DUAL_BEACON		((u16)BIT(6))
+#define HT_INFO_STBC_PARAM_DUAL_STBC_PROTECT	((u16)BIT(7))
+#define HT_INFO_STBC_PARAM_SECONDARY_BC		((u16)BIT(8))
+#define HT_INFO_STBC_PARAM_LSIG_TXOP_PROTECT_ALLOWED	((u16)BIT(9))
+#define HT_INFO_STBC_PARAM_PCO_ACTIVE		((u16)BIT(10))
+#define HT_INFO_STBC_PARAM_PCO_PHASE		((u16)BIT(11))
 
 /*	===============WPS Section=============== */
 /*	For WPSv1.0 */
@@ -916,7 +888,7 @@ enum ht_cap_ampdu_factor {
 #define	P2P_STATUS_FAIL_INCOMPATIBLE_PROVSION		0x0A
 #define	P2P_STATUS_FAIL_USER_REJECT			0x0B
 
-/*	Value of Inviation Flags Attribute */
+/*	Value of Invitation Flags Attribute */
 #define	P2P_INVITATION_FLAGS_PERSISTENT			BIT(0)
 
 #define	DMP_P2P_DEVCAP_SUPPORT	(P2P_DEVCAP_SERVICE_DISCOVERY | \
@@ -970,7 +942,7 @@ enum ht_cap_ampdu_factor {
 
 #define	P2P_WILDCARD_SSID_LEN			7
 
-/* default value, used when: (1)p2p disabed or (2)p2p enabled
+/* default value, used when: (1)p2p disabled or (2)p2p enabled
  * but only do 1 scan phase */
 #define	P2P_FINDPHASE_EX_NONE		0
 /*  used when p2p enabled and want to do 1 scan phase and
@@ -1035,13 +1007,13 @@ enum P2P_STATE {
 	P2P_STATE_TX_PROVISION_DIS_REQ = 6,
 	P2P_STATE_RX_PROVISION_DIS_RSP = 7,
 	P2P_STATE_RX_PROVISION_DIS_REQ = 8,
-	/* Doing the group owner negoitation handshake */
+	/* Doing the group owner negotiation handshake */
 	P2P_STATE_GONEGO_ING = 9,
-	/* finish the group negoitation handshake with success */
+	/* finish the group negotiation handshake with success */
 	P2P_STATE_GONEGO_OK = 10,
-	/* finish the group negoitation handshake with failure */
+	/* finish the group negotiation handshake with failure */
 	P2P_STATE_GONEGO_FAIL = 11,
-	/* receiving the P2P Inviation request and match with the profile. */
+	/* receiving the P2P Invitation request and match with the profile. */
 	P2P_STATE_RECV_INVITE_REQ_MATCH = 12,
 	/* Doing the P2P WPS */
 	P2P_STATE_PROVISIONING_ING = 13,
@@ -1051,17 +1023,17 @@ enum P2P_STATE {
 	P2P_STATE_TX_INVITE_REQ = 15,
 	/* Receiving the P2P Invitation response */
 	P2P_STATE_RX_INVITE_RESP_OK = 16,
-	/* receiving the P2P Inviation request and dismatch with the profile. */
+	/* receiving the P2P Invitation request and dismatch with the profile. */
 	P2P_STATE_RECV_INVITE_REQ_DISMATCH = 17,
-	/* receiving the P2P Inviation request and this wifi is GO. */
+	/* receiving the P2P Invitation request and this wifi is GO. */
 	P2P_STATE_RECV_INVITE_REQ_GO = 18,
-	/* receiving the P2P Inviation request to join an existing P2P Group. */
+	/* receiving the P2P Invitation request to join an existing P2P Group. */
 	P2P_STATE_RECV_INVITE_REQ_JOIN = 19,
-	/* recveing the P2P Inviation response with failure */
+	/* receiving the P2P Invitation response with failure */
 	P2P_STATE_RX_INVITE_RESP_FAIL = 20,
-	/* receiving p2p negoitation response with information is not available */
+	/* receiving p2p negotiation response with information is not available */
 	P2P_STATE_RX_INFOR_NOREADY = 21,
-	/* sending p2p negoitation response with information is not available */
+	/* sending p2p negotiation response with information is not available */
 	P2P_STATE_TX_INFOR_NOREADY = 22,
 };
 

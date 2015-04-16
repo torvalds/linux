@@ -61,7 +61,7 @@ config ATA_ACPI
 
 config SATA_ZPODD
 	bool "SATA Zero Power Optical Disc Drive (ZPODD) support"
-	depends on ATA_ACPI && PM_RUNTIME
+	depends on ATA_ACPI && PM
 	default n
 	help
 	  This option adds support for SATA Zero Power Optical Disc
@@ -835,6 +835,7 @@ config PATA_AT32
 config PATA_AT91
 	tristate "PATA support for AT91SAM9260"
 	depends on ARM && SOC_AT91SAM9
+	depends on !ARCH_MULTIPLATFORM
 	help
 	  This option enables support for IDE devices on the Atmel AT91SAM9260 SoC.
 

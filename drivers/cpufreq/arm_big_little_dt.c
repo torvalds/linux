@@ -82,6 +82,7 @@ static struct cpufreq_arm_bL_ops dt_bL_ops = {
 	.name	= "dt-bl",
 	.get_transition_latency = dt_get_transition_latency,
 	.init_opp_table = dt_init_opp_table,
+	.free_opp_table = of_free_opp_table,
 };
 
 static int generic_bL_probe(struct platform_device *pdev)
@@ -105,7 +106,6 @@ static int generic_bL_remove(struct platform_device *pdev)
 static struct platform_driver generic_bL_platdrv = {
 	.driver = {
 		.name	= "arm-bL-cpufreq-dt",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= generic_bL_probe,
 	.remove		= generic_bL_remove,

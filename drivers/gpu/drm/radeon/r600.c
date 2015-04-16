@@ -33,6 +33,7 @@
 #include <drm/radeon_drm.h>
 #include "radeon.h"
 #include "radeon_asic.h"
+#include "radeon_audio.h"
 #include "radeon_mode.h"
 #include "r600d.h"
 #include "atom.h"
@@ -2889,31 +2890,27 @@ struct radeon_fence *r600_copy_cpdma(struct radeon_device *rdev,
 				     unsigned num_gpu_pages,
 				     struct reservation_object *resv)
 {
-	struct radeon_semaphore *sem = NULL;
 	struct radeon_fence *fence;
+	struct radeon_sync sync;
 	int ring_index = rdev->asic->copy.blit_ring_index;
 	struct radeon_ring *ring = &rdev->ring[ring_index];
 	u32 size_in_bytes, cur_size_in_bytes, tmp;
 	int i, num_loops;
 	int r = 0;
 
-	r = radeon_semaphore_create(rdev, &sem);
-	if (r) {
-		DRM_ERROR("radeon: moving bo (%d).\n", r);
-		return ERR_PTR(r);
-	}
+	radeon_sync_create(&sync);
 
 	size_in_bytes = (num_gpu_pages << RADEON_GPU_PAGE_SHIFT);
 	num_loops = DIV_ROUND_UP(size_in_bytes, 0x1fffff);
 	r = radeon_ring_lock(rdev, ring, num_loops * 6 + 24);
 	if (r) {
 		DRM_ERROR("radeon: moving bo (%d).\n", r);
-		radeon_semaphore_free(rdev, &sem, NULL);
+		radeon_sync_free(rdev, &sync, NULL);
 		return ERR_PTR(r);
 	}
 
-	radeon_semaphore_sync_resv(rdev, sem, resv, false);
-	radeon_semaphore_sync_rings(rdev, sem, ring->idx);
+	radeon_sync_resv(rdev, &sync, resv, false);
+	radeon_sync_rings(rdev, &sync, ring->idx);
 
 	radeon_ring_write(ring, PACKET3(PACKET3_SET_CONFIG_REG, 1));
 	radeon_ring_write(ring, (WAIT_UNTIL - PACKET3_SET_CONFIG_REG_OFFSET) >> 2);
@@ -2942,12 +2939,12 @@ struct radeon_fence *r600_copy_cpdma(struct radeon_device *rdev,
 	r = radeon_fence_emit(rdev, &fence, ring->idx);
 	if (r) {
 		radeon_ring_unlock_undo(rdev, ring);
-		radeon_semaphore_free(rdev, &sem, NULL);
+		radeon_sync_free(rdev, &sync, NULL);
 		return ERR_PTR(r);
 	}
 
 	radeon_ring_unlock_commit(rdev, ring, false);
-	radeon_semaphore_free(rdev, &sem, fence);
+	radeon_sync_free(rdev, &sync, fence);
 
 	return fence;
 }
@@ -3058,7 +3055,7 @@ static int r600_startup(struct radeon_device *rdev)
 		return r;
 	}
 
-	r = r600_audio_init(rdev);
+	r = radeon_audio_init(rdev);
 	if (r) {
 		DRM_ERROR("radeon: audio init failed\n");
 		return r;
@@ -3109,7 +3106,7 @@ int r600_resume(struct radeon_device *rdev)
 int r600_suspend(struct radeon_device *rdev)
 {
 	radeon_pm_suspend(rdev);
-	r600_audio_fini(rdev);
+	radeon_audio_fini(rdev);
 	r600_cp_stop(rdev);
 	if (rdev->has_uvd) {
 		uvd_v1_0_fini(rdev);
@@ -3228,7 +3225,7 @@ int r600_init(struct radeon_device *rdev)
 void r600_fini(struct radeon_device *rdev)
 {
 	radeon_pm_fini(rdev);
-	r600_audio_fini(rdev);
+	radeon_audio_fini(rdev);
 	r600_cp_fini(rdev);
 	r600_irq_fini(rdev);
 	if (rdev->has_uvd) {
@@ -3786,6 +3783,9 @@ int r600_irq_set(struct radeon_device *rdev)
 	} else if (rdev->family >= CHIP_RV770) {
 		WREG32(RV770_CG_THERMAL_INT, thermal_int);
 	}
+
+	/* posting read */
+	RREG32(R_000E50_SRBM_STATUS);
 
 	return 0;
 }

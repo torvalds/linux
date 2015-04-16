@@ -23,9 +23,7 @@
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
-#include "xfs_inum.h"
 #include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
 #include "xfs_da_format.h"
@@ -1082,7 +1080,7 @@ xfs_create(
 	struct xfs_dquot	*udqp = NULL;
 	struct xfs_dquot	*gdqp = NULL;
 	struct xfs_dquot	*pdqp = NULL;
-	struct xfs_trans_res	tres;
+	struct xfs_trans_res	*tres;
 	uint			resblks;
 
 	trace_xfs_create(dp, name);
@@ -1105,13 +1103,11 @@ xfs_create(
 	if (is_dir) {
 		rdev = 0;
 		resblks = XFS_MKDIR_SPACE_RES(mp, name->len);
-		tres.tr_logres = M_RES(mp)->tr_mkdir.tr_logres;
-		tres.tr_logcount = XFS_MKDIR_LOG_COUNT;
+		tres = &M_RES(mp)->tr_mkdir;
 		tp = xfs_trans_alloc(mp, XFS_TRANS_MKDIR);
 	} else {
 		resblks = XFS_CREATE_SPACE_RES(mp, name->len);
-		tres.tr_logres = M_RES(mp)->tr_create.tr_logres;
-		tres.tr_logcount = XFS_CREATE_LOG_COUNT;
+		tres = &M_RES(mp)->tr_create;
 		tp = xfs_trans_alloc(mp, XFS_TRANS_CREATE);
 	}
 
@@ -1123,17 +1119,16 @@ xfs_create(
 	 * the case we'll drop the one we have and get a more
 	 * appropriate transaction later.
 	 */
-	tres.tr_logflags = XFS_TRANS_PERM_LOG_RES;
-	error = xfs_trans_reserve(tp, &tres, resblks, 0);
+	error = xfs_trans_reserve(tp, tres, resblks, 0);
 	if (error == -ENOSPC) {
 		/* flush outstanding delalloc blocks and retry */
 		xfs_flush_inodes(mp);
-		error = xfs_trans_reserve(tp, &tres, resblks, 0);
+		error = xfs_trans_reserve(tp, tres, resblks, 0);
 	}
 	if (error == -ENOSPC) {
 		/* No space at all so try a "no-allocation" reservation */
 		resblks = 0;
-		error = xfs_trans_reserve(tp, &tres, 0, 0);
+		error = xfs_trans_reserve(tp, tres, 0, 0);
 	}
 	if (error) {
 		cancel_flags = 0;
@@ -2000,6 +1995,7 @@ xfs_iunlink(
 	agi->agi_unlinked[bucket_index] = cpu_to_be32(agino);
 	offset = offsetof(xfs_agi_t, agi_unlinked) +
 		(sizeof(xfs_agino_t) * bucket_index);
+	xfs_trans_buf_set_type(tp, agibp, XFS_BLFT_AGI_BUF);
 	xfs_trans_log_buf(tp, agibp, offset,
 			  (offset + sizeof(xfs_agino_t) - 1));
 	return 0;
@@ -2091,6 +2087,7 @@ xfs_iunlink_remove(
 		agi->agi_unlinked[bucket_index] = cpu_to_be32(next_agino);
 		offset = offsetof(xfs_agi_t, agi_unlinked) +
 			(sizeof(xfs_agino_t) * bucket_index);
+		xfs_trans_buf_set_type(tp, agibp, XFS_BLFT_AGI_BUF);
 		xfs_trans_log_buf(tp, agibp, offset,
 				  (offset + sizeof(xfs_agino_t) - 1));
 	} else {
@@ -2488,9 +2485,7 @@ xfs_remove(
 	xfs_fsblock_t           first_block;
 	int			cancel_flags;
 	int			committed;
-	int			link_zero;
 	uint			resblks;
-	uint			log_count;
 
 	trace_xfs_remove(dp, name);
 
@@ -2505,13 +2500,10 @@ xfs_remove(
 	if (error)
 		goto std_return;
 
-	if (is_dir) {
+	if (is_dir)
 		tp = xfs_trans_alloc(mp, XFS_TRANS_RMDIR);
-		log_count = XFS_DEFAULT_LOG_COUNT;
-	} else {
+	else
 		tp = xfs_trans_alloc(mp, XFS_TRANS_REMOVE);
-		log_count = XFS_REMOVE_LOG_COUNT;
-	}
 	cancel_flags = XFS_TRANS_RELEASE_LOG_RES;
 
 	/*
@@ -2578,9 +2570,6 @@ xfs_remove(
 	error = xfs_droplink(tp, ip);
 	if (error)
 		goto out_trans_cancel;
-
-	/* Determine if this is the last link while the inode is locked */
-	link_zero = (ip->i_d.di_nlink == 0);
 
 	xfs_bmap_init(&free_list, &first_block);
 	error = xfs_dir_removename(tp, dp, name, ip->i_ino,
@@ -2669,6 +2658,124 @@ xfs_sort_for_rename(
 }
 
 /*
+ * xfs_cross_rename()
+ *
+ * responsible for handling RENAME_EXCHANGE flag in renameat2() sytemcall
+ */
+STATIC int
+xfs_cross_rename(
+	struct xfs_trans	*tp,
+	struct xfs_inode	*dp1,
+	struct xfs_name		*name1,
+	struct xfs_inode	*ip1,
+	struct xfs_inode	*dp2,
+	struct xfs_name		*name2,
+	struct xfs_inode	*ip2,
+	struct xfs_bmap_free	*free_list,
+	xfs_fsblock_t		*first_block,
+	int			spaceres)
+{
+	int		error = 0;
+	int		ip1_flags = 0;
+	int		ip2_flags = 0;
+	int		dp2_flags = 0;
+
+	/* Swap inode number for dirent in first parent */
+	error = xfs_dir_replace(tp, dp1, name1,
+				ip2->i_ino,
+				first_block, free_list, spaceres);
+	if (error)
+		goto out;
+
+	/* Swap inode number for dirent in second parent */
+	error = xfs_dir_replace(tp, dp2, name2,
+				ip1->i_ino,
+				first_block, free_list, spaceres);
+	if (error)
+		goto out;
+
+	/*
+	 * If we're renaming one or more directories across different parents,
+	 * update the respective ".." entries (and link counts) to match the new
+	 * parents.
+	 */
+	if (dp1 != dp2) {
+		dp2_flags = XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG;
+
+		if (S_ISDIR(ip2->i_d.di_mode)) {
+			error = xfs_dir_replace(tp, ip2, &xfs_name_dotdot,
+						dp1->i_ino, first_block,
+						free_list, spaceres);
+			if (error)
+				goto out;
+
+			/* transfer ip2 ".." reference to dp1 */
+			if (!S_ISDIR(ip1->i_d.di_mode)) {
+				error = xfs_droplink(tp, dp2);
+				if (error)
+					goto out;
+				error = xfs_bumplink(tp, dp1);
+				if (error)
+					goto out;
+			}
+
+			/*
+			 * Although ip1 isn't changed here, userspace needs
+			 * to be warned about the change, so that applications
+			 * relying on it (like backup ones), will properly
+			 * notify the change
+			 */
+			ip1_flags |= XFS_ICHGTIME_CHG;
+			ip2_flags |= XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG;
+		}
+
+		if (S_ISDIR(ip1->i_d.di_mode)) {
+			error = xfs_dir_replace(tp, ip1, &xfs_name_dotdot,
+						dp2->i_ino, first_block,
+						free_list, spaceres);
+			if (error)
+				goto out;
+
+			/* transfer ip1 ".." reference to dp2 */
+			if (!S_ISDIR(ip2->i_d.di_mode)) {
+				error = xfs_droplink(tp, dp1);
+				if (error)
+					goto out;
+				error = xfs_bumplink(tp, dp2);
+				if (error)
+					goto out;
+			}
+
+			/*
+			 * Although ip2 isn't changed here, userspace needs
+			 * to be warned about the change, so that applications
+			 * relying on it (like backup ones), will properly
+			 * notify the change
+			 */
+			ip1_flags |= XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG;
+			ip2_flags |= XFS_ICHGTIME_CHG;
+		}
+	}
+
+	if (ip1_flags) {
+		xfs_trans_ichgtime(tp, ip1, ip1_flags);
+		xfs_trans_log_inode(tp, ip1, XFS_ILOG_CORE);
+	}
+	if (ip2_flags) {
+		xfs_trans_ichgtime(tp, ip2, ip2_flags);
+		xfs_trans_log_inode(tp, ip2, XFS_ILOG_CORE);
+	}
+	if (dp2_flags) {
+		xfs_trans_ichgtime(tp, dp2, dp2_flags);
+		xfs_trans_log_inode(tp, dp2, XFS_ILOG_CORE);
+	}
+	xfs_trans_ichgtime(tp, dp1, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
+	xfs_trans_log_inode(tp, dp1, XFS_ILOG_CORE);
+out:
+	return error;
+}
+
+/*
  * xfs_rename
  */
 int
@@ -2678,7 +2785,8 @@ xfs_rename(
 	xfs_inode_t	*src_ip,
 	xfs_inode_t	*target_dp,
 	struct xfs_name	*target_name,
-	xfs_inode_t	*target_ip)
+	xfs_inode_t	*target_ip,
+	unsigned int	flags)
 {
 	xfs_trans_t	*tp = NULL;
 	xfs_mount_t	*mp = src_dp->i_mount;
@@ -2753,6 +2861,22 @@ xfs_rename(
 		     (xfs_get_projid(target_dp) != xfs_get_projid(src_ip)))) {
 		error = -EXDEV;
 		goto error_return;
+	}
+
+	/*
+	 * Handle RENAME_EXCHANGE flags
+	 */
+	if (flags & RENAME_EXCHANGE) {
+		if (target_ip == NULL) {
+			error = -EINVAL;
+			goto error_return;
+		}
+		error = xfs_cross_rename(tp, src_dp, src_name, src_ip,
+					 target_dp, target_name, target_ip,
+					 &free_list, &first_block, spaceres);
+		if (error)
+			goto abort_return;
+		goto finish_rename;
 	}
 
 	/*
@@ -2894,6 +3018,7 @@ xfs_rename(
 	if (new_parent)
 		xfs_trans_log_inode(tp, target_dp, XFS_ILOG_CORE);
 
+finish_rename:
 	/*
 	 * If this is a synchronous mount, make sure that the
 	 * rename transaction goes to disk before returning to

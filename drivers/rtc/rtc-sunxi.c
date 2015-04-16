@@ -511,7 +511,6 @@ static struct platform_driver sunxi_rtc_driver = {
 	.remove		= sunxi_rtc_remove,
 	.driver		= {
 		.name		= "sunxi-rtc",
-		.owner		= THIS_MODULE,
 		.of_match_table = sunxi_rtc_dt_ids,
 	},
 };

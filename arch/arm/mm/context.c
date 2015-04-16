@@ -144,21 +144,17 @@ static void flush_context(unsigned int cpu)
 	/* Update the list of reserved ASIDs and the ASID bitmap. */
 	bitmap_clear(asid_map, 0, NUM_USER_ASIDS);
 	for_each_possible_cpu(i) {
-		if (i == cpu) {
-			asid = 0;
-		} else {
-			asid = atomic64_xchg(&per_cpu(active_asids, i), 0);
-			/*
-			 * If this CPU has already been through a
-			 * rollover, but hasn't run another task in
-			 * the meantime, we must preserve its reserved
-			 * ASID, as this is the only trace we have of
-			 * the process it is still running.
-			 */
-			if (asid == 0)
-				asid = per_cpu(reserved_asids, i);
-			__set_bit(asid & ~ASID_MASK, asid_map);
-		}
+		asid = atomic64_xchg(&per_cpu(active_asids, i), 0);
+		/*
+		 * If this CPU has already been through a
+		 * rollover, but hasn't run another task in
+		 * the meantime, we must preserve its reserved
+		 * ASID, as this is the only trace we have of
+		 * the process it is still running.
+		 */
+		if (asid == 0)
+			asid = per_cpu(reserved_asids, i);
+		__set_bit(asid & ~ASID_MASK, asid_map);
 		per_cpu(reserved_asids, i) = asid;
 	}
 
@@ -184,36 +180,46 @@ static u64 new_context(struct mm_struct *mm, unsigned int cpu)
 	u64 asid = atomic64_read(&mm->context.id);
 	u64 generation = atomic64_read(&asid_generation);
 
-	if (asid != 0 && is_reserved_asid(asid)) {
+	if (asid != 0) {
 		/*
-		 * Our current ASID was active during a rollover, we can
-		 * continue to use it and this was just a false alarm.
+		 * If our current ASID was active during a rollover, we
+		 * can continue to use it and this was just a false alarm.
 		 */
-		asid = generation | (asid & ~ASID_MASK);
-	} else {
+		if (is_reserved_asid(asid))
+			return generation | (asid & ~ASID_MASK);
+
 		/*
-		 * Allocate a free ASID. If we can't find one, take a
-		 * note of the currently active ASIDs and mark the TLBs
-		 * as requiring flushes. We always count from ASID #1,
-		 * as we reserve ASID #0 to switch via TTBR0 and to
-		 * avoid speculative page table walks from hitting in
-		 * any partial walk caches, which could be populated
-		 * from overlapping level-1 descriptors used to map both
-		 * the module area and the userspace stack.
+		 * We had a valid ASID in a previous life, so try to re-use
+		 * it if possible.,
 		 */
-		asid = find_next_zero_bit(asid_map, NUM_USER_ASIDS, cur_idx);
-		if (asid == NUM_USER_ASIDS) {
-			generation = atomic64_add_return(ASID_FIRST_VERSION,
-							 &asid_generation);
-			flush_context(cpu);
-			asid = find_next_zero_bit(asid_map, NUM_USER_ASIDS, 1);
-		}
-		__set_bit(asid, asid_map);
-		cur_idx = asid;
-		asid |= generation;
-		cpumask_clear(mm_cpumask(mm));
+		asid &= ~ASID_MASK;
+		if (!__test_and_set_bit(asid, asid_map))
+			goto bump_gen;
 	}
 
+	/*
+	 * Allocate a free ASID. If we can't find one, take a note of the
+	 * currently active ASIDs and mark the TLBs as requiring flushes.
+	 * We always count from ASID #1, as we reserve ASID #0 to switch
+	 * via TTBR0 and to avoid speculative page table walks from hitting
+	 * in any partial walk caches, which could be populated from
+	 * overlapping level-1 descriptors used to map both the module
+	 * area and the userspace stack.
+	 */
+	asid = find_next_zero_bit(asid_map, NUM_USER_ASIDS, cur_idx);
+	if (asid == NUM_USER_ASIDS) {
+		generation = atomic64_add_return(ASID_FIRST_VERSION,
+						 &asid_generation);
+		flush_context(cpu);
+		asid = find_next_zero_bit(asid_map, NUM_USER_ASIDS, 1);
+	}
+
+	__set_bit(asid, asid_map);
+	cur_idx = asid;
+
+bump_gen:
+	asid |= generation;
+	cpumask_clear(mm_cpumask(mm));
 	return asid;
 }
 

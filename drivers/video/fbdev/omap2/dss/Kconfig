@@ -74,9 +74,6 @@ config OMAP4_DSS_HDMI
 	help
 	  HDMI support for OMAP4 based SoCs.
 
-config OMAP4_DSS_HDMI_AUDIO
-	bool
-
 config OMAP5_DSS_HDMI
 	bool "HDMI support for OMAP5"
 	default n
@@ -85,10 +82,6 @@ config OMAP5_DSS_HDMI
 	  HDMI Interface for OMAP5 and similar cores. This adds the High
 	  Definition Multimedia Interface. See http://www.hdmi.org/ for HDMI
 	  specification.
-
-config OMAP5_DSS_HDMI_AUDIO
-	depends on OMAP5_DSS_HDMI
-	bool
 
 config OMAP2_DSS_SDI
 	bool "SDI support"

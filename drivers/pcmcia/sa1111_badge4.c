@@ -132,7 +132,7 @@ static struct pcmcia_low_level badge4_pcmcia_ops = {
 	.nr			= 2,
 };
 
-int pcmcia_badge4_init(struct device *dev)
+int pcmcia_badge4_init(struct sa1111_dev *dev)
 {
 	int ret = -ENODEV;
 

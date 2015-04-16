@@ -1,5 +1,5 @@
 /*
- * Linux network driver for Brocade Converged Network Adapter.
+ * Linux network driver for QLogic BR-series Converged Network Adapter.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License (GPL) Version 2 as
@@ -11,9 +11,10 @@
  * General Public License for more details.
  */
 /*
- * Copyright (c) 2005-2011 Brocade Communications Systems, Inc.
+ * Copyright (c) 2005-2014 Brocade Communications Systems, Inc.
+ * Copyright (c) 2014-2015 QLogic Corporation
  * All rights reserved
- * www.brocade.com
+ * www.qlogic.com
  */
 
 #include <linux/debugfs.h>
@@ -172,7 +173,7 @@ bnad_get_debug_drvinfo(struct bnad *bnad, void *buffer, u32 len)
 
 	/* Retrieve flash partition info */
 	fcomp.comp_status = 0;
-	init_completion(&fcomp.comp);
+	reinit_completion(&fcomp.comp);
 	spin_lock_irqsave(&bnad->bna_lock, flags);
 	ret = bfa_nw_flash_get_attr(&bnad->bna.flash, &drvinfo->flash_attr,
 				bnad_cb_completion, &fcomp);

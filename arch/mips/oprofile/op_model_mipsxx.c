@@ -11,6 +11,7 @@
 #include <linux/interrupt.h>
 #include <linux/smp.h>
 #include <asm/irq_regs.h>
+#include <asm/time.h>
 
 #include "op_impl.h"
 
@@ -35,6 +36,7 @@
 #define M_PERFCTL_COUNT_ALL_THREADS	(1UL	  << 13)
 
 static int (*save_perf_irq)(void);
+static int perfcount_irq;
 
 /*
  * XLR has only one set of counters per core. Designate the
@@ -431,8 +433,16 @@ static int __init mipsxx_init(void)
 	save_perf_irq = perf_irq;
 	perf_irq = mipsxx_perfcount_handler;
 
-	if ((cp0_perfcount_irq >= 0) && (cp0_compare_irq != cp0_perfcount_irq))
-		return request_irq(cp0_perfcount_irq, mipsxx_perfcount_int,
+	if (get_c0_perfcount_int)
+		perfcount_irq = get_c0_perfcount_int();
+	else if ((cp0_perfcount_irq >= 0) &&
+		 (cp0_compare_irq != cp0_perfcount_irq))
+		perfcount_irq = MIPS_CPU_IRQ_BASE + cp0_perfcount_irq;
+	else
+		perfcount_irq = -1;
+
+	if (perfcount_irq >= 0)
+		return request_irq(perfcount_irq, mipsxx_perfcount_int,
 			0, "Perfcounter", save_perf_irq);
 
 	return 0;
@@ -442,8 +452,8 @@ static void mipsxx_exit(void)
 {
 	int counters = op_model_mipsxx_ops.num_counters;
 
-	if ((cp0_perfcount_irq >= 0) && (cp0_compare_irq != cp0_perfcount_irq))
-		free_irq(cp0_perfcount_irq, save_perf_irq);
+	if (perfcount_irq >= 0)
+		free_irq(perfcount_irq, save_perf_irq);
 
 	counters = counters_per_cpu_to_total(counters);
 	on_each_cpu(reset_counters, (void *)(long)counters, 1);

@@ -419,7 +419,7 @@ static int in_flight_summary_show(struct seq_file *m, void *pos)
 	return 0;
 }
 
-/* simple_positive(file->f_dentry) respectively debugfs_positive(),
+/* simple_positive(file->f_path.dentry) respectively debugfs_positive(),
  * but neither is "reachable" from here.
  * So we have our own inline version of it above.  :-( */
 static inline int debugfs_positive(struct dentry *dentry)
@@ -437,14 +437,14 @@ static int drbd_single_open(struct file *file, int (*show)(struct seq_file *, vo
 
 	/* Are we still linked,
 	 * or has debugfs_remove() already been called? */
-	parent = file->f_dentry->d_parent;
+	parent = file->f_path.dentry->d_parent;
 	/* not sure if this can happen: */
 	if (!parent || !parent->d_inode)
 		goto out;
 	/* serialize with d_delete() */
 	mutex_lock(&parent->d_inode->i_mutex);
 	/* Make sure the object is still alive */
-	if (debugfs_positive(file->f_dentry)
+	if (debugfs_positive(file->f_path.dentry)
 	&& kref_get_unless_zero(kref))
 		ret = 0;
 	mutex_unlock(&parent->d_inode->i_mutex);

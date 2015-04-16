@@ -16,6 +16,7 @@
 #define XSTATE_Hi16_ZMM		0x80
 
 #define XSTATE_FPSSE	(XSTATE_FP | XSTATE_SSE)
+#define XSTATE_AVX512	(XSTATE_OPMASK | XSTATE_ZMM_Hi256 | XSTATE_Hi16_ZMM)
 /* Bit 63 of XCR0 is reserved for future expansion */
 #define XSTATE_EXTEND_MASK	(~(XSTATE_FPSSE | (1ULL << 63)))
 
@@ -81,18 +82,15 @@ static inline int xsave_state_booting(struct xsave_struct *fx, u64 mask)
 	if (boot_cpu_has(X86_FEATURE_XSAVES))
 		asm volatile("1:"XSAVES"\n\t"
 			"2:\n\t"
-			: : "D" (fx), "m" (*fx), "a" (lmask), "d" (hmask)
+			     xstate_fault
+			: "D" (fx), "m" (*fx), "a" (lmask), "d" (hmask)
 			:   "memory");
 	else
 		asm volatile("1:"XSAVE"\n\t"
 			"2:\n\t"
-			: : "D" (fx), "m" (*fx), "a" (lmask), "d" (hmask)
+			     xstate_fault
+			: "D" (fx), "m" (*fx), "a" (lmask), "d" (hmask)
 			:   "memory");
-
-	asm volatile(xstate_fault
-		     : "0" (0)
-		     : "memory");
-
 	return err;
 }
 
@@ -111,18 +109,15 @@ static inline int xrstor_state_booting(struct xsave_struct *fx, u64 mask)
 	if (boot_cpu_has(X86_FEATURE_XSAVES))
 		asm volatile("1:"XRSTORS"\n\t"
 			"2:\n\t"
-			: : "D" (fx), "m" (*fx), "a" (lmask), "d" (hmask)
+			     xstate_fault
+			: "D" (fx), "m" (*fx), "a" (lmask), "d" (hmask)
 			:   "memory");
 	else
 		asm volatile("1:"XRSTOR"\n\t"
 			"2:\n\t"
-			: : "D" (fx), "m" (*fx), "a" (lmask), "d" (hmask)
+			     xstate_fault
+			: "D" (fx), "m" (*fx), "a" (lmask), "d" (hmask)
 			:   "memory");
-
-	asm volatile(xstate_fault
-		     : "0" (0)
-		     : "memory");
-
 	return err;
 }
 
@@ -148,9 +143,9 @@ static inline int xsave_state(struct xsave_struct *fx, u64 mask)
 	 */
 	alternative_input_2(
 		"1:"XSAVE,
-		"1:"XSAVEOPT,
+		XSAVEOPT,
 		X86_FEATURE_XSAVEOPT,
-		"1:"XSAVES,
+		XSAVES,
 		X86_FEATURE_XSAVES,
 		[fx] "D" (fx), "a" (lmask), "d" (hmask) :
 		"memory");
@@ -177,7 +172,7 @@ static inline int xrstor_state(struct xsave_struct *fx, u64 mask)
 	 */
 	alternative_input(
 		"1: " XRSTOR,
-		"1: " XRSTORS,
+		XRSTORS,
 		X86_FEATURE_XSAVES,
 		"D" (fx), "m" (*fx), "a" (lmask), "d" (hmask)
 		: "memory");

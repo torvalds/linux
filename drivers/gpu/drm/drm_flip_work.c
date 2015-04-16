@@ -25,6 +25,44 @@
 #include "drm_flip_work.h"
 
 /**
+ * drm_flip_work_allocate_task - allocate a flip-work task
+ * @data: data associated to the task
+ * @flags: allocator flags
+ *
+ * Allocate a drm_flip_task object and attach private data to it.
+ */
+struct drm_flip_task *drm_flip_work_allocate_task(void *data, gfp_t flags)
+{
+	struct drm_flip_task *task;
+
+	task = kzalloc(sizeof(*task), flags);
+	if (task)
+		task->data = data;
+
+	return task;
+}
+EXPORT_SYMBOL(drm_flip_work_allocate_task);
+
+/**
+ * drm_flip_work_queue_task - queue a specific task
+ * @work: the flip-work
+ * @task: the task to handle
+ *
+ * Queues task, that will later be run (passed back to drm_flip_func_t
+ * func) on a work queue after drm_flip_work_commit() is called.
+ */
+void drm_flip_work_queue_task(struct drm_flip_work *work,
+			      struct drm_flip_task *task)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&work->lock, flags);
+	list_add_tail(&task->node, &work->queued);
+	spin_unlock_irqrestore(&work->lock, flags);
+}
+EXPORT_SYMBOL(drm_flip_work_queue_task);
+
+/**
  * drm_flip_work_queue - queue work
  * @work: the flip-work
  * @val: the value to queue
@@ -34,10 +72,14 @@
  */
 void drm_flip_work_queue(struct drm_flip_work *work, void *val)
 {
-	if (kfifo_put(&work->fifo, val)) {
-		atomic_inc(&work->pending);
+	struct drm_flip_task *task;
+
+	task = drm_flip_work_allocate_task(val,
+				drm_can_sleep() ? GFP_KERNEL : GFP_ATOMIC);
+	if (task) {
+		drm_flip_work_queue_task(work, task);
 	} else {
-		DRM_ERROR("%s fifo full!\n", work->name);
+		DRM_ERROR("%s could not allocate task!\n", work->name);
 		work->func(work, val);
 	}
 }
@@ -56,9 +98,12 @@ EXPORT_SYMBOL(drm_flip_work_queue);
 void drm_flip_work_commit(struct drm_flip_work *work,
 		struct workqueue_struct *wq)
 {
-	uint32_t pending = atomic_read(&work->pending);
-	atomic_add(pending, &work->count);
-	atomic_sub(pending, &work->pending);
+	unsigned long flags;
+
+	spin_lock_irqsave(&work->lock, flags);
+	list_splice_tail(&work->queued, &work->commited);
+	INIT_LIST_HEAD(&work->queued);
+	spin_unlock_irqrestore(&work->lock, flags);
 	queue_work(wq, &work->worker);
 }
 EXPORT_SYMBOL(drm_flip_work_commit);
@@ -66,47 +111,46 @@ EXPORT_SYMBOL(drm_flip_work_commit);
 static void flip_worker(struct work_struct *w)
 {
 	struct drm_flip_work *work = container_of(w, struct drm_flip_work, worker);
-	uint32_t count = atomic_read(&work->count);
-	void *val = NULL;
+	struct list_head tasks;
+	unsigned long flags;
 
-	atomic_sub(count, &work->count);
+	while (1) {
+		struct drm_flip_task *task, *tmp;
 
-	while(count--)
-		if (!WARN_ON(!kfifo_get(&work->fifo, &val)))
-			work->func(work, val);
+		INIT_LIST_HEAD(&tasks);
+		spin_lock_irqsave(&work->lock, flags);
+		list_splice_tail(&work->commited, &tasks);
+		INIT_LIST_HEAD(&work->commited);
+		spin_unlock_irqrestore(&work->lock, flags);
+
+		if (list_empty(&tasks))
+			break;
+
+		list_for_each_entry_safe(task, tmp, &tasks, node) {
+			work->func(work, task->data);
+			kfree(task);
+		}
+	}
 }
 
 /**
  * drm_flip_work_init - initialize flip-work
  * @work: the flip-work to initialize
- * @size: the max queue depth
  * @name: debug name
  * @func: the callback work function
  *
  * Initializes/allocates resources for the flip-work
- *
- * RETURNS:
- * Zero on success, error code on failure.
  */
-int drm_flip_work_init(struct drm_flip_work *work, int size,
+void drm_flip_work_init(struct drm_flip_work *work,
 		const char *name, drm_flip_func_t func)
 {
-	int ret;
-
 	work->name = name;
-	atomic_set(&work->count, 0);
-	atomic_set(&work->pending, 0);
+	INIT_LIST_HEAD(&work->queued);
+	INIT_LIST_HEAD(&work->commited);
+	spin_lock_init(&work->lock);
 	work->func = func;
 
-	ret = kfifo_alloc(&work->fifo, size, GFP_KERNEL);
-	if (ret) {
-		DRM_ERROR("could not allocate %s fifo\n", name);
-		return ret;
-	}
-
 	INIT_WORK(&work->worker, flip_worker);
-
-	return 0;
 }
 EXPORT_SYMBOL(drm_flip_work_init);
 
@@ -118,7 +162,6 @@ EXPORT_SYMBOL(drm_flip_work_init);
  */
 void drm_flip_work_cleanup(struct drm_flip_work *work)
 {
-	WARN_ON(!kfifo_is_empty(&work->fifo));
-	kfifo_free(&work->fifo);
+	WARN_ON(!list_empty(&work->queued) || !list_empty(&work->commited));
 }
 EXPORT_SYMBOL(drm_flip_work_cleanup);

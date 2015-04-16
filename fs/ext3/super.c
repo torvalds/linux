@@ -466,6 +466,8 @@ static void ext3_put_super (struct super_block * sb)
 	}
 	sb->s_fs_info = NULL;
 	kfree(sbi->s_blockgroup_lock);
+	mutex_destroy(&sbi->s_orphan_lock);
+	mutex_destroy(&sbi->s_resize_lock);
 	kfree(sbi);
 }
 
@@ -485,6 +487,10 @@ static struct inode *ext3_alloc_inode(struct super_block *sb)
 	ei->vfs_inode.i_version = 1;
 	atomic_set(&ei->i_datasync_tid, 0);
 	atomic_set(&ei->i_sync_tid, 0);
+#ifdef CONFIG_QUOTA
+	memset(&ei->i_dquot, 0, sizeof(ei->i_dquot));
+#endif
+
 	return &ei->vfs_inode;
 }
 
@@ -764,6 +770,10 @@ static ssize_t ext3_quota_read(struct super_block *sb, int type, char *data,
 			       size_t len, loff_t off);
 static ssize_t ext3_quota_write(struct super_block *sb, int type,
 				const char *data, size_t len, loff_t off);
+static struct dquot **ext3_get_dquots(struct inode *inode)
+{
+	return EXT3_I(inode)->i_dquot;
+}
 
 static const struct dquot_operations ext3_quota_operations = {
 	.write_dquot	= ext3_write_dquot,
@@ -803,6 +813,7 @@ static const struct super_operations ext3_sops = {
 #ifdef CONFIG_QUOTA
 	.quota_read	= ext3_quota_read,
 	.quota_write	= ext3_quota_write,
+	.get_dquots	= ext3_get_dquots,
 #endif
 	.bdev_try_to_free_page = bdev_try_to_free_page,
 };
@@ -1352,13 +1363,6 @@ set_qf_format:
 		if (!sbi->s_jquota_fmt) {
 			ext3_msg(sb, KERN_ERR, "error: journaled quota format "
 					"not specified.");
-			return 0;
-		}
-	} else {
-		if (sbi->s_jquota_fmt) {
-			ext3_msg(sb, KERN_ERR, "error: journaled quota format "
-					"specified with no journaling "
-					"enabled.");
 			return 0;
 		}
 	}
@@ -2008,6 +2012,7 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 #ifdef CONFIG_QUOTA
 	sb->s_qcop = &ext3_qctl_operations;
 	sb->dq_op = &ext3_quota_operations;
+	sb->s_quota_types = QTYPE_MASK_USR | QTYPE_MASK_GRP;
 #endif
 	memcpy(sb->s_uuid, es->s_uuid, sizeof(es->s_uuid));
 	INIT_LIST_HEAD(&sbi->s_orphan); /* unlinked but open files */

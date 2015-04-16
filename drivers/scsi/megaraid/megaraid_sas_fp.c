@@ -1,7 +1,8 @@
 /*
  *  Linux MegaRAID driver for SAS based RAID controllers
  *
- *  Copyright (c) 2009-2012  LSI Corporation.
+ *  Copyright (c) 2009-2013  LSI Corporation
+ *  Copyright (c) 2013-2014  Avago Technologies
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -14,20 +15,21 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  *  FILE: megaraid_sas_fp.c
  *
- *  Authors: LSI Corporation
+ *  Authors: Avago Technologies
  *           Sumant Patro
  *           Varad Talamacki
  *           Manoj Jose
+ *           Kashyap Desai <kashyap.desai@avagotech.com>
+ *           Sumit Saxena <sumit.saxena@avagotech.com>
  *
- *  Send feedback to: <megaraidlinux@lsi.com>
+ *  Send feedback to: megaraidlinux.pdl@avagotech.com
  *
- *  Mail to: LSI Corporation, 1621 Barber Lane, Milpitas, CA 95035
- *     ATTN: Linuxraid
+ *  Mail to: Avago Technologies, 350 West Trimble Road, Building 90,
+ *  San Jose, California 95131
  */
 
 #include <linux/kernel.h>
@@ -170,6 +172,7 @@ void MR_PopulateDrvRaidMap(struct megasas_instance *instance)
 	struct MR_FW_RAID_MAP_ALL     *fw_map_old    = NULL;
 	struct MR_FW_RAID_MAP         *pFwRaidMap    = NULL;
 	int i;
+	u16 ld_count;
 
 
 	struct MR_DRV_RAID_MAP_ALL *drv_map =
@@ -183,14 +186,16 @@ void MR_PopulateDrvRaidMap(struct megasas_instance *instance)
 		/* New Raid map will not set totalSize, so keep expected value
 		 * for legacy code in ValidateMapInfo
 		 */
-		pDrvRaidMap->totalSize = sizeof(struct MR_FW_RAID_MAP_EXT);
+		pDrvRaidMap->totalSize =
+			cpu_to_le32(sizeof(struct MR_FW_RAID_MAP_EXT));
 	} else {
 		fw_map_old = (struct MR_FW_RAID_MAP_ALL *)
 			fusion->ld_map[(instance->map_id & 1)];
 		pFwRaidMap = &fw_map_old->raidMap;
+		ld_count = (u16)le32_to_cpu(pFwRaidMap->ldCount);
 
 #if VD_EXT_DEBUG
-		for (i = 0; i < pFwRaidMap->ldCount; i++) {
+		for (i = 0; i < ld_count; i++) {
 			dev_dbg(&instance->pdev->dev, "(%d) :Index 0x%x "
 				"Target Id 0x%x Seq Num 0x%x Size 0/%llx\n",
 				instance->unique_id, i,
@@ -202,12 +207,15 @@ void MR_PopulateDrvRaidMap(struct megasas_instance *instance)
 
 		memset(drv_map, 0, fusion->drv_map_sz);
 		pDrvRaidMap->totalSize = pFwRaidMap->totalSize;
-		pDrvRaidMap->ldCount = pFwRaidMap->ldCount;
+		pDrvRaidMap->ldCount = (__le16)cpu_to_le16(ld_count);
 		pDrvRaidMap->fpPdIoTimeoutSec = pFwRaidMap->fpPdIoTimeoutSec;
 		for (i = 0; i < MAX_RAIDMAP_LOGICAL_DRIVES + MAX_RAIDMAP_VIEWS; i++)
 			pDrvRaidMap->ldTgtIdToLd[i] =
 				(u8)pFwRaidMap->ldTgtIdToLd[i];
-		for (i = 0; i < pDrvRaidMap->ldCount; i++) {
+		for (i = (MAX_RAIDMAP_LOGICAL_DRIVES + MAX_RAIDMAP_VIEWS);
+			i < MAX_LOGICAL_DRIVES_EXT; i++)
+			pDrvRaidMap->ldTgtIdToLd[i] = 0xff;
+		for (i = 0; i < ld_count; i++) {
 			pDrvRaidMap->ldSpanMap[i] = pFwRaidMap->ldSpanMap[i];
 #if VD_EXT_DEBUG
 			dev_dbg(&instance->pdev->dev,
@@ -249,7 +257,7 @@ u8 MR_ValidateMapInfo(struct megasas_instance *instance)
 	struct LD_LOAD_BALANCE_INFO *lbInfo;
 	PLD_SPAN_INFO ldSpanInfo;
 	struct MR_LD_RAID         *raid;
-	int ldCount, num_lds;
+	u16 ldCount, num_lds;
 	u16 ld;
 	u32 expected_size;
 
@@ -268,7 +276,7 @@ u8 MR_ValidateMapInfo(struct megasas_instance *instance)
 	else
 		expected_size =
 			(sizeof(struct MR_FW_RAID_MAP) - sizeof(struct MR_LD_SPAN_MAP) +
-			(sizeof(struct MR_LD_SPAN_MAP) * le32_to_cpu(pDrvRaidMap->ldCount)));
+			(sizeof(struct MR_LD_SPAN_MAP) * le16_to_cpu(pDrvRaidMap->ldCount)));
 
 	if (le32_to_cpu(pDrvRaidMap->totalSize) != expected_size) {
 		dev_err(&instance->pdev->dev, "map info structure size 0x%x is not matching with ld count\n",
@@ -284,7 +292,7 @@ u8 MR_ValidateMapInfo(struct megasas_instance *instance)
 
 	mr_update_load_balance_params(drv_map, lbInfo);
 
-	num_lds = le32_to_cpu(drv_map->raidMap.ldCount);
+	num_lds = le16_to_cpu(drv_map->raidMap.ldCount);
 
 	/*Convert Raid capability values to CPU arch */
 	for (ldCount = 0; ldCount < num_lds; ldCount++) {
@@ -353,7 +361,7 @@ static int getSpanInfo(struct MR_DRV_RAID_MAP_ALL *map,
 
 	for (ldCount = 0; ldCount < MAX_LOGICAL_DRIVES_EXT; ldCount++) {
 		ld = MR_TargetIdToLdGet(ldCount, map);
-			if (ld >= MAX_LOGICAL_DRIVES_EXT)
+			if (ld >= (MAX_LOGICAL_DRIVES_EXT - 1))
 				continue;
 		raid = MR_LdRaidGet(ld, map);
 		dev_dbg(&instance->pdev->dev, "LD %x: span_depth=%x\n",
@@ -457,7 +465,7 @@ u32 mr_spanset_get_span_block(struct megasas_instance *instance,
 				quad = &map->raidMap.ldSpanMap[ld].
 					spanBlock[span].
 					block_span_info.quad[info];
-				if (le32_to_cpu(quad->diff == 0))
+				if (le32_to_cpu(quad->diff) == 0)
 					return SPAN_INVALID;
 				if (le64_to_cpu(quad->logStart) <= row  &&
 					row <= le64_to_cpu(quad->logEnd)  &&
@@ -520,7 +528,7 @@ static u64  get_row_from_strip(struct megasas_instance *instance,
 				span_set->span_row_data_width) * span_set->diff;
 		for (span = 0, span_offset = 0; span < raid->spanDepth; span++)
 			if (le32_to_cpu(map->raidMap.ldSpanMap[ld].spanBlock[span].
-				block_span_info.noElements >= info+1)) {
+				block_span_info.noElements) >= info+1) {
 				if (strip_offset >=
 					span_set->strip_offset[span])
 					span_offset++;
@@ -1154,7 +1162,7 @@ void mr_update_span_set(struct MR_DRV_RAID_MAP_ALL *map,
 
 	for (ldCount = 0; ldCount < MAX_LOGICAL_DRIVES_EXT; ldCount++) {
 		ld = MR_TargetIdToLdGet(ldCount, map);
-		if (ld >= MAX_LOGICAL_DRIVES_EXT)
+		if (ld >= (MAX_LOGICAL_DRIVES_EXT - 1))
 			continue;
 		raid = MR_LdRaidGet(ld, map);
 		for (element = 0; element < MAX_QUAD_DEPTH; element++) {

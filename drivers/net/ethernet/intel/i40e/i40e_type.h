@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -43,6 +43,8 @@
 #define I40E_DEV_ID_QSFP_A		0x1583
 #define I40E_DEV_ID_QSFP_B		0x1584
 #define I40E_DEV_ID_QSFP_C		0x1585
+#define I40E_DEV_ID_10G_BASE_T		0x1586
+#define I40E_DEV_ID_20G_KR2		0x1587
 #define I40E_DEV_ID_VF			0x154C
 #define I40E_DEV_ID_VF_HV		0x1571
 
@@ -174,12 +176,12 @@ struct i40e_link_status {
 	u8 an_info;
 	u8 ext_info;
 	u8 loopback;
-	bool an_enabled;
 	/* is Link Status Event notification to SW enabled */
 	bool lse_enable;
 	u16 max_frame_size;
 	bool crc_enable;
 	u8 pacing;
+	u8 requested_speeds;
 };
 
 struct i40e_phy_info {
@@ -210,6 +212,7 @@ struct i40e_hw_capabilities {
 	bool evb_802_1_qbh; /* Bridge Port Extension */
 	bool dcb;
 	bool fcoe;
+	bool iscsi; /* Indicates iSCSI enabled */
 	bool mfp_mode_1;
 	bool mgmt_cem;
 	bool ieee_1588;
@@ -260,8 +263,7 @@ enum i40e_aq_resource_access_type {
 };
 
 struct i40e_nvm_info {
-	u64 hw_semaphore_timeout; /* 2usec global time (GTIME resolution) */
-	u64 hw_semaphore_wait;    /* - || - */
+	u64 hw_semaphore_timeout; /* usec global time (GTIME resolution) */
 	u32 timeout;              /* [ms] */
 	u16 sr_size;              /* Shadow RAM size in words */
 	bool blank_nvm_mode;      /* is NVM empty (no FW present)*/
@@ -380,9 +382,18 @@ struct i40e_fc_info {
 #define I40E_MAX_USER_PRIORITY		8
 #define I40E_DCBX_MAX_APPS		32
 #define I40E_LLDPDU_SIZE		1500
+#define I40E_TLV_STATUS_OPER		0x1
+#define I40E_TLV_STATUS_SYNC		0x2
+#define I40E_TLV_STATUS_ERR		0x4
+#define I40E_CEE_OPER_MAX_APPS		3
+#define I40E_APP_PROTOID_FCOE		0x8906
+#define I40E_APP_PROTOID_ISCSI		0x0cbc
+#define I40E_APP_PROTOID_FIP		0x8914
+#define I40E_APP_SEL_ETHTYPE		0x1
+#define I40E_APP_SEL_TCPIP		0x2
 
-/* IEEE 802.1Qaz ETS Configuration data */
-struct i40e_ieee_ets_config {
+/* CEE or IEEE 802.1Qaz ETS Configuration data */
+struct i40e_dcb_ets_config {
 	u8 willing;
 	u8 cbs;
 	u8 maxtcs;
@@ -391,34 +402,30 @@ struct i40e_ieee_ets_config {
 	u8 tsatable[I40E_MAX_TRAFFIC_CLASS];
 };
 
-/* IEEE 802.1Qaz ETS Recommendation data */
-struct i40e_ieee_ets_recommend {
-	u8 prioritytable[I40E_MAX_TRAFFIC_CLASS];
-	u8 tcbwtable[I40E_MAX_TRAFFIC_CLASS];
-	u8 tsatable[I40E_MAX_TRAFFIC_CLASS];
-};
-
-/* IEEE 802.1Qaz PFC Configuration data */
-struct i40e_ieee_pfc_config {
+/* CEE or IEEE 802.1Qaz PFC Configuration data */
+struct i40e_dcb_pfc_config {
 	u8 willing;
 	u8 mbc;
 	u8 pfccap;
 	u8 pfcenable;
 };
 
-/* IEEE 802.1Qaz Application Priority data */
-struct i40e_ieee_app_priority_table {
+/* CEE or IEEE 802.1Qaz Application Priority data */
+struct i40e_dcb_app_priority_table {
 	u8  priority;
 	u8  selector;
 	u16 protocolid;
 };
 
 struct i40e_dcbx_config {
+	u8  dcbx_mode;
+#define I40E_DCBX_MODE_CEE	0x1
+#define I40E_DCBX_MODE_IEEE	0x2
 	u32 numapps;
-	struct i40e_ieee_ets_config etscfg;
-	struct i40e_ieee_ets_recommend etsrec;
-	struct i40e_ieee_pfc_config pfc;
-	struct i40e_ieee_app_priority_table app[I40E_DCBX_MAX_APPS];
+	struct i40e_dcb_ets_config etscfg;
+	struct i40e_dcb_ets_config etsrec;
+	struct i40e_dcb_pfc_config pfc;
+	struct i40e_dcb_app_priority_table app[I40E_DCBX_MAX_APPS];
 };
 
 /* Port hardware description */
@@ -426,7 +433,7 @@ struct i40e_hw {
 	u8 __iomem *hw_addr;
 	void *back;
 
-	/* function pointer structs */
+	/* subsystem structs */
 	struct i40e_phy_info phy;
 	struct i40e_mac_info mac;
 	struct i40e_bus_info bus;
@@ -453,6 +460,11 @@ struct i40e_hw {
 	u8  pf_id;
 	u16 main_vsi_seid;
 
+	/* for multi-function MACs */
+	u16 partition_id;
+	u16 num_partitions;
+	u16 num_ports;
+
 	/* Closest numa node to the device */
 	u16 numa_node;
 
@@ -475,6 +487,11 @@ struct i40e_hw {
 	/* debug mask */
 	u32 debug_mask;
 };
+
+static inline bool i40e_is_vf(struct i40e_hw *hw)
+{
+	return hw->mac.type == I40E_MAC_VF;
+}
 
 struct i40e_driver_version {
 	u8 major_version;
@@ -1125,7 +1142,9 @@ struct i40e_hw_port_stats {
 /* Checksum and Shadow RAM pointers */
 #define I40E_SR_NVM_CONTROL_WORD		0x00
 #define I40E_SR_EMP_MODULE_PTR			0x0F
-#define I40E_SR_NVM_IMAGE_VERSION		0x18
+#define I40E_SR_PBA_FLAGS			0x15
+#define I40E_SR_PBA_BLOCK_PTR			0x16
+#define I40E_SR_NVM_DEV_STARTER_VERSION		0x18
 #define I40E_SR_NVM_WAKE_ON_LAN			0x19
 #define I40E_SR_ALTERNATE_SAN_MAC_ADDRESS_PTR	0x27
 #define I40E_SR_NVM_EETRACK_LO			0x2D
@@ -1370,6 +1389,31 @@ enum i40e_reset_type {
 	I40E_RESET_GLOBR	= 2,
 	I40E_RESET_EMPR		= 3,
 };
+
+/* IEEE 802.1AB LLDP Agent Variables from NVM */
+#define I40E_NVM_LLDP_CFG_PTR		0xD
+struct i40e_lldp_variables {
+	u16 length;
+	u16 adminstatus;
+	u16 msgfasttx;
+	u16 msgtxinterval;
+	u16 txparams;
+	u16 timers;
+	u16 crc8;
+};
+
+/* Offsets into Alternate Ram */
+#define I40E_ALT_STRUCT_FIRST_PF_OFFSET		0   /* in dwords */
+#define I40E_ALT_STRUCT_DWORDS_PER_PF		64   /* in dwords */
+#define I40E_ALT_STRUCT_OUTER_VLAN_TAG_OFFSET	0xD  /* in dwords */
+#define I40E_ALT_STRUCT_USER_PRIORITY_OFFSET	0xC  /* in dwords */
+#define I40E_ALT_STRUCT_MIN_BW_OFFSET		0xE  /* in dwords */
+#define I40E_ALT_STRUCT_MAX_BW_OFFSET		0xF  /* in dwords */
+
+/* Alternate Ram Bandwidth Masks */
+#define I40E_ALT_BW_VALUE_MASK		0xFF
+#define I40E_ALT_BW_RELATIVE_MASK	0x40000000
+#define I40E_ALT_BW_VALID_MASK		0x80000000
 
 /* RSS Hash Table Size */
 #define I40E_PFQF_CTL_0_HASHLUTSIZE_512	0x00010000

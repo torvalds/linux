@@ -151,7 +151,7 @@ they are transferred over a media bus. Soc-camera provides support to
 conveniently manage these formats. A table of standard transformations is
 maintained by soc-camera core, which describes, what FOURCC pixel format will
 be obtained, if a media-bus pixel format is stored in memory according to
-certain rules. E.g. if V4L2_MBUS_FMT_YUYV8_2X8 data is sampled with 8 bits per
+certain rules. E.g. if MEDIA_BUS_FMT_YUYV8_2X8 data is sampled with 8 bits per
 sample and stored in memory in the little-endian order with no gaps between
 bytes, data in memory will represent the V4L2_PIX_FMT_YUYV FOURCC format. These
 standard transformations will be used by soc-camera or by camera host drivers to

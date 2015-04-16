@@ -431,8 +431,7 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 	if (rc)
 		goto neg_exit;
 	if (blob_length)
-		rc = decode_neg_token_init(security_blob, blob_length,
-				   &server->sec_type);
+		rc = decode_negTokenInit(security_blob, blob_length, server);
 	if (rc == 1)
 		rc = 0;
 	else if (rc == 0) {
@@ -1219,7 +1218,7 @@ SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 	struct smb2_ioctl_req *req;
 	struct smb2_ioctl_rsp *rsp;
 	struct TCP_Server_Info *server;
-	struct cifs_ses *ses = tcon->ses;
+	struct cifs_ses *ses;
 	struct kvec iov[2];
 	int resp_buftype;
 	int num_iovecs;
@@ -1233,6 +1232,11 @@ SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 	/* zero out returned data len, in case of error */
 	if (plen)
 		*plen = 0;
+
+	if (tcon)
+		ses = tcon->ses;
+	else
+		return -EIO;
 
 	if (ses && (ses->server))
 		server = ses->server;
@@ -1297,14 +1301,12 @@ SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 	rsp = (struct smb2_ioctl_rsp *)iov[0].iov_base;
 
 	if ((rc != 0) && (rc != -EINVAL)) {
-		if (tcon)
-			cifs_stats_fail_inc(tcon, SMB2_IOCTL_HE);
+		cifs_stats_fail_inc(tcon, SMB2_IOCTL_HE);
 		goto ioctl_exit;
 	} else if (rc == -EINVAL) {
 		if ((opcode != FSCTL_SRV_COPYCHUNK_WRITE) &&
 		    (opcode != FSCTL_SRV_COPYCHUNK)) {
-			if (tcon)
-				cifs_stats_fail_inc(tcon, SMB2_IOCTL_HE);
+			cifs_stats_fail_inc(tcon, SMB2_IOCTL_HE);
 			goto ioctl_exit;
 		}
 	}
@@ -1359,7 +1361,7 @@ SMB2_set_compression(const unsigned int xid, struct cifs_tcon *tcon,
 	char *ret_data = NULL;
 
 	fsctl_input.CompressionState =
-			__constant_cpu_to_le16(COMPRESSION_FORMAT_DEFAULT);
+			cpu_to_le16(COMPRESSION_FORMAT_DEFAULT);
 
 	rc = SMB2_ioctl(xid, tcon, persistent_fid, volatile_fid,
 			FSCTL_SET_COMPRESSION, true /* is_fsctl */,
@@ -1630,7 +1632,7 @@ SMB2_flush(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 
 	rc = SendReceive2(xid, ses, iov, 1, &resp_buftype, 0);
 
-	if ((rc != 0) && tcon)
+	if (rc != 0)
 		cifs_stats_fail_inc(tcon, SMB2_FLUSH_HE);
 
 	free_rsp_buf(resp_buftype, iov[0].iov_base);
@@ -2115,7 +2117,7 @@ SMB2_query_directory(const unsigned int xid, struct cifs_tcon *tcon,
 	struct kvec iov[2];
 	int rc = 0;
 	int len;
-	int resp_buftype;
+	int resp_buftype = CIFS_NO_BUFFER;
 	unsigned char *bufptr;
 	struct TCP_Server_Info *server;
 	struct cifs_ses *ses = tcon->ses;

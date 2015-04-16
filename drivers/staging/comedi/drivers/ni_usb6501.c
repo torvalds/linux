@@ -96,9 +96,8 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/usb.h>
 
-#include "../comedidev.h"
+#include "../comedi_usb.h"
 
 #define	NI6501_TIMEOUT	1000
 
@@ -561,7 +560,7 @@ static int ni6501_auto_attach(struct comedi_device *dev,
 	/* Counter subdevice */
 	s = &dev->subdevices[1];
 	s->type		= COMEDI_SUBD_COUNTER;
-	s->subdev_flags	= SDF_READABLE | SDF_WRITEABLE | SDF_LSAMPL;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE | SDF_LSAMPL;
 	s->n_chan	= 1;
 	s->maxdata	= 0xffffffff;
 	s->insn_read	= ni6501_cnt_insn_read;

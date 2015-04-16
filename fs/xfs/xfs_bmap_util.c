@@ -23,8 +23,6 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
-#include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_da_format.h"
 #include "xfs_inode.h"
@@ -42,7 +40,6 @@
 #include "xfs_trace.h"
 #include "xfs_icache.h"
 #include "xfs_log.h"
-#include "xfs_dinode.h"
 
 /* Kernel only BMAP related definitions and functions */
 
@@ -1338,7 +1335,10 @@ xfs_free_file_space(
 	goto out;
 }
 
-
+/*
+ * Preallocate and zero a range of a file. This mechanism has the allocation
+ * semantics of fallocate and in addition converts data in the range to zeroes.
+ */
 int
 xfs_zero_file_space(
 	struct xfs_inode	*ip,
@@ -1346,65 +1346,30 @@ xfs_zero_file_space(
 	xfs_off_t		len)
 {
 	struct xfs_mount	*mp = ip->i_mount;
-	uint			granularity;
-	xfs_off_t		start_boundary;
-	xfs_off_t		end_boundary;
+	uint			blksize;
 	int			error;
 
 	trace_xfs_zero_file_space(ip);
 
-	granularity = max_t(uint, 1 << mp->m_sb.sb_blocklog, PAGE_CACHE_SIZE);
+	blksize = 1 << mp->m_sb.sb_blocklog;
 
 	/*
-	 * Round the range of extents we are going to convert inwards.  If the
-	 * offset is aligned, then it doesn't get changed so we zero from the
-	 * start of the block offset points to.
+	 * Punch a hole and prealloc the range. We use hole punch rather than
+	 * unwritten extent conversion for two reasons:
+	 *
+	 * 1.) Hole punch handles partial block zeroing for us.
+	 *
+	 * 2.) If prealloc returns ENOSPC, the file range is still zero-valued
+	 * by virtue of the hole punch.
 	 */
-	start_boundary = round_up(offset, granularity);
-	end_boundary = round_down(offset + len, granularity);
+	error = xfs_free_file_space(ip, offset, len);
+	if (error)
+		goto out;
 
-	ASSERT(start_boundary >= offset);
-	ASSERT(end_boundary <= offset + len);
-
-	if (start_boundary < end_boundary - 1) {
-		/*
-		 * Writeback the range to ensure any inode size updates due to
-		 * appending writes make it to disk (otherwise we could just
-		 * punch out the delalloc blocks).
-		 */
-		error = filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
-				start_boundary, end_boundary - 1);
-		if (error)
-			goto out;
-		truncate_pagecache_range(VFS_I(ip), start_boundary,
-					 end_boundary - 1);
-
-		/* convert the blocks */
-		error = xfs_alloc_file_space(ip, start_boundary,
-					end_boundary - start_boundary - 1,
-					XFS_BMAPI_PREALLOC | XFS_BMAPI_CONVERT);
-		if (error)
-			goto out;
-
-		/* We've handled the interior of the range, now for the edges */
-		if (start_boundary != offset) {
-			error = xfs_iozero(ip, offset, start_boundary - offset);
-			if (error)
-				goto out;
-		}
-
-		if (end_boundary != offset + len)
-			error = xfs_iozero(ip, end_boundary,
-					   offset + len - end_boundary);
-
-	} else {
-		/*
-		 * It's either a sub-granularity range or the range spanned lies
-		 * partially across two adjacent blocks.
-		 */
-		error = xfs_iozero(ip, offset, len);
-	}
-
+	error = xfs_alloc_file_space(ip, round_down(offset, blksize),
+				     round_up(offset + len, blksize) -
+				     round_down(offset, blksize),
+				     XFS_BMAPI_PREALLOC);
 out:
 	return error;
 

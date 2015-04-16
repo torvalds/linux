@@ -47,6 +47,7 @@
 
 #include <generated/utsrelease.h>
 
+#include <scsi/scsi.h>
 #include <scsi/scsi_dbg.h>
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_tcq.h>
@@ -227,7 +228,7 @@ static void put_free_pages(struct page **page, int num)
 		return;
 	if (i > scsiback_max_buffer_pages) {
 		n = min(num, i - scsiback_max_buffer_pages);
-		free_xenballooned_pages(n, page + num - n);
+		gnttab_free_pages(n, page + num - n);
 		n = num - n;
 	}
 	spin_lock_irqsave(&free_pages_lock, flags);
@@ -244,7 +245,7 @@ static int get_free_page(struct page **page)
 	spin_lock_irqsave(&free_pages_lock, flags);
 	if (list_empty(&scsiback_free_pages)) {
 		spin_unlock_irqrestore(&free_pages_lock, flags);
-		return alloc_xenballooned_pages(1, page, false);
+		return gnttab_alloc_pages(1, page);
 	}
 	page[0] = list_first_entry(&scsiback_free_pages, struct page, lru);
 	list_del(&page[0]->lru);
@@ -274,10 +275,6 @@ static void scsiback_print_status(char *sense_buffer, int errors,
 	       tpg->tport->tport_name, pending_req->v2p->lun,
 	       pending_req->cmnd[0], status_byte(errors), msg_byte(errors),
 	       host_byte(errors), driver_byte(errors));
-
-	if (CHECK_CONDITION & status_byte(errors))
-		__scsi_print_sense("xen-pvscsi", sense_buffer,
-				   SCSI_SENSE_BUFFERSIZE);
 }
 
 static void scsiback_fast_flush_area(struct vscsibk_pend *req)
@@ -610,7 +607,7 @@ static void scsiback_device_action(struct vscsibk_pend *pending_req,
 	init_waitqueue_head(&tmr->tmr_wait);
 
 	transport_init_se_cmd(se_cmd, tpg->se_tpg.se_tpg_tfo,
-		tpg->tpg_nexus->tvn_se_sess, 0, DMA_NONE, MSG_SIMPLE_TAG,
+		tpg->tpg_nexus->tvn_se_sess, 0, DMA_NONE, TCM_SIMPLE_TAG,
 		&pending_req->sense_buffer[0]);
 
 	rc = core_tmr_alloc_req(se_cmd, tmr, act, GFP_KERNEL);
@@ -712,12 +709,11 @@ static int prepare_pending_reqs(struct vscsibk_info *info,
 static int scsiback_do_cmd_fn(struct vscsibk_info *info)
 {
 	struct vscsiif_back_ring *ring = &info->ring;
-	struct vscsiif_request *ring_req;
+	struct vscsiif_request ring_req;
 	struct vscsibk_pend *pending_req;
 	RING_IDX rc, rp;
 	int err, more_to_do;
 	uint32_t result;
-	uint8_t act;
 
 	rc = ring->req_cons;
 	rp = ring->sring->req_prod;
@@ -738,11 +734,10 @@ static int scsiback_do_cmd_fn(struct vscsibk_info *info)
 		if (!pending_req)
 			return 1;
 
-		ring_req = RING_GET_REQUEST(ring, rc);
+		ring_req = *RING_GET_REQUEST(ring, rc);
 		ring->req_cons = ++rc;
 
-		act = ring_req->act;
-		err = prepare_pending_reqs(info, ring_req, pending_req);
+		err = prepare_pending_reqs(info, &ring_req, pending_req);
 		if (err) {
 			switch (err) {
 			case -ENODEV:
@@ -758,9 +753,9 @@ static int scsiback_do_cmd_fn(struct vscsibk_info *info)
 			return 1;
 		}
 
-		switch (act) {
+		switch (ring_req.act) {
 		case VSCSIIF_ACT_SCSI_CDB:
-			if (scsiback_gnttab_data_map(ring_req, pending_req)) {
+			if (scsiback_gnttab_data_map(&ring_req, pending_req)) {
 				scsiback_fast_flush_area(pending_req);
 				scsiback_do_resp_with_sense(NULL,
 					DRIVER_ERROR << 24, 0, pending_req);
@@ -771,7 +766,7 @@ static int scsiback_do_cmd_fn(struct vscsibk_info *info)
 			break;
 		case VSCSIIF_ACT_SCSI_ABORT:
 			scsiback_device_action(pending_req, TMR_ABORT_TASK,
-				ring_req->ref_rqid);
+				ring_req.ref_rqid);
 			break;
 		case VSCSIIF_ACT_SCSI_RESET:
 			scsiback_device_action(pending_req, TMR_LUN_RESET, 0);
@@ -1664,11 +1659,8 @@ static int scsiback_make_nexus(struct scsiback_tpg *tpg,
 			 name);
 		goto out;
 	}
-	/*
-	 * Now register the TCM pvscsi virtual I_T Nexus as active with the
-	 * call to __transport_register_session()
-	 */
-	__transport_register_session(se_tpg, tv_nexus->tvn_se_sess->se_node_acl,
+	/* Now register the TCM pvscsi virtual I_T Nexus as active. */
+	transport_register_session(se_tpg, tv_nexus->tvn_se_sess->se_node_acl,
 			tv_nexus->tvn_se_sess, tv_nexus);
 	tpg->tpg_nexus = tv_nexus;
 
@@ -2110,7 +2102,7 @@ static void __exit scsiback_exit(void)
 	while (free_pages_num) {
 		if (get_free_page(&page))
 			BUG();
-		free_xenballooned_pages(1, &page);
+		gnttab_free_pages(1, &page);
 	}
 	scsiback_deregister_configfs();
 	xenbus_unregister_driver(&scsiback_driver);

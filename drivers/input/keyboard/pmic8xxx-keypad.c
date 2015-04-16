@@ -687,7 +687,6 @@ static struct platform_driver pmic8xxx_kp_driver = {
 	.probe		= pmic8xxx_kp_probe,
 	.driver		= {
 		.name = "pm8xxx-keypad",
-		.owner = THIS_MODULE,
 		.pm = &pm8xxx_kp_pm_ops,
 		.of_match_table = pm8xxx_match_table,
 	},

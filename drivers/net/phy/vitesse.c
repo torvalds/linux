@@ -311,19 +311,7 @@ static struct phy_driver vsc82xx_driver[] = {
 	.driver		= { .owner = THIS_MODULE,},
 } };
 
-static int __init vsc82xx_init(void)
-{
-	return phy_drivers_register(vsc82xx_driver,
-		ARRAY_SIZE(vsc82xx_driver));
-}
-
-static void __exit vsc82xx_exit(void)
-{
-	phy_drivers_unregister(vsc82xx_driver, ARRAY_SIZE(vsc82xx_driver));
-}
-
-module_init(vsc82xx_init);
-module_exit(vsc82xx_exit);
+module_phy_driver(vsc82xx_driver);
 
 static struct mdio_device_id __maybe_unused vitesse_tbl[] = {
 	{ PHY_ID_VSC8234, 0x000ffff0 },

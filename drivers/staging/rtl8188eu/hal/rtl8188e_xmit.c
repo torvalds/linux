@@ -25,7 +25,7 @@
 
 void dump_txrpt_ccx_88e(void *buf)
 {
-	struct txrpt_ccx_88e *txrpt_ccx = (struct txrpt_ccx_88e *)buf;
+	struct txrpt_ccx_88e *txrpt_ccx = buf;
 
 	DBG_88E("%s:\n"
 		"tag1:%u, pkt_num:%u, txdma_underflow:%u, int_bt:%u, int_tri:%u, int_ccx:%u\n"

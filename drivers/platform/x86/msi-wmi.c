@@ -354,8 +354,7 @@ static void __exit msi_wmi_exit(void)
 		sparse_keymap_free(msi_wmi_input_dev);
 		input_unregister_device(msi_wmi_input_dev);
 	}
-	if (backlight)
-		backlight_device_unregister(backlight);
+	backlight_device_unregister(backlight);
 }
 
 module_init(msi_wmi_init);

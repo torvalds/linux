@@ -21,10 +21,12 @@
 #include <HalPwrSeqCmd.h>
 #include <Hal8723PwrSeq.h>
 #include <rtl8723a_hal.h>
-#include <rtl8723a_led.h>
 #include <linux/ieee80211.h>
 
 #include <usb_ops.h>
+
+static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
+				enum rt_rf_power_state eRFPowerState);
 
 static void
 _ConfigChipOutEP(struct rtw_adapter *pAdapter, u8 NumOutPipe)
@@ -61,42 +63,28 @@ _ConfigChipOutEP(struct rtw_adapter *pAdapter, u8 NumOutPipe)
 	   (u32)NumOutPipe, (u32)pHalData->OutEpNumber)); */
 }
 
-static bool rtl8723au_set_queue_pipe_mapping(struct rtw_adapter *pAdapter,
-					     u8 NumInPipe, u8 NumOutPipe)
+bool rtl8723au_chip_configure(struct rtw_adapter *padapter)
 {
-	struct hal_data_8723a *pHalData = GET_HAL_DATA(pAdapter);
-	bool result = false;
+	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
+	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(padapter);
+	u8 NumInPipe = pdvobjpriv->RtNumInPipes;
+	u8 NumOutPipe = pdvobjpriv->RtNumOutPipes;
 
-	_ConfigChipOutEP(pAdapter, NumOutPipe);
+	_ConfigChipOutEP(padapter, NumOutPipe);
 
 	/*  Normal chip with one IN and one OUT doesn't have interrupt IN EP. */
 	if (pHalData->OutEpNumber == 1) {
 		if (NumInPipe != 1)
-			return result;
+			return false;
 	}
 
-	result = Hal_MappingOutPipe23a(pAdapter, NumOutPipe);
-
-	return result;
-}
-
-void rtl8723au_chip_configure(struct rtw_adapter *padapter)
-{
-	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
-	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(padapter);
-
-	pHalData->interfaceIndex = pdvobjpriv->InterfaceNumber;
-
-	rtl8723au_set_queue_pipe_mapping(padapter,
-					 pdvobjpriv->RtNumInPipes,
-					 pdvobjpriv->RtNumOutPipes);
+	return Hal_MappingOutPipe23a(padapter, NumOutPipe);
 }
 
 static int _InitPowerOn(struct rtw_adapter *padapter)
 {
-	int status = _SUCCESS;
-	u16 value16 = 0;
-	u8 value8 = 0;
+	u16 value16;
+	u8 value8;
 
 	/*  RSV_CTRL 0x1C[7:0] = 0x00
 	    unlock ISO/CLK/Power control register */
@@ -123,7 +111,7 @@ static int _InitPowerOn(struct rtw_adapter *padapter)
 	/* for Efuse PG, suggest by Jackie 2011.11.23 */
 	PHY_SetBBReg(padapter, REG_EFUSE_CTRL, BIT(28)|BIT(29)|BIT(30), 0x06);
 
-	return status;
+	return _SUCCESS;
 }
 
 /*  Shall USB interface init this? */
@@ -313,7 +301,7 @@ static void _InitNormalChipThreeOutEpPriority(struct rtw_adapter *Adapter)
 	_InitNormalChipRegPriority(Adapter, beQ, bkQ, viQ, voQ, mgtQ, hiQ);
 }
 
-static void _InitNormalChipQueuePriority(struct rtw_adapter *Adapter)
+static void _InitQueuePriority(struct rtw_adapter *Adapter)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
 
@@ -331,11 +319,6 @@ static void _InitNormalChipQueuePriority(struct rtw_adapter *Adapter)
 		/* RT_ASSERT(false, ("Shall not reach here!\n")); */
 		break;
 	}
-}
-
-static void _InitQueuePriority(struct rtw_adapter *Adapter)
-{
-	_InitNormalChipQueuePriority(Adapter);
 }
 
 static void _InitTransferPageSize(struct rtw_adapter *Adapter)
@@ -442,18 +425,6 @@ static void _InitEDCA(struct rtw_adapter *Adapter)
 	rtl8723au_write32(Adapter, REG_EDCA_VO_PARAM, 0x002FA226);
 }
 
-static void _InitHWLed(struct rtw_adapter *Adapter)
-{
-	struct led_priv *pledpriv = &Adapter->ledpriv;
-
-	if (pledpriv->LedStrategy != HW_LED)
-		return;
-
-/*  HW led control */
-/*  to do .... */
-/* must consider cases of antenna diversity/ commbo card/solo card/mini card */
-}
-
 static void _InitRDGSetting(struct rtw_adapter *Adapter)
 {
 	rtl8723au_write8(Adapter, REG_RD_CTRL, 0xFF);
@@ -476,22 +447,8 @@ static void _InitRetryFunction(struct rtw_adapter *Adapter)
 static void _InitRFType(struct rtw_adapter *Adapter)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
-	bool is92CU = IS_92C_SERIAL(pHalData->VersionID);
 
-	pHalData->rf_chip = RF_6052;
-
-	if (is92CU == false) {
-		pHalData->rf_type = RF_1T1R;
-		DBG_8723A("Set RF Chip ID to RF_6052 and RF type to 1T1R.\n");
-		return;
-	}
-
-	/*  TODO: Consider that EEPROM set 92CU to 1T1R later. */
-	/*  Force to overwrite setting according to chip version. Ignore
-	    EEPROM setting. */
-	/* pHalData->RF_Type = is92CU ? RF_2T2R : RF_1T1R; */
-	MSG_8723A("Set RF Chip ID to RF_6052 and RF type to %d.\n",
-		  pHalData->rf_type);
+	pHalData->rf_type = RF_1T1R;
 }
 
 /*  Set CCK and OFDM Block "ON" */
@@ -527,23 +484,22 @@ enum rt_rf_power_state RfOnOffDetect23a(struct rtw_adapter *pAdapter)
 	return rfpowerstate;
 }
 
-void _ps_open_RF23a(struct rtw_adapter *padapter);
-
 int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 {
-	u8 val8 = 0;
-	u32 boundary;
-	int status = _SUCCESS;
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
 	struct pwrctrl_priv *pwrctrlpriv = &Adapter->pwrctrlpriv;
 	struct registry_priv *pregistrypriv = &Adapter->registrypriv;
+	u8 val8 = 0;
+	u32 boundary;
+	int status = _SUCCESS;
+	bool mac_on;
 
 	unsigned long init_start_time = jiffies;
 
 	Adapter->hw_init_completed = false;
 
 	if (Adapter->pwrctrlpriv.bkeepfwalive) {
-		_ps_open_RF23a(Adapter);
+		phy_SsPwrSwitch92CU(Adapter, rf_on);
 
 		if (pHalData->bIQKInitialized) {
 			rtl8723a_phy_iq_calibrate(Adapter, true);
@@ -560,23 +516,23 @@ int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 	/*  Check if MAC has already power on. by tynli. 2011.05.27. */
 	val8 = rtl8723au_read8(Adapter, REG_CR);
 	RT_TRACE(_module_hci_hal_init_c_, _drv_info_,
-		 ("%s: REG_CR 0x100 = 0x%02x\n", __func__, val8));
+		 "%s: REG_CR 0x100 = 0x%02x\n", __func__, val8);
 	/* Fix 92DU-VC S3 hang with the reason is that secondary mac is not
 	   initialized. */
 	/* 0x100 value of first mac is 0xEA while 0x100 value of secondary
 	   is 0x00 */
 	if (val8 == 0xEA) {
-		pHalData->bMACFuncEnable = false;
+		mac_on = false;
 	} else {
-		pHalData->bMACFuncEnable = true;
+		mac_on = true;
 		RT_TRACE(_module_hci_hal_init_c_, _drv_info_,
-			 ("%s: MAC has already power on\n", __func__));
+			 "%s: MAC has already power on\n", __func__);
 	}
 
 	status = _InitPowerOn(Adapter);
 	if (status == _FAIL) {
 		RT_TRACE(_module_hci_hal_init_c_, _drv_err_,
-			 ("Failed to init power on!\n"));
+			 "Failed to init power on!\n");
 		goto exit;
 	}
 
@@ -587,11 +543,11 @@ int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 		boundary = WMM_NORMAL_TX_PAGE_BOUNDARY;
 	}
 
-	if (!pHalData->bMACFuncEnable) {
+	if (!mac_on) {
 		status =  InitLLTTable23a(Adapter, boundary);
 		if (status == _FAIL) {
 			RT_TRACE(_module_hci_hal_init_c_, _drv_err_,
-				 ("Failed to init LLT table\n"));
+				 "Failed to init LLT table\n");
 			goto exit;
 		}
 	}
@@ -602,12 +558,10 @@ int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 	status = rtl8723a_FirmwareDownload(Adapter);
 	if (status != _SUCCESS) {
 		Adapter->bFWReady = false;
-		pHalData->fw_ractrl = false;
 		DBG_8723A("fw download fail!\n");
 		goto exit;
 	} else {
 		Adapter->bFWReady = true;
-		pHalData->fw_ractrl = true;
 		DBG_8723A("fw download ok!\n");
 	}
 
@@ -655,25 +609,32 @@ int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 	}
 
 	/* reducing 80M spur */
-	PHY_SetBBReg(Adapter, RF_T_METER, bMaskDWord, 0x0381808d);
-	PHY_SetBBReg(Adapter, RF_SYN_G4, bMaskDWord, 0xf2ffff83);
-	PHY_SetBBReg(Adapter, RF_SYN_G4, bMaskDWord, 0xf2ffff82);
-	PHY_SetBBReg(Adapter, RF_SYN_G4, bMaskDWord, 0xf2ffff83);
+	rtl8723au_write32(Adapter, REG_AFE_XTAL_CTRL, 0x0381808d);
+	rtl8723au_write32(Adapter, REG_AFE_PLL_CTRL, 0xf0ffff83);
+	rtl8723au_write32(Adapter, REG_AFE_PLL_CTRL, 0xf0ffff82);
+	rtl8723au_write32(Adapter, REG_AFE_PLL_CTRL, 0xf0ffff83);
 
 	/* RFSW Control */
-	PHY_SetBBReg(Adapter, rFPGA0_TxInfo, bMaskDWord, 0x00000003);	/* 0x804[14]= 0 */
-	PHY_SetBBReg(Adapter, rFPGA0_XAB_RFInterfaceSW, bMaskDWord, 0x07000760);	/* 0x870[6:5]= b'11 */
-	PHY_SetBBReg(Adapter, rFPGA0_XA_RFInterfaceOE, bMaskDWord, 0x66F60210); /* 0x860[6:5]= b'00 */
+	/* 0x804[14]= 0 */
+	rtl8723au_write32(Adapter, rFPGA0_TxInfo, 0x00000003);
+	/* 0x870[6:5]= b'11 */
+	rtl8723au_write32(Adapter, rFPGA0_XAB_RFInterfaceSW, 0x07000760);
+	/* 0x860[6:5]= b'00 */
+	rtl8723au_write32(Adapter, rFPGA0_XA_RFInterfaceOE, 0x66F60210);
 
-	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("%s: 0x870 = value 0x%x\n", __func__, PHY_QueryBBReg(Adapter, 0x870, bMaskDWord)));
+	RT_TRACE(_module_hci_hal_init_c_, _drv_info_,
+		 "%s: 0x870 = value 0x%x\n", __func__,
+		 rtl8723au_read32(Adapter, 0x870));
 
 	/*  */
 	/*  Joseph Note: Keep RfRegChnlVal for later use. */
 	/*  */
-	pHalData->RfRegChnlVal[0] = PHY_QueryRFReg(Adapter, (enum RF_RADIO_PATH)0, RF_CHNLBW, bRFRegOffsetMask);
-	pHalData->RfRegChnlVal[1] = PHY_QueryRFReg(Adapter, (enum RF_RADIO_PATH)1, RF_CHNLBW, bRFRegOffsetMask);
+	pHalData->RfRegChnlVal[0] = PHY_QueryRFReg(Adapter, RF_PATH_A,
+						   RF_CHNLBW, bRFRegOffsetMask);
+	pHalData->RfRegChnlVal[1] = PHY_QueryRFReg(Adapter, RF_PATH_B,
+						   RF_CHNLBW, bRFRegOffsetMask);
 
-	if (!pHalData->bMACFuncEnable) {
+	if (!mac_on) {
 		_InitQueueReservedPage(Adapter);
 		_InitTxBufferBoundary(Adapter);
 	}
@@ -693,8 +654,6 @@ int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 	_InitRateFallback(Adapter);
 	_InitRetryFunction(Adapter);
 	rtl8723a_InitBeaconParameters(Adapter);
-
-	_InitHWLed(Adapter);
 
 	_BBTurnOnBlock(Adapter);
 	/* NicIFSetMacAddress(padapter, padapter->PermanentAddress); */
@@ -777,15 +736,16 @@ int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 
 	rtl8723a_InitHalDm(Adapter);
 
-	val8 = ((WiFiNavUpperUs + HAL_8723A_NAV_UPPER_UNIT - 1) /
-		HAL_8723A_NAV_UPPER_UNIT);
+	val8 = (WiFiNavUpperUs + HAL_8723A_NAV_UPPER_UNIT - 1) /
+		HAL_8723A_NAV_UPPER_UNIT;
 	rtl8723au_write8(Adapter, REG_NAV_UPPER, val8);
 
 	/*  2011/03/09 MH debug only, UMC-B cut pass 2500 S5 test, but we need to fin root cause. */
 	if (((rtl8723au_read32(Adapter, rFPGA0_RFMOD) & 0xFF000000) !=
 	     0x83000000)) {
 		PHY_SetBBReg(Adapter, rFPGA0_RFMOD, BIT(24), 1);
-		RT_TRACE(_module_hci_hal_init_c_, _drv_err_, ("%s: IQK fail recorver\n", __func__));
+		RT_TRACE(_module_hci_hal_init_c_, _drv_err_,
+			 "%s: IQK fail recover\n", __func__);
 	}
 
 	/* ack for xmit mgmt frames. */
@@ -806,266 +766,103 @@ exit:
 }
 
 static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
-				enum rt_rf_power_state eRFPowerState,
-				int bRegSSPwrLvl)
+				enum rt_rf_power_state eRFPowerState)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
-	u8 value8;
-	u8 bytetmp;
+	u8 sps0;
+
+	sps0 = rtl8723au_read8(Adapter, REG_SPS0_CTRL);
 
 	switch (eRFPowerState) {
 	case rf_on:
-		if (bRegSSPwrLvl == 1) {
-			/*  1. Enable MAC Clock. Can not be enabled now. */
-			/* WriteXBYTE(REG_SYS_CLKR+1,
-			   ReadXBYTE(REG_SYS_CLKR+1) | BIT(3)); */
+		/*  1. Enable MAC Clock. Can not be enabled now. */
+		/* WriteXBYTE(REG_SYS_CLKR+1,
+		   ReadXBYTE(REG_SYS_CLKR+1) | BIT(3)); */
 
-			/*  2. Force PWM, Enable SPS18_LDO_Marco_Block */
-			rtl8723au_write8(Adapter, REG_SPS0_CTRL,
-					 rtl8723au_read8(Adapter, REG_SPS0_CTRL) |
-					 BIT(0) | BIT(3));
+		/*  2. Force PWM, Enable SPS18_LDO_Marco_Block */
+		rtl8723au_write8(Adapter, REG_SPS0_CTRL,
+				 sps0 | BIT(0) | BIT(3));
 
-			/*  3. restore BB, AFE control register. */
-			/* RF */
-			if (pHalData->rf_type ==  RF_2T2R)
-				PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter,
-					     0x380038, 1);
-			else
-				PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter,
-					     0x38, 1);
-			PHY_SetBBReg(Adapter, rOFDM0_TRxPathEnable, 0xf0, 1);
-			PHY_SetBBReg(Adapter, rFPGA0_RFMOD, BIT(1), 0);
+		/*  3. restore BB, AFE control register. */
+		/* RF */
+		if (pHalData->rf_type ==  RF_2T2R)
+			PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter,
+				     0x380038, 1);
+		else
+			PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter,
+				     0x38, 1);
+		PHY_SetBBReg(Adapter, rOFDM0_TRxPathEnable, 0xf0, 1);
+		PHY_SetBBReg(Adapter, rFPGA0_RFMOD, BIT(1), 0);
 
-			/* AFE */
-			if (pHalData->rf_type ==  RF_2T2R)
-				PHY_SetBBReg(Adapter, rRx_Wait_CCA, bMaskDWord,
-					     0x63DB25A0);
-			else if (pHalData->rf_type ==  RF_1T1R)
-				PHY_SetBBReg(Adapter, rRx_Wait_CCA, bMaskDWord,
-					     0x631B25A0);
+		/* AFE */
+		if (pHalData->rf_type ==  RF_2T2R)
+			rtl8723au_write32(Adapter, rRx_Wait_CCA, 0x63DB25A0);
+		else if (pHalData->rf_type ==  RF_1T1R)
+			rtl8723au_write32(Adapter, rRx_Wait_CCA, 0x631B25A0);
 
-			/*  4. issue 3-wire command that RF set to Rx idle
-			    mode. This is used to re-write the RX idle mode. */
-			/*  We can only prvide a usual value instead and then
-			    HW will modify the value by itself. */
-			PHY_SetRFReg(Adapter, RF_PATH_A, 0,
+		/*  4. issue 3-wire command that RF set to Rx idle
+		    mode. This is used to re-write the RX idle mode. */
+		/*  We can only prvide a usual value instead and then
+		    HW will modify the value by itself. */
+		PHY_SetRFReg(Adapter, RF_PATH_A, RF_AC,
+			     bRFRegOffsetMask, 0x32D95);
+		if (pHalData->rf_type ==  RF_2T2R) {
+			PHY_SetRFReg(Adapter, RF_PATH_B, RF_AC,
 				     bRFRegOffsetMask, 0x32D95);
-			if (pHalData->rf_type ==  RF_2T2R) {
-				PHY_SetRFReg(Adapter, RF_PATH_B, 0,
-					     bRFRegOffsetMask, 0x32D95);
-			}
-		} else {		/*  Level 2 or others. */
-			/* h.	AFE_PLL_CTRL 0x28[7:0] = 0x80
-			   disable AFE PLL */
-			rtl8723au_write8(Adapter, REG_AFE_PLL_CTRL, 0x81);
-
-			/*  i.	AFE_XTAL_CTRL 0x24[15:0] = 0x880F
-			    gated AFE DIG_CLOCK */
-			rtl8723au_write16(Adapter, REG_AFE_XTAL_CTRL, 0x800F);
-			mdelay(1);
-
-			/*  2. Force PWM, Enable SPS18_LDO_Marco_Block */
-			rtl8723au_write8(Adapter, REG_SPS0_CTRL,
-					 rtl8723au_read8(Adapter, REG_SPS0_CTRL) |
-					 BIT(0) | BIT(3));
-
-			/*  3. restore BB, AFE control register. */
-			/* RF */
-			if (pHalData->rf_type ==  RF_2T2R)
-				PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter,
-					     0x380038, 1);
-			else
-				PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter,
-					     0x38, 1);
-			PHY_SetBBReg(Adapter, rOFDM0_TRxPathEnable, 0xf0, 1);
-			PHY_SetBBReg(Adapter, rFPGA0_RFMOD, BIT(1), 0);
-
-			/* AFE */
-			if (pHalData->rf_type ==  RF_2T2R)
-				PHY_SetBBReg(Adapter, rRx_Wait_CCA,
-					     bMaskDWord, 0x63DB25A0);
-			else if (pHalData->rf_type ==  RF_1T1R)
-				PHY_SetBBReg(Adapter, rRx_Wait_CCA,
-					     bMaskDWord, 0x631B25A0);
-
-			/*  4. issue 3-wire command that RF set to Rx idle
-			    mode. This is used to re-write the RX idle mode. */
-			/*  We can only prvide a usual value instead and
-			    then HW will modify the value by itself. */
-			PHY_SetRFReg(Adapter, RF_PATH_A, 0,
-				     bRFRegOffsetMask, 0x32D95);
-			if (pHalData->rf_type ==  RF_2T2R) {
-				PHY_SetRFReg(Adapter, RF_PATH_B, 0,
-					     bRFRegOffsetMask, 0x32D95);
-			}
-
-			/*  5. gated MAC Clock */
-			bytetmp = rtl8723au_read8(Adapter, REG_APSD_CTRL);
-			rtl8723au_write8(Adapter, REG_APSD_CTRL,
-					 bytetmp & ~BIT(6));
-
-			mdelay(10);
-
-			/*  Set BB reset at first */
-			/* 0x16 */
-			rtl8723au_write8(Adapter, REG_SYS_FUNC_EN, 0x17);
-
-			/*  Enable TX */
-			rtl8723au_write8(Adapter, REG_TXPAUSE, 0x0);
 		}
 		break;
 	case rf_sleep:
 	case rf_off:
-		value8 = rtl8723au_read8(Adapter, REG_SPS0_CTRL);
 		if (IS_81xxC_VENDOR_UMC_B_CUT(pHalData->VersionID))
-			value8 &= ~BIT(0);
+			sps0 &= ~BIT(0);
 		else
-			value8 &= ~(BIT(0) | BIT(3));
-		if (bRegSSPwrLvl == 1) {
-			RT_TRACE(_module_hal_init_c_, _drv_err_, ("SS LVL1\n"));
-			/*  Disable RF and BB only for SelectSuspend. */
+			sps0 &= ~(BIT(0) | BIT(3));
 
-			/*  1. Set BB/RF to shutdown. */
-			/*	(1) Reg878[5:3]= 0	 RF rx_code for
-							preamble power saving */
-			/*	(2)Reg878[21:19]= 0	Turn off RF-B */
-			/*	(3) RegC04[7:4]= 0	Turn off all paths
-							for packet detection */
-			/*	(4) Reg800[1] = 1	enable preamble power
-							saving */
-			Adapter->pwrctrlpriv.PS_BBRegBackup[PSBBREG_RF0] =
-				PHY_QueryBBReg(Adapter, rFPGA0_XAB_RFParameter,
-					       bMaskDWord);
-			Adapter->pwrctrlpriv.PS_BBRegBackup[PSBBREG_RF1] =
-				PHY_QueryBBReg(Adapter, rOFDM0_TRxPathEnable,
-					       bMaskDWord);
-			Adapter->pwrctrlpriv.PS_BBRegBackup[PSBBREG_RF2] =
-				PHY_QueryBBReg(Adapter, rFPGA0_RFMOD,
-					       bMaskDWord);
-			if (pHalData->rf_type ==  RF_2T2R) {
-				PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter,
-					     0x380038, 0);
-			} else if (pHalData->rf_type ==  RF_1T1R) {
-				PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter,
-					     0x38, 0);
-			}
-			PHY_SetBBReg(Adapter, rOFDM0_TRxPathEnable, 0xf0, 0);
-			PHY_SetBBReg(Adapter, rFPGA0_RFMOD, BIT(1), 1);
+		RT_TRACE(_module_hal_init_c_, _drv_err_, "SS LVL1\n");
+		/*  Disable RF and BB only for SelectSuspend. */
 
-			/*  2 .AFE control register to power down. bit[30:22] */
-			Adapter->pwrctrlpriv.PS_BBRegBackup[PSBBREG_AFE0] =
-				PHY_QueryBBReg(Adapter, rRx_Wait_CCA,
-					       bMaskDWord);
-			if (pHalData->rf_type ==  RF_2T2R)
-				PHY_SetBBReg(Adapter, rRx_Wait_CCA, bMaskDWord,
-					     0x00DB25A0);
-			else if (pHalData->rf_type ==  RF_1T1R)
-				PHY_SetBBReg(Adapter, rRx_Wait_CCA, bMaskDWord,
-					     0x001B25A0);
-
-			/*  3. issue 3-wire command that RF set to power down.*/
-			PHY_SetRFReg(Adapter, RF_PATH_A, 0, bRFRegOffsetMask, 0);
-			if (pHalData->rf_type ==  RF_2T2R)
-				PHY_SetRFReg(Adapter, RF_PATH_B, 0,
-					     bRFRegOffsetMask, 0);
-
-			/*  4. Force PFM , disable SPS18_LDO_Marco_Block */
-			rtl8723au_write8(Adapter, REG_SPS0_CTRL, value8);
-		} else {	/*  Level 2 or others. */
-			RT_TRACE(_module_hal_init_c_, _drv_err_, ("SS LVL2\n"));
-			{
-				u8 eRFPath = RF_PATH_A, value8 = 0;
-				rtl8723au_write8(Adapter, REG_TXPAUSE, 0xFF);
-				PHY_SetRFReg(Adapter,
-					     (enum RF_RADIO_PATH)eRFPath,
-					     0x0, bMaskByte0, 0x0);
-				value8 |= APSDOFF;
-				/* 0x40 */
-				rtl8723au_write8(Adapter, REG_APSD_CTRL,
-						 value8);
-
-				/*  After switch APSD, we need to delay
-				    for stability */
-				mdelay(10);
-
-				/*  Set BB reset at first */
-				value8 = 0;
-				value8 |= (FEN_USBD | FEN_USBA |
-					   FEN_BB_GLB_RSTn);
-				/* 0x16 */
-				rtl8723au_write8(Adapter, REG_SYS_FUNC_EN,
-						 value8);
-			}
-
-			/*  Disable RF and BB only for SelectSuspend. */
-
-			/*  1. Set BB/RF to shutdown. */
-			/*	(1) Reg878[5:3]= 0	RF rx_code for
-							preamble power saving */
-			/*	(2)Reg878[21:19]= 0	Turn off RF-B */
-			/*	(3) RegC04[7:4]= 0	Turn off all paths for
-							packet detection */
-			/*	(4) Reg800[1] = 1	enable preamble power
-							saving */
-			Adapter->pwrctrlpriv.PS_BBRegBackup[PSBBREG_RF0] =
-				PHY_QueryBBReg(Adapter, rFPGA0_XAB_RFParameter,
-					       bMaskDWord);
-			Adapter->pwrctrlpriv.PS_BBRegBackup[PSBBREG_RF1] =
-				PHY_QueryBBReg(Adapter, rOFDM0_TRxPathEnable,
-					       bMaskDWord);
-			Adapter->pwrctrlpriv.PS_BBRegBackup[PSBBREG_RF2] =
-				PHY_QueryBBReg(Adapter, rFPGA0_RFMOD,
-					       bMaskDWord);
-			if (pHalData->rf_type ==  RF_2T2R)
-				PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter,
-					     0x380038, 0);
-			else if (pHalData->rf_type ==  RF_1T1R)
-				PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter,
-					     0x38, 0);
-			PHY_SetBBReg(Adapter, rOFDM0_TRxPathEnable, 0xf0, 0);
-			PHY_SetBBReg(Adapter, rFPGA0_RFMOD, BIT(1), 1);
-
-			/*  2 .AFE control register to power down. bit[30:22] */
-			Adapter->pwrctrlpriv.PS_BBRegBackup[PSBBREG_AFE0] =
-				PHY_QueryBBReg(Adapter, rRx_Wait_CCA,
-					       bMaskDWord);
-			if (pHalData->rf_type ==  RF_2T2R)
-				PHY_SetBBReg(Adapter, rRx_Wait_CCA, bMaskDWord,
-					     0x00DB25A0);
-			else if (pHalData->rf_type ==  RF_1T1R)
-				PHY_SetBBReg(Adapter, rRx_Wait_CCA, bMaskDWord,
-					     0x001B25A0);
-
-			/* 3. issue 3-wire command that RF set to power down. */
-			PHY_SetRFReg(Adapter, RF_PATH_A, 0, bRFRegOffsetMask, 0);
-			if (pHalData->rf_type ==  RF_2T2R)
-				PHY_SetRFReg(Adapter, RF_PATH_B, 0,
-					     bRFRegOffsetMask, 0);
-
-			/*  4. Force PFM , disable SPS18_LDO_Marco_Block */
-			rtl8723au_write8(Adapter, REG_SPS0_CTRL, value8);
-
-			/*  2010/10/13 MH/Isaachsu exchange sequence. */
-			/* h.	AFE_PLL_CTRL 0x28[7:0] = 0x80
-				disable AFE PLL */
-			rtl8723au_write8(Adapter, REG_AFE_PLL_CTRL, 0x80);
-			mdelay(1);
-
-			/*  i.	AFE_XTAL_CTRL 0x24[15:0] = 0x880F
-				gated AFE DIG_CLOCK */
-			rtl8723au_write16(Adapter, REG_AFE_XTAL_CTRL, 0xA80F);
+		/*  1. Set BB/RF to shutdown. */
+		/*	(1) Reg878[5:3]= 0	RF rx_code for
+						preamble power saving */
+		/*	(2)Reg878[21:19]= 0	Turn off RF-B */
+		/*	(3) RegC04[7:4]= 0	Turn off all paths
+						for packet detection */
+		/*	(4) Reg800[1] = 1	enable preamble power saving */
+		Adapter->pwrctrlpriv.PS_BBRegBackup[PSBBREG_RF0] =
+			rtl8723au_read32(Adapter, rFPGA0_XAB_RFParameter);
+		Adapter->pwrctrlpriv.PS_BBRegBackup[PSBBREG_RF1] =
+			rtl8723au_read32(Adapter, rOFDM0_TRxPathEnable);
+		Adapter->pwrctrlpriv.PS_BBRegBackup[PSBBREG_RF2] =
+			rtl8723au_read32(Adapter, rFPGA0_RFMOD);
+		if (pHalData->rf_type ==  RF_2T2R) {
+			PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter,
+				     0x380038, 0);
+		} else if (pHalData->rf_type ==  RF_1T1R) {
+			PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter, 0x38, 0);
 		}
+		PHY_SetBBReg(Adapter, rOFDM0_TRxPathEnable, 0xf0, 0);
+		PHY_SetBBReg(Adapter, rFPGA0_RFMOD, BIT(1), 1);
+
+		/*  2 .AFE control register to power down. bit[30:22] */
+		Adapter->pwrctrlpriv.PS_BBRegBackup[PSBBREG_AFE0] =
+			rtl8723au_read32(Adapter, rRx_Wait_CCA);
+		if (pHalData->rf_type ==  RF_2T2R)
+			rtl8723au_write32(Adapter, rRx_Wait_CCA, 0x00DB25A0);
+		else if (pHalData->rf_type ==  RF_1T1R)
+			rtl8723au_write32(Adapter, rRx_Wait_CCA, 0x001B25A0);
+
+		/*  3. issue 3-wire command that RF set to power down.*/
+		PHY_SetRFReg(Adapter, RF_PATH_A, RF_AC, bRFRegOffsetMask, 0);
+		if (pHalData->rf_type ==  RF_2T2R)
+			PHY_SetRFReg(Adapter, RF_PATH_B, RF_AC,
+				     bRFRegOffsetMask, 0);
+
+		/*  4. Force PFM , disable SPS18_LDO_Marco_Block */
+		rtl8723au_write8(Adapter, REG_SPS0_CTRL, sps0);
 		break;
 	default:
 		break;
 	}
-
-}	/*  phy_PowerSwitch92CU */
-
-void _ps_open_RF23a(struct rtw_adapter *padapter)
-{
-	/* here call with bRegSSPwrLvl 1, bRegSSPwrLvl 2 needs to be verified */
-	phy_SsPwrSwitch92CU(padapter, rf_on, 1);
 }
 
 static void CardDisableRTL8723U(struct rtw_adapter *Adapter)
@@ -1137,23 +934,22 @@ int rtl8723au_inirp_init(struct rtw_adapter *Adapter)
 
 	status = _SUCCESS;
 
-	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("===> usb_inirp_init\n"));
+	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, "===> usb_inirp_init\n");
 
 	/* issue Rx irp to receive data */
 	precvbuf = (struct recv_buf *)precvpriv->precv_buf;
 	for (i = 0; i < NR_RECVBUFF; i++) {
-		if (rtl8723au_read_port(Adapter, RECV_BULK_IN_ADDR, 0,
-					precvbuf) == _FAIL) {
+		if (rtl8723au_read_port(Adapter, 0, precvbuf) == _FAIL) {
 			RT_TRACE(_module_hci_hal_init_c_, _drv_err_,
-				 ("usb_rx_init: usb_read_port error\n"));
+				 "usb_rx_init: usb_read_port error\n");
 			status = _FAIL;
 			goto exit;
 		}
 		precvbuf++;
 	}
-	if (rtl8723au_read_interrupt(Adapter, RECV_INT_IN_ADDR) == _FAIL) {
+	if (rtl8723au_read_interrupt(Adapter) == _FAIL) {
 		RT_TRACE(_module_hci_hal_init_c_, _drv_err_,
-			 ("usb_rx_init: usb_read_interrupt error\n"));
+			 "%s: usb_read_interrupt error\n", __func__);
 		status = _FAIL;
 	}
 	pHalData->IntrMask[0] = rtl8723au_read32(Adapter, REG_USB_HIMR);
@@ -1162,7 +958,7 @@ int rtl8723au_inirp_init(struct rtw_adapter *Adapter)
 	rtl8723au_write32(Adapter, REG_USB_HIMR, pHalData->IntrMask[0]);
 exit:
 	RT_TRACE(_module_hci_hal_init_c_, _drv_info_,
-		 ("<=== usb_inirp_init\n"));
+		 "<=== usb_inirp_init\n");
 	return status;
 }
 
@@ -1171,7 +967,7 @@ int rtl8723au_inirp_deinit(struct rtw_adapter *Adapter)
 	struct hal_data_8723a	*pHalData = GET_HAL_DATA(Adapter);
 
 	RT_TRACE(_module_hci_hal_init_c_, _drv_info_,
-		 ("\n ===> usb_rx_deinit\n"));
+		 "===> usb_rx_deinit\n");
 	rtl8723au_read_port_cancel(Adapter);
 	pHalData->IntrMask[0] = rtl8723au_read32(Adapter, REG_USB_HIMR);
 	MSG_8723A("%s pHalData->IntrMask = 0x%04x\n", __func__,
@@ -1179,7 +975,7 @@ int rtl8723au_inirp_deinit(struct rtw_adapter *Adapter)
 	pHalData->IntrMask[0] = 0x0;
 	rtl8723au_write32(Adapter, REG_USB_HIMR, pHalData->IntrMask[0]);
 	RT_TRACE(_module_hci_hal_init_c_, _drv_info_,
-		 ("\n <=== usb_rx_deinit\n"));
+		 "<=== usb_rx_deinit\n");
 	return _SUCCESS;
 }
 
@@ -1209,14 +1005,6 @@ static void _ReadBoardType(struct rtw_adapter *Adapter, u8 *PROMContent,
 		pHalData->ExternalPA = 1;
 }
 
-static void _ReadLEDSetting(struct rtw_adapter *Adapter, u8 *PROMContent,
-			    bool AutoloadFail)
-{
-	struct led_priv *pledpriv = &Adapter->ledpriv;
-
-	pledpriv->LedStrategy = HW_LED;
-}
-
 static void Hal_EfuseParseMACAddr_8723AU(struct rtw_adapter *padapter,
 					 u8 *hwinfo, bool AutoLoadFail)
 {
@@ -1234,11 +1022,10 @@ static void Hal_EfuseParseMACAddr_8723AU(struct rtw_adapter *padapter,
 	}
 
 	RT_TRACE(_module_hci_hal_init_c_, _drv_notice_,
-		 ("Hal_EfuseParseMACAddr_8723AU: Permanent Address =%02x:%02x:"
-		  "%02x:%02x:%02x:%02x\n",
-		  pEEPROM->mac_addr[0], pEEPROM->mac_addr[1],
-		  pEEPROM->mac_addr[2], pEEPROM->mac_addr[3],
-		  pEEPROM->mac_addr[4], pEEPROM->mac_addr[5]));
+		 "Hal_EfuseParseMACAddr_8723AU: Permanent Address =%02x:%02x:%02x:%02x:%02x:%02x\n",
+		 pEEPROM->mac_addr[0], pEEPROM->mac_addr[1],
+		 pEEPROM->mac_addr[2], pEEPROM->mac_addr[3],
+		 pEEPROM->mac_addr[4], pEEPROM->mac_addr[5]);
 }
 
 static void readAdapterInfo(struct rtw_adapter *padapter)
@@ -1263,7 +1050,6 @@ static void readAdapterInfo(struct rtw_adapter *padapter)
 				    pEEPROM->bautoload_fail_flag);
 	Hal_EfuseParseThermalMeter_8723A(padapter, hwinfo,
 					 pEEPROM->bautoload_fail_flag);
-	_ReadLEDSetting(padapter, hwinfo, pEEPROM->bautoload_fail_flag);
 /*	_ReadRFSetting(Adapter, PROMContent, pEEPROM->bautoload_fail_flag); */
 /*	_ReadPSSetting(Adapter, PROMContent, pEEPROM->bautoload_fail_flag); */
 	Hal_EfuseParseAntennaDiversity(padapter, hwinfo,
@@ -1276,10 +1062,6 @@ static void readAdapterInfo(struct rtw_adapter *padapter)
 					   pEEPROM->bautoload_fail_flag);
 	Hal_EfuseParseXtal_8723A(padapter, hwinfo,
 				 pEEPROM->bautoload_fail_flag);
-	/*  */
-	/*  The following part initialize some vars by PG info. */
-	/*  */
-	Hal_InitChannelPlan23a(padapter);
 
 	/* hal_CustomizedBehavior_8723U(Adapter); */
 
@@ -1302,20 +1084,6 @@ static void _ReadPROMContent(struct rtw_adapter *Adapter)
 		  (pEEPROM->bautoload_fail_flag ? "Fail" : "OK"));
 
 	readAdapterInfo(Adapter);
-}
-
-static void _ReadRFType(struct rtw_adapter *Adapter)
-{
-	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
-
-	pHalData->rf_chip = RF_6052;
-}
-
-static void _ReadSilmComboMode(struct rtw_adapter *Adapter)
-{
-	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
-
-	pHalData->SlimComboDbg = false;	/*  Default is not debug mode. */
 }
 
 /*  */
@@ -1347,15 +1115,7 @@ void rtl8723a_read_adapter_info(struct rtw_adapter *Adapter)
 
 	hal_EfuseCellSel(Adapter);
 
-	_ReadRFType(Adapter);/* rf_chip -> _InitRFType() */
 	_ReadPROMContent(Adapter);
-
-	/*  2010/10/25 MH THe function must be called after
-	    borad_type & IC-Version recognize. */
-	_ReadSilmComboMode(Adapter);
-
-	/* MSG_8723A("%s()(done), rf_chip = 0x%x, rf_type = 0x%x\n",
-	   __func__, pHalData->rf_chip, pHalData->rf_type); */
 
 	MSG_8723A("<==== _ReadAdapterInfo8723AU in %d ms\n",
 		  jiffies_to_msecs(jiffies - start));
@@ -1405,8 +1165,6 @@ int GetHalDefVar8192CUsb(struct rtw_adapter *Adapter,
 	}
 		break;
 	default:
-		/* RT_TRACE(COMP_INIT, DBG_WARNING, ("GetHalDefVar8192CUsb(): "
-		   "Unkown variable: %d!\n", eVariable)); */
 		bResult = _FAIL;
 		break;
 	}
@@ -1417,17 +1175,17 @@ int GetHalDefVar8192CUsb(struct rtw_adapter *Adapter,
 void rtl8723a_update_ramask(struct rtw_adapter *padapter,
 			    u32 mac_id, u8 rssi_level)
 {
-	u8	init_rate = 0;
-	u8	networkType, raid;
-	u32	mask, rate_bitmap;
-	u8	shortGIrate = false;
-	int	supportRateNum = 0;
 	struct sta_info	*psta;
-	struct hal_data_8723a	*pHalData = GET_HAL_DATA(padapter);
-	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
+	struct FW_Sta_Info *fw_sta;
+	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
+	struct dm_priv *pdmpriv = &pHalData->dmpriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *cur_network = &pmlmeinfo->network;
+	u8 init_rate, networkType, raid, arg;
+	u32 mask, rate_bitmap;
+	u8 shortGIrate = false;
+	int supportRateNum;
 
 	if (mac_id >= NUM_STA) /* CAM_SIZE */
 		return;
@@ -1456,8 +1214,8 @@ void rtl8723a_update_ramask(struct rtw_adapter *padapter,
 		break;
 
 	case 1:/* for broadcast/multicast */
-		supportRateNum = rtw_get_rateset_len23a(
-			pmlmeinfo->FW_sta_info[mac_id].SupportedRates);
+		fw_sta = &pmlmeinfo->FW_sta_info[mac_id]; 
+		supportRateNum = rtw_get_rateset_len23a(fw_sta->SupportedRates);
 		if (pmlmeext->cur_wireless_mode & WIRELESS_11B)
 			networkType = WIRELESS_11B;
 		else
@@ -1469,23 +1227,22 @@ void rtl8723a_update_ramask(struct rtw_adapter *padapter,
 		break;
 
 	default: /* for each sta in IBSS */
-		supportRateNum = rtw_get_rateset_len23a(
-			pmlmeinfo->FW_sta_info[mac_id].SupportedRates);
+		fw_sta = &pmlmeinfo->FW_sta_info[mac_id]; 
+		supportRateNum = rtw_get_rateset_len23a(fw_sta->SupportedRates);
 		networkType = judge_network_type23a(padapter,
-						 pmlmeinfo->FW_sta_info[mac_id].SupportedRates,
-						 supportRateNum) & 0xf;
+						    fw_sta->SupportedRates,
+						    supportRateNum) & 0xf;
 		/* pmlmeext->cur_wireless_mode = networkType; */
 		raid = networktype_to_raid23a(networkType);
 
 		mask = update_supported_rate23a(cur_network->SupportedRates,
-					     supportRateNum);
+						supportRateNum);
 
 		/* todo: support HT in IBSS */
 		break;
 	}
 
 	/* mask &= 0x0fffffff; */
-	rate_bitmap = 0x0fffffff;
 	rate_bitmap = ODM_Get_Rate_Bitmap23a(pHalData, mac_id, mask,
 					     rssi_level);
 	DBG_8723A("%s => mac_id:%d, networkType:0x%02x, "
@@ -1493,32 +1250,19 @@ void rtl8723a_update_ramask(struct rtw_adapter *padapter,
 		  __func__, mac_id, networkType, mask, rssi_level, rate_bitmap);
 
 	mask &= rate_bitmap;
-	mask |= ((raid<<28)&0xf0000000);
+	mask |= ((raid << 28) & 0xf0000000);
 
-	init_rate = get_highest_rate_idx23a(mask)&0x3f;
+	init_rate = get_highest_rate_idx23a(mask) & 0x3f;
 
-	if (pHalData->fw_ractrl == true) {
-		u8 arg = 0;
+	arg = mac_id & 0x1f;/* MACID */
+	arg |= BIT(7);
 
-		/* arg = (cam_idx-4)&0x1f;MACID */
-		arg = mac_id&0x1f;/* MACID */
+	if (shortGIrate == true)
+		arg |= BIT(5);
 
-		arg |= BIT(7);
+	DBG_8723A("update raid entry, mask = 0x%x, arg = 0x%x\n", mask, arg);
 
-		if (shortGIrate == true)
-			arg |= BIT(5);
-
-		DBG_8723A("update raid entry, mask = 0x%x, arg = 0x%x\n",
-			  mask, arg);
-
-		rtl8723a_set_raid_cmd(padapter, mask, arg);
-	} else {
-		if (shortGIrate == true)
-			init_rate |= BIT(6);
-
-		rtl8723au_write8(padapter, (REG_INIDATA_RATE_SEL+mac_id),
-				 init_rate);
-	}
+	rtl8723a_set_raid_cmd(padapter, mask, arg);
 
 	/* set ra_id */
 	psta->raid = raid;

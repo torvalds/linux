@@ -1,0 +1,1 @@
+libperf-$(CONFIG_DWARF) += dwarf-regs.o

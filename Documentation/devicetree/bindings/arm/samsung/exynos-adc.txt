@@ -16,6 +16,8 @@ Required properties:
 				future controllers.
 			Must be "samsung,exynos3250-adc" for
 				controllers compatible with ADC of Exynos3250.
+			Must be "samsung,exynos7-adc" for
+				the ADC in Exynos7 and compatibles
 			Must be "samsung,s3c2410-adc" for
 				the ADC in s3c2410 and compatibles
 			Must be "samsung,s3c2416-adc" for
@@ -43,13 +45,16 @@ Required properties:
 				   compatible ADC block)
 - vdd-supply		VDD input supply.
 
+- samsung,syscon-phandle Contains the PMU system controller node
+			(To access the ADC_PHY register on Exynos5250/5420/5800/3250)
+
 Note: child nodes can be added for auto probing from device tree.
 
 Example: adding device info in dtsi file
 
 adc: adc@12D10000 {
 	compatible = "samsung,exynos-adc-v1";
-	reg = <0x12D10000 0x100>, <0x10040718 0x4>;
+	reg = <0x12D10000 0x100>;
 	interrupts = <0 106 0>;
 	#io-channel-cells = <1>;
 	io-channel-ranges;
@@ -58,13 +63,14 @@ adc: adc@12D10000 {
 	clock-names = "adc";
 
 	vdd-supply = <&buck5_reg>;
+	samsung,syscon-phandle = <&pmu_system_controller>;
 };
 
 Example: adding device info in dtsi file for Exynos3250 with additional sclk
 
 adc: adc@126C0000 {
 	compatible = "samsung,exynos3250-adc", "samsung,exynos-adc-v2;
-	reg = <0x126C0000 0x100>, <0x10020718 0x4>;
+	reg = <0x126C0000 0x100>;
 	interrupts = <0 137 0>;
 	#io-channel-cells = <1>;
 	io-channel-ranges;
@@ -73,6 +79,7 @@ adc: adc@126C0000 {
 	clock-names = "adc", "sclk";
 
 	vdd-supply = <&buck5_reg>;
+	samsung,syscon-phandle = <&pmu_system_controller>;
 };
 
 Example: Adding child nodes in dts file

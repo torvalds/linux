@@ -8,7 +8,7 @@
 
 #include "./bebob.h"
 
-static char *const phase88_rack_clk_src_labels[] = {
+static const char *const phase88_rack_clk_src_labels[] = {
 	SND_BEBOB_CLOCK_INTERNAL, "Digital In", "Word Clock"
 };
 static int
@@ -24,12 +24,17 @@ phase88_rack_clk_src_get(struct snd_bebob *bebob, unsigned int *id)
 	if (err < 0)
 		goto end;
 
-	*id = (enable_ext & 0x01) | ((enable_word & 0x01) << 1);
+	if (enable_ext == 0)
+		*id = 0;
+	else if (enable_word == 0)
+		*id = 1;
+	else
+		*id = 2;
 end:
 	return err;
 }
 
-static char *const phase24_series_clk_src_labels[] = {
+static const char *const phase24_series_clk_src_labels[] = {
 	SND_BEBOB_CLOCK_INTERNAL, "Digital In"
 };
 static int

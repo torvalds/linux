@@ -41,7 +41,6 @@
 #include <linux/ctype.h>
 #include <linux/reboot.h>
 #include <linux/topology.h>
-#include <linux/ftrace.h>
 #include <linux/kexec.h>
 #include <linux/crash_dump.h>
 #include <linux/memory.h>
@@ -93,10 +92,8 @@ EXPORT_SYMBOL(VMALLOC_END);
 struct page *vmemmap;
 EXPORT_SYMBOL(vmemmap);
 
-#ifdef CONFIG_64BIT
 unsigned long MODULES_VADDR;
 unsigned long MODULES_END;
-#endif
 
 /* An array with a pointer to the lowcore of every CPU. */
 struct _lowcore *lowcore_ptr[NR_CPUS];
@@ -335,19 +332,10 @@ static void __init setup_lowcore(void)
 	lc->stfl_fac_list = S390_lowcore.stfl_fac_list;
 	memcpy(lc->stfle_fac_list, S390_lowcore.stfle_fac_list,
 	       MAX_FACILITY_BIT/8);
-#ifndef CONFIG_64BIT
-	if (MACHINE_HAS_IEEE) {
-		lc->extended_save_area_addr = (__u32)
-			__alloc_bootmem_low(PAGE_SIZE, PAGE_SIZE, 0);
-		/* enable extended save area */
-		__ctl_set_bit(14, 29);
-	}
-#else
 	if (MACHINE_HAS_VX)
 		lc->vector_save_area_addr =
 			(unsigned long) &lc->vector_save_area;
 	lc->vdso_per_cpu_data = (unsigned long) &lc->paste[0];
-#endif
 	lc->sync_enter_timer = S390_lowcore.sync_enter_timer;
 	lc->async_enter_timer = S390_lowcore.async_enter_timer;
 	lc->exit_timer = S390_lowcore.exit_timer;
@@ -356,7 +344,6 @@ static void __init setup_lowcore(void)
 	lc->steal_timer = S390_lowcore.steal_timer;
 	lc->last_update_timer = S390_lowcore.last_update_timer;
 	lc->last_update_clock = S390_lowcore.last_update_clock;
-	lc->ftrace_func = S390_lowcore.ftrace_func;
 
 	restart_stack = __alloc_bootmem(ASYNC_SIZE, ASYNC_SIZE, 0);
 	restart_stack += ASYNC_SIZE;
@@ -452,7 +439,6 @@ static void __init setup_memory_end(void)
 	unsigned long vmax, vmalloc_size, tmp;
 
 	/* Choose kernel address space layout: 2, 3, or 4 levels. */
-#ifdef CONFIG_64BIT
 	vmalloc_size = VMALLOC_END ?: (128UL << 30) - MODULES_LEN;
 	tmp = (memory_end ?: max_physmem_end) / PAGE_SIZE;
 	tmp = tmp * (sizeof(struct page) + PAGE_SIZE);
@@ -464,12 +450,6 @@ static void __init setup_memory_end(void)
 	MODULES_END = vmax;
 	MODULES_VADDR = MODULES_END - MODULES_LEN;
 	VMALLOC_END = MODULES_VADDR;
-#else
-	vmalloc_size = VMALLOC_END ?: 96UL << 20;
-	vmax = 1UL << 31;		/* 2-level kernel page table */
-	/* vmalloc area is at the end of the kernel address space. */
-	VMALLOC_END = vmax;
-#endif
 	VMALLOC_START = vmax - vmalloc_size;
 
 	/* Split remaining virtual space between 1:1 mapping & vmemmap array */
@@ -756,7 +736,6 @@ static void __init setup_hwcaps(void)
 	if (MACHINE_HAS_HPAGE)
 		elf_hwcap |= HWCAP_S390_HPAGE;
 
-#if defined(CONFIG_64BIT)
 	/*
 	 * 64-bit register support for 31-bit processes
 	 * HWCAP_S390_HIGH_GPRS is bit 9.
@@ -774,22 +753,15 @@ static void __init setup_hwcaps(void)
 	 */
 	if (test_facility(129))
 		elf_hwcap |= HWCAP_S390_VXRS;
-#endif
-
 	get_cpu_id(&cpu_id);
 	add_device_randomness(&cpu_id, sizeof(cpu_id));
 	switch (cpu_id.machine) {
 	case 0x9672:
-#if !defined(CONFIG_64BIT)
-	default:	/* Use "g5" as default for 31 bit kernels. */
-#endif
 		strcpy(elf_platform, "g5");
 		break;
 	case 0x2064:
 	case 0x2066:
-#if defined(CONFIG_64BIT)
 	default:	/* Use "z900" as default for 64 bit kernels. */
-#endif
 		strcpy(elf_platform, "z900");
 		break;
 	case 0x2084:
@@ -811,6 +783,9 @@ static void __init setup_hwcaps(void)
 	case 0x2827:
 	case 0x2828:
 		strcpy(elf_platform, "zEC12");
+		break;
+	case 0x2964:
+		strcpy(elf_platform, "z13");
 		break;
 	}
 }
@@ -838,19 +813,6 @@ void __init setup_arch(char **cmdline_p)
         /*
          * print what head.S has found out about the machine
          */
-#ifndef CONFIG_64BIT
-	if (MACHINE_IS_VM)
-		pr_info("Linux is running as a z/VM "
-			"guest operating system in 31-bit mode\n");
-	else if (MACHINE_IS_LPAR)
-		pr_info("Linux is running natively in 31-bit mode\n");
-	if (MACHINE_HAS_IEEE)
-		pr_info("The hardware system has IEEE compatible "
-			"floating point units\n");
-	else
-		pr_info("The hardware system has no IEEE compatible "
-			"floating point units\n");
-#else /* CONFIG_64BIT */
 	if (MACHINE_IS_VM)
 		pr_info("Linux is running as a z/VM "
 			"guest operating system in 64-bit mode\n");
@@ -858,7 +820,6 @@ void __init setup_arch(char **cmdline_p)
 		pr_info("Linux is running under KVM in 64-bit mode\n");
 	else if (MACHINE_IS_LPAR)
 		pr_info("Linux is running natively in 64-bit mode\n");
-#endif /* CONFIG_64BIT */
 
 	/* Have one command line that is parsed and saved in /proc/cmdline */
 	/* boot_command_line has been already set up in early.c */
@@ -908,7 +869,6 @@ void __init setup_arch(char **cmdline_p)
 	setup_lowcore();
 	smp_fill_possible_mask();
         cpu_init();
-	s390_init_cpu_topology();
 
 	/*
 	 * Setup capabilities (ELF_HWCAP & ELF_PLATFORM).
@@ -930,35 +890,3 @@ void __init setup_arch(char **cmdline_p)
 	/* Add system specific data to the random pool */
 	setup_randomness();
 }
-
-#ifdef CONFIG_32BIT
-static int no_removal_warning __initdata;
-
-static int __init parse_no_removal_warning(char *str)
-{
-	no_removal_warning = 1;
-	return 0;
-}
-__setup("no_removal_warning", parse_no_removal_warning);
-
-static int __init removal_warning(void)
-{
-	if (no_removal_warning)
-		return 0;
-	printk(KERN_ALERT "\n\n");
-	printk(KERN_CONT "Warning - you are using a 31 bit kernel!\n\n");
-	printk(KERN_CONT "We plan to remove 31 bit kernel support from the kernel sources in March 2015.\n");
-	printk(KERN_CONT "Currently we assume that nobody is using the 31 bit kernel on old 31 bit\n");
-	printk(KERN_CONT "hardware anymore. If you think that the code should not be removed and also\n");
-	printk(KERN_CONT "future versions of the Linux kernel should be able to run in 31 bit mode\n");
-	printk(KERN_CONT "please let us know. Please write to:\n");
-	printk(KERN_CONT "linux390@de.ibm.com (mail address) and/or\n");
-	printk(KERN_CONT "linux-s390@vger.kernel.org (mailing list).\n\n");
-	printk(KERN_CONT "Thank you!\n\n");
-	printk(KERN_CONT "If this kernel runs on a 64 bit machine you may consider using a 64 bit kernel.\n");
-	printk(KERN_CONT "This message can be disabled with the \"no_removal_warning\" kernel parameter.\n");
-	schedule_timeout_uninterruptible(300 * HZ);
-	return 0;
-}
-early_initcall(removal_warning);
-#endif

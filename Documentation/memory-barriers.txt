@@ -121,22 +121,22 @@ For example, consider the following sequence of events:
 The set of accesses as seen by the memory system in the middle can be arranged
 in 24 different combinations:
 
-	STORE A=3,	STORE B=4,	x=LOAD A->3,	y=LOAD B->4
-	STORE A=3,	STORE B=4,	y=LOAD B->4,	x=LOAD A->3
-	STORE A=3,	x=LOAD A->3,	STORE B=4,	y=LOAD B->4
-	STORE A=3,	x=LOAD A->3,	y=LOAD B->2,	STORE B=4
-	STORE A=3,	y=LOAD B->2,	STORE B=4,	x=LOAD A->3
-	STORE A=3,	y=LOAD B->2,	x=LOAD A->3,	STORE B=4
-	STORE B=4,	STORE A=3,	x=LOAD A->3,	y=LOAD B->4
+	STORE A=3,	STORE B=4,	y=LOAD A->3,	x=LOAD B->4
+	STORE A=3,	STORE B=4,	x=LOAD B->4,	y=LOAD A->3
+	STORE A=3,	y=LOAD A->3,	STORE B=4,	x=LOAD B->4
+	STORE A=3,	y=LOAD A->3,	x=LOAD B->2,	STORE B=4
+	STORE A=3,	x=LOAD B->2,	STORE B=4,	y=LOAD A->3
+	STORE A=3,	x=LOAD B->2,	y=LOAD A->3,	STORE B=4
+	STORE B=4,	STORE A=3,	y=LOAD A->3,	x=LOAD B->4
 	STORE B=4, ...
 	...
 
 and can thus result in four different combinations of values:
 
-	x == 1, y == 2
-	x == 1, y == 4
-	x == 3, y == 2
-	x == 3, y == 4
+	x == 2, y == 1
+	x == 2, y == 3
+	x == 4, y == 1
+	x == 4, y == 3
 
 
 Furthermore, the stores committed by a CPU to the memory system may not be
@@ -268,6 +268,50 @@ And there are a number of things that _must_ or _must_not_ be assumed:
 	STORE *A = X; STORE *(A + 4) = Y;
 	STORE *(A + 4) = Y; STORE *A = X;
 	STORE {*A, *(A + 4) } = {X, Y};
+
+And there are anti-guarantees:
+
+ (*) These guarantees do not apply to bitfields, because compilers often
+     generate code to modify these using non-atomic read-modify-write
+     sequences.  Do not attempt to use bitfields to synchronize parallel
+     algorithms.
+
+ (*) Even in cases where bitfields are protected by locks, all fields
+     in a given bitfield must be protected by one lock.  If two fields
+     in a given bitfield are protected by different locks, the compiler's
+     non-atomic read-modify-write sequences can cause an update to one
+     field to corrupt the value of an adjacent field.
+
+ (*) These guarantees apply only to properly aligned and sized scalar
+     variables.  "Properly sized" currently means variables that are
+     the same size as "char", "short", "int" and "long".  "Properly
+     aligned" means the natural alignment, thus no constraints for
+     "char", two-byte alignment for "short", four-byte alignment for
+     "int", and either four-byte or eight-byte alignment for "long",
+     on 32-bit and 64-bit systems, respectively.  Note that these
+     guarantees were introduced into the C11 standard, so beware when
+     using older pre-C11 compilers (for example, gcc 4.6).  The portion
+     of the standard containing this guarantee is Section 3.14, which
+     defines "memory location" as follows:
+
+     	memory location
+		either an object of scalar type, or a maximal sequence
+		of adjacent bit-fields all having nonzero width
+
+		NOTE 1: Two threads of execution can update and access
+		separate memory locations without interfering with
+		each other.
+
+		NOTE 2: A bit-field and an adjacent non-bit-field member
+		are in separate memory locations. The same applies
+		to two bit-fields, if one is declared inside a nested
+		structure declaration and the other is not, or if the two
+		are separated by a zero-length bit-field declaration,
+		or if they are separated by a non-bit-field member
+		declaration. It is not safe to concurrently update two
+		bit-fields in the same structure if all members declared
+		between them are also bit-fields, no matter what the
+		sizes of those intervening bit-fields happen to be.
 
 
 =========================
@@ -548,9 +592,9 @@ See also the subsection on "Cache Coherency" for a more thorough example.
 CONTROL DEPENDENCIES
 --------------------
 
-A control dependency requires a full read memory barrier, not simply a data
-dependency barrier to make it work correctly.  Consider the following bit of
-code:
+A load-load control dependency requires a full read memory barrier, not
+simply a data dependency barrier to make it work correctly.  Consider the
+following bit of code:
 
 	q = ACCESS_ONCE(a);
 	if (q) {
@@ -571,14 +615,15 @@ case what's actually required is:
 	}
 
 However, stores are not speculated.  This means that ordering -is- provided
-in the following example:
+for load-store control dependencies, as in the following example:
 
 	q = ACCESS_ONCE(a);
 	if (q) {
 		ACCESS_ONCE(b) = p;
 	}
 
-Please note that ACCESS_ONCE() is not optional!  Without the
+Control dependencies pair normally with other types of barriers.
+That said, please note that ACCESS_ONCE() is not optional!  Without the
 ACCESS_ONCE(), might combine the load from 'a' with other loads from
 'a', and the store to 'b' with other stores to 'b', with possible highly
 counterintuitive effects on ordering.
@@ -694,6 +739,24 @@ Please note once again that the stores to 'b' differ.  If they were
 identical, as noted earlier, the compiler could pull this store outside
 of the 'if' statement.
 
+You must also be careful not to rely too much on boolean short-circuit
+evaluation.  Consider this example:
+
+	q = ACCESS_ONCE(a);
+	if (a || 1 > 0)
+		ACCESS_ONCE(b) = 1;
+
+Because the second condition is always true, the compiler can transform
+this example as following, defeating control dependency:
+
+	q = ACCESS_ONCE(a);
+	ACCESS_ONCE(b) = 1;
+
+This example underscores the need to ensure that the compiler cannot
+out-guess your code.  More generally, although ACCESS_ONCE() does force
+the compiler to actually emit code for a given load, it does not force
+the compiler to use the results.
+
 Finally, control dependencies do -not- provide transitivity.  This is
 demonstrated by two related examples, with the initial values of
 x and y both being zero:
@@ -732,7 +795,7 @@ In summary:
       However, they do -not- guarantee any other sort of ordering:
       Not prior loads against later loads, nor prior stores against
       later anything.  If you need these other forms of ordering,
-      use smb_rmb(), smp_wmb(), or, in the case of prior stores and
+      use smp_rmb(), smp_wmb(), or, in the case of prior stores and
       later loads, smp_mb().
 
   (*) If both legs of the "if" statement begin with identical stores
@@ -751,6 +814,8 @@ In summary:
       barrier() can help to preserve your control dependency.  Please
       see the Compiler Barrier section for more information.
 
+  (*) Control dependencies pair normally with other types of barriers.
+
   (*) Control dependencies do -not- provide transitivity.  If you
       need transitivity, use smp_mb().
 
@@ -761,14 +826,14 @@ SMP BARRIER PAIRING
 When dealing with CPU-CPU interactions, certain types of memory barrier should
 always be paired.  A lack of appropriate pairing is almost certainly an error.
 
-General barriers pair with each other, though they also pair with
-most other types of barriers, albeit without transitivity.  An acquire
-barrier pairs with a release barrier, but both may also pair with other
-barriers, including of course general barriers.  A write barrier pairs
-with a data dependency barrier, an acquire barrier, a release barrier,
-a read barrier, or a general barrier.  Similarly a read barrier or a
-data dependency barrier pairs with a write barrier, an acquire barrier,
-a release barrier, or a general barrier:
+General barriers pair with each other, though they also pair with most
+other types of barriers, albeit without transitivity.  An acquire barrier
+pairs with a release barrier, but both may also pair with other barriers,
+including of course general barriers.  A write barrier pairs with a data
+dependency barrier, a control dependency, an acquire barrier, a release
+barrier, a read barrier, or a general barrier.  Similarly a read barrier,
+control dependency, or a data dependency barrier pairs with a write
+barrier, an acquire barrier, a release barrier, or a general barrier:
 
 	CPU 1		      CPU 2
 	===============	      ===============
@@ -787,6 +852,19 @@ Or:
 	ACCESS_ONCE(b) = &a;  x = ACCESS_ONCE(b);
 			      <data dependency barrier>
 			      y = *x;
+
+Or even:
+
+	CPU 1		      CPU 2
+	===============	      ===============================
+	r1 = ACCESS_ONCE(y);
+	<general barrier>
+	ACCESS_ONCE(y) = 1;   if (r2 = ACCESS_ONCE(x)) {
+			         <implicit control dependency>
+			         ACCESS_ONCE(y) = 1;
+			      }
+
+	assert(r1 == 0 || r2 == 0);
 
 Basically, the read barrier always has to be there, even though it can be of
 the "weaker" type.
@@ -1614,6 +1692,48 @@ There are some more advanced barrier functions:
      See Documentation/atomic_ops.txt for more information.  See the "Atomic
      operations" subsection for information on where to use these.
 
+
+ (*) dma_wmb();
+ (*) dma_rmb();
+
+     These are for use with consistent memory to guarantee the ordering
+     of writes or reads of shared memory accessible to both the CPU and a
+     DMA capable device.
+
+     For example, consider a device driver that shares memory with a device
+     and uses a descriptor status value to indicate if the descriptor belongs
+     to the device or the CPU, and a doorbell to notify it when new
+     descriptors are available:
+
+	if (desc->status != DEVICE_OWN) {
+		/* do not read data until we own descriptor */
+		dma_rmb();
+
+		/* read/modify data */
+		read_data = desc->data;
+		desc->data = write_data;
+
+		/* flush modifications before status update */
+		dma_wmb();
+
+		/* assign ownership */
+		desc->status = DEVICE_OWN;
+
+		/* force memory to sync before notifying device via MMIO */
+		wmb();
+
+		/* notify device of new descriptors */
+		writel(DESC_NOTIFY, doorbell);
+	}
+
+     The dma_rmb() allows us guarantee the device has released ownership
+     before we read the data from the descriptor, and he dma_wmb() allows
+     us to guarantee the data is written to the descriptor before the device
+     can see it now has ownership.  The wmb() is needed to guarantee that the
+     cache coherent memory writes have completed before attempting a write to
+     the cache incoherent MMIO region.
+
+     See Documentation/DMA-API.txt for more information on consistent memory.
 
 MMIO WRITE BARRIER
 ------------------
@@ -2465,10 +2585,15 @@ functions:
      Please refer to the PCI specification for more information on interactions
      between PCI transactions.
 
- (*) readX_relaxed()
+ (*) readX_relaxed(), writeX_relaxed()
 
-     These are similar to readX(), but are not guaranteed to be ordered in any
-     way. Be aware that there is no I/O read barrier available.
+     These are similar to readX() and writeX(), but provide weaker memory
+     ordering guarantees. Specifically, they do not guarantee ordering with
+     respect to normal memory accesses (e.g. DMA buffers) nor do they guarantee
+     ordering with respect to LOCK or UNLOCK operations. If the latter is
+     required, an mmiowb() barrier can be used. Note that relaxed accesses to
+     the same peripheral are guaranteed to be ordered with respect to each
+     other.
 
  (*) ioreadX(), iowriteX()
 

@@ -28,10 +28,10 @@ __ipipe_get_format(struct iss_ipipe_device *ipipe, struct v4l2_subdev_fh *fh,
 		  unsigned int pad, enum v4l2_subdev_format_whence which);
 
 static const unsigned int ipipe_fmts[] = {
-	V4L2_MBUS_FMT_SGRBG10_1X10,
-	V4L2_MBUS_FMT_SRGGB10_1X10,
-	V4L2_MBUS_FMT_SBGGR10_1X10,
-	V4L2_MBUS_FMT_SGBRG10_1X10,
+	MEDIA_BUS_FMT_SGRBG10_1X10,
+	MEDIA_BUS_FMT_SRGGB10_1X10,
+	MEDIA_BUS_FMT_SBGGR10_1X10,
+	MEDIA_BUS_FMT_SGBRG10_1X10,
 };
 
 /*
@@ -211,7 +211,7 @@ ipipe_try_format(struct iss_ipipe_device *ipipe, struct v4l2_subdev_fh *fh,
 
 		/* If not found, use SGRBG10 as default */
 		if (i >= ARRAY_SIZE(ipipe_fmts))
-			fmt->code = V4L2_MBUS_FMT_SGRBG10_1X10;
+			fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
 
 		/* Clamp the input size. */
 		fmt->width = clamp_t(u32, width, 1, 8192);
@@ -223,7 +223,7 @@ ipipe_try_format(struct iss_ipipe_device *ipipe, struct v4l2_subdev_fh *fh,
 		format = __ipipe_get_format(ipipe, fh, IPIPE_PAD_SINK, which);
 		memcpy(fmt, format, sizeof(*fmt));
 
-		fmt->code = V4L2_MBUS_FMT_UYVY8_1X16;
+		fmt->code = MEDIA_BUS_FMT_UYVY8_1X16;
 		fmt->width = clamp_t(u32, width, 32, fmt->width);
 		fmt->height = clamp_t(u32, height, 32, fmt->height);
 		fmt->colorspace = V4L2_COLORSPACE_JPEG;
@@ -257,7 +257,7 @@ static int ipipe_enum_mbus_code(struct v4l2_subdev *sd,
 		if (code->index != 0)
 			return -EINVAL;
 
-		code->code = V4L2_MBUS_FMT_UYVY8_1X16;
+		code->code = MEDIA_BUS_FMT_UYVY8_1X16;
 		break;
 
 	default:
@@ -385,7 +385,7 @@ static int ipipe_init_formats(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	memset(&format, 0, sizeof(format));
 	format.pad = IPIPE_PAD_SINK;
 	format.which = fh ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
-	format.format.code = V4L2_MBUS_FMT_SGRBG10_1X10;
+	format.format.code = MEDIA_BUS_FMT_SGRBG10_1X10;
 	format.format.width = 4096;
 	format.format.height = 4096;
 	ipipe_set_format(sd, fh, &format);

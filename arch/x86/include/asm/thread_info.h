@@ -13,25 +13,49 @@
 #include <asm/types.h>
 
 /*
+ * TOP_OF_KERNEL_STACK_PADDING is a number of unused bytes that we
+ * reserve at the top of the kernel stack.  We do it because of a nasty
+ * 32-bit corner case.  On x86_32, the hardware stack frame is
+ * variable-length.  Except for vm86 mode, struct pt_regs assumes a
+ * maximum-length frame.  If we enter from CPL 0, the top 8 bytes of
+ * pt_regs don't actually exist.  Ordinarily this doesn't matter, but it
+ * does in at least one case:
+ *
+ * If we take an NMI early enough in SYSENTER, then we can end up with
+ * pt_regs that extends above sp0.  On the way out, in the espfix code,
+ * we can read the saved SS value, but that value will be above sp0.
+ * Without this offset, that can result in a page fault.  (We are
+ * careful that, in this case, the value we read doesn't matter.)
+ *
+ * In vm86 mode, the hardware frame is much longer still, but we neither
+ * access the extra members from NMI context, nor do we write such a
+ * frame at sp0 at all.
+ *
+ * x86_64 has a fixed-length stack frame.
+ */
+#ifdef CONFIG_X86_32
+# define TOP_OF_KERNEL_STACK_PADDING 8
+#else
+# define TOP_OF_KERNEL_STACK_PADDING 0
+#endif
+
+/*
  * low level task data that entry.S needs immediate access to
  * - this struct should fit entirely inside of one cache line
  * - this struct shares the supervisor stack pages
  */
 #ifndef __ASSEMBLY__
 struct task_struct;
-struct exec_domain;
 #include <asm/processor.h>
 #include <linux/atomic.h>
 
 struct thread_info {
 	struct task_struct	*task;		/* main task structure */
-	struct exec_domain	*exec_domain;	/* execution domain */
 	__u32			flags;		/* low level flags */
 	__u32			status;		/* thread synchronous flags */
 	__u32			cpu;		/* current CPU */
 	int			saved_preempt_count;
 	mm_segment_t		addr_limit;
-	struct restart_block    restart_block;
 	void __user		*sysenter_return;
 	unsigned int		sig_on_uaccess_error:1;
 	unsigned int		uaccess_err:1;	/* uaccess failed */
@@ -40,14 +64,10 @@ struct thread_info {
 #define INIT_THREAD_INFO(tsk)			\
 {						\
 	.task		= &tsk,			\
-	.exec_domain	= &default_exec_domain,	\
 	.flags		= 0,			\
 	.cpu		= 0,			\
 	.saved_preempt_count = INIT_PREEMPT_COUNT,	\
 	.addr_limit	= KERNEL_DS,		\
-	.restart_block = {			\
-		.fn = do_no_restart_syscall,	\
-	},					\
 }
 
 #define init_thread_info	(init_thread_union.thread_info)
@@ -75,7 +95,6 @@ struct thread_info {
 #define TIF_SYSCALL_EMU		6	/* syscall emulation active */
 #define TIF_SYSCALL_AUDIT	7	/* syscall auditing active */
 #define TIF_SECCOMP		8	/* secure computing */
-#define TIF_MCE_NOTIFY		10	/* notify userspace of an MCE */
 #define TIF_USER_RETURN_NOTIFY	11	/* notify kernel of userspace return */
 #define TIF_UPROBE		12	/* breakpointed or singlestepping */
 #define TIF_NOTSC		16	/* TSC is not accessible in userland */
@@ -100,7 +119,6 @@ struct thread_info {
 #define _TIF_SYSCALL_EMU	(1 << TIF_SYSCALL_EMU)
 #define _TIF_SYSCALL_AUDIT	(1 << TIF_SYSCALL_AUDIT)
 #define _TIF_SECCOMP		(1 << TIF_SECCOMP)
-#define _TIF_MCE_NOTIFY		(1 << TIF_MCE_NOTIFY)
 #define _TIF_USER_RETURN_NOTIFY	(1 << TIF_USER_RETURN_NOTIFY)
 #define _TIF_UPROBE		(1 << TIF_UPROBE)
 #define _TIF_NOTSC		(1 << TIF_NOTSC)
@@ -140,8 +158,8 @@ struct thread_info {
 
 /* Only used for 64 bit */
 #define _TIF_DO_NOTIFY_MASK						\
-	(_TIF_SIGPENDING | _TIF_MCE_NOTIFY | _TIF_NOTIFY_RESUME |	\
-	 _TIF_USER_RETURN_NOTIFY)
+	(_TIF_SIGPENDING | _TIF_NOTIFY_RESUME |				\
+	 _TIF_USER_RETURN_NOTIFY | _TIF_UPROBE)
 
 /* flags to check in __switch_to() */
 #define _TIF_WORK_CTXSW							\
@@ -151,7 +169,6 @@ struct thread_info {
 #define _TIF_WORK_CTXSW_NEXT (_TIF_WORK_CTXSW)
 
 #define STACK_WARN		(THREAD_SIZE/8)
-#define KERNEL_STACK_OFFSET	(5*(BITS_PER_LONG/8))
 
 /*
  * macros/functions for gaining access to the thread information structure
@@ -164,24 +181,53 @@ DECLARE_PER_CPU(unsigned long, kernel_stack);
 
 static inline struct thread_info *current_thread_info(void)
 {
-	struct thread_info *ti;
-	ti = (void *)(this_cpu_read_stable(kernel_stack) +
-		      KERNEL_STACK_OFFSET - THREAD_SIZE);
-	return ti;
+	return (struct thread_info *)(current_top_of_stack() - THREAD_SIZE);
+}
+
+static inline unsigned long current_stack_pointer(void)
+{
+	unsigned long sp;
+#ifdef CONFIG_X86_64
+	asm("mov %%rsp,%0" : "=g" (sp));
+#else
+	asm("mov %%esp,%0" : "=g" (sp));
+#endif
+	return sp;
 }
 
 #else /* !__ASSEMBLY__ */
 
-/* how to get the thread information struct from ASM */
+/* Load thread_info address into "reg" */
 #define GET_THREAD_INFO(reg) \
 	_ASM_MOV PER_CPU_VAR(kernel_stack),reg ; \
-	_ASM_SUB $(THREAD_SIZE-KERNEL_STACK_OFFSET),reg ;
+	_ASM_SUB $(THREAD_SIZE),reg ;
 
 /*
- * Same if PER_CPU_VAR(kernel_stack) is, perhaps with some offset, already in
- * a certain register (to be used in assembler memory operands).
+ * ASM operand which evaluates to a 'thread_info' address of
+ * the current task, if it is known that "reg" is exactly "off"
+ * bytes below the top of the stack currently.
+ *
+ * ( The kernel stack's size is known at build time, it is usually
+ *   2 or 4 pages, and the bottom  of the kernel stack contains
+ *   the thread_info structure. So to access the thread_info very
+ *   quickly from assembly code we can calculate down from the
+ *   top of the kernel stack to the bottom, using constant,
+ *   build-time calculations only. )
+ *
+ * For example, to fetch the current thread_info->flags value into %eax
+ * on x86-64 defconfig kernels, in syscall entry code where RSP is
+ * currently at exactly SIZEOF_PTREGS bytes away from the top of the
+ * stack:
+ *
+ *      mov ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS), %eax
+ *
+ * will translate to:
+ *
+ *      8b 84 24 b8 c0 ff ff      mov    -0x3f48(%rsp), %eax
+ *
+ * which is below the current RSP by almost 16K.
  */
-#define THREAD_INFO(reg, off) KERNEL_STACK_OFFSET+(off)-THREAD_SIZE(reg)
+#define ASM_THREAD_INFO(field, reg, off) ((field)+(off)-THREAD_SIZE)(reg)
 
 #endif
 
@@ -231,6 +277,16 @@ static inline bool is_ia32_task(void)
 #endif
 	return false;
 }
+
+/*
+ * Force syscall return via IRET by making it look as if there was
+ * some work pending. IRET is our most capable (but slowest) syscall
+ * return path, which is able to restore modified SS, CS and certain
+ * EFLAGS values that other (fast) syscall return instructions
+ * are not able to restore properly.
+ */
+#define force_iret() set_thread_flag(TIF_NOTIFY_RESUME)
+
 #endif	/* !__ASSEMBLY__ */
 
 #ifndef __ASSEMBLY__

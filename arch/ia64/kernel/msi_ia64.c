@@ -35,7 +35,7 @@ static int ia64_set_msi_irq_affinity(struct irq_data *idata,
 	data |= MSI_DATA_VECTOR(irq_to_vector(irq));
 	msg.data = data;
 
-	write_msi_msg(irq, &msg);
+	pci_write_msi_msg(irq, &msg);
 	cpumask_copy(idata->affinity, cpumask_of(cpu));
 
 	return 0;
@@ -71,7 +71,7 @@ int ia64_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 		MSI_DATA_DELIVERY_FIXED |
 		MSI_DATA_VECTOR(vector);
 
-	write_msi_msg(irq, &msg);
+	pci_write_msi_msg(irq, &msg);
 	irq_set_chip_and_handler(irq, &ia64_msi_chip, handle_edge_irq);
 
 	return 0;
@@ -102,8 +102,8 @@ static int ia64_msi_retrigger_irq(struct irq_data *data)
  */
 static struct irq_chip ia64_msi_chip = {
 	.name			= "PCI-MSI",
-	.irq_mask		= mask_msi_irq,
-	.irq_unmask		= unmask_msi_irq,
+	.irq_mask		= pci_msi_mask_irq,
+	.irq_unmask		= pci_msi_unmask_irq,
 	.irq_ack		= ia64_ack_msi_irq,
 #ifdef CONFIG_SMP
 	.irq_set_affinity	= ia64_set_msi_irq_affinity,

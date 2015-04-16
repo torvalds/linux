@@ -1,5 +1,5 @@
 /*
- *  (C) 2001-2004  Dave Jones. <davej@redhat.com>
+ *  (C) 2001-2004  Dave Jones.
  *  (C) 2002  Padraig Brady. <padraig@antefacto.com>
  *
  *  Licensed under the terms of the GNU GPL License version 2.
@@ -1008,7 +1008,7 @@ MODULE_PARM_DESC(revid_errata, "Ignore CPU Revision ID");
 module_param(enable, int, 0644);
 MODULE_PARM_DESC(enable, "Enable driver");
 
-MODULE_AUTHOR("Dave Jones <davej@redhat.com>");
+MODULE_AUTHOR("Dave Jones");
 MODULE_DESCRIPTION("Longhaul driver for VIA Cyrix processors.");
 MODULE_LICENSE("GPL");
 

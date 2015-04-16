@@ -1,5 +1,5 @@
 /*
- * Silicon Labs Si2147/2157/2158 silicon tuner driver
+ * Silicon Labs Si2146/2147/2148/2157/2158 silicon tuner driver
  *
  * Copyright (C) 2014 Antti Palosaari <crope@iki.fi>
  *
@@ -21,16 +21,19 @@
 #include "si2157.h"
 
 /* state struct */
-struct si2157 {
+struct si2157_dev {
 	struct mutex i2c_mutex;
-	struct i2c_client *client;
 	struct dvb_frontend *fe;
 	bool active;
 	bool fw_loaded;
 	bool inversion;
+	u8 chiptype;
 };
 
-/* firmare command struct */
+#define SI2157_CHIPTYPE_SI2157 0
+#define SI2157_CHIPTYPE_SI2146 1
+
+/* firmware command struct */
 #define SI2157_ARGLEN      30
 struct si2157_cmd {
 	u8 args[SI2157_ARGLEN];

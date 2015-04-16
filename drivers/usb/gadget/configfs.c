@@ -271,7 +271,7 @@ static ssize_t gadget_dev_desc_UDC_store(struct gadget_info *gi,
 			ret = -EBUSY;
 			goto err;
 		}
-		ret = udc_attach_driver(name, &gi->composite.gadget_driver);
+		ret = usb_udc_attach_driver(name, &gi->composite.gadget_driver);
 		if (ret)
 			goto err;
 		gi->udc_name = name;
@@ -1161,7 +1161,6 @@ static ssize_t interf_grp_compatible_id_store(struct usb_os_desc *desc,
 	if (desc->opts_mutex)
 		mutex_lock(desc->opts_mutex);
 	memcpy(desc->ext_compat_id, page, l);
-	desc->ext_compat_id[l] = '\0';
 
 	if (desc->opts_mutex)
 		mutex_unlock(desc->opts_mutex);
@@ -1192,7 +1191,6 @@ static ssize_t interf_grp_sub_compatible_id_store(struct usb_os_desc *desc,
 	if (desc->opts_mutex)
 		mutex_lock(desc->opts_mutex);
 	memcpy(desc->ext_compat_id + 8, page, l);
-	desc->ext_compat_id[l + 8] = '\0';
 
 	if (desc->opts_mutex)
 		mutex_unlock(desc->opts_mutex);
@@ -1452,6 +1450,9 @@ static const struct usb_gadget_driver configfs_driver_template = {
 	.setup          = composite_setup,
 	.reset          = composite_disconnect,
 	.disconnect     = composite_disconnect,
+
+	.suspend	= composite_suspend,
+	.resume		= composite_resume,
 
 	.max_speed	= USB_SPEED_SUPER,
 	.driver = {

@@ -67,6 +67,7 @@ struct timechart {
 				skip_eagain;
 	u64			min_time,
 				merge_dist;
+	bool			force;
 };
 
 struct per_pidcomm;
@@ -528,7 +529,7 @@ static const char *cat_backtrace(union perf_event *event,
 		}
 
 		tal.filtered = 0;
-		thread__find_addr_location(al.thread, machine, cpumode,
+		thread__find_addr_location(al.thread, cpumode,
 					   MAP__FUNCTION, ip, &tal);
 
 		if (tal.sym)
@@ -1598,6 +1599,7 @@ static int __cmd_timechart(struct timechart *tchart, const char *output_name)
 	struct perf_data_file file = {
 		.path = input_name,
 		.mode = PERF_DATA_MODE_READ,
+		.force = tchart->force,
 	};
 
 	struct perf_session *session = perf_session__new(&file, false,
@@ -1623,7 +1625,7 @@ static int __cmd_timechart(struct timechart *tchart, const char *output_name)
 		goto out_delete;
 	}
 
-	ret = perf_session__process_events(session, &tchart->tool);
+	ret = perf_session__process_events(session);
 	if (ret)
 		goto out_delete;
 
@@ -1956,14 +1958,16 @@ int cmd_timechart(int argc, const char **argv,
 	OPT_CALLBACK(0, "io-merge-dist", &tchart.merge_dist, "time",
 		     "merge events that are merge-dist us apart",
 		     parse_time),
+	OPT_BOOLEAN('f', "force", &tchart.force, "don't complain, do it"),
 	OPT_END()
 	};
-	const char * const timechart_usage[] = {
+	const char * const timechart_subcommands[] = { "record", NULL };
+	const char *timechart_usage[] = {
 		"perf timechart [<options>] {record}",
 		NULL
 	};
 
-	const struct option record_options[] = {
+	const struct option timechart_record_options[] = {
 	OPT_BOOLEAN('P', "power-only", &tchart.power_only, "output power data only"),
 	OPT_BOOLEAN('T', "tasks-only", &tchart.tasks_only,
 		    "output processes data only"),
@@ -1972,12 +1976,12 @@ int cmd_timechart(int argc, const char **argv,
 	OPT_BOOLEAN('g', "callchain", &tchart.with_backtrace, "record callchain"),
 	OPT_END()
 	};
-	const char * const record_usage[] = {
+	const char * const timechart_record_usage[] = {
 		"perf timechart record [<options>]",
 		NULL
 	};
-	argc = parse_options(argc, argv, timechart_options, timechart_usage,
-			PARSE_OPT_STOP_AT_NON_OPTION);
+	argc = parse_options_subcommand(argc, argv, timechart_options, timechart_subcommands,
+			timechart_usage, PARSE_OPT_STOP_AT_NON_OPTION);
 
 	if (tchart.power_only && tchart.tasks_only) {
 		pr_err("-P and -T options cannot be used at the same time.\n");
@@ -1985,7 +1989,8 @@ int cmd_timechart(int argc, const char **argv,
 	}
 
 	if (argc && !strncmp(argv[0], "rec", 3)) {
-		argc = parse_options(argc, argv, record_options, record_usage,
+		argc = parse_options(argc, argv, timechart_record_options,
+				     timechart_record_usage,
 				     PARSE_OPT_STOP_AT_NON_OPTION);
 
 		if (tchart.power_only && tchart.tasks_only) {

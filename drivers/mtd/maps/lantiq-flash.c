@@ -205,7 +205,6 @@ static struct platform_driver ltq_mtd_driver = {
 	.remove = ltq_mtd_remove,
 	.driver = {
 		.name = "ltq-nor",
-		.owner = THIS_MODULE,
 		.of_match_table = ltq_mtd_match,
 	},
 };

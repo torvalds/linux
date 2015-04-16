@@ -19,9 +19,7 @@ static inline int init_new_context(struct task_struct *tsk,
 	atomic_set(&mm->context.attach_count, 0);
 	mm->context.flush_mm = 0;
 	mm->context.asce_bits = _ASCE_TABLE_LENGTH | _ASCE_USER_BITS;
-#ifdef CONFIG_64BIT
 	mm->context.asce_bits |= _ASCE_TYPE_REGION3;
-#endif
 	mm->context.has_pgste = 0;
 	mm->context.use_skey = 0;
 	mm->context.asce_limit = STACK_TOP_MAX;
@@ -62,6 +60,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 {
 	int cpu = smp_processor_id();
 
+	S390_lowcore.user_asce = next->context.asce_bits | __pa(next->pgd);
 	if (prev == next)
 		return;
 	if (MACHINE_HAS_TLB_LC)
@@ -73,7 +72,6 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	atomic_dec(&prev->context.attach_count);
 	if (MACHINE_HAS_TLB_LC)
 		cpumask_clear_cpu(cpu, &prev->context.cpu_attach_mask);
-	S390_lowcore.user_asce = next->context.asce_bits | __pa(next->pgd);
 }
 
 #define finish_arch_post_lock_switch finish_arch_post_lock_switch
@@ -110,13 +108,22 @@ static inline void activate_mm(struct mm_struct *prev,
 static inline void arch_dup_mmap(struct mm_struct *oldmm,
 				 struct mm_struct *mm)
 {
-#ifdef CONFIG_64BIT
 	if (oldmm->context.asce_limit < mm->context.asce_limit)
 		crst_table_downgrade(mm, oldmm->context.asce_limit);
-#endif
 }
 
 static inline void arch_exit_mmap(struct mm_struct *mm)
+{
+}
+
+static inline void arch_unmap(struct mm_struct *mm,
+			struct vm_area_struct *vma,
+			unsigned long start, unsigned long end)
+{
+}
+
+static inline void arch_bprm_mm_init(struct mm_struct *mm,
+				     struct vm_area_struct *vma)
 {
 }
 

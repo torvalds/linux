@@ -374,13 +374,14 @@ SOC_SINGLE("RIN34 Mute Switch", WM8990_RIGHT_LINE_INPUT_3_4_VOLUME,
 static int outmixer_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	u32 reg_shift = kcontrol->private_value & 0xfff;
 	int ret = 0;
 	u16 reg;
 
 	switch (reg_shift) {
 	case WM8990_SPEAKER_MIXER | (WM8990_LDSPK_BIT << 8) :
-		reg = snd_soc_read(w->codec, WM8990_OUTPUT_MIXER1);
+		reg = snd_soc_read(codec, WM8990_OUTPUT_MIXER1);
 		if (reg & WM8990_LDLO) {
 			printk(KERN_WARNING
 			"Cannot set as Output Mixer 1 LDLO Set\n");
@@ -388,7 +389,7 @@ static int outmixer_event(struct snd_soc_dapm_widget *w,
 		}
 		break;
 	case WM8990_SPEAKER_MIXER | (WM8990_RDSPK_BIT << 8):
-		reg = snd_soc_read(w->codec, WM8990_OUTPUT_MIXER2);
+		reg = snd_soc_read(codec, WM8990_OUTPUT_MIXER2);
 		if (reg & WM8990_RDRO) {
 			printk(KERN_WARNING
 			"Cannot set as Output Mixer 2 RDRO Set\n");
@@ -396,7 +397,7 @@ static int outmixer_event(struct snd_soc_dapm_widget *w,
 		}
 		break;
 	case WM8990_OUTPUT_MIXER1 | (WM8990_LDLO_BIT << 8):
-		reg = snd_soc_read(w->codec, WM8990_SPEAKER_MIXER);
+		reg = snd_soc_read(codec, WM8990_SPEAKER_MIXER);
 		if (reg & WM8990_LDSPK) {
 			printk(KERN_WARNING
 			"Cannot set as Speaker Mixer LDSPK Set\n");
@@ -404,7 +405,7 @@ static int outmixer_event(struct snd_soc_dapm_widget *w,
 		}
 		break;
 	case WM8990_OUTPUT_MIXER2 | (WM8990_RDRO_BIT << 8):
-		reg = snd_soc_read(w->codec, WM8990_SPEAKER_MIXER);
+		reg = snd_soc_read(codec, WM8990_SPEAKER_MIXER);
 		if (reg & WM8990_RDSPK) {
 			printk(KERN_WARNING
 			"Cannot set as Speaker Mixer RDSPK Set\n");
@@ -1271,18 +1272,6 @@ static struct snd_soc_dai_driver wm8990_dai = {
 	.ops = &wm8990_dai_ops,
 };
 
-static int wm8990_suspend(struct snd_soc_codec *codec)
-{
-	wm8990_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static int wm8990_resume(struct snd_soc_codec *codec)
-{
-	wm8990_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	return 0;
-}
-
 /*
  * initialise the WM8990 driver
  * register the mixer and dsp interfaces with the kernel
@@ -1309,19 +1298,11 @@ static int wm8990_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-/* power down chip */
-static int wm8990_remove(struct snd_soc_codec *codec)
-{
-	wm8990_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static struct snd_soc_codec_driver soc_codec_dev_wm8990 = {
 	.probe =	wm8990_probe,
-	.remove =	wm8990_remove,
-	.suspend =	wm8990_suspend,
-	.resume =	wm8990_resume,
 	.set_bias_level = wm8990_set_bias_level,
+	.suspend_bias_off = true,
+
 	.controls =	wm8990_snd_controls,
 	.num_controls = ARRAY_SIZE(wm8990_snd_controls),
 	.dapm_widgets = wm8990_dapm_widgets,

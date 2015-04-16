@@ -10,44 +10,34 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/module.h>
 #include <linux/err.h>
-#include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
-#include <linux/platform_device.h>
 #include <linux/debugfs.h>
-#include <linux/omap-iommu.h>
 #include <linux/platform_data/iommu-omap.h>
 
 #include "omap-iopgtable.h"
 #include "omap-iommu.h"
 
-#define MAXCOLUMN 100 /* for short messages */
-
 static DEFINE_MUTEX(iommu_debug_lock);
 
 static struct dentry *iommu_debug_root;
 
-static ssize_t debug_read_ver(struct file *file, char __user *userbuf,
-			      size_t count, loff_t *ppos)
+static inline bool is_omap_iommu_detached(struct omap_iommu *obj)
 {
-	u32 ver = omap_iommu_arch_version();
-	char buf[MAXCOLUMN], *p = buf;
-
-	p += sprintf(p, "H/W version: %d.%d\n", (ver >> 4) & 0xf , ver & 0xf);
-
-	return simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
+	return !obj->domain;
 }
 
 static ssize_t debug_read_regs(struct file *file, char __user *userbuf,
 			       size_t count, loff_t *ppos)
 {
-	struct device *dev = file->private_data;
-	struct omap_iommu *obj = dev_to_omap_iommu(dev);
+	struct omap_iommu *obj = file->private_data;
 	char *p, *buf;
 	ssize_t bytes;
+
+	if (is_omap_iommu_detached(obj))
+		return -EPERM;
 
 	buf = kmalloc(count, GFP_KERNEL);
 	if (!buf)
@@ -68,10 +58,12 @@ static ssize_t debug_read_regs(struct file *file, char __user *userbuf,
 static ssize_t debug_read_tlb(struct file *file, char __user *userbuf,
 			      size_t count, loff_t *ppos)
 {
-	struct device *dev = file->private_data;
-	struct omap_iommu *obj = dev_to_omap_iommu(dev);
+	struct omap_iommu *obj = file->private_data;
 	char *p, *buf;
 	ssize_t bytes, rest;
+
+	if (is_omap_iommu_detached(obj))
+		return -EPERM;
 
 	buf = kmalloc(count, GFP_KERNEL);
 	if (!buf)
@@ -93,133 +85,69 @@ static ssize_t debug_read_tlb(struct file *file, char __user *userbuf,
 	return bytes;
 }
 
-static ssize_t debug_write_pagetable(struct file *file,
-		     const char __user *userbuf, size_t count, loff_t *ppos)
+static void dump_ioptable(struct seq_file *s)
 {
-	struct iotlb_entry e;
-	struct cr_regs cr;
-	int err;
-	struct device *dev = file->private_data;
-	struct omap_iommu *obj = dev_to_omap_iommu(dev);
-	char buf[MAXCOLUMN], *p = buf;
-
-	count = min(count, sizeof(buf));
-
-	mutex_lock(&iommu_debug_lock);
-	if (copy_from_user(p, userbuf, count)) {
-		mutex_unlock(&iommu_debug_lock);
-		return -EFAULT;
-	}
-
-	sscanf(p, "%x %x", &cr.cam, &cr.ram);
-	if (!cr.cam || !cr.ram) {
-		mutex_unlock(&iommu_debug_lock);
-		return -EINVAL;
-	}
-
-	omap_iotlb_cr_to_e(&cr, &e);
-	err = omap_iopgtable_store_entry(obj, &e);
-	if (err)
-		dev_err(obj->dev, "%s: fail to store cr\n", __func__);
-
-	mutex_unlock(&iommu_debug_lock);
-	return count;
-}
-
-#define dump_ioptable_entry_one(lv, da, val)			\
-	({							\
-		int __err = 0;					\
-		ssize_t bytes;					\
-		const int maxcol = 22;				\
-		const char *str = "%d: %08x %08x\n";		\
-		bytes = snprintf(p, maxcol, str, lv, da, val);	\
-		p += bytes;					\
-		len -= bytes;					\
-		if (len < maxcol)				\
-			__err = -ENOMEM;			\
-		__err;						\
-	})
-
-static ssize_t dump_ioptable(struct omap_iommu *obj, char *buf, ssize_t len)
-{
-	int i;
-	u32 *iopgd;
-	char *p = buf;
+	int i, j;
+	u32 da;
+	u32 *iopgd, *iopte;
+	struct omap_iommu *obj = s->private;
 
 	spin_lock(&obj->page_table_lock);
 
 	iopgd = iopgd_offset(obj, 0);
 	for (i = 0; i < PTRS_PER_IOPGD; i++, iopgd++) {
-		int j, err;
-		u32 *iopte;
-		u32 da;
-
 		if (!*iopgd)
 			continue;
 
 		if (!(*iopgd & IOPGD_TABLE)) {
 			da = i << IOPGD_SHIFT;
-
-			err = dump_ioptable_entry_one(1, da, *iopgd);
-			if (err)
-				goto out;
+			seq_printf(s, "1: 0x%08x 0x%08x\n", da, *iopgd);
 			continue;
 		}
 
 		iopte = iopte_offset(iopgd, 0);
-
 		for (j = 0; j < PTRS_PER_IOPTE; j++, iopte++) {
 			if (!*iopte)
 				continue;
 
 			da = (i << IOPGD_SHIFT) + (j << IOPTE_SHIFT);
-			err = dump_ioptable_entry_one(2, da, *iopgd);
-			if (err)
-				goto out;
+			seq_printf(s, "2: 0x%08x 0x%08x\n", da, *iopte);
 		}
 	}
-out:
-	spin_unlock(&obj->page_table_lock);
 
-	return p - buf;
+	spin_unlock(&obj->page_table_lock);
 }
 
-static ssize_t debug_read_pagetable(struct file *file, char __user *userbuf,
-				    size_t count, loff_t *ppos)
+static int debug_read_pagetable(struct seq_file *s, void *data)
 {
-	struct device *dev = file->private_data;
-	struct omap_iommu *obj = dev_to_omap_iommu(dev);
-	char *p, *buf;
-	size_t bytes;
+	struct omap_iommu *obj = s->private;
 
-	buf = (char *)__get_free_page(GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-	p = buf;
-
-	p += sprintf(p, "L: %8s %8s\n", "da:", "pa:");
-	p += sprintf(p, "-----------------------------------------\n");
+	if (is_omap_iommu_detached(obj))
+		return -EPERM;
 
 	mutex_lock(&iommu_debug_lock);
 
-	bytes = PAGE_SIZE - (p - buf);
-	p += dump_ioptable(obj, p, bytes);
-
-	bytes = simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
+	seq_printf(s, "L: %8s %8s\n", "da:", "pte:");
+	seq_puts(s, "--------------------------\n");
+	dump_ioptable(s);
 
 	mutex_unlock(&iommu_debug_lock);
-	free_page((unsigned long)buf);
 
-	return bytes;
+	return 0;
 }
 
-#define DEBUG_FOPS(name)						\
-	static const struct file_operations debug_##name##_fops = {	\
-		.open = simple_open,					\
-		.read = debug_read_##name,				\
-		.write = debug_write_##name,				\
-		.llseek = generic_file_llseek,				\
-	};
+#define DEBUG_SEQ_FOPS_RO(name)						       \
+	static int debug_open_##name(struct inode *inode, struct file *file)   \
+	{								       \
+		return single_open(file, debug_read_##name, inode->i_private); \
+	}								       \
+									       \
+	static const struct file_operations debug_##name##_fops = {	       \
+		.open		= debug_open_##name,			       \
+		.read		= seq_read,				       \
+		.llseek		= seq_lseek,				       \
+		.release	= single_release,			       \
+	}
 
 #define DEBUG_FOPS_RO(name)						\
 	static const struct file_operations debug_##name##_fops = {	\
@@ -228,103 +156,63 @@ static ssize_t debug_read_pagetable(struct file *file, char __user *userbuf,
 		.llseek = generic_file_llseek,				\
 	};
 
-DEBUG_FOPS_RO(ver);
 DEBUG_FOPS_RO(regs);
 DEBUG_FOPS_RO(tlb);
-DEBUG_FOPS(pagetable);
+DEBUG_SEQ_FOPS_RO(pagetable);
 
 #define __DEBUG_ADD_FILE(attr, mode)					\
 	{								\
 		struct dentry *dent;					\
-		dent = debugfs_create_file(#attr, mode, parent,		\
-					   dev, &debug_##attr##_fops);	\
+		dent = debugfs_create_file(#attr, mode, obj->debug_dir,	\
+					   obj, &debug_##attr##_fops);	\
 		if (!dent)						\
-			return -ENOMEM;					\
+			goto err;					\
 	}
 
-#define DEBUG_ADD_FILE(name) __DEBUG_ADD_FILE(name, 0600)
 #define DEBUG_ADD_FILE_RO(name) __DEBUG_ADD_FILE(name, 0400)
 
-static int iommu_debug_register(struct device *dev, void *data)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct omap_iommu *obj = platform_get_drvdata(pdev);
-	struct omap_iommu_arch_data *arch_data;
-	struct dentry *d, *parent;
-
-	if (!obj || !obj->dev)
-		return -EINVAL;
-
-	arch_data = kzalloc(sizeof(*arch_data), GFP_KERNEL);
-	if (!arch_data)
-		return -ENOMEM;
-
-	arch_data->iommu_dev = obj;
-
-	dev->archdata.iommu = arch_data;
-
-	d = debugfs_create_dir(obj->name, iommu_debug_root);
-	if (!d)
-		goto nomem;
-	parent = d;
-
-	d = debugfs_create_u8("nr_tlb_entries", 400, parent,
-			      (u8 *)&obj->nr_tlb_entries);
-	if (!d)
-		goto nomem;
-
-	DEBUG_ADD_FILE_RO(ver);
-	DEBUG_ADD_FILE_RO(regs);
-	DEBUG_ADD_FILE_RO(tlb);
-	DEBUG_ADD_FILE(pagetable);
-
-	return 0;
-
-nomem:
-	kfree(arch_data);
-	return -ENOMEM;
-}
-
-static int iommu_debug_unregister(struct device *dev, void *data)
-{
-	if (!dev->archdata.iommu)
-		return 0;
-
-	kfree(dev->archdata.iommu);
-
-	dev->archdata.iommu = NULL;
-
-	return 0;
-}
-
-static int __init iommu_debug_init(void)
+void omap_iommu_debugfs_add(struct omap_iommu *obj)
 {
 	struct dentry *d;
-	int err;
 
-	d = debugfs_create_dir("iommu", NULL);
+	if (!iommu_debug_root)
+		return;
+
+	obj->debug_dir = debugfs_create_dir(obj->name, iommu_debug_root);
+	if (!obj->debug_dir)
+		return;
+
+	d = debugfs_create_u8("nr_tlb_entries", 0400, obj->debug_dir,
+			      (u8 *)&obj->nr_tlb_entries);
 	if (!d)
-		return -ENOMEM;
-	iommu_debug_root = d;
+		return;
 
-	err = omap_foreach_iommu_device(d, iommu_debug_register);
-	if (err)
-		goto err_out;
-	return 0;
+	DEBUG_ADD_FILE_RO(regs);
+	DEBUG_ADD_FILE_RO(tlb);
+	DEBUG_ADD_FILE_RO(pagetable);
 
-err_out:
-	debugfs_remove_recursive(iommu_debug_root);
-	return err;
+	return;
+
+err:
+	debugfs_remove_recursive(obj->debug_dir);
 }
-module_init(iommu_debug_init)
 
-static void __exit iommu_debugfs_exit(void)
+void omap_iommu_debugfs_remove(struct omap_iommu *obj)
 {
-	debugfs_remove_recursive(iommu_debug_root);
-	omap_foreach_iommu_device(NULL, iommu_debug_unregister);
-}
-module_exit(iommu_debugfs_exit)
+	if (!obj->debug_dir)
+		return;
 
-MODULE_DESCRIPTION("omap iommu: debugfs interface");
-MODULE_AUTHOR("Hiroshi DOYU <Hiroshi.DOYU@nokia.com>");
-MODULE_LICENSE("GPL v2");
+	debugfs_remove_recursive(obj->debug_dir);
+}
+
+void __init omap_iommu_debugfs_init(void)
+{
+	iommu_debug_root = debugfs_create_dir("omap_iommu", NULL);
+	if (!iommu_debug_root)
+		pr_err("can't create debugfs dir\n");
+}
+
+void __exit omap_iommu_debugfs_exit(void)
+{
+	debugfs_remove(iommu_debug_root);
+}

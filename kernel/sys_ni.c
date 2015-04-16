@@ -159,6 +159,20 @@ cond_syscall(sys_uselib);
 cond_syscall(sys_fadvise64);
 cond_syscall(sys_fadvise64_64);
 cond_syscall(sys_madvise);
+cond_syscall(sys_setuid);
+cond_syscall(sys_setregid);
+cond_syscall(sys_setgid);
+cond_syscall(sys_setreuid);
+cond_syscall(sys_setresuid);
+cond_syscall(sys_getresuid);
+cond_syscall(sys_setresgid);
+cond_syscall(sys_getresgid);
+cond_syscall(sys_setgroups);
+cond_syscall(sys_getgroups);
+cond_syscall(sys_setfsuid);
+cond_syscall(sys_setfsgid);
+cond_syscall(sys_capget);
+cond_syscall(sys_capset);
 
 /* arch-specific weak syscall entries */
 cond_syscall(sys_pciconfig_read);
@@ -169,6 +183,8 @@ cond_syscall(ppc_rtas);
 cond_syscall(sys_spu_run);
 cond_syscall(sys_spu_create);
 cond_syscall(sys_subpage_prot);
+cond_syscall(sys_s390_pci_mmio_read);
+cond_syscall(sys_s390_pci_mmio_write);
 
 /* mmu depending weak syscall entries */
 cond_syscall(sys_mprotect);
@@ -224,3 +240,6 @@ cond_syscall(sys_seccomp);
 
 /* access BPF programs and maps */
 cond_syscall(sys_bpf);
+
+/* execveat */
+cond_syscall(sys_execveat);

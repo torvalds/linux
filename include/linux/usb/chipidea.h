@@ -13,11 +13,13 @@ struct ci_hdrc_platform_data {
 	/* offset of the capability registers */
 	uintptr_t	 capoffset;
 	unsigned	 power_budget;
-	struct usb_phy	*phy;
+	struct phy	*phy;
+	/* old usb_phy interface */
+	struct usb_phy	*usb_phy;
 	enum usb_phy_interface phy_mode;
 	unsigned long	 flags;
 #define CI_HDRC_REGS_SHARED		BIT(0)
-#define CI_HDRC_REQUIRE_TRANSCEIVER	BIT(1)
+#define CI_HDRC_SUPPORTS_RUNTIME_PM	BIT(2)
 #define CI_HDRC_DISABLE_STREAMING	BIT(3)
 	/*
 	 * Only set it when DCCPARAMS.DC==1 and DCCPARAMS.HC==1,
@@ -26,6 +28,7 @@ struct ci_hdrc_platform_data {
 #define CI_HDRC_DUAL_ROLE_NOT_OTG	BIT(4)
 #define CI_HDRC_IMX28_WRITE_FIX		BIT(5)
 #define CI_HDRC_FORCE_FULLSPEED		BIT(6)
+#define CI_HDRC_TURN_VBUS_EARLY_ON	BIT(7)
 	enum usb_dr_mode	dr_mode;
 #define CI_HDRC_CONTROLLER_RESET_EVENT		0
 #define CI_HDRC_CONTROLLER_STOPPED_EVENT	1

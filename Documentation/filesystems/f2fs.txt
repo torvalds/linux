@@ -106,6 +106,8 @@ background_gc=%s       Turn on/off cleaning operations, namely garbage
                        Default value for this option is on. So garbage
                        collection is on by default.
 disable_roll_forward   Disable the roll-forward recovery routine
+norecovery             Disable the roll-forward recovery routine, mounted read-
+                       only (i.e., -o ro,disable_roll_forward)
 discard                Issue discard/TRIM commands when a segment is cleaned.
 no_heap                Disable heap-style segment allocation which finds free
                        segments for data from the beginning of main area, while
@@ -122,6 +124,10 @@ disable_ext_identify   Disable the extension list configured by mkfs, so f2fs
 inline_xattr           Enable the inline xattrs feature.
 inline_data            Enable the inline data feature: New created small(<~3.4k)
                        files can be written into inode block.
+inline_dentry          Enable the inline dir feature: data in new created
+                       directory entries can be written into inode block. The
+                       space of inode block which is used to store inline
+                       dentries is limited to ~3.4k.
 flush_merge	       Merge concurrent cache_flush commands as much as possible
                        to eliminate redundant command issues. If the underlying
 		       device handles the cache_flush command relatively slowly,
@@ -131,6 +137,9 @@ nobarrier              This option can be used if underlying storage guarantees
 		       If this option is set, no cache_flush commands are issued
 		       but f2fs still guarantees the write ordering of all the
 		       data writes.
+fastboot               This option is used when a system wants to reduce mount
+                       time as much as possible, even though normal performance
+		       can be sacrificed.
 
 ================================================================================
 DEBUGFS ENTRIES
@@ -189,6 +198,10 @@ Files in /sys/fs/f2fs/<devname>
 			      The candidates to be discarded are cached until
 			      checkpoint is triggered, and issued during the
 			      checkpoint. By default, it is disabled with 0.
+
+ trim_sections                This parameter controls the number of sections
+                              to be trimmed out in batch mode when FITRIM
+                              conducts. 32 sections is set by default.
 
  ipu_policy                   This parameter controls the policy of in-place
                               updates in f2fs. There are five policies:

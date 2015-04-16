@@ -570,9 +570,6 @@ static void batadv_orig_node_free_rcu(struct rcu_head *rcu)
 
 	batadv_frag_purge_orig(orig_node, NULL);
 
-	batadv_tt_global_del_orig(orig_node->bat_priv, orig_node, -1,
-				  "originator timed out");
-
 	if (orig_node->bat_priv->bat_algo_ops->bat_orig_free)
 		orig_node->bat_priv->bat_algo_ops->bat_orig_free(orig_node);
 
@@ -678,6 +675,7 @@ struct batadv_orig_node *batadv_orig_node_new(struct batadv_priv *bat_priv,
 	atomic_set(&orig_node->last_ttvn, 0);
 	orig_node->tt_buff = NULL;
 	orig_node->tt_buff_len = 0;
+	orig_node->last_seen = jiffies;
 	reset_time = jiffies - 1 - msecs_to_jiffies(BATADV_RESET_PROTECTION_MS);
 	orig_node->bcast_seqno_reset = reset_time;
 #ifdef CONFIG_BATMAN_ADV_MCAST
@@ -798,7 +796,6 @@ batadv_purge_orig_ifinfo(struct batadv_priv *bat_priv,
 
 	return ifinfo_purged;
 }
-
 
 /**
  * batadv_purge_orig_neighbors - purges neighbors from originator
@@ -977,6 +974,9 @@ static void _batadv_purge_orig(struct batadv_priv *bat_priv)
 			if (batadv_purge_orig_node(bat_priv, orig_node)) {
 				batadv_gw_node_delete(bat_priv, orig_node);
 				hlist_del_rcu(&orig_node->hash_entry);
+				batadv_tt_global_del_orig(orig_node->bat_priv,
+							  orig_node, -1,
+							  "originator timed out");
 				batadv_orig_node_free_ref(orig_node);
 				continue;
 			}

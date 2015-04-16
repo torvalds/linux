@@ -509,6 +509,17 @@ static int ceph_tcp_connect(struct ceph_connection *con)
 
 		return ret;
 	}
+
+	if (con->msgr->tcp_nodelay) {
+		int optval = 1;
+
+		ret = kernel_setsockopt(sock, SOL_TCP, TCP_NODELAY,
+					(char *)&optval, sizeof(optval));
+		if (ret)
+			pr_err("kernel_setsockopt(TCP_NODELAY) failed: %d",
+			       ret);
+	}
+
 	con->sock = sock;
 	return 0;
 }
@@ -1193,8 +1204,18 @@ static void prepare_write_message_footer(struct ceph_connection *con)
 	dout("prepare_write_message_footer %p\n", con);
 	con->out_kvec_is_msg = true;
 	con->out_kvec[v].iov_base = &m->footer;
-	con->out_kvec[v].iov_len = sizeof(m->footer);
-	con->out_kvec_bytes += sizeof(m->footer);
+	if (con->peer_features & CEPH_FEATURE_MSG_AUTH) {
+		if (con->ops->sign_message)
+			con->ops->sign_message(con, m);
+		else
+			m->footer.sig = 0;
+		con->out_kvec[v].iov_len = sizeof(m->footer);
+		con->out_kvec_bytes += sizeof(m->footer);
+	} else {
+		m->old_footer.flags = m->footer.flags;
+		con->out_kvec[v].iov_len = sizeof(m->old_footer);
+		con->out_kvec_bytes += sizeof(m->old_footer);
+	}
 	con->out_kvec_left++;
 	con->out_more = m->more_to_follow;
 	con->out_msg_done = true;
@@ -2246,6 +2267,7 @@ static int read_partial_message(struct ceph_connection *con)
 	int ret;
 	unsigned int front_len, middle_len, data_len;
 	bool do_datacrc = !con->msgr->nocrc;
+	bool need_sign = (con->peer_features & CEPH_FEATURE_MSG_AUTH);
 	u64 seq;
 	u32 crc;
 
@@ -2358,11 +2380,20 @@ static int read_partial_message(struct ceph_connection *con)
 	}
 
 	/* footer */
-	size = sizeof (m->footer);
+	if (need_sign)
+		size = sizeof(m->footer);
+	else
+		size = sizeof(m->old_footer);
+
 	end += size;
 	ret = read_partial(con, end, size, &m->footer);
 	if (ret <= 0)
 		return ret;
+
+	if (!need_sign) {
+		m->footer.flags = m->old_footer.flags;
+		m->footer.sig = 0;
+	}
 
 	dout("read_partial_message got msg %p %d (%u) + %d (%u) + %d (%u)\n",
 	     m, front_len, m->footer.front_crc, middle_len,
@@ -2384,6 +2415,12 @@ static int read_partial_message(struct ceph_connection *con)
 	    con->in_data_crc != le32_to_cpu(m->footer.data_crc)) {
 		pr_err("read_partial_message %p data crc %u != exp. %u\n", m,
 		       con->in_data_crc, le32_to_cpu(m->footer.data_crc));
+		return -EBADMSG;
+	}
+
+	if (need_sign && con->ops->check_message_signature &&
+	    con->ops->check_message_signature(con, m)) {
+		pr_err("read_partial_message %p signature check failed\n", m);
 		return -EBADMSG;
 	}
 
@@ -2888,7 +2925,8 @@ void ceph_messenger_init(struct ceph_messenger *msgr,
 			struct ceph_entity_addr *myaddr,
 			u64 supported_features,
 			u64 required_features,
-			bool nocrc)
+			bool nocrc,
+			bool tcp_nodelay)
 {
 	msgr->supported_features = supported_features;
 	msgr->required_features = required_features;
@@ -2903,6 +2941,7 @@ void ceph_messenger_init(struct ceph_messenger *msgr,
 	get_random_bytes(&msgr->inst.addr.nonce, sizeof(msgr->inst.addr.nonce));
 	encode_my_addr(msgr);
 	msgr->nocrc = nocrc;
+	msgr->tcp_nodelay = tcp_nodelay;
 
 	atomic_set(&msgr->stopping, 0);
 
@@ -3280,7 +3319,7 @@ static int ceph_con_in_msg_alloc(struct ceph_connection *con, int *skip)
 static void ceph_msg_free(struct ceph_msg *m)
 {
 	dout("%s %p\n", __func__, m);
-	ceph_kvfree(m->front.iov_base);
+	kvfree(m->front.iov_base);
 	kmem_cache_free(ceph_msg_cache, m);
 }
 

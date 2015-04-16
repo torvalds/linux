@@ -285,6 +285,8 @@ ixgb_down(struct ixgb_adapter *adapter, bool kill_watchdog)
 	/* prevent the interrupt handler from restarting watchdog */
 	set_bit(__IXGB_DOWN, &adapter->flags);
 
+	netif_carrier_off(netdev);
+
 	napi_disable(&adapter->napi);
 	/* waiting for NAPI to complete can re-enable interrupts */
 	ixgb_irq_disable(adapter);
@@ -298,7 +300,6 @@ ixgb_down(struct ixgb_adapter *adapter, bool kill_watchdog)
 
 	adapter->link_speed = 0;
 	adapter->link_duplex = 0;
-	netif_carrier_off(netdev);
 	netif_stop_queue(netdev);
 
 	ixgb_reset(adapter);
@@ -1532,9 +1533,9 @@ ixgb_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
                      DESC_NEEDED)))
 		return NETDEV_TX_BUSY;
 
-	if (vlan_tx_tag_present(skb)) {
+	if (skb_vlan_tag_present(skb)) {
 		tx_flags |= IXGB_TX_FLAGS_VLAN;
-		vlan_id = vlan_tx_tag_get(skb);
+		vlan_id = skb_vlan_tag_get(skb);
 	}
 
 	first = adapter->tx_ring.next_to_use;
@@ -1963,7 +1964,7 @@ ixgb_rx_checksum(struct ixgb_adapter *adapter,
  * this should improve performance for small packets with large amounts
  * of reassembly being done in the stack
  */
-static void ixgb_check_copybreak(struct net_device *netdev,
+static void ixgb_check_copybreak(struct napi_struct *napi,
 				 struct ixgb_buffer *buffer_info,
 				 u32 length, struct sk_buff **skb)
 {
@@ -1972,7 +1973,7 @@ static void ixgb_check_copybreak(struct net_device *netdev,
 	if (length > copybreak)
 		return;
 
-	new_skb = netdev_alloc_skb_ip_align(netdev, length);
+	new_skb = napi_alloc_skb(napi, length);
 	if (!new_skb)
 		return;
 
@@ -2064,7 +2065,7 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter, int *work_done, int work_to_do)
 			goto rxdesc_done;
 		}
 
-		ixgb_check_copybreak(netdev, buffer_info, length, &skb);
+		ixgb_check_copybreak(&adapter->napi, buffer_info, length, &skb);
 
 		/* Good Receive */
 		skb_put(skb, length);

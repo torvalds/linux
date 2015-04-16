@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
+#include <linux/irqdomain.h>
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 #include <linux/syscore_ops.h>
@@ -308,6 +309,19 @@ static struct resource pic2_io_resource = {
 	.flags = IORESOURCE_BUSY
 };
 
+static int i8259A_irq_domain_map(struct irq_domain *d, unsigned int virq,
+				 irq_hw_number_t hw)
+{
+	irq_set_chip_and_handler(virq, &i8259A_chip, handle_level_irq);
+	irq_set_probe(virq);
+	return 0;
+}
+
+static struct irq_domain_ops i8259A_ops = {
+	.map = i8259A_irq_domain_map,
+	.xlate = irq_domain_xlate_onecell,
+};
+
 /*
  * On systems with i8259-style interrupt controllers we assume for
  * driver compatibility reasons interrupts 0 - 15 to be the i8259
@@ -315,17 +329,17 @@ static struct resource pic2_io_resource = {
  */
 void __init init_i8259_irqs(void)
 {
-	int i;
+	struct irq_domain *domain;
 
 	insert_resource(&ioport_resource, &pic1_io_resource);
 	insert_resource(&ioport_resource, &pic2_io_resource);
 
 	init_8259A(0);
 
-	for (i = I8259A_IRQ_BASE; i < I8259A_IRQ_BASE + 16; i++) {
-		irq_set_chip_and_handler(i, &i8259A_chip, handle_level_irq);
-		irq_set_probe(i);
-	}
+	domain = irq_domain_add_legacy(NULL, 16, I8259A_IRQ_BASE, 0,
+				       &i8259A_ops, NULL);
+	if (!domain)
+		panic("Failed to add i8259 IRQ domain");
 
 	setup_irq(I8259A_IRQ_BASE + PIC_CASCADE_IR, &irq2);
 }

@@ -710,7 +710,6 @@ MODULE_DEVICE_TABLE(of, plgpio_of_match);
 static struct platform_driver plgpio_driver = {
 	.probe = plgpio_probe,
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "spear-plgpio",
 		.pm = &plgpio_dev_pm_ops,
 		.of_match_table = plgpio_of_match,
@@ -724,5 +723,5 @@ static int __init plgpio_init(void)
 subsys_initcall(plgpio_init);
 
 MODULE_AUTHOR("Viresh Kumar <viresh.kumar@linaro.org>");
-MODULE_DESCRIPTION("ST Microlectronics SPEAr PLGPIO driver");
+MODULE_DESCRIPTION("STMicroelectronics SPEAr PLGPIO driver");
 MODULE_LICENSE("GPL");

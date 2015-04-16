@@ -19,8 +19,7 @@
 #include "linux/ieee80211.h"
 #include "wifi.h"
 
-struct ht_priv
-{
+struct ht_priv {
 	bool	ht_option;
 	bool	ampdu_enable;/* for enable Tx A-MPDU */
 	/* u8	baddbareq_issued[16]; */

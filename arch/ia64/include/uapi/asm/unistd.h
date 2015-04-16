@@ -331,5 +331,6 @@
 #define __NR_getrandom			1339
 #define __NR_memfd_create		1340
 #define __NR_bpf			1341
+#define __NR_execveat			1342
 
 #endif /* _UAPI_ASM_IA64_UNISTD_H */

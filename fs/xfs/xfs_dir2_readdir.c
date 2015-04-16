@@ -22,8 +22,6 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
-#include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
@@ -34,7 +32,6 @@
 #include "xfs_trace.h"
 #include "xfs_bmap.h"
 #include "xfs_trans.h"
-#include "xfs_dinode.h"
 
 /*
  * Directory file type support functions
@@ -44,7 +41,7 @@ static unsigned char xfs_dir3_filetype_table[] = {
 	DT_FIFO, DT_SOCK, DT_LNK, DT_WHT,
 };
 
-unsigned char
+static unsigned char
 xfs_dir3_get_dtype(
 	struct xfs_mount	*mp,
 	__uint8_t		filetype)
@@ -57,22 +54,6 @@ xfs_dir3_get_dtype(
 
 	return xfs_dir3_filetype_table[filetype];
 }
-/*
- * @mode, if set, indicates that the type field needs to be set up.
- * This uses the transformation from file mode to DT_* as defined in linux/fs.h
- * for file type specification. This will be propagated into the directory
- * structure if appropriate for the given operation and filesystem config.
- */
-const unsigned char xfs_mode_to_ftype[S_IFMT >> S_SHIFT] = {
-	[0]			= XFS_DIR3_FT_UNKNOWN,
-	[S_IFREG >> S_SHIFT]    = XFS_DIR3_FT_REG_FILE,
-	[S_IFDIR >> S_SHIFT]    = XFS_DIR3_FT_DIR,
-	[S_IFCHR >> S_SHIFT]    = XFS_DIR3_FT_CHRDEV,
-	[S_IFBLK >> S_SHIFT]    = XFS_DIR3_FT_BLKDEV,
-	[S_IFIFO >> S_SHIFT]    = XFS_DIR3_FT_FIFO,
-	[S_IFSOCK >> S_SHIFT]   = XFS_DIR3_FT_SOCK,
-	[S_IFLNK >> S_SHIFT]    = XFS_DIR3_FT_SYMLINK,
-};
 
 STATIC int
 xfs_dir2_sf_getdents(

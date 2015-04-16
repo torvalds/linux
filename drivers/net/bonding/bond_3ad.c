@@ -29,8 +29,8 @@
 #include <linux/if_bonding.h>
 #include <linux/pkt_sched.h>
 #include <net/net_namespace.h>
-#include "bonding.h"
-#include "bond_3ad.h"
+#include <net/bonding.h>
+#include <net/bond_3ad.h>
 
 /* General definitions */
 #define AD_SHORT_TIMEOUT           1
@@ -70,6 +70,7 @@
 #define AD_PORT_STANDBY         0x80
 #define AD_PORT_SELECTED        0x100
 #define AD_PORT_MOVED           0x200
+#define AD_PORT_CHURNED         (AD_PORT_ACTOR_CHURN | AD_PORT_PARTNER_CHURN)
 
 /* Port Key definitions
  * key is determined according to the link speed, duplex and
@@ -79,15 +80,21 @@
  * --------------------------------------------------------------
  * 16		  6		  1		  0
  */
-#define  AD_DUPLEX_KEY_BITS    0x1
-#define  AD_SPEED_KEY_BITS     0x3E
-#define  AD_USER_KEY_BITS      0xFFC0
+#define  AD_DUPLEX_KEY_MASKS    0x1
+#define  AD_SPEED_KEY_MASKS     0x3E
+#define  AD_USER_KEY_MASKS      0xFFC0
 
-#define     AD_LINK_SPEED_BITMASK_1MBPS       0x1
-#define     AD_LINK_SPEED_BITMASK_10MBPS      0x2
-#define     AD_LINK_SPEED_BITMASK_100MBPS     0x4
-#define     AD_LINK_SPEED_BITMASK_1000MBPS    0x8
-#define     AD_LINK_SPEED_BITMASK_10000MBPS   0x10
+enum ad_link_speed_type {
+	AD_LINK_SPEED_1MBPS = 1,
+	AD_LINK_SPEED_10MBPS,
+	AD_LINK_SPEED_100MBPS,
+	AD_LINK_SPEED_1000MBPS,
+	AD_LINK_SPEED_2500MBPS,
+	AD_LINK_SPEED_10000MBPS,
+	AD_LINK_SPEED_20000MBPS,
+	AD_LINK_SPEED_40000MBPS,
+	AD_LINK_SPEED_56000MBPS
+};
 
 /* compare MAC addresses */
 #define MAC_ADDRESS_EQUAL(A, B)	\
@@ -240,12 +247,16 @@ static inline int __check_agg_selection_timer(struct port *port)
  * __get_link_speed - get a port's speed
  * @port: the port we're looking at
  *
- * Return @port's speed in 802.3ad bitmask format. i.e. one of:
+ * Return @port's speed in 802.3ad enum format. i.e. one of:
  *     0,
- *     %AD_LINK_SPEED_BITMASK_10MBPS,
- *     %AD_LINK_SPEED_BITMASK_100MBPS,
- *     %AD_LINK_SPEED_BITMASK_1000MBPS,
- *     %AD_LINK_SPEED_BITMASK_10000MBPS
+ *     %AD_LINK_SPEED_10MBPS,
+ *     %AD_LINK_SPEED_100MBPS,
+ *     %AD_LINK_SPEED_1000MBPS,
+ *     %AD_LINK_SPEED_2500MBPS,
+ *     %AD_LINK_SPEED_10000MBPS
+ *     %AD_LINK_SPEED_20000MBPS
+ *     %AD_LINK_SPEED_40000MBPS
+ *     %AD_LINK_SPEED_56000MBPS
  */
 static u16 __get_link_speed(struct port *port)
 {
@@ -262,19 +273,35 @@ static u16 __get_link_speed(struct port *port)
 	else {
 		switch (slave->speed) {
 		case SPEED_10:
-			speed = AD_LINK_SPEED_BITMASK_10MBPS;
+			speed = AD_LINK_SPEED_10MBPS;
 			break;
 
 		case SPEED_100:
-			speed = AD_LINK_SPEED_BITMASK_100MBPS;
+			speed = AD_LINK_SPEED_100MBPS;
 			break;
 
 		case SPEED_1000:
-			speed = AD_LINK_SPEED_BITMASK_1000MBPS;
+			speed = AD_LINK_SPEED_1000MBPS;
+			break;
+
+		case SPEED_2500:
+			speed = AD_LINK_SPEED_2500MBPS;
 			break;
 
 		case SPEED_10000:
-			speed = AD_LINK_SPEED_BITMASK_10000MBPS;
+			speed = AD_LINK_SPEED_10000MBPS;
+			break;
+
+		case SPEED_20000:
+			speed = AD_LINK_SPEED_20000MBPS;
+			break;
+
+		case SPEED_40000:
+			speed = AD_LINK_SPEED_40000MBPS;
+			break;
+
+		case SPEED_56000:
+			speed = AD_LINK_SPEED_56000MBPS;
 			break;
 
 		default:
@@ -441,11 +468,14 @@ static void __record_pdu(struct lacpdu *lacpdu, struct port *port)
 		/* set the partner sync. to on if the partner is sync,
 		 * and the port is matched
 		 */
-		if ((port->sm_vars & AD_PORT_MATCHED)
-		    && (lacpdu->actor_state & AD_STATE_SYNCHRONIZATION))
+		if ((port->sm_vars & AD_PORT_MATCHED) &&
+		    (lacpdu->actor_state & AD_STATE_SYNCHRONIZATION)) {
 			partner->port_state |= AD_STATE_SYNCHRONIZATION;
-		else
+			pr_debug("%s partner sync=1\n", port->slave->dev->name);
+		} else {
 			partner->port_state &= ~AD_STATE_SYNCHRONIZATION;
+			pr_debug("%s partner sync=0\n", port->slave->dev->name);
+		}
 	}
 }
 
@@ -625,20 +655,32 @@ static u32 __get_agg_bandwidth(struct aggregator *aggregator)
 
 	if (aggregator->num_of_ports) {
 		switch (__get_link_speed(aggregator->lag_ports)) {
-		case AD_LINK_SPEED_BITMASK_1MBPS:
+		case AD_LINK_SPEED_1MBPS:
 			bandwidth = aggregator->num_of_ports;
 			break;
-		case AD_LINK_SPEED_BITMASK_10MBPS:
+		case AD_LINK_SPEED_10MBPS:
 			bandwidth = aggregator->num_of_ports * 10;
 			break;
-		case AD_LINK_SPEED_BITMASK_100MBPS:
+		case AD_LINK_SPEED_100MBPS:
 			bandwidth = aggregator->num_of_ports * 100;
 			break;
-		case AD_LINK_SPEED_BITMASK_1000MBPS:
+		case AD_LINK_SPEED_1000MBPS:
 			bandwidth = aggregator->num_of_ports * 1000;
 			break;
-		case AD_LINK_SPEED_BITMASK_10000MBPS:
+		case AD_LINK_SPEED_2500MBPS:
+			bandwidth = aggregator->num_of_ports * 2500;
+			break;
+		case AD_LINK_SPEED_10000MBPS:
 			bandwidth = aggregator->num_of_ports * 10000;
+			break;
+		case AD_LINK_SPEED_20000MBPS:
+			bandwidth = aggregator->num_of_ports * 20000;
+			break;
+		case AD_LINK_SPEED_40000MBPS:
+			bandwidth = aggregator->num_of_ports * 40000;
+			break;
+		case AD_LINK_SPEED_56000MBPS:
+			bandwidth = aggregator->num_of_ports * 56000;
 			break;
 		default:
 			bandwidth = 0; /* to silence the compiler */
@@ -688,6 +730,8 @@ static inline void __update_lacpdu_from_port(struct port *port)
 	lacpdu->actor_port_priority = htons(port->actor_port_priority);
 	lacpdu->actor_port = htons(port->actor_port_number);
 	lacpdu->actor_state = port->actor_oper_port_state;
+	pr_debug("update lacpdu: %s, actor port state %x\n",
+		 port->slave->dev->name, port->actor_oper_port_state);
 
 	/* lacpdu->reserved_3_1              initialized
 	 * lacpdu->tlv_type_partner_info     initialized
@@ -860,7 +904,9 @@ static void ad_mux_machine(struct port *port, bool *update_slave_arr)
 			if ((port->sm_vars & AD_PORT_SELECTED) &&
 			    (port->partner_oper.port_state & AD_STATE_SYNCHRONIZATION) &&
 			    !__check_agg_selection_timer(port)) {
-				port->sm_mux_state = AD_MUX_COLLECTING_DISTRIBUTING;
+				if (port->aggregator->is_active)
+					port->sm_mux_state =
+					    AD_MUX_COLLECTING_DISTRIBUTING;
 			} else if (!(port->sm_vars & AD_PORT_SELECTED) ||
 				   (port->sm_vars & AD_PORT_STANDBY)) {
 				/* if UNSELECTED or STANDBY */
@@ -872,12 +918,16 @@ static void ad_mux_machine(struct port *port, bool *update_slave_arr)
 				 */
 				__set_agg_ports_ready(port->aggregator, __agg_ports_are_ready(port->aggregator));
 				port->sm_mux_state = AD_MUX_DETACHED;
+			} else if (port->aggregator->is_active) {
+				port->actor_oper_port_state |=
+				    AD_STATE_SYNCHRONIZATION;
 			}
 			break;
 		case AD_MUX_COLLECTING_DISTRIBUTING:
 			if (!(port->sm_vars & AD_PORT_SELECTED) ||
 			    (port->sm_vars & AD_PORT_STANDBY) ||
-			    !(port->partner_oper.port_state & AD_STATE_SYNCHRONIZATION)) {
+			    !(port->partner_oper.port_state & AD_STATE_SYNCHRONIZATION) ||
+			    !(port->actor_oper_port_state & AD_STATE_SYNCHRONIZATION)) {
 				port->sm_mux_state = AD_MUX_ATTACHED;
 			} else {
 				/* if port state hasn't changed make
@@ -899,8 +949,10 @@ static void ad_mux_machine(struct port *port, bool *update_slave_arr)
 
 	/* check if the state machine was changed */
 	if (port->sm_mux_state != last_state) {
-		pr_debug("Mux Machine: Port=%d, Last State=%d, Curr State=%d\n",
-			 port->actor_port_number, last_state,
+		pr_debug("Mux Machine: Port=%d (%s), Last State=%d, Curr State=%d\n",
+			 port->actor_port_number,
+			 port->slave->dev->name,
+			 last_state,
 			 port->sm_mux_state);
 		switch (port->sm_mux_state) {
 		case AD_MUX_DETACHED:
@@ -915,7 +967,12 @@ static void ad_mux_machine(struct port *port, bool *update_slave_arr)
 			port->sm_mux_timer_counter = __ad_timer_to_ticks(AD_WAIT_WHILE_TIMER, 0);
 			break;
 		case AD_MUX_ATTACHED:
-			port->actor_oper_port_state |= AD_STATE_SYNCHRONIZATION;
+			if (port->aggregator->is_active)
+				port->actor_oper_port_state |=
+				    AD_STATE_SYNCHRONIZATION;
+			else
+				port->actor_oper_port_state &=
+				    ~AD_STATE_SYNCHRONIZATION;
 			port->actor_oper_port_state &= ~AD_STATE_COLLECTING;
 			port->actor_oper_port_state &= ~AD_STATE_DISTRIBUTING;
 			ad_disable_collecting_distributing(port,
@@ -925,6 +982,7 @@ static void ad_mux_machine(struct port *port, bool *update_slave_arr)
 		case AD_MUX_COLLECTING_DISTRIBUTING:
 			port->actor_oper_port_state |= AD_STATE_COLLECTING;
 			port->actor_oper_port_state |= AD_STATE_DISTRIBUTING;
+			port->actor_oper_port_state |= AD_STATE_SYNCHRONIZATION;
 			ad_enable_collecting_distributing(port,
 							  update_slave_arr);
 			port->ntt = true;
@@ -956,16 +1014,19 @@ static void ad_rx_machine(struct lacpdu *lacpdu, struct port *port)
 	/* check if state machine should change state */
 
 	/* first, check if port was reinitialized */
-	if (port->sm_vars & AD_PORT_BEGIN)
+	if (port->sm_vars & AD_PORT_BEGIN) {
 		port->sm_rx_state = AD_RX_INITIALIZE;
+		port->sm_vars |= AD_PORT_CHURNED;
 	/* check if port is not enabled */
-	else if (!(port->sm_vars & AD_PORT_BEGIN)
+	} else if (!(port->sm_vars & AD_PORT_BEGIN)
 		 && !port->is_enabled && !(port->sm_vars & AD_PORT_MOVED))
 		port->sm_rx_state = AD_RX_PORT_DISABLED;
 	/* check if new lacpdu arrived */
 	else if (lacpdu && ((port->sm_rx_state == AD_RX_EXPIRED) ||
 		 (port->sm_rx_state == AD_RX_DEFAULTED) ||
 		 (port->sm_rx_state == AD_RX_CURRENT))) {
+		if (port->sm_rx_state != AD_RX_CURRENT)
+			port->sm_vars |= AD_PORT_CHURNED;
 		port->sm_rx_timer_counter = 0;
 		port->sm_rx_state = AD_RX_CURRENT;
 	} else {
@@ -1006,12 +1067,14 @@ static void ad_rx_machine(struct lacpdu *lacpdu, struct port *port)
 
 	/* check if the State machine was changed or new lacpdu arrived */
 	if ((port->sm_rx_state != last_state) || (lacpdu)) {
-		pr_debug("Rx Machine: Port=%d, Last State=%d, Curr State=%d\n",
-			 port->actor_port_number, last_state,
+		pr_debug("Rx Machine: Port=%d (%s), Last State=%d, Curr State=%d\n",
+			 port->actor_port_number,
+			 port->slave->dev->name,
+			 last_state,
 			 port->sm_rx_state);
 		switch (port->sm_rx_state) {
 		case AD_RX_INITIALIZE:
-			if (!(port->actor_oper_port_key & AD_DUPLEX_KEY_BITS))
+			if (!(port->actor_oper_port_key & AD_DUPLEX_KEY_MASKS))
 				port->sm_vars &= ~AD_PORT_LACP_ENABLED;
 			else
 				port->sm_vars |= AD_PORT_LACP_ENABLED;
@@ -1041,9 +1104,11 @@ static void ad_rx_machine(struct lacpdu *lacpdu, struct port *port)
 			 */
 			port->partner_oper.port_state &= ~AD_STATE_SYNCHRONIZATION;
 			port->sm_vars &= ~AD_PORT_MATCHED;
+			port->partner_oper.port_state |= AD_STATE_LACP_TIMEOUT;
 			port->partner_oper.port_state |= AD_STATE_LACP_ACTIVITY;
 			port->sm_rx_timer_counter = __ad_timer_to_ticks(AD_CURRENT_WHILE_TIMER, (u16)(AD_SHORT_TIMEOUT));
 			port->actor_oper_port_state |= AD_STATE_EXPIRED;
+			port->sm_vars |= AD_PORT_CHURNED;
 			break;
 		case AD_RX_DEFAULTED:
 			__update_default_selected(port);
@@ -1068,6 +1133,45 @@ static void ad_rx_machine(struct lacpdu *lacpdu, struct port *port)
 			break;
 		default:
 			break;
+		}
+	}
+}
+
+/**
+ * ad_churn_machine - handle port churn's state machine
+ * @port: the port we're looking at
+ *
+ */
+static void ad_churn_machine(struct port *port)
+{
+	if (port->sm_vars & AD_PORT_CHURNED) {
+		port->sm_vars &= ~AD_PORT_CHURNED;
+		port->sm_churn_actor_state = AD_CHURN_MONITOR;
+		port->sm_churn_partner_state = AD_CHURN_MONITOR;
+		port->sm_churn_actor_timer_counter =
+			__ad_timer_to_ticks(AD_ACTOR_CHURN_TIMER, 0);
+		 port->sm_churn_partner_timer_counter =
+			 __ad_timer_to_ticks(AD_PARTNER_CHURN_TIMER, 0);
+		return;
+	}
+	if (port->sm_churn_actor_timer_counter &&
+	    !(--port->sm_churn_actor_timer_counter) &&
+	    port->sm_churn_actor_state == AD_CHURN_MONITOR) {
+		if (port->actor_oper_port_state & AD_STATE_SYNCHRONIZATION) {
+			port->sm_churn_actor_state = AD_NO_CHURN;
+		} else {
+			port->churn_actor_count++;
+			port->sm_churn_actor_state = AD_CHURN;
+		}
+	}
+	if (port->sm_churn_partner_timer_counter &&
+	    !(--port->sm_churn_partner_timer_counter) &&
+	    port->sm_churn_partner_state == AD_CHURN_MONITOR) {
+		if (port->partner_oper.port_state & AD_STATE_SYNCHRONIZATION) {
+			port->sm_churn_partner_state = AD_NO_CHURN;
+		} else {
+			port->churn_partner_count++;
+			port->sm_churn_partner_state = AD_CHURN;
 		}
 	}
 }
@@ -1318,14 +1422,16 @@ static void ad_port_selection_logic(struct port *port, bool *update_slave_arr)
 			/* update the new aggregator's parameters
 			 * if port was responsed from the end-user
 			 */
-			if (port->actor_oper_port_key & AD_DUPLEX_KEY_BITS)
+			if (port->actor_oper_port_key & AD_DUPLEX_KEY_MASKS)
 				/* if port is full duplex */
 				port->aggregator->is_individual = false;
 			else
 				port->aggregator->is_individual = true;
 
-			port->aggregator->actor_admin_aggregator_key = port->actor_admin_port_key;
-			port->aggregator->actor_oper_aggregator_key = port->actor_oper_port_key;
+			port->aggregator->actor_admin_aggregator_key =
+				port->actor_admin_port_key;
+			port->aggregator->actor_oper_aggregator_key =
+				port->actor_oper_port_key;
 			port->aggregator->partner_system =
 				port->partner_oper.system;
 			port->aggregator->partner_system_priority =
@@ -1356,6 +1462,9 @@ static void ad_port_selection_logic(struct port *port, bool *update_slave_arr)
 
 	aggregator = __get_first_agg(port);
 	ad_agg_selection_logic(aggregator, update_slave_arr);
+
+	if (!port->aggregator->is_active)
+		port->actor_oper_port_state &= ~AD_STATE_SYNCHRONIZATION;
 }
 
 /* Decide if "agg" is a better choice for the new active aggregator that
@@ -1648,14 +1757,9 @@ static void ad_initialize_port(struct port *port, int lacp_fast)
 	};
 
 	if (port) {
-		port->actor_port_number = 1;
 		port->actor_port_priority = 0xff;
-		port->actor_system = null_mac_addr;
-		port->actor_system_priority = 0xffff;
 		port->actor_port_aggregator_identifier = 0;
 		port->ntt = false;
-		port->actor_admin_port_key = 1;
-		port->actor_oper_port_key  = 1;
 		port->actor_admin_port_state = AD_STATE_AGGREGATION |
 					       AD_STATE_LACP_ACTIVITY;
 		port->actor_oper_port_state  = AD_STATE_AGGREGATION |
@@ -1669,7 +1773,7 @@ static void ad_initialize_port(struct port *port, int lacp_fast)
 
 		port->is_enabled = true;
 		/* private parameters */
-		port->sm_vars = 0x3;
+		port->sm_vars = AD_PORT_BEGIN | AD_PORT_LACP_ENABLED;
 		port->sm_rx_state = 0;
 		port->sm_rx_timer_counter = 0;
 		port->sm_periodic_state = 0;
@@ -1677,11 +1781,16 @@ static void ad_initialize_port(struct port *port, int lacp_fast)
 		port->sm_mux_state = 0;
 		port->sm_mux_timer_counter = 0;
 		port->sm_tx_state = 0;
-		port->sm_tx_timer_counter = 0;
-		port->slave = NULL;
 		port->aggregator = NULL;
 		port->next_port_in_aggregator = NULL;
 		port->transaction_id = 0;
+
+		port->sm_churn_actor_timer_counter = 0;
+		port->sm_churn_actor_state = 0;
+		port->churn_actor_count = 0;
+		port->sm_churn_partner_timer_counter = 0;
+		port->sm_churn_partner_state = 0;
+		port->churn_partner_count = 0;
 
 		memcpy(&port->lacpdu, &lacpdu, sizeof(lacpdu));
 	}
@@ -1846,7 +1955,7 @@ void bond_3ad_bind_slave(struct slave *slave)
 		/* if the port is not full duplex, then the port should be not
 		 * lacp Enabled
 		 */
-		if (!(port->actor_oper_port_key & AD_DUPLEX_KEY_BITS))
+		if (!(port->actor_oper_port_key & AD_DUPLEX_KEY_MASKS))
 			port->sm_vars &= ~AD_PORT_LACP_ENABLED;
 		/* actor system is the bond's system */
 		port->actor_system = BOND_AD_INFO(bond).system.sys_mac_addr;
@@ -1854,8 +1963,6 @@ void bond_3ad_bind_slave(struct slave *slave)
 		 * lacpdu's are sent in one second)
 		 */
 		port->sm_tx_timer_counter = ad_ticks_per_sec/AD_MAX_TX_IN_SECOND;
-		port->aggregator = NULL;
-		port->next_port_in_aggregator = NULL;
 
 		__disable_port(port);
 
@@ -2102,6 +2209,7 @@ void bond_3ad_state_machine_handler(struct work_struct *work)
 		ad_port_selection_logic(port, &update_slave_arr);
 		ad_mux_machine(port, &update_slave_arr);
 		ad_tx_machine(port);
+		ad_churn_machine(port);
 
 		/* turn off the BEGIN bit, since we already handled it */
 		if (port->sm_vars & AD_PORT_BEGIN)
@@ -2157,8 +2265,10 @@ static int bond_3ad_rx_indication(struct lacpdu *lacpdu, struct slave *slave,
 		switch (lacpdu->subtype) {
 		case AD_TYPE_LACPDU:
 			ret = RX_HANDLER_CONSUMED;
-			netdev_dbg(slave->bond->dev, "Received LACPDU on port %d\n",
-				   port->actor_port_number);
+			netdev_dbg(slave->bond->dev,
+				   "Received LACPDU on port %d slave %s\n",
+				   port->actor_port_number,
+				   slave->dev->name);
 			/* Protect against concurrent state machines */
 			spin_lock(&slave->bond->mode_lock);
 			ad_rx_machine(lacpdu, port);
@@ -2214,9 +2324,9 @@ void bond_3ad_adapter_speed_changed(struct slave *slave)
 
 	spin_lock_bh(&slave->bond->mode_lock);
 
-	port->actor_admin_port_key &= ~AD_SPEED_KEY_BITS;
-	port->actor_oper_port_key = port->actor_admin_port_key |=
-		(__get_link_speed(port) << 1);
+	port->actor_admin_port_key &= ~AD_SPEED_KEY_MASKS;
+	port->actor_admin_port_key |= __get_link_speed(port) << 1;
+	port->actor_oper_port_key = port->actor_admin_port_key;
 	netdev_dbg(slave->bond->dev, "Port %d changed speed\n", port->actor_port_number);
 	/* there is no need to reselect a new aggregator, just signal the
 	 * state machines to reinitialize
@@ -2247,10 +2357,13 @@ void bond_3ad_adapter_duplex_changed(struct slave *slave)
 
 	spin_lock_bh(&slave->bond->mode_lock);
 
-	port->actor_admin_port_key &= ~AD_DUPLEX_KEY_BITS;
-	port->actor_oper_port_key = port->actor_admin_port_key |=
-		__get_duplex(port);
-	netdev_dbg(slave->bond->dev, "Port %d changed duplex\n", port->actor_port_number);
+	port->actor_admin_port_key &= ~AD_DUPLEX_KEY_MASKS;
+	port->actor_admin_port_key |= __get_duplex(port);
+	port->actor_oper_port_key = port->actor_admin_port_key;
+	netdev_dbg(slave->bond->dev, "Port %d slave %s changed duplex\n",
+		   port->actor_port_number, slave->dev->name);
+	if (port->actor_oper_port_key & AD_DUPLEX_KEY_MASKS)
+		port->sm_vars |= AD_PORT_LACP_ENABLED;
 	/* there is no need to reselect a new aggregator, just signal the
 	 * state machines to reinitialize
 	 */
@@ -2287,21 +2400,19 @@ void bond_3ad_handle_link_change(struct slave *slave, char link)
 	 * on link up we are forcing recheck on the duplex and speed since
 	 * some of he adaptors(ce1000.lan) report.
 	 */
+	port->actor_admin_port_key &= ~(AD_DUPLEX_KEY_MASKS|AD_SPEED_KEY_MASKS);
 	if (link == BOND_LINK_UP) {
 		port->is_enabled = true;
-		port->actor_admin_port_key &= ~AD_DUPLEX_KEY_BITS;
-		port->actor_oper_port_key = port->actor_admin_port_key |=
-			__get_duplex(port);
-		port->actor_admin_port_key &= ~AD_SPEED_KEY_BITS;
-		port->actor_oper_port_key = port->actor_admin_port_key |=
-			(__get_link_speed(port) << 1);
+		port->actor_admin_port_key |=
+			(__get_link_speed(port) << 1) | __get_duplex(port);
+		if (port->actor_admin_port_key & AD_DUPLEX_KEY_MASKS)
+			port->sm_vars |= AD_PORT_LACP_ENABLED;
 	} else {
 		/* link has failed */
 		port->is_enabled = false;
-		port->actor_admin_port_key &= ~AD_DUPLEX_KEY_BITS;
-		port->actor_oper_port_key = (port->actor_admin_port_key &=
-					     ~AD_SPEED_KEY_BITS);
+		port->sm_vars &= ~AD_PORT_LACP_ENABLED;
 	}
+	port->actor_oper_port_key = port->actor_admin_port_key;
 	netdev_dbg(slave->bond->dev, "Port %d changed link status to %s\n",
 		   port->actor_port_number,
 		   link == BOND_LINK_UP ? "UP" : "DOWN");
@@ -2416,6 +2527,9 @@ int bond_3ad_lacpdu_recv(const struct sk_buff *skb, struct bonding *bond,
 	struct lacpdu *lacpdu, _lacpdu;
 
 	if (skb->protocol != PKT_TYPE_LACPDU)
+		return RX_HANDLER_ANOTHER;
+
+	if (!MAC_ADDRESS_EQUAL(eth_hdr(skb)->h_dest, lacpdu_mcast_addr))
 		return RX_HANDLER_ANOTHER;
 
 	lacpdu = skb_header_pointer(skb, 0, sizeof(_lacpdu), &_lacpdu);

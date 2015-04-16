@@ -35,6 +35,10 @@ static const struct dw_mci_drv_data socfpga_drv_data = {
 	.prepare_command	= dw_mci_pltfm_prepare_command,
 };
 
+static const struct dw_mci_drv_data pistachio_drv_data = {
+	.prepare_command	= dw_mci_pltfm_prepare_command,
+};
+
 int dw_mci_pltfm_register(struct platform_device *pdev,
 			  const struct dw_mci_drv_data *drv_data)
 {
@@ -90,6 +94,8 @@ static const struct of_device_id dw_mci_pltfm_match[] = {
 	{ .compatible = "snps,dw-mshc", },
 	{ .compatible = "altr,socfpga-dw-mshc",
 		.data = &socfpga_drv_data },
+	{ .compatible = "img,pistachio-dw-mshc",
+		.data = &pistachio_drv_data },
 	{},
 };
 MODULE_DEVICE_TABLE(of, dw_mci_pltfm_match);

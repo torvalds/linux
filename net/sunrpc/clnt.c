@@ -42,7 +42,7 @@
 #include "sunrpc.h"
 #include "netns.h"
 
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define RPCDBG_FACILITY	RPCDBG_CALL
 #endif
 
@@ -286,10 +286,8 @@ static struct rpc_xprt *rpc_clnt_set_transport(struct rpc_clnt *clnt,
 
 static void rpc_clnt_set_nodename(struct rpc_clnt *clnt, const char *nodename)
 {
-	clnt->cl_nodelen = strlen(nodename);
-	if (clnt->cl_nodelen > UNX_MAXNODENAME)
-		clnt->cl_nodelen = UNX_MAXNODENAME;
-	memcpy(clnt->cl_nodename, nodename, clnt->cl_nodelen);
+	clnt->cl_nodelen = strlcpy(clnt->cl_nodename,
+			nodename, sizeof(clnt->cl_nodename));
 }
 
 static int rpc_client_register(struct rpc_clnt *clnt,
@@ -304,6 +302,8 @@ static int rpc_client_register(struct rpc_clnt *clnt,
 	struct net *net = rpc_net_ns(clnt);
 	struct super_block *pipefs_sb;
 	int err;
+
+	rpc_clnt_debugfs_register(clnt);
 
 	pipefs_sb = rpc_get_sb_net(net);
 	if (pipefs_sb) {
@@ -331,6 +331,7 @@ err_auth:
 out:
 	if (pipefs_sb)
 		rpc_put_sb_net(net);
+	rpc_clnt_debugfs_unregister(clnt);
 	return err;
 }
 
@@ -360,6 +361,7 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args,
 	const struct rpc_version *version;
 	struct rpc_clnt *clnt = NULL;
 	const struct rpc_timeout *timeout;
+	const char *nodename = args->nodename;
 	int err;
 
 	/* sanity check the name before trying to print it */
@@ -415,8 +417,10 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args,
 
 	atomic_set(&clnt->cl_count, 1);
 
+	if (nodename == NULL)
+		nodename = utsname()->nodename;
 	/* save the nodename */
-	rpc_clnt_set_nodename(clnt, utsname()->nodename);
+	rpc_clnt_set_nodename(clnt, nodename);
 
 	err = rpc_client_register(clnt, args->authflavor, args->client_name);
 	if (err)
@@ -571,6 +575,7 @@ static struct rpc_clnt *__rpc_clone_client(struct rpc_create_args *args,
 	if (xprt == NULL)
 		goto out_err;
 	args->servername = xprt->servername;
+	args->nodename = clnt->cl_nodename;
 
 	new = rpc_new_client(args, xprt, clnt);
 	if (IS_ERR(new)) {
@@ -670,6 +675,7 @@ int rpc_switch_client_transport(struct rpc_clnt *clnt,
 
 	rpc_unregister_client(clnt);
 	__rpc_clnt_remove_pipedir(clnt);
+	rpc_clnt_debugfs_unregister(clnt);
 
 	/*
 	 * A new transport was created.  "clnt" therefore
@@ -771,6 +777,7 @@ rpc_free_client(struct rpc_clnt *clnt)
 			rcu_dereference(clnt->cl_xprt)->servername);
 	if (clnt->cl_parent != clnt)
 		parent = clnt->cl_parent;
+	rpc_clnt_debugfs_unregister(clnt);
 	rpc_clnt_remove_pipedir(clnt);
 	rpc_unregister_client(clnt);
 	rpc_free_iostats(clnt->cl_metrics);
@@ -1396,8 +1403,9 @@ rpc_restart_call(struct rpc_task *task)
 }
 EXPORT_SYMBOL_GPL(rpc_restart_call);
 
-#ifdef RPC_DEBUG
-static const char *rpc_proc_name(const struct rpc_task *task)
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
+const char
+*rpc_proc_name(const struct rpc_task *task)
 {
 	const struct rpc_procinfo *proc = task->tk_msg.rpc_proc;
 
@@ -1816,6 +1824,7 @@ call_connect_status(struct rpc_task *task)
 	case -ECONNABORTED:
 	case -ENETUNREACH:
 	case -EHOSTUNREACH:
+	case -EADDRINUSE:
 	case -ENOBUFS:
 	case -EPIPE:
 		if (RPC_IS_SOFTCONN(task))
@@ -1924,6 +1933,7 @@ call_transmit_status(struct rpc_task *task)
 		}
 	case -ECONNRESET:
 	case -ECONNABORTED:
+	case -EADDRINUSE:
 	case -ENOTCONN:
 	case -ENOBUFS:
 	case -EPIPE:
@@ -2043,6 +2053,7 @@ call_status(struct rpc_task *task)
 	case -ECONNRESET:
 	case -ECONNABORTED:
 		rpc_force_rebind(clnt);
+	case -EADDRINUSE:
 	case -ENOBUFS:
 		rpc_delay(task, 3*HZ);
 	case -EPIPE:
@@ -2421,7 +2432,7 @@ struct rpc_task *rpc_call_null(struct rpc_clnt *clnt, struct rpc_cred *cred, int
 }
 EXPORT_SYMBOL_GPL(rpc_call_null);
 
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 static void rpc_show_header(void)
 {
 	printk(KERN_INFO "-pid- flgs status -client- --rqstp- "

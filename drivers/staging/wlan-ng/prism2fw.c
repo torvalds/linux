@@ -238,7 +238,8 @@ static int prism2_fwtry(struct usb_device *udev, wlandevice_t *wlandev)
 *	0	- success
 *	~0	- failure
 ----------------------------------------------------------------*/
-static int prism2_fwapply(const struct ihex_binrec *rfptr, wlandevice_t *wlandev)
+static int prism2_fwapply(const struct ihex_binrec *rfptr,
+			  wlandevice_t *wlandev)
 {
 	signed int result = 0;
 	struct p80211msg_dot11req_mibget getmsg;
@@ -986,8 +987,8 @@ static int writeimage(wlandevice_t *wlandev, struct imgchunk *fchunk,
 	u32 currlen;
 	u32 currdaddr;
 
-	rstmsg = kmalloc(sizeof(*rstmsg), GFP_KERNEL);
-	rwrmsg = kmalloc(sizeof(*rwrmsg), GFP_KERNEL);
+	rstmsg = kzalloc(sizeof(*rstmsg), GFP_KERNEL);
+	rwrmsg = kzalloc(sizeof(*rwrmsg), GFP_KERNEL);
 	if (!rstmsg || !rwrmsg) {
 		kfree(rstmsg);
 		kfree(rwrmsg);
@@ -997,7 +998,6 @@ static int writeimage(wlandevice_t *wlandev, struct imgchunk *fchunk,
 	}
 
 	/* Initialize the messages */
-	memset(rstmsg, 0, sizeof(*rstmsg));
 	strcpy(rstmsg->devname, wlandev->name);
 	rstmsg->msgcode = DIDmsg_p2req_ramdl_state;
 	rstmsg->msglen = sizeof(*rstmsg);
@@ -1011,7 +1011,6 @@ static int writeimage(wlandevice_t *wlandev, struct imgchunk *fchunk,
 	rstmsg->exeaddr.len = sizeof(u32);
 	rstmsg->resultcode.len = sizeof(u32);
 
-	memset(rwrmsg, 0, sizeof(*rwrmsg));
 	strcpy(rwrmsg->devname, wlandev->name);
 	rwrmsg->msgcode = DIDmsg_p2req_ramdl_write;
 	rwrmsg->msglen = sizeof(*rwrmsg);

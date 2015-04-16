@@ -23,8 +23,6 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
-#include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
@@ -514,7 +512,6 @@ xfs_da3_root_split(
 	struct xfs_buf		*bp;
 	struct xfs_inode	*dp;
 	struct xfs_trans	*tp;
-	struct xfs_mount	*mp;
 	struct xfs_dir2_leaf	*leaf;
 	xfs_dablk_t		blkno;
 	int			level;
@@ -534,7 +531,6 @@ xfs_da3_root_split(
 
 	dp = args->dp;
 	tp = args->trans;
-	mp = state->mp;
 	error = xfs_da_get_buf(tp, dp, blkno, -1, &bp, args->whichfork);
 	if (error)
 		return error;
@@ -2342,14 +2338,12 @@ xfs_da_shrink_inode(
 	xfs_inode_t *dp;
 	int done, error, w, count;
 	xfs_trans_t *tp;
-	xfs_mount_t *mp;
 
 	trace_xfs_da_shrink_inode(args);
 
 	dp = args->dp;
 	w = args->whichfork;
 	tp = args->trans;
-	mp = dp->i_mount;
 	count = args->geo->fsbcount;
 	for (;;) {
 		/*

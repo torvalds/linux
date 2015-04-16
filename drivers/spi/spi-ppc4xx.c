@@ -575,7 +575,6 @@ static struct platform_driver spi_ppc4xx_of_driver = {
 	.remove = spi_ppc4xx_of_remove,
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = spi_ppc4xx_of_match,
 	},
 };

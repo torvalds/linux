@@ -583,7 +583,6 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->maxdata = 0xffff;
 	s->range_table = &range_bipolar10;
 	s->insn_write = s526_ao_insn_write;
-	s->insn_read = comedi_readback_insn_read;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)

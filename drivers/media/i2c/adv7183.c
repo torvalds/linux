@@ -421,12 +421,12 @@ static int adv7183_g_input_status(struct v4l2_subdev *sd, u32 *status)
 }
 
 static int adv7183_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned index,
-				enum v4l2_mbus_pixelcode *code)
+				u32 *code)
 {
 	if (index > 0)
 		return -EINVAL;
 
-	*code = V4L2_MBUS_FMT_UYVY8_2X8;
+	*code = MEDIA_BUS_FMT_UYVY8_2X8;
 	return 0;
 }
 
@@ -435,7 +435,7 @@ static int adv7183_try_mbus_fmt(struct v4l2_subdev *sd,
 {
 	struct adv7183 *decoder = to_adv7183(sd);
 
-	fmt->code = V4L2_MBUS_FMT_UYVY8_2X8;
+	fmt->code = MEDIA_BUS_FMT_UYVY8_2X8;
 	fmt->colorspace = V4L2_COLORSPACE_SMPTE170M;
 	if (decoder->std & V4L2_STD_525_60) {
 		fmt->field = V4L2_FIELD_SEQ_TB;

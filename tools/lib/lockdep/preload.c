@@ -317,7 +317,7 @@ int pthread_mutex_destroy(pthread_mutex_t *mutex)
 	 *
 	 * TODO: Hook into free() and add that check there as well.
 	 */
-	debug_check_no_locks_freed(mutex, mutex + sizeof(*mutex));
+	debug_check_no_locks_freed(mutex, sizeof(*mutex));
 	__del_lock(__get_lock(mutex));
 	return ll_pthread_mutex_destroy(mutex);
 }
@@ -341,7 +341,7 @@ int pthread_rwlock_destroy(pthread_rwlock_t *rwlock)
 {
 	try_init_preload();
 
-	debug_check_no_locks_freed(rwlock, rwlock + sizeof(*rwlock));
+	debug_check_no_locks_freed(rwlock, sizeof(*rwlock));
 	__del_lock(__get_lock(rwlock));
 	return ll_pthread_rwlock_destroy(rwlock);
 }

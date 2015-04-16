@@ -181,8 +181,7 @@ static void loopback_timer_start(struct loopback_pcm *dpcm)
 	}
 	tick = dpcm->period_size_frac - dpcm->irq_pos;
 	tick = (tick + dpcm->pcm_bps - 1) / dpcm->pcm_bps;
-	dpcm->timer.expires = jiffies + tick;
-	add_timer(&dpcm->timer);
+	mod_timer(&dpcm->timer, jiffies + tick);
 }
 
 /* call in cable->lock */
@@ -1220,7 +1219,6 @@ static struct platform_driver loopback_driver = {
 	.remove		= loopback_remove,
 	.driver		= {
 		.name	= SND_LOOPBACK_DRIVER,
-		.owner	= THIS_MODULE,
 		.pm	= LOOPBACK_PM_OPS,
 	},
 };

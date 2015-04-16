@@ -686,20 +686,21 @@ ath6kl_add_bss_if_needed(struct ath6kl_vif *vif,
 {
 	struct ath6kl *ar = vif->ar;
 	struct cfg80211_bss *bss;
-	u16 cap_mask, cap_val;
+	u16 cap_val;
+	enum ieee80211_bss_type bss_type;
 	u8 *ie;
 
 	if (nw_type & ADHOC_NETWORK) {
-		cap_mask = WLAN_CAPABILITY_IBSS;
 		cap_val = WLAN_CAPABILITY_IBSS;
+		bss_type = IEEE80211_BSS_TYPE_IBSS;
 	} else {
-		cap_mask = WLAN_CAPABILITY_ESS;
 		cap_val = WLAN_CAPABILITY_ESS;
+		bss_type = IEEE80211_BSS_TYPE_ESS;
 	}
 
 	bss = cfg80211_get_bss(ar->wiphy, chan, bssid,
 			       vif->ssid, vif->ssid_len,
-			       cap_mask, cap_val);
+			       bss_type, IEEE80211_PRIVACY_ANY);
 	if (bss == NULL) {
 		/*
 		 * Since cfg80211 may not yet know about the BSS,
@@ -1495,6 +1496,7 @@ static int ath6kl_cfg80211_set_power_mgmt(struct wiphy *wiphy,
 
 static struct wireless_dev *ath6kl_cfg80211_add_iface(struct wiphy *wiphy,
 						      const char *name,
+						      unsigned char name_assign_type,
 						      enum nl80211_iftype type,
 						      u32 *flags,
 						      struct vif_params *params)
@@ -1513,7 +1515,7 @@ static struct wireless_dev *ath6kl_cfg80211_add_iface(struct wiphy *wiphy,
 		return ERR_PTR(-EINVAL);
 	}
 
-	wdev = ath6kl_interface_add(ar, name, type, if_idx, nw_type);
+	wdev = ath6kl_interface_add(ar, name, name_assign_type, type, if_idx, nw_type);
 	if (!wdev)
 		return ERR_PTR(-ENOMEM);
 
@@ -1799,20 +1801,20 @@ static int ath6kl_get_station(struct wiphy *wiphy, struct net_device *dev,
 
 	if (vif->target_stats.rx_byte) {
 		sinfo->rx_bytes = vif->target_stats.rx_byte;
-		sinfo->filled |= STATION_INFO_RX_BYTES64;
+		sinfo->filled |= BIT(NL80211_STA_INFO_RX_BYTES64);
 		sinfo->rx_packets = vif->target_stats.rx_pkt;
-		sinfo->filled |= STATION_INFO_RX_PACKETS;
+		sinfo->filled |= BIT(NL80211_STA_INFO_RX_PACKETS);
 	}
 
 	if (vif->target_stats.tx_byte) {
 		sinfo->tx_bytes = vif->target_stats.tx_byte;
-		sinfo->filled |= STATION_INFO_TX_BYTES64;
+		sinfo->filled |= BIT(NL80211_STA_INFO_TX_BYTES64);
 		sinfo->tx_packets = vif->target_stats.tx_pkt;
-		sinfo->filled |= STATION_INFO_TX_PACKETS;
+		sinfo->filled |= BIT(NL80211_STA_INFO_TX_PACKETS);
 	}
 
 	sinfo->signal = vif->target_stats.cs_rssi;
-	sinfo->filled |= STATION_INFO_SIGNAL;
+	sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL);
 
 	rate = vif->target_stats.tx_ucast_rate;
 
@@ -1827,6 +1829,7 @@ static int ath6kl_get_station(struct wiphy *wiphy, struct net_device *dev,
 		}
 
 		sinfo->txrate.flags |= RATE_INFO_FLAGS_MCS;
+		sinfo->txrate.bw = RATE_INFO_BW_20;
 	} else if (is_rate_ht40(rate, &mcs, &sgi)) {
 		if (sgi) {
 			sinfo->txrate.flags |= RATE_INFO_FLAGS_SHORT_GI;
@@ -1835,7 +1838,7 @@ static int ath6kl_get_station(struct wiphy *wiphy, struct net_device *dev,
 			sinfo->txrate.mcs = mcs;
 		}
 
-		sinfo->txrate.flags |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
+		sinfo->txrate.bw = RATE_INFO_BW_40;
 		sinfo->txrate.flags |= RATE_INFO_FLAGS_MCS;
 	} else {
 		ath6kl_dbg(ATH6KL_DBG_WLAN_CFG,
@@ -1844,12 +1847,12 @@ static int ath6kl_get_station(struct wiphy *wiphy, struct net_device *dev,
 		return 0;
 	}
 
-	sinfo->filled |= STATION_INFO_TX_BITRATE;
+	sinfo->filled |= BIT(NL80211_STA_INFO_TX_BITRATE);
 
 	if (test_bit(CONNECTED, &vif->flags) &&
 	    test_bit(DTIM_PERIOD_AVAIL, &vif->flags) &&
 	    vif->nw_type == INFRA_NETWORK) {
-		sinfo->filled |= STATION_INFO_BSS_PARAM;
+		sinfo->filled |= BIT(NL80211_STA_INFO_BSS_PARAM);
 		sinfo->bss_param.flags = 0;
 		sinfo->bss_param.dtim_period = vif->assoc_bss_dtim_period;
 		sinfo->bss_param.beacon_interval = vif->assoc_bss_beacon_int;
@@ -2032,7 +2035,7 @@ static int ath6kl_wow_sta(struct ath6kl *ar, struct ath6kl_vif *vif)
 	int ret;
 
 	/* Setup unicast pkt pattern */
-	memset(mac_mask, 0xff, ETH_ALEN);
+	eth_broadcast_addr(mac_mask);
 	ret = ath6kl_wmi_add_wow_pattern_cmd(ar->wmi,
 				vif->fw_vif_idx, WOW_LIST_ID,
 				ETH_ALEN, 0, ndev->dev_addr,
@@ -2976,11 +2979,11 @@ static int ath6kl_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 static const u8 bcast_addr[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 static int ath6kl_del_station(struct wiphy *wiphy, struct net_device *dev,
-			      const u8 *mac)
+			      struct station_del_parameters *params)
 {
 	struct ath6kl *ar = ath6kl_priv(dev);
 	struct ath6kl_vif *vif = netdev_priv(dev);
-	const u8 *addr = mac ? mac : bcast_addr;
+	const u8 *addr = params->mac ? params->mac : bcast_addr;
 
 	return ath6kl_wmi_ap_set_mlme(ar->wmi, vif->fw_vif_idx, WMI_AP_DEAUTH,
 				      addr, WLAN_REASON_PREV_AUTH_NOT_VALID);
@@ -3632,13 +3635,14 @@ void ath6kl_cfg80211_vif_cleanup(struct ath6kl_vif *vif)
 }
 
 struct wireless_dev *ath6kl_interface_add(struct ath6kl *ar, const char *name,
+					  unsigned char name_assign_type,
 					  enum nl80211_iftype type,
 					  u8 fw_vif_idx, u8 nw_type)
 {
 	struct net_device *ndev;
 	struct ath6kl_vif *vif;
 
-	ndev = alloc_netdev(sizeof(*vif), name, NET_NAME_UNKNOWN, ether_setup);
+	ndev = alloc_netdev(sizeof(*vif), name, name_assign_type, ether_setup);
 	if (!ndev)
 		return NULL;
 

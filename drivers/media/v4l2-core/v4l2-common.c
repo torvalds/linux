@@ -80,36 +80,6 @@ MODULE_LICENSE("GPL");
 
 /* Helper functions for control handling			     */
 
-/* Check for correctness of the ctrl's value based on the data from
-   struct v4l2_queryctrl and the available menu items. Note that
-   menu_items may be NULL, in that case it is ignored. */
-int v4l2_ctrl_check(struct v4l2_ext_control *ctrl, struct v4l2_queryctrl *qctrl,
-		const char * const *menu_items)
-{
-	if (qctrl->flags & V4L2_CTRL_FLAG_DISABLED)
-		return -EINVAL;
-	if (qctrl->flags & V4L2_CTRL_FLAG_GRABBED)
-		return -EBUSY;
-	if (qctrl->type == V4L2_CTRL_TYPE_STRING)
-		return 0;
-	if (qctrl->type == V4L2_CTRL_TYPE_BUTTON ||
-	    qctrl->type == V4L2_CTRL_TYPE_INTEGER64 ||
-	    qctrl->type == V4L2_CTRL_TYPE_CTRL_CLASS)
-		return 0;
-	if (ctrl->value < qctrl->minimum || ctrl->value > qctrl->maximum)
-		return -ERANGE;
-	if (qctrl->type == V4L2_CTRL_TYPE_MENU && menu_items != NULL) {
-		if (menu_items[ctrl->value] == NULL ||
-		    menu_items[ctrl->value][0] == '\0')
-			return -EINVAL;
-	}
-	if (qctrl->type == V4L2_CTRL_TYPE_BITMASK &&
-			(ctrl->value & ~qctrl->maximum))
-		return -ERANGE;
-	return 0;
-}
-EXPORT_SYMBOL(v4l2_ctrl_check);
-
 /* Fill in a struct v4l2_queryctrl */
 int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 _min, s32 _max, s32 _step, s32 _def)
 {
@@ -134,101 +104,6 @@ int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 _min, s32 _max, s32 _
 	return 0;
 }
 EXPORT_SYMBOL(v4l2_ctrl_query_fill);
-
-/* Fill in a struct v4l2_querymenu based on the struct v4l2_queryctrl and
-   the menu. The qctrl pointer may be NULL, in which case it is ignored.
-   If menu_items is NULL, then the menu items are retrieved using
-   v4l2_ctrl_get_menu. */
-int v4l2_ctrl_query_menu(struct v4l2_querymenu *qmenu, struct v4l2_queryctrl *qctrl,
-	       const char * const *menu_items)
-{
-	int i;
-
-	qmenu->reserved = 0;
-	if (menu_items == NULL)
-		menu_items = v4l2_ctrl_get_menu(qmenu->id);
-	if (menu_items == NULL ||
-	    (qctrl && (qmenu->index < qctrl->minimum || qmenu->index > qctrl->maximum)))
-		return -EINVAL;
-	for (i = 0; i < qmenu->index && menu_items[i]; i++) ;
-	if (menu_items[i] == NULL || menu_items[i][0] == '\0')
-		return -EINVAL;
-	strlcpy(qmenu->name, menu_items[qmenu->index], sizeof(qmenu->name));
-	return 0;
-}
-EXPORT_SYMBOL(v4l2_ctrl_query_menu);
-
-/* Fill in a struct v4l2_querymenu based on the specified array of valid
-   menu items (terminated by V4L2_CTRL_MENU_IDS_END).
-   Use this if there are 'holes' in the list of valid menu items. */
-int v4l2_ctrl_query_menu_valid_items(struct v4l2_querymenu *qmenu, const u32 *ids)
-{
-	const char * const *menu_items = v4l2_ctrl_get_menu(qmenu->id);
-
-	qmenu->reserved = 0;
-	if (menu_items == NULL || ids == NULL)
-		return -EINVAL;
-	while (*ids != V4L2_CTRL_MENU_IDS_END) {
-		if (*ids++ == qmenu->index) {
-			strlcpy(qmenu->name, menu_items[qmenu->index],
-					sizeof(qmenu->name));
-			return 0;
-		}
-	}
-	return -EINVAL;
-}
-EXPORT_SYMBOL(v4l2_ctrl_query_menu_valid_items);
-
-/* ctrl_classes points to an array of u32 pointers, the last element is
-   a NULL pointer. Each u32 array is a 0-terminated array of control IDs.
-   Each array must be sorted low to high and belong to the same control
-   class. The array of u32 pointers must also be sorted, from low class IDs
-   to high class IDs.
-
-   This function returns the first ID that follows after the given ID.
-   When no more controls are available 0 is returned. */
-u32 v4l2_ctrl_next(const u32 * const * ctrl_classes, u32 id)
-{
-	u32 ctrl_class = V4L2_CTRL_ID2CLASS(id);
-	const u32 *pctrl;
-
-	if (ctrl_classes == NULL)
-		return 0;
-
-	/* if no query is desired, then check if the ID is part of ctrl_classes */
-	if ((id & V4L2_CTRL_FLAG_NEXT_CTRL) == 0) {
-		/* find class */
-		while (*ctrl_classes && V4L2_CTRL_ID2CLASS(**ctrl_classes) != ctrl_class)
-			ctrl_classes++;
-		if (*ctrl_classes == NULL)
-			return 0;
-		pctrl = *ctrl_classes;
-		/* find control ID */
-		while (*pctrl && *pctrl != id) pctrl++;
-		return *pctrl ? id : 0;
-	}
-	id &= V4L2_CTRL_ID_MASK;
-	id++;	/* select next control */
-	/* find first class that matches (or is greater than) the class of
-	   the ID */
-	while (*ctrl_classes && V4L2_CTRL_ID2CLASS(**ctrl_classes) < ctrl_class)
-		ctrl_classes++;
-	/* no more classes */
-	if (*ctrl_classes == NULL)
-		return 0;
-	pctrl = *ctrl_classes;
-	/* find first ctrl within the class that is >= ID */
-	while (*pctrl && *pctrl < id) pctrl++;
-	if (*pctrl)
-		return *pctrl;
-	/* we are at the end of the controls of the current class. */
-	/* continue with next class if available */
-	ctrl_classes++;
-	if (*ctrl_classes == NULL)
-		return 0;
-	return **ctrl_classes;
-}
-EXPORT_SYMBOL(v4l2_ctrl_next);
 
 /* I2C Helper functions */
 

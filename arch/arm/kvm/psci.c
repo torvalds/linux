@@ -15,12 +15,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/preempt.h>
 #include <linux/kvm_host.h>
 #include <linux/wait.h>
 
 #include <asm/cputype.h>
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_psci.h>
+#include <asm/kvm_host.h>
 
 /*
  * This is an implementation of the Power State Coordination Interface
@@ -65,25 +67,17 @@ static void kvm_psci_vcpu_off(struct kvm_vcpu *vcpu)
 static unsigned long kvm_psci_vcpu_on(struct kvm_vcpu *source_vcpu)
 {
 	struct kvm *kvm = source_vcpu->kvm;
-	struct kvm_vcpu *vcpu = NULL, *tmp;
+	struct kvm_vcpu *vcpu = NULL;
 	wait_queue_head_t *wq;
 	unsigned long cpu_id;
 	unsigned long context_id;
-	unsigned long mpidr;
 	phys_addr_t target_pc;
-	int i;
 
-	cpu_id = *vcpu_reg(source_vcpu, 1);
+	cpu_id = *vcpu_reg(source_vcpu, 1) & MPIDR_HWID_BITMASK;
 	if (vcpu_mode_is_32bit(source_vcpu))
 		cpu_id &= ~((u32) 0);
 
-	kvm_for_each_vcpu(i, tmp, kvm) {
-		mpidr = kvm_vcpu_get_mpidr(tmp);
-		if ((mpidr & MPIDR_HWID_BITMASK) == (cpu_id & MPIDR_HWID_BITMASK)) {
-			vcpu = tmp;
-			break;
-		}
-	}
+	vcpu = kvm_mpidr_to_vcpu(kvm, cpu_id);
 
 	/*
 	 * Make sure the caller requested a valid CPU and that the CPU is
@@ -154,7 +148,7 @@ static unsigned long kvm_psci_vcpu_affinity_info(struct kvm_vcpu *vcpu)
 	 * then ON else OFF
 	 */
 	kvm_for_each_vcpu(i, tmp, kvm) {
-		mpidr = kvm_vcpu_get_mpidr(tmp);
+		mpidr = kvm_vcpu_get_mpidr_aff(tmp);
 		if (((mpidr & target_affinity_mask) == target_affinity) &&
 		    !tmp->arch.pause) {
 			return PSCI_0_2_AFFINITY_LEVEL_ON;
@@ -166,6 +160,23 @@ static unsigned long kvm_psci_vcpu_affinity_info(struct kvm_vcpu *vcpu)
 
 static void kvm_prepare_system_event(struct kvm_vcpu *vcpu, u32 type)
 {
+	int i;
+	struct kvm_vcpu *tmp;
+
+	/*
+	 * The KVM ABI specifies that a system event exit may call KVM_RUN
+	 * again and may perform shutdown/reboot at a later time that when the
+	 * actual request is made.  Since we are implementing PSCI and a
+	 * caller of PSCI reboot and shutdown expects that the system shuts
+	 * down or reboots immediately, let's make sure that VCPUs are not run
+	 * after this call is handled and before the VCPUs have been
+	 * re-initialized.
+	 */
+	kvm_for_each_vcpu(i, tmp, vcpu->kvm) {
+		tmp->arch.pause = true;
+		kvm_vcpu_kick(tmp);
+	}
+
 	memset(&vcpu->run->system_event, 0, sizeof(vcpu->run->system_event));
 	vcpu->run->system_event.type = type;
 	vcpu->run->exit_reason = KVM_EXIT_SYSTEM_EVENT;

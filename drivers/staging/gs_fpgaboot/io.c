@@ -79,15 +79,6 @@ void xl_shift_bytes_out(enum wbus bus_byte, unsigned char *pdata)
 /*
  * generic bit swap for xilinx SYSTEMMAP FPGA programming
  */
-static inline unsigned char bitswap(unsigned char s)
-{
-	unsigned char d;
-
-	d = (((s&0x80)>>7) | ((s&0x40)>>5) | ((s&0x20)>>3) | ((s&0x10)>>1) |
-		((s&0x08)<<1) | ((s&0x04)<<3) | ((s&0x02)<<5) | ((s&0x01)<<7));
-	return d;
-}
-
 void xl_program_b(int32_t i)
 {
 }

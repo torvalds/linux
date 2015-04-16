@@ -286,7 +286,7 @@ replay:
 			RCU_INIT_POINTER(*back, next);
 
 			tfilter_notify(net, skb, n, tp, fh, RTM_DELTFILTER);
-			tcf_destroy(tp);
+			tcf_destroy(tp, true);
 			err = 0;
 			goto errout;
 		}
@@ -301,14 +301,20 @@ replay:
 			err = -EEXIST;
 			if (n->nlmsg_flags & NLM_F_EXCL) {
 				if (tp_created)
-					tcf_destroy(tp);
+					tcf_destroy(tp, true);
 				goto errout;
 			}
 			break;
 		case RTM_DELTFILTER:
 			err = tp->ops->delete(tp, fh);
-			if (err == 0)
+			if (err == 0) {
 				tfilter_notify(net, skb, n, tp, fh, RTM_DELTFILTER);
+				if (tcf_destroy(tp, false)) {
+					struct tcf_proto *next = rtnl_dereference(tp->next);
+
+					RCU_INIT_POINTER(*back, next);
+				}
+			}
 			goto errout;
 		case RTM_GETTFILTER:
 			err = tfilter_notify(net, skb, n, tp, fh, RTM_NEWTFILTER);
@@ -329,7 +335,7 @@ replay:
 		tfilter_notify(net, skb, n, tp, fh, RTM_NEWTFILTER);
 	} else {
 		if (tp_created)
-			tcf_destroy(tp);
+			tcf_destroy(tp, true);
 	}
 
 errout:
@@ -556,8 +562,9 @@ void tcf_exts_change(struct tcf_proto *tp, struct tcf_exts *dst,
 }
 EXPORT_SYMBOL(tcf_exts_change);
 
-#define tcf_exts_first_act(ext) \
-		list_first_entry(&(exts)->actions, struct tc_action, list)
+#define tcf_exts_first_act(ext)					\
+	list_first_entry_or_null(&(exts)->actions,		\
+				 struct tc_action, list)
 
 int tcf_exts_dump(struct sk_buff *skb, struct tcf_exts *exts)
 {
@@ -603,7 +610,7 @@ int tcf_exts_dump_stats(struct sk_buff *skb, struct tcf_exts *exts)
 {
 #ifdef CONFIG_NET_CLS_ACT
 	struct tc_action *a = tcf_exts_first_act(exts);
-	if (tcf_action_copy_stats(skb, a, 1) < 0)
+	if (a != NULL && tcf_action_copy_stats(skb, a, 1) < 0)
 		return -1;
 #endif
 	return 0;

@@ -15,6 +15,7 @@
 #include <linux/cpu.h>
 #include <linux/cpu_pm.h>
 #include <linux/clockchips.h>
+#include <linux/clocksource.h>
 #include <linux/interrupt.h>
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
@@ -462,7 +463,10 @@ static void __init arch_counter_register(unsigned type)
 
 	/* Register the CP15 based counter if we have one */
 	if (type & ARCH_CP15_TIMER) {
-		arch_timer_read_counter = arch_counter_get_cntvct;
+		if (IS_ENABLED(CONFIG_ARM64) || arch_timer_use_virtual)
+			arch_timer_read_counter = arch_counter_get_cntvct;
+		else
+			arch_timer_read_counter = arch_counter_get_cntpct;
 	} else {
 		arch_timer_read_counter = arch_counter_get_cntvct_mem;
 
@@ -657,17 +661,17 @@ static const struct of_device_id arch_timer_mem_of_match[] __initconst = {
 };
 
 static bool __init
-arch_timer_probed(int type, const struct of_device_id *matches)
+arch_timer_needs_probing(int type, const struct of_device_id *matches)
 {
 	struct device_node *dn;
-	bool probed = false;
+	bool needs_probing = false;
 
 	dn = of_find_matching_node(NULL, matches);
-	if (dn && of_device_is_available(dn) && (arch_timers_present & type))
-		probed = true;
+	if (dn && of_device_is_available(dn) && !(arch_timers_present & type))
+		needs_probing = true;
 	of_node_put(dn);
 
-	return probed;
+	return needs_probing;
 }
 
 static void __init arch_timer_common_init(void)
@@ -676,9 +680,9 @@ static void __init arch_timer_common_init(void)
 
 	/* Wait until both nodes are probed if we have two timers */
 	if ((arch_timers_present & mask) != mask) {
-		if (!arch_timer_probed(ARCH_MEM_TIMER, arch_timer_mem_of_match))
+		if (arch_timer_needs_probing(ARCH_MEM_TIMER, arch_timer_mem_of_match))
 			return;
-		if (!arch_timer_probed(ARCH_CP15_TIMER, arch_timer_of_match))
+		if (arch_timer_needs_probing(ARCH_CP15_TIMER, arch_timer_of_match))
 			return;
 	}
 
@@ -700,6 +704,14 @@ static void __init arch_timer_init(struct device_node *np)
 	for (i = PHYS_SECURE_PPI; i < MAX_TIMER_PPI; i++)
 		arch_timer_ppi[i] = irq_of_parse_and_map(np, i);
 	arch_timer_detect_rate(NULL, np);
+
+	/*
+	 * If we cannot rely on firmware initializing the timer registers then
+	 * we should use the physical timers instead.
+	 */
+	if (IS_ENABLED(CONFIG_ARM) &&
+	    of_property_read_bool(np, "arm,cpu-registers-not-fw-configured"))
+			arch_timer_use_virtual = false;
 
 	/*
 	 * If HYP mode is available, we know that the physical timer

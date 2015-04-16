@@ -174,7 +174,6 @@ static struct platform_driver moxart_wdt_driver = {
 	.remove     = moxart_wdt_remove,
 	.driver     = {
 		.name		= "moxart-watchdog",
-		.owner		= THIS_MODULE,
 		.of_match_table	= moxart_watchdog_match,
 	},
 };

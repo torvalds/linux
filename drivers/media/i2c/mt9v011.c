@@ -325,18 +325,18 @@ static int mt9v011_reset(struct v4l2_subdev *sd, u32 val)
 }
 
 static int mt9v011_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned index,
-					enum v4l2_mbus_pixelcode *code)
+					u32 *code)
 {
 	if (index > 0)
 		return -EINVAL;
 
-	*code = V4L2_MBUS_FMT_SGRBG8_1X8;
+	*code = MEDIA_BUS_FMT_SGRBG8_1X8;
 	return 0;
 }
 
 static int mt9v011_try_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *fmt)
 {
-	if (fmt->code != V4L2_MBUS_FMT_SGRBG8_1X8)
+	if (fmt->code != MEDIA_BUS_FMT_SGRBG8_1X8)
 		return -EINVAL;
 
 	v4l_bound_align_image(&fmt->width, 48, 639, 1,

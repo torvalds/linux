@@ -22,6 +22,16 @@ config LEDS_CLASS
 	  This option enables the led sysfs class in /sys/class/leds.  You'll
 	  need this to do anything useful with LEDs.  If unsure, say N.
 
+config LEDS_CLASS_FLASH
+	tristate "LED Flash Class Support"
+	depends on LEDS_CLASS
+	help
+	  This option enables the flash led sysfs class in /sys/class/leds.
+	  It wrapps LED Class and adds flash LEDs specific sysfs attributes
+	  and kernel internal API to it. You'll need this to provide support
+	  for the flash related features of a LED device. It can be built
+	  as a module.
+
 comment "LED drivers"
 
 config LEDS_88PM860X
@@ -249,6 +259,17 @@ config LEDS_LP8788
 	depends on MFD_LP8788
 	help
 	  This option enables support for the Keyboard LEDs on the LP8788 PMIC.
+
+config LEDS_LP8860
+	tristate "LED support for the TI LP8860 4 channel LED driver"
+	depends on LEDS_CLASS && I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for the TI LP8860 4 channel
+	  LED driver.
+	  This option enables support for the display cluster LEDs
+	  on the LP8860 4 channel LED driver using the I2C communication
+	  bus.
 
 config LEDS_CLEVO_MAIL
 	tristate "Mail LED on Clevo notebook"
@@ -504,6 +525,14 @@ config LEDS_VERSATILE
 	help
 	  This option enabled support for the LEDs on the ARM Versatile
 	  and RealView boards. Say Y to enabled these.
+
+config LEDS_PM8941_WLED
+	tristate "LED support for the Qualcomm PM8941 WLED block"
+	depends on LEDS_CLASS
+	select REGMAP
+	help
+	  This option enables support for the 'White' LED block
+	  on Qualcomm PM8941 PMICs.
 
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"

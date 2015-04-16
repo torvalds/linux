@@ -101,7 +101,7 @@ struct fimc_source_info {
  * @flags: flags indicating which operation mode format applies to
  */
 struct fimc_fmt {
-	enum v4l2_mbus_pixelcode mbus_code;
+	u32 mbus_code;
 	char	*name;
 	u32	fourcc;
 	u32	color;

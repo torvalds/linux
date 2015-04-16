@@ -72,6 +72,8 @@
 #include <linux/fs_struct.h>
 #include <linux/compat.h>
 #include <linux/ctype.h>
+#include <linux/string.h>
+#include <uapi/linux/limits.h>
 
 #include "audit.h"
 
@@ -864,33 +866,10 @@ static inline void audit_free_names(struct audit_context *context)
 {
 	struct audit_names *n, *next;
 
-#if AUDIT_DEBUG == 2
-	if (context->put_count + context->ino_count != context->name_count) {
-		int i = 0;
-
-		pr_err("%s:%d(:%d): major=%d in_syscall=%d"
-		       " name_count=%d put_count=%d ino_count=%d"
-		       " [NOT freeing]\n", __FILE__, __LINE__,
-		       context->serial, context->major, context->in_syscall,
-		       context->name_count, context->put_count,
-		       context->ino_count);
-		list_for_each_entry(n, &context->names_list, list) {
-			pr_err("names[%d] = %p = %s\n", i++, n->name,
-			       n->name->name ?: "(null)");
-		}
-		dump_stack();
-		return;
-	}
-#endif
-#if AUDIT_DEBUG
-	context->put_count  = 0;
-	context->ino_count  = 0;
-#endif
-
 	list_for_each_entry_safe(n, next, &context->names_list, list) {
 		list_del(&n->list);
-		if (n->name && n->name_put)
-			final_putname(n->name);
+		if (n->name)
+			putname(n->name);
 		if (n->should_free)
 			kfree(n);
 	}
@@ -1709,9 +1688,6 @@ static struct audit_names *audit_alloc_name(struct audit_context *context,
 	list_add_tail(&aname->list, &context->names_list);
 
 	context->name_count++;
-#if AUDIT_DEBUG
-	context->ino_count++;
-#endif
 	return aname;
 }
 
@@ -1732,8 +1708,10 @@ __audit_reusename(const __user char *uptr)
 	list_for_each_entry(n, &context->names_list, list) {
 		if (!n->name)
 			continue;
-		if (n->name->uptr == uptr)
+		if (n->name->uptr == uptr) {
+			n->name->refcnt++;
 			return n->name;
+		}
 	}
 	return NULL;
 }
@@ -1750,19 +1728,8 @@ void __audit_getname(struct filename *name)
 	struct audit_context *context = current->audit_context;
 	struct audit_names *n;
 
-	if (!context->in_syscall) {
-#if AUDIT_DEBUG == 2
-		pr_err("%s:%d(:%d): ignoring getname(%p)\n",
-		       __FILE__, __LINE__, context->serial, name);
-		dump_stack();
-#endif
+	if (!context->in_syscall)
 		return;
-	}
-
-#if AUDIT_DEBUG
-	/* The filename _must_ have a populated ->name */
-	BUG_ON(!name->name);
-#endif
 
 	n = audit_alloc_name(context, AUDIT_TYPE_UNKNOWN);
 	if (!n)
@@ -1770,54 +1737,11 @@ void __audit_getname(struct filename *name)
 
 	n->name = name;
 	n->name_len = AUDIT_NAME_FULL;
-	n->name_put = true;
 	name->aname = n;
+	name->refcnt++;
 
 	if (!context->pwd.dentry)
 		get_fs_pwd(current->fs, &context->pwd);
-}
-
-/* audit_putname - intercept a putname request
- * @name: name to intercept and delay for putname
- *
- * If we have stored the name from getname in the audit context,
- * then we delay the putname until syscall exit.
- * Called from include/linux/fs.h:putname().
- */
-void audit_putname(struct filename *name)
-{
-	struct audit_context *context = current->audit_context;
-
-	BUG_ON(!context);
-	if (!name->aname || !context->in_syscall) {
-#if AUDIT_DEBUG == 2
-		pr_err("%s:%d(:%d): final_putname(%p)\n",
-		       __FILE__, __LINE__, context->serial, name);
-		if (context->name_count) {
-			struct audit_names *n;
-			int i = 0;
-
-			list_for_each_entry(n, &context->names_list, list)
-				pr_err("name[%d] = %p = %s\n", i++, n->name,
-				       n->name->name ?: "(null)");
-			}
-#endif
-		final_putname(name);
-	}
-#if AUDIT_DEBUG
-	else {
-		++context->put_count;
-		if (context->put_count > context->name_count) {
-			pr_err("%s:%d(:%d): major=%d in_syscall=%d putname(%p)"
-			       " name_count=%d put_count=%d\n",
-			       __FILE__, __LINE__,
-			       context->serial, context->major,
-			       context->in_syscall, name->name,
-			       context->name_count, context->put_count);
-			dump_stack();
-		}
-	}
-#endif
 }
 
 /**
@@ -1840,10 +1764,6 @@ void __audit_inode(struct filename *name, const struct dentry *dentry,
 	if (!name)
 		goto out_alloc;
 
-#if AUDIT_DEBUG
-	/* The struct filename _must_ have a populated ->name */
-	BUG_ON(!name->name);
-#endif
 	/*
 	 * If we have a pointer to an audit_names entry already, then we can
 	 * just use it directly if the type is correct.
@@ -1861,8 +1781,17 @@ void __audit_inode(struct filename *name, const struct dentry *dentry,
 	}
 
 	list_for_each_entry_reverse(n, &context->names_list, list) {
-		/* does the name pointer match? */
-		if (!n->name || n->name->name != name->name)
+		if (n->ino) {
+			/* valid inode number, use that for the comparison */
+			if (n->ino != inode->i_ino ||
+			    n->dev != inode->i_sb->s_dev)
+				continue;
+		} else if (n->name) {
+			/* inode number has not been set, check the name */
+			if (strcmp(n->name->name, name->name))
+				continue;
+		} else
+			/* no inode and no name (?!) ... this is odd ... */
 			continue;
 
 		/* match the correct record type */
@@ -1877,12 +1806,15 @@ void __audit_inode(struct filename *name, const struct dentry *dentry,
 	}
 
 out_alloc:
-	/* unable to find the name from a previous getname(). Allocate a new
-	 * anonymous entry.
-	 */
-	n = audit_alloc_name(context, AUDIT_TYPE_NORMAL);
+	/* unable to find an entry with both a matching name and type */
+	n = audit_alloc_name(context, AUDIT_TYPE_UNKNOWN);
 	if (!n)
 		return;
+	if (name) {
+		n->name = name;
+		name->refcnt++;
+	}
+
 out:
 	if (parent) {
 		n->name_len = n->name ? parent_len(n->name->name) : AUDIT_NAME_FULL;
@@ -1895,6 +1827,11 @@ out:
 	}
 	handle_path(dentry);
 	audit_copy_inode(n, dentry, inode);
+}
+
+void __audit_file(const struct file *file)
+{
+	__audit_inode(NULL, file->f_path.dentry, 0);
 }
 
 /**
@@ -1928,11 +1865,16 @@ void __audit_inode_child(const struct inode *parent,
 
 	/* look for a parent entry first */
 	list_for_each_entry(n, &context->names_list, list) {
-		if (!n->name || n->type != AUDIT_TYPE_PARENT)
+		if (!n->name ||
+		    (n->type != AUDIT_TYPE_PARENT &&
+		     n->type != AUDIT_TYPE_UNKNOWN))
 			continue;
 
-		if (n->ino == parent->i_ino &&
-		    !audit_compare_dname_path(dname, n->name->name, n->name_len)) {
+		if (n->ino == parent->i_ino && n->dev == parent->i_sb->s_dev &&
+		    !audit_compare_dname_path(dname,
+					      n->name->name, n->name_len)) {
+			if (n->type == AUDIT_TYPE_UNKNOWN)
+				n->type = AUDIT_TYPE_PARENT;
 			found_parent = n;
 			break;
 		}
@@ -1941,11 +1883,8 @@ void __audit_inode_child(const struct inode *parent,
 	/* is there a matching child entry? */
 	list_for_each_entry(n, &context->names_list, list) {
 		/* can only match entries that have a name */
-		if (!n->name || n->type != type)
-			continue;
-
-		/* if we found a parent, make sure this one is a child of it */
-		if (found_parent && (n->name != found_parent->name))
+		if (!n->name ||
+		    (n->type != type && n->type != AUDIT_TYPE_UNKNOWN))
 			continue;
 
 		if (!strcmp(dname, n->name->name) ||
@@ -1953,6 +1892,8 @@ void __audit_inode_child(const struct inode *parent,
 						found_parent ?
 						found_parent->name_len :
 						AUDIT_NAME_FULL)) {
+			if (n->type == AUDIT_TYPE_UNKNOWN)
+				n->type = type;
 			found_child = n;
 			break;
 		}
@@ -1977,10 +1918,10 @@ void __audit_inode_child(const struct inode *parent,
 		if (found_parent) {
 			found_child->name = found_parent->name;
 			found_child->name_len = AUDIT_NAME_FULL;
-			/* don't call __putname() */
-			found_child->name_put = false;
+			found_child->name->refcnt++;
 		}
 	}
+
 	if (inode)
 		audit_copy_inode(found_child, dentry, inode);
 	else
@@ -2363,7 +2304,6 @@ int __audit_log_bprm_fcaps(struct linux_binprm *bprm,
 	struct audit_aux_data_bprm_fcaps *ax;
 	struct audit_context *context = current->audit_context;
 	struct cpu_vfs_cap_data vcaps;
-	struct dentry *dentry;
 
 	ax = kmalloc(sizeof(*ax), GFP_KERNEL);
 	if (!ax)
@@ -2373,9 +2313,7 @@ int __audit_log_bprm_fcaps(struct linux_binprm *bprm,
 	ax->d.next = context->aux;
 	context->aux = (void *)ax;
 
-	dentry = dget(bprm->file->f_dentry);
-	get_vfs_caps_from_disk(dentry, &vcaps);
-	dput(dentry);
+	get_vfs_caps_from_disk(bprm->file->f_path.dentry, &vcaps);
 
 	ax->fcap.permitted = vcaps.permitted;
 	ax->fcap.inheritable = vcaps.inheritable;

@@ -44,6 +44,7 @@
 #include <linux/etherdevice.h>
 #include <linux/debugfs.h>
 #include <linux/ethtool.h>
+#include <linux/mdio.h>
 
 #include "t4vf_common.h"
 #include "t4vf_defs.h"
@@ -210,6 +211,38 @@ void t4vf_os_link_changed(struct adapter *adapter, int pidx, int link_ok)
 }
 
 /*
+ * THe port module type has changed on the indicated "port" (Virtual
+ * Interface).
+ */
+void t4vf_os_portmod_changed(struct adapter *adapter, int pidx)
+{
+	static const char * const mod_str[] = {
+		NULL, "LR", "SR", "ER", "passive DA", "active DA", "LRM"
+	};
+	const struct net_device *dev = adapter->port[pidx];
+	const struct port_info *pi = netdev_priv(dev);
+
+	if (pi->mod_type == FW_PORT_MOD_TYPE_NONE)
+		dev_info(adapter->pdev_dev, "%s: port module unplugged\n",
+			 dev->name);
+	else if (pi->mod_type < ARRAY_SIZE(mod_str))
+		dev_info(adapter->pdev_dev, "%s: %s port module inserted\n",
+			 dev->name, mod_str[pi->mod_type]);
+	else if (pi->mod_type == FW_PORT_MOD_TYPE_NOTSUPPORTED)
+		dev_info(adapter->pdev_dev, "%s: unsupported optical port "
+			 "module inserted\n", dev->name);
+	else if (pi->mod_type == FW_PORT_MOD_TYPE_UNKNOWN)
+		dev_info(adapter->pdev_dev, "%s: unknown port module inserted,"
+			 "forcing TWINAX\n", dev->name);
+	else if (pi->mod_type == FW_PORT_MOD_TYPE_ERROR)
+		dev_info(adapter->pdev_dev, "%s: transceiver module error\n",
+			 dev->name);
+	else
+		dev_info(adapter->pdev_dev, "%s: unknown module type %d "
+			 "inserted\n", dev->name, pi->mod_type);
+}
+
+/*
  * Net device operations.
  * ======================
  */
@@ -347,9 +380,9 @@ static void qenable(struct sge_rspq *rspq)
 	 * enable interrupts.
 	 */
 	t4_write_reg(rspq->adapter, T4VF_SGE_BASE_ADDR + SGE_VF_GTS,
-		     CIDXINC(0) |
-		     SEINTARM(rspq->intr_params) |
-		     INGRESSQID(rspq->cntxt_id));
+		     CIDXINC_V(0) |
+		     SEINTARM_V(rspq->intr_params) |
+		     INGRESSQID_V(rspq->cntxt_id));
 }
 
 /*
@@ -370,9 +403,9 @@ static void enable_rx(struct adapter *adapter)
 	 */
 	if (adapter->flags & USING_MSI)
 		t4_write_reg(adapter, T4VF_SGE_BASE_ADDR + SGE_VF_GTS,
-			     CIDXINC(0) |
-			     SEINTARM(s->intrq.intr_params) |
-			     INGRESSQID(s->intrq.cntxt_id));
+			     CIDXINC_V(0) |
+			     SEINTARM_V(s->intrq.intr_params) |
+			     INGRESSQID_V(s->intrq.cntxt_id));
 
 }
 
@@ -417,7 +450,7 @@ static int fwevtq_handler(struct sge_rspq *rspq, const __be64 *rsp,
 		/* FW can send EGR_UPDATEs encapsulated in a CPL_FW4_MSG.
 		 */
 		const struct cpl_sge_egr_update *p = (void *)(rsp + 3);
-		opcode = G_CPL_OPCODE(ntohl(p->opcode_qid));
+		opcode = CPL_OPCODE_G(ntohl(p->opcode_qid));
 		if (opcode != CPL_SGE_EGR_UPDATE) {
 			dev_err(adapter->pdev_dev, "unexpected FW4/CPL %#x on FW event queue\n"
 				, opcode);
@@ -438,7 +471,7 @@ static int fwevtq_handler(struct sge_rspq *rspq, const __be64 *rsp,
 		 * free TX Queue Descriptors ...
 		 */
 		const struct cpl_sge_egr_update *p = cpl;
-		unsigned int qid = EGR_QID(be32_to_cpu(p->opcode_qid));
+		unsigned int qid = EGR_QID_G(be32_to_cpu(p->opcode_qid));
 		struct sge *s = &adapter->sge;
 		struct sge_txq *tq;
 		struct sge_eth_txq *txq;
@@ -1030,10 +1063,10 @@ static int set_rxq_intr_params(struct adapter *adapter, struct sge_rspq *rspq,
 
 		pktcnt_idx = closest_thres(&adapter->sge, cnt);
 		if (rspq->desc && rspq->pktcnt_idx != pktcnt_idx) {
-			v = FW_PARAMS_MNEM(FW_PARAMS_MNEM_DMAQ) |
-			    FW_PARAMS_PARAM_X(
+			v = FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DMAQ) |
+			    FW_PARAMS_PARAM_X_V(
 					FW_PARAMS_PARAM_DMAQ_IQ_INTCNTTHRESH) |
-			    FW_PARAMS_PARAM_YZ(rspq->cntxt_id);
+			    FW_PARAMS_PARAM_YZ_V(rspq->cntxt_id);
 			err = t4vf_set_params(adapter, 1, &v, &pktcnt_idx);
 			if (err)
 				return err;
@@ -1193,24 +1226,103 @@ static void cxgb4vf_poll_controller(struct net_device *dev)
  * state of the port to which we're linked.
  */
 
-/*
- * Return current port link settings.
- */
-static int cxgb4vf_get_settings(struct net_device *dev,
-				struct ethtool_cmd *cmd)
+static unsigned int t4vf_from_fw_linkcaps(enum fw_port_type type,
+					  unsigned int caps)
 {
-	const struct port_info *pi = netdev_priv(dev);
+	unsigned int v = 0;
 
-	cmd->supported = pi->link_cfg.supported;
-	cmd->advertising = pi->link_cfg.advertising;
+	if (type == FW_PORT_TYPE_BT_SGMII || type == FW_PORT_TYPE_BT_XFI ||
+	    type == FW_PORT_TYPE_BT_XAUI) {
+		v |= SUPPORTED_TP;
+		if (caps & FW_PORT_CAP_SPEED_100M)
+			v |= SUPPORTED_100baseT_Full;
+		if (caps & FW_PORT_CAP_SPEED_1G)
+			v |= SUPPORTED_1000baseT_Full;
+		if (caps & FW_PORT_CAP_SPEED_10G)
+			v |= SUPPORTED_10000baseT_Full;
+	} else if (type == FW_PORT_TYPE_KX4 || type == FW_PORT_TYPE_KX) {
+		v |= SUPPORTED_Backplane;
+		if (caps & FW_PORT_CAP_SPEED_1G)
+			v |= SUPPORTED_1000baseKX_Full;
+		if (caps & FW_PORT_CAP_SPEED_10G)
+			v |= SUPPORTED_10000baseKX4_Full;
+	} else if (type == FW_PORT_TYPE_KR)
+		v |= SUPPORTED_Backplane | SUPPORTED_10000baseKR_Full;
+	else if (type == FW_PORT_TYPE_BP_AP)
+		v |= SUPPORTED_Backplane | SUPPORTED_10000baseR_FEC |
+		     SUPPORTED_10000baseKR_Full | SUPPORTED_1000baseKX_Full;
+	else if (type == FW_PORT_TYPE_BP4_AP)
+		v |= SUPPORTED_Backplane | SUPPORTED_10000baseR_FEC |
+		     SUPPORTED_10000baseKR_Full | SUPPORTED_1000baseKX_Full |
+		     SUPPORTED_10000baseKX4_Full;
+	else if (type == FW_PORT_TYPE_FIBER_XFI ||
+		 type == FW_PORT_TYPE_FIBER_XAUI ||
+		 type == FW_PORT_TYPE_SFP ||
+		 type == FW_PORT_TYPE_QSFP_10G ||
+		 type == FW_PORT_TYPE_QSA) {
+		v |= SUPPORTED_FIBRE;
+		if (caps & FW_PORT_CAP_SPEED_1G)
+			v |= SUPPORTED_1000baseT_Full;
+		if (caps & FW_PORT_CAP_SPEED_10G)
+			v |= SUPPORTED_10000baseT_Full;
+	} else if (type == FW_PORT_TYPE_BP40_BA ||
+		   type == FW_PORT_TYPE_QSFP) {
+		v |= SUPPORTED_40000baseSR4_Full;
+		v |= SUPPORTED_FIBRE;
+	}
+
+	if (caps & FW_PORT_CAP_ANEG)
+		v |= SUPPORTED_Autoneg;
+	return v;
+}
+
+static int cxgb4vf_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+{
+	const struct port_info *p = netdev_priv(dev);
+
+	if (p->port_type == FW_PORT_TYPE_BT_SGMII ||
+	    p->port_type == FW_PORT_TYPE_BT_XFI ||
+	    p->port_type == FW_PORT_TYPE_BT_XAUI)
+		cmd->port = PORT_TP;
+	else if (p->port_type == FW_PORT_TYPE_FIBER_XFI ||
+		 p->port_type == FW_PORT_TYPE_FIBER_XAUI)
+		cmd->port = PORT_FIBRE;
+	else if (p->port_type == FW_PORT_TYPE_SFP ||
+		 p->port_type == FW_PORT_TYPE_QSFP_10G ||
+		 p->port_type == FW_PORT_TYPE_QSA ||
+		 p->port_type == FW_PORT_TYPE_QSFP) {
+		if (p->mod_type == FW_PORT_MOD_TYPE_LR ||
+		    p->mod_type == FW_PORT_MOD_TYPE_SR ||
+		    p->mod_type == FW_PORT_MOD_TYPE_ER ||
+		    p->mod_type == FW_PORT_MOD_TYPE_LRM)
+			cmd->port = PORT_FIBRE;
+		else if (p->mod_type == FW_PORT_MOD_TYPE_TWINAX_PASSIVE ||
+			 p->mod_type == FW_PORT_MOD_TYPE_TWINAX_ACTIVE)
+			cmd->port = PORT_DA;
+		else
+			cmd->port = PORT_OTHER;
+	} else
+		cmd->port = PORT_OTHER;
+
+	if (p->mdio_addr >= 0) {
+		cmd->phy_address = p->mdio_addr;
+		cmd->transceiver = XCVR_EXTERNAL;
+		cmd->mdio_support = p->port_type == FW_PORT_TYPE_BT_SGMII ?
+			MDIO_SUPPORTS_C22 : MDIO_SUPPORTS_C45;
+	} else {
+		cmd->phy_address = 0;  /* not really, but no better option */
+		cmd->transceiver = XCVR_INTERNAL;
+		cmd->mdio_support = 0;
+	}
+
+	cmd->supported = t4vf_from_fw_linkcaps(p->port_type,
+					       p->link_cfg.supported);
+	cmd->advertising = t4vf_from_fw_linkcaps(p->port_type,
+					    p->link_cfg.advertising);
 	ethtool_cmd_speed_set(cmd,
-			      netif_carrier_ok(dev) ? pi->link_cfg.speed : -1);
+			      netif_carrier_ok(dev) ? p->link_cfg.speed : 0);
 	cmd->duplex = DUPLEX_FULL;
-
-	cmd->port = (cmd->supported & SUPPORTED_TP) ? PORT_TP : PORT_FIBRE;
-	cmd->phy_address = pi->port_id;
-	cmd->transceiver = XCVR_EXTERNAL;
-	cmd->autoneg = pi->link_cfg.autoneg;
+	cmd->autoneg = p->link_cfg.autoneg;
 	cmd->maxtxpkt = 0;
 	cmd->maxrxpkt = 0;
 	return 0;
@@ -1230,14 +1342,14 @@ static void cxgb4vf_get_drvinfo(struct net_device *dev,
 		sizeof(drvinfo->bus_info));
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
 		 "%u.%u.%u.%u, TP %u.%u.%u.%u",
-		 FW_HDR_FW_VER_MAJOR_GET(adapter->params.dev.fwrev),
-		 FW_HDR_FW_VER_MINOR_GET(adapter->params.dev.fwrev),
-		 FW_HDR_FW_VER_MICRO_GET(adapter->params.dev.fwrev),
-		 FW_HDR_FW_VER_BUILD_GET(adapter->params.dev.fwrev),
-		 FW_HDR_FW_VER_MAJOR_GET(adapter->params.dev.tprev),
-		 FW_HDR_FW_VER_MINOR_GET(adapter->params.dev.tprev),
-		 FW_HDR_FW_VER_MICRO_GET(adapter->params.dev.tprev),
-		 FW_HDR_FW_VER_BUILD_GET(adapter->params.dev.tprev));
+		 FW_HDR_FW_VER_MAJOR_G(adapter->params.dev.fwrev),
+		 FW_HDR_FW_VER_MINOR_G(adapter->params.dev.fwrev),
+		 FW_HDR_FW_VER_MICRO_G(adapter->params.dev.fwrev),
+		 FW_HDR_FW_VER_BUILD_G(adapter->params.dev.fwrev),
+		 FW_HDR_FW_VER_MAJOR_G(adapter->params.dev.tprev),
+		 FW_HDR_FW_VER_MINOR_G(adapter->params.dev.tprev),
+		 FW_HDR_FW_VER_MICRO_G(adapter->params.dev.tprev),
+		 FW_HDR_FW_VER_BUILD_G(adapter->params.dev.tprev));
 }
 
 /*
@@ -1561,7 +1673,7 @@ static void cxgb4vf_get_regs(struct net_device *dev,
 	reg_block_dump(adapter, regbuf,
 		       T4VF_PL_BASE_ADDR + T4VF_MOD_MAP_PL_FIRST,
 		       T4VF_PL_BASE_ADDR + (is_t4(adapter->params.chip)
-		       ? A_PL_VF_WHOAMI : A_PL_VF_REVISION));
+		       ? PL_VF_WHOAMI_A : PL_VF_REVISION_A));
 	reg_block_dump(adapter, regbuf,
 		       T4VF_CIM_BASE_ADDR + T4VF_MOD_MAP_CIM_FIRST,
 		       T4VF_CIM_BASE_ADDR + T4VF_MOD_MAP_CIM_LAST);
@@ -2095,7 +2207,6 @@ static int adap_init0(struct adapter *adapter)
 	unsigned int ethqsets;
 	int err;
 	u32 param, val = 0;
-	unsigned int chipid;
 
 	/*
 	 * Wait for the device to become ready before proceeding ...
@@ -2121,17 +2232,6 @@ static int adap_init0(struct adapter *adapter)
 	if (err < 0) {
 		dev_err(adapter->pdev_dev, "FW reset failed: err=%d\n", err);
 		return err;
-	}
-
-	adapter->params.chip = 0;
-	switch (adapter->pdev->device >> 12) {
-	case CHELSIO_T4:
-		adapter->params.chip = CHELSIO_CHIP_CODE(CHELSIO_T4, 0);
-		break;
-	case CHELSIO_T5:
-		chipid = G_REV(t4_read_reg(adapter, A_PL_VF_REV));
-		adapter->params.chip |= CHELSIO_CHIP_CODE(CHELSIO_T5, chipid);
-		break;
 	}
 
 	/*
@@ -2184,8 +2284,8 @@ static int adap_init0(struct adapter *adapter)
 	 * firmware won't understand this and we'll just get
 	 * unencapsulated messages ...
 	 */
-	param = FW_PARAMS_MNEM(FW_PARAMS_MNEM_PFVF) |
-		FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_PFVF_CPLFW4MSG_ENCAP);
+	param = FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_PFVF) |
+		FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_PFVF_CPLFW4MSG_ENCAP);
 	val = 1;
 	(void) t4vf_set_params(adapter, 1, &param, &val);
 
@@ -2194,26 +2294,22 @@ static int adap_init0(struct adapter *adapter)
 	 * threshold values from the SGE parameters.
 	 */
 	s->timer_val[0] = core_ticks_to_us(adapter,
-		TIMERVALUE0_GET(sge_params->sge_timer_value_0_and_1));
+		TIMERVALUE0_G(sge_params->sge_timer_value_0_and_1));
 	s->timer_val[1] = core_ticks_to_us(adapter,
-		TIMERVALUE1_GET(sge_params->sge_timer_value_0_and_1));
+		TIMERVALUE1_G(sge_params->sge_timer_value_0_and_1));
 	s->timer_val[2] = core_ticks_to_us(adapter,
-		TIMERVALUE0_GET(sge_params->sge_timer_value_2_and_3));
+		TIMERVALUE0_G(sge_params->sge_timer_value_2_and_3));
 	s->timer_val[3] = core_ticks_to_us(adapter,
-		TIMERVALUE1_GET(sge_params->sge_timer_value_2_and_3));
+		TIMERVALUE1_G(sge_params->sge_timer_value_2_and_3));
 	s->timer_val[4] = core_ticks_to_us(adapter,
-		TIMERVALUE0_GET(sge_params->sge_timer_value_4_and_5));
+		TIMERVALUE0_G(sge_params->sge_timer_value_4_and_5));
 	s->timer_val[5] = core_ticks_to_us(adapter,
-		TIMERVALUE1_GET(sge_params->sge_timer_value_4_and_5));
+		TIMERVALUE1_G(sge_params->sge_timer_value_4_and_5));
 
-	s->counter_val[0] =
-		THRESHOLD_0_GET(sge_params->sge_ingress_rx_threshold);
-	s->counter_val[1] =
-		THRESHOLD_1_GET(sge_params->sge_ingress_rx_threshold);
-	s->counter_val[2] =
-		THRESHOLD_2_GET(sge_params->sge_ingress_rx_threshold);
-	s->counter_val[3] =
-		THRESHOLD_3_GET(sge_params->sge_ingress_rx_threshold);
+	s->counter_val[0] = THRESHOLD_0_G(sge_params->sge_ingress_rx_threshold);
+	s->counter_val[1] = THRESHOLD_1_G(sge_params->sge_ingress_rx_threshold);
+	s->counter_val[2] = THRESHOLD_2_G(sge_params->sge_ingress_rx_threshold);
+	s->counter_val[3] = THRESHOLD_3_G(sge_params->sge_ingress_rx_threshold);
 
 	/*
 	 * Grab our Virtual Interface resource allocation, extract the
@@ -2330,7 +2426,7 @@ static void cfg_queues(struct adapter *adapter)
 	 */
 	n10g = 0;
 	for_each_port(adapter, pidx)
-		n10g += is_10g_port(&adap2pinfo(adapter, pidx)->link_cfg);
+		n10g += is_x_10g_port(&adap2pinfo(adapter, pidx)->link_cfg);
 
 	/*
 	 * We default to 1 queue per non-10G port and up to # of cores queues
@@ -2594,6 +2690,27 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 		goto err_free_adapter;
 	}
 
+	/* Wait for the device to become ready before proceeding ...
+	 */
+	err = t4vf_prep_adapter(adapter);
+	if (err) {
+		dev_err(adapter->pdev_dev, "device didn't become ready:"
+			" err=%d\n", err);
+		goto err_unmap_bar0;
+	}
+
+	/* For T5 and later we want to use the new BAR-based User Doorbells,
+	 * so we need to map BAR2 here ...
+	 */
+	if (!is_t4(adapter->params.chip)) {
+		adapter->bar2 = ioremap_wc(pci_resource_start(pdev, 2),
+					   pci_resource_len(pdev, 2));
+		if (!adapter->bar2) {
+			dev_err(adapter->pdev_dev, "cannot map BAR2 doorbells\n");
+			err = -ENOMEM;
+			goto err_unmap_bar0;
+		}
+	}
 	/*
 	 * Initialize adapter level features.
 	 */
@@ -2786,6 +2903,10 @@ err_free_dev:
 	}
 
 err_unmap_bar:
+	if (!is_t4(adapter->params.chip))
+		iounmap(adapter->bar2);
+
+err_unmap_bar0:
 	iounmap(adapter->regs);
 
 err_free_adapter:
@@ -2856,6 +2977,8 @@ static void cxgb4vf_pci_remove(struct pci_dev *pdev)
 			free_netdev(netdev);
 		}
 		iounmap(adapter->regs);
+		if (!is_t4(adapter->params.chip))
+			iounmap(adapter->bar2);
 		kfree(adapter);
 	}
 
@@ -2908,67 +3031,18 @@ static void cxgb4vf_pci_shutdown(struct pci_dev *pdev)
 	pci_set_drvdata(pdev, NULL);
 }
 
-/*
- * PCI Device registration data structures.
+/* Macros needed to support the PCI Device ID Table ...
  */
-#define CH_DEVICE(devid) \
-	{ PCI_VENDOR_ID_CHELSIO, devid, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }
+#define CH_PCI_DEVICE_ID_TABLE_DEFINE_BEGIN \
+	static const struct pci_device_id cxgb4vf_pci_tbl[] = {
+#define CH_PCI_DEVICE_ID_FUNCTION	0x8
 
-static const struct pci_device_id cxgb4vf_pci_tbl[] = {
-	CH_DEVICE(0xb000),	/* PE10K FPGA */
-	CH_DEVICE(0x4801),	/* T420-cr */
-	CH_DEVICE(0x4802),	/* T422-cr */
-	CH_DEVICE(0x4803),	/* T440-cr */
-	CH_DEVICE(0x4804),	/* T420-bch */
-	CH_DEVICE(0x4805),	/* T440-bch */
-	CH_DEVICE(0x4806),	/* T460-ch */
-	CH_DEVICE(0x4807),	/* T420-so */
-	CH_DEVICE(0x4808),	/* T420-cx */
-	CH_DEVICE(0x4809),	/* T420-bt */
-	CH_DEVICE(0x480a),	/* T404-bt */
-	CH_DEVICE(0x480d),	/* T480-cr */
-	CH_DEVICE(0x480e),	/* T440-lp-cr */
-	CH_DEVICE(0x4880),
-	CH_DEVICE(0x4880),
-	CH_DEVICE(0x4880),
-	CH_DEVICE(0x4880),
-	CH_DEVICE(0x4880),
-	CH_DEVICE(0x4880),
-	CH_DEVICE(0x4880),
-	CH_DEVICE(0x4880),
-	CH_DEVICE(0x4880),
-	CH_DEVICE(0x5801),	/* T520-cr */
-	CH_DEVICE(0x5802),	/* T522-cr */
-	CH_DEVICE(0x5803),	/* T540-cr */
-	CH_DEVICE(0x5804),	/* T520-bch */
-	CH_DEVICE(0x5805),	/* T540-bch */
-	CH_DEVICE(0x5806),	/* T540-ch */
-	CH_DEVICE(0x5807),	/* T520-so */
-	CH_DEVICE(0x5808),	/* T520-cx */
-	CH_DEVICE(0x5809),	/* T520-bt */
-	CH_DEVICE(0x580a),	/* T504-bt */
-	CH_DEVICE(0x580b),	/* T520-sr */
-	CH_DEVICE(0x580c),	/* T504-bt */
-	CH_DEVICE(0x580d),	/* T580-cr */
-	CH_DEVICE(0x580e),	/* T540-lp-cr */
-	CH_DEVICE(0x580f),	/* Amsterdam */
-	CH_DEVICE(0x5810),	/* T580-lp-cr */
-	CH_DEVICE(0x5811),	/* T520-lp-cr */
-	CH_DEVICE(0x5812),	/* T560-cr */
-	CH_DEVICE(0x5813),	/* T580-cr */
-	CH_DEVICE(0x5814),	/* T580-so-cr */
-	CH_DEVICE(0x5815),	/* T502-bt */
-	CH_DEVICE(0x5880),
-	CH_DEVICE(0x5881),
-	CH_DEVICE(0x5882),
-	CH_DEVICE(0x5883),
-	CH_DEVICE(0x5884),
-	CH_DEVICE(0x5885),
-	CH_DEVICE(0x5886),
-	CH_DEVICE(0x5887),
-	CH_DEVICE(0x5888),
-	{ 0, }
-};
+#define CH_PCI_ID_TABLE_ENTRY(devid) \
+		{ PCI_VDEVICE(CHELSIO, (devid)), 0 }
+
+#define CH_PCI_DEVICE_ID_TABLE_DEFINE_END { 0, } }
+
+#include "../cxgb4/t4_pci_id_tbl.h"
 
 MODULE_DESCRIPTION(DRV_DESC);
 MODULE_AUTHOR("Chelsio Communications");

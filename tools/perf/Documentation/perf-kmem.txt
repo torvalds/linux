@@ -25,6 +25,10 @@ OPTIONS
 --input=<file>::
 	Select the input file (default: perf.data unless stdin is a fifo)
 
+-v::
+--verbose::
+        Be more verbose. (show symbol address, etc)
+
 --caller::
 	Show per-callsite statistics
 

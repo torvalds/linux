@@ -22,7 +22,6 @@
 #include <linux/spinlock.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
-#include <linux/bootmem.h>
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/ioport.h>
@@ -498,7 +497,7 @@ int qe_upload_firmware(const struct qe_firmware *firmware)
 	 * saved microcode information and put in the new.
 	 */
 	memset(&qe_firmware_info, 0, sizeof(qe_firmware_info));
-	strcpy(qe_firmware_info.id, firmware->id);
+	strlcpy(qe_firmware_info.id, firmware->id, sizeof(qe_firmware_info.id));
 	qe_firmware_info.extended_modes = firmware->extended_modes;
 	memcpy(qe_firmware_info.vtraps, firmware->vtraps,
 		sizeof(firmware->vtraps));
@@ -584,8 +583,8 @@ struct qe_firmware_info *qe_get_firmware_info(void)
 	/* Copy the data into qe_firmware_info*/
 	sprop = of_get_property(fw, "id", NULL);
 	if (sprop)
-		strncpy(qe_firmware_info.id, sprop,
-			sizeof(qe_firmware_info.id) - 1);
+		strlcpy(qe_firmware_info.id, sprop,
+			sizeof(qe_firmware_info.id));
 
 	prop = of_find_property(fw, "extended-modes", NULL);
 	if (prop && (prop->length == sizeof(u64))) {
@@ -693,7 +692,6 @@ static const struct of_device_id qe_ids[] = {
 static struct platform_driver qe_driver = {
 	.driver = {
 		.name = "fsl-qe",
-		.owner = THIS_MODULE,
 		.of_match_table = qe_ids,
 	},
 	.probe = qe_probe,

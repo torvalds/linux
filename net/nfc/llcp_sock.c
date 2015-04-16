@@ -524,13 +524,13 @@ static int llcp_sock_getname(struct socket *sock, struct sockaddr *uaddr,
 
 static inline unsigned int llcp_accept_poll(struct sock *parent)
 {
-	struct nfc_llcp_sock *llcp_sock, *n, *parent_sock;
+	struct nfc_llcp_sock *llcp_sock, *parent_sock;
 	struct sock *sk;
 
 	parent_sock = nfc_llcp_sock(parent);
 
-	list_for_each_entry_safe(llcp_sock, n, &parent_sock->accept_queue,
-				 accept_queue) {
+	list_for_each_entry(llcp_sock, &parent_sock->accept_queue,
+			    accept_queue) {
 		sk = &llcp_sock->sk;
 
 		if (sk->sk_state == LLCP_CONNECTED)
@@ -750,8 +750,8 @@ error:
 	return ret;
 }
 
-static int llcp_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
-			     struct msghdr *msg, size_t len)
+static int llcp_sock_sendmsg(struct socket *sock, struct msghdr *msg,
+			     size_t len)
 {
 	struct sock *sk = sock->sk;
 	struct nfc_llcp_sock *llcp_sock = nfc_llcp_sock(sk);
@@ -793,8 +793,8 @@ static int llcp_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 	return nfc_llcp_send_i_frame(llcp_sock, msg, len);
 }
 
-static int llcp_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
-			     struct msghdr *msg, size_t len, int flags)
+static int llcp_sock_recvmsg(struct socket *sock, struct msghdr *msg,
+			     size_t len, int flags)
 {
 	int noblock = flags & MSG_DONTWAIT;
 	struct sock *sk = sock->sk;
@@ -832,7 +832,7 @@ static int llcp_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 	copied = min_t(unsigned int, rlen, len);
 
 	cskb = skb;
-	if (skb_copy_datagram_iovec(cskb, 0, msg->msg_iov, copied)) {
+	if (skb_copy_datagram_msg(cskb, 0, msg, copied)) {
 		if (!(flags & MSG_PEEK))
 			skb_queue_head(&sk->sk_receive_queue, skb);
 		return -EFAULT;

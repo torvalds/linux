@@ -27,6 +27,58 @@ static int get_free_idx(void)
 	return -ESRCH;
 }
 
+static bool tls_desc_okay(const struct user_desc *info)
+{
+	/*
+	 * For historical reasons (i.e. no one ever documented how any
+	 * of the segmentation APIs work), user programs can and do
+	 * assume that a struct user_desc that's all zeros except for
+	 * entry_number means "no segment at all".  This never actually
+	 * worked.  In fact, up to Linux 3.19, a struct user_desc like
+	 * this would create a 16-bit read-write segment with base and
+	 * limit both equal to zero.
+	 *
+	 * That was close enough to "no segment at all" until we
+	 * hardened this function to disallow 16-bit TLS segments.  Fix
+	 * it up by interpreting these zeroed segments the way that they
+	 * were almost certainly intended to be interpreted.
+	 *
+	 * The correct way to ask for "no segment at all" is to specify
+	 * a user_desc that satisfies LDT_empty.  To keep everything
+	 * working, we accept both.
+	 *
+	 * Note that there's a similar kludge in modify_ldt -- look at
+	 * the distinction between modes 1 and 0x11.
+	 */
+	if (LDT_empty(info) || LDT_zero(info))
+		return true;
+
+	/*
+	 * espfix is required for 16-bit data segments, but espfix
+	 * only works for LDT segments.
+	 */
+	if (!info->seg_32bit)
+		return false;
+
+	/* Only allow data segments in the TLS array. */
+	if (info->contents > 1)
+		return false;
+
+	/*
+	 * Non-present segments with DPL 3 present an interesting attack
+	 * surface.  The kernel should handle such segments correctly,
+	 * but TLS is very difficult to protect in a sandbox, so prevent
+	 * such segments from being created.
+	 *
+	 * If userspace needs to remove a TLS entry, it can still delete
+	 * it outright.
+	 */
+	if (info->seg_not_present)
+		return false;
+
+	return true;
+}
+
 static void set_tls_desc(struct task_struct *p, int idx,
 			 const struct user_desc *info, int n)
 {
@@ -40,7 +92,7 @@ static void set_tls_desc(struct task_struct *p, int idx,
 	cpu = get_cpu();
 
 	while (n-- > 0) {
-		if (LDT_empty(info))
+		if (LDT_empty(info) || LDT_zero(info))
 			desc->a = desc->b = 0;
 		else
 			fill_ldt(desc, info);
@@ -65,6 +117,9 @@ int do_set_thread_area(struct task_struct *p, int idx,
 
 	if (copy_from_user(&info, u_info, sizeof(info)))
 		return -EFAULT;
+
+	if (!tls_desc_okay(&info))
+		return -EINVAL;
 
 	if (idx == -1)
 		idx = info.entry_number;
@@ -192,6 +247,7 @@ int regset_tls_set(struct task_struct *target, const struct user_regset *regset,
 {
 	struct user_desc infobuf[GDT_ENTRY_TLS_ENTRIES];
 	const struct user_desc *info;
+	int i;
 
 	if (pos >= GDT_ENTRY_TLS_ENTRIES * sizeof(struct user_desc) ||
 	    (pos % sizeof(struct user_desc)) != 0 ||
@@ -204,6 +260,10 @@ int regset_tls_set(struct task_struct *target, const struct user_regset *regset,
 		return -EFAULT;
 	else
 		info = infobuf;
+
+	for (i = 0; i < count / sizeof(struct user_desc); i++)
+		if (!tls_desc_okay(info + i))
+			return -EINVAL;
 
 	set_tls_desc(target,
 		     GDT_ENTRY_TLS_MIN + (pos / sizeof(struct user_desc)),

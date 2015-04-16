@@ -98,12 +98,6 @@ config XTENSA_VARIANT_DC233C
 	help
 	  This variant refers to Tensilica's Diamond 233L Standard core Rev.C (LE).
 
-config XTENSA_VARIANT_S6000
-	bool "s6000 - Stretch software configurable processor"
-	select VARIANT_IRQ_SWITCH
-	select ARCH_REQUIRE_GPIOLIB
-	select XTENSA_CALIBRATE_CCOUNT
-
 config XTENSA_VARIANT_CUSTOM
 	bool "Custom Xtensa processor configuration"
 	select MAY_HAVE_SMP
@@ -126,7 +120,6 @@ config XTENSA_VARIANT_NAME
 	default "dc232b"			if XTENSA_VARIANT_DC232B
 	default "dc233c"			if XTENSA_VARIANT_DC233C
 	default "fsf"				if XTENSA_VARIANT_FSF
-	default "s6000"				if XTENSA_VARIANT_S6000
 	default XTENSA_VARIANT_CUSTOM_NAME	if XTENSA_VARIANT_CUSTOM
 
 config XTENSA_VARIANT_MMU
@@ -191,7 +184,6 @@ config HOTPLUG_CPU
 
 config INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
 	bool "Initialize Xtensa MMU inside the Linux kernel code"
-	depends on MMU
 	default y
 	help
 	  Earlier version initialized the MMU in the exception vector
@@ -311,16 +303,11 @@ config XTENSA_PLATFORM_XT2000
 	  XT2000 is the name of Tensilica's feature-rich emulation platform.
 	  This hardware is capable of running a full Linux distribution.
 
-config XTENSA_PLATFORM_S6105
-	bool "S6105"
-	select HAVE_IDE
-	select SERIAL_CONSOLE
-	select NO_IOPORT_MAP
-
 config XTENSA_PLATFORM_XTFPGA
 	bool "XTFPGA"
+	select ETHOC if ETHERNET
+	select PLATFORM_WANT_DEFAULT_MEM
 	select SERIAL_CONSOLE
-	select ETHOC
 	select XTENSA_CALIBRATE_CCOUNT
 	help
 	  XTFPGA is the name of Tensilica board family (LX60, LX110, LX200, ML605).
@@ -367,7 +354,7 @@ config BUILTIN_DTB
 config BLK_DEV_SIMDISK
 	tristate "Host file-based simulated block device support"
 	default n
-	depends on XTENSA_PLATFORM_ISS
+	depends on XTENSA_PLATFORM_ISS && BLOCK
 	help
 	  Create block devices that map to files in the host file system.
 	  Device binding to host file may be changed at runtime via proc
@@ -406,11 +393,52 @@ source "drivers/pcmcia/Kconfig"
 
 source "drivers/pci/hotplug/Kconfig"
 
+config PLATFORM_WANT_DEFAULT_MEM
+	def_bool n
+
+config DEFAULT_MEM_START
+	hex "Physical address of the default memory area start"
+	depends on PLATFORM_WANT_DEFAULT_MEM
+	default 0x00000000 if MMU
+	default 0x40000000 if !MMU
+	help
+	  This is a fallback start address of the default memory area, it is
+	  used when no physical memory size is passed through DTB or through
+	  boot parameter from bootloader.
+
+	  In noMMU configuration the following parameters are derived from it:
+	  - kernel load address;
+	  - kernel entry point address;
+	  - relocatable vectors base address;
+	  - uBoot load address;
+	  - TASK_SIZE.
+
+	  If unsure, leave the default value here.
+
+config DEFAULT_MEM_SIZE
+	hex "Maximal size of the default memory area"
+	depends on PLATFORM_WANT_DEFAULT_MEM
+	default 0x04000000
+	help
+	  This is a fallback size of the default memory area, it is used when
+	  no physical memory size is passed through DTB or through boot
+	  parameter from bootloader.
+
+	  It's also used for TASK_SIZE calculation in noMMU configuration.
+
+	  If unsure, leave the default value here.
+
 endmenu
 
 menu "Executable file formats"
 
 source "fs/Kconfig.binfmt"
+
+endmenu
+
+menu "Power management options"
+
+source "kernel/power/Kconfig"
 
 endmenu
 

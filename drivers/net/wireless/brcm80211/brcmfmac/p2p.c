@@ -21,12 +21,12 @@
 #include <brcmu_wifi.h>
 #include <brcmu_utils.h>
 #include <defs.h>
-#include <dhd.h>
-#include <dhd_dbg.h>
+#include "core.h"
+#include "debug.h"
 #include "fwil.h"
 #include "fwil_types.h"
 #include "p2p.h"
-#include "wl_cfg80211.h"
+#include "cfg80211.h"
 
 /* parameters used for p2p escan */
 #define P2PAPI_SCAN_NPROBES 1
@@ -697,7 +697,7 @@ static s32 brcmf_p2p_escan(struct brcmf_p2p_info *p2p, u32 num_chans,
 	else
 		sparams->scan_type = 1;
 
-	memset(&sparams->bssid, 0xFF, ETH_ALEN);
+	eth_broadcast_addr(sparams->bssid);
 	if (ssid.SSID_len)
 		memcpy(sparams->ssid_le.SSID, ssid.SSID, ssid.SSID_len);
 	sparams->ssid_le.SSID_len = cpu_to_le32(ssid.SSID_len);
@@ -2246,11 +2246,13 @@ static void brcmf_p2p_delete_p2pdev(struct brcmf_p2p_info *p2p,
  *
  * @wiphy: wiphy device of new interface.
  * @name: name of the new interface.
+ * @name_assign_type: origin of the interface name
  * @type: nl80211 interface type.
  * @flags: not used.
  * @params: contains mac address for P2P device.
  */
 struct wireless_dev *brcmf_p2p_add_vif(struct wiphy *wiphy, const char *name,
+				       unsigned char name_assign_type,
 				       enum nl80211_iftype type, u32 *flags,
 				       struct vif_params *params)
 {
@@ -2310,6 +2312,7 @@ struct wireless_dev *brcmf_p2p_add_vif(struct wiphy *wiphy, const char *name,
 	}
 
 	strncpy(ifp->ndev->name, name, sizeof(ifp->ndev->name) - 1);
+	ifp->ndev->name_assign_type = name_assign_type;
 	err = brcmf_net_attach(ifp, true);
 	if (err) {
 		brcmf_err("Registering netdevice failed\n");

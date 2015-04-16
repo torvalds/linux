@@ -428,14 +428,6 @@ static void elantech_report_trackpoint(struct psmouse *psmouse,
 	int x, y;
 	u32 t;
 
-	if (dev_WARN_ONCE(&psmouse->ps2dev.serio->dev,
-			  !tp_dev,
-			  psmouse_fmt("Unexpected trackpoint message\n"))) {
-		if (etd->debug == 1)
-			elantech_packet_dump(psmouse);
-		return;
-	}
-
 	t = get_unaligned_le32(&packet[0]);
 
 	switch (t & ~7U) {
@@ -563,6 +555,7 @@ static void elantech_input_sync_v4(struct psmouse *psmouse)
 	} else {
 		input_report_key(dev, BTN_LEFT, packet[0] & 0x01);
 		input_report_key(dev, BTN_RIGHT, packet[0] & 0x02);
+		input_report_key(dev, BTN_MIDDLE, packet[0] & 0x04);
 	}
 
 	input_mt_report_pointer_emulation(dev, true);
@@ -792,6 +785,9 @@ static int elantech_packet_check_v4(struct psmouse *psmouse)
 	unsigned char packet_type = packet[3] & 0x03;
 	bool sanity_check;
 
+	if (etd->tp_dev && (packet[3] & 0x0f) == 0x06)
+		return PACKET_TRACKPOINT;
+
 	/*
 	 * Sanity check based on the constant bits of a packet.
 	 * The constant bits change depending on the value of
@@ -877,14 +873,38 @@ static psmouse_ret_t elantech_process_byte(struct psmouse *psmouse)
 
 	case 4:
 		packet_type = elantech_packet_check_v4(psmouse);
-		if (packet_type == PACKET_UNKNOWN)
+		switch (packet_type) {
+		case PACKET_UNKNOWN:
 			return PSMOUSE_BAD_DATA;
 
-		elantech_report_absolute_v4(psmouse, packet_type);
+		case PACKET_TRACKPOINT:
+			elantech_report_trackpoint(psmouse, packet_type);
+			break;
+
+		default:
+			elantech_report_absolute_v4(psmouse, packet_type);
+			break;
+		}
+
 		break;
 	}
 
 	return PSMOUSE_FULL_PACKET;
+}
+
+/*
+ * This writes the reg_07 value again to the hardware at the end of every
+ * set_rate call because the register loses its value. reg_07 allows setting
+ * absolute mode on v4 hardware
+ */
+static void elantech_set_rate_restore_reg_07(struct psmouse *psmouse,
+		unsigned int rate)
+{
+	struct elantech_data *etd = psmouse->private;
+
+	etd->original_set_rate(psmouse, rate);
+	if (elantech_write_reg(psmouse, 0x07, etd->reg_07))
+		psmouse_err(psmouse, "restoring reg_07 failed\n");
 }
 
 /*
@@ -1089,9 +1109,13 @@ static int elantech_get_resolution_v4(struct psmouse *psmouse,
  * Asus K53SV              0x450f01        78, 15, 0c      2 hw buttons
  * Asus G46VW              0x460f02        00, 18, 0c      2 hw buttons
  * Asus G750JX             0x360f00        00, 16, 0c      2 hw buttons
+ * Asus TP500LN            0x381f17        10, 14, 0e      clickpad
+ * Asus X750JN             0x381f17        10, 14, 0e      clickpad
  * Asus UX31               0x361f00        20, 15, 0e      clickpad
  * Asus UX32VD             0x361f02        00, 15, 0e      clickpad
  * Avatar AVIU-145A2       0x361f00        ?               clickpad
+ * Fujitsu LIFEBOOK E544   0x470f00        d0, 12, 09      2 hw buttons
+ * Fujitsu LIFEBOOK E554   0x570f01        40, 14, 0c      2 hw buttons
  * Fujitsu H730            0x570f00        c0, 14, 0c      3 hw buttons (**)
  * Gigabyte U2442          0x450f01        58, 17, 0c      2 hw buttons
  * Lenovo L430             0x350f02        b9, 15, 0c      2 hw buttons (*)
@@ -1120,6 +1144,22 @@ static void elantech_set_buttonpad_prop(struct psmouse *psmouse)
 }
 
 /*
+ * Some hw_version 4 models do have a middle button
+ */
+static const struct dmi_system_id elantech_dmi_has_middle_button[] = {
+#if defined(CONFIG_DMI) && defined(CONFIG_X86)
+	{
+		/* Fujitsu H730 has a middle button */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "CELSIUS H730"),
+		},
+	},
+#endif
+	{ }
+};
+
+/*
  * Set the appropriate event bits for the input subsystem
  */
 static int elantech_set_input_params(struct psmouse *psmouse)
@@ -1138,6 +1178,8 @@ static int elantech_set_input_params(struct psmouse *psmouse)
 	__clear_bit(EV_REL, dev->evbit);
 
 	__set_bit(BTN_LEFT, dev->keybit);
+	if (dmi_check_system(elantech_dmi_has_middle_button))
+		__set_bit(BTN_MIDDLE, dev->keybit);
 	__set_bit(BTN_RIGHT, dev->keybit);
 
 	__set_bit(BTN_TOUCH, dev->keybit);
@@ -1299,6 +1341,7 @@ ELANTECH_INT_ATTR(reg_25, 0x25);
 ELANTECH_INT_ATTR(reg_26, 0x26);
 ELANTECH_INT_ATTR(debug, 0);
 ELANTECH_INT_ATTR(paritycheck, 0);
+ELANTECH_INT_ATTR(crc_enabled, 0);
 
 static struct attribute *elantech_attrs[] = {
 	&psmouse_attr_reg_07.dattr.attr,
@@ -1313,6 +1356,7 @@ static struct attribute *elantech_attrs[] = {
 	&psmouse_attr_reg_26.dattr.attr,
 	&psmouse_attr_debug.dattr.attr,
 	&psmouse_attr_paritycheck.dattr.attr,
+	&psmouse_attr_crc_enabled.dattr.attr,
 	NULL
 };
 
@@ -1439,6 +1483,36 @@ static int elantech_reconnect(struct psmouse *psmouse)
 }
 
 /*
+ * Some hw_version 4 models do not work with crc_disabled
+ */
+static const struct dmi_system_id elantech_dmi_force_crc_enabled[] = {
+#if defined(CONFIG_DMI) && defined(CONFIG_X86)
+	{
+		/* Fujitsu H730 does not work with crc_enabled == 0 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "CELSIUS H730"),
+		},
+	},
+	{
+		/* Fujitsu LIFEBOOK E554  does not work with crc_enabled == 0 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK E554"),
+		},
+	},
+	{
+		/* Fujitsu LIFEBOOK E544  does not work with crc_enabled == 0 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK E544"),
+		},
+	},
+#endif
+	{ }
+};
+
+/*
  * Some hw_version 3 models go into error state when we try to set
  * bit 3 and/or bit 1 of r10.
  */
@@ -1479,6 +1553,8 @@ static int elantech_set_properties(struct elantech_data *etd)
 		case 7:
 		case 8:
 		case 9:
+		case 10:
+		case 13:
 			etd->hw_version = 4;
 			break;
 		default:
@@ -1513,7 +1589,8 @@ static int elantech_set_properties(struct elantech_data *etd)
 	 * The signatures of v3 and v4 packets change depending on the
 	 * value of this hardware flag.
 	 */
-	etd->crc_enabled = ((etd->fw_version & 0x4000) == 0x4000);
+	etd->crc_enabled = (etd->fw_version & 0x4000) == 0x4000 ||
+			   dmi_check_system(elantech_dmi_force_crc_enabled);
 
 	/* Enable real hardware resolution on hw_version 3 ? */
 	etd->set_hw_resolution = !dmi_check_system(no_hw_res_dmi_table);
@@ -1573,6 +1650,11 @@ int elantech_init(struct psmouse *psmouse)
 		psmouse_err(psmouse,
 			    "failed to put touchpad into absolute mode.\n");
 		goto init_fail;
+	}
+
+	if (etd->fw_version == 0x381f17) {
+		etd->original_set_rate = psmouse->set_rate;
+		psmouse->set_rate = elantech_set_rate_restore_reg_07;
 	}
 
 	if (elantech_set_input_params(psmouse)) {

@@ -612,15 +612,10 @@ void iwl_tt_initialize(struct iwl_priv *priv)
 	memset(tt, 0, sizeof(struct iwl_tt_mgmt));
 
 	tt->state = IWL_TI_0;
-	init_timer(&priv->thermal_throttle.ct_kill_exit_tm);
-	priv->thermal_throttle.ct_kill_exit_tm.data = (unsigned long)priv;
-	priv->thermal_throttle.ct_kill_exit_tm.function =
-		iwl_tt_check_exit_ct_kill;
-	init_timer(&priv->thermal_throttle.ct_kill_waiting_tm);
-	priv->thermal_throttle.ct_kill_waiting_tm.data =
-		(unsigned long)priv;
-	priv->thermal_throttle.ct_kill_waiting_tm.function =
-		iwl_tt_ready_for_ct_kill;
+	setup_timer(&priv->thermal_throttle.ct_kill_exit_tm,
+		    iwl_tt_check_exit_ct_kill, (unsigned long)priv);
+	setup_timer(&priv->thermal_throttle.ct_kill_waiting_tm,
+		    iwl_tt_ready_for_ct_kill, (unsigned long)priv);
 	/* setup deferred ct kill work */
 	INIT_WORK(&priv->tt_work, iwl_bg_tt_work);
 	INIT_WORK(&priv->ct_enter, iwl_bg_ct_enter);

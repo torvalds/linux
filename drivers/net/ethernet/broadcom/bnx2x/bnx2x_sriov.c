@@ -193,6 +193,7 @@ void bnx2x_vfop_qctor_prep(struct bnx2x *bp,
 	/* Setup-op general parameters */
 	setup_p->gen_params.spcl_id = vf->sp_cl_id;
 	setup_p->gen_params.stat_id = vfq_stat_id(vf, q);
+	setup_p->gen_params.fp_hsi = vf->fp_hsi;
 
 	/* Setup-op pause params:
 	 * Nothing to do, the pause thresholds are set by default to 0 which
@@ -591,7 +592,7 @@ int bnx2x_vf_mcast(struct bnx2x *bp, struct bnx2x_virtf *vf,
 		mc = kzalloc(mc_num * sizeof(struct bnx2x_mcast_list_elem),
 			     GFP_KERNEL);
 		if (!mc) {
-			BNX2X_ERR("Cannot Configure mulicasts due to lack of memory\n");
+			BNX2X_ERR("Cannot Configure multicasts due to lack of memory\n");
 			return -ENOMEM;
 		}
 	}
@@ -2237,7 +2238,9 @@ int bnx2x_vf_close(struct bnx2x *bp, struct bnx2x_virtf *vf)
 
 		cookie.vf = vf;
 		cookie.state = VF_ACQUIRED;
-		bnx2x_stats_safe_exec(bp, bnx2x_set_vf_state, &cookie);
+		rc = bnx2x_stats_safe_exec(bp, bnx2x_set_vf_state, &cookie);
+		if (rc)
+			goto op_err;
 	}
 
 	DP(BNX2X_MSG_IOV, "set state to acquired\n");
@@ -2692,7 +2695,7 @@ int bnx2x_get_vf_config(struct net_device *dev, int vfidx,
 			memcpy(&ivi->mac, bulletin->mac, ETH_ALEN);
 		else
 			/* function has not been loaded yet. Show mac as 0s */
-			memset(&ivi->mac, 0, ETH_ALEN);
+			eth_zero_addr(ivi->mac);
 
 		/* vlan */
 		if (bulletin->valid_bitmap & (1 << VLAN_VALID))

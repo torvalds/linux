@@ -15,6 +15,10 @@
 		linux,initrd-end = <0x82800000>;
 	};
 
+	aliases {
+		serial0 = &uartd;
+	};
+
 	firmware {
 		trusted-foundations {
 			compatible = "tlm,trusted-foundations";
@@ -916,8 +920,6 @@
 						regulator-name = "vddio-sdmmc3";
 						regulator-min-microvolt = <1800000>;
 						regulator-max-microvolt = <3300000>;
-						regulator-always-on;
-						regulator-boot-on;
 					};
 
 					ldousb {
@@ -962,7 +964,7 @@
 	sdhci@78000400 {
 		status = "okay";
 		bus-width = <4>;
-		vmmc-supply = <&vddio_sdmmc3>;
+		vqmmc-supply = <&vddio_sdmmc3>;
 		cd-gpios = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_LOW>;
 		power-gpios = <&gpio TEGRA_GPIO(H, 0) GPIO_ACTIVE_HIGH>;
 	};
@@ -971,7 +973,6 @@
 	sdhci@78000600 {
 		status = "okay";
 		bus-width = <8>;
-		vmmc-supply = <&vdd_1v8>;
 		non-removable;
 	};
 

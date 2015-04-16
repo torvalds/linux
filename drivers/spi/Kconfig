@@ -29,7 +29,7 @@ menuconfig SPI
 if SPI
 
 config SPI_DEBUG
-	boolean "Debug support for SPI drivers"
+	bool "Debug support for SPI drivers"
 	depends on DEBUG_KERNEL
 	help
 	  Say "yes" to enable debug messaging (like dev_dbg and pr_debug),
@@ -40,8 +40,8 @@ config SPI_DEBUG
 #
 
 config SPI_MASTER
-#	boolean "SPI Master Support"
-	boolean
+#	bool "SPI Master Support"
+	bool
 	default SPI
 	help
 	  If your system has an master-capable SPI controller (which
@@ -159,10 +159,9 @@ config SPI_BUTTERFLY
 
 config SPI_CADENCE
 	tristate "Cadence SPI controller"
-	depends on ARM
 	help
 	  This selects the Cadence SPI controller master driver
-	  used by Xilinx Zynq.
+	  used by Xilinx Zynq and ZynqMP.
 
 config SPI_CLPS711X
 	tristate "CLPS711X host SPI controller"
@@ -184,6 +183,16 @@ config SPI_DAVINCI
 	select SPI_BITBANG
 	help
 	  SPI master controller for DaVinci/DA8x/OMAP-L/AM1x SPI modules.
+
+config SPI_DLN2
+       tristate "Diolan DLN-2 USB SPI adapter"
+       depends on MFD_DLN2
+       help
+         If you say yes to this option, support will be included for Diolan
+         DLN2, a USB to SPI interface.
+
+         This driver can also be built as a module.  If so, the module
+         will be called spi-dln2.
 
 config SPI_EFM32
 	tristate "EFM32 SPI controller"
@@ -224,6 +233,13 @@ config SPI_GPIO
 	  making it unusually slow for SPI.  If your platform can inline
 	  GPIO operations, you should be able to leverage that for better
 	  speed with a custom version of this driver; see the source code.
+
+config SPI_IMG_SPFI
+	tristate "IMG SPFI controller"
+	depends on MIPS || COMPILE_TEST
+	help
+	  This enables support for the SPFI master controller found on
+	  IMG SoCs.
 
 config SPI_IMX
 	tristate "Freescale i.MX SPI controllers"
@@ -272,7 +288,7 @@ config SPI_FSL_CPM
 	depends on FSL_SOC
 
 config SPI_FSL_SPI
-	bool "Freescale SPI controller and Aeroflex Gaisler GRLIB SPI controller"
+	tristate "Freescale SPI controller and Aeroflex Gaisler GRLIB SPI controller"
 	depends on OF
 	select SPI_FSL_LIB
 	select SPI_FSL_CPM if FSL_SOC
@@ -285,7 +301,6 @@ config SPI_FSL_SPI
 
 config SPI_FSL_DSPI
 	tristate "Freescale DSPI controller"
-	select SPI_BITBANG
 	select REGMAP_MMIO
 	depends on SOC_VF610 || COMPILE_TEST
 	help
@@ -293,13 +308,21 @@ config SPI_FSL_DSPI
 	  mode. VF610 platform uses the controller.
 
 config SPI_FSL_ESPI
-	bool "Freescale eSPI controller"
+	tristate "Freescale eSPI controller"
 	depends on FSL_SOC
 	select SPI_FSL_LIB
 	help
 	  This enables using the Freescale eSPI controllers in master mode.
 	  From MPC8536, 85xx platform uses the controller, and all P10xx,
 	  P20xx, P30xx,P40xx, P50xx uses this controller.
+
+config SPI_MESON_SPIFC
+	tristate "Amlogic Meson SPIFC controller"
+	depends on ARCH_MESON || COMPILE_TEST
+	select REGMAP_MMIO
+	help
+	  This enables master mode support for the SPIFC (SPI flash
+	  controller) available in Amlogic Meson SoCs.
 
 config SPI_OC_TINY
 	tristate "OpenCores tiny SPI"
@@ -444,8 +467,7 @@ config SPI_S3C24XX_FIQ
 
 config SPI_S3C64XX
 	tristate "Samsung S3C64XX series type SPI"
-	depends on PLAT_SAMSUNG
-	select S3C64XX_PL080 if ARCH_S3C64XX
+	depends on (PLAT_SAMSUNG || ARCH_EXYNOS)
 	help
 	  SPI driver for Samsung S3C64XX and newer SoCs.
 
@@ -487,6 +509,13 @@ config SPI_SIRF
 	select SPI_BITBANG
 	help
 	  SPI driver for CSR SiRFprimaII SoCs
+
+config SPI_ST_SSC4
+	tristate "STMicroelectronics SPI SSC-based driver"
+	depends on ARCH_STI
+	help
+	  STMicroelectronics SoCs support for SPI. If you say yes to
+	  this option, support will be included for the SSC driven SPI.
 
 config SPI_SUN4I
 	tristate "Allwinner A10 SoCs SPI controller"
@@ -580,7 +609,6 @@ config SPI_XTENSA_XTFPGA
 	  16 bit words in SPI mode 0, automatically asserting CS on transfer
 	  start and deasserting on end.
 
-
 config SPI_NUC900
 	tristate "Nuvoton NUC900 series SPI"
 	depends on ARCH_W90X900
@@ -603,7 +631,7 @@ config SPI_DW_PCI
 
 config SPI_DW_MID_DMA
 	bool "DMA support for DW SPI controller on Intel MID platform"
-	depends on SPI_DW_PCI && INTEL_MID_DMAC
+	depends on SPI_DW_PCI && DW_DMAC_PCI
 
 config SPI_DW_MMIO
 	tristate "Memory-mapped io interface driver for DW SPI core"

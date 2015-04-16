@@ -472,15 +472,12 @@ static struct list_head *rds_ib_recv_cache_get(struct rds_ib_refill_cache *cache
 	return head;
 }
 
-int rds_ib_inc_copy_to_user(struct rds_incoming *inc, struct iovec *first_iov,
-			    size_t size)
+int rds_ib_inc_copy_to_user(struct rds_incoming *inc, struct iov_iter *to)
 {
 	struct rds_ib_incoming *ibinc;
 	struct rds_page_frag *frag;
-	struct iovec *iov = first_iov;
 	unsigned long to_copy;
 	unsigned long frag_off = 0;
-	unsigned long iov_off = 0;
 	int copied = 0;
 	int ret;
 	u32 len;
@@ -489,37 +486,25 @@ int rds_ib_inc_copy_to_user(struct rds_incoming *inc, struct iovec *first_iov,
 	frag = list_entry(ibinc->ii_frags.next, struct rds_page_frag, f_item);
 	len = be32_to_cpu(inc->i_hdr.h_len);
 
-	while (copied < size && copied < len) {
+	while (iov_iter_count(to) && copied < len) {
 		if (frag_off == RDS_FRAG_SIZE) {
 			frag = list_entry(frag->f_item.next,
 					  struct rds_page_frag, f_item);
 			frag_off = 0;
 		}
-		while (iov_off == iov->iov_len) {
-			iov_off = 0;
-			iov++;
-		}
-
-		to_copy = min(iov->iov_len - iov_off, RDS_FRAG_SIZE - frag_off);
-		to_copy = min_t(size_t, to_copy, size - copied);
+		to_copy = min_t(unsigned long, iov_iter_count(to),
+				RDS_FRAG_SIZE - frag_off);
 		to_copy = min_t(unsigned long, to_copy, len - copied);
 
-		rdsdebug("%lu bytes to user [%p, %zu] + %lu from frag "
-			 "[%p, %u] + %lu\n",
-			 to_copy, iov->iov_base, iov->iov_len, iov_off,
-			 sg_page(&frag->f_sg), frag->f_sg.offset, frag_off);
-
 		/* XXX needs + offset for multiple recvs per page */
-		ret = rds_page_copy_to_user(sg_page(&frag->f_sg),
-					    frag->f_sg.offset + frag_off,
-					    iov->iov_base + iov_off,
-					    to_copy);
-		if (ret) {
-			copied = ret;
-			break;
-		}
+		rds_stats_add(s_copy_to_user, to_copy);
+		ret = copy_page_to_iter(sg_page(&frag->f_sg),
+					frag->f_sg.offset + frag_off,
+					to_copy,
+					to);
+		if (ret != to_copy)
+			return -EFAULT;
 
-		iov_off += to_copy;
 		frag_off += to_copy;
 		copied += to_copy;
 	}

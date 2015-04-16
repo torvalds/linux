@@ -258,7 +258,8 @@ void usb_serial_generic_wait_until_sent(struct tty_struct *tty, long timeout)
 	 * character or at least one jiffy.
 	 */
 	period = max_t(unsigned long, (10 * HZ / bps), 1);
-	period = min_t(unsigned long, period, timeout);
+	if (timeout)
+		period = min_t(unsigned long, period, timeout);
 
 	dev_dbg(&port->dev, "%s - timeout = %u ms, period = %u ms\n",
 					__func__, jiffies_to_msecs(timeout),
@@ -268,7 +269,7 @@ void usb_serial_generic_wait_until_sent(struct tty_struct *tty, long timeout)
 		schedule_timeout_interruptible(period);
 		if (signal_pending(current))
 			break;
-		if (time_after(jiffies, expire))
+		if (timeout && time_after(jiffies, expire))
 			break;
 	}
 }
@@ -286,7 +287,7 @@ static int usb_serial_generic_submit_read_urb(struct usb_serial_port *port,
 
 	res = usb_submit_urb(port->read_urbs[index], mem_flags);
 	if (res) {
-		if (res != -EPERM) {
+		if (res != -EPERM && res != -ENODEV) {
 			dev_err(&port->dev,
 					"%s - usb_submit_urb failed: %d\n",
 					__func__, res);
@@ -373,7 +374,7 @@ void usb_serial_generic_read_bulk_callback(struct urb *urb)
 							__func__, urb->status);
 		return;
 	default:
-		dev_err(&port->dev, "%s - nonzero urb status: %d\n",
+		dev_dbg(&port->dev, "%s - nonzero urb status: %d\n",
 							__func__, urb->status);
 		goto resubmit;
 	}

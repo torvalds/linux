@@ -109,6 +109,38 @@ struct gpio_desc *__must_check __devm_gpiod_get_index(struct device *dev,
 EXPORT_SYMBOL(__devm_gpiod_get_index);
 
 /**
+ * devm_get_gpiod_from_child - get a GPIO descriptor from a device's child node
+ * @dev:	GPIO consumer
+ * @child:	firmware node (child of @dev)
+ *
+ * GPIO descriptors returned from this function are automatically disposed on
+ * driver detach.
+ */
+struct gpio_desc *devm_get_gpiod_from_child(struct device *dev,
+					    struct fwnode_handle *child)
+{
+	struct gpio_desc **dr;
+	struct gpio_desc *desc;
+
+	dr = devres_alloc(devm_gpiod_release, sizeof(struct gpio_desc *),
+			  GFP_KERNEL);
+	if (!dr)
+		return ERR_PTR(-ENOMEM);
+
+	desc = fwnode_get_named_gpiod(child, "gpios");
+	if (IS_ERR(desc)) {
+		devres_free(dr);
+		return desc;
+	}
+
+	*dr = desc;
+	devres_add(dev, dr);
+
+	return desc;
+}
+EXPORT_SYMBOL(devm_get_gpiod_from_child);
+
+/**
  * devm_gpiod_get_index_optional - Resource-managed gpiod_get_index_optional()
  * @dev: GPIO consumer
  * @con_id: function within the GPIO consumer

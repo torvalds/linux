@@ -9,6 +9,7 @@
  */
 
 #include <linux/bootmem.h>
+#include <asm/bootinfo.h>
 #include <asm/smp-ops.h>
 
 #include <loongson.h>

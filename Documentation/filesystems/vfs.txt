@@ -364,6 +364,7 @@ struct inode_operations {
 	int (*atomic_open)(struct inode *, struct dentry *, struct file *,
 			unsigned open_flag, umode_t create_mode, int *opened);
 	int (*tmpfile) (struct inode *, struct dentry *, umode_t);
+	int (*dentry_open)(struct dentry *, struct file *, const struct cred *);
 };
 
 Again, all methods are called without any locks being held, unless
@@ -590,8 +591,6 @@ struct address_space_operations {
 	int (*releasepage) (struct page *, int);
 	void (*freepage)(struct page *);
 	ssize_t (*direct_IO)(int, struct kiocb *, struct iov_iter *iter, loff_t offset);
-	struct page* (*get_xip_page)(struct address_space *, sector_t,
-			int);
 	/* migrate the contents of a page to the specified target */
 	int (*migratepage) (struct page *, struct page *);
 	int (*launder_page) (struct page *);
@@ -696,6 +695,12 @@ struct address_space_operations {
   	but instead uses bmap to find out where the blocks in the file
   	are and uses those addresses directly.
 
+  dentry_open: *WARNING: probably going away soon, do not use!* This is an
+	alternative to f_op->open(), the difference is that this method may open
+	a file not necessarily originating from the same filesystem as the one
+	i_op->open() was called on.  It may be useful for stacking filesystems
+	which want to allow native I/O directly on underlying files.
+
 
   invalidatepage: If a page has PagePrivate set, then invalidatepage
         will be called when part or all of the page is to be removed
@@ -740,11 +745,6 @@ struct address_space_operations {
         direct_IO - that is IO requests which bypass the page cache
         and transfer data directly between the storage and the
         application's address space.
-
-  get_xip_page: called by the VM to translate a block number to a page.
-	The page is valid until the corresponding filesystem is unmounted.
-	Filesystems that want to use execute-in-place (XIP) need to implement
-	it.  An example implementation can be found in fs/ext2/xip.c.
 
   migrate_page:  This is used to compact the physical memory usage.
         If the VM wants to relocate a page (maybe off a memory card
@@ -804,8 +804,6 @@ struct file_operations {
 	loff_t (*llseek) (struct file *, loff_t, int);
 	ssize_t (*read) (struct file *, char __user *, size_t, loff_t *);
 	ssize_t (*write) (struct file *, const char __user *, size_t, loff_t *);
-	ssize_t (*aio_read) (struct kiocb *, const struct iovec *, unsigned long, loff_t);
-	ssize_t (*aio_write) (struct kiocb *, const struct iovec *, unsigned long, loff_t);
 	ssize_t (*read_iter) (struct kiocb *, struct iov_iter *);
 	ssize_t (*write_iter) (struct kiocb *, struct iov_iter *);
 	int (*iterate) (struct file *, struct dir_context *);
@@ -828,7 +826,7 @@ struct file_operations {
 	ssize_t (*splice_read)(struct file *, struct pipe_inode_info *, size_t, unsigned int);
 	int (*setlease)(struct file *, long arg, struct file_lock **, void **);
 	long (*fallocate)(struct file *, int mode, loff_t offset, loff_t len);
-	int (*show_fdinfo)(struct seq_file *m, struct file *f);
+	void (*show_fdinfo)(struct seq_file *m, struct file *f);
 };
 
 Again, all methods are called without any locks being held, unless
@@ -838,13 +836,9 @@ otherwise noted.
 
   read: called by read(2) and related system calls
 
-  aio_read: vectored, possibly asynchronous read
-
   read_iter: possibly asynchronous read with iov_iter as destination
 
   write: called by write(2) and related system calls
-
-  aio_write: vectored, possibly asynchronous write
 
   write_iter: possibly asynchronous write with iov_iter as source
 

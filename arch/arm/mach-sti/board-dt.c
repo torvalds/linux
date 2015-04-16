@@ -18,6 +18,8 @@ static const char *stih41x_dt_match[] __initdata = {
 	"st,stih415",
 	"st,stih416",
 	"st,stih407",
+	"st,stih410",
+	"st,stih418",
 	NULL
 };
 

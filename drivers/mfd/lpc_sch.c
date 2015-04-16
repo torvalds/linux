@@ -75,6 +75,7 @@ static struct lpc_sch_info sch_chipset_info[] = {
 	[LPC_QUARK_X1000] = {
 		.io_size_gpio = GPIO_IO_SIZE,
 		.irq_gpio = GPIO_IRQ_QUARK_X1000,
+		.io_size_wdt = WDT_IO_SIZE,
 	},
 };
 
@@ -193,11 +194,7 @@ static int lpc_sch_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		return -ENODEV;
 	}
 
-	ret = mfd_add_devices(&dev->dev, 0, lpc_sch_cells, cells, NULL, 0, NULL);
-	if (ret)
-		mfd_remove_devices(&dev->dev);
-
-	return ret;
+	return mfd_add_devices(&dev->dev, 0, lpc_sch_cells, cells, NULL, 0, NULL);
 }
 
 static void lpc_sch_remove(struct pci_dev *dev)

@@ -33,6 +33,12 @@
 #define UL(x) _AC(x, UL)
 
 /*
+ * Size of the PCI I/O space. This must remain a power of two so that
+ * IO_SPACE_LIMIT acts as a mask for the low bits of I/O addresses.
+ */
+#define PCI_IO_SIZE		SZ_16M
+
+/*
  * PAGE_OFFSET - the virtual address of the start of the kernel image (top
  *		 (VA_BITS - 1))
  * VA_BITS - the maximum number of bits for virtual addresses.
@@ -45,7 +51,9 @@
 #define PAGE_OFFSET		(UL(0xffffffffffffffff) << (VA_BITS - 1))
 #define MODULES_END		(PAGE_OFFSET)
 #define MODULES_VADDR		(MODULES_END - SZ_64M)
-#define FIXADDR_TOP		(MODULES_VADDR - SZ_2M - PAGE_SIZE)
+#define PCI_IO_END		(MODULES_VADDR - SZ_2M)
+#define PCI_IO_START		(PCI_IO_END - PCI_IO_SIZE)
+#define FIXADDR_TOP		(PCI_IO_START - SZ_2M)
 #define TASK_SIZE_64		(UL(1) << VA_BITS)
 
 #ifdef CONFIG_COMPAT
@@ -120,11 +128,13 @@ extern phys_addr_t		memstart_addr;
  * translation for translating DMA addresses.  Use the driver
  * DMA support - see dma-mapping.h.
  */
+#define virt_to_phys virt_to_phys
 static inline phys_addr_t virt_to_phys(const volatile void *x)
 {
 	return __virt_to_phys((unsigned long)(x));
 }
 
+#define phys_to_virt phys_to_virt
 static inline void *phys_to_virt(phys_addr_t x)
 {
 	return (void *)(__phys_to_virt(x));
@@ -142,7 +152,7 @@ static inline void *phys_to_virt(phys_addr_t x)
  *  virt_to_page(k)	convert a _valid_ virtual address to struct page *
  *  virt_addr_valid(k)	indicates whether a virtual address is valid
  */
-#define ARCH_PFN_OFFSET		PHYS_PFN_OFFSET
+#define ARCH_PFN_OFFSET		((unsigned long)PHYS_PFN_OFFSET)
 
 #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
 #define	virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)

@@ -1,0 +1,34 @@
+Broadcom Cygnus Clocks
+
+This binding uses the common clock binding:
+Documentation/devicetree/bindings/clock/clock-bindings.txt
+
+Currently various "fixed" clocks are declared for peripheral drivers that use
+the common clock framework to reference their core clocks. Proper support of
+these clocks will be added later
+
+Device tree example:
+
+	clocks {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		osc: oscillator {
+			compatible = "fixed-clock";
+			#clock-cells = <1>;
+			clock-frequency = <25000000>;
+		};
+
+		apb_clk: apb_clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <1000000000>;
+		};
+
+		periph_clk: periph_clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <500000000>;
+		};
+	};

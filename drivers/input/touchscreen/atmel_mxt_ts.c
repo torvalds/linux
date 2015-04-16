@@ -25,6 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/of.h>
 #include <linux/slab.h>
+#include <asm/unaligned.h>
 
 /* Version */
 #define MXT_VER_20		20
@@ -79,6 +80,7 @@
 #define MXT_SPT_DIGITIZER_T43		43
 #define MXT_SPT_MESSAGECOUNT_T44	44
 #define MXT_SPT_CTECONFIG_T46		46
+#define MXT_TOUCH_MULTITOUCHSCREEN_T100 100
 
 /* MXT_GEN_MESSAGE_T5 object */
 #define MXT_RPTID_NOMSG		0xff
@@ -99,13 +101,9 @@
 #define MXT_T6_STATUS_COMSERR	(1 << 2)
 
 /* MXT_GEN_POWER_T7 field */
-struct t7_config {
-	u8 idle;
-	u8 active;
-} __packed;
-
-#define MXT_POWER_CFG_RUN		0
-#define MXT_POWER_CFG_DEEPSLEEP		1
+#define MXT_POWER_IDLEACQINT	0
+#define MXT_POWER_ACTVACQINT	1
+#define MXT_POWER_ACTV2IDLETO	2
 
 /* MXT_GEN_ACQUIRE_T8 field */
 #define MXT_ACQUIRE_CHRGTIME	0
@@ -117,6 +115,7 @@ struct t7_config {
 #define MXT_ACQUIRE_ATCHCALSTHR	7
 
 /* MXT_TOUCH_MULTI_T9 field */
+#define MXT_TOUCH_CTRL		0
 #define MXT_T9_ORIENT		9
 #define MXT_T9_RANGE		18
 
@@ -188,6 +187,36 @@ struct t9_range {
 #define MXT_RESET_VALUE		0x01
 #define MXT_BACKUP_VALUE	0x55
 
+/* T100 Multiple Touch Touchscreen */
+#define MXT_T100_CTRL		0
+#define MXT_T100_CFG1		1
+#define MXT_T100_TCHAUX		3
+#define MXT_T100_XRANGE		13
+#define MXT_T100_YRANGE		24
+
+#define MXT_T100_CFG_SWITCHXY	BIT(5)
+
+#define MXT_T100_TCHAUX_VECT	BIT(0)
+#define MXT_T100_TCHAUX_AMPL	BIT(1)
+#define MXT_T100_TCHAUX_AREA	BIT(2)
+
+#define MXT_T100_DETECT		BIT(7)
+#define MXT_T100_TYPE_MASK	0x70
+
+enum t100_type {
+	MXT_T100_TYPE_FINGER		= 1,
+	MXT_T100_TYPE_PASSIVE_STYLUS	= 2,
+	MXT_T100_TYPE_HOVERING_FINGER	= 4,
+	MXT_T100_TYPE_GLOVE		= 5,
+	MXT_T100_TYPE_LARGE_TOUCH	= 6,
+};
+
+#define MXT_DISTANCE_ACTIVE_TOUCH	0
+#define MXT_DISTANCE_HOVERING		1
+
+#define MXT_TOUCH_MAJOR_DEFAULT		1
+#define MXT_PRESSURE_DEFAULT		1
+
 /* Delay times */
 #define MXT_BACKUP_TIME		50	/* msec */
 #define MXT_RESET_TIME		200	/* msec */
@@ -247,6 +276,9 @@ struct mxt_data {
 	unsigned int max_y;
 	bool in_bootloader;
 	u16 mem_size;
+	u8 t100_aux_ampl;
+	u8 t100_aux_area;
+	u8 t100_aux_vect;
 	u8 max_reportid;
 	u32 config_crc;
 	u32 info_crc;
@@ -256,7 +288,7 @@ struct mxt_data {
 	bool update_input;
 	u8 last_message_count;
 	u8 num_touchids;
-	struct t7_config t7_cfg;
+	u8 multitouch;
 
 	/* Cached parameters from object table */
 	u16 T5_address;
@@ -268,6 +300,8 @@ struct mxt_data {
 	u8 T9_reportid_max;
 	u8 T19_reportid;
 	u16 T44_address;
+	u8 T100_reportid_min;
+	u8 T100_reportid_max;
 
 	/* for fw update in bootloader */
 	struct completion bl_completion;
@@ -672,6 +706,20 @@ static void mxt_proc_t6_messages(struct mxt_data *data, u8 *msg)
 	data->t6_status = status;
 }
 
+static int mxt_write_object(struct mxt_data *data,
+				 u8 type, u8 offset, u8 val)
+{
+	struct mxt_object *object;
+	u16 reg;
+
+	object = mxt_get_object(data, type);
+	if (!object || offset >= mxt_obj_size(object))
+		return -EINVAL;
+
+	reg = object->start_address;
+	return mxt_write_reg(data->client, reg + offset, val);
+}
+
 static void mxt_input_button(struct mxt_data *data, u8 *message)
 {
 	struct input_dev *input = data->input_dev;
@@ -761,6 +809,114 @@ static void mxt_proc_t9_message(struct mxt_data *data, u8 *message)
 	data->update_input = true;
 }
 
+static void mxt_proc_t100_message(struct mxt_data *data, u8 *message)
+{
+	struct device *dev = &data->client->dev;
+	struct input_dev *input_dev = data->input_dev;
+	int id;
+	u8 status;
+	u8 type = 0;
+	u16 x;
+	u16 y;
+	int distance = 0;
+	int tool = 0;
+	u8 major = 0;
+	u8 pressure = 0;
+	u8 orientation = 0;
+
+	id = message[0] - data->T100_reportid_min - 2;
+
+	/* ignore SCRSTATUS events */
+	if (id < 0)
+		return;
+
+	status = message[1];
+	x = get_unaligned_le16(&message[2]);
+	y = get_unaligned_le16(&message[4]);
+
+	if (status & MXT_T100_DETECT) {
+		type = (status & MXT_T100_TYPE_MASK) >> 4;
+
+		switch (type) {
+		case MXT_T100_TYPE_HOVERING_FINGER:
+			tool = MT_TOOL_FINGER;
+			distance = MXT_DISTANCE_HOVERING;
+
+			if (data->t100_aux_vect)
+				orientation = message[data->t100_aux_vect];
+
+			break;
+
+		case MXT_T100_TYPE_FINGER:
+		case MXT_T100_TYPE_GLOVE:
+			tool = MT_TOOL_FINGER;
+			distance = MXT_DISTANCE_ACTIVE_TOUCH;
+
+			if (data->t100_aux_area)
+				major = message[data->t100_aux_area];
+
+			if (data->t100_aux_ampl)
+				pressure = message[data->t100_aux_ampl];
+
+			if (data->t100_aux_vect)
+				orientation = message[data->t100_aux_vect];
+
+			break;
+
+		case MXT_T100_TYPE_PASSIVE_STYLUS:
+			tool = MT_TOOL_PEN;
+
+			/*
+			 * Passive stylus is reported with size zero so
+			 * hardcode.
+			 */
+			major = MXT_TOUCH_MAJOR_DEFAULT;
+
+			if (data->t100_aux_ampl)
+				pressure = message[data->t100_aux_ampl];
+
+			break;
+
+		case MXT_T100_TYPE_LARGE_TOUCH:
+			/* Ignore suppressed touch */
+			break;
+
+		default:
+			dev_dbg(dev, "Unexpected T100 type\n");
+			return;
+		}
+	}
+
+	/*
+	 * Values reported should be non-zero if tool is touching the
+	 * device
+	 */
+	if (!pressure && type != MXT_T100_TYPE_HOVERING_FINGER)
+		pressure = MXT_PRESSURE_DEFAULT;
+
+	input_mt_slot(input_dev, id);
+
+	if (status & MXT_T100_DETECT) {
+		dev_dbg(dev, "[%u] type:%u x:%u y:%u a:%02X p:%02X v:%02X\n",
+			id, type, x, y, major, pressure, orientation);
+
+		input_mt_report_slot_state(input_dev, tool, 1);
+		input_report_abs(input_dev, ABS_MT_POSITION_X, x);
+		input_report_abs(input_dev, ABS_MT_POSITION_Y, y);
+		input_report_abs(input_dev, ABS_MT_TOUCH_MAJOR, major);
+		input_report_abs(input_dev, ABS_MT_PRESSURE, pressure);
+		input_report_abs(input_dev, ABS_MT_DISTANCE, distance);
+		input_report_abs(input_dev, ABS_MT_ORIENTATION, orientation);
+	} else {
+		dev_dbg(dev, "[%u] release\n", id);
+
+		/* close out slot */
+		input_mt_report_slot_state(input_dev, 0, 0);
+	}
+
+	data->update_input = true;
+}
+
 static int mxt_proc_message(struct mxt_data *data, u8 *message)
 {
 	u8 report_id = message[0];
@@ -776,9 +932,12 @@ static int mxt_proc_message(struct mxt_data *data, u8 *message)
 		 * is not yet registered.
 		 */
 		mxt_dump_message(data, message);
-	} else if (report_id >= data->T9_reportid_min
-	    && report_id <= data->T9_reportid_max) {
+	} else if (report_id >= data->T9_reportid_min &&
+		   report_id <= data->T9_reportid_max) {
 		mxt_proc_t9_message(data, message);
+	} else if (report_id >= data->T100_reportid_min &&
+		   report_id <= data->T100_reportid_max) {
+		mxt_proc_t100_message(data, message);
 	} else if (report_id == data->T19_reportid) {
 		mxt_input_button(data, message);
 		data->update_input = true;
@@ -1401,6 +1560,8 @@ static void mxt_free_object_table(struct mxt_data *data)
 	data->T9_reportid_max = 0;
 	data->T19_reportid = 0;
 	data->T44_address = 0;
+	data->T100_reportid_min = 0;
+	data->T100_reportid_max = 0;
 	data->max_reportid = 0;
 }
 
@@ -1477,6 +1638,7 @@ static int mxt_get_object_table(struct mxt_data *data)
 			data->T7_address = object->start_address;
 			break;
 		case MXT_TOUCH_MULTI_T9:
+			data->multitouch = MXT_TOUCH_MULTI_T9;
 			data->T9_reportid_min = min_id;
 			data->T9_reportid_max = max_id;
 			data->num_touchids = object->num_report_ids
@@ -1487,6 +1649,13 @@ static int mxt_get_object_table(struct mxt_data *data)
 			break;
 		case MXT_SPT_GPIOPWM_T19:
 			data->T19_reportid = min_id;
+			break;
+		case MXT_TOUCH_MULTITOUCHSCREEN_T100:
+			data->multitouch = MXT_TOUCH_MULTITOUCHSCREEN_T100;
+			data->T100_reportid_min = min_id;
+			data->T100_reportid_max = max_id;
+			/* first two report IDs reserved */
+			data->num_touchids = object->num_report_ids - 2;
 			break;
 		}
 
@@ -1572,22 +1741,138 @@ static int mxt_read_t9_resolution(struct mxt_data *data)
 	return 0;
 }
 
+static int mxt_read_t100_config(struct mxt_data *data)
+{
+	struct i2c_client *client = data->client;
+	int error;
+	struct mxt_object *object;
+	u16 range_x, range_y;
+	u8 cfg, tchaux;
+	u8 aux;
+
+	object = mxt_get_object(data, MXT_TOUCH_MULTITOUCHSCREEN_T100);
+	if (!object)
+		return -EINVAL;
+
+	error = __mxt_read_reg(client,
+			       object->start_address + MXT_T100_XRANGE,
+			       sizeof(range_x), &range_x);
+	if (error)
+		return error;
+
+	le16_to_cpus(&range_x);
+
+	error = __mxt_read_reg(client,
+			       object->start_address + MXT_T100_YRANGE,
+			       sizeof(range_y), &range_y);
+	if (error)
+		return error;
+
+	le16_to_cpus(&range_y);
+
+	error =  __mxt_read_reg(client,
+				object->start_address + MXT_T100_CFG1,
+				1, &cfg);
+	if (error)
+		return error;
+
+	error =  __mxt_read_reg(client,
+				object->start_address + MXT_T100_TCHAUX,
+				1, &tchaux);
+	if (error)
+		return error;
+
+	/* Handle default values */
+	if (range_x == 0)
+		range_x = 1023;
+
+	if (range_y == 0)
+		range_y = 1023;
+
+	if (cfg & MXT_T100_CFG_SWITCHXY) {
+		data->max_x = range_y;
+		data->max_y = range_x;
+	} else {
+		data->max_x = range_x;
+		data->max_y = range_y;
+	}
+
+	/* allocate aux bytes */
+	aux = 6;
+
+	if (tchaux & MXT_T100_TCHAUX_VECT)
+		data->t100_aux_vect = aux++;
+
+	if (tchaux & MXT_T100_TCHAUX_AMPL)
+		data->t100_aux_ampl = aux++;
+
+	if (tchaux & MXT_T100_TCHAUX_AREA)
+		data->t100_aux_area = aux++;
+
+	dev_dbg(&client->dev,
+		"T100 aux mappings vect:%u ampl:%u area:%u\n",
+		data->t100_aux_vect, data->t100_aux_ampl, data->t100_aux_area);
+
+	dev_info(&client->dev,
+		 "T100 Touchscreen size X%uY%u\n", data->max_x, data->max_y);
+
+	return 0;
+}
+
 static int mxt_input_open(struct input_dev *dev);
 static void mxt_input_close(struct input_dev *dev);
 
-static int mxt_initialize_t9_input_device(struct mxt_data *data)
+static void mxt_set_up_as_touchpad(struct input_dev *input_dev,
+				   struct mxt_data *data)
 {
-	struct device *dev = &data->client->dev;
 	const struct mxt_platform_data *pdata = data->pdata;
+	int i;
+
+	input_dev->name = "Atmel maXTouch Touchpad";
+
+	__set_bit(INPUT_PROP_BUTTONPAD, input_dev->propbit);
+
+	input_abs_set_res(input_dev, ABS_X, MXT_PIXELS_PER_MM);
+	input_abs_set_res(input_dev, ABS_Y, MXT_PIXELS_PER_MM);
+	input_abs_set_res(input_dev, ABS_MT_POSITION_X,
+			  MXT_PIXELS_PER_MM);
+	input_abs_set_res(input_dev, ABS_MT_POSITION_Y,
+			  MXT_PIXELS_PER_MM);
+
+	for (i = 0; i < pdata->t19_num_keys; i++)
+		if (pdata->t19_keymap[i] != KEY_RESERVED)
+			input_set_capability(input_dev, EV_KEY,
+					     pdata->t19_keymap[i]);
+}
+
+static int mxt_initialize_input_device(struct mxt_data *data)
+{
+	const struct mxt_platform_data *pdata = data->pdata;
+	struct device *dev = &data->client->dev;
 	struct input_dev *input_dev;
 	int error;
 	unsigned int num_mt_slots;
 	unsigned int mt_flags = 0;
-	int i;
 
-	error = mxt_read_t9_resolution(data);
-	if (error)
-		dev_warn(dev, "Failed to initialize T9 resolution\n");
+	switch (data->multitouch) {
+	case MXT_TOUCH_MULTI_T9:
+		num_mt_slots = data->T9_reportid_max - data->T9_reportid_min + 1;
+		error = mxt_read_t9_resolution(data);
+		if (error)
+			dev_warn(dev, "Failed to initialize T9 resolution\n");
+		break;
+
+	case MXT_TOUCH_MULTITOUCHSCREEN_T100:
+		num_mt_slots = data->num_touchids;
+		error = mxt_read_t100_config(data);
+		if (error)
+			dev_warn(dev, "Failed to read T100 config\n");
+		break;
+
+	default:
+		dev_err(dev, "Invalid multitouch object\n");
+		return -EINVAL;
+	}
 
 	input_dev = input_allocate_device();
 	if (!input_dev) {
@@ -1602,54 +1887,76 @@ static int mxt_initialize_t9_input_device(struct mxt_data *data)
 	input_dev->open = mxt_input_open;
 	input_dev->close = mxt_input_close;
 
-	__set_bit(EV_ABS, input_dev->evbit);
-	__set_bit(EV_KEY, input_dev->evbit);
-	__set_bit(BTN_TOUCH, input_dev->keybit);
-
-	if (pdata->t19_num_keys) {
-		__set_bit(INPUT_PROP_BUTTONPAD, input_dev->propbit);
-
-		for (i = 0; i < pdata->t19_num_keys; i++)
-			if (pdata->t19_keymap[i] != KEY_RESERVED)
-				input_set_capability(input_dev, EV_KEY,
-						     pdata->t19_keymap[i]);
-
-		mt_flags |= INPUT_MT_POINTER;
-
-		input_abs_set_res(input_dev, ABS_X, MXT_PIXELS_PER_MM);
-		input_abs_set_res(input_dev, ABS_Y, MXT_PIXELS_PER_MM);
-		input_abs_set_res(input_dev, ABS_MT_POSITION_X,
-				  MXT_PIXELS_PER_MM);
-		input_abs_set_res(input_dev, ABS_MT_POSITION_Y,
-				  MXT_PIXELS_PER_MM);
-
-		input_dev->name = "Atmel maXTouch Touchpad";
-	}
+	input_set_capability(input_dev, EV_KEY, BTN_TOUCH);
 
 	/* For single touch */
-	input_set_abs_params(input_dev, ABS_X,
-			     0, data->max_x, 0, 0);
-	input_set_abs_params(input_dev, ABS_Y,
-			     0, data->max_y, 0, 0);
-	input_set_abs_params(input_dev, ABS_PRESSURE,
-			     0, 255, 0, 0);
+	input_set_abs_params(input_dev, ABS_X, 0, data->max_x, 0, 0);
+	input_set_abs_params(input_dev, ABS_Y, 0, data->max_y, 0, 0);
+
+	if (data->multitouch == MXT_TOUCH_MULTI_T9 ||
+	    (data->multitouch == MXT_TOUCH_MULTITOUCHSCREEN_T100 &&
+	     data->t100_aux_ampl)) {
+		input_set_abs_params(input_dev, ABS_PRESSURE, 0, 255, 0, 0);
+	}
+
+	/* If device has buttons we assume it is a touchpad */
+	if (pdata->t19_num_keys) {
+		mxt_set_up_as_touchpad(input_dev, data);
+		mt_flags |= INPUT_MT_POINTER;
+	}
 
 	/* For multi touch */
-	num_mt_slots = data->T9_reportid_max - data->T9_reportid_min + 1;
 	error = input_mt_init_slots(input_dev, num_mt_slots, mt_flags);
 	if (error) {
 		dev_err(dev, "Error %d initialising slots\n", error);
 		goto err_free_mem;
 	}
 
-	input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR,
-			     0, MXT_MAX_AREA, 0, 0);
+	if (data->multitouch == MXT_TOUCH_MULTITOUCHSCREEN_T100) {
+		input_set_abs_params(input_dev, ABS_MT_TOOL_TYPE,
+				     0, MT_TOOL_MAX, 0, 0);
+		input_set_abs_params(input_dev, ABS_MT_DISTANCE,
+				     MXT_DISTANCE_ACTIVE_TOUCH,
+				     MXT_DISTANCE_HOVERING,
+				     0, 0);
+	}
+
 	input_set_abs_params(input_dev, ABS_MT_POSITION_X,
 			     0, data->max_x, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_POSITION_Y,
 			     0, data->max_y, 0, 0);
-	input_set_abs_params(input_dev, ABS_MT_PRESSURE,
-			     0, 255, 0, 0);
+
+	if (data->multitouch == MXT_TOUCH_MULTI_T9 ||
+	    (data->multitouch == MXT_TOUCH_MULTITOUCHSCREEN_T100 &&
+	     data->t100_aux_area)) {
+		input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR,
+				     0, MXT_MAX_AREA, 0, 0);
+	}
+
+	if (data->multitouch == MXT_TOUCH_MULTI_T9 ||
+	    (data->multitouch == MXT_TOUCH_MULTITOUCHSCREEN_T100 &&
+	     data->t100_aux_ampl)) {
+		input_set_abs_params(input_dev, ABS_MT_PRESSURE,
+				     0, 255, 0, 0);
+	}
+
+	if (data->multitouch == MXT_TOUCH_MULTITOUCHSCREEN_T100 &&
+	    data->t100_aux_vect) {
+		input_set_abs_params(input_dev, ABS_MT_ORIENTATION,
+				     0, 255, 0, 0);
+	}
+
+	if (data->multitouch == MXT_TOUCH_MULTITOUCHSCREEN_T100 &&
+	    data->t100_aux_ampl) {
+		input_set_abs_params(input_dev, ABS_MT_PRESSURE,
+				     0, 255, 0, 0);
+	}
+
+	if (data->multitouch == MXT_TOUCH_MULTITOUCHSCREEN_T100 &&
+	    data->t100_aux_vect) {
+		input_set_abs_params(input_dev, ABS_MT_ORIENTATION,
+				     0, 255, 0, 0);
+	}
 
 	input_set_drvdata(input_dev, data);
 
@@ -1742,60 +2049,6 @@ err_free_object_table:
 	return error;
 }
 
-static int mxt_set_t7_power_cfg(struct mxt_data *data, u8 sleep)
-{
-	struct device *dev = &data->client->dev;
-	int error;
-	struct t7_config *new_config;
-	struct t7_config deepsleep = { .active = 0, .idle = 0 };
-
-	if (sleep == MXT_POWER_CFG_DEEPSLEEP)
-		new_config = &deepsleep;
-	else
-		new_config = &data->t7_cfg;
-
-	error = __mxt_write_reg(data->client, data->T7_address,
-				sizeof(data->t7_cfg), new_config);
-	if (error)
-		return error;
-
-	dev_dbg(dev, "Set T7 ACTV:%d IDLE:%d\n",
-		new_config->active, new_config->idle);
-
-	return 0;
-}
-
-static int mxt_init_t7_power_cfg(struct mxt_data *data)
-{
-	struct device *dev = &data->client->dev;
-	int error;
-	bool retry = false;
-
-recheck:
-	error = __mxt_read_reg(data->client, data->T7_address,
-				sizeof(data->t7_cfg), &data->t7_cfg);
-	if (error)
-		return error;
-
-	if (data->t7_cfg.active == 0 || data->t7_cfg.idle == 0) {
-		if (!retry) {
-			dev_dbg(dev, "T7 cfg zero, resetting\n");
-			mxt_soft_reset(data);
-			retry = true;
-			goto recheck;
-		} else {
-			dev_dbg(dev, "T7 cfg zero after reset, overriding\n");
-			data->t7_cfg.active = 20;
-			data->t7_cfg.idle = 100;
-			return mxt_set_t7_power_cfg(data, MXT_POWER_CFG_RUN);
-		}
-	}
-
-	dev_dbg(dev, "Initialized power cfg: ACTV %d, IDLE %d\n",
-		data->t7_cfg.active, data->t7_cfg.idle);
-	return 0;
-}
-
 static int mxt_configure_objects(struct mxt_data *data,
 				 const struct firmware *cfg)
 {
@@ -1809,15 +2062,13 @@ static int mxt_configure_objects(struct mxt_data *data,
 			dev_warn(dev, "Error %d updating config\n", error);
 	}
 
-	error = mxt_init_t7_power_cfg(data);
-	if (error) {
-		dev_err(dev, "Failed to initialize power cfg\n");
-		return error;
+	if (data->multitouch) {
+		error = mxt_initialize_input_device(data);
+		if (error)
+			return error;
+	} else {
+		dev_warn(dev, "No touch object detected\n");
 	}
-
-	error = mxt_initialize_t9_input_device(data);
-	if (error)
-		return error;
 
 	dev_info(dev,
 		 "Family: %u Variant: %u Firmware V%u.%u.%02X Objects: %u\n",
@@ -2093,15 +2344,14 @@ static const struct attribute_group mxt_attr_group = {
 
 static void mxt_start(struct mxt_data *data)
 {
-	mxt_set_t7_power_cfg(data, MXT_POWER_CFG_RUN);
-
-	/* Recalibrate since chip has been in deep sleep */
-	mxt_t6_command(data, MXT_COMMAND_CALIBRATE, 1, false);
+	/* Touch enable */
+	mxt_write_object(data, data->multitouch, MXT_TOUCH_CTRL, 0x83);
 }
 
 static void mxt_stop(struct mxt_data *data)
 {
-	mxt_set_t7_power_cfg(data, MXT_POWER_CFG_DEEPSLEEP);
+	/* Touch disable */
+	mxt_write_object(data, data->multitouch, MXT_TOUCH_CTRL, 0);
 }
 
 static int mxt_input_open(struct input_dev *dev)
@@ -2244,8 +2494,7 @@ static int mxt_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int mxt_suspend(struct device *dev)
+static int __maybe_unused mxt_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct mxt_data *data = i2c_get_clientdata(client);
@@ -2261,11 +2510,13 @@ static int mxt_suspend(struct device *dev)
 	return 0;
 }
 
-static int mxt_resume(struct device *dev)
+static int __maybe_unused mxt_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct mxt_data *data = i2c_get_clientdata(client);
 	struct input_dev *input_dev = data->input_dev;
+
+	mxt_soft_reset(data);
 
 	mutex_lock(&input_dev->mutex);
 
@@ -2276,7 +2527,6 @@ static int mxt_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(mxt_pm_ops, mxt_suspend, mxt_resume);
 

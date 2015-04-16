@@ -90,9 +90,7 @@ static void adf_cleanup_accel(struct adf_accel_dev *accel_dev)
 	struct adf_accel_pci *accel_pci_dev = &accel_dev->accel_pci_dev;
 	int i;
 
-	adf_exit_admin_comms(accel_dev);
-	adf_exit_arb(accel_dev);
-	adf_cleanup_etr_data(accel_dev);
+	adf_dev_shutdown(accel_dev);
 
 	for (i = 0; i < ADF_PCI_MAX_BARS; i++) {
 		struct adf_bar *bar = &accel_pci_dev->pci_bars[i];
@@ -119,22 +117,7 @@ static void adf_cleanup_accel(struct adf_accel_dev *accel_dev)
 	kfree(accel_dev);
 }
 
-static uint8_t adf_get_dev_node_id(struct pci_dev *pdev)
-{
-	unsigned int bus_per_cpu = 0;
-	struct cpuinfo_x86 *c = &cpu_data(num_online_cpus() - 1);
-
-	if (!c->phys_proc_id)
-		return 0;
-
-	bus_per_cpu = 256 / (c->phys_proc_id + 1);
-
-	if (bus_per_cpu != 0)
-		return pdev->bus->number / bus_per_cpu;
-	return 0;
-}
-
-static int qat_dev_start(struct adf_accel_dev *accel_dev)
+static int adf_dev_configure(struct adf_accel_dev *accel_dev)
 {
 	int cpus = num_online_cpus();
 	int banks = GET_MAX_BANKS(accel_dev);
@@ -221,7 +204,7 @@ static int qat_dev_start(struct adf_accel_dev *accel_dev)
 		goto err;
 
 	set_bit(ADF_STATUS_CONFIGURED, &accel_dev->status);
-	return adf_dev_start(accel_dev);
+	return 0;
 err:
 	dev_err(&GET_DEV(accel_dev), "Failed to start QAT accel dev\n");
 	return -EINVAL;
@@ -232,10 +215,8 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct adf_accel_dev *accel_dev;
 	struct adf_accel_pci *accel_pci_dev;
 	struct adf_hw_device_data *hw_data;
-	void __iomem *pmisc_bar_addr = NULL;
 	char name[ADF_DEVICE_NAME_LENGTH];
 	unsigned int i, bar_nr;
-	uint8_t node;
 	int ret;
 
 	switch (ent->device) {
@@ -246,12 +227,19 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENODEV;
 	}
 
-	node = adf_get_dev_node_id(pdev);
-	accel_dev = kzalloc_node(sizeof(*accel_dev), GFP_KERNEL, node);
+	if (num_possible_nodes() > 1 && dev_to_node(&pdev->dev) < 0) {
+		/* If the accelerator is connected to a node with no memory
+		 * there is no point in using the accelerator since the remote
+		 * memory transaction will be very slow. */
+		dev_err(&pdev->dev, "Invalid NUMA configuration.\n");
+		return -EINVAL;
+	}
+
+	accel_dev = kzalloc_node(sizeof(*accel_dev), GFP_KERNEL,
+				 dev_to_node(&pdev->dev));
 	if (!accel_dev)
 		return -ENOMEM;
 
-	accel_dev->numa_node = node;
 	INIT_LIST_HEAD(&accel_dev->crypto_list);
 
 	/* Add accel device to accel table.
@@ -264,7 +252,8 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	accel_dev->owner = THIS_MODULE;
 	/* Allocate and configure device configuration structure */
-	hw_data = kzalloc_node(sizeof(*hw_data), GFP_KERNEL, node);
+	hw_data = kzalloc_node(sizeof(*hw_data), GFP_KERNEL,
+			       dev_to_node(&pdev->dev));
 	if (!hw_data) {
 		ret = -ENOMEM;
 		goto out_err;
@@ -355,8 +344,6 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			ret = -EFAULT;
 			goto out_err;
 		}
-		if (i == ADF_DH895XCC_PMISC_BAR)
-			pmisc_bar_addr = bar->virt_addr;
 	}
 	pci_set_master(pdev);
 
@@ -366,36 +353,21 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_err;
 	}
 
-	if (adf_init_etr_data(accel_dev)) {
-		dev_err(&pdev->dev, "Failed initialize etr\n");
-		ret = -EFAULT;
-		goto out_err;
-	}
-
-	if (adf_init_admin_comms(accel_dev)) {
-		dev_err(&pdev->dev, "Failed initialize admin comms\n");
-		ret = -EFAULT;
-		goto out_err;
-	}
-
-	if (adf_init_arb(accel_dev)) {
-		dev_err(&pdev->dev, "Failed initialize hw arbiter\n");
-		ret = -EFAULT;
-		goto out_err;
-	}
 	if (pci_save_state(pdev)) {
 		dev_err(&pdev->dev, "Failed to save pci state\n");
 		ret = -ENOMEM;
 		goto out_err;
 	}
 
-	/* Enable bundle and misc interrupts */
-	ADF_CSR_WR(pmisc_bar_addr, ADF_DH895XCC_SMIAPF0_MASK_OFFSET,
-		   ADF_DH895XCC_SMIA0_MASK);
-	ADF_CSR_WR(pmisc_bar_addr, ADF_DH895XCC_SMIAPF1_MASK_OFFSET,
-		   ADF_DH895XCC_SMIA1_MASK);
+	ret = adf_dev_configure(accel_dev);
+	if (ret)
+		goto out_err;
 
-	ret = qat_dev_start(accel_dev);
+	ret = adf_dev_init(accel_dev);
+	if (ret)
+		goto out_err;
+
+	ret = adf_dev_start(accel_dev);
 	if (ret) {
 		adf_dev_stop(accel_dev);
 		goto out_err;
@@ -407,7 +379,7 @@ out_err:
 	return ret;
 }
 
-static void __exit adf_remove(struct pci_dev *pdev)
+static void adf_remove(struct pci_dev *pdev)
 {
 	struct adf_accel_dev *accel_dev = adf_devmgr_pci_to_accel_dev(pdev);
 

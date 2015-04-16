@@ -33,6 +33,7 @@
 
 static struct node_data prealloc__node_data[MAX_NUMNODES];
 unsigned char __node_distances[MAX_NUMNODES][MAX_NUMNODES];
+EXPORT_SYMBOL(__node_distances);
 struct node_data *__node_data[MAX_NUMNODES];
 EXPORT_SYMBOL(__node_data);
 
@@ -223,7 +224,7 @@ static void __init node_mem_init(unsigned int node)
 
 static __init void prom_meminit(void)
 {
-	unsigned int node, cpu;
+	unsigned int node, cpu, active_cpu = 0;
 
 	cpu_node_probe();
 	init_topology_matrix();
@@ -239,8 +240,14 @@ static __init void prom_meminit(void)
 		node = cpu / loongson_sysconf.cores_per_node;
 		if (node >= num_online_nodes())
 			node = 0;
-		pr_info("NUMA: set cpumask cpu %d on node %d\n", cpu, node);
-		cpu_set(cpu, __node_data[(node)]->cpumask);
+
+		if (loongson_sysconf.reserved_cpus_mask & (1<<cpu))
+			continue;
+
+		cpu_set(active_cpu, __node_data[(node)]->cpumask);
+		pr_info("NUMA: set cpumask cpu %d on node %d\n", active_cpu, node);
+
+		active_cpu++;
 	}
 }
 

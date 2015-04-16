@@ -163,7 +163,7 @@ bpf_jit_binary_alloc(unsigned int proglen, u8 **image_ptr,
 
 void bpf_jit_binary_free(struct bpf_binary_header *hdr)
 {
-	module_free(NULL, hdr);
+	module_memfree(hdr);
 }
 #endif /* CONFIG_BPF_JIT */
 
@@ -655,3 +655,20 @@ void bpf_prog_free(struct bpf_prog *fp)
 	schedule_work(&aux->work);
 }
 EXPORT_SYMBOL_GPL(bpf_prog_free);
+
+/* Weak definitions of helper functions in case we don't have bpf syscall. */
+const struct bpf_func_proto bpf_map_lookup_elem_proto __weak;
+const struct bpf_func_proto bpf_map_update_elem_proto __weak;
+const struct bpf_func_proto bpf_map_delete_elem_proto __weak;
+
+const struct bpf_func_proto bpf_get_prandom_u32_proto __weak;
+const struct bpf_func_proto bpf_get_smp_processor_id_proto __weak;
+
+/* To execute LD_ABS/LD_IND instructions __bpf_prog_run() may call
+ * skb_copy_bits(), so provide a weak definition of it for NET-less config.
+ */
+int __weak skb_copy_bits(const struct sk_buff *skb, int offset, void *to,
+			 int len)
+{
+	return -EFAULT;
+}

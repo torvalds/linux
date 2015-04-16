@@ -246,13 +246,13 @@ static int ne2k_pci_init_one(struct pci_dev *pdev,
 
 	if (!ioaddr || ((pci_resource_flags (pdev, 0) & IORESOURCE_IO) == 0)) {
 		dev_err(&pdev->dev, "no I/O resource at PCI BAR #0\n");
-		return -ENODEV;
+		goto err_out;
 	}
 
 	if (request_region (ioaddr, NE_IO_EXTENT, DRV_NAME) == NULL) {
 		dev_err(&pdev->dev, "I/O resource 0x%x @ 0x%lx busy\n",
 			NE_IO_EXTENT, ioaddr);
-		return -EBUSY;
+		goto err_out;
 	}
 
 	reg0 = inb(ioaddr);
@@ -392,6 +392,8 @@ err_out_free_netdev:
 	free_netdev (dev);
 err_out_free_res:
 	release_region (ioaddr, NE_IO_EXTENT);
+err_out:
+	pci_disable_device(pdev);
 	return -ENODEV;
 }
 

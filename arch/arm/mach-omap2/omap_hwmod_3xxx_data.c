@@ -18,6 +18,7 @@
 #include <linux/i2c-omap.h>
 #include <linux/power/smartreflex.h>
 #include <linux/platform_data/gpio-omap.h>
+#include <linux/platform_data/hsmmc-omap.h>
 
 #include <linux/omap-dma.h>
 #include "l3_3xxx.h"
@@ -28,8 +29,6 @@
 #include <linux/platform_data/mailbox-omap.h>
 #include <plat/dmtimer.h>
 
-#include "am35xx.h"
-
 #include "soc.h"
 #include "omap_hwmod.h"
 #include "omap_hwmod_common_data.h"
@@ -37,7 +36,6 @@
 #include "cm-regbits-34xx.h"
 
 #include "i2c.h"
-#include "mmc.h"
 #include "wd_timer.h"
 #include "serial.h"
 
@@ -49,6 +47,8 @@
  * is driver-specific or driver-kernel integration-specific belongs
  * elsewhere.
  */
+
+#define AM35XX_IPSS_USBOTGSS_BASE      0x5C040000
 
 /*
  * IP blocks
@@ -1786,12 +1786,12 @@ static struct omap_hwmod_opt_clk omap34xx_mmc1_opt_clks[] = {
 	{ .role = "dbck", .clk = "omap_32k_fck", },
 };
 
-static struct omap_mmc_dev_attr mmc1_dev_attr = {
+static struct omap_hsmmc_dev_attr mmc1_dev_attr = {
 	.flags = OMAP_HSMMC_SUPPORTS_DUAL_VOLT,
 };
 
 /* See 35xx errata 2.1.1.128 in SPRZ278F */
-static struct omap_mmc_dev_attr mmc1_pre_es3_dev_attr = {
+static struct omap_hsmmc_dev_attr mmc1_pre_es3_dev_attr = {
 	.flags = (OMAP_HSMMC_SUPPORTS_DUAL_VOLT |
 		  OMAP_HSMMC_BROKEN_MULTIBLOCK_READ),
 };
@@ -1854,7 +1854,7 @@ static struct omap_hwmod_opt_clk omap34xx_mmc2_opt_clks[] = {
 };
 
 /* See 35xx errata 2.1.1.128 in SPRZ278F */
-static struct omap_mmc_dev_attr mmc2_pre_es3_dev_attr = {
+static struct omap_hsmmc_dev_attr mmc2_pre_es3_dev_attr = {
 	.flags = OMAP_HSMMC_BROKEN_MULTIBLOCK_READ,
 };
 
@@ -3459,15 +3459,6 @@ static struct omap_hwmod_ocp_if am35xx_mdio__l3 = {
 	.user		= OCP_USER_MPU,
 };
 
-static struct omap_hwmod_addr_space am35xx_mdio_addrs[] = {
-	{
-		.pa_start	= AM35XX_IPSS_MDIO_BASE,
-		.pa_end		= AM35XX_IPSS_MDIO_BASE + SZ_4K - 1,
-		.flags		= ADDR_TYPE_RT,
-	},
-	{ }
-};
-
 /* l4_core -> davinci mdio  */
 /*
  * XXX Should be connected to an IPSS hwmod, not the L4_CORE directly;
@@ -3478,16 +3469,7 @@ static struct omap_hwmod_ocp_if am35xx_l4_core__mdio = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &am35xx_mdio_hwmod,
 	.clk		= "emac_fck",
-	.addr		= am35xx_mdio_addrs,
 	.user		= OCP_USER_MPU,
-};
-
-static struct omap_hwmod_irq_info am35xx_emac_mpu_irqs[] = {
-	{ .name = "rxthresh",	.irq = 67 + OMAP_INTC_START, },
-	{ .name = "rx_pulse",	.irq = 68 + OMAP_INTC_START, },
-	{ .name = "tx_pulse",	.irq = 69 + OMAP_INTC_START },
-	{ .name = "misc_pulse",	.irq = 70 + OMAP_INTC_START },
-	{ .irq = -1 },
 };
 
 static struct omap_hwmod_class am35xx_emac_class = {
@@ -3496,7 +3478,6 @@ static struct omap_hwmod_class am35xx_emac_class = {
 
 static struct omap_hwmod am35xx_emac_hwmod = {
 	.name		= "davinci_emac",
-	.mpu_irqs	= am35xx_emac_mpu_irqs,
 	.class		= &am35xx_emac_class,
 	/*
 	 * According to Mark Greer, the MPU will not return from WFI
@@ -3519,15 +3500,6 @@ static struct omap_hwmod_ocp_if am35xx_emac__l3 = {
 	.user		= OCP_USER_MPU,
 };
 
-static struct omap_hwmod_addr_space am35xx_emac_addrs[] = {
-	{
-		.pa_start	= AM35XX_IPSS_EMAC_BASE,
-		.pa_end		= AM35XX_IPSS_EMAC_BASE + 0x30000 - 1,
-		.flags		= ADDR_TYPE_RT,
-	},
-	{ }
-};
-
 /* l4_core -> davinci emac  */
 /*
  * XXX Should be connected to an IPSS hwmod, not the L4_CORE directly;
@@ -3538,7 +3510,6 @@ static struct omap_hwmod_ocp_if am35xx_l4_core__emac = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &am35xx_emac_hwmod,
 	.clk		= "emac_ick",
-	.addr		= am35xx_emac_addrs,
 	.user		= OCP_USER_MPU,
 };
 

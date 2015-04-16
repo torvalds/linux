@@ -111,7 +111,6 @@ static struct platform_driver wrap_led_driver = {
 	.remove		= wrap_led_remove,
 	.driver		= {
 		.name		= DRVNAME,
-		.owner		= THIS_MODULE,
 	},
 };
 

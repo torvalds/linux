@@ -37,7 +37,7 @@ Required properties:
 
 
 You specify supplies using the standard regulator bindings by including
-a phandle the the relevant regulator.  All specified supplies must be able
+a phandle the relevant regulator.  All specified supplies must be able
 to report their voltage.  The IO Voltage Domain for any non-specified
 supplies will be not be touched.
 

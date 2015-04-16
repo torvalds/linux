@@ -18,18 +18,37 @@
 		{I_FREEING,		"I_FREEING"},		\
 		{I_CLEAR,		"I_CLEAR"},		\
 		{I_SYNC,		"I_SYNC"},		\
+		{I_DIRTY_TIME,		"I_DIRTY_TIME"},	\
+		{I_DIRTY_TIME_EXPIRED,	"I_DIRTY_TIME_EXPIRED"}, \
 		{I_REFERENCED,		"I_REFERENCED"}		\
 	)
 
+/* enums need to be exported to user space */
+#undef EM
+#undef EMe
+#define EM(a,b) 	TRACE_DEFINE_ENUM(a);
+#define EMe(a,b)	TRACE_DEFINE_ENUM(a);
+
 #define WB_WORK_REASON							\
-		{WB_REASON_BACKGROUND,		"background"},		\
-		{WB_REASON_TRY_TO_FREE_PAGES,	"try_to_free_pages"},	\
-		{WB_REASON_SYNC,		"sync"},		\
-		{WB_REASON_PERIODIC,		"periodic"},		\
-		{WB_REASON_LAPTOP_TIMER,	"laptop_timer"},	\
-		{WB_REASON_FREE_MORE_MEM,	"free_more_memory"},	\
-		{WB_REASON_FS_FREE_SPACE,	"fs_free_space"},	\
-		{WB_REASON_FORKER_THREAD,	"forker_thread"}
+	EM( WB_REASON_BACKGROUND,		"background")		\
+	EM( WB_REASON_TRY_TO_FREE_PAGES,	"try_to_free_pages")	\
+	EM( WB_REASON_SYNC,			"sync")			\
+	EM( WB_REASON_PERIODIC,			"periodic")		\
+	EM( WB_REASON_LAPTOP_TIMER,		"laptop_timer")		\
+	EM( WB_REASON_FREE_MORE_MEM,		"free_more_memory")	\
+	EM( WB_REASON_FS_FREE_SPACE,		"fs_free_space")	\
+	EMe(WB_REASON_FORKER_THREAD,		"forker_thread")
+
+WB_WORK_REASON
+
+/*
+ * Now redefine the EM() and EMe() macros to map the enums to the strings
+ * that will be printed in the output.
+ */
+#undef EM
+#undef EMe
+#define EM(a,b)		{ a, b },
+#define EMe(a,b)	{ a, b }
 
 struct wb_writeback_work;
 
@@ -47,7 +66,7 @@ TRACE_EVENT(writeback_dirty_page,
 
 	TP_fast_assign(
 		strncpy(__entry->name,
-			mapping ? dev_name(mapping->backing_dev_info->dev) : "(unknown)", 32);
+			mapping ? dev_name(inode_to_bdi(mapping->host)->dev) : "(unknown)", 32);
 		__entry->ino = mapping ? mapping->host->i_ino : 0;
 		__entry->index = page->index;
 	),
@@ -68,24 +87,34 @@ DECLARE_EVENT_CLASS(writeback_dirty_inode_template,
 	TP_STRUCT__entry (
 		__array(char, name, 32)
 		__field(unsigned long, ino)
+		__field(unsigned long, state)
 		__field(unsigned long, flags)
 	),
 
 	TP_fast_assign(
-		struct backing_dev_info *bdi = inode->i_mapping->backing_dev_info;
+		struct backing_dev_info *bdi = inode_to_bdi(inode);
 
 		/* may be called for files on pseudo FSes w/ unregistered bdi */
 		strncpy(__entry->name,
 			bdi->dev ? dev_name(bdi->dev) : "(unknown)", 32);
 		__entry->ino		= inode->i_ino;
+		__entry->state		= inode->i_state;
 		__entry->flags		= flags;
 	),
 
-	TP_printk("bdi %s: ino=%lu flags=%s",
+	TP_printk("bdi %s: ino=%lu state=%s flags=%s",
 		__entry->name,
 		__entry->ino,
+		show_inode_state(__entry->state),
 		show_inode_state(__entry->flags)
 	)
+);
+
+DEFINE_EVENT(writeback_dirty_inode_template, writeback_mark_inode_dirty,
+
+	TP_PROTO(struct inode *inode, int flags),
+
+	TP_ARGS(inode, flags)
 );
 
 DEFINE_EVENT(writeback_dirty_inode_template, writeback_dirty_inode_start,
@@ -116,7 +145,7 @@ DECLARE_EVENT_CLASS(writeback_write_inode_template,
 
 	TP_fast_assign(
 		strncpy(__entry->name,
-			dev_name(inode->i_mapping->backing_dev_info->dev), 32);
+			dev_name(inode_to_bdi(inode)->dev), 32);
 		__entry->ino		= inode->i_ino;
 		__entry->sync_mode	= wbc->sync_mode;
 	),
@@ -156,10 +185,8 @@ DECLARE_EVENT_CLASS(writeback_work_class,
 		__field(int, reason)
 	),
 	TP_fast_assign(
-		struct device *dev = bdi->dev;
-		if (!dev)
-			dev = default_backing_dev_info.dev;
-		strncpy(__entry->name, dev_name(dev), 32);
+		strncpy(__entry->name,
+			bdi->dev ? dev_name(bdi->dev) : "(unknown)", 32);
 		__entry->nr_pages = work->nr_pages;
 		__entry->sb_dev = work->sb ? work->sb->s_dev : 0;
 		__entry->sync_mode = work->sync_mode;
@@ -596,6 +623,52 @@ DEFINE_EVENT(writeback_single_inode_template, writeback_single_inode,
 		 struct writeback_control *wbc,
 		 unsigned long nr_to_write),
 	TP_ARGS(inode, wbc, nr_to_write)
+);
+
+DECLARE_EVENT_CLASS(writeback_lazytime_template,
+	TP_PROTO(struct inode *inode),
+
+	TP_ARGS(inode),
+
+	TP_STRUCT__entry(
+		__field(	dev_t,	dev			)
+		__field(unsigned long,	ino			)
+		__field(unsigned long,	state			)
+		__field(	__u16, mode			)
+		__field(unsigned long, dirtied_when		)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= inode->i_sb->s_dev;
+		__entry->ino	= inode->i_ino;
+		__entry->state	= inode->i_state;
+		__entry->mode	= inode->i_mode;
+		__entry->dirtied_when = inode->dirtied_when;
+	),
+
+	TP_printk("dev %d,%d ino %lu dirtied %lu state %s mode 0%o",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino, __entry->dirtied_when,
+		  show_inode_state(__entry->state), __entry->mode)
+);
+
+DEFINE_EVENT(writeback_lazytime_template, writeback_lazytime,
+	TP_PROTO(struct inode *inode),
+
+	TP_ARGS(inode)
+);
+
+DEFINE_EVENT(writeback_lazytime_template, writeback_lazytime_iput,
+	TP_PROTO(struct inode *inode),
+
+	TP_ARGS(inode)
+);
+
+DEFINE_EVENT(writeback_lazytime_template, writeback_dirty_inode_enqueue,
+
+	TP_PROTO(struct inode *inode),
+
+	TP_ARGS(inode)
 );
 
 #endif /* _TRACE_WRITEBACK_H */

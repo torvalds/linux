@@ -19,7 +19,6 @@
 #include <linux/mpage.h>
 #include <linux/buffer_head.h>
 #include <linux/mount.h>
-#include <linux/aio.h>
 #include <linux/vfs.h>
 #include <linux/parser.h>
 #include <linux/uio.h>
@@ -292,6 +291,18 @@ static sector_t _fat_bmap(struct address_space *mapping, sector_t block)
 	up_read(&MSDOS_I(mapping->host)->truncate_lock);
 
 	return blocknr;
+}
+
+/*
+ * fat_block_truncate_page() zeroes out a mapping from file offset `from'
+ * up to the end of the block which corresponds to `from'.
+ * This is required during truncate to physically zeroout the tail end
+ * of that block so it doesn't yield old data if the file is later grown.
+ * Also, avoid causing failure from fsx for cases of "data past EOF"
+ */
+int fat_block_truncate_page(struct inode *inode, loff_t from)
+{
+	return block_truncate_page(inode->i_mapping, from, fat_get_block);
 }
 
 static const struct address_space_operations fat_aops = {
@@ -568,7 +579,7 @@ static void fat_set_state(struct super_block *sb,
 {
 	struct buffer_head *bh;
 	struct fat_boot_sector *b;
-	struct msdos_sb_info *sbi = sb->s_fs_info;
+	struct msdos_sb_info *sbi = MSDOS_SB(sb);
 
 	/* do not change any thing if mounted read only */
 	if ((sb->s_flags & MS_RDONLY) && !force)

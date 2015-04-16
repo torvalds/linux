@@ -73,13 +73,9 @@
 #include <asm/setup.h>
 #include <asm/uv/uv.h>
 #include <linux/mc146818rtc.h>
-#include <asm/smpboot_hooks.h>
 #include <asm/i8259.h>
 #include <asm/realmode.h>
 #include <asm/misc.h>
-
-/* State of each CPU */
-DEFINE_PER_CPU(int, cpu_state) = { 0 };
 
 /* Number of siblings per CPU package */
 int smp_num_siblings = 1;
@@ -99,12 +95,47 @@ EXPORT_PER_CPU_SYMBOL(cpu_core_map);
 DEFINE_PER_CPU_READ_MOSTLY(cpumask_var_t, cpu_llc_shared_map);
 
 /* Per CPU bogomips and other parameters */
-DEFINE_PER_CPU_SHARED_ALIGNED(struct cpuinfo_x86, cpu_info);
+DEFINE_PER_CPU_READ_MOSTLY(struct cpuinfo_x86, cpu_info);
 EXPORT_PER_CPU_SYMBOL(cpu_info);
 
-static DEFINE_PER_CPU(struct completion, die_complete);
-
 atomic_t init_deasserted;
+
+static inline void smpboot_setup_warm_reset_vector(unsigned long start_eip)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&rtc_lock, flags);
+	CMOS_WRITE(0xa, 0xf);
+	spin_unlock_irqrestore(&rtc_lock, flags);
+	local_flush_tlb();
+	pr_debug("1.\n");
+	*((volatile unsigned short *)phys_to_virt(TRAMPOLINE_PHYS_HIGH)) =
+							start_eip >> 4;
+	pr_debug("2.\n");
+	*((volatile unsigned short *)phys_to_virt(TRAMPOLINE_PHYS_LOW)) =
+							start_eip & 0xf;
+	pr_debug("3.\n");
+}
+
+static inline void smpboot_restore_warm_reset_vector(void)
+{
+	unsigned long flags;
+
+	/*
+	 * Install writable page 0 entry to set BIOS data area.
+	 */
+	local_flush_tlb();
+
+	/*
+	 * Paranoid:  Set warm reset code and vector here back
+	 * to default values.
+	 */
+	spin_lock_irqsave(&rtc_lock, flags);
+	CMOS_WRITE(0, 0xf);
+	spin_unlock_irqrestore(&rtc_lock, flags);
+
+	*((volatile u32 *)phys_to_virt(TRAMPOLINE_PHYS_LOW)) = 0;
+}
 
 /*
  * Report back to the Boot Processor during boot time or to the caller processor
@@ -138,8 +169,7 @@ static void smp_callin(void)
 	 * CPU, first the APIC. (this is probably redundant on most
 	 * boards)
 	 */
-	setup_local_APIC();
-	end_local_APIC_setup();
+	apic_ap_setup();
 
 	/*
 	 * Need to setup vector mappings before we enable interrupts.
@@ -224,7 +254,7 @@ static void notrace start_secondary(void *unused)
 	lock_vector_lock();
 	set_cpu_online(smp_processor_id(), true);
 	unlock_vector_lock();
-	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
+	cpu_set_state_online(smp_processor_id());
 	x86_platform.nmi_init();
 
 	/* enable local interrupts */
@@ -746,6 +776,26 @@ out:
 	return boot_error;
 }
 
+void common_cpu_up(unsigned int cpu, struct task_struct *idle)
+{
+	/* Just in case we booted with a single CPU. */
+	alternatives_enable_smp();
+
+	per_cpu(current_task, cpu) = idle;
+
+#ifdef CONFIG_X86_32
+	/* Stack for startup_32 can be just as for start_secondary onwards */
+	irq_ctx_init(cpu);
+	per_cpu(cpu_current_top_of_stack, cpu) =
+		(unsigned long)task_stack_page(idle) + THREAD_SIZE;
+#else
+	clear_tsk_thread_flag(idle, TIF_FORK);
+	initial_gs = per_cpu_offset(cpu);
+#endif
+	per_cpu(kernel_stack, cpu) =
+		(unsigned long)task_stack_page(idle) + THREAD_SIZE;
+}
+
 /*
  * NOTE - on most systems this is a PHYSICAL apic ID, but on multiquad
  * (ie clustered apic addressing mode), this is a LOGICAL apic ID.
@@ -763,23 +813,9 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
 	int cpu0_nmi_registered = 0;
 	unsigned long timeout;
 
-	/* Just in case we booted with a single CPU. */
-	alternatives_enable_smp();
-
 	idle->thread.sp = (unsigned long) (((struct pt_regs *)
 			  (THREAD_SIZE +  task_stack_page(idle))) - 1);
-	per_cpu(current_task, cpu) = idle;
 
-#ifdef CONFIG_X86_32
-	/* Stack for startup_32 can be just as for start_secondary onwards */
-	irq_ctx_init(cpu);
-#else
-	clear_tsk_thread_flag(idle, TIF_FORK);
-	initial_gs = per_cpu_offset(cpu);
-#endif
-	per_cpu(kernel_stack, cpu) =
-		(unsigned long)task_stack_page(idle) -
-		KERNEL_STACK_OFFSET + THREAD_SIZE;
 	early_gdt_descr.address = (unsigned long)get_cpu_gdt_table(cpu);
 	initial_code = (unsigned long)start_secondary;
 	stack_start  = idle->thread.sp;
@@ -915,10 +951,15 @@ int native_cpu_up(unsigned int cpu, struct task_struct *tidle)
 	 */
 	mtrr_save_state();
 
-	per_cpu(cpu_state, cpu) = CPU_UP_PREPARE;
+	/* x86 CPUs take themselves offline, so delayed offline is OK. */
+	err = cpu_check_up_prepare(cpu);
+	if (err && err != -EBUSY)
+		return err;
 
 	/* the FPU context is blank, nobody can own it */
 	__cpu_disable_lazy_restore(cpu);
+
+	common_cpu_up(cpu, tidle);
 
 	err = do_boot_cpu(apicid, cpu, tidle);
 	if (err) {
@@ -957,9 +998,12 @@ void arch_disable_smp_support(void)
  */
 static __init void disable_smp(void)
 {
+	pr_info("SMP disabled\n");
+
+	disable_ioapic_support();
+
 	init_cpu_present(cpumask_of(0));
 	init_cpu_possible(cpumask_of(0));
-	smpboot_clear_io_apic_irqs();
 
 	if (smp_found_config)
 		physid_set_mask_of_physid(boot_cpu_physical_apicid, &phys_cpu_present_map);
@@ -968,6 +1012,13 @@ static __init void disable_smp(void)
 	cpumask_set_cpu(0, cpu_sibling_mask(0));
 	cpumask_set_cpu(0, cpu_core_mask(0));
 }
+
+enum {
+	SMP_OK,
+	SMP_NO_CONFIG,
+	SMP_NO_APIC,
+	SMP_FORCE_UP,
+};
 
 /*
  * Various sanity checks.
@@ -1016,10 +1067,7 @@ static int __init smp_sanity_check(unsigned max_cpus)
 	if (!smp_found_config && !acpi_lapic) {
 		preempt_enable();
 		pr_notice("SMP motherboard not detected\n");
-		disable_smp();
-		if (APIC_init_uniprocessor())
-			pr_notice("Local APIC not detected. Using dummy APIC emulation.\n");
-		return -1;
+		return SMP_NO_CONFIG;
 	}
 
 	/*
@@ -1043,27 +1091,18 @@ static int __init smp_sanity_check(unsigned max_cpus)
 				boot_cpu_physical_apicid);
 			pr_err("... forcing use of dummy APIC emulation (tell your hw vendor)\n");
 		}
-		smpboot_clear_io_apic();
-		disable_ioapic_support();
-		return -1;
+		return SMP_NO_APIC;
 	}
-
-	verify_local_APIC();
 
 	/*
 	 * If SMP should be disabled, then really disable it!
 	 */
 	if (!max_cpus) {
 		pr_info("SMP mode deactivated\n");
-		smpboot_clear_io_apic();
-
-		connect_bsp_APIC();
-		setup_local_APIC();
-		bsp_end_local_APIC_setup();
-		return -1;
+		return SMP_FORCE_UP;
 	}
 
-	return 0;
+	return SMP_OK;
 }
 
 static void __init smp_cpu_index_default(void)
@@ -1086,7 +1125,6 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 {
 	unsigned int i;
 
-	preempt_disable();
 	smp_cpu_index_default();
 
 	/*
@@ -1104,57 +1142,40 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	}
 	set_cpu_sibling_map(0);
 
-
-	if (smp_sanity_check(max_cpus) < 0) {
-		pr_info("SMP disabled\n");
+	switch (smp_sanity_check(max_cpus)) {
+	case SMP_NO_CONFIG:
 		disable_smp();
-		goto out;
+		if (APIC_init_uniprocessor())
+			pr_notice("Local APIC not detected. Using dummy APIC emulation.\n");
+		return;
+	case SMP_NO_APIC:
+		disable_smp();
+		return;
+	case SMP_FORCE_UP:
+		disable_smp();
+		apic_bsp_setup(false);
+		return;
+	case SMP_OK:
+		break;
 	}
 
 	default_setup_apic_routing();
 
-	preempt_disable();
 	if (read_apic_id() != boot_cpu_physical_apicid) {
 		panic("Boot APIC ID in local APIC unexpected (%d vs %d)",
 		     read_apic_id(), boot_cpu_physical_apicid);
 		/* Or can we switch back to PIC here? */
 	}
-	preempt_enable();
 
-	connect_bsp_APIC();
-
-	/*
-	 * Switch from PIC to APIC mode.
-	 */
-	setup_local_APIC();
-
-	if (x2apic_mode)
-		cpu0_logical_apicid = apic_read(APIC_LDR);
-	else
-		cpu0_logical_apicid = GET_APIC_LOGICAL_ID(apic_read(APIC_LDR));
-
-	/*
-	 * Enable IO APIC before setting up error vector
-	 */
-	if (!skip_ioapic_setup && nr_ioapics)
-		enable_IO_APIC();
-
-	bsp_end_local_APIC_setup();
-	smpboot_setup_io_apic();
-	/*
-	 * Set up local APIC timer on boot CPU.
-	 */
+	cpu0_logical_apicid = apic_bsp_setup(false);
 
 	pr_info("CPU%d: ", 0);
 	print_cpu_info(&cpu_data(0));
-	x86_init.timers.setup_percpu_clockev();
 
 	if (is_uv_system())
 		uv_system_init();
 
 	set_mtrr_aps_delayed_init();
-out:
-	preempt_enable();
 }
 
 void arch_enable_nonboot_cpus_begin(void)
@@ -1176,7 +1197,7 @@ void __init native_smp_prepare_boot_cpu(void)
 	switch_to_new_gdt(me);
 	/* already set me in cpu_online_mask in boot_cpu_init() */
 	cpumask_set_cpu(me, cpu_callout_mask);
-	per_cpu(cpu_state, me) = CPU_ONLINE;
+	cpu_set_state_online(me);
 }
 
 void __init native_smp_cpus_done(unsigned int max_cpus)
@@ -1185,9 +1206,7 @@ void __init native_smp_cpus_done(unsigned int max_cpus)
 
 	nmi_selftest();
 	impress_friends();
-#ifdef CONFIG_X86_IO_APIC
 	setup_ioapic_dest();
-#endif
 	mtrr_aps_init();
 }
 
@@ -1327,24 +1346,32 @@ int native_cpu_disable(void)
 		return ret;
 
 	clear_local_APIC();
-	init_completion(&per_cpu(die_complete, smp_processor_id()));
 	cpu_disable_common();
 
 	return 0;
 }
 
-void native_cpu_die(unsigned int cpu)
+int common_cpu_die(unsigned int cpu)
 {
+	int ret = 0;
+
 	/* We don't do anything here: idle task is faking death itself. */
-	wait_for_completion_timeout(&per_cpu(die_complete, cpu), HZ);
 
 	/* They ack this in play_dead() by setting CPU_DEAD */
-	if (per_cpu(cpu_state, cpu) == CPU_DEAD) {
+	if (cpu_wait_death(cpu, 5)) {
 		if (system_state == SYSTEM_RUNNING)
 			pr_info("CPU %u is now offline\n", cpu);
 	} else {
 		pr_err("CPU %u didn't die...\n", cpu);
+		ret = -1;
 	}
+
+	return ret;
+}
+
+void native_cpu_die(unsigned int cpu)
+{
+	common_cpu_die(cpu);
 }
 
 void play_dead_common(void)
@@ -1353,10 +1380,8 @@ void play_dead_common(void)
 	reset_lazy_tlbstate();
 	amd_e400_remove_cpu(raw_smp_processor_id());
 
-	mb();
 	/* Ack it */
-	__this_cpu_write(cpu_state, CPU_DEAD);
-	complete(&per_cpu(die_complete, smp_processor_id()));
+	(void)cpu_report_death();
 
 	/*
 	 * With physical CPU hotplug, we should halt the cpu

@@ -88,7 +88,7 @@ struct adv7604_reg_seq {
 };
 
 struct adv7604_format_info {
-	enum v4l2_mbus_pixelcode code;
+	u32 code;
 	u8 op_ch_sel;
 	bool rgb_out;
 	bool swap_cb_cr;
@@ -333,19 +333,9 @@ static inline struct adv7604_state *to_state(struct v4l2_subdev *sd)
 	return container_of(sd, struct adv7604_state, sd);
 }
 
-static inline unsigned hblanking(const struct v4l2_bt_timings *t)
-{
-	return V4L2_DV_BT_BLANKING_WIDTH(t);
-}
-
 static inline unsigned htotal(const struct v4l2_bt_timings *t)
 {
 	return V4L2_DV_BT_FRAME_WIDTH(t);
-}
-
-static inline unsigned vblanking(const struct v4l2_bt_timings *t)
-{
-	return V4L2_DV_BT_BLANKING_HEIGHT(t);
 }
 
 static inline unsigned vtotal(const struct v4l2_bt_timings *t)
@@ -466,11 +456,6 @@ static inline int cec_write(struct v4l2_subdev *sd, u8 reg, u8 val)
 	return adv_smbus_write_byte_data(state, ADV7604_PAGE_CEC, reg, val);
 }
 
-static inline int cec_write_clr_set(struct v4l2_subdev *sd, u8 reg, u8 mask, u8 val)
-{
-	return cec_write(sd, reg, (cec_read(sd, reg) & ~mask) | val);
-}
-
 static inline int infoframe_read(struct v4l2_subdev *sd, u8 reg)
 {
 	struct adv7604_state *state = to_state(sd);
@@ -484,34 +469,6 @@ static inline int infoframe_write(struct v4l2_subdev *sd, u8 reg, u8 val)
 
 	return adv_smbus_write_byte_data(state, ADV7604_PAGE_INFOFRAME,
 					 reg, val);
-}
-
-static inline int esdp_read(struct v4l2_subdev *sd, u8 reg)
-{
-	struct adv7604_state *state = to_state(sd);
-
-	return adv_smbus_read_byte_data(state, ADV7604_PAGE_ESDP, reg);
-}
-
-static inline int esdp_write(struct v4l2_subdev *sd, u8 reg, u8 val)
-{
-	struct adv7604_state *state = to_state(sd);
-
-	return adv_smbus_write_byte_data(state, ADV7604_PAGE_ESDP, reg, val);
-}
-
-static inline int dpp_read(struct v4l2_subdev *sd, u8 reg)
-{
-	struct adv7604_state *state = to_state(sd);
-
-	return adv_smbus_read_byte_data(state, ADV7604_PAGE_DPP, reg);
-}
-
-static inline int dpp_write(struct v4l2_subdev *sd, u8 reg, u8 val)
-{
-	struct adv7604_state *state = to_state(sd);
-
-	return adv_smbus_write_byte_data(state, ADV7604_PAGE_DPP, reg, val);
 }
 
 static inline int afe_read(struct v4l2_subdev *sd, u8 reg)
@@ -559,32 +516,6 @@ static inline int edid_write(struct v4l2_subdev *sd, u8 reg, u8 val)
 	struct adv7604_state *state = to_state(sd);
 
 	return adv_smbus_write_byte_data(state, ADV7604_PAGE_EDID, reg, val);
-}
-
-static inline int edid_read_block(struct v4l2_subdev *sd, unsigned len, u8 *val)
-{
-	struct adv7604_state *state = to_state(sd);
-	struct i2c_client *client = state->i2c_clients[ADV7604_PAGE_EDID];
-	u8 msgbuf0[1] = { 0 };
-	u8 msgbuf1[256];
-	struct i2c_msg msg[2] = {
-		{
-			.addr = client->addr,
-			.len = 1,
-			.buf = msgbuf0
-		},
-		{
-			.addr = client->addr,
-			.flags = I2C_M_RD,
-			.len = len,
-			.buf = msgbuf1
-		},
-	};
-
-	if (i2c_transfer(client->adapter, msg, 2) < 0)
-		return -EIO;
-	memcpy(val, msgbuf1, len);
-	return 0;
 }
 
 static inline int edid_write_block(struct v4l2_subdev *sd,
@@ -650,13 +581,6 @@ static inline int hdmi_write(struct v4l2_subdev *sd, u8 reg, u8 val)
 static inline int hdmi_write_clr_set(struct v4l2_subdev *sd, u8 reg, u8 mask, u8 val)
 {
 	return hdmi_write(sd, reg, (hdmi_read(sd, reg) & ~mask) | val);
-}
-
-static inline int test_read(struct v4l2_subdev *sd, u8 reg)
-{
-	struct adv7604_state *state = to_state(sd);
-
-	return adv_smbus_read_byte_data(state, ADV7604_PAGE_TEST, reg);
 }
 
 static inline int test_write(struct v4l2_subdev *sd, u8 reg, u8 val)
@@ -749,77 +673,77 @@ static void adv7604_write_reg_seq(struct v4l2_subdev *sd,
  */
 
 static const struct adv7604_format_info adv7604_formats[] = {
-	{ V4L2_MBUS_FMT_RGB888_1X24, ADV7604_OP_CH_SEL_RGB, true, false,
+	{ MEDIA_BUS_FMT_RGB888_1X24, ADV7604_OP_CH_SEL_RGB, true, false,
 	  ADV7604_OP_MODE_SEL_SDR_444 | ADV7604_OP_FORMAT_SEL_8BIT },
-	{ V4L2_MBUS_FMT_YUYV8_2X8, ADV7604_OP_CH_SEL_RGB, false, false,
+	{ MEDIA_BUS_FMT_YUYV8_2X8, ADV7604_OP_CH_SEL_RGB, false, false,
 	  ADV7604_OP_MODE_SEL_SDR_422 | ADV7604_OP_FORMAT_SEL_8BIT },
-	{ V4L2_MBUS_FMT_YVYU8_2X8, ADV7604_OP_CH_SEL_RGB, false, true,
+	{ MEDIA_BUS_FMT_YVYU8_2X8, ADV7604_OP_CH_SEL_RGB, false, true,
 	  ADV7604_OP_MODE_SEL_SDR_422 | ADV7604_OP_FORMAT_SEL_8BIT },
-	{ V4L2_MBUS_FMT_YUYV10_2X10, ADV7604_OP_CH_SEL_RGB, false, false,
+	{ MEDIA_BUS_FMT_YUYV10_2X10, ADV7604_OP_CH_SEL_RGB, false, false,
 	  ADV7604_OP_MODE_SEL_SDR_422 | ADV7604_OP_FORMAT_SEL_10BIT },
-	{ V4L2_MBUS_FMT_YVYU10_2X10, ADV7604_OP_CH_SEL_RGB, false, true,
+	{ MEDIA_BUS_FMT_YVYU10_2X10, ADV7604_OP_CH_SEL_RGB, false, true,
 	  ADV7604_OP_MODE_SEL_SDR_422 | ADV7604_OP_FORMAT_SEL_10BIT },
-	{ V4L2_MBUS_FMT_YUYV12_2X12, ADV7604_OP_CH_SEL_RGB, false, false,
+	{ MEDIA_BUS_FMT_YUYV12_2X12, ADV7604_OP_CH_SEL_RGB, false, false,
 	  ADV7604_OP_MODE_SEL_SDR_422 | ADV7604_OP_FORMAT_SEL_12BIT },
-	{ V4L2_MBUS_FMT_YVYU12_2X12, ADV7604_OP_CH_SEL_RGB, false, true,
+	{ MEDIA_BUS_FMT_YVYU12_2X12, ADV7604_OP_CH_SEL_RGB, false, true,
 	  ADV7604_OP_MODE_SEL_SDR_422 | ADV7604_OP_FORMAT_SEL_12BIT },
-	{ V4L2_MBUS_FMT_UYVY8_1X16, ADV7604_OP_CH_SEL_RBG, false, false,
+	{ MEDIA_BUS_FMT_UYVY8_1X16, ADV7604_OP_CH_SEL_RBG, false, false,
 	  ADV7604_OP_MODE_SEL_SDR_422_2X | ADV7604_OP_FORMAT_SEL_8BIT },
-	{ V4L2_MBUS_FMT_VYUY8_1X16, ADV7604_OP_CH_SEL_RBG, false, true,
+	{ MEDIA_BUS_FMT_VYUY8_1X16, ADV7604_OP_CH_SEL_RBG, false, true,
 	  ADV7604_OP_MODE_SEL_SDR_422_2X | ADV7604_OP_FORMAT_SEL_8BIT },
-	{ V4L2_MBUS_FMT_YUYV8_1X16, ADV7604_OP_CH_SEL_RGB, false, false,
+	{ MEDIA_BUS_FMT_YUYV8_1X16, ADV7604_OP_CH_SEL_RGB, false, false,
 	  ADV7604_OP_MODE_SEL_SDR_422_2X | ADV7604_OP_FORMAT_SEL_8BIT },
-	{ V4L2_MBUS_FMT_YVYU8_1X16, ADV7604_OP_CH_SEL_RGB, false, true,
+	{ MEDIA_BUS_FMT_YVYU8_1X16, ADV7604_OP_CH_SEL_RGB, false, true,
 	  ADV7604_OP_MODE_SEL_SDR_422_2X | ADV7604_OP_FORMAT_SEL_8BIT },
-	{ V4L2_MBUS_FMT_UYVY10_1X20, ADV7604_OP_CH_SEL_RBG, false, false,
+	{ MEDIA_BUS_FMT_UYVY10_1X20, ADV7604_OP_CH_SEL_RBG, false, false,
 	  ADV7604_OP_MODE_SEL_SDR_422_2X | ADV7604_OP_FORMAT_SEL_10BIT },
-	{ V4L2_MBUS_FMT_VYUY10_1X20, ADV7604_OP_CH_SEL_RBG, false, true,
+	{ MEDIA_BUS_FMT_VYUY10_1X20, ADV7604_OP_CH_SEL_RBG, false, true,
 	  ADV7604_OP_MODE_SEL_SDR_422_2X | ADV7604_OP_FORMAT_SEL_10BIT },
-	{ V4L2_MBUS_FMT_YUYV10_1X20, ADV7604_OP_CH_SEL_RGB, false, false,
+	{ MEDIA_BUS_FMT_YUYV10_1X20, ADV7604_OP_CH_SEL_RGB, false, false,
 	  ADV7604_OP_MODE_SEL_SDR_422_2X | ADV7604_OP_FORMAT_SEL_10BIT },
-	{ V4L2_MBUS_FMT_YVYU10_1X20, ADV7604_OP_CH_SEL_RGB, false, true,
+	{ MEDIA_BUS_FMT_YVYU10_1X20, ADV7604_OP_CH_SEL_RGB, false, true,
 	  ADV7604_OP_MODE_SEL_SDR_422_2X | ADV7604_OP_FORMAT_SEL_10BIT },
-	{ V4L2_MBUS_FMT_UYVY12_1X24, ADV7604_OP_CH_SEL_RBG, false, false,
+	{ MEDIA_BUS_FMT_UYVY12_1X24, ADV7604_OP_CH_SEL_RBG, false, false,
 	  ADV7604_OP_MODE_SEL_SDR_422_2X | ADV7604_OP_FORMAT_SEL_12BIT },
-	{ V4L2_MBUS_FMT_VYUY12_1X24, ADV7604_OP_CH_SEL_RBG, false, true,
+	{ MEDIA_BUS_FMT_VYUY12_1X24, ADV7604_OP_CH_SEL_RBG, false, true,
 	  ADV7604_OP_MODE_SEL_SDR_422_2X | ADV7604_OP_FORMAT_SEL_12BIT },
-	{ V4L2_MBUS_FMT_YUYV12_1X24, ADV7604_OP_CH_SEL_RGB, false, false,
+	{ MEDIA_BUS_FMT_YUYV12_1X24, ADV7604_OP_CH_SEL_RGB, false, false,
 	  ADV7604_OP_MODE_SEL_SDR_422_2X | ADV7604_OP_FORMAT_SEL_12BIT },
-	{ V4L2_MBUS_FMT_YVYU12_1X24, ADV7604_OP_CH_SEL_RGB, false, true,
+	{ MEDIA_BUS_FMT_YVYU12_1X24, ADV7604_OP_CH_SEL_RGB, false, true,
 	  ADV7604_OP_MODE_SEL_SDR_422_2X | ADV7604_OP_FORMAT_SEL_12BIT },
 };
 
 static const struct adv7604_format_info adv7611_formats[] = {
-	{ V4L2_MBUS_FMT_RGB888_1X24, ADV7604_OP_CH_SEL_RGB, true, false,
+	{ MEDIA_BUS_FMT_RGB888_1X24, ADV7604_OP_CH_SEL_RGB, true, false,
 	  ADV7604_OP_MODE_SEL_SDR_444 | ADV7604_OP_FORMAT_SEL_8BIT },
-	{ V4L2_MBUS_FMT_YUYV8_2X8, ADV7604_OP_CH_SEL_RGB, false, false,
+	{ MEDIA_BUS_FMT_YUYV8_2X8, ADV7604_OP_CH_SEL_RGB, false, false,
 	  ADV7604_OP_MODE_SEL_SDR_422 | ADV7604_OP_FORMAT_SEL_8BIT },
-	{ V4L2_MBUS_FMT_YVYU8_2X8, ADV7604_OP_CH_SEL_RGB, false, true,
+	{ MEDIA_BUS_FMT_YVYU8_2X8, ADV7604_OP_CH_SEL_RGB, false, true,
 	  ADV7604_OP_MODE_SEL_SDR_422 | ADV7604_OP_FORMAT_SEL_8BIT },
-	{ V4L2_MBUS_FMT_YUYV12_2X12, ADV7604_OP_CH_SEL_RGB, false, false,
+	{ MEDIA_BUS_FMT_YUYV12_2X12, ADV7604_OP_CH_SEL_RGB, false, false,
 	  ADV7604_OP_MODE_SEL_SDR_422 | ADV7604_OP_FORMAT_SEL_12BIT },
-	{ V4L2_MBUS_FMT_YVYU12_2X12, ADV7604_OP_CH_SEL_RGB, false, true,
+	{ MEDIA_BUS_FMT_YVYU12_2X12, ADV7604_OP_CH_SEL_RGB, false, true,
 	  ADV7604_OP_MODE_SEL_SDR_422 | ADV7604_OP_FORMAT_SEL_12BIT },
-	{ V4L2_MBUS_FMT_UYVY8_1X16, ADV7604_OP_CH_SEL_RBG, false, false,
+	{ MEDIA_BUS_FMT_UYVY8_1X16, ADV7604_OP_CH_SEL_RBG, false, false,
 	  ADV7604_OP_MODE_SEL_SDR_422_2X | ADV7604_OP_FORMAT_SEL_8BIT },
-	{ V4L2_MBUS_FMT_VYUY8_1X16, ADV7604_OP_CH_SEL_RBG, false, true,
+	{ MEDIA_BUS_FMT_VYUY8_1X16, ADV7604_OP_CH_SEL_RBG, false, true,
 	  ADV7604_OP_MODE_SEL_SDR_422_2X | ADV7604_OP_FORMAT_SEL_8BIT },
-	{ V4L2_MBUS_FMT_YUYV8_1X16, ADV7604_OP_CH_SEL_RGB, false, false,
+	{ MEDIA_BUS_FMT_YUYV8_1X16, ADV7604_OP_CH_SEL_RGB, false, false,
 	  ADV7604_OP_MODE_SEL_SDR_422_2X | ADV7604_OP_FORMAT_SEL_8BIT },
-	{ V4L2_MBUS_FMT_YVYU8_1X16, ADV7604_OP_CH_SEL_RGB, false, true,
+	{ MEDIA_BUS_FMT_YVYU8_1X16, ADV7604_OP_CH_SEL_RGB, false, true,
 	  ADV7604_OP_MODE_SEL_SDR_422_2X | ADV7604_OP_FORMAT_SEL_8BIT },
-	{ V4L2_MBUS_FMT_UYVY12_1X24, ADV7604_OP_CH_SEL_RBG, false, false,
+	{ MEDIA_BUS_FMT_UYVY12_1X24, ADV7604_OP_CH_SEL_RBG, false, false,
 	  ADV7604_OP_MODE_SEL_SDR_422_2X | ADV7604_OP_FORMAT_SEL_12BIT },
-	{ V4L2_MBUS_FMT_VYUY12_1X24, ADV7604_OP_CH_SEL_RBG, false, true,
+	{ MEDIA_BUS_FMT_VYUY12_1X24, ADV7604_OP_CH_SEL_RBG, false, true,
 	  ADV7604_OP_MODE_SEL_SDR_422_2X | ADV7604_OP_FORMAT_SEL_12BIT },
-	{ V4L2_MBUS_FMT_YUYV12_1X24, ADV7604_OP_CH_SEL_RGB, false, false,
+	{ MEDIA_BUS_FMT_YUYV12_1X24, ADV7604_OP_CH_SEL_RGB, false, false,
 	  ADV7604_OP_MODE_SEL_SDR_422_2X | ADV7604_OP_FORMAT_SEL_12BIT },
-	{ V4L2_MBUS_FMT_YVYU12_1X24, ADV7604_OP_CH_SEL_RGB, false, true,
+	{ MEDIA_BUS_FMT_YVYU12_1X24, ADV7604_OP_CH_SEL_RGB, false, true,
 	  ADV7604_OP_MODE_SEL_SDR_422_2X | ADV7604_OP_FORMAT_SEL_12BIT },
 };
 
 static const struct adv7604_format_info *
-adv7604_format_info(struct adv7604_state *state, enum v4l2_mbus_pixelcode code)
+adv7604_format_info(struct adv7604_state *state, u32 code)
 {
 	unsigned int i;
 
@@ -1917,7 +1841,7 @@ static int adv7604_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 
 	info = adv7604_format_info(state, format->format.code);
 	if (info == NULL)
-		info = adv7604_format_info(state, V4L2_MBUS_FMT_YUYV8_2X8);
+		info = adv7604_format_info(state, MEDIA_BUS_FMT_YUYV8_2X8);
 
 	adv7604_fill_format(state, &format->format);
 	format->format.code = info->code;
@@ -1997,19 +1921,7 @@ static int adv7604_get_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 	struct adv7604_state *state = to_state(sd);
 	u8 *data = NULL;
 
-	if (edid->pad > ADV7604_PAD_HDMI_PORT_D)
-		return -EINVAL;
-	if (edid->blocks == 0)
-		return -EINVAL;
-	if (edid->blocks > 2)
-		return -EINVAL;
-	if (edid->start_block > 1)
-		return -EINVAL;
-	if (edid->start_block == 1)
-		edid->blocks = 1;
-
-	if (edid->blocks > state->edid.blocks)
-		edid->blocks = state->edid.blocks;
+	memset(edid->reserved, 0, sizeof(edid->reserved));
 
 	switch (edid->pad) {
 	case ADV7604_PAD_HDMI_PORT_A:
@@ -2021,14 +1933,24 @@ static int adv7604_get_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 		break;
 	default:
 		return -EINVAL;
-		break;
 	}
-	if (!data)
+
+	if (edid->start_block == 0 && edid->blocks == 0) {
+		edid->blocks = data ? state->edid.blocks : 0;
+		return 0;
+	}
+
+	if (data == NULL)
 		return -ENODATA;
 
-	memcpy(edid->edid,
-	       data + edid->start_block * 128,
-	       edid->blocks * 128);
+	if (edid->start_block >= state->edid.blocks)
+		return -EINVAL;
+
+	if (edid->start_block + edid->blocks > state->edid.blocks)
+		edid->blocks = state->edid.blocks - edid->start_block;
+
+	memcpy(edid->edid, data + edid->start_block * 128, edid->blocks * 128);
+
 	return 0;
 }
 
@@ -2067,6 +1989,8 @@ static int adv7604_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 	int spa_loc;
 	int err;
 	int i;
+
+	memset(edid->reserved, 0, sizeof(edid->reserved));
 
 	if (edid->pad > ADV7604_PAD_HDMI_PORT_D)
 		return -EINVAL;
@@ -2163,7 +2087,6 @@ static int adv7604_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 		v4l2_err(sd, "error enabling edid (0x%x)\n", state->edid.present);
 		return -EIO;
 	}
-
 
 	/* enable hotplug after 100 ms */
 	queue_delayed_work(state->work_queues,
@@ -2807,7 +2730,7 @@ static int adv7604_probe(struct i2c_client *client,
 	}
 
 	state->timings = cea640x480;
-	state->format = adv7604_format_info(state, V4L2_MBUS_FMT_YUYV8_2X8);
+	state->format = adv7604_format_info(state, MEDIA_BUS_FMT_YUYV8_2X8);
 
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &adv7604_ops);

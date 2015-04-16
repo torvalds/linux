@@ -40,6 +40,7 @@
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/of_device.h>
+#include <linux/mutex.h>
 #include <linux/platform_device.h>
 
 #include <linux/usb/of.h>
@@ -120,7 +121,10 @@ static int dwc2_driver_remove(struct platform_device *dev)
 {
 	struct dwc2_hsotg *hsotg = platform_get_drvdata(dev);
 
-	dwc2_hcd_remove(hsotg);
+	if (hsotg->hcd_enabled)
+		dwc2_hcd_remove(hsotg);
+	if (hsotg->gadget_enabled)
+		s3c_hsotg_remove(hsotg);
 
 	return 0;
 }
@@ -129,6 +133,7 @@ static const struct of_device_id dwc2_of_match_table[] = {
 	{ .compatible = "brcm,bcm2835-usb", .data = &params_bcm2835 },
 	{ .compatible = "rockchip,rk3066-usb", .data = &params_rk3066 },
 	{ .compatible = "snps,dwc2", .data = NULL },
+	{ .compatible = "samsung,s3c6400-hsotg", .data = NULL},
 	{},
 };
 MODULE_DEVICE_TABLE(of, dwc2_of_match_table);
@@ -152,11 +157,10 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	struct dwc2_core_params defparams;
 	struct dwc2_hsotg *hsotg;
 	struct resource *res;
+	struct phy *phy;
+	struct usb_phy *uphy;
 	int retval;
 	int irq;
-
-	if (usb_disabled())
-		return -ENODEV;
 
 	match = of_match_device(dwc2_of_match_table, &dev->dev);
 	if (match && match->data) {
@@ -194,6 +198,14 @@ static int dwc2_driver_probe(struct platform_device *dev)
 		return irq;
 	}
 
+	dev_dbg(hsotg->dev, "registering common handler for irq%d\n",
+		irq);
+	retval = devm_request_irq(hsotg->dev, irq,
+				  dwc2_handle_common_intr, IRQF_SHARED,
+				  dev_name(hsotg->dev), hsotg);
+	if (retval)
+		return retval;
+
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	hsotg->regs = devm_ioremap_resource(&dev->dev, res);
 	if (IS_ERR(hsotg->regs))
@@ -204,19 +216,90 @@ static int dwc2_driver_probe(struct platform_device *dev)
 
 	hsotg->dr_mode = of_usb_get_dr_mode(dev->dev.of_node);
 
-	retval = dwc2_hcd_init(hsotg, irq, params);
-	if (retval)
-		return retval;
+	/*
+	 * Attempt to find a generic PHY, then look for an old style
+	 * USB PHY
+	 */
+	phy = devm_phy_get(&dev->dev, "usb2-phy");
+	if (IS_ERR(phy)) {
+		hsotg->phy = NULL;
+		uphy = devm_usb_get_phy(&dev->dev, USB_PHY_TYPE_USB2);
+		if (IS_ERR(uphy))
+			hsotg->uphy = NULL;
+		else
+			hsotg->uphy = uphy;
+	} else {
+		hsotg->phy = phy;
+		phy_power_on(hsotg->phy);
+		phy_init(hsotg->phy);
+	}
+
+	spin_lock_init(&hsotg->lock);
+	mutex_init(&hsotg->init_mutex);
+
+	if (hsotg->dr_mode != USB_DR_MODE_HOST) {
+		retval = dwc2_gadget_init(hsotg, irq);
+		if (retval)
+			return retval;
+		hsotg->gadget_enabled = 1;
+	}
+
+	if (hsotg->dr_mode != USB_DR_MODE_PERIPHERAL) {
+		retval = dwc2_hcd_init(hsotg, irq, params);
+		if (retval) {
+			if (hsotg->gadget_enabled)
+				s3c_hsotg_remove(hsotg);
+			return retval;
+		}
+		hsotg->hcd_enabled = 1;
+	}
 
 	platform_set_drvdata(dev, hsotg);
 
 	return retval;
 }
 
+static int __maybe_unused dwc2_suspend(struct device *dev)
+{
+	struct dwc2_hsotg *dwc2 = dev_get_drvdata(dev);
+	int ret = 0;
+
+	if (dwc2_is_device_mode(dwc2)) {
+		ret = s3c_hsotg_suspend(dwc2);
+	} else {
+		if (dwc2->lx_state == DWC2_L0)
+			return 0;
+		phy_exit(dwc2->phy);
+		phy_power_off(dwc2->phy);
+
+	}
+	return ret;
+}
+
+static int __maybe_unused dwc2_resume(struct device *dev)
+{
+	struct dwc2_hsotg *dwc2 = dev_get_drvdata(dev);
+	int ret = 0;
+
+	if (dwc2_is_device_mode(dwc2)) {
+		ret = s3c_hsotg_resume(dwc2);
+	} else {
+		phy_power_on(dwc2->phy);
+		phy_init(dwc2->phy);
+
+	}
+	return ret;
+}
+
+static const struct dev_pm_ops dwc2_dev_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(dwc2_suspend, dwc2_resume)
+};
+
 static struct platform_driver dwc2_platform_driver = {
 	.driver = {
 		.name = dwc2_driver_name,
 		.of_match_table = dwc2_of_match_table,
+		.pm = &dwc2_dev_pm_ops,
 	},
 	.probe = dwc2_driver_probe,
 	.remove = dwc2_driver_remove,

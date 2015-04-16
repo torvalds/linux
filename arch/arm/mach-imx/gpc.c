@@ -20,12 +20,33 @@
 
 #define GPC_IMR1		0x008
 #define GPC_PGC_CPU_PDN		0x2a0
+#define GPC_PGC_CPU_PUPSCR	0x2a4
+#define GPC_PGC_CPU_PDNSCR	0x2a8
+#define GPC_PGC_SW2ISO_SHIFT	0x8
+#define GPC_PGC_SW_SHIFT	0x0
 
 #define IMR_NUM			4
 
 static void __iomem *gpc_base;
 static u32 gpc_wake_irqs[IMR_NUM];
 static u32 gpc_saved_imrs[IMR_NUM];
+
+void imx_gpc_set_arm_power_up_timing(u32 sw2iso, u32 sw)
+{
+	writel_relaxed((sw2iso << GPC_PGC_SW2ISO_SHIFT) |
+		(sw << GPC_PGC_SW_SHIFT), gpc_base + GPC_PGC_CPU_PUPSCR);
+}
+
+void imx_gpc_set_arm_power_down_timing(u32 sw2iso, u32 sw)
+{
+	writel_relaxed((sw2iso << GPC_PGC_SW2ISO_SHIFT) |
+		(sw << GPC_PGC_SW_SHIFT), gpc_base + GPC_PGC_CPU_PDNSCR);
+}
+
+void imx_gpc_set_arm_power_in_lpm(bool power_off)
+{
+	writel_relaxed(power_off, gpc_base + GPC_PGC_CPU_PDN);
+}
 
 void imx_gpc_pre_suspend(bool arm_power_off)
 {
@@ -34,7 +55,7 @@ void imx_gpc_pre_suspend(bool arm_power_off)
 
 	/* Tell GPC to power off ARM core when suspend */
 	if (arm_power_off)
-		writel_relaxed(0x1, gpc_base + GPC_PGC_CPU_PDN);
+		imx_gpc_set_arm_power_in_lpm(arm_power_off);
 
 	for (i = 0; i < IMR_NUM; i++) {
 		gpc_saved_imrs[i] = readl_relaxed(reg_imr1 + i * 4);
@@ -48,7 +69,7 @@ void imx_gpc_post_resume(void)
 	int i;
 
 	/* Keep ARM core powered on for other low-power modes */
-	writel_relaxed(0x0, gpc_base + GPC_PGC_CPU_PDN);
+	imx_gpc_set_arm_power_in_lpm(false);
 
 	for (i = 0; i < IMR_NUM; i++)
 		writel_relaxed(gpc_saved_imrs[i], reg_imr1 + i * 4);
@@ -56,14 +77,14 @@ void imx_gpc_post_resume(void)
 
 static int imx_gpc_irq_set_wake(struct irq_data *d, unsigned int on)
 {
-	unsigned int idx = d->irq / 32 - 1;
+	unsigned int idx = d->hwirq / 32 - 1;
 	u32 mask;
 
 	/* Sanity check for SPI irq */
-	if (d->irq < 32)
+	if (d->hwirq < 32)
 		return -EINVAL;
 
-	mask = 1 << d->irq % 32;
+	mask = 1 << d->hwirq % 32;
 	gpc_wake_irqs[idx] = on ? gpc_wake_irqs[idx] | mask :
 				  gpc_wake_irqs[idx] & ~mask;
 
@@ -91,34 +112,44 @@ void imx_gpc_restore_all(void)
 		writel_relaxed(gpc_saved_imrs[i], reg_imr1 + i * 4);
 }
 
-void imx_gpc_irq_unmask(struct irq_data *d)
+void imx_gpc_hwirq_unmask(unsigned int hwirq)
 {
 	void __iomem *reg;
 	u32 val;
 
-	/* Sanity check for SPI irq */
-	if (d->irq < 32)
-		return;
-
-	reg = gpc_base + GPC_IMR1 + (d->irq / 32 - 1) * 4;
+	reg = gpc_base + GPC_IMR1 + (hwirq / 32 - 1) * 4;
 	val = readl_relaxed(reg);
-	val &= ~(1 << d->irq % 32);
+	val &= ~(1 << hwirq % 32);
 	writel_relaxed(val, reg);
 }
 
-void imx_gpc_irq_mask(struct irq_data *d)
+void imx_gpc_hwirq_mask(unsigned int hwirq)
 {
 	void __iomem *reg;
 	u32 val;
 
+	reg = gpc_base + GPC_IMR1 + (hwirq / 32 - 1) * 4;
+	val = readl_relaxed(reg);
+	val |= 1 << (hwirq % 32);
+	writel_relaxed(val, reg);
+}
+
+static void imx_gpc_irq_unmask(struct irq_data *d)
+{
 	/* Sanity check for SPI irq */
-	if (d->irq < 32)
+	if (d->hwirq < 32)
 		return;
 
-	reg = gpc_base + GPC_IMR1 + (d->irq / 32 - 1) * 4;
-	val = readl_relaxed(reg);
-	val |= 1 << (d->irq % 32);
-	writel_relaxed(val, reg);
+	imx_gpc_hwirq_unmask(d->hwirq);
+}
+
+static void imx_gpc_irq_mask(struct irq_data *d)
+{
+	/* Sanity check for SPI irq */
+	if (d->hwirq < 32)
+		return;
+
+	imx_gpc_hwirq_mask(d->hwirq);
 }
 
 void __init imx_gpc_init(void)

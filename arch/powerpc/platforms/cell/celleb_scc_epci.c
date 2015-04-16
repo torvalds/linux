@@ -25,7 +25,6 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/pci_regs.h>
-#include <linux/bootmem.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>

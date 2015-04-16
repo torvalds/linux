@@ -784,7 +784,7 @@ static struct buffer_desc *chainup_buffers(struct device *dev,
 		struct buffer_desc *buf, gfp_t flags,
 		enum dma_data_direction dir)
 {
-	for (;nbytes > 0; sg = scatterwalk_sg_next(sg)) {
+	for (; nbytes > 0; sg = sg_next(sg)) {
 		unsigned len = min(nbytes, sg->length);
 		struct buffer_desc *next_buf;
 		u32 next_buf_phys;
@@ -982,7 +982,7 @@ static int hmac_inconsistent(struct scatterlist *sg, unsigned start,
 			break;
 
 		offset += sg->length;
-		sg = scatterwalk_sg_next(sg);
+		sg = sg_next(sg);
 	}
 	return (start + nbytes > offset + sg->length);
 }

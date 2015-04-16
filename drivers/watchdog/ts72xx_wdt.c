@@ -436,7 +436,6 @@ static struct platform_driver ts72xx_wdt_driver = {
 	.remove		= ts72xx_wdt_remove,
 	.driver		= {
 		.name	= "ts72xx-wdt",
-		.owner	= THIS_MODULE,
 	},
 };
 

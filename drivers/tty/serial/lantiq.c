@@ -497,8 +497,10 @@ lqasc_type(struct uart_port *port)
 static void
 lqasc_release_port(struct uart_port *port)
 {
+	struct platform_device *pdev = to_platform_device(port->dev);
+
 	if (port->flags & UPF_IOREMAP) {
-		iounmap(port->membase);
+		devm_iounmap(&pdev->dev, port->membase);
 		port->membase = NULL;
 	}
 }
@@ -743,7 +745,6 @@ MODULE_DEVICE_TABLE(of, ltq_asc_match);
 static struct platform_driver lqasc_driver = {
 	.driver		= {
 		.name	= DRVNAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = ltq_asc_match,
 	},
 };

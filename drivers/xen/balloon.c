@@ -92,7 +92,6 @@ EXPORT_SYMBOL_GPL(balloon_stats);
 
 /* We increase/decrease in batches which fit in a page */
 static xen_pfn_t frame_list[PAGE_SIZE / sizeof(unsigned long)];
-static DEFINE_PER_CPU(struct page *, balloon_scratch_page);
 
 
 /* List of ballooned pages, threaded through the mem_map array. */
@@ -229,6 +228,29 @@ static enum bp_state reserve_additional_memory(long credit)
 	hotplug_start_paddr = PFN_PHYS(SECTION_ALIGN_UP(max_pfn));
 	balloon_hotplug = round_up(balloon_hotplug, PAGES_PER_SECTION);
 	nid = memory_add_physaddr_to_nid(hotplug_start_paddr);
+
+#ifdef CONFIG_XEN_HAVE_PVMMU
+        /*
+         * add_memory() will build page tables for the new memory so
+         * the p2m must contain invalid entries so the correct
+         * non-present PTEs will be written.
+         *
+         * If a failure occurs, the original (identity) p2m entries
+         * are not restored since this region is now known not to
+         * conflict with any devices.
+         */ 
+	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
+		unsigned long pfn, i;
+
+		pfn = PFN_DOWN(hotplug_start_paddr);
+		for (i = 0; i < balloon_hotplug; i++) {
+			if (!set_phys_to_machine(pfn + i, INVALID_P2M_ENTRY)) {
+				pr_warn("set_phys_to_machine() failed, no memory added\n");
+				return BP_ECANCELED;
+			}
+                }
+	}
+#endif
 
 	rc = add_memory(nid, hotplug_start_paddr, balloon_hotplug << PAGE_SHIFT);
 
@@ -423,22 +445,12 @@ static enum bp_state decrease_reservation(unsigned long nr_pages, gfp_t gfp)
 		page = pfn_to_page(pfn);
 
 #ifdef CONFIG_XEN_HAVE_PVMMU
-		/*
-		 * Ballooned out frames are effectively replaced with
-		 * a scratch frame.  Ensure direct mappings and the
-		 * p2m are consistent.
-		 */
 		if (!xen_feature(XENFEAT_auto_translated_physmap)) {
 			if (!PageHighMem(page)) {
-				struct page *scratch_page = get_balloon_scratch_page();
-
 				ret = HYPERVISOR_update_va_mapping(
 						(unsigned long)__va(pfn << PAGE_SHIFT),
-						pfn_pte(page_to_pfn(scratch_page),
-							PAGE_KERNEL_RO), 0);
+						__pte_ma(0), 0);
 				BUG_ON(ret);
-
-				put_balloon_scratch_page();
 			}
 			__set_phys_to_machine(pfn, INVALID_P2M_ENTRY);
 		}
@@ -498,18 +510,6 @@ static void balloon_process(struct work_struct *work)
 		schedule_delayed_work(&balloon_worker, balloon_stats.schedule_delay * HZ);
 
 	mutex_unlock(&balloon_mutex);
-}
-
-struct page *get_balloon_scratch_page(void)
-{
-	struct page *ret = get_cpu_var(balloon_scratch_page);
-	BUG_ON(ret == NULL);
-	return ret;
-}
-
-void put_balloon_scratch_page(void)
-{
-	put_cpu_var(balloon_scratch_page);
 }
 
 /* Resets the Xen limit, sets new target, and kicks off processing. */
@@ -605,60 +605,12 @@ static void __init balloon_add_region(unsigned long start_pfn,
 	}
 }
 
-static int alloc_balloon_scratch_page(int cpu)
-{
-	if (per_cpu(balloon_scratch_page, cpu) != NULL)
-		return 0;
-
-	per_cpu(balloon_scratch_page, cpu) = alloc_page(GFP_KERNEL);
-	if (per_cpu(balloon_scratch_page, cpu) == NULL) {
-		pr_warn("Failed to allocate balloon_scratch_page for cpu %d\n", cpu);
-		return -ENOMEM;
-	}
-
-	return 0;
-}
-
-
-static int balloon_cpu_notify(struct notifier_block *self,
-				    unsigned long action, void *hcpu)
-{
-	int cpu = (long)hcpu;
-	switch (action) {
-	case CPU_UP_PREPARE:
-		if (alloc_balloon_scratch_page(cpu))
-			return NOTIFY_BAD;
-		break;
-	default:
-		break;
-	}
-	return NOTIFY_OK;
-}
-
-static struct notifier_block balloon_cpu_notifier = {
-	.notifier_call	= balloon_cpu_notify,
-};
-
 static int __init balloon_init(void)
 {
-	int i, cpu;
+	int i;
 
 	if (!xen_domain())
 		return -ENODEV;
-
-	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
-		register_cpu_notifier(&balloon_cpu_notifier);
-
-		get_online_cpus();
-		for_each_online_cpu(cpu) {
-			if (alloc_balloon_scratch_page(cpu)) {
-				put_online_cpus();
-				unregister_cpu_notifier(&balloon_cpu_notifier);
-				return -ENOMEM;
-			}
-		}
-		put_online_cpus();
-	}
 
 	pr_info("Initialising balloon driver\n");
 
@@ -695,16 +647,5 @@ static int __init balloon_init(void)
 }
 
 subsys_initcall(balloon_init);
-
-static int __init balloon_clear(void)
-{
-	int cpu;
-
-	for_each_possible_cpu(cpu)
-		per_cpu(balloon_scratch_page, cpu) = NULL;
-
-	return 0;
-}
-early_initcall(balloon_clear);
 
 MODULE_LICENSE("GPL");

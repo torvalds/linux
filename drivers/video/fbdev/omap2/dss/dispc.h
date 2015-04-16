@@ -101,8 +101,7 @@
 					DISPC_FIR_COEF_V2_OFFSET(n, i))
 #define DISPC_OVL_PRELOAD(n)		(DISPC_OVL_BASE(n) + \
 					DISPC_PRELOAD_OFFSET(n))
-#define DISPC_OVL_MFLAG_THRESHOLD(n)	(DISPC_OVL_BASE(n) + \
-					DISPC_MFLAG_THRESHOLD_OFFSET(n))
+#define DISPC_OVL_MFLAG_THRESHOLD(n)	DISPC_MFLAG_THRESHOLD_OFFSET(n)
 
 /* DISPC up/downsampling FIR filter coefficient structure */
 struct dispc_coef {

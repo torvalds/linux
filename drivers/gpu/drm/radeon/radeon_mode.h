@@ -321,6 +321,10 @@ struct radeon_crtc {
 	uint32_t crtc_offset;
 	struct drm_gem_object *cursor_bo;
 	uint64_t cursor_addr;
+	int cursor_x;
+	int cursor_y;
+	int cursor_hot_x;
+	int cursor_hot_y;
 	int cursor_width;
 	int cursor_height;
 	int max_cursor_width;
@@ -445,6 +449,7 @@ struct radeon_encoder {
 	int audio_polling_active;
 	bool is_ext_encoder;
 	u16 caps;
+	struct radeon_audio_funcs *audio;
 };
 
 struct radeon_connector_atom_dig {
@@ -462,6 +467,7 @@ struct radeon_gpio_rec {
 	u8 id;
 	u32 reg;
 	u32 mask;
+	u32 shift;
 };
 
 struct radeon_hpd {
@@ -740,14 +746,14 @@ extern void radeon_router_select_ddc_port(struct radeon_connector *radeon_connec
 extern void radeon_router_select_cd_port(struct radeon_connector *radeon_connector);
 extern bool radeon_ddc_probe(struct radeon_connector *radeon_connector, bool use_aux);
 
-extern struct drm_encoder *radeon_best_encoder(struct drm_connector *connector);
-
 extern bool radeon_atombios_get_ppll_ss_info(struct radeon_device *rdev,
 					     struct radeon_atom_ss *ss,
 					     int id);
 extern bool radeon_atombios_get_asic_ss_info(struct radeon_device *rdev,
 					     struct radeon_atom_ss *ss,
 					     int id, u32 clock);
+extern struct radeon_gpio_rec radeon_atombios_lookup_gpio(struct radeon_device *rdev,
+							  u8 id);
 
 extern void radeon_compute_pll_legacy(struct radeon_pll *pll,
 				      uint64_t freq,
@@ -802,13 +808,16 @@ extern int radeon_crtc_set_base_atomic(struct drm_crtc *crtc,
 extern int radeon_crtc_do_set_base(struct drm_crtc *crtc,
 				   struct drm_framebuffer *fb,
 				   int x, int y, int atomic);
-extern int radeon_crtc_cursor_set(struct drm_crtc *crtc,
-				  struct drm_file *file_priv,
-				  uint32_t handle,
-				  uint32_t width,
-				  uint32_t height);
+extern int radeon_crtc_cursor_set2(struct drm_crtc *crtc,
+				   struct drm_file *file_priv,
+				   uint32_t handle,
+				   uint32_t width,
+				   uint32_t height,
+				   int32_t hot_x,
+				   int32_t hot_y);
 extern int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 				   int x, int y);
+extern void radeon_cursor_reset(struct drm_crtc *crtc);
 
 extern int radeon_get_crtc_scanoutpos(struct drm_device *dev, int crtc,
 				      unsigned int flags,
@@ -915,7 +924,6 @@ void dce8_program_fmt(struct drm_encoder *encoder);
 int radeon_fbdev_init(struct radeon_device *rdev);
 void radeon_fbdev_fini(struct radeon_device *rdev);
 void radeon_fbdev_set_suspend(struct radeon_device *rdev, int state);
-int radeon_fbdev_total_size(struct radeon_device *rdev);
 bool radeon_fbdev_robj_is_fb(struct radeon_device *rdev, struct radeon_bo *robj);
 
 void radeon_fb_output_poll_changed(struct radeon_device *rdev);

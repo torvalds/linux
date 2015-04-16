@@ -170,7 +170,7 @@ static void ext2_preread_inode(struct inode *inode)
 	struct ext2_group_desc * gdp;
 	struct backing_dev_info *bdi;
 
-	bdi = inode->i_mapping->backing_dev_info;
+	bdi = inode_to_bdi(inode);
 	if (bdi_read_congested(bdi))
 		return;
 	if (bdi_write_congested(bdi))

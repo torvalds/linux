@@ -12,7 +12,6 @@
 
 int ab8500_sysctrl_read(u16 reg, u8 *value);
 int ab8500_sysctrl_write(u16 reg, u8 mask, u8 value);
-void ab8500_restart(char mode, const char *cmd);
 
 #else
 

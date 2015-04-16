@@ -49,7 +49,7 @@ __be32 nfs4_callback_getattr(struct cb_getattrargs *args,
 		goto out_iput;
 	res->size = i_size_read(inode);
 	res->change_attr = delegation->change_attr;
-	if (nfsi->npages != 0)
+	if (nfsi->nrequests != 0)
 		res->change_attr++;
 	res->ctime = inode->i_ctime;
 	res->mtime = inode->i_mtime;
@@ -427,6 +427,8 @@ __be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
 	if (clp == NULL)
 		goto out;
 
+	if (!(clp->cl_session->flags & SESSION4_BACK_CHAN))
+		goto out;
 	tbl = &clp->cl_session->bc_slot_table;
 
 	spin_lock(&tbl->slot_tbl_lock);

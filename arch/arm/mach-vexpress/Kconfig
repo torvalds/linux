@@ -16,6 +16,7 @@ menuconfig ARCH_VEXPRESS
 	select POWER_RESET
 	select POWER_RESET_VEXPRESS
 	select POWER_SUPPLY
+	select REGULATOR if MMC_ARMMMCI
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 	select VEXPRESS_CONFIG
 	select VEXPRESS_SYSCFG
@@ -41,6 +42,7 @@ if ARCH_VEXPRESS
 config ARCH_VEXPRESS_CORTEX_A5_A9_ERRATA
 	bool "Enable A5 and A9 only errata work-arounds"
 	default y
+	select ARM_ERRATA_643719 if SMP
 	select ARM_ERRATA_720789
 	select PL310_ERRATA_753970 if CACHE_L2X0
 	help
@@ -48,9 +50,6 @@ config ARCH_VEXPRESS_CORTEX_A5_A9_ERRATA
 	  based on Cortex-A5 and Cortex-A9 processors. In order to
 	  build a working kernel, you must also enable relevant core
 	  tile support or Flattened Device Tree based support options.
-
-config ARCH_VEXPRESS_CA9X4
-	bool "Versatile Express Cortex-A9x4 tile"
 
 config ARCH_VEXPRESS_DCSCB
 	bool "Dual Cluster System Control Block (DCSCB) support"
@@ -75,6 +74,7 @@ config ARCH_VEXPRESS_TC2_PM
 	depends on MCPM
 	select ARM_CCI
 	select ARCH_VEXPRESS_SPC
+	select ARM_CPU_SUSPEND
 	help
 	  Support for CPU and cluster power management on Versatile Express
 	  with a TC2 (A15x2 A7x3) big.LITTLE core tile.

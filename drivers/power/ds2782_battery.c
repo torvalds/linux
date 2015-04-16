@@ -53,11 +53,12 @@ struct ds278x_battery_ops {
 	int (*get_battery_capacity)(struct ds278x_info *info, int *capacity);
 };
 
-#define to_ds278x_info(x) container_of(x, struct ds278x_info, battery)
+#define to_ds278x_info(x) power_supply_get_drvdata(x)
 
 struct ds278x_info {
 	struct i2c_client	*client;
-	struct power_supply	battery;
+	struct power_supply	*battery;
+	struct power_supply_desc	battery_desc;
 	struct ds278x_battery_ops  *ops;
 	struct delayed_work	bat_work;
 	int			id;
@@ -285,7 +286,7 @@ static void ds278x_bat_update(struct ds278x_info *info)
 	ds278x_get_status(info, &info->status);
 
 	if ((old_status != info->status) || (old_capacity != info->capacity))
-		power_supply_changed(&info->battery);
+		power_supply_changed(info->battery);
 }
 
 static void ds278x_bat_work(struct work_struct *work)
@@ -306,7 +307,7 @@ static enum power_supply_property ds278x_battery_props[] = {
 	POWER_SUPPLY_PROP_TEMP,
 };
 
-static void ds278x_power_supply_init(struct power_supply *battery)
+static void ds278x_power_supply_init(struct power_supply_desc *battery)
 {
 	battery->type			= POWER_SUPPLY_TYPE_BATTERY;
 	battery->properties		= ds278x_battery_props;
@@ -319,8 +320,8 @@ static int ds278x_battery_remove(struct i2c_client *client)
 {
 	struct ds278x_info *info = i2c_get_clientdata(client);
 
-	power_supply_unregister(&info->battery);
-	kfree(info->battery.name);
+	power_supply_unregister(info->battery);
+	kfree(info->battery_desc.name);
 
 	mutex_lock(&battery_lock);
 	idr_remove(&battery_id, info->id);
@@ -351,13 +352,9 @@ static int ds278x_resume(struct device *dev)
 	schedule_delayed_work(&info->bat_work, DS278x_DELAY);
 	return 0;
 }
+#endif /* CONFIG_PM_SLEEP */
 
 static SIMPLE_DEV_PM_OPS(ds278x_battery_pm_ops, ds278x_suspend, ds278x_resume);
-#define DS278X_BATTERY_PM_OPS (&ds278x_battery_pm_ops)
-
-#else
-#define DS278X_BATTERY_PM_OPS NULL
-#endif /* CONFIG_PM_SLEEP */
 
 enum ds278x_num_id {
 	DS2782 = 0,
@@ -381,6 +378,7 @@ static int ds278x_battery_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
 	struct ds278x_platform_data *pdata = client->dev.platform_data;
+	struct power_supply_config psy_cfg = {};
 	struct ds278x_info *info;
 	int ret;
 	int num;
@@ -408,8 +406,9 @@ static int ds278x_battery_probe(struct i2c_client *client,
 		goto fail_info;
 	}
 
-	info->battery.name = kasprintf(GFP_KERNEL, "%s-%d", client->name, num);
-	if (!info->battery.name) {
+	info->battery_desc.name = kasprintf(GFP_KERNEL, "%s-%d",
+					    client->name, num);
+	if (!info->battery_desc.name) {
 		ret = -ENOMEM;
 		goto fail_name;
 	}
@@ -421,16 +420,19 @@ static int ds278x_battery_probe(struct i2c_client *client,
 	info->client = client;
 	info->id = num;
 	info->ops  = &ds278x_ops[id->driver_data];
-	ds278x_power_supply_init(&info->battery);
+	ds278x_power_supply_init(&info->battery_desc);
+	psy_cfg.drv_data = info;
 
 	info->capacity = 100;
 	info->status = POWER_SUPPLY_STATUS_FULL;
 
 	INIT_DELAYED_WORK(&info->bat_work, ds278x_bat_work);
 
-	ret = power_supply_register(&client->dev, &info->battery);
-	if (ret) {
+	info->battery = power_supply_register(&client->dev,
+					      &info->battery_desc, &psy_cfg);
+	if (IS_ERR(info->battery)) {
 		dev_err(&client->dev, "failed to register battery\n");
+		ret = PTR_ERR(info->battery);
 		goto fail_register;
 	} else {
 		schedule_delayed_work(&info->bat_work, DS278x_DELAY);
@@ -439,7 +441,7 @@ static int ds278x_battery_probe(struct i2c_client *client,
 	return 0;
 
 fail_register:
-	kfree(info->battery.name);
+	kfree(info->battery_desc.name);
 fail_name:
 	kfree(info);
 fail_info:
@@ -460,7 +462,7 @@ MODULE_DEVICE_TABLE(i2c, ds278x_id);
 static struct i2c_driver ds278x_battery_driver = {
 	.driver 	= {
 		.name	= "ds2782-battery",
-		.pm	= DS278X_BATTERY_PM_OPS,
+		.pm	= &ds278x_battery_pm_ops,
 	},
 	.probe		= ds278x_battery_probe,
 	.remove		= ds278x_battery_remove,

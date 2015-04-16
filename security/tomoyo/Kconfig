@@ -5,6 +5,8 @@ config SECURITY_TOMOYO
 	select SECURITYFS
 	select SECURITY_PATH
 	select SECURITY_NETWORK
+	select SRCU
+	select BUILD_BIN2C
 	default n
 	help
 	  This selects TOMOYO Linux, pathname-based access control.

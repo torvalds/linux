@@ -71,6 +71,7 @@ struct parse_events_term {
 	int type_val;
 	int type_term;
 	struct list_head list;
+	bool used;
 };
 
 struct parse_events_evlist {
@@ -104,7 +105,7 @@ int parse_events_add_numeric(struct list_head *list, int *idx,
 int parse_events_add_cache(struct list_head *list, int *idx,
 			   char *type, char *op_result1, char *op_result2);
 int parse_events_add_breakpoint(struct list_head *list, int *idx,
-				void *ptr, char *type);
+				void *ptr, char *type, u64 len);
 int parse_events_add_pmu(struct list_head *list, int *idx,
 			 char *pmu , struct list_head *head_config);
 enum perf_pmu_event_symbol_type
@@ -115,12 +116,21 @@ void parse_events_update_lists(struct list_head *list_event,
 void parse_events_error(void *data, void *scanner, char const *msg);
 
 void print_events(const char *event_glob, bool name_only);
-void print_events_type(u8 type);
+
+struct event_symbol {
+	const char	*symbol;
+	const char	*alias;
+};
+extern struct event_symbol event_symbols_hw[];
+extern struct event_symbol event_symbols_sw[];
+void print_symbol_events(const char *event_glob, unsigned type,
+				struct event_symbol *syms, unsigned max,
+				bool name_only);
 void print_tracepoint_events(const char *subsys_glob, const char *event_glob,
 			     bool name_only);
 int print_hwcache_events(const char *event_glob, bool name_only);
 extern int is_valid_tracepoint(const char *event_string);
 
-extern int valid_debugfs_mount(const char *debugfs);
+int valid_event_mount(const char *eventfs);
 
 #endif /* __PERF_PARSE_EVENTS_H */

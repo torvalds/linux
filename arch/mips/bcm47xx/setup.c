@@ -102,23 +102,6 @@ static void bcm47xx_machine_halt(void)
 }
 
 #ifdef CONFIG_BCM47XX_SSB
-static int bcm47xx_get_sprom_ssb(struct ssb_bus *bus, struct ssb_sprom *out)
-{
-	char prefix[10];
-
-	if (bus->bustype == SSB_BUSTYPE_PCI) {
-		memset(out, 0, sizeof(struct ssb_sprom));
-		snprintf(prefix, sizeof(prefix), "pci/%u/%u/",
-			 bus->host_pci->bus->number + 1,
-			 PCI_SLOT(bus->host_pci->devfn));
-		bcm47xx_fill_sprom(out, prefix, false);
-		return 0;
-	} else {
-		printk(KERN_WARNING "bcm47xx: unable to fill SPROM for given bustype.\n");
-		return -EINVAL;
-	}
-}
-
 static int bcm47xx_get_invariants(struct ssb_bus *bus,
 				  struct ssb_init_invariants *iv)
 {
@@ -144,11 +127,6 @@ static void __init bcm47xx_register_ssb(void)
 	char buf[100];
 	struct ssb_mipscore *mcore;
 
-	err = ssb_arch_register_fallback_sprom(&bcm47xx_get_sprom_ssb);
-	if (err)
-		printk(KERN_WARNING "bcm47xx: someone else already registered"
-			" a ssb SPROM callback handler (err %d)\n", err);
-
 	err = ssb_bus_ssbbus_register(&(bcm47xx_bus.ssb), SSB_ENUM_BASE,
 				      bcm47xx_get_invariants);
 	if (err)
@@ -171,56 +149,21 @@ static void __init bcm47xx_register_ssb(void)
 #endif
 
 #ifdef CONFIG_BCM47XX_BCMA
-static int bcm47xx_get_sprom_bcma(struct bcma_bus *bus, struct ssb_sprom *out)
-{
-	char prefix[10];
-	struct bcma_device *core;
-
-	switch (bus->hosttype) {
-	case BCMA_HOSTTYPE_PCI:
-		memset(out, 0, sizeof(struct ssb_sprom));
-		snprintf(prefix, sizeof(prefix), "pci/%u/%u/",
-			 bus->host_pci->bus->number + 1,
-			 PCI_SLOT(bus->host_pci->devfn));
-		bcm47xx_fill_sprom(out, prefix, false);
-		return 0;
-	case BCMA_HOSTTYPE_SOC:
-		memset(out, 0, sizeof(struct ssb_sprom));
-		core = bcma_find_core(bus, BCMA_CORE_80211);
-		if (core) {
-			snprintf(prefix, sizeof(prefix), "sb/%u/",
-				 core->core_index);
-			bcm47xx_fill_sprom(out, prefix, true);
-		} else {
-			bcm47xx_fill_sprom(out, NULL, false);
-		}
-		return 0;
-	default:
-		pr_warn("bcm47xx: unable to fill SPROM for given bustype.\n");
-		return -EINVAL;
-	}
-}
-
 static void __init bcm47xx_register_bcma(void)
 {
 	int err;
 
-	err = bcma_arch_register_fallback_sprom(&bcm47xx_get_sprom_bcma);
-	if (err)
-		pr_warn("bcm47xx: someone else already registered a bcma SPROM callback handler (err %d)\n", err);
-
 	err = bcma_host_soc_register(&bcm47xx_bus.bcma);
 	if (err)
 		panic("Failed to register BCMA bus (err %d)", err);
-
-	err = bcma_host_soc_init(&bcm47xx_bus.bcma);
-	if (err)
-		panic("Failed to initialize BCMA bus (err %d)", err);
-
-	bcm47xx_fill_bcma_boardinfo(&bcm47xx_bus.bcma.bus.boardinfo, NULL);
 }
 #endif
 
+/*
+ * Memory setup is done in the early part of MIPS's arch_mem_init. It's supposed
+ * to detect memory and record it with add_memory_region.
+ * Any extra initializaion performed here must not use kmalloc or bootmem.
+ */
 void __init plat_mem_setup(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
@@ -229,6 +172,7 @@ void __init plat_mem_setup(void)
 		printk(KERN_INFO "bcm47xx: using bcma bus\n");
 #ifdef CONFIG_BCM47XX_BCMA
 		bcm47xx_bus_type = BCM47XX_BUS_TYPE_BCMA;
+		bcm47xx_sprom_register_fallbacks();
 		bcm47xx_register_bcma();
 		bcm47xx_set_system_type(bcm47xx_bus.bcma.bus.chipinfo.id);
 #ifdef CONFIG_HIGHMEM
@@ -239,6 +183,7 @@ void __init plat_mem_setup(void)
 		printk(KERN_INFO "bcm47xx: using ssb bus\n");
 #ifdef CONFIG_BCM47XX_SSB
 		bcm47xx_bus_type = BCM47XX_BUS_TYPE_SSB;
+		bcm47xx_sprom_register_fallbacks();
 		bcm47xx_register_ssb();
 		bcm47xx_set_system_type(bcm47xx_bus.ssb.chip_id);
 #endif
@@ -247,6 +192,28 @@ void __init plat_mem_setup(void)
 	_machine_restart = bcm47xx_machine_restart;
 	_machine_halt = bcm47xx_machine_halt;
 	pm_power_off = bcm47xx_machine_halt;
+}
+
+/*
+ * This finishes bus initialization doing things that were not possible without
+ * kmalloc. Make sure to call it late enough (after mm_init).
+ */
+void __init bcm47xx_bus_setup(void)
+{
+#ifdef CONFIG_BCM47XX_BCMA
+	if (bcm47xx_bus_type == BCM47XX_BUS_TYPE_BCMA) {
+		int err;
+
+		err = bcma_host_soc_init(&bcm47xx_bus.bcma);
+		if (err)
+			panic("Failed to initialize BCMA bus (err %d)", err);
+
+		bcm47xx_fill_bcma_boardinfo(&bcm47xx_bus.bcma.bus.boardinfo,
+					    NULL);
+	}
+#endif
+
+	/* With bus initialized we can access NVRAM and detect the board */
 	bcm47xx_board_detect();
 	mips_set_machine_name(bcm47xx_board_get_name());
 }

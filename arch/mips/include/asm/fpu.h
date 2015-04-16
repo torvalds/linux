@@ -36,15 +36,23 @@ extern void _restore_fp(struct task_struct *);
 
 /*
  * This enum specifies a mode in which we want the FPU to operate, for cores
- * which implement the Status.FR bit. Note that FPU_32BIT & FPU_64BIT
- * purposefully have the values 0 & 1 respectively, so that an integer value
- * of Status.FR can be trivially casted to the corresponding enum fpu_mode.
+ * which implement the Status.FR bit. Note that the bottom bit of the value
+ * purposefully matches the desired value of the Status.FR bit.
  */
 enum fpu_mode {
 	FPU_32BIT = 0,		/* FR = 0 */
-	FPU_64BIT,		/* FR = 1 */
+	FPU_64BIT,		/* FR = 1, FRE = 0 */
 	FPU_AS_IS,
+	FPU_HYBRID,		/* FR = 1, FRE = 1 */
+
+#define FPU_FR_MASK		0x1
 };
+
+#define __disable_fpu()							\
+do {									\
+	clear_c0_status(ST0_CU1);					\
+	disable_fpu_hazard();						\
+} while (0)
 
 static inline int __enable_fpu(enum fpu_mode mode)
 {
@@ -57,20 +65,39 @@ static inline int __enable_fpu(enum fpu_mode mode)
 		enable_fpu_hazard();
 		return 0;
 
+	case FPU_HYBRID:
+		if (!cpu_has_fre)
+			return SIGFPE;
+
+		/* set FRE */
+		set_c0_config5(MIPS_CONF5_FRE);
+		goto fr_common;
+
 	case FPU_64BIT:
-#if !(defined(CONFIG_CPU_MIPS32_R2) || defined(CONFIG_64BIT))
+#if !(defined(CONFIG_CPU_MIPS32_R2) || defined(CONFIG_CPU_MIPS32_R6) \
+      || defined(CONFIG_64BIT))
 		/* we only have a 32-bit FPU */
 		return SIGFPE;
 #endif
 		/* fall through */
 	case FPU_32BIT:
+		if (cpu_has_fre) {
+			/* clear FRE */
+			clear_c0_config5(MIPS_CONF5_FRE);
+		}
+fr_common:
 		/* set CU1 & change FR appropriately */
-		fr = (int)mode;
+		fr = (int)mode & FPU_FR_MASK;
 		change_c0_status(ST0_CU1 | ST0_FR, ST0_CU1 | (fr ? ST0_FR : 0));
 		enable_fpu_hazard();
 
 		/* check FR has the desired value */
-		return (!!(read_c0_status() & ST0_FR) == !!fr) ? 0 : SIGFPE;
+		if (!!(read_c0_status() & ST0_FR) == !!fr)
+			return 0;
+
+		/* unsupported FR value */
+		__disable_fpu();
+		return SIGFPE;
 
 	default:
 		BUG();
@@ -78,12 +105,6 @@ static inline int __enable_fpu(enum fpu_mode mode)
 
 	return SIGFPE;
 }
-
-#define __disable_fpu()							\
-do {									\
-	clear_c0_status(ST0_CU1);					\
-	disable_fpu_hazard();						\
-} while (0)
 
 #define clear_fpu_owner()	clear_thread_flag(TIF_USEDFPU)
 
@@ -102,13 +123,17 @@ static inline int __own_fpu(void)
 	enum fpu_mode mode;
 	int ret;
 
-	mode = !test_thread_flag(TIF_32BIT_FPREGS);
+	if (test_thread_flag(TIF_HYBRID_FPREGS))
+		mode = FPU_HYBRID;
+	else
+		mode = !test_thread_flag(TIF_32BIT_FPREGS);
+
 	ret = __enable_fpu(mode);
 	if (ret)
 		return ret;
 
 	KSTK_STATUS(current) |= ST0_CU1;
-	if (mode == FPU_64BIT)
+	if (mode == FPU_64BIT || mode == FPU_HYBRID)
 		KSTK_STATUS(current) |= ST0_FR;
 	else /* mode == FPU_32BIT */
 		KSTK_STATUS(current) &= ~ST0_FR;
@@ -145,11 +170,12 @@ static inline void lose_fpu(int save)
 	if (is_msa_enabled()) {
 		if (save) {
 			save_msa(current);
-			asm volatile("cfc1 %0, $31"
-				: "=r"(current->thread.fpu.fcr31));
+			current->thread.fpu.fcr31 =
+					read_32bit_cp1_register(CP1_STATUS);
 		}
 		disable_msa();
 		clear_thread_flag(TIF_USEDMSA);
+		__disable_fpu();
 	} else if (is_fpu_owner()) {
 		if (save)
 			_save_fp(current);
@@ -165,9 +191,32 @@ static inline int init_fpu(void)
 	int ret = 0;
 
 	if (cpu_has_fpu) {
+		unsigned int config5;
+
 		ret = __own_fpu();
-		if (!ret)
+		if (ret)
+			return ret;
+
+		if (!cpu_has_fre) {
 			_init_fpu();
+
+			return 0;
+		}
+
+		/*
+		 * Ensure FRE is clear whilst running _init_fpu, since
+		 * single precision FP instructions are used. If FRE
+		 * was set then we'll just end up initialising all 32
+		 * 64b registers.
+		 */
+		config5 = clear_c0_config5(MIPS_CONF5_FRE);
+		enable_fpu_hazard();
+
+		_init_fpu();
+
+		/* Restore FRE */
+		write_c0_config5(config5);
+		enable_fpu_hazard();
 	} else
 		fpu_emulator_init_fpu();
 

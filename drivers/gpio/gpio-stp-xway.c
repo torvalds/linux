@@ -199,21 +199,17 @@ static int xway_stp_hw_init(struct xway_stp *chip)
 
 static int xway_stp_probe(struct platform_device *pdev)
 {
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	struct resource *res;
 	const __be32 *shadow, *groups, *dsl, *phy;
 	struct xway_stp *chip;
 	struct clk *clk;
 	int ret = 0;
 
-	if (!res) {
-		dev_err(&pdev->dev, "failed to request STP resource\n");
-		return -ENOENT;
-	}
-
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
 
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	chip->virt = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(chip->virt))
 		return PTR_ERR(chip->virt);
@@ -287,7 +283,6 @@ static struct platform_driver xway_stp_driver = {
 	.probe = xway_stp_probe,
 	.driver = {
 		.name = "gpio-stp-xway",
-		.owner = THIS_MODULE,
 		.of_match_table = xway_stp_match,
 	},
 };

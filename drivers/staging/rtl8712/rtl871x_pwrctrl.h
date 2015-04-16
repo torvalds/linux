@@ -33,17 +33,17 @@
 #define CMD_ALIVE	BIT(2)
 
 enum Power_Mgnt {
-	PS_MODE_ACTIVE	= 0	,
-	PS_MODE_MIN			,
-	PS_MODE_MAX			,
-	PS_MODE_DTIM			,
-	PS_MODE_VOIP			,
-	PS_MODE_UAPSD_WMM	,
-	PS_MODE_UAPSD			,
-	PS_MODE_IBSS			,
-	PS_MODE_WWLAN		,
-	PM_Radio_Off			,
-	PM_Card_Disable		,
+	PS_MODE_ACTIVE	= 0,
+	PS_MODE_MIN,
+	PS_MODE_MAX,
+	PS_MODE_DTIM,
+	PS_MODE_VOIP,
+	PS_MODE_UAPSD_WMM,
+	PS_MODE_UAPSD,
+	PS_MODE_IBSS,
+	PS_MODE_WWLAN,
+	PM_Radio_Off,
+	PM_Card_Disable,
 	PS_MODE_NUM
 };
 

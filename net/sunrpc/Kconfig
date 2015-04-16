@@ -1,9 +1,11 @@
 config SUNRPC
 	tristate
+	depends on MULTIUSER
 
 config SUNRPC_GSS
 	tristate
 	select OID_REGISTRY
+	depends on MULTIUSER
 
 config SUNRPC_BACKCHANNEL
 	bool
@@ -35,6 +37,7 @@ config RPCSEC_GSS_KRB5
 config SUNRPC_DEBUG
 	bool "RPC: Enable dprintk debugging"
 	depends on SUNRPC && SYSCTL
+	select DEBUG_FS
 	help
 	  This option enables a sysctl-based debugging interface
 	  that is be used by the 'rpcdebug' utility to turn on or off

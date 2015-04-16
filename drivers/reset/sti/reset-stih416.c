@@ -132,7 +132,6 @@ static struct platform_driver stih416_reset_driver = {
 	.probe = syscfg_reset_probe,
 	.driver = {
 		.name = "reset-stih416",
-		.owner = THIS_MODULE,
 		.of_match_table = stih416_reset_match,
 	},
 };

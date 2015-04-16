@@ -53,7 +53,7 @@ struct rpc_cred {
 	struct rcu_head		cr_rcu;
 	struct rpc_auth *	cr_auth;
 	const struct rpc_credops *cr_ops;
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 	unsigned long		cr_magic;	/* 0x0f4aa4f0 */
 #endif
 	unsigned long		cr_expire;	/* when to gc */

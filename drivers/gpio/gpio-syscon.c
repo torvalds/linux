@@ -219,7 +219,7 @@ static int syscon_gpio_probe(struct platform_device *pdev)
 		ret = of_property_read_u32_index(np, "gpio,syscon-dev", 2,
 						 &priv->dir_reg_offset);
 		if (ret)
-			dev_err(dev, "can't read the dir register offset!\n");
+			dev_dbg(dev, "can't read the dir register offset!\n");
 
 		priv->dir_reg_offset <<= 3;
 	}
@@ -253,7 +253,6 @@ static int syscon_gpio_remove(struct platform_device *pdev)
 static struct platform_driver syscon_gpio_driver = {
 	.driver	= {
 		.name		= "gpio-syscon",
-		.owner		= THIS_MODULE,
 		.of_match_table	= syscon_gpio_ids,
 	},
 	.probe	= syscon_gpio_probe,

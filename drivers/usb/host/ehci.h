@@ -859,6 +859,8 @@ static inline u32 hc32_to_cpup (const struct ehci_hcd *ehci, const __hc32 *x)
 struct ehci_driver_overrides {
 	size_t		extra_priv_size;
 	int		(*reset)(struct usb_hcd *hcd);
+	int		(*port_power)(struct usb_hcd *hcd,
+				int portnum, bool enable);
 };
 
 extern void	ehci_init_driver(struct hc_driver *drv,
@@ -869,7 +871,7 @@ extern int	ehci_handshake(struct ehci_hcd *ehci, void __iomem *ptr,
 
 #ifdef CONFIG_PM
 extern int	ehci_suspend(struct usb_hcd *hcd, bool do_wakeup);
-extern int	ehci_resume(struct usb_hcd *hcd, bool hibernated);
+extern int	ehci_resume(struct usb_hcd *hcd, bool force_reset);
 #endif	/* CONFIG_PM */
 
 extern int	ehci_hub_control(struct usb_hcd	*hcd, u16 typeReq, u16 wValue,

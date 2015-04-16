@@ -661,16 +661,16 @@ set_credits(struct TCP_Server_Info *server, const int val)
 	server->ops->set_credits(server, val);
 }
 
-static inline __u64
+static inline __le64
 get_next_mid64(struct TCP_Server_Info *server)
 {
-	return server->ops->get_next_mid(server);
+	return cpu_to_le64(server->ops->get_next_mid(server));
 }
 
 static inline __le16
 get_next_mid(struct TCP_Server_Info *server)
 {
-	__u16 mid = get_next_mid64(server);
+	__u16 mid = server->ops->get_next_mid(server);
 	/*
 	 * The value in the SMB header should be little endian for easy
 	 * on-the-wire decoding.
@@ -1166,6 +1166,12 @@ static inline struct cifs_sb_info *
 CIFS_SB(struct super_block *sb)
 {
 	return sb->s_fs_info;
+}
+
+static inline struct cifs_sb_info *
+CIFS_FILE_SB(struct file *file)
+{
+	return CIFS_SB(file_inode(file)->i_sb);
 }
 
 static inline char CIFS_DIR_SEP(const struct cifs_sb_info *cifs_sb)

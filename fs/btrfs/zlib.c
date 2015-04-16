@@ -299,6 +299,8 @@ done:
 	zlib_inflateEnd(&workspace->strm);
 	if (data_in)
 		kunmap(pages_in[page_in_index]);
+	if (!ret)
+		btrfs_clear_biovec_end(bvec, vcnt, page_out_index, pg_offset);
 	return ret;
 }
 
@@ -310,9 +312,13 @@ static int zlib_decompress(struct list_head *ws, unsigned char *data_in,
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
 	int ret = 0;
 	int wbits = MAX_WBITS;
-	unsigned long bytes_left = destlen;
+	unsigned long bytes_left;
 	unsigned long total_out = 0;
+	unsigned long pg_offset = 0;
 	char *kaddr;
+
+	destlen = min_t(unsigned long, destlen, PAGE_SIZE);
+	bytes_left = destlen;
 
 	workspace->strm.next_in = data_in;
 	workspace->strm.avail_in = srclen;
@@ -341,7 +347,6 @@ static int zlib_decompress(struct list_head *ws, unsigned char *data_in,
 		unsigned long buf_start;
 		unsigned long buf_offset;
 		unsigned long bytes;
-		unsigned long pg_offset = 0;
 
 		ret = zlib_inflate(&workspace->strm, Z_NO_FLUSH);
 		if (ret != Z_OK && ret != Z_STREAM_END)
@@ -384,6 +389,17 @@ next:
 		ret = 0;
 
 	zlib_inflateEnd(&workspace->strm);
+
+	/*
+	 * this should only happen if zlib returned fewer bytes than we
+	 * expected.  btrfs_get_block is responsible for zeroing from the
+	 * end of the inline extent (destlen) to the end of the page
+	 */
+	if (pg_offset < destlen) {
+		kaddr = kmap_atomic(dest_page);
+		memset(kaddr + pg_offset, 0, destlen - pg_offset);
+		kunmap_atomic(kaddr);
+	}
 	return ret;
 }
 

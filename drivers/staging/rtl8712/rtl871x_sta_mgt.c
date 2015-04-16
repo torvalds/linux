@@ -79,15 +79,12 @@ static void mfree_all_stainfo(struct sta_priv *pstapriv)
 {
 	unsigned long irqL;
 	struct list_head *plist, *phead;
-	struct sta_info *psta = NULL;
 
 	spin_lock_irqsave(&pstapriv->sta_hash_lock, irqL);
 	phead = &pstapriv->free_sta_queue.queue;
 	plist = phead->next;
-	while ((end_of_queue_search(phead, plist)) == false) {
-		psta = LIST_CONTAINOR(plist, struct sta_info, list);
+	while ((end_of_queue_search(phead, plist)) == false)
 		plist = plist->next;
-	}
 
 	spin_unlock_irqrestore(&pstapriv->sta_hash_lock, irqL);
 }
@@ -109,7 +106,6 @@ u32 _r8712_free_sta_priv(struct sta_priv *pstapriv)
 
 struct sta_info *r8712_alloc_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 {
-	uint tmp_aid;
 	s32	index;
 	struct list_head *phash_list;
 	struct sta_info	*psta;
@@ -127,7 +123,6 @@ struct sta_info *r8712_alloc_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 		psta = LIST_CONTAINOR(pfree_sta_queue->queue.next,
 				      struct sta_info, list);
 		list_del_init(&(psta->list));
-		tmp_aid = psta->aid;
 		_init_stainfo(psta);
 		memcpy(psta->hwaddr, hwaddr, ETH_ALEN);
 		index = wifi_mac_hash(hwaddr);
@@ -203,7 +198,7 @@ void r8712_free_stainfo(struct _adapter *padapter, struct sta_info *psta)
 	 * cancel reordering_ctrl_timer */
 	for (i = 0; i < 16; i++) {
 		preorder_ctrl = &psta->recvreorder_ctrl[i];
-		_cancel_timer_ex(&preorder_ctrl->reordering_ctrl_timer);
+		del_timer_sync(&preorder_ctrl->reordering_ctrl_timer);
 	}
 	spin_lock(&(pfree_sta_queue->lock));
 	/* insert into free_sta_queue; 20061114 */
@@ -232,7 +227,7 @@ void r8712_free_all_stainfo(struct _adapter *padapter)
 					      struct sta_info, hash_list);
 			plist = plist->next;
 			if (pbcmc_stainfo != psta)
-				r8712_free_stainfo(padapter , psta);
+				r8712_free_stainfo(padapter, psta);
 		}
 	}
 	spin_unlock_irqrestore(&pstapriv->sta_hash_lock, irqL);
@@ -267,15 +262,10 @@ struct sta_info *r8712_get_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 
 void r8712_init_bcmc_stainfo(struct _adapter *padapter)
 {
-	struct sta_info	*psta;
-	struct tx_servq	*ptxservq;
 	unsigned char bcast_addr[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	struct	sta_priv *pstapriv = &padapter->stapriv;
 
-	psta = r8712_alloc_stainfo(pstapriv, bcast_addr);
-	if (psta == NULL)
-		return;
-	ptxservq = &(psta->sta_xmitpriv.be_q);
+	r8712_alloc_stainfo(pstapriv, bcast_addr);
 }
 
 struct sta_info *r8712_get_bcmc_stainfo(struct _adapter *padapter)

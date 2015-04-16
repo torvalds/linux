@@ -1932,14 +1932,10 @@ static int gr_udc_start(struct usb_gadget *gadget,
 
 	spin_unlock(&dev->lock);
 
-	dev_info(dev->dev, "Started with gadget driver '%s'\n",
-		 driver->driver.name);
-
 	return 0;
 }
 
-static int gr_udc_stop(struct usb_gadget *gadget,
-		       struct usb_gadget_driver *driver)
+static int gr_udc_stop(struct usb_gadget *gadget)
 {
 	struct gr_udc *dev = to_gr_udc(gadget);
 	unsigned long flags;
@@ -1950,8 +1946,6 @@ static int gr_udc_stop(struct usb_gadget *gadget,
 	gr_stop_activity(dev);
 
 	spin_unlock_irqrestore(&dev->lock, flags);
-
-	dev_info(dev->dev, "Stopped\n");
 
 	return 0;
 }
@@ -2262,7 +2256,6 @@ MODULE_DEVICE_TABLE(of, gr_match);
 static struct platform_driver gr_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = gr_match,
 	},
 	.probe = gr_probe,

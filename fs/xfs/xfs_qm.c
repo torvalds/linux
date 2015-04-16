@@ -23,7 +23,6 @@
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
 #include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
 #include "xfs_ialloc.h"
@@ -38,7 +37,6 @@
 #include "xfs_trace.h"
 #include "xfs_icache.h"
 #include "xfs_cksum.h"
-#include "xfs_dinode.h"
 
 /*
  * The global quota manager. There is only one of these for the entire
@@ -432,6 +430,7 @@ struct xfs_qm_isolate {
 static enum lru_status
 xfs_qm_dquot_isolate(
 	struct list_head	*item,
+	struct list_lru_one	*lru,
 	spinlock_t		*lru_lock,
 	void			*arg)
 		__releases(lru_lock) __acquires(lru_lock)
@@ -452,7 +451,7 @@ xfs_qm_dquot_isolate(
 		XFS_STATS_INC(xs_qm_dqwants);
 
 		trace_xfs_dqreclaim_want(dqp);
-		list_del_init(&dqp->q_lru);
+		list_lru_isolate(lru, &dqp->q_lru);
 		XFS_STATS_DEC(xs_qm_dquot_unused);
 		return LRU_REMOVED;
 	}
@@ -496,7 +495,7 @@ xfs_qm_dquot_isolate(
 	xfs_dqunlock(dqp);
 
 	ASSERT(dqp->q_nrefs == 0);
-	list_move_tail(&dqp->q_lru, &isol->dispose);
+	list_lru_isolate_move(lru, &dqp->q_lru, &isol->dispose);
 	XFS_STATS_DEC(xs_qm_dquot_unused);
 	trace_xfs_dqreclaim_done(dqp);
 	XFS_STATS_INC(xs_qm_dqreclaims);
@@ -525,7 +524,6 @@ xfs_qm_shrink_scan(
 	struct xfs_qm_isolate	isol;
 	unsigned long		freed;
 	int			error;
-	unsigned long		nr_to_scan = sc->nr_to_scan;
 
 	if ((sc->gfp_mask & (__GFP_FS|__GFP_WAIT)) != (__GFP_FS|__GFP_WAIT))
 		return 0;
@@ -533,8 +531,8 @@ xfs_qm_shrink_scan(
 	INIT_LIST_HEAD(&isol.buffers);
 	INIT_LIST_HEAD(&isol.dispose);
 
-	freed = list_lru_walk_node(&qi->qi_lru, sc->nid, xfs_qm_dquot_isolate, &isol,
-					&nr_to_scan);
+	freed = list_lru_shrink_walk(&qi->qi_lru, sc,
+				     xfs_qm_dquot_isolate, &isol);
 
 	error = xfs_buf_delwri_submit(&isol.buffers);
 	if (error)
@@ -559,7 +557,7 @@ xfs_qm_shrink_count(
 	struct xfs_quotainfo	*qi = container_of(shrink,
 					struct xfs_quotainfo, qi_shrinker);
 
-	return list_lru_count_node(&qi->qi_lru, sc->nid);
+	return list_lru_shrink_count(&qi->qi_lru, sc);
 }
 
 /*
@@ -716,7 +714,6 @@ STATIC int
 xfs_qm_qino_alloc(
 	xfs_mount_t	*mp,
 	xfs_inode_t	**ip,
-	__int64_t	sbfields,
 	uint		flags)
 {
 	xfs_trans_t	*tp;
@@ -779,11 +776,6 @@ xfs_qm_qino_alloc(
 	spin_lock(&mp->m_sb_lock);
 	if (flags & XFS_QMOPT_SBVERSION) {
 		ASSERT(!xfs_sb_version_hasquota(&mp->m_sb));
-		ASSERT((sbfields & (XFS_SB_VERSIONNUM | XFS_SB_UQUOTINO |
-			XFS_SB_GQUOTINO | XFS_SB_PQUOTINO | XFS_SB_QFLAGS)) ==
-				(XFS_SB_VERSIONNUM | XFS_SB_UQUOTINO |
-				 XFS_SB_GQUOTINO | XFS_SB_PQUOTINO |
-				 XFS_SB_QFLAGS));
 
 		xfs_sb_version_addquota(&mp->m_sb);
 		mp->m_sb.sb_uquotino = NULLFSINO;
@@ -800,7 +792,7 @@ xfs_qm_qino_alloc(
 	else
 		mp->m_sb.sb_pquotino = (*ip)->i_ino;
 	spin_unlock(&mp->m_sb_lock);
-	xfs_mod_sb(tp, sbfields);
+	xfs_log_sb(tp);
 
 	if ((error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES))) {
 		xfs_alert(mp, "%s failed (error %d)!", __func__, error);
@@ -844,6 +836,11 @@ xfs_qm_reset_dqcounts(
 		 */
 		xfs_dqcheck(mp, ddq, id+j, type, XFS_QMOPT_DQREPAIR,
 			    "xfs_quotacheck");
+		/*
+		 * Reset type in case we are reusing group quota file for
+		 * project quotas or vice versa
+		 */
+		ddq->d_flags = type;
 		ddq->d_bcount = 0;
 		ddq->d_icount = 0;
 		ddq->d_rtbcount = 0;
@@ -1453,7 +1450,7 @@ xfs_qm_mount_quotas(
 	spin_unlock(&mp->m_sb_lock);
 
 	if (sbf != (mp->m_qflags & XFS_MOUNT_QUOTA_ALL)) {
-		if (xfs_qm_write_sb_changes(mp, XFS_SB_QFLAGS)) {
+		if (xfs_sync_sb(mp, false)) {
 			/*
 			 * We could only have been turning quotas off.
 			 * We aren't in very good shape actually because
@@ -1484,7 +1481,6 @@ xfs_qm_init_quotainos(
 	struct xfs_inode	*gip = NULL;
 	struct xfs_inode	*pip = NULL;
 	int			error;
-	__int64_t		sbflags = 0;
 	uint			flags = 0;
 
 	ASSERT(mp->m_quotainfo);
@@ -1519,9 +1515,6 @@ xfs_qm_init_quotainos(
 		}
 	} else {
 		flags |= XFS_QMOPT_SBVERSION;
-		sbflags |= (XFS_SB_VERSIONNUM | XFS_SB_UQUOTINO |
-			    XFS_SB_GQUOTINO | XFS_SB_PQUOTINO |
-			    XFS_SB_QFLAGS);
 	}
 
 	/*
@@ -1532,7 +1525,6 @@ xfs_qm_init_quotainos(
 	 */
 	if (XFS_IS_UQUOTA_ON(mp) && uip == NULL) {
 		error = xfs_qm_qino_alloc(mp, &uip,
-					      sbflags | XFS_SB_UQUOTINO,
 					      flags | XFS_QMOPT_UQUOTA);
 		if (error)
 			goto error_rele;
@@ -1541,7 +1533,6 @@ xfs_qm_init_quotainos(
 	}
 	if (XFS_IS_GQUOTA_ON(mp) && gip == NULL) {
 		error = xfs_qm_qino_alloc(mp, &gip,
-					  sbflags | XFS_SB_GQUOTINO,
 					  flags | XFS_QMOPT_GQUOTA);
 		if (error)
 			goto error_rele;
@@ -1550,7 +1541,6 @@ xfs_qm_init_quotainos(
 	}
 	if (XFS_IS_PQUOTA_ON(mp) && pip == NULL) {
 		error = xfs_qm_qino_alloc(mp, &pip,
-					  sbflags | XFS_SB_PQUOTINO,
 					  flags | XFS_QMOPT_PQUOTA);
 		if (error)
 			goto error_rele;
@@ -1588,32 +1578,6 @@ xfs_qm_dqfree_one(
 
 	xfs_qm_dqdestroy(dqp);
 }
-
-/*
- * Start a transaction and write the incore superblock changes to
- * disk. flags parameter indicates which fields have changed.
- */
-int
-xfs_qm_write_sb_changes(
-	xfs_mount_t	*mp,
-	__int64_t	flags)
-{
-	xfs_trans_t	*tp;
-	int		error;
-
-	tp = xfs_trans_alloc(mp, XFS_TRANS_QM_SBCHANGE);
-	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_qm_sbchange, 0, 0);
-	if (error) {
-		xfs_trans_cancel(tp, 0);
-		return error;
-	}
-
-	xfs_mod_sb(tp, flags);
-	error = xfs_trans_commit(tp, 0);
-
-	return error;
-}
-
 
 /* --------------- utility functions for vnodeops ---------------- */
 
@@ -1749,23 +1713,21 @@ xfs_qm_vop_dqalloc(
 	xfs_iunlock(ip, lockflags);
 	if (O_udqpp)
 		*O_udqpp = uq;
-	else if (uq)
+	else
 		xfs_qm_dqrele(uq);
 	if (O_gdqpp)
 		*O_gdqpp = gq;
-	else if (gq)
+	else
 		xfs_qm_dqrele(gq);
 	if (O_pdqpp)
 		*O_pdqpp = pq;
-	else if (pq)
+	else
 		xfs_qm_dqrele(pq);
 	return 0;
 
 error_rele:
-	if (gq)
-		xfs_qm_dqrele(gq);
-	if (uq)
-		xfs_qm_dqrele(uq);
+	xfs_qm_dqrele(gq);
+	xfs_qm_dqrele(uq);
 	return error;
 }
 

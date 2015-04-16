@@ -62,6 +62,7 @@ struct xc5000_priv {
 	unsigned int mode;
 	u8  rf_mode;
 	u8  radio_input;
+	u16  output_amp;
 
 	int chip_id;
 	u16 pll_register_no;
@@ -744,7 +745,9 @@ static int xc5000_tune_digital(struct dvb_frontend *fe)
 		return -EIO;
 	}
 
-	xc_write_reg(priv, XREG_OUTPUT_AMP, 0x8a);
+	dprintk(1, "%s() setting OUTPUT_AMP to 0x%x\n",
+		__func__, priv->output_amp);
+	xc_write_reg(priv, XREG_OUTPUT_AMP, priv->output_amp);
 
 	xc_tune_channel(priv, priv->freq_hz, XC_TUNE_DIGITAL);
 
@@ -1333,9 +1336,8 @@ static int xc5000_release(struct dvb_frontend *fe)
 
 	if (priv) {
 		cancel_delayed_work(&priv->timer_sleep);
+		release_firmware(priv->firmware);
 		hybrid_tuner_release_state(priv);
-		if (priv->firmware)
-			release_firmware(priv->firmware);
 	}
 
 	mutex_unlock(&xc5000_list_mutex);
@@ -1357,6 +1359,9 @@ static int xc5000_set_config(struct dvb_frontend *fe, void *priv_cfg)
 
 	if (p->radio_input)
 		priv->radio_input = p->radio_input;
+
+	if (p->output_amp)
+		priv->output_amp = p->output_amp;
 
 	return 0;
 }
@@ -1437,6 +1442,12 @@ struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 		/* use default chip id if none specified, set to 0 so
 		   it can be overridden if this is a hybrid driver */
 		priv->chip_id = (cfg->chip_id) ? cfg->chip_id : 0;
+
+	/* don't override output_amp if it's already been set
+	   unless explicitly specified */
+	if ((priv->output_amp == 0) || (cfg->output_amp))
+		/* use default output_amp value if none specified */
+		priv->output_amp = (cfg->output_amp) ? cfg->output_amp : 0x8a;
 
 	/* Check if firmware has been loaded. It is possible that another
 	   instance of the driver has loaded the firmware.

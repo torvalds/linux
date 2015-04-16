@@ -66,7 +66,6 @@
 #include <sys/utsname.h>
 #include <sys/mman.h>
 
-#include <linux/unistd.h>
 #include <linux/types.h>
 
 static volatile int done;
@@ -166,7 +165,7 @@ static void ui__warn_map_erange(struct map *map, struct symbol *sym, u64 ip)
 		    err ? "[unknown]" : uts.release, perf_version_string);
 	if (use_browser <= 0)
 		sleep(5);
-	
+
 	map->erange_warned = true;
 }
 
@@ -285,7 +284,7 @@ static void perf_top__print_sym_table(struct perf_top *top)
 	}
 
 	hists__collapse_resort(hists, NULL);
-	hists__output_resort(hists);
+	hists__output_resort(hists, NULL);
 
 	hists__output_recalc_col_len(hists, top->print_entries - printed);
 	putchar('\n');
@@ -554,7 +553,7 @@ static void perf_top__sort_new_samples(void *arg)
 	}
 
 	hists__collapse_resort(hists, NULL);
-	hists__output_resort(hists);
+	hists__output_resort(hists, NULL);
 }
 
 static void *display_thread_tui(void *arg)
@@ -717,7 +716,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 
 	if (!machine) {
 		pr_err("%u unprocessable samples recorded.\r",
-		       top->session->stats.nr_unprocessable_samples++);
+		       top->session->evlist->stats.nr_unprocessable_samples++);
 		return;
 	}
 
@@ -758,8 +757,10 @@ static void perf_event__process_sample(struct perf_tool *tool,
 		    al.map == machine->vmlinux_maps[MAP__FUNCTION] &&
 		    RB_EMPTY_ROOT(&al.map->dso->symbols[MAP__FUNCTION])) {
 			if (symbol_conf.vmlinux_name) {
-				ui__warning("The %s file can't be used.\n%s",
-					    symbol_conf.vmlinux_name, msg);
+				char serr[256];
+				dso__strerror_load(al.map->dso, serr, sizeof(serr));
+				ui__warning("The %s file can't be used: %s\n%s",
+					    symbol_conf.vmlinux_name, serr, msg);
 			} else {
 				ui__warning("A vmlinux file was not found.\n%s",
 					    msg);
@@ -857,7 +858,7 @@ static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 			hists__inc_nr_events(evsel__hists(evsel), event->header.type);
 			machine__process_event(machine, event, &sample);
 		} else
-			++session->stats.nr_unknown_events;
+			++session->evlist->stats.nr_unknown_events;
 next_event:
 		perf_evlist__mmap_consume(top->evlist, idx);
 	}

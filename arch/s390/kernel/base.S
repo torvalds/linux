@@ -11,8 +11,6 @@
 #include <asm/ptrace.h>
 #include <asm/sigp.h>
 
-#ifdef CONFIG_64BIT
-
 ENTRY(s390_base_mcck_handler)
 	basr	%r13,0
 0:	lg	%r15,__LC_PANIC_STACK	# load panic stack
@@ -97,7 +95,8 @@ ENTRY(diag308_reset)
 	lg	%r4,0(%r4)		# Save PSW
 	sturg	%r4,%r3			# Use sturg, because of large pages
 	lghi	%r1,1
-	diag	%r1,%r1,0x308
+	lghi	%r0,0
+	diag	%r0,%r1,0x308
 .Lrestart_part2:
 	lhi	%r0,0			# Load r0 with zero
 	lhi	%r1,2			# Use mode 2 = ESAME (dump)
@@ -130,77 +129,3 @@ ENTRY(diag308_reset)
 .Lfpctl:
 	.long	0
 	.previous
-
-#else /* CONFIG_64BIT */
-
-ENTRY(s390_base_mcck_handler)
-	basr	%r13,0
-0:	l	%r15,__LC_PANIC_STACK	# load panic stack
-	ahi	%r15,-STACK_FRAME_OVERHEAD
-	l	%r1,2f-0b(%r13)
-	l	%r1,0(%r1)
-	ltr	%r1,%r1
-	jz	1f
-	basr	%r14,%r1
-1:	lm	%r0,%r15,__LC_GPREGS_SAVE_AREA
-	lpsw	__LC_MCK_OLD_PSW
-
-2:	.long	s390_base_mcck_handler_fn
-
-	.section .bss
-	.align 4
-	.globl	s390_base_mcck_handler_fn
-s390_base_mcck_handler_fn:
-	.long	0
-	.previous
-
-ENTRY(s390_base_ext_handler)
-	stm	%r0,%r15,__LC_SAVE_AREA_ASYNC
-	basr	%r13,0
-0:	ahi	%r15,-STACK_FRAME_OVERHEAD
-	l	%r1,2f-0b(%r13)
-	l	%r1,0(%r1)
-	ltr	%r1,%r1
-	jz	1f
-	basr	%r14,%r1
-1:	lm	%r0,%r15,__LC_SAVE_AREA_ASYNC
-	ni	__LC_EXT_OLD_PSW+1,0xfd	# clear wait state bit
-	lpsw	__LC_EXT_OLD_PSW
-
-2:	.long	s390_base_ext_handler_fn
-
-	.section .bss
-	.align 4
-	.globl	s390_base_ext_handler_fn
-s390_base_ext_handler_fn:
-	.long	0
-	.previous
-
-ENTRY(s390_base_pgm_handler)
-	stm	%r0,%r15,__LC_SAVE_AREA_SYNC
-	basr	%r13,0
-0:	ahi	%r15,-STACK_FRAME_OVERHEAD
-	l	%r1,2f-0b(%r13)
-	l	%r1,0(%r1)
-	ltr	%r1,%r1
-	jz	1f
-	basr	%r14,%r1
-	lm	%r0,%r15,__LC_SAVE_AREA_SYNC
-	lpsw	__LC_PGM_OLD_PSW
-
-1:	lpsw	disabled_wait_psw-0b(%r13)
-
-2:	.long	s390_base_pgm_handler_fn
-
-disabled_wait_psw:
-	.align	8
-	.long	0x000a0000,0x00000000 + s390_base_pgm_handler
-
-	.section .bss
-	.align 4
-	.globl	s390_base_pgm_handler_fn
-s390_base_pgm_handler_fn:
-	.long	0
-	.previous
-
-#endif /* CONFIG_64BIT */

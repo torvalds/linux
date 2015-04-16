@@ -548,10 +548,11 @@ struct hppfs_dirent {
 	struct dentry *dentry;
 };
 
-static int hppfs_filldir(void *d, const char *name, int size,
+static int hppfs_filldir(struct dir_context *ctx, const char *name, int size,
 			 loff_t offset, u64 inode, unsigned int type)
 {
-	struct hppfs_dirent *dirent = d;
+	struct hppfs_dirent *dirent =
+		container_of(ctx, struct hppfs_dirent, ctx);
 
 	if (file_removed(dirent->dentry, name))
 		return 0;
@@ -677,10 +678,10 @@ static struct inode *get_inode(struct super_block *sb, struct dentry *dentry)
 		return NULL;
 	}
 
-	if (S_ISDIR(dentry->d_inode->i_mode)) {
+	if (d_is_dir(dentry)) {
 		inode->i_op = &hppfs_dir_iops;
 		inode->i_fop = &hppfs_dir_fops;
-	} else if (S_ISLNK(dentry->d_inode->i_mode)) {
+	} else if (d_is_symlink(dentry)) {
 		inode->i_op = &hppfs_link_iops;
 		inode->i_fop = &hppfs_file_fops;
 	} else {

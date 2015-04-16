@@ -123,6 +123,7 @@ void cayman_dma_ring_ib_execute(struct radeon_device *rdev,
 				struct radeon_ib *ib)
 {
 	struct radeon_ring *ring = &rdev->ring[ib->ring];
+	unsigned vm_id = ib->vm ? ib->vm->ids[ib->ring].id : 0;
 
 	if (rdev->wb.enabled) {
 		u32 next_rptr = ring->wptr + 4;
@@ -140,7 +141,7 @@ void cayman_dma_ring_ib_execute(struct radeon_device *rdev,
 	 */
 	while ((ring->wptr & 7) != 5)
 		radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0));
-	radeon_ring_write(ring, DMA_IB_PACKET(DMA_PACKET_INDIRECT_BUFFER, ib->vm ? ib->vm->id : 0, 0));
+	radeon_ring_write(ring, DMA_IB_PACKET(DMA_PACKET_INDIRECT_BUFFER, vm_id, 0));
 	radeon_ring_write(ring, (ib->gpu_addr & 0xFFFFFFE0));
 	radeon_ring_write(ring, (ib->length_dw << 12) | (upper_32_bits(ib->gpu_addr) & 0xFF));
 
@@ -371,7 +372,6 @@ void cayman_dma_vm_write_pages(struct radeon_device *rdev,
 		for (; ndw > 0; ndw -= 2, --count, pe += 8) {
 			if (flags & R600_PTE_SYSTEM) {
 				value = radeon_vm_map_gart(rdev, addr);
-				value &= 0xFFFFFFFFFFFFF000ULL;
 			} else if (flags & R600_PTE_VALID) {
 				value = addr;
 			} else {
@@ -446,16 +446,12 @@ void cayman_dma_vm_pad_ib(struct radeon_ib *ib)
 		ib->ptr[ib->length_dw++] = DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0);
 }
 
-void cayman_dma_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm)
+void cayman_dma_vm_flush(struct radeon_device *rdev, struct radeon_ring *ring,
+			 unsigned vm_id, uint64_t pd_addr)
 {
-	struct radeon_ring *ring = &rdev->ring[ridx];
-
-	if (vm == NULL)
-		return;
-
 	radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_SRBM_WRITE, 0, 0, 0));
-	radeon_ring_write(ring, (0xf << 16) | ((VM_CONTEXT0_PAGE_TABLE_BASE_ADDR + (vm->id << 2)) >> 2));
-	radeon_ring_write(ring, vm->pd_gpu_addr >> 12);
+	radeon_ring_write(ring, (0xf << 16) | ((VM_CONTEXT0_PAGE_TABLE_BASE_ADDR + (vm_id << 2)) >> 2));
+	radeon_ring_write(ring, pd_addr >> 12);
 
 	/* flush hdp cache */
 	radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_SRBM_WRITE, 0, 0, 0));
@@ -465,6 +461,12 @@ void cayman_dma_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm 
 	/* bits 0-7 are the VM contexts0-7 */
 	radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_SRBM_WRITE, 0, 0, 0));
 	radeon_ring_write(ring, (0xf << 16) | (VM_INVALIDATE_REQUEST >> 2));
-	radeon_ring_write(ring, 1 << vm->id);
+	radeon_ring_write(ring, 1 << vm_id);
+
+	/* wait for invalidate to complete */
+	radeon_ring_write(ring, DMA_SRBM_READ_PACKET);
+	radeon_ring_write(ring, (0xff << 20) | (VM_INVALIDATE_REQUEST >> 2));
+	radeon_ring_write(ring, 0); /* mask */
+	radeon_ring_write(ring, 0); /* value */
 }
 

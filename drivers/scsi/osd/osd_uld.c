@@ -540,9 +540,9 @@ static int osd_remove(struct device *dev)
  */
 
 static struct scsi_driver osd_driver = {
-	.owner			= THIS_MODULE,
 	.gendrv = {
 		.name		= osd_name,
+		.owner		= THIS_MODULE,
 		.probe		= osd_probe,
 		.remove		= osd_remove,
 	}

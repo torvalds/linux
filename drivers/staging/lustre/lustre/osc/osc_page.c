@@ -369,12 +369,7 @@ static int osc_page_print(const struct lu_env *env,
 	struct osc_object     *obj = cl2osc(slice->cpl_obj);
 	struct client_obd     *cli = &osc_export(obj)->exp_obd->u.cli;
 
-	return (*printer)(env, cookie, LUSTRE_OSC_NAME"-page@%p: "
-			  "1< %#x %d %u %s %s > "
-			  "2< %llu %u %u %#x %#x | %p %p %p > "
-			  "3< %s %p %d %lu %d > "
-			  "4< %d %d %d %lu %s | %s %s %s %s > "
-			  "5< %s %s %s %s | %d %s | %d %s %s>\n",
+	return (*printer)(env, cookie, LUSTRE_OSC_NAME "-page@%p: 1< %#x %d %u %s %s > 2< %llu %u %u %#x %#x | %p %p %p > 3< %s %p %d %lu %d > 4< %d %d %d %lu %s | %s %s %s %s > 5< %s %s %s %s | %d %s | %d %s %s>\n",
 			  opg,
 			  /* 1 */
 			  oap->oap_magic, oap->oap_cmd,
@@ -550,8 +545,8 @@ void osc_page_submit(const struct lu_env *env, struct osc_page *opg,
 	LINVRNT(osc_page_protected(env, opg,
 				   crt == CRT_WRITE ? CLM_WRITE : CLM_READ, 1));
 
-	LASSERTF(oap->oap_magic == OAP_MAGIC, "Bad oap magic: oap %p, "
-		 "magic 0x%x\n", oap, oap->oap_magic);
+	LASSERTF(oap->oap_magic == OAP_MAGIC, "Bad oap magic: oap %p, magic 0x%x\n",
+		 oap, oap->oap_magic);
 	LASSERT(oap->oap_async_flags & ASYNC_READY);
 	LASSERT(oap->oap_async_flags & ASYNC_COUNT_STABLE);
 

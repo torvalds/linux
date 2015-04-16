@@ -165,6 +165,7 @@ static const struct hid_usage_entry hid_usage_table[] = {
     {0, 0x53, "DeviceIndex"},
     {0, 0x54, "ContactCount"},
     {0, 0x55, "ContactMaximumNumber"},
+    {0, 0x59, "ButtonType"},
     {0, 0x5A, "SecondaryBarrelSwitch"},
     {0, 0x5B, "TransducerSerialNumber"},
   { 15, 0, "PhysicalInterfaceDevice" },
@@ -814,7 +815,7 @@ static const char *keys[KEY_MAX + 1] = {
 	[KEY_DELETEFILE] = "DeleteFile",	[KEY_XFER] = "X-fer",
 	[KEY_PROG1] = "Prog1",			[KEY_PROG2] = "Prog2",
 	[KEY_WWW] = "WWW",			[KEY_MSDOS] = "MSDOS",
-	[KEY_COFFEE] = "Coffee",		[KEY_DIRECTION] = "Direction",
+	[KEY_COFFEE] = "Coffee",		[KEY_ROTATE_DISPLAY] = "RotateDisplay",
 	[KEY_CYCLEWINDOWS] = "CycleWindows",	[KEY_MAIL] = "Mail",
 	[KEY_BOOKMARKS] = "Bookmarks",		[KEY_COMPUTER] = "Computer",
 	[KEY_BACK] = "Back",			[KEY_FORWARD] = "Forward",
@@ -946,6 +947,12 @@ static const char *keys[KEY_MAX + 1] = {
 	[KEY_BRIGHTNESS_MIN] = "BrightnessMin",
 	[KEY_BRIGHTNESS_MAX] = "BrightnessMax",
 	[KEY_BRIGHTNESS_AUTO] = "BrightnessAuto",
+	[KEY_KBDINPUTASSIST_PREV] = "KbdInputAssistPrev",
+	[KEY_KBDINPUTASSIST_NEXT] = "KbdInputAssistNext",
+	[KEY_KBDINPUTASSIST_PREVGROUP] = "KbdInputAssistPrevGroup",
+	[KEY_KBDINPUTASSIST_NEXTGROUP] = "KbdInputAssistNextGroup",
+	[KEY_KBDINPUTASSIST_ACCEPT] = "KbdInputAssistAccept",
+	[KEY_KBDINPUTASSIST_CANCEL] = "KbdInputAssistCancel",
 };
 
 static const char *relatives[REL_MAX + 1] = {
@@ -1121,7 +1128,8 @@ static ssize_t hid_debug_events_read(struct file *file, char __user *buffer,
 
 				if (!list->hdev || !list->hdev->debug) {
 					ret = -EIO;
-					break;
+					set_current_state(TASK_RUNNING);
+					goto out;
 				}
 
 				/* allow O_NONBLOCK from other threads */

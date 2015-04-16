@@ -593,6 +593,7 @@ int psb_fbdev_init(struct drm_device *dev)
 {
 	struct psb_fbdev *fbdev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
+	int ret;
 
 	fbdev = kzalloc(sizeof(struct psb_fbdev), GFP_KERNEL);
 	if (!fbdev) {
@@ -604,16 +605,29 @@ int psb_fbdev_init(struct drm_device *dev)
 
 	drm_fb_helper_prepare(dev, &fbdev->psb_fb_helper, &psb_fb_helper_funcs);
 
-	drm_fb_helper_init(dev, &fbdev->psb_fb_helper, dev_priv->ops->crtcs,
-							INTELFB_CONN_LIMIT);
+	ret = drm_fb_helper_init(dev, &fbdev->psb_fb_helper,
+				 dev_priv->ops->crtcs, INTELFB_CONN_LIMIT);
+	if (ret)
+		goto free;
 
-	drm_fb_helper_single_add_all_connectors(&fbdev->psb_fb_helper);
+	ret = drm_fb_helper_single_add_all_connectors(&fbdev->psb_fb_helper);
+	if (ret)
+		goto fini;
 
 	/* disable all the possible outputs/crtcs before entering KMS mode */
 	drm_helper_disable_unused_functions(dev);
 
-	drm_fb_helper_initial_config(&fbdev->psb_fb_helper, 32);
+	ret = drm_fb_helper_initial_config(&fbdev->psb_fb_helper, 32);
+	if (ret)
+		goto fini;
+
 	return 0;
+
+fini:
+	drm_fb_helper_fini(&fbdev->psb_fb_helper);
+free:
+	kfree(fbdev);
+	return ret;
 }
 
 static void psb_fbdev_fini(struct drm_device *dev)

@@ -652,7 +652,7 @@ static void __iomem *ixp4xx_ioremap_caller(phys_addr_t addr, size_t size,
 	return (void __iomem *)addr;
 }
 
-static void ixp4xx_iounmap(void __iomem *addr)
+static void ixp4xx_iounmap(volatile void __iomem *addr)
 {
 	if (!is_pci_memory((__force u32)addr))
 		__iounmap(addr);

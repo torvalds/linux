@@ -95,7 +95,7 @@ static int fs_enet_fec_mii_write(struct mii_bus *bus, int phy_id, int location, 
 
 }
 
-static struct of_device_id fs_enet_mdio_fec_match[];
+static const struct of_device_id fs_enet_mdio_fec_match[];
 static int fs_enet_mdio_probe(struct platform_device *ofdev)
 {
 	const struct of_device_id *match;
@@ -208,7 +208,7 @@ static int fs_enet_mdio_remove(struct platform_device *ofdev)
 	return 0;
 }
 
-static struct of_device_id fs_enet_mdio_fec_match[] = {
+static const struct of_device_id fs_enet_mdio_fec_match[] = {
 	{
 		.compatible = "fsl,pq1-fec-mdio",
 	},
@@ -225,7 +225,6 @@ MODULE_DEVICE_TABLE(of, fs_enet_mdio_fec_match);
 static struct platform_driver fs_enet_fec_mdio_driver = {
 	.driver = {
 		.name = "fsl-fec-mdio",
-		.owner = THIS_MODULE,
 		.of_match_table = fs_enet_mdio_fec_match,
 	},
 	.probe = fs_enet_mdio_probe,

@@ -11,3 +11,5 @@ Optional properties:
   are supported on the device.  Valid value for SMSC LAN91c111 are
   1, 2 or 4.  If it's omitted or invalid, the size would be 2 meaning
   16-bit access only.
+- power-gpios: GPIO to control the PWRDWN pin
+- reset-gpios: GPIO to control the RESET pin

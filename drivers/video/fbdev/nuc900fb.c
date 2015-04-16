@@ -755,7 +755,6 @@ static struct platform_driver nuc900fb_driver = {
 	.resume		= nuc900fb_resume,
 	.driver		= {
 		.name	= "nuc900-lcd",
-		.owner	= THIS_MODULE,
 	},
 };
 

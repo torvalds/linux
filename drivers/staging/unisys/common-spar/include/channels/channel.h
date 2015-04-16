@@ -50,43 +50,12 @@
 
 #define ULTRA_CHANNEL_PROTOCOL_SIGNATURE  SIGNATURE_32('E', 'C', 'N', 'L')
 
-#define CHANNEL_GUID_MISMATCH(chType, chName, field, expected, actual, fil, \
-			      lin, logCtx)				\
-	do {								\
-		pr_err("Channel mismatch on channel=%s(%pUL) field=%s expected=%pUL actual=%pUL @%s:%d\n", \
-		       chName, &chType, field,	\
-		       &expected, &actual, \
-		       fil, lin);					\
-	} while (0)
-#define CHANNEL_U32_MISMATCH(chType, chName, field, expected, actual, fil, \
-			     lin, logCtx)				\
-	do {								\
-		pr_err("Channel mismatch on channel=%s(%pUL) field=%s expected=0x%-8.8lx actual=0x%-8.8lx @%s:%d\n", \
-		       chName, &chType, field,	\
-		       (unsigned long)expected, (unsigned long)actual,	\
-		       fil, lin);					\
-	} while (0)
-
-#define CHANNEL_U64_MISMATCH(chType, chName, field, expected, actual, fil, \
-			     lin, logCtx)				\
-	do {								\
-		pr_err("Channel mismatch on channel=%s(%pUL) field=%s expected=0x%-8.8Lx actual=0x%-8.8Lx @%s:%d\n", \
-		       chName, &chType, field,	\
-		       (unsigned long long)expected,			\
-		       (unsigned long long)actual,			\
-		       fil, lin);					\
-	} while (0)
-
-#define UltraLogEvent(logCtx, EventId, Severity, SubsystemMask, pFunctionName, \
-		      LineNumber, Str, args...)				\
-	pr_info(Str, ## args)
-
-typedef enum {
+enum channel_serverstate {
 	CHANNELSRV_UNINITIALIZED = 0,	/* channel is in an undefined state */
 	CHANNELSRV_READY = 1	/* channel has been initialized by server */
-} CHANNEL_SERVERSTATE;
+};
 
-typedef enum {
+enum channel_clientstate {
 	CHANNELCLI_DETACHED = 0,
 	CHANNELCLI_DISABLED = 1,	/* client can see channel but is NOT
 					 * allowed to use it unless given TBD
@@ -100,32 +69,32 @@ typedef enum {
 				 * using channel */
 	CHANNELCLI_OWNED = 5	/* "no worries" state - client can
 				 * access channel anytime */
-} CHANNEL_CLIENTSTATE;
+};
+
 static inline const u8 *
 ULTRA_CHANNELCLI_STRING(u32 v)
 {
 	switch (v) {
 	case CHANNELCLI_DETACHED:
-		return (const u8 *) ("DETACHED");
+		return (const u8 *)("DETACHED");
 	case CHANNELCLI_DISABLED:
-		return (const u8 *) ("DISABLED");
+		return (const u8 *)("DISABLED");
 	case CHANNELCLI_ATTACHING:
-		return (const u8 *) ("ATTACHING");
+		return (const u8 *)("ATTACHING");
 	case CHANNELCLI_ATTACHED:
-		return (const u8 *) ("ATTACHED");
+		return (const u8 *)("ATTACHED");
 	case CHANNELCLI_BUSY:
-		return (const u8 *) ("BUSY");
+		return (const u8 *)("BUSY");
 	case CHANNELCLI_OWNED:
-		return (const u8 *) ("OWNED");
+		return (const u8 *)("OWNED");
 	default:
 		break;
 	}
-	return (const u8 *) ("?");
+	return (const u8 *)("?");
 }
 
-#define ULTRA_CHANNELSRV_IS_READY(x)     ((x) == CHANNELSRV_READY)
-#define ULTRA_CHANNEL_SERVER_READY(pChannel) \
-	(ULTRA_CHANNELSRV_IS_READY(readl(&(pChannel)->SrvState)))
+#define SPAR_CHANNEL_SERVER_READY(ch) \
+	(readl(&(ch)->srv_state) == CHANNELSRV_READY)
 
 #define ULTRA_VALID_CHANNELCLI_TRANSITION(o, n)				\
 	(((((o) == CHANNELCLI_DETACHED) && ((n) == CHANNELCLI_DISABLED)) || \
@@ -145,59 +114,40 @@ ULTRA_CHANNELCLI_STRING(u32 v)
 	  (((o) == CHANNELCLI_BUSY) && ((n) == CHANNELCLI_OWNED)) || (0)) \
 	 ? (1) : (0))
 
-#define ULTRA_CHANNEL_CLIENT_CHK_TRANSITION(old, new, chanId, logCtx,	\
+#define SPAR_CHANNEL_CLIENT_CHK_TRANSITION(old, new, id, log,	\
 					    file, line)			\
 	do {								\
 		if (!ULTRA_VALID_CHANNELCLI_TRANSITION(old, new))	\
-			UltraLogEvent(logCtx,				\
-				      CHANNELSTATE_DIAG_EVENTID_TRANSITERR, \
-				      CHANNELSTATE_DIAG_SEVERITY, \
-				      CHANNELSTATE_DIAG_SUBSYS,		\
-				      __func__, __LINE__,		\
-				      "%s Channel StateTransition INVALID! (%s) %s(%d)-->%s(%d) @%s:%d\n", \
-				      chanId, "CliState<x>",		\
-				      ULTRA_CHANNELCLI_STRING(old),	\
-				      old,				\
-				      ULTRA_CHANNELCLI_STRING(new),	\
-				      new,				\
-				      PathName_Last_N_Nodes((u8 *)file, 4), \
-				      line);				\
+			pr_info("%s Channel StateTransition INVALID! (%s) %s(%d)-->%s(%d) @%s:%d\n", \
+				id, "CliState<x>",		\
+				ULTRA_CHANNELCLI_STRING(old),	\
+				old,				\
+				ULTRA_CHANNELCLI_STRING(new),	\
+				new,				\
+				pathname_last_n_nodes((u8 *)file, 4), \
+				line);				\
 	} while (0)
 
-#define ULTRA_CHANNEL_CLIENT_TRANSITION(pChan, chanId,			\
-					newstate, logCtx)		\
+#define SPAR_CHANNEL_CLIENT_TRANSITION(ch, id, newstate, log)		\
 	do {								\
-		ULTRA_CHANNEL_CLIENT_CHK_TRANSITION(			\
-			readl(&(((CHANNEL_HEADER __iomem *) \
-				 (pChan))->CliStateOS)),		\
-			newstate,					\
-			chanId, logCtx, __FILE__, __LINE__);		\
-		UltraLogEvent(logCtx, CHANNELSTATE_DIAG_EVENTID_TRANSITOK, \
-			CHANNELSTATE_DIAG_SEVERITY, \
-			      CHANNELSTATE_DIAG_SUBSYS,			\
-			      __func__, __LINE__,			\
-			      "%s Channel StateTransition (%s) %s(%d)-->%s(%d) @%s:%d\n", \
-			      chanId, "CliStateOS",			\
-			      ULTRA_CHANNELCLI_STRING( \
-				      readl(&((CHANNEL_HEADER __iomem *) \
-					      (pChan))->CliStateOS)),	\
-			      readl(&((CHANNEL_HEADER __iomem *) \
-				      (pChan))->CliStateOS),		\
-			      ULTRA_CHANNELCLI_STRING(newstate),	\
-			      newstate,					\
-			      PathName_Last_N_Nodes(__FILE__, 4), __LINE__); \
-		writel(newstate, &((CHANNEL_HEADER __iomem *) \
-				   (pChan))->CliStateOS);		\
+		SPAR_CHANNEL_CLIENT_CHK_TRANSITION(			\
+			readl(&(((struct channel_header __iomem *)\
+				 (ch))->cli_state_os)),		\
+			newstate, id, log, __FILE__, __LINE__);		\
+			pr_info("%s Channel StateTransition (%s) %s(%d)-->%s(%d) @%s:%d\n", \
+				id, "CliStateOS",			\
+				ULTRA_CHANNELCLI_STRING( \
+				      readl(&((struct channel_header __iomem *)\
+					      (ch))->cli_state_os)),	\
+				readl(&((struct channel_header __iomem *)\
+				      (ch))->cli_state_os),		\
+				ULTRA_CHANNELCLI_STRING(newstate),	\
+				newstate,				\
+				pathname_last_n_nodes(__FILE__, 4), __LINE__); \
+		writel(newstate, &((struct channel_header __iomem *)\
+				   (ch))->cli_state_os);		\
 		mb(); /* required for channel synch */			\
 	} while (0)
-
-#define ULTRA_CHANNEL_CLIENT_ACQUIRE_OS(pChan, chanId, logCtx)	\
-	ULTRA_channel_client_acquire_os(pChan, chanId, logCtx,		\
-					(char *)__FILE__, __LINE__,	\
-					(char *)__func__)
-#define ULTRA_CHANNEL_CLIENT_RELEASE_OS(pChan, chanId, logCtx)	\
-	ULTRA_channel_client_release_os(pChan, chanId, logCtx,	\
-		(char *)__FILE__, __LINE__, (char *)__func__)
 
 /* Values for ULTRA_CHANNEL_PROTOCOL.CliErrorBoot: */
 /* throttling invalid boot channel statetransition error due to client
@@ -239,98 +189,98 @@ ULTRA_CHANNELCLI_STRING(u32 v)
 
 #pragma pack(push, 1)		/* both GCC and VC now allow this pragma */
 /* Common Channel Header */
-typedef struct _CHANNEL_HEADER {
-	u64 Signature;		/* Signature */
-	u32 LegacyState;	/* DEPRECATED - being replaced by */
+struct channel_header {
+	u64 signature;		/* Signature */
+	u32 legacy_state;	/* DEPRECATED - being replaced by */
 	/* /              SrvState, CliStateBoot, and CliStateOS below */
-	u32 HeaderSize;		/* sizeof(CHANNEL_HEADER) */
-	u64 Size;		/* Total size of this channel in bytes */
-	u64 Features;		/* Flags to modify behavior */
-	uuid_le Type;		/* Channel type: data, bus, control, etc. */
-	u64 PartitionHandle;	/* ID of guest partition */
-	u64 Handle;		/* Device number of this channel in client */
-	u64 oChannelSpace;	/* Offset in bytes to channel specific area */
-	u32 VersionId;		/* CHANNEL_HEADER Version ID */
-	u32 PartitionIndex;	/* Index of guest partition */
-	uuid_le ZoneGuid;		/* Guid of Channel's zone */
-	u32 oClientString;	/* offset from channel header to
+	u32 header_size;	/* sizeof(struct channel_header) */
+	u64 size;		/* Total size of this channel in bytes */
+	u64 features;		/* Flags to modify behavior */
+	uuid_le chtype;		/* Channel type: data, bus, control, etc. */
+	u64 partition_handle;	/* ID of guest partition */
+	u64 handle;		/* Device number of this channel in client */
+	u64 ch_space_offset;	/* Offset in bytes to channel specific area */
+	u32 version_id;		/* struct channel_header Version ID */
+	u32 partition_index;	/* Index of guest partition */
+	uuid_le zone_uuid;	/* Guid of Channel's zone */
+	u32 cli_str_offset;	/* offset from channel header to
 				 * nul-terminated ClientString (0 if
 				 * ClientString not present) */
-	u32 CliStateBoot;	/* CHANNEL_CLIENTSTATE of pre-boot
+	u32 cli_state_boot;	/* CHANNEL_CLIENTSTATE of pre-boot
 				 * EFI client of this channel */
-	u32 CmdStateCli;	/* CHANNEL_COMMANDSTATE (overloaded in
+	u32 cmd_state_cli;	/* CHANNEL_COMMANDSTATE (overloaded in
 				 * Windows drivers, see ServerStateUp,
 				 * ServerStateDown, etc) */
-	u32 CliStateOS;		/* CHANNEL_CLIENTSTATE of Guest OS
+	u32 cli_state_os;	/* CHANNEL_CLIENTSTATE of Guest OS
 				 * client of this channel */
-	u32 ChannelCharacteristics;	/* CHANNEL_CHARACTERISTIC_<xxx> */
-	u32 CmdStateSrv;	/* CHANNEL_COMMANDSTATE (overloaded in
+	u32 ch_characteristic;	/* CHANNEL_CHARACTERISTIC_<xxx> */
+	u32 cmd_state_srv;	/* CHANNEL_COMMANDSTATE (overloaded in
 				 * Windows drivers, see ServerStateUp,
 				 * ServerStateDown, etc) */
-	u32 SrvState;		/* CHANNEL_SERVERSTATE */
-	u8 CliErrorBoot;	/* bits to indicate err states for
+	u32 srv_state;		/* CHANNEL_SERVERSTATE */
+	u8 cli_error_boot;	/* bits to indicate err states for
 				 * boot clients, so err messages can
 				 * be throttled */
-	u8 CliErrorOS;		/* bits to indicate err states for OS
+	u8 cli_error_os;	/* bits to indicate err states for OS
 				 * clients, so err messages can be
 				 * throttled */
-	u8 Filler[1];		/* Pad out to 128 byte cacheline */
+	u8 filler[1];		/* Pad out to 128 byte cacheline */
 	/* Please add all new single-byte values below here */
-	u8 RecoverChannel;
-} CHANNEL_HEADER, *pCHANNEL_HEADER, ULTRA_CHANNEL_PROTOCOL;
+	u8 recover_channel;
+};
 
 #define ULTRA_CHANNEL_ENABLE_INTS (0x1ULL << 0)
 
 /* Subheader for the Signal Type variation of the Common Channel */
-typedef struct _SIGNAL_QUEUE_HEADER {
+struct signal_queue_header {
 	/* 1st cache line */
-	u32 VersionId;		/* SIGNAL_QUEUE_HEADER Version ID */
-	u32 Type;		/* Queue type: storage, network */
-	u64 Size;		/* Total size of this queue in bytes */
-	u64 oSignalBase;	/* Offset to signal queue area */
-	u64 FeatureFlags;	/* Flags to modify behavior */
-	u64 NumSignalsSent;	/* Total # of signals placed in this queue */
-	u64 NumOverflows;	/* Total # of inserts failed due to
+	u32 version;		/* SIGNAL_QUEUE_HEADER Version ID */
+	u32 chtype;		/* Queue type: storage, network */
+	u64 size;		/* Total size of this queue in bytes */
+	u64 sig_base_offset;	/* Offset to signal queue area */
+	u64 features;		/* Flags to modify behavior */
+	u64 num_sent;		/* Total # of signals placed in this queue */
+	u64 num_overflows;	/* Total # of inserts failed due to
 				 * full queue */
-	u32 SignalSize;		/* Total size of a signal for this queue */
-	u32 MaxSignalSlots;	/* Max # of slots in queue, 1 slot is
+	u32 signal_size;	/* Total size of a signal for this queue */
+	u32 max_slots;		/* Max # of slots in queue, 1 slot is
 				 * always empty */
-	u32 MaxSignals;		/* Max # of signals in queue
+	u32 max_signals;	/* Max # of signals in queue
 				 * (MaxSignalSlots-1) */
-	u32 Head;		/* Queue head signal # */
+	u32 head;		/* Queue head signal # */
 	/* 2nd cache line */
-	u64 NumSignalsReceived;	/* Total # of signals removed from this queue */
-	u32 Tail;		/* Queue tail signal # (on separate
+	u64 num_received;	/* Total # of signals removed from this queue */
+	u32 tail;		/* Queue tail signal # (on separate
 				 * cache line) */
-	u32 Reserved1;		/* Reserved field */
-	u64 Reserved2;		/* Resrved field */
-	u64 ClientQueue;
-	u64 NumInterruptsReceived;	/* Total # of Interrupts received.  This
+	u32 reserved1;		/* Reserved field */
+	u64 reserved2;		/* Reserved field */
+	u64 client_queue;
+	u64 num_irq_received;	/* Total # of Interrupts received.  This
 					 * is incremented by the ISR in the
 					 * guest windows driver */
-	u64 NumEmptyCnt;	/* Number of times that visor_signal_remove
+	u64 num_empty;		/* Number of times that visor_signal_remove
 				 * is called and returned Empty
 				 * Status. */
-	u32 ErrorFlags;		/* Error bits set during SignalReinit
+	u32 errorflags;		/* Error bits set during SignalReinit
 				 * to denote trouble with client's
 				 * fields */
-	u8 Filler[12];		/* Pad out to 64 byte cacheline */
-} SIGNAL_QUEUE_HEADER, *pSIGNAL_QUEUE_HEADER;
+	u8 filler[12];		/* Pad out to 64 byte cacheline */
+};
 
 #pragma pack(pop)
 
-#define SignalInit(chan, QHDRFLD, QDATAFLD, QDATATYPE, ver, typ)	\
+#define spar_signal_init(chan, QHDRFLD, QDATAFLD, QDATATYPE, ver, typ)	\
 	do {								\
 		memset(&chan->QHDRFLD, 0, sizeof(chan->QHDRFLD));	\
-		chan->QHDRFLD.VersionId = ver;				\
-		chan->QHDRFLD.Type = typ;				\
-		chan->QHDRFLD.Size = sizeof(chan->QDATAFLD);		\
-		chan->QHDRFLD.SignalSize = sizeof(QDATATYPE);		\
-		chan->QHDRFLD.oSignalBase = (u64)(chan->QDATAFLD)-	\
+		chan->QHDRFLD.version = ver;				\
+		chan->QHDRFLD.chtype = typ;				\
+		chan->QHDRFLD.size = sizeof(chan->QDATAFLD);		\
+		chan->QHDRFLD.signal_size = sizeof(QDATATYPE);		\
+		chan->QHDRFLD.sig_base_offset = (u64)(chan->QDATAFLD)-	\
 			(u64)(&chan->QHDRFLD);				\
-		chan->QHDRFLD.MaxSignalSlots =				\
+		chan->QHDRFLD.max_slots =				\
 			sizeof(chan->QDATAFLD)/sizeof(QDATATYPE);	\
-		chan->QHDRFLD.MaxSignals = chan->QHDRFLD.MaxSignalSlots-1; \
+		chan->QHDRFLD.max_signals = chan->QHDRFLD.max_slots-1;	\
 	} while (0)
 
 /* Generic function useful for validating any type of channel when it is
@@ -339,64 +289,62 @@ typedef struct _SIGNAL_QUEUE_HEADER {
  * is used to pass the EFI_DIAG_CAPTURE_PROTOCOL needed to log messages.
  */
 static inline int
-ULTRA_check_channel_client(void __iomem *pChannel,
-			   uuid_le expectedTypeGuid,
-			   char *channelName,
-			   u64 expectedMinBytes,
-			   u32 expectedVersionId,
-			   u64 expectedSignature,
-			   char *fileName, int lineNumber, void *logCtx)
+spar_check_channel_client(void __iomem *ch,
+			  uuid_le expected_uuid,
+			  char *chname,
+			  u64 expected_min_bytes,
+			  u32 expected_version,
+			  u64 expected_signature)
 {
-	if (uuid_le_cmp(expectedTypeGuid, NULL_UUID_LE) != 0) {
+	if (uuid_le_cmp(expected_uuid, NULL_UUID_LE) != 0) {
 		uuid_le guid;
 
 		memcpy_fromio(&guid,
-			      &((CHANNEL_HEADER __iomem *)(pChannel))->Type,
+			      &((struct channel_header __iomem *)(ch))->chtype,
 			      sizeof(guid));
 		/* caller wants us to verify type GUID */
-		if (uuid_le_cmp(guid, expectedTypeGuid) != 0) {
-			CHANNEL_GUID_MISMATCH(expectedTypeGuid, channelName,
-					      "type", expectedTypeGuid,
-					      guid, fileName,
-					      lineNumber, logCtx);
+		if (uuid_le_cmp(guid, expected_uuid) != 0) {
+			pr_err("Channel mismatch on channel=%s(%pUL) field=type expected=%pUL actual=%pUL\n",
+			       chname, &expected_uuid,
+			       &expected_uuid, &guid);
 			return 0;
 		}
 	}
-	if (expectedMinBytes > 0)	/* caller wants us to verify
+	if (expected_min_bytes > 0) {	/* caller wants us to verify
 					 * channel size */
-		if (readq(&((CHANNEL_HEADER __iomem *)
-			   (pChannel))->Size) < expectedMinBytes) {
-			CHANNEL_U64_MISMATCH(expectedTypeGuid, channelName,
-					     "size", expectedMinBytes,
-					     readq(&((CHANNEL_HEADER __iomem *)
-						     (pChannel))->Size),
-					     fileName,
-					     lineNumber, logCtx);
+		unsigned long long bytes =
+				readq(&((struct channel_header __iomem *)
+					(ch))->size);
+		if (bytes < expected_min_bytes) {
+			pr_err("Channel mismatch on channel=%s(%pUL) field=size expected=0x%-8.8Lx actual=0x%-8.8Lx\n",
+			       chname, &expected_uuid,
+			       (unsigned long long)expected_min_bytes, bytes);
 			return 0;
 		}
-	if (expectedVersionId > 0)	/* caller wants us to verify
+	}
+	if (expected_version > 0) {	/* caller wants us to verify
 					 * channel version */
-		if (readl(&((CHANNEL_HEADER __iomem *) (pChannel))->VersionId)
-		    != expectedVersionId) {
-			CHANNEL_U32_MISMATCH(expectedTypeGuid, channelName,
-					     "version", expectedVersionId,
-					     readl(&((CHANNEL_HEADER __iomem *)
-						     (pChannel))->VersionId),
-					     fileName, lineNumber, logCtx);
+		unsigned long ver = readl(&((struct channel_header __iomem *)
+				    (ch))->version_id);
+		if (ver != expected_version) {
+			pr_err("Channel mismatch on channel=%s(%pUL) field=version expected=0x%-8.8lx actual=0x%-8.8lx\n",
+			       chname, &expected_uuid,
+			       (unsigned long)expected_version, ver);
 			return 0;
 		}
-	if (expectedSignature > 0)	/* caller wants us to verify
+	}
+	if (expected_signature > 0) {	/* caller wants us to verify
 					 * channel signature */
-		if (readq(&((CHANNEL_HEADER __iomem *) (pChannel))->Signature)
-		    != expectedSignature) {
-			CHANNEL_U64_MISMATCH(expectedTypeGuid, channelName,
-					     "signature", expectedSignature,
-					     readq(&((CHANNEL_HEADER __iomem *)
-						     (pChannel))->Signature),
-					     fileName,
-					     lineNumber, logCtx);
+		unsigned long long sig =
+				readq(&((struct channel_header __iomem *)
+					(ch))->signature);
+		if (sig != expected_signature) {
+			pr_err("Channel mismatch on channel=%s(%pUL) field=signature expected=0x%-8.8llx actual=0x%-8.8llx\n",
+			       chname, &expected_uuid,
+			       expected_signature, sig);
 			return 0;
 		}
+	}
 	return 1;
 }
 
@@ -405,19 +353,16 @@ ULTRA_check_channel_client(void __iomem *pChannel,
  * Note that <logCtx> is only needed for callers in the EFI environment, and
  * is used to pass the EFI_DIAG_CAPTURE_PROTOCOL needed to log messages.
  */
-static inline int
-ULTRA_check_channel_server(uuid_le typeGuid,
-			   char *channelName,
-			   u64 expectedMinBytes,
-			   u64 actualBytes,
-			   char *fileName, int lineNumber, void *logCtx)
+static inline int spar_check_channel_server(uuid_le typeuuid, char *name,
+					    u64 expected_min_bytes,
+					    u64 actual_bytes)
 {
-	if (expectedMinBytes > 0)	/* caller wants us to verify
+	if (expected_min_bytes > 0)	/* caller wants us to verify
 					 * channel size */
-		if (actualBytes < expectedMinBytes) {
-			CHANNEL_U64_MISMATCH(typeGuid, channelName, "size",
-					     expectedMinBytes, actualBytes,
-					     fileName, lineNumber, logCtx);
+		if (actual_bytes < expected_min_bytes) {
+			pr_err("Channel mismatch on channel=%s(%pUL) field=size expected=0x%-8.8llx actual=0x%-8.8llx\n",
+			       name, &typeuuid, expected_min_bytes,
+			       actual_bytes);
 			return 0;
 		}
 	return 1;
@@ -430,7 +375,7 @@ ULTRA_check_channel_server(uuid_le typeGuid,
  * in it, the return pointer will be to the beginning of the string.
  */
 static inline u8 *
-PathName_Last_N_Nodes(u8 *s, unsigned int n)
+pathname_last_n_nodes(u8 *s, unsigned int n)
 {
 	u8 *p = s;
 	unsigned int node_count = 0;
@@ -455,59 +400,43 @@ PathName_Last_N_Nodes(u8 *s, unsigned int n)
 }
 
 static inline int
-ULTRA_channel_client_acquire_os(void __iomem *pChannel, u8 *chanId,
-				void *logCtx, char *file, int line, char *func)
+spar_channel_client_acquire_os(void __iomem *ch, u8 *id)
 {
-	CHANNEL_HEADER __iomem *pChan = pChannel;
+	struct channel_header __iomem *hdr = ch;
 
-	if (readl(&pChan->CliStateOS) == CHANNELCLI_DISABLED) {
-		if ((readb(&pChan->CliErrorOS)
+	if (readl(&hdr->cli_state_os) == CHANNELCLI_DISABLED) {
+		if ((readb(&hdr->cli_error_os)
 		     & ULTRA_CLIERROROS_THROTTLEMSG_DISABLED) == 0) {
 			/* we are NOT throttling this message */
-			writeb(readb(&pChan->CliErrorOS) |
+			writeb(readb(&hdr->cli_error_os) |
 			       ULTRA_CLIERROROS_THROTTLEMSG_DISABLED,
-			       &pChan->CliErrorOS);
+			       &hdr->cli_error_os);
 			/* throttle until acquire successful */
 
-			UltraLogEvent(logCtx,
-				      CHANNELSTATE_DIAG_EVENTID_TRANSITERR,
-				      CHANNELSTATE_DIAG_SEVERITY,
-				      CHANNELSTATE_DIAG_SUBSYS, func, line,
-				      "%s Channel StateTransition INVALID! - acquire failed because OS client DISABLED @%s:%d\n",
-				      chanId, PathName_Last_N_Nodes(
-					      (u8 *) file, 4), line);
+			pr_info("%s Channel StateTransition INVALID! - acquire failed because OS client DISABLED\n",
+				id);
 		}
 		return 0;
 	}
-	if ((readl(&pChan->CliStateOS) != CHANNELCLI_OWNED)
-	    && (readl(&pChan->CliStateBoot) == CHANNELCLI_DISABLED)) {
+	if ((readl(&hdr->cli_state_os) != CHANNELCLI_OWNED) &&
+	    (readl(&hdr->cli_state_boot) == CHANNELCLI_DISABLED)) {
 		/* Our competitor is DISABLED, so we can transition to OWNED */
-		UltraLogEvent(logCtx, CHANNELSTATE_DIAG_EVENTID_TRANSITOK,
-			      CHANNELSTATE_DIAG_SEVERITY,
-			      CHANNELSTATE_DIAG_SUBSYS, func, line,
-			      "%s Channel StateTransition (%s) %s(%d)-->%s(%d) @%s:%d\n",
-			      chanId, "CliStateOS",
-			      ULTRA_CHANNELCLI_STRING(
-				      readl(&pChan->CliStateOS)),
-			      readl(&pChan->CliStateOS),
-			      ULTRA_CHANNELCLI_STRING(CHANNELCLI_OWNED),
-			      CHANNELCLI_OWNED,
-			      PathName_Last_N_Nodes((u8 *) file, 4), line);
-		writel(CHANNELCLI_OWNED, &pChan->CliStateOS);
+		pr_info("%s Channel StateTransition (%s) %s(%d)-->%s(%d)\n",
+			id, "cli_state_os",
+			ULTRA_CHANNELCLI_STRING(readl(&hdr->cli_state_os)),
+			readl(&hdr->cli_state_os),
+			ULTRA_CHANNELCLI_STRING(CHANNELCLI_OWNED),
+			CHANNELCLI_OWNED);
+		writel(CHANNELCLI_OWNED, &hdr->cli_state_os);
 		mb(); /* required for channel synch */
 	}
-	if (readl(&pChan->CliStateOS) == CHANNELCLI_OWNED) {
-		if (readb(&pChan->CliErrorOS) != 0) {
+	if (readl(&hdr->cli_state_os) == CHANNELCLI_OWNED) {
+		if (readb(&hdr->cli_error_os) != 0) {
 			/* we are in an error msg throttling state;
 			 * come out of it */
-			UltraLogEvent(logCtx,
-				      CHANNELSTATE_DIAG_EVENTID_TRANSITOK,
-				      CHANNELSTATE_DIAG_SEVERITY,
-				      CHANNELSTATE_DIAG_SUBSYS, func, line,
-				      "%s Channel OS client acquire now successful @%s:%d\n",
-				      chanId, PathName_Last_N_Nodes((u8 *) file,
-								    4), line);
-			writeb(0, &pChan->CliErrorOS);
+			pr_info("%s Channel OS client acquire now successful\n",
+				id);
+			writeb(0, &hdr->cli_error_os);
 		}
 		return 1;
 	}
@@ -515,95 +444,67 @@ ULTRA_channel_client_acquire_os(void __iomem *pChannel, u8 *chanId,
 	/* We have to do it the "hard way".  We transition to BUSY,
 	* and can use the channel iff our competitor has not also
 	* transitioned to BUSY. */
-	if (readl(&pChan->CliStateOS) != CHANNELCLI_ATTACHED) {
-		if ((readb(&pChan->CliErrorOS)
+	if (readl(&hdr->cli_state_os) != CHANNELCLI_ATTACHED) {
+		if ((readb(&hdr->cli_error_os)
 		     & ULTRA_CLIERROROS_THROTTLEMSG_NOTATTACHED) == 0) {
 			/* we are NOT throttling this message */
-			writeb(readb(&pChan->CliErrorOS) |
+			writeb(readb(&hdr->cli_error_os) |
 			       ULTRA_CLIERROROS_THROTTLEMSG_NOTATTACHED,
-			       &pChan->CliErrorOS);
+			       &hdr->cli_error_os);
 			/* throttle until acquire successful */
-			UltraLogEvent(logCtx,
-				      CHANNELSTATE_DIAG_EVENTID_TRANSITERR,
-				      CHANNELSTATE_DIAG_SEVERITY,
-				      CHANNELSTATE_DIAG_SUBSYS, func, line,
-				      "%s Channel StateTransition INVALID! - acquire failed because OS client NOT ATTACHED (state=%s(%d)) @%s:%d\n",
-				      chanId,
-				      ULTRA_CHANNELCLI_STRING(
-					      readl(&pChan->CliStateOS)),
-				      readl(&pChan->CliStateOS),
-				      PathName_Last_N_Nodes((u8 *) file, 4),
-				      line);
+			pr_info("%s Channel StateTransition INVALID! - acquire failed because OS client NOT ATTACHED (state=%s(%d))\n",
+				id, ULTRA_CHANNELCLI_STRING(
+						readl(&hdr->cli_state_os)),
+				readl(&hdr->cli_state_os));
 		}
 		return 0;
 	}
-	writel(CHANNELCLI_BUSY, &pChan->CliStateOS);
+	writel(CHANNELCLI_BUSY, &hdr->cli_state_os);
 	mb(); /* required for channel synch */
-	if (readl(&pChan->CliStateBoot) == CHANNELCLI_BUSY) {
-		if ((readb(&pChan->CliErrorOS)
+	if (readl(&hdr->cli_state_boot) == CHANNELCLI_BUSY) {
+		if ((readb(&hdr->cli_error_os)
 		     & ULTRA_CLIERROROS_THROTTLEMSG_BUSY) == 0) {
 			/* we are NOT throttling this message */
-			writeb(readb(&pChan->CliErrorOS) |
+			writeb(readb(&hdr->cli_error_os) |
 			       ULTRA_CLIERROROS_THROTTLEMSG_BUSY,
-			       &pChan->CliErrorOS);
+			       &hdr->cli_error_os);
 			/* throttle until acquire successful */
-			UltraLogEvent(logCtx,
-				      CHANNELSTATE_DIAG_EVENTID_TRANSITBUSY,
-				      CHANNELSTATE_DIAG_SEVERITY,
-				      CHANNELSTATE_DIAG_SUBSYS, func, line,
-				      "%s Channel StateTransition failed - host OS acquire failed because boot BUSY @%s:%d\n",
-				      chanId, PathName_Last_N_Nodes((u8 *) file,
-								    4), line);
+			pr_info("%s Channel StateTransition failed - host OS acquire failed because boot BUSY\n",
+				id);
 		}
 		/* reset busy */
-		writel(CHANNELCLI_ATTACHED, &pChan->CliStateOS);
+		writel(CHANNELCLI_ATTACHED, &hdr->cli_state_os);
 		mb(); /* required for channel synch */
 		return 0;
 	}
-	if (readb(&pChan->CliErrorOS) != 0) {
+	if (readb(&hdr->cli_error_os) != 0) {
 		/* we are in an error msg throttling state; come out of it */
-		UltraLogEvent(logCtx, CHANNELSTATE_DIAG_EVENTID_TRANSITOK,
-			      CHANNELSTATE_DIAG_SEVERITY,
-			      CHANNELSTATE_DIAG_SUBSYS, func, line,
-			      "%s Channel OS client acquire now successful @%s:%d\n",
-			      chanId, PathName_Last_N_Nodes((u8 *) file, 4),
-			      line);
-		writeb(0, &pChan->CliErrorOS);
+		pr_info("%s Channel OS client acquire now successful\n", id);
+		writeb(0, &hdr->cli_error_os);
 	}
 	return 1;
 }
 
 static inline void
-ULTRA_channel_client_release_os(void __iomem *pChannel, u8 *chanId,
-				void *logCtx, char *file, int line, char *func)
+spar_channel_client_release_os(void __iomem *ch, u8 *id)
 {
-	CHANNEL_HEADER __iomem *pChan = pChannel;
+	struct channel_header __iomem *hdr = ch;
 
-	if (readb(&pChan->CliErrorOS) != 0) {
+	if (readb(&hdr->cli_error_os) != 0) {
 		/* we are in an error msg throttling state; come out of it */
-		UltraLogEvent(logCtx, CHANNELSTATE_DIAG_EVENTID_TRANSITOK,
-			      CHANNELSTATE_DIAG_SEVERITY,
-			      CHANNELSTATE_DIAG_SUBSYS, func, line,
-			      "%s Channel OS client error state cleared @%s:%d\n",
-			      chanId, PathName_Last_N_Nodes((u8 *) file, 4),
-			      line);
-		writeb(0, &pChan->CliErrorOS);
+		pr_info("%s Channel OS client error state cleared\n", id);
+		writeb(0, &hdr->cli_error_os);
 	}
-	if (readl(&pChan->CliStateOS) == CHANNELCLI_OWNED)
+	if (readl(&hdr->cli_state_os) == CHANNELCLI_OWNED)
 		return;
-	if (readl(&pChan->CliStateOS) != CHANNELCLI_BUSY) {
-		UltraLogEvent(logCtx, CHANNELSTATE_DIAG_EVENTID_TRANSITERR,
-			      CHANNELSTATE_DIAG_SEVERITY,
-			      CHANNELSTATE_DIAG_SUBSYS, func, line,
-			      "%s Channel StateTransition INVALID! - release failed because OS client NOT BUSY (state=%s(%d)) @%s:%d\n",
-			      chanId,
-			      ULTRA_CHANNELCLI_STRING(
-				      readl(&pChan->CliStateOS)),
-			      readl(&pChan->CliStateOS),
-			      PathName_Last_N_Nodes((u8 *) file, 4), line);
+	if (readl(&hdr->cli_state_os) != CHANNELCLI_BUSY) {
+		pr_info("%s Channel StateTransition INVALID! - release failed because OS client NOT BUSY (state=%s(%d))\n",
+			id, ULTRA_CHANNELCLI_STRING(
+					readl(&hdr->cli_state_os)),
+			readl(&hdr->cli_state_os));
 		/* return; */
 	}
-	writel(CHANNELCLI_ATTACHED, &pChan->CliStateOS); /* release busy */
+	writel(CHANNELCLI_ATTACHED, &hdr->cli_state_os); /* release busy */
 }
 
 /*
@@ -625,8 +526,8 @@ ULTRA_channel_client_release_os(void __iomem *pChannel, u8 *chanId,
 * full.
 */
 
-unsigned char visor_signal_insert(CHANNEL_HEADER __iomem *pChannel, u32 Queue,
-				  void *pSignal);
+unsigned char spar_signal_insert(struct channel_header __iomem *ch, u32 queue,
+				 void *sig);
 
 /*
 * Routine Description:
@@ -647,8 +548,8 @@ unsigned char visor_signal_insert(CHANNEL_HEADER __iomem *pChannel, u32 Queue,
 * empty.
 */
 
-unsigned char visor_signal_remove(CHANNEL_HEADER __iomem *pChannel, u32 Queue,
-				  void *pSignal);
+unsigned char spar_signal_remove(struct channel_header __iomem *ch, u32 queue,
+				 void *sig);
 
 /*
 * Routine Description:
@@ -669,8 +570,8 @@ unsigned char visor_signal_remove(CHANNEL_HEADER __iomem *pChannel, u32 Queue,
 * Return value:
 * # of signals copied.
 */
-unsigned int SignalRemoveAll(pCHANNEL_HEADER pChannel, u32 Queue,
-			     void *pSignal);
+unsigned int spar_signal_remove_all(struct channel_header *ch, u32 queue,
+				    void *sig);
 
 /*
 * Routine Description:
@@ -683,7 +584,7 @@ unsigned int SignalRemoveAll(pCHANNEL_HEADER pChannel, u32 Queue,
 * Return value:
 * 1 if the signal queue is empty, 0 otherwise.
 */
-unsigned char visor_signalqueue_empty(CHANNEL_HEADER __iomem *pChannel,
-				      u32 Queue);
+unsigned char spar_signalqueue_empty(struct channel_header __iomem *ch,
+				     u32 queue);
 
 #endif

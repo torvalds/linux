@@ -22,7 +22,6 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
@@ -40,7 +39,6 @@
 #include "xfs_rtalloc.h"
 #include "xfs_trace.h"
 #include "xfs_log.h"
-#include "xfs_dinode.h"
 #include "xfs_filestream.h"
 
 /*
@@ -490,6 +488,7 @@ xfs_growfs_data_private(
 		xfs_trans_mod_sb(tp, XFS_TRANS_SB_FDBLOCKS, nfree);
 	if (dpct)
 		xfs_trans_mod_sb(tp, XFS_TRANS_SB_IMAXPCT, dpct);
+	xfs_trans_set_sync(tp);
 	error = xfs_trans_commit(tp, 0);
 	if (error)
 		return error;
@@ -543,7 +542,7 @@ xfs_growfs_data_private(
 			saved_error = error;
 			continue;
 		}
-		xfs_sb_to_disk(XFS_BUF_TO_SBP(bp), &mp->m_sb, XFS_SB_ALL_BITS);
+		xfs_sb_to_disk(XFS_BUF_TO_SBP(bp), &mp->m_sb);
 
 		error = xfs_bwrite(bp);
 		xfs_buf_relse(bp);
@@ -603,6 +602,12 @@ xfs_growfs_data(
 	if (!mutex_trylock(&mp->m_growlock))
 		return -EWOULDBLOCK;
 	error = xfs_growfs_data_private(mp, in);
+	/*
+	 * Increment the generation unconditionally, the error could be from
+	 * updating the secondary superblocks, in which case the new size
+	 * is live already.
+	 */
+	mp->m_generation++;
 	mutex_unlock(&mp->m_growlock);
 	return error;
 }
@@ -756,37 +761,6 @@ out:
 			goto retry;
 	}
 	return 0;
-}
-
-/*
- * Dump a transaction into the log that contains no real change. This is needed
- * to be able to make the log dirty or stamp the current tail LSN into the log
- * during the covering operation.
- *
- * We cannot use an inode here for this - that will push dirty state back up
- * into the VFS and then periodic inode flushing will prevent log covering from
- * making progress. Hence we log a field in the superblock instead and use a
- * synchronous transaction to ensure the superblock is immediately unpinned
- * and can be written back.
- */
-int
-xfs_fs_log_dummy(
-	xfs_mount_t	*mp)
-{
-	xfs_trans_t	*tp;
-	int		error;
-
-	tp = _xfs_trans_alloc(mp, XFS_TRANS_DUMMY1, KM_SLEEP);
-	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_sb, 0, 0);
-	if (error) {
-		xfs_trans_cancel(tp, 0);
-		return error;
-	}
-
-	/* log the UUID because it is an unchanging field */
-	xfs_mod_sb(tp, XFS_SB_UUID);
-	xfs_trans_set_sync(tp);
-	return xfs_trans_commit(tp, 0);
 }
 
 int

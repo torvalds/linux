@@ -521,7 +521,7 @@ static void __init raumfeld_w1_init(void)
 				"W1 external pullup enable");
 
 	if (ret < 0)
-		pr_warning("Unable to request GPIO_W1_PULLUP_ENABLE\n");
+		pr_warn("Unable to request GPIO_W1_PULLUP_ENABLE\n");
 	else
 		gpio_direction_output(GPIO_W1_PULLUP_ENABLE, 0);
 
@@ -600,7 +600,7 @@ static void __init raumfeld_lcd_init(void)
 
 	ret = gpio_request(GPIO_TFT_VA_EN, "display VA enable");
 	if (ret < 0)
-		pr_warning("Unable to request GPIO_TFT_VA_EN\n");
+		pr_warn("Unable to request GPIO_TFT_VA_EN\n");
 	else
 		gpio_direction_output(GPIO_TFT_VA_EN, 1);
 
@@ -608,7 +608,7 @@ static void __init raumfeld_lcd_init(void)
 
 	ret = gpio_request(GPIO_DISPLAY_ENABLE, "display enable");
 	if (ret < 0)
-		pr_warning("Unable to request GPIO_DISPLAY_ENABLE\n");
+		pr_warn("Unable to request GPIO_DISPLAY_ENABLE\n");
 	else
 		gpio_direction_output(GPIO_DISPLAY_ENABLE, 1);
 
@@ -758,8 +758,10 @@ static void raumfeld_power_signal_charged(void)
 	struct power_supply *psy =
 		power_supply_get_by_name(raumfeld_power_supplicants[0]);
 
-	if (psy)
+	if (psy) {
 		power_supply_set_battery_charged(psy);
+		power_supply_put(psy);
+	}
 }
 
 static int raumfeld_power_resume(void)
@@ -814,17 +816,17 @@ static void __init raumfeld_power_init(void)
 	/* Set PEN2 high to enable maximum charge current */
 	ret = gpio_request(GPIO_CHRG_PEN2, "CHRG_PEN2");
 	if (ret < 0)
-		pr_warning("Unable to request GPIO_CHRG_PEN2\n");
+		pr_warn("Unable to request GPIO_CHRG_PEN2\n");
 	else
 		gpio_direction_output(GPIO_CHRG_PEN2, 1);
 
 	ret = gpio_request(GPIO_CHARGE_DC_OK, "CABLE_DC_OK");
 	if (ret < 0)
-		pr_warning("Unable to request GPIO_CHARGE_DC_OK\n");
+		pr_warn("Unable to request GPIO_CHARGE_DC_OK\n");
 
 	ret = gpio_request(GPIO_CHARGE_USB_SUSP, "CHARGE_USB_SUSP");
 	if (ret < 0)
-		pr_warning("Unable to request GPIO_CHARGE_USB_SUSP\n");
+		pr_warn("Unable to request GPIO_CHARGE_USB_SUSP\n");
 	else
 		gpio_direction_output(GPIO_CHARGE_USB_SUSP, 0);
 
@@ -976,19 +978,19 @@ static void __init raumfeld_audio_init(void)
 
 	ret = gpio_request(GPIO_CODEC_RESET, "cs4270 reset");
 	if (ret < 0)
-		pr_warning("unable to request GPIO_CODEC_RESET\n");
+		pr_warn("unable to request GPIO_CODEC_RESET\n");
 	else
 		gpio_direction_output(GPIO_CODEC_RESET, 1);
 
 	ret = gpio_request(GPIO_SPDIF_RESET, "ak4104 s/pdif reset");
 	if (ret < 0)
-		pr_warning("unable to request GPIO_SPDIF_RESET\n");
+		pr_warn("unable to request GPIO_SPDIF_RESET\n");
 	else
 		gpio_direction_output(GPIO_SPDIF_RESET, 1);
 
 	ret = gpio_request(GPIO_MCLK_RESET, "MCLK reset");
 	if (ret < 0)
-		pr_warning("unable to request GPIO_MCLK_RESET\n");
+		pr_warn("unable to request GPIO_MCLK_RESET\n");
 	else
 		gpio_direction_output(GPIO_MCLK_RESET, 1);
 
@@ -1019,20 +1021,20 @@ static void __init raumfeld_common_init(void)
 
 	ret = gpio_request(GPIO_W2W_RESET, "Wi2Wi reset");
 	if (ret < 0)
-		pr_warning("Unable to request GPIO_W2W_RESET\n");
+		pr_warn("Unable to request GPIO_W2W_RESET\n");
 	else
 		gpio_direction_output(GPIO_W2W_RESET, 0);
 
 	ret = gpio_request(GPIO_W2W_PDN, "Wi2Wi powerup");
 	if (ret < 0)
-		pr_warning("Unable to request GPIO_W2W_PDN\n");
+		pr_warn("Unable to request GPIO_W2W_PDN\n");
 	else
 		gpio_direction_output(GPIO_W2W_PDN, 0);
 
 	/* this can be used to switch off the device */
 	ret = gpio_request(GPIO_SHUTDOWN_SUPPLY, "supply shutdown");
 	if (ret < 0)
-		pr_warning("Unable to request GPIO_SHUTDOWN_SUPPLY\n");
+		pr_warn("Unable to request GPIO_SHUTDOWN_SUPPLY\n");
 	else
 		gpio_direction_output(GPIO_SHUTDOWN_SUPPLY, 0);
 
@@ -1051,7 +1053,7 @@ static void __init raumfeld_controller_init(void)
 
 	ret = gpio_request(GPIO_SHUTDOWN_BATT, "battery shutdown");
 	if (ret < 0)
-		pr_warning("Unable to request GPIO_SHUTDOWN_BATT\n");
+		pr_warn("Unable to request GPIO_SHUTDOWN_BATT\n");
 	else
 		gpio_direction_output(GPIO_SHUTDOWN_BATT, 0);
 

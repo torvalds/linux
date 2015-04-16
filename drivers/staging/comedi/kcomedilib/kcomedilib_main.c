@@ -58,7 +58,7 @@ struct comedi_device *comedi_open(const char *filename)
 		retval = NULL;
 	up_read(&dev->attach_lock);
 
-	if (retval == NULL)
+	if (!retval)
 		comedi_dev_put(dev);
 
 	return retval;
@@ -95,7 +95,7 @@ static int comedi_do_insn(struct comedi_device *dev,
 
 	if (s->type == COMEDI_SUBD_UNUSED) {
 		dev_err(dev->class_dev,
-			"%d not useable subdevice\n", insn->subdev);
+			"%d not usable subdevice\n", insn->subdev);
 		ret = -EIO;
 		goto error;
 	}

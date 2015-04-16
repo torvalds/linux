@@ -41,7 +41,7 @@
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 #include <linux/mm.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/buffer_head.h>   /* for wait_on_buffer */
 #include <linux/pagevec.h>
 #include <linux/prefetch.h>
@@ -163,7 +163,7 @@ static int ll_dir_filler(void *_hash, struct page *page0)
 
 	LASSERT(max_pages > 0 && max_pages <= MD_MAX_BRW_PAGES);
 
-	page_pool = kzalloc(sizeof(page) * max_pages, GFP_NOFS);
+	page_pool = kcalloc(max_pages, sizeof(page), GFP_NOFS);
 	if (page_pool) {
 		page_pool[0] = page0;
 	} else {
@@ -183,7 +183,10 @@ static int ll_dir_filler(void *_hash, struct page *page0)
 	op_data->op_offset = hash;
 	rc = md_readpage(exp, op_data, page_pool, &request);
 	ll_finish_md_op_data(op_data);
-	if (rc == 0) {
+	if (rc < 0) {
+		/* page0 is special, which was added into page cache early */
+		delete_from_page_cache(page0);
+	} else if (rc == 0) {
 		body = req_capsule_server_get(&request->rq_pill, &RMF_MDT_BODY);
 		/* Checked by mdc_readpage() */
 		LASSERT(body != NULL);
@@ -228,8 +231,8 @@ static int ll_dir_filler(void *_hash, struct page *page0)
 			if (ll_pagevec_add(&lru_pvec, page) == 0)
 				ll_pagevec_lru_add_file(&lru_pvec);
 		} else {
-			CDEBUG(D_VFSTRACE, "page %lu add to page cache failed:"
-			       " %d\n", offset, ret);
+			CDEBUG(D_VFSTRACE, "page %lu add to page cache failed: %d\n",
+			       offset, ret);
 		}
 		page_cache_release(page);
 	}
@@ -275,14 +278,14 @@ static struct page *ll_dir_page_locate(struct inode *dir, __u64 *hash,
 	struct page *page;
 	int found;
 
-	TREE_READ_LOCK_IRQ(mapping);
+	spin_lock_irq(&mapping->tree_lock);
 	found = radix_tree_gang_lookup(&mapping->page_tree,
 				       (void **)&page, offset, 1);
-	if (found > 0) {
+	if (found > 0 && !radix_tree_exceptional_entry(page)) {
 		struct lu_dirpage *dp;
 
 		page_cache_get(page);
-		TREE_READ_UNLOCK_IRQ(mapping);
+		spin_unlock_irq(&mapping->tree_lock);
 		/*
 		 * In contrast to find_lock_page() we are sure that directory
 		 * page cannot be truncated (while DLM lock is held) and,
@@ -326,7 +329,7 @@ static struct page *ll_dir_page_locate(struct inode *dir, __u64 *hash,
 		}
 
 	} else {
-		TREE_READ_UNLOCK_IRQ(mapping);
+		spin_unlock_irq(&mapping->tree_lock);
 		page = NULL;
 	}
 	return page;
@@ -593,15 +596,15 @@ int ll_dir_read(struct inode *inode, struct dir_context *ctx)
 
 static int ll_readdir(struct file *filp, struct dir_context *ctx)
 {
-	struct inode		*inode	= filp->f_dentry->d_inode;
+	struct inode		*inode	= file_inode(filp);
 	struct ll_file_data	*lfd	= LUSTRE_FPRIVATE(filp);
 	struct ll_sb_info	*sbi	= ll_i2sbi(inode);
 	int			hash64	= sbi->ll_flags & LL_SBI_64BIT_HASH;
 	int			api32	= ll_need_32bit_api(sbi);
 	int			rc;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:inode=%lu/%u(%p) pos %lu/%llu "
-	       " 32bit_api %d\n", inode->i_ino, inode->i_generation,
+	CDEBUG(D_VFSTRACE, "VFS Op:inode=%lu/%u(%p) pos %lu/%llu 32bit_api %d\n",
+	       inode->i_ino, inode->i_generation,
 	       inode, (unsigned long)lfd->lfd_pos, i_size_read(inode), api32);
 
 	if (lfd->lfd_pos == MDS_DIR_END_OFF) {
@@ -652,8 +655,8 @@ static int ll_send_mgc_param(struct obd_export *mgc, char *string)
 	return rc;
 }
 
-int ll_dir_setdirstripe(struct inode *dir, struct lmv_user_md *lump,
-			char *filename)
+static int ll_dir_setdirstripe(struct inode *dir, struct lmv_user_md *lump,
+			       char *filename)
 {
 	struct ptlrpc_request *request = NULL;
 	struct md_op_data *op_data;
@@ -661,7 +664,7 @@ int ll_dir_setdirstripe(struct inode *dir, struct lmv_user_md *lump,
 	int mode;
 	int err;
 
-	mode = (0755 & (S_IRWXUGO|S_ISVTX) & ~current->fs->umask) | S_IFDIR;
+	mode = (0755 & ~current_umask()) | S_IFDIR;
 	op_data = ll_prep_md_op_data(NULL, dir, NULL, filename,
 				     strlen(filename), mode, LUSTRE_OPC_MKDIR,
 				     lump);
@@ -715,10 +718,9 @@ int ll_dir_setstripe(struct inode *inode, struct lov_user_md *lump,
 			break;
 		}
 		default: {
-			CDEBUG(D_IOCTL, "bad userland LOV MAGIC:"
-					" %#08x != %#08x nor %#08x\n",
-					lump->lmm_magic, LOV_USER_MAGIC_V1,
-					LOV_USER_MAGIC_V3);
+			CDEBUG(D_IOCTL, "bad userland LOV MAGIC: %#08x != %#08x nor %#08x\n",
+			       lump->lmm_magic, LOV_USER_MAGIC_V1,
+			       LOV_USER_MAGIC_V3);
 			return -EINVAL;
 		}
 		}
@@ -814,8 +816,8 @@ int ll_dir_getstripe(struct inode *inode, struct lov_mds_md **lmmp,
 	rc = md_getattr(sbi->ll_md_exp, op_data, &req);
 	ll_finish_md_op_data(op_data);
 	if (rc < 0) {
-		CDEBUG(D_INFO, "md_getattr failed on inode "
-		       "%lu/%u: rc %d\n", inode->i_ino,
+		CDEBUG(D_INFO, "md_getattr failed on inode %lu/%u: rc %d\n",
+		       inode->i_ino,
 		       inode->i_generation, rc);
 		goto out;
 	}
@@ -1013,8 +1015,7 @@ static int ll_ioc_copy_end(struct super_block *sb, struct hsm_copy *copy)
 				     copy->hc_hai.hai_action == HSMA_ARCHIVE);
 		iput(inode);
 		if (rc) {
-			CDEBUG(D_HSM, "Could not read file data version. "
-				      "Request could not be confirmed.\n");
+			CDEBUG(D_HSM, "Could not read file data version. Request could not be confirmed.\n");
 			if (hpk.hpk_errval == 0)
 				hpk.hpk_errval = -rc;
 			goto progress;
@@ -1028,8 +1029,7 @@ static int ll_ioc_copy_end(struct super_block *sb, struct hsm_copy *copy)
 		 * to check anyway. */
 		if ((copy->hc_hai.hai_action == HSMA_ARCHIVE) &&
 		    (copy->hc_data_version != data_version)) {
-			CDEBUG(D_HSM, "File data version mismatched. "
-			      "File content was changed during archiving. "
+			CDEBUG(D_HSM, "File data version mismatched. File content was changed during archiving. "
 			       DFID", start:%#llx current:%#llx\n",
 			       PFID(&copy->hc_hai.hai_fid),
 			       copy->hc_data_version, data_version);
@@ -1242,7 +1242,7 @@ ll_getname(const char __user *filename)
 
 static long ll_dir_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct ll_sb_info *sbi = ll_i2sbi(inode);
 	struct obd_ioctl_data *data;
 	int rc = 0;
@@ -1384,12 +1384,12 @@ lmv_out_free:
 		if (copy_from_user(lumv1, lumv1p, sizeof(*lumv1)))
 			return -EFAULT;
 
-		if ((lumv1->lmm_magic == LOV_USER_MAGIC_V3) ) {
+		if (lumv1->lmm_magic == LOV_USER_MAGIC_V3) {
 			if (copy_from_user(&lumv3, lumv3p, sizeof(lumv3)))
 				return -EFAULT;
 		}
 
-		if (inode->i_sb->s_root == file->f_dentry)
+		if (is_root_inode(inode))
 			set_default = 1;
 
 		/* in v1 and v3 cases lumv1 points to data */
@@ -1509,8 +1509,7 @@ out_rmdir:
 					       cmd == LL_IOC_MDC_GETINFO)) {
 				rc = 0;
 				goto skip_lmm;
-			}
-			else
+			} else
 				goto out_req;
 		}
 
@@ -1519,6 +1518,7 @@ out_rmdir:
 			lump = (struct lov_user_md *)arg;
 		} else {
 			struct lov_user_mds_data *lmdp;
+
 			lmdp = (struct lov_user_mds_data *)arg;
 			lump = &lmdp->lmd_lmm;
 		}
@@ -1694,64 +1694,6 @@ out_poll:
 		OBD_FREE_PTR(check);
 		return rc;
 	}
-#if LUSTRE_VERSION_CODE < OBD_OCD_VERSION(2, 7, 50, 0)
-	case LL_IOC_QUOTACTL_18: {
-		/* copy the old 1.x quota struct for internal use, then copy
-		 * back into old format struct.  For 1.8 compatibility. */
-		struct if_quotactl_18 *qctl_18;
-		struct if_quotactl *qctl_20;
-
-		qctl_18 = kzalloc(sizeof(*qctl_18), GFP_NOFS);
-		if (!qctl_18)
-			return -ENOMEM;
-
-		qctl_20 = kzalloc(sizeof(*qctl_20), GFP_NOFS);
-		if (!qctl_20) {
-			rc = -ENOMEM;
-			goto out_quotactl_18;
-		}
-
-		if (copy_from_user(qctl_18, (void *)arg, sizeof(*qctl_18))) {
-			rc = -ENOMEM;
-			goto out_quotactl_20;
-		}
-
-		QCTL_COPY(qctl_20, qctl_18);
-		qctl_20->qc_idx = 0;
-
-		/* XXX: dqb_valid was borrowed as a flag to mark that
-		 *      only mds quota is wanted */
-		if (qctl_18->qc_cmd == Q_GETQUOTA &&
-		    qctl_18->qc_dqblk.dqb_valid) {
-			qctl_20->qc_valid = QC_MDTIDX;
-			qctl_20->qc_dqblk.dqb_valid = 0;
-		} else if (qctl_18->obd_uuid.uuid[0] != '\0') {
-			qctl_20->qc_valid = QC_UUID;
-			qctl_20->obd_uuid = qctl_18->obd_uuid;
-		} else {
-			qctl_20->qc_valid = QC_GENERAL;
-		}
-
-		rc = quotactl_ioctl(sbi, qctl_20);
-
-		if (rc == 0) {
-			QCTL_COPY(qctl_18, qctl_20);
-			qctl_18->obd_uuid = qctl_20->obd_uuid;
-
-			if (copy_to_user((void *)arg, qctl_18,
-					     sizeof(*qctl_18)))
-				rc = -EFAULT;
-		}
-
-out_quotactl_20:
-		OBD_FREE_PTR(qctl_20);
-out_quotactl_18:
-		OBD_FREE_PTR(qctl_18);
-		return rc;
-	}
-#else
-#warning "remove old LL_IOC_QUOTACTL_18 compatibility code"
-#endif /* LUSTRE_VERSION_CODE < OBD_OCD_VERSION(2, 7, 50, 0) */
 	case LL_IOC_QUOTACTL: {
 		struct if_quotactl *qctl;
 
@@ -1780,8 +1722,7 @@ out_quotactl:
 		return ll_flush_ctx(inode);
 #ifdef CONFIG_FS_POSIX_ACL
 	case LL_IOC_RMTACL: {
-	    if (sbi->ll_flags & LL_SBI_RMT_CLIENT &&
-		inode == inode->i_sb->s_root->d_inode) {
+	    if (sbi->ll_flags & LL_SBI_RMT_CLIENT && is_root_inode(inode)) {
 		struct ll_file_data *fd = LUSTRE_FPRIVATE(file);
 
 		LASSERT(fd != NULL);
@@ -1969,21 +1910,21 @@ static loff_t ll_dir_seek(struct file *file, loff_t offset, int origin)
 
 	mutex_lock(&inode->i_mutex);
 	switch (origin) {
-		case SEEK_SET:
-			break;
-		case SEEK_CUR:
-			offset += file->f_pos;
-			break;
-		case SEEK_END:
-			if (offset > 0)
-				goto out;
-			if (api32)
-				offset += LL_DIR_END_OFF_32BIT;
-			else
-				offset += LL_DIR_END_OFF;
-			break;
-		default:
+	case SEEK_SET:
+		break;
+	case SEEK_CUR:
+		offset += file->f_pos;
+		break;
+	case SEEK_END:
+		if (offset > 0)
 			goto out;
+		if (api32)
+			offset += LL_DIR_END_OFF_32BIT;
+		else
+			offset += LL_DIR_END_OFF;
+		break;
+	default:
+		goto out;
 	}
 
 	if (offset >= 0 &&

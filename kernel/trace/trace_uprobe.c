@@ -196,7 +196,7 @@ DEFINE_FETCH_file_offset(string)
 DEFINE_FETCH_file_offset(string_size)
 
 /* Fetch type information table */
-const struct fetch_type uprobes_fetch_type_table[] = {
+static const struct fetch_type uprobes_fetch_type_table[] = {
 	/* Special types */
 	[FETCH_TYPE_STRING] = __ASSIGN_FETCH_TYPE("string", string, string,
 					sizeof(u32), 1, "__data_loc char[]"),
@@ -535,7 +535,8 @@ static int create_trace_uprobe(int argc, char **argv)
 
 		/* Parse fetch argument */
 		ret = traceprobe_parse_probe_arg(arg, &tu->tp.size, parg,
-						 is_return, false);
+						 is_return, false,
+						 uprobes_fetch_type_table);
 		if (ret) {
 			pr_info("Parse error at argument[%d]. (%d)\n", i, ret);
 			goto error;
@@ -552,8 +553,7 @@ error:
 	return ret;
 
 fail_address_parse:
-	if (inode)
-		iput(inode);
+	iput(inode);
 
 	pr_info("Failed to parse address or file.\n");
 
@@ -606,7 +606,7 @@ static int probes_seq_show(struct seq_file *m, void *v)
 	for (i = 0; i < tu->tp.nr_args; i++)
 		seq_printf(m, " %s=%s", tu->tp.args[i].name, tu->tp.args[i].comm);
 
-	seq_printf(m, "\n");
+	seq_putc(m, '\n');
 	return 0;
 }
 
@@ -852,16 +852,14 @@ print_uprobe_event(struct trace_iterator *iter, int flags, struct trace_event *e
 	tu = container_of(event, struct trace_uprobe, tp.call.event);
 
 	if (is_ret_probe(tu)) {
-		if (!trace_seq_printf(s, "%s: (0x%lx <- 0x%lx)",
-					ftrace_event_name(&tu->tp.call),
-					entry->vaddr[1], entry->vaddr[0]))
-			goto partial;
+		trace_seq_printf(s, "%s: (0x%lx <- 0x%lx)",
+				 ftrace_event_name(&tu->tp.call),
+				 entry->vaddr[1], entry->vaddr[0]);
 		data = DATAOF_TRACE_ENTRY(entry, true);
 	} else {
-		if (!trace_seq_printf(s, "%s: (0x%lx)",
-					ftrace_event_name(&tu->tp.call),
-					entry->vaddr[0]))
-			goto partial;
+		trace_seq_printf(s, "%s: (0x%lx)",
+				 ftrace_event_name(&tu->tp.call),
+				 entry->vaddr[0]);
 		data = DATAOF_TRACE_ENTRY(entry, false);
 	}
 
@@ -869,14 +867,13 @@ print_uprobe_event(struct trace_iterator *iter, int flags, struct trace_event *e
 		struct probe_arg *parg = &tu->tp.args[i];
 
 		if (!parg->type->print(s, parg->name, data + parg->offset, entry))
-			goto partial;
+			goto out;
 	}
 
-	if (trace_seq_puts(s, "\n"))
-		return TRACE_TYPE_HANDLED;
+	trace_seq_putc(s, '\n');
 
-partial:
-	return TRACE_TYPE_PARTIAL_LINE;
+ out:
+	return trace_handle_return(s);
 }
 
 typedef bool (*filter_func_t)(struct uprobe_consumer *self,
@@ -1009,7 +1006,7 @@ __uprobe_perf_filter(struct trace_uprobe_filter *filter, struct mm_struct *mm)
 		return true;
 
 	list_for_each_entry(event, &filter->perf_events, hw.tp_list) {
-		if (event->hw.tp_target->mm == mm)
+		if (event->hw.target->mm == mm)
 			return true;
 	}
 
@@ -1019,7 +1016,7 @@ __uprobe_perf_filter(struct trace_uprobe_filter *filter, struct mm_struct *mm)
 static inline bool
 uprobe_filter_event(struct trace_uprobe *tu, struct perf_event *event)
 {
-	return __uprobe_perf_filter(&tu->filter, event->hw.tp_target->mm);
+	return __uprobe_perf_filter(&tu->filter, event->hw.target->mm);
 }
 
 static int uprobe_perf_close(struct trace_uprobe *tu, struct perf_event *event)
@@ -1027,10 +1024,10 @@ static int uprobe_perf_close(struct trace_uprobe *tu, struct perf_event *event)
 	bool done;
 
 	write_lock(&tu->filter.rwlock);
-	if (event->hw.tp_target) {
+	if (event->hw.target) {
 		list_del(&event->hw.tp_list);
 		done = tu->filter.nr_systemwide ||
-			(event->hw.tp_target->flags & PF_EXITING) ||
+			(event->hw.target->flags & PF_EXITING) ||
 			uprobe_filter_event(tu, event);
 	} else {
 		tu->filter.nr_systemwide--;
@@ -1050,7 +1047,7 @@ static int uprobe_perf_open(struct trace_uprobe *tu, struct perf_event *event)
 	int err;
 
 	write_lock(&tu->filter.rwlock);
-	if (event->hw.tp_target) {
+	if (event->hw.target) {
 		/*
 		 * event->parent != NULL means copy_process(), we can avoid
 		 * uprobe_apply(). current->mm must be probed and we can rely
@@ -1115,7 +1112,7 @@ static void __uprobe_perf_func(struct trace_uprobe *tu,
 	if (hlist_empty(head))
 		goto out;
 
-	entry = perf_trace_buf_prepare(size, call->event.type, regs, &rctx);
+	entry = perf_trace_buf_prepare(size, call->event.type, NULL, &rctx);
 	if (!entry)
 		goto out;
 
@@ -1325,7 +1322,7 @@ static __init int init_uprobe_trace(void)
 	struct dentry *d_tracer;
 
 	d_tracer = tracing_init_dentry();
-	if (!d_tracer)
+	if (IS_ERR(d_tracer))
 		return 0;
 
 	trace_create_file("uprobe_events", 0644, d_tracer,

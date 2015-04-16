@@ -67,7 +67,7 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 	unsigned long old_usp;
 
         /* Always make any pending restarted system calls return -EINTR */
-	current_thread_info()->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_no_restart_syscall;
 
 	/* restore the regs from &sc->regs (same as sc, since regs is first)
 	 * (sc is already checked for VERIFY_READ since the sigframe was
@@ -320,8 +320,6 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 
 	if (err)
 		return -EFAULT;
-
-	/* TODO what is the current->exec_domain stuff and invmap ? */
 
 	/* Set up registers for signal handler */
 

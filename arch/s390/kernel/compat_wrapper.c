@@ -218,3 +218,5 @@ COMPAT_SYSCALL_WRAP3(seccomp, unsigned int, op, unsigned int, flags, const char 
 COMPAT_SYSCALL_WRAP3(getrandom, char __user *, buf, size_t, count, unsigned int, flags)
 COMPAT_SYSCALL_WRAP2(memfd_create, const char __user *, uname, unsigned int, flags)
 COMPAT_SYSCALL_WRAP3(bpf, int, cmd, union bpf_attr *, attr, unsigned int, size);
+COMPAT_SYSCALL_WRAP3(s390_pci_mmio_write, const unsigned long, mmio_addr, const void __user *, user_buffer, const size_t, length);
+COMPAT_SYSCALL_WRAP3(s390_pci_mmio_read, const unsigned long, mmio_addr, void __user *, user_buffer, const size_t, length);

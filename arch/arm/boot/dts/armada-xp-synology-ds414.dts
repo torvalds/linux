@@ -1,0 +1,363 @@
+/*
+ * Device Tree file for Synology DS414
+ *
+ * Copyright (C) 2014, Arnaud EBALARD <arno@natisbad.org>
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This file is distributed in the hope that it will be useful
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED , WITHOUT WARRANTY OF ANY KIND
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * Note: this Device Tree assumes that the bootloader has remapped the
+ * internal registers to 0xf1000000 (instead of the old 0xd0000000).
+ * The 0xf1000000 is the default used by the recent, DT-capable, U-Boot
+ * bootloaders provided by Marvell. It is used in recent versions of
+ * DSM software provided by Synology. Nonetheless, some earlier boards
+ * were delivered with an older version of u-boot that left internal
+ * registers mapped at 0xd0000000. If you have such a device you will
+ * not be able to directly boot a kernel based on this Device Tree. In
+ * that case, the preferred solution is to update your bootloader (e.g.
+ * by upgrading to latest version of DSM, or building a new one and
+ * installing it from u-boot prompt) or adjust the Devive Tree
+ * (s/0xf1000000/0xd0000000/ in 'ranges' below).
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/gpio/gpio.h>
+#include "armada-xp-mv78230.dtsi"
+
+/ {
+	model = "Synology DS414";
+	compatible = "synology,ds414", "marvell,armadaxp-mv78230",
+		     "marvell,armadaxp", "marvell,armada-370-xp";
+
+	chosen {
+		bootargs = "console=ttyS0,115200 earlyprintk";
+		stdout-path = &uart0;
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0 0x00000000 0 0x40000000>; /* 1GB */
+	};
+
+	soc {
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0 0xf1000000 0x100000
+			  MBUS_ID(0x01, 0x1d) 0 0 0xfff00000 0x100000>;
+
+		pcie-controller {
+			status = "okay";
+
+			/*
+			 * Connected to Marvell 88SX7042 SATA-II controller
+			 * handling the four disks.
+			 */
+			pcie@1,0 {
+				/* Port 0, Lane 0 */
+				status = "okay";
+			};
+
+			/*
+			 * Connected to EtronTech EJ168A XHCI controller
+			 * providing the two rear USB 3.0 ports.
+			 */
+			pcie@5,0 {
+				/* Port 1, Lane 0 */
+				status = "okay";
+			};
+		};
+
+		internal-regs {
+
+			/* RTC is provided by Seiko S-35390A below */
+			rtc@10300 {
+				status = "disabled";
+			};
+
+			spi0: spi@10600 {
+				status = "okay";
+
+				spi-flash@0 {
+					#address-cells = <1>;
+					#size-cells = <1>;
+					compatible = "micron,n25q064";
+					reg = <0>; /* Chip select 0 */
+					spi-max-frequency = <20000000>;
+
+					/*
+					 * Warning!
+					 *
+					 * Synology u-boot uses its compiled-in environment
+					 * and it seems Synology did not care to change u-boot
+					 * default configuration in order to allow saving a
+					 * modified environment at a sensible location. So,
+					 * if you do a 'saveenv' under u-boot, your modified
+					 * environment will be saved at 1MB after the start
+					 * of the flash, i.e. in the middle of the uImage.
+					 * For that reason, it is strongly advised not to
+					 * change the default environment, unless you know
+					 * what you are doing.
+					 */
+					partition@00000000 { /* u-boot */
+						label = "RedBoot";
+						reg = <0x00000000 0x000d0000>; /* 832KB */
+					};
+
+					partition@000c0000 { /* uImage */
+						label = "zImage";
+						reg = <0x000d0000 0x002d0000>; /* 2880KB */
+					};
+
+					partition@003a0000 { /* uInitramfs */
+						label = "rd.gz";
+						reg = <0x003a0000 0x00430000>; /* 4250KB */
+					};
+
+					partition@007d0000 { /* MAC address and serial number */
+						label = "vendor";
+						reg = <0x007d0000 0x00010000>; /* 64KB */
+					};
+
+					partition@007e0000 {
+						label = "RedBoot config";
+						reg = <0x007e0000 0x00010000>; /* 64KB */
+					};
+
+					partition@007f0000 {
+						label = "FIS directory";
+						reg = <0x007f0000 0x00010000>; /* 64KB */
+					};
+				};
+			};
+
+			i2c@11000 {
+				clock-frequency = <400000>;
+				status = "okay";
+
+				s35390a: s35390a@30 {
+					 compatible = "sii,s35390a";
+					 reg = <0x30>;
+				};
+			};
+
+			/* Connected to a header on device's PCB. This
+			 * provides the main console for the device.
+			 *
+			 * Warning: the device may not boot with a 3.3V
+			 * USB-serial converter connected when the power
+			 * button is pressed. The converter needs to be
+			 * connected a few seconds after pressing the
+			 * power button. This is possibly due to UART0_TXD
+			 * pin being sampled at reset (bit 0 of SAR).
+			 */
+			serial@12000 {
+				status = "okay";
+			};
+
+			/* Connected to a Microchip PIC16F883 for power control */
+			serial@12100 {
+				status = "okay";
+			};
+
+			poweroff@12100 {
+				compatible = "synology,power-off";
+				reg = <0x12100 0x100>;
+				clocks = <&coreclk 0>;
+			};
+
+			/* Front USB 2.0 port */
+			usb@50000 {
+				status = "okay";
+			};
+
+			mdio {
+				phy0: ethernet-phy@0 { /* Marvell 88E1512 */
+					reg = <0>;
+				};
+
+				phy1: ethernet-phy@1 { /* Marvell 88E1512 */
+					reg = <1>;
+				};
+			};
+
+			ethernet@70000 {
+				status = "okay";
+				pinctrl-0 = <&ge0_rgmii_pins>;
+				pinctrl-names = "default";
+				phy = <&phy1>;
+				phy-mode = "rgmii-id";
+			};
+
+			ethernet@74000 {
+				pinctrl-0 = <&ge1_rgmii_pins>;
+				pinctrl-names = "default";
+				status = "okay";
+				phy = <&phy0>;
+				phy-mode = "rgmii-id";
+			};
+		};
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-0 = <&sata1_pwr_pin &sata2_pwr_pin
+			     &sata3_pwr_pin &sata4_pwr_pin>;
+		pinctrl-names = "default";
+
+		sata1_regulator: sata1-regulator {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "SATA1 Power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			startup-delay-us = <2000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&gpio1 10 GPIO_ACTIVE_HIGH>;
+		};
+
+		sata2_regulator: sata2-regulator {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			regulator-name = "SATA2 Power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			startup-delay-us = <4000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&gpio1 12 GPIO_ACTIVE_HIGH>;
+		};
+
+		sata3_regulator: sata3-regulator {
+			compatible = "regulator-fixed";
+			reg = <3>;
+			regulator-name = "SATA3 Power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			startup-delay-us = <6000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&gpio1 13 GPIO_ACTIVE_HIGH>;
+		};
+
+		sata4_regulator: sata4-regulator {
+			compatible = "regulator-fixed";
+			reg = <4>;
+			regulator-name = "SATA4 Power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			startup-delay-us = <8000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&gpio1 14 GPIO_ACTIVE_HIGH>;
+		};
+	};
+};
+
+&pinctrl {
+	sata1_pwr_pin: sata1-pwr-pin {
+		marvell,pins = "mpp42";
+		marvell,function = "gpio";
+	};
+
+	sata2_pwr_pin: sata2-pwr-pin {
+		marvell,pins = "mpp44";
+		marvell,function = "gpio";
+	};
+
+	sata3_pwr_pin: sata3-pwr-pin {
+		marvell,pins = "mpp45";
+		marvell,function = "gpio";
+	};
+
+	sata4_pwr_pin: sata4-pwr-pin {
+		marvell,pins = "mpp46";
+		marvell,function = "gpio";
+	};
+
+	sata1_pres_pin: sata1-pres-pin {
+		marvell,pins = "mpp34";
+		marvell,function = "gpio";
+	};
+
+	sata2_pres_pin: sata2-pres-pin {
+		marvell,pins = "mpp35";
+		marvell,function = "gpio";
+	};
+
+	sata3_pres_pin: sata3-pres-pin {
+		marvell,pins = "mpp40";
+		marvell,function = "gpio";
+	};
+
+	sata4_pres_pin: sata4-pres-pin {
+		marvell,pins = "mpp41";
+		marvell,function = "gpio";
+	};
+
+	syno_id_bit0_pin: syno-id-bit0-pin {
+		marvell,pins = "mpp26";
+		marvell,function = "gpio";
+	};
+
+	syno_id_bit1_pin: syno-id-bit1-pin {
+		marvell,pins = "mpp28";
+		marvell,function = "gpio";
+	};
+
+	syno_id_bit2_pin: syno-id-bit2-pin {
+		marvell,pins = "mpp29";
+		marvell,function = "gpio";
+	};
+
+	fan1_alarm_pin: fan1-alarm-pin {
+		marvell,pins = "mpp33";
+		marvell,function = "gpio";
+	};
+
+	fan2_alarm_pin: fan2-alarm-pin {
+		marvell,pins = "mpp32";
+		marvell,function = "gpio";
+	};
+};

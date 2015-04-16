@@ -569,7 +569,6 @@ static const struct of_device_id lpc32xx_gpio_of_match[] = {
 static struct platform_driver lpc32xx_gpio_driver = {
 	.driver		= {
 		.name	= "lpc32xx-gpio",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(lpc32xx_gpio_of_match),
 	},
 	.probe		= lpc32xx_gpio_probe,

@@ -214,7 +214,7 @@ struct ib_mr *ipath_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	mr->mr.user_base = start;
 	mr->mr.iova = virt_addr;
 	mr->mr.length = length;
-	mr->mr.offset = umem->offset;
+	mr->mr.offset = ib_umem_offset(umem);
 	mr->mr.access_flags = mr_access_flags;
 	mr->mr.max_segs = n;
 	mr->umem = umem;

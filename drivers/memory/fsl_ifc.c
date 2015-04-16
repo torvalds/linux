@@ -61,7 +61,7 @@ int fsl_ifc_find(phys_addr_t addr_base)
 	if (!fsl_ifc_ctrl_dev || !fsl_ifc_ctrl_dev->regs)
 		return -ENODEV;
 
-	for (i = 0; i < ARRAY_SIZE(fsl_ifc_ctrl_dev->regs->cspr_cs); i++) {
+	for (i = 0; i < fsl_ifc_ctrl_dev->banks; i++) {
 		u32 cspr = in_be32(&fsl_ifc_ctrl_dev->regs->cspr_cs[i].cspr);
 		if (cspr & CSPR_V && (cspr & CSPR_BA) ==
 				convert_ifc_address(addr_base))
@@ -213,7 +213,7 @@ static irqreturn_t fsl_ifc_ctrl_irq(int irqno, void *data)
 static int fsl_ifc_ctrl_probe(struct platform_device *dev)
 {
 	int ret = 0;
-
+	int version, banks;
 
 	dev_info(&dev->dev, "Freescale Integrated Flash Controller\n");
 
@@ -230,6 +230,15 @@ static int fsl_ifc_ctrl_probe(struct platform_device *dev)
 		ret = -ENODEV;
 		goto err;
 	}
+
+	version = ioread32be(&fsl_ifc_ctrl_dev->regs->ifc_rev) &
+			FSL_IFC_VERSION_MASK;
+	banks = (version == FSL_IFC_VERSION_1_0_0) ? 4 : 8;
+	dev_info(&dev->dev, "IFC version %d.%d, %d banks\n",
+		version >> 24, (version >> 16) & 0xf, banks);
+
+	fsl_ifc_ctrl_dev->version = version;
+	fsl_ifc_ctrl_dev->banks = banks;
 
 	/* get the Controller level irq */
 	fsl_ifc_ctrl_dev->irq = irq_of_parse_and_map(dev->dev.of_node, 0);

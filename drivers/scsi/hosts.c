@@ -418,7 +418,6 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 	shost->cmd_per_lun = sht->cmd_per_lun;
 	shost->unchecked_isa_dma = sht->unchecked_isa_dma;
 	shost->use_clustering = sht->use_clustering;
-	shost->ordered_tag = sht->ordered_tag;
 	shost->no_write_same = sht->no_write_same;
 
 	if (shost_eh_deadline == -1 || !sht->eh_host_reset_handler)
@@ -485,8 +484,8 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 					    WQ_UNBOUND | WQ_MEM_RECLAIM,
 					   1, shost->host_no);
 	if (!shost->tmf_work_q) {
-		printk(KERN_WARNING "scsi%d: failed to create tmf workq\n",
-		       shost->host_no);
+		shost_printk(KERN_WARNING, shost,
+			     "failed to create tmf workq\n");
 		goto fail_kthread;
 	}
 	scsi_proc_hostdir_add(shost->hostt);

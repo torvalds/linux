@@ -85,7 +85,7 @@ MODULE_PARM_DESC(ptlrpcd_bind_policy, "Ptlrpcd threads binding mode.");
 static struct ptlrpcd *ptlrpcds;
 
 struct mutex ptlrpcd_mutex;
-static int ptlrpcd_users = 0;
+static int ptlrpcd_users;
 
 void ptlrpcd_wake(struct ptlrpc_request *req)
 {
@@ -306,21 +306,16 @@ static int ptlrpcd_check(struct lu_env *env, struct ptlrpcd_ctl *pc)
 	if (atomic_read(&set->set_remaining))
 		rc |= ptlrpc_check_set(env, set);
 
-	if (!list_empty(&set->set_requests)) {
-		/*
-		 * XXX: our set never completes, so we prune the completed
-		 * reqs after each iteration. boy could this be smarter.
-		 */
-		list_for_each_safe(pos, tmp, &set->set_requests) {
-			req = list_entry(pos, struct ptlrpc_request,
-					     rq_set_chain);
-			if (req->rq_phase != RQ_PHASE_COMPLETE)
-				continue;
+	/* NB: ptlrpc_check_set has already moved completed request at the
+	 * head of seq::set_requests */
+	list_for_each_safe(pos, tmp, &set->set_requests) {
+		req = list_entry(pos, struct ptlrpc_request, rq_set_chain);
+		if (req->rq_phase != RQ_PHASE_COMPLETE)
+			break;
 
-			list_del_init(&req->rq_set_chain);
-			req->rq_set = NULL;
-			ptlrpc_req_finished(req);
-		}
+		list_del_init(&req->rq_set_chain);
+		req->rq_set = NULL;
+		ptlrpc_req_finished(req);
 	}
 
 	if (rc == 0) {
@@ -356,10 +351,9 @@ static int ptlrpcd_check(struct lu_env *env, struct ptlrpcd_ctl *pc)
 				if (atomic_read(&ps->set_new_count)) {
 					rc = ptlrpcd_steal_rqset(set, ps);
 					if (rc > 0)
-						CDEBUG(D_RPCTRACE, "transfer %d"
-						       " async RPCs [%d->%d]\n",
-							rc, partner->pc_index,
-							pc->pc_index);
+						CDEBUG(D_RPCTRACE, "transfer %d async RPCs [%d->%d]\n",
+						       rc, partner->pc_index,
+						       pc->pc_index);
 				}
 				ptlrpc_reqset_put(ps);
 			} while (rc == 0 && pc->pc_cursor != first);
@@ -517,10 +511,10 @@ static int ptlrpcd_bind(int index, int max)
 #if defined(CONFIG_NUMA)
 	{
 		int i;
-		mask = *cpumask_of_node(cpu_to_node(index));
+		cpumask_copy(&mask, cpumask_of_node(cpu_to_node(index)));
 		for (i = max; i < num_online_cpus(); i++)
-			cpu_clear(i, mask);
-		pc->pc_npartners = cpus_weight(mask) - 1;
+			cpumask_clear_cpu(i, &mask);
+		pc->pc_npartners = cpumask_weight(&mask) - 1;
 		set_bit(LIOD_BIND, &pc->pc_flags);
 	}
 #else
@@ -560,7 +554,7 @@ static int ptlrpcd_bind(int index, int max)
 				 * that are already initialized
 				 */
 				for (pidx = 0, i = 0; i < index; i++) {
-					if (cpu_isset(i, mask)) {
+					if (cpumask_test_cpu(i, &mask)) {
 						ppc = &ptlrpcds->pd_threads[i];
 						pc->pc_partners[pidx++] = ppc;
 						ppc->pc_partners[ppc->

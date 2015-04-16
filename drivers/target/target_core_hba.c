@@ -36,6 +36,7 @@
 #include <target/target_core_base.h>
 #include <target/target_core_backend.h>
 #include <target/target_core_fabric.h>
+#include <target/target_core_configfs.h>
 
 #include "target_core_internal.h"
 
@@ -137,8 +138,7 @@ core_alloc_hba(const char *plugin_name, u32 plugin_dep_id, u32 hba_flags)
 	return hba;
 
 out_module_put:
-	if (hba->transport->owner)
-		module_put(hba->transport->owner);
+	module_put(hba->transport->owner);
 	hba->transport = NULL;
 out_free_hba:
 	kfree(hba);
@@ -159,8 +159,7 @@ core_delete_hba(struct se_hba *hba)
 	pr_debug("CORE_HBA[%d] - Detached HBA from Generic Target"
 			" Core\n", hba->hba_id);
 
-	if (hba->transport->owner)
-		module_put(hba->transport->owner);
+	module_put(hba->transport->owner);
 
 	hba->transport = NULL;
 	kfree(hba);

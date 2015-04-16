@@ -1,0 +1,44 @@
+#
+# Intel pin control drivers
+#
+
+config PINCTRL_BAYTRAIL
+	bool "Intel Baytrail GPIO pin control"
+	depends on GPIOLIB && ACPI
+	select GPIOLIB_IRQCHIP
+	help
+	  driver for memory mapped GPIO functionality on Intel Baytrail
+	  platforms. Supports 3 banks with 102, 28 and 44 gpios.
+	  Most pins are usually muxed to some other functionality by firmware,
+	  so only a small amount is available for gpio use.
+
+	  Requires ACPI device enumeration code to set up a platform device.
+
+config PINCTRL_CHERRYVIEW
+	tristate "Intel Cherryview/Braswell pinctrl and GPIO driver"
+	depends on ACPI
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
+	help
+	  Cherryview/Braswell pinctrl driver provides an interface that
+	  allows configuring of SoC pins and using them as GPIOs.
+
+config PINCTRL_INTEL
+	tristate
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
+
+config PINCTRL_SUNRISEPOINT
+	tristate "Intel Sunrisepoint pinctrl and GPIO driver"
+	depends on ACPI
+	select PINCTRL_INTEL
+	help
+	  Sunrisepoint is the PCH of Intel Skylake. This pinctrl driver
+	  provides an interface that allows configuring of PCH pins and
+	  using them as GPIOs.

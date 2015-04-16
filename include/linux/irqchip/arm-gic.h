@@ -91,10 +91,13 @@
 
 #ifndef __ASSEMBLY__
 
+#include <linux/irqdomain.h>
+
 struct device_node;
 
 extern struct irq_chip gic_arch_extn;
 
+void gic_set_irqchip_flags(unsigned long flags);
 void gic_init_bases(unsigned int, int, void __iomem *, void __iomem *,
 		    u32 offset, struct device_node *);
 void gic_cascade_irq(unsigned int gic_nr, unsigned int irq);
@@ -106,16 +109,12 @@ static inline void gic_init(unsigned int nr, int start,
 	gic_init_bases(nr, start, dist, cpu, 0, NULL);
 }
 
+int gicv2m_of_init(struct device_node *node, struct irq_domain *parent);
+
 void gic_send_sgi(unsigned int cpu_id, unsigned int irq);
 int gic_get_cpu_id(unsigned int cpu);
 void gic_migrate_target(unsigned int new_cpu_id);
 unsigned long gic_get_sgir_physaddr(void);
 
-extern const struct irq_domain_ops *gic_routable_irq_domain_ops;
-static inline void __init register_routable_domain_ops
-					(const struct irq_domain_ops *ops)
-{
-	gic_routable_irq_domain_ops = ops;
-}
 #endif /* __ASSEMBLY */
 #endif

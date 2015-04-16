@@ -1174,11 +1174,11 @@ static int imx21_hc_urb_enqueue(struct usb_hcd *hcd,
 
 	dev_vdbg(imx21->dev,
 		"enqueue urb=%p ep=%p len=%d "
-		"buffer=%p dma=%08X setupBuf=%p setupDma=%08X\n",
+		"buffer=%p dma=%pad setupBuf=%p setupDma=%pad\n",
 		urb, ep,
 		urb->transfer_buffer_length,
-		urb->transfer_buffer, urb->transfer_dma,
-		urb->setup_packet, urb->setup_dma);
+		urb->transfer_buffer, &urb->transfer_dma,
+		urb->setup_packet, &urb->setup_dma);
 
 	if (usb_pipeisoc(urb->pipe))
 		return imx21_hc_urb_enqueue_isoc(hcd, ep, urb, mem_flags);
@@ -1474,7 +1474,7 @@ static int get_hub_descriptor(struct usb_hcd *hcd,
 			      struct usb_hub_descriptor *desc)
 {
 	struct imx21 *imx21 = hcd_to_imx21(hcd);
-	desc->bDescriptorType = 0x29;	/* HUB descriptor */
+	desc->bDescriptorType = USB_DT_HUB; /* HUB descriptor */
 	desc->bHubContrCurrent = 0;
 
 	desc->bNbrPorts = readl(imx21->regs + USBH_ROOTHUBA)
@@ -1482,9 +1482,8 @@ static int get_hub_descriptor(struct usb_hcd *hcd,
 	desc->bDescLength = 9;
 	desc->bPwrOn2PwrGood = 0;
 	desc->wHubCharacteristics = (__force __u16) cpu_to_le16(
-		0x0002 |	/* No power switching */
-		0x0010 |	/* No over current protection */
-		0);
+		HUB_CHAR_NO_LPSM |	/* No power switching */
+		HUB_CHAR_NO_OCPM);	/* No over current protection */
 
 	desc->u.hs.DeviceRemovable[0] = 1 << 1;
 	desc->u.hs.DeviceRemovable[1] = ~0;

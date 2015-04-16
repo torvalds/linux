@@ -832,7 +832,7 @@ struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 	 * moved b under k and client parallely did a lookup for
 	 * k/b.
 	 */
-	res = d_materialise_unique(dentry, inode);
+	res = d_splice_alias(inode, dentry);
 	if (!res)
 		v9fs_fid_add(dentry, fid);
 	else if (!IS_ERR(res))
@@ -1127,7 +1127,7 @@ static int v9fs_vfs_setattr(struct dentry *dentry, struct iattr *iattr)
 	}
 
 	/* Write all dirty data */
-	if (S_ISREG(dentry->d_inode->i_mode))
+	if (d_is_reg(dentry))
 		filemap_write_and_wait(dentry->d_inode->i_mapping);
 
 	retval = p9_client_wstat(fid, &wstat);

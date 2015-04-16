@@ -1,0 +1,49 @@
+Sharp Microelectronics 10.1" WQXGA TFT LCD panel
+
+This panel requires a dual-channel DSI host to operate. It supports two modes:
+- left-right: each channel drives the left or right half of the screen
+- even-odd: each channel drives the even or odd lines of the screen
+
+Each of the DSI channels controls a separate DSI peripheral. The peripheral
+driven by the first link (DSI-LINK1), left or even, is considered the primary
+peripheral and controls the device. The 'link2' property contains a phandle
+to the peripheral driven by the second link (DSI-LINK2, right or odd).
+
+Note that in video mode the DSI-LINK1 interface always provides the left/even
+pixels and DSI-LINK2 always provides the right/odd pixels. In command mode it
+is possible to program either link to drive the left/even or right/odd pixels
+but for the sake of consistency this binding assumes that the same assignment
+is chosen as for video mode.
+
+Required properties:
+- compatible: should be "sharp,lq101r1sx01"
+- reg: DSI virtual channel of the peripheral
+
+Required properties (for DSI-LINK1 only):
+- link2: phandle to the DSI peripheral on the secondary link. Note that the
+  presence of this property marks the containing node as DSI-LINK1.
+- power-supply: phandle of the regulator that provides the supply voltage
+
+Optional properties (for DSI-LINK1 only):
+- backlight: phandle of the backlight device attached to the panel
+
+Example:
+
+	dsi@54300000 {
+		panel: panel@0 {
+			compatible = "sharp,lq101r1sx01";
+			reg = <0>;
+
+			link2 = <&secondary>;
+
+			power-supply = <...>;
+			backlight = <...>;
+		};
+	};
+
+	dsi@54400000 {
+		secondary: panel@0 {
+			compatible = "sharp,lq101r1sx01";
+			reg = <0>;
+		};
+	};

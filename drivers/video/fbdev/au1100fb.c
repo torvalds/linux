@@ -638,7 +638,6 @@ int au1100fb_drv_resume(struct platform_device *dev)
 static struct platform_driver au1100fb_driver = {
 	.driver = {
 		.name		= "au1100-lcd",
-		.owner          = THIS_MODULE,
 	},
 	.probe		= au1100fb_drv_probe,
         .remove		= au1100fb_drv_remove,

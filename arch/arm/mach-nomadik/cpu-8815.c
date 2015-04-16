@@ -144,6 +144,7 @@ static int __init cpu8815_mmcsd_init(void)
 device_initcall(cpu8815_mmcsd_init);
 
 static const char * cpu8815_board_compat[] = {
+	"st,nomadik-nhk-15",
 	"calaosystems,usb-s8815",
 	NULL,
 };

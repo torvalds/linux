@@ -168,8 +168,8 @@ int lov_connect_obd(struct obd_device *obd, __u32 index, int activate,
 
 
 	if (imp->imp_invalid) {
-		CDEBUG(D_CONFIG, "not connecting OSC %s; administratively "
-		       "disabled\n", obd_uuid2str(tgt_uuid));
+		CDEBUG(D_CONFIG, "not connecting OSC %s; administratively disabled\n",
+		       obd_uuid2str(tgt_uuid));
 		return 0;
 	}
 
@@ -201,10 +201,9 @@ int lov_connect_obd(struct obd_device *obd, __u32 index, int activate,
 						  osc_obd->obd_type->typ_name,
 						  osc_obd->obd_name);
 		if (osc_symlink == NULL) {
-			CERROR("could not register LOV target "
-				"/proc/fs/lustre/%s/%s/target_obds/%s.",
-				obd->obd_type->typ_name, obd->obd_name,
-				osc_obd->obd_name);
+			CERROR("could not register LOV target /proc/fs/lustre/%s/%s/target_obds/%s.",
+			       obd->obd_type->typ_name, obd->obd_name,
+			       osc_obd->obd_name);
 			lprocfs_remove(&lov_proc_dir);
 			obd->obd_proc_private = NULL;
 		}
@@ -554,7 +553,7 @@ static int lov_add_target(struct obd_device *obd, struct obd_uuid *uuidp,
 
 		newsize = max_t(__u32, lov->lov_tgt_size, 2);
 		while (newsize < index + 1)
-			newsize = newsize << 1;
+			newsize <<= 1;
 		OBD_ALLOC(newtgts, sizeof(*newtgts) * newsize);
 		if (newtgts == NULL) {
 			mutex_unlock(&lov->lov_lock);
@@ -726,8 +725,7 @@ void lov_fix_desc_stripe_size(__u64 *val)
 {
 	if (*val < LOV_MIN_STRIPE_SIZE) {
 		if (*val != 0)
-			LCONSOLE_INFO("Increasing default stripe size to "
-				      "minimum %u\n",
+			LCONSOLE_INFO("Increasing default stripe size to minimum %u\n",
 				      LOV_DESC_STRIPE_SIZE_DEFAULT);
 		*val = LOV_DESC_STRIPE_SIZE_DEFAULT;
 	} else if (*val & (LOV_MIN_STRIPE_SIZE - 1)) {
@@ -847,7 +845,6 @@ out:
 
 static int lov_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
 {
-	int rc = 0;
 	struct lov_obd *lov = &obd->u.lov;
 
 	switch (stage) {
@@ -865,7 +862,7 @@ static int lov_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
 		break;
 	}
 
-	return rc;
+	return 0;
 }
 
 static int lov_cleanup(struct obd_device *obd)
@@ -900,8 +897,7 @@ static int lov_cleanup(struct obd_device *obd)
 			    /* We should never get here - these
 			       should have been removed in the
 			     disconnect. */
-				CERROR("lov tgt %d not cleaned!"
-				       " deathrow=%d, lovrc=%d\n",
+				CERROR("lov tgt %d not cleaned! deathrow=%d, lovrc=%d\n",
 				       i, lov->lov_death_row,
 				       atomic_read(&lov->lov_refcount));
 			lov_del_target(obd, i, NULL, 0);
@@ -1015,9 +1011,13 @@ static int lov_recreate(struct obd_export *exp, struct obdo *src_oa,
 	}
 
 	for (i = 0; i < lsm->lsm_stripe_count; i++) {
-		if (lsm->lsm_oinfo[i]->loi_ost_idx == ost_idx) {
-			if (ostid_id(&lsm->lsm_oinfo[i]->loi_oi) !=
-					ostid_id(&src_oa->o_oi)) {
+		struct lov_oinfo *loi = lsm->lsm_oinfo[i];
+
+		if (lov_oinfo_is_dummy(loi))
+			continue;
+
+		if (loi->loi_ost_idx == ost_idx) {
+			if (ostid_id(&loi->loi_oi) != ostid_id(&src_oa->o_oi)) {
 				rc = -EINVAL;
 				goto out;
 			}
@@ -1176,8 +1176,8 @@ static int lov_getattr_async(struct obd_export *exp, struct obd_info *oinfo,
 	list_for_each(pos, &lovset->set_list) {
 		req = list_entry(pos, struct lov_request, rq_link);
 
-		CDEBUG(D_INFO, "objid "DOSTID"[%d] has subobj "DOSTID" at idx"
-		       "%u\n", POSTID(&oinfo->oi_oa->o_oi), req->rq_stripe,
+		CDEBUG(D_INFO, "objid " DOSTID "[%d] has subobj " DOSTID " at idx%u\n",
+		       POSTID(&oinfo->oi_oa->o_oi), req->rq_stripe,
 		       POSTID(&req->rq_oi.oi_oa->o_oi), req->rq_idx);
 		rc = obd_getattr_async(lov->lov_tgts[req->rq_idx]->ltd_exp,
 				       &req->rq_oi, rqset);
@@ -1256,8 +1256,8 @@ static int lov_setattr_async(struct obd_export *exp, struct obd_info *oinfo,
 		if (oinfo->oi_oa->o_valid & OBD_MD_FLCOOKIE)
 			oti->oti_logcookies = set->set_cookies + req->rq_stripe;
 
-		CDEBUG(D_INFO, "objid "DOSTID"[%d] has subobj "DOSTID" at idx"
-		       "%u\n", POSTID(&oinfo->oi_oa->o_oi), req->rq_stripe,
+		CDEBUG(D_INFO, "objid " DOSTID "[%d] has subobj " DOSTID " at idx%u\n",
+		       POSTID(&oinfo->oi_oa->o_oi), req->rq_stripe,
 		       POSTID(&req->rq_oi.oi_oa->o_oi), req->rq_idx);
 
 		rc = obd_setattr_async(lov->lov_tgts[req->rq_idx]->ltd_exp,
@@ -1309,10 +1309,14 @@ static int lov_find_cbdata(struct obd_export *exp,
 		struct lov_stripe_md submd;
 		struct lov_oinfo *loi = lsm->lsm_oinfo[i];
 
+		if (lov_oinfo_is_dummy(loi))
+			continue;
+
 		if (!lov->lov_tgts[loi->loi_ost_idx]) {
-			CDEBUG(D_HA, "lov idx %d NULL \n", loi->loi_ost_idx);
+			CDEBUG(D_HA, "lov idx %d NULL\n", loi->loi_ost_idx);
 			continue;
 		}
+
 		submd.lsm_oi = loi->loi_oi;
 		submd.lsm_stripe_count = 0;
 		rc = obd_find_cbdata(lov->lov_tgts[loi->loi_ost_idx]->ltd_exp,
@@ -1568,8 +1572,7 @@ static int lov_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 				if (lov->lov_tgts[i]->ltd_active) {
 					CDEBUG(err == -ENOTTY ?
 					       D_IOCTL : D_WARNING,
-					       "iocontrol OSC %s on OST "
-					       "idx %d cmd %x: err = %d\n",
+					       "iocontrol OSC %s on OST idx %d cmd %x: err = %d\n",
 					       lov_uuid2str(lov, i),
 					       i, cmd, err);
 					if (!rc)
@@ -1606,9 +1609,9 @@ static int lov_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
  * \param fm_end logical end of mapping
  * \param start_stripe starting stripe will be returned in this
  */
-u64 fiemap_calc_fm_end_offset(struct ll_user_fiemap *fiemap,
-				   struct lov_stripe_md *lsm, u64 fm_start,
-				   u64 fm_end, int *start_stripe)
+static u64 fiemap_calc_fm_end_offset(struct ll_user_fiemap *fiemap,
+				     struct lov_stripe_md *lsm, u64 fm_start,
+				     u64 fm_end, int *start_stripe)
 {
 	u64 local_end = fiemap->fm_extents[0].fe_logical;
 	u64 lun_start, lun_end;
@@ -1621,8 +1624,12 @@ u64 fiemap_calc_fm_end_offset(struct ll_user_fiemap *fiemap,
 
 	/* Find out stripe_no from ost_index saved in the fe_device */
 	for (i = 0; i < lsm->lsm_stripe_count; i++) {
-		if (lsm->lsm_oinfo[i]->loi_ost_idx ==
-					fiemap->fm_extents[0].fe_device) {
+		struct lov_oinfo *oinfo = lsm->lsm_oinfo[i];
+
+		if (lov_oinfo_is_dummy(oinfo))
+			continue;
+
+		if (oinfo->loi_ost_idx == fiemap->fm_extents[0].fe_device) {
 			stripe_no = i;
 			break;
 		}
@@ -1663,17 +1670,17 @@ u64 fiemap_calc_fm_end_offset(struct ll_user_fiemap *fiemap,
  *
  * \retval last_stripe return the last stripe of the mapping
  */
-int fiemap_calc_last_stripe(struct lov_stripe_md *lsm, u64 fm_start,
-			    u64 fm_end, int start_stripe,
-			    int *stripe_count)
+static int fiemap_calc_last_stripe(struct lov_stripe_md *lsm, u64 fm_start,
+				   u64 fm_end, int start_stripe,
+				   int *stripe_count)
 {
 	int last_stripe;
 	u64 obd_start, obd_end;
 	int i, j;
 
 	if (fm_end - fm_start > lsm->lsm_stripe_size * lsm->lsm_stripe_count) {
-		last_stripe = (start_stripe < 1 ? lsm->lsm_stripe_count - 1 :
-							      start_stripe - 1);
+		last_stripe = start_stripe < 1 ? lsm->lsm_stripe_count - 1 :
+							      start_stripe - 1;
 		*stripe_count = lsm->lsm_stripe_count;
 	} else {
 		for (j = 0, i = start_stripe; j < lsm->lsm_stripe_count;
@@ -1699,10 +1706,10 @@ int fiemap_calc_last_stripe(struct lov_stripe_md *lsm, u64 fm_start,
  * \param ext_count number of extents to be copied
  * \param current_extent where to start copying in main extent array
  */
-void fiemap_prepare_and_copy_exts(struct ll_user_fiemap *fiemap,
-				  struct ll_fiemap_extent *lcl_fm_ext,
-				  int ost_index, unsigned int ext_count,
-				  int current_extent)
+static void fiemap_prepare_and_copy_exts(struct ll_user_fiemap *fiemap,
+					 struct ll_fiemap_extent *lcl_fm_ext,
+					 int ost_index, unsigned int ext_count,
+					 int current_extent)
 {
 	char *to;
 	int ext;
@@ -1799,6 +1806,11 @@ static int lov_fiemap(struct lov_obd *lov, __u32 keylen, void *key,
 		if ((lov_stripe_intersects(lsm, cur_stripe, fm_start, fm_end,
 					   &lun_start, &obd_object_end)) == 0)
 			continue;
+
+		if (lov_oinfo_is_dummy(lsm->lsm_oinfo[cur_stripe])) {
+			rc = -EIO;
+			goto out;
+		}
 
 		/* If this is a continuation FIEMAP call and we are on
 		 * starting stripe then lun_start needs to be set to
@@ -1990,6 +2002,9 @@ static int lov_get_info(const struct lu_env *env, struct obd_export *exp,
 		 * be NULL and won't match the lock's export. */
 		for (i = 0; i < lsm->lsm_stripe_count; i++) {
 			loi = lsm->lsm_oinfo[i];
+			if (lov_oinfo_is_dummy(loi))
+				continue;
+
 			if (!lov->lov_tgts[loi->loi_ost_idx])
 				continue;
 			if (lov->lov_tgts[loi->loi_ost_idx]->ltd_exp ==
@@ -2266,8 +2281,8 @@ static int lov_quotacheck(struct obd_device *obd, struct obd_export *exp,
 
 		/* Skip quota check on the administratively disabled OSTs. */
 		if (!lov->lov_tgts[i]->ltd_activate) {
-			CWARN("lov idx %d was administratively disabled, "
-			      "skip quotacheck on it.\n", i);
+			CWARN("lov idx %d was administratively disabled, skip quotacheck on it.\n",
+			      i);
 			continue;
 		}
 
@@ -2295,7 +2310,7 @@ out:
 	return rc;
 }
 
-struct obd_ops lov_obd_ops = {
+static struct obd_ops lov_obd_ops = {
 	.o_owner	       = THIS_MODULE,
 	.o_setup	       = lov_setup,
 	.o_precleanup	  = lov_precleanup,
@@ -2329,7 +2344,7 @@ struct obd_ops lov_obd_ops = {
 
 struct kmem_cache *lov_oinfo_slab;
 
-int __init lov_init(void)
+static int __init lov_init(void)
 {
 	struct lprocfs_static_vars lvars = { NULL };
 	int rc;

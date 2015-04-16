@@ -21,6 +21,7 @@
 
 #include "uvc.h"
 #include "uvc_queue.h"
+#include "uvc_video.h"
 
 /* --------------------------------------------------------------------------
  * Video codecs
@@ -352,7 +353,8 @@ int uvcg_video_enable(struct uvc_video *video, int enable)
 
 	if (!enable) {
 		for (i = 0; i < UVC_NUM_REQUESTS; ++i)
-			usb_ep_dequeue(video->ep, video->req[i]);
+			if (video->req[i])
+				usb_ep_dequeue(video->ep, video->req[i]);
 
 		uvc_video_free_requests(video);
 		uvcg_queue_enable(&video->queue, 0);

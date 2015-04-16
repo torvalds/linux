@@ -189,7 +189,6 @@ static int pxa930_rotary_remove(struct platform_device *pdev)
 static struct platform_driver pxa930_rotary_driver = {
 	.driver		= {
 		.name	= "pxa930-rotary",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= pxa930_rotary_probe,
 	.remove		= pxa930_rotary_remove,

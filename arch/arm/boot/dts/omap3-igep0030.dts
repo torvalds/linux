@@ -1,5 +1,5 @@
 /*
- * Device Tree Source for IGEP COM MODULE (TI OMAP AM/DM37x)
+ * Device Tree Source for IGEP COM MODULE Rev. E (TI OMAP AM/DM37x)
  *
  * Copyright (C) 2012 Javier Martinez Canillas <javier@collabora.co.uk>
  * Copyright (C) 2012 Enric Balletbo i Serra <eballetbo@gmail.com>
@@ -9,97 +9,62 @@
  * published by the Free Software Foundation.
  */
 
-#include "omap3-igep.dtsi"
+#include "omap3-igep0030-common.dtsi"
 
 / {
-	model = "IGEP COM MODULE (TI OMAP AM/DM37x)";
+	model = "IGEP COM MODULE Rev. E (TI OMAP AM/DM37x)";
 	compatible = "isee,omap3-igep0030", "ti,omap36xx", "ti,omap3";
 
-	leds {
-		pinctrl-names = "default";
-		pinctrl-0 = <&leds_pins>;
-		compatible = "gpio-leds";
+	/* Regulator to trigger the WIFI_PDN signal of the Wifi module */
+	lbee1usjyc_pdn: lbee1usjyc_pdn {
+		compatible = "regulator-fixed";
+		regulator-name = "regulator-lbee1usjyc-pdn";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio5 10 GPIO_ACTIVE_HIGH>;	/* gpio_138 - WIFI_PDN */
+		startup-delay-us = <10000>;
+		enable-active-high;
+	};
 
-		boot {
-			 label = "omap3:green:boot";
-			 gpios = <&twl_gpio 13 GPIO_ACTIVE_LOW>;
-			 default-state = "on";
-		};
-
-		user0 {
-			 label = "omap3:red:user0";
-			 gpios = <&twl_gpio 18 GPIO_ACTIVE_LOW>; /* LEDA */
-			 default-state = "off";
-		};
-
-		user1 {
-			 label = "omap3:green:user1";
-			 gpios = <&twl_gpio 19 GPIO_ACTIVE_LOW>; /* LEDB */
-			 default-state = "off";
-		};
-
-		user2 {
-			 label = "omap3:red:user1";
-			 gpios = <&gpio1 16 GPIO_ACTIVE_LOW>;
-			 default-state = "off";
-		};
+	/* Regulator to trigger the RESET_N_W signal of the Wifi module */
+	lbee1usjyc_reset_n_w: lbee1usjyc_reset_n_w {
+		compatible = "regulator-fixed";
+		regulator-name = "regulator-lbee1usjyc-reset-n-w";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio5 11 GPIO_ACTIVE_HIGH>;	/* gpio_139 - RESET_N_W */
+		enable-active-high;
 	};
 };
 
-&omap3_pmx_core2 {
-	leds_pins: pinmux_leds_pins {
+&omap3_pmx_core {
+	lbee1usjyc_pins: pinmux_lbee1usjyc_pins {
 		pinctrl-single,pins = <
-			OMAP3630_CORE2_IOPAD(0x25e0, PIN_OUTPUT | MUX_MODE4) /* etk_d2.gpio_16 */
+			OMAP3_CORE1_IOPAD(0x2166, PIN_OUTPUT | MUX_MODE4)	/* sdmmc2_dat5.gpio_137 - RESET_N_W */
+			OMAP3_CORE1_IOPAD(0x2168, PIN_OUTPUT | MUX_MODE4)	/* sdmmc2_dat6.gpio_138 - WIFI_PDN */
+			OMAP3_CORE1_IOPAD(0x216a, PIN_OUTPUT | MUX_MODE4)	/* sdmmc2_dat7.gpio_139 - RST_N_B */
 		>;
 	};
 };
 
-&gpmc {
-	ranges = <0 0 0x00000000 0x20000000>;
+&leds {
+	pinctrl-names = "default";
+	pinctrl-0 = <&leds_core2_pins>;
 
-	nand@0,0 {
-		linux,mtd-name= "micron,mt29c4g96maz";
-		reg = <0 0 0>;
-		nand-bus-width = <16>;
-		ti,nand-ecc-opt = "bch8";
-
-		gpmc,sync-clk-ps = <0>;
-		gpmc,cs-on-ns = <0>;
-		gpmc,cs-rd-off-ns = <44>;
-		gpmc,cs-wr-off-ns = <44>;
-		gpmc,adv-on-ns = <6>;
-		gpmc,adv-rd-off-ns = <34>;
-		gpmc,adv-wr-off-ns = <44>;
-		gpmc,we-off-ns = <40>;
-		gpmc,oe-off-ns = <54>;
-		gpmc,access-ns = <64>;
-		gpmc,rd-cycle-ns = <82>;
-		gpmc,wr-cycle-ns = <82>;
-		gpmc,wr-access-ns = <40>;
-		gpmc,wr-data-mux-bus-ns = <0>;
-
-		#address-cells = <1>;
-		#size-cells = <1>;
-
-		partition@0 {
-			label = "SPL";
-			reg = <0 0x100000>;
-		};
-		partition@80000 {
-			label = "U-Boot";
-			reg = <0x100000 0x180000>;
-		};
-		partition@1c0000 {
-			label = "Environment";
-			reg = <0x280000 0x100000>;
-		};
-		partition@280000 {
-			label = "Kernel";
-			reg = <0x380000 0x300000>;
-		};
-		partition@780000 {
-			label = "Filesystem";
-			reg = <0x680000 0x1f980000>;
-		};
+	boot {
+		label = "omap3:green:boot";
+		gpios = <&twl_gpio 13 GPIO_ACTIVE_LOW>;	/* LEDSYNC */
+		default-state = "on";
 	};
 };
+
+/* On board Wifi module */
+&mmc2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc2_pins &lbee1usjyc_pins>;
+	vmmc-supply = <&lbee1usjyc_pdn>;
+	vmmc_aux-supply = <&lbee1usjyc_reset_n_w>;
+	bus-width = <4>;
+	non-removable;
+};
+

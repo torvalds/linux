@@ -2,7 +2,6 @@
 #include <linux/init.h>
 
 /* High level I2C actions */
-int __init i2c_init(void);
 int i2c_write(unsigned char theSlave, void *data, size_t nbytes);
 int i2c_read(unsigned char theSlave, void *data, size_t nbytes);
 int i2c_writereg(unsigned char theSlave, unsigned char theReg, unsigned char theValue);

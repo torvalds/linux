@@ -47,17 +47,13 @@
 #ifndef ADF_ACCEL_DEVICES_H_
 #define ADF_ACCEL_DEVICES_H_
 #include <linux/module.h>
-#include <linux/atomic.h>
 #include <linux/list.h>
 #include <linux/proc_fs.h>
 #include <linux/io.h>
 #include "adf_cfg_common.h"
 
-#define PCI_VENDOR_ID_INTEL 0x8086
 #define ADF_DH895XCC_DEVICE_NAME "dh895xcc"
 #define ADF_DH895XCC_PCI_DEVICE_ID 0x435
-#define ADF_DH895XCC_PMISC_BAR 1
-#define ADF_DH895XCC_ETR_BAR 2
 #define ADF_PCI_MAX_BARS 3
 #define ADF_DEVICE_NAME_LENGTH 32
 #define ADF_ETR_MAX_RINGS_PER_BANK 16
@@ -150,6 +146,11 @@ struct adf_hw_device_data {
 	int (*alloc_irq)(struct adf_accel_dev *accel_dev);
 	void (*free_irq)(struct adf_accel_dev *accel_dev);
 	void (*enable_error_correction)(struct adf_accel_dev *accel_dev);
+	int (*init_admin_comms)(struct adf_accel_dev *accel_dev);
+	void (*exit_admin_comms)(struct adf_accel_dev *accel_dev);
+	int (*init_arb)(struct adf_accel_dev *accel_dev);
+	void (*exit_arb)(struct adf_accel_dev *accel_dev);
+	void (*enable_ints)(struct adf_accel_dev *accel_dev);
 	const char *fw_name;
 	uint32_t pci_dev_id;
 	uint32_t fuses;
@@ -198,8 +199,7 @@ struct adf_accel_dev {
 	struct dentry *debugfs_dir;
 	struct list_head list;
 	struct module *owner;
-	uint8_t accel_id;
-	uint8_t numa_node;
 	struct adf_accel_pci accel_pci_dev;
+	uint8_t accel_id;
 } __packed;
 #endif

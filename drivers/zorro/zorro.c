@@ -222,7 +222,6 @@ static int __init amiga_zorro_probe(struct platform_device *pdev)
 static struct platform_driver amiga_zorro_driver = {
 	.driver   = {
 		.name	= "amiga-zorro",
-		.owner	= THIS_MODULE,
 	},
 };
 

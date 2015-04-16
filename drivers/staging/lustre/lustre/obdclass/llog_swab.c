@@ -168,7 +168,8 @@ void lustre_swab_llog_rec(struct llog_rec_hdr *rec)
 	}
 	case CHANGELOG_REC:
 	{
-		struct llog_changelog_rec *cr = (struct llog_changelog_rec *)rec;
+		struct llog_changelog_rec *cr =
+			(struct llog_changelog_rec *)rec;
 
 		__swab16s(&cr->cr.cr_namelen);
 		__swab16s(&cr->cr.cr_flags);
@@ -188,6 +189,8 @@ void lustre_swab_llog_rec(struct llog_rec_hdr *rec)
 		} else {
 			tail = &cr->cr_tail;
 		}
+		tail = (struct llog_rec_tail *)((char *)tail +
+						cr->cr.cr_namelen);
 		break;
 	}
 	case CHANGELOG_USER_REC:
@@ -400,8 +403,7 @@ void lustre_swab_cfg_marker(struct cfg_marker *marker, int swab, int size)
 		}
 		marker->cm_createtime = createtime;
 		marker->cm_canceltime = canceltime;
-		CDEBUG(D_CONFIG, "Find old cfg_marker(Srv32b,Clt64b) "
-		       "for target %s, converting\n",
+		CDEBUG(D_CONFIG, "Find old cfg_marker(Srv32b,Clt64b) for target %s, converting\n",
 		       marker->cm_tgtname);
 	} else if (swab) {
 		__swab64s(&marker->cm_createtime);

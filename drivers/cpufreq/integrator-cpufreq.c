@@ -226,7 +226,6 @@ static const struct of_device_id integrator_cpufreq_match[] = {
 static struct platform_driver integrator_cpufreq_driver = {
 	.driver = {
 		.name = "integrator-cpufreq",
-		.owner = THIS_MODULE,
 		.of_match_table = integrator_cpufreq_match,
 	},
 	.remove = __exit_p(integrator_cpufreq_remove),

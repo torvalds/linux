@@ -28,6 +28,7 @@
 
 #include <linux/mfd/arizona/core.h>
 #include <linux/mfd/arizona/registers.h>
+#include <asm/unaligned.h>
 
 #include "arizona.h"
 #include "wm5102.h"
@@ -580,7 +581,7 @@ static const struct reg_default wm5102_sysclk_revb_patch[] = {
 static int wm5102_sysclk_ev(struct snd_soc_dapm_widget *w,
 			    struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
 	struct regmap *regmap = arizona->regmap;
 	const struct reg_default *patch = NULL;
@@ -617,12 +618,11 @@ static int wm5102_out_comp_coeff_get(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
-	uint16_t data;
 
-	mutex_lock(&codec->mutex);
-	data = cpu_to_be16(arizona->dac_comp_coeff);
-	memcpy(ucontrol->value.bytes.data, &data, sizeof(data));
-	mutex_unlock(&codec->mutex);
+	mutex_lock(&arizona->dac_comp_lock);
+	put_unaligned_be16(arizona->dac_comp_coeff,
+			   ucontrol->value.bytes.data);
+	mutex_unlock(&arizona->dac_comp_lock);
 
 	return 0;
 }
@@ -633,11 +633,11 @@ static int wm5102_out_comp_coeff_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
 
-	mutex_lock(&codec->mutex);
+	mutex_lock(&arizona->dac_comp_lock);
 	memcpy(&arizona->dac_comp_coeff, ucontrol->value.bytes.data,
 	       sizeof(arizona->dac_comp_coeff));
 	arizona->dac_comp_coeff = be16_to_cpu(arizona->dac_comp_coeff);
-	mutex_unlock(&codec->mutex);
+	mutex_unlock(&arizona->dac_comp_lock);
 
 	return 0;
 }
@@ -648,9 +648,9 @@ static int wm5102_out_comp_switch_get(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
 
-	mutex_lock(&codec->mutex);
+	mutex_lock(&arizona->dac_comp_lock);
 	ucontrol->value.integer.value[0] = arizona->dac_comp_enabled;
-	mutex_unlock(&codec->mutex);
+	mutex_unlock(&arizona->dac_comp_lock);
 
 	return 0;
 }
@@ -661,9 +661,9 @@ static int wm5102_out_comp_switch_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
 
-	mutex_lock(&codec->mutex);
+	mutex_lock(&arizona->dac_comp_lock);
 	arizona->dac_comp_enabled = ucontrol->value.integer.value[0];
-	mutex_unlock(&codec->mutex);
+	mutex_unlock(&arizona->dac_comp_lock);
 
 	return 0;
 }
@@ -1272,19 +1272,24 @@ SND_SOC_DAPM_MUX("AEC Loopback", ARIZONA_DAC_AEC_CONTROL_1,
 
 SND_SOC_DAPM_PGA_E("OUT1L", SND_SOC_NOPM,
 		   ARIZONA_OUT1L_ENA_SHIFT, 0, NULL, 0, arizona_hp_ev,
-		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
+		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
+		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_PGA_E("OUT1R", SND_SOC_NOPM,
 		   ARIZONA_OUT1R_ENA_SHIFT, 0, NULL, 0, arizona_hp_ev,
-		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
+		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
+		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_PGA_E("OUT2L", ARIZONA_OUTPUT_ENABLES_1,
 		   ARIZONA_OUT2L_ENA_SHIFT, 0, NULL, 0, arizona_out_ev,
-		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
+		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
+		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_PGA_E("OUT2R", ARIZONA_OUTPUT_ENABLES_1,
 		   ARIZONA_OUT2R_ENA_SHIFT, 0, NULL, 0, arizona_out_ev,
-		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
+		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
+		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_PGA_E("OUT3L", ARIZONA_OUTPUT_ENABLES_1,
 		   ARIZONA_OUT3L_ENA_SHIFT, 0, NULL, 0, arizona_out_ev,
-		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
+		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
+		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_PGA_E("OUT5L", ARIZONA_OUTPUT_ENABLES_1,
 		   ARIZONA_OUT5L_ENA_SHIFT, 0, NULL, 0, arizona_out_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
@@ -1856,7 +1861,6 @@ static unsigned int wm5102_digital_vu[] = {
 	ARIZONA_DAC_DIGITAL_VOLUME_2L,
 	ARIZONA_DAC_DIGITAL_VOLUME_2R,
 	ARIZONA_DAC_DIGITAL_VOLUME_3L,
-	ARIZONA_DAC_DIGITAL_VOLUME_3R,
 	ARIZONA_DAC_DIGITAL_VOLUME_4L,
 	ARIZONA_DAC_DIGITAL_VOLUME_4R,
 	ARIZONA_DAC_DIGITAL_VOLUME_5L,
@@ -1899,6 +1903,8 @@ static int wm5102_probe(struct platform_device *pdev)
 	if (wm5102 == NULL)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, wm5102);
+
+	mutex_init(&arizona->dac_comp_lock);
 
 	wm5102->core.arizona = arizona;
 	wm5102->core.num_inputs = 6;
@@ -1958,7 +1964,6 @@ static int wm5102_remove(struct platform_device *pdev)
 static struct platform_driver wm5102_codec_driver = {
 	.driver = {
 		.name = "wm5102-codec",
-		.owner = THIS_MODULE,
 	},
 	.probe = wm5102_probe,
 	.remove = wm5102_remove,

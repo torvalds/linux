@@ -5,6 +5,7 @@ config SND_HDA
 	select SND_PCM
 	select SND_VMASTER
 	select SND_KCTL_JACK
+	select SND_HDA_CORE
 
 config SND_HDA_INTEL
 	tristate "HD Audio PCI"
@@ -107,6 +108,7 @@ config SND_HDA_PATCH_LOADER
 config SND_HDA_CODEC_REALTEK
 	tristate "Build Realtek HD-audio codec support"
 	select SND_HDA_GENERIC
+	select INPUT
 	help
 	  Say Y or M here to include Realtek HD-audio codec support in
 	  snd-hda-intel driver, such as ALC880.

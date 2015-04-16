@@ -25,7 +25,6 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 
@@ -400,8 +399,8 @@ static int scc_pciex_write_config(struct pci_bus *bus, unsigned int devfn,
 }
 
 static struct pci_ops scc_pciex_pci_ops = {
-	scc_pciex_read_config,
-	scc_pciex_write_config,
+	.read = scc_pciex_read_config,
+	.write = scc_pciex_write_config,
 };
 
 static void pciex_clear_intr_all(unsigned int __iomem *base)

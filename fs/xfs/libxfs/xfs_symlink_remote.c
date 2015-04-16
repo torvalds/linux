@@ -22,8 +22,6 @@
 #include "xfs_log_format.h"
 #include "xfs_shared.h"
 #include "xfs_trans_resv.h"
-#include "xfs_ag.h"
-#include "xfs_sb.h"
 #include "xfs_mount.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_inode.h"
@@ -179,6 +177,8 @@ xfs_symlink_local_to_remote(
 {
 	struct xfs_mount	*mp = ip->i_mount;
 	char			*buf;
+
+	xfs_trans_buf_set_type(tp, bp, XFS_BLFT_SYMLINK_BUF);
 
 	if (!xfs_sb_version_hascrc(&mp->m_sb)) {
 		bp->b_ops = NULL;

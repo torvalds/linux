@@ -376,9 +376,9 @@ err_map_out:
 	dma_unmap_single(dd->dev, dd->dma_addr_in, dd->buflen,
 		DMA_TO_DEVICE);
 err_map_in:
+err_alloc:
 	free_page((unsigned long)dd->buf_out);
 	free_page((unsigned long)dd->buf_in);
-err_alloc:
 	if (err)
 		pr_err("error: %d\n", err);
 	return err;
@@ -1370,6 +1370,7 @@ static int atmel_tdes_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, tdes_dd);
 
 	INIT_LIST_HEAD(&tdes_dd->list);
+	spin_lock_init(&tdes_dd->lock);
 
 	tasklet_init(&tdes_dd->done_task, atmel_tdes_done_task,
 					(unsigned long)tdes_dd);
@@ -1408,7 +1409,7 @@ static int atmel_tdes_probe(struct platform_device *pdev)
 	/* Initializing the clock */
 	tdes_dd->iclk = clk_get(&pdev->dev, "tdes_clk");
 	if (IS_ERR(tdes_dd->iclk)) {
-		dev_err(dev, "clock intialization failed.\n");
+		dev_err(dev, "clock initialization failed.\n");
 		err = PTR_ERR(tdes_dd->iclk);
 		goto clk_err;
 	}
@@ -1524,7 +1525,6 @@ static struct platform_driver atmel_tdes_driver = {
 	.remove		= atmel_tdes_remove,
 	.driver		= {
 		.name	= "atmel_tdes",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(atmel_tdes_dt_ids),
 	},
 };

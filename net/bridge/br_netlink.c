@@ -16,10 +16,90 @@
 #include <net/rtnetlink.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
+#include <net/switchdev.h>
 #include <uapi/linux/if_bridge.h>
 
 #include "br_private.h"
 #include "br_private_stp.h"
+
+static int br_get_num_vlan_infos(const struct net_port_vlans *pv,
+				 u32 filter_mask)
+{
+	u16 vid_range_start = 0, vid_range_end = 0;
+	u16 vid_range_flags = 0;
+	u16 pvid, vid, flags;
+	int num_vlans = 0;
+
+	if (filter_mask & RTEXT_FILTER_BRVLAN)
+		return pv->num_vlans;
+
+	if (!(filter_mask & RTEXT_FILTER_BRVLAN_COMPRESSED))
+		return 0;
+
+	/* Count number of vlan info's
+	 */
+	pvid = br_get_pvid(pv);
+	for_each_set_bit(vid, pv->vlan_bitmap, VLAN_N_VID) {
+		flags = 0;
+		if (vid == pvid)
+			flags |= BRIDGE_VLAN_INFO_PVID;
+
+		if (test_bit(vid, pv->untagged_bitmap))
+			flags |= BRIDGE_VLAN_INFO_UNTAGGED;
+
+		if (vid_range_start == 0) {
+			goto initvars;
+		} else if ((vid - vid_range_end) == 1 &&
+			flags == vid_range_flags) {
+			vid_range_end = vid;
+			continue;
+		} else {
+			if ((vid_range_end - vid_range_start) > 0)
+				num_vlans += 2;
+			else
+				num_vlans += 1;
+		}
+initvars:
+		vid_range_start = vid;
+		vid_range_end = vid;
+		vid_range_flags = flags;
+	}
+
+	if (vid_range_start != 0) {
+		if ((vid_range_end - vid_range_start) > 0)
+			num_vlans += 2;
+		else
+			num_vlans += 1;
+	}
+
+	return num_vlans;
+}
+
+static size_t br_get_link_af_size_filtered(const struct net_device *dev,
+					   u32 filter_mask)
+{
+	struct net_port_vlans *pv;
+	int num_vlan_infos;
+
+	rcu_read_lock();
+	if (br_port_exists(dev))
+		pv = nbp_get_vlan_info(br_port_get_rcu(dev));
+	else if (dev->priv_flags & IFF_EBRIDGE)
+		pv = br_get_vlan_info((struct net_bridge *)netdev_priv(dev));
+	else
+		pv = NULL;
+	if (pv)
+		num_vlan_infos = br_get_num_vlan_infos(pv, filter_mask);
+	else
+		num_vlan_infos = 0;
+	rcu_read_unlock();
+
+	if (!num_vlan_infos)
+		return 0;
+
+	/* Each VLAN is returned in bridge_vlan_info along with flags */
+	return num_vlan_infos * nla_total_size(sizeof(struct bridge_vlan_info));
+}
 
 static inline size_t br_port_info_size(void)
 {
@@ -35,7 +115,7 @@ static inline size_t br_port_info_size(void)
 		+ 0;
 }
 
-static inline size_t br_nlmsg_size(void)
+static inline size_t br_nlmsg_size(struct net_device *dev, u32 filter_mask)
 {
 	return NLMSG_ALIGN(sizeof(struct ifinfomsg))
 		+ nla_total_size(IFNAMSIZ) /* IFLA_IFNAME */
@@ -44,7 +124,9 @@ static inline size_t br_nlmsg_size(void)
 		+ nla_total_size(4) /* IFLA_MTU */
 		+ nla_total_size(4) /* IFLA_LINK */
 		+ nla_total_size(1) /* IFLA_OPERSTATE */
-		+ nla_total_size(br_port_info_size()); /* IFLA_PROTINFO */
+		+ nla_total_size(br_port_info_size()) /* IFLA_PROTINFO */
+		+ nla_total_size(br_get_link_af_size_filtered(dev,
+				 filter_mask)); /* IFLA_AF_SPEC */
 }
 
 static int br_port_fill_attrs(struct sk_buff *skb,
@@ -60,10 +142,127 @@ static int br_port_fill_attrs(struct sk_buff *skb,
 	    nla_put_u8(skb, IFLA_BRPORT_PROTECT, !!(p->flags & BR_ROOT_BLOCK)) ||
 	    nla_put_u8(skb, IFLA_BRPORT_FAST_LEAVE, !!(p->flags & BR_MULTICAST_FAST_LEAVE)) ||
 	    nla_put_u8(skb, IFLA_BRPORT_LEARNING, !!(p->flags & BR_LEARNING)) ||
-	    nla_put_u8(skb, IFLA_BRPORT_UNICAST_FLOOD, !!(p->flags & BR_FLOOD)))
+	    nla_put_u8(skb, IFLA_BRPORT_UNICAST_FLOOD, !!(p->flags & BR_FLOOD)) ||
+	    nla_put_u8(skb, IFLA_BRPORT_PROXYARP, !!(p->flags & BR_PROXYARP)) ||
+	    nla_put_u8(skb, IFLA_BRPORT_PROXYARP_WIFI,
+		       !!(p->flags & BR_PROXYARP_WIFI)))
 		return -EMSGSIZE;
 
 	return 0;
+}
+
+static int br_fill_ifvlaninfo_range(struct sk_buff *skb, u16 vid_start,
+				    u16 vid_end, u16 flags)
+{
+	struct  bridge_vlan_info vinfo;
+
+	if ((vid_end - vid_start) > 0) {
+		/* add range to skb */
+		vinfo.vid = vid_start;
+		vinfo.flags = flags | BRIDGE_VLAN_INFO_RANGE_BEGIN;
+		if (nla_put(skb, IFLA_BRIDGE_VLAN_INFO,
+			    sizeof(vinfo), &vinfo))
+			goto nla_put_failure;
+
+		vinfo.flags &= ~BRIDGE_VLAN_INFO_RANGE_BEGIN;
+
+		vinfo.vid = vid_end;
+		vinfo.flags = flags | BRIDGE_VLAN_INFO_RANGE_END;
+		if (nla_put(skb, IFLA_BRIDGE_VLAN_INFO,
+			    sizeof(vinfo), &vinfo))
+			goto nla_put_failure;
+	} else {
+		vinfo.vid = vid_start;
+		vinfo.flags = flags;
+		if (nla_put(skb, IFLA_BRIDGE_VLAN_INFO,
+			    sizeof(vinfo), &vinfo))
+			goto nla_put_failure;
+	}
+
+	return 0;
+
+nla_put_failure:
+	return -EMSGSIZE;
+}
+
+static int br_fill_ifvlaninfo_compressed(struct sk_buff *skb,
+					 const struct net_port_vlans *pv)
+{
+	u16 vid_range_start = 0, vid_range_end = 0;
+	u16 vid_range_flags = 0;
+	u16 pvid, vid, flags;
+	int err = 0;
+
+	/* Pack IFLA_BRIDGE_VLAN_INFO's for every vlan
+	 * and mark vlan info with begin and end flags
+	 * if vlaninfo represents a range
+	 */
+	pvid = br_get_pvid(pv);
+	for_each_set_bit(vid, pv->vlan_bitmap, VLAN_N_VID) {
+		flags = 0;
+		if (vid == pvid)
+			flags |= BRIDGE_VLAN_INFO_PVID;
+
+		if (test_bit(vid, pv->untagged_bitmap))
+			flags |= BRIDGE_VLAN_INFO_UNTAGGED;
+
+		if (vid_range_start == 0) {
+			goto initvars;
+		} else if ((vid - vid_range_end) == 1 &&
+			flags == vid_range_flags) {
+			vid_range_end = vid;
+			continue;
+		} else {
+			err = br_fill_ifvlaninfo_range(skb, vid_range_start,
+						       vid_range_end,
+						       vid_range_flags);
+			if (err)
+				return err;
+		}
+
+initvars:
+		vid_range_start = vid;
+		vid_range_end = vid;
+		vid_range_flags = flags;
+	}
+
+	if (vid_range_start != 0) {
+		/* Call it once more to send any left over vlans */
+		err = br_fill_ifvlaninfo_range(skb, vid_range_start,
+					       vid_range_end,
+					       vid_range_flags);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static int br_fill_ifvlaninfo(struct sk_buff *skb,
+			      const struct net_port_vlans *pv)
+{
+	struct bridge_vlan_info vinfo;
+	u16 pvid, vid;
+
+	pvid = br_get_pvid(pv);
+	for_each_set_bit(vid, pv->vlan_bitmap, VLAN_N_VID) {
+		vinfo.vid = vid;
+		vinfo.flags = 0;
+		if (vid == pvid)
+			vinfo.flags |= BRIDGE_VLAN_INFO_PVID;
+
+		if (test_bit(vid, pv->untagged_bitmap))
+			vinfo.flags |= BRIDGE_VLAN_INFO_UNTAGGED;
+
+		if (nla_put(skb, IFLA_BRIDGE_VLAN_INFO,
+			    sizeof(vinfo), &vinfo))
+			goto nla_put_failure;
+	}
+
+	return 0;
+
+nla_put_failure:
+	return -EMSGSIZE;
 }
 
 /*
@@ -106,8 +305,8 @@ static int br_fill_ifinfo(struct sk_buff *skb,
 	    nla_put_u8(skb, IFLA_OPERSTATE, operstate) ||
 	    (dev->addr_len &&
 	     nla_put(skb, IFLA_ADDRESS, dev->addr_len, dev->dev_addr)) ||
-	    (dev->ifindex != dev->iflink &&
-	     nla_put_u32(skb, IFLA_LINK, dev->iflink)))
+	    (dev->ifindex != dev_get_iflink(dev) &&
+	     nla_put_u32(skb, IFLA_LINK, dev_get_iflink(dev))))
 		goto nla_put_failure;
 
 	if (event == RTM_NEWLINK && port) {
@@ -120,12 +319,11 @@ static int br_fill_ifinfo(struct sk_buff *skb,
 	}
 
 	/* Check if  the VID information is requested */
-	if (filter_mask & RTEXT_FILTER_BRVLAN) {
-		struct nlattr *af;
+	if ((filter_mask & RTEXT_FILTER_BRVLAN) ||
+	    (filter_mask & RTEXT_FILTER_BRVLAN_COMPRESSED)) {
 		const struct net_port_vlans *pv;
-		struct bridge_vlan_info vinfo;
-		u16 vid;
-		u16 pvid;
+		struct nlattr *af;
+		int err;
 
 		if (port)
 			pv = nbp_get_vlan_info(port);
@@ -139,26 +337,18 @@ static int br_fill_ifinfo(struct sk_buff *skb,
 		if (!af)
 			goto nla_put_failure;
 
-		pvid = br_get_pvid(pv);
-		for_each_set_bit(vid, pv->vlan_bitmap, VLAN_N_VID) {
-			vinfo.vid = vid;
-			vinfo.flags = 0;
-			if (vid == pvid)
-				vinfo.flags |= BRIDGE_VLAN_INFO_PVID;
-
-			if (test_bit(vid, pv->untagged_bitmap))
-				vinfo.flags |= BRIDGE_VLAN_INFO_UNTAGGED;
-
-			if (nla_put(skb, IFLA_BRIDGE_VLAN_INFO,
-				    sizeof(vinfo), &vinfo))
-				goto nla_put_failure;
-		}
-
+		if (filter_mask & RTEXT_FILTER_BRVLAN_COMPRESSED)
+			err = br_fill_ifvlaninfo_compressed(skb, pv);
+		else
+			err = br_fill_ifvlaninfo(skb, pv);
+		if (err)
+			goto nla_put_failure;
 		nla_nest_end(skb, af);
 	}
 
 done:
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 nla_put_failure:
 	nlmsg_cancel(skb, nlh);
@@ -173,6 +363,7 @@ void br_ifinfo_notify(int event, struct net_bridge_port *port)
 	struct net *net;
 	struct sk_buff *skb;
 	int err = -ENOBUFS;
+	u32 filter = RTEXT_FILTER_BRVLAN_COMPRESSED;
 
 	if (!port)
 		return;
@@ -181,11 +372,11 @@ void br_ifinfo_notify(int event, struct net_bridge_port *port)
 	br_debug(port->br, "port %u(%s) event %d\n",
 		 (unsigned int)port->port_no, port->dev->name, event);
 
-	skb = nlmsg_new(br_nlmsg_size(), GFP_ATOMIC);
+	skb = nlmsg_new(br_nlmsg_size(port->dev, filter), GFP_ATOMIC);
 	if (skb == NULL)
 		goto errout;
 
-	err = br_fill_ifinfo(skb, port, 0, 0, event, 0, 0, port->dev);
+	err = br_fill_ifinfo(skb, port, 0, 0, event, 0, filter, port->dev);
 	if (err < 0) {
 		/* -EMSGSIZE implies BUG in br_nlmsg_size() */
 		WARN_ON(err == -EMSGSIZE);
@@ -205,69 +396,99 @@ errout:
 int br_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 	       struct net_device *dev, u32 filter_mask)
 {
-	int err = 0;
 	struct net_bridge_port *port = br_port_get_rtnl(dev);
 
-	if (!port && !(filter_mask & RTEXT_FILTER_BRVLAN))
-		goto out;
+	if (!port && !(filter_mask & RTEXT_FILTER_BRVLAN) &&
+	    !(filter_mask & RTEXT_FILTER_BRVLAN_COMPRESSED))
+		return 0;
 
-	err = br_fill_ifinfo(skb, port, pid, seq, RTM_NEWLINK, NLM_F_MULTI,
-			     filter_mask, dev);
-out:
-	return err;
+	return br_fill_ifinfo(skb, port, pid, seq, RTM_NEWLINK, NLM_F_MULTI,
+			      filter_mask, dev);
 }
 
-static const struct nla_policy ifla_br_policy[IFLA_MAX+1] = {
-	[IFLA_BRIDGE_FLAGS]	= { .type = NLA_U16 },
-	[IFLA_BRIDGE_MODE]	= { .type = NLA_U16 },
-	[IFLA_BRIDGE_VLAN_INFO]	= { .type = NLA_BINARY,
-				    .len = sizeof(struct bridge_vlan_info), },
-};
+static int br_vlan_info(struct net_bridge *br, struct net_bridge_port *p,
+			int cmd, struct bridge_vlan_info *vinfo)
+{
+	int err = 0;
+
+	switch (cmd) {
+	case RTM_SETLINK:
+		if (p) {
+			err = nbp_vlan_add(p, vinfo->vid, vinfo->flags);
+			if (err)
+				break;
+
+			if (vinfo->flags & BRIDGE_VLAN_INFO_MASTER)
+				err = br_vlan_add(p->br, vinfo->vid,
+						  vinfo->flags);
+		} else {
+			err = br_vlan_add(br, vinfo->vid, vinfo->flags);
+		}
+		break;
+
+	case RTM_DELLINK:
+		if (p) {
+			nbp_vlan_delete(p, vinfo->vid);
+			if (vinfo->flags & BRIDGE_VLAN_INFO_MASTER)
+				br_vlan_delete(p->br, vinfo->vid);
+		} else {
+			br_vlan_delete(br, vinfo->vid);
+		}
+		break;
+	}
+
+	return err;
+}
 
 static int br_afspec(struct net_bridge *br,
 		     struct net_bridge_port *p,
 		     struct nlattr *af_spec,
 		     int cmd)
 {
-	struct nlattr *tb[IFLA_BRIDGE_MAX+1];
+	struct bridge_vlan_info *vinfo_start = NULL;
+	struct bridge_vlan_info *vinfo = NULL;
+	struct nlattr *attr;
 	int err = 0;
+	int rem;
 
-	err = nla_parse_nested(tb, IFLA_BRIDGE_MAX, af_spec, ifla_br_policy);
-	if (err)
-		return err;
-
-	if (tb[IFLA_BRIDGE_VLAN_INFO]) {
-		struct bridge_vlan_info *vinfo;
-
-		vinfo = nla_data(tb[IFLA_BRIDGE_VLAN_INFO]);
-
-		if (!vinfo->vid || vinfo->vid >= VLAN_VID_MASK)
+	nla_for_each_nested(attr, af_spec, rem) {
+		if (nla_type(attr) != IFLA_BRIDGE_VLAN_INFO)
+			continue;
+		if (nla_len(attr) != sizeof(struct bridge_vlan_info))
 			return -EINVAL;
+		vinfo = nla_data(attr);
+		if (vinfo->flags & BRIDGE_VLAN_INFO_RANGE_BEGIN) {
+			if (vinfo_start)
+				return -EINVAL;
+			vinfo_start = vinfo;
+			continue;
+		}
 
-		switch (cmd) {
-		case RTM_SETLINK:
-			if (p) {
-				err = nbp_vlan_add(p, vinfo->vid, vinfo->flags);
+		if (vinfo_start) {
+			struct bridge_vlan_info tmp_vinfo;
+			int v;
+
+			if (!(vinfo->flags & BRIDGE_VLAN_INFO_RANGE_END))
+				return -EINVAL;
+
+			if (vinfo->vid <= vinfo_start->vid)
+				return -EINVAL;
+
+			memcpy(&tmp_vinfo, vinfo_start,
+			       sizeof(struct bridge_vlan_info));
+
+			for (v = vinfo_start->vid; v <= vinfo->vid; v++) {
+				tmp_vinfo.vid = v;
+				err = br_vlan_info(br, p, cmd, &tmp_vinfo);
 				if (err)
 					break;
-
-				if (vinfo->flags & BRIDGE_VLAN_INFO_MASTER)
-					err = br_vlan_add(p->br, vinfo->vid,
-							  vinfo->flags);
-			} else
-				err = br_vlan_add(br, vinfo->vid, vinfo->flags);
-
-			break;
-
-		case RTM_DELLINK:
-			if (p) {
-				nbp_vlan_delete(p, vinfo->vid);
-				if (vinfo->flags & BRIDGE_VLAN_INFO_MASTER)
-					br_vlan_delete(p->br, vinfo->vid);
-			} else
-				br_vlan_delete(br, vinfo->vid);
-			break;
+			}
+			vinfo_start = NULL;
+		} else {
+			err = br_vlan_info(br, p, cmd, vinfo);
 		}
+		if (err)
+			break;
 	}
 
 	return err;
@@ -280,6 +501,7 @@ static const struct nla_policy br_port_policy[IFLA_BRPORT_MAX + 1] = {
 	[IFLA_BRPORT_MODE]	= { .type = NLA_U8 },
 	[IFLA_BRPORT_GUARD]	= { .type = NLA_U8 },
 	[IFLA_BRPORT_PROTECT]	= { .type = NLA_U8 },
+	[IFLA_BRPORT_FAST_LEAVE]= { .type = NLA_U8 },
 	[IFLA_BRPORT_LEARNING]	= { .type = NLA_U8 },
 	[IFLA_BRPORT_UNICAST_FLOOD] = { .type = NLA_U8 },
 };
@@ -332,6 +554,8 @@ static int br_setport(struct net_bridge_port *p, struct nlattr *tb[])
 	br_set_port_flag(p, tb, IFLA_BRPORT_PROTECT, BR_ROOT_BLOCK);
 	br_set_port_flag(p, tb, IFLA_BRPORT_LEARNING, BR_LEARNING);
 	br_set_port_flag(p, tb, IFLA_BRPORT_UNICAST_FLOOD, BR_FLOOD);
+	br_set_port_flag(p, tb, IFLA_BRPORT_PROXYARP, BR_PROXYARP);
+	br_set_port_flag(p, tb, IFLA_BRPORT_PROXYARP_WIFI, BR_PROXYARP_WIFI);
 
 	if (tb[IFLA_BRPORT_COST]) {
 		err = br_stp_set_path_cost(p, nla_get_u32(tb[IFLA_BRPORT_COST]));
@@ -356,13 +580,13 @@ static int br_setport(struct net_bridge_port *p, struct nlattr *tb[])
 }
 
 /* Change state and parameters on port. */
-int br_setlink(struct net_device *dev, struct nlmsghdr *nlh)
+int br_setlink(struct net_device *dev, struct nlmsghdr *nlh, u16 flags)
 {
 	struct nlattr *protinfo;
 	struct nlattr *afspec;
 	struct net_bridge_port *p;
 	struct nlattr *tb[IFLA_BRPORT_MAX + 1];
-	int err = 0;
+	int err = 0, ret_offload = 0;
 
 	protinfo = nlmsg_find_attr(nlh, sizeof(struct ifinfomsg), IFLA_PROTINFO);
 	afspec = nlmsg_find_attr(nlh, sizeof(struct ifinfomsg), IFLA_AF_SPEC);
@@ -404,19 +628,28 @@ int br_setlink(struct net_device *dev, struct nlmsghdr *nlh)
 				afspec, RTM_SETLINK);
 	}
 
+	if (p && !(flags & BRIDGE_FLAGS_SELF)) {
+		/* set bridge attributes in hardware if supported
+		 */
+		ret_offload = netdev_switch_port_bridge_setlink(dev, nlh,
+								flags);
+		if (ret_offload && ret_offload != -EOPNOTSUPP)
+			br_warn(p->br, "error setting attrs on port %u(%s)\n",
+				(unsigned int)p->port_no, p->dev->name);
+	}
+
 	if (err == 0)
 		br_ifinfo_notify(RTM_NEWLINK, p);
-
 out:
 	return err;
 }
 
 /* Delete port information */
-int br_dellink(struct net_device *dev, struct nlmsghdr *nlh)
+int br_dellink(struct net_device *dev, struct nlmsghdr *nlh, u16 flags)
 {
 	struct nlattr *afspec;
 	struct net_bridge_port *p;
-	int err;
+	int err = 0, ret_offload = 0;
 
 	afspec = nlmsg_find_attr(nlh, sizeof(struct ifinfomsg), IFLA_AF_SPEC);
 	if (!afspec)
@@ -429,6 +662,21 @@ int br_dellink(struct net_device *dev, struct nlmsghdr *nlh)
 
 	err = br_afspec((struct net_bridge *)netdev_priv(dev), p,
 			afspec, RTM_DELLINK);
+	if (err == 0)
+		/* Send RTM_NEWLINK because userspace
+		 * expects RTM_NEWLINK for vlan dels
+		 */
+		br_ifinfo_notify(RTM_NEWLINK, p);
+
+	if (p && !(flags & BRIDGE_FLAGS_SELF)) {
+		/* del bridge attributes in hardware
+		 */
+		ret_offload = netdev_switch_port_bridge_dellink(dev, nlh,
+								flags);
+		if (ret_offload && ret_offload != -EOPNOTSUPP)
+			br_warn(p->br, "error deleting attrs on port %u (%s)\n",
+				(unsigned int)p->port_no, p->dev->name);
+	}
 
 	return err;
 }
@@ -485,6 +733,9 @@ static const struct nla_policy br_policy[IFLA_BR_MAX + 1] = {
 	[IFLA_BR_FORWARD_DELAY]	= { .type = NLA_U32 },
 	[IFLA_BR_HELLO_TIME]	= { .type = NLA_U32 },
 	[IFLA_BR_MAX_AGE]	= { .type = NLA_U32 },
+	[IFLA_BR_AGEING_TIME] = { .type = NLA_U32 },
+	[IFLA_BR_STP_STATE] = { .type = NLA_U32 },
+	[IFLA_BR_PRIORITY] = { .type = NLA_U16 },
 };
 
 static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
@@ -514,6 +765,24 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 			return err;
 	}
 
+	if (data[IFLA_BR_AGEING_TIME]) {
+		u32 ageing_time = nla_get_u32(data[IFLA_BR_AGEING_TIME]);
+
+		br->ageing_time = clock_t_to_jiffies(ageing_time);
+	}
+
+	if (data[IFLA_BR_STP_STATE]) {
+		u32 stp_enabled = nla_get_u32(data[IFLA_BR_STP_STATE]);
+
+		br_stp_set_enabled(br, stp_enabled);
+	}
+
+	if (data[IFLA_BR_PRIORITY]) {
+		u32 priority = nla_get_u16(data[IFLA_BR_PRIORITY]);
+
+		br_stp_set_bridge_priority(br, priority);
+	}
+
 	return 0;
 }
 
@@ -522,6 +791,9 @@ static size_t br_get_size(const struct net_device *brdev)
 	return nla_total_size(sizeof(u32)) +	/* IFLA_BR_FORWARD_DELAY  */
 	       nla_total_size(sizeof(u32)) +	/* IFLA_BR_HELLO_TIME */
 	       nla_total_size(sizeof(u32)) +	/* IFLA_BR_MAX_AGE */
+	       nla_total_size(sizeof(u32)) +    /* IFLA_BR_AGEING_TIME */
+	       nla_total_size(sizeof(u32)) +    /* IFLA_BR_STP_STATE */
+	       nla_total_size(sizeof(u16)) +    /* IFLA_BR_PRIORITY */
 	       0;
 }
 
@@ -531,10 +803,16 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 	u32 forward_delay = jiffies_to_clock_t(br->forward_delay);
 	u32 hello_time = jiffies_to_clock_t(br->hello_time);
 	u32 age_time = jiffies_to_clock_t(br->max_age);
+	u32 ageing_time = jiffies_to_clock_t(br->ageing_time);
+	u32 stp_enabled = br->stp_enabled;
+	u16 priority = (br->bridge_id.prio[0] << 8) | br->bridge_id.prio[1];
 
 	if (nla_put_u32(skb, IFLA_BR_FORWARD_DELAY, forward_delay) ||
 	    nla_put_u32(skb, IFLA_BR_HELLO_TIME, hello_time) ||
-	    nla_put_u32(skb, IFLA_BR_MAX_AGE, age_time))
+	    nla_put_u32(skb, IFLA_BR_MAX_AGE, age_time) ||
+	    nla_put_u32(skb, IFLA_BR_AGEING_TIME, ageing_time) ||
+	    nla_put_u32(skb, IFLA_BR_STP_STATE, stp_enabled) ||
+	    nla_put_u16(skb, IFLA_BR_PRIORITY, priority))
 		return -EMSGSIZE;
 
 	return 0;
@@ -558,7 +836,7 @@ static size_t br_get_link_af_size(const struct net_device *dev)
 	return pv->num_vlans * nla_total_size(sizeof(struct bridge_vlan_info));
 }
 
-static struct rtnl_af_ops br_af_ops = {
+static struct rtnl_af_ops br_af_ops __read_mostly = {
 	.family			= AF_BRIDGE,
 	.get_link_af_size	= br_get_link_af_size,
 };

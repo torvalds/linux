@@ -1725,7 +1725,7 @@ static int grcan_remove(struct platform_device *ofdev)
 	return 0;
 }
 
-static struct of_device_id grcan_match[] = {
+static const struct of_device_id grcan_match[] = {
 	{.name = "GAISLER_GRCAN"},
 	{.name = "01_03d"},
 	{.name = "GAISLER_GRHCAN"},
@@ -1738,7 +1738,6 @@ MODULE_DEVICE_TABLE(of, grcan_match);
 static struct platform_driver grcan_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = grcan_match,
 	},
 	.probe = grcan_probe,

@@ -17,7 +17,7 @@
 /*
  * Driver: ni_labpc_pci
  * Description: National Instruments Lab-PC PCI-1200
- * Devices: (National Instruments) PCI-1200 [ni_pci-1200]
+ * Devices: [National Instruments] PCI-1200 (ni_pci-1200)
  * Author: Frank Mori Hess <fmhess@users.sourceforge.net>
  * Status: works
  *
@@ -31,9 +31,8 @@
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
-#include <linux/pci.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
 #include "ni_labpc.h"
 
@@ -51,7 +50,7 @@ static const struct labpc_boardinfo labpc_pci_boards[] = {
 	},
 };
 
-/* ripped from mite.h and mite_setup2() to avoid mite dependancy */
+/* ripped from mite.h and mite_setup2() to avoid mite dependency */
 #define MITE_IODWBSR	0xc0	 /* IO Device Window Base Size Register */
 #define WENAB		(1 << 7) /* window enable */
 
@@ -79,7 +78,6 @@ static int labpc_pci_auto_attach(struct comedi_device *dev,
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct labpc_boardinfo *board = NULL;
-	struct labpc_private *devpriv;
 	int ret;
 
 	if (context < ARRAY_SIZE(labpc_pci_boards))
@@ -101,18 +99,20 @@ static int labpc_pci_auto_attach(struct comedi_device *dev,
 	if (!dev->mmio)
 		return -ENOMEM;
 
-	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
-	if (!devpriv)
-		return -ENOMEM;
-
 	return labpc_common_attach(dev, pcidev->irq, IRQF_SHARED);
+}
+
+static void labpc_pci_detach(struct comedi_device *dev)
+{
+	labpc_common_detach(dev);
+	comedi_pci_detach(dev);
 }
 
 static struct comedi_driver labpc_pci_comedi_driver = {
 	.driver_name	= "labpc_pci",
 	.module		= THIS_MODULE,
 	.auto_attach	= labpc_pci_auto_attach,
-	.detach		= comedi_pci_detach,
+	.detach		= labpc_pci_detach,
 };
 
 static const struct pci_device_id labpc_pci_table[] = {

@@ -14,9 +14,6 @@
 #include <asm/uv/uv.h>
 #include <linux/debugfs.h>
 
-DEFINE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate)
-			= { &init_mm, 0, };
-
 /*
  *	Smarter SMP flushing macros.
  *		c/o Linus Torvalds.

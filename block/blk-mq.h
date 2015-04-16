@@ -32,6 +32,7 @@ void blk_mq_free_queue(struct request_queue *q);
 void blk_mq_clone_flush_request(struct request *flush_rq,
 		struct request *orig_rq);
 int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr);
+void blk_mq_wake_waiters(struct request_queue *q);
 
 /*
  * CPU hotplug helpers
@@ -60,6 +61,8 @@ extern int blk_mq_sysfs_register(struct request_queue *q);
 extern void blk_mq_sysfs_unregister(struct request_queue *q);
 
 extern void blk_mq_rq_timed_out(struct request *req, bool reserved);
+
+void blk_mq_release(struct request_queue *q);
 
 /*
  * Basic implementation of sparser bitmap, allowing the user to spread
@@ -113,6 +116,11 @@ static inline void blk_mq_set_alloc_data(struct blk_mq_alloc_data *data,
 	data->reserved = reserved;
 	data->ctx = ctx;
 	data->hctx = hctx;
+}
+
+static inline bool blk_mq_hw_queue_mapped(struct blk_mq_hw_ctx *hctx)
+{
+	return hctx->nr_ctx && hctx->tags;
 }
 
 #endif

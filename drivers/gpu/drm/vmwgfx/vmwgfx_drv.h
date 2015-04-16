@@ -399,7 +399,8 @@ struct vmw_private {
 	uint32_t memory_size;
 	bool has_gmr;
 	bool has_mob;
-	struct mutex hw_mutex;
+	spinlock_t hw_lock;
+	spinlock_t cap_lock;
 
 	/*
 	 * VGA registers.
@@ -449,8 +450,9 @@ struct vmw_private {
 	atomic_t marker_seq;
 	wait_queue_head_t fence_queue;
 	wait_queue_head_t fifo_queue;
-	int fence_queue_waiters; /* Protected by hw_mutex */
-	int goal_queue_waiters; /* Protected by hw_mutex */
+	spinlock_t waiter_lock;
+	int fence_queue_waiters; /* Protected by waiter_lock */
+	int goal_queue_waiters; /* Protected by waiter_lock */
 	atomic_t fifo_queue_waiters;
 	uint32_t last_read_seqno;
 	spinlock_t irq_lock;
@@ -553,20 +555,35 @@ static inline struct vmw_master *vmw_master(struct drm_master *master)
 	return (struct vmw_master *) master->driver_priv;
 }
 
+/*
+ * The locking here is fine-grained, so that it is performed once
+ * for every read- and write operation. This is of course costly, but we
+ * don't perform much register access in the timing critical paths anyway.
+ * Instead we have the extra benefit of being sure that we don't forget
+ * the hw lock around register accesses.
+ */
 static inline void vmw_write(struct vmw_private *dev_priv,
 			     unsigned int offset, uint32_t value)
 {
+	unsigned long irq_flags;
+
+	spin_lock_irqsave(&dev_priv->hw_lock, irq_flags);
 	outl(offset, dev_priv->io_start + VMWGFX_INDEX_PORT);
 	outl(value, dev_priv->io_start + VMWGFX_VALUE_PORT);
+	spin_unlock_irqrestore(&dev_priv->hw_lock, irq_flags);
 }
 
 static inline uint32_t vmw_read(struct vmw_private *dev_priv,
 				unsigned int offset)
 {
-	uint32_t val;
+	unsigned long irq_flags;
+	u32 val;
 
+	spin_lock_irqsave(&dev_priv->hw_lock, irq_flags);
 	outl(offset, dev_priv->io_start + VMWGFX_INDEX_PORT);
 	val = inl(dev_priv->io_start + VMWGFX_VALUE_PORT);
+	spin_unlock_irqrestore(&dev_priv->hw_lock, irq_flags);
+
 	return val;
 }
 

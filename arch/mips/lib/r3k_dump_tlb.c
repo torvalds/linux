@@ -9,6 +9,7 @@
 #include <linux/mm.h>
 
 #include <asm/mipsregs.h>
+#include <asm/mmu_context.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/tlbdebug.h>
@@ -21,7 +22,7 @@ static void dump_tlb(int first, int last)
 	unsigned int asid;
 	unsigned long entryhi, entrylo0;
 
-	asid = read_c0_entryhi() & 0xfc0;
+	asid = read_c0_entryhi() & ASID_MASK;
 
 	for (i = first; i <= last; i++) {
 		write_c0_index(i<<8);
@@ -34,8 +35,8 @@ static void dump_tlb(int first, int last)
 		entrylo0 = read_c0_entrylo0();
 
 		/* Unused entries have a virtual address of KSEG0.  */
-		if ((entryhi & 0xffffe000) != 0x80000000
-		    && (entryhi & 0xfc0) == asid) {
+		if ((entryhi & PAGE_MASK) != KSEG0
+		    && (entryhi & ASID_MASK) == asid) {
 			/*
 			 * Only print entries in use
 			 */
@@ -43,8 +44,8 @@ static void dump_tlb(int first, int last)
 
 			printk("va=%08lx asid=%08lx"
 			       "  [pa=%06lx n=%d d=%d v=%d g=%d]",
-			       (entryhi & 0xffffe000),
-			       entryhi & 0xfc0,
+			       entryhi & PAGE_MASK,
+			       entryhi & ASID_MASK,
 			       entrylo0 & PAGE_MASK,
 			       (entrylo0 & (1 << 11)) ? 1 : 0,
 			       (entrylo0 & (1 << 10)) ? 1 : 0,

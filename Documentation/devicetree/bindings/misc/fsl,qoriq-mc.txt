@@ -1,0 +1,40 @@
+* Freescale Management Complex
+
+The Freescale Management Complex (fsl-mc) is a hardware resource
+manager that manages specialized hardware objects used in
+network-oriented packet processing applications. After the fsl-mc
+block is enabled, pools of hardware resources are available, such as
+queues, buffer pools, I/O interfaces. These resources are building
+blocks that can be used to create functional hardware objects/devices
+such as network interfaces, crypto accelerator instances, L2 switches,
+etc.
+
+Required properties:
+
+    - compatible
+        Value type: <string>
+        Definition: Must be "fsl,qoriq-mc".  A Freescale Management Complex
+                    compatible with this binding must have Block Revision
+                    Registers BRR1 and BRR2 at offset 0x0BF8 and 0x0BFC in
+                    the MC control register region.
+
+    - reg
+        Value type: <prop-encoded-array>
+        Definition: A standard property.  Specifies one or two regions
+                    defining the MC's registers:
+
+                       -the first region is the command portal for the
+                        this machine and must always be present
+
+                       -the second region is the MC control registers. This
+                        region may not be present in some scenarios, such
+                        as in the device tree presented to a virtual machine.
+
+Example:
+
+        fsl_mc: fsl-mc@80c000000 {
+                compatible = "fsl,qoriq-mc";
+                reg = <0x00000008 0x0c000000 0 0x40>,    /* MC portal base */
+                      <0x00000000 0x08340000 0 0x40000>; /* MC control reg */
+        };
+

@@ -253,20 +253,7 @@ static struct phy_driver icplus_driver[] = {
 	.driver		= { .owner = THIS_MODULE,},
 } };
 
-static int __init icplus_init(void)
-{
-	return phy_drivers_register(icplus_driver,
-		ARRAY_SIZE(icplus_driver));
-}
-
-static void __exit icplus_exit(void)
-{
-	phy_drivers_unregister(icplus_driver,
-		ARRAY_SIZE(icplus_driver));
-}
-
-module_init(icplus_init);
-module_exit(icplus_exit);
+module_phy_driver(icplus_driver);
 
 static struct mdio_device_id __maybe_unused icplus_tbl[] = {
 	{ 0x02430d80, 0x0ffffff0 },

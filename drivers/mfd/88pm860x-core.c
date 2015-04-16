@@ -1111,7 +1111,7 @@ static int verify_addr(struct i2c_client *i2c)
 	return 0;
 }
 
-static struct regmap_config pm860x_regmap_config = {
+static const struct regmap_config pm860x_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 };

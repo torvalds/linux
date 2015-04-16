@@ -159,7 +159,7 @@ void rtw_ps_processor23a(struct rtw_adapter *padapter)
 	if (pwrpriv->ips_mode_req == IPS_NONE)
 		goto exit;
 
-	if (rtw_pwr_unassociated_idle(padapter) == false)
+	if (!rtw_pwr_unassociated_idle(padapter))
 		goto exit;
 
 	if (pwrpriv->rf_pwrstate == rf_on &&
@@ -172,12 +172,12 @@ void rtw_ps_processor23a(struct rtw_adapter *padapter)
 exit:
 	rtw_set_pwr_state_check_timer(&padapter->pwrctrlpriv);
 	pwrpriv->ps_processing = false;
-	return;
 }
 
 static void pwr_state_check_handler(unsigned long data)
 {
 	struct rtw_adapter *padapter = (struct rtw_adapter *)data;
+
 	rtw_ps_cmd23a(padapter);
 }
 
@@ -202,17 +202,17 @@ void rtw_set_rpwm23a(struct rtw_adapter *padapter, u8 pslv)
 
 	if (pwrpriv->rpwm == pslv) {
 		RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_err_,
-			("%s: Already set rpwm[0x%02X], new = 0x%02X!\n",
-			 __func__, pwrpriv->rpwm, pslv));
+			 "%s: Already set rpwm[0x%02X], new = 0x%02X!\n",
+			 __func__, pwrpriv->rpwm, pslv);
 		return;
 	}
 
 	if (padapter->bSurpriseRemoved == true ||
 	    padapter->hw_init_completed == false) {
 		RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_err_,
-			 ("%s: SurpriseRemoved(%d) hw_init_completed(%d)\n",
-			  __func__, padapter->bSurpriseRemoved,
-			  padapter->hw_init_completed));
+			 "%s: SurpriseRemoved(%d) hw_init_completed(%d)\n",
+			 __func__, padapter->bSurpriseRemoved,
+			 padapter->hw_init_completed);
 
 		pwrpriv->cpwm = PS_STATE_S4;
 
@@ -221,22 +221,21 @@ void rtw_set_rpwm23a(struct rtw_adapter *padapter, u8 pslv)
 
 	if (padapter->bDriverStopped == true) {
 		RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_err_,
-			 ("%s: change power state(0x%02X) when DriverStopped\n",
-			  __func__, pslv));
+			 "%s: change power state(0x%02X) when DriverStopped\n",
+			 __func__, pslv);
 
 		if (pslv < PS_STATE_S2) {
 			RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_err_,
-				 ("%s: Reject to enter PS_STATE(0x%02X) lower "
-				  "than S2 when DriverStopped!!\n",
-				  __func__, pslv));
+				 "%s: Reject to enter PS_STATE(0x%02X) lower than S2 when DriverStopped!!\n",
+				 __func__, pslv);
 			return;
 		}
 	}
 
 	rpwm = pslv | pwrpriv->tog;
 	RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_notice_,
-		 ("rtw_set_rpwm23a: rpwm = 0x%02x cpwm = 0x%02x\n",
-		  rpwm, pwrpriv->cpwm));
+		 "rtw_set_rpwm23a: rpwm = 0x%02x cpwm = 0x%02x\n",
+		 rpwm, pwrpriv->cpwm);
 
 	pwrpriv->rpwm = pslv;
 
@@ -282,12 +281,12 @@ void rtw_set_ps_mode23a(struct rtw_adapter *padapter, u8 ps_mode,
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 
 	RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_notice_,
-			 ("%s: PowerMode =%d Smart_PS =%d\n",
-			  __func__, ps_mode, smart_ps));
+		 "%s: PowerMode =%d Smart_PS =%d\n",
+		 __func__, ps_mode, smart_ps);
 
 	if (ps_mode > PM_Card_Disable) {
 		RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_err_,
-			 ("ps_mode:%d error\n", ps_mode));
+			 "ps_mode:%d error\n", ps_mode);
 		return;
 	}
 
@@ -338,8 +337,7 @@ s32 LPS_RF_ON_check23a(struct rtw_adapter *padapter, u32 delay_ms)
 	start_time = jiffies;
 	end_time = start_time + msecs_to_jiffies(delay_ms);
 
-	while (1)
-	{
+	while (1) {
 		bAwake = rtl8723a_get_fwlps_rf_on(padapter);
 		if (bAwake == true)
 			break;
@@ -470,6 +468,7 @@ void rtw_free_pwrctrl_priv(struct rtw_adapter *adapter)
 inline void rtw_set_ips_deny23a(struct rtw_adapter *padapter, u32 ms)
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
+
 	pwrpriv->ips_deny_time = jiffies + msecs_to_jiffies(ms);
 }
 

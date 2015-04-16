@@ -263,7 +263,7 @@ static unsigned int detect_memory_size(void)
 
 	if (BCMCPU_IS_6345()) {
 		val = bcm_sdram_readl(SDRAM_MBASE_REG);
-		return (val * 8 * 1024 * 1024);
+		return val * 8 * 1024 * 1024;
 	}
 
 	if (BCMCPU_IS_6338() || BCMCPU_IS_6348()) {

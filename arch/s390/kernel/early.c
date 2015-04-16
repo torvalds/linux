@@ -12,7 +12,6 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
-#include <linux/ftrace.h>
 #include <linux/lockdep.h>
 #include <linux/module.h>
 #include <linux/pfn.h>
@@ -65,7 +64,6 @@ asm(
 	"	.align	4\n"
 	"	.type	savesys_ipl_nss, @function\n"
 	"savesys_ipl_nss:\n"
-#ifdef CONFIG_64BIT
 	"	stmg	6,15,48(15)\n"
 	"	lgr	14,3\n"
 	"	sam31\n"
@@ -73,13 +71,6 @@ asm(
 	"	sam64\n"
 	"	lgr	2,14\n"
 	"	lmg	6,15,48(15)\n"
-#else
-	"	stm	6,15,24(15)\n"
-	"	lr	14,3\n"
-	"	diag	2,14,0x8\n"
-	"	lr	2,14\n"
-	"	lm	6,15,24(15)\n"
-#endif
 	"	br	14\n"
 	"	.size	savesys_ipl_nss, .-savesys_ipl_nss\n"
 	"	.previous\n");
@@ -241,7 +232,6 @@ static noinline __init void detect_machine_type(void)
 
 static __init void setup_topology(void)
 {
-#ifdef CONFIG_64BIT
 	int max_mnest;
 
 	if (!test_facility(11))
@@ -252,7 +242,6 @@ static __init void setup_topology(void)
 			break;
 	}
 	topology_max_mnest = max_mnest;
-#endif
 }
 
 static void early_pgm_check_handler(void)
@@ -291,58 +280,6 @@ static noinline __init void setup_facility_list(void)
 	      ARRAY_SIZE(S390_lowcore.stfle_fac_list));
 }
 
-static __init void detect_mvpg(void)
-{
-#ifndef CONFIG_64BIT
-	int rc;
-
-	asm volatile(
-		"	la	0,0\n"
-		"	mvpg	%2,%2\n"
-		"0:	la	%0,0\n"
-		"1:\n"
-		EX_TABLE(0b,1b)
-		: "=d" (rc) : "0" (-EOPNOTSUPP), "a" (0) : "memory", "cc", "0");
-	if (!rc)
-		S390_lowcore.machine_flags |= MACHINE_FLAG_MVPG;
-#endif
-}
-
-static __init void detect_ieee(void)
-{
-#ifndef CONFIG_64BIT
-	int rc, tmp;
-
-	asm volatile(
-		"	efpc	%1,0\n"
-		"0:	la	%0,0\n"
-		"1:\n"
-		EX_TABLE(0b,1b)
-		: "=d" (rc), "=d" (tmp): "0" (-EOPNOTSUPP) : "cc");
-	if (!rc)
-		S390_lowcore.machine_flags |= MACHINE_FLAG_IEEE;
-#endif
-}
-
-static __init void detect_csp(void)
-{
-#ifndef CONFIG_64BIT
-	int rc;
-
-	asm volatile(
-		"	la	0,0\n"
-		"	la	1,0\n"
-		"	la	2,4\n"
-		"	csp	0,2\n"
-		"0:	la	%0,0\n"
-		"1:\n"
-		EX_TABLE(0b,1b)
-		: "=d" (rc) : "0" (-EOPNOTSUPP) : "cc", "0", "1", "2");
-	if (!rc)
-		S390_lowcore.machine_flags |= MACHINE_FLAG_CSP;
-#endif
-}
-
 static __init void detect_diag9c(void)
 {
 	unsigned int cpu_address;
@@ -361,7 +298,6 @@ static __init void detect_diag9c(void)
 
 static __init void detect_diag44(void)
 {
-#ifdef CONFIG_64BIT
 	int rc;
 
 	asm volatile(
@@ -372,12 +308,10 @@ static __init void detect_diag44(void)
 		: "=d" (rc) : "0" (-EOPNOTSUPP) : "cc");
 	if (!rc)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_DIAG44;
-#endif
 }
 
 static __init void detect_machine_facilities(void)
 {
-#ifdef CONFIG_64BIT
 	if (test_facility(8)) {
 		S390_lowcore.machine_flags |= MACHINE_FLAG_EDAT1;
 		__ctl_set_bit(0, 23);
@@ -394,8 +328,27 @@ static __init void detect_machine_facilities(void)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_TLB_LC;
 	if (test_facility(129))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_VX;
-#endif
 }
+
+static int __init cad_setup(char *str)
+{
+	int val;
+
+	get_option(&str, &val);
+	if (val && test_facility(128))
+		S390_lowcore.machine_flags |= MACHINE_FLAG_CAD;
+	return 0;
+}
+early_param("cad", cad_setup);
+
+static int __init cad_init(void)
+{
+	if (MACHINE_HAS_CAD)
+		/* Enable problem state CAD. */
+		__ctl_set_bit(2, 3);
+	return 0;
+}
+early_initcall(cad_init);
 
 static __init void rescue_initrd(void)
 {
@@ -482,16 +435,10 @@ void __init startup_init(void)
 	ipl_update_parameters();
 	setup_boot_command_line();
 	create_kernel_nss();
-	detect_mvpg();
-	detect_ieee();
-	detect_csp();
 	detect_diag9c();
 	detect_diag44();
 	detect_machine_facilities();
 	setup_topology();
 	sclp_early_detect();
-#ifdef CONFIG_DYNAMIC_FTRACE
-	S390_lowcore.ftrace_func = (unsigned long)ftrace_caller;
-#endif
 	lockdep_on();
 }

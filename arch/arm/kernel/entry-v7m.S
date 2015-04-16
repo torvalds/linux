@@ -22,10 +22,12 @@
 
 __invalid_entry:
 	v7m_exception_entry
+#ifdef CONFIG_PRINTK
 	adr	r0, strerr
 	mrs	r1, ipsr
 	mov	r2, lr
 	bl	printk
+#endif
 	mov	r0, sp
 	bl	show_regs
 1:	b	1b

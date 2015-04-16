@@ -171,7 +171,6 @@ static struct platform_driver osiris_dvs_driver = {
 	.remove		= osiris_dvs_remove,
 	.driver		= {
 		.name	= "osiris-dvs",
-		.owner	= THIS_MODULE,
 		.pm	= &osiris_dvs_pm,
 	},
 };

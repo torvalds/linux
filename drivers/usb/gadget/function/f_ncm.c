@@ -1441,6 +1441,9 @@ static int ncm_bind(struct usb_configuration *c, struct usb_function *f)
 
 	status = usb_assign_descriptors(f, ncm_fs_function, ncm_hs_function,
 			NULL);
+	if (status)
+		goto fail;
+
 	/*
 	 * NOTE:  all that is done without knowing or caring about
 	 * the network link ... which is unavailable to this code
@@ -1461,7 +1464,6 @@ static int ncm_bind(struct usb_configuration *c, struct usb_function *f)
 	return 0;
 
 fail:
-	usb_free_all_descriptors(f);
 	if (ncm->notify_req) {
 		kfree(ncm->notify_req->buf);
 		usb_ep_free_request(ncm->notify, ncm->notify_req);

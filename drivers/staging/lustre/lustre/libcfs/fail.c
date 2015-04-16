@@ -103,18 +103,18 @@ int __cfs_fail_check_set(__u32 id, __u32 value, int set)
 	}
 
 	switch (set) {
-		case CFS_FAIL_LOC_NOSET:
-		case CFS_FAIL_LOC_VALUE:
-			break;
-		case CFS_FAIL_LOC_ORSET:
-			cfs_fail_loc |= value & ~(CFS_FAILED | CFS_FAIL_ONCE);
-			break;
-		case CFS_FAIL_LOC_RESET:
-			cfs_fail_loc = value;
-			break;
-		default:
-			LASSERTF(0, "called with bad set %u\n", set);
-			break;
+	case CFS_FAIL_LOC_NOSET:
+	case CFS_FAIL_LOC_VALUE:
+		break;
+	case CFS_FAIL_LOC_ORSET:
+		cfs_fail_loc |= value & ~(CFS_FAILED | CFS_FAIL_ONCE);
+		break;
+	case CFS_FAIL_LOC_RESET:
+		cfs_fail_loc = value;
+		break;
+	default:
+		LASSERTF(0, "called with bad set %u\n", set);
+		break;
 	}
 
 	return 1;

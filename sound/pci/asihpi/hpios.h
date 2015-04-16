@@ -41,10 +41,6 @@ HPI Operating System Specific macros for Linux Kernel driver
 
 #define HPI_NO_OS_FILE_OPS
 
-#ifdef CONFIG_64BIT
-#define HPI64BIT
-#endif
-
 /** Details of a memory area allocated with  pci_alloc_consistent
 Need all info for parameters to pci_free_consistent
 */
@@ -154,6 +150,10 @@ struct snd_card;
 struct hpi_adapter {
 	struct hpi_adapter_obj *adapter;
 	struct snd_card *snd_card;
+
+	int irq;
+	int interrupt_mode;
+	void (*interrupt_callback) (struct hpi_adapter *);
 
 	/* mutex prevents contention for one card
 	   between multiple user programs (via ioctl) */

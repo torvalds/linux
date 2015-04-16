@@ -1,13 +1,11 @@
 
 
-generic-y += auxvec.h
 generic-y += bitsperlong.h
 generic-y += cputime.h
 generic-y += current.h
 generic-y += emergency-restart.h
 generic-y += errno.h
 generic-y += exec.h
-generic-y += hash.h
 generic-y += ioctl.h
 generic-y += ipcbuf.h
 generic-y += irq_regs.h

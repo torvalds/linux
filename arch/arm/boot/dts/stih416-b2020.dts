@@ -12,4 +12,26 @@
 / {
 	model = "STiH416 B2020";
 	compatible = "st,stih416-b2020", "st,stih416";
+
+	soc {
+		mmc1: sdhci@fe81f000 {
+			status       = "okay";
+			bus-width    = <8>;
+			non-removable;
+		};
+
+		miphy365x_phy: phy@fe382000 {
+			phy_port0: port@fe382000 {
+				st,sata-gen = <3>;
+			};
+
+			phy_port1: port@fe38a000 {
+				st,pcie-tx-pol-inv;
+			};
+		};
+
+		sata0: sata@fe380000{
+			status = "okay";
+		};
+	};
 };

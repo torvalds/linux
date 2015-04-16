@@ -181,7 +181,6 @@ static int events_probe(struct platform_device *pdev)
 static struct platform_driver events_driver = {
 	.probe	= events_probe,
 	.driver	= {
-		.owner	= THIS_MODULE,
 		.name	= "goldfish_events",
 	},
 };

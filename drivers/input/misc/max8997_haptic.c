@@ -378,8 +378,7 @@ static int max8997_haptic_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int max8997_haptic_suspend(struct device *dev)
+static int __maybe_unused max8997_haptic_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct max8997_haptic *chip = platform_get_drvdata(pdev);
@@ -388,7 +387,6 @@ static int max8997_haptic_suspend(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(max8997_haptic_pm_ops, max8997_haptic_suspend, NULL);
 
@@ -401,7 +399,6 @@ MODULE_DEVICE_TABLE(i2c, max8997_haptic_id);
 static struct platform_driver max8997_haptic_driver = {
 	.driver	= {
 		.name	= "max8997-haptic",
-		.owner	= THIS_MODULE,
 		.pm	= &max8997_haptic_pm_ops,
 	},
 	.probe		= max8997_haptic_probe,

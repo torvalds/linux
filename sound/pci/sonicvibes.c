@@ -30,6 +30,7 @@
 #include <linux/gameport.h>
 #include <linux/module.h>
 #include <linux/dma-mapping.h>
+#include <linux/io.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -38,8 +39,6 @@
 #include <sound/mpu401.h>
 #include <sound/opl3.h>
 #include <sound/initval.h>
-
-#include <asm/io.h>
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("S3 SonicVibes PCI");
@@ -880,8 +879,7 @@ static struct snd_pcm_ops snd_sonicvibes_capture_ops = {
 	.pointer =	snd_sonicvibes_capture_pointer,
 };
 
-static int snd_sonicvibes_pcm(struct sonicvibes *sonic, int device,
-			      struct snd_pcm **rpcm)
+static int snd_sonicvibes_pcm(struct sonicvibes *sonic, int device)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -902,8 +900,6 @@ static int snd_sonicvibes_pcm(struct sonicvibes *sonic, int device,
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
 					      snd_dma_pci_data(sonic->pci), 64*1024, 128*1024);
 
-	if (rpcm)
-		*rpcm = pcm;
 	return 0;
 }
 
@@ -918,17 +914,11 @@ static int snd_sonicvibes_pcm(struct sonicvibes *sonic, int device,
 
 static int snd_sonicvibes_info_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[7] = {
+	static const char * const texts[7] = {
 		"CD", "PCM", "Aux1", "Line", "Aux0", "Mic", "Mix"
 	};
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 2;
-	uinfo->value.enumerated.items = 7;
-	if (uinfo->value.enumerated.item >= 7)
-		uinfo->value.enumerated.item = 6;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 2, 7, texts);
 }
 
 static int snd_sonicvibes_get_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
@@ -1497,7 +1487,7 @@ static int snd_sonic_probe(struct pci_dev *pci,
 		(unsigned long long)pci_resource_start(pci, 1),
 		sonic->irq);
 
-	if ((err = snd_sonicvibes_pcm(sonic, 0, NULL)) < 0) {
+	if ((err = snd_sonicvibes_pcm(sonic, 0)) < 0) {
 		snd_card_free(card);
 		return err;
 	}

@@ -467,7 +467,6 @@ static int mcf8390_remove(struct platform_device *pdev)
 static struct platform_driver mcf8390_drv = {
 	.driver = {
 		.name	= "mcf8390",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= mcf8390_probe,
 	.remove		= mcf8390_remove,

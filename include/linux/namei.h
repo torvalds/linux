@@ -7,20 +7,9 @@
 #include <linux/path.h>
 
 struct vfsmount;
+struct nameidata;
 
 enum { MAX_NESTED_LINKS = 8 };
-
-struct nameidata {
-	struct path	path;
-	struct qstr	last;
-	struct path	root;
-	struct inode	*inode; /* path.dentry.d_inode */
-	unsigned int	flags;
-	unsigned	seq, m_seq;
-	int		last_type;
-	unsigned	depth;
-	char *saved_names[MAX_NESTED_LINKS + 1];
-};
 
 /*
  * Type of the last component on LOOKUP_PARENT
@@ -82,16 +71,8 @@ extern struct dentry *lock_rename(struct dentry *, struct dentry *);
 extern void unlock_rename(struct dentry *, struct dentry *);
 
 extern void nd_jump_link(struct nameidata *nd, struct path *path);
-
-static inline void nd_set_link(struct nameidata *nd, char *path)
-{
-	nd->saved_names[nd->depth] = path;
-}
-
-static inline char *nd_get_link(struct nameidata *nd)
-{
-	return nd->saved_names[nd->depth];
-}
+extern void nd_set_link(struct nameidata *nd, char *path);
+extern char *nd_get_link(struct nameidata *nd);
 
 static inline void nd_terminate_link(void *name, size_t len, size_t maxlen)
 {

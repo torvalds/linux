@@ -1239,11 +1239,9 @@ static int pasemi_mac_open(struct net_device *dev)
 	if (mac->phydev)
 		phy_start(mac->phydev);
 
-	init_timer(&mac->tx->clean_timer);
-	mac->tx->clean_timer.function = pasemi_mac_tx_timer;
-	mac->tx->clean_timer.data = (unsigned long)mac->tx;
-	mac->tx->clean_timer.expires = jiffies+HZ;
-	add_timer(&mac->tx->clean_timer);
+	setup_timer(&mac->tx->clean_timer, pasemi_mac_tx_timer,
+		    (unsigned long)mac->tx);
+	mod_timer(&mac->tx->clean_timer, jiffies + HZ);
 
 	return 0;
 
@@ -1837,10 +1835,8 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return err;
 
 out:
-	if (mac->iob_pdev)
-		pci_dev_put(mac->iob_pdev);
-	if (mac->dma_pdev)
-		pci_dev_put(mac->dma_pdev);
+	pci_dev_put(mac->iob_pdev);
+	pci_dev_put(mac->dma_pdev);
 
 	free_netdev(dev);
 out_disable_device:

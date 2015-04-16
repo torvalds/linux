@@ -66,7 +66,7 @@ static int mlx4_en_test_loopback_xmit(struct mlx4_en_priv *priv)
 	ethh = (struct ethhdr *)skb_put(skb, sizeof(struct ethhdr));
 	packet	= (unsigned char *)skb_put(skb, packet_size);
 	memcpy(ethh->h_dest, priv->dev->dev_addr, ETH_ALEN);
-	memset(ethh->h_source, 0, ETH_ALEN);
+	eth_zero_addr(ethh->h_source);
 	ethh->h_proto = htons(ETH_P_ARP);
 	skb_set_mac_header(skb, 0);
 	for (i = 0; i < packet_size; ++i)	/* fill our packet */
@@ -81,12 +81,14 @@ static int mlx4_en_test_loopback(struct mlx4_en_priv *priv)
 {
 	u32 loopback_ok = 0;
 	int i;
-
+	bool gro_enabled;
 
         priv->loopback_ok = 0;
 	priv->validate_loopback = 1;
+	gro_enabled = priv->dev->features & NETIF_F_GRO;
 
 	mlx4_en_update_loopback_state(priv->dev, priv->dev->features);
+	priv->dev->features &= ~NETIF_F_GRO;
 
 	/* xmit */
 	if (mlx4_en_test_loopback_xmit(priv)) {
@@ -108,6 +110,10 @@ static int mlx4_en_test_loopback(struct mlx4_en_priv *priv)
 mlx4_en_test_loopback_exit:
 
 	priv->validate_loopback = 0;
+
+	if (gro_enabled)
+		priv->dev->features |= NETIF_F_GRO;
+
 	mlx4_en_update_loopback_state(priv->dev, priv->dev->features);
 	return !loopback_ok;
 }
@@ -129,11 +135,15 @@ static int mlx4_en_test_speed(struct mlx4_en_priv *priv)
 	if (mlx4_en_QUERY_PORT(priv->mdev, priv->port))
 		return -ENOMEM;
 
-	/* The device supports 1G, 10G and 40G speeds */
-	if (priv->port_state.link_speed != 1000 &&
-	    priv->port_state.link_speed != 10000 &&
-	    priv->port_state.link_speed != 40000)
+	/* The device supports 100M, 1G, 10G, 20G, 40G and 56G speed */
+	if (priv->port_state.link_speed != SPEED_100 &&
+	    priv->port_state.link_speed != SPEED_1000 &&
+	    priv->port_state.link_speed != SPEED_10000 &&
+	    priv->port_state.link_speed != SPEED_20000 &&
+	    priv->port_state.link_speed != SPEED_40000 &&
+	    priv->port_state.link_speed != SPEED_56000)
 		return priv->port_state.link_speed;
+
 	return 0;
 }
 

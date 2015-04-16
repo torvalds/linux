@@ -398,7 +398,7 @@
 	 * can address up to 1TB
 	 */
 	.macro		L2_ptep	pmd,pte,index,va,fault
-#if PT_NLEVELS == 3
+#if CONFIG_PGTABLE_LEVELS == 3
 	extru		\va,31-ASM_PMD_SHIFT,ASM_BITS_PER_PMD,\index
 #else
 # if defined(CONFIG_64BIT)
@@ -436,7 +436,7 @@
 	 * all ILP32 processes and all the kernel for machines with
 	 * under 4GB of memory) */
 	.macro		L3_ptep pgd,pte,index,va,fault
-#if PT_NLEVELS == 3 /* we might have a 2-Level scheme, e.g. with 16kb page size */
+#if CONFIG_PGTABLE_LEVELS == 3 /* we might have a 2-Level scheme, e.g. with 16kb page size */
 	extrd,u		\va,63-ASM_PGDIR_SHIFT,ASM_BITS_PER_PGD,\index
 	copy		%r0,\pte
 	extrd,u,*=	\va,63-ASM_PGDIR_SHIFT,64-ASM_PGDIR_SHIFT,%r0
@@ -1774,10 +1774,6 @@ ENTRY(sys_rt_sigreturn_wrapper)
 ENDPROC(sys_rt_sigreturn_wrapper)
 
 ENTRY(syscall_exit)
-	/* NOTE: HP-UX syscalls also come through here
-	 * after hpux_syscall_exit fixes up return
-	 * values. */
-
 	/* NOTE: Not all syscalls exit this way.  rt_sigreturn will exit
 	 * via syscall_exit_rfi if the signal was received while the process
 	 * was running.
@@ -1788,22 +1784,6 @@ ENTRY(syscall_exit)
 	mfctl     %cr30, %r1
 	LDREG     TI_TASK(%r1),%r1
 	STREG     %r28,TASK_PT_GR28(%r1)
-
-#ifdef CONFIG_HPUX
-/* <linux/personality.h> cannot be easily included */
-#define PER_HPUX 0x10
-	ldw	TASK_PERSONALITY(%r1),%r19
-
-	/* We can't use "CMPIB<> PER_HPUX" since "im5" field is sign extended */
-	ldo	  -PER_HPUX(%r19), %r19
-	cmpib,COND(<>),n 0,%r19,1f
-
-	/* Save other hpux returns if personality is PER_HPUX */
-	STREG     %r22,TASK_PT_GR22(%r1)
-	STREG     %r29,TASK_PT_GR29(%r1)
-1:
-
-#endif /* CONFIG_HPUX */
 
 	/* Seems to me that dp could be wrong here, if the syscall involved
 	 * calling a module, and nothing got round to restoring dp on return.

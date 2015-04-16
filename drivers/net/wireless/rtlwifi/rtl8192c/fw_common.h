@@ -37,6 +37,7 @@
 #define FW_8192C_POLLING_DELAY			5
 #define FW_8192C_POLLING_TIMEOUT_COUNT		100
 #define NORMAL_CHIP				BIT(4)
+#define H2C_92C_KEEP_ALIVE_CTRL			48
 
 #define IS_FW_HEADER_EXIST(_pfwhdr)	\
 	((le16_to_cpu(_pfwhdr->signature)&0xFFF0) == 0x92C0 ||\
@@ -109,7 +110,9 @@ void rtl92c_fill_h2c_cmd(struct ieee80211_hw *hw, u8 element_id,
 			 u32 cmd_len, u8 *p_cmdbuffer);
 void rtl92c_firmware_selfreset(struct ieee80211_hw *hw);
 void rtl92c_set_fw_pwrmode_cmd(struct ieee80211_hw *hw, u8 mode);
-void rtl92c_set_fw_rsvdpagepkt(struct ieee80211_hw *hw, bool b_dl_finished);
+void rtl92c_set_fw_rsvdpagepkt
+	(struct ieee80211_hw *hw,
+	 bool (*cmd_send_packet)(struct ieee80211_hw *, struct sk_buff *));
 void rtl92c_set_fw_joinbss_report_cmd(struct ieee80211_hw *hw, u8 mstatus);
 void usb_writeN_async(struct rtl_priv *rtlpriv, u32 addr, void *data, u16 len);
 void rtl92c_set_p2p_ps_offload_cmd(struct ieee80211_hw *hw, u8 p2p_ps_state);

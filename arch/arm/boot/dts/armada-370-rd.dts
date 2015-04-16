@@ -6,9 +6,43 @@
  *
  *  Copyright (C) 2013 Florian Fainelli <florian@openwrt.org>
  *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This file is distributed in the hope that it will be useful
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED , WITHOUT WARRANTY OF ANY KIND
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
  *
  * Note: this Device Tree assumes that the bootloader has remapped the
  * internal registers to 0xf1000000 (instead of the default
@@ -59,18 +93,6 @@
 		};
 
 		internal-regs {
-			pinctrl {
-				fan_pins: fan-pins {
-					marvell,pins = "mpp8";
-					marvell,function = "gpio";
-				};
-
-				led_pins: led-pins {
-					marvell,pins = "mpp32";
-					marvell,function = "gpio";
-				};
-			};
-
 			serial@12000 {
 				status = "okay";
 			};
@@ -85,10 +107,6 @@
 				phy0: ethernet-phy@0 {
 					reg = <0>;
 				};
-
-				phy1: ethernet-phy@1 {
-					reg = <1>;
-				};
 			};
 
 			ethernet@70000 {
@@ -100,8 +118,11 @@
 				pinctrl-0 = <&ge1_rgmii_pins>;
 				pinctrl-names = "default";
 				status = "okay";
-				phy = <&phy1>;
 				phy-mode = "rgmii-id";
+				fixed-link {
+					   speed = <1000>;
+					   full-duplex;
+				};
 			};
 
 			mvsdio@d4000 {
@@ -173,4 +194,56 @@
 			};
 		};
 	};
+
+	dsa@0 {
+		compatible = "marvell,dsa";
+		#address-cells = <2>;
+		#size-cells = <0>;
+
+		dsa,ethernet = <&eth1>;
+		dsa,mii-bus = <&mdio>;
+
+		switch@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x10 0>;	/* MDIO address 16, switch 0 in tree */
+
+			port@0 {
+				reg = <0>;
+				label = "lan0";
+			};
+
+			port@1 {
+			       reg = <1>;
+			       label = "lan1";
+			};
+
+			port@2 {
+			       reg = <2>;
+			       label = "lan2";
+			};
+
+			port@3 {
+			       reg = <3>;
+			       label = "lan3";
+			};
+
+			port@5 {
+			      reg = <5>;
+			      label = "cpu";
+			};
+		};
+	 };
  };
+
+&pinctrl {
+	fan_pins: fan-pins {
+		marvell,pins = "mpp8";
+		marvell,function = "gpio";
+	};
+
+	led_pins: led-pins {
+		marvell,pins = "mpp32";
+		marvell,function = "gpio";
+	};
+};

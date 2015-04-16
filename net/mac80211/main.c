@@ -478,13 +478,9 @@ static const struct ieee80211_vht_cap mac80211_vht_capa_mod_mask = {
 	},
 };
 
-static const u8 extended_capabilities[] = {
-	0, 0, 0, 0, 0, 0, 0,
-	WLAN_EXT_CAPA8_OPMODE_NOTIF,
-};
-
-struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
-					const struct ieee80211_ops *ops)
+struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
+					   const struct ieee80211_ops *ops,
+					   const char *requested_name)
 {
 	struct ieee80211_local *local;
 	int priv_size, i;
@@ -524,7 +520,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	 */
 	priv_size = ALIGN(sizeof(*local), NETDEV_ALIGN) + priv_data_len;
 
-	wiphy = wiphy_new(&mac80211_config_ops, priv_size);
+	wiphy = wiphy_new_nm(&mac80211_config_ops, priv_size, requested_name);
 
 	if (!wiphy)
 		return NULL;
@@ -539,10 +535,6 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 			WIPHY_FLAG_REPORTS_OBSS |
 			WIPHY_FLAG_OFFCHAN_TX;
 
-	wiphy->extended_capabilities = extended_capabilities;
-	wiphy->extended_capabilities_mask = extended_capabilities;
-	wiphy->extended_capabilities_len = ARRAY_SIZE(extended_capabilities);
-
 	if (ops->remain_on_channel)
 		wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
 
@@ -550,6 +542,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 			   NL80211_FEATURE_SAE |
 			   NL80211_FEATURE_HT_IBSS |
 			   NL80211_FEATURE_VIF_TXPOWER |
+			   NL80211_FEATURE_MAC_ON_CREATE |
 			   NL80211_FEATURE_USERSPACE_MPM;
 
 	if (!ops->hw_scan)
@@ -563,6 +556,9 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	wiphy->bss_priv_size = sizeof(struct ieee80211_bss);
 
 	local = wiphy_priv(wiphy);
+
+	if (sta_info_init(local))
+		goto err_free;
 
 	local->hw.wiphy = wiphy;
 
@@ -590,6 +586,13 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	local->user_power_level = IEEE80211_UNSET_POWER_LEVEL;
 	wiphy->ht_capa_mod_mask = &mac80211_ht_capa_mod_mask;
 	wiphy->vht_capa_mod_mask = &mac80211_vht_capa_mod_mask;
+
+	local->ext_capa[7] = WLAN_EXT_CAPA8_OPMODE_NOTIF;
+
+	wiphy->extended_capabilities = local->ext_capa;
+	wiphy->extended_capabilities_mask = local->ext_capa;
+	wiphy->extended_capabilities_len =
+		ARRAY_SIZE(local->ext_capa);
 
 	INIT_LIST_HEAD(&local->interfaces);
 
@@ -629,8 +632,6 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	spin_lock_init(&local->ack_status_lock);
 	idr_init(&local->ack_status_frames);
 
-	sta_info_init(local);
-
 	for (i = 0; i < IEEE80211_MAX_QUEUES; i++) {
 		skb_queue_head_init(&local->pending[i]);
 		atomic_set(&local->agg_queue_stop[i], 0);
@@ -650,15 +651,17 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	ieee80211_roc_setup(local);
 
 	return &local->hw;
+ err_free:
+	wiphy_free(wiphy);
+	return NULL;
 }
-EXPORT_SYMBOL(ieee80211_alloc_hw);
+EXPORT_SYMBOL(ieee80211_alloc_hw_nm);
 
 static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
 {
 	bool have_wep = !(IS_ERR(local->wep_tx_tfm) ||
 			  IS_ERR(local->wep_rx_tfm));
 	bool have_mfp = local->hw.flags & IEEE80211_HW_MFP_CAPABLE;
-	const struct ieee80211_cipher_scheme *cs = local->hw.cipher_schemes;
 	int n_suites = 0, r = 0, w = 0;
 	u32 *suites;
 	static const u32 cipher_suites[] = {
@@ -667,64 +670,29 @@ static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
 		WLAN_CIPHER_SUITE_WEP104,
 		WLAN_CIPHER_SUITE_TKIP,
 		WLAN_CIPHER_SUITE_CCMP,
+		WLAN_CIPHER_SUITE_CCMP_256,
+		WLAN_CIPHER_SUITE_GCMP,
+		WLAN_CIPHER_SUITE_GCMP_256,
 
 		/* keep last -- depends on hw flags! */
-		WLAN_CIPHER_SUITE_AES_CMAC
+		WLAN_CIPHER_SUITE_AES_CMAC,
+		WLAN_CIPHER_SUITE_BIP_CMAC_256,
+		WLAN_CIPHER_SUITE_BIP_GMAC_128,
+		WLAN_CIPHER_SUITE_BIP_GMAC_256,
 	};
 
-	/* Driver specifies the ciphers, we have nothing to do... */
-	if (local->hw.wiphy->cipher_suites && have_wep)
-		return 0;
-
-	/* Set up cipher suites if driver relies on mac80211 cipher defs */
-	if (!local->hw.wiphy->cipher_suites && !cs) {
-		local->hw.wiphy->cipher_suites = cipher_suites;
-		local->hw.wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
-
-		if (!have_mfp)
-			local->hw.wiphy->n_cipher_suites--;
-
-		if (!have_wep) {
-			local->hw.wiphy->cipher_suites += 2;
-			local->hw.wiphy->n_cipher_suites -= 2;
-		}
-
-		return 0;
-	}
-
-	if (!local->hw.wiphy->cipher_suites) {
-		/*
-		 * Driver specifies cipher schemes only
-		 * We start counting ciphers defined by schemes, TKIP and CCMP
+	if (local->hw.flags & IEEE80211_HW_SW_CRYPTO_CONTROL ||
+	    local->hw.wiphy->cipher_suites) {
+		/* If the driver advertises, or doesn't support SW crypto,
+		 * we only need to remove WEP if necessary.
 		 */
-		n_suites = local->hw.n_cipher_schemes + 2;
-
-		/* check if we have WEP40 and WEP104 */
 		if (have_wep)
-			n_suites += 2;
+			return 0;
 
-		/* check if we have AES_CMAC */
-		if (have_mfp)
-			n_suites++;
+		/* well if it has _no_ ciphers ... fine */
+		if (!local->hw.wiphy->n_cipher_suites)
+			return 0;
 
-		suites = kmalloc(sizeof(u32) * n_suites, GFP_KERNEL);
-		if (!suites)
-			return -ENOMEM;
-
-		suites[w++] = WLAN_CIPHER_SUITE_CCMP;
-		suites[w++] = WLAN_CIPHER_SUITE_TKIP;
-
-		if (have_wep) {
-			suites[w++] = WLAN_CIPHER_SUITE_WEP40;
-			suites[w++] = WLAN_CIPHER_SUITE_WEP104;
-		}
-
-		if (have_mfp)
-			suites[w++] = WLAN_CIPHER_SUITE_AES_CMAC;
-
-		for (r = 0; r < local->hw.n_cipher_schemes; r++)
-			suites[w++] = cs[r].cipher;
-	} else {
 		/* Driver provides cipher suites, but we need to exclude WEP */
 		suites = kmemdup(local->hw.wiphy->cipher_suites,
 				 sizeof(u32) * local->hw.wiphy->n_cipher_suites,
@@ -740,6 +708,71 @@ static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
 				continue;
 			suites[w++] = suite;
 		}
+	} else if (!local->hw.cipher_schemes) {
+		/* If the driver doesn't have cipher schemes, there's nothing
+		 * else to do other than assign the (software supported and
+		 * perhaps offloaded) cipher suites.
+		 */
+		local->hw.wiphy->cipher_suites = cipher_suites;
+		local->hw.wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
+
+		if (!have_mfp)
+			local->hw.wiphy->n_cipher_suites -= 4;
+
+		if (!have_wep) {
+			local->hw.wiphy->cipher_suites += 2;
+			local->hw.wiphy->n_cipher_suites -= 2;
+		}
+
+		/* not dynamically allocated, so just return */
+		return 0;
+	} else {
+		const struct ieee80211_cipher_scheme *cs;
+
+		cs = local->hw.cipher_schemes;
+
+		/* Driver specifies cipher schemes only (but not cipher suites
+		 * including the schemes)
+		 *
+		 * We start counting ciphers defined by schemes, TKIP, CCMP,
+		 * CCMP-256, GCMP, and GCMP-256
+		 */
+		n_suites = local->hw.n_cipher_schemes + 5;
+
+		/* check if we have WEP40 and WEP104 */
+		if (have_wep)
+			n_suites += 2;
+
+		/* check if we have AES_CMAC, BIP-CMAC-256, BIP-GMAC-128,
+		 * BIP-GMAC-256
+		 */
+		if (have_mfp)
+			n_suites += 4;
+
+		suites = kmalloc(sizeof(u32) * n_suites, GFP_KERNEL);
+		if (!suites)
+			return -ENOMEM;
+
+		suites[w++] = WLAN_CIPHER_SUITE_CCMP;
+		suites[w++] = WLAN_CIPHER_SUITE_CCMP_256;
+		suites[w++] = WLAN_CIPHER_SUITE_TKIP;
+		suites[w++] = WLAN_CIPHER_SUITE_GCMP;
+		suites[w++] = WLAN_CIPHER_SUITE_GCMP_256;
+
+		if (have_wep) {
+			suites[w++] = WLAN_CIPHER_SUITE_WEP40;
+			suites[w++] = WLAN_CIPHER_SUITE_WEP104;
+		}
+
+		if (have_mfp) {
+			suites[w++] = WLAN_CIPHER_SUITE_AES_CMAC;
+			suites[w++] = WLAN_CIPHER_SUITE_BIP_CMAC_256;
+			suites[w++] = WLAN_CIPHER_SUITE_BIP_GMAC_128;
+			suites[w++] = WLAN_CIPHER_SUITE_BIP_GMAC_256;
+		}
+
+		for (r = 0; r < local->hw.n_cipher_schemes; r++)
+			suites[w++] = cs[r].cipher;
 	}
 
 	local->hw.wiphy->cipher_suites = suites;
@@ -764,6 +797,12 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	     local->hw.offchannel_tx_hw_queue >= local->hw.queues))
 		return -EINVAL;
 
+	if ((hw->wiphy->features & NL80211_FEATURE_TDLS_CHANNEL_SWITCH) &&
+	    (!local->ops->tdls_channel_switch ||
+	     !local->ops->tdls_cancel_channel_switch ||
+	     !local->ops->tdls_recv_channel_switch))
+		return -EOPNOTSUPP;
+
 #ifdef CONFIG_PM
 	if (hw->wiphy->wowlan && (!local->ops->suspend || !local->ops->resume))
 		return -EINVAL;
@@ -787,13 +826,14 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		if (local->hw.wiphy->interface_modes & BIT(NL80211_IFTYPE_WDS))
 			return -EINVAL;
 
-		/* DFS currently not supported with channel context drivers */
+		/* DFS is not supported with multi-channel combinations yet */
 		for (i = 0; i < local->hw.wiphy->n_iface_combinations; i++) {
 			const struct ieee80211_iface_combination *comb;
 
 			comb = &local->hw.wiphy->iface_combinations[i];
 
-			if (comb->radar_detect_widths)
+			if (comb->radar_detect_widths &&
+			    comb->num_different_channels > 1)
 				return -EINVAL;
 		}
 	}
@@ -909,10 +949,6 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		}
 	}
 
-	WARN((local->hw.flags & IEEE80211_HW_SUPPORTS_UAPSD)
-	     && (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK),
-	     "U-APSD not supported with HW_PS_NULLFUNC_STACK\n");
-
 	/*
 	 * Calculate scan IE length -- we need this to alloc
 	 * memory and to subtract from the driver limit. It
@@ -958,6 +994,10 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	if (local->hw.wiphy->flags & WIPHY_FLAG_SUPPORTS_TDLS)
 		local->hw.wiphy->flags |= WIPHY_FLAG_TDLS_EXTERNAL_SETUP;
 
+	/* mac80211 supports eCSA, if the driver supports STA CSA at all */
+	if (local->hw.flags & IEEE80211_HW_CHANCTX_STA_CSA)
+		local->ext_capa[0] |= WLAN_EXT_CAPA1_EXT_CHANNEL_SWITCHING;
+
 	local->hw.wiphy->max_num_csa_counters = IEEE80211_MAX_CSA_COUNTERS_NUM;
 
 	result = wiphy_register(local->hw.wiphy);
@@ -999,6 +1039,9 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	local->dynamic_ps_forced_timeout = -1;
 
+	if (!local->hw.txq_ac_max_pending)
+		local->hw.txq_ac_max_pending = 64;
+
 	result = ieee80211_wep_init(local);
 	if (result < 0)
 		wiphy_debug(local->hw.wiphy, "Failed to initialize wep: %d\n",
@@ -1019,8 +1062,9 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	}
 
 	/* add one default STA interface if supported */
-	if (local->hw.wiphy->interface_modes & BIT(NL80211_IFTYPE_STATION)) {
-		result = ieee80211_if_add(local, "wlan%d", NULL,
+	if (local->hw.wiphy->interface_modes & BIT(NL80211_IFTYPE_STATION) &&
+	    !(hw->flags & IEEE80211_HW_NO_AUTO_VIF)) {
+		result = ieee80211_if_add(local, "wlan%d", NET_NAME_ENUM, NULL,
 					  NL80211_IFTYPE_STATION, NULL);
 		if (result)
 			wiphy_warn(local->hw.wiphy,
@@ -1033,10 +1077,8 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		ieee80211_max_network_latency;
 	result = pm_qos_add_notifier(PM_QOS_NETWORK_LATENCY,
 				     &local->network_latency_notifier);
-	if (result) {
-		rtnl_lock();
+	if (result)
 		goto fail_pm_qos;
-	}
 
 #ifdef CONFIG_INET
 	local->ifa_notifier.notifier_call = ieee80211_ifa_changed;
@@ -1064,15 +1106,15 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
  fail_ifa:
 	pm_qos_remove_notifier(PM_QOS_NETWORK_LATENCY,
 			       &local->network_latency_notifier);
-	rtnl_lock();
 #endif
  fail_pm_qos:
-	ieee80211_led_exit(local);
+	rtnl_lock();
+	rate_control_deinitialize(local);
 	ieee80211_remove_interfaces(local);
  fail_rate:
 	rtnl_unlock();
+	ieee80211_led_exit(local);
 	ieee80211_wep_free(local);
-	sta_info_stop(local);
 	destroy_workqueue(local->workqueue);
  fail_workqueue:
 	wiphy_unregister(local->hw.wiphy);
@@ -1138,7 +1180,6 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 
 	destroy_workqueue(local->workqueue);
 	wiphy_unregister(local->hw.wiphy);
-	sta_info_stop(local);
 	ieee80211_wep_free(local);
 	ieee80211_led_exit(local);
 	kfree(local->int_scan_req);
@@ -1166,7 +1207,7 @@ void ieee80211_free_hw(struct ieee80211_hw *hw)
 		     ieee80211_free_ack_frame, NULL);
 	idr_destroy(&local->ack_status_frames);
 
-	kfree(rcu_access_pointer(local->tx_latency));
+	sta_info_stop(local);
 
 	wiphy_free(local->hw.wiphy);
 }

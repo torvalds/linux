@@ -71,6 +71,11 @@ struct snd_tea575x {
 	int (*ext_init)(struct snd_tea575x *tea);
 };
 
+int snd_tea575x_enum_freq_bands(struct snd_tea575x *tea,
+					struct v4l2_frequency_band *band);
+int snd_tea575x_g_tuner(struct snd_tea575x *tea, struct v4l2_tuner *v);
+int snd_tea575x_s_hw_freq_seek(struct file *file, struct snd_tea575x *tea,
+				const struct v4l2_hw_freq_seek *a);
 int snd_tea575x_hw_init(struct snd_tea575x *tea);
 int snd_tea575x_init(struct snd_tea575x *tea, struct module *owner);
 void snd_tea575x_exit(struct snd_tea575x *tea);

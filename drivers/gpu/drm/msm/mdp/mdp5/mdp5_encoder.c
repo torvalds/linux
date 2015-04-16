@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2014, The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  *
@@ -24,6 +25,7 @@ struct mdp5_encoder {
 	struct drm_encoder base;
 	int intf;
 	enum mdp5_intf intf_id;
+	spinlock_t intf_lock;	/* protect REG_MDP5_INTF_* registers */
 	bool enabled;
 	uint32_t bsc;
 };
@@ -109,29 +111,6 @@ static const struct drm_encoder_funcs mdp5_encoder_funcs = {
 	.destroy = mdp5_encoder_destroy,
 };
 
-static void mdp5_encoder_dpms(struct drm_encoder *encoder, int mode)
-{
-	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
-	struct mdp5_kms *mdp5_kms = get_kms(encoder);
-	int intf = mdp5_encoder->intf;
-	bool enabled = (mode == DRM_MODE_DPMS_ON);
-
-	DBG("mode=%d", mode);
-
-	if (enabled == mdp5_encoder->enabled)
-		return;
-
-	if (enabled) {
-		bs_set(mdp5_encoder, 1);
-		mdp5_write(mdp5_kms, REG_MDP5_INTF_TIMING_ENGINE_EN(intf), 1);
-	} else {
-		mdp5_write(mdp5_kms, REG_MDP5_INTF_TIMING_ENGINE_EN(intf), 0);
-		bs_set(mdp5_encoder, 0);
-	}
-
-	mdp5_encoder->enabled = enabled;
-}
-
 static bool mdp5_encoder_mode_fixup(struct drm_encoder *encoder,
 		const struct drm_display_mode *mode,
 		struct drm_display_mode *adjusted_mode)
@@ -145,11 +124,14 @@ static void mdp5_encoder_mode_set(struct drm_encoder *encoder,
 {
 	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
 	struct mdp5_kms *mdp5_kms = get_kms(encoder);
+	struct drm_device *dev = encoder->dev;
+	struct drm_connector *connector;
 	int intf = mdp5_encoder->intf;
 	uint32_t dtv_hsync_skew, vsync_period, vsync_len, ctrl_pol;
 	uint32_t display_v_start, display_v_end;
 	uint32_t hsync_start_x, hsync_end_x;
-	uint32_t format;
+	uint32_t format = 0x2100;
+	unsigned long flags;
 
 	mode = adjusted_mode;
 
@@ -170,7 +152,28 @@ static void mdp5_encoder_mode_set(struct drm_encoder *encoder,
 	/* probably need to get DATA_EN polarity from panel.. */
 
 	dtv_hsync_skew = 0;  /* get this from panel? */
-	format = 0x213f;     /* get this from panel? */
+
+	/* Get color format from panel, default is 8bpc */
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		if (connector->encoder == encoder) {
+			switch (connector->display_info.bpc) {
+			case 4:
+				format |= 0;
+				break;
+			case 5:
+				format |= 0x15;
+				break;
+			case 6:
+				format |= 0x2A;
+				break;
+			case 8:
+			default:
+				format |= 0x3F;
+				break;
+			}
+			break;
+		}
+	}
 
 	hsync_start_x = (mode->htotal - mode->hsync_start);
 	hsync_end_x = mode->htotal - (mode->hsync_start - mode->hdisplay) - 1;
@@ -179,6 +182,18 @@ static void mdp5_encoder_mode_set(struct drm_encoder *encoder,
 	vsync_len = (mode->vsync_end - mode->vsync_start) * mode->htotal;
 	display_v_start = (mode->vtotal - mode->vsync_start) * mode->htotal + dtv_hsync_skew;
 	display_v_end = vsync_period - ((mode->vsync_start - mode->vdisplay) * mode->htotal) + dtv_hsync_skew - 1;
+
+	/*
+	 * For edp only:
+	 * DISPLAY_V_START = (VBP * HCYCLE) + HBP
+	 * DISPLAY_V_END = (VBP + VACTIVE) * HCYCLE - 1 - HFP
+	 */
+	if (mdp5_encoder->intf_id == INTF_eDP) {
+		display_v_start += mode->htotal - mode->hsync_start;
+		display_v_end -= mode->hsync_start - mode->hdisplay;
+	}
+
+	spin_lock_irqsave(&mdp5_encoder->intf_lock, flags);
 
 	mdp5_write(mdp5_kms, REG_MDP5_INTF_HSYNC_CTL(intf),
 			MDP5_INTF_HSYNC_CTL_PULSEW(mode->hsync_end - mode->hsync_start) |
@@ -201,27 +216,65 @@ static void mdp5_encoder_mode_set(struct drm_encoder *encoder,
 	mdp5_write(mdp5_kms, REG_MDP5_INTF_ACTIVE_VEND_F0(intf), 0);
 	mdp5_write(mdp5_kms, REG_MDP5_INTF_PANEL_FORMAT(intf), format);
 	mdp5_write(mdp5_kms, REG_MDP5_INTF_FRAME_LINE_COUNT_EN(intf), 0x3);  /* frame+line? */
+
+	spin_unlock_irqrestore(&mdp5_encoder->intf_lock, flags);
 }
 
-static void mdp5_encoder_prepare(struct drm_encoder *encoder)
-{
-	mdp5_encoder_dpms(encoder, DRM_MODE_DPMS_OFF);
-}
-
-static void mdp5_encoder_commit(struct drm_encoder *encoder)
+static void mdp5_encoder_disable(struct drm_encoder *encoder)
 {
 	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
+	struct mdp5_kms *mdp5_kms = get_kms(encoder);
+	int intf = mdp5_encoder->intf;
+	unsigned long flags;
+
+	if (WARN_ON(!mdp5_encoder->enabled))
+		return;
+
+	spin_lock_irqsave(&mdp5_encoder->intf_lock, flags);
+	mdp5_write(mdp5_kms, REG_MDP5_INTF_TIMING_ENGINE_EN(intf), 0);
+	spin_unlock_irqrestore(&mdp5_encoder->intf_lock, flags);
+
+	/*
+	 * Wait for a vsync so we know the ENABLE=0 latched before
+	 * the (connector) source of the vsync's gets disabled,
+	 * otherwise we end up in a funny state if we re-enable
+	 * before the disable latches, which results that some of
+	 * the settings changes for the new modeset (like new
+	 * scanout buffer) don't latch properly..
+	 */
+	mdp_irq_wait(&mdp5_kms->base, intf2vblank(intf));
+
+	bs_set(mdp5_encoder, 0);
+
+	mdp5_encoder->enabled = false;
+}
+
+static void mdp5_encoder_enable(struct drm_encoder *encoder)
+{
+	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
+	struct mdp5_kms *mdp5_kms = get_kms(encoder);
+	int intf = mdp5_encoder->intf;
+	unsigned long flags;
+
+	if (WARN_ON(mdp5_encoder->enabled))
+		return;
+
 	mdp5_crtc_set_intf(encoder->crtc, mdp5_encoder->intf,
 			mdp5_encoder->intf_id);
-	mdp5_encoder_dpms(encoder, DRM_MODE_DPMS_ON);
+
+	bs_set(mdp5_encoder, 1);
+	spin_lock_irqsave(&mdp5_encoder->intf_lock, flags);
+	mdp5_write(mdp5_kms, REG_MDP5_INTF_TIMING_ENGINE_EN(intf), 1);
+	spin_unlock_irqrestore(&mdp5_encoder->intf_lock, flags);
+
+	mdp5_encoder->enabled = true;
 }
 
 static const struct drm_encoder_helper_funcs mdp5_encoder_helper_funcs = {
-	.dpms = mdp5_encoder_dpms,
 	.mode_fixup = mdp5_encoder_mode_fixup,
 	.mode_set = mdp5_encoder_mode_set,
-	.prepare = mdp5_encoder_prepare,
-	.commit = mdp5_encoder_commit,
+	.disable = mdp5_encoder_disable,
+	.enable = mdp5_encoder_enable,
 };
 
 /* initialize encoder */
@@ -241,6 +294,8 @@ struct drm_encoder *mdp5_encoder_init(struct drm_device *dev, int intf,
 	mdp5_encoder->intf = intf;
 	mdp5_encoder->intf_id = intf_id;
 	encoder = &mdp5_encoder->base;
+
+	spin_lock_init(&mdp5_encoder->intf_lock);
 
 	drm_encoder_init(dev, encoder, &mdp5_encoder_funcs,
 			 DRM_MODE_ENCODER_TMDS);

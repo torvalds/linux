@@ -358,7 +358,6 @@ static struct platform_driver stk17ta8_rtc_driver = {
 	.remove		= stk17ta8_rtc_remove,
 	.driver		= {
 		.name	= "stk17ta8",
-		.owner	= THIS_MODULE,
 	},
 };
 

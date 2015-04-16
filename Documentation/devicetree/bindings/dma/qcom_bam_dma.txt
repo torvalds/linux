@@ -1,7 +1,9 @@
 QCOM BAM DMA controller
 
 Required properties:
-- compatible: must contain "qcom,bam-v1.4.0" for MSM8974
+- compatible: must be one of the following:
+ * "qcom,bam-v1.4.0" for MSM8974, APQ8074 and APQ8084
+ * "qcom,bam-v1.3.0" for APQ8064, IPQ8064 and MSM8960
 - reg: Address range for DMA registers
 - interrupts: Should contain the one interrupt shared by all channels
 - #dma-cells: must be <1>, the cell in the dmas property of the client device

@@ -2194,9 +2194,8 @@ static void usbvision_power_off_timer(unsigned long data)
 
 void usbvision_init_power_off_timer(struct usb_usbvision *usbvision)
 {
-	init_timer(&usbvision->power_off_timer);
-	usbvision->power_off_timer.data = (long)usbvision;
-	usbvision->power_off_timer.function = usbvision_power_off_timer;
+	setup_timer(&usbvision->power_off_timer, usbvision_power_off_timer,
+		    (unsigned long)usbvision);
 }
 
 void usbvision_set_power_off_timer(struct usb_usbvision *usbvision)
@@ -2502,11 +2501,3 @@ int usbvision_muxsel(struct usb_usbvision *usbvision, int channel)
 	usbvision_set_audio(usbvision, audio[channel]);
 	return 0;
 }
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

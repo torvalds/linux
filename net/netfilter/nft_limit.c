@@ -27,7 +27,7 @@ struct nft_limit {
 };
 
 static void nft_limit_eval(const struct nft_expr *expr,
-			   struct nft_data data[NFT_REG_MAX + 1],
+			   struct nft_regs *regs,
 			   const struct nft_pktinfo *pkt)
 {
 	struct nft_limit *priv = nft_expr_priv(expr);
@@ -45,7 +45,7 @@ static void nft_limit_eval(const struct nft_expr *expr,
 	}
 	spin_unlock_bh(&limit_lock);
 
-	data[NFT_REG_VERDICT].verdict = NFT_BREAK;
+	regs->verdict.code = NFT_BREAK;
 }
 
 static const struct nla_policy nft_limit_policy[NFTA_LIMIT_MAX + 1] = {
@@ -98,6 +98,7 @@ static struct nft_expr_type nft_limit_type __read_mostly = {
 	.ops		= &nft_limit_ops,
 	.policy		= nft_limit_policy,
 	.maxattr	= NFTA_LIMIT_MAX,
+	.flags		= NFT_EXPR_STATEFUL,
 	.owner		= THIS_MODULE,
 };
 

@@ -30,10 +30,6 @@ should only be used when a device has multiple interrupt parents.
   Example:
 	interrupts-extended = <&intc1 5 1>, <&intc2 1 0>;
 
-A device node may contain either "interrupts" or "interrupts-extended", but not
-both. If both properties are present, then the operating system should log an
-error and use only the data in "interrupts".
-
 2) Interrupt controller nodes
 -----------------------------
 

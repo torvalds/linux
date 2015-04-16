@@ -243,7 +243,7 @@ static int st_dwc3_probe(struct platform_device *pdev)
 	dwc3_data->rstc_rst = devm_reset_control_get(dev, "softreset");
 	if (IS_ERR(dwc3_data->rstc_rst)) {
 		dev_err(&pdev->dev, "could not get reset controller\n");
-		ret = PTR_ERR(dwc3_data->rstc_pwrdn);
+		ret = PTR_ERR(dwc3_data->rstc_rst);
 		goto undo_powerdown;
 	}
 

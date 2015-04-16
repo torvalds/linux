@@ -131,19 +131,10 @@ static int exynos_rng_probe(struct platform_device *pdev)
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
-	return hwrng_register(&exynos_rng->rng);
+	return devm_hwrng_register(&pdev->dev, &exynos_rng->rng);
 }
 
-static int exynos_rng_remove(struct platform_device *pdev)
-{
-	struct exynos_rng *exynos_rng = platform_get_drvdata(pdev);
-
-	hwrng_unregister(&exynos_rng->rng);
-
-	return 0;
-}
-
-#if defined(CONFIG_PM_SLEEP) || defined(CONFIG_PM_RUNTIME)
+#ifdef CONFIG_PM
 static int exynos_rng_runtime_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -169,11 +160,9 @@ static UNIVERSAL_DEV_PM_OPS(exynos_rng_pm_ops, exynos_rng_runtime_suspend,
 static struct platform_driver exynos_rng_driver = {
 	.driver		= {
 		.name	= "exynos-rng",
-		.owner	= THIS_MODULE,
 		.pm	= &exynos_rng_pm_ops,
 	},
 	.probe		= exynos_rng_probe,
-	.remove		= exynos_rng_remove,
 };
 
 module_platform_driver(exynos_rng_driver);

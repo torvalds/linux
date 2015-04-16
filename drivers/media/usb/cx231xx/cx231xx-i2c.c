@@ -20,14 +20,14 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include "cx231xx.h"
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/usb.h>
 #include <linux/i2c.h>
+#include <linux/i2c-mux.h>
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
 
-#include "cx231xx.h"
 
 /* ----------------------------------------------------------- */
 
@@ -54,10 +54,19 @@ do {							\
       } 						\
 } while (0)
 
+static inline int get_real_i2c_port(struct cx231xx *dev, int bus_nr)
+{
+	if (bus_nr == 1)
+		return dev->port_3_switch_enabled ? I2C_1_MUX_3 : I2C_1_MUX_1;
+	return bus_nr;
+}
+
 static inline bool is_tuner(struct cx231xx *dev, struct cx231xx_i2c *bus,
 			const struct i2c_msg *msg, int tuner_type)
 {
-	if (bus->nr != dev->board.tuner_i2c_master)
+	int i2c_port = get_real_i2c_port(dev, bus->nr);
+
+	if (i2c_port != dev->board.tuner_i2c_master)
 		return false;
 
 	if (msg->addr != dev->board.tuner_addr)
@@ -340,14 +349,15 @@ static int cx231xx_i2c_check_for_device(struct i2c_adapter *i2c_adap,
 	struct cx231xx *dev = bus->dev;
 	struct cx231xx_i2c_xfer_data req_data;
 	int status = 0;
+	u8 buf[1];
 
 	/* prepare xfer_data struct */
 	req_data.dev_addr = msg->addr;
-	req_data.direction = msg->flags;
+	req_data.direction = I2C_M_RD;
 	req_data.saddr_len = 0;
 	req_data.saddr_dat = 0;
-	req_data.buf_size = 0;
-	req_data.p_buffer = NULL;
+	req_data.buf_size = 1;
+	req_data.p_buffer = buf;
 
 	/* usb send command */
 	status = dev->cx231xx_send_usb_command(bus, &req_data);
@@ -455,17 +465,14 @@ static struct i2c_adapter cx231xx_adap_template = {
 	.algo = &cx231xx_algo,
 };
 
-static struct i2c_client cx231xx_client_template = {
-	.name = "cx231xx internal",
-};
-
 /* ----------------------------------------------------------- */
 
 /*
  * i2c_devs
  * incomplete list of known devices
  */
-static char *i2c_devs[128] = {
+static const char *i2c_devs[128] = {
+	[0x20 >> 1] = "demod",
 	[0x60 >> 1] = "colibri",
 	[0x88 >> 1] = "hammerhead",
 	[0x8e >> 1] = "CIR",
@@ -480,22 +487,34 @@ static char *i2c_devs[128] = {
  * cx231xx_do_i2c_scan()
  * check i2c address range for devices
  */
-void cx231xx_do_i2c_scan(struct cx231xx *dev, struct i2c_client *c)
+void cx231xx_do_i2c_scan(struct cx231xx *dev, int i2c_port)
 {
 	unsigned char buf;
 	int i, rc;
+	struct i2c_client client;
 
-	cx231xx_info(": Checking for I2C devices ..\n");
+	if (!i2c_scan)
+		return;
+
+	/* Don't generate I2C errors during scan */
+	dev->i2c_scan_running = true;
+
+	memset(&client, 0, sizeof(client));
+	client.adapter = cx231xx_get_i2c_adap(dev, i2c_port);
+
 	for (i = 0; i < 128; i++) {
-		c->addr = i;
-		rc = i2c_master_recv(c, &buf, 0);
+		client.addr = i;
+		rc = i2c_master_recv(&client, &buf, 0);
 		if (rc < 0)
 			continue;
-		cx231xx_info("%s: i2c scan: found device @ 0x%x  [%s]\n",
-			     dev->name, i << 1,
-			     i2c_devs[i] ? i2c_devs[i] : "???");
+		dev_info(dev->dev,
+			 "i2c scan: found device @ port %d addr 0x%x  [%s]\n",
+			 i2c_port,
+			 i << 1,
+			 i2c_devs[i] ? i2c_devs[i] : "???");
 	}
-	cx231xx_info(": Completed Checking for I2C devices.\n");
+
+	dev->i2c_scan_running = false;
 }
 
 /*
@@ -509,23 +528,17 @@ int cx231xx_i2c_register(struct cx231xx_i2c *bus)
 	BUG_ON(!dev->cx231xx_send_usb_command);
 
 	bus->i2c_adap = cx231xx_adap_template;
-	bus->i2c_client = cx231xx_client_template;
-	bus->i2c_adap.dev.parent = &dev->udev->dev;
+	bus->i2c_adap.dev.parent = dev->dev;
 
-	strlcpy(bus->i2c_adap.name, bus->dev->name, sizeof(bus->i2c_adap.name));
+	snprintf(bus->i2c_adap.name, sizeof(bus->i2c_adap.name), "%s-%d", bus->dev->name, bus->nr);
 
 	bus->i2c_adap.algo_data = bus;
 	i2c_set_adapdata(&bus->i2c_adap, &dev->v4l2_dev);
 	i2c_add_adapter(&bus->i2c_adap);
 
-	bus->i2c_client.adapter = &bus->i2c_adap;
-
-	if (0 == bus->i2c_rc) {
-		if (i2c_scan)
-			cx231xx_do_i2c_scan(dev, &bus->i2c_client);
-	} else
-		cx231xx_warn("%s: i2c bus %d register FAILED\n",
-			     dev->name, bus->nr);
+	if (0 != bus->i2c_rc)
+		dev_warn(dev->dev,
+			 "i2c bus %d register FAILED\n", bus->nr);
 
 	return bus->i2c_rc;
 }
@@ -539,3 +552,62 @@ int cx231xx_i2c_unregister(struct cx231xx_i2c *bus)
 	i2c_del_adapter(&bus->i2c_adap);
 	return 0;
 }
+
+/*
+ * cx231xx_i2c_mux_select()
+ * switch i2c master number 1 between port1 and port3
+ */
+static int cx231xx_i2c_mux_select(struct i2c_adapter *adap,
+			void *mux_priv, u32 chan_id)
+{
+	struct cx231xx *dev = mux_priv;
+
+	return cx231xx_enable_i2c_port_3(dev, chan_id);
+}
+
+int cx231xx_i2c_mux_register(struct cx231xx *dev, int mux_no)
+{
+	struct i2c_adapter *i2c_parent = &dev->i2c_bus[1].i2c_adap;
+	/* what is the correct mux_dev? */
+	struct device *mux_dev = dev->dev;
+
+	dev->i2c_mux_adap[mux_no] = i2c_add_mux_adapter(i2c_parent,
+				mux_dev,
+				dev /* mux_priv */,
+				0,
+				mux_no /* chan_id */,
+				0 /* class */,
+				&cx231xx_i2c_mux_select,
+				NULL);
+
+	if (!dev->i2c_mux_adap[mux_no])
+		dev_warn(dev->dev,
+			 "i2c mux %d register FAILED\n", mux_no);
+
+	return 0;
+}
+
+void cx231xx_i2c_mux_unregister(struct cx231xx *dev, int mux_no)
+{
+	i2c_del_mux_adapter(dev->i2c_mux_adap[mux_no]);
+	dev->i2c_mux_adap[mux_no] = NULL;
+}
+
+struct i2c_adapter *cx231xx_get_i2c_adap(struct cx231xx *dev, int i2c_port)
+{
+	switch (i2c_port) {
+	case I2C_0:
+		return &dev->i2c_bus[0].i2c_adap;
+	case I2C_1:
+		return &dev->i2c_bus[1].i2c_adap;
+	case I2C_2:
+		return &dev->i2c_bus[2].i2c_adap;
+	case I2C_1_MUX_1:
+		return dev->i2c_mux_adap[0];
+	case I2C_1_MUX_3:
+		return dev->i2c_mux_adap[1];
+	default:
+		return NULL;
+	}
+}
+EXPORT_SYMBOL_GPL(cx231xx_get_i2c_adap);

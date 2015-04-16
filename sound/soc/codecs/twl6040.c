@@ -234,7 +234,7 @@ static int headset_power_mode(struct snd_soc_codec *codec, int high_perf)
 static int twl6040_hs_dac_event(struct snd_soc_dapm_widget *w,
 			struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	u8 hslctl, hsrctl;
 
 	/*
@@ -261,7 +261,7 @@ static int twl6040_hs_dac_event(struct snd_soc_dapm_widget *w,
 static int twl6040_ep_drv_event(struct snd_soc_dapm_widget *w,
 			struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
 	int ret = 0;
 
@@ -1095,25 +1095,6 @@ static struct snd_soc_dai_driver twl6040_dai[] = {
 },
 };
 
-#ifdef CONFIG_PM
-static int twl6040_suspend(struct snd_soc_codec *codec)
-{
-	twl6040_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
-
-static int twl6040_resume(struct snd_soc_codec *codec)
-{
-	twl6040_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	return 0;
-}
-#else
-#define twl6040_suspend NULL
-#define twl6040_resume NULL
-#endif
-
 static int twl6040_probe(struct snd_soc_codec *codec)
 {
 	struct twl6040_data *priv;
@@ -1160,7 +1141,6 @@ static int twl6040_remove(struct snd_soc_codec *codec)
 	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
 
 	free_irq(priv->plug_irq, codec);
-	twl6040_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	return 0;
 }
@@ -1168,11 +1148,10 @@ static int twl6040_remove(struct snd_soc_codec *codec)
 static struct snd_soc_codec_driver soc_codec_dev_twl6040 = {
 	.probe = twl6040_probe,
 	.remove = twl6040_remove,
-	.suspend = twl6040_suspend,
-	.resume = twl6040_resume,
 	.read = twl6040_read,
 	.write = twl6040_write,
 	.set_bias_level = twl6040_set_bias_level,
+	.suspend_bias_off = true,
 	.ignore_pmdown_time = true,
 
 	.controls = twl6040_snd_controls,
@@ -1198,7 +1177,6 @@ static int twl6040_codec_remove(struct platform_device *pdev)
 static struct platform_driver twl6040_codec_driver = {
 	.driver = {
 		.name = "twl6040-codec",
-		.owner = THIS_MODULE,
 	},
 	.probe = twl6040_codec_probe,
 	.remove = twl6040_codec_remove,

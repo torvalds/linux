@@ -98,9 +98,10 @@ struct net_bridge_fdb_entry
 	unsigned long			updated;
 	unsigned long			used;
 	mac_addr			addr;
-	unsigned char			is_local;
-	unsigned char			is_static;
-	unsigned char			added_by_user;
+	unsigned char			is_local:1,
+					is_static:1,
+					added_by_user:1,
+					added_by_external_learn:1;
 	__u16				vlan_id;
 };
 
@@ -163,15 +164,6 @@ struct net_bridge_port
 	struct rcu_head			rcu;
 
 	unsigned long 			flags;
-#define BR_HAIRPIN_MODE		0x00000001
-#define BR_BPDU_GUARD           0x00000002
-#define BR_ROOT_BLOCK		0x00000004
-#define BR_MULTICAST_FAST_LEAVE	0x00000008
-#define BR_ADMIN_COST		0x00000010
-#define BR_LEARNING		0x00000020
-#define BR_FLOOD		0x00000040
-#define BR_AUTO_MASK (BR_FLOOD | BR_LEARNING)
-#define BR_PROMISC		0x00000080
 
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 	struct bridge_mcast_own_query	ip4_own_query;
@@ -313,6 +305,7 @@ struct br_input_skb_cb {
 #endif
 
 	u16 frag_max_size;
+	bool proxyarp_replied;
 
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	bool vlan_filtered;
@@ -403,20 +396,24 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 		   const unsigned char *addr, u16 vid, bool added_by_user);
 
 int br_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
-		  struct net_device *dev, const unsigned char *addr);
+		  struct net_device *dev, const unsigned char *addr, u16 vid);
 int br_fdb_add(struct ndmsg *nlh, struct nlattr *tb[], struct net_device *dev,
-	       const unsigned char *addr, u16 nlh_flags);
+	       const unsigned char *addr, u16 vid, u16 nlh_flags);
 int br_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 		struct net_device *dev, struct net_device *fdev, int idx);
 int br_fdb_sync_static(struct net_bridge *br, struct net_bridge_port *p);
 void br_fdb_unsync_static(struct net_bridge *br, struct net_bridge_port *p);
+int br_fdb_external_learn_add(struct net_bridge *br, struct net_bridge_port *p,
+			      const unsigned char *addr, u16 vid);
+int br_fdb_external_learn_del(struct net_bridge *br, struct net_bridge_port *p,
+			      const unsigned char *addr, u16 vid);
 
 /* br_forward.c */
 void br_deliver(const struct net_bridge_port *to, struct sk_buff *skb);
-int br_dev_queue_push_xmit(struct sk_buff *skb);
+int br_dev_queue_push_xmit(struct sock *sk, struct sk_buff *skb);
 void br_forward(const struct net_bridge_port *to,
 		struct sk_buff *skb, struct sk_buff *skb0);
-int br_forward_finish(struct sk_buff *skb);
+int br_forward_finish(struct sock *sk, struct sk_buff *skb);
 void br_flood_deliver(struct net_bridge *br, struct sk_buff *skb, bool unicast);
 void br_flood_forward(struct net_bridge *br, struct sk_buff *skb,
 		      struct sk_buff *skb2, bool unicast);
@@ -434,7 +431,7 @@ void br_port_flags_change(struct net_bridge_port *port, unsigned long mask);
 void br_manage_promisc(struct net_bridge *br);
 
 /* br_input.c */
-int br_handle_frame_finish(struct sk_buff *skb);
+int br_handle_frame_finish(struct sock *sk, struct sk_buff *skb);
 rx_handler_result_t br_handle_frame(struct sk_buff **pskb);
 
 static inline bool br_rx_handler_check_rcu(const struct net_device *dev)
@@ -636,8 +633,8 @@ static inline int br_vlan_get_tag(const struct sk_buff *skb, u16 *vid)
 {
 	int err = 0;
 
-	if (vlan_tx_tag_present(skb))
-		*vid = vlan_tx_tag_get(skb) & VLAN_VID_MASK;
+	if (skb_vlan_tag_present(skb))
+		*vid = skb_vlan_tag_get(skb) & VLAN_VID_MASK;
 	else {
 		*vid = 0;
 		err = -EINVAL;
@@ -766,6 +763,11 @@ static inline int br_vlan_enabled(struct net_bridge *br)
 }
 #endif
 
+struct nf_br_ops {
+	int (*br_dev_xmit_hook)(struct sk_buff *skb);
+};
+extern const struct nf_br_ops __rcu *nf_br_ops;
+
 /* br_netfilter.c */
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 int br_nf_core_init(void);
@@ -823,8 +825,8 @@ extern struct rtnl_link_ops br_link_ops;
 int br_netlink_init(void);
 void br_netlink_fini(void);
 void br_ifinfo_notify(int event, struct net_bridge_port *port);
-int br_setlink(struct net_device *dev, struct nlmsghdr *nlmsg);
-int br_dellink(struct net_device *dev, struct nlmsghdr *nlmsg);
+int br_setlink(struct net_device *dev, struct nlmsghdr *nlmsg, u16 flags);
+int br_dellink(struct net_device *dev, struct nlmsghdr *nlmsg, u16 flags);
 int br_getlink(struct sk_buff *skb, u32 pid, u32 seq, struct net_device *dev,
 	       u32 filter_mask);
 

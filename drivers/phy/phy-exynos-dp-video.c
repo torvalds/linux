@@ -30,28 +30,13 @@ struct exynos_dp_video_phy {
 	const struct exynos_dp_video_phy_drvdata *drvdata;
 };
 
-static void exynos_dp_video_phy_pwr_isol(struct exynos_dp_video_phy *state,
-							unsigned int on)
-{
-	unsigned int val;
-
-	if (IS_ERR(state->regs))
-		return;
-
-	val = on ? 0 : EXYNOS5_PHY_ENABLE;
-
-	regmap_update_bits(state->regs, state->drvdata->phy_ctrl_offset,
-			   EXYNOS5_PHY_ENABLE, val);
-}
-
 static int exynos_dp_video_phy_power_on(struct phy *phy)
 {
 	struct exynos_dp_video_phy *state = phy_get_drvdata(phy);
 
 	/* Disable power isolation on DP-PHY */
-	exynos_dp_video_phy_pwr_isol(state, 0);
-
-	return 0;
+	return regmap_update_bits(state->regs, state->drvdata->phy_ctrl_offset,
+				  EXYNOS5_PHY_ENABLE, EXYNOS5_PHY_ENABLE);
 }
 
 static int exynos_dp_video_phy_power_off(struct phy *phy)
@@ -59,9 +44,8 @@ static int exynos_dp_video_phy_power_off(struct phy *phy)
 	struct exynos_dp_video_phy *state = phy_get_drvdata(phy);
 
 	/* Enable power isolation on DP-PHY */
-	exynos_dp_video_phy_pwr_isol(state, 1);
-
-	return 0;
+	return regmap_update_bits(state->regs, state->drvdata->phy_ctrl_offset,
+				  EXYNOS5_PHY_ENABLE, 0);
 }
 
 static struct phy_ops exynos_dp_video_phy_ops = {
@@ -112,7 +96,7 @@ static int exynos_dp_video_phy_probe(struct platform_device *pdev)
 	match = of_match_node(exynos_dp_video_phy_of_match, dev->of_node);
 	state->drvdata = match->data;
 
-	phy = devm_phy_create(dev, NULL, &exynos_dp_video_phy_ops, NULL);
+	phy = devm_phy_create(dev, NULL, &exynos_dp_video_phy_ops);
 	if (IS_ERR(phy)) {
 		dev_err(dev, "failed to create Display Port PHY\n");
 		return PTR_ERR(phy);

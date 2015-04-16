@@ -333,7 +333,7 @@ static int mt9t001_enum_mbus_code(struct v4l2_subdev *subdev,
 	if (code->index > 0)
 		return -EINVAL;
 
-	code->code = V4L2_MBUS_FMT_SGRBG10_1X10;
+	code->code = MEDIA_BUS_FMT_SGRBG10_1X10;
 	return 0;
 }
 
@@ -341,7 +341,7 @@ static int mt9t001_enum_frame_size(struct v4l2_subdev *subdev,
 				   struct v4l2_subdev_fh *fh,
 				   struct v4l2_subdev_frame_size_enum *fse)
 {
-	if (fse->index >= 8 || fse->code != V4L2_MBUS_FMT_SGRBG10_1X10)
+	if (fse->index >= 8 || fse->code != MEDIA_BUS_FMT_SGRBG10_1X10)
 		return -EINVAL;
 
 	fse->min_width = (MT9T001_WINDOW_WIDTH_DEF + 1) / fse->index;
@@ -401,39 +401,44 @@ static int mt9t001_set_format(struct v4l2_subdev *subdev,
 	return 0;
 }
 
-static int mt9t001_get_crop(struct v4l2_subdev *subdev,
-			    struct v4l2_subdev_fh *fh,
-			    struct v4l2_subdev_crop *crop)
+static int mt9t001_get_selection(struct v4l2_subdev *subdev,
+				 struct v4l2_subdev_fh *fh,
+				 struct v4l2_subdev_selection *sel)
 {
 	struct mt9t001 *mt9t001 = to_mt9t001(subdev);
 
-	crop->rect = *__mt9t001_get_pad_crop(mt9t001, fh, crop->pad,
-					     crop->which);
+	if (sel->target != V4L2_SEL_TGT_CROP)
+		return -EINVAL;
+
+	sel->r = *__mt9t001_get_pad_crop(mt9t001, fh, sel->pad, sel->which);
 	return 0;
 }
 
-static int mt9t001_set_crop(struct v4l2_subdev *subdev,
-			    struct v4l2_subdev_fh *fh,
-			    struct v4l2_subdev_crop *crop)
+static int mt9t001_set_selection(struct v4l2_subdev *subdev,
+				 struct v4l2_subdev_fh *fh,
+				 struct v4l2_subdev_selection *sel)
 {
 	struct mt9t001 *mt9t001 = to_mt9t001(subdev);
 	struct v4l2_mbus_framefmt *__format;
 	struct v4l2_rect *__crop;
 	struct v4l2_rect rect;
 
+	if (sel->target != V4L2_SEL_TGT_CROP)
+		return -EINVAL;
+
 	/* Clamp the crop rectangle boundaries and align them to a multiple of 2
 	 * pixels.
 	 */
-	rect.left = clamp(ALIGN(crop->rect.left, 2),
+	rect.left = clamp(ALIGN(sel->r.left, 2),
 			  MT9T001_COLUMN_START_MIN,
 			  MT9T001_COLUMN_START_MAX);
-	rect.top = clamp(ALIGN(crop->rect.top, 2),
+	rect.top = clamp(ALIGN(sel->r.top, 2),
 			 MT9T001_ROW_START_MIN,
 			 MT9T001_ROW_START_MAX);
-	rect.width = clamp_t(unsigned int, ALIGN(crop->rect.width, 2),
+	rect.width = clamp_t(unsigned int, ALIGN(sel->r.width, 2),
 			     MT9T001_WINDOW_WIDTH_MIN + 1,
 			     MT9T001_WINDOW_WIDTH_MAX + 1);
-	rect.height = clamp_t(unsigned int, ALIGN(crop->rect.height, 2),
+	rect.height = clamp_t(unsigned int, ALIGN(sel->r.height, 2),
 			      MT9T001_WINDOW_HEIGHT_MIN + 1,
 			      MT9T001_WINDOW_HEIGHT_MAX + 1);
 
@@ -442,20 +447,20 @@ static int mt9t001_set_crop(struct v4l2_subdev *subdev,
 	rect.height = min_t(unsigned int, rect.height,
 			    MT9T001_PIXEL_ARRAY_HEIGHT - rect.top);
 
-	__crop = __mt9t001_get_pad_crop(mt9t001, fh, crop->pad, crop->which);
+	__crop = __mt9t001_get_pad_crop(mt9t001, fh, sel->pad, sel->which);
 
 	if (rect.width != __crop->width || rect.height != __crop->height) {
 		/* Reset the output image size if the crop rectangle size has
 		 * been modified.
 		 */
-		__format = __mt9t001_get_pad_format(mt9t001, fh, crop->pad,
-						    crop->which);
+		__format = __mt9t001_get_pad_format(mt9t001, fh, sel->pad,
+						    sel->which);
 		__format->width = rect.width;
 		__format->height = rect.height;
 	}
 
 	*__crop = rect;
-	crop->rect = rect;
+	sel->r = rect;
 
 	return 0;
 }
@@ -792,7 +797,7 @@ static int mt9t001_open(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh)
 	crop->height = MT9T001_WINDOW_HEIGHT_DEF + 1;
 
 	format = v4l2_subdev_get_try_format(fh, 0);
-	format->code = V4L2_MBUS_FMT_SGRBG10_1X10;
+	format->code = MEDIA_BUS_FMT_SGRBG10_1X10;
 	format->width = MT9T001_WINDOW_WIDTH_DEF + 1;
 	format->height = MT9T001_WINDOW_HEIGHT_DEF + 1;
 	format->field = V4L2_FIELD_NONE;
@@ -819,8 +824,8 @@ static struct v4l2_subdev_pad_ops mt9t001_subdev_pad_ops = {
 	.enum_frame_size = mt9t001_enum_frame_size,
 	.get_fmt = mt9t001_get_format,
 	.set_fmt = mt9t001_set_format,
-	.get_crop = mt9t001_get_crop,
-	.set_crop = mt9t001_set_crop,
+	.get_selection = mt9t001_get_selection,
+	.set_selection = mt9t001_set_selection,
 };
 
 static struct v4l2_subdev_ops mt9t001_subdev_ops = {
@@ -917,7 +922,7 @@ static int mt9t001_probe(struct i2c_client *client,
 	mt9t001->crop.width = MT9T001_WINDOW_WIDTH_DEF + 1;
 	mt9t001->crop.height = MT9T001_WINDOW_HEIGHT_DEF + 1;
 
-	mt9t001->format.code = V4L2_MBUS_FMT_SGRBG10_1X10;
+	mt9t001->format.code = MEDIA_BUS_FMT_SGRBG10_1X10;
 	mt9t001->format.width = MT9T001_WINDOW_WIDTH_DEF + 1;
 	mt9t001->format.height = MT9T001_WINDOW_HEIGHT_DEF + 1;
 	mt9t001->format.field = V4L2_FIELD_NONE;

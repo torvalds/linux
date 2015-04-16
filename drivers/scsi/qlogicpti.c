@@ -1455,7 +1455,6 @@ MODULE_DEVICE_TABLE(of, qpti_match);
 static struct platform_driver qpti_sbus_driver = {
 	.driver = {
 		.name = "qpti",
-		.owner = THIS_MODULE,
 		.of_match_table = qpti_match,
 	},
 	.probe		= qpti_sbus_probe,

@@ -1,7 +1,7 @@
 /*
  * extcon-max14577.c - MAX14577/77836 extcon driver to support MUIC
  *
- * Copyright (C) 2013,2014 Samsung Electrnoics
+ * Copyright (C) 2013,2014 Samsung Electronics
  * Chanwoo Choi <cw00.choi@samsung.com>
  * Krzysztof Kozlowski <k.kozlowski@samsung.com>
  *
@@ -807,7 +807,6 @@ MODULE_DEVICE_TABLE(platform, max14577_muic_id);
 static struct platform_driver max14577_muic_driver = {
 	.driver		= {
 		.name	= "max14577-muic",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= max14577_muic_probe,
 	.remove		= max14577_muic_remove,

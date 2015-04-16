@@ -297,7 +297,6 @@ static struct platform_driver nuc900wdt_driver = {
 	.remove		= nuc900wdt_remove,
 	.driver		= {
 		.name	= "nuc900-wdt",
-		.owner	= THIS_MODULE,
 	},
 };
 

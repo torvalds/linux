@@ -54,18 +54,14 @@ The PHY driver should create the PHY in order for other peripheral controllers
 to make use of it. The PHY framework provides 2 APIs to create the PHY.
 
 struct phy *phy_create(struct device *dev, struct device_node *node,
-		       const struct phy_ops *ops,
-		       struct phy_init_data *init_data);
+		       const struct phy_ops *ops);
 struct phy *devm_phy_create(struct device *dev, struct device_node *node,
-			    const struct phy_ops *ops,
-			    struct phy_init_data *init_data);
+			    const struct phy_ops *ops);
 
 The PHY drivers can use one of the above 2 APIs to create the PHY by passing
-the device pointer, phy ops and init_data.
+the device pointer and phy ops.
 phy_ops is a set of function pointers for performing PHY operations such as
-init, exit, power_on and power_off. *init_data* is mandatory to get a reference
-to the PHY in the case of non-dt boot. See section *Board File Initialization*
-on how init_data should be used.
+init, exit, power_on and power_off.
 
 Inorder to dereference the private data (in phy_ops), the phy provider driver
 can use phy_set_drvdata() after creating the PHY and use phy_get_drvdata() in
@@ -137,42 +133,18 @@ There are exported APIs like phy_pm_runtime_get, phy_pm_runtime_get_sync,
 phy_pm_runtime_put, phy_pm_runtime_put_sync, phy_pm_runtime_allow and
 phy_pm_runtime_forbid for performing PM operations.
 
-8. Board File Initialization
+8. PHY Mappings
 
-Certain board file initialization is necessary in order to get a reference
-to the PHY in the case of non-dt boot.
-Say we have a single device that implements 3 PHYs that of USB, SATA and PCIe,
-then in the board file the following initialization should be done.
+In order to get reference to a PHY without help from DeviceTree, the framework
+offers lookups which can be compared to clkdev that allow clk structures to be
+bound to devices. A lookup can be made be made during runtime when a handle to
+the struct phy already exists.
 
-struct phy_consumer consumers[] = {
-	PHY_CONSUMER("dwc3.0", "usb"),
-	PHY_CONSUMER("pcie.0", "pcie"),
-	PHY_CONSUMER("sata.0", "sata"),
-};
-PHY_CONSUMER takes 2 parameters, first is the device name of the controller
-(PHY consumer) and second is the port name.
+The framework offers the following API for registering and unregistering the
+lookups.
 
-struct phy_init_data init_data = {
-	.consumers = consumers,
-	.num_consumers = ARRAY_SIZE(consumers),
-};
-
-static const struct platform_device pipe3_phy_dev = {
-	.name = "pipe3-phy",
-	.id = -1,
-	.dev = {
-		.platform_data = {
-			.init_data = &init_data,
-		},
-	},
-};
-
-then, while doing phy_create, the PHY driver should pass this init_data
-	phy_create(dev, ops, pdata->init_data);
-
-and the controller driver (phy consumer) should pass the port name along with
-the device to get a reference to the PHY
-	phy_get(dev, "pcie");
+int phy_create_lookup(struct phy *phy, const char *con_id, const char *dev_id);
+void phy_remove_lookup(struct phy *phy, const char *con_id, const char *dev_id);
 
 9. DeviceTree Binding
 

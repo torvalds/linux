@@ -121,7 +121,7 @@
 #define PCI_IO_OFFSET		0x00200000
 
 /* Size of IO (2MB) */
-#define PCI_IO_SIZE		0x00200000
+#define PCI_IO_SIZE_DGAP	0x00200000
 
 /* Number of boards we support at once. */
 #define	MAXBOARDS	32
@@ -583,9 +583,6 @@ struct board_t {
 	struct tty_driver	*print_driver;
 	struct tty_port *printer_ports;
 	char		print_name[200];
-
-	u32		dgap_serial_major;
-	u32		dgap_transparent_print_major;
 
 	struct bs_t __iomem *bd_bs;	/* Base structure pointer         */
 

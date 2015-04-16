@@ -201,7 +201,7 @@ static unsigned char *cpars[] =
 #define structTRcpyovl(x, y, l) memmove(y, x, l)
 
 /*-------------------------------------------------------*/
-static unsigned command_2_index(unsigned c, unsigned sc)
+static unsigned command_2_index(u8 c, u8 sc)
 {
 	if (c & 0x80)
 		c = 0x9 + (c & 0x0f);

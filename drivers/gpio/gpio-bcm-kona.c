@@ -470,7 +470,7 @@ static int bcm_kona_gpio_irq_reqres(struct irq_data *d)
 {
 	struct bcm_kona_gpio *kona_gpio = irq_data_get_irq_chip_data(d);
 
-	if (gpio_lock_as_irq(&kona_gpio->gpio_chip, d->hwirq)) {
+	if (gpiochip_lock_as_irq(&kona_gpio->gpio_chip, d->hwirq)) {
 		dev_err(kona_gpio->gpio_chip.dev,
 			"unable to lock HW IRQ %lu for IRQ\n",
 			d->hwirq);
@@ -483,7 +483,7 @@ static void bcm_kona_gpio_irq_relres(struct irq_data *d)
 {
 	struct bcm_kona_gpio *kona_gpio = irq_data_get_irq_chip_data(d);
 
-	gpio_unlock_as_irq(&kona_gpio->gpio_chip, d->hwirq);
+	gpiochip_unlock_as_irq(&kona_gpio->gpio_chip, d->hwirq);
 }
 
 static struct irq_chip bcm_gpio_irq_chip = {
@@ -668,7 +668,6 @@ err_irq_domain:
 static struct platform_driver bcm_kona_gpio_driver = {
 	.driver = {
 			.name = "bcm-kona-gpio",
-			.owner = THIS_MODULE,
 			.of_match_table = bcm_kona_gpio_of_match,
 	},
 	.probe = bcm_kona_gpio_probe,

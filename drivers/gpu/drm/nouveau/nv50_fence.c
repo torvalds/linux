@@ -102,7 +102,7 @@ nv50_fence_create(struct nouveau_drm *drm)
 	ret = nouveau_bo_new(drm->dev, 4096, 0x1000, TTM_PL_FLAG_VRAM,
 			     0, 0x0000, NULL, NULL, &priv->bo);
 	if (!ret) {
-		ret = nouveau_bo_pin(priv->bo, TTM_PL_FLAG_VRAM);
+		ret = nouveau_bo_pin(priv->bo, TTM_PL_FLAG_VRAM, false);
 		if (!ret) {
 			ret = nouveau_bo_map(priv->bo);
 			if (ret)

@@ -84,25 +84,12 @@ static int libipw_networks_allocate(struct libipw_device *ieee)
 	return 0;
 }
 
-void libipw_network_reset(struct libipw_network *network)
-{
-	if (!network)
-		return;
-
-	if (network->ibss_dfs) {
-		kfree(network->ibss_dfs);
-		network->ibss_dfs = NULL;
-	}
-}
-
 static inline void libipw_networks_free(struct libipw_device *ieee)
 {
 	int i;
 
-	for (i = 0; i < MAX_NETWORK_COUNT; i++) {
-		kfree(ieee->networks[i]->ibss_dfs);
+	for (i = 0; i < MAX_NETWORK_COUNT; i++)
 		kfree(ieee->networks[i]);
-	}
 }
 
 void libipw_networks_age(struct libipw_device *ieee,

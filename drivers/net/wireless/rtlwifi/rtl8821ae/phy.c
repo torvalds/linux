@@ -800,7 +800,7 @@ static void _rtl8821ae_phy_set_txpower_by_rate_base(struct ieee80211_hw *hw,
 				 "Invalid RateSection %d in Band 2.4G,Rf Path %d, %dTx in PHY_SetTxPowerByRateBase()\n",
 				 rate_section, path, txnum);
 			break;
-		};
+		}
 	} else if (band == BAND_ON_5G) {
 		switch (rate_section) {
 		case OFDM:
@@ -823,7 +823,7 @@ static void _rtl8821ae_phy_set_txpower_by_rate_base(struct ieee80211_hw *hw,
 				"Invalid RateSection %d in Band 5G, Rf Path %d, %dTx in PHY_SetTxPowerByRateBase()\n",
 				rate_section, path, txnum);
 			break;
-		};
+		}
 	} else {
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
 			"Invalid Band %d in PHY_SetTxPowerByRateBase()\n", band);
@@ -870,7 +870,7 @@ static u8 _rtl8821ae_phy_get_txpower_by_rate_base(struct ieee80211_hw *hw,
 				 "Invalid RateSection %d in Band 2.4G, Rf Path %d, %dTx in PHY_GetTxPowerByRateBase()\n",
 				 rate_section, path, txnum);
 			break;
-		};
+		}
 	} else if (band == BAND_ON_5G) {
 		switch (rate_section) {
 		case OFDM:
@@ -893,7 +893,7 @@ static u8 _rtl8821ae_phy_get_txpower_by_rate_base(struct ieee80211_hw *hw,
 				 "Invalid RateSection %d in Band 5G, Rf Path %d, %dTx in PHY_GetTxPowerByRateBase()\n",
 				 rate_section, path, txnum);
 			break;
-		};
+		}
 	} else {
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
 			 "Invalid Band %d in PHY_GetTxPowerByRateBase()\n", band);
@@ -1889,15 +1889,18 @@ static void _rtl8821ae_store_tx_power_by_rate(struct ieee80211_hw *hw,
 	struct rtl_phy *rtlphy = &rtlpriv->phy;
 	u8 rate_section = _rtl8821ae_get_rate_section_index(regaddr);
 
-	if (band != BAND_ON_2_4G && band != BAND_ON_5G)
+	if (band != BAND_ON_2_4G && band != BAND_ON_5G) {
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_WARNING, "Invalid Band %d\n", band);
-
-	if (rfpath >= MAX_RF_PATH)
+		band = BAND_ON_2_4G;
+	}
+	if (rfpath >= MAX_RF_PATH) {
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_WARNING, "Invalid RfPath %d\n", rfpath);
-
-	if (txnum >= MAX_RF_PATH)
+		rfpath = MAX_RF_PATH - 1;
+	}
+	if (txnum >= MAX_RF_PATH) {
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_WARNING, "Invalid TxNum %d\n", txnum);
-
+		txnum = MAX_RF_PATH - 1;
+	}
 	rtlphy->tx_power_by_rate_offset[band][rfpath][txnum][rate_section] = data;
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
 		 "TxPwrByRateOffset[Band %d][RfPath %d][TxNum %d][RateSection %d] = 0x%x\n",
@@ -3743,7 +3746,7 @@ static void _rtl8821ae_iqk_tx_fill_iqc(struct ieee80211_hw *hw,
 		break;
 	default:
 		break;
-	};
+	}
 }
 
 static void _rtl8821ae_iqk_rx_fill_iqc(struct ieee80211_hw *hw,
@@ -3764,7 +3767,7 @@ static void _rtl8821ae_iqk_rx_fill_iqc(struct ieee80211_hw *hw,
 		break;
 	default:
 		break;
-	};
+	}
 }
 
 #define cal_num 10

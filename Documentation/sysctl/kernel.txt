@@ -54,8 +54,9 @@ show up in /proc/sys/kernel:
 - overflowuid
 - panic
 - panic_on_oops
-- panic_on_unrecovered_nmi
 - panic_on_stackoverflow
+- panic_on_unrecovered_nmi
+- panic_on_warn
 - pid_max
 - powersave-nap               [ PPC only ]
 - printk
@@ -76,12 +77,14 @@ show up in /proc/sys/kernel:
 - shmmax                      [ sysv ipc ]
 - shmmni
 - softlockup_all_cpu_backtrace
+- soft_watchdog
 - stop-a                      [ SPARC only ]
 - sysrq                       ==> Documentation/sysrq.txt
 - sysctl_writes_strict
 - tainted
 - threads-max
 - unknown_nmi_panic
+- watchdog
 - watchdog_thresh
 - version
 
@@ -115,10 +118,12 @@ set during run time.
 
 auto_msgmni:
 
-Enables/Disables automatic recomputing of msgmni upon memory add/remove
-or upon ipc namespace creation/removal (see the msgmni description
-above). Echoing "1" into this file enables msgmni automatic recomputing.
-Echoing "0" turns it off. auto_msgmni default value is 1.
+This variable has no effect and may be removed in future kernel
+releases. Reading it always returns 0.
+Up to Linux 3.17, it enabled/disabled automatic recomputing of msgmni
+upon memory add/remove or upon ipc namespace creation/removal.
+Echoing "1" into this file enabled msgmni automatic recomputing.
+Echoing "0" turned it off. auto_msgmni default value was 1.
 
 
 ==============================================================
@@ -414,16 +419,23 @@ successful IPC object allocation.
 
 nmi_watchdog:
 
-Enables/Disables the NMI watchdog on x86 systems. When the value is
-non-zero the NMI watchdog is enabled and will continuously test all
-online cpus to determine whether or not they are still functioning
-properly. Currently, passing "nmi_watchdog=" parameter at boot time is
-required for this function to work.
+This parameter can be used to control the NMI watchdog
+(i.e. the hard lockup detector) on x86 systems.
 
-If LAPIC NMI watchdog method is in use (nmi_watchdog=2 kernel
-parameter), the NMI watchdog shares registers with oprofile. By
-disabling the NMI watchdog, oprofile may have more registers to
-utilize.
+   0 - disable the hard lockup detector
+   1 - enable the hard lockup detector
+
+The hard lockup detector monitors each CPU for its ability to respond to
+timer interrupts. The mechanism utilizes CPU performance counter registers
+that are programmed to generate Non-Maskable Interrupts (NMIs) periodically
+while a CPU is busy. Hence, the alternative name 'NMI watchdog'.
+
+The NMI watchdog is disabled by default if the kernel is running as a guest
+in a KVM virtual machine. This default can be overridden by adding
+
+   nmi_watchdog=1
+
+to the guest kernel command line (see Documentation/kernel-parameters.txt).
 
 ==============================================================
 
@@ -527,19 +539,6 @@ the recommended setting is 60.
 
 ==============================================================
 
-panic_on_unrecovered_nmi:
-
-The default Linux behaviour on an NMI of either memory or unknown is
-to continue operation. For many environments such as scientific
-computing it is preferable that the box is taken out and the error
-dealt with than an uncorrected parity/ECC error get propagated.
-
-A small number of systems do generate NMI's for bizarre random reasons
-such as power management so the default is off. That sysctl works like
-the existing panic controls already in that directory.
-
-==============================================================
-
 panic_on_oops:
 
 Controls the kernel's behaviour when an oops or BUG is encountered.
@@ -560,6 +559,30 @@ This file shows up if CONFIG_DEBUG_STACKOVERFLOW is enabled.
 0: try to continue operation.
 
 1: panic immediately.
+
+==============================================================
+
+panic_on_unrecovered_nmi:
+
+The default Linux behaviour on an NMI of either memory or unknown is
+to continue operation. For many environments such as scientific
+computing it is preferable that the box is taken out and the error
+dealt with than an uncorrected parity/ECC error get propagated.
+
+A small number of systems do generate NMI's for bizarre random reasons
+such as power management so the default is off. That sysctl works like
+the existing panic controls already in that directory.
+
+==============================================================
+
+panic_on_warn:
+
+Calls panic() in the WARN() path when set to 1.  This is useful to avoid
+a kernel rebuild when attempting to kdump at the location of a WARN().
+
+0: only WARN(), default behaviour.
+
+1: call panic() after printing out WARN() location.
 
 ==============================================================
 
@@ -802,6 +825,22 @@ NMI.
 
 ==============================================================
 
+soft_watchdog
+
+This parameter can be used to control the soft lockup detector.
+
+   0 - disable the soft lockup detector
+   1 - enable the soft lockup detector
+
+The soft lockup detector monitors CPUs for threads that are hogging the CPUs
+without rescheduling voluntarily, and thus prevent the 'watchdog/N' threads
+from running. The mechanism depends on the CPUs ability to respond to timer
+interrupts which are needed for the 'watchdog/N' threads to be woken up by
+the watchdog timer function, otherwise the NMI watchdog - if enabled - can
+detect a hard lockup condition.
+
+==============================================================
+
 tainted:
 
 Non-zero if the kernel has been tainted.  Numeric values, which
@@ -829,6 +868,7 @@ can be ORed together:
 8192 - An unsigned module has been loaded in a kernel supporting module
        signature.
 16384 - A soft lockup has previously occurred on the system.
+32768 - The kernel has been live patched.
 
 ==============================================================
 
@@ -840,6 +880,25 @@ that time, kernel debugging information is displayed on console.
 
 NMI switch that most IA32 servers have fires unknown NMI up, for
 example.  If a system hangs up, try pressing the NMI switch.
+
+==============================================================
+
+watchdog:
+
+This parameter can be used to disable or enable the soft lockup detector
+_and_ the NMI watchdog (i.e. the hard lockup detector) at the same time.
+
+   0 - disable both lockup detectors
+   1 - enable both lockup detectors
+
+The soft lockup detector and the NMI watchdog can also be disabled or
+enabled individually, using the soft_watchdog and nmi_watchdog parameters.
+If the watchdog parameter is read, for example by executing
+
+   cat /proc/sys/kernel/watchdog
+
+the output of this command (0 or 1) shows the logical OR of soft_watchdog
+and nmi_watchdog.
 
 ==============================================================
 

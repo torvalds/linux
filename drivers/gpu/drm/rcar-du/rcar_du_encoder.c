@@ -19,6 +19,8 @@
 
 #include "rcar_du_drv.h"
 #include "rcar_du_encoder.h"
+#include "rcar_du_hdmicon.h"
+#include "rcar_du_hdmienc.h"
 #include "rcar_du_kms.h"
 #include "rcar_du_lvdscon.h"
 #include "rcar_du_lvdsenc.h"
@@ -33,7 +35,7 @@ rcar_du_connector_best_encoder(struct drm_connector *connector)
 {
 	struct rcar_du_connector *rcon = to_rcar_connector(connector);
 
-	return &rcon->encoder->encoder;
+	return rcar_encoder_to_drm_encoder(rcon->encoder);
 }
 
 /* -----------------------------------------------------------------------------
@@ -43,6 +45,9 @@ rcar_du_connector_best_encoder(struct drm_connector *connector)
 static void rcar_du_encoder_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct rcar_du_encoder *renc = to_rcar_encoder(encoder);
+
+	if (mode != DRM_MODE_DPMS_ON)
+		mode = DRM_MODE_DPMS_OFF;
 
 	if (renc->lvds)
 		rcar_du_lvdsenc_dpms(renc->lvds, encoder->crtc, mode);
@@ -142,10 +147,11 @@ static const struct drm_encoder_funcs encoder_funcs = {
 int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 			 enum rcar_du_encoder_type type,
 			 enum rcar_du_output output,
-			 const struct rcar_du_encoder_data *data,
-			 struct device_node *np)
+			 struct device_node *enc_node,
+			 struct device_node *con_node)
 {
 	struct rcar_du_encoder *renc;
+	struct drm_encoder *encoder;
 	unsigned int encoder_type;
 	int ret;
 
@@ -154,6 +160,7 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 		return -ENOMEM;
 
 	renc->output = output;
+	encoder = rcar_encoder_to_drm_encoder(renc);
 
 	switch (output) {
 	case RCAR_DU_OUTPUT_LVDS0:
@@ -175,6 +182,9 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 	case RCAR_DU_ENCODER_LVDS:
 		encoder_type = DRM_MODE_ENCODER_LVDS;
 		break;
+	case RCAR_DU_ENCODER_HDMI:
+		encoder_type = DRM_MODE_ENCODER_TMDS;
+		break;
 	case RCAR_DU_ENCODER_NONE:
 	default:
 		/* No external encoder, use the internal encoder type. */
@@ -182,24 +192,43 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 		break;
 	}
 
-	ret = drm_encoder_init(rcdu->ddev, &renc->encoder, &encoder_funcs,
-			       encoder_type);
-	if (ret < 0)
-		return ret;
+	if (type == RCAR_DU_ENCODER_HDMI) {
+		ret = rcar_du_hdmienc_init(rcdu, renc, enc_node);
+		if (ret < 0)
+			goto done;
+	} else {
+		ret = drm_encoder_init(rcdu->ddev, encoder, &encoder_funcs,
+				       encoder_type);
+		if (ret < 0)
+			goto done;
 
-	drm_encoder_helper_add(&renc->encoder, &encoder_helper_funcs);
+		drm_encoder_helper_add(encoder, &encoder_helper_funcs);
+	}
 
 	switch (encoder_type) {
-	case DRM_MODE_ENCODER_LVDS: {
-		const struct rcar_du_panel_data *pdata =
-			data ? &data->connector.lvds.panel : NULL;
-		return rcar_du_lvds_connector_init(rcdu, renc, pdata, np);
-	}
+	case DRM_MODE_ENCODER_LVDS:
+		ret = rcar_du_lvds_connector_init(rcdu, renc, con_node);
+		break;
 
 	case DRM_MODE_ENCODER_DAC:
-		return rcar_du_vga_connector_init(rcdu, renc);
+		ret = rcar_du_vga_connector_init(rcdu, renc);
+		break;
+
+	case DRM_MODE_ENCODER_TMDS:
+		ret = rcar_du_hdmi_connector_init(rcdu, renc);
+		break;
 
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
+		break;
 	}
+
+done:
+	if (ret < 0) {
+		if (encoder->name)
+			encoder->funcs->destroy(encoder);
+		devm_kfree(rcdu->dev, renc);
+	}
+
+	return ret;
 }

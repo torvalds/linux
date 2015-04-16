@@ -670,6 +670,31 @@ static inline int v4l2_ctrl_modify_range(struct v4l2_ctrl *ctrl,
   */
 void v4l2_ctrl_notify(struct v4l2_ctrl *ctrl, v4l2_ctrl_notify_fnc notify, void *priv);
 
+/** v4l2_ctrl_get_name() - Get the name of the control
+ * @id:		The control ID.
+ *
+ * This function returns the name of the given control ID or NULL if it isn't
+ * a known control.
+ */
+const char *v4l2_ctrl_get_name(u32 id);
+
+/** v4l2_ctrl_get_menu() - Get the menu string array of the control
+ * @id:		The control ID.
+ *
+ * This function returns the NULL-terminated menu string array name of the
+ * given control ID or NULL if it isn't a known menu control.
+ */
+const char * const *v4l2_ctrl_get_menu(u32 id);
+
+/** v4l2_ctrl_get_int_menu() - Get the integer menu array of the control
+ * @id:		The control ID.
+ * @len:	The size of the integer array.
+ *
+ * This function returns the integer array of the given control ID or NULL if it
+ * if it isn't a known integer menu control.
+ */
+const s64 *v4l2_ctrl_get_int_menu(u32 id, u32 *len);
+
 /** v4l2_ctrl_g_ctrl() - Helper function to get the control's value from within a driver.
   * @ctrl:	The control.
   *

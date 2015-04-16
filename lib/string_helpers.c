@@ -20,19 +20,18 @@
  * @len:	length of buffer
  *
  * This function returns a string formatted to 3 significant figures
- * giving the size in the required units.  Returns 0 on success or
- * error on failure.  @buf is always zero terminated.
+ * giving the size in the required units.  @buf should have room for
+ * at least 9 bytes and will always be zero terminated.
  *
  */
-int string_get_size(u64 size, const enum string_size_units units,
-		    char *buf, int len)
+void string_get_size(u64 size, const enum string_size_units units,
+		     char *buf, int len)
 {
 	static const char *const units_10[] = {
-		"B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB", NULL
+		"B", "kB", "MB", "GB", "TB", "PB", "EB"
 	};
 	static const char *const units_2[] = {
-		"B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB",
-		NULL
+		"B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB"
 	};
 	static const char *const *const units_str[] = {
 		[STRING_UNITS_10] = units_10,
@@ -43,13 +42,13 @@ int string_get_size(u64 size, const enum string_size_units units,
 		[STRING_UNITS_2] = 1024,
 	};
 	int i, j;
-	u64 remainder = 0, sf_cap;
+	u32 remainder = 0, sf_cap;
 	char tmp[8];
 
 	tmp[0] = '\0';
 	i = 0;
 	if (size >= divisor[units]) {
-		while (size >= divisor[units] && units_str[units][i]) {
+		while (size >= divisor[units]) {
 			remainder = do_div(size, divisor[units]);
 			i++;
 		}
@@ -60,17 +59,14 @@ int string_get_size(u64 size, const enum string_size_units units,
 
 		if (j) {
 			remainder *= 1000;
-			do_div(remainder, divisor[units]);
-			snprintf(tmp, sizeof(tmp), ".%03lld",
-				 (unsigned long long)remainder);
+			remainder /= divisor[units];
+			snprintf(tmp, sizeof(tmp), ".%03u", remainder);
 			tmp[j+1] = '\0';
 		}
 	}
 
-	snprintf(buf, len, "%lld%s %s", (unsigned long long)size,
+	snprintf(buf, len, "%u%s %s", (u32)size,
 		 tmp, units_str[units][i]);
-
-	return 0;
 }
 EXPORT_SYMBOL(string_get_size);
 
@@ -243,28 +239,20 @@ int string_unescape(char *src, char *dst, size_t size, unsigned int flags)
 }
 EXPORT_SYMBOL(string_unescape);
 
-static int escape_passthrough(unsigned char c, char **dst, size_t *osz)
+static bool escape_passthrough(unsigned char c, char **dst, char *end)
 {
 	char *out = *dst;
 
-	if (*osz < 1)
-		return -ENOMEM;
-
-	*out++ = c;
-
-	*dst = out;
-	*osz -= 1;
-
-	return 1;
+	if (out < end)
+		*out = c;
+	*dst = out + 1;
+	return true;
 }
 
-static int escape_space(unsigned char c, char **dst, size_t *osz)
+static bool escape_space(unsigned char c, char **dst, char *end)
 {
 	char *out = *dst;
 	unsigned char to;
-
-	if (*osz < 2)
-		return -ENOMEM;
 
 	switch (c) {
 	case '\n':
@@ -283,25 +271,24 @@ static int escape_space(unsigned char c, char **dst, size_t *osz)
 		to = 'f';
 		break;
 	default:
-		return 0;
+		return false;
 	}
 
-	*out++ = '\\';
-	*out++ = to;
+	if (out < end)
+		*out = '\\';
+	++out;
+	if (out < end)
+		*out = to;
+	++out;
 
 	*dst = out;
-	*osz -= 2;
-
-	return 1;
+	return true;
 }
 
-static int escape_special(unsigned char c, char **dst, size_t *osz)
+static bool escape_special(unsigned char c, char **dst, char *end)
 {
 	char *out = *dst;
 	unsigned char to;
-
-	if (*osz < 2)
-		return -ENOMEM;
 
 	switch (c) {
 	case '\\':
@@ -314,71 +301,78 @@ static int escape_special(unsigned char c, char **dst, size_t *osz)
 		to = 'e';
 		break;
 	default:
-		return 0;
+		return false;
 	}
 
-	*out++ = '\\';
-	*out++ = to;
+	if (out < end)
+		*out = '\\';
+	++out;
+	if (out < end)
+		*out = to;
+	++out;
 
 	*dst = out;
-	*osz -= 2;
-
-	return 1;
+	return true;
 }
 
-static int escape_null(unsigned char c, char **dst, size_t *osz)
+static bool escape_null(unsigned char c, char **dst, char *end)
 {
 	char *out = *dst;
-
-	if (*osz < 2)
-		return -ENOMEM;
 
 	if (c)
-		return 0;
+		return false;
 
-	*out++ = '\\';
-	*out++ = '0';
+	if (out < end)
+		*out = '\\';
+	++out;
+	if (out < end)
+		*out = '0';
+	++out;
 
 	*dst = out;
-	*osz -= 2;
-
-	return 1;
+	return true;
 }
 
-static int escape_octal(unsigned char c, char **dst, size_t *osz)
+static bool escape_octal(unsigned char c, char **dst, char *end)
 {
 	char *out = *dst;
 
-	if (*osz < 4)
-		return -ENOMEM;
-
-	*out++ = '\\';
-	*out++ = ((c >> 6) & 0x07) + '0';
-	*out++ = ((c >> 3) & 0x07) + '0';
-	*out++ = ((c >> 0) & 0x07) + '0';
+	if (out < end)
+		*out = '\\';
+	++out;
+	if (out < end)
+		*out = ((c >> 6) & 0x07) + '0';
+	++out;
+	if (out < end)
+		*out = ((c >> 3) & 0x07) + '0';
+	++out;
+	if (out < end)
+		*out = ((c >> 0) & 0x07) + '0';
+	++out;
 
 	*dst = out;
-	*osz -= 4;
-
-	return 1;
+	return true;
 }
 
-static int escape_hex(unsigned char c, char **dst, size_t *osz)
+static bool escape_hex(unsigned char c, char **dst, char *end)
 {
 	char *out = *dst;
 
-	if (*osz < 4)
-		return -ENOMEM;
-
-	*out++ = '\\';
-	*out++ = 'x';
-	*out++ = hex_asc_hi(c);
-	*out++ = hex_asc_lo(c);
+	if (out < end)
+		*out = '\\';
+	++out;
+	if (out < end)
+		*out = 'x';
+	++out;
+	if (out < end)
+		*out = hex_asc_hi(c);
+	++out;
+	if (out < end)
+		*out = hex_asc_lo(c);
+	++out;
 
 	*dst = out;
-	*osz -= 4;
-
-	return 1;
+	return true;
 }
 
 /**
@@ -430,19 +424,17 @@ static int escape_hex(unsigned char c, char **dst, size_t *osz)
  * it if needs.
  *
  * Return:
- * The amount of the characters processed to the destination buffer, or
- * %-ENOMEM if the size of buffer is not enough to put an escaped character is
- * returned.
- *
- * Even in the case of error @dst pointer will be updated to point to the byte
- * after the last processed character.
+ * The total size of the escaped output that would be generated for
+ * the given input and flags. To check whether the output was
+ * truncated, compare the return value to osz. There is room left in
+ * dst for a '\0' terminator if and only if ret < osz.
  */
-int string_escape_mem(const char *src, size_t isz, char **dst, size_t osz,
+int string_escape_mem(const char *src, size_t isz, char *dst, size_t osz,
 		      unsigned int flags, const char *esc)
 {
-	char *out = *dst, *p = out;
+	char *p = dst;
+	char *end = p + osz;
 	bool is_dict = esc && *esc;
-	int ret = 0;
 
 	while (isz--) {
 		unsigned char c = *src++;
@@ -462,55 +454,26 @@ int string_escape_mem(const char *src, size_t isz, char **dst, size_t osz,
 		    (is_dict && !strchr(esc, c))) {
 			/* do nothing */
 		} else {
-			if (flags & ESCAPE_SPACE) {
-				ret = escape_space(c, &p, &osz);
-				if (ret < 0)
-					break;
-				if (ret > 0)
-					continue;
-			}
+			if (flags & ESCAPE_SPACE && escape_space(c, &p, end))
+				continue;
 
-			if (flags & ESCAPE_SPECIAL) {
-				ret = escape_special(c, &p, &osz);
-				if (ret < 0)
-					break;
-				if (ret > 0)
-					continue;
-			}
+			if (flags & ESCAPE_SPECIAL && escape_special(c, &p, end))
+				continue;
 
-			if (flags & ESCAPE_NULL) {
-				ret = escape_null(c, &p, &osz);
-				if (ret < 0)
-					break;
-				if (ret > 0)
-					continue;
-			}
+			if (flags & ESCAPE_NULL && escape_null(c, &p, end))
+				continue;
 
 			/* ESCAPE_OCTAL and ESCAPE_HEX always go last */
-			if (flags & ESCAPE_OCTAL) {
-				ret = escape_octal(c, &p, &osz);
-				if (ret < 0)
-					break;
+			if (flags & ESCAPE_OCTAL && escape_octal(c, &p, end))
 				continue;
-			}
-			if (flags & ESCAPE_HEX) {
-				ret = escape_hex(c, &p, &osz);
-				if (ret < 0)
-					break;
+
+			if (flags & ESCAPE_HEX && escape_hex(c, &p, end))
 				continue;
-			}
 		}
 
-		ret = escape_passthrough(c, &p, &osz);
-		if (ret < 0)
-			break;
+		escape_passthrough(c, &p, end);
 	}
 
-	*dst = p;
-
-	if (ret < 0)
-		return ret;
-
-	return p - out;
+	return p - dst;
 }
 EXPORT_SYMBOL(string_escape_mem);

@@ -282,17 +282,12 @@ static struct snd_pcm_ops txx9aclc_pcm_ops = {
 	.pointer	= txx9aclc_pcm_pointer,
 };
 
-static void txx9aclc_pcm_free_dma_buffers(struct snd_pcm *pcm)
-{
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static int txx9aclc_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_card *card = rtd->card->snd_card;
 	struct snd_soc_dai *dai = rtd->cpu_dai;
 	struct snd_pcm *pcm = rtd->pcm;
-	struct platform_device *pdev = to_platform_device(dai->platform->dev);
+	struct platform_device *pdev = to_platform_device(rtd->platform->dev);
 	struct txx9aclc_soc_device *dev;
 	struct resource *r;
 	int i;
@@ -412,7 +407,6 @@ static struct snd_soc_platform_driver txx9aclc_soc_platform = {
 	.remove		= txx9aclc_pcm_remove,
 	.ops		= &txx9aclc_pcm_ops,
 	.pcm_new	= txx9aclc_pcm_new,
-	.pcm_free	= txx9aclc_pcm_free_dma_buffers,
 };
 
 static int txx9aclc_soc_platform_probe(struct platform_device *pdev)
@@ -429,7 +423,6 @@ static int txx9aclc_soc_platform_remove(struct platform_device *pdev)
 static struct platform_driver txx9aclc_pcm_driver = {
 	.driver = {
 			.name = "txx9aclc-pcm-audio",
-			.owner = THIS_MODULE,
 	},
 
 	.probe = txx9aclc_soc_platform_probe,

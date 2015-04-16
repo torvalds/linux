@@ -68,13 +68,64 @@
 
 /* Power Management Commands, Responses, Notifications */
 
+/**
+ * enum iwl_ltr_config_flags - masks for LTR config command flags
+ * @LTR_CFG_FLAG_FEATURE_ENABLE: Feature operational status
+ * @LTR_CFG_FLAG_HW_DIS_ON_SHADOW_REG_ACCESS: allow LTR change on shadow
+ *	memory access
+ * @LTR_CFG_FLAG_HW_EN_SHRT_WR_THROUGH: allow LTR msg send on ANY LTR
+ *	reg change
+ * @LTR_CFG_FLAG_HW_DIS_ON_D0_2_D3: allow LTR msg send on transition from
+ *	D0 to D3
+ * @LTR_CFG_FLAG_SW_SET_SHORT: fixed static short LTR register
+ * @LTR_CFG_FLAG_SW_SET_LONG: fixed static short LONG register
+ * @LTR_CFG_FLAG_DENIE_C10_ON_PD: allow going into C10 on PD
+ */
+enum iwl_ltr_config_flags {
+	LTR_CFG_FLAG_FEATURE_ENABLE = BIT(0),
+	LTR_CFG_FLAG_HW_DIS_ON_SHADOW_REG_ACCESS = BIT(1),
+	LTR_CFG_FLAG_HW_EN_SHRT_WR_THROUGH = BIT(2),
+	LTR_CFG_FLAG_HW_DIS_ON_D0_2_D3 = BIT(3),
+	LTR_CFG_FLAG_SW_SET_SHORT = BIT(4),
+	LTR_CFG_FLAG_SW_SET_LONG = BIT(5),
+	LTR_CFG_FLAG_DENIE_C10_ON_PD = BIT(6),
+};
+
+/**
+ * struct iwl_ltr_config_cmd_v1 - configures the LTR
+ * @flags: See %enum iwl_ltr_config_flags
+ */
+struct iwl_ltr_config_cmd_v1 {
+	__le32 flags;
+	__le32 static_long;
+	__le32 static_short;
+} __packed; /* LTR_CAPABLE_API_S_VER_1 */
+
+#define LTR_VALID_STATES_NUM 4
+
+/**
+ * struct iwl_ltr_config_cmd - configures the LTR
+ * @flags: See %enum iwl_ltr_config_flags
+ * @static_long:
+ * @static_short:
+ * @ltr_cfg_values:
+ * @ltr_short_idle_timeout:
+ */
+struct iwl_ltr_config_cmd {
+	__le32 flags;
+	__le32 static_long;
+	__le32 static_short;
+	__le32 ltr_cfg_values[LTR_VALID_STATES_NUM];
+	__le32 ltr_short_idle_timeout;
+} __packed; /* LTR_CAPABLE_API_S_VER_2 */
+
 /* Radio LP RX Energy Threshold measured in dBm */
 #define POWER_LPRX_RSSI_THRESHOLD	75
 #define POWER_LPRX_RSSI_THRESHOLD_MAX	94
 #define POWER_LPRX_RSSI_THRESHOLD_MIN	30
 
 /**
- * enum iwl_scan_flags - masks for power table command flags
+ * enum iwl_power_flags - masks for power table command flags
  * @POWER_FLAGS_POWER_SAVE_ENA_MSK: '1' Allow to save power by turning off
  *		receiver and transmitter. '0' - does not allow.
  * @POWER_FLAGS_POWER_MANAGEMENT_ENA_MSK: '0' Driver disables power management,
@@ -337,7 +388,7 @@ struct iwl_beacon_filter_cmd {
 #define IWL_BF_DEBUG_FLAG_DEFAULT 0
 #define IWL_BF_DEBUG_FLAG_D0I3 0
 
-#define IWL_BF_ESCAPE_TIMER_DEFAULT 50
+#define IWL_BF_ESCAPE_TIMER_DEFAULT 0
 #define IWL_BF_ESCAPE_TIMER_D0I3 0
 #define IWL_BF_ESCAPE_TIMER_MAX 1024
 #define IWL_BF_ESCAPE_TIMER_MIN 0

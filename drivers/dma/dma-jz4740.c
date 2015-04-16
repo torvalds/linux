@@ -210,7 +210,7 @@ static enum jz4740_dma_transfer_size jz4740_dma_maxburst(u32 maxburst)
 }
 
 static int jz4740_dma_slave_config(struct dma_chan *c,
-	const struct dma_slave_config *config)
+				   struct dma_slave_config *config)
 {
 	struct jz4740_dmaengine_chan *chan = to_jz4740_dma_chan(c);
 	struct jz4740_dma_dev *dmadev = jz4740_dma_chan_get_dev(chan);
@@ -288,21 +288,6 @@ static int jz4740_dma_terminate_all(struct dma_chan *c)
 	vchan_dma_desc_free_list(&chan->vchan, &head);
 
 	return 0;
-}
-
-static int jz4740_dma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
-	unsigned long arg)
-{
-	struct dma_slave_config *config = (struct dma_slave_config *)arg;
-
-	switch (cmd) {
-	case DMA_SLAVE_CONFIG:
-		return jz4740_dma_slave_config(chan, config);
-	case DMA_TERMINATE_ALL:
-		return jz4740_dma_terminate_all(chan);
-	default:
-		return -ENOSYS;
-	}
 }
 
 static int jz4740_dma_start_transfer(struct jz4740_dmaengine_chan *chan)
@@ -526,6 +511,9 @@ static void jz4740_dma_desc_free(struct virt_dma_desc *vdesc)
 	kfree(container_of(vdesc, struct jz4740_dma_desc, vdesc));
 }
 
+#define JZ4740_DMA_BUSWIDTHS (BIT(DMA_SLAVE_BUSWIDTH_1_BYTE) | \
+	BIT(DMA_SLAVE_BUSWIDTH_2_BYTES) | BIT(DMA_SLAVE_BUSWIDTH_4_BYTES))
+
 static int jz4740_dma_probe(struct platform_device *pdev)
 {
 	struct jz4740_dmaengine_chan *chan;
@@ -561,12 +549,16 @@ static int jz4740_dma_probe(struct platform_device *pdev)
 	dd->device_issue_pending = jz4740_dma_issue_pending;
 	dd->device_prep_slave_sg = jz4740_dma_prep_slave_sg;
 	dd->device_prep_dma_cyclic = jz4740_dma_prep_dma_cyclic;
-	dd->device_control = jz4740_dma_control;
+	dd->device_config = jz4740_dma_slave_config;
+	dd->device_terminate_all = jz4740_dma_terminate_all;
+	dd->src_addr_widths = JZ4740_DMA_BUSWIDTHS;
+	dd->dst_addr_widths = JZ4740_DMA_BUSWIDTHS;
+	dd->directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
+	dd->residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
 	dd->dev = &pdev->dev;
-	dd->chancnt = JZ_DMA_NR_CHANS;
 	INIT_LIST_HEAD(&dd->channels);
 
-	for (i = 0; i < dd->chancnt; i++) {
+	for (i = 0; i < JZ_DMA_NR_CHANS; i++) {
 		chan = &dmadev->chan[i];
 		chan->id = i;
 		chan->vchan.desc_free = jz4740_dma_desc_free;
@@ -608,7 +600,6 @@ static struct platform_driver jz4740_dma_driver = {
 	.remove = jz4740_dma_remove,
 	.driver = {
 		.name = "jz4740-dma",
-		.owner = THIS_MODULE,
 	},
 };
 module_platform_driver(jz4740_dma_driver);

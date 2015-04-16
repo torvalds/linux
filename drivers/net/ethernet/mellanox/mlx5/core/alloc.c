@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -121,7 +121,7 @@ void mlx5_buf_free(struct mlx5_core_dev *dev, struct mlx5_buf *buf)
 		dma_free_coherent(&dev->pdev->dev, buf->size, buf->direct.buf,
 				  buf->direct.map);
 	else {
-		if (BITS_PER_LONG == 64 && buf->direct.buf)
+		if (BITS_PER_LONG == 64)
 			vunmap(buf->direct.buf);
 
 		for (i = 0; i < buf->nbufs; i++)
@@ -170,6 +170,9 @@ static int mlx5_alloc_db_from_pgdir(struct mlx5_db_pgdir *pgdir,
 	offset = db->index * L1_CACHE_BYTES;
 	db->db      = pgdir->db_page + offset / sizeof(*pgdir->db_page);
 	db->dma     = pgdir->db_dma  + offset;
+
+	db->db[0] = 0;
+	db->db[1] = 0;
 
 	return 0;
 }

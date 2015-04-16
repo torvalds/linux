@@ -37,9 +37,9 @@
 #include <linux/personality.h>
 #include <linux/random.h>
 #include <linux/hw_breakpoint.h>
+#include <linux/uaccess.h>
 
 #include <asm/pgtable.h>
-#include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/mmu.h>
@@ -499,7 +499,7 @@ static inline int set_dawr(struct arch_hw_breakpoint *brk)
 
 void __set_breakpoint(struct arch_hw_breakpoint *brk)
 {
-	__get_cpu_var(current_brk) = *brk;
+	memcpy(this_cpu_ptr(&current_brk), brk, sizeof(*brk));
 
 	if (cpu_has_feature(CPU_FTR_DAWR))
 		set_dawr(brk);
@@ -842,7 +842,7 @@ struct task_struct *__switch_to(struct task_struct *prev,
  * schedule DABR
  */
 #ifndef CONFIG_HAVE_HW_BREAKPOINT
-	if (unlikely(!hw_brk_match(&__get_cpu_var(current_brk), &new->thread.hw_brk)))
+	if (unlikely(!hw_brk_match(this_cpu_ptr(&current_brk), &new->thread.hw_brk)))
 		__set_breakpoint(&new->thread.hw_brk);
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
 #endif
@@ -856,7 +856,7 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	 * Collect processor utilization data per process
 	 */
 	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
-		struct cpu_usage *cu = &__get_cpu_var(cpu_usage_array);
+		struct cpu_usage *cu = this_cpu_ptr(&cpu_usage_array);
 		long unsigned start_tb, current_tb;
 		start_tb = old_thread->start_tb;
 		cu->current_tb = current_tb = mfspr(SPRN_PURR);
@@ -866,7 +866,7 @@ struct task_struct *__switch_to(struct task_struct *prev,
 #endif /* CONFIG_PPC64 */
 
 #ifdef CONFIG_PPC_BOOK3S_64
-	batch = &__get_cpu_var(ppc64_tlb_batch);
+	batch = this_cpu_ptr(&ppc64_tlb_batch);
 	if (batch->active) {
 		current_thread_info()->local_flags |= _TLF_LAZY_MMU;
 		if (batch->index)
@@ -889,7 +889,7 @@ struct task_struct *__switch_to(struct task_struct *prev,
 #ifdef CONFIG_PPC_BOOK3S_64
 	if (current_thread_info()->local_flags & _TLF_LAZY_MMU) {
 		current_thread_info()->local_flags &= ~_TLF_LAZY_MMU;
-		batch = &__get_cpu_var(ppc64_tlb_batch);
+		batch = this_cpu_ptr(&ppc64_tlb_batch);
 		batch->active = 1;
 	}
 #endif /* CONFIG_PPC_BOOK3S_64 */
@@ -921,12 +921,8 @@ static void show_instructions(struct pt_regs *regs)
 			pc = (unsigned long)phys_to_virt(pc);
 #endif
 
-		/* We use __get_user here *only* to avoid an OOPS on a
-		 * bad address because the pc *should* only be a
-		 * kernel address.
-		 */
 		if (!__kernel_text_address(pc) ||
-		     __get_user(instr, (unsigned int __user *)pc)) {
+		     probe_kernel_address((unsigned int __user *)pc, instr)) {
 			printk(KERN_CONT "XXXXXXXX ");
 		} else {
 			if (regs->nip == pc)
@@ -1531,13 +1527,6 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 	int curr_frame = current->curr_ret_stack;
 	extern void return_to_handler(void);
 	unsigned long rth = (unsigned long)return_to_handler;
-	unsigned long mrth = -1;
-#ifdef CONFIG_PPC64
-	extern void mod_return_to_handler(void);
-	rth = *(unsigned long *)rth;
-	mrth = (unsigned long)mod_return_to_handler;
-	mrth = *(unsigned long *)mrth;
-#endif
 #endif
 
 	sp = (unsigned long) stack;
@@ -1562,7 +1551,7 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 		if (!firstframe || ip != lr) {
 			printk("["REG"] ["REG"] %pS", sp, ip, (void *)ip);
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-			if ((ip == rth || ip == mrth) && curr_frame >= 0) {
+			if ((ip == rth) && curr_frame >= 0) {
 				printk(" (%pS)",
 				       (void *)current->ret_stack[curr_frame].ret);
 				curr_frame--;
@@ -1665,12 +1654,3 @@ unsigned long arch_randomize_brk(struct mm_struct *mm)
 	return ret;
 }
 
-unsigned long randomize_et_dyn(unsigned long base)
-{
-	unsigned long ret = PAGE_ALIGN(base + brk_rnd());
-
-	if (ret < base)
-		return base;
-
-	return ret;
-}

@@ -225,13 +225,14 @@ static void uart_clps711x_break_ctl(struct uart_port *port, int break_state)
 	writel(ubrlcr, port->membase + UBRLCR_OFFSET);
 }
 
-static void uart_clps711x_set_ldisc(struct uart_port *port, int ld)
+static void uart_clps711x_set_ldisc(struct uart_port *port,
+				    struct ktermios *termios)
 {
 	if (!port->line) {
 		struct clps711x_port *s = dev_get_drvdata(port->dev);
 
 		regmap_update_bits(s->syscon, SYSCON_OFFSET, SYSCON1_SIREN,
-				   (ld == N_IRDA) ? SYSCON1_SIREN : 0);
+				   (termios->c_line == N_IRDA) ? SYSCON1_SIREN : 0);
 	}
 }
 
@@ -542,7 +543,6 @@ MODULE_DEVICE_TABLE(of, clps711x_uart_dt_ids);
 static struct platform_driver clps711x_uart_platform = {
 	.driver = {
 		.name		= "clps711x-uart",
-		.owner		= THIS_MODULE,
 		.of_match_table	= of_match_ptr(clps711x_uart_dt_ids),
 	},
 	.probe	= uart_clps711x_probe,

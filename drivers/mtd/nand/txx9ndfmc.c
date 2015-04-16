@@ -417,7 +417,6 @@ static struct platform_driver txx9ndfmc_driver = {
 	.resume		= txx9ndfmc_resume,
 	.driver		= {
 		.name	= "txx9ndfmc",
-		.owner	= THIS_MODULE,
 	},
 };
 

@@ -63,7 +63,7 @@ struct uart_ops {
 	void		(*flush_buffer)(struct uart_port *);
 	void		(*set_termios)(struct uart_port *, struct ktermios *new,
 				       struct ktermios *old);
-	void		(*set_ldisc)(struct uart_port *, int new);
+	void		(*set_ldisc)(struct uart_port *, struct ktermios *);
 	void		(*pm)(struct uart_port *, unsigned int state,
 			      unsigned int oldstate);
 
@@ -123,6 +123,7 @@ struct uart_port {
 	void			(*set_termios)(struct uart_port *,
 				               struct ktermios *new,
 				               struct ktermios *old);
+	void			(*set_mctrl)(struct uart_port *, unsigned int);
 	int			(*startup)(struct uart_port *port);
 	void			(*shutdown)(struct uart_port *port);
 	void			(*throttle)(struct uart_port *port);
@@ -131,6 +132,8 @@ struct uart_port {
 	void			(*pm)(struct uart_port *, unsigned int state,
 				      unsigned int old);
 	void			(*handle_break)(struct uart_port *);
+	int			(*rs485_config)(struct uart_port *,
+						struct serial_rs485 *rs485);
 	unsigned int		irq;			/* irq number */
 	unsigned long		irqflags;		/* irq flags  */
 	unsigned int		uartclk;		/* base uart clock */
@@ -140,12 +143,13 @@ struct uart_port {
 	unsigned char		iotype;			/* io access style */
 	unsigned char		unused1;
 
-#define UPIO_PORT		(0)
-#define UPIO_HUB6		(1)
-#define UPIO_MEM		(2)
-#define UPIO_MEM32		(3)
-#define UPIO_AU			(4)			/* Au1x00 and RT288x type IO */
-#define UPIO_TSI		(5)			/* Tsi108/109 type IO */
+#define UPIO_PORT		(SERIAL_IO_PORT)	/* 8b I/O port access */
+#define UPIO_HUB6		(SERIAL_IO_HUB6)	/* Hub6 ISA card */
+#define UPIO_MEM		(SERIAL_IO_MEM)		/* 8b MMIO access */
+#define UPIO_MEM32		(SERIAL_IO_MEM32)	/* 32b little endian */
+#define UPIO_AU			(SERIAL_IO_AU)		/* Au1x00 and RT288x type IO */
+#define UPIO_TSI		(SERIAL_IO_TSI)		/* Tsi108/109 type IO */
+#define UPIO_MEM32BE		(SERIAL_IO_MEM32BE)	/* 32b big endian */
 
 	unsigned int		read_status_mask;	/* driver specific */
 	unsigned int		ignore_status_mask;	/* driver specific */
@@ -160,23 +164,37 @@ struct uart_port {
 	/* flags must be updated while holding port mutex */
 	upf_t			flags;
 
-#define UPF_FOURPORT		((__force upf_t) (1 << 1))
-#define UPF_SAK			((__force upf_t) (1 << 2))
-#define UPF_SPD_MASK		((__force upf_t) (0x1030))
-#define UPF_SPD_HI		((__force upf_t) (0x0010))
-#define UPF_SPD_VHI		((__force upf_t) (0x0020))
-#define UPF_SPD_CUST		((__force upf_t) (0x0030))
-#define UPF_SPD_SHI		((__force upf_t) (0x1000))
-#define UPF_SPD_WARP		((__force upf_t) (0x1010))
-#define UPF_SKIP_TEST		((__force upf_t) (1 << 6))
-#define UPF_AUTO_IRQ		((__force upf_t) (1 << 7))
-#define UPF_HARDPPS_CD		((__force upf_t) (1 << 11))
-#define UPF_LOW_LATENCY		((__force upf_t) (1 << 13))
-#define UPF_BUGGY_UART		((__force upf_t) (1 << 14))
+	/*
+	 * These flags must be equivalent to the flags defined in
+	 * include/uapi/linux/tty_flags.h which are the userspace definitions
+	 * assigned from the serial_struct flags in uart_set_info()
+	 * [for bit definitions in the UPF_CHANGE_MASK]
+	 *
+	 * Bits [0..UPF_LAST_USER] are userspace defined/visible/changeable
+	 * except bit 15 (UPF_NO_TXEN_TEST) which is masked off.
+	 * The remaining bits are serial-core specific and not modifiable by
+	 * userspace.
+	 */
+#define UPF_FOURPORT		((__force upf_t) ASYNC_FOURPORT       /* 1  */ )
+#define UPF_SAK			((__force upf_t) ASYNC_SAK            /* 2  */ )
+#define UPF_SPD_HI		((__force upf_t) ASYNC_SPD_HI         /* 4  */ )
+#define UPF_SPD_VHI		((__force upf_t) ASYNC_SPD_VHI        /* 5  */ )
+#define UPF_SPD_CUST		((__force upf_t) ASYNC_SPD_CUST   /* 0x0030 */ )
+#define UPF_SPD_WARP		((__force upf_t) ASYNC_SPD_WARP   /* 0x1010 */ )
+#define UPF_SPD_MASK		((__force upf_t) ASYNC_SPD_MASK   /* 0x1030 */ )
+#define UPF_SKIP_TEST		((__force upf_t) ASYNC_SKIP_TEST      /* 6  */ )
+#define UPF_AUTO_IRQ		((__force upf_t) ASYNC_AUTO_IRQ       /* 7  */ )
+#define UPF_HARDPPS_CD		((__force upf_t) ASYNC_HARDPPS_CD     /* 11 */ )
+#define UPF_SPD_SHI		((__force upf_t) ASYNC_SPD_SHI        /* 12 */ )
+#define UPF_LOW_LATENCY		((__force upf_t) ASYNC_LOW_LATENCY    /* 13 */ )
+#define UPF_BUGGY_UART		((__force upf_t) ASYNC_BUGGY_UART     /* 14 */ )
 #define UPF_NO_TXEN_TEST	((__force upf_t) (1 << 15))
-#define UPF_MAGIC_MULTIPLIER	((__force upf_t) (1 << 16))
-/* Port has hardware-assisted h/w flow control (iow, auto-RTS *not* auto-CTS) */
-#define UPF_HARD_FLOW		((__force upf_t) (1 << 21))
+#define UPF_MAGIC_MULTIPLIER	((__force upf_t) ASYNC_MAGIC_MULTIPLIER /* 16 */ )
+
+/* Port has hardware-assisted h/w flow control */
+#define UPF_AUTO_CTS		((__force upf_t) (1 << 20))
+#define UPF_AUTO_RTS		((__force upf_t) (1 << 21))
+#define UPF_HARD_FLOW		((__force upf_t) (UPF_AUTO_CTS | UPF_AUTO_RTS))
 /* Port has hardware-assisted s/w flow control */
 #define UPF_SOFT_FLOW		((__force upf_t) (1 << 22))
 #define UPF_CONS_FLOW		((__force upf_t) (1 << 23))
@@ -190,14 +208,25 @@ struct uart_port {
 #define UPF_DEAD		((__force upf_t) (1 << 30))
 #define UPF_IOREMAP		((__force upf_t) (1 << 31))
 
-#define UPF_CHANGE_MASK		((__force upf_t) (0x17fff))
+#define __UPF_CHANGE_MASK	0x17fff
+#define UPF_CHANGE_MASK		((__force upf_t) __UPF_CHANGE_MASK)
 #define UPF_USR_MASK		((__force upf_t) (UPF_SPD_MASK|UPF_LOW_LATENCY))
 
-	/* status must be updated while holding port lock */
+#if __UPF_CHANGE_MASK > ASYNC_FLAGS
+#error Change mask not equivalent to userspace-visible bit defines
+#endif
+
+	/*
+	 * Must hold termios_rwsem, port mutex and port lock to change;
+	 * can hold any one lock to read.
+	 */
 	upstat_t		status;
 
 #define UPSTAT_CTS_ENABLE	((__force upstat_t) (1 << 0))
 #define UPSTAT_DCD_ENABLE	((__force upstat_t) (1 << 1))
+#define UPSTAT_AUTORTS		((__force upstat_t) (1 << 2))
+#define UPSTAT_AUTOCTS		((__force upstat_t) (1 << 3))
+#define UPSTAT_AUTOXOFF		((__force upstat_t) (1 << 4))
 
 	int			hw_stopped;		/* sw-assisted CTS flow state */
 	unsigned int		mctrl;			/* current modem ctrl settings */
@@ -214,6 +243,7 @@ struct uart_port {
 	unsigned char		unused[2];
 	struct attribute_group	*attr_group;		/* port specific attributes */
 	const struct attribute_group **tty_groups;	/* all attributes (serial core use only) */
+	struct serial_rs485     rs485;
 	void			*private_data;		/* generic platform data pointer */
 };
 
@@ -367,7 +397,14 @@ static inline int uart_tx_stopped(struct uart_port *port)
 
 static inline bool uart_cts_enabled(struct uart_port *uport)
 {
-	return uport->status & UPSTAT_CTS_ENABLE;
+	return !!(uport->status & UPSTAT_CTS_ENABLE);
+}
+
+static inline bool uart_softcts_mode(struct uart_port *uport)
+{
+	upstat_t mask = UPSTAT_CTS_ENABLE | UPSTAT_AUTOCTS;
+
+	return ((uport->status & mask) == UPSTAT_CTS_ENABLE);
 }
 
 /*

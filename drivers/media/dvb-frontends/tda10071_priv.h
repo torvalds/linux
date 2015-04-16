@@ -99,7 +99,7 @@ struct tda10071_reg_val_mask {
 #define CMD_BER_CONTROL         0x3e
 #define CMD_BER_UPDATE_COUNTERS 0x3f
 
-/* firmare command struct */
+/* firmware command struct */
 #define TDA10071_ARGLEN      30
 struct tda10071_cmd {
 	u8 args[TDA10071_ARGLEN];

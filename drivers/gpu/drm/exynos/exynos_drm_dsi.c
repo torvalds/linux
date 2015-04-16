@@ -268,9 +268,9 @@ struct exynos_dsi_driver_data {
 };
 
 struct exynos_dsi {
+	struct exynos_drm_display display;
 	struct mipi_dsi_host dsi_host;
 	struct drm_connector connector;
-	struct drm_encoder *encoder;
 	struct device_node *panel_node;
 	struct drm_panel *panel;
 	struct device *dev;
@@ -304,6 +304,11 @@ struct exynos_dsi {
 #define host_to_dsi(host) container_of(host, struct exynos_dsi, dsi_host)
 #define connector_to_dsi(c) container_of(c, struct exynos_dsi, connector)
 
+static inline struct exynos_dsi *display_to_dsi(struct exynos_drm_display *d)
+{
+	return container_of(d, struct exynos_dsi, display);
+}
+
 static struct exynos_dsi_driver_data exynos3_dsi_driver_data = {
 	.plltmr_reg = 0x50,
 	.has_freqband = 1,
@@ -316,6 +321,11 @@ static struct exynos_dsi_driver_data exynos4_dsi_driver_data = {
 	.has_clklane_stop = 1,
 };
 
+static struct exynos_dsi_driver_data exynos4415_dsi_driver_data = {
+	.plltmr_reg = 0x58,
+	.has_clklane_stop = 1,
+};
+
 static struct exynos_dsi_driver_data exynos5_dsi_driver_data = {
 	.plltmr_reg = 0x58,
 };
@@ -325,6 +335,8 @@ static struct of_device_id exynos_dsi_of_match[] = {
 	  .data = &exynos3_dsi_driver_data },
 	{ .compatible = "samsung,exynos4210-mipi-dsi",
 	  .data = &exynos4_dsi_driver_data },
+	{ .compatible = "samsung,exynos4415-mipi-dsi",
+	  .data = &exynos4415_dsi_driver_data },
 	{ .compatible = "samsung,exynos5410-mipi-dsi",
 	  .data = &exynos5_dsi_driver_data },
 	{ }
@@ -1104,7 +1116,7 @@ static irqreturn_t exynos_dsi_irq(int irq, void *dev_id)
 static irqreturn_t exynos_dsi_te_irq_handler(int irq, void *dev_id)
 {
 	struct exynos_dsi *dsi = (struct exynos_dsi *)dev_id;
-	struct drm_encoder *encoder = dsi->encoder;
+	struct drm_encoder *encoder = dsi->display.encoder;
 
 	if (dsi->state & DSIM_STATE_ENABLED)
 		exynos_drm_crtc_te_handler(encoder->crtc);
@@ -1143,6 +1155,7 @@ static int exynos_dsi_init(struct exynos_dsi *dsi)
 static int exynos_dsi_register_te_irq(struct exynos_dsi *dsi)
 {
 	int ret;
+	int te_gpio_irq;
 
 	dsi->te_gpio = of_get_named_gpio(dsi->panel_node, "te-gpios", 0);
 	if (!gpio_is_valid(dsi->te_gpio)) {
@@ -1157,14 +1170,10 @@ static int exynos_dsi_register_te_irq(struct exynos_dsi *dsi)
 		goto out;
 	}
 
-	/*
-	 * This TE GPIO IRQ should not be set to IRQ_NOAUTOEN, because panel
-	 * calls drm_panel_init() first then calls mipi_dsi_attach() in probe().
-	 * It means that te_gpio is invalid when exynos_dsi_enable_irq() is
-	 * called by drm_panel_init() before panel is attached.
-	 */
-	ret = request_threaded_irq(gpio_to_irq(dsi->te_gpio),
-					exynos_dsi_te_irq_handler, NULL,
+	te_gpio_irq = gpio_to_irq(dsi->te_gpio);
+
+	irq_set_status_flags(te_gpio_irq, IRQ_NOAUTOEN);
+	ret = request_threaded_irq(te_gpio_irq, exynos_dsi_te_irq_handler, NULL,
 					IRQF_TRIGGER_RISING, "TE", dsi);
 	if (ret) {
 		dev_err(dsi->dev, "request interrupt failed with %d\n", ret);
@@ -1195,9 +1204,6 @@ static int exynos_dsi_host_attach(struct mipi_dsi_host *host,
 	dsi->mode_flags = device->mode_flags;
 	dsi->panel_node = device->dev.of_node;
 
-	if (dsi->connector.dev)
-		drm_helper_hpd_irq_event(dsi->connector.dev);
-
 	/*
 	 * This is a temporary solution and should be made by more generic way.
 	 *
@@ -1210,6 +1216,9 @@ static int exynos_dsi_host_attach(struct mipi_dsi_host *host,
 		if (ret)
 			return ret;
 	}
+
+	if (dsi->connector.dev)
+		drm_helper_hpd_irq_event(dsi->connector.dev);
 
 	return 0;
 }
@@ -1236,7 +1245,7 @@ static bool exynos_dsi_is_short_dsi_type(u8 type)
 }
 
 static ssize_t exynos_dsi_host_transfer(struct mipi_dsi_host *host,
-				       struct mipi_dsi_msg *msg)
+				        const struct mipi_dsi_msg *msg)
 {
 	struct exynos_dsi *dsi = host_to_dsi(host);
 	struct exynos_dsi_transfer xfer;
@@ -1369,15 +1378,16 @@ static int exynos_dsi_enable(struct exynos_dsi *dsi)
 	exynos_dsi_set_display_mode(dsi);
 	exynos_dsi_set_display_enable(dsi, true);
 
+	dsi->state |= DSIM_STATE_ENABLED;
+
 	ret = drm_panel_enable(dsi->panel);
 	if (ret < 0) {
+		dsi->state &= ~DSIM_STATE_ENABLED;
 		exynos_dsi_set_display_enable(dsi, false);
 		drm_panel_unprepare(dsi->panel);
 		exynos_dsi_poweroff(dsi);
 		return ret;
 	}
-
-	dsi->state |= DSIM_STATE_ENABLED;
 
 	return 0;
 }
@@ -1397,7 +1407,7 @@ static void exynos_dsi_disable(struct exynos_dsi *dsi)
 
 static void exynos_dsi_dpms(struct exynos_drm_display *display, int mode)
 {
-	struct exynos_dsi *dsi = display->ctx;
+	struct exynos_dsi *dsi = display_to_dsi(display);
 
 	if (dsi->panel) {
 		switch (mode) {
@@ -1474,7 +1484,7 @@ exynos_dsi_best_encoder(struct drm_connector *connector)
 {
 	struct exynos_dsi *dsi = connector_to_dsi(connector);
 
-	return dsi->encoder;
+	return dsi->display.encoder;
 }
 
 static struct drm_connector_helper_funcs exynos_dsi_connector_helper_funcs = {
@@ -1486,11 +1496,9 @@ static struct drm_connector_helper_funcs exynos_dsi_connector_helper_funcs = {
 static int exynos_dsi_create_connector(struct exynos_drm_display *display,
 				       struct drm_encoder *encoder)
 {
-	struct exynos_dsi *dsi = display->ctx;
+	struct exynos_dsi *dsi = display_to_dsi(display);
 	struct drm_connector *connector = &dsi->connector;
 	int ret;
-
-	dsi->encoder = encoder;
 
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
 
@@ -1512,7 +1520,7 @@ static int exynos_dsi_create_connector(struct exynos_drm_display *display,
 static void exynos_dsi_mode_set(struct exynos_drm_display *display,
 			 struct drm_display_mode *mode)
 {
-	struct exynos_dsi *dsi = display->ctx;
+	struct exynos_dsi *dsi = display_to_dsi(display);
 	struct videomode *vm = &dsi->vm;
 
 	vm->hactive = mode->hdisplay;
@@ -1531,10 +1539,6 @@ static struct exynos_drm_display_ops exynos_dsi_display_ops = {
 	.dpms = exynos_dsi_dpms
 };
 
-static struct exynos_drm_display exynos_dsi_display = {
-	.type = EXYNOS_DISPLAY_TYPE_LCD,
-	.ops = &exynos_dsi_display_ops,
-};
 MODULE_DEVICE_TABLE(of, exynos_dsi_of_match);
 
 /* of_* functions will be removed after merge of of_graph patches */
@@ -1640,18 +1644,17 @@ end:
 static int exynos_dsi_bind(struct device *dev, struct device *master,
 				void *data)
 {
+	struct exynos_drm_display *display = dev_get_drvdata(dev);
+	struct exynos_dsi *dsi = display_to_dsi(display);
 	struct drm_device *drm_dev = data;
-	struct exynos_dsi *dsi;
 	int ret;
 
-	ret = exynos_drm_create_enc_conn(drm_dev, &exynos_dsi_display);
+	ret = exynos_drm_create_enc_conn(drm_dev, display);
 	if (ret) {
 		DRM_ERROR("Encoder create [%d] failed with %d\n",
-				exynos_dsi_display.type, ret);
+			  display->type, ret);
 		return ret;
 	}
-
-	dsi = exynos_dsi_display.ctx;
 
 	return mipi_dsi_host_register(&dsi->dsi_host);
 }
@@ -1659,13 +1662,10 @@ static int exynos_dsi_bind(struct device *dev, struct device *master,
 static void exynos_dsi_unbind(struct device *dev, struct device *master,
 				void *data)
 {
-	struct exynos_dsi *dsi = exynos_dsi_display.ctx;
-	struct drm_encoder *encoder = dsi->encoder;
+	struct exynos_drm_display *display = dev_get_drvdata(dev);
+	struct exynos_dsi *dsi = display_to_dsi(display);
 
-	exynos_dsi_dpms(&exynos_dsi_display, DRM_MODE_DPMS_OFF);
-
-	exynos_dsi_connector_destroy(&dsi->connector);
-	encoder->funcs->destroy(encoder);
+	exynos_dsi_dpms(display, DRM_MODE_DPMS_OFF);
 
 	mipi_dsi_host_unregister(&dsi->dsi_host);
 }
@@ -1677,21 +1677,22 @@ static const struct component_ops exynos_dsi_component_ops = {
 
 static int exynos_dsi_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct resource *res;
 	struct exynos_dsi *dsi;
 	int ret;
 
-	ret = exynos_drm_component_add(&pdev->dev, EXYNOS_DEVICE_TYPE_CONNECTOR,
-					exynos_dsi_display.type);
+	dsi = devm_kzalloc(dev, sizeof(*dsi), GFP_KERNEL);
+	if (!dsi)
+		return -ENOMEM;
+
+	dsi->display.type = EXYNOS_DISPLAY_TYPE_LCD;
+	dsi->display.ops = &exynos_dsi_display_ops;
+
+	ret = exynos_drm_component_add(dev, EXYNOS_DEVICE_TYPE_CONNECTOR,
+				       dsi->display.type);
 	if (ret)
 		return ret;
-
-	dsi = devm_kzalloc(&pdev->dev, sizeof(*dsi), GFP_KERNEL);
-	if (!dsi) {
-		dev_err(&pdev->dev, "failed to allocate dsi object.\n");
-		ret = -ENOMEM;
-		goto err_del_component;
-	}
 
 	/* To be checked as invalid one */
 	dsi->te_gpio = -ENOENT;
@@ -1701,9 +1702,9 @@ static int exynos_dsi_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&dsi->transfer_list);
 
 	dsi->dsi_host.ops = &exynos_dsi_ops;
-	dsi->dsi_host.dev = &pdev->dev;
+	dsi->dsi_host.dev = dev;
 
-	dsi->dev = &pdev->dev;
+	dsi->dev = dev;
 	dsi->driver_data = exynos_dsi_get_driver_data(pdev);
 
 	ret = exynos_dsi_parse_dt(dsi);
@@ -1712,70 +1713,68 @@ static int exynos_dsi_probe(struct platform_device *pdev)
 
 	dsi->supplies[0].supply = "vddcore";
 	dsi->supplies[1].supply = "vddio";
-	ret = devm_regulator_bulk_get(&pdev->dev, ARRAY_SIZE(dsi->supplies),
+	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(dsi->supplies),
 				      dsi->supplies);
 	if (ret) {
-		dev_info(&pdev->dev, "failed to get regulators: %d\n", ret);
+		dev_info(dev, "failed to get regulators: %d\n", ret);
 		return -EPROBE_DEFER;
 	}
 
-	dsi->pll_clk = devm_clk_get(&pdev->dev, "pll_clk");
+	dsi->pll_clk = devm_clk_get(dev, "pll_clk");
 	if (IS_ERR(dsi->pll_clk)) {
-		dev_info(&pdev->dev, "failed to get dsi pll input clock\n");
+		dev_info(dev, "failed to get dsi pll input clock\n");
 		ret = PTR_ERR(dsi->pll_clk);
 		goto err_del_component;
 	}
 
-	dsi->bus_clk = devm_clk_get(&pdev->dev, "bus_clk");
+	dsi->bus_clk = devm_clk_get(dev, "bus_clk");
 	if (IS_ERR(dsi->bus_clk)) {
-		dev_info(&pdev->dev, "failed to get dsi bus clock\n");
+		dev_info(dev, "failed to get dsi bus clock\n");
 		ret = PTR_ERR(dsi->bus_clk);
 		goto err_del_component;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dsi->reg_base = devm_ioremap_resource(&pdev->dev, res);
+	dsi->reg_base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(dsi->reg_base)) {
-		dev_err(&pdev->dev, "failed to remap io region\n");
+		dev_err(dev, "failed to remap io region\n");
 		ret = PTR_ERR(dsi->reg_base);
 		goto err_del_component;
 	}
 
-	dsi->phy = devm_phy_get(&pdev->dev, "dsim");
+	dsi->phy = devm_phy_get(dev, "dsim");
 	if (IS_ERR(dsi->phy)) {
-		dev_info(&pdev->dev, "failed to get dsim phy\n");
+		dev_info(dev, "failed to get dsim phy\n");
 		ret = PTR_ERR(dsi->phy);
 		goto err_del_component;
 	}
 
 	dsi->irq = platform_get_irq(pdev, 0);
 	if (dsi->irq < 0) {
-		dev_err(&pdev->dev, "failed to request dsi irq resource\n");
+		dev_err(dev, "failed to request dsi irq resource\n");
 		ret = dsi->irq;
 		goto err_del_component;
 	}
 
 	irq_set_status_flags(dsi->irq, IRQ_NOAUTOEN);
-	ret = devm_request_threaded_irq(&pdev->dev, dsi->irq, NULL,
+	ret = devm_request_threaded_irq(dev, dsi->irq, NULL,
 					exynos_dsi_irq, IRQF_ONESHOT,
-					dev_name(&pdev->dev), dsi);
+					dev_name(dev), dsi);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to request dsi irq\n");
+		dev_err(dev, "failed to request dsi irq\n");
 		goto err_del_component;
 	}
 
-	exynos_dsi_display.ctx = dsi;
+	platform_set_drvdata(pdev, &dsi->display);
 
-	platform_set_drvdata(pdev, &exynos_dsi_display);
-
-	ret = component_add(&pdev->dev, &exynos_dsi_component_ops);
+	ret = component_add(dev, &exynos_dsi_component_ops);
 	if (ret)
 		goto err_del_component;
 
 	return ret;
 
 err_del_component:
-	exynos_drm_component_del(&pdev->dev, EXYNOS_DEVICE_TYPE_CONNECTOR);
+	exynos_drm_component_del(dev, EXYNOS_DEVICE_TYPE_CONNECTOR);
 	return ret;
 }
 

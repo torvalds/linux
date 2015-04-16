@@ -50,10 +50,14 @@ void mlx4_en_fill_qp_context(struct mlx4_en_priv *priv, int size, int stride,
 	context->mtu_msgmax = 0xff;
 	if (!is_tx && !rss)
 		context->rq_size_stride = ilog2(size) << 3 | (ilog2(stride) - 4);
-	if (is_tx)
+	if (is_tx) {
 		context->sq_size_stride = ilog2(size) << 3 | (ilog2(stride) - 4);
-	else
+		if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_PORT_REMAP)
+			context->params2 |= MLX4_QP_BIT_FPP;
+
+	} else {
 		context->sq_size_stride = ilog2(TXBB_SIZE) - 4;
+	}
 	context->usr_page = cpu_to_be32(mdev->priv_uar.index);
 	context->local_qpn = cpu_to_be32(qpn);
 	context->pri_path.ackto = 1 & 0x07;

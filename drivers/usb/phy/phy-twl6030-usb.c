@@ -430,7 +430,6 @@ static struct platform_driver twl6030_usb_driver = {
 	.remove		= twl6030_usb_remove,
 	.driver		= {
 		.name	= "twl6030_usb",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(twl6030_usb_id_table),
 	},
 };

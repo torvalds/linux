@@ -48,6 +48,7 @@ The full ID of peripheral types can be found below.
 	21	ESAI
 	22	SSI Dual FIFO	(needs firmware ver >= 2)
 	23	Shared ASRC
+	24	SAI
 
 The third cell specifies the transfer priority as below.
 

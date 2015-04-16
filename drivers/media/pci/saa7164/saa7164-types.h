@@ -78,9 +78,9 @@ enum tmBusType {
 struct tmComResBusInfo {
 	enum tmBusType Type;
 	u16	m_wMaxReqSize;
-	u8	*m_pdwSetRing;
+	u8 __iomem *m_pdwSetRing;
 	u32	m_dwSizeSetRing;
-	u8	*m_pdwGetRing;
+	u8 __iomem *m_pdwGetRing;
 	u32	m_dwSizeGetRing;
 	u32	m_dwSetWritePos;
 	u32	m_dwSetReadPos;

@@ -86,7 +86,7 @@ static const struct radar_detector_specs fcc_radar_ref_types[] = {
 	FCC_PATTERN(1, 0, 5, 150, 230, 1, 23),
 	FCC_PATTERN(2, 6, 10, 200, 500, 1, 16),
 	FCC_PATTERN(3, 11, 20, 200, 500, 1, 12),
-	FCC_PATTERN(4, 50, 100, 1000, 2000, 20, 1),
+	FCC_PATTERN(4, 50, 100, 1000, 2000, 1, 1),
 	FCC_PATTERN(5, 0, 1, 333, 333, 1, 9),
 };
 
@@ -105,7 +105,7 @@ static const struct radar_detector_specs jp_radar_ref_types[] = {
 	JP_PATTERN(4, 0, 5, 150, 230, 1, 23),
 	JP_PATTERN(5, 6, 10, 200, 500, 1, 16),
 	JP_PATTERN(6, 11, 20, 200, 500, 1, 12),
-	JP_PATTERN(7, 50, 100, 1000, 2000, 20, 1),
+	JP_PATTERN(7, 50, 100, 1000, 2000, 1, 20),
 	JP_PATTERN(5, 0, 1, 333, 333, 1, 9),
 };
 
@@ -289,7 +289,7 @@ dpd_add_pulse(struct dfs_pattern_detector *dpd, struct pulse_event *event)
 				"count=%d, count_false=%d\n",
 				event->freq, pd->rs->type_id,
 				ps->pri, ps->count, ps->count_falses);
-			channel_detector_reset(dpd, cd);
+			pd->reset(pd, dpd->last_pulse_ts);
 			return true;
 		}
 	}

@@ -250,7 +250,6 @@ static struct platform_driver ixp4xx_flash_driver = {
 	.remove		= ixp4xx_flash_remove,
 	.driver		= {
 		.name	= "IXP4XX-Flash",
-		.owner	= THIS_MODULE,
 	},
 };
 

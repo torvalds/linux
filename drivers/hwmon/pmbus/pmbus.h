@@ -19,6 +19,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/regulator/driver.h>
+
 #ifndef PMBUS_H
 #define PMBUS_H
 
@@ -184,6 +186,11 @@
 #define PMBUS_VIRT_VMON_UV_FAULT_LIMIT	(PMBUS_VIRT_BASE + 33)
 #define PMBUS_VIRT_VMON_OV_FAULT_LIMIT	(PMBUS_VIRT_BASE + 34)
 #define PMBUS_VIRT_STATUS_VMON		(PMBUS_VIRT_BASE + 35)
+
+/*
+ * OPERATION
+ */
+#define PB_OPERATION_CONTROL_ON		(1<<7)
 
 /*
  * CAPABILITY
@@ -365,7 +372,26 @@ struct pmbus_driver_info {
 	 */
 	int (*identify)(struct i2c_client *client,
 			struct pmbus_driver_info *info);
+
+	/* Regulator functionality, if supported by this chip driver. */
+	int num_regulators;
+	const struct regulator_desc *reg_desc;
 };
+
+/* Regulator ops */
+
+extern struct regulator_ops pmbus_regulator_ops;
+
+/* Macro for filling in array of struct regulator_desc */
+#define PMBUS_REGULATOR(_name, _id)				\
+	[_id] = {						\
+		.name = (_name # _id),				\
+		.id = (_id),					\
+		.of_match = of_match_ptr(_name # _id),		\
+		.regulators_node = of_match_ptr("regulators"),	\
+		.ops = &pmbus_regulator_ops,			\
+		.owner = THIS_MODULE,				\
+	}
 
 /* Function declarations */
 
@@ -375,6 +401,10 @@ int pmbus_read_word_data(struct i2c_client *client, u8 page, u8 reg);
 int pmbus_write_word_data(struct i2c_client *client, u8 page, u8 reg, u16 word);
 int pmbus_read_byte_data(struct i2c_client *client, int page, u8 reg);
 int pmbus_write_byte(struct i2c_client *client, int page, u8 value);
+int pmbus_write_byte_data(struct i2c_client *client, int page, u8 reg,
+			  u8 value);
+int pmbus_update_byte_data(struct i2c_client *client, int page, u8 reg,
+			   u8 mask, u8 value);
 void pmbus_clear_faults(struct i2c_client *client);
 bool pmbus_check_byte_register(struct i2c_client *client, int page, int reg);
 bool pmbus_check_word_register(struct i2c_client *client, int page, int reg);

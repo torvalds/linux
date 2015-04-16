@@ -272,7 +272,7 @@ static int sh_tmu_clocksource_enable(struct clocksource *cs)
 
 	ret = sh_tmu_enable(ch);
 	if (!ret) {
-		__clocksource_updatefreq_hz(cs, ch->rate);
+		__clocksource_update_freq_hz(cs, ch->rate);
 		ch->cs_enabled = true;
 	}
 
@@ -428,7 +428,7 @@ static void sh_tmu_register_clockevent(struct sh_tmu_channel *ch,
 	ced->features = CLOCK_EVT_FEAT_PERIODIC;
 	ced->features |= CLOCK_EVT_FEAT_ONESHOT;
 	ced->rating = 200;
-	ced->cpumask = cpumask_of(0);
+	ced->cpumask = cpu_possible_mask;
 	ced->set_next_event = sh_tmu_clock_event_next;
 	ced->set_mode = sh_tmu_clock_event_mode;
 	ced->suspend = sh_tmu_clock_event_suspend;

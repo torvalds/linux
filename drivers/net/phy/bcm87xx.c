@@ -216,18 +216,6 @@ static struct phy_driver bcm87xx_driver[] = {
 	.driver		= { .owner = THIS_MODULE },
 } };
 
-static int __init bcm87xx_init(void)
-{
-	return phy_drivers_register(bcm87xx_driver,
-		ARRAY_SIZE(bcm87xx_driver));
-}
-module_init(bcm87xx_init);
-
-static void __exit bcm87xx_exit(void)
-{
-	phy_drivers_unregister(bcm87xx_driver,
-		ARRAY_SIZE(bcm87xx_driver));
-}
-module_exit(bcm87xx_exit);
+module_phy_driver(bcm87xx_driver);
 
 MODULE_LICENSE("GPL");

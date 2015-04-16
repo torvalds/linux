@@ -112,6 +112,7 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 #include <linux/gfp.h>
+#include <linux/if_vlan.h>
 #include <asm/irq.h>
 
 #define RTL8139_DRIVER_NAME   DRV_NAME " Fast Ethernet driver " DRV_VERSION
@@ -182,10 +183,13 @@ static int debug = -1;
 /* Number of Tx descriptor registers. */
 #define NUM_TX_DESC	4
 
-/* max supported ethernet frame size -- must be at least (dev->mtu+14+4).*/
-#define MAX_ETH_FRAME_SIZE	1536
+/* max supported ethernet frame size -- must be at least (dev->mtu+18+4).*/
+#define MAX_ETH_FRAME_SIZE	1792
 
-/* Size of the Tx bounce buffers -- must be at least (dev->mtu+14+4). */
+/* max supported payload size */
+#define MAX_ETH_DATA_SIZE (MAX_ETH_FRAME_SIZE - VLAN_ETH_HLEN - ETH_FCS_LEN)
+
+/* Size of the Tx bounce buffers -- must be at least (dev->mtu+18+4). */
 #define TX_BUF_SIZE	MAX_ETH_FRAME_SIZE
 #define TX_BUF_TOT_LEN	(TX_BUF_SIZE * NUM_TX_DESC)
 
@@ -783,10 +787,10 @@ static struct net_device *rtl8139_init_board(struct pci_dev *pdev)
 	if (rc)
 		goto err_out;
 
+	disable_dev_on_err = 1;
 	rc = pci_request_regions (pdev, DRV_NAME);
 	if (rc)
 		goto err_out;
-	disable_dev_on_err = 1;
 
 	pci_set_master (pdev);
 
@@ -920,11 +924,19 @@ static int rtl8139_set_features(struct net_device *dev, netdev_features_t featur
 	return 0;
 }
 
+static int rtl8139_change_mtu(struct net_device *dev, int new_mtu)
+{
+	if (new_mtu < 68 || new_mtu > MAX_ETH_DATA_SIZE)
+		return -EINVAL;
+	dev->mtu = new_mtu;
+	return 0;
+}
+
 static const struct net_device_ops rtl8139_netdev_ops = {
 	.ndo_open		= rtl8139_open,
 	.ndo_stop		= rtl8139_close,
 	.ndo_get_stats64	= rtl8139_get_stats64,
-	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_change_mtu		= rtl8139_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address 	= rtl8139_set_mac_address,
 	.ndo_start_xmit		= rtl8139_start_xmit,
@@ -1098,6 +1110,7 @@ static int rtl8139_init_one(struct pci_dev *pdev,
 	return 0;
 
 err_out:
+	netif_napi_del(&tp->napi);
 	__rtl8139_cleanup_dev (dev);
 	pci_disable_device (pdev);
 	return i;
@@ -1112,6 +1125,7 @@ static void rtl8139_remove_one(struct pci_dev *pdev)
 	assert (dev != NULL);
 
 	cancel_delayed_work_sync(&tp->thread);
+	netif_napi_del(&tp->napi);
 
 	unregister_netdev (dev);
 
@@ -2025,7 +2039,7 @@ keep_pkt:
 		/* Malloc up new buffer, compatible with net-2e. */
 		/* Omit the four octet CRC from the length. */
 
-		skb = netdev_alloc_skb_ip_align(dev, pkt_size);
+		skb = napi_alloc_skb(&tp->napi, pkt_size);
 		if (likely(skb)) {
 #if RX_BUF_IDX == 3
 			wrap_copy(skb, rx_ring, ring_offset+4, pkt_size);

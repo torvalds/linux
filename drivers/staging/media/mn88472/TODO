@@ -1,0 +1,21 @@
+Driver general quality is not good enough for mainline. Also, other
+device drivers (USB-bridge, tuner) needed for Astrometa receiver in
+question could need some changes. However, if that driver is mainlined
+due to some other device than Astrometa, unrelated TODOs could be
+skipped. In that case rtl28xxu driver needs module parameter to prevent
+driver loading.
+
+Required TODOs:
+* missing lock flags
+* I2C errors
+* tuner sensitivity
+
+*Do not* send any patch fixing checkpatch.pl issues. Currently it passes
+checkpatch.pl tests. I don't want waste my time to review this kind of
+trivial stuff. *Do not* add missing register I/O error checks. Those are
+missing for the reason it is much easier to compare I2C data sniffs when
+there is less lines. Those error checks are about the last thing to be added.
+
+Patches should be submitted to:
+linux-media@vger.kernel.org and Antti Palosaari <crope@iki.fi>
+

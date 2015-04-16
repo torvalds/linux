@@ -1,0 +1,38 @@
+Introduction:
+	SM750 of Silicon MOtion is pci express display controller device.
+	The SM750 embedded graphics features include:
+	- dual display
+	- 2D acceleration
+	- 16MB integrated video memory
+
+About the kernel module paramter of driver:
+
+	Use 1280,8bpp index color and 60 hz mode:
+	insmod ./sm750fb.ko g_option="1280x1024-8@60"
+
+	Disable MTRR,Disable 2d acceleration,Disable hardware cursor,
+	and use a 800x600 mode :
+	insmod ./sm750fb.ko g_option="noaccel:nomtrr:nohwc:800x600"
+
+	dual frame buffer for driver with "dual" parameter
+	insmod ./sm750fb.ko g_option="dual,800x600:1024x768"
+	it will create fb0 and fb1 (or fb1,fb2 if fb0 already exist) under /dev
+	and user can use con2fb to link fbX and ttyX
+
+	Notes:
+	1) if you build the driver with built-in method, the paramter
+		you edited in the grub config file will be also the
+		same format as above modular method,but additionaly add
+		"video=sm750fb:"
+		ahead of parameters,so,it looks like:
+		video=sm750fb:noaccel,1280x1024@60,otherparam,etc...
+		it equal to modular method with below command:
+		insmod ./sm750fb.ko g_option="noaccel:1280x1024@60:otherparm:etc..."
+
+	2) if you put 800x600 into the paramter without bpp and
+		refresh rate, kernel driver will defaulty use 16bpp and 60hz
+
+Important:
+	if you have vesafb enabled in your config then /dev/fb0 will be created by vesafb
+	and this driver will use fb1, fb2. In that case, you need to configure your X-server
+	to use fb1. Another simple althernative is to disable vesafb from your config.

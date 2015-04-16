@@ -5,6 +5,7 @@
 #include <linux/sched.h>
 #include <linux/kref.h>
 #include <linux/nsproxy.h>
+#include <linux/ns_common.h>
 #include <linux/err.h>
 #include <uapi/linux/utsname.h>
 
@@ -23,7 +24,7 @@ struct uts_namespace {
 	struct kref kref;
 	struct new_utsname name;
 	struct user_namespace *user_ns;
-	unsigned int proc_inum;
+	struct ns_common ns;
 };
 extern struct uts_namespace init_uts_ns;
 

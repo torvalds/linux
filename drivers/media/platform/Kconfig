@@ -56,22 +56,12 @@ config VIDEO_VIU
 
 config VIDEO_TIMBERDALE
 	tristate "Support for timberdale Video In/LogiWIN"
-	depends on VIDEO_V4L2 && I2C && DMADEVICES
-	depends on MFD_TIMBERDALE || COMPILE_TEST
-	select DMA_ENGINE
-	select TIMB_DMA
+	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	depends on (MFD_TIMBERDALE && TIMB_DMA) || COMPILE_TEST
 	select VIDEO_ADV7180
 	select VIDEOBUF_DMA_CONTIG
 	---help---
 	  Add support for the Video In peripherial of the timberdale FPGA.
-
-config VIDEO_VINO
-	tristate "SGI Vino Video For Linux"
-	depends on I2C && SGI_IP22 && VIDEO_V4L2
-	select VIDEO_SAA7191 if MEDIA_SUBDRV_AUTOSELECT
-	help
-	  Say Y here to build in support for the Vino video input system found
-	  on SGI Indy machines.
 
 config VIDEO_M32R_AR
 	tristate "AR devices"
@@ -112,7 +102,7 @@ config VIDEO_OMAP3_DEBUG
 config VIDEO_S3C_CAMIF
 	tristate "Samsung S3C24XX/S3C64XX SoC Camera Interface driver"
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
-	depends on PM_RUNTIME
+	depends on PM
 	depends on ARCH_S3C64XX || PLAT_S3C24XX || COMPILE_TEST
 	depends on HAS_DMA
 	select VIDEOBUF2_DMA_CONTIG
@@ -126,6 +116,7 @@ config VIDEO_S3C_CAMIF
 source "drivers/media/platform/soc_camera/Kconfig"
 source "drivers/media/platform/exynos4-is/Kconfig"
 source "drivers/media/platform/s5p-tv/Kconfig"
+source "drivers/media/platform/am437x/Kconfig"
 
 endif # V4L_PLATFORM_DRIVERS
 
@@ -148,6 +139,7 @@ config VIDEO_CODA
 	depends on HAS_DMA
 	select SRAM
 	select VIDEOBUF2_DMA_CONTIG
+	select VIDEOBUF2_VMALLOC
 	select V4L2_MEM2MEM_DEV
 	select GENERIC_ALLOCATOR
 	---help---
@@ -166,7 +158,7 @@ config VIDEO_MEM2MEM_DEINTERLACE
 config VIDEO_SAMSUNG_S5P_G2D
 	tristate "Samsung S5P and EXYNOS4 G2D 2d graphics accelerator driver"
 	depends on VIDEO_DEV && VIDEO_V4L2
-	depends on PLAT_S5P || ARCH_EXYNOS || COMPILE_TEST
+	depends on ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
 	depends on HAS_DMA
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_MEM2MEM_DEV
@@ -178,7 +170,7 @@ config VIDEO_SAMSUNG_S5P_G2D
 config VIDEO_SAMSUNG_S5P_JPEG
 	tristate "Samsung S5P/Exynos3250/Exynos4 JPEG codec driver"
 	depends on VIDEO_DEV && VIDEO_V4L2
-	depends on PLAT_S5P || ARCH_EXYNOS || COMPILE_TEST
+	depends on ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
 	depends on HAS_DMA
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_MEM2MEM_DEV
@@ -189,7 +181,7 @@ config VIDEO_SAMSUNG_S5P_JPEG
 config VIDEO_SAMSUNG_S5P_MFC
 	tristate "Samsung S5P MFC Video Codec"
 	depends on VIDEO_DEV && VIDEO_V4L2
-	depends on PLAT_S5P || ARCH_EXYNOS || COMPILE_TEST
+	depends on ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
 	depends on HAS_DMA
 	select VIDEOBUF2_DMA_CONTIG
 	default n
@@ -221,7 +213,6 @@ config VIDEO_SAMSUNG_EXYNOS_GSC
 config VIDEO_SH_VEU
 	tristate "SuperH VEU mem2mem video processing driver"
 	depends on VIDEO_DEV && VIDEO_V4L2 && HAS_DMA
-	depends on HAS_DMA
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_MEM2MEM_DEV
 	help
@@ -231,7 +222,7 @@ config VIDEO_SH_VEU
 config VIDEO_RENESAS_VSP1
 	tristate "Renesas VSP1 Video Processing Engine"
 	depends on VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API && HAS_DMA
-	depends on ARCH_SHMOBILE || COMPILE_TEST
+	depends on (ARCH_SHMOBILE && OF) || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
 	---help---
 	  This is a V4L2 driver for the Renesas VSP1 video processing engine.
@@ -267,8 +258,8 @@ if V4L_TEST_DRIVERS
 
 source "drivers/media/platform/vivid/Kconfig"
 
-config VIDEO_MEM2MEM_TESTDEV
-	tristate "Virtual test device for mem2mem framework"
+config VIDEO_VIM2M
+	tristate "Virtual Memory-to-Memory Driver"
 	depends on VIDEO_DEV && VIDEO_V4L2
 	select VIDEOBUF2_VMALLOC
 	select V4L2_MEM2MEM_DEV

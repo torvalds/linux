@@ -1356,8 +1356,8 @@ static int lbs_cfg_connect(struct wiphy *wiphy, struct net_device *dev,
 
 	/* Find the BSS we want using available scan results */
 	bss = cfg80211_get_bss(wiphy, sme->channel, sme->bssid,
-		sme->ssid, sme->ssid_len,
-		WLAN_CAPABILITY_ESS, WLAN_CAPABILITY_ESS);
+		sme->ssid, sme->ssid_len, IEEE80211_BSS_TYPE_ESS,
+		IEEE80211_PRIVACY_ANY);
 	if (!bss) {
 		wiphy_err(wiphy, "assoc: bss %pM not in scan results\n",
 			  sme->bssid);
@@ -1616,10 +1616,10 @@ static int lbs_cfg_get_station(struct wiphy *wiphy, struct net_device *dev,
 
 	lbs_deb_enter(LBS_DEB_CFG80211);
 
-	sinfo->filled |= STATION_INFO_TX_BYTES |
-			 STATION_INFO_TX_PACKETS |
-			 STATION_INFO_RX_BYTES |
-			 STATION_INFO_RX_PACKETS;
+	sinfo->filled |= BIT(NL80211_STA_INFO_TX_BYTES) |
+			 BIT(NL80211_STA_INFO_TX_PACKETS) |
+			 BIT(NL80211_STA_INFO_RX_BYTES) |
+			 BIT(NL80211_STA_INFO_RX_PACKETS);
 	sinfo->tx_bytes = priv->dev->stats.tx_bytes;
 	sinfo->tx_packets = priv->dev->stats.tx_packets;
 	sinfo->rx_bytes = priv->dev->stats.rx_bytes;
@@ -1629,14 +1629,14 @@ static int lbs_cfg_get_station(struct wiphy *wiphy, struct net_device *dev,
 	ret = lbs_get_rssi(priv, &signal, &noise);
 	if (ret == 0) {
 		sinfo->signal = signal;
-		sinfo->filled |= STATION_INFO_SIGNAL;
+		sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL);
 	}
 
 	/* Convert priv->cur_rate from hw_value to NL80211 value */
 	for (i = 0; i < ARRAY_SIZE(lbs_rates); i++) {
 		if (priv->cur_rate == lbs_rates[i].hw_value) {
 			sinfo->txrate.legacy = lbs_rates[i].bitrate;
-			sinfo->filled |= STATION_INFO_TX_BITRATE;
+			sinfo->filled |= BIT(NL80211_STA_INFO_TX_BITRATE);
 			break;
 		}
 	}
@@ -2000,7 +2000,7 @@ static int lbs_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 	 * bss list is populated already */
 	bss = cfg80211_get_bss(wiphy, params->chandef.chan, params->bssid,
 		params->ssid, params->ssid_len,
-		WLAN_CAPABILITY_IBSS, WLAN_CAPABILITY_IBSS);
+		IEEE80211_BSS_TYPE_IBSS, IEEE80211_PRIVACY_ANY);
 
 	if (bss) {
 		ret = lbs_ibss_join_existing(priv, params, bss);

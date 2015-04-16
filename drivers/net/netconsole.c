@@ -47,6 +47,7 @@
 #include <linux/netpoll.h>
 #include <linux/inet.h>
 #include <linux/configfs.h>
+#include <linux/etherdevice.h>
 
 MODULE_AUTHOR("Maintainer: Matt Mackall <mpm@selenic.com>");
 MODULE_DESCRIPTION("Console driver for network interfaces");
@@ -185,7 +186,7 @@ static struct netconsole_target *alloc_param_target(char *target_config)
 	nt->np.local_port = 6665;
 	nt->np.remote_port = 6666;
 	mutex_init(&nt->mutex);
-	memset(nt->np.remote_mac, 0xff, ETH_ALEN);
+	eth_broadcast_addr(nt->np.remote_mac);
 
 	/* Parse parameters and setup netpoll */
 	err = netpoll_parse_options(&nt->np, target_config);
@@ -604,7 +605,7 @@ static struct config_item *make_netconsole_target(struct config_group *group,
 	nt->np.local_port = 6665;
 	nt->np.remote_port = 6666;
 	mutex_init(&nt->mutex);
-	memset(nt->np.remote_mac, 0xff, ETH_ALEN);
+	eth_broadcast_addr(nt->np.remote_mac);
 
 	/* Initialize the config_item member */
 	config_item_init_type_name(&nt->item, name, &netconsole_target_type);

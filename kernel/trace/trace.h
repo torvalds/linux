@@ -14,6 +14,7 @@
 #include <linux/trace_seq.h>
 #include <linux/ftrace_event.h>
 #include <linux/compiler.h>
+#include <linux/trace_seq.h>
 
 #ifdef CONFIG_FTRACE_SYSCALLS
 #include <asm/unistd.h>		/* For NR_SYSCALLS	     */
@@ -333,7 +334,7 @@ struct tracer_flags {
 
 
 /**
- * struct tracer - a specific tracer and its callbacks to interact with debugfs
+ * struct tracer - a specific tracer and its callbacks to interact with tracefs
  * @name: the name chosen to select it on the available_tracers file
  * @init: called when one switches to this tracer (echo name > current_tracer)
  * @reset: called when one switches to another tracer
@@ -387,6 +388,7 @@ struct tracer {
 	struct tracer		*next;
 	struct tracer_flags	*flags;
 	int			enabled;
+	int			ref;
 	bool			print_max;
 	bool			allow_instances;
 #ifdef CONFIG_TRACER_MAX_TRACE
@@ -540,7 +542,6 @@ struct dentry *trace_create_file(const char *name,
 				 void *data,
 				 const struct file_operations *fops);
 
-struct dentry *tracing_init_dentry_tr(struct trace_array *tr);
 struct dentry *tracing_init_dentry(void);
 
 struct ring_buffer_event;
@@ -569,15 +570,6 @@ void trace_init_global_iter(struct trace_iterator *iter);
 
 void tracing_iter_reset(struct trace_iterator *iter, int cpu);
 
-void tracing_sched_switch_trace(struct trace_array *tr,
-				struct task_struct *prev,
-				struct task_struct *next,
-				unsigned long flags, int pc);
-
-void tracing_sched_wakeup_trace(struct trace_array *tr,
-				struct task_struct *wakee,
-				struct task_struct *cur,
-				unsigned long flags, int pc);
 void trace_function(struct trace_array *tr,
 		    unsigned long ip,
 		    unsigned long parent_ip,
@@ -597,9 +589,6 @@ void set_graph_array(struct trace_array *tr);
 
 void tracing_start_cmdline_record(void);
 void tracing_stop_cmdline_record(void);
-void tracing_sched_switch_assign_trace(struct trace_array *tr);
-void tracing_stop_sched_switch_record(void);
-void tracing_start_sched_switch_record(void);
 int register_tracer(struct tracer *type);
 int is_tracing_stopped(void);
 
@@ -719,6 +708,8 @@ enum print_line_t print_trace_line(struct trace_iterator *iter);
 
 extern unsigned long trace_flags;
 
+extern char trace_find_mark(unsigned long long duration);
+
 /* Standard output formatting function used for function return traces */
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 
@@ -737,7 +728,7 @@ extern unsigned long trace_flags;
 extern enum print_line_t
 print_graph_function_flags(struct trace_iterator *iter, u32 flags);
 extern void print_graph_headers_flags(struct seq_file *s, u32 flags);
-extern enum print_line_t
+extern void
 trace_print_graph_duration(unsigned long long duration, struct trace_seq *s);
 extern void graph_trace_open(struct trace_iterator *iter);
 extern void graph_trace_close(struct trace_iterator *iter);
@@ -1309,5 +1300,21 @@ int perf_ftrace_event_register(struct ftrace_event_call *call,
 #else
 #define perf_ftrace_event_register NULL
 #endif
+
+#ifdef CONFIG_FTRACE_SYSCALLS
+void init_ftrace_syscalls(void);
+#else
+static inline void init_ftrace_syscalls(void) { }
+#endif
+
+#ifdef CONFIG_EVENT_TRACING
+void trace_event_init(void);
+void trace_event_enum_update(struct trace_enum_map **map, int len);
+#else
+static inline void __init trace_event_init(void) { }
+static inlin void trace_event_enum_update(struct trace_enum_map **map, int len) { }
+#endif
+
+extern struct trace_iterator *tracepoint_print_iter;
 
 #endif /* _LINUX_KERNEL_TRACE_H */

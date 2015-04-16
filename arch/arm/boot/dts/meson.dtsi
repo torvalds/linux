@@ -50,6 +50,13 @@
 / {
 	interrupt-parent = <&gic>;
 
+	L2: l2-cache-controller@c4200000 {
+		compatible = "arm,pl310-cache";
+		reg = <0xc4200000 0x1000>;
+		cache-unified;
+		cache-level = <2>;
+	};
+
 	gic: interrupt-controller@c4301000 {
 		compatible = "arm,cortex-a9-gic";
 		reg = <0xc4301000 0x1000>,
@@ -104,6 +111,43 @@
 			reg = <0xc8108700 0x14>;
 			interrupts = <0 90 1>;
 			clocks = <&clk81>;
+			status = "disabled";
+		};
+
+		i2c_AO: i2c@c8100500 {
+			compatible = "amlogic,meson6-i2c";
+			reg = <0xc8100500 0x20>;
+			interrupts = <0 92 1>;
+			clocks = <&clk81>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c_A: i2c@c1108500 {
+			compatible = "amlogic,meson6-i2c";
+			reg = <0xc1108500 0x20>;
+			interrupts = <0 21 1>;
+			clocks = <&clk81>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c_B: i2c@c11087c0 {
+			compatible = "amlogic,meson6-i2c";
+			reg = <0xc11087c0 0x20>;
+			interrupts = <0 128 1>;
+			clocks = <&clk81>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		ir_receiver: ir-receiver@c8100480 {
+			compatible= "amlogic,meson6-ir";
+			reg = <0xc8100480 0x20>;
+			interrupts = <0 15 1>;
 			status = "disabled";
 		};
 	};

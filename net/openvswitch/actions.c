@@ -28,10 +28,12 @@
 #include <linux/in6.h>
 #include <linux/if_arp.h>
 #include <linux/if_vlan.h>
+
 #include <net/ip.h>
 #include <net/ipv6.h>
 #include <net/checksum.h>
 #include <net/dsfield.h>
+#include <net/mpls.h>
 #include <net/sctp/checksum.h>
 
 #include "datapath.h"
@@ -67,7 +69,7 @@ static void action_fifo_init(struct action_fifo *fifo)
 	fifo->tail = 0;
 }
 
-static bool action_fifo_is_empty(struct action_fifo *fifo)
+static bool action_fifo_is_empty(const struct action_fifo *fifo)
 {
 	return (fifo->head == fifo->tail);
 }
@@ -90,7 +92,7 @@ static struct deferred_action *action_fifo_put(struct action_fifo *fifo)
 
 /* Return true if fifo is not full */
 static struct deferred_action *add_deferred_actions(struct sk_buff *skb,
-						    struct sw_flow_key *key,
+						    const struct sw_flow_key *key,
 						    const struct nlattr *attr)
 {
 	struct action_fifo *fifo;
@@ -107,115 +109,172 @@ static struct deferred_action *add_deferred_actions(struct sk_buff *skb,
 	return da;
 }
 
-static int make_writable(struct sk_buff *skb, int write_len)
+static void invalidate_flow_key(struct sw_flow_key *key)
 {
-	if (!pskb_may_pull(skb, write_len))
+	key->eth.type = htons(0);
+}
+
+static bool is_flow_key_valid(const struct sw_flow_key *key)
+{
+	return !!key->eth.type;
+}
+
+static int push_mpls(struct sk_buff *skb, struct sw_flow_key *key,
+		     const struct ovs_action_push_mpls *mpls)
+{
+	__be32 *new_mpls_lse;
+	struct ethhdr *hdr;
+
+	/* Networking stack do not allow simultaneous Tunnel and MPLS GSO. */
+	if (skb->encapsulation)
+		return -ENOTSUPP;
+
+	if (skb_cow_head(skb, MPLS_HLEN) < 0)
 		return -ENOMEM;
 
-	if (!skb_cloned(skb) || skb_clone_writable(skb, write_len))
-		return 0;
+	skb_push(skb, MPLS_HLEN);
+	memmove(skb_mac_header(skb) - MPLS_HLEN, skb_mac_header(skb),
+		skb->mac_len);
+	skb_reset_mac_header(skb);
 
-	return pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
-}
-
-/* remove VLAN header from packet and update csum accordingly. */
-static int __pop_vlan_tci(struct sk_buff *skb, __be16 *current_tci)
-{
-	struct vlan_hdr *vhdr;
-	int err;
-
-	err = make_writable(skb, VLAN_ETH_HLEN);
-	if (unlikely(err))
-		return err;
+	new_mpls_lse = (__be32 *)skb_mpls_header(skb);
+	*new_mpls_lse = mpls->mpls_lse;
 
 	if (skb->ip_summed == CHECKSUM_COMPLETE)
-		skb->csum = csum_sub(skb->csum, csum_partial(skb->data
-					+ (2 * ETH_ALEN), VLAN_HLEN, 0));
+		skb->csum = csum_add(skb->csum, csum_partial(new_mpls_lse,
+							     MPLS_HLEN, 0));
 
-	vhdr = (struct vlan_hdr *)(skb->data + ETH_HLEN);
-	*current_tci = vhdr->h_vlan_TCI;
+	hdr = eth_hdr(skb);
+	hdr->h_proto = mpls->mpls_ethertype;
 
-	memmove(skb->data + VLAN_HLEN, skb->data, 2 * ETH_ALEN);
-	__skb_pull(skb, VLAN_HLEN);
+	if (!skb->inner_protocol)
+		skb_set_inner_protocol(skb, skb->protocol);
+	skb->protocol = mpls->mpls_ethertype;
 
-	vlan_set_encap_proto(skb, vhdr);
-	skb->mac_header += VLAN_HLEN;
-	if (skb_network_offset(skb) < ETH_HLEN)
-		skb_set_network_header(skb, ETH_HLEN);
-	skb_reset_mac_len(skb);
-
+	invalidate_flow_key(key);
 	return 0;
 }
 
-static int pop_vlan(struct sk_buff *skb)
+static int pop_mpls(struct sk_buff *skb, struct sw_flow_key *key,
+		    const __be16 ethertype)
 {
-	__be16 tci;
+	struct ethhdr *hdr;
 	int err;
 
-	if (likely(vlan_tx_tag_present(skb))) {
-		skb->vlan_tci = 0;
-	} else {
-		if (unlikely(skb->protocol != htons(ETH_P_8021Q) ||
-			     skb->len < VLAN_ETH_HLEN))
-			return 0;
-
-		err = __pop_vlan_tci(skb, &tci);
-		if (err)
-			return err;
-	}
-	/* move next vlan tag to hw accel tag */
-	if (likely(skb->protocol != htons(ETH_P_8021Q) ||
-		   skb->len < VLAN_ETH_HLEN))
-		return 0;
-
-	err = __pop_vlan_tci(skb, &tci);
+	err = skb_ensure_writable(skb, skb->mac_len + MPLS_HLEN);
 	if (unlikely(err))
 		return err;
 
-	__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), ntohs(tci));
+	skb_postpull_rcsum(skb, skb_mpls_header(skb), MPLS_HLEN);
+
+	memmove(skb_mac_header(skb) + MPLS_HLEN, skb_mac_header(skb),
+		skb->mac_len);
+
+	__skb_pull(skb, MPLS_HLEN);
+	skb_reset_mac_header(skb);
+
+	/* skb_mpls_header() is used to locate the ethertype
+	 * field correctly in the presence of VLAN tags.
+	 */
+	hdr = (struct ethhdr *)(skb_mpls_header(skb) - ETH_HLEN);
+	hdr->h_proto = ethertype;
+	if (eth_p_mpls(skb->protocol))
+		skb->protocol = ethertype;
+
+	invalidate_flow_key(key);
 	return 0;
 }
 
-static int push_vlan(struct sk_buff *skb, const struct ovs_action_push_vlan *vlan)
+/* 'KEY' must not have any bits set outside of the 'MASK' */
+#define MASKED(OLD, KEY, MASK) ((KEY) | ((OLD) & ~(MASK)))
+#define SET_MASKED(OLD, KEY, MASK) ((OLD) = MASKED(OLD, KEY, MASK))
+
+static int set_mpls(struct sk_buff *skb, struct sw_flow_key *flow_key,
+		    const __be32 *mpls_lse, const __be32 *mask)
 {
-	if (unlikely(vlan_tx_tag_present(skb))) {
-		u16 current_tag;
+	__be32 *stack;
+	__be32 lse;
+	int err;
 
-		/* push down current VLAN tag */
-		current_tag = vlan_tx_tag_get(skb);
+	err = skb_ensure_writable(skb, skb->mac_len + MPLS_HLEN);
+	if (unlikely(err))
+		return err;
 
-		if (!__vlan_put_tag(skb, skb->vlan_proto, current_tag))
-			return -ENOMEM;
+	stack = (__be32 *)skb_mpls_header(skb);
+	lse = MASKED(*stack, *mpls_lse, *mask);
+	if (skb->ip_summed == CHECKSUM_COMPLETE) {
+		__be32 diff[] = { ~(*stack), lse };
 
-		if (skb->ip_summed == CHECKSUM_COMPLETE)
-			skb->csum = csum_add(skb->csum, csum_partial(skb->data
-					+ (2 * ETH_ALEN), VLAN_HLEN, 0));
-
+		skb->csum = ~csum_partial((char *)diff, sizeof(diff),
+					  ~skb->csum);
 	}
-	__vlan_hwaccel_put_tag(skb, vlan->vlan_tpid, ntohs(vlan->vlan_tci) & ~VLAN_TAG_PRESENT);
+
+	*stack = lse;
+	flow_key->mpls.top_lse = lse;
 	return 0;
 }
 
-static int set_eth_addr(struct sk_buff *skb,
-			const struct ovs_key_ethernet *eth_key)
+static int pop_vlan(struct sk_buff *skb, struct sw_flow_key *key)
 {
 	int err;
-	err = make_writable(skb, ETH_HLEN);
+
+	err = skb_vlan_pop(skb);
+	if (skb_vlan_tag_present(skb))
+		invalidate_flow_key(key);
+	else
+		key->eth.tci = 0;
+	return err;
+}
+
+static int push_vlan(struct sk_buff *skb, struct sw_flow_key *key,
+		     const struct ovs_action_push_vlan *vlan)
+{
+	if (skb_vlan_tag_present(skb))
+		invalidate_flow_key(key);
+	else
+		key->eth.tci = vlan->vlan_tci;
+	return skb_vlan_push(skb, vlan->vlan_tpid,
+			     ntohs(vlan->vlan_tci) & ~VLAN_TAG_PRESENT);
+}
+
+/* 'src' is already properly masked. */
+static void ether_addr_copy_masked(u8 *dst_, const u8 *src_, const u8 *mask_)
+{
+	u16 *dst = (u16 *)dst_;
+	const u16 *src = (const u16 *)src_;
+	const u16 *mask = (const u16 *)mask_;
+
+	SET_MASKED(dst[0], src[0], mask[0]);
+	SET_MASKED(dst[1], src[1], mask[1]);
+	SET_MASKED(dst[2], src[2], mask[2]);
+}
+
+static int set_eth_addr(struct sk_buff *skb, struct sw_flow_key *flow_key,
+			const struct ovs_key_ethernet *key,
+			const struct ovs_key_ethernet *mask)
+{
+	int err;
+
+	err = skb_ensure_writable(skb, ETH_HLEN);
 	if (unlikely(err))
 		return err;
 
 	skb_postpull_rcsum(skb, eth_hdr(skb), ETH_ALEN * 2);
 
-	ether_addr_copy(eth_hdr(skb)->h_source, eth_key->eth_src);
-	ether_addr_copy(eth_hdr(skb)->h_dest, eth_key->eth_dst);
+	ether_addr_copy_masked(eth_hdr(skb)->h_source, key->eth_src,
+			       mask->eth_src);
+	ether_addr_copy_masked(eth_hdr(skb)->h_dest, key->eth_dst,
+			       mask->eth_dst);
 
 	ovs_skb_postpush_rcsum(skb, eth_hdr(skb), ETH_ALEN * 2);
 
+	ether_addr_copy(flow_key->eth.src, eth_hdr(skb)->h_source);
+	ether_addr_copy(flow_key->eth.dst, eth_hdr(skb)->h_dest);
 	return 0;
 }
 
 static void set_ip_addr(struct sk_buff *skb, struct iphdr *nh,
-				__be32 *addr, __be32 new_addr)
+			__be32 *addr, __be32 new_addr)
 {
 	int transport_len = skb->len - skb_transport_offset(skb);
 
@@ -246,11 +305,11 @@ static void update_ipv6_checksum(struct sk_buff *skb, u8 l4_proto,
 {
 	int transport_len = skb->len - skb_transport_offset(skb);
 
-	if (l4_proto == IPPROTO_TCP) {
+	if (l4_proto == NEXTHDR_TCP) {
 		if (likely(transport_len >= sizeof(struct tcphdr)))
 			inet_proto_csum_replace16(&tcp_hdr(skb)->check, skb,
 						  addr, new_addr, 1);
-	} else if (l4_proto == IPPROTO_UDP) {
+	} else if (l4_proto == NEXTHDR_UDP) {
 		if (likely(transport_len >= sizeof(struct udphdr))) {
 			struct udphdr *uh = udp_hdr(skb);
 
@@ -261,7 +320,20 @@ static void update_ipv6_checksum(struct sk_buff *skb, u8 l4_proto,
 					uh->check = CSUM_MANGLED_0;
 			}
 		}
+	} else if (l4_proto == NEXTHDR_ICMP) {
+		if (likely(transport_len >= sizeof(struct icmp6hdr)))
+			inet_proto_csum_replace16(&icmp6_hdr(skb)->icmp6_cksum,
+						  skb, addr, new_addr, 1);
 	}
+}
+
+static void mask_ipv6_addr(const __be32 old[4], const __be32 addr[4],
+			   const __be32 mask[4], __be32 masked[4])
+{
+	masked[0] = MASKED(old[0], addr[0], mask[0]);
+	masked[1] = MASKED(old[1], addr[1], mask[1]);
+	masked[2] = MASKED(old[2], addr[2], mask[2]);
+	masked[3] = MASKED(old[3], addr[3], mask[3]);
 }
 
 static void set_ipv6_addr(struct sk_buff *skb, u8 l4_proto,
@@ -275,218 +347,278 @@ static void set_ipv6_addr(struct sk_buff *skb, u8 l4_proto,
 	memcpy(addr, new_addr, sizeof(__be32[4]));
 }
 
-static void set_ipv6_tc(struct ipv6hdr *nh, u8 tc)
+static void set_ipv6_fl(struct ipv6hdr *nh, u32 fl, u32 mask)
 {
-	nh->priority = tc >> 4;
-	nh->flow_lbl[0] = (nh->flow_lbl[0] & 0x0F) | ((tc & 0x0F) << 4);
+	/* Bits 21-24 are always unmasked, so this retains their values. */
+	SET_MASKED(nh->flow_lbl[0], (u8)(fl >> 16), (u8)(mask >> 16));
+	SET_MASKED(nh->flow_lbl[1], (u8)(fl >> 8), (u8)(mask >> 8));
+	SET_MASKED(nh->flow_lbl[2], (u8)fl, (u8)mask);
 }
 
-static void set_ipv6_fl(struct ipv6hdr *nh, u32 fl)
+static void set_ip_ttl(struct sk_buff *skb, struct iphdr *nh, u8 new_ttl,
+		       u8 mask)
 {
-	nh->flow_lbl[0] = (nh->flow_lbl[0] & 0xF0) | (fl & 0x000F0000) >> 16;
-	nh->flow_lbl[1] = (fl & 0x0000FF00) >> 8;
-	nh->flow_lbl[2] = fl & 0x000000FF;
-}
+	new_ttl = MASKED(nh->ttl, new_ttl, mask);
 
-static void set_ip_ttl(struct sk_buff *skb, struct iphdr *nh, u8 new_ttl)
-{
 	csum_replace2(&nh->check, htons(nh->ttl << 8), htons(new_ttl << 8));
 	nh->ttl = new_ttl;
 }
 
-static int set_ipv4(struct sk_buff *skb, const struct ovs_key_ipv4 *ipv4_key)
+static int set_ipv4(struct sk_buff *skb, struct sw_flow_key *flow_key,
+		    const struct ovs_key_ipv4 *key,
+		    const struct ovs_key_ipv4 *mask)
 {
 	struct iphdr *nh;
+	__be32 new_addr;
 	int err;
 
-	err = make_writable(skb, skb_network_offset(skb) +
-				 sizeof(struct iphdr));
+	err = skb_ensure_writable(skb, skb_network_offset(skb) +
+				  sizeof(struct iphdr));
 	if (unlikely(err))
 		return err;
 
 	nh = ip_hdr(skb);
 
-	if (ipv4_key->ipv4_src != nh->saddr)
-		set_ip_addr(skb, nh, &nh->saddr, ipv4_key->ipv4_src);
+	/* Setting an IP addresses is typically only a side effect of
+	 * matching on them in the current userspace implementation, so it
+	 * makes sense to check if the value actually changed.
+	 */
+	if (mask->ipv4_src) {
+		new_addr = MASKED(nh->saddr, key->ipv4_src, mask->ipv4_src);
 
-	if (ipv4_key->ipv4_dst != nh->daddr)
-		set_ip_addr(skb, nh, &nh->daddr, ipv4_key->ipv4_dst);
+		if (unlikely(new_addr != nh->saddr)) {
+			set_ip_addr(skb, nh, &nh->saddr, new_addr);
+			flow_key->ipv4.addr.src = new_addr;
+		}
+	}
+	if (mask->ipv4_dst) {
+		new_addr = MASKED(nh->daddr, key->ipv4_dst, mask->ipv4_dst);
 
-	if (ipv4_key->ipv4_tos != nh->tos)
-		ipv4_change_dsfield(nh, 0, ipv4_key->ipv4_tos);
-
-	if (ipv4_key->ipv4_ttl != nh->ttl)
-		set_ip_ttl(skb, nh, ipv4_key->ipv4_ttl);
+		if (unlikely(new_addr != nh->daddr)) {
+			set_ip_addr(skb, nh, &nh->daddr, new_addr);
+			flow_key->ipv4.addr.dst = new_addr;
+		}
+	}
+	if (mask->ipv4_tos) {
+		ipv4_change_dsfield(nh, ~mask->ipv4_tos, key->ipv4_tos);
+		flow_key->ip.tos = nh->tos;
+	}
+	if (mask->ipv4_ttl) {
+		set_ip_ttl(skb, nh, key->ipv4_ttl, mask->ipv4_ttl);
+		flow_key->ip.ttl = nh->ttl;
+	}
 
 	return 0;
 }
 
-static int set_ipv6(struct sk_buff *skb, const struct ovs_key_ipv6 *ipv6_key)
+static bool is_ipv6_mask_nonzero(const __be32 addr[4])
+{
+	return !!(addr[0] | addr[1] | addr[2] | addr[3]);
+}
+
+static int set_ipv6(struct sk_buff *skb, struct sw_flow_key *flow_key,
+		    const struct ovs_key_ipv6 *key,
+		    const struct ovs_key_ipv6 *mask)
 {
 	struct ipv6hdr *nh;
 	int err;
-	__be32 *saddr;
-	__be32 *daddr;
 
-	err = make_writable(skb, skb_network_offset(skb) +
-			    sizeof(struct ipv6hdr));
+	err = skb_ensure_writable(skb, skb_network_offset(skb) +
+				  sizeof(struct ipv6hdr));
 	if (unlikely(err))
 		return err;
 
 	nh = ipv6_hdr(skb);
-	saddr = (__be32 *)&nh->saddr;
-	daddr = (__be32 *)&nh->daddr;
 
-	if (memcmp(ipv6_key->ipv6_src, saddr, sizeof(ipv6_key->ipv6_src)))
-		set_ipv6_addr(skb, ipv6_key->ipv6_proto, saddr,
-			      ipv6_key->ipv6_src, true);
+	/* Setting an IP addresses is typically only a side effect of
+	 * matching on them in the current userspace implementation, so it
+	 * makes sense to check if the value actually changed.
+	 */
+	if (is_ipv6_mask_nonzero(mask->ipv6_src)) {
+		__be32 *saddr = (__be32 *)&nh->saddr;
+		__be32 masked[4];
 
-	if (memcmp(ipv6_key->ipv6_dst, daddr, sizeof(ipv6_key->ipv6_dst))) {
+		mask_ipv6_addr(saddr, key->ipv6_src, mask->ipv6_src, masked);
+
+		if (unlikely(memcmp(saddr, masked, sizeof(masked)))) {
+			set_ipv6_addr(skb, key->ipv6_proto, saddr, masked,
+				      true);
+			memcpy(&flow_key->ipv6.addr.src, masked,
+			       sizeof(flow_key->ipv6.addr.src));
+		}
+	}
+	if (is_ipv6_mask_nonzero(mask->ipv6_dst)) {
 		unsigned int offset = 0;
 		int flags = IP6_FH_F_SKIP_RH;
 		bool recalc_csum = true;
+		__be32 *daddr = (__be32 *)&nh->daddr;
+		__be32 masked[4];
 
-		if (ipv6_ext_hdr(nh->nexthdr))
-			recalc_csum = ipv6_find_hdr(skb, &offset,
-						    NEXTHDR_ROUTING, NULL,
-						    &flags) != NEXTHDR_ROUTING;
+		mask_ipv6_addr(daddr, key->ipv6_dst, mask->ipv6_dst, masked);
 
-		set_ipv6_addr(skb, ipv6_key->ipv6_proto, daddr,
-			      ipv6_key->ipv6_dst, recalc_csum);
+		if (unlikely(memcmp(daddr, masked, sizeof(masked)))) {
+			if (ipv6_ext_hdr(nh->nexthdr))
+				recalc_csum = (ipv6_find_hdr(skb, &offset,
+							     NEXTHDR_ROUTING,
+							     NULL, &flags)
+					       != NEXTHDR_ROUTING);
+
+			set_ipv6_addr(skb, key->ipv6_proto, daddr, masked,
+				      recalc_csum);
+			memcpy(&flow_key->ipv6.addr.dst, masked,
+			       sizeof(flow_key->ipv6.addr.dst));
+		}
 	}
-
-	set_ipv6_tc(nh, ipv6_key->ipv6_tclass);
-	set_ipv6_fl(nh, ntohl(ipv6_key->ipv6_label));
-	nh->hop_limit = ipv6_key->ipv6_hlimit;
-
+	if (mask->ipv6_tclass) {
+		ipv6_change_dsfield(nh, ~mask->ipv6_tclass, key->ipv6_tclass);
+		flow_key->ip.tos = ipv6_get_dsfield(nh);
+	}
+	if (mask->ipv6_label) {
+		set_ipv6_fl(nh, ntohl(key->ipv6_label),
+			    ntohl(mask->ipv6_label));
+		flow_key->ipv6.label =
+		    *(__be32 *)nh & htonl(IPV6_FLOWINFO_FLOWLABEL);
+	}
+	if (mask->ipv6_hlimit) {
+		SET_MASKED(nh->hop_limit, key->ipv6_hlimit, mask->ipv6_hlimit);
+		flow_key->ip.ttl = nh->hop_limit;
+	}
 	return 0;
 }
 
-/* Must follow make_writable() since that can move the skb data. */
+/* Must follow skb_ensure_writable() since that can move the skb data. */
 static void set_tp_port(struct sk_buff *skb, __be16 *port,
-			 __be16 new_port, __sum16 *check)
+			__be16 new_port, __sum16 *check)
 {
 	inet_proto_csum_replace2(check, skb, *port, new_port, 0);
 	*port = new_port;
-	skb_clear_hash(skb);
 }
 
-static void set_udp_port(struct sk_buff *skb, __be16 *port, __be16 new_port)
-{
-	struct udphdr *uh = udp_hdr(skb);
-
-	if (uh->check && skb->ip_summed != CHECKSUM_PARTIAL) {
-		set_tp_port(skb, port, new_port, &uh->check);
-
-		if (!uh->check)
-			uh->check = CSUM_MANGLED_0;
-	} else {
-		*port = new_port;
-		skb_clear_hash(skb);
-	}
-}
-
-static int set_udp(struct sk_buff *skb, const struct ovs_key_udp *udp_port_key)
+static int set_udp(struct sk_buff *skb, struct sw_flow_key *flow_key,
+		   const struct ovs_key_udp *key,
+		   const struct ovs_key_udp *mask)
 {
 	struct udphdr *uh;
+	__be16 src, dst;
 	int err;
 
-	err = make_writable(skb, skb_transport_offset(skb) +
-				 sizeof(struct udphdr));
+	err = skb_ensure_writable(skb, skb_transport_offset(skb) +
+				  sizeof(struct udphdr));
 	if (unlikely(err))
 		return err;
 
 	uh = udp_hdr(skb);
-	if (udp_port_key->udp_src != uh->source)
-		set_udp_port(skb, &uh->source, udp_port_key->udp_src);
+	/* Either of the masks is non-zero, so do not bother checking them. */
+	src = MASKED(uh->source, key->udp_src, mask->udp_src);
+	dst = MASKED(uh->dest, key->udp_dst, mask->udp_dst);
 
-	if (udp_port_key->udp_dst != uh->dest)
-		set_udp_port(skb, &uh->dest, udp_port_key->udp_dst);
+	if (uh->check && skb->ip_summed != CHECKSUM_PARTIAL) {
+		if (likely(src != uh->source)) {
+			set_tp_port(skb, &uh->source, src, &uh->check);
+			flow_key->tp.src = src;
+		}
+		if (likely(dst != uh->dest)) {
+			set_tp_port(skb, &uh->dest, dst, &uh->check);
+			flow_key->tp.dst = dst;
+		}
+
+		if (unlikely(!uh->check))
+			uh->check = CSUM_MANGLED_0;
+	} else {
+		uh->source = src;
+		uh->dest = dst;
+		flow_key->tp.src = src;
+		flow_key->tp.dst = dst;
+	}
+
+	skb_clear_hash(skb);
 
 	return 0;
 }
 
-static int set_tcp(struct sk_buff *skb, const struct ovs_key_tcp *tcp_port_key)
+static int set_tcp(struct sk_buff *skb, struct sw_flow_key *flow_key,
+		   const struct ovs_key_tcp *key,
+		   const struct ovs_key_tcp *mask)
 {
 	struct tcphdr *th;
+	__be16 src, dst;
 	int err;
 
-	err = make_writable(skb, skb_transport_offset(skb) +
-				 sizeof(struct tcphdr));
+	err = skb_ensure_writable(skb, skb_transport_offset(skb) +
+				  sizeof(struct tcphdr));
 	if (unlikely(err))
 		return err;
 
 	th = tcp_hdr(skb);
-	if (tcp_port_key->tcp_src != th->source)
-		set_tp_port(skb, &th->source, tcp_port_key->tcp_src, &th->check);
-
-	if (tcp_port_key->tcp_dst != th->dest)
-		set_tp_port(skb, &th->dest, tcp_port_key->tcp_dst, &th->check);
+	src = MASKED(th->source, key->tcp_src, mask->tcp_src);
+	if (likely(src != th->source)) {
+		set_tp_port(skb, &th->source, src, &th->check);
+		flow_key->tp.src = src;
+	}
+	dst = MASKED(th->dest, key->tcp_dst, mask->tcp_dst);
+	if (likely(dst != th->dest)) {
+		set_tp_port(skb, &th->dest, dst, &th->check);
+		flow_key->tp.dst = dst;
+	}
+	skb_clear_hash(skb);
 
 	return 0;
 }
 
-static int set_sctp(struct sk_buff *skb,
-		     const struct ovs_key_sctp *sctp_port_key)
+static int set_sctp(struct sk_buff *skb, struct sw_flow_key *flow_key,
+		    const struct ovs_key_sctp *key,
+		    const struct ovs_key_sctp *mask)
 {
-	struct sctphdr *sh;
-	int err;
 	unsigned int sctphoff = skb_transport_offset(skb);
+	struct sctphdr *sh;
+	__le32 old_correct_csum, new_csum, old_csum;
+	int err;
 
-	err = make_writable(skb, sctphoff + sizeof(struct sctphdr));
+	err = skb_ensure_writable(skb, sctphoff + sizeof(struct sctphdr));
 	if (unlikely(err))
 		return err;
 
 	sh = sctp_hdr(skb);
-	if (sctp_port_key->sctp_src != sh->source ||
-	    sctp_port_key->sctp_dst != sh->dest) {
-		__le32 old_correct_csum, new_csum, old_csum;
+	old_csum = sh->checksum;
+	old_correct_csum = sctp_compute_cksum(skb, sctphoff);
 
-		old_csum = sh->checksum;
-		old_correct_csum = sctp_compute_cksum(skb, sctphoff);
+	sh->source = MASKED(sh->source, key->sctp_src, mask->sctp_src);
+	sh->dest = MASKED(sh->dest, key->sctp_dst, mask->sctp_dst);
 
-		sh->source = sctp_port_key->sctp_src;
-		sh->dest = sctp_port_key->sctp_dst;
+	new_csum = sctp_compute_cksum(skb, sctphoff);
 
-		new_csum = sctp_compute_cksum(skb, sctphoff);
+	/* Carry any checksum errors through. */
+	sh->checksum = old_csum ^ old_correct_csum ^ new_csum;
 
-		/* Carry any checksum errors through. */
-		sh->checksum = old_csum ^ old_correct_csum ^ new_csum;
-
-		skb_clear_hash(skb);
-	}
+	skb_clear_hash(skb);
+	flow_key->tp.src = sh->source;
+	flow_key->tp.dst = sh->dest;
 
 	return 0;
 }
 
-static int do_output(struct datapath *dp, struct sk_buff *skb, int out_port)
+static void do_output(struct datapath *dp, struct sk_buff *skb, int out_port)
 {
-	struct vport *vport;
+	struct vport *vport = ovs_vport_rcu(dp, out_port);
 
-	if (unlikely(!skb))
-		return -ENOMEM;
-
-	vport = ovs_vport_rcu(dp, out_port);
-	if (unlikely(!vport)) {
+	if (likely(vport))
+		ovs_vport_send(vport, skb);
+	else
 		kfree_skb(skb);
-		return -ENODEV;
-	}
-
-	ovs_vport_send(vport, skb);
-	return 0;
 }
 
 static int output_userspace(struct datapath *dp, struct sk_buff *skb,
 			    struct sw_flow_key *key, const struct nlattr *attr)
 {
+	struct ovs_tunnel_info info;
 	struct dp_upcall_info upcall;
 	const struct nlattr *a;
 	int rem;
 
 	upcall.cmd = OVS_PACKET_CMD_ACTION;
-	upcall.key = key;
 	upcall.userdata = NULL;
 	upcall.portid = 0;
+	upcall.egress_tun_info = NULL;
 
 	for (a = nla_data(attr), rem = nla_len(attr); rem > 0;
 		 a = nla_next(a, &rem)) {
@@ -498,15 +630,27 @@ static int output_userspace(struct datapath *dp, struct sk_buff *skb,
 		case OVS_USERSPACE_ATTR_PID:
 			upcall.portid = nla_get_u32(a);
 			break;
+
+		case OVS_USERSPACE_ATTR_EGRESS_TUN_PORT: {
+			/* Get out tunnel info. */
+			struct vport *vport;
+
+			vport = ovs_vport_rcu(dp, nla_get_u32(a));
+			if (vport) {
+				int err;
+
+				err = ovs_vport_get_egress_tun_info(vport, skb,
+								    &info);
+				if (!err)
+					upcall.egress_tun_info = &info;
+			}
+			break;
 		}
+
+		} /* End of switch. */
 	}
 
-	return ovs_dp_upcall(dp, skb, &upcall);
-}
-
-static bool last_action(const struct nlattr *a, int rem)
-{
-	return a->nla_len == rem;
+	return ovs_dp_upcall(dp, skb, key, &upcall);
 }
 
 static int sample(struct datapath *dp, struct sk_buff *skb,
@@ -543,7 +687,7 @@ static int sample(struct datapath *dp, struct sk_buff *skb,
 	 * user space. This skb will be consumed by its caller.
 	 */
 	if (likely(nla_type(a) == OVS_ACTION_ATTR_USERSPACE &&
-		   last_action(a, rem)))
+		   nla_is_last(a, rem)))
 		return output_userspace(dp, skb, key, a);
 
 	skb = skb_clone(skb, GFP_ATOMIC);
@@ -577,45 +721,76 @@ static void execute_hash(struct sk_buff *skb, struct sw_flow_key *key,
 }
 
 static int execute_set_action(struct sk_buff *skb,
-				 const struct nlattr *nested_attr)
+			      struct sw_flow_key *flow_key,
+			      const struct nlattr *a)
+{
+	/* Only tunnel set execution is supported without a mask. */
+	if (nla_type(a) == OVS_KEY_ATTR_TUNNEL_INFO) {
+		OVS_CB(skb)->egress_tun_info = nla_data(a);
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
+/* Mask is at the midpoint of the data. */
+#define get_mask(a, type) ((const type)nla_data(a) + 1)
+
+static int execute_masked_set_action(struct sk_buff *skb,
+				     struct sw_flow_key *flow_key,
+				     const struct nlattr *a)
 {
 	int err = 0;
 
-	switch (nla_type(nested_attr)) {
+	switch (nla_type(a)) {
 	case OVS_KEY_ATTR_PRIORITY:
-		skb->priority = nla_get_u32(nested_attr);
+		SET_MASKED(skb->priority, nla_get_u32(a), *get_mask(a, u32 *));
+		flow_key->phy.priority = skb->priority;
 		break;
 
 	case OVS_KEY_ATTR_SKB_MARK:
-		skb->mark = nla_get_u32(nested_attr);
+		SET_MASKED(skb->mark, nla_get_u32(a), *get_mask(a, u32 *));
+		flow_key->phy.skb_mark = skb->mark;
 		break;
 
 	case OVS_KEY_ATTR_TUNNEL_INFO:
-		OVS_CB(skb)->egress_tun_info = nla_data(nested_attr);
+		/* Masked data not supported for tunnel. */
+		err = -EINVAL;
 		break;
 
 	case OVS_KEY_ATTR_ETHERNET:
-		err = set_eth_addr(skb, nla_data(nested_attr));
+		err = set_eth_addr(skb, flow_key, nla_data(a),
+				   get_mask(a, struct ovs_key_ethernet *));
 		break;
 
 	case OVS_KEY_ATTR_IPV4:
-		err = set_ipv4(skb, nla_data(nested_attr));
+		err = set_ipv4(skb, flow_key, nla_data(a),
+			       get_mask(a, struct ovs_key_ipv4 *));
 		break;
 
 	case OVS_KEY_ATTR_IPV6:
-		err = set_ipv6(skb, nla_data(nested_attr));
+		err = set_ipv6(skb, flow_key, nla_data(a),
+			       get_mask(a, struct ovs_key_ipv6 *));
 		break;
 
 	case OVS_KEY_ATTR_TCP:
-		err = set_tcp(skb, nla_data(nested_attr));
+		err = set_tcp(skb, flow_key, nla_data(a),
+			      get_mask(a, struct ovs_key_tcp *));
 		break;
 
 	case OVS_KEY_ATTR_UDP:
-		err = set_udp(skb, nla_data(nested_attr));
+		err = set_udp(skb, flow_key, nla_data(a),
+			      get_mask(a, struct ovs_key_udp *));
 		break;
 
 	case OVS_KEY_ATTR_SCTP:
-		err = set_sctp(skb, nla_data(nested_attr));
+		err = set_sctp(skb, flow_key, nla_data(a),
+			       get_mask(a, struct ovs_key_sctp *));
+		break;
+
+	case OVS_KEY_ATTR_MPLS:
+		err = set_mpls(skb, flow_key, nla_data(a), get_mask(a,
+								    __be32 *));
 		break;
 	}
 
@@ -627,13 +802,17 @@ static int execute_recirc(struct datapath *dp, struct sk_buff *skb,
 			  const struct nlattr *a, int rem)
 {
 	struct deferred_action *da;
-	int err;
 
-	err = ovs_flow_key_update(skb, key);
-	if (err)
-		return err;
+	if (!is_flow_key_valid(key)) {
+		int err;
 
-	if (!last_action(a, rem)) {
+		err = ovs_flow_key_update(skb, key);
+		if (err)
+			return err;
+	}
+	BUG_ON(!is_flow_key_valid(key));
+
+	if (!nla_is_last(a, rem)) {
 		/* Recirc action is the not the last action
 		 * of the action list, need to clone the skb.
 		 */
@@ -668,7 +847,8 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 	/* Every output action needs a separate clone of 'skb', but the common
 	 * case is just a single output action, so that doing a clone and
 	 * then freeing the original skbuff is wasteful.  So the following code
-	 * is slightly obscure just to avoid that. */
+	 * is slightly obscure just to avoid that.
+	 */
 	int prev_port = -1;
 	const struct nlattr *a;
 	int rem;
@@ -677,8 +857,12 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 	     a = nla_next(a, &rem)) {
 		int err = 0;
 
-		if (prev_port != -1) {
-			do_output(dp, skb_clone(skb, GFP_ATOMIC), prev_port);
+		if (unlikely(prev_port != -1)) {
+			struct sk_buff *out_skb = skb_clone(skb, GFP_ATOMIC);
+
+			if (out_skb)
+				do_output(dp, out_skb, prev_port);
+
 			prev_port = -1;
 		}
 
@@ -695,19 +879,25 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 			execute_hash(skb, key, a);
 			break;
 
+		case OVS_ACTION_ATTR_PUSH_MPLS:
+			err = push_mpls(skb, key, nla_data(a));
+			break;
+
+		case OVS_ACTION_ATTR_POP_MPLS:
+			err = pop_mpls(skb, key, nla_get_be16(a));
+			break;
+
 		case OVS_ACTION_ATTR_PUSH_VLAN:
-			err = push_vlan(skb, nla_data(a));
-			if (unlikely(err)) /* skb already freed. */
-				return err;
+			err = push_vlan(skb, key, nla_data(a));
 			break;
 
 		case OVS_ACTION_ATTR_POP_VLAN:
-			err = pop_vlan(skb);
+			err = pop_vlan(skb, key);
 			break;
 
 		case OVS_ACTION_ATTR_RECIRC:
 			err = execute_recirc(dp, skb, key, a, rem);
-			if (last_action(a, rem)) {
+			if (nla_is_last(a, rem)) {
 				/* If this is the last action, the skb has
 				 * been consumed or freed.
 				 * Return immediately.
@@ -717,13 +907,16 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 			break;
 
 		case OVS_ACTION_ATTR_SET:
-			err = execute_set_action(skb, nla_data(a));
+			err = execute_set_action(skb, key, nla_data(a));
+			break;
+
+		case OVS_ACTION_ATTR_SET_MASKED:
+		case OVS_ACTION_ATTR_SET_TO_MASKED:
+			err = execute_masked_set_action(skb, key, nla_data(a));
 			break;
 
 		case OVS_ACTION_ATTR_SAMPLE:
 			err = sample(dp, skb, key, a);
-			if (unlikely(err)) /* skb already freed. */
-				return err;
 			break;
 		}
 
@@ -769,13 +962,11 @@ static void process_deferred_actions(struct datapath *dp)
 
 /* Execute a list of actions against 'skb'. */
 int ovs_execute_actions(struct datapath *dp, struct sk_buff *skb,
+			const struct sw_flow_actions *acts,
 			struct sw_flow_key *key)
 {
 	int level = this_cpu_read(exec_actions_level);
-	struct sw_flow_actions *acts;
 	int err;
-
-	acts = rcu_dereference(OVS_CB(skb)->flow->sf_acts);
 
 	this_cpu_inc(exec_actions_level);
 	OVS_CB(skb)->egress_tun_info = NULL;

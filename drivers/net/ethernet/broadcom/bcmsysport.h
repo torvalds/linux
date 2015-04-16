@@ -557,6 +557,9 @@ struct bcm_sysport_mib {
 	u32 rxchk_other_pkt_disc;
 	u32 rbuf_ovflow_cnt;
 	u32 rbuf_err_cnt;
+	u32 alloc_rx_buff_failed;
+	u32 rx_dma_failed;
+	u32 tx_dma_failed;
 };
 
 /* HW maintains a large list of counters */
@@ -567,6 +570,7 @@ enum bcm_sysport_stat_type {
 	BCM_SYSPORT_STAT_RUNT,
 	BCM_SYSPORT_STAT_RXCHK,
 	BCM_SYSPORT_STAT_RBUF,
+	BCM_SYSPORT_STAT_SOFT,
 };
 
 /* Macros to help define ethtool statistics */
@@ -587,6 +591,7 @@ enum bcm_sysport_stat_type {
 #define STAT_MIB_RX(str, m) STAT_MIB(str, m, BCM_SYSPORT_STAT_MIB_RX)
 #define STAT_MIB_TX(str, m) STAT_MIB(str, m, BCM_SYSPORT_STAT_MIB_TX)
 #define STAT_RUNT(str, m) STAT_MIB(str, m, BCM_SYSPORT_STAT_RUNT)
+#define STAT_MIB_SOFT(str, m) STAT_MIB(str, m, BCM_SYSPORT_STAT_SOFT)
 
 #define STAT_RXCHK(str, m, ofs) { \
 	.stat_string = str, \

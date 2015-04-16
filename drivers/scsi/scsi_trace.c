@@ -143,7 +143,7 @@ scsi_trace_rw32(struct trace_seq *p, unsigned char *cdb, int len)
 		cmd = "WRITE_SAME";
 		break;
 	default:
-		trace_seq_printf(p, "UNKNOWN");
+		trace_seq_puts(p, "UNKNOWN");
 		goto out;
 	}
 
@@ -204,7 +204,7 @@ scsi_trace_service_action_in(struct trace_seq *p, unsigned char *cdb, int len)
 		cmd = "GET_LBA_STATUS";
 		break;
 	default:
-		trace_seq_printf(p, "UNKNOWN");
+		trace_seq_puts(p, "UNKNOWN");
 		goto out;
 	}
 
@@ -249,7 +249,7 @@ scsi_trace_misc(struct trace_seq *p, unsigned char *cdb, int len)
 {
 	const char *ret = trace_seq_buffer_ptr(p);
 
-	trace_seq_printf(p, "-");
+	trace_seq_putc(p, '-');
 	trace_seq_putc(p, 0);
 
 	return ret;
@@ -278,7 +278,7 @@ scsi_trace_parse_cdb(struct trace_seq *p, unsigned char *cdb, int len)
 		return scsi_trace_rw16(p, cdb, len);
 	case UNMAP:
 		return scsi_trace_unmap(p, cdb, len);
-	case SERVICE_ACTION_IN:
+	case SERVICE_ACTION_IN_16:
 		return scsi_trace_service_action_in(p, cdb, len);
 	case VARIABLE_LENGTH_CMD:
 		return scsi_trace_varlen(p, cdb, len);

@@ -113,6 +113,7 @@ extern void iommu_register_group(struct iommu_table *tbl,
 				 int pci_domain_number, unsigned long pe_num);
 extern int iommu_add_device(struct device *dev);
 extern void iommu_del_device(struct device *dev);
+extern int __init tce_iommu_bus_notifier_init(void);
 #else
 static inline void iommu_register_group(struct iommu_table *tbl,
 					int pci_domain_number,
@@ -128,6 +129,11 @@ static inline int iommu_add_device(struct device *dev)
 static inline void iommu_del_device(struct device *dev)
 {
 }
+
+static inline int __init tce_iommu_bus_notifier_init(void)
+{
+        return 0;
+}
 #endif /* !CONFIG_IOMMU_API */
 
 static inline void set_iommu_table_base_and_group(struct device *dev,
@@ -137,13 +143,16 @@ static inline void set_iommu_table_base_and_group(struct device *dev,
 	iommu_add_device(dev);
 }
 
-extern int iommu_map_sg(struct device *dev, struct iommu_table *tbl,
-			struct scatterlist *sglist, int nelems,
-			unsigned long mask, enum dma_data_direction direction,
-			struct dma_attrs *attrs);
-extern void iommu_unmap_sg(struct iommu_table *tbl, struct scatterlist *sglist,
-			   int nelems, enum dma_data_direction direction,
-			   struct dma_attrs *attrs);
+extern int ppc_iommu_map_sg(struct device *dev, struct iommu_table *tbl,
+			    struct scatterlist *sglist, int nelems,
+			    unsigned long mask,
+			    enum dma_data_direction direction,
+			    struct dma_attrs *attrs);
+extern void ppc_iommu_unmap_sg(struct iommu_table *tbl,
+			       struct scatterlist *sglist,
+			       int nelems,
+			       enum dma_data_direction direction,
+			       struct dma_attrs *attrs);
 
 extern void *iommu_alloc_coherent(struct device *dev, struct iommu_table *tbl,
 				  size_t size, dma_addr_t *dma_handle,

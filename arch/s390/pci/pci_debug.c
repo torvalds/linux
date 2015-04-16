@@ -45,8 +45,10 @@ static int pci_perf_show(struct seq_file *m, void *v)
 
 	if (!zdev)
 		return 0;
-	if (!zdev->fmb)
-		return seq_printf(m, "FMB statistics disabled\n");
+	if (!zdev->fmb) {
+		seq_puts(m, "FMB statistics disabled\n");
+		return 0;
+	}
 
 	/* header */
 	seq_printf(m, "FMB @ %p\n", zdev->fmb);
@@ -158,10 +160,7 @@ int __init zpci_debug_init(void)
 
 void zpci_debug_exit(void)
 {
-	if (pci_debug_msg_id)
-		debug_unregister(pci_debug_msg_id);
-	if (pci_debug_err_id)
-		debug_unregister(pci_debug_err_id);
-
+	debug_unregister(pci_debug_msg_id);
+	debug_unregister(pci_debug_err_id);
 	debugfs_remove(debugfs_root);
 }

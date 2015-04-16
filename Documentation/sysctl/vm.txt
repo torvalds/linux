@@ -21,6 +21,7 @@ Currently, these files are in /proc/sys/vm:
 - admin_reserve_kbytes
 - block_dump
 - compact_memory
+- compact_unevictable_allowed
 - dirty_background_bytes
 - dirty_background_ratio
 - dirty_bytes
@@ -103,6 +104,16 @@ Available only when CONFIG_COMPACTION is set. When 1 is written to the file,
 all zones are compacted such that free memory is available in contiguous
 blocks where possible. This can be important for example in the allocation of
 huge pages although processes will also directly compact memory as required.
+
+==============================================================
+
+compact_unevictable_allowed
+
+Available only when CONFIG_COMPACTION is set. When set to 1, compaction is
+allowed to examine the unevictable lru (mlocked pages) for pages to compact.
+This should be used on systems where stalls for minor page faults are an
+acceptable trade for large contiguous free memory.  Set to 0 to prevent
+compaction from moving pages that are unevictable.  Default value is 1.
 
 ==============================================================
 
@@ -555,12 +566,12 @@ this is causing problems for your system/application.
 
 oom_dump_tasks
 
-Enables a system-wide task dump (excluding kernel threads) to be
-produced when the kernel performs an OOM-killing and includes such
-information as pid, uid, tgid, vm size, rss, nr_ptes, swapents,
-oom_score_adj score, and name.  This is helpful to determine why the
-OOM killer was invoked, to identify the rogue task that caused it,
-and to determine why the OOM killer chose the task it did to kill.
+Enables a system-wide task dump (excluding kernel threads) to be produced
+when the kernel performs an OOM-killing and includes such information as
+pid, uid, tgid, vm size, rss, nr_ptes, nr_pmds, swapents, oom_score_adj
+score, and name.  This is helpful to determine why the OOM killer was
+invoked, to identify the rogue task that caused it, and to determine why
+the OOM killer chose the task it did to kill.
 
 If this is set to zero, this information is suppressed.  On very
 large systems with thousands of tasks it may not be feasible to dump
@@ -728,7 +739,7 @@ The default value is 60.
 
 - user_reserve_kbytes
 
-When overcommit_memory is set to 2, "never overommit" mode, reserve
+When overcommit_memory is set to 2, "never overcommit" mode, reserve
 min(3% of current process size, user_reserve_kbytes) of free memory.
 This is intended to prevent a user from starting a single memory hogging
 process, such that they cannot recover (kill the hog).

@@ -867,17 +867,14 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 		return irq;
 	}
 
-	regulators->irq_ldo_lim = regmap_irq_get_virq(da9063->regmap_irq, irq);
-	if (regulators->irq_ldo_lim >= 0) {
-		ret = request_threaded_irq(regulators->irq_ldo_lim,
-					   NULL, da9063_ldo_lim_event,
-					   IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-					   "LDO_LIM", regulators);
-		if (ret) {
-			dev_err(&pdev->dev,
-					"Failed to request LDO_LIM IRQ.\n");
-			regulators->irq_ldo_lim = -ENXIO;
-		}
+	ret = request_threaded_irq(irq,
+				NULL, da9063_ldo_lim_event,
+				IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+				"LDO_LIM", regulators);
+	if (ret) {
+		dev_err(&pdev->dev,
+				"Failed to request LDO_LIM IRQ.\n");
+		regulators->irq_ldo_lim = -ENXIO;
 	}
 
 	return 0;
@@ -896,7 +893,6 @@ static int da9063_regulator_remove(struct platform_device *pdev)
 static struct platform_driver da9063_regulator_driver = {
 	.driver = {
 		.name = DA9063_DRVNAME_REGULATORS,
-		.owner = THIS_MODULE,
 	},
 	.probe = da9063_regulator_probe,
 	.remove = da9063_regulator_remove,

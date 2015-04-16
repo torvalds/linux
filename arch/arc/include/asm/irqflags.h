@@ -41,6 +41,15 @@
 
 /******************************************************************
  * IRQ Control Macros
+ *
+ * All of them have "memory" clobber (compiler barrier) which is needed to
+ * ensure that LD/ST requiring irq safetly (R-M-W when LLSC is not available)
+ * are redone after IRQs are re-enabled (and gcc doesn't reuse stale register)
+ *
+ * Noted at the time of Abilis Timer List corruption
+ * 	Orig Bug + Rejected solution	: https://lkml.org/lkml/2013/3/29/67
+ * 	Reasoning			: https://lkml.org/lkml/2013/4/8/15
+ *
  ******************************************************************/
 
 /*

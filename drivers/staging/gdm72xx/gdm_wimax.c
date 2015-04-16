@@ -115,7 +115,7 @@ static void gdm_wimax_event_rcv(struct net_device *dev, u16 type, void *msg,
 {
 	struct nic *nic = netdev_priv(dev);
 
-	u8 *buf = (u8 *)msg;
+	u8 *buf = msg;
 	u16 hci_cmd =  (buf[0]<<8) | buf[1];
 	u16 hci_len = (buf[2]<<8) | buf[3];
 
@@ -129,11 +129,11 @@ static void __gdm_wimax_event_send(struct work_struct *work)
 	int idx;
 	unsigned long flags;
 	struct evt_entry *e;
+	struct evt_entry *tmp;
 
 	spin_lock_irqsave(&wm_event.evt_lock, flags);
 
-	while (!list_empty(&wm_event.evtq)) {
-		e = list_entry(wm_event.evtq.next, struct evt_entry, list);
+	list_for_each_entry_safe(e, tmp, &wm_event.evtq, list) {
 		spin_unlock_irqrestore(&wm_event.evt_lock, flags);
 
 		if (sscanf(e->dev->name, "wm%d", &idx) == 1)
@@ -605,10 +605,8 @@ static void gdm_wimax_netif_rx(struct net_device *dev, char *buf, int len)
 	int ret;
 
 	skb = dev_alloc_skb(len + 2);
-	if (!skb) {
-		netdev_err(dev, "%s: dev_alloc_skb failed!\n", __func__);
+	if (!skb)
 		return;
-	}
 	skb_reserve(skb, 2);
 
 	dev->stats.rx_packets++;
@@ -751,7 +749,7 @@ int register_wimax_device(struct phy_dev *phy_dev, struct device *pdev)
 	dev = alloc_netdev(sizeof(*nic), "wm%d", NET_NAME_UNKNOWN,
 			   ether_setup);
 
-	if (dev == NULL) {
+	if (!dev) {
 		pr_err("alloc_etherdev failed\n");
 		return -ENOMEM;
 	}

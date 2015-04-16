@@ -213,7 +213,7 @@ static int fs_enet_mdio_remove(struct platform_device *ofdev)
 	return 0;
 }
 
-static struct of_device_id fs_enet_mdio_bb_match[] = {
+static const struct of_device_id fs_enet_mdio_bb_match[] = {
 	{
 		.compatible = "fsl,cpm2-mdio-bitbang",
 	},
@@ -224,7 +224,6 @@ MODULE_DEVICE_TABLE(of, fs_enet_mdio_bb_match);
 static struct platform_driver fs_enet_bb_mdio_driver = {
 	.driver = {
 		.name = "fsl-bb-mdio",
-		.owner = THIS_MODULE,
 		.of_match_table = fs_enet_mdio_bb_match,
 	},
 	.probe = fs_enet_mdio_probe,

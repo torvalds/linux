@@ -198,17 +198,16 @@ static void resizer_set_bilinear(struct isp_res_device *res,
  * @res: Device context.
  * @pixelcode: pixel code.
  */
-static void resizer_set_ycpos(struct isp_res_device *res,
-			      enum v4l2_mbus_pixelcode pixelcode)
+static void resizer_set_ycpos(struct isp_res_device *res, u32 pixelcode)
 {
 	struct isp_device *isp = to_isp_device(res);
 
 	switch (pixelcode) {
-	case V4L2_MBUS_FMT_YUYV8_1X16:
+	case MEDIA_BUS_FMT_YUYV8_1X16:
 		isp_reg_set(isp, OMAP3_ISP_IOMEM_RESZ, ISPRSZ_CNT,
 			    ISPRSZ_CNT_YCPOS);
 		break;
-	case V4L2_MBUS_FMT_UYVY8_1X16:
+	case MEDIA_BUS_FMT_UYVY8_1X16:
 		isp_reg_clr(isp, OMAP3_ISP_IOMEM_RESZ, ISPRSZ_CNT,
 			    ISPRSZ_CNT_YCPOS);
 		break;
@@ -1348,8 +1347,8 @@ static int resizer_set_selection(struct v4l2_subdev *sd,
 
 /* resizer pixel formats */
 static const unsigned int resizer_formats[] = {
-	V4L2_MBUS_FMT_UYVY8_1X16,
-	V4L2_MBUS_FMT_YUYV8_1X16,
+	MEDIA_BUS_FMT_UYVY8_1X16,
+	MEDIA_BUS_FMT_YUYV8_1X16,
 };
 
 static unsigned int resizer_max_in_width(struct isp_res_device *res)
@@ -1385,9 +1384,9 @@ static void resizer_try_format(struct isp_res_device *res,
 
 	switch (pad) {
 	case RESZ_PAD_SINK:
-		if (fmt->code != V4L2_MBUS_FMT_YUYV8_1X16 &&
-		    fmt->code != V4L2_MBUS_FMT_UYVY8_1X16)
-			fmt->code = V4L2_MBUS_FMT_YUYV8_1X16;
+		if (fmt->code != MEDIA_BUS_FMT_YUYV8_1X16 &&
+		    fmt->code != MEDIA_BUS_FMT_UYVY8_1X16)
+			fmt->code = MEDIA_BUS_FMT_YUYV8_1X16;
 
 		fmt->width = clamp_t(u32, fmt->width, MIN_IN_WIDTH,
 				     resizer_max_in_width(res));
@@ -1571,7 +1570,7 @@ static int resizer_init_formats(struct v4l2_subdev *sd,
 	memset(&format, 0, sizeof(format));
 	format.pad = RESZ_PAD_SINK;
 	format.which = fh ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
-	format.format.code = V4L2_MBUS_FMT_YUYV8_1X16;
+	format.format.code = MEDIA_BUS_FMT_YUYV8_1X16;
 	format.format.width = 4096;
 	format.format.height = 4096;
 	resizer_set_format(sd, fh, &format);

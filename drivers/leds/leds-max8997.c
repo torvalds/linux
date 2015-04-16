@@ -303,7 +303,6 @@ static int max8997_led_remove(struct platform_device *pdev)
 static struct platform_driver max8997_led_driver = {
 	.driver = {
 		.name  = "max8997-led",
-		.owner = THIS_MODULE,
 	},
 	.probe  = max8997_led_probe,
 	.remove = max8997_led_remove,

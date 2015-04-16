@@ -206,7 +206,6 @@ static int kempld_gpio_remove(struct platform_device *pdev)
 static struct platform_driver kempld_gpio_driver = {
 	.driver = {
 		.name = "kempld-gpio",
-		.owner = THIS_MODULE,
 	},
 	.probe		= kempld_gpio_probe,
 	.remove		= kempld_gpio_remove,

@@ -67,8 +67,8 @@
 #include "fw-api.h"
 #include "mvm.h"
 
-/* Maps the driver specific channel width definition to the the fw values */
-static inline u8 iwl_mvm_get_channel_width(struct cfg80211_chan_def *chandef)
+/* Maps the driver specific channel width definition to the fw values */
+u8 iwl_mvm_get_channel_width(struct cfg80211_chan_def *chandef)
 {
 	switch (chandef->width) {
 	case NL80211_CHAN_WIDTH_20_NOHT:
@@ -90,7 +90,7 @@ static inline u8 iwl_mvm_get_channel_width(struct cfg80211_chan_def *chandef)
  * Maps the driver specific control channel position (relative to the center
  * freq) definitions to the the fw values
  */
-static inline u8 iwl_mvm_get_ctrl_pos(struct cfg80211_chan_def *chandef)
+u8 iwl_mvm_get_ctrl_pos(struct cfg80211_chan_def *chandef)
 {
 	switch (chandef->chan->center_freq - chandef->center_freq1) {
 	case -70:
@@ -170,13 +170,17 @@ static void iwl_mvm_phy_ctxt_cmd_data(struct iwl_mvm *mvm,
 		active_cnt = 2;
 	}
 
-	cmd->rxchain_info = cpu_to_le32(mvm->fw->valid_rx_ant <<
+	cmd->rxchain_info = cpu_to_le32(iwl_mvm_get_valid_rx_ant(mvm) <<
 					PHY_RX_CHAIN_VALID_POS);
 	cmd->rxchain_info |= cpu_to_le32(idle_cnt << PHY_RX_CHAIN_CNT_POS);
 	cmd->rxchain_info |= cpu_to_le32(active_cnt <<
 					 PHY_RX_CHAIN_MIMO_CNT_POS);
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	if (unlikely(mvm->dbgfs_rx_phyinfo))
+		cmd->rxchain_info = cpu_to_le32(mvm->dbgfs_rx_phyinfo);
+#endif
 
-	cmd->txchain_info = cpu_to_le32(mvm->fw->valid_tx_ant);
+	cmd->txchain_info = cpu_to_le32(iwl_mvm_get_valid_tx_ant(mvm));
 }
 
 /*

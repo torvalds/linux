@@ -107,7 +107,7 @@ static int io;
 static int irq;
 static bool iommap;
 static int ioshift;
-static bool softcarrier = 1;
+static bool softcarrier = true;
 static bool share_irq;
 static bool debug;
 static int sense = -1;	/* -1 = auto, 0 = active high, 1 = active low */
@@ -266,7 +266,7 @@ static unsigned long space_width;
 /* fetch serial input packet (1 byte) from register offset */
 static u8 sinp(int offset)
 {
-	if (iommap != 0)
+	if (iommap)
 		/* the register is memory-mapped */
 		offset <<= ioshift;
 
@@ -276,7 +276,7 @@ static u8 sinp(int offset)
 /* write serial output packet (1 byte) of value to register offset */
 static void soutp(int offset, u8 value)
 {
-	if (iommap != 0)
+	if (iommap)
 		/* the register is memory-mapped */
 		offset <<= ioshift;
 
@@ -344,7 +344,7 @@ static int init_timing_params(unsigned int new_duty_cycle,
 	/* How many clocks in a microsecond?, avoiding long long divide */
 	work = loops_per_sec;
 	work *= 4295;  /* 4295 = 2^32 / 1e6 */
-	conv_us_to_clocks = (work >> 32);
+	conv_us_to_clocks = work >> 32;
 
 	/*
 	 * Carrier period in clocks, approach good up to 32GHz clock,
@@ -784,7 +784,7 @@ static int lirc_serial_probe(struct platform_device *dev)
 
 	result = devm_request_irq(&dev->dev, irq, lirc_irq_handler,
 			     (share_irq ? IRQF_SHARED : 0),
-			     LIRC_DRIVER_NAME, (void *)&hardware);
+			     LIRC_DRIVER_NAME, &hardware);
 	if (result < 0) {
 		if (result == -EBUSY)
 			dev_err(&dev->dev, "IRQ %d busy\n", irq);
@@ -799,10 +799,10 @@ static int lirc_serial_probe(struct platform_device *dev)
 	 * For memory mapped I/O you *might* need to use ioremap() first,
 	 * for the NSLU2 it's done in boot code.
 	 */
-	if (((iommap != 0)
+	if (((iommap)
 	     && (devm_request_mem_region(&dev->dev, iommap, 8 << ioshift,
 					 LIRC_DRIVER_NAME) == NULL))
-	   || ((iommap == 0)
+	   || ((!iommap)
 	       && (devm_request_region(&dev->dev, io, 8,
 				       LIRC_DRIVER_NAME) == NULL))) {
 		dev_err(&dev->dev, "port %04x already in use\n", io);
@@ -838,7 +838,7 @@ static int lirc_serial_probe(struct platform_device *dev)
 				nhigh++;
 			msleep(40);
 		}
-		sense = (nlow >= nhigh ? 1 : 0);
+		sense = nlow >= nhigh ? 1 : 0;
 		dev_info(&dev->dev, "auto-detected active %s receiver\n",
 			 sense ? "low" : "high");
 	} else
@@ -1060,7 +1060,6 @@ static struct platform_driver lirc_serial_driver = {
 	.resume		= lirc_serial_resume,
 	.driver		= {
 		.name	= "lirc_serial",
-		.owner	= THIS_MODULE,
 	},
 };
 

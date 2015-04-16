@@ -171,20 +171,23 @@ config WANT_DEV_COREDUMP
 	  Drivers should "select" this option if they desire to use the
 	  device coredump mechanism.
 
-config DISABLE_DEV_COREDUMP
-	bool "Disable device coredump" if EXPERT
+config ALLOW_DEV_COREDUMP
+	bool "Allow device coredump" if EXPERT
+	default y
 	help
-	  Disable the device coredump mechanism despite drivers wanting to
-	  use it; this allows for more sensitive systems or systems that
-	  don't want to ever access the information to not have the code,
-	  nor keep any data.
+	  This option controls if the device coredump mechanism is available or
+	  not; if disabled, the mechanism will be omitted even if drivers that
+	  can use it are enabled.
+	  Say 'N' for more sensitive systems or systems that don't want
+	  to ever access the information to not have the code, nor keep any
+	  data.
 
-	  If unsure, say N.
+	  If unsure, say Y.
 
 config DEV_COREDUMP
 	bool
 	default y if WANT_DEV_COREDUMP
-	depends on !DISABLE_DEV_COREDUMP
+	depends on ALLOW_DEV_COREDUMP
 
 config DEBUG_DRIVER
 	bool "Driver Core verbose debug messages"
@@ -264,18 +267,24 @@ comment "Default contiguous memory area size:"
 config CMA_SIZE_MBYTES
 	int "Size in Mega Bytes"
 	depends on !CMA_SIZE_SEL_PERCENTAGE
+	default 0 if X86
 	default 16
 	help
 	  Defines the size (in MiB) of the default memory area for Contiguous
-	  Memory Allocator.
+	  Memory Allocator.  If the size of 0 is selected, CMA is disabled by
+	  default, but it can be enabled by passing cma=size[MG] to the kernel.
+
 
 config CMA_SIZE_PERCENTAGE
 	int "Percentage of total memory"
 	depends on !CMA_SIZE_SEL_MBYTES
+	default 0 if X86
 	default 10
 	help
 	  Defines the size of the default memory area for Contiguous Memory
 	  Allocator as a percentage of the total memory in the system.
+	  If 0 percent is selected, CMA is disabled by default, but it can be
+	  enabled by passing cma=size[MG] to the kernel.
 
 choice
 	prompt "Selected region size"

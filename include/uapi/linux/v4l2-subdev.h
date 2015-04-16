@@ -68,7 +68,7 @@ struct v4l2_subdev_crop {
  * struct v4l2_subdev_mbus_code_enum - Media bus format enumeration
  * @pad: pad number, as reported by the media API
  * @index: format index during enumeration
- * @code: format code (from enum v4l2_mbus_pixelcode)
+ * @code: format code (MEDIA_BUS_FMT_ definitions)
  */
 struct v4l2_subdev_mbus_code_enum {
 	__u32 pad;
@@ -81,7 +81,7 @@ struct v4l2_subdev_mbus_code_enum {
  * struct v4l2_subdev_frame_size_enum - Media bus format enumeration
  * @pad: pad number, as reported by the media API
  * @index: format index during enumeration
- * @code: format code (from enum v4l2_mbus_pixelcode)
+ * @code: format code (MEDIA_BUS_FMT_ definitions)
  */
 struct v4l2_subdev_frame_size_enum {
 	__u32 index;
@@ -109,7 +109,7 @@ struct v4l2_subdev_frame_interval {
  * struct v4l2_subdev_frame_interval_enum - Frame interval enumeration
  * @pad: pad number, as reported by the media API
  * @index: frame interval index during enumeration
- * @code: format code (from enum v4l2_mbus_pixelcode)
+ * @code: format code (MEDIA_BUS_FMT_ definitions)
  * @width: frame width in pixels
  * @height: frame height in pixels
  * @interval: frame interval in seconds

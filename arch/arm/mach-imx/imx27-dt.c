@@ -22,8 +22,6 @@ static void __init imx27_dt_init(void)
 {
 	struct platform_device_info devinfo = { .name = "cpufreq-dt", };
 
-	mxc_arch_reset_init_dt();
-
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 
 	platform_device_register_full(&devinfo);
@@ -40,5 +38,4 @@ DT_MACHINE_START(IMX27_DT, "Freescale i.MX27 (Device Tree Support)")
 	.init_irq	= mx27_init_irq,
 	.init_machine	= imx27_dt_init,
 	.dt_compat	= imx27_dt_board_compat,
-	.restart	= mxc_restart,
 MACHINE_END

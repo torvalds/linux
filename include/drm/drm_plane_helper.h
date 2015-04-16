@@ -25,6 +25,7 @@
 #define DRM_PLANE_HELPER_H
 
 #include <drm/drm_rect.h>
+#include <drm/drm_crtc.h>
 
 /*
  * Drivers that don't allow primary plane scaling may pass this macro in place
@@ -41,6 +42,40 @@
  * Helper functions to assist with creation and handling of CRTC primary
  * planes.
  */
+
+extern int drm_crtc_init(struct drm_device *dev,
+			 struct drm_crtc *crtc,
+			 const struct drm_crtc_funcs *funcs);
+
+/**
+ * drm_plane_helper_funcs - helper operations for CRTCs
+ * @prepare_fb: prepare a framebuffer for use by the plane
+ * @cleanup_fb: cleanup a framebuffer when it's no longer used by the plane
+ * @atomic_check: check that a given atomic state is valid and can be applied
+ * @atomic_update: apply an atomic state to the plane (mandatory)
+ * @atomic_disable: disable the plane
+ *
+ * The helper operations are called by the mid-layer CRTC helper.
+ */
+struct drm_plane_helper_funcs {
+	int (*prepare_fb)(struct drm_plane *plane,
+			  struct drm_framebuffer *fb);
+	void (*cleanup_fb)(struct drm_plane *plane,
+			   struct drm_framebuffer *fb);
+
+	int (*atomic_check)(struct drm_plane *plane,
+			    struct drm_plane_state *state);
+	void (*atomic_update)(struct drm_plane *plane,
+			      struct drm_plane_state *old_state);
+	void (*atomic_disable)(struct drm_plane *plane,
+			       struct drm_plane_state *old_state);
+};
+
+static inline void drm_plane_helper_add(struct drm_plane *plane,
+					const struct drm_plane_helper_funcs *funcs)
+{
+	plane->helper_private = (void *)funcs;
+}
 
 extern int drm_plane_helper_check_update(struct drm_plane *plane,
 					 struct drm_crtc *crtc,
@@ -68,4 +103,16 @@ extern struct drm_plane *drm_primary_helper_create_plane(struct drm_device *dev,
 							 int num_formats);
 
 
+int drm_plane_helper_update(struct drm_plane *plane, struct drm_crtc *crtc,
+			    struct drm_framebuffer *fb,
+			    int crtc_x, int crtc_y,
+			    unsigned int crtc_w, unsigned int crtc_h,
+			    uint32_t src_x, uint32_t src_y,
+			    uint32_t src_w, uint32_t src_h);
+int drm_plane_helper_disable(struct drm_plane *plane);
+
+/* For use by drm_crtc_helper.c */
+int drm_plane_helper_commit(struct drm_plane *plane,
+			    struct drm_plane_state *plane_state,
+			    struct drm_framebuffer *old_fb);
 #endif

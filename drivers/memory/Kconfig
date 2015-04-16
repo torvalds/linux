@@ -41,6 +41,14 @@ config TI_EMIF
 	  parameters and other settings during frequency, voltage and
 	  temperature changes
 
+config OMAP_GPMC
+	bool
+	help
+	  This driver is for the General Purpose Memory Controller (GPMC)
+	  present on Texas Instruments SoCs (e.g. OMAP2+). GPMC allows
+	  interfacing to a variety of asynchronous as well as synchronous
+	  memory drives like NOR, NAND, OneNAND, SRAM.
+
 config MVEBU_DEVBUS
 	bool "Marvell EBU Device Bus Controller"
 	default y
@@ -61,16 +69,6 @@ config TEGRA20_MC
 	  analysis, especially for IOMMU/GART(Graphics Address
 	  Relocation Table) module.
 
-config TEGRA30_MC
-	bool "Tegra30 Memory Controller(MC) driver"
-	default y
-	depends on ARCH_TEGRA_3x_SOC
-	help
-	  This driver is for the Memory Controller(MC) module available
-	  in Tegra30 SoCs, mainly for a address translation fault
-	  analysis, especially for IOMMU/SMMU(System Memory Management
-	  Unit) module.
-
 config FSL_CORENET_CF
 	tristate "Freescale CoreNet Error Reporting"
 	depends on FSL_SOC_BOOKE
@@ -84,5 +82,7 @@ config FSL_CORENET_CF
 config FSL_IFC
 	bool
 	depends on FSL_SOC
+
+source "drivers/memory/tegra/Kconfig"
 
 endif

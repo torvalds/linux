@@ -893,7 +893,7 @@ static bool s5p_jpeg_parse_hdr(struct s5p_jpeg_q_data *result,
 			       unsigned long buffer, unsigned long size,
 			       struct s5p_jpeg_ctx *ctx)
 {
-	int c, components, notfound;
+	int c, components = 0, notfound;
 	unsigned int height, width, word, subsampling = 0;
 	long length;
 	struct s5p_jpeg_buffer jpeg_buffer;
@@ -1001,13 +1001,8 @@ static int s5p_jpeg_querycap(struct file *file, void *priv,
 			sizeof(cap->card));
 	}
 	cap->bus_info[0] = 0;
-	/*
-	 * This is only a mem-to-mem video device. The capture and output
-	 * device capability flags are left only for backward compatibility
-	 * and are scheduled for removal.
-	 */
-	cap->capabilities = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_M2M |
-			    V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_OUTPUT;
+	cap->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_M2M;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -1850,6 +1845,9 @@ static void exynos4_jpeg_set_img_addr(struct s5p_jpeg_ctx *ctx)
 	struct s5p_jpeg_addr jpeg_addr;
 	u32 pix_size, padding_bytes = 0;
 
+	jpeg_addr.cb = 0;
+	jpeg_addr.cr = 0;
+
 	pix_size = ctx->cap_q.w * ctx->cap_q.h;
 
 	if (ctx->mode == S5P_JPEG_ENCODE) {
@@ -2632,6 +2630,7 @@ static int s5p_jpeg_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
 static int s5p_jpeg_runtime_suspend(struct device *dev)
 {
 	struct s5p_jpeg *jpeg = dev_get_drvdata(dev);
@@ -2681,7 +2680,9 @@ static int s5p_jpeg_runtime_resume(struct device *dev)
 
 	return 0;
 }
+#endif /* CONFIG_PM */
 
+#ifdef CONFIG_PM_SLEEP
 static int s5p_jpeg_suspend(struct device *dev)
 {
 	if (pm_runtime_suspended(dev))
@@ -2697,6 +2698,7 @@ static int s5p_jpeg_resume(struct device *dev)
 
 	return s5p_jpeg_runtime_resume(dev);
 }
+#endif
 
 static const struct dev_pm_ops s5p_jpeg_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(s5p_jpeg_suspend, s5p_jpeg_resume)
@@ -2764,7 +2766,6 @@ static struct platform_driver s5p_jpeg_driver = {
 	.remove = s5p_jpeg_remove,
 	.driver = {
 		.of_match_table	= of_match_ptr(samsung_jpeg_match),
-		.owner		= THIS_MODULE,
 		.name		= S5P_JPEG_M2M_NAME,
 		.pm		= &s5p_jpeg_pm_ops,
 	},

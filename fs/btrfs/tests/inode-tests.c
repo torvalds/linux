@@ -255,7 +255,7 @@ static noinline int test_btrfs_get_extent(void)
 		goto out;
 	}
 
-	root->node = alloc_dummy_extent_buffer(0, 4096);
+	root->node = alloc_dummy_extent_buffer(NULL, 4096);
 	if (!root->node) {
 		test_msg("Couldn't allocate dummy buffer\n");
 		goto out;
@@ -843,7 +843,7 @@ static int test_hole_first(void)
 		goto out;
 	}
 
-	root->node = alloc_dummy_extent_buffer(0, 4096);
+	root->node = alloc_dummy_extent_buffer(NULL, 4096);
 	if (!root->node) {
 		test_msg("Couldn't allocate dummy buffer\n");
 		goto out;
@@ -911,6 +911,197 @@ out:
 	return ret;
 }
 
+static int test_extent_accounting(void)
+{
+	struct inode *inode = NULL;
+	struct btrfs_root *root = NULL;
+	int ret = -ENOMEM;
+
+	inode = btrfs_new_test_inode();
+	if (!inode) {
+		test_msg("Couldn't allocate inode\n");
+		return ret;
+	}
+
+	root = btrfs_alloc_dummy_root();
+	if (IS_ERR(root)) {
+		test_msg("Couldn't allocate root\n");
+		goto out;
+	}
+
+	root->fs_info = btrfs_alloc_dummy_fs_info();
+	if (!root->fs_info) {
+		test_msg("Couldn't allocate dummy fs info\n");
+		goto out;
+	}
+
+	BTRFS_I(inode)->root = root;
+	btrfs_test_inode_set_ops(inode);
+
+	/* [BTRFS_MAX_EXTENT_SIZE] */
+	BTRFS_I(inode)->outstanding_extents++;
+	ret = btrfs_set_extent_delalloc(inode, 0, BTRFS_MAX_EXTENT_SIZE - 1,
+					NULL);
+	if (ret) {
+		test_msg("btrfs_set_extent_delalloc returned %d\n", ret);
+		goto out;
+	}
+	if (BTRFS_I(inode)->outstanding_extents != 1) {
+		ret = -EINVAL;
+		test_msg("Miscount, wanted 1, got %u\n",
+			 BTRFS_I(inode)->outstanding_extents);
+		goto out;
+	}
+
+	/* [BTRFS_MAX_EXTENT_SIZE][4k] */
+	BTRFS_I(inode)->outstanding_extents++;
+	ret = btrfs_set_extent_delalloc(inode, BTRFS_MAX_EXTENT_SIZE,
+					BTRFS_MAX_EXTENT_SIZE + 4095, NULL);
+	if (ret) {
+		test_msg("btrfs_set_extent_delalloc returned %d\n", ret);
+		goto out;
+	}
+	if (BTRFS_I(inode)->outstanding_extents != 2) {
+		ret = -EINVAL;
+		test_msg("Miscount, wanted 2, got %u\n",
+			 BTRFS_I(inode)->outstanding_extents);
+		goto out;
+	}
+
+	/* [BTRFS_MAX_EXTENT_SIZE/2][4K HOLE][the rest] */
+	ret = clear_extent_bit(&BTRFS_I(inode)->io_tree,
+			       BTRFS_MAX_EXTENT_SIZE >> 1,
+			       (BTRFS_MAX_EXTENT_SIZE >> 1) + 4095,
+			       EXTENT_DELALLOC | EXTENT_DIRTY |
+			       EXTENT_UPTODATE | EXTENT_DO_ACCOUNTING, 0, 0,
+			       NULL, GFP_NOFS);
+	if (ret) {
+		test_msg("clear_extent_bit returned %d\n", ret);
+		goto out;
+	}
+	if (BTRFS_I(inode)->outstanding_extents != 2) {
+		ret = -EINVAL;
+		test_msg("Miscount, wanted 2, got %u\n",
+			 BTRFS_I(inode)->outstanding_extents);
+		goto out;
+	}
+
+	/* [BTRFS_MAX_EXTENT_SIZE][4K] */
+	BTRFS_I(inode)->outstanding_extents++;
+	ret = btrfs_set_extent_delalloc(inode, BTRFS_MAX_EXTENT_SIZE >> 1,
+					(BTRFS_MAX_EXTENT_SIZE >> 1) + 4095,
+					NULL);
+	if (ret) {
+		test_msg("btrfs_set_extent_delalloc returned %d\n", ret);
+		goto out;
+	}
+	if (BTRFS_I(inode)->outstanding_extents != 2) {
+		ret = -EINVAL;
+		test_msg("Miscount, wanted 2, got %u\n",
+			 BTRFS_I(inode)->outstanding_extents);
+		goto out;
+	}
+
+	/*
+	 * [BTRFS_MAX_EXTENT_SIZE+4K][4K HOLE][BTRFS_MAX_EXTENT_SIZE+4K]
+	 *
+	 * I'm artificially adding 2 to outstanding_extents because in the
+	 * buffered IO case we'd add things up as we go, but I don't feel like
+	 * doing that here, this isn't the interesting case we want to test.
+	 */
+	BTRFS_I(inode)->outstanding_extents += 2;
+	ret = btrfs_set_extent_delalloc(inode, BTRFS_MAX_EXTENT_SIZE + 8192,
+					(BTRFS_MAX_EXTENT_SIZE << 1) + 12287,
+					NULL);
+	if (ret) {
+		test_msg("btrfs_set_extent_delalloc returned %d\n", ret);
+		goto out;
+	}
+	if (BTRFS_I(inode)->outstanding_extents != 4) {
+		ret = -EINVAL;
+		test_msg("Miscount, wanted 4, got %u\n",
+			 BTRFS_I(inode)->outstanding_extents);
+		goto out;
+	}
+
+	/* [BTRFS_MAX_EXTENT_SIZE+4k][4k][BTRFS_MAX_EXTENT_SIZE+4k] */
+	BTRFS_I(inode)->outstanding_extents++;
+	ret = btrfs_set_extent_delalloc(inode, BTRFS_MAX_EXTENT_SIZE+4096,
+					BTRFS_MAX_EXTENT_SIZE+8191, NULL);
+	if (ret) {
+		test_msg("btrfs_set_extent_delalloc returned %d\n", ret);
+		goto out;
+	}
+	if (BTRFS_I(inode)->outstanding_extents != 3) {
+		ret = -EINVAL;
+		test_msg("Miscount, wanted 3, got %u\n",
+			 BTRFS_I(inode)->outstanding_extents);
+		goto out;
+	}
+
+	/* [BTRFS_MAX_EXTENT_SIZE+4k][4K HOLE][BTRFS_MAX_EXTENT_SIZE+4k] */
+	ret = clear_extent_bit(&BTRFS_I(inode)->io_tree,
+			       BTRFS_MAX_EXTENT_SIZE+4096,
+			       BTRFS_MAX_EXTENT_SIZE+8191,
+			       EXTENT_DIRTY | EXTENT_DELALLOC |
+			       EXTENT_DO_ACCOUNTING | EXTENT_UPTODATE, 0, 0,
+			       NULL, GFP_NOFS);
+	if (ret) {
+		test_msg("clear_extent_bit returned %d\n", ret);
+		goto out;
+	}
+	if (BTRFS_I(inode)->outstanding_extents != 4) {
+		ret = -EINVAL;
+		test_msg("Miscount, wanted 4, got %u\n",
+			 BTRFS_I(inode)->outstanding_extents);
+		goto out;
+	}
+
+	/*
+	 * Refill the hole again just for good measure, because I thought it
+	 * might fail and I'd rather satisfy my paranoia at this point.
+	 */
+	BTRFS_I(inode)->outstanding_extents++;
+	ret = btrfs_set_extent_delalloc(inode, BTRFS_MAX_EXTENT_SIZE+4096,
+					BTRFS_MAX_EXTENT_SIZE+8191, NULL);
+	if (ret) {
+		test_msg("btrfs_set_extent_delalloc returned %d\n", ret);
+		goto out;
+	}
+	if (BTRFS_I(inode)->outstanding_extents != 3) {
+		ret = -EINVAL;
+		test_msg("Miscount, wanted 3, got %u\n",
+			 BTRFS_I(inode)->outstanding_extents);
+		goto out;
+	}
+
+	/* Empty */
+	ret = clear_extent_bit(&BTRFS_I(inode)->io_tree, 0, (u64)-1,
+			       EXTENT_DIRTY | EXTENT_DELALLOC |
+			       EXTENT_DO_ACCOUNTING | EXTENT_UPTODATE, 0, 0,
+			       NULL, GFP_NOFS);
+	if (ret) {
+		test_msg("clear_extent_bit returned %d\n", ret);
+		goto out;
+	}
+	if (BTRFS_I(inode)->outstanding_extents) {
+		ret = -EINVAL;
+		test_msg("Miscount, wanted 0, got %u\n",
+			 BTRFS_I(inode)->outstanding_extents);
+		goto out;
+	}
+	ret = 0;
+out:
+	if (ret)
+		clear_extent_bit(&BTRFS_I(inode)->io_tree, 0, (u64)-1,
+				 EXTENT_DIRTY | EXTENT_DELALLOC |
+				 EXTENT_DO_ACCOUNTING | EXTENT_UPTODATE, 0, 0,
+				 NULL, GFP_NOFS);
+	iput(inode);
+	btrfs_free_dummy_root(root);
+	return ret;
+}
+
 int btrfs_test_inodes(void)
 {
 	int ret;
@@ -924,5 +1115,9 @@ int btrfs_test_inodes(void)
 	if (ret)
 		return ret;
 	test_msg("Running hole first btrfs_get_extent test\n");
-	return test_hole_first();
+	ret = test_hole_first();
+	if (ret)
+		return ret;
+	test_msg("Running outstanding_extents tests\n");
+	return test_extent_accounting();
 }

@@ -102,8 +102,6 @@ static const u8 iwl_bt_prio_tbl[BT_COEX_PRIO_TBL_EVT_MAX] = {
 
 #undef EVENT_PRIO_ANT
 
-#define BT_ANTENNA_COUPLING_THRESHOLD		(30)
-
 static int iwl_send_bt_prio_tbl(struct iwl_mvm *mvm)
 {
 	if (unlikely(mvm->bt_force_ant_mode != BT_FORCE_ANT_DIS))
@@ -290,9 +288,63 @@ static const __le64 iwl_ci_mask[][3] = {
 	},
 };
 
-static const __le32 iwl_bt_mprio_lut[BT_COEX_MULTI_PRIO_LUT_SIZE] = {
-	cpu_to_le32(0x28412201),
-	cpu_to_le32(0x11118451),
+enum iwl_bt_kill_msk {
+	BT_KILL_MSK_DEFAULT,
+	BT_KILL_MSK_NEVER,
+	BT_KILL_MSK_ALWAYS,
+	BT_KILL_MSK_MAX,
+};
+
+static const u32 iwl_bt_ctl_kill_msk[BT_KILL_MSK_MAX] = {
+	[BT_KILL_MSK_DEFAULT] = 0xfffffc00,
+	[BT_KILL_MSK_NEVER] = 0xffffffff,
+	[BT_KILL_MSK_ALWAYS] = 0,
+};
+
+static const u8 iwl_bt_cts_kill_msk[BT_MAX_AG][BT_COEX_MAX_LUT] = {
+	{
+		BT_KILL_MSK_ALWAYS,
+		BT_KILL_MSK_ALWAYS,
+		BT_KILL_MSK_ALWAYS,
+	},
+	{
+		BT_KILL_MSK_NEVER,
+		BT_KILL_MSK_NEVER,
+		BT_KILL_MSK_NEVER,
+	},
+	{
+		BT_KILL_MSK_NEVER,
+		BT_KILL_MSK_NEVER,
+		BT_KILL_MSK_NEVER,
+	},
+	{
+		BT_KILL_MSK_DEFAULT,
+		BT_KILL_MSK_NEVER,
+		BT_KILL_MSK_DEFAULT,
+	},
+};
+
+static const u8 iwl_bt_ack_kill_msk[BT_MAX_AG][BT_COEX_MAX_LUT] = {
+	{
+		BT_KILL_MSK_ALWAYS,
+		BT_KILL_MSK_ALWAYS,
+		BT_KILL_MSK_ALWAYS,
+	},
+	{
+		BT_KILL_MSK_ALWAYS,
+		BT_KILL_MSK_ALWAYS,
+		BT_KILL_MSK_ALWAYS,
+	},
+	{
+		BT_KILL_MSK_ALWAYS,
+		BT_KILL_MSK_ALWAYS,
+		BT_KILL_MSK_ALWAYS,
+	},
+	{
+		BT_KILL_MSK_DEFAULT,
+		BT_KILL_MSK_ALWAYS,
+		BT_KILL_MSK_DEFAULT,
+	},
 };
 
 struct corunning_block_luts {
@@ -337,7 +389,7 @@ static const struct corunning_block_luts antenna_coupling_ranges[] = {
 	{
 		.range = 12,
 		.lut20 = {
-			cpu_to_le32(0x00000001),  cpu_to_le32(0x00000000),
+			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
 			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
 			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
 			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
@@ -358,7 +410,7 @@ static const struct corunning_block_luts antenna_coupling_ranges[] = {
 	{
 		.range = 20,
 		.lut20 = {
-			cpu_to_le32(0x00000002),  cpu_to_le32(0x00000000),
+			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
 			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
 			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
 			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
@@ -379,7 +431,7 @@ static const struct corunning_block_luts antenna_coupling_ranges[] = {
 	{
 		.range = 21,
 		.lut20 = {
-			cpu_to_le32(0x00000003),  cpu_to_le32(0x00000000),
+			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
 			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
 			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
 			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
@@ -400,7 +452,7 @@ static const struct corunning_block_luts antenna_coupling_ranges[] = {
 	{
 		.range = 23,
 		.lut20 = {
-			cpu_to_le32(0x00000004),  cpu_to_le32(0x00000000),
+			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
 			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
 			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
 			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
@@ -421,7 +473,7 @@ static const struct corunning_block_luts antenna_coupling_ranges[] = {
 	{
 		.range = 27,
 		.lut20 = {
-			cpu_to_le32(0x00000005),  cpu_to_le32(0x00000000),
+			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
 			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
 			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
 			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
@@ -442,7 +494,7 @@ static const struct corunning_block_luts antenna_coupling_ranges[] = {
 	{
 		.range = 30,
 		.lut20 = {
-			cpu_to_le32(0x00000006),  cpu_to_le32(0x00000000),
+			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
 			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
 			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
 			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
@@ -463,7 +515,7 @@ static const struct corunning_block_luts antenna_coupling_ranges[] = {
 	{
 		.range = 32,
 		.lut20 = {
-			cpu_to_le32(0x00000007),  cpu_to_le32(0x00000000),
+			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
 			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
 			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
 			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
@@ -484,7 +536,7 @@ static const struct corunning_block_luts antenna_coupling_ranges[] = {
 	{
 		.range = 33,
 		.lut20 = {
-			cpu_to_le32(0x00000008),  cpu_to_le32(0x00000000),
+			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
 			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
 			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
 			cpu_to_le32(0x00000000),  cpu_to_le32(0x00000000),
@@ -593,7 +645,8 @@ int iwl_send_bt_init_conf_old(struct iwl_mvm *mvm)
 	}
 
 	bt_cmd->max_kill = 5;
-	bt_cmd->bt4_antenna_isolation_thr = BT_ANTENNA_COUPLING_THRESHOLD;
+	bt_cmd->bt4_antenna_isolation_thr =
+		IWL_MVM_BT_COEX_ANTENNA_COUPLING_THRS;
 	bt_cmd->bt4_antenna_isolation = iwlwifi_mod_params.ant_coupling;
 	bt_cmd->bt4_tx_tx_delta_freq_thr = 15;
 	bt_cmd->bt4_tx_rx_max_freq0 = 15;
@@ -618,12 +671,14 @@ int iwl_send_bt_init_conf_old(struct iwl_mvm *mvm)
 					    BT_VALID_ANT_ISOLATION_THRS |
 					    BT_VALID_TXTX_DELTA_FREQ_THRS |
 					    BT_VALID_TXRX_MAX_FREQ_0 |
-					    BT_VALID_SYNC_TO_SCO);
+					    BT_VALID_SYNC_TO_SCO |
+					    BT_VALID_TTC |
+					    BT_VALID_RRC);
 
 	if (IWL_MVM_BT_COEX_SYNC2SCO)
 		bt_cmd->flags |= cpu_to_le32(BT_COEX_SYNC2SCO);
 
-	if (IWL_MVM_BT_COEX_CORUNNING) {
+	if (iwl_mvm_bt_is_plcr_supported(mvm)) {
 		bt_cmd->valid_bit_msk |= cpu_to_le32(BT_VALID_CORUN_LUT_20 |
 						     BT_VALID_CORUN_LUT_40);
 		bt_cmd->flags |= cpu_to_le32(BT_COEX_CORUNNING);
@@ -633,6 +688,12 @@ int iwl_send_bt_init_conf_old(struct iwl_mvm *mvm)
 		bt_cmd->flags |= cpu_to_le32(BT_COEX_MPLUT);
 		bt_cmd->valid_bit_msk |= cpu_to_le32(BT_VALID_MULTI_PRIO_LUT);
 	}
+
+	if (IWL_MVM_BT_COEX_TTC)
+		bt_cmd->flags |= cpu_to_le32(BT_COEX_TTC);
+
+	if (iwl_mvm_bt_is_rrc_supported(mvm))
+		bt_cmd->flags |= cpu_to_le32(BT_COEX_RRC);
 
 	if (mvm->cfg->bt_shared_single_ant)
 		memcpy(&bt_cmd->decision_lut, iwl_single_shared_ant,
@@ -649,8 +710,8 @@ int iwl_send_bt_init_conf_old(struct iwl_mvm *mvm)
 
 	memcpy(&bt_cmd->bt_prio_boost, iwl_bt_prio_boost,
 	       sizeof(iwl_bt_prio_boost));
-	memcpy(&bt_cmd->bt4_multiprio_lut, iwl_bt_mprio_lut,
-	       sizeof(iwl_bt_mprio_lut));
+	bt_cmd->bt4_multiprio_lut[0] = cpu_to_le32(IWL_MVM_BT_COEX_MPLUT_REG0);
+	bt_cmd->bt4_multiprio_lut[1] = cpu_to_le32(IWL_MVM_BT_COEX_MPLUT_REG1);
 
 send_cmd:
 	memset(&mvm->last_bt_notif_old, 0, sizeof(mvm->last_bt_notif_old));
@@ -828,6 +889,10 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 
 	/* relax SMPS contraints for next association */
 	if (!vif->bss_conf.assoc)
+		smps_mode = IEEE80211_SMPS_AUTOMATIC;
+
+	if (mvmvif->phy_ctxt &&
+	    data->notif->rrc_enabled & BIT(mvmvif->phy_ctxt->id))
 		smps_mode = IEEE80211_SMPS_AUTOMATIC;
 
 	IWL_DEBUG_COEX(data->mvm,
@@ -1029,7 +1094,7 @@ int iwl_mvm_rx_bt_coex_notif_old(struct iwl_mvm *mvm,
 static void iwl_mvm_bt_rssi_iterator(void *_data, u8 *mac,
 				     struct ieee80211_vif *vif)
 {
-	struct iwl_mvm_vif *mvmvif = (void *)vif->drv_priv;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_bt_iterator_data *data = _data;
 	struct iwl_mvm *mvm = data->mvm;
 
@@ -1063,9 +1128,9 @@ static void iwl_mvm_bt_rssi_iterator(void *_data, u8 *mac,
 }
 
 void iwl_mvm_bt_rssi_event_old(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			       enum ieee80211_rssi_event rssi_event)
+			       enum ieee80211_rssi_event_data rssi_event)
 {
-	struct iwl_mvm_vif *mvmvif = (void *)vif->drv_priv;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_bt_iterator_data data = {
 		.mvm = mvm,
 	};
@@ -1165,7 +1230,7 @@ bool iwl_mvm_bt_coex_is_mimo_allowed_old(struct iwl_mvm *mvm,
 bool iwl_mvm_bt_coex_is_shared_ant_avail_old(struct iwl_mvm *mvm)
 {
 	u32 ag = le32_to_cpu(mvm->last_bt_notif_old.bt_activity_grading);
-	return ag == BT_OFF;
+	return ag < BT_HIGH_TRAFFIC;
 }
 
 bool iwl_mvm_bt_coex_is_tpc_allowed_old(struct iwl_mvm *mvm,
@@ -1202,7 +1267,7 @@ int iwl_mvm_rx_ant_coupling_notif_old(struct iwl_mvm *mvm,
 		.dataflags = { IWL_HCMD_DFL_NOCOPY, },
 	};
 
-	if (!IWL_MVM_BT_COEX_CORUNNING)
+	if (!iwl_mvm_bt_is_plcr_supported(mvm))
 		return 0;
 
 	lockdep_assert_held(&mvm->mutex);

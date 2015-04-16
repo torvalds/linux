@@ -1,5 +1,10 @@
 Memory Resource Controller
 
+NOTE: This document is hopelessly outdated and it asks for a complete
+      rewrite. It still contains a useful information so we are keeping it
+      here but make sure to check the current code if you need a deeper
+      understanding.
+
 NOTE: The Memory Resource Controller has generically been referred to as the
       memory controller in this document. Do not confuse memory controller
       used here with the memory controller that is used in hardware.
@@ -52,9 +57,9 @@ Brief summary of control files.
  tasks				 # attach a task(thread) and show list of threads
  cgroup.procs			 # show list of processes
  cgroup.event_control		 # an interface for event_fd()
- memory.usage_in_bytes		 # show current res_counter usage for memory
+ memory.usage_in_bytes		 # show current usage for memory
 				 (See 5.5 for details)
- memory.memsw.usage_in_bytes	 # show current res_counter usage for memory+Swap
+ memory.memsw.usage_in_bytes	 # show current usage for memory+Swap
 				 (See 5.5 for details)
  memory.limit_in_bytes		 # set/show limit of memory usage
  memory.memsw.limit_in_bytes	 # set/show limit of memory+Swap usage
@@ -116,16 +121,16 @@ The memory controller is the first controller developed.
 
 2.1. Design
 
-The core of the design is a counter called the res_counter. The res_counter
-tracks the current memory usage and limit of the group of processes associated
-with the controller. Each cgroup has a memory controller specific data
-structure (mem_cgroup) associated with it.
+The core of the design is a counter called the page_counter. The
+page_counter tracks the current memory usage and limit of the group of
+processes associated with the controller. Each cgroup has a memory controller
+specific data structure (mem_cgroup) associated with it.
 
 2.2. Accounting
 
 		+--------------------+
-		|  mem_cgroup     |
-		|  (res_counter)     |
+		|  mem_cgroup        |
+		|  (page_counter)    |
 		+--------------------+
 		 /            ^      \
 		/             |       \
@@ -321,7 +326,7 @@ per cgroup, instead of globally.
 
 * tcp memory pressure: sockets memory pressure for the tcp protocol.
 
-2.7.3 Common use cases
+2.7.2 Common use cases
 
 Because the "kmem" counter is fed to the main user counter, kernel memory can
 never be limited completely independently of user memory. Say "U" is the user
@@ -349,20 +354,19 @@ set:
 
 3. User Interface
 
-0. Configuration
+3.0. Configuration
 
 a. Enable CONFIG_CGROUPS
-b. Enable CONFIG_RESOURCE_COUNTERS
-c. Enable CONFIG_MEMCG
-d. Enable CONFIG_MEMCG_SWAP (to use swap extension)
+b. Enable CONFIG_MEMCG
+c. Enable CONFIG_MEMCG_SWAP (to use swap extension)
 d. Enable CONFIG_MEMCG_KMEM (to use kmem extension)
 
-1. Prepare the cgroups (see cgroups.txt, Why are cgroups needed?)
+3.1. Prepare the cgroups (see cgroups.txt, Why are cgroups needed?)
 # mount -t tmpfs none /sys/fs/cgroup
 # mkdir /sys/fs/cgroup/memory
 # mount -t cgroup none /sys/fs/cgroup/memory -o memory
 
-2. Make the new group and move bash into it
+3.2. Make the new group and move bash into it
 # mkdir /sys/fs/cgroup/memory/0
 # echo $$ > /sys/fs/cgroup/memory/0/tasks
 

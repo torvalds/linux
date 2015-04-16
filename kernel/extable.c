@@ -18,6 +18,7 @@
 #include <linux/ftrace.h>
 #include <linux/memory.h>
 #include <linux/module.h>
+#include <linux/ftrace.h>
 #include <linux/mutex.h>
 #include <linux/init.h>
 
@@ -102,6 +103,8 @@ int __kernel_text_address(unsigned long addr)
 		return 1;
 	if (is_module_text_address(addr))
 		return 1;
+	if (is_ftrace_trampoline(addr))
+		return 1;
 	/*
 	 * There might be init symbols in saved stacktraces.
 	 * Give those symbols a chance to be printed in
@@ -119,7 +122,9 @@ int kernel_text_address(unsigned long addr)
 {
 	if (core_kernel_text(addr))
 		return 1;
-	return is_module_text_address(addr);
+	if (is_module_text_address(addr))
+		return 1;
+	return is_ftrace_trampoline(addr);
 }
 
 /*

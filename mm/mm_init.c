@@ -14,14 +14,14 @@
 #include "internal.h"
 
 #ifdef CONFIG_DEBUG_MEMORY_INIT
-int mminit_loglevel;
+int __meminitdata mminit_loglevel;
 
 #ifndef SECTIONS_SHIFT
 #define SECTIONS_SHIFT	0
 #endif
 
 /* The zonelists are simply reported, validation is manual. */
-void mminit_verify_zonelist(void)
+void __init mminit_verify_zonelist(void)
 {
 	int nid;
 

@@ -82,7 +82,7 @@ static void iic_unmask(struct irq_data *d)
 
 static void iic_eoi(struct irq_data *d)
 {
-	struct iic *iic = &__get_cpu_var(cpu_iic);
+	struct iic *iic = this_cpu_ptr(&cpu_iic);
 	out_be64(&iic->regs->prio, iic->eoi_stack[--iic->eoi_ptr]);
 	BUG_ON(iic->eoi_ptr < 0);
 }
@@ -148,7 +148,7 @@ static unsigned int iic_get_irq(void)
 	struct iic *iic;
 	unsigned int virq;
 
-	iic = &__get_cpu_var(cpu_iic);
+	iic = this_cpu_ptr(&cpu_iic);
 	*(unsigned long *) &pending =
 		in_be64((u64 __iomem *) &iic->regs->pending_destr);
 	if (!(pending.flags & CBE_IIC_IRQ_VALID))
@@ -163,7 +163,7 @@ static unsigned int iic_get_irq(void)
 
 void iic_setup_cpu(void)
 {
-	out_be64(&__get_cpu_var(cpu_iic).regs->prio, 0xff);
+	out_be64(this_cpu_ptr(&cpu_iic.regs->prio), 0xff);
 }
 
 u8 iic_get_target_id(int cpu)

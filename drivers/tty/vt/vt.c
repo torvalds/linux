@@ -156,6 +156,8 @@ static void console_callback(struct work_struct *ignored);
 static void blank_screen_t(unsigned long dummy);
 static void set_palette(struct vc_data *vc);
 
+#define vt_get_kmsg_redirect() vt_kmsg_redirect(-1)
+
 static int printable;		/* Is console ready for printing? */
 int default_utf8 = true;
 module_param(default_utf8, int, S_IRUGO | S_IWUSR);
@@ -498,6 +500,7 @@ void invert_screen(struct vc_data *vc, int offset, int count, int viewed)
 #endif
 	if (DO_UPDATE(vc))
 		do_update_region(vc, (unsigned long) p, count);
+	notify_update(vc);
 }
 
 /* used by selection: complement pointer position */
@@ -514,6 +517,7 @@ void complement_pos(struct vc_data *vc, int offset)
 		scr_writew(old, screenpos(vc, old_offset, 1));
 		if (DO_UPDATE(vc))
 			vc->vc_sw->con_putc(vc, old, oldy, oldx);
+		notify_update(vc);
 	}
 
 	old_offset = offset;
@@ -531,8 +535,8 @@ void complement_pos(struct vc_data *vc, int offset)
 			oldy = (offset >> 1) / vc->vc_cols;
 			vc->vc_sw->con_putc(vc, new, oldy, oldx);
 		}
+		notify_update(vc);
 	}
-
 }
 
 static void insert_char(struct vc_data *vc, unsigned int nr)
@@ -1367,9 +1371,11 @@ static void csi_m(struct vc_data *vc)
 						rgb_from_256(vc->vc_par[i]));
 				} else if (vc->vc_par[i] == 2 &&  /* 24 bit */
 				           i <= vc->vc_npar + 3) {/* extremely rare */
-					struct rgb c = {r:vc->vc_par[i+1],
-							g:vc->vc_par[i+2],
-							b:vc->vc_par[i+3]};
+					struct rgb c = {
+						.r = vc->vc_par[i + 1],
+						.g = vc->vc_par[i + 2],
+						.b = vc->vc_par[i + 3],
+					};
 					rgb_foreground(vc, c);
 					i += 3;
 				}
@@ -1388,9 +1394,11 @@ static void csi_m(struct vc_data *vc)
 						rgb_from_256(vc->vc_par[i]));
 				} else if (vc->vc_par[i] == 2 && /* 24 bit */
 				           i <= vc->vc_npar + 3) {
-					struct rgb c = {r:vc->vc_par[i+1],
-							g:vc->vc_par[i+2],
-							b:vc->vc_par[i+3]};
+					struct rgb c = {
+						.r = vc->vc_par[i + 1],
+						.g = vc->vc_par[i + 2],
+						.b = vc->vc_par[i + 3],
+					};
 					rgb_background(vc, c);
 					i += 3;
 				}
@@ -3312,11 +3320,8 @@ static int vt_bind(struct con_driver *con)
 		if (first == 0 && last == MAX_NR_CONSOLES -1)
 			deflt = 1;
 
-		if (first != -1) {
-			console_lock();
+		if (first != -1)
 			do_bind_con_driver(csw, first, last, deflt);
-			console_unlock();
-		}
 
 		first = -1;
 		last = -1;
@@ -3356,9 +3361,7 @@ static int vt_unbind(struct con_driver *con)
 			deflt = 1;
 
 		if (first != -1) {
-			console_lock();
 			ret = do_unbind_con_driver(csw, first, last, deflt);
-			console_unlock();
 			if (ret != 0)
 				return ret;
 		}
@@ -3388,10 +3391,14 @@ static ssize_t store_bind(struct device *dev, struct device_attribute *attr,
 	struct con_driver *con = dev_get_drvdata(dev);
 	int bind = simple_strtoul(buf, NULL, 0);
 
+	console_lock();
+
 	if (bind)
 		vt_bind(con);
 	else
 		vt_unbind(con);
+
+	console_unlock();
 
 	return count;
 }
@@ -3659,8 +3666,7 @@ int do_unregister_con_driver(const struct consw *csw)
 	for (i = 0; i < MAX_NR_CON_DRIVER; i++) {
 		struct con_driver *con_driver = &registered_con_driver[i];
 
-		if (con_driver->con == csw &&
-		    con_driver->flag & CON_DRIVER_FLAG_INIT) {
+		if (con_driver->con == csw) {
 			vtconsole_deinit_device(con_driver);
 			device_destroy(vtconsole_class,
 				       MKDEV(0, con_driver->node));
@@ -3849,8 +3855,8 @@ void do_unblank_screen(int leaving_gfx)
 		return;
 	if (!vc_cons_allocated(fg_console)) {
 		/* impossible */
-		pr_warning("unblank_screen: tty %d not allocated ??\n",
-			   fg_console+1);
+		pr_warn("unblank_screen: tty %d not allocated ??\n",
+			fg_console + 1);
 		return;
 	}
 	vc = vc_cons[fg_console].d;

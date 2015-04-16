@@ -106,10 +106,6 @@ struct kvmppc_vcpu_book3s {
 	spinlock_t mmu_lock;
 };
 
-#define CONTEXT_HOST		0
-#define CONTEXT_GUEST		1
-#define CONTEXT_GUEST_END	2
-
 #define VSID_REAL	0x07ffffffffc00000ULL
 #define VSID_BAT	0x07ffffffffb00000ULL
 #define VSID_64K	0x0800000000000000ULL
@@ -170,8 +166,6 @@ extern void *kvmppc_pin_guest_page(struct kvm *kvm, unsigned long addr,
 			unsigned long *nb_ret);
 extern void kvmppc_unpin_guest_page(struct kvm *kvm, void *addr,
 			unsigned long gpa, bool dirty);
-extern long kvmppc_virtmode_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
-			long pte_index, unsigned long pteh, unsigned long ptel);
 extern long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 			long pte_index, unsigned long pteh, unsigned long ptel,
 			pgd_t *pgdir, bool realmode, unsigned long *idx_ret);

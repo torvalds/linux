@@ -12255,8 +12255,7 @@ static void drx39xxj_release(struct dvb_frontend *fe)
 	kfree(demod->my_ext_attr);
 	kfree(demod->my_common_attr);
 	kfree(demod->my_i2c_dev_addr);
-	if (demod->firmware)
-		release_firmware(demod->firmware);
+	release_firmware(demod->firmware);
 	kfree(demod);
 	kfree(state);
 }

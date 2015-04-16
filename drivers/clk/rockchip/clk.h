@@ -48,6 +48,14 @@
 #define RK3288_GLB_SRST_SND		0x1b4
 #define RK3288_SOFTRST_CON(x)		(x * 0x4 + 0x1b8)
 #define RK3288_MISC_CON			0x1e8
+#define RK3288_SDMMC_CON0		0x200
+#define RK3288_SDMMC_CON1		0x204
+#define RK3288_SDIO0_CON0		0x208
+#define RK3288_SDIO0_CON1		0x20c
+#define RK3288_SDIO1_CON0		0x210
+#define RK3288_SDIO1_CON1		0x214
+#define RK3288_EMMC_CON0		0x218
+#define RK3288_EMMC_CON1		0x21c
 
 enum rockchip_pll_type {
 	pll_rk3066,
@@ -60,6 +68,15 @@ enum rockchip_pll_type {
 	.nf = _nf,				\
 	.no = _no,				\
 	.bwadj = (_nf >> 1),			\
+}
+
+#define RK3066_PLL_RATE_BWADJ(_rate, _nr, _nf, _no, _bw)	\
+{								\
+	.rate	= _rate##U,					\
+	.nr = _nr,						\
+	.nf = _nf,						\
+	.no = _no,						\
+	.bwadj = _bw,						\
 }
 
 struct rockchip_pll_rate_table {
@@ -81,7 +98,12 @@ struct rockchip_pll_rate_table {
  * @mode_shift: offset inside the mode-register for the mode of this pll.
  * @lock_shift: offset inside the lock register for the lock status.
  * @type: Type of PLL to be registered.
+ * @pll_flags: hardware-specific flags
  * @rate_table: Table of usable pll rates
+ *
+ * Flags:
+ * ROCKCHIP_PLL_SYNC_RATE - check rate parameters to match against the
+ *	rate_table parameters and ajust them if necessary.
  */
 struct rockchip_pll_clock {
 	unsigned int		id;
@@ -94,11 +116,14 @@ struct rockchip_pll_clock {
 	int			mode_shift;
 	int			lock_shift;
 	enum rockchip_pll_type	type;
+	u8			pll_flags;
 	struct rockchip_pll_rate_table *rate_table;
 };
 
+#define ROCKCHIP_PLL_SYNC_RATE		BIT(0)
+
 #define PLL(_type, _id, _name, _pnames, _flags, _con, _mode, _mshift,	\
-		_lshift, _rtable)					\
+		_lshift, _pflags, _rtable)				\
 	{								\
 		.id		= _id,					\
 		.type		= _type,				\
@@ -110,6 +135,7 @@ struct rockchip_pll_clock {
 		.mode_offset	= _mode,				\
 		.mode_shift	= _mshift,				\
 		.lock_shift	= _lshift,				\
+		.pll_flags	= _pflags,				\
 		.rate_table	= _rtable,				\
 	}
 
@@ -118,7 +144,7 @@ struct clk *rockchip_clk_register_pll(enum rockchip_pll_type pll_type,
 		void __iomem *base, int con_offset, int grf_lock_offset,
 		int lock_shift, int reg_mode, int mode_shift,
 		struct rockchip_pll_rate_table *rate_table,
-		spinlock_t *lock);
+		u8 clk_pll_flags, spinlock_t *lock);
 
 struct rockchip_cpuclk_clksel {
 	int reg;
@@ -152,6 +178,10 @@ struct clk *rockchip_clk_register_cpuclk(const char *name,
 			const struct rockchip_cpuclk_rate_table *rates,
 			int nrates, void __iomem *reg_base, spinlock_t *lock);
 
+struct clk *rockchip_clk_register_mmc(const char *name,
+				const char **parent_names, u8 num_parents,
+				void __iomem *reg, int shift);
+
 #define PNAME(x) static const char *x[] __initconst
 
 enum rockchip_clk_branch_type {
@@ -160,6 +190,7 @@ enum rockchip_clk_branch_type {
 	branch_divider,
 	branch_fraction_divider,
 	branch_gate,
+	branch_mmc,
 };
 
 struct rockchip_clk_branch {
@@ -352,6 +383,16 @@ struct rockchip_clk_branch {
 		.gate_flags	= gf,				\
 	}
 
+#define MMC(_id, cname, pname, offset, shift)			\
+	{							\
+		.id		= _id,				\
+		.branch_type	= branch_mmc,			\
+		.name		= cname,			\
+		.parent_names	= (const char *[]){ pname },	\
+		.num_parents	= 1,				\
+		.muxdiv_offset	= offset,			\
+		.div_shift	= shift,			\
+	}
 
 void rockchip_clk_init(struct device_node *np, void __iomem *base,
 		       unsigned long nr_clks);

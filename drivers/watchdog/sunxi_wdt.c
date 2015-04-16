@@ -314,7 +314,6 @@ static struct platform_driver sunxi_wdt_driver = {
 	.remove		= sunxi_wdt_remove,
 	.shutdown	= sunxi_wdt_shutdown,
 	.driver		= {
-		.owner		= THIS_MODULE,
 		.name		= DRV_NAME,
 		.of_match_table	= sunxi_wdt_dt_ids,
 	},

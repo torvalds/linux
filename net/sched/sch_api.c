@@ -947,7 +947,7 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 	if (!ops->init || (err = ops->init(sch, tca[TCA_OPTIONS])) == 0) {
 		if (qdisc_is_percpu_stats(sch)) {
 			sch->cpu_bstats =
-				alloc_percpu(struct gnet_stats_basic_cpu);
+				netdev_alloc_pcpu_stats(struct gnet_stats_basic_cpu);
 			if (!sch->cpu_bstats)
 				goto err_out4;
 
@@ -1807,7 +1807,7 @@ done:
 int tc_classify_compat(struct sk_buff *skb, const struct tcf_proto *tp,
 		       struct tcf_result *res)
 {
-	__be16 protocol = skb->protocol;
+	__be16 protocol = tc_skb_protocol(skb);
 	int err;
 
 	for (; tp; tp = rcu_dereference_bh(tp->next)) {
@@ -1858,11 +1858,15 @@ reclassify:
 }
 EXPORT_SYMBOL(tc_classify);
 
-void tcf_destroy(struct tcf_proto *tp)
+bool tcf_destroy(struct tcf_proto *tp, bool force)
 {
-	tp->ops->destroy(tp);
-	module_put(tp->ops->owner);
-	kfree_rcu(tp, rcu);
+	if (tp->ops->destroy(tp, force)) {
+		module_put(tp->ops->owner);
+		kfree_rcu(tp, rcu);
+		return true;
+	}
+
+	return false;
 }
 
 void tcf_destroy_chain(struct tcf_proto __rcu **fl)
@@ -1871,7 +1875,7 @@ void tcf_destroy_chain(struct tcf_proto __rcu **fl)
 
 	while ((tp = rtnl_dereference(*fl)) != NULL) {
 		RCU_INIT_POINTER(*fl, tp->next);
-		tcf_destroy(tp);
+		tcf_destroy(tp, true);
 	}
 }
 EXPORT_SYMBOL(tcf_destroy_chain);

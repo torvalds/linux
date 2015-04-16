@@ -38,8 +38,6 @@ struct hdmi_audio {
 };
 
 struct hdmi {
-	struct kref refcount;
-
 	struct drm_device *dev;
 	struct platform_device *pdev;
 
@@ -54,10 +52,10 @@ struct hdmi {
 
 	void __iomem *mmio;
 
-	struct regulator *hpd_regs[2];
-	struct regulator *pwr_regs[2];
-	struct clk *hpd_clks[3];
-	struct clk *pwr_clks[2];
+	struct regulator **hpd_regs;
+	struct regulator **pwr_regs;
+	struct clk **hpd_clks;
+	struct clk **pwr_clks;
 
 	struct hdmi_phy *phy;
 	struct i2c_adapter *i2c;
@@ -97,13 +95,9 @@ struct hdmi_platform_config {
 	/* gpio's: */
 	int ddc_clk_gpio, ddc_data_gpio, hpd_gpio, mux_en_gpio, mux_sel_gpio;
 	int mux_lpm_gpio;
-
-	/* older devices had their own irq, mdp5+ it is shared w/ mdp: */
-	bool shared_irq;
 };
 
 void hdmi_set_mode(struct hdmi *hdmi, bool power_on);
-void hdmi_destroy(struct kref *kref);
 
 static inline void hdmi_write(struct hdmi *hdmi, u32 reg, u32 data)
 {
@@ -113,17 +107,6 @@ static inline void hdmi_write(struct hdmi *hdmi, u32 reg, u32 data)
 static inline u32 hdmi_read(struct hdmi *hdmi, u32 reg)
 {
 	return msm_readl(hdmi->mmio + reg);
-}
-
-static inline struct hdmi * hdmi_reference(struct hdmi *hdmi)
-{
-	kref_get(&hdmi->refcount);
-	return hdmi;
-}
-
-static inline void hdmi_unreference(struct hdmi *hdmi)
-{
-	kref_put(&hdmi->refcount, hdmi_destroy);
 }
 
 /*
@@ -163,6 +146,7 @@ void hdmi_audio_set_sample_rate(struct hdmi *hdmi, int rate);
  */
 
 struct drm_bridge *hdmi_bridge_init(struct hdmi *hdmi);
+void hdmi_bridge_destroy(struct drm_bridge *bridge);
 
 /*
  * hdmi connector:

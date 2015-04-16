@@ -143,8 +143,6 @@ extern void radeon_bo_fini(struct radeon_device *rdev);
 extern int radeon_bo_list_validate(struct radeon_device *rdev,
 				   struct ww_acquire_ctx *ticket,
 				   struct list_head *head, int ring);
-extern int radeon_bo_fbdev_mmap(struct radeon_bo *bo,
-				struct vm_area_struct *vma);
 extern int radeon_bo_set_tiling_flags(struct radeon_bo *bo,
 				u32 tiling_flags, u32 pitch);
 extern void radeon_bo_get_tiling_flags(struct radeon_bo *bo,
@@ -155,6 +153,8 @@ extern void radeon_bo_move_notify(struct ttm_buffer_object *bo,
 				  struct ttm_mem_reg *new_mem);
 extern int radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo);
 extern int radeon_bo_get_surface_reg(struct radeon_bo *bo);
+extern void radeon_bo_fence(struct radeon_bo *bo, struct radeon_fence *fence,
+			    bool shared);
 
 /*
  * sub allocation

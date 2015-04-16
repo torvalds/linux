@@ -348,7 +348,6 @@ static struct platform_driver shmob_drm_platform_driver = {
 	.probe		= shmob_drm_probe,
 	.remove		= shmob_drm_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "shmob-drm",
 		.pm	= &shmob_drm_pm_ops,
 	},

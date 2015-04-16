@@ -45,7 +45,7 @@ static int ipx_seq_interface_show(struct seq_file *seq, void *v)
 	}
 
 	i = list_entry(v, struct ipx_interface, node);
-	seq_printf(seq, "%08lX   ", (unsigned long int)ntohl(i->if_netnum));
+	seq_printf(seq, "%08X   ", ntohl(i->if_netnum));
 	seq_printf(seq, "%02X%02X%02X%02X%02X%02X   ",
 			i->if_node[0], i->if_node[1], i->if_node[2],
 			i->if_node[3], i->if_node[4], i->if_node[5]);
@@ -87,10 +87,10 @@ static int ipx_seq_route_show(struct seq_file *seq, void *v)
 
 	rt = list_entry(v, struct ipx_route, node);
 
-	seq_printf(seq, "%08lX   ", (unsigned long int)ntohl(rt->ir_net));
+	seq_printf(seq, "%08X   ", ntohl(rt->ir_net));
 	if (rt->ir_routed)
-		seq_printf(seq, "%08lX     %02X%02X%02X%02X%02X%02X\n",
-			   (long unsigned int)ntohl(rt->ir_intrfc->if_netnum),
+		seq_printf(seq, "%08X     %02X%02X%02X%02X%02X%02X\n",
+			   ntohl(rt->ir_intrfc->if_netnum),
 			   rt->ir_router_node[0], rt->ir_router_node[1],
 			   rt->ir_router_node[2], rt->ir_router_node[3],
 			   rt->ir_router_node[4], rt->ir_router_node[5]);
@@ -194,19 +194,19 @@ static int ipx_seq_socket_show(struct seq_file *seq, void *v)
 	s = v;
 	ipxs = ipx_sk(s);
 #ifdef CONFIG_IPX_INTERN
-	seq_printf(seq, "%08lX:%02X%02X%02X%02X%02X%02X:%04X  ",
-		   (unsigned long)ntohl(ipxs->intrfc->if_netnum),
+	seq_printf(seq, "%08X:%02X%02X%02X%02X%02X%02X:%04X  ",
+		   ntohl(ipxs->intrfc->if_netnum),
 		   ipxs->node[0], ipxs->node[1], ipxs->node[2], ipxs->node[3],
 		   ipxs->node[4], ipxs->node[5], ntohs(ipxs->port));
 #else
-	seq_printf(seq, "%08lX:%04X  ", (unsigned long) ntohl(ipxs->intrfc->if_netnum),
+	seq_printf(seq, "%08X:%04X  ", ntohl(ipxs->intrfc->if_netnum),
 		   ntohs(ipxs->port));
 #endif	/* CONFIG_IPX_INTERN */
 	if (s->sk_state != TCP_ESTABLISHED)
 		seq_printf(seq, "%-28s", "Not_Connected");
 	else {
-		seq_printf(seq, "%08lX:%02X%02X%02X%02X%02X%02X:%04X  ",
-			   (unsigned long)ntohl(ipxs->dest_addr.net),
+		seq_printf(seq, "%08X:%02X%02X%02X%02X%02X%02X:%04X  ",
+			   ntohl(ipxs->dest_addr.net),
 			   ipxs->dest_addr.node[0], ipxs->dest_addr.node[1],
 			   ipxs->dest_addr.node[2], ipxs->dest_addr.node[3],
 			   ipxs->dest_addr.node[4], ipxs->dest_addr.node[5],

@@ -77,7 +77,7 @@ static u32 flow_get_dst(const struct sk_buff *skb, const struct flow_keys *flow)
 {
 	if (flow->dst)
 		return ntohl(flow->dst);
-	return addr_fold(skb_dst(skb)) ^ (__force u16)skb->protocol;
+	return addr_fold(skb_dst(skb)) ^ (__force u16) tc_skb_protocol(skb);
 }
 
 static u32 flow_get_proto(const struct sk_buff *skb, const struct flow_keys *flow)
@@ -98,7 +98,7 @@ static u32 flow_get_proto_dst(const struct sk_buff *skb, const struct flow_keys 
 	if (flow->ports)
 		return ntohs(flow->port16[1]);
 
-	return addr_fold(skb_dst(skb)) ^ (__force u16)skb->protocol;
+	return addr_fold(skb_dst(skb)) ^ (__force u16) tc_skb_protocol(skb);
 }
 
 static u32 flow_get_iif(const struct sk_buff *skb)
@@ -144,7 +144,7 @@ static u32 flow_get_nfct(const struct sk_buff *skb)
 
 static u32 flow_get_nfct_src(const struct sk_buff *skb, const struct flow_keys *flow)
 {
-	switch (skb->protocol) {
+	switch (tc_skb_protocol(skb)) {
 	case htons(ETH_P_IP):
 		return ntohl(CTTUPLE(skb, src.u3.ip));
 	case htons(ETH_P_IPV6):
@@ -156,7 +156,7 @@ fallback:
 
 static u32 flow_get_nfct_dst(const struct sk_buff *skb, const struct flow_keys *flow)
 {
-	switch (skb->protocol) {
+	switch (tc_skb_protocol(skb)) {
 	case htons(ETH_P_IP):
 		return ntohl(CTTUPLE(skb, dst.u3.ip));
 	case htons(ETH_P_IPV6):
@@ -426,10 +426,7 @@ static int flow_change(struct net *net, struct sk_buff *in_skb,
 			goto err2;
 
 		/* Copy fold into fnew */
-		fnew->handle = fold->handle;
-		fnew->keymask = fold->keymask;
 		fnew->tp = fold->tp;
-
 		fnew->handle = fold->handle;
 		fnew->nkeys = fold->nkeys;
 		fnew->keymask = fold->keymask;
@@ -560,10 +557,13 @@ static int flow_init(struct tcf_proto *tp)
 	return 0;
 }
 
-static void flow_destroy(struct tcf_proto *tp)
+static bool flow_destroy(struct tcf_proto *tp, bool force)
 {
 	struct flow_head *head = rtnl_dereference(tp->root);
 	struct flow_filter *f, *next;
+
+	if (!force && !list_empty(&head->filters))
+		return false;
 
 	list_for_each_entry_safe(f, next, &head->filters, list) {
 		list_del_rcu(&f->list);
@@ -571,6 +571,7 @@ static void flow_destroy(struct tcf_proto *tp)
 	}
 	RCU_INIT_POINTER(tp->root, NULL);
 	kfree_rcu(head, rcu);
+	return true;
 }
 
 static unsigned long flow_get(struct tcf_proto *tp, u32 handle)
@@ -578,14 +579,10 @@ static unsigned long flow_get(struct tcf_proto *tp, u32 handle)
 	struct flow_head *head = rtnl_dereference(tp->root);
 	struct flow_filter *f;
 
-	list_for_each_entry_rcu(f, &head->filters, list)
+	list_for_each_entry(f, &head->filters, list)
 		if (f->handle == handle)
 			return (unsigned long)f;
 	return 0;
-}
-
-static void flow_put(struct tcf_proto *tp, unsigned long f)
-{
 }
 
 static int flow_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
@@ -645,7 +642,7 @@ static int flow_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 	return skb->len;
 
 nla_put_failure:
-	nlmsg_trim(skb, nest);
+	nla_nest_cancel(skb, nest);
 	return -1;
 }
 
@@ -654,7 +651,7 @@ static void flow_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 	struct flow_head *head = rtnl_dereference(tp->root);
 	struct flow_filter *f;
 
-	list_for_each_entry_rcu(f, &head->filters, list) {
+	list_for_each_entry(f, &head->filters, list) {
 		if (arg->count < arg->skip)
 			goto skip;
 		if (arg->fn(tp, (unsigned long)f, arg) < 0) {
@@ -674,7 +671,6 @@ static struct tcf_proto_ops cls_flow_ops __read_mostly = {
 	.change		= flow_change,
 	.delete		= flow_delete,
 	.get		= flow_get,
-	.put		= flow_put,
 	.dump		= flow_dump,
 	.walk		= flow_walk,
 	.owner		= THIS_MODULE,

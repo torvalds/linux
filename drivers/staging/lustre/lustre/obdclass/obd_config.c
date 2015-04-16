@@ -835,7 +835,7 @@ int class_del_conn(struct obd_device *obd, struct lustre_cfg *lcfg)
 
 LIST_HEAD(lustre_profile_list);
 
-struct lustre_profile *class_get_profile(const char * prof)
+struct lustre_profile *class_get_profile(const char *prof)
 {
 	struct lustre_profile *lprof;
 
@@ -1443,8 +1443,7 @@ int class_config_llog_handler(const struct lu_env *env,
 		if (!(clli->cfg_flags & CFG_F_COMPAT146) &&
 		    !(clli->cfg_flags & CFG_F_MARKER) &&
 		    (lcfg->lcfg_command != LCFG_MARKER)) {
-			CWARN("Config not inside markers, ignoring! "
-			      "(inst: %p, uuid: %s, flags: %#x)\n",
+			CWARN("Config not inside markers, ignoring! (inst: %p, uuid: %s, flags: %#x)\n",
 			      clli->cfg_instance,
 			      clli->cfg_uuid.uuid, clli->cfg_flags);
 			clli->cfg_flags |= CFG_F_SKIP;
@@ -1467,14 +1466,12 @@ int class_config_llog_handler(const struct lu_env *env,
 
 			if ((lcfg->lcfg_command == LCFG_ATTACH && typename &&
 			     strcmp(typename, "mds") == 0)) {
-				CWARN("For 1.8 interoperability, rename obd "
-				       "type from mds to mdt\n");
+				CWARN("For 1.8 interoperability, rename obd type from mds to mdt\n");
 				typename[2] = 't';
 			}
 			if ((lcfg->lcfg_command == LCFG_SETUP && index &&
 			     strcmp(index, "type") == 0)) {
-				CDEBUG(D_INFO, "For 1.8 interoperability, "
-				       "set this index to '0'\n");
+				CDEBUG(D_INFO, "For 1.8 interoperability, set this index to '0'\n");
 				index[0] = '0';
 				index[1] = 0;
 			}

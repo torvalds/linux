@@ -318,7 +318,7 @@ static int csum_tree_block(struct btrfs_root *root, struct extent_buffer *buf,
 			memcpy(&found, result, csum_size);
 
 			read_extent_buffer(buf, &val, 0, csum_size);
-			printk_ratelimited(KERN_INFO
+			printk_ratelimited(KERN_WARNING
 				"BTRFS: %s checksum verify failed on %llu wanted %X found %X "
 				"level %d\n",
 				root->fs_info->sb->s_id, buf->start,
@@ -367,7 +367,8 @@ static int verify_parent_transid(struct extent_io_tree *io_tree,
 		ret = 0;
 		goto out;
 	}
-	printk_ratelimited(KERN_INFO "BTRFS (device %s): parent transid verify failed on %llu wanted %llu found %llu\n",
+	printk_ratelimited(KERN_ERR
+	    "BTRFS (device %s): parent transid verify failed on %llu wanted %llu found %llu\n",
 			eb->fs_info->sb->s_id, eb->start,
 			parent_transid, btrfs_header_generation(eb));
 	ret = 1;
@@ -633,21 +634,21 @@ static int btree_readpage_end_io_hook(struct btrfs_io_bio *io_bio,
 
 	found_start = btrfs_header_bytenr(eb);
 	if (found_start != eb->start) {
-		printk_ratelimited(KERN_INFO "BTRFS (device %s): bad tree block start "
+		printk_ratelimited(KERN_ERR "BTRFS (device %s): bad tree block start "
 			       "%llu %llu\n",
 			       eb->fs_info->sb->s_id, found_start, eb->start);
 		ret = -EIO;
 		goto err;
 	}
 	if (check_tree_block_fsid(root, eb)) {
-		printk_ratelimited(KERN_INFO "BTRFS (device %s): bad fsid on block %llu\n",
+		printk_ratelimited(KERN_ERR "BTRFS (device %s): bad fsid on block %llu\n",
 			       eb->fs_info->sb->s_id, eb->start);
 		ret = -EIO;
 		goto err;
 	}
 	found_level = btrfs_header_level(eb);
 	if (found_level >= BTRFS_MAX_LEVEL) {
-		btrfs_info(root->fs_info, "bad tree block level %d",
+		btrfs_err(root->fs_info, "bad tree block level %d",
 			   (int)btrfs_header_level(eb));
 		ret = -EIO;
 		goto err;
@@ -1073,12 +1074,12 @@ static const struct address_space_operations btree_aops = {
 	.set_page_dirty = btree_set_page_dirty,
 };
 
-void readahead_tree_block(struct btrfs_root *root, u64 bytenr, u32 blocksize)
+void readahead_tree_block(struct btrfs_root *root, u64 bytenr)
 {
 	struct extent_buffer *buf = NULL;
 	struct inode *btree_inode = root->fs_info->btree_inode;
 
-	buf = btrfs_find_create_tree_block(root, bytenr, blocksize);
+	buf = btrfs_find_create_tree_block(root, bytenr);
 	if (!buf)
 		return;
 	read_extent_buffer_pages(&BTRFS_I(btree_inode)->io_tree,
@@ -1086,7 +1087,7 @@ void readahead_tree_block(struct btrfs_root *root, u64 bytenr, u32 blocksize)
 	free_extent_buffer(buf);
 }
 
-int reada_tree_block_flagged(struct btrfs_root *root, u64 bytenr, u32 blocksize,
+int reada_tree_block_flagged(struct btrfs_root *root, u64 bytenr,
 			 int mirror_num, struct extent_buffer **eb)
 {
 	struct extent_buffer *buf = NULL;
@@ -1094,7 +1095,7 @@ int reada_tree_block_flagged(struct btrfs_root *root, u64 bytenr, u32 blocksize,
 	struct extent_io_tree *io_tree = &BTRFS_I(btree_inode)->io_tree;
 	int ret;
 
-	buf = btrfs_find_create_tree_block(root, bytenr, blocksize);
+	buf = btrfs_find_create_tree_block(root, bytenr);
 	if (!buf)
 		return 0;
 
@@ -1125,12 +1126,11 @@ struct extent_buffer *btrfs_find_tree_block(struct btrfs_root *root,
 }
 
 struct extent_buffer *btrfs_find_create_tree_block(struct btrfs_root *root,
-						 u64 bytenr, u32 blocksize)
+						 u64 bytenr)
 {
 	if (btrfs_test_is_dummy_root(root))
-		return alloc_test_extent_buffer(root->fs_info, bytenr,
-						blocksize);
-	return alloc_extent_buffer(root->fs_info, bytenr, blocksize);
+		return alloc_test_extent_buffer(root->fs_info, bytenr);
+	return alloc_extent_buffer(root->fs_info, bytenr);
 }
 
 
@@ -1152,7 +1152,7 @@ struct extent_buffer *read_tree_block(struct btrfs_root *root, u64 bytenr,
 	struct extent_buffer *buf = NULL;
 	int ret;
 
-	buf = btrfs_find_create_tree_block(root, bytenr, root->nodesize);
+	buf = btrfs_find_create_tree_block(root, bytenr);
 	if (!buf)
 		return NULL;
 
@@ -1275,12 +1275,10 @@ static void __setup_root(u32 nodesize, u32 sectorsize, u32 stripesize,
 	memset(&root->root_key, 0, sizeof(root->root_key));
 	memset(&root->root_item, 0, sizeof(root->root_item));
 	memset(&root->defrag_progress, 0, sizeof(root->defrag_progress));
-	memset(&root->root_kobj, 0, sizeof(root->root_kobj));
 	if (fs_info)
 		root->defrag_trans_start = fs_info->generation;
 	else
 		root->defrag_trans_start = 0;
-	init_completion(&root->kobj_unregister);
 	root->root_key.objectid = objectid;
 	root->anon_dev = 0;
 
@@ -1630,6 +1628,8 @@ struct btrfs_root *btrfs_get_fs_root(struct btrfs_fs_info *fs_info,
 				     bool check_ref)
 {
 	struct btrfs_root *root;
+	struct btrfs_path *path;
+	struct btrfs_key key;
 	int ret;
 
 	if (location->objectid == BTRFS_ROOT_TREE_OBJECTID)
@@ -1669,8 +1669,17 @@ again:
 	if (ret)
 		goto fail;
 
-	ret = btrfs_find_item(fs_info->tree_root, NULL, BTRFS_ORPHAN_OBJECTID,
-			location->objectid, BTRFS_ORPHAN_ITEM_KEY, NULL);
+	path = btrfs_alloc_path();
+	if (!path) {
+		ret = -ENOMEM;
+		goto fail;
+	}
+	key.objectid = BTRFS_ORPHAN_OBJECTID;
+	key.type = BTRFS_ORPHAN_ITEM_KEY;
+	key.offset = location->objectid;
+
+	ret = btrfs_search_slot(NULL, fs_info->tree_root, &key, path, 0, 0);
+	btrfs_free_path(path);
 	if (ret < 0)
 		goto fail;
 	if (ret == 0)
@@ -1715,12 +1724,11 @@ static int setup_bdi(struct btrfs_fs_info *info, struct backing_dev_info *bdi)
 {
 	int err;
 
-	bdi->capabilities = BDI_CAP_MAP_COPY;
-	err = bdi_setup_and_register(bdi, "btrfs", BDI_CAP_MAP_COPY);
+	err = bdi_setup_and_register(bdi, "btrfs");
 	if (err)
 		return err;
 
-	bdi->ra_pages	= default_backing_dev_info.ra_pages;
+	bdi->ra_pages = VM_MAX_READAHEAD * 1024 / PAGE_CACHE_SIZE;
 	bdi->congested_fn	= btrfs_congested_fn;
 	bdi->congested_data	= info;
 	return 0;
@@ -2233,6 +2241,7 @@ int open_ctree(struct super_block *sb,
 	spin_lock_init(&fs_info->qgroup_op_lock);
 	spin_lock_init(&fs_info->buffer_lock);
 	spin_lock_init(&fs_info->unused_bgs_lock);
+	mutex_init(&fs_info->unused_bg_unpin_mutex);
 	rwlock_init(&fs_info->tree_mod_log_lock);
 	mutex_init(&fs_info->reloc_mutex);
 	mutex_init(&fs_info->delalloc_root_mutex);
@@ -2319,7 +2328,6 @@ int open_ctree(struct super_block *sb,
 	 */
 	fs_info->btree_inode->i_size = OFFSET_MAX;
 	fs_info->btree_inode->i_mapping->a_ops = &btree_aops;
-	fs_info->btree_inode->i_mapping->backing_dev_info = &fs_info->bdi;
 
 	RB_CLEAR_NODE(&BTRFS_I(fs_info->btree_inode)->rb_node);
 	extent_io_tree_init(&BTRFS_I(fs_info->btree_inode)->io_tree,
@@ -2383,6 +2391,8 @@ int open_ctree(struct super_block *sb,
 	init_waitqueue_head(&fs_info->transaction_wait);
 	init_waitqueue_head(&fs_info->transaction_blocked_wait);
 	init_waitqueue_head(&fs_info->async_submit_wait);
+
+	INIT_LIST_HEAD(&fs_info->pinned_chunks);
 
 	ret = btrfs_alloc_stripe_hash_table(fs_info);
 	if (ret) {
@@ -2496,7 +2506,7 @@ int open_ctree(struct super_block *sb,
 		features |= BTRFS_FEATURE_INCOMPAT_COMPRESS_LZO;
 
 	if (features & BTRFS_FEATURE_INCOMPAT_SKINNY_METADATA)
-		printk(KERN_ERR "BTRFS: has skinny extents\n");
+		printk(KERN_INFO "BTRFS: has skinny extents\n");
 
 	/*
 	 * flag our filesystem as having big metadata blocks if
@@ -2520,7 +2530,7 @@ int open_ctree(struct super_block *sb,
 	 */
 	if ((features & BTRFS_FEATURE_INCOMPAT_MIXED_GROUPS) &&
 	    (sectorsize != nodesize)) {
-		printk(KERN_WARNING "BTRFS: unequal leaf/node/sector sizes "
+		printk(KERN_ERR "BTRFS: unequal leaf/node/sector sizes "
 				"are not allowed for mixed block groups on %s\n",
 				sb->s_id);
 		goto fail_alloc;
@@ -2628,12 +2638,12 @@ int open_ctree(struct super_block *sb,
 	sb->s_blocksize_bits = blksize_bits(sectorsize);
 
 	if (btrfs_super_magic(disk_super) != BTRFS_MAGIC) {
-		printk(KERN_INFO "BTRFS: valid FS not found on %s\n", sb->s_id);
+		printk(KERN_ERR "BTRFS: valid FS not found on %s\n", sb->s_id);
 		goto fail_sb_buffer;
 	}
 
 	if (sectorsize != PAGE_SIZE) {
-		printk(KERN_WARNING "BTRFS: Incompatible sector size(%lu) "
+		printk(KERN_ERR "BTRFS: incompatible sector size (%lu) "
 		       "found on %s\n", (unsigned long)sectorsize, sb->s_id);
 		goto fail_sb_buffer;
 	}
@@ -2642,7 +2652,7 @@ int open_ctree(struct super_block *sb,
 	ret = btrfs_read_sys_array(tree_root);
 	mutex_unlock(&fs_info->chunk_mutex);
 	if (ret) {
-		printk(KERN_WARNING "BTRFS: failed to read the system "
+		printk(KERN_ERR "BTRFS: failed to read the system "
 		       "array on %s\n", sb->s_id);
 		goto fail_sb_buffer;
 	}
@@ -2657,7 +2667,7 @@ int open_ctree(struct super_block *sb,
 					   generation);
 	if (!chunk_root->node ||
 	    !test_bit(EXTENT_BUFFER_UPTODATE, &chunk_root->node->bflags)) {
-		printk(KERN_WARNING "BTRFS: failed to read chunk root on %s\n",
+		printk(KERN_ERR "BTRFS: failed to read chunk root on %s\n",
 		       sb->s_id);
 		goto fail_tree_roots;
 	}
@@ -2669,7 +2679,7 @@ int open_ctree(struct super_block *sb,
 
 	ret = btrfs_read_chunk_tree(chunk_root);
 	if (ret) {
-		printk(KERN_WARNING "BTRFS: failed to read chunk tree on %s\n",
+		printk(KERN_ERR "BTRFS: failed to read chunk tree on %s\n",
 		       sb->s_id);
 		goto fail_tree_roots;
 	}
@@ -2681,7 +2691,7 @@ int open_ctree(struct super_block *sb,
 	btrfs_close_extra_devices(fs_info, fs_devices, 0);
 
 	if (!fs_devices->latest_bdev) {
-		printk(KERN_CRIT "BTRFS: failed to read devices on %s\n",
+		printk(KERN_ERR "BTRFS: failed to read devices on %s\n",
 		       sb->s_id);
 		goto fail_tree_roots;
 	}
@@ -2765,7 +2775,7 @@ retry_root_backup:
 
 	ret = btrfs_recover_balance(fs_info);
 	if (ret) {
-		printk(KERN_WARNING "BTRFS: failed to recover balance\n");
+		printk(KERN_ERR "BTRFS: failed to recover balance\n");
 		goto fail_block_groups;
 	}
 
@@ -2830,9 +2840,11 @@ retry_root_backup:
 		btrfs_set_opt(fs_info->mount_opt, SSD);
 	}
 
-	/* Set the real inode map cache flag */
-	if (btrfs_test_opt(tree_root, CHANGE_INODE_CACHE))
-		btrfs_set_opt(tree_root->fs_info->mount_opt, INODE_MAP_CACHE);
+	/*
+	 * Mount does not set all options immediatelly, we can do it now and do
+	 * not have to wait for transaction commit
+	 */
+	btrfs_apply_pending_changes(fs_info);
 
 #ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
 	if (btrfs_test_opt(tree_root, CHECK_INTEGRITY)) {
@@ -3713,6 +3725,17 @@ void close_ctree(struct btrfs_root *root)
 
 	btrfs_free_block_rsv(root, root->orphan_block_rsv);
 	root->orphan_block_rsv = NULL;
+
+	lock_chunks(root);
+	while (!list_empty(&fs_info->pinned_chunks)) {
+		struct extent_map *em;
+
+		em = list_first_entry(&fs_info->pinned_chunks,
+				      struct extent_map, list);
+		list_del_init(&em->list);
+		free_extent_map(em);
+	}
+	unlock_chunks(root);
 }
 
 int btrfs_buffer_uptodate(struct extent_buffer *buf, u64 parent_transid,
@@ -3817,19 +3840,19 @@ static int btrfs_check_super_valid(struct btrfs_fs_info *fs_info,
 	struct btrfs_super_block *sb = fs_info->super_copy;
 	int ret = 0;
 
-	if (sb->root_level > BTRFS_MAX_LEVEL) {
-		printk(KERN_ERR "BTRFS: tree_root level too big: %d > %d\n",
-				sb->root_level, BTRFS_MAX_LEVEL);
+	if (btrfs_super_root_level(sb) >= BTRFS_MAX_LEVEL) {
+		printk(KERN_ERR "BTRFS: tree_root level too big: %d >= %d\n",
+				btrfs_super_root_level(sb), BTRFS_MAX_LEVEL);
 		ret = -EINVAL;
 	}
-	if (sb->chunk_root_level > BTRFS_MAX_LEVEL) {
-		printk(KERN_ERR "BTRFS: chunk_root level too big: %d > %d\n",
-				sb->chunk_root_level, BTRFS_MAX_LEVEL);
+	if (btrfs_super_chunk_root_level(sb) >= BTRFS_MAX_LEVEL) {
+		printk(KERN_ERR "BTRFS: chunk_root level too big: %d >= %d\n",
+				btrfs_super_chunk_root_level(sb), BTRFS_MAX_LEVEL);
 		ret = -EINVAL;
 	}
-	if (sb->log_root_level > BTRFS_MAX_LEVEL) {
-		printk(KERN_ERR "BTRFS: log_root level too big: %d > %d\n",
-				sb->log_root_level, BTRFS_MAX_LEVEL);
+	if (btrfs_super_log_root_level(sb) >= BTRFS_MAX_LEVEL) {
+		printk(KERN_ERR "BTRFS: log_root level too big: %d >= %d\n",
+				btrfs_super_log_root_level(sb), BTRFS_MAX_LEVEL);
 		ret = -EINVAL;
 	}
 
@@ -3837,15 +3860,30 @@ static int btrfs_check_super_valid(struct btrfs_fs_info *fs_info,
 	 * The common minimum, we don't know if we can trust the nodesize/sectorsize
 	 * items yet, they'll be verified later. Issue just a warning.
 	 */
-	if (!IS_ALIGNED(sb->root, 4096))
+	if (!IS_ALIGNED(btrfs_super_root(sb), 4096))
 		printk(KERN_WARNING "BTRFS: tree_root block unaligned: %llu\n",
-				sb->root);
-	if (!IS_ALIGNED(sb->chunk_root, 4096))
-		printk(KERN_WARNING "BTRFS: tree_root block unaligned: %llu\n",
-				sb->chunk_root);
-	if (!IS_ALIGNED(sb->log_root, 4096))
-		printk(KERN_WARNING "BTRFS: tree_root block unaligned: %llu\n",
-				sb->log_root);
+				btrfs_super_root(sb));
+	if (!IS_ALIGNED(btrfs_super_chunk_root(sb), 4096))
+		printk(KERN_WARNING "BTRFS: chunk_root block unaligned: %llu\n",
+				btrfs_super_chunk_root(sb));
+	if (!IS_ALIGNED(btrfs_super_log_root(sb), 4096))
+		printk(KERN_WARNING "BTRFS: log_root block unaligned: %llu\n",
+				btrfs_super_log_root(sb));
+
+	/*
+	 * Check the lower bound, the alignment and other constraints are
+	 * checked later.
+	 */
+	if (btrfs_super_nodesize(sb) < 4096) {
+		printk(KERN_ERR "BTRFS: nodesize too small: %u < 4096\n",
+				btrfs_super_nodesize(sb));
+		ret = -EINVAL;
+	}
+	if (btrfs_super_sectorsize(sb) < 4096) {
+		printk(KERN_ERR "BTRFS: sectorsize too small: %u < 4096\n",
+				btrfs_super_sectorsize(sb));
+		ret = -EINVAL;
+	}
 
 	if (memcmp(fs_info->fsid, sb->dev_item.fsid, BTRFS_UUID_SIZE) != 0) {
 		printk(KERN_ERR "BTRFS: dev_item UUID does not match fsid: %pU != %pU\n",
@@ -3857,13 +3895,36 @@ static int btrfs_check_super_valid(struct btrfs_fs_info *fs_info,
 	 * Hint to catch really bogus numbers, bitflips or so, more exact checks are
 	 * done later
 	 */
-	if (sb->num_devices > (1UL << 31))
+	if (btrfs_super_num_devices(sb) > (1UL << 31))
 		printk(KERN_WARNING "BTRFS: suspicious number of devices: %llu\n",
-				sb->num_devices);
+				btrfs_super_num_devices(sb));
+	if (btrfs_super_num_devices(sb) == 0) {
+		printk(KERN_ERR "BTRFS: number of devices is 0\n");
+		ret = -EINVAL;
+	}
 
-	if (sb->bytenr != BTRFS_SUPER_INFO_OFFSET) {
+	if (btrfs_super_bytenr(sb) != BTRFS_SUPER_INFO_OFFSET) {
 		printk(KERN_ERR "BTRFS: super offset mismatch %llu != %u\n",
-				sb->bytenr, BTRFS_SUPER_INFO_OFFSET);
+				btrfs_super_bytenr(sb), BTRFS_SUPER_INFO_OFFSET);
+		ret = -EINVAL;
+	}
+
+	/*
+	 * Obvious sys_chunk_array corruptions, it must hold at least one key
+	 * and one chunk
+	 */
+	if (btrfs_super_sys_array_size(sb) > BTRFS_SYSTEM_CHUNK_ARRAY_SIZE) {
+		printk(KERN_ERR "BTRFS: system chunk array too big %u > %u\n",
+				btrfs_super_sys_array_size(sb),
+				BTRFS_SYSTEM_CHUNK_ARRAY_SIZE);
+		ret = -EINVAL;
+	}
+	if (btrfs_super_sys_array_size(sb) < sizeof(struct btrfs_disk_key)
+			+ sizeof(struct btrfs_chunk)) {
+		printk(KERN_ERR "BTRFS: system chunk array too small %u < %zu\n",
+				btrfs_super_sys_array_size(sb),
+				sizeof(struct btrfs_disk_key)
+				+ sizeof(struct btrfs_chunk));
 		ret = -EINVAL;
 	}
 
@@ -3871,14 +3932,15 @@ static int btrfs_check_super_valid(struct btrfs_fs_info *fs_info,
 	 * The generation is a global counter, we'll trust it more than the others
 	 * but it's still possible that it's the one that's wrong.
 	 */
-	if (sb->generation < sb->chunk_root_generation)
+	if (btrfs_super_generation(sb) < btrfs_super_chunk_root_generation(sb))
 		printk(KERN_WARNING
 			"BTRFS: suspicious: generation < chunk_root_generation: %llu < %llu\n",
-			sb->generation, sb->chunk_root_generation);
-	if (sb->generation < sb->cache_generation && sb->cache_generation != (u64)-1)
+			btrfs_super_generation(sb), btrfs_super_chunk_root_generation(sb));
+	if (btrfs_super_generation(sb) < btrfs_super_cache_generation(sb)
+	    && btrfs_super_cache_generation(sb) != (u64)-1)
 		printk(KERN_WARNING
 			"BTRFS: suspicious: generation < cache_generation: %llu < %llu\n",
-			sb->generation, sb->cache_generation);
+			btrfs_super_generation(sb), btrfs_super_cache_generation(sb));
 
 	return ret;
 }
@@ -4105,12 +4167,6 @@ again:
 		if (ret)
 			break;
 
-		/* opt_discard */
-		if (btrfs_test_opt(root, DISCARD))
-			ret = btrfs_error_discard_extent(root, start,
-							 end + 1 - start,
-							 NULL);
-
 		clear_extent_dirty(unpin, start, end, GFP_NOFS);
 		btrfs_error_unpin_extent_range(root, start, end);
 		cond_resched();
@@ -4128,6 +4184,25 @@ again:
 	return 0;
 }
 
+static void btrfs_free_pending_ordered(struct btrfs_transaction *cur_trans,
+				       struct btrfs_fs_info *fs_info)
+{
+	struct btrfs_ordered_extent *ordered;
+
+	spin_lock(&fs_info->trans_lock);
+	while (!list_empty(&cur_trans->pending_ordered)) {
+		ordered = list_first_entry(&cur_trans->pending_ordered,
+					   struct btrfs_ordered_extent,
+					   trans_list);
+		list_del_init(&ordered->trans_list);
+		spin_unlock(&fs_info->trans_lock);
+
+		btrfs_put_ordered_extent(ordered);
+		spin_lock(&fs_info->trans_lock);
+	}
+	spin_unlock(&fs_info->trans_lock);
+}
+
 void btrfs_cleanup_one_transaction(struct btrfs_transaction *cur_trans,
 				   struct btrfs_root *root)
 {
@@ -4139,6 +4214,7 @@ void btrfs_cleanup_one_transaction(struct btrfs_transaction *cur_trans,
 	cur_trans->state = TRANS_STATE_UNBLOCKED;
 	wake_up(&root->fs_info->transaction_wait);
 
+	btrfs_free_pending_ordered(cur_trans, root->fs_info);
 	btrfs_destroy_delayed_inodes(root);
 	btrfs_assert_delayed_root_empty(root);
 

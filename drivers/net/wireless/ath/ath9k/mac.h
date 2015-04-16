@@ -704,7 +704,7 @@ struct ath_tx_info {
 	enum ath9k_pkt_type type;
 	enum ath9k_key_type keytype;
 	u8 keyix;
-	u8 txpower;
+	u8 txpower[4];
 };
 
 struct ath_hw;

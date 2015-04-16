@@ -169,7 +169,7 @@ static void __init maple_use_rtas_reboot_and_halt_if_present(void)
 	if (rtas_service_present("system-reboot") &&
 	    rtas_service_present("power-off")) {
 		ppc_md.restart = rtas_restart;
-		ppc_md.power_off = rtas_power_off;
+		pm_power_off = rtas_power_off;
 		ppc_md.halt = rtas_halt;
 	}
 }
@@ -312,6 +312,7 @@ static int __init maple_probe(void)
 	alloc_dart_table();
 
 	hpte_init_native();
+	pm_power_off = maple_power_off;
 
 	return 1;
 }
@@ -325,7 +326,6 @@ define_machine(maple) {
 	.pci_irq_fixup		= maple_pci_irq_fixup,
 	.pci_get_legacy_ide_irq	= maple_pci_get_legacy_ide_irq,
 	.restart		= maple_restart,
-	.power_off		= maple_power_off,
 	.halt			= maple_halt,
        	.get_boot_time		= maple_get_boot_time,
        	.set_rtc_time		= maple_set_rtc_time,

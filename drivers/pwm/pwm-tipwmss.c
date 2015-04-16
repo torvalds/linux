@@ -119,7 +119,6 @@ static SIMPLE_DEV_PM_OPS(pwmss_pm_ops, pwmss_suspend, pwmss_resume);
 static struct platform_driver pwmss_driver = {
 	.driver	= {
 		.name	= "pwmss",
-		.owner	= THIS_MODULE,
 		.pm	= &pwmss_pm_ops,
 		.of_match_table	= pwmss_of_match,
 	},

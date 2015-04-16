@@ -324,7 +324,6 @@ static struct platform_driver jz4740_adc_driver = {
 	.remove = jz4740_adc_remove,
 	.driver = {
 		.name = "jz4740-adc",
-		.owner = THIS_MODULE,
 	},
 };
 

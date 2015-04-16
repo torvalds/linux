@@ -250,7 +250,7 @@ static int ni_isapnp_find_board(struct pnp_dev **dev)
 					  ISAPNP_FUNCTION(ni_boards[i].
 							  isapnp_id), NULL);
 
-		if (isapnp_dev == NULL || isapnp_dev->card == NULL)
+		if (!isapnp_dev || !isapnp_dev->card)
 			continue;
 
 		if (pnp_device_attach(isapnp_dev) < 0)
@@ -282,7 +282,6 @@ static int ni_getboardtype(struct comedi_device *dev)
 	for (i = 0; i < ARRAY_SIZE(ni_boards); i++) {
 		if (ni_boards[i].device_id == device_id)
 			return i;
-
 	}
 	if (device_id == 255)
 		dev_err(dev->class_dev, "can't find board\n");
@@ -300,7 +299,6 @@ static int ni_atmio_attach(struct comedi_device *dev,
 			   struct comedi_devconfig *it)
 {
 	const struct ni_board_struct *boardtype;
-	struct ni_private *devpriv;
 	struct pnp_dev *isapnp_dev;
 	int ret;
 	unsigned long iobase;
@@ -310,7 +308,6 @@ static int ni_atmio_attach(struct comedi_device *dev,
 	ret = ni_alloc_private(dev);
 	if (ret)
 		return ret;
-	devpriv = dev->private;
 
 	iobase = it->options[0];
 	irq = it->options[1];
@@ -356,7 +353,6 @@ static int ni_atmio_attach(struct comedi_device *dev,
 	ret = ni_E_init(dev, ni_irqpin[dev->irq], 0);
 	if (ret < 0)
 		return ret;
-
 
 	return 0;
 }

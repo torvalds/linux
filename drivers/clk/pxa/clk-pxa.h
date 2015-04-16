@@ -25,7 +25,7 @@
 	static struct clk_ops name ## _rate_ops = {		\
 		.recalc_rate = name ## _get_rate,		\
 	};							\
-	static struct clk *clk_register_ ## name(void)		\
+	static struct clk * __init clk_register_ ## name(void)	\
 	{							\
 		return clk_register_composite(NULL, clk_name,	\
 			name ## _parents,			\
@@ -40,7 +40,7 @@
 	static struct clk_ops name ## _rate_ops = {		\
 		.recalc_rate = name ## _get_rate,		\
 	};							\
-	static struct clk *clk_register_ ## name(void)		\
+	static struct clk * __init clk_register_ ## name(void)	\
 	{							\
 		return clk_register_composite(NULL, clk_name,	\
 			name ## _parents,			\
@@ -66,7 +66,7 @@
  *  |    Clock   | --- | / div_hp  |
  *  +------------+     +-----------+
  */
-struct pxa_clk_cken {
+struct desc_clk_cken {
 	struct clk_hw hw;
 	int ckid;
 	const char *name;
@@ -102,6 +102,7 @@ static int dummy_clk_set_parent(struct clk_hw *hw, u8 index)
 
 extern void clkdev_pxa_register(int ckid, const char *con_id,
 				const char *dev_id, struct clk *clk);
-extern int clk_pxa_cken_init(struct pxa_clk_cken *clks, int nb_clks);
+extern int clk_pxa_cken_init(const struct desc_clk_cken *clks, int nb_clks);
+void clk_pxa_dt_common_init(struct device_node *np);
 
 #endif

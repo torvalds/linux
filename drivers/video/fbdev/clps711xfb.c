@@ -303,7 +303,6 @@ static int clps711x_fb_remove(struct platform_device *pdev)
 static struct platform_driver clps711x_fb_driver = {
 	.driver	= {
 		.name	= "video-clps711x",
-		.owner	= THIS_MODULE,
 	},
 	.probe	= clps711x_fb_probe,
 	.remove	= clps711x_fb_remove,

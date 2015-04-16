@@ -20,7 +20,7 @@ config AB8500_USB
 
 config FSL_USB2_OTG
 	bool "Freescale USB OTG Transceiver Driver"
-	depends on USB_EHCI_FSL && USB_FSL_USB2 && USB_OTG_FSM && PM_RUNTIME
+	depends on USB_EHCI_FSL && USB_FSL_USB2 && USB_OTG_FSM && PM
 	select USB_OTG
 	select USB_PHY
 	help
@@ -119,7 +119,7 @@ config TAHVO_USB
 
 config TAHVO_USB_HOST_BY_DEFAULT
 	depends on TAHVO_USB
-	boolean "Device in USB host mode by default"
+	bool "Device in USB host mode by default"
 	help
 	  Say Y here, if you want the device to enter USB host mode
 	  by default on bootup.
@@ -139,7 +139,7 @@ config USB_ISP1301
 
 config USB_MSM_OTG
 	tristate "Qualcomm on-chip USB OTG controller support"
-	depends on (USB || USB_GADGET) && (ARCH_MSM || ARCH_QCOM || COMPILE_TEST)
+	depends on (USB || USB_GADGET) && (ARCH_QCOM || COMPILE_TEST)
 	depends on RESET_CONTROLLER
 	select USB_PHY
 	help
@@ -153,7 +153,7 @@ config USB_MSM_OTG
 
 config USB_MV_OTG
 	tristate "Marvell USB OTG support"
-	depends on USB_EHCI_MV && USB_MV_UDC && PM_RUNTIME
+	depends on USB_EHCI_MV && USB_MV_UDC && PM
 	select USB_OTG
 	select USB_PHY
 	help
@@ -202,13 +202,13 @@ config USB_RCAR_GEN2_PHY
 config USB_ULPI
 	bool "Generic ULPI Transceiver Driver"
 	depends on ARM || ARM64
+	select USB_ULPI_VIEWPORT
 	help
 	  Enable this to support ULPI connected USB OTG transceivers which
 	  are likely found on embedded boards.
 
 config USB_ULPI_VIEWPORT
 	bool
-	depends on USB_ULPI
 	help
 	  Provides read/write operations to the ULPI phy register set for
 	  controllers with a viewport register (e.g. Chipidea/ARC controllers).

@@ -61,6 +61,7 @@ enum evm_ima_xattr_type {
 	EVM_XATTR_HMAC,
 	EVM_IMA_XATTR_DIGSIG,
 	IMA_XATTR_DIGEST_NG,
+	IMA_XATTR_LAST
 };
 
 struct evm_ima_xattr_data {
@@ -119,6 +120,10 @@ struct integrity_iint_cache {
  */
 struct integrity_iint_cache *integrity_iint_find(struct inode *inode);
 
+int integrity_kernel_read(struct file *file, loff_t offset,
+			  char *addr, unsigned long count);
+int __init integrity_read_file(const char *path, char **data);
+
 #define INTEGRITY_KEYRING_EVM		0
 #define INTEGRITY_KEYRING_MODULE	1
 #define INTEGRITY_KEYRING_IMA		2
@@ -129,7 +134,8 @@ struct integrity_iint_cache *integrity_iint_find(struct inode *inode);
 int integrity_digsig_verify(const unsigned int id, const char *sig, int siglen,
 			    const char *digest, int digestlen);
 
-int integrity_init_keyring(const unsigned int id);
+int __init integrity_init_keyring(const unsigned int id);
+int __init integrity_load_x509(const unsigned int id, char *path);
 #else
 
 static inline int integrity_digsig_verify(const unsigned int id,
@@ -143,6 +149,7 @@ static inline int integrity_init_keyring(const unsigned int id)
 {
 	return 0;
 }
+
 #endif /* CONFIG_INTEGRITY_SIGNATURE */
 
 #ifdef CONFIG_INTEGRITY_ASYMMETRIC_KEYS
@@ -153,6 +160,14 @@ static inline int asymmetric_verify(struct key *keyring, const char *sig,
 				    int siglen, const char *data, int datalen)
 {
 	return -EOPNOTSUPP;
+}
+#endif
+
+#ifdef CONFIG_IMA_LOAD_X509
+void __init ima_load_x509(void);
+#else
+static inline void ima_load_x509(void)
+{
 }
 #endif
 
@@ -169,6 +184,3 @@ static inline void integrity_audit_msg(int audit_msgno, struct inode *inode,
 {
 }
 #endif
-
-/* set during initialization */
-extern int iint_initialized;

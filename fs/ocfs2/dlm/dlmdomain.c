@@ -674,20 +674,6 @@ static void dlm_leave_domain(struct dlm_ctxt *dlm)
 	spin_unlock(&dlm->spinlock);
 }
 
-int dlm_joined(struct dlm_ctxt *dlm)
-{
-	int ret = 0;
-
-	spin_lock(&dlm_domain_lock);
-
-	if (dlm->dlm_state == DLM_CTXT_JOINED)
-		ret = 1;
-
-	spin_unlock(&dlm_domain_lock);
-
-	return ret;
-}
-
 int dlm_shutting_down(struct dlm_ctxt *dlm)
 {
 	int ret = 0;
@@ -877,7 +863,7 @@ static int dlm_query_join_handler(struct o2net_msg *msg, u32 len, void *data,
 	 * to be put in someone's domain map.
 	 * Also, explicitly disallow joining at certain troublesome
 	 * times (ie. during recovery). */
-	if (dlm && dlm->dlm_state != DLM_CTXT_LEAVING) {
+	if (dlm->dlm_state != DLM_CTXT_LEAVING) {
 		int bit = query->node_idx;
 		spin_lock(&dlm->spinlock);
 

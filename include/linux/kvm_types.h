@@ -54,33 +54,6 @@ typedef u64            hfn_t;
 
 typedef hfn_t pfn_t;
 
-union kvm_ioapic_redirect_entry {
-	u64 bits;
-	struct {
-		u8 vector;
-		u8 delivery_mode:3;
-		u8 dest_mode:1;
-		u8 delivery_status:1;
-		u8 polarity:1;
-		u8 remote_irr:1;
-		u8 trig_mode:1;
-		u8 mask:1;
-		u8 reserve:7;
-		u8 reserved[4];
-		u8 dest_id;
-	} fields;
-};
-
-struct kvm_lapic_irq {
-	u32 vector;
-	u32 delivery_mode;
-	u32 dest_mode;
-	u32 level;
-	u32 trig_mode;
-	u32 shorthand;
-	u32 dest_id;
-};
-
 struct gfn_to_hva_cache {
 	u64 generation;
 	gpa_t gpa;

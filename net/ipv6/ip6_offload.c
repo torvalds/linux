@@ -69,7 +69,8 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb,
 	int nhoff;
 
 	if (unlikely(skb_shinfo(skb)->gso_type &
-		     ~(SKB_GSO_UDP |
+		     ~(SKB_GSO_TCPV4 |
+		       SKB_GSO_UDP |
 		       SKB_GSO_DODGY |
 		       SKB_GSO_TCP_ECN |
 		       SKB_GSO_GRE |
@@ -78,7 +79,7 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb,
 		       SKB_GSO_SIT |
 		       SKB_GSO_UDP_TUNNEL |
 		       SKB_GSO_UDP_TUNNEL_CSUM |
-		       SKB_GSO_MPLS |
+		       SKB_GSO_TUNNEL_REMCSUM |
 		       SKB_GSO_TCPV6 |
 		       0)))
 		goto out;
@@ -90,7 +91,7 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb,
 
 	encap = SKB_GSO_CB(skb)->encap_level > 0;
 	if (encap)
-		features = skb->dev->hw_enc_features & netif_skb_features(skb);
+		features &= skb->dev->hw_enc_features;
 	SKB_GSO_CB(skb)->encap_level += sizeof(*ipv6h);
 
 	ipv6h = ipv6_hdr(skb);
@@ -123,7 +124,7 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb,
 			unfrag_ip6hlen = ip6_find_1stfragopt(skb, &prevhdr);
 			fptr = (struct frag_hdr *)((u8 *)ipv6h + unfrag_ip6hlen);
 			fptr->frag_off = htons(offset);
-			if (skb->next != NULL)
+			if (skb->next)
 				fptr->frag_off |= htons(IP6_MF);
 			offset += (ntohs(ipv6h->payload_len) -
 				   sizeof(struct frag_hdr));

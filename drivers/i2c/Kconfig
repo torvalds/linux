@@ -35,11 +35,11 @@ config ACPI_I2C_OPREGION
 if I2C
 
 config I2C_BOARDINFO
-	boolean
+	bool
 	default y
 
 config I2C_COMPAT
-	boolean "Enable compatibility bits for old user-space"
+	bool "Enable compatibility bits for old user-space"
 	default y
 	help
 	  Say Y here if you intend to run lm-sensors 3.1.1 or older, or any
@@ -109,6 +109,16 @@ config I2C_STUB
 	  in <file:Documentation/i2c/i2c-stub>.
 
 	  If you don't know what to do here, definitely say N.
+
+config I2C_SLAVE
+	bool "I2C slave support"
+
+if I2C_SLAVE
+
+config I2C_SLAVE_EEPROM
+	tristate "I2C eeprom slave driver"
+
+endif
 
 config I2C_DEBUG_CORE
 	bool "I2C Core debugging messages"

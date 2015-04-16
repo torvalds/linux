@@ -346,10 +346,13 @@ static int max3109_detect(struct device *dev)
 	unsigned int val = 0;
 	int ret;
 
-	ret = regmap_read(s->regmap, MAX310X_REVID_REG, &val);
+	ret = regmap_write(s->regmap, MAX310X_GLOBALCMD_REG,
+			   MAX310X_EXTREG_ENBL);
 	if (ret)
 		return ret;
 
+	regmap_read(s->regmap, MAX310X_REVID_EXTREG, &val);
+	regmap_write(s->regmap, MAX310X_GLOBALCMD_REG, MAX310X_EXTREG_DSBL);
 	if (((val & MAX310x_REV_MASK) != MAX3109_REV_ID)) {
 		dev_err(dev,
 			"%s ID 0x%02x does not match\n", s->devtype->name, val);
@@ -874,55 +877,37 @@ static void max310x_set_termios(struct uart_port *port,
 	uart_update_timeout(port, termios->c_cflag, baud);
 }
 
-static int max310x_ioctl(struct uart_port *port, unsigned int cmd,
-			 unsigned long arg)
+static int max310x_rs485_config(struct uart_port *port,
+				struct serial_rs485 *rs485)
 {
-#if defined(TIOCSRS485) && defined(TIOCGRS485)
-	struct serial_rs485 rs485;
 	unsigned int val;
 
-	switch (cmd) {
-	case TIOCSRS485:
-		if (copy_from_user(&rs485, (void __user *)arg, sizeof(rs485)))
-			return -EFAULT;
-		if (rs485.delay_rts_before_send > 0x0f ||
-		    rs485.delay_rts_after_send > 0x0f)
-			return -ERANGE;
-		val = (rs485.delay_rts_before_send << 4) |
-		      rs485.delay_rts_after_send;
-		max310x_port_write(port, MAX310X_HDPIXDELAY_REG, val);
-		if (rs485.flags & SER_RS485_ENABLED) {
-			max310x_port_update(port, MAX310X_MODE1_REG,
-					    MAX310X_MODE1_TRNSCVCTRL_BIT,
-					    MAX310X_MODE1_TRNSCVCTRL_BIT);
-			max310x_port_update(port, MAX310X_MODE2_REG,
-					    MAX310X_MODE2_ECHOSUPR_BIT,
-					    MAX310X_MODE2_ECHOSUPR_BIT);
-		} else {
-			max310x_port_update(port, MAX310X_MODE1_REG,
-					    MAX310X_MODE1_TRNSCVCTRL_BIT, 0);
-			max310x_port_update(port, MAX310X_MODE2_REG,
-					    MAX310X_MODE2_ECHOSUPR_BIT, 0);
-		}
-		return 0;
-	case TIOCGRS485:
-		memset(&rs485, 0, sizeof(rs485));
-		val = max310x_port_read(port, MAX310X_MODE1_REG);
-		rs485.flags = (val & MAX310X_MODE1_TRNSCVCTRL_BIT) ?
-			      SER_RS485_ENABLED : 0;
-		rs485.flags |= SER_RS485_RTS_ON_SEND;
-		val = max310x_port_read(port, MAX310X_HDPIXDELAY_REG);
-		rs485.delay_rts_before_send = val >> 4;
-		rs485.delay_rts_after_send = val & 0x0f;
-		if (copy_to_user((void __user *)arg, &rs485, sizeof(rs485)))
-			return -EFAULT;
-		return 0;
-	default:
-		break;
-	}
-#endif
+	if (rs485->delay_rts_before_send > 0x0f ||
+		    rs485->delay_rts_after_send > 0x0f)
+		return -ERANGE;
 
-	return -ENOIOCTLCMD;
+	val = (rs485->delay_rts_before_send << 4) |
+		rs485->delay_rts_after_send;
+	max310x_port_write(port, MAX310X_HDPIXDELAY_REG, val);
+	if (rs485->flags & SER_RS485_ENABLED) {
+		max310x_port_update(port, MAX310X_MODE1_REG,
+				MAX310X_MODE1_TRNSCVCTRL_BIT,
+				MAX310X_MODE1_TRNSCVCTRL_BIT);
+		max310x_port_update(port, MAX310X_MODE2_REG,
+				MAX310X_MODE2_ECHOSUPR_BIT,
+				MAX310X_MODE2_ECHOSUPR_BIT);
+	} else {
+		max310x_port_update(port, MAX310X_MODE1_REG,
+				MAX310X_MODE1_TRNSCVCTRL_BIT, 0);
+		max310x_port_update(port, MAX310X_MODE2_REG,
+				MAX310X_MODE2_ECHOSUPR_BIT, 0);
+	}
+
+	rs485->flags &= SER_RS485_RTS_ON_SEND | SER_RS485_ENABLED;
+	memset(rs485->padding, 0, sizeof(rs485->padding));
+	port->rs485 = *rs485;
+
+	return 0;
 }
 
 static int max310x_startup(struct uart_port *port)
@@ -1017,7 +1002,6 @@ static const struct uart_ops max310x_ops = {
 	.release_port	= max310x_null_void,
 	.config_port	= max310x_config_port,
 	.verify_port	= max310x_verify_port,
-	.ioctl		= max310x_ioctl,
 };
 
 static int __maybe_unused max310x_suspend(struct device *dev)
@@ -1218,6 +1202,7 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 		s->p[i].port.iobase	= i * 0x20;
 		s->p[i].port.membase	= (void __iomem *)~0;
 		s->p[i].port.uartclk	= uartclk;
+		s->p[i].port.rs485_config = max310x_rs485_config;
 		s->p[i].port.ops	= &max310x_ops;
 		/* Disable all interrupts */
 		max310x_port_write(&s->p[i].port, MAX310X_IRQEN_REG, 0);

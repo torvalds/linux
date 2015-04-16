@@ -189,82 +189,40 @@ static bool access_l2ectlr(struct kvm_vcpu *vcpu,
 	return true;
 }
 
-/* See note at ARM ARM B1.14.4 */
+/*
+ * See note at ARMv7 ARM B1.14.4 (TL;DR: S/W ops are not easily virtualized).
+ */
 static bool access_dcsw(struct kvm_vcpu *vcpu,
 			const struct coproc_params *p,
 			const struct coproc_reg *r)
 {
-	unsigned long val;
-	int cpu;
-
 	if (!p->is_write)
 		return read_from_write_only(vcpu, p);
 
-	cpu = get_cpu();
-
-	cpumask_setall(&vcpu->arch.require_dcache_flush);
-	cpumask_clear_cpu(cpu, &vcpu->arch.require_dcache_flush);
-
-	/* If we were already preempted, take the long way around */
-	if (cpu != vcpu->arch.last_pcpu) {
-		flush_cache_all();
-		goto done;
-	}
-
-	val = *vcpu_reg(vcpu, p->Rt1);
-
-	switch (p->CRm) {
-	case 6:			/* Upgrade DCISW to DCCISW, as per HCR.SWIO */
-	case 14:		/* DCCISW */
-		asm volatile("mcr p15, 0, %0, c7, c14, 2" : : "r" (val));
-		break;
-
-	case 10:		/* DCCSW */
-		asm volatile("mcr p15, 0, %0, c7, c10, 2" : : "r" (val));
-		break;
-	}
-
-done:
-	put_cpu();
-
+	kvm_set_way_flush(vcpu);
 	return true;
 }
 
 /*
  * Generic accessor for VM registers. Only called as long as HCR_TVM
- * is set.
+ * is set.  If the guest enables the MMU, we stop trapping the VM
+ * sys_regs and leave it in complete control of the caches.
+ *
+ * Used by the cpu-specific code.
  */
-static bool access_vm_reg(struct kvm_vcpu *vcpu,
-			  const struct coproc_params *p,
-			  const struct coproc_reg *r)
+bool access_vm_reg(struct kvm_vcpu *vcpu,
+		   const struct coproc_params *p,
+		   const struct coproc_reg *r)
 {
+	bool was_enabled = vcpu_has_cache_enabled(vcpu);
+
 	BUG_ON(!p->is_write);
 
 	vcpu->arch.cp15[r->reg] = *vcpu_reg(vcpu, p->Rt1);
 	if (p->is_64bit)
 		vcpu->arch.cp15[r->reg + 1] = *vcpu_reg(vcpu, p->Rt2);
 
-	return true;
-}
-
-/*
- * SCTLR accessor. Only called as long as HCR_TVM is set.  If the
- * guest enables the MMU, we stop trapping the VM sys_regs and leave
- * it in complete control of the caches.
- *
- * Used by the cpu-specific code.
- */
-bool access_sctlr(struct kvm_vcpu *vcpu,
-		  const struct coproc_params *p,
-		  const struct coproc_reg *r)
-{
-	access_vm_reg(vcpu, p, r);
-
-	if (vcpu_has_cache_enabled(vcpu)) {	/* MMU+Caches enabled? */
-		vcpu->arch.hcr &= ~HCR_TVM;
-		stage2_flush_vm(vcpu->kvm);
-	}
-
+	kvm_toggle_cache(vcpu, was_enabled);
 	return true;
 }
 

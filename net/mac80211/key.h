@@ -30,10 +30,12 @@ struct sta_info;
  * @KEY_FLAG_UPLOADED_TO_HARDWARE: Indicates that this key is present
  *	in the hardware for TX crypto hardware acceleration.
  * @KEY_FLAG_TAINTED: Key is tainted and packets should be dropped.
+ * @KEY_FLAG_CIPHER_SCHEME: This key is for a hardware cipher scheme
  */
 enum ieee80211_internal_key_flags {
 	KEY_FLAG_UPLOADED_TO_HARDWARE	= BIT(0),
 	KEY_FLAG_TAINTED		= BIT(1),
+	KEY_FLAG_CIPHER_SCHEME		= BIT(2),
 };
 
 enum ieee80211_internal_tkip_state {
@@ -94,6 +96,24 @@ struct ieee80211_key {
 			u32 replays; /* dot11RSNAStatsCMACReplays */
 			u32 icverrors; /* dot11RSNAStatsCMACICVErrors */
 		} aes_cmac;
+		struct {
+			atomic64_t tx_pn;
+			u8 rx_pn[IEEE80211_GMAC_PN_LEN];
+			struct crypto_aead *tfm;
+			u32 replays; /* dot11RSNAStatsCMACReplays */
+			u32 icverrors; /* dot11RSNAStatsCMACICVErrors */
+		} aes_gmac;
+		struct {
+			atomic64_t tx_pn;
+			/* Last received packet number. The first
+			 * IEEE80211_NUM_TIDS counters are used with Data
+			 * frames and the last counter is used with Robust
+			 * Management frames.
+			 */
+			u8 rx_pn[IEEE80211_NUM_TIDS + 1][IEEE80211_GCMP_PN_LEN];
+			struct crypto_aead *tfm;
+			u32 replays; /* dot11RSNAStatsGCMPReplays */
+		} gcmp;
 		struct {
 			/* generic cipher scheme */
 			u8 rx_pn[IEEE80211_NUM_TIDS + 1][MAX_PN_LEN];

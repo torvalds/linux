@@ -14,5 +14,12 @@
 #define SYNC_STEP_FINISHED	3	/* Set by secondary when split/unsplit is done */
 
 #ifndef __ASSEMBLY__
+
+#ifdef CONFIG_SMP
 void split_core_secondary_loop(u8 *state);
-#endif
+extern void update_subcore_sibling_mask(void);
+#else
+static inline void update_subcore_sibling_mask(void) { };
+#endif /* CONFIG_SMP */
+
+#endif /* __ASSEMBLY__ */

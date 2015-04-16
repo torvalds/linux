@@ -296,10 +296,8 @@ static struct ptlrpc_request *mdc_intent_open_pack(struct obd_export *exp,
 		} else {
 			if (it->it_flags & (FMODE_WRITE|MDS_OPEN_TRUNC))
 				mode = LCK_CW;
-#ifdef FMODE_EXEC
-			else if (it->it_flags & FMODE_EXEC)
+			else if (it->it_flags & __FMODE_EXEC)
 				mode = LCK_PR;
-#endif
 			else
 				mode = LCK_CR;
 		}
@@ -830,6 +828,7 @@ resend:
 			 einfo->ei_type);
 		policy = (ldlm_policy_data_t *)lmm;
 		res_id.name[3] = LDLM_FLOCK;
+		req = NULL;
 	} else if (it->it_op & IT_OPEN) {
 		req = mdc_intent_open_pack(exp, it, op_data, lmm, lmmsize,
 					   einfo->ei_cbdata);

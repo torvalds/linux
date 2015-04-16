@@ -184,7 +184,7 @@ static int hash_set_dma_transfer(struct hash_ctx *ctx, struct scatterlist *sg,
 			direction, DMA_CTRL_ACK | DMA_PREP_INTERRUPT);
 	if (!desc) {
 		dev_err(ctx->device->dev,
-			"%s: device_prep_slave_sg() failed!\n", __func__);
+			"%s: dmaengine_prep_slave_sg() failed!\n", __func__);
 		return -EFAULT;
 	}
 
@@ -202,7 +202,7 @@ static void hash_dma_done(struct hash_ctx *ctx)
 	struct dma_chan *chan;
 
 	chan = ctx->device->dma.chan_mem2hash;
-	dmaengine_device_control(chan, DMA_TERMINATE_ALL, 0);
+	dmaengine_terminate_all(chan);
 	dma_unmap_sg(chan->device->dev, ctx->device->dma.sg,
 		     ctx->device->dma.sg_len, DMA_TO_DEVICE);
 }
@@ -1881,6 +1881,7 @@ static void ux500_hash_shutdown(struct platform_device *pdev)
 			__func__);
 }
 
+#ifdef CONFIG_PM_SLEEP
 /**
  * ux500_hash_suspend - Function that suspends the hash device.
  * @dev:	Device to suspend.
@@ -1949,6 +1950,7 @@ static int ux500_hash_resume(struct device *dev)
 
 	return ret;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(ux500_hash_pm, ux500_hash_suspend, ux500_hash_resume);
 
@@ -1962,7 +1964,6 @@ static struct platform_driver hash_driver = {
 	.remove = ux500_hash_remove,
 	.shutdown = ux500_hash_shutdown,
 	.driver = {
-		.owner = THIS_MODULE,
 		.name  = "hash1",
 		.of_match_table = ux500_hash_match,
 		.pm    = &ux500_hash_pm,
@@ -1995,7 +1996,7 @@ module_exit(ux500_hash_mod_fini);
 MODULE_DESCRIPTION("Driver for ST-Ericsson UX500 HASH engine.");
 MODULE_LICENSE("GPL");
 
-MODULE_ALIAS("sha1-all");
-MODULE_ALIAS("sha256-all");
-MODULE_ALIAS("hmac-sha1-all");
-MODULE_ALIAS("hmac-sha256-all");
+MODULE_ALIAS_CRYPTO("sha1-all");
+MODULE_ALIAS_CRYPTO("sha256-all");
+MODULE_ALIAS_CRYPTO("hmac-sha1-all");
+MODULE_ALIAS_CRYPTO("hmac-sha256-all");

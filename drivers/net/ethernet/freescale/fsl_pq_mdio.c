@@ -294,7 +294,7 @@ static void ucc_configure(phys_addr_t start, phys_addr_t end)
 
 #endif
 
-static struct of_device_id fsl_pq_mdio_match[] = {
+static const struct of_device_id fsl_pq_mdio_match[] = {
 #if defined(CONFIG_GIANFAR) || defined(CONFIG_GIANFAR_MODULE)
 	{
 		.compatible = "fsl,gianfar-tbi",
@@ -488,7 +488,6 @@ static int fsl_pq_mdio_remove(struct platform_device *pdev)
 static struct platform_driver fsl_pq_mdio_driver = {
 	.driver = {
 		.name = "fsl-pq_mdio",
-		.owner = THIS_MODULE,
 		.of_match_table = fsl_pq_mdio_match,
 	},
 	.probe = fsl_pq_mdio_probe,

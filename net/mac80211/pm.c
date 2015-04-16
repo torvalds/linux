@@ -41,7 +41,7 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	/* flush out all packets */
 	synchronize_net();
 
-	ieee80211_flush_queues(local, NULL);
+	ieee80211_flush_queues(local, NULL, true);
 
 	local->quiescing = true;
 	/* make quiescing visible to timers everywhere */
@@ -59,9 +59,26 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	cancel_work_sync(&local->dynamic_ps_enable_work);
 	del_timer_sync(&local->dynamic_ps_timer);
 
-	local->wowlan = wowlan && local->open_count;
+	local->wowlan = wowlan;
 	if (local->wowlan) {
-		int err = drv_suspend(local, wowlan);
+		int err;
+
+		/* Drivers don't expect to suspend while some operations like
+		 * authenticating or associating are in progress. It doesn't
+		 * make sense anyway to accept that, since the authentication
+		 * or association would never finish since the driver can't do
+		 * that on its own.
+		 * Thus, clean up in-progress auth/assoc first.
+		 */
+		list_for_each_entry(sdata, &local->interfaces, list) {
+			if (!ieee80211_sdata_running(sdata))
+				continue;
+			if (sdata->vif.type != NL80211_IFTYPE_STATION)
+				continue;
+			ieee80211_mgd_quiesce(sdata);
+		}
+
+		err = drv_suspend(local, wowlan);
 		if (err < 0) {
 			local->quiescing = false;
 			local->wowlan = false;
@@ -80,25 +97,18 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 			return err;
 		} else if (err > 0) {
 			WARN_ON(err != 1);
+			/* cfg80211 will call back into mac80211 to disconnect
+			 * all interfaces, allow that to proceed properly
+			 */
+			ieee80211_wake_queues_by_reason(hw,
+					IEEE80211_MAX_QUEUE_MAP,
+					IEEE80211_QUEUE_STOP_REASON_SUSPEND,
+					false);
 			return err;
 		} else {
 			goto suspend;
 		}
 	}
-
-	/* tear down aggregation sessions and remove STAs */
-	mutex_lock(&local->sta_mtx);
-	list_for_each_entry(sta, &local->sta_list, list) {
-		if (sta->uploaded) {
-			enum ieee80211_sta_state state;
-
-			state = sta->sta_state;
-			for (; state > IEEE80211_STA_NOTEXIST; state--)
-				WARN_ON(drv_sta_state(local, sta->sdata, sta,
-						      state, state - 1));
-		}
-	}
-	mutex_unlock(&local->sta_mtx);
 
 	/* remove all interfaces that were created in the driver */
 	list_for_each_entry(sdata, &local->interfaces, list) {
@@ -110,6 +120,21 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 			continue;
 		case NL80211_IFTYPE_STATION:
 			ieee80211_mgd_quiesce(sdata);
+			break;
+		case NL80211_IFTYPE_WDS:
+			/* tear down aggregation sessions and remove STAs */
+			mutex_lock(&local->sta_mtx);
+			sta = sdata->u.wds.sta;
+			if (sta && sta->uploaded) {
+				enum ieee80211_sta_state state;
+
+				state = sta->sta_state;
+				for (; state > IEEE80211_STA_NOTEXIST; state--)
+					WARN_ON(drv_sta_state(local, sta->sdata,
+							      sta, state,
+							      state - 1));
+			}
+			mutex_unlock(&local->sta_mtx);
 			break;
 		default:
 			break;

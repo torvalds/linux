@@ -374,8 +374,8 @@ static inline void s2dhms(struct dhms *ts, time_t secs)
 #define JOBSTATS_PROCNAME_UID		"procname_uid"
 #define JOBSTATS_NODELOCAL		"nodelocal"
 
-extern int lprocfs_write_frac_helper(const char *buffer, unsigned long count,
-				     int *val, int mult);
+extern int lprocfs_write_frac_helper(const char __user *buffer,
+				     unsigned long count, int *val, int mult);
 extern int lprocfs_read_frac_helper(char *buffer, unsigned long count,
 				    long val, int mult);
 #if defined (CONFIG_PROC_FS)
@@ -557,7 +557,7 @@ extern void lprocfs_free_obd_stats(struct obd_device *obddev);
 extern void lprocfs_free_md_stats(struct obd_device *obddev);
 struct obd_export;
 struct nid_stat;
-extern int lprocfs_add_clear_entry(struct obd_device * obd,
+extern int lprocfs_add_clear_entry(struct obd_device *obd,
 				   struct proc_dir_entry *entry);
 extern int lprocfs_exp_setup(struct obd_export *exp,
 			     lnet_nid_t *peer_nid, int *newnid);
@@ -627,16 +627,16 @@ struct adaptive_timeout;
 extern int lprocfs_at_hist_helper(struct seq_file *m,
 				  struct adaptive_timeout *at);
 extern int lprocfs_rd_timeouts(struct seq_file *m, void *data);
-extern int lprocfs_wr_timeouts(struct file *file, const char *buffer,
+extern int lprocfs_wr_timeouts(struct file *file, const char __user *buffer,
 			       unsigned long count, void *data);
-extern int lprocfs_wr_evict_client(struct file *file, const char *buffer,
+extern int lprocfs_wr_evict_client(struct file *file, const char __user *buffer,
 			    size_t count, loff_t *off);
-extern int lprocfs_wr_ping(struct file *file, const char *buffer,
+extern int lprocfs_wr_ping(struct file *file, const char __user *buffer,
 			   size_t count, loff_t *off);
-extern int lprocfs_wr_import(struct file *file, const char *buffer,
+extern int lprocfs_wr_import(struct file *file, const char __user *buffer,
 		      size_t count, loff_t *off);
 extern int lprocfs_rd_pinger_recov(struct seq_file *m, void *n);
-extern int lprocfs_wr_pinger_recov(struct file *file, const char *buffer,
+extern int lprocfs_wr_pinger_recov(struct file *file, const char __user *buffer,
 				   size_t count, loff_t *off);
 
 /* Statfs helpers */
@@ -647,11 +647,11 @@ extern int lprocfs_rd_kbytesavail(struct seq_file *m, void *data);
 extern int lprocfs_rd_filestotal(struct seq_file *m, void *data);
 extern int lprocfs_rd_filesfree(struct seq_file *m, void *data);
 
-extern int lprocfs_write_helper(const char *buffer, unsigned long count,
+extern int lprocfs_write_helper(const char __user *buffer, unsigned long count,
 				int *val);
 extern int lprocfs_seq_read_frac_helper(struct seq_file *m, long val, int mult);
-extern int lprocfs_write_u64_helper(const char *buffer, unsigned long count,
-				    __u64 *val);
+extern int lprocfs_write_u64_helper(const char __user *buffer,
+				unsigned long count, __u64 *val);
 extern int lprocfs_write_frac_u64_helper(const char *buffer,
 					 unsigned long count,
 					 __u64 *val, int mult);
@@ -679,7 +679,7 @@ extern int lprocfs_seq_release(struct inode *, struct file *);
 	}				       \
 } while (0)
 #define LPROCFS_CLIMP_EXIT(obd)		 \
-	up_read(&(obd)->u.cli.cl_sem);
+	up_read(&(obd)->u.cli.cl_sem)
 
 
 /* write the name##_seq_show function, call LPROC_SEQ_FOPS_RO for read-only
@@ -716,17 +716,19 @@ static struct file_operations name##_fops = {				\
 		return lprocfs_rd_##type(m, m->private);		\
 	}								\
 	static ssize_t name##_##type##_seq_write(struct file *file,	\
-			const char *buffer, size_t count, loff_t *off)	\
+			const char __user *buffer, size_t count,	\
+						loff_t *off)		\
 	{								\
 		struct seq_file *seq = file->private_data;		\
 		return lprocfs_wr_##type(file, buffer,			\
 					 count, seq->private);		\
 	}								\
-	LPROC_SEQ_FOPS(name##_##type);
+	LPROC_SEQ_FOPS(name##_##type)
 
 #define LPROC_SEQ_FOPS_WR_ONLY(name, type)				\
 	static ssize_t name##_##type##_write(struct file *file,		\
-			const char *buffer, size_t count, loff_t *off)	\
+			const char __user *buffer, size_t count,	\
+						loff_t *off)		\
 	{								\
 		return lprocfs_wr_##type(file, buffer, count, off);	\
 	}								\
@@ -738,7 +740,7 @@ static struct file_operations name##_fops = {				\
 		.open	= name##_##type##_open,				\
 		.write	= name##_##type##_write,			\
 		.release = lprocfs_single_release,			\
-	};
+	}
 
 /* lproc_ptlrpc.c */
 struct ptlrpc_request;
@@ -939,20 +941,24 @@ static inline int lprocfs_at_hist_helper(struct seq_file *m,
 static inline int lprocfs_rd_timeouts(struct seq_file *m, void *data)
 { return 0; }
 static inline int lprocfs_wr_timeouts(struct file *file,
-				      const char *buffer,
-				      unsigned long count, void *data)
+				const char __user *buffer,
+				unsigned long count, void *data)
 { return 0; }
-static inline int lprocfs_wr_evict_client(struct file *file, const char *buffer,
-				    size_t count, loff_t *off)
+static inline int lprocfs_wr_evict_client(struct file *file,
+				const char __user *buffer,
+				size_t count, loff_t *off)
 { return 0; }
-static inline int lprocfs_wr_ping(struct file *file, const char *buffer,
-			   size_t count, loff_t *off)
+static inline int lprocfs_wr_ping(struct file *file,
+				const char __user *buffer,
+				size_t count, loff_t *off)
 { return 0; }
-static inline int lprocfs_wr_import(struct file *file, const char *buffer,
-			      size_t count, loff_t *off)
+static inline int lprocfs_wr_import(struct file *file,
+				const char __user *buffer,
+				size_t count, loff_t *off)
 { return 0; }
-static inline int lprocfs_wr_pinger_recov(struct file *file, const char *buffer,
-					size_t count, loff_t *off)
+static inline int lprocfs_wr_pinger_recov(struct file *file,
+				const char __user *buffer,
+				size_t count, loff_t *off)
 { return 0; }
 
 /* Statfs helpers */

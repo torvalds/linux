@@ -129,7 +129,6 @@ static struct platform_driver qnap_power_off_driver = {
 	.probe	= qnap_power_off_probe,
 	.remove	= qnap_power_off_remove,
 	.driver	= {
-		.owner	= THIS_MODULE,
 		.name	= "qnap_power_off",
 		.of_match_table = of_match_ptr(qnap_power_off_of_match_table),
 	},
