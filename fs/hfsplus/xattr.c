@@ -862,8 +862,13 @@ static int hfsplus_osx_getxattr(struct dentry *dentry, const char *name,
 	if (is_known_namespace(name))
 		return -EOPNOTSUPP;
 
-	return hfsplus_getxattr(dentry, name, buffer, size,
-				XATTR_MAC_OSX_PREFIX, XATTR_MAC_OSX_PREFIX_LEN);
+	/*
+	 * osx is the namespace we use to indicate an unprefixed
+	 * attribute on the filesystem (like the ones that OS X
+	 * creates), so we pass the name through unmodified (after
+	 * ensuring it doesn't conflict with another namespace).
+	 */
+	return __hfsplus_getxattr(dentry->d_inode, name, buffer, size);
 }
 
 static int hfsplus_osx_setxattr(struct dentry *dentry, const char *name,
@@ -879,9 +884,13 @@ static int hfsplus_osx_setxattr(struct dentry *dentry, const char *name,
 	if (is_known_namespace(name))
 		return -EOPNOTSUPP;
 
-	return hfsplus_setxattr(dentry, name, buffer, size, flags,
-				XATTR_MAC_OSX_PREFIX,
-				XATTR_MAC_OSX_PREFIX_LEN);
+	/*
+	 * osx is the namespace we use to indicate an unprefixed
+	 * attribute on the filesystem (like the ones that OS X
+	 * creates), so we pass the name through unmodified (after
+	 * ensuring it doesn't conflict with another namespace).
+	 */
+	return __hfsplus_setxattr(dentry->d_inode, name, buffer, size, flags);
 }
 
 static size_t hfsplus_osx_listxattr(struct dentry *dentry, char *list,
