@@ -124,4 +124,24 @@ struct ext4_fname_crypto_ctx {
 	unsigned ctfm_key_is_ready : 1;
 };
 
+/**
+ * For encrypted symlinks, the ciphertext length is stored at the beginning
+ * of the string in little-endian format.
+ */
+struct ext4_encrypted_symlink_data {
+	__le16 len;
+	char encrypted_path[1];
+} __attribute__((__packed__));
+
+/**
+ * This function is used to calculate the disk space required to
+ * store a filename of length l in encrypted symlink format.
+ */
+static inline u32 encrypted_symlink_data_len(u32 l)
+{
+	if (l < EXT4_CRYPTO_BLOCK_SIZE)
+		l = EXT4_CRYPTO_BLOCK_SIZE;
+	return (l + sizeof(struct ext4_encrypted_symlink_data) - 1);
+}
+
 #endif	/* _EXT4_CRYPTO_H */
