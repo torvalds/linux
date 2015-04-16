@@ -206,6 +206,10 @@ static int da9052_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	uint8_t v[6];
 	int ret;
 
+	/* DA9052 only has 6 bits for year - to represent 2000-2063 */
+	if ((tm->tm_year < 100) || (tm->tm_year > 163))
+		return -EINVAL;
+
 	rtc = dev_get_drvdata(dev);
 
 	v[0] = tm->tm_sec;
@@ -242,6 +246,10 @@ static int da9052_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	int ret;
 	struct rtc_time *tm = &alrm->time;
 	struct da9052_rtc *rtc = dev_get_drvdata(dev);
+
+	/* DA9052 only has 6 bits for year - to represent 2000-2063 */
+	if ((tm->tm_year < 100) || (tm->tm_year > 163))
+		return -EINVAL;
 
 	ret = da9052_rtc_enable_alarm(rtc, 0);
 	if (ret < 0)
