@@ -135,7 +135,7 @@ int amdgpu_connector_get_monitor_bpc(struct drm_connector *connector)
 		if (connector->display_info.bpc)
 			bpc = connector->display_info.bpc;
 		else {
-			struct drm_connector_helper_funcs *connector_funcs =
+			const struct drm_connector_helper_funcs *connector_funcs =
 				connector->helper_private;
 			struct drm_encoder *encoder = connector_funcs->best_encoder(connector);
 			struct amdgpu_encoder *amdgpu_encoder = to_amdgpu_encoder(encoder);
@@ -216,7 +216,7 @@ amdgpu_connector_update_scratch_regs(struct drm_connector *connector,
 {
 	struct drm_encoder *best_encoder = NULL;
 	struct drm_encoder *encoder = NULL;
-	struct drm_connector_helper_funcs *connector_funcs = connector->helper_private;
+	const struct drm_connector_helper_funcs *connector_funcs = connector->helper_private;
 	bool connected;
 	int i;
 
@@ -597,7 +597,7 @@ static int amdgpu_connector_set_property(struct drm_connector *connector,
 		if (connector->encoder) {
 			amdgpu_encoder = to_amdgpu_encoder(connector->encoder);
 		} else {
-			struct drm_connector_helper_funcs *connector_funcs = connector->helper_private;
+			const struct drm_connector_helper_funcs *connector_funcs = connector->helper_private;
 			amdgpu_encoder = to_amdgpu_encoder(connector_funcs->best_encoder(connector));
 		}
 
@@ -788,7 +788,7 @@ static int amdgpu_connector_set_lcd_property(struct drm_connector *connector,
 	if (connector->encoder)
 		amdgpu_encoder = to_amdgpu_encoder(connector->encoder);
 	else {
-		struct drm_connector_helper_funcs *connector_funcs = connector->helper_private;
+		const struct drm_connector_helper_funcs *connector_funcs = connector->helper_private;
 		amdgpu_encoder = to_amdgpu_encoder(connector_funcs->best_encoder(connector));
 	}
 
@@ -852,7 +852,7 @@ amdgpu_connector_vga_detect(struct drm_connector *connector, bool force)
 {
 	struct amdgpu_connector *amdgpu_connector = to_amdgpu_connector(connector);
 	struct drm_encoder *encoder;
-	struct drm_encoder_helper_funcs *encoder_funcs;
+	const struct drm_encoder_helper_funcs *encoder_funcs;
 	bool dret = false;
 	enum drm_connector_status ret = connector_status_disconnected;
 	int r;
@@ -971,7 +971,7 @@ amdgpu_connector_dvi_detect(struct drm_connector *connector, bool force)
 	struct amdgpu_device *adev = dev->dev_private;
 	struct amdgpu_connector *amdgpu_connector = to_amdgpu_connector(connector);
 	struct drm_encoder *encoder = NULL;
-	struct drm_encoder_helper_funcs *encoder_funcs;
+	const struct drm_encoder_helper_funcs *encoder_funcs;
 	int i, r;
 	enum drm_connector_status ret = connector_status_disconnected;
 	bool dret = false, broken_edid = false;
@@ -1391,7 +1391,7 @@ amdgpu_connector_dp_detect(struct drm_connector *connector, bool force)
 			if (amdgpu_ddc_probe(amdgpu_connector, true)) /* try DDC */
 				ret = connector_status_connected;
 			else if (amdgpu_connector->dac_load_detect) { /* try load detection */
-				struct drm_encoder_helper_funcs *encoder_funcs = encoder->helper_private;
+				const struct drm_encoder_helper_funcs *encoder_funcs = encoder->helper_private;
 				ret = encoder_funcs->detect(encoder, connector);
 			}
 		}
