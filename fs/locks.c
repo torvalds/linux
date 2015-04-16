@@ -2590,6 +2590,44 @@ static int locks_show(struct seq_file *f, void *v)
 	return 0;
 }
 
+static void __show_fd_locks(struct seq_file *f,
+			struct list_head *head, int *id,
+			struct file *filp, struct files_struct *files)
+{
+	struct file_lock *fl;
+
+	list_for_each_entry(fl, head, fl_list) {
+
+		if (filp != fl->fl_file)
+			continue;
+		if (fl->fl_owner != files &&
+		    fl->fl_owner != filp)
+			continue;
+
+		(*id)++;
+		seq_puts(f, "lock:\t");
+		lock_get_status(f, fl, *id, "");
+	}
+}
+
+void show_fd_locks(struct seq_file *f,
+		  struct file *filp, struct files_struct *files)
+{
+	struct inode *inode = file_inode(filp);
+	struct file_lock_context *ctx;
+	int id = 0;
+
+	ctx = inode->i_flctx;
+	if (!ctx)
+		return;
+
+	spin_lock(&ctx->flc_lock);
+	__show_fd_locks(f, &ctx->flc_flock, &id, filp, files);
+	__show_fd_locks(f, &ctx->flc_posix, &id, filp, files);
+	__show_fd_locks(f, &ctx->flc_lease, &id, filp, files);
+	spin_unlock(&ctx->flc_lock);
+}
+
 static void *locks_start(struct seq_file *f, loff_t *pos)
 	__acquires(&blocked_lock_lock)
 {

@@ -1709,6 +1709,10 @@ A typical output is
 	flags:	0100002
 	mnt_id:	19
 
+All locks associated with a file descriptor are shown in its fdinfo too.
+
+lock:       1: FLOCK  ADVISORY  WRITE 359 00:13:11691 0 EOF
+
 The files such as eventfd, fsnotify, signalfd, epoll among the regular pos/flags
 pair provide additional information particular to the objects they represent.
 
