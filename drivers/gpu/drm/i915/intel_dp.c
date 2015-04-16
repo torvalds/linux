@@ -2971,7 +2971,7 @@ intel_dp_pre_emphasis_max(struct intel_dp *intel_dp, uint8_t voltage_swing)
 	}
 }
 
-static uint32_t intel_vlv_signal_levels(struct intel_dp *intel_dp)
+static uint32_t vlv_signal_levels(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -3071,7 +3071,7 @@ static uint32_t intel_vlv_signal_levels(struct intel_dp *intel_dp)
 	return 0;
 }
 
-static uint32_t intel_chv_signal_levels(struct intel_dp *intel_dp)
+static uint32_t chv_signal_levels(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -3278,7 +3278,7 @@ intel_get_adjust_train(struct intel_dp *intel_dp,
 }
 
 static uint32_t
-intel_gen4_signal_levels(uint8_t train_set)
+gen4_signal_levels(uint8_t train_set)
 {
 	uint32_t	signal_levels = 0;
 
@@ -3317,7 +3317,7 @@ intel_gen4_signal_levels(uint8_t train_set)
 
 /* Gen6's DP voltage swing and pre-emphasis control */
 static uint32_t
-intel_gen6_edp_signal_levels(uint8_t train_set)
+gen6_edp_signal_levels(uint8_t train_set)
 {
 	int signal_levels = train_set & (DP_TRAIN_VOLTAGE_SWING_MASK |
 					 DP_TRAIN_PRE_EMPHASIS_MASK);
@@ -3345,7 +3345,7 @@ intel_gen6_edp_signal_levels(uint8_t train_set)
 
 /* Gen7's DP voltage swing and pre-emphasis control */
 static uint32_t
-intel_gen7_edp_signal_levels(uint8_t train_set)
+gen7_edp_signal_levels(uint8_t train_set)
 {
 	int signal_levels = train_set & (DP_TRAIN_VOLTAGE_SWING_MASK |
 					 DP_TRAIN_PRE_EMPHASIS_MASK);
@@ -3376,7 +3376,7 @@ intel_gen7_edp_signal_levels(uint8_t train_set)
 
 /* Gen7.5's (HSW) DP voltage swing and pre-emphasis control */
 static uint32_t
-intel_hsw_signal_levels(uint8_t train_set)
+hsw_signal_levels(uint8_t train_set)
 {
 	int signal_levels = train_set & (DP_TRAIN_VOLTAGE_SWING_MASK |
 					 DP_TRAIN_PRE_EMPHASIS_MASK);
@@ -3411,7 +3411,7 @@ intel_hsw_signal_levels(uint8_t train_set)
 	}
 }
 
-static void intel_bxt_signal_levels(struct intel_dp *intel_dp)
+static void bxt_signal_levels(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *dport = dp_to_dig_port(intel_dp);
 	enum port port = dport->port;
@@ -3472,25 +3472,25 @@ intel_dp_set_signal_levels(struct intel_dp *intel_dp, uint32_t *DP)
 
 	if (IS_BROXTON(dev)) {
 		signal_levels = 0;
-		intel_bxt_signal_levels(intel_dp);
+		bxt_signal_levels(intel_dp);
 		mask = 0;
 	} else if (HAS_DDI(dev)) {
-		signal_levels = intel_hsw_signal_levels(train_set);
+		signal_levels = hsw_signal_levels(train_set);
 		mask = DDI_BUF_EMP_MASK;
 	} else if (IS_CHERRYVIEW(dev)) {
-		signal_levels = intel_chv_signal_levels(intel_dp);
+		signal_levels = chv_signal_levels(intel_dp);
 		mask = 0;
 	} else if (IS_VALLEYVIEW(dev)) {
-		signal_levels = intel_vlv_signal_levels(intel_dp);
+		signal_levels = vlv_signal_levels(intel_dp);
 		mask = 0;
 	} else if (IS_GEN7(dev) && port == PORT_A) {
-		signal_levels = intel_gen7_edp_signal_levels(train_set);
+		signal_levels = gen7_edp_signal_levels(train_set);
 		mask = EDP_LINK_TRAIN_VOL_EMP_MASK_IVB;
 	} else if (IS_GEN6(dev) && port == PORT_A) {
-		signal_levels = intel_gen6_edp_signal_levels(train_set);
+		signal_levels = gen6_edp_signal_levels(train_set);
 		mask = EDP_LINK_TRAIN_VOL_EMP_MASK_SNB;
 	} else {
-		signal_levels = intel_gen4_signal_levels(train_set);
+		signal_levels = gen4_signal_levels(train_set);
 		mask = DP_VOLTAGE_MASK | DP_PRE_EMPHASIS_MASK;
 	}
 
