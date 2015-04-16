@@ -9,6 +9,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -521,9 +522,8 @@ static int parse_command(const char __user *buffer, size_t count)
 
 static void entry_status(Node *e, char *page)
 {
-	char *dp;
-	char *status = "disabled";
-	const char *flags = "flags: ";
+	char *dp = page;
+	const char *status = "disabled";
 
 	if (test_bit(Enabled, &e->flags))
 		status = "enabled";
@@ -533,12 +533,10 @@ static void entry_status(Node *e, char *page)
 		return;
 	}
 
-	sprintf(page, "%s\ninterpreter %s\n", status, e->interpreter);
-	dp = page + strlen(page);
+	dp += sprintf(dp, "%s\ninterpreter %s\n", status, e->interpreter);
 
 	/* print the special flags */
-	sprintf(dp, "%s", flags);
-	dp += strlen(flags);
+	dp += sprintf(dp, "flags: ");
 	if (e->flags & MISC_FMT_PRESERVE_ARGV0)
 		*dp++ = 'P';
 	if (e->flags & MISC_FMT_OPEN_BINARY)
@@ -550,21 +548,11 @@ static void entry_status(Node *e, char *page)
 	if (!test_bit(Magic, &e->flags)) {
 		sprintf(dp, "extension .%s\n", e->magic);
 	} else {
-		int i;
-
-		sprintf(dp, "offset %i\nmagic ", e->offset);
-		dp = page + strlen(page);
-		for (i = 0; i < e->size; i++) {
-			sprintf(dp, "%02x", 0xff & (int) (e->magic[i]));
-			dp += 2;
-		}
+		dp += sprintf(dp, "offset %i\nmagic ", e->offset);
+		dp = bin2hex(dp, e->magic, e->size);
 		if (e->mask) {
-			sprintf(dp, "\nmask ");
-			dp += 6;
-			for (i = 0; i < e->size; i++) {
-				sprintf(dp, "%02x", 0xff & (int) (e->mask[i]));
-				dp += 2;
-			}
+			dp += sprintf(dp, "\nmask ");
+			dp = bin2hex(dp, e->mask, e->size);
 		}
 		*dp++ = '\n';
 		*dp = '\0';
