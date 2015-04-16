@@ -525,11 +525,11 @@ int crypto_register_instance(struct crypto_template *tmpl,
 	if (err)
 		return err;
 
-	if (unlikely(!crypto_mod_get(&inst->alg)))
-		return -EAGAIN;
-
 	inst->alg.cra_module = tmpl->module;
 	inst->alg.cra_flags |= CRYPTO_ALG_INSTANCE;
+
+	if (unlikely(!crypto_mod_get(&inst->alg)))
+		return -EAGAIN;
 
 	down_write(&crypto_alg_sem);
 
