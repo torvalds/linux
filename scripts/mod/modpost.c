@@ -1529,7 +1529,12 @@ static void find_extable_entry_size(const char* const sec, const Elf_Rela* r,
 }
 static inline bool is_extable_fault_address(Elf_Rela *r)
 {
-	if (!extable_entry_size == 0)
+	/*
+	 * extable_entry_size is only discovered after we've handled the
+	 * _second_ relocation in __ex_table, so only abort when we're not
+	 * handling the first reloc and extable_entry_size is zero.
+	 */
+	if (r->r_offset && extable_entry_size == 0)
 		fatal("extable_entry size hasn't been discovered!\n");
 
 	return ((r->r_offset == 0) ||
