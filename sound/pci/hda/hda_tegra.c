@@ -102,8 +102,6 @@ static int substream_alloc_pages(struct azx *chip,
 				 struct snd_pcm_substream *substream,
 				 size_t size)
 {
-	struct azx_dev *azx_dev = get_azx_dev(substream);
-
 	return snd_pcm_lib_malloc_pages(substream, size);
 }
 
@@ -304,7 +302,7 @@ static int hda_tegra_dev_free(struct snd_device *device)
 
 	azx_free_stream_pages(chip);
 	azx_free_streams(chip);
-	snd_hdac_bus_exit(bus);
+	snd_hdac_bus_exit(azx_bus(chip));
 
 	return 0;
 }
