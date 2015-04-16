@@ -2,11 +2,8 @@
 #define _FAT_H
 
 #include <linux/buffer_head.h>
-#include <linux/string.h>
 #include <linux/nls.h>
-#include <linux/fs.h>
 #include <linux/hash.h>
-#include <linux/mutex.h>
 #include <linux/ratelimit.h>
 #include <linux/msdos_fs.h>
 
