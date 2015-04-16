@@ -498,12 +498,35 @@ static void gen9_disable_dc5(struct drm_i915_private *dev_priv)
 
 static void skl_enable_dc6(struct drm_i915_private *dev_priv)
 {
-	/* TODO: Implementation to be done. */
+	struct drm_device *dev = dev_priv->dev;
+	uint32_t val;
+
+	WARN_ON(!IS_SKYLAKE(dev));
+
+	DRM_DEBUG_KMS("Enabling DC6\n");
+
+	gen9_set_dc_state_debugmask_memory_up(dev_priv);
+
+	val = I915_READ(DC_STATE_EN);
+	val &= ~DC_STATE_EN_UPTO_DC5_DC6_MASK;
+	val |= DC_STATE_EN_UPTO_DC6;
+	I915_WRITE(DC_STATE_EN, val);
+	POSTING_READ(DC_STATE_EN);
 }
 
 static void skl_disable_dc6(struct drm_i915_private *dev_priv)
 {
-	/* TODO: Implementation to be done. */
+	struct drm_device *dev = dev_priv->dev;
+	uint32_t val;
+
+	WARN_ON(!IS_SKYLAKE(dev));
+
+	DRM_DEBUG_KMS("Disabling DC6\n");
+
+	val = I915_READ(DC_STATE_EN);
+	val &= ~DC_STATE_EN_UPTO_DC6;
+	I915_WRITE(DC_STATE_EN, val);
+	POSTING_READ(DC_STATE_EN);
 }
 
 static void skl_set_power_well(struct drm_i915_private *dev_priv,
