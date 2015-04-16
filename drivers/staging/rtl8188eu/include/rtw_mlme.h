@@ -65,7 +65,7 @@
 #define _FW_UNDER_SURVEY	WIFI_SITE_MONITOR
 
 enum dot11AuthAlgrthmNum {
-	dot11AuthAlgrthm_Open = 0,
+	dot11AuthAlgrthm_Open = 0, /* open system */
 	dot11AuthAlgrthm_Shared,
 	dot11AuthAlgrthm_8021X,
 	dot11AuthAlgrthm_Auto,
