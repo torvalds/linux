@@ -105,6 +105,18 @@
 			reg = <0x1e620 0x20>;
 			interrupts = <GIC_PPI 14 IRQ_TYPE_LEVEL_HIGH>;
 		};
+
+		pmb0: reset-controller@4800c0 {
+			compatible = "brcm,bcm63138-pmb";
+			reg = <0x4800c0 0x10>;
+			#reset-cells = <2>;
+		};
+
+		pmb1: reset-controller@4800e0 {
+			compatible = "brcm,bcm63138-pmb";
+			reg = <0x4800e0 0x10>;
+			#reset-cells = <2>;
+		};
 	};
 
 	/* Legacy UBUS base */
