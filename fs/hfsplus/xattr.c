@@ -560,6 +560,30 @@ failed_getxattr_init:
 	return res;
 }
 
+ssize_t hfsplus_getxattr(struct dentry *dentry, const char *name,
+			 void *value, size_t size,
+			 const char *prefix, size_t prefixlen)
+{
+	int res;
+	char *xattr_name;
+
+	if (!strcmp(name, ""))
+		return -EINVAL;
+
+	xattr_name = kmalloc(NLS_MAX_CHARSET_SIZE * HFSPLUS_ATTR_MAX_STRLEN + 1,
+			     GFP_KERNEL);
+	if (!xattr_name)
+		return -ENOMEM;
+
+	strcpy(xattr_name, prefix);
+	strcpy(xattr_name + prefixlen, name);
+
+	res = __hfsplus_getxattr(dentry->d_inode, xattr_name, value, size);
+	kfree(xattr_name);
+	return res;
+
+}
+
 static inline int can_list(const char *xattr_name)
 {
 	if (!xattr_name)
@@ -806,9 +830,6 @@ end_removexattr:
 static int hfsplus_osx_getxattr(struct dentry *dentry, const char *name,
 					void *buffer, size_t size, int type)
 {
-	char *xattr_name;
-	int res;
-
 	if (!strcmp(name, ""))
 		return -EINVAL;
 
@@ -818,16 +839,9 @@ static int hfsplus_osx_getxattr(struct dentry *dentry, const char *name,
 	 */
 	if (is_known_namespace(name))
 		return -EOPNOTSUPP;
-	xattr_name = kmalloc(NLS_MAX_CHARSET_SIZE * HFSPLUS_ATTR_MAX_STRLEN
-		+ XATTR_MAC_OSX_PREFIX_LEN + 1, GFP_KERNEL);
-	if (!xattr_name)
-		return -ENOMEM;
-	strcpy(xattr_name, XATTR_MAC_OSX_PREFIX);
-	strcpy(xattr_name + XATTR_MAC_OSX_PREFIX_LEN, name);
 
-	res = hfsplus_getxattr(dentry, xattr_name, buffer, size);
-	kfree(xattr_name);
-	return res;
+	return hfsplus_getxattr(dentry, name, buffer, size,
+				XATTR_MAC_OSX_PREFIX, XATTR_MAC_OSX_PREFIX_LEN);
 }
 
 static int hfsplus_osx_setxattr(struct dentry *dentry, const char *name,

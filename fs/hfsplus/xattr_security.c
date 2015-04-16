@@ -16,22 +16,9 @@
 static int hfsplus_security_getxattr(struct dentry *dentry, const char *name,
 					void *buffer, size_t size, int type)
 {
-	char *xattr_name;
-	int res;
-
-	if (!strcmp(name, ""))
-		return -EINVAL;
-
-	xattr_name = kmalloc(NLS_MAX_CHARSET_SIZE * HFSPLUS_ATTR_MAX_STRLEN + 1,
-		GFP_KERNEL);
-	if (!xattr_name)
-		return -ENOMEM;
-	strcpy(xattr_name, XATTR_SECURITY_PREFIX);
-	strcpy(xattr_name + XATTR_SECURITY_PREFIX_LEN, name);
-
-	res = hfsplus_getxattr(dentry, xattr_name, buffer, size);
-	kfree(xattr_name);
-	return res;
+	return hfsplus_getxattr(dentry, name, buffer, size,
+				XATTR_SECURITY_PREFIX,
+				XATTR_SECURITY_PREFIX_LEN);
 }
 
 static int hfsplus_security_setxattr(struct dentry *dentry, const char *name,
