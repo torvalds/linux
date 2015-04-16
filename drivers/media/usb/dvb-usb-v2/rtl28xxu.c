@@ -1293,7 +1293,7 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 						     "rtl2832_sdr",
 						     PLATFORM_DEVID_AUTO,
 						     &pdata, sizeof(pdata));
-		if (pdev == NULL || pdev->dev.driver == NULL)
+		if (IS_ERR(pdev) || pdev->dev.driver == NULL)
 			break;
 		dev->platform_device_sdr = pdev;
 		break;
