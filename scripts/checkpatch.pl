@@ -4242,7 +4242,8 @@ sub process {
 			}
 		}
 
-#warn if <asm/foo.h> is #included and <linux/foo.h> is available (uses RAW line)
+# warn if <asm/foo.h> is #included and <linux/foo.h> is available and includes
+# itself <asm/foo.h> (uses RAW line)
 		if ($tree && $rawline =~ m{^.\s*\#\s*include\s*\<asm\/(.*)\.h\>}) {
 			my $file = "$1.h";
 			my $checkfile = "include/linux/$file";
@@ -4250,12 +4251,15 @@ sub process {
 			    $realfile ne $checkfile &&
 			    $1 !~ /$allowed_asm_includes/)
 			{
-				if ($realfile =~ m{^arch/}) {
-					CHK("ARCH_INCLUDE_LINUX",
-					    "Consider using #include <linux/$file> instead of <asm/$file>\n" . $herecurr);
-				} else {
-					WARN("INCLUDE_LINUX",
-					     "Use #include <linux/$file> instead of <asm/$file>\n" . $herecurr);
+				my $asminclude = `grep -Ec "#include\\s+<asm/$file>" $root/$checkfile`;
+				if ($asminclude > 0) {
+					if ($realfile =~ m{^arch/}) {
+						CHK("ARCH_INCLUDE_LINUX",
+						    "Consider using #include <linux/$file> instead of <asm/$file>\n" . $herecurr);
+					} else {
+						WARN("INCLUDE_LINUX",
+						     "Use #include <linux/$file> instead of <asm/$file>\n" . $herecurr);
+					}
 				}
 			}
 		}
