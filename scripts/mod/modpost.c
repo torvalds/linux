@@ -1064,6 +1064,15 @@ static const struct sectioncheck *section_mismatch(
 	int elems = sizeof(sectioncheck) / sizeof(struct sectioncheck);
 	const struct sectioncheck *check = &sectioncheck[0];
 
+	/*
+	 * The target section could be the SHT_NUL section when we're
+	 * handling relocations to un-resolved symbols, trying to match it
+	 * doesn't make much sense and causes build failures on parisc and
+	 * mn10300 architectures.
+	 */
+	if (*tosec == '\0')
+		return NULL;
+
 	for (i = 0; i < elems; i++) {
 		if (match(fromsec, check->fromsec)) {
 			if (check->bad_tosec[0] && match(tosec, check->bad_tosec))
