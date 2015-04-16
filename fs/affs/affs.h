@@ -119,6 +119,10 @@ struct affs_sb_info {
 #define AFFS_MOUNT_SF_VERBOSE		0x0800 /* Talk about fs when mounting */
 #define AFFS_MOUNT_SF_NO_TRUNCATE	0x1000 /* Don't truncate filenames */
 
+#define affs_clear_opt(o, opt)    (o &= ~AFFS_MOUNT_##opt)
+#define affs_set_opt(o, opt)      (o |= AFFS_MOUNT_##opt)
+#define affs_test_opt(o, opt)     ((o) & AFFS_MOUNT_##opt)
+
 /* short cut to get to the affs specific sb data */
 static inline struct affs_sb_info *AFFS_SB(struct super_block *sb)
 {
