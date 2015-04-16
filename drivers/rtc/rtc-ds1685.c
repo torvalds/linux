@@ -2139,7 +2139,6 @@ ds1685_rtc_remove(struct platform_device *pdev)
 static struct platform_driver ds1685_rtc_driver = {
 	.driver		= {
 		.name	= "rtc-ds1685",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ds1685_rtc_probe,
 	.remove		= ds1685_rtc_remove,
