@@ -270,8 +270,8 @@ void __init fork_init(unsigned long mempages)
 
 	/*
 	 * The default maximum number of threads is set to a safe
-	 * value: the thread structures can take up at most half
-	 * of memory.
+	 * value: the thread structures can take up at most one
+	 * eighth of the memory.
 	 */
 	max_threads = mempages / (8 * THREAD_SIZE / PAGE_SIZE);
 
