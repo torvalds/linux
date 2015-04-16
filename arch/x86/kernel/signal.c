@@ -630,7 +630,8 @@ setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs)
 static void
 handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 {
-	bool failed;
+	bool stepping, failed;
+
 	/* Are we from a system call? */
 	if (syscall_get_nr(current, regs) >= 0) {
 		/* If so, check system call restarting.. */
@@ -654,12 +655,13 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 	}
 
 	/*
-	 * If TF is set due to a debugger (TIF_FORCED_TF), clear the TF
-	 * flag so that register information in the sigcontext is correct.
+	 * If TF is set due to a debugger (TIF_FORCED_TF), clear TF now
+	 * so that register information in the sigcontext is correct and
+	 * then notify the tracer before entering the signal handler.
 	 */
-	if (unlikely(regs->flags & X86_EFLAGS_TF) &&
-	    likely(test_and_clear_thread_flag(TIF_FORCED_TF)))
-		regs->flags &= ~X86_EFLAGS_TF;
+	stepping = test_thread_flag(TIF_SINGLESTEP);
+	if (stepping)
+		user_disable_single_step(current);
 
 	failed = (setup_rt_frame(ksig, regs) < 0);
 	if (!failed) {
@@ -670,10 +672,8 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 		 * it might disable possible debug exception from the
 		 * signal handler.
 		 *
-		 * Clear TF when entering the signal handler, but
-		 * notify any tracer that was single-stepping it.
-		 * The tracer may want to single-step inside the
-		 * handler too.
+		 * Clear TF for the case when it wasn't set by debugger to
+		 * avoid the recursive send_sigtrap() in SIGTRAP handler.
 		 */
 		regs->flags &= ~(X86_EFLAGS_DF|X86_EFLAGS_RF|X86_EFLAGS_TF);
 		/*
@@ -682,7 +682,7 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 		if (used_math())
 			fpu_reset_state(current);
 	}
-	signal_setup_done(failed, ksig, test_thread_flag(TIF_SINGLESTEP));
+	signal_setup_done(failed, ksig, stepping);
 }
 
 #ifdef CONFIG_X86_32
