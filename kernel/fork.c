@@ -711,15 +711,22 @@ EXPORT_SYMBOL_GPL(mmput);
  *
  * This changes mm's executable file (shown as symlink /proc/[pid]/exe).
  *
- * Main users are mmput(), sys_execve() and sys_prctl(PR_SET_MM_MAP/EXE_FILE).
- * Callers prevent concurrent invocations: in mmput() nobody alive left,
- * in execve task is single-threaded, prctl holds mmap_sem exclusively.
+ * Main users are mmput() and sys_execve(). Callers prevent concurrent
+ * invocations: in mmput() nobody alive left, in execve task is single
+ * threaded. sys_prctl(PR_SET_MM_MAP/EXE_FILE) also needs to set the
+ * mm->exe_file, but does so without using set_mm_exe_file() in order
+ * to do avoid the need for any locks.
  */
 void set_mm_exe_file(struct mm_struct *mm, struct file *new_exe_file)
 {
-	struct file *old_exe_file = rcu_dereference_protected(mm->exe_file,
-			!atomic_read(&mm->mm_users) || current->in_execve ||
-			lockdep_is_held(&mm->mmap_sem));
+	struct file *old_exe_file;
+
+	/*
+	 * It is safe to dereference the exe_file without RCU as
+	 * this function is only called if nobody else can access
+	 * this mm -- see comment above for justification.
+	 */
+	old_exe_file = rcu_dereference_raw(mm->exe_file);
 
 	if (new_exe_file)
 		get_file(new_exe_file);
