@@ -167,8 +167,7 @@ static int azx_pcm_prepare(struct snd_pcm_substream *substream)
 	}
 
 	snd_hdac_stream_reset(azx_stream(azx_dev));
-	format_val = snd_hda_calc_stream_format(apcm->codec,
-						runtime->rate,
+	format_val = snd_hdac_calc_stream_format(runtime->rate,
 						runtime->channels,
 						runtime->format,
 						hinfo->maxbps,

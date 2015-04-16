@@ -123,6 +123,15 @@ int snd_hdac_get_connections(struct hdac_device *codec, hda_nid_t nid,
 			     hda_nid_t *conn_list, int max_conns);
 int snd_hdac_get_sub_nodes(struct hdac_device *codec, hda_nid_t nid,
 			   hda_nid_t *start_id);
+unsigned int snd_hdac_calc_stream_format(unsigned int rate,
+					 unsigned int channels,
+					 unsigned int format,
+					 unsigned int maxbps,
+					 unsigned short spdif_ctls);
+int snd_hdac_query_supported_pcm(struct hdac_device *codec, hda_nid_t nid,
+				u32 *ratesp, u64 *formatsp, unsigned int *bpsp);
+bool snd_hdac_is_supported_format(struct hdac_device *codec, hda_nid_t nid,
+				  unsigned int format);
 
 /**
  * snd_hdac_read_parm - read a codec parameter

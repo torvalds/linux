@@ -365,8 +365,6 @@ int snd_hda_get_conn_index(struct hda_codec *codec, hda_nid_t mux,
 			   hda_nid_t nid, int recursive);
 int snd_hda_get_devices(struct hda_codec *codec, hda_nid_t nid,
 			u8 *dev_list, int max_devices);
-int snd_hda_query_supported_pcm(struct hda_codec *codec, hda_nid_t nid,
-				u32 *ratesp, u64 *formatsp, unsigned int *bpsp);
 
 struct hda_verb {
 	hda_nid_t nid;
@@ -458,14 +456,11 @@ void __snd_hda_codec_cleanup_stream(struct hda_codec *codec, hda_nid_t nid,
 				    int do_now);
 #define snd_hda_codec_cleanup_stream(codec, nid) \
 	__snd_hda_codec_cleanup_stream(codec, nid, 0)
-unsigned int snd_hda_calc_stream_format(struct hda_codec *codec,
-					unsigned int rate,
-					unsigned int channels,
-					unsigned int format,
-					unsigned int maxbps,
-					unsigned short spdif_ctls);
-int snd_hda_is_supported_format(struct hda_codec *codec, hda_nid_t nid,
-				unsigned int format);
+
+#define snd_hda_query_supported_pcm(codec, nid, ratesp, fmtsp, bpsp) \
+	snd_hdac_query_supported_pcm(&(codec)->core, nid, ratesp, fmtsp, bpsp)
+#define snd_hda_is_supported_format(codec, nid, fmt) \
+	snd_hdac_is_supported_format(&(codec)->core, nid, fmt)
 
 extern const struct snd_pcm_chmap_elem snd_pcm_2_1_chmaps[];
 
