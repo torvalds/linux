@@ -569,20 +569,41 @@ restart:
 	 * write.  If zeroing is needed and we are currently holding the
 	 * iolock shared, we need to update it to exclusive which implies
 	 * having to redo all checks before.
+	 *
+	 * We need to serialise against EOF updates that occur in IO
+	 * completions here. We want to make sure that nobody is changing the
+	 * size while we do this check until we have placed an IO barrier (i.e.
+	 * hold the XFS_IOLOCK_EXCL) that prevents new IO from being dispatched.
+	 * The spinlock effectively forms a memory barrier once we have the
+	 * XFS_IOLOCK_EXCL so we are guaranteed to see the latest EOF value
+	 * and hence be able to correctly determine if we need to run zeroing.
 	 */
+	spin_lock(&ip->i_flags_lock);
 	if (*pos > i_size_read(inode)) {
 		bool	zero = false;
 
+		spin_unlock(&ip->i_flags_lock);
 		if (*iolock == XFS_IOLOCK_SHARED) {
 			xfs_rw_iunlock(ip, *iolock);
 			*iolock = XFS_IOLOCK_EXCL;
 			xfs_rw_ilock(ip, *iolock);
+
+			/*
+			 * We now have an IO submission barrier in place, but
+			 * AIO can do EOF updates during IO completion and hence
+			 * we now need to wait for all of them to drain. Non-AIO
+			 * DIO will have drained before we are given the
+			 * XFS_IOLOCK_EXCL, and so for most cases this wait is a
+			 * no-op.
+			 */
+			inode_dio_wait(inode);
 			goto restart;
 		}
 		error = xfs_zero_eof(ip, *pos, i_size_read(inode), &zero);
 		if (error)
 			return error;
-	}
+	} else
+		spin_unlock(&ip->i_flags_lock);
 
 	/*
 	 * Updating the timestamps will grab the ilock again from
@@ -644,6 +665,8 @@ xfs_file_dio_aio_write(
 	int			iolock;
 	size_t			count = iov_iter_count(from);
 	loff_t			pos = iocb->ki_pos;
+	loff_t			end;
+	struct iov_iter		data;
 	struct xfs_buftarg	*target = XFS_IS_REALTIME_INODE(ip) ?
 					mp->m_rtdev_targp : mp->m_ddev_targp;
 
@@ -683,10 +706,11 @@ xfs_file_dio_aio_write(
 	if (ret)
 		goto out;
 	iov_iter_truncate(from, count);
+	end = pos + count - 1;
 
 	if (mapping->nrpages) {
 		ret = filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
-						    pos, pos + count - 1);
+						   pos, end);
 		if (ret)
 			goto out;
 		/*
@@ -696,7 +720,7 @@ xfs_file_dio_aio_write(
 		 */
 		ret = invalidate_inode_pages2_range(VFS_I(ip)->i_mapping,
 					pos >> PAGE_CACHE_SHIFT,
-					(pos + count - 1) >> PAGE_CACHE_SHIFT);
+					end >> PAGE_CACHE_SHIFT);
 		WARN_ON_ONCE(ret);
 		ret = 0;
 	}
@@ -713,8 +737,22 @@ xfs_file_dio_aio_write(
 	}
 
 	trace_xfs_file_direct_write(ip, count, iocb->ki_pos, 0);
-	ret = generic_file_direct_write(iocb, from, pos);
 
+	data = *from;
+	ret = mapping->a_ops->direct_IO(WRITE, iocb, &data, pos);
+
+	/* see generic_file_direct_write() for why this is necessary */
+	if (mapping->nrpages) {
+		invalidate_inode_pages2_range(mapping,
+					      pos >> PAGE_CACHE_SHIFT,
+					      end >> PAGE_CACHE_SHIFT);
+	}
+
+	if (ret > 0) {
+		pos += ret;
+		iov_iter_advance(from, ret);
+		iocb->ki_pos = pos;
+	}
 out:
 	xfs_rw_iunlock(ip, iolock);
 

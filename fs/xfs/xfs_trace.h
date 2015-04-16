@@ -1221,6 +1221,11 @@ DEFINE_IOMAP_EVENT(xfs_map_blocks_found);
 DEFINE_IOMAP_EVENT(xfs_map_blocks_alloc);
 DEFINE_IOMAP_EVENT(xfs_get_blocks_found);
 DEFINE_IOMAP_EVENT(xfs_get_blocks_alloc);
+DEFINE_IOMAP_EVENT(xfs_gbmap_direct);
+DEFINE_IOMAP_EVENT(xfs_gbmap_direct_new);
+DEFINE_IOMAP_EVENT(xfs_gbmap_direct_update);
+DEFINE_IOMAP_EVENT(xfs_gbmap_direct_none);
+DEFINE_IOMAP_EVENT(xfs_gbmap_direct_endio);
 
 DECLARE_EVENT_CLASS(xfs_simple_io_class,
 	TP_PROTO(struct xfs_inode *ip, xfs_off_t offset, ssize_t count),
