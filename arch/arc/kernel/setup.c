@@ -54,7 +54,7 @@ static void read_arc_build_cfg_regs(void)
 	cpu->vec_base = read_aux_reg(AUX_INTR_VEC_BASE);
 
 	READ_BCR(ARC_REG_D_UNCACH_BCR, uncached_space);
-	cpu->uncached_base = uncached_space.start << 24;
+	BUG_ON((uncached_space.start << 24) != ARC_UNCACHED_ADDR_SPACE);
 
 	READ_BCR(ARC_REG_MUL_BCR, cpu->extn_mpy);
 
@@ -218,7 +218,7 @@ static char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
 
 	n += scnprintf(buf + n, len - n,
 		       "Vector Table\t: %#x\nUncached Base\t: %#x\n",
-		       cpu->vec_base, cpu->uncached_base);
+		       cpu->vec_base, ARC_UNCACHED_ADDR_SPACE);
 
 	if (cpu->extn.fpu_sp || cpu->extn.fpu_dp)
 		n += scnprintf(buf + n, len - n, "FPU\t\t: %s%s\n",
