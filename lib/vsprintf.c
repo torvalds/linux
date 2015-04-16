@@ -165,9 +165,9 @@ static const u16 decpair[100] = {
 
 /*
  * This will print a single '0' even if r == 0, since we would
- * immediately jump to out_r where two 0s would be written and one of
- * them then discarded. This is needed by ip4_string below. All other
- * callers pass a non-zero value of r.
+ * immediately jump to out_r where two 0s would be written but only
+ * one of them accounted for in buf. This is needed by ip4_string
+ * below. All other callers pass a non-zero value of r.
 */
 static noinline_for_stack
 char *put_dec_trunc8(char *buf, unsigned r)
@@ -206,9 +206,7 @@ out_q:
 out_r:
 	/* 1 <= r < 100 */
 	*((u16 *)buf) = decpair[r];
-	buf += 2;
-	if (buf[-1] == '0')
-		buf--;
+	buf += r < 10 ? 1 : 2;
 	return buf;
 }
 
