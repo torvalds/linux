@@ -186,7 +186,9 @@ struct kvm_s390_sie_block {
 	__u32	scaol;			/* 0x0064 */
 	__u8	reserved68[4];		/* 0x0068 */
 	__u32	todpr;			/* 0x006c */
-	__u8	reserved70[32];		/* 0x0070 */
+	__u8	reserved70[16];		/* 0x0070 */
+	__u64	mso;			/* 0x0080 */
+	__u64	msl;			/* 0x0088 */
 	psw_t	gpsw;			/* 0x0090 */
 	__u64	gg14;			/* 0x00a0 */
 	__u64	gg15;			/* 0x00a8 */

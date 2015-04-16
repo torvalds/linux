@@ -1897,6 +1897,10 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 	vcpu->arch.sie_block = &sie_page->sie_block;
 	vcpu->arch.sie_block->itdba = (unsigned long) &sie_page->itdb;
 
+	/* the real guest size will always be smaller than msl */
+	vcpu->arch.sie_block->mso = 0;
+	vcpu->arch.sie_block->msl = sclp.hamax;
+
 	vcpu->arch.sie_block->icpua = id;
 	spin_lock_init(&vcpu->arch.local_int.lock);
 	vcpu->arch.local_int.float_int = &kvm->arch.float_int;
