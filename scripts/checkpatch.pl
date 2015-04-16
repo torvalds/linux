@@ -323,6 +323,7 @@ our $Operators	= qr{
 
 our $c90_Keywords = qr{do|for|while|if|else|return|goto|continue|switch|default|case|break}x;
 
+our $BasicType;
 our $NonptrType;
 our $NonptrTypeMisordered;
 our $NonptrTypeWithAttr;
@@ -514,6 +515,11 @@ sub build_types {
 	my $Misordered = "(?x:  \n" . join("|\n  ", @typeListMisordered) . "\n)";
 	my $allWithAttr = "(?x:  \n" . join("|\n  ", @typeListWithAttr) . "\n)";
 	$Modifier	= qr{(?:$Attribute|$Sparse|$mods)};
+	$BasicType	= qr{
+				(?:$typeOtherOSTypedefs\b)|
+				(?:$typeTypedefs\b)|
+				(?:${all}\b)
+		}x;
 	$NonptrType	= qr{
 			(?:$Modifier\s+|const\s+)*
 			(?:
@@ -3191,6 +3197,18 @@ sub process {
 			     "static char array declaration should probably be static const char\n" .
 				$herecurr);
                }
+
+# check for const <foo> const where <foo> is not a pointer or array type
+		if ($sline =~ /\bconst\s+($BasicType)\s+const\b/) {
+			my $found = $1;
+			if ($sline =~ /\bconst\s+\Q$found\E\s+const\b\s*\*/) {
+				WARN("CONST_CONST",
+				     "'const $found const *' should probably be 'const $found * const'\n" . $herecurr);
+			} elsif ($sline !~ /\bconst\s+\Q$found\E\s+const\s+\w+\s*\[/) {
+				WARN("CONST_CONST",
+				     "'const $found const' should probably be 'const $found'\n" . $herecurr);
+			}
+		}
 
 # check for non-global char *foo[] = {"bar", ...} declarations.
 		if ($line =~ /^.\s+(?:static\s+|const\s+)?char\s+\*\s*\w+\s*\[\s*\]\s*=\s*\{/) {
