@@ -304,8 +304,7 @@ static struct inode *befs_iget(struct super_block *sb, unsigned long ino)
 {
 	struct buffer_head *bh = NULL;
 	befs_inode *raw_inode = NULL;
-
-	befs_sb_info *befs_sb = BEFS_SB(sb);
+	struct befs_sb_info *befs_sb = BEFS_SB(sb);
 	befs_inode_info *befs_ino = NULL;
 	struct inode *inode;
 	long ret = -EIO;
@@ -769,7 +768,7 @@ static int
 befs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct buffer_head *bh;
-	befs_sb_info *befs_sb;
+	struct befs_sb_info *befs_sb;
 	befs_super_block *disk_sb;
 	struct inode *root;
 	long ret = -EINVAL;
