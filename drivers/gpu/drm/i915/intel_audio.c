@@ -28,7 +28,6 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_edid.h>
-#include "intel_drv.h"
 #include "i915_drv.h"
 
 /**
