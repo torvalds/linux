@@ -90,6 +90,9 @@ GRTAGS
 GSYMS
 GTAGS
 
+# id-utils files
+ID
+
 *.orig
 *~
 \#*#
