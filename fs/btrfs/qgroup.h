@@ -103,6 +103,11 @@ int btrfs_qgroup_prepare_account_extents(struct btrfs_trans_handle *trans,
 struct btrfs_qgroup_extent_record
 *btrfs_qgroup_insert_dirty_extent(struct btrfs_delayed_ref_root *delayed_refs,
 				  struct btrfs_qgroup_extent_record *record);
+int
+btrfs_qgroup_account_extent(struct btrfs_trans_handle *trans,
+			    struct btrfs_fs_info *fs_info,
+			    u64 bytenr, u64 num_bytes,
+			    struct ulist *old_roots, struct ulist *new_roots);
 int btrfs_qgroup_account_extents(struct btrfs_trans_handle *trans,
 				 struct btrfs_fs_info *fs_info);
 int btrfs_delayed_qgroup_accounting(struct btrfs_trans_handle *trans,

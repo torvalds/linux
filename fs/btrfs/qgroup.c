@@ -2455,7 +2455,7 @@ static int btrfs_qgroup_account(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-static int
+int
 btrfs_qgroup_account_extent(struct btrfs_trans_handle *trans,
 			    struct btrfs_fs_info *fs_info,
 			    u64 bytenr, u64 num_bytes,
