@@ -23,6 +23,8 @@
 #ifndef _SS_AVTAB_H_
 #define _SS_AVTAB_H_
 
+#include "security.h"
+
 struct avtab_key {
 	u16 source_type;	/* source type */
 	u16 target_type;	/* target type */
@@ -35,13 +37,34 @@ struct avtab_key {
 #define AVTAB_MEMBER		0x0020
 #define AVTAB_CHANGE		0x0040
 #define AVTAB_TYPE		(AVTAB_TRANSITION | AVTAB_MEMBER | AVTAB_CHANGE)
+#define AVTAB_OPNUM_ALLOWED	0x0100
+#define AVTAB_OPNUM_AUDITALLOW	0x0200
+#define AVTAB_OPNUM_DONTAUDIT	0x0400
+#define AVTAB_OPNUM		(AVTAB_OPNUM_ALLOWED | \
+				AVTAB_OPNUM_AUDITALLOW | \
+				AVTAB_OPNUM_DONTAUDIT)
+#define AVTAB_OPTYPE_ALLOWED	0x1000
+#define AVTAB_OPTYPE_AUDITALLOW	0x2000
+#define AVTAB_OPTYPE_DONTAUDIT	0x4000
+#define AVTAB_OPTYPE		(AVTAB_OPTYPE_ALLOWED | \
+				AVTAB_OPTYPE_AUDITALLOW | \
+				AVTAB_OPTYPE_DONTAUDIT)
+#define AVTAB_OP		(AVTAB_OPNUM | AVTAB_OPTYPE)
 #define AVTAB_ENABLED_OLD   0x80000000 /* reserved for used in cond_avtab */
 #define AVTAB_ENABLED		0x8000 /* reserved for used in cond_avtab */
 	u16 specified;	/* what field is specified */
 };
 
+struct avtab_operation {
+	u8 type;
+	struct operation_perm op;
+};
+
 struct avtab_datum {
-	u32 data; /* access vector or type value */
+	union {
+		u32 data; /* access vector or type value */
+		struct avtab_operation *ops; /* ioctl operations */
+	} u;
 };
 
 struct avtab_node {
