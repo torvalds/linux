@@ -198,8 +198,10 @@ static struct gpio_leds_priv *gpio_leds_create(struct platform_device *pdev)
 		} else {
 			if (IS_ENABLED(CONFIG_OF) && !led.name && np)
 				led.name = np->name;
-			if (!led.name)
-				return ERR_PTR(-EINVAL);
+			if (!led.name) {
+				ret = -EINVAL;
+				goto err;
+			}
 		}
 		fwnode_property_read_string(child, "linux,default-trigger",
 					    &led.default_trigger);
