@@ -3652,7 +3652,7 @@ sub process {
 
 				# Ignore operators passed as parameters.
 				if ($op_type ne 'V' &&
-				    $ca =~ /\s$/ && $cc =~ /^\s*,/) {
+				    $ca =~ /\s$/ && $cc =~ /^\s*[,\)]/) {
 
 #				# Ignore comments
 #				} elsif ($op =~ /^$;+$/) {
