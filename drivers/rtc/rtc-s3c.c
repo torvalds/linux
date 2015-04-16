@@ -497,9 +497,7 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 	device_init_wakeup(&pdev->dev, 1);
 
 	/* Check RTC Time */
-	s3c_rtc_gettime(&pdev->dev, &rtc_tm);
-
-	if (rtc_valid_tm(&rtc_tm)) {
+	if (s3c_rtc_gettime(&pdev->dev, &rtc_tm)) {
 		rtc_tm.tm_year	= 100;
 		rtc_tm.tm_mon	= 0;
 		rtc_tm.tm_mday	= 1;
