@@ -1293,7 +1293,7 @@ xfs_map_direct(
 					   imap);
 	}
 
-	if (ioend->io_type == XFS_IO_UNWRITTEN)
+	if (ioend->io_type == XFS_IO_UNWRITTEN || xfs_ioend_is_append(ioend))
 		set_buffer_defer_completion(bh_result);
 }
 
@@ -1535,8 +1535,10 @@ xfs_end_io_direct_write(
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_ioend	*ioend = private;
 
+	trace_xfs_gbmap_direct_endio(ip, offset, size, ioend->io_type, NULL);
+
 	if (XFS_FORCED_SHUTDOWN(mp))
-		goto out_destroy_ioend;
+		goto out_end_io;
 
 	/*
 	 * dio completion end_io functions are only called on writes if more
@@ -1557,40 +1559,37 @@ xfs_end_io_direct_write(
 	ioend->io_offset = offset;
 
 	/*
-	 * While the generic direct I/O code updates the inode size, it does
-	 * so only after the end_io handler is called, which means our
-	 * end_io handler thinks the on-disk size is outside the in-core
-	 * size.  To prevent this just update it a little bit earlier here.
+	 * The ioend tells us whether we are doing unwritten extent conversion
+	 * or an append transaction that updates the on-disk file size. These
+	 * cases are the only cases where we should *potentially* be needing
+	 * to update the VFS inode size. When the ioend indicates this, we
+	 * are *guaranteed* to be running in non-interrupt context.
+	 *
+	 * We need to update the in-core inode size here so that we don't end up
+	 * with the on-disk inode size being outside the in-core inode size.
+	 * While we can do this in the process context after the IO has
+	 * completed, this does not work for AIO and hence we always update
+	 * the in-core inode size here if necessary.
 	 */
-	if (offset + size > i_size_read(inode))
-		i_size_write(inode, offset + size);
+	if (ioend->io_type == XFS_IO_UNWRITTEN || xfs_ioend_is_append(ioend)) {
+		if (offset + size > i_size_read(inode))
+			i_size_write(inode, offset + size);
+	} else
+		ASSERT(offset + size <= i_size_read(inode));
 
 	/*
-	 * For direct I/O we do not know if we need to allocate blocks or not,
-	 * so we can't preallocate an append transaction, as that results in
-	 * nested reservations and log space deadlocks. Hence allocate the
-	 * transaction here. While this is sub-optimal and can block IO
-	 * completion for some time, we're stuck with doing it this way until
-	 * we can pass the ioend to the direct IO allocation callbacks and
-	 * avoid nesting that way.
+	 * If we are doing an append IO that needs to update the EOF on disk,
+	 * do the transaction reserve now so we can use common end io
+	 * processing. Stashing the error (if there is one) in the ioend will
+	 * result in the ioend processing passing on the error if it is
+	 * possible as we can't return it from here.
 	 */
-	if (ioend->io_type == XFS_IO_UNWRITTEN) {
-		xfs_iomap_write_unwritten(ip, offset, size);
-	} else if (offset + size > ip->i_d.di_size) {
-		struct xfs_trans	*tp;
-		int			error;
+	if (ioend->io_type == XFS_IO_OVERWRITE && xfs_ioend_is_append(ioend))
+		ioend->io_error = xfs_setfilesize_trans_alloc(ioend);
 
-		tp = xfs_trans_alloc(mp, XFS_TRANS_FSYNC_TS);
-		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_fsyncts, 0, 0);
-		if (error) {
-			xfs_trans_cancel(tp, 0);
-			goto out_destroy_ioend;
-		}
-
-		xfs_setfilesize(ip, tp, offset, size);
-	}
-out_destroy_ioend:
-	xfs_destroy_ioend(ioend);
+out_end_io:
+	xfs_end_io(&ioend->io_work);
+	return;
 }
 
 STATIC ssize_t
