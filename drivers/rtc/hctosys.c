@@ -33,7 +33,7 @@ static int __init rtc_hctosys(void)
 
 	if (rtc == NULL) {
 		pr_info("%s: unable to open rtc device (%s)\n",
-			__FILE__, CONFIG_RTC_HCTOSYS_DEVICE);
+			__func__, CONFIG_RTC_HCTOSYS_DEVICE);
 		goto err_open;
 	}
 
