@@ -1779,7 +1779,7 @@ static int lcdc_reset(struct rk_lcdc_driver *dev_drv, bool initscreen)
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
 	u32 mask, val;
-	u32 v;
+	u32 __maybe_unused v;
         /*printk("0407:standby=%d,initscreen=%d,dev_drv->first_frame=%d\n",
                 lcdc_dev->standby,initscreen,dev_drv->first_frame);*/
 	if (!lcdc_dev->standby && initscreen && (dev_drv->first_frame != 1)) {
@@ -1803,6 +1803,7 @@ static int lcdc_reset(struct rk_lcdc_driver *dev_drv, bool initscreen)
 		lcdc_cfg_done(lcdc_dev);
 		mdelay(50);
 		writel_relaxed(0, lcdc_dev->regs + REG_CFG_DONE);
+#if 0
 		if (dev_drv->iommu_enabled) {
 			if (dev_drv->mmu_dev)
 				rockchip_iovmm_deactivate(dev_drv->dev);
@@ -1824,6 +1825,7 @@ static int lcdc_reset(struct rk_lcdc_driver *dev_drv, bool initscreen)
 		mdelay(50);
 		rk3368_lcdc_reg_restore(lcdc_dev);
 		mdelay(50);
+#endif
 	}
 	return 0;
 }
