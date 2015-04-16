@@ -1039,6 +1039,57 @@ static int rk3368_init_fbdc_config(struct rk_lcdc_driver *dev_drv, int win_id)
 	return 0;
 }
 
+static int rk3368_lcdc_axi_gather_cfg(struct lcdc_device *lcdc_dev,
+				            struct rk_lcdc_win *win)
+{
+	u32 mask, val;
+	u16 yrgb_gather_num = 8;
+	u16 cbcr_gather_num = 2;
+
+	switch (win->area[0].format) {
+	case ARGB888:
+	case XBGR888:
+	case ABGR888:
+		yrgb_gather_num = 8;
+		break;
+	case RGB888:
+	case RGB565:
+		yrgb_gather_num = 4;
+		break;
+	case YUV444:
+	case YUV422:
+	case YUV420:
+	case YUV420_NV21:
+		yrgb_gather_num = 2;
+		cbcr_gather_num = 4;
+		break;
+	default:
+		dev_err(lcdc_dev->driver.dev, "%s:un supported format!\n",
+			__func__);
+		return -EINVAL;
+	}
+
+	if ((win->id == 0) || (win->id == 1)) {
+		mask = m_WIN0_YRGB_AXI_GATHER_EN | m_WIN0_CBR_AXI_GATHER_EN |
+			m_WIN0_YRGB_AXI_GATHER_NUM | m_WIN0_CBR_AXI_GATHER_NUM;
+		val = v_WIN0_YRGB_AXI_GATHER_EN(1) | v_WIN0_CBR_AXI_GATHER_EN(1) |
+			v_WIN0_YRGB_AXI_GATHER_NUM(yrgb_gather_num) |
+			v_WIN0_CBR_AXI_GATHER_NUM(cbcr_gather_num);
+		lcdc_msk_reg(lcdc_dev, WIN0_CTRL1 + (win->id * 0x40), mask, val);
+	} else if ((win->id == 2) || (win->id == 3)) {
+		mask = m_WIN0_YRGB_AXI_GATHER_EN | m_WIN0_YRGB_AXI_GATHER_NUM;
+		val = v_WIN0_YRGB_AXI_GATHER_EN(1) |
+			v_WIN0_YRGB_AXI_GATHER_NUM(yrgb_gather_num);
+		lcdc_msk_reg(lcdc_dev, WIN2_CTRL1 + ((win->id - 2) * 0x50), mask, val);
+	} else if (win->id == 4) {
+		mask = m_HWC_AXI_GATHER_EN | m_HWC_AXI_GATHER_NUM;
+		val = v_HWC_AXI_GATHER_EN(1) |
+			v_HWC_AXI_GATHER_NUM(yrgb_gather_num);
+		lcdc_msk_reg(lcdc_dev, HWC_CTRL1, mask, val);
+	}
+	return 0;
+}
+
 static void rk3368_lcdc_csc_mode(struct lcdc_device *lcdc_dev,
 				 struct rk_lcdc_win *win)
 {
@@ -1086,6 +1137,7 @@ static int rk3368_win_0_1_reg_update(struct rk_lcdc_driver *dev_drv, int win_id)
 
 	if (win->state == 1) {
 		rk3368_lcdc_csc_mode(lcdc_dev, win);
+		rk3368_lcdc_axi_gather_cfg(lcdc_dev, win);
 		if (win->area[0].fbdc_en) {
 			rk3368_fbdc_reg_update(&lcdc_dev->driver, win_id);
 		} else {
@@ -1185,6 +1237,7 @@ static int rk3368_win_2_3_reg_update(struct rk_lcdc_driver *dev_drv, int win_id)
 
 	if (win->state == 1) {
 		rk3368_lcdc_csc_mode(lcdc_dev, win);
+		rk3368_lcdc_axi_gather_cfg(lcdc_dev, win);
 		if (win->area[0].fbdc_en) {
 			rk3368_fbdc_reg_update(&lcdc_dev->driver, win_id);
 		} else {
@@ -1340,6 +1393,7 @@ static int rk3368_hwc_reg_update(struct rk_lcdc_driver *dev_drv, int win_id)
 
 	if (win->state == 1) {
 		rk3368_lcdc_csc_mode(lcdc_dev, win);
+		rk3368_lcdc_axi_gather_cfg(lcdc_dev, win);
 		mask = m_HWC_EN | m_HWC_DATA_FMT |
 		    m_HWC_RB_SWAP | m_WIN0_CSC_MODE;
 		val = v_HWC_EN(1) | v_HWC_DATA_FMT(win->area[0].fmt_cfg) |
