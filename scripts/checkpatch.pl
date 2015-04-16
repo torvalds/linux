@@ -443,6 +443,14 @@ foreach my $entry (@mode_permission_funcs) {
 	$mode_perms_search .= $entry->[0];
 }
 
+our $mode_perms_world_writable = qr{
+	S_IWUGO		|
+	S_IWOTH		|
+	S_IRWXUGO	|
+	S_IALLUGO	|
+	0[0-7][0-7][2367]
+}x;
+
 our $allowed_asm_includes = qr{(?x:
 	irq|
 	memory|
@@ -5356,8 +5364,8 @@ sub process {
 			}
 		}
 
-		if ($line =~ /debugfs_create_file.*S_IWUGO/ ||
-		    $line =~ /DEVICE_ATTR.*S_IWUGO/ ) {
+		if ($line =~ /debugfs_create_\w+.*\b$mode_perms_world_writable\b/ ||
+		    $line =~ /DEVICE_ATTR.*\b$mode_perms_world_writable\b/) {
 			WARN("EXPORTED_WORLD_WRITABLE",
 			     "Exporting world writable files is usually an error. Consider more restrictive permissions.\n" . $herecurr);
 		}
