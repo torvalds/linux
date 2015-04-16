@@ -880,6 +880,7 @@ static int atmel_prepare_tx_dma(struct uart_port *port)
 	config.direction = DMA_MEM_TO_DEV;
 	config.dst_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
 	config.dst_addr = port->mapbase + ATMEL_US_THR;
+	config.dst_maxburst = 1;
 
 	ret = dmaengine_slave_config(atmel_port->chan_tx,
 				     &config);
@@ -1059,6 +1060,7 @@ static int atmel_prepare_rx_dma(struct uart_port *port)
 	config.direction = DMA_DEV_TO_MEM;
 	config.src_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
 	config.src_addr = port->mapbase + ATMEL_US_RHR;
+	config.src_maxburst = 1;
 
 	ret = dmaengine_slave_config(atmel_port->chan_rx,
 				     &config);
