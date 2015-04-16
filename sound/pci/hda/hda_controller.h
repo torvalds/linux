@@ -185,19 +185,6 @@ struct azx {
 #define azx_readb(chip, reg) \
 	snd_hdac_chip_readb(azx_bus(chip), reg)
 
-#define azx_sd_writel(chip, dev, reg, value) \
-	snd_hdac_stream_writel(&(dev)->core, reg, value)
-#define azx_sd_readl(chip, dev, reg) \
-	snd_hdac_stream_readl(&(dev)->core, reg)
-#define azx_sd_writew(chip, dev, reg, value) \
-	snd_hdac_stream_writew(&(dev)->core, reg, value)
-#define azx_sd_readw(chip, dev, reg) \
-	snd_hdac_stream_readw(&(dev)->core, reg)
-#define azx_sd_writeb(chip, dev, reg, value) \
-	snd_hdac_stream_writeb(&(dev)->core, reg, value)
-#define azx_sd_readb(chip, dev, reg) \
-	snd_hdac_stream_readb(&(dev)->core, reg)
-
 #define azx_has_pm_runtime(chip) \
 	(!AZX_DCAPS_PM_RUNTIME || ((chip)->driver_caps & AZX_DCAPS_PM_RUNTIME))
 
