@@ -5,6 +5,7 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/export.h>
+#include <linux/clocksource.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/hdaudio.h>
