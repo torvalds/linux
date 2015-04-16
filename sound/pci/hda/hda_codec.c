@@ -2529,7 +2529,7 @@ static void set_dig_out(struct hda_codec *codec, hda_nid_t nid,
 	if (!d)
 		return;
 	for (; *d; d++)
-		snd_hdac_regmap_update(&codec->core, nid,
+		snd_hdac_regmap_update(&codec->core, *d,
 				       AC_VERB_SET_DIGI_CONVERT_1, mask, val);
 }
 
