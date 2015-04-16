@@ -814,4 +814,9 @@ cpumap_print_to_pagebuf(bool list, char *buf, const struct cpumask *mask)
 	[0 ... BITS_TO_LONGS(NR_CPUS)-1] =  0UL				\
 } }
 
+#define CPU_MASK_CPU0							\
+(cpumask_t) { {								\
+	[0] =  1UL							\
+} }
+
 #endif /* __LINUX_CPUMASK_H */
