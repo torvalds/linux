@@ -56,7 +56,7 @@ struct befs_sb_info {
 	struct nls_table *nls;
 };
 
-typedef struct befs_inode_info {
+struct befs_inode_info {
 	u32 i_flags;
 	u32 i_type;
 
@@ -70,8 +70,7 @@ typedef struct befs_inode_info {
 	} i_data;
 
 	struct inode vfs_inode;
-
-} befs_inode_info;
+};
 
 enum befs_err {
 	BEFS_OK,
@@ -110,7 +109,7 @@ BEFS_SB(const struct super_block *super)
 	return (struct befs_sb_info *) super->s_fs_info;
 }
 
-static inline befs_inode_info *
+static inline struct befs_inode_info *
 BEFS_I(const struct inode *inode)
 {
 	return list_entry(inode, struct befs_inode_info, vfs_inode);

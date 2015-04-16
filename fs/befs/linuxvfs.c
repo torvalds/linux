@@ -305,7 +305,7 @@ static struct inode *befs_iget(struct super_block *sb, unsigned long ino)
 	struct buffer_head *bh = NULL;
 	befs_inode *raw_inode = NULL;
 	struct befs_sb_info *befs_sb = BEFS_SB(sb);
-	befs_inode_info *befs_ino = NULL;
+	struct befs_inode_info *befs_ino = NULL;
 	struct inode *inode;
 	long ret = -EIO;
 
@@ -471,7 +471,7 @@ static void *
 befs_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	struct super_block *sb = dentry->d_sb;
-	befs_inode_info *befs_ino = BEFS_I(dentry->d_inode);
+	struct befs_inode_info *befs_ino = BEFS_I(dentry->d_inode);
 	befs_data_stream *data = &befs_ino->i_data.ds;
 	befs_off_t len = data->size;
 	char *link;
@@ -501,7 +501,8 @@ befs_follow_link(struct dentry *dentry, struct nameidata *nd)
 static void *
 befs_fast_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
-	befs_inode_info *befs_ino = BEFS_I(dentry->d_inode);
+	struct befs_inode_info *befs_ino = BEFS_I(dentry->d_inode);
+
 	nd_set_link(nd, befs_ino->i_data.symlink);
 	return NULL;
 }
