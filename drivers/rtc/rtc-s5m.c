@@ -15,6 +15,8 @@
  *  GNU General Public License for more details.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/bcd.h>
@@ -146,7 +148,7 @@ static int s5m8767_tm_to_data(struct rtc_time *tm, u8 *data)
 	data[RTC_YEAR1] = tm->tm_year > 100 ? (tm->tm_year - 100) : 0;
 
 	if (tm->tm_year < 100) {
-		pr_err("s5m8767 RTC cannot handle the year %d.\n",
+		pr_err("RTC cannot handle the year %d\n",
 		       1900 + tm->tm_year);
 		return -EINVAL;
 	} else {

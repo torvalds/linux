@@ -16,6 +16,8 @@
  * published by the Free Software Foundation.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/bcd.h>
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -2182,7 +2184,7 @@ ds1685_rtc_poweroff(struct platform_device *pdev)
 
 	/* Check for valid RTC data, else, spin forever. */
 	if (unlikely(!pdev)) {
-		pr_emerg("rtc-ds1685: platform device data not available, spinning forever ...\n");
+		pr_emerg("platform device data not available, spinning forever ...\n");
 		unreachable();
 	} else {
 		/* Get the rtc data. */
