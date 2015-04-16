@@ -3396,6 +3396,14 @@ sub process {
 			     "Prefer dev_$level(... to dev_printk(KERN_$orig, ...\n" . $herecurr);
 		}
 
+# ENOSYS means "bad syscall nr" and nothing else.  This will have a small
+# number of false positives, but assembly files are not checked, so at
+# least the arch entry code will not trigger this warning.
+		if ($line =~ /\bENOSYS\b/) {
+			WARN("ENOSYS",
+			     "ENOSYS means 'invalid syscall nr' and nothing else\n" . $herecurr);
+		}
+
 # function brace can't be on same line, except for #defines of do while,
 # or if closed on same line
 		if (($line=~/$Type\s*$Ident\(.*\).*\s*{/) and
