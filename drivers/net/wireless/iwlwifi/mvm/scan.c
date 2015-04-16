@@ -98,6 +98,10 @@ struct iwl_mvm_scan_params {
 		u16 active;
 		u16 fragmented;
 	} dwell[IEEE80211_NUM_BANDS];
+	struct {
+		u8 iterations;
+		u8 full_scan_mul; /* not used for UMAC */
+	} schedule[2];
 };
 
 enum iwl_umac_scan_uid_type {
@@ -861,11 +865,11 @@ static int iwl_mvm_scan_lmac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	ssid_bitmap <<= 1;
 
 	cmd->schedule[0].delay = cpu_to_le16(params->interval);
-	cmd->schedule[0].iterations = 1;
-	cmd->schedule[0].full_scan_mul = 0;
+	cmd->schedule[0].iterations = params->schedule[0].iterations;
+	cmd->schedule[0].full_scan_mul = params->schedule[0].full_scan_mul;
 	cmd->schedule[1].delay = cpu_to_le16(params->interval);
-	cmd->schedule[1].iterations = 0;
-	cmd->schedule[1].full_scan_mul = 0;
+	cmd->schedule[1].iterations = params->schedule[1].iterations;
+	cmd->schedule[1].full_scan_mul = params->schedule[1].iterations;
 
 	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_SINGLE_SCAN_EBS &&
 	    mvm->last_ebs_successful) {
@@ -941,12 +945,11 @@ iwl_mvm_sched_scan_lmac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	ssid_bitmap <<= 1;
 
 	cmd->schedule[0].delay = cpu_to_le16(params->interval);
-	cmd->schedule[0].iterations = IWL_FAST_SCHED_SCAN_ITERATIONS;
-	cmd->schedule[0].full_scan_mul = 1;
-
+	cmd->schedule[0].iterations = params->schedule[0].iterations;
+	cmd->schedule[0].full_scan_mul = params->schedule[0].full_scan_mul;
 	cmd->schedule[1].delay = cpu_to_le16(params->interval);
-	cmd->schedule[1].iterations = 0xff;
-	cmd->schedule[1].full_scan_mul = IWL_FULL_SCAN_MULTIPLIER;
+	cmd->schedule[1].iterations = params->schedule[1].iterations;
+	cmd->schedule[1].full_scan_mul = params->schedule[1].iterations;
 
 	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_EBS_SUPPORT &&
 	    mvm->last_ebs_successful) {
@@ -1276,8 +1279,8 @@ static int iwl_mvm_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	iwl_mvm_umac_scan_cfg_channels(mvm, params->channels,
 				       params->n_channels, ssid_bitmap, cmd);
 
-	sec_part->schedule[0].iter_count = 1;
-	sec_part->delay = 0;
+	sec_part->schedule[0].iter_count = params->schedule[0].iterations;
+	sec_part->delay = cpu_to_le16(params->delay);
 	sec_part->preq = params->preq;
 
 	return 0;
@@ -1337,9 +1340,10 @@ static int iwl_mvm_sched_scan_umac(struct iwl_mvm *mvm,
 	iwl_mvm_umac_scan_cfg_channels(mvm, params->channels,
 				       params->n_channels, ssid_bitmap, cmd);
 
-	sec_part->schedule[0].interval =
-				cpu_to_le16(params->interval / MSEC_PER_SEC);
-	sec_part->schedule[0].iter_count = 0xff;
+	sec_part->schedule[0].interval = cpu_to_le16(params->interval);
+
+	/* With UMAC we use only one schedule, so take the final one only */
+	sec_part->schedule[0].iter_count = params->schedule[1].iterations;
 
 	if (params->delay > U16_MAX) {
 		IWL_DEBUG_SCAN(mvm,
@@ -1447,6 +1451,11 @@ int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	params.n_match_sets = 0;
 	params.match_sets = NULL;
 
+	params.schedule[0].iterations = 1;
+	params.schedule[0].full_scan_mul = 0;
+	params.schedule[1].iterations = 0;
+	params.schedule[1].full_scan_mul = 0;
+
 	iwl_mvm_scan_calc_dwell(mvm, vif, &params);
 
 	iwl_mvm_build_scan_probe(mvm, vif, ies, &params);
@@ -1524,6 +1533,11 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 	params.pass_all =  iwl_mvm_scan_pass_all(mvm, req);
 	params.n_match_sets = req->n_match_sets;
 	params.match_sets = req->match_sets;
+
+	params.schedule[0].iterations = IWL_FAST_SCHED_SCAN_ITERATIONS;
+	params.schedule[0].full_scan_mul = 1;
+	params.schedule[1].iterations = 0xff;
+	params.schedule[1].full_scan_mul = IWL_FULL_SCAN_MULTIPLIER;
 
 	if (req->interval > U16_MAX) {
 		IWL_DEBUG_SCAN(mvm,
