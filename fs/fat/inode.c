@@ -1279,8 +1279,7 @@ out:
 
 static int fat_read_root(struct inode *inode)
 {
-	struct super_block *sb = inode->i_sb;
-	struct msdos_sb_info *sbi = MSDOS_SB(sb);
+	struct msdos_sb_info *sbi = MSDOS_SB(inode->i_sb);
 	int error;
 
 	MSDOS_I(inode)->i_pos = MSDOS_ROOT_INO;
