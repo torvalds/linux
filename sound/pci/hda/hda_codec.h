@@ -40,26 +40,6 @@ struct hda_codec;
 struct hda_pcm;
 struct hda_pcm_stream;
 
-/* bus operators */
-struct hda_bus_ops {
-	/* attach a PCM stream */
-	int (*attach_pcm)(struct hda_bus *bus, struct hda_codec *codec,
-			  struct hda_pcm *pcm);
-	/* reset bus for retry verb */
-	void (*bus_reset)(struct hda_bus *bus);
-#ifdef CONFIG_SND_HDA_DSP_LOADER
-	/* prepare DSP transfer */
-	int (*load_dsp_prepare)(struct hda_bus *bus, unsigned int format,
-				unsigned int byte_size,
-				struct snd_dma_buffer *bufp);
-	/* start/stop DSP transfer */
-	void (*load_dsp_trigger)(struct hda_bus *bus, bool start);
-	/* clean up DSP transfer */
-	void (*load_dsp_cleanup)(struct hda_bus *bus,
-				 struct snd_dma_buffer *dmab);
-#endif
-};
-
 /*
  * codec bus
  *
@@ -73,7 +53,6 @@ struct hda_bus {
 
 	struct pci_dev *pci;
 	const char *modelname;
-	struct hda_bus_ops ops;
 
 	struct mutex prepare_mutex;
 
@@ -464,6 +443,9 @@ void __snd_hda_codec_cleanup_stream(struct hda_codec *codec, hda_nid_t nid,
 
 extern const struct snd_pcm_chmap_elem snd_pcm_2_1_chmaps[];
 
+int snd_hda_attach_pcm_stream(struct hda_bus *_bus, struct hda_codec *codec,
+			      struct hda_pcm *cpcm);
+
 /*
  * Misc
  */
@@ -474,6 +456,7 @@ void snd_hda_codec_set_power_to_all(struct hda_codec *codec, hda_nid_t fg,
 int snd_hda_lock_devices(struct hda_bus *bus);
 void snd_hda_unlock_devices(struct hda_bus *bus);
 void snd_hda_bus_reset(struct hda_bus *bus);
+void snd_hda_bus_reset_codecs(struct hda_bus *bus);
 
 /*
  * power management
@@ -519,24 +502,12 @@ int snd_hda_load_patch(struct hda_bus *bus, size_t size, const void *buf);
 #endif
 
 #ifdef CONFIG_SND_HDA_DSP_LOADER
-static inline int
-snd_hda_codec_load_dsp_prepare(struct hda_codec *codec, unsigned int format,
-				unsigned int size,
-				struct snd_dma_buffer *bufp)
-{
-	return codec->bus->ops.load_dsp_prepare(codec->bus, format, size, bufp);
-}
-static inline void
-snd_hda_codec_load_dsp_trigger(struct hda_codec *codec, bool start)
-{
-	return codec->bus->ops.load_dsp_trigger(codec->bus, start);
-}
-static inline void
-snd_hda_codec_load_dsp_cleanup(struct hda_codec *codec,
-				struct snd_dma_buffer *dmab)
-{
-	return codec->bus->ops.load_dsp_cleanup(codec->bus, dmab);
-}
+int snd_hda_codec_load_dsp_prepare(struct hda_codec *codec, unsigned int format,
+				   unsigned int size,
+				   struct snd_dma_buffer *bufp);
+void snd_hda_codec_load_dsp_trigger(struct hda_codec *codec, bool start);
+void snd_hda_codec_load_dsp_cleanup(struct hda_codec *codec,
+				    struct snd_dma_buffer *dmab);
 #else
 static inline int
 snd_hda_codec_load_dsp_prepare(struct hda_codec *codec, unsigned int format,

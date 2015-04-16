@@ -532,8 +532,8 @@ static void azx_pcm_free(struct snd_pcm *pcm)
 
 #define MAX_PREALLOC_SIZE	(32 * 1024 * 1024)
 
-static int azx_attach_pcm_stream(struct hda_bus *_bus, struct hda_codec *codec,
-				 struct hda_pcm *cpcm)
+int snd_hda_attach_pcm_stream(struct hda_bus *_bus, struct hda_codec *codec,
+			      struct hda_pcm *cpcm)
 {
 	struct hdac_bus *bus = &_bus->core;
 	struct azx *chip = bus_to_azx(bus);
@@ -814,11 +814,11 @@ azx_get_dsp_loader_dev(struct azx *chip)
 	return NULL;
 }
 
-static int azx_load_dsp_prepare(struct hda_bus *_bus, unsigned int format,
-				unsigned int byte_size,
-				struct snd_dma_buffer *bufp)
+int snd_hda_codec_load_dsp_prepare(struct hda_codec *codec, unsigned int format,
+				   unsigned int byte_size,
+				   struct snd_dma_buffer *bufp)
 {
-	struct hdac_bus *bus = &_bus->core;
+	struct hdac_bus *bus = &codec->bus->core;
 	struct azx *chip = bus_to_azx(bus);
 	struct azx_dev *azx_dev;
 	struct hdac_stream *hstr;
@@ -846,25 +846,27 @@ static int azx_load_dsp_prepare(struct hda_bus *_bus, unsigned int format,
 	azx_dev->prepared = 0;
 	return err;
 }
+EXPORT_SYMBOL_GPL(snd_hda_codec_load_dsp_prepare);
 
-static void azx_load_dsp_trigger(struct hda_bus *_bus, bool start)
+void snd_hda_codec_load_dsp_trigger(struct hda_codec *codec, bool start)
 {
-	struct hdac_bus *bus = &_bus->core;
+	struct hdac_bus *bus = &codec->bus->core;
 	struct azx *chip = bus_to_azx(bus);
 	struct azx_dev *azx_dev = azx_get_dsp_loader_dev(chip);
 
 	snd_hdac_dsp_trigger(azx_stream(azx_dev), start);
 }
+EXPORT_SYMBOL_GPL(snd_hda_codec_load_dsp_trigger);
 
-static void azx_load_dsp_cleanup(struct hda_bus *_bus,
-				 struct snd_dma_buffer *dmab)
+void snd_hda_codec_load_dsp_cleanup(struct hda_codec *codec,
+				    struct snd_dma_buffer *dmab)
 {
-	struct hdac_bus *bus = &_bus->core;
+	struct hdac_bus *bus = &codec->bus->core;
 	struct azx *chip = bus_to_azx(bus);
 	struct azx_dev *azx_dev = azx_get_dsp_loader_dev(chip);
 	struct hdac_stream *hstr = azx_stream(azx_dev);
 
-	if (!dmab->area || !azx_dev->core.locked)
+	if (!dmab->area || !hstr->locked)
 		return;
 
 	snd_hdac_dsp_cleanup(hstr, dmab);
@@ -874,6 +876,7 @@ static void azx_load_dsp_cleanup(struct hda_bus *_bus,
 	hstr->locked = false;
 	spin_unlock_irq(&bus->reg_lock);
 }
+EXPORT_SYMBOL_GPL(snd_hda_codec_load_dsp_cleanup);
 #endif /* CONFIG_SND_HDA_DSP_LOADER */
 
 /*
@@ -993,7 +996,7 @@ static int probe_codec(struct azx *chip, int addr)
 	return 0;
 }
 
-static void azx_bus_reset(struct hda_bus *bus)
+void snd_hda_bus_reset(struct hda_bus *bus)
 {
 	struct azx *chip = bus_to_azx(&bus->core);
 
@@ -1001,7 +1004,7 @@ static void azx_bus_reset(struct hda_bus *bus)
 	azx_stop_chip(chip);
 	azx_init_chip(chip, true);
 	if (bus->core.chip_init)
-		snd_hda_bus_reset(bus);
+		snd_hda_bus_reset_codecs(bus);
 	bus->in_reset = 0;
 }
 
@@ -1026,16 +1029,6 @@ static int get_jackpoll_interval(struct azx *chip)
 	return j;
 }
 
-static struct hda_bus_ops bus_ops = {
-	.attach_pcm = azx_attach_pcm_stream,
-	.bus_reset = azx_bus_reset,
-#ifdef CONFIG_SND_HDA_DSP_LOADER
-	.load_dsp_prepare = azx_load_dsp_prepare,
-	.load_dsp_trigger = azx_load_dsp_trigger,
-	.load_dsp_cleanup = azx_load_dsp_cleanup,
-#endif
-};
-
 /* HD-audio bus initialization */
 int azx_bus_init(struct azx *chip, const char *model,
 		 const struct hdac_io_ops *io_ops)
@@ -1052,7 +1045,6 @@ int azx_bus_init(struct azx *chip, const char *model,
 	mutex_init(&bus->prepare_mutex);
 	bus->pci = chip->pci;
 	bus->modelname = model;
-	bus->ops = bus_ops;
 	bus->core.snoop = azx_snoop(chip);
 	if (chip->get_position[0] != azx_get_pos_lpib ||
 	    chip->get_position[1] != azx_get_pos_lpib)

@@ -150,7 +150,7 @@ static int codec_exec_verb(struct hdac_device *dev, unsigned int cmd,
 		if (bus->response_reset) {
 			codec_dbg(codec,
 				  "resetting BUS due to fatal communication error\n");
-			bus->ops.bus_reset(bus);
+			snd_hda_bus_reset(bus);
 		}
 		goto again;
 	}
@@ -3403,9 +3403,6 @@ int snd_hda_codec_build_pcms(struct hda_codec *codec)
 	struct hda_pcm *cpcm;
 	int dev, err;
 
-	if (snd_BUG_ON(!bus->ops.attach_pcm))
-		return -EINVAL;
-
 	err = snd_hda_codec_parse_pcms(codec);
 	if (err < 0) {
 		snd_hda_codec_reset(codec);
@@ -3423,7 +3420,7 @@ int snd_hda_codec_build_pcms(struct hda_codec *codec)
 		if (dev < 0)
 			continue; /* no fatal error */
 		cpcm->device = dev;
-		err =  bus->ops.attach_pcm(bus, codec, cpcm);
+		err =  snd_hda_attach_pcm_stream(bus, codec, cpcm);
 		if (err < 0) {
 			codec_err(codec,
 				  "cannot attach PCM stream %d for codec #%d\n",
@@ -4093,10 +4090,10 @@ int snd_hda_add_imux_item(struct hda_codec *codec,
 EXPORT_SYMBOL_GPL(snd_hda_add_imux_item);
 
 /**
- * snd_hda_bus_reset - Reset the bus
+ * snd_hda_bus_reset_codecs - Reset the bus
  * @bus: HD-audio bus
  */
-void snd_hda_bus_reset(struct hda_bus *bus)
+void snd_hda_bus_reset_codecs(struct hda_bus *bus)
 {
 	struct hda_codec *codec;
 
@@ -4111,7 +4108,6 @@ void snd_hda_bus_reset(struct hda_bus *bus)
 #endif
 	}
 }
-EXPORT_SYMBOL_GPL(snd_hda_bus_reset);
 
 /**
  * snd_print_pcm_bits - Print the supported PCM fmt bits to the string buffer
