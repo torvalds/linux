@@ -88,6 +88,16 @@
 #include <trace/events/task.h>
 
 /*
+ * Minimum number of threads to boot the kernel
+ */
+#define MIN_THREADS 20
+
+/*
+ * Maximum number of threads
+ */
+#define MAX_THREADS FUTEX_TID_MASK
+
+/*
  * Protected counters by write_lock_irq(&tasklist_lock)
  */
 unsigned long total_forks;	/* Handle normal Linux uptimes. */
@@ -258,18 +268,19 @@ void __init __weak arch_task_cache_init(void) { }
  */
 static void set_max_threads(void)
 {
-	/*
-	 * The default maximum number of threads is set to a safe
-	 * value: the thread structures can take up at most one
-	 * eighth of the memory.
-	 */
-	max_threads = totalram_pages / (8 * THREAD_SIZE / PAGE_SIZE);
+	u64 threads;
 
 	/*
-	 * we need to allow at least 20 threads to boot a system
+	 * The number of threads shall be limited such that the thread
+	 * structures may only consume a small part of the available memory.
 	 */
-	if (max_threads < 20)
-		max_threads = 20;
+	if (fls64(totalram_pages) + fls64(PAGE_SIZE) > 64)
+		threads = MAX_THREADS;
+	else
+		threads = div64_u64((u64) totalram_pages * (u64) PAGE_SIZE,
+				    (u64) THREAD_SIZE * 8UL);
+
+	max_threads = clamp_t(u64, threads, MIN_THREADS, MAX_THREADS);
 }
 
 void __init fork_init(void)
