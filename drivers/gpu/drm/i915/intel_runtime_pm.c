@@ -64,6 +64,9 @@
 	     i--)							 \
 		if ((power_well)->domains & (domain_mask))
 
+bool intel_display_power_well_is_enabled(struct drm_i915_private *dev_priv,
+				    int power_well_id);
+
 /*
  * We should only use the power well if we explicitly asked the hardware to
  * enable it, so check if it's enabled and also check if we've requested it to
@@ -433,12 +436,39 @@ static void gen9_set_dc_state_debugmask_memory_up(
 	}
 }
 
-static void gen9_enable_dc5(struct drm_i915_private *dev_priv)
+static void assert_can_enable_dc5(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
+	bool pg2_enabled = intel_display_power_well_is_enabled(dev_priv,
+					SKL_DISP_PW_2);
+
+	WARN(!IS_SKYLAKE(dev), "Platform doesn't support DC5.\n");
+	WARN(!HAS_RUNTIME_PM(dev), "Runtime PM not enabled.\n");
+	WARN(pg2_enabled, "PG2 not disabled to enable DC5.\n");
+
+	WARN((I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5),
+				"DC5 already programmed to be enabled.\n");
+	WARN(dev_priv->pm.suspended,
+		"DC5 cannot be enabled, if platform is runtime-suspended.\n");
+
+	assert_csr_loaded(dev_priv);
+}
+
+static void assert_can_disable_dc5(struct drm_i915_private *dev_priv)
+{
+	bool pg2_enabled = intel_display_power_well_is_enabled(dev_priv,
+					SKL_DISP_PW_2);
+
+	WARN(!pg2_enabled, "PG2 not enabled to disable DC5.\n");
+	WARN(dev_priv->pm.suspended,
+		"Disabling of DC5 while platform is runtime-suspended should never happen.\n");
+}
+
+static void gen9_enable_dc5(struct drm_i915_private *dev_priv)
+{
 	uint32_t val;
 
-	WARN_ON(!IS_GEN9(dev));
+	assert_can_enable_dc5(dev_priv);
 
 	DRM_DEBUG_KMS("Enabling DC5\n");
 
@@ -453,10 +483,9 @@ static void gen9_enable_dc5(struct drm_i915_private *dev_priv)
 
 static void gen9_disable_dc5(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
 	uint32_t val;
 
-	WARN_ON(!IS_GEN9(dev));
+	assert_can_disable_dc5(dev_priv);
 
 	DRM_DEBUG_KMS("Disabling DC5\n");
 
@@ -1416,7 +1445,7 @@ static struct i915_power_well chv_power_wells[] = {
 };
 
 static struct i915_power_well *lookup_power_well(struct drm_i915_private *dev_priv,
-						 enum punit_power_well power_well_id)
+						 int power_well_id)
 {
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 	struct i915_power_well *power_well;
@@ -1428,6 +1457,18 @@ static struct i915_power_well *lookup_power_well(struct drm_i915_private *dev_pr
 	}
 
 	return NULL;
+}
+
+bool intel_display_power_well_is_enabled(struct drm_i915_private *dev_priv,
+				    int power_well_id)
+{
+	struct i915_power_well *power_well;
+	bool ret;
+
+	power_well = lookup_power_well(dev_priv, power_well_id);
+	ret = power_well->ops->is_enabled(dev_priv, power_well);
+
+	return ret;
 }
 
 static struct i915_power_well skl_power_wells[] = {
