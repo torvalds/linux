@@ -31,6 +31,9 @@
 #include <sound/initval.h>
 #include "hda_controller.h"
 
+#define CREATE_TRACE_POINTS
+#include "hda_intel_trace.h"
+
 /* DSP lock helpers */
 #define dsp_lock(dev)		snd_hdac_dsp_lock(azx_stream(dev))
 #define dsp_unlock(dev)		snd_hdac_dsp_unlock(azx_stream(dev))
@@ -229,6 +232,8 @@ static int azx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	int sync_reg;
 
 	azx_dev = get_azx_dev(substream);
+	trace_azx_pcm_trigger(chip, azx_dev, cmd);
+
 	hstr = azx_stream(azx_dev);
 	if (chip->driver_caps & AZX_DCAPS_OLD_SSYNC)
 		sync_reg = AZX_REG_OLD_SSYNC;
@@ -330,6 +335,7 @@ unsigned int azx_get_position(struct azx *chip,
 		substream->runtime->delay = delay;
 	}
 
+	trace_azx_get_position(chip, azx_dev, pos, delay);
 	return pos;
 }
 EXPORT_SYMBOL_GPL(azx_get_position);
