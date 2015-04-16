@@ -4950,7 +4950,7 @@ static int i915_dpcd_show(struct seq_file *m, void *data)
 		}
 
 		seq_printf(m, "%04x: %*ph\n", b->offset, (int) size, buf);
-	};
+	}
 
 	return 0;
 }
