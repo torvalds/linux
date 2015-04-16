@@ -1511,8 +1511,7 @@ static int is_executable_section(struct elf_info* elf, unsigned int section_inde
  * to know the sizeof(struct exception_table_entry) for the target architecture.
  */
 static unsigned int extable_entry_size = 0;
-static void find_extable_entry_size(const char* const sec, const Elf_Rela* r,
-				    const void* start, const void* cur)
+static void find_extable_entry_size(const char* const sec, const Elf_Rela* r)
 {
 	/*
 	 * If we're currently checking the second relocation within __ex_table,
@@ -1523,10 +1522,10 @@ static void find_extable_entry_size(const char* const sec, const Elf_Rela* r,
 	 * seems to go with different sized types.  Not pretty but better than
 	 * hard-coding the size for every architecture..
 	 */
-	if (!extable_entry_size && cur == start + 1 &&
-	    strcmp("__ex_table", sec) == 0)
+	if (!extable_entry_size)
 		extable_entry_size = r->r_offset * 2;
 }
+
 static inline bool is_extable_fault_address(Elf_Rela *r)
 {
 	/*
@@ -1540,6 +1539,9 @@ static inline bool is_extable_fault_address(Elf_Rela *r)
 	return ((r->r_offset == 0) ||
 		(r->r_offset % extable_entry_size == 0));
 }
+
+#define is_second_extable_reloc(Start, Cur, Sec)			\
+	(((Cur) == (Start) + 1) && (strcmp("__ex_table", (Sec)) == 0))
 
 static void report_extable_warnings(const char* modname, struct elf_info* elf,
 				    const struct sectioncheck* const mismatch,
@@ -1769,7 +1771,8 @@ static void section_rela(const char *modname, struct elf_info *elf,
 		/* Skip special sections */
 		if (is_shndx_special(sym->st_shndx))
 			continue;
-		find_extable_entry_size(fromsec, &r, start, rela);
+		if (is_second_extable_reloc(start, rela, fromsec))
+			find_extable_entry_size(fromsec, &r);
 		check_section_mismatch(modname, elf, &r, sym, fromsec);
 	}
 }
@@ -1828,7 +1831,8 @@ static void section_rel(const char *modname, struct elf_info *elf,
 		/* Skip special sections */
 		if (is_shndx_special(sym->st_shndx))
 			continue;
-		find_extable_entry_size(fromsec, &r, start, rel);
+		if (is_second_extable_reloc(start, rel, fromsec))
+			find_extable_entry_size(fromsec, &r);
 		check_section_mismatch(modname, elf, &r, sym, fromsec);
 	}
 }
