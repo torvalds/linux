@@ -7204,6 +7204,17 @@ enum skl_disp_power_wells {
 #define  DC_STATE_EN_UPTO_DC5		(1<<0)
 #define  DC_STATE_EN_DC9		(1<<3)
 
+/*
+* SKL DC
+*/
+#define  DC_STATE_EN			0x45504
+#define  DC_STATE_EN_UPTO_DC5		(1<<0)
+#define  DC_STATE_EN_UPTO_DC6		(2<<0)
+#define  DC_STATE_EN_UPTO_DC5_DC6_MASK   0x3
+
+#define  DC_STATE_DEBUG                  0x45520
+#define  DC_STATE_DEBUG_MASK_MEMORY_UP	(1<<1)
+
 /* Please see hsw_read_dcomp() and hsw_write_dcomp() before using this register,
  * since on HSW we can't write to it using I915_WRITE. */
 #define D_COMP_HSW			(MCHBAR_MIRROR_BASE_SNB + 0x5F0C)
