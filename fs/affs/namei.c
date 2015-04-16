@@ -53,7 +53,8 @@ affs_intl_toupper(int ch)
 static inline toupper_t
 affs_get_toupper(struct super_block *sb)
 {
-	return AFFS_SB(sb)->s_flags & SF_INTL ? affs_intl_toupper : affs_toupper;
+	return AFFS_SB(sb)->s_flags & AFFS_MOUNT_SF_INTL ?
+				      affs_intl_toupper : affs_toupper;
 }
 
 /*
@@ -275,7 +276,8 @@ affs_create(struct inode *dir, struct dentry *dentry, umode_t mode, bool excl)
 
 	inode->i_op = &affs_file_inode_operations;
 	inode->i_fop = &affs_file_operations;
-	inode->i_mapping->a_ops = (AFFS_SB(sb)->s_flags & SF_OFS) ? &affs_aops_ofs : &affs_aops;
+	inode->i_mapping->a_ops = (AFFS_SB(sb)->s_flags & AFFS_MOUNT_SF_OFS) ?
+				  &affs_aops_ofs : &affs_aops;
 	error = affs_add_entry(dir, inode, dentry, ST_FILE);
 	if (error) {
 		clear_nlink(inode);

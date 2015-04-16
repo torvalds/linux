@@ -915,7 +915,7 @@ affs_truncate(struct inode *inode)
 	if (inode->i_size) {
 		AFFS_I(inode)->i_blkcnt = last_blk + 1;
 		AFFS_I(inode)->i_extcnt = ext + 1;
-		if (AFFS_SB(sb)->s_flags & SF_OFS) {
+		if (AFFS_SB(sb)->s_flags & AFFS_MOUNT_SF_OFS) {
 			struct buffer_head *bh = affs_bread_ino(inode, last_blk, 0);
 			u32 tmp;
 			if (IS_ERR(bh)) {
