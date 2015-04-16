@@ -1277,8 +1277,10 @@ static void free_dma_desc_resources(struct stmmac_priv *priv)
  */
 static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
 {
+	int rxfifosz = priv->plat->rx_fifo_size;
+
 	if (priv->plat->force_thresh_dma_mode)
-		priv->hw->dma->dma_mode(priv->ioaddr, tc, tc);
+		priv->hw->dma->dma_mode(priv->ioaddr, tc, tc, rxfifosz);
 	else if (priv->plat->force_sf_dma_mode || priv->plat->tx_coe) {
 		/*
 		 * In case of GMAC, SF mode can be enabled
@@ -1287,10 +1289,12 @@ static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
 		 * 2) There is no bugged Jumbo frame support
 		 *    that needs to not insert csum in the TDES.
 		 */
-		priv->hw->dma->dma_mode(priv->ioaddr, SF_DMA_MODE, SF_DMA_MODE);
+		priv->hw->dma->dma_mode(priv->ioaddr, SF_DMA_MODE, SF_DMA_MODE,
+					rxfifosz);
 		priv->xstats.threshold = SF_DMA_MODE;
 	} else
-		priv->hw->dma->dma_mode(priv->ioaddr, tc, SF_DMA_MODE);
+		priv->hw->dma->dma_mode(priv->ioaddr, tc, SF_DMA_MODE,
+					rxfifosz);
 }
 
 /**
@@ -1442,6 +1446,7 @@ static void stmmac_tx_err(struct stmmac_priv *priv)
 static void stmmac_dma_interrupt(struct stmmac_priv *priv)
 {
 	int status;
+	int rxfifosz = priv->plat->rx_fifo_size;
 
 	status = priv->hw->dma->dma_interrupt(priv->ioaddr, &priv->xstats);
 	if (likely((status & handle_rx)) || (status & handle_tx)) {
@@ -1456,10 +1461,11 @@ static void stmmac_dma_interrupt(struct stmmac_priv *priv)
 		    (tc <= 256)) {
 			tc += 64;
 			if (priv->plat->force_thresh_dma_mode)
-				priv->hw->dma->dma_mode(priv->ioaddr, tc, tc);
+				priv->hw->dma->dma_mode(priv->ioaddr, tc, tc,
+							rxfifosz);
 			else
 				priv->hw->dma->dma_mode(priv->ioaddr, tc,
-					SF_DMA_MODE);
+							SF_DMA_MODE, rxfifosz);
 			priv->xstats.threshold = tc;
 		}
 	} else if (unlikely(status == tx_hard_error))
