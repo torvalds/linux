@@ -96,6 +96,7 @@ struct em28xx_dvb {
 	int			lna_gpio;
 	struct i2c_client	*i2c_client_demod;
 	struct i2c_client	*i2c_client_tuner;
+	struct i2c_client	*i2c_client_sec;
 };
 
 static inline void print_err_status(struct em28xx *dev,
@@ -1729,7 +1730,6 @@ static int em28xx_dvb_fini(struct em28xx *dev)
 	em28xx_info("Closing DVB extension\n");
 
 	dvb = dev->dvb;
-	client = dvb->i2c_client_tuner;
 
 	em28xx_uninit_usb_xfer(dev, EM28XX_DIGITAL_MODE);
 
@@ -1746,7 +1746,15 @@ static int em28xx_dvb_fini(struct em28xx *dev)
 		}
 	}
 
+	/* remove I2C SEC */
+	client = dvb->i2c_client_sec;
+	if (client) {
+		module_put(client->dev.driver->owner);
+		i2c_unregister_device(client);
+	}
+
 	/* remove I2C tuner */
+	client = dvb->i2c_client_tuner;
 	if (client) {
 		module_put(client->dev.driver->owner);
 		i2c_unregister_device(client);
