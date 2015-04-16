@@ -1234,7 +1234,23 @@ xfs_vm_releasepage(
 }
 
 /*
- * do all the direct IO specific mapping buffer manipulation here.
+ * When we map a DIO buffer, we need to attach an ioend that describes the type
+ * of write IO we are doing. This passes to the completion function the
+ * operations it needs to perform.
+ *
+ * If we get multiple mappings in a single IO, we might be mapping different
+ * types. But because the direct IO can only have a single private pointer, we
+ * need to ensure that:
+ *
+ * a) the ioend spans the entire region of the IO; and
+ * b) if it contains unwritten extents, it is *permanently* marked as such
+ *
+ * We could do this by chaining ioends like buffered IO does, but we only
+ * actually get one IO completion callback from the direct IO, and that spans
+ * the entire IO regardless of how many mappings and IOs are needed to complete
+ * the DIO. There is only going to be one reference to the ioend and its life
+ * cycle is constrained by the DIO completion code. hence we don't need
+ * reference counting here.
  */
 static void
 xfs_map_direct(
@@ -1243,10 +1259,42 @@ xfs_map_direct(
 	struct xfs_bmbt_irec	*imap,
 	xfs_off_t		offset)
 {
-	if (ISUNWRITTEN(imap)) {
-		bh_result->b_private = inode;
-		set_buffer_defer_completion(bh_result);
+	struct xfs_ioend	*ioend;
+	xfs_off_t		size = bh_result->b_size;
+	int			type;
+
+	if (ISUNWRITTEN(imap))
+		type = XFS_IO_UNWRITTEN;
+	else
+		type = XFS_IO_OVERWRITE;
+
+	trace_xfs_gbmap_direct(XFS_I(inode), offset, size, type, imap);
+
+	if (bh_result->b_private) {
+		ioend = bh_result->b_private;
+		ASSERT(ioend->io_size > 0);
+		ASSERT(offset >= ioend->io_offset);
+		if (offset + size > ioend->io_offset + ioend->io_size)
+			ioend->io_size = offset - ioend->io_offset + size;
+
+		if (type == XFS_IO_UNWRITTEN && type != ioend->io_type)
+			ioend->io_type = XFS_IO_UNWRITTEN;
+
+		trace_xfs_gbmap_direct_update(XFS_I(inode), ioend->io_offset,
+					      ioend->io_size, ioend->io_type,
+					      imap);
+	} else {
+		ioend = xfs_alloc_ioend(inode, type);
+		ioend->io_offset = offset;
+		ioend->io_size = size;
+		bh_result->b_private = ioend;
+
+		trace_xfs_gbmap_direct_new(XFS_I(inode), offset, size, type,
+					   imap);
 	}
+
+	if (ioend->io_type == XFS_IO_UNWRITTEN)
+		set_buffer_defer_completion(bh_result);
 }
 
 
@@ -1378,10 +1426,13 @@ __xfs_get_blocks(
 
 			xfs_iunlock(ip, lockmode);
 		}
-
-		trace_xfs_get_blocks_alloc(ip, offset, size, 0, &imap);
+		trace_xfs_get_blocks_alloc(ip, offset, size,
+				ISUNWRITTEN(&imap) ? XFS_IO_UNWRITTEN
+						   : XFS_IO_DELALLOC, &imap);
 	} else if (nimaps) {
-		trace_xfs_get_blocks_found(ip, offset, size, 0, &imap);
+		trace_xfs_get_blocks_found(ip, offset, size,
+				ISUNWRITTEN(&imap) ? XFS_IO_UNWRITTEN
+						   : XFS_IO_OVERWRITE, &imap);
 		xfs_iunlock(ip, lockmode);
 	} else {
 		trace_xfs_get_blocks_notfound(ip, offset, size);
@@ -1482,9 +1533,28 @@ xfs_end_io_direct_write(
 	struct inode		*inode = file_inode(iocb->ki_filp);
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
+	struct xfs_ioend	*ioend = private;
 
 	if (XFS_FORCED_SHUTDOWN(mp))
-		return;
+		goto out_destroy_ioend;
+
+	/*
+	 * dio completion end_io functions are only called on writes if more
+	 * than 0 bytes was written.
+	 */
+	ASSERT(size > 0);
+
+	/*
+	 * The ioend only maps whole blocks, while the IO may be sector aligned.
+	 * Hence the ioend offset/size may not match the IO offset/size exactly,
+	 * but should span it completely. Write the IO sizes into the ioend so
+	 * that completion processing does the right thing.
+	 */
+	ASSERT(size <= ioend->io_size);
+	ASSERT(offset >= ioend->io_offset);
+	ASSERT(offset + size <= ioend->io_offset + ioend->io_size);
+	ioend->io_size = size;
+	ioend->io_offset = offset;
 
 	/*
 	 * While the generic direct I/O code updates the inode size, it does
@@ -1504,7 +1574,7 @@ xfs_end_io_direct_write(
 	 * we can pass the ioend to the direct IO allocation callbacks and
 	 * avoid nesting that way.
 	 */
-	if (private && size > 0) {
+	if (ioend->io_type == XFS_IO_UNWRITTEN) {
 		xfs_iomap_write_unwritten(ip, offset, size);
 	} else if (offset + size > ip->i_d.di_size) {
 		struct xfs_trans	*tp;
@@ -1514,11 +1584,13 @@ xfs_end_io_direct_write(
 		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_fsyncts, 0, 0);
 		if (error) {
 			xfs_trans_cancel(tp, 0);
-			return;
+			goto out_destroy_ioend;
 		}
 
 		xfs_setfilesize(ip, tp, offset, size);
 	}
+out_destroy_ioend:
+	xfs_destroy_ioend(ioend);
 }
 
 STATIC ssize_t
