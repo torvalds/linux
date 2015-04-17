@@ -80,7 +80,7 @@ struct iwl_mvm_scan_params {
 	u32 suspend_time;
 	bool passive_fragmented;
 	u32 n_channels;
-	u32 delay;
+	u16 delay;
 	int n_ssids;
 	struct cfg80211_ssid *ssids;
 	struct ieee80211_channel **channels;
@@ -1279,14 +1279,7 @@ static int iwl_mvm_sched_scan_umac(struct iwl_mvm *mvm,
 	/* With UMAC we use only one schedule, so take the final one only */
 	sec_part->schedule[0].iter_count = params->schedule[1].iterations;
 
-	if (params->delay > U16_MAX) {
-		IWL_DEBUG_SCAN(mvm,
-			       "delay value is > 16-bits, set to max possible\n");
-		sec_part->delay = cpu_to_le16(U16_MAX);
-	} else {
-		sec_part->delay = cpu_to_le16(params->delay);
-	}
-
+	sec_part->delay = cpu_to_le16(params->delay);
 	sec_part->preq = params->preq;
 
 	return 0;
@@ -1458,7 +1451,6 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 	params.n_ssids = req->n_ssids;
 	params.flags = req->flags;
 	params.n_channels = req->n_channels;
-	params.delay = req->delay;
 	params.ssids = req->ssids;
 	params.channels = req->channels;
 	params.mac_addr = req->mac_addr;
@@ -1479,6 +1471,19 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 		params.interval = U16_MAX;
 	} else {
 		params.interval = req->interval / MSEC_PER_SEC;
+	}
+
+	/* In theory, LMAC scans can handle a 32-bit delay, but since
+	 * waiting for over 18 hours to start the scan is a bit silly
+	 * and to keep it aligned with UMAC scans (which only support
+	 * 16-bit delays), trim it down to 16-bits.
+	 */
+	if (req->delay > U16_MAX) {
+		IWL_DEBUG_SCAN(mvm,
+			       "delay value is > 16-bits, set to max possible\n");
+		params.delay = U16_MAX;
+	} else {
+		params.delay = req->delay;
 	}
 
 	iwl_mvm_scan_calc_dwell(mvm, vif, &params);
