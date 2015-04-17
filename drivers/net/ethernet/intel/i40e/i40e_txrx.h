@@ -147,7 +147,6 @@ enum i40e_dyn_idx_t {
 
 struct i40e_tx_buffer {
 	struct i40e_tx_desc *next_to_watch;
-	unsigned long time_stamp;
 	union {
 		struct sk_buff *skb;
 		void *raw_buf;

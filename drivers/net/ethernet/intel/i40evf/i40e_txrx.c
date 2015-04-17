@@ -322,10 +322,6 @@ static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
 			 tx_ring->vsi->seid,
 			 tx_ring->queue_index,
 			 tx_ring->next_to_use, i);
-		dev_info(tx_ring->dev, "tx_bi[next_to_clean]\n"
-			 "  time_stamp           <%lx>\n"
-			 "  jiffies              <%lx>\n",
-			 tx_ring->tx_bi[i].time_stamp, jiffies);
 
 		netif_stop_subqueue(tx_ring->netdev, tx_ring->queue_index);
 
@@ -1823,9 +1819,6 @@ static inline void i40evf_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	netdev_tx_sent_queue(netdev_get_tx_queue(tx_ring->netdev,
 						 tx_ring->queue_index),
 			     first->bytecount);
-
-	/* set the timestamp */
-	first->time_stamp = jiffies;
 
 	/* Force memory writes to complete before letting h/w
 	 * know there are new descriptors to fetch.  (Only

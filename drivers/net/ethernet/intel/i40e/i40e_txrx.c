@@ -165,9 +165,6 @@ int i40e_program_fdir_filter(struct i40e_fdir_filter *fdir_data, u8 *raw_packet,
 	tx_desc->cmd_type_offset_bsz =
 		build_ctob(td_cmd, 0, I40E_FDIR_MAX_RAW_PACKET_SIZE, 0);
 
-	/* set the timestamp */
-	tx_buf->time_stamp = jiffies;
-
 	/* Force memory writes to complete before letting h/w
 	 * know there are new descriptors to fetch.
 	 */
@@ -810,10 +807,6 @@ static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
 			 tx_ring->vsi->seid,
 			 tx_ring->queue_index,
 			 tx_ring->next_to_use, i);
-		dev_info(tx_ring->dev, "tx_bi[next_to_clean]\n"
-			 "  time_stamp           <%lx>\n"
-			 "  jiffies              <%lx>\n",
-			 tx_ring->tx_bi[i].time_stamp, jiffies);
 
 		netif_stop_subqueue(tx_ring->netdev, tx_ring->queue_index);
 
@@ -2605,9 +2598,6 @@ static inline void i40e_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	netdev_tx_sent_queue(netdev_get_tx_queue(tx_ring->netdev,
 						 tx_ring->queue_index),
 			     first->bytecount);
-
-	/* set the timestamp */
-	first->time_stamp = jiffies;
 
 	/* Force memory writes to complete before letting h/w
 	 * know there are new descriptors to fetch.  (Only
