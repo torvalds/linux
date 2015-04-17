@@ -1406,16 +1406,14 @@ out:
  * i40e_tso - set up the tso context descriptor
  * @tx_ring:  ptr to the ring to send
  * @skb:      ptr to the skb we're sending
- * @tx_flags: the collected send information
- * @protocol: the send protocol
  * @hdr_len:  ptr to the size of the packet header
  * @cd_tunneling: ptr to context descriptor bits
  *
  * Returns 0 if no TSO can happen, 1 if tso is going, or error
  **/
 static int i40e_tso(struct i40e_ring *tx_ring, struct sk_buff *skb,
-		    u32 tx_flags, __be16 protocol, u8 *hdr_len,
-		    u64 *cd_type_cmd_tso_mss, u32 *cd_tunneling)
+		    u8 *hdr_len, u64 *cd_type_cmd_tso_mss,
+		    u32 *cd_tunneling)
 {
 	u32 cd_cmd, cd_tso_len, cd_mss;
 	struct ipv6hdr *ipv6h;
@@ -1466,12 +1464,12 @@ static int i40e_tso(struct i40e_ring *tx_ring, struct sk_buff *skb,
 /**
  * i40e_tx_enable_csum - Enable Tx checksum offloads
  * @skb: send buffer
- * @tx_flags: Tx flags currently set
+ * @tx_flags: pointer to Tx flags currently set
  * @td_cmd: Tx descriptor command bits to set
  * @td_offset: Tx descriptor header offsets to set
  * @cd_tunneling: ptr to context desc bits
  **/
-static void i40e_tx_enable_csum(struct sk_buff *skb, u32 tx_flags,
+static void i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
 				u32 *td_cmd, u32 *td_offset,
 				struct i40e_ring *tx_ring,
 				u32 *cd_tunneling)
@@ -1487,6 +1485,7 @@ static void i40e_tx_enable_csum(struct sk_buff *skb, u32 tx_flags,
 		switch (ip_hdr(skb)->protocol) {
 		case IPPROTO_UDP:
 			l4_tunnel = I40E_TXD_CTX_UDP_TUNNELING;
+			*tx_flags |= I40E_TX_FLAGS_VXLAN_TUNNEL;
 			break;
 		default:
 			return;
@@ -1496,18 +1495,17 @@ static void i40e_tx_enable_csum(struct sk_buff *skb, u32 tx_flags,
 		this_ipv6_hdr = inner_ipv6_hdr(skb);
 		this_tcp_hdrlen = inner_tcp_hdrlen(skb);
 
-		if (tx_flags & I40E_TX_FLAGS_IPV4) {
-
-			if (tx_flags & I40E_TX_FLAGS_TSO) {
+		if (*tx_flags & I40E_TX_FLAGS_IPV4) {
+			if (*tx_flags & I40E_TX_FLAGS_TSO) {
 				*cd_tunneling |= I40E_TX_CTX_EXT_IP_IPV4;
 				ip_hdr(skb)->check = 0;
 			} else {
 				*cd_tunneling |=
 					 I40E_TX_CTX_EXT_IP_IPV4_NO_CSUM;
 			}
-		} else if (tx_flags & I40E_TX_FLAGS_IPV6) {
+		} else if (*tx_flags & I40E_TX_FLAGS_IPV6) {
 			*cd_tunneling |= I40E_TX_CTX_EXT_IP_IPV6;
-			if (tx_flags & I40E_TX_FLAGS_TSO)
+			if (*tx_flags & I40E_TX_FLAGS_TSO)
 				ip_hdr(skb)->check = 0;
 		}
 
@@ -1519,8 +1517,8 @@ static void i40e_tx_enable_csum(struct sk_buff *skb, u32 tx_flags,
 					skb_transport_offset(skb)) >> 1) <<
 				   I40E_TXD_CTX_QW0_NATLEN_SHIFT;
 		if (this_ip_hdr->version == 6) {
-			tx_flags &= ~I40E_TX_FLAGS_IPV4;
-			tx_flags |= I40E_TX_FLAGS_IPV6;
+			*tx_flags &= ~I40E_TX_FLAGS_IPV4;
+			*tx_flags |= I40E_TX_FLAGS_IPV6;
 		}
 
 
@@ -1532,12 +1530,12 @@ static void i40e_tx_enable_csum(struct sk_buff *skb, u32 tx_flags,
 	}
 
 	/* Enable IP checksum offloads */
-	if (tx_flags & I40E_TX_FLAGS_IPV4) {
+	if (*tx_flags & I40E_TX_FLAGS_IPV4) {
 		l4_hdr = this_ip_hdr->protocol;
 		/* the stack computes the IP header already, the only time we
 		 * need the hardware to recompute it is in the case of TSO.
 		 */
-		if (tx_flags & I40E_TX_FLAGS_TSO) {
+		if (*tx_flags & I40E_TX_FLAGS_TSO) {
 			*td_cmd |= I40E_TX_DESC_CMD_IIPT_IPV4_CSUM;
 			this_ip_hdr->check = 0;
 		} else {
@@ -1546,7 +1544,7 @@ static void i40e_tx_enable_csum(struct sk_buff *skb, u32 tx_flags,
 		/* Now set the td_offset for IP header length */
 		*td_offset = (network_hdr_len >> 2) <<
 			      I40E_TX_DESC_LENGTH_IPLEN_SHIFT;
-	} else if (tx_flags & I40E_TX_FLAGS_IPV6) {
+	} else if (*tx_flags & I40E_TX_FLAGS_IPV6) {
 		l4_hdr = this_ipv6_hdr->nexthdr;
 		*td_cmd |= I40E_TX_DESC_CMD_IIPT_IPV6;
 		/* Now set the td_offset for IP header length */
@@ -1940,7 +1938,7 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 	else if (protocol == htons(ETH_P_IPV6))
 		tx_flags |= I40E_TX_FLAGS_IPV6;
 
-	tso = i40e_tso(tx_ring, skb, tx_flags, protocol, &hdr_len,
+	tso = i40e_tso(tx_ring, skb, &hdr_len,
 		       &cd_type_cmd_tso_mss, &cd_tunneling);
 
 	if (tso < 0)
@@ -1961,7 +1959,7 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		tx_flags |= I40E_TX_FLAGS_CSUM;
 
-		i40e_tx_enable_csum(skb, tx_flags, &td_cmd, &td_offset,
+		i40e_tx_enable_csum(skb, &tx_flags, &td_cmd, &td_offset,
 				    tx_ring, &cd_tunneling);
 	}
 
