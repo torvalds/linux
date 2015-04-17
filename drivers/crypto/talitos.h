@@ -29,7 +29,8 @@
  */
 
 #define TALITOS_TIMEOUT 100000
-#define TALITOS_MAX_DATA_LEN 65535
+#define TALITOS1_MAX_DATA_LEN 32768
+#define TALITOS2_MAX_DATA_LEN 65535
 
 #define DESC_TYPE(desc_hdr) ((be32_to_cpu(desc_hdr) >> 3) & 0x1f)
 #define PRIMARY_EU(desc_hdr) ((be32_to_cpu(desc_hdr) >> 28) & 0xf)
