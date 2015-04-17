@@ -124,12 +124,23 @@ static int reset_channel(struct device *dev, int ch)
 {
 	struct talitos_private *priv = dev_get_drvdata(dev);
 	unsigned int timeout = TALITOS_TIMEOUT;
+	bool is_sec1 = has_ftr_sec1(priv);
 
-	setbits32(priv->chan[ch].reg + TALITOS_CCCR, TALITOS_CCCR_RESET);
+	if (is_sec1) {
+		setbits32(priv->chan[ch].reg + TALITOS_CCCR_LO,
+			  TALITOS1_CCCR_LO_RESET);
 
-	while ((in_be32(priv->chan[ch].reg + TALITOS_CCCR) & TALITOS_CCCR_RESET)
-	       && --timeout)
-		cpu_relax();
+		while ((in_be32(priv->chan[ch].reg + TALITOS_CCCR_LO) &
+			TALITOS1_CCCR_LO_RESET) && --timeout)
+			cpu_relax();
+	} else {
+		setbits32(priv->chan[ch].reg + TALITOS_CCCR,
+			  TALITOS2_CCCR_RESET);
+
+		while ((in_be32(priv->chan[ch].reg + TALITOS_CCCR) &
+			TALITOS2_CCCR_RESET) && --timeout)
+			cpu_relax();
+	}
 
 	if (timeout == 0) {
 		dev_err(dev, "failed to reset channel %d\n", ch);
@@ -152,11 +163,12 @@ static int reset_device(struct device *dev)
 {
 	struct talitos_private *priv = dev_get_drvdata(dev);
 	unsigned int timeout = TALITOS_TIMEOUT;
-	u32 mcr = TALITOS_MCR_SWR;
+	bool is_sec1 = has_ftr_sec1(priv);
+	u32 mcr = is_sec1 ? TALITOS1_MCR_SWR : TALITOS2_MCR_SWR;
 
 	setbits32(priv->reg + TALITOS_MCR, mcr);
 
-	while ((in_be32(priv->reg + TALITOS_MCR) & TALITOS_MCR_SWR)
+	while ((in_be32(priv->reg + TALITOS_MCR) & mcr)
 	       && --timeout)
 		cpu_relax();
 
@@ -180,6 +192,7 @@ static int init_device(struct device *dev)
 {
 	struct talitos_private *priv = dev_get_drvdata(dev);
 	int ch, err;
+	bool is_sec1 = has_ftr_sec1(priv);
 
 	/*
 	 * Master reset
@@ -203,8 +216,15 @@ static int init_device(struct device *dev)
 	}
 
 	/* enable channel done and error interrupts */
-	setbits32(priv->reg + TALITOS_IMR, TALITOS_IMR_INIT);
-	setbits32(priv->reg + TALITOS_IMR_LO, TALITOS_IMR_LO_INIT);
+	if (is_sec1) {
+		clrbits32(priv->reg + TALITOS_IMR, TALITOS1_IMR_INIT);
+		clrbits32(priv->reg + TALITOS_IMR_LO, TALITOS1_IMR_LO_INIT);
+		/* disable parity error check in DEU (erroneous? test vect.) */
+		setbits32(priv->reg_deu + TALITOS_EUICR, TALITOS1_DEUICR_KPE);
+	} else {
+		setbits32(priv->reg + TALITOS_IMR, TALITOS2_IMR_INIT);
+		setbits32(priv->reg + TALITOS_IMR_LO, TALITOS2_IMR_LO_INIT);
+	}
 
 	/* disable integrity check error interrupts (use writeback instead) */
 	if (priv->features & TALITOS_FTR_HW_AUTH_CHECK)
@@ -349,8 +369,37 @@ static void flush_channel(struct device *dev, int ch, int error, int reset_ch)
 /*
  * process completed requests for channels that have done status
  */
-#define DEF_TALITOS_DONE(name, ch_done_mask)				\
-static void talitos_done_##name(unsigned long data)			\
+#define DEF_TALITOS1_DONE(name, ch_done_mask)				\
+static void talitos1_done_##name(unsigned long data)			\
+{									\
+	struct device *dev = (struct device *)data;			\
+	struct talitos_private *priv = dev_get_drvdata(dev);		\
+	unsigned long flags;						\
+									\
+	if (ch_done_mask & 0x10000000)					\
+		flush_channel(dev, 0, 0, 0);			\
+	if (priv->num_channels == 1)					\
+		goto out;						\
+	if (ch_done_mask & 0x40000000)					\
+		flush_channel(dev, 1, 0, 0);			\
+	if (ch_done_mask & 0x00010000)					\
+		flush_channel(dev, 2, 0, 0);			\
+	if (ch_done_mask & 0x00040000)					\
+		flush_channel(dev, 3, 0, 0);			\
+									\
+out:									\
+	/* At this point, all completed channels have been processed */	\
+	/* Unmask done interrupts for channels completed later on. */	\
+	spin_lock_irqsave(&priv->reg_lock, flags);			\
+	clrbits32(priv->reg + TALITOS_IMR, ch_done_mask);		\
+	clrbits32(priv->reg + TALITOS_IMR_LO, TALITOS1_IMR_LO_INIT);	\
+	spin_unlock_irqrestore(&priv->reg_lock, flags);			\
+}
+
+DEF_TALITOS1_DONE(4ch, TALITOS1_ISR_4CHDONE)
+
+#define DEF_TALITOS2_DONE(name, ch_done_mask)				\
+static void talitos2_done_##name(unsigned long data)			\
 {									\
 	struct device *dev = (struct device *)data;			\
 	struct talitos_private *priv = dev_get_drvdata(dev);		\
@@ -372,12 +421,13 @@ out:									\
 	/* Unmask done interrupts for channels completed later on. */	\
 	spin_lock_irqsave(&priv->reg_lock, flags);			\
 	setbits32(priv->reg + TALITOS_IMR, ch_done_mask);		\
-	setbits32(priv->reg + TALITOS_IMR_LO, TALITOS_IMR_LO_INIT);	\
+	setbits32(priv->reg + TALITOS_IMR_LO, TALITOS2_IMR_LO_INIT);	\
 	spin_unlock_irqrestore(&priv->reg_lock, flags);			\
 }
-DEF_TALITOS_DONE(4ch, TALITOS_ISR_4CHDONE)
-DEF_TALITOS_DONE(ch0_2, TALITOS_ISR_CH_0_2_DONE)
-DEF_TALITOS_DONE(ch1_3, TALITOS_ISR_CH_1_3_DONE)
+
+DEF_TALITOS2_DONE(4ch, TALITOS2_ISR_4CHDONE)
+DEF_TALITOS2_DONE(ch0_2, TALITOS2_ISR_CH_0_2_DONE)
+DEF_TALITOS2_DONE(ch1_3, TALITOS2_ISR_CH_1_3_DONE)
 
 /*
  * locate current (offending) descriptor
@@ -492,13 +542,21 @@ static void talitos_error(struct device *dev, u32 isr, u32 isr_lo)
 {
 	struct talitos_private *priv = dev_get_drvdata(dev);
 	unsigned int timeout = TALITOS_TIMEOUT;
-	int ch, error, reset_dev = 0, reset_ch = 0;
+	int ch, error, reset_dev = 0;
 	u32 v, v_lo;
+	bool is_sec1 = has_ftr_sec1(priv);
+	int reset_ch = is_sec1 ? 1 : 0; /* only SEC2 supports continuation */
 
 	for (ch = 0; ch < priv->num_channels; ch++) {
 		/* skip channels without errors */
-		if (!(isr & (1 << (ch * 2 + 1))))
-			continue;
+		if (is_sec1) {
+			/* bits 29, 31, 17, 19 */
+			if (!(isr & (1 << (29 + (ch & 1) * 2 - (ch & 2) * 6))))
+				continue;
+		} else {
+			if (!(isr & (1 << (ch * 2 + 1))))
+				continue;
+		}
 
 		error = -EINVAL;
 
@@ -518,23 +576,28 @@ static void talitos_error(struct device *dev, u32 isr, u32 isr_lo)
 		if (v_lo & TALITOS_CCPSR_LO_MDTE)
 			dev_err(dev, "master data transfer error\n");
 		if (v_lo & TALITOS_CCPSR_LO_SGDLZ)
-			dev_err(dev, "s/g data length zero error\n");
+			dev_err(dev, is_sec1 ? "pointeur not complete error\n"
+					     : "s/g data length zero error\n");
 		if (v_lo & TALITOS_CCPSR_LO_FPZ)
-			dev_err(dev, "fetch pointer zero error\n");
+			dev_err(dev, is_sec1 ? "parity error\n"
+					     : "fetch pointer zero error\n");
 		if (v_lo & TALITOS_CCPSR_LO_IDH)
 			dev_err(dev, "illegal descriptor header error\n");
 		if (v_lo & TALITOS_CCPSR_LO_IEU)
-			dev_err(dev, "invalid execution unit error\n");
+			dev_err(dev, is_sec1 ? "static assignment error\n"
+					     : "invalid exec unit error\n");
 		if (v_lo & TALITOS_CCPSR_LO_EU)
 			report_eu_error(dev, ch, current_desc_hdr(dev, ch));
-		if (v_lo & TALITOS_CCPSR_LO_GB)
-			dev_err(dev, "gather boundary error\n");
-		if (v_lo & TALITOS_CCPSR_LO_GRL)
-			dev_err(dev, "gather return/length error\n");
-		if (v_lo & TALITOS_CCPSR_LO_SB)
-			dev_err(dev, "scatter boundary error\n");
-		if (v_lo & TALITOS_CCPSR_LO_SRL)
-			dev_err(dev, "scatter return/length error\n");
+		if (!is_sec1) {
+			if (v_lo & TALITOS_CCPSR_LO_GB)
+				dev_err(dev, "gather boundary error\n");
+			if (v_lo & TALITOS_CCPSR_LO_GRL)
+				dev_err(dev, "gather return/length error\n");
+			if (v_lo & TALITOS_CCPSR_LO_SB)
+				dev_err(dev, "scatter boundary error\n");
+			if (v_lo & TALITOS_CCPSR_LO_SRL)
+				dev_err(dev, "scatter return/length error\n");
+		}
 
 		flush_channel(dev, ch, error, reset_ch);
 
@@ -542,10 +605,10 @@ static void talitos_error(struct device *dev, u32 isr, u32 isr_lo)
 			reset_channel(dev, ch);
 		} else {
 			setbits32(priv->chan[ch].reg + TALITOS_CCCR,
-				  TALITOS_CCCR_CONT);
+				  TALITOS2_CCCR_CONT);
 			setbits32(priv->chan[ch].reg + TALITOS_CCCR_LO, 0);
 			while ((in_be32(priv->chan[ch].reg + TALITOS_CCCR) &
-			       TALITOS_CCCR_CONT) && --timeout)
+			       TALITOS2_CCCR_CONT) && --timeout)
 				cpu_relax();
 			if (timeout == 0) {
 				dev_err(dev, "failed to restart channel %d\n",
@@ -554,9 +617,14 @@ static void talitos_error(struct device *dev, u32 isr, u32 isr_lo)
 			}
 		}
 	}
-	if (reset_dev || isr & ~TALITOS_ISR_4CHERR || isr_lo) {
-		dev_err(dev, "done overflow, internal time out, or rngu error: "
-		        "ISR 0x%08x_%08x\n", isr, isr_lo);
+	if (reset_dev || (is_sec1 && isr & ~TALITOS1_ISR_4CHERR) ||
+	    (!is_sec1 && isr & ~TALITOS2_ISR_4CHERR) || isr_lo) {
+		if (is_sec1 && (isr_lo & TALITOS1_ISR_TEA_ERR))
+			dev_err(dev, "TEA error: ISR 0x%08x_%08x\n",
+				isr, isr_lo);
+		else
+			dev_err(dev, "done overflow, internal time out, or "
+				"rngu error: ISR 0x%08x_%08x\n", isr, isr_lo);
 
 		/* purge request queues */
 		for (ch = 0; ch < priv->num_channels; ch++)
@@ -567,8 +635,43 @@ static void talitos_error(struct device *dev, u32 isr, u32 isr_lo)
 	}
 }
 
-#define DEF_TALITOS_INTERRUPT(name, ch_done_mask, ch_err_mask, tlet)	       \
-static irqreturn_t talitos_interrupt_##name(int irq, void *data)	       \
+#define DEF_TALITOS1_INTERRUPT(name, ch_done_mask, ch_err_mask, tlet)	       \
+static irqreturn_t talitos1_interrupt_##name(int irq, void *data)	       \
+{									       \
+	struct device *dev = data;					       \
+	struct talitos_private *priv = dev_get_drvdata(dev);		       \
+	u32 isr, isr_lo;						       \
+	unsigned long flags;						       \
+									       \
+	spin_lock_irqsave(&priv->reg_lock, flags);			       \
+	isr = in_be32(priv->reg + TALITOS_ISR);				       \
+	isr_lo = in_be32(priv->reg + TALITOS_ISR_LO);			       \
+	/* Acknowledge interrupt */					       \
+	out_be32(priv->reg + TALITOS_ICR, isr & (ch_done_mask | ch_err_mask)); \
+	out_be32(priv->reg + TALITOS_ICR_LO, isr_lo);			       \
+									       \
+	if (unlikely(isr & ch_err_mask || isr_lo & TALITOS1_IMR_LO_INIT)) {    \
+		spin_unlock_irqrestore(&priv->reg_lock, flags);		       \
+		talitos_error(dev, isr & ch_err_mask, isr_lo);		       \
+	}								       \
+	else {								       \
+		if (likely(isr & ch_done_mask)) {			       \
+			/* mask further done interrupts. */		       \
+			setbits32(priv->reg + TALITOS_IMR, ch_done_mask);      \
+			/* done_task will unmask done interrupts at exit */    \
+			tasklet_schedule(&priv->done_task[tlet]);	       \
+		}							       \
+		spin_unlock_irqrestore(&priv->reg_lock, flags);		       \
+	}								       \
+									       \
+	return (isr & (ch_done_mask | ch_err_mask) || isr_lo) ? IRQ_HANDLED :  \
+								IRQ_NONE;      \
+}
+
+DEF_TALITOS1_INTERRUPT(4ch, TALITOS1_ISR_4CHDONE, TALITOS1_ISR_4CHERR, 0)
+
+#define DEF_TALITOS2_INTERRUPT(name, ch_done_mask, ch_err_mask, tlet)	       \
+static irqreturn_t talitos2_interrupt_##name(int irq, void *data)	       \
 {									       \
 	struct device *dev = data;					       \
 	struct talitos_private *priv = dev_get_drvdata(dev);		       \
@@ -599,9 +702,12 @@ static irqreturn_t talitos_interrupt_##name(int irq, void *data)	       \
 	return (isr & (ch_done_mask | ch_err_mask) || isr_lo) ? IRQ_HANDLED :  \
 								IRQ_NONE;      \
 }
-DEF_TALITOS_INTERRUPT(4ch, TALITOS_ISR_4CHDONE, TALITOS_ISR_4CHERR, 0)
-DEF_TALITOS_INTERRUPT(ch0_2, TALITOS_ISR_CH_0_2_DONE, TALITOS_ISR_CH_0_2_ERR, 0)
-DEF_TALITOS_INTERRUPT(ch1_3, TALITOS_ISR_CH_1_3_DONE, TALITOS_ISR_CH_1_3_ERR, 1)
+
+DEF_TALITOS2_INTERRUPT(4ch, TALITOS2_ISR_4CHDONE, TALITOS2_ISR_4CHERR, 0)
+DEF_TALITOS2_INTERRUPT(ch0_2, TALITOS2_ISR_CH_0_2_DONE, TALITOS2_ISR_CH_0_2_ERR,
+		       0)
+DEF_TALITOS2_INTERRUPT(ch1_3, TALITOS2_ISR_CH_1_3_DONE, TALITOS2_ISR_CH_1_3_ERR,
+		       1)
 
 /*
  * hwrng
@@ -2639,29 +2745,35 @@ static int talitos_probe_irq(struct platform_device *ofdev)
 	struct device_node *np = ofdev->dev.of_node;
 	struct talitos_private *priv = dev_get_drvdata(dev);
 	int err;
+	bool is_sec1 = has_ftr_sec1(priv);
 
 	priv->irq[0] = irq_of_parse_and_map(np, 0);
 	if (!priv->irq[0]) {
 		dev_err(dev, "failed to map irq\n");
 		return -EINVAL;
 	}
+	if (is_sec1) {
+		err = request_irq(priv->irq[0], talitos1_interrupt_4ch, 0,
+				  dev_driver_string(dev), dev);
+		goto primary_out;
+	}
 
 	priv->irq[1] = irq_of_parse_and_map(np, 1);
 
 	/* get the primary irq line */
 	if (!priv->irq[1]) {
-		err = request_irq(priv->irq[0], talitos_interrupt_4ch, 0,
+		err = request_irq(priv->irq[0], talitos2_interrupt_4ch, 0,
 				  dev_driver_string(dev), dev);
 		goto primary_out;
 	}
 
-	err = request_irq(priv->irq[0], talitos_interrupt_ch0_2, 0,
+	err = request_irq(priv->irq[0], talitos2_interrupt_ch0_2, 0,
 			  dev_driver_string(dev), dev);
 	if (err)
 		goto primary_out;
 
 	/* get the secondary irq line */
-	err = request_irq(priv->irq[1], talitos_interrupt_ch1_3, 0,
+	err = request_irq(priv->irq[1], talitos2_interrupt_ch1_3, 0,
 			  dev_driver_string(dev), dev);
 	if (err) {
 		dev_err(dev, "failed to request secondary irq\n");
@@ -2701,20 +2813,6 @@ static int talitos_probe(struct platform_device *ofdev)
 	priv->ofdev = ofdev;
 
 	spin_lock_init(&priv->reg_lock);
-
-	err = talitos_probe_irq(ofdev);
-	if (err)
-		goto err_out;
-
-	if (!priv->irq[1]) {
-		tasklet_init(&priv->done_task[0], talitos_done_4ch,
-			     (unsigned long)dev);
-	} else {
-		tasklet_init(&priv->done_task[0], talitos_done_ch0_2,
-			     (unsigned long)dev);
-		tasklet_init(&priv->done_task[1], talitos_done_ch1_3,
-			     (unsigned long)dev);
-	}
 
 	priv->reg = of_iomap(np, 0);
 	if (!priv->reg) {
@@ -2781,6 +2879,25 @@ static int talitos_probe(struct platform_device *ofdev)
 		priv->reg_keu = priv->reg + TALITOS2_KEU;
 		priv->reg_crcu = priv->reg + TALITOS2_CRCU;
 		stride = TALITOS2_CH_STRIDE;
+	}
+
+	err = talitos_probe_irq(ofdev);
+	if (err)
+		goto err_out;
+
+	if (of_device_is_compatible(np, "fsl,sec1.0")) {
+		tasklet_init(&priv->done_task[0], talitos1_done_4ch,
+			     (unsigned long)dev);
+	} else {
+		if (!priv->irq[1]) {
+			tasklet_init(&priv->done_task[0], talitos2_done_4ch,
+				     (unsigned long)dev);
+		} else {
+			tasklet_init(&priv->done_task[0], talitos2_done_ch0_2,
+				     (unsigned long)dev);
+			tasklet_init(&priv->done_task[1], talitos2_done_ch1_3,
+				     (unsigned long)dev);
+		}
 	}
 
 	priv->chan = kzalloc(sizeof(struct talitos_channel) *

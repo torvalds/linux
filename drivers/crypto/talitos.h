@@ -188,26 +188,38 @@ static inline bool has_ftr_sec1(struct talitos_private *priv)
  * TALITOS_xxx_LO addresses point to the low data bits (32-63) of the register
  */
 
+#define ISR1_FORMAT(x)			(((x) << 28) | ((x) << 16))
+#define ISR2_FORMAT(x)			(((x) << 4) | (x))
+
 /* global register offset addresses */
 #define TALITOS_MCR			0x1030  /* master control register */
 #define   TALITOS_MCR_RCA0		(1 << 15) /* remap channel 0 */
 #define   TALITOS_MCR_RCA1		(1 << 14) /* remap channel 1 */
 #define   TALITOS_MCR_RCA2		(1 << 13) /* remap channel 2 */
 #define   TALITOS_MCR_RCA3		(1 << 12) /* remap channel 3 */
-#define   TALITOS_MCR_SWR		0x1     /* s/w reset */
+#define   TALITOS1_MCR_SWR		0x1000000     /* s/w reset */
+#define   TALITOS2_MCR_SWR		0x1     /* s/w reset */
 #define TALITOS_MCR_LO			0x1034
 #define TALITOS_IMR			0x1008  /* interrupt mask register */
-#define   TALITOS_IMR_INIT		0x100ff /* enable channel IRQs */
-#define   TALITOS_IMR_DONE		0x00055 /* done IRQs */
+/* enable channel IRQs */
+#define   TALITOS1_IMR_INIT		ISR1_FORMAT(0xf)
+#define   TALITOS1_IMR_DONE		ISR1_FORMAT(0x5) /* done IRQs */
+/* enable channel IRQs */
+#define   TALITOS2_IMR_INIT		(ISR2_FORMAT(0xf) | 0x10000)
+#define   TALITOS2_IMR_DONE		ISR1_FORMAT(0x5) /* done IRQs */
 #define TALITOS_IMR_LO			0x100C
-#define   TALITOS_IMR_LO_INIT		0x20000 /* allow RNGU error IRQs */
+#define   TALITOS1_IMR_LO_INIT		0x2000000 /* allow RNGU error IRQs */
+#define   TALITOS2_IMR_LO_INIT		0x20000 /* allow RNGU error IRQs */
 #define TALITOS_ISR			0x1010  /* interrupt status register */
-#define   TALITOS_ISR_4CHERR		0xaa    /* 4 channel errors mask */
-#define   TALITOS_ISR_4CHDONE		0x55    /* 4 channel done mask */
-#define   TALITOS_ISR_CH_0_2_ERR	0x22    /* channels 0, 2 errors mask */
-#define   TALITOS_ISR_CH_0_2_DONE	0x11    /* channels 0, 2 done mask */
-#define   TALITOS_ISR_CH_1_3_ERR	0x88    /* channels 1, 3 errors mask */
-#define   TALITOS_ISR_CH_1_3_DONE	0x44    /* channels 1, 3 done mask */
+#define   TALITOS1_ISR_4CHERR		ISR1_FORMAT(0xa) /* 4 ch errors mask */
+#define   TALITOS1_ISR_4CHDONE		ISR1_FORMAT(0x5) /* 4 ch done mask */
+#define   TALITOS1_ISR_TEA_ERR		0x00000040
+#define   TALITOS2_ISR_4CHERR		ISR2_FORMAT(0xa) /* 4 ch errors mask */
+#define   TALITOS2_ISR_4CHDONE		ISR2_FORMAT(0x5) /* 4 ch done mask */
+#define   TALITOS2_ISR_CH_0_2_ERR	ISR2_FORMAT(0x2) /* ch 0, 2 err mask */
+#define   TALITOS2_ISR_CH_0_2_DONE	ISR2_FORMAT(0x1) /* ch 0, 2 done mask */
+#define   TALITOS2_ISR_CH_1_3_ERR	ISR2_FORMAT(0x8) /* ch 1, 3 err mask */
+#define   TALITOS2_ISR_CH_1_3_DONE	ISR2_FORMAT(0x4) /* ch 1, 3 done mask */
 #define TALITOS_ISR_LO			0x1014
 #define TALITOS_ICR			0x1018  /* interrupt clear register */
 #define TALITOS_ICR_LO			0x101C
@@ -219,14 +231,15 @@ static inline bool has_ftr_sec1(struct talitos_private *priv)
 
 /* channel configuration register  */
 #define TALITOS_CCCR			0x8
-#define   TALITOS_CCCR_CONT		0x2    /* channel continue */
-#define   TALITOS_CCCR_RESET		0x1    /* channel reset */
+#define   TALITOS2_CCCR_CONT		0x2    /* channel continue on SEC2 */
+#define   TALITOS2_CCCR_RESET		0x1    /* channel reset on SEC2 */
 #define TALITOS_CCCR_LO			0xc
 #define   TALITOS_CCCR_LO_IWSE		0x80   /* chan. ICCR writeback enab. */
 #define   TALITOS_CCCR_LO_EAE		0x20   /* extended address enable */
 #define   TALITOS_CCCR_LO_CDWE		0x10   /* chan. done writeback enab. */
 #define   TALITOS_CCCR_LO_NT		0x4    /* notification type */
 #define   TALITOS_CCCR_LO_CDIE		0x2    /* channel done IRQ enable */
+#define   TALITOS1_CCCR_LO_RESET	0x1    /* channel reset on SEC1 */
 
 /* CCPSR: channel pointer status register */
 #define TALITOS_CCPSR			0x10
@@ -298,6 +311,8 @@ static inline bool has_ftr_sec1(struct talitos_private *priv)
 #define TALITOS_EUICR_LO		0x3c
 #define TALITOS_EU_FIFO			0x800 /* output FIFO */
 #define TALITOS_EU_FIFO_LO		0x804 /* output FIFO */
+/* DES unit */
+#define   TALITOS1_DEUICR_KPE		0x00200000 /* Key Parity Error */
 /* message digest unit */
 #define   TALITOS_MDEUICR_LO_ICE	0x4000 /* integrity check IRQ enable */
 /* random number unit */
