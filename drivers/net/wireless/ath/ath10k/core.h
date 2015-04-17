@@ -592,6 +592,9 @@ struct ath10k {
 
 	const struct firmware *cal_file;
 
+	char spec_board_id[100];
+	bool spec_board_loaded;
+
 	int fw_api;
 	enum ath10k_cal_mode cal_mode;
 
