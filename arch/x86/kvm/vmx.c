@@ -6408,8 +6408,12 @@ static enum hrtimer_restart vmx_preemption_timer_fn(struct hrtimer *timer)
  */
 static int get_vmx_mem_address(struct kvm_vcpu *vcpu,
 				 unsigned long exit_qualification,
-				 u32 vmx_instruction_info, gva_t *ret)
+				 u32 vmx_instruction_info, bool wr, gva_t *ret)
 {
+	gva_t off;
+	bool exn;
+	struct kvm_segment s;
+
 	/*
 	 * According to Vol. 3B, "Information for VM Exits Due to Instruction
 	 * Execution", on an exit, vmx_instruction_info holds most of the
@@ -6434,22 +6438,63 @@ static int get_vmx_mem_address(struct kvm_vcpu *vcpu,
 
 	/* Addr = segment_base + offset */
 	/* offset = base + [index * scale] + displacement */
-	*ret = vmx_get_segment_base(vcpu, seg_reg);
+	off = exit_qualification; /* holds the displacement */
 	if (base_is_valid)
-		*ret += kvm_register_read(vcpu, base_reg);
+		off += kvm_register_read(vcpu, base_reg);
 	if (index_is_valid)
-		*ret += kvm_register_read(vcpu, index_reg)<<scaling;
-	*ret += exit_qualification; /* holds the displacement */
+		off += kvm_register_read(vcpu, index_reg)<<scaling;
+	vmx_get_segment(vcpu, &s, seg_reg);
+	*ret = s.base + off;
 
 	if (addr_size == 1) /* 32 bit */
 		*ret &= 0xffffffff;
 
-	/*
-	 * TODO: throw #GP (and return 1) in various cases that the VM*
-	 * instructions require it - e.g., offset beyond segment limit,
-	 * unusable or unreadable/unwritable segment, non-canonical 64-bit
-	 * address, and so on. Currently these are not checked.
-	 */
+	/* Checks for #GP/#SS exceptions. */
+	exn = false;
+	if (is_protmode(vcpu)) {
+		/* Protected mode: apply checks for segment validity in the
+		 * following order:
+		 * - segment type check (#GP(0) may be thrown)
+		 * - usability check (#GP(0)/#SS(0))
+		 * - limit check (#GP(0)/#SS(0))
+		 */
+		if (wr)
+			/* #GP(0) if the destination operand is located in a
+			 * read-only data segment or any code segment.
+			 */
+			exn = ((s.type & 0xa) == 0 || (s.type & 8));
+		else
+			/* #GP(0) if the source operand is located in an
+			 * execute-only code segment
+			 */
+			exn = ((s.type & 0xa) == 8);
+	}
+	if (exn) {
+		kvm_queue_exception_e(vcpu, GP_VECTOR, 0);
+		return 1;
+	}
+	if (is_long_mode(vcpu)) {
+		/* Long mode: #GP(0)/#SS(0) if the memory address is in a
+		 * non-canonical form. This is an only check for long mode.
+		 */
+		exn = is_noncanonical_address(*ret);
+	} else if (is_protmode(vcpu)) {
+		/* Protected mode: #GP(0)/#SS(0) if the segment is unusable.
+		 */
+		exn = (s.unusable != 0);
+		/* Protected mode: #GP(0)/#SS(0) if the memory
+		 * operand is outside the segment limit.
+		 */
+		exn = exn || (off + sizeof(u64) > s.limit);
+	}
+	if (exn) {
+		kvm_queue_exception_e(vcpu,
+				      seg_reg == VCPU_SREG_SS ?
+						SS_VECTOR : GP_VECTOR,
+				      0);
+		return 1;
+	}
+
 	return 0;
 }
 
@@ -6471,7 +6516,7 @@ static int nested_vmx_check_vmptr(struct kvm_vcpu *vcpu, int exit_reason,
 	int maxphyaddr = cpuid_maxphyaddr(vcpu);
 
 	if (get_vmx_mem_address(vcpu, vmcs_readl(EXIT_QUALIFICATION),
-			vmcs_read32(VMX_INSTRUCTION_INFO), &gva))
+			vmcs_read32(VMX_INSTRUCTION_INFO), false, &gva))
 		return 1;
 
 	if (kvm_read_guest_virt(&vcpu->arch.emulate_ctxt, gva, &vmptr,
@@ -6999,7 +7044,7 @@ static int handle_vmread(struct kvm_vcpu *vcpu)
 			field_value);
 	} else {
 		if (get_vmx_mem_address(vcpu, exit_qualification,
-				vmx_instruction_info, &gva))
+				vmx_instruction_info, true, &gva))
 			return 1;
 		/* _system ok, as nested_vmx_check_permission verified cpl=0 */
 		kvm_write_guest_virt_system(&vcpu->arch.emulate_ctxt, gva,
@@ -7036,7 +7081,7 @@ static int handle_vmwrite(struct kvm_vcpu *vcpu)
 			(((vmx_instruction_info) >> 3) & 0xf));
 	else {
 		if (get_vmx_mem_address(vcpu, exit_qualification,
-				vmx_instruction_info, &gva))
+				vmx_instruction_info, false, &gva))
 			return 1;
 		if (kvm_read_guest_virt(&vcpu->arch.emulate_ctxt, gva,
 			   &field_value, (is_64_bit_mode(vcpu) ? 8 : 4), &e)) {
@@ -7128,7 +7173,7 @@ static int handle_vmptrst(struct kvm_vcpu *vcpu)
 		return 1;
 
 	if (get_vmx_mem_address(vcpu, exit_qualification,
-			vmx_instruction_info, &vmcs_gva))
+			vmx_instruction_info, true, &vmcs_gva))
 		return 1;
 	/* ok to use *_system, as nested_vmx_check_permission verified cpl=0 */
 	if (kvm_write_guest_virt_system(&vcpu->arch.emulate_ctxt, vmcs_gva,
@@ -7184,7 +7229,7 @@ static int handle_invept(struct kvm_vcpu *vcpu)
 	 * operand is read even if it isn't needed (e.g., for type==global)
 	 */
 	if (get_vmx_mem_address(vcpu, vmcs_readl(EXIT_QUALIFICATION),
-			vmx_instruction_info, &gva))
+			vmx_instruction_info, false, &gva))
 		return 1;
 	if (kvm_read_guest_virt(&vcpu->arch.emulate_ctxt, gva, &operand,
 				sizeof(operand), &e)) {
