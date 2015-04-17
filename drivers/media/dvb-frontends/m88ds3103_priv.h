@@ -1,5 +1,5 @@
 /*
- * Montage M88DS3103 demodulator driver
+ * Montage Technology M88DS3103/M88RS6000 demodulator driver
  *
  * Copyright (C) 2013 Antti Palosaari <crope@iki.fi>
  *
@@ -30,8 +30,7 @@
 #define M88RS6000_CHIP_ID 0x74
 #define M88DS3103_CHIP_ID 0x70
 
-struct m88ds3103_priv {
-	struct i2c_adapter *i2c;
+struct m88ds3103_dev {
 	struct i2c_client *client;
 	/* mutex needed due to own tuner I2C adapter */
 	struct mutex i2c_mutex;

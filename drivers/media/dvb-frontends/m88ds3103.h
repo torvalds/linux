@@ -1,5 +1,5 @@
 /*
- * Montage M88DS3103 demodulator driver
+ * Montage Technology M88DS3103/M88RS6000 demodulator driver
  *
  * Copyright (C) 2013 Antti Palosaari <crope@iki.fi>
  *
