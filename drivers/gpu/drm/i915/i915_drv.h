@@ -774,7 +774,7 @@ struct i915_ctx_hang_stats {
  *	       context).
  * @hang_stats: information about the role of this context in possible GPU
  *		hangs.
- * @vm: virtual memory space used by this context.
+ * @ppgtt: virtual memory space used by this context.
  * @legacy_hw_ctx: render context backing object and whether it is correctly
  *                initialized (legacy ring submission mechanism only).
  * @link: link in the global list of contexts.
