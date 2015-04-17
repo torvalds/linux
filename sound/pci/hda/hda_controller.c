@@ -145,7 +145,7 @@ static int azx_pcm_hw_free(struct snd_pcm_substream *substream)
 	snd_hda_codec_cleanup(apcm->codec, hinfo, substream);
 
 	err = chip->ops->substream_free_pages(chip, substream);
-	azx_dev->prepared = 0;
+	azx_stream(azx_dev)->prepared = 0;
 	dsp_unlock(azx_dev);
 	return err;
 }
@@ -214,7 +214,7 @@ static int azx_pcm_prepare(struct snd_pcm_substream *substream)
 
  unlock:
 	if (!err)
-		azx_dev->prepared = 1;
+		azx_stream(azx_dev)->prepared = 1;
 	dsp_unlock(azx_dev);
 	return err;
 }
@@ -240,7 +240,7 @@ static int azx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	else
 		sync_reg = AZX_REG_SSYNC;
 
-	if (dsp_is_locked(azx_dev) || !azx_dev->prepared)
+	if (dsp_is_locked(azx_dev) || !hstr->prepared)
 		return -EPIPE;
 
 	switch (cmd) {
@@ -843,7 +843,7 @@ int snd_hda_codec_load_dsp_prepare(struct hda_codec *codec, unsigned int format,
 		return err;
 	}
 
-	azx_dev->prepared = 0;
+	hstr->prepared = 0;
 	return err;
 }
 EXPORT_SYMBOL_GPL(snd_hda_codec_load_dsp_prepare);

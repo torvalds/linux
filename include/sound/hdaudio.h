@@ -390,6 +390,7 @@ struct hdac_stream {
 
 	bool opened:1;
 	bool running:1;
+	bool prepared:1;
 	bool no_period_wakeup:1;
 	bool locked:1;
 

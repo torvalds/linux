@@ -62,7 +62,6 @@ struct azx_dev {
 	struct hdac_stream core;
 
 	unsigned int irq_pending:1;
-	unsigned int prepared:1;
 	/*
 	 * For VIA:
 	 *  A flag to ensure DMA position is 0
