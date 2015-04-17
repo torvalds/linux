@@ -191,7 +191,7 @@ void ide_prep_sense(ide_drive_t *drive, struct request *rq)
 
 	BUG_ON(sense_len > sizeof(*sense));
 
-	if (rq->cmd_type == REQ_TYPE_SENSE || drive->sense_rq_armed)
+	if (rq->cmd_type == REQ_TYPE_ATA_SENSE || drive->sense_rq_armed)
 		return;
 
 	memset(sense, 0, sizeof(*sense));
@@ -210,7 +210,7 @@ void ide_prep_sense(ide_drive_t *drive, struct request *rq)
 	sense_rq->rq_disk = rq->rq_disk;
 	sense_rq->cmd[0] = GPCMD_REQUEST_SENSE;
 	sense_rq->cmd[4] = cmd_len;
-	sense_rq->cmd_type = REQ_TYPE_SENSE;
+	sense_rq->cmd_type = REQ_TYPE_ATA_SENSE;
 	sense_rq->cmd_flags |= REQ_PREEMPT;
 
 	if (drive->media == ide_tape)
@@ -310,7 +310,7 @@ int ide_cd_get_xferlen(struct request *rq)
 	switch (rq->cmd_type) {
 	case REQ_TYPE_FS:
 		return 32768;
-	case REQ_TYPE_SENSE:
+	case REQ_TYPE_ATA_SENSE:
 	case REQ_TYPE_BLOCK_PC:
 	case REQ_TYPE_ATA_PC:
 		return blk_rq_bytes(rq);

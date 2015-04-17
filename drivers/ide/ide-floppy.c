@@ -266,7 +266,7 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 		idefloppy_create_rw_cmd(drive, pc, rq, (unsigned long)block);
 		break;
 	case REQ_TYPE_DRV_PRIV:
-	case REQ_TYPE_SENSE:
+	case REQ_TYPE_ATA_SENSE:
 		pc = (struct ide_atapi_pc *)rq->special;
 		break;
 	case REQ_TYPE_BLOCK_PC:

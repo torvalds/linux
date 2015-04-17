@@ -43,6 +43,7 @@ struct device;
 enum ata_cmd_type_bits {
 	REQ_TYPE_ATA_TASKFILE = REQ_TYPE_DRV_PRIV + 1,
 	REQ_TYPE_ATA_PC,
+	REQ_TYPE_ATA_SENSE,	/* sense request */
 };
 
 /* Error codes returned in rq->errors to the higher part of the driver. */
