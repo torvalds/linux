@@ -41,7 +41,7 @@ static bool blk_mq_hctx_has_pending(struct blk_mq_hw_ctx *hctx)
 {
 	unsigned int i;
 
-	for (i = 0; i < hctx->ctx_map.map_size; i++)
+	for (i = 0; i < hctx->ctx_map.size; i++)
 		if (hctx->ctx_map.map[i].word)
 			return true;
 
@@ -730,7 +730,7 @@ static void flush_busy_ctxs(struct blk_mq_hw_ctx *hctx, struct list_head *list)
 	struct blk_mq_ctx *ctx;
 	int i;
 
-	for (i = 0; i < hctx->ctx_map.map_size; i++) {
+	for (i = 0; i < hctx->ctx_map.size; i++) {
 		struct blk_align_bitmap *bm = &hctx->ctx_map.map[i];
 		unsigned int off, bit;
 
@@ -1818,7 +1818,7 @@ static void blk_mq_map_swqueue(struct request_queue *q)
 		 * This is more accurate and more efficient than looping
 		 * over all possibly mapped software queues.
 		 */
-		map->map_size = hctx->nr_ctx / map->bits_per_word;
+		map->size = DIV_ROUND_UP(hctx->nr_ctx, map->bits_per_word);
 
 		/*
 		 * Initialize batch roundrobin counts
