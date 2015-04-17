@@ -77,7 +77,6 @@ enum rq_cmd_type_bits {
 	REQ_TYPE_BLOCK_PC,		/* scsi command */
 	REQ_TYPE_PM_SUSPEND,		/* suspend request */
 	REQ_TYPE_PM_RESUME,		/* resume request */
-	REQ_TYPE_PM_SHUTDOWN,		/* shutdown request */
 	REQ_TYPE_DRV_PRIV,		/* driver defined types from here */
 };
 
