@@ -40,7 +40,9 @@ int rockchip_iovmm_invalidate_tlb(struct device *dev)
 void rockchip_iovmm_set_fault_handler(struct device *dev,
 				       rockchip_iommu_fault_handler_t handler)
 {
-	return;
+	struct iommu_drvdata *data = dev_get_drvdata(dev->archdata.iommu);
+
+	data->fault_handler = handler;
 }
 
 int rockchip_iovmm_activate(struct device *dev)

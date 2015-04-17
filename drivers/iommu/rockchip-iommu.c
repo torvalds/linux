@@ -593,6 +593,8 @@ static irqreturn_t rockchip_iommu_irq(int irq, void *dev_id)
 			if (data->domain)
 				report_iommu_fault(data->domain, data->iommu,
 						   fault_address, flags);
+			if (data->fault_handler)
+				data->fault_handler(data->iommu, IOMMU_PAGEFAULT, dte, fault_address, 1);
 
 			rockchip_iommu_page_fault_done(data->res_bases[i],
 					               data->dbgname);

@@ -38,6 +38,7 @@ struct iommu_drvdata {
 	struct iommu_domain *domain; /* domain given to iommu_attach_device() */
 	unsigned int pgtable;
 	struct rk_iovmm vmm;
+	rockchip_iommu_fault_handler_t fault_handler;
 };
 
 #ifdef CONFIG_ROCKCHIP_IOVMM
