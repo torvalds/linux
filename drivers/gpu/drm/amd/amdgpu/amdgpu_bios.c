@@ -75,7 +75,7 @@ static bool igp_read_bios_from_vram(struct amdgpu_device *adev)
 
 bool amdgpu_read_bios(struct amdgpu_device *adev)
 {
-	uint8_t __iomem *bios;
+	uint8_t __iomem *bios, val1, val2;
 	size_t size;
 
 	adev->bios = NULL;
@@ -85,15 +85,19 @@ bool amdgpu_read_bios(struct amdgpu_device *adev)
 		return false;
 	}
 
-	if (size == 0 || bios[0] != 0x55 || bios[1] != 0xaa) {
+	val1 = readb(&bios[0]);
+	val2 = readb(&bios[1]);
+
+	if (size == 0 || val1 != 0x55 || val2 != 0xaa) {
 		pci_unmap_rom(adev->pdev, bios);
 		return false;
 	}
-	adev->bios = kmemdup(bios, size, GFP_KERNEL);
+	adev->bios = kzalloc(size, GFP_KERNEL);
 	if (adev->bios == NULL) {
 		pci_unmap_rom(adev->pdev, bios);
 		return false;
 	}
+	memcpy_fromio(adev->bios, bios, size);
 	pci_unmap_rom(adev->pdev, bios);
 	return true;
 }
