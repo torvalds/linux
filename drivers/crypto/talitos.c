@@ -208,7 +208,7 @@ static int init_device(struct device *dev)
 
 	/* disable integrity check error interrupts (use writeback instead) */
 	if (priv->features & TALITOS_FTR_HW_AUTH_CHECK)
-		setbits32(priv->reg + TALITOS_MDEUICR_LO,
+		setbits32(priv->reg_mdeu + TALITOS_EUICR_LO,
 		          TALITOS_MDEUICR_LO_ICE);
 
 	return 0;
@@ -424,44 +424,44 @@ static void report_eu_error(struct device *dev, int ch, u32 desc_hdr)
 	switch (desc_hdr & DESC_HDR_SEL0_MASK) {
 	case DESC_HDR_SEL0_AFEU:
 		dev_err(dev, "AFEUISR 0x%08x_%08x\n",
-			in_be32(priv->reg + TALITOS_AFEUISR),
-			in_be32(priv->reg + TALITOS_AFEUISR_LO));
+			in_be32(priv->reg_afeu + TALITOS_EUISR),
+			in_be32(priv->reg_afeu + TALITOS_EUISR_LO));
 		break;
 	case DESC_HDR_SEL0_DEU:
 		dev_err(dev, "DEUISR 0x%08x_%08x\n",
-			in_be32(priv->reg + TALITOS_DEUISR),
-			in_be32(priv->reg + TALITOS_DEUISR_LO));
+			in_be32(priv->reg_deu + TALITOS_EUISR),
+			in_be32(priv->reg_deu + TALITOS_EUISR_LO));
 		break;
 	case DESC_HDR_SEL0_MDEUA:
 	case DESC_HDR_SEL0_MDEUB:
 		dev_err(dev, "MDEUISR 0x%08x_%08x\n",
-			in_be32(priv->reg + TALITOS_MDEUISR),
-			in_be32(priv->reg + TALITOS_MDEUISR_LO));
+			in_be32(priv->reg_mdeu + TALITOS_EUISR),
+			in_be32(priv->reg_mdeu + TALITOS_EUISR_LO));
 		break;
 	case DESC_HDR_SEL0_RNG:
 		dev_err(dev, "RNGUISR 0x%08x_%08x\n",
-			in_be32(priv->reg + TALITOS_RNGUISR),
-			in_be32(priv->reg + TALITOS_RNGUISR_LO));
+			in_be32(priv->reg_rngu + TALITOS_ISR),
+			in_be32(priv->reg_rngu + TALITOS_ISR_LO));
 		break;
 	case DESC_HDR_SEL0_PKEU:
 		dev_err(dev, "PKEUISR 0x%08x_%08x\n",
-			in_be32(priv->reg + TALITOS_PKEUISR),
-			in_be32(priv->reg + TALITOS_PKEUISR_LO));
+			in_be32(priv->reg_pkeu + TALITOS_EUISR),
+			in_be32(priv->reg_pkeu + TALITOS_EUISR_LO));
 		break;
 	case DESC_HDR_SEL0_AESU:
 		dev_err(dev, "AESUISR 0x%08x_%08x\n",
-			in_be32(priv->reg + TALITOS_AESUISR),
-			in_be32(priv->reg + TALITOS_AESUISR_LO));
+			in_be32(priv->reg_aesu + TALITOS_EUISR),
+			in_be32(priv->reg_aesu + TALITOS_EUISR_LO));
 		break;
 	case DESC_HDR_SEL0_CRCU:
 		dev_err(dev, "CRCUISR 0x%08x_%08x\n",
-			in_be32(priv->reg + TALITOS_CRCUISR),
-			in_be32(priv->reg + TALITOS_CRCUISR_LO));
+			in_be32(priv->reg_crcu + TALITOS_EUISR),
+			in_be32(priv->reg_crcu + TALITOS_EUISR_LO));
 		break;
 	case DESC_HDR_SEL0_KEU:
 		dev_err(dev, "KEUISR 0x%08x_%08x\n",
-			in_be32(priv->reg + TALITOS_KEUISR),
-			in_be32(priv->reg + TALITOS_KEUISR_LO));
+			in_be32(priv->reg_pkeu + TALITOS_EUISR),
+			in_be32(priv->reg_pkeu + TALITOS_EUISR_LO));
 		break;
 	}
 
@@ -469,13 +469,13 @@ static void report_eu_error(struct device *dev, int ch, u32 desc_hdr)
 	case DESC_HDR_SEL1_MDEUA:
 	case DESC_HDR_SEL1_MDEUB:
 		dev_err(dev, "MDEUISR 0x%08x_%08x\n",
-			in_be32(priv->reg + TALITOS_MDEUISR),
-			in_be32(priv->reg + TALITOS_MDEUISR_LO));
+			in_be32(priv->reg_mdeu + TALITOS_EUISR),
+			in_be32(priv->reg_mdeu + TALITOS_EUISR_LO));
 		break;
 	case DESC_HDR_SEL1_CRCU:
 		dev_err(dev, "CRCUISR 0x%08x_%08x\n",
-			in_be32(priv->reg + TALITOS_CRCUISR),
-			in_be32(priv->reg + TALITOS_CRCUISR_LO));
+			in_be32(priv->reg_crcu + TALITOS_EUISR),
+			in_be32(priv->reg_crcu + TALITOS_EUISR_LO));
 		break;
 	}
 
@@ -614,7 +614,7 @@ static int talitos_rng_data_present(struct hwrng *rng, int wait)
 	int i;
 
 	for (i = 0; i < 20; i++) {
-		ofl = in_be32(priv->reg + TALITOS_RNGUSR_LO) &
+		ofl = in_be32(priv->reg_rngu + TALITOS_EUSR_LO) &
 		      TALITOS_RNGUSR_LO_OFL;
 		if (ofl || !wait)
 			break;
@@ -630,8 +630,8 @@ static int talitos_rng_data_read(struct hwrng *rng, u32 *data)
 	struct talitos_private *priv = dev_get_drvdata(dev);
 
 	/* rng fifo requires 64-bit accesses */
-	*data = in_be32(priv->reg + TALITOS_RNGU_FIFO);
-	*data = in_be32(priv->reg + TALITOS_RNGU_FIFO_LO);
+	*data = in_be32(priv->reg_rngu + TALITOS_EU_FIFO);
+	*data = in_be32(priv->reg_rngu + TALITOS_EU_FIFO_LO);
 
 	return sizeof(u32);
 }
@@ -642,8 +642,9 @@ static int talitos_rng_init(struct hwrng *rng)
 	struct talitos_private *priv = dev_get_drvdata(dev);
 	unsigned int timeout = TALITOS_TIMEOUT;
 
-	setbits32(priv->reg + TALITOS_RNGURCR_LO, TALITOS_RNGURCR_LO_SR);
-	while (!(in_be32(priv->reg + TALITOS_RNGUSR_LO) & TALITOS_RNGUSR_LO_RD)
+	setbits32(priv->reg_rngu + TALITOS_EURCR_LO, TALITOS_RNGURCR_LO_SR);
+	while (!(in_be32(priv->reg_rngu + TALITOS_EUSR_LO)
+		 & TALITOS_RNGUSR_LO_RD)
 	       && --timeout)
 		cpu_relax();
 	if (timeout == 0) {
@@ -652,7 +653,7 @@ static int talitos_rng_init(struct hwrng *rng)
 	}
 
 	/* start generating */
-	setbits32(priv->reg + TALITOS_RNGUDSR_LO, 0);
+	setbits32(priv->reg_rngu + TALITOS_EUDSR_LO, 0);
 
 	return 0;
 }
@@ -2687,6 +2688,7 @@ static int talitos_probe(struct platform_device *ofdev)
 	struct talitos_private *priv;
 	const unsigned int *prop;
 	int i, err;
+	int stride;
 
 	priv = kzalloc(sizeof(struct talitos_private), GFP_KERNEL);
 	if (!priv)
@@ -2756,6 +2758,31 @@ static int talitos_probe(struct platform_device *ofdev)
 	if (of_device_is_compatible(np, "fsl,sec1.0"))
 		priv->features |= TALITOS_FTR_SEC1;
 
+	if (of_device_is_compatible(np, "fsl,sec1.2")) {
+		priv->reg_deu = priv->reg + TALITOS12_DEU;
+		priv->reg_aesu = priv->reg + TALITOS12_AESU;
+		priv->reg_mdeu = priv->reg + TALITOS12_MDEU;
+		stride = TALITOS1_CH_STRIDE;
+	} else if (of_device_is_compatible(np, "fsl,sec1.0")) {
+		priv->reg_deu = priv->reg + TALITOS10_DEU;
+		priv->reg_aesu = priv->reg + TALITOS10_AESU;
+		priv->reg_mdeu = priv->reg + TALITOS10_MDEU;
+		priv->reg_afeu = priv->reg + TALITOS10_AFEU;
+		priv->reg_rngu = priv->reg + TALITOS10_RNGU;
+		priv->reg_pkeu = priv->reg + TALITOS10_PKEU;
+		stride = TALITOS1_CH_STRIDE;
+	} else {
+		priv->reg_deu = priv->reg + TALITOS2_DEU;
+		priv->reg_aesu = priv->reg + TALITOS2_AESU;
+		priv->reg_mdeu = priv->reg + TALITOS2_MDEU;
+		priv->reg_afeu = priv->reg + TALITOS2_AFEU;
+		priv->reg_rngu = priv->reg + TALITOS2_RNGU;
+		priv->reg_pkeu = priv->reg + TALITOS2_PKEU;
+		priv->reg_keu = priv->reg + TALITOS2_KEU;
+		priv->reg_crcu = priv->reg + TALITOS2_CRCU;
+		stride = TALITOS2_CH_STRIDE;
+	}
+
 	priv->chan = kzalloc(sizeof(struct talitos_channel) *
 			     priv->num_channels, GFP_KERNEL);
 	if (!priv->chan) {
@@ -2767,7 +2794,7 @@ static int talitos_probe(struct platform_device *ofdev)
 	priv->fifo_len = roundup_pow_of_two(priv->chfifo_len);
 
 	for (i = 0; i < priv->num_channels; i++) {
-		priv->chan[i].reg = priv->reg + TALITOS_CH_STRIDE * (i + 1);
+		priv->chan[i].reg = priv->reg + stride * (i + 1);
 		if (!priv->irq[1] || !(i & 1))
 			priv->chan[i].reg += TALITOS_CH_BASE_OFFSET;
 

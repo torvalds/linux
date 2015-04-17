@@ -111,6 +111,14 @@ struct talitos_private {
 	struct device *dev;
 	struct platform_device *ofdev;
 	void __iomem *reg;
+	void __iomem *reg_deu;
+	void __iomem *reg_aesu;
+	void __iomem *reg_mdeu;
+	void __iomem *reg_afeu;
+	void __iomem *reg_rngu;
+	void __iomem *reg_pkeu;
+	void __iomem *reg_keu;
+	void __iomem *reg_crcu;
 	int irq[2];
 
 	/* SEC global registers lock  */
@@ -206,7 +214,8 @@ static inline bool has_ftr_sec1(struct talitos_private *priv)
 
 /* channel register address stride */
 #define TALITOS_CH_BASE_OFFSET		0x1000	/* default channel map base */
-#define TALITOS_CH_STRIDE		0x100
+#define TALITOS1_CH_STRIDE		0x1000
+#define TALITOS2_CH_STRIDE		0x100
 
 /* channel configuration register  */
 #define TALITOS_CCCR			0x8
@@ -255,37 +264,46 @@ static inline bool has_ftr_sec1(struct talitos_private *priv)
 #define TALITOS_SCATTER			0xe0
 #define TALITOS_SCATTER_LO		0xe4
 
+/* execution unit registers base */
+#define TALITOS2_DEU			0x2000
+#define TALITOS2_AESU			0x4000
+#define TALITOS2_MDEU			0x6000
+#define TALITOS2_AFEU			0x8000
+#define TALITOS2_RNGU			0xa000
+#define TALITOS2_PKEU			0xc000
+#define TALITOS2_KEU			0xe000
+#define TALITOS2_CRCU			0xf000
+
+#define TALITOS12_AESU			0x4000
+#define TALITOS12_DEU			0x5000
+#define TALITOS12_MDEU			0x6000
+
+#define TALITOS10_AFEU			0x8000
+#define TALITOS10_DEU			0xa000
+#define TALITOS10_MDEU			0xc000
+#define TALITOS10_RNGU			0xe000
+#define TALITOS10_PKEU			0x10000
+#define TALITOS10_AESU			0x12000
+
 /* execution unit interrupt status registers */
-#define TALITOS_DEUISR			0x2030 /* DES unit */
-#define TALITOS_DEUISR_LO		0x2034
-#define TALITOS_AESUISR			0x4030 /* AES unit */
-#define TALITOS_AESUISR_LO		0x4034
-#define TALITOS_MDEUISR			0x6030 /* message digest unit */
-#define TALITOS_MDEUISR_LO		0x6034
-#define TALITOS_MDEUICR			0x6038 /* interrupt control */
-#define TALITOS_MDEUICR_LO		0x603c
+#define TALITOS_EUDSR			0x10	/* data size */
+#define TALITOS_EUDSR_LO		0x14
+#define TALITOS_EURCR			0x18 /* reset control*/
+#define TALITOS_EURCR_LO		0x1c
+#define TALITOS_EUSR			0x28 /* rng status */
+#define TALITOS_EUSR_LO			0x2c
+#define TALITOS_EUISR			0x30
+#define TALITOS_EUISR_LO		0x34
+#define TALITOS_EUICR			0x38 /* int. control */
+#define TALITOS_EUICR_LO		0x3c
+#define TALITOS_EU_FIFO			0x800 /* output FIFO */
+#define TALITOS_EU_FIFO_LO		0x804 /* output FIFO */
+/* message digest unit */
 #define   TALITOS_MDEUICR_LO_ICE	0x4000 /* integrity check IRQ enable */
-#define TALITOS_AFEUISR			0x8030 /* arc4 unit */
-#define TALITOS_AFEUISR_LO		0x8034
-#define TALITOS_RNGUISR			0xa030 /* random number unit */
-#define TALITOS_RNGUISR_LO		0xa034
-#define TALITOS_RNGUSR			0xa028 /* rng status */
-#define TALITOS_RNGUSR_LO		0xa02c
+/* random number unit */
 #define   TALITOS_RNGUSR_LO_RD		0x1	/* reset done */
 #define   TALITOS_RNGUSR_LO_OFL		0xff0000/* output FIFO length */
-#define TALITOS_RNGUDSR			0xa010	/* data size */
-#define TALITOS_RNGUDSR_LO		0xa014
-#define TALITOS_RNGU_FIFO		0xa800	/* output FIFO */
-#define TALITOS_RNGU_FIFO_LO		0xa804	/* output FIFO */
-#define TALITOS_RNGURCR			0xa018	/* reset control */
-#define TALITOS_RNGURCR_LO		0xa01c
 #define   TALITOS_RNGURCR_LO_SR		0x1	/* software reset */
-#define TALITOS_PKEUISR			0xc030 /* public key unit */
-#define TALITOS_PKEUISR_LO		0xc034
-#define TALITOS_KEUISR			0xe030 /* kasumi unit */
-#define TALITOS_KEUISR_LO		0xe034
-#define TALITOS_CRCUISR			0xf030 /* cyclic redundancy check unit*/
-#define TALITOS_CRCUISR_LO		0xf034
 
 #define TALITOS_MDEU_CONTEXT_SIZE_MD5_SHA1_SHA256	0x28
 #define TALITOS_MDEU_CONTEXT_SIZE_SHA384_SHA512		0x48
