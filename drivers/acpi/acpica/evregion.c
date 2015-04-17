@@ -272,7 +272,7 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 	ACPI_DEBUG_PRINT((ACPI_DB_OPREGION,
 			  "Handler %p (@%p) Address %8.8X%8.8X [%s]\n",
 			  &region_obj->region.handler->address_space, handler,
-			  ACPI_FORMAT_NATIVE_UINT(address),
+			  ACPI_FORMAT_UINT64(address),
 			  acpi_ut_get_region_name(region_obj->region.
 						  space_id)));
 
