@@ -91,7 +91,7 @@ static void dm_unhook_bio(struct dm_hook_info *h, struct bio *bio)
 	 * Must bump bi_remaining to allow bio to complete with
 	 * restored bi_end_io.
 	 */
-	atomic_inc(&bio->bi_remaining);
+	bio_inc_remaining(bio);
 }
 
 /*----------------------------------------------------------------*/

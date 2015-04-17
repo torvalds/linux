@@ -65,7 +65,7 @@ struct bio {
 	unsigned int		bi_seg_front_size;
 	unsigned int		bi_seg_back_size;
 
-	atomic_t		bi_remaining;
+	atomic_t		__bi_remaining;
 
 	bio_end_io_t		*bi_end_io;
 
@@ -122,6 +122,7 @@ struct bio {
 #define BIO_NULL_MAPPED 8	/* contains invalid user pages */
 #define BIO_QUIET	9	/* Make BIO Quiet */
 #define BIO_SNAP_STABLE	10	/* bio data must be snapshotted during write */
+#define BIO_CHAIN	11	/* chained bio, ->bi_remaining in effect */
 
 /*
  * Flags starting here get preserved by bio_reset() - this includes
