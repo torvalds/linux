@@ -26,6 +26,7 @@
 			compatible = "arm,cortex-a9";
 			next-level-cache = <&L2>;
 			reg = <0>;
+			enable-method = "brcm,bcm63138";
 		};
 
 		cpu@1 {
@@ -33,6 +34,8 @@
 			compatible = "arm,cortex-a9";
 			next-level-cache = <&L2>;
 			reg = <1>;
+			enable-method = "brcm,bcm63138";
+			resets = <&pmb0 4 1>;
 		};
 	};
 
@@ -142,6 +145,11 @@
 			clocks = <&periph_clk>;
 			clock-names = "periph";
 			status = "disabled";
+		};
+
+		bootlut: bootlut@8000 {
+			compatible = "brcm,bcm63138-bootlut";
+			reg = <0x8000 0x50>;
 		};
 	};
 };
