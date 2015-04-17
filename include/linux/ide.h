@@ -39,6 +39,12 @@
 
 struct device;
 
+/* IDE-specific values for req->cmd_type */
+enum ata_cmd_type_bits {
+	REQ_TYPE_ATA_TASKFILE = REQ_TYPE_DRV_PRIV + 1,
+	REQ_TYPE_ATA_PC,
+};
+
 /* Error codes returned in rq->errors to the higher part of the driver. */
 enum {
 	IDE_DRV_ERROR_GENERAL	= 101,
@@ -1550,5 +1556,6 @@ static inline void ide_set_drivedata(ide_drive_t *drive, void *data)
 
 #define ide_host_for_each_port(i, port, host) \
 	for ((i) = 0; ((port) = (host)->ports[i]) || (i) < MAX_HOST_PORTS; (i)++)
+
 
 #endif /* _IDE_H */
