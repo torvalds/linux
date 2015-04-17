@@ -108,14 +108,15 @@ static struct pt_regs *valid_fault_handler(struct KBacktraceIterator* kbt)
 		   p->sp < PAGE_OFFSET && p->sp != 0) {
 		if (kbt->verbose)
 			pr_err("  <%s while in user mode>\n", fault);
-	} else if (kbt->verbose) {
-		pr_err("  (odd fault: pc %#lx, sp %#lx, ex1 %#lx?)\n",
-		       p->pc, p->sp, p->ex1);
-		p = NULL;
+	} else {
+		if (kbt->verbose)
+			pr_err("  (odd fault: pc %#lx, sp %#lx, ex1 %#lx?)\n",
+			       p->pc, p->sp, p->ex1);
+		return NULL;
 	}
-	if (!kbt->profile || ((1ULL << p->faultnum) & QUEUED_INTERRUPTS) == 0)
-		return p;
-	return NULL;
+	if (kbt->profile && ((1ULL << p->faultnum) & QUEUED_INTERRUPTS) != 0)
+		return NULL;
+	return p;
 }
 
 /* Is the pc pointing to a sigreturn trampoline? */

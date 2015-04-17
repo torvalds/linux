@@ -32,6 +32,7 @@
 #include <linux/hugetlb.h>
 #include <linux/start_kernel.h>
 #include <linux/screen_info.h>
+#include <linux/tick.h>
 #include <asm/setup.h>
 #include <asm/sections.h>
 #include <asm/cacheflush.h>
@@ -1389,6 +1390,28 @@ static int __init dataplane(char *str)
 }
 
 early_param("dataplane", dataplane);
+
+#ifdef CONFIG_NO_HZ_FULL
+/* Warn if hypervisor shared cpus are marked as nohz_full. */
+static int __init check_nohz_full_cpus(void)
+{
+	struct cpumask shared;
+	int cpu;
+
+	if (hv_inquire_tiles(HV_INQ_TILES_SHARED,
+			     (HV_VirtAddr) shared.bits, sizeof(shared)) < 0) {
+		pr_warn("WARNING: No support for inquiring hv shared tiles\n");
+		return 0;
+	}
+	for_each_cpu(cpu, &shared) {
+		if (tick_nohz_full_cpu(cpu))
+			pr_warn("WARNING: nohz_full cpu %d receives hypervisor interrupts!\n",
+			       cpu);
+	}
+	return 0;
+}
+arch_initcall(check_nohz_full_cpus);
+#endif
 
 #ifdef CONFIG_CMDLINE_BOOL
 static char __initdata builtin_cmdline[COMMAND_LINE_SIZE] = CONFIG_CMDLINE;
