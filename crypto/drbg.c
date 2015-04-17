@@ -487,7 +487,7 @@ static int drbg_ctr_df(struct drbg_state *drbg,
 
 out:
 	memset(iv, 0, drbg_blocklen(drbg));
-	memset(temp, 0, drbg_statelen(drbg));
+	memset(temp, 0, drbg_statelen(drbg) + drbg_blocklen(drbg));
 	memset(pad, 0, drbg_blocklen(drbg));
 	return ret;
 }
