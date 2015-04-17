@@ -134,6 +134,8 @@ static unsigned long deliverable_irqs(struct kvm_vcpu *vcpu)
 
 	active_mask = pending_local_irqs(vcpu);
 	active_mask |= pending_floating_irqs(vcpu);
+	if (!active_mask)
+		return 0;
 
 	if (psw_extint_disabled(vcpu))
 		active_mask &= ~IRQ_PEND_EXT_MASK;
@@ -941,12 +943,9 @@ int __must_check kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu)
 	if (cpu_timer_irq_pending(vcpu))
 		set_bit(IRQ_PEND_EXT_CPU_TIMER, &li->pending_irqs);
 
-	do {
-		irqs = deliverable_irqs(vcpu);
+	while ((irqs = deliverable_irqs(vcpu)) && !rc) {
 		/* bits are in the order of interrupt priority */
 		irq_type = find_first_bit(&irqs, IRQ_PEND_COUNT);
-		if (irq_type == IRQ_PEND_COUNT)
-			break;
 		if (is_ioirq(irq_type)) {
 			rc = __deliver_io(vcpu, irq_type);
 		} else {
@@ -958,9 +957,7 @@ int __must_check kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu)
 			}
 			rc = func(vcpu);
 		}
-		if (rc)
-			break;
-	} while (!rc);
+	}
 
 	set_intercept_indicators(vcpu);
 
