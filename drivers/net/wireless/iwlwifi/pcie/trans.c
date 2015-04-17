@@ -2627,6 +2627,8 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	if (!trans)
 		return ERR_PTR(-ENOMEM);
 
+	trans->max_skb_frags = IWL_PCIE_MAX_FRAGS;
+
 	trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	trans_pcie->trans = trans;

@@ -44,6 +44,12 @@
 #include "iwl-io.h"
 #include "iwl-op-mode.h"
 
+/* We need 2 entries for the TX command and header, and another one might
+ * be needed for potential data in the SKB's head. The remaining ones can
+ * be used for frags.
+ */
+#define IWL_PCIE_MAX_FRAGS (IWL_NUM_OF_TBS - 3)
+
 /*
  * RX related structures and functions
  */
