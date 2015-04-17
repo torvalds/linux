@@ -370,6 +370,7 @@ static int pmic_mpp_set_mux(struct pinctrl_dev *pctldev, unsigned function,
 		}
 	}
 
+	val = val << PMIC_MPP_REG_MODE_DIR_SHIFT;
 	val |= pad->function << PMIC_MPP_REG_MODE_FUNCTION_SHIFT;
 	val |= pad->out_value & PMIC_MPP_REG_MODE_VALUE_MASK;
 
