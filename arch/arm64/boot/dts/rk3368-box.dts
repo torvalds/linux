@@ -92,20 +92,20 @@
 		compatible = "rockchip_pwm_regulator";
 		pwms = <&pwm1 0 2000>;
 		rockchip,pwm_id= <1>;
-		rockchip,pwm_voltage_map= <925000 950000 975000 1000000 1025000 1050000 1075000 1100000 1125000 1150000 1175000 1200000 1225000 1250000 1275000 1300000 1325000 1350000 1375000 1400000>;
+		rockchip,pwm_voltage_map= <900000 925000 950000 975000 1000000 1025000 1050000 1075000 1100000 1125000 1150000 1175000 1200000 1225000 1250000 1275000 1300000 1325000 1350000 1375000>;
 		rockchip,pwm_voltage= <1000000>;
-		rockchip,pwm_min_voltage= <925000>;
-		rockchip,pwm_max_voltage= <1400000>;
+		rockchip,pwm_min_voltage= <900000>;
+		rockchip,pwm_max_voltage= <1375000>;
 		rockchip,pwm_suspend_voltage= <950000>;
-		rockchip,pwm_coefficient= <475>;
+		rockchip,pwm_coefficient= <555>;
 		regulators {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			pwm_reg0: regulator@0 {
 				regulator-compatible = "pwm_dcdc1";
 				regulator-name= "vdd_logic";
-				regulator-min-microvolt = <925000>;
-				regulator-max-microvolt = <1400000>;
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <1375000>;
 				regulator-always-on;
 				regulator-boot-on;
 			};
@@ -271,16 +271,16 @@
 };
 
 &emmc {
-	clock-frequency = <100000000>;
-	clock-freq-min-max = <400000 100000000>;
+	clock-frequency = <150000000>;
+	clock-freq-min-max = <400000 150000000>;
 
 	supports-highspeed;
 	supports-emmc;
 	bootpart-no-access;
 
 	//supports-tSD;
-	//supports-DDR_MODE; //you should set the two value in your project. only close in RK3288-SDK board.
-	//caps2-mmc-hs200;
+	supports-DDR_MODE; //you should set the two value in your project. only close in RK3288-SDK board.
+	caps2-mmc-hs200;
 
 	ignore-pm-notify;
 	keep-power-in-suspend;
@@ -588,7 +588,7 @@
 };
 
 &CPU_SLEEP_0 {
-	arm,psci-suspend-param = <0x0>;
+	arm,psci-suspend-param = <0x1010000>;
 };
 
 &fb {
@@ -723,7 +723,7 @@
 &clk_core_b_dvfs_table {
 	operating-points = <
 		/* KHz    uV */
-		216000 950000
+		//216000 950000
 		312000 950000
 		408000 950000
 		600000 975000
@@ -741,7 +741,7 @@
 &clk_core_l_dvfs_table {
 	operating-points = <
 		/* KHz    uV */
-		216000 950000
+		//216000 950000
 		312000 950000
 		408000 950000
 		600000 950000
@@ -757,7 +757,7 @@
 &clk_gpu_dvfs_table {
 	operating-points = <
 		/* KHz    uV */
-		200000 1200000
+		//200000 1200000
 		300000 1200000
 		400000 1200000
 		600000 1200000
