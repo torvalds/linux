@@ -695,7 +695,7 @@ struct sst_gain_mixer_control {
 	u16 module_id;
 	u16 pipe_id;
 	u16 task_id;
-	char pname[44];
+	char pname[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 	struct snd_soc_dapm_widget *w;
 };
 
