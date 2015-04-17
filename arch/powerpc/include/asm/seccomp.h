@@ -1,5 +1,5 @@
-#ifndef _ASM_SECCOMP_H
-#define _ASM_SECCOMP_H
+#ifndef _ASM_POWERPC_SECCOMP_H
+#define _ASM_POWERPC_SECCOMP_H
 
 #include <linux/unistd.h>
 
@@ -7,4 +7,4 @@
 
 #include <asm-generic/seccomp.h>
 
-#endif /* _ASM_SECCOMP_H */
+#endif	/* _ASM_POWERPC_SECCOMP_H */

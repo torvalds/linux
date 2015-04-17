@@ -872,6 +872,27 @@ can be ORed together:
 
 ==============================================================
 
+threads-max
+
+This value controls the maximum number of threads that can be created
+using fork().
+
+During initialization the kernel sets this value such that even if the
+maximum number of threads is created, the thread structures occupy only
+a part (1/8th) of the available RAM pages.
+
+The minimum value that can be written to threads-max is 20.
+The maximum value that can be written to threads-max is given by the
+constant FUTEX_TID_MASK (0x3fffffff).
+If a value outside of this range is written to threads-max an error
+EINVAL occurs.
+
+The value written is checked against the available RAM pages. If the
+thread structures would occupy too much (more than 1/8th) of the
+available RAM pages threads-max is reduced accordingly.
+
+==============================================================
+
 unknown_nmi_panic:
 
 The value in this file affects behavior of handling NMI. When the

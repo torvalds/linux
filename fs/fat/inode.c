@@ -11,20 +11,12 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
-#include <linux/time.h>
-#include <linux/slab.h>
-#include <linux/seq_file.h>
 #include <linux/pagemap.h>
 #include <linux/mpage.h>
-#include <linux/buffer_head.h>
-#include <linux/mount.h>
 #include <linux/vfs.h>
+#include <linux/seq_file.h>
 #include <linux/parser.h>
 #include <linux/uio.h>
-#include <linux/writeback.h>
-#include <linux/log2.h>
-#include <linux/hash.h>
 #include <linux/blkdev.h>
 #include <asm/unaligned.h>
 #include "fat.h"
@@ -1278,8 +1270,7 @@ out:
 
 static int fat_read_root(struct inode *inode)
 {
-	struct super_block *sb = inode->i_sb;
-	struct msdos_sb_info *sbi = MSDOS_SB(sb);
+	struct msdos_sb_info *sbi = MSDOS_SB(inode->i_sb);
 	int error;
 
 	MSDOS_I(inode)->i_pos = MSDOS_ROOT_INO;
