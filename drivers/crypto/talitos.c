@@ -2709,6 +2709,9 @@ static int talitos_probe(struct platform_device *ofdev)
 				  TALITOS_FTR_SHA224_HWINIT |
 				  TALITOS_FTR_HMAC_OK;
 
+	if (of_device_is_compatible(np, "fsl,sec1.0"))
+		priv->features |= TALITOS_FTR_SEC1;
+
 	priv->chan = kzalloc(sizeof(struct talitos_channel) *
 			     priv->num_channels, GFP_KERNEL);
 	if (!priv->chan) {

@@ -156,6 +156,23 @@ extern int talitos_submit(struct device *dev, int ch, struct talitos_desc *desc,
 #define TALITOS_FTR_HW_AUTH_CHECK 0x00000002
 #define TALITOS_FTR_SHA224_HWINIT 0x00000004
 #define TALITOS_FTR_HMAC_OK 0x00000008
+#define TALITOS_FTR_SEC1 0x00000010
+
+/*
+ * If both CONFIG_CRYPTO_DEV_TALITOS1 and CONFIG_CRYPTO_DEV_TALITOS2 are
+ * defined, we check the features which are set according to the device tree.
+ * Otherwise, we answer true or false directly
+ */
+static inline bool has_ftr_sec1(struct talitos_private *priv)
+{
+#if defined(CONFIG_CRYPTO_DEV_TALITOS1) && defined(CONFIG_CRYPTO_DEV_TALITOS2)
+	return priv->features & TALITOS_FTR_SEC1 ? true : false;
+#elif defined(CONFIG_CRYPTO_DEV_TALITOS1)
+	return true;
+#else
+	return false;
+#endif
+}
 
 /*
  * TALITOS_xxx_LO addresses point to the low data bits (32-63) of the register
