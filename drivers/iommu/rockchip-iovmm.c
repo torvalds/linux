@@ -156,10 +156,13 @@ dma_addr_t rockchip_iovmm_map(struct device *dev,
 	}
 	dev_dbg(dev->archdata.iommu, "IOVMM: Allocated VM region @ %p/%#X bytes.\n",
 	&region->start, region->size);
-	
+
 	return region->start;
 
 err_map_map:
+	spin_lock(&vmm->lock);
+	list_del(&region->node);
+	spin_unlock(&vmm->lock);
 	iommu_unmap(vmm->domain, start, mapped_size);
 	gen_pool_free(vmm->vmm_pool, start, size);
 err_map_noiomem:
