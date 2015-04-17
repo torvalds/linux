@@ -92,7 +92,7 @@ struct bio {
 
 	unsigned short		bi_max_vecs;	/* max bvl_vecs we can hold */
 
-	atomic_t		bi_cnt;		/* pin count */
+	atomic_t		__bi_cnt;	/* pin count */
 
 	struct bio_vec		*bi_io_vec;	/* the actual vec list */
 
@@ -123,6 +123,7 @@ struct bio {
 #define BIO_QUIET	9	/* Make BIO Quiet */
 #define BIO_SNAP_STABLE	10	/* bio data must be snapshotted during write */
 #define BIO_CHAIN	11	/* chained bio, ->bi_remaining in effect */
+#define BIO_REFFED	12	/* bio has elevated ->bi_cnt */
 
 /*
  * Flags starting here get preserved by bio_reset() - this includes

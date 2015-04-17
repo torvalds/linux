@@ -271,7 +271,7 @@ void bio_init(struct bio *bio)
 	memset(bio, 0, sizeof(*bio));
 	bio->bi_flags = 1 << BIO_UPTODATE;
 	atomic_set(&bio->__bi_remaining, 1);
-	atomic_set(&bio->bi_cnt, 1);
+	atomic_set(&bio->__bi_cnt, 1);
 }
 EXPORT_SYMBOL(bio_init);
 
@@ -524,13 +524,17 @@ EXPORT_SYMBOL(zero_fill_bio);
  **/
 void bio_put(struct bio *bio)
 {
-	BIO_BUG_ON(!atomic_read(&bio->bi_cnt));
-
-	/*
-	 * last put frees it
-	 */
-	if (atomic_dec_and_test(&bio->bi_cnt))
+	if (!bio_flagged(bio, BIO_REFFED))
 		bio_free(bio);
+	else {
+		BIO_BUG_ON(!atomic_read(&bio->__bi_cnt));
+
+		/*
+		 * last put frees it
+		 */
+		if (atomic_dec_and_test(&bio->__bi_cnt))
+			bio_free(bio);
+	}
 }
 EXPORT_SYMBOL(bio_put);
 
