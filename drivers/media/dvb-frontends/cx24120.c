@@ -108,11 +108,8 @@ enum command_message_id {
 #define CX24120_STATUS_MASK	(0x0f)
 #define CX24120_SIGNAL_MASK	(0xc0)
 
-#define info(args...) do { printk(KERN_INFO "cx24120: "); \
-			printk(args); } while (0)
-#define err(args...) do {  printk(KERN_ERR "cx24120: ### ERROR: "); \
-			printk(args); } while (0)
-
+#define info(args...) pr_info("cx24120: " args)
+#define err(args...)  pr_err("cx24120: ### ERROR: " args)
 
 /* The Demod/Tuner can't easily provide these, we cache them */
 struct cx24120_tuning {

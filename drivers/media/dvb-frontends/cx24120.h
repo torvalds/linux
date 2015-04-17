@@ -48,7 +48,7 @@ static inline struct dvb_frontend *cx24120_attach(
 	const struct cx24120_config *config,
 	struct i2c_adapter *i2c)
 {
-	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+	pr_warn("%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
 #endif
