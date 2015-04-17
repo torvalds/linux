@@ -1852,6 +1852,7 @@ static int serial_imx_suspend(struct platform_device *dev, pm_message_t state)
 		disable_irq(sport->port.irq);
 
 	/* Save necessary regs */
+	clk_prepare_enable(sport->clk_ipg);
 	sport->saved_reg[0] = readl(sport->port.membase + UCR1);
 	sport->saved_reg[1] = readl(sport->port.membase + UCR2);
 	sport->saved_reg[2] = readl(sport->port.membase + UCR3);
@@ -1862,6 +1863,7 @@ static int serial_imx_suspend(struct platform_device *dev, pm_message_t state)
 	sport->saved_reg[7] = readl(sport->port.membase + UBIR);
 	sport->saved_reg[8] = readl(sport->port.membase + UBMR);
 	sport->saved_reg[9] = readl(sport->port.membase + IMX21_UTS);
+	clk_disable_unprepare(sport->clk_ipg);
 
 	return 0;
 }
@@ -1871,6 +1873,7 @@ static int serial_imx_resume(struct platform_device *dev)
 	struct imx_port *sport = platform_get_drvdata(dev);
 	unsigned int val;
 
+	clk_prepare_enable(sport->clk_ipg);
 	writel(sport->saved_reg[4], sport->port.membase + UFCR);
 	writel(sport->saved_reg[5], sport->port.membase + UESC);
 	writel(sport->saved_reg[6], sport->port.membase + UTIM);
@@ -1889,6 +1892,8 @@ static int serial_imx_resume(struct platform_device *dev)
 	val = readl(sport->port.membase + USR1);
 	if (val & USR1_AWAKE)
 		writel(USR1_AWAKE, sport->port.membase + USR1);
+	clk_disable_unprepare(sport->clk_ipg);
+
 	if (sport->port.irq_wake)
 		enable_irq(sport->port.irq);
 
