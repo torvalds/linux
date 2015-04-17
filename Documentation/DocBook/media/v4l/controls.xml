@@ -4863,7 +4863,7 @@ interface and may change in the future.</para>
       </note>
 
       <para>
-	The Image Source control class is intended for low-level control of
+	The Image Process control class is intended for low-level control of
 	image processing functions. Unlike
 	<constant>V4L2_CID_IMAGE_SOURCE_CLASS</constant>, the controls in
 	this class affect processing the image, and do not control capturing
@@ -4871,7 +4871,7 @@ interface and may change in the future.</para>
       </para>
 
       <table pgwide="1" frame="none" id="image-process-control-id">
-      <title>Image Source Control IDs</title>
+      <title>Image Process Control IDs</title>
 
       <tgroup cols="4">
 	<colspec colname="c1" colwidth="1*" />
