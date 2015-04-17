@@ -145,7 +145,14 @@ typedef struct {
 } mm_context_t;
 #endif /* !__ASSEMBLY__ */
 
+#if (PAGE_SHIFT == 12)
 #define mmu_virtual_psize	MMU_PAGE_4K
+#elif (PAGE_SHIFT == 14)
+#define mmu_virtual_psize	MMU_PAGE_16K
+#else
+#error "Unsupported PAGE_SIZE"
+#endif
+
 #define mmu_linear_psize	MMU_PAGE_8M
 
 #endif /* _ASM_POWERPC_MMU_8XX_H_ */
