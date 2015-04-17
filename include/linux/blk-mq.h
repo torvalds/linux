@@ -13,7 +13,7 @@ struct blk_mq_cpu_notifier {
 };
 
 struct blk_mq_ctxmap {
-	unsigned int map_size;
+	unsigned int size;
 	unsigned int bits_per_word;
 	struct blk_align_bitmap *map;
 };
