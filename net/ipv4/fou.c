@@ -711,11 +711,10 @@ static int fou_nl_dump(struct sk_buff *skb, struct netlink_callback *cb)
 				    cb->nlh->nlmsg_seq, NLM_F_MULTI,
 				    skb, FOU_CMD_GET);
 		if (ret)
-			goto done;
+			break;
 	}
 	mutex_unlock(&fn->fou_lock);
 
-done:
 	cb->args[0] = idx;
 	return skb->len;
 }

@@ -602,8 +602,6 @@ static void _mv88e6xxx_get_ethtool_stats(struct dsa_switch *ds,
 		u32 high = 0;
 
 		if (s->reg >= 0x100) {
-			int ret;
-
 			ret = mv88e6xxx_reg_read(ds, REG_PORT(port),
 						 s->reg - 0x100);
 			if (ret < 0)
@@ -902,14 +900,16 @@ static int _mv88e6xxx_flush_fid(struct dsa_switch *ds, int fid)
 static int mv88e6xxx_set_port_state(struct dsa_switch *ds, int port, u8 state)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	int reg, ret;
+	int reg, ret = 0;
 	u8 oldstate;
 
 	mutex_lock(&ps->smi_mutex);
 
 	reg = _mv88e6xxx_reg_read(ds, REG_PORT(port), PORT_CONTROL);
-	if (reg < 0)
+	if (reg < 0) {
+		ret = reg;
 		goto abort;
+	}
 
 	oldstate = reg & PORT_CONTROL_STATE_MASK;
 	if (oldstate != state) {
