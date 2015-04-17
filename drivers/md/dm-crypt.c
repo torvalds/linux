@@ -1816,6 +1816,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		if (ret)
 			goto bad;
 
+		ret = -EINVAL;
 		while (opt_params--) {
 			opt_string = dm_shift_arg(&as);
 			if (!opt_string) {
