@@ -799,7 +799,7 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 
 		cdrom_do_block_pc(drive, rq);
 		break;
-	case REQ_TYPE_SPECIAL:
+	case REQ_TYPE_DRV_PRIV:
 		/* right now this can only be a reset... */
 		uptodate = 1;
 		goto out_end;

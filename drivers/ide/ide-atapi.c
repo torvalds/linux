@@ -93,7 +93,7 @@ int ide_queue_pc_tail(ide_drive_t *drive, struct gendisk *disk,
 	int error;
 
 	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
-	rq->cmd_type = REQ_TYPE_SPECIAL;
+	rq->cmd_type = REQ_TYPE_DRV_PRIV;
 	rq->special = (char *)pc;
 
 	if (buf && bufflen) {
@@ -477,7 +477,7 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 		if (uptodate == 0)
 			drive->failed_pc = NULL;
 
-		if (rq->cmd_type == REQ_TYPE_SPECIAL) {
+		if (rq->cmd_type == REQ_TYPE_DRV_PRIV) {
 			rq->errors = 0;
 			error = 0;
 		} else {

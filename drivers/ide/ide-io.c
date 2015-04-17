@@ -135,7 +135,7 @@ EXPORT_SYMBOL(ide_complete_rq);
 
 void ide_kill_rq(ide_drive_t *drive, struct request *rq)
 {
-	u8 drv_req = (rq->cmd_type == REQ_TYPE_SPECIAL) && rq->rq_disk;
+	u8 drv_req = (rq->cmd_type == REQ_TYPE_DRV_PRIV) && rq->rq_disk;
 	u8 media = drive->media;
 
 	drive->failed_pc = NULL;
@@ -353,7 +353,7 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 			    pm->pm_step == IDE_PM_COMPLETED)
 				ide_complete_pm_rq(drive, rq);
 			return startstop;
-		} else if (!rq->rq_disk && rq->cmd_type == REQ_TYPE_SPECIAL)
+		} else if (!rq->rq_disk && rq->cmd_type == REQ_TYPE_DRV_PRIV)
 			/*
 			 * TODO: Once all ULDs have been modified to
 			 * check for specific op codes rather than
