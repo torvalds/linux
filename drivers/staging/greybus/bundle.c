@@ -48,11 +48,9 @@ static ssize_t state_store(struct device *dev, struct device_attribute *attr,
 	struct gb_bundle *bundle = to_gb_bundle(dev);
 
 	kfree(bundle->state);
-	bundle->state = kzalloc(size + 1, GFP_KERNEL);
+	bundle->state = kstrdup(buf, GFP_KERNEL);
 	if (!bundle->state)
 		return -ENOMEM;
-
-	memcpy(bundle->state, buf, size);
 
 	/* Tell userspace that the file contents changed */
 	sysfs_notify(&bundle->dev.kobj, NULL, "state");
