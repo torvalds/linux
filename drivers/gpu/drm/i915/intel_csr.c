@@ -183,6 +183,25 @@ static char intel_get_substepping(struct drm_device *dev)
 		return -ENODATA;
 }
 
+enum csr_state intel_csr_load_status_get(struct drm_i915_private *dev_priv)
+{
+	enum csr_state state;
+
+	mutex_lock(&dev_priv->csr_lock);
+	state = dev_priv->csr.state;
+	mutex_unlock(&dev_priv->csr_lock);
+
+	return state;
+}
+
+void intel_csr_load_status_set(struct drm_i915_private *dev_priv,
+			enum csr_state state)
+{
+	mutex_lock(&dev_priv->csr_lock);
+	dev_priv->csr.state = state;
+	mutex_unlock(&dev_priv->csr_lock);
+}
+
 void intel_csr_load_program(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -204,6 +223,8 @@ void intel_csr_load_program(struct drm_device *dev)
 		I915_WRITE(dev_priv->csr.mmioaddr[i],
 			dev_priv->csr.mmiodata[i]);
 	}
+
+	dev_priv->csr.state = FW_LOADED;
 	mutex_unlock(&dev_priv->csr_lock);
 }
 
@@ -220,6 +241,7 @@ static void finish_csr_load(const struct firmware *fw, void *context)
 	uint32_t dmc_offset = CSR_DEFAULT_FW_OFFSET, readcount = 0, nbytes;
 	uint32_t i;
 	__be32 *dmc_payload;
+	bool fw_loaded = false;
 
 	if (!fw) {
 		i915_firmware_load_error_print(csr->fw_path, 0);
@@ -326,7 +348,14 @@ static void finish_csr_load(const struct firmware *fw, void *context)
 
 	/* load csr program during system boot, as needed for DC states */
 	intel_csr_load_program(dev);
+	fw_loaded = true;
+
 out:
+	if (fw_loaded)
+		intel_runtime_pm_put(dev_priv);
+	else
+		intel_csr_load_status_set(dev_priv, FW_FAILED);
+
 	release_firmware(fw);
 }
 
@@ -343,17 +372,25 @@ void intel_csr_ucode_init(struct drm_device *dev)
 		csr->fw_path = I915_CSR_SKL;
 	else {
 		DRM_ERROR("Unexpected: no known CSR firmware for platform\n");
+		intel_csr_load_status_set(dev_priv, FW_FAILED);
 		return;
 	}
+
+	/*
+	 * Obtain a runtime pm reference, until CSR is loaded,
+	 * to avoid entering runtime-suspend.
+	 */
+	intel_runtime_pm_get(dev_priv);
 
 	/* CSR supported for platform, load firmware */
 	ret = request_firmware_nowait(THIS_MODULE, true, csr->fw_path,
 				&dev_priv->dev->pdev->dev,
 				GFP_KERNEL, dev_priv,
 				finish_csr_load);
-	if (ret)
+	if (ret) {
 		i915_firmware_load_error_print(csr->fw_path, ret);
-
+		intel_csr_load_status_set(dev_priv, FW_FAILED);
+	}
 }
 
 void intel_csr_ucode_fini(struct drm_device *dev)
@@ -363,5 +400,6 @@ void intel_csr_ucode_fini(struct drm_device *dev)
 	if (!HAS_CSR(dev))
 		return;
 
+	intel_csr_load_status_set(dev_priv, FW_FAILED);
 	kfree(dev_priv->csr.dmc_payload);
 }
