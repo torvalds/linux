@@ -1310,7 +1310,7 @@ static const struct of_device_id armpmu_of_device_ids[] = {
 
 static int armpmu_device_probe(struct platform_device *pdev)
 {
-	int i, *irqs;
+	int i, irq, *irqs;
 
 	if (!cpu_pmu)
 		return -ENODEV;
@@ -1318,6 +1318,11 @@ static int armpmu_device_probe(struct platform_device *pdev)
 	irqs = kcalloc(pdev->num_resources, sizeof(*irqs), GFP_KERNEL);
 	if (!irqs)
 		return -ENOMEM;
+
+	/* Don't bother with PPIs; they're already affine */
+	irq = platform_get_irq(pdev, 0);
+	if (irq >= 0 && irq_is_percpu(irq))
+		return 0;
 
 	for (i = 0; i < pdev->num_resources; ++i) {
 		struct device_node *dn;
