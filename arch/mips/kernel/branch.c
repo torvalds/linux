@@ -36,8 +36,10 @@ int __isa_exception_epc(struct pt_regs *regs)
 		return epc;
 	}
 	if (cpu_has_mips16) {
-		if (((union mips16e_instruction)inst).ri.opcode
-				== MIPS16e_jal_op)
+		union mips16e_instruction inst_mips16e;
+
+		inst_mips16e.full = inst;
+		if (inst_mips16e.ri.opcode == MIPS16e_jal_op)
 			epc += 4;
 		else
 			epc += 2;

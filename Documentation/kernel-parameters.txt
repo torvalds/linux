@@ -2317,7 +2317,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			noexec32=off: disable non-executable mappings
 				read implies executable mappings
 
-	nofpu		[SH] Disable hardware FPU at boot time.
+	nofpu		[MIPS,SH] Disable hardware FPU at boot time.
 
 	nofxsr		[BUGS=X86-32] Disables x86 floating point extended
 			register save and restore. The kernel will only save
