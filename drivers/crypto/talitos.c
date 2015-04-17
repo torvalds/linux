@@ -236,6 +236,7 @@ int talitos_submit(struct device *dev, int ch, struct talitos_desc *desc,
 	struct talitos_request *request;
 	unsigned long flags;
 	int head;
+	bool is_sec1 = has_ftr_sec1(priv);
 
 	spin_lock_irqsave(&priv->chan[ch].head_lock, flags);
 
@@ -249,8 +250,17 @@ int talitos_submit(struct device *dev, int ch, struct talitos_desc *desc,
 	request = &priv->chan[ch].fifo[head];
 
 	/* map descriptor and save caller data */
-	request->dma_desc = dma_map_single(dev, desc, sizeof(*desc),
-					   DMA_BIDIRECTIONAL);
+	if (is_sec1) {
+		desc->hdr1 = desc->hdr;
+		desc->next_desc = 0;
+		request->dma_desc = dma_map_single(dev, &desc->hdr1,
+						   TALITOS_DESC_SIZE,
+						   DMA_BIDIRECTIONAL);
+	} else {
+		request->dma_desc = dma_map_single(dev, desc,
+						   TALITOS_DESC_SIZE,
+						   DMA_BIDIRECTIONAL);
+	}
 	request->callback = callback;
 	request->context = context;
 
@@ -282,16 +292,21 @@ static void flush_channel(struct device *dev, int ch, int error, int reset_ch)
 	struct talitos_request *request, saved_req;
 	unsigned long flags;
 	int tail, status;
+	bool is_sec1 = has_ftr_sec1(priv);
 
 	spin_lock_irqsave(&priv->chan[ch].tail_lock, flags);
 
 	tail = priv->chan[ch].tail;
 	while (priv->chan[ch].fifo[tail].desc) {
+		__be32 hdr;
+
 		request = &priv->chan[ch].fifo[tail];
 
 		/* descriptors with their done bits set don't get the error */
 		rmb();
-		if ((request->desc->hdr & DESC_HDR_DONE) == DESC_HDR_DONE)
+		hdr = is_sec1 ? request->desc->hdr1 : request->desc->hdr;
+
+		if ((hdr & DESC_HDR_DONE) == DESC_HDR_DONE)
 			status = 0;
 		else
 			if (!error)
@@ -300,7 +315,7 @@ static void flush_channel(struct device *dev, int ch, int error, int reset_ch)
 				status = error;
 
 		dma_unmap_single(dev, request->dma_desc,
-				 sizeof(struct talitos_desc),
+				 TALITOS_DESC_SIZE,
 				 DMA_BIDIRECTIONAL);
 
 		/* copy entries so we can call callback outside lock */

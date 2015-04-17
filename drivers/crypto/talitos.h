@@ -69,6 +69,8 @@ struct talitos_desc {
 	__be32 next_desc;		/* next descriptor (SEC1) */
 };
 
+#define TALITOS_DESC_SIZE	(sizeof(struct talitos_desc) - sizeof(__be32))
+
 /**
  * talitos_request - descriptor submission request
  * @desc: descriptor pointer (kernel virtual)
