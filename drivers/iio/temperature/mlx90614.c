@@ -263,7 +263,7 @@ static int mlx90614_write_raw(struct iio_dev *indio_dev,
 }
 
 static int mlx90614_write_raw_get_fmt(struct iio_dev *indio_dev,
-				     const struct iio_chan_spec const *channel,
+				     struct iio_chan_spec const *channel,
 				     long mask)
 {
 	switch (mask) {
