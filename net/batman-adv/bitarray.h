@@ -18,6 +18,12 @@
 #ifndef _NET_BATMAN_ADV_BITARRAY_H_
 #define _NET_BATMAN_ADV_BITARRAY_H_
 
+#include "main.h"
+
+#include <linux/bitops.h>
+#include <linux/compiler.h>
+#include <linux/types.h>
+
 /* Returns 1 if the corresponding bit in the given seq_bits indicates true
  * and curr_seqno is within range of last_seqno. Otherwise returns 0.
  */

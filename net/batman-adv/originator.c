@@ -15,19 +15,31 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "main.h"
-#include "distributed-arp-table.h"
 #include "originator.h"
-#include "hash.h"
-#include "translation-table.h"
-#include "routing.h"
+#include "main.h"
+
+#include <linux/errno.h>
+#include <linux/etherdevice.h>
+#include <linux/fs.h>
+#include <linux/jiffies.h>
+#include <linux/kernel.h>
+#include <linux/list.h>
+#include <linux/lockdep.h>
+#include <linux/netdevice.h>
+#include <linux/seq_file.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/workqueue.h>
+
+#include "distributed-arp-table.h"
+#include "fragmentation.h"
 #include "gateway_client.h"
 #include "hard-interface.h"
-#include "soft-interface.h"
-#include "bridge_loop_avoidance.h"
-#include "network-coding.h"
-#include "fragmentation.h"
+#include "hash.h"
 #include "multicast.h"
+#include "network-coding.h"
+#include "routing.h"
+#include "translation-table.h"
 
 /* hash class keys */
 static struct lock_class_key batadv_orig_hash_lock_class_key;

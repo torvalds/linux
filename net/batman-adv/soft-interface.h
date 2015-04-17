@@ -18,6 +18,17 @@
 #ifndef _NET_BATMAN_ADV_SOFT_INTERFACE_H_
 #define _NET_BATMAN_ADV_SOFT_INTERFACE_H_
 
+#include "main.h"
+
+#include <net/rtnetlink.h>
+
+struct batadv_hard_iface;
+struct batadv_orig_node;
+struct batadv_priv;
+struct batadv_softif_vlan;
+struct net_device;
+struct sk_buff;
+
 int batadv_skb_head_push(struct sk_buff *skb, unsigned int len);
 void batadv_interface_rx(struct net_device *soft_iface,
 			 struct sk_buff *skb, struct batadv_hard_iface *recv_if,

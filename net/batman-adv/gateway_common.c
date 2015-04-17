@@ -15,9 +15,18 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "main.h"
 #include "gateway_common.h"
+#include "main.h"
+
+#include <linux/atomic.h>
+#include <linux/byteorder/generic.h>
+#include <linux/kernel.h>
+#include <linux/netdevice.h>
+#include <linux/stddef.h>
+#include <linux/string.h>
+
 #include "gateway_client.h"
+#include "packet.h"
 
 /**
  * batadv_parse_gw_bandwidth - parse supplied string buffer to extract download

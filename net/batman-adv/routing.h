@@ -18,6 +18,16 @@
 #ifndef _NET_BATMAN_ADV_ROUTING_H_
 #define _NET_BATMAN_ADV_ROUTING_H_
 
+#include "main.h"
+
+#include <linux/types.h>
+
+struct batadv_hard_iface;
+struct batadv_neigh_node;
+struct batadv_orig_node;
+struct batadv_priv;
+struct sk_buff;
+
 bool batadv_check_management_packet(struct sk_buff *skb,
 				    struct batadv_hard_iface *hard_iface,
 				    int header_len);

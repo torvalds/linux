@@ -18,6 +18,16 @@
 #ifndef _NET_BATMAN_ADV_BLA_H_
 #define _NET_BATMAN_ADV_BLA_H_
 
+#include "main.h"
+
+#include <linux/types.h>
+
+struct batadv_hard_iface;
+struct batadv_orig_node;
+struct batadv_priv;
+struct seq_file;
+struct sk_buff;
+
 #ifdef CONFIG_BATMAN_ADV_BLA
 int batadv_bla_rx(struct batadv_priv *bat_priv, struct sk_buff *skb,
 		  unsigned short vid, bool is_bcast);

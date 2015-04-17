@@ -15,16 +15,35 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "main.h"
 #include "sysfs.h"
-#include "translation-table.h"
+#include "main.h"
+
+#include <linux/atomic.h>
+#include <linux/compiler.h>
+#include <linux/device.h>
+#include <linux/errno.h>
+#include <linux/fs.h>
+#include <linux/if.h>
+#include <linux/if_vlan.h>
+#include <linux/kernel.h>
+#include <linux/netdevice.h>
+#include <linux/printk.h>
+#include <linux/rculist.h>
+#include <linux/rcupdate.h>
+#include <linux/rtnetlink.h>
+#include <linux/slab.h>
+#include <linux/stat.h>
+#include <linux/stddef.h>
+#include <linux/string.h>
+#include <linux/stringify.h>
+
 #include "distributed-arp-table.h"
-#include "network-coding.h"
-#include "originator.h"
-#include "hard-interface.h"
-#include "soft-interface.h"
-#include "gateway_common.h"
 #include "gateway_client.h"
+#include "gateway_common.h"
+#include "hard-interface.h"
+#include "network-coding.h"
+#include "packet.h"
+#include "soft-interface.h"
 
 static struct net_device *batadv_kobj_to_netdev(struct kobject *obj)
 {

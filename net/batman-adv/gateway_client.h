@@ -18,6 +18,14 @@
 #ifndef _NET_BATMAN_ADV_GATEWAY_CLIENT_H_
 #define _NET_BATMAN_ADV_GATEWAY_CLIENT_H_
 
+#include "main.h"
+
+#include <linux/types.h>
+
+struct batadv_tvlv_gateway_data;
+struct seq_file;
+struct sk_buff;
+
 void batadv_gw_check_client_stop(struct batadv_priv *bat_priv);
 void batadv_gw_reselect(struct batadv_priv *bat_priv);
 void batadv_gw_election(struct batadv_priv *bat_priv);

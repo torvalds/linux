@@ -15,16 +15,46 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "main.h"
-#include "translation-table.h"
-#include "originator.h"
-#include "routing.h"
-#include "gateway_common.h"
-#include "gateway_client.h"
-#include "hard-interface.h"
-#include "send.h"
 #include "bat_algo.h"
+#include "main.h"
+
+#include <linux/atomic.h>
+#include <linux/bitmap.h>
+#include <linux/bitops.h>
+#include <linux/bug.h>
+#include <linux/byteorder/generic.h>
+#include <linux/cache.h>
+#include <linux/errno.h>
+#include <linux/etherdevice.h>
+#include <linux/fs.h>
+#include <linux/if_ether.h>
+#include <linux/init.h>
+#include <linux/jiffies.h>
+#include <linux/list.h>
+#include <linux/netdevice.h>
+#include <linux/pkt_sched.h>
+#include <linux/printk.h>
+#include <linux/random.h>
+#include <linux/rculist.h>
+#include <linux/rcupdate.h>
+#include <linux/seq_file.h>
+#include <linux/skbuff.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/stddef.h>
+#include <linux/string.h>
+#include <linux/types.h>
+#include <linux/workqueue.h>
+
+#include "bitarray.h"
+#include "hard-interface.h"
+#include "hash.h"
 #include "network-coding.h"
+#include "originator.h"
+#include "packet.h"
+#include "routing.h"
+#include "send.h"
+#include "translation-table.h"
 
 /**
  * enum batadv_dup_status - duplicate status
