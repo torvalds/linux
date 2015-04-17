@@ -61,6 +61,11 @@ static void to_talitos_ptr(struct talitos_ptr *ptr, dma_addr_t dma_addr)
 	ptr->eptr = upper_32_bits(dma_addr);
 }
 
+static void to_talitos_ptr_extent_clear(struct talitos_ptr *ptr)
+{
+	ptr->j_extent = 0;
+}
+
 /*
  * map virtual single (contiguous) pointer to h/w descriptor pointer
  */
@@ -1372,7 +1377,7 @@ int map_sg_in_talitos_ptr(struct device *dev, struct scatterlist *src,
 	int sg_count;
 
 	ptr->len = cpu_to_be16(len);
-	ptr->j_extent = 0;
+	to_talitos_ptr_extent_clear(ptr);
 
 	sg_count = talitos_map_sg(dev, src, edesc->src_nents ? : 1, dir,
 				  edesc->src_chained);
@@ -1402,7 +1407,7 @@ void map_sg_out_talitos_ptr(struct device *dev, struct scatterlist *dst,
 			    struct talitos_ptr *ptr, int sg_count)
 {
 	ptr->len = cpu_to_be16(len);
-	ptr->j_extent = 0;
+	to_talitos_ptr_extent_clear(ptr);
 
 	if (dir != DMA_NONE)
 		sg_count = talitos_map_sg(dev, dst, edesc->dst_nents ? : 1,
@@ -1444,7 +1449,7 @@ static int common_nonsnoop(struct talitos_edesc *edesc,
 	/* cipher iv */
 	to_talitos_ptr(&desc->ptr[1], edesc->iv_dma);
 	desc->ptr[1].len = cpu_to_be16(ivsize);
-	desc->ptr[1].j_extent = 0;
+	to_talitos_ptr_extent_clear(&desc->ptr[1]);
 
 	/* cipher key */
 	map_single_talitos_ptr(dev, &desc->ptr[2], ctx->keylen,
