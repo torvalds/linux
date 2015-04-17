@@ -35,13 +35,20 @@ DECLARE_PER_CPU(struct hrtimer_cpu_base, hrtimer_bases);
  * This allows printing both to /proc/timer_list and
  * to the console (on SysRq-Q):
  */
-#define SEQ_printf(m, x...)			\
- do {						\
-	if (m)					\
-		seq_printf(m, x);		\
-	else					\
-		printk(x);			\
- } while (0)
+__printf(2, 3)
+static void SEQ_printf(struct seq_file *m, const char *fmt, ...)
+{
+	va_list args;
+
+	va_start(args, fmt);
+
+	if (m)
+		seq_vprintf(m, fmt, args);
+	else
+		vprintk(fmt, args);
+
+	va_end(args);
+}
 
 static void print_name_offset(struct seq_file *m, void *sym)
 {
