@@ -389,8 +389,7 @@ static void affs_write_failed(struct address_space *mapping, loff_t to)
 }
 
 static ssize_t
-affs_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter,
-	       loff_t offset)
+affs_direct_IO(struct kiocb *iocb, struct iov_iter *iter, loff_t offset)
 {
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
@@ -398,15 +397,15 @@ affs_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter,
 	size_t count = iov_iter_count(iter);
 	ssize_t ret;
 
-	if (rw == WRITE) {
+	if (iov_iter_rw(iter) == WRITE) {
 		loff_t size = offset + count;
 
 		if (AFFS_I(inode)->mmu_private < size)
 			return 0;
 	}
 
-	ret = blockdev_direct_IO(rw, iocb, inode, iter, offset, affs_get_block);
-	if (ret < 0 && (rw & WRITE))
+	ret = blockdev_direct_IO(iocb, inode, iter, offset, affs_get_block);
+	if (ret < 0 && iov_iter_rw(iter) == WRITE)
 		affs_write_failed(mapping, offset + count);
 	return ret;
 }
