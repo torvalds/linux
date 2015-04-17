@@ -196,7 +196,7 @@ see <xref linkend="colorspaces" />.</entry>
 	  <tbody valign="top">
 	    <row id="MEDIA-BUS-FMT-RGB444-1X12">
 	      <entry>MEDIA_BUS_FMT_RGB444_1X12</entry>
-	      <entry>0x100e</entry>
+	      <entry>0x1016</entry>
 	      <entry></entry>
 	      &dash-ent-20;
 	      <entry>r<subscript>3</subscript></entry>
@@ -326,7 +326,7 @@ see <xref linkend="colorspaces" />.</entry>
 	    </row>
 	    <row id="MEDIA-BUS-FMT-RGB565-1X16">
 	      <entry>MEDIA_BUS_FMT_RGB565_1X16</entry>
-	      <entry>0x100f</entry>
+	      <entry>0x1017</entry>
 	      <entry></entry>
 	      &dash-ent-16;
 	      <entry>r<subscript>4</subscript></entry>
@@ -3049,7 +3049,7 @@ see <xref linkend="colorspaces" />.</entry>
 	    </row>
 	    <row id="MEDIA-BUS-FMT-YUV8-1X24">
 	      <entry>MEDIA_BUS_FMT_YUV8_1X24</entry>
-	      <entry>0x2024</entry>
+	      <entry>0x2025</entry>
 	      <entry></entry>
 	      <entry>-</entry>
 	      <entry>-</entry>
