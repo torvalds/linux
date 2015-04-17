@@ -29,6 +29,8 @@ static inline u64 pnv_pci_dma_get_required_mask(struct pci_dev *pdev)
 }
 #endif
 
+extern struct pci_controller_ops pnv_pci_controller_ops;
+
 extern u32 pnv_get_supported_cpuidle_states(void);
 
 extern void pnv_lpc_init(void);

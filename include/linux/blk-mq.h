@@ -164,6 +164,8 @@ enum {
 		<< BLK_MQ_F_ALLOC_POLICY_START_BIT)
 
 struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *);
+struct request_queue *blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
+						  struct request_queue *q);
 void blk_mq_finish_init(struct request_queue *q);
 int blk_mq_register_disk(struct gendisk *);
 void blk_mq_unregister_disk(struct gendisk *);
@@ -218,6 +220,7 @@ void blk_mq_start_hw_queue(struct blk_mq_hw_ctx *hctx);
 void blk_mq_stop_hw_queues(struct request_queue *q);
 void blk_mq_start_hw_queues(struct request_queue *q);
 void blk_mq_start_stopped_hw_queues(struct request_queue *q, bool async);
+void blk_mq_run_hw_queues(struct request_queue *q, bool async);
 void blk_mq_delay_queue(struct blk_mq_hw_ctx *hctx, unsigned long msecs);
 void blk_mq_tag_busy_iter(struct blk_mq_hw_ctx *hctx, busy_iter_fn *fn,
 		void *priv);
@@ -227,7 +230,7 @@ void blk_mq_freeze_queue_start(struct request_queue *q);
 
 /*
  * Driver command data is immediately after the request. So subtract request
- * size to get back to the original request.
+ * size to get back to the original request, add request size to get the PDU.
  */
 static inline struct request *blk_mq_rq_from_pdu(void *pdu)
 {
@@ -235,7 +238,7 @@ static inline struct request *blk_mq_rq_from_pdu(void *pdu)
 }
 static inline void *blk_mq_rq_to_pdu(struct request *rq)
 {
-	return (void *) rq + sizeof(*rq);
+	return rq + 1;
 }
 
 #define queue_for_each_hw_ctx(q, hctx, i)				\

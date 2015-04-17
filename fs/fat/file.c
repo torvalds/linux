@@ -10,10 +10,6 @@
 #include <linux/module.h>
 #include <linux/compat.h>
 #include <linux/mount.h>
-#include <linux/time.h>
-#include <linux/buffer_head.h>
-#include <linux/writeback.h>
-#include <linux/backing-dev.h>
 #include <linux/blkdev.h>
 #include <linux/fsnotify.h>
 #include <linux/security.h>

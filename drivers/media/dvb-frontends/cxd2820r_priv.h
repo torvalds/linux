@@ -64,8 +64,6 @@ int cxd2820r_wr_reg_mask(struct cxd2820r_priv *priv, u32 reg, u8 val,
 int cxd2820r_wr_regs(struct cxd2820r_priv *priv, u32 reginfo, u8 *val,
 	int len);
 
-u32 cxd2820r_div_u64_round_closest(u64 dividend, u32 divisor);
-
 int cxd2820r_wr_regs(struct cxd2820r_priv *priv, u32 reginfo, u8 *val,
 	int len);
 

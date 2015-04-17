@@ -659,6 +659,19 @@ macros using parameters.
 #define CONSTANT 0x4000
 #define CONSTEXP (CONSTANT | 3)
 
+5) namespace collisions when defining local variables in macros resembling
+functions:
+
+#define FOO(x)				\
+({					\
+	typeof(x) ret;			\
+	ret = calc_ret(x);		\
+	(ret);				\
+)}
+
+ret is a common name for a local variable - __foo_ret is less likely
+to collide with an existing variable.
+
 The cpp manual deals with macros exhaustively. The gcc internals manual also
 covers RTL which is used frequently with assembly language in the kernel.
 

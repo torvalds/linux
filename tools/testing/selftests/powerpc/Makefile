@@ -12,37 +12,37 @@ CFLAGS := -Wall -O2 -flto -Wall -Werror -DGIT_VERSION='"$(GIT_VERSION)"' -I$(CUR
 
 export CFLAGS
 
-TARGETS = pmu copyloops mm tm primitives stringloops
+SUB_DIRS = pmu copyloops mm tm primitives stringloops vphn switch_endian
 
 endif
 
-all: $(TARGETS)
+all: $(SUB_DIRS)
 
-$(TARGETS):
+$(SUB_DIRS):
 	$(MAKE) -k -C $@ all
 
 include ../lib.mk
 
 override define RUN_TESTS
-	@for TARGET in $(TARGETS); do \
+	@for TARGET in $(SUB_DIRS); do \
 		$(MAKE) -C $$TARGET run_tests; \
 	done;
 endef
 
 override define INSTALL_RULE
-	@for TARGET in $(TARGETS); do \
+	@for TARGET in $(SUB_DIRS); do \
 		$(MAKE) -C $$TARGET install; \
 	done;
 endef
 
 override define EMIT_TESTS
-	@for TARGET in $(TARGETS); do \
+	@for TARGET in $(SUB_DIRS); do \
 		$(MAKE) -s -C $$TARGET emit_tests; \
 	done;
 endef
 
 clean:
-	@for TARGET in $(TARGETS); do \
+	@for TARGET in $(SUB_DIRS); do \
 		$(MAKE) -C $$TARGET clean; \
 	done;
 	rm -f tags
@@ -50,4 +50,4 @@ clean:
 tags:
 	find . -name '*.c' -o -name '*.h' | xargs ctags
 
-.PHONY: tags $(TARGETS)
+.PHONY: tags $(SUB_DIRS)

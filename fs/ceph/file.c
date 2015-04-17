@@ -457,7 +457,7 @@ static ssize_t ceph_sync_read(struct kiocb *iocb, struct iov_iter *i,
 	if (ret < 0)
 		return ret;
 
-	if (file->f_flags & O_DIRECT) {
+	if (iocb->ki_flags & IOCB_DIRECT) {
 		while (iov_iter_count(i)) {
 			size_t start;
 			ssize_t n;
@@ -828,7 +828,7 @@ again:
 		return ret;
 
 	if ((got & (CEPH_CAP_FILE_CACHE|CEPH_CAP_FILE_LAZYIO)) == 0 ||
-	    (iocb->ki_filp->f_flags & O_DIRECT) ||
+	    (iocb->ki_flags & IOCB_DIRECT) ||
 	    (fi->flags & CEPH_F_SYNC)) {
 
 		dout("aio_sync_read %p %llx.%llx %llu~%u got cap refs on %s\n",
@@ -941,9 +941,9 @@ static ssize_t ceph_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_osd_client *osdc =
 		&ceph_sb_to_client(inode->i_sb)->client->osdc;
-	ssize_t count = iov_iter_count(from), written = 0;
+	ssize_t count, written = 0;
 	int err, want, got;
-	loff_t pos = iocb->ki_pos;
+	loff_t pos;
 
 	if (ceph_snap(inode) != CEPH_NOSNAP)
 		return -EROFS;
@@ -953,14 +953,12 @@ static ssize_t ceph_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	/* We can write back this queue in page reclaim */
 	current->backing_dev_info = inode_to_bdi(inode);
 
-	err = generic_write_checks(file, &pos, &count, S_ISBLK(inode->i_mode));
-	if (err)
+	err = generic_write_checks(iocb, from);
+	if (err <= 0)
 		goto out;
 
-	if (count == 0)
-		goto out;
-	iov_iter_truncate(from, count);
-
+	pos = iocb->ki_pos;
+	count = iov_iter_count(from);
 	err = file_remove_suid(file);
 	if (err)
 		goto out;
@@ -997,12 +995,12 @@ retry_snap:
 	     inode, ceph_vinop(inode), pos, count, ceph_cap_string(got));
 
 	if ((got & (CEPH_CAP_FILE_BUFFER|CEPH_CAP_FILE_LAZYIO)) == 0 ||
-	    (file->f_flags & O_DIRECT) || (fi->flags & CEPH_F_SYNC)) {
+	    (iocb->ki_flags & IOCB_DIRECT) || (fi->flags & CEPH_F_SYNC)) {
 		struct iov_iter data;
 		mutex_unlock(&inode->i_mutex);
 		/* we might need to revert back to that point */
 		data = *from;
-		if (file->f_flags & O_DIRECT)
+		if (iocb->ki_flags & IOCB_DIRECT)
 			written = ceph_sync_direct_write(iocb, &data, pos);
 		else
 			written = ceph_sync_write(iocb, &data, pos);

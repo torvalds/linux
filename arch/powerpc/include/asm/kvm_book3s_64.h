@@ -290,11 +290,11 @@ static inline pte_t kvmppc_read_update_linux_pte(pte_t *ptep, int writing,
 	pte_t old_pte, new_pte = __pte(0);
 
 	while (1) {
-		old_pte = pte_val(*ptep);
+		old_pte = *ptep;
 		/*
 		 * wait until _PAGE_BUSY is clear then set it atomically
 		 */
-		if (unlikely(old_pte & _PAGE_BUSY)) {
+		if (unlikely(pte_val(old_pte) & _PAGE_BUSY)) {
 			cpu_relax();
 			continue;
 		}
@@ -305,16 +305,18 @@ static inline pte_t kvmppc_read_update_linux_pte(pte_t *ptep, int writing,
 			return __pte(0);
 #endif
 		/* If pte is not present return None */
-		if (unlikely(!(old_pte & _PAGE_PRESENT)))
+		if (unlikely(!(pte_val(old_pte) & _PAGE_PRESENT)))
 			return __pte(0);
 
 		new_pte = pte_mkyoung(old_pte);
 		if (writing && pte_write(old_pte))
 			new_pte = pte_mkdirty(new_pte);
 
-		if (old_pte == __cmpxchg_u64((unsigned long *)ptep, old_pte,
-					     new_pte))
+		if (pte_val(old_pte) == __cmpxchg_u64((unsigned long *)ptep,
+						      pte_val(old_pte),
+						      pte_val(new_pte))) {
 			break;
+		}
 	}
 	return new_pte;
 }
@@ -335,7 +337,7 @@ static inline bool hpte_read_permission(unsigned long pp, unsigned long key)
 {
 	if (key)
 		return PP_RWRX <= pp && pp <= PP_RXRX;
-	return 1;
+	return true;
 }
 
 static inline bool hpte_write_permission(unsigned long pp, unsigned long key)
@@ -373,7 +375,7 @@ static inline bool slot_is_aligned(struct kvm_memory_slot *memslot,
 	unsigned long mask = (pagesize >> PAGE_SHIFT) - 1;
 
 	if (pagesize <= PAGE_SIZE)
-		return 1;
+		return true;
 	return !(memslot->base_gfn & mask) && !(memslot->npages & mask);
 }
 
