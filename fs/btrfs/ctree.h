@@ -1736,7 +1736,7 @@ struct btrfs_fs_info {
 	/* list of dirty qgroups to be written at next commit */
 	struct list_head dirty_qgroups;
 
-	/* used by btrfs_qgroup_record_ref for an efficient tree traversal */
+	/* used by qgroup for an efficient tree traversal */
 	u64 qgroup_seq;
 
 	/* qgroup rescan items */
