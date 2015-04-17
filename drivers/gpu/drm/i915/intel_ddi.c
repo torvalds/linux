@@ -210,27 +210,37 @@ static const struct bxt_ddi_buf_trans bxt_ddi_translations_hdmi[] = {
 	{ 154, 0x9A, 1, 128, true },	/* 9:	1200		0   */
 };
 
-enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder)
+static void ddi_get_encoder_port(struct intel_encoder *intel_encoder,
+				 struct intel_digital_port **dig_port,
+				 enum port *port)
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
 	int type = intel_encoder->type;
 
 	if (type == INTEL_OUTPUT_DP_MST) {
-		struct intel_digital_port *intel_dig_port = enc_to_mst(encoder)->primary;
-		return intel_dig_port->port;
+		*dig_port = enc_to_mst(encoder)->primary;
+		*port = (*dig_port)->port;
 	} else if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP ||
 	    type == INTEL_OUTPUT_HDMI || type == INTEL_OUTPUT_UNKNOWN) {
-		struct intel_digital_port *intel_dig_port =
-			enc_to_dig_port(encoder);
-		return intel_dig_port->port;
-
+		*dig_port = enc_to_dig_port(encoder);
+		*port = (*dig_port)->port;
 	} else if (type == INTEL_OUTPUT_ANALOG) {
-		return PORT_E;
-
+		*dig_port = NULL;
+		*port = PORT_E;
 	} else {
 		DRM_ERROR("Invalid DDI encoder type %d\n", type);
 		BUG();
 	}
+}
+
+enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder)
+{
+	struct intel_digital_port *dig_port;
+	enum port port;
+
+	ddi_get_encoder_port(intel_encoder, &dig_port, &port);
+
+	return port;
 }
 
 static bool
