@@ -33,7 +33,6 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/pagemap.h>
-#include <linux/buffer_head.h>
 #include <linux/writeback.h>
 #include <linux/slab.h>
 #include <linux/crc-itu-t.h>
@@ -1637,7 +1636,7 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 			udf_get_lb_pblock(inode->i_sb, &iinfo->i_location, 0));
 	if (!bh) {
 		udf_debug("getblk failure\n");
-		return -ENOMEM;
+		return -EIO;
 	}
 
 	lock_buffer(bh);
