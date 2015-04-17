@@ -30,7 +30,6 @@ struct scsi_ioctl_command;
 
 struct request_queue;
 struct elevator_queue;
-struct request_pm_state;
 struct blk_trace;
 struct request;
 struct sg_io_hdr;
@@ -75,8 +74,6 @@ struct request_list {
 enum rq_cmd_type_bits {
 	REQ_TYPE_FS		= 1,	/* fs request */
 	REQ_TYPE_BLOCK_PC,		/* scsi command */
-	REQ_TYPE_PM_SUSPEND,		/* suspend request */
-	REQ_TYPE_PM_RESUME,		/* resume request */
 	REQ_TYPE_DRV_PRIV,		/* driver defined types from here */
 };
 
@@ -206,19 +203,6 @@ static inline unsigned short req_get_ioprio(struct request *req)
 {
 	return req->ioprio;
 }
-
-/*
- * State information carried for REQ_TYPE_PM_SUSPEND and REQ_TYPE_PM_RESUME
- * requests. Some step values could eventually be made generic.
- */
-struct request_pm_state
-{
-	/* PM state machine step value, currently driver specific */
-	int	pm_step;
-	/* requested PM state value (S1, S2, S3, S4, ...) */
-	u32	pm_state;
-	void*	data;		/* for driver use */
-};
 
 #include <linux/elevator.h>
 
@@ -601,10 +585,6 @@ static inline void queue_flag_clear(unsigned int flag, struct request_queue *q)
 	(((rq)->cmd_flags & REQ_STARTED) && \
 	 ((rq)->cmd_type == REQ_TYPE_FS))
 
-#define blk_pm_request(rq)	\
-	((rq)->cmd_type == REQ_TYPE_PM_SUSPEND || \
-	 (rq)->cmd_type == REQ_TYPE_PM_RESUME)
-
 #define blk_rq_cpu_valid(rq)	((rq)->cpu != -1)
 #define blk_bidi_rq(rq)		((rq)->next_rq != NULL)
 /* rq->queuelist of dequeued request must be list_empty() */
@@ -838,6 +818,7 @@ extern void blk_stop_queue(struct request_queue *q);
 extern void blk_sync_queue(struct request_queue *q);
 extern void __blk_stop_queue(struct request_queue *q);
 extern void __blk_run_queue(struct request_queue *q);
+extern void __blk_run_queue_uncond(struct request_queue *q);
 extern void blk_run_queue(struct request_queue *);
 extern void blk_run_queue_async(struct request_queue *q);
 extern int blk_rq_map_user(struct request_queue *, struct request *,
