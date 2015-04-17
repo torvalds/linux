@@ -256,12 +256,11 @@ intel_dig_port_supports_hdmi(const struct intel_digital_port *intel_dig_port)
  * in either FDI or DP modes only, as HDMI connections will work with both
  * of those
  */
-static void intel_prepare_ddi_buffers(struct drm_device *dev,
-				      struct intel_digital_port *intel_dig_port)
+static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port,
+				      bool supports_hdmi)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 reg;
-	int port = intel_dig_port->port;
 	int i, n_hdmi_entries, n_dp_entries, n_edp_entries, hdmi_default_entry,
 	    size;
 	int hdmi_level = dev_priv->vbt.ddi_port_info[port].hdmi_level_shift;
@@ -272,7 +271,7 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev,
 	const struct ddi_buf_trans *ddi_translations;
 
 	if (IS_BROXTON(dev)) {
-		if (!intel_dig_port_supports_hdmi(intel_dig_port))
+		if (!supports_hdmi)
 			return;
 
 		/* Vswing programming for HDMI */
@@ -360,7 +359,7 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev,
 		reg += 4;
 	}
 
-	if (!intel_dig_port_supports_hdmi(intel_dig_port))
+	if (!supports_hdmi)
 		return;
 
 	/* Choose a good default if VBT is badly populated */
@@ -380,18 +379,27 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev,
  */
 void intel_prepare_ddi(struct drm_device *dev)
 {
-	struct intel_digital_port *intel_dig_port;
+	struct intel_encoder *intel_encoder;
 	bool visited[I915_MAX_PORTS] = { 0, };
 
 	if (!HAS_DDI(dev))
 		return;
 
-	for_each_digital_port(dev, intel_dig_port) {
-		if (visited[intel_dig_port->port])
+	for_each_intel_encoder(dev, intel_encoder) {
+		struct intel_digital_port *intel_dig_port;
+		enum port port;
+		bool supports_hdmi;
+
+		ddi_get_encoder_port(intel_encoder, &intel_dig_port, &port);
+
+		if (visited[port])
 			continue;
 
-		intel_prepare_ddi_buffers(dev, intel_dig_port);
-		visited[intel_dig_port->port] = true;
+		supports_hdmi = intel_dig_port &&
+				intel_dig_port_supports_hdmi(intel_dig_port);
+
+		intel_prepare_ddi_buffers(dev, port, supports_hdmi);
+		visited[port] = true;
 	}
 }
 
