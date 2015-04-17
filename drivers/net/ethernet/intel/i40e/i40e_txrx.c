@@ -2033,9 +2033,16 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 		     I40E_TXD_FLTR_QW1_FD_STATUS_SHIFT;
 
 	dtype_cmd |= I40E_TXD_FLTR_QW1_CNT_ENA_MASK;
-	dtype_cmd |=
-		((u32)pf->fd_atr_cnt_idx << I40E_TXD_FLTR_QW1_CNTINDEX_SHIFT) &
-		I40E_TXD_FLTR_QW1_CNTINDEX_MASK;
+	if (!(tx_flags & I40E_TX_FLAGS_VXLAN_TUNNEL))
+		dtype_cmd |=
+			((u32)I40E_FD_ATR_STAT_IDX(pf->hw.pf_id) <<
+			I40E_TXD_FLTR_QW1_CNTINDEX_SHIFT) &
+			I40E_TXD_FLTR_QW1_CNTINDEX_MASK;
+	else
+		dtype_cmd |=
+			((u32)I40E_FD_ATR_TUNNEL_STAT_IDX(pf->hw.pf_id) <<
+			I40E_TXD_FLTR_QW1_CNTINDEX_SHIFT) &
+			I40E_TXD_FLTR_QW1_CNTINDEX_MASK;
 
 	fdir_desc->qindex_flex_ptype_vsi = cpu_to_le32(flex_ptype);
 	fdir_desc->rsvd = cpu_to_le32(0);
