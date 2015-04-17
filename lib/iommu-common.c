@@ -10,6 +10,10 @@
 #include <linux/iommu-common.h>
 #include <linux/dma-mapping.h>
 
+#ifndef	DMA_ERROR_CODE
+#define	DMA_ERROR_CODE (~(dma_addr_t)0x0)
+#endif
+
 #define IOMMU_LARGE_ALLOC	15
 
 /*
@@ -121,7 +125,7 @@ unsigned long iommu_tbl_range_alloc(struct device *dev,
 		boundary_size = ALIGN(dma_get_seg_boundary(dev) + 1,
 				      1 << iommu->page_table_shift);
 	else
-		boundary_size = ALIGN(1UL << 32, 1 << iommu->page_table_shift);
+		boundary_size = ALIGN(1ULL << 32, 1 << iommu->page_table_shift);
 
 	shift = iommu->page_table_map_base >> iommu->page_table_shift;
 	boundary_size = boundary_size >> iommu->page_table_shift;
