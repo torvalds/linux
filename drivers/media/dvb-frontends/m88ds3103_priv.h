@@ -22,6 +22,7 @@
 #include "dvb_math.h"
 #include <linux/firmware.h>
 #include <linux/i2c-mux.h>
+#include <linux/regmap.h>
 #include <linux/math64.h>
 
 #define M88DS3103_FIRMWARE "dvb-demod-m88ds3103.fw"
@@ -32,8 +33,8 @@
 
 struct m88ds3103_dev {
 	struct i2c_client *client;
-	/* mutex needed due to own tuner I2C adapter */
-	struct mutex i2c_mutex;
+	struct regmap_config regmap_config;
+	struct regmap *regmap;
 	struct m88ds3103_config config;
 	const struct m88ds3103_config *cfg;
 	struct dvb_frontend fe;
