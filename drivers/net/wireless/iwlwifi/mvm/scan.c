@@ -816,6 +816,21 @@ static inline bool iwl_mvm_scan_fits(struct iwl_mvm *mvm, int n_ssids,
 		 iwl_mvm_max_scan_ie_fw_cmd_room(mvm)));
 }
 
+static inline bool iwl_mvm_scan_use_ebs(struct iwl_mvm *mvm, int n_iterations)
+{
+	const struct iwl_ucode_capabilities *capa = &mvm->fw->ucode_capa;
+
+	/* We can only use EBS if:
+	 *	1. the feature is supported;
+	 *	2. the last EBS was successful;
+	 *	3. if only single scan, the single scan EBS API is supported.
+	 */
+	return ((capa->flags & IWL_UCODE_TLV_FLAGS_EBS_SUPPORT) &&
+		mvm->last_ebs_successful &&
+		(n_iterations > 1 ||
+		 (capa->api[0] & IWL_UCODE_TLV_API_SINGLE_SCAN_EBS)));
+}
+
 static int iwl_mvm_scan_lmac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			     struct iwl_mvm_scan_params *params)
 {
@@ -824,86 +839,8 @@ static int iwl_mvm_scan_lmac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		(void *)(cmd->data + sizeof(struct iwl_scan_channel_cfg_lmac) *
 			 mvm->fw->ucode_capa.n_scan_channels);
 	u32 flags = 0, ssid_bitmap = 0;
-
-	lockdep_assert_held(&mvm->mutex);
-
-	iwl_mvm_build_generic_scan_cmd(mvm, cmd, params);
-
-	cmd->n_channels = (u8)params->n_channels;
-
-	cmd->delay = cpu_to_le32(params->delay);
-
-	if (params->pass_all)
-		flags |= IWL_MVM_LMAC_SCAN_FLAG_PASS_ALL;
-	else
-		flags |= IWL_MVM_LMAC_SCAN_FLAG_MATCH;
-
-	if (params->n_ssids == 1 && params->ssids[0].ssid_len != 0)
-		flags |= IWL_MVM_LMAC_SCAN_FLAG_PRE_CONNECTION;
-
-	if (params->passive_fragmented)
-		flags |= IWL_MVM_LMAC_SCAN_FLAG_FRAGMENTED;
-
-	if (params->n_ssids == 0)
-		flags |= IWL_MVM_LMAC_SCAN_FLAG_PASSIVE;
-
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-	/* TODO: Check if it's okay to have this in regular scans */
-	if (mvm->scan_iter_notif_enabled)
-		flags |= IWL_MVM_LMAC_SCAN_FLAG_ITER_COMPLETE;
-#endif
-
-	cmd->scan_flags |= cpu_to_le32(flags);
-
-	cmd->flags = iwl_mvm_scan_rxon_flags(params->channels[0]->band);
-	cmd->filter_flags = cpu_to_le32(MAC_FILTER_ACCEPT_GRP |
-					MAC_FILTER_IN_BEACON);
-	iwl_mvm_scan_fill_tx_cmd(mvm, cmd->tx_cmd, params->no_cck);
-	iwl_scan_build_ssids(params, cmd->direct_scan, &ssid_bitmap);
-
-	/* this API uses bits 1-20 instead of 0-19 */
-	ssid_bitmap <<= 1;
-
-	cmd->schedule[0].delay = cpu_to_le16(params->interval);
-	cmd->schedule[0].iterations = params->schedule[0].iterations;
-	cmd->schedule[0].full_scan_mul = params->schedule[0].full_scan_mul;
-	cmd->schedule[1].delay = cpu_to_le16(params->interval);
-	cmd->schedule[1].iterations = params->schedule[1].iterations;
-	cmd->schedule[1].full_scan_mul = params->schedule[1].iterations;
-
-	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_SINGLE_SCAN_EBS &&
-	    mvm->last_ebs_successful) {
-		cmd->channel_opt[0].flags =
-			cpu_to_le16(IWL_SCAN_CHANNEL_FLAG_EBS |
-				    IWL_SCAN_CHANNEL_FLAG_EBS_ACCURATE |
-				    IWL_SCAN_CHANNEL_FLAG_CACHE_ADD);
-		cmd->channel_opt[0].non_ebs_ratio =
-			cpu_to_le16(IWL_DENSE_EBS_SCAN_RATIO);
-		cmd->channel_opt[1].flags =
-			cpu_to_le16(IWL_SCAN_CHANNEL_FLAG_EBS |
-				    IWL_SCAN_CHANNEL_FLAG_EBS_ACCURATE |
-				    IWL_SCAN_CHANNEL_FLAG_CACHE_ADD);
-		cmd->channel_opt[1].non_ebs_ratio =
-			cpu_to_le16(IWL_SPARSE_EBS_SCAN_RATIO);
-	}
-
-	iwl_mvm_lmac_scan_cfg_channels(mvm, params->channels,
-				       params->n_channels, ssid_bitmap, cmd);
-
-	*preq = params->preq;
-
-	return 0;
-}
-
-static int
-iwl_mvm_sched_scan_lmac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-				   struct iwl_mvm_scan_params *params)
-{
-	struct iwl_scan_req_lmac *cmd = mvm->scan_cmd;
-	struct iwl_scan_probe_req *preq =
-		(void *)(cmd->data + sizeof(struct iwl_scan_channel_cfg_lmac) *
-			 mvm->fw->ucode_capa.n_scan_channels);
-	u32 flags = 0, ssid_bitmap = 0;
+	int n_iterations = params->schedule[0].iterations +
+		params->schedule[1].iterations;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -938,7 +875,6 @@ iwl_mvm_sched_scan_lmac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	cmd->filter_flags = cpu_to_le32(MAC_FILTER_ACCEPT_GRP |
 					MAC_FILTER_IN_BEACON);
 	iwl_mvm_scan_fill_tx_cmd(mvm, cmd->tx_cmd, params->no_cck);
-
 	iwl_scan_build_ssids(params, cmd->direct_scan, &ssid_bitmap);
 
 	/* this API uses bits 1-20 instead of 0-19 */
@@ -951,8 +887,7 @@ iwl_mvm_sched_scan_lmac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	cmd->schedule[1].iterations = params->schedule[1].iterations;
 	cmd->schedule[1].full_scan_mul = params->schedule[1].iterations;
 
-	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_EBS_SUPPORT &&
-	    mvm->last_ebs_successful) {
+	if (iwl_mvm_scan_use_ebs(mvm, n_iterations)) {
 		cmd->channel_opt[0].flags =
 			cpu_to_le16(IWL_SCAN_CHANNEL_FLAG_EBS |
 				    IWL_SCAN_CHANNEL_FLAG_EBS_ACCURATE |
@@ -974,7 +909,6 @@ iwl_mvm_sched_scan_lmac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	return 0;
 }
-
 
 int iwl_mvm_cancel_scan(struct iwl_mvm *mvm)
 {
@@ -1560,7 +1494,7 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 		ret = iwl_mvm_sched_scan_umac(mvm, vif, &params);
 	} else {
 		hcmd.id = SCAN_OFFLOAD_REQUEST_CMD;
-		ret = iwl_mvm_sched_scan_lmac(mvm, vif, &params);
+		ret = iwl_mvm_scan_lmac(mvm, vif, &params);
 	}
 
 	if (ret)
