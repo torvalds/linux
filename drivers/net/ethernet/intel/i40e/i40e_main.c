@@ -772,9 +772,8 @@ static void i40e_update_prio_xoff_rx(struct i40e_pf *pf)
 
 	dcb_cfg = &hw->local_dcbx_config;
 
-	/* See if DCB enabled with PFC TC */
-	if (!(pf->flags & I40E_FLAG_DCB_ENABLED) ||
-	    !(dcb_cfg->pfc.pfcenable)) {
+	/* Collect Link XOFF stats when PFC is disabled */
+	if (!dcb_cfg->pfc.pfcenable) {
 		i40e_update_link_xoff_rx(pf);
 		return;
 	}
