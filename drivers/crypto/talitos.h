@@ -37,9 +37,17 @@
 
 /* descriptor pointer entry */
 struct talitos_ptr {
-	__be16 len;     /* length */
-	u8 j_extent;    /* jump to sg link table and/or extent */
-	u8 eptr;        /* extended address */
+	union {
+		struct {		/* SEC2 format */
+			__be16 len;     /* length */
+			u8 j_extent;    /* jump to sg link table and/or extent*/
+			u8 eptr;        /* extended address */
+		};
+		struct {			/* SEC1 format */
+			__be16 res;
+			__be16 len1;	/* length */
+		};
+	};
 	__be32 ptr;     /* address */
 };
 
@@ -53,8 +61,12 @@ static const struct talitos_ptr zero_entry = {
 /* descriptor */
 struct talitos_desc {
 	__be32 hdr;                     /* header high bits */
-	__be32 hdr_lo;                  /* header low bits */
+	union {
+		__be32 hdr_lo;		/* header low bits */
+		__be32 hdr1;		/* header for SEC1 */
+	};
 	struct talitos_ptr ptr[7];      /* ptr/len pair array */
+	__be32 next_desc;		/* next descriptor (SEC1) */
 };
 
 /**
