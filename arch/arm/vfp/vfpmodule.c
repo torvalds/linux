@@ -445,6 +445,19 @@ static void vfp_enable(void *unused)
 	set_copro_access(access | CPACC_FULL(10) | CPACC_FULL(11));
 }
 
+/* Called by platforms on which we want to disable VFP because it may not be
+ * present on all CPUs within a SMP complex. Needs to be called prior to
+ * vfp_init().
+ */
+void vfp_disable(void)
+{
+	if (VFP_arch) {
+		pr_debug("%s: should be called prior to vfp_init\n", __func__);
+		return;
+	}
+	VFP_arch = 1;
+}
+
 #ifdef CONFIG_CPU_PM
 static int vfp_pm_suspend(void)
 {
