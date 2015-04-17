@@ -1548,6 +1548,17 @@ static int i40e_loopback_test(struct net_device *netdev, u64 *data)
 	return *data;
 }
 
+static inline bool i40e_active_vfs(struct i40e_pf *pf)
+{
+	struct i40e_vf *vfs = pf->vf;
+	int i;
+
+	for (i = 0; i < pf->num_alloc_vfs; i++)
+		if (vfs[i].vf_states & I40E_VF_STAT_ACTIVE)
+			return true;
+	return false;
+}
+
 static void i40e_diag_test(struct net_device *netdev,
 			   struct ethtool_test *eth_test, u64 *data)
 {
@@ -1560,6 +1571,20 @@ static void i40e_diag_test(struct net_device *netdev,
 		netif_info(pf, drv, netdev, "offline testing starting\n");
 
 		set_bit(__I40E_TESTING, &pf->state);
+
+		if (i40e_active_vfs(pf)) {
+			dev_warn(&pf->pdev->dev,
+				 "Please take active VFS offline and restart the adapter before running NIC diagnostics\n");
+			data[I40E_ETH_TEST_REG]		= 1;
+			data[I40E_ETH_TEST_EEPROM]	= 1;
+			data[I40E_ETH_TEST_INTR]	= 1;
+			data[I40E_ETH_TEST_LOOPBACK]	= 1;
+			data[I40E_ETH_TEST_LINK]	= 1;
+			eth_test->flags |= ETH_TEST_FL_FAILED;
+			clear_bit(__I40E_TESTING, &pf->state);
+			goto skip_ol_tests;
+		}
+
 		/* If the device is online then take it offline */
 		if (if_running)
 			/* indicate we're in test mode */
@@ -1604,6 +1629,8 @@ static void i40e_diag_test(struct net_device *netdev,
 		data[I40E_ETH_TEST_INTR] = 0;
 		data[I40E_ETH_TEST_LOOPBACK] = 0;
 	}
+
+skip_ol_tests:
 
 	netif_info(pf, drv, netdev, "testing finished\n");
 }
