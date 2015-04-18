@@ -880,8 +880,7 @@ out:
 	return res;
 }
 
-static __always_inline int
-follow_link(struct path *link, struct nameidata *nd, void **p)
+static int follow_link(struct path *link, struct nameidata *nd, void **p)
 {
 	const char *s = get_link(link, nd, p);
 	int error;
@@ -1815,10 +1814,29 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 			do {
 				struct path link = nd->link;
 				void *cookie;
+				const char *s = get_link(&link, nd, &cookie);
 
-				err = follow_link(&link, nd, &cookie);
-				if (err)
+				if (unlikely(IS_ERR(s))) {
+					err = PTR_ERR(s);
 					break;
+				}
+				err = 0;
+				if (likely(s)) {
+					if (*s == '/') {
+						if (!nd->root.mnt)
+							set_root(nd);
+						path_put(&nd->path);
+						nd->path = nd->root;
+						path_get(&nd->root);
+						nd->flags |= LOOKUP_JUMPED;
+					}
+					nd->inode = nd->path.dentry->d_inode;
+					err = link_path_walk(s, nd);
+					if (unlikely(err)) {
+						put_link(nd, &link, cookie);
+						break;
+					}
+				}
 				err = walk_component(nd, LOOKUP_FOLLOW);
 				put_link(nd, &link, cookie);
 			} while (err > 0);
