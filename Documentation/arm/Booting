@@ -58,13 +58,18 @@ serial format options as described in
 --------------------------
 
 Existing boot loaders:		OPTIONAL
-New boot loaders:		MANDATORY
+New boot loaders:		MANDATORY except for DT-only platforms
 
 The boot loader should detect the machine type its running on by some
 method.  Whether this is a hard coded value or some algorithm that
 looks at the connected hardware is beyond the scope of this document.
 The boot loader must ultimately be able to provide a MACH_TYPE_xxx
-value to the kernel. (see linux/arch/arm/tools/mach-types).
+value to the kernel. (see linux/arch/arm/tools/mach-types).  This
+should be passed to the kernel in register r1.
+
+For DT-only platforms, the machine type will be determined by device
+tree.  set the machine type to all ones (~0).  This is not strictly
+necessary, but assures that it will not match any existing types.
 
 4. Setup boot data
 ------------------

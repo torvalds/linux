@@ -3291,7 +3291,9 @@ S:	Maintained
 F:	Documentation/
 X:	Documentation/ABI/
 X:	Documentation/devicetree/
-X:	Documentation/[a-z][a-z]_[A-Z][A-Z]/
+X:	Documentation/acpi
+X:	Documentation/power
+X:	Documentation/spi
 T:	git git://git.lwn.net/linux-2.6.git docs-next
 
 DOUBLETALK DRIVER
