@@ -11,6 +11,10 @@
 #include <linux/dma-mapping.h>
 #include <linux/hash.h>
 
+#ifndef	DMA_ERROR_CODE
+#define	DMA_ERROR_CODE (~(dma_addr_t)0x0)
+#endif
+
 unsigned long iommu_large_alloc = 15;
 
 static	DEFINE_PER_CPU(unsigned int, iommu_pool_hash);
@@ -171,7 +175,7 @@ unsigned long iommu_tbl_range_alloc(struct device *dev,
 		boundary_size = ALIGN(dma_get_seg_boundary(dev) + 1,
 				      1 << iommu->table_shift);
 	else
-		boundary_size = ALIGN(1UL << 32, 1 << iommu->table_shift);
+		boundary_size = ALIGN(1ULL << 32, 1 << iommu->table_shift);
 
 	boundary_size = boundary_size >> iommu->table_shift;
 	/*
