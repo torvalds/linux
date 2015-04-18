@@ -43,6 +43,7 @@ struct evsel_priv {
 struct ctf_stream {
 	struct bt_ctf_stream *stream;
 	int cpu;
+	u32 count;
 };
 
 struct ctf_writer {
@@ -392,7 +393,10 @@ static int ctf_stream__flush(struct ctf_stream *cs)
 		if (err)
 			pr_err("CTF stream %d flush failed\n", cs->cpu);
 
-		pr("Flush stream for cpu %d\n", cs->cpu);
+		pr("Flush stream for cpu %d (%u samples)\n",
+		   cs->cpu, cs->count);
+
+		cs->count = 0;
 	}
 
 	return err;
@@ -490,6 +494,19 @@ static int get_sample_cpu(struct ctf_writer *cw, struct perf_sample *sample,
 	return cpu;
 }
 
+#define STREAM_FLUSH_COUNT 100000
+
+/*
+ * Currently we have no other way to determine the
+ * time for the stream flush other than keep track
+ * of the number of events and check it against
+ * threshold.
+ */
+static bool is_flush_needed(struct ctf_stream *cs)
+{
+	return cs->count >= STREAM_FLUSH_COUNT;
+}
+
 static int process_sample_event(struct perf_tool *tool,
 				union perf_event *_event __maybe_unused,
 				struct perf_sample *sample,
@@ -535,8 +552,13 @@ static int process_sample_event(struct perf_tool *tool,
 	}
 
 	cs = ctf_stream(cw, get_sample_cpu(cw, sample, evsel));
-	if (cs)
+	if (cs) {
+		if (is_flush_needed(cs))
+			ctf_stream__flush(cs);
+
+		cs->count++;
 		bt_ctf_stream_append_event(cs->stream, event);
+	}
 
 	bt_ctf_event_put(event);
 	return cs ? 0 : -1;
