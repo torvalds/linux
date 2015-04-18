@@ -1,6 +1,6 @@
 .PHONY: all all_32 all_64 check_build32 clean run_tests
 
-TARGETS_C_BOTHBITS := sigreturn
+TARGETS_C_BOTHBITS := sigreturn single_step_syscall
 
 BINARIES_32 := $(TARGETS_C_BOTHBITS:%=%_32)
 BINARIES_64 := $(TARGETS_C_BOTHBITS:%=%_64)
