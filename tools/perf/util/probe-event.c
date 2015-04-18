@@ -332,6 +332,7 @@ static int find_alternative_probe_point(struct debuginfo *dinfo,
 	else {
 		result->offset += pp->offset;
 		result->line += pp->line;
+		result->retprobe = pp->retprobe;
 		ret = 0;
 	}
 
@@ -652,65 +653,6 @@ static int try_to_find_probe_trace_events(struct perf_probe_event *pev,
 		}
 	}
 	return ntevs;
-}
-
-/*
- * Find a src file from a DWARF tag path. Prepend optional source path prefix
- * and chop off leading directories that do not exist. Result is passed back as
- * a newly allocated path on success.
- * Return 0 if file was found and readable, -errno otherwise.
- */
-static int get_real_path(const char *raw_path, const char *comp_dir,
-			 char **new_path)
-{
-	const char *prefix = symbol_conf.source_prefix;
-
-	if (!prefix) {
-		if (raw_path[0] != '/' && comp_dir)
-			/* If not an absolute path, try to use comp_dir */
-			prefix = comp_dir;
-		else {
-			if (access(raw_path, R_OK) == 0) {
-				*new_path = strdup(raw_path);
-				return *new_path ? 0 : -ENOMEM;
-			} else
-				return -errno;
-		}
-	}
-
-	*new_path = malloc((strlen(prefix) + strlen(raw_path) + 2));
-	if (!*new_path)
-		return -ENOMEM;
-
-	for (;;) {
-		sprintf(*new_path, "%s/%s", prefix, raw_path);
-
-		if (access(*new_path, R_OK) == 0)
-			return 0;
-
-		if (!symbol_conf.source_prefix) {
-			/* In case of searching comp_dir, don't retry */
-			zfree(new_path);
-			return -errno;
-		}
-
-		switch (errno) {
-		case ENAMETOOLONG:
-		case ENOENT:
-		case EROFS:
-		case EFAULT:
-			raw_path = strchr(++raw_path, '/');
-			if (!raw_path) {
-				zfree(new_path);
-				return -ENOENT;
-			}
-			continue;
-
-		default:
-			zfree(new_path);
-			return -errno;
-		}
-	}
 }
 
 #define LINEBUF_SIZE 256
