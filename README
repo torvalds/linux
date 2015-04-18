@@ -1,12 +1,12 @@
-        Linux kernel release 3.x <http://kernel.org/>
+        GNU/Linux kernel release 3.x <http://kernel.org/>
 
 These are the release notes for Linux version 3.  Read them carefully,
 as they tell you what this is all about, explain how to install the
 kernel, and what to do if something goes wrong. 
 
-WHAT IS LINUX?
+WHAT IS GNU/LINUX?
 
-  Linux is a clone of the operating system Unix, written from scratch by
+  GNU/Linux is a clone of the operating system Unix, written from scratch by
   Linus Torvalds with assistance from a loosely-knit team of hackers across
   the Net. It aims towards POSIX and Single UNIX Specification compliance.
 
@@ -26,7 +26,7 @@ ON WHAT HARDWARE DOES IT RUN?
   IBM S/390, MIPS, HP PA-RISC, Intel IA-64, DEC VAX, AMD x86-64, AXIS CRIS,
   Xtensa, Tilera TILE, AVR32 and Renesas M32R architectures.
 
-  Linux is easily portable to most general-purpose 32- or 64-bit architectures
+  GNU/Linux is easily portable to most general-purpose 32- or 64-bit architectures
   as long as they have a paged memory management unit (PMMU) and a port of the
   GNU C compiler (gcc) (part of The GNU Compiler Collection, GCC). Linux has
   also been ported to a number of architectures without a PMMU, although
@@ -303,7 +303,7 @@ COMPILING the kernel:
  - Booting a kernel directly from a floppy without the assistance of a
    bootloader such as LILO, is no longer supported.
 
-   If you boot Linux from the hard drive, chances are you use LILO, which
+   If you boot GNU/Linux from the hard drive, chances are you use LILO, which
    uses the kernel image as specified in the file /etc/lilo.conf.  The
    kernel image file is usually /vmlinuz, /boot/vmlinuz, /bzImage or
    /boot/bzImage.  To use the new kernel, save a copy of the old image
