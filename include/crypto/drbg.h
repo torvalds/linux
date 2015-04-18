@@ -49,7 +49,7 @@
 #include <crypto/internal/rng.h>
 #include <crypto/rng.h>
 #include <linux/fips.h>
-#include <linux/spinlock.h>
+#include <linux/mutex.h>
 #include <linux/list.h>
 
 /*
@@ -104,7 +104,7 @@ struct drbg_test_data {
 };
 
 struct drbg_state {
-	spinlock_t drbg_lock;	/* lock around DRBG */
+	struct mutex drbg_mutex;	/* lock around DRBG */
 	unsigned char *V;	/* internal state 10.1.1.1 1a) */
 	/* hash: static value 10.1.1.1 1b) hmac / ctr: key */
 	unsigned char *C;
