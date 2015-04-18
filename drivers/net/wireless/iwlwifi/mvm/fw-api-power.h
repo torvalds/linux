@@ -298,6 +298,40 @@ struct iwl_uapsd_misbehaving_ap_notif {
 } __packed;
 
 /**
+ * struct iwl_reduce_tx_power_cmd - TX power reduction command
+ * REDUCE_TX_POWER_CMD = 0x9f
+ * @flags: (reserved for future implementation)
+ * @mac_context_id: id of the mac ctx for which we are reducing TX power.
+ * @pwr_restriction: TX power restriction in dBms.
+ */
+struct iwl_reduce_tx_power_cmd {
+	u8 flags;
+	u8 mac_context_id;
+	__le16 pwr_restriction;
+} __packed; /* TX_REDUCED_POWER_API_S_VER_1 */
+
+/**
+ * struct iwl_dev_tx_power_cmd - TX power reduction command
+ * REDUCE_TX_POWER_CMD = 0x9f
+ * @set_mode: 0 - MAC tx power, 1 - device tx power
+ * @mac_context_id: id of the mac ctx for which we are reducing TX power.
+ * @pwr_restriction: TX power restriction in 1/8 dBms.
+ * @dev_24: device TX power restriction in 1/8 dBms
+ * @dev_52_low: device TX power restriction upper band - low
+ * @dev_52_high: device TX power restriction upper band - high
+ */
+struct iwl_dev_tx_power_cmd {
+	__le32 set_mode;
+	__le32 mac_context_id;
+	__le16 pwr_restriction;
+	__le16 dev_24;
+	__le16 dev_52_low;
+	__le16 dev_52_high;
+} __packed; /* TX_REDUCED_POWER_API_S_VER_2 */
+
+#define IWL_DEV_MAX_TX_POWER 0x7FFF
+
+/**
  * struct iwl_beacon_filter_cmd
  * REPLY_BEACON_FILTERING_CMD = 0xd2 (command)
  * @id_and_color: MAC contex identifier
