@@ -837,6 +837,8 @@ int bt_convert__perf2ctf(const char *input, const char *path, bool force)
 	err = perf_session__process_events(session);
 	if (!err)
 		err = bt_ctf_stream_flush(cw->stream);
+	else
+		pr_err("Error during conversion.\n");
 
 	fprintf(stderr,
 		"[ perf data convert: Converted '%s' into CTF data '%s' ]\n",
@@ -847,11 +849,15 @@ int bt_convert__perf2ctf(const char *input, const char *path, bool force)
 		(double) c.events_size / 1024.0 / 1024.0,
 		c.events_count);
 
-	/* its all good */
+	perf_session__delete(session);
+	ctf_writer__cleanup(cw);
+
+	return err;
+
 free_session:
 	perf_session__delete(session);
-
 free_writer:
 	ctf_writer__cleanup(cw);
+	pr_err("Error during conversion setup.\n");
 	return err;
 }
