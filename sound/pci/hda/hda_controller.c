@@ -157,7 +157,7 @@ static int azx_pcm_prepare(struct snd_pcm_substream *substream)
 	struct azx_dev *azx_dev = get_azx_dev(substream);
 	struct hda_pcm_stream *hinfo = to_hda_pcm_stream(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	unsigned int bufsize, period_bytes, format_val, stream_tag;
+	unsigned int format_val, stream_tag;
 	int err;
 	struct hda_spdif_out *spdif =
 		snd_hda_spdif_out_of_nid(apcm->codec, hinfo->nid);
@@ -183,24 +183,9 @@ static int azx_pcm_prepare(struct snd_pcm_substream *substream)
 		goto unlock;
 	}
 
-	bufsize = snd_pcm_lib_buffer_bytes(substream);
-	period_bytes = snd_pcm_lib_period_bytes(substream);
-
-	dev_dbg(chip->card->dev, "azx_pcm_prepare: bufsize=0x%x, format=0x%x\n",
-		bufsize, format_val);
-
-	if (bufsize != azx_dev->core.bufsize ||
-	    period_bytes != azx_dev->core.period_bytes ||
-	    format_val != azx_dev->core.format_val ||
-	    runtime->no_period_wakeup != azx_dev->core.no_period_wakeup) {
-		azx_dev->core.bufsize = bufsize;
-		azx_dev->core.period_bytes = period_bytes;
-		azx_dev->core.format_val = format_val;
-		azx_dev->core.no_period_wakeup = runtime->no_period_wakeup;
-		err = snd_hdac_stream_setup_periods(azx_stream(azx_dev));
-		if (err < 0)
-			goto unlock;
-	}
+	err = snd_hdac_stream_set_params(azx_stream(azx_dev), format_val);
+	if (err < 0)
+		goto unlock;
 
 	snd_hdac_stream_setup(azx_stream(azx_dev));
 
