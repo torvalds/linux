@@ -4055,6 +4055,7 @@ static void rk_fb_shutdown(struct platform_device *pdev)
 	for (i = 0; i < rk_fb->num_lcdc; i++) {
 		if (!rk_fb->lcdc_dev_drv[i])
 			continue;
+		sw_sync_timeline_inc(rk_fb->lcdc_dev_drv[i]->timeline, 1);
 	}
 }
 

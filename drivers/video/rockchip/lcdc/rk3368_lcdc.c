@@ -474,6 +474,27 @@ static int rk3368_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 
 static void rk3368_lcdc_deint(struct lcdc_device *lcdc_dev)
 {
+	u32 mask, val;
+
+	rk3368_lcdc_disable_irq(lcdc_dev);
+	spin_lock(&lcdc_dev->reg_lock);
+	mask = m_WIN0_EN;
+	val = v_WIN0_EN(0);
+	lcdc_msk_reg(lcdc_dev, WIN0_CTRL0, mask, val);
+	lcdc_msk_reg(lcdc_dev, WIN1_CTRL0, mask, val);
+
+	mask = m_WIN2_EN | m_WIN2_MST0_EN |
+		m_WIN2_MST1_EN |
+		m_WIN2_MST2_EN | m_WIN2_MST3_EN;
+	val = v_WIN2_EN(0) | v_WIN2_MST0_EN(0) |
+		v_WIN2_MST1_EN(0) |
+		v_WIN2_MST2_EN(0) | v_WIN2_MST3_EN(0);
+	lcdc_msk_reg(lcdc_dev, WIN2_CTRL0, mask, val);
+	lcdc_msk_reg(lcdc_dev, WIN3_CTRL0, mask, val);
+	lcdc_cfg_done(lcdc_dev);
+	spin_unlock(&lcdc_dev->reg_lock);
+	mdelay(50);
+
 }
 
 static int rk3368_lcdc_post_cfg(struct rk_lcdc_driver *dev_drv)
@@ -3215,7 +3236,6 @@ static int rk3368_lcdc_early_resume(struct rk_lcdc_driver *dev_drv)
 	if (!dev_drv->suspend_flag)
 		return 0;
 	rk_disp_pwr_enable(dev_drv);
-	dev_drv->suspend_flag = 0;
 
 	if (1/*lcdc_dev->atv_layer_cnt*/) {
 		rk3368_lcdc_clk_enable(lcdc_dev);
@@ -3243,9 +3263,11 @@ static int rk3368_lcdc_early_resume(struct rk_lcdc_driver *dev_drv)
 
 		spin_unlock(&lcdc_dev->reg_lock);
 	}
+	dev_drv->suspend_flag = 0;
 
 	if (dev_drv->trsm_ops && dev_drv->trsm_ops->enable)
 		dev_drv->trsm_ops->enable();
+	mdelay(100);
 	return 0;
 }
 
@@ -4801,9 +4823,23 @@ static int rk3368_lcdc_remove(struct platform_device *pdev)
 static void rk3368_lcdc_shutdown(struct platform_device *pdev)
 {
 	struct lcdc_device *lcdc_dev = platform_get_drvdata(pdev);
+	struct rk_lcdc_driver *dev_drv = &lcdc_dev->driver;
+#if 1
+	dev_drv->suspend_flag = 1;
+	mdelay(100);
+	flush_kthread_worker(&dev_drv->update_regs_worker);
+	kthread_stop(dev_drv->update_regs_thread);
+	rk3368_lcdc_deint(lcdc_dev);
+	if (dev_drv->trsm_ops && dev_drv->trsm_ops->disable)
+		dev_drv->trsm_ops->disable();
 
+	rk3368_lcdc_clk_disable(lcdc_dev);
+	rk_disp_pwr_disable(dev_drv);
+#else
 	rk3368_lcdc_early_suspend(&lcdc_dev->driver);
 	rk3368_lcdc_deint(lcdc_dev);
+#endif
+
 }
 
 #if defined(CONFIG_OF)
