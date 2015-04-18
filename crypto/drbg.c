@@ -1249,11 +1249,6 @@ static int drbg_generate(struct drbg_state *drbg,
 	if ((drbg_max_requests(drbg)) < drbg->reseed_ctr)
 		drbg->seeded = false;
 
-	/* allocate cipher handle */
-	len = drbg->d_ops->crypto_init(drbg);
-	if (len)
-		goto err;
-
 	if (drbg->pr || !drbg->seeded) {
 		pr_devel("DRBG: reseeding before generation (prediction "
 			 "resistance: %s, state %s)\n",
@@ -1325,7 +1320,6 @@ static int drbg_generate(struct drbg_state *drbg,
 	 */
 	len = 0;
 err:
-	drbg->d_ops->crypto_fini(drbg);
 	return len;
 }
 
@@ -1424,9 +1418,10 @@ static int drbg_instantiate(struct drbg_state *drbg, struct drbg_string *pers,
 	if (drbg->d_ops->crypto_init(drbg))
 		goto err;
 	ret = drbg_seed(drbg, pers, false);
-	drbg->d_ops->crypto_fini(drbg);
-	if (ret)
+	if (ret) {
+		drbg->d_ops->crypto_fini(drbg);
 		goto err;
+	}
 
 	mutex_unlock(&drbg->drbg_mutex);
 	return 0;
@@ -1450,6 +1445,7 @@ unlock:
 static int drbg_uninstantiate(struct drbg_state *drbg)
 {
 	mutex_lock(&drbg->drbg_mutex);
+	drbg->d_ops->crypto_fini(drbg);
 	drbg_dealloc_state(drbg);
 	/* no scrubbing of test_data -- this shall survive an uninstantiate */
 	mutex_unlock(&drbg->drbg_mutex);
