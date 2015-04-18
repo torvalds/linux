@@ -336,7 +336,8 @@ static inline void __set_free(struct f2fs_sb_info *sbi, unsigned int segno)
 	clear_bit(segno, free_i->free_segmap);
 	free_i->free_segments++;
 
-	next = find_next_bit(free_i->free_segmap, MAIN_SEGS(sbi), start_segno);
+	next = find_next_bit(free_i->free_segmap,
+			start_segno + sbi->segs_per_sec, start_segno);
 	if (next >= start_segno + sbi->segs_per_sec) {
 		clear_bit(secno, free_i->free_secmap);
 		free_i->free_sections++;
