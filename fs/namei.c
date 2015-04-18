@@ -836,21 +836,22 @@ static int may_linkat(struct path *link)
 	return -EPERM;
 }
 
-static __always_inline int
-follow_link(struct path *link, struct nameidata *nd, void **p)
+static __always_inline const char *
+get_link(struct path *link, struct nameidata *nd, void **p)
 {
 	struct dentry *dentry = link->dentry;
+	struct inode *inode = dentry->d_inode;
 	int error;
-	const char *s;
+	const char *res;
 
 	BUG_ON(nd->flags & LOOKUP_RCU);
 
 	if (link->mnt == nd->path.mnt)
 		mntget(link->mnt);
 
-	error = -ELOOP;
+	res = ERR_PTR(-ELOOP);
 	if (unlikely(current->total_link_count >= 40))
-		goto out_put_nd_path;
+		goto out;
 
 	cond_resched();
 	current->total_link_count++;
@@ -858,37 +859,43 @@ follow_link(struct path *link, struct nameidata *nd, void **p)
 	touch_atime(link);
 
 	error = security_inode_follow_link(dentry);
+	res = ERR_PTR(error);
 	if (error)
-		goto out_put_nd_path;
+		goto out;
 
 	nd->last_type = LAST_BIND;
 	*p = NULL;
-	s = dentry->d_inode->i_op->follow_link(dentry, p, nd);
-	error = PTR_ERR(s);
-	if (IS_ERR(s))
-		goto out_put_nd_path;
-
-	error = 0;
-	if (s) {
-		if (*s == '/') {
-			if (!nd->root.mnt)
-				set_root(nd);
-			path_put(&nd->path);
-			nd->path = nd->root;
-			path_get(&nd->root);
-			nd->flags |= LOOKUP_JUMPED;
-		}
-		nd->inode = nd->path.dentry->d_inode;
-		error = link_path_walk(s, nd);
-		if (unlikely(error))
-			put_link(nd, link, *p);
+	res = inode->i_op->follow_link(dentry, p, nd);
+	if (IS_ERR(res)) {
+out:
+		path_put(&nd->path);
+		path_put(link);
 	}
+	return res;
+}
 
-	return error;
+static __always_inline int
+follow_link(struct path *link, struct nameidata *nd, void **p)
+{
+	const char *s = get_link(link, nd, p);
+	int error;
 
-out_put_nd_path:
-	path_put(&nd->path);
-	path_put(link);
+	if (unlikely(IS_ERR(s)))
+		return PTR_ERR(s);
+	if (unlikely(!s))
+		return 0;
+	if (*s == '/') {
+		if (!nd->root.mnt)
+			set_root(nd);
+		path_put(&nd->path);
+		nd->path = nd->root;
+		path_get(&nd->root);
+		nd->flags |= LOOKUP_JUMPED;
+	}
+	nd->inode = nd->path.dentry->d_inode;
+	error = link_path_walk(s, nd);
+	if (unlikely(error))
+		put_link(nd, link, *p);
 	return error;
 }
 
