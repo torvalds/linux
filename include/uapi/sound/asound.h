@@ -864,7 +864,7 @@ struct snd_ctl_elem_id {
 	snd_ctl_elem_iface_t iface;	/* interface identifier */
 	unsigned int device;		/* device/client number */
 	unsigned int subdevice;		/* subdevice (substream) number */
-	unsigned char name[44];		/* ASCII name of item */
+	unsigned char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];		/* ASCII name of item */
 	unsigned int index;		/* index of item */
 };
 
