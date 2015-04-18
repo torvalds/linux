@@ -1797,7 +1797,11 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 					return err;
 				}
 				err = 0;
-				if (likely(s)) {
+				if (unlikely(!s)) {
+					/* jumped */
+					put_link(nd, &link, cookie);
+					break;
+				} else {
 					if (*s == '/') {
 						if (!nd->root.mnt)
 							set_root(nd);
@@ -1812,9 +1816,9 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 						put_link(nd, &link, cookie);
 						break;
 					}
+					err = walk_component(nd, LOOKUP_FOLLOW);
+					put_link(nd, &link, cookie);
 				}
-				err = walk_component(nd, LOOKUP_FOLLOW);
-				put_link(nd, &link, cookie);
 			} while (err > 0);
 
 			current->link_count--;
