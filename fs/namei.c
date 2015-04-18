@@ -1613,43 +1613,6 @@ out_err:
 }
 
 /*
- * This limits recursive symlink follows to 8, while
- * limiting consecutive symlinks to 40.
- *
- * Without that kind of total limit, nasty chains of consecutive
- * symlinks can cause almost arbitrarily long lookups.
- */
-static inline int nested_symlink(struct nameidata *nd)
-{
-	int res;
-
-	if (unlikely(current->link_count >= MAX_NESTED_LINKS)) {
-		path_put_conditional(&nd->link, nd);
-		path_put(&nd->path);
-		return -ELOOP;
-	}
-	BUG_ON(nd->depth >= MAX_NESTED_LINKS);
-
-	nd->depth++;
-	current->link_count++;
-
-	do {
-		struct path link = nd->link;
-		void *cookie;
-
-		res = follow_link(&link, nd, &cookie);
-		if (res)
-			break;
-		res = walk_component(nd, LOOKUP_FOLLOW);
-		put_link(nd, &link, cookie);
-	} while (res > 0);
-
-	current->link_count--;
-	nd->depth--;
-	return res;
-}
-
-/*
  * We can do the critical dentry name comparison and hashing
  * operations one word at a time, but we are limited to:
  *
@@ -1839,7 +1802,29 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 			return err;
 
 		if (err) {
-			err = nested_symlink(nd);
+			if (unlikely(current->link_count >= MAX_NESTED_LINKS)) {
+				path_put_conditional(&nd->link, nd);
+				path_put(&nd->path);
+				return -ELOOP;
+			}
+			BUG_ON(nd->depth >= MAX_NESTED_LINKS);
+
+			nd->depth++;
+			current->link_count++;
+
+			do {
+				struct path link = nd->link;
+				void *cookie;
+
+				err = follow_link(&link, nd, &cookie);
+				if (err)
+					break;
+				err = walk_component(nd, LOOKUP_FOLLOW);
+				put_link(nd, &link, cookie);
+			} while (err > 0);
+
+			current->link_count--;
+			nd->depth--;
 			if (err)
 				return err;
 		}
