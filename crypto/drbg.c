@@ -1442,19 +1442,19 @@ static int drbg_generate_long(struct drbg_state *drbg,
 			      unsigned char *buf, unsigned int buflen,
 			      struct drbg_string *addtl)
 {
-	int len = 0;
+	unsigned int len = 0;
 	unsigned int slice = 0;
 	do {
-		int tmplen = 0;
+		int err = 0;
 		unsigned int chunk = 0;
 		slice = ((buflen - len) / drbg_max_request_bytes(drbg));
 		chunk = slice ? drbg_max_request_bytes(drbg) : (buflen - len);
-		tmplen = drbg_generate(drbg, buf + len, chunk, addtl);
-		if (0 >= tmplen)
-			return tmplen;
-		len += tmplen;
+		err = drbg_generate(drbg, buf + len, chunk, addtl);
+		if (0 > err)
+			return err;
+		len += chunk;
 	} while (slice > 0 && (len < buflen));
-	return len;
+	return 0;
 }
 
 /*
