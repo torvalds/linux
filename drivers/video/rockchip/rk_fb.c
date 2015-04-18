@@ -2179,6 +2179,16 @@ static int rk_fb_set_win_config(struct fb_info *info,
 	int list_is_empty = 0;
         struct rk_screen *screen = dev_drv->cur_screen;
 
+	win_data->ret_fence_fd = get_unused_fd();
+	if (win_data->ret_fence_fd < 0) {
+		pr_err("ret_fence_fd=%d\n", win_data->ret_fence_fd);
+		win_data->ret_fence_fd = -1;
+		ret = -EFAULT;
+		return ret;
+	}
+
+	mutex_lock(&dev_drv->output_lock);
+
         for (i = 0; i < 4; i++) {
                 for (j = 0; j < 4; j++) {
                         if (win_data->win_par[i].area_par[j].ion_fd > 0)
@@ -2199,21 +2209,23 @@ static int rk_fb_set_win_config(struct fb_info *info,
 		for (j = 0; j < RK_MAX_BUF_NUM; j++)
 		        win_data->rel_fence_fd[j] = -1;
 		win_data->ret_fence_fd = -1;
-		return 0;
+		goto err;
 	}
 
 	regs = kzalloc(sizeof(struct rk_fb_reg_data), GFP_KERNEL);
 	if (!regs) {
 		printk(KERN_INFO "could not allocate rk_fb_reg_data\n");
 		ret = -ENOMEM;
-		return ret;
+		goto err;
 	}
 
 	for (i = 0,j = 0; i < dev_drv->lcdc_win_num; i++) {
 		if (win_data->win_par[i].win_id < dev_drv->lcdc_win_num) {
 			if (rk_fb_set_win_buffer(info, &win_data->win_par[i],
-							&regs->reg_win_data[j]))
-				return -ENOMEM;
+						 &regs->reg_win_data[j])) {
+				ret = -ENOMEM;
+				goto err;
+			}
 			if (regs->reg_win_data[j].area_num > 0) {
 				regs->win_num++;
 				regs->buf_num +=
@@ -2229,8 +2241,6 @@ static int rk_fb_set_win_config(struct fb_info *info,
 
 	if (regs->win_num <= 0)
 		goto err_null_frame;
-
-	mutex_lock(&dev_drv->output_lock);
 
 	dev_drv->timeline_max++;
 #ifdef H_USE_FENCE
@@ -2256,13 +2266,6 @@ static int rk_fb_set_win_config(struct fb_info *info,
 		}
 	}
 
-	win_data->ret_fence_fd = get_unused_fd();
-	if (win_data->ret_fence_fd < 0) {
-		printk("ret_fence_fd=%d\n", win_data->ret_fence_fd);
-		win_data->ret_fence_fd = -1;
-		ret = -EFAULT;
-		goto err;
-	}
 	retire_sync_pt =
 	    sw_sync_pt_create(dev_drv->timeline, dev_drv->timeline_max);
 	retire_fence = sync_fence_create("ret_fence", retire_sync_pt);
@@ -2305,6 +2308,7 @@ err_null_frame:
 	for (j = 0; j < RK_MAX_BUF_NUM; j++)
 		win_data->rel_fence_fd[j] = -1;
 	win_data->ret_fence_fd = -1;
+	mutex_unlock(&dev_drv->output_lock);
 	pr_info("win num = %d,null frame\n", regs->win_num);
 	return 0;
 }
