@@ -1972,6 +1972,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			         or
 			         memmap=0x10000$0x18690000
 
+	memmap=nn[KMG]!ss[KMG]
+			[KNL,X86] Mark specific memory as protected.
+			Region of memory to be used, from ss to ss+nn.
+			The memory region may be marked as e820 type 12 (0xc)
+			and is NVDIMM or ADR memory.
+
 	memory_corruption_check=0/1 [X86]
 			Some BIOSes seem to corrupt the first 64k of
 			memory when doing things like suspend/resume.
