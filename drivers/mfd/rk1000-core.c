@@ -118,7 +118,7 @@ static int rk1000_control_suspend(struct device *dev)
 	DBG("ret=0x%x\n", ret);
 	ret = rk1000_i2c_send(I2C_ADDR_CTRL, CTRL_TVE, 0x07);
 	DBG("ret=0x%x\n", ret);
-	rk1000_reset_ctrl(0);
+	//rk1000_reset_ctrl(0);
 	return 0;
 }
 
@@ -126,7 +126,7 @@ static int rk1000_control_resume(struct device *dev)
 {
 	int ret;
 
-	rk1000_reset_ctrl(1);
+	//rk1000_reset_ctrl(1);
 	DBG("rk1000_control_resume\n");
 	/* ADC power off */
 	ret = rk1000_i2c_send(I2C_ADDR_CTRL, CTRL_ADC, 0x88);

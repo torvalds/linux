@@ -738,11 +738,13 @@ static int rk1000_codec_suspend(struct snd_soc_codec *codec)
 {
 	DBG("Enter::%s----%d\n", __func__, __LINE__);
 	spk_ctrl_fun(GPIO_LOW);
+	rk1000_codec_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	return 0;
 }
 
 static int rk1000_codec_resume(struct snd_soc_codec *codec)
 {
+	rk1000_codec_set_bias_level(codec, SND_SOC_BIAS_PREPARE);
 	spk_ctrl_fun(GPIO_HIGH);
 	return 0;
 }
