@@ -147,7 +147,7 @@ static ssize_t mdc_kuc_write(struct file *file,
 	return count;
 }
 
-struct file_operations mdc_kuc_fops = {
+static struct file_operations mdc_kuc_fops = {
 	.open		= mdc_kuc_open,
 	.write		= mdc_kuc_write,
 	.release	= single_release,
