@@ -166,6 +166,43 @@ get_tracepoint_field_type(struct ctf_writer *cw, struct format_field *field)
 		return cw->data.u32;
 }
 
+static unsigned long long adjust_signedness(unsigned long long value_int, int size)
+{
+	unsigned long long value_mask;
+
+	/*
+	 * value_mask = (1 << (size * 8 - 1)) - 1.
+	 * Directly set value_mask for code readers.
+	 */
+	switch (size) {
+	case 1:
+		value_mask = 0x7fULL;
+		break;
+	case 2:
+		value_mask = 0x7fffULL;
+		break;
+	case 4:
+		value_mask = 0x7fffffffULL;
+		break;
+	case 8:
+		/*
+		 * For 64 bit value, return it self. There is no need
+		 * to fill high bit.
+		 */
+		/* Fall through */
+	default:
+		/* BUG! */
+		return value_int;
+	}
+
+	/* If it is a positive value, don't adjust. */
+	if ((value_int & (~0ULL - value_mask)) == 0)
+		return value_int;
+
+	/* Fill upper part of value_int with 1 to make it a negative long long. */
+	return (value_int & value_mask) | ~value_mask;
+}
+
 static int add_tracepoint_field_value(struct ctf_writer *cw,
 				      struct bt_ctf_event_class *event_class,
 				      struct bt_ctf_event *event,
@@ -177,7 +214,6 @@ static int add_tracepoint_field_value(struct ctf_writer *cw,
 	struct bt_ctf_field *field;
 	const char *name = fmtf->name;
 	void *data = sample->raw_data;
-	unsigned long long value_int;
 	unsigned long flags = fmtf->flags;
 	unsigned int n_items;
 	unsigned int i;
@@ -222,11 +258,6 @@ static int add_tracepoint_field_value(struct ctf_writer *cw,
 	type = get_tracepoint_field_type(cw, fmtf);
 
 	for (i = 0; i < n_items; i++) {
-		if (!(flags & FIELD_IS_STRING))
-			value_int = pevent_read_number(
-					fmtf->event->pevent,
-					data + offset + i * len, len);
-
 		if (flags & FIELD_IS_ARRAY)
 			field = bt_ctf_field_array_get_field(array_field, i);
 		else
@@ -240,12 +271,21 @@ static int add_tracepoint_field_value(struct ctf_writer *cw,
 		if (flags & FIELD_IS_STRING)
 			ret = bt_ctf_field_string_set_value(field,
 					data + offset + i * len);
-		else if (!(flags & FIELD_IS_SIGNED))
-			ret = bt_ctf_field_unsigned_integer_set_value(
-					field, value_int);
-		else
-			ret = bt_ctf_field_signed_integer_set_value(
-					field, value_int);
+		else {
+			unsigned long long value_int;
+
+			value_int = pevent_read_number(
+					fmtf->event->pevent,
+					data + offset + i * len, len);
+
+			if (!(flags & FIELD_IS_SIGNED))
+				ret = bt_ctf_field_unsigned_integer_set_value(
+						field, value_int);
+			else
+				ret = bt_ctf_field_signed_integer_set_value(
+						field, adjust_signedness(value_int, len));
+		}
+
 		if (ret) {
 			pr_err("failed to set file value %s\n", name);
 			goto err_put_field;
