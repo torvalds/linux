@@ -77,8 +77,7 @@ out:
 	return page;
 }
 
-static inline bool is_valid_blkaddr(struct f2fs_sb_info *sbi,
-						block_t blkaddr, int type)
+bool is_valid_blkaddr(struct f2fs_sb_info *sbi, block_t blkaddr, int type)
 {
 	switch (type) {
 	case META_NAT:

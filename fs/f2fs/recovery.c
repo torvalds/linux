@@ -174,7 +174,7 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head)
 	while (1) {
 		struct fsync_inode_entry *entry;
 
-		if (blkaddr < MAIN_BLKADDR(sbi) || blkaddr >= MAX_BLKADDR(sbi))
+		if (!is_valid_blkaddr(sbi, blkaddr, META_POR))
 			return 0;
 
 		page = get_meta_page(sbi, blkaddr);
@@ -396,7 +396,7 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 		dest = datablock_addr(page, dn.ofs_in_node);
 
 		if (src != dest && dest != NEW_ADDR && dest != NULL_ADDR &&
-			dest >= MAIN_BLKADDR(sbi) && dest < MAX_BLKADDR(sbi)) {
+			is_valid_blkaddr(sbi, dest, META_POR)) {
 
 			if (src == NULL_ADDR) {
 				err = reserve_new_block(&dn);
@@ -454,7 +454,7 @@ static int recover_data(struct f2fs_sb_info *sbi,
 	while (1) {
 		struct fsync_inode_entry *entry;
 
-		if (blkaddr < MAIN_BLKADDR(sbi) || blkaddr >= MAX_BLKADDR(sbi))
+		if (!is_valid_blkaddr(sbi, blkaddr, META_POR))
 			break;
 
 		ra_meta_pages_cond(sbi, blkaddr);
