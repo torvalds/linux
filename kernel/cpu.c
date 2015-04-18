@@ -479,7 +479,7 @@ static struct notifier_block smpboot_thread_notifier = {
 	.priority = CPU_PRI_SMPBOOT,
 };
 
-void __cpuinit smpboot_thread_init(void)
+void smpboot_thread_init(void)
 {
 	register_cpu_notifier(&smpboot_thread_notifier);
 }
