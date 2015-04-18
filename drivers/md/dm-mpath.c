@@ -428,7 +428,7 @@ static int __multipath_map(struct dm_target *ti, struct request *clone,
 	} else {
 		/* blk-mq request-based interface */
 		*__clone = blk_get_request(bdev_get_queue(bdev),
-					   rq_data_dir(rq), GFP_KERNEL);
+					   rq_data_dir(rq), GFP_ATOMIC);
 		if (IS_ERR(*__clone))
 			/* ENOMEM, requeue */
 			return r;
@@ -1627,7 +1627,7 @@ static int __pgpath_busy(struct pgpath *pgpath)
 {
 	struct request_queue *q = bdev_get_queue(pgpath->path.dev->bdev);
 
-	return dm_underlying_device_busy(q);
+	return blk_lld_busy(q);
 }
 
 /*
@@ -1703,7 +1703,7 @@ out:
  *---------------------------------------------------------------*/
 static struct target_type multipath_target = {
 	.name = "multipath",
-	.version = {1, 8, 0},
+	.version = {1, 9, 0},
 	.module = THIS_MODULE,
 	.ctr = multipath_ctr,
 	.dtr = multipath_dtr,
