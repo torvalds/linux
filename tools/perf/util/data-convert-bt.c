@@ -14,6 +14,7 @@
 #include <babeltrace/ctf-writer/event.h>
 #include <babeltrace/ctf-writer/event-types.h>
 #include <babeltrace/ctf-writer/event-fields.h>
+#include <babeltrace/ctf-ir/utils.h>
 #include <babeltrace/ctf/events.h>
 #include <traceevent/event-parse.h>
 #include "asm/bug.h"
@@ -184,6 +185,7 @@ static int add_tracepoint_field_value(struct ctf_writer *cw,
 	unsigned int len;
 	int ret;
 
+	name = fmtf->alias;
 	offset = fmtf->offset;
 	len = fmtf->size;
 	if (flags & FIELD_IS_STRING)
@@ -567,6 +569,82 @@ static int process_sample_event(struct perf_tool *tool,
 	return cs ? 0 : -1;
 }
 
+/* If dup < 0, add a prefix. Else, add _dupl_X suffix. */
+static char *change_name(char *name, char *orig_name, int dup)
+{
+	char *new_name = NULL;
+	size_t len;
+
+	if (!name)
+		name = orig_name;
+
+	if (dup >= 10)
+		goto out;
+	/*
+	 * Add '_' prefix to potential keywork.  According to
+	 * Mathieu Desnoyers (https://lkml.org/lkml/2015/1/23/652),
+	 * futher CTF spec updating may require us to use '$'.
+	 */
+	if (dup < 0)
+		len = strlen(name) + sizeof("_");
+	else
+		len = strlen(orig_name) + sizeof("_dupl_X");
+
+	new_name = malloc(len);
+	if (!new_name)
+		goto out;
+
+	if (dup < 0)
+		snprintf(new_name, len, "_%s", name);
+	else
+		snprintf(new_name, len, "%s_dupl_%d", orig_name, dup);
+
+out:
+	if (name != orig_name)
+		free(name);
+	return new_name;
+}
+
+static int event_class_add_field(struct bt_ctf_event_class *event_class,
+		struct bt_ctf_field_type *type,
+		struct format_field *field)
+{
+	struct bt_ctf_field_type *t = NULL;
+	char *name;
+	int dup = 1;
+	int ret;
+
+	/* alias was already assigned */
+	if (field->alias != field->name)
+		return bt_ctf_event_class_add_field(event_class, type,
+				(char *)field->alias);
+
+	name = field->name;
+
+	/* If 'name' is a keywork, add prefix. */
+	if (bt_ctf_validate_identifier(name))
+		name = change_name(name, field->name, -1);
+
+	if (!name) {
+		pr_err("Failed to fix invalid identifier.");
+		return -1;
+	}
+	while ((t = bt_ctf_event_class_get_field_by_name(event_class, name))) {
+		bt_ctf_field_type_put(t);
+		name = change_name(name, field->name, dup++);
+		if (!name) {
+			pr_err("Failed to create dup name for '%s'\n", field->name);
+			return -1;
+		}
+	}
+
+	ret = bt_ctf_event_class_add_field(event_class, type, name);
+	if (!ret)
+		field->alias = name;
+
+	return ret;
+}
+
 static int add_tracepoint_fields_types(struct ctf_writer *cw,
 				       struct format_field *fields,
 				       struct bt_ctf_event_class *event_class)
@@ -595,14 +673,14 @@ static int add_tracepoint_fields_types(struct ctf_writer *cw,
 		if (flags & FIELD_IS_ARRAY)
 			type = bt_ctf_field_type_array_create(type, field->arraylen);
 
-		ret = bt_ctf_event_class_add_field(event_class, type,
-				field->name);
+		ret = event_class_add_field(event_class, type, field);
 
 		if (flags & FIELD_IS_ARRAY)
 			bt_ctf_field_type_put(type);
 
 		if (ret) {
-			pr_err("Failed to add field '%s\n", field->name);
+			pr_err("Failed to add field '%s': %d\n",
+					field->name, ret);
 			return -1;
 		}
 	}
@@ -646,7 +724,7 @@ static int add_generic_types(struct ctf_writer *cw, struct perf_evsel *evsel,
 	do {								\
 		pr2("  field '%s'\n", n);				\
 		if (bt_ctf_event_class_add_field(cl, t, n)) {		\
-			pr_err("Failed to add field '%s;\n", n);	\
+			pr_err("Failed to add field '%s';\n", n);	\
 			return -1;					\
 		}							\
 	} while (0)
