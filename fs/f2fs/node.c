@@ -209,7 +209,7 @@ bool is_checkpointed_node(struct f2fs_sb_info *sbi, nid_t nid)
 	return is_cp;
 }
 
-bool has_fsynced_inode(struct f2fs_sb_info *sbi, nid_t ino)
+static bool has_fsynced_inode(struct f2fs_sb_info *sbi, nid_t ino)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct nat_entry *e;
