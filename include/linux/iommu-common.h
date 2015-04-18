@@ -15,41 +15,37 @@ struct iommu_pool {
 	spinlock_t	lock;
 };
 
-struct iommu_table;
-
-struct iommu_tbl_ops {
-	unsigned long	(*cookie_to_index)(u64, void *);
-	void		(*demap)(void *, unsigned long, unsigned long);
-	void		(*reset)(struct iommu_table *);
-};
-
-struct iommu_table {
-	unsigned long		page_table_map_base;
-	unsigned long		page_table_shift;
+struct iommu_map_table {
+	unsigned long		table_map_base;
+	unsigned long		table_shift;
 	unsigned long		nr_pools;
-	const struct iommu_tbl_ops  *iommu_tbl_ops;
+	void			(*lazy_flush)(struct iommu_map_table *);
 	unsigned long		poolsize;
-	struct iommu_pool	arena_pool[IOMMU_NR_POOLS];
+	struct iommu_pool	pools[IOMMU_NR_POOLS];
 	u32			flags;
 #define	IOMMU_HAS_LARGE_POOL	0x00000001
+#define	IOMMU_NO_SPAN_BOUND	0x00000002
+#define	IOMMU_NEED_FLUSH	0x00000004
 	struct iommu_pool	large_pool;
 	unsigned long		*map;
 };
 
-extern void iommu_tbl_pool_init(struct iommu_table *iommu,
+extern void iommu_tbl_pool_init(struct iommu_map_table *iommu,
 				unsigned long num_entries,
-				u32 page_table_shift,
-				const struct iommu_tbl_ops *iommu_tbl_ops,
-				bool large_pool, u32 npools);
+				u32 table_shift,
+				void (*lazy_flush)(struct iommu_map_table *),
+				bool large_pool, u32 npools,
+				bool skip_span_boundary_check);
 
 extern unsigned long iommu_tbl_range_alloc(struct device *dev,
-					   struct iommu_table *iommu,
+					   struct iommu_map_table *iommu,
 					   unsigned long npages,
 					   unsigned long *handle,
-					   unsigned int pool_hash);
+					   unsigned long mask,
+					   unsigned int align_order);
 
-extern void iommu_tbl_range_free(struct iommu_table *iommu,
+extern void iommu_tbl_range_free(struct iommu_map_table *iommu,
 				 u64 dma_addr, unsigned long npages,
-				 bool do_demap, void *demap_arg);
+				 unsigned long entry);
 
 #endif

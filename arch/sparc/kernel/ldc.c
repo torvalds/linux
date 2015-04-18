@@ -15,7 +15,6 @@
 #include <linux/list.h>
 #include <linux/init.h>
 #include <linux/bitmap.h>
-#include <linux/hash.h>
 #include <linux/iommu-common.h>
 
 #include <asm/hypervisor.h>
@@ -32,7 +31,6 @@
 #define COOKIE_PGSZ_CODE	0xf000000000000000ULL
 #define COOKIE_PGSZ_CODE_SHIFT	60ULL
 
-static DEFINE_PER_CPU(unsigned int, ldc_pool_hash);
 
 static char version[] =
 	DRV_MODULE_NAME ".c:v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
@@ -108,7 +106,7 @@ struct ldc_iommu {
 	/* Protects ldc_unmap.  */
 	spinlock_t			lock;
 	struct ldc_mtable_entry		*page_table;
-	struct iommu_table		iommu_table;
+	struct iommu_map_table		iommu_map_table;
 };
 
 struct ldc_channel {
@@ -1015,18 +1013,9 @@ static unsigned long ldc_cookie_to_index(u64 cookie, void *arg)
 	return (cookie >> (13ULL + (szcode * 3ULL)));
 }
 
-struct ldc_demap_arg {
-	struct ldc_iommu *ldc_iommu;
-	u64 cookie;
-	unsigned long id;
-};
-
-static void ldc_demap(void *arg, unsigned long entry, unsigned long npages)
+static void ldc_demap(struct ldc_iommu *iommu, unsigned long id, u64 cookie,
+		      unsigned long entry, unsigned long npages)
 {
-	struct ldc_demap_arg *ldc_demap_arg = arg;
-	struct ldc_iommu *iommu = ldc_demap_arg->ldc_iommu;
-	unsigned long id = ldc_demap_arg->id;
-	u64 cookie = ldc_demap_arg->cookie;
 	struct ldc_mtable_entry *base;
 	unsigned long i, shift;
 
@@ -1043,36 +1032,17 @@ static void ldc_demap(void *arg, unsigned long entry, unsigned long npages)
 /* XXX Make this configurable... XXX */
 #define LDC_IOTABLE_SIZE	(8 * 1024)
 
-struct iommu_tbl_ops ldc_iommu_ops = {
-	.cookie_to_index = ldc_cookie_to_index,
-	.demap = ldc_demap,
-};
-
-static void setup_ldc_pool_hash(void)
-{
-	unsigned int i;
-	static bool do_once;
-
-	if (do_once)
-		return;
-	do_once = true;
-	for_each_possible_cpu(i)
-		per_cpu(ldc_pool_hash, i) = hash_32(i, IOMMU_POOL_HASHBITS);
-}
-
-
 static int ldc_iommu_init(const char *name, struct ldc_channel *lp)
 {
 	unsigned long sz, num_tsb_entries, tsbsize, order;
 	struct ldc_iommu *ldc_iommu = &lp->iommu;
-	struct iommu_table *iommu = &ldc_iommu->iommu_table;
+	struct iommu_map_table *iommu = &ldc_iommu->iommu_map_table;
 	struct ldc_mtable_entry *table;
 	unsigned long hv_err;
 	int err;
 
 	num_tsb_entries = LDC_IOTABLE_SIZE;
 	tsbsize = num_tsb_entries * sizeof(struct ldc_mtable_entry);
-	setup_ldc_pool_hash();
 	spin_lock_init(&ldc_iommu->lock);
 
 	sz = num_tsb_entries / 8;
@@ -1083,7 +1053,9 @@ static int ldc_iommu_init(const char *name, struct ldc_channel *lp)
 		return -ENOMEM;
 	}
 	iommu_tbl_pool_init(iommu, num_tsb_entries, PAGE_SHIFT,
-			    &ldc_iommu_ops, false, 1);
+			    NULL, false /* no large pool */,
+			    1 /* npools */,
+			    true /* skip span boundary check */);
 
 	order = get_order(tsbsize);
 
@@ -1122,7 +1094,7 @@ out_free_map:
 static void ldc_iommu_release(struct ldc_channel *lp)
 {
 	struct ldc_iommu *ldc_iommu = &lp->iommu;
-	struct iommu_table *iommu = &ldc_iommu->iommu_table;
+	struct iommu_map_table *iommu = &ldc_iommu->iommu_map_table;
 	unsigned long num_tsb_entries, tsbsize, order;
 
 	(void) sun4v_ldc_set_map_table(lp->id, 0, 0);
@@ -1979,8 +1951,8 @@ static struct ldc_mtable_entry *alloc_npages(struct ldc_iommu *iommu,
 {
 	long entry;
 
-	entry = iommu_tbl_range_alloc(NULL, &iommu->iommu_table, npages,
-				     NULL, __this_cpu_read(ldc_pool_hash));
+	entry = iommu_tbl_range_alloc(NULL, &iommu->iommu_map_table,
+				      npages, NULL, (unsigned long)-1, 0);
 	if (unlikely(entry < 0))
 		return NULL;
 
@@ -2191,17 +2163,13 @@ EXPORT_SYMBOL(ldc_map_single);
 static void free_npages(unsigned long id, struct ldc_iommu *iommu,
 			u64 cookie, u64 size)
 {
-	unsigned long npages;
-	struct ldc_demap_arg demap_arg;
-
-	demap_arg.ldc_iommu = iommu;
-	demap_arg.cookie = cookie;
-	demap_arg.id = id;
+	unsigned long npages, entry;
 
 	npages = PAGE_ALIGN(((cookie & ~PAGE_MASK) + size)) >> PAGE_SHIFT;
-	iommu_tbl_range_free(&iommu->iommu_table, cookie, npages, true,
-			     &demap_arg);
 
+	entry = ldc_cookie_to_index(cookie, iommu);
+	ldc_demap(iommu, id, cookie, entry, npages);
+	iommu_tbl_range_free(&iommu->iommu_map_table, cookie, npages, entry);
 }
 
 void ldc_unmap(struct ldc_channel *lp, struct ldc_trans_cookie *cookies,
