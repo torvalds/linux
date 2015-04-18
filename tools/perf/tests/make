@@ -223,7 +223,19 @@ tarpkg:
 	echo "- $@: $$cmd" && echo $$cmd > $@ && \
 	( eval $$cmd ) >> $@ 2>&1
 
-all: $(run) $(run_O) tarpkg
+make_kernelsrc:
+	@echo " - make -C <kernelsrc> tools/perf"
+	$(call clean); \
+	(make -C ../.. tools/perf) > $@ 2>&1 && \
+	test -x perf && rm -f $@ || (cat $@ ; false)
+
+make_kernelsrc_tools:
+	@echo " - make -C <kernelsrc>/tools perf"
+	$(call clean); \
+	(make -C ../../tools perf) > $@ 2>&1 && \
+	test -x perf && rm -f $@ || (cat $@ ; false)
+
+all: $(run) $(run_O) tarpkg make_kernelsrc make_kernelsrc_tools
 	@echo OK
 
 out: $(run_O)
