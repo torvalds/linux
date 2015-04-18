@@ -5,27 +5,6 @@
 #include <linux/export.h>
 #include <linux/bootmem.h>
 
-int __first_cpu(const cpumask_t *srcp)
-{
-	return min_t(int, NR_CPUS, find_first_bit(srcp->bits, NR_CPUS));
-}
-EXPORT_SYMBOL(__first_cpu);
-
-int __next_cpu(int n, const cpumask_t *srcp)
-{
-	return min_t(int, NR_CPUS, find_next_bit(srcp->bits, NR_CPUS, n+1));
-}
-EXPORT_SYMBOL(__next_cpu);
-
-#if NR_CPUS > 64
-int __next_cpu_nr(int n, const cpumask_t *srcp)
-{
-	return min_t(int, nr_cpu_ids,
-				find_next_bit(srcp->bits, nr_cpu_ids, n+1));
-}
-EXPORT_SYMBOL(__next_cpu_nr);
-#endif
-
 /**
  * cpumask_next_and - get the next cpu in *src1p & *src2p
  * @n: the cpu prior to the place to search (ie. return will be > @n)
