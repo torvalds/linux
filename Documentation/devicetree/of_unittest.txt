@@ -1,11 +1,11 @@
-Open Firmware Device Tree Selftest
+Open Firmware Device Tree Unittest
 ----------------------------------
 
 Author: Gaurav Minocha <gaurav.minocha.os@gmail.com>
 
 1. Introduction
 
-This document explains how the test data required for executing OF selftest
+This document explains how the test data required for executing OF unittest
 is attached to the live tree dynamically, independent of the machine's
 architecture.
 
@@ -22,31 +22,31 @@ most of the device drivers in various use cases.
 
 2. Test-data
 
-The Device Tree Source file (drivers/of/testcase-data/testcases.dts) contains
+The Device Tree Source file (drivers/of/unittest-data/testcases.dts) contains
 the test data required for executing the unit tests automated in
-drivers/of/selftests.c. Currently, following Device Tree Source Include files
-(.dtsi) are included in testcase.dts:
+drivers/of/unittest.c. Currently, following Device Tree Source Include files
+(.dtsi) are included in testcases.dts:
 
-drivers/of/testcase-data/tests-interrupts.dtsi
-drivers/of/testcase-data/tests-platform.dtsi
-drivers/of/testcase-data/tests-phandle.dtsi
-drivers/of/testcase-data/tests-match.dtsi
+drivers/of/unittest-data/tests-interrupts.dtsi
+drivers/of/unittest-data/tests-platform.dtsi
+drivers/of/unittest-data/tests-phandle.dtsi
+drivers/of/unittest-data/tests-match.dtsi
 
 When the kernel is build with OF_SELFTEST enabled, then the following make rule
 
 $(obj)/%.dtb: $(src)/%.dts FORCE
 	$(call if_changed_dep, dtc)
 
-is used to compile the DT source file (testcase.dts) into a binary blob
-(testcase.dtb), also referred as flattened DT.
+is used to compile the DT source file (testcases.dts) into a binary blob
+(testcases.dtb), also referred as flattened DT.
 
 After that, using the following rule the binary blob above is wrapped as an
-assembly file (testcase.dtb.S).
+assembly file (testcases.dtb.S).
 
 $(obj)/%.dtb.S: $(obj)/%.dtb
 	$(call cmd, dt_S_dtb)
 
-The assembly file is compiled into an object file (testcase.dtb.o), and is
+The assembly file is compiled into an object file (testcases.dtb.o), and is
 linked into the kernel image.
 
 
@@ -98,7 +98,7 @@ child11 -> sibling12 -> sibling13 -> sibling14 -> null
 Figure 1: Generic structure of un-flattened device tree
 
 
-Before executing OF selftest, it is required to attach the test data to
+Before executing OF unittest, it is required to attach the test data to
 machine's device tree (if present). So, when selftest_data_add() is called,
 at first it reads the flattened device tree data linked into the kernel image
 via the following kernel symbols:
