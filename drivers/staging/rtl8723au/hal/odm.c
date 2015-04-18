@@ -388,7 +388,7 @@ void odm_CommonInfoSelfInit23a(struct dm_odm_t *pDM_Odm)
 		pDM_Odm->bCckHighPower = true;
 	else
 		pDM_Odm->bCckHighPower = false;
-		
+
 	pDM_Odm->RFPathRxEnable =
 		rtl8723au_read32(pDM_Odm->Adapter, rOFDM0_TRxPathEnable) & 0x0F;
 
