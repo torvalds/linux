@@ -456,17 +456,13 @@ static int write_info(struct Scsi_Host *host, char *buffer, int length)
 	return length;
 }
 
-/* we use this macro to help us write into the buffer */
-#undef SPRINTF
-#define SPRINTF(args...) seq_printf(m, ## args)
-
 static int show_info (struct seq_file *m, struct Scsi_Host *host)
 {
 	struct us_data *us = host_to_us(host);
 	const char *string;
 
 	/* print the controller name */
-	SPRINTF("   Host scsi%d: usb-storage\n", host->host_no);
+	seq_printf(m, "   Host scsi%d: usb-storage\n", host->host_no);
 
 	/* print product, vendor, and serial number strings */
 	if (us->pusb_dev->manufacturer)
@@ -475,26 +471,26 @@ static int show_info (struct seq_file *m, struct Scsi_Host *host)
 		string = us->unusual_dev->vendorName;
 	else
 		string = "Unknown";
-	SPRINTF("       Vendor: %s\n", string);
+	seq_printf(m, "       Vendor: %s\n", string);
 	if (us->pusb_dev->product)
 		string = us->pusb_dev->product;
 	else if (us->unusual_dev->productName)
 		string = us->unusual_dev->productName;
 	else
 		string = "Unknown";
-	SPRINTF("      Product: %s\n", string);
+	seq_printf(m, "      Product: %s\n", string);
 	if (us->pusb_dev->serial)
 		string = us->pusb_dev->serial;
 	else
 		string = "None";
-	SPRINTF("Serial Number: %s\n", string);
+	seq_printf(m, "Serial Number: %s\n", string);
 
 	/* show the protocol and transport */
-	SPRINTF("     Protocol: %s\n", us->protocol_name);
-	SPRINTF("    Transport: %s\n", us->transport_name);
+	seq_printf(m, "     Protocol: %s\n", us->protocol_name);
+	seq_printf(m, "    Transport: %s\n", us->transport_name);
 
 	/* show the device flags */
-	SPRINTF("       Quirks:");
+	seq_printf(m, "       Quirks:");
 
 #define US_FLAG(name, value) \
 	if (us->fflags & value) seq_printf(m, " " #name);
