@@ -1312,30 +1312,30 @@ EXPORT_SYMBOL(sbc_dif_copy_prot);
 
 sense_reason_t
 sbc_dif_verify(struct se_cmd *cmd, sector_t start, unsigned int sectors,
-	       unsigned int ei_lba, struct scatterlist *sg, int sg_off)
+	       unsigned int ei_lba, struct scatterlist *psg, int psg_off)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct se_dif_v1_tuple *sdt;
-	struct scatterlist *dsg, *psg = sg;
+	struct scatterlist *dsg;
 	sector_t sector = start;
 	void *daddr, *paddr;
-	int i, j, offset = sg_off;
+	int i, j;
 	sense_reason_t rc;
 
 	for_each_sg(cmd->t_data_sg, dsg, cmd->t_data_nents, i) {
 		daddr = kmap_atomic(sg_page(dsg)) + dsg->offset;
-		paddr = kmap_atomic(sg_page(psg)) + sg->offset;
+		paddr = kmap_atomic(sg_page(psg)) + psg->offset;
 
 		for (j = 0; j < dsg->length; j += dev->dev_attrib.block_size) {
 
-			if (offset >= psg->length) {
-				kunmap_atomic(paddr);
+			if (psg_off >= psg->length) {
+				kunmap_atomic(paddr - psg->offset);
 				psg = sg_next(psg);
 				paddr = kmap_atomic(sg_page(psg)) + psg->offset;
-				offset = 0;
+				psg_off = 0;
 			}
 
-			sdt = paddr + offset;
+			sdt = paddr + psg_off;
 
 			pr_debug("DIF READ sector: %llu guard_tag: 0x%04x"
 				 " app_tag: 0x%04x ref_tag: %u\n",
@@ -1344,26 +1344,26 @@ sbc_dif_verify(struct se_cmd *cmd, sector_t start, unsigned int sectors,
 
 			if (sdt->app_tag == cpu_to_be16(0xffff)) {
 				sector++;
-				offset += sizeof(struct se_dif_v1_tuple);
+				psg_off += sizeof(struct se_dif_v1_tuple);
 				continue;
 			}
 
 			rc = sbc_dif_v1_verify(cmd, sdt, daddr + j, sector,
 					       ei_lba);
 			if (rc) {
-				kunmap_atomic(paddr);
-				kunmap_atomic(daddr);
+				kunmap_atomic(paddr - psg->offset);
+				kunmap_atomic(daddr - dsg->offset);
 				cmd->bad_sector = sector;
 				return rc;
 			}
 
 			sector++;
 			ei_lba++;
-			offset += sizeof(struct se_dif_v1_tuple);
+			psg_off += sizeof(struct se_dif_v1_tuple);
 		}
 
-		kunmap_atomic(paddr);
-		kunmap_atomic(daddr);
+		kunmap_atomic(paddr - psg->offset);
+		kunmap_atomic(daddr - dsg->offset);
 	}
 
 	return 0;
