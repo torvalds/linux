@@ -17,7 +17,7 @@
 
 static unsigned long iommu_large_alloc = 15;
 
-static	DEFINE_PER_CPU(unsigned int, iommu_pool_hash);
+static	DEFINE_PER_CPU(unsigned int, iommu_hash_common);
 
 static inline bool need_flush(struct iommu_map_table *iommu)
 {
@@ -44,7 +44,7 @@ static void setup_iommu_pool_hash(void)
 		return;
 	do_once = true;
 	for_each_possible_cpu(i)
-		per_cpu(iommu_pool_hash, i) = hash_32(i, IOMMU_POOL_HASHBITS);
+		per_cpu(iommu_hash_common, i) = hash_32(i, IOMMU_POOL_HASHBITS);
 }
 
 /*
@@ -106,7 +106,7 @@ unsigned long iommu_tbl_range_alloc(struct device *dev,
 				unsigned long mask,
 				unsigned int align_order)
 {
-	unsigned int pool_hash = __this_cpu_read(iommu_pool_hash);
+	unsigned int pool_hash = __this_cpu_read(iommu_hash_common);
 	unsigned long n, end, start, limit, boundary_size;
 	struct iommu_pool *pool;
 	int pass = 0;
