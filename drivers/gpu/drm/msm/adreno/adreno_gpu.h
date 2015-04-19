@@ -233,6 +233,7 @@ void adreno_idle(struct msm_gpu *gpu);
 #ifdef CONFIG_DEBUG_FS
 void adreno_show(struct msm_gpu *gpu, struct seq_file *m);
 #endif
+void adreno_dump_info(struct msm_gpu *gpu);
 void adreno_dump(struct msm_gpu *gpu);
 void adreno_wait_ring(struct msm_gpu *gpu, uint32_t ndwords);
 

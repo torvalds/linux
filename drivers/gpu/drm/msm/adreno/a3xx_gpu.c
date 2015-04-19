@@ -295,9 +295,12 @@ static int a3xx_hw_init(struct msm_gpu *gpu)
 
 static void a3xx_recover(struct msm_gpu *gpu)
 {
+	adreno_dump_info(gpu);
+
 	/* dump registers before resetting gpu, if enabled: */
 	if (hang_debug)
 		a3xx_dump(gpu);
+
 	gpu_write(gpu, REG_A3XX_RBBM_SW_RESET_CMD, 1);
 	gpu_read(gpu, REG_A3XX_RBBM_SW_RESET_CMD);
 	gpu_write(gpu, REG_A3XX_RBBM_SW_RESET_CMD, 0);
