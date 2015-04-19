@@ -26,7 +26,6 @@
 #include <linux/fs.h>
 #include <linux/sched.h>
 #include <linux/writeback.h>
-#include <linux/jbd2.h>
 #include <linux/blkdev.h>
 
 #include "ext4.h"

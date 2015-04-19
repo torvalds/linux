@@ -55,7 +55,6 @@
 #include <linux/slab.h>
 #include <linux/mbcache.h>
 #include <linux/quotaops.h>
-#include <linux/rwsem.h>
 #include "ext4_jbd2.h"
 #include "ext4.h"
 #include "xattr.h"
@@ -639,8 +638,7 @@ ext4_xattr_set_entry(struct ext4_xattr_info *i, struct ext4_xattr_search *s)
 		free += EXT4_XATTR_LEN(name_len);
 	}
 	if (i->value) {
-		if (free < EXT4_XATTR_SIZE(i->value_len) ||
-		    free < EXT4_XATTR_LEN(name_len) +
+		if (free < EXT4_XATTR_LEN(name_len) +
 			   EXT4_XATTR_SIZE(i->value_len))
 			return -ENOSPC;
 	}

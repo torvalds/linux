@@ -21,7 +21,6 @@
 #include <linux/fs.h>
 #include <linux/time.h>
 #include <linux/vmalloc.h>
-#include <linux/jbd2.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/blkdev.h>
@@ -321,22 +320,6 @@ static void save_error_info(struct super_block *sb, const char *func,
 {
 	__save_error_info(sb, func, line);
 	ext4_commit_super(sb, 1);
-}
-
-/*
- * The del_gendisk() function uninitializes the disk-specific data
- * structures, including the bdi structure, without telling anyone
- * else.  Once this happens, any attempt to call mark_buffer_dirty()
- * (for example, by ext4_commit_super), will cause a kernel OOPS.
- * This is a kludge to prevent these oops until we can put in a proper
- * hook in del_gendisk() to inform the VFS and file system layers.
- */
-static int block_device_ejected(struct super_block *sb)
-{
-	struct inode *bd_inode = sb->s_bdev->bd_inode;
-	struct backing_dev_info *bdi = inode_to_bdi(bd_inode);
-
-	return bdi->dev == NULL;
 }
 
 static void ext4_journal_commit_callback(journal_t *journal, transaction_t *txn)
@@ -893,6 +876,9 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 	atomic_set(&ei->i_ioend_count, 0);
 	atomic_set(&ei->i_unwritten, 0);
 	INIT_WORK(&ei->i_rsv_conversion_work, ext4_end_io_rsv_work);
+#ifdef CONFIG_EXT4_FS_ENCRYPTION
+	ei->i_encryption_key.mode = EXT4_ENCRYPTION_MODE_INVALID;
+#endif
 
 	return &ei->vfs_inode;
 }
@@ -1120,7 +1106,7 @@ enum {
 	Opt_commit, Opt_min_batch_time, Opt_max_batch_time, Opt_journal_dev,
 	Opt_journal_path, Opt_journal_checksum, Opt_journal_async_commit,
 	Opt_abort, Opt_data_journal, Opt_data_ordered, Opt_data_writeback,
-	Opt_data_err_abort, Opt_data_err_ignore,
+	Opt_data_err_abort, Opt_data_err_ignore, Opt_test_dummy_encryption,
 	Opt_usrjquota, Opt_grpjquota, Opt_offusrjquota, Opt_offgrpjquota,
 	Opt_jqfmt_vfsold, Opt_jqfmt_vfsv0, Opt_jqfmt_vfsv1, Opt_quota,
 	Opt_noquota, Opt_barrier, Opt_nobarrier, Opt_err,
@@ -1211,6 +1197,7 @@ static const match_table_t tokens = {
 	{Opt_init_itable, "init_itable"},
 	{Opt_noinit_itable, "noinit_itable"},
 	{Opt_max_dir_size_kb, "max_dir_size_kb=%u"},
+	{Opt_test_dummy_encryption, "test_dummy_encryption"},
 	{Opt_removed, "check=none"},	/* mount option from ext2/3 */
 	{Opt_removed, "nocheck"},	/* mount option from ext2/3 */
 	{Opt_removed, "reservation"},	/* mount option from ext2/3 */
@@ -1412,6 +1399,7 @@ static const struct mount_opts {
 	{Opt_jqfmt_vfsv0, QFMT_VFS_V0, MOPT_QFMT},
 	{Opt_jqfmt_vfsv1, QFMT_VFS_V1, MOPT_QFMT},
 	{Opt_max_dir_size_kb, 0, MOPT_GTE0},
+	{Opt_test_dummy_encryption, 0, MOPT_GTE0},
 	{Opt_err, 0, 0}
 };
 
@@ -1588,6 +1576,15 @@ static int handle_mount_opt(struct super_block *sb, char *opt, int token,
 		}
 		*journal_ioprio =
 			IOPRIO_PRIO_VALUE(IOPRIO_CLASS_BE, arg);
+	} else if (token == Opt_test_dummy_encryption) {
+#ifdef CONFIG_EXT4_FS_ENCRYPTION
+		sbi->s_mount_flags |= EXT4_MF_TEST_DUMMY_ENCRYPTION;
+		ext4_msg(sb, KERN_WARNING,
+			 "Test dummy encryption mode enabled");
+#else
+		ext4_msg(sb, KERN_WARNING,
+			 "Test dummy encryption mount option ignored");
+#endif
 	} else if (m->flags & MOPT_DATAJ) {
 		if (is_remount) {
 			if (!sbi->s_journal)
@@ -2685,11 +2682,13 @@ static struct attribute *ext4_attrs[] = {
 EXT4_INFO_ATTR(lazy_itable_init);
 EXT4_INFO_ATTR(batched_discard);
 EXT4_INFO_ATTR(meta_bg_resize);
+EXT4_INFO_ATTR(encryption);
 
 static struct attribute *ext4_feat_attrs[] = {
 	ATTR_LIST(lazy_itable_init),
 	ATTR_LIST(batched_discard),
 	ATTR_LIST(meta_bg_resize),
+	ATTR_LIST(encryption),
 	NULL,
 };
 
@@ -3448,6 +3447,11 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	if (sb->s_bdev->bd_part)
 		sbi->s_sectors_written_start =
 			part_stat_read(sb->s_bdev->bd_part, sectors[1]);
+#ifdef CONFIG_EXT4_FS_ENCRYPTION
+	/* Modes of operations for file and directory encryption. */
+	sbi->s_file_encryption_mode = EXT4_ENCRYPTION_MODE_AES_256_XTS;
+	sbi->s_dir_encryption_mode = EXT4_ENCRYPTION_MODE_INVALID;
+#endif
 
 	/* Cleanup superblock name */
 	for (cp = sb->s_id; (cp = strchr(cp, '/'));)
@@ -3690,6 +3694,13 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 					"error: device does not support dax");
 			goto failed_mount;
 		}
+	}
+
+	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_ENCRYPT) &&
+	    es->s_encryption_level) {
+		ext4_msg(sb, KERN_ERR, "Unsupported encryption level %d",
+			 es->s_encryption_level);
+		goto failed_mount;
 	}
 
 	if (sb->s_blocksize != blocksize) {
@@ -4052,6 +4063,13 @@ no_journal:
 			ext4_msg(sb, KERN_ERR, "Failed to create an mb_cache");
 			goto failed_mount_wq;
 		}
+	}
+
+	if (unlikely(sbi->s_mount_flags & EXT4_MF_TEST_DUMMY_ENCRYPTION) &&
+	    !(sb->s_flags & MS_RDONLY) &&
+	    !EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_ENCRYPT)) {
+		EXT4_SET_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_ENCRYPT);
+		ext4_commit_super(sb, 1);
 	}
 
 	/*
@@ -4570,7 +4588,7 @@ static int ext4_commit_super(struct super_block *sb, int sync)
 	struct buffer_head *sbh = EXT4_SB(sb)->s_sbh;
 	int error = 0;
 
-	if (!sbh || block_device_ejected(sb))
+	if (!sbh)
 		return error;
 	if (buffer_write_io_error(sbh)) {
 		/*

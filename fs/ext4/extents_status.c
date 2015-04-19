@@ -9,12 +9,10 @@
  *
  * Ext4 extents status tree core functions.
  */
-#include <linux/rbtree.h>
 #include <linux/list_sort.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include "ext4.h"
-#include "extents_status.h"
 
 #include <trace/events/ext4.h>
 
