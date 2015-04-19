@@ -4176,17 +4176,15 @@ static void alc_fixup_disable_aamix(struct hda_codec *codec,
 	}
 }
 
-static unsigned int alc_power_filter_xps13(struct hda_codec *codec,
-				hda_nid_t nid,
-				unsigned int power_state)
+static void alc_shutup_dell_xps13(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
+	int hp_pin = spec->gen.autocfg.hp_pins[0];
 
-	/* Avoid pop noises when headphones are plugged in */
-	if (spec->gen.hp_jack_present)
-		if (nid == codec->core.afg || nid == 0x02 || nid == 0x15)
-			return AC_PWRST_D0;
-	return snd_hda_gen_path_power_filter(codec, nid, power_state);
+	/* Prevent pop noises when headphones are plugged in */
+	snd_hda_codec_write(codec, hp_pin, 0,
+			    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE);
+	msleep(20);
 }
 
 static void alc_fixup_dell_xps13(struct hda_codec *codec,
@@ -4197,8 +4195,7 @@ static void alc_fixup_dell_xps13(struct hda_codec *codec,
 		struct hda_input_mux *imux = &spec->gen.input_mux;
 		int i;
 
-		spec->shutup = alc_no_shutup;
-		codec->power_filter = alc_power_filter_xps13;
+		spec->shutup = alc_shutup_dell_xps13;
 
 		/* Make the internal mic the default input source. */
 		for (i = 0; i < imux->num_items; i++) {
