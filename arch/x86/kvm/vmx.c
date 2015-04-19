@@ -5708,9 +5708,6 @@ static int handle_task_switch(struct kvm_vcpu *vcpu)
 		return 0;
 	}
 
-	/* clear all local breakpoint enable flags */
-	vmcs_writel(GUEST_DR7, vmcs_readl(GUEST_DR7) & ~0x155);
-
 	/*
 	 * TODO: What about debug traps on tss switch?
 	 *       Are we supposed to inject them and update dr6?
