@@ -1711,8 +1711,14 @@ static inline u64 hash_name(const char *name)
  */
 static int link_path_walk(const char *name, struct nameidata *nd)
 {
+	struct saved {
+		struct path link;
+		void *cookie;
+		const char *name;
+	} stack[MAX_NESTED_LINKS], *last = stack + nd->depth - 1;
 	int err;
-	
+
+start:
 	while (*name=='/')
 		name++;
 	if (!*name)
@@ -1776,8 +1782,6 @@ Walked:
 			goto Err;
 
 		if (err) {
-			struct path link;
-			void *cookie;
 			const char *s;
 
 			if (unlikely(current->link_count >= MAX_NESTED_LINKS)) {
@@ -1790,22 +1794,25 @@ Walked:
 
 			nd->depth++;
 			current->link_count++;
+			last++;
 
-			link = nd->link;
-			s = get_link(&link, nd, &cookie);
+			last->link = nd->link;
+			s = get_link(&last->link, nd, &last->cookie);
 
 			if (unlikely(IS_ERR(s))) {
 				err = PTR_ERR(s);
 				current->link_count--;
 				nd->depth--;
+				last--;
 				goto Err;
 			}
 			err = 0;
 			if (unlikely(!s)) {
 				/* jumped */
-				put_link(nd, &link, cookie);
+				put_link(nd, &last->link, last->cookie);
 				current->link_count--;
 				nd->depth--;
+				last--;
 			} else {
 				if (*s == '/') {
 					if (!nd->root.mnt)
@@ -1816,17 +1823,24 @@ Walked:
 					nd->flags |= LOOKUP_JUMPED;
 				}
 				nd->inode = nd->path.dentry->d_inode;
-				err = link_path_walk(s, nd);
+				last->name = name;
+				name = s;
+				goto start;
+
+back:
+				name = last->name;
 				if (unlikely(err)) {
-					put_link(nd, &link, cookie);
+					put_link(nd, &last->link, last->cookie);
 					current->link_count--;
 					nd->depth--;
+					last--;
 					goto Err;
 				} else {
 					err = walk_component(nd, LOOKUP_FOLLOW);
-					put_link(nd, &link, cookie);
+					put_link(nd, &last->link, last->cookie);
 					current->link_count--;
 					nd->depth--;
+					last--;
 					goto Walked;
 				}
 			}
@@ -1838,9 +1852,13 @@ Walked:
 	}
 	terminate_walk(nd);
 Err:
-	return err;
+	if (likely(!nd->depth))
+		return err;
+	goto back;
 OK:
-	return 0;
+	if (likely(!nd->depth))
+		return 0;
+	goto back;
 }
 
 static int path_init(int dfd, const struct filename *name, unsigned int flags,
