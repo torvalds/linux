@@ -62,7 +62,7 @@ static void __init ar71xx_clocks_init(void)
 
 	pll = ath79_pll_rr(AR71XX_PLL_REG_CPU_CONFIG);
 
-	div = ((pll >> AR71XX_PLL_DIV_SHIFT) & AR71XX_PLL_DIV_MASK) + 1;
+	div = ((pll >> AR71XX_PLL_FB_SHIFT) & AR71XX_PLL_FB_MASK) + 1;
 	freq = div * ref_rate;
 
 	div = ((pll >> AR71XX_CPU_DIV_SHIFT) & AR71XX_CPU_DIV_MASK) + 1;
@@ -96,7 +96,7 @@ static void __init ar724x_clocks_init(void)
 	ref_rate = AR724X_BASE_FREQ;
 	pll = ath79_pll_rr(AR724X_PLL_REG_CPU_CONFIG);
 
-	div = ((pll >> AR724X_PLL_DIV_SHIFT) & AR724X_PLL_DIV_MASK);
+	div = ((pll >> AR724X_PLL_FB_SHIFT) & AR724X_PLL_FB_MASK);
 	freq = div * ref_rate;
 
 	div = ((pll >> AR724X_PLL_REF_DIV_SHIFT) & AR724X_PLL_REF_DIV_MASK);
@@ -132,7 +132,7 @@ static void __init ar913x_clocks_init(void)
 	ref_rate = AR913X_BASE_FREQ;
 	pll = ath79_pll_rr(AR913X_PLL_REG_CPU_CONFIG);
 
-	div = ((pll >> AR913X_PLL_DIV_SHIFT) & AR913X_PLL_DIV_MASK);
+	div = ((pll >> AR913X_PLL_FB_SHIFT) & AR913X_PLL_FB_MASK);
 	freq = div * ref_rate;
 
 	cpu_rate = freq;
