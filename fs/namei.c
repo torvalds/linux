@@ -1569,8 +1569,7 @@ static inline int should_follow_link(struct dentry *dentry, int follow)
 	return unlikely(d_is_symlink(dentry)) ? follow : 0;
 }
 
-static inline int walk_component(struct nameidata *nd, struct path *path,
-		int follow)
+static int walk_component(struct nameidata *nd, struct path *path, int follow)
 {
 	struct inode *inode;
 	int err;
