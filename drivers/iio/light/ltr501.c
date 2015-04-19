@@ -9,7 +9,7 @@
  *
  * 7-bit I2C slave address 0x23
  *
- * TODO: measurement rate, IR LED characteristics
+ * TODO: IR LED characteristics
  */
 
 #include <linux/module.h>
@@ -29,6 +29,7 @@
 
 #define LTR501_ALS_CONTR 0x80 /* ALS operation mode, SW reset */
 #define LTR501_PS_CONTR 0x81 /* PS operation mode */
+#define LTR501_PS_MEAS_RATE 0x84 /* measurement rate*/
 #define LTR501_ALS_MEAS_RATE 0x85 /* ALS integ time, measurement rate*/
 #define LTR501_PART_ID 0x86
 #define LTR501_MANUFAC_ID 0x87
@@ -41,6 +42,7 @@
 #define LTR501_PS_THRESH_LOW 0x92 /* 11 bit, ps lower threshold */
 #define LTR501_ALS_THRESH_UP 0x97 /* 16 bit, ALS upper threshold */
 #define LTR501_ALS_THRESH_LOW 0x99 /* 16 bit, ALS lower threshold */
+#define LTR501_INTR_PRST 0x9e /* ps thresh, als thresh */
 #define LTR501_MAX_REG 0x9f
 
 #define LTR501_ALS_CONTR_SW_RESET BIT(2)
@@ -58,6 +60,9 @@
 #define LTR501_PS_THRESH_MASK 0x7ff
 #define LTR501_ALS_THRESH_MASK 0xffff
 
+#define LTR501_ALS_DEF_PERIOD 500000
+#define LTR501_PS_DEF_PERIOD 100000
+
 #define LTR501_REGMAP_NAME "ltr501_regmap"
 
 static const int int_time_mapping[] = {100000, 50000, 200000, 400000};
@@ -68,16 +73,170 @@ static const struct reg_field reg_field_als_intr =
 				REG_FIELD(LTR501_INTR, 0, 0);
 static const struct reg_field reg_field_ps_intr =
 				REG_FIELD(LTR501_INTR, 1, 1);
+static const struct reg_field reg_field_als_rate =
+				REG_FIELD(LTR501_ALS_MEAS_RATE, 0, 2);
+static const struct reg_field reg_field_ps_rate =
+				REG_FIELD(LTR501_PS_MEAS_RATE, 0, 3);
+static const struct reg_field reg_field_als_prst =
+				REG_FIELD(LTR501_INTR_PRST, 0, 3);
+static const struct reg_field reg_field_ps_prst =
+				REG_FIELD(LTR501_INTR_PRST, 4, 7);
+
+struct ltr501_samp_table {
+	int freq_val;  /* repetition frequency in micro HZ*/
+	int time_val; /* repetition rate in micro seconds */
+};
 
 struct ltr501_data {
 	struct i2c_client *client;
 	struct mutex lock_als, lock_ps;
 	u8 als_contr, ps_contr;
+	int als_period, ps_period; /* period in micro seconds */
 	struct regmap *regmap;
 	struct regmap_field *reg_it;
 	struct regmap_field *reg_als_intr;
 	struct regmap_field *reg_ps_intr;
+	struct regmap_field *reg_als_rate;
+	struct regmap_field *reg_ps_rate;
+	struct regmap_field *reg_als_prst;
+	struct regmap_field *reg_ps_prst;
 };
+
+static const struct ltr501_samp_table ltr501_als_samp_table[] = {
+			{20000000, 50000}, {10000000, 100000},
+			{5000000, 200000}, {2000000, 500000},
+			{1000000, 1000000}, {500000, 2000000},
+			{500000, 2000000}, {500000, 2000000}
+};
+
+static const struct ltr501_samp_table ltr501_ps_samp_table[] = {
+			{20000000, 50000}, {14285714, 70000},
+			{10000000, 100000}, {5000000, 200000},
+			{2000000, 500000}, {1000000, 1000000},
+			{500000, 2000000}, {500000, 2000000},
+			{500000, 2000000}
+};
+
+static unsigned int ltr501_match_samp_freq(const struct ltr501_samp_table *tab,
+					   int len, int val, int val2)
+{
+	int i, freq;
+
+	freq = val * 1000000 + val2;
+
+	for (i = 0; i < len; i++) {
+		if (tab[i].freq_val == freq)
+			return i;
+	}
+
+	return -EINVAL;
+}
+
+static int ltr501_als_read_samp_freq(struct ltr501_data *data,
+				     int *val, int *val2)
+{
+	int ret, i;
+
+	ret = regmap_field_read(data->reg_als_rate, &i);
+	if (ret < 0)
+		return ret;
+
+	if (i < 0 || i >= ARRAY_SIZE(ltr501_als_samp_table))
+		return -EINVAL;
+
+	*val = ltr501_als_samp_table[i].freq_val / 1000000;
+	*val2 = ltr501_als_samp_table[i].freq_val % 1000000;
+
+	return IIO_VAL_INT_PLUS_MICRO;
+}
+
+static int ltr501_ps_read_samp_freq(struct ltr501_data *data,
+				    int *val, int *val2)
+{
+	int ret, i;
+
+	ret = regmap_field_read(data->reg_ps_rate, &i);
+	if (ret < 0)
+		return ret;
+
+	if (i < 0 || i >= ARRAY_SIZE(ltr501_ps_samp_table))
+		return -EINVAL;
+
+	*val = ltr501_ps_samp_table[i].freq_val / 1000000;
+	*val2 = ltr501_ps_samp_table[i].freq_val % 1000000;
+
+	return IIO_VAL_INT_PLUS_MICRO;
+}
+
+static int ltr501_als_write_samp_freq(struct ltr501_data *data,
+				      int val, int val2)
+{
+	int i, ret;
+
+	i = ltr501_match_samp_freq(ltr501_als_samp_table,
+				   ARRAY_SIZE(ltr501_als_samp_table),
+				   val, val2);
+
+	if (i < 0)
+		return i;
+
+	mutex_lock(&data->lock_als);
+	ret = regmap_field_write(data->reg_als_rate, i);
+	mutex_unlock(&data->lock_als);
+
+	return ret;
+}
+
+static int ltr501_ps_write_samp_freq(struct ltr501_data *data,
+				     int val, int val2)
+{
+	int i, ret;
+
+	i = ltr501_match_samp_freq(ltr501_ps_samp_table,
+				   ARRAY_SIZE(ltr501_ps_samp_table),
+				   val, val2);
+
+	if (i < 0)
+		return i;
+
+	mutex_lock(&data->lock_ps);
+	ret = regmap_field_write(data->reg_ps_rate, i);
+	mutex_unlock(&data->lock_ps);
+
+	return ret;
+}
+
+static int ltr501_als_read_samp_period(struct ltr501_data *data, int *val)
+{
+	int ret, i;
+
+	ret = regmap_field_read(data->reg_als_rate, &i);
+	if (ret < 0)
+		return ret;
+
+	if (i < 0 || i >= ARRAY_SIZE(ltr501_als_samp_table))
+		return -EINVAL;
+
+	*val = ltr501_als_samp_table[i].time_val;
+
+	return IIO_VAL_INT;
+}
+
+static int ltr501_ps_read_samp_period(struct ltr501_data *data, int *val)
+{
+	int ret, i;
+
+	ret = regmap_field_read(data->reg_ps_rate, &i);
+	if (ret < 0)
+		return ret;
+
+	if (i < 0 || i >= ARRAY_SIZE(ltr501_ps_samp_table))
+		return -EINVAL;
+
+	*val = ltr501_ps_samp_table[i].time_val;
+
+	return IIO_VAL_INT;
+}
 
 static int ltr501_drdy(struct ltr501_data *data, u8 drdy_mask)
 {
@@ -177,6 +336,104 @@ static int ltr501_read_ps(struct ltr501_data *data)
 	return status;
 }
 
+static int ltr501_read_intr_prst(struct ltr501_data *data,
+				 enum iio_chan_type type,
+				 int *val2)
+{
+	int ret, samp_period, prst;
+
+	switch (type) {
+	case IIO_INTENSITY:
+		ret = regmap_field_read(data->reg_als_prst, &prst);
+		if (ret < 0)
+			return ret;
+
+		ret = ltr501_als_read_samp_period(data, &samp_period);
+
+		if (ret < 0)
+			return ret;
+		*val2 = samp_period * prst;
+		return IIO_VAL_INT_PLUS_MICRO;
+	case IIO_PROXIMITY:
+		ret = regmap_field_read(data->reg_ps_prst, &prst);
+		if (ret < 0)
+			return ret;
+
+		ret = ltr501_ps_read_samp_period(data, &samp_period);
+
+		if (ret < 0)
+			return ret;
+
+		*val2 = samp_period * prst;
+		return IIO_VAL_INT_PLUS_MICRO;
+	default:
+		return -EINVAL;
+	}
+
+	return -EINVAL;
+}
+
+static int ltr501_write_intr_prst(struct ltr501_data *data,
+				  enum iio_chan_type type,
+				  int val, int val2)
+{
+	int ret, samp_period, new_val;
+	unsigned long period;
+
+	if (val < 0 || val2 < 0)
+		return -EINVAL;
+
+	/* period in microseconds */
+	period = ((val * 1000000) + val2);
+
+	switch (type) {
+	case IIO_INTENSITY:
+		ret = ltr501_als_read_samp_period(data, &samp_period);
+		if (ret < 0)
+			return ret;
+
+		/* period should be atleast equal to sampling period */
+		if (period < samp_period)
+			return -EINVAL;
+
+		new_val = DIV_ROUND_UP(period, samp_period);
+		if (new_val < 0 || new_val > 0x0f)
+			return -EINVAL;
+
+		mutex_lock(&data->lock_als);
+		ret = regmap_field_write(data->reg_als_prst, new_val);
+		mutex_unlock(&data->lock_als);
+		if (ret >= 0)
+			data->als_period = period;
+
+		return ret;
+	case IIO_PROXIMITY:
+		ret = ltr501_ps_read_samp_period(data, &samp_period);
+		if (ret < 0)
+			return ret;
+
+		/* period should be atleast equal to rate */
+		if (period < samp_period)
+			return -EINVAL;
+
+		new_val = DIV_ROUND_UP(period, samp_period);
+		if (new_val < 0 || new_val > 0x0f)
+			return -EINVAL;
+
+		mutex_lock(&data->lock_ps);
+		ret = regmap_field_write(data->reg_ps_prst, new_val);
+		mutex_unlock(&data->lock_ps);
+		if (ret >= 0)
+			data->ps_period = period;
+
+		return ret;
+	default:
+		return -EINVAL;
+	}
+
+	return -EINVAL;
+}
+
 static const struct iio_event_spec ltr501_als_event_spec[] = {
 	{
 		.type = IIO_EV_TYPE_THRESH,
@@ -189,7 +446,8 @@ static const struct iio_event_spec ltr501_als_event_spec[] = {
 	}, {
 		.type = IIO_EV_TYPE_THRESH,
 		.dir = IIO_EV_DIR_EITHER,
-		.mask_separate = BIT(IIO_EV_INFO_ENABLE),
+		.mask_separate = BIT(IIO_EV_INFO_ENABLE) |
+				 BIT(IIO_EV_INFO_PERIOD),
 	},
 
 };
@@ -206,7 +464,8 @@ static const struct iio_event_spec ltr501_pxs_event_spec[] = {
 	}, {
 		.type = IIO_EV_TYPE_THRESH,
 		.dir = IIO_EV_DIR_EITHER,
-		.mask_separate = BIT(IIO_EV_INFO_ENABLE),
+		.mask_separate = BIT(IIO_EV_INFO_ENABLE) |
+				 BIT(IIO_EV_INFO_PERIOD),
 	},
 };
 
@@ -235,7 +494,8 @@ static const struct iio_chan_spec ltr501_channels[] = {
 				 ARRAY_SIZE(ltr501_als_event_spec)),
 	LTR501_INTENSITY_CHANNEL(1, LTR501_ALS_DATA1, IIO_MOD_LIGHT_IR,
 				 BIT(IIO_CHAN_INFO_SCALE) |
-				 BIT(IIO_CHAN_INFO_INT_TIME),
+				 BIT(IIO_CHAN_INFO_INT_TIME) |
+				 BIT(IIO_CHAN_INFO_SAMP_FREQ),
 				 NULL, 0),
 	{
 		.type = IIO_PROXIMITY,
@@ -320,6 +580,15 @@ static int ltr501_read_raw(struct iio_dev *indio_dev,
 		default:
 			return -EINVAL;
 		}
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		switch (chan->type) {
+		case IIO_INTENSITY:
+			return ltr501_als_read_samp_freq(data, val, val2);
+		case IIO_PROXIMITY:
+			return ltr501_ps_read_samp_freq(data, val, val2);
+		default:
+			return -EINVAL;
+		}
 	}
 	return -EINVAL;
 }
@@ -340,7 +609,7 @@ static int ltr501_write_raw(struct iio_dev *indio_dev,
 			    int val, int val2, long mask)
 {
 	struct ltr501_data *data = iio_priv(indio_dev);
-	int i;
+	int i, ret, freq_val, freq_val2;
 
 	if (iio_buffer_enabled(indio_dev))
 		return -EBUSY;
@@ -379,6 +648,49 @@ static int ltr501_write_raw(struct iio_dev *indio_dev,
 			i = ltr501_set_it_time(data, val2);
 			mutex_unlock(&data->lock_als);
 			return i;
+		default:
+			return -EINVAL;
+		}
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		switch (chan->type) {
+		case IIO_INTENSITY:
+			ret = ltr501_als_read_samp_freq(data, &freq_val,
+							&freq_val2);
+			if (ret < 0)
+				return ret;
+
+			ret = ltr501_als_write_samp_freq(data, val, val2);
+			if (ret < 0)
+				return ret;
+
+			/* update persistence count when changing frequency */
+			ret = ltr501_write_intr_prst(data, chan->type,
+						     0, data->als_period);
+
+			if (ret < 0)
+				return ltr501_als_write_samp_freq(data,
+								  freq_val,
+								  freq_val2);
+			return ret;
+		case IIO_PROXIMITY:
+			ret = ltr501_ps_read_samp_freq(data, &freq_val,
+						       &freq_val2);
+			if (ret < 0)
+				return ret;
+
+			ret = ltr501_ps_write_samp_freq(data, val, val2);
+			if (ret < 0)
+				return ret;
+
+			/* update persistence count when changing frequency */
+			ret = ltr501_write_intr_prst(data, chan->type,
+						     0, data->ps_period);
+
+			if (ret < 0)
+				return ltr501_ps_write_samp_freq(data,
+								 freq_val,
+								 freq_val2);
+			return ret;
 		default:
 			return -EINVAL;
 		}
@@ -509,6 +821,55 @@ static int ltr501_write_thresh(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
+static int ltr501_read_event(struct iio_dev *indio_dev,
+			     const struct iio_chan_spec *chan,
+			     enum iio_event_type type,
+			     enum iio_event_direction dir,
+			     enum iio_event_info info,
+			     int *val, int *val2)
+{
+	int ret;
+
+	switch (info) {
+	case IIO_EV_INFO_VALUE:
+		return ltr501_read_thresh(indio_dev, chan, type, dir,
+					  info, val, val2);
+	case IIO_EV_INFO_PERIOD:
+		ret = ltr501_read_intr_prst(iio_priv(indio_dev),
+					    chan->type, val2);
+		*val = *val2 / 1000000;
+		*val2 = *val2 % 1000000;
+		return ret;
+	default:
+		return -EINVAL;
+	}
+
+	return -EINVAL;
+}
+
+static int ltr501_write_event(struct iio_dev *indio_dev,
+			      const struct iio_chan_spec *chan,
+			      enum iio_event_type type,
+			      enum iio_event_direction dir,
+			      enum iio_event_info info,
+			      int val, int val2)
+{
+	switch (info) {
+	case IIO_EV_INFO_VALUE:
+		if (val2 != 0)
+			return -EINVAL;
+		return ltr501_write_thresh(indio_dev, chan, type, dir,
+					   info, val, val2);
+	case IIO_EV_INFO_PERIOD:
+		return ltr501_write_intr_prst(iio_priv(indio_dev), chan->type,
+					      val, val2);
+	default:
+		return -EINVAL;
+	}
+
+	return -EINVAL;
+}
+
 static int ltr501_read_event_config(struct iio_dev *indio_dev,
 				    const struct iio_chan_spec *chan,
 				    enum iio_event_type type,
@@ -568,11 +929,13 @@ static int ltr501_write_event_config(struct iio_dev *indio_dev,
 static IIO_CONST_ATTR(in_proximity_scale_available, "1 0.25 0.125 0.0625");
 static IIO_CONST_ATTR(in_intensity_scale_available, "1 0.005");
 static IIO_CONST_ATTR_INT_TIME_AVAIL("0.05 0.1 0.2 0.4");
+static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("20 10 5 2 1 0.5");
 
 static struct attribute *ltr501_attributes[] = {
 	&iio_const_attr_in_proximity_scale_available.dev_attr.attr,
 	&iio_const_attr_in_intensity_scale_available.dev_attr.attr,
 	&iio_const_attr_integration_time_available.dev_attr.attr,
+	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
 	NULL
 };
 
@@ -591,8 +954,8 @@ static const struct iio_info ltr501_info = {
 	.read_raw = ltr501_read_raw,
 	.write_raw = ltr501_write_raw,
 	.attrs = &ltr501_attribute_group,
-	.read_event_value	= &ltr501_read_thresh,
-	.write_event_value	= &ltr501_write_thresh,
+	.read_event_value	= &ltr501_read_event,
+	.write_event_value	= &ltr501_write_event,
 	.read_event_config	= &ltr501_read_event_config,
 	.write_event_config	= &ltr501_write_event_config,
 	.driver_module = THIS_MODULE,
@@ -706,6 +1069,14 @@ static int ltr501_init(struct ltr501_data *data)
 
 	data->ps_contr = status | LTR501_CONTR_ACTIVE;
 
+	ret = ltr501_read_intr_prst(data, IIO_INTENSITY, &data->als_period);
+	if (ret < 0)
+		return ret;
+
+	ret = ltr501_read_intr_prst(data, IIO_PROXIMITY, &data->ps_period);
+	if (ret < 0)
+		return ret;
+
 	return ltr501_write_contr(data, data->als_contr, data->ps_contr);
 }
 
@@ -781,6 +1152,34 @@ static int ltr501_probe(struct i2c_client *client,
 	if (IS_ERR(data->reg_ps_intr)) {
 		dev_err(&client->dev, "PS intr mode reg field init failed.\n");
 		return PTR_ERR(data->reg_ps_intr);
+	}
+
+	data->reg_als_rate = devm_regmap_field_alloc(&client->dev, regmap,
+						     reg_field_als_rate);
+	if (IS_ERR(data->reg_als_rate)) {
+		dev_err(&client->dev, "ALS samp rate field init failed.\n");
+		return PTR_ERR(data->reg_als_rate);
+	}
+
+	data->reg_ps_rate = devm_regmap_field_alloc(&client->dev, regmap,
+						    reg_field_ps_rate);
+	if (IS_ERR(data->reg_ps_rate)) {
+		dev_err(&client->dev, "PS samp rate field init failed.\n");
+		return PTR_ERR(data->reg_ps_rate);
+	}
+
+	data->reg_als_prst = devm_regmap_field_alloc(&client->dev, regmap,
+						     reg_field_als_prst);
+	if (IS_ERR(data->reg_als_prst)) {
+		dev_err(&client->dev, "ALS prst reg field init failed\n");
+		return PTR_ERR(data->reg_als_prst);
+	}
+
+	data->reg_ps_prst = devm_regmap_field_alloc(&client->dev, regmap,
+						    reg_field_ps_prst);
+	if (IS_ERR(data->reg_ps_prst)) {
+		dev_err(&client->dev, "PS prst reg field init failed.\n");
+		return PTR_ERR(data->reg_ps_prst);
 	}
 
 	ret = regmap_read(data->regmap, LTR501_PART_ID, &partid);
