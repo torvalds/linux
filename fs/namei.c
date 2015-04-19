@@ -1803,6 +1803,8 @@ loop:	/* will be gone very soon */
 			if (unlikely(!s)) {
 				/* jumped */
 				put_link(nd, &link, cookie);
+				current->link_count--;
+				nd->depth--;
 			} else {
 				if (*s == '/') {
 					if (!nd->root.mnt)
@@ -1816,18 +1818,23 @@ loop:	/* will be gone very soon */
 				err = link_path_walk(s, nd);
 				if (unlikely(err)) {
 					put_link(nd, &link, cookie);
+					current->link_count--;
+					nd->depth--;
+					return err;
 				} else {
 					err = walk_component(nd, LOOKUP_FOLLOW);
 					put_link(nd, &link, cookie);
-					if (err > 0)
+					current->link_count--;
+					nd->depth--;
+					if (err < 0)
+						return err;
+					if (err > 0) {
+						current->link_count++;
+						nd->depth++;
 						goto loop;
+					}
 				}
 			}
-
-			current->link_count--;
-			nd->depth--;
-			if (err)
-				return err;
 		}
 		if (!d_can_lookup(nd->path.dentry)) {
 			err = -ENOTDIR;
