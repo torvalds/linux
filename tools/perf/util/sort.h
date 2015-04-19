@@ -58,15 +58,16 @@ struct he_stat {
 
 struct hist_entry_diff {
 	bool	computed;
+	union {
+		/* PERF_HPP__DELTA */
+		double	period_ratio_delta;
 
-	/* PERF_HPP__DELTA */
-	double	period_ratio_delta;
+		/* PERF_HPP__RATIO */
+		double	period_ratio;
 
-	/* PERF_HPP__RATIO */
-	double	period_ratio;
-
-	/* HISTC_WEIGHTED_DIFF */
-	s64	wdiff;
+		/* HISTC_WEIGHTED_DIFF */
+		s64	wdiff;
+	};
 };
 
 /**
