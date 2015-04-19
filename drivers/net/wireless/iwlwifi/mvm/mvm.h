@@ -76,6 +76,7 @@
 #include "iwl-notif-wait.h"
 #include "iwl-eeprom-parse.h"
 #include "iwl-fw-file.h"
+#include "iwl-config.h"
 #include "sta.h"
 #include "fw-api.h"
 #include "constants.h"
@@ -477,49 +478,6 @@ struct iwl_nvm_section {
 	const u8 *data;
 };
 
-/*
- * Tx-backoff threshold
- * @temperature: The threshold in Celsius
- * @backoff: The tx-backoff in uSec
- */
-struct iwl_tt_tx_backoff {
-	s32 temperature;
-	u32 backoff;
-};
-
-#define TT_TX_BACKOFF_SIZE 6
-
-/**
- * struct iwl_tt_params - thermal throttling parameters
- * @ct_kill_entry: CT Kill entry threshold
- * @ct_kill_exit: CT Kill exit threshold
- * @ct_kill_duration: The time  intervals (in uSec) in which the driver needs
- *	to checks whether to exit CT Kill.
- * @dynamic_smps_entry: Dynamic SMPS entry threshold
- * @dynamic_smps_exit: Dynamic SMPS exit threshold
- * @tx_protection_entry: TX protection entry threshold
- * @tx_protection_exit: TX protection exit threshold
- * @tx_backoff: Array of thresholds for tx-backoff , in ascending order.
- * @support_ct_kill: Support CT Kill?
- * @support_dynamic_smps: Support dynamic SMPS?
- * @support_tx_protection: Support tx protection?
- * @support_tx_backoff: Support tx-backoff?
- */
-struct iwl_tt_params {
-	s32 ct_kill_entry;
-	s32 ct_kill_exit;
-	u32 ct_kill_duration;
-	s32 dynamic_smps_entry;
-	s32 dynamic_smps_exit;
-	s32 tx_protection_entry;
-	s32 tx_protection_exit;
-	struct iwl_tt_tx_backoff tx_backoff[TT_TX_BACKOFF_SIZE];
-	bool support_ct_kill;
-	bool support_dynamic_smps;
-	bool support_tx_protection;
-	bool support_tx_backoff;
-};
-
 /**
  * struct iwl_mvm_tt_mgnt - Thermal Throttling Management structure
  * @ct_kill_exit: worker to exit thermal kill
@@ -534,7 +492,7 @@ struct iwl_mvm_tt_mgmt {
 	bool dynamic_smps;
 	u32 tx_backoff;
 	u32 min_backoff;
-	const struct iwl_tt_params *params;
+	struct iwl_tt_params params;
 	bool throttle;
 };
 
