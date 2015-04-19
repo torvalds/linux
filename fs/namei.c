@@ -1775,6 +1775,10 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 			return err;
 
 		if (err) {
+			struct path link;
+			void *cookie;
+			const char *s;
+
 			if (unlikely(current->link_count >= MAX_NESTED_LINKS)) {
 				path_put_conditional(&nd->link, nd);
 				path_put(&nd->path);
@@ -1785,41 +1789,40 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 			nd->depth++;
 			current->link_count++;
 
-			do {
-				struct path link = nd->link;
-				void *cookie;
-				const char *s = get_link(&link, nd, &cookie);
+loop:	/* will be gone very soon */
+			link = nd->link;
+			s = get_link(&link, nd, &cookie);
 
-				if (unlikely(IS_ERR(s))) {
-					err = PTR_ERR(s);
-					current->link_count--;
-					nd->depth--;
-					return err;
+			if (unlikely(IS_ERR(s))) {
+				err = PTR_ERR(s);
+				current->link_count--;
+				nd->depth--;
+				return err;
+			}
+			err = 0;
+			if (unlikely(!s)) {
+				/* jumped */
+				put_link(nd, &link, cookie);
+			} else {
+				if (*s == '/') {
+					if (!nd->root.mnt)
+						set_root(nd);
+					path_put(&nd->path);
+					nd->path = nd->root;
+					path_get(&nd->root);
+					nd->flags |= LOOKUP_JUMPED;
 				}
-				err = 0;
-				if (unlikely(!s)) {
-					/* jumped */
+				nd->inode = nd->path.dentry->d_inode;
+				err = link_path_walk(s, nd);
+				if (unlikely(err)) {
 					put_link(nd, &link, cookie);
-					break;
 				} else {
-					if (*s == '/') {
-						if (!nd->root.mnt)
-							set_root(nd);
-						path_put(&nd->path);
-						nd->path = nd->root;
-						path_get(&nd->root);
-						nd->flags |= LOOKUP_JUMPED;
-					}
-					nd->inode = nd->path.dentry->d_inode;
-					err = link_path_walk(s, nd);
-					if (unlikely(err)) {
-						put_link(nd, &link, cookie);
-						break;
-					}
 					err = walk_component(nd, LOOKUP_FOLLOW);
 					put_link(nd, &link, cookie);
+					if (err > 0)
+						goto loop;
 				}
-			} while (err > 0);
+			}
 
 			current->link_count--;
 			nd->depth--;
