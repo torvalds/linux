@@ -15,7 +15,7 @@
 #define	DMA_ERROR_CODE (~(dma_addr_t)0x0)
 #endif
 
-unsigned long iommu_large_alloc = 15;
+static unsigned long iommu_large_alloc = 15;
 
 static	DEFINE_PER_CPU(unsigned int, iommu_pool_hash);
 
@@ -53,12 +53,12 @@ static void setup_iommu_pool_hash(void)
  * the top 1/4 of the table will be set aside for pool allocations
  * of more than iommu_large_alloc pages.
  */
-extern void iommu_tbl_pool_init(struct iommu_map_table *iommu,
-				unsigned long num_entries,
-				u32 table_shift,
-				void (*lazy_flush)(struct iommu_map_table *),
-				bool large_pool, u32 npools,
-				bool skip_span_boundary_check)
+void iommu_tbl_pool_init(struct iommu_map_table *iommu,
+			 unsigned long num_entries,
+			 u32 table_shift,
+			 void (*lazy_flush)(struct iommu_map_table *),
+			 bool large_pool, u32 npools,
+			 bool skip_span_boundary_check)
 {
 	unsigned int start, i;
 	struct iommu_pool *p = &(iommu->large_pool);
