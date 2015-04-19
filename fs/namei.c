@@ -1826,23 +1826,6 @@ Walked:
 				last->name = name;
 				name = s;
 				goto start;
-
-back:
-				name = last->name;
-				if (unlikely(err)) {
-					put_link(nd, &last->link, last->cookie);
-					current->link_count--;
-					nd->depth--;
-					last--;
-					goto Err;
-				} else {
-					err = walk_component(nd, LOOKUP_FOLLOW);
-					put_link(nd, &last->link, last->cookie);
-					current->link_count--;
-					nd->depth--;
-					last--;
-					goto Walked;
-				}
 			}
 		}
 		if (!d_can_lookup(nd->path.dentry)) {
@@ -1852,13 +1835,24 @@ back:
 	}
 	terminate_walk(nd);
 Err:
-	if (likely(!nd->depth))
-		return err;
-	goto back;
+	while (unlikely(nd->depth)) {
+		put_link(nd, &last->link, last->cookie);
+		current->link_count--;
+		nd->depth--;
+		last--;
+	}
+	return err;
 OK:
-	if (likely(!nd->depth))
-		return 0;
-	goto back;
+	if (unlikely(nd->depth)) {
+		name = last->name;
+		err = walk_component(nd, LOOKUP_FOLLOW);
+		put_link(nd, &last->link, last->cookie);
+		current->link_count--;
+		nd->depth--;
+		last--;
+		goto Walked;
+	}
+	return 0;
 }
 
 static int path_init(int dfd, const struct filename *name, unsigned int flags,
