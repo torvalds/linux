@@ -403,10 +403,7 @@ static struct rd_dev_sg_table *rd_get_prot_table(struct rd_dev *rd_dev, u32 page
 	return NULL;
 }
 
-typedef sense_reason_t (*dif_verify)(struct se_cmd *, sector_t, unsigned int,
-				     unsigned int, struct scatterlist *, int);
-
-static sense_reason_t rd_do_prot_rw(struct se_cmd *cmd, dif_verify dif_verify)
+static sense_reason_t rd_do_prot_rw(struct se_cmd *cmd, bool is_read)
 {
 	struct se_device *se_dev = cmd->se_dev;
 	struct rd_dev *dev = RD_DEV(se_dev);
@@ -466,7 +463,16 @@ static sense_reason_t rd_do_prot_rw(struct se_cmd *cmd, dif_verify dif_verify)
 
 #endif /* !CONFIG_ARCH_HAS_SG_CHAIN */
 
-	rc = dif_verify(cmd, cmd->t_task_lba, sectors, 0, prot_sg, prot_offset);
+	if (is_read)
+		rc = sbc_dif_verify(cmd, cmd->t_task_lba, sectors, 0,
+				    prot_sg, prot_offset);
+	else
+		rc = sbc_dif_verify(cmd, cmd->t_task_lba, sectors, 0,
+				    cmd->t_prot_sg, 0);
+
+	if (!rc)
+		sbc_dif_copy_prot(cmd, sectors, is_read, prot_sg, prot_offset);
+
 	if (need_to_release)
 		kfree(prot_sg);
 
@@ -512,7 +518,7 @@ rd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 
 	if (cmd->prot_type && se_dev->dev_attrib.pi_prot_type &&
 	    data_direction == DMA_TO_DEVICE) {
-		rc = rd_do_prot_rw(cmd, sbc_dif_verify_write);
+		rc = rd_do_prot_rw(cmd, false);
 		if (rc)
 			return rc;
 	}
@@ -580,7 +586,7 @@ rd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 
 	if (cmd->prot_type && se_dev->dev_attrib.pi_prot_type &&
 	    data_direction == DMA_FROM_DEVICE) {
-		rc = rd_do_prot_rw(cmd, sbc_dif_verify_read);
+		rc = rd_do_prot_rw(cmd, true);
 		if (rc)
 			return rc;
 	}

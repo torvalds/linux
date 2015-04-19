@@ -1266,9 +1266,8 @@ check_ref:
 	return 0;
 }
 
-static void
-sbc_dif_copy_prot(struct se_cmd *cmd, unsigned int sectors, bool read,
-		  struct scatterlist *sg, int sg_off)
+void sbc_dif_copy_prot(struct se_cmd *cmd, unsigned int sectors, bool read,
+		       struct scatterlist *sg, int sg_off)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct scatterlist *psg;
@@ -1309,68 +1308,11 @@ sbc_dif_copy_prot(struct se_cmd *cmd, unsigned int sectors, bool read,
 		kunmap_atomic(paddr);
 	}
 }
+EXPORT_SYMBOL(sbc_dif_copy_prot);
 
 sense_reason_t
-sbc_dif_verify_write(struct se_cmd *cmd, sector_t start, unsigned int sectors,
-		     unsigned int ei_lba, struct scatterlist *sg, int sg_off)
-{
-	struct se_device *dev = cmd->se_dev;
-	struct se_dif_v1_tuple *sdt;
-	struct scatterlist *dsg, *psg = cmd->t_prot_sg;
-	sector_t sector = start;
-	void *daddr, *paddr;
-	int i, j, offset = 0;
-	sense_reason_t rc;
-
-	for_each_sg(cmd->t_data_sg, dsg, cmd->t_data_nents, i) {
-		daddr = kmap_atomic(sg_page(dsg)) + dsg->offset;
-		paddr = kmap_atomic(sg_page(psg)) + psg->offset;
-
-		for (j = 0; j < dsg->length; j += dev->dev_attrib.block_size) {
-
-			if (offset >= psg->length) {
-				kunmap_atomic(paddr);
-				psg = sg_next(psg);
-				paddr = kmap_atomic(sg_page(psg)) + psg->offset;
-				offset = 0;
-			}
-
-			sdt = paddr + offset;
-
-			pr_debug("DIF WRITE sector: %llu guard_tag: 0x%04x"
-				 " app_tag: 0x%04x ref_tag: %u\n",
-				 (unsigned long long)sector, sdt->guard_tag,
-				 sdt->app_tag, be32_to_cpu(sdt->ref_tag));
-
-			rc = sbc_dif_v1_verify(cmd, sdt, daddr + j, sector,
-					       ei_lba);
-			if (rc) {
-				kunmap_atomic(paddr);
-				kunmap_atomic(daddr);
-				cmd->bad_sector = sector;
-				return rc;
-			}
-
-			sector++;
-			ei_lba++;
-			offset += sizeof(struct se_dif_v1_tuple);
-		}
-
-		kunmap_atomic(paddr);
-		kunmap_atomic(daddr);
-	}
-	if (!sg)
-		return 0;
-
-	sbc_dif_copy_prot(cmd, sectors, false, sg, sg_off);
-
-	return 0;
-}
-EXPORT_SYMBOL(sbc_dif_verify_write);
-
-static sense_reason_t
-__sbc_dif_verify_read(struct se_cmd *cmd, sector_t start, unsigned int sectors,
-		      unsigned int ei_lba, struct scatterlist *sg, int sg_off)
+sbc_dif_verify(struct se_cmd *cmd, sector_t start, unsigned int sectors,
+	       unsigned int ei_lba, struct scatterlist *sg, int sg_off)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct se_dif_v1_tuple *sdt;
@@ -1426,28 +1368,4 @@ __sbc_dif_verify_read(struct se_cmd *cmd, sector_t start, unsigned int sectors,
 
 	return 0;
 }
-
-sense_reason_t
-sbc_dif_read_strip(struct se_cmd *cmd)
-{
-	struct se_device *dev = cmd->se_dev;
-	u32 sectors = cmd->prot_length / dev->prot_length;
-
-	return __sbc_dif_verify_read(cmd, cmd->t_task_lba, sectors, 0,
-				     cmd->t_prot_sg, 0);
-}
-
-sense_reason_t
-sbc_dif_verify_read(struct se_cmd *cmd, sector_t start, unsigned int sectors,
-		    unsigned int ei_lba, struct scatterlist *sg, int sg_off)
-{
-	sense_reason_t rc;
-
-	rc = __sbc_dif_verify_read(cmd, start, sectors, ei_lba, sg, sg_off);
-	if (rc)
-		return rc;
-
-	sbc_dif_copy_prot(cmd, sectors, true, sg, sg_off);
-	return 0;
-}
-EXPORT_SYMBOL(sbc_dif_verify_read);
+EXPORT_SYMBOL(sbc_dif_verify);

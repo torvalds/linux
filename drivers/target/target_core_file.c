@@ -643,13 +643,14 @@ fd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 		if (ret > 0 && cmd->prot_type && dev->dev_attrib.pi_prot_type) {
 			u32 sectors = cmd->data_length / dev->dev_attrib.block_size;
 
-			rc = sbc_dif_verify_read(cmd, cmd->t_task_lba, sectors,
-						 0, fd_prot.prot_sg, 0);
+			rc = sbc_dif_verify(cmd, cmd->t_task_lba, sectors,
+					    0, fd_prot.prot_sg, 0);
 			if (rc) {
 				kfree(fd_prot.prot_sg);
 				kfree(fd_prot.prot_buf);
 				return rc;
 			}
+			sbc_dif_copy_prot(cmd, sectors, true, fd_prot.prot_sg, 0);
 			kfree(fd_prot.prot_sg);
 			kfree(fd_prot.prot_buf);
 		}
@@ -663,13 +664,14 @@ fd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 			if (ret < 0)
 				return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 
-			rc = sbc_dif_verify_write(cmd, cmd->t_task_lba, sectors,
-						  0, fd_prot.prot_sg, 0);
+			rc = sbc_dif_verify(cmd, cmd->t_task_lba, sectors,
+					    0, cmd->t_prot_sg, 0);
 			if (rc) {
 				kfree(fd_prot.prot_sg);
 				kfree(fd_prot.prot_buf);
 				return rc;
 			}
+			sbc_dif_copy_prot(cmd, sectors, false, fd_prot.prot_sg, 0);
 		}
 
 		ret = fd_do_rw(cmd, sgl, sgl_nents, 1);

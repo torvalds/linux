@@ -1766,8 +1766,8 @@ static int target_write_prot_action(struct se_cmd *cmd)
 			break;
 
 		sectors = cmd->data_length >> ilog2(cmd->se_dev->dev_attrib.block_size);
-		cmd->pi_err = sbc_dif_verify_write(cmd, cmd->t_task_lba,
-						   sectors, 0, NULL, 0);
+		cmd->pi_err = sbc_dif_verify(cmd, cmd->t_task_lba,
+					     sectors, 0, cmd->t_prot_sg, 0);
 		if (unlikely(cmd->pi_err)) {
 			spin_lock_irq(&cmd->t_state_lock);
 			cmd->transport_state &= ~(CMD_T_BUSY|CMD_T_SENT);
@@ -1991,16 +1991,17 @@ static void transport_handle_queue_full(
 
 static bool target_read_prot_action(struct se_cmd *cmd)
 {
-	sense_reason_t rc;
-
 	switch (cmd->prot_op) {
 	case TARGET_PROT_DIN_STRIP:
 		if (!(cmd->se_sess->sup_prot_ops & TARGET_PROT_DIN_STRIP)) {
-			rc = sbc_dif_read_strip(cmd);
-			if (rc) {
-				cmd->pi_err = rc;
+			u32 sectors = cmd->data_length >>
+				  ilog2(cmd->se_dev->dev_attrib.block_size);
+
+			cmd->pi_err = sbc_dif_verify(cmd, cmd->t_task_lba,
+						     sectors, 0, cmd->t_prot_sg,
+						     0);
+			if (cmd->pi_err)
 				return true;
-			}
 		}
 		break;
 	case TARGET_PROT_DIN_INSERT:
