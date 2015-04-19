@@ -843,27 +843,33 @@ static int may_linkat(struct path *link)
 	return -EPERM;
 }
 
-static __always_inline const char *
-get_link(struct path *link, struct nameidata *nd, void **p)
+static __always_inline
+const char *get_link(struct nameidata *nd)
 {
-	struct dentry *dentry = link->dentry;
+	struct saved *last = nd->stack + nd->depth;
+	struct dentry *dentry = nd->link.dentry;
 	struct inode *inode = dentry->d_inode;
 	int error;
 	const char *res;
 
 	BUG_ON(nd->flags & LOOKUP_RCU);
 
-	if (link->mnt == nd->path.mnt)
-		mntget(link->mnt);
+	if (nd->link.mnt == nd->path.mnt)
+		mntget(nd->link.mnt);
 
-	res = ERR_PTR(-ELOOP);
-	if (unlikely(current->total_link_count >= 40))
-		goto out;
+	if (unlikely(current->total_link_count >= 40)) {
+		path_put(&nd->path);
+		path_put(&nd->link);
+		return ERR_PTR(-ELOOP);
+	}
+
+	last->link = nd->link;
+	last->cookie = NULL;
 
 	cond_resched();
 	current->total_link_count++;
 
-	touch_atime(link);
+	touch_atime(&last->link);
 
 	error = security_inode_follow_link(dentry);
 	res = ERR_PTR(error);
@@ -871,14 +877,13 @@ get_link(struct path *link, struct nameidata *nd, void **p)
 		goto out;
 
 	nd->last_type = LAST_BIND;
-	*p = NULL;
 	res = inode->i_link;
 	if (!res) {
-		res = inode->i_op->follow_link(dentry, p, nd);
+		res = inode->i_op->follow_link(dentry, &last->cookie, nd);
 		if (IS_ERR(res)) {
 out:
 			path_put(&nd->path);
-			path_put(link);
+			path_put(&last->link);
 		}
 	}
 	return res;
@@ -1717,7 +1722,6 @@ static inline u64 hash_name(const char *name)
  */
 static int link_path_walk(const char *name, struct nameidata *nd)
 {
-	struct saved *last = nd->stack;
 	int err;
 
 	while (*name=='/')
@@ -1795,16 +1799,13 @@ Walked:
 
 			nd->depth++;
 			current->link_count++;
-			last++;
 
-			last->link = nd->link;
-			s = get_link(&last->link, nd, &last->cookie);
+			s = get_link(nd);
 
 			if (unlikely(IS_ERR(s))) {
 				err = PTR_ERR(s);
 				current->link_count--;
 				nd->depth--;
-				last--;
 				goto Err;
 			}
 			err = 0;
@@ -1813,7 +1814,6 @@ Walked:
 				put_link(nd);
 				current->link_count--;
 				nd->depth--;
-				last--;
 			} else {
 				if (*s == '/') {
 					if (!nd->root.mnt)
@@ -1826,7 +1826,7 @@ Walked:
 						;
 				}
 				nd->inode = nd->path.dentry->d_inode;
-				last->name = name;
+				nd->stack[nd->depth].name = name;
 				if (!*s)
 					goto OK;
 				name = s;
@@ -1844,17 +1844,15 @@ Err:
 		put_link(nd);
 		current->link_count--;
 		nd->depth--;
-		last--;
 	}
 	return err;
 OK:
 	if (unlikely(nd->depth)) {
-		name = last->name;
+		name = nd->stack[nd->depth].name;
 		err = walk_component(nd, LOOKUP_FOLLOW);
 		put_link(nd);
 		current->link_count--;
 		nd->depth--;
-		last--;
 		goto Walked;
 	}
 	return 0;
@@ -1979,8 +1977,7 @@ static int trailing_symlink(struct nameidata *nd)
 	if (unlikely(error))
 		return error;
 	nd->flags |= LOOKUP_PARENT;
-	nd->stack[0].link = nd->link;
-	s = get_link(&nd->stack[0].link, nd, &nd->stack[0].cookie);
+	s = get_link(nd);
 	if (unlikely(IS_ERR(s)))
 		return PTR_ERR(s);
 	if (unlikely(!s))
