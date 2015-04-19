@@ -200,8 +200,7 @@ void __init plat_mem_setup(void)
 					   AR71XX_RESET_SIZE);
 	ath79_pll_base = ioremap_nocache(AR71XX_PLL_BASE,
 					 AR71XX_PLL_SIZE);
-	ath79_ddr_base = ioremap_nocache(AR71XX_DDR_CTRL_BASE,
-					 AR71XX_DDR_CTRL_SIZE);
+	ath79_ddr_ctrl_init();
 
 	ath79_detect_sys_type();
 	detect_memory_region(0, ATH79_MEM_SIZE_MIN, ATH79_MEM_SIZE_MAX);

@@ -24,9 +24,6 @@
 #include <asm/mach-ath79/ar71xx_regs.h>
 #include "common.h"
 
-static void (*ath79_ip2_handler)(void);
-static void (*ath79_ip3_handler)(void);
-
 static void ath79_misc_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
 	void __iomem *base = ath79_reset_base;
@@ -129,10 +126,10 @@ static void ar934x_ip2_irq_dispatch(unsigned int irq, struct irq_desc *desc)
 	status = ath79_reset_rr(AR934X_RESET_REG_PCIE_WMAC_INT_STATUS);
 
 	if (status & AR934X_PCIE_WMAC_INT_PCIE_ALL) {
-		ath79_ddr_wb_flush(AR934X_DDR_REG_FLUSH_PCIE);
+		ath79_ddr_wb_flush(3);
 		generic_handle_irq(ATH79_IP2_IRQ(0));
 	} else if (status & AR934X_PCIE_WMAC_INT_WMAC_ALL) {
-		ath79_ddr_wb_flush(AR934X_DDR_REG_FLUSH_WMAC);
+		ath79_ddr_wb_flush(4);
 		generic_handle_irq(ATH79_IP2_IRQ(1));
 	} else {
 		spurious_interrupt();
@@ -235,128 +232,50 @@ static void qca955x_irq_init(void)
 	irq_set_chained_handler(ATH79_CPU_IRQ(3), qca955x_ip3_irq_dispatch);
 }
 
-asmlinkage void plat_irq_dispatch(void)
-{
-	unsigned long pending;
-
-	pending = read_c0_status() & read_c0_cause() & ST0_IM;
-
-	if (pending & STATUSF_IP7)
-		do_IRQ(ATH79_CPU_IRQ(7));
-
-	else if (pending & STATUSF_IP2)
-		ath79_ip2_handler();
-
-	else if (pending & STATUSF_IP4)
-		do_IRQ(ATH79_CPU_IRQ(4));
-
-	else if (pending & STATUSF_IP5)
-		do_IRQ(ATH79_CPU_IRQ(5));
-
-	else if (pending & STATUSF_IP3)
-		ath79_ip3_handler();
-
-	else if (pending & STATUSF_IP6)
-		do_IRQ(ATH79_CPU_IRQ(6));
-
-	else
-		spurious_interrupt();
-}
-
 /*
  * The IP2/IP3 lines are tied to a PCI/WMAC/USB device. Drivers for
  * these devices typically allocate coherent DMA memory, however the
  * DMA controller may still have some unsynchronized data in the FIFO.
  * Issue a flush in the handlers to ensure that the driver sees
  * the update.
+ *
+ * This array map the interrupt lines to the DDR write buffer channels.
  */
 
-static void ath79_default_ip2_handler(void)
-{
-	do_IRQ(ATH79_CPU_IRQ(2));
-}
+static unsigned irq_wb_chan[8] = {
+	-1, -1, -1, -1, -1, -1, -1, -1,
+};
 
-static void ath79_default_ip3_handler(void)
+asmlinkage void plat_irq_dispatch(void)
 {
-	do_IRQ(ATH79_CPU_IRQ(3));
-}
+	unsigned long pending;
+	int irq;
 
-static void ar71xx_ip2_handler(void)
-{
-	ath79_ddr_wb_flush(AR71XX_DDR_REG_FLUSH_PCI);
-	do_IRQ(ATH79_CPU_IRQ(2));
-}
+	pending = read_c0_status() & read_c0_cause() & ST0_IM;
 
-static void ar724x_ip2_handler(void)
-{
-	ath79_ddr_wb_flush(AR724X_DDR_REG_FLUSH_PCIE);
-	do_IRQ(ATH79_CPU_IRQ(2));
-}
+	if (!pending) {
+		spurious_interrupt();
+		return;
+	}
 
-static void ar913x_ip2_handler(void)
-{
-	ath79_ddr_wb_flush(AR913X_DDR_REG_FLUSH_WMAC);
-	do_IRQ(ATH79_CPU_IRQ(2));
-}
-
-static void ar933x_ip2_handler(void)
-{
-	ath79_ddr_wb_flush(AR933X_DDR_REG_FLUSH_WMAC);
-	do_IRQ(ATH79_CPU_IRQ(2));
-}
-
-static void ar71xx_ip3_handler(void)
-{
-	ath79_ddr_wb_flush(AR71XX_DDR_REG_FLUSH_USB);
-	do_IRQ(ATH79_CPU_IRQ(3));
-}
-
-static void ar724x_ip3_handler(void)
-{
-	ath79_ddr_wb_flush(AR724X_DDR_REG_FLUSH_USB);
-	do_IRQ(ATH79_CPU_IRQ(3));
-}
-
-static void ar913x_ip3_handler(void)
-{
-	ath79_ddr_wb_flush(AR913X_DDR_REG_FLUSH_USB);
-	do_IRQ(ATH79_CPU_IRQ(3));
-}
-
-static void ar933x_ip3_handler(void)
-{
-	ath79_ddr_wb_flush(AR933X_DDR_REG_FLUSH_USB);
-	do_IRQ(ATH79_CPU_IRQ(3));
-}
-
-static void ar934x_ip3_handler(void)
-{
-	ath79_ddr_wb_flush(AR934X_DDR_REG_FLUSH_USB);
-	do_IRQ(ATH79_CPU_IRQ(3));
+	pending >>= CAUSEB_IP;
+	while (pending) {
+		irq = fls(pending) - 1;
+		if (irq < ARRAY_SIZE(irq_wb_chan) && irq_wb_chan[irq] != -1)
+			ath79_ddr_wb_flush(irq_wb_chan[irq]);
+		do_IRQ(MIPS_CPU_IRQ_BASE + irq);
+		pending &= ~BIT(irq);
+	}
 }
 
 void __init arch_init_irq(void)
 {
-	if (soc_is_ar71xx()) {
-		ath79_ip2_handler = ar71xx_ip2_handler;
-		ath79_ip3_handler = ar71xx_ip3_handler;
-	} else if (soc_is_ar724x()) {
-		ath79_ip2_handler = ar724x_ip2_handler;
-		ath79_ip3_handler = ar724x_ip3_handler;
-	} else if (soc_is_ar913x()) {
-		ath79_ip2_handler = ar913x_ip2_handler;
-		ath79_ip3_handler = ar913x_ip3_handler;
-	} else if (soc_is_ar933x()) {
-		ath79_ip2_handler = ar933x_ip2_handler;
-		ath79_ip3_handler = ar933x_ip3_handler;
+	if (soc_is_ar71xx() || soc_is_ar724x() ||
+	    soc_is_ar913x() || soc_is_ar933x()) {
+		irq_wb_chan[2] = 3;
+		irq_wb_chan[3] = 2;
 	} else if (soc_is_ar934x()) {
-		ath79_ip2_handler = ath79_default_ip2_handler;
-		ath79_ip3_handler = ar934x_ip3_handler;
-	} else if (soc_is_qca955x()) {
-		ath79_ip2_handler = ath79_default_ip2_handler;
-		ath79_ip3_handler = ath79_default_ip3_handler;
-	} else {
-		BUG();
+		irq_wb_chan[3] = 2;
 	}
 
 	mips_cpu_irq_init();
