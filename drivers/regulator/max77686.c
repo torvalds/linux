@@ -2,7 +2,7 @@
  * max77686.c - Regulator driver for the Maxim 77686
  *
  * Copyright (C) 2012 Samsung Electronics
- * Chiwoong Byun <woong.byun@smasung.com>
+ * Chiwoong Byun <woong.byun@samsung.com>
  * Jonghwa Lee <jonghwa3.lee@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
