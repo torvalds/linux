@@ -18,6 +18,9 @@ amdgpu-y += amdgpu_device.o amdgpu_kms.o \
 	amdgpu_prime.o amdgpu_vm.o amdgpu_ib.o amdgpu_pll.o \
 	amdgpu_ucode.o amdgpu_bo_list.o amdgpu_ctx.o amdgpu_sync.o
 
+amdgpu-$(CONFIG_DRM_AMDGPU_CIK)+= cik.o gmc_v7_0.o cik_ih.o kv_smc.o kv_dpm.o \
+	ci_smc.o ci_dpm.o dce_v8_0.o gfx_v7_0.o cik_sdma.o uvd_v4_2.o vce_v2_0.o
+
 # add IH block
 amdgpu-y += \
 	amdgpu_irq.o \

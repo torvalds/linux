@@ -38,6 +38,9 @@
 #include "amdgpu_i2c.h"
 #include "atom.h"
 #include "amdgpu_atombios.h"
+#ifdef CONFIG_DRM_AMDGPU_CIK
+#include "cik.h"
+#endif
 #include "bif/bif_4_1_d.h"
 
 static int amdgpu_debugfs_regs_init(struct amdgpu_device *adev);
@@ -1154,6 +1157,22 @@ static int amdgpu_early_init(struct amdgpu_device *adev)
 	int i, r = -EINVAL;
 
 	switch (adev->asic_type) {
+#ifdef CONFIG_DRM_AMDGPU_CIK
+	case CHIP_BONAIRE:
+	case CHIP_HAWAII:
+	case CHIP_KAVERI:
+	case CHIP_KABINI:
+	case CHIP_MULLINS:
+		if ((adev->asic_type == CHIP_BONAIRE) || (adev->asic_type == CHIP_HAWAII))
+			adev->family = AMDGPU_FAMILY_CI;
+		else
+			adev->family = AMDGPU_FAMILY_KV;
+
+		r = cik_set_ip_blocks(adev);
+		if (r)
+			return r;
+		break;
+#endif
 	default:
 		/* FIXME: not supported yet */
 		return -EINVAL;
