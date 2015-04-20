@@ -713,7 +713,7 @@ static int wm_coeff_parse_string(int bytes, const u8 **pos, const u8 **str)
 		length = **pos;
 		break;
 	case 2:
-		length = le16_to_cpu(*((u16 *)*pos));
+		length = le16_to_cpu(*((__le16 *)*pos));
 		break;
 	default:
 		return 0;
@@ -733,10 +733,10 @@ static int wm_coeff_parse_int(int bytes, const u8 **pos)
 
 	switch (bytes) {
 	case 2:
-		val = le16_to_cpu(*((u16 *)*pos));
+		val = le16_to_cpu(*((__le16 *)*pos));
 		break;
 	case 4:
-		val = le32_to_cpu(*((u32 *)*pos));
+		val = le32_to_cpu(*((__le32 *)*pos));
 		break;
 	default:
 		break;
