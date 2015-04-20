@@ -27,6 +27,9 @@
 #define PCI_DEVICE_ID_PROC_BDW_THERMAL	0x1603
 #define PCI_DEVICE_ID_PROC_HSB_THERMAL	0x0A03
 
+/* Skylake thermal reporting device */
+#define PCI_DEVICE_ID_PROC_SKL_THERMAL	0x1903
+
 /* Braswell thermal reporting device */
 #define PCI_DEVICE_ID_PROC_BSW_THERMAL	0x22DC
 
@@ -399,6 +402,7 @@ static void  proc_thermal_pci_remove(struct pci_dev *pdev)
 static const struct pci_device_id proc_thermal_pci_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_PROC_BDW_THERMAL)},
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_PROC_HSB_THERMAL)},
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_PROC_SKL_THERMAL)},
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_PROC_BSW_THERMAL)},
 	{ 0, },
 };
