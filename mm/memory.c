@@ -3072,8 +3072,13 @@ static int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	 * Avoid grouping on DSO/COW pages in specific and RO pages
 	 * in general, RO pages shouldn't hurt as much anyway since
 	 * they can be in shared cache state.
+	 *
+	 * FIXME! This checks "pmd_dirty()" as an approximation of
+	 * "is this a read-only page", since checking "pmd_write()"
+	 * is even more broken. We haven't actually turned this into
+	 * a writable page, so pmd_write() will always be false.
 	 */
-	if (!pte_write(pte))
+	if (!pte_dirty(pte))
 		flags |= TNF_NO_GROUP;
 
 	/*

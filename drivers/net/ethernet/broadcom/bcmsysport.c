@@ -274,9 +274,9 @@ static const struct bcm_sysport_stats bcm_sysport_gstrings_stats[] = {
 	/* RBUF misc statistics */
 	STAT_RBUF("rbuf_ovflow_cnt", mib.rbuf_ovflow_cnt, RBUF_OVFL_DISC_CNTR),
 	STAT_RBUF("rbuf_err_cnt", mib.rbuf_err_cnt, RBUF_ERR_PKT_CNTR),
-	STAT_MIB_RX("alloc_rx_buff_failed", mib.alloc_rx_buff_failed),
-	STAT_MIB_RX("rx_dma_failed", mib.rx_dma_failed),
-	STAT_MIB_TX("tx_dma_failed", mib.tx_dma_failed),
+	STAT_MIB_SOFT("alloc_rx_buff_failed", mib.alloc_rx_buff_failed),
+	STAT_MIB_SOFT("rx_dma_failed", mib.rx_dma_failed),
+	STAT_MIB_SOFT("tx_dma_failed", mib.tx_dma_failed),
 };
 
 #define BCM_SYSPORT_STATS_LEN	ARRAY_SIZE(bcm_sysport_gstrings_stats)
@@ -345,6 +345,7 @@ static void bcm_sysport_update_mib_counters(struct bcm_sysport_priv *priv)
 		s = &bcm_sysport_gstrings_stats[i];
 		switch (s->type) {
 		case BCM_SYSPORT_STAT_NETDEV:
+		case BCM_SYSPORT_STAT_SOFT:
 			continue;
 		case BCM_SYSPORT_STAT_MIB_RX:
 		case BCM_SYSPORT_STAT_MIB_TX:

@@ -21,7 +21,7 @@ obj-y			:= filemap.o mempool.o oom_kill.o \
 			   mm_init.o mmu_context.o percpu.o slab_common.o \
 			   compaction.o vmacache.o \
 			   interval_tree.o list_lru.o workingset.o \
-			   iov_iter.o debug.o $(mmu-y)
+			   debug.o $(mmu-y)
 
 obj-y += init-mm.o
 

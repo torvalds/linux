@@ -91,9 +91,10 @@ unsigned int comedi_isadma_disable_on_sample(unsigned int dma_chan,
 			stalled++;
 			if (stalled > 10)
 				break;
+		} else {
+			residue = new_residue;
+			stalled = 0;
 		}
-		residue = new_residue;
-		stalled = 0;
 	}
 	return residue;
 }

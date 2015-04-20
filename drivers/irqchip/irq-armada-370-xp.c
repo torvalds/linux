@@ -69,6 +69,7 @@ static void __iomem *per_cpu_int_base;
 static void __iomem *main_int_base;
 static struct irq_domain *armada_370_xp_mpic_domain;
 static u32 doorbell_mask_reg;
+static int parent_irq;
 #ifdef CONFIG_PCI_MSI
 static struct irq_domain *armada_370_xp_msi_domain;
 static DECLARE_BITMAP(msi_used, PCI_MSI_DOORBELL_NR);
@@ -356,11 +357,26 @@ static int armada_xp_mpic_secondary_init(struct notifier_block *nfb,
 {
 	if (action == CPU_STARTING || action == CPU_STARTING_FROZEN)
 		armada_xp_mpic_smp_cpu_init();
+
 	return NOTIFY_OK;
 }
 
 static struct notifier_block armada_370_xp_mpic_cpu_notifier = {
 	.notifier_call = armada_xp_mpic_secondary_init,
+	.priority = 100,
+};
+
+static int mpic_cascaded_secondary_init(struct notifier_block *nfb,
+					unsigned long action, void *hcpu)
+{
+	if (action == CPU_STARTING || action == CPU_STARTING_FROZEN)
+		enable_percpu_irq(parent_irq, IRQ_TYPE_NONE);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block mpic_cascaded_cpu_notifier = {
+	.notifier_call = mpic_cascaded_secondary_init,
 	.priority = 100,
 };
 
@@ -539,7 +555,7 @@ static int __init armada_370_xp_mpic_of_init(struct device_node *node,
 					     struct device_node *parent)
 {
 	struct resource main_int_res, per_cpu_int_res;
-	int parent_irq, nr_irqs, i;
+	int nr_irqs, i;
 	u32 control;
 
 	BUG_ON(of_address_to_resource(node, 0, &main_int_res));
@@ -587,6 +603,9 @@ static int __init armada_370_xp_mpic_of_init(struct device_node *node,
 		register_cpu_notifier(&armada_370_xp_mpic_cpu_notifier);
 #endif
 	} else {
+#ifdef CONFIG_SMP
+		register_cpu_notifier(&mpic_cascaded_cpu_notifier);
+#endif
 		irq_set_chained_handler(parent_irq,
 					armada_370_xp_mpic_handle_cascade_irq);
 	}

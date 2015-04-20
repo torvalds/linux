@@ -127,7 +127,7 @@ static bool xgene_pcie_hide_rc_bars(struct pci_bus *bus, int offset)
 	return false;
 }
 
-static int xgene_pcie_map_bus(struct pci_bus *bus, unsigned int devfn,
+static void __iomem *xgene_pcie_map_bus(struct pci_bus *bus, unsigned int devfn,
 			      int offset)
 {
 	struct xgene_pcie_port *port = bus->sysdata;
@@ -137,7 +137,7 @@ static int xgene_pcie_map_bus(struct pci_bus *bus, unsigned int devfn,
 		return NULL;
 
 	xgene_pcie_set_rtdid_reg(bus, devfn);
-	return xgene_pcie_get_cfg_base(bus);
+	return xgene_pcie_get_cfg_base(bus) + offset;
 }
 
 static struct pci_ops xgene_pcie_ops = {
