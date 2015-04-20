@@ -51,12 +51,6 @@ config RCAR_HPB_DMAE
 	help
 	  Enable support for the Renesas R-Car series DMA controllers.
 
-config RCAR_AUDMAC_PP
-	tristate "Renesas R-Car Audio DMAC Peripheral Peripheral support"
-	depends on SH_DMAE_BASE
-	help
-	  Enable support for the Renesas R-Car Audio DMAC Peripheral Peripheral controllers.
-
 config RCAR_DMAC
 	tristate "Renesas R-Car Gen2 DMA Controller"
 	depends on ARCH_SHMOBILE || COMPILE_TEST
