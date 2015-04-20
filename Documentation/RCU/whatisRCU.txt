@@ -879,9 +879,7 @@ SRCU:	Initialization/cleanup
 
 All:  lockdep-checked RCU-protected pointer access
 
-	rcu_access_index
 	rcu_access_pointer
-	rcu_dereference_index_check
 	rcu_dereference_raw
 	rcu_lockdep_assert
 	rcu_sleep_check
