@@ -26,10 +26,14 @@
 #include <linux/firmware.h>
 
 struct tda10071_priv {
-	struct i2c_adapter *i2c;
 	struct dvb_frontend fe;
 	struct i2c_client *client;
-	struct tda10071_config cfg;
+	u32 clk;
+	u16 i2c_wr_max;
+	u8 ts_mode;
+	bool spec_inv;
+	u8 pll_multiplier;
+	u8 tuner_i2c_addr;
 
 	u8 meas_count[2];
 	u32 ber;
