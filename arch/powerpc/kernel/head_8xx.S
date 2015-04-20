@@ -116,13 +116,13 @@ turn_on_mmu:
  */
 #define EXCEPTION_PROLOG	\
 	EXCEPTION_PROLOG_0;	\
+	mfcr	r10;		\
 	EXCEPTION_PROLOG_1;	\
 	EXCEPTION_PROLOG_2
 
 #define EXCEPTION_PROLOG_0	\
 	mtspr	SPRN_SPRG_SCRATCH0,r10;	\
-	mtspr	SPRN_SPRG_SCRATCH1,r11;	\
-	mfcr	r10
+	mtspr	SPRN_SPRG_SCRATCH1,r11
 
 #define EXCEPTION_PROLOG_1	\
 	mfspr	r11,SPRN_SRR1;		/* check whether user or kernel */ \
@@ -162,7 +162,6 @@ turn_on_mmu:
  * Exception exit code.
  */
 #define EXCEPTION_EPILOG_0	\
-	mtcr	r10;		\
 	mfspr	r10,SPRN_SPRG_SCRATCH0;	\
 	mfspr	r11,SPRN_SPRG_SCRATCH1
 
@@ -313,6 +312,7 @@ InstructionTLBMiss:
 	mtspr	SPRN_DAR, r3
 #endif
 	EXCEPTION_PROLOG_0
+	mfcr	r10
 	mtspr	SPRN_SPRG_SCRATCH2, r10
 	mfspr	r10, SPRN_SRR0	/* Get effective address of fault */
 	INVALIDATE_ADJACENT_PAGES_CPU15(r11, r10)
@@ -363,6 +363,7 @@ InstructionTLBMiss:
 	mtspr	SPRN_DAR, r11	/* Tag DAR */
 #endif
 	mfspr	r10, SPRN_SPRG_SCRATCH2
+	mtcr	r10
 	EXCEPTION_EPILOG_0
 	rfi
 
@@ -372,6 +373,7 @@ DataStoreTLBMiss:
 	mtspr	SPRN_DAR, r3
 #endif
 	EXCEPTION_PROLOG_0
+	mfcr	r10
 	mtspr	SPRN_SPRG_SCRATCH2, r10
 	mfspr	r10, SPRN_MD_EPN
 
@@ -437,6 +439,7 @@ DataStoreTLBMiss:
 #endif
 	mtspr	SPRN_DAR, r11	/* Tag DAR */
 	mfspr	r10, SPRN_SPRG_SCRATCH2
+	mtcr	r10
 	EXCEPTION_EPILOG_0
 	rfi
 
@@ -462,6 +465,7 @@ InstructionTLBError:
 	. = 0x1400
 DataTLBError:
 	EXCEPTION_PROLOG_0
+	mfcr	r10
 
 	mfspr	r11, SPRN_DAR
 	cmpwi	cr0, r11, RPN_PATTERN
