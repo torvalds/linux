@@ -25,7 +25,7 @@
 #include "tda10071.h"
 #include <linux/firmware.h>
 
-struct tda10071_priv {
+struct tda10071_dev {
 	struct dvb_frontend fe;
 	struct i2c_client *client;
 	u32 clk;
