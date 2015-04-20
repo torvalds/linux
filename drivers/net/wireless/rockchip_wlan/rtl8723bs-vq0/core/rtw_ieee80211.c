@@ -1383,7 +1383,7 @@ int rtw_get_mac_addr_intel(unsigned char *buf)
 #endif //CONFIG_PLATFORM_INTEL_BYT
 
 extern char* rtw_initmac;
-extern int rockchip_wifi_mac_addr(unsigned char *buf);
+#include <linux/rfkill-wlan.h>
 void rtw_macaddr_cfg(u8 *mac_addr)
 {
 	u8 mac[ETH_ALEN];
@@ -1399,19 +1399,20 @@ void rtw_macaddr_cfg(u8 *mac_addr)
 		}
 		_rtw_memcpy(mac_addr, mac, ETH_ALEN);
 	}
-	else
-	{
-		printk("Wifi Efuse Mac => %02x:%02x:%02x:%02x:%02x:%02x\n", 
-								mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
-		if (!rockchip_wifi_mac_addr(mac_addr)) {
-			printk("Use flash MAC = %02x:%02x:%02x:%02x:%02x:%02x\n", 
-								    mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
-		} else {
-			//  Use the mac address stored in the Efuse
-			_rtw_memcpy(mac, mac_addr, ETH_ALEN);
-		}
-	}
-	
+    else
+    {
+        printk("Wifi Efuse Mac => %02x:%02x:%02x:%02x:%02x:%02x\n", mac_addr[0], mac_addr[1],
+            mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
+        if (!rockchip_wifi_mac_addr(mac)) {
+            printk("=========> get mac address from flash=[%02x:%02x:%02x:%02x:%02x:%02x]\n", mac[0], mac[1],
+                mac[2], mac[3], mac[4], mac[5]);
+            _rtw_memcpy(mac_addr, mac, ETH_ALEN);
+        } else {
+            //  Use the mac address stored in the Efuse
+            _rtw_memcpy(mac, mac_addr, ETH_ALEN);
+        }
+    }
+
 	if (((mac[0]==0xff) &&(mac[1]==0xff) && (mac[2]==0xff) &&
 	     (mac[3]==0xff) && (mac[4]==0xff) &&(mac[5]==0xff)) ||
 	    ((mac[0]==0x0) && (mac[1]==0x0) && (mac[2]==0x0) &&
