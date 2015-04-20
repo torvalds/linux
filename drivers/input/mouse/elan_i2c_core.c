@@ -52,6 +52,7 @@
 #define ETP_REPORT_ID_OFFSET	2
 #define ETP_TOUCH_INFO_OFFSET	3
 #define ETP_FINGER_DATA_OFFSET	4
+#define ETP_HOVER_INFO_OFFSET	30
 #define ETP_MAX_REPORT_LEN	34
 
 /* The main device structure */
@@ -725,7 +726,7 @@ static const struct attribute_group *elan_sysfs_groups[] = {
  */
 static void elan_report_contact(struct elan_tp_data *data,
 				int contact_num, bool contact_valid,
-				u8 *finger_data)
+				bool hover_event, u8 *finger_data)
 {
 	struct input_dev *input = data->input;
 	unsigned int pos_x, pos_y;
@@ -769,7 +770,9 @@ static void elan_report_contact(struct elan_tp_data *data,
 		input_mt_report_slot_state(input, MT_TOOL_FINGER, true);
 		input_report_abs(input, ABS_MT_POSITION_X, pos_x);
 		input_report_abs(input, ABS_MT_POSITION_Y, data->max_y - pos_y);
-		input_report_abs(input, ABS_MT_PRESSURE, scaled_pressure);
+		input_report_abs(input, ABS_MT_DISTANCE, hover_event);
+		input_report_abs(input, ABS_MT_PRESSURE,
+				 hover_event ? 0 : scaled_pressure);
 		input_report_abs(input, ABS_TOOL_WIDTH, mk_x);
 		input_report_abs(input, ABS_MT_TOUCH_MAJOR, major);
 		input_report_abs(input, ABS_MT_TOUCH_MINOR, minor);
@@ -785,11 +788,14 @@ static void elan_report_absolute(struct elan_tp_data *data, u8 *packet)
 	u8 *finger_data = &packet[ETP_FINGER_DATA_OFFSET];
 	int i;
 	u8 tp_info = packet[ETP_TOUCH_INFO_OFFSET];
-	bool contact_valid;
+	u8 hover_info = packet[ETP_HOVER_INFO_OFFSET];
+	bool contact_valid, hover_event;
 
+	hover_event = hover_info & 0x40;
 	for (i = 0; i < ETP_MAX_FINGERS; i++) {
 		contact_valid = tp_info & (1U << (3 + i));
-		elan_report_contact(data, i, contact_valid, finger_data);
+		elan_report_contact(data, i, contact_valid, hover_event,
+				    finger_data);
 
 		if (contact_valid)
 			finger_data += ETP_FINGER_DATA_LEN;
@@ -883,6 +889,7 @@ static int elan_setup_input_device(struct elan_tp_data *data)
 			     ETP_FINGER_WIDTH * max_width, 0, 0);
 	input_set_abs_params(input, ABS_MT_TOUCH_MINOR, 0,
 			     ETP_FINGER_WIDTH * min_width, 0, 0);
+	input_set_abs_params(input, ABS_MT_DISTANCE, 0, 1, 0, 0);
 
 	data->input = input;
 
