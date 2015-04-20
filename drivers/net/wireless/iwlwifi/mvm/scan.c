@@ -798,10 +798,6 @@ iwl_mvm_build_generic_scan_cmd(struct iwl_mvm *mvm,
 	cmd->suspend_time = cpu_to_le32(params->suspend_time);
 	cmd->scan_prio = cpu_to_le32(IWL_SCAN_PRIORITY_HIGH);
 	cmd->iter_num = cpu_to_le32(1);
-
-	if (iwl_mvm_rrm_scan_needed(mvm))
-		cmd->scan_flags |=
-			cpu_to_le32(IWL_MVM_LMAC_SCAN_FLAGS_RRM_ENABLED);
 }
 
 static inline bool iwl_mvm_scan_fits(struct iwl_mvm *mvm, int n_ssids,
@@ -836,6 +832,36 @@ static int iwl_mvm_scan_total_iterations(struct iwl_mvm_scan_params *params)
 	return params->schedule[0].iterations + params->schedule[1].iterations;
 }
 
+static int iwl_mvm_scan_lmac_flags(struct iwl_mvm *mvm,
+				   struct iwl_mvm_scan_params *params)
+{
+	int flags = 0;
+
+	if (params->n_ssids == 0)
+		flags |= IWL_MVM_LMAC_SCAN_FLAG_PASSIVE;
+
+	if (params->n_ssids == 1 && params->ssids[0].ssid_len != 0)
+		flags |= IWL_MVM_LMAC_SCAN_FLAG_PRE_CONNECTION;
+
+	if (params->passive_fragmented)
+		flags |= IWL_MVM_LMAC_SCAN_FLAG_FRAGMENTED;
+
+	if (iwl_mvm_rrm_scan_needed(mvm))
+		flags |= IWL_MVM_LMAC_SCAN_FLAGS_RRM_ENABLED;
+
+	if (params->pass_all)
+		flags |= IWL_MVM_LMAC_SCAN_FLAG_PASS_ALL;
+	else
+		flags |= IWL_MVM_LMAC_SCAN_FLAG_MATCH;
+
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	if (mvm->scan_iter_notif_enabled)
+		flags |= IWL_MVM_LMAC_SCAN_FLAG_ITER_COMPLETE;
+#endif
+
+	return flags;
+}
+
 static int iwl_mvm_scan_lmac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			     struct iwl_mvm_scan_params *params)
 {
@@ -843,7 +869,7 @@ static int iwl_mvm_scan_lmac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	struct iwl_scan_probe_req *preq =
 		(void *)(cmd->data + sizeof(struct iwl_scan_channel_cfg_lmac) *
 			 mvm->fw->ucode_capa.n_scan_channels);
-	u32 flags = 0, ssid_bitmap = 0;
+	u32 ssid_bitmap = 0;
 	int n_iterations = iwl_mvm_scan_total_iterations(params);
 
 	lockdep_assert_held(&mvm->mutex);
@@ -854,26 +880,7 @@ static int iwl_mvm_scan_lmac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	cmd->delay = cpu_to_le32(params->delay);
 
-	if (params->pass_all)
-		flags |= IWL_MVM_LMAC_SCAN_FLAG_PASS_ALL;
-	else
-		flags |= IWL_MVM_LMAC_SCAN_FLAG_MATCH;
-
-	if (params->n_ssids == 1 && params->ssids[0].ssid_len != 0)
-		flags |= IWL_MVM_LMAC_SCAN_FLAG_PRE_CONNECTION;
-
-	if (params->passive_fragmented)
-		flags |= IWL_MVM_LMAC_SCAN_FLAG_FRAGMENTED;
-
-	if (params->n_ssids == 0)
-		flags |= IWL_MVM_LMAC_SCAN_FLAG_PASSIVE;
-
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-	if (mvm->scan_iter_notif_enabled)
-		flags |= IWL_MVM_LMAC_SCAN_FLAG_ITER_COMPLETE;
-#endif
-
-	cmd->scan_flags |= cpu_to_le32(flags);
+	cmd->scan_flags = cpu_to_le32(iwl_mvm_scan_lmac_flags(mvm, params));
 
 	cmd->flags = iwl_mvm_scan_rxon_flags(params->channels[0]->band);
 	cmd->filter_flags = cpu_to_le32(MAC_FILTER_ACCEPT_GRP |
