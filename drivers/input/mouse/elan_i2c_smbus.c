@@ -268,8 +268,8 @@ static int elan_smbus_get_num_traces(struct i2c_client *client,
 		return error;
 	}
 
-	*x_traces = val[1] - 1;
-	*y_traces = val[2] - 1;
+	*x_traces = val[1];
+	*y_traces = val[2];
 
 	return 0;
 }

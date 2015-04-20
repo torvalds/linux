@@ -365,8 +365,8 @@ static int elan_i2c_get_num_traces(struct i2c_client *client,
 		return error;
 	}
 
-	*x_traces = val[0] - 1;
-	*y_traces = val[1] - 1;
+	*x_traces = val[0];
+	*y_traces = val[1];
 
 	return 0;
 }
