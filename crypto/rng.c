@@ -24,10 +24,17 @@
 #include <linux/cryptouser.h>
 #include <net/netlink.h>
 
+#include "internal.h"
+
 static DEFINE_MUTEX(crypto_default_rng_lock);
 struct crypto_rng *crypto_default_rng;
 EXPORT_SYMBOL_GPL(crypto_default_rng);
 static int crypto_default_rng_refcnt;
+
+static inline struct crypto_rng *__crypto_rng_cast(struct crypto_tfm *tfm)
+{
+	return container_of(tfm, struct crypto_rng, base);
+}
 
 static int rngapi_reset(struct crypto_rng *tfm, u8 *seed, unsigned int slen)
 {
@@ -49,13 +56,13 @@ static int rngapi_reset(struct crypto_rng *tfm, u8 *seed, unsigned int slen)
 	return err;
 }
 
-static int crypto_init_rng_ops(struct crypto_tfm *tfm, u32 type, u32 mask)
+static int crypto_rng_init_tfm(struct crypto_tfm *tfm)
 {
+	struct crypto_rng *rng = __crypto_rng_cast(tfm);
 	struct rng_alg *alg = &tfm->__crt_alg->cra_rng;
-	struct rng_tfm *ops = &tfm->crt_rng;
 
-	ops->rng_gen_random = alg->rng_make_random;
-	ops->rng_reset = rngapi_reset;
+	rng->generate = alg->rng_make_random;
+	rng->seed = rngapi_reset;
 
 	return 0;
 }
@@ -92,21 +99,25 @@ static void crypto_rng_show(struct seq_file *m, struct crypto_alg *alg)
 	seq_printf(m, "seedsize     : %u\n", alg->cra_rng.seedsize);
 }
 
-static unsigned int crypto_rng_ctxsize(struct crypto_alg *alg, u32 type,
-				       u32 mask)
-{
-	return alg->cra_ctxsize;
-}
-
 const struct crypto_type crypto_rng_type = {
-	.ctxsize = crypto_rng_ctxsize,
-	.init = crypto_init_rng_ops,
+	.extsize = crypto_alg_extsize,
+	.init_tfm = crypto_rng_init_tfm,
 #ifdef CONFIG_PROC_FS
 	.show = crypto_rng_show,
 #endif
 	.report = crypto_rng_report,
+	.maskclear = ~CRYPTO_ALG_TYPE_MASK,
+	.maskset = CRYPTO_ALG_TYPE_MASK,
+	.type = CRYPTO_ALG_TYPE_RNG,
+	.tfmsize = offsetof(struct crypto_rng, base),
 };
 EXPORT_SYMBOL_GPL(crypto_rng_type);
+
+struct crypto_rng *crypto_alloc_rng(const char *alg_name, u32 type, u32 mask)
+{
+	return crypto_alloc_tfm(alg_name, &crypto_rng_type, type, mask);
+}
+EXPORT_SYMBOL_GPL(crypto_alloc_rng);
 
 int crypto_get_default_rng(void)
 {

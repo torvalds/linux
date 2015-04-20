@@ -655,19 +655,12 @@ struct compress_tfm {
 	                      u8 *dst, unsigned int *dlen);
 };
 
-struct rng_tfm {
-	int (*rng_gen_random)(struct crypto_rng *tfm, u8 *rdata,
-			      unsigned int dlen);
-	int (*rng_reset)(struct crypto_rng *tfm, u8 *seed, unsigned int slen);
-};
-
 #define crt_ablkcipher	crt_u.ablkcipher
 #define crt_aead	crt_u.aead
 #define crt_blkcipher	crt_u.blkcipher
 #define crt_cipher	crt_u.cipher
 #define crt_hash	crt_u.hash
 #define crt_compress	crt_u.compress
-#define crt_rng		crt_u.rng
 
 struct crypto_tfm {
 
@@ -680,7 +673,6 @@ struct crypto_tfm {
 		struct cipher_tfm cipher;
 		struct hash_tfm hash;
 		struct compress_tfm compress;
-		struct rng_tfm rng;
 	} crt_u;
 
 	void (*exit)(struct crypto_tfm *tfm);
@@ -711,10 +703,6 @@ struct crypto_comp {
 };
 
 struct crypto_hash {
-	struct crypto_tfm base;
-};
-
-struct crypto_rng {
 	struct crypto_tfm base;
 };
 
