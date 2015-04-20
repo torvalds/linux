@@ -165,6 +165,13 @@
 #define OPAL_PM_WINKLE_ENABLED		0x00040000
 #define OPAL_PM_SLEEP_ENABLED_ER1	0x00080000 /* with workaround */
 
+/*
+ * OPAL_CONFIG_CPU_IDLE_STATE parameters
+ */
+#define OPAL_CONFIG_IDLE_FASTSLEEP	1
+#define OPAL_CONFIG_IDLE_UNDO		0
+#define OPAL_CONFIG_IDLE_APPLY		1
+
 #ifndef __ASSEMBLY__
 
 /* Other enums */

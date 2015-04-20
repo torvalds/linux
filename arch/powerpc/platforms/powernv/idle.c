@@ -13,6 +13,8 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/of.h>
+#include <linux/device.h>
+#include <linux/cpu.h>
 
 #include <asm/firmware.h>
 #include <asm/opal.h>
@@ -137,6 +139,96 @@ u32 pnv_get_supported_cpuidle_states(void)
 }
 EXPORT_SYMBOL_GPL(pnv_get_supported_cpuidle_states);
 
+
+static void pnv_fastsleep_workaround_apply(void *info)
+
+{
+	int rc;
+	int *err = info;
+
+	rc = opal_config_cpu_idle_state(OPAL_CONFIG_IDLE_FASTSLEEP,
+					OPAL_CONFIG_IDLE_APPLY);
+	if (rc)
+		*err = 1;
+}
+
+/*
+ * Used to store fastsleep workaround state
+ * 0 - Workaround applied/undone at fastsleep entry/exit path (Default)
+ * 1 - Workaround applied once, never undone.
+ */
+static u8 fastsleep_workaround_applyonce;
+
+static ssize_t show_fastsleep_workaround_applyonce(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%u\n", fastsleep_workaround_applyonce);
+}
+
+static ssize_t store_fastsleep_workaround_applyonce(struct device *dev,
+		struct device_attribute *attr, const char *buf,
+		size_t count)
+{
+	cpumask_t primary_thread_mask;
+	int err;
+	u8 val;
+
+	if (kstrtou8(buf, 0, &val) || val != 1)
+		return -EINVAL;
+
+	if (fastsleep_workaround_applyonce == 1)
+		return count;
+
+	/*
+	 * fastsleep_workaround_applyonce = 1 implies
+	 * fastsleep workaround needs to be left in 'applied' state on all
+	 * the cores. Do this by-
+	 * 1. Patching out the call to 'undo' workaround in fastsleep exit path
+	 * 2. Sending ipi to all the cores which have atleast one online thread
+	 * 3. Patching out the call to 'apply' workaround in fastsleep entry
+	 * path
+	 * There is no need to send ipi to cores which have all threads
+	 * offlined, as last thread of the core entering fastsleep or deeper
+	 * state would have applied workaround.
+	 */
+	err = patch_instruction(
+		(unsigned int *)pnv_fastsleep_workaround_at_exit,
+		PPC_INST_NOP);
+	if (err) {
+		pr_err("fastsleep_workaround_applyonce change failed while patching pnv_fastsleep_workaround_at_exit");
+		goto fail;
+	}
+
+	get_online_cpus();
+	primary_thread_mask = cpu_online_cores_map();
+	on_each_cpu_mask(&primary_thread_mask,
+				pnv_fastsleep_workaround_apply,
+				&err, 1);
+	put_online_cpus();
+	if (err) {
+		pr_err("fastsleep_workaround_applyonce change failed while running pnv_fastsleep_workaround_apply");
+		goto fail;
+	}
+
+	err = patch_instruction(
+		(unsigned int *)pnv_fastsleep_workaround_at_entry,
+		PPC_INST_NOP);
+	if (err) {
+		pr_err("fastsleep_workaround_applyonce change failed while patching pnv_fastsleep_workaround_at_entry");
+		goto fail;
+	}
+
+	fastsleep_workaround_applyonce = 1;
+
+	return count;
+fail:
+	return -EIO;
+}
+
+static DEVICE_ATTR(fastsleep_workaround_applyonce, 0600,
+			show_fastsleep_workaround_applyonce,
+			store_fastsleep_workaround_applyonce);
+
 static int __init pnv_init_idle_states(void)
 {
 	struct device_node *power_mgt;
@@ -181,7 +273,16 @@ static int __init pnv_init_idle_states(void)
 		patch_instruction(
 			(unsigned int *)pnv_fastsleep_workaround_at_exit,
 			PPC_INST_NOP);
+	} else {
+		/*
+		 * OPAL_PM_SLEEP_ENABLED_ER1 is set. It indicates that
+		 * workaround is needed to use fastsleep. Provide sysfs
+		 * control to choose how this workaround has to be applied.
+		 */
+		device_create_file(cpu_subsys.dev_root,
+				&dev_attr_fastsleep_workaround_applyonce);
 	}
+
 	pnv_alloc_idle_core_states();
 out_free:
 	kfree(flags);
