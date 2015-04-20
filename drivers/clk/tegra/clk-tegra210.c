@@ -2470,6 +2470,10 @@ static __init void tegra210_periph_clk_init(void __iomem *clk_base,
 					      1, 17, 207);
 	clks[TEGRA210_CLK_DPAUX1] = clk;
 
+	clk = tegra_clk_register_periph_fixed("sor_safe", "pll_p", 0, clk_base,
+					      1, 17, 222);
+	clks[TEGRA210_CLK_SOR_SAFE] = clk;
+
 	/* pll_d_dsi_out */
 	clk = clk_register_gate(NULL, "pll_d_dsi_out", "pll_d_out0", 0,
 				clk_base + PLLD_MISC0, 21, 0, &pll_d_lock);
