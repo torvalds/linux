@@ -4355,6 +4355,10 @@ static void ni_write_caldac(struct comedi_device *dev, int addr, int val)
 		addr -= caldacs[type].n_chans;
 	}
 
+	/* bits will be 0 if there is no caldac for the given addr */
+	if (bits == 0)
+		return;
+
 	for (bit = 1 << (bits - 1); bit; bit >>= 1) {
 		ni_writeb(dev, ((bit & bitstring) ? 0x02 : 0), Serial_Command);
 		udelay(1);
