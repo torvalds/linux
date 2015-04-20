@@ -1502,6 +1502,40 @@ struct ieee80211_key_conf {
 };
 
 /**
+ * struct ieee80211_key_seq - key sequence counter
+ *
+ * @tkip: TKIP data, containing IV32 and IV16 in host byte order
+ * @ccmp: PN data, most significant byte first (big endian,
+ *	reverse order than in packet)
+ * @aes_cmac: PN data, most significant byte first (big endian,
+ *	reverse order than in packet)
+ * @aes_gmac: PN data, most significant byte first (big endian,
+ *	reverse order than in packet)
+ * @gcmp: PN data, most significant byte first (big endian,
+ *	reverse order than in packet)
+ */
+struct ieee80211_key_seq {
+	union {
+		struct {
+			u32 iv32;
+			u16 iv16;
+		} tkip;
+		struct {
+			u8 pn[6];
+		} ccmp;
+		struct {
+			u8 pn[6];
+		} aes_cmac;
+		struct {
+			u8 pn[6];
+		} aes_gmac;
+		struct {
+			u8 pn[6];
+		} gcmp;
+	};
+};
+
+/**
  * struct ieee80211_cipher_scheme - cipher scheme
  *
  * This structure contains a cipher scheme information defining
@@ -2836,9 +2870,9 @@ enum ieee80211_reconfig_type {
  * 	Returns zero if statistics are available.
  *	The callback can sleep.
  *
- * @get_tkip_seq: If your device implements TKIP encryption in hardware this
- *	callback should be provided to read the TKIP transmit IVs (both IV32
- *	and IV16) for the given key from hardware.
+ * @get_key_seq: If your device implements encryption in hardware and does
+ *	IV/PN assignment then this callback should be provided to read the
+ *	IV/PN for the given key from hardware.
  *	The callback must be atomic.
  *
  * @set_frag_threshold: Configuration of fragmentation threshold. Assign this
@@ -3237,8 +3271,9 @@ struct ieee80211_ops {
 				 struct ieee80211_vif *vif);
 	int (*get_stats)(struct ieee80211_hw *hw,
 			 struct ieee80211_low_level_stats *stats);
-	void (*get_tkip_seq)(struct ieee80211_hw *hw, u8 hw_key_idx,
-			     u32 *iv32, u16 *iv16);
+	void (*get_key_seq)(struct ieee80211_hw *hw,
+			    struct ieee80211_key_conf *key,
+			    struct ieee80211_key_seq *seq);
 	int (*set_frag_threshold)(struct ieee80211_hw *hw, u32 value);
 	int (*set_rts_threshold)(struct ieee80211_hw *hw, u32 value);
 	int (*sta_add)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
@@ -4271,40 +4306,6 @@ void ieee80211_get_tkip_p2k(struct ieee80211_key_conf *keyconf,
  */
 void ieee80211_aes_cmac_calculate_k1_k2(struct ieee80211_key_conf *keyconf,
 					u8 *k1, u8 *k2);
-
-/**
- * struct ieee80211_key_seq - key sequence counter
- *
- * @tkip: TKIP data, containing IV32 and IV16 in host byte order
- * @ccmp: PN data, most significant byte first (big endian,
- *	reverse order than in packet)
- * @aes_cmac: PN data, most significant byte first (big endian,
- *	reverse order than in packet)
- * @aes_gmac: PN data, most significant byte first (big endian,
- *	reverse order than in packet)
- * @gcmp: PN data, most significant byte first (big endian,
- *	reverse order than in packet)
- */
-struct ieee80211_key_seq {
-	union {
-		struct {
-			u32 iv32;
-			u16 iv16;
-		} tkip;
-		struct {
-			u8 pn[6];
-		} ccmp;
-		struct {
-			u8 pn[6];
-		} aes_cmac;
-		struct {
-			u8 pn[6];
-		} aes_gmac;
-		struct {
-			u8 pn[6];
-		} gcmp;
-	};
-};
 
 /**
  * ieee80211_get_key_tx_seq - get key TX sequence counter

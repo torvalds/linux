@@ -7817,21 +7817,25 @@ EXPORT_SYMBOL_GPL(rt2800_probe_hw);
 /*
  * IEEE80211 stack callback functions.
  */
-void rt2800_get_tkip_seq(struct ieee80211_hw *hw, u8 hw_key_idx, u32 *iv32,
-			 u16 *iv16)
+void rt2800_get_key_seq(struct ieee80211_hw *hw,
+			struct ieee80211_key_conf *key,
+			struct ieee80211_key_seq *seq)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct mac_iveiv_entry iveiv_entry;
 	u32 offset;
 
-	offset = MAC_IVEIV_ENTRY(hw_key_idx);
+	if (key->cipher != WLAN_CIPHER_SUITE_TKIP)
+		return;
+
+	offset = MAC_IVEIV_ENTRY(key->hw_key_idx);
 	rt2800_register_multiread(rt2x00dev, offset,
 				      &iveiv_entry, sizeof(iveiv_entry));
 
-	memcpy(iv16, &iveiv_entry.iv[0], sizeof(*iv16));
-	memcpy(iv32, &iveiv_entry.iv[4], sizeof(*iv32));
+	memcpy(&seq->tkip.iv16, &iveiv_entry.iv[0], 2);
+	memcpy(&seq->tkip.iv32, &iveiv_entry.iv[4], 4);
 }
-EXPORT_SYMBOL_GPL(rt2800_get_tkip_seq);
+EXPORT_SYMBOL_GPL(rt2800_get_key_seq);
 
 int rt2800_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 {

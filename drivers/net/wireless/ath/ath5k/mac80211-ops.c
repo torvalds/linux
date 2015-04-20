@@ -798,7 +798,6 @@ const struct ieee80211_ops ath5k_hw_ops = {
 	.sw_scan_start		= ath5k_sw_scan_start,
 	.sw_scan_complete	= ath5k_sw_scan_complete,
 	.get_stats		= ath5k_get_stats,
-	/* .get_tkip_seq	= not implemented */
 	/* .set_frag_threshold	= not implemented */
 	/* .set_rts_threshold	= not implemented */
 	/* .sta_add		= not implemented */
