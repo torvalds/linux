@@ -240,6 +240,7 @@ struct wm_coeff_ctl {
 	size_t len;
 	unsigned int set:1;
 	struct snd_kcontrol *kcontrol;
+	unsigned int flags;
 };
 
 static int wm_adsp_fw_get(struct snd_kcontrol *kcontrol,
@@ -472,7 +473,15 @@ static int wm_coeff_get(struct snd_kcontrol *kcontrol,
 	struct wm_coeff_ctl *ctl = (struct wm_coeff_ctl *)kcontrol->private_value;
 	char *p = ucontrol->value.bytes.data;
 
+	if (ctl->flags & WMFW_CTL_FLAG_VOLATILE) {
+		if (ctl->enabled)
+			return wm_coeff_read_control(ctl, p, ctl->len);
+		else
+			return -EPERM;
+	}
+
 	memcpy(p, ctl->cache, ctl->len);
+
 	return 0;
 }
 
@@ -501,6 +510,15 @@ static int wmfw_add_ctl(struct wm_adsp *dsp, struct wm_coeff_ctl *ctl)
 	kcontrol->put = wm_coeff_put;
 	kcontrol->private_value = (unsigned long)ctl;
 
+	if (ctl->flags) {
+		if (ctl->flags & WMFW_CTL_FLAG_WRITEABLE)
+			kcontrol->access |= SNDRV_CTL_ELEM_ACCESS_WRITE;
+		if (ctl->flags & WMFW_CTL_FLAG_READABLE)
+			kcontrol->access |= SNDRV_CTL_ELEM_ACCESS_READ;
+		if (ctl->flags & WMFW_CTL_FLAG_VOLATILE)
+			kcontrol->access |= SNDRV_CTL_ELEM_ACCESS_VOLATILE;
+	}
+
 	ret = snd_soc_add_card_controls(dsp->card,
 					kcontrol, 1);
 	if (ret < 0)
@@ -526,6 +544,9 @@ static int wm_coeff_init_control_caches(struct wm_adsp *dsp)
 	list_for_each_entry(ctl, &dsp->ctl_list, list) {
 		if (!ctl->enabled || ctl->set)
 			continue;
+		if (ctl->flags & WMFW_CTL_FLAG_VOLATILE)
+			continue;
+
 		ret = wm_coeff_read_control(ctl,
 					    ctl->cache,
 					    ctl->len);
@@ -544,7 +565,7 @@ static int wm_coeff_sync_controls(struct wm_adsp *dsp)
 	list_for_each_entry(ctl, &dsp->ctl_list, list) {
 		if (!ctl->enabled)
 			continue;
-		if (ctl->set) {
+		if (ctl->set && !(ctl->flags & WMFW_CTL_FLAG_VOLATILE)) {
 			ret = wm_coeff_write_control(ctl,
 						     ctl->cache,
 						     ctl->len);
@@ -569,13 +590,17 @@ static void wm_adsp_ctl_work(struct work_struct *work)
 static int wm_adsp_create_control(struct wm_adsp *dsp,
 				  const struct wm_adsp_alg_region *alg_region,
 				  unsigned int offset, unsigned int len,
-				  const char *subname, unsigned int subname_len)
+				  const char *subname, unsigned int subname_len,
+				  unsigned int flags)
 {
 	struct wm_coeff_ctl *ctl;
 	struct wmfw_ctl_work *ctl_work;
 	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 	char *region_name;
 	int ret;
+
+	if (flags & WMFW_CTL_FLAG_SYS)
+		return 0;
 
 	switch (alg_region->type) {
 	case WMFW_ADSP1_PM:
@@ -649,6 +674,7 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 	ctl->ops.xput = wm_coeff_put;
 	ctl->dsp = dsp;
 
+	ctl->flags = flags;
 	ctl->offset = offset;
 	if (len > 512) {
 		adsp_warn(dsp, "Truncating control %s from %d\n",
@@ -852,7 +878,8 @@ static int wm_adsp_parse_coeff(struct wm_adsp *dsp,
 					     coeff_blk.offset,
 					     coeff_blk.len,
 					     coeff_blk.name,
-					     coeff_blk.name_len);
+					     coeff_blk.name_len,
+					     coeff_blk.flags);
 		if (ret < 0)
 			adsp_err(dsp, "Failed to create control: %.*s, %d\n",
 				 coeff_blk.name_len, coeff_blk.name, ret);
@@ -1237,7 +1264,7 @@ static int wm_adsp1_setup_algs(struct wm_adsp *dsp)
 				len -= be32_to_cpu(adsp1_alg[i].dm);
 				len *= 4;
 				wm_adsp_create_control(dsp, alg_region, 0,
-						       len, NULL, 0);
+						       len, NULL, 0, 0);
 			} else {
 				adsp_warn(dsp, "Missing length info for region DM with ID %x\n",
 					  be32_to_cpu(adsp1_alg[i].alg.id));
@@ -1257,7 +1284,7 @@ static int wm_adsp1_setup_algs(struct wm_adsp *dsp)
 				len -= be32_to_cpu(adsp1_alg[i].zm);
 				len *= 4;
 				wm_adsp_create_control(dsp, alg_region, 0,
-						       len, NULL, 0);
+						       len, NULL, 0, 0);
 			} else {
 				adsp_warn(dsp, "Missing length info for region ZM with ID %x\n",
 					  be32_to_cpu(adsp1_alg[i].alg.id));
@@ -1347,7 +1374,7 @@ static int wm_adsp2_setup_algs(struct wm_adsp *dsp)
 				len -= be32_to_cpu(adsp2_alg[i].xm);
 				len *= 4;
 				wm_adsp_create_control(dsp, alg_region, 0,
-						       len, NULL, 0);
+						       len, NULL, 0, 0);
 			} else {
 				adsp_warn(dsp, "Missing length info for region XM with ID %x\n",
 					  be32_to_cpu(adsp2_alg[i].alg.id));
@@ -1367,7 +1394,7 @@ static int wm_adsp2_setup_algs(struct wm_adsp *dsp)
 				len -= be32_to_cpu(adsp2_alg[i].ym);
 				len *= 4;
 				wm_adsp_create_control(dsp, alg_region, 0,
-						       len, NULL, 0);
+						       len, NULL, 0, 0);
 			} else {
 				adsp_warn(dsp, "Missing length info for region YM with ID %x\n",
 					  be32_to_cpu(adsp2_alg[i].alg.id));
@@ -1387,7 +1414,7 @@ static int wm_adsp2_setup_algs(struct wm_adsp *dsp)
 				len -= be32_to_cpu(adsp2_alg[i].zm);
 				len *= 4;
 				wm_adsp_create_control(dsp, alg_region, 0,
-						       len, NULL, 0);
+						       len, NULL, 0, 0);
 			} else {
 				adsp_warn(dsp, "Missing length info for region ZM with ID %x\n",
 					  be32_to_cpu(adsp2_alg[i].alg.id));

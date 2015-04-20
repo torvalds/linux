@@ -21,6 +21,11 @@
 #define WMFW_MAX_COEFF_NAME       256
 #define WMFW_MAX_COEFF_DESCR_NAME 256
 
+#define WMFW_CTL_FLAG_SYS         0x8000
+#define WMFW_CTL_FLAG_VOLATILE    0x0004
+#define WMFW_CTL_FLAG_WRITEABLE   0x0002
+#define WMFW_CTL_FLAG_READABLE    0x0001
+
 struct wmfw_header {
 	char magic[4];
 	__le32 len;
