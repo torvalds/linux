@@ -884,11 +884,15 @@ static int rk_fb_close(struct fb_info *info, int user)
 			*/
 			info->var.xres_virtual = info->var.xres;
 			info->var.yres_virtual = info->var.yres;
+			if (support_uboot_display()) {
+				info->var.bits_per_pixel = 32;
+			} else {
 #if defined(CONFIG_LOGO_LINUX_BMP)
-			info->var.bits_per_pixel = 32;
+				info->var.bits_per_pixel = 32;
 #else
-			info->var.bits_per_pixel = 16;
+				info->var.bits_per_pixel = 16;
 #endif
+			}
 			info->fix.line_length =
 			    (info->var.xres_virtual) * (info->var.bits_per_pixel >> 3);
 			info->var.width = dev_drv->screen0->width;
@@ -906,6 +910,103 @@ static int rk_fb_close(struct fb_info *info, int user)
 	return 0;
 }
 
+#if defined(CONFIG_ROCKCHIP_RGA) || defined(CONFIG_ROCKCHIP_RGA2)
+static int get_rga_format(int fmt)
+{
+	int rga_fmt = 0;
+
+	switch (fmt) {
+	case XBGR888:
+		rga_fmt = RK_FORMAT_RGBX_8888;
+		break;
+	case ABGR888:
+		rga_fmt = RK_FORMAT_RGBA_8888;
+		break;
+	case ARGB888:
+		rga_fmt = RK_FORMAT_BGRA_8888;
+		break;
+	case RGB888:
+		rga_fmt = RK_FORMAT_RGB_888;
+		break;
+	case RGB565:
+		rga_fmt = RK_FORMAT_RGB_565;
+		break;
+	case YUV422:
+		rga_fmt = RK_FORMAT_YCbCr_422_SP;
+		break;
+	case YUV420:
+		rga_fmt = RK_FORMAT_YCbCr_420_SP;
+		break;
+	default:
+		rga_fmt = RK_FORMAT_RGBA_8888;
+		break;
+	}
+
+	return rga_fmt;
+}
+
+int rga_copy_common(phys_addr_t src, phys_addr_t dst, int src_fd, int dst_fd,
+		    u16 src_width, u16 src_height, u16 src_stride, u16 src_virh,
+		    u16 src_xpos, u16 src_ypos, int src_format, u16 dst_width,
+		    u16 dst_height, u16 dst_stride, u16 dst_virh, u16 dst_xpos,
+		    u16 dst_ypos, int dst_format, int iommu_en)
+{
+	struct rga_req Rga_Request;
+	long ret = 0;
+
+	memset(&Rga_Request, 0, sizeof(Rga_Request));
+
+	Rga_Request.rotate_mode = 0;
+	Rga_Request.scale_mode = 0;
+	Rga_Request.src.act_w = src_width;
+	Rga_Request.src.act_h = src_height;
+	Rga_Request.src.vir_w = src_stride;
+	Rga_Request.src.vir_h = src_virh;
+	Rga_Request.src.format = get_rga_format(src_format);
+	Rga_Request.src.x_offset = src_xpos;
+	Rga_Request.src.y_offset = src_ypos;
+
+	Rga_Request.dst.act_w = dst_width;
+	Rga_Request.dst.act_h = dst_height;
+	Rga_Request.dst.vir_w = dst_stride;
+	Rga_Request.dst.vir_h = dst_virh;
+	Rga_Request.dst.format = get_rga_format(dst_format);
+	Rga_Request.dst.x_offset = dst_xpos;
+	Rga_Request.dst.y_offset = dst_ypos;
+
+	Rga_Request.src.yrgb_addr = src_fd;
+	Rga_Request.src.uv_addr = src;
+	Rga_Request.src.v_addr = 0;
+
+	Rga_Request.dst.yrgb_addr = dst_fd;
+	Rga_Request.dst.uv_addr = dst;
+	Rga_Request.dst.v_addr = 0;
+
+	Rga_Request.clip.xmin = 0;
+	Rga_Request.clip.xmax = 4096;
+	Rga_Request.clip.ymin = 0;
+	Rga_Request.clip.ymax = 4096;
+#if defined(CONFIG_ROCKCHIP_IOMMU)
+	if (iommu_en) {
+		Rga_Request.mmu_info.mmu_en = 1;
+		Rga_Request.mmu_info.mmu_flag = 1;
+		if (src && dst_fd)
+			Rga_Request.mmu_info.mmu_flag |= (1 << 31) | (1 << 10);
+	} else {
+		Rga_Request.mmu_info.mmu_en = 0;
+		Rga_Request.mmu_info.mmu_flag = 0;
+	}
+#else
+	Rga_Request.mmu_info.mmu_en = 0;
+	Rga_Request.mmu_info.mmu_flag = 0;
+#endif
+
+	ret = rga_ioctl_kernel(&Rga_Request);
+	if (ret)
+		pr_err(">>%s rga ioctl error\n", __func__);
+	return ret;
+}
+#endif
 #if defined(FB_ROATE_BY_KERNEL)
 
 #if defined(CONFIG_RK29_IPP)
@@ -1034,40 +1135,6 @@ static void fb_copy_by_ipp(struct fb_info *dst_info,
 #endif
 
 #if defined(CONFIG_ROCKCHIP_RGA) || defined(CONFIG_ROCKCHIP_RGA2)
-static int get_rga_format(int fmt)
-{
-	int rga_fmt = 0;
-
-	switch (fmt) {
-	case XBGR888:
-		rga_fmt = RK_FORMAT_RGBX_8888;
-		break;
-	case ABGR888:
-		rga_fmt = RK_FORMAT_RGBA_8888;
-		break;
-	case ARGB888:
-		rga_fmt = RK_FORMAT_BGRA_8888;
-		break;
-	case RGB888:
-		rga_fmt = RK_FORMAT_RGB_888;
-		break;
-	case RGB565:
-		rga_fmt = RK_FORMAT_RGB_565;
-		break;
-	case YUV422:
-		rga_fmt = RK_FORMAT_YCbCr_422_SP;
-		break;
-	case YUV420:
-		rga_fmt = RK_FORMAT_YCbCr_420_SP;
-		break;
-	default:
-		rga_fmt = RK_FORMAT_RGBA_8888;
-		break;
-	}
-
-	return rga_fmt;
-}
-
 static void rga_win_check(struct rk_lcdc_win *dst_win,
 			  struct rk_lcdc_win *src_win)
 {
@@ -1100,6 +1167,7 @@ static void rga_win_check(struct rk_lcdc_win *dst_win,
 	if (dst_win->area[0].yvir < dst_win->area[0].yact)
 		dst_win->area[0].yvir = dst_win->area[0].yact;
 }
+
 
 static void win_copy_by_rga(struct rk_lcdc_win *dst_win,
 			    struct rk_lcdc_win *src_win,
@@ -1411,36 +1479,181 @@ void rk_fd_fence_wait(struct rk_lcdc_driver *dev_drv, struct sync_fence *fence)
 	if (err < 0)
 		printk("error waiting on fence\n");
 }
-#if 0
-static int rk_fb_copy_from_loader(struct fb_info *info)
+
+static int rk_fb_copy_from_loader(struct fb_info *info,
+				  phys_addr_t uboot_logo_base,
+				  phys_addr_t uboot_logo_offset,
+				  phys_addr_t uboot_logo_size)
 {
-	struct rk_fb_par *fb_par = (struct rk_fb_par *)info->par;
+	struct rk_fb_par *fb_par = info->par;
 	struct rk_lcdc_driver *dev_drv = fb_par->lcdc_drv;
-	void *dst = info->screen_base;
-	u32 dsp_addr[4];
-	u32 src;
-	u32 i,size;
-	int win_id;
-	struct rk_lcdc_win *win;
-	
-	win_id = dev_drv->ops->fb_get_win_id(dev_drv, info->fix.id);
-	win = dev_drv->win[win_id];
-	size = (win->area[0].xact) * (win->area[0].yact) << 2;
-	dev_drv->ops->get_dsp_addr(dev_drv, dsp_addr);
-	src = dsp_addr[win_id];
-	dev_info(info->dev, "copy fb data %d x %d  from  dst_addr:%08x\n",
-		 win->area[0].xact, win->area[0].yact, src);
-	for (i = 0; i < size; i += PAGE_SIZE) {
-		void *page = phys_to_page(i + src);
-		void *from_virt = kmap(page);
-		void *to_virt = dst + i;
-		memcpy(to_virt, from_virt, PAGE_SIZE);
-	}
-	dev_drv->ops->direct_set_addr(dev_drv, win_id,
-				      info->fix.smem_start);
-	return 0;
-}
+	struct rk_fb *rk_fb = platform_get_drvdata(fb_pdev);
+	u16 width, height, bits;
+	int format;
+	int dst_format = info->var.nonstd & 0xff;
+        int dst_xpos, dst_ypos, dst_width, dst_height;
+	phys_addr_t start = uboot_logo_base + uboot_logo_offset;
+	unsigned int size = uboot_logo_size - uboot_logo_offset;
+	phys_addr_t src = 0;
+	phys_addr_t dst = 0;
+	int src_fd = 0;
+	char *vaddr = NULL, *bmp_buffer = NULL;
+	unsigned int nr_pages;
+	struct page **pages = NULL;
+	int fb_fd, tmp_fd = 0, bmp_fd = 0;
+	struct ion_handle *bmp_handle = NULL;
+#if defined(CONFIG_ROCKCHIP_IOMMU)
+	unsigned int heap_id = dev_drv->iommu_enabled ?
+		ION_HEAP(ION_VMALLOC_HEAP_ID) :	ION_HEAP(ION_CMA_HEAP_ID);
+	int rga_mmu_en = dev_drv->iommu_enabled ? 1 : 0;
+#else
+	int rga_mmu_en = 0;
+	unsigned int heap_id = ION_HEAP(ION_CMA_HEAP_ID);
 #endif
+	int logo_len;
+	int disp_mode = 0;
+	int ret, i=0;
+
+	if (!uboot_logo_base || !uboot_logo_size) {
+		pr_err("can't found uboot logo address, failed\n");
+		return -EINVAL;
+	}
+	/*
+	 * rga driver can't handle fd = 0 case,
+	 * so get a unused fd incase rga_fd=0.
+	 */
+	tmp_fd = get_unused_fd_flags(O_CLOEXEC);
+	if (tmp_fd < 0)
+		return tmp_fd;
+
+	fb_fd = ion_share_dma_buf_fd(rk_fb->ion_client, fb_par->ion_hdl);
+	if (fb_fd < 0) {
+		dev_err(info->dev, "ion_share_dma_buf_fd failed\n");
+		ret = fb_fd;
+		goto free_tmp_fd;
+	}
+
+	dst_format = rk_fb_data_fmt(0, info->var.bits_per_pixel);
+	disp_mode = rk_fb->kernel_logo_mode;
+
+	if (!uboot_logo_offset) {
+		dev_drv->ops->get_dspbuf_info(dev_drv, &width, &height, &format,
+					      (u32 *)&start);
+		disp_mode = rk_fb->uboot_logo_mode;
+		src = start;
+
+		goto start_copy;
+	}
+	size = roundup(size, PAGE_SIZE);
+	
+	nr_pages = size >> PAGE_SHIFT;
+	pages = kzalloc(sizeof(struct page) * nr_pages, GFP_KERNEL);
+	while (i < nr_pages) {
+		pages[i] = phys_to_page(start);
+		start += PAGE_SIZE;
+		i++;
+	}
+	vaddr = vmap(pages, nr_pages, VM_MAP,
+		     pgprot_writecombine(PAGE_KERNEL));
+	if (!vaddr) {
+		pr_err("failed to vmap phy addr 0x%lx\n",
+		       (long)(uboot_logo_base + uboot_logo_offset));
+		ret = -ENXIO;
+		goto free_pages;
+	}
+
+	logo_len = bmp_getsize(vaddr);
+	if (logo_len < 0) {
+		ret = -EINVAL;
+		goto free_vmap;
+	}
+	/*
+	 * alloc a tmp buffer for logo parse.
+	 */
+	bmp_handle = ion_alloc(rk_fb->ion_client, logo_len, 0, heap_id, 0);
+	if (IS_ERR(bmp_handle)) {
+		ret = -ENOMEM;
+		goto free_vmap;
+	}
+	bmp_fd = ion_share_dma_buf_fd(rk_fb->ion_client, bmp_handle);
+	if (bmp_fd < 0) {
+		dev_err(info->dev, "ion_share_dma_buf_fd failed\n");
+		ret = -ENXIO;
+		goto free_bmp_handle;
+	}
+	bmp_buffer = ion_map_kernel(rk_fb->ion_client, bmp_handle);
+	if (IS_ERR(bmp_buffer)) {
+		ret = PTR_ERR(bmp_buffer);
+		goto free_bmp_fd;
+	}
+
+	if (uboot_logo_offset) {
+		if(bmpdecoder(vaddr, bmp_buffer, &width, &height, &bits)) {
+			ret = -EINVAL;
+			goto ummap_bmp_buffer;
+		}
+		format = rk_fb_data_fmt(0, bits);
+	} else {
+		memcpy(bmp_buffer, vaddr, logo_len);
+	}
+
+	src_fd = bmp_fd;
+
+start_copy:
+	if (width > info->var.xres || height > info->var.yres) {
+		pr_err("Error: Please Don't do that thing:\n");
+		pr_err("\tLogo size[%dx%d] > Fb size[%dx%d]\n", width, height,
+		       info->var.xres, info->var.yres);
+		pr_err("convert bmp size is Easy by many Pc tools\n");
+		BUG();
+	}
+
+	if (disp_mode == DISP_CENTER) {
+		dst_xpos = (info->var.xres - width) >> 1;
+		dst_ypos = (info->var.yres - height) >> 1;
+		dst_width = width;
+		dst_height = height;
+	} else {
+		dst_xpos = 0;
+		dst_ypos = 0;
+		dst_width = info->var.xres;
+		dst_height = info->var.yres;
+	}
+
+#if defined(CONFIG_ROCKCHIP_RGA) || defined(CONFIG_ROCKCHIP_RGA2)
+	rga_copy_common(src, dst, src_fd, fb_fd, width, height,
+			width, height, 0, 0, format, dst_width,
+			dst_height, info->var.xres, info->var.yres, dst_xpos,
+			dst_ypos, dst_format, rga_mmu_en);
+#else
+	/*
+	 * Todo, if rga is not support, just return to kernel display
+	 */
+	return -EINVAL;
+#endif
+free_bmp_fd:
+	/*
+	 * Todo:
+	 * Now can't find a suitable to free fd, close is userspace api, not
+	 * kernel api.
+	 */
+//	if (bmp_fd)
+//		close(bmp_fd);
+ummap_bmp_buffer:
+	if (bmp_handle)
+		ion_unmap_kernel(rk_fb->ion_client, bmp_handle);
+free_bmp_handle:
+	if (bmp_handle)
+		ion_free(rk_fb->ion_client, bmp_handle);
+free_vmap:
+	vunmap(vaddr);
+free_pages:
+	kfree(pages);
+//	close(fb_fd);
+free_tmp_fd:
+	put_unused_fd(tmp_fd);
+	return ret;
+}
 #ifdef CONFIG_ROCKCHIP_IOMMU
 static int g_last_addr[4][4];
 int g_last_timeout;
@@ -3053,6 +3266,18 @@ static struct fb_ops fb_ops = {
 	.fb_imageblit = cfb_imageblit,
 };
 
+static struct fb_var_screeninfo uboot_logo_var = {
+	.red = {16, 8, 0},
+	.green = {8, 8, 0},
+	.blue = {0, 8, 0},
+	.transp = {0, 0, 0},
+	.nonstd = HAL_PIXEL_FORMAT_BGRA_8888,
+	.grayscale = 0,		/* (ysize<<20+xsize<<8) */
+	.activate = FB_ACTIVATE_NOW,
+	.accel_flags = 0,
+	.vmode = FB_VMODE_NONINTERLACED,
+};
+
 static struct fb_var_screeninfo def_var = {
 #if defined(CONFIG_LOGO_LINUX_BMP)
 	.red = {16, 8, 0},
@@ -3229,8 +3454,8 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 		    (rk_fb->disp_policy != DISPLAY_POLICY_BOX) &&
 		    (rk_fb->disp_policy != DISPLAY_POLICY_BOX_TEMP))
 			dev_drv->ops->backlight_close(dev_drv, 1);
-		if (dev_drv->ops->dsp_black)
-			dev_drv->ops->dsp_black(dev_drv, 1);
+//		if (dev_drv->ops->dsp_black)
+//			dev_drv->ops->dsp_black(dev_drv, 1);
 		if ((dev_drv->ops->set_screen_scaler) &&
 		    (rk_fb->disp_mode == ONE_DUAL))
 			dev_drv->ops->set_screen_scaler(dev_drv,
@@ -3729,17 +3954,23 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 		fb_par->id = rk_fb->num_fb;
 		fb_par->lcdc_drv = dev_drv;
 		fbi->par = (void *)fb_par;
-		fbi->var = def_var;
+		if (support_uboot_display()) {
+			fbi->var = uboot_logo_var;
+			fbi->var.bits_per_pixel = 32;
+		} else {
+			fbi->var = def_var;
+#if defined(CONFIG_LOGO_LINUX_BMP)
+			fbi->var.bits_per_pixel = 32;
+#else
+			fbi->var.bits_per_pixel = 16;
+#endif
+		}
 		fbi->fix = def_fix;
 		sprintf(fbi->fix.id, "fb%d", rk_fb->num_fb);
 		fb_videomode_to_var(&fbi->var, &dev_drv->cur_screen->mode);
 		fbi->var.grayscale |=
 		    (fbi->var.xres << 8) + (fbi->var.yres << 20);
-#if defined(CONFIG_LOGO_LINUX_BMP)
-		fbi->var.bits_per_pixel = 32;
-#else
-		fbi->var.bits_per_pixel = 16;
-#endif
+
 		fbi->fix.line_length =
 		    (fbi->var.xres_virtual) * (fbi->var.bits_per_pixel >> 3);
 		fbi->var.width = dev_drv->cur_screen->width;
@@ -3807,9 +4038,6 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 	/* show logo for primary display device */
 #if !defined(CONFIG_FRAMEBUFFER_CONSOLE)
 	if (dev_drv->prop == PRMRY) {
-		u16 xact, yact;
-		int format;
-		u32 dsp_addr;
 		struct fb_info *main_fbi = rk_fb->fb[0];
 		main_fbi->fbops->fb_open(main_fbi, 1);
 		main_fbi->var.pixclock = dev_drv->pixclock;
@@ -3825,136 +4053,35 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 		dev_drv->uboot_logo = support_uboot_display();
 
 		if (dev_drv->uboot_logo &&
-		    uboot_logo_offset && uboot_logo_base) {
-			int width, height, bits;
-			phys_addr_t start = uboot_logo_base + uboot_logo_offset;
-			unsigned int size = uboot_logo_size - uboot_logo_offset;
-			unsigned int nr_pages;
-			struct page **pages;
-			char *vaddr;
-			int i = 0;
-
-			if (dev_drv->ops->get_dspbuf_info)
-				dev_drv->ops->get_dspbuf_info(dev_drv, &xact,
-					&yact, &format,	&dsp_addr);
-			nr_pages = size >> PAGE_SHIFT;
-			pages = kzalloc(sizeof(struct page) * nr_pages,
-					GFP_KERNEL);
-			while (i < nr_pages) {
-				pages[i] = phys_to_page(start);
-				start += PAGE_SIZE;
-				i++;
-			}
-			vaddr = vmap(pages, nr_pages, VM_MAP,
-					pgprot_writecombine(PAGE_KERNEL));
-			if (!vaddr) {
-				pr_err("failed to vmap phy addr 0x%lx\n",
-				       (long)(uboot_logo_base +
-				       uboot_logo_offset));
-				return -1;
-			}
-
-			if(bmpdecoder(vaddr, main_fbi->screen_base, &width,
-				      &height, &bits)) {
-				kfree(pages);
-				vunmap(vaddr);
-				return 0;
-			}
-			kfree(pages);
-			vunmap(vaddr);
-			if (dev_drv->uboot_logo &&
-			    (width != xact || height != yact)) {
-				pr_err("can't support uboot kernel logo use different size [%dx%d] != [%dx%d]\n",
-					xact, yact, width, height);
-				return 0;
-			}
-
-			if (dev_drv->ops->post_dspbuf) {
-				dev_drv->ops->post_dspbuf(dev_drv,
-					main_fbi->fix.smem_start,
-					rk_fb_data_fmt(0, bits),
-					width, height, width * bits >> 5);
-			}
-			if (dev_drv->iommu_enabled) {
-				rk_fb_poll_wait_frame_complete();
-				if (dev_drv->ops->mmu_en)
-					dev_drv->ops->mmu_en(dev_drv);
-				freed_index = 0;
-			}
-
-			return 0;
-		} else if (dev_drv->uboot_logo && uboot_logo_base) {
-			u32 start = uboot_logo_base;
-			u32 start_base = start;
-			int logo_len, i=0;
-			unsigned int nr_pages;
-			struct page **pages;
-			char *vaddr;
-
-			dev_drv->ops->get_dspbuf_info(dev_drv, &xact,
-					              &yact, &format,
-						      &start);
-			logo_len = rk_fb_pixel_width(format) * xact * yact >> 3;
-			if (logo_len > uboot_logo_size ||
-			    logo_len > main_fbi->fix.smem_len) {
-				pr_err("logo size > uboot reserve buffer size\n");
-				return -1;
-			}
-
-			nr_pages = uboot_logo_size >> PAGE_SHIFT;
-			pages = kzalloc(sizeof(struct page) * nr_pages,
-					GFP_KERNEL);
-			while (i < nr_pages) {
-				pages[i] = phys_to_page(start);
-				start += PAGE_SIZE;
-				i++;
-			}
-			vaddr = vmap(pages, nr_pages, VM_MAP,
-					pgprot_writecombine(PAGE_KERNEL));
-			if (!vaddr) {
-				pr_err("failed to vmap phy addr 0x%x\n",
-				       start_base);
-				return -1;
-			}
-
-			memcpy(main_fbi->screen_base, vaddr, logo_len);
-
-			kfree(pages);
-			vunmap(vaddr);
-
-			dev_drv->ops->post_dspbuf(dev_drv,
-					main_fbi->fix.smem_start,
-					format,	xact, yact,
-					xact * rk_fb_pixel_width(format) >> 5);
-			if (dev_drv->iommu_enabled) {
-				rk_fb_poll_wait_frame_complete();
-				if (dev_drv->ops->mmu_en)
-					dev_drv->ops->mmu_en(dev_drv);
-				freed_index = 0;
-			}
-			return 0;
+		    !rk_fb_copy_from_loader(main_fbi, uboot_logo_base,
+					    uboot_logo_offset,
+					    uboot_logo_size)) {
+			pr_info("success display uboot logo\n");
 		} else {
-			if (dev_drv->iommu_enabled) {
-				if (dev_drv->ops->mmu_en)
-					dev_drv->ops->mmu_en(dev_drv);
-				freed_index = 0;
+			#if defined(CONFIG_LOGO)
+			#if defined(CONFIG_LOGO_LINUX_BMP)
+			if (fb_prewine_bmp_logo(main_fbi, FB_ROTATE_UR)) {
+				fb_set_cmap(&main_fbi->cmap, main_fbi);
+				fb_show_bmp_logo(main_fbi, FB_ROTATE_UR);
 			}
+			#else
+			if (fb_prepare_logo(main_fbi, FB_ROTATE_UR)) {
+				fb_set_cmap(&main_fbi->cmap, main_fbi);
+				fb_show_logo(main_fbi, FB_ROTATE_UR);
+			}
+			#endif
+			#endif
 		}
-#if defined(CONFIG_LOGO)
+
 		main_fbi->fbops->fb_set_par(main_fbi);
-#if  defined(CONFIG_LOGO_LINUX_BMP)
-		if (fb_prewine_bmp_logo(main_fbi, FB_ROTATE_UR)) {
-			fb_set_cmap(&main_fbi->cmap, main_fbi);
-			fb_show_bmp_logo(main_fbi, FB_ROTATE_UR);
-		}
-#else
-		if (fb_prepare_logo(main_fbi, FB_ROTATE_UR)) {
-			fb_set_cmap(&main_fbi->cmap, main_fbi);
-			fb_show_logo(main_fbi, FB_ROTATE_UR);
-		}
-#endif
 		main_fbi->fbops->fb_pan_display(&main_fbi->var, main_fbi);
-#endif
+		#if defined(CONFIG_ROCKCHIP_IOMMU)
+		if (dev_drv->iommu_enabled) {
+			rk_fb_poll_wait_frame_complete();
+			if (dev_drv->ops->mmu_en)
+				dev_drv->ops->mmu_en(dev_drv);
+		}
+		#endif
 	} else {
                 struct fb_info *extend_fbi = rk_fb->fb[rk_fb->num_fb >> 1];
                 extend_fbi->var.pixclock = rk_fb->fb[0]->var.pixclock;
@@ -4025,6 +4152,11 @@ static int rk_fb_probe(struct platform_device *pdev)
 
 	if (!of_property_read_u32(np, "rockchip,uboot-logo-on", &uboot_logo_on))
 		printk(KERN_DEBUG "uboot-logo-on:%d\n", uboot_logo_on);
+
+	if (!of_property_read_u32(np, "rockchip,uboot-logo-mode", &mode))
+		rk_fb->uboot_logo_mode = mode;
+	if (!of_property_read_u32(np, "rockchip,kernel-logo-mode", &mode))
+		rk_fb->kernel_logo_mode = mode;
 
 	dev_set_name(&pdev->dev, "rockchip-fb");
 #if defined(CONFIG_ION_ROCKCHIP)

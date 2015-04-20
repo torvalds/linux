@@ -296,7 +296,42 @@ static void decode_rle8_bitmap(uint8_t *psrc, uint8_t *pdst, uint16_t *cmap,
 	}
 }
 
-int bmpdecoder(void *bmp_addr, void *pdst, int *width, int *height, int *bits)
+/*
+ * get bmpdecoder needed size;
+ */
+int bmp_getsize(void *bmp_addr)
+{
+	BITMAPHEADER header;
+	BITMAPINFOHEADER infoheader;
+	char *src = bmp_addr;
+	int bits;
+
+	memcpy(&header, bmp_addr, sizeof(header));
+	src += sizeof(header);
+
+	if (header.type != 0x4d42) {
+		pr_err("not bmp file type[%x], can't support\n", header.type);
+		return -EINVAL;
+	}
+	memcpy(&infoheader, src, sizeof(infoheader));
+
+	switch (infoheader.bitcount) {
+	case 8:
+		bits = 16;
+		break;
+	case 24:
+		bits = 24;
+		break;
+	case 16:
+	case 32:
+		pr_err("unsupport bit=%d now\n", infoheader.bitcount);
+		return -EINVAL;
+	}
+
+	return infoheader.width * infoheader.height * bits >> 3;
+}
+
+int bmpdecoder(void *bmp_addr, void *pdst, u16 *width, u16 *height, u16 *bits)
 {
 	BITMAPHEADER header;
 	BITMAPINFOHEADER infoheader;
@@ -369,7 +404,6 @@ int bmpdecoder(void *bmp_addr, void *pdst, int *width, int *height, int *bits)
 			if (flip)
 				src -= *width * 3 * 2;
 		}
-
 		*bits = 24;
 		break;
 	case 32:
