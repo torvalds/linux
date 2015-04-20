@@ -10556,23 +10556,34 @@ static void skl_do_mmio_flip(struct intel_crtc *intel_crtc)
 	struct drm_device *dev = intel_crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_framebuffer *fb = intel_crtc->base.primary->fb;
-	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
-	struct drm_i915_gem_object *obj = intel_fb->obj;
 	const enum pipe pipe = intel_crtc->pipe;
 	u32 ctl, stride;
 
 	ctl = I915_READ(PLANE_CTL(pipe, 0));
 	ctl &= ~PLANE_CTL_TILED_MASK;
-	if (obj->tiling_mode == I915_TILING_X)
+	switch (fb->modifier[0]) {
+	case DRM_FORMAT_MOD_NONE:
+		break;
+	case I915_FORMAT_MOD_X_TILED:
 		ctl |= PLANE_CTL_TILED_X;
+		break;
+	case I915_FORMAT_MOD_Y_TILED:
+		ctl |= PLANE_CTL_TILED_Y;
+		break;
+	case I915_FORMAT_MOD_Yf_TILED:
+		ctl |= PLANE_CTL_TILED_YF;
+		break;
+	default:
+		MISSING_CASE(fb->modifier[0]);
+	}
 
 	/*
 	 * The stride is either expressed as a multiple of 64 bytes chunks for
 	 * linear buffers or in number of tiles for tiled buffers.
 	 */
-	stride = fb->pitches[0] >> 6;
-	if (obj->tiling_mode == I915_TILING_X)
-		stride = fb->pitches[0] >> 9; /* X tiles are 512 bytes wide */
+	stride = fb->pitches[0] /
+		 intel_fb_stride_alignment(dev, fb->modifier[0],
+					   fb->pixel_format);
 
 	/*
 	 * Both PLANE_CTL and PLANE_STRIDE are not updated on vblank but on
