@@ -463,6 +463,9 @@ static int rk3368_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 	mask = m_AUTO_GATING_EN;
 	val = v_AUTO_GATING_EN(0);
 	lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask, val);
+	mask = m_DITHER_UP_EN;
+	val = v_DITHER_UP_EN(1);
+	lcdc_msk_reg(lcdc_dev, DSP_CTRL1, mask, val);
 	lcdc_cfg_done(lcdc_dev);
 	/*disable win0 to workaround iommu pagefault */
 	/*if (dev_drv->iommu_enabled) */
@@ -1911,16 +1914,16 @@ static int rk3368_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			break;
 		case OUT_P888:
 			face = OUT_P888;
-			mask = m_DITHER_DOWN_EN | m_DITHER_UP_EN;
-			val = v_DITHER_DOWN_EN(0) | v_DITHER_UP_EN(0);
+			mask = m_DITHER_DOWN_EN;
+			val = v_DITHER_DOWN_EN(0);
 			lcdc_msk_reg(lcdc_dev, DSP_CTRL1, mask, val);
 			break;
 		case OUT_YUV_420:
 			/*yuv420 output prefer yuv domain overlay */
 			face = OUT_YUV_420;
 			dclk_ddr = 1;
-			mask = m_DITHER_DOWN_EN | m_DITHER_UP_EN;
-			val = v_DITHER_DOWN_EN(0) | v_DITHER_UP_EN(0);
+			mask = m_DITHER_DOWN_EN;
+			val = v_DITHER_DOWN_EN(0);
 			lcdc_msk_reg(lcdc_dev, DSP_CTRL1, mask, val);
 			break;
 		default:
@@ -2000,8 +2003,8 @@ static int rk3368_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			val = v_EDP_OUT_EN(1) | v_RGB_OUT_EN(0);
 			lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask, val);
 			/*because edp have to sent aaa fmt */
-			mask = m_DITHER_DOWN_EN | m_DITHER_UP_EN;
-			val = v_DITHER_DOWN_EN(0) | v_DITHER_UP_EN(0);
+			mask = m_DITHER_DOWN_EN;
+			val = v_DITHER_DOWN_EN(0);
 
 			mask |= m_EDP_HSYNC_POL | m_EDP_VSYNC_POL |
 			    m_EDP_DEN_POL | m_EDP_DCLK_POL;
