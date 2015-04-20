@@ -90,7 +90,7 @@ static void rb4xx_set_cs(struct spi_device *spi, bool enable)
 	 * since it's all on the same hardware register. However the
 	 * CPLD needs CS deselected after every command.
 	 */
-	if (!enable)
+	if (enable)
 		rb4xx_write(rbspi, AR71XX_SPI_REG_IOC,
 			    AR71XX_SPI_IOC_CS0 | AR71XX_SPI_IOC_CS1);
 }
