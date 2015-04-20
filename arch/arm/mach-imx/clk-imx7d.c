@@ -57,10 +57,10 @@ static const char *nand_usdhc_bus_sel[] = { "osc", "pll_sys_pfd2_270m_clk",
 	"pll_sys_pfd2_135m_clk", "pll_sys_pfd6_clk", "pll_enet_250m_clk",
 	"pll_audio_main_clk", };
 
-static const char *ahb_channel_sel[] = { "osc", "pll_sys_pfd2_135m_clk",
+static const char *ahb_channel_sel[] = { "osc", "pll_sys_pfd2_270m_clk",
 	"pll_dram_533m_clk", "pll_sys_pfd0_392m_clk",
-	"pll_enet_125m_clk", "pll_usb_main_clk", "pll_audio_main_clk",
-	"pll_video_main_clk", };
+	"pll_enet_250m_clk", "pll_usb_main_clk", "pll_audio_main_div",
+	"pll_video_main_div", };
 
 static const char *dram_phym_sel[] = { "pll_dram_main_clk",
 	"dram_phym_alt_clk", };
