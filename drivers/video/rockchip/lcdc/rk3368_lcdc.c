@@ -1926,6 +1926,18 @@ static int rk3368_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			val = v_DITHER_DOWN_EN(0);
 			lcdc_msk_reg(lcdc_dev, DSP_CTRL1, mask, val);
 			break;
+		case OUT_S888:
+			face = OUT_S888;
+			mask = m_DITHER_DOWN_EN;
+			val = v_DITHER_DOWN_EN(0);
+			lcdc_msk_reg(lcdc_dev, DSP_CTRL1, mask, val);
+			break;
+		case OUT_S888DUMY:
+			face = OUT_S888DUMY;
+			mask = m_DITHER_DOWN_EN;
+			val = v_DITHER_DOWN_EN(0);
+			lcdc_msk_reg(lcdc_dev, DSP_CTRL1, mask, val);
+			break;
 		default:
 			dev_err(lcdc_dev->dev, "un supported interface!\n");
 			break;
