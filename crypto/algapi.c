@@ -964,6 +964,12 @@ void crypto_xor(u8 *dst, const u8 *src, unsigned int size)
 }
 EXPORT_SYMBOL_GPL(crypto_xor);
 
+unsigned int crypto_alg_extsize(struct crypto_alg *alg)
+{
+	return alg->cra_ctxsize;
+}
+EXPORT_SYMBOL_GPL(crypto_alg_extsize);
+
 static int __init crypto_algapi_init(void)
 {
 	crypto_init_proc();
