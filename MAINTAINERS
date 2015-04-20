@@ -1438,9 +1438,10 @@ ARM/SOCFPGA ARCHITECTURE
 M:	Dinh Nguyen <dinguyen@opensource.altera.com>
 S:	Maintained
 F:	arch/arm/mach-socfpga/
+F:	arch/arm/boot/dts/socfpga*
+F:	arch/arm/configs/socfpga_defconfig
 W:	http://www.rocketboards.org
-T:	git://git.rocketboards.org/linux-socfpga.git
-T:	git://git.rocketboards.org/linux-socfpga-next.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/dinguyen/linux.git
 
 ARM/SOCFPGA CLOCK FRAMEWORK SUPPORT
 M:	Dinh Nguyen <dinguyen@opensource.altera.com>
