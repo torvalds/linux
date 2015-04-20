@@ -699,7 +699,7 @@ gm107_grctx_pack_hub[] = {
 	{}
 };
 
-static const struct gf100_gr_init
+const struct gf100_gr_init
 gm107_grctx_init_gpc_unk_0[] = {
 	{ 0x418380,   1, 0x04, 0x00000056 },
 	{}
@@ -834,7 +834,7 @@ gm107_grctx_init_cbm_0[] = {
 	{}
 };
 
-static const struct gf100_gr_init
+const struct gf100_gr_init
 gm107_grctx_init_wwdx_0[] = {
 	{ 0x41bf00,   1, 0x04, 0x0a418820 },
 	{ 0x41bf04,   1, 0x04, 0x062080e6 },
@@ -860,7 +860,7 @@ gm107_grctx_pack_ppc[] = {
  * PGRAPH context implementation
  ******************************************************************************/
 
-static void
+void
 gm107_grctx_generate_bundle(struct gf100_grctx *info)
 {
 	const struct gf100_grctx_oclass *impl = gf100_grctx_impl(info->priv);
@@ -877,7 +877,7 @@ gm107_grctx_generate_bundle(struct gf100_grctx *info)
 	mmio_wr32(info, 0x4064c8, (state_limit << 16) | token_limit);
 }
 
-static void
+void
 gm107_grctx_generate_pagepool(struct gf100_grctx *info)
 {
 	const struct gf100_grctx_oclass *impl = gf100_grctx_impl(info->priv);
@@ -892,7 +892,7 @@ gm107_grctx_generate_pagepool(struct gf100_grctx *info)
 	mmio_wr32(info, 0x418e30, 0x80000000); /* guess at it being related */
 }
 
-static void
+void
 gm107_grctx_generate_attrib(struct gf100_grctx *info)
 {
 	struct gf100_gr_priv *priv = info->priv;
@@ -926,7 +926,7 @@ gm107_grctx_generate_attrib(struct gf100_grctx *info)
 			mmio_wr32(info, o + 0xe4, as);
 			mmio_wr32(info, o + 0xf8, ao);
 			ao += impl->alpha_nr_max * priv->ppc_tpc_nr[gpc][ppc];
-			mmio_wr32(info, u, (0x715 /*XXX*/ << 16) | bs);
+			mmio_wr32(info, u, ((bs / 3 /*XXX*/) << 16) | bs);
 		}
 	}
 }
@@ -982,13 +982,7 @@ gm107_grctx_generate_main(struct gf100_gr_priv *priv, struct gf100_grctx *info)
 
 	nv_wr32(priv, 0x405b00, (priv->tpc_total << 8) | priv->gpc_nr);
 
-	if (priv->gpc_nr == 1) {
-		nv_mask(priv, 0x408850, 0x0000000f, priv->tpc_nr[0]);
-		nv_mask(priv, 0x408958, 0x0000000f, priv->tpc_nr[0]);
-	} else {
-		nv_mask(priv, 0x408850, 0x0000000f, priv->gpc_nr);
-		nv_mask(priv, 0x408958, 0x0000000f, priv->gpc_nr);
-	}
+	gk104_grctx_generate_rop_active_fbps(priv);
 
 	gf100_gr_icmd(priv, oclass->icmd);
 	nv_wr32(priv, 0x404154, 0x00000400);

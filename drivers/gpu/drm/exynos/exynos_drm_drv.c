@@ -55,13 +55,11 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 {
 	struct exynos_drm_private *private;
 	int ret;
-	int nr;
 
 	private = kzalloc(sizeof(struct exynos_drm_private), GFP_KERNEL);
 	if (!private)
 		return -ENOMEM;
 
-	INIT_LIST_HEAD(&private->pageflip_event_list);
 	dev_set_drvdata(dev->dev, dev);
 	dev->dev_private = (void *)private;
 
@@ -80,19 +78,6 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 	drm_mode_config_init(dev);
 
 	exynos_drm_mode_config_init(dev);
-
-	for (nr = 0; nr < MAX_PLANE; nr++) {
-		struct drm_plane *plane;
-		unsigned long possible_crtcs = (1 << MAX_CRTC) - 1;
-
-		plane = exynos_plane_init(dev, possible_crtcs,
-					  DRM_PLANE_TYPE_OVERLAY);
-		if (!IS_ERR(plane))
-			continue;
-
-		ret = PTR_ERR(plane);
-		goto err_mode_config_cleanup;
-	}
 
 	/* setup possible_clones. */
 	exynos_drm_encoder_setup(dev);
@@ -237,25 +222,13 @@ static void exynos_drm_preclose(struct drm_device *dev,
 
 static void exynos_drm_postclose(struct drm_device *dev, struct drm_file *file)
 {
-	struct exynos_drm_private *private = dev->dev_private;
-	struct drm_pending_vblank_event *v, *vt;
 	struct drm_pending_event *e, *et;
 	unsigned long flags;
 
 	if (!file->driver_priv)
 		return;
 
-	/* Release all events not unhandled by page flip handler. */
 	spin_lock_irqsave(&dev->event_lock, flags);
-	list_for_each_entry_safe(v, vt, &private->pageflip_event_list,
-			base.link) {
-		if (v->base.file_priv == file) {
-			list_del(&v->base.link);
-			drm_vblank_put(dev, v->pipe);
-			v->base.destroy(&v->base);
-		}
-	}
-
 	/* Release all events handled by page flip handler but not freed. */
 	list_for_each_entry_safe(e, et, &file->event_list, link) {
 		list_del(&e->link);

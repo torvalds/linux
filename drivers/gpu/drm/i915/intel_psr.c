@@ -532,8 +532,6 @@ static void intel_psr_exit(struct drm_device *dev)
 		WARN_ON(!(val & EDP_PSR_ENABLE));
 
 		I915_WRITE(EDP_PSR_CTL(dev), val & ~EDP_PSR_ENABLE);
-
-		dev_priv->psr.active = false;
 	} else {
 		val = I915_READ(VLV_PSRCTL(pipe));
 

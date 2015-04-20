@@ -35,3 +35,14 @@ config DRM_MSM_REGISTER_LOGGING
 	  Compile in support for logging register reads/writes in a format
 	  that can be parsed by envytools demsm tool.  If enabled, register
 	  logging can be switched on via msm.reglog=y module param.
+
+config DRM_MSM_DSI
+	bool "Enable DSI support in MSM DRM driver"
+	depends on DRM_MSM
+	select DRM_PANEL
+	select DRM_MIPI_DSI
+	default y
+	help
+	  Choose this option if you have a need for MIPI DSI connector
+	  support.
+

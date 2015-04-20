@@ -82,8 +82,6 @@ static void request_pending(struct drm_crtc *crtc, uint32_t pending)
 	mdp_irq_register(&get_kms(crtc)->base, &mdp5_crtc->vblank);
 }
 
-#define mdp5_lm_get_flush(lm)	mdp_ctl_flush_mask_lm(lm)
-
 static void crtc_flush(struct drm_crtc *crtc, u32 flush_mask)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
@@ -110,8 +108,8 @@ static void crtc_flush_all(struct drm_crtc *crtc)
 	drm_atomic_crtc_for_each_plane(plane, crtc) {
 		flush_mask |= mdp5_plane_get_flush(plane);
 	}
-	flush_mask |= mdp5_ctl_get_flush(mdp5_crtc->ctl);
-	flush_mask |= mdp5_lm_get_flush(mdp5_crtc->lm);
+
+	flush_mask |= mdp_ctl_flush_mask_lm(mdp5_crtc->lm);
 
 	crtc_flush(crtc, flush_mask);
 }
@@ -298,8 +296,6 @@ static void mdp5_crtc_enable(struct drm_crtc *crtc)
 	mdp5_enable(mdp5_kms);
 	mdp_irq_register(&mdp5_kms->base, &mdp5_crtc->err);
 
-	crtc_flush_all(crtc);
-
 	mdp5_crtc->enabled = true;
 }
 
@@ -444,13 +440,14 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
-	struct drm_gem_object *cursor_bo, *old_bo;
+	struct drm_gem_object *cursor_bo, *old_bo = NULL;
 	uint32_t blendcfg, cursor_addr, stride;
 	int ret, bpp, lm;
 	unsigned int depth;
 	enum mdp5_cursor_alpha cur_alpha = CURSOR_ALPHA_PER_PIXEL;
 	uint32_t flush_mask = mdp_ctl_flush_mask_cursor(0);
 	uint32_t roi_w, roi_h;
+	bool cursor_enable = true;
 	unsigned long flags;
 
 	if ((width > CURSOR_WIDTH) || (height > CURSOR_HEIGHT)) {
@@ -463,7 +460,8 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 
 	if (!handle) {
 		DBG("Cursor off");
-		return mdp5_ctl_set_cursor(mdp5_crtc->ctl, false);
+		cursor_enable = false;
+		goto set_cursor;
 	}
 
 	cursor_bo = drm_gem_object_lookup(dev, file, handle);
@@ -504,11 +502,14 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 
 	spin_unlock_irqrestore(&mdp5_crtc->cursor.lock, flags);
 
-	ret = mdp5_ctl_set_cursor(mdp5_crtc->ctl, true);
-	if (ret)
+set_cursor:
+	ret = mdp5_ctl_set_cursor(mdp5_crtc->ctl, 0, cursor_enable);
+	if (ret) {
+		dev_err(dev->dev, "failed to %sable cursor: %d\n",
+				cursor_enable ? "en" : "dis", ret);
 		goto end;
+	}
 
-	flush_mask |= mdp5_ctl_get_flush(mdp5_crtc->ctl);
 	crtc_flush(crtc, flush_mask);
 
 end:
@@ -613,64 +614,39 @@ void mdp5_crtc_cancel_pending_flip(struct drm_crtc *crtc, struct drm_file *file)
 }
 
 /* set interface for routing crtc->encoder: */
-void mdp5_crtc_set_intf(struct drm_crtc *crtc, int intf,
-		enum mdp5_intf intf_id)
+void mdp5_crtc_set_intf(struct drm_crtc *crtc, struct mdp5_interface *intf)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
-	uint32_t flush_mask = 0;
-	uint32_t intf_sel;
-	unsigned long flags;
+	int lm = mdp5_crtc_get_lm(crtc);
 
 	/* now that we know what irq's we want: */
-	mdp5_crtc->err.irqmask = intf2err(intf);
-	mdp5_crtc->vblank.irqmask = intf2vblank(intf);
+	mdp5_crtc->err.irqmask = intf2err(intf->num);
+
+	/* Register command mode Pingpong done as vblank for now,
+	 * so that atomic commit should wait for it to finish.
+	 * Ideally, in the future, we should take rd_ptr done as vblank,
+	 * and let atomic commit wait for pingpong done for commond mode.
+	 */
+	if (intf->mode == MDP5_INTF_DSI_MODE_COMMAND)
+		mdp5_crtc->vblank.irqmask = lm2ppdone(lm);
+	else
+		mdp5_crtc->vblank.irqmask = intf2vblank(lm, intf);
 	mdp_irq_update(&mdp5_kms->base);
 
-	spin_lock_irqsave(&mdp5_kms->resource_lock, flags);
-	intf_sel = mdp5_read(mdp5_kms, REG_MDP5_DISP_INTF_SEL);
-
-	switch (intf) {
-	case 0:
-		intf_sel &= ~MDP5_DISP_INTF_SEL_INTF0__MASK;
-		intf_sel |= MDP5_DISP_INTF_SEL_INTF0(intf_id);
-		break;
-	case 1:
-		intf_sel &= ~MDP5_DISP_INTF_SEL_INTF1__MASK;
-		intf_sel |= MDP5_DISP_INTF_SEL_INTF1(intf_id);
-		break;
-	case 2:
-		intf_sel &= ~MDP5_DISP_INTF_SEL_INTF2__MASK;
-		intf_sel |= MDP5_DISP_INTF_SEL_INTF2(intf_id);
-		break;
-	case 3:
-		intf_sel &= ~MDP5_DISP_INTF_SEL_INTF3__MASK;
-		intf_sel |= MDP5_DISP_INTF_SEL_INTF3(intf_id);
-		break;
-	default:
-		BUG();
-		break;
-	}
-
-	mdp5_write(mdp5_kms, REG_MDP5_DISP_INTF_SEL, intf_sel);
-	spin_unlock_irqrestore(&mdp5_kms->resource_lock, flags);
-
-	DBG("%s: intf_sel=%08x", mdp5_crtc->name, intf_sel);
 	mdp5_ctl_set_intf(mdp5_crtc->ctl, intf);
-	flush_mask |= mdp5_ctl_get_flush(mdp5_crtc->ctl);
-	flush_mask |= mdp5_lm_get_flush(mdp5_crtc->lm);
-
-	crtc_flush(crtc, flush_mask);
 }
 
 int mdp5_crtc_get_lm(struct drm_crtc *crtc)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
+	return WARN_ON(!crtc) ? -EINVAL : mdp5_crtc->lm;
+}
 
-	if (WARN_ON(!crtc))
-		return -EINVAL;
-
-	return mdp5_crtc->lm;
+struct mdp5_ctl *mdp5_crtc_get_ctl(struct drm_crtc *crtc)
+{
+	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
+	return WARN_ON(!crtc) ? NULL : mdp5_crtc->ctl;
 }
 
 /* initialize crtc */
