@@ -3229,6 +3229,15 @@ void ieee80211_release_reorder_timeout(struct sta_info *sta, int tid)
 	ieee80211_sta_reorder_release(sta->sdata, tid_agg_rx, &frames);
 	spin_unlock(&tid_agg_rx->reorder_lock);
 
+	if (!skb_queue_empty(&frames)) {
+		struct ieee80211_event event = {
+			.type = BA_FRAME_TIMEOUT,
+			.u.ba.tid = tid,
+			.u.ba.sta = &sta->sta,
+		};
+		drv_event_callback(rx.local, rx.sdata, &event);
+	}
+
 	ieee80211_rx_handlers(&rx, &frames);
 }
 

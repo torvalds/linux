@@ -338,11 +338,15 @@ enum ieee80211_bss_change {
  * @RSSI_EVENT: AP's rssi crossed the a threshold set by the driver.
  * @MLME_EVENT: event related to MLME
  * @BAR_RX_EVENT: a BAR was received
+ * @BA_FRAME_TIMEOUT: Frames were released from the reordering buffer because
+ *	they timed out. This won't be called for each frame released, but only
+ *	once each time the timeout triggers.
  */
 enum ieee80211_event_type {
 	RSSI_EVENT,
 	MLME_EVENT,
 	BAR_RX_EVENT,
+	BA_FRAME_TIMEOUT,
 };
 
 /**
@@ -405,7 +409,7 @@ struct ieee80211_mlme_event {
  * struct ieee80211_ba_event - data attached for BlockAck related events
  * @sta: pointer to the &ieee80211_sta to which this event relates
  * @tid: the tid
- * @ssn: the starting sequence number
+ * @ssn: the starting sequence number (for %BAR_RX_EVENT)
  */
 struct ieee80211_ba_event {
 	struct ieee80211_sta *sta;
@@ -418,7 +422,7 @@ struct ieee80211_ba_event {
  * @type: The event itself. See &enum ieee80211_event_type.
  * @rssi: relevant if &type is %RSSI_EVENT
  * @mlme: relevant if &type is %AUTH_EVENT
- * @ba: relevant if &type is %BAR_RX_EVENT
+ * @ba: relevant if &type is %BAR_RX_EVENT or %BA_FRAME_TIMEOUT
  * @u:union holding the fields above
  */
 struct ieee80211_event {
