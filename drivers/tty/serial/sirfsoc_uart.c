@@ -1378,7 +1378,7 @@ usp_no_flow_control:
 	}
 	port->irq = res->start;
 
-	sirfport->clk = clk_get(&pdev->dev, NULL);
+	sirfport->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(sirfport->clk)) {
 		ret = PTR_ERR(sirfport->clk);
 		goto err;
@@ -1392,7 +1392,7 @@ usp_no_flow_control:
 	ret = uart_add_one_port(&sirfsoc_uart_drv, port);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Cannot add UART port(%d).\n", pdev->id);
-		goto port_err;
+		goto err;
 	}
 
 	sirfport->rx_dma_chan = dma_request_slave_channel(port->dev, "rx");
@@ -1421,8 +1421,6 @@ alloc_coherent_err:
 				sirfport->rx_dma_items[j].xmit.buf,
 				sirfport->rx_dma_items[j].dma_addr);
 	dma_release_channel(sirfport->rx_dma_chan);
-port_err:
-	clk_put(sirfport->clk);
 err:
 	return ret;
 }
@@ -1431,7 +1429,6 @@ static int sirfsoc_uart_remove(struct platform_device *pdev)
 {
 	struct sirfsoc_uart_port *sirfport = platform_get_drvdata(pdev);
 	struct uart_port *port = &sirfport->port;
-	clk_put(sirfport->clk);
 	uart_remove_one_port(&sirfsoc_uart_drv, port);
 	if (sirfport->rx_dma_chan) {
 		int i;
