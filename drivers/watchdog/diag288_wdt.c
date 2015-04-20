@@ -125,9 +125,7 @@ static int wdt_start(struct watchdog_device *dev)
 		ret = __diag288_vm(func, dev->timeout, ebc_cmd, len);
 		WARN_ON(ret != 0);
 		kfree(ebc_cmd);
-	}
-
-	if (MACHINE_IS_LPAR) {
+	} else {
 		ret = __diag288_lpar(WDT_FUNC_INIT,
 				     dev->timeout, LPARWDT_RESTART);
 	}
@@ -136,7 +134,6 @@ static int wdt_start(struct watchdog_device *dev)
 		pr_err("The watchdog cannot be activated\n");
 		return ret;
 	}
-	pr_info("The watchdog was activated\n");
 	return 0;
 }
 
@@ -145,7 +142,6 @@ static int wdt_stop(struct watchdog_device *dev)
 	int ret;
 
 	ret = __diag288(WDT_FUNC_CANCEL, 0, 0, 0);
-	pr_info("The watchdog was deactivated\n");
 	return ret;
 }
 
@@ -177,10 +173,9 @@ static int wdt_ping(struct watchdog_device *dev)
 		ret = __diag288_vm(func, dev->timeout, ebc_cmd, len);
 		WARN_ON(ret != 0);
 		kfree(ebc_cmd);
-	}
-
-	if (MACHINE_IS_LPAR)
+	} else {
 		ret = __diag288_lpar(WDT_FUNC_CHANGE, dev->timeout, 0);
+	}
 
 	if (ret)
 		pr_err("The watchdog timer cannot be started or reset\n");
@@ -202,7 +197,7 @@ static struct watchdog_ops wdt_ops = {
 };
 
 static struct watchdog_info wdt_info = {
-	.options = WDIOF_SETTIMEOUT | WDIOF_MAGICCLOSE,
+	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE,
 	.firmware_version = 0,
 	.identity = "z Watchdog",
 };
@@ -273,21 +268,16 @@ static int __init diag288_init(void)
 	watchdog_set_nowayout(&wdt_dev, nowayout_info);
 
 	if (MACHINE_IS_VM) {
-		pr_info("The watchdog device driver detected a z/VM environment\n");
 		if (__diag288_vm(WDT_FUNC_INIT, 15,
 				 ebc_begin, sizeof(ebc_begin)) != 0) {
 			pr_err("The watchdog cannot be initialized\n");
 			return -EINVAL;
 		}
-	} else if (MACHINE_IS_LPAR) {
-		pr_info("The watchdog device driver detected an LPAR environment\n");
+	} else {
 		if (__diag288_lpar(WDT_FUNC_INIT, 30, LPARWDT_RESTART)) {
 			pr_err("The watchdog cannot be initialized\n");
 			return -EINVAL;
 		}
-	} else {
-		pr_err("Linux runs in an environment that does not support the diag288 watchdog\n");
-		return -ENODEV;
 	}
 
 	if (__diag288_lpar(WDT_FUNC_CANCEL, 0, 0)) {

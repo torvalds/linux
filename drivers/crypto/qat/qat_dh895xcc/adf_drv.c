@@ -236,7 +236,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	accel_dev = kzalloc_node(sizeof(*accel_dev), GFP_KERNEL,
-			         dev_to_node(&pdev->dev));
+				 dev_to_node(&pdev->dev));
 	if (!accel_dev)
 		return -ENOMEM;
 
@@ -379,7 +379,7 @@ out_err:
 	return ret;
 }
 
-static void __exit adf_remove(struct pci_dev *pdev)
+static void adf_remove(struct pci_dev *pdev)
 {
 	struct adf_accel_dev *accel_dev = adf_devmgr_pci_to_accel_dev(pdev);
 

@@ -197,17 +197,13 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL, PCI_ANY_ID, rc_pci_fixup);
 static struct pci_bus __init *
 mv78xx0_pcie_scan_bus(int nr, struct pci_sys_data *sys)
 {
-	struct pci_bus *bus;
-
-	if (nr < num_pcie_ports) {
-		bus = pci_scan_root_bus(NULL, sys->busnr, &pcie_ops, sys,
-					&sys->resources);
-	} else {
-		bus = NULL;
+	if (nr >= num_pcie_ports) {
 		BUG();
+		return NULL;
 	}
 
-	return bus;
+	return pci_scan_root_bus(NULL, sys->busnr, &pcie_ops, sys,
+				 &sys->resources);
 }
 
 static int __init mv78xx0_pcie_map_irq(const struct pci_dev *dev, u8 slot,

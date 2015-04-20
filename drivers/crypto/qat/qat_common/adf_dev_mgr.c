@@ -67,7 +67,8 @@ int adf_devmgr_add_dev(struct adf_accel_dev *accel_dev)
 	struct list_head *itr;
 
 	if (num_devices == ADF_MAX_DEVICES) {
-		pr_err("QAT: Only support up to %d devices\n", ADF_MAX_DEVICES);
+		dev_err(&GET_DEV(accel_dev), "Only support up to %d devices\n",
+			ADF_MAX_DEVICES);
 		return -EFAULT;
 	}
 

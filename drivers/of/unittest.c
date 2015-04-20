@@ -228,8 +228,9 @@ static void __init of_unittest_check_tree_linkage(void)
 	child_count = of_unittest_check_node_linkage(of_root);
 
 	unittest(child_count > 0, "Device node data structure is corrupted\n");
-	unittest(child_count == allnode_count, "allnodes list size (%i) doesn't match"
-		 "sibling lists size (%i)\n", allnode_count, child_count);
+	unittest(child_count == allnode_count,
+		 "allnodes list size (%i) doesn't match sibling lists size (%i)\n",
+		 allnode_count, child_count);
 	pr_debug("allnodes list size (%i); sibling lists size (%i)\n", allnode_count, child_count);
 }
 
@@ -294,6 +295,7 @@ static void __init of_unittest_parse_phandle_with_args(void)
 
 	for (i = 0; i < 8; i++) {
 		bool passed = true;
+
 		rc = of_parse_phandle_with_args(np, "phandle-list",
 						"#phandle-cells", i, &args);
 
@@ -553,6 +555,7 @@ static void __init of_unittest_parse_interrupts(void)
 
 	for (i = 0; i < 4; i++) {
 		bool passed = true;
+
 		args.args_count = 0;
 		rc = of_irq_parse_one(np, i, &args);
 
@@ -573,6 +576,7 @@ static void __init of_unittest_parse_interrupts(void)
 
 	for (i = 0; i < 4; i++) {
 		bool passed = true;
+
 		args.args_count = 0;
 		rc = of_irq_parse_one(np, i, &args);
 
@@ -625,6 +629,7 @@ static void __init of_unittest_parse_interrupts_extended(void)
 
 	for (i = 0; i < 7; i++) {
 		bool passed = true;
+
 		rc = of_irq_parse_one(np, i, &args);
 
 		/* Test the values from tests-phandle.dtsi */
@@ -680,7 +685,7 @@ static void __init of_unittest_parse_interrupts_extended(void)
 	of_node_put(np);
 }
 
-static struct of_device_id match_node_table[] = {
+static const struct of_device_id match_node_table[] = {
 	{ .data = "A", .name = "name0", }, /* Name alone is lowest priority */
 	{ .data = "B", .type = "type1", }, /* followed by type alone */
 
@@ -746,15 +751,15 @@ static void __init of_unittest_match_node(void)
 	}
 }
 
-struct device test_bus = {
-	.init_name = "unittest-bus",
+static const struct platform_device_info test_bus_info = {
+	.name = "unittest-bus",
 };
 static void __init of_unittest_platform_populate(void)
 {
 	int irq, rc;
 	struct device_node *np, *child, *grandchild;
-	struct platform_device *pdev;
-	struct of_device_id match[] = {
+	struct platform_device *pdev, *test_bus;
+	const struct of_device_id match[] = {
 		{ .compatible = "test-device", },
 		{}
 	};
@@ -777,23 +782,27 @@ static void __init of_unittest_platform_populate(void)
 	irq = platform_get_irq(pdev, 0);
 	unittest(irq < 0 && irq != -EPROBE_DEFER, "device parsing error failed - %d\n", irq);
 
-	if (unittest(np = of_find_node_by_path("/testcase-data/platform-tests"),
-		     "No testcase data in device tree\n"));
+	np = of_find_node_by_path("/testcase-data/platform-tests");
+	unittest(np, "No testcase data in device tree\n");
+	if (!np)
 		return;
 
-	if (unittest(!(rc = device_register(&test_bus)),
-		     "testbus registration failed; rc=%i\n", rc));
+	test_bus = platform_device_register_full(&test_bus_info);
+	rc = PTR_ERR_OR_ZERO(test_bus);
+	unittest(!rc, "testbus registration failed; rc=%i\n", rc);
+	if (rc)
 		return;
+	test_bus->dev.of_node = np;
 
+	of_platform_populate(np, match, NULL, &test_bus->dev);
 	for_each_child_of_node(np, child) {
-		of_platform_populate(child, match, NULL, &test_bus);
 		for_each_child_of_node(child, grandchild)
 			unittest(of_find_device_by_node(grandchild),
 				 "Could not create device for node '%s'\n",
 				 grandchild->name);
 	}
 
-	of_platform_depopulate(&test_bus);
+	of_platform_depopulate(&test_bus->dev);
 	for_each_child_of_node(np, child) {
 		for_each_child_of_node(child, grandchild)
 			unittest(!of_find_device_by_node(grandchild),
@@ -801,7 +810,7 @@ static void __init of_unittest_platform_populate(void)
 				 grandchild->name);
 	}
 
-	device_unregister(&test_bus);
+	platform_device_unregister(test_bus);
 	of_node_put(np);
 }
 
@@ -873,6 +882,10 @@ static int __init unittest_data_add(void)
 {
 	void *unittest_data;
 	struct device_node *unittest_data_node, *np;
+	/*
+	 * __dtb_testcases_begin[] and __dtb_testcases_end[] are magically
+	 * created by cmd_dt_S_dtb in scripts/Makefile.lib
+	 */
 	extern uint8_t __dtb_testcases_begin[];
 	extern uint8_t __dtb_testcases_end[];
 	const int size = __dtb_testcases_end - __dtb_testcases_begin;
@@ -917,6 +930,7 @@ static int __init unittest_data_add(void)
 	np = unittest_data_node->child;
 	while (np) {
 		struct device_node *next = np->sibling;
+
 		np->parent = of_root;
 		attach_node_and_children(np);
 		np = next;
@@ -953,7 +967,7 @@ static int unittest_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id unittest_match[] = {
+static const struct of_device_id unittest_match[] = {
 	{ .compatible = "unittest", },
 	{},
 };
@@ -1545,7 +1559,7 @@ static int unittest_i2c_bus_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id unittest_i2c_bus_match[] = {
+static const struct of_device_id unittest_i2c_bus_match[] = {
 	{ .compatible = "unittest-i2c-bus", },
 	{},
 };

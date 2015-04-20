@@ -196,7 +196,7 @@ DEFINE_FETCH_file_offset(string)
 DEFINE_FETCH_file_offset(string_size)
 
 /* Fetch type information table */
-const struct fetch_type uprobes_fetch_type_table[] = {
+static const struct fetch_type uprobes_fetch_type_table[] = {
 	/* Special types */
 	[FETCH_TYPE_STRING] = __ASSIGN_FETCH_TYPE("string", string, string,
 					sizeof(u32), 1, "__data_loc char[]"),
@@ -535,7 +535,8 @@ static int create_trace_uprobe(int argc, char **argv)
 
 		/* Parse fetch argument */
 		ret = traceprobe_parse_probe_arg(arg, &tu->tp.size, parg,
-						 is_return, false);
+						 is_return, false,
+						 uprobes_fetch_type_table);
 		if (ret) {
 			pr_info("Parse error at argument[%d]. (%d)\n", i, ret);
 			goto error;
@@ -1005,7 +1006,7 @@ __uprobe_perf_filter(struct trace_uprobe_filter *filter, struct mm_struct *mm)
 		return true;
 
 	list_for_each_entry(event, &filter->perf_events, hw.tp_list) {
-		if (event->hw.tp_target->mm == mm)
+		if (event->hw.target->mm == mm)
 			return true;
 	}
 
@@ -1015,7 +1016,7 @@ __uprobe_perf_filter(struct trace_uprobe_filter *filter, struct mm_struct *mm)
 static inline bool
 uprobe_filter_event(struct trace_uprobe *tu, struct perf_event *event)
 {
-	return __uprobe_perf_filter(&tu->filter, event->hw.tp_target->mm);
+	return __uprobe_perf_filter(&tu->filter, event->hw.target->mm);
 }
 
 static int uprobe_perf_close(struct trace_uprobe *tu, struct perf_event *event)
@@ -1023,10 +1024,10 @@ static int uprobe_perf_close(struct trace_uprobe *tu, struct perf_event *event)
 	bool done;
 
 	write_lock(&tu->filter.rwlock);
-	if (event->hw.tp_target) {
+	if (event->hw.target) {
 		list_del(&event->hw.tp_list);
 		done = tu->filter.nr_systemwide ||
-			(event->hw.tp_target->flags & PF_EXITING) ||
+			(event->hw.target->flags & PF_EXITING) ||
 			uprobe_filter_event(tu, event);
 	} else {
 		tu->filter.nr_systemwide--;
@@ -1046,7 +1047,7 @@ static int uprobe_perf_open(struct trace_uprobe *tu, struct perf_event *event)
 	int err;
 
 	write_lock(&tu->filter.rwlock);
-	if (event->hw.tp_target) {
+	if (event->hw.target) {
 		/*
 		 * event->parent != NULL means copy_process(), we can avoid
 		 * uprobe_apply(). current->mm must be probed and we can rely

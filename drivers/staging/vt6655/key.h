@@ -66,4 +66,4 @@ int vnt_key_init_table(struct vnt_private *);
 int vnt_set_keys(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 		 struct ieee80211_vif *vif, struct ieee80211_key_conf *key);
 
-#endif // __KEY_H__
+#endif /* __KEY_H__ */

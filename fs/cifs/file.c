@@ -2560,10 +2560,9 @@ cifs_write_from_iter(loff_t offset, size_t len, struct iov_iter *from,
 	return rc;
 }
 
-static ssize_t
-cifs_iovec_write(struct file *file, struct iov_iter *from, loff_t *poffset)
+ssize_t cifs_user_writev(struct kiocb *iocb, struct iov_iter *from)
 {
-	size_t len;
+	struct file *file = iocb->ki_filp;
 	ssize_t total_written = 0;
 	struct cifsFileInfo *open_file;
 	struct cifs_tcon *tcon;
@@ -2573,15 +2572,15 @@ cifs_iovec_write(struct file *file, struct iov_iter *from, loff_t *poffset)
 	struct iov_iter saved_from;
 	int rc;
 
-	len = iov_iter_count(from);
-	rc = generic_write_checks(file, poffset, &len, 0);
-	if (rc)
+	/*
+	 * BB - optimize the way when signing is disabled. We can drop this
+	 * extra memory-to-memory copying and use iovec buffers for constructing
+	 * write request.
+	 */
+
+	rc = generic_write_checks(iocb, from);
+	if (rc <= 0)
 		return rc;
-
-	if (!len)
-		return 0;
-
-	iov_iter_truncate(from, len);
 
 	INIT_LIST_HEAD(&wdata_list);
 	cifs_sb = CIFS_FILE_SB(file);
@@ -2593,8 +2592,8 @@ cifs_iovec_write(struct file *file, struct iov_iter *from, loff_t *poffset)
 
 	memcpy(&saved_from, from, sizeof(struct iov_iter));
 
-	rc = cifs_write_from_iter(*poffset, len, from, open_file, cifs_sb,
-				  &wdata_list);
+	rc = cifs_write_from_iter(iocb->ki_pos, iov_iter_count(from), from,
+				  open_file, cifs_sb, &wdata_list);
 
 	/*
 	 * If at least one write was successfully sent, then discard any rc
@@ -2633,7 +2632,7 @@ restart_loop:
 				memcpy(&tmp_from, &saved_from,
 				       sizeof(struct iov_iter));
 				iov_iter_advance(&tmp_from,
-						 wdata->offset - *poffset);
+						 wdata->offset - iocb->ki_pos);
 
 				rc = cifs_write_from_iter(wdata->offset,
 						wdata->bytes, &tmp_from,
@@ -2650,34 +2649,13 @@ restart_loop:
 		kref_put(&wdata->refcount, cifs_uncached_writedata_release);
 	}
 
-	if (total_written > 0)
-		*poffset += total_written;
+	if (unlikely(!total_written))
+		return rc;
 
+	iocb->ki_pos += total_written;
+	set_bit(CIFS_INO_INVALID_MAPPING, &CIFS_I(file_inode(file))->flags);
 	cifs_stats_bytes_written(tcon, total_written);
-	return total_written ? total_written : (ssize_t)rc;
-}
-
-ssize_t cifs_user_writev(struct kiocb *iocb, struct iov_iter *from)
-{
-	ssize_t written;
-	struct inode *inode;
-	loff_t pos = iocb->ki_pos;
-
-	inode = file_inode(iocb->ki_filp);
-
-	/*
-	 * BB - optimize the way when signing is disabled. We can drop this
-	 * extra memory-to-memory copying and use iovec buffers for constructing
-	 * write request.
-	 */
-
-	written = cifs_iovec_write(iocb->ki_filp, from, &pos);
-	if (written > 0) {
-		set_bit(CIFS_INO_INVALID_MAPPING, &CIFS_I(inode)->flags);
-		iocb->ki_pos = pos;
-	}
-
-	return written;
+	return total_written;
 }
 
 static ssize_t
@@ -2688,8 +2666,7 @@ cifs_writev(struct kiocb *iocb, struct iov_iter *from)
 	struct inode *inode = file->f_mapping->host;
 	struct cifsInodeInfo *cinode = CIFS_I(inode);
 	struct TCP_Server_Info *server = tlink_tcon(cfile->tlink)->ses->server;
-	ssize_t rc = -EACCES;
-	loff_t lock_pos = iocb->ki_pos;
+	ssize_t rc;
 
 	/*
 	 * We need to hold the sem to be sure nobody modifies lock list
@@ -2697,23 +2674,24 @@ cifs_writev(struct kiocb *iocb, struct iov_iter *from)
 	 */
 	down_read(&cinode->lock_sem);
 	mutex_lock(&inode->i_mutex);
-	if (file->f_flags & O_APPEND)
-		lock_pos = i_size_read(inode);
-	if (!cifs_find_lock_conflict(cfile, lock_pos, iov_iter_count(from),
+
+	rc = generic_write_checks(iocb, from);
+	if (rc <= 0)
+		goto out;
+
+	if (!cifs_find_lock_conflict(cfile, iocb->ki_pos, iov_iter_count(from),
 				     server->vals->exclusive_lock_type, NULL,
-				     CIFS_WRITE_OP)) {
+				     CIFS_WRITE_OP))
 		rc = __generic_file_write_iter(iocb, from);
-		mutex_unlock(&inode->i_mutex);
+	else
+		rc = -EACCES;
+out:
+	mutex_unlock(&inode->i_mutex);
 
-		if (rc > 0) {
-			ssize_t err;
-
-			err = generic_write_sync(file, iocb->ki_pos - rc, rc);
-			if (err < 0)
-				rc = err;
-		}
-	} else {
-		mutex_unlock(&inode->i_mutex);
+	if (rc > 0) {
+		ssize_t err = generic_write_sync(file, iocb->ki_pos - rc, rc);
+		if (err < 0)
+			rc = err;
 	}
 	up_read(&cinode->lock_sem);
 	return rc;
@@ -3877,8 +3855,7 @@ void cifs_oplock_break(struct work_struct *work)
  * Direct IO is not yet supported in the cached mode. 
  */
 static ssize_t
-cifs_direct_io(int rw, struct kiocb *iocb, struct iov_iter *iter,
-               loff_t pos)
+cifs_direct_io(struct kiocb *iocb, struct iov_iter *iter, loff_t pos)
 {
         /*
          * FIXME

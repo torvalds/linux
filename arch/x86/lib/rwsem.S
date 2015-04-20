@@ -34,10 +34,10 @@
  */
 
 #define save_common_regs \
-	pushl_cfi %ecx; CFI_REL_OFFSET ecx, 0
+	pushl_cfi_reg ecx
 
 #define restore_common_regs \
-	popl_cfi %ecx; CFI_RESTORE ecx
+	popl_cfi_reg ecx
 
 	/* Avoid uglifying the argument copying x86-64 needs to do. */
 	.macro movq src, dst
@@ -64,22 +64,22 @@
  */
 
 #define save_common_regs \
-	pushq_cfi %rdi; CFI_REL_OFFSET rdi, 0; \
-	pushq_cfi %rsi; CFI_REL_OFFSET rsi, 0; \
-	pushq_cfi %rcx; CFI_REL_OFFSET rcx, 0; \
-	pushq_cfi %r8;  CFI_REL_OFFSET r8,  0; \
-	pushq_cfi %r9;  CFI_REL_OFFSET r9,  0; \
-	pushq_cfi %r10; CFI_REL_OFFSET r10, 0; \
-	pushq_cfi %r11; CFI_REL_OFFSET r11, 0
+	pushq_cfi_reg rdi; \
+	pushq_cfi_reg rsi; \
+	pushq_cfi_reg rcx; \
+	pushq_cfi_reg r8;  \
+	pushq_cfi_reg r9;  \
+	pushq_cfi_reg r10; \
+	pushq_cfi_reg r11
 
 #define restore_common_regs \
-	popq_cfi %r11; CFI_RESTORE r11; \
-	popq_cfi %r10; CFI_RESTORE r10; \
-	popq_cfi %r9;  CFI_RESTORE r9; \
-	popq_cfi %r8;  CFI_RESTORE r8; \
-	popq_cfi %rcx; CFI_RESTORE rcx; \
-	popq_cfi %rsi; CFI_RESTORE rsi; \
-	popq_cfi %rdi; CFI_RESTORE rdi
+	popq_cfi_reg r11; \
+	popq_cfi_reg r10; \
+	popq_cfi_reg r9; \
+	popq_cfi_reg r8; \
+	popq_cfi_reg rcx; \
+	popq_cfi_reg rsi; \
+	popq_cfi_reg rdi
 
 #endif
 
@@ -87,12 +87,10 @@
 ENTRY(call_rwsem_down_read_failed)
 	CFI_STARTPROC
 	save_common_regs
-	__ASM_SIZE(push,_cfi) %__ASM_REG(dx)
-	CFI_REL_OFFSET __ASM_REG(dx), 0
+	__ASM_SIZE(push,_cfi_reg) __ASM_REG(dx)
 	movq %rax,%rdi
 	call rwsem_down_read_failed
-	__ASM_SIZE(pop,_cfi) %__ASM_REG(dx)
-	CFI_RESTORE __ASM_REG(dx)
+	__ASM_SIZE(pop,_cfi_reg) __ASM_REG(dx)
 	restore_common_regs
 	ret
 	CFI_ENDPROC
@@ -124,12 +122,10 @@ ENDPROC(call_rwsem_wake)
 ENTRY(call_rwsem_downgrade_wake)
 	CFI_STARTPROC
 	save_common_regs
-	__ASM_SIZE(push,_cfi) %__ASM_REG(dx)
-	CFI_REL_OFFSET __ASM_REG(dx), 0
+	__ASM_SIZE(push,_cfi_reg) __ASM_REG(dx)
 	movq %rax,%rdi
 	call rwsem_downgrade_wake
-	__ASM_SIZE(pop,_cfi) %__ASM_REG(dx)
-	CFI_RESTORE __ASM_REG(dx)
+	__ASM_SIZE(pop,_cfi_reg) __ASM_REG(dx)
 	restore_common_regs
 	ret
 	CFI_ENDPROC

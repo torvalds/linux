@@ -299,11 +299,13 @@ acpi_rs_set_resource_length(acpi_rsdesc_size total_length,
 			    union aml_resource *aml);
 
 /*
- * rsdump
+ * rsdump - Debugger support
  */
+#ifdef ACPI_DEBUGGER
 void acpi_rs_dump_resource_list(struct acpi_resource *resource);
 
-void acpi_rs_dump_irq_list(u8 * route_table);
+void acpi_rs_dump_irq_list(u8 *route_table);
+#endif
 
 /*
  * Resource conversion tables

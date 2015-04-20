@@ -175,7 +175,6 @@ brw_fill_page(struct page *pg, int pattern, __u64 magic)
 	}
 
 	LBUG();
-	return;
 }
 
 static int

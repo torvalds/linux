@@ -829,7 +829,7 @@ static struct twl4030_power_data osc_off_idle = {
 	.board_config		= osc_off_rconfig,
 };
 
-static struct of_device_id twl4030_power_of_match[] = {
+static const struct of_device_id twl4030_power_of_match[] = {
 	{
 		.compatible = "ti,twl4030-power",
 	},

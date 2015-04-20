@@ -1175,17 +1175,4 @@ MODULE_AUTHOR("Franco Venturi <fventuri@mediaone.net>");
 MODULE_DESCRIPTION("General Instruments SB1000 driver");
 MODULE_LICENSE("GPL");
 
-static int __init
-sb1000_init(void)
-{
-	return pnp_register_driver(&sb1000_driver);
-}
-
-static void __exit
-sb1000_exit(void)
-{
-	pnp_unregister_driver(&sb1000_driver);
-}
-
-module_init(sb1000_init);
-module_exit(sb1000_exit);
+module_pnp_driver(sb1000_driver);

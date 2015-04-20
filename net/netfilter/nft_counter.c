@@ -24,7 +24,7 @@ struct nft_counter {
 };
 
 static void nft_counter_eval(const struct nft_expr *expr,
-			     struct nft_data data[NFT_REG_MAX + 1],
+			     struct nft_regs *regs,
 			     const struct nft_pktinfo *pkt)
 {
 	struct nft_counter *priv = nft_expr_priv(expr);
@@ -92,6 +92,7 @@ static struct nft_expr_type nft_counter_type __read_mostly = {
 	.ops		= &nft_counter_ops,
 	.policy		= nft_counter_policy,
 	.maxattr	= NFTA_COUNTER_MAX,
+	.flags		= NFT_EXPR_STATEFUL,
 	.owner		= THIS_MODULE,
 };
 

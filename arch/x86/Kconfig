@@ -87,7 +87,7 @@ config X86
 	select HAVE_ARCH_KMEMCHECK
 	select HAVE_ARCH_KASAN if X86_64 && SPARSEMEM_VMEMMAP
 	select HAVE_USER_RETURN_NOTIFIER
-	select ARCH_BINFMT_ELF_RANDOMIZE_PIE
+	select ARCH_HAS_ELF_RANDOMIZE
 	select HAVE_ARCH_JUMP_LABEL
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 	select SPARSE_IRQ
@@ -99,6 +99,7 @@ config X86
 	select IRQ_FORCED_THREADING
 	select HAVE_BPF_JIT if X86_64
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
+	select HAVE_ARCH_HUGE_VMAP if X86_64 || (X86_32 && X86_PAE)
 	select ARCH_HAS_SG_CHAIN
 	select CLKEVT_I8253
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
@@ -177,7 +178,7 @@ config SBUS
 
 config NEED_DMA_MAP_STATE
 	def_bool y
-	depends on X86_64 || INTEL_IOMMU || DMA_API_DEBUG
+	depends on X86_64 || INTEL_IOMMU || DMA_API_DEBUG || SWIOTLB
 
 config NEED_SG_DMA_LENGTH
 	def_bool y
@@ -235,12 +236,10 @@ config ARCH_WANT_GENERAL_HUGETLB
 	def_bool y
 
 config ZONE_DMA32
-	bool
-	default X86_64
+	def_bool y if X86_64
 
 config AUDIT_ARCH
-	bool
-	default X86_64
+	def_bool y if X86_64
 
 config ARCH_SUPPORTS_OPTIMIZED_INLINING
 	def_bool y
@@ -278,6 +277,12 @@ config ARCH_SUPPORTS_UPROBES
 
 config FIX_EARLYCON_MEM
 	def_bool y
+
+config PGTABLE_LEVELS
+	int
+	default 4 if X86_64
+	default 3 if X86_PAE
+	default 2
 
 source "init/Kconfig"
 source "kernel/Kconfig.freezer"
@@ -716,17 +721,6 @@ endif #HYPERVISOR_GUEST
 config NO_BOOTMEM
 	def_bool y
 
-config MEMTEST
-	bool "Memtest"
-	---help---
-	  This option adds a kernel parameter 'memtest', which allows memtest
-	  to be set.
-	        memtest=0, mean disabled; -- default
-	        memtest=1, mean do 1 test pattern;
-	        ...
-	        memtest=4, mean do 4 test patterns.
-	  If you are unsure how to answer this question, answer N.
-
 source "arch/x86/Kconfig.cpu"
 
 config HPET_TIMER
@@ -891,7 +885,8 @@ config UP_LATE_INIT
        depends on !SMP && X86_LOCAL_APIC
 
 config X86_UP_APIC
-	bool "Local APIC support on uniprocessors"
+	bool "Local APIC support on uniprocessors" if !PCI_MSI
+	default PCI_MSI
 	depends on X86_32 && !SMP && !X86_32_NON_STANDARD
 	---help---
 	  A local APIC (Advanced Programmable Interrupt Controller) is an
@@ -902,10 +897,6 @@ config X86_UP_APIC
 	  all. The local APIC supports CPU-generated self-interrupts (timer,
 	  performance counters), and the NMI watchdog which detects hard
 	  lockups.
-
-config X86_UP_APIC_MSI
-	def_bool y
-	select X86_UP_APIC if X86_32 && !SMP && !X86_32_NON_STANDARD && PCI_MSI
 
 config X86_UP_IOAPIC
 	bool "IO-APIC support on uniprocessors"
@@ -925,8 +916,8 @@ config X86_LOCAL_APIC
 	select GENERIC_IRQ_LEGACY_ALLOC_HWIRQ
 
 config X86_IO_APIC
-	def_bool X86_64 || SMP || X86_32_NON_STANDARD || X86_UP_IOAPIC
-	depends on X86_LOCAL_APIC
+	def_bool y
+	depends on X86_LOCAL_APIC || X86_UP_IOAPIC
 	select IRQ_DOMAIN
 
 config X86_REROUTE_FOR_BROKEN_BOOT_IRQS
@@ -1145,10 +1136,10 @@ config MICROCODE_OLD_INTERFACE
 	depends on MICROCODE
 
 config MICROCODE_INTEL_EARLY
-	def_bool n
+	bool
 
 config MICROCODE_AMD_EARLY
-	def_bool n
+	bool
 
 config MICROCODE_EARLY
 	bool "Early load microcode"
@@ -1300,14 +1291,14 @@ config ARCH_DMA_ADDR_T_64BIT
 	def_bool y
 	depends on X86_64 || HIGHMEM64G
 
-config DIRECT_GBPAGES
-	bool "Enable 1GB pages for kernel pagetables" if EXPERT
-	default y
-	depends on X86_64
+config X86_DIRECT_GBPAGES
+	def_bool y
+	depends on X86_64 && !DEBUG_PAGEALLOC && !KMEMCHECK
 	---help---
-	  Allow the kernel linear mapping to use 1GB pages on CPUs that
-	  support it. This can improve the kernel's performance a tiny bit by
-	  reducing TLB pressure. If in doubt, say "Y".
+	  Certain kernel features effectively disable kernel
+	  linear 1 GB mappings (even if the CPU otherwise
+	  supports them), so don't confuse the user by printing
+	  that we have them enabled.
 
 # Common NUMA Features
 config NUMA
@@ -1429,6 +1420,16 @@ config ILLEGAL_POINTER_VALUE
        default 0xdead000000000000 if X86_64
 
 source "mm/Kconfig"
+
+config X86_PMEM_LEGACY
+	bool "Support non-standard NVDIMMs and ADR protected memory"
+	help
+	  Treat memory marked using the non-standard e820 type of 12 as used
+	  by the Intel Sandy Bridge-EP reference BIOS as protected memory.
+	  The kernel will offer these regions to the 'pmem' driver so
+	  they can be used for persistent storage.
+
+	  Say Y if unsure.
 
 config HIGHPTE
 	bool "Allocate 3rd-level pagetables from highmem"
@@ -1747,14 +1748,11 @@ config KEXEC_VERIFY_SIG
 	depends on KEXEC_FILE
 	---help---
 	  This option makes kernel signature verification mandatory for
-	  kexec_file_load() syscall. If kernel is signature can not be
-	  verified, kexec_file_load() will fail.
+	  the kexec_file_load() syscall.
 
-	  This option enforces signature verification at generic level.
-	  One needs to enable signature verification for type of kernel
-	  image being loaded to make sure it works. For example, enable
-	  bzImage signature verification option to be able to load and
-	  verify signatures of bzImage. Otherwise kernel loading will fail.
+	  In addition to that option, you need to enable signature
+	  verification for the corresponding kernel image type being
+	  loaded in order for this to work.
 
 config KEXEC_BZIMAGE_VERIFY_SIG
 	bool "Enable bzImage signature verification support"

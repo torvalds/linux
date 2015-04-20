@@ -10,5 +10,6 @@ tipc-y	+= addr.o bcast.o bearer.o \
 	   netlink.o netlink_compat.o node.o socket.o eth_media.o \
 	   server.o socket.o
 
+tipc-$(CONFIG_TIPC_MEDIA_UDP)	+= udp_media.o
 tipc-$(CONFIG_TIPC_MEDIA_IB)	+= ib_media.o
 tipc-$(CONFIG_SYSCTL)		+= sysctl.o

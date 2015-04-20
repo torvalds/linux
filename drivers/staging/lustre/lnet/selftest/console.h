@@ -182,6 +182,9 @@ lstcon_id2hash (lnet_process_id_t id, struct list_head *hash)
 	return &hash[idx];
 }
 
+int lstcon_console_init(void);
+int lstcon_ioctl_entry(unsigned int cmd, struct libcfs_ioctl_data *data);
+int lstcon_console_fini(void);
 extern int lstcon_session_match(lst_sid_t sid);
 extern int lstcon_session_new(char *name, int key, unsigned version,
 			      int timeout, int flags, lst_sid_t *sid_up);

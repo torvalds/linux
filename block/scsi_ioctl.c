@@ -335,16 +335,14 @@ static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
 		struct iov_iter i;
 		struct iovec *iov = NULL;
 
-		ret = rw_copy_check_uvector(-1, hdr->dxferp, hdr->iovec_count,
-					    0, NULL, &iov);
-		if (ret < 0) {
-			kfree(iov);
+		ret = import_iovec(rq_data_dir(rq),
+				   hdr->dxferp, hdr->iovec_count,
+				   0, &iov, &i);
+		if (ret < 0)
 			goto out_free_cdb;
-		}
 
 		/* SG_IO howto says that the shorter of the two wins */
-		iov_iter_init(&i, rq_data_dir(rq), iov, hdr->iovec_count,
-			      min_t(unsigned, ret, hdr->dxfer_len));
+		iov_iter_truncate(&i, hdr->dxfer_len);
 
 		ret = blk_rq_map_user_iov(q, rq, NULL, &i, GFP_KERNEL);
 		kfree(iov);

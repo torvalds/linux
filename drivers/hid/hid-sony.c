@@ -802,7 +802,8 @@ union sixaxis_output_report_01 {
 #define DS4_REPORT_0x05_SIZE 32
 #define DS4_REPORT_0x11_SIZE 78
 #define DS4_REPORT_0x81_SIZE 7
-#define SIXAXIS_REPORT_0xF2_SIZE 18
+#define SIXAXIS_REPORT_0xF2_SIZE 17
+#define SIXAXIS_REPORT_0xF5_SIZE 8
 
 static DEFINE_SPINLOCK(sony_dev_list_lock);
 static LIST_HEAD(sony_device_list);
@@ -815,7 +816,8 @@ struct sony_sc {
 	struct led_classdev *leds[MAX_LEDS];
 	unsigned long quirks;
 	struct work_struct state_worker;
-	struct power_supply battery;
+	struct power_supply *battery;
+	struct power_supply_desc battery_desc;
 	int device_id;
 	__u8 *output_report_dmabuf;
 
@@ -1130,18 +1132,38 @@ static void sony_input_configured(struct hid_device *hdev,
  */
 static int sixaxis_set_operational_usb(struct hid_device *hdev)
 {
+	const int buf_size =
+		max(SIXAXIS_REPORT_0xF2_SIZE, SIXAXIS_REPORT_0xF5_SIZE);
+	__u8 *buf;
 	int ret;
-	char *buf = kmalloc(18, GFP_KERNEL);
 
+	buf = kmalloc(buf_size, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
-	ret = hid_hw_raw_request(hdev, 0xf2, buf, 17, HID_FEATURE_REPORT,
-				 HID_REQ_GET_REPORT);
+	ret = hid_hw_raw_request(hdev, 0xf2, buf, SIXAXIS_REPORT_0xF2_SIZE,
+				 HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
+	if (ret < 0) {
+		hid_err(hdev, "can't set operational mode: step 1\n");
+		goto out;
+	}
 
+	/*
+	 * Some compatible controllers like the Speedlink Strike FX and
+	 * Gasia need another query plus an USB interrupt to get operational.
+	 */
+	ret = hid_hw_raw_request(hdev, 0xf5, buf, SIXAXIS_REPORT_0xF5_SIZE,
+				 HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
+	if (ret < 0) {
+		hid_err(hdev, "can't set operational mode: step 2\n");
+		goto out;
+	}
+
+	ret = hid_hw_output_report(hdev, buf, 1);
 	if (ret < 0)
-		hid_err(hdev, "can't set operational mode\n");
+		hid_err(hdev, "can't set operational mode: step 3\n");
 
+out:
 	kfree(buf);
 
 	return ret;
@@ -1660,7 +1682,7 @@ static int sony_battery_get_property(struct power_supply *psy,
 				     enum power_supply_property psp,
 				     union power_supply_propval *val)
 {
-	struct sony_sc *sc = container_of(psy, struct sony_sc, battery);
+	struct sony_sc *sc = power_supply_get_drvdata(psy);
 	unsigned long flags;
 	int ret = 0;
 	u8 battery_charging, battery_capacity, cable_state;
@@ -1699,6 +1721,7 @@ static int sony_battery_get_property(struct power_supply *psy,
 
 static int sony_battery_probe(struct sony_sc *sc)
 {
+	struct power_supply_config psy_cfg = { .drv_data = sc, };
 	struct hid_device *hdev = sc->hdev;
 	int ret;
 
@@ -1708,39 +1731,42 @@ static int sony_battery_probe(struct sony_sc *sc)
 	 */
 	sc->battery_capacity = 100;
 
-	sc->battery.properties = sony_battery_props;
-	sc->battery.num_properties = ARRAY_SIZE(sony_battery_props);
-	sc->battery.get_property = sony_battery_get_property;
-	sc->battery.type = POWER_SUPPLY_TYPE_BATTERY;
-	sc->battery.use_for_apm = 0;
-	sc->battery.name = kasprintf(GFP_KERNEL, "sony_controller_battery_%pMR",
-				     sc->mac_address);
-	if (!sc->battery.name)
+	sc->battery_desc.properties = sony_battery_props;
+	sc->battery_desc.num_properties = ARRAY_SIZE(sony_battery_props);
+	sc->battery_desc.get_property = sony_battery_get_property;
+	sc->battery_desc.type = POWER_SUPPLY_TYPE_BATTERY;
+	sc->battery_desc.use_for_apm = 0;
+	sc->battery_desc.name = kasprintf(GFP_KERNEL,
+					  "sony_controller_battery_%pMR",
+					  sc->mac_address);
+	if (!sc->battery_desc.name)
 		return -ENOMEM;
 
-	ret = power_supply_register(&hdev->dev, &sc->battery);
-	if (ret) {
+	sc->battery = power_supply_register(&hdev->dev, &sc->battery_desc,
+					    &psy_cfg);
+	if (IS_ERR(sc->battery)) {
+		ret = PTR_ERR(sc->battery);
 		hid_err(hdev, "Unable to register battery device\n");
 		goto err_free;
 	}
 
-	power_supply_powers(&sc->battery, &hdev->dev);
+	power_supply_powers(sc->battery, &hdev->dev);
 	return 0;
 
 err_free:
-	kfree(sc->battery.name);
-	sc->battery.name = NULL;
+	kfree(sc->battery_desc.name);
+	sc->battery_desc.name = NULL;
 	return ret;
 }
 
 static void sony_battery_remove(struct sony_sc *sc)
 {
-	if (!sc->battery.name)
+	if (!sc->battery_desc.name)
 		return;
 
-	power_supply_unregister(&sc->battery);
-	kfree(sc->battery.name);
-	sc->battery.name = NULL;
+	power_supply_unregister(sc->battery);
+	kfree(sc->battery_desc.name);
+	sc->battery_desc.name = NULL;
 }
 
 /*

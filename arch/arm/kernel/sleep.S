@@ -116,14 +116,7 @@ cpu_resume_after_mmu:
 	ldmfd	sp!, {r4 - r11, pc}
 ENDPROC(cpu_resume_after_mmu)
 
-/*
- * Note: Yes, part of the following code is located into the .data section.
- *       This is to allow sleep_save_sp to be accessed with a relative load
- *       while we can't rely on any MMU translation.  We could have put
- *       sleep_save_sp in the .text section as well, but some setups might
- *       insist on it to be truly read-only.
- */
-	.data
+	.text
 	.align
 ENTRY(cpu_resume)
 ARM_BE8(setend be)			@ ensure we are in BE mode
@@ -145,6 +138,8 @@ ARM_BE8(setend be)			@ ensure we are in BE mode
 	compute_mpidr_hash	r1, r4, r5, r6, r0, r3
 1:
 	adr	r0, _sleep_save_sp
+	ldr	r2, [r0]
+	add	r0, r0, r2
 	ldr	r0, [r0, #SLEEP_SAVE_SP_PHYS]
 	ldr	r0, [r0, r1, lsl #2]
 
@@ -156,10 +151,12 @@ THUMB(	bx	r3			)
 ENDPROC(cpu_resume)
 
 	.align 2
+_sleep_save_sp:
+	.long	sleep_save_sp - .
 mpidr_hash_ptr:
 	.long	mpidr_hash - .			@ mpidr_hash struct offset
 
+	.data
 	.type	sleep_save_sp, #object
 ENTRY(sleep_save_sp)
-_sleep_save_sp:
 	.space	SLEEP_SAVE_SP_SZ		@ struct sleep_save_sp

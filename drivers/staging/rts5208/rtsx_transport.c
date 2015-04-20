@@ -25,10 +25,6 @@
 #include <linux/sched.h>
 
 #include "rtsx.h"
-#include "rtsx_scsi.h"
-#include "rtsx_transport.h"
-#include "rtsx_chip.h"
-#include "rtsx_card.h"
 
 /***********************************************************************
  * Scatter-gather transfer buffer access routines
@@ -276,7 +272,8 @@ int rtsx_send_cmd(struct rtsx_chip *chip, u8 card, int timeout)
 		dev_dbg(rtsx_dev(chip), "chip->int_reg = 0x%x\n",
 			chip->int_reg);
 		err = -ETIMEDOUT;
-		TRACE_GOTO(chip, finish_send_cmd);
+		rtsx_trace(chip);
+		goto finish_send_cmd;
 	}
 
 	spin_lock_irq(&rtsx->reg_lock);
@@ -642,7 +639,7 @@ static int rtsx_transfer_buf(struct rtsx_chip *chip, u8 card, void *buf,
 	dma_addr_t addr;
 	u8 dir;
 	int err = 0;
-	u32 val = (1 << 31);
+	u32 val = 1 << 31;
 	long timeleft;
 
 	if ((buf == NULL) || (len <= 0))

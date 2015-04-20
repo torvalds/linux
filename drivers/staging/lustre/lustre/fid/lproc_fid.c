@@ -120,15 +120,14 @@ static int
 lprocfs_fid_space_seq_show(struct seq_file *m, void *unused)
 {
 	struct lu_client_seq *seq = (struct lu_client_seq *)m->private;
-	int rc;
 
 	LASSERT(seq != NULL);
 
 	mutex_lock(&seq->lcs_mutex);
-	rc = seq_printf(m, "[%#llx - %#llx]:%x:%s\n", PRANGE(&seq->lcs_space));
+	seq_printf(m, "[%#llx - %#llx]:%x:%s\n", PRANGE(&seq->lcs_space));
 	mutex_unlock(&seq->lcs_mutex);
 
-	return rc;
+	return 0;
 }
 
 static ssize_t lprocfs_fid_width_seq_write(struct file *file,
@@ -170,30 +169,28 @@ static int
 lprocfs_fid_width_seq_show(struct seq_file *m, void *unused)
 {
 	struct lu_client_seq *seq = (struct lu_client_seq *)m->private;
-	int rc;
 
 	LASSERT(seq != NULL);
 
 	mutex_lock(&seq->lcs_mutex);
-	rc = seq_printf(m, "%llu\n", seq->lcs_width);
+	seq_printf(m, "%llu\n", seq->lcs_width);
 	mutex_unlock(&seq->lcs_mutex);
 
-	return rc;
+	return 0;
 }
 
 static int
 lprocfs_fid_fid_seq_show(struct seq_file *m, void *unused)
 {
 	struct lu_client_seq *seq = (struct lu_client_seq *)m->private;
-	int rc;
 
 	LASSERT(seq != NULL);
 
 	mutex_lock(&seq->lcs_mutex);
-	rc = seq_printf(m, DFID"\n", PFID(&seq->lcs_fid));
+	seq_printf(m, DFID "\n", PFID(&seq->lcs_fid));
 	mutex_unlock(&seq->lcs_mutex);
 
-	return rc;
+	return 0;
 }
 
 static int
@@ -201,17 +198,17 @@ lprocfs_fid_server_seq_show(struct seq_file *m, void *unused)
 {
 	struct lu_client_seq *seq = (struct lu_client_seq *)m->private;
 	struct client_obd *cli;
-	int rc;
 
 	LASSERT(seq != NULL);
 
 	if (seq->lcs_exp != NULL) {
 		cli = &seq->lcs_exp->exp_obd->u.cli;
-		rc = seq_printf(m, "%s\n", cli->cl_target_uuid.uuid);
+		seq_printf(m, "%s\n", cli->cl_target_uuid.uuid);
 	} else {
-		rc = seq_printf(m, "%s\n", seq->lcs_srv->lss_name);
+		seq_printf(m, "%s\n", seq->lcs_srv->lss_name);
 	}
-	return rc;
+
+	return 0;
 }
 
 LPROC_SEQ_FOPS(lprocfs_fid_space);

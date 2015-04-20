@@ -40,6 +40,11 @@ OPTIONS
 	Only consider symbols in these comms. CSV that understands
 	file://filename entries.  This option will affect the percentage of
 	the overhead column.  See --percentage for more info.
+--pid=::
+        Only show events for given process ID (comma separated list).
+
+--tid=::
+        Only show events for given thread ID (comma separated list).
 -d::
 --dsos=::
 	Only consider symbols in these dsos. CSV that understands

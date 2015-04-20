@@ -168,7 +168,7 @@ void bcmgenet_mii_reset(struct net_device *dev)
 	}
 }
 
-static void bcmgenet_ephy_power_up(struct net_device *dev)
+void bcmgenet_phy_power_set(struct net_device *dev, bool enable)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	u32 reg = 0;
@@ -178,14 +178,25 @@ static void bcmgenet_ephy_power_up(struct net_device *dev)
 		return;
 
 	reg = bcmgenet_ext_readl(priv, EXT_GPHY_CTRL);
-	reg &= ~(EXT_CFG_IDDQ_BIAS | EXT_CFG_PWR_DOWN);
-	reg |= EXT_GPHY_RESET;
-	bcmgenet_ext_writel(priv, reg, EXT_GPHY_CTRL);
-	mdelay(2);
+	if (enable) {
+		reg &= ~EXT_CK25_DIS;
+		bcmgenet_ext_writel(priv, reg, EXT_GPHY_CTRL);
+		mdelay(1);
 
-	reg &= ~EXT_GPHY_RESET;
+		reg &= ~(EXT_CFG_IDDQ_BIAS | EXT_CFG_PWR_DOWN);
+		reg |= EXT_GPHY_RESET;
+		bcmgenet_ext_writel(priv, reg, EXT_GPHY_CTRL);
+		mdelay(1);
+
+		reg &= ~EXT_GPHY_RESET;
+	} else {
+		reg |= EXT_CFG_IDDQ_BIAS | EXT_CFG_PWR_DOWN | EXT_GPHY_RESET;
+		bcmgenet_ext_writel(priv, reg, EXT_GPHY_CTRL);
+		mdelay(1);
+		reg |= EXT_CK25_DIS;
+	}
 	bcmgenet_ext_writel(priv, reg, EXT_GPHY_CTRL);
-	udelay(20);
+	udelay(60);
 }
 
 static void bcmgenet_internal_phy_setup(struct net_device *dev)
@@ -193,8 +204,8 @@ static void bcmgenet_internal_phy_setup(struct net_device *dev)
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	u32 reg;
 
-	/* Power up EPHY */
-	bcmgenet_ephy_power_up(dev);
+	/* Power up PHY */
+	bcmgenet_phy_power_set(dev, true);
 	/* enable APD */
 	reg = bcmgenet_ext_readl(priv, EXT_EXT_PWR_MGMT);
 	reg |= EXT_PWR_DN_EN_LD;
@@ -451,6 +462,15 @@ static int bcmgenet_mii_of_init(struct bcmgenet_priv *priv)
 	return 0;
 }
 
+static int bcmgenet_fixed_phy_link_update(struct net_device *dev,
+					  struct fixed_phy_status *status)
+{
+	if (dev && dev->phydev && status)
+		status->link = dev->phydev->link;
+
+	return 0;
+}
+
 static int bcmgenet_mii_pd_init(struct bcmgenet_priv *priv)
 {
 	struct device *kdev = &priv->pdev->dev;
@@ -501,6 +521,13 @@ static int bcmgenet_mii_pd_init(struct bcmgenet_priv *priv)
 		if (!phydev || IS_ERR(phydev)) {
 			dev_err(kdev, "failed to register fixed PHY device\n");
 			return -ENODEV;
+		}
+
+		if (priv->hw_params->flags & GENET_HAS_MOCA_LINK_DET) {
+			ret = fixed_phy_set_link_update(
+				phydev, bcmgenet_fixed_phy_link_update);
+			if (!ret)
+				phydev->link = 0;
 		}
 	}
 

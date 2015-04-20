@@ -21,7 +21,7 @@
 #include <linux/module.h>
 #include <linux/seq_file.h>
 #include <linux/mount.h>
-#include <linux/aio.h>
+#include <linux/uio.h>
 #include <asm/ebcdic.h>
 #include "hypfs.h"
 
@@ -437,8 +437,6 @@ struct dentry *hypfs_create_str(struct dentry *dir,
 static const struct file_operations hypfs_file_ops = {
 	.open		= hypfs_open,
 	.release	= hypfs_release,
-	.read		= new_sync_read,
-	.write		= new_sync_write,
 	.read_iter	= hypfs_read_iter,
 	.write_iter	= hypfs_write_iter,
 	.llseek		= no_llseek,

@@ -161,7 +161,7 @@ ENTRY(inthandler)
  ***********************************************************************
  */
 ENTRY(handle_trap)
-	ldw	r24, -4(ea)	/* instruction that caused the exception */
+	ldwio	r24, -4(ea)	/* instruction that caused the exception */
 	srli	r24, r24, 4
 	andi	r24, r24, 0x7c
 	movia	r9,trap_table

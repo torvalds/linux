@@ -34,7 +34,11 @@ config OF_PROMTREE
 # Hardly any platforms need this.  It is safe to select, but only do so if you
 # need it.
 config OF_DYNAMIC
-	bool
+	bool "Support for dynamic device trees" if OF_UNITTEST
+	help
+	  On some platforms, the device tree can be manipulated at runtime.
+	  While this option is selected automatically on such platforms, you
+	  can enable it manually to improve device tree unit test coverage.
 
 config OF_ADDRESS
 	def_bool y
@@ -87,5 +91,10 @@ config OF_OVERLAY
 	bool "Device Tree overlays"
 	select OF_DYNAMIC
 	select OF_RESOLVE
+	help
+	  Overlays are a method to dynamically modify part of the kernel's
+	  device tree with dynamically loaded data.
+	  While this option is selected automatically when needed, you can
+	  enable it manually to improve device tree unit test coverage.
 
 endmenu # OF

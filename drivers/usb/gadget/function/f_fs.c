@@ -23,6 +23,7 @@
 #include <linux/export.h>
 #include <linux/hid.h>
 #include <linux/module.h>
+#include <linux/uio.h>
 #include <asm/unaligned.h>
 
 #include <linux/usb/composite.h>
@@ -655,9 +656,10 @@ static void ffs_user_copy_worker(struct work_struct *work)
 		unuse_mm(io_data->mm);
 	}
 
-	aio_complete(io_data->kiocb, ret, ret);
+	io_data->kiocb->ki_complete(io_data->kiocb, ret, ret);
 
-	if (io_data->ffs->ffs_eventfd && !io_data->kiocb->ki_eventfd)
+	if (io_data->ffs->ffs_eventfd &&
+	    !(io_data->kiocb->ki_flags & IOCB_EVENTFD))
 		eventfd_signal(io_data->ffs->ffs_eventfd, 1);
 
 	usb_ep_free_request(io_data->ep, io_data->req);
@@ -1059,8 +1061,6 @@ static const struct file_operations ffs_epfile_operations = {
 	.llseek =	no_llseek,
 
 	.open =		ffs_epfile_open,
-	.write =	new_sync_write,
-	.read =		new_sync_read,
 	.write_iter =	ffs_epfile_write_iter,
 	.read_iter =	ffs_epfile_read_iter,
 	.release =	ffs_epfile_release,

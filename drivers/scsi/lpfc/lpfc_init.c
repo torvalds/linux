@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2014 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2015 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -1330,13 +1330,14 @@ lpfc_offline_eratt(struct lpfc_hba *phba)
 void
 lpfc_sli4_offline_eratt(struct lpfc_hba *phba)
 {
+	spin_lock_irq(&phba->hbalock);
+	phba->link_state = LPFC_HBA_ERROR;
+	spin_unlock_irq(&phba->hbalock);
+
 	lpfc_offline_prep(phba, LPFC_MBX_NO_WAIT);
 	lpfc_offline(phba);
-	lpfc_sli4_brdreset(phba);
 	lpfc_hba_down_post(phba);
-	lpfc_sli4_post_status_check(phba);
 	lpfc_unblock_mgmt_io(phba);
-	phba->link_state = LPFC_HBA_ERROR;
 }
 
 /**
@@ -1629,15 +1630,13 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 	uint32_t uerrlo_reg, uemasklo_reg;
 	uint32_t pci_rd_rc1, pci_rd_rc2;
 	bool en_rn_msg = true;
+	struct temp_event temp_event_data;
 	int rc;
 
 	/* If the pci channel is offline, ignore possible errors, since
 	 * we cannot communicate with the pci card anyway.
 	 */
 	if (pci_channel_offline(phba->pcidev))
-		return;
-	/* If resets are disabled then leave the HBA alone and return */
-	if (!phba->cfg_enable_hba_reset)
 		return;
 
 	if_type = bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf);
@@ -1654,6 +1653,7 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 			return;
 		lpfc_sli4_offline_eratt(phba);
 		break;
+
 	case LPFC_SLI_INTF_IF_TYPE_2:
 		pci_rd_rc1 = lpfc_readl(
 				phba->sli4_hba.u.if_type2.STATUSregaddr,
@@ -1668,15 +1668,27 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 		reg_err1 = readl(phba->sli4_hba.u.if_type2.ERR1regaddr);
 		reg_err2 = readl(phba->sli4_hba.u.if_type2.ERR2regaddr);
 		if (bf_get(lpfc_sliport_status_oti, &portstat_reg)) {
-			/* TODO: Register for Overtemp async events. */
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"2889 Port Overtemperature event, "
-				"taking port offline\n");
+				"taking port offline Data: x%x x%x\n",
+				reg_err1, reg_err2);
+
+			temp_event_data.event_type = FC_REG_TEMPERATURE_EVENT;
+			temp_event_data.event_code = LPFC_CRIT_TEMP;
+			temp_event_data.data = 0xFFFFFFFF;
+
+			shost = lpfc_shost_from_vport(phba->pport);
+			fc_host_post_vendor_event(shost, fc_get_event_number(),
+						  sizeof(temp_event_data),
+						  (char *)&temp_event_data,
+						  SCSI_NL_VID_TYPE_PCI
+						  | PCI_VENDOR_ID_EMULEX);
+
 			spin_lock_irq(&phba->hbalock);
 			phba->over_temp_state = HBA_OVER_TEMP;
 			spin_unlock_irq(&phba->hbalock);
 			lpfc_sli4_offline_eratt(phba);
-			break;
+			return;
 		}
 		if (reg_err1 == SLIPORT_ERR1_REG_ERR_CODE_2 &&
 		    reg_err2 == SLIPORT_ERR2_REG_FW_RESTART) {
@@ -1692,6 +1704,10 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 			 reg_err2 == SLIPORT_ERR2_REG_FUNC_PROVISON)
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"3145 Port Down: Provisioning\n");
+
+		/* If resets are disabled then leave the HBA alone and return */
+		if (!phba->cfg_enable_hba_reset)
+			return;
 
 		/* Check port status register for function reset */
 		rc = lpfc_sli4_port_sta_fn_reset(phba, LPFC_MBX_NO_WAIT,
@@ -2759,9 +2775,19 @@ lpfc_sli4_node_prep(struct lpfc_hba *phba)
 			list_for_each_entry_safe(ndlp, next_ndlp,
 						 &vports[i]->fc_nodes,
 						 nlp_listp) {
-				if (NLP_CHK_NODE_ACT(ndlp))
+				if (NLP_CHK_NODE_ACT(ndlp)) {
 					ndlp->nlp_rpi =
 						lpfc_sli4_alloc_rpi(phba);
+					lpfc_printf_vlog(ndlp->vport, KERN_INFO,
+							 LOG_NODE,
+							 "0009 rpi:%x DID:%x "
+							 "flg:%x map:%x %p\n",
+							 ndlp->nlp_rpi,
+							 ndlp->nlp_DID,
+							 ndlp->nlp_flag,
+							 ndlp->nlp_usg_map,
+							 ndlp);
+				}
 			}
 		}
 	}
@@ -2925,8 +2951,18 @@ lpfc_offline_prep(struct lpfc_hba *phba, int mbx_action)
 				 * RPI. Get a new RPI when the adapter port
 				 * comes back online.
 				 */
-				if (phba->sli_rev == LPFC_SLI_REV4)
+				if (phba->sli_rev == LPFC_SLI_REV4) {
+					lpfc_printf_vlog(ndlp->vport,
+							 KERN_INFO, LOG_NODE,
+							 "0011 lpfc_offline: "
+							 "ndlp:x%p did %x "
+							 "usgmap:x%x rpi:%x\n",
+							 ndlp, ndlp->nlp_DID,
+							 ndlp->nlp_usg_map,
+							 ndlp->nlp_rpi);
+
 					lpfc_sli4_free_rpi(phba, ndlp->nlp_rpi);
+				}
 				lpfc_unreg_rpi(vports[i], ndlp);
 			}
 		}
@@ -3241,12 +3277,17 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 	struct Scsi_Host  *shost;
 	int error = 0;
 
-	if (dev != &phba->pcidev->dev)
+	if (dev != &phba->pcidev->dev) {
 		shost = scsi_host_alloc(&lpfc_vport_template,
 					sizeof(struct lpfc_vport));
-	else
-		shost = scsi_host_alloc(&lpfc_template,
+	} else {
+		if (phba->sli_rev == LPFC_SLI_REV4)
+			shost = scsi_host_alloc(&lpfc_template,
 					sizeof(struct lpfc_vport));
+		else
+			shost = scsi_host_alloc(&lpfc_template_s3,
+					sizeof(struct lpfc_vport));
+	}
 	if (!shost)
 		goto out;
 
@@ -3685,6 +3726,11 @@ lpfc_sli4_parse_latt_link_speed(struct lpfc_hba *phba,
 	case LPFC_ASYNC_LINK_SPEED_10GBPS:
 		link_speed = LPFC_LINK_SPEED_10GHZ;
 		break;
+	case LPFC_ASYNC_LINK_SPEED_20GBPS:
+	case LPFC_ASYNC_LINK_SPEED_25GBPS:
+	case LPFC_ASYNC_LINK_SPEED_40GBPS:
+		link_speed = LPFC_LINK_SPEED_UNKNOWN;
+		break;
 	default:
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0483 Invalid link-attention link speed: x%x\n",
@@ -3756,20 +3802,29 @@ lpfc_sli4_port_speed_parse(struct lpfc_hba *phba, uint32_t evt_code,
 	switch (evt_code) {
 	case LPFC_TRAILER_CODE_LINK:
 		switch (speed_code) {
-		case LPFC_EVT_CODE_LINK_NO_LINK:
+		case LPFC_ASYNC_LINK_SPEED_ZERO:
 			port_speed = 0;
 			break;
-		case LPFC_EVT_CODE_LINK_10_MBIT:
+		case LPFC_ASYNC_LINK_SPEED_10MBPS:
 			port_speed = 10;
 			break;
-		case LPFC_EVT_CODE_LINK_100_MBIT:
+		case LPFC_ASYNC_LINK_SPEED_100MBPS:
 			port_speed = 100;
 			break;
-		case LPFC_EVT_CODE_LINK_1_GBIT:
+		case LPFC_ASYNC_LINK_SPEED_1GBPS:
 			port_speed = 1000;
 			break;
-		case LPFC_EVT_CODE_LINK_10_GBIT:
+		case LPFC_ASYNC_LINK_SPEED_10GBPS:
 			port_speed = 10000;
+			break;
+		case LPFC_ASYNC_LINK_SPEED_20GBPS:
+			port_speed = 20000;
+			break;
+		case LPFC_ASYNC_LINK_SPEED_25GBPS:
+			port_speed = 25000;
+			break;
+		case LPFC_ASYNC_LINK_SPEED_40GBPS:
+			port_speed = 40000;
 			break;
 		default:
 			port_speed = 0;
@@ -3777,25 +3832,25 @@ lpfc_sli4_port_speed_parse(struct lpfc_hba *phba, uint32_t evt_code,
 		break;
 	case LPFC_TRAILER_CODE_FC:
 		switch (speed_code) {
-		case LPFC_EVT_CODE_FC_NO_LINK:
+		case LPFC_FC_LA_SPEED_UNKNOWN:
 			port_speed = 0;
 			break;
-		case LPFC_EVT_CODE_FC_1_GBAUD:
+		case LPFC_FC_LA_SPEED_1G:
 			port_speed = 1000;
 			break;
-		case LPFC_EVT_CODE_FC_2_GBAUD:
+		case LPFC_FC_LA_SPEED_2G:
 			port_speed = 2000;
 			break;
-		case LPFC_EVT_CODE_FC_4_GBAUD:
+		case LPFC_FC_LA_SPEED_4G:
 			port_speed = 4000;
 			break;
-		case LPFC_EVT_CODE_FC_8_GBAUD:
+		case LPFC_FC_LA_SPEED_8G:
 			port_speed = 8000;
 			break;
-		case LPFC_EVT_CODE_FC_10_GBAUD:
+		case LPFC_FC_LA_SPEED_10G:
 			port_speed = 10000;
 			break;
-		case LPFC_EVT_CODE_FC_16_GBAUD:
+		case LPFC_FC_LA_SPEED_16G:
 			port_speed = 16000;
 			break;
 		default:
@@ -4044,18 +4099,21 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 	char port_name;
 	char message[128];
 	uint8_t status;
+	uint8_t evt_type;
+	struct temp_event temp_event_data;
 	struct lpfc_acqe_misconfigured_event *misconfigured;
+	struct Scsi_Host  *shost;
 
-	/* special case misconfigured event as it contains data for all ports */
-	if ((bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
-		 LPFC_SLI_INTF_IF_TYPE_2) ||
-		(bf_get(lpfc_trailer_type, acqe_sli) !=
-			LPFC_SLI_EVENT_TYPE_MISCONFIGURED)) {
+	evt_type = bf_get(lpfc_trailer_type, acqe_sli);
+
+	/* Special case Lancer */
+	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
+		 LPFC_SLI_INTF_IF_TYPE_2) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
 				"2901 Async SLI event - Event Data1:x%08x Event Data2:"
 				"x%08x SLI Event Type:%d\n",
 				acqe_sli->event_data1, acqe_sli->event_data2,
-				bf_get(lpfc_trailer_type, acqe_sli));
+				evt_type);
 		return;
 	}
 
@@ -4063,58 +4121,107 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 	if (port_name == 0x00)
 		port_name = '?'; /* get port name is empty */
 
-	misconfigured = (struct lpfc_acqe_misconfigured_event *)
+	switch (evt_type) {
+	case LPFC_SLI_EVENT_TYPE_OVER_TEMP:
+		temp_event_data.event_type = FC_REG_TEMPERATURE_EVENT;
+		temp_event_data.event_code = LPFC_THRESHOLD_TEMP;
+		temp_event_data.data = (uint32_t)acqe_sli->event_data1;
+
+		lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
+				"3190 Over Temperature:%d Celsius- Port Name %c\n",
+				acqe_sli->event_data1, port_name);
+
+		shost = lpfc_shost_from_vport(phba->pport);
+		fc_host_post_vendor_event(shost, fc_get_event_number(),
+					  sizeof(temp_event_data),
+					  (char *)&temp_event_data,
+					  SCSI_NL_VID_TYPE_PCI
+					  | PCI_VENDOR_ID_EMULEX);
+		break;
+	case LPFC_SLI_EVENT_TYPE_NORM_TEMP:
+		temp_event_data.event_type = FC_REG_TEMPERATURE_EVENT;
+		temp_event_data.event_code = LPFC_NORMAL_TEMP;
+		temp_event_data.data = (uint32_t)acqe_sli->event_data1;
+
+		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+				"3191 Normal Temperature:%d Celsius - Port Name %c\n",
+				acqe_sli->event_data1, port_name);
+
+		shost = lpfc_shost_from_vport(phba->pport);
+		fc_host_post_vendor_event(shost, fc_get_event_number(),
+					  sizeof(temp_event_data),
+					  (char *)&temp_event_data,
+					  SCSI_NL_VID_TYPE_PCI
+					  | PCI_VENDOR_ID_EMULEX);
+		break;
+	case LPFC_SLI_EVENT_TYPE_MISCONFIGURED:
+		misconfigured = (struct lpfc_acqe_misconfigured_event *)
 					&acqe_sli->event_data1;
 
-	/* fetch the status for this port */
-	switch (phba->sli4_hba.lnk_info.lnk_no) {
-	case LPFC_LINK_NUMBER_0:
-		status = bf_get(lpfc_sli_misconfigured_port0,
+		/* fetch the status for this port */
+		switch (phba->sli4_hba.lnk_info.lnk_no) {
+		case LPFC_LINK_NUMBER_0:
+			status = bf_get(lpfc_sli_misconfigured_port0,
 					&misconfigured->theEvent);
-		break;
-	case LPFC_LINK_NUMBER_1:
-		status = bf_get(lpfc_sli_misconfigured_port1,
+			break;
+		case LPFC_LINK_NUMBER_1:
+			status = bf_get(lpfc_sli_misconfigured_port1,
 					&misconfigured->theEvent);
-		break;
-	case LPFC_LINK_NUMBER_2:
-		status = bf_get(lpfc_sli_misconfigured_port2,
+			break;
+		case LPFC_LINK_NUMBER_2:
+			status = bf_get(lpfc_sli_misconfigured_port2,
 					&misconfigured->theEvent);
-		break;
-	case LPFC_LINK_NUMBER_3:
-		status = bf_get(lpfc_sli_misconfigured_port3,
+			break;
+		case LPFC_LINK_NUMBER_3:
+			status = bf_get(lpfc_sli_misconfigured_port3,
 					&misconfigured->theEvent);
-		break;
-	default:
-		status = ~LPFC_SLI_EVENT_STATUS_VALID;
-		break;
-	}
+			break;
+		default:
+			status = ~LPFC_SLI_EVENT_STATUS_VALID;
+			break;
+		}
 
-	switch (status) {
-	case LPFC_SLI_EVENT_STATUS_VALID:
-		return; /* no message if the sfp is okay */
-	case LPFC_SLI_EVENT_STATUS_NOT_PRESENT:
-		sprintf(message, "Optics faulted/incorrectly installed/not " \
-				"installed - Reseat optics, if issue not "
-				"resolved, replace.");
-		break;
-	case LPFC_SLI_EVENT_STATUS_WRONG_TYPE:
-		sprintf(message,
-			"Optics of two types installed - Remove one optic or " \
-			"install matching pair of optics.");
-		break;
-	case LPFC_SLI_EVENT_STATUS_UNSUPPORTED:
-		sprintf(message, "Incompatible optics - Replace with " \
+		switch (status) {
+		case LPFC_SLI_EVENT_STATUS_VALID:
+			return; /* no message if the sfp is okay */
+		case LPFC_SLI_EVENT_STATUS_NOT_PRESENT:
+			sprintf(message, "Optics faulted/incorrectly "
+				"installed/not installed - Reseat optics, "
+				"if issue not resolved, replace.");
+			break;
+		case LPFC_SLI_EVENT_STATUS_WRONG_TYPE:
+			sprintf(message,
+				"Optics of two types installed - Remove one "
+				"optic or install matching pair of optics.");
+			break;
+		case LPFC_SLI_EVENT_STATUS_UNSUPPORTED:
+			sprintf(message, "Incompatible optics - Replace with "
 				"compatible optics for card to function.");
+			break;
+		default:
+			/* firmware is reporting a status we don't know about */
+			sprintf(message, "Unknown event status x%02x", status);
+			break;
+		}
+
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"3176 Misconfigured Physical Port - "
+				"Port Name %c %s\n", port_name, message);
+		break;
+	case LPFC_SLI_EVENT_TYPE_REMOTE_DPORT:
+		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+				"3192 Remote DPort Test Initiated - "
+				"Event Data1:x%08x Event Data2: x%08x\n",
+				acqe_sli->event_data1, acqe_sli->event_data2);
 		break;
 	default:
-		/* firmware is reporting a status we don't know about */
-		sprintf(message, "Unknown event status x%02x", status);
+		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+				"3193 Async SLI event - Event Data1:x%08x Event Data2:"
+				"x%08x SLI Event Type:%d\n",
+				acqe_sli->event_data1, acqe_sli->event_data2,
+				evt_type);
 		break;
 	}
-
-	lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-			"3176 Misconfigured Physical Port - "
-			"Port Name %c %s\n", port_name, message);
 }
 
 /**
@@ -5183,6 +5290,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		rc = lpfc_pci_function_reset(phba);
 		if (unlikely(rc))
 			return -ENODEV;
+		phba->temp_sensor_support = 1;
 	}
 
 	/* Create the bootstrap mailbox command */
@@ -7647,6 +7755,14 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 			goto out_destroy_els_rq;
 		}
 	}
+
+	/*
+	 * Configure EQ delay multipier for interrupt coalescing using
+	 * MODIFY_EQ_DELAY for all EQs created, LPFC_MAX_EQ_DELAY at a time.
+	 */
+	for (fcp_eqidx = 0; fcp_eqidx < phba->cfg_fcp_io_channel;
+			fcp_eqidx += LPFC_MAX_EQ_DELAY)
+		lpfc_modify_fcp_eq_delay(phba, fcp_eqidx);
 	return 0;
 
 out_destroy_els_rq:
@@ -7953,7 +8069,7 @@ wait:
 		 * up to 30 seconds. If the port doesn't respond, treat
 		 * it as an error.
 		 */
-		for (rdy_chk = 0; rdy_chk < 3000; rdy_chk++) {
+		for (rdy_chk = 0; rdy_chk < 1500; rdy_chk++) {
 			if (lpfc_readl(phba->sli4_hba.u.if_type2.
 				STATUSregaddr, &reg_data.word0)) {
 				rc = -ENODEV;

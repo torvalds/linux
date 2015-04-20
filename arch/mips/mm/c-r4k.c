@@ -430,6 +430,7 @@ static inline void local_r4k___flush_cache_all(void * args)
 	case CPU_R10000:
 	case CPU_R12000:
 	case CPU_R14000:
+	case CPU_R16000:
 		/*
 		 * These caches are inclusive caches, that is, if something
 		 * is not cached in the S-cache, we know it also won't be
@@ -506,7 +507,7 @@ static inline void local_r4k_flush_cache_mm(void * args)
 
 	/*
 	 * Kludge alert.  For obscure reasons R4000SC and R4400SC go nuts if we
-	 * only flush the primary caches but R10000 and R12000 behave sane ...
+	 * only flush the primary caches but R1x000 behave sane ...
 	 * R4000SC and R4400SC indexed S-cache ops also invalidate primary
 	 * caches, so we can bail out early.
 	 */
@@ -888,33 +889,39 @@ static inline void rm7k_erratum31(void)
 	}
 }
 
-static inline void alias_74k_erratum(struct cpuinfo_mips *c)
+static inline int alias_74k_erratum(struct cpuinfo_mips *c)
 {
 	unsigned int imp = c->processor_id & PRID_IMP_MASK;
 	unsigned int rev = c->processor_id & PRID_REV_MASK;
+	int present = 0;
 
 	/*
 	 * Early versions of the 74K do not update the cache tags on a
 	 * vtag miss/ptag hit which can occur in the case of KSEG0/KUSEG
-	 * aliases. In this case it is better to treat the cache as always
-	 * having aliases.
+	 * aliases.  In this case it is better to treat the cache as always
+	 * having aliases.  Also disable the synonym tag update feature
+	 * where available.  In this case no opportunistic tag update will
+	 * happen where a load causes a virtual address miss but a physical
+	 * address hit during a D-cache look-up.
 	 */
 	switch (imp) {
 	case PRID_IMP_74K:
 		if (rev <= PRID_REV_ENCODE_332(2, 4, 0))
-			c->dcache.flags |= MIPS_CACHE_VTAG;
+			present = 1;
 		if (rev == PRID_REV_ENCODE_332(2, 4, 0))
 			write_c0_config6(read_c0_config6() | MIPS_CONF6_SYND);
 		break;
 	case PRID_IMP_1074K:
 		if (rev <= PRID_REV_ENCODE_332(1, 1, 0)) {
-			c->dcache.flags |= MIPS_CACHE_VTAG;
+			present = 1;
 			write_c0_config6(read_c0_config6() | MIPS_CONF6_SYND);
 		}
 		break;
 	default:
 		BUG();
 	}
+
+	return present;
 }
 
 static void b5k_instruction_hazard(void)
@@ -938,6 +945,7 @@ static void probe_pcache(void)
 	struct cpuinfo_mips *c = &current_cpu_data;
 	unsigned int config = read_c0_config();
 	unsigned int prid = read_c0_prid();
+	int has_74k_erratum = 0;
 	unsigned long config1;
 	unsigned int lsize;
 
@@ -1012,6 +1020,7 @@ static void probe_pcache(void)
 	case CPU_R10000:
 	case CPU_R12000:
 	case CPU_R14000:
+	case CPU_R16000:
 		icache_size = 1 << (12 + ((config & R10K_CONF_IC) >> 29));
 		c->icache.linesz = 64;
 		c->icache.ways = 2;
@@ -1223,8 +1232,8 @@ static void probe_pcache(void)
 		dcache_size / (c->dcache.linesz * c->dcache.ways) : 0;
 
 	/*
-	 * R10000 and R12000 P-caches are odd in a positive way.  They're 32kB
-	 * 2-way virtually indexed so normally would suffer from aliases.  So
+	 * R1x000 P-caches are odd in a positive way.  They're 32kB 2-way
+	 * virtually indexed so normally would suffer from aliases.  So
 	 * normally they'd suffer from aliases but magic in the hardware deals
 	 * with that for us so we don't need to take care ourselves.
 	 */
@@ -1240,11 +1249,12 @@ static void probe_pcache(void)
 	case CPU_R10000:
 	case CPU_R12000:
 	case CPU_R14000:
+	case CPU_R16000:
 		break;
 
 	case CPU_74K:
 	case CPU_1074K:
-		alias_74k_erratum(c);
+		has_74k_erratum = alias_74k_erratum(c);
 		/* Fall through. */
 	case CPU_M14KC:
 	case CPU_M14KEC:
@@ -1259,7 +1269,7 @@ static void probe_pcache(void)
 		if (!(read_c0_config7() & MIPS_CONF7_IAR) &&
 		    (c->icache.waysize > PAGE_SIZE))
 			c->icache.flags |= MIPS_CACHE_ALIASES;
-		if (read_c0_config7() & MIPS_CONF7_AR) {
+		if (!has_74k_erratum && (read_c0_config7() & MIPS_CONF7_AR)) {
 			/*
 			 * Effectively physically indexed dcache,
 			 * thus no virtual aliases.
@@ -1268,7 +1278,7 @@ static void probe_pcache(void)
 			break;
 		}
 	default:
-		if (c->dcache.waysize > PAGE_SIZE)
+		if (has_74k_erratum || c->dcache.waysize > PAGE_SIZE)
 			c->dcache.flags |= MIPS_CACHE_ALIASES;
 	}
 
@@ -1438,6 +1448,7 @@ static void setup_scache(void)
 	case CPU_R10000:
 	case CPU_R12000:
 	case CPU_R14000:
+	case CPU_R16000:
 		scache_size = 0x80000 << ((config & R10K_CONF_SS) >> 16);
 		c->scache.linesz = 64 << ((config >> 13) & 1);
 		c->scache.ways = 2;

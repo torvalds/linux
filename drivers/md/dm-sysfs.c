@@ -11,7 +11,7 @@
 struct dm_sysfs_attr {
 	struct attribute attr;
 	ssize_t (*show)(struct mapped_device *, char *);
-	ssize_t (*store)(struct mapped_device *, char *);
+	ssize_t (*store)(struct mapped_device *, const char *, size_t count);
 };
 
 #define DM_ATTR_RO(_name) \
@@ -34,6 +34,31 @@ static ssize_t dm_attr_show(struct kobject *kobj, struct attribute *attr,
 		return -EINVAL;
 
 	ret = dm_attr->show(md, page);
+	dm_put(md);
+
+	return ret;
+}
+
+#define DM_ATTR_RW(_name) \
+struct dm_sysfs_attr dm_attr_##_name = \
+	__ATTR(_name, S_IRUGO | S_IWUSR, dm_attr_##_name##_show, dm_attr_##_name##_store)
+
+static ssize_t dm_attr_store(struct kobject *kobj, struct attribute *attr,
+			     const char *page, size_t count)
+{
+	struct dm_sysfs_attr *dm_attr;
+	struct mapped_device *md;
+	ssize_t ret;
+
+	dm_attr = container_of(attr, struct dm_sysfs_attr, attr);
+	if (!dm_attr->store)
+		return -EIO;
+
+	md = dm_get_from_kobject(kobj);
+	if (!md)
+		return -EINVAL;
+
+	ret = dm_attr->store(md, page, count);
 	dm_put(md);
 
 	return ret;
@@ -64,25 +89,33 @@ static ssize_t dm_attr_suspended_show(struct mapped_device *md, char *buf)
 	return strlen(buf);
 }
 
+static ssize_t dm_attr_use_blk_mq_show(struct mapped_device *md, char *buf)
+{
+	sprintf(buf, "%d\n", dm_use_blk_mq(md));
+
+	return strlen(buf);
+}
+
 static DM_ATTR_RO(name);
 static DM_ATTR_RO(uuid);
 static DM_ATTR_RO(suspended);
+static DM_ATTR_RO(use_blk_mq);
+static DM_ATTR_RW(rq_based_seq_io_merge_deadline);
 
 static struct attribute *dm_attrs[] = {
 	&dm_attr_name.attr,
 	&dm_attr_uuid.attr,
 	&dm_attr_suspended.attr,
+	&dm_attr_use_blk_mq.attr,
+	&dm_attr_rq_based_seq_io_merge_deadline.attr,
 	NULL,
 };
 
 static const struct sysfs_ops dm_sysfs_ops = {
 	.show	= dm_attr_show,
+	.store	= dm_attr_store,
 };
 
-/*
- * dm kobject is embedded in mapped_device structure
- * no need to define release function here
- */
 static struct kobj_type dm_ktype = {
 	.sysfs_ops	= &dm_sysfs_ops,
 	.default_attrs	= dm_attrs,

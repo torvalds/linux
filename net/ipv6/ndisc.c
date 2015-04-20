@@ -84,6 +84,7 @@ do {								\
 static u32 ndisc_hash(const void *pkey,
 		      const struct net_device *dev,
 		      __u32 *hash_rnd);
+static bool ndisc_key_eq(const struct neighbour *neigh, const void *pkey);
 static int ndisc_constructor(struct neighbour *neigh);
 static void ndisc_solicit(struct neighbour *neigh, struct sk_buff *skb);
 static void ndisc_error_report(struct neighbour *neigh, struct sk_buff *skb);
@@ -117,7 +118,9 @@ static const struct neigh_ops ndisc_direct_ops = {
 struct neigh_table nd_tbl = {
 	.family =	AF_INET6,
 	.key_len =	sizeof(struct in6_addr),
+	.protocol =	cpu_to_be16(ETH_P_IPV6),
 	.hash =		ndisc_hash,
+	.key_eq =	ndisc_key_eq,
 	.constructor =	ndisc_constructor,
 	.pconstructor =	pndisc_constructor,
 	.pdestructor =	pndisc_destructor,
@@ -294,6 +297,11 @@ static u32 ndisc_hash(const void *pkey,
 	return ndisc_hashfn(pkey, dev, hash_rnd);
 }
 
+static bool ndisc_key_eq(const struct neighbour *n, const void *pkey)
+{
+	return neigh_key_eq128(n, pkey);
+}
+
 static int ndisc_constructor(struct neighbour *neigh)
 {
 	struct in6_addr *addr = (struct in6_addr *)&neigh->primary_key;
@@ -303,7 +311,7 @@ static int ndisc_constructor(struct neighbour *neigh)
 	bool is_multicast = ipv6_addr_is_multicast(addr);
 
 	in6_dev = in6_dev_get(dev);
-	if (in6_dev == NULL) {
+	if (!in6_dev) {
 		return -EINVAL;
 	}
 
@@ -348,7 +356,7 @@ static int pndisc_constructor(struct pneigh_entry *n)
 	struct in6_addr maddr;
 	struct net_device *dev = n->dev;
 
-	if (dev == NULL || __in6_dev_get(dev) == NULL)
+	if (!dev || !__in6_dev_get(dev))
 		return -EINVAL;
 	addrconf_addr_solict_mult(addr, &maddr);
 	ipv6_dev_mc_inc(dev, &maddr);
@@ -361,7 +369,7 @@ static void pndisc_destructor(struct pneigh_entry *n)
 	struct in6_addr maddr;
 	struct net_device *dev = n->dev;
 
-	if (dev == NULL || __in6_dev_get(dev) == NULL)
+	if (!dev || !__in6_dev_get(dev))
 		return;
 	addrconf_addr_solict_mult(addr, &maddr);
 	ipv6_dev_mc_dec(dev, &maddr);
@@ -455,8 +463,9 @@ static void ndisc_send_skb(struct sk_buff *skb,
 	idev = __in6_dev_get(dst->dev);
 	IP6_UPD_PO_STATS(net, idev, IPSTATS_MIB_OUT, skb->len);
 
-	err = NF_HOOK(NFPROTO_IPV6, NF_INET_LOCAL_OUT, skb, NULL, dst->dev,
-		      dst_output);
+	err = NF_HOOK(NFPROTO_IPV6, NF_INET_LOCAL_OUT, sk, skb,
+		      NULL, dst->dev,
+		      dst_output_sk);
 	if (!err) {
 		ICMP6MSGOUT_INC_STATS(net, idev, type);
 		ICMP6_INC_STATS(net, idev, ICMP6_MIB_OUTMSGS);
@@ -552,7 +561,7 @@ void ndisc_send_ns(struct net_device *dev, struct neighbour *neigh,
 	int optlen = 0;
 	struct nd_msg *msg;
 
-	if (saddr == NULL) {
+	if (!saddr) {
 		if (ipv6_get_lladdr(dev, &addr_buf,
 				   (IFA_F_TENTATIVE|IFA_F_OPTIMISTIC)))
 			return;
@@ -1022,13 +1031,13 @@ static void ndisc_ra_useropt(struct sk_buff *ra, struct nd_opt_hdr *opt)
 	size_t msg_size = base_size + nla_total_size(sizeof(struct in6_addr));
 
 	skb = nlmsg_new(msg_size, GFP_ATOMIC);
-	if (skb == NULL) {
+	if (!skb) {
 		err = -ENOBUFS;
 		goto errout;
 	}
 
 	nlh = nlmsg_put(skb, 0, 0, RTM_NEWNDUSEROPT, base_size, 0);
-	if (nlh == NULL) {
+	if (!nlh) {
 		goto nla_put_failure;
 	}
 
@@ -1041,8 +1050,7 @@ static void ndisc_ra_useropt(struct sk_buff *ra, struct nd_opt_hdr *opt)
 
 	memcpy(ndmsg + 1, opt, opt->nd_opt_len << 3);
 
-	if (nla_put(skb, NDUSEROPT_SRCADDR, sizeof(struct in6_addr),
-		    &ipv6_hdr(ra)->saddr))
+	if (nla_put_in6_addr(skb, NDUSEROPT_SRCADDR, &ipv6_hdr(ra)->saddr))
 		goto nla_put_failure;
 	nlmsg_end(skb, nlh);
 
@@ -1096,7 +1104,7 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 	 */
 
 	in6_dev = __in6_dev_get(skb->dev);
-	if (in6_dev == NULL) {
+	if (!in6_dev) {
 		ND_PRINTK(0, err, "RA: can't find inet6 device for %s\n",
 			  skb->dev->name);
 		return;
@@ -1191,11 +1199,11 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 
 	ND_PRINTK(3, info, "RA: rt: %p  lifetime: %d, for dev: %s\n",
 		  rt, lifetime, skb->dev->name);
-	if (rt == NULL && lifetime) {
+	if (!rt && lifetime) {
 		ND_PRINTK(3, info, "RA: adding default router\n");
 
 		rt = rt6_add_dflt_router(&ipv6_hdr(skb)->saddr, skb->dev, pref);
-		if (rt == NULL) {
+		if (!rt) {
 			ND_PRINTK(0, err,
 				  "RA: %s failed to add default route\n",
 				  __func__);
@@ -1203,7 +1211,7 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 		}
 
 		neigh = dst_neigh_lookup(&rt->dst, &ipv6_hdr(skb)->saddr);
-		if (neigh == NULL) {
+		if (!neigh) {
 			ND_PRINTK(0, err,
 				  "RA: %s got default router without neighbour\n",
 				  __func__);

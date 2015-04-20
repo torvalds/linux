@@ -86,7 +86,7 @@ static int bfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 
 	inode = new_inode(s);
 	if (!inode)
-		return -ENOSPC;
+		return -ENOMEM;
 	mutex_lock(&info->bfs_lock);
 	ino = find_first_zero_bit(info->si_imap, info->si_lasti + 1);
 	if (ino > info->si_lasti) {
@@ -293,7 +293,7 @@ static int bfs_add_entry(struct inode *dir, const unsigned char *name,
 	for (block = sblock; block <= eblock; block++) {
 		bh = sb_bread(dir->i_sb, block);
 		if (!bh)
-			return -ENOSPC;
+			return -EIO;
 		for (off = 0; off < BFS_BSIZE; off += BFS_DIRENT_SIZE) {
 			de = (struct bfs_dirent *)(bh->b_data + off);
 			if (!de->ino) {

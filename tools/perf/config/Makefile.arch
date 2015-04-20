@@ -1,31 +1,14 @@
+ifndef ARCH
+ARCH := $(shell uname -m 2>/dev/null || echo not)
+endif
 
-uname_M := $(shell uname -m 2>/dev/null || echo not)
-
-RAW_ARCH := $(shell echo $(uname_M) | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ \
-                                  -e s/arm.*/arm/ -e s/sa110/arm/ \
+ARCH := $(shell echo $(ARCH) | sed -e s/i.86/x86/ -e s/x86_64/x86/ \
+                                  -e s/sun4u/sparc/ -e s/sparc64/sparc/ \
+                                  -e /arm64/!s/arm.*/arm/ -e s/sa110/arm/ \
                                   -e s/s390x/s390/ -e s/parisc64/parisc/ \
                                   -e s/ppc.*/powerpc/ -e s/mips.*/mips/ \
                                   -e s/sh[234].*/sh/ -e s/aarch64.*/arm64/ \
                                   -e s/tile.*/tile/ )
-
-# Additional ARCH settings for x86
-ifeq ($(RAW_ARCH),i386)
-  ARCH ?= x86
-endif
-
-ifeq ($(RAW_ARCH),x86_64)
-  ARCH ?= x86
-
-  ifneq (, $(findstring m32,$(CFLAGS)))
-    RAW_ARCH := x86_32
-  endif
-endif
-
-ifeq ($(RAW_ARCH),sparc64)
-  ARCH ?= sparc
-endif
-
-ARCH ?= $(RAW_ARCH)
 
 LP64 := $(shell echo __LP64__ | ${CC} ${CFLAGS} -E -x c - | tail -n 1)
 ifeq ($(LP64), 1)

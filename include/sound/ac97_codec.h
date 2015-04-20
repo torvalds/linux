@@ -608,7 +608,9 @@ struct ac97_quirk {
 	int type;		/* quirk type above */
 };
 
-int snd_ac97_tune_hardware(struct snd_ac97 *ac97, struct ac97_quirk *quirk, const char *override);
+int snd_ac97_tune_hardware(struct snd_ac97 *ac97,
+			   const struct ac97_quirk *quirk,
+			   const char *override);
 int snd_ac97_set_rate(struct snd_ac97 *ac97, int reg, unsigned int rate);
 
 /*

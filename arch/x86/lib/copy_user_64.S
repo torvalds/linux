@@ -8,9 +8,6 @@
 
 #include <linux/linkage.h>
 #include <asm/dwarf2.h>
-
-#define FIX_ALIGNMENT 1
-
 #include <asm/current.h>
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
@@ -19,33 +16,7 @@
 #include <asm/asm.h>
 #include <asm/smap.h>
 
-/*
- * By placing feature2 after feature1 in altinstructions section, we logically
- * implement:
- * If CPU has feature2, jmp to alt2 is used
- * else if CPU has feature1, jmp to alt1 is used
- * else jmp to orig is used.
- */
-	.macro ALTERNATIVE_JUMP feature1,feature2,orig,alt1,alt2
-0:
-	.byte 0xe9	/* 32bit jump */
-	.long \orig-1f	/* by default jump to orig */
-1:
-	.section .altinstr_replacement,"ax"
-2:	.byte 0xe9			/* near jump with 32bit immediate */
-	.long \alt1-1b /* offset */   /* or alternatively to alt1 */
-3:	.byte 0xe9			/* near jump with 32bit immediate */
-	.long \alt2-1b /* offset */   /* or alternatively to alt2 */
-	.previous
-
-	.section .altinstructions,"a"
-	altinstruction_entry 0b,2b,\feature1,5,5
-	altinstruction_entry 0b,3b,\feature2,5,5
-	.previous
-	.endm
-
 	.macro ALIGN_DESTINATION
-#ifdef FIX_ALIGNMENT
 	/* check for bad alignment of destination */
 	movl %edi,%ecx
 	andl $7,%ecx
@@ -67,7 +38,6 @@
 
 	_ASM_EXTABLE(100b,103b)
 	_ASM_EXTABLE(101b,103b)
-#endif
 	.endm
 
 /* Standard copy_to_user with segment limit checking */
@@ -79,9 +49,11 @@ ENTRY(_copy_to_user)
 	jc bad_to_user
 	cmpq TI_addr_limit(%rax),%rcx
 	ja bad_to_user
-	ALTERNATIVE_JUMP X86_FEATURE_REP_GOOD,X86_FEATURE_ERMS,	\
-		copy_user_generic_unrolled,copy_user_generic_string,	\
-		copy_user_enhanced_fast_string
+	ALTERNATIVE_2 "jmp copy_user_generic_unrolled",		\
+		      "jmp copy_user_generic_string",		\
+		      X86_FEATURE_REP_GOOD,			\
+		      "jmp copy_user_enhanced_fast_string",	\
+		      X86_FEATURE_ERMS
 	CFI_ENDPROC
 ENDPROC(_copy_to_user)
 
@@ -94,9 +66,11 @@ ENTRY(_copy_from_user)
 	jc bad_from_user
 	cmpq TI_addr_limit(%rax),%rcx
 	ja bad_from_user
-	ALTERNATIVE_JUMP X86_FEATURE_REP_GOOD,X86_FEATURE_ERMS,	\
-		copy_user_generic_unrolled,copy_user_generic_string,	\
-		copy_user_enhanced_fast_string
+	ALTERNATIVE_2 "jmp copy_user_generic_unrolled",		\
+		      "jmp copy_user_generic_string",		\
+		      X86_FEATURE_REP_GOOD,			\
+		      "jmp copy_user_enhanced_fast_string",	\
+		      X86_FEATURE_ERMS
 	CFI_ENDPROC
 ENDPROC(_copy_from_user)
 

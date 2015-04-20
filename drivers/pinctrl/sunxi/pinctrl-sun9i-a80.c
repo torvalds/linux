@@ -729,7 +729,7 @@ static int sun9i_a80_pinctrl_probe(struct platform_device *pdev)
 				  &sun9i_a80_pinctrl_data);
 }
 
-static struct of_device_id sun9i_a80_pinctrl_match[] = {
+static const struct of_device_id sun9i_a80_pinctrl_match[] = {
 	{ .compatible = "allwinner,sun9i-a80-pinctrl", },
 	{}
 };

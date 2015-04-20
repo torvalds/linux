@@ -1,5 +1,5 @@
 config F2FS_FS
-	tristate "F2FS filesystem support (EXPERIMENTAL)"
+	tristate "F2FS filesystem support"
 	depends on BLOCK
 	help
 	  F2FS is based on Log-structured File System (LFS), which supports

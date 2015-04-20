@@ -54,35 +54,22 @@ int init_new_context(struct task_struct *task, struct mm_struct *mm)
 	unsigned long stack = 0;
 	int ret = -ENOMEM;
 
-	if (skas_needs_stub) {
-		stack = get_zeroed_page(GFP_KERNEL);
-		if (stack == 0)
-			goto out;
-	}
+	stack = get_zeroed_page(GFP_KERNEL);
+	if (stack == 0)
+		goto out;
 
 	to_mm->id.stack = stack;
 	if (current->mm != NULL && current->mm != &init_mm)
 		from_mm = &current->mm->context;
 
-	if (proc_mm) {
-		ret = new_mm(stack);
-		if (ret < 0) {
-			printk(KERN_ERR "init_new_context_skas - "
-			       "new_mm failed, errno = %d\n", ret);
-			goto out_free;
-		}
-		to_mm->id.u.mm_fd = ret;
-	}
-	else {
-		if (from_mm)
-			to_mm->id.u.pid = copy_context_skas0(stack,
-							     from_mm->id.u.pid);
-		else to_mm->id.u.pid = start_userspace(stack);
+	if (from_mm)
+		to_mm->id.u.pid = copy_context_skas0(stack,
+						     from_mm->id.u.pid);
+	else to_mm->id.u.pid = start_userspace(stack);
 
-		if (to_mm->id.u.pid < 0) {
-			ret = to_mm->id.u.pid;
-			goto out_free;
-		}
+	if (to_mm->id.u.pid < 0) {
+		ret = to_mm->id.u.pid;
+		goto out_free;
 	}
 
 	ret = init_new_ldt(to_mm, from_mm);
@@ -104,9 +91,6 @@ int init_new_context(struct task_struct *task, struct mm_struct *mm)
 void uml_setup_stubs(struct mm_struct *mm)
 {
 	int err, ret;
-
-	if (!skas_needs_stub)
-		return;
 
 	ret = init_stub_pte(mm, STUB_CODE,
 			    (unsigned long) &__syscall_stub_start);
@@ -154,25 +138,19 @@ void destroy_context(struct mm_struct *mm)
 {
 	struct mm_context *mmu = &mm->context;
 
-	if (proc_mm)
-		os_close_file(mmu->id.u.mm_fd);
-	else {
-		/*
-		 * If init_new_context wasn't called, this will be
-		 * zero, resulting in a kill(0), which will result in the
-		 * whole UML suddenly dying.  Also, cover negative and
-		 * 1 cases, since they shouldn't happen either.
-		 */
-		if (mmu->id.u.pid < 2) {
-			printk(KERN_ERR "corrupt mm_context - pid = %d\n",
-			       mmu->id.u.pid);
-			return;
-		}
-		os_kill_ptraced_process(mmu->id.u.pid, 1);
+	/*
+	 * If init_new_context wasn't called, this will be
+	 * zero, resulting in a kill(0), which will result in the
+	 * whole UML suddenly dying.  Also, cover negative and
+	 * 1 cases, since they shouldn't happen either.
+	 */
+	if (mmu->id.u.pid < 2) {
+		printk(KERN_ERR "corrupt mm_context - pid = %d\n",
+		       mmu->id.u.pid);
+		return;
 	}
+	os_kill_ptraced_process(mmu->id.u.pid, 1);
 
-	if (skas_needs_stub)
-		free_page(mmu->id.stack);
-
+	free_page(mmu->id.stack);
 	free_ldt(mmu);
 }

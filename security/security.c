@@ -608,11 +608,11 @@ int security_inode_setattr(struct dentry *dentry, struct iattr *attr)
 }
 EXPORT_SYMBOL_GPL(security_inode_setattr);
 
-int security_inode_getattr(struct vfsmount *mnt, struct dentry *dentry)
+int security_inode_getattr(const struct path *path)
 {
-	if (unlikely(IS_PRIVATE(dentry->d_inode)))
+	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
 		return 0;
-	return security_ops->inode_getattr(mnt, dentry);
+	return security_ops->inode_getattr(path);
 }
 
 int security_inode_setxattr(struct dentry *dentry, const char *name,
@@ -1358,11 +1358,6 @@ int security_tun_dev_open(void *security)
 	return security_ops->tun_dev_open(security);
 }
 EXPORT_SYMBOL(security_tun_dev_open);
-
-void security_skb_owned_by(struct sk_buff *skb, struct sock *sk)
-{
-	security_ops->skb_owned_by(skb, sk);
-}
 
 #endif	/* CONFIG_SECURITY_NETWORK */
 

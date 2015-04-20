@@ -223,8 +223,6 @@ struct i801_priv {
 #endif
 };
 
-static struct pci_driver i801_driver;
-
 #define FEATURE_SMBUS_PEC	(1 << 0)
 #define FEATURE_BLOCK_BUFFER	(1 << 1)
 #define FEATURE_BLOCK_PROC	(1 << 2)
@@ -1140,7 +1138,7 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	int err, i;
 	struct i801_priv *priv;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(&dev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -1182,34 +1180,35 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	}
 	priv->features &= ~disable_features;
 
-	err = pci_enable_device(dev);
+	err = pcim_enable_device(dev);
 	if (err) {
 		dev_err(&dev->dev, "Failed to enable SMBus PCI device (%d)\n",
 			err);
-		goto exit;
+		return err;
 	}
+	pcim_pin_device(dev);
 
 	/* Determine the address of the SMBus area */
 	priv->smba = pci_resource_start(dev, SMBBAR);
 	if (!priv->smba) {
-		dev_err(&dev->dev, "SMBus base address uninitialized, "
-			"upgrade BIOS\n");
-		err = -ENODEV;
-		goto exit;
+		dev_err(&dev->dev,
+			"SMBus base address uninitialized, upgrade BIOS\n");
+		return -ENODEV;
 	}
 
 	err = acpi_check_resource_conflict(&dev->resource[SMBBAR]);
 	if (err) {
-		err = -ENODEV;
-		goto exit;
+		return -ENODEV;
 	}
 
-	err = pci_request_region(dev, SMBBAR, i801_driver.name);
+	err = pcim_iomap_regions(dev, 1 << SMBBAR,
+				 dev_driver_string(&dev->dev));
 	if (err) {
-		dev_err(&dev->dev, "Failed to request SMBus region "
-			"0x%lx-0x%Lx\n", priv->smba,
+		dev_err(&dev->dev,
+			"Failed to request SMBus region 0x%lx-0x%Lx\n",
+			priv->smba,
 			(unsigned long long)pci_resource_end(dev, SMBBAR));
-		goto exit;
+		return err;
 	}
 
 	pci_read_config_byte(priv->pci_dev, SMBHSTCFG, &temp);
@@ -1254,8 +1253,9 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (priv->features & FEATURE_IRQ) {
 		init_waitqueue_head(&priv->waitq);
 
-		err = request_irq(dev->irq, i801_isr, IRQF_SHARED,
-				  i801_driver.name, priv);
+		err = devm_request_irq(&dev->dev, dev->irq, i801_isr,
+				       IRQF_SHARED,
+				       dev_driver_string(&dev->dev), priv);
 		if (err) {
 			dev_err(&dev->dev, "Failed to allocate irq %d: %d\n",
 				dev->irq, err);
@@ -1276,7 +1276,7 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	err = i2c_add_adapter(&priv->adapter);
 	if (err) {
 		dev_err(&dev->dev, "Failed to add SMBus adapter\n");
-		goto exit_free_irq;
+		return err;
 	}
 
 	i801_probe_optional_slaves(priv);
@@ -1286,14 +1286,6 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	pci_set_drvdata(dev, priv);
 
 	return 0;
-
-exit_free_irq:
-	if (priv->features & FEATURE_IRQ)
-		free_irq(dev->irq, priv);
-	pci_release_region(dev, SMBBAR);
-exit:
-	kfree(priv);
-	return err;
 }
 
 static void i801_remove(struct pci_dev *dev)
@@ -1304,11 +1296,6 @@ static void i801_remove(struct pci_dev *dev)
 	i2c_del_adapter(&priv->adapter);
 	pci_write_config_byte(dev, SMBHSTCFG, priv->original_hstcfg);
 
-	if (priv->features & FEATURE_IRQ)
-		free_irq(dev->irq, priv);
-	pci_release_region(dev, SMBBAR);
-
-	kfree(priv);
 	/*
 	 * do not call pci_disable_device(dev) since it can cause hard hangs on
 	 * some systems during power-off (eg. Fujitsu-Siemens Lifebook E8010)
@@ -1330,7 +1317,7 @@ static int i801_resume(struct pci_dev *dev)
 {
 	pci_set_power_state(dev, PCI_D0);
 	pci_restore_state(dev);
-	return pci_enable_device(dev);
+	return 0;
 }
 #else
 #define i801_suspend NULL

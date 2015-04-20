@@ -19,8 +19,6 @@ __kernel_vsyscall:
 .Lpush_ebp:
 	movl	%ecx, %ebp
 	syscall
-	movl	$__USER32_DS, %ecx
-	movl	%ecx, %ss
 	movl	%ebp, %ecx
 	popl	%ebp
 .Lpop_ebp:

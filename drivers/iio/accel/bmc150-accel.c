@@ -70,7 +70,9 @@
 #define BMC150_ACCEL_INT_MAP_0_BIT_SLOPE	BIT(2)
 
 #define BMC150_ACCEL_REG_INT_MAP_1		0x1A
-#define BMC150_ACCEL_INT_MAP_1_BIT_DATA	BIT(0)
+#define BMC150_ACCEL_INT_MAP_1_BIT_DATA		BIT(0)
+#define BMC150_ACCEL_INT_MAP_1_BIT_FWM		BIT(1)
+#define BMC150_ACCEL_INT_MAP_1_BIT_FFULL	BIT(2)
 
 #define BMC150_ACCEL_REG_INT_RST_LATCH		0x21
 #define BMC150_ACCEL_INT_MODE_LATCH_RESET	0x80
@@ -83,7 +85,9 @@
 #define BMC150_ACCEL_INT_EN_BIT_SLP_Z		BIT(2)
 
 #define BMC150_ACCEL_REG_INT_EN_1		0x17
-#define BMC150_ACCEL_INT_EN_BIT_DATA_EN	BIT(4)
+#define BMC150_ACCEL_INT_EN_BIT_DATA_EN		BIT(4)
+#define BMC150_ACCEL_INT_EN_BIT_FFULL_EN	BIT(5)
+#define BMC150_ACCEL_INT_EN_BIT_FWM_EN		BIT(6)
 
 #define BMC150_ACCEL_REG_INT_OUT_CTRL		0x20
 #define BMC150_ACCEL_INT_OUT_CTRL_INT1_LVL	BIT(0)
@@ -122,6 +126,12 @@
 #define BMC150_ACCEL_AXIS_TO_REG(axis)	(BMC150_ACCEL_REG_XOUT_L + (axis * 2))
 #define BMC150_AUTO_SUSPEND_DELAY_MS		2000
 
+#define BMC150_ACCEL_REG_FIFO_STATUS		0x0E
+#define BMC150_ACCEL_REG_FIFO_CONFIG0		0x30
+#define BMC150_ACCEL_REG_FIFO_CONFIG1		0x3E
+#define BMC150_ACCEL_REG_FIFO_DATA		0x3F
+#define BMC150_ACCEL_FIFO_LENGTH		32
+
 enum bmc150_accel_axis {
 	AXIS_X,
 	AXIS_Y,
@@ -147,20 +157,46 @@ struct bmc150_accel_chip_info {
 	const struct bmc150_scale_info scale_table[4];
 };
 
+struct bmc150_accel_interrupt {
+	const struct bmc150_accel_interrupt_info *info;
+	atomic_t users;
+};
+
+struct bmc150_accel_trigger {
+	struct bmc150_accel_data *data;
+	struct iio_trigger *indio_trig;
+	int (*setup)(struct bmc150_accel_trigger *t, bool state);
+	int intr;
+	bool enabled;
+};
+
+enum bmc150_accel_interrupt_id {
+	BMC150_ACCEL_INT_DATA_READY,
+	BMC150_ACCEL_INT_ANY_MOTION,
+	BMC150_ACCEL_INT_WATERMARK,
+	BMC150_ACCEL_INTERRUPTS,
+};
+
+enum bmc150_accel_trigger_id {
+	BMC150_ACCEL_TRIGGER_DATA_READY,
+	BMC150_ACCEL_TRIGGER_ANY_MOTION,
+	BMC150_ACCEL_TRIGGERS,
+};
+
 struct bmc150_accel_data {
 	struct i2c_client *client;
-	struct iio_trigger *dready_trig;
-	struct iio_trigger *motion_trig;
+	struct bmc150_accel_interrupt interrupts[BMC150_ACCEL_INTERRUPTS];
+	atomic_t active_intr;
+	struct bmc150_accel_trigger triggers[BMC150_ACCEL_TRIGGERS];
 	struct mutex mutex;
+	u8 fifo_mode, watermark;
 	s16 buffer[8];
 	u8 bw_bits;
 	u32 slope_dur;
 	u32 slope_thres;
 	u32 range;
 	int ev_enable_state;
-	bool dready_trigger_on;
-	bool motion_trigger_on;
-	int64_t timestamp;
+	int64_t timestamp, old_timestamp;
 	const struct bmc150_accel_chip_info *chip_info;
 };
 
@@ -269,6 +305,46 @@ static int bmc150_accel_set_bw(struct bmc150_accel_data *data, int val,
 	return -EINVAL;
 }
 
+static int bmc150_accel_update_slope(struct bmc150_accel_data *data)
+{
+	int ret, val;
+
+	ret = i2c_smbus_write_byte_data(data->client, BMC150_ACCEL_REG_INT_6,
+					data->slope_thres);
+	if (ret < 0) {
+		dev_err(&data->client->dev, "Error writing reg_int_6\n");
+		return ret;
+	}
+
+	ret = i2c_smbus_read_byte_data(data->client, BMC150_ACCEL_REG_INT_5);
+	if (ret < 0) {
+		dev_err(&data->client->dev, "Error reading reg_int_5\n");
+		return ret;
+	}
+
+	val = (ret & ~BMC150_ACCEL_SLOPE_DUR_MASK) | data->slope_dur;
+	ret = i2c_smbus_write_byte_data(data->client, BMC150_ACCEL_REG_INT_5,
+					val);
+	if (ret < 0) {
+		dev_err(&data->client->dev, "Error write reg_int_5\n");
+		return ret;
+	}
+
+	dev_dbg(&data->client->dev, "%s: %x %x\n", __func__, data->slope_thres,
+		data->slope_dur);
+
+	return ret;
+}
+
+static int bmc150_accel_any_motion_setup(struct bmc150_accel_trigger *t,
+					 bool state)
+{
+	if (state)
+		return bmc150_accel_update_slope(t->data);
+
+	return 0;
+}
+
 static int bmc150_accel_chip_init(struct bmc150_accel_data *data)
 {
 	int ret;
@@ -307,32 +383,12 @@ static int bmc150_accel_chip_init(struct bmc150_accel_data *data)
 
 	data->range = BMC150_ACCEL_DEF_RANGE_4G;
 
-	/* Set default slope duration */
-	ret = i2c_smbus_read_byte_data(data->client, BMC150_ACCEL_REG_INT_5);
-	if (ret < 0) {
-		dev_err(&data->client->dev, "Error reading reg_int_5\n");
-		return ret;
-	}
-	data->slope_dur |= BMC150_ACCEL_DEF_SLOPE_DURATION;
-	ret = i2c_smbus_write_byte_data(data->client,
-					BMC150_ACCEL_REG_INT_5,
-					data->slope_dur);
-	if (ret < 0) {
-		dev_err(&data->client->dev, "Error writing reg_int_5\n");
-		return ret;
-	}
-	dev_dbg(&data->client->dev, "slope_dur %x\n", data->slope_dur);
-
-	/* Set default slope thresholds */
-	ret = i2c_smbus_write_byte_data(data->client,
-					BMC150_ACCEL_REG_INT_6,
-					BMC150_ACCEL_DEF_SLOPE_THRESHOLD);
-	if (ret < 0) {
-		dev_err(&data->client->dev, "Error writing reg_int_6\n");
-		return ret;
-	}
+	/* Set default slope duration and thresholds */
 	data->slope_thres = BMC150_ACCEL_DEF_SLOPE_THRESHOLD;
-	dev_dbg(&data->client->dev, "slope_thres %x\n", data->slope_thres);
+	data->slope_dur = BMC150_ACCEL_DEF_SLOPE_DURATION;
+	ret = bmc150_accel_update_slope(data);
+	if (ret < 0)
+		return ret;
 
 	/* Set default as latched interrupts */
 	ret = i2c_smbus_write_byte_data(data->client,
@@ -342,155 +398,6 @@ static int bmc150_accel_chip_init(struct bmc150_accel_data *data)
 	if (ret < 0) {
 		dev_err(&data->client->dev,
 			"Error writing reg_int_rst_latch\n");
-		return ret;
-	}
-
-	return 0;
-}
-
-static int bmc150_accel_setup_any_motion_interrupt(
-					struct bmc150_accel_data *data,
-					bool status)
-{
-	int ret;
-
-	/* Enable/Disable INT1 mapping */
-	ret = i2c_smbus_read_byte_data(data->client,
-				       BMC150_ACCEL_REG_INT_MAP_0);
-	if (ret < 0) {
-		dev_err(&data->client->dev, "Error reading reg_int_map_0\n");
-		return ret;
-	}
-	if (status)
-		ret |= BMC150_ACCEL_INT_MAP_0_BIT_SLOPE;
-	else
-		ret &= ~BMC150_ACCEL_INT_MAP_0_BIT_SLOPE;
-
-	ret = i2c_smbus_write_byte_data(data->client,
-					BMC150_ACCEL_REG_INT_MAP_0,
-					ret);
-	if (ret < 0) {
-		dev_err(&data->client->dev, "Error writing reg_int_map_0\n");
-		return ret;
-	}
-
-	if (status) {
-		/* Set slope duration (no of samples) */
-		ret = i2c_smbus_write_byte_data(data->client,
-						BMC150_ACCEL_REG_INT_5,
-						data->slope_dur);
-		if (ret < 0) {
-			dev_err(&data->client->dev, "Error write reg_int_5\n");
-			return ret;
-		}
-
-		/* Set slope thresholds */
-		ret = i2c_smbus_write_byte_data(data->client,
-						BMC150_ACCEL_REG_INT_6,
-						data->slope_thres);
-		if (ret < 0) {
-			dev_err(&data->client->dev, "Error write reg_int_6\n");
-			return ret;
-		}
-
-		/*
-		 * New data interrupt is always non-latched,
-		 * which will have higher priority, so no need
-		 * to set latched mode, we will be flooded anyway with INTR
-		 */
-		if (!data->dready_trigger_on) {
-			ret = i2c_smbus_write_byte_data(data->client,
-					BMC150_ACCEL_REG_INT_RST_LATCH,
-					BMC150_ACCEL_INT_MODE_LATCH_INT |
-					BMC150_ACCEL_INT_MODE_LATCH_RESET);
-			if (ret < 0) {
-				dev_err(&data->client->dev,
-					"Error writing reg_int_rst_latch\n");
-				return ret;
-			}
-		}
-
-		ret = i2c_smbus_write_byte_data(data->client,
-						BMC150_ACCEL_REG_INT_EN_0,
-						BMC150_ACCEL_INT_EN_BIT_SLP_X |
-						BMC150_ACCEL_INT_EN_BIT_SLP_Y |
-						BMC150_ACCEL_INT_EN_BIT_SLP_Z);
-	} else
-		ret = i2c_smbus_write_byte_data(data->client,
-						BMC150_ACCEL_REG_INT_EN_0,
-						0);
-
-	if (ret < 0) {
-		dev_err(&data->client->dev, "Error writing reg_int_en_0\n");
-		return ret;
-	}
-
-	return 0;
-}
-
-static int bmc150_accel_setup_new_data_interrupt(struct bmc150_accel_data *data,
-					   bool status)
-{
-	int ret;
-
-	/* Enable/Disable INT1 mapping */
-	ret = i2c_smbus_read_byte_data(data->client,
-				       BMC150_ACCEL_REG_INT_MAP_1);
-	if (ret < 0) {
-		dev_err(&data->client->dev, "Error reading reg_int_map_1\n");
-		return ret;
-	}
-	if (status)
-		ret |= BMC150_ACCEL_INT_MAP_1_BIT_DATA;
-	else
-		ret &= ~BMC150_ACCEL_INT_MAP_1_BIT_DATA;
-
-	ret = i2c_smbus_write_byte_data(data->client,
-					BMC150_ACCEL_REG_INT_MAP_1,
-					ret);
-	if (ret < 0) {
-		dev_err(&data->client->dev, "Error writing reg_int_map_1\n");
-		return ret;
-	}
-
-	if (status) {
-		/*
-		 * Set non latched mode interrupt and clear any latched
-		 * interrupt
-		 */
-		ret = i2c_smbus_write_byte_data(data->client,
-					BMC150_ACCEL_REG_INT_RST_LATCH,
-					BMC150_ACCEL_INT_MODE_NON_LATCH_INT |
-					BMC150_ACCEL_INT_MODE_LATCH_RESET);
-		if (ret < 0) {
-			dev_err(&data->client->dev,
-				"Error writing reg_int_rst_latch\n");
-			return ret;
-		}
-
-		ret = i2c_smbus_write_byte_data(data->client,
-					BMC150_ACCEL_REG_INT_EN_1,
-					BMC150_ACCEL_INT_EN_BIT_DATA_EN);
-
-	} else {
-		/* Restore default interrupt mode */
-		ret = i2c_smbus_write_byte_data(data->client,
-					BMC150_ACCEL_REG_INT_RST_LATCH,
-					BMC150_ACCEL_INT_MODE_LATCH_INT |
-					BMC150_ACCEL_INT_MODE_LATCH_RESET);
-		if (ret < 0) {
-			dev_err(&data->client->dev,
-				"Error writing reg_int_rst_latch\n");
-			return ret;
-		}
-
-		ret = i2c_smbus_write_byte_data(data->client,
-						BMC150_ACCEL_REG_INT_EN_1,
-						0);
-	}
-
-	if (ret < 0) {
-		dev_err(&data->client->dev, "Error writing reg_int_en_1\n");
 		return ret;
 	}
 
@@ -553,6 +460,120 @@ static int bmc150_accel_set_power_state(struct bmc150_accel_data *data, bool on)
 	return 0;
 }
 #endif
+
+static const struct bmc150_accel_interrupt_info {
+	u8 map_reg;
+	u8 map_bitmask;
+	u8 en_reg;
+	u8 en_bitmask;
+} bmc150_accel_interrupts[BMC150_ACCEL_INTERRUPTS] = {
+	{ /* data ready interrupt */
+		.map_reg = BMC150_ACCEL_REG_INT_MAP_1,
+		.map_bitmask = BMC150_ACCEL_INT_MAP_1_BIT_DATA,
+		.en_reg = BMC150_ACCEL_REG_INT_EN_1,
+		.en_bitmask = BMC150_ACCEL_INT_EN_BIT_DATA_EN,
+	},
+	{  /* motion interrupt */
+		.map_reg = BMC150_ACCEL_REG_INT_MAP_0,
+		.map_bitmask = BMC150_ACCEL_INT_MAP_0_BIT_SLOPE,
+		.en_reg = BMC150_ACCEL_REG_INT_EN_0,
+		.en_bitmask =  BMC150_ACCEL_INT_EN_BIT_SLP_X |
+			BMC150_ACCEL_INT_EN_BIT_SLP_Y |
+			BMC150_ACCEL_INT_EN_BIT_SLP_Z
+	},
+	{ /* fifo watermark interrupt */
+		.map_reg = BMC150_ACCEL_REG_INT_MAP_1,
+		.map_bitmask = BMC150_ACCEL_INT_MAP_1_BIT_FWM,
+		.en_reg = BMC150_ACCEL_REG_INT_EN_1,
+		.en_bitmask = BMC150_ACCEL_INT_EN_BIT_FWM_EN,
+	},
+};
+
+static void bmc150_accel_interrupts_setup(struct iio_dev *indio_dev,
+					  struct bmc150_accel_data *data)
+{
+	int i;
+
+	for (i = 0; i < BMC150_ACCEL_INTERRUPTS; i++)
+		data->interrupts[i].info = &bmc150_accel_interrupts[i];
+}
+
+static int bmc150_accel_set_interrupt(struct bmc150_accel_data *data, int i,
+				      bool state)
+{
+	struct bmc150_accel_interrupt *intr = &data->interrupts[i];
+	const struct bmc150_accel_interrupt_info *info = intr->info;
+	int ret;
+
+	if (state) {
+		if (atomic_inc_return(&intr->users) > 1)
+			return 0;
+	} else {
+		if (atomic_dec_return(&intr->users) > 0)
+			return 0;
+	}
+
+	/*
+	 * We will expect the enable and disable to do operation in
+	 * in reverse order. This will happen here anyway as our
+	 * resume operation uses sync mode runtime pm calls, the
+	 * suspend operation will be delayed by autosuspend delay
+	 * So the disable operation will still happen in reverse of
+	 * enable operation. When runtime pm is disabled the mode
+	 * is always on so sequence doesn't matter
+	 */
+	ret = bmc150_accel_set_power_state(data, state);
+	if (ret < 0)
+		return ret;
+
+	/* map the interrupt to the appropriate pins */
+	ret = i2c_smbus_read_byte_data(data->client, info->map_reg);
+	if (ret < 0) {
+		dev_err(&data->client->dev, "Error reading reg_int_map\n");
+		goto out_fix_power_state;
+	}
+	if (state)
+		ret |= info->map_bitmask;
+	else
+		ret &= ~info->map_bitmask;
+
+	ret = i2c_smbus_write_byte_data(data->client, info->map_reg,
+					ret);
+	if (ret < 0) {
+		dev_err(&data->client->dev, "Error writing reg_int_map\n");
+		goto out_fix_power_state;
+	}
+
+	/* enable/disable the interrupt */
+	ret = i2c_smbus_read_byte_data(data->client, info->en_reg);
+	if (ret < 0) {
+		dev_err(&data->client->dev, "Error reading reg_int_en\n");
+		goto out_fix_power_state;
+	}
+
+	if (state)
+		ret |= info->en_bitmask;
+	else
+		ret &= ~info->en_bitmask;
+
+	ret = i2c_smbus_write_byte_data(data->client, info->en_reg, ret);
+	if (ret < 0) {
+		dev_err(&data->client->dev, "Error writing reg_int_en\n");
+		goto out_fix_power_state;
+	}
+
+	if (state)
+		atomic_inc(&data->active_intr);
+	else
+		atomic_dec(&data->active_intr);
+
+	return 0;
+
+out_fix_power_state:
+	bmc150_accel_set_power_state(data, false);
+	return ret;
+}
+
 
 static int bmc150_accel_set_scale(struct bmc150_accel_data *data, int val)
 {
@@ -732,7 +753,7 @@ static int bmc150_accel_read_event(struct iio_dev *indio_dev,
 		*val = data->slope_thres;
 		break;
 	case IIO_EV_INFO_PERIOD:
-		*val = data->slope_dur & BMC150_ACCEL_SLOPE_DUR_MASK;
+		*val = data->slope_dur;
 		break;
 	default:
 		return -EINVAL;
@@ -755,11 +776,10 @@ static int bmc150_accel_write_event(struct iio_dev *indio_dev,
 
 	switch (info) {
 	case IIO_EV_INFO_VALUE:
-		data->slope_thres = val;
+		data->slope_thres = val & 0xFF;
 		break;
 	case IIO_EV_INFO_PERIOD:
-		data->slope_dur &= ~BMC150_ACCEL_SLOPE_DUR_MASK;
-		data->slope_dur |= val & BMC150_ACCEL_SLOPE_DUR_MASK;
+		data->slope_dur = val & BMC150_ACCEL_SLOPE_DUR_MASK;
 		break;
 	default:
 		return -EINVAL;
@@ -788,36 +808,14 @@ static int bmc150_accel_write_event_config(struct iio_dev *indio_dev,
 	struct bmc150_accel_data *data = iio_priv(indio_dev);
 	int ret;
 
-	if (state && data->ev_enable_state)
+	if (state == data->ev_enable_state)
 		return 0;
 
 	mutex_lock(&data->mutex);
 
-	if (!state && data->motion_trigger_on) {
-		data->ev_enable_state = 0;
-		mutex_unlock(&data->mutex);
-		return 0;
-	}
-
-	/*
-	 * We will expect the enable and disable to do operation in
-	 * in reverse order. This will happen here anyway as our
-	 * resume operation uses sync mode runtime pm calls, the
-	 * suspend operation will be delayed by autosuspend delay
-	 * So the disable operation will still happen in reverse of
-	 * enable operation. When runtime pm is disabled the mode
-	 * is always on so sequence doesn't matter
-	 */
-
-	ret = bmc150_accel_set_power_state(data, state);
+	ret = bmc150_accel_set_interrupt(data, BMC150_ACCEL_INT_ANY_MOTION,
+					 state);
 	if (ret < 0) {
-		mutex_unlock(&data->mutex);
-		return ret;
-	}
-
-	ret =  bmc150_accel_setup_any_motion_interrupt(data, state);
-	if (ret < 0) {
-		bmc150_accel_set_power_state(data, false);
 		mutex_unlock(&data->mutex);
 		return ret;
 	}
@@ -832,11 +830,222 @@ static int bmc150_accel_validate_trigger(struct iio_dev *indio_dev,
 				   struct iio_trigger *trig)
 {
 	struct bmc150_accel_data *data = iio_priv(indio_dev);
+	int i;
 
-	if (data->dready_trig != trig && data->motion_trig != trig)
-		return -EINVAL;
+	for (i = 0; i < BMC150_ACCEL_TRIGGERS; i++) {
+		if (data->triggers[i].indio_trig == trig)
+			return 0;
+	}
+
+	return -EINVAL;
+}
+
+static ssize_t bmc150_accel_get_fifo_watermark(struct device *dev,
+					       struct device_attribute *attr,
+					       char *buf)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct bmc150_accel_data *data = iio_priv(indio_dev);
+	int wm;
+
+	mutex_lock(&data->mutex);
+	wm = data->watermark;
+	mutex_unlock(&data->mutex);
+
+	return sprintf(buf, "%d\n", wm);
+}
+
+static ssize_t bmc150_accel_get_fifo_state(struct device *dev,
+					   struct device_attribute *attr,
+					   char *buf)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct bmc150_accel_data *data = iio_priv(indio_dev);
+	bool state;
+
+	mutex_lock(&data->mutex);
+	state = data->fifo_mode;
+	mutex_unlock(&data->mutex);
+
+	return sprintf(buf, "%d\n", state);
+}
+
+static IIO_CONST_ATTR(hwfifo_watermark_min, "1");
+static IIO_CONST_ATTR(hwfifo_watermark_max,
+		      __stringify(BMC150_ACCEL_FIFO_LENGTH));
+static IIO_DEVICE_ATTR(hwfifo_enabled, S_IRUGO,
+		       bmc150_accel_get_fifo_state, NULL, 0);
+static IIO_DEVICE_ATTR(hwfifo_watermark, S_IRUGO,
+		       bmc150_accel_get_fifo_watermark, NULL, 0);
+
+static const struct attribute *bmc150_accel_fifo_attributes[] = {
+	&iio_const_attr_hwfifo_watermark_min.dev_attr.attr,
+	&iio_const_attr_hwfifo_watermark_max.dev_attr.attr,
+	&iio_dev_attr_hwfifo_watermark.dev_attr.attr,
+	&iio_dev_attr_hwfifo_enabled.dev_attr.attr,
+	NULL,
+};
+
+static int bmc150_accel_set_watermark(struct iio_dev *indio_dev, unsigned val)
+{
+	struct bmc150_accel_data *data = iio_priv(indio_dev);
+
+	if (val > BMC150_ACCEL_FIFO_LENGTH)
+		val = BMC150_ACCEL_FIFO_LENGTH;
+
+	mutex_lock(&data->mutex);
+	data->watermark = val;
+	mutex_unlock(&data->mutex);
 
 	return 0;
+}
+
+/*
+ * We must read at least one full frame in one burst, otherwise the rest of the
+ * frame data is discarded.
+ */
+static int bmc150_accel_fifo_transfer(const struct i2c_client *client,
+				      char *buffer, int samples)
+{
+	int sample_length = 3 * 2;
+	u8 reg_fifo_data = BMC150_ACCEL_REG_FIFO_DATA;
+	int ret = -EIO;
+
+	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
+		struct i2c_msg msg[2] = {
+			{
+				.addr = client->addr,
+				.flags = 0,
+				.buf = &reg_fifo_data,
+				.len = sizeof(reg_fifo_data),
+			},
+			{
+				.addr = client->addr,
+				.flags = I2C_M_RD,
+				.buf = (u8 *)buffer,
+				.len = samples * sample_length,
+			}
+		};
+
+		ret = i2c_transfer(client->adapter, msg, 2);
+		if (ret != 2)
+			ret = -EIO;
+		else
+			ret = 0;
+	} else {
+		int i, step = I2C_SMBUS_BLOCK_MAX / sample_length;
+
+		for (i = 0; i < samples * sample_length; i += step) {
+			ret = i2c_smbus_read_i2c_block_data(client,
+							    reg_fifo_data, step,
+							    &buffer[i]);
+			if (ret != step) {
+				ret = -EIO;
+				break;
+			}
+
+			ret = 0;
+		}
+	}
+
+	if (ret)
+		dev_err(&client->dev, "Error transferring data from fifo\n");
+
+	return ret;
+}
+
+static int __bmc150_accel_fifo_flush(struct iio_dev *indio_dev,
+				     unsigned samples, bool irq)
+{
+	struct bmc150_accel_data *data = iio_priv(indio_dev);
+	int ret, i;
+	u8 count;
+	u16 buffer[BMC150_ACCEL_FIFO_LENGTH * 3];
+	int64_t tstamp;
+	uint64_t sample_period;
+	ret = i2c_smbus_read_byte_data(data->client,
+				       BMC150_ACCEL_REG_FIFO_STATUS);
+	if (ret < 0) {
+		dev_err(&data->client->dev, "Error reading reg_fifo_status\n");
+		return ret;
+	}
+
+	count = ret & 0x7F;
+
+	if (!count)
+		return 0;
+
+	/*
+	 * If we getting called from IRQ handler we know the stored timestamp is
+	 * fairly accurate for the last stored sample. Otherwise, if we are
+	 * called as a result of a read operation from userspace and hence
+	 * before the watermark interrupt was triggered, take a timestamp
+	 * now. We can fall anywhere in between two samples so the error in this
+	 * case is at most one sample period.
+	 */
+	if (!irq) {
+		data->old_timestamp = data->timestamp;
+		data->timestamp = iio_get_time_ns();
+	}
+
+	/*
+	 * Approximate timestamps for each of the sample based on the sampling
+	 * frequency, timestamp for last sample and number of samples.
+	 *
+	 * Note that we can't use the current bandwidth settings to compute the
+	 * sample period because the sample rate varies with the device
+	 * (e.g. between 31.70ms to 32.20ms for a bandwidth of 15.63HZ). That
+	 * small variation adds when we store a large number of samples and
+	 * creates significant jitter between the last and first samples in
+	 * different batches (e.g. 32ms vs 21ms).
+	 *
+	 * To avoid this issue we compute the actual sample period ourselves
+	 * based on the timestamp delta between the last two flush operations.
+	 */
+	sample_period = (data->timestamp - data->old_timestamp);
+	do_div(sample_period, count);
+	tstamp = data->timestamp - (count - 1) * sample_period;
+
+	if (samples && count > samples)
+		count = samples;
+
+	ret = bmc150_accel_fifo_transfer(data->client, (u8 *)buffer, count);
+	if (ret)
+		return ret;
+
+	/*
+	 * Ideally we want the IIO core to handle the demux when running in fifo
+	 * mode but not when running in triggered buffer mode. Unfortunately
+	 * this does not seem to be possible, so stick with driver demux for
+	 * now.
+	 */
+	for (i = 0; i < count; i++) {
+		u16 sample[8];
+		int j, bit;
+
+		j = 0;
+		for_each_set_bit(bit, indio_dev->active_scan_mask,
+				 indio_dev->masklength)
+			memcpy(&sample[j++], &buffer[i * 3 + bit], 2);
+
+		iio_push_to_buffers_with_timestamp(indio_dev, sample, tstamp);
+
+		tstamp += sample_period;
+	}
+
+	return count;
+}
+
+static int bmc150_accel_fifo_flush(struct iio_dev *indio_dev, unsigned samples)
+{
+	struct bmc150_accel_data *data = iio_priv(indio_dev);
+	int ret;
+
+	mutex_lock(&data->mutex);
+	ret = __bmc150_accel_fifo_flush(indio_dev, samples, false);
+	mutex_unlock(&data->mutex);
+
+	return ret;
 }
 
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL(
@@ -978,6 +1187,20 @@ static const struct iio_info bmc150_accel_info = {
 	.driver_module		= THIS_MODULE,
 };
 
+static const struct iio_info bmc150_accel_info_fifo = {
+	.attrs			= &bmc150_accel_attrs_group,
+	.read_raw		= bmc150_accel_read_raw,
+	.write_raw		= bmc150_accel_write_raw,
+	.read_event_value	= bmc150_accel_read_event,
+	.write_event_value	= bmc150_accel_write_event,
+	.write_event_config	= bmc150_accel_write_event_config,
+	.read_event_config	= bmc150_accel_read_event_config,
+	.validate_trigger	= bmc150_accel_validate_trigger,
+	.hwfifo_set_watermark	= bmc150_accel_set_watermark,
+	.hwfifo_flush_to_buffer	= bmc150_accel_fifo_flush,
+	.driver_module		= THIS_MODULE,
+};
+
 static irqreturn_t bmc150_accel_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
@@ -1008,12 +1231,12 @@ err_read:
 
 static int bmc150_accel_trig_try_reen(struct iio_trigger *trig)
 {
-	struct iio_dev *indio_dev = iio_trigger_get_drvdata(trig);
-	struct bmc150_accel_data *data = iio_priv(indio_dev);
+	struct bmc150_accel_trigger *t = iio_trigger_get_drvdata(trig);
+	struct bmc150_accel_data *data = t->data;
 	int ret;
 
 	/* new data interrupts don't need ack */
-	if (data->dready_trigger_on)
+	if (t == &t->data->triggers[BMC150_ACCEL_TRIGGER_DATA_READY])
 		return 0;
 
 	mutex_lock(&data->mutex);
@@ -1032,43 +1255,35 @@ static int bmc150_accel_trig_try_reen(struct iio_trigger *trig)
 	return 0;
 }
 
-static int bmc150_accel_data_rdy_trigger_set_state(struct iio_trigger *trig,
+static int bmc150_accel_trigger_set_state(struct iio_trigger *trig,
 						   bool state)
 {
-	struct iio_dev *indio_dev = iio_trigger_get_drvdata(trig);
-	struct bmc150_accel_data *data = iio_priv(indio_dev);
+	struct bmc150_accel_trigger *t = iio_trigger_get_drvdata(trig);
+	struct bmc150_accel_data *data = t->data;
 	int ret;
 
 	mutex_lock(&data->mutex);
 
-	if (!state && data->ev_enable_state && data->motion_trigger_on) {
-		data->motion_trigger_on = false;
+	if (t->enabled == state) {
 		mutex_unlock(&data->mutex);
 		return 0;
 	}
 
-	/*
-	 * Refer to comment in bmc150_accel_write_event_config for
-	 * enable/disable operation order
-	 */
-	ret = bmc150_accel_set_power_state(data, state);
+	if (t->setup) {
+		ret = t->setup(t, state);
+		if (ret < 0) {
+			mutex_unlock(&data->mutex);
+			return ret;
+		}
+	}
+
+	ret = bmc150_accel_set_interrupt(data, t->intr, state);
 	if (ret < 0) {
 		mutex_unlock(&data->mutex);
 		return ret;
 	}
-	if (data->motion_trig == trig)
-		ret =  bmc150_accel_setup_any_motion_interrupt(data, state);
-	else
-		ret = bmc150_accel_setup_new_data_interrupt(data, state);
-	if (ret < 0) {
-		bmc150_accel_set_power_state(data, false);
-		mutex_unlock(&data->mutex);
-		return ret;
-	}
-	if (data->motion_trig == trig)
-		data->motion_trigger_on = state;
-	else
-		data->dready_trigger_on = state;
+
+	t->enabled = state;
 
 	mutex_unlock(&data->mutex);
 
@@ -1076,23 +1291,22 @@ static int bmc150_accel_data_rdy_trigger_set_state(struct iio_trigger *trig,
 }
 
 static const struct iio_trigger_ops bmc150_accel_trigger_ops = {
-	.set_trigger_state = bmc150_accel_data_rdy_trigger_set_state,
+	.set_trigger_state = bmc150_accel_trigger_set_state,
 	.try_reenable = bmc150_accel_trig_try_reen,
 	.owner = THIS_MODULE,
 };
 
-static irqreturn_t bmc150_accel_event_handler(int irq, void *private)
+static int bmc150_accel_handle_roc_event(struct iio_dev *indio_dev)
 {
-	struct iio_dev *indio_dev = private;
 	struct bmc150_accel_data *data = iio_priv(indio_dev);
-	int ret;
 	int dir;
+	int ret;
 
 	ret = i2c_smbus_read_byte_data(data->client,
 				       BMC150_ACCEL_REG_INT_STATUS_2);
 	if (ret < 0) {
 		dev_err(&data->client->dev, "Error reading reg_int_status_2\n");
-		goto ack_intr_status;
+		return ret;
 	}
 
 	if (ret & BMC150_ACCEL_ANY_MOTION_BIT_SIGN)
@@ -1121,32 +1335,73 @@ static irqreturn_t bmc150_accel_event_handler(int irq, void *private)
 							IIO_EV_TYPE_ROC,
 							dir),
 							data->timestamp);
-ack_intr_status:
-	if (!data->dready_trigger_on)
+	return ret;
+}
+
+static irqreturn_t bmc150_accel_irq_thread_handler(int irq, void *private)
+{
+	struct iio_dev *indio_dev = private;
+	struct bmc150_accel_data *data = iio_priv(indio_dev);
+	bool ack = false;
+	int ret;
+
+	mutex_lock(&data->mutex);
+
+	if (data->fifo_mode) {
+		ret = __bmc150_accel_fifo_flush(indio_dev,
+						BMC150_ACCEL_FIFO_LENGTH, true);
+		if (ret > 0)
+			ack = true;
+	}
+
+	if (data->ev_enable_state) {
+		ret = bmc150_accel_handle_roc_event(indio_dev);
+		if (ret > 0)
+			ack = true;
+	}
+
+	if (ack) {
 		ret = i2c_smbus_write_byte_data(data->client,
 					BMC150_ACCEL_REG_INT_RST_LATCH,
 					BMC150_ACCEL_INT_MODE_LATCH_INT |
 					BMC150_ACCEL_INT_MODE_LATCH_RESET);
+		if (ret)
+			dev_err(&data->client->dev, "Error writing reg_int_rst_latch\n");
+		ret = IRQ_HANDLED;
+	} else {
+		ret = IRQ_NONE;
+	}
 
-	return IRQ_HANDLED;
+	mutex_unlock(&data->mutex);
+
+	return ret;
 }
 
-static irqreturn_t bmc150_accel_data_rdy_trig_poll(int irq, void *private)
+static irqreturn_t bmc150_accel_irq_handler(int irq, void *private)
 {
 	struct iio_dev *indio_dev = private;
 	struct bmc150_accel_data *data = iio_priv(indio_dev);
+	bool ack = false;
+	int i;
 
+	data->old_timestamp = data->timestamp;
 	data->timestamp = iio_get_time_ns();
 
-	if (data->dready_trigger_on)
-		iio_trigger_poll(data->dready_trig);
-	else if (data->motion_trigger_on)
-		iio_trigger_poll(data->motion_trig);
+	for (i = 0; i < BMC150_ACCEL_TRIGGERS; i++) {
+		if (data->triggers[i].enabled) {
+			iio_trigger_poll(data->triggers[i].indio_trig);
+			ack = true;
+			break;
+		}
+	}
 
-	if (data->ev_enable_state)
+	if (data->ev_enable_state || data->fifo_mode)
 		return IRQ_WAKE_THREAD;
-	else
+
+	if (ack)
 		return IRQ_HANDLED;
+
+	return IRQ_NONE;
 }
 
 static const char *bmc150_accel_match_acpi_device(struct device *dev, int *data)
@@ -1176,15 +1431,11 @@ static int bmc150_accel_gpio_probe(struct i2c_client *client,
 	dev = &client->dev;
 
 	/* data ready gpio interrupt pin */
-	gpio = devm_gpiod_get_index(dev, BMC150_ACCEL_GPIO_NAME, 0);
+	gpio = devm_gpiod_get_index(dev, BMC150_ACCEL_GPIO_NAME, 0, GPIOD_IN);
 	if (IS_ERR(gpio)) {
 		dev_err(dev, "Failed: gpio get index\n");
 		return PTR_ERR(gpio);
 	}
-
-	ret = gpiod_direction_input(gpio);
-	if (ret)
-		return ret;
 
 	ret = gpiod_to_irq(gpio);
 
@@ -1192,6 +1443,158 @@ static int bmc150_accel_gpio_probe(struct i2c_client *client,
 
 	return ret;
 }
+
+static const struct {
+	int intr;
+	const char *name;
+	int (*setup)(struct bmc150_accel_trigger *t, bool state);
+} bmc150_accel_triggers[BMC150_ACCEL_TRIGGERS] = {
+	{
+		.intr = 0,
+		.name = "%s-dev%d",
+	},
+	{
+		.intr = 1,
+		.name = "%s-any-motion-dev%d",
+		.setup = bmc150_accel_any_motion_setup,
+	},
+};
+
+static void bmc150_accel_unregister_triggers(struct bmc150_accel_data *data,
+					     int from)
+{
+	int i;
+
+	for (i = from; i >= 0; i++) {
+		if (data->triggers[i].indio_trig) {
+			iio_trigger_unregister(data->triggers[i].indio_trig);
+			data->triggers[i].indio_trig = NULL;
+		}
+	}
+}
+
+static int bmc150_accel_triggers_setup(struct iio_dev *indio_dev,
+				       struct bmc150_accel_data *data)
+{
+	int i, ret;
+
+	for (i = 0; i < BMC150_ACCEL_TRIGGERS; i++) {
+		struct bmc150_accel_trigger *t = &data->triggers[i];
+
+		t->indio_trig = devm_iio_trigger_alloc(&data->client->dev,
+					       bmc150_accel_triggers[i].name,
+						       indio_dev->name,
+						       indio_dev->id);
+		if (!t->indio_trig) {
+			ret = -ENOMEM;
+			break;
+		}
+
+		t->indio_trig->dev.parent = &data->client->dev;
+		t->indio_trig->ops = &bmc150_accel_trigger_ops;
+		t->intr = bmc150_accel_triggers[i].intr;
+		t->data = data;
+		t->setup = bmc150_accel_triggers[i].setup;
+		iio_trigger_set_drvdata(t->indio_trig, t);
+
+		ret = iio_trigger_register(t->indio_trig);
+		if (ret)
+			break;
+	}
+
+	if (ret)
+		bmc150_accel_unregister_triggers(data, i - 1);
+
+	return ret;
+}
+
+#define BMC150_ACCEL_FIFO_MODE_STREAM          0x80
+#define BMC150_ACCEL_FIFO_MODE_FIFO            0x40
+#define BMC150_ACCEL_FIFO_MODE_BYPASS          0x00
+
+static int bmc150_accel_fifo_set_mode(struct bmc150_accel_data *data)
+{
+	u8 reg = BMC150_ACCEL_REG_FIFO_CONFIG1;
+	int ret;
+
+	ret = i2c_smbus_write_byte_data(data->client, reg, data->fifo_mode);
+	if (ret < 0) {
+		dev_err(&data->client->dev, "Error writing reg_fifo_config1\n");
+		return ret;
+	}
+
+	if (!data->fifo_mode)
+		return 0;
+
+	ret = i2c_smbus_write_byte_data(data->client,
+					BMC150_ACCEL_REG_FIFO_CONFIG0,
+					data->watermark);
+	if (ret < 0)
+		dev_err(&data->client->dev, "Error writing reg_fifo_config0\n");
+
+	return ret;
+}
+
+static int bmc150_accel_buffer_postenable(struct iio_dev *indio_dev)
+{
+	struct bmc150_accel_data *data = iio_priv(indio_dev);
+	int ret = 0;
+
+	if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED)
+		return iio_triggered_buffer_postenable(indio_dev);
+
+	mutex_lock(&data->mutex);
+
+	if (!data->watermark)
+		goto out;
+
+	ret = bmc150_accel_set_interrupt(data, BMC150_ACCEL_INT_WATERMARK,
+					 true);
+	if (ret)
+		goto out;
+
+	data->fifo_mode = BMC150_ACCEL_FIFO_MODE_FIFO;
+
+	ret = bmc150_accel_fifo_set_mode(data);
+	if (ret) {
+		data->fifo_mode = 0;
+		bmc150_accel_set_interrupt(data, BMC150_ACCEL_INT_WATERMARK,
+					   false);
+	}
+
+out:
+	mutex_unlock(&data->mutex);
+
+	return ret;
+}
+
+static int bmc150_accel_buffer_predisable(struct iio_dev *indio_dev)
+{
+	struct bmc150_accel_data *data = iio_priv(indio_dev);
+
+	if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED)
+		return iio_triggered_buffer_predisable(indio_dev);
+
+	mutex_lock(&data->mutex);
+
+	if (!data->fifo_mode)
+		goto out;
+
+	bmc150_accel_set_interrupt(data, BMC150_ACCEL_INT_WATERMARK, false);
+	__bmc150_accel_fifo_flush(indio_dev, BMC150_ACCEL_FIFO_LENGTH, false);
+	data->fifo_mode = 0;
+	bmc150_accel_fifo_set_mode(data);
+
+out:
+	mutex_unlock(&data->mutex);
+
+	return 0;
+}
+
+static const struct iio_buffer_setup_ops bmc150_accel_buffer_ops = {
+	.postenable = bmc150_accel_buffer_postenable,
+	.predisable = bmc150_accel_buffer_predisable,
+};
 
 static int bmc150_accel_probe(struct i2c_client *client,
 			      const struct i2c_device_id *id)
@@ -1239,52 +1642,50 @@ static int bmc150_accel_probe(struct i2c_client *client,
 	if (client->irq >= 0) {
 		ret = devm_request_threaded_irq(
 						&client->dev, client->irq,
-						bmc150_accel_data_rdy_trig_poll,
-						bmc150_accel_event_handler,
+						bmc150_accel_irq_handler,
+						bmc150_accel_irq_thread_handler,
 						IRQF_TRIGGER_RISING,
 						BMC150_ACCEL_IRQ_NAME,
 						indio_dev);
 		if (ret)
 			return ret;
 
-		data->dready_trig = devm_iio_trigger_alloc(&client->dev,
-							   "%s-dev%d",
-							   indio_dev->name,
-							   indio_dev->id);
-		if (!data->dready_trig)
-			return -ENOMEM;
+		/*
+		 * Set latched mode interrupt. While certain interrupts are
+		 * non-latched regardless of this settings (e.g. new data) we
+		 * want to use latch mode when we can to prevent interrupt
+		 * flooding.
+		 */
+		ret = i2c_smbus_write_byte_data(data->client,
+						BMC150_ACCEL_REG_INT_RST_LATCH,
+					     BMC150_ACCEL_INT_MODE_LATCH_RESET);
+		if (ret < 0) {
+			dev_err(&data->client->dev, "Error writing reg_int_rst_latch\n");
+			return ret;
+		}
 
-		data->motion_trig = devm_iio_trigger_alloc(&client->dev,
-							  "%s-any-motion-dev%d",
-							  indio_dev->name,
-							  indio_dev->id);
-		if (!data->motion_trig)
-			return -ENOMEM;
+		bmc150_accel_interrupts_setup(indio_dev, data);
 
-		data->dready_trig->dev.parent = &client->dev;
-		data->dready_trig->ops = &bmc150_accel_trigger_ops;
-		iio_trigger_set_drvdata(data->dready_trig, indio_dev);
-		ret = iio_trigger_register(data->dready_trig);
+		ret = bmc150_accel_triggers_setup(indio_dev, data);
 		if (ret)
 			return ret;
-
-		data->motion_trig->dev.parent = &client->dev;
-		data->motion_trig->ops = &bmc150_accel_trigger_ops;
-		iio_trigger_set_drvdata(data->motion_trig, indio_dev);
-		ret = iio_trigger_register(data->motion_trig);
-		if (ret) {
-			data->motion_trig = NULL;
-			goto err_trigger_unregister;
-		}
 
 		ret = iio_triggered_buffer_setup(indio_dev,
 						 &iio_pollfunc_store_time,
 						 bmc150_accel_trigger_handler,
-						 NULL);
+						 &bmc150_accel_buffer_ops);
 		if (ret < 0) {
 			dev_err(&client->dev,
 				"Failed: iio triggered buffer setup\n");
 			goto err_trigger_unregister;
+		}
+
+		if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C) ||
+		    i2c_check_functionality(client->adapter,
+					    I2C_FUNC_SMBUS_READ_I2C_BLOCK)) {
+			indio_dev->modes |= INDIO_BUFFER_SOFTWARE;
+			indio_dev->info = &bmc150_accel_info_fifo;
+			indio_dev->buffer->attrs = bmc150_accel_fifo_attributes;
 		}
 	}
 
@@ -1308,13 +1709,10 @@ static int bmc150_accel_probe(struct i2c_client *client,
 err_iio_unregister:
 	iio_device_unregister(indio_dev);
 err_buffer_cleanup:
-	if (data->dready_trig)
+	if (indio_dev->pollfunc)
 		iio_triggered_buffer_cleanup(indio_dev);
 err_trigger_unregister:
-	if (data->dready_trig)
-		iio_trigger_unregister(data->dready_trig);
-	if (data->motion_trig)
-		iio_trigger_unregister(data->motion_trig);
+	bmc150_accel_unregister_triggers(data, BMC150_ACCEL_TRIGGERS - 1);
 
 	return ret;
 }
@@ -1330,11 +1728,7 @@ static int bmc150_accel_remove(struct i2c_client *client)
 
 	iio_device_unregister(indio_dev);
 
-	if (data->dready_trig) {
-		iio_triggered_buffer_cleanup(indio_dev);
-		iio_trigger_unregister(data->dready_trig);
-		iio_trigger_unregister(data->motion_trig);
-	}
+	bmc150_accel_unregister_triggers(data, BMC150_ACCEL_TRIGGERS - 1);
 
 	mutex_lock(&data->mutex);
 	bmc150_accel_set_mode(data, BMC150_ACCEL_SLEEP_MODE_DEEP_SUSPEND, 0);
@@ -1362,9 +1756,9 @@ static int bmc150_accel_resume(struct device *dev)
 	struct bmc150_accel_data *data = iio_priv(indio_dev);
 
 	mutex_lock(&data->mutex);
-	if (data->dready_trigger_on || data->motion_trigger_on ||
-							data->ev_enable_state)
+	if (atomic_read(&data->active_intr))
 		bmc150_accel_set_mode(data, BMC150_ACCEL_SLEEP_MODE_NORMAL, 0);
+	bmc150_accel_fifo_set_mode(data);
 	mutex_unlock(&data->mutex);
 
 	return 0;
@@ -1396,6 +1790,9 @@ static int bmc150_accel_runtime_resume(struct device *dev)
 	dev_dbg(&data->client->dev,  __func__);
 
 	ret = bmc150_accel_set_mode(data, BMC150_ACCEL_SLEEP_MODE_NORMAL, 0);
+	if (ret < 0)
+		return ret;
+	ret = bmc150_accel_fifo_set_mode(data);
 	if (ret < 0)
 		return ret;
 

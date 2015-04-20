@@ -592,9 +592,9 @@ See also the subsection on "Cache Coherency" for a more thorough example.
 CONTROL DEPENDENCIES
 --------------------
 
-A control dependency requires a full read memory barrier, not simply a data
-dependency barrier to make it work correctly.  Consider the following bit of
-code:
+A load-load control dependency requires a full read memory barrier, not
+simply a data dependency barrier to make it work correctly.  Consider the
+following bit of code:
 
 	q = ACCESS_ONCE(a);
 	if (q) {
@@ -615,14 +615,15 @@ case what's actually required is:
 	}
 
 However, stores are not speculated.  This means that ordering -is- provided
-in the following example:
+for load-store control dependencies, as in the following example:
 
 	q = ACCESS_ONCE(a);
 	if (q) {
 		ACCESS_ONCE(b) = p;
 	}
 
-Please note that ACCESS_ONCE() is not optional!  Without the
+Control dependencies pair normally with other types of barriers.
+That said, please note that ACCESS_ONCE() is not optional!  Without the
 ACCESS_ONCE(), might combine the load from 'a' with other loads from
 'a', and the store to 'b' with other stores to 'b', with possible highly
 counterintuitive effects on ordering.
@@ -813,6 +814,8 @@ In summary:
       barrier() can help to preserve your control dependency.  Please
       see the Compiler Barrier section for more information.
 
+  (*) Control dependencies pair normally with other types of barriers.
+
   (*) Control dependencies do -not- provide transitivity.  If you
       need transitivity, use smp_mb().
 
@@ -823,14 +826,14 @@ SMP BARRIER PAIRING
 When dealing with CPU-CPU interactions, certain types of memory barrier should
 always be paired.  A lack of appropriate pairing is almost certainly an error.
 
-General barriers pair with each other, though they also pair with
-most other types of barriers, albeit without transitivity.  An acquire
-barrier pairs with a release barrier, but both may also pair with other
-barriers, including of course general barriers.  A write barrier pairs
-with a data dependency barrier, an acquire barrier, a release barrier,
-a read barrier, or a general barrier.  Similarly a read barrier or a
-data dependency barrier pairs with a write barrier, an acquire barrier,
-a release barrier, or a general barrier:
+General barriers pair with each other, though they also pair with most
+other types of barriers, albeit without transitivity.  An acquire barrier
+pairs with a release barrier, but both may also pair with other barriers,
+including of course general barriers.  A write barrier pairs with a data
+dependency barrier, a control dependency, an acquire barrier, a release
+barrier, a read barrier, or a general barrier.  Similarly a read barrier,
+control dependency, or a data dependency barrier pairs with a write
+barrier, an acquire barrier, a release barrier, or a general barrier:
 
 	CPU 1		      CPU 2
 	===============	      ===============
@@ -849,6 +852,19 @@ Or:
 	ACCESS_ONCE(b) = &a;  x = ACCESS_ONCE(b);
 			      <data dependency barrier>
 			      y = *x;
+
+Or even:
+
+	CPU 1		      CPU 2
+	===============	      ===============================
+	r1 = ACCESS_ONCE(y);
+	<general barrier>
+	ACCESS_ONCE(y) = 1;   if (r2 = ACCESS_ONCE(x)) {
+			         <implicit control dependency>
+			         ACCESS_ONCE(y) = 1;
+			      }
+
+	assert(r1 == 0 || r2 == 0);
 
 Basically, the read barrier always has to be there, even though it can be of
 the "weaker" type.
@@ -1711,7 +1727,7 @@ There are some more advanced barrier functions:
 	}
 
      The dma_rmb() allows us guarantee the device has released ownership
-     before we read the data from the descriptor, and he dma_wmb() allows
+     before we read the data from the descriptor, and the dma_wmb() allows
      us to guarantee the data is written to the descriptor before the device
      can see it now has ownership.  The wmb() is needed to guarantee that the
      cache coherent memory writes have completed before attempting a write to

@@ -1155,9 +1155,9 @@ static void test_acipher_speed(const char *algo, int enc, unsigned int secs,
 				goto out_free_req;
 			}
 
-			sg_init_table(sg, TVMEMSIZE);
-
 			k = *keysize + *b_size;
+			sg_init_table(sg, DIV_ROUND_UP(k, PAGE_SIZE));
+
 			if (k > PAGE_SIZE) {
 				sg_set_buf(sg, tvmem[0] + *keysize,
 				   PAGE_SIZE - *keysize);

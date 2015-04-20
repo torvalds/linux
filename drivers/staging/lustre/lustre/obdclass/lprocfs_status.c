@@ -223,7 +223,7 @@ EXPORT_SYMBOL(lprocfs_write_frac_helper);
 
 #if defined (CONFIG_PROC_FS)
 
-static int lprocfs_no_percpu_stats = 0;
+static int lprocfs_no_percpu_stats;
 module_param(lprocfs_no_percpu_stats, int, 0644);
 MODULE_PARM_DESC(lprocfs_no_percpu_stats, "Do not alloc percpu data for lprocfs stats");
 
@@ -377,7 +377,8 @@ EXPORT_SYMBOL(lprocfs_register);
 /* Generic callbacks */
 int lprocfs_rd_uint(struct seq_file *m, void *data)
 {
-	return seq_printf(m, "%u\n", *(unsigned int *)data);
+	seq_printf(m, "%u\n", *(unsigned int *)data);
+	return 0;
 }
 EXPORT_SYMBOL(lprocfs_rd_uint);
 
@@ -403,7 +404,8 @@ EXPORT_SYMBOL(lprocfs_wr_uint);
 
 int lprocfs_rd_u64(struct seq_file *m, void *data)
 {
-	return seq_printf(m, "%llu\n", *(__u64 *)data);
+	seq_printf(m, "%llu\n", *(__u64 *)data);
+	return 0;
 }
 EXPORT_SYMBOL(lprocfs_rd_u64);
 
@@ -411,7 +413,8 @@ int lprocfs_rd_atomic(struct seq_file *m, void *data)
 {
 	atomic_t *atom = data;
 	LASSERT(atom != NULL);
-	return seq_printf(m, "%d\n", atomic_read(atom));
+	seq_printf(m, "%d\n", atomic_read(atom));
+	return 0;
 }
 EXPORT_SYMBOL(lprocfs_rd_atomic);
 
@@ -439,7 +442,8 @@ int lprocfs_rd_uuid(struct seq_file *m, void *data)
 	struct obd_device *obd = data;
 
 	LASSERT(obd != NULL);
-	return seq_printf(m, "%s\n", obd->obd_uuid.uuid);
+	seq_printf(m, "%s\n", obd->obd_uuid.uuid);
+	return 0;
 }
 EXPORT_SYMBOL(lprocfs_rd_uuid);
 
@@ -448,7 +452,8 @@ int lprocfs_rd_name(struct seq_file *m, void *data)
 	struct obd_device *dev = data;
 
 	LASSERT(dev != NULL);
-	return seq_printf(m, "%s\n", dev->obd_name);
+	seq_printf(m, "%s\n", dev->obd_name);
+	return 0;
 }
 EXPORT_SYMBOL(lprocfs_rd_name);
 
@@ -460,7 +465,8 @@ int lprocfs_rd_blksize(struct seq_file *m, void *data)
 			    cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
 			    OBD_STATFS_NODELAY);
 	if (!rc)
-		rc = seq_printf(m, "%u\n", osfs.os_bsize);
+		seq_printf(m, "%u\n", osfs.os_bsize);
+
 	return rc;
 }
 EXPORT_SYMBOL(lprocfs_rd_blksize);
@@ -479,8 +485,9 @@ int lprocfs_rd_kbytestotal(struct seq_file *m, void *data)
 		while (blk_size >>= 1)
 			result <<= 1;
 
-		rc = seq_printf(m, "%llu\n", result);
+		seq_printf(m, "%llu\n", result);
 	}
+
 	return rc;
 }
 EXPORT_SYMBOL(lprocfs_rd_kbytestotal);
@@ -499,8 +506,9 @@ int lprocfs_rd_kbytesfree(struct seq_file *m, void *data)
 		while (blk_size >>= 1)
 			result <<= 1;
 
-		rc = seq_printf(m, "%llu\n", result);
+		seq_printf(m, "%llu\n", result);
 	}
+
 	return rc;
 }
 EXPORT_SYMBOL(lprocfs_rd_kbytesfree);
@@ -519,8 +527,9 @@ int lprocfs_rd_kbytesavail(struct seq_file *m, void *data)
 		while (blk_size >>= 1)
 			result <<= 1;
 
-		rc = seq_printf(m, "%llu\n", result);
+		seq_printf(m, "%llu\n", result);
 	}
+
 	return rc;
 }
 EXPORT_SYMBOL(lprocfs_rd_kbytesavail);
@@ -533,7 +542,7 @@ int lprocfs_rd_filestotal(struct seq_file *m, void *data)
 			    cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
 			    OBD_STATFS_NODELAY);
 	if (!rc)
-		rc = seq_printf(m, "%llu\n", osfs.os_files);
+		seq_printf(m, "%llu\n", osfs.os_files);
 
 	return rc;
 }
@@ -547,7 +556,8 @@ int lprocfs_rd_filesfree(struct seq_file *m, void *data)
 			    cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
 			    OBD_STATFS_NODELAY);
 	if (!rc)
-		rc = seq_printf(m, "%llu\n", osfs.os_ffree);
+		seq_printf(m, "%llu\n", osfs.os_ffree);
+
 	return rc;
 }
 EXPORT_SYMBOL(lprocfs_rd_filesfree);
@@ -557,17 +567,18 @@ int lprocfs_rd_server_uuid(struct seq_file *m, void *data)
 	struct obd_device *obd = data;
 	struct obd_import *imp;
 	char *imp_state_name = NULL;
-	int rc = 0;
 
 	LASSERT(obd != NULL);
 	LPROCFS_CLIMP_CHECK(obd);
 	imp = obd->u.cli.cl_import;
 	imp_state_name = ptlrpc_import_state_name(imp->imp_state);
-	rc = seq_printf(m, "%s\t%s%s\n", obd2cli_tgt(obd), imp_state_name,
-			imp->imp_deactive ? "\tDEACTIVATED" : "");
+	seq_printf(m, "%s\t%s%s\n",
+		   obd2cli_tgt(obd), imp_state_name,
+		   imp->imp_deactive ? "\tDEACTIVATED" : "");
 
 	LPROCFS_CLIMP_EXIT(obd);
-	return rc;
+
+	return 0;
 }
 EXPORT_SYMBOL(lprocfs_rd_server_uuid);
 
@@ -575,19 +586,19 @@ int lprocfs_rd_conn_uuid(struct seq_file *m, void *data)
 {
 	struct obd_device *obd = data;
 	struct ptlrpc_connection *conn;
-	int rc = 0;
 
 	LASSERT(obd != NULL);
 
 	LPROCFS_CLIMP_CHECK(obd);
 	conn = obd->u.cli.cl_import->imp_connection;
 	if (conn && obd->u.cli.cl_import)
-		rc = seq_printf(m, "%s\n", conn->c_remote_uuid.uuid);
+		seq_printf(m, "%s\n", conn->c_remote_uuid.uuid);
 	else
-		rc = seq_printf(m, "%s\n", "<none>");
+		seq_puts(m, "<none>\n");
 
 	LPROCFS_CLIMP_EXIT(obd);
-	return rc;
+
+	return 0;
 }
 EXPORT_SYMBOL(lprocfs_rd_conn_uuid);
 
@@ -924,7 +935,8 @@ int lprocfs_rd_num_exports(struct seq_file *m, void *data)
 	struct obd_device *obd = data;
 
 	LASSERT(obd != NULL);
-	return seq_printf(m, "%u\n", obd->obd_num_exports);
+	seq_printf(m, "%u\n", obd->obd_num_exports);
+	return 0;
 }
 EXPORT_SYMBOL(lprocfs_rd_num_exports);
 
@@ -933,7 +945,8 @@ int lprocfs_rd_numrefs(struct seq_file *m, void *data)
 	struct obd_type *class = (struct obd_type *) data;
 
 	LASSERT(class != NULL);
-	return seq_printf(m, "%d\n", class->typ_refcnt);
+	seq_printf(m, "%d\n", class->typ_refcnt);
+	return 0;
 }
 EXPORT_SYMBOL(lprocfs_rd_numrefs);
 
@@ -1200,41 +1213,33 @@ static int lprocfs_stats_seq_show(struct seq_file *p, void *v)
 	struct lprocfs_counter_header   *hdr;
 	struct lprocfs_counter           ctr;
 	int                              idx    = *(loff_t *)v;
-	int                              rc     = 0;
 
 	if (idx == 0) {
 		struct timeval now;
 		do_gettimeofday(&now);
-		rc = seq_printf(p, "%-25s %lu.%lu secs.usecs\n",
-				"snapshot_time", now.tv_sec, (unsigned long)now.tv_usec);
-		if (rc < 0)
-			return rc;
+		seq_printf(p, "%-25s %lu.%lu secs.usecs\n",
+			   "snapshot_time",
+			   now.tv_sec, (unsigned long)now.tv_usec);
 	}
+
 	hdr = &stats->ls_cnt_header[idx];
 	lprocfs_stats_collect(stats, idx, &ctr);
 
-	if (ctr.lc_count == 0)
-		goto out;
+	if (ctr.lc_count != 0) {
+		seq_printf(p, "%-25s %lld samples [%s]",
+			   hdr->lc_name, ctr.lc_count, hdr->lc_units);
 
-	rc = seq_printf(p, "%-25s %lld samples [%s]", hdr->lc_name,
-			ctr.lc_count, hdr->lc_units);
-
-	if (rc < 0)
-		goto out;
-
-	if ((hdr->lc_config & LPROCFS_CNTR_AVGMINMAX) && (ctr.lc_count > 0)) {
-		rc = seq_printf(p, " %lld %lld %lld",
-				ctr.lc_min, ctr.lc_max, ctr.lc_sum);
-		if (rc < 0)
-			goto out;
-		if (hdr->lc_config & LPROCFS_CNTR_STDDEV)
-			rc = seq_printf(p, " %lld", ctr.lc_sumsquare);
-		if (rc < 0)
-			goto out;
+		if ((hdr->lc_config & LPROCFS_CNTR_AVGMINMAX) &&
+		    (ctr.lc_count > 0)) {
+			seq_printf(p, " %lld %lld %lld",
+				   ctr.lc_min, ctr.lc_max, ctr.lc_sum);
+			if (hdr->lc_config & LPROCFS_CNTR_STDDEV)
+				seq_printf(p, " %lld", ctr.lc_sumsquare);
+		}
+		seq_putc(p, '\n');
 	}
-	rc = seq_printf(p, "\n");
-out:
-	return (rc < 0) ? rc : 0;
+
+	return 0;
 }
 
 static const struct seq_operations lprocfs_stats_seq_sops = {
@@ -1606,8 +1611,9 @@ LPROC_SEQ_FOPS_RO(lproc_exp_hash);
 
 int lprocfs_nid_stats_clear_read(struct seq_file *m, void *data)
 {
-	return seq_printf(m, "%s\n",
-			  "Write into this file to clear all nid stats and stale nid entries");
+	seq_printf(m, "%s\n",
+		   "Write into this file to clear all nid stats and stale nid entries");
+	return 0;
 }
 EXPORT_SYMBOL(lprocfs_nid_stats_clear_read);
 
@@ -2041,12 +2047,12 @@ int lprocfs_obd_rd_max_pages_per_rpc(struct seq_file *m, void *data)
 {
 	struct obd_device *dev = data;
 	struct client_obd *cli = &dev->u.cli;
-	int rc;
 
 	client_obd_list_lock(&cli->cl_loi_list_lock);
-	rc = seq_printf(m, "%d\n", cli->cl_max_pages_per_rpc);
+	seq_printf(m, "%d\n", cli->cl_max_pages_per_rpc);
 	client_obd_list_unlock(&cli->cl_loi_list_lock);
-	return rc;
+
+	return 0;
 }
 EXPORT_SYMBOL(lprocfs_obd_rd_max_pages_per_rpc);
 

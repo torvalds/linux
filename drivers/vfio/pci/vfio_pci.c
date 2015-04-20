@@ -11,6 +11,8 @@
  * Author: Tom Lyon, pugs@cisco.com
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/device.h>
 #include <linux/eventfd.h>
 #include <linux/file.h>
@@ -25,6 +27,7 @@
 #include <linux/types.h>
 #include <linux/uaccess.h>
 #include <linux/vfio.h>
+#include <linux/vgaarb.h>
 
 #include "vfio_pci_private.h"
 
@@ -32,12 +35,80 @@
 #define DRIVER_AUTHOR   "Alex Williamson <alex.williamson@redhat.com>"
 #define DRIVER_DESC     "VFIO PCI - User Level meta-driver"
 
+static char ids[1024] __initdata;
+module_param_string(ids, ids, sizeof(ids), 0);
+MODULE_PARM_DESC(ids, "Initial PCI IDs to add to the vfio driver, format is \"vendor:device[:subvendor[:subdevice[:class[:class_mask]]]]\" and multiple comma separated entries can be specified");
+
 static bool nointxmask;
 module_param_named(nointxmask, nointxmask, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(nointxmask,
 		  "Disable support for PCI 2.3 style INTx masking.  If this resolves problems for specific devices, report lspci -vvvxxx to linux-pci@vger.kernel.org so the device can be fixed automatically via the broken_intx_masking flag.");
 
+#ifdef CONFIG_VFIO_PCI_VGA
+static bool disable_vga;
+module_param(disable_vga, bool, S_IRUGO);
+MODULE_PARM_DESC(disable_vga, "Disable VGA resource access through vfio-pci");
+#endif
+
+static bool disable_idle_d3;
+module_param(disable_idle_d3, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(disable_idle_d3,
+		 "Disable using the PCI D3 low power state for idle, unused devices");
+
 static DEFINE_MUTEX(driver_lock);
+
+static inline bool vfio_vga_disabled(void)
+{
+#ifdef CONFIG_VFIO_PCI_VGA
+	return disable_vga;
+#else
+	return true;
+#endif
+}
+
+/*
+ * Our VGA arbiter participation is limited since we don't know anything
+ * about the device itself.  However, if the device is the only VGA device
+ * downstream of a bridge and VFIO VGA support is disabled, then we can
+ * safely return legacy VGA IO and memory as not decoded since the user
+ * has no way to get to it and routing can be disabled externally at the
+ * bridge.
+ */
+static unsigned int vfio_pci_set_vga_decode(void *opaque, bool single_vga)
+{
+	struct vfio_pci_device *vdev = opaque;
+	struct pci_dev *tmp = NULL, *pdev = vdev->pdev;
+	unsigned char max_busnr;
+	unsigned int decodes;
+
+	if (single_vga || !vfio_vga_disabled() || pci_is_root_bus(pdev->bus))
+		return VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM |
+		       VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM;
+
+	max_busnr = pci_bus_max_busnr(pdev->bus);
+	decodes = VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
+
+	while ((tmp = pci_get_class(PCI_CLASS_DISPLAY_VGA << 8, tmp)) != NULL) {
+		if (tmp == pdev ||
+		    pci_domain_nr(tmp->bus) != pci_domain_nr(pdev->bus) ||
+		    pci_is_root_bus(tmp->bus))
+			continue;
+
+		if (tmp->bus->number >= pdev->bus->number &&
+		    tmp->bus->number <= max_busnr) {
+			pci_dev_put(tmp);
+			decodes |= VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM;
+			break;
+		}
+	}
+
+	return decodes;
+}
+
+static inline bool vfio_pci_is_vga(struct pci_dev *pdev)
+{
+	return (pdev->class >> 8) == PCI_CLASS_DISPLAY_VGA;
+}
 
 static void vfio_pci_try_bus_reset(struct vfio_pci_device *vdev);
 
@@ -47,6 +118,8 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 	int ret;
 	u16 cmd;
 	u8 msix_pos;
+
+	pci_set_power_state(pdev, PCI_D0);
 
 	/* Don't allow our initial saved state to include busmaster */
 	pci_clear_master(pdev);
@@ -93,10 +166,8 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 	} else
 		vdev->msix_bar = 0xFF;
 
-#ifdef CONFIG_VFIO_PCI_VGA
-	if ((pdev->class >> 8) == PCI_CLASS_DISPLAY_VGA)
+	if (!vfio_vga_disabled() && vfio_pci_is_vga(pdev))
 		vdev->has_vga = true;
-#endif
 
 	return 0;
 }
@@ -153,20 +224,17 @@ static void vfio_pci_disable(struct vfio_pci_device *vdev)
 	 * Try to reset the device.  The success of this is dependent on
 	 * being able to lock the device, which is not always possible.
 	 */
-	if (vdev->reset_works) {
-		int ret = pci_try_reset_function(pdev);
-		if (ret)
-			pr_warn("%s: Failed to reset device %s (%d)\n",
-				__func__, dev_name(&pdev->dev), ret);
-		else
-			vdev->needs_reset = false;
-	}
+	if (vdev->reset_works && !pci_try_reset_function(pdev))
+		vdev->needs_reset = false;
 
 	pci_restore_state(pdev);
 out:
 	pci_disable_device(pdev);
 
 	vfio_pci_try_bus_reset(vdev);
+
+	if (!disable_idle_d3)
+		pci_set_power_state(pdev, PCI_D3hot);
 }
 
 static void vfio_pci_release(void *device_data)
@@ -885,6 +953,27 @@ static int vfio_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret) {
 		iommu_group_put(group);
 		kfree(vdev);
+		return ret;
+	}
+
+	if (vfio_pci_is_vga(pdev)) {
+		vga_client_register(pdev, vdev, NULL, vfio_pci_set_vga_decode);
+		vga_set_legacy_decoding(pdev,
+					vfio_pci_set_vga_decode(vdev, false));
+	}
+
+	if (!disable_idle_d3) {
+		/*
+		 * pci-core sets the device power state to an unknown value at
+		 * bootup and after being removed from a driver.  The only
+		 * transition it allows from this unknown state is to D0, which
+		 * typically happens when a driver calls pci_enable_device().
+		 * We're not ready to enable the device yet, but we do want to
+		 * be able to get to D3.  Therefore first do a D0 transition
+		 * before going to D3.
+		 */
+		pci_set_power_state(pdev, PCI_D0);
+		pci_set_power_state(pdev, PCI_D3hot);
 	}
 
 	return ret;
@@ -895,10 +984,21 @@ static void vfio_pci_remove(struct pci_dev *pdev)
 	struct vfio_pci_device *vdev;
 
 	vdev = vfio_del_group_dev(&pdev->dev);
-	if (vdev) {
-		iommu_group_put(pdev->dev.iommu_group);
-		kfree(vdev);
+	if (!vdev)
+		return;
+
+	iommu_group_put(pdev->dev.iommu_group);
+	kfree(vdev);
+
+	if (vfio_pci_is_vga(pdev)) {
+		vga_client_register(pdev, NULL, NULL, NULL);
+		vga_set_legacy_decoding(pdev,
+				VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM |
+				VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM);
 	}
+
+	if (!disable_idle_d3)
+		pci_set_power_state(pdev, PCI_D0);
 }
 
 static pci_ers_result_t vfio_pci_aer_err_detected(struct pci_dev *pdev,
@@ -1017,10 +1117,13 @@ static void vfio_pci_try_bus_reset(struct vfio_pci_device *vdev)
 
 put_devs:
 	for (i = 0; i < devs.cur_index; i++) {
-		if (!ret) {
-			tmp = vfio_device_data(devs.devices[i]);
+		tmp = vfio_device_data(devs.devices[i]);
+		if (!ret)
 			tmp->needs_reset = false;
-		}
+
+		if (!tmp->refcnt && !disable_idle_d3)
+			pci_set_power_state(tmp->pdev, PCI_D3hot);
+
 		vfio_device_put(devs.devices[i]);
 	}
 
@@ -1030,8 +1133,48 @@ put_devs:
 static void __exit vfio_pci_cleanup(void)
 {
 	pci_unregister_driver(&vfio_pci_driver);
-	vfio_pci_virqfd_exit();
 	vfio_pci_uninit_perm_bits();
+}
+
+static void __init vfio_pci_fill_ids(void)
+{
+	char *p, *id;
+	int rc;
+
+	/* no ids passed actually */
+	if (ids[0] == '\0')
+		return;
+
+	/* add ids specified in the module parameter */
+	p = ids;
+	while ((id = strsep(&p, ","))) {
+		unsigned int vendor, device, subvendor = PCI_ANY_ID,
+			subdevice = PCI_ANY_ID, class = 0, class_mask = 0;
+		int fields;
+
+		if (!strlen(id))
+			continue;
+
+		fields = sscanf(id, "%x:%x:%x:%x:%x:%x",
+				&vendor, &device, &subvendor, &subdevice,
+				&class, &class_mask);
+
+		if (fields < 2) {
+			pr_warn("invalid id string \"%s\"\n", id);
+			continue;
+		}
+
+		rc = pci_add_dynid(&vfio_pci_driver, vendor, device,
+				   subvendor, subdevice, class, class_mask, 0);
+		if (rc)
+			pr_warn("failed to add dynamic id [%04hx:%04hx[%04hx:%04hx]] class %#08x/%08x (%d)\n",
+				vendor, device, subvendor, subdevice,
+				class, class_mask, rc);
+		else
+			pr_info("add [%04hx:%04hx[%04hx:%04hx]] class %#08x/%08x\n",
+				vendor, device, subvendor, subdevice,
+				class, class_mask);
+	}
 }
 
 static int __init vfio_pci_init(void)
@@ -1043,21 +1186,16 @@ static int __init vfio_pci_init(void)
 	if (ret)
 		return ret;
 
-	/* Start the virqfd cleanup handler */
-	ret = vfio_pci_virqfd_init();
-	if (ret)
-		goto out_virqfd;
-
 	/* Register and scan for devices */
 	ret = pci_register_driver(&vfio_pci_driver);
 	if (ret)
 		goto out_driver;
 
+	vfio_pci_fill_ids();
+
 	return 0;
 
 out_driver:
-	vfio_pci_virqfd_exit();
-out_virqfd:
 	vfio_pci_uninit_perm_bits();
 	return ret;
 }

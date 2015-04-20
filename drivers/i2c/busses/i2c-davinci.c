@@ -60,6 +60,12 @@
 #define DAVINCI_I2C_IVR_REG	0x28
 #define DAVINCI_I2C_EMDR_REG	0x2c
 #define DAVINCI_I2C_PSC_REG	0x30
+#define DAVINCI_I2C_FUNC_REG	0x48
+#define DAVINCI_I2C_DIR_REG	0x4c
+#define DAVINCI_I2C_DIN_REG	0x50
+#define DAVINCI_I2C_DOUT_REG	0x54
+#define DAVINCI_I2C_DSET_REG	0x58
+#define DAVINCI_I2C_DCLR_REG	0x5c
 
 #define DAVINCI_I2C_IVR_AAS	0x07
 #define DAVINCI_I2C_IVR_SCD	0x06
@@ -92,6 +98,29 @@
 #define DAVINCI_I2C_IMR_ARDY	BIT(2)
 #define DAVINCI_I2C_IMR_NACK	BIT(1)
 #define DAVINCI_I2C_IMR_AL	BIT(0)
+
+/* set SDA and SCL as GPIO */
+#define DAVINCI_I2C_FUNC_PFUNC0	BIT(0)
+
+/* set SCL as output when used as GPIO*/
+#define DAVINCI_I2C_DIR_PDIR0	BIT(0)
+/* set SDA as output when used as GPIO*/
+#define DAVINCI_I2C_DIR_PDIR1	BIT(1)
+
+/* read SCL GPIO level */
+#define DAVINCI_I2C_DIN_PDIN0 BIT(0)
+/* read SDA GPIO level */
+#define DAVINCI_I2C_DIN_PDIN1 BIT(1)
+
+/*set the SCL GPIO high */
+#define DAVINCI_I2C_DSET_PDSET0	BIT(0)
+/*set the SDA GPIO high */
+#define DAVINCI_I2C_DSET_PDSET1	BIT(1)
+
+/* set the SCL GPIO low */
+#define DAVINCI_I2C_DCLR_PDCLR0	BIT(0)
+/* set the SDA GPIO low */
+#define DAVINCI_I2C_DCLR_PDCLR1	BIT(1)
 
 struct davinci_i2c_dev {
 	struct device           *dev;
@@ -127,43 +156,6 @@ static inline void davinci_i2c_write_reg(struct davinci_i2c_dev *i2c_dev,
 static inline u16 davinci_i2c_read_reg(struct davinci_i2c_dev *i2c_dev, int reg)
 {
 	return readw_relaxed(i2c_dev->base + reg);
-}
-
-/* Generate a pulse on the i2c clock pin. */
-static void davinci_i2c_clock_pulse(unsigned int scl_pin)
-{
-	u16 i;
-
-	if (scl_pin) {
-		/* Send high and low on the SCL line */
-		for (i = 0; i < 9; i++) {
-			gpio_set_value(scl_pin, 0);
-			udelay(20);
-			gpio_set_value(scl_pin, 1);
-			udelay(20);
-		}
-	}
-}
-
-/* This routine does i2c bus recovery as specified in the
- * i2c protocol Rev. 03 section 3.16 titled "Bus clear"
- */
-static void davinci_i2c_recover_bus(struct davinci_i2c_dev *dev)
-{
-	u32 flag = 0;
-	struct davinci_i2c_platform_data *pdata = dev->pdata;
-
-	dev_err(dev->dev, "initiating i2c bus recovery\n");
-	/* Send NACK to the slave */
-	flag = davinci_i2c_read_reg(dev, DAVINCI_I2C_MDR_REG);
-	flag |=  DAVINCI_I2C_MDR_NACK;
-	/* write the data into mode register */
-	davinci_i2c_write_reg(dev, DAVINCI_I2C_MDR_REG, flag);
-	davinci_i2c_clock_pulse(pdata->scl_pin);
-	/* Send STOP */
-	flag = davinci_i2c_read_reg(dev, DAVINCI_I2C_MDR_REG);
-	flag |= DAVINCI_I2C_MDR_STP;
-	davinci_i2c_write_reg(dev, DAVINCI_I2C_MDR_REG, flag);
 }
 
 static inline void davinci_i2c_reset_ctrl(struct davinci_i2c_dev *i2c_dev,
@@ -263,6 +255,99 @@ static int i2c_davinci_init(struct davinci_i2c_dev *dev)
 }
 
 /*
+ * This routine does i2c bus recovery by using i2c_generic_gpio_recovery
+ * which is provided by I2C Bus recovery infrastructure.
+ */
+static void davinci_i2c_prepare_recovery(struct i2c_adapter *adap)
+{
+	struct davinci_i2c_dev *dev = i2c_get_adapdata(adap);
+
+	/* Disable interrupts */
+	davinci_i2c_write_reg(dev, DAVINCI_I2C_IMR_REG, 0);
+
+	/* put I2C into reset */
+	davinci_i2c_reset_ctrl(dev, 0);
+}
+
+static void davinci_i2c_unprepare_recovery(struct i2c_adapter *adap)
+{
+	struct davinci_i2c_dev *dev = i2c_get_adapdata(adap);
+
+	i2c_davinci_init(dev);
+}
+
+static struct i2c_bus_recovery_info davinci_i2c_gpio_recovery_info = {
+	.recover_bus = i2c_generic_gpio_recovery,
+	.prepare_recovery = davinci_i2c_prepare_recovery,
+	.unprepare_recovery = davinci_i2c_unprepare_recovery,
+};
+
+static void davinci_i2c_set_scl(struct i2c_adapter *adap, int val)
+{
+	struct davinci_i2c_dev *dev = i2c_get_adapdata(adap);
+
+	if (val)
+		davinci_i2c_write_reg(dev, DAVINCI_I2C_DSET_REG,
+				      DAVINCI_I2C_DSET_PDSET0);
+	else
+		davinci_i2c_write_reg(dev, DAVINCI_I2C_DCLR_REG,
+				      DAVINCI_I2C_DCLR_PDCLR0);
+}
+
+static int davinci_i2c_get_scl(struct i2c_adapter *adap)
+{
+	struct davinci_i2c_dev *dev = i2c_get_adapdata(adap);
+	int val;
+
+	/* read the state of SCL */
+	val = davinci_i2c_read_reg(dev, DAVINCI_I2C_DIN_REG);
+	return val & DAVINCI_I2C_DIN_PDIN0;
+}
+
+static int davinci_i2c_get_sda(struct i2c_adapter *adap)
+{
+	struct davinci_i2c_dev *dev = i2c_get_adapdata(adap);
+	int val;
+
+	/* read the state of SDA */
+	val = davinci_i2c_read_reg(dev, DAVINCI_I2C_DIN_REG);
+	return val & DAVINCI_I2C_DIN_PDIN1;
+}
+
+static void davinci_i2c_scl_prepare_recovery(struct i2c_adapter *adap)
+{
+	struct davinci_i2c_dev *dev = i2c_get_adapdata(adap);
+
+	davinci_i2c_prepare_recovery(adap);
+
+	/* SCL output, SDA input */
+	davinci_i2c_write_reg(dev, DAVINCI_I2C_DIR_REG, DAVINCI_I2C_DIR_PDIR0);
+
+	/* change to GPIO mode */
+	davinci_i2c_write_reg(dev, DAVINCI_I2C_FUNC_REG,
+			      DAVINCI_I2C_FUNC_PFUNC0);
+}
+
+static void davinci_i2c_scl_unprepare_recovery(struct i2c_adapter *adap)
+{
+	struct davinci_i2c_dev *dev = i2c_get_adapdata(adap);
+
+	/* change back to I2C mode */
+	davinci_i2c_write_reg(dev, DAVINCI_I2C_FUNC_REG, 0);
+
+	davinci_i2c_unprepare_recovery(adap);
+}
+
+static struct i2c_bus_recovery_info davinci_i2c_scl_recovery_info = {
+	.recover_bus = i2c_generic_scl_recovery,
+	.set_scl = davinci_i2c_set_scl,
+	.get_scl = davinci_i2c_get_scl,
+	.get_sda = davinci_i2c_get_sda,
+	.prepare_recovery = davinci_i2c_scl_prepare_recovery,
+	.unprepare_recovery = davinci_i2c_scl_unprepare_recovery,
+};
+
+/*
  * Waiting for bus not busy
  */
 static int i2c_davinci_wait_bus_not_busy(struct davinci_i2c_dev *dev,
@@ -282,8 +367,7 @@ static int i2c_davinci_wait_bus_not_busy(struct davinci_i2c_dev *dev,
 				return -ETIMEDOUT;
 			} else {
 				to_cnt = 0;
-				davinci_i2c_recover_bus(dev);
-				i2c_davinci_init(dev);
+				i2c_recover_bus(&dev->adapter);
 			}
 		}
 		if (allow_sleep)
@@ -304,7 +388,7 @@ i2c_davinci_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg, int stop)
 	struct davinci_i2c_platform_data *pdata = dev->pdata;
 	u32 flag;
 	u16 w;
-	int r;
+	unsigned long time_left;
 
 	/* Introduce a delay, required for some boards (e.g Davinci EVM) */
 	if (pdata->bus_delay)
@@ -368,11 +452,11 @@ i2c_davinci_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg, int stop)
 		flag |= DAVINCI_I2C_MDR_STP;
 	davinci_i2c_write_reg(dev, DAVINCI_I2C_MDR_REG, flag);
 
-	r = wait_for_completion_timeout(&dev->cmd_complete, dev->adapter.timeout);
-	if (r == 0) {
+	time_left = wait_for_completion_timeout(&dev->cmd_complete,
+						dev->adapter.timeout);
+	if (!time_left) {
 		dev_err(dev->dev, "controller timed out\n");
-		davinci_i2c_recover_bus(dev);
-		i2c_davinci_init(dev);
+		i2c_recover_bus(adap);
 		dev->buf_len = 0;
 		return -ETIMEDOUT;
 	}
@@ -380,17 +464,13 @@ i2c_davinci_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg, int stop)
 		/* This should be 0 if all bytes were transferred
 		 * or dev->cmd_err denotes an error.
 		 */
-		if (r >= 0) {
-			dev_err(dev->dev, "abnormal termination buf_len=%i\n",
-				dev->buf_len);
-			r = -EREMOTEIO;
-		}
+		dev_err(dev->dev, "abnormal termination buf_len=%i\n",
+			dev->buf_len);
 		dev->terminate = 1;
 		wmb();
 		dev->buf_len = 0;
+		return -EREMOTEIO;
 	}
-	if (r < 0)
-		return r;
 
 	/* no error */
 	if (likely(!dev->cmd_err))
@@ -674,6 +754,10 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 		if (!of_property_read_u32(pdev->dev.of_node, "clock-frequency",
 			&prop))
 			dev->pdata->bus_freq = prop / 1000;
+
+		dev->pdata->has_pfunc =
+			of_property_read_bool(pdev->dev.of_node,
+					      "ti,has-pfunc");
 	} else if (!dev->pdata) {
 		dev->pdata = &davinci_i2c_platform_data_default;
 	}
@@ -714,6 +798,14 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 	adap->dev.parent = &pdev->dev;
 	adap->timeout = DAVINCI_I2C_TIMEOUT;
 	adap->dev.of_node = pdev->dev.of_node;
+
+	if (dev->pdata->has_pfunc)
+		adap->bus_recovery_info = &davinci_i2c_scl_recovery_info;
+	else if (dev->pdata->scl_pin) {
+		adap->bus_recovery_info = &davinci_i2c_gpio_recovery_info;
+		adap->bus_recovery_info->scl_gpio = dev->pdata->scl_pin;
+		adap->bus_recovery_info->sda_gpio = dev->pdata->sda_pin;
+	}
 
 	adap->nr = pdev->id;
 	r = i2c_add_numbered_adapter(adap);

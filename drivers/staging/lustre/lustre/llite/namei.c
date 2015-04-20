@@ -83,7 +83,8 @@ static int ll_set_inode(struct inode *inode, void *opaque)
 
 	lli->lli_fid = body->fid1;
 	if (unlikely(!(body->valid & OBD_MD_FLTYPE))) {
-		CERROR("Can not initialize inode " DFID " without object type: valid = %#llx\n",
+		CERROR("Can not initialize inode " DFID
+		       " without object type: valid = %#llx\n",
 		       PFID(&lli->lli_fid), body->valid);
 		return -EINVAL;
 	}
@@ -600,7 +601,8 @@ static int ll_atomic_open(struct inode *dir, struct dentry *dentry,
 	long long lookup_flags = LOOKUP_OPEN;
 	int rc = 0;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd,dir=%lu/%u(%p),file %p,open_flags %x,mode %x opened %d\n",
+	CDEBUG(D_VFSTRACE,
+	       "VFS Op:name=%pd,dir=%lu/%u(%p),file %p,open_flags %x,mode %x opened %d\n",
 	       dentry, dir->i_ino,
 	       dir->i_generation, dir, file, open_flags, mode, *opened);
 
@@ -974,11 +976,12 @@ out:
  * Instead, ll_ddelete() and ll_d_iput() will update it based upon if there
  * is any lock existing. They will recycle dentries and inodes based upon locks
  * too. b=20433 */
-static int ll_unlink(struct inode * dir, struct dentry *dentry)
+static int ll_unlink(struct inode *dir, struct dentry *dentry)
 {
 	struct ptlrpc_request *request = NULL;
 	struct md_op_data *op_data;
 	int rc;
+
 	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd,dir=%lu/%u(%p)\n",
 	       dentry, dir->i_ino, dir->i_generation, dir);
 
@@ -1033,7 +1036,7 @@ static int ll_rmdir(struct inode *dir, struct dentry *dentry)
 	       dentry, dir->i_ino, dir->i_generation, dir);
 
 	op_data = ll_prep_md_op_data(NULL, dir, NULL,
-				     dentry->d_name.name, 
+				     dentry->d_name.name,
 				     dentry->d_name.len,
 				     S_IFDIR, LUSTRE_OPC_ANY, NULL);
 	if (IS_ERR(op_data))
@@ -1111,10 +1114,9 @@ static int ll_rename(struct inode *old_dir, struct dentry *old_dentry,
 	int err;
 
 	CDEBUG(D_VFSTRACE,
-	       "VFS Op:oldname=%pd,src_dir=%lu/%u(%p),newname=%pd,"
-	       "tgt_dir=%lu/%u(%p)\n", old_dentry,
-	       old_dir->i_ino, old_dir->i_generation, old_dir, new_dentry,
-	       new_dir->i_ino, new_dir->i_generation, new_dir);
+	       "VFS Op:oldname=%pd,src_dir=%lu/%u(%p),newname=%pd,tgt_dir=%lu/%u(%p)\n",
+	       old_dentry, old_dir->i_ino, old_dir->i_generation, old_dir,
+	       new_dentry, new_dir->i_ino, new_dir->i_generation, new_dir);
 
 	op_data = ll_prep_md_op_data(NULL, old_dir, new_dir, NULL, 0, 0,
 				     LUSTRE_OPC_ANY, NULL);

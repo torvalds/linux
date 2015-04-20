@@ -92,17 +92,9 @@ startup_kdump_relocated:
 #else
 .align 2
 .Lep_startup_kdump:
-#ifdef CONFIG_64BIT
 	larl	%r13,startup_kdump_crash
 	lpswe	0(%r13)
 .align 8
 startup_kdump_crash:
 	.quad	0x0002000080000000,0x0000000000000000 + startup_kdump_crash
-#else
-	basr	%r13,0
-0:	lpsw	startup_kdump_crash-0b(%r13)
-.align 8
-startup_kdump_crash:
-	.long	0x000a0000,0x00000000 + startup_kdump_crash
-#endif /* CONFIG_64BIT */
 #endif /* CONFIG_CRASH_DUMP */

@@ -89,7 +89,7 @@ char *tomoyo_encode(const char *str)
  *
  * If dentry is a directory, trailing '/' is appended.
  */
-static char *tomoyo_get_absolute_path(struct path *path, char * const buffer,
+static char *tomoyo_get_absolute_path(const struct path *path, char * const buffer,
 				      const int buflen)
 {
 	char *pos = ERR_PTR(-ENOMEM);
@@ -216,7 +216,7 @@ out:
  *
  * Returns the buffer.
  */
-static char *tomoyo_get_socket_name(struct path *path, char * const buffer,
+static char *tomoyo_get_socket_name(const struct path *path, char * const buffer,
 				    const int buflen)
 {
 	struct inode *inode = path->dentry->d_inode;
@@ -247,7 +247,7 @@ static char *tomoyo_get_socket_name(struct path *path, char * const buffer,
  * These functions use kzalloc(), so the caller must call kfree()
  * if these functions didn't return NULL.
  */
-char *tomoyo_realpath_from_path(struct path *path)
+char *tomoyo_realpath_from_path(const struct path *path)
 {
 	char *buf = NULL;
 	char *name = NULL;

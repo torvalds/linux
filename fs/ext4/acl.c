@@ -4,11 +4,6 @@
  * Copyright (C) 2001-2003 Andreas Gruenbacher, <agruen@suse.de>
  */
 
-#include <linux/init.h>
-#include <linux/sched.h>
-#include <linux/slab.h>
-#include <linux/capability.h>
-#include <linux/fs.h>
 #include "ext4_jbd2.h"
 #include "ext4.h"
 #include "xattr.h"

@@ -45,6 +45,7 @@ struct ath_struct {
 	struct hci_uart *hu;
 	unsigned int cur_sleep;
 
+	struct sk_buff *rx_skb;
 	struct sk_buff_head txq;
 	struct work_struct ctxtsw;
 };
@@ -136,6 +137,8 @@ static int ath_close(struct hci_uart *hu)
 
 	skb_queue_purge(&ath->txq);
 
+	kfree_skb(ath->rx_skb);
+
 	cancel_work_sync(&ath->ctxtsw);
 
 	hu->priv = NULL;
@@ -187,40 +190,42 @@ static struct sk_buff *ath_dequeue(struct hci_uart *hu)
 	return skb_dequeue(&ath->txq);
 }
 
-/* Recv data */
-static int ath_recv(struct hci_uart *hu, void *data, int count)
-{
-	int ret;
+static const struct h4_recv_pkt ath_recv_pkts[] = {
+	{ H4_RECV_ACL,   .recv = hci_recv_frame },
+	{ H4_RECV_SCO,   .recv = hci_recv_frame },
+	{ H4_RECV_EVENT, .recv = hci_recv_frame },
+};
 
-	ret = hci_recv_stream_fragment(hu->hdev, data, count);
-	if (ret < 0) {
-		BT_ERR("Frame Reassembly Failed");
-		return ret;
+/* Recv data */
+static int ath_recv(struct hci_uart *hu, const void *data, int count)
+{
+	struct ath_struct *ath = hu->priv;
+
+	ath->rx_skb = h4_recv_buf(hu->hdev, ath->rx_skb, data, count,
+				  ath_recv_pkts, ARRAY_SIZE(ath_recv_pkts));
+	if (IS_ERR(ath->rx_skb)) {
+		int err = PTR_ERR(ath->rx_skb);
+		BT_ERR("%s: Frame reassembly failed (%d)", hu->hdev->name, err);
+		return err;
 	}
 
 	return count;
 }
 
-static struct hci_uart_proto athp = {
-	.id = HCI_UART_ATH3K,
-	.open = ath_open,
-	.close = ath_close,
-	.recv = ath_recv,
-	.enqueue = ath_enqueue,
-	.dequeue = ath_dequeue,
-	.flush = ath_flush,
+static const struct hci_uart_proto athp = {
+	.id		= HCI_UART_ATH3K,
+	.name		= "ATH3K",
+	.open		= ath_open,
+	.close		= ath_close,
+	.recv		= ath_recv,
+	.enqueue	= ath_enqueue,
+	.dequeue	= ath_dequeue,
+	.flush		= ath_flush,
 };
 
 int __init ath_init(void)
 {
-	int err = hci_uart_register_proto(&athp);
-
-	if (!err)
-		BT_INFO("HCIATH3K protocol initialized");
-	else
-		BT_ERR("HCIATH3K protocol registration failed");
-
-	return err;
+	return hci_uart_register_proto(&athp);
 }
 
 int __exit ath_deinit(void)

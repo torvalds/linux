@@ -235,36 +235,12 @@ enum iwl_bt_coex_enabled_modules {
  * struct iwl_bt_coex_cmd - bt coex configuration command
  * @mode: enum %iwl_bt_coex_mode
  * @enabled_modules: enum %iwl_bt_coex_enabled_modules
- * @max_kill: max count of Tx retries due to kill from PTA
- * @override_primary_lut: enum %iwl_bt_coex_lut_type: BT_COEX_INVALID_LUT
- *	should be set by default
- * @override_secondary_lut: enum %iwl_bt_coex_lut_type: BT_COEX_INVALID_LUT
- *	should be set by default
- * @bt4_antenna_isolation_thr: antenna threshold value
- * @bt4_tx_tx_delta_freq_thr: TxTx delta frequency
- * @bt4_tx_rx_max_freq0: TxRx max frequency
- * @multiprio_lut: multi priority LUT configuration
- * @mplut_prio_boost: BT priority boost registers
- * @decision_lut: PTA decision LUT, per Prio-Ch
  *
  * The structure is used for the BT_COEX command.
  */
 struct iwl_bt_coex_cmd {
 	__le32 mode;
 	__le32 enabled_modules;
-
-	__le32 max_kill;
-	__le32 override_primary_lut;
-	__le32 override_secondary_lut;
-	__le32 bt4_antenna_isolation_thr;
-
-	__le32 bt4_tx_tx_delta_freq_thr;
-	__le32 bt4_tx_rx_max_freq0;
-
-	__le32 multiprio_lut[BT_COEX_MULTI_PRIO_LUT_SIZE];
-	__le32 mplut_prio_boost[BT_COEX_BOOST_SIZE];
-
-	__le32 decision_lut[BT_COEX_MAX_LUT][BT_COEX_LUT_SIZE];
 } __packed; /* BT_COEX_CMD_API_S_VER_6 */
 
 /**
@@ -278,29 +254,6 @@ struct iwl_bt_coex_corun_lut_update_cmd {
 	__le32 corun_lut20[BT_COEX_CORUN_LUT_SIZE];
 	__le32 corun_lut40[BT_COEX_CORUN_LUT_SIZE];
 } __packed; /* BT_COEX_UPDATE_CORUN_LUT_API_S_VER_1 */
-
-/**
- * struct iwl_bt_coex_sw_boost - SW boost values
- * @wifi_tx_prio_boost: SW boost of wifi tx priority
- * @wifi_rx_prio_boost: SW boost of wifi rx priority
- * @kill_ack_msk: kill ACK mask. 1 - Tx ACK, 0 - kill Tx of ACK.
- * @kill_cts_msk: kill CTS mask. 1 - Tx CTS, 0 - kill Tx of CTS.
- */
-struct iwl_bt_coex_sw_boost {
-	__le32 wifi_tx_prio_boost;
-	__le32 wifi_rx_prio_boost;
-	__le32 kill_ack_msk;
-	__le32 kill_cts_msk;
-};
-
-/**
- * struct iwl_bt_coex_sw_boost_update_cmd - command to update the SW boost
- * @boost_values: check struct  %iwl_bt_coex_sw_boost - one for each channel
- *	primary / secondary / low priority
- */
-struct iwl_bt_coex_sw_boost_update_cmd {
-	struct iwl_bt_coex_sw_boost boost_values[3];
-} __packed; /* BT_COEX_UPDATE_SW_BOOST_S_VER_1 */
 
 /**
  * struct iwl_bt_coex_reduced_txp_update_cmd

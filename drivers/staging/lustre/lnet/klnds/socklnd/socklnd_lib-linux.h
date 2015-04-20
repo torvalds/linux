@@ -50,8 +50,8 @@
 #include <net/tcp.h>
 #include <linux/uio.h>
 #include <linux/if.h>
+#include <linux/uaccess.h>
 
-#include <asm/uaccess.h>
 #include <asm/irq.h>
 
 #include <linux/fs.h>

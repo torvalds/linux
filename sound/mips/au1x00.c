@@ -633,19 +633,25 @@ static int au1000_ac97_probe(struct platform_device *pdev)
 
 	au1000->stream[PLAYBACK] = kmalloc(sizeof(struct audio_stream),
 					   GFP_KERNEL);
-	if (!au1000->stream[PLAYBACK])
+	if (!au1000->stream[PLAYBACK]) {
+		err = -ENOMEM;
 		goto out;
+	}
 	au1000->stream[PLAYBACK]->dma = -1;
 
 	au1000->stream[CAPTURE] = kmalloc(sizeof(struct audio_stream),
 					  GFP_KERNEL);
-	if (!au1000->stream[CAPTURE])
+	if (!au1000->stream[CAPTURE]) {
+		err = -ENOMEM;
 		goto out;
+	}
 	au1000->stream[CAPTURE]->dma = -1;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r)
+	if (!r) {
+		err = -ENODEV;
 		goto out;
+	}
 
 	err = -EBUSY;
 	au1000->ac97_res_port = request_mem_region(r->start, resource_size(r),

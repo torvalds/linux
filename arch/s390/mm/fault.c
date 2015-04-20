@@ -36,15 +36,9 @@
 #include <asm/facility.h>
 #include "../kernel/entry.h"
 
-#ifndef CONFIG_64BIT
-#define __FAIL_ADDR_MASK 0x7ffff000
-#define __SUBCODE_MASK 0x0200
-#define __PF_RES_FIELD 0ULL
-#else /* CONFIG_64BIT */
 #define __FAIL_ADDR_MASK -4096L
 #define __SUBCODE_MASK 0x0600
 #define __PF_RES_FIELD 0x8000000000000000ULL
-#endif /* CONFIG_64BIT */
 
 #define VM_FAULT_BADCONTEXT	0x010000
 #define VM_FAULT_BADMAP		0x020000
@@ -54,7 +48,6 @@
 
 static unsigned long store_indication __read_mostly;
 
-#ifdef CONFIG_64BIT
 static int __init fault_init(void)
 {
 	if (test_facility(75))
@@ -62,7 +55,6 @@ static int __init fault_init(void)
 	return 0;
 }
 early_initcall(fault_init);
-#endif
 
 static inline int notify_page_fault(struct pt_regs *regs)
 {
@@ -133,7 +125,6 @@ static int bad_address(void *p)
 	return probe_kernel_address((unsigned long *)p, dummy);
 }
 
-#ifdef CONFIG_64BIT
 static void dump_pagetable(unsigned long asce, unsigned long address)
 {
 	unsigned long *table = __va(asce & PAGE_MASK);
@@ -186,33 +177,6 @@ out:
 bad:
 	pr_cont("BAD\n");
 }
-
-#else /* CONFIG_64BIT */
-
-static void dump_pagetable(unsigned long asce, unsigned long address)
-{
-	unsigned long *table = __va(asce & PAGE_MASK);
-
-	pr_alert("AS:%08lx ", asce);
-	table = table + ((address >> 20) & 0x7ff);
-	if (bad_address(table))
-		goto bad;
-	pr_cont("S:%08lx ", *table);
-	if (*table & _SEGMENT_ENTRY_INVALID)
-		goto out;
-	table = (unsigned long *)(*table & _SEGMENT_ENTRY_ORIGIN);
-	table = table + ((address >> 12) & 0xff);
-	if (bad_address(table))
-		goto bad;
-	pr_cont("P:%08lx ", *table);
-out:
-	pr_cont("\n");
-	return;
-bad:
-	pr_cont("BAD\n");
-}
-
-#endif /* CONFIG_64BIT */
 
 static void dump_fault_info(struct pt_regs *regs)
 {

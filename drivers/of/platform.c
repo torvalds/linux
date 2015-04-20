@@ -19,7 +19,6 @@
 #include <linux/slab.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
-#include <linux/of_iommu.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
@@ -150,59 +149,6 @@ struct platform_device *of_device_alloc(struct device_node *np,
 }
 EXPORT_SYMBOL(of_device_alloc);
 
-/**
- * of_dma_configure - Setup DMA configuration
- * @dev:	Device to apply DMA configuration
- *
- * Try to get devices's DMA configuration from DT and update it
- * accordingly.
- *
- * In case if platform code need to use own special DMA configuration,it
- * can use Platform bus notifier and handle BUS_NOTIFY_ADD_DEVICE event
- * to fix up DMA configuration.
- */
-static void of_dma_configure(struct device *dev)
-{
-	u64 dma_addr, paddr, size;
-	int ret;
-	bool coherent;
-	unsigned long offset;
-	struct iommu_ops *iommu;
-
-	/*
-	 * Set default dma-mask to 32 bit. Drivers are expected to setup
-	 * the correct supported dma_mask.
-	 */
-	dev->coherent_dma_mask = DMA_BIT_MASK(32);
-
-	/*
-	 * Set it to coherent_dma_mask by default if the architecture
-	 * code has not set it.
-	 */
-	if (!dev->dma_mask)
-		dev->dma_mask = &dev->coherent_dma_mask;
-
-	ret = of_dma_get_range(dev->of_node, &dma_addr, &paddr, &size);
-	if (ret < 0) {
-		dma_addr = offset = 0;
-		size = dev->coherent_dma_mask;
-	} else {
-		offset = PFN_DOWN(paddr - dma_addr);
-		dev_dbg(dev, "dma_pfn_offset(%#08lx)\n", offset);
-	}
-	dev->dma_pfn_offset = offset;
-
-	coherent = of_dma_is_coherent(dev->of_node);
-	dev_dbg(dev, "device is%sdma coherent\n",
-		coherent ? " " : " not ");
-
-	iommu = of_iommu_configure(dev);
-	dev_dbg(dev, "device is%sbehind an iommu\n",
-		iommu ? " " : " not ");
-
-	arch_setup_dma_ops(dev, dma_addr, size, iommu, coherent);
-}
-
 static void of_dma_deconfigure(struct device *dev)
 {
 	arch_teardown_dma_ops(dev);
@@ -236,7 +182,7 @@ static struct platform_device *of_platform_device_create_pdata(
 
 	dev->dev.bus = &platform_bus_type;
 	dev->dev.platform_data = platform_data;
-	of_dma_configure(&dev->dev);
+	of_dma_configure(&dev->dev, dev->dev.of_node);
 
 	if (of_device_add(dev) != 0) {
 		of_dma_deconfigure(&dev->dev);
@@ -299,7 +245,7 @@ static struct amba_device *of_amba_device_create(struct device_node *node,
 		dev_set_name(&dev->dev, "%s", bus_id);
 	else
 		of_device_make_bus_id(&dev->dev);
-	of_dma_configure(&dev->dev);
+	of_dma_configure(&dev->dev, dev->dev.of_node);
 
 	/* Allow the HW Peripheral ID to be overridden */
 	prop = of_get_property(node, "arm,primecell-periphid", NULL);

@@ -135,7 +135,7 @@ void snd_hda_jack_tbl_clear(struct hda_codec *codec)
 #ifdef CONFIG_SND_HDA_INPUT_JACK
 		/* free jack instances manually when clearing/reconfiguring */
 		if (!codec->bus->shutdown && jack->jack)
-			snd_device_free(codec->bus->card, jack->jack);
+			snd_device_free(codec->card, jack->jack);
 #endif
 		for (cb = jack->callback; cb; cb = next) {
 			next = cb->next;
@@ -340,7 +340,7 @@ void snd_hda_jack_report_sync(struct hda_codec *codec)
 			if (!jack->kctl || jack->block_report)
 				continue;
 			state = get_jack_plug_state(jack->pin_sense);
-			snd_kctl_jack_report(codec->bus->card, jack->kctl, state);
+			snd_kctl_jack_report(codec->card, jack->kctl, state);
 #ifdef CONFIG_SND_HDA_INPUT_JACK
 			if (jack->jack)
 				snd_jack_report(jack->jack,
@@ -412,11 +412,11 @@ static int __snd_hda_jack_add_kctl(struct hda_codec *codec, hda_nid_t nid,
 	jack->phantom_jack = !!phantom_jack;
 
 	state = snd_hda_jack_detect(codec, nid);
-	snd_kctl_jack_report(codec->bus->card, kctl, state);
+	snd_kctl_jack_report(codec->card, kctl, state);
 #ifdef CONFIG_SND_HDA_INPUT_JACK
 	if (!phantom_jack) {
 		jack->type = get_input_jack_type(codec, nid);
-		err = snd_jack_new(codec->bus->card, name, jack->type,
+		err = snd_jack_new(codec->card, name, jack->type,
 				   &jack->jack);
 		if (err < 0)
 			return err;

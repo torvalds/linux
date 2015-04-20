@@ -13,7 +13,6 @@
 #define __LINUX_FLASH_LEDS_H_INCLUDED
 
 #include <linux/leds.h>
-#include <uapi/linux/v4l2-controls.h>
 
 struct device_node;
 struct led_classdev_flash;
@@ -33,7 +32,7 @@ struct led_classdev_flash;
 #define LED_FAULT_LED_OVER_TEMPERATURE	(1 << 8)
 #define LED_NUM_FLASH_FAULTS		9
 
-#define LED_FLASH_MAX_SYSFS_GROUPS 7
+#define LED_FLASH_SYSFS_GROUPS_SIZE	5
 
 struct led_flash_ops {
 	/* set flash brightness */
@@ -81,21 +80,7 @@ struct led_classdev_flash {
 	struct led_flash_setting timeout;
 
 	/* LED Flash class sysfs groups */
-	const struct attribute_group *sysfs_groups[LED_FLASH_MAX_SYSFS_GROUPS];
-
-	/* LEDs available for flash strobe synchronization */
-	struct led_classdev_flash **sync_leds;
-
-	/* Number of LEDs available for flash strobe synchronization */
-	int num_sync_leds;
-
-	/*
-	 * The identifier of the sub-led to synchronize the flash strobe with.
-	 * Identifiers start from 1, which reflects the first element from the
-	 * sync_leds array. 0 means that the flash strobe should not be
-	 * synchronized.
-	 */
-	u32 sync_led_id;
+	const struct attribute_group *sysfs_groups[LED_FLASH_SYSFS_GROUPS_SIZE];
 };
 
 static inline struct led_classdev_flash *lcdev_to_flcdev(

@@ -190,7 +190,7 @@ int ft1000_create_dev(struct ft1000_usb *dev)
 	tmp->dent = dir;
 	tmp->file = file;
 	tmp->int_number = dev->CardNumber;
-	list_add(&(tmp->list), &(dev->nodes.list));
+	list_add(&tmp->list, &dev->nodes.list);
 
 	pr_debug("registered debugfs directory \"%s\"\n", dev->DeviceName);
 
@@ -301,7 +301,7 @@ static int ft1000_open(struct inode *inode, struct file *file)
 	struct ft1000_usb *dev = (struct ft1000_usb *)inode->i_private;
 	int i, num;
 
-	num = (MINOR(inode->i_rdev) & 0xf);
+	num = MINOR(inode->i_rdev) & 0xf;
 	pr_debug("minor number=%d\n", num);
 
 	info = file->private_data = netdev_priv(dev->net);
@@ -317,9 +317,8 @@ static int ft1000_open(struct inode *inode, struct file *file)
 
 	/* Search for available application info block */
 	for (i = 0; i < MAX_NUM_APP; i++) {
-		if ((dev->app_info[i].fileobject == NULL)) {
+		if ((dev->app_info[i].fileobject == NULL))
 			break;
-		}
 	}
 
 	/* Fail due to lack of application info block */
@@ -478,14 +477,14 @@ static long ft1000_ioctl(struct file *file, unsigned int command,
 		/* Connect Message */
 		pr_debug("IOCTL_FT1000_CONNECT\n");
 		ConnectionMsg[79] = 0xfc;
-		result = card_send_command(ft1000dev, (unsigned short *)ConnectionMsg, 0x4c);
+		result = card_send_command(ft1000dev, ConnectionMsg, 0x4c);
 
 		break;
 	case IOCTL_DISCONNECT:
 		/* Disconnect Message */
 		pr_debug("IOCTL_FT1000_DISCONNECT\n");
 		ConnectionMsg[79] = 0xfd;
-		result = card_send_command(ft1000dev, (unsigned short *)ConnectionMsg, 0x4c);
+		result = card_send_command(ft1000dev, ConnectionMsg, 0x4c);
 		break;
 	case IOCTL_GET_DSP_STAT_CMD:
 		/* pr_debug("IOCTL_FT1000_GET_DSP_STAT\n"); */
@@ -545,7 +544,7 @@ static long ft1000_ioctl(struct file *file, unsigned int command,
 		if (ft1000dev->fProvComplete == 0)
 			return -EACCES;
 
-		ft1000dev->fAppMsgPend = 1;
+		ft1000dev->fAppMsgPend = true;
 
 		if (info->CardReady) {
 
@@ -575,9 +574,8 @@ static long ft1000_ioctl(struct file *file, unsigned int command,
 			} else {
 				/* Check if this message came from a registered application */
 				for (i = 0; i < MAX_NUM_APP; i++) {
-					if (ft1000dev->app_info[i].fileobject == &file->f_owner) {
+					if (ft1000dev->app_info[i].fileobject == &file->f_owner)
 						break;
-					}
 				}
 				if (i == MAX_NUM_APP) {
 					pr_debug("No matching application fileobject\n");
@@ -629,9 +627,8 @@ static long ft1000_ioctl(struct file *file, unsigned int command,
 						pmsg = (u16 *)&dpram_data->pseudohdr;
 						ppseudo_hdr = (struct pseudo_hdr *)pmsg;
 						total_len = msgsz+2;
-						if (total_len & 0x1) {
+						if (total_len & 0x1)
 							total_len++;
-						}
 
 						/* Insert slow queue sequence number */
 						ppseudo_hdr->seq_num = info->squeseqnum++;
@@ -645,7 +642,7 @@ static long ft1000_ioctl(struct file *file, unsigned int command,
 						}
 						pmsg++;
 						ppseudo_hdr = (struct pseudo_hdr *)pmsg;
-						result = card_send_command(ft1000dev, (unsigned short *)dpram_data, total_len+2);
+						result = card_send_command(ft1000dev, dpram_data, total_len+2);
 
 
 						ft1000dev->app_info[app_index].nTxMsg++;
@@ -722,7 +719,7 @@ static long ft1000_ioctl(struct file *file, unsigned int command,
 		result = -ENOTTY;
 		break;
 	}
-	ft1000dev->fAppMsgPend = 0;
+	ft1000dev->fAppMsgPend = false;
 	return result;
 }
 
@@ -745,6 +742,7 @@ static int ft1000_release(struct inode *inode, struct file *file)
 	struct ft1000_usb *ft1000dev;
 	int i;
 	struct dpram_blk *pdpram_blk;
+	struct dpram_blk *tmp;
 
 	dev = file->private_data;
 	info = netdev_priv(dev);
@@ -766,9 +764,8 @@ static int ft1000_release(struct inode *inode, struct file *file)
 	if (i == MAX_NUM_APP)
 		return 0;
 
-	while (list_empty(&ft1000dev->app_info[i].app_sqlist) == 0) {
+	list_for_each_entry_safe(pdpram_blk, tmp, &ft1000dev->app_info[i].app_sqlist, list) {
 		pr_debug("Remove and free memory queue up on slow queue\n");
-		pdpram_blk = list_entry(ft1000dev->app_info[i].app_sqlist.next, struct dpram_blk, list);
 		list_del(&pdpram_blk->list);
 		ft1000_free_buffer(pdpram_blk, &freercvpool);
 	}

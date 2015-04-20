@@ -254,6 +254,9 @@ static struct dentry *start_creating(const char *name, struct dentry *parent)
 
 	pr_debug("debugfs: creating file '%s'\n",name);
 
+	if (IS_ERR(parent))
+		return parent;
+
 	error = simple_pin_fs(&debug_fs_type, &debugfs_mount,
 			      &debugfs_mount_count);
 	if (error)
@@ -521,7 +524,7 @@ static int __debugfs_remove(struct dentry *dentry, struct dentry *parent)
 
 	if (debugfs_positive(dentry)) {
 		dget(dentry);
-		if (S_ISDIR(dentry->d_inode->i_mode))
+		if (d_is_dir(dentry))
 			ret = simple_rmdir(parent->d_inode, dentry);
 		else
 			simple_unlink(parent->d_inode, dentry);

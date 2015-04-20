@@ -62,7 +62,6 @@
 #include <linux/firmware.h>
 #include "hda_codec.h"
 #include "hda_controller.h"
-#include "hda_priv.h"
 #include "hda_intel.h"
 
 /* position fix mode */
@@ -174,7 +173,6 @@ static struct kernel_param_ops param_ops_xint = {
 #define param_check_xint param_check_int
 
 static int power_save = CONFIG_SND_HDA_POWER_SAVE_DEFAULT;
-static int *power_save_addr = &power_save;
 module_param(power_save, xint, 0644);
 MODULE_PARM_DESC(power_save, "Automatic power-saving timeout "
 		 "(in second, 0 = disable).");
@@ -187,7 +185,7 @@ static bool power_save_controller = 1;
 module_param(power_save_controller, bool, 0644);
 MODULE_PARM_DESC(power_save_controller, "Reset controller in power save mode.");
 #else
-static int *power_save_addr;
+#define power_save	0
 #endif /* CONFIG_PM */
 
 static int align_buffer_size = -1;
@@ -299,8 +297,12 @@ enum {
 	 AZX_DCAPS_PM_RUNTIME | AZX_DCAPS_I915_POWERWELL |\
 	 AZX_DCAPS_SNOOP_TYPE(SCH))
 
+#define AZX_DCAPS_INTEL_BRASWELL \
+	(AZX_DCAPS_INTEL_PCH | AZX_DCAPS_I915_POWERWELL)
+
 #define AZX_DCAPS_INTEL_SKYLAKE \
-	(AZX_DCAPS_INTEL_PCH | AZX_DCAPS_SEPARATE_STREAM_TAG)
+	(AZX_DCAPS_INTEL_PCH | AZX_DCAPS_SEPARATE_STREAM_TAG |\
+	 AZX_DCAPS_I915_POWERWELL)
 
 /* quirks for ATI SB / AMD Hudson */
 #define AZX_DCAPS_PRESET_ATI_SB \
@@ -530,10 +532,10 @@ static int azx_position_check(struct azx *chip, struct azx_dev *azx_dev)
 	if (ok == 1) {
 		azx_dev->irq_pending = 0;
 		return ok;
-	} else if (ok == 0 && chip->bus && chip->bus->workq) {
+	} else if (ok == 0) {
 		/* bogus IRQ, process it later */
 		azx_dev->irq_pending = 1;
-		queue_work(chip->bus->workq, &hda->irq_pending_work);
+		schedule_work(&hda->irq_pending_work);
 	}
 	return 0;
 }
@@ -741,7 +743,6 @@ static int param_set_xint(const char *val, const struct kernel_param *kp)
 {
 	struct hda_intel *hda;
 	struct azx *chip;
-	struct hda_codec *c;
 	int prev = power_save;
 	int ret = param_set_int(val, kp);
 
@@ -753,8 +754,7 @@ static int param_set_xint(const char *val, const struct kernel_param *kp)
 		chip = &hda->chip;
 		if (!chip->bus || chip->disabled)
 			continue;
-		list_for_each_entry(c, &chip->bus->codec_list, list)
-			snd_hda_power_sync(c);
+		snd_hda_set_power_save(chip->bus, power_save * 1000);
 	}
 	mutex_unlock(&card_list_lock);
 	return 0;
@@ -773,7 +773,6 @@ static int azx_suspend(struct device *dev)
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip;
 	struct hda_intel *hda;
-	struct azx_pcm *p;
 
 	if (!card)
 		return 0;
@@ -785,10 +784,6 @@ static int azx_suspend(struct device *dev)
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	azx_clear_irq_pending(chip);
-	list_for_each_entry(p, &chip->pcm_list, list)
-		snd_pcm_suspend_all(p->pcm);
-	if (chip->initialized)
-		snd_hda_suspend(chip->bus);
 	azx_stop_chip(chip);
 	azx_enter_link_reset(chip);
 	if (chip->irq >= 0) {
@@ -831,7 +826,6 @@ static int azx_resume(struct device *dev)
 
 	azx_init_chip(chip, true);
 
-	snd_hda_resume(chip->bus);
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
@@ -852,7 +846,7 @@ static int azx_runtime_suspend(struct device *dev)
 	if (chip->disabled || hda->init_failed)
 		return 0;
 
-	if (!(chip->driver_caps & AZX_DCAPS_PM_RUNTIME))
+	if (!azx_has_pm_runtime(chip))
 		return 0;
 
 	/* enable controller wake up event */
@@ -885,7 +879,7 @@ static int azx_runtime_resume(struct device *dev)
 	if (chip->disabled || hda->init_failed)
 		return 0;
 
-	if (!(chip->driver_caps & AZX_DCAPS_PM_RUNTIME))
+	if (!azx_has_pm_runtime(chip))
 		return 0;
 
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
@@ -901,10 +895,10 @@ static int azx_runtime_resume(struct device *dev)
 
 	bus = chip->bus;
 	if (status && bus) {
-		list_for_each_entry(codec, &bus->codec_list, list)
+		list_for_each_codec(codec, bus)
 			if (status & (1 << codec->addr))
-				queue_delayed_work(codec->bus->workq,
-						   &codec->jackpoll_work, codec->jackpoll_interval);
+				schedule_delayed_work(&codec->jackpoll_work,
+						      codec->jackpoll_interval);
 	}
 
 	/* disable controller Wake Up event*/
@@ -928,8 +922,8 @@ static int azx_runtime_idle(struct device *dev)
 	if (chip->disabled || hda->init_failed)
 		return 0;
 
-	if (!power_save_controller ||
-	    !(chip->driver_caps & AZX_DCAPS_PM_RUNTIME))
+	if (!power_save_controller || !azx_has_pm_runtime(chip) ||
+	    chip->bus->core.codec_powered)
 		return -EBUSY;
 
 	return 0;
@@ -1071,13 +1065,10 @@ static int azx_free(struct azx *chip)
 	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
 	int i;
 
-	if ((chip->driver_caps & AZX_DCAPS_PM_RUNTIME)
-			&& chip->running)
+	if (azx_has_pm_runtime(chip) && chip->running)
 		pm_runtime_get_noresume(&pci->dev);
 
 	azx_del_card_list(chip);
-
-	azx_notifier_unregister(chip);
 
 	hda->init_failed = 1; /* to be sure */
 	complete_all(&hda->probe_wait);
@@ -1394,7 +1385,6 @@ static int azx_create(struct snd_card *card, struct pci_dev *pci,
 
 	hda = kzalloc(sizeof(*hda), GFP_KERNEL);
 	if (!hda) {
-		dev_err(card->dev, "Cannot allocate hda\n");
 		pci_disable_device(pci);
 		return -ENOMEM;
 	}
@@ -1575,10 +1565,8 @@ static int azx_first_init(struct azx *chip)
 	chip->num_streams = chip->playback_streams + chip->capture_streams;
 	chip->azx_dev = kcalloc(chip->num_streams, sizeof(*chip->azx_dev),
 				GFP_KERNEL);
-	if (!chip->azx_dev) {
-		dev_err(card->dev, "cannot malloc azx_dev\n");
+	if (!chip->azx_dev)
 		return -ENOMEM;
-	}
 
 	err = azx_alloc_stream_pages(chip);
 	if (err < 0)
@@ -1613,19 +1601,6 @@ static int azx_first_init(struct azx *chip)
 		 card->shortname, chip->addr, chip->irq);
 
 	return 0;
-}
-
-static void power_down_all_codecs(struct azx *chip)
-{
-#ifdef CONFIG_PM
-	/* The codecs were powered up in snd_hda_codec_new().
-	 * Now all initialization done, so turn them down if possible
-	 */
-	struct hda_codec *codec;
-	list_for_each_entry(codec, &chip->bus->codec_list, list) {
-		snd_hda_power_down(codec);
-	}
-#endif
 }
 
 #ifdef CONFIG_SND_HDA_PATCH_LOADER
@@ -1896,12 +1871,14 @@ static int azx_probe_continue(struct azx *chip)
 #endif
 
 	/* create codec instances */
-	err = azx_codec_create(chip, model[dev],
-			       azx_max_codecs[chip->driver_type],
-			       power_save_addr);
-
+	err = azx_bus_create(chip, model[dev]);
 	if (err < 0)
 		goto out_free;
+
+	err = azx_probe_codecs(chip, azx_max_codecs[chip->driver_type]);
+	if (err < 0)
+		goto out_free;
+
 #ifdef CONFIG_SND_HDA_PATCH_LOADER
 	if (chip->fw) {
 		err = snd_hda_load_patch(chip->bus, chip->fw->size,
@@ -1920,25 +1897,14 @@ static int azx_probe_continue(struct azx *chip)
 			goto out_free;
 	}
 
-	/* create PCM streams */
-	err = snd_hda_build_pcms(chip->bus);
-	if (err < 0)
-		goto out_free;
-
-	/* create mixer controls */
-	err = azx_mixer_create(chip);
-	if (err < 0)
-		goto out_free;
-
 	err = snd_card_register(chip->card);
 	if (err < 0)
 		goto out_free;
 
 	chip->running = 1;
-	power_down_all_codecs(chip);
-	azx_notifier_register(chip);
 	azx_add_card_list(chip);
-	if ((chip->driver_caps & AZX_DCAPS_PM_RUNTIME) || hda->use_vga_switcheroo)
+	snd_hda_set_power_save(chip->bus, power_save * 1000);
+	if (azx_has_pm_runtime(chip) || hda->use_vga_switcheroo)
 		pm_runtime_put_noidle(&pci->dev);
 
 out_free:
@@ -1954,6 +1920,18 @@ static void azx_remove(struct pci_dev *pci)
 
 	if (card)
 		snd_card_free(card);
+}
+
+static void azx_shutdown(struct pci_dev *pci)
+{
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct azx *chip;
+
+	if (!card)
+		return;
+	chip = card->private_data;
+	if (chip && chip->running)
+		azx_stop_chip(chip);
 }
 
 /* PCI IDs */
@@ -2017,7 +1995,7 @@ static const struct pci_device_id azx_ids[] = {
 	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_PCH_NOPM },
 	/* Braswell */
 	{ PCI_DEVICE(0x8086, 0x2284),
-	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_PCH },
+	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_BRASWELL },
 	/* ICH6 */
 	{ PCI_DEVICE(0x8086, 0x2668),
 	  .driver_data = AZX_DRIVER_ICH | AZX_DCAPS_INTEL_ICH },
@@ -2178,6 +2156,7 @@ static struct pci_driver azx_driver = {
 	.id_table = azx_ids,
 	.probe = azx_probe,
 	.remove = azx_remove,
+	.shutdown = azx_shutdown,
 	.driver = {
 		.pm = AZX_PM_OPS,
 	},

@@ -16,9 +16,6 @@
 #ifndef __INC_HAL8723PHYCFG_H__
 #define __INC_HAL8723PHYCFG_H__
 
-/*--------------------------Define Parameters-------------------------------*/
-#define MAX_AGGR_NUM	0x0909
-
 /*------------------------------Define structure----------------------------*/
 enum RF_RADIO_PATH {
 	RF_PATH_A = 0,			/* Radio Path A */
@@ -37,15 +34,6 @@ enum WIRELESS_MODE {
 	WIRELESS_MODE_N_24G	= BIT(3),
 	WIRELESS_MODE_N_5G	= BIT(4),
 	WIRELESS_MODE_AC	= BIT(6)
-};
-
-/* BB/RF related */
-enum rf_type_8190p {
-	RF_TYPE_MIN,		/*  0 */
-	RF_8225 = 1,		/*  1 11b/g RF for verification only */
-	RF_8256 = 2,		/*  2 11b/g/n */
-	RF_8258 = 3,		/*  3 11a/b/g/n RF */
-	RF_6052 = 4,		/*  4 11b/g/n RF */
 };
 
 struct bb_reg_define {
