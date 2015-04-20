@@ -124,8 +124,6 @@
 
 			states = <1800000 0x1
 				  2900000 0x0>;
-
-			status = "disabled";
 		};
 
 		// External Micro SD slot
