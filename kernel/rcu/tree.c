@@ -113,6 +113,9 @@ RCU_STATE_INITIALIZER(rcu_bh, 'b', call_rcu_bh);
 static struct rcu_state *rcu_state_p;
 LIST_HEAD(rcu_struct_flavors);
 
+/* Dump rcu_node combining tree at boot to verify correct setup. */
+static bool dump_tree;
+module_param(dump_tree, bool, 0444);
 /* Control rcu_node-tree auto-balancing at boot time. */
 static bool rcu_fanout_exact;
 module_param(rcu_fanout_exact, bool, 0444);
@@ -4144,6 +4147,28 @@ static void __init rcu_init_geometry(void)
 	rcu_num_nodes -= n;
 }
 
+/*
+ * Dump out the structure of the rcu_node combining tree associated
+ * with the rcu_state structure referenced by rsp.
+ */
+static void __init rcu_dump_rcu_node_tree(struct rcu_state *rsp)
+{
+	int level = 0;
+	struct rcu_node *rnp;
+
+	pr_info("rcu_node tree layout dump\n");
+	pr_info(" ");
+	rcu_for_each_node_breadth_first(rsp, rnp) {
+		if (rnp->level != level) {
+			pr_cont("\n");
+			pr_info(" ");
+			level = rnp->level;
+		}
+		pr_cont("%d:%d ^%d  ", rnp->grplo, rnp->grphi, rnp->grpnum);
+	}
+	pr_cont("\n");
+}
+
 void __init rcu_init(void)
 {
 	int cpu;
@@ -4154,6 +4179,8 @@ void __init rcu_init(void)
 	rcu_init_geometry();
 	rcu_init_one(&rcu_bh_state, &rcu_bh_data);
 	rcu_init_one(&rcu_sched_state, &rcu_sched_data);
+	if (dump_tree)
+		rcu_dump_rcu_node_tree(&rcu_sched_state);
 	__rcu_init_preempt();
 	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks);
 
