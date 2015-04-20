@@ -245,8 +245,8 @@ static int smk_bu_credfile(const struct cred *cred, struct file *file,
  * @ip: a pointer to the inode
  * @dp: a pointer to the dentry
  *
- * Returns a pointer to the master list entry for the Smack label
- * or NULL if there was no label to fetch.
+ * Returns a pointer to the master list entry for the Smack label,
+ * NULL if there was no label to fetch, or an error code.
  */
 static struct smack_known *smk_fetch(const char *name, struct inode *ip,
 					struct dentry *dp)
@@ -256,14 +256,18 @@ static struct smack_known *smk_fetch(const char *name, struct inode *ip,
 	struct smack_known *skp = NULL;
 
 	if (ip->i_op->getxattr == NULL)
-		return NULL;
+		return ERR_PTR(-EOPNOTSUPP);
 
 	buffer = kzalloc(SMK_LONGLABEL, GFP_KERNEL);
 	if (buffer == NULL)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	rc = ip->i_op->getxattr(dp, name, buffer, SMK_LONGLABEL);
-	if (rc > 0)
+	if (rc < 0)
+		skp = ERR_PTR(rc);
+	else if (rc == 0)
+		skp = NULL;
+	else
 		skp = smk_import_entry(buffer, rc);
 
 	kfree(buffer);
@@ -605,40 +609,44 @@ static int smack_sb_kern_mount(struct super_block *sb, int flags, void *data)
 		if (strncmp(op, SMK_FSHAT, strlen(SMK_FSHAT)) == 0) {
 			op += strlen(SMK_FSHAT);
 			skp = smk_import_entry(op, 0);
-			if (skp != NULL) {
-				sp->smk_hat = skp;
-				specified = 1;
-			}
+			if (IS_ERR(skp))
+				return PTR_ERR(skp);
+			sp->smk_hat = skp;
+			specified = 1;
+
 		} else if (strncmp(op, SMK_FSFLOOR, strlen(SMK_FSFLOOR)) == 0) {
 			op += strlen(SMK_FSFLOOR);
 			skp = smk_import_entry(op, 0);
-			if (skp != NULL) {
-				sp->smk_floor = skp;
-				specified = 1;
-			}
+			if (IS_ERR(skp))
+				return PTR_ERR(skp);
+			sp->smk_floor = skp;
+			specified = 1;
+
 		} else if (strncmp(op, SMK_FSDEFAULT,
 				   strlen(SMK_FSDEFAULT)) == 0) {
 			op += strlen(SMK_FSDEFAULT);
 			skp = smk_import_entry(op, 0);
-			if (skp != NULL) {
-				sp->smk_default = skp;
-				specified = 1;
-			}
+			if (IS_ERR(skp))
+				return PTR_ERR(skp);
+			sp->smk_default = skp;
+			specified = 1;
+
 		} else if (strncmp(op, SMK_FSROOT, strlen(SMK_FSROOT)) == 0) {
 			op += strlen(SMK_FSROOT);
 			skp = smk_import_entry(op, 0);
-			if (skp != NULL) {
-				sp->smk_root = skp;
-				specified = 1;
-			}
+			if (IS_ERR(skp))
+				return PTR_ERR(skp);
+			sp->smk_root = skp;
+			specified = 1;
+
 		} else if (strncmp(op, SMK_FSTRANS, strlen(SMK_FSTRANS)) == 0) {
 			op += strlen(SMK_FSTRANS);
 			skp = smk_import_entry(op, 0);
-			if (skp != NULL) {
-				sp->smk_root = skp;
-				transmute = 1;
-				specified = 1;
-			}
+			if (IS_ERR(skp))
+				return PTR_ERR(skp);
+			sp->smk_root = skp;
+			transmute = 1;
+			specified = 1;
 		}
 	}
 
@@ -1118,7 +1126,9 @@ static int smack_inode_setxattr(struct dentry *dentry, const char *name,
 
 	if (rc == 0 && check_import) {
 		skp = size ? smk_import_entry(value, size) : NULL;
-		if (skp == NULL || (check_star &&
+		if (IS_ERR(skp))
+			rc = PTR_ERR(skp);
+		else if (skp == NULL || (check_star &&
 		    (skp == &smack_known_star || skp == &smack_known_web)))
 			rc = -EINVAL;
 	}
@@ -1158,19 +1168,19 @@ static void smack_inode_post_setxattr(struct dentry *dentry, const char *name,
 
 	if (strcmp(name, XATTR_NAME_SMACK) == 0) {
 		skp = smk_import_entry(value, size);
-		if (skp != NULL)
+		if (!IS_ERR(skp))
 			isp->smk_inode = skp;
 		else
 			isp->smk_inode = &smack_known_invalid;
 	} else if (strcmp(name, XATTR_NAME_SMACKEXEC) == 0) {
 		skp = smk_import_entry(value, size);
-		if (skp != NULL)
+		if (!IS_ERR(skp))
 			isp->smk_task = skp;
 		else
 			isp->smk_task = &smack_known_invalid;
 	} else if (strcmp(name, XATTR_NAME_SMACKMMAP) == 0) {
 		skp = smk_import_entry(value, size);
-		if (skp != NULL)
+		if (!IS_ERR(skp))
 			isp->smk_mmap = skp;
 		else
 			isp->smk_mmap = &smack_known_invalid;
@@ -2403,8 +2413,8 @@ static int smack_inode_setsecurity(struct inode *inode, const char *name,
 		return -EINVAL;
 
 	skp = smk_import_entry(value, size);
-	if (skp == NULL)
-		return -EINVAL;
+	if (IS_ERR(skp))
+		return PTR_ERR(skp);
 
 	if (strcmp(name, XATTR_SMACK_SUFFIX) == 0) {
 		nsp->smk_inode = skp;
@@ -3177,7 +3187,7 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 		 */
 		dp = dget(opt_dentry);
 		skp = smk_fetch(XATTR_NAME_SMACK, inode, dp);
-		if (skp != NULL)
+		if (!IS_ERR_OR_NULL(skp))
 			final = skp;
 
 		/*
@@ -3214,11 +3224,14 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 		 * Don't let the exec or mmap label be "*" or "@".
 		 */
 		skp = smk_fetch(XATTR_NAME_SMACKEXEC, inode, dp);
-		if (skp == &smack_known_star || skp == &smack_known_web)
+		if (IS_ERR(skp) || skp == &smack_known_star ||
+		    skp == &smack_known_web)
 			skp = NULL;
 		isp->smk_task = skp;
+
 		skp = smk_fetch(XATTR_NAME_SMACKMMAP, inode, dp);
-		if (skp == &smack_known_star || skp == &smack_known_web)
+		if (IS_ERR(skp) || skp == &smack_known_star ||
+		    skp == &smack_known_web)
 			skp = NULL;
 		isp->smk_mmap = skp;
 
@@ -3302,8 +3315,8 @@ static int smack_setprocattr(struct task_struct *p, char *name,
 		return -EINVAL;
 
 	skp = smk_import_entry(value, size);
-	if (skp == NULL)
-		return -EINVAL;
+	if (IS_ERR(skp))
+		return PTR_ERR(skp);
 
 	/*
 	 * No process is ever allowed the web ("@") label.
@@ -4078,8 +4091,10 @@ static int smack_audit_rule_init(u32 field, u32 op, char *rulestr, void **vrule)
 		return -EINVAL;
 
 	skp = smk_import_entry(rulestr, 0);
-	if (skp)
-		*rule = skp->smk_known;
+	if (IS_ERR(skp))
+		return PTR_ERR(skp);
+
+	*rule = skp->smk_known;
 
 	return 0;
 }

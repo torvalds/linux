@@ -338,8 +338,7 @@ static int smk_perm_from_str(const char *string)
  * @import: if non-zero, import labels
  * @len: label length limit
  *
- * Returns 0 on success, -EINVAL on failure and -ENOENT when either subject
- * or object is missing.
+ * Returns 0 on success, appropriate error code on failure.
  */
 static int smk_fill_rule(const char *subject, const char *object,
 				const char *access1, const char *access2,
@@ -351,16 +350,16 @@ static int smk_fill_rule(const char *subject, const char *object,
 
 	if (import) {
 		rule->smk_subject = smk_import_entry(subject, len);
-		if (rule->smk_subject == NULL)
-			return -EINVAL;
+		if (IS_ERR(rule->smk_subject))
+			return PTR_ERR(rule->smk_subject);
 
 		rule->smk_object = smk_import_entry(object, len);
-		if (rule->smk_object == NULL)
-			return -EINVAL;
+		if (IS_ERR(rule->smk_object))
+			return PTR_ERR(rule->smk_object);
 	} else {
 		cp = smk_parse_smack(subject, len);
-		if (cp == NULL)
-			return -EINVAL;
+		if (IS_ERR(cp))
+			return PTR_ERR(cp);
 		skp = smk_find_entry(cp);
 		kfree(cp);
 		if (skp == NULL)
@@ -368,8 +367,8 @@ static int smk_fill_rule(const char *subject, const char *object,
 		rule->smk_subject = skp;
 
 		cp = smk_parse_smack(object, len);
-		if (cp == NULL)
-			return -EINVAL;
+		if (IS_ERR(cp))
+			return PTR_ERR(cp);
 		skp = smk_find_entry(cp);
 		kfree(cp);
 		if (skp == NULL)
@@ -412,7 +411,7 @@ static int smk_parse_rule(const char *data, struct smack_parsed_rule *rule,
  * @import: if non-zero, import labels
  * @tokens: numer of substrings expected in data
  *
- * Returns number of processed bytes on success, -1 on failure.
+ * Returns number of processed bytes on success, -ERRNO on failure.
  */
 static ssize_t smk_parse_long_rule(char *data, struct smack_parsed_rule *rule,
 				int import, int tokens)
@@ -431,7 +430,7 @@ static ssize_t smk_parse_long_rule(char *data, struct smack_parsed_rule *rule,
 
 		if (data[cnt] == '\0')
 			/* Unexpected end of data */
-			return -1;
+			return -EINVAL;
 
 		tok[i] = data + cnt;
 
@@ -529,14 +528,14 @@ static ssize_t smk_write_rules_list(struct file *file, const char __user *buf,
 	while (cnt < count) {
 		if (format == SMK_FIXED24_FMT) {
 			rc = smk_parse_rule(data, &rule, 1);
-			if (rc != 0) {
-				rc = -EINVAL;
+			if (rc < 0)
 				goto out;
-			}
 			cnt = count;
 		} else {
 			rc = smk_parse_long_rule(data + cnt, &rule, 1, tokens);
-			if (rc <= 0) {
+			if (rc < 0)
+				goto out;
+			if (rc == 0) {
 				rc = -EINVAL;
 				goto out;
 			}
@@ -915,8 +914,10 @@ static ssize_t smk_set_cipso(struct file *file, const char __user *buf,
 	mutex_lock(&smack_cipso_lock);
 
 	skp = smk_import_entry(rule, 0);
-	if (skp == NULL)
+	if (IS_ERR(skp)) {
+		rc = PTR_ERR(skp);
 		goto out;
+	}
 
 	if (format == SMK_FIXED24_FMT)
 		rule += SMK_LABELLEN;
@@ -1237,8 +1238,8 @@ static ssize_t smk_write_netlbladdr(struct file *file, const char __user *buf,
 	 */
 	if (smack[0] != '-') {
 		skp = smk_import_entry(smack, 0);
-		if (skp == NULL) {
-			rc = -EINVAL;
+		if (IS_ERR(skp)) {
+			rc = PTR_ERR(skp);
 			goto free_out;
 		}
 	} else {
@@ -1619,8 +1620,8 @@ static ssize_t smk_write_ambient(struct file *file, const char __user *buf,
 	}
 
 	skp = smk_import_entry(data, count);
-	if (skp == NULL) {
-		rc = -EINVAL;
+	if (IS_ERR(skp)) {
+		rc = PTR_ERR(skp);
 		goto out;
 	}
 
@@ -1704,21 +1705,31 @@ static ssize_t smk_write_onlycap(struct file *file, const char __user *buf,
 	if (data == NULL)
 		return -ENOMEM;
 
-	/*
-	 * Should the null string be passed in unset the onlycap value.
-	 * This seems like something to be careful with as usually
-	 * smk_import only expects to return NULL for errors. It
-	 * is usually the case that a nullstring or "\n" would be
-	 * bad to pass to smk_import but in fact this is useful here.
-	 *
-	 * smk_import will also reject a label beginning with '-',
-	 * so "-usecapabilities" will also work.
-	 */
-	if (copy_from_user(data, buf, count) != 0)
+	if (copy_from_user(data, buf, count) != 0) {
 		rc = -EFAULT;
-	else
-		smack_onlycap = smk_import_entry(data, count);
+		goto freeout;
+	}
 
+	/*
+	 * Clear the smack_onlycap on invalid label errors. This means
+	 * that we can pass a null string to unset the onlycap value.
+	 *
+	 * Importing will also reject a label beginning with '-',
+	 * so "-usecapabilities" will also work.
+	 *
+	 * But do so only on invalid label, not on system errors.
+	 */
+	skp = smk_import_entry(data, count);
+	if (PTR_ERR(skp) == -EINVAL)
+		skp = NULL;
+	else if (IS_ERR(skp)) {
+		rc = PTR_ERR(skp);
+		goto freeout;
+	}
+
+	smack_onlycap = skp;
+
+freeout:
 	kfree(data);
 	return rc;
 }
@@ -1773,6 +1784,7 @@ static ssize_t smk_write_unconfined(struct file *file, const char __user *buf,
 					size_t count, loff_t *ppos)
 {
 	char *data;
+	struct smack_known *skp;
 	int rc = count;
 
 	if (!smack_privileged(CAP_MAC_ADMIN))
@@ -1782,21 +1794,31 @@ static ssize_t smk_write_unconfined(struct file *file, const char __user *buf,
 	if (data == NULL)
 		return -ENOMEM;
 
-	/*
-	 * Should the null string be passed in unset the unconfined value.
-	 * This seems like something to be careful with as usually
-	 * smk_import only expects to return NULL for errors. It
-	 * is usually the case that a nullstring or "\n" would be
-	 * bad to pass to smk_import but in fact this is useful here.
-	 *
-	 * smk_import will also reject a label beginning with '-',
-	 * so "-confine" will also work.
-	 */
-	if (copy_from_user(data, buf, count) != 0)
+	if (copy_from_user(data, buf, count) != 0) {
 		rc = -EFAULT;
-	else
-		smack_unconfined = smk_import_entry(data, count);
+		goto freeout;
+	}
 
+	/*
+	 * Clear the smack_unconfined on invalid label errors. This means
+	 * that we can pass a null string to unset the unconfined value.
+	 *
+	 * Importing will also reject a label beginning with '-',
+	 * so "-confine" will also work.
+	 *
+	 * But do so only on invalid label, not on system errors.
+	 */
+	skp = smk_import_entry(data, count);
+	if (PTR_ERR(skp) == -EINVAL)
+		skp = NULL;
+	else if (IS_ERR(skp)) {
+		rc = PTR_ERR(skp);
+		goto freeout;
+	}
+
+	smack_unconfined = skp;
+
+freeout:
 	kfree(data);
 	return rc;
 }
@@ -1980,7 +2002,7 @@ static ssize_t smk_user_access(struct file *file, const char __user *buf,
 		res = smk_access(rule.smk_subject, rule.smk_object,
 				 rule.smk_access1, NULL);
 	else if (res != -ENOENT)
-		return -EINVAL;
+		return res;
 
 	/*
 	 * smk_access() can return a value > 0 in the "bringup" case.
@@ -2209,8 +2231,8 @@ static ssize_t smk_write_revoke_subj(struct file *file, const char __user *buf,
 	}
 
 	cp = smk_parse_smack(data, count);
-	if (cp == NULL) {
-		rc = -EINVAL;
+	if (IS_ERR(cp)) {
+		rc = PTR_ERR(cp);
 		goto free_out;
 	}
 
@@ -2341,10 +2363,10 @@ static ssize_t smk_write_syslog(struct file *file, const char __user *buf,
 		rc = -EFAULT;
 	else {
 		skp = smk_import_entry(data, count);
-		if (skp == NULL)
-			rc = -EINVAL;
+		if (IS_ERR(skp))
+			rc = PTR_ERR(skp);
 		else
-			smack_syslog_label = smk_import_entry(data, count);
+			smack_syslog_label = skp;
 	}
 
 	kfree(data);
