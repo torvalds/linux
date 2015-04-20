@@ -35,11 +35,23 @@
  * In practice, this did work well going from three levels to four.
  * Of course, your mileage may vary.
  */
+
 #define MAX_RCU_LVLS 4
+
+#ifdef CONFIG_RCU_FANOUT
+#define RCU_FANOUT CONFIG_RCU_FANOUT
+#else /* #ifdef CONFIG_RCU_FANOUT */
+# ifdef CONFIG_64BIT
+# define RCU_FANOUT 64
+# else
+# define RCU_FANOUT 32
+# endif
+#endif /* #else #ifdef CONFIG_RCU_FANOUT */
+
 #define RCU_FANOUT_1	      (CONFIG_RCU_FANOUT_LEAF)
-#define RCU_FANOUT_2	      (RCU_FANOUT_1 * CONFIG_RCU_FANOUT)
-#define RCU_FANOUT_3	      (RCU_FANOUT_2 * CONFIG_RCU_FANOUT)
-#define RCU_FANOUT_4	      (RCU_FANOUT_3 * CONFIG_RCU_FANOUT)
+#define RCU_FANOUT_2	      (RCU_FANOUT_1 * RCU_FANOUT)
+#define RCU_FANOUT_3	      (RCU_FANOUT_2 * RCU_FANOUT)
+#define RCU_FANOUT_4	      (RCU_FANOUT_3 * RCU_FANOUT)
 
 #if NR_CPUS <= RCU_FANOUT_1
 #  define RCU_NUM_LVLS	      1

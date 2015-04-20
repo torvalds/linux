@@ -3971,7 +3971,7 @@ static void __init rcu_init_levelspread(struct rcu_state *rsp)
 	if (rcu_fanout_exact) {
 		rsp->levelspread[rcu_num_lvls - 1] = rcu_fanout_leaf;
 		for (i = rcu_num_lvls - 2; i >= 0; i--)
-			rsp->levelspread[i] = CONFIG_RCU_FANOUT;
+			rsp->levelspread[i] = RCU_FANOUT;
 	} else {
 		int ccur;
 		int cprv;
@@ -4111,7 +4111,7 @@ static void __init rcu_init_geometry(void)
 	rcu_capacity[0] = 1;
 	rcu_capacity[1] = rcu_fanout_leaf;
 	for (i = 2; i <= MAX_RCU_LVLS; i++)
-		rcu_capacity[i] = rcu_capacity[i - 1] * CONFIG_RCU_FANOUT;
+		rcu_capacity[i] = rcu_capacity[i - 1] * RCU_FANOUT;
 
 	/*
 	 * The boot-time rcu_fanout_leaf parameter is only permitted
