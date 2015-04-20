@@ -297,6 +297,17 @@ SystemCall:
  * We have to use the MD_xxx registers for the tablewalk because the
  * equivalent MI_xxx registers only perform the attribute functions.
  */
+
+#ifdef CONFIG_8xx_CPU15
+#define INVALIDATE_ADJACENT_PAGES_CPU15(tmp, addr)	\
+	addi	tmp, addr, PAGE_SIZE;	\
+	tlbie	tmp;			\
+	addi	tmp, addr, -PAGE_SIZE;	\
+	tlbie	tmp
+#else
+#define INVALIDATE_ADJACENT_PAGES_CPU15(tmp, addr)
+#endif
+
 InstructionTLBMiss:
 #ifdef CONFIG_8xx_CPU6
 	mtspr	SPRN_DAR, r3
@@ -304,12 +315,7 @@ InstructionTLBMiss:
 	EXCEPTION_PROLOG_0
 	mtspr	SPRN_SPRG_SCRATCH2, r10
 	mfspr	r10, SPRN_SRR0	/* Get effective address of fault */
-#ifdef CONFIG_8xx_CPU15
-	addi	r11, r10, PAGE_SIZE
-	tlbie	r11
-	addi	r11, r10, -PAGE_SIZE
-	tlbie	r11
-#endif
+	INVALIDATE_ADJACENT_PAGES_CPU15(r11, r10)
 
 	/* If we are faulting a kernel address, we have to use the
 	 * kernel page tables.
