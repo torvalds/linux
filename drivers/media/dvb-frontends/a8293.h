@@ -22,7 +22,6 @@
 #define A8293_H
 
 #include "dvb_frontend.h"
-#include <linux/kconfig.h>
 
 /*
  * I2C address
@@ -36,22 +35,5 @@
 struct a8293_platform_data {
 	struct dvb_frontend *dvb_frontend;
 };
-
-
-struct a8293_config {
-	u8 i2c_addr;
-};
-
-#if IS_REACHABLE(CONFIG_DVB_A8293)
-extern struct dvb_frontend *a8293_attach(struct dvb_frontend *fe,
-	struct i2c_adapter *i2c, const struct a8293_config *cfg);
-#else
-static inline struct dvb_frontend *a8293_attach(struct dvb_frontend *fe,
-	struct i2c_adapter *i2c, const struct a8293_config *cfg)
-{
-	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
-	return NULL;
-}
-#endif
 
 #endif /* A8293_H */
