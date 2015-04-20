@@ -782,22 +782,18 @@ iwl_mvm_build_scan_probe(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	params->preq.common_data.len = cpu_to_le16(ies->common_ie_len);
 }
 
-static void
-iwl_mvm_build_generic_scan_cmd(struct iwl_mvm *mvm,
-			       struct iwl_scan_req_lmac *cmd,
-			       struct iwl_mvm_scan_params *params)
+static void iwl_mvm_scan_lmac_dwell(struct iwl_mvm *mvm,
+				    struct iwl_scan_req_lmac *cmd,
+				    struct iwl_mvm_scan_params *params)
 {
-	memset(cmd, 0, ksize(cmd));
 	cmd->active_dwell = params->dwell[IEEE80211_BAND_2GHZ].active;
 	cmd->passive_dwell = params->dwell[IEEE80211_BAND_2GHZ].passive;
 	if (params->passive_fragmented)
 		cmd->fragmented_dwell =
 				params->dwell[IEEE80211_BAND_2GHZ].fragmented;
-	cmd->rx_chain_select = iwl_mvm_scan_rx_chain(mvm);
 	cmd->max_out_time = cpu_to_le32(params->max_out_time);
 	cmd->suspend_time = cpu_to_le32(params->suspend_time);
 	cmd->scan_prio = cpu_to_le32(IWL_SCAN_PRIORITY_HIGH);
-	cmd->iter_num = cpu_to_le32(1);
 }
 
 static inline bool iwl_mvm_scan_fits(struct iwl_mvm *mvm, int n_ssids,
@@ -874,8 +870,12 @@ static int iwl_mvm_scan_lmac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	lockdep_assert_held(&mvm->mutex);
 
-	iwl_mvm_build_generic_scan_cmd(mvm, cmd, params);
+	memset(cmd, 0, ksize(cmd));
 
+	iwl_mvm_scan_lmac_dwell(mvm, cmd, params);
+
+	cmd->rx_chain_select = iwl_mvm_scan_rx_chain(mvm);
+	cmd->iter_num = cpu_to_le32(1);
 	cmd->n_channels = (u8)params->n_channels;
 
 	cmd->delay = cpu_to_le32(params->delay);
@@ -1119,14 +1119,10 @@ static u32 iwl_generate_scan_uid(struct iwl_mvm *mvm,
 	return uid;
 }
 
-static void
-iwl_mvm_build_generic_umac_scan_cmd(struct iwl_mvm *mvm,
+static void iwl_mvm_scan_umac_dwell(struct iwl_mvm *mvm,
 				    struct iwl_scan_req_umac *cmd,
 				    struct iwl_mvm_scan_params *params)
 {
-	memset(cmd, 0, ksize(cmd));
-	cmd->hdr.size = cpu_to_le16(iwl_mvm_scan_size(mvm) -
-				    sizeof(struct iwl_mvm_umac_cmd_hdr));
 	cmd->active_dwell = params->dwell[IEEE80211_BAND_2GHZ].active;
 	cmd->passive_dwell = params->dwell[IEEE80211_BAND_2GHZ].passive;
 	if (params->passive_fragmented)
@@ -1135,6 +1131,11 @@ iwl_mvm_build_generic_umac_scan_cmd(struct iwl_mvm *mvm,
 	cmd->max_out_time = cpu_to_le32(params->max_out_time);
 	cmd->suspend_time = cpu_to_le32(params->suspend_time);
 	cmd->scan_priority = cpu_to_le32(IWL_SCAN_PRIORITY_HIGH);
+
+	if (iwl_mvm_scan_total_iterations(params) == 0)
+		cmd->ooc_priority = cpu_to_le32(IWL_SCAN_PRIORITY_HIGH);
+	else
+		cmd->ooc_priority = cpu_to_le32(IWL_SCAN_PRIORITY_LOW);
 }
 
 static void
@@ -1200,15 +1201,16 @@ static int iwl_mvm_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (uid_idx >= mvm->max_scans)
 		return -EBUSY;
 
-	iwl_mvm_build_generic_umac_scan_cmd(mvm, cmd, params);
+	memset(cmd, 0, ksize(cmd));
+	cmd->hdr.size = cpu_to_le16(iwl_mvm_scan_size(mvm) -
+				    sizeof(struct iwl_mvm_umac_cmd_hdr));
 
-	if (n_iterations == 1) {
-		cmd->ooc_priority = cpu_to_le32(IWL_SCAN_PRIORITY_HIGH);
+	iwl_mvm_scan_umac_dwell(mvm, cmd, params);
+
+	if (n_iterations == 1)
 		uid = iwl_generate_scan_uid(mvm, IWL_UMAC_SCAN_UID_REG_SCAN);
-	} else {
-		cmd->ooc_priority = cpu_to_le32(IWL_SCAN_PRIORITY_LOW);
+	else
 		uid = iwl_generate_scan_uid(mvm, IWL_UMAC_SCAN_UID_SCHED_SCAN);
-	}
 
 	mvm->scan_uid[uid_idx] = uid;
 	cmd->uid = cpu_to_le32(uid);
