@@ -12,10 +12,6 @@
  *    but WITHOUT ANY WARRANTY; without even the implied warranty of
  *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License along
- *    with this program; if not, write to the Free Software Foundation, Inc.,
- *    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include "a8293.h"
@@ -26,7 +22,7 @@ struct a8293_dev {
 };
 
 static int a8293_set_voltage(struct dvb_frontend *fe,
-	enum fe_sec_voltage fe_sec_voltage)
+			     enum fe_sec_voltage fe_sec_voltage)
 {
 	struct a8293_dev *dev = fe->sec_priv;
 	struct i2c_client *client = dev->client;
