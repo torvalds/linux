@@ -1295,6 +1295,12 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	if (pending->error)
 		goto no_free_objectid;
 
+	/*
+	 * Make qgroup to skip current new snapshot's qgroupid, as it is
+	 * accounted by later btrfs_qgroup_inherit().
+	 */
+	btrfs_set_skip_qgroup(trans, objectid);
+
 	btrfs_reloc_pre_snapshot(trans, pending, &to_reserve);
 
 	if (to_reserve > 0) {
@@ -1303,7 +1309,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 						     to_reserve,
 						     BTRFS_RESERVE_NO_FLUSH);
 		if (pending->error)
-			goto no_free_objectid;
+			goto clear_skip_qgroup;
 	}
 
 	key.objectid = objectid;
@@ -1401,25 +1407,6 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 		btrfs_abort_transaction(trans, root, ret);
 		goto fail;
 	}
-
-	/*
-	 * We need to flush delayed refs in order to make sure all of our quota
-	 * operations have been done before we call btrfs_qgroup_inherit.
-	 */
-	ret = btrfs_run_delayed_refs(trans, root, (unsigned long)-1);
-	if (ret) {
-		btrfs_abort_transaction(trans, root, ret);
-		goto fail;
-	}
-
-	ret = btrfs_qgroup_inherit(trans, fs_info,
-				   root->root_key.objectid,
-				   objectid, pending->inherit);
-	if (ret) {
-		btrfs_abort_transaction(trans, root, ret);
-		goto fail;
-	}
-
 	/* see comments in should_cow_block() */
 	set_bit(BTRFS_ROOT_FORCE_COW, &root->state);
 	smp_wmb();
@@ -1502,11 +1489,37 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 			goto fail;
 		}
 	}
+
+	ret = btrfs_run_delayed_refs(trans, root, (unsigned long)-1);
+	if (ret) {
+		btrfs_abort_transaction(trans, root, ret);
+		goto fail;
+	}
+
+	/*
+	 * account qgroup counters before qgroup_inherit()
+	 */
+	ret = btrfs_qgroup_prepare_account_extents(trans, fs_info);
+	if (ret)
+		goto fail;
+	ret = btrfs_qgroup_account_extents(trans, fs_info);
+	if (ret)
+		goto fail;
+	ret = btrfs_qgroup_inherit(trans, fs_info,
+				   root->root_key.objectid,
+				   objectid, pending->inherit);
+	if (ret) {
+		btrfs_abort_transaction(trans, root, ret);
+		goto fail;
+	}
+
 fail:
 	pending->error = ret;
 dir_item_existed:
 	trans->block_rsv = rsv;
 	trans->bytes_reserved = 0;
+clear_skip_qgroup:
+	btrfs_clear_skip_qgroup(trans);
 no_free_objectid:
 	kfree(new_root_item);
 root_item_alloc_fail:
