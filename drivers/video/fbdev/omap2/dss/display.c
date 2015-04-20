@@ -295,7 +295,7 @@ void videomode_to_omap_video_timings(const struct videomode *vm,
 		OMAPDSS_DRIVE_SIG_RISING_EDGE :
 		OMAPDSS_DRIVE_SIG_FALLING_EDGE;
 
-	ovt->sync_pclk_edge = OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES;
+	ovt->sync_pclk_edge = ovt->data_pclk_edge;
 }
 EXPORT_SYMBOL(videomode_to_omap_video_timings);
 
