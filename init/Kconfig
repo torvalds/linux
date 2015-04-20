@@ -501,6 +501,21 @@ config TINY_RCU
 
 endchoice
 
+config RCU_EXPERT
+	bool "Make expert-level adjustments to RCU configuration"
+	default n
+	help
+	  This option needs to be enabled if you wish to make
+	  expert-level adjustments to RCU configuration.  By default,
+	  no such adjustments can be made, which has the often-beneficial
+	  side-effect of preventing "make oldconfig" from asking you all
+	  sorts of detailed questions about how you would like numerous
+	  obscure RCU options to be set up.
+
+	  Say Y if you need to make expert-level adjustments to RCU.
+
+	  Say N if you are unsure.
+
 config SRCU
 	bool
 	help
@@ -613,7 +628,7 @@ config RCU_FANOUT_LEAF
 
 config RCU_FAST_NO_HZ
 	bool "Accelerate last non-dyntick-idle CPU's grace periods"
-	depends on NO_HZ_COMMON && SMP
+	depends on NO_HZ_COMMON && SMP && RCU_EXPERT
 	default n
 	help
 	  This option permits CPUs to enter dynticks-idle state even if
@@ -639,7 +654,7 @@ config TREE_RCU_TRACE
 
 config RCU_BOOST
 	bool "Enable RCU priority boosting"
-	depends on RT_MUTEXES && PREEMPT_RCU
+	depends on RT_MUTEXES && PREEMPT_RCU && RCU_EXPERT
 	default n
 	help
 	  This option boosts the priority of preempted RCU readers that
