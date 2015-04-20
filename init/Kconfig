@@ -509,15 +509,13 @@ config SRCU
 	  sections.
 
 config TASKS_RCU
-	bool "Task_based RCU implementation using voluntary context switch"
+	bool
 	default n
 	select SRCU
 	help
 	  This option enables a task-based RCU implementation that uses
 	  only voluntary context switch (not preemption!), idle, and
 	  user-mode execution as quiescent states.
-
-	  If unsure, say N.
 
 config RCU_STALL_COMMON
 	def_bool ( TREE_RCU || PREEMPT_RCU || RCU_TRACE )

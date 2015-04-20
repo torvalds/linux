@@ -1233,6 +1233,7 @@ config RCU_TORTURE_TEST
 	depends on DEBUG_KERNEL
 	select TORTURE_TEST
 	select SRCU
+	select TASKS_RCU
 	default n
 	help
 	  This option provides a kernel module that runs torture tests
