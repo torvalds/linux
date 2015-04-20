@@ -134,7 +134,7 @@ struct clk *tegra_clk_register_periph_gate(const char *name,
 	struct tegra_clk_periph_gate *gate;
 	struct clk *clk;
 	struct clk_init_data init;
-	struct tegra_clk_periph_regs *pregs;
+	const struct tegra_clk_periph_regs *pregs;
 
 	pregs = get_reg_bank(clk_num);
 	if (!pregs)

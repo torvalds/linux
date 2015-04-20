@@ -877,7 +877,7 @@ static void __init periph_clk_init(void __iomem *clk_base,
 	struct clk **dt_clk;
 
 	for (i = 0; i < ARRAY_SIZE(periph_clks); i++) {
-		struct tegra_clk_periph_regs *bank;
+		const struct tegra_clk_periph_regs *bank;
 		struct tegra_periph_init_data *data;
 
 		data = periph_clks + i;
