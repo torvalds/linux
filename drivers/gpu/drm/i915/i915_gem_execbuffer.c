@@ -400,10 +400,9 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 	 * pipe_control writes because the gpu doesn't properly redirect them
 	 * through the ppgtt for non_secure batchbuffers. */
 	if (unlikely(IS_GEN6(dev) &&
-	    reloc->write_domain == I915_GEM_DOMAIN_INSTRUCTION &&
-	    !(target_vma->bound & GLOBAL_BIND))) {
+	    reloc->write_domain == I915_GEM_DOMAIN_INSTRUCTION)) {
 		ret = i915_vma_bind(target_vma, target_i915_obj->cache_level,
-				    GLOBAL_BIND);
+				    PIN_GLOBAL);
 		if (WARN_ONCE(ret, "Unexpected failure to bind target VMA!"))
 			return ret;
 	}
@@ -585,7 +584,7 @@ i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
 	uint64_t flags;
 	int ret;
 
-	flags = 0;
+	flags = PIN_USER;
 	if (entry->flags & EXEC_OBJECT_NEEDS_GTT)
 		flags |= PIN_GLOBAL;
 

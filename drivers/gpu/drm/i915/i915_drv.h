@@ -2645,10 +2645,13 @@ void i915_init_vm(struct drm_i915_private *dev_priv,
 void i915_gem_free_object(struct drm_gem_object *obj);
 void i915_gem_vma_destroy(struct i915_vma *vma);
 
-#define PIN_MAPPABLE 0x1
-#define PIN_NONBLOCK 0x2
-#define PIN_GLOBAL 0x4
-#define PIN_OFFSET_BIAS 0x8
+/* Flags used by pin/bind&friends. */
+#define PIN_MAPPABLE	(1<<0)
+#define PIN_NONBLOCK	(1<<1)
+#define PIN_GLOBAL	(1<<2)
+#define PIN_OFFSET_BIAS	(1<<3)
+#define PIN_USER	(1<<4)
+#define PIN_UPDATE	(1<<5)
 #define PIN_OFFSET_MASK (~4095)
 int __must_check
 i915_gem_object_pin(struct drm_i915_gem_object *obj,

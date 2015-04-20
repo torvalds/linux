@@ -3589,8 +3589,7 @@ search_free:
 		goto err_remove_node;
 
 	trace_i915_vma_bind(vma, flags);
-	ret = i915_vma_bind(vma, obj->cache_level,
-			    flags & PIN_GLOBAL ? GLOBAL_BIND : 0);
+	ret = i915_vma_bind(vma, obj->cache_level, flags);
 	if (ret)
 		goto err_finish_gtt;
 
@@ -3816,7 +3815,7 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 		list_for_each_entry(vma, &obj->vma_list, vma_link)
 			if (drm_mm_node_allocated(&vma->node)) {
 				ret = i915_vma_bind(vma, cache_level,
-						    vma->bound & GLOBAL_BIND);
+						    PIN_UPDATE);
 				if (ret)
 					return ret;
 			}
@@ -4201,10 +4200,8 @@ i915_gem_object_do_pin(struct drm_i915_gem_object *obj,
 						 flags);
 		if (IS_ERR(vma))
 			return PTR_ERR(vma);
-	}
-
-	if (flags & PIN_GLOBAL && !(vma->bound & GLOBAL_BIND)) {
-		ret = i915_vma_bind(vma, obj->cache_level, GLOBAL_BIND);
+	} else {
+		ret = i915_vma_bind(vma, obj->cache_level, flags);
 		if (ret)
 			return ret;
 	}

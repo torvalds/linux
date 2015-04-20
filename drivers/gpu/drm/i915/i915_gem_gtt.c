@@ -1748,15 +1748,7 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 			continue;
 
 		i915_gem_clflush_object(obj, obj->pin_display);
-		/* The bind_vma code tries to be smart about tracking mappings.
-		 * Unfortunately above, we've just wiped out the mappings
-		 * without telling our object about it. So we need to fake it.
-		 *
-		 * Bind is not expected to fail since this is only called on
-		 * resume and assumption is all requirements exist already.
-		 */
-		vma->bound &= ~GLOBAL_BIND;
-		WARN_ON(i915_vma_bind(vma, obj->cache_level, GLOBAL_BIND));
+		WARN_ON(i915_vma_bind(vma, obj->cache_level, PIN_UPDATE));
 	}
 
 
@@ -1957,7 +1949,8 @@ static void i915_ggtt_bind_vma(struct i915_vma *vma,
 
 	BUG_ON(!i915_is_ggtt(vma->vm));
 	intel_gtt_insert_sg_entries(vma->ggtt_view.pages, entry, flags);
-	vma->bound = GLOBAL_BIND;
+
+	vma->bound |= GLOBAL_BIND;
 }
 
 static void i915_ggtt_clear_range(struct i915_address_space *vm,
@@ -1976,7 +1969,6 @@ static void i915_ggtt_unbind_vma(struct i915_vma *vma)
 	const unsigned int size = vma->obj->base.size >> PAGE_SHIFT;
 
 	BUG_ON(!i915_is_ggtt(vma->vm));
-	vma->bound = 0;
 	intel_gtt_clear_range(first, size);
 }
 
@@ -1997,35 +1989,19 @@ static void ggtt_bind_vma(struct i915_vma *vma,
 	if (i915_is_ggtt(vma->vm))
 		pages = vma->ggtt_view.pages;
 
-	/* If there is no aliasing PPGTT, or the caller needs a global mapping,
-	 * or we have a global mapping already but the cacheability flags have
-	 * changed, set the global PTEs.
-	 *
-	 * If there is an aliasing PPGTT it is anecdotally faster, so use that
-	 * instead if none of the above hold true.
-	 *
-	 * NB: A global mapping should only be needed for special regions like
-	 * "gtt mappable", SNB errata, or if specified via special execbuf
-	 * flags. At all other times, the GPU will use the aliasing PPGTT.
-	 */
 	if (!dev_priv->mm.aliasing_ppgtt || flags & GLOBAL_BIND) {
-		if (!(vma->bound & GLOBAL_BIND) ||
-		    (cache_level != obj->cache_level)) {
-			vma->vm->insert_entries(vma->vm, pages,
-						vma->node.start,
-						cache_level, pte_flags);
-			vma->bound |= GLOBAL_BIND;
-		}
+		vma->vm->insert_entries(vma->vm, pages,
+					vma->node.start,
+					cache_level, pte_flags);
+
+		vma->bound |= GLOBAL_BIND;
 	}
 
-	if (dev_priv->mm.aliasing_ppgtt &&
-	    (!(vma->bound & LOCAL_BIND) ||
-	     (cache_level != obj->cache_level))) {
+	if (dev_priv->mm.aliasing_ppgtt && flags & LOCAL_BIND) {
 		struct i915_hw_ppgtt *appgtt = dev_priv->mm.aliasing_ppgtt;
 		appgtt->base.insert_entries(&appgtt->base, pages,
 					    vma->node.start,
 					    cache_level, pte_flags);
-		vma->bound |= LOCAL_BIND;
 	}
 }
 
@@ -2040,16 +2016,14 @@ static void ggtt_unbind_vma(struct i915_vma *vma)
 				     vma->node.start,
 				     obj->base.size,
 				     true);
-		vma->bound &= ~GLOBAL_BIND;
 	}
 
-	if (vma->bound & LOCAL_BIND) {
+	if (dev_priv->mm.aliasing_ppgtt && vma->bound & LOCAL_BIND) {
 		struct i915_hw_ppgtt *appgtt = dev_priv->mm.aliasing_ppgtt;
 		appgtt->base.clear_range(&appgtt->base,
 					 vma->node.start,
 					 obj->base.size,
 					 true);
-		vma->bound &= ~LOCAL_BIND;
 	}
 }
 
@@ -2839,6 +2813,7 @@ i915_get_ggtt_vma_pages(struct i915_vma *vma)
 int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 		  u32 flags)
 {
+	u32 bind_flags = 0;
 	int ret;
 
 	if (vma->vm->allocate_va_range) {
@@ -2855,12 +2830,24 @@ int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 
 	if (i915_is_ggtt(vma->vm)) {
 		ret = i915_get_ggtt_vma_pages(vma);
-
 		if (ret)
-			return ret;
+			return 0;
 	}
 
-	vma->vm->bind_vma(vma, cache_level, flags);
+	if (flags & PIN_GLOBAL)
+		bind_flags |= GLOBAL_BIND;
+	if (flags & PIN_USER)
+		bind_flags |= LOCAL_BIND;
+
+	if (flags & PIN_UPDATE)
+		bind_flags |= vma->bound;
+	else
+		bind_flags &= ~vma->bound;
+
+	if (bind_flags)
+		vma->vm->bind_vma(vma, cache_level, bind_flags);
+
+	vma->bound |= bind_flags;
 
 	return 0;
 }
