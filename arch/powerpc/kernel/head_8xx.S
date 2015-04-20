@@ -312,10 +312,6 @@ InstructionTLBMiss:
 	mtspr	SPRN_DAR, r3
 #endif
 	EXCEPTION_PROLOG_0
-	mfcr	r10
-	mtspr	SPRN_SPRG_SCRATCH2, r10
-	mfspr	r10, SPRN_SRR0	/* Get effective address of fault */
-	INVALIDATE_ADJACENT_PAGES_CPU15(r11, r10)
 
 	/* If we are faulting a kernel address, we have to use the
 	 * kernel page tables.
@@ -323,13 +319,20 @@ InstructionTLBMiss:
 #ifdef CONFIG_MODULES
 	/* Only modules will cause ITLB Misses as we always
 	 * pin the first 8MB of kernel memory */
-	andis.	r11, r10, 0x8000	/* Address >= 0x80000000 */
-#endif
+	mfspr	r11, SPRN_SRR0	/* Get effective address of fault */
+	INVALIDATE_ADJACENT_PAGES_CPU15(r10, r11)
+	mfcr	r10
+	andis.	r11, r11, 0x8000	/* Address >= 0x80000000 */
 	mfspr	r11, SPRN_M_TW	/* Get level 1 table */
-#ifdef CONFIG_MODULES
 	beq	3f
 	lis	r11, (swapper_pg_dir-PAGE_OFFSET)@ha
 3:
+	mtcr	r10
+	mfspr	r10, SPRN_SRR0	/* Get effective address of fault */
+#else
+	mfspr	r10, SPRN_SRR0	/* Get effective address of fault */
+	INVALIDATE_ADJACENT_PAGES_CPU15(r11, r10)
+	mfspr	r11, SPRN_M_TW	/* Get level 1 table base address */
 #endif
 	/* Insert level 1 index */
 	rlwimi	r11, r10, 32 - ((PAGE_SHIFT - 2) << 1), (PAGE_SHIFT - 2) << 1, 29
@@ -362,8 +365,6 @@ InstructionTLBMiss:
 	mfspr	r3, SPRN_DAR
 	mtspr	SPRN_DAR, r11	/* Tag DAR */
 #endif
-	mfspr	r10, SPRN_SPRG_SCRATCH2
-	mtcr	r10
 	EXCEPTION_EPILOG_0
 	rfi
 
@@ -374,17 +375,19 @@ DataStoreTLBMiss:
 #endif
 	EXCEPTION_PROLOG_0
 	mfcr	r10
-	mtspr	SPRN_SPRG_SCRATCH2, r10
-	mfspr	r10, SPRN_MD_EPN
 
 	/* If we are faulting a kernel address, we have to use the
 	 * kernel page tables.
 	 */
-	andis.	r11, r10, 0x8000
+	mfspr	r11, SPRN_MD_EPN
+	andis.	r11, r11, 0x8000
 	mfspr	r11, SPRN_M_TW	/* Get level 1 table */
 	beq	3f
 	lis	r11, (swapper_pg_dir-PAGE_OFFSET)@ha
 3:
+	mtcr	r10
+	mfspr	r10, SPRN_MD_EPN
+
 	/* Insert level 1 index */
 	rlwimi	r11, r10, 32 - ((PAGE_SHIFT - 2) << 1), (PAGE_SHIFT - 2) << 1, 29
 	lwz	r11, (swapper_pg_dir-PAGE_OFFSET)@l(r11)	/* Get the level 1 entry */
@@ -438,8 +441,6 @@ DataStoreTLBMiss:
 	mfspr	r3, SPRN_DAR
 #endif
 	mtspr	SPRN_DAR, r11	/* Tag DAR */
-	mfspr	r10, SPRN_SPRG_SCRATCH2
-	mtcr	r10
 	EXCEPTION_EPILOG_0
 	rfi
 
