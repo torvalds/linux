@@ -547,8 +547,46 @@ EXPORT_SYMBOL(rockchip_wifi_reset);
  *
  *************************************************************************/
 #include <linux/etherdevice.h>
+#include <linux/errno.h>
 u8 wifi_custom_mac_addr[6] = {0,0,0,0,0,0};
 extern char GetSNSectorInfo(char * pbuf);
+
+//#define ENABLE_WIFI_RAND_MAC
+#define WIFI_RAND_MAC_FILE "/data/misc/wifi_rand_mac"
+static int rockchip_wifi_rand_mac_addr(unsigned char *buf)
+{
+    struct file *fp; 
+    loff_t pos;
+    mm_segment_t fs;
+    char mac_buf[20] = {0};
+
+    LOG("%s\n", __func__);
+    fp = filp_open(WIFI_RAND_MAC_FILE, O_RDONLY, 0);
+    if (fp == NULL || IS_ERR(fp)) {
+        fp = filp_open(WIFI_RAND_MAC_FILE, O_RDWR | O_CREAT, 0644);
+        if (fp == NULL || IS_ERR(fp)) {
+            LOG("%s: create %s failed.\n", __func__, WIFI_RAND_MAC_FILE);
+            return -1;
+        }
+        fs = get_fs();
+        set_fs(KERNEL_DS);
+        random_ether_addr(wifi_custom_mac_addr);
+        pos = 0;
+        vfs_write(fp, wifi_custom_mac_addr, 6, &pos);
+        filp_close(fp, NULL);  
+    } else {
+        fs = get_fs();
+        set_fs(KERNEL_DS);
+        pos = 0;
+        vfs_read(fp, wifi_custom_mac_addr, 6, &pos);
+        filp_close(fp, NULL); 
+    }
+    sprintf(mac_buf,"%02x:%02x:%02x:%02x:%02x:%02x",wifi_custom_mac_addr[0],wifi_custom_mac_addr[1],
+    wifi_custom_mac_addr[2],wifi_custom_mac_addr[3],wifi_custom_mac_addr[4],wifi_custom_mac_addr[5]);
+    LOG("random wifi_custom_mac_addr=[%s]\n", mac_buf);    
+    return 0;
+}
+
 int rockchip_wifi_mac_addr(unsigned char *buf)
 {
     char mac_buf[20] = {0};
@@ -572,11 +610,12 @@ int rockchip_wifi_mac_addr(unsigned char *buf)
     wifi_custom_mac_addr[2],wifi_custom_mac_addr[3],wifi_custom_mac_addr[4],wifi_custom_mac_addr[5]);
     LOG("falsh wifi_custom_mac_addr=[%s]\n", mac_buf);
 
-    if (is_valid_ether_addr(wifi_custom_mac_addr)) {
-        if (2 == (wifi_custom_mac_addr[0] & 0x0F)) {
-            LOG("This mac address come into conflict with the address of direct, ignored...\n");
-            return -1;
-        }
+#ifdef ENABLE_WIFI_RAND_MAC
+    rockchip_wifi_rand_mac_addr(buf);
+#endif
+
+    if (is_valid_ether_addr(wifi_custom_mac_addr) && !strncmp(wifi_chip_type_string, "rtl", 3)) {
+        wifi_custom_mac_addr[0] &= ~0x2; // for p2p
     } else {
         LOG("This mac address is not valid, ignored...\n");
         return -1;
