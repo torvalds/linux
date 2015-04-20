@@ -113,6 +113,9 @@ RCU_STATE_INITIALIZER(rcu_bh, 'b', call_rcu_bh);
 static struct rcu_state *rcu_state_p;
 LIST_HEAD(rcu_struct_flavors);
 
+/* Control rcu_node-tree auto-balancing at boot time. */
+static bool rcu_fanout_exact;
+module_param(rcu_fanout_exact, bool, 0444);
 /* Increase (but not decrease) the CONFIG_RCU_FANOUT_LEAF at boot time. */
 static int rcu_fanout_leaf = CONFIG_RCU_FANOUT_LEAF;
 module_param(rcu_fanout_leaf, int, 0444);
@@ -3956,13 +3959,13 @@ void rcu_scheduler_starting(void)
 
 /*
  * Compute the per-level fanout, either using the exact fanout specified
- * or balancing the tree, depending on CONFIG_RCU_FANOUT_EXACT.
+ * or balancing the tree, depending on the rcu_fanout_exact boot parameter.
  */
 static void __init rcu_init_levelspread(struct rcu_state *rsp)
 {
 	int i;
 
-	if (IS_ENABLED(CONFIG_RCU_FANOUT_EXACT)) {
+	if (rcu_fanout_exact) {
 		rsp->levelspread[rcu_num_lvls - 1] = rcu_fanout_leaf;
 		for (i = rcu_num_lvls - 2; i >= 0; i--)
 			rsp->levelspread[i] = CONFIG_RCU_FANOUT;

@@ -611,20 +611,6 @@ config RCU_FANOUT_LEAF
 
 	  Take the default if unsure.
 
-config RCU_FANOUT_EXACT
-	bool "Disable tree-based hierarchical RCU auto-balancing"
-	depends on TREE_RCU || PREEMPT_RCU
-	default n
-	help
-	  This option forces use of the exact RCU_FANOUT value specified,
-	  regardless of imbalances in the hierarchy.  This is useful for
-	  testing RCU itself, and might one day be useful on systems with
-	  strong NUMA behavior.
-
-	  Without RCU_FANOUT_EXACT, the code will balance the hierarchy.
-
-	  Say N if unsure.
-
 config RCU_FAST_NO_HZ
 	bool "Accelerate last non-dyntick-idle CPU's grace periods"
 	depends on NO_HZ_COMMON && SMP

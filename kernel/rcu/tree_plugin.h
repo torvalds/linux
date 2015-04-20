@@ -64,7 +64,7 @@ static void __init rcu_bootup_announce_oddness(void)
 	    (!IS_ENABLED(CONFIG_64BIT) && CONFIG_RCU_FANOUT != 32))
 		pr_info("\tCONFIG_RCU_FANOUT set to non-default value of %d\n",
 		       CONFIG_RCU_FANOUT);
-	if (IS_ENABLED(CONFIG_RCU_FANOUT_EXACT))
+	if (rcu_fanout_exact)
 		pr_info("\tHierarchical RCU autobalancing is disabled.\n");
 	if (IS_ENABLED(CONFIG_RCU_FAST_NO_HZ))
 		pr_info("\tRCU dyntick-idle grace-period acceleration is enabled.\n");

@@ -3010,6 +3010,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			the rcu_node combining tree.  This only has effect
 			when CONFIG_RCU_TORTURE_TEST_SLOW_PREINIT is set.
 
+	rcutree.rcu_fanout_exact= [KNL]
+			Disable autobalancing of the rcu_node combining
+			tree.  This is used by rcutorture, and might
+			possibly be useful for architectures having high
+			cache-to-cache transfer latencies.
+
 	rcutree.rcu_fanout_leaf= [KNL]
 			Increase the number of CPUs assigned to each
 			leaf rcu_node structure.  Useful for very large
