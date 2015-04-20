@@ -56,11 +56,11 @@ struct psci_operations {
 
 static struct psci_operations psci_ops;
 
-static int (*invoke_psci_fn)(u64, u64, u64, u64);
-typedef int (*psci_initcall_t)(const struct device_node *);
-
-asmlinkage int __invoke_psci_fn_hvc(u64, u64, u64, u64);
-asmlinkage int __invoke_psci_fn_smc(u64, u64, u64, u64);
+typedef unsigned long (psci_fn)(unsigned long, unsigned long,
+				unsigned long, unsigned long);
+asmlinkage psci_fn __invoke_psci_fn_hvc;
+asmlinkage psci_fn __invoke_psci_fn_smc;
+static psci_fn *invoke_psci_fn;
 
 enum psci_function {
 	PSCI_FN_CPU_SUSPEND,
@@ -112,12 +112,9 @@ static void psci_power_state_unpack(u32 power_state,
 			PSCI_0_2_POWER_STATE_AFFL_SHIFT;
 }
 
-static int psci_get_version(void)
+static u32 psci_get_version(void)
 {
-	int err;
-
-	err = invoke_psci_fn(PSCI_0_2_FN_PSCI_VERSION, 0, 0, 0);
-	return err;
+	return invoke_psci_fn(PSCI_0_2_FN_PSCI_VERSION, 0, 0, 0);
 }
 
 static int psci_cpu_suspend(struct psci_power_state state,
@@ -296,31 +293,23 @@ static void __init psci_0_2_set_functions(void)
  */
 static int __init psci_probe(void)
 {
-	int ver = psci_get_version();
+	u32 ver = psci_get_version();
 
-	if (ver == PSCI_RET_NOT_SUPPORTED) {
-		/*
-		 * PSCI versions >=0.2 mandates implementation of
-		 * PSCI_VERSION.
-		 */
-		pr_err("PSCI firmware does not comply with the v0.2 spec.\n");
-		return -EOPNOTSUPP;
-	} else {
-		pr_info("PSCIv%d.%d detected in firmware.\n",
-				PSCI_VERSION_MAJOR(ver),
-				PSCI_VERSION_MINOR(ver));
+	pr_info("PSCIv%d.%d detected in firmware.\n",
+			PSCI_VERSION_MAJOR(ver),
+			PSCI_VERSION_MINOR(ver));
 
-		if (PSCI_VERSION_MAJOR(ver) == 0 &&
-				PSCI_VERSION_MINOR(ver) < 2) {
-			pr_err("Conflicting PSCI version detected.\n");
-			return -EINVAL;
-		}
+	if (PSCI_VERSION_MAJOR(ver) == 0 && PSCI_VERSION_MINOR(ver) < 2) {
+		pr_err("Conflicting PSCI version detected.\n");
+		return -EINVAL;
 	}
 
 	psci_0_2_set_functions();
 
 	return 0;
 }
+
+typedef int (*psci_initcall_t)(const struct device_node *);
 
 /*
  * PSCI init function for PSCI versions >=0.2
