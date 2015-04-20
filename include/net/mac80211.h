@@ -337,10 +337,12 @@ enum ieee80211_bss_change {
  * enum ieee80211_event_type - event to be notified to the low level driver
  * @RSSI_EVENT: AP's rssi crossed the a threshold set by the driver.
  * @MLME_EVENT: event related to MLME
+ * @BAR_RX_EVENT: a BAR was received
  */
 enum ieee80211_event_type {
 	RSSI_EVENT,
 	MLME_EVENT,
+	BAR_RX_EVENT,
 };
 
 /**
@@ -400,17 +402,31 @@ struct ieee80211_mlme_event {
 };
 
 /**
+ * struct ieee80211_ba_event - data attached for BlockAck related events
+ * @sta: pointer to the &ieee80211_sta to which this event relates
+ * @tid: the tid
+ * @ssn: the starting sequence number
+ */
+struct ieee80211_ba_event {
+	struct ieee80211_sta *sta;
+	u16 tid;
+	u16 ssn;
+};
+
+/**
  * struct ieee80211_event - event to be sent to the driver
  * @type: The event itself. See &enum ieee80211_event_type.
  * @rssi: relevant if &type is %RSSI_EVENT
  * @mlme: relevant if &type is %AUTH_EVENT
- * @u:    union holding the above two fields
+ * @ba: relevant if &type is %BAR_RX_EVENT
+ * @u:union holding the fields above
  */
 struct ieee80211_event {
 	enum ieee80211_event_type type;
 	union {
 		struct ieee80211_rssi_event rssi;
 		struct ieee80211_mlme_event mlme;
+		struct ieee80211_ba_event ba;
 	} u;
 };
 
@@ -3001,7 +3017,7 @@ enum ieee80211_reconfig_type {
  *	The callback can sleep.
  * @event_callback: Notify driver about any event in mac80211. See
  *	&enum ieee80211_event_type for the different types.
- *	The callback can sleep.
+ *	The callback must be atomic.
  *
  * @release_buffered_frames: Release buffered frames according to the given
  *	parameters. In the case where the driver buffers some frames for
