@@ -1394,9 +1394,11 @@ int btrfs_qgroup_prepare_account_extents(struct btrfs_trans_handle *trans,
 	struct btrfs_qgroup_extent_record *record;
 	struct btrfs_delayed_ref_root *delayed_refs;
 	struct rb_node *node;
+	u64 qgroup_to_skip;
 	int ret = 0;
 
 	delayed_refs = &trans->transaction->delayed_refs;
+	qgroup_to_skip = delayed_refs->qgroup_to_skip;
 
 	/*
 	 * No need to do lock, since this function will only be called in
@@ -1410,6 +1412,8 @@ int btrfs_qgroup_prepare_account_extents(struct btrfs_trans_handle *trans,
 					   &record->old_roots);
 		if (ret < 0)
 			break;
+		if (qgroup_to_skip)
+			ulist_del(record->old_roots, qgroup_to_skip, 0);
 		node = rb_next(node);
 	}
 	return ret;
@@ -1702,9 +1706,11 @@ int btrfs_qgroup_account_extents(struct btrfs_trans_handle *trans,
 	struct btrfs_delayed_ref_root *delayed_refs;
 	struct ulist *new_roots = NULL;
 	struct rb_node *node;
+	u64 qgroup_to_skip;
 	int ret = 0;
 
 	delayed_refs = &trans->transaction->delayed_refs;
+	qgroup_to_skip = delayed_refs->qgroup_to_skip;
 	while ((node = rb_first(&delayed_refs->dirty_extent_root))) {
 		record = rb_entry(node, struct btrfs_qgroup_extent_record,
 				  node);
@@ -1719,6 +1725,8 @@ int btrfs_qgroup_account_extents(struct btrfs_trans_handle *trans,
 					record->bytenr, (u64)-1, &new_roots);
 			if (ret < 0)
 				goto cleanup;
+			if (qgroup_to_skip)
+				ulist_del(new_roots, qgroup_to_skip, 0);
 			ret = btrfs_qgroup_account_extent(trans, fs_info,
 					record->bytenr, record->num_bytes,
 					record->old_roots, new_roots);

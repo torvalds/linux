@@ -232,6 +232,7 @@ loop:
 	cur_trans->delayed_refs.num_heads = 0;
 	cur_trans->delayed_refs.flushing = 0;
 	cur_trans->delayed_refs.run_delayed_start = 0;
+	cur_trans->delayed_refs.qgroup_to_skip = 0;
 
 	/*
 	 * although the tree mod log is per file system and not per transaction,

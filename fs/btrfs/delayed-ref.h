@@ -175,6 +175,14 @@ struct btrfs_delayed_ref_root {
 	int flushing;
 
 	u64 run_delayed_start;
+
+	/*
+	 * To make qgroup to skip given root.
+	 * This is for snapshot, as btrfs_qgroup_inherit() will manully
+	 * modify counters for snapshot and its source, so we should skip
+	 * the snapshot in new_root/old_roots or it will get calculated twice
+	 */
+	u64 qgroup_to_skip;
 };
 
 extern struct kmem_cache *btrfs_delayed_ref_head_cachep;
