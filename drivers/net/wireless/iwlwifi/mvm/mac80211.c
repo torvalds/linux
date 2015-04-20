@@ -1249,7 +1249,6 @@ static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 	mvm->d0i3_ap_sta_id = IWL_MVM_STATION_COUNT;
 
 	iwl_mvm_reset_phy_ctxts(mvm);
-	memset(mvm->fw_key_table, 0, sizeof(mvm->fw_key_table));
 	memset(mvm->sta_drained, 0, sizeof(mvm->sta_drained));
 	memset(mvm->tfd_drained, 0, sizeof(mvm->tfd_drained));
 	memset(&mvm->last_bt_notif, 0, sizeof(mvm->last_bt_notif));
@@ -2843,8 +2842,21 @@ static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 			break;
 		}
 
+		/* During FW restart, in order to restore the state as it was,
+		 * don't try to reprogram keys we previously failed for.
+		 */
+		if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status) &&
+		    key->hw_key_idx == STA_KEY_IDX_INVALID) {
+			IWL_DEBUG_MAC80211(mvm,
+					   "skip invalid idx key programming during restart\n");
+			ret = 0;
+			break;
+		}
+
 		IWL_DEBUG_MAC80211(mvm, "set hwcrypto key\n");
-		ret = iwl_mvm_set_sta_key(mvm, vif, sta, key, false);
+		ret = iwl_mvm_set_sta_key(mvm, vif, sta, key,
+					  test_bit(IWL_MVM_STATUS_IN_HW_RESTART,
+						   &mvm->status));
 		if (ret) {
 			IWL_WARN(mvm, "set key failed\n");
 			/*
