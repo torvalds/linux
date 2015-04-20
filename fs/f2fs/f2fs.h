@@ -320,6 +320,13 @@ struct extent_tree {
 #define FADVISE_COLD_BIT	0x01
 #define FADVISE_LOST_PINO_BIT	0x02
 
+#define file_is_cold(inode)	is_file(inode, FADVISE_COLD_BIT)
+#define file_wrong_pino(inode)	is_file(inode, FADVISE_LOST_PINO_BIT)
+#define file_set_cold(inode)	set_file(inode, FADVISE_COLD_BIT)
+#define file_lost_pino(inode)	set_file(inode, FADVISE_LOST_PINO_BIT)
+#define file_clear_cold(inode)	clear_file(inode, FADVISE_COLD_BIT)
+#define file_got_pino(inode)	clear_file(inode, FADVISE_LOST_PINO_BIT)
+
 #define DEF_DIR_LEVEL		0
 
 struct f2fs_inode_info {
@@ -1389,6 +1396,21 @@ static inline void f2fs_dentry_kunmap(struct inode *dir, struct page *page)
 {
 	if (!f2fs_has_inline_dentry(dir))
 		kunmap(page);
+}
+
+static inline int is_file(struct inode *inode, int type)
+{
+	return F2FS_I(inode)->i_advise & type;
+}
+
+static inline void set_file(struct inode *inode, int type)
+{
+	F2FS_I(inode)->i_advise |= type;
+}
+
+static inline void clear_file(struct inode *inode, int type)
+{
+	F2FS_I(inode)->i_advise &= ~type;
 }
 
 static inline int f2fs_readonly(struct super_block *sb)
