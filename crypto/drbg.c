@@ -1136,6 +1136,8 @@ static inline void drbg_dealloc_state(struct drbg_state *drbg)
 	kzfree(drbg->scratchpad);
 	drbg->scratchpad = NULL;
 	drbg->reseed_ctr = 0;
+	drbg->d_ops = NULL;
+	drbg->core = NULL;
 #ifdef CONFIG_CRYPTO_FIPS
 	kzfree(drbg->prev);
 	drbg->prev = NULL;
@@ -1151,6 +1153,27 @@ static inline int drbg_alloc_state(struct drbg_state *drbg)
 {
 	int ret = -ENOMEM;
 	unsigned int sb_size = 0;
+
+	switch (drbg->core->flags & DRBG_TYPE_MASK) {
+#ifdef CONFIG_CRYPTO_DRBG_HMAC
+	case DRBG_HMAC:
+		drbg->d_ops = &drbg_hmac_ops;
+		break;
+#endif /* CONFIG_CRYPTO_DRBG_HMAC */
+#ifdef CONFIG_CRYPTO_DRBG_HASH
+	case DRBG_HASH:
+		drbg->d_ops = &drbg_hash_ops;
+		break;
+#endif /* CONFIG_CRYPTO_DRBG_HASH */
+#ifdef CONFIG_CRYPTO_DRBG_CTR
+	case DRBG_CTR:
+		drbg->d_ops = &drbg_ctr_ops;
+		break;
+#endif /* CONFIG_CRYPTO_DRBG_CTR */
+	default:
+		ret = -EOPNOTSUPP;
+		goto err;
+	}
 
 	drbg->V = kmalloc(drbg_statelen(drbg), GFP_KERNEL);
 	if (!drbg->V)
@@ -1215,6 +1238,10 @@ static int drbg_generate(struct drbg_state *drbg,
 	int len = 0;
 	LIST_HEAD(addtllist);
 
+	if (!drbg->core) {
+		pr_devel("DRBG: not yet seeded\n");
+		return -EINVAL;
+	}
 	if (0 == buflen || !buf) {
 		pr_devel("DRBG: no output buffer provided\n");
 		return -EINVAL;
@@ -1372,33 +1399,12 @@ static int drbg_generate_long(struct drbg_state *drbg,
 static int drbg_instantiate(struct drbg_state *drbg, struct drbg_string *pers,
 			    int coreref, bool pr)
 {
-	int ret = -EOPNOTSUPP;
+	int ret;
+	bool reseed = true;
 
 	pr_devel("DRBG: Initializing DRBG core %d with prediction resistance "
 		 "%s\n", coreref, pr ? "enabled" : "disabled");
 	mutex_lock(&drbg->drbg_mutex);
-	drbg->core = &drbg_cores[coreref];
-	drbg->pr = pr;
-	drbg->seeded = false;
-	switch (drbg->core->flags & DRBG_TYPE_MASK) {
-#ifdef CONFIG_CRYPTO_DRBG_HMAC
-	case DRBG_HMAC:
-		drbg->d_ops = &drbg_hmac_ops;
-		break;
-#endif /* CONFIG_CRYPTO_DRBG_HMAC */
-#ifdef CONFIG_CRYPTO_DRBG_HASH
-	case DRBG_HASH:
-		drbg->d_ops = &drbg_hash_ops;
-		break;
-#endif /* CONFIG_CRYPTO_DRBG_HASH */
-#ifdef CONFIG_CRYPTO_DRBG_CTR
-	case DRBG_CTR:
-		drbg->d_ops = &drbg_ctr_ops;
-		break;
-#endif /* CONFIG_CRYPTO_DRBG_CTR */
-	default:
-		goto unlock;
-	}
 
 	/* 9.1 step 1 is implicit with the selected DRBG type */
 
@@ -1410,21 +1416,31 @@ static int drbg_instantiate(struct drbg_state *drbg, struct drbg_string *pers,
 
 	/* 9.1 step 4 is implicit in  drbg_sec_strength */
 
-	ret = drbg_alloc_state(drbg);
-	if (ret)
-		goto unlock;
+	if (!drbg->core) {
+		drbg->core = &drbg_cores[coreref];
+		drbg->pr = pr;
+		drbg->seeded = false;
 
-	ret = -EFAULT;
-	if (drbg->d_ops->crypto_init(drbg))
-		goto err;
-	ret = drbg_seed(drbg, pers, false);
-	if (ret) {
+		ret = drbg_alloc_state(drbg);
+		if (ret)
+			goto unlock;
+
+		ret = -EFAULT;
+		if (drbg->d_ops->crypto_init(drbg))
+			goto err;
+
+		reseed = false;
+	}
+
+	ret = drbg_seed(drbg, pers, reseed);
+
+	if (ret && !reseed) {
 		drbg->d_ops->crypto_fini(drbg);
 		goto err;
 	}
 
 	mutex_unlock(&drbg->drbg_mutex);
-	return 0;
+	return ret;
 
 err:
 	drbg_dealloc_state(drbg);
@@ -1444,11 +1460,10 @@ unlock:
  */
 static int drbg_uninstantiate(struct drbg_state *drbg)
 {
-	mutex_lock(&drbg->drbg_mutex);
-	drbg->d_ops->crypto_fini(drbg);
+	if (drbg->d_ops)
+		drbg->d_ops->crypto_fini(drbg);
 	drbg_dealloc_state(drbg);
 	/* no scrubbing of test_data -- this shall survive an uninstantiate */
-	mutex_unlock(&drbg->drbg_mutex);
 	return 0;
 }
 
@@ -1615,16 +1630,10 @@ static inline void drbg_convert_tfm_core(const char *cra_driver_name,
 static int drbg_kcapi_init(struct crypto_tfm *tfm)
 {
 	struct drbg_state *drbg = crypto_tfm_ctx(tfm);
-	bool pr = false;
-	int coreref = 0;
 
 	mutex_init(&drbg->drbg_mutex);
-	drbg_convert_tfm_core(crypto_tfm_alg_driver_name(tfm), &coreref, &pr);
-	/*
-	 * when personalization string is needed, the caller must call reset
-	 * and provide the personalization string as seed information
-	 */
-	return drbg_instantiate(drbg, NULL, coreref, pr);
+
+	return 0;
 }
 
 static void drbg_kcapi_cleanup(struct crypto_tfm *tfm)
@@ -1665,10 +1674,9 @@ static int drbg_kcapi_random(struct crypto_rng *tfm, u8 *rdata,
 }
 
 /*
- * Reset the DRBG invoked by the kernel crypto API
- * The reset implies a full re-initialization of the DRBG. Similar to the
- * generate function of drbg_kcapi_random, this function extends the
- * kernel crypto API interface with struct drbg_gen
+ * Seed the DRBG invoked by the kernel crypto API
+ * Similar to the generate function of drbg_kcapi_random, this
+ * function extends the kernel crypto API interface with struct drbg_gen
  */
 static int drbg_kcapi_reset(struct crypto_rng *tfm, u8 *seed, unsigned int slen)
 {
@@ -1678,7 +1686,6 @@ static int drbg_kcapi_reset(struct crypto_rng *tfm, u8 *seed, unsigned int slen)
 	struct drbg_string seed_string;
 	int coreref = 0;
 
-	drbg_uninstantiate(drbg);
 	drbg_convert_tfm_core(crypto_tfm_alg_driver_name(tfm_base), &coreref,
 			      &pr);
 	if (0 < slen) {
