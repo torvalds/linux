@@ -16,7 +16,9 @@
 #include <linux/crypto.h>
 
 struct crypto_rng {
-	int (*generate)(struct crypto_rng *tfm, u8 *rdata, unsigned int dlen);
+	int (*generate)(struct crypto_rng *tfm,
+			const u8 *src, unsigned int slen,
+			u8 *dst, unsigned int dlen);
 	int (*seed)(struct crypto_rng *tfm, u8 *seed, unsigned int slen);
 	struct crypto_tfm base;
 };
@@ -83,6 +85,27 @@ static inline void crypto_free_rng(struct crypto_rng *tfm)
 }
 
 /**
+ * crypto_rng_generate() - get random number
+ * @tfm: cipher handle
+ * @src: Input buffer holding additional data, may be NULL
+ * @slen: Length of additional data
+ * @dst: output buffer holding the random numbers
+ * @dlen: length of the output buffer
+ *
+ * This function fills the caller-allocated buffer with random
+ * numbers using the random number generator referenced by the
+ * cipher handle.
+ *
+ * Return: 0 function was successful; < 0 if an error occurred
+ */
+static inline int crypto_rng_generate(struct crypto_rng *tfm,
+				      const u8 *src, unsigned int slen,
+				      u8 *dst, unsigned int dlen)
+{
+	return tfm->generate(tfm, src, slen, dst, dlen);
+}
+
+/**
  * crypto_rng_get_bytes() - get random number
  * @tfm: cipher handle
  * @rdata: output buffer holding the random numbers
@@ -96,7 +119,7 @@ static inline void crypto_free_rng(struct crypto_rng *tfm)
 static inline int crypto_rng_get_bytes(struct crypto_rng *tfm,
 				       u8 *rdata, unsigned int dlen)
 {
-	return tfm->generate(tfm, rdata, dlen);
+	return crypto_rng_generate(tfm, NULL, 0, rdata, dlen);
 }
 
 /**

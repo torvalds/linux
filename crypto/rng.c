@@ -36,6 +36,12 @@ static inline struct crypto_rng *__crypto_rng_cast(struct crypto_tfm *tfm)
 	return container_of(tfm, struct crypto_rng, base);
 }
 
+static int generate(struct crypto_rng *tfm, const u8 *src, unsigned int slen,
+		    u8 *dst, unsigned int dlen)
+{
+	return crypto_rng_alg(tfm)->rng_make_random(tfm, dst, dlen);
+}
+
 static int rngapi_reset(struct crypto_rng *tfm, u8 *seed, unsigned int slen)
 {
 	u8 *buf = NULL;
@@ -59,9 +65,8 @@ static int rngapi_reset(struct crypto_rng *tfm, u8 *seed, unsigned int slen)
 static int crypto_rng_init_tfm(struct crypto_tfm *tfm)
 {
 	struct crypto_rng *rng = __crypto_rng_cast(tfm);
-	struct rng_alg *alg = &tfm->__crt_alg->cra_rng;
 
-	rng->generate = alg->rng_make_random;
+	rng->generate = generate;
 	rng->seed = rngapi_reset;
 
 	return 0;
