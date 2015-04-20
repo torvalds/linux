@@ -20,6 +20,7 @@
 #include <linux/uaccess.h>
 #include <linux/mount.h>
 #include <linux/pagevec.h>
+#include <linux/random.h>
 
 #include "f2fs.h"
 #include "node.h"
@@ -1347,6 +1348,92 @@ static int f2fs_ioc_fitrim(struct file *filp, unsigned long arg)
 	return 0;
 }
 
+static bool uuid_is_nonzero(__u8 u[16])
+{
+	int i;
+
+	for (i = 0; i < 16; i++)
+		if (u[i])
+			return true;
+	return false;
+}
+
+static int f2fs_ioc_set_encryption_policy(struct file *filp, unsigned long arg)
+{
+#ifdef CONFIG_F2FS_FS_ENCRYPTION
+	struct f2fs_encryption_policy policy;
+	struct inode *inode = file_inode(filp);
+
+	if (copy_from_user(&policy, (struct f2fs_encryption_policy __user *)arg,
+				sizeof(policy)))
+		return -EFAULT;
+
+	if (f2fs_has_inline_data(inode)) {
+		int ret = f2fs_convert_inline_inode(inode);
+		if (ret)
+			return ret;
+	}
+
+	return f2fs_process_policy(&policy, inode);
+#else
+	return -EOPNOTSUPP;
+#endif
+}
+
+static int f2fs_ioc_get_encryption_policy(struct file *filp, unsigned long arg)
+{
+#ifdef CONFIG_F2FS_FS_ENCRYPTION
+	struct f2fs_encryption_policy policy;
+	struct inode *inode = file_inode(filp);
+	int err;
+
+	err = f2fs_get_policy(inode, &policy);
+	if (err)
+		return err;
+
+	if (copy_to_user((struct f2fs_encryption_policy __user *)arg, &policy,
+							sizeof(policy)))
+		return -EFAULT;
+	return 0;
+#else
+	return -EOPNOTSUPP;
+#endif
+}
+
+static int f2fs_ioc_get_encryption_pwsalt(struct file *filp, unsigned long arg)
+{
+	struct inode *inode = file_inode(filp);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	int err;
+
+	if (!f2fs_sb_has_crypto(inode->i_sb))
+		return -EOPNOTSUPP;
+
+	if (uuid_is_nonzero(sbi->raw_super->encrypt_pw_salt))
+		goto got_it;
+
+	err = mnt_want_write_file(filp);
+	if (err)
+		return err;
+
+	/* update superblock with uuid */
+	generate_random_uuid(sbi->raw_super->encrypt_pw_salt);
+
+	err = f2fs_commit_super(sbi);
+
+	mnt_drop_write_file(filp);
+	if (err) {
+		/* undo new data */
+		memset(sbi->raw_super->encrypt_pw_salt, 0, 16);
+		return err;
+	}
+got_it:
+	if (copy_to_user((__u8 __user *)arg, sbi->raw_super->encrypt_pw_salt,
+									16))
+		return -EFAULT;
+	return 0;
+}
+
 long f2fs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	switch (cmd) {
@@ -1370,6 +1457,12 @@ long f2fs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return f2fs_ioc_shutdown(filp, arg);
 	case FITRIM:
 		return f2fs_ioc_fitrim(filp, arg);
+	case F2FS_IOC_SET_ENCRYPTION_POLICY:
+		return f2fs_ioc_set_encryption_policy(filp, arg);
+	case F2FS_IOC_GET_ENCRYPTION_POLICY:
+		return f2fs_ioc_get_encryption_policy(filp, arg);
+	case F2FS_IOC_GET_ENCRYPTION_PWSALT:
+		return f2fs_ioc_get_encryption_pwsalt(filp, arg);
 	default:
 		return -ENOTTY;
 	}
