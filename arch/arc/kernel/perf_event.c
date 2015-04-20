@@ -288,10 +288,7 @@ static int arc_pmu_device_probe(struct platform_device *pdev)
 	BUG_ON(pct_bcr.c > ARC_PMU_MAX_HWEVENTS);
 
 	READ_BCR(ARC_REG_CC_BUILD, cc_bcr);
-	if (!cc_bcr.v) {
-		pr_err("Performance counters exist, but no countable conditions?\n");
-		return -ENODEV;
-	}
+	BUG_ON(!cc_bcr.v); /* Counters exist but No countable conditions ? */
 
 	arc_pmu = devm_kzalloc(&pdev->dev, sizeof(struct arc_pmu), GFP_KERNEL);
 	if (!arc_pmu)
