@@ -4220,7 +4220,7 @@ intel_dp_check_link_status(struct intel_dp *intel_dp)
 				   sink_irq_vector);
 
 		if (sink_irq_vector & DP_AUTOMATED_TEST_REQUEST)
-			intel_dp_handle_test_request(intel_dp);
+			DRM_DEBUG_DRIVER("Test request in short pulse not handled\n");
 		if (sink_irq_vector & (DP_CP_IRQ | DP_SINK_SPECIFIC_IRQ))
 			DRM_DEBUG_DRIVER("CP or sink specific irq unhandled\n");
 	}
@@ -4450,6 +4450,7 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 	enum drm_connector_status status;
 	enum intel_display_power_domain power_domain;
 	bool ret;
+	u8 sink_irq_vector;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
 		      connector->base.id, connector->name);
@@ -4491,6 +4492,20 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 	if (intel_encoder->type != INTEL_OUTPUT_EDP)
 		intel_encoder->type = INTEL_OUTPUT_DISPLAYPORT;
 	status = connector_status_connected;
+
+	/* Try to read the source of the interrupt */
+	if (intel_dp->dpcd[DP_DPCD_REV] >= 0x11 &&
+	    intel_dp_get_sink_irq(intel_dp, &sink_irq_vector)) {
+		/* Clear interrupt source */
+		drm_dp_dpcd_writeb(&intel_dp->aux,
+				   DP_DEVICE_SERVICE_IRQ_VECTOR,
+				   sink_irq_vector);
+
+		if (sink_irq_vector & DP_AUTOMATED_TEST_REQUEST)
+			intel_dp_handle_test_request(intel_dp);
+		if (sink_irq_vector & (DP_CP_IRQ | DP_SINK_SPECIFIC_IRQ))
+			DRM_DEBUG_DRIVER("CP or sink specific irq unhandled\n");
+	}
 
 out:
 	intel_dp_power_put(intel_dp, power_domain);
