@@ -4216,25 +4216,34 @@ drm_property_create_blob(struct drm_device *dev, size_t length,
 	if (!blob)
 		return NULL;
 
-	ret = drm_mode_object_get(dev, &blob->base, DRM_MODE_OBJECT_BLOB);
-	if (ret) {
-		kfree(blob);
-		return NULL;
-	}
-
 	blob->length = length;
 
 	memcpy(blob->data, data, length);
 
+	mutex_lock(&dev->mode_config.blob_lock);
+
+	ret = drm_mode_object_get(dev, &blob->base, DRM_MODE_OBJECT_BLOB);
+	if (ret) {
+		kfree(blob);
+		mutex_unlock(&dev->mode_config.blob_lock);
+		return NULL;
+	}
+
 	list_add_tail(&blob->head, &dev->mode_config.property_blob_list);
+
+	mutex_unlock(&dev->mode_config.blob_lock);
+
 	return blob;
 }
 
 static void drm_property_destroy_blob(struct drm_device *dev,
 			       struct drm_property_blob *blob)
 {
+	mutex_lock(&dev->mode_config.blob_lock);
 	drm_mode_object_put(dev, &blob->base);
 	list_del(&blob->head);
+	mutex_unlock(&dev->mode_config.blob_lock);
+
 	kfree(blob);
 }
 
@@ -4341,6 +4350,7 @@ int drm_mode_getblob_ioctl(struct drm_device *dev,
 		return -EINVAL;
 
 	drm_modeset_lock_all(dev);
+	mutex_lock(&dev->mode_config.blob_lock);
 	blob = drm_property_blob_find(dev, out_resp->blob_id);
 	if (!blob) {
 		ret = -ENOENT;
@@ -4357,6 +4367,7 @@ int drm_mode_getblob_ioctl(struct drm_device *dev,
 	out_resp->length = blob->length;
 
 done:
+	mutex_unlock(&dev->mode_config.blob_lock);
 	drm_modeset_unlock_all(dev);
 	return ret;
 }
@@ -5490,6 +5501,7 @@ void drm_mode_config_init(struct drm_device *dev)
 	drm_modeset_lock_init(&dev->mode_config.connection_mutex);
 	mutex_init(&dev->mode_config.idr_mutex);
 	mutex_init(&dev->mode_config.fb_lock);
+	mutex_init(&dev->mode_config.blob_lock);
 	INIT_LIST_HEAD(&dev->mode_config.fb_list);
 	INIT_LIST_HEAD(&dev->mode_config.crtc_list);
 	INIT_LIST_HEAD(&dev->mode_config.connector_list);

@@ -1048,6 +1048,7 @@ struct drm_mode_group {
  * @poll_running: track polling status for this device
  * @output_poll_work: delayed work for polling in process context
  * @property_blob_list: list of all the blob property objects
+ * @blob_lock: mutex for blob property allocation and management
  * @*_property: core property tracking
  * @preferred_depth: preferred RBG pixel depth, used by fb helpers
  * @prefer_shadow: hint to userspace to prefer shadow-fb rendering
@@ -1102,6 +1103,8 @@ struct drm_mode_config {
 	bool poll_running;
 	bool delayed_event;
 	struct delayed_work output_poll_work;
+
+	struct mutex blob_lock;
 
 	/* pointers to standard properties */
 	struct list_head property_blob_list;
