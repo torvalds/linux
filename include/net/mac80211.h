@@ -1501,6 +1501,8 @@ struct ieee80211_key_conf {
 	u8 key[0];
 };
 
+#define IEEE80211_MAX_PN_LEN	16
+
 /**
  * struct ieee80211_key_seq - key sequence counter
  *
@@ -1513,6 +1515,7 @@ struct ieee80211_key_conf {
  *	reverse order than in packet)
  * @gcmp: PN data, most significant byte first (big endian,
  *	reverse order than in packet)
+ * @hw: data for HW-only (e.g. cipher scheme) keys
  */
 struct ieee80211_key_seq {
 	union {
@@ -1532,6 +1535,10 @@ struct ieee80211_key_seq {
 		struct {
 			u8 pn[6];
 		} gcmp;
+		struct {
+			u8 seq[IEEE80211_MAX_PN_LEN];
+			u8 seq_len;
+		} hw;
 	};
 };
 

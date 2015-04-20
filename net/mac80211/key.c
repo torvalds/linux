@@ -485,8 +485,8 @@ ieee80211_key_alloc(u32 cipher, int idx, size_t key_len,
 		break;
 	default:
 		if (cs) {
-			size_t len = (seq_len > MAX_PN_LEN) ?
-						MAX_PN_LEN : seq_len;
+			size_t len = (seq_len > IEEE80211_MAX_PN_LEN) ?
+						IEEE80211_MAX_PN_LEN : seq_len;
 
 			key->conf.iv_len = cs->hdr_len;
 			key->conf.icv_len = cs->mic_len;
