@@ -529,21 +529,13 @@ config CONTEXT_TRACKING
        bool
 
 config RCU_USER_QS
-	bool "Consider userspace as in RCU extended quiescent state"
-	depends on HAVE_CONTEXT_TRACKING && SMP
-	select CONTEXT_TRACKING
+	bool
 	help
 	  This option sets hooks on kernel / userspace boundaries and
 	  puts RCU in extended quiescent state when the CPU runs in
 	  userspace. It means that when a CPU runs in userspace, it is
 	  excluded from the global RCU state machine and thus doesn't
 	  try to keep the timer tick on for RCU.
-
-	  Unless you want to hack and help the development of the full
-	  dynticks mode, you shouldn't enable this option.  It also
-	  adds unnecessary overhead.
-
-	  If unsure say N
 
 config CONTEXT_TRACKING_FORCE
 	bool "Force context tracking"
