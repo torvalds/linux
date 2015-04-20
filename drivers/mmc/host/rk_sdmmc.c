@@ -643,13 +643,7 @@ static void dw_mci_edmac_start_dma(struct dw_mci *host, unsigned int sg_len)
 		mburst = burst_limit;
 		idx = (ilog2(mburst) > 0) ? (ilog2(mburst) - 1) : 0;
 
-		if (soc_is_rk3126b()) {
-			idx = 0;
-			rx_wmark = (host->fifo_depth) / 2 - 1;
-		} else {
-			rx_wmark = mszs[idx] - 1;
-		}
-
+		rx_wmark = mszs[idx] - 1;
 		tx_wmark = (host->fifo_depth) / 2;
 		fifoth_val = SDMMC_SET_FIFOTH(idx, rx_wmark, tx_wmark);
 
