@@ -520,8 +520,10 @@ unsigned int tcp_poll(struct file *file, struct socket *sock, poll_table *wait)
 
 				/* Race breaker. If space is freed after
 				 * wspace test but before the flags are set,
-				 * IO signal will be lost.
+				 * IO signal will be lost. Memory barrier
+				 * pairs with the input side.
 				 */
+				smp_mb__after_atomic();
 				if (sk_stream_is_writeable(sk))
 					mask |= POLLOUT | POLLWRNORM;
 			}
