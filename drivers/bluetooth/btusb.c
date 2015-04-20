@@ -1502,7 +1502,7 @@ static int rtl8723b_parse_firmware(struct hci_dev *hdev, u16 lmp_subver,
 		return -EINVAL;
 	}
 
-	if (project_id > ARRAY_SIZE(project_id_to_lmp_subver)) {
+	if (project_id >= ARRAY_SIZE(project_id_to_lmp_subver)) {
 		BT_ERR("%s: unknown project id %d", hdev->name, project_id);
 		return -EINVAL;
 	}
