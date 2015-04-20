@@ -4307,15 +4307,15 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 }
 
 static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
-				     struct cfg80211_bss *cbss, bool assoc)
+				     struct cfg80211_bss *cbss, bool assoc,
+				     bool override)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_bss *bss = (void *)cbss->priv;
 	struct sta_info *new_sta = NULL;
 	struct ieee80211_supported_band *sband;
-	struct ieee80211_sta_ht_cap sta_ht_cap;
-	bool have_sta = false, is_override = false;
+	bool have_sta = false;
 	int err;
 
 	sband = local->hw.wiphy->bands[cbss->channel->band];
@@ -4335,14 +4335,7 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 			return -ENOMEM;
 	}
 
-	memcpy(&sta_ht_cap, &sband->ht_cap, sizeof(sta_ht_cap));
-	ieee80211_apply_htcap_overrides(sdata, &sta_ht_cap);
-
-	is_override = (sta_ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) !=
-		      (sband->ht_cap.cap &
-		       IEEE80211_HT_CAP_SUP_WIDTH_20_40);
-
-	if (new_sta || is_override) {
+	if (new_sta || override) {
 		err = ieee80211_prep_channel(sdata, cbss);
 		if (err) {
 			if (new_sta)
@@ -4552,7 +4545,7 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 
 	sdata_info(sdata, "authenticate with %pM\n", req->bss->bssid);
 
-	err = ieee80211_prep_connection(sdata, req->bss, false);
+	err = ieee80211_prep_connection(sdata, req->bss, false, false);
 	if (err)
 		goto err_clear;
 
@@ -4624,6 +4617,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_supported_band *sband;
 	const u8 *ssidie, *ht_ie, *vht_ie;
 	int i, err;
+	bool override = false;
 
 	assoc_data = kzalloc(sizeof(*assoc_data) + req->ie_len, GFP_KERNEL);
 	if (!assoc_data)
@@ -4727,14 +4721,6 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 				    "disabling HT/VHT due to WEP/TKIP use\n");
 		}
 	}
-
-	if (req->flags & ASSOC_REQ_DISABLE_HT) {
-		ifmgd->flags |= IEEE80211_STA_DISABLE_HT;
-		ifmgd->flags |= IEEE80211_STA_DISABLE_VHT;
-	}
-
-	if (req->flags & ASSOC_REQ_DISABLE_VHT)
-		ifmgd->flags |= IEEE80211_STA_DISABLE_VHT;
 
 	/* Also disable HT if we don't support it or the AP doesn't use WMM */
 	sband = local->hw.wiphy->bands[req->bss->channel->band];
@@ -4847,7 +4833,36 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	ifmgd->dtim_period = 0;
 	ifmgd->have_beacon = false;
 
-	err = ieee80211_prep_connection(sdata, req->bss, true);
+	/* override HT/VHT configuration only if the AP and we support it */
+	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_HT)) {
+		struct ieee80211_sta_ht_cap sta_ht_cap;
+
+		if (req->flags & ASSOC_REQ_DISABLE_HT)
+			override = true;
+
+		memcpy(&sta_ht_cap, &sband->ht_cap, sizeof(sta_ht_cap));
+		ieee80211_apply_htcap_overrides(sdata, &sta_ht_cap);
+
+		/* check for 40 MHz disable override */
+		if (!(ifmgd->flags & IEEE80211_STA_DISABLE_40MHZ) &&
+		    sband->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40 &&
+		    !(sta_ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40))
+			override = true;
+
+		if (!(ifmgd->flags & IEEE80211_STA_DISABLE_VHT) &&
+		    req->flags & ASSOC_REQ_DISABLE_VHT)
+			override = true;
+	}
+
+	if (req->flags & ASSOC_REQ_DISABLE_HT) {
+		ifmgd->flags |= IEEE80211_STA_DISABLE_HT;
+		ifmgd->flags |= IEEE80211_STA_DISABLE_VHT;
+	}
+
+	if (req->flags & ASSOC_REQ_DISABLE_VHT)
+		ifmgd->flags |= IEEE80211_STA_DISABLE_VHT;
+
+	err = ieee80211_prep_connection(sdata, req->bss, true, override);
 	if (err)
 		goto err_clear;
 
