@@ -117,7 +117,7 @@ static inline void arch_acpi_set_pdc_bits(u32 *buf)
 #ifdef CONFIG_ACPI_NUMA
 extern cpumask_t early_cpu_possible_map;
 #define for_each_possible_early_cpu(cpu)  \
-	for_each_cpu_mask((cpu), early_cpu_possible_map)
+	for_each_cpu((cpu), &early_cpu_possible_map)
 
 static inline void per_cpu_scan_finalize(int min_cpus, int reserve_cpus)
 {
@@ -125,13 +125,13 @@ static inline void per_cpu_scan_finalize(int min_cpus, int reserve_cpus)
 	int cpu;
 	int next_nid = 0;
 
-	low_cpu = cpus_weight(early_cpu_possible_map);
+	low_cpu = cpumask_weight(&early_cpu_possible_map);
 
 	high_cpu = max(low_cpu, min_cpus);
 	high_cpu = min(high_cpu + reserve_cpus, NR_CPUS);
 
 	for (cpu = low_cpu; cpu < high_cpu; cpu++) {
-		cpu_set(cpu, early_cpu_possible_map);
+		cpumask_set_cpu(cpu, &early_cpu_possible_map);
 		if (node_cpuid[cpu].nid == NUMA_NO_NODE) {
 			node_cpuid[cpu].nid = next_nid;
 			next_nid++;

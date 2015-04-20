@@ -171,8 +171,8 @@ update_clusterinfo(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		for_each_online_cpu(cpu) {
 			if (x2apic_cluster(this_cpu) != x2apic_cluster(cpu))
 				continue;
-			__cpu_clear(this_cpu, per_cpu(cpus_in_cluster, cpu));
-			__cpu_clear(cpu, per_cpu(cpus_in_cluster, this_cpu));
+			cpumask_clear_cpu(this_cpu, per_cpu(cpus_in_cluster, cpu));
+			cpumask_clear_cpu(cpu, per_cpu(cpus_in_cluster, this_cpu));
 		}
 		free_cpumask_var(per_cpu(cpus_in_cluster, this_cpu));
 		free_cpumask_var(per_cpu(ipi_mask, this_cpu));
