@@ -552,6 +552,7 @@ u8 wifi_custom_mac_addr[6] = {0,0,0,0,0,0};
 extern char GetSNSectorInfo(char * pbuf);
 
 //#define ENABLE_WIFI_RAND_MAC
+#ifdef ENABLE_WIFI_RAND_MAC
 #define WIFI_RAND_MAC_FILE "/data/misc/wifi_rand_mac"
 static int rockchip_wifi_rand_mac_addr(unsigned char *buf)
 {
@@ -586,6 +587,7 @@ static int rockchip_wifi_rand_mac_addr(unsigned char *buf)
     LOG("random wifi_custom_mac_addr=[%s]\n", mac_buf);    
     return 0;
 }
+#endif
 
 int rockchip_wifi_mac_addr(unsigned char *buf)
 {
