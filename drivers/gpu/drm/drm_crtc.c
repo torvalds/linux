@@ -4304,6 +4304,9 @@ int drm_mode_connector_set_path_property(struct drm_connector *connector,
 	size_t size = strlen(path) + 1;
 	int ret;
 
+	if (connector->path_blob_ptr)
+		drm_property_destroy_blob(dev, connector->path_blob_ptr);
+
 	connector->path_blob_ptr = drm_property_create_blob(connector->dev,
 							    size, path);
 	if (!connector->path_blob_ptr)
