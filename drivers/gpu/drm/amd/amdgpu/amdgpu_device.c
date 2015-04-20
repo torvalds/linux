@@ -41,6 +41,7 @@
 #ifdef CONFIG_DRM_AMDGPU_CIK
 #include "cik.h"
 #endif
+#include "vi.h"
 #include "bif/bif_4_1_d.h"
 
 static int amdgpu_debugfs_regs_init(struct amdgpu_device *adev);
@@ -1154,9 +1155,21 @@ int amdgpu_ip_block_version_cmp(struct amdgpu_device *adev,
 
 static int amdgpu_early_init(struct amdgpu_device *adev)
 {
-	int i, r = -EINVAL;
+	int i, r;
 
 	switch (adev->asic_type) {
+	case CHIP_TOPAZ:
+	case CHIP_TONGA:
+	case CHIP_CARRIZO:
+		if (adev->asic_type == CHIP_CARRIZO)
+			adev->family = AMDGPU_FAMILY_CZ;
+		else
+			adev->family = AMDGPU_FAMILY_VI;
+
+		r = vi_set_ip_blocks(adev);
+		if (r)
+			return r;
+		break;
 #ifdef CONFIG_DRM_AMDGPU_CIK
 	case CHIP_BONAIRE:
 	case CHIP_HAWAII:

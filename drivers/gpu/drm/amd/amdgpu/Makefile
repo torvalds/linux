@@ -18,29 +18,57 @@ amdgpu-y += amdgpu_device.o amdgpu_kms.o \
 	amdgpu_prime.o amdgpu_vm.o amdgpu_ib.o amdgpu_pll.o \
 	amdgpu_ucode.o amdgpu_bo_list.o amdgpu_ctx.o amdgpu_sync.o
 
+# add asic specific block
 amdgpu-$(CONFIG_DRM_AMDGPU_CIK)+= cik.o gmc_v7_0.o cik_ih.o kv_smc.o kv_dpm.o \
 	ci_smc.o ci_dpm.o dce_v8_0.o gfx_v7_0.o cik_sdma.o uvd_v4_2.o vce_v2_0.o
+
+amdgpu-y += \
+	vi.o
+
+# add GMC block
+amdgpu-y += \
+	gmc_v8_0.o
 
 # add IH block
 amdgpu-y += \
 	amdgpu_irq.o \
-	amdgpu_ih.o
+	amdgpu_ih.o \
+	iceland_ih.o \
+	tonga_ih.o \
+	cz_ih.o
 
 # add SMC block
 amdgpu-y += \
-	amdgpu_dpm.o
+	amdgpu_dpm.o \
+	cz_smc.o cz_dpm.o \
+	tonga_smc.o tonga_dpm.o \
+	iceland_smc.o iceland_dpm.o
+
+# add DCE block
+amdgpu-y += \
+	dce_v10_0.o \
+	dce_v11_0.o
 
 # add GFX block
 amdgpu-y += \
-	amdgpu_gfx.o
+	amdgpu_gfx.o \
+	gfx_v8_0.o
+
+# add async DMA block
+amdgpu-y += \
+	sdma_v2_4.o \
+	sdma_v3_0.o
 
 # add UVD block
 amdgpu-y += \
-	amdgpu_uvd.o
+	amdgpu_uvd.o \
+	uvd_v5_0.o \
+	uvd_v6_0.o
 
 # add VCE block
 amdgpu-y += \
-	amdgpu_vce.o
+	amdgpu_vce.o \
+	vce_v3_0.o
 
 amdgpu-$(CONFIG_COMPAT) += amdgpu_ioc32.o
 amdgpu-$(CONFIG_VGA_SWITCHEROO) += amdgpu_atpx_handler.o
