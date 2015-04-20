@@ -82,7 +82,7 @@
 			reg = <0x4ab000 0x4>;
 		};
 
-		pinctrl@1000000 {
+		msmgpio: pinctrl@1000000 {
 			compatible = "qcom,msm8916-pinctrl";
 			reg = <0x1000000 0x300000>;
 			interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;

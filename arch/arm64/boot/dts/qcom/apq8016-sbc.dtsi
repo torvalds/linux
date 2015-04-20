@@ -13,6 +13,8 @@
 
 #include "msm8916.dtsi"
 #include "pm8916.dtsi"
+#include "apq8016-sbc-soc-pins.dtsi"
+#include "apq8016-sbc-pmic-pins.dtsi"
 
 / {
 	aliases {
