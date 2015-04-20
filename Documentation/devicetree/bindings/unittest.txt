@@ -1,60 +1,60 @@
-1) OF selftest platform device
+1) OF unittest platform device
 
-** selftest
+** unittest
 
 Required properties:
-- compatible: must be "selftest"
+- compatible: must be "unittest"
 
 All other properties are optional.
 
 Example:
-	selftest {
-		compatible = "selftest";
+	unittest {
+		compatible = "unittest";
 		status = "okay";
 	};
 
-2) OF selftest i2c adapter platform device
+2) OF unittest i2c adapter platform device
 
 ** platform device unittest adapter
 
 Required properties:
-- compatible: must be selftest-i2c-bus
+- compatible: must be unittest-i2c-bus
 
-Children nodes contain selftest i2c devices.
+Children nodes contain unittest i2c devices.
 
 Example:
-	selftest-i2c-bus {
-		compatible = "selftest-i2c-bus";
+	unittest-i2c-bus {
+		compatible = "unittest-i2c-bus";
 		status = "okay";
 	};
 
-3) OF selftest i2c device
+3) OF unittest i2c device
 
-** I2C selftest device
+** I2C unittest device
 
 Required properties:
-- compatible: must be selftest-i2c-dev
+- compatible: must be unittest-i2c-dev
 
 All other properties are optional
 
 Example:
-	selftest-i2c-dev {
-		compatible = "selftest-i2c-dev";
+	unittest-i2c-dev {
+		compatible = "unittest-i2c-dev";
 		status = "okay";
 	};
 
-4) OF selftest i2c mux device
+4) OF unittest i2c mux device
 
-** I2C selftest mux
+** I2C unittest mux
 
 Required properties:
-- compatible: must be selftest-i2c-mux
+- compatible: must be unittest-i2c-mux
 
-Children nodes contain selftest i2c bus nodes per channel.
+Children nodes contain unittest i2c bus nodes per channel.
 
 Example:
-	selftest-i2c-mux {
-		compatible = "selftest-i2c-mux";
+	unittest-i2c-mux {
+		compatible = "unittest-i2c-mux";
 		status = "okay";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -64,7 +64,7 @@ Example:
 			#size-cells = <0>;
 			i2c-dev {
 				reg = <8>;
-				compatible = "selftest-i2c-dev";
+				compatible = "unittest-i2c-dev";
 				status = "okay";
 			};
 		};

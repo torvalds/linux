@@ -228,7 +228,7 @@ UUID/GUID addresses:
 	lower ('l') or upper case ('L') hex characters - and big endian order
 	in lower ('b') or upper case ('B') hex characters.
 
-	Where no additional specifiers are used the default little endian
+	Where no additional specifiers are used the default big endian
 	order with lower case hex characters will be printed.
 
 	Passed by reference.
@@ -273,6 +273,16 @@ struct clk:
 
 	Passed by reference.
 
+bitmap and its derivatives such as cpumask and nodemask:
+
+	%*pb	0779
+	%*pbl	0,3-6,8-10
+
+	For printing bitmap and its derivatives such as cpumask and nodemask,
+	%*pb output the bitmap with field width as the number of bits and %*pbl
+	output the bitmap as range list with field width as the number of bits.
+
+	Passed by reference.
 
 Thank you for your cooperation and attention.
 

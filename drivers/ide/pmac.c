@@ -1689,10 +1689,9 @@ static int pmac_ide_init_dma(ide_hwif_t *hwif, const struct ide_port_info *d)
 	 * The +2 is +1 for the stop command and +1 to allow for
 	 * aligning the start address to a multiple of 16 bytes.
 	 */
-	pmif->dma_table_cpu = pci_alloc_consistent(
-		dev,
+	pmif->dma_table_cpu = dma_alloc_coherent(&dev->dev,
 		(MAX_DCMDS + 2) * sizeof(struct dbdma_cmd),
-		&hwif->dmatable_dma);
+		&hwif->dmatable_dma, GFP_KERNEL);
 	if (pmif->dma_table_cpu == NULL) {
 		printk(KERN_ERR "%s: unable to allocate DMA command list\n",
 		       hwif->name);

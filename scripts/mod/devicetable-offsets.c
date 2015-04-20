@@ -168,6 +168,9 @@ int main(void)
 	DEVID_FIELD(amba_id, id);
 	DEVID_FIELD(amba_id, mask);
 
+	DEVID(mips_cdmm_device_id);
+	DEVID_FIELD(mips_cdmm_device_id, type);
+
 	DEVID(x86_cpu_id);
 	DEVID_FIELD(x86_cpu_id, feature);
 	DEVID_FIELD(x86_cpu_id, family);

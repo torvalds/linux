@@ -20,6 +20,19 @@ config IMX_WEIM
 	  The WEIM(Wireless External Interface Module) works like a bus.
 	  You can attach many different devices on it, such as NOR, onenand.
 
+config MIPS_CDMM
+	bool "MIPS Common Device Memory Map (CDMM) Driver"
+	depends on CPU_MIPSR2
+	help
+	  Driver needed for the MIPS Common Device Memory Map bus in MIPS
+	  cores. This bus is for per-CPU tightly coupled devices such as the
+	  Fast Debug Channel (FDC).
+
+	  For this to work, either your bootloader needs to enable the CDMM
+	  region at an unused physical address on the boot CPU, or else your
+	  platform code needs to implement mips_cdmm_phys_base() (see
+	  asm/cdmm.h).
+
 config MVEBU_MBUS
 	bool
 	depends on PLAT_ORION

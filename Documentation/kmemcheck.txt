@@ -82,8 +82,8 @@ menu to even appear in "menuconfig". These are:
 
   o CONFIG_DEBUG_PAGEALLOC=n
 
-	This option is located under "Kernel hacking" / "Debug page memory
-	allocations".
+	This option is located under "Kernel hacking" / "Memory Debugging"
+	 / "Debug page memory allocations".
 
 In addition, I highly recommend turning on CONFIG_DEBUG_INFO=y. This is also
 located under "Kernel hacking". With this, you will be able to get line number
