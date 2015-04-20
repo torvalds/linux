@@ -1000,10 +1000,6 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb);
 void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 			struct iwl_tx_cmd *tx_cmd,
 			struct ieee80211_tx_info *info, u8 sta_id);
-void iwl_mvm_set_tx_cmd_crypto(struct iwl_mvm *mvm,
-			       struct ieee80211_tx_info *info,
-			       struct iwl_tx_cmd *tx_cmd,
-			       struct sk_buff *skb_frag);
 void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm, struct iwl_tx_cmd *tx_cmd,
 			    struct ieee80211_tx_info *info,
 			    struct ieee80211_sta *sta, __le16 fc);
@@ -1014,6 +1010,17 @@ static inline const char *iwl_mvm_get_tx_fail_reason(u32 status) { return ""; }
 #endif
 int iwl_mvm_flush_tx_path(struct iwl_mvm *mvm, u32 tfd_msk, bool sync);
 void iwl_mvm_async_handlers_purge(struct iwl_mvm *mvm);
+
+static inline void iwl_mvm_set_tx_cmd_ccmp(struct ieee80211_tx_info *info,
+					   struct iwl_tx_cmd *tx_cmd)
+{
+	struct ieee80211_key_conf *keyconf = info->control.hw_key;
+
+	tx_cmd->sec_ctl = TX_CMD_SEC_CCM;
+	memcpy(tx_cmd->key, keyconf->key, keyconf->keylen);
+	if (info->flags & IEEE80211_TX_CTL_AMPDU)
+		tx_cmd->tx_flags |= cpu_to_le32(TX_CMD_FLG_CCMP_AGG);
+}
 
 static inline void iwl_mvm_wait_for_async_handlers(struct iwl_mvm *mvm)
 {

@@ -268,19 +268,29 @@ void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm, struct iwl_tx_cmd *tx_cmd,
 /*
  * Sets the fields in the Tx cmd that are crypto related
  */
-void iwl_mvm_set_tx_cmd_crypto(struct iwl_mvm *mvm,
-			       struct ieee80211_tx_info *info,
-			       struct iwl_tx_cmd *tx_cmd,
-			       struct sk_buff *skb_frag)
+static void iwl_mvm_set_tx_cmd_crypto(struct iwl_mvm *mvm,
+				      struct ieee80211_tx_info *info,
+				      struct iwl_tx_cmd *tx_cmd,
+				      struct sk_buff *skb_frag,
+				      int hdrlen)
 {
 	struct ieee80211_key_conf *keyconf = info->control.hw_key;
+	u8 *crypto_hdr = skb_frag->data + hdrlen;
+	u64 pn;
 
 	switch (keyconf->cipher) {
 	case WLAN_CIPHER_SUITE_CCMP:
-		tx_cmd->sec_ctl = TX_CMD_SEC_CCM;
-		memcpy(tx_cmd->key, keyconf->key, keyconf->keylen);
-		if (info->flags & IEEE80211_TX_CTL_AMPDU)
-			tx_cmd->tx_flags |= cpu_to_le32(TX_CMD_FLG_CCMP_AGG);
+	case WLAN_CIPHER_SUITE_CCMP_256:
+		iwl_mvm_set_tx_cmd_ccmp(info, tx_cmd);
+		pn = atomic64_inc_return(&keyconf->tx_pn);
+		crypto_hdr[0] = pn;
+		crypto_hdr[2] = 0;
+		crypto_hdr[3] = 0x20 | (keyconf->keyidx << 6);
+		crypto_hdr[1] = pn >> 8;
+		crypto_hdr[4] = pn >> 16;
+		crypto_hdr[5] = pn >> 24;
+		crypto_hdr[6] = pn >> 32;
+		crypto_hdr[7] = pn >> 40;
 		break;
 
 	case WLAN_CIPHER_SUITE_TKIP:
@@ -308,7 +318,7 @@ void iwl_mvm_set_tx_cmd_crypto(struct iwl_mvm *mvm,
  */
 static struct iwl_device_cmd *
 iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
-		      struct ieee80211_sta *sta, u8 sta_id)
+		      int hdrlen, struct ieee80211_sta *sta, u8 sta_id)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -325,7 +335,7 @@ iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
 	tx_cmd = (struct iwl_tx_cmd *)dev_cmd->payload;
 
 	if (info->control.hw_key)
-		iwl_mvm_set_tx_cmd_crypto(mvm, info, tx_cmd, skb);
+		iwl_mvm_set_tx_cmd_crypto(mvm, info, tx_cmd, skb, hdrlen);
 
 	iwl_mvm_set_tx_cmd(mvm, skb, tx_cmd, info, sta_id);
 
@@ -346,6 +356,7 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 	struct iwl_device_cmd *dev_cmd;
 	struct iwl_tx_cmd *tx_cmd;
 	u8 sta_id;
+	int hdrlen = ieee80211_hdrlen(hdr->frame_control);
 
 	if (WARN_ON_ONCE(info->flags & IEEE80211_TX_CTL_AMPDU))
 		return -1;
@@ -393,7 +404,7 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 
 	IWL_DEBUG_TX(mvm, "station Id %d, queue=%d\n", sta_id, info->hw_queue);
 
-	dev_cmd = iwl_mvm_set_tx_params(mvm, skb, NULL, sta_id);
+	dev_cmd = iwl_mvm_set_tx_params(mvm, skb, hdrlen, NULL, sta_id);
 	if (!dev_cmd)
 		return -1;
 
@@ -401,7 +412,7 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 	tx_cmd = (struct iwl_tx_cmd *)dev_cmd->payload;
 
 	/* Copy MAC header from skb into command buffer */
-	memcpy(tx_cmd->hdr, hdr, ieee80211_hdrlen(hdr->frame_control));
+	memcpy(tx_cmd->hdr, hdr, hdrlen);
 
 	if (iwl_trans_tx(mvm->trans, skb, dev_cmd, info->hw_queue)) {
 		iwl_trans_free_tx_cmd(mvm->trans, dev_cmd);
@@ -427,9 +438,11 @@ int iwl_mvm_tx_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 	u8 tid = IWL_MAX_TID_COUNT;
 	u8 txq_id = info->hw_queue;
 	bool is_data_qos = false, is_ampdu = false;
+	int hdrlen;
 
 	mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	fc = hdr->frame_control;
+	hdrlen = ieee80211_hdrlen(fc);
 
 	if (WARN_ON_ONCE(!mvmsta))
 		return -1;
@@ -437,7 +450,7 @@ int iwl_mvm_tx_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 	if (WARN_ON_ONCE(mvmsta->sta_id == IWL_MVM_STATION_COUNT))
 		return -1;
 
-	dev_cmd = iwl_mvm_set_tx_params(mvm, skb, sta, mvmsta->sta_id);
+	dev_cmd = iwl_mvm_set_tx_params(mvm, skb, hdrlen, sta, mvmsta->sta_id);
 	if (!dev_cmd)
 		goto drop;
 
@@ -469,7 +482,7 @@ int iwl_mvm_tx_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 	}
 
 	/* Copy MAC header from skb into command buffer */
-	memcpy(tx_cmd->hdr, hdr, ieee80211_hdrlen(fc));
+	memcpy(tx_cmd->hdr, hdr, hdrlen);
 
 	WARN_ON_ONCE(info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM);
 

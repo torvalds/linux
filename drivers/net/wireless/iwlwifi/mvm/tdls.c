@@ -460,13 +460,19 @@ iwl_mvm_tdls_config_channel_switch(struct iwl_mvm *mvm,
 	cmd.frame.switch_time_offset = cpu_to_le32(ch_sw_tm_ie + 2);
 
 	info = IEEE80211_SKB_CB(skb);
-	if (info->control.hw_key)
-		iwl_mvm_set_tx_cmd_crypto(mvm, info, &cmd.frame.tx_cmd, skb);
+	hdr = (void *)skb->data;
+	if (info->control.hw_key) {
+		if (info->control.hw_key->cipher != WLAN_CIPHER_SUITE_CCMP) {
+			rcu_read_unlock();
+			ret = -EINVAL;
+			goto out;
+		}
+		iwl_mvm_set_tx_cmd_ccmp(info, &cmd.frame.tx_cmd);
+	}
 
 	iwl_mvm_set_tx_cmd(mvm, skb, &cmd.frame.tx_cmd, info,
 			   mvmsta->sta_id);
 
-	hdr = (void *)skb->data;
 	iwl_mvm_set_tx_cmd_rate(mvm, &cmd.frame.tx_cmd, info, sta,
 				hdr->frame_control);
 	rcu_read_unlock();
