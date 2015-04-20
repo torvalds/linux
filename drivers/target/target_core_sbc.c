@@ -738,14 +738,15 @@ static int
 sbc_check_dpofua(struct se_device *dev, struct se_cmd *cmd, unsigned char *cdb)
 {
 	if (cdb[1] & 0x10) {
-		if (!dev->dev_attrib.emulate_dpo) {
+		/* see explanation in spc_emulate_modesense */
+		if (!target_check_fua(dev)) {
 			pr_err("Got CDB: 0x%02x with DPO bit set, but device"
 			       " does not advertise support for DPO\n", cdb[0]);
 			return -EINVAL;
 		}
 	}
 	if (cdb[1] & 0x8) {
-		if (!dev->dev_attrib.emulate_fua_write || !se_dev_check_wce(dev)) {
+		if (!target_check_fua(dev)) {
 			pr_err("Got CDB: 0x%02x with FUA bit set, but device"
 			       " does not advertise support for FUA write\n",
 			       cdb[0]);

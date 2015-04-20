@@ -760,16 +760,8 @@ EXPORT_SYMBOL(se_dev_set_emulate_model_alias);
 
 int se_dev_set_emulate_dpo(struct se_device *dev, int flag)
 {
-	if (flag != 0 && flag != 1) {
-		pr_err("Illegal value %d\n", flag);
-		return -EINVAL;
-	}
-
-	if (flag) {
-		pr_err("dpo_emulated not supported\n");
-		return -EINVAL;
-	}
-
+	printk_once(KERN_WARNING
+		"ignoring deprecated emulate_dpo attribute\n");
 	return 0;
 }
 EXPORT_SYMBOL(se_dev_set_emulate_dpo);
@@ -799,16 +791,8 @@ EXPORT_SYMBOL(se_dev_set_emulate_fua_write);
 
 int se_dev_set_emulate_fua_read(struct se_device *dev, int flag)
 {
-	if (flag != 0 && flag != 1) {
-		pr_err("Illegal value %d\n", flag);
-		return -EINVAL;
-	}
-
-	if (flag) {
-		pr_err("ua read emulated not supported\n");
-		return -EINVAL;
-	}
-
+	printk_once(KERN_WARNING
+		"ignoring deprecated emulate_fua_read attribute\n");
 	return 0;
 }
 EXPORT_SYMBOL(se_dev_set_emulate_fua_read);
@@ -1513,9 +1497,9 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 
 	dev->dev_attrib.da_dev = dev;
 	dev->dev_attrib.emulate_model_alias = DA_EMULATE_MODEL_ALIAS;
-	dev->dev_attrib.emulate_dpo = DA_EMULATE_DPO;
-	dev->dev_attrib.emulate_fua_write = DA_EMULATE_FUA_WRITE;
-	dev->dev_attrib.emulate_fua_read = DA_EMULATE_FUA_READ;
+	dev->dev_attrib.emulate_dpo = 1;
+	dev->dev_attrib.emulate_fua_write = 1;
+	dev->dev_attrib.emulate_fua_read = 1;
 	dev->dev_attrib.emulate_write_cache = DA_EMULATE_WRITE_CACHE;
 	dev->dev_attrib.emulate_ua_intlck_ctrl = DA_EMULATE_UA_INTLLCK_CTRL;
 	dev->dev_attrib.emulate_tas = DA_EMULATE_TAS;

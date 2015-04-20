@@ -481,7 +481,7 @@ spc_emulate_evpd_86(struct se_cmd *cmd, unsigned char *buf)
 	buf[5] = 0x07;
 
 	/* If WriteCache emulation is enabled, set V_SUP */
-	if (se_dev_check_wce(dev))
+	if (target_check_wce(dev))
 		buf[6] = 0x01;
 	/* If an LBA map is present set R_SUP */
 	spin_lock(&cmd->se_dev->t10_alua.lba_map_lock);
@@ -888,7 +888,7 @@ static int spc_modesense_caching(struct se_cmd *cmd, u8 pc, u8 *p)
 	if (pc == 1)
 		goto out;
 
-	if (se_dev_check_wce(dev))
+	if (target_check_wce(dev))
 		p[2] = 0x04; /* Write Cache Enable */
 	p[12] = 0x20; /* Disabled Read Ahead */
 
@@ -1000,8 +1000,12 @@ static sense_reason_t spc_emulate_modesense(struct se_cmd *cmd)
 	     (cmd->se_deve->lun_flags & TRANSPORT_LUNFLAGS_READ_ONLY)))
 		spc_modesense_write_protect(&buf[length], type);
 
-	if ((se_dev_check_wce(dev)) &&
-	    (dev->dev_attrib.emulate_fua_write > 0))
+	/*
+	 * SBC only allows us to enable FUA and DPO together.  Fortunately
+	 * DPO is explicitly specified as a hint, so a noop is a perfectly
+	 * valid implementation.
+	 */
+	if (target_check_fua(dev))
 		spc_modesense_dpofua(&buf[length], type);
 
 	++length;

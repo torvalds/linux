@@ -610,9 +610,7 @@ fd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 		 * for SCSI WRITEs with Forced Unit Access (FUA) set.
 		 * Allow this to happen independent of WCE=0 setting.
 		 */
-		if (ret > 0 &&
-		    dev->dev_attrib.emulate_fua_write > 0 &&
-		    (cmd->se_cmd_flags & SCF_FUA)) {
+		if (ret > 0 && (cmd->se_cmd_flags & SCF_FUA)) {
 			loff_t start = cmd->t_task_lba *
 				dev->dev_attrib.block_size;
 			loff_t end;

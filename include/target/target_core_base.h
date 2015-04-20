@@ -79,12 +79,6 @@
 #define DA_MAX_WRITE_SAME_LEN			0
 /* Use a model alias based on the configfs backend device name */
 #define DA_EMULATE_MODEL_ALIAS			0
-/* Emulation for Direct Page Out */
-#define DA_EMULATE_DPO				0
-/* Emulation for Forced Unit Access WRITEs */
-#define DA_EMULATE_FUA_WRITE			1
-/* Emulation for Forced Unit Access READs */
-#define DA_EMULATE_FUA_READ			0
 /* Emulation for WriteCache and SYNCHRONIZE_CACHE */
 #define DA_EMULATE_WRITE_CACHE			0
 /* Emulation for UNIT ATTENTION Interlock Control */
