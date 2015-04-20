@@ -501,7 +501,7 @@ static int cpu_psci_cpu_kill(unsigned int cpu)
 	int err, i;
 
 	if (!psci_ops.affinity_info)
-		return 1;
+		return 0;
 	/*
 	 * cpu_kill could race with cpu_die and we can
 	 * potentially end up declaring this cpu undead
@@ -512,7 +512,7 @@ static int cpu_psci_cpu_kill(unsigned int cpu)
 		err = psci_ops.affinity_info(cpu_logical_map(cpu), 0);
 		if (err == PSCI_0_2_AFFINITY_LEVEL_OFF) {
 			pr_info("CPU%d killed.\n", cpu);
-			return 1;
+			return 0;
 		}
 
 		msleep(10);
@@ -521,8 +521,7 @@ static int cpu_psci_cpu_kill(unsigned int cpu)
 
 	pr_warn("CPU%d may not have shut down cleanly (AFFINITY_INFO reports %d)\n",
 			cpu, err);
-	/* Make op_cpu_kill() fail. */
-	return 0;
+	return -ETIMEDOUT;
 }
 #endif
 #endif

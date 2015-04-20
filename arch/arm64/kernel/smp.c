@@ -249,7 +249,7 @@ static int op_cpu_kill(unsigned int cpu)
 	 * time and hope that it's dead, so let's skip the wait and just hope.
 	 */
 	if (!cpu_ops[cpu]->cpu_kill)
-		return 1;
+		return 0;
 
 	return cpu_ops[cpu]->cpu_kill(cpu);
 }
@@ -262,6 +262,8 @@ static DECLARE_COMPLETION(cpu_died);
  */
 void __cpu_die(unsigned int cpu)
 {
+	int err;
+
 	if (!wait_for_completion_timeout(&cpu_died, msecs_to_jiffies(5000))) {
 		pr_crit("CPU%u: cpu didn't die\n", cpu);
 		return;
@@ -274,8 +276,10 @@ void __cpu_die(unsigned int cpu)
 	 * verify that it has really left the kernel before we consider
 	 * clobbering anything it might still be using.
 	 */
-	if (!op_cpu_kill(cpu))
-		pr_warn("CPU%d may not have shut down cleanly\n", cpu);
+	err = op_cpu_kill(cpu);
+	if (err)
+		pr_warn("CPU%d may not have shut down cleanly: %d\n",
+			cpu, err);
 }
 
 /*
