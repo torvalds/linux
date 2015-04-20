@@ -1598,7 +1598,7 @@ void rga_test_0(void)
 }
 
 #endif
-module_init(rga_init);
+fs_initcall(rga_init);
 module_exit(rga_exit);
 
 /* Module information */
