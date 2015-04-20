@@ -216,6 +216,8 @@ struct drm_framebuffer {
 
 struct drm_property_blob {
 	struct drm_mode_object base;
+	struct drm_device *dev;
+	struct kref refcount;
 	struct list_head head;
 	size_t length;
 	unsigned char data[];
@@ -1365,6 +1367,13 @@ struct drm_property *drm_property_create_object(struct drm_device *dev,
 					 int flags, const char *name, uint32_t type);
 struct drm_property *drm_property_create_bool(struct drm_device *dev, int flags,
 					 const char *name);
+struct drm_property_blob *drm_property_create_blob(struct drm_device *dev,
+                                                   size_t length,
+                                                   const void *data);
+struct drm_property_blob *drm_property_lookup_blob(struct drm_device *dev,
+                                                   uint32_t id);
+struct drm_property_blob *drm_property_reference_blob(struct drm_property_blob *blob);
+void drm_property_unreference_blob(struct drm_property_blob *blob);
 extern void drm_property_destroy(struct drm_device *dev, struct drm_property *property);
 extern int drm_property_add_enum(struct drm_property *property, int index,
 				 uint64_t value, const char *name);
@@ -1526,14 +1535,6 @@ static inline struct drm_property *drm_property_find(struct drm_device *dev,
 	struct drm_mode_object *mo;
 	mo = drm_mode_object_find(dev, id, DRM_MODE_OBJECT_PROPERTY);
 	return mo ? obj_to_property(mo) : NULL;
-}
-
-static inline struct drm_property_blob *
-drm_property_blob_find(struct drm_device *dev, uint32_t id)
-{
-	struct drm_mode_object *mo;
-	mo = drm_mode_object_find(dev, id, DRM_MODE_OBJECT_BLOB);
-	return mo ? obj_to_blob(mo) : NULL;
 }
 
 /* Plane list iterator for legacy (overlay only) planes. */
