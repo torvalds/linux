@@ -4239,6 +4239,83 @@ static void drm_property_destroy_blob(struct drm_device *dev,
 }
 
 /**
+ * drm_property_replace_global_blob - atomically replace existing blob property
+ * @dev: drm device
+ * @replace: location of blob property pointer to be replaced
+ * @length: length of data for new blob, or 0 for no data
+ * @data: content for new blob, or NULL for no data
+ * @obj_holds_id: optional object for property holding blob ID
+ * @prop_holds_id: optional property holding blob ID
+ * @return 0 on success or error on failure
+ *
+ * This function will atomically replace a global property in the blob list,
+ * optionally updating a property which holds the ID of that property. It is
+ * guaranteed to be atomic: no caller will be allowed to see intermediate
+ * results, and either the entire operation will succeed and clean up the
+ * previous property, or it will fail and the state will be unchanged.
+ *
+ * If length is 0 or data is NULL, no new blob will be created, and the holding
+ * property, if specified, will be set to 0.
+ *
+ * Access to the replace pointer is assumed to be protected by the caller, e.g.
+ * by holding the relevant modesetting object lock for its parent.
+ *
+ * For example, a drm_connector has a 'PATH' property, which contains the ID
+ * of a blob property with the value of the MST path information. Calling this
+ * function with replace pointing to the connector's path_blob_ptr, length and
+ * data set for the new path information, obj_holds_id set to the connector's
+ * base object, and prop_holds_id set to the path property name, will perform
+ * a completely atomic update. The access to path_blob_ptr is protected by the
+ * caller holding a lock on the connector.
+ */
+static int drm_property_replace_global_blob(struct drm_device *dev,
+                                            struct drm_property_blob **replace,
+                                            size_t length,
+                                            const void *data,
+                                            struct drm_mode_object *obj_holds_id,
+                                            struct drm_property *prop_holds_id)
+{
+	struct drm_property_blob *new_blob = NULL;
+	struct drm_property_blob *old_blob = NULL;
+	int ret;
+
+	WARN_ON(replace == NULL);
+
+	old_blob = *replace;
+
+	if (length && data) {
+		new_blob = drm_property_create_blob(dev, length, data);
+		if (!new_blob)
+			return -EINVAL;
+	}
+
+	/* This does not need to be synchronised with blob_lock, as the
+	 * get_properties ioctl locks all modesetting objects, and
+	 * obj_holds_id must be locked before calling here, so we cannot
+	 * have its value out of sync with the list membership modified
+	 * below under blob_lock. */
+	if (obj_holds_id) {
+		ret = drm_object_property_set_value(obj_holds_id,
+						    prop_holds_id,
+						    new_blob ?
+						        new_blob->base.id : 0);
+		if (ret != 0)
+			goto err_created;
+	}
+
+	if (old_blob)
+		drm_property_destroy_blob(dev, old_blob);
+
+	*replace = new_blob;
+
+	return 0;
+
+err_created:
+	drm_property_destroy_blob(dev, new_blob);
+	return ret;
+}
+
+/**
  * drm_mode_getblob_ioctl - get the contents of a blob property value
  * @dev: DRM device
  * @data: ioctl data
@@ -4287,7 +4364,7 @@ done:
 /**
  * drm_mode_connector_set_path_property - set tile property on connector
  * @connector: connector to set property on.
- * @path: path to use for property.
+ * @path: path to use for property; must not be NULL.
  *
  * This creates a property to expose to userspace to specify a
  * connector path. This is mainly used for DisplayPort MST where
@@ -4301,20 +4378,14 @@ int drm_mode_connector_set_path_property(struct drm_connector *connector,
 					 const char *path)
 {
 	struct drm_device *dev = connector->dev;
-	size_t size = strlen(path) + 1;
 	int ret;
 
-	if (connector->path_blob_ptr)
-		drm_property_destroy_blob(dev, connector->path_blob_ptr);
-
-	connector->path_blob_ptr = drm_property_create_blob(connector->dev,
-							    size, path);
-	if (!connector->path_blob_ptr)
-		return -EINVAL;
-
-	ret = drm_object_property_set_value(&connector->base,
-					    dev->mode_config.path_property,
-					    connector->path_blob_ptr->base.id);
+	ret = drm_property_replace_global_blob(dev,
+	                                       &connector->path_blob_ptr,
+	                                       strlen(path) + 1,
+	                                       path,
+	                                       &connector->base,
+	                                       dev->mode_config.path_property);
 	return ret;
 }
 EXPORT_SYMBOL(drm_mode_connector_set_path_property);
@@ -4333,16 +4404,16 @@ EXPORT_SYMBOL(drm_mode_connector_set_path_property);
 int drm_mode_connector_set_tile_property(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
-	int ret, size;
 	char tile[256];
-
-	if (connector->tile_blob_ptr)
-		drm_property_destroy_blob(dev, connector->tile_blob_ptr);
+	int ret;
 
 	if (!connector->has_tile) {
-		connector->tile_blob_ptr = NULL;
-		ret = drm_object_property_set_value(&connector->base,
-						    dev->mode_config.tile_property, 0);
+		ret  = drm_property_replace_global_blob(dev,
+		                                        &connector->tile_blob_ptr,
+		                                        0,
+		                                        NULL,
+		                                        &connector->base,
+		                                        dev->mode_config.tile_property);
 		return ret;
 	}
 
@@ -4351,16 +4422,13 @@ int drm_mode_connector_set_tile_property(struct drm_connector *connector)
 		 connector->num_h_tile, connector->num_v_tile,
 		 connector->tile_h_loc, connector->tile_v_loc,
 		 connector->tile_h_size, connector->tile_v_size);
-	size = strlen(tile) + 1;
 
-	connector->tile_blob_ptr = drm_property_create_blob(connector->dev,
-							    size, tile);
-	if (!connector->tile_blob_ptr)
-		return -EINVAL;
-
-	ret = drm_object_property_set_value(&connector->base,
-					    dev->mode_config.tile_property,
-					    connector->tile_blob_ptr->base.id);
+	ret = drm_property_replace_global_blob(dev,
+	                                       &connector->tile_blob_ptr,
+	                                       strlen(tile) + 1,
+	                                       tile,
+	                                       &connector->base,
+	                                       dev->mode_config.tile_property);
 	return ret;
 }
 EXPORT_SYMBOL(drm_mode_connector_set_tile_property);
@@ -4380,33 +4448,22 @@ int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 					    const struct edid *edid)
 {
 	struct drm_device *dev = connector->dev;
-	size_t size;
+	size_t size = 0;
 	int ret;
 
 	/* ignore requests to set edid when overridden */
 	if (connector->override_edid)
 		return 0;
 
-	if (connector->edid_blob_ptr)
-		drm_property_destroy_blob(dev, connector->edid_blob_ptr);
+	if (edid)
+		size = EDID_LENGTH + (1 + edid->extensions);
 
-	/* Delete edid, when there is none. */
-	if (!edid) {
-		connector->edid_blob_ptr = NULL;
-		ret = drm_object_property_set_value(&connector->base, dev->mode_config.edid_property, 0);
-		return ret;
-	}
-
-	size = EDID_LENGTH * (1 + edid->extensions);
-	connector->edid_blob_ptr = drm_property_create_blob(connector->dev,
-							    size, edid);
-	if (!connector->edid_blob_ptr)
-		return -EINVAL;
-
-	ret = drm_object_property_set_value(&connector->base,
-					       dev->mode_config.edid_property,
-					       connector->edid_blob_ptr->base.id);
-
+	ret = drm_property_replace_global_blob(dev,
+					       &connector->edid_blob_ptr,
+	                                       size,
+	                                       edid,
+	                                       &connector->base,
+	                                       dev->mode_config.edid_property);
 	return ret;
 }
 EXPORT_SYMBOL(drm_mode_connector_update_edid_property);
