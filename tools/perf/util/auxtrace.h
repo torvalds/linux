@@ -19,6 +19,7 @@
 #include <sys/types.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <linux/list.h>
 #include <linux/perf_event.h>
 #include <linux/types.h>
 
@@ -90,6 +91,80 @@ struct auxtrace {
 			    struct perf_tool *tool);
 	void (*free_events)(struct perf_session *session);
 	void (*free)(struct perf_session *session);
+};
+
+/**
+ * struct auxtrace_buffer - a buffer containing AUX area tracing data.
+ * @list: buffers are queued in a list held by struct auxtrace_queue
+ * @size: size of the buffer in bytes
+ * @pid: in per-thread mode, the pid this buffer is associated with
+ * @tid: in per-thread mode, the tid this buffer is associated with
+ * @cpu: in per-cpu mode, the cpu this buffer is associated with
+ * @data: actual buffer data (can be null if the data has not been loaded)
+ * @data_offset: file offset at which the buffer can be read
+ * @mmap_addr: mmap address at which the buffer can be read
+ * @mmap_size: size of the mmap at @mmap_addr
+ * @data_needs_freeing: @data was malloc'd so free it when it is no longer
+ *                      needed
+ * @consecutive: the original data was split up and this buffer is consecutive
+ *               to the previous buffer
+ * @offset: offset as determined by aux_head / aux_tail members of struct
+ *          perf_event_mmap_page
+ * @reference: an implementation-specific reference determined when the data is
+ *             recorded
+ * @buffer_nr: used to number each buffer
+ * @use_size: implementation actually only uses this number of bytes
+ * @use_data: implementation actually only uses data starting at this address
+ */
+struct auxtrace_buffer {
+	struct list_head	list;
+	size_t			size;
+	pid_t			pid;
+	pid_t			tid;
+	int			cpu;
+	void			*data;
+	off_t			data_offset;
+	void			*mmap_addr;
+	size_t			mmap_size;
+	bool			data_needs_freeing;
+	bool			consecutive;
+	u64			offset;
+	u64			reference;
+	u64			buffer_nr;
+	size_t			use_size;
+	void			*use_data;
+};
+
+/**
+ * struct auxtrace_queue - a queue of AUX area tracing data buffers.
+ * @head: head of buffer list
+ * @tid: in per-thread mode, the tid this queue is associated with
+ * @cpu: in per-cpu mode, the cpu this queue is associated with
+ * @set: %true once this queue has been dedicated to a specific thread or cpu
+ * @priv: implementation-specific data
+ */
+struct auxtrace_queue {
+	struct list_head	head;
+	pid_t			tid;
+	int			cpu;
+	bool			set;
+	void			*priv;
+};
+
+/**
+ * struct auxtrace_queues - an array of AUX area tracing queues.
+ * @queue_array: array of queues
+ * @nr_queues: number of queues
+ * @new_data: set whenever new data is queued
+ * @populated: queues have been fully populated using the auxtrace_index
+ * @next_buffer_nr: used to number each buffer
+ */
+struct auxtrace_queues {
+	struct auxtrace_queue	*queue_array;
+	unsigned int		nr_queues;
+	bool			new_data;
+	bool			populated;
+	u64			next_buffer_nr;
 };
 
 /**
@@ -210,6 +285,18 @@ typedef int (*process_auxtrace_t)(struct perf_tool *tool,
 int auxtrace_mmap__read(struct auxtrace_mmap *mm, struct auxtrace_record *itr,
 			struct perf_tool *tool, process_auxtrace_t fn);
 
+int auxtrace_queues__init(struct auxtrace_queues *queues);
+int auxtrace_queues__add_event(struct auxtrace_queues *queues,
+			       struct perf_session *session,
+			       union perf_event *event, off_t data_offset,
+			       struct auxtrace_buffer **buffer_ptr);
+void auxtrace_queues__free(struct auxtrace_queues *queues);
+struct auxtrace_buffer *auxtrace_buffer__next(struct auxtrace_queue *queue,
+					      struct auxtrace_buffer *buffer);
+void *auxtrace_buffer__get_data(struct auxtrace_buffer *buffer, int fd);
+void auxtrace_buffer__put_data(struct auxtrace_buffer *buffer);
+void auxtrace_buffer__drop_data(struct auxtrace_buffer *buffer);
+void auxtrace_buffer__free(struct auxtrace_buffer *buffer);
 struct auxtrace_record *auxtrace_record__init(struct perf_evlist *evlist,
 					      int *err);
 
