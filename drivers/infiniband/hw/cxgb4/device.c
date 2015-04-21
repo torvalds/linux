@@ -765,6 +765,29 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 	c4iw_init_dev_ucontext(rdev, &rdev->uctx);
 
 	/*
+	 * This implementation assumes udb_density == ucq_density!  Eventually
+	 * we might need to support this but for now fail the open. Also the
+	 * cqid and qpid range must match for now.
+	 */
+	if (rdev->lldi.udb_density != rdev->lldi.ucq_density) {
+		pr_err(MOD "%s: unsupported udb/ucq densities %u/%u\n",
+		       pci_name(rdev->lldi.pdev), rdev->lldi.udb_density,
+		       rdev->lldi.ucq_density);
+		err = -EINVAL;
+		goto err1;
+	}
+	if (rdev->lldi.vr->qp.start != rdev->lldi.vr->cq.start ||
+	    rdev->lldi.vr->qp.size != rdev->lldi.vr->cq.size) {
+		pr_err(MOD "%s: unsupported qp and cq id ranges "
+		       "qp start %u size %u cq start %u size %u\n",
+		       pci_name(rdev->lldi.pdev), rdev->lldi.vr->qp.start,
+		       rdev->lldi.vr->qp.size, rdev->lldi.vr->cq.size,
+		       rdev->lldi.vr->cq.size);
+		err = -EINVAL;
+		goto err1;
+	}
+
+	/*
 	 * qpshift is the number of bits to shift the qpid left in order
 	 * to get the correct address of the doorbell for that qp.
 	 */
