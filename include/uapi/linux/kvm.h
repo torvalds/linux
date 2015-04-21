@@ -813,6 +813,7 @@ struct kvm_ppc_smmu_info {
 #define KVM_CAP_MIPS_MSA 112
 #define KVM_CAP_S390_INJECT_IRQ 113
 #define KVM_CAP_S390_IRQ_STATE 114
+#define KVM_CAP_PPC_HWRNG 115
 
 #ifdef KVM_CAP_IRQ_ROUTING
 

@@ -89,6 +89,7 @@ EXPORT_SYMBOL_GPL(kvm_vcpu_cache);
 static __read_mostly struct preempt_ops kvm_preempt_ops;
 
 struct dentry *kvm_debugfs_dir;
+EXPORT_SYMBOL_GPL(kvm_debugfs_dir);
 
 static long kvm_vcpu_ioctl(struct file *file, unsigned int ioctl,
 			   unsigned long arg);
