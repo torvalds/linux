@@ -12226,6 +12226,18 @@ intel_modeset_compute_config(struct drm_crtc *crtc,
 	if (ret)
 		return ERR_PTR(ret);
 
+	/* Check things that can only be changed through modeset */
+	if (pipe_config->has_audio !=
+	    to_intel_crtc(crtc)->config->has_audio)
+		pipe_config->base.mode_changed = true;
+
+	/*
+	 * Note we have an issue here with infoframes: current code
+	 * only updates them on the full mode set path per hw
+	 * requirements.  So here we should be checking for any
+	 * required changes and forcing a mode set.
+	 */
+
 	intel_dump_pipe_config(to_intel_crtc(crtc), pipe_config,"[modeset]");
 
 	return pipe_config;
@@ -12624,7 +12636,7 @@ is_crtc_connector_off(struct drm_mode_set *set)
 
 static void
 intel_set_config_compute_mode_changes(struct drm_mode_set *set,
-				      struct intel_set_config *config)
+				      struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = set->crtc->dev;
 	struct intel_connector *connector;
@@ -12634,7 +12646,7 @@ intel_set_config_compute_mode_changes(struct drm_mode_set *set,
 	/* We should be able to check here if the fb has the same properties
 	 * and then just flip_or_move it */
 	if (is_crtc_connector_off(set)) {
-		config->mode_changed = true;
+		pipe_config->base.mode_changed = true;
 	} else if (set->crtc->primary->fb != set->fb) {
 		/*
 		 * If we have no fb, we can only flip as long as the crtc is
@@ -12648,36 +12660,36 @@ intel_set_config_compute_mode_changes(struct drm_mode_set *set,
 
 			if (intel_crtc->active) {
 				DRM_DEBUG_KMS("crtc has no fb, will flip\n");
-				config->fb_changed = true;
+				pipe_config->base.planes_changed = true;
 			} else {
 				DRM_DEBUG_KMS("inactive crtc, full mode set\n");
-				config->mode_changed = true;
+				pipe_config->base.mode_changed = true;
 			}
 		} else if (set->fb == NULL) {
-			config->mode_changed = true;
+			pipe_config->base.mode_changed = true;
 		} else if (set->fb->pixel_format !=
 			   set->crtc->primary->fb->pixel_format) {
-			config->mode_changed = true;
+			pipe_config->base.mode_changed = true;
 		} else {
-			config->fb_changed = true;
+			pipe_config->base.planes_changed = true;
 		}
 	}
 
 	if (set->fb && (set->x != set->crtc->x || set->y != set->crtc->y))
-		config->fb_changed = true;
+		pipe_config->base.planes_changed = true;
 
 	if (set->mode && !drm_mode_equal(set->mode, &set->crtc->mode)) {
 		DRM_DEBUG_KMS("modes are different, full mode set\n");
 		drm_mode_debug_printmodeline(&set->crtc->mode);
 		drm_mode_debug_printmodeline(set->mode);
-		config->mode_changed = true;
+		pipe_config->base.mode_changed = true;
 	}
 
 	for_each_intel_connector(dev, connector) {
 		if (&connector->new_encoder->base == connector->base.encoder)
 			continue;
 
-		config->mode_changed = true;
+		pipe_config->base.mode_changed = true;
 		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] encoder changed, full mode switch\n",
 			      connector->base.base.id,
 			      connector->base.name);
@@ -12690,7 +12702,7 @@ intel_set_config_compute_mode_changes(struct drm_mode_set *set,
 		DRM_DEBUG_KMS("[ENCODER:%d:%s] crtc changed, full mode switch\n",
 			      encoder->base.base.id,
 			      encoder->base.name);
-		config->mode_changed = true;
+		pipe_config->base.mode_changed = true;
 	}
 
 	for_each_intel_crtc(dev, crtc) {
@@ -12700,11 +12712,12 @@ intel_set_config_compute_mode_changes(struct drm_mode_set *set,
 		DRM_DEBUG_KMS("[CRTC:%d] %sabled, full mode switch\n",
 			      crtc->base.base.id,
 			      crtc->new_enabled ? "en" : "dis");
-		config->mode_changed = true;
+		pipe_config->base.mode_changed = true;
 	}
 
 	DRM_DEBUG_KMS("computed changes for [CRTC:%d], mode_changed=%d, fb_changed=%d\n",
-			set->crtc->base.id, config->mode_changed, config->fb_changed);
+			set->crtc->base.id, pipe_config->base.mode_changed,
+			pipe_config->base.planes_changed);
 }
 
 static int
@@ -12888,36 +12901,25 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 	if (ret)
 		goto fail;
 
-	/* Compute whether we need a full modeset, only an fb base update or no
-	 * change at all. In the future we might also check whether only the
-	 * mode changed, e.g. for LVDS where we only change the panel fitter in
-	 * such cases. */
-	intel_set_config_compute_mode_changes(set, config);
-
 	pipe_config = intel_modeset_compute_config(set->crtc, set->mode,
 						   state);
 	if (IS_ERR(pipe_config)) {
 		ret = PTR_ERR(pipe_config);
 		goto fail;
-	} else if (pipe_config) {
-		if (pipe_config->has_audio !=
-		    to_intel_crtc(set->crtc)->config->has_audio)
-			config->mode_changed = true;
-
-		/*
-		 * Note we have an issue here with infoframes: current code
-		 * only updates them on the full mode set path per hw
-		 * requirements.  So here we should be checking for any
-		 * required changes and forcing a mode set.
-		 */
 	}
+
+	/* Compute whether we need a full modeset, only an fb base update or no
+	 * change at all. In the future we might also check whether only the
+	 * mode changed, e.g. for LVDS where we only change the panel fitter in
+	 * such cases. */
+	intel_set_config_compute_mode_changes(set, pipe_config);
 
 	intel_update_pipe_size(to_intel_crtc(set->crtc));
 
-	if (config->mode_changed) {
+	if (pipe_config->base.mode_changed) {
 		ret = intel_set_mode_with_config(set->crtc, set->mode,
 						 pipe_config);
-	} else if (config->fb_changed) {
+	} else if (pipe_config->base.planes_changed) {
 		struct intel_crtc *intel_crtc = to_intel_crtc(set->crtc);
 		struct drm_plane *primary = set->crtc->primary;
 		struct intel_plane_state *plane_state =
