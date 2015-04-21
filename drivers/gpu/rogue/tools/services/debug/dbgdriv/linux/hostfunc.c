@@ -289,7 +289,7 @@ IMG_VOID *HostCreateMutex(IMG_VOID)
 {
 	MUTEX *psMutex;
 
-	psMutex = kzalloc(sizeof(*psMutex), GFP_KERNEL);
+	psMutex = kmalloc(sizeof(*psMutex), GFP_KERNEL);
 	if (psMutex)
 	{
 		INIT_MUTEX(psMutex);

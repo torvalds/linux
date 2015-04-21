@@ -766,7 +766,7 @@ PVRSRV_ERROR OSInstallDeviceLISR(PVRSRV_DEVICE_CONFIG *psDevConfig,
 	LISR_DATA *psLISRData;
 	unsigned long flags = 0;
 
-	psLISRData = kzalloc(sizeof(LISR_DATA), GFP_KERNEL);
+	psLISRData = kmalloc(sizeof(LISR_DATA), GFP_KERNEL);
 
 	psLISRData->pfnLISR = pfnLISR;
 	psLISRData->pvData = pvData;
@@ -847,7 +847,7 @@ PVRSRV_ERROR OSInstallMISR(IMG_HANDLE *hMISRData, PFN_MISR pfnMISR,
 {
 	MISR_DATA *psMISRData;
 
-	psMISRData = kzalloc(sizeof(MISR_DATA), GFP_KERNEL);
+	psMISRData = kmalloc(sizeof(MISR_DATA), GFP_KERNEL);
 	if (psMISRData == NULL)
 	{
 		return PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -935,7 +935,7 @@ PVRSRV_ERROR OSInstallMISR(IMG_HANDLE *hMISRData, PFN_MISR pfnMISR, void *hData)
 {
 	MISR_DATA *psMISRData;
 
-	psMISRData = kzalloc(sizeof(MISR_DATA), GFP_KERNEL);
+	psMISRData = kmalloc(sizeof(MISR_DATA), GFP_KERNEL);
 	if (psMISRData == NULL)
 	{
 		return PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -1006,7 +1006,7 @@ PVRSRV_ERROR OSInstallMISR(IMG_HANDLE *hMISRData, PFN_MISR pfnMISR, void *hData)
 {
 	MISR_DATA *psMISRData;
 
-	psMISRData = kzalloc(sizeof(MISR_DATA), GFP_KERNEL);
+	psMISRData = kmalloc(sizeof(MISR_DATA), GFP_KERNEL);
 	if (psMISRData == NULL)
 	{
 		return PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -1110,7 +1110,7 @@ PVRSRV_ERROR OSThreadCreatePriority(IMG_HANDLE *phThread,
 	OSThreadData *psOSThreadData;
 	PVRSRV_ERROR eError;
 
-	psOSThreadData = kzalloc(sizeof(OSThreadData), GFP_KERNEL);
+	psOSThreadData = kmalloc(sizeof(OSThreadData), GFP_KERNEL);
 	if (psOSThreadData == IMG_NULL)
 	{
 		eError = PVRSRV_ERROR_OUT_OF_MEMORY;
@@ -1878,7 +1878,7 @@ PVRSRV_ERROR OSWRLockCreate(POSWR_LOCK *ppsLock)
 {
 	POSWR_LOCK psLock;
 
-	psLock = kzalloc(sizeof(*psLock), GFP_KERNEL);
+	psLock = kmalloc(sizeof(*psLock), GFP_KERNEL);
 	if (psLock == NULL)
 	{
 		return PVRSRV_ERROR_OUT_OF_MEMORY;

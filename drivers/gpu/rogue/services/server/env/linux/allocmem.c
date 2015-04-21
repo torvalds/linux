@@ -61,7 +61,7 @@ IMG_INTERNAL IMG_PVOID OSAllocMem(IMG_UINT32 ui32Size)
 	}
 	else
 	{
-		pvRet = kzalloc(ui32Size, GFP_KERNEL);
+		pvRet = kmalloc(ui32Size, GFP_KERNEL);
 	}
 
 #if defined(PVRSRV_ENABLE_PROCESS_STATS)
@@ -110,7 +110,7 @@ IMG_INTERNAL IMG_PVOID OSAllocMem(IMG_UINT32 ui32Size)
 }
 IMG_INTERNAL IMG_PVOID OSAllocMemstatMem(IMG_UINT32 ui32Size)
 {
-    IMG_PVOID pvRet = kzalloc(ui32Size, GFP_KERNEL);
+    IMG_PVOID pvRet = kmalloc(ui32Size, GFP_KERNEL);
 
 	return pvRet;
 }

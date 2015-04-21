@@ -394,7 +394,7 @@ sync_pool_get(struct pvr_sync_native_sync_prim **_sync,
 
 	if (list_empty(&sync_pool_free_list)) {
 		/* If there is nothing in the pool, create a new sync prim. */
-		sync = kzalloc(sizeof(struct pvr_sync_native_sync_prim),
+		sync = kmalloc(sizeof(struct pvr_sync_native_sync_prim),
 			       GFP_KERNEL);
 		if (!sync) {
 			pr_err("pvr_sync: %s: Failed to allocate sync data",
@@ -859,14 +859,14 @@ pvr_sync_create_waiter_for_foreign_sync(int fd)
 		goto err_out;
 	}
 
-	kernel = kzalloc(sizeof(struct pvr_sync_kernel_pair), GFP_KERNEL);
+	kernel = kmalloc(sizeof(struct pvr_sync_kernel_pair), GFP_KERNEL);
 	if (!kernel) {
 		pr_err("pvr_sync: %s: Failed to allocate sync kernel",
 		       __func__);
 		goto err_put_fence;
 	}
 
-	sync_fence = kzalloc(sizeof(struct pvr_sync_fence), GFP_KERNEL);
+	sync_fence = kmalloc(sizeof(struct pvr_sync_fence), GFP_KERNEL);
 	if (!sync_fence) {
 		pr_err("pvr_sync: %s: Failed to allocate pvr sync fence",
 		       __func__);
@@ -896,7 +896,7 @@ pvr_sync_create_waiter_for_foreign_sync(int fd)
 	kernel->cleanup_sync->next_value++;
 
 	/* The custom waiter structure is freed in the waiter callback */
-	waiter = kzalloc(sizeof(struct pvr_sync_fence_waiter), GFP_KERNEL);
+	waiter = kmalloc(sizeof(struct pvr_sync_fence_waiter), GFP_KERNEL);
 	if (!waiter) {
 		pr_err("pvr_sync: %s: Failed to allocate waiter", __func__);
 		goto err_free_cleanup_sync;
@@ -1947,7 +1947,7 @@ void pvr_sync_update_all_timelines(void *command_complete_handle)
 
 		if (signal) {
 			timeline_to_signal =
-				kzalloc(sizeof(struct pvr_sync_tl_to_signal),
+				kmalloc(sizeof(struct pvr_sync_tl_to_signal),
 					GFP_KERNEL);
 			if (!timeline_to_signal)
 				break;

@@ -56,7 +56,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define OSLockCreate(phLock, eLockType) ({ \
 	PVRSRV_ERROR e = PVRSRV_ERROR_OUT_OF_MEMORY; \
-	*(phLock) = kzalloc(sizeof(struct mutex), GFP_KERNEL); \
+	*(phLock) = kmalloc(sizeof(struct mutex), GFP_KERNEL); \
 	if (*(phLock)) { mutex_init(*(phLock)); e = PVRSRV_OK; }; \
 	e;})
 #define OSLockDestroy(hLock) ({mutex_destroy((hLock)); kfree((hLock)); PVRSRV_OK;})
