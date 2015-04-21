@@ -6107,6 +6107,8 @@ void intel_crtc_update_dpms(struct drm_crtc *crtc)
 		enable |= intel_encoder->connectors_active;
 
 	intel_crtc_control(crtc, enable);
+
+	crtc->state->active = enable;
 }
 
 static void intel_crtc_disable(struct drm_crtc *crtc)
