@@ -238,6 +238,11 @@ enum hpd_pin {
 #define for_each_crtc(dev, crtc) \
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
 
+#define for_each_intel_plane(dev, intel_plane) \
+	list_for_each_entry(intel_plane,			\
+			    &dev->mode_config.plane_list,	\
+			    base.head)
+
 #define for_each_intel_crtc(dev, intel_crtc) \
 	list_for_each_entry(intel_crtc, &dev->mode_config.crtc_list, base.head)
 
