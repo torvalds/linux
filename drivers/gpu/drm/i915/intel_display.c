@@ -12278,10 +12278,8 @@ static int __intel_set_mode(struct drm_crtc *modeset_crtc,
 		return ret;
 
 	crtc_state_copy = kmalloc(sizeof(*crtc_state_copy), GFP_KERNEL);
-	if (!crtc_state_copy) {
-		ret = -ENOMEM;
-		goto done;
-	}
+	if (!crtc_state_copy)
+		return -ENOMEM;
 
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		if (!needs_modeset(crtc_state))
@@ -12337,6 +12335,7 @@ static int __intel_set_mode(struct drm_crtc *modeset_crtc,
 					      hdisplay, vdisplay,
 					      x << 16, y << 16,
 					      hdisplay << 16, vdisplay << 16);
+		WARN_ON(ret != 0);
 	}
 
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
@@ -12351,21 +12350,16 @@ static int __intel_set_mode(struct drm_crtc *modeset_crtc,
 	}
 
 	/* FIXME: add subpixel order */
-done:
-	if (ret == 0 && pipe_config) {
-		struct intel_crtc *intel_crtc = to_intel_crtc(modeset_crtc);
 
-		/* The pipe_config will be freed with the atomic state, so
-		 * make a copy. */
-		memcpy(crtc_state_copy, intel_crtc->config,
-		       sizeof *crtc_state_copy);
-		intel_crtc->config = crtc_state_copy;
-		intel_crtc->base.state = &crtc_state_copy->base;
-	} else {
-		kfree(crtc_state_copy);
-	}
+	intel_crtc = to_intel_crtc(modeset_crtc);
 
-	return ret;
+	/* The pipe_config will be freed with the atomic state, so
+	 * make a copy. */
+	memcpy(crtc_state_copy, intel_crtc->config, sizeof *crtc_state_copy);
+	intel_crtc->config = crtc_state_copy;
+	intel_crtc->base.state = &crtc_state_copy->base;
+
+	return 0;
 }
 
 static int intel_set_mode_with_config(struct drm_crtc *crtc,
