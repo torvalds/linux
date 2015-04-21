@@ -525,40 +525,27 @@ GLOBAL(stub_execveat)
 	CFI_ENDPROC
 END(stub_execveat)
 
-#ifdef CONFIG_X86_X32_ABI
+#if defined(CONFIG_X86_X32_ABI) || defined(CONFIG_IA32_EMULATION)
 	.align	8
 GLOBAL(stub_x32_execve)
-	CFI_STARTPROC
-	DEFAULT_FRAME 0, 8
-	call	compat_sys_execve
-	jmp	return_from_execve
-	CFI_ENDPROC
-END(stub_x32_execve)
-	.align	8
-GLOBAL(stub_x32_execveat)
-	CFI_STARTPROC
-	DEFAULT_FRAME 0, 8
-	call	compat_sys_execveat
-	jmp	return_from_execve
-	CFI_ENDPROC
-END(stub_x32_execveat)
-#endif
-
-#ifdef CONFIG_IA32_EMULATION
-	.align	8
 GLOBAL(stub32_execve)
 	CFI_STARTPROC
+	DEFAULT_FRAME 0, 8
 	call	compat_sys_execve
 	jmp	return_from_execve
 	CFI_ENDPROC
 END(stub32_execve)
+END(stub_x32_execve)
 	.align	8
+GLOBAL(stub_x32_execveat)
 GLOBAL(stub32_execveat)
 	CFI_STARTPROC
+	DEFAULT_FRAME 0, 8
 	call	compat_sys_execveat
 	jmp	return_from_execve
 	CFI_ENDPROC
 END(stub32_execveat)
+END(stub_x32_execveat)
 #endif
 
 /*
