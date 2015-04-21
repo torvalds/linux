@@ -159,7 +159,7 @@ static irqreturn_t hp_det_irq_handler(int irq, void *dev_id)
 		return -1;
 	}
 
-	if (type == IRQ_TYPE_EDGE_FALLING)
+	if (es8316->hp_det_level != gpio_get_value(es8316->hp_det_gpio))
 		hp_irq_flag = 0;
 	else
 		hp_irq_flag = 1;
@@ -1202,6 +1202,7 @@ static int es8316_i2c_probe(struct i2c_client *i2c_client,
 	int ret = -1;
 	unsigned long irq_flag = 0;
 	int hp_irq = 0;
+	int val = 0;
 	enum of_gpio_flags flags;
 	struct device_node *np = i2c_client->dev.of_node;
 
@@ -1256,6 +1257,14 @@ static int es8316_i2c_probe(struct i2c_client *i2c_client,
 
 		irq_flag = IRQF_TRIGGER_LOW | IRQF_ONESHOT;
 		hp_irq = gpio_to_irq(es8316->hp_det_gpio);
+
+		val = gpio_get_value(es8316->hp_det_gpio);
+		if (val == es8316->hp_det_level) {
+			pr_info("hp inserted.\n");
+			hp_irq_flag = 1;
+			es8316_set_gpio(ES8316_CODEC_SET_SPK,
+					!es8316->spk_gpio_level);
+		}
 
 		if (hp_irq)
 			ret = request_threaded_irq(hp_irq, NULL,
