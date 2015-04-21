@@ -22,6 +22,7 @@
 #include <linux/platform_device.h>
 #include <linux/amba/bus.h>
 #include <linux/coresight.h>
+#include <linux/cpumask.h>
 #include <asm/smp_plat.h>
 
 
@@ -104,7 +105,7 @@ static int of_coresight_alloc_memory(struct device *dev,
 struct coresight_platform_data *of_get_coresight_platform_data(
 				struct device *dev, struct device_node *node)
 {
-	int i = 0, ret = 0;
+	int i = 0, ret = 0, cpu;
 	struct coresight_platform_data *pdata;
 	struct of_endpoint endpoint, rendpoint;
 	struct device *rdev;
@@ -178,17 +179,10 @@ struct coresight_platform_data *of_get_coresight_platform_data(
 	/* Affinity defaults to CPU0 */
 	pdata->cpu = 0;
 	dn = of_parse_phandle(node, "cpu", 0);
-	if (dn) {
-		const u32 *cell;
-		int len, index;
-		u64 hwid;
-
-		cell = of_get_property(dn, "reg", &len);
-		if (cell) {
-			hwid = of_read_number(cell, of_n_addr_cells(dn));
-			index = get_logical_index(hwid);
-			if (index != -EINVAL)
-				pdata->cpu = index;
+	for (cpu = 0; dn && cpu < nr_cpu_ids; cpu++) {
+		if (dn == of_get_cpu_node(cpu, NULL)) {
+			pdata->cpu = cpu;
+			break;
 		}
 	}
 

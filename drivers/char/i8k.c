@@ -510,13 +510,15 @@ static int i8k_proc_show(struct seq_file *seq, void *offset)
 	 * 9)  AC power
 	 * 10) Fn Key status
 	 */
-	return seq_printf(seq, "%s %s %s %d %d %d %d %d %d %d\n",
-			  I8K_PROC_FMT,
-			  bios_version,
-			  i8k_get_dmi_data(DMI_PRODUCT_SERIAL),
-			  cpu_temp,
-			  left_fan, right_fan, left_speed, right_speed,
-			  ac_power, fn_key);
+	seq_printf(seq, "%s %s %s %d %d %d %d %d %d %d\n",
+		   I8K_PROC_FMT,
+		   bios_version,
+		   i8k_get_dmi_data(DMI_PRODUCT_SERIAL),
+		   cpu_temp,
+		   left_fan, right_fan, left_speed, right_speed,
+		   ac_power, fn_key);
+
+	return 0;
 }
 
 static int i8k_open_fs(struct inode *inode, struct file *file)

@@ -482,8 +482,8 @@ err:
 int mei_nfc_host_init(struct mei_device *dev)
 {
 	struct mei_nfc_dev *ndev;
-	struct mei_cl *cl_info, *cl = NULL;
-	struct mei_me_client *me_cl;
+	struct mei_cl *cl_info, *cl;
+	struct mei_me_client *me_cl = NULL;
 	int ret;
 
 
@@ -500,17 +500,6 @@ int mei_nfc_host_init(struct mei_device *dev)
 		goto err;
 	}
 
-	ndev->cl_info = mei_cl_allocate(dev);
-	ndev->cl = mei_cl_allocate(dev);
-
-	cl = ndev->cl;
-	cl_info = ndev->cl_info;
-
-	if (!cl || !cl_info) {
-		ret = -ENOMEM;
-		goto err;
-	}
-
 	/* check for valid client id */
 	me_cl = mei_me_cl_by_uuid(dev, &mei_nfc_info_guid);
 	if (!me_cl) {
@@ -519,16 +508,20 @@ int mei_nfc_host_init(struct mei_device *dev)
 		goto err;
 	}
 
+	cl_info = mei_cl_alloc_linked(dev, MEI_HOST_CLIENT_ID_ANY);
+	if (IS_ERR(cl_info)) {
+		ret = PTR_ERR(cl_info);
+		goto err;
+	}
+
 	cl_info->me_client_id = me_cl->client_id;
 	cl_info->cl_uuid = me_cl->props.protocol_name;
 	mei_me_cl_put(me_cl);
-
-	ret = mei_cl_link(cl_info, MEI_HOST_CLIENT_ID_ANY);
-	if (ret)
-		goto err;
-
+	me_cl = NULL;
 
 	list_add_tail(&cl_info->device_link, &dev->device_list);
+
+	ndev->cl_info = cl_info;
 
 	/* check for valid client id */
 	me_cl = mei_me_cl_by_uuid(dev, &mei_nfc_guid);
@@ -538,15 +531,20 @@ int mei_nfc_host_init(struct mei_device *dev)
 		goto err;
 	}
 
+	cl = mei_cl_alloc_linked(dev, MEI_HOST_CLIENT_ID_ANY);
+	if (IS_ERR(cl)) {
+		ret = PTR_ERR(cl);
+		goto err;
+	}
+
 	cl->me_client_id = me_cl->client_id;
 	cl->cl_uuid = me_cl->props.protocol_name;
 	mei_me_cl_put(me_cl);
-
-	ret = mei_cl_link(cl, MEI_HOST_CLIENT_ID_ANY);
-	if (ret)
-		goto err;
+	me_cl = NULL;
 
 	list_add_tail(&cl->device_link, &dev->device_list);
+
+	ndev->cl = cl;
 
 	ndev->req_id = 1;
 
@@ -557,6 +555,7 @@ int mei_nfc_host_init(struct mei_device *dev)
 	return 0;
 
 err:
+	mei_me_cl_put(me_cl);
 	mei_nfc_free(ndev);
 
 	return ret;

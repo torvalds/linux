@@ -1486,7 +1486,7 @@ static int data_of_remove(struct platform_device *op)
 	return 0;
 }
 
-static struct of_device_id data_of_match[] = {
+static const struct of_device_id data_of_match[] = {
 	{ .compatible = "carma,carma-fpga", },
 	{},
 };

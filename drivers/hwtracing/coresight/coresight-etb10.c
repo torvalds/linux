@@ -313,8 +313,8 @@ static ssize_t etb_read(struct file *file, char __user *data,
 
 	*ppos += len;
 
-	dev_dbg(drvdata->dev, "%s: %d bytes copied, %d bytes left\n",
-		__func__, len, (int) (depth * 4 - *ppos));
+	dev_dbg(drvdata->dev, "%s: %zu bytes copied, %d bytes left\n",
+		__func__, len, (int)(depth * 4 - *ppos));
 	return len;
 }
 

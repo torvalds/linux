@@ -107,7 +107,7 @@ static int replicator_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id replicator_match[] = {
+static const struct of_device_id replicator_match[] = {
 	{.compatible = "arm,coresight-replicator"},
 	{}
 };

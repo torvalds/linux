@@ -140,12 +140,17 @@ static int misc_open(struct inode * inode, struct file * file)
 			goto fail;
 	}
 
+	/*
+	 * Place the miscdevice in the file's
+	 * private_data so it can be used by the
+	 * file operations, including f_op->open below
+	 */
+	file->private_data = c;
+
 	err = 0;
 	replace_fops(file, new_fops);
-	if (file->f_op->open) {
-		file->private_data = c;
+	if (file->f_op->open)
 		err = file->f_op->open(inode,file);
-	}
 fail:
 	mutex_unlock(&misc_mtx);
 	return err;
@@ -169,7 +174,9 @@ static const struct file_operations misc_fops = {
  *	the minor number requested is used.
  *
  *	The structure passed is linked into the kernel and may not be
- *	destroyed until it has been unregistered.
+ *	destroyed until it has been unregistered. By default, an open()
+ *	syscall to the device sets file->private_data to point to the
+ *	structure. Drivers don't need open in fops for this.
  *
  *	A zero is returned on success and a negative errno code for
  *	failure.
@@ -205,8 +212,9 @@ int misc_register(struct miscdevice * misc)
 
 	dev = MKDEV(MISC_MAJOR, misc->minor);
 
-	misc->this_device = device_create(misc_class, misc->parent, dev,
-					  misc, "%s", misc->name);
+	misc->this_device =
+		device_create_with_groups(misc_class, misc->parent, dev,
+					  misc, misc->groups, "%s", misc->name);
 	if (IS_ERR(misc->this_device)) {
 		int i = DYNAMIC_MINORS - misc->minor - 1;
 		if (i < DYNAMIC_MINORS && i >= 0)
