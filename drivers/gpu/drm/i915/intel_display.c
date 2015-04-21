@@ -11152,27 +11152,47 @@ static void intel_modeset_update_connector_atomic_state(struct drm_device *dev)
  * intel_modeset_commit_output_state
  *
  * This function copies the stage display pipe configuration to the real one.
+ *
+ * FIXME: we want to replace this with a proper state swap in the future
  */
-static void intel_modeset_commit_output_state(struct drm_device *dev)
+static void intel_modeset_commit_output_state(struct drm_atomic_state *state)
 {
-	struct intel_crtc *crtc;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+	struct drm_connector *connector;
+	struct drm_connector_state *connector_state;
 	struct intel_encoder *encoder;
-	struct intel_connector *connector;
+	struct intel_connector *intel_connector;
+	int i;
 
-	for_each_intel_connector(dev, connector) {
-		connector->base.encoder = &connector->new_encoder->base;
+	for_each_connector_in_state(state, connector, connector_state, i) {
+		*connector->state = *connector_state;
+
+		connector->encoder = connector_state->best_encoder;
+		if (connector->encoder)
+			connector->encoder->crtc = connector_state->crtc;
 	}
 
-	for_each_intel_encoder(dev, encoder) {
-		encoder->base.crtc = &encoder->new_crtc->base;
+	/* Update crtc of disabled encoders */
+	for_each_intel_encoder(state->dev, encoder) {
+		int num_connectors = 0;
+
+		for_each_intel_connector(state->dev, intel_connector)
+			if (intel_connector->base.encoder == &encoder->base)
+				num_connectors++;
+
+		if (num_connectors == 0)
+			encoder->base.crtc = NULL;
 	}
 
-	for_each_intel_crtc(dev, crtc) {
-		crtc->base.state->enable = crtc->new_enabled;
-		crtc->base.enabled = crtc->new_enabled;
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		crtc->state->enable = crtc_state->enable;
+		crtc->enabled = crtc_state->enable;
 	}
 
-	intel_modeset_update_connector_atomic_state(dev);
+	/* Copy the new configuration to the staged state, to keep the few
+	 * pieces of code that haven't been converted yet happy */
+	intel_modeset_update_staged_output_state(state->dev);
 }
 
 static void
@@ -11622,7 +11642,7 @@ intel_modeset_update_state(struct drm_atomic_state *state)
 			intel_encoder->connectors_active = false;
 	}
 
-	intel_modeset_commit_output_state(dev);
+	intel_modeset_commit_output_state(state);
 
 	/* Double check state. */
 	for_each_crtc(dev, crtc) {
@@ -12739,10 +12759,11 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 				 struct drm_atomic_state *state)
 {
 	struct intel_connector *connector;
+	struct drm_connector *drm_connector;
 	struct drm_connector_state *connector_state;
-	struct intel_encoder *encoder;
-	struct intel_crtc *crtc;
-	struct intel_crtc_state *crtc_state;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+	int i, ret;
 
 	/* The upper layers ensure that we either disable a crtc or have a list
 	 * of connectors. For paranoia, double-check this. */
@@ -12752,21 +12773,28 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 	for_each_intel_connector(dev, connector) {
 		bool in_mode_set = intel_connector_in_mode_set(connector, set);
 
+		if (!in_mode_set && connector->base.state->crtc != set->crtc)
+			continue;
+
+		connector_state =
+			drm_atomic_get_connector_state(state, &connector->base);
+		if (IS_ERR(connector_state))
+			return PTR_ERR(connector_state);
+
 		if (in_mode_set) {
 			int pipe = to_intel_crtc(set->crtc)->pipe;
-			connector->new_encoder =
-				intel_find_encoder(connector, pipe);
+			connector_state->best_encoder =
+				&intel_find_encoder(connector, pipe)->base;
 		}
 
-		if (!connector->base.encoder ||
-		    connector->base.encoder->crtc != set->crtc)
+		if (connector->base.state->crtc != set->crtc)
 			continue;
 
 		/* If we disable the crtc, disable all its connectors. Also, if
 		 * the connector is on the changing crtc but not on the new
 		 * connector list, disable it. */
 		if (!set->fb || !in_mode_set) {
-			connector->new_encoder = NULL;
+			connector_state->best_encoder = NULL;
 
 			DRM_DEBUG_KMS("[CONNECTOR:%d:%s] to [NOCRTC]\n",
 				connector->base.base.id,
@@ -12775,86 +12803,58 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 	}
 	/* connector->new_encoder is now updated for all connectors. */
 
-	/* Update crtc of enabled connectors. */
-	for_each_intel_connector(dev, connector) {
-		struct drm_crtc *new_crtc;
+	for_each_connector_in_state(state, drm_connector, connector_state, i) {
+		connector = to_intel_connector(drm_connector);
 
-		if (!connector->new_encoder)
+		if (!connector_state->best_encoder) {
+			ret = drm_atomic_set_crtc_for_connector(connector_state,
+								NULL);
+			if (ret)
+				return ret;
+
 			continue;
+		}
 
-		if (intel_connector_in_mode_set(connector, set))
-			new_crtc = set->crtc;
-		else
-			new_crtc = connector->new_encoder->base.crtc;
+		if (intel_connector_in_mode_set(connector, set)) {
+			struct drm_crtc *crtc = connector->base.state->crtc;
+
+			/* If this connector was in a previous crtc, add it
+			 * to the state. We might need to disable it. */
+			if (crtc) {
+				crtc_state =
+					drm_atomic_get_crtc_state(state, crtc);
+				if (IS_ERR(crtc_state))
+					return PTR_ERR(crtc_state);
+			}
+
+			ret = drm_atomic_set_crtc_for_connector(connector_state,
+								set->crtc);
+			if (ret)
+				return ret;
+		}
 
 		/* Make sure the new CRTC will work with the encoder */
-		if (!drm_encoder_crtc_ok(&connector->new_encoder->base,
-					 new_crtc)) {
+		if (!drm_encoder_crtc_ok(connector_state->best_encoder,
+					 connector_state->crtc)) {
 			return -EINVAL;
 		}
-		connector->new_encoder->new_crtc = to_intel_crtc(new_crtc);
-
-		connector_state =
-			drm_atomic_get_connector_state(state, &connector->base);
-		if (IS_ERR(connector_state))
-			return PTR_ERR(connector_state);
-
-		connector_state->crtc = new_crtc;
-		connector_state->best_encoder = &connector->new_encoder->base;
 
 		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] to [CRTC:%d]\n",
 			connector->base.base.id,
 			connector->base.name,
-			new_crtc->base.id);
+			connector_state->crtc->base.id);
+
+		if (connector_state->best_encoder != &connector->encoder->base)
+			connector->encoder =
+				to_intel_encoder(connector_state->best_encoder);
 	}
 
-	/* Check for any encoders that needs to be disabled. */
-	for_each_intel_encoder(dev, encoder) {
-		int num_connectors = 0;
-		for_each_intel_connector(dev, connector) {
-			if (connector->new_encoder == encoder) {
-				WARN_ON(!connector->new_encoder->new_crtc);
-				num_connectors++;
-			}
-		}
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		ret = drm_atomic_add_affected_connectors(state, crtc);
+		if (ret)
+			return ret;
 
-		if (num_connectors == 0)
-			encoder->new_crtc = NULL;
-		else if (num_connectors > 1)
-			return -EINVAL;
-	}
-	/* Now we've also updated encoder->new_crtc for all encoders. */
-	for_each_intel_connector(dev, connector) {
-		connector_state =
-			drm_atomic_get_connector_state(state, &connector->base);
-		if (IS_ERR(connector_state))
-			return PTR_ERR(connector_state);
-
-		if (connector->new_encoder) {
-			if (connector->new_encoder != connector->encoder)
-				connector->encoder = connector->new_encoder;
-		} else {
-			connector_state->crtc = NULL;
-			connector_state->best_encoder = NULL;
-		}
-	}
-	for_each_intel_crtc(dev, crtc) {
-		crtc->new_enabled = false;
-
-		for_each_intel_encoder(dev, encoder) {
-			if (encoder->new_crtc == crtc) {
-				crtc->new_enabled = true;
-				break;
-			}
-		}
-
-		if (crtc->new_enabled != crtc->base.state->enable) {
-			crtc_state = intel_atomic_get_crtc_state(state, crtc);
-			if (IS_ERR(crtc_state))
-				return PTR_ERR(crtc_state);
-
-			crtc_state->base.enable = crtc->new_enabled;
-		}
+		crtc_state->enable = drm_atomic_connectors_for_crtc(state, crtc);
 	}
 
 	return 0;
