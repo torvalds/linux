@@ -67,11 +67,8 @@
 #include <net/mac80211.h>
 
 #include "mvm.h"
-#include "iwl-eeprom-parse.h"
 #include "fw-api-scan.h"
 
-#define IWL_PLCP_QUIET_THRESH 1
-#define IWL_ACTIVE_QUIET_TIME 10
 #define IWL_DENSE_EBS_SCAN_RATIO 5
 #define IWL_SPARSE_EBS_SCAN_RATIO 1
 
@@ -107,8 +104,6 @@ struct iwl_mvm_scan_params {
 enum iwl_umac_scan_uid_type {
 	IWL_UMAC_SCAN_UID_REG_SCAN	= BIT(0),
 	IWL_UMAC_SCAN_UID_SCHED_SCAN	= BIT(1),
-	IWL_UMAC_SCAN_UID_ALL		= IWL_UMAC_SCAN_UID_REG_SCAN |
-					  IWL_UMAC_SCAN_UID_SCHED_SCAN,
 };
 
 static int iwl_umac_scan_stop(struct iwl_mvm *mvm,
