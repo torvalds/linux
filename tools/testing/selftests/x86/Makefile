@@ -14,15 +14,21 @@ UNAME_M := $(shell uname -m)
 ifeq ($(CROSS_COMPILE),)
 # Always build 32-bit tests
 all: all_32
+# Install 32-bit tests
+TEST_PROGS += $(BINARIES_32) run_x86_tests.sh
 # If we're on a 64-bit host, build 64-bit tests as well
 ifeq ($(UNAME_M),x86_64)
 all: all_64
+# Install 64-bit tests
+TEST_PROGS += $(BINARIES_64)
 endif
 endif
 
 all_32: check_build32 $(BINARIES_32)
 
 all_64: $(BINARIES_64)
+
+include ../lib.mk
 
 clean:
 	$(RM) $(BINARIES_32) $(BINARIES_64)
