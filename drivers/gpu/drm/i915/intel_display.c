@@ -10256,14 +10256,6 @@ void intel_mark_idle(struct drm_device *dev)
 	intel_runtime_pm_put(dev_priv);
 }
 
-static void intel_crtc_set_state(struct intel_crtc *crtc,
-				 struct intel_crtc_state *crtc_state)
-{
-	kfree(crtc->config);
-	crtc->config = crtc_state;
-	crtc->base.state = &crtc_state->base;
-}
-
 static void intel_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -10280,7 +10272,6 @@ static void intel_crtc_destroy(struct drm_crtc *crtc)
 		kfree(work);
 	}
 
-	intel_crtc_set_state(intel_crtc, NULL);
 	drm_crtc_cleanup(crtc);
 
 	kfree(intel_crtc);
@@ -13502,7 +13493,8 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	crtc_state = kzalloc(sizeof(*crtc_state), GFP_KERNEL);
 	if (!crtc_state)
 		goto fail;
-	intel_crtc_set_state(intel_crtc, crtc_state);
+	intel_crtc->config = crtc_state;
+	intel_crtc->base.state = &crtc_state->base;
 	crtc_state->base.crtc = &intel_crtc->base;
 
 	/* initialize shared scalers */
