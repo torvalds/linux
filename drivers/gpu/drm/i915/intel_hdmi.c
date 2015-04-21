@@ -964,6 +964,7 @@ static bool hdmi_12bpc_possible(struct intel_crtc_state *crtc_state)
 	struct drm_device *dev = crtc_state->base.crtc->dev;
 	struct drm_atomic_state *state;
 	struct intel_encoder *encoder;
+	struct drm_connector *connector;
 	struct drm_connector_state *connector_state;
 	int count = 0, count_hdmi = 0;
 	int i;
@@ -973,11 +974,7 @@ static bool hdmi_12bpc_possible(struct intel_crtc_state *crtc_state)
 
 	state = crtc_state->base.state;
 
-	for (i = 0; i < state->num_connector; i++) {
-		if (!state->connectors[i])
-			continue;
-
-		connector_state = state->connector_states[i];
+	for_each_connector_in_state(state, connector, connector_state, i) {
 		if (connector_state->crtc != crtc_state->base.crtc)
 			continue;
 

@@ -453,15 +453,12 @@ static bool intel_pipe_will_have_type(const struct intel_crtc_state *crtc_state,
 				      int type)
 {
 	struct drm_atomic_state *state = crtc_state->base.state;
+	struct drm_connector *connector;
 	struct drm_connector_state *connector_state;
 	struct intel_encoder *encoder;
 	int i, num_connectors = 0;
 
-	for (i = 0; i < state->num_connector; i++) {
-		if (!state->connectors[i])
-			continue;
-
-		connector_state = state->connector_states[i];
+	for_each_connector_in_state(state, connector, connector_state, i) {
 		if (connector_state->crtc != crtc_state->base.crtc)
 			continue;
 
@@ -7461,14 +7458,11 @@ static int i9xx_crtc_compute_clock(struct intel_crtc *crtc,
 	struct intel_encoder *encoder;
 	const intel_limit_t *limit;
 	struct drm_atomic_state *state = crtc_state->base.state;
+	struct drm_connector *connector;
 	struct drm_connector_state *connector_state;
 	int i;
 
-	for (i = 0; i < state->num_connector; i++) {
-		if (!state->connectors[i])
-			continue;
-
-		connector_state = state->connector_states[i];
+	for_each_connector_in_state(state, connector, connector_state, i) {
 		if (connector_state->crtc != &crtc->base)
 			continue;
 
@@ -8152,16 +8146,13 @@ static int ironlake_get_refclk(struct intel_crtc_state *crtc_state)
 	struct drm_device *dev = crtc_state->base.crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_atomic_state *state = crtc_state->base.state;
+	struct drm_connector *connector;
 	struct drm_connector_state *connector_state;
 	struct intel_encoder *encoder;
 	int num_connectors = 0, i;
 	bool is_lvds = false;
 
-	for (i = 0; i < state->num_connector; i++) {
-		if (!state->connectors[i])
-			continue;
-
-		connector_state = state->connector_states[i];
+	for_each_connector_in_state(state, connector, connector_state, i) {
 		if (connector_state->crtc != crtc_state->base.crtc)
 			continue;
 
@@ -8415,17 +8406,14 @@ static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_atomic_state *state = crtc_state->base.state;
+	struct drm_connector *connector;
 	struct drm_connector_state *connector_state;
 	struct intel_encoder *encoder;
 	uint32_t dpll;
 	int factor, num_connectors = 0, i;
 	bool is_lvds = false, is_sdvo = false;
 
-	for (i = 0; i < state->num_connector; i++) {
-		if (!state->connectors[i])
-			continue;
-
-		connector_state = state->connector_states[i];
+	for_each_connector_in_state(state, connector, connector_state, i) {
 		if (connector_state->crtc != crtc_state->base.crtc)
 			continue;
 
@@ -11149,7 +11137,8 @@ compute_baseline_pipe_bpp(struct intel_crtc *crtc,
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_atomic_state *state;
-	struct intel_connector *connector;
+	struct drm_connector *connector;
+	struct drm_connector_state *connector_state;
 	int bpp, i;
 
 	if ((IS_G4X(dev) || IS_VALLEYVIEW(dev)))
@@ -11165,15 +11154,12 @@ compute_baseline_pipe_bpp(struct intel_crtc *crtc,
 	state = pipe_config->base.state;
 
 	/* Clamp display bpp to EDID value */
-	for (i = 0; i < state->num_connector; i++) {
-		if (!state->connectors[i])
+	for_each_connector_in_state(state, connector, connector_state, i) {
+		if (connector_state->crtc != &crtc->base)
 			continue;
 
-		connector = to_intel_connector(state->connectors[i]);
-		if (state->connector_states[i]->crtc != &crtc->base)
-			continue;
-
-		connected_sink_compute_bpp(connector, pipe_config);
+		connected_sink_compute_bpp(to_intel_connector(connector),
+					   pipe_config);
 	}
 
 	return bpp;
@@ -11300,14 +11286,11 @@ static bool check_single_encoder_cloning(struct drm_atomic_state *state,
 					 struct intel_encoder *encoder)
 {
 	struct intel_encoder *source_encoder;
+	struct drm_connector *connector;
 	struct drm_connector_state *connector_state;
 	int i;
 
-	for (i = 0; i < state->num_connector; i++) {
-		if (!state->connectors[i])
-			continue;
-
-		connector_state = state->connector_states[i];
+	for_each_connector_in_state(state, connector, connector_state, i) {
 		if (connector_state->crtc != &crtc->base)
 			continue;
 
@@ -11324,14 +11307,11 @@ static bool check_encoder_cloning(struct drm_atomic_state *state,
 				  struct intel_crtc *crtc)
 {
 	struct intel_encoder *encoder;
+	struct drm_connector *connector;
 	struct drm_connector_state *connector_state;
 	int i;
 
-	for (i = 0; i < state->num_connector; i++) {
-		if (!state->connectors[i])
-			continue;
-
-		connector_state = state->connector_states[i];
+	for_each_connector_in_state(state, connector, connector_state, i) {
 		if (connector_state->crtc != &crtc->base)
 			continue;
 
@@ -11347,6 +11327,7 @@ static bool check_digital_port_conflicts(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
 	struct intel_encoder *encoder;
+	struct drm_connector *connector;
 	struct drm_connector_state *connector_state;
 	unsigned int used_ports = 0;
 	int i;
@@ -11356,11 +11337,7 @@ static bool check_digital_port_conflicts(struct drm_atomic_state *state)
 	 * list to detect the problem on ddi platforms
 	 * where there's just one encoder per digital port.
 	 */
-	for (i = 0; i < state->num_connector; i++) {
-		if (!state->connectors[i])
-			continue;
-
-		connector_state = state->connector_states[i];
+	for_each_connector_in_state(state, connector, connector_state, i) {
 		if (!connector_state->best_encoder)
 			continue;
 
@@ -11411,7 +11388,7 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 			  struct drm_atomic_state *state)
 {
 	struct intel_encoder *encoder;
-	struct intel_connector *connector;
+	struct drm_connector *connector;
 	struct drm_connector_state *connector_state;
 	struct intel_crtc_state *pipe_config;
 	int base_bpp, ret = -EINVAL;
@@ -11489,12 +11466,7 @@ encoder_retry:
 	 * adjust it according to limitations or connector properties, and also
 	 * a chance to reject the mode entirely.
 	 */
-	for (i = 0; i < state->num_connector; i++) {
-		connector = to_intel_connector(state->connectors[i]);
-		if (!connector)
-			continue;
-
-		connector_state = state->connector_states[i];
+	for_each_connector_in_state(state, connector, connector_state, i) {
 		if (connector_state->crtc != crtc)
 			continue;
 

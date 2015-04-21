@@ -584,17 +584,18 @@ intel_ddi_get_crtc_new_encoder(struct intel_crtc_state *crtc_state)
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct intel_encoder *ret = NULL;
 	struct drm_atomic_state *state;
+	struct drm_connector *connector;
+	struct drm_connector_state *connector_state;
 	int num_encoders = 0;
 	int i;
 
 	state = crtc_state->base.state;
 
-	for (i = 0; i < state->num_connector; i++) {
-		if (!state->connectors[i] ||
-		    state->connector_states[i]->crtc != crtc_state->base.crtc)
+	for_each_connector_in_state(state, connector, connector_state, i) {
+		if (connector_state->crtc != crtc_state->base.crtc)
 			continue;
 
-		ret = to_intel_encoder(state->connector_states[i]->best_encoder);
+		ret = to_intel_encoder(connector_state->best_encoder);
 		num_encoders++;
 	}
 
