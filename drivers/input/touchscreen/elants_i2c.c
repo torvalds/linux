@@ -699,7 +699,7 @@ static int elants_i2c_fw_update(struct elants_data *ts)
 	char *fw_name;
 	int error;
 
-	fw_name = kasprintf(GFP_KERNEL, "elants_i2c_%4x.bin", ts->hw_version);
+	fw_name = kasprintf(GFP_KERNEL, "elants_i2c_%04x.bin", ts->hw_version);
 	if (!fw_name)
 		return -ENOMEM;
 
