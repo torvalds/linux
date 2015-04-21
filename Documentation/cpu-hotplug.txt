@@ -108,7 +108,7 @@ Never use anything other than cpumask_t to represent bitmap of CPUs.
 	for_each_possible_cpu     - Iterate over cpu_possible_mask
 	for_each_online_cpu       - Iterate over cpu_online_mask
 	for_each_present_cpu      - Iterate over cpu_present_mask
-	for_each_cpu_mask(x,mask) - Iterate over some random collection of cpu mask.
+	for_each_cpu(x,mask)      - Iterate over some random collection of cpu mask.
 
 	#include <linux/cpu.h>
 	get_online_cpus() and put_online_cpus():

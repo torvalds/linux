@@ -55,7 +55,7 @@ static void hdmi_core_ddc_init(struct hdmi_core_data *core)
 	const unsigned ss_scl_low = 4700;		/* ns */
 	const unsigned fs_scl_high = 600;		/* ns */
 	const unsigned fs_scl_low = 1300;		/* ns */
-	const unsigned sda_hold = 300;			/* ns */
+	const unsigned sda_hold = 1000;			/* ns */
 	const unsigned sfr_div = 10;
 	unsigned long long sfr;
 	unsigned v;

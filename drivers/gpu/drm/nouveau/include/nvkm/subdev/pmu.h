@@ -35,6 +35,7 @@ extern struct nvkm_oclass *gt215_pmu_oclass;
 extern struct nvkm_oclass *gf100_pmu_oclass;
 extern struct nvkm_oclass *gf110_pmu_oclass;
 extern struct nvkm_oclass *gk104_pmu_oclass;
+extern struct nvkm_oclass *gk110_pmu_oclass;
 extern struct nvkm_oclass *gk208_pmu_oclass;
 extern struct nvkm_oclass *gk20a_pmu_oclass;
 

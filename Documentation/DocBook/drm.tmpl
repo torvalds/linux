@@ -3979,6 +3979,11 @@ int num_ioctls;</synopsis>
 !Fdrivers/gpu/drm/i915/i915_irq.c intel_runtime_pm_disable_interrupts
 !Fdrivers/gpu/drm/i915/i915_irq.c intel_runtime_pm_enable_interrupts
       </sect2>
+      <sect2>
+        <title>Intel GVT-g Guest Support(vGPU)</title>
+!Pdrivers/gpu/drm/i915/i915_vgpu.c Intel GVT-g guest support
+!Idrivers/gpu/drm/i915/i915_vgpu.c
+      </sect2>
     </sect1>
     <sect1>
       <title>Display Hardware Handling</title>
@@ -4046,6 +4051,17 @@ int num_ioctls;</synopsis>
 	<title>Frame Buffer Compression (FBC)</title>
 !Pdrivers/gpu/drm/i915/intel_fbc.c Frame Buffer Compression (FBC)
 !Idrivers/gpu/drm/i915/intel_fbc.c
+      </sect2>
+      <sect2>
+        <title>Display Refresh Rate Switching (DRRS)</title>
+!Pdrivers/gpu/drm/i915/intel_dp.c Display Refresh Rate Switching (DRRS)
+!Fdrivers/gpu/drm/i915/intel_dp.c intel_dp_set_drrs_state
+!Fdrivers/gpu/drm/i915/intel_dp.c intel_edp_drrs_enable
+!Fdrivers/gpu/drm/i915/intel_dp.c intel_edp_drrs_disable
+!Fdrivers/gpu/drm/i915/intel_dp.c intel_edp_drrs_invalidate
+!Fdrivers/gpu/drm/i915/intel_dp.c intel_edp_drrs_flush
+!Fdrivers/gpu/drm/i915/intel_dp.c intel_dp_drrs_init
+
       </sect2>
       <sect2>
         <title>DPIO</title>
@@ -4168,13 +4184,24 @@ int num_ioctls;</synopsis>
       <sect2>
         <title>Buffer Object Eviction</title>
 	<para>
-	  This section documents the interface function for evicting buffer
+	  This section documents the interface functions for evicting buffer
 	  objects to make space available in the virtual gpu address spaces.
 	  Note that this is mostly orthogonal to shrinking buffer objects
 	  caches, which has the goal to make main memory (shared with the gpu
 	  through the unified memory architecture) available.
 	</para>
 !Idrivers/gpu/drm/i915/i915_gem_evict.c
+      </sect2>
+      <sect2>
+        <title>Buffer Object Memory Shrinking</title>
+	<para>
+	  This section documents the interface function for shrinking memory
+	  usage of buffer object caches. Shrinking is used to make main memory
+	  available.  Note that this is mostly orthogonal to evicting buffer
+	  objects, which has the goal to make space in gpu virtual address
+	  spaces.
+	</para>
+!Idrivers/gpu/drm/i915/i915_gem_shrinker.c
       </sect2>
     </sect1>
 

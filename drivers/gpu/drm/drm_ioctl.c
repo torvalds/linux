@@ -321,6 +321,9 @@ static int drm_getcap(struct drm_device *dev, void *data, struct drm_file *file_
 		else
 			req->value = 64;
 		break;
+	case DRM_CAP_ADDFB2_MODIFIERS:
+		req->value = dev->mode_config.allow_fb_modifiers;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -521,8 +524,13 @@ static int drm_ioctl_permit(u32 flags, struct drm_file *file_priv)
 	return 0;
 }
 
-#define DRM_IOCTL_DEF(ioctl, _func, _flags) \
-	[DRM_IOCTL_NR(ioctl)] = {.cmd = ioctl, .func = _func, .flags = _flags, .cmd_drv = 0, .name = #ioctl}
+#define DRM_IOCTL_DEF(ioctl, _func, _flags)	\
+	[DRM_IOCTL_NR(ioctl)] = {		\
+		.cmd = ioctl,			\
+		.func = _func,			\
+		.flags = _flags,		\
+		.name = #ioctl			\
+	}
 
 /** Ioctl table */
 static const struct drm_ioctl_desc drm_ioctls[] = {
@@ -660,39 +668,29 @@ long drm_ioctl(struct file *filp,
 	int retcode = -EINVAL;
 	char stack_kdata[128];
 	char *kdata = NULL;
-	unsigned int usize, asize;
+	unsigned int usize, asize, drv_size;
 
 	dev = file_priv->minor->dev;
 
 	if (drm_device_is_unplugged(dev))
 		return -ENODEV;
 
-	if ((nr >= DRM_CORE_IOCTL_COUNT) &&
-	    ((nr < DRM_COMMAND_BASE) || (nr >= DRM_COMMAND_END)))
-		goto err_i1;
-	if ((nr >= DRM_COMMAND_BASE) && (nr < DRM_COMMAND_END) &&
-	    (nr < DRM_COMMAND_BASE + dev->driver->num_ioctls)) {
-		u32 drv_size;
+	if (nr >= DRM_COMMAND_BASE && nr < DRM_COMMAND_END) {
+		/* driver ioctl */
+		if (nr - DRM_COMMAND_BASE >= dev->driver->num_ioctls)
+			goto err_i1;
 		ioctl = &dev->driver->ioctls[nr - DRM_COMMAND_BASE];
-		drv_size = _IOC_SIZE(ioctl->cmd_drv);
-		usize = asize = _IOC_SIZE(cmd);
-		if (drv_size > asize)
-			asize = drv_size;
-		cmd = ioctl->cmd_drv;
-	}
-	else if ((nr >= DRM_COMMAND_END) || (nr < DRM_COMMAND_BASE)) {
-		u32 drv_size;
-
+	} else {
+		/* core ioctl */
+		if (nr >= DRM_CORE_IOCTL_COUNT)
+			goto err_i1;
 		ioctl = &drm_ioctls[nr];
+	}
 
-		drv_size = _IOC_SIZE(ioctl->cmd);
-		usize = asize = _IOC_SIZE(cmd);
-		if (drv_size > asize)
-			asize = drv_size;
-
-		cmd = ioctl->cmd;
-	} else
-		goto err_i1;
+	drv_size = _IOC_SIZE(ioctl->cmd);
+	usize = _IOC_SIZE(cmd);
+	asize = max(usize, drv_size);
+	cmd = ioctl->cmd;
 
 	DRM_DEBUG("pid=%d, dev=0x%lx, auth=%d, %s\n",
 		  task_pid_nr(current),
@@ -773,12 +771,13 @@ EXPORT_SYMBOL(drm_ioctl);
  */
 bool drm_ioctl_flags(unsigned int nr, unsigned int *flags)
 {
-	if ((nr >= DRM_COMMAND_END && nr < DRM_CORE_IOCTL_COUNT) ||
-	    (nr < DRM_COMMAND_BASE)) {
-		*flags = drm_ioctls[nr].flags;
-		return true;
-	}
+	if (nr >= DRM_COMMAND_BASE && nr < DRM_COMMAND_END)
+		return false;
 
-	return false;
+	if (nr >= DRM_CORE_IOCTL_COUNT)
+		return false;
+
+	*flags = drm_ioctls[nr].flags;
+	return true;
 }
 EXPORT_SYMBOL(drm_ioctl_flags);

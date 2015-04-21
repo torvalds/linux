@@ -13,4 +13,6 @@ struct gk104_fifo_impl {
 	struct nvkm_oclass base;
 	u32 channels;
 };
+
+extern struct nvkm_ofuncs gk104_fifo_chan_ofuncs;
 #endif

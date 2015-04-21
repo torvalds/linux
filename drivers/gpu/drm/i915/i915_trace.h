@@ -114,7 +114,7 @@ TRACE_EVENT(i915_vma_bind,
 	    TP_STRUCT__entry(
 			     __field(struct drm_i915_gem_object *, obj)
 			     __field(struct i915_address_space *, vm)
-			     __field(u32, offset)
+			     __field(u64, offset)
 			     __field(u32, size)
 			     __field(unsigned, flags)
 			     ),
@@ -127,7 +127,7 @@ TRACE_EVENT(i915_vma_bind,
 			   __entry->flags = flags;
 			   ),
 
-	    TP_printk("obj=%p, offset=%08x size=%x%s vm=%p",
+	    TP_printk("obj=%p, offset=%016llx size=%x%s vm=%p",
 		      __entry->obj, __entry->offset, __entry->size,
 		      __entry->flags & PIN_MAPPABLE ? ", mappable" : "",
 		      __entry->vm)
@@ -140,7 +140,7 @@ TRACE_EVENT(i915_vma_unbind,
 	    TP_STRUCT__entry(
 			     __field(struct drm_i915_gem_object *, obj)
 			     __field(struct i915_address_space *, vm)
-			     __field(u32, offset)
+			     __field(u64, offset)
 			     __field(u32, size)
 			     ),
 
@@ -151,8 +151,107 @@ TRACE_EVENT(i915_vma_unbind,
 			   __entry->size = vma->node.size;
 			   ),
 
-	    TP_printk("obj=%p, offset=%08x size=%x vm=%p",
+	    TP_printk("obj=%p, offset=%016llx size=%x vm=%p",
 		      __entry->obj, __entry->offset, __entry->size, __entry->vm)
+);
+
+#define VM_TO_TRACE_NAME(vm) \
+	(i915_is_ggtt(vm) ? "G" : \
+		      "P")
+
+DECLARE_EVENT_CLASS(i915_va,
+	TP_PROTO(struct i915_address_space *vm, u64 start, u64 length, const char *name),
+	TP_ARGS(vm, start, length, name),
+
+	TP_STRUCT__entry(
+		__field(struct i915_address_space *, vm)
+		__field(u64, start)
+		__field(u64, end)
+		__string(name, name)
+	),
+
+	TP_fast_assign(
+		__entry->vm = vm;
+		__entry->start = start;
+		__entry->end = start + length - 1;
+		__assign_str(name, name);
+	),
+
+	TP_printk("vm=%p (%s), 0x%llx-0x%llx",
+		  __entry->vm, __get_str(name),  __entry->start, __entry->end)
+);
+
+DEFINE_EVENT(i915_va, i915_va_alloc,
+	     TP_PROTO(struct i915_address_space *vm, u64 start, u64 length, const char *name),
+	     TP_ARGS(vm, start, length, name)
+);
+
+DECLARE_EVENT_CLASS(i915_page_table_entry,
+	TP_PROTO(struct i915_address_space *vm, u32 pde, u64 start, u64 pde_shift),
+	TP_ARGS(vm, pde, start, pde_shift),
+
+	TP_STRUCT__entry(
+		__field(struct i915_address_space *, vm)
+		__field(u32, pde)
+		__field(u64, start)
+		__field(u64, end)
+	),
+
+	TP_fast_assign(
+		__entry->vm = vm;
+		__entry->pde = pde;
+		__entry->start = start;
+		__entry->end = ((start + (1ULL << pde_shift)) & ~((1ULL << pde_shift)-1)) - 1;
+	),
+
+	TP_printk("vm=%p, pde=%d (0x%llx-0x%llx)",
+		  __entry->vm, __entry->pde, __entry->start, __entry->end)
+);
+
+DEFINE_EVENT(i915_page_table_entry, i915_page_table_entry_alloc,
+	     TP_PROTO(struct i915_address_space *vm, u32 pde, u64 start, u64 pde_shift),
+	     TP_ARGS(vm, pde, start, pde_shift)
+);
+
+/* Avoid extra math because we only support two sizes. The format is defined by
+ * bitmap_scnprintf. Each 32 bits is 8 HEX digits followed by comma */
+#define TRACE_PT_SIZE(bits) \
+	((((bits) == 1024) ? 288 : 144) + 1)
+
+DECLARE_EVENT_CLASS(i915_page_table_entry_update,
+	TP_PROTO(struct i915_address_space *vm, u32 pde,
+		 struct i915_page_table_entry *pt, u32 first, u32 count, u32 bits),
+	TP_ARGS(vm, pde, pt, first, count, bits),
+
+	TP_STRUCT__entry(
+		__field(struct i915_address_space *, vm)
+		__field(u32, pde)
+		__field(u32, first)
+		__field(u32, last)
+		__dynamic_array(char, cur_ptes, TRACE_PT_SIZE(bits))
+	),
+
+	TP_fast_assign(
+		__entry->vm = vm;
+		__entry->pde = pde;
+		__entry->first = first;
+		__entry->last = first + count - 1;
+		scnprintf(__get_str(cur_ptes),
+			  TRACE_PT_SIZE(bits),
+			  "%*pb",
+			  bits,
+			  pt->used_ptes);
+	),
+
+	TP_printk("vm=%p, pde=%d, updating %u:%u\t%s",
+		  __entry->vm, __entry->pde, __entry->last, __entry->first,
+		  __get_str(cur_ptes))
+);
+
+DEFINE_EVENT(i915_page_table_entry_update, i915_page_table_entry_map,
+	TP_PROTO(struct i915_address_space *vm, u32 pde,
+		 struct i915_page_table_entry *pt, u32 first, u32 count, u32 bits),
+	TP_ARGS(vm, pde, pt, first, count, bits)
 );
 
 TRACE_EVENT(i915_gem_object_change_domain,

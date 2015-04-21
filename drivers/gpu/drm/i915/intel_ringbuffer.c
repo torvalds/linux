@@ -317,29 +317,6 @@ gen7_render_ring_cs_stall_wa(struct intel_engine_cs *ring)
 	return 0;
 }
 
-static int gen7_ring_fbc_flush(struct intel_engine_cs *ring, u32 value)
-{
-	int ret;
-
-	if (!ring->fbc_dirty)
-		return 0;
-
-	ret = intel_ring_begin(ring, 6);
-	if (ret)
-		return ret;
-	/* WaFbcNukeOn3DBlt:ivb/hsw */
-	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
-	intel_ring_emit(ring, MSG_FBC_REND_STATE);
-	intel_ring_emit(ring, value);
-	intel_ring_emit(ring, MI_STORE_REGISTER_MEM(1) | MI_SRM_LRM_GLOBAL_GTT);
-	intel_ring_emit(ring, MSG_FBC_REND_STATE);
-	intel_ring_emit(ring, ring->scratch.gtt_offset + 256);
-	intel_ring_advance(ring);
-
-	ring->fbc_dirty = false;
-	return 0;
-}
-
 static int
 gen7_render_ring_flush(struct intel_engine_cs *ring,
 		       u32 invalidate_domains, u32 flush_domains)
@@ -398,9 +375,6 @@ gen7_render_ring_flush(struct intel_engine_cs *ring,
 	intel_ring_emit(ring, 0);
 	intel_ring_advance(ring);
 
-	if (!invalidate_domains && flush_domains)
-		return gen7_ring_fbc_flush(ring, FBC_REND_NUKE);
-
 	return 0;
 }
 
@@ -458,14 +432,7 @@ gen8_render_ring_flush(struct intel_engine_cs *ring,
 			return ret;
 	}
 
-	ret = gen8_emit_pipe_control(ring, flags, scratch_addr);
-	if (ret)
-		return ret;
-
-	if (!invalidate_domains && flush_domains)
-		return gen7_ring_fbc_flush(ring, FBC_REND_NUKE);
-
-	return 0;
+	return gen8_emit_pipe_control(ring, flags, scratch_addr);
 }
 
 static void ring_write_tail(struct intel_engine_cs *ring,
@@ -500,6 +467,68 @@ static void ring_setup_phys_status_page(struct intel_engine_cs *ring)
 	if (INTEL_INFO(ring->dev)->gen >= 4)
 		addr |= (dev_priv->status_page_dmah->busaddr >> 28) & 0xf0;
 	I915_WRITE(HWS_PGA, addr);
+}
+
+static void intel_ring_setup_status_page(struct intel_engine_cs *ring)
+{
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	u32 mmio = 0;
+
+	/* The ring status page addresses are no longer next to the rest of
+	 * the ring registers as of gen7.
+	 */
+	if (IS_GEN7(dev)) {
+		switch (ring->id) {
+		case RCS:
+			mmio = RENDER_HWS_PGA_GEN7;
+			break;
+		case BCS:
+			mmio = BLT_HWS_PGA_GEN7;
+			break;
+		/*
+		 * VCS2 actually doesn't exist on Gen7. Only shut up
+		 * gcc switch check warning
+		 */
+		case VCS2:
+		case VCS:
+			mmio = BSD_HWS_PGA_GEN7;
+			break;
+		case VECS:
+			mmio = VEBOX_HWS_PGA_GEN7;
+			break;
+		}
+	} else if (IS_GEN6(ring->dev)) {
+		mmio = RING_HWS_PGA_GEN6(ring->mmio_base);
+	} else {
+		/* XXX: gen8 returns to sanity */
+		mmio = RING_HWS_PGA(ring->mmio_base);
+	}
+
+	I915_WRITE(mmio, (u32)ring->status_page.gfx_addr);
+	POSTING_READ(mmio);
+
+	/*
+	 * Flush the TLB for this page
+	 *
+	 * FIXME: These two bits have disappeared on gen8, so a question
+	 * arises: do we still need this and if so how should we go about
+	 * invalidating the TLB?
+	 */
+	if (INTEL_INFO(dev)->gen >= 6 && INTEL_INFO(dev)->gen < 8) {
+		u32 reg = RING_INSTPM(ring->mmio_base);
+
+		/* ring should be idle before issuing a sync flush*/
+		WARN_ON((I915_READ_MODE(ring) & MODE_IDLE) == 0);
+
+		I915_WRITE(reg,
+			   _MASKED_BIT_ENABLE(INSTPM_TLB_INVALIDATE |
+					      INSTPM_SYNC_FLUSH));
+		if (wait_for((I915_READ(reg) & INSTPM_SYNC_FLUSH) == 0,
+			     1000))
+			DRM_ERROR("%s: wait for SyncFlush to complete for TLB invalidation timed out\n",
+				  ring->name);
+	}
 }
 
 static bool stop_ring(struct intel_engine_cs *ring)
@@ -788,12 +817,14 @@ static int bdw_init_workarounds(struct intel_engine_cs *ring)
 	 * workaround for for a possible hang in the unlikely event a TLB
 	 * invalidation occurs during a PSD flush.
 	 */
-	/* WaForceEnableNonCoherent:bdw */
-	/* WaHdcDisableFetchWhenMasked:bdw */
-	/* WaDisableFenceDestinationToSLM:bdw (GT3 pre-production) */
 	WA_SET_BIT_MASKED(HDC_CHICKEN0,
+			  /* WaForceEnableNonCoherent:bdw */
 			  HDC_FORCE_NON_COHERENT |
+			  /* WaForceContextSaveRestoreNonCoherent:bdw */
+			  HDC_FORCE_CONTEXT_SAVE_RESTORE_NON_COHERENT |
+			  /* WaHdcDisableFetchWhenMasked:bdw */
 			  HDC_DONOT_FETCH_MEM_WHEN_MASKED |
+			  /* WaDisableFenceDestinationToSLM:bdw (pre-prod) */
 			  (IS_BDW_GT3(dev) ? HDC_FENCE_DEST_SLM_DISABLE : 0));
 
 	/* From the Haswell PRM, Command Reference: Registers, CACHE_MODE_0:
@@ -870,7 +901,130 @@ static int chv_init_workarounds(struct intel_engine_cs *ring)
 			    GEN6_WIZ_HASHING_MASK,
 			    GEN6_WIZ_HASHING_16x4);
 
+	if (INTEL_REVID(dev) == SKL_REVID_C0 ||
+	    INTEL_REVID(dev) == SKL_REVID_D0)
+		/* WaBarrierPerformanceFixDisable:skl */
+		WA_SET_BIT_MASKED(HDC_CHICKEN0,
+				  HDC_FENCE_DEST_SLM_DISABLE |
+				  HDC_BARRIER_PERFORMANCE_DISABLE);
+
 	return 0;
+}
+
+static int gen9_init_workarounds(struct intel_engine_cs *ring)
+{
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	/* WaDisablePartialInstShootdown:skl */
+	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
+			  PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE);
+
+	/* Syncing dependencies between camera and graphics */
+	WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN3,
+			  GEN9_DISABLE_OCL_OOB_SUPPRESS_LOGIC);
+
+	if (INTEL_REVID(dev) == SKL_REVID_A0 ||
+	    INTEL_REVID(dev) == SKL_REVID_B0) {
+		/* WaDisableDgMirrorFixInHalfSliceChicken5:skl */
+		WA_CLR_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN5,
+				  GEN9_DG_MIRROR_FIX_ENABLE);
+	}
+
+	if (IS_SKYLAKE(dev) && INTEL_REVID(dev) <= SKL_REVID_B0) {
+		/* WaSetDisablePixMaskCammingAndRhwoInCommonSliceChicken:skl */
+		WA_SET_BIT_MASKED(GEN7_COMMON_SLICE_CHICKEN1,
+				  GEN9_RHWO_OPTIMIZATION_DISABLE);
+		WA_SET_BIT_MASKED(GEN9_SLICE_COMMON_ECO_CHICKEN0,
+				  DISABLE_PIXEL_MASK_CAMMING);
+	}
+
+	if (INTEL_REVID(dev) >= SKL_REVID_C0) {
+		/* WaEnableYV12BugFixInHalfSliceChicken7:skl */
+		WA_SET_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN7,
+				  GEN9_ENABLE_YV12_BUGFIX);
+	}
+
+	if (INTEL_REVID(dev) <= SKL_REVID_D0) {
+		/*
+		 *Use Force Non-Coherent whenever executing a 3D context. This
+		 * is a workaround for a possible hang in the unlikely event
+		 * a TLB invalidation occurs during a PSD flush.
+		 */
+		/* WaForceEnableNonCoherent:skl */
+		WA_SET_BIT_MASKED(HDC_CHICKEN0,
+				  HDC_FORCE_NON_COHERENT);
+	}
+
+	/* Wa4x4STCOptimizationDisable:skl */
+	WA_SET_BIT_MASKED(CACHE_MODE_1, GEN8_4x4_STC_OPTIMIZATION_DISABLE);
+
+	/* WaDisablePartialResolveInVc:skl */
+	WA_SET_BIT_MASKED(CACHE_MODE_1, GEN9_PARTIAL_RESOLVE_IN_VC_DISABLE);
+
+	/* WaCcsTlbPrefetchDisable:skl */
+	WA_CLR_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN5,
+			  GEN9_CCS_TLB_PREFETCH_ENABLE);
+
+	return 0;
+}
+
+static int skl_tune_iz_hashing(struct intel_engine_cs *ring)
+{
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u8 vals[3] = { 0, 0, 0 };
+	unsigned int i;
+
+	for (i = 0; i < 3; i++) {
+		u8 ss;
+
+		/*
+		 * Only consider slices where one, and only one, subslice has 7
+		 * EUs
+		 */
+		if (hweight8(dev_priv->info.subslice_7eu[i]) != 1)
+			continue;
+
+		/*
+		 * subslice_7eu[i] != 0 (because of the check above) and
+		 * ss_max == 4 (maximum number of subslices possible per slice)
+		 *
+		 * ->    0 <= ss <= 3;
+		 */
+		ss = ffs(dev_priv->info.subslice_7eu[i]) - 1;
+		vals[i] = 3 - ss;
+	}
+
+	if (vals[0] == 0 && vals[1] == 0 && vals[2] == 0)
+		return 0;
+
+	/* Tune IZ hashing. See intel_device_info_runtime_init() */
+	WA_SET_FIELD_MASKED(GEN7_GT_MODE,
+			    GEN9_IZ_HASHING_MASK(2) |
+			    GEN9_IZ_HASHING_MASK(1) |
+			    GEN9_IZ_HASHING_MASK(0),
+			    GEN9_IZ_HASHING(2, vals[2]) |
+			    GEN9_IZ_HASHING(1, vals[1]) |
+			    GEN9_IZ_HASHING(0, vals[0]));
+
+	return 0;
+}
+
+
+static int skl_init_workarounds(struct intel_engine_cs *ring)
+{
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	gen9_init_workarounds(ring);
+
+	/* WaDisablePowerCompilerClockGating:skl */
+	if (INTEL_REVID(dev) == SKL_REVID_B0)
+		WA_SET_BIT_MASKED(HIZ_CHICKEN,
+				  BDW_HIZ_POWER_COMPILER_CLOCK_GATING_DISABLE);
+
+	return skl_tune_iz_hashing(ring);
 }
 
 int init_workarounds_ring(struct intel_engine_cs *ring)
@@ -887,6 +1041,11 @@ int init_workarounds_ring(struct intel_engine_cs *ring)
 
 	if (IS_CHERRYVIEW(dev))
 		return chv_init_workarounds(ring);
+
+	if (IS_SKYLAKE(dev))
+		return skl_init_workarounds(ring);
+	else if (IS_GEN9(dev))
+		return gen9_init_workarounds(ring);
 
 	return 0;
 }
@@ -1386,68 +1545,6 @@ i8xx_ring_put_irq(struct intel_engine_cs *ring)
 	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
 }
 
-void intel_ring_setup_status_page(struct intel_engine_cs *ring)
-{
-	struct drm_device *dev = ring->dev;
-	struct drm_i915_private *dev_priv = ring->dev->dev_private;
-	u32 mmio = 0;
-
-	/* The ring status page addresses are no longer next to the rest of
-	 * the ring registers as of gen7.
-	 */
-	if (IS_GEN7(dev)) {
-		switch (ring->id) {
-		case RCS:
-			mmio = RENDER_HWS_PGA_GEN7;
-			break;
-		case BCS:
-			mmio = BLT_HWS_PGA_GEN7;
-			break;
-		/*
-		 * VCS2 actually doesn't exist on Gen7. Only shut up
-		 * gcc switch check warning
-		 */
-		case VCS2:
-		case VCS:
-			mmio = BSD_HWS_PGA_GEN7;
-			break;
-		case VECS:
-			mmio = VEBOX_HWS_PGA_GEN7;
-			break;
-		}
-	} else if (IS_GEN6(ring->dev)) {
-		mmio = RING_HWS_PGA_GEN6(ring->mmio_base);
-	} else {
-		/* XXX: gen8 returns to sanity */
-		mmio = RING_HWS_PGA(ring->mmio_base);
-	}
-
-	I915_WRITE(mmio, (u32)ring->status_page.gfx_addr);
-	POSTING_READ(mmio);
-
-	/*
-	 * Flush the TLB for this page
-	 *
-	 * FIXME: These two bits have disappeared on gen8, so a question
-	 * arises: do we still need this and if so how should we go about
-	 * invalidating the TLB?
-	 */
-	if (INTEL_INFO(dev)->gen >= 6 && INTEL_INFO(dev)->gen < 8) {
-		u32 reg = RING_INSTPM(ring->mmio_base);
-
-		/* ring should be idle before issuing a sync flush*/
-		WARN_ON((I915_READ_MODE(ring) & MODE_IDLE) == 0);
-
-		I915_WRITE(reg,
-			   _MASKED_BIT_ENABLE(INSTPM_TLB_INVALIDATE |
-					      INSTPM_SYNC_FLUSH));
-		if (wait_for((I915_READ(reg) & INSTPM_SYNC_FLUSH) == 0,
-			     1000))
-			DRM_ERROR("%s: wait for SyncFlush to complete for TLB invalidation timed out\n",
-				  ring->name);
-	}
-}
-
 static int
 bsd_ring_flush(struct intel_engine_cs *ring,
 	       u32     invalidate_domains,
@@ -1611,7 +1708,7 @@ gen8_ring_put_irq(struct intel_engine_cs *ring)
 static int
 i965_dispatch_execbuffer(struct intel_engine_cs *ring,
 			 u64 offset, u32 length,
-			 unsigned flags)
+			 unsigned dispatch_flags)
 {
 	int ret;
 
@@ -1622,7 +1719,8 @@ i965_dispatch_execbuffer(struct intel_engine_cs *ring,
 	intel_ring_emit(ring,
 			MI_BATCH_BUFFER_START |
 			MI_BATCH_GTT |
-			(flags & I915_DISPATCH_SECURE ? 0 : MI_BATCH_NON_SECURE_I965));
+			(dispatch_flags & I915_DISPATCH_SECURE ?
+			 0 : MI_BATCH_NON_SECURE_I965));
 	intel_ring_emit(ring, offset);
 	intel_ring_advance(ring);
 
@@ -1635,8 +1733,8 @@ i965_dispatch_execbuffer(struct intel_engine_cs *ring,
 #define I830_WA_SIZE max(I830_TLB_ENTRIES*4096, I830_BATCH_LIMIT)
 static int
 i830_dispatch_execbuffer(struct intel_engine_cs *ring,
-				u64 offset, u32 len,
-				unsigned flags)
+			 u64 offset, u32 len,
+			 unsigned dispatch_flags)
 {
 	u32 cs_offset = ring->scratch.gtt_offset;
 	int ret;
@@ -1654,7 +1752,7 @@ i830_dispatch_execbuffer(struct intel_engine_cs *ring,
 	intel_ring_emit(ring, MI_NOOP);
 	intel_ring_advance(ring);
 
-	if ((flags & I915_DISPATCH_PINNED) == 0) {
+	if ((dispatch_flags & I915_DISPATCH_PINNED) == 0) {
 		if (len > I830_BATCH_LIMIT)
 			return -ENOSPC;
 
@@ -1686,7 +1784,8 @@ i830_dispatch_execbuffer(struct intel_engine_cs *ring,
 		return ret;
 
 	intel_ring_emit(ring, MI_BATCH_BUFFER);
-	intel_ring_emit(ring, offset | (flags & I915_DISPATCH_SECURE ? 0 : MI_BATCH_NON_SECURE));
+	intel_ring_emit(ring, offset | (dispatch_flags & I915_DISPATCH_SECURE ?
+					0 : MI_BATCH_NON_SECURE));
 	intel_ring_emit(ring, offset + len - 8);
 	intel_ring_emit(ring, MI_NOOP);
 	intel_ring_advance(ring);
@@ -1697,7 +1796,7 @@ i830_dispatch_execbuffer(struct intel_engine_cs *ring,
 static int
 i915_dispatch_execbuffer(struct intel_engine_cs *ring,
 			 u64 offset, u32 len,
-			 unsigned flags)
+			 unsigned dispatch_flags)
 {
 	int ret;
 
@@ -1706,7 +1805,8 @@ i915_dispatch_execbuffer(struct intel_engine_cs *ring,
 		return ret;
 
 	intel_ring_emit(ring, MI_BATCH_BUFFER_START | MI_BATCH_GTT);
-	intel_ring_emit(ring, offset | (flags & I915_DISPATCH_SECURE ? 0 : MI_BATCH_NON_SECURE));
+	intel_ring_emit(ring, offset | (dispatch_flags & I915_DISPATCH_SECURE ?
+					0 : MI_BATCH_NON_SECURE));
 	intel_ring_advance(ring);
 
 	return 0;
@@ -2097,6 +2197,7 @@ intel_ring_alloc_request(struct intel_engine_cs *ring)
 
 	kref_init(&request->ref);
 	request->ring = ring;
+	request->ringbuf = ring->buffer;
 	request->uniq = dev_private->request_uniq++;
 
 	ret = i915_gem_get_seqno(ring->dev, &request->seqno);
@@ -2273,9 +2374,10 @@ static int gen6_bsd_ring_flush(struct intel_engine_cs *ring,
 static int
 gen8_ring_dispatch_execbuffer(struct intel_engine_cs *ring,
 			      u64 offset, u32 len,
-			      unsigned flags)
+			      unsigned dispatch_flags)
 {
-	bool ppgtt = USES_PPGTT(ring->dev) && !(flags & I915_DISPATCH_SECURE);
+	bool ppgtt = USES_PPGTT(ring->dev) &&
+			!(dispatch_flags & I915_DISPATCH_SECURE);
 	int ret;
 
 	ret = intel_ring_begin(ring, 4);
@@ -2294,8 +2396,8 @@ gen8_ring_dispatch_execbuffer(struct intel_engine_cs *ring,
 
 static int
 hsw_ring_dispatch_execbuffer(struct intel_engine_cs *ring,
-			      u64 offset, u32 len,
-			      unsigned flags)
+			     u64 offset, u32 len,
+			     unsigned dispatch_flags)
 {
 	int ret;
 
@@ -2305,7 +2407,7 @@ hsw_ring_dispatch_execbuffer(struct intel_engine_cs *ring,
 
 	intel_ring_emit(ring,
 			MI_BATCH_BUFFER_START |
-			(flags & I915_DISPATCH_SECURE ?
+			(dispatch_flags & I915_DISPATCH_SECURE ?
 			 0 : MI_BATCH_PPGTT_HSW | MI_BATCH_NON_SECURE_HSW));
 	/* bit0-7 is the length on GEN6+ */
 	intel_ring_emit(ring, offset);
@@ -2317,7 +2419,7 @@ hsw_ring_dispatch_execbuffer(struct intel_engine_cs *ring,
 static int
 gen6_ring_dispatch_execbuffer(struct intel_engine_cs *ring,
 			      u64 offset, u32 len,
-			      unsigned flags)
+			      unsigned dispatch_flags)
 {
 	int ret;
 
@@ -2327,7 +2429,8 @@ gen6_ring_dispatch_execbuffer(struct intel_engine_cs *ring,
 
 	intel_ring_emit(ring,
 			MI_BATCH_BUFFER_START |
-			(flags & I915_DISPATCH_SECURE ? 0 : MI_BATCH_NON_SECURE_I965));
+			(dispatch_flags & I915_DISPATCH_SECURE ?
+			 0 : MI_BATCH_NON_SECURE_I965));
 	/* bit0-7 is the length on GEN6+ */
 	intel_ring_emit(ring, offset);
 	intel_ring_advance(ring);
@@ -2341,7 +2444,6 @@ static int gen6_ring_flush(struct intel_engine_cs *ring,
 			   u32 invalidate, u32 flush)
 {
 	struct drm_device *dev = ring->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t cmd;
 	int ret;
 
@@ -2350,7 +2452,7 @@ static int gen6_ring_flush(struct intel_engine_cs *ring,
 		return ret;
 
 	cmd = MI_FLUSH_DW;
-	if (INTEL_INFO(ring->dev)->gen >= 8)
+	if (INTEL_INFO(dev)->gen >= 8)
 		cmd += 1;
 
 	/* We always require a command barrier so that subsequent
@@ -2370,7 +2472,7 @@ static int gen6_ring_flush(struct intel_engine_cs *ring,
 		cmd |= MI_INVALIDATE_TLB;
 	intel_ring_emit(ring, cmd);
 	intel_ring_emit(ring, I915_GEM_HWS_SCRATCH_ADDR | MI_FLUSH_DW_USE_GTT);
-	if (INTEL_INFO(ring->dev)->gen >= 8) {
+	if (INTEL_INFO(dev)->gen >= 8) {
 		intel_ring_emit(ring, 0); /* upper addr */
 		intel_ring_emit(ring, 0); /* value */
 	} else  {
@@ -2378,13 +2480,6 @@ static int gen6_ring_flush(struct intel_engine_cs *ring,
 		intel_ring_emit(ring, MI_NOOP);
 	}
 	intel_ring_advance(ring);
-
-	if (!invalidate && flush) {
-		if (IS_GEN7(dev))
-			return gen7_ring_fbc_flush(ring, FBC_REND_CACHE_CLEAN);
-		else if (IS_BROADWELL(dev))
-			dev_priv->fbc.need_sw_cache_clean = true;
-	}
 
 	return 0;
 }
@@ -2612,18 +2707,12 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 }
 
 /**
- * Initialize the second BSD ring for Broadwell GT3.
- * It is noted that this only exists on Broadwell GT3.
+ * Initialize the second BSD ring (eg. Broadwell GT3, Skylake GT3)
  */
 int intel_init_bsd2_ring_buffer(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *ring = &dev_priv->ring[VCS2];
-
-	if ((INTEL_INFO(dev)->gen != 8)) {
-		DRM_ERROR("No dual-BSD ring on non-BDW machine\n");
-		return -EINVAL;
-	}
 
 	ring->name = "bsd2 ring";
 	ring->id = VCS2;

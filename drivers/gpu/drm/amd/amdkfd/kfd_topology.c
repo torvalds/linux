@@ -726,13 +726,14 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 		}
 
 		sysfs_show_32bit_prop(buffer, "max_engine_clk_fcompute",
-				kfd2kgd->get_max_engine_clock_in_mhz(
+			dev->gpu->kfd2kgd->get_max_engine_clock_in_mhz(
 					dev->gpu->kgd));
 		sysfs_show_64bit_prop(buffer, "local_mem_size",
-				kfd2kgd->get_vmem_size(dev->gpu->kgd));
+			dev->gpu->kfd2kgd->get_vmem_size(
+					dev->gpu->kgd));
 
 		sysfs_show_32bit_prop(buffer, "fw_version",
-				kfd2kgd->get_fw_version(
+			dev->gpu->kfd2kgd->get_fw_version(
 						dev->gpu->kgd,
 						KGD_ENGINE_MEC1));
 	}
@@ -1099,8 +1100,9 @@ static uint32_t kfd_generate_gpu_id(struct kfd_dev *gpu)
 	buf[2] = gpu->pdev->subsystem_device;
 	buf[3] = gpu->pdev->device;
 	buf[4] = gpu->pdev->bus->number;
-	buf[5] = (uint32_t)(kfd2kgd->get_vmem_size(gpu->kgd) & 0xffffffff);
-	buf[6] = (uint32_t)(kfd2kgd->get_vmem_size(gpu->kgd) >> 32);
+	buf[5] = (uint32_t)(gpu->kfd2kgd->get_vmem_size(gpu->kgd)
+			& 0xffffffff);
+	buf[6] = (uint32_t)(gpu->kfd2kgd->get_vmem_size(gpu->kgd) >> 32);
 
 	for (i = 0, hashout = 0; i < 7; i++)
 		hashout ^= hash_32(buf[i], KFD_GPU_ID_HASH_WIDTH);

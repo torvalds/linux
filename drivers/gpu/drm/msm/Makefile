@@ -50,5 +50,10 @@ msm-y := \
 
 msm-$(CONFIG_DRM_MSM_FBDEV) += msm_fbdev.o
 msm-$(CONFIG_COMMON_CLK) += mdp/mdp4/mdp4_lvds_pll.o
+msm-$(CONFIG_DRM_MSM_DSI) += dsi/dsi.o \
+			dsi/dsi_host.o \
+			dsi/dsi_manager.o \
+			dsi/dsi_phy.o \
+			mdp/mdp5/mdp5_cmd_encoder.o
 
 obj-$(CONFIG_DRM_MSM)	+= msm.o

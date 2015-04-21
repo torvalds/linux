@@ -134,9 +134,9 @@ int intel_atomic_commit(struct drm_device *dev,
 	 * FIXME:  The proper sequence here will eventually be:
 	 *
 	 * drm_atomic_helper_swap_state(dev, state)
-	 * drm_atomic_helper_commit_pre_planes(dev, state);
+	 * drm_atomic_helper_commit_modeset_disables(dev, state);
 	 * drm_atomic_helper_commit_planes(dev, state);
-	 * drm_atomic_helper_commit_post_planes(dev, state);
+	 * drm_atomic_helper_commit_modeset_enables(dev, state);
 	 * drm_atomic_helper_wait_for_vblanks(dev, state);
 	 * drm_atomic_helper_cleanup_planes(dev, state);
 	 * drm_atomic_state_free(state);
@@ -214,12 +214,18 @@ struct drm_crtc_state *
 intel_crtc_duplicate_state(struct drm_crtc *crtc)
 {
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc_state *crtc_state;
 
 	if (WARN_ON(!intel_crtc->config))
-		return kzalloc(sizeof(*intel_crtc->config), GFP_KERNEL);
+		crtc_state = kzalloc(sizeof(*crtc_state), GFP_KERNEL);
+	else
+		crtc_state = kmemdup(intel_crtc->config,
+				     sizeof(*intel_crtc->config), GFP_KERNEL);
 
-	return kmemdup(intel_crtc->config, sizeof(*intel_crtc->config),
-		       GFP_KERNEL);
+	if (crtc_state)
+		crtc_state->base.crtc = crtc;
+
+	return &crtc_state->base;
 }
 
 /**
