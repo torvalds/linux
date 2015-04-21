@@ -410,26 +410,27 @@ syscall_return:
 	 * a completely clean 64-bit userspace context.
 	 */
 	movq RCX(%rsp),%rcx
-	cmpq %rcx,RIP(%rsp)		/* RCX == RIP */
+	movq RIP(%rsp),%r11
+	cmpq %rcx,%r11			/* RCX == RIP */
 	jne opportunistic_sysret_failed
 
 	/*
 	 * On Intel CPUs, SYSRET with non-canonical RCX/RIP will #GP
 	 * in kernel space.  This essentially lets the user take over
-	 * the kernel, since userspace controls RSP.  It's not worth
-	 * testing for canonicalness exactly -- this check detects any
-	 * of the 17 high bits set, which is true for non-canonical
-	 * or kernel addresses.  (This will pessimize vsyscall=native.
-	 * Big deal.)
+	 * the kernel, since userspace controls RSP.
 	 *
-	 * If virtual addresses ever become wider, this will need
+	 * If width of "canonical tail" ever becomes variable, this will need
 	 * to be updated to remain correct on both old and new CPUs.
 	 */
 	.ifne __VIRTUAL_MASK_SHIFT - 47
 	.error "virtual address width changed -- SYSRET checks need update"
 	.endif
-	shr $__VIRTUAL_MASK_SHIFT, %rcx
-	jnz opportunistic_sysret_failed
+	/* Change top 16 bits to be the sign-extension of 47th bit */
+	shl	$(64 - (__VIRTUAL_MASK_SHIFT+1)), %rcx
+	sar	$(64 - (__VIRTUAL_MASK_SHIFT+1)), %rcx
+	/* If this changed %rcx, it was not canonical */
+	cmpq	%rcx, %r11
+	jne	opportunistic_sysret_failed
 
 	cmpq $__USER_CS,CS(%rsp)	/* CS must match SYSRET */
 	jne opportunistic_sysret_failed
@@ -466,8 +467,8 @@ syscall_return:
 	 */
 syscall_return_via_sysret:
 	CFI_REMEMBER_STATE
-	/* r11 is already restored (see code above) */
-	RESTORE_C_REGS_EXCEPT_R11
+	/* rcx and r11 are already restored (see code above) */
+	RESTORE_C_REGS_EXCEPT_RCX_R11
 	movq RSP(%rsp),%rsp
 	USERGS_SYSRET64
 	CFI_RESTORE_STATE
