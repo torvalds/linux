@@ -280,6 +280,8 @@ mode_fixup(struct drm_atomic_state *state)
 		 */
 		encoder = conn_state->best_encoder;
 		funcs = encoder->helper_private;
+		if (!funcs)
+			continue;
 
 		if (encoder->bridge && encoder->bridge->funcs->mode_fixup) {
 			ret = encoder->bridge->funcs->mode_fixup(
@@ -317,6 +319,9 @@ mode_fixup(struct drm_atomic_state *state)
 			continue;
 
 		funcs = crtc->helper_private;
+		if (!funcs->mode_fixup)
+			continue;
+
 		ret = funcs->mode_fixup(crtc, &crtc_state->mode,
 					&crtc_state->adjusted_mode);
 		if (!ret) {
