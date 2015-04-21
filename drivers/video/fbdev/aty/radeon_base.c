@@ -85,10 +85,6 @@
 
 #endif /* CONFIG_PPC */
 
-#ifdef CONFIG_MTRR
-#include <asm/mtrr.h>
-#endif
-
 #include <video/radeon.h>
 #include <linux/radeonfb.h>
 
@@ -271,9 +267,7 @@ static bool mirror = 0;
 static int panel_yres = 0;
 static bool force_dfp = 0;
 static bool force_measure_pll = 0;
-#ifdef CONFIG_MTRR
 static bool nomtrr = 0;
-#endif
 static bool force_sleep;
 static bool ignore_devlist;
 #ifdef CONFIG_PMAC_BACKLIGHT
@@ -2260,8 +2254,8 @@ static int radeonfb_pci_register(struct pci_dev *pdev,
 	rinfo->mapped_vram = min_t(unsigned long, MAX_MAPPED_VRAM, rinfo->video_ram);
 
 	do {
-		rinfo->fb_base = ioremap (rinfo->fb_base_phys,
-					  rinfo->mapped_vram);
+		rinfo->fb_base = ioremap_wc(rinfo->fb_base_phys,
+					    rinfo->mapped_vram);
 	} while (rinfo->fb_base == NULL &&
 		 ((rinfo->mapped_vram /= 2) >= MIN_MAPPED_VRAM));
 
@@ -2359,11 +2353,9 @@ static int radeonfb_pci_register(struct pci_dev *pdev,
 		goto err_unmap_fb;
 	}
 
-#ifdef CONFIG_MTRR
-	rinfo->mtrr_hdl = nomtrr ? -1 : mtrr_add(rinfo->fb_base_phys,
-						 rinfo->video_ram,
-						 MTRR_TYPE_WRCOMB, 1);
-#endif
+	if (!nomtrr)
+		rinfo->wc_cookie = arch_phys_wc_add(rinfo->fb_base_phys,
+						    rinfo->video_ram);
 
 	if (backlight)
 		radeonfb_bl_init(rinfo);
@@ -2428,12 +2420,7 @@ static void radeonfb_pci_unregister(struct pci_dev *pdev)
  #endif
 
 	del_timer_sync(&rinfo->lvds_timer);
-
-#ifdef CONFIG_MTRR
-	if (rinfo->mtrr_hdl >= 0)
-		mtrr_del(rinfo->mtrr_hdl, 0, 0);
-#endif
-
+	arch_phys_wc_del(rinfo->wc_cookie);
         unregister_framebuffer(info);
 
         radeonfb_bl_exit(rinfo);
@@ -2489,10 +2476,8 @@ static int __init radeonfb_setup (char *options)
 			panel_yres = simple_strtoul((this_opt+11), NULL, 0);
 		} else if (!strncmp(this_opt, "backlight:", 10)) {
 			backlight = simple_strtoul(this_opt+10, NULL, 0);
-#ifdef CONFIG_MTRR
 		} else if (!strncmp(this_opt, "nomtrr", 6)) {
 			nomtrr = 1;
-#endif
 		} else if (!strncmp(this_opt, "nomodeset", 9)) {
 			nomodeset = 1;
 		} else if (!strncmp(this_opt, "force_measure_pll", 17)) {
@@ -2552,10 +2537,8 @@ module_param(monitor_layout, charp, 0);
 MODULE_PARM_DESC(monitor_layout, "Specify monitor mapping (like XFree86)");
 module_param(force_measure_pll, bool, 0);
 MODULE_PARM_DESC(force_measure_pll, "Force measurement of PLL (debug)");
-#ifdef CONFIG_MTRR
 module_param(nomtrr, bool, 0);
 MODULE_PARM_DESC(nomtrr, "bool: disable use of MTRR registers");
-#endif
 module_param(panel_yres, int, 0);
 MODULE_PARM_DESC(panel_yres, "int: set panel yres");
 module_param(mode_option, charp, 0);
