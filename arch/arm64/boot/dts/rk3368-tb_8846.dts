@@ -250,11 +250,13 @@
 };
 
 &nandc0 {
-	status = "disabled"; // used nand set "disabled" ,used emmc set "okay"
+/*set "okay" both nand and emmc*/
+/*if using nand,emmc need disabled*/
+	status = "okay";
 };
 
 &nandc0reg {
-	status = "okay"; // used nand set "disabled" ,used emmc set "okay"
+	status = "disabled"; /* unused now,set "disabled"*/
 };
 
 &emmc {
