@@ -1462,13 +1462,15 @@ static const struct file_operations dvb_net_fops = {
 	.llseek = noop_llseek,
 };
 
-static struct dvb_device dvbdev_net = {
+static const struct dvb_device dvbdev_net = {
 	.priv = NULL,
 	.users = 1,
 	.writers = 1,
+#if defined(CONFIG_MEDIA_CONTROLLER_DVB)
+	.name = "dvb-net",
+#endif
 	.fops = &dvb_net_fops,
 };
-
 
 void dvb_net_release (struct dvb_net *dvbnet)
 {

@@ -100,7 +100,7 @@ struct common_obj {
 
 struct channel_obj {
 	/* V4l2 specific parameters */
-	struct video_device *video_dev;	/* Identifies video device for
+	struct video_device video_dev;	/* Identifies video device for
 					 * this channel */
 	u32 field_id;			/* Indicates id of the field
 					 * which is being displayed */

@@ -977,19 +977,6 @@ static void rcar_vin_remove_device(struct soc_camera_device *icd)
 		icd->devnum);
 }
 
-/* Called with .host_lock held */
-static int rcar_vin_clock_start(struct soc_camera_host *ici)
-{
-	/* VIN does not have "mclk" */
-	return 0;
-}
-
-/* Called with .host_lock held */
-static void rcar_vin_clock_stop(struct soc_camera_host *ici)
-{
-	/* VIN does not have "mclk" */
-}
-
 static void set_coeff(struct rcar_vin_priv *priv, unsigned short xs)
 {
 	int i;
@@ -1803,8 +1790,6 @@ static struct soc_camera_host_ops rcar_vin_host_ops = {
 	.owner		= THIS_MODULE,
 	.add		= rcar_vin_add_device,
 	.remove		= rcar_vin_remove_device,
-	.clock_start	= rcar_vin_clock_start,
-	.clock_stop	= rcar_vin_clock_stop,
 	.get_formats	= rcar_vin_get_formats,
 	.put_formats	= rcar_vin_put_formats,
 	.get_crop	= rcar_vin_get_crop,

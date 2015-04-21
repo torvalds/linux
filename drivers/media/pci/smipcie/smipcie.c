@@ -16,7 +16,7 @@
 
 #include "smipcie.h"
 #include "m88ds3103.h"
-#include "m88ts2022.h"
+#include "ts2020.h"
 #include "m88rs6000t.h"
 #include "si2168.h"
 #include "si2157.h"
@@ -532,9 +532,7 @@ static int smi_dvbsky_m88ds3103_fe_attach(struct smi_port *port)
 	struct i2c_adapter *tuner_i2c_adapter;
 	struct i2c_client *tuner_client;
 	struct i2c_board_info tuner_info;
-	struct m88ts2022_config m88ts2022_config = {
-		.clock = 27000000,
-	};
+	struct ts2020_config ts2020_config = {};
 	memset(&tuner_info, 0, sizeof(struct i2c_board_info));
 	i2c = (port->idx == 0) ? &dev->i2c_bus[0] : &dev->i2c_bus[1];
 
@@ -546,10 +544,10 @@ static int smi_dvbsky_m88ds3103_fe_attach(struct smi_port *port)
 		return ret;
 	}
 	/* attach tuner */
-	m88ts2022_config.fe = port->fe;
-	strlcpy(tuner_info.type, "m88ts2022", I2C_NAME_SIZE);
+	ts2020_config.fe = port->fe;
+	strlcpy(tuner_info.type, "ts2020", I2C_NAME_SIZE);
 	tuner_info.addr = 0x60;
-	tuner_info.platform_data = &m88ts2022_config;
+	tuner_info.platform_data = &ts2020_config;
 	tuner_client = smi_add_i2c_client(tuner_i2c_adapter, &tuner_info);
 	if (!tuner_client) {
 		ret = -ENODEV;

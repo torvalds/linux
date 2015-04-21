@@ -1137,7 +1137,6 @@ int cx23885_video_register(struct cx23885_dev *dev)
 	int err;
 
 	dprintk(1, "%s()\n", __func__);
-	spin_lock_init(&dev->slock);
 
 	/* Initialize VBI template */
 	cx23885_vbi_template = cx23885_video_template;

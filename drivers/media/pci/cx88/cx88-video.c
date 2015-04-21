@@ -1274,27 +1274,9 @@ static const struct v4l2_ctrl_ops cx8800_ctrl_aud_ops = {
 
 static void cx8800_unregister_video(struct cx8800_dev *dev)
 {
-	if (dev->radio_dev) {
-		if (video_is_registered(dev->radio_dev))
-			video_unregister_device(dev->radio_dev);
-		else
-			video_device_release(dev->radio_dev);
-		dev->radio_dev = NULL;
-	}
-	if (dev->vbi_dev) {
-		if (video_is_registered(dev->vbi_dev))
-			video_unregister_device(dev->vbi_dev);
-		else
-			video_device_release(dev->vbi_dev);
-		dev->vbi_dev = NULL;
-	}
-	if (dev->video_dev) {
-		if (video_is_registered(dev->video_dev))
-			video_unregister_device(dev->video_dev);
-		else
-			video_device_release(dev->video_dev);
-		dev->video_dev = NULL;
-	}
+	video_unregister_device(&dev->radio_dev);
+	video_unregister_device(&dev->vbi_dev);
+	video_unregister_device(&dev->video_dev);
 }
 
 static int cx8800_initdev(struct pci_dev *pci_dev,
@@ -1485,12 +1467,12 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 		goto fail_unreg;
 
 	/* register v4l devices */
-	dev->video_dev = cx88_vdev_init(core,dev->pci,
-					&cx8800_video_template,"video");
-	video_set_drvdata(dev->video_dev, dev);
-	dev->video_dev->ctrl_handler = &core->video_hdl;
-	dev->video_dev->queue = &dev->vb2_vidq;
-	err = video_register_device(dev->video_dev,VFL_TYPE_GRABBER,
+	cx88_vdev_init(core, dev->pci, &dev->video_dev,
+		       &cx8800_video_template, "video");
+	video_set_drvdata(&dev->video_dev, dev);
+	dev->video_dev.ctrl_handler = &core->video_hdl;
+	dev->video_dev.queue = &dev->vb2_vidq;
+	err = video_register_device(&dev->video_dev, VFL_TYPE_GRABBER,
 				    video_nr[core->nr]);
 	if (err < 0) {
 		printk(KERN_ERR "%s/0: can't register video device\n",
@@ -1498,12 +1480,13 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 		goto fail_unreg;
 	}
 	printk(KERN_INFO "%s/0: registered device %s [v4l2]\n",
-	       core->name, video_device_node_name(dev->video_dev));
+	       core->name, video_device_node_name(&dev->video_dev));
 
-	dev->vbi_dev = cx88_vdev_init(core,dev->pci,&cx8800_vbi_template,"vbi");
-	video_set_drvdata(dev->vbi_dev, dev);
-	dev->vbi_dev->queue = &dev->vb2_vbiq;
-	err = video_register_device(dev->vbi_dev,VFL_TYPE_VBI,
+	cx88_vdev_init(core, dev->pci, &dev->vbi_dev,
+		       &cx8800_vbi_template, "vbi");
+	video_set_drvdata(&dev->vbi_dev, dev);
+	dev->vbi_dev.queue = &dev->vb2_vbiq;
+	err = video_register_device(&dev->vbi_dev, VFL_TYPE_VBI,
 				    vbi_nr[core->nr]);
 	if (err < 0) {
 		printk(KERN_ERR "%s/0: can't register vbi device\n",
@@ -1511,14 +1494,14 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 		goto fail_unreg;
 	}
 	printk(KERN_INFO "%s/0: registered device %s\n",
-	       core->name, video_device_node_name(dev->vbi_dev));
+	       core->name, video_device_node_name(&dev->vbi_dev));
 
 	if (core->board.radio.type == CX88_RADIO) {
-		dev->radio_dev = cx88_vdev_init(core,dev->pci,
-						&cx8800_radio_template,"radio");
-		video_set_drvdata(dev->radio_dev, dev);
-		dev->radio_dev->ctrl_handler = &core->audio_hdl;
-		err = video_register_device(dev->radio_dev,VFL_TYPE_RADIO,
+		cx88_vdev_init(core, dev->pci, &dev->radio_dev,
+			       &cx8800_radio_template, "radio");
+		video_set_drvdata(&dev->radio_dev, dev);
+		dev->radio_dev.ctrl_handler = &core->audio_hdl;
+		err = video_register_device(&dev->radio_dev, VFL_TYPE_RADIO,
 					    radio_nr[core->nr]);
 		if (err < 0) {
 			printk(KERN_ERR "%s/0: can't register radio device\n",
@@ -1526,7 +1509,7 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 			goto fail_unreg;
 		}
 		printk(KERN_INFO "%s/0: registered device %s\n",
-		       core->name, video_device_node_name(dev->radio_dev));
+		       core->name, video_device_node_name(&dev->radio_dev));
 	}
 
 	/* start tvaudio thread */

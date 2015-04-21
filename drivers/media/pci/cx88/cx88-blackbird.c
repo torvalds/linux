@@ -1102,32 +1102,26 @@ static int cx8802_blackbird_advise_release(struct cx8802_driver *drv)
 
 static void blackbird_unregister_video(struct cx8802_dev *dev)
 {
-	if (dev->mpeg_dev) {
-		if (video_is_registered(dev->mpeg_dev))
-			video_unregister_device(dev->mpeg_dev);
-		else
-			video_device_release(dev->mpeg_dev);
-		dev->mpeg_dev = NULL;
-	}
+	video_unregister_device(&dev->mpeg_dev);
 }
 
 static int blackbird_register_video(struct cx8802_dev *dev)
 {
 	int err;
 
-	dev->mpeg_dev = cx88_vdev_init(dev->core, dev->pci,
-				       &cx8802_mpeg_template, "mpeg");
-	dev->mpeg_dev->ctrl_handler = &dev->cxhdl.hdl;
-	video_set_drvdata(dev->mpeg_dev, dev);
-	dev->mpeg_dev->queue = &dev->vb2_mpegq;
-	err = video_register_device(dev->mpeg_dev, VFL_TYPE_GRABBER, -1);
+	cx88_vdev_init(dev->core, dev->pci, &dev->mpeg_dev,
+		       &cx8802_mpeg_template, "mpeg");
+	dev->mpeg_dev.ctrl_handler = &dev->cxhdl.hdl;
+	video_set_drvdata(&dev->mpeg_dev, dev);
+	dev->mpeg_dev.queue = &dev->vb2_mpegq;
+	err = video_register_device(&dev->mpeg_dev, VFL_TYPE_GRABBER, -1);
 	if (err < 0) {
 		printk(KERN_INFO "%s/2: can't register mpeg device\n",
 		       dev->core->name);
 		return err;
 	}
 	printk(KERN_INFO "%s/2: registered device %s [mpeg]\n",
-	       dev->core->name, video_device_node_name(dev->mpeg_dev));
+	       dev->core->name, video_device_node_name(&dev->mpeg_dev));
 	return 0;
 }
 

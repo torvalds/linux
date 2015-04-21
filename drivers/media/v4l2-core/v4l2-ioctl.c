@@ -257,7 +257,7 @@ static void v4l_print_format(const void *arg, bool write_only)
 		pr_cont(", width=%u, height=%u, "
 			"pixelformat=%c%c%c%c, field=%s, "
 			"bytesperline=%u, sizeimage=%u, colorspace=%d, "
-			"flags %x, ycbcr_enc=%u, quantization=%u\n",
+			"flags=0x%x, ycbcr_enc=%u, quantization=%u\n",
 			pix->width, pix->height,
 			(pix->pixelformat & 0xff),
 			(pix->pixelformat >>  8) & 0xff,
@@ -273,7 +273,7 @@ static void v4l_print_format(const void *arg, bool write_only)
 		mp = &p->fmt.pix_mp;
 		pr_cont(", width=%u, height=%u, "
 			"format=%c%c%c%c, field=%s, "
-			"colorspace=%d, num_planes=%u, flags=%x, "
+			"colorspace=%d, num_planes=%u, flags=0x%x, "
 			"ycbcr_enc=%u, quantization=%u\n",
 			mp->width, mp->height,
 			(mp->pixelformat & 0xff),
@@ -901,6 +901,8 @@ static int check_ext_ctrls(struct v4l2_ext_controls *c, int allow_priv)
 	 */
 	if (!allow_priv && c->ctrl_class == V4L2_CID_PRIVATE_BASE)
 		return 0;
+	if (c->ctrl_class == 0)
+		return 1;
 	/* Check that all controls are from the same control class. */
 	for (i = 0; i < c->count; i++) {
 		if (V4L2_CTRL_ID2CLASS(c->controls[i].id) != c->ctrl_class) {
@@ -1046,8 +1048,6 @@ static int v4l_g_priority(const struct v4l2_ioctl_ops *ops,
 	struct video_device *vfd;
 	u32 *p = arg;
 
-	if (ops->vidioc_g_priority)
-		return ops->vidioc_g_priority(file, fh, arg);
 	vfd = video_devdata(file);
 	*p = v4l2_prio_max(vfd->prio);
 	return 0;
@@ -1060,9 +1060,9 @@ static int v4l_s_priority(const struct v4l2_ioctl_ops *ops,
 	struct v4l2_fh *vfh;
 	u32 *p = arg;
 
-	if (ops->vidioc_s_priority)
-		return ops->vidioc_s_priority(file, fh, *p);
 	vfd = video_devdata(file);
+	if (!test_bit(V4L2_FL_USES_V4L2_FH, &vfd->flags))
+		return -ENOTTY;
 	vfh = file->private_data;
 	return v4l2_prio_change(vfd->prio, &vfh->prio, *p);
 }
