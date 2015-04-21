@@ -121,7 +121,7 @@ struct drbg_state {
 #endif
 	const struct drbg_state_ops *d_ops;
 	const struct drbg_core *core;
-	struct drbg_test_data *test_data;
+	struct drbg_string test_data;
 };
 
 static inline __u8 drbg_statelen(struct drbg_state *drbg)
@@ -177,19 +177,8 @@ static inline size_t drbg_max_requests(struct drbg_state *drbg)
 }
 
 /*
- * kernel crypto API input data structure for DRBG generate in case dlen
- * is set to 0
- */
-struct drbg_gen {
-	unsigned char *outbuf;	/* output buffer for random numbers */
-	unsigned int outlen;	/* size of output buffer */
-	struct drbg_string *addtl;	/* additional information string */
-	struct drbg_test_data *test_data;	/* test data */
-};
-
-/*
  * This is a wrapper to the kernel crypto API function of
- * crypto_rng_get_bytes() to allow the caller to provide additional data.
+ * crypto_rng_generate() to allow the caller to provide additional data.
  *
  * @drng DRBG handle -- see crypto_rng_get_bytes
  * @outbuf output buffer -- see crypto_rng_get_bytes
@@ -204,21 +193,15 @@ static inline int crypto_drbg_get_bytes_addtl(struct crypto_rng *drng,
 			unsigned char *outbuf, unsigned int outlen,
 			struct drbg_string *addtl)
 {
-	int ret;
-	struct drbg_gen genbuf;
-	genbuf.outbuf = outbuf;
-	genbuf.outlen = outlen;
-	genbuf.addtl = addtl;
-	genbuf.test_data = NULL;
-	ret = crypto_rng_get_bytes(drng, (u8 *)&genbuf, 0);
-	return ret;
+	return crypto_rng_generate(drng, addtl->buf, addtl->len,
+				   outbuf, outlen);
 }
 
 /*
  * TEST code
  *
  * This is a wrapper to the kernel crypto API function of
- * crypto_rng_get_bytes() to allow the caller to provide additional data and
+ * crypto_rng_generate() to allow the caller to provide additional data and
  * allow furnishing of test_data
  *
  * @drng DRBG handle -- see crypto_rng_get_bytes
@@ -236,14 +219,10 @@ static inline int crypto_drbg_get_bytes_addtl_test(struct crypto_rng *drng,
 			struct drbg_string *addtl,
 			struct drbg_test_data *test_data)
 {
-	int ret;
-	struct drbg_gen genbuf;
-	genbuf.outbuf = outbuf;
-	genbuf.outlen = outlen;
-	genbuf.addtl = addtl;
-	genbuf.test_data = test_data;
-	ret = crypto_rng_get_bytes(drng, (u8 *)&genbuf, 0);
-	return ret;
+	crypto_rng_set_entropy(drng, test_data->testentropy->buf,
+			       test_data->testentropy->len);
+	return crypto_rng_generate(drng, addtl->buf, addtl->len,
+				   outbuf, outlen);
 }
 
 /*
@@ -264,14 +243,9 @@ static inline int crypto_drbg_reset_test(struct crypto_rng *drng,
 					 struct drbg_string *pers,
 					 struct drbg_test_data *test_data)
 {
-	int ret;
-	struct drbg_gen genbuf;
-	genbuf.outbuf = NULL;
-	genbuf.outlen = 0;
-	genbuf.addtl = pers;
-	genbuf.test_data = test_data;
-	ret = crypto_rng_reset(drng, (u8 *)&genbuf, 0);
-	return ret;
+	crypto_rng_set_entropy(drng, test_data->testentropy->buf,
+			       test_data->testentropy->len);
+	return crypto_rng_reset(drng, pers->buf, pers->len);
 }
 
 /* DRBG type flags */
