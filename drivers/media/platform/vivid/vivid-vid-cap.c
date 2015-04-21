@@ -40,7 +40,6 @@ static const struct v4l2_fract
 
 static const struct vivid_fmt formats_ovl[] = {
 	{
-		.name     = "RGB565 (LE)",
 		.fourcc   = V4L2_PIX_FMT_RGB565, /* gggbbbbb rrrrrggg */
 		.vdownsampling = { 1 },
 		.bit_depth = { 16 },
@@ -48,7 +47,6 @@ static const struct vivid_fmt formats_ovl[] = {
 		.buffers = 1,
 	},
 	{
-		.name     = "XRGB555 (LE)",
 		.fourcc   = V4L2_PIX_FMT_XRGB555, /* gggbbbbb arrrrrgg */
 		.vdownsampling = { 1 },
 		.bit_depth = { 16 },
@@ -56,7 +54,6 @@ static const struct vivid_fmt formats_ovl[] = {
 		.buffers = 1,
 	},
 	{
-		.name     = "ARGB555 (LE)",
 		.fourcc   = V4L2_PIX_FMT_ARGB555, /* gggbbbbb arrrrrgg */
 		.vdownsampling = { 1 },
 		.bit_depth = { 16 },
@@ -1033,7 +1030,6 @@ int vidioc_enum_fmt_vid_overlay(struct file *file, void  *priv,
 
 	fmt = &formats_ovl[f->index];
 
-	strlcpy(f->description, fmt->name, sizeof(f->description));
 	f->pixelformat = fmt->fourcc;
 	return 0;
 }

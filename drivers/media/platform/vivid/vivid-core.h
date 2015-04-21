@@ -77,7 +77,6 @@ extern const struct v4l2_rect vivid_max_rect;
 extern unsigned vivid_debug;
 
 struct vivid_fmt {
-	const char *name;
 	u32	fourcc;          /* v4l2 format id */
 	bool	is_yuv;
 	bool	can_do_overlay;
