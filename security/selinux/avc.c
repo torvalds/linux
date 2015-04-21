@@ -298,13 +298,15 @@ static void avc_operation_decision_free(
 
 static void avc_operation_free(struct avc_operation_node *ops_node)
 {
-	struct avc_operation_decision_node *od_node;
+	struct avc_operation_decision_node *od_node, *tmp;
 
 	if (!ops_node)
 		return;
 
-	list_for_each_entry(od_node, &ops_node->od_head, od_list)
+	list_for_each_entry_safe(od_node, tmp, &ops_node->od_head, od_list) {
+		list_del(&od_node->od_list);
 		avc_operation_decision_free(od_node);
+	}
 	kmem_cache_free(avc_operation_node_cachep, ops_node);
 }
 
