@@ -42,7 +42,29 @@ static int generate(struct crypto_rng *tfm, const u8 *src, unsigned int slen,
 	return crypto_rng_alg(tfm)->rng_make_random(tfm, dst, dlen);
 }
 
-static int rngapi_reset(struct crypto_rng *tfm, u8 *seed, unsigned int slen)
+static int rngapi_reset(struct crypto_rng *tfm, const u8 *seed,
+			unsigned int slen)
+{
+	u8 *buf = NULL;
+	u8 *src = (u8 *)seed;
+	int err;
+
+	if (slen) {
+		buf = kmalloc(slen, GFP_KERNEL);
+		if (!buf)
+			return -ENOMEM;
+
+		memcpy(buf, seed, slen);
+		src = buf;
+	}
+
+	err = crypto_rng_alg(tfm)->rng_reset(tfm, src, slen);
+
+	kzfree(buf);
+	return err;
+}
+
+int crypto_rng_reset(struct crypto_rng *tfm, const u8 *seed, unsigned int slen)
 {
 	u8 *buf = NULL;
 	int err;
@@ -56,11 +78,12 @@ static int rngapi_reset(struct crypto_rng *tfm, u8 *seed, unsigned int slen)
 		seed = buf;
 	}
 
-	err = crypto_rng_alg(tfm)->rng_reset(tfm, seed, slen);
+	err = tfm->seed(tfm, seed, slen);
 
 	kfree(buf);
 	return err;
 }
+EXPORT_SYMBOL_GPL(crypto_rng_reset);
 
 static int crypto_rng_init_tfm(struct crypto_tfm *tfm)
 {

@@ -19,7 +19,7 @@ struct crypto_rng {
 	int (*generate)(struct crypto_rng *tfm,
 			const u8 *src, unsigned int slen,
 			u8 *dst, unsigned int dlen);
-	int (*seed)(struct crypto_rng *tfm, u8 *seed, unsigned int slen);
+	int (*seed)(struct crypto_rng *tfm, const u8 *seed, unsigned int slen);
 	struct crypto_tfm base;
 };
 
@@ -139,11 +139,8 @@ static inline int crypto_rng_get_bytes(struct crypto_rng *tfm,
  *
  * Return: 0 if the setting of the key was successful; < 0 if an error occurred
  */
-static inline int crypto_rng_reset(struct crypto_rng *tfm,
-				   u8 *seed, unsigned int slen)
-{
-	return tfm->seed(tfm, seed, slen);
-}
+int crypto_rng_reset(struct crypto_rng *tfm, const u8 *seed,
+		     unsigned int slen);
 
 /**
  * crypto_rng_seedsize() - obtain seed size of RNG
