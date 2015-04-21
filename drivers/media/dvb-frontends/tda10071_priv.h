@@ -24,10 +24,12 @@
 #include "dvb_frontend.h"
 #include "tda10071.h"
 #include <linux/firmware.h>
+#include <linux/regmap.h>
 
 struct tda10071_dev {
 	struct dvb_frontend fe;
 	struct i2c_client *client;
+	struct regmap *regmap;
 	u32 clk;
 	u16 i2c_wr_max;
 	u8 ts_mode;
