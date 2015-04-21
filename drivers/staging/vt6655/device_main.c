@@ -1206,14 +1206,6 @@ static int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	if (dma_idx == TYPE_AC0DMA)
 		head_td->pTDInfo->byFlags = TD_FLAGS_NETIF_SKB;
 
-	priv->iTDUsed[dma_idx]++;
-
-	/* Take ownership */
-	wmb();
-	head_td->m_td0TD0.f1Owner = OWNED_BY_NIC;
-
-	/* get Next */
-	wmb();
 	priv->apCurrTD[dma_idx] = head_td->next;
 
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -1234,10 +1226,17 @@ static int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 	head_td->buff_addr = cpu_to_le32(head_td->pTDInfo->skb_dma);
 
+	/* Poll Transmit the adapter */
+	wmb();
+	head_td->m_td0TD0.f1Owner = OWNED_BY_NIC;
+	wmb(); /* second memory barrier */
+
 	if (head_td->pTDInfo->byFlags & TD_FLAGS_NETIF_SKB)
 		MACvTransmitAC0(priv->PortOffset);
 	else
 		MACvTransmit0(priv->PortOffset);
+
+	priv->iTDUsed[dma_idx]++;
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
