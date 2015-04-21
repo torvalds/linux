@@ -65,6 +65,9 @@ Description:
 			# CGROUP_SUPER_MAGIC
 			dont_measure fsmagic=0x27e0eb
 			dont_appraise fsmagic=0x27e0eb
+			# NSFS_MAGIC
+			dont_measure fsmagic=0x6e736673
+			dont_appraise fsmagic=0x6e736673
 
 			measure func=BPRM_CHECK
 			measure func=FILE_MMAP mask=MAY_EXEC
