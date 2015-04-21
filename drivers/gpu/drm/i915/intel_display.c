@@ -11467,13 +11467,21 @@ clear_intel_crtc_state(struct intel_crtc_state *crtc_state)
 {
 	struct drm_crtc_state tmp_state;
 	struct intel_crtc_scaler_state scaler_state;
+	struct intel_dpll_hw_state dpll_hw_state;
+	enum intel_dpll_id shared_dpll;
 
 	/* Clear only the intel specific part of the crtc state excluding scalers */
 	tmp_state = crtc_state->base;
 	scaler_state = crtc_state->scaler_state;
+	shared_dpll = crtc_state->shared_dpll;
+	dpll_hw_state = crtc_state->dpll_hw_state;
+
 	memset(crtc_state, 0, sizeof *crtc_state);
+
 	crtc_state->base = tmp_state;
 	crtc_state->scaler_state = scaler_state;
+	crtc_state->shared_dpll = shared_dpll;
+	crtc_state->dpll_hw_state = dpll_hw_state;
 }
 
 static int
@@ -11502,7 +11510,6 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 
 	pipe_config->cpu_transcoder =
 		(enum transcoder) to_intel_crtc(crtc)->pipe;
-	pipe_config->shared_dpll = DPLL_ID_PRIVATE;
 
 	/*
 	 * Sanitize sync polarity flags based on requested ones. If neither
@@ -12266,9 +12273,14 @@ static int __intel_set_mode_setup_plls(struct drm_atomic_state *state)
 
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		intel_crtc = to_intel_crtc(crtc);
+		intel_crtc_state = to_intel_crtc_state(crtc_state);
 
-		if (needs_modeset(crtc_state))
+		if (needs_modeset(crtc_state)) {
 			clear_pipes |= 1 << intel_crtc->pipe;
+			intel_crtc_state->shared_dpll = DPLL_ID_PRIVATE;
+			memset(&intel_crtc_state->dpll_hw_state, 0,
+			       sizeof(intel_crtc_state->dpll_hw_state));
+		}
 	}
 
 	ret = intel_shared_dpll_start_config(dev_priv, clear_pipes);
