@@ -375,9 +375,10 @@ static int aha1542_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 	u8 lun = cmd->device->lun;
 	unsigned long flags;
 	int bufflen = scsi_bufflen(cmd);
-	int mbo;
+	int mbo, sg_count;
 	struct mailbox *mb = aha1542->mb;
 	struct ccb *ccb = aha1542->ccb;
+	struct chain *cptr;
 
 	if (*cmd->cmnd == REQUEST_SENSE) {
 		/* Don't do the command - we have the sense data already */
@@ -397,6 +398,13 @@ static int aha1542_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 		print_hex_dump_bytes("command: ", DUMP_PREFIX_NONE, cmd->cmnd, cmd->cmd_len);
 	}
 #endif
+	if (bufflen) {	/* allocate memory before taking host_lock */
+		sg_count = scsi_sg_count(cmd);
+		cptr = kmalloc(sizeof(*cptr) * sg_count, GFP_KERNEL | GFP_DMA);
+		if (!cptr)
+			return SCSI_MLQUEUE_HOST_BUSY;
+	}
+
 	/* Use the outgoing mailboxes in a round-robin fashion, because this
 	   is how the host adapter will scan for them */
 
@@ -441,19 +449,10 @@ static int aha1542_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 
 	if (bufflen) {
 		struct scatterlist *sg;
-		struct chain *cptr;
-		int i, sg_count = scsi_sg_count(cmd);
+		int i;
 
 		ccb[mbo].op = 2;	/* SCSI Initiator Command  w/scatter-gather */
-		cmd->host_scribble = kmalloc(sizeof(*cptr)*sg_count,
-		                                         GFP_KERNEL | GFP_DMA);
-		cptr = (struct chain *) cmd->host_scribble;
-		if (cptr == NULL) {
-			/* free the claimed mailbox slot */
-			aha1542->int_cmds[mbo] = NULL;
-			spin_unlock_irqrestore(sh->host_lock, flags);
-			return SCSI_MLQUEUE_HOST_BUSY;
-		}
+		cmd->host_scribble = (void *)cptr;
 		scsi_for_each_sg(cmd, sg, sg_count, i) {
 			any2scsi(cptr[i].dataptr, isa_page_to_bus(sg_page(sg))
 								+ sg->offset);
