@@ -673,9 +673,10 @@
 		interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		pinctrl-names = "default", "gpio";
+		pinctrl-names = "default", "gpio", "sleep";
 		pinctrl-0 = <&i2c0_xfer>;
 		pinctrl-1 = <&i2c0_gpio>;
+		pinctrl-2 = <&i2c0_sleep>;
 		gpios = <&gpio0 GPIO_A6 GPIO_ACTIVE_LOW>, <&gpio0 GPIO_A7 GPIO_ACTIVE_LOW>;
 		clocks = <&clk_gates12 2>;
 		rockchip,check-idle = <1>;
@@ -689,9 +690,10 @@
 		interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		pinctrl-names = "default", "gpio";
+		pinctrl-names = "default", "gpio", "sleep";
 		pinctrl-0 = <&i2c1_xfer>;
 		pinctrl-1 = <&i2c1_gpio>;
+		pinctrl-2 = <&i2c1_sleep>;
 		gpios = <&gpio2 GPIO_C5 GPIO_ACTIVE_LOW>, <&gpio2 GPIO_C6 GPIO_ACTIVE_LOW>;
 		clocks = <&clk_gates12 3>;
 		rockchip,check-idle = <1>;
@@ -705,9 +707,10 @@
 		interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		pinctrl-names = "default", "gpio";
+		pinctrl-names = "default", "gpio", "sleep";
 		pinctrl-0 = <&i2c2_xfer>;
 		pinctrl-1 = <&i2c2_gpio>;
+		pinctrl-2 = <&i2c2_sleep>;
 		gpios = <&gpio3 GPIO_D7 GPIO_ACTIVE_LOW>, <&gpio0 GPIO_B1 GPIO_ACTIVE_LOW>;
 		clocks = <&clk_gates19 11>;
 		rockchip,check-idle = <1>;
@@ -721,9 +724,10 @@
 		interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		pinctrl-names = "default", "gpio";
+		pinctrl-names = "default", "gpio", "sleep";
 		pinctrl-0 = <&i2c3_xfer>;
 		pinctrl-1 = <&i2c3_gpio>;
+		pinctrl-2 = <&i2c3_sleep>;
 		gpios = <&gpio1 GPIO_C1 GPIO_ACTIVE_LOW>, <&gpio1 GPIO_C0 GPIO_ACTIVE_LOW>;
 		clocks = <&clk_gates19 12>;
 		rockchip,check-idle = <1>;
@@ -737,9 +741,10 @@
 		interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		pinctrl-names = "default", "gpio";
+		pinctrl-names = "default", "gpio", "sleep";
 		pinctrl-0 = <&i2c4_xfer>;
 		pinctrl-1 = <&i2c4_gpio>;
+		pinctrl-2 = <&i2c4_sleep>;
 		gpios = <&gpio3 GPIO_D0 GPIO_ACTIVE_LOW>, <&gpio3 GPIO_D1 GPIO_ACTIVE_LOW>;
 		clocks = <&clk_gates19 13>;
 		rockchip,check-idle = <1>;
@@ -753,9 +758,10 @@
 		interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		pinctrl-names = "default", "gpio";
+		pinctrl-names = "default", "gpio", "sleep";
 		pinctrl-0 = <&i2c5_xfer>;
 		pinctrl-1 = <&i2c5_gpio>;
+		pinctrl-2 = <&i2c5_sleep>;
 		gpios = <&gpio3 GPIO_D2 GPIO_ACTIVE_LOW>, <&gpio3 GPIO_D3 GPIO_ACTIVE_LOW>;
 		clocks = <&clk_gates19 14>;
 		rockchip,check-idle = <1>;
@@ -1521,6 +1527,11 @@
 			output-low;
 		};
 
+		pcfg_input_high: pcfg-input-high {
+			bias-pull-up;
+			input-enable;
+		};
+
 		i2c0 {
 			i2c0_xfer: i2c0-xfer {
 				rockchip,pins = <0 GPIO_A6 RK_FUNC_1 &pcfg_pull_none>,
@@ -1529,6 +1540,10 @@
 			i2c0_gpio: i2c0-gpio {
 				rockchip,pins = <0 GPIO_A6 RK_FUNC_GPIO &pcfg_pull_none>,
 						<0 GPIO_A7 RK_FUNC_GPIO &pcfg_pull_none>;
+			};
+			i2c0_sleep: i2c0-sleep {
+				rockchip,pins = <0 GPIO_A6 RK_FUNC_GPIO &pcfg_input_high>,
+						<0 GPIO_A7 RK_FUNC_GPIO &pcfg_input_high>;
 			};
 		};
 
@@ -1541,6 +1556,10 @@
 				rockchip,pins = <2 GPIO_C5 RK_FUNC_GPIO &pcfg_pull_none>,
 						<2 GPIO_C6 RK_FUNC_GPIO &pcfg_pull_none>;
 			};
+			i2c1_sleep: i2c1-sleep {
+				rockchip,pins = <2 GPIO_C5 RK_FUNC_GPIO &pcfg_input_high>,
+						<2 GPIO_C6 RK_FUNC_GPIO &pcfg_input_high>;
+			};
 		};
 
 		i2c2 {
@@ -1551,7 +1570,11 @@
 			i2c2_gpio: i2c2-gpio {
 				rockchip,pins = <3 GPIO_D7 RK_FUNC_GPIO &pcfg_pull_none>,
 						<0 GPIO_B1 RK_FUNC_GPIO &pcfg_pull_none>;
-            };
+                        };
+			i2c2_sleep: i2c2-sleep {
+				rockchip,pins = <3 GPIO_D7 RK_FUNC_GPIO &pcfg_input_high>,
+						<0 GPIO_B1 RK_FUNC_GPIO &pcfg_input_high>;
+                        };
 		};
 
 		i2c3 {
@@ -1562,6 +1585,10 @@
 			i2c3_gpio: i2c3-gpio {
 				rockchip,pins = <1 GPIO_C0 RK_FUNC_GPIO &pcfg_pull_none>,
 						<1 GPIO_C1 RK_FUNC_GPIO &pcfg_pull_none>;
+			};
+			i2c3_sleep: i2c3-sleep {
+				rockchip,pins = <1 GPIO_C0 RK_FUNC_GPIO &pcfg_input_high>,
+						<1 GPIO_C1 RK_FUNC_GPIO &pcfg_input_high>;
 			};
 		};
 
@@ -1574,6 +1601,10 @@
 				rockchip,pins = <3 GPIO_D0 RK_FUNC_GPIO &pcfg_pull_none>,
 						<3 GPIO_D1 RK_FUNC_GPIO &pcfg_pull_none>;
 			};
+			i2c4_sleep: i2c4-sleep {
+				rockchip,pins = <3 GPIO_D0 RK_FUNC_GPIO &pcfg_input_high>,
+						<3 GPIO_D1 RK_FUNC_GPIO &pcfg_input_high>;
+			};
 		};
 
 		i2c5 {
@@ -1584,6 +1615,10 @@
 			i2c5_gpio: i2c5-gpio {
 				rockchip,pins = <3 GPIO_D2 RK_FUNC_GPIO &pcfg_pull_none>,
 						<3 GPIO_D3 RK_FUNC_GPIO &pcfg_pull_none>;
+			};
+			i2c5_sleep: i2c5-sleep {
+				rockchip,pins = <3 GPIO_D2 RK_FUNC_GPIO &pcfg_input_high>,
+						<3 GPIO_D3 RK_FUNC_GPIO &pcfg_input_high>;
 			};
 		};
 

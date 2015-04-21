@@ -975,8 +975,10 @@ static bool rockchip_pinconf_pull_valid(struct rockchip_pin_ctrl *ctrl,
 	return false;
 }
 
-static int rockchip_gpio_direction_output(struct gpio_chip *gc,
-					  unsigned offset, int value);
+static int rockchip_gpio_direction_output(
+	struct gpio_chip *gc, unsigned offset, int value);
+static int rockchip_gpio_direction_input(
+	struct gpio_chip *gc, unsigned offset);
 static int rockchip_gpio_get(struct gpio_chip *gc, unsigned offset);
 
 /* set the pin config settings for a specified pin */
@@ -1023,6 +1025,16 @@ static int rockchip_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			if (rc)
 				return rc;
 			break;
+
+		case PIN_CONFIG_INPUT_ENABLE:
+			if (arg == 1) {
+				rc = rockchip_gpio_direction_input(
+					&bank->gpio_chip, pin - bank->pin_base);
+				if (rc)
+					return rc;
+			}
+			break;
+
 		case PIN_CONFIG_DRIVE_STRENGTH:
 			/* rk3288 RK3368 is the first with per-pin drive-strength */
 			if ((info->ctrl->type != RK3288) && ((info->ctrl->type != RK3368)))
