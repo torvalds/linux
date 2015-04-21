@@ -1417,8 +1417,15 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 
 	priv->current_aid = conf->aid;
 
-	if (changed & BSS_CHANGED_BSSID)
+	if (changed & BSS_CHANGED_BSSID) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&priv->lock, flags);
+
 		MACvWriteBSSIDAddress(priv->PortOffset, (u8 *)conf->bssid);
+
+		spin_unlock_irqrestore(&priv->lock, flags);
+	}
 
 	if (changed & BSS_CHANGED_BASIC_RATES) {
 		priv->basic_rates = conf->basic_rates;
