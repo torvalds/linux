@@ -233,5 +233,34 @@ void crypto_unregister_rng(struct rng_alg *alg)
 }
 EXPORT_SYMBOL_GPL(crypto_unregister_rng);
 
+int crypto_register_rngs(struct rng_alg *algs, int count)
+{
+	int i, ret;
+
+	for (i = 0; i < count; i++) {
+		ret = crypto_register_rng(algs + i);
+		if (ret)
+			goto err;
+	}
+
+	return 0;
+
+err:
+	for (--i; i >= 0; --i)
+		crypto_unregister_rng(algs + i);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(crypto_register_rngs);
+
+void crypto_unregister_rngs(struct rng_alg *algs, int count)
+{
+	int i;
+
+	for (i = count - 1; i >= 0; --i)
+		crypto_unregister_rng(algs + i);
+}
+EXPORT_SYMBOL_GPL(crypto_unregister_rngs);
+
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Random Number Generator");
