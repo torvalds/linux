@@ -9,8 +9,8 @@
  * option) any later version.
  */
 
-#ifndef __ASM_MACH_LOONGSON1_REGS_CLK_H
-#define __ASM_MACH_LOONGSON1_REGS_CLK_H
+#ifndef __ASM_MACH_LOONGSON32_REGS_CLK_H
+#define __ASM_MACH_LOONGSON32_REGS_CLK_H
 
 #define LS1X_CLK_REG(x) \
 		((void __iomem *)KSEG1ADDR(LS1X_CLK_BASE + (x)))
@@ -48,4 +48,4 @@
 #define BYPASS_DDR_WIDTH		1
 #define BYPASS_CPU_WIDTH		1
 
-#endif /* __ASM_MACH_LOONGSON1_REGS_CLK_H */
+#endif /* __ASM_MACH_LOONGSON32_REGS_CLK_H */

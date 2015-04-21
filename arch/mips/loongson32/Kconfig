@@ -1,4 +1,4 @@
-if MACH_LOONGSON1
+if MACH_LOONGSON32
 
 choice
 	prompt "Machine Type"
@@ -58,4 +58,4 @@ config TIMER_USE_PWM3
 
 endchoice
 
-endif # MACH_LOONGSON1
+endif # MACH_LOONGSON32

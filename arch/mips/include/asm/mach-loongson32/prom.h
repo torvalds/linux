@@ -7,8 +7,8 @@
  * option) any later version.
  */
 
-#ifndef __ASM_MACH_LOONGSON1_PROM_H
-#define __ASM_MACH_LOONGSON1_PROM_H
+#ifndef __ASM_MACH_LOONGSON32_PROM_H
+#define __ASM_MACH_LOONGSON32_PROM_H
 
 #include <linux/io.h>
 #include <linux/init.h>
@@ -21,4 +21,4 @@ extern unsigned long memsize, highmemsize;
 extern char *prom_getenv(char *name);
 extern void __init prom_init_cmdline(void);
 
-#endif /* __ASM_MACH_LOONGSON1_PROM_H */
+#endif /* __ASM_MACH_LOONGSON32_PROM_H */

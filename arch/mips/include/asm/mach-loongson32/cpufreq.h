@@ -10,8 +10,8 @@
  */
 
 
-#ifndef __ASM_MACH_LOONGSON1_CPUFREQ_H
-#define __ASM_MACH_LOONGSON1_CPUFREQ_H
+#ifndef __ASM_MACH_LOONGSON32_CPUFREQ_H
+#define __ASM_MACH_LOONGSON32_CPUFREQ_H
 
 struct plat_ls1x_cpufreq {
 	const char	*clk_name;	/* CPU clk */
@@ -20,4 +20,4 @@ struct plat_ls1x_cpufreq {
 	unsigned int	min_freq;	/* in kHz */
 };
 
-#endif /* __ASM_MACH_LOONGSON1_CPUFREQ_H */
+#endif /* __ASM_MACH_LOONGSON32_CPUFREQ_H */

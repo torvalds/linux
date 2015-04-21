@@ -9,8 +9,8 @@
  * option) any later version.
  */
 
-#ifndef __ASM_MACH_LOONGSON1_REGS_PWM_H
-#define __ASM_MACH_LOONGSON1_REGS_PWM_H
+#ifndef __ASM_MACH_LOONGSON32_REGS_PWM_H
+#define __ASM_MACH_LOONGSON32_REGS_PWM_H
 
 /* Loongson 1 PWM Timer Register Definitions */
 #define PWM_CNT			0x0
@@ -26,4 +26,4 @@
 #define PWM_OE			(0x1 << 3)
 #define CNT_EN			0x1
 
-#endif /* __ASM_MACH_LOONGSON1_REGS_PWM_H */
+#endif /* __ASM_MACH_LOONGSON32_REGS_PWM_H */

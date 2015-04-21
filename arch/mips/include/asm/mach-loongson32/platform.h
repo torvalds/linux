@@ -8,8 +8,8 @@
  */
 
 
-#ifndef __ASM_MACH_LOONGSON1_PLATFORM_H
-#define __ASM_MACH_LOONGSON1_PLATFORM_H
+#ifndef __ASM_MACH_LOONGSON32_PLATFORM_H
+#define __ASM_MACH_LOONGSON32_PLATFORM_H
 
 #include <linux/platform_device.h>
 
@@ -23,4 +23,4 @@ extern struct platform_device ls1x_rtc_pdev;
 extern void __init ls1x_clk_init(void);
 extern void __init ls1x_serial_setup(struct platform_device *pdev);
 
-#endif /* __ASM_MACH_LOONGSON1_PLATFORM_H */
+#endif /* __ASM_MACH_LOONGSON32_PLATFORM_H */

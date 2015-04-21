@@ -7,8 +7,8 @@
  *
  * RTC routines for PC style attached Dallas chip.
  */
-#ifndef __ASM_MACH_LOONGSON_MC146818RTC_H
-#define __ASM_MACH_LOONGSON_MC146818RTC_H
+#ifndef __ASM_MACH_LOONGSON64_MC146818RTC_H
+#define __ASM_MACH_LOONGSON64_MC146818RTC_H
 
 #include <linux/io.h>
 
@@ -33,4 +33,4 @@ static inline void CMOS_WRITE(unsigned char data, unsigned long addr)
 #define mc146818_decode_year(year) ((year) < 70 ? (year) + 2000 : (year) + 1970)
 #endif
 
-#endif /* __ASM_MACH_LOONGSON_MC146818RTC_H */
+#endif /* __ASM_MACH_LOONGSON64_MC146818RTC_H */

@@ -9,8 +9,8 @@
  * option) any later version.
  */
 
-#ifndef __ASM_MACH_LOONGSON_PCI_H_
-#define __ASM_MACH_LOONGSON_PCI_H_
+#ifndef __ASM_MACH_LOONGSON64_PCI_H_
+#define __ASM_MACH_LOONGSON64_PCI_H_
 
 extern struct pci_ops loongson_pci_ops;
 
@@ -52,4 +52,4 @@ extern struct pci_ops loongson_pci_ops;
 
 #endif	/* !CONFIG_CPU_SUPPORTS_ADDRWINCFG */
 
-#endif /* !__ASM_MACH_LOONGSON_PCI_H_ */
+#endif /* !__ASM_MACH_LOONGSON64_PCI_H_ */

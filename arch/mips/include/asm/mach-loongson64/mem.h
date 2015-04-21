@@ -8,8 +8,8 @@
  * option) any later version.
  */
 
-#ifndef __ASM_MACH_LOONGSON_MEM_H
-#define __ASM_MACH_LOONGSON_MEM_H
+#ifndef __ASM_MACH_LOONGSON64_MEM_H
+#define __ASM_MACH_LOONGSON64_MEM_H
 
 /*
  * high memory space
@@ -38,4 +38,4 @@
 #define LOONGSON_MMIO_MEM_END	0x80000000
 #endif
 
-#endif /* __ASM_MACH_LOONGSON_MEM_H */
+#endif /* __ASM_MACH_LOONGSON64_MEM_H */

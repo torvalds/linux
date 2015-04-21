@@ -2,7 +2,7 @@
 # Common code for all Loongson based systems
 #
 
-obj-$(CONFIG_MACH_LOONGSON) += common/
+obj-$(CONFIG_MACH_LOONGSON64) += common/
 
 #
 # Lemote Fuloong mini-PC (Loongson 2E-based)

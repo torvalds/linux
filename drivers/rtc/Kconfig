@@ -1484,7 +1484,7 @@ config RTC_DRV_PUV3
 
 config RTC_DRV_LOONGSON1
 	tristate "loongson1 RTC support"
-	depends on MACH_LOONGSON1
+	depends on MACH_LOONGSON32
 	help
 	  This is a driver for the loongson1 on-chip Counter0 (Time-Of-Year
 	  counter) to be used as a RTC.

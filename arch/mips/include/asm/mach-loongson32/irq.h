@@ -10,8 +10,8 @@
  */
 
 
-#ifndef __ASM_MACH_LOONGSON1_IRQ_H
-#define __ASM_MACH_LOONGSON1_IRQ_H
+#ifndef __ASM_MACH_LOONGSON32_IRQ_H
+#define __ASM_MACH_LOONGSON32_IRQ_H
 
 /*
  * CPU core Interrupt Numbers
@@ -70,4 +70,4 @@
 
 #define NR_IRQS			(MIPS_CPU_IRQS + LS1X_IRQS)
 
-#endif /* __ASM_MACH_LOONGSON1_IRQ_H */
+#endif /* __ASM_MACH_LOONGSON32_IRQ_H */

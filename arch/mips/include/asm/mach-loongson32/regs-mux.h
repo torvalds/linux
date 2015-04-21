@@ -9,8 +9,8 @@
  * option) any later version.
  */
 
-#ifndef __ASM_MACH_LOONGSON1_REGS_MUX_H
-#define __ASM_MACH_LOONGSON1_REGS_MUX_H
+#ifndef __ASM_MACH_LOONGSON32_REGS_MUX_H
+#define __ASM_MACH_LOONGSON32_REGS_MUX_H
 
 #define LS1X_MUX_REG(x) \
 		((void __iomem *)KSEG1ADDR(LS1X_MUX_BASE + (x)))
@@ -64,4 +64,4 @@
 #define GMAC1_USE_PWM23			(0x1 << 1)
 #define GMAC0_USE_PWM01			0x1
 
-#endif /* __ASM_MACH_LOONGSON1_REGS_MUX_H */
+#endif /* __ASM_MACH_LOONGSON32_REGS_MUX_H */

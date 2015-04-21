@@ -8,8 +8,8 @@
  * Author: Fuxin Zhang, zhangfx@lemote.com
  *
  */
-#ifndef __ASM_MACH_LOONGSON_DMA_COHERENCE_H
-#define __ASM_MACH_LOONGSON_DMA_COHERENCE_H
+#ifndef __ASM_MACH_LOONGSON64_DMA_COHERENCE_H
+#define __ASM_MACH_LOONGSON64_DMA_COHERENCE_H
 
 #ifdef CONFIG_SWIOTLB
 #include <linux/swiotlb.h>
@@ -82,4 +82,4 @@ static inline void plat_post_dma_flush(struct device *dev)
 {
 }
 
-#endif /* __ASM_MACH_LOONGSON_DMA_COHERENCE_H */
+#endif /* __ASM_MACH_LOONGSON64_DMA_COHERENCE_H */

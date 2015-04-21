@@ -8,8 +8,8 @@
  * option) any later version.
  */
 
-#ifndef __ASM_MACH_LOONGSON_MACHINE_H
-#define __ASM_MACH_LOONGSON_MACHINE_H
+#ifndef __ASM_MACH_LOONGSON64_MACHINE_H
+#define __ASM_MACH_LOONGSON64_MACHINE_H
 
 #ifdef CONFIG_LEMOTE_FULOONG2E
 
@@ -30,4 +30,4 @@
 
 #endif /* CONFIG_LOONGSON_MACH3X */
 
-#endif /* __ASM_MACH_LOONGSON_MACHINE_H */
+#endif /* __ASM_MACH_LOONGSON64_MACHINE_H */

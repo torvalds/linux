@@ -8,8 +8,8 @@
  * Copyright (C) 2009 Jiajie Chen (chenjiajie@cse.buaa.edu.cn)
  * Copyright (C) 2012 Huacai Chen (chenhc@lemote.com)
  */
-#ifndef __ASM_MACH_LOONGSON_KERNEL_ENTRY_H
-#define __ASM_MACH_LOONGSON_KERNEL_ENTRY_H
+#ifndef __ASM_MACH_LOONGSON64_KERNEL_ENTRY_H
+#define __ASM_MACH_LOONGSON64_KERNEL_ENTRY_H
 
 /*
  * Override macros used in arch/mips/kernel/head.S.
@@ -49,4 +49,4 @@
 #endif
 	.endm
 
-#endif /* __ASM_MACH_LOONGSON_KERNEL_ENTRY_H */
+#endif /* __ASM_MACH_LOONGSON64_KERNEL_ENTRY_H */

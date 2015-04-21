@@ -1,5 +1,5 @@
-#ifndef __ASM_MACH_LOONGSON_IRQ_H_
-#define __ASM_MACH_LOONGSON_IRQ_H_
+#ifndef __ASM_MACH_LOONGSON64_IRQ_H_
+#define __ASM_MACH_LOONGSON64_IRQ_H_
 
 #include <boot_param.h>
 
@@ -40,4 +40,4 @@ extern void fixup_irqs(void);
 extern void loongson3_ipi_interrupt(struct pt_regs *regs);
 
 #include_next <irq.h>
-#endif /* __ASM_MACH_LOONGSON_IRQ_H_ */
+#endif /* __ASM_MACH_LOONGSON64_IRQ_H_ */

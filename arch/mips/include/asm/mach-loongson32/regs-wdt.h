@@ -9,11 +9,11 @@
  * option) any later version.
  */
 
-#ifndef __ASM_MACH_LOONGSON1_REGS_WDT_H
-#define __ASM_MACH_LOONGSON1_REGS_WDT_H
+#ifndef __ASM_MACH_LOONGSON32_REGS_WDT_H
+#define __ASM_MACH_LOONGSON32_REGS_WDT_H
 
 #define WDT_EN			0x0
 #define WDT_TIMER		0x4
 #define WDT_SET			0x8
 
-#endif /* __ASM_MACH_LOONGSON1_REGS_WDT_H */
+#endif /* __ASM_MACH_LOONGSON32_REGS_WDT_H */

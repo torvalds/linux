@@ -8,8 +8,8 @@
  * option) any later version.
  */
 
-#ifndef __ASM_MACH_LOONGSON_LOONGSON_H
-#define __ASM_MACH_LOONGSON_LOONGSON_H
+#ifndef __ASM_MACH_LOONGSON64_LOONGSON_H
+#define __ASM_MACH_LOONGSON64_LOONGSON_H
 
 #include <linux/io.h>
 #include <linux/init.h>
@@ -357,4 +357,4 @@ extern unsigned long _loongson_addrwincfg_base;
 
 #endif	/* ! CONFIG_CPU_SUPPORTS_ADDRWINCFG */
 
-#endif /* __ASM_MACH_LOONGSON_LOONGSON_H */
+#endif /* __ASM_MACH_LOONGSON64_LOONGSON_H */

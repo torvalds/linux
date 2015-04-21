@@ -26,8 +26,8 @@ endif
 # Loongson Machines' Support
 #
 
-platform-$(CONFIG_MACH_LOONGSON) += loongson/
-cflags-$(CONFIG_MACH_LOONGSON) += -I$(srctree)/arch/mips/include/asm/mach-loongson -mno-branch-likely
+platform-$(CONFIG_MACH_LOONGSON64) += loongson64/
+cflags-$(CONFIG_MACH_LOONGSON64) += -I$(srctree)/arch/mips/include/asm/mach-loongson64 -mno-branch-likely
 load-$(CONFIG_LEMOTE_FULOONG2E) += 0xffffffff80100000
 load-$(CONFIG_LEMOTE_MACH2F) += 0xffffffff80200000
 load-$(CONFIG_LOONGSON_MACH3X) += 0xffffffff80200000

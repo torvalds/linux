@@ -10,8 +10,8 @@
  */
 
 
-#ifndef __ASM_MACH_LOONGSON1_LOONGSON1_H
-#define __ASM_MACH_LOONGSON1_LOONGSON1_H
+#ifndef __ASM_MACH_LOONGSON32_LOONGSON1_H
+#define __ASM_MACH_LOONGSON32_LOONGSON1_H
 
 #define DEFAULT_MEMSIZE			256	/* If no memsize provided */
 
@@ -47,4 +47,4 @@
 #include <regs-pwm.h>
 #include <regs-wdt.h>
 
-#endif /* __ASM_MACH_LOONGSON1_LOONGSON1_H */
+#endif /* __ASM_MACH_LOONGSON32_LOONGSON1_H */

@@ -2,7 +2,7 @@
 # Common code for all Loongson 1 based systems
 #
 
-obj-$(CONFIG_MACH_LOONGSON1) += common/
+obj-$(CONFIG_MACH_LOONGSON32) += common/
 
 #
 # Loongson LS1B board

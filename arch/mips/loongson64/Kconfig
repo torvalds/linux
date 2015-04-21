@@ -1,4 +1,4 @@
-if MACH_LOONGSON
+if MACH_LOONGSON64
 
 choice
 	prompt "Machine Type"
@@ -155,4 +155,4 @@ config LOONGSON_MC146818
 config LEFI_FIRMWARE_INTERFACE
 	bool
 
-endif # MACH_LOONGSON
+endif # MACH_LOONGSON64
