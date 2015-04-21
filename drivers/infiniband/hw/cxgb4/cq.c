@@ -156,12 +156,19 @@ static int create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 		goto err4;
 
 	cq->gen = 1;
-	cq->gts = rdev->lldi.gts_reg;
 	cq->rdev = rdev;
 	if (user) {
-		cq->ugts = (u64)pci_resource_start(rdev->lldi.pdev, 2) +
-					(cq->cqid << rdev->cqshift);
-		cq->ugts &= PAGE_MASK;
+		u32 off = (cq->cqid << rdev->cqshift) & PAGE_MASK;
+
+		cq->ugts = (u64)rdev->bar2_pa + off;
+	} else if (is_t4(rdev->lldi.adapter_type)) {
+		cq->gts = rdev->lldi.gts_reg;
+		cq->qid_mask = -1U;
+	} else {
+		u32 off = ((cq->cqid << rdev->cqshift) & PAGE_MASK) + 12;
+
+		cq->gts = rdev->bar2_kva + off;
+		cq->qid_mask = rdev->qpmask;
 	}
 	return 0;
 err4:
