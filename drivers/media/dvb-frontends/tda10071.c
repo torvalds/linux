@@ -717,7 +717,7 @@ static int tda10071_get_frontend(struct dvb_frontend *fe)
 	u8 buf[5], tmp;
 
 	if (!dev->warm || !(dev->fe_status & FE_HAS_LOCK)) {
-		ret = -EFAULT;
+		ret = 0;
 		goto error;
 	}
 
