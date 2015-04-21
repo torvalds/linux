@@ -719,6 +719,11 @@ struct drm_connector {
 	int null_edid_counter; /* needed to workaround some HW bugs where we get all 0s */
 	unsigned bad_edid_counter;
 
+	/* Flag for raw EDID header corruption - used in Displayport
+	 * compliance testing - * Displayport Link CTS Core 1.2 rev1.1 4.2.2.6
+	 */
+	bool edid_corrupt;
+
 	struct dentry *debugfs_entry;
 
 	struct drm_connector_state *state;
@@ -1443,7 +1448,8 @@ extern void drm_set_preferred_mode(struct drm_connector *connector,
 				   int hpref, int vpref);
 
 extern int drm_edid_header_is_valid(const u8 *raw_edid);
-extern bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid);
+extern bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid,
+				 bool *edid_corrupt);
 extern bool drm_edid_is_valid(struct edid *edid);
 
 extern struct drm_tile_group *drm_mode_create_tile_group(struct drm_device *dev,
