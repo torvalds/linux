@@ -9716,6 +9716,7 @@ bool intel_get_load_detect_pipe(struct drm_connector *connector,
 	struct drm_mode_config *config = &dev->mode_config;
 	struct drm_atomic_state *state = NULL;
 	struct drm_connector_state *connector_state;
+	struct intel_crtc_state *crtc_state;
 	int ret, i = -1;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s], [ENCODER:%d:%s]\n",
@@ -9811,6 +9812,14 @@ retry:
 	connector_state->crtc = crtc;
 	connector_state->best_encoder = &intel_encoder->base;
 
+	crtc_state = intel_atomic_get_crtc_state(state, intel_crtc);
+	if (IS_ERR(crtc_state)) {
+		ret = PTR_ERR(crtc_state);
+		goto fail;
+	}
+
+	crtc_state->base.enable = true;
+
 	if (!mode)
 		mode = &load_detect_mode;
 
@@ -9871,6 +9880,7 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_atomic_state *state;
 	struct drm_connector_state *connector_state;
+	struct intel_crtc_state *crtc_state;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s], [ENCODER:%d:%s]\n",
 		      connector->base.id, connector->name,
@@ -9887,12 +9897,18 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 		if (IS_ERR(connector_state))
 			goto fail;
 
+		crtc_state = intel_atomic_get_crtc_state(state, intel_crtc);
+		if (IS_ERR(crtc_state))
+			goto fail;
+
 		to_intel_connector(connector)->new_encoder = NULL;
 		intel_encoder->new_crtc = NULL;
 		intel_crtc->new_enabled = false;
 
 		connector_state->best_encoder = NULL;
 		connector_state->crtc = NULL;
+
+		crtc_state->base.enable = false;
 
 		intel_set_mode(crtc, NULL, 0, 0, NULL, state);
 
@@ -12200,14 +12216,6 @@ intel_modeset_compute_config(struct drm_crtc *crtc,
 	intel_modeset_affected_pipes(crtc, modeset_pipes,
 				     prepare_pipes, disable_pipes);
 
-	for_each_intel_crtc_masked(dev, *disable_pipes, intel_crtc) {
-		pipe_config = intel_atomic_get_crtc_state(state, intel_crtc);
-		if (IS_ERR(pipe_config))
-			return pipe_config;
-
-		pipe_config->base.enable = false;
-	}
-
 	/*
 	 * Note this needs changes when we start tracking multiple modes
 	 * and crtcs.  At that point we'll need to compute the whole config
@@ -12223,8 +12231,6 @@ intel_modeset_compute_config(struct drm_crtc *crtc,
 		pipe_config = intel_modeset_pipe_config(crtc, mode, state);
 		if (IS_ERR(pipe_config))
 			return pipe_config;
-
-		pipe_config->base.enable = true;
 
 		intel_dump_pipe_config(to_intel_crtc(crtc), pipe_config,
 				       "[modeset]");
@@ -12450,9 +12456,11 @@ void intel_crtc_restore_mode(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_atomic_state *state;
+	struct intel_crtc *intel_crtc;
 	struct intel_encoder *encoder;
 	struct intel_connector *connector;
 	struct drm_connector_state *connector_state;
+	struct intel_crtc_state *crtc_state;
 
 	state = drm_atomic_state_alloc(dev);
 	if (!state) {
@@ -12488,6 +12496,21 @@ void intel_crtc_restore_mode(struct drm_crtc *crtc)
 			connector_state->crtc = crtc;
 			connector_state->best_encoder = &encoder->base;
 		}
+	}
+
+	for_each_intel_crtc(dev, intel_crtc) {
+		if (intel_crtc->new_enabled == intel_crtc->base.enabled)
+			continue;
+
+		crtc_state = intel_atomic_get_crtc_state(state, intel_crtc);
+		if (IS_ERR(crtc_state)) {
+			DRM_DEBUG_KMS("Failed to add [CRTC:%d] to state: %ld\n",
+				      intel_crtc->base.base.id,
+				      PTR_ERR(crtc_state));
+			continue;
+		}
+
+		crtc_state->base.enable = intel_crtc->new_enabled;
 	}
 
 	intel_set_mode(crtc, &crtc->mode, crtc->x, crtc->y, crtc->primary->fb,
@@ -12697,6 +12720,7 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 	struct drm_connector_state *connector_state;
 	struct intel_encoder *encoder;
 	struct intel_crtc *crtc;
+	struct intel_crtc_state *crtc_state;
 	int ro;
 
 	/* The upper layers ensure that we either disable a crtc or have a list
@@ -12802,6 +12826,14 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 				crtc->new_enabled = true;
 				break;
 			}
+		}
+
+		if (crtc->new_enabled != crtc->base.state->enable) {
+			crtc_state = intel_atomic_get_crtc_state(state, crtc);
+			if (IS_ERR(crtc_state))
+				return PTR_ERR(crtc_state);
+
+			crtc_state->base.enable = crtc->new_enabled;
 		}
 	}
 
