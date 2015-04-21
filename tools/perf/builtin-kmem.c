@@ -28,6 +28,10 @@ static int	kmem_slab;
 static int	kmem_page;
 
 static long	kmem_page_size;
+static enum {
+	KMEM_SLAB,
+	KMEM_PAGE,
+} kmem_default = KMEM_SLAB;  /* for backward compatibility */
 
 struct alloc_stat;
 typedef int (*sort_fn_t)(void *, void *);
@@ -1710,7 +1714,8 @@ static int parse_sort_opt(const struct option *opt __maybe_unused,
 	if (!arg)
 		return -1;
 
-	if (kmem_page > kmem_slab) {
+	if (kmem_page > kmem_slab ||
+	    (kmem_page == 0 && kmem_slab == 0 && kmem_default == KMEM_PAGE)) {
 		if (caller_flag > alloc_flag)
 			return setup_page_sorting(&page_caller_sort, arg);
 		else
@@ -1826,6 +1831,22 @@ static int __cmd_record(int argc, const char **argv)
 	return cmd_record(i, rec_argv, NULL);
 }
 
+static int kmem_config(const char *var, const char *value, void *cb)
+{
+	if (!strcmp(var, "kmem.default")) {
+		if (!strcmp(value, "slab"))
+			kmem_default = KMEM_SLAB;
+		else if (!strcmp(value, "page"))
+			kmem_default = KMEM_PAGE;
+		else
+			pr_err("invalid default value ('slab' or 'page' required): %s\n",
+			       value);
+		return 0;
+	}
+
+	return perf_default_config(var, value, cb);
+}
+
 int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	const char * const default_slab_sort = "frag,hit,bytes";
@@ -1862,14 +1883,19 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 	struct perf_session *session;
 	int ret = -1;
 
+	perf_config(kmem_config, NULL);
 	argc = parse_options_subcommand(argc, argv, kmem_options,
 					kmem_subcommands, kmem_usage, 0);
 
 	if (!argc)
 		usage_with_options(kmem_usage, kmem_options);
 
-	if (kmem_slab == 0 && kmem_page == 0)
-		kmem_slab = 1;  /* for backward compatibility */
+	if (kmem_slab == 0 && kmem_page == 0) {
+		if (kmem_default == KMEM_SLAB)
+			kmem_slab = 1;
+		else
+			kmem_page = 1;
+	}
 
 	if (!strncmp(argv[0], "rec", 3)) {
 		symbol__init(NULL);
