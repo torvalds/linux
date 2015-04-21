@@ -12239,7 +12239,6 @@ static int __intel_set_mode(struct drm_crtc *modeset_crtc,
 {
 	struct drm_device *dev = modeset_crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_display_mode *saved_mode;
 	struct drm_atomic_state *state = pipe_config->base.state;
 	struct intel_crtc_state *crtc_state_copy = NULL;
 	struct intel_crtc *intel_crtc;
@@ -12248,17 +12247,11 @@ static int __intel_set_mode(struct drm_crtc *modeset_crtc,
 	int ret = 0;
 	int i;
 
-	saved_mode = kmalloc(sizeof(*saved_mode), GFP_KERNEL);
-	if (!saved_mode)
-		return -ENOMEM;
-
 	crtc_state_copy = kmalloc(sizeof(*crtc_state_copy), GFP_KERNEL);
 	if (!crtc_state_copy) {
 		ret = -ENOMEM;
 		goto done;
 	}
-
-	*saved_mode = modeset_crtc->mode;
 
 	/*
 	 * See if the config requires any additional preparation, e.g.
@@ -12346,9 +12339,6 @@ static int __intel_set_mode(struct drm_crtc *modeset_crtc,
 
 	/* FIXME: add subpixel order */
 done:
-	if (ret && modeset_crtc->state->enable)
-		modeset_crtc->mode = *saved_mode;
-
 	if (ret == 0 && pipe_config) {
 		struct intel_crtc *intel_crtc = to_intel_crtc(modeset_crtc);
 
@@ -12362,7 +12352,6 @@ done:
 		kfree(crtc_state_copy);
 	}
 
-	kfree(saved_mode);
 	return ret;
 }
 
