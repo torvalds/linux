@@ -429,6 +429,14 @@ static int max732x_irq_set_type(struct irq_data *d, unsigned int type)
 	return 0;
 }
 
+static int max732x_irq_set_wake(struct irq_data *data, unsigned int on)
+{
+	struct max732x_chip *chip = irq_data_get_irq_chip_data(data);
+
+	irq_set_irq_wake(chip->client->irq, on);
+	return 0;
+}
+
 static struct irq_chip max732x_irq_chip = {
 	.name			= "max732x",
 	.irq_mask		= max732x_irq_mask,
@@ -436,6 +444,7 @@ static struct irq_chip max732x_irq_chip = {
 	.irq_bus_lock		= max732x_irq_bus_lock,
 	.irq_bus_sync_unlock	= max732x_irq_bus_sync_unlock,
 	.irq_set_type		= max732x_irq_set_type,
+	.irq_set_wake		= max732x_irq_set_wake,
 };
 
 static uint8_t max732x_irq_pending(struct max732x_chip *chip)
