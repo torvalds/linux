@@ -583,6 +583,22 @@ static void c4iw_record_pm_msg(struct c4iw_ep *ep,
 		sizeof(ep->com.mapped_remote_addr));
 }
 
+static int get_remote_addr(struct c4iw_ep *ep)
+{
+	int ret;
+
+	print_addr(&ep->com, __func__, "get_remote_addr");
+
+	ret = iwpm_get_remote_info(&ep->com.mapped_local_addr,
+				   &ep->com.mapped_remote_addr,
+				   &ep->com.remote_addr, RDMA_NL_C4IW);
+	if (ret)
+		pr_info(MOD "Unable to find remote peer addr info - err %d\n",
+			ret);
+
+	return ret;
+}
+
 static void best_mtu(const unsigned short *mtus, unsigned short mtu,
 		     unsigned int *idx, int use_ts, int ipv6)
 {
@@ -2352,27 +2368,57 @@ static int pass_accept_req(struct c4iw_dev *dev, struct sk_buff *skb)
 	state_set(&child_ep->com, CONNECTING);
 	child_ep->com.dev = dev;
 	child_ep->com.cm_id = NULL;
+
+	/*
+	 * The mapped_local and mapped_remote addresses get setup with
+	 * the actual 4-tuple.  The local address will be based on the
+	 * actual local address of the connection, but on the port number
+	 * of the parent listening endpoint.  The remote address is
+	 * setup based on a query to the IWPM since we don't know what it
+	 * originally was before mapping.  If no mapping was done, then
+	 * mapped_remote == remote, and mapped_local == local.
+	 */
 	if (iptype == 4) {
 		struct sockaddr_in *sin = (struct sockaddr_in *)
-			&child_ep->com.local_addr;
+			&child_ep->com.mapped_local_addr;
+
 		sin->sin_family = PF_INET;
 		sin->sin_port = local_port;
 		sin->sin_addr.s_addr = *(__be32 *)local_ip;
-		sin = (struct sockaddr_in *)&child_ep->com.remote_addr;
+
+		sin = (struct sockaddr_in *)&child_ep->com.local_addr;
+		sin->sin_family = PF_INET;
+		sin->sin_port = ((struct sockaddr_in *)
+				 &parent_ep->com.local_addr)->sin_port;
+		sin->sin_addr.s_addr = *(__be32 *)local_ip;
+
+		sin = (struct sockaddr_in *)&child_ep->com.mapped_remote_addr;
 		sin->sin_family = PF_INET;
 		sin->sin_port = peer_port;
 		sin->sin_addr.s_addr = *(__be32 *)peer_ip;
 	} else {
 		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)
-			&child_ep->com.local_addr;
+			&child_ep->com.mapped_local_addr;
+
 		sin6->sin6_family = PF_INET6;
 		sin6->sin6_port = local_port;
 		memcpy(sin6->sin6_addr.s6_addr, local_ip, 16);
-		sin6 = (struct sockaddr_in6 *)&child_ep->com.remote_addr;
+
+		sin6 = (struct sockaddr_in6 *)&child_ep->com.local_addr;
+		sin6->sin6_family = PF_INET6;
+		sin6->sin6_port = ((struct sockaddr_in6 *)
+				   &parent_ep->com.local_addr)->sin6_port;
+		memcpy(sin6->sin6_addr.s6_addr, local_ip, 16);
+
+		sin6 = (struct sockaddr_in6 *)&child_ep->com.mapped_remote_addr;
 		sin6->sin6_family = PF_INET6;
 		sin6->sin6_port = peer_port;
 		memcpy(sin6->sin6_addr.s6_addr, peer_ip, 16);
 	}
+	memcpy(&child_ep->com.remote_addr, &child_ep->com.mapped_remote_addr,
+	       sizeof(child_ep->com.remote_addr));
+	get_remote_addr(child_ep);
+
 	c4iw_get_ep(&parent_ep->com);
 	child_ep->parent_ep = parent_ep;
 	child_ep->tos = PASS_OPEN_TOS_G(ntohl(req->tos_stid));
