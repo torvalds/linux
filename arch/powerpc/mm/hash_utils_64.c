@@ -1394,6 +1394,7 @@ tm_abort:
 		tm_abort(TM_CAUSE_TLBI);
 	}
 #endif
+	return;
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
