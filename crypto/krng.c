@@ -16,31 +16,27 @@
 #include <linux/module.h>
 #include <linux/random.h>
 
-static int krng_get_random(struct crypto_rng *tfm, u8 *rdata, unsigned int dlen)
+static int krng_generate(struct crypto_rng *tfm,
+			 const u8 *src, unsigned int slen,
+			 u8 *rdata, unsigned int dlen)
 {
 	get_random_bytes(rdata, dlen);
 	return 0;
 }
 
-static int krng_reset(struct crypto_rng *tfm, u8 *seed, unsigned int slen)
+static int krng_seed(struct crypto_rng *tfm, const u8 *seed, unsigned int slen)
 {
 	return 0;
 }
 
-static struct crypto_alg krng_alg = {
-	.cra_name		= "stdrng",
-	.cra_driver_name	= "krng",
-	.cra_priority		= 200,
-	.cra_flags		= CRYPTO_ALG_TYPE_RNG,
-	.cra_ctxsize		= 0,
-	.cra_type		= &crypto_rng_type,
-	.cra_module		= THIS_MODULE,
-	.cra_u			= {
-		.rng = {
-			.rng_make_random	= krng_get_random,
-			.rng_reset		= krng_reset,
-			.seedsize		= 0,
-		}
+static struct rng_alg krng_alg = {
+	.generate		= krng_generate,
+	.seed			= krng_seed,
+	.base			=	{
+		.cra_name		= "stdrng",
+		.cra_driver_name	= "krng",
+		.cra_priority		= 200,
+		.cra_module		= THIS_MODULE,
 	}
 };
 
@@ -48,13 +44,12 @@ static struct crypto_alg krng_alg = {
 /* Module initalization */
 static int __init krng_mod_init(void)
 {
-	return crypto_register_alg(&krng_alg);
+	return crypto_register_rng(&krng_alg);
 }
 
 static void __exit krng_mod_fini(void)
 {
-	crypto_unregister_alg(&krng_alg);
-	return;
+	crypto_unregister_rng(&krng_alg);
 }
 
 module_init(krng_mod_init);
