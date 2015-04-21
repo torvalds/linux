@@ -516,12 +516,10 @@ static int max732x_irq_setup(struct max732x_chip *chip,
 		chip->irq_features = has_irq;
 		mutex_init(&chip->irq_lock);
 
-		ret = devm_request_threaded_irq(&client->dev,
-					client->irq,
-					NULL,
-					max732x_irq_handler,
-					IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-					dev_name(&client->dev), chip);
+		ret = devm_request_threaded_irq(&client->dev, client->irq,
+				NULL, max732x_irq_handler, IRQF_ONESHOT |
+				IRQF_TRIGGER_FALLING | IRQF_SHARED,
+				dev_name(&client->dev), chip);
 		if (ret) {
 			dev_err(&client->dev, "failed to request irq %d\n",
 				client->irq);
