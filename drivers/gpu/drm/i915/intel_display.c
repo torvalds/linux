@@ -107,6 +107,8 @@ static void skl_init_scalers(struct drm_device *dev, struct intel_crtc *intel_cr
 	struct intel_crtc_state *crtc_state);
 static int i9xx_get_refclk(const struct intel_crtc_state *crtc_state,
 			   int num_connectors);
+static void intel_crtc_enable_planes(struct drm_crtc *crtc);
+static void intel_crtc_disable_planes(struct drm_crtc *crtc);
 
 static struct intel_encoder *intel_find_encoder(struct intel_connector *connector, int pipe)
 {
@@ -3206,6 +3208,19 @@ static void intel_update_primary_planes(struct drm_device *dev)
 	}
 }
 
+void intel_crtc_reset(struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+
+	if (!crtc->active)
+		return;
+
+	intel_crtc_disable_planes(&crtc->base);
+	dev_priv->display.crtc_disable(&crtc->base);
+	dev_priv->display.crtc_enable(&crtc->base);
+	intel_crtc_enable_planes(&crtc->base);
+}
+
 void intel_prepare_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -3226,8 +3241,11 @@ void intel_prepare_reset(struct drm_device *dev)
 	 * g33 docs say we should at least disable all the planes.
 	 */
 	for_each_intel_crtc(dev, crtc) {
-		if (crtc->active)
-			dev_priv->display.crtc_disable(&crtc->base);
+		if (!crtc->active)
+			continue;
+
+		intel_crtc_disable_planes(&crtc->base);
+		dev_priv->display.crtc_disable(&crtc->base);
 	}
 }
 
@@ -4842,8 +4860,6 @@ intel_pre_disable_primary(struct drm_crtc *crtc)
 
 static void intel_crtc_enable_planes(struct drm_crtc *crtc)
 {
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-
 	intel_enable_primary_hw_plane(crtc->primary, crtc);
 	intel_enable_sprite_planes(crtc);
 	intel_crtc_update_cursor(crtc, true);
@@ -4949,8 +4965,6 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 
 	if (HAS_PCH_CPT(dev))
 		cpt_verify_modeset(dev, intel_crtc->pipe);
-
-	intel_crtc_enable_planes(crtc);
 }
 
 /* IPS only exists on ULT machines and is tied to pipe A. */
@@ -5074,7 +5088,6 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	/* If we change the relative order between pipe/planes enabling, we need
 	 * to change the workaround. */
 	haswell_mode_set_planes_workaround(intel_crtc);
-	intel_crtc_enable_planes(crtc);
 }
 
 static void ironlake_pfit_disable(struct intel_crtc *crtc)
@@ -5103,8 +5116,6 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 
 	if (!intel_crtc->active)
 		return;
-
-	intel_crtc_disable_planes(crtc);
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		encoder->disable(encoder);
@@ -5167,8 +5178,6 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 
 	if (!intel_crtc->active)
 		return;
-
-	intel_crtc_disable_planes(crtc);
 
 	for_each_encoder_on_crtc(dev, crtc, encoder) {
 		intel_opregion_notify_encoder(encoder, false);
@@ -5917,8 +5926,6 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		encoder->enable(encoder);
-
-	intel_crtc_enable_planes(crtc);
 }
 
 static void i9xx_set_pll_dividers(struct intel_crtc *crtc)
@@ -5975,8 +5982,6 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		encoder->enable(encoder);
-
-	intel_crtc_enable_planes(crtc);
 }
 
 static void i9xx_pfit_disable(struct intel_crtc *crtc)
@@ -6004,8 +6009,6 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 
 	if (!intel_crtc->active)
 		return;
-
-	intel_crtc_disable_planes(crtc);
 
 	/*
 	 * On gen2 planes are double buffered but the pipe isn't, so we must
@@ -6070,9 +6073,11 @@ void intel_crtc_control(struct drm_crtc *crtc, bool enable)
 			intel_crtc->enabled_power_domains = domains;
 
 			dev_priv->display.crtc_enable(crtc);
+			intel_crtc_enable_planes(crtc);
 		}
 	} else {
 		if (intel_crtc->active) {
+			intel_crtc_disable_planes(crtc);
 			dev_priv->display.crtc_disable(crtc);
 
 			domains = intel_crtc->enabled_power_domains;
@@ -6107,6 +6112,7 @@ static void intel_crtc_disable(struct drm_crtc *crtc)
 	/* crtc should still be enabled when we disable it. */
 	WARN_ON(!crtc->state->enable);
 
+	intel_crtc_disable_planes(crtc);
 	dev_priv->display.crtc_disable(crtc);
 	dev_priv->display.off(crtc);
 
@@ -12346,8 +12352,10 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 		intel_crtc_disable(&intel_crtc->base);
 
 	for_each_intel_crtc_masked(dev, prepare_pipes, intel_crtc) {
-		if (intel_crtc->base.state->enable)
+		if (intel_crtc->base.state->enable) {
+			intel_crtc_disable_planes(&intel_crtc->base);
 			dev_priv->display.crtc_disable(&intel_crtc->base);
+		}
 	}
 
 	/* crtc->mode is already used by the ->mode_set callbacks, hence we need
@@ -12395,6 +12403,7 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 		update_scanline_offset(intel_crtc);
 
 		dev_priv->display.crtc_enable(&intel_crtc->base);
+		intel_crtc_enable_planes(&intel_crtc->base);
 	}
 
 	/* FIXME: add subpixel order */
@@ -14839,6 +14848,7 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 		plane = crtc->plane;
 		to_intel_plane_state(crtc->base.primary->state)->visible = true;
 		crtc->plane = !plane;
+		intel_crtc_disable_planes(&crtc->base);
 		dev_priv->display.crtc_disable(&crtc->base);
 		crtc->plane = plane;
 

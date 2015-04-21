@@ -3611,8 +3611,7 @@ static void hsw_trans_edp_pipe_A_crc_wa(struct drm_device *dev)
 		intel_display_power_get(dev_priv,
 					POWER_DOMAIN_PIPE_PANEL_FITTER(PIPE_A));
 
-		dev_priv->display.crtc_disable(&crtc->base);
-		dev_priv->display.crtc_enable(&crtc->base);
+		intel_crtc_reset(crtc);
 	}
 	drm_modeset_unlock_all(dev);
 }
@@ -3633,8 +3632,7 @@ static void hsw_undo_trans_edp_pipe_A_crc_wa(struct drm_device *dev)
 	if (crtc->config->pch_pfit.force_thru) {
 		crtc->config->pch_pfit.force_thru = false;
 
-		dev_priv->display.crtc_disable(&crtc->base);
-		dev_priv->display.crtc_enable(&crtc->base);
+		intel_crtc_reset(crtc);
 
 		intel_display_power_put(dev_priv,
 					POWER_DOMAIN_PIPE_PANEL_FITTER(PIPE_A));
