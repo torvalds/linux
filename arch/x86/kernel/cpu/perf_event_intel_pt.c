@@ -705,7 +705,14 @@ static void pt_buffer_setup_topa_index(struct pt_buffer *buf)
  * @head:	Write pointer (aux_head) from AUX buffer.
  *
  * Find the ToPA table and entry corresponding to given @head and set buffer's
- * "current" pointers accordingly.
+ * "current" pointers accordingly. This is done after we have obtained the
+ * current aux_head position from a successful call to perf_aux_output_begin()
+ * to make sure the hardware is writing to the right place.
+ *
+ * This function modifies buf::{cur,cur_idx,output_off} that will be programmed
+ * into PT msrs when the tracing is enabled and buf::head and buf::data_size,
+ * which are used to determine INT and STOP markers' locations by a subsequent
+ * call to pt_buffer_reset_markers().
  */
 static void pt_buffer_reset_offsets(struct pt_buffer *buf, unsigned long head)
 {
