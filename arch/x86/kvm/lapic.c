@@ -914,7 +914,7 @@ static void apic_send_ipi(struct kvm_lapic *apic)
 	irq.vector = icr_low & APIC_VECTOR_MASK;
 	irq.delivery_mode = icr_low & APIC_MODE_MASK;
 	irq.dest_mode = icr_low & APIC_DEST_MASK;
-	irq.level = icr_low & APIC_INT_ASSERT;
+	irq.level = (icr_low & APIC_INT_ASSERT) != 0;
 	irq.trig_mode = icr_low & APIC_INT_LEVELTRIG;
 	irq.shorthand = icr_low & APIC_SHORT_MASK;
 	if (apic_x2apic_mode(apic))

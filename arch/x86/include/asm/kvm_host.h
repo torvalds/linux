@@ -689,10 +689,10 @@ struct msr_data {
 
 struct kvm_lapic_irq {
 	u32 vector;
-	u32 delivery_mode;
-	u32 dest_mode;
-	u32 level;
-	u32 trig_mode;
+	u16 delivery_mode;
+	u16 dest_mode;
+	bool level;
+	u16 trig_mode;
 	u32 shorthand;
 	u32 dest_id;
 };
