@@ -12607,6 +12607,10 @@ static void
 intel_set_config_compute_mode_changes(struct drm_mode_set *set,
 				      struct intel_set_config *config)
 {
+	struct drm_device *dev = set->crtc->dev;
+	struct intel_connector *connector;
+	struct intel_encoder *encoder;
+	struct intel_crtc *crtc;
 
 	/* We should be able to check here if the fb has the same properties
 	 * and then just flip_or_move it */
@@ -12650,6 +12654,36 @@ intel_set_config_compute_mode_changes(struct drm_mode_set *set,
 		config->mode_changed = true;
 	}
 
+	for_each_intel_connector(dev, connector) {
+		if (&connector->new_encoder->base == connector->base.encoder)
+			continue;
+
+		config->mode_changed = true;
+		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] encoder changed, full mode switch\n",
+			      connector->base.base.id,
+			      connector->base.name);
+	}
+
+	for_each_intel_encoder(dev, encoder) {
+		if (&encoder->new_crtc->base == encoder->base.crtc)
+			continue;
+
+		DRM_DEBUG_KMS("[ENCODER:%d:%s] crtc changed, full mode switch\n",
+			      encoder->base.base.id,
+			      encoder->base.name);
+		config->mode_changed = true;
+	}
+
+	for_each_intel_crtc(dev, crtc) {
+		if (crtc->new_enabled == crtc->base.state->enable)
+			continue;
+
+		DRM_DEBUG_KMS("[CRTC:%d] %sabled, full mode switch\n",
+			      crtc->base.base.id,
+			      crtc->new_enabled ? "en" : "dis");
+		config->mode_changed = true;
+	}
+
 	DRM_DEBUG_KMS("computed changes for [CRTC:%d], mode_changed=%d, fb_changed=%d\n",
 			set->crtc->base.id, config->mode_changed, config->fb_changed);
 }
@@ -12657,7 +12691,6 @@ intel_set_config_compute_mode_changes(struct drm_mode_set *set,
 static int
 intel_modeset_stage_output_state(struct drm_device *dev,
 				 struct drm_mode_set *set,
-				 struct intel_set_config *config,
 				 struct drm_atomic_state *state)
 {
 	struct intel_connector *connector;
@@ -12692,14 +12725,6 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 			DRM_DEBUG_KMS("[CONNECTOR:%d:%s] to [NOCRTC]\n",
 				connector->base.base.id,
 				connector->base.name);
-		}
-
-
-		if (&connector->new_encoder->base != connector->base.encoder) {
-			DRM_DEBUG_KMS("[CONNECTOR:%d:%s] encoder changed, full mode switch\n",
-				      connector->base.base.id,
-				      connector->base.name);
-			config->mode_changed = true;
 		}
 	}
 	/* connector->new_encoder is now updated for all connectors. */
@@ -12753,15 +12778,6 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 			encoder->new_crtc = NULL;
 		else if (num_connectors > 1)
 			return -EINVAL;
-
-		/* Only now check for crtc changes so we don't miss encoders
-		 * that will be disabled. */
-		if (&encoder->new_crtc->base != encoder->base.crtc) {
-			DRM_DEBUG_KMS("[ENCODER:%d:%s] crtc changed, full mode switch\n",
-				      encoder->base.base.id,
-				      encoder->base.name);
-			config->mode_changed = true;
-		}
 	}
 	/* Now we've also updated encoder->new_crtc for all encoders. */
 	for_each_intel_connector(dev, connector) {
@@ -12786,13 +12802,6 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 				crtc->new_enabled = true;
 				break;
 			}
-		}
-
-		if (crtc->new_enabled != crtc->base.state->enable) {
-			DRM_DEBUG_KMS("[CRTC:%d] %sabled, full mode switch\n",
-				      crtc->base.base.id,
-				      crtc->new_enabled ? "en" : "dis");
-			config->mode_changed = true;
 		}
 	}
 
@@ -12865,12 +12874,6 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 	save_set.y = set->crtc->y;
 	save_set.fb = set->crtc->primary->fb;
 
-	/* Compute whether we need a full modeset, only an fb base update or no
-	 * change at all. In the future we might also check whether only the
-	 * mode changed, e.g. for LVDS where we only change the panel fitter in
-	 * such cases. */
-	intel_set_config_compute_mode_changes(set, config);
-
 	state = drm_atomic_state_alloc(dev);
 	if (!state) {
 		ret = -ENOMEM;
@@ -12879,9 +12882,15 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 
 	state->acquire_ctx = dev->mode_config.acquire_ctx;
 
-	ret = intel_modeset_stage_output_state(dev, set, config, state);
+	ret = intel_modeset_stage_output_state(dev, set, state);
 	if (ret)
 		goto fail;
+
+	/* Compute whether we need a full modeset, only an fb base update or no
+	 * change at all. In the future we might also check whether only the
+	 * mode changed, e.g. for LVDS where we only change the panel fitter in
+	 * such cases. */
+	intel_set_config_compute_mode_changes(set, config);
 
 	pipe_config = intel_modeset_compute_config(set->crtc, set->mode,
 						   state,
