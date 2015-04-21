@@ -12220,7 +12220,7 @@ intel_modeset_compute_config(struct drm_crtc *crtc,
 	if (IS_ERR(pipe_config))
 		return pipe_config;
 
-	if (!(*modeset_pipes & (1 << to_intel_crtc(crtc)->pipe)))
+	if (!pipe_config->base.enable)
 		return pipe_config;
 
 	ret = intel_modeset_pipe_config(crtc, mode, state, pipe_config);
