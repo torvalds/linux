@@ -671,6 +671,7 @@ config RCU_KTHREAD_PRIO
 	range 0 99 if !RCU_BOOST
 	default 1 if RCU_BOOST
 	default 0 if !RCU_BOOST
+	depends on RCU_EXPERT
 	help
 	  This option specifies the SCHED_FIFO priority value that will be
 	  assigned to the rcuc/n and rcub/n threads and is also the value
