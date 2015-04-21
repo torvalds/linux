@@ -49,7 +49,9 @@
 #include <linux/workqueue.h>
 #include <linux/i8042.h>
 #include <linux/acpi.h>
+#include <linux/dmi.h>
 #include <linux/uaccess.h>
+#include <acpi/video.h>
 
 MODULE_AUTHOR("John Belmonte");
 MODULE_DESCRIPTION("Toshiba Laptop ACPI Extras Driver");
@@ -261,6 +263,14 @@ static const struct key_entry toshiba_acpi_alt_keymap[] = {
 	{ KE_KEY, 0x158, { KEY_WLAN } },
 	{ KE_KEY, 0x13f, { KEY_TOUCHPAD_TOGGLE } },
 	{ KE_END, 0 },
+};
+
+/*
+ * List of models which have a broken acpi-video backlight interface and thus
+ * need to use the toshiba (vendor) interface instead.
+ */
+static const struct dmi_system_id toshiba_vendor_backlight_dmi[] = {
+	{}
 };
 
 /*
@@ -2623,6 +2633,20 @@ static int toshiba_acpi_setup_backlight(struct toshiba_acpi_dev *dev)
 	/* Determine whether or not BIOS supports transflective backlight */
 	ret = get_tr_backlight_status(dev, &enabled);
 	dev->tr_backlight_supported = !ret;
+
+	/*
+	 * Tell acpi-video-detect code to prefer vendor backlight on all
+	 * systems with transflective backlight and on dmi matched systems.
+	 */
+	if (dev->tr_backlight_supported ||
+	    dmi_check_system(toshiba_vendor_backlight_dmi))
+		acpi_video_dmi_promote_vendor();
+
+	if (acpi_video_backlight_support())
+		return 0;
+
+	/* acpi-video may have loaded before we called dmi_promote_vendor() */
+	acpi_video_unregister_backlight();
 
 	memset(&props, 0, sizeof(props));
 	props.type = BACKLIGHT_PLATFORM;
