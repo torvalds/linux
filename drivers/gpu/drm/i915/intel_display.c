@@ -4716,9 +4716,9 @@ static void intel_crtc_load_lut(struct drm_crtc *crtc)
 		hsw_enable_ips(intel_crtc);
 }
 
-static void intel_crtc_dpms_overlay(struct intel_crtc *intel_crtc, bool enable)
+static void intel_crtc_dpms_overlay_disable(struct intel_crtc *intel_crtc)
 {
-	if (!enable && intel_crtc->overlay) {
+	if (intel_crtc->overlay) {
 		struct drm_device *dev = intel_crtc->base.dev;
 		struct drm_i915_private *dev_priv = dev->dev_private;
 
@@ -4847,7 +4847,6 @@ static void intel_crtc_enable_planes(struct drm_crtc *crtc)
 	intel_enable_primary_hw_plane(crtc->primary, crtc);
 	intel_enable_sprite_planes(crtc);
 	intel_crtc_update_cursor(crtc, true);
-	intel_crtc_dpms_overlay(intel_crtc, true);
 
 	intel_post_enable_primary(crtc);
 }
@@ -4863,7 +4862,7 @@ static void intel_crtc_disable_planes(struct drm_crtc *crtc)
 
 	intel_pre_disable_primary(crtc);
 
-	intel_crtc_dpms_overlay(intel_crtc, false);
+	intel_crtc_dpms_overlay_disable(intel_crtc);
 	for_each_intel_plane(dev, intel_plane) {
 		if (intel_plane->pipe == pipe) {
 			struct drm_crtc *from = intel_plane->base.crtc;
