@@ -7,13 +7,13 @@ BINARIES_64 := $(TARGETS_C_BOTHBITS:%=%_64)
 
 CFLAGS := -O2 -g -std=gnu99 -pthread -Wall
 
-UNAME_P := $(shell uname -p)
+UNAME_M := $(shell uname -m)
 
 # Always build 32-bit tests
 all: all_32
 
 # If we're on a 64-bit host, build 64-bit tests as well
-ifeq ($(shell uname -p),x86_64)
+ifeq ($(UNAME_M),x86_64)
 all: all_64
 endif
 
