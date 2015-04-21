@@ -46,7 +46,7 @@ struct tda10086_config
 	enum tda10086_xtal xtal_freq;
 };
 
-#if IS_ENABLED(CONFIG_DVB_TDA10086)
+#if IS_REACHABLE(CONFIG_DVB_TDA10086)
 extern struct dvb_frontend* tda10086_attach(const struct tda10086_config* config,
 					    struct i2c_adapter* i2c);
 #else
