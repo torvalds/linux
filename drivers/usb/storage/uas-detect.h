@@ -74,7 +74,7 @@ static int uas_use_uas_driver(struct usb_interface *intf,
 	 * this writing the following versions exist:
 	 * ASM1051 - no uas support version
 	 * ASM1051 - with broken (*) uas support
-	 * ASM1053 - with working uas support
+	 * ASM1053 - with working uas support, but problems with large xfers
 	 * ASM1153 - with working uas support
 	 *
 	 * Devices with these chips re-use a number of device-ids over the
@@ -104,6 +104,9 @@ static int uas_use_uas_driver(struct usb_interface *intf,
 		} else if (usb_ss_max_streams(&eps[1]->ss_ep_comp) == 32) {
 			/* Possibly an ASM1051, disable uas */
 			flags |= US_FL_IGNORE_UAS;
+		} else {
+			/* ASM1053, these have issues with large transfers */
+			flags |= US_FL_MAX_SECTORS_240;
 		}
 	}
 
