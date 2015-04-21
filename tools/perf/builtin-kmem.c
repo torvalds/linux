@@ -244,6 +244,7 @@ static unsigned long nr_page_fails;
 static unsigned long nr_page_nomatch;
 
 static bool use_pfn;
+static bool live_page;
 static struct perf_session *kmem_session;
 
 #define MAX_MIGRATE_TYPES  6
@@ -264,7 +265,7 @@ struct page_stat {
 	int 		nr_free;
 };
 
-static struct rb_root page_tree;
+static struct rb_root page_live_tree;
 static struct rb_root page_alloc_tree;
 static struct rb_root page_alloc_sorted;
 static struct rb_root page_caller_tree;
@@ -403,10 +404,19 @@ out:
 	return sample->ip;
 }
 
+struct sort_dimension {
+	const char		name[20];
+	sort_fn_t		cmp;
+	struct list_head	list;
+};
+
+static LIST_HEAD(page_alloc_sort_input);
+static LIST_HEAD(page_caller_sort_input);
+
 static struct page_stat *
-__page_stat__findnew_page(u64 page, bool create)
+__page_stat__findnew_page(struct page_stat *pstat, bool create)
 {
-	struct rb_node **node = &page_tree.rb_node;
+	struct rb_node **node = &page_live_tree.rb_node;
 	struct rb_node *parent = NULL;
 	struct page_stat *data;
 
@@ -416,7 +426,7 @@ __page_stat__findnew_page(u64 page, bool create)
 		parent = *node;
 		data = rb_entry(*node, struct page_stat, node);
 
-		cmp = data->page - page;
+		cmp = data->page - pstat->page;
 		if (cmp < 0)
 			node = &parent->rb_left;
 		else if (cmp > 0)
@@ -430,33 +440,27 @@ __page_stat__findnew_page(u64 page, bool create)
 
 	data = zalloc(sizeof(*data));
 	if (data != NULL) {
-		data->page = page;
+		data->page = pstat->page;
+		data->order = pstat->order;
+		data->gfp_flags = pstat->gfp_flags;
+		data->migrate_type = pstat->migrate_type;
 
 		rb_link_node(&data->node, parent, node);
-		rb_insert_color(&data->node, &page_tree);
+		rb_insert_color(&data->node, &page_live_tree);
 	}
 
 	return data;
 }
 
-static struct page_stat *page_stat__find_page(u64 page)
+static struct page_stat *page_stat__find_page(struct page_stat *pstat)
 {
-	return __page_stat__findnew_page(page, false);
+	return __page_stat__findnew_page(pstat, false);
 }
 
-static struct page_stat *page_stat__findnew_page(u64 page)
+static struct page_stat *page_stat__findnew_page(struct page_stat *pstat)
 {
-	return __page_stat__findnew_page(page, true);
+	return __page_stat__findnew_page(pstat, true);
 }
-
-struct sort_dimension {
-	const char		name[20];
-	sort_fn_t		cmp;
-	struct list_head	list;
-};
-
-static LIST_HEAD(page_alloc_sort_input);
-static LIST_HEAD(page_caller_sort_input);
 
 static struct page_stat *
 __page_stat__findnew_alloc(struct page_stat *pstat, bool create)
@@ -615,23 +619,24 @@ static int perf_evsel__process_page_alloc_event(struct perf_evsel *evsel,
 	 * This is to find the current page (with correct gfp flags and
 	 * migrate type) at free event.
 	 */
-	pstat = page_stat__findnew_page(page);
-	if (pstat == NULL)
-		return -ENOMEM;
-
-	pstat->order = order;
-	pstat->gfp_flags = gfp_flags;
-	pstat->migrate_type = migrate_type;
-	pstat->callsite = callsite;
-
 	this.page = page;
-	pstat = page_stat__findnew_alloc(&this);
+	pstat = page_stat__findnew_page(&this);
 	if (pstat == NULL)
 		return -ENOMEM;
 
 	pstat->nr_alloc++;
 	pstat->alloc_bytes += bytes;
 	pstat->callsite = callsite;
+
+	if (!live_page) {
+		pstat = page_stat__findnew_alloc(&this);
+		if (pstat == NULL)
+			return -ENOMEM;
+
+		pstat->nr_alloc++;
+		pstat->alloc_bytes += bytes;
+		pstat->callsite = callsite;
+	}
 
 	this.callsite = callsite;
 	pstat = page_stat__findnew_caller(&this);
@@ -665,7 +670,8 @@ static int perf_evsel__process_page_free_event(struct perf_evsel *evsel,
 	nr_page_frees++;
 	total_page_free_bytes += bytes;
 
-	pstat = page_stat__find_page(page);
+	this.page = page;
+	pstat = page_stat__find_page(&this);
 	if (pstat == NULL) {
 		pr_debug2("missing free at page %"PRIx64" (order: %d)\n",
 			  page, order);
@@ -676,20 +682,23 @@ static int perf_evsel__process_page_free_event(struct perf_evsel *evsel,
 		return 0;
 	}
 
-	this.page = page;
 	this.gfp_flags = pstat->gfp_flags;
 	this.migrate_type = pstat->migrate_type;
 	this.callsite = pstat->callsite;
 
-	rb_erase(&pstat->node, &page_tree);
+	rb_erase(&pstat->node, &page_live_tree);
 	free(pstat);
 
-	pstat = page_stat__find_alloc(&this);
-	if (pstat == NULL)
-		return -ENOENT;
+	if (live_page) {
+		order_stats[this.order][this.migrate_type]--;
+	} else {
+		pstat = page_stat__find_alloc(&this);
+		if (pstat == NULL)
+			return -ENOMEM;
 
-	pstat->nr_free++;
-	pstat->free_bytes += bytes;
+		pstat->nr_free++;
+		pstat->free_bytes += bytes;
+	}
 
 	pstat = page_stat__find_caller(&this);
 	if (pstat == NULL)
@@ -697,6 +706,16 @@ static int perf_evsel__process_page_free_event(struct perf_evsel *evsel,
 
 	pstat->nr_free++;
 	pstat->free_bytes += bytes;
+
+	if (live_page) {
+		pstat->nr_alloc--;
+		pstat->alloc_bytes -= bytes;
+
+		if (pstat->nr_alloc == 0) {
+			rb_erase(&pstat->node, &page_caller_tree);
+			free(pstat);
+		}
+	}
 
 	return 0;
 }
@@ -815,8 +834,8 @@ static void __print_page_alloc_result(struct perf_session *session, int n_lines)
 	const char *format;
 
 	printf("\n%.105s\n", graph_dotted_line);
-	printf(" %-16s | Total alloc (KB) | Hits      | Order | Mig.type | GFP flags | Callsite\n",
-	       use_pfn ? "PFN" : "Page");
+	printf(" %-16s | %5s alloc (KB) | Hits      | Order | Mig.type | GFP flags | Callsite\n",
+	       use_pfn ? "PFN" : "Page", live_page ? "Live" : "Total");
 	printf("%.105s\n", graph_dotted_line);
 
 	if (use_pfn)
@@ -860,7 +879,8 @@ static void __print_page_caller_result(struct perf_session *session, int n_lines
 	struct machine *machine = &session->machines.host;
 
 	printf("\n%.105s\n", graph_dotted_line);
-	printf(" Total alloc (KB) | Hits      | Order | Mig.type | GFP flags | Callsite\n");
+	printf(" %5s alloc (KB) | Hits      | Order | Mig.type | GFP flags | Callsite\n",
+	       live_page ? "Live" : "Total");
 	printf("%.105s\n", graph_dotted_line);
 
 	while (next && n_lines--) {
@@ -1085,8 +1105,13 @@ static void sort_result(void)
 				   &slab_caller_sort);
 	}
 	if (kmem_page) {
-		__sort_page_result(&page_alloc_tree, &page_alloc_sorted,
-				   &page_alloc_sort);
+		if (live_page)
+			__sort_page_result(&page_live_tree, &page_alloc_sorted,
+					   &page_alloc_sort);
+		else
+			__sort_page_result(&page_alloc_tree, &page_alloc_sorted,
+					   &page_alloc_sort);
+
 		__sort_page_result(&page_caller_tree, &page_caller_sorted,
 				   &page_caller_sort);
 	}
@@ -1630,6 +1655,7 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 			   parse_slab_opt),
 	OPT_CALLBACK_NOOPT(0, "page", NULL, NULL, "Analyze page allocator",
 			   parse_page_opt),
+	OPT_BOOLEAN(0, "live", &live_page, "Show live page stat"),
 	OPT_END()
 	};
 	const char *const kmem_subcommands[] = { "record", "stat", NULL };

@@ -56,6 +56,11 @@ OPTIONS
 --page::
 	Analyze page allocator events
 
+--live::
+	Show live page stat.  The perf kmem shows total allocation stat by
+	default, but this option shows live (currently allocated) pages
+	instead.  (This option works with --page option only)
+
 SEE ALSO
 --------
 linkperf:perf-record[1]
