@@ -118,7 +118,7 @@ int qib_enable_wc(struct qib_devdata *dd)
 	if (!ret) {
 		int cookie;
 
-		cookie = mtrr_add(pioaddr, piolen, MTRR_TYPE_WRCOMB, 0);
+		cookie = mtrr_add(pioaddr, piolen, MTRR_TYPE_WRCOMB, 1);
 		if (cookie < 0) {
 			{
 				qib_devinfo(dd->pcidev,
