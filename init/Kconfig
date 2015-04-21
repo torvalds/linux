@@ -465,13 +465,9 @@ endmenu # "CPU/Task time and stats accounting"
 
 menu "RCU Subsystem"
 
-choice
-	prompt "RCU Implementation"
-	default TREE_RCU
-
 config TREE_RCU
-	bool "Tree-based hierarchical RCU"
-	depends on !PREEMPT && SMP
+	bool
+	default y if !PREEMPT && SMP
 	help
 	  This option selects the RCU implementation that is
 	  designed for very large SMP system with hundreds or
@@ -479,8 +475,8 @@ config TREE_RCU
 	  smaller systems.
 
 config PREEMPT_RCU
-	bool "Preemptible tree-based hierarchical RCU"
-	depends on PREEMPT
+	bool
+	default y if PREEMPT
 	help
 	  This option selects the RCU implementation that is
 	  designed for very large SMP systems with hundreds or
@@ -491,15 +487,13 @@ config PREEMPT_RCU
 	  Select this option if you are unsure.
 
 config TINY_RCU
-	bool "UP-only small-memory-footprint RCU"
-	depends on !PREEMPT && !SMP
+	bool
+	default y if !PREEMPT && !SMP
 	help
 	  This option selects the RCU implementation that is
 	  designed for UP systems from which real-time response
 	  is not required.  This option greatly reduces the
 	  memory footprint of RCU.
-
-endchoice
 
 config RCU_EXPERT
 	bool "Make expert-level adjustments to RCU configuration"
