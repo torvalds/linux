@@ -12787,33 +12787,9 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 	return 0;
 }
 
-static void disable_crtc_nofb(struct intel_crtc *crtc)
-{
-	struct drm_device *dev = crtc->base.dev;
-	struct intel_encoder *encoder;
-	struct intel_connector *connector;
-
-	DRM_DEBUG_KMS("Trying to restore without FB -> disabling pipe %c\n",
-		      pipe_name(crtc->pipe));
-
-	for_each_intel_connector(dev, connector) {
-		if (connector->new_encoder &&
-		    connector->new_encoder->new_crtc == crtc)
-			connector->new_encoder = NULL;
-	}
-
-	for_each_intel_encoder(dev, encoder) {
-		if (encoder->new_crtc == crtc)
-			encoder->new_crtc = NULL;
-	}
-
-	crtc->new_enabled = false;
-}
-
 static int intel_crtc_set_config(struct drm_mode_set *set)
 {
 	struct drm_device *dev;
-	struct drm_mode_set save_set;
 	struct drm_atomic_state *state = NULL;
 	struct intel_set_config *config;
 	struct intel_crtc_state *pipe_config;
@@ -12845,12 +12821,6 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 	ret = intel_set_config_save_state(dev, config);
 	if (ret)
 		goto out_config;
-
-	save_set.crtc = set->crtc;
-	save_set.mode = &set->crtc->mode;
-	save_set.x = set->crtc->x;
-	save_set.y = set->crtc->y;
-	save_set.fb = set->crtc->primary->fb;
 
 	state = drm_atomic_state_alloc(dev);
 	if (!state) {
@@ -12935,24 +12905,6 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 			      set->crtc->base.id, ret);
 fail:
 		intel_set_config_restore_state(dev, config);
-
-		drm_atomic_state_clear(state);
-
-		/*
-		 * HACK: if the pipe was on, but we didn't have a framebuffer,
-		 * force the pipe off to avoid oopsing in the modeset code
-		 * due to fb==NULL. This should only happen during boot since
-		 * we don't yet reconstruct the FB from the hardware state.
-		 */
-		if (to_intel_crtc(save_set.crtc)->new_enabled && !save_set.fb)
-			disable_crtc_nofb(to_intel_crtc(save_set.crtc));
-
-		/* Try to restore the config */
-		if (config->mode_changed &&
-		    intel_set_mode(save_set.crtc, save_set.mode,
-				   save_set.x, save_set.y, save_set.fb,
-				   state))
-			DRM_ERROR("failed to restore config after modeset failure\n");
 	}
 
 out_config:
