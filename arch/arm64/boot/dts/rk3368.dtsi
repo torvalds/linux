@@ -364,7 +364,7 @@
 		reg = <0x0 0xff400000 0x0 0x4000>;
 		interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
 		nandc_id = <0>;
-		clocks = <&clk_nandc0>, <&clk_gates7 8>, <&clk_gates20 11>;
+		clocks = <&clk_nandc0>, <&clk_gates20 9>, <&clk_gates20 11>;
 		clock-names = "clk_nandc", "g_clk_nandc", "hclk_nandc";
 	};
 
