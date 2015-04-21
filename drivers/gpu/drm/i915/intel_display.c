@@ -82,7 +82,7 @@ static void i9xx_crtc_clock_get(struct intel_crtc *crtc,
 static void ironlake_pch_clock_get(struct intel_crtc *crtc,
 				   struct intel_crtc_state *pipe_config);
 
-static int intel_set_mode(struct drm_crtc *crtc, struct drm_display_mode *mode,
+static int intel_set_mode(struct drm_crtc *crtc,
 			  struct drm_atomic_state *state);
 static int intel_framebuffer_init(struct drm_device *dev,
 				  struct intel_framebuffer *ifb,
@@ -9892,7 +9892,9 @@ retry:
 	if (ret)
 		goto fail;
 
-	if (intel_set_mode(crtc, mode, state)) {
+	drm_mode_copy(&crtc_state->base.mode, mode);
+
+	if (intel_set_mode(crtc, state)) {
 		DRM_DEBUG_KMS("failed to set mode on load-detect pipe\n");
 		if (old->release_fb)
 			old->release_fb->funcs->destroy(old->release_fb);
@@ -9966,7 +9968,7 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 		if (ret)
 			goto fail;
 
-		intel_set_mode(crtc, NULL, state);
+		intel_set_mode(crtc, state);
 
 		drm_atomic_state_free(state);
 
@@ -11476,7 +11478,6 @@ clear_intel_crtc_state(struct intel_crtc_state *crtc_state)
 
 static int
 intel_modeset_pipe_config(struct drm_crtc *crtc,
-			  struct drm_display_mode *mode,
 			  struct drm_atomic_state *state,
 			  struct intel_crtc_state *pipe_config)
 {
@@ -11498,10 +11499,6 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 	}
 
 	clear_intel_crtc_state(pipe_config);
-
-	pipe_config->base.crtc = crtc;
-	drm_mode_copy(&pipe_config->base.adjusted_mode, mode);
-	drm_mode_copy(&pipe_config->base.mode, mode);
 
 	pipe_config->cpu_transcoder =
 		(enum transcoder) to_intel_crtc(crtc)->pipe;
@@ -12199,27 +12196,8 @@ static void update_scanline_offset(struct intel_crtc *crtc)
 		crtc->scanline_offset = 1;
 }
 
-static void
-intel_atomic_modeset_compute_changed_flags(struct drm_atomic_state *state,
-					   struct drm_crtc *modeset_crtc)
-{
-	struct drm_crtc_state *crtc_state;
-	struct drm_crtc *crtc;
-	int i;
-
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		if (crtc_state->enable != crtc->state->enable)
-			crtc_state->mode_changed = true;
-
-		/* FIXME: Do we need to always set mode_changed for
-		 * modeset_crtc if it is enabled? modeset_affect_pipes()
-		 * did that. */
-	}
-}
-
 static struct intel_crtc_state *
 intel_modeset_compute_config(struct drm_crtc *crtc,
-			     struct drm_display_mode *mode,
 			     struct drm_atomic_state *state)
 {
 	struct intel_crtc_state *pipe_config;
@@ -12229,7 +12207,9 @@ intel_modeset_compute_config(struct drm_crtc *crtc,
 	if (ret)
 		return ERR_PTR(ret);
 
-	intel_atomic_modeset_compute_changed_flags(state, crtc);
+	ret = drm_atomic_helper_check_modeset(state->dev, state);
+	if (ret)
+		return ERR_PTR(ret);
 
 	/*
 	 * Note this needs changes when we start tracking multiple modes
@@ -12244,7 +12224,7 @@ intel_modeset_compute_config(struct drm_crtc *crtc,
 	if (!pipe_config->base.enable)
 		return pipe_config;
 
-	ret = intel_modeset_pipe_config(crtc, mode, state, pipe_config);
+	ret = intel_modeset_pipe_config(crtc, state, pipe_config);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -12261,6 +12241,10 @@ intel_modeset_compute_config(struct drm_crtc *crtc,
 	 */
 
 	intel_dump_pipe_config(to_intel_crtc(crtc), pipe_config,"[modeset]");
+
+	ret = drm_atomic_helper_check_planes(state->dev, state);
+	if (ret)
+		return ERR_PTR(ret);
 
 	return pipe_config;
 }
@@ -12337,7 +12321,6 @@ static int __intel_set_mode_checks(struct drm_atomic_state *state)
 }
 
 static int __intel_set_mode(struct drm_crtc *modeset_crtc,
-			    struct drm_display_mode *mode,
 			    struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = modeset_crtc->dev;
@@ -12380,7 +12363,7 @@ static int __intel_set_mode(struct drm_crtc *modeset_crtc,
 	 * single crtc and mode.
 	 */
 	if (pipe_config->base.enable && needs_modeset(&pipe_config->base)) {
-		modeset_crtc->mode = *mode;
+		modeset_crtc->mode = pipe_config->base.mode;
 		/* mode_set/enable/disable functions rely on a correct pipe
 		 * config. */
 		intel_crtc_set_state(to_intel_crtc(modeset_crtc), pipe_config);
@@ -12446,12 +12429,11 @@ static int __intel_set_mode(struct drm_crtc *modeset_crtc,
 }
 
 static int intel_set_mode_with_config(struct drm_crtc *crtc,
-				      struct drm_display_mode *mode,
 				      struct intel_crtc_state *pipe_config)
 {
 	int ret;
 
-	ret = __intel_set_mode(crtc, mode, pipe_config);
+	ret = __intel_set_mode(crtc, pipe_config);
 
 	if (ret == 0)
 		intel_modeset_check_state(crtc->dev);
@@ -12460,19 +12442,18 @@ static int intel_set_mode_with_config(struct drm_crtc *crtc,
 }
 
 static int intel_set_mode(struct drm_crtc *crtc,
-			  struct drm_display_mode *mode,
 			  struct drm_atomic_state *state)
 {
 	struct intel_crtc_state *pipe_config;
 	int ret = 0;
 
-	pipe_config = intel_modeset_compute_config(crtc, mode, state);
+	pipe_config = intel_modeset_compute_config(crtc, state);
 	if (IS_ERR(pipe_config)) {
 		ret = PTR_ERR(pipe_config);
 		goto out;
 	}
 
-	ret = intel_set_mode_with_config(crtc, mode, pipe_config);
+	ret = intel_set_mode_with_config(crtc, pipe_config);
 	if (ret)
 		goto out;
 
@@ -12539,124 +12520,20 @@ void intel_crtc_restore_mode(struct drm_crtc *crtc)
 		}
 
 		crtc_state->base.enable = intel_crtc->new_enabled;
+
+		if (&intel_crtc->base == crtc)
+			drm_mode_copy(&crtc_state->base.mode, &crtc->mode);
 	}
 
 	intel_modeset_setup_plane_state(state, crtc, &crtc->mode,
 					crtc->primary->fb, crtc->x, crtc->y);
 
-	intel_set_mode(crtc, &crtc->mode, state);
+	intel_set_mode(crtc, state);
 
 	drm_atomic_state_free(state);
 }
 
 #undef for_each_intel_crtc_masked
-
-static bool
-is_crtc_connector_off(struct drm_mode_set *set)
-{
-	int i;
-
-	if (set->num_connectors == 0)
-		return false;
-
-	if (WARN_ON(set->connectors == NULL))
-		return false;
-
-	for (i = 0; i < set->num_connectors; i++)
-		if (set->connectors[i]->encoder &&
-		    set->connectors[i]->encoder->crtc == set->crtc &&
-		    set->connectors[i]->dpms != DRM_MODE_DPMS_ON)
-			return true;
-
-	return false;
-}
-
-static void
-intel_set_config_compute_mode_changes(struct drm_mode_set *set,
-				      struct intel_crtc_state *pipe_config)
-{
-	struct drm_atomic_state *state;
-	struct drm_connector *connector;
-	struct drm_connector_state *connector_state;
-	struct drm_crtc *crtc;
-	struct drm_crtc_state *crtc_state;
-	int i;
-
-	/* We should be able to check here if the fb has the same properties
-	 * and then just flip_or_move it */
-	if (is_crtc_connector_off(set)) {
-		pipe_config->base.mode_changed = true;
-	} else if (set->crtc->primary->fb != set->fb) {
-		/*
-		 * If we have no fb, we can only flip as long as the crtc is
-		 * active, otherwise we need a full mode set.  The crtc may
-		 * be active if we've only disabled the primary plane, or
-		 * in fastboot situations.
-		 */
-		if (set->crtc->primary->fb == NULL) {
-			struct intel_crtc *intel_crtc =
-				to_intel_crtc(set->crtc);
-
-			if (intel_crtc->active) {
-				DRM_DEBUG_KMS("crtc has no fb, will flip\n");
-				pipe_config->base.planes_changed = true;
-			} else {
-				DRM_DEBUG_KMS("inactive crtc, full mode set\n");
-				pipe_config->base.mode_changed = true;
-			}
-		} else if (set->fb == NULL) {
-			pipe_config->base.mode_changed = true;
-		} else if (set->fb->pixel_format !=
-			   set->crtc->primary->fb->pixel_format) {
-			pipe_config->base.mode_changed = true;
-		} else {
-			pipe_config->base.planes_changed = true;
-		}
-	}
-
-	if (set->fb && (set->x != set->crtc->x || set->y != set->crtc->y))
-		pipe_config->base.planes_changed = true;
-
-	if (set->mode && !drm_mode_equal(set->mode, &set->crtc->mode)) {
-		DRM_DEBUG_KMS("modes are different, full mode set\n");
-		drm_mode_debug_printmodeline(&set->crtc->mode);
-		drm_mode_debug_printmodeline(set->mode);
-		pipe_config->base.mode_changed = true;
-	}
-
-	state = pipe_config->base.state;
-
-	for_each_connector_in_state(state, connector, connector_state, i) {
-		if (connector_state->best_encoder !=
-		    connector->state->best_encoder) {
-			DRM_DEBUG_KMS("[CONNECTOR:%d:%s] encoder changed, full mode switch\n",
-				      connector->base.id,
-				      connector->name);
-			pipe_config->base.mode_changed = true;
-		}
-
-		if (connector_state->crtc != connector->state->crtc) {
-			DRM_DEBUG_KMS("[CONNECTOR:%d:%s] crtc changed, full mode switch\n",
-				      connector->base.id,
-				      connector->name);
-			pipe_config->base.mode_changed = true;
-		}
-	}
-
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		if (crtc_state->enable == crtc->state->enable)
-			continue;
-
-		DRM_DEBUG_KMS("[CRTC:%d] %sabled, full mode switch\n",
-			      crtc->base.id,
-			      crtc_state->enable ? "en" : "dis");
-		pipe_config->base.mode_changed = true;
-	}
-
-	DRM_DEBUG_KMS("computed changes for [CRTC:%d], mode_changed=%d, fb_changed=%d\n",
-			set->crtc->base.id, pipe_config->base.mode_changed,
-			pipe_config->base.planes_changed);
-}
 
 static bool intel_connector_in_mode_set(struct intel_connector *connector,
 					struct drm_mode_set *set)
@@ -12774,6 +12651,21 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 		crtc_state->enable = drm_atomic_connectors_for_crtc(state, crtc);
 	}
 
+	ret = intel_modeset_setup_plane_state(state, set->crtc, set->mode,
+					      set->fb, set->x, set->y);
+	if (ret)
+		return ret;
+
+	crtc_state = drm_atomic_get_crtc_state(state, set->crtc);
+	if (IS_ERR(crtc_state))
+		return PTR_ERR(crtc_state);
+
+	if (set->mode)
+		drm_mode_copy(&crtc_state->mode, set->mode);
+
+	if (set->num_connectors)
+		crtc_state->active = true;
+
 	return 0;
 }
 
@@ -12821,30 +12713,17 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 	if (ret)
 		goto out;
 
-	ret = intel_modeset_setup_plane_state(state, set->crtc, set->mode,
-					      set->fb, set->x, set->y);
-	if (ret)
-		goto out;
-
-	pipe_config = intel_modeset_compute_config(set->crtc, set->mode,
-						   state);
+	pipe_config = intel_modeset_compute_config(set->crtc, state);
 	if (IS_ERR(pipe_config)) {
 		ret = PTR_ERR(pipe_config);
 		goto out;
 	}
 
-	/* Compute whether we need a full modeset, only an fb base update or no
-	 * change at all. In the future we might also check whether only the
-	 * mode changed, e.g. for LVDS where we only change the panel fitter in
-	 * such cases. */
-	intel_set_config_compute_mode_changes(set, pipe_config);
-
 	intel_update_pipe_size(to_intel_crtc(set->crtc));
 
 	primary_plane_was_visible = primary_plane_visible(set->crtc);
 
-	ret = intel_set_mode_with_config(set->crtc, set->mode,
-					 pipe_config);
+	ret = intel_set_mode_with_config(set->crtc, pipe_config);
 
 	if (ret == 0 &&
 	    pipe_config->base.enable &&
