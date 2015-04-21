@@ -119,8 +119,8 @@ module_param(dump_tree, bool, 0444);
 /* Control rcu_node-tree auto-balancing at boot time. */
 static bool rcu_fanout_exact;
 module_param(rcu_fanout_exact, bool, 0444);
-/* Increase (but not decrease) the CONFIG_RCU_FANOUT_LEAF at boot time. */
-static int rcu_fanout_leaf = CONFIG_RCU_FANOUT_LEAF;
+/* Increase (but not decrease) the RCU_FANOUT_LEAF at boot time. */
+static int rcu_fanout_leaf = RCU_FANOUT_LEAF;
 module_param(rcu_fanout_leaf, int, 0444);
 int rcu_num_lvls __read_mostly = RCU_NUM_LVLS;
 static int num_rcu_lvl[] = {  /* Number of rcu_nodes at specified level. */
@@ -4097,7 +4097,7 @@ static void __init rcu_init_geometry(void)
 		jiffies_till_next_fqs = d;
 
 	/* If the compile-time values are accurate, just leave. */
-	if (rcu_fanout_leaf == CONFIG_RCU_FANOUT_LEAF &&
+	if (rcu_fanout_leaf == RCU_FANOUT_LEAF &&
 	    nr_cpu_ids == NR_CPUS)
 		return;
 	pr_info("RCU: Adjusting geometry for rcu_fanout_leaf=%d, nr_cpu_ids=%d\n",
@@ -4121,7 +4121,7 @@ static void __init rcu_init_geometry(void)
 	 * the configured number of CPUs.  Complain and fall back to the
 	 * compile-time values if these limits are exceeded.
 	 */
-	if (rcu_fanout_leaf < CONFIG_RCU_FANOUT_LEAF ||
+	if (rcu_fanout_leaf < RCU_FANOUT_LEAF ||
 	    rcu_fanout_leaf > sizeof(unsigned long) * 8 ||
 	    n > rcu_capacity[MAX_RCU_LVLS]) {
 		WARN_ON(1);

@@ -48,7 +48,17 @@
 # endif
 #endif /* #else #ifdef CONFIG_RCU_FANOUT */
 
-#define RCU_FANOUT_1	      (CONFIG_RCU_FANOUT_LEAF)
+#ifdef CONFIG_RCU_FANOUT_LEAF
+#define RCU_FANOUT_LEAF CONFIG_RCU_FANOUT_LEAF
+#else /* #ifdef CONFIG_RCU_FANOUT_LEAF */
+# ifdef CONFIG_64BIT
+# define RCU_FANOUT_LEAF 64
+# else
+# define RCU_FANOUT_LEAF 32
+# endif
+#endif /* #else #ifdef CONFIG_RCU_FANOUT_LEAF */
+
+#define RCU_FANOUT_1	      (RCU_FANOUT_LEAF)
 #define RCU_FANOUT_2	      (RCU_FANOUT_1 * RCU_FANOUT)
 #define RCU_FANOUT_3	      (RCU_FANOUT_2 * RCU_FANOUT)
 #define RCU_FANOUT_4	      (RCU_FANOUT_3 * RCU_FANOUT)
