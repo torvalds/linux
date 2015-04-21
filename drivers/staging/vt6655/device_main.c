@@ -1478,7 +1478,7 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_ASSOC && priv->op_mode != NL80211_IFTYPE_AP) {
 		if (conf->assoc) {
 			CARDbUpdateTSF(priv, conf->beacon_rate->hw_value,
-				       conf->sync_device_ts, conf->sync_tsf);
+				       conf->sync_tsf);
 
 			CARDbSetBeaconPeriod(priv, conf->beacon_int);
 
