@@ -12638,10 +12638,12 @@ static void
 intel_set_config_compute_mode_changes(struct drm_mode_set *set,
 				      struct intel_crtc_state *pipe_config)
 {
-	struct drm_device *dev = set->crtc->dev;
-	struct intel_connector *connector;
-	struct intel_encoder *encoder;
-	struct intel_crtc *crtc;
+	struct drm_atomic_state *state;
+	struct drm_connector *connector;
+	struct drm_connector_state *connector_state;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+	int i;
 
 	/* We should be able to check here if the fb has the same properties
 	 * and then just flip_or_move it */
@@ -12685,33 +12687,32 @@ intel_set_config_compute_mode_changes(struct drm_mode_set *set,
 		pipe_config->base.mode_changed = true;
 	}
 
-	for_each_intel_connector(dev, connector) {
-		if (&connector->new_encoder->base == connector->base.encoder)
-			continue;
+	state = pipe_config->base.state;
 
-		pipe_config->base.mode_changed = true;
-		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] encoder changed, full mode switch\n",
-			      connector->base.base.id,
-			      connector->base.name);
+	for_each_connector_in_state(state, connector, connector_state, i) {
+		if (connector_state->best_encoder !=
+		    connector->state->best_encoder) {
+			DRM_DEBUG_KMS("[CONNECTOR:%d:%s] encoder changed, full mode switch\n",
+				      connector->base.id,
+				      connector->name);
+			pipe_config->base.mode_changed = true;
+		}
+
+		if (connector_state->crtc != connector->state->crtc) {
+			DRM_DEBUG_KMS("[CONNECTOR:%d:%s] crtc changed, full mode switch\n",
+				      connector->base.id,
+				      connector->name);
+			pipe_config->base.mode_changed = true;
+		}
 	}
 
-	for_each_intel_encoder(dev, encoder) {
-		if (&encoder->new_crtc->base == encoder->base.crtc)
-			continue;
-
-		DRM_DEBUG_KMS("[ENCODER:%d:%s] crtc changed, full mode switch\n",
-			      encoder->base.base.id,
-			      encoder->base.name);
-		pipe_config->base.mode_changed = true;
-	}
-
-	for_each_intel_crtc(dev, crtc) {
-		if (crtc->new_enabled == crtc->base.state->enable)
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		if (crtc_state->enable == crtc->state->enable)
 			continue;
 
 		DRM_DEBUG_KMS("[CRTC:%d] %sabled, full mode switch\n",
-			      crtc->base.base.id,
-			      crtc->new_enabled ? "en" : "dis");
+			      crtc->base.id,
+			      crtc_state->enable ? "en" : "dis");
 		pipe_config->base.mode_changed = true;
 	}
 
