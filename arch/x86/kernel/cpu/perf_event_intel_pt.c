@@ -674,7 +674,7 @@ static void pt_buffer_setup_topa_index(struct pt_buffer *buf)
 	struct topa *cur = buf->first, *prev = buf->last;
 	struct topa_entry *te_cur = TOPA_ENTRY(cur, 0),
 		*te_prev = TOPA_ENTRY(prev, prev->last - 1);
-	int pg = 0, idx = 0, ntopa = 0;
+	int pg = 0, idx = 0;
 
 	while (pg < buf->nr_pages) {
 		int tidx;
@@ -689,9 +689,9 @@ static void pt_buffer_setup_topa_index(struct pt_buffer *buf)
 			/* advance to next topa table */
 			idx = 0;
 			cur = list_entry(cur->list.next, struct topa, list);
-			ntopa++;
-		} else
+		} else {
 			idx++;
+		}
 		te_cur = TOPA_ENTRY(cur, idx);
 	}
 
