@@ -80,7 +80,7 @@
 ENTRY(stext)
  ARM_BE8(setend	be )			@ ensure we are in BE8 mode
 
- THUMB(	adr	r9, BSYM(1f)	)	@ Kernel is always entered in ARM.
+ THUMB(	badr	r9, 1f		)	@ Kernel is always entered in ARM.
  THUMB(	bx	r9		)	@ If this is a Thumb-2 kernel,
  THUMB(	.thumb			)	@ switch to Thumb now.
  THUMB(1:			)
@@ -136,7 +136,7 @@ ENTRY(stext)
 	 */
 	ldr	r13, =__mmap_switched		@ address to jump to after
 						@ mmu has been enabled
-	adr	lr, BSYM(1f)			@ return (PIC) address
+	badr	lr, 1f				@ return (PIC) address
 	mov	r8, r4				@ set TTBR1 to swapper_pg_dir
 	ldr	r12, [r10, #PROCINFO_INITFUNC]
 	add	r12, r12, r10
@@ -348,7 +348,7 @@ __turn_mmu_on_loc:
 	.text
 ENTRY(secondary_startup_arm)
 	.arm
- THUMB(	adr	r9, BSYM(1f)	)	@ Kernel is entered in ARM.
+ THUMB(	badr	r9, 1f		)	@ Kernel is entered in ARM.
  THUMB(	bx	r9		)	@ If this is a Thumb-2 kernel,
  THUMB(	.thumb			)	@ switch to Thumb now.
  THUMB(1:			)
@@ -384,7 +384,7 @@ ENTRY(secondary_startup)
 	ldr	r4, [r7, lr]			@ get secondary_data.pgdir
 	add	r7, r7, #4
 	ldr	r8, [r7, lr]			@ get secondary_data.swapper_pg_dir
-	adr	lr, BSYM(__enable_mmu)		@ return address
+	badr	lr, __enable_mmu		@ return address
 	mov	r13, r12			@ __secondary_switched address
 	ldr	r12, [r10, #PROCINFO_INITFUNC]
 	add	r12, r12, r10			@ initialise processor
