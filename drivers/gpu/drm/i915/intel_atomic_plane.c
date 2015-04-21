@@ -85,8 +85,8 @@ intel_plane_duplicate_state(struct drm_plane *plane)
 		return NULL;
 
 	state = &intel_state->base;
-	if (state->fb)
-		drm_framebuffer_reference(state->fb);
+
+	__drm_atomic_helper_plane_duplicate_state(plane, state);
 
 	return state;
 }

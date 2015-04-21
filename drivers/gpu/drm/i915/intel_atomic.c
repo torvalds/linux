@@ -250,8 +250,12 @@ intel_crtc_duplicate_state(struct drm_crtc *crtc)
 		crtc_state = kmemdup(intel_crtc->config,
 				     sizeof(*intel_crtc->config), GFP_KERNEL);
 
-	if (crtc_state)
-		crtc_state->base.crtc = crtc;
+	if (!crtc_state)
+		return NULL;
+
+	__drm_atomic_helper_crtc_duplicate_state(crtc, &crtc_state->base);
+
+	crtc_state->base.crtc = crtc;
 
 	return &crtc_state->base;
 }
