@@ -493,6 +493,8 @@ static int sprd_verify_port(struct uart_port *port,
 		return -EINVAL;
 	if (port->irq != ser->irq)
 		return -EINVAL;
+	if (port->iotype != ser->io_type)
+		return -EINVAL;
 	return 0;
 }
 
@@ -707,7 +709,7 @@ static int sprd_probe(struct platform_device *pdev)
 	up->dev = &pdev->dev;
 	up->line = index;
 	up->type = PORT_SPRD;
-	up->iotype = SERIAL_IO_PORT;
+	up->iotype = UPIO_MEM;
 	up->uartclk = SPRD_DEF_RATE;
 	up->fifosize = SPRD_FIFO_SIZE;
 	up->ops = &serial_sprd_ops;
@@ -754,6 +756,7 @@ static int sprd_probe(struct platform_device *pdev)
 	return ret;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int sprd_suspend(struct device *dev)
 {
 	struct sprd_uart_port *sup = dev_get_drvdata(dev);
@@ -771,6 +774,7 @@ static int sprd_resume(struct device *dev)
 
 	return 0;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(sprd_pm_ops, sprd_suspend, sprd_resume);
 

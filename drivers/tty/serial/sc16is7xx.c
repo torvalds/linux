@@ -829,16 +829,32 @@ static void sc16is7xx_set_termios(struct uart_port *port,
 }
 
 static int sc16is7xx_config_rs485(struct uart_port *port,
-				   struct serial_rs485 *rs485)
+				  struct serial_rs485 *rs485)
 {
-	if (port->rs485.flags & SER_RS485_ENABLED)
-		sc16is7xx_port_update(port, SC16IS7XX_EFCR_REG,
-				      SC16IS7XX_EFCR_AUTO_RS485_BIT,
-				      SC16IS7XX_EFCR_AUTO_RS485_BIT);
-	else
-		sc16is7xx_port_update(port, SC16IS7XX_EFCR_REG,
-				      SC16IS7XX_EFCR_AUTO_RS485_BIT,
-				      0);
+	const u32 mask = SC16IS7XX_EFCR_AUTO_RS485_BIT |
+			 SC16IS7XX_EFCR_RTS_INVERT_BIT;
+	u32 efcr = 0;
+
+	if (rs485->flags & SER_RS485_ENABLED) {
+		bool rts_during_rx, rts_during_tx;
+
+		rts_during_rx = rs485->flags & SER_RS485_RTS_AFTER_SEND;
+		rts_during_tx = rs485->flags & SER_RS485_RTS_ON_SEND;
+
+		efcr |= SC16IS7XX_EFCR_AUTO_RS485_BIT;
+
+		if (!rts_during_rx && rts_during_tx)
+			/* default */;
+		else if (rts_during_rx && !rts_during_tx)
+			efcr |= SC16IS7XX_EFCR_RTS_INVERT_BIT;
+		else
+			dev_err(port->dev,
+				"unsupported RTS signalling on_send:%d after_send:%d - exactly one of RS485 RTS flags should be set\n",
+				rts_during_tx, rts_during_rx);
+	}
+
+	sc16is7xx_port_update(port, SC16IS7XX_EFCR_REG, mask, efcr);
+
 	port->rs485 = *rs485;
 
 	return 0;
@@ -903,9 +919,11 @@ static void sc16is7xx_shutdown(struct uart_port *port)
 	/* Disable all interrupts */
 	sc16is7xx_port_write(port, SC16IS7XX_IER_REG, 0);
 	/* Disable TX/RX */
-	sc16is7xx_port_write(port, SC16IS7XX_EFCR_REG,
-			     SC16IS7XX_EFCR_RXDISABLE_BIT |
-			     SC16IS7XX_EFCR_TXDISABLE_BIT);
+	sc16is7xx_port_update(port, SC16IS7XX_EFCR_REG,
+			      SC16IS7XX_EFCR_RXDISABLE_BIT |
+			      SC16IS7XX_EFCR_TXDISABLE_BIT,
+			      SC16IS7XX_EFCR_RXDISABLE_BIT |
+			      SC16IS7XX_EFCR_TXDISABLE_BIT);
 
 	sc16is7xx_power(port, 0);
 }
@@ -1048,6 +1066,7 @@ static int sc16is7xx_probe(struct device *dev,
 		else
 			return PTR_ERR(s->clk);
 	} else {
+		clk_prepare_enable(s->clk);
 		freq = clk_get_rate(s->clk);
 	}
 
@@ -1119,6 +1138,9 @@ static int sc16is7xx_probe(struct device *dev,
 					IRQF_ONESHOT | flags, dev_name(dev), s);
 	if (!ret)
 		return 0;
+
+	for (i = 0; i < s->uart.nr; i++)
+		uart_remove_one_port(&s->uart, &s->p[i].port);
 
 	mutex_destroy(&s->mutex);
 

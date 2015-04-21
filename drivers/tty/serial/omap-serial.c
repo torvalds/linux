@@ -1654,11 +1654,6 @@ static int serial_omap_probe(struct platform_device *pdev)
 	up->port.type = PORT_OMAP;
 	up->port.iotype = UPIO_MEM;
 	up->port.irq = uartirq;
-	up->wakeirq = wakeirq;
-	if (!up->wakeirq)
-		dev_info(up->port.dev, "no wakeirq for uart%d\n",
-			 up->port.line);
-
 	up->port.regshift = 2;
 	up->port.fifosize = 64;
 	up->port.ops = &serial_omap_pops;
@@ -1681,6 +1676,11 @@ static int serial_omap_probe(struct platform_device *pdev)
 		ret = -ENXIO;
 		goto err_port_line;
 	}
+
+	up->wakeirq = wakeirq;
+	if (!up->wakeirq)
+		dev_info(up->port.dev, "no wakeirq for uart%d\n",
+			 up->port.line);
 
 	ret = serial_omap_probe_rs485(up, pdev->dev.of_node);
 	if (ret < 0)
