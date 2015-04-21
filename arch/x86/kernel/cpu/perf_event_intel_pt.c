@@ -187,15 +187,6 @@ static bool pt_event_valid(struct perf_event *event)
  * These all are cpu affine and operate on a local PT
  */
 
-static bool pt_is_running(void)
-{
-	u64 ctl;
-
-	rdmsrl(MSR_IA32_RTIT_CTL, ctl);
-
-	return !!(ctl & RTIT_CTL_TRACEEN);
-}
-
 static void pt_config(struct perf_event *event)
 {
 	u64 reg;
@@ -933,7 +924,7 @@ static void pt_event_start(struct perf_event *event, int mode)
 	struct pt *pt = this_cpu_ptr(&pt_ctx);
 	struct pt_buffer *buf = perf_get_aux(&pt->handle);
 
-	if (pt_is_running() || !buf || pt_buffer_is_full(buf, pt)) {
+	if (!buf || pt_buffer_is_full(buf, pt)) {
 		event->hw.state = PERF_HES_STOPPED;
 		return;
 	}
