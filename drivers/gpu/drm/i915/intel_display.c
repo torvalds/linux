@@ -9710,6 +9710,41 @@ mode_fits_in_fbdev(struct drm_device *dev,
 #endif
 }
 
+static int intel_modeset_setup_plane_state(struct drm_atomic_state *state,
+					   struct drm_crtc *crtc,
+					   struct drm_display_mode *mode,
+					   struct drm_framebuffer *fb,
+					   int x, int y)
+{
+	struct drm_plane_state *plane_state;
+	int hdisplay, vdisplay;
+	int ret;
+
+	plane_state = drm_atomic_get_plane_state(state, crtc->primary);
+	if (IS_ERR(plane_state))
+		return PTR_ERR(plane_state);
+
+	if (mode)
+		drm_crtc_get_hv_timing(mode, &hdisplay, &vdisplay);
+	else
+		hdisplay = vdisplay = 0;
+
+	ret = drm_atomic_set_crtc_for_plane(plane_state, fb ? crtc : NULL);
+	if (ret)
+		return ret;
+	drm_atomic_set_fb_for_plane(plane_state, fb);
+	plane_state->crtc_x = 0;
+	plane_state->crtc_y = 0;
+	plane_state->crtc_w = hdisplay;
+	plane_state->crtc_h = vdisplay;
+	plane_state->src_x = x << 16;
+	plane_state->src_y = y << 16;
+	plane_state->src_w = hdisplay << 16;
+	plane_state->src_h = vdisplay << 16;
+
+	return 0;
+}
+
 bool intel_get_load_detect_pipe(struct drm_connector *connector,
 				struct drm_display_mode *mode,
 				struct intel_load_detect_pipe *old,
@@ -9852,6 +9887,10 @@ retry:
 		goto fail;
 	}
 
+	ret = intel_modeset_setup_plane_state(state, crtc, mode, fb, 0, 0);
+	if (ret)
+		goto fail;
+
 	if (intel_set_mode(crtc, mode, 0, 0, fb, state)) {
 		DRM_DEBUG_KMS("failed to set mode on load-detect pipe\n");
 		if (old->release_fb)
@@ -9891,6 +9930,7 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 	struct drm_atomic_state *state;
 	struct drm_connector_state *connector_state;
 	struct intel_crtc_state *crtc_state;
+	int ret;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s], [ENCODER:%d:%s]\n",
 		      connector->base.id, connector->name,
@@ -9919,6 +9959,11 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 		connector_state->crtc = NULL;
 
 		crtc_state->base.enable = false;
+
+		ret = intel_modeset_setup_plane_state(state, crtc, NULL, NULL,
+						      0, 0);
+		if (ret)
+			goto fail;
 
 		intel_set_mode(crtc, NULL, 0, 0, NULL, state);
 
@@ -12270,6 +12315,8 @@ static int __intel_set_mode(struct drm_crtc *modeset_crtc,
 	struct intel_crtc *intel_crtc;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
+	struct drm_plane *plane;
+	struct drm_plane_state *plane_state;
 	int ret = 0;
 	int i;
 
@@ -12321,20 +12368,24 @@ static int __intel_set_mode(struct drm_crtc *modeset_crtc,
 
 	modeset_update_crtc_power_domains(state);
 
-	if (pipe_config->base.enable && needs_modeset(&pipe_config->base)) {
-		struct drm_plane *primary;
-		int vdisplay, hdisplay;
+	for_each_plane_in_state(state, plane, plane_state, i) {
+		if (WARN_ON(plane != modeset_crtc->primary))
+			continue;
 
-		intel_crtc = to_intel_crtc(modeset_crtc);
-		primary = intel_crtc->base.primary;
+		/* Primary plane is disabled in intel_crtc_disable() */
+		if (!pipe_config->base.enable)
+			continue;
 
-		drm_crtc_get_hv_timing(mode, &hdisplay, &vdisplay);
-
-		ret = drm_plane_helper_update(primary, &intel_crtc->base,
-					      fb, 0, 0,
-					      hdisplay, vdisplay,
-					      x << 16, y << 16,
-					      hdisplay << 16, vdisplay << 16);
+		ret = drm_plane_helper_update(plane, plane_state->crtc,
+					      plane_state->fb,
+					      plane_state->crtc_x,
+					      plane_state->crtc_y,
+					      plane_state->crtc_w,
+					      plane_state->crtc_h,
+					      plane_state->src_x,
+					      plane_state->src_y,
+					      plane_state->src_w,
+					      plane_state->src_h);
 		WARN_ON(ret != 0);
 	}
 
@@ -12459,6 +12510,9 @@ void intel_crtc_restore_mode(struct drm_crtc *crtc)
 
 		crtc_state->base.enable = intel_crtc->new_enabled;
 	}
+
+	intel_modeset_setup_plane_state(state, crtc, &crtc->mode,
+					crtc->primary->fb, crtc->x, crtc->y);
 
 	intel_set_mode(crtc, &crtc->mode, crtc->x, crtc->y, crtc->primary->fb,
 		       state);
@@ -12831,6 +12885,11 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 	state->acquire_ctx = dev->mode_config.acquire_ctx;
 
 	ret = intel_modeset_stage_output_state(dev, set, state);
+	if (ret)
+		goto fail;
+
+	ret = intel_modeset_setup_plane_state(state, set->crtc, set->mode,
+					      set->fb, set->x, set->y);
 	if (ret)
 		goto fail;
 
