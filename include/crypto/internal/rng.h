@@ -26,4 +26,10 @@ static inline void *crypto_rng_ctx(struct crypto_rng *tfm)
 	return crypto_tfm_ctx(&tfm->base);
 }
 
+static inline void crypto_rng_set_entropy(struct crypto_rng *tfm,
+					  const u8 *data, unsigned int len)
+{
+	crypto_rng_alg(tfm)->set_ent(tfm, data, len);
+}
+
 #endif
