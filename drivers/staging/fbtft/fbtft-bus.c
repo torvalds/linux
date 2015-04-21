@@ -111,7 +111,7 @@ void fbtft_write_reg8_bus9(struct fbtft_par *par, int len, ...)
 	ret = par->fbtftops.write(par, par->buf, (len + pad) * sizeof(u16));
 	if (ret < 0) {
 		dev_err(par->info->device,
-			"%s: write() failed and returned %d\n", __func__, ret);
+			"write() failed and returned %d\n", ret);
 		return;
 	}
 }

@@ -139,9 +139,13 @@ nvkm_devobj_info(struct nvkm_object *object, void *data, u32 size)
 
 	args->v0.chipset  = device->chipset;
 	args->v0.revision = device->chiprev;
-	if (pfb)  args->v0.ram_size = args->v0.ram_user = pfb->ram->size;
-	else      args->v0.ram_size = args->v0.ram_user = 0;
-	if (imem) args->v0.ram_user = args->v0.ram_user - imem->reserved;
+	if (pfb && pfb->ram)
+		args->v0.ram_size = args->v0.ram_user = pfb->ram->size;
+	else
+		args->v0.ram_size = args->v0.ram_user = 0;
+	if (imem && args->v0.ram_size > 0)
+		args->v0.ram_user = args->v0.ram_user - imem->reserved;
+
 	return 0;
 }
 
@@ -340,11 +344,13 @@ nvkm_devobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 
 		/* switch mmio to cpu's native endianness */
 #ifndef __BIG_ENDIAN
-		if (ioread32_native(map + 0x000004) != 0x00000000)
+		if (ioread32_native(map + 0x000004) != 0x00000000) {
 #else
-		if (ioread32_native(map + 0x000004) == 0x00000000)
+		if (ioread32_native(map + 0x000004) == 0x00000000) {
 #endif
 			iowrite32_native(0x01000001, map + 0x000004);
+			ioread32_native(map);
+		}
 
 		/* read boot0 and strapping information */
 		boot0 = ioread32_native(map + 0x000000);

@@ -188,7 +188,7 @@ u32 r600_dpm_get_vrefresh(struct radeon_device *rdev)
 		list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 			radeon_crtc = to_radeon_crtc(crtc);
 			if (crtc->enabled && radeon_crtc->enabled && radeon_crtc->hw_mode.clock) {
-				vrefresh = radeon_crtc->hw_mode.vrefresh;
+				vrefresh = drm_mode_vrefresh(&radeon_crtc->hw_mode);
 				break;
 			}
 		}

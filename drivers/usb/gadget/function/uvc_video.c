@@ -21,6 +21,7 @@
 
 #include "uvc.h"
 #include "uvc_queue.h"
+#include "uvc_video.h"
 
 /* --------------------------------------------------------------------------
  * Video codecs

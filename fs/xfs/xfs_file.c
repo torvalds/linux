@@ -38,7 +38,6 @@
 #include "xfs_icache.h"
 #include "xfs_pnfs.h"
 
-#include <linux/aio.h>
 #include <linux/dcache.h>
 #include <linux/falloc.h>
 #include <linux/pagevec.h>
@@ -280,7 +279,7 @@ xfs_file_read_iter(
 
 	XFS_STATS_INC(xs_read_calls);
 
-	if (unlikely(file->f_flags & O_DIRECT))
+	if (unlikely(iocb->ki_flags & IOCB_DIRECT))
 		ioflags |= XFS_IO_ISDIRECT;
 	if (file->f_mode & FMODE_NOCMTIME)
 		ioflags |= XFS_IO_INVIS;
@@ -397,7 +396,8 @@ STATIC int				/* error (positive) */
 xfs_zero_last_block(
 	struct xfs_inode	*ip,
 	xfs_fsize_t		offset,
-	xfs_fsize_t		isize)
+	xfs_fsize_t		isize,
+	bool			*did_zeroing)
 {
 	struct xfs_mount	*mp = ip->i_mount;
 	xfs_fileoff_t		last_fsb = XFS_B_TO_FSBT(mp, isize);
@@ -425,6 +425,7 @@ xfs_zero_last_block(
 	zero_len = mp->m_sb.sb_blocksize - zero_offset;
 	if (isize + zero_len > offset)
 		zero_len = offset - isize;
+	*did_zeroing = true;
 	return xfs_iozero(ip, isize, zero_len);
 }
 
@@ -443,7 +444,8 @@ int					/* error (positive) */
 xfs_zero_eof(
 	struct xfs_inode	*ip,
 	xfs_off_t		offset,		/* starting I/O offset */
-	xfs_fsize_t		isize)		/* current inode size */
+	xfs_fsize_t		isize,		/* current inode size */
+	bool			*did_zeroing)
 {
 	struct xfs_mount	*mp = ip->i_mount;
 	xfs_fileoff_t		start_zero_fsb;
@@ -465,7 +467,7 @@ xfs_zero_eof(
 	 * We only zero a part of that block so it is handled specially.
 	 */
 	if (XFS_B_FSB_OFFSET(mp, isize) != 0) {
-		error = xfs_zero_last_block(ip, offset, isize);
+		error = xfs_zero_last_block(ip, offset, isize, did_zeroing);
 		if (error)
 			return error;
 	}
@@ -525,6 +527,7 @@ xfs_zero_eof(
 		if (error)
 			return error;
 
+		*did_zeroing = true;
 		start_zero_fsb = imap.br_startoff + imap.br_blockcount;
 		ASSERT(start_zero_fsb <= (end_zero_fsb + 1));
 	}
@@ -541,18 +544,19 @@ xfs_zero_eof(
  */
 STATIC ssize_t
 xfs_file_aio_write_checks(
-	struct file		*file,
-	loff_t			*pos,
-	size_t			*count,
+	struct kiocb		*iocb,
+	struct iov_iter		*from,
 	int			*iolock)
 {
+	struct file		*file = iocb->ki_filp;
 	struct inode		*inode = file->f_mapping->host;
 	struct xfs_inode	*ip = XFS_I(inode);
-	int			error = 0;
+	ssize_t			error = 0;
+	size_t			count = iov_iter_count(from);
 
 restart:
-	error = generic_write_checks(file, pos, count, S_ISBLK(inode->i_mode));
-	if (error)
+	error = generic_write_checks(iocb, from);
+	if (error <= 0)
 		return error;
 
 	error = xfs_break_layouts(inode, iolock);
@@ -566,14 +570,17 @@ restart:
 	 * iolock shared, we need to update it to exclusive which implies
 	 * having to redo all checks before.
 	 */
-	if (*pos > i_size_read(inode)) {
+	if (iocb->ki_pos > i_size_read(inode)) {
+		bool	zero = false;
+
 		if (*iolock == XFS_IOLOCK_SHARED) {
 			xfs_rw_iunlock(ip, *iolock);
 			*iolock = XFS_IOLOCK_EXCL;
 			xfs_rw_ilock(ip, *iolock);
+			iov_iter_reexpand(from, count);
 			goto restart;
 		}
-		error = xfs_zero_eof(ip, *pos, i_size_read(inode));
+		error = xfs_zero_eof(ip, iocb->ki_pos, i_size_read(inode), &zero);
 		if (error)
 			return error;
 	}
@@ -673,10 +680,11 @@ xfs_file_dio_aio_write(
 		xfs_rw_ilock(ip, iolock);
 	}
 
-	ret = xfs_file_aio_write_checks(file, &pos, &count, &iolock);
+	ret = xfs_file_aio_write_checks(iocb, from, &iolock);
 	if (ret)
 		goto out;
-	iov_iter_truncate(from, count);
+	count = iov_iter_count(from);
+	pos = iocb->ki_pos;
 
 	if (mapping->nrpages) {
 		ret = filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
@@ -729,24 +737,22 @@ xfs_file_buffered_aio_write(
 	ssize_t			ret;
 	int			enospc = 0;
 	int			iolock = XFS_IOLOCK_EXCL;
-	loff_t			pos = iocb->ki_pos;
-	size_t			count = iov_iter_count(from);
 
 	xfs_rw_ilock(ip, iolock);
 
-	ret = xfs_file_aio_write_checks(file, &pos, &count, &iolock);
+	ret = xfs_file_aio_write_checks(iocb, from, &iolock);
 	if (ret)
 		goto out;
 
-	iov_iter_truncate(from, count);
 	/* We can write back this queue in page reclaim */
 	current->backing_dev_info = inode_to_bdi(inode);
 
 write_retry:
-	trace_xfs_file_buffered_write(ip, count, iocb->ki_pos, 0);
-	ret = generic_perform_write(file, from, pos);
+	trace_xfs_file_buffered_write(ip, iov_iter_count(from),
+				      iocb->ki_pos, 0);
+	ret = generic_perform_write(file, from, iocb->ki_pos);
 	if (likely(ret >= 0))
-		iocb->ki_pos = pos + ret;
+		iocb->ki_pos += ret;
 
 	/*
 	 * If we hit a space limit, try to free up some lingering preallocated
@@ -798,7 +804,7 @@ xfs_file_write_iter(
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
 		return -EIO;
 
-	if (unlikely(file->f_flags & O_DIRECT))
+	if (unlikely(iocb->ki_flags & IOCB_DIRECT))
 		ret = xfs_file_dio_aio_write(iocb, from);
 	else
 		ret = xfs_file_buffered_aio_write(iocb, from);
@@ -1381,8 +1387,6 @@ xfs_file_llseek(
 
 const struct file_operations xfs_file_operations = {
 	.llseek		= xfs_file_llseek,
-	.read		= new_sync_read,
-	.write		= new_sync_write,
 	.read_iter	= xfs_file_read_iter,
 	.write_iter	= xfs_file_write_iter,
 	.splice_read	= xfs_file_splice_read,

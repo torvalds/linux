@@ -17,7 +17,7 @@
 #include "mn88473_priv.h"
 
 static int mn88473_get_tune_settings(struct dvb_frontend *fe,
-	struct dvb_frontend_tune_settings *s)
+				     struct dvb_frontend_tune_settings *s)
 {
 	s->min_delay_ms = 1000;
 	return 0;
@@ -34,10 +34,14 @@ static int mn88473_set_frontend(struct dvb_frontend *fe)
 	u8 delivery_system_val, if_val[3], bw_val[7];
 
 	dev_dbg(&client->dev,
-			"delivery_system=%u modulation=%u frequency=%u bandwidth_hz=%u symbol_rate=%u inversion=%d stream_id=%d\n",
-			c->delivery_system, c->modulation,
-			c->frequency, c->bandwidth_hz, c->symbol_rate,
-			c->inversion, c->stream_id);
+		"delivery_system=%u modulation=%u frequency=%u bandwidth_hz=%u symbol_rate=%u inversion=%d stream_id=%d\n",
+		c->delivery_system,
+		c->modulation,
+		c->frequency,
+		c->bandwidth_hz,
+		c->symbol_rate,
+		c->inversion,
+		c->stream_id);
 
 	if (!dev->warm) {
 		ret = -EAGAIN;
@@ -264,7 +268,7 @@ static int mn88473_init(struct dvb_frontend *fe)
 	}
 
 	dev_info(&client->dev, "downloading firmware from file '%s'\n",
-			fw_file);
+		 fw_file);
 
 	ret = regmap_write(dev->regmap[0], 0xf5, 0x03);
 	if (ret)
@@ -274,13 +278,13 @@ static int mn88473_init(struct dvb_frontend *fe)
 			remaining -= (dev->i2c_wr_max - 1)) {
 		len = remaining;
 		if (len > (dev->i2c_wr_max - 1))
-			len = (dev->i2c_wr_max - 1);
+			len = dev->i2c_wr_max - 1;
 
 		ret = regmap_bulk_write(dev->regmap[0], 0xf6,
-				&fw->data[fw->size - remaining], len);
+					&fw->data[fw->size - remaining], len);
 		if (ret) {
 			dev_err(&client->dev, "firmware download failed=%d\n",
-					ret);
+				ret);
 			goto err;
 		}
 	}
@@ -376,7 +380,7 @@ static struct dvb_frontend_ops mn88473_ops = {
 };
 
 static int mn88473_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+			 const struct i2c_device_id *id)
 {
 	struct mn88473_config *config = client->dev.platform_data;
 	struct mn88473_dev *dev;

@@ -16,6 +16,8 @@
  * published by the Free Software Foundation.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/bcd.h>
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -399,21 +401,21 @@ ds1685_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	 * of this RTC chip.  We check for it anyways in case support is
 	 * added in the future.
 	 */
-	if (unlikely((seconds >= 0xc0) && (seconds <= 0xff)))
+	if (unlikely(seconds >= 0xc0))
 		alrm->time.tm_sec = -1;
 	else
 		alrm->time.tm_sec = ds1685_rtc_bcd2bin(rtc, seconds,
 						       RTC_SECS_BCD_MASK,
 						       RTC_SECS_BIN_MASK);
 
-	if (unlikely((minutes >= 0xc0) && (minutes <= 0xff)))
+	if (unlikely(minutes >= 0xc0))
 		alrm->time.tm_min = -1;
 	else
 		alrm->time.tm_min = ds1685_rtc_bcd2bin(rtc, minutes,
 						       RTC_MINS_BCD_MASK,
 						       RTC_MINS_BIN_MASK);
 
-	if (unlikely((hours >= 0xc0) && (hours <= 0xff)))
+	if (unlikely(hours >= 0xc0))
 		alrm->time.tm_hour = -1;
 	else
 		alrm->time.tm_hour = ds1685_rtc_bcd2bin(rtc, hours,
@@ -472,13 +474,13 @@ ds1685_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	 * field, and we only support four fields.  We put the support
 	 * here anyways for the future.
 	 */
-	if (unlikely((seconds >= 0xc0) && (seconds <= 0xff)))
+	if (unlikely(seconds >= 0xc0))
 		seconds = 0xff;
 
-	if (unlikely((minutes >= 0xc0) && (minutes <= 0xff)))
+	if (unlikely(minutes >= 0xc0))
 		minutes = 0xff;
 
-	if (unlikely((hours >= 0xc0) && (hours <= 0xff)))
+	if (unlikely(hours >= 0xc0))
 		hours = 0xff;
 
 	alrm->time.tm_mon	= -1;
@@ -528,7 +530,6 @@ ds1685_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 /* ----------------------------------------------------------------------- */
 /* /dev/rtcX Interface functions */
 
-#ifdef CONFIG_RTC_INTF_DEV
 /**
  * ds1685_rtc_alarm_irq_enable - replaces ioctl() RTC_AIE on/off.
  * @dev: pointer to device structure.
@@ -557,7 +558,6 @@ ds1685_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 
 	return 0;
 }
-#endif
 /* ----------------------------------------------------------------------- */
 
 
@@ -801,7 +801,7 @@ ds1685_rtc_proc(struct device *dev, struct seq_file *seq)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct ds1685_priv *rtc = platform_get_drvdata(pdev);
 	u8 ctrla, ctrlb, ctrlc, ctrld, ctrl4a, ctrl4b, ssn[8];
-	char *model = '\0';
+	char *model;
 #ifdef CONFIG_RTC_DS1685_PROC_REGS
 	char bits[NUM_REGS][(NUM_BITS * NUM_SPACES) + NUM_BITS + 1];
 #endif
@@ -1612,7 +1612,7 @@ ds1685_rtc_sysfs_time_regs_show(struct device *dev,
 		ds1685_rtc_sysfs_time_regs_lookup(attr->attr.name, false);
 
 	/* Make sure we actually matched something. */
-	if (!bcd_reg_info && !bin_reg_info)
+	if (!bcd_reg_info || !bin_reg_info)
 		return -EINVAL;
 
 	/* bcd_reg_info->reg == bin_reg_info->reg. */
@@ -1650,7 +1650,7 @@ ds1685_rtc_sysfs_time_regs_store(struct device *dev,
 		return -EINVAL;
 
 	/* Make sure we actually matched something. */
-	if (!bcd_reg_info && !bin_reg_info)
+	if (!bcd_reg_info || !bin_reg_info)
 		return -EINVAL;
 
 	/* Check for a valid range. */
@@ -2141,7 +2141,6 @@ ds1685_rtc_remove(struct platform_device *pdev)
 static struct platform_driver ds1685_rtc_driver = {
 	.driver		= {
 		.name	= "rtc-ds1685",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ds1685_rtc_probe,
 	.remove		= ds1685_rtc_remove,
@@ -2177,7 +2176,7 @@ module_exit(ds1685_rtc_exit);
  * ds1685_rtc_poweroff - uses the RTC chip to power the system off.
  * @pdev: pointer to platform_device structure.
  */
-extern void __noreturn
+void __noreturn
 ds1685_rtc_poweroff(struct platform_device *pdev)
 {
 	u8 ctrla, ctrl4a, ctrl4b;
@@ -2185,7 +2184,7 @@ ds1685_rtc_poweroff(struct platform_device *pdev)
 
 	/* Check for valid RTC data, else, spin forever. */
 	if (unlikely(!pdev)) {
-		pr_emerg("rtc-ds1685: platform device data not available, spinning forever ...\n");
+		pr_emerg("platform device data not available, spinning forever ...\n");
 		unreachable();
 	} else {
 		/* Get the rtc data. */

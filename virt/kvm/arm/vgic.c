@@ -31,6 +31,9 @@
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_arm.h>
 #include <asm/kvm_mmu.h>
+#include <trace/events/kvm.h>
+#include <asm/kvm.h>
+#include <kvm/iodev.h>
 
 /*
  * How the whole thing works (courtesy of Christoffer Dall):
@@ -263,6 +266,13 @@ static int vgic_irq_is_queued(struct kvm_vcpu *vcpu, int irq)
 	return vgic_bitmap_get_irq_val(&dist->irq_queued, vcpu->vcpu_id, irq);
 }
 
+static int vgic_irq_is_active(struct kvm_vcpu *vcpu, int irq)
+{
+	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
+
+	return vgic_bitmap_get_irq_val(&dist->irq_active, vcpu->vcpu_id, irq);
+}
+
 static void vgic_irq_set_queued(struct kvm_vcpu *vcpu, int irq)
 {
 	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
@@ -275,6 +285,20 @@ static void vgic_irq_clear_queued(struct kvm_vcpu *vcpu, int irq)
 	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
 
 	vgic_bitmap_set_irq_val(&dist->irq_queued, vcpu->vcpu_id, irq, 0);
+}
+
+static void vgic_irq_set_active(struct kvm_vcpu *vcpu, int irq)
+{
+	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
+
+	vgic_bitmap_set_irq_val(&dist->irq_active, vcpu->vcpu_id, irq, 1);
+}
+
+static void vgic_irq_clear_active(struct kvm_vcpu *vcpu, int irq)
+{
+	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
+
+	vgic_bitmap_set_irq_val(&dist->irq_active, vcpu->vcpu_id, irq, 0);
 }
 
 static int vgic_dist_irq_get_level(struct kvm_vcpu *vcpu, int irq)
@@ -520,6 +544,44 @@ bool vgic_handle_clear_pending_reg(struct kvm *kvm,
 	return false;
 }
 
+bool vgic_handle_set_active_reg(struct kvm *kvm,
+				struct kvm_exit_mmio *mmio,
+				phys_addr_t offset, int vcpu_id)
+{
+	u32 *reg;
+	struct vgic_dist *dist = &kvm->arch.vgic;
+
+	reg = vgic_bitmap_get_reg(&dist->irq_active, vcpu_id, offset);
+	vgic_reg_access(mmio, reg, offset,
+			ACCESS_READ_VALUE | ACCESS_WRITE_SETBIT);
+
+	if (mmio->is_write) {
+		vgic_update_state(kvm);
+		return true;
+	}
+
+	return false;
+}
+
+bool vgic_handle_clear_active_reg(struct kvm *kvm,
+				  struct kvm_exit_mmio *mmio,
+				  phys_addr_t offset, int vcpu_id)
+{
+	u32 *reg;
+	struct vgic_dist *dist = &kvm->arch.vgic;
+
+	reg = vgic_bitmap_get_reg(&dist->irq_active, vcpu_id, offset);
+	vgic_reg_access(mmio, reg, offset,
+			ACCESS_READ_VALUE | ACCESS_WRITE_CLEARBIT);
+
+	if (mmio->is_write) {
+		vgic_update_state(kvm);
+		return true;
+	}
+
+	return false;
+}
+
 static u32 vgic_cfg_expand(u16 val)
 {
 	u32 res = 0;
@@ -588,16 +650,12 @@ bool vgic_handle_cfg_reg(u32 *reg, struct kvm_exit_mmio *mmio,
 }
 
 /**
- * vgic_unqueue_irqs - move pending IRQs from LRs to the distributor
+ * vgic_unqueue_irqs - move pending/active IRQs from LRs to the distributor
  * @vgic_cpu: Pointer to the vgic_cpu struct holding the LRs
  *
- * Move any pending IRQs that have already been assigned to LRs back to the
+ * Move any IRQs that have already been assigned to LRs back to the
  * emulated distributor state so that the complete emulated state can be read
  * from the main emulation structures without investigating the LRs.
- *
- * Note that IRQs in the active state in the LRs get their pending state moved
- * to the distributor but the active state stays in the LRs, because we don't
- * track the active state on the distributor side.
  */
 void vgic_unqueue_irqs(struct kvm_vcpu *vcpu)
 {
@@ -613,12 +671,22 @@ void vgic_unqueue_irqs(struct kvm_vcpu *vcpu)
 		 * 01: pending
 		 * 10: active
 		 * 11: pending and active
-		 *
-		 * If the LR holds only an active interrupt (not pending) then
-		 * just leave it alone.
 		 */
-		if ((lr.state & LR_STATE_MASK) == LR_STATE_ACTIVE)
-			continue;
+		BUG_ON(!(lr.state & LR_STATE_MASK));
+
+		/* Reestablish SGI source for pending and active IRQs */
+		if (lr.irq < VGIC_NR_SGIS)
+			add_sgi_source(vcpu, lr.irq, lr.source);
+
+		/*
+		 * If the LR holds an active (10) or a pending and active (11)
+		 * interrupt then move the active state to the
+		 * distributor tracking bit.
+		 */
+		if (lr.state & LR_STATE_ACTIVE) {
+			vgic_irq_set_active(vcpu, lr.irq);
+			lr.state &= ~LR_STATE_ACTIVE;
+		}
 
 		/*
 		 * Reestablish the pending state on the distributor and the
@@ -626,21 +694,19 @@ void vgic_unqueue_irqs(struct kvm_vcpu *vcpu)
 		 * is fine, then we are only setting a few bits that were
 		 * already set.
 		 */
-		vgic_dist_irq_set_pending(vcpu, lr.irq);
-		if (lr.irq < VGIC_NR_SGIS)
-			add_sgi_source(vcpu, lr.irq, lr.source);
-		lr.state &= ~LR_STATE_PENDING;
+		if (lr.state & LR_STATE_PENDING) {
+			vgic_dist_irq_set_pending(vcpu, lr.irq);
+			lr.state &= ~LR_STATE_PENDING;
+		}
+
 		vgic_set_lr(vcpu, i, lr);
 
 		/*
-		 * If there's no state left on the LR (it could still be
-		 * active), then the LR does not hold any useful info and can
-		 * be marked as free for other use.
+		 * Mark the LR as free for other use.
 		 */
-		if (!(lr.state & LR_STATE_MASK)) {
-			vgic_retire_lr(i, lr.irq, vcpu);
-			vgic_irq_clear_queued(vcpu, lr.irq);
-		}
+		BUG_ON(lr.state & LR_STATE_MASK);
+		vgic_retire_lr(i, lr.irq, vcpu);
+		vgic_irq_clear_queued(vcpu, lr.irq);
 
 		/* Finally update the VGIC state. */
 		vgic_update_state(vcpu->kvm);
@@ -648,24 +714,21 @@ void vgic_unqueue_irqs(struct kvm_vcpu *vcpu)
 }
 
 const
-struct kvm_mmio_range *vgic_find_range(const struct kvm_mmio_range *ranges,
-				       struct kvm_exit_mmio *mmio,
-				       phys_addr_t offset)
+struct vgic_io_range *vgic_find_range(const struct vgic_io_range *ranges,
+				      int len, gpa_t offset)
 {
-	const struct kvm_mmio_range *r = ranges;
-
-	while (r->len) {
-		if (offset >= r->base &&
-		    (offset + mmio->len) <= (r->base + r->len))
-			return r;
-		r++;
+	while (ranges->len) {
+		if (offset >= ranges->base &&
+		    (offset + len) <= (ranges->base + ranges->len))
+			return ranges;
+		ranges++;
 	}
 
 	return NULL;
 }
 
 static bool vgic_validate_access(const struct vgic_dist *dist,
-				 const struct kvm_mmio_range *range,
+				 const struct vgic_io_range *range,
 				 unsigned long offset)
 {
 	int irq;
@@ -693,9 +756,8 @@ static bool vgic_validate_access(const struct vgic_dist *dist,
 static bool call_range_handler(struct kvm_vcpu *vcpu,
 			       struct kvm_exit_mmio *mmio,
 			       unsigned long offset,
-			       const struct kvm_mmio_range *range)
+			       const struct vgic_io_range *range)
 {
-	u32 *data32 = (void *)mmio->data;
 	struct kvm_exit_mmio mmio32;
 	bool ret;
 
@@ -712,96 +774,177 @@ static bool call_range_handler(struct kvm_vcpu *vcpu,
 	mmio32.private = mmio->private;
 
 	mmio32.phys_addr = mmio->phys_addr + 4;
-	if (mmio->is_write)
-		*(u32 *)mmio32.data = data32[1];
+	mmio32.data = &((u32 *)mmio->data)[1];
 	ret = range->handle_mmio(vcpu, &mmio32, offset + 4);
-	if (!mmio->is_write)
-		data32[1] = *(u32 *)mmio32.data;
 
 	mmio32.phys_addr = mmio->phys_addr;
-	if (mmio->is_write)
-		*(u32 *)mmio32.data = data32[0];
+	mmio32.data = &((u32 *)mmio->data)[0];
 	ret |= range->handle_mmio(vcpu, &mmio32, offset);
-	if (!mmio->is_write)
-		data32[0] = *(u32 *)mmio32.data;
 
 	return ret;
 }
 
 /**
- * vgic_handle_mmio_range - handle an in-kernel MMIO access
+ * vgic_handle_mmio_access - handle an in-kernel MMIO access
+ * This is called by the read/write KVM IO device wrappers below.
  * @vcpu:	pointer to the vcpu performing the access
- * @run:	pointer to the kvm_run structure
- * @mmio:	pointer to the data describing the access
- * @ranges:	array of MMIO ranges in a given region
- * @mmio_base:	base address of that region
+ * @this:	pointer to the KVM IO device in charge
+ * @addr:	guest physical address of the access
+ * @len:	size of the access
+ * @val:	pointer to the data region
+ * @is_write:	read or write access
  *
  * returns true if the MMIO access could be performed
  */
-bool vgic_handle_mmio_range(struct kvm_vcpu *vcpu, struct kvm_run *run,
-			    struct kvm_exit_mmio *mmio,
-			    const struct kvm_mmio_range *ranges,
-			    unsigned long mmio_base)
+static int vgic_handle_mmio_access(struct kvm_vcpu *vcpu,
+				   struct kvm_io_device *this, gpa_t addr,
+				   int len, void *val, bool is_write)
 {
-	const struct kvm_mmio_range *range;
 	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
+	struct vgic_io_device *iodev = container_of(this,
+						    struct vgic_io_device, dev);
+	struct kvm_run *run = vcpu->run;
+	const struct vgic_io_range *range;
+	struct kvm_exit_mmio mmio;
 	bool updated_state;
-	unsigned long offset;
+	gpa_t offset;
 
-	offset = mmio->phys_addr - mmio_base;
-	range = vgic_find_range(ranges, mmio, offset);
+	offset = addr - iodev->addr;
+	range = vgic_find_range(iodev->reg_ranges, len, offset);
 	if (unlikely(!range || !range->handle_mmio)) {
-		pr_warn("Unhandled access %d %08llx %d\n",
-			mmio->is_write, mmio->phys_addr, mmio->len);
-		return false;
+		pr_warn("Unhandled access %d %08llx %d\n", is_write, addr, len);
+		return -ENXIO;
 	}
 
-	spin_lock(&vcpu->kvm->arch.vgic.lock);
+	mmio.phys_addr = addr;
+	mmio.len = len;
+	mmio.is_write = is_write;
+	mmio.data = val;
+	mmio.private = iodev->redist_vcpu;
+
+	spin_lock(&dist->lock);
 	offset -= range->base;
 	if (vgic_validate_access(dist, range, offset)) {
-		updated_state = call_range_handler(vcpu, mmio, offset, range);
+		updated_state = call_range_handler(vcpu, &mmio, offset, range);
 	} else {
-		if (!mmio->is_write)
-			memset(mmio->data, 0, mmio->len);
+		if (!is_write)
+			memset(val, 0, len);
 		updated_state = false;
 	}
-	spin_unlock(&vcpu->kvm->arch.vgic.lock);
-	kvm_prepare_mmio(run, mmio);
+	spin_unlock(&dist->lock);
+	run->mmio.is_write	= is_write;
+	run->mmio.len		= len;
+	run->mmio.phys_addr	= addr;
+	memcpy(run->mmio.data, val, len);
+
 	kvm_handle_mmio_return(vcpu, run);
 
 	if (updated_state)
 		vgic_kick_vcpus(vcpu->kvm);
 
-	return true;
+	return 0;
 }
 
-/**
- * vgic_handle_mmio - handle an in-kernel MMIO access for the GIC emulation
- * @vcpu:      pointer to the vcpu performing the access
- * @run:       pointer to the kvm_run structure
- * @mmio:      pointer to the data describing the access
- *
- * returns true if the MMIO access has been performed in kernel space,
- * and false if it needs to be emulated in user space.
- * Calls the actual handling routine for the selected VGIC model.
- */
-bool vgic_handle_mmio(struct kvm_vcpu *vcpu, struct kvm_run *run,
-		      struct kvm_exit_mmio *mmio)
+static int vgic_handle_mmio_read(struct kvm_vcpu *vcpu,
+				 struct kvm_io_device *this,
+				 gpa_t addr, int len, void *val)
 {
-	if (!irqchip_in_kernel(vcpu->kvm))
-		return false;
+	return vgic_handle_mmio_access(vcpu, this, addr, len, val, false);
+}
 
-	/*
-	 * This will currently call either vgic_v2_handle_mmio() or
-	 * vgic_v3_handle_mmio(), which in turn will call
-	 * vgic_handle_mmio_range() defined above.
-	 */
-	return vcpu->kvm->arch.vgic.vm_ops.handle_mmio(vcpu, run, mmio);
+static int vgic_handle_mmio_write(struct kvm_vcpu *vcpu,
+				  struct kvm_io_device *this,
+				  gpa_t addr, int len, const void *val)
+{
+	return vgic_handle_mmio_access(vcpu, this, addr, len, (void *)val,
+				       true);
+}
+
+struct kvm_io_device_ops vgic_io_ops = {
+	.read	= vgic_handle_mmio_read,
+	.write	= vgic_handle_mmio_write,
+};
+
+/**
+ * vgic_register_kvm_io_dev - register VGIC register frame on the KVM I/O bus
+ * @kvm:            The VM structure pointer
+ * @base:           The (guest) base address for the register frame
+ * @len:            Length of the register frame window
+ * @ranges:         Describing the handler functions for each register
+ * @redist_vcpu_id: The VCPU ID to pass on to the handlers on call
+ * @iodev:          Points to memory to be passed on to the handler
+ *
+ * @iodev stores the parameters of this function to be usable by the handler
+ * respectively the dispatcher function (since the KVM I/O bus framework lacks
+ * an opaque parameter). Initialization is done in this function, but the
+ * reference should be valid and unique for the whole VGIC lifetime.
+ * If the register frame is not mapped for a specific VCPU, pass -1 to
+ * @redist_vcpu_id.
+ */
+int vgic_register_kvm_io_dev(struct kvm *kvm, gpa_t base, int len,
+			     const struct vgic_io_range *ranges,
+			     int redist_vcpu_id,
+			     struct vgic_io_device *iodev)
+{
+	struct kvm_vcpu *vcpu = NULL;
+	int ret;
+
+	if (redist_vcpu_id >= 0)
+		vcpu = kvm_get_vcpu(kvm, redist_vcpu_id);
+
+	iodev->addr		= base;
+	iodev->len		= len;
+	iodev->reg_ranges	= ranges;
+	iodev->redist_vcpu	= vcpu;
+
+	kvm_iodevice_init(&iodev->dev, &vgic_io_ops);
+
+	mutex_lock(&kvm->slots_lock);
+
+	ret = kvm_io_bus_register_dev(kvm, KVM_MMIO_BUS, base, len,
+				      &iodev->dev);
+	mutex_unlock(&kvm->slots_lock);
+
+	/* Mark the iodev as invalid if registration fails. */
+	if (ret)
+		iodev->dev.ops = NULL;
+
+	return ret;
 }
 
 static int vgic_nr_shared_irqs(struct vgic_dist *dist)
 {
 	return dist->nr_irqs - VGIC_NR_PRIVATE_IRQS;
+}
+
+static int compute_active_for_cpu(struct kvm_vcpu *vcpu)
+{
+	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
+	unsigned long *active, *enabled, *act_percpu, *act_shared;
+	unsigned long active_private, active_shared;
+	int nr_shared = vgic_nr_shared_irqs(dist);
+	int vcpu_id;
+
+	vcpu_id = vcpu->vcpu_id;
+	act_percpu = vcpu->arch.vgic_cpu.active_percpu;
+	act_shared = vcpu->arch.vgic_cpu.active_shared;
+
+	active = vgic_bitmap_get_cpu_map(&dist->irq_active, vcpu_id);
+	enabled = vgic_bitmap_get_cpu_map(&dist->irq_enabled, vcpu_id);
+	bitmap_and(act_percpu, active, enabled, VGIC_NR_PRIVATE_IRQS);
+
+	active = vgic_bitmap_get_shared_map(&dist->irq_active);
+	enabled = vgic_bitmap_get_shared_map(&dist->irq_enabled);
+	bitmap_and(act_shared, active, enabled, nr_shared);
+	bitmap_and(act_shared, act_shared,
+		   vgic_bitmap_get_shared_map(&dist->irq_spi_target[vcpu_id]),
+		   nr_shared);
+
+	active_private = find_first_bit(act_percpu, VGIC_NR_PRIVATE_IRQS);
+	active_shared = find_first_bit(act_shared, nr_shared);
+
+	return (active_private < VGIC_NR_PRIVATE_IRQS ||
+		active_shared < nr_shared);
 }
 
 static int compute_pending_for_cpu(struct kvm_vcpu *vcpu)
@@ -835,7 +978,7 @@ static int compute_pending_for_cpu(struct kvm_vcpu *vcpu)
 
 /*
  * Update the interrupt state and determine which CPUs have pending
- * interrupts. Must be called with distributor lock held.
+ * or active interrupts. Must be called with distributor lock held.
  */
 void vgic_update_state(struct kvm *kvm)
 {
@@ -849,10 +992,13 @@ void vgic_update_state(struct kvm *kvm)
 	}
 
 	kvm_for_each_vcpu(c, vcpu, kvm) {
-		if (compute_pending_for_cpu(vcpu)) {
-			pr_debug("CPU%d has pending interrupts\n", c);
+		if (compute_pending_for_cpu(vcpu))
 			set_bit(c, dist->irq_pending_on_cpu);
-		}
+
+		if (compute_active_for_cpu(vcpu))
+			set_bit(c, dist->irq_active_on_cpu);
+		else
+			clear_bit(c, dist->irq_active_on_cpu);
 	}
 }
 
@@ -881,6 +1027,11 @@ static inline u64 vgic_get_elrsr(struct kvm_vcpu *vcpu)
 static inline u64 vgic_get_eisr(struct kvm_vcpu *vcpu)
 {
 	return vgic_ops->get_eisr(vcpu);
+}
+
+static inline void vgic_clear_eisr(struct kvm_vcpu *vcpu)
+{
+	vgic_ops->clear_eisr(vcpu);
 }
 
 static inline u32 vgic_get_interrupt_status(struct kvm_vcpu *vcpu)
@@ -922,6 +1073,7 @@ static void vgic_retire_lr(int lr_nr, int irq, struct kvm_vcpu *vcpu)
 	vgic_set_lr(vcpu, lr_nr, vlr);
 	clear_bit(lr_nr, vgic_cpu->lr_used);
 	vgic_cpu->vgic_irq_lr_map[irq] = LR_EMPTY;
+	vgic_sync_lr_elrsr(vcpu, lr_nr, vlr);
 }
 
 /*
@@ -947,6 +1099,26 @@ static void vgic_retire_disabled_irqs(struct kvm_vcpu *vcpu)
 				vgic_irq_clear_queued(vcpu, vlr.irq);
 		}
 	}
+}
+
+static void vgic_queue_irq_to_lr(struct kvm_vcpu *vcpu, int irq,
+				 int lr_nr, struct vgic_lr vlr)
+{
+	if (vgic_irq_is_active(vcpu, irq)) {
+		vlr.state |= LR_STATE_ACTIVE;
+		kvm_debug("Set active, clear distributor: 0x%x\n", vlr.state);
+		vgic_irq_clear_active(vcpu, irq);
+		vgic_update_state(vcpu->kvm);
+	} else if (vgic_dist_irq_is_pending(vcpu, irq)) {
+		vlr.state |= LR_STATE_PENDING;
+		kvm_debug("Set pending: 0x%x\n", vlr.state);
+	}
+
+	if (!vgic_irq_is_edge(vcpu, irq))
+		vlr.state |= LR_EOI_INT;
+
+	vgic_set_lr(vcpu, lr_nr, vlr);
+	vgic_sync_lr_elrsr(vcpu, lr_nr, vlr);
 }
 
 /*
@@ -976,8 +1148,7 @@ bool vgic_queue_irq(struct kvm_vcpu *vcpu, u8 sgi_source_id, int irq)
 		if (vlr.source == sgi_source_id) {
 			kvm_debug("LR%d piggyback for IRQ%d\n", lr, vlr.irq);
 			BUG_ON(!test_bit(lr, vgic_cpu->lr_used));
-			vlr.state |= LR_STATE_PENDING;
-			vgic_set_lr(vcpu, lr, vlr);
+			vgic_queue_irq_to_lr(vcpu, irq, lr, vlr);
 			return true;
 		}
 	}
@@ -994,11 +1165,8 @@ bool vgic_queue_irq(struct kvm_vcpu *vcpu, u8 sgi_source_id, int irq)
 
 	vlr.irq = irq;
 	vlr.source = sgi_source_id;
-	vlr.state = LR_STATE_PENDING;
-	if (!vgic_irq_is_edge(vcpu, irq))
-		vlr.state |= LR_EOI_INT;
-
-	vgic_set_lr(vcpu, lr, vlr);
+	vlr.state = 0;
+	vgic_queue_irq_to_lr(vcpu, irq, lr, vlr);
 
 	return true;
 }
@@ -1030,38 +1198,48 @@ static void __kvm_vgic_flush_hwstate(struct kvm_vcpu *vcpu)
 {
 	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
 	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
+	unsigned long *pa_percpu, *pa_shared;
 	int i, vcpu_id;
 	int overflow = 0;
+	int nr_shared = vgic_nr_shared_irqs(dist);
 
 	vcpu_id = vcpu->vcpu_id;
 
+	pa_percpu = vcpu->arch.vgic_cpu.pend_act_percpu;
+	pa_shared = vcpu->arch.vgic_cpu.pend_act_shared;
+
+	bitmap_or(pa_percpu, vgic_cpu->pending_percpu, vgic_cpu->active_percpu,
+		  VGIC_NR_PRIVATE_IRQS);
+	bitmap_or(pa_shared, vgic_cpu->pending_shared, vgic_cpu->active_shared,
+		  nr_shared);
 	/*
 	 * We may not have any pending interrupt, or the interrupts
 	 * may have been serviced from another vcpu. In all cases,
 	 * move along.
 	 */
-	if (!kvm_vgic_vcpu_pending_irq(vcpu)) {
-		pr_debug("CPU%d has no pending interrupt\n", vcpu_id);
+	if (!kvm_vgic_vcpu_pending_irq(vcpu) && !kvm_vgic_vcpu_active_irq(vcpu))
 		goto epilog;
-	}
 
 	/* SGIs */
-	for_each_set_bit(i, vgic_cpu->pending_percpu, VGIC_NR_SGIS) {
+	for_each_set_bit(i, pa_percpu, VGIC_NR_SGIS) {
 		if (!queue_sgi(vcpu, i))
 			overflow = 1;
 	}
 
 	/* PPIs */
-	for_each_set_bit_from(i, vgic_cpu->pending_percpu, VGIC_NR_PRIVATE_IRQS) {
+	for_each_set_bit_from(i, pa_percpu, VGIC_NR_PRIVATE_IRQS) {
 		if (!vgic_queue_hwirq(vcpu, i))
 			overflow = 1;
 	}
 
 	/* SPIs */
-	for_each_set_bit(i, vgic_cpu->pending_shared, vgic_nr_shared_irqs(dist)) {
+	for_each_set_bit(i, pa_shared, nr_shared) {
 		if (!vgic_queue_hwirq(vcpu, i + VGIC_NR_PRIVATE_IRQS))
 			overflow = 1;
 	}
+
+
+
 
 epilog:
 	if (overflow) {
@@ -1081,7 +1259,9 @@ epilog:
 static bool vgic_process_maintenance(struct kvm_vcpu *vcpu)
 {
 	u32 status = vgic_get_interrupt_status(vcpu);
+	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
 	bool level_pending = false;
+	struct kvm *kvm = vcpu->kvm;
 
 	kvm_debug("STATUS = %08x\n", status);
 
@@ -1098,6 +1278,7 @@ static bool vgic_process_maintenance(struct kvm_vcpu *vcpu)
 			struct vgic_lr vlr = vgic_get_lr(vcpu, lr);
 			WARN_ON(vgic_irq_is_edge(vcpu, vlr.irq));
 
+			spin_lock(&dist->lock);
 			vgic_irq_clear_queued(vcpu, vlr.irq);
 			WARN_ON(vlr.state & LR_STATE_MASK);
 			vlr.state = 0;
@@ -1116,6 +1297,17 @@ static bool vgic_process_maintenance(struct kvm_vcpu *vcpu)
 			 */
 			vgic_dist_irq_clear_soft_pend(vcpu, vlr.irq);
 
+			/*
+			 * kvm_notify_acked_irq calls kvm_set_irq()
+			 * to reset the IRQ level. Need to release the
+			 * lock for kvm_set_irq to grab it.
+			 */
+			spin_unlock(&dist->lock);
+
+			kvm_notify_acked_irq(kvm, 0,
+					     vlr.irq - VGIC_NR_PRIVATE_IRQS);
+			spin_lock(&dist->lock);
+
 			/* Any additional pending interrupt? */
 			if (vgic_dist_irq_get_level(vcpu, vlr.irq)) {
 				vgic_cpu_irq_set(vcpu, vlr.irq);
@@ -1124,6 +1316,8 @@ static bool vgic_process_maintenance(struct kvm_vcpu *vcpu)
 				vgic_dist_irq_clear_pending(vcpu, vlr.irq);
 				vgic_cpu_irq_clear(vcpu, vlr.irq);
 			}
+
+			spin_unlock(&dist->lock);
 
 			/*
 			 * Despite being EOIed, the LR may not have
@@ -1136,13 +1330,18 @@ static bool vgic_process_maintenance(struct kvm_vcpu *vcpu)
 	if (status & INT_STATUS_UNDERFLOW)
 		vgic_disable_underflow(vcpu);
 
+	/*
+	 * In the next iterations of the vcpu loop, if we sync the vgic state
+	 * after flushing it, but before entering the guest (this happens for
+	 * pending signals and vmid rollovers), then make sure we don't pick
+	 * up any old maintenance interrupts here.
+	 */
+	vgic_clear_eisr(vcpu);
+
 	return level_pending;
 }
 
-/*
- * Sync back the VGIC state after a guest run. The distributor lock is
- * needed so we don't get preempted in the middle of the state processing.
- */
+/* Sync back the VGIC state after a guest run */
 static void __kvm_vgic_sync_hwstate(struct kvm_vcpu *vcpu)
 {
 	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
@@ -1189,14 +1388,10 @@ void kvm_vgic_flush_hwstate(struct kvm_vcpu *vcpu)
 
 void kvm_vgic_sync_hwstate(struct kvm_vcpu *vcpu)
 {
-	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
-
 	if (!irqchip_in_kernel(vcpu->kvm))
 		return;
 
-	spin_lock(&dist->lock);
 	__kvm_vgic_sync_hwstate(vcpu);
-	spin_unlock(&dist->lock);
 }
 
 int kvm_vgic_vcpu_pending_irq(struct kvm_vcpu *vcpu)
@@ -1208,6 +1403,17 @@ int kvm_vgic_vcpu_pending_irq(struct kvm_vcpu *vcpu)
 
 	return test_bit(vcpu->vcpu_id, dist->irq_pending_on_cpu);
 }
+
+int kvm_vgic_vcpu_active_irq(struct kvm_vcpu *vcpu)
+{
+	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
+
+	if (!irqchip_in_kernel(vcpu->kvm))
+		return 0;
+
+	return test_bit(vcpu->vcpu_id, dist->irq_active_on_cpu);
+}
+
 
 void vgic_kick_vcpus(struct kvm *kvm)
 {
@@ -1381,8 +1587,12 @@ void kvm_vgic_vcpu_destroy(struct kvm_vcpu *vcpu)
 	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
 
 	kfree(vgic_cpu->pending_shared);
+	kfree(vgic_cpu->active_shared);
+	kfree(vgic_cpu->pend_act_shared);
 	kfree(vgic_cpu->vgic_irq_lr_map);
 	vgic_cpu->pending_shared = NULL;
+	vgic_cpu->active_shared = NULL;
+	vgic_cpu->pend_act_shared = NULL;
 	vgic_cpu->vgic_irq_lr_map = NULL;
 }
 
@@ -1392,9 +1602,14 @@ static int vgic_vcpu_init_maps(struct kvm_vcpu *vcpu, int nr_irqs)
 
 	int sz = (nr_irqs - VGIC_NR_PRIVATE_IRQS) / 8;
 	vgic_cpu->pending_shared = kzalloc(sz, GFP_KERNEL);
+	vgic_cpu->active_shared = kzalloc(sz, GFP_KERNEL);
+	vgic_cpu->pend_act_shared = kzalloc(sz, GFP_KERNEL);
 	vgic_cpu->vgic_irq_lr_map = kmalloc(nr_irqs, GFP_KERNEL);
 
-	if (!vgic_cpu->pending_shared || !vgic_cpu->vgic_irq_lr_map) {
+	if (!vgic_cpu->pending_shared
+		|| !vgic_cpu->active_shared
+		|| !vgic_cpu->pend_act_shared
+		|| !vgic_cpu->vgic_irq_lr_map) {
 		kvm_vgic_vcpu_destroy(vcpu);
 		return -ENOMEM;
 	}
@@ -1447,10 +1662,12 @@ void kvm_vgic_destroy(struct kvm *kvm)
 	kfree(dist->irq_spi_mpidr);
 	kfree(dist->irq_spi_target);
 	kfree(dist->irq_pending_on_cpu);
+	kfree(dist->irq_active_on_cpu);
 	dist->irq_sgi_sources = NULL;
 	dist->irq_spi_cpu = NULL;
 	dist->irq_spi_target = NULL;
 	dist->irq_pending_on_cpu = NULL;
+	dist->irq_active_on_cpu = NULL;
 	dist->nr_cpus = 0;
 }
 
@@ -1486,6 +1703,7 @@ int vgic_init(struct kvm *kvm)
 	ret |= vgic_init_bitmap(&dist->irq_pending, nr_cpus, nr_irqs);
 	ret |= vgic_init_bitmap(&dist->irq_soft_pend, nr_cpus, nr_irqs);
 	ret |= vgic_init_bitmap(&dist->irq_queued, nr_cpus, nr_irqs);
+	ret |= vgic_init_bitmap(&dist->irq_active, nr_cpus, nr_irqs);
 	ret |= vgic_init_bitmap(&dist->irq_cfg, nr_cpus, nr_irqs);
 	ret |= vgic_init_bytemap(&dist->irq_priority, nr_cpus, nr_irqs);
 
@@ -1498,10 +1716,13 @@ int vgic_init(struct kvm *kvm)
 				       GFP_KERNEL);
 	dist->irq_pending_on_cpu = kzalloc(BITS_TO_LONGS(nr_cpus) * sizeof(long),
 					   GFP_KERNEL);
+	dist->irq_active_on_cpu = kzalloc(BITS_TO_LONGS(nr_cpus) * sizeof(long),
+					   GFP_KERNEL);
 	if (!dist->irq_sgi_sources ||
 	    !dist->irq_spi_cpu ||
 	    !dist->irq_spi_target ||
-	    !dist->irq_pending_on_cpu) {
+	    !dist->irq_pending_on_cpu ||
+	    !dist->irq_active_on_cpu) {
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -1583,8 +1804,10 @@ int kvm_vgic_create(struct kvm *kvm, u32 type)
 	 * emulation. So check this here again. KVM_CREATE_DEVICE does
 	 * the proper checks already.
 	 */
-	if (type == KVM_DEV_TYPE_ARM_VGIC_V2 && !vgic->can_emulate_gicv2)
-		return -ENODEV;
+	if (type == KVM_DEV_TYPE_ARM_VGIC_V2 && !vgic->can_emulate_gicv2) {
+		ret = -ENODEV;
+		goto out;
+	}
 
 	/*
 	 * Any time a vcpu is run, vcpu_load is called which tries to grab the
@@ -1827,12 +2050,9 @@ int vgic_get_common_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 	return r;
 }
 
-int vgic_has_attr_regs(const struct kvm_mmio_range *ranges, phys_addr_t offset)
+int vgic_has_attr_regs(const struct vgic_io_range *ranges, phys_addr_t offset)
 {
-	struct kvm_exit_mmio dev_attr_mmio;
-
-	dev_attr_mmio.len = 4;
-	if (vgic_find_range(ranges, &dev_attr_mmio, offset))
+	if (vgic_find_range(ranges, 4, offset))
 		return 0;
 	else
 		return -ENXIO;
@@ -1865,8 +2085,10 @@ static struct notifier_block vgic_cpu_nb = {
 };
 
 static const struct of_device_id vgic_ids[] = {
-	{ .compatible = "arm,cortex-a15-gic", .data = vgic_v2_probe, },
-	{ .compatible = "arm,gic-v3", .data = vgic_v3_probe, },
+	{ .compatible = "arm,cortex-a15-gic",	.data = vgic_v2_probe, },
+	{ .compatible = "arm,cortex-a7-gic",	.data = vgic_v2_probe, },
+	{ .compatible = "arm,gic-400",		.data = vgic_v2_probe, },
+	{ .compatible = "arm,gic-v3",		.data = vgic_v3_probe, },
 	{},
 };
 
@@ -1913,4 +2135,39 @@ int kvm_vgic_hyp_init(void)
 out_free_irq:
 	free_percpu_irq(vgic->maint_irq, kvm_get_running_vcpus());
 	return ret;
+}
+
+int kvm_irq_map_gsi(struct kvm *kvm,
+		    struct kvm_kernel_irq_routing_entry *entries,
+		    int gsi)
+{
+	return gsi;
+}
+
+int kvm_irq_map_chip_pin(struct kvm *kvm, unsigned irqchip, unsigned pin)
+{
+	return pin;
+}
+
+int kvm_set_irq(struct kvm *kvm, int irq_source_id,
+		u32 irq, int level, bool line_status)
+{
+	unsigned int spi = irq + VGIC_NR_PRIVATE_IRQS;
+
+	trace_kvm_set_irq(irq, level, irq_source_id);
+
+	BUG_ON(!vgic_initialized(kvm));
+
+	if (spi > kvm->arch.vgic.nr_irqs)
+		return -EINVAL;
+	return kvm_vgic_inject_irq(kvm, 0, spi, level);
+
+}
+
+/* MSI not implemented yet */
+int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
+		struct kvm *kvm, int irq_source_id,
+		int level, bool line_status)
+{
+	return 0;
 }

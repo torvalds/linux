@@ -1237,7 +1237,6 @@ EXPORT_SYMBOL(dasd_smalloc_request);
  */
 void dasd_kfree_request(struct dasd_ccw_req *cqr, struct dasd_device *device)
 {
-#ifdef CONFIG_64BIT
 	struct ccw1 *ccw;
 
 	/* Clear any idals used for the request. */
@@ -1245,7 +1244,6 @@ void dasd_kfree_request(struct dasd_ccw_req *cqr, struct dasd_device *device)
 	do {
 		clear_normalized_cda(ccw);
 	} while (ccw++->flags & (CCW_FLAG_CC | CCW_FLAG_DC));
-#endif
 	kfree(cqr->cpaddr);
 	kfree(cqr->data);
 	kfree(cqr);
@@ -2967,8 +2965,6 @@ enum blk_eh_timer_return dasd_times_out(struct request *req)
  */
 static int dasd_alloc_queue(struct dasd_block *block)
 {
-	int rc;
-
 	block->request_queue = blk_init_queue(do_dasd_request,
 					       &block->request_queue_lock);
 	if (block->request_queue == NULL)
@@ -2976,14 +2972,7 @@ static int dasd_alloc_queue(struct dasd_block *block)
 
 	block->request_queue->queuedata = block;
 
-	elevator_exit(block->request_queue->elevator);
-	block->request_queue->elevator = NULL;
-	mutex_lock(&block->request_queue->sysfs_lock);
-	rc = elevator_init(block->request_queue, "deadline");
-	if (rc)
-		blk_cleanup_queue(block->request_queue);
-	mutex_unlock(&block->request_queue->sysfs_lock);
-	return rc;
+	return 0;
 }
 
 /*

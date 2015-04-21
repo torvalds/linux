@@ -286,13 +286,13 @@ static void __init x86_flattree_get_config(void)
 	initial_boot_params = dt = early_memremap(initial_dtb, map_len);
 	size = of_get_flat_dt_size();
 	if (map_len < size) {
-		early_iounmap(dt, map_len);
+		early_memunmap(dt, map_len);
 		initial_boot_params = dt = early_memremap(initial_dtb, size);
 		map_len = size;
 	}
 
 	unflatten_and_copy_device_tree();
-	early_iounmap(dt, map_len);
+	early_memunmap(dt, map_len);
 }
 #else
 static inline void x86_flattree_get_config(void) { }

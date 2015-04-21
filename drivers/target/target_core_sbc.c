@@ -708,8 +708,7 @@ sbc_check_dpofua(struct se_device *dev, struct se_cmd *cmd, unsigned char *cdb)
 		}
 	}
 	if (cdb[1] & 0x8) {
-		if (!dev->dev_attrib.emulate_fua_write ||
-		    !dev->dev_attrib.emulate_write_cache) {
+		if (!dev->dev_attrib.emulate_fua_write || !se_dev_check_wce(dev)) {
 			pr_err("Got CDB: 0x%02x with FUA bit set, but device"
 			       " does not advertise support for FUA write\n",
 			       cdb[0]);

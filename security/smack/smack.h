@@ -105,6 +105,7 @@ struct task_smack {
 #define	SMK_INODE_INSTANT	0x01	/* inode is instantiated */
 #define	SMK_INODE_TRANSMUTE	0x02	/* directory is transmuting */
 #define	SMK_INODE_CHANGED	0x04	/* smack was transmuted */
+#define	SMK_INODE_IMPURE	0x08	/* involved in an impure transaction */
 
 /*
  * A label access rule.
@@ -193,6 +194,10 @@ struct smk_port_label {
 #define MAY_LOCK	0x00002000	/* Locks should be writes, but ... */
 #define MAY_BRINGUP	0x00004000	/* Report use of this rule */
 
+#define SMACK_BRINGUP_ALLOW		1	/* Allow bringup mode */
+#define SMACK_UNCONFINED_SUBJECT	2	/* Allow unconfined label */
+#define SMACK_UNCONFINED_OBJECT		3	/* Allow unconfined label */
+
 /*
  * Just to make the common cases easier to deal with
  */
@@ -254,6 +259,9 @@ extern int smack_cipso_mapped;
 extern struct smack_known *smack_net_ambient;
 extern struct smack_known *smack_onlycap;
 extern struct smack_known *smack_syslog_label;
+#ifdef CONFIG_SECURITY_SMACK_BRINGUP
+extern struct smack_known *smack_unconfined;
+#endif
 extern struct smack_known smack_cipso_option;
 extern int smack_ptrace_rule;
 

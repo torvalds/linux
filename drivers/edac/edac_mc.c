@@ -710,9 +710,10 @@ struct mem_ctl_info *edac_mc_find(int idx)
 EXPORT_SYMBOL(edac_mc_find);
 
 /**
- * edac_mc_add_mc: Insert the 'mci' structure into the mci global list and
- *                 create sysfs entries associated with mci structure
+ * edac_mc_add_mc_with_groups: Insert the 'mci' structure into the mci
+ *	global list and create sysfs entries associated with mci structure
  * @mci: pointer to the mci structure to be added to the list
+ * @groups: optional attribute groups for the driver-specific sysfs entries
  *
  * Return:
  *	0	Success
@@ -720,7 +721,8 @@ EXPORT_SYMBOL(edac_mc_find);
  */
 
 /* FIXME - should a warning be printed if no error detection? correction? */
-int edac_mc_add_mc(struct mem_ctl_info *mci)
+int edac_mc_add_mc_with_groups(struct mem_ctl_info *mci,
+			       const struct attribute_group **groups)
 {
 	int ret = -EINVAL;
 	edac_dbg(0, "\n");
@@ -771,7 +773,7 @@ int edac_mc_add_mc(struct mem_ctl_info *mci)
 
 	mci->bus = &mc_bus[mci->mc_idx];
 
-	if (edac_create_sysfs_mci_device(mci)) {
+	if (edac_create_sysfs_mci_device(mci, groups)) {
 		edac_mc_printk(mci, KERN_WARNING,
 			"failed to create sysfs device\n");
 		goto fail1;
@@ -805,7 +807,7 @@ fail0:
 	mutex_unlock(&mem_ctls_mutex);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(edac_mc_add_mc);
+EXPORT_SYMBOL_GPL(edac_mc_add_mc_with_groups);
 
 /**
  * edac_mc_del_mc: Remove sysfs entries for specified mci structure and

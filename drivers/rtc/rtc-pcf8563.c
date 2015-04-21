@@ -246,7 +246,6 @@ static int pcf8563_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 static int pcf8563_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 {
 	struct pcf8563 *pcf8563 = i2c_get_clientdata(client);
-	int err;
 	unsigned char buf[9];
 
 	dev_dbg(&client->dev, "%s: secs=%d, mins=%d, hours=%d, "
@@ -272,12 +271,8 @@ static int pcf8563_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 
 	buf[PCF8563_REG_DW] = tm->tm_wday & 0x07;
 
-	err = pcf8563_write_block_data(client, PCF8563_REG_SC,
+	return pcf8563_write_block_data(client, PCF8563_REG_SC,
 				9 - PCF8563_REG_SC, buf + PCF8563_REG_SC);
-	if (err)
-		return err;
-
-	return 0;
 }
 
 #ifdef CONFIG_RTC_INTF_DEV

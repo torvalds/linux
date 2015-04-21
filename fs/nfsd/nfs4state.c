@@ -1638,7 +1638,7 @@ __destroy_client(struct nfs4_client *clp)
 		nfs4_put_stid(&dp->dl_stid);
 	}
 	while (!list_empty(&clp->cl_revoked)) {
-		dp = list_entry(reaplist.next, struct nfs4_delegation, dl_recall_lru);
+		dp = list_entry(clp->cl_revoked.next, struct nfs4_delegation, dl_recall_lru);
 		list_del_init(&dp->dl_recall_lru);
 		nfs4_put_stid(&dp->dl_stid);
 	}
@@ -3221,7 +3221,7 @@ alloc_init_open_stateowner(unsigned int strhashval, struct nfsd4_open *open,
 	} else
 		nfs4_free_openowner(&oo->oo_owner);
 	spin_unlock(&clp->cl_lock);
-	return oo;
+	return ret;
 }
 
 static void init_open_stateid(struct nfs4_ol_stateid *stp, struct nfs4_file *fp, struct nfsd4_open *open) {
@@ -4932,20 +4932,22 @@ nfs4_transform_lock_offset(struct file_lock *lock)
 		lock->fl_end = OFFSET_MAX;
 }
 
-static void nfsd4_fl_get_owner(struct file_lock *dst, struct file_lock *src)
+static fl_owner_t
+nfsd4_fl_get_owner(fl_owner_t owner)
 {
-	struct nfs4_lockowner *lo = (struct nfs4_lockowner *)src->fl_owner;
-	dst->fl_owner = (fl_owner_t)lockowner(nfs4_get_stateowner(&lo->lo_owner));
+	struct nfs4_lockowner *lo = (struct nfs4_lockowner *)owner;
+
+	nfs4_get_stateowner(&lo->lo_owner);
+	return owner;
 }
 
-static void nfsd4_fl_put_owner(struct file_lock *fl)
+static void
+nfsd4_fl_put_owner(fl_owner_t owner)
 {
-	struct nfs4_lockowner *lo = (struct nfs4_lockowner *)fl->fl_owner;
+	struct nfs4_lockowner *lo = (struct nfs4_lockowner *)owner;
 
-	if (lo) {
+	if (lo)
 		nfs4_put_stateowner(&lo->lo_owner);
-		fl->fl_owner = NULL;
-	}
 }
 
 static const struct lock_manager_operations nfsd_posix_mng_ops  = {
@@ -5062,7 +5064,7 @@ alloc_init_lock_stateowner(unsigned int strhashval, struct nfs4_client *clp,
 	} else
 		nfs4_free_lockowner(&lo->lo_owner);
 	spin_unlock(&clp->cl_lock);
-	return lo;
+	return ret;
 }
 
 static void

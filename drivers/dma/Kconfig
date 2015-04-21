@@ -51,19 +51,6 @@ config INTEL_MIC_X100_DMA
 	  OS and tools for MIC to use with this driver are available from
 	  <http://software.intel.com/en-us/mic-developer>.
 
-config INTEL_MID_DMAC
-	tristate "Intel MID DMA support for Peripheral DMA controllers"
-	depends on PCI && X86
-	select DMA_ENGINE
-	default n
-	help
-	  Enable support for the Intel(R) MID DMA engine present
-	  in Intel MID chipsets.
-
-	  Say Y here if you have such a chipset.
-
-	  If unsure, say N.
-
 config ASYNC_TX_ENABLE_CHANNEL_SWITCH
 	bool
 

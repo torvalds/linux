@@ -58,7 +58,7 @@ To exit command mode, PSMOUSE_CMD_SETSTREAM (EA) is sent to the touchpad.
 While in command mode, register addresses can be set by first sending a
 specific command, either EC for v3 devices or F5 for v4 devices. Then the
 address is sent one nibble at a time, where each nibble is encoded as a
-command with optional data. This enoding differs slightly between the v3 and
+command with optional data. This encoding differs slightly between the v3 and
 v4 protocols.
 
 Once an address has been set, the addressed register can be read by sending
@@ -114,6 +114,9 @@ ALPS Absolute Mode - Protocol Version 2
  byte 4:  0   y6   y5   y4   y3   y2   y1   y0
  byte 5:  0   z6   z5   z4   z3   z2   z1   z0
 
+Protocol Version 2 DualPoint devices send standard PS/2 mouse packets for
+the DualPoint Stick.
+
 Dualpoint device -- interleaved packet format
 ---------------------------------------------
 
@@ -127,11 +130,16 @@ Dualpoint device -- interleaved packet format
  byte 7:    0   y6   y5   y4   y3   y2   y1   y0
  byte 8:    0   z6   z5   z4   z3   z2   z1   z0
 
+Devices which use the interleaving format normally send standard PS/2 mouse
+packets for the DualPoint Stick + ALPS Absolute Mode packets for the
+touchpad, switching to the interleaved packet format when both the stick and
+the touchpad are used at the same time.
+
 ALPS Absolute Mode - Protocol Version 3
 ---------------------------------------
 
 ALPS protocol version 3 has three different packet formats. The first two are
-associated with touchpad events, and the third is associatd with trackstick
+associated with touchpad events, and the third is associated with trackstick
 events.
 
 The first type is the touchpad position packet.

@@ -102,8 +102,7 @@ int i2o_driver_register(struct i2o_driver *drv)
 
 	for (i = 0; i2o_drivers[i]; i++)
 		if (i >= i2o_max_drivers) {
-			osm_err("too many drivers registered, increase "
-				"max_drivers\n");
+			osm_err("too many drivers registered, increase max_drivers\n");
 			spin_unlock_irqrestore(&i2o_drivers_lock, flags);
 			rc = -EFAULT;
 			goto out;
@@ -244,8 +243,8 @@ int i2o_driver_dispatch(struct i2o_controller *c, u32 m)
 	}
 
 	if (unlikely(!drv->reply)) {
-		osm_debug("%s: Reply to driver %s, but no reply function"
-			  " defined!\n", c->name, drv->name);
+		osm_debug("%s: Reply to driver %s, but no reply function defined!\n",
+			c->name, drv->name);
 		return -EIO;
 	}
 

@@ -512,7 +512,7 @@ static int synps_edac_mc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id synps_edac_match[] = {
+static const struct of_device_id synps_edac_match[] = {
 	{ .compatible = "xlnx,zynq-ddrc-a05", },
 	{ /* end of table */ }
 };

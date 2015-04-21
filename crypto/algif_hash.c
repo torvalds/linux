@@ -34,8 +34,8 @@ struct hash_ctx {
 	struct ahash_request req;
 };
 
-static int hash_sendmsg(struct kiocb *unused, struct socket *sock,
-			struct msghdr *msg, size_t ignored)
+static int hash_sendmsg(struct socket *sock, struct msghdr *msg,
+			size_t ignored)
 {
 	int limit = ALG_MAX_PAGES * PAGE_SIZE;
 	struct sock *sk = sock->sk;
@@ -56,8 +56,8 @@ static int hash_sendmsg(struct kiocb *unused, struct socket *sock,
 
 	ctx->more = 0;
 
-	while (iov_iter_count(&msg->msg_iter)) {
-		int len = iov_iter_count(&msg->msg_iter);
+	while (msg_data_left(msg)) {
+		int len = msg_data_left(msg);
 
 		if (len > limit)
 			len = limit;
@@ -139,8 +139,8 @@ unlock:
 	return err ?: size;
 }
 
-static int hash_recvmsg(struct kiocb *unused, struct socket *sock,
-			struct msghdr *msg, size_t len, int flags)
+static int hash_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
+			int flags)
 {
 	struct sock *sk = sock->sk;
 	struct alg_sock *ask = alg_sk(sk);

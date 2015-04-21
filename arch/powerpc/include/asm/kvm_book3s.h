@@ -106,10 +106,6 @@ struct kvmppc_vcpu_book3s {
 	spinlock_t mmu_lock;
 };
 
-#define CONTEXT_HOST		0
-#define CONTEXT_GUEST		1
-#define CONTEXT_GUEST_END	2
-
 #define VSID_REAL	0x07ffffffffc00000ULL
 #define VSID_BAT	0x07ffffffffb00000ULL
 #define VSID_64K	0x0800000000000000ULL

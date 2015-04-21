@@ -421,7 +421,7 @@ int topology_cpu_init(struct cpu *cpu)
 	return sysfs_create_group(&cpu->dev.kobj, &topology_cpu_attr_group);
 }
 
-const struct cpumask *cpu_thread_mask(int cpu)
+static const struct cpumask *cpu_thread_mask(int cpu)
 {
 	return &per_cpu(cpu_topology, cpu).thread_mask;
 }

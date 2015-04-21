@@ -55,6 +55,23 @@ config XEN_BALLOON_MEMORY_HOTPLUG
 
 	  In that case step 3 should be omitted.
 
+config XEN_BALLOON_MEMORY_HOTPLUG_LIMIT
+	int "Hotplugged memory limit (in GiB) for a PV guest"
+	default 512 if X86_64
+	default 4 if X86_32
+	range 0 64 if X86_32
+	depends on XEN_HAVE_PVMMU
+	depends on XEN_BALLOON_MEMORY_HOTPLUG
+	help
+	  Maxmium amount of memory (in GiB) that a PV guest can be
+	  expanded to when using memory hotplug.
+
+	  A PV guest can have more memory than this limit if is
+	  started with a larger maximum.
+
+	  This value is used to allocate enough space in internal
+	  tables needed for physical memory administration.
+
 config XEN_SCRUB_PAGES
 	bool "Scrub pages before returning them to system"
 	depends on XEN_BALLOON
@@ -252,5 +269,11 @@ config XEN_HAVE_PVMMU
 config XEN_EFI
 	def_bool y
 	depends on X86_64 && EFI
+
+config XEN_AUTO_XLATE
+	def_bool y
+	depends on ARM || ARM64 || XEN_PVHVM
+	help
+	  Support for auto-translated physmap guests.
 
 endmenu

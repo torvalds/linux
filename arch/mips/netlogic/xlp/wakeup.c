@@ -99,7 +99,7 @@ static int wait_for_cpus(int cpu, int bootcpu)
 	do {
 		notready = nlm_threads_per_core;
 		for (i = 0; i < nlm_threads_per_core; i++)
-			if (cpu_ready[cpu + i] || cpu == bootcpu)
+			if (cpu_ready[cpu + i] || (cpu + i) == bootcpu)
 				--notready;
 	} while (notready != 0 && --count > 0);
 
@@ -111,7 +111,7 @@ static void xlp_enable_secondary_cores(const cpumask_t *wakeup_mask)
 	struct nlm_soc_info *nodep;
 	uint64_t syspcibase, fusebase;
 	uint32_t syscoremask, mask, fusemask;
-	int core, n, cpu;
+	int core, n, cpu, ncores;
 
 	for (n = 0; n < NLM_NR_NODES; n++) {
 		if (n != 0) {
@@ -168,7 +168,8 @@ static void xlp_enable_secondary_cores(const cpumask_t *wakeup_mask)
 		syscoremask = (1 << hweight32(~fusemask & mask)) - 1;
 
 		pr_info("Node %d - SYS/FUSE coremask %x\n", n, syscoremask);
-		for (core = 0; core < nlm_cores_per_node(); core++) {
+		ncores = nlm_cores_per_node();
+		for (core = 0; core < ncores; core++) {
 			/* we will be on node 0 core 0 */
 			if (n == 0 && core == 0)
 				continue;
@@ -178,8 +179,7 @@ static void xlp_enable_secondary_cores(const cpumask_t *wakeup_mask)
 				continue;
 
 			/* see if at least the first hw thread is enabled */
-			cpu = (n * nlm_cores_per_node() + core)
-						* NLM_THREADS_PER_CORE;
+			cpu = (n * ncores + core) * NLM_THREADS_PER_CORE;
 			if (!cpumask_test_cpu(cpu, wakeup_mask))
 				continue;
 

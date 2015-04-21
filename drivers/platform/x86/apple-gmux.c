@@ -624,19 +624,7 @@ static struct pnp_driver gmux_pnp_driver = {
 	},
 };
 
-static int __init apple_gmux_init(void)
-{
-	return pnp_register_driver(&gmux_pnp_driver);
-}
-
-static void __exit apple_gmux_exit(void)
-{
-	pnp_unregister_driver(&gmux_pnp_driver);
-}
-
-module_init(apple_gmux_init);
-module_exit(apple_gmux_exit);
-
+module_pnp_driver(gmux_pnp_driver);
 MODULE_AUTHOR("Seth Forshee <seth.forshee@canonical.com>");
 MODULE_DESCRIPTION("Apple Gmux Driver");
 MODULE_LICENSE("GPL");

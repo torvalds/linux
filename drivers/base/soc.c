@@ -43,8 +43,8 @@ struct device *soc_device_to_device(struct soc_device *soc_dev)
 }
 
 static umode_t soc_attribute_mode(struct kobject *kobj,
-                                 struct attribute *attr,
-                                 int index)
+				struct attribute *attr,
+				int index)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct soc_device *soc_dev = container_of(dev, struct soc_device, dev);
@@ -60,7 +60,7 @@ static umode_t soc_attribute_mode(struct kobject *kobj,
 		return attr->mode;
 	if ((attr == &dev_attr_soc_id.attr)
 	    && (soc_dev->attr->soc_id != NULL))
-	        return attr->mode;
+		return attr->mode;
 
 	/* Unknown or unfilled attribute. */
 	return 0;
@@ -117,7 +117,7 @@ struct soc_device *soc_device_register(struct soc_device_attribute *soc_dev_attr
 
 	soc_dev = kzalloc(sizeof(*soc_dev), GFP_KERNEL);
 	if (!soc_dev) {
-	        ret = -ENOMEM;
+		ret = -ENOMEM;
 		goto out1;
 	}
 
@@ -135,7 +135,7 @@ struct soc_device *soc_device_register(struct soc_device_attribute *soc_dev_attr
 	} while (ret == -EAGAIN);
 
 	if (ret)
-	         goto out2;
+		goto out2;
 
 	soc_dev->attr = soc_dev_attr;
 	soc_dev->dev.bus = &soc_bus_type;

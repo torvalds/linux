@@ -98,11 +98,7 @@ void sun4v_do_mna(struct pt_regs *regs,
 void do_privop(struct pt_regs *regs);
 void do_privact(struct pt_regs *regs);
 void do_cee(struct pt_regs *regs);
-void do_cee_tl1(struct pt_regs *regs);
-void do_dae_tl1(struct pt_regs *regs);
-void do_iae_tl1(struct pt_regs *regs);
 void do_div0_tl1(struct pt_regs *regs);
-void do_fpdis_tl1(struct pt_regs *regs);
 void do_fpieee_tl1(struct pt_regs *regs);
 void do_fpother_tl1(struct pt_regs *regs);
 void do_ill_tl1(struct pt_regs *regs);

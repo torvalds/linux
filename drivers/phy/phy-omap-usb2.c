@@ -144,7 +144,6 @@ static struct phy_ops ops = {
 	.owner		= THIS_MODULE,
 };
 
-#ifdef CONFIG_OF
 static const struct usb_phy_data omap_usb2_data = {
 	.label = "omap_usb2",
 	.flags = OMAP_USB2_HAS_START_SRP | OMAP_USB2_HAS_SET_VBUS,
@@ -185,7 +184,6 @@ static const struct of_device_id omap_usb2_id_table[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, omap_usb2_id_table);
-#endif
 
 static int omap_usb2_probe(struct platform_device *pdev)
 {
@@ -200,7 +198,7 @@ static int omap_usb2_probe(struct platform_device *pdev)
 	const struct of_device_id *of_id;
 	struct usb_phy_data *phy_data;
 
-	of_id = of_match_device(of_match_ptr(omap_usb2_id_table), &pdev->dev);
+	of_id = of_match_device(omap_usb2_id_table, &pdev->dev);
 
 	if (!of_id)
 		return -EINVAL;
@@ -296,9 +294,10 @@ static int omap_usb2_probe(struct platform_device *pdev)
 			dev_warn(&pdev->dev,
 				 "found usb_otg_ss_refclk960m, please fix DTS\n");
 		}
-	} else {
-		clk_prepare(phy->optclk);
 	}
+
+	if (!IS_ERR(phy->optclk))
+		clk_prepare(phy->optclk);
 
 	usb_add_phy_dev(&phy->phy);
 
@@ -377,13 +376,13 @@ static struct platform_driver omap_usb2_driver = {
 	.driver		= {
 		.name	= "omap-usb2",
 		.pm	= DEV_PM_OPS,
-		.of_match_table = of_match_ptr(omap_usb2_id_table),
+		.of_match_table = omap_usb2_id_table,
 	},
 };
 
 module_platform_driver(omap_usb2_driver);
 
-MODULE_ALIAS("platform: omap_usb2");
+MODULE_ALIAS("platform:omap_usb2");
 MODULE_AUTHOR("Texas Instruments Inc.");
 MODULE_DESCRIPTION("OMAP USB2 phy driver");
 MODULE_LICENSE("GPL v2");

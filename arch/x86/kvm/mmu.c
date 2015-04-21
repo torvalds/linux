@@ -4465,6 +4465,79 @@ void kvm_mmu_slot_remove_write_access(struct kvm *kvm,
 		kvm_flush_remote_tlbs(kvm);
 }
 
+static bool kvm_mmu_zap_collapsible_spte(struct kvm *kvm,
+		unsigned long *rmapp)
+{
+	u64 *sptep;
+	struct rmap_iterator iter;
+	int need_tlb_flush = 0;
+	pfn_t pfn;
+	struct kvm_mmu_page *sp;
+
+	for (sptep = rmap_get_first(*rmapp, &iter); sptep;) {
+		BUG_ON(!(*sptep & PT_PRESENT_MASK));
+
+		sp = page_header(__pa(sptep));
+		pfn = spte_to_pfn(*sptep);
+
+		/*
+		 * Only EPT supported for now; otherwise, one would need to
+		 * find out efficiently whether the guest page tables are
+		 * also using huge pages.
+		 */
+		if (sp->role.direct &&
+			!kvm_is_reserved_pfn(pfn) &&
+			PageTransCompound(pfn_to_page(pfn))) {
+			drop_spte(kvm, sptep);
+			sptep = rmap_get_first(*rmapp, &iter);
+			need_tlb_flush = 1;
+		} else
+			sptep = rmap_get_next(&iter);
+	}
+
+	return need_tlb_flush;
+}
+
+void kvm_mmu_zap_collapsible_sptes(struct kvm *kvm,
+			struct kvm_memory_slot *memslot)
+{
+	bool flush = false;
+	unsigned long *rmapp;
+	unsigned long last_index, index;
+	gfn_t gfn_start, gfn_end;
+
+	spin_lock(&kvm->mmu_lock);
+
+	gfn_start = memslot->base_gfn;
+	gfn_end = memslot->base_gfn + memslot->npages - 1;
+
+	if (gfn_start >= gfn_end)
+		goto out;
+
+	rmapp = memslot->arch.rmap[0];
+	last_index = gfn_to_index(gfn_end, memslot->base_gfn,
+					PT_PAGE_TABLE_LEVEL);
+
+	for (index = 0; index <= last_index; ++index, ++rmapp) {
+		if (*rmapp)
+			flush |= kvm_mmu_zap_collapsible_spte(kvm, rmapp);
+
+		if (need_resched() || spin_needbreak(&kvm->mmu_lock)) {
+			if (flush) {
+				kvm_flush_remote_tlbs(kvm);
+				flush = false;
+			}
+			cond_resched_lock(&kvm->mmu_lock);
+		}
+	}
+
+	if (flush)
+		kvm_flush_remote_tlbs(kvm);
+
+out:
+	spin_unlock(&kvm->mmu_lock);
+}
+
 void kvm_mmu_slot_leaf_clear_dirty(struct kvm *kvm,
 				   struct kvm_memory_slot *memslot)
 {

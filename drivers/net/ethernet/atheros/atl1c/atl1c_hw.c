@@ -307,7 +307,7 @@ void atl1c_start_phy_polling(struct atl1c_hw *hw, u16 clk_sel)
 
 /*
  * atl1c_read_phy_core
- * core funtion to read register in PHY via MDIO control regsiter.
+ * core function to read register in PHY via MDIO control regsiter.
  * ext: extension register (see IEEE 802.3)
  * dev: device address (see IEEE 802.3 DEVAD, PRTAD is fixed to 0)
  * reg: reg to read
@@ -356,7 +356,7 @@ int atl1c_read_phy_core(struct atl1c_hw *hw, bool ext, u8 dev,
 
 /*
  * atl1c_write_phy_core
- * core funtion to write to register in PHY via MDIO control regsiter.
+ * core function to write to register in PHY via MDIO control register.
  * ext: extension register (see IEEE 802.3)
  * dev: device address (see IEEE 802.3 DEVAD, PRTAD is fixed to 0)
  * reg: reg to write

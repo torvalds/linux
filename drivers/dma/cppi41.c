@@ -903,6 +903,11 @@ static const struct cppi_glue_infos *get_glue_info(struct device *dev)
 	return of_id->data;
 }
 
+#define CPPI41_DMA_BUSWIDTHS	(BIT(DMA_SLAVE_BUSWIDTH_1_BYTE) | \
+				BIT(DMA_SLAVE_BUSWIDTH_2_BYTES) | \
+				BIT(DMA_SLAVE_BUSWIDTH_3_BYTES) | \
+				BIT(DMA_SLAVE_BUSWIDTH_4_BYTES))
+
 static int cppi41_dma_probe(struct platform_device *pdev)
 {
 	struct cppi41_dd *cdd;
@@ -926,6 +931,10 @@ static int cppi41_dma_probe(struct platform_device *pdev)
 	cdd->ddev.device_issue_pending = cppi41_dma_issue_pending;
 	cdd->ddev.device_prep_slave_sg = cppi41_dma_prep_slave_sg;
 	cdd->ddev.device_terminate_all = cppi41_stop_chan;
+	cdd->ddev.directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
+	cdd->ddev.src_addr_widths = CPPI41_DMA_BUSWIDTHS;
+	cdd->ddev.dst_addr_widths = CPPI41_DMA_BUSWIDTHS;
+	cdd->ddev.residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
 	cdd->ddev.dev = dev;
 	INIT_LIST_HEAD(&cdd->ddev.channels);
 	cpp41_dma_info.dma_cap = cdd->ddev.cap_mask;

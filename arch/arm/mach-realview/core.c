@@ -28,6 +28,7 @@
 #include <linux/platform_data/video-clcd-versatile.h>
 #include <linux/io.h>
 #include <linux/smsc911x.h>
+#include <linux/smc91x.h>
 #include <linux/ata_platform.h>
 #include <linux/amba/mmci.h>
 #include <linux/gfp.h>
@@ -94,6 +95,10 @@ static struct smsc911x_platform_config smsc911x_config = {
 	.phy_interface	= PHY_INTERFACE_MODE_MII,
 };
 
+static struct smc91x_platdata smc91x_platdata = {
+	.flags = SMC91X_USE_32BIT | SMC91X_NOWAIT,
+};
+
 static struct platform_device realview_eth_device = {
 	.name		= "smsc911x",
 	.id		= 0,
@@ -107,6 +112,8 @@ int realview_eth_register(const char *name, struct resource *res)
 	realview_eth_device.resource = res;
 	if (strcmp(realview_eth_device.name, "smsc911x") == 0)
 		realview_eth_device.dev.platform_data = &smsc911x_config;
+	else
+		realview_eth_device.dev.platform_data = &smc91x_platdata;
 
 	return platform_device_register(&realview_eth_device);
 }

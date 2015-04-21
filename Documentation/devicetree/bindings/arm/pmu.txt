@@ -18,11 +18,20 @@ Required properties:
 	"arm,arm11mpcore-pmu"
 	"arm,arm1176-pmu"
 	"arm,arm1136-pmu"
+	"qcom,scorpion-pmu"
+	"qcom,scorpion-mp-pmu"
 	"qcom,krait-pmu"
 - interrupts : 1 combined interrupt or 1 per core. If the interrupt is a per-cpu
                interrupt (PPI) then 1 interrupt should be specified.
 
 Optional properties:
+
+- interrupt-affinity : Valid only when using SPIs, specifies a list of phandles
+                       to CPU nodes corresponding directly to the affinity of
+		       the SPIs listed in the interrupts property.
+
+		       This property should be present when there is more than
+		       a single SPI.
 
 - qcom,no-pc-write : Indicates that this PMU doesn't support the 0xc and 0xd
                      events.

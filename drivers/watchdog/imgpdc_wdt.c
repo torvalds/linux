@@ -42,10 +42,10 @@
 #define PDC_WDT_MIN_TIMEOUT		1
 #define PDC_WDT_DEF_TIMEOUT		64
 
-static int heartbeat;
+static int heartbeat = PDC_WDT_DEF_TIMEOUT;
 module_param(heartbeat, int, 0);
-MODULE_PARM_DESC(heartbeat, "Watchdog heartbeats in seconds. "
-	"(default = " __MODULE_STRING(PDC_WDT_DEF_TIMEOUT) ")");
+MODULE_PARM_DESC(heartbeat, "Watchdog heartbeats in seconds "
+	"(default=" __MODULE_STRING(PDC_WDT_DEF_TIMEOUT) ")");
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0);
@@ -191,6 +191,7 @@ static int pdc_wdt_probe(struct platform_device *pdev)
 	pdc_wdt->wdt_dev.ops = &pdc_wdt_ops;
 	pdc_wdt->wdt_dev.max_timeout = 1 << PDC_WDT_CONFIG_DELAY_MASK;
 	pdc_wdt->wdt_dev.parent = &pdev->dev;
+	watchdog_set_drvdata(&pdc_wdt->wdt_dev, pdc_wdt);
 
 	ret = watchdog_init_timeout(&pdc_wdt->wdt_dev, heartbeat, &pdev->dev);
 	if (ret < 0) {
@@ -232,7 +233,6 @@ static int pdc_wdt_probe(struct platform_device *pdev)
 	watchdog_set_nowayout(&pdc_wdt->wdt_dev, nowayout);
 
 	platform_set_drvdata(pdev, pdc_wdt);
-	watchdog_set_drvdata(&pdc_wdt->wdt_dev, pdc_wdt);
 
 	ret = watchdog_register_device(&pdc_wdt->wdt_dev);
 	if (ret)

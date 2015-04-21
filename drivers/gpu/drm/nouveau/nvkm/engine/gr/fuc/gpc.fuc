@@ -52,6 +52,12 @@ mmio_list_base:
 #endif
 
 #ifdef INCLUDE_CODE
+#define gpc_wr32(addr,reg)                                                    /*
+*/	mov b32 $r15 reg                                                      /*
+*/	imm32($r14, addr)                                                     /*
+*/	or $r14 NV_PGRAPH_GPCX_GPCCS_MMIO_CTRL_BASE_ENABLE                    /*
+*/	call(nv_wr32)
+
 // reports an exception to the host
 //
 // In: $r15 error code (see os.h)
@@ -63,6 +69,43 @@ error:
 	nv_wr32(NV_PGRAPH_FECS_INTR_UP_SET, $r15)
 	pop $r14
 	ret
+
+#if CHIPSET >= GM107
+tpc_strand_wait:
+	push $r9
+	trace_set(T_STRTPC)
+	tpc_strand_busy:
+		nv_iord($r9, NV_PGRAPH_GPCX_GPCCS_TPC_STATUS, 0)
+		bra b32 $r9 0x0 ne #tpc_strand_busy
+	trace_clr(T_STRTPC)
+	pop $r9
+	ret
+
+#define tpc_strand_wait() call(tpc_strand_wait)
+#define tpc_strand_enable()                                                   /*
+*/	mov $r15 NV_PGRAPH_GPC0_TPCX_STRAND_CMD_ENABLE                        /*
+*/	gpc_wr32(NV_PGRAPH_GPC0_TPCX_STRAND_CMD, $r15)                        /*
+*/	tpc_strand_wait()
+#define tpc_strand_disable()                                                  /*
+*/	mov $r15 NV_PGRAPH_GPC0_TPCX_STRAND_CMD_DISABLE                       /*
+*/	gpc_wr32(NV_PGRAPH_GPC0_TPCX_STRAND_CMD, $r15)                        /*
+*/	tpc_strand_wait()
+#define tpc_strand_seek(p)                                                    /*
+*/	mov $r15 NV_PGRAPH_GPC0_TPCX_STRAND_INDEX_ALL                         /*
+*/	gpc_wr32(NV_PGRAPH_GPC0_TPCX_STRAND_INDEX, $r15)                      /*
+*/	mov $r15 p                                                            /*
+*/	gpc_wr32(NV_PGRAPH_GPC0_TPCX_STRAND_SELECT, $r15)                     /*
+*/	mov $r15 NV_PGRAPH_GPC0_TPCX_STRAND_CMD_SEEK                          /*
+*/	tpc_strand_wait()
+#define tpc_strand_info(m)                                                    /*
+*/	gpc_wr32(NV_PGRAPH_GPC0_TPCX_STRAND_CMD, $r15)                        /*
+*/	mov $r15 m                                                            /*
+*/	gpc_wr32(NV_PGRAPH_GPC0_TPCX_STRAND_DATA, $r15)                       /*
+*/	mov $r15 NV_PGRAPH_GPC0_TPCX_STRAND_CMD_GET_INFO                      /*
+*/	gpc_wr32(NV_PGRAPH_GPC0_TPCX_STRAND_CMD, $r15)                        /*
+*/	tpc_strand_wait()
+#endif
+
 
 // GPC fuc initialisation, executed by triggering ucode start, will
 // fall through to main loop after completion.
@@ -101,7 +144,7 @@ init:
 	// enable interrupts
 	bset $flags ie0
 
-	// figure out which GPC we are, and how many TPCs we have
+	// how many TPCs do we have?
 	nv_iord($r2, NV_PGRAPH_GPCX_GPCCS_UNITS, 0)
 	mov $r3 1
 	and $r2 0x1f
@@ -109,8 +152,12 @@ init:
 	sub b32 $r3 1
 	st b32 D[$r0 + #tpc_count] $r2
 	st b32 D[$r0 + #tpc_mask] $r3
+
+	// determine which GPC we are, setup (optional) mmio access offset
 	nv_iord($r2, NV_PGRAPH_GPCX_GPCCS_MYINDEX, 0)
 	st b32 D[$r0 + #gpc_id] $r2
+	shl b32 $r2 15
+	nv_iowr(NV_PGRAPH_GPCX_GPCCS_MMIO_BASE, 0, $r2)
 
 #if NV_PGRAPH_GPCX_UNK__SIZE > 0
 	// figure out which, and how many, UNKs are actually present
@@ -186,7 +233,55 @@ init:
 	// calculate size of strand context data
 	mov b32 $r15 $r2
 	call(strand_ctx_init)
+	add b32 $r2 $r15
 	add b32 $r3 $r15
+
+#if CHIPSET >= GM107
+	// calculate size of tpc strand context data
+	mov $r15 NV_PGRAPH_GPC0_TPCX_STRAND_INDEX_ALL
+	gpc_wr32(NV_PGRAPH_GPC0_TPCX_STRAND_INDEX, $r15)
+	tpc_strand_enable();
+	tpc_strand_seek(0);
+	tpc_strand_info(-1);
+
+	ld b32 $r4 D[$r0 + #tpc_count]
+	mov $r5 NV_PGRAPH_GPC0_TPC0
+	ld b32 $r6 D[$r0 + #gpc_id]
+	shl b32 $r6 15
+	add b32 $r5 $r6
+	tpc_strand_init_tpc_loop:
+		add b32 $r14 $r5 NV_TPC_STRAND_CNT
+		call(nv_rd32)
+		mov b32 $r6 $r15
+		clear b32 $r7
+		tpc_strand_init_idx_loop:
+			add b32 $r14 $r5 NV_TPC_STRAND_INDEX
+			mov b32 $r15 $r7
+			call(nv_wr32)
+			add b32 $r14 $r5 NV_TPC_STRAND_SAVE_SWBASE
+			shr b32 $r15 $r2 8
+			call(nv_wr32)
+			add b32 $r14 $r5 NV_TPC_STRAND_LOAD_SWBASE
+			shr b32 $r15 $r2 8
+			call(nv_wr32)
+			add b32 $r14 $r5 NV_TPC_STRAND_WORDS
+			call(nv_rd32)
+			shr b32 $r15 6
+			add b32 $r15 1
+			shl b32 $r15 8
+			add b32 $r2 $r15
+			add b32 $r3 $r15
+			add b32 $r7 1
+			sub b32 $r6 1
+			bra nz #tpc_strand_init_idx_loop
+		add b32 $r5 NV_PGRAPH_GPC0_TPC0__SIZE
+		sub b32 $r4 1
+		bra nz #tpc_strand_init_tpc_loop
+
+	mov $r15 NV_PGRAPH_GPC0_TPCX_STRAND_INDEX_ALL
+	gpc_wr32(NV_PGRAPH_GPC0_TPCX_STRAND_INDEX, $r15)
+	tpc_strand_disable();
+#endif
 
 	// save context size, and tell HUB we're done
 	nv_iowr(NV_PGRAPH_GPCX_GPCCS_CC_SCRATCH_VAL(1), 0, $r3)
@@ -306,6 +401,9 @@ ctx_redswitch:
 ctx_xfer:
 	// set context base address
 	nv_iowr(NV_PGRAPH_GPCX_GPCCS_MEM_BASE, 0, $r15)
+#if CHIPSET >= GM107
+	gpc_wr32(NV_PGRAPH_GPC0_TPCX_STRAND_MEM_BASE, $r15)
+#endif
 	bra not $p1 #ctx_xfer_not_load
 		call(ctx_redswitch)
 	ctx_xfer_not_load:
@@ -317,6 +415,14 @@ ctx_xfer:
 	xbit $r2 $flags $p1	// SAVE/LOAD
 	add b32 $r2 NV_PGRAPH_GPCX_GPCCS_STRAND_CMD_SAVE
 	nv_iowr(NV_PGRAPH_GPCX_GPCCS_STRAND_CMD, 0x3f, $r2)
+
+#if CHIPSET >= GM107
+	tpc_strand_enable();
+	tpc_strand_seek(0);
+	xbit $r15 $flags $p1	// SAVE/LOAD
+	add b32 $r15 NV_PGRAPH_GPC0_TPCX_STRAND_CMD_SAVE
+	gpc_wr32(NV_PGRAPH_GPC0_TPCX_STRAND_CMD, $r15)
+#endif
 
 	// mmio context
 	xbit $r10 $flags $p1	// direction
@@ -362,6 +468,9 @@ ctx_xfer:
 
 	// wait for strands to finish
 	call(strand_wait)
+#if CHIPSET >= GM107
+	tpc_strand_wait()
+#endif
 
 	// if load, or a save without a load following, do some
 	// unknown stuff that's done after finishing a block of
@@ -370,6 +479,9 @@ ctx_xfer:
 	bra not $p2 #ctx_xfer_done
 	ctx_xfer_post:
 		call(strand_post)
+#if CHIPSET >= GM107
+		tpc_strand_disable()
+#endif
 
 	// mark completion in HUB's barrier
 	ctx_xfer_done:

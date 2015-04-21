@@ -136,7 +136,8 @@ gf100_ltc_dtor(struct nvkm_object *object)
 	struct nvkm_ltc_priv *priv = (void *)object;
 
 	nvkm_mm_fini(&priv->tags);
-	nvkm_mm_free(&pfb->vram, &priv->tag_ram);
+	if (pfb->ram)
+		nvkm_mm_free(&pfb->vram, &priv->tag_ram);
 
 	nvkm_ltc_destroy(priv);
 }
@@ -148,6 +149,12 @@ gf100_ltc_init_tag_ram(struct nvkm_fb *pfb, struct nvkm_ltc_priv *priv)
 {
 	u32 tag_size, tag_margin, tag_align;
 	int ret;
+
+	/* No VRAM, no tags for now. */
+	if (!pfb->ram) {
+		priv->num_tags = 0;
+		goto mm_init;
+	}
 
 	/* tags for 1/4 of VRAM should be enough (8192/4 per GiB of VRAM) */
 	priv->num_tags = (pfb->ram->size >> 17) / 4;
@@ -183,6 +190,7 @@ gf100_ltc_init_tag_ram(struct nvkm_fb *pfb, struct nvkm_ltc_priv *priv)
 		priv->tag_base = tag_base;
 	}
 
+mm_init:
 	ret = nvkm_mm_init(&priv->tags, 0, priv->num_tags, 1);
 	return ret;
 }

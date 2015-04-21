@@ -69,7 +69,7 @@
 
 	sram1: sram@00500000 {
 		compatible = "mmio-sram";
-		reg = <0x00300000 0x4000>;
+		reg = <0x00500000 0x4000>;
 	};
 
 	ahb {
@@ -845,7 +845,7 @@
 			};
 
 			macb0: ethernet@fffbc000 {
-				compatible = "cdns,at32ap7000-macb", "cdns,macb";
+				compatible = "cdns,at91sam9260-macb", "cdns,macb";
 				reg = <0xfffbc000 0x100>;
 				interrupts = <21 IRQ_TYPE_LEVEL_HIGH 3>;
 				pinctrl-names = "default";
@@ -856,7 +856,7 @@
 			};
 
 			usb1: gadget@fff78000 {
-				compatible = "atmel,at91rm9200-udc";
+				compatible = "atmel,at91sam9263-udc";
 				reg = <0xfff78000 0x4000>;
 				interrupts = <24 IRQ_TYPE_LEVEL_HIGH 2>;
 				clocks = <&udc_clk>, <&udpck>;
@@ -905,7 +905,6 @@
 				atmel,watchdog-type = "hardware";
 				atmel,reset-type = "all";
 				atmel,dbg-halt;
-				atmel,idle-halt;
 				status = "disabled";
 			};
 

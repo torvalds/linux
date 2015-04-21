@@ -39,7 +39,6 @@
 struct ohci_at91_priv {
 	struct clk *iclk;
 	struct clk *fclk;
-	struct clk *uclk;
 	struct clk *hclk;
 	bool clocked;
 	bool wakeup;		/* Saved wake-up state for resume */
@@ -64,10 +63,8 @@ static void at91_start_clock(struct ohci_at91_priv *ohci_at91)
 {
 	if (ohci_at91->clocked)
 		return;
-	if (IS_ENABLED(CONFIG_COMMON_CLK)) {
-		clk_set_rate(ohci_at91->uclk, 48000000);
-		clk_prepare_enable(ohci_at91->uclk);
-	}
+
+	clk_set_rate(ohci_at91->fclk, 48000000);
 	clk_prepare_enable(ohci_at91->hclk);
 	clk_prepare_enable(ohci_at91->iclk);
 	clk_prepare_enable(ohci_at91->fclk);
@@ -78,11 +75,10 @@ static void at91_stop_clock(struct ohci_at91_priv *ohci_at91)
 {
 	if (!ohci_at91->clocked)
 		return;
+
 	clk_disable_unprepare(ohci_at91->fclk);
 	clk_disable_unprepare(ohci_at91->iclk);
 	clk_disable_unprepare(ohci_at91->hclk);
-	if (IS_ENABLED(CONFIG_COMMON_CLK))
-		clk_disable_unprepare(ohci_at91->uclk);
 	ohci_at91->clocked = false;
 }
 
@@ -190,14 +186,6 @@ static int usb_hcd_at91_probe(const struct hc_driver *driver,
 		dev_err(dev, "failed to get hclk\n");
 		retval = PTR_ERR(ohci_at91->hclk);
 		goto err;
-	}
-	if (IS_ENABLED(CONFIG_COMMON_CLK)) {
-		ohci_at91->uclk = devm_clk_get(dev, "usb_clk");
-		if (IS_ERR(ohci_at91->uclk)) {
-			dev_err(dev, "failed to get uclk\n");
-			retval = PTR_ERR(ohci_at91->uclk);
-			goto err;
-		}
 	}
 
 	board = hcd->self.controller->platform_data;

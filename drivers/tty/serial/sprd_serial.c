@@ -293,8 +293,10 @@ static irqreturn_t sprd_handle_irq(int irq, void *dev_id)
 
 	ims = serial_in(port, SPRD_IMSR);
 
-	if (!ims)
+	if (!ims) {
+		spin_unlock(&port->lock);
 		return IRQ_NONE;
+	}
 
 	serial_out(port, SPRD_ICLR, ~0);
 

@@ -19,7 +19,7 @@
 
 struct mmc_pwrseq_match {
 	const char *compatible;
-	int (*alloc)(struct mmc_host *host, struct device *dev);
+	struct mmc_pwrseq *(*alloc)(struct mmc_host *host, struct device *dev);
 };
 
 static struct mmc_pwrseq_match pwrseq_match[] = {
@@ -52,6 +52,7 @@ int mmc_pwrseq_alloc(struct mmc_host *host)
 	struct platform_device *pdev;
 	struct device_node *np;
 	struct mmc_pwrseq_match *match;
+	struct mmc_pwrseq *pwrseq;
 	int ret = 0;
 
 	np = of_parse_phandle(host->parent->of_node, "mmc-pwrseq", 0);
@@ -70,9 +71,14 @@ int mmc_pwrseq_alloc(struct mmc_host *host)
 		goto err;
 	}
 
-	ret = match->alloc(host, &pdev->dev);
-	if (!ret)
-		dev_info(host->parent, "allocated mmc-pwrseq\n");
+	pwrseq = match->alloc(host, &pdev->dev);
+	if (IS_ERR(pwrseq)) {
+		ret = PTR_ERR(host->pwrseq);
+		goto err;
+	}
+
+	host->pwrseq = pwrseq;
+	dev_info(host->parent, "allocated mmc-pwrseq\n");
 
 err:
 	of_node_put(np);
@@ -109,4 +115,6 @@ void mmc_pwrseq_free(struct mmc_host *host)
 
 	if (pwrseq && pwrseq->ops && pwrseq->ops->free)
 		pwrseq->ops->free(host);
+
+	host->pwrseq = NULL;
 }

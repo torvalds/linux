@@ -48,8 +48,7 @@ Description of Contents:
 	- Highmem I/O support
 	- I/O scheduler modularization
   1.2 Tuning based on high level requirements/capabilities
-	1.2.1 I/O Barriers
-	1.2.2 Request Priority/Latency
+	1.2.1 Request Priority/Latency
   1.3 Direct access/bypass to lower layers for diagnostics and special
       device operations
 	1.3.1 Pre-built commands
@@ -255,29 +254,12 @@ some control over i/o ordering.
 What kind of support exists at the generic block layer for this ?
 
 The flags and rw fields in the bio structure can be used for some tuning
-from above e.g indicating that an i/o is just a readahead request, or for
-marking  barrier requests (discussed next), or priority settings (currently
-unused). As far as user applications are concerned they would need an
-additional mechanism either via open flags or ioctls, or some other upper
-level mechanism to communicate such settings to block.
+from above e.g indicating that an i/o is just a readahead request, or priority
+settings (currently unused). As far as user applications are concerned they
+would need an additional mechanism either via open flags or ioctls, or some
+other upper level mechanism to communicate such settings to block.
 
-1.2.1 I/O Barriers
-
-There is a way to enforce strict ordering for i/os through barriers.
-All requests before a barrier point must be serviced before the barrier
-request and any other requests arriving after the barrier will not be
-serviced until after the barrier has completed. This is useful for higher
-level control on write ordering, e.g flushing a log of committed updates
-to disk before the corresponding updates themselves.
-
-A flag in the bio structure, BIO_BARRIER is used to identify a barrier i/o.
-The generic i/o scheduler would make sure that it places the barrier request and
-all other requests coming after it after all the previous requests in the
-queue. Barriers may be implemented in different ways depending on the
-driver. For more details regarding I/O barriers, please read barrier.txt
-in this directory.
-
-1.2.2 Request Priority/Latency
+1.2.1 Request Priority/Latency
 
 Todo/Under discussion:
 Arjan's proposed request priority scheme allows higher levels some broad
@@ -906,8 +888,8 @@ queue and specific I/O schedulers.  Unless stated otherwise, elevator is used
 to refer to both parts and I/O scheduler to specific I/O schedulers.
 
 Block layer implements generic dispatch queue in block/*.c.
-The generic dispatch queue is responsible for properly ordering barrier
-requests, requeueing, handling non-fs requests and all other subtleties.
+The generic dispatch queue is responsible for requeueing, handling non-fs
+requests and all other subtleties.
 
 Specific I/O schedulers are responsible for ordering normal filesystem
 requests.  They can also choose to delay certain requests to improve

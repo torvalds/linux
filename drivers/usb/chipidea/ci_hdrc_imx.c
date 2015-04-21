@@ -23,22 +23,40 @@
 #include "ci.h"
 #include "ci_hdrc_imx.h"
 
-#define CI_HDRC_IMX_IMX28_WRITE_FIX BIT(0)
-
 struct ci_hdrc_imx_platform_flag {
 	unsigned int flags;
+	bool runtime_pm;
 };
 
 static const struct ci_hdrc_imx_platform_flag imx27_usb_data = {
 };
 
 static const struct ci_hdrc_imx_platform_flag imx28_usb_data = {
-	.flags = CI_HDRC_IMX_IMX28_WRITE_FIX,
+	.flags = CI_HDRC_IMX28_WRITE_FIX |
+		CI_HDRC_TURN_VBUS_EARLY_ON,
+};
+
+static const struct ci_hdrc_imx_platform_flag imx6q_usb_data = {
+	.flags = CI_HDRC_SUPPORTS_RUNTIME_PM |
+		CI_HDRC_TURN_VBUS_EARLY_ON,
+};
+
+static const struct ci_hdrc_imx_platform_flag imx6sl_usb_data = {
+	.flags = CI_HDRC_SUPPORTS_RUNTIME_PM |
+		CI_HDRC_TURN_VBUS_EARLY_ON,
+};
+
+static const struct ci_hdrc_imx_platform_flag imx6sx_usb_data = {
+	.flags = CI_HDRC_SUPPORTS_RUNTIME_PM |
+		CI_HDRC_TURN_VBUS_EARLY_ON,
 };
 
 static const struct of_device_id ci_hdrc_imx_dt_ids[] = {
 	{ .compatible = "fsl,imx28-usb", .data = &imx28_usb_data},
 	{ .compatible = "fsl,imx27-usb", .data = &imx27_usb_data},
+	{ .compatible = "fsl,imx6q-usb", .data = &imx6q_usb_data},
+	{ .compatible = "fsl,imx6sl-usb", .data = &imx6sl_usb_data},
+	{ .compatible = "fsl,imx6sx-usb", .data = &imx6sl_usb_data},
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, ci_hdrc_imx_dt_ids);
@@ -48,6 +66,8 @@ struct ci_hdrc_imx_data {
 	struct platform_device *ci_pdev;
 	struct clk *clk;
 	struct imx_usbmisc_data *usbmisc_data;
+	bool supports_runtime_pm;
+	bool in_lpm;
 };
 
 /* Common functions shared by usbmisc drivers */
@@ -145,21 +165,18 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 	}
 
 	pdata.usb_phy = data->phy;
-
-	if (imx_platform_flag->flags & CI_HDRC_IMX_IMX28_WRITE_FIX)
-		pdata.flags |= CI_HDRC_IMX28_WRITE_FIX;
+	pdata.flags |= imx_platform_flag->flags;
+	if (pdata.flags & CI_HDRC_SUPPORTS_RUNTIME_PM)
+		data->supports_runtime_pm = true;
 
 	ret = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 	if (ret)
 		goto err_clk;
 
-	if (data->usbmisc_data) {
-		ret = imx_usbmisc_init(data->usbmisc_data);
-		if (ret) {
-			dev_err(&pdev->dev, "usbmisc init failed, ret=%d\n",
-					ret);
-			goto err_clk;
-		}
+	ret = imx_usbmisc_init(data->usbmisc_data);
+	if (ret) {
+		dev_err(&pdev->dev, "usbmisc init failed, ret=%d\n", ret);
+		goto err_clk;
 	}
 
 	data->ci_pdev = ci_hdrc_add_device(&pdev->dev,
@@ -173,19 +190,20 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	if (data->usbmisc_data) {
-		ret = imx_usbmisc_init_post(data->usbmisc_data);
-		if (ret) {
-			dev_err(&pdev->dev, "usbmisc post failed, ret=%d\n",
-					ret);
-			goto disable_device;
-		}
+	ret = imx_usbmisc_init_post(data->usbmisc_data);
+	if (ret) {
+		dev_err(&pdev->dev, "usbmisc post failed, ret=%d\n", ret);
+		goto disable_device;
 	}
 
 	platform_set_drvdata(pdev, data);
 
-	pm_runtime_no_callbacks(&pdev->dev);
-	pm_runtime_enable(&pdev->dev);
+	if (data->supports_runtime_pm) {
+		pm_runtime_set_active(&pdev->dev);
+		pm_runtime_enable(&pdev->dev);
+	}
+
+	device_set_wakeup_capable(&pdev->dev, true);
 
 	return 0;
 
@@ -200,14 +218,18 @@ static int ci_hdrc_imx_remove(struct platform_device *pdev)
 {
 	struct ci_hdrc_imx_data *data = platform_get_drvdata(pdev);
 
-	pm_runtime_disable(&pdev->dev);
+	if (data->supports_runtime_pm) {
+		pm_runtime_get_sync(&pdev->dev);
+		pm_runtime_disable(&pdev->dev);
+		pm_runtime_put_noidle(&pdev->dev);
+	}
 	ci_hdrc_remove_device(data->ci_pdev);
 	clk_disable_unprepare(data->clk);
 
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_PM
 static int imx_controller_suspend(struct device *dev)
 {
 	struct ci_hdrc_imx_data *data = dev_get_drvdata(dev);
@@ -215,6 +237,7 @@ static int imx_controller_suspend(struct device *dev)
 	dev_dbg(dev, "at %s\n", __func__);
 
 	clk_disable_unprepare(data->clk);
+	data->in_lpm = true;
 
 	return 0;
 }
@@ -222,25 +245,103 @@ static int imx_controller_suspend(struct device *dev)
 static int imx_controller_resume(struct device *dev)
 {
 	struct ci_hdrc_imx_data *data = dev_get_drvdata(dev);
+	int ret = 0;
 
 	dev_dbg(dev, "at %s\n", __func__);
 
-	return clk_prepare_enable(data->clk);
+	if (!data->in_lpm) {
+		WARN_ON(1);
+		return 0;
+	}
+
+	ret = clk_prepare_enable(data->clk);
+	if (ret)
+		return ret;
+
+	data->in_lpm = false;
+
+	ret = imx_usbmisc_set_wakeup(data->usbmisc_data, false);
+	if (ret) {
+		dev_err(dev, "usbmisc set_wakeup failed, ret=%d\n", ret);
+		goto clk_disable;
+	}
+
+	return 0;
+
+clk_disable:
+	clk_disable_unprepare(data->clk);
+	return ret;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int ci_hdrc_imx_suspend(struct device *dev)
 {
+	int ret;
+
+	struct ci_hdrc_imx_data *data = dev_get_drvdata(dev);
+
+	if (data->in_lpm)
+		/* The core's suspend doesn't run */
+		return 0;
+
+	if (device_may_wakeup(dev)) {
+		ret = imx_usbmisc_set_wakeup(data->usbmisc_data, true);
+		if (ret) {
+			dev_err(dev, "usbmisc set_wakeup failed, ret=%d\n",
+					ret);
+			return ret;
+		}
+	}
+
 	return imx_controller_suspend(dev);
 }
 
 static int ci_hdrc_imx_resume(struct device *dev)
 {
-	return imx_controller_resume(dev);
+	struct ci_hdrc_imx_data *data = dev_get_drvdata(dev);
+	int ret;
+
+	ret = imx_controller_resume(dev);
+	if (!ret && data->supports_runtime_pm) {
+		pm_runtime_disable(dev);
+		pm_runtime_set_active(dev);
+		pm_runtime_enable(dev);
+	}
+
+	return ret;
 }
 #endif /* CONFIG_PM_SLEEP */
 
+static int ci_hdrc_imx_runtime_suspend(struct device *dev)
+{
+	struct ci_hdrc_imx_data *data = dev_get_drvdata(dev);
+	int ret;
+
+	if (data->in_lpm) {
+		WARN_ON(1);
+		return 0;
+	}
+
+	ret = imx_usbmisc_set_wakeup(data->usbmisc_data, true);
+	if (ret) {
+		dev_err(dev, "usbmisc set_wakeup failed, ret=%d\n", ret);
+		return ret;
+	}
+
+	return imx_controller_suspend(dev);
+}
+
+static int ci_hdrc_imx_runtime_resume(struct device *dev)
+{
+	return imx_controller_resume(dev);
+}
+
+#endif /* CONFIG_PM */
+
 static const struct dev_pm_ops ci_hdrc_imx_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(ci_hdrc_imx_suspend, ci_hdrc_imx_resume)
+	SET_RUNTIME_PM_OPS(ci_hdrc_imx_runtime_suspend,
+			ci_hdrc_imx_runtime_resume, NULL)
 };
 static struct platform_driver ci_hdrc_imx_driver = {
 	.probe = ci_hdrc_imx_probe,

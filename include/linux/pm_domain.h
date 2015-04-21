@@ -127,7 +127,7 @@ static inline struct generic_pm_domain_data *dev_gpd_data(struct device *dev)
 	return to_gpd_data(dev->power.subsys_data->domain_data);
 }
 
-extern struct generic_pm_domain *dev_to_genpd(struct device *dev);
+extern struct generic_pm_domain *pm_genpd_lookup_dev(struct device *dev);
 extern int __pm_genpd_add_device(struct generic_pm_domain *genpd,
 				 struct device *dev,
 				 struct gpd_timing_data *td);
@@ -163,9 +163,9 @@ static inline struct generic_pm_domain_data *dev_gpd_data(struct device *dev)
 {
 	return ERR_PTR(-ENOSYS);
 }
-static inline struct generic_pm_domain *dev_to_genpd(struct device *dev)
+static inline struct generic_pm_domain *pm_genpd_lookup_dev(struct device *dev)
 {
-	return ERR_PTR(-ENOSYS);
+	return NULL;
 }
 static inline int __pm_genpd_add_device(struct generic_pm_domain *genpd,
 					struct device *dev,

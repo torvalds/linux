@@ -158,7 +158,7 @@ done:
 #define HEADER_SIZE (BARE_ADDRESS_SIZE + 1)
 
 static ssize_t
-radeon_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
+radeon_dp_aux_transfer_atom(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 {
 	struct radeon_i2c_chan *chan =
 		container_of(aux, struct radeon_i2c_chan, aux);
@@ -178,6 +178,13 @@ radeon_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 	switch (msg->request & ~DP_AUX_I2C_MOT) {
 	case DP_AUX_NATIVE_WRITE:
 	case DP_AUX_I2C_WRITE:
+		/* The atom implementation only supports writes with a max payload of
+		 * 12 bytes since it uses 4 bits for the total count (header + payload)
+		 * in the parameter space.  The atom interface supports 16 byte
+		 * payloads for reads. The hw itself supports up to 16 bytes of payload.
+		 */
+		if (WARN_ON_ONCE(msg->size > 12))
+			return -E2BIG;
 		/* tx_size needs to be 4 even for bare address packets since the atom
 		 * table needs the info in tx_buf[3].
 		 */
@@ -219,11 +226,20 @@ radeon_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 
 void radeon_dp_aux_init(struct radeon_connector *radeon_connector)
 {
+	struct drm_device *dev = radeon_connector->base.dev;
+	struct radeon_device *rdev = dev->dev_private;
 	int ret;
 
 	radeon_connector->ddc_bus->rec.hpd = radeon_connector->hpd.hpd;
 	radeon_connector->ddc_bus->aux.dev = radeon_connector->base.kdev;
-	radeon_connector->ddc_bus->aux.transfer = radeon_dp_aux_transfer;
+	if (ASIC_IS_DCE5(rdev)) {
+		if (radeon_auxch)
+			radeon_connector->ddc_bus->aux.transfer = radeon_dp_aux_transfer_native;
+		else
+			radeon_connector->ddc_bus->aux.transfer = radeon_dp_aux_transfer_atom;
+	} else {
+		radeon_connector->ddc_bus->aux.transfer = radeon_dp_aux_transfer_atom;
+	}
 
 	ret = drm_dp_aux_register(&radeon_connector->ddc_bus->aux);
 	if (!ret)
@@ -294,8 +310,8 @@ static int dp_get_max_dp_pix_clock(int link_rate,
 
 /***** radeon specific DP functions *****/
 
-static int radeon_dp_get_max_link_rate(struct drm_connector *connector,
-				       u8 dpcd[DP_DPCD_SIZE])
+int radeon_dp_get_max_link_rate(struct drm_connector *connector,
+				u8 dpcd[DP_DPCD_SIZE])
 {
 	int max_link_rate;
 

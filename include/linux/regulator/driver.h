@@ -98,6 +98,7 @@ struct regulator_linear_range {
  *	REGULATOR_STATUS value (or negative errno)
  * @get_optimum_mode: Get the most efficient operating mode for the regulator
  *                    when running with the specified parameters.
+ * @set_load: Set the load for the regulator.
  *
  * @set_bypass: Set the regulator in bypass mode.
  * @get_bypass: Get the regulator bypass mode state.
@@ -167,6 +168,8 @@ struct regulator_ops {
 	/* get most efficient regulator operating mode for load */
 	unsigned int (*get_optimum_mode) (struct regulator_dev *, int input_uV,
 					  int output_uV, int load_uA);
+	/* set the load on the regulator */
+	int (*set_load)(struct regulator_dev *, int load_uA);
 
 	/* control and report on bypass mode */
 	int (*set_bypass)(struct regulator_dev *dev, bool enable);
@@ -316,7 +319,7 @@ struct regulator_desc {
  * @driver_data: private regulator data
  * @of_node: OpenFirmware node to parse for device tree bindings (may be
  *           NULL).
- * @regmap: regmap to use for core regmap helpers if dev_get_regulator() is
+ * @regmap: regmap to use for core regmap helpers if dev_get_regmap() is
  *          insufficient.
  * @ena_gpio_initialized: GPIO controlling regulator enable was properly
  *                        initialized, meaning that >= 0 is a valid gpio
@@ -367,6 +370,7 @@ struct regulator_dev {
 	struct device dev;
 	struct regulation_constraints *constraints;
 	struct regulator *supply;	/* for tree */
+	const char *supply_name;
 	struct regmap *regmap;
 
 	struct delayed_work disable_work;

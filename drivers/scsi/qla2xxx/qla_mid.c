@@ -306,19 +306,25 @@ qla2x00_vp_abort_isp(scsi_qla_host_t *vha)
 static int
 qla2x00_do_dpc_vp(scsi_qla_host_t *vha)
 {
+	struct qla_hw_data *ha = vha->hw;
+	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
+
 	ql_dbg(ql_dbg_dpc + ql_dbg_verbose, vha, 0x4012,
 	    "Entering %s vp_flags: 0x%lx.\n", __func__, vha->vp_flags);
 
 	qla2x00_do_work(vha);
 
-	if (test_and_clear_bit(VP_IDX_ACQUIRED, &vha->vp_flags)) {
-		/* VP acquired. complete port configuration */
-		ql_dbg(ql_dbg_dpc, vha, 0x4014,
-		    "Configure VP scheduled.\n");
-		qla24xx_configure_vp(vha);
-		ql_dbg(ql_dbg_dpc, vha, 0x4015,
-		    "Configure VP end.\n");
-		return 0;
+	/* Check if Fw is ready to configure VP first */
+	if (test_bit(VP_CONFIG_OK, &base_vha->vp_flags)) {
+		if (test_and_clear_bit(VP_IDX_ACQUIRED, &vha->vp_flags)) {
+			/* VP acquired. complete port configuration */
+			ql_dbg(ql_dbg_dpc, vha, 0x4014,
+			    "Configure VP scheduled.\n");
+			qla24xx_configure_vp(vha);
+			ql_dbg(ql_dbg_dpc, vha, 0x4015,
+			    "Configure VP end.\n");
+			return 0;
+		}
 	}
 
 	if (test_bit(FCPORT_UPDATE_NEEDED, &vha->dpc_flags)) {
@@ -788,7 +794,7 @@ qla25xx_create_rsp_que(struct qla_hw_data *ha, uint16_t options,
 		rsp->msix = &ha->msix_entries[que_id + 1];
 	else
 		ql_log(ql_log_warn, base_vha, 0x00e3,
-		    "MSIX not enalbled.\n");
+		    "MSIX not enabled.\n");
 
 	ha->rsp_q_map[que_id] = rsp;
 	rsp->rid = rid;

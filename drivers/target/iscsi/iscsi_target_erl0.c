@@ -22,7 +22,6 @@
 #include <target/target_core_fabric.h>
 
 #include <target/iscsi/iscsi_target_core.h>
-#include <target/iscsi/iscsi_transport.h>
 #include "iscsi_target_seq_pdu_list.h"
 #include "iscsi_target_tq.h"
 #include "iscsi_target_erl0.h"
@@ -940,8 +939,7 @@ void iscsit_take_action_for_connection_exit(struct iscsi_conn *conn)
 
 	if (conn->conn_state == TARG_CONN_STATE_IN_LOGOUT) {
 		spin_unlock_bh(&conn->state_lock);
-		if (conn->conn_transport->transport_type == ISCSI_TCP)
-			iscsit_close_connection(conn);
+		iscsit_close_connection(conn);
 		return;
 	}
 

@@ -42,29 +42,10 @@ static const struct snd_pcm_hardware nuc900_pcm_hardware = {
 static int nuc900_dma_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct nuc900_audio *nuc900_audio = runtime->private_data;
-	unsigned long flags;
-	int ret = 0;
-
-	ret = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(params));
-	if (ret < 0)
-		return ret;
-
-	spin_lock_irqsave(&nuc900_audio->lock, flags);
-
-	nuc900_audio->substream = substream;
-	nuc900_audio->dma_addr[substream->stream] = runtime->dma_addr;
-	nuc900_audio->buffersize[substream->stream] =
-						params_buffer_bytes(params);
-
-	spin_unlock_irqrestore(&nuc900_audio->lock, flags);
-
-	return ret;
+	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(params));
 }
 
-static void nuc900_update_dma_register(struct snd_pcm_substream *substream,
-				dma_addr_t dma_addr, size_t count)
+static void nuc900_update_dma_register(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct nuc900_audio *nuc900_audio = runtime->private_data;
@@ -78,8 +59,8 @@ static void nuc900_update_dma_register(struct snd_pcm_substream *substream,
 		mmio_len = nuc900_audio->mmio + ACTL_RDST_LENGTH;
 	}
 
-	AUDIO_WRITE(mmio_addr, dma_addr);
-	AUDIO_WRITE(mmio_len, count);
+	AUDIO_WRITE(mmio_addr, runtime->dma_addr);
+	AUDIO_WRITE(mmio_len, runtime->dma_bytes);
 }
 
 static void nuc900_dma_start(struct snd_pcm_substream *substream)
@@ -170,9 +151,7 @@ static int nuc900_dma_prepare(struct snd_pcm_substream *substream)
 
 	spin_lock_irqsave(&nuc900_audio->lock, flags);
 
-	nuc900_update_dma_register(substream,
-				nuc900_audio->dma_addr[substream->stream],
-				nuc900_audio->buffersize[substream->stream]);
+	nuc900_update_dma_register(substream);
 
 	val = AUDIO_READ(nuc900_audio->mmio + ACTL_RESET);
 

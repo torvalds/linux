@@ -48,6 +48,24 @@ static bool hist_browser__has_filter(struct hist_browser *hb)
 	return hists__has_filter(hb->hists) || hb->min_pcnt;
 }
 
+static int hist_browser__get_folding(struct hist_browser *browser)
+{
+	struct rb_node *nd;
+	struct hists *hists = browser->hists;
+	int unfolded_rows = 0;
+
+	for (nd = rb_first(&hists->entries);
+	     (nd = hists__filter_entries(nd, browser->min_pcnt)) != NULL;
+	     nd = rb_next(nd)) {
+		struct hist_entry *he =
+			rb_entry(nd, struct hist_entry, rb_node);
+
+		if (he->ms.unfolded)
+			unfolded_rows += he->nr_rows;
+	}
+	return unfolded_rows;
+}
+
 static u32 hist_browser__nr_entries(struct hist_browser *hb)
 {
 	u32 nr_entries;
@@ -57,6 +75,7 @@ static u32 hist_browser__nr_entries(struct hist_browser *hb)
 	else
 		nr_entries = hb->hists->nr_entries;
 
+	hb->nr_callchain_rows = hist_browser__get_folding(hb);
 	return nr_entries + hb->nr_callchain_rows;
 }
 
@@ -492,6 +511,7 @@ static void hist_browser__show_callchain_entry(struct hist_browser *browser,
 {
 	int color, width;
 	char folded_sign = callchain_list__folded(chain);
+	bool show_annotated = browser->show_dso && chain->ms.sym && symbol__annotation(chain->ms.sym)->src;
 
 	color = HE_COLORSET_NORMAL;
 	width = browser->b.width - (offset + 2);
@@ -504,7 +524,8 @@ static void hist_browser__show_callchain_entry(struct hist_browser *browser,
 	ui_browser__set_color(&browser->b, color);
 	hist_browser__gotorc(browser, row, 0);
 	slsmg_write_nstring(" ", offset);
-	slsmg_printf("%c ", folded_sign);
+	slsmg_printf("%c", folded_sign);
+	ui_browser__write_graph(&browser->b, show_annotated ? SLSMG_RARROW_CHAR : ' ');
 	slsmg_write_nstring(str, width);
 }
 
@@ -1467,7 +1488,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 		perf_hpp__set_user_width(symbol_conf.col_width_list_str);
 
 	while (1) {
-		const struct thread *thread = NULL;
+		struct thread *thread = NULL;
 		const struct dso *dso = NULL;
 		int choice = 0,
 		    annotate = -2, zoom_dso = -2, zoom_thread = -2,
@@ -1593,28 +1614,30 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 		if (!sort__has_sym)
 			goto add_exit_option;
 
+		if (browser->selection == NULL)
+			goto skip_annotation;
+
 		if (sort__mode == SORT_MODE__BRANCH) {
 			bi = browser->he_selection->branch_info;
-			if (browser->selection != NULL &&
-			    bi &&
-			    bi->from.sym != NULL &&
-			    !bi->from.map->dso->annotate_warned &&
-				asprintf(&options[nr_options], "Annotate %s",
-					 bi->from.sym->name) > 0)
-				annotate_f = nr_options++;
 
-			if (browser->selection != NULL &&
-			    bi &&
-			    bi->to.sym != NULL &&
+			if (bi == NULL)
+				goto skip_annotation;
+
+			if (bi->from.sym != NULL &&
+			    !bi->from.map->dso->annotate_warned &&
+			    asprintf(&options[nr_options], "Annotate %s", bi->from.sym->name) > 0) {
+				annotate_f = nr_options++;
+			}
+
+			if (bi->to.sym != NULL &&
 			    !bi->to.map->dso->annotate_warned &&
 			    (bi->to.sym != bi->from.sym ||
 			     bi->to.map->dso != bi->from.map->dso) &&
-				asprintf(&options[nr_options], "Annotate %s",
-					 bi->to.sym->name) > 0)
+			    asprintf(&options[nr_options], "Annotate %s", bi->to.sym->name) > 0) {
 				annotate_t = nr_options++;
+			}
 		} else {
-			if (browser->selection != NULL &&
-			    browser->selection->sym != NULL &&
+			if (browser->selection->sym != NULL &&
 			    !browser->selection->map->dso->annotate_warned) {
 				struct annotation *notes;
 
@@ -1622,11 +1645,12 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 
 				if (notes->src &&
 				    asprintf(&options[nr_options], "Annotate %s",
-						 browser->selection->sym->name) > 0)
+						 browser->selection->sym->name) > 0) {
 					annotate = nr_options++;
+				}
 			}
 		}
-
+skip_annotation:
 		if (thread != NULL &&
 		    asprintf(&options[nr_options], "Zoom %s %s(%d) thread",
 			     (browser->hists->thread_filter ? "out of" : "into"),
@@ -1682,6 +1706,7 @@ retry_popup_menu:
 		if (choice == annotate || choice == annotate_t || choice == annotate_f) {
 			struct hist_entry *he;
 			struct annotation *notes;
+			struct map_symbol ms;
 			int err;
 do_annotate:
 			if (!objdump_path && perf_session_env__lookup_objdump(env))
@@ -1691,30 +1716,21 @@ do_annotate:
 			if (he == NULL)
 				continue;
 
-			/*
-			 * we stash the branch_info symbol + map into the
-			 * the ms so we don't have to rewrite all the annotation
-			 * code to use branch_info.
-			 * in branch mode, the ms struct is not used
-			 */
 			if (choice == annotate_f) {
-				he->ms.sym = he->branch_info->from.sym;
-				he->ms.map = he->branch_info->from.map;
-			}  else if (choice == annotate_t) {
-				he->ms.sym = he->branch_info->to.sym;
-				he->ms.map = he->branch_info->to.map;
+				ms.map = he->branch_info->from.map;
+				ms.sym = he->branch_info->from.sym;
+			} else if (choice == annotate_t) {
+				ms.map = he->branch_info->to.map;
+				ms.sym = he->branch_info->to.sym;
+			} else {
+				ms = *browser->selection;
 			}
 
-			notes = symbol__annotation(he->ms.sym);
+			notes = symbol__annotation(ms.sym);
 			if (!notes->src)
 				continue;
 
-			/*
-			 * Don't let this be freed, say, by hists__decay_entry.
-			 */
-			he->used = true;
-			err = hist_entry__tui_annotate(he, evsel, hbt);
-			he->used = false;
+			err = map_symbol__tui_annotate(&ms, evsel, hbt);
 			/*
 			 * offer option to annotate the other branch source or target
 			 * (if they exists) when returning from annotate
@@ -1754,13 +1770,13 @@ zoom_thread:
 				pstack__remove(fstack, &browser->hists->thread_filter);
 zoom_out_thread:
 				ui_helpline__pop();
-				browser->hists->thread_filter = NULL;
+				thread__zput(browser->hists->thread_filter);
 				perf_hpp__set_elide(HISTC_THREAD, false);
 			} else {
 				ui_helpline__fpush("To zoom out press <- or -> + \"Zoom out of %s(%d) thread\"",
 						   thread->comm_set ? thread__comm_str(thread) : "",
 						   thread->tid);
-				browser->hists->thread_filter = thread;
+				browser->hists->thread_filter = thread__get(thread);
 				perf_hpp__set_elide(HISTC_THREAD, false);
 				pstack__push(fstack, &browser->hists->thread_filter);
 			}

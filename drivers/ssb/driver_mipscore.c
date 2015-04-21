@@ -16,7 +16,7 @@
 #include <linux/serial_reg.h>
 #include <linux/time.h>
 #ifdef CONFIG_BCM47XX
-#include <bcm47xx_nvram.h>
+#include <linux/bcm47xx_nvram.h>
 #endif
 
 #include "ssb_private.h"

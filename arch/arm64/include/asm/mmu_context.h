@@ -64,6 +64,49 @@ static inline void cpu_set_reserved_ttbr0(void)
 	: "r" (ttbr));
 }
 
+/*
+ * TCR.T0SZ value to use when the ID map is active. Usually equals
+ * TCR_T0SZ(VA_BITS), unless system RAM is positioned very high in
+ * physical memory, in which case it will be smaller.
+ */
+extern u64 idmap_t0sz;
+
+static inline bool __cpu_uses_extended_idmap(void)
+{
+	return (!IS_ENABLED(CONFIG_ARM64_VA_BITS_48) &&
+		unlikely(idmap_t0sz != TCR_T0SZ(VA_BITS)));
+}
+
+static inline void __cpu_set_tcr_t0sz(u64 t0sz)
+{
+	unsigned long tcr;
+
+	if (__cpu_uses_extended_idmap())
+		asm volatile (
+		"	mrs	%0, tcr_el1	;"
+		"	bfi	%0, %1, %2, %3	;"
+		"	msr	tcr_el1, %0	;"
+		"	isb"
+		: "=&r" (tcr)
+		: "r"(t0sz), "I"(TCR_T0SZ_OFFSET), "I"(TCR_TxSZ_WIDTH));
+}
+
+/*
+ * Set TCR.T0SZ to the value appropriate for activating the identity map.
+ */
+static inline void cpu_set_idmap_tcr_t0sz(void)
+{
+	__cpu_set_tcr_t0sz(idmap_t0sz);
+}
+
+/*
+ * Set TCR.T0SZ to its default value (based on VA_BITS)
+ */
+static inline void cpu_set_default_tcr_t0sz(void)
+{
+	__cpu_set_tcr_t0sz(TCR_T0SZ(VA_BITS));
+}
+
 static inline void switch_new_context(struct mm_struct *mm)
 {
 	unsigned long flags;
@@ -150,6 +193,15 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	  struct task_struct *tsk)
 {
 	unsigned int cpu = smp_processor_id();
+
+	/*
+	 * init_mm.pgd does not contain any user mappings and it is always
+	 * active for kernel addresses in TTBR1. Just set the reserved TTBR0.
+	 */
+	if (next == &init_mm) {
+		cpu_set_reserved_ttbr0();
+		return;
+	}
 
 	if (!cpumask_test_and_set_cpu(cpu, mm_cpumask(next)) || prev != next)
 		check_and_switch_context(next, tsk);

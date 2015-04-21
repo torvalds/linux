@@ -42,8 +42,10 @@ static bool acpi_dev_resource_len_valid(u64 start, u64 end, u64 len, bool io)
 	 * CHECKME: len might be required to check versus a minimum
 	 * length as well. 1 for io is fine, but for memory it does
 	 * not make any sense at all.
+	 * Note: some BIOSes report incorrect length for ACPI address space
+	 * descriptor, so remove check of 'reslen == len' to avoid regression.
 	 */
-	if (len && reslen && reslen == len && start <= end)
+	if (len && reslen && start <= end)
 		return true;
 
 	pr_debug("ACPI: invalid or unassigned resource %s [%016llx - %016llx] length [%016llx]\n",

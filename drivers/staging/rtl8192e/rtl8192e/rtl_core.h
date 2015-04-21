@@ -98,13 +98,7 @@
 #define BIT(_i)				(1<<(_i))
 #endif
 
-#define IS_NIC_DOWN(priv)	(!(priv)->up)
-
 #define IS_ADAPTER_SENDS_BEACON(dev) 0
-
-#define IS_UNDER_11N_AES_MODE(_rtllib)		\
-	((_rtllib->pHTInfo->bCurrentHTSupport == true) && \
-	(_rtllib->pairwise_key_type == KEY_TYPE_CCMP))
 
 #define HAL_MEMORY_MAPPED_IO_RANGE_8190PCI	0x1000
 #define HAL_HW_PCI_REVISION_ID_8190PCI			0x00
@@ -1004,14 +998,14 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff *skb);
 
 u8 read_nic_io_byte(struct net_device *dev, int x);
 u32 read_nic_io_dword(struct net_device *dev, int x);
-u16 read_nic_io_word(struct net_device *dev, int x) ;
+u16 read_nic_io_word(struct net_device *dev, int x);
 void write_nic_io_byte(struct net_device *dev, int x, u8 y);
 void write_nic_io_word(struct net_device *dev, int x, u16 y);
 void write_nic_io_dword(struct net_device *dev, int x, u32 y);
 
 u8 read_nic_byte(struct net_device *dev, int x);
 u32 read_nic_dword(struct net_device *dev, int x);
-u16 read_nic_word(struct net_device *dev, int x) ;
+u16 read_nic_word(struct net_device *dev, int x);
 void write_nic_byte(struct net_device *dev, int x, u8 y);
 void write_nic_word(struct net_device *dev, int x, u16 y);
 void write_nic_dword(struct net_device *dev, int x, u32 y);

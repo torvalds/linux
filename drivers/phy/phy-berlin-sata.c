@@ -218,7 +218,7 @@ static int phy_berlin_sata_probe(struct platform_device *pdev)
 	if (priv->nphys == 0)
 		return -ENODEV;
 
-	priv->phys = devm_kzalloc(dev, priv->nphys * sizeof(*priv->phys),
+	priv->phys = devm_kcalloc(dev, priv->nphys, sizeof(*priv->phys),
 				  GFP_KERNEL);
 	if (!priv->phys)
 		return -ENOMEM;

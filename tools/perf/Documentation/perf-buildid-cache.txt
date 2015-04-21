@@ -12,9 +12,9 @@ SYNOPSIS
 
 DESCRIPTION
 -----------
-This command manages the build-id cache. It can add and remove files to/from
-the cache. In the future it should as well purge older entries, set upper
-limits for the space used by the cache, etc.
+This command manages the build-id cache. It can add, remove, update and purge
+files to/from the cache. In the future it should as well set upper limits for
+the space used by the cache, etc.
 
 OPTIONS
 -------
@@ -36,14 +36,24 @@ OPTIONS
         actually made.
 -r::
 --remove=::
-        Remove specified file from the cache.
+        Remove a cached binary which has same build-id of specified file
+        from the cache.
+-p::
+--purge=::
+        Purge all cached binaries including older caches which have specified
+	path from the cache.
 -M::
 --missing=::
 	List missing build ids in the cache for the specified file.
 -u::
---update::
-	Update specified file of the cache. It can be used to update kallsyms
-	kernel dso to vmlinux in order to support annotation.
+--update=::
+	Update specified file of the cache. Note that this doesn't remove
+	older entires since those may be still needed for annotating old
+	(or remote) perf.data. Only if there is already a cache which has
+	exactly same build-id, that is replaced by new one. It can be used
+	to update kallsyms and kernel dso to vmlinux in order to support
+	annotation.
+
 -v::
 --verbose::
 	Be more verbose.

@@ -9,9 +9,6 @@
 #include <linux/user_namespace.h>
 #include <asm/uaccess.h>
 
-/* init to 2 - one for init_task, one to ensure it is never freed */
-struct group_info init_groups = { .usage = ATOMIC_INIT(2) };
-
 struct group_info *groups_alloc(int gidsetsize)
 {
 	struct group_info *group_info;

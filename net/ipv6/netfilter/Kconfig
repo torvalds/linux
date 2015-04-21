@@ -25,14 +25,16 @@ config NF_CONNTRACK_IPV6
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+if NF_TABLES
+
 config NF_TABLES_IPV6
-	depends on NF_TABLES
 	tristate "IPv6 nf_tables support"
 	help
 	  This option enables the IPv6 support for nf_tables.
 
+if NF_TABLES_IPV6
+
 config NFT_CHAIN_ROUTE_IPV6
-	depends on NF_TABLES_IPV6
 	tristate "IPv6 nf_tables route chain support"
 	help
 	  This option enables the "route" chain for IPv6 in nf_tables. This
@@ -40,15 +42,17 @@ config NFT_CHAIN_ROUTE_IPV6
 	  fields such as the source, destination, flowlabel, hop-limit and
 	  the packet mark.
 
-config NF_REJECT_IPV6
-	tristate "IPv6 packet rejection"
-	default m if NETFILTER_ADVANCED=n
-
 config NFT_REJECT_IPV6
-	depends on NF_TABLES_IPV6
 	select NF_REJECT_IPV6
 	default NFT_REJECT
 	tristate
+
+endif # NF_TABLES_IPV6
+endif # NF_TABLES
+
+config NF_REJECT_IPV6
+	tristate "IPv6 packet rejection"
+	default m if NETFILTER_ADVANCED=n
 
 config NF_LOG_IPV6
 	tristate "IPv6 packet logging"

@@ -30,9 +30,9 @@ int ieee754sp_class(union ieee754sp x)
 	return xc;
 }
 
-int ieee754sp_isnan(union ieee754sp x)
+static inline int ieee754sp_isnan(union ieee754sp x)
 {
-	return ieee754sp_class(x) >= IEEE754_CLASS_SNAN;
+	return ieee754_class_nan(ieee754sp_class(x));
 }
 
 static inline int ieee754sp_issnan(union ieee754sp x)
@@ -42,23 +42,16 @@ static inline int ieee754sp_issnan(union ieee754sp x)
 }
 
 
+/*
+ * Raise the Invalid Operation IEEE 754 exception
+ * and convert the signaling NaN supplied to a quiet NaN.
+ */
 union ieee754sp __cold ieee754sp_nanxcpt(union ieee754sp r)
 {
-	assert(ieee754sp_isnan(r));
+	assert(ieee754sp_issnan(r));
 
-	if (!ieee754sp_issnan(r))	/* QNAN does not cause invalid op !! */
-		return r;
-
-	if (!ieee754_setandtestcx(IEEE754_INVALID_OPERATION)) {
-		/* not enabled convert to a quiet NaN */
-		SPMANT(r) &= (~SP_MBIT(SP_FBITS-1));
-		if (ieee754sp_isnan(r))
-			return r;
-		else
-			return ieee754sp_indef();
-	}
-
-	return r;
+	ieee754_setcx(IEEE754_INVALID_OPERATION);
+	return ieee754sp_indef();
 }
 
 static unsigned ieee754sp_get_rounding(int sn, unsigned xm)

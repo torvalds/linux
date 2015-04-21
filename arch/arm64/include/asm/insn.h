@@ -264,8 +264,10 @@ __AARCH64_INSN_FUNCS(ands,	0x7F200000, 0x6A000000)
 __AARCH64_INSN_FUNCS(bics,	0x7F200000, 0x6A200000)
 __AARCH64_INSN_FUNCS(b,		0xFC000000, 0x14000000)
 __AARCH64_INSN_FUNCS(bl,	0xFC000000, 0x94000000)
-__AARCH64_INSN_FUNCS(cbz,	0xFE000000, 0x34000000)
-__AARCH64_INSN_FUNCS(cbnz,	0xFE000000, 0x35000000)
+__AARCH64_INSN_FUNCS(cbz,	0x7F000000, 0x34000000)
+__AARCH64_INSN_FUNCS(cbnz,	0x7F000000, 0x35000000)
+__AARCH64_INSN_FUNCS(tbz,	0x7F000000, 0x36000000)
+__AARCH64_INSN_FUNCS(tbnz,	0x7F000000, 0x37000000)
 __AARCH64_INSN_FUNCS(bcond,	0xFF000010, 0x54000000)
 __AARCH64_INSN_FUNCS(svc,	0xFFE0001F, 0xD4000001)
 __AARCH64_INSN_FUNCS(hvc,	0xFFE0001F, 0xD4000002)
@@ -283,6 +285,7 @@ bool aarch64_insn_is_nop(u32 insn);
 int aarch64_insn_read(void *addr, u32 *insnp);
 int aarch64_insn_write(void *addr, u32 insn);
 enum aarch64_insn_encoding_class aarch64_get_insn_class(u32 insn);
+u64 aarch64_insn_decode_immediate(enum aarch64_insn_imm_type type, u32 insn);
 u32 aarch64_insn_encode_immediate(enum aarch64_insn_imm_type type,
 				  u32 insn, u64 imm);
 u32 aarch64_insn_gen_branch_imm(unsigned long pc, unsigned long addr,

@@ -129,4 +129,82 @@
 #define DRM_FORMAT_YUV444	fourcc_code('Y', 'U', '2', '4') /* non-subsampled Cb (1) and Cr (2) planes */
 #define DRM_FORMAT_YVU444	fourcc_code('Y', 'V', '2', '4') /* non-subsampled Cr (1) and Cb (2) planes */
 
+
+/*
+ * Format Modifiers:
+ *
+ * Format modifiers describe, typically, a re-ordering or modification
+ * of the data in a plane of an FB.  This can be used to express tiled/
+ * swizzled formats, or compression, or a combination of the two.
+ *
+ * The upper 8 bits of the format modifier are a vendor-id as assigned
+ * below.  The lower 56 bits are assigned as vendor sees fit.
+ */
+
+/* Vendor Ids: */
+#define DRM_FORMAT_MOD_NONE           0
+#define DRM_FORMAT_MOD_VENDOR_INTEL   0x01
+#define DRM_FORMAT_MOD_VENDOR_AMD     0x02
+#define DRM_FORMAT_MOD_VENDOR_NV      0x03
+#define DRM_FORMAT_MOD_VENDOR_SAMSUNG 0x04
+#define DRM_FORMAT_MOD_VENDOR_QCOM    0x05
+/* add more to the end as needed */
+
+#define fourcc_mod_code(vendor, val) \
+	((((u64)DRM_FORMAT_MOD_VENDOR_## vendor) << 56) | (val & 0x00ffffffffffffffULL))
+
+/*
+ * Format Modifier tokens:
+ *
+ * When adding a new token please document the layout with a code comment,
+ * similar to the fourcc codes above. drm_fourcc.h is considered the
+ * authoritative source for all of these.
+ */
+
+/* Intel framebuffer modifiers */
+
+/*
+ * Intel X-tiling layout
+ *
+ * This is a tiled layout using 4Kb tiles (except on gen2 where the tiles 2Kb)
+ * in row-major layout. Within the tile bytes are laid out row-major, with
+ * a platform-dependent stride. On top of that the memory can apply
+ * platform-depending swizzling of some higher address bits into bit6.
+ *
+ * This format is highly platforms specific and not useful for cross-driver
+ * sharing. It exists since on a given platform it does uniquely identify the
+ * layout in a simple way for i915-specific userspace.
+ */
+#define I915_FORMAT_MOD_X_TILED	fourcc_mod_code(INTEL, 1)
+
+/*
+ * Intel Y-tiling layout
+ *
+ * This is a tiled layout using 4Kb tiles (except on gen2 where the tiles 2Kb)
+ * in row-major layout. Within the tile bytes are laid out in OWORD (16 bytes)
+ * chunks column-major, with a platform-dependent height. On top of that the
+ * memory can apply platform-depending swizzling of some higher address bits
+ * into bit6.
+ *
+ * This format is highly platforms specific and not useful for cross-driver
+ * sharing. It exists since on a given platform it does uniquely identify the
+ * layout in a simple way for i915-specific userspace.
+ */
+#define I915_FORMAT_MOD_Y_TILED	fourcc_mod_code(INTEL, 2)
+
+/*
+ * Intel Yf-tiling layout
+ *
+ * This is a tiled layout using 4Kb tiles in row-major layout.
+ * Within the tile pixels are laid out in 16 256 byte units / sub-tiles which
+ * are arranged in four groups (two wide, two high) with column-major layout.
+ * Each group therefore consits out of four 256 byte units, which are also laid
+ * out as 2x2 column-major.
+ * 256 byte units are made out of four 64 byte blocks of pixels, producing
+ * either a square block or a 2:1 unit.
+ * 64 byte blocks of pixels contain four pixel rows of 16 bytes, where the width
+ * in pixel depends on the pixel depth.
+ */
+#define I915_FORMAT_MOD_Yf_TILED fourcc_mod_code(INTEL, 3)
+
 #endif /* DRM_FOURCC_H */

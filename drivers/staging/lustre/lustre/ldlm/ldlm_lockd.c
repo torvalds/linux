@@ -55,8 +55,6 @@ static char *ldlm_cpts;
 module_param(ldlm_cpts, charp, 0444);
 MODULE_PARM_DESC(ldlm_cpts, "CPU partitions ldlm threads should run on");
 
-extern struct kmem_cache *ldlm_resource_slab;
-extern struct kmem_cache *ldlm_lock_slab;
 static struct mutex	ldlm_ref_mutex;
 static int ldlm_refcount;
 
@@ -154,7 +152,7 @@ void ldlm_handle_bl_callback(struct ldlm_namespace *ns,
 	if (lock->l_flags & LDLM_FL_CANCEL_ON_BLOCK)
 		lock->l_flags |= LDLM_FL_CANCEL;
 
-	do_ast = (!lock->l_readers && !lock->l_writers);
+	do_ast = !lock->l_readers && !lock->l_writers;
 	unlock_res_and_lock(lock);
 
 	if (do_ast) {

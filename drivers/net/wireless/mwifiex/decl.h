@@ -33,6 +33,7 @@
 #define MWIFIEX_MAX_BSS_NUM         (3)
 
 #define MWIFIEX_DMA_ALIGN_SZ	    64
+#define MWIFIEX_RX_HEADROOM	    64
 #define MAX_TXPD_SZ		    32
 #define INTF_HDR_ALIGN		     4
 
@@ -82,6 +83,7 @@
 #define MWIFIEX_BUF_FLAG_TDLS_PKT	   BIT(2)
 #define MWIFIEX_BUF_FLAG_EAPOL_TX_STATUS   BIT(3)
 #define MWIFIEX_BUF_FLAG_ACTION_TX_STATUS  BIT(4)
+#define MWIFIEX_BUF_FLAG_AGGR_PKT          BIT(5)
 
 #define MWIFIEX_BRIDGED_PKTS_THR_HIGH      1024
 #define MWIFIEX_BRIDGED_PKTS_THR_LOW        128
@@ -109,6 +111,11 @@
 #define MWIFIEX_MAX_P2P_NUM		1
 
 #define MWIFIEX_A_BAND_START_FREQ	5000
+
+/* SDIO Aggr data packet special info */
+#define SDIO_MAX_AGGR_BUF_SIZE		(256 * 255)
+#define BLOCK_NUMBER_OFFSET		15
+#define SDIO_HEADER_OFFSET		28
 
 enum mwifiex_bss_type {
 	MWIFIEX_BSS_TYPE_STA = 0,
@@ -167,10 +174,11 @@ struct mwifiex_wait_queue {
 };
 
 struct mwifiex_rxinfo {
+	struct sk_buff *parent;
 	u8 bss_num;
 	u8 bss_type;
-	struct sk_buff *parent;
 	u8 use_count;
+	u8 buf_type;
 };
 
 struct mwifiex_txinfo {
@@ -178,6 +186,7 @@ struct mwifiex_txinfo {
 	u8 flags;
 	u8 bss_num;
 	u8 bss_type;
+	u8 aggr_num;
 	u32 pkt_len;
 	u8 ack_frame_id;
 	u64 cookie;

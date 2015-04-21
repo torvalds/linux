@@ -240,7 +240,6 @@ static int nfs_direct_cmp_commit_data_verf(struct nfs_direct_req *dreq,
 
 /**
  * nfs_direct_IO - NFS address space operation for direct I/O
- * @rw: direction (read or write)
  * @iocb: target I/O control block
  * @iov: array of vectors that define I/O buffer
  * @pos: offset in file to begin the operation
@@ -251,7 +250,7 @@ static int nfs_direct_cmp_commit_data_verf(struct nfs_direct_req *dreq,
  * shunt off direct read and write requests before the VFS gets them,
  * so this method is only ever called for swap.
  */
-ssize_t nfs_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter, loff_t pos)
+ssize_t nfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter, loff_t pos)
 {
 	struct inode *inode = iocb->ki_filp->f_mapping->host;
 
@@ -265,11 +264,11 @@ ssize_t nfs_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter, loff_t 
 
 	return -EINVAL;
 #else
-	VM_BUG_ON(iocb->ki_nbytes != PAGE_SIZE);
+	VM_BUG_ON(iov_iter_count(iter) != PAGE_SIZE);
 
-	if (rw == READ)
+	if (iov_iter_rw(iter) == READ)
 		return nfs_file_direct_read(iocb, iter, pos);
-	return nfs_file_direct_write(iocb, iter, pos);
+	return nfs_file_direct_write(iocb, iter);
 #endif /* CONFIG_NFS_SWAP */
 }
 
@@ -393,7 +392,7 @@ static void nfs_direct_complete(struct nfs_direct_req *dreq, bool write)
 		long res = (long) dreq->error;
 		if (!res)
 			res = (long) dreq->count;
-		aio_complete(dreq->iocb, res, 0);
+		dreq->iocb->ki_complete(dreq->iocb, res, 0);
 	}
 
 	complete_all(&dreq->completion);
@@ -960,8 +959,7 @@ static ssize_t nfs_direct_write_schedule_iovec(struct nfs_direct_req *dreq,
  * Note that O_APPEND is not supported for NFS direct writes, as there
  * is no atomic O_APPEND write facility in the NFS protocol.
  */
-ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter,
-				loff_t pos)
+ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter)
 {
 	ssize_t result = -EINVAL;
 	struct file *file = iocb->ki_filp;
@@ -969,25 +967,16 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter,
 	struct inode *inode = mapping->host;
 	struct nfs_direct_req *dreq;
 	struct nfs_lock_context *l_ctx;
-	loff_t end;
-	size_t count = iov_iter_count(iter);
-	end = (pos + count - 1) >> PAGE_CACHE_SHIFT;
-
-	nfs_add_stats(mapping->host, NFSIOS_DIRECTWRITTENBYTES, count);
+	loff_t pos, end;
 
 	dfprintk(FILE, "NFS: direct write(%pD2, %zd@%Ld)\n",
-		file, count, (long long) pos);
+		file, iov_iter_count(iter), (long long) iocb->ki_pos);
 
-	result = generic_write_checks(file, &pos, &count, 0);
-	if (result)
-		goto out;
+	nfs_add_stats(mapping->host, NFSIOS_DIRECTWRITTENBYTES,
+		      iov_iter_count(iter));
 
-	result = -EINVAL;
-	if ((ssize_t) count < 0)
-		goto out;
-	result = 0;
-	if (!count)
-		goto out;
+	pos = iocb->ki_pos;
+	end = (pos + iov_iter_count(iter) - 1) >> PAGE_CACHE_SHIFT;
 
 	mutex_lock(&inode->i_mutex);
 
@@ -1002,7 +991,7 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter,
 			goto out_unlock;
 	}
 
-	task_io_account_write(count);
+	task_io_account_write(iov_iter_count(iter));
 
 	result = -ENOMEM;
 	dreq = nfs_direct_req_alloc();
@@ -1010,7 +999,7 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter,
 		goto out_unlock;
 
 	dreq->inode = inode;
-	dreq->bytes_left = count;
+	dreq->bytes_left = iov_iter_count(iter);
 	dreq->io_start = pos;
 	dreq->ctx = get_nfs_open_context(nfs_file_open_context(iocb->ki_filp));
 	l_ctx = nfs_get_lock_context(dreq->ctx);
@@ -1050,7 +1039,6 @@ out_release:
 	nfs_direct_req_release(dreq);
 out_unlock:
 	mutex_unlock(&inode->i_mutex);
-out:
 	return result;
 }
 

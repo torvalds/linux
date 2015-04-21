@@ -15,14 +15,16 @@
  * details.
  */
 
-#ifndef _ASM_NIOS2_SIGCONTEXT_H
-#define _ASM_NIOS2_SIGCONTEXT_H
+#ifndef _UAPI__ASM_SIGCONTEXT_H
+#define _UAPI__ASM_SIGCONTEXT_H
 
-#include <asm/ptrace.h>
+#include <linux/types.h>
+
+#define MCONTEXT_VERSION 2
 
 struct sigcontext {
-	struct pt_regs regs;
-	unsigned long  sc_mask;	/* old sigmask */
+	int version;
+	unsigned long gregs[32];
 };
 
 #endif

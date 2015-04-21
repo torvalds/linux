@@ -208,7 +208,7 @@ static int __cmd_annotate(struct perf_annotate *ann)
 			goto out;
 	}
 
-	ret = perf_session__process_events(session, &ann->tool);
+	ret = perf_session__process_events(session);
 	if (ret)
 		goto out;
 

@@ -33,6 +33,7 @@
 
 #include <asm/page.h>
 #include <asm/pgtable.h>
+#include <asm/setup.h>
 
 #if 0
 #define DEBUGP(fmt, ...)				\
@@ -53,7 +54,7 @@ static DEFINE_MUTEX(module_kaslr_mutex);
 
 static unsigned long int get_module_load_offset(void)
 {
-	if (kaslr_enabled) {
+	if (kaslr_enabled()) {
 		mutex_lock(&module_kaslr_mutex);
 		/*
 		 * Calculate the module_load_offset the first time this

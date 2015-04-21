@@ -33,28 +33,28 @@
 struct cmpk_txfb {
 	u8	element_id;
 	u8	length;
-	u8	TID:4;				/* */
-	u8	fail_reason:3;		/* */
+	u8	TID:4;
+	u8	fail_reason:3;
 	u8	tok:1;
-	u8	reserve1:4;			/* */
-	u8	pkt_type:2;		/* */
-	u8	bandwidth:1;		/* */
-	u8	qos_pkt:1;			/* */
+	u8	reserve1:4;
+	u8	pkt_type:2;
+	u8	bandwidth:1;
+	u8	qos_pkt:1;
 
-	u8	reserve2;			/* */
-	u8	retry_cnt;			/* */
-	u16	pkt_id;				/* */
+	u8	reserve2;
+	u8	retry_cnt;
+	u16	pkt_id;
 
-	u16	seq_num;			/* */
+	u16	seq_num;
 	u8	s_rate;
 	u8	f_rate;
 
-	u8	s_rts_rate;			/* */
-	u8	f_rts_rate;			/* */
-	u16	pkt_length;			/* */
+	u8	s_rts_rate;
+	u8	f_rts_rate;
+	u16	pkt_length;
 
-	u16	reserve3;			/* */
-	u16	duration;			/* */
+	u16	reserve3;
+	u16	duration;
 };
 
 struct cmpk_intr_sta {

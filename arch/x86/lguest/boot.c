@@ -868,7 +868,8 @@ static void __init lguest_init_IRQ(void)
 		/* Some systems map "vectors" to interrupts weirdly.  Not us! */
 		__this_cpu_write(vector_irq[i], i - FIRST_EXTERNAL_VECTOR);
 		if (i != SYSCALL_VECTOR)
-			set_intr_gate(i, interrupt[i - FIRST_EXTERNAL_VECTOR]);
+			set_intr_gate(i, irq_entries_start +
+					8 * (i - FIRST_EXTERNAL_VECTOR));
 	}
 
 	/*
@@ -1076,6 +1077,7 @@ static void lguest_load_sp0(struct tss_struct *tss,
 {
 	lazy_hcall3(LHCALL_SET_STACK, __KERNEL_DS | 0x1, thread->sp0,
 		   THREAD_SIZE / PAGE_SIZE);
+	tss->x86_tss.sp0 = thread->sp0;
 }
 
 /* Let's just say, I wouldn't do debugging under a Guest. */

@@ -1112,7 +1112,7 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 
 	osb->osb_debug_root = debugfs_create_dir(osb->uuid_str,
 						 ocfs2_debugfs_root);
-	if (!osb->osb_debug_root) {
+	if (IS_ERR_OR_NULL(osb->osb_debug_root)) {
 		status = -EINVAL;
 		mlog(ML_ERROR, "Unable to create per-mount debugfs root.\n");
 		goto read_super_error;
@@ -1122,7 +1122,7 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 					    osb->osb_debug_root,
 					    osb,
 					    &ocfs2_osb_debug_fops);
-	if (!osb->osb_ctxt) {
+	if (IS_ERR_OR_NULL(osb->osb_ctxt)) {
 		status = -EINVAL;
 		mlog_errno(status);
 		goto read_super_error;
@@ -1606,8 +1606,9 @@ static int __init ocfs2_init(void)
 	}
 
 	ocfs2_debugfs_root = debugfs_create_dir("ocfs2", NULL);
-	if (!ocfs2_debugfs_root) {
-		status = -ENOMEM;
+	if (IS_ERR_OR_NULL(ocfs2_debugfs_root)) {
+		status = ocfs2_debugfs_root ?
+			PTR_ERR(ocfs2_debugfs_root) : -ENOMEM;
 		mlog(ML_ERROR, "Unable to create ocfs2 debugfs root.\n");
 		goto out4;
 	}
@@ -2069,6 +2070,8 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	cbits = le32_to_cpu(di->id2.i_super.s_clustersize_bits);
 	bbits = le32_to_cpu(di->id2.i_super.s_blocksize_bits);
 	sb->s_maxbytes = ocfs2_max_file_offset(bbits, cbits);
+	memcpy(sb->s_uuid, di->id2.i_super.s_uuid,
+	       sizeof(di->id2.i_super.s_uuid));
 
 	osb->osb_dx_mask = (1 << (cbits - bbits)) - 1;
 
@@ -2333,7 +2336,7 @@ static int ocfs2_initialize_super(struct super_block *sb,
 		mlog_errno(status);
 		goto bail;
 	}
-	cleancache_init_shared_fs((char *)&di->id2.i_super.s_uuid, sb);
+	cleancache_init_shared_fs(sb);
 
 bail:
 	return status;
@@ -2563,22 +2566,22 @@ static void ocfs2_handle_error(struct super_block *sb)
 	ocfs2_set_ro_flag(osb, 0);
 }
 
-static char error_buf[1024];
-
-void __ocfs2_error(struct super_block *sb,
-		   const char *function,
-		   const char *fmt, ...)
+void __ocfs2_error(struct super_block *sb, const char *function,
+		  const char *fmt, ...)
 {
+	struct va_format vaf;
 	va_list args;
 
 	va_start(args, fmt);
-	vsnprintf(error_buf, sizeof(error_buf), fmt, args);
-	va_end(args);
+	vaf.fmt = fmt;
+	vaf.va = &args;
 
 	/* Not using mlog here because we want to show the actual
 	 * function the error came from. */
-	printk(KERN_CRIT "OCFS2: ERROR (device %s): %s: %s\n",
-	       sb->s_id, function, error_buf);
+	printk(KERN_CRIT "OCFS2: ERROR (device %s): %s: %pV\n",
+	       sb->s_id, function, &vaf);
+
+	va_end(args);
 
 	ocfs2_handle_error(sb);
 }
@@ -2586,18 +2589,21 @@ void __ocfs2_error(struct super_block *sb,
 /* Handle critical errors. This is intentionally more drastic than
  * ocfs2_handle_error, so we only use for things like journal errors,
  * etc. */
-void __ocfs2_abort(struct super_block* sb,
-		   const char *function,
+void __ocfs2_abort(struct super_block *sb, const char *function,
 		   const char *fmt, ...)
 {
+	struct va_format vaf;
 	va_list args;
 
 	va_start(args, fmt);
-	vsnprintf(error_buf, sizeof(error_buf), fmt, args);
-	va_end(args);
 
-	printk(KERN_CRIT "OCFS2: abort (device %s): %s: %s\n",
-	       sb->s_id, function, error_buf);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	printk(KERN_CRIT "OCFS2: abort (device %s): %s: %pV\n",
+	       sb->s_id, function, &vaf);
+
+	va_end(args);
 
 	/* We don't have the cluster support yet to go straight to
 	 * hard readonly in here. Until then, we want to keep

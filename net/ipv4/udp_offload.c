@@ -285,7 +285,7 @@ void udp_del_offload(struct udp_offload *uo)
 	pr_warn("udp_del_offload: didn't find offload for port %d\n", ntohs(uo->port));
 unlock:
 	spin_unlock(&udp_offload_lock);
-	if (uo_priv != NULL)
+	if (uo_priv)
 		call_rcu(&uo_priv->rcu, udp_offload_free_routine);
 }
 EXPORT_SYMBOL(udp_del_offload);
@@ -394,7 +394,7 @@ int udp_gro_complete(struct sk_buff *skb, int nhoff)
 			break;
 	}
 
-	if (uo_priv != NULL) {
+	if (uo_priv) {
 		NAPI_GRO_CB(skb)->proto = uo_priv->offload->ipproto;
 		err = uo_priv->offload->callbacks.gro_complete(skb,
 				nhoff + sizeof(struct udphdr),

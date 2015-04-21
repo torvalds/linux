@@ -33,11 +33,7 @@ static inline void clear_table(unsigned long *s, unsigned long val, size_t n)
 	*s = val;
 	n = (n / 256) - 1;
 	asm volatile(
-#ifdef CONFIG_64BIT
 		"	mvc	8(248,%0),0(%0)\n"
-#else
-		"	mvc	4(252,%0),0(%0)\n"
-#endif
 		"0:	mvc	256(256,%0),0(%0)\n"
 		"	la	%0,256(%0)\n"
 		"	brct	%1,0b\n"
@@ -49,24 +45,6 @@ static inline void crst_table_init(unsigned long *crst, unsigned long entry)
 {
 	clear_table(crst, entry, sizeof(unsigned long)*2048);
 }
-
-#ifndef CONFIG_64BIT
-
-static inline unsigned long pgd_entry_type(struct mm_struct *mm)
-{
-	return _SEGMENT_ENTRY_EMPTY;
-}
-
-#define pud_alloc_one(mm,address)		({ BUG(); ((pud_t *)2); })
-#define pud_free(mm, x)				do { } while (0)
-
-#define pmd_alloc_one(mm,address)		({ BUG(); ((pmd_t *)2); })
-#define pmd_free(mm, x)				do { } while (0)
-
-#define pgd_populate(mm, pgd, pud)		BUG()
-#define pud_populate(mm, pud, pmd)		BUG()
-
-#else /* CONFIG_64BIT */
 
 static inline unsigned long pgd_entry_type(struct mm_struct *mm)
 {
@@ -118,8 +96,6 @@ static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
 {
 	pud_val(*pud) = _REGION3_ENTRY | __pa(pmd);
 }
-
-#endif /* CONFIG_64BIT */
 
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {

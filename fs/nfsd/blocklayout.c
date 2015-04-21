@@ -137,7 +137,7 @@ nfsd4_block_proc_layoutget(struct inode *inode, const struct svc_fh *fhp,
 	seg->offset = iomap.offset;
 	seg->length = iomap.length;
 
-	dprintk("GET: %lld:%lld %d\n", bex->foff, bex->len, bex->es);
+	dprintk("GET: 0x%llx:0x%llx %d\n", bex->foff, bex->len, bex->es);
 	return 0;
 
 out_error:

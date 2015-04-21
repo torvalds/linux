@@ -15,6 +15,7 @@
 #include <linux/buffer_head.h>
 #include <linux/vfs.h>
 #include <linux/writeback.h>
+#include <linux/uio.h>
 #include <asm/uaccess.h>
 #include "bfs.h"
 

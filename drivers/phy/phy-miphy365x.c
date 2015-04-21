@@ -25,7 +25,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 
-#include <dt-bindings/phy/phy-miphy365x.h>
+#include <dt-bindings/phy/phy.h>
 
 #define HFC_TIMEOUT		100
 
@@ -150,6 +150,7 @@ struct miphy365x_dev {
 	struct regmap *regmap;
 	struct mutex miphy_mutex;
 	struct miphy365x_phy **phys;
+	int nphys;
 };
 
 /*
@@ -176,7 +177,7 @@ static u8 rx_tx_spd[] = {
 static int miphy365x_set_path(struct miphy365x_phy *miphy_phy,
 			      struct miphy365x_dev *miphy_dev)
 {
-	bool sata = (miphy_phy->type == MIPHY_TYPE_SATA);
+	bool sata = (miphy_phy->type == PHY_TYPE_SATA);
 
 	return regmap_update_bits(miphy_dev->regmap,
 				  miphy_phy->ctrlreg,
@@ -430,7 +431,7 @@ static int miphy365x_init(struct phy *phy)
 	}
 
 	/* Initialise Miphy for PCIe or SATA */
-	if (miphy_phy->type == MIPHY_TYPE_PCIE)
+	if (miphy_phy->type == PHY_TYPE_PCIE)
 		ret = miphy365x_init_pcie_port(miphy_phy, miphy_dev);
 	else
 		ret = miphy365x_init_sata_port(miphy_phy, miphy_dev);
@@ -454,8 +455,8 @@ int miphy365x_get_addr(struct device *dev, struct miphy365x_phy *miphy_phy,
 		return ret;
 	}
 
-	if (!((!strncmp(name, "sata", 4) && type == MIPHY_TYPE_SATA) ||
-	      (!strncmp(name, "pcie", 4) && type == MIPHY_TYPE_PCIE)))
+	if (!((!strncmp(name, "sata", 4) && type == PHY_TYPE_SATA) ||
+	      (!strncmp(name, "pcie", 4) && type == PHY_TYPE_PCIE)))
 		return 0;
 
 	miphy_phy->base = of_iomap(phynode, index);
@@ -485,7 +486,7 @@ static struct phy *miphy365x_xlate(struct device *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	for (index = 0; index < of_get_child_count(dev->of_node); index++)
+	for (index = 0; index < miphy_dev->nphys; index++)
 		if (phynode == miphy_dev->phys[index]->phy->dev.of_node) {
 			miphy_phy = miphy_dev->phys[index];
 			break;
@@ -498,8 +499,8 @@ static struct phy *miphy365x_xlate(struct device *dev,
 
 	miphy_phy->type = args->args[0];
 
-	if (!(miphy_phy->type == MIPHY_TYPE_SATA ||
-	      miphy_phy->type == MIPHY_TYPE_PCIE)) {
+	if (!(miphy_phy->type == PHY_TYPE_SATA ||
+	      miphy_phy->type == PHY_TYPE_PCIE)) {
 		dev_err(dev, "Unsupported device type: %d\n", miphy_phy->type);
 		return ERR_PTR(-EINVAL);
 	}
@@ -541,16 +542,15 @@ static int miphy365x_probe(struct platform_device *pdev)
 	struct miphy365x_dev *miphy_dev;
 	struct phy_provider *provider;
 	struct phy *phy;
-	int chancount, port = 0;
-	int ret;
+	int ret, port = 0;
 
 	miphy_dev = devm_kzalloc(&pdev->dev, sizeof(*miphy_dev), GFP_KERNEL);
 	if (!miphy_dev)
 		return -ENOMEM;
 
-	chancount = of_get_child_count(np);
-	miphy_dev->phys = devm_kzalloc(&pdev->dev, sizeof(phy) * chancount,
-				       GFP_KERNEL);
+	miphy_dev->nphys = of_get_child_count(np);
+	miphy_dev->phys = devm_kcalloc(&pdev->dev, miphy_dev->nphys,
+				       sizeof(*miphy_dev->phys), GFP_KERNEL);
 	if (!miphy_dev->phys)
 		return -ENOMEM;
 

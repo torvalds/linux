@@ -57,7 +57,7 @@ int cmdline_find_option_bool(const char *option);
 
 #if CONFIG_RANDOMIZE_BASE
 /* aslr.c */
-unsigned char *choose_kernel_location(struct boot_params *params,
+unsigned char *choose_kernel_location(struct boot_params *boot_params,
 				      unsigned char *input,
 				      unsigned long input_size,
 				      unsigned char *output,
@@ -66,7 +66,7 @@ unsigned char *choose_kernel_location(struct boot_params *params,
 bool has_cpuflag(int flag);
 #else
 static inline
-unsigned char *choose_kernel_location(struct boot_params *params,
+unsigned char *choose_kernel_location(struct boot_params *boot_params,
 				      unsigned char *input,
 				      unsigned long input_size,
 				      unsigned char *output,

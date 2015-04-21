@@ -98,9 +98,9 @@ static bool buffer_size_valid(struct buffer_head *bh)
 	return bh->b_state != 0;
 }
 
-static ssize_t dax_io(int rw, struct inode *inode, struct iov_iter *iter,
-			loff_t start, loff_t end, get_block_t get_block,
-			struct buffer_head *bh)
+static ssize_t dax_io(struct inode *inode, struct iov_iter *iter,
+		      loff_t start, loff_t end, get_block_t get_block,
+		      struct buffer_head *bh)
 {
 	ssize_t retval = 0;
 	loff_t pos = start;
@@ -109,7 +109,7 @@ static ssize_t dax_io(int rw, struct inode *inode, struct iov_iter *iter,
 	void *addr;
 	bool hole = false;
 
-	if (rw != WRITE)
+	if (iov_iter_rw(iter) != WRITE)
 		end = min(end, i_size_read(inode));
 
 	while (pos < end) {
@@ -124,7 +124,7 @@ static ssize_t dax_io(int rw, struct inode *inode, struct iov_iter *iter,
 				bh->b_size = PAGE_ALIGN(end - pos);
 				bh->b_state = 0;
 				retval = get_block(inode, block, bh,
-								rw == WRITE);
+						   iov_iter_rw(iter) == WRITE);
 				if (retval)
 					break;
 				if (!buffer_size_valid(bh))
@@ -137,7 +137,7 @@ static ssize_t dax_io(int rw, struct inode *inode, struct iov_iter *iter,
 				bh->b_size -= done;
 			}
 
-			hole = (rw != WRITE) && !buffer_written(bh);
+			hole = iov_iter_rw(iter) != WRITE && !buffer_written(bh);
 			if (hole) {
 				addr = NULL;
 				size = bh->b_size - first;
@@ -154,7 +154,7 @@ static ssize_t dax_io(int rw, struct inode *inode, struct iov_iter *iter,
 			max = min(pos + size, end);
 		}
 
-		if (rw == WRITE)
+		if (iov_iter_rw(iter) == WRITE)
 			len = copy_from_iter(addr, max - pos, iter);
 		else if (!hole)
 			len = copy_to_iter(addr, max - pos, iter);
@@ -173,7 +173,6 @@ static ssize_t dax_io(int rw, struct inode *inode, struct iov_iter *iter,
 
 /**
  * dax_do_io - Perform I/O to a DAX file
- * @rw: READ to read or WRITE to write
  * @iocb: The control block for this I/O
  * @inode: The file which the I/O is directed at
  * @iter: The addresses to do I/O from or to
@@ -189,9 +188,9 @@ static ssize_t dax_io(int rw, struct inode *inode, struct iov_iter *iter,
  * As with do_blockdev_direct_IO(), we increment i_dio_count while the I/O
  * is in progress.
  */
-ssize_t dax_do_io(int rw, struct kiocb *iocb, struct inode *inode,
-			struct iov_iter *iter, loff_t pos,
-			get_block_t get_block, dio_iodone_t end_io, int flags)
+ssize_t dax_do_io(struct kiocb *iocb, struct inode *inode,
+		  struct iov_iter *iter, loff_t pos, get_block_t get_block,
+		  dio_iodone_t end_io, int flags)
 {
 	struct buffer_head bh;
 	ssize_t retval = -EINVAL;
@@ -199,7 +198,7 @@ ssize_t dax_do_io(int rw, struct kiocb *iocb, struct inode *inode,
 
 	memset(&bh, 0, sizeof(bh));
 
-	if ((flags & DIO_LOCKING) && (rw == READ)) {
+	if ((flags & DIO_LOCKING) && iov_iter_rw(iter) == READ) {
 		struct address_space *mapping = inode->i_mapping;
 		mutex_lock(&inode->i_mutex);
 		retval = filemap_write_and_wait_range(mapping, pos, end - 1);
@@ -212,9 +211,9 @@ ssize_t dax_do_io(int rw, struct kiocb *iocb, struct inode *inode,
 	/* Protects against truncate */
 	atomic_inc(&inode->i_dio_count);
 
-	retval = dax_io(rw, inode, iter, pos, end, get_block, &bh);
+	retval = dax_io(inode, iter, pos, end, get_block, &bh);
 
-	if ((flags & DIO_LOCKING) && (rw == READ))
+	if ((flags & DIO_LOCKING) && iov_iter_rw(iter) == READ)
 		mutex_unlock(&inode->i_mutex);
 
 	if ((retval > 0) && end_io)
@@ -462,6 +461,23 @@ int dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
 	return result;
 }
 EXPORT_SYMBOL_GPL(dax_fault);
+
+/**
+ * dax_pfn_mkwrite - handle first write to DAX page
+ * @vma: The virtual memory area where the fault occurred
+ * @vmf: The description of the fault
+ *
+ */
+int dax_pfn_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+{
+	struct super_block *sb = file_inode(vma->vm_file)->i_sb;
+
+	sb_start_pagefault(sb);
+	file_update_time(vma->vm_file);
+	sb_end_pagefault(sb);
+	return VM_FAULT_NOPAGE;
+}
+EXPORT_SYMBOL_GPL(dax_pfn_mkwrite);
 
 /**
  * dax_zero_page_range - zero a range within a page of a DAX file

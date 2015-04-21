@@ -86,25 +86,22 @@ atmel_hlcdc_rgb_output_to_panel(struct atmel_hlcdc_rgb_output *output)
 	return container_of(output, struct atmel_hlcdc_panel, base);
 }
 
-static void atmel_hlcdc_panel_encoder_dpms(struct drm_encoder *encoder,
-					   int mode)
+static void atmel_hlcdc_panel_encoder_enable(struct drm_encoder *encoder)
 {
 	struct atmel_hlcdc_rgb_output *rgb =
 			drm_encoder_to_atmel_hlcdc_rgb_output(encoder);
 	struct atmel_hlcdc_panel *panel = atmel_hlcdc_rgb_output_to_panel(rgb);
 
-	if (mode != DRM_MODE_DPMS_ON)
-		mode = DRM_MODE_DPMS_OFF;
+	drm_panel_enable(panel->panel);
+}
 
-	if (mode == rgb->dpms)
-		return;
+static void atmel_hlcdc_panel_encoder_disable(struct drm_encoder *encoder)
+{
+	struct atmel_hlcdc_rgb_output *rgb =
+			drm_encoder_to_atmel_hlcdc_rgb_output(encoder);
+	struct atmel_hlcdc_panel *panel = atmel_hlcdc_rgb_output_to_panel(rgb);
 
-	if (mode != DRM_MODE_DPMS_ON)
-		drm_panel_disable(panel->panel);
-	else
-		drm_panel_enable(panel->panel);
-
-	rgb->dpms = mode;
+	drm_panel_disable(panel->panel);
 }
 
 static bool
@@ -113,16 +110,6 @@ atmel_hlcdc_panel_encoder_mode_fixup(struct drm_encoder *encoder,
 				     struct drm_display_mode *adjusted)
 {
 	return true;
-}
-
-static void atmel_hlcdc_panel_encoder_prepare(struct drm_encoder *encoder)
-{
-	atmel_hlcdc_panel_encoder_dpms(encoder, DRM_MODE_DPMS_OFF);
-}
-
-static void atmel_hlcdc_panel_encoder_commit(struct drm_encoder *encoder)
-{
-	atmel_hlcdc_panel_encoder_dpms(encoder, DRM_MODE_DPMS_ON);
 }
 
 static void
@@ -156,11 +143,10 @@ atmel_hlcdc_rgb_encoder_mode_set(struct drm_encoder *encoder,
 }
 
 static struct drm_encoder_helper_funcs atmel_hlcdc_panel_encoder_helper_funcs = {
-	.dpms = atmel_hlcdc_panel_encoder_dpms,
 	.mode_fixup = atmel_hlcdc_panel_encoder_mode_fixup,
-	.prepare = atmel_hlcdc_panel_encoder_prepare,
-	.commit = atmel_hlcdc_panel_encoder_commit,
 	.mode_set = atmel_hlcdc_rgb_encoder_mode_set,
+	.disable = atmel_hlcdc_panel_encoder_disable,
+	.enable = atmel_hlcdc_panel_encoder_enable,
 };
 
 static void atmel_hlcdc_rgb_encoder_destroy(struct drm_encoder *encoder)
@@ -226,10 +212,13 @@ atmel_hlcdc_panel_connector_destroy(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs atmel_hlcdc_panel_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
+	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = atmel_hlcdc_panel_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = atmel_hlcdc_panel_connector_destroy,
+	.reset = drm_atomic_helper_connector_reset,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
 static int atmel_hlcdc_create_panel_output(struct drm_device *dev,

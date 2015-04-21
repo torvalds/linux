@@ -27,6 +27,7 @@
 #include <net/sock.h>
 #include <net/request_sock.h>
 #include <net/netns/hash.h>
+#include <net/tcp_states.h>
 
 /** struct ip_options - IP Options
  *
@@ -77,6 +78,10 @@ struct inet_request_sock {
 #define ir_v6_rmt_addr		req.__req_common.skc_v6_daddr
 #define ir_v6_loc_addr		req.__req_common.skc_v6_rcv_saddr
 #define ir_iif			req.__req_common.skc_bound_dev_if
+#define ir_cookie		req.__req_common.skc_cookie
+#define ireq_net		req.__req_common.skc_net
+#define ireq_state		req.__req_common.skc_state
+#define ireq_family		req.__req_common.skc_family
 
 	kmemcheck_bitfield_begin(flags);
 	u16			snd_wscale : 4,
@@ -88,11 +93,11 @@ struct inet_request_sock {
 				acked	   : 1,
 				no_srccheck: 1;
 	kmemcheck_bitfield_end(flags);
+	u32                     ir_mark;
 	union {
 		struct ip_options_rcu	*opt;
 		struct sk_buff		*pktopts;
 	};
-	u32                     ir_mark;
 };
 
 static inline struct inet_request_sock *inet_rsk(const struct request_sock *sk)
@@ -100,13 +105,12 @@ static inline struct inet_request_sock *inet_rsk(const struct request_sock *sk)
 	return (struct inet_request_sock *)sk;
 }
 
-static inline u32 inet_request_mark(struct sock *sk, struct sk_buff *skb)
+static inline u32 inet_request_mark(const struct sock *sk, struct sk_buff *skb)
 {
-	if (!sk->sk_mark && sock_net(sk)->ipv4.sysctl_tcp_fwmark_accept) {
+	if (!sk->sk_mark && sock_net(sk)->ipv4.sysctl_tcp_fwmark_accept)
 		return skb->mark;
-	} else {
-		return sk->sk_mark;
-	}
+
+	return sk->sk_mark;
 }
 
 struct inet_cork {
@@ -239,18 +243,8 @@ static inline unsigned int __inet_ehashfn(const __be32 laddr,
 			    initval);
 }
 
-static inline struct request_sock *inet_reqsk_alloc(struct request_sock_ops *ops)
-{
-	struct request_sock *req = reqsk_alloc(ops);
-	struct inet_request_sock *ireq = inet_rsk(req);
-
-	if (req != NULL) {
-		kmemcheck_annotate_bitfield(ireq, flags);
-		ireq->opt = NULL;
-	}
-
-	return req;
-}
+struct request_sock *inet_reqsk_alloc(const struct request_sock_ops *ops,
+				      struct sock *sk_listener);
 
 static inline __u8 inet_sk_flowi_flags(const struct sock *sk)
 {

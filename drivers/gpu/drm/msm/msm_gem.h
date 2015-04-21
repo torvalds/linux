@@ -21,6 +21,9 @@
 #include <linux/reservation.h>
 #include "msm_drv.h"
 
+/* Additional internal-use only BO flags: */
+#define MSM_BO_STOLEN        0x10000000    /* try to use stolen/splash memory */
+
 struct msm_gem_object {
 	struct drm_gem_object base;
 
@@ -59,7 +62,7 @@ struct msm_gem_object {
 	struct reservation_object _resv;
 
 	/* For physically contiguous buffers.  Used when we don't have
-	 * an IOMMU.
+	 * an IOMMU.  Also used for stolen/splashscreen buffer.
 	 */
 	struct drm_mm_node *vram_node;
 };

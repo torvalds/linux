@@ -218,7 +218,8 @@ static void rxrpc_resend(struct rxrpc_call *call)
 	struct rxrpc_header *hdr;
 	struct sk_buff *txb;
 	unsigned long *p_txb, resend_at;
-	int loop, stop;
+	bool stop;
+	int loop;
 	u8 resend;
 
 	_enter("{%d,%d,%d,%d},",
@@ -226,7 +227,7 @@ static void rxrpc_resend(struct rxrpc_call *call)
 	       atomic_read(&call->sequence),
 	       CIRC_CNT(call->acks_head, call->acks_tail, call->acks_winsz));
 
-	stop = 0;
+	stop = false;
 	resend = 0;
 	resend_at = 0;
 
@@ -255,11 +256,11 @@ static void rxrpc_resend(struct rxrpc_call *call)
 			_proto("Tx DATA %%%u { #%d }",
 			       ntohl(sp->hdr.serial), ntohl(sp->hdr.seq));
 			if (rxrpc_send_packet(call->conn->trans, txb) < 0) {
-				stop = 0;
+				stop = true;
 				sp->resend_at = jiffies + 3;
 			} else {
 				sp->resend_at =
-					jiffies + rxrpc_resend_timeout * HZ;
+					jiffies + rxrpc_resend_timeout;
 			}
 		}
 

@@ -216,6 +216,7 @@ int kvm_mips_host_tlb_write(struct kvm_vcpu *vcpu, unsigned long entryhi,
 	if (idx > current_cpu_data.tlbsize) {
 		kvm_err("%s: Invalid Index: %d\n", __func__, idx);
 		kvm_mips_dump_host_tlbs();
+		local_irq_restore(flags);
 		return -1;
 	}
 
@@ -732,6 +733,9 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		}
 	}
 
+	/* restore guest state to registers */
+	kvm_mips_callbacks->vcpu_set_regs(vcpu);
+
 	local_irq_restore(flags);
 
 }
@@ -749,6 +753,9 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.preempt_entryhi = read_c0_entryhi();
 	vcpu->arch.last_sched_cpu = cpu;
+
+	/* save guest state in registers */
+	kvm_mips_callbacks->vcpu_get_regs(vcpu);
 
 	if (((cpu_context(cpu, current->mm) ^ asid_cache(cpu)) &
 	     ASID_VERSION_MASK)) {

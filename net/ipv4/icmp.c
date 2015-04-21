@@ -399,7 +399,7 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 		return;
 
 	sk = icmp_xmit_lock(net);
-	if (sk == NULL)
+	if (!sk)
 		return;
 	inet = inet_sk(sk);
 
@@ -609,7 +609,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 						 skb_in->data,
 						 sizeof(_inner_type),
 						 &_inner_type);
-			if (itp == NULL)
+			if (!itp)
 				goto out;
 
 			/*
@@ -627,7 +627,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 		return;
 
 	sk = icmp_xmit_lock(net);
-	if (sk == NULL)
+	if (!sk)
 		goto out_free;
 
 	/*

@@ -670,8 +670,12 @@ static int cctrl_tbl_show(struct seq_file *seq, void *v)
 		"0.9375" };
 
 	int i;
-	u16 incr[NMTUS][NCCTRL_WIN];
+	u16 (*incr)[NCCTRL_WIN];
 	struct adapter *adap = seq->private;
+
+	incr = kmalloc(sizeof(*incr) * NMTUS, GFP_KERNEL);
+	if (!incr)
+		return -ENOMEM;
 
 	t4_read_cong_tbl(adap, incr);
 
@@ -685,6 +689,8 @@ static int cctrl_tbl_show(struct seq_file *seq, void *v)
 			   adap->params.a_wnd[i],
 			   dec_fac[adap->params.b_wnd[i]]);
 	}
+
+	kfree(incr);
 	return 0;
 }
 
@@ -1769,6 +1775,8 @@ do { \
 		int n = min(4, adap->sge.rdmaqs - 4 * rdma_idx);
 
 		S("QType:", "RDMA-CPL");
+		S("Interface:",
+		  rx[i].rspq.netdev ? rx[i].rspq.netdev->name : "N/A");
 		R("RspQ ID:", rspq.abs_id);
 		R("RspQ size:", rspq.size);
 		R("RspQE size:", rspq.iqe_len);
@@ -1788,6 +1796,8 @@ do { \
 		int n = min(4, adap->sge.rdmaciqs - 4 * ciq_idx);
 
 		S("QType:", "RDMA-CIQ");
+		S("Interface:",
+		  rx[i].rspq.netdev ? rx[i].rspq.netdev->name : "N/A");
 		R("RspQ ID:", rspq.abs_id);
 		R("RspQ size:", rspq.size);
 		R("RspQE size:", rspq.iqe_len);

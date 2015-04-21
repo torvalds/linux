@@ -313,7 +313,7 @@ static struct strip_zone *find_zone(struct r0conf *conf,
 
 /*
  * remaps the bio to the target device. we separate two flows.
- * power 2 flow and a general flow for the sake of perfromance
+ * power 2 flow and a general flow for the sake of performance
 */
 static struct md_rdev *map_sector(struct mddev *mddev, struct strip_zone *zone,
 				sector_t sector, sector_t *sector_offset)
@@ -467,8 +467,6 @@ static int raid0_run(struct mddev *mddev)
 	dump_zones(mddev);
 
 	ret = md_integrity_register(mddev);
-	if (ret)
-		raid0_free(mddev, conf);
 
 	return ret;
 }
@@ -526,6 +524,7 @@ static void raid0_make_request(struct mddev *mddev, struct bio *bio)
 			split = bio;
 		}
 
+		sector = bio->bi_iter.bi_sector;
 		zone = find_zone(mddev->private, &sector);
 		tmp_dev = map_sector(mddev, zone, sector, &sector);
 		split->bi_bdev = tmp_dev->bdev;

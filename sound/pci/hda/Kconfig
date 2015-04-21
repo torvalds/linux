@@ -5,6 +5,7 @@ config SND_HDA
 	select SND_PCM
 	select SND_VMASTER
 	select SND_KCTL_JACK
+	select SND_HDA_CORE
 
 config SND_HDA_INTEL
 	tristate "HD Audio PCI"

@@ -14,6 +14,7 @@
 #include <linux/ptrace.h>
 #include <linux/uaccess.h>
 #include <linux/kdebug.h>
+#include <linux/perf_event.h>
 #include <asm/pgalloc.h>
 #include <asm/mmu.h>
 
@@ -139,13 +140,20 @@ good_area:
 			return;
 	}
 
+	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
+
 	if (likely(!(fault & VM_FAULT_ERROR))) {
 		if (flags & FAULT_FLAG_ALLOW_RETRY) {
 			/* To avoid updating stats twice for retry case */
-			if (fault & VM_FAULT_MAJOR)
+			if (fault & VM_FAULT_MAJOR) {
 				tsk->maj_flt++;
-			else
+				perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1,
+					      regs, address);
+			} else {
 				tsk->min_flt++;
+				perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1,
+					      regs, address);
+			}
 
 			if (fault & VM_FAULT_RETRY) {
 				flags &= ~FAULT_FLAG_ALLOW_RETRY;

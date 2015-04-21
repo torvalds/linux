@@ -587,8 +587,9 @@ static int mlx4_ib_SET_PORT(struct mlx4_ib_dev *dev, u8 port, int reset_qkey_vio
 		((__be32 *) mailbox->buf)[1] = cpu_to_be32(cap_mask);
 	}
 
-	err = mlx4_cmd(dev->dev, mailbox->dma, port, 0, MLX4_CMD_SET_PORT,
-		       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_WRAPPED);
+	err = mlx4_cmd(dev->dev, mailbox->dma, port, MLX4_SET_PORT_IB_OPCODE,
+		       MLX4_CMD_SET_PORT, MLX4_CMD_TIME_CLASS_B,
+		       MLX4_CMD_WRAPPED);
 
 	mlx4_free_cmd_mailbox(dev->dev, mailbox);
 	return err;
@@ -1525,8 +1526,8 @@ static void update_gids_task(struct work_struct *work)
 	memcpy(gids, gw->gids, sizeof gw->gids);
 
 	err = mlx4_cmd(dev, mailbox->dma, MLX4_SET_PORT_GID_TABLE << 8 | gw->port,
-		       1, MLX4_CMD_SET_PORT, MLX4_CMD_TIME_CLASS_B,
-		       MLX4_CMD_WRAPPED);
+		       MLX4_SET_PORT_ETH_OPCODE, MLX4_CMD_SET_PORT,
+		       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_WRAPPED);
 	if (err)
 		pr_warn("set port command failed\n");
 	else
@@ -1564,7 +1565,7 @@ static void reset_gids_task(struct work_struct *work)
 				    IB_LINK_LAYER_ETHERNET) {
 		err = mlx4_cmd(dev, mailbox->dma,
 			       MLX4_SET_PORT_GID_TABLE << 8 | gw->port,
-			       1, MLX4_CMD_SET_PORT,
+			       MLX4_SET_PORT_ETH_OPCODE, MLX4_CMD_SET_PORT,
 			       MLX4_CMD_TIME_CLASS_B,
 			       MLX4_CMD_WRAPPED);
 		if (err)
@@ -2697,8 +2698,12 @@ static void handle_bonded_port_state_event(struct work_struct *work)
 	spin_lock_bh(&ibdev->iboe.lock);
 	for (i = 0; i < MLX4_MAX_PORTS; ++i) {
 		struct net_device *curr_netdev = ibdev->iboe.netdevs[i];
+		enum ib_port_state curr_port_state;
 
-		enum ib_port_state curr_port_state =
+		if (!curr_netdev)
+			continue;
+
+		curr_port_state =
 			(netif_running(curr_netdev) &&
 			 netif_carrier_ok(curr_netdev)) ?
 			IB_PORT_ACTIVE : IB_PORT_DOWN;

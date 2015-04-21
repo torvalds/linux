@@ -68,8 +68,6 @@ static int st_ahci_deassert_resets(struct device *dev)
 		}
 	}
 
-	st_ahci_configure_oob(drv_data->hpriv->mmio);
-
 	if (drv_data->sw_rst) {
 		err = reset_control_deassert(drv_data->sw_rst);
 		if (err) {
@@ -172,6 +170,8 @@ static int st_ahci_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
+	st_ahci_configure_oob(drv_data->hpriv->mmio);
+
 	err = ahci_platform_init_host(pdev, hpriv, &st_ahci_port_info,
 				      &ahci_platform_sht);
 	if (err) {
@@ -221,6 +221,8 @@ static int st_ahci_resume(struct device *dev)
 		ahci_platform_disable_resources(hpriv);
 		return err;
 	}
+
+	st_ahci_configure_oob(drv_data->hpriv->mmio);
 
 	return ahci_platform_resume_host(dev);
 }

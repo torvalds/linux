@@ -4,7 +4,7 @@ Required properties:
 - compatible		: "renesas,thermal-<soctype>", "renesas,rcar-thermal"
 			  as fallback.
 			  Examples with soctypes are:
-			    - "renesas,thermal-r8a73a4" (R-Mobile AP6)
+			    - "renesas,thermal-r8a73a4" (R-Mobile APE6)
 			    - "renesas,thermal-r8a7779" (R-Car H1)
 			    - "renesas,thermal-r8a7790" (R-Car H2)
 			    - "renesas,thermal-r8a7791" (R-Car M2-W)
