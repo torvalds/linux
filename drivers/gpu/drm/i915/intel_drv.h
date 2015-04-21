@@ -1389,8 +1389,6 @@ int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 bool intel_pipe_update_start(struct intel_crtc *crtc,
 			     uint32_t *start_vbl_count);
 void intel_pipe_update_end(struct intel_crtc *crtc, u32 start_vbl_count);
-void intel_post_enable_primary(struct drm_crtc *crtc);
-void intel_pre_disable_primary(struct drm_crtc *crtc);
 
 /* intel_tv.c */
 void intel_tv_init(struct drm_device *dev);

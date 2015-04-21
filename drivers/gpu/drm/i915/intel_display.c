@@ -2240,14 +2240,6 @@ static void intel_enable_primary_hw_plane(struct drm_plane *plane,
 
 	dev_priv->display.update_primary_plane(crtc, plane->fb,
 					       crtc->x, crtc->y);
-
-	/*
-	 * BDW signals flip done immediately if the plane
-	 * is disabled, even if the plane enable is already
-	 * armed to occur at the next vblank :(
-	 */
-	if (IS_BROADWELL(dev))
-		intel_wait_for_vblank(dev, intel_crtc->pipe);
 }
 
 static bool need_vtd_wa(struct drm_device *dev)
@@ -4742,17 +4734,38 @@ static void intel_crtc_dpms_overlay(struct intel_crtc *intel_crtc, bool enable)
 	 */
 }
 
-static void intel_crtc_enable_planes(struct drm_crtc *crtc)
+/**
+ * intel_post_enable_primary - Perform operations after enabling primary plane
+ * @crtc: the CRTC whose primary plane was just enabled
+ *
+ * Performs potentially sleeping operations that must be done after the primary
+ * plane is enabled, such as updating FBC and IPS.  Note that this may be
+ * called due to an explicit primary plane update, or due to an implicit
+ * re-enable that is caused when a sprite plane is updated to no longer
+ * completely hide the primary plane.
+ */
+static void
+intel_post_enable_primary(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
 
-	intel_enable_primary_hw_plane(crtc->primary, crtc);
-	intel_enable_sprite_planes(crtc);
-	intel_crtc_update_cursor(crtc, true);
-	intel_crtc_dpms_overlay(intel_crtc, true);
+	/*
+	 * BDW signals flip done immediately if the plane
+	 * is disabled, even if the plane enable is already
+	 * armed to occur at the next vblank :(
+	 */
+	if (IS_BROADWELL(dev))
+		intel_wait_for_vblank(dev, pipe);
 
+	/*
+	 * FIXME IPS should be fine as long as one plane is
+	 * enabled, but in practice it seems to have problems
+	 * when going from primary only to sprite only and vice
+	 * versa.
+	 */
 	hsw_enable_ips(intel_crtc);
 
 	mutex_lock(&dev->struct_mutex);
@@ -4760,27 +4773,95 @@ static void intel_crtc_enable_planes(struct drm_crtc *crtc)
 	mutex_unlock(&dev->struct_mutex);
 
 	/*
-	 * FIXME: Once we grow proper nuclear flip support out of this we need
-	 * to compute the mask of flip planes precisely. For the time being
-	 * consider this a flip from a NULL plane.
+	 * Gen2 reports pipe underruns whenever all planes are disabled.
+	 * So don't enable underrun reporting before at least some planes
+	 * are enabled.
+	 * FIXME: Need to fix the logic to work when we turn off all planes
+	 * but leave the pipe running.
 	 */
-	intel_frontbuffer_flip(dev, INTEL_FRONTBUFFER_ALL_MASK(pipe));
+	if (IS_GEN2(dev))
+		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
+
+	/* Underruns don't raise interrupts, so check manually. */
+	if (HAS_GMCH_DISPLAY(dev))
+		i9xx_check_fifo_underruns(dev_priv);
+}
+
+/**
+ * intel_pre_disable_primary - Perform operations before disabling primary plane
+ * @crtc: the CRTC whose primary plane is to be disabled
+ *
+ * Performs potentially sleeping operations that must be done before the
+ * primary plane is disabled, such as updating FBC and IPS.  Note that this may
+ * be called due to an explicit primary plane update, or due to an implicit
+ * disable that is caused when a sprite plane completely hides the primary
+ * plane.
+ */
+static void
+intel_pre_disable_primary(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
+
+	/*
+	 * Gen2 reports pipe underruns whenever all planes are disabled.
+	 * So diasble underrun reporting before all the planes get disabled.
+	 * FIXME: Need to fix the logic to work when we turn off all planes
+	 * but leave the pipe running.
+	 */
+	if (IS_GEN2(dev))
+		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
+
+	/*
+	 * Vblank time updates from the shadow to live plane control register
+	 * are blocked if the memory self-refresh mode is active at that
+	 * moment. So to make sure the plane gets truly disabled, disable
+	 * first the self-refresh mode. The self-refresh enable bit in turn
+	 * will be checked/applied by the HW only at the next frame start
+	 * event which is after the vblank start event, so we need to have a
+	 * wait-for-vblank between disabling the plane and the pipe.
+	 */
+	if (HAS_GMCH_DISPLAY(dev))
+		intel_set_memory_cxsr(dev_priv, false);
+
+	mutex_lock(&dev->struct_mutex);
+	if (dev_priv->fbc.crtc == intel_crtc)
+		intel_fbc_disable(dev);
+	mutex_unlock(&dev->struct_mutex);
+
+	/*
+	 * FIXME IPS should be fine as long as one plane is
+	 * enabled, but in practice it seems to have problems
+	 * when going from primary only to sprite only and vice
+	 * versa.
+	 */
+	hsw_disable_ips(intel_crtc);
+}
+
+static void intel_crtc_enable_planes(struct drm_crtc *crtc)
+{
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+
+	intel_enable_primary_hw_plane(crtc->primary, crtc);
+	intel_enable_sprite_planes(crtc);
+	intel_crtc_update_cursor(crtc, true);
+	intel_crtc_dpms_overlay(intel_crtc, true);
+
+	intel_post_enable_primary(crtc);
 }
 
 static void intel_crtc_disable_planes(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_plane *intel_plane;
 	int pipe = intel_crtc->pipe;
 
 	intel_crtc_wait_for_pending_flips(crtc);
 
-	if (dev_priv->fbc.crtc == intel_crtc)
-		intel_fbc_disable(dev);
-
-	hsw_disable_ips(intel_crtc);
+	intel_pre_disable_primary(crtc);
 
 	intel_crtc_dpms_overlay(intel_crtc, false);
 	for_each_intel_plane(dev, intel_plane) {
@@ -5839,9 +5920,6 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 		encoder->enable(encoder);
 
 	intel_crtc_enable_planes(crtc);
-
-	/* Underruns don't raise interrupts, so check manually. */
-	i9xx_check_fifo_underruns(dev_priv);
 }
 
 static void i9xx_set_pll_dividers(struct intel_crtc *crtc)
@@ -5900,19 +5978,6 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 		encoder->enable(encoder);
 
 	intel_crtc_enable_planes(crtc);
-
-	/*
-	 * Gen2 reports pipe underruns whenever all planes are disabled.
-	 * So don't enable underrun reporting before at least some planes
-	 * are enabled.
-	 * FIXME: Need to fix the logic to work when we turn off all planes
-	 * but leave the pipe running.
-	 */
-	if (IS_GEN2(dev))
-		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
-
-	/* Underruns don't raise interrupts, so check manually. */
-	i9xx_check_fifo_underruns(dev_priv);
 }
 
 static void i9xx_pfit_disable(struct intel_crtc *crtc)
@@ -5941,25 +6006,6 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 	if (!intel_crtc->active)
 		return;
 
-	/*
-	 * Gen2 reports pipe underruns whenever all planes are disabled.
-	 * So diasble underrun reporting before all the planes get disabled.
-	 * FIXME: Need to fix the logic to work when we turn off all planes
-	 * but leave the pipe running.
-	 */
-	if (IS_GEN2(dev))
-		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
-
-	/*
-	 * Vblank time updates from the shadow to live plane control register
-	 * are blocked if the memory self-refresh mode is active at that
-	 * moment. So to make sure the plane gets truly disabled, disable
-	 * first the self-refresh mode. The self-refresh enable bit in turn
-	 * will be checked/applied by the HW only at the next frame start
-	 * event which is after the vblank start event, so we need to have a
-	 * wait-for-vblank between disabling the plane and the pipe.
-	 */
-	intel_set_memory_cxsr(dev_priv, false);
 	intel_crtc_disable_planes(crtc);
 
 	/*
@@ -12908,7 +12954,7 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 		plane_state = to_intel_plane_state(primary->state);
 		if (ret == 0 && !was_visible && plane_state->visible) {
 			WARN_ON(!intel_crtc->active);
-			intel_enable_primary_hw_plane(set->crtc->primary, set->crtc);
+			intel_post_enable_primary(set->crtc);
 		}
 
 		/*
