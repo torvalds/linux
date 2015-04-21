@@ -12721,6 +12721,18 @@ intel_set_config_compute_mode_changes(struct drm_mode_set *set,
 			pipe_config->base.planes_changed);
 }
 
+static bool intel_connector_in_mode_set(struct intel_connector *connector,
+					struct drm_mode_set *set)
+{
+	int ro;
+
+	for (ro = 0; ro < set->num_connectors; ro++)
+		if (set->connectors[ro] == &connector->base)
+			return true;
+
+	return false;
+}
+
 static int
 intel_modeset_stage_output_state(struct drm_device *dev,
 				 struct drm_mode_set *set,
@@ -12731,7 +12743,6 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 	struct intel_encoder *encoder;
 	struct intel_crtc *crtc;
 	struct intel_crtc_state *crtc_state;
-	int ro;
 
 	/* The upper layers ensure that we either disable a crtc or have a list
 	 * of connectors. For paranoia, double-check this. */
@@ -12739,21 +12750,22 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 	WARN_ON(set->fb && (set->num_connectors == 0));
 
 	for_each_intel_connector(dev, connector) {
-		/* Otherwise traverse passed in connector list and get encoders
-		 * for them. */
-		for (ro = 0; ro < set->num_connectors; ro++) {
-			if (set->connectors[ro] == &connector->base) {
-				connector->new_encoder = intel_find_encoder(connector, to_intel_crtc(set->crtc)->pipe);
-				break;
-			}
+		bool in_mode_set = intel_connector_in_mode_set(connector, set);
+
+		if (in_mode_set) {
+			int pipe = to_intel_crtc(set->crtc)->pipe;
+			connector->new_encoder =
+				intel_find_encoder(connector, pipe);
 		}
+
+		if (!connector->base.encoder ||
+		    connector->base.encoder->crtc != set->crtc)
+			continue;
 
 		/* If we disable the crtc, disable all its connectors. Also, if
 		 * the connector is on the changing crtc but not on the new
 		 * connector list, disable it. */
-		if ((!set->fb || ro == set->num_connectors) &&
-		    connector->base.encoder &&
-		    connector->base.encoder->crtc == set->crtc) {
+		if (!set->fb || !in_mode_set) {
 			connector->new_encoder = NULL;
 
 			DRM_DEBUG_KMS("[CONNECTOR:%d:%s] to [NOCRTC]\n",
@@ -12770,12 +12782,10 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 		if (!connector->new_encoder)
 			continue;
 
-		new_crtc = connector->new_encoder->base.crtc;
-
-		for (ro = 0; ro < set->num_connectors; ro++) {
-			if (set->connectors[ro] == &connector->base)
-				new_crtc = set->crtc;
-		}
+		if (intel_connector_in_mode_set(connector, set))
+			new_crtc = set->crtc;
+		else
+			new_crtc = connector->new_encoder->base.crtc;
 
 		/* Make sure the new CRTC will work with the encoder */
 		if (!drm_encoder_crtc_ok(&connector->new_encoder->base,
