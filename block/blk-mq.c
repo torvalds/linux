@@ -1574,22 +1574,6 @@ static int blk_mq_hctx_cpu_offline(struct blk_mq_hw_ctx *hctx, int cpu)
 	return NOTIFY_OK;
 }
 
-static int blk_mq_hctx_cpu_online(struct blk_mq_hw_ctx *hctx, int cpu)
-{
-	struct request_queue *q = hctx->queue;
-	struct blk_mq_tag_set *set = q->tag_set;
-
-	if (set->tags[hctx->queue_num])
-		return NOTIFY_OK;
-
-	set->tags[hctx->queue_num] = blk_mq_init_rq_map(set, hctx->queue_num);
-	if (!set->tags[hctx->queue_num])
-		return NOTIFY_STOP;
-
-	hctx->tags = set->tags[hctx->queue_num];
-	return NOTIFY_OK;
-}
-
 static int blk_mq_hctx_notify(void *data, unsigned long action,
 			      unsigned int cpu)
 {
@@ -1597,8 +1581,11 @@ static int blk_mq_hctx_notify(void *data, unsigned long action,
 
 	if (action == CPU_DEAD || action == CPU_DEAD_FROZEN)
 		return blk_mq_hctx_cpu_offline(hctx, cpu);
-	else if (action == CPU_ONLINE || action == CPU_ONLINE_FROZEN)
-		return blk_mq_hctx_cpu_online(hctx, cpu);
+
+	/*
+	 * In case of CPU online, tags may be reallocated
+	 * in blk_mq_map_swqueue() after mapping is updated.
+	 */
 
 	return NOTIFY_OK;
 }
@@ -1778,6 +1765,7 @@ static void blk_mq_map_swqueue(struct request_queue *q)
 	unsigned int i;
 	struct blk_mq_hw_ctx *hctx;
 	struct blk_mq_ctx *ctx;
+	struct blk_mq_tag_set *set = q->tag_set;
 
 	queue_for_each_hw_ctx(q, hctx, i) {
 		cpumask_clear(hctx->cpumask);
@@ -1806,15 +1794,19 @@ static void blk_mq_map_swqueue(struct request_queue *q)
 		 * disable it and free the request entries.
 		 */
 		if (!hctx->nr_ctx) {
-			struct blk_mq_tag_set *set = q->tag_set;
-
 			if (set->tags[i]) {
 				blk_mq_free_rq_map(set, set->tags[i], i);
 				set->tags[i] = NULL;
-				hctx->tags = NULL;
 			}
+			hctx->tags = NULL;
 			continue;
 		}
+
+		/* unmapped hw queue can be remapped after CPU topo changed */
+		if (!set->tags[i])
+			set->tags[i] = blk_mq_init_rq_map(set, i);
+		hctx->tags = set->tags[i];
+		WARN_ON(!hctx->tags);
 
 		/*
 		 * Set the map size to the number of mapped software queues.
