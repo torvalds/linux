@@ -136,7 +136,7 @@ ENTRY(ia32_sysenter_target)
 	pushq_cfi_reg	rsi			/* pt_regs->si */
 	pushq_cfi_reg	rdx			/* pt_regs->dx */
 	pushq_cfi_reg	rcx			/* pt_regs->cx */
-	pushq_cfi_reg	rax			/* pt_regs->ax */
+	pushq_cfi	$-ENOSYS		/* pt_regs->ax */
 	cld
 	sub	$(10*8),%rsp /* pt_regs->r8-11,bp,bx,r12-15 not saved */
 	CFI_ADJUST_CFA_OFFSET 10*8
@@ -163,8 +163,6 @@ sysenter_flags_fixed:
 	testl   $_TIF_WORK_SYSCALL_ENTRY, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
 	CFI_REMEMBER_STATE
 	jnz  sysenter_tracesys
-	cmpq	$(IA32_NR_syscalls-1),%rax
-	ja	ia32_badsys
 sysenter_do_call:
 	/* 32bit syscall -> 64bit C ABI argument conversion */
 	movl	%edi,%r8d	/* arg5 */
@@ -173,8 +171,11 @@ sysenter_do_call:
 	movl	%ebx,%edi	/* arg1 */
 	movl	%edx,%edx	/* arg3 (zero extension) */
 sysenter_dispatch:
+	cmpq	$(IA32_NR_syscalls-1),%rax
+	ja	1f
 	call	*ia32_sys_call_table(,%rax,8)
 	movq	%rax,RAX(%rsp)
+1:
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
 	testl	$_TIF_ALLWORK_MASK, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
@@ -241,9 +242,7 @@ sysexit_from_sys_call:
 	movl %ebx,%esi			/* 2nd arg: 1st syscall arg */
 	movl %eax,%edi			/* 1st arg: syscall number */
 	call __audit_syscall_entry
-	movl RAX(%rsp),%eax	/* reload syscall number */
-	cmpq $(IA32_NR_syscalls-1),%rax
-	ja ia32_badsys
+	movl ORIG_RAX(%rsp),%eax	/* reload syscall number */
 	movl %ebx,%edi			/* reload 1st syscall arg */
 	movl RCX(%rsp),%esi	/* reload 2nd syscall arg */
 	movl RDX(%rsp),%edx	/* reload 3rd syscall arg */
@@ -294,13 +293,10 @@ sysenter_tracesys:
 #endif
 	SAVE_EXTRA_REGS
 	CLEAR_RREGS
-	movq	$-ENOSYS,RAX(%rsp)/* ptrace can change this for a bad syscall */
 	movq	%rsp,%rdi        /* &pt_regs -> arg1 */
 	call	syscall_trace_enter
 	LOAD_ARGS32  /* reload args from stack in case ptrace changed it */
 	RESTORE_EXTRA_REGS
-	cmpq	$(IA32_NR_syscalls-1),%rax
-	ja	int_ret_from_sys_call /* sysenter_tracesys has set RAX(%rsp) */
 	jmp	sysenter_do_call
 	CFI_ENDPROC
 ENDPROC(ia32_sysenter_target)
@@ -370,7 +366,7 @@ ENTRY(ia32_cstar_target)
 	pushq_cfi_reg	rdx			/* pt_regs->dx */
 	pushq_cfi_reg	rbp			/* pt_regs->cx */
 	movl	%ebp,%ecx
-	pushq_cfi_reg	rax			/* pt_regs->ax */
+	pushq_cfi	$-ENOSYS		/* pt_regs->ax */
 	sub	$(10*8),%rsp /* pt_regs->r8-11,bp,bx,r12-15 not saved */
 	CFI_ADJUST_CFA_OFFSET 10*8
 
@@ -386,8 +382,6 @@ ENTRY(ia32_cstar_target)
 	testl   $_TIF_WORK_SYSCALL_ENTRY, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
 	CFI_REMEMBER_STATE
 	jnz   cstar_tracesys
-	cmpq $IA32_NR_syscalls-1,%rax
-	ja  ia32_badsys
 cstar_do_call:
 	/* 32bit syscall -> 64bit C ABI argument conversion */
 	movl	%edi,%r8d	/* arg5 */
@@ -396,8 +390,11 @@ cstar_do_call:
 	movl	%ebx,%edi	/* arg1 */
 	movl	%edx,%edx	/* arg3 (zero extension) */
 cstar_dispatch:
+	cmpq	$(IA32_NR_syscalls-1),%rax
+	ja	1f
 	call *ia32_sys_call_table(,%rax,8)
 	movq %rax,RAX(%rsp)
+1:
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
 	testl $_TIF_ALLWORK_MASK, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
@@ -444,14 +441,11 @@ cstar_tracesys:
 	xchgl %r9d,%ebp
 	SAVE_EXTRA_REGS
 	CLEAR_RREGS r9
-	movq $-ENOSYS,RAX(%rsp)	/* ptrace can change this for a bad syscall */
 	movq %rsp,%rdi        /* &pt_regs -> arg1 */
 	call syscall_trace_enter
 	LOAD_ARGS32 1	/* reload args from stack in case ptrace changed it */
 	RESTORE_EXTRA_REGS
 	xchgl %ebp,%r9d
-	cmpq $(IA32_NR_syscalls-1),%rax
-	ja int_ret_from_sys_call /* cstar_tracesys has set RAX(%rsp) */
 	jmp cstar_do_call
 END(ia32_cstar_target)
 				
@@ -510,7 +504,7 @@ ENTRY(ia32_syscall)
 	pushq_cfi_reg	rsi			/* pt_regs->si */
 	pushq_cfi_reg	rdx			/* pt_regs->dx */
 	pushq_cfi_reg	rcx			/* pt_regs->cx */
-	pushq_cfi_reg	rax			/* pt_regs->ax */
+	pushq_cfi	$-ENOSYS		/* pt_regs->ax */
 	cld
 	sub	$(10*8),%rsp /* pt_regs->r8-11,bp,bx,r12-15 not saved */
 	CFI_ADJUST_CFA_OFFSET 10*8
@@ -518,8 +512,6 @@ ENTRY(ia32_syscall)
 	orl $TS_COMPAT, ASM_THREAD_INFO(TI_status, %rsp, SIZEOF_PTREGS)
 	testl $_TIF_WORK_SYSCALL_ENTRY, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
 	jnz ia32_tracesys
-	cmpq $(IA32_NR_syscalls-1),%rax
-	ja ia32_badsys
 ia32_do_call:
 	/* 32bit syscall -> 64bit C ABI argument conversion */
 	movl %edi,%r8d	/* arg5 */
@@ -527,9 +519,12 @@ ia32_do_call:
 	xchg %ecx,%esi	/* rsi:arg2, rcx:arg4 */
 	movl %ebx,%edi	/* arg1 */
 	movl %edx,%edx	/* arg3 (zero extension) */
+	cmpq	$(IA32_NR_syscalls-1),%rax
+	ja	1f
 	call *ia32_sys_call_table(,%rax,8) # xxx: rip relative
 ia32_sysret:
 	movq %rax,RAX(%rsp)
+1:
 ia32_ret_from_sys_call:
 	CLEAR_RREGS
 	jmp int_ret_from_sys_call
@@ -537,23 +532,14 @@ ia32_ret_from_sys_call:
 ia32_tracesys:
 	SAVE_EXTRA_REGS
 	CLEAR_RREGS
-	movq $-ENOSYS,RAX(%rsp)	/* ptrace can change this for a bad syscall */
 	movq %rsp,%rdi        /* &pt_regs -> arg1 */
 	call syscall_trace_enter
 	LOAD_ARGS32	/* reload args from stack in case ptrace changed it */
 	RESTORE_EXTRA_REGS
-	cmpq $(IA32_NR_syscalls-1),%rax
-	ja  int_ret_from_sys_call	/* ia32_tracesys has set RAX(%rsp) */
 	jmp ia32_do_call
+	CFI_ENDPROC
 END(ia32_syscall)
 
-ia32_badsys:
-	movq $0,ORIG_RAX(%rsp)
-	movq $-ENOSYS,%rax
-	jmp ia32_sysret
-
-	CFI_ENDPROC
-	
 	.macro PTREGSCALL label, func
 	ALIGN
 GLOBAL(\label)
