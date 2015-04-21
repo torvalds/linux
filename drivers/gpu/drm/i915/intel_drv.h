@@ -813,15 +813,6 @@ struct intel_unpin_work {
 	bool enable_stall_check;
 };
 
-struct intel_set_config {
-	struct drm_encoder **save_connector_encoders;
-	struct drm_crtc **save_encoder_crtcs;
-	bool *save_crtc_enabled;
-
-	bool fb_changed;
-	bool mode_changed;
-};
-
 struct intel_load_detect_pipe {
 	struct drm_framebuffer *release_fb;
 	bool load_detect_temp;

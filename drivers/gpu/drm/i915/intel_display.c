@@ -12549,91 +12549,6 @@ void intel_crtc_restore_mode(struct drm_crtc *crtc)
 
 #undef for_each_intel_crtc_masked
 
-static void intel_set_config_free(struct intel_set_config *config)
-{
-	if (!config)
-		return;
-
-	kfree(config->save_connector_encoders);
-	kfree(config->save_encoder_crtcs);
-	kfree(config->save_crtc_enabled);
-	kfree(config);
-}
-
-static int intel_set_config_save_state(struct drm_device *dev,
-				       struct intel_set_config *config)
-{
-	struct drm_crtc *crtc;
-	struct drm_encoder *encoder;
-	struct drm_connector *connector;
-	int count;
-
-	config->save_crtc_enabled =
-		kcalloc(dev->mode_config.num_crtc,
-			sizeof(bool), GFP_KERNEL);
-	if (!config->save_crtc_enabled)
-		return -ENOMEM;
-
-	config->save_encoder_crtcs =
-		kcalloc(dev->mode_config.num_encoder,
-			sizeof(struct drm_crtc *), GFP_KERNEL);
-	if (!config->save_encoder_crtcs)
-		return -ENOMEM;
-
-	config->save_connector_encoders =
-		kcalloc(dev->mode_config.num_connector,
-			sizeof(struct drm_encoder *), GFP_KERNEL);
-	if (!config->save_connector_encoders)
-		return -ENOMEM;
-
-	/* Copy data. Note that driver private data is not affected.
-	 * Should anything bad happen only the expected state is
-	 * restored, not the drivers personal bookkeeping.
-	 */
-	count = 0;
-	for_each_crtc(dev, crtc) {
-		config->save_crtc_enabled[count++] = crtc->state->enable;
-	}
-
-	count = 0;
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		config->save_encoder_crtcs[count++] = encoder->crtc;
-	}
-
-	count = 0;
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		config->save_connector_encoders[count++] = connector->encoder;
-	}
-
-	return 0;
-}
-
-static void intel_set_config_restore_state(struct drm_device *dev,
-					   struct intel_set_config *config)
-{
-	struct intel_crtc *crtc;
-	struct intel_encoder *encoder;
-	struct intel_connector *connector;
-	int count;
-
-	count = 0;
-	for_each_intel_crtc(dev, crtc) {
-		crtc->new_enabled = config->save_crtc_enabled[count++];
-	}
-
-	count = 0;
-	for_each_intel_encoder(dev, encoder) {
-		encoder->new_crtc =
-			to_intel_crtc(config->save_encoder_crtcs[count++]);
-	}
-
-	count = 0;
-	for_each_intel_connector(dev, connector) {
-		connector->new_encoder =
-			to_intel_encoder(config->save_connector_encoders[count++]);
-	}
-}
-
 static bool
 is_crtc_connector_off(struct drm_mode_set *set)
 {
@@ -12872,7 +12787,6 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 {
 	struct drm_device *dev;
 	struct drm_atomic_state *state = NULL;
-	struct intel_set_config *config;
 	struct intel_crtc_state *pipe_config;
 	bool primary_plane_was_visible;
 	int ret;
@@ -12895,37 +12809,26 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 
 	dev = set->crtc->dev;
 
-	ret = -ENOMEM;
-	config = kzalloc(sizeof(*config), GFP_KERNEL);
-	if (!config)
-		goto out_config;
-
-	ret = intel_set_config_save_state(dev, config);
-	if (ret)
-		goto out_config;
-
 	state = drm_atomic_state_alloc(dev);
-	if (!state) {
-		ret = -ENOMEM;
-		goto out_config;
-	}
+	if (!state)
+		return -ENOMEM;
 
 	state->acquire_ctx = dev->mode_config.acquire_ctx;
 
 	ret = intel_modeset_stage_output_state(dev, set, state);
 	if (ret)
-		goto fail;
+		goto out;
 
 	ret = intel_modeset_setup_plane_state(state, set->crtc, set->mode,
 					      set->fb, set->x, set->y);
 	if (ret)
-		goto fail;
+		goto out;
 
 	pipe_config = intel_modeset_compute_config(set->crtc, set->mode,
 						   state);
 	if (IS_ERR(pipe_config)) {
 		ret = PTR_ERR(pipe_config);
-		goto fail;
+		goto out;
 	}
 
 	/* Compute whether we need a full modeset, only an fb base update or no
@@ -12972,14 +12875,10 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 	if (ret) {
 		DRM_DEBUG_KMS("failed to set mode on [CRTC:%d], err = %d\n",
 			      set->crtc->base.id, ret);
-fail:
-		intel_set_config_restore_state(dev, config);
 	}
 
-out_config:
+out:
 	drm_atomic_state_free(state);
-
-	intel_set_config_free(config);
 	return ret;
 }
 
