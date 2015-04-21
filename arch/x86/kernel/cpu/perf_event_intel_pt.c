@@ -609,7 +609,12 @@ static unsigned int pt_topa_next_entry(struct pt_buffer *buf, unsigned int pg)
  * @handle:	Current output handle.
  *
  * Place INT and STOP marks to prevent overwriting old data that the consumer
- * hasn't yet collected.
+ * hasn't yet collected and waking up the consumer after a certain fraction of
+ * the buffer has filled up. Only needed and sensible for non-snapshot counters.
+ *
+ * This obviously relies on buf::head to figure out buffer markers, so it has
+ * to be called after pt_buffer_reset_offsets() and before the hardware tracing
+ * is enabled.
  */
 static int pt_buffer_reset_markers(struct pt_buffer *buf,
 				   struct perf_output_handle *handle)
@@ -617,9 +622,6 @@ static int pt_buffer_reset_markers(struct pt_buffer *buf,
 {
 	unsigned long head = local64_read(&buf->head);
 	unsigned long idx, npages, wakeup;
-
-	if (buf->snapshot)
-		return 0;
 
 	/* can't stop in the middle of an output region */
 	if (buf->output_off + handle->size + 1 <
@@ -901,6 +903,7 @@ void intel_pt_interrupt(void)
 		}
 
 		pt_buffer_reset_offsets(buf, pt->handle.head);
+		/* snapshot counters don't use PMI, so it's safe */
 		ret = pt_buffer_reset_markers(buf, &pt->handle);
 		if (ret) {
 			perf_aux_output_end(&pt->handle, 0, true);
