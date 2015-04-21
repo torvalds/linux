@@ -249,12 +249,6 @@ struct intel_plane_state {
 	bool visible;
 
 	/*
-	 * used only for sprite planes to determine when to implicitly
-	 * enable/disable the primary plane
-	 */
-	bool hides_primary;
-
-	/*
 	 * scaler_id
 	 *    = -1 : not using a scaler
 	 *    >=  0 : using a scalers

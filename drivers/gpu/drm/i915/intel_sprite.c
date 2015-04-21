@@ -166,17 +166,6 @@ void intel_pipe_update_end(struct intel_crtc *crtc, u32 start_vbl_count)
 			  pipe_name(pipe), start_vbl_count, end_vbl_count);
 }
 
-static void intel_update_primary_plane(struct intel_crtc *crtc)
-{
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
-	int reg = DSPCNTR(crtc->plane);
-
-	if (crtc->primary_enabled)
-		I915_WRITE(reg, I915_READ(reg) | DISPLAY_PLANE_ENABLE);
-	else
-		I915_WRITE(reg, I915_READ(reg) & ~DISPLAY_PLANE_ENABLE);
-}
-
 static void
 skl_update_plane(struct drm_plane *drm_plane, struct drm_crtc *crtc,
 		 struct drm_framebuffer *fb,
@@ -438,8 +427,6 @@ vlv_update_plane(struct drm_plane *dplane, struct drm_crtc *crtc,
 		linear_offset += src_h * fb->pitches[0] + src_w * pixel_size;
 	}
 
-	intel_update_primary_plane(intel_crtc);
-
 	if (key->flags) {
 		I915_WRITE(SPKEYMINVAL(pipe, plane), key->min_value);
 		I915_WRITE(SPKEYMAXVAL(pipe, plane), key->max_value);
@@ -479,8 +466,6 @@ vlv_disable_plane(struct drm_plane *dplane, struct drm_crtc *crtc)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_plane->pipe;
 	int plane = intel_plane->plane;
-
-	intel_update_primary_plane(intel_crtc);
 
 	I915_WRITE(SPCNTR(pipe, plane), 0);
 
@@ -585,8 +570,6 @@ ivb_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		}
 	}
 
-	intel_update_primary_plane(intel_crtc);
-
 	if (key->flags) {
 		I915_WRITE(SPRKEYVAL(pipe), key->min_value);
 		I915_WRITE(SPRKEYMAX(pipe), key->max_value);
@@ -628,8 +611,6 @@ ivb_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_plane->pipe;
-
-	intel_update_primary_plane(intel_crtc);
 
 	I915_WRITE(SPRCTL(pipe), I915_READ(SPRCTL(pipe)) & ~SPRITE_ENABLE);
 	/* Can't leave the scaler enabled... */
@@ -725,8 +706,6 @@ ilk_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		linear_offset += src_h * fb->pitches[0] + src_w * pixel_size;
 	}
 
-	intel_update_primary_plane(intel_crtc);
-
 	if (key->flags) {
 		I915_WRITE(DVSKEYVAL(pipe), key->min_value);
 		I915_WRITE(DVSKEYMAX(pipe), key->max_value);
@@ -763,8 +742,6 @@ ilk_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_plane->pipe;
-
-	intel_update_primary_plane(intel_crtc);
 
 	I915_WRITE(DVSCNTR(pipe), 0);
 	/* Disable the scaler */
@@ -818,7 +795,7 @@ intel_post_enable_primary(struct drm_crtc *crtc)
  * @crtc: the CRTC whose primary plane is to be disabled
  *
  * Performs potentially sleeping operations that must be done before the
- * primary plane is enabled, such as updating FBC and IPS.  Note that this may
+ * primary plane is disabled, such as updating FBC and IPS.  Note that this may
  * be called due to an explicit primary plane update, or due to an implicit
  * disable that is caused when a sprite plane completely hides the primary
  * plane.
@@ -842,11 +819,6 @@ intel_pre_disable_primary(struct drm_crtc *crtc)
 	 * versa.
 	 */
 	hsw_disable_ips(intel_crtc);
-}
-
-static bool colorkey_enabled(struct intel_plane *intel_plane)
-{
-	return intel_plane->ckey.flags != I915_SET_COLORKEY_NONE;
 }
 
 static int
@@ -1022,22 +994,9 @@ finish:
 	 * If the sprite is completely covering the primary plane,
 	 * we can disable the primary and save power.
 	 */
-	state->hides_primary = fb != NULL && drm_rect_equals(dst, clip) &&
-		!colorkey_enabled(intel_plane);
-	WARN_ON(state->hides_primary && !state->visible && intel_crtc->active);
-
 	if (intel_crtc->active) {
-		if (intel_crtc->primary_enabled == state->hides_primary)
-			intel_crtc->atomic.wait_for_flips = true;
-
-		if (intel_crtc->primary_enabled && state->hides_primary)
-			intel_crtc->atomic.pre_disable_primary = true;
-
 		intel_crtc->atomic.fb_bits |=
 			INTEL_FRONTBUFFER_SPRITE(intel_crtc->pipe);
-
-		if (!intel_crtc->primary_enabled && !state->hides_primary)
-			intel_crtc->atomic.post_enable_primary = true;
 
 		if (intel_wm_need_update(plane, &state->base))
 			intel_crtc->atomic.update_wm = true;
@@ -1081,8 +1040,6 @@ intel_commit_sprite_plane(struct drm_plane *plane,
 	plane->fb = fb;
 
 	if (intel_crtc->active) {
-		intel_crtc->primary_enabled = !state->hides_primary;
-
 		if (state->visible) {
 			crtc_x = state->dst.x1;
 			crtc_y = state->dst.y1;
