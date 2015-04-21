@@ -12232,6 +12232,32 @@ done:
 	return ret;
 }
 
+/* Code that should eventually be part of atomic_check() */
+static int __intel_set_mode_checks(struct drm_atomic_state *state)
+{
+	struct drm_device *dev = state->dev;
+	int ret;
+
+	/*
+	 * See if the config requires any additional preparation, e.g.
+	 * to adjust global state with pipes off.  We need to do this
+	 * here so we can get the modeset_pipe updated config for the new
+	 * mode set on this crtc.  For other crtcs we need to use the
+	 * adjusted_mode bits in the crtc directly.
+	 */
+	if (IS_VALLEYVIEW(dev) || IS_BROXTON(dev)) {
+		ret = valleyview_modeset_global_pipes(state);
+		if (ret)
+			return ret;
+	}
+
+	ret = __intel_set_mode_setup_plls(state);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static int __intel_set_mode(struct drm_crtc *modeset_crtc,
 			    struct drm_display_mode *mode,
 			    int x, int y, struct drm_framebuffer *fb,
@@ -12247,28 +12273,15 @@ static int __intel_set_mode(struct drm_crtc *modeset_crtc,
 	int ret = 0;
 	int i;
 
+	ret = __intel_set_mode_checks(state);
+	if (ret < 0)
+		return ret;
+
 	crtc_state_copy = kmalloc(sizeof(*crtc_state_copy), GFP_KERNEL);
 	if (!crtc_state_copy) {
 		ret = -ENOMEM;
 		goto done;
 	}
-
-	/*
-	 * See if the config requires any additional preparation, e.g.
-	 * to adjust global state with pipes off.  We need to do this
-	 * here so we can get the modeset_pipe updated config for the new
-	 * mode set on this crtc.  For other crtcs we need to use the
-	 * adjusted_mode bits in the crtc directly.
-	 */
-	if (IS_VALLEYVIEW(dev) || IS_BROXTON(dev)) {
-		ret = valleyview_modeset_global_pipes(state);
-		if (ret)
-			goto done;
-	}
-
-	ret = __intel_set_mode_setup_plls(state);
-	if (ret)
-		goto done;
 
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		if (!needs_modeset(crtc_state))
