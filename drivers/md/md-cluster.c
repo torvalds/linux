@@ -612,9 +612,9 @@ static int join(struct mddev *mddev, int nodes)
 	if (ret)
 		goto err;
 	wait_for_completion(&cinfo->completion);
-	if (nodes <= cinfo->slot_number) {
-		pr_err("md-cluster: Slot allotted(%d) greater than available slots(%d)", cinfo->slot_number - 1,
-			nodes);
+	if (nodes < cinfo->slot_number) {
+		pr_err("md-cluster: Slot allotted(%d) is greater than available slots(%d).",
+			cinfo->slot_number, nodes);
 		ret = -ERANGE;
 		goto err;
 	}
