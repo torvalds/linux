@@ -12850,12 +12850,21 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 	return 0;
 }
 
+static bool primary_plane_visible(struct drm_crtc *crtc)
+{
+	struct intel_plane_state *plane_state =
+		to_intel_plane_state(crtc->primary->state);
+
+	return plane_state->visible;
+}
+
 static int intel_crtc_set_config(struct drm_mode_set *set)
 {
 	struct drm_device *dev;
 	struct drm_atomic_state *state = NULL;
 	struct intel_set_config *config;
 	struct intel_crtc_state *pipe_config;
+	bool primary_plane_was_visible;
 	int ret;
 
 	BUG_ON(!set);
@@ -12917,29 +12926,23 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 
 	intel_update_pipe_size(to_intel_crtc(set->crtc));
 
-	if (pipe_config->base.mode_changed) {
-		ret = intel_set_mode_with_config(set->crtc, set->mode,
-						 pipe_config);
-	} else if (pipe_config->base.planes_changed) {
-		struct intel_crtc *intel_crtc = to_intel_crtc(set->crtc);
-		struct drm_plane *primary = set->crtc->primary;
-		struct intel_plane_state *plane_state =
-				to_intel_plane_state(primary->state);
-		bool was_visible = plane_state->visible;
-		int vdisplay, hdisplay;
+	primary_plane_was_visible = primary_plane_visible(set->crtc);
 
-		drm_crtc_get_hv_timing(set->mode, &hdisplay, &vdisplay);
-		ret = drm_plane_helper_update(primary, set->crtc, set->fb,
-					      0, 0, hdisplay, vdisplay,
-					      set->x << 16, set->y << 16,
-					      hdisplay << 16, vdisplay << 16);
+	ret = intel_set_mode_with_config(set->crtc, set->mode,
+					 pipe_config);
+
+	if (ret == 0 &&
+	    pipe_config->base.enable &&
+	    pipe_config->base.planes_changed &&
+	    !needs_modeset(&pipe_config->base)) {
+		struct intel_crtc *intel_crtc = to_intel_crtc(set->crtc);
 
 		/*
 		 * We need to make sure the primary plane is re-enabled if it
 		 * has previously been turned off.
 		 */
-		plane_state = to_intel_plane_state(primary->state);
-		if (ret == 0 && !was_visible && plane_state->visible) {
+		if (ret == 0 && !primary_plane_was_visible &&
+		    primary_plane_visible(set->crtc)) {
 			WARN_ON(!intel_crtc->active);
 			intel_post_enable_primary(set->crtc);
 		}
