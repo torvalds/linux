@@ -679,8 +679,28 @@ static bool comedi_is_subdevice_idle(struct comedi_subdevice *s)
 	return !(runflags & COMEDI_SRF_BUSY_MASK);
 }
 
+bool comedi_can_auto_free_spriv(struct comedi_subdevice *s)
+{
+	unsigned runflags = __comedi_get_subdevice_runflags(s);
+
+	return runflags & COMEDI_SRF_FREE_SPRIV;
+}
+
 /**
- * comedi_alloc_spriv() - Allocate memory for the subdevice private data.
+ * comedi_set_spriv_auto_free - mark subdevice private data as freeable
+ * @s: comedi_subdevice struct
+ *
+ * Mark the subdevice as having a pointer to private data that can be
+ * automatically freed by the comedi core during the detach.
+ */
+void comedi_set_spriv_auto_free(struct comedi_subdevice *s)
+{
+	__comedi_set_subdevice_runflags(s, COMEDI_SRF_FREE_SPRIV);
+}
+EXPORT_SYMBOL_GPL(comedi_set_spriv_auto_free);
+
+/**
+ * comedi_alloc_spriv - Allocate memory for the subdevice private data.
  * @s: comedi_subdevice struct
  * @size: size of the memory to allocate
  *
@@ -691,7 +711,7 @@ void *comedi_alloc_spriv(struct comedi_subdevice *s, size_t size)
 {
 	s->private = kzalloc(size, GFP_KERNEL);
 	if (s->private)
-		s->runflags |= COMEDI_SRF_FREE_SPRIV;
+		comedi_set_spriv_auto_free(s);
 	return s->private;
 }
 EXPORT_SYMBOL_GPL(comedi_alloc_spriv);

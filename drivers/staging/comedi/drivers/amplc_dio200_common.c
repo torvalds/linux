@@ -593,10 +593,10 @@ static int dio200_subdev_8254_init(struct comedi_device *dev,
 	 * There could be multiple timers so this driver does not
 	 * use dev->pacer to save the i8254 pointer. Instead,
 	 * comedi_8254_subdevice_init() saved the i8254 pointer in
-	 * s->private. Set the runflag bit so that the core will
-	 * automatically free it when the driver is detached.
+	 * s->private.  Mark the subdevice as having private data
+	 * to be automatically freed when the device is detached.
 	 */
-	s->runflags |= COMEDI_SRF_FREE_SPRIV;
+	comedi_set_spriv_auto_free(s);
 
 	/* Initialize channels. */
 	if (board->has_clk_gat_sce) {

@@ -323,6 +323,7 @@ int comedi_dev_put(struct comedi_device *dev);
 bool comedi_is_subdevice_running(struct comedi_subdevice *s);
 
 void *comedi_alloc_spriv(struct comedi_subdevice *s, size_t size);
+void comedi_set_spriv_auto_free(struct comedi_subdevice *s);
 
 int comedi_check_chanlist(struct comedi_subdevice *s,
 			  int n,
