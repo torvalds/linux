@@ -601,8 +601,8 @@ config RCU_FANOUT
 
 config RCU_FANOUT_LEAF
 	int "Tree-based hierarchical RCU leaf-level fanout value"
-	range 2 RCU_FANOUT if 64BIT
-	range 2 RCU_FANOUT if !64BIT
+	range 2 64 if 64BIT
+	range 2 32 if !64BIT
 	depends on TREE_RCU || PREEMPT_RCU
 	default 16
 	help
