@@ -11398,32 +11398,28 @@ clear_intel_crtc_state(struct intel_crtc_state *crtc_state)
 	crtc_state->scaler_state = scaler_state;
 }
 
-static struct intel_crtc_state *
+static int
 intel_modeset_pipe_config(struct drm_crtc *crtc,
 			  struct drm_display_mode *mode,
-			  struct drm_atomic_state *state)
+			  struct drm_atomic_state *state,
+			  struct intel_crtc_state *pipe_config)
 {
 	struct intel_encoder *encoder;
 	struct drm_connector *connector;
 	struct drm_connector_state *connector_state;
-	struct intel_crtc_state *pipe_config;
 	int base_bpp, ret = -EINVAL;
 	int i;
 	bool retry = true;
 
 	if (!check_encoder_cloning(state, to_intel_crtc(crtc))) {
 		DRM_DEBUG_KMS("rejecting invalid cloning configuration\n");
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 	}
 
 	if (!check_digital_port_conflicts(state)) {
 		DRM_DEBUG_KMS("rejecting conflicting digital port configuration\n");
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 	}
-
-	pipe_config = intel_atomic_get_crtc_state(state, to_intel_crtc(crtc));
-	if (IS_ERR(pipe_config))
-		return pipe_config;
 
 	clear_intel_crtc_state(pipe_config);
 
@@ -11521,9 +11517,9 @@ encoder_retry:
 	DRM_DEBUG_KMS("plane bpp: %i, pipe bpp: %i, dithering: %i\n",
 		      base_bpp, pipe_config->pipe_bpp, pipe_config->dither);
 
-	return pipe_config;
+	return 0;
 fail:
-	return ERR_PTR(ret);
+	return ret;
 }
 
 /* Computes which crtcs are affected and sets the relevant bits in the mask. For
@@ -12204,9 +12200,7 @@ intel_modeset_compute_config(struct drm_crtc *crtc,
 			     unsigned *prepare_pipes,
 			     unsigned *disable_pipes)
 {
-	struct drm_device *dev = crtc->dev;
-	struct intel_crtc_state *pipe_config = NULL;
-	struct intel_crtc *intel_crtc;
+	struct intel_crtc_state *pipe_config;
 	int ret = 0;
 
 	ret = drm_atomic_add_affected_connectors(state, crtc);
@@ -12222,21 +12216,20 @@ intel_modeset_compute_config(struct drm_crtc *crtc,
 	 * (i.e. one pipe_config for each crtc) rather than just the one
 	 * for this crtc.
 	 */
-	for_each_intel_crtc_masked(dev, *modeset_pipes, intel_crtc) {
-		/* FIXME: For now we still expect modeset_pipes has at most
-		 * one bit set. */
-		if (WARN_ON(&intel_crtc->base != crtc))
-			continue;
+	pipe_config = intel_atomic_get_crtc_state(state, to_intel_crtc(crtc));
+	if (IS_ERR(pipe_config))
+		return pipe_config;
 
-		pipe_config = intel_modeset_pipe_config(crtc, mode, state);
-		if (IS_ERR(pipe_config))
-			return pipe_config;
+	if (!(*modeset_pipes & (1 << to_intel_crtc(crtc)->pipe)))
+		return pipe_config;
 
-		intel_dump_pipe_config(to_intel_crtc(crtc), pipe_config,
-				       "[modeset]");
-	}
+	ret = intel_modeset_pipe_config(crtc, mode, state, pipe_config);
+	if (ret)
+		return ERR_PTR(ret);
 
-	return intel_atomic_get_crtc_state(state, to_intel_crtc(crtc));;
+	intel_dump_pipe_config(to_intel_crtc(crtc), pipe_config,"[modeset]");
+
+	return pipe_config;
 }
 
 static int __intel_set_mode_setup_plls(struct drm_atomic_state *state,
