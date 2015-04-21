@@ -38,12 +38,13 @@ struct tda10071_dev {
 	u8 pll_multiplier;
 	u8 tuner_i2c_addr;
 
-	u8 meas_count[2];
-	u32 ber;
-	u32 ucb;
+	u8 meas_count;
+	u32 dvbv3_ber;
 	enum fe_status fe_status;
 	enum fe_delivery_system delivery_system;
 	bool warm; /* FW running */
+	u64 post_bit_error;
+	u64 block_error;
 };
 
 static struct tda10071_modcod {
