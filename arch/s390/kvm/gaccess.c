@@ -259,7 +259,7 @@ struct aste {
 
 int ipte_lock_held(struct kvm_vcpu *vcpu)
 {
-	union ipte_control *ic = &vcpu->kvm->arch.sca->ipte_control;
+	union ipte_control *ic = kvm_s390_get_ipte_control(vcpu->kvm);
 
 	if (vcpu->arch.sie_block->eca & 1)
 		return ic->kh != 0;
@@ -274,7 +274,7 @@ static void ipte_lock_simple(struct kvm_vcpu *vcpu)
 	vcpu->kvm->arch.ipte_lock_count++;
 	if (vcpu->kvm->arch.ipte_lock_count > 1)
 		goto out;
-	ic = &vcpu->kvm->arch.sca->ipte_control;
+	ic = kvm_s390_get_ipte_control(vcpu->kvm);
 	do {
 		old = READ_ONCE(*ic);
 		while (old.k) {
@@ -296,7 +296,7 @@ static void ipte_unlock_simple(struct kvm_vcpu *vcpu)
 	vcpu->kvm->arch.ipte_lock_count--;
 	if (vcpu->kvm->arch.ipte_lock_count)
 		goto out;
-	ic = &vcpu->kvm->arch.sca->ipte_control;
+	ic = kvm_s390_get_ipte_control(vcpu->kvm);
 	do {
 		old = READ_ONCE(*ic);
 		new = old;
@@ -311,7 +311,7 @@ static void ipte_lock_siif(struct kvm_vcpu *vcpu)
 {
 	union ipte_control old, new, *ic;
 
-	ic = &vcpu->kvm->arch.sca->ipte_control;
+	ic = kvm_s390_get_ipte_control(vcpu->kvm);
 	do {
 		old = READ_ONCE(*ic);
 		while (old.kg) {
@@ -328,7 +328,7 @@ static void ipte_unlock_siif(struct kvm_vcpu *vcpu)
 {
 	union ipte_control old, new, *ic;
 
-	ic = &vcpu->kvm->arch.sca->ipte_control;
+	ic = kvm_s390_get_ipte_control(vcpu->kvm);
 	do {
 		old = READ_ONCE(*ic);
 		new = old;
