@@ -675,7 +675,7 @@ static int send_connect(struct c4iw_ep *ep)
 	if (is_t5(ep->com.dev->rdev.lldi.adapter_type)) {
 		opt2 |= T5_OPT_2_VALID_F;
 		opt2 |= CONG_CNTRL_V(CONG_ALG_TAHOE);
-		opt2 |= CONG_CNTRL_VALID; /* OPT_2_ISS for T5 */
+		opt2 |= T5_ISS_F;
 	}
 	t4_set_arp_err_handler(skb, ep, act_open_req_arp_failure);
 
@@ -2214,7 +2214,7 @@ static void accept_cr(struct c4iw_ep *ep, struct sk_buff *skb,
 		u32 isn = (prandom_u32() & ~7UL) - 1;
 		opt2 |= T5_OPT_2_VALID_F;
 		opt2 |= CONG_CNTRL_V(CONG_ALG_TAHOE);
-		opt2 |= CONG_CNTRL_VALID; /* OPT_2_ISS for T5 */
+		opt2 |= T5_ISS_F;
 		rpl5 = (void *)rpl;
 		memset(&rpl5->iss, 0, roundup(sizeof(*rpl5)-sizeof(*rpl), 16));
 		if (peer2peer)
