@@ -2694,7 +2694,7 @@ static void i9xx_update_primary_plane(struct drm_crtc *crtc,
 	u32 reg = DSPCNTR(plane);
 	int pixel_size;
 
-	if (!intel_crtc->primary_enabled) {
+	if (!intel_crtc->primary_enabled || !fb) {
 		I915_WRITE(reg, 0);
 		if (INTEL_INFO(dev)->gen >= 4)
 			I915_WRITE(DSPSURF(plane), 0);
@@ -2823,7 +2823,7 @@ static void ironlake_update_primary_plane(struct drm_crtc *crtc,
 	u32 reg = DSPCNTR(plane);
 	int pixel_size;
 
-	if (!intel_crtc->primary_enabled) {
+	if (!intel_crtc->primary_enabled || !fb) {
 		I915_WRITE(reg, 0);
 		I915_WRITE(DSPSURF(plane), 0);
 		POSTING_READ(reg);
@@ -3102,7 +3102,7 @@ static void skylake_update_primary_plane(struct drm_crtc *crtc,
 	plane = crtc->primary;
 	plane_state = to_intel_plane_state(plane->state);
 
-	if (!intel_crtc->primary_enabled) {
+	if (!intel_crtc->primary_enabled || !fb) {
 		I915_WRITE(PLANE_CTL(pipe, 0), 0);
 		I915_WRITE(PLANE_SURF(pipe, 0), 0);
 		POSTING_READ(PLANE_CTL(pipe, 0));
@@ -13378,6 +13378,20 @@ intel_commit_primary_plane(struct drm_plane *plane,
 	}
 }
 
+static void
+intel_disable_primary_plane(struct drm_plane *plane,
+			    struct drm_crtc *crtc,
+			    bool force)
+{
+	struct drm_device *dev = plane->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (!force)
+		to_intel_crtc(crtc)->primary_enabled = false;
+
+	dev_priv->display.update_primary_plane(crtc, NULL, 0, 0);
+}
+
 static void intel_begin_crtc_commit(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -13522,6 +13536,7 @@ static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
 	primary->plane = pipe;
 	primary->check_plane = intel_check_primary_plane;
 	primary->commit_plane = intel_commit_primary_plane;
+	primary->disable_plane = intel_disable_primary_plane;
 	primary->ckey.flags = I915_SET_COLORKEY_NONE;
 	if (HAS_FBC(dev) && INTEL_INFO(dev)->gen < 4)
 		primary->plane = !pipe;
@@ -13627,6 +13642,22 @@ finish:
 }
 
 static void
+intel_disable_cursor_plane(struct drm_plane *plane,
+			   struct drm_crtc *crtc,
+			   bool force)
+{
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+
+	if (!force) {
+		plane->fb = NULL;
+		intel_crtc->cursor_bo = NULL;
+		intel_crtc->cursor_addr = 0;
+	}
+
+	intel_crtc_update_cursor(crtc, false);
+}
+
+static void
 intel_commit_cursor_plane(struct drm_plane *plane,
 			  struct intel_plane_state *state)
 {
@@ -13685,6 +13716,7 @@ static struct drm_plane *intel_cursor_plane_create(struct drm_device *dev,
 	state->scaler_id = -1;
 	cursor->check_plane = intel_check_cursor_plane;
 	cursor->commit_plane = intel_commit_cursor_plane;
+	cursor->disable_plane = intel_disable_cursor_plane;
 
 	drm_universal_plane_init(dev, &cursor->base, 0,
 				 &intel_plane_funcs,
