@@ -7,14 +7,17 @@ BINARIES_64 := $(TARGETS_C_BOTHBITS:%=%_64)
 
 CFLAGS := -O2 -g -std=gnu99 -pthread -Wall
 
+all:
+
 UNAME_M := $(shell uname -m)
 
+ifeq ($(CROSS_COMPILE),)
 # Always build 32-bit tests
 all: all_32
-
 # If we're on a 64-bit host, build 64-bit tests as well
 ifeq ($(UNAME_M),x86_64)
 all: all_64
+endif
 endif
 
 all_32: check_build32 $(BINARIES_32)
