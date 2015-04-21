@@ -65,6 +65,9 @@ struct f2fs_encryption_context {
 #define F2FS_AES_256_XTS_KEY_SIZE 64
 #define F2FS_MAX_KEY_SIZE 64
 
+#define F2FS_KEY_DESC_PREFIX "f2fs:"
+#define F2FS_KEY_DESC_PREFIX_SIZE 5
+
 struct f2fs_encryption_key {
 	__u32 mode;
 	char raw[F2FS_MAX_KEY_SIZE];

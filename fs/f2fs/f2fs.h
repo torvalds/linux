@@ -1974,17 +1974,39 @@ int f2fs_decrypt(struct f2fs_crypto_ctx *, struct page *);
 int f2fs_decrypt_one(struct inode *, struct page *);
 void f2fs_end_io_crypto_work(struct f2fs_crypto_ctx *, struct bio *);
 
+/* crypto_key.c */
+void f2fs_free_encryption_info(struct inode *);
+int _f2fs_get_encryption_info(struct inode *inode);
+
 #ifdef CONFIG_F2FS_FS_ENCRYPTION
 void f2fs_restore_and_release_control_page(struct page **);
 void f2fs_restore_control_page(struct page *);
 
 int f2fs_init_crypto(void);
 void f2fs_exit_crypto(void);
+
+int f2fs_has_encryption_key(struct inode *);
+
+static inline int f2fs_get_encryption_info(struct inode *inode)
+{
+	struct f2fs_crypt_info *ci = F2FS_I(inode)->i_crypt_info;
+
+	if (!ci ||
+		(ci->ci_keyring_key &&
+		 (ci->ci_keyring_key->flags & ((1 << KEY_FLAG_INVALIDATED) |
+					       (1 << KEY_FLAG_REVOKED) |
+					       (1 << KEY_FLAG_DEAD)))))
+		return _f2fs_get_encryption_info(inode);
+	return 0;
+}
 #else
 static inline void f2fs_restore_and_release_control_page(struct page **p) { }
 static inline void f2fs_restore_control_page(struct page *p) { }
 
 static inline int f2fs_init_crypto(void) { return 0; }
 static inline void f2fs_exit_crypto(void) { }
+
+static inline int f2fs_has_encryption_key(struct inode *i) { return 0; }
+static inline int f2fs_get_encryption_info(struct inode *i) { return 0; }
 #endif
 #endif
