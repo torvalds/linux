@@ -20,8 +20,6 @@
 #include <linux/moduleparam.h>
 #include <linux/string.h>
 
-#include "internal.h"
-
 #define DEFAULT_PRNG_KEY "0123456789abcdef"
 #define DEFAULT_PRNG_KSZ 16
 #define DEFAULT_BLK_SZ 16
