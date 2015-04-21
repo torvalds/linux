@@ -36,10 +36,15 @@ static inline struct crypto_rng *__crypto_rng_cast(struct crypto_tfm *tfm)
 	return container_of(tfm, struct crypto_rng, base);
 }
 
+static inline struct old_rng_alg *crypto_old_rng_alg(struct crypto_rng *tfm)
+{
+	return &crypto_rng_tfm(tfm)->__crt_alg->cra_rng;
+}
+
 static int generate(struct crypto_rng *tfm, const u8 *src, unsigned int slen,
 		    u8 *dst, unsigned int dlen)
 {
-	return crypto_rng_alg(tfm)->rng_make_random(tfm, dst, dlen);
+	return crypto_old_rng_alg(tfm)->rng_make_random(tfm, dst, dlen);
 }
 
 static int rngapi_reset(struct crypto_rng *tfm, const u8 *seed,
@@ -58,7 +63,7 @@ static int rngapi_reset(struct crypto_rng *tfm, const u8 *seed,
 		src = buf;
 	}
 
-	err = crypto_rng_alg(tfm)->rng_reset(tfm, src, slen);
+	err = crypto_old_rng_alg(tfm)->rng_reset(tfm, src, slen);
 
 	kzfree(buf);
 	return err;
@@ -88,11 +93,29 @@ EXPORT_SYMBOL_GPL(crypto_rng_reset);
 static int crypto_rng_init_tfm(struct crypto_tfm *tfm)
 {
 	struct crypto_rng *rng = __crypto_rng_cast(tfm);
+	struct rng_alg *alg = crypto_rng_alg(rng);
+	struct old_rng_alg *oalg = crypto_old_rng_alg(rng);
 
-	rng->generate = generate;
-	rng->seed = rngapi_reset;
+	if (oalg->rng_make_random) {
+		rng->generate = generate;
+		rng->seed = rngapi_reset;
+		rng->seedsize = oalg->seedsize;
+		return 0;
+	}
+
+	rng->generate = alg->generate;
+	rng->seed = alg->seed;
+	rng->seedsize = alg->seedsize;
 
 	return 0;
+}
+
+static unsigned int seedsize(struct crypto_alg *alg)
+{
+	struct rng_alg *ralg = container_of(alg, struct rng_alg, base);
+
+	return alg->cra_rng.rng_make_random ?
+	       alg->cra_rng.seedsize : ralg->seedsize;
 }
 
 #ifdef CONFIG_NET
@@ -102,7 +125,7 @@ static int crypto_rng_report(struct sk_buff *skb, struct crypto_alg *alg)
 
 	strncpy(rrng.type, "rng", sizeof(rrng.type));
 
-	rrng.seedsize = alg->cra_rng.seedsize;
+	rrng.seedsize = seedsize(alg);
 
 	if (nla_put(skb, CRYPTOCFGA_REPORT_RNG,
 		    sizeof(struct crypto_report_rng), &rrng))
@@ -124,7 +147,7 @@ static void crypto_rng_show(struct seq_file *m, struct crypto_alg *alg)
 static void crypto_rng_show(struct seq_file *m, struct crypto_alg *alg)
 {
 	seq_printf(m, "type         : rng\n");
-	seq_printf(m, "seedsize     : %u\n", alg->cra_rng.seedsize);
+	seq_printf(m, "seedsize     : %u\n", seedsize(alg));
 }
 
 const struct crypto_type crypto_rng_type = {
@@ -188,6 +211,27 @@ void crypto_put_default_rng(void)
 	mutex_unlock(&crypto_default_rng_lock);
 }
 EXPORT_SYMBOL_GPL(crypto_put_default_rng);
+
+int crypto_register_rng(struct rng_alg *alg)
+{
+	struct crypto_alg *base = &alg->base;
+
+	if (alg->seedsize > PAGE_SIZE / 8)
+		return -EINVAL;
+
+	base->cra_type = &crypto_rng_type;
+	base->cra_flags &= ~CRYPTO_ALG_TYPE_MASK;
+	base->cra_flags |= CRYPTO_ALG_TYPE_RNG;
+
+	return crypto_register_alg(base);
+}
+EXPORT_SYMBOL_GPL(crypto_register_rng);
+
+void crypto_unregister_rng(struct rng_alg *alg)
+{
+	crypto_unregister_alg(&alg->base);
+}
+EXPORT_SYMBOL_GPL(crypto_unregister_rng);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Random Number Generator");

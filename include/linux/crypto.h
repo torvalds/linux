@@ -427,7 +427,7 @@ struct compress_alg {
 };
 
 /**
- * struct rng_alg - random number generator definition
+ * struct old_rng_alg - random number generator definition
  * @rng_make_random: The function defined by this variable obtains a random
  *		     number. The random number generator transform must generate
  *		     the random number out of the context provided with this
@@ -445,7 +445,7 @@ struct compress_alg {
  *	      seeding is implemented internally without the need of support by
  *	      the consumer. In this case, the seed size is set to zero.
  */
-struct rng_alg {
+struct old_rng_alg {
 	int (*rng_make_random)(struct crypto_rng *tfm, u8 *rdata,
 			       unsigned int dlen);
 	int (*rng_reset)(struct crypto_rng *tfm, u8 *seed, unsigned int slen);
@@ -559,7 +559,7 @@ struct crypto_alg {
 		struct blkcipher_alg blkcipher;
 		struct cipher_alg cipher;
 		struct compress_alg compress;
-		struct rng_alg rng;
+		struct old_rng_alg rng;
 	} cra_u;
 
 	int (*cra_init)(struct crypto_tfm *tfm);

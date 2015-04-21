@@ -15,11 +15,48 @@
 
 #include <linux/crypto.h>
 
+struct crypto_rng;
+
+/**
+ * struct rng_alg - random number generator definition
+ *
+ * @generate:	The function defined by this variable obtains a
+ *		random number. The random number generator transform
+ *		must generate the random number out of the context
+ *		provided with this call, plus any additional data
+ *		if provided to the call.
+ * @seed:	Seed or reseed the random number generator.  With the
+ *		invocation of this function call, the random number
+ *		generator shall become ready fo generation.  If the
+ *		random number generator requires a seed for setting
+ *		up a new state, the seed must be provided by the
+ *		consumer while invoking this function. The required
+ *		size of the seed is defined with @seedsize .
+ * @seedsize:	The seed size required for a random number generator
+ *		initialization defined with this variable. Some
+ *		random number generators does not require a seed
+ *		as the seeding is implemented internally without
+ *		the need of support by the consumer. In this case,
+ *		the seed size is set to zero.
+ * @base:	Common crypto API algorithm data structure.
+ */
+struct rng_alg {
+	int (*generate)(struct crypto_rng *tfm,
+			const u8 *src, unsigned int slen,
+			u8 *dst, unsigned int dlen);
+	int (*seed)(struct crypto_rng *tfm, const u8 *seed, unsigned int slen);
+
+	unsigned int seedsize;
+
+	struct crypto_alg base;
+};
+
 struct crypto_rng {
 	int (*generate)(struct crypto_rng *tfm,
 			const u8 *src, unsigned int slen,
 			u8 *dst, unsigned int dlen);
 	int (*seed)(struct crypto_rng *tfm, const u8 *seed, unsigned int slen);
+	unsigned int seedsize;
 	struct crypto_tfm base;
 };
 
@@ -72,7 +109,8 @@ static inline struct crypto_tfm *crypto_rng_tfm(struct crypto_rng *tfm)
  */
 static inline struct rng_alg *crypto_rng_alg(struct crypto_rng *tfm)
 {
-	return &crypto_rng_tfm(tfm)->__crt_alg->cra_rng;
+	return container_of(crypto_rng_tfm(tfm)->__crt_alg,
+			    struct rng_alg, base);
 }
 
 /**
@@ -156,7 +194,7 @@ int crypto_rng_reset(struct crypto_rng *tfm, const u8 *seed,
  */
 static inline int crypto_rng_seedsize(struct crypto_rng *tfm)
 {
-	return crypto_rng_alg(tfm)->seedsize;
+	return tfm->seedsize;
 }
 
 #endif
