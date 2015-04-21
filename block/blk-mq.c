@@ -677,8 +677,11 @@ static void blk_mq_rq_timer(unsigned long priv)
 		data.next = blk_rq_timeout(round_jiffies_up(data.next));
 		mod_timer(&q->timeout, data.next);
 	} else {
-		queue_for_each_hw_ctx(q, hctx, i)
-			blk_mq_tag_idle(hctx);
+		queue_for_each_hw_ctx(q, hctx, i) {
+			/* the hctx may be unmapped, so check it here */
+			if (blk_mq_hw_queue_mapped(hctx))
+				blk_mq_tag_idle(hctx);
+		}
 	}
 }
 
@@ -2090,8 +2093,15 @@ static int blk_mq_queue_reinit_notify(struct notifier_block *nb,
 	 */
 	list_for_each_entry(q, &all_q_list, all_q_node)
 		blk_mq_freeze_queue_start(q);
-	list_for_each_entry(q, &all_q_list, all_q_node)
+	list_for_each_entry(q, &all_q_list, all_q_node) {
 		blk_mq_freeze_queue_wait(q);
+
+		/*
+		 * timeout handler can't touch hw queue during the
+		 * reinitialization
+		 */
+		del_timer_sync(&q->timeout);
+	}
 
 	list_for_each_entry(q, &all_q_list, all_q_node)
 		blk_mq_queue_reinit(q);
