@@ -2,6 +2,7 @@
  * RNG: Random Number Generator  algorithms under the crypto API
  *
  * Copyright (c) 2008 Neil Horman <nhorman@tuxdriver.com>
+ * Copyright (c) 2015 Herbert Xu <herbert@gondor.apana.org.au>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -15,8 +16,6 @@
 
 #include <crypto/algapi.h>
 #include <crypto/rng.h>
-
-extern const struct crypto_type crypto_rng_type;
 
 int crypto_register_rng(struct rng_alg *alg);
 void crypto_unregister_rng(struct rng_alg *alg);
