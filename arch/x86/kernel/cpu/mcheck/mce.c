@@ -1932,8 +1932,8 @@ void register_mce_write_callback(ssize_t (*fn)(struct file *filp,
 }
 EXPORT_SYMBOL_GPL(register_mce_write_callback);
 
-ssize_t mce_chrdev_write(struct file *filp, const char __user *ubuf,
-			 size_t usize, loff_t *off)
+static ssize_t mce_chrdev_write(struct file *filp, const char __user *ubuf,
+				size_t usize, loff_t *off)
 {
 	if (mce_write)
 		return mce_write(filp, ubuf, usize, off);
