@@ -32,18 +32,20 @@
 #include "clk-branch.h"
 #include "reset.h"
 
-#define P_XO	0
-#define P_GPLL0	1
-#define P_GPLL1	1
-#define P_GPLL4	2
-#define P_PCIE_0_1_PIPE_CLK 1
-#define P_SATA_ASIC0_CLK 1
-#define P_SATA_RX_CLK 1
-#define P_SLEEP_CLK 1
+enum {
+	P_XO,
+	P_GPLL0,
+	P_GPLL1,
+	P_GPLL4,
+	P_PCIE_0_1_PIPE_CLK,
+	P_SATA_ASIC0_CLK,
+	P_SATA_RX_CLK,
+	P_SLEEP_CLK,
+};
 
-static const u8 gcc_xo_gpll0_map[] = {
-	[P_XO]		= 0,
-	[P_GPLL0]	= 1,
+static const struct parent_map gcc_xo_gpll0_map[] = {
+	{ P_XO, 0 },
+	{ P_GPLL0, 1 }
 };
 
 static const char *gcc_xo_gpll0[] = {
@@ -51,10 +53,10 @@ static const char *gcc_xo_gpll0[] = {
 	"gpll0_vote",
 };
 
-static const u8 gcc_xo_gpll0_gpll4_map[] = {
-	[P_XO]		= 0,
-	[P_GPLL0]	= 1,
-	[P_GPLL4]	= 5,
+static const struct parent_map gcc_xo_gpll0_gpll4_map[] = {
+	{ P_XO, 0 },
+	{ P_GPLL0, 1 },
+	{ P_GPLL4, 5 }
 };
 
 static const char *gcc_xo_gpll0_gpll4[] = {
@@ -63,9 +65,9 @@ static const char *gcc_xo_gpll0_gpll4[] = {
 	"gpll4_vote",
 };
 
-static const u8 gcc_xo_sata_asic0_map[] = {
-	[P_XO]			= 0,
-	[P_SATA_ASIC0_CLK]	= 2,
+static const struct parent_map gcc_xo_sata_asic0_map[] = {
+	{ P_XO, 0 },
+	{ P_SATA_ASIC0_CLK, 2 }
 };
 
 static const char *gcc_xo_sata_asic0[] = {
@@ -73,9 +75,9 @@ static const char *gcc_xo_sata_asic0[] = {
 	"sata_asic0_clk",
 };
 
-static const u8 gcc_xo_sata_rx_map[] = {
-	[P_XO]			= 0,
-	[P_SATA_RX_CLK]		= 2,
+static const struct parent_map gcc_xo_sata_rx_map[] = {
+	{ P_XO, 0 },
+	{ P_SATA_RX_CLK, 2}
 };
 
 static const char *gcc_xo_sata_rx[] = {
@@ -83,9 +85,9 @@ static const char *gcc_xo_sata_rx[] = {
 	"sata_rx_clk",
 };
 
-static const u8 gcc_xo_pcie_map[] = {
-	[P_XO]			= 0,
-	[P_PCIE_0_1_PIPE_CLK]	= 2,
+static const struct parent_map gcc_xo_pcie_map[] = {
+	{ P_XO, 0 },
+	{ P_PCIE_0_1_PIPE_CLK, 2 }
 };
 
 static const char *gcc_xo_pcie[] = {
@@ -93,9 +95,9 @@ static const char *gcc_xo_pcie[] = {
 	"pcie_pipe",
 };
 
-static const u8 gcc_xo_pcie_sleep_map[] = {
-	[P_XO]			= 0,
-	[P_SLEEP_CLK]		= 6,
+static const struct parent_map gcc_xo_pcie_sleep_map[] = {
+	{ P_XO, 0 },
+	{ P_SLEEP_CLK, 6 }
 };
 
 static const char *gcc_xo_pcie_sleep[] = {
@@ -1263,9 +1265,9 @@ static const struct freq_tbl ftbl_gcc_usb_hsic_clk[] = {
 	{ }
 };
 
-static u8 usb_hsic_clk_src_map[] = {
-	[P_XO]		= 0,
-	[P_GPLL1]	= 4,
+static const struct parent_map usb_hsic_clk_src_map[] = {
+	{ P_XO, 0 },
+	{ P_GPLL1, 4 }
 };
 
 static struct clk_rcg2 usb_hsic_clk_src = {

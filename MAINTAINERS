@@ -2577,6 +2577,7 @@ F:	include/linux/cleancache.h
 
 CLK API
 M:	Russell King <linux@arm.linux.org.uk>
+L:	linux-clk@vger.kernel.org
 S:	Maintained
 F:	include/linux/clk.h
 
@@ -2637,7 +2638,7 @@ F:	drivers/media/platform/coda/
 COMMON CLK FRAMEWORK
 M:	Mike Turquette <mturquette@linaro.org>
 M:	Stephen Boyd <sboyd@codeaurora.org>
-L:	linux-kernel@vger.kernel.org
+L:	linux-clk@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/clk/linux.git
 S:	Maintained
 F:	drivers/clk/
