@@ -12332,6 +12332,23 @@ static int __intel_set_mode_checks(struct drm_atomic_state *state)
 	return 0;
 }
 
+static void __intel_set_mode_swap_plane_state(struct drm_device *dev,
+					      struct drm_atomic_state *state)
+{
+	int i;
+
+	for (i = 0; i < dev->mode_config.num_total_plane; i++) {
+		struct drm_plane *plane = state->planes[i];
+
+		if (!plane)
+			continue;
+
+		plane->state->state = state;
+		swap(state->plane_states[i], plane->state);
+		plane->state->state = NULL;
+	}
+}
+
 static int __intel_set_mode(struct drm_crtc *modeset_crtc,
 			    struct intel_crtc_state *pipe_config)
 {
@@ -12342,13 +12359,15 @@ static int __intel_set_mode(struct drm_crtc *modeset_crtc,
 	struct intel_crtc *intel_crtc;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
-	struct drm_plane *plane;
-	struct drm_plane_state *plane_state;
 	int ret = 0;
 	int i;
 
 	ret = __intel_set_mode_checks(state);
 	if (ret < 0)
+		return ret;
+
+	ret = drm_atomic_helper_prepare_planes(dev, state);
+	if (ret)
 		return ret;
 
 	crtc_state_copy = kmalloc(sizeof(*crtc_state_copy), GFP_KERNEL);
@@ -12395,26 +12414,8 @@ static int __intel_set_mode(struct drm_crtc *modeset_crtc,
 
 	modeset_update_crtc_power_domains(state);
 
-	for_each_plane_in_state(state, plane, plane_state, i) {
-		if (WARN_ON(plane != modeset_crtc->primary))
-			continue;
-
-		/* Primary plane is disabled in intel_crtc_disable() */
-		if (!pipe_config->base.enable)
-			continue;
-
-		ret = drm_plane_helper_update(plane, plane_state->crtc,
-					      plane_state->fb,
-					      plane_state->crtc_x,
-					      plane_state->crtc_y,
-					      plane_state->crtc_w,
-					      plane_state->crtc_h,
-					      plane_state->src_x,
-					      plane_state->src_y,
-					      plane_state->src_w,
-					      plane_state->src_h);
-		WARN_ON(ret != 0);
-	}
+	__intel_set_mode_swap_plane_state(dev, state);
+	drm_atomic_helper_commit_planes(dev, state);
 
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
@@ -12436,6 +12437,8 @@ static int __intel_set_mode(struct drm_crtc *modeset_crtc,
 	memcpy(crtc_state_copy, intel_crtc->config, sizeof *crtc_state_copy);
 	intel_crtc->config = crtc_state_copy;
 	intel_crtc->base.state = &crtc_state_copy->base;
+
+	drm_atomic_helper_cleanup_planes(dev, state);
 
 	drm_atomic_state_free(state);
 
