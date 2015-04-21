@@ -61,25 +61,28 @@ static int tda10071_cmd_execute(struct tda10071_dev *dev,
 		goto error;
 	}
 
+	mutex_lock(&dev->cmd_execute_mutex);
+
 	/* write cmd and args for firmware */
 	ret = regmap_bulk_write(dev->regmap, 0x00, cmd->args, cmd->len);
 	if (ret)
-		goto error;
+		goto error_mutex_unlock;
 
 	/* start cmd execution */
 	ret = regmap_write(dev->regmap, 0x1f, 1);
 	if (ret)
-		goto error;
+		goto error_mutex_unlock;
 
 	/* wait cmd execution terminate */
 	for (i = 1000, uitmp = 1; i && uitmp; i--) {
 		ret = regmap_read(dev->regmap, 0x1f, &uitmp);
 		if (ret)
-			goto error;
+			goto error_mutex_unlock;
 
 		usleep_range(200, 5000);
 	}
 
+	mutex_unlock(&dev->cmd_execute_mutex);
 	dev_dbg(&client->dev, "loop=%d\n", i);
 
 	if (i == 0) {
@@ -88,6 +91,8 @@ static int tda10071_cmd_execute(struct tda10071_dev *dev,
 	}
 
 	return ret;
+error_mutex_unlock:
+	mutex_unlock(&dev->cmd_execute_mutex);
 error:
 	dev_dbg(&client->dev, "failed=%d\n", ret);
 	return ret;
@@ -1167,6 +1172,7 @@ static int tda10071_probe(struct i2c_client *client,
 	}
 
 	dev->client = client;
+	mutex_init(&dev->cmd_execute_mutex);
 	dev->clk = pdata->clk;
 	dev->i2c_wr_max = pdata->i2c_wr_max;
 	dev->ts_mode = pdata->ts_mode;
