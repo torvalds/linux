@@ -93,6 +93,7 @@ struct ltr501_samp_table {
 enum {
 	ltr501 = 0,
 	ltr559,
+	ltr301,
 };
 
 struct ltr501_gain {
@@ -139,6 +140,10 @@ struct ltr501_chip_info {
 	u8 als_mode_active;
 	u8 als_gain_mask;
 	u8 als_gain_shift;
+	struct iio_chan_spec const *channels;
+	const int no_channels;
+	const struct iio_info *info;
+	const struct iio_info *info_no_irq;
 };
 
 struct ltr501_data {
@@ -568,6 +573,18 @@ static const struct iio_chan_spec ltr501_channels[] = {
 		.num_event_specs = ARRAY_SIZE(ltr501_pxs_event_spec),
 	},
 	IIO_CHAN_SOFT_TIMESTAMP(3),
+};
+
+static const struct iio_chan_spec ltr301_channels[] = {
+	LTR501_INTENSITY_CHANNEL(0, LTR501_ALS_DATA0, IIO_MOD_LIGHT_BOTH, 0,
+				 ltr501_als_event_spec,
+				 ARRAY_SIZE(ltr501_als_event_spec)),
+	LTR501_INTENSITY_CHANNEL(1, LTR501_ALS_DATA1, IIO_MOD_LIGHT_IR,
+				 BIT(IIO_CHAN_INFO_SCALE) |
+				 BIT(IIO_CHAN_INFO_INT_TIME) |
+				 BIT(IIO_CHAN_INFO_SAMP_FREQ),
+				 NULL, 0),
+	IIO_CHAN_SOFT_TIMESTAMP(2),
 };
 
 static int ltr501_read_raw(struct iio_dev *indio_dev,
@@ -1040,8 +1057,19 @@ static struct attribute *ltr501_attributes[] = {
 	NULL
 };
 
+static struct attribute *ltr301_attributes[] = {
+	&iio_dev_attr_in_intensity_scale_available.dev_attr.attr,
+	&iio_const_attr_integration_time_available.dev_attr.attr,
+	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
+	NULL
+};
+
 static const struct attribute_group ltr501_attribute_group = {
 	.attrs = ltr501_attributes,
+};
+
+static const struct attribute_group ltr301_attribute_group = {
+	.attrs = ltr301_attributes,
 };
 
 static const struct iio_info ltr501_info_no_irq = {
@@ -1062,6 +1090,24 @@ static const struct iio_info ltr501_info = {
 	.driver_module = THIS_MODULE,
 };
 
+static const struct iio_info ltr301_info_no_irq = {
+	.read_raw = ltr501_read_raw,
+	.write_raw = ltr501_write_raw,
+	.attrs = &ltr301_attribute_group,
+	.driver_module = THIS_MODULE,
+};
+
+static const struct iio_info ltr301_info = {
+	.read_raw = ltr501_read_raw,
+	.write_raw = ltr501_write_raw,
+	.attrs = &ltr301_attribute_group,
+	.read_event_value	= &ltr501_read_event,
+	.write_event_value	= &ltr501_write_event,
+	.read_event_config	= &ltr501_read_event_config,
+	.write_event_config	= &ltr501_write_event_config,
+	.driver_module = THIS_MODULE,
+};
+
 static struct ltr501_chip_info ltr501_chip_info_tbl[] = {
 	[ltr501] = {
 		.partid = 0x08,
@@ -1072,6 +1118,10 @@ static struct ltr501_chip_info ltr501_chip_info_tbl[] = {
 		.als_mode_active = BIT(0) | BIT(1),
 		.als_gain_mask = BIT(3),
 		.als_gain_shift = 3,
+		.info = &ltr501_info,
+		.info_no_irq = &ltr501_info_no_irq,
+		.channels = ltr501_channels,
+		.no_channels = ARRAY_SIZE(ltr501_channels),
 	},
 	[ltr559] = {
 		.partid = 0x09,
@@ -1082,6 +1132,22 @@ static struct ltr501_chip_info ltr501_chip_info_tbl[] = {
 		.als_mode_active = BIT(1),
 		.als_gain_mask = BIT(2) | BIT(3) | BIT(4),
 		.als_gain_shift = 2,
+		.info = &ltr501_info,
+		.info_no_irq = &ltr501_info_no_irq,
+		.channels = ltr501_channels,
+		.no_channels = ARRAY_SIZE(ltr501_channels),
+	},
+	[ltr301] = {
+		.partid = 0x08,
+		.als_gain = ltr501_als_gain_tbl,
+		.als_gain_tbl_size = ARRAY_SIZE(ltr501_als_gain_tbl),
+		.als_mode_active = BIT(0) | BIT(1),
+		.als_gain_mask = BIT(3),
+		.als_gain_shift = 3,
+		.info = &ltr301_info,
+		.info_no_irq = &ltr301_info_no_irq,
+		.channels = ltr301_channels,
+		.no_channels = ARRAY_SIZE(ltr301_channels),
 	},
 };
 
@@ -1338,8 +1404,9 @@ static int ltr501_probe(struct i2c_client *client,
 		return -ENODEV;
 
 	indio_dev->dev.parent = &client->dev;
-	indio_dev->channels = ltr501_channels;
-	indio_dev->num_channels = ARRAY_SIZE(ltr501_channels);
+	indio_dev->info = data->chip_info->info;
+	indio_dev->channels = data->chip_info->channels;
+	indio_dev->num_channels = data->chip_info->no_channels;
 	indio_dev->name = name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
@@ -1348,7 +1415,6 @@ static int ltr501_probe(struct i2c_client *client,
 		return ret;
 
 	if (client->irq > 0) {
-		indio_dev->info = &ltr501_info;
 		ret = devm_request_threaded_irq(&client->dev, client->irq,
 						NULL, ltr501_interrupt_handler,
 						IRQF_TRIGGER_FALLING |
@@ -1361,7 +1427,7 @@ static int ltr501_probe(struct i2c_client *client,
 			return ret;
 		}
 	} else {
-		indio_dev->info = &ltr501_info_no_irq;
+		indio_dev->info = data->chip_info->info_no_irq;
 	}
 
 	ret = iio_triggered_buffer_setup(indio_dev, NULL,
@@ -1416,6 +1482,7 @@ static SIMPLE_DEV_PM_OPS(ltr501_pm_ops, ltr501_suspend, ltr501_resume);
 static const struct acpi_device_id ltr_acpi_match[] = {
 	{"LTER0501", ltr501},
 	{"LTER0559", ltr559},
+	{"LTER0301", ltr301},
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, ltr_acpi_match);
@@ -1423,6 +1490,7 @@ MODULE_DEVICE_TABLE(acpi, ltr_acpi_match);
 static const struct i2c_device_id ltr501_id[] = {
 	{ "ltr501", ltr501},
 	{ "ltr559", ltr559},
+	{ "ltr301", ltr301},
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ltr501_id);

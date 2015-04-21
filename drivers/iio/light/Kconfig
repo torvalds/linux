@@ -170,7 +170,7 @@ config LTR501
 	help
 	 If you say yes here you get support for the Lite-On LTR-501ALS-01
 	 ambient light and proximity sensor. This driver also supports LTR-559
-	 ALS/PS sensor.
+	 ALS/PS or LTR-301 ALS sensors.
 
 	 This driver can also be built as a module.  If so, the module
          will be called ltr501.
