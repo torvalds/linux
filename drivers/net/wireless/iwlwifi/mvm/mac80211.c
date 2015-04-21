@@ -2360,8 +2360,10 @@ static void iwl_mvm_bss_info_changed(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
-	if (changes & BSS_CHANGED_IDLE && !bss_conf->idle)
-		iwl_mvm_scan_offload_stop(mvm, true);
+	if (changes & BSS_CHANGED_IDLE && !bss_conf->idle) {
+		iwl_mvm_sched_scan_stop(mvm, true);
+		iwl_mvm_reg_scan_stop(mvm);
+	}
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
@@ -2417,7 +2419,7 @@ static void iwl_mvm_mac_cancel_hw_scan(struct ieee80211_hw *hw,
 	 */
 	if ((mvm->scan_status & IWL_MVM_SCAN_REGULAR) ||
 	    (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN))
-		iwl_mvm_cancel_scan(mvm);
+		iwl_mvm_reg_scan_stop(mvm);
 
 	mutex_unlock(&mvm->mutex);
 }
@@ -2775,7 +2777,7 @@ static int iwl_mvm_mac_sched_scan_stop(struct ieee80211_hw *hw,
 		return 0;
 	}
 
-	ret = iwl_mvm_scan_offload_stop(mvm, false);
+	ret = iwl_mvm_sched_scan_stop(mvm, false);
 	mutex_unlock(&mvm->mutex);
 	iwl_mvm_wait_for_async_handlers(mvm);
 
