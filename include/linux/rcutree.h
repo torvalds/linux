@@ -93,6 +93,11 @@ void rcu_force_quiescent_state(void);
 void rcu_bh_force_quiescent_state(void);
 void rcu_sched_force_quiescent_state(void);
 
+void rcu_idle_enter(void);
+void rcu_idle_exit(void);
+void rcu_irq_enter(void);
+void rcu_irq_exit(void);
+
 void exit_rcu(void);
 
 void rcu_scheduler_starting(void);

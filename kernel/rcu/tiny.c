@@ -49,39 +49,6 @@ static void __call_rcu(struct rcu_head *head,
 
 #include "tiny_plugin.h"
 
-/*
- * Enter idle, which is an extended quiescent state if we have fully
- * entered that mode.
- */
-void rcu_idle_enter(void)
-{
-}
-EXPORT_SYMBOL_GPL(rcu_idle_enter);
-
-/*
- * Exit an interrupt handler towards idle.
- */
-void rcu_irq_exit(void)
-{
-}
-EXPORT_SYMBOL_GPL(rcu_irq_exit);
-
-/*
- * Exit idle, so that we are no longer in an extended quiescent state.
- */
-void rcu_idle_exit(void)
-{
-}
-EXPORT_SYMBOL_GPL(rcu_idle_exit);
-
-/*
- * Enter an interrupt handler, moving away from idle.
- */
-void rcu_irq_enter(void)
-{
-}
-EXPORT_SYMBOL_GPL(rcu_irq_enter);
-
 #if defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_RCU_TRACE)
 
 /*
