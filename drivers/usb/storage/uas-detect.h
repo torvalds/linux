@@ -51,7 +51,8 @@ static int uas_find_endpoints(struct usb_host_interface *alt,
 }
 
 static int uas_use_uas_driver(struct usb_interface *intf,
-			      const struct usb_device_id *id)
+			      const struct usb_device_id *id,
+			      unsigned long *flags_ret)
 {
 	struct usb_host_endpoint *eps[4] = { };
 	struct usb_device *udev = interface_to_usbdev(intf);
@@ -131,6 +132,9 @@ static int uas_use_uas_driver(struct usb_interface *intf,
 			"Please try an other USB controller if you wish to use UAS.\n");
 		return 0;
 	}
+
+	if (flags_ret)
+		*flags_ret = flags;
 
 	return 1;
 }

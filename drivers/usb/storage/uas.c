@@ -887,8 +887,9 @@ static int uas_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	struct Scsi_Host *shost = NULL;
 	struct uas_dev_info *devinfo;
 	struct usb_device *udev = interface_to_usbdev(intf);
+	unsigned long dev_flags;
 
-	if (!uas_use_uas_driver(intf, id))
+	if (!uas_use_uas_driver(intf, id, &dev_flags))
 		return -ENODEV;
 
 	if (uas_switch_interface(udev, intf))
@@ -910,8 +911,7 @@ static int uas_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	devinfo->udev = udev;
 	devinfo->resetting = 0;
 	devinfo->shutdown = 0;
-	devinfo->flags = id->driver_info;
-	usb_stor_adjust_quirks(udev, &devinfo->flags);
+	devinfo->flags = dev_flags;
 	init_usb_anchor(&devinfo->cmd_urbs);
 	init_usb_anchor(&devinfo->sense_urbs);
 	init_usb_anchor(&devinfo->data_urbs);
