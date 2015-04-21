@@ -3571,7 +3571,7 @@ static void send_fw_pass_open_req(struct c4iw_dev *dev, struct sk_buff *skb,
 	 * TP will ignore any value > 0 for MSS index.
 	 */
 	req->tcb.opt0 = cpu_to_be64(MSS_IDX_V(0xF));
-	req->cookie = (unsigned long)skb;
+	req->cookie = (uintptr_t)skb;
 
 	set_wr_txq(req_skb, CPL_PRIORITY_CONTROL, port_id);
 	ret = cxgb4_ofld_send(dev->rdev.lldi.ports[0], req_skb);
