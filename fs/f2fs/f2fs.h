@@ -1962,4 +1962,29 @@ int f2fs_is_child_context_consistent_with_parent(struct inode *,
 int f2fs_inherit_context(struct inode *, struct inode *, struct page *);
 int f2fs_process_policy(const struct f2fs_encryption_policy *, struct inode *);
 int f2fs_get_policy(struct inode *, struct f2fs_encryption_policy *);
+
+/* crypt.c */
+extern struct workqueue_struct *f2fs_read_workqueue;
+bool f2fs_valid_contents_enc_mode(uint32_t);
+uint32_t f2fs_validate_encryption_key_size(uint32_t, uint32_t);
+struct f2fs_crypto_ctx *f2fs_get_crypto_ctx(struct inode *);
+void f2fs_release_crypto_ctx(struct f2fs_crypto_ctx *);
+struct page *f2fs_encrypt(struct inode *, struct page *);
+int f2fs_decrypt(struct f2fs_crypto_ctx *, struct page *);
+int f2fs_decrypt_one(struct inode *, struct page *);
+void f2fs_end_io_crypto_work(struct f2fs_crypto_ctx *, struct bio *);
+
+#ifdef CONFIG_F2FS_FS_ENCRYPTION
+void f2fs_restore_and_release_control_page(struct page **);
+void f2fs_restore_control_page(struct page *);
+
+int f2fs_init_crypto(void);
+void f2fs_exit_crypto(void);
+#else
+static inline void f2fs_restore_and_release_control_page(struct page **p) { }
+static inline void f2fs_restore_control_page(struct page *p) { }
+
+static inline int f2fs_init_crypto(void) { return 0; }
+static inline void f2fs_exit_crypto(void) { }
+#endif
 #endif
