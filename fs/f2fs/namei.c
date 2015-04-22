@@ -232,31 +232,32 @@ static struct dentry *f2fs_lookup(struct inode *dir, struct dentry *dentry,
 	struct inode *inode = NULL;
 	struct f2fs_dir_entry *de;
 	struct page *page;
+	nid_t ino;
 
 	if (dentry->d_name.len > F2FS_NAME_LEN)
 		return ERR_PTR(-ENAMETOOLONG);
 
 	de = f2fs_find_entry(dir, &dentry->d_name, &page);
-	if (de) {
-		nid_t ino = le32_to_cpu(de->ino);
-		f2fs_dentry_kunmap(dir, page);
-		f2fs_put_page(page, 0);
+	if (!de)
+		return d_splice_alias(inode, dentry);
 
-		inode = f2fs_iget(dir->i_sb, ino);
-		if (IS_ERR(inode))
-			return ERR_CAST(inode);
+	ino = le32_to_cpu(de->ino);
+	f2fs_dentry_kunmap(dir, page);
+	f2fs_put_page(page, 0);
 
-		if (f2fs_has_inline_dots(inode)) {
-			int err;
+	inode = f2fs_iget(dir->i_sb, ino);
+	if (IS_ERR(inode))
+		return ERR_CAST(inode);
 
-			err = __recover_dot_dentries(inode, dir->i_ino);
-			if (err) {
-				iget_failed(inode);
-				return ERR_PTR(err);
-			}
+	if (f2fs_has_inline_dots(inode)) {
+		int err;
+
+		err = __recover_dot_dentries(inode, dir->i_ino);
+		if (err) {
+			iget_failed(inode);
+			return ERR_PTR(err);
 		}
 	}
-
 	return d_splice_alias(inode, dentry);
 }
 
