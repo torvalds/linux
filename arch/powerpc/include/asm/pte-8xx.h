@@ -62,7 +62,12 @@
 
 /* We need to add _PAGE_SHARED to kernel pages */
 #define _PAGE_KERNEL_RO	(_PAGE_SHARED | _PAGE_RO | _PAGE_KNLRO)
-#define _PAGE_KERNEL_ROX	(_PAGE_EXEC | _PAGE_RO | _PAGE_KNLRO)
+#define _PAGE_KERNEL_ROX	(_PAGE_SHARED | _PAGE_RO | _PAGE_KNLRO | \
+				 _PAGE_EXEC)
+#define _PAGE_KERNEL_RW		(_PAGE_SHARED | _PAGE_DIRTY | _PAGE_RW | \
+				 _PAGE_HWWRITE)
+#define _PAGE_KERNEL_RWX	(_PAGE_SHARED | _PAGE_DIRTY | _PAGE_RW | \
+				 _PAGE_HWWRITE | _PAGE_EXEC)
 
 #endif /* __KERNEL__ */
 #endif /*  _ASM_POWERPC_PTE_8xx_H */
