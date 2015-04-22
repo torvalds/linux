@@ -1118,7 +1118,11 @@ static int follow_managed(struct path *path, struct nameidata *nd)
 		mntput(path->mnt);
 	if (ret == -EISDIR)
 		ret = 0;
-	return ret < 0 ? ret : need_mntput;
+	if (need_mntput)
+		nd->flags |= LOOKUP_JUMPED;
+	if (unlikely(ret < 0))
+		path_put_conditional(path, nd);
+	return ret;
 }
 
 int follow_down_one(struct path *path)
@@ -1494,14 +1498,9 @@ unlazy:
 	path->mnt = mnt;
 	path->dentry = dentry;
 	err = follow_managed(path, nd);
-	if (unlikely(err < 0)) {
-		path_put_conditional(path, nd);
-		return err;
-	}
-	if (err)
-		nd->flags |= LOOKUP_JUMPED;
-	*inode = path->dentry->d_inode;
-	return 0;
+	if (likely(!err))
+		*inode = path->dentry->d_inode;
+	return err;
 
 need_lookup:
 	return 1;
@@ -1511,7 +1510,6 @@ need_lookup:
 static int lookup_slow(struct nameidata *nd, struct path *path)
 {
 	struct dentry *dentry, *parent;
-	int err;
 
 	parent = nd->path.dentry;
 	BUG_ON(nd->inode != parent->d_inode);
@@ -1523,14 +1521,7 @@ static int lookup_slow(struct nameidata *nd, struct path *path)
 		return PTR_ERR(dentry);
 	path->mnt = nd->path.mnt;
 	path->dentry = dentry;
-	err = follow_managed(path, nd);
-	if (unlikely(err < 0)) {
-		path_put_conditional(path, nd);
-		return err;
-	}
-	if (err)
-		nd->flags |= LOOKUP_JUMPED;
-	return 0;
+	return follow_managed(path, nd);
 }
 
 static inline int may_lookup(struct nameidata *nd)
@@ -3098,10 +3089,7 @@ retry_lookup:
 
 	error = follow_managed(&path, nd);
 	if (error < 0)
-		goto exit_dput;
-
-	if (error)
-		nd->flags |= LOOKUP_JUMPED;
+		goto out;
 
 	BUG_ON(nd->flags & LOOKUP_RCU);
 	inode = path.dentry->d_inode;
