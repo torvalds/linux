@@ -675,7 +675,7 @@ int parse_events_add_pmu(struct parse_events_evlist *data,
 	if (config_attr(&attr, head_config))
 		return -EINVAL;
 
-	if (perf_pmu__config(pmu, &attr, head_config))
+	if (perf_pmu__config(pmu, &attr, head_config, data->error))
 		return -EINVAL;
 
 	evsel = __add_event(list, &data->idx, &attr,
