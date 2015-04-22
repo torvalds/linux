@@ -654,6 +654,13 @@ static void hdmi_core_audio_infoframe_cfg(struct hdmi_core_data *core,
 	hdmi_write_reg(av_base, HDMI_CORE_AV_AUD_DBYTE(2), info_aud->db3);
 	sum += info_aud->db3;
 
+	/*
+	 * The OMAP HDMI IP requires to use the 8-channel channel code when
+	 * transmitting more than two channels.
+	 */
+	if (info_aud->db4_ca != 0x00)
+		info_aud->db4_ca = 0x13;
+
 	hdmi_write_reg(av_base, HDMI_CORE_AV_AUD_DBYTE(3), info_aud->db4_ca);
 	sum += info_aud->db4_ca;
 

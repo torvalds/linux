@@ -210,12 +210,10 @@ static int hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 
 	cea->db3 = 0; /* not used, all zeros */
 
-	/*
-	 * The OMAP HDMI IP requires to use the 8-channel channel code when
-	 * transmitting more than two channels.
-	 */
 	if (params_channels(params) == 2)
 		cea->db4_ca = 0x0;
+	else if (params_channels(params) == 6)
+		cea->db4_ca = 0xb;
 	else
 		cea->db4_ca = 0x13;
 
