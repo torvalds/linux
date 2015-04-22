@@ -27,6 +27,7 @@
 
 #include <asm/acpi.h>
 #include <asm/compiler.h>
+#include <asm/cputype.h>
 #include <asm/cpu_ops.h>
 #include <asm/errno.h>
 #include <asm/psci.h>
@@ -42,6 +43,19 @@ struct psci_power_state {
 	u8	type;
 	u8	affinity_level;
 };
+
+/*
+ * The CPU any Trusted OS is resident on. The trusted OS may reject CPU_OFF
+ * calls to its resident CPU, so we must avoid issuing those. We never migrate
+ * a Trusted OS even if it claims to be capable of migration -- doing so will
+ * require cooperation with a Trusted OS driver.
+ */
+static int resident_cpu = -1;
+
+static bool psci_tos_resident_on(int cpu)
+{
+	return cpu == resident_cpu;
+}
 
 struct psci_operations {
 	int (*cpu_suspend)(struct psci_power_state state,
@@ -172,6 +186,11 @@ static int psci_migrate_info_type(void)
 	return invoke_psci_fn(PSCI_0_2_FN_MIGRATE_INFO_TYPE, 0, 0, 0);
 }
 
+static unsigned long psci_migrate_info_up_cpu(void)
+{
+	return invoke_psci_fn(PSCI_0_2_FN64_MIGRATE_INFO_UP_CPU, 0, 0, 0);
+}
+
 static int __maybe_unused cpu_psci_cpu_init_idle(unsigned int cpu)
 {
 	int i, ret, count = 0;
@@ -264,6 +283,46 @@ static void psci_sys_poweroff(void)
 	invoke_psci_fn(PSCI_0_2_FN_SYSTEM_OFF, 0, 0, 0);
 }
 
+/*
+ * Detect the presence of a resident Trusted OS which may cause CPU_OFF to
+ * return DENIED (which would be fatal).
+ */
+static void __init psci_init_migrate(void)
+{
+	unsigned long cpuid;
+	int type, cpu;
+
+	type = psci_ops.migrate_info_type();
+
+	if (type == PSCI_0_2_TOS_MP) {
+		pr_info("Trusted OS migration not required\n");
+		return;
+	}
+
+	if (type == PSCI_RET_NOT_SUPPORTED) {
+		pr_info("MIGRATE_INFO_TYPE not supported.\n");
+		return;
+	}
+
+	if (type != PSCI_0_2_TOS_UP_MIGRATE &&
+	    type != PSCI_0_2_TOS_UP_NO_MIGRATE) {
+		pr_err("MIGRATE_INFO_TYPE returned unknown type (%d)\n", type);
+		return;
+	}
+
+	cpuid = psci_migrate_info_up_cpu();
+	if (cpuid & ~MPIDR_HWID_BITMASK) {
+		pr_warn("MIGRATE_INFO_UP_CPU reported invalid physical ID (0x%lx)\n",
+			cpuid);
+		return;
+	}
+
+	cpu = get_logical_index(cpuid);
+	resident_cpu = cpu >= 0 ? cpu : -1;
+
+	pr_info("Trusted OS resident on physical CPU 0x%lx\n", cpuid);
+}
+
 static void __init psci_0_2_set_functions(void)
 {
 	pr_info("Using standard PSCI v0.2 function IDs\n");
@@ -305,6 +364,8 @@ static int __init psci_probe(void)
 	}
 
 	psci_0_2_set_functions();
+
+	psci_init_migrate();
 
 	return 0;
 }
@@ -452,6 +513,11 @@ static int cpu_psci_cpu_disable(unsigned int cpu)
 	/* Fail early if we don't have CPU_OFF support */
 	if (!psci_ops.cpu_off)
 		return -EOPNOTSUPP;
+
+	/* Trusted OS will deny CPU_OFF */
+	if (psci_tos_resident_on(cpu))
+		return -EPERM;
+
 	return 0;
 }
 
