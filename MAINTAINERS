@@ -8803,6 +8803,15 @@ W:	http://www.emulex.com
 S:	Supported
 F:	drivers/net/ethernet/emulex/benet/
 
+EMULEX ONECONNECT ROCE DRIVER
+M:	Selvin Xavier <selvin.xavier@emulex.com>
+M:	Devesh Sharma <devesh.sharma@emulex.com>
+M:	Mitesh Ahuja <mitesh.ahuja@emulex.com>
+L:	linux-rdma@vger.kernel.org
+W:	http://www.emulex.com
+S:	Supported
+F:	drivers/infiniband/hw/ocrdma/
+
 SFC NETWORK DRIVER
 M:	Solarflare linux maintainers <linux-net-drivers@solarflare.com>
 M:	Shradha Shah <sshah@solarflare.com>

@@ -274,6 +274,65 @@ void iser_free_fmr_pool(struct ib_conn *ib_conn)
 }
 
 static int
+iser_alloc_pi_ctx(struct ib_device *ib_device, struct ib_pd *pd,
+		  struct fast_reg_descriptor *desc)
+{
+	struct iser_pi_context *pi_ctx = NULL;
+	struct ib_mr_init_attr mr_init_attr = {.max_reg_descriptors = 2,
+					       .flags = IB_MR_SIGNATURE_EN};
+	int ret = 0;
+
+	desc->pi_ctx = kzalloc(sizeof(*desc->pi_ctx), GFP_KERNEL);
+	if (!desc->pi_ctx)
+		return -ENOMEM;
+
+	pi_ctx = desc->pi_ctx;
+
+	pi_ctx->prot_frpl = ib_alloc_fast_reg_page_list(ib_device,
+					    ISCSI_ISER_SG_TABLESIZE);
+	if (IS_ERR(pi_ctx->prot_frpl)) {
+		ret = PTR_ERR(pi_ctx->prot_frpl);
+		goto prot_frpl_failure;
+	}
+
+	pi_ctx->prot_mr = ib_alloc_fast_reg_mr(pd,
+					ISCSI_ISER_SG_TABLESIZE + 1);
+	if (IS_ERR(pi_ctx->prot_mr)) {
+		ret = PTR_ERR(pi_ctx->prot_mr);
+		goto prot_mr_failure;
+	}
+	desc->reg_indicators |= ISER_PROT_KEY_VALID;
+
+	pi_ctx->sig_mr = ib_create_mr(pd, &mr_init_attr);
+	if (IS_ERR(pi_ctx->sig_mr)) {
+		ret = PTR_ERR(pi_ctx->sig_mr);
+		goto sig_mr_failure;
+	}
+	desc->reg_indicators |= ISER_SIG_KEY_VALID;
+	desc->reg_indicators &= ~ISER_FASTREG_PROTECTED;
+
+	return 0;
+
+sig_mr_failure:
+	ib_dereg_mr(desc->pi_ctx->prot_mr);
+prot_mr_failure:
+	ib_free_fast_reg_page_list(desc->pi_ctx->prot_frpl);
+prot_frpl_failure:
+	kfree(desc->pi_ctx);
+
+	return ret;
+}
+
+static void
+iser_free_pi_ctx(struct iser_pi_context *pi_ctx)
+{
+	ib_free_fast_reg_page_list(pi_ctx->prot_frpl);
+	ib_dereg_mr(pi_ctx->prot_mr);
+	ib_destroy_mr(pi_ctx->sig_mr);
+	kfree(pi_ctx);
+}
+
+static int
 iser_create_fastreg_desc(struct ib_device *ib_device, struct ib_pd *pd,
 			 bool pi_enable, struct fast_reg_descriptor *desc)
 {
@@ -297,59 +356,12 @@ iser_create_fastreg_desc(struct ib_device *ib_device, struct ib_pd *pd,
 	desc->reg_indicators |= ISER_DATA_KEY_VALID;
 
 	if (pi_enable) {
-		struct ib_mr_init_attr mr_init_attr = {0};
-		struct iser_pi_context *pi_ctx = NULL;
-
-		desc->pi_ctx = kzalloc(sizeof(*desc->pi_ctx), GFP_KERNEL);
-		if (!desc->pi_ctx) {
-			iser_err("Failed to allocate pi context\n");
-			ret = -ENOMEM;
+		ret = iser_alloc_pi_ctx(ib_device, pd, desc);
+		if (ret)
 			goto pi_ctx_alloc_failure;
-		}
-		pi_ctx = desc->pi_ctx;
-
-		pi_ctx->prot_frpl = ib_alloc_fast_reg_page_list(ib_device,
-						    ISCSI_ISER_SG_TABLESIZE);
-		if (IS_ERR(pi_ctx->prot_frpl)) {
-			ret = PTR_ERR(pi_ctx->prot_frpl);
-			iser_err("Failed to allocate prot frpl ret=%d\n",
-				 ret);
-			goto prot_frpl_failure;
-		}
-
-		pi_ctx->prot_mr = ib_alloc_fast_reg_mr(pd,
-						ISCSI_ISER_SG_TABLESIZE + 1);
-		if (IS_ERR(pi_ctx->prot_mr)) {
-			ret = PTR_ERR(pi_ctx->prot_mr);
-			iser_err("Failed to allocate prot frmr ret=%d\n",
-				 ret);
-			goto prot_mr_failure;
-		}
-		desc->reg_indicators |= ISER_PROT_KEY_VALID;
-
-		mr_init_attr.max_reg_descriptors = 2;
-		mr_init_attr.flags |= IB_MR_SIGNATURE_EN;
-		pi_ctx->sig_mr = ib_create_mr(pd, &mr_init_attr);
-		if (IS_ERR(pi_ctx->sig_mr)) {
-			ret = PTR_ERR(pi_ctx->sig_mr);
-			iser_err("Failed to allocate signature enabled mr err=%d\n",
-				 ret);
-			goto sig_mr_failure;
-		}
-		desc->reg_indicators |= ISER_SIG_KEY_VALID;
 	}
-	desc->reg_indicators &= ~ISER_FASTREG_PROTECTED;
-
-	iser_dbg("Create fr_desc %p page_list %p\n",
-		 desc, desc->data_frpl->page_list);
 
 	return 0;
-sig_mr_failure:
-	ib_dereg_mr(desc->pi_ctx->prot_mr);
-prot_mr_failure:
-	ib_free_fast_reg_page_list(desc->pi_ctx->prot_frpl);
-prot_frpl_failure:
-	kfree(desc->pi_ctx);
 pi_ctx_alloc_failure:
 	ib_dereg_mr(desc->data_mr);
 fast_reg_mr_failure:
@@ -416,12 +428,8 @@ void iser_free_fastreg_pool(struct ib_conn *ib_conn)
 		list_del(&desc->list);
 		ib_free_fast_reg_page_list(desc->data_frpl);
 		ib_dereg_mr(desc->data_mr);
-		if (desc->pi_ctx) {
-			ib_free_fast_reg_page_list(desc->pi_ctx->prot_frpl);
-			ib_dereg_mr(desc->pi_ctx->prot_mr);
-			ib_destroy_mr(desc->pi_ctx->sig_mr);
-			kfree(desc->pi_ctx);
-		}
+		if (desc->pi_ctx)
+			iser_free_pi_ctx(desc->pi_ctx);
 		kfree(desc);
 		++i;
 	}
@@ -721,7 +729,7 @@ static void iser_connect_error(struct rdma_cm_id *cma_id)
 	struct iser_conn *iser_conn;
 
 	iser_conn = (struct iser_conn *)cma_id->context;
-	iser_conn->state = ISER_CONN_DOWN;
+	iser_conn->state = ISER_CONN_TERMINATING;
 }
 
 /**
@@ -992,93 +1000,6 @@ connect_failure:
 	return err;
 }
 
-/**
- * iser_reg_page_vec - Register physical memory
- *
- * returns: 0 on success, errno code on failure
- */
-int iser_reg_page_vec(struct ib_conn *ib_conn,
-		      struct iser_page_vec *page_vec,
-		      struct iser_mem_reg  *mem_reg)
-{
-	struct ib_pool_fmr *mem;
-	u64		   io_addr;
-	u64		   *page_list;
-	int		   status;
-
-	page_list = page_vec->pages;
-	io_addr	  = page_list[0];
-
-	mem  = ib_fmr_pool_map_phys(ib_conn->fmr.pool,
-				    page_list,
-				    page_vec->length,
-				    io_addr);
-
-	if (IS_ERR(mem)) {
-		status = (int)PTR_ERR(mem);
-		iser_err("ib_fmr_pool_map_phys failed: %d\n", status);
-		return status;
-	}
-
-	mem_reg->lkey  = mem->fmr->lkey;
-	mem_reg->rkey  = mem->fmr->rkey;
-	mem_reg->len   = page_vec->length * SIZE_4K;
-	mem_reg->va    = io_addr;
-	mem_reg->mem_h = (void *)mem;
-
-	mem_reg->va   += page_vec->offset;
-	mem_reg->len   = page_vec->data_size;
-
-	iser_dbg("PHYSICAL Mem.register, [PHYS p_array: 0x%p, sz: %d, "
-		 "entry[0]: (0x%08lx,%ld)] -> "
-		 "[lkey: 0x%08X mem_h: 0x%p va: 0x%08lX sz: %ld]\n",
-		 page_vec, page_vec->length,
-		 (unsigned long)page_vec->pages[0],
-		 (unsigned long)page_vec->data_size,
-		 (unsigned int)mem_reg->lkey, mem_reg->mem_h,
-		 (unsigned long)mem_reg->va, (unsigned long)mem_reg->len);
-	return 0;
-}
-
-/**
- * Unregister (previosuly registered using FMR) memory.
- * If memory is non-FMR does nothing.
- */
-void iser_unreg_mem_fmr(struct iscsi_iser_task *iser_task,
-			enum iser_data_dir cmd_dir)
-{
-	struct iser_mem_reg *reg = &iser_task->rdma_regd[cmd_dir].reg;
-	int ret;
-
-	if (!reg->mem_h)
-		return;
-
-	iser_dbg("PHYSICAL Mem.Unregister mem_h %p\n",reg->mem_h);
-
-	ret = ib_fmr_pool_unmap((struct ib_pool_fmr *)reg->mem_h);
-	if (ret)
-		iser_err("ib_fmr_pool_unmap failed %d\n", ret);
-
-	reg->mem_h = NULL;
-}
-
-void iser_unreg_mem_fastreg(struct iscsi_iser_task *iser_task,
-			    enum iser_data_dir cmd_dir)
-{
-	struct iser_mem_reg *reg = &iser_task->rdma_regd[cmd_dir].reg;
-	struct iser_conn *iser_conn = iser_task->iser_conn;
-	struct ib_conn *ib_conn = &iser_conn->ib_conn;
-	struct fast_reg_descriptor *desc = reg->mem_h;
-
-	if (!desc)
-		return;
-
-	reg->mem_h = NULL;
-	spin_lock_bh(&ib_conn->lock);
-	list_add_tail(&desc->list, &ib_conn->fastreg.pool);
-	spin_unlock_bh(&ib_conn->lock);
-}
-
 int iser_post_recvl(struct iser_conn *iser_conn)
 {
 	struct ib_recv_wr rx_wr, *rx_wr_failed;
@@ -1210,6 +1131,9 @@ iser_handle_comp_error(struct ib_conn *ib_conn,
 			iscsi_conn_failure(iser_conn->iscsi_conn,
 					   ISCSI_ERR_CONN_FAILED);
 
+	if (wc->wr_id == ISER_FASTREG_LI_WRID)
+		return;
+
 	if (is_iser_tx_desc(iser_conn, wr_id)) {
 		struct iser_tx_desc *desc = wr_id;
 
@@ -1254,13 +1178,11 @@ static void iser_handle_wc(struct ib_wc *wc)
 		else
 			iser_dbg("flush error: wr id %llx\n", wc->wr_id);
 
-		if (wc->wr_id != ISER_FASTREG_LI_WRID &&
-		    wc->wr_id != ISER_BEACON_WRID)
-			iser_handle_comp_error(ib_conn, wc);
-
-		/* complete in case all flush errors were consumed */
 		if (wc->wr_id == ISER_BEACON_WRID)
+			/* all flush errors were consumed */
 			complete(&ib_conn->flush_comp);
+		else
+			iser_handle_comp_error(ib_conn, wc);
 	}
 }
 
@@ -1306,7 +1228,7 @@ static void iser_cq_callback(struct ib_cq *cq, void *cq_context)
 u8 iser_check_task_pi_status(struct iscsi_iser_task *iser_task,
 			     enum iser_data_dir cmd_dir, sector_t *sector)
 {
-	struct iser_mem_reg *reg = &iser_task->rdma_regd[cmd_dir].reg;
+	struct iser_mem_reg *reg = &iser_task->rdma_reg[cmd_dir];
 	struct fast_reg_descriptor *desc = reg->mem_h;
 	unsigned long sector_size = iser_task->sc->device->sector_size;
 	struct ib_mr_status mr_status;

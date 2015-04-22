@@ -66,9 +66,9 @@ MODULE_DESCRIPTION("Mellanox ConnectX HCA InfiniBand driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(DRV_VERSION);
 
-int mlx4_ib_sm_guid_assign = 1;
+int mlx4_ib_sm_guid_assign = 0;
 module_param_named(sm_guid_assign, mlx4_ib_sm_guid_assign, int, 0444);
-MODULE_PARM_DESC(sm_guid_assign, "Enable SM alias_GUID assignment if sm_guid_assign > 0 (Default: 1)");
+MODULE_PARM_DESC(sm_guid_assign, "Enable SM alias_GUID assignment if sm_guid_assign > 0 (Default: 0)");
 
 static const char mlx4_ib_version[] =
 	DRV_NAME ": Mellanox ConnectX InfiniBand driver v"
@@ -2791,9 +2791,31 @@ static void mlx4_ib_event(struct mlx4_dev *dev, void *ibdev_ptr,
 	case MLX4_DEV_EVENT_SLAVE_INIT:
 		/* here, p is the slave id */
 		do_slave_init(ibdev, p, 1);
+		if (mlx4_is_master(dev)) {
+			int i;
+
+			for (i = 1; i <= ibdev->num_ports; i++) {
+				if (rdma_port_get_link_layer(&ibdev->ib_dev, i)
+					== IB_LINK_LAYER_INFINIBAND)
+					mlx4_ib_slave_alias_guid_event(ibdev,
+								       p, i,
+								       1);
+			}
+		}
 		return;
 
 	case MLX4_DEV_EVENT_SLAVE_SHUTDOWN:
+		if (mlx4_is_master(dev)) {
+			int i;
+
+			for (i = 1; i <= ibdev->num_ports; i++) {
+				if (rdma_port_get_link_layer(&ibdev->ib_dev, i)
+					== IB_LINK_LAYER_INFINIBAND)
+					mlx4_ib_slave_alias_guid_event(ibdev,
+								       p, i,
+								       0);
+			}
+		}
 		/* here, p is the slave id */
 		do_slave_init(ibdev, p, 0);
 		return;

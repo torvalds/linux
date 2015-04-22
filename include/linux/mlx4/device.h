@@ -1345,6 +1345,10 @@ int mlx4_wol_write(struct mlx4_dev *dev, u64 config, int port);
 int mlx4_counter_alloc(struct mlx4_dev *dev, u32 *idx);
 void mlx4_counter_free(struct mlx4_dev *dev, u32 idx);
 
+void mlx4_set_admin_guid(struct mlx4_dev *dev, __be64 guid, int entry,
+			 int port);
+__be64 mlx4_get_admin_guid(struct mlx4_dev *dev, int entry, int port);
+void mlx4_set_random_admin_guid(struct mlx4_dev *dev, int entry, int port);
 int mlx4_flow_attach(struct mlx4_dev *dev,
 		     struct mlx4_net_trans_rule *rule, u64 *reg_id);
 int mlx4_flow_detach(struct mlx4_dev *dev, u64 reg_id);
