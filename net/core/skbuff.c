@@ -311,7 +311,11 @@ struct sk_buff *build_skb(void *data, unsigned int frag_size)
 
 	memset(skb, 0, offsetof(struct sk_buff, tail));
 	skb->truesize = SKB_TRUESIZE(size);
-	skb->head_frag = frag_size != 0;
+	if (frag_size) {
+		skb->head_frag = 1;
+		if (virt_to_head_page(data)->pfmemalloc)
+			skb->pfmemalloc = 1;
+	}
 	atomic_set(&skb->users, 1);
 	skb->head = data;
 	skb->data = data;
@@ -348,7 +352,8 @@ static struct page *__page_frag_refill(struct netdev_alloc_cache *nc,
 	gfp_t gfp = gfp_mask;
 
 	if (order) {
-		gfp_mask |= __GFP_COMP | __GFP_NOWARN | __GFP_NORETRY;
+		gfp_mask |= __GFP_COMP | __GFP_NOWARN | __GFP_NORETRY |
+			    __GFP_NOMEMALLOC;
 		page = alloc_pages_node(NUMA_NO_NODE, gfp_mask, order);
 		nc->frag.size = PAGE_SIZE << (page ? order : 0);
 	}
