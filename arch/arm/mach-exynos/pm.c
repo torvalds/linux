@@ -181,6 +181,7 @@ void exynos_enter_aftr(void)
 	cpu_pm_exit();
 }
 
+#if defined(CONFIG_SMP) && defined(CONFIG_ARM_EXYNOS_CPUIDLE)
 static atomic_t cpu1_wakeup = ATOMIC_INIT(0);
 
 static int exynos_cpu0_enter_aftr(void)
@@ -302,3 +303,4 @@ struct cpuidle_exynos_data cpuidle_coupled_exynos_data = {
 	.pre_enter_aftr		= exynos_pre_enter_aftr,
 	.post_enter_aftr		= exynos_post_enter_aftr,
 };
+#endif /* CONFIG_SMP && CONFIG_ARM_EXYNOS_CPUIDLE */

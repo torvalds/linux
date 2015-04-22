@@ -796,7 +796,7 @@
 		};
 
 		ocp2scp0: ocp2scp@483a8000 {
-			compatible = "ti,omap-ocp2scp";
+			compatible = "ti,am437x-ocp2scp", "ti,omap-ocp2scp";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
@@ -815,7 +815,7 @@
 		};
 
 		ocp2scp1: ocp2scp@483e8000 {
-			compatible = "ti,omap-ocp2scp";
+			compatible = "ti,am437x-ocp2scp", "ti,omap-ocp2scp";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
