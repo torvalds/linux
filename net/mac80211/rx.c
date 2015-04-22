@@ -32,6 +32,16 @@
 #include "wme.h"
 #include "rate.h"
 
+static inline void ieee80211_rx_stats(struct net_device *dev, u32 len)
+{
+	struct pcpu_sw_netstats *tstats = this_cpu_ptr(dev->tstats);
+
+	u64_stats_update_begin(&tstats->syncp);
+	tstats->rx_packets++;
+	tstats->rx_bytes += len;
+	u64_stats_update_end(&tstats->syncp);
+}
+
 /*
  * monitor mode reception
  *
@@ -529,8 +539,7 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 		}
 
 		prev_dev = sdata->dev;
-		sdata->dev->stats.rx_packets++;
-		sdata->dev->stats.rx_bytes += skb->len;
+		ieee80211_rx_stats(sdata->dev, skb->len);
 	}
 
 	if (prev_dev) {
@@ -2036,11 +2045,10 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
 	struct ethhdr *ehdr = (struct ethhdr *) rx->skb->data;
 	struct sta_info *dsta;
 
-	dev->stats.rx_packets++;
-	dev->stats.rx_bytes += rx->skb->len;
-
 	skb = rx->skb;
 	xmit_skb = NULL;
+
+	ieee80211_rx_stats(dev, skb->len);
 
 	if ((sdata->vif.type == NL80211_IFTYPE_AP ||
 	     sdata->vif.type == NL80211_IFTYPE_AP_VLAN) &&
@@ -3045,8 +3053,7 @@ static void ieee80211_rx_cooked_monitor(struct ieee80211_rx_data *rx,
 		}
 
 		prev_dev = sdata->dev;
-		sdata->dev->stats.rx_packets++;
-		sdata->dev->stats.rx_bytes += skb->len;
+		ieee80211_rx_stats(sdata->dev, skb->len);
 	}
 
 	if (prev_dev) {

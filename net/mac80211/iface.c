@@ -1094,6 +1094,35 @@ static u16 ieee80211_netdev_select_queue(struct net_device *dev,
 	return ieee80211_select_queue(IEEE80211_DEV_TO_SUB_IF(dev), skb);
 }
 
+static struct rtnl_link_stats64 *
+ieee80211_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
+{
+	int i;
+
+	for_each_possible_cpu(i) {
+		const struct pcpu_sw_netstats *tstats;
+		u64 rx_packets, rx_bytes, tx_packets, tx_bytes;
+		unsigned int start;
+
+		tstats = per_cpu_ptr(dev->tstats, i);
+
+		do {
+			start = u64_stats_fetch_begin_irq(&tstats->syncp);
+			rx_packets = tstats->rx_packets;
+			tx_packets = tstats->tx_packets;
+			rx_bytes = tstats->rx_bytes;
+			tx_bytes = tstats->tx_bytes;
+		} while (u64_stats_fetch_retry_irq(&tstats->syncp, start));
+
+		stats->rx_packets += rx_packets;
+		stats->tx_packets += tx_packets;
+		stats->rx_bytes   += rx_bytes;
+		stats->tx_bytes   += tx_bytes;
+	}
+
+	return stats;
+}
+
 static const struct net_device_ops ieee80211_dataif_ops = {
 	.ndo_open		= ieee80211_open,
 	.ndo_stop		= ieee80211_stop,
@@ -1103,6 +1132,7 @@ static const struct net_device_ops ieee80211_dataif_ops = {
 	.ndo_change_mtu 	= ieee80211_change_mtu,
 	.ndo_set_mac_address 	= ieee80211_change_mac,
 	.ndo_select_queue	= ieee80211_netdev_select_queue,
+	.ndo_get_stats64	= ieee80211_get_stats64,
 };
 
 static u16 ieee80211_monitor_select_queue(struct net_device *dev,
@@ -1136,14 +1166,21 @@ static const struct net_device_ops ieee80211_monitorif_ops = {
 	.ndo_change_mtu 	= ieee80211_change_mtu,
 	.ndo_set_mac_address 	= ieee80211_change_mac,
 	.ndo_select_queue	= ieee80211_monitor_select_queue,
+	.ndo_get_stats64	= ieee80211_get_stats64,
 };
+
+static void ieee80211_if_free(struct net_device *dev)
+{
+	free_percpu(dev->tstats);
+	free_netdev(dev);
+}
 
 static void ieee80211_if_setup(struct net_device *dev)
 {
 	ether_setup(dev);
 	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 	dev->netdev_ops = &ieee80211_dataif_ops;
-	dev->destructor = free_netdev;
+	dev->destructor = ieee80211_if_free;
 }
 
 static void ieee80211_iface_work(struct work_struct *work)
@@ -1683,6 +1720,12 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 		if (!ndev)
 			return -ENOMEM;
 		dev_net_set(ndev, wiphy_net(local->hw.wiphy));
+
+		ndev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
+		if (!ndev->tstats) {
+			free_netdev(ndev);
+			return -ENOMEM;
+		}
 
 		ndev->needed_headroom = local->tx_headroom +
 					4*6 /* four MAC addresses */
