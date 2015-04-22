@@ -545,13 +545,31 @@ int parse_events_add_breakpoint(struct list_head *list, int *idx,
 	return add_event(list, idx, &attr, NULL);
 }
 
-static int config_term(struct perf_event_attr *attr,
-		       struct parse_events_term *term)
+static int check_type_val(struct parse_events_term *term,
+			  struct parse_events_error *err,
+			  int type)
 {
-#define CHECK_TYPE_VAL(type)					\
-do {								\
-	if (PARSE_EVENTS__TERM_TYPE_ ## type != term->type_val)	\
-		return -EINVAL;					\
+	if (type == term->type_val)
+		return 0;
+
+	if (err) {
+		err->idx = term->err_val;
+		if (type == PARSE_EVENTS__TERM_TYPE_NUM)
+			err->str = strdup("expected numeric value");
+		else
+			err->str = strdup("expected string value");
+	}
+	return -EINVAL;
+}
+
+static int config_term(struct perf_event_attr *attr,
+		       struct parse_events_term *term,
+		       struct parse_events_error *err)
+{
+#define CHECK_TYPE_VAL(type)						   \
+do {									   \
+	if (check_type_val(term, err, PARSE_EVENTS__TERM_TYPE_ ## type)) \
+		return -EINVAL;						   \
 } while (0)
 
 	switch (term->type_term) {
@@ -595,12 +613,13 @@ do {								\
 }
 
 static int config_attr(struct perf_event_attr *attr,
-		       struct list_head *head)
+		       struct list_head *head,
+		       struct parse_events_error *err)
 {
 	struct parse_events_term *term;
 
 	list_for_each_entry(term, head, list)
-		if (config_term(attr, term))
+		if (config_term(attr, term, err))
 			return -EINVAL;
 
 	return 0;
@@ -617,7 +636,7 @@ int parse_events_add_numeric(struct list_head *list, int *idx,
 	attr.config = config;
 
 	if (head_config &&
-	    config_attr(&attr, head_config))
+	    config_attr(&attr, head_config, NULL))
 		return -EINVAL;
 
 	return add_event(list, idx, &attr, NULL);
@@ -672,7 +691,7 @@ int parse_events_add_pmu(struct parse_events_evlist *data,
 	 * Configure hardcoded terms first, no need to check
 	 * return value when called with fail == 0 ;)
 	 */
-	if (config_attr(&attr, head_config))
+	if (config_attr(&attr, head_config, data->error))
 		return -EINVAL;
 
 	if (perf_pmu__config(pmu, &attr, head_config, data->error))
