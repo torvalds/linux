@@ -37,6 +37,7 @@ struct audit_chunk {
 
 static LIST_HEAD(tree_list);
 static LIST_HEAD(prune_list);
+static struct task_struct *prune_thread;
 
 /*
  * One struct chunk is attached to each inode of interest.
@@ -651,6 +652,57 @@ static int tag_mount(struct vfsmount *mnt, void *arg)
 	return tag_chunk(mnt->mnt_root->d_inode, arg);
 }
 
+/*
+ * That gets run when evict_chunk() ends up needing to kill audit_tree.
+ * Runs from a separate thread.
+ */
+static int prune_tree_thread(void *unused)
+{
+	for (;;) {
+		set_current_state(TASK_INTERRUPTIBLE);
+		if (list_empty(&prune_list))
+			schedule();
+		__set_current_state(TASK_RUNNING);
+
+		mutex_lock(&audit_cmd_mutex);
+		mutex_lock(&audit_filter_mutex);
+
+		while (!list_empty(&prune_list)) {
+			struct audit_tree *victim;
+
+			victim = list_entry(prune_list.next,
+					struct audit_tree, list);
+			list_del_init(&victim->list);
+
+			mutex_unlock(&audit_filter_mutex);
+
+			prune_one(victim);
+
+			mutex_lock(&audit_filter_mutex);
+		}
+
+		mutex_unlock(&audit_filter_mutex);
+		mutex_unlock(&audit_cmd_mutex);
+	}
+	return 0;
+}
+
+static int audit_launch_prune(void)
+{
+	if (prune_thread)
+		return 0;
+	prune_thread = kthread_create(prune_tree_thread, NULL,
+				"audit_prune_tree");
+	if (IS_ERR(prune_thread)) {
+		pr_err("cannot start thread audit_prune_tree");
+		prune_thread = NULL;
+		return -ENOMEM;
+	} else {
+		wake_up_process(prune_thread);
+		return 0;
+	}
+}
+
 /* called with audit_filter_mutex */
 int audit_add_tree_rule(struct audit_krule *rule)
 {
@@ -673,6 +725,12 @@ int audit_add_tree_rule(struct audit_krule *rule)
 	list_add(&rule->rlist, &tree->rules);
 	/* do not set rule->tree yet */
 	mutex_unlock(&audit_filter_mutex);
+
+	if (unlikely(!prune_thread)) {
+		err = audit_launch_prune();
+		if (err)
+			goto Err;
+	}
 
 	err = kern_path(tree->pathname, 0, &path);
 	if (err)
@@ -811,36 +869,10 @@ int audit_tag_tree(char *old, char *new)
 	return failed;
 }
 
-/*
- * That gets run when evict_chunk() ends up needing to kill audit_tree.
- * Runs from a separate thread.
- */
-static int prune_tree_thread(void *unused)
-{
-	mutex_lock(&audit_cmd_mutex);
-	mutex_lock(&audit_filter_mutex);
-
-	while (!list_empty(&prune_list)) {
-		struct audit_tree *victim;
-
-		victim = list_entry(prune_list.next, struct audit_tree, list);
-		list_del_init(&victim->list);
-
-		mutex_unlock(&audit_filter_mutex);
-
-		prune_one(victim);
-
-		mutex_lock(&audit_filter_mutex);
-	}
-
-	mutex_unlock(&audit_filter_mutex);
-	mutex_unlock(&audit_cmd_mutex);
-	return 0;
-}
 
 static void audit_schedule_prune(void)
 {
-	kthread_run(prune_tree_thread, NULL, "audit_prune_tree");
+	wake_up_process(prune_thread);
 }
 
 /*
@@ -907,9 +939,9 @@ static void evict_chunk(struct audit_chunk *chunk)
 	for (n = 0; n < chunk->count; n++)
 		list_del_init(&chunk->owners[n].list);
 	spin_unlock(&hash_lock);
+	mutex_unlock(&audit_filter_mutex);
 	if (need_prune)
 		audit_schedule_prune();
-	mutex_unlock(&audit_filter_mutex);
 }
 
 static int audit_tree_handle_event(struct fsnotify_group *group,
