@@ -274,8 +274,7 @@ value_sym '/' event_config '/'
 	int config = $1 & 255;
 
 	ALLOC_LIST(list);
-	ABORT_ON(parse_events_add_numeric(list, &data->idx,
-					  type, config, $3));
+	ABORT_ON(parse_events_add_numeric(data, list, type, config, $3));
 	parse_events__free_terms($3);
 	$$ = list;
 }
@@ -288,8 +287,7 @@ value_sym sep_slash_dc
 	int config = $1 & 255;
 
 	ALLOC_LIST(list);
-	ABORT_ON(parse_events_add_numeric(list, &data->idx,
-					  type, config, NULL));
+	ABORT_ON(parse_events_add_numeric(data, list, type, config, NULL));
 	$$ = list;
 }
 
@@ -405,7 +403,7 @@ PE_VALUE ':' PE_VALUE
 	struct list_head *list;
 
 	ALLOC_LIST(list);
-	ABORT_ON(parse_events_add_numeric(list, &data->idx, (u32)$1, $3, NULL));
+	ABORT_ON(parse_events_add_numeric(data, list, (u32)$1, $3, NULL));
 	$$ = list;
 }
 
@@ -416,8 +414,7 @@ PE_RAW
 	struct list_head *list;
 
 	ALLOC_LIST(list);
-	ABORT_ON(parse_events_add_numeric(list, &data->idx,
-					  PERF_TYPE_RAW, $1, NULL));
+	ABORT_ON(parse_events_add_numeric(data, list, PERF_TYPE_RAW, $1, NULL));
 	$$ = list;
 }
 

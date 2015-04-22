@@ -625,7 +625,8 @@ static int config_attr(struct perf_event_attr *attr,
 	return 0;
 }
 
-int parse_events_add_numeric(struct list_head *list, int *idx,
+int parse_events_add_numeric(struct parse_events_evlist *data,
+			     struct list_head *list,
 			     u32 type, u64 config,
 			     struct list_head *head_config)
 {
@@ -636,10 +637,10 @@ int parse_events_add_numeric(struct list_head *list, int *idx,
 	attr.config = config;
 
 	if (head_config &&
-	    config_attr(&attr, head_config, NULL))
+	    config_attr(&attr, head_config, data->error))
 		return -EINVAL;
 
-	return add_event(list, idx, &attr, NULL);
+	return add_event(list, &data->idx, &attr, NULL);
 }
 
 static int parse_events__is_name_term(struct parse_events_term *term)
