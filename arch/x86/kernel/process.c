@@ -83,17 +83,7 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 {
 	*dst = *src;
 
-	dst->thread.fpu.counter = 0;
-	dst->thread.fpu.has_fpu = 0;
-	dst->thread.fpu.state = NULL;
-	task_disable_lazy_fpu_restore(dst);
-	if (tsk_used_math(src)) {
-		int err = fpstate_alloc(&dst->thread.fpu);
-		if (err)
-			return err;
-		fpu_copy(dst, src);
-	}
-	return 0;
+	return fpu__copy(dst, src);
 }
 
 void arch_release_task_struct(struct task_struct *tsk)

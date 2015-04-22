@@ -178,6 +178,24 @@ int fpstate_alloc(struct fpu *fpu)
 }
 EXPORT_SYMBOL_GPL(fpstate_alloc);
 
+int fpu__copy(struct task_struct *dst, struct task_struct *src)
+{
+	dst->thread.fpu.counter = 0;
+	dst->thread.fpu.has_fpu = 0;
+	dst->thread.fpu.state = NULL;
+
+	task_disable_lazy_fpu_restore(dst);
+
+	if (tsk_used_math(src)) {
+		int err = fpstate_alloc(&dst->thread.fpu);
+
+		if (err)
+			return err;
+		fpu_copy(dst, src);
+	}
+	return 0;
+}
+
 /*
  * Allocate the backing store for the current task's FPU registers
  * and initialize the registers themselves as well.
