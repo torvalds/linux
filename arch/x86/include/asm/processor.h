@@ -435,11 +435,11 @@ struct fpu {
 	union thread_xstate *state;
 	/*
 	 * This counter contains the number of consecutive context switches
-	 * that the FPU is used. If this is over a threshold, the lazy fpu
-	 * saving becomes unlazy to save the trap. This is an unsigned char
-	 * so that after 256 times the counter wraps and the behavior turns
-	 * lazy again; this to deal with bursty apps that only use FPU for
-	 * a short time
+	 * during which the FPU stays used. If this is over a threshold, the
+	 * lazy fpu saving logic becomes unlazy, to save the trap overhead.
+	 * This is an unsigned char so that after 256 iterations the counter
+	 * wraps and the context switch behavior turns lazy again; this is to
+	 * deal with bursty apps that only use the FPU for a short time:
 	 */
 	unsigned char counter;
 };
