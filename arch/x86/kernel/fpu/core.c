@@ -97,7 +97,7 @@ void __kernel_fpu_begin(void)
 	kernel_fpu_disable();
 
 	if (__thread_has_fpu(me)) {
-		__save_init_fpu(me);
+		fpu_save_init(&me->thread.fpu);
 	} else {
 		this_cpu_write(fpu_owner_task, NULL);
 		if (!use_eager_fpu())
@@ -135,7 +135,7 @@ void fpu__save(struct task_struct *tsk)
 		if (use_eager_fpu()) {
 			__save_fpu(tsk);
 		} else {
-			__save_init_fpu(tsk);
+			fpu_save_init(&tsk->thread.fpu);
 			__thread_fpu_end(tsk);
 		}
 	}

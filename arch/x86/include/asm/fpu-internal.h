@@ -295,11 +295,6 @@ static inline int fpu_save_init(struct fpu *fpu)
 	return 1;
 }
 
-static inline int __save_init_fpu(struct task_struct *tsk)
-{
-	return fpu_save_init(&tsk->thread.fpu);
-}
-
 static inline int fpu_restore_checking(struct fpu *fpu)
 {
 	if (use_xsave())
@@ -439,7 +434,7 @@ static inline fpu_switch_t switch_fpu_prepare(struct task_struct *old, struct ta
 		      (use_eager_fpu() || new->thread.fpu.counter > 5);
 
 	if (__thread_has_fpu(old)) {
-		if (!__save_init_fpu(old))
+		if (!fpu_save_init(&old->thread.fpu))
 			task_disable_lazy_fpu_restore(old);
 		else
 			old->thread.fpu.last_cpu = cpu;
