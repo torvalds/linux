@@ -313,6 +313,7 @@ EXPORT_SYMBOL_GPL(v4l2_print_dv_timings);
 #define CVT_MIN_V_BPORCH	7	/* lines */
 #define CVT_MIN_V_PORCH_RND	3	/* lines */
 #define CVT_MIN_VSYNC_BP	550	/* min time of vsync + back porch (us) */
+#define CVT_HSYNC_PERCENT       8       /* nominal hsync as percentage of line */
 
 /* Normal blanking for CVT uses GTF to calculate horizontal blanking */
 #define CVT_CELL_GRAN		8	/* character cell granularity */
@@ -442,7 +443,7 @@ bool v4l2_detect_cvt(unsigned frame_height, unsigned hfreq, unsigned vsync,
 		h_bp = h_blank / 2;
 		frame_width = image_width + h_blank;
 
-		hsync = frame_width * 8 / 100;
+		hsync = frame_width * CVT_HSYNC_PERCENT / 100;
 		hsync = (hsync / CVT_CELL_GRAN) * CVT_CELL_GRAN;
 		h_fp = h_blank - hsync - h_bp;
 	}
