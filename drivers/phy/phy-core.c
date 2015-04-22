@@ -683,16 +683,6 @@ struct phy *phy_create(struct device *dev, struct device_node *node,
 		goto free_phy;
 	}
 
-	/* phy-supply */
-	phy->pwr = regulator_get_optional(dev, "phy");
-	if (IS_ERR(phy->pwr)) {
-		if (PTR_ERR(phy->pwr) == -EPROBE_DEFER) {
-			ret = -EPROBE_DEFER;
-			goto free_ida;
-		}
-		phy->pwr = NULL;
-	}
-
 	device_initialize(&phy->dev);
 	mutex_init(&phy->mutex);
 
@@ -705,6 +695,16 @@ struct phy *phy_create(struct device *dev, struct device_node *node,
 	ret = dev_set_name(&phy->dev, "phy-%s.%d", dev_name(dev), id);
 	if (ret)
 		goto put_dev;
+
+	/* phy-supply */
+	phy->pwr = regulator_get_optional(&phy->dev, "phy");
+	if (IS_ERR(phy->pwr)) {
+		ret = PTR_ERR(phy->pwr);
+		if (ret == -EPROBE_DEFER)
+			goto put_dev;
+
+		phy->pwr = NULL;
+	}
 
 	ret = device_add(&phy->dev);
 	if (ret)
@@ -720,9 +720,6 @@ struct phy *phy_create(struct device *dev, struct device_node *node,
 put_dev:
 	put_device(&phy->dev);  /* calls phy_release() which frees resources */
 	return ERR_PTR(ret);
-
-free_ida:
-	ida_simple_remove(&phy_ida, phy->id);
 
 free_phy:
 	kfree(phy);
