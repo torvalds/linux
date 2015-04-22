@@ -384,7 +384,7 @@ static inline void drop_fpu(struct task_struct *tsk)
 	 * Forget coprocessor state..
 	 */
 	preempt_disable();
-	tsk->thread.fpu_counter = 0;
+	tsk->thread.fpu.counter = 0;
 
 	if (__thread_has_fpu(tsk)) {
 		/* Ignore delayed exceptions from user space */
@@ -441,7 +441,7 @@ static inline fpu_switch_t switch_fpu_prepare(struct task_struct *old, struct ta
 	 * or if the past 5 consecutive context-switches used math.
 	 */
 	fpu.preload = tsk_used_math(new) &&
-		      (use_eager_fpu() || new->thread.fpu_counter > 5);
+		      (use_eager_fpu() || new->thread.fpu.counter > 5);
 
 	if (__thread_has_fpu(old)) {
 		if (!__save_init_fpu(old))
@@ -454,16 +454,16 @@ static inline fpu_switch_t switch_fpu_prepare(struct task_struct *old, struct ta
 
 		/* Don't change CR0.TS if we just switch! */
 		if (fpu.preload) {
-			new->thread.fpu_counter++;
+			new->thread.fpu.counter++;
 			__thread_set_has_fpu(new);
 			prefetch(new->thread.fpu.state);
 		} else if (!use_eager_fpu())
 			stts();
 	} else {
-		old->thread.fpu_counter = 0;
+		old->thread.fpu.counter = 0;
 		task_disable_lazy_fpu_restore(old);
 		if (fpu.preload) {
-			new->thread.fpu_counter++;
+			new->thread.fpu.counter++;
 			if (fpu_lazy_restore(new, cpu))
 				fpu.preload = 0;
 			else

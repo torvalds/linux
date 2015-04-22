@@ -863,7 +863,7 @@ void math_state_restore(void)
 		fpu_reset_state(tsk);
 		force_sig_info(SIGSEGV, SEND_SIG_PRIV, tsk);
 	} else {
-		tsk->thread.fpu_counter++;
+		tsk->thread.fpu.counter++;
 	}
 	kernel_fpu_enable();
 }
