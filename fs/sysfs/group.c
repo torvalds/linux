@@ -352,3 +352,47 @@ void sysfs_remove_link_from_group(struct kobject *kobj, const char *group_name,
 	}
 }
 EXPORT_SYMBOL_GPL(sysfs_remove_link_from_group);
+
+/**
+ * __compat_only_sysfs_link_entry_to_kobj - add a symlink to a kobject pointing
+ * to a group or an attribute
+ * @kobj:		The kobject containing the group.
+ * @target_kobj:	The target kobject.
+ * @target_name:	The name of the target group or attribute.
+ */
+int __compat_only_sysfs_link_entry_to_kobj(struct kobject *kobj,
+				      struct kobject *target_kobj,
+				      const char *target_name)
+{
+	struct kernfs_node *target;
+	struct kernfs_node *entry;
+	struct kernfs_node *link;
+
+	/*
+	 * We don't own @target_kobj and it may be removed at any time.
+	 * Synchronize using sysfs_symlink_target_lock. See sysfs_remove_dir()
+	 * for details.
+	 */
+	spin_lock(&sysfs_symlink_target_lock);
+	target = target_kobj->sd;
+	if (target)
+		kernfs_get(target);
+	spin_unlock(&sysfs_symlink_target_lock);
+	if (!target)
+		return -ENOENT;
+
+	entry = kernfs_find_and_get(target_kobj->sd, target_name);
+	if (!entry) {
+		kernfs_put(target);
+		return -ENOENT;
+	}
+
+	link = kernfs_create_link(kobj->sd, target_name, entry);
+	if (IS_ERR(link) && PTR_ERR(link) == -EEXIST)
+		sysfs_warn_dup(kobj->sd, target_name);
+
+	kernfs_put(entry);
+	kernfs_put(target);
+	return IS_ERR(link) ? PTR_ERR(link) : 0;
+}
+EXPORT_SYMBOL_GPL(__compat_only_sysfs_link_entry_to_kobj);
