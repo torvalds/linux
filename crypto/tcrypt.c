@@ -24,6 +24,7 @@
 
 #include <crypto/hash.h>
 #include <linux/err.h>
+#include <linux/fips.h>
 #include <linux/init.h>
 #include <linux/gfp.h>
 #include <linux/module.h>
@@ -34,7 +35,6 @@
 #include <linux/timex.h>
 #include <linux/interrupt.h>
 #include "tcrypt.h"
-#include "internal.h"
 
 /*
  * Need slab memory for testing (size in number of pages).
