@@ -67,8 +67,6 @@ enum psci_function {
 	PSCI_FN_CPU_ON,
 	PSCI_FN_CPU_OFF,
 	PSCI_FN_MIGRATE,
-	PSCI_FN_AFFINITY_INFO,
-	PSCI_FN_MIGRATE_INFO_TYPE,
 	PSCI_FN_MAX,
 };
 
@@ -168,22 +166,13 @@ static int psci_migrate(unsigned long cpuid)
 static int psci_affinity_info(unsigned long target_affinity,
 		unsigned long lowest_affinity_level)
 {
-	int err;
-	u32 fn;
-
-	fn = psci_function_id[PSCI_FN_AFFINITY_INFO];
-	err = invoke_psci_fn(fn, target_affinity, lowest_affinity_level, 0);
-	return err;
+	return invoke_psci_fn(PSCI_0_2_FN64_AFFINITY_INFO, target_affinity,
+			      lowest_affinity_level, 0);
 }
 
 static int psci_migrate_info_type(void)
 {
-	int err;
-	u32 fn;
-
-	fn = psci_function_id[PSCI_FN_MIGRATE_INFO_TYPE];
-	err = invoke_psci_fn(fn, 0, 0, 0);
-	return err;
+	return invoke_psci_fn(PSCI_0_2_FN_MIGRATE_INFO_TYPE, 0, 0, 0);
 }
 
 static int __maybe_unused cpu_psci_cpu_init_idle(unsigned int cpu)
@@ -293,11 +282,8 @@ static void __init psci_0_2_set_functions(void)
 	psci_function_id[PSCI_FN_MIGRATE] = PSCI_0_2_FN64_MIGRATE;
 	psci_ops.migrate = psci_migrate;
 
-	psci_function_id[PSCI_FN_AFFINITY_INFO] = PSCI_0_2_FN64_AFFINITY_INFO;
 	psci_ops.affinity_info = psci_affinity_info;
 
-	psci_function_id[PSCI_FN_MIGRATE_INFO_TYPE] =
-		PSCI_0_2_FN_MIGRATE_INFO_TYPE;
 	psci_ops.migrate_info_type = psci_migrate_info_type;
 
 	arm_pm_restart = psci_sys_reset;
