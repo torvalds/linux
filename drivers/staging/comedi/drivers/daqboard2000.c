@@ -43,7 +43,7 @@ Configuration options: not applicable, uses PCI auto config
       available from http://www.plxtech.com/products/io/pci9080
 
    2. The initialization done so far is:
-        a. program the FPGA (windows code sans a lot of error messages)
+	a. program the FPGA (windows code sans a lot of error messages)
 	b.
 
    3. Analog out seems to work OK with DAC's disabled, if DAC's are enabled,
@@ -52,52 +52,52 @@ Configuration options: not applicable, uses PCI auto config
       gives me no clues. I'll keep it simple so far.
 
    4. Analog in.
-        Each channel in the scanlist seems to be controlled by four
+	Each channel in the scanlist seems to be controlled by four
 	control words:
 
-        Word0:
-          +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-          ! | | | ! | | | ! | | | ! | | | !
-          +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	Word0:
+	  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	  ! | | | ! | | | ! | | | ! | | | !
+	  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
-        Word1:
-          +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-          ! | | | ! | | | ! | | | ! | | | !
-          +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	Word1:
+	  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	  ! | | | ! | | | ! | | | ! | | | !
+	  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 	   |             |       | | | | |
-           +------+------+       | | | | +-- Digital input (??)
+	   +------+------+       | | | | +-- Digital input (??)
 		  |		 | | | +---- 10 us settling time
 		  |		 | | +------ Suspend acquisition (last to scan)
 		  |		 | +-------- Simultaneous sample and hold
 		  |		 +---------- Signed data format
 		  +------------------------- Correction offset low
 
-        Word2:
-          +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-          ! | | | ! | | | ! | | | ! | | | !
-          +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-           |     | |     | | | | | |     |
-           +-----+ +--+--+ +++ +++ +--+--+
-              |       |     |   |     +----- Expansion channel
+	Word2:
+	  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	  ! | | | ! | | | ! | | | ! | | | !
+	  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	   |     | |     | | | | | |     |
+	   +-----+ +--+--+ +++ +++ +--+--+
+	      |       |     |   |     +----- Expansion channel
 	      |       |     |   +----------- Expansion gain
-              |       |     +--------------- Channel (low)
+	      |       |     +--------------- Channel (low)
 	      |       +--------------------- Correction offset high
 	      +----------------------------- Correction gain low
-        Word3:
-          +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-          ! | | | ! | | | ! | | | ! | | | !
-          +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-           |             | | | |   | | | |
-           +------+------+ | | +-+-+ | | +-- Low bank enable
-                  |        | |   |   | +---- High bank enable
-                  |        | |   |   +------ Hi/low select
+	Word3:
+	  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	  ! | | | ! | | | ! | | | ! | | | !
+	  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	   |             | | | |   | | | |
+	   +------+------+ | | +-+-+ | | +-- Low bank enable
+		  |        | |   |   | +---- High bank enable
+		  |        | |   |   +------ Hi/low select
 		  |    	   | |   +---------- Gain (1,?,2,4,8,16,32,64)
 		  |    	   | +-------------- differential/single ended
 		  |    	   +---------------- Unipolar
 		  +------------------------- Correction gain high
 
    999. The card seems to have an incredible amount of capabilities, but
-        trying to reverse engineer them from the Windows source is beyond my
+	trying to reverse engineer them from the Windows source is beyond my
 	patience.
 
  */
