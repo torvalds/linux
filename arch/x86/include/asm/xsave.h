@@ -187,14 +187,6 @@ static inline int xrstor_state(struct xsave_struct *fx, u64 mask)
 }
 
 /*
- * Save xstate context for old process during context switch.
- */
-static inline void fpu_xsave(struct fpu *fpu)
-{
-	xsave_state(&fpu->state->xsave);
-}
-
-/*
  * Restore xstate context for new process during context switch.
  */
 static inline int fpu_xrstor_checking(struct xsave_struct *fx)

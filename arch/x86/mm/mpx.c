@@ -389,7 +389,7 @@ int mpx_enable_management(struct task_struct *tsk)
 	 * directory into XSAVE/XRSTOR Save Area and enable MPX through
 	 * XRSTOR instruction.
 	 *
-	 * fpu_xsave() is expected to be very expensive. Storing the bounds
+	 * xsave_state() is expected to be very expensive. Storing the bounds
 	 * directory here means that we do not have to do xsave in the unmap
 	 * path; we can just use mm->bd_addr instead.
 	 */
