@@ -11,9 +11,8 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/crypto.h>
 #include <linux/err.h>
-#include <crypto/aes.h>
+#include <crypto/aead.h>
 
 #include <net/mac80211.h>
 #include "key.h"
