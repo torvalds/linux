@@ -146,19 +146,7 @@ void flush_thread(void)
 	flush_ptrace_hw_breakpoint(tsk);
 	memset(tsk->thread.tls_array, 0, sizeof(tsk->thread.tls_array));
 
-	if (!use_eager_fpu()) {
-		/* FPU state will be reallocated lazily at the first use. */
-		drop_fpu(tsk);
-		fpstate_free(&tsk->thread.fpu);
-	} else {
-		if (!tsk_used_math(tsk)) {
-			/* kthread execs. TODO: cleanup this horror. */
-		if (WARN_ON(fpstate_alloc_init(tsk)))
-				force_sig(SIGKILL, tsk);
-			user_fpu_begin();
-		}
-		restore_init_xstate();
-	}
+	fpu__flush_thread(tsk);
 }
 
 static void hard_disable_TSC(void)

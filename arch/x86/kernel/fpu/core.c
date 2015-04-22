@@ -227,6 +227,23 @@ static int fpu__unlazy_stopped(struct task_struct *child)
 	return 0;
 }
 
+void fpu__flush_thread(struct task_struct *tsk)
+{
+	if (!use_eager_fpu()) {
+		/* FPU state will be reallocated lazily at the first use. */
+		drop_fpu(tsk);
+		fpstate_free(&tsk->thread.fpu);
+	} else {
+		if (!tsk_used_math(tsk)) {
+			/* kthread execs. TODO: cleanup this horror. */
+		if (WARN_ON(fpstate_alloc_init(tsk)))
+				force_sig(SIGKILL, tsk);
+			user_fpu_begin();
+		}
+		restore_init_xstate();
+	}
+}
+
 /*
  * The xstateregs_active() routine is the same as the fpregs_active() routine,
  * as the "regset->n" for the xstate regset will be updated based on the feature
