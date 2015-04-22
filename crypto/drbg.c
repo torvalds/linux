@@ -1707,7 +1707,6 @@ static int drbg_kcapi_seed(struct crypto_rng *tfm,
  */
 static inline int __init drbg_healthcheck_sanity(void)
 {
-#ifdef CONFIG_CRYPTO_FIPS
 	int len = 0;
 #define OUTBUFLEN 16
 	unsigned char buf[OUTBUFLEN];
@@ -1775,9 +1774,6 @@ static inline int __init drbg_healthcheck_sanity(void)
 outbuf:
 	kzfree(drbg);
 	return rc;
-#else /* CONFIG_CRYPTO_FIPS */
-	return 0;
-#endif /* CONFIG_CRYPTO_FIPS */
 }
 
 static struct rng_alg drbg_algs[22];
