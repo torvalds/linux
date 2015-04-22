@@ -1004,7 +1004,9 @@ int xfrm_policy_walk(struct net *net, struct xfrm_policy_walk *walk,
 	if (list_empty(&walk->walk.all))
 		x = list_first_entry(&net->xfrm.policy_all, struct xfrm_policy_walk_entry, all);
 	else
-		x = list_entry(&walk->walk.all, struct xfrm_policy_walk_entry, all);
+		x = list_first_entry(&walk->walk.all,
+				     struct xfrm_policy_walk_entry, all);
+
 	list_for_each_entry_from(x, &net->xfrm.policy_all, all) {
 		if (x->dead)
 			continue;
