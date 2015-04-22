@@ -1854,15 +1854,19 @@ static bool gfs2_rgrp_congested(const struct gfs2_rgrpd *rgd, int loops)
 	s64 srttb_diff;
 	s64 sqr_diff;
 	s64 var;
-	int cpu;
+	int cpu, nonzero = 0;
 
 	preempt_disable();
 	for_each_present_cpu(cpu) {
 		st = &per_cpu_ptr(sdp->sd_lkstats, cpu)->lkstats[LM_TYPE_RGRP];
-		a_srttb += st->stats[GFS2_LKS_SRTTB];
+		if (st->stats[GFS2_LKS_SRTTB]) {
+			a_srttb += st->stats[GFS2_LKS_SRTTB];
+			nonzero++;
+		}
 	}
 	st = &this_cpu_ptr(sdp->sd_lkstats)->lkstats[LM_TYPE_RGRP];
-	a_srttb /= num_present_cpus();
+	if (nonzero)
+		do_div(a_srttb, nonzero);
 	r_dcount = st->stats[GFS2_LKS_DCOUNT];
 	var = st->stats[GFS2_LKS_SRTTVARB] +
 	      gl->gl_stats.stats[GFS2_LKS_SRTTVARB];
