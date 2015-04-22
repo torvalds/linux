@@ -33,53 +33,7 @@
 #include <net/arp.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
-
 #include "arcdevice.h"
-
-static void rx(struct net_device *dev, int bufnum,
-	       struct archdr *pkthdr, int length);
-static int build_header(struct sk_buff *skb, struct net_device *dev,
-			unsigned short type, uint8_t daddr);
-static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
-		      int bufnum);
-
-static struct ArcProto rawmode_proto = {
-	.suffix		= 'r',
-	.mtu		= XMTU,
-	.rx		= rx,
-	.build_header	= build_header,
-	.prepare_tx	= prepare_tx,
-	.continue_tx    = NULL,
-	.ack_tx         = NULL
-};
-
-static int __init arcnet_raw_init(void)
-{
-	int count;
-
-	pr_info("%s\n", "raw mode (`r') encapsulation support loaded");
-
-	for (count = 0; count < 256; count++)
-		if (arc_proto_map[count] == arc_proto_default)
-			arc_proto_map[count] = &rawmode_proto;
-
-	/* for raw mode, we only set the bcast proto if there's no better one */
-	if (arc_bcast_proto == arc_proto_default)
-		arc_bcast_proto = &rawmode_proto;
-
-	arc_proto_default = &rawmode_proto;
-	return 0;
-}
-
-static void __exit arcnet_raw_exit(void)
-{
-	arcnet_unregister_proto(&rawmode_proto);
-}
-
-module_init(arcnet_raw_init);
-module_exit(arcnet_raw_exit);
-
-MODULE_LICENSE("GPL");
 
 /* packet receiver */
 static void rx(struct net_device *dev, int bufnum,
@@ -195,3 +149,41 @@ static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 
 	return 1;		/* done */
 }
+
+static struct ArcProto rawmode_proto = {
+	.suffix		= 'r',
+	.mtu		= XMTU,
+	.rx		= rx,
+	.build_header	= build_header,
+	.prepare_tx	= prepare_tx,
+	.continue_tx    = NULL,
+	.ack_tx         = NULL
+};
+
+static int __init arcnet_raw_init(void)
+{
+	int count;
+
+	pr_info("raw mode (`r') encapsulation support loaded\n");
+
+	for (count = 0; count < 256; count++)
+		if (arc_proto_map[count] == arc_proto_default)
+			arc_proto_map[count] = &rawmode_proto;
+
+	/* for raw mode, we only set the bcast proto if there's no better one */
+	if (arc_bcast_proto == arc_proto_default)
+		arc_bcast_proto = &rawmode_proto;
+
+	arc_proto_default = &rawmode_proto;
+	return 0;
+}
+
+static void __exit arcnet_raw_exit(void)
+{
+	arcnet_unregister_proto(&rawmode_proto);
+}
+
+module_init(arcnet_raw_init);
+module_exit(arcnet_raw_exit);
+
+MODULE_LICENSE("GPL");
