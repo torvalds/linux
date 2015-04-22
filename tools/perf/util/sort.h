@@ -93,18 +93,24 @@ struct hist_entry {
 	s32			cpu;
 	u8			cpumode;
 
-	struct hist_entry_diff	diff;
-
 	/* We are added by hists__add_dummy_entry. */
 	bool			dummy;
-
-	/* XXX These two should move to some tree widget lib */
-	u16			row_offset;
-	u16			nr_rows;
 
 	bool			init_have_children;
 	char			level;
 	u8			filtered;
+	union {
+		/*
+		 * Since perf diff only supports the stdio output, TUI
+		 * fields are only accessed from perf report (or perf
+		 * top).  So make it an union to reduce memory usage.
+		 */
+		struct hist_entry_diff	diff;
+		struct /* for TUI */ {
+			u16	row_offset;
+			u16	nr_rows;
+		};
+	};
 	char			*srcline;
 	struct symbol		*parent;
 	struct rb_root		sorted_chain;
