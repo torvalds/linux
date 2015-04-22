@@ -4043,6 +4043,8 @@ void e1000e_reset(struct e1000_adapter *adapter)
 		}
 	}
 
+	if (hw->mac.type == e1000_pch_spt)
+		e1000_flush_desc_rings(adapter);
 	/* Allow time for pending master requests to run */
 	mac->ops.reset_hw(hw);
 
@@ -4215,10 +4217,6 @@ void e1000e_down(struct e1000_adapter *adapter, bool reset)
 	spin_unlock(&adapter->stats64_lock);
 
 	e1000e_flush_descriptors(adapter);
-	if (hw->mac.type == e1000_pch_spt)
-		e1000_flush_desc_rings(adapter);
-	e1000_clean_tx_ring(adapter->tx_ring);
-	e1000_clean_rx_ring(adapter->rx_ring);
 
 	adapter->link_speed = 0;
 	adapter->link_duplex = 0;
@@ -4229,8 +4227,14 @@ void e1000e_down(struct e1000_adapter *adapter, bool reset)
 	    e1000_lv_jumbo_workaround_ich8lan(hw, false))
 		e_dbg("failed to disable jumbo frame workaround mode\n");
 
-	if (reset && !pci_channel_offline(adapter->pdev))
-		e1000e_reset(adapter);
+	if (!pci_channel_offline(adapter->pdev)) {
+		if (reset)
+			e1000e_reset(adapter);
+		else if (hw->mac.type == e1000_pch_spt)
+			e1000_flush_desc_rings(adapter);
+	}
+	e1000_clean_tx_ring(adapter->tx_ring);
+	e1000_clean_rx_ring(adapter->rx_ring);
 }
 
 void e1000e_reinit_locked(struct e1000_adapter *adapter)
