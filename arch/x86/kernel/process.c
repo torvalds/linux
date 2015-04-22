@@ -75,9 +75,6 @@ void idle_notifier_unregister(struct notifier_block *n)
 EXPORT_SYMBOL_GPL(idle_notifier_unregister);
 #endif
 
-struct kmem_cache *task_xstate_cachep;
-EXPORT_SYMBOL_GPL(task_xstate_cachep);
-
 /*
  * this gets called so that we can store lazy state into memory and copy the
  * current task into the new thread.
@@ -106,11 +103,7 @@ void arch_release_task_struct(struct task_struct *tsk)
 
 void arch_task_cache_init(void)
 {
-        task_xstate_cachep =
-        	kmem_cache_create("task_xstate", xstate_size,
-				  __alignof__(union thread_xstate),
-				  SLAB_PANIC | SLAB_NOTRACK, NULL);
-	setup_xstate_comp();
+	fpstate_cache_init();
 }
 
 /*

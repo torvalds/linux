@@ -147,6 +147,21 @@ void fpstate_init(struct fpu *fpu)
 }
 EXPORT_SYMBOL_GPL(fpstate_init);
 
+/*
+ * FPU state allocation:
+ */
+struct kmem_cache *task_xstate_cachep;
+EXPORT_SYMBOL_GPL(task_xstate_cachep);
+
+void fpstate_cache_init(void)
+{
+	task_xstate_cachep =
+		kmem_cache_create("task_xstate", xstate_size,
+				  __alignof__(union thread_xstate),
+				  SLAB_PANIC | SLAB_NOTRACK, NULL);
+	setup_xstate_comp();
+}
+
 int fpstate_alloc(struct fpu *fpu)
 {
 	if (fpu->state)

@@ -564,6 +564,8 @@ static inline unsigned short get_fpu_mxcsr(struct task_struct *tsk)
 	}
 }
 
+extern void fpstate_cache_init(void);
+
 extern int fpstate_alloc(struct fpu *fpu);
 
 static inline void fpstate_free(struct fpu *fpu)
