@@ -260,12 +260,10 @@ int __init snd_minor_info_oss_init(void)
 	struct snd_info_entry *entry;
 
 	entry = snd_info_create_module_entry(THIS_MODULE, "devices", snd_oss_root);
-	if (entry) {
-		entry->c.text.read = snd_minor_info_oss_read;
-		if (snd_info_register(entry) < 0)
-			snd_info_free_entry(entry);
-	}
-	return 0;
+	if (!entry)
+		return -ENOMEM;
+	entry->c.text.read = snd_minor_info_oss_read;
+	return snd_info_register(entry); /* freed in error path */
 }
 #endif /* CONFIG_PROC_FS */
 

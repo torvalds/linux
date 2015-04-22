@@ -386,14 +386,10 @@ int __init snd_minor_info_init(void)
 	struct snd_info_entry *entry;
 
 	entry = snd_info_create_module_entry(THIS_MODULE, "devices", NULL);
-	if (entry) {
-		entry->c.text.read = snd_minor_info_read;
-		if (snd_info_register(entry) < 0) {
-			snd_info_free_entry(entry);
-			entry = NULL;
-		}
-	}
-	return 0;
+	if (!entry)
+		return -ENOMEM;
+	entry->c.text.read = snd_minor_info_read;
+	return snd_info_register(entry); /* freed in error path */
 }
 #endif /* CONFIG_PROC_FS */
 

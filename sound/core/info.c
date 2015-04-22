@@ -482,10 +482,11 @@ int __init snd_info_init(void)
 	if (!snd_seq_root)
 		goto error;
 #endif
-	snd_info_version_init();
-	snd_minor_info_init();
-	snd_minor_info_oss_init();
-	snd_card_info_init();
+	if (snd_info_version_init() < 0 ||
+	    snd_minor_info_init() < 0 ||
+	    snd_minor_info_oss_init() < 0 ||
+	    snd_card_info_init() < 0)
+		goto error;
 	return 0;
 
  error:
@@ -847,11 +848,7 @@ static int __init snd_info_version_init(void)
 	if (entry == NULL)
 		return -ENOMEM;
 	entry->c.text.read = snd_info_version_read;
-	if (snd_info_register(entry) < 0) {
-		snd_info_free_entry(entry);
-		return -ENOMEM;
-	}
-	return 0;
+	return snd_info_register(entry); /* freed in error path */
 }
 
 #endif /* CONFIG_PROC_FS */

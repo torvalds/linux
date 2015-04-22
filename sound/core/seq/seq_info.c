@@ -51,6 +51,13 @@ create_info_entry(char *name, void (*read)(struct snd_info_entry *,
 	return entry;
 }
 
+static void free_info_entries(void)
+{
+	snd_info_free_entry(queues_entry);
+	snd_info_free_entry(clients_entry);
+	snd_info_free_entry(timer_entry);
+}
+
 /* create all our /proc entries */
 int __init snd_seq_info_init(void)
 {
@@ -59,14 +66,18 @@ int __init snd_seq_info_init(void)
 	clients_entry = create_info_entry("clients",
 					  snd_seq_info_clients_read);
 	timer_entry = create_info_entry("timer", snd_seq_info_timer_read);
+	if (!queues_entry || !clients_entry || !timer_entry)
+		goto error;
 	return 0;
+
+ error:
+	free_info_entries();
+	return -ENOMEM;
 }
 
 int __exit snd_seq_info_done(void)
 {
-	snd_info_free_entry(queues_entry);
-	snd_info_free_entry(clients_entry);
-	snd_info_free_entry(timer_entry);
+	free_info_entries();
 	return 0;
 }
 #endif

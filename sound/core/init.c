@@ -853,18 +853,16 @@ int __init snd_card_info_init(void)
 	if (! entry)
 		return -ENOMEM;
 	entry->c.text.read = snd_card_info_read;
-	if (snd_info_register(entry) < 0) {
-		snd_info_free_entry(entry);
-		return -ENOMEM;
-	}
+	if (snd_info_register(entry) < 0)
+		return -ENOMEM; /* freed in error path */
 
 #ifdef MODULE
 	entry = snd_info_create_module_entry(THIS_MODULE, "modules", NULL);
-	if (entry) {
-		entry->c.text.read = snd_card_module_info_read;
-		if (snd_info_register(entry) < 0)
-			snd_info_free_entry(entry);
-	}
+	if (!entry)
+		return -ENOMEM;
+	entry->c.text.read = snd_card_module_info_read;
+	if (snd_info_register(entry) < 0)
+		return -ENOMEM; /* freed in error path */
 #endif
 
 	return 0;
