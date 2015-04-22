@@ -365,6 +365,9 @@ bool v4l2_detect_cvt(unsigned frame_height, unsigned hfreq, unsigned vsync,
 	else
 		return false;
 
+	if (hfreq == 0)
+		return false;
+
 	/* Vertical */
 	if (reduced_blanking) {
 		v_fp = CVT_RB_V_FPORCH;
@@ -381,6 +384,9 @@ bool v4l2_detect_cvt(unsigned frame_height, unsigned hfreq, unsigned vsync,
 			v_bp = CVT_MIN_V_BPORCH;
 	}
 	image_height = (frame_height - v_fp - vsync - v_bp + 1) & ~0x1;
+
+	if (image_height < 0)
+		return false;
 
 	/* Aspect ratio based on vsync */
 	switch (vsync) {
@@ -527,11 +533,17 @@ bool v4l2_detect_gtf(unsigned frame_height,
 	else
 		return false;
 
+	if (hfreq == 0)
+		return false;
+
 	/* Vertical */
 	v_fp = GTF_V_FP;
 
 	v_bp = (GTF_MIN_VSYNC_BP * hfreq + 500000) / 1000000 - vsync;
 	image_height = (frame_height - v_fp - vsync - v_bp + 1) & ~0x1;
+
+	if (image_height < 0)
+		return false;
 
 	if (aspect.numerator == 0 || aspect.denominator == 0) {
 		aspect.numerator = 16;
