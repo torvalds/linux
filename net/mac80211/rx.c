@@ -1362,11 +1362,7 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 			}
 		}
 	} else if (rx->sdata->vif.type == NL80211_IFTYPE_OCB) {
-		u8 *bssid = ieee80211_get_bssid(hdr, rx->skb->len,
-						NL80211_IFTYPE_OCB);
-		/* OCB uses wild-card BSSID */
-		if (is_broadcast_ether_addr(bssid))
-			sta->last_rx = jiffies;
+		sta->last_rx = jiffies;
 	} else if (!is_multicast_ether_addr(hdr->addr1)) {
 		/*
 		 * Mesh beacons will update last_rx when if they are found to
