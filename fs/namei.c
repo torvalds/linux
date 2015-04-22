@@ -2931,7 +2931,6 @@ static int do_last(struct nameidata *nd, struct path *path,
 	bool got_write = false;
 	int acc_mode = op->acc_mode;
 	struct inode *inode;
-	bool symlink_ok = false;
 	struct path save_parent = { .dentry = NULL, .mnt = NULL };
 	bool retried = false;
 	int error;
@@ -2949,8 +2948,6 @@ static int do_last(struct nameidata *nd, struct path *path,
 	if (!(open_flag & O_CREAT)) {
 		if (nd->last.name[nd->last.len])
 			nd->flags |= LOOKUP_FOLLOW | LOOKUP_DIRECTORY;
-		if (open_flag & O_PATH && !(nd->flags & LOOKUP_FOLLOW))
-			symlink_ok = true;
 		/* we _can_ be in RCU mode here */
 		error = lookup_fast(nd, path, &inode);
 		if (likely(!error))
@@ -3050,7 +3047,8 @@ retry_lookup:
 	}
 finish_lookup:
 	/* we _can_ be in RCU mode here */
-	if (should_follow_link(path->dentry, !symlink_ok)) {
+	if (should_follow_link(path->dentry,
+			!(open_flag & O_PATH) || (nd->flags & LOOKUP_FOLLOW))) {
 		if (nd->flags & LOOKUP_RCU) {
 			if (unlikely(nd->path.mnt != path->mnt ||
 				     unlazy_walk(nd, path->dentry))) {
