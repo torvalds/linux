@@ -2729,7 +2729,6 @@ static bool ieee80211_xmit_fast(struct ieee80211_sub_if_data *sdata,
 
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len + extra_head;
-	dev->trans_start = jiffies;
 
 	/* will not be crypto-handled beyond what we do here, so use false
 	 * as the may-encrypt argument for the resize to not account for
@@ -2912,7 +2911,6 @@ void __ieee80211_subif_start_xmit(struct sk_buff *skb,
 
 		dev->stats.tx_packets++;
 		dev->stats.tx_bytes += skb->len;
-		dev->trans_start = jiffies;
 
 		ieee80211_xmit(sdata, sta, skb);
 	}
