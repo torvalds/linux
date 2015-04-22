@@ -25,6 +25,12 @@
 extern int parse_events_debug;
 #endif
 int parse_events_parse(void *data, void *scanner);
+int parse_events_term__num(struct parse_events_term **term,
+			   int type_term, char *config, u64 num,
+			   YYLTYPE *loc_term, YYLTYPE *loc_val);
+int parse_events_term__str(struct parse_events_term **term,
+			   int type_term, char *config, char *str,
+			   YYLTYPE *loc_term, YYLTYPE *loc_val);
 
 static struct perf_pmu_event_symbol *perf_pmu_events_list;
 /*
@@ -1542,7 +1548,7 @@ int parse_events__is_hardcoded_term(struct parse_events_term *term)
 
 static int new_term(struct parse_events_term **_term, int type_val,
 		    int type_term, char *config,
-		    char *str, u64 num)
+		    char *str, u64 num, int err_term, int err_val)
 {
 	struct parse_events_term *term;
 
@@ -1554,6 +1560,8 @@ static int new_term(struct parse_events_term **_term, int type_val,
 	term->type_val  = type_val;
 	term->type_term = type_term;
 	term->config = config;
+	term->err_term = err_term;
+	term->err_val  = err_val;
 
 	switch (type_val) {
 	case PARSE_EVENTS__TERM_TYPE_NUM:
@@ -1572,17 +1580,23 @@ static int new_term(struct parse_events_term **_term, int type_val,
 }
 
 int parse_events_term__num(struct parse_events_term **term,
-			   int type_term, char *config, u64 num)
+			   int type_term, char *config, u64 num,
+			   YYLTYPE *loc_term, YYLTYPE *loc_val)
 {
 	return new_term(term, PARSE_EVENTS__TERM_TYPE_NUM, type_term,
-			config, NULL, num);
+			config, NULL, num,
+			loc_term ? loc_term->first_column : 0,
+			loc_val ? loc_val->first_column : 0);
 }
 
 int parse_events_term__str(struct parse_events_term **term,
-			   int type_term, char *config, char *str)
+			   int type_term, char *config, char *str,
+			   YYLTYPE *loc_term, YYLTYPE *loc_val)
 {
 	return new_term(term, PARSE_EVENTS__TERM_TYPE_STR, type_term,
-			config, str, 0);
+			config, str, 0,
+			loc_term ? loc_term->first_column : 0,
+			loc_val ? loc_val->first_column : 0);
 }
 
 int parse_events_term__sym_hw(struct parse_events_term **term,
@@ -1596,18 +1610,20 @@ int parse_events_term__sym_hw(struct parse_events_term **term,
 	if (config)
 		return new_term(term, PARSE_EVENTS__TERM_TYPE_STR,
 				PARSE_EVENTS__TERM_TYPE_USER, config,
-				(char *) sym->symbol, 0);
+				(char *) sym->symbol, 0, 0, 0);
 	else
 		return new_term(term, PARSE_EVENTS__TERM_TYPE_STR,
 				PARSE_EVENTS__TERM_TYPE_USER,
-				(char *) "event", (char *) sym->symbol, 0);
+				(char *) "event", (char *) sym->symbol,
+				0, 0, 0);
 }
 
 int parse_events_term__clone(struct parse_events_term **new,
 			     struct parse_events_term *term)
 {
 	return new_term(new, term->type_val, term->type_term, term->config,
-			term->val.str, term->val.num);
+			term->val.str, term->val.num,
+			term->err_term, term->err_val);
 }
 
 void parse_events__free_terms(struct list_head *terms)
