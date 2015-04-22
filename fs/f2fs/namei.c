@@ -56,6 +56,10 @@ static struct inode *f2fs_new_inode(struct inode *dir, umode_t mode)
 		goto out;
 	}
 
+	/* If the directory encrypted, then we should encrypt the inode. */
+	if (f2fs_encrypted_inode(dir) && f2fs_may_encrypt(inode))
+		f2fs_set_encrypted_inode(inode);
+
 	if (f2fs_may_inline_data(inode))
 		set_inode_flag(F2FS_I(inode), FI_INLINE_DATA);
 	if (f2fs_may_inline_dentry(inode))
@@ -157,6 +161,10 @@ static int f2fs_link(struct dentry *old_dentry, struct inode *dir,
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
 	int err;
 
+	if (f2fs_encrypted_inode(dir) &&
+		!f2fs_is_child_context_consistent_with_parent(dir, inode))
+		return -EPERM;
+
 	f2fs_balance_fs(sbi);
 
 	inode->i_ctime = CURRENT_TIME;
@@ -235,6 +243,7 @@ static struct dentry *f2fs_lookup(struct inode *dir, struct dentry *dentry,
 	struct f2fs_dir_entry *de;
 	struct page *page;
 	nid_t ino;
+	int err = 0;
 
 	if (dentry->d_name.len > F2FS_NAME_LEN)
 		return ERR_PTR(-ENAMETOOLONG);
@@ -251,16 +260,26 @@ static struct dentry *f2fs_lookup(struct inode *dir, struct dentry *dentry,
 	if (IS_ERR(inode))
 		return ERR_CAST(inode);
 
-	if (f2fs_has_inline_dots(inode)) {
-		int err;
+	if (f2fs_encrypted_inode(dir) && f2fs_may_encrypt(inode) &&
+		!f2fs_is_child_context_consistent_with_parent(dir, inode)) {
+		iput(inode);
+		f2fs_msg(inode->i_sb, KERN_WARNING,
+				"Inconsistent encryption contexts: %lu/%lu\n",
+				(unsigned long)dir->i_ino,
+				(unsigned long)inode->i_ino);
+		return ERR_PTR(-EPERM);
+	}
 
+	if (f2fs_has_inline_dots(inode)) {
 		err = __recover_dot_dentries(inode, dir->i_ino);
-		if (err) {
-			iget_failed(inode);
-			return ERR_PTR(err);
-		}
+		if (err)
+			goto err_out;
 	}
 	return d_splice_alias(inode, dentry);
+
+err_out:
+	iget_failed(inode);
+	return ERR_PTR(err);
 }
 
 static int f2fs_unlink(struct inode *dir, struct dentry *dentry)
@@ -459,6 +478,13 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct f2fs_dir_entry *old_entry;
 	struct f2fs_dir_entry *new_entry;
 	int err = -ENOENT;
+
+	if ((old_dir != new_dir) && f2fs_encrypted_inode(new_dir) &&
+		!f2fs_is_child_context_consistent_with_parent(new_dir,
+							old_inode)) {
+		err = -EPERM;
+		goto out;
+	}
 
 	f2fs_balance_fs(sbi);
 

@@ -359,6 +359,10 @@ no_delete:
 	if (is_inode_flag_set(F2FS_I(inode), FI_UPDATE_WRITE))
 		add_dirty_inode(sbi, inode->i_ino, UPDATE_INO);
 out_clear:
+#ifdef CONFIG_F2FS_FS_ENCRYPTION
+	if (F2FS_I(inode)->i_crypt_info)
+		f2fs_free_encryption_info(inode);
+#endif
 	clear_inode(inode);
 }
 

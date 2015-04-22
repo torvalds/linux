@@ -1975,6 +1975,17 @@ static inline int f2fs_sb_has_crypto(struct super_block *sb)
 #endif
 }
 
+static inline bool f2fs_may_encrypt(struct inode *inode)
+{
+#ifdef CONFIG_F2FS_FS_ENCRYPTION
+	mode_t mode = inode->i_mode;
+
+	return (S_ISREG(mode) || S_ISDIR(mode) || S_ISLNK(mode));
+#else
+	return 0;
+#endif
+}
+
 /* crypto_policy.c */
 int f2fs_is_child_context_consistent_with_parent(struct inode *,
 							struct inode *);

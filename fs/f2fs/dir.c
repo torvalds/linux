@@ -390,6 +390,12 @@ struct page *init_inode_metadata(struct inode *inode, struct inode *dir,
 		err = f2fs_init_security(inode, dir, name, page);
 		if (err)
 			goto put_error;
+
+		if (f2fs_encrypted_inode(dir) && f2fs_may_encrypt(inode)) {
+			err = f2fs_inherit_context(dir, inode, page);
+			if (err)
+				goto put_error;
+		}
 	} else {
 		page = get_node_page(F2FS_I_SB(dir), inode->i_ino);
 		if (IS_ERR(page))

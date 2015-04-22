@@ -1982,6 +1982,9 @@ static ssize_t f2fs_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 			return err;
 	}
 
+	if (f2fs_encrypted_inode(inode) && S_ISREG(inode->i_mode))
+		return 0;
+
 	if (check_direct_IO(inode, iter, offset))
 		return 0;
 
