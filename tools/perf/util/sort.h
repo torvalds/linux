@@ -96,7 +96,6 @@ struct hist_entry {
 	/* We are added by hists__add_dummy_entry. */
 	bool			dummy;
 
-	bool			init_have_children;
 	char			level;
 	u8			filtered;
 	union {
@@ -109,6 +108,7 @@ struct hist_entry {
 		struct /* for TUI */ {
 			u16	row_offset;
 			u16	nr_rows;
+			bool	init_have_children;
 		};
 	};
 	char			*srcline;
