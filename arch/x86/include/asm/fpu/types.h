@@ -1,3 +1,8 @@
+/*
+ * FPU data structures:
+ */
+#ifndef _ASM_X86_FPU_H
+#define _ASM_X86_FPU_H
 
 #define	MXCSR_DEFAULT		0x1f80
 
@@ -52,6 +57,9 @@ struct i387_fxsave_struct {
 
 } __attribute__((aligned(16)));
 
+/*
+ * Software based FPU emulation state:
+ */
 struct i387_soft_struct {
 	u32			cwd;
 	u32			swd;
@@ -74,38 +82,39 @@ struct i387_soft_struct {
 
 struct ymmh_struct {
 	/* 16 * 16 bytes for each YMMH-reg = 256 bytes */
-	u32 ymmh_space[64];
+	u32				ymmh_space[64];
 };
 
 /* We don't support LWP yet: */
 struct lwp_struct {
-	u8 reserved[128];
+	u8				reserved[128];
 };
 
+/* Intel MPX support: */
 struct bndreg {
-	u64 lower_bound;
-	u64 upper_bound;
+	u64				lower_bound;
+	u64				upper_bound;
 } __packed;
 
 struct bndcsr {
-	u64 bndcfgu;
-	u64 bndstatus;
+	u64				bndcfgu;
+	u64				bndstatus;
 } __packed;
 
 struct xsave_hdr_struct {
-	u64 xstate_bv;
-	u64 xcomp_bv;
-	u64 reserved[6];
+	u64				xstate_bv;
+	u64				xcomp_bv;
+	u64				reserved[6];
 } __attribute__((packed));
 
 struct xsave_struct {
-	struct i387_fxsave_struct i387;
-	struct xsave_hdr_struct xsave_hdr;
-	struct ymmh_struct ymmh;
-	struct lwp_struct lwp;
-	struct bndreg bndreg[4];
-	struct bndcsr bndcsr;
-	/* new processor state extensions will go here */
+	struct i387_fxsave_struct	i387;
+	struct xsave_hdr_struct		xsave_hdr;
+	struct ymmh_struct		ymmh;
+	struct lwp_struct		lwp;
+	struct bndreg			bndreg[4];
+	struct bndcsr			bndcsr;
+	/* New processor state extensions will go here. */
 } __attribute__ ((packed, aligned (64)));
 
 union thread_xstate {
@@ -116,9 +125,9 @@ union thread_xstate {
 };
 
 struct fpu {
-	unsigned int last_cpu;
-	unsigned int has_fpu;
-	union thread_xstate *state;
+	unsigned int			last_cpu;
+	unsigned int			has_fpu;
+	union thread_xstate		*state;
 	/*
 	 * This counter contains the number of consecutive context switches
 	 * during which the FPU stays used. If this is over a threshold, the
@@ -127,6 +136,7 @@ struct fpu {
 	 * wraps and the context switch behavior turns lazy again; this is to
 	 * deal with bursty apps that only use the FPU for a short time:
 	 */
-	unsigned char counter;
+	unsigned char			counter;
 };
 
+#endif /* _ASM_X86_FPU_H */
