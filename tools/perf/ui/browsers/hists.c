@@ -27,6 +27,7 @@ struct hist_browser {
 	struct map_symbol   *selection;
 	struct hist_browser_timer *hbt;
 	struct pstack	    *pstack;
+	struct perf_session_env *env;
 	int		     print_seq;
 	bool		     show_dso;
 	bool		     show_headers;
@@ -1198,7 +1199,8 @@ static int hist_browser__dump(struct hist_browser *browser)
 }
 
 static struct hist_browser *hist_browser__new(struct hists *hists,
-					      struct hist_browser_timer *hbt)
+					      struct hist_browser_timer *hbt,
+					      struct perf_session_env *env)
 {
 	struct hist_browser *browser = zalloc(sizeof(*browser));
 
@@ -1210,6 +1212,7 @@ static struct hist_browser *hist_browser__new(struct hists *hists,
 		browser->b.use_navkeypressed = true;
 		browser->show_headers = symbol_conf.show_hist_headers;
 		browser->hbt = hbt;
+		browser->env = env;
 	}
 
 	return browser;
@@ -1425,7 +1428,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 				    struct perf_session_env *env)
 {
 	struct hists *hists = evsel__hists(evsel);
-	struct hist_browser *browser = hist_browser__new(hists, hbt);
+	struct hist_browser *browser = hist_browser__new(hists, hbt, env);
 	struct branch_info *bi;
 #define MAX_OPTIONS  16
 	char *options[MAX_OPTIONS];
