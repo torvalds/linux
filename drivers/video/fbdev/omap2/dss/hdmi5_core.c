@@ -870,6 +870,7 @@ int hdmi5_audio_config(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
 	audio_format.samples_per_word = HDMI_AUDIO_ONEWORD_TWOSAMPLES;
 	audio_format.sample_size = HDMI_AUDIO_SAMPLE_16BITS;
 	audio_format.justification = HDMI_AUDIO_JUSTIFY_LEFT;
+	audio_format.sample_order = HDMI_AUDIO_SAMPLE_LEFT_FIRST;
 
 	/* only LPCM atm */
 	audio_format.type = HDMI_AUDIO_TYPE_LPCM;
