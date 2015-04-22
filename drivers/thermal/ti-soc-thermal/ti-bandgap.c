@@ -119,6 +119,37 @@ exit:
 }
 
 /**
+ * ti_errata814_bandgap_read_temp() - helper function to read dra7 sensor temperature
+ * @bgp: pointer to ti_bandgap structure
+ * @reg: desired register (offset) to be read
+ *
+ * Function to read dra7 bandgap sensor temperature. This is done separately
+ * so as to workaround the errata "Bandgap Temperature read Dtemp can be
+ * corrupted" - Errata ID: i814".
+ * Read accesses to registers listed below can be corrupted due to incorrect
+ * resynchronization between clock domains.
+ * Read access to registers below can be corrupted :
+ * CTRL_CORE_DTEMP_MPU/GPU/CORE/DSPEVE/IVA_n (n = 0 to 4)
+ * CTRL_CORE_TEMP_SENSOR_MPU/GPU/CORE/DSPEVE/IVA_n
+ *
+ * Return: the register value.
+ */
+static u32 ti_errata814_bandgap_read_temp(struct ti_bandgap *bgp,  u32 reg)
+{
+	u32 val1, val2;
+
+	val1 = ti_bandgap_readl(bgp, reg);
+	val2 = ti_bandgap_readl(bgp, reg);
+
+	/* If both times we read the same value then that is right */
+	if (val1 == val2)
+		return val1;
+
+	/* if val1 and val2 are different read it third time */
+	return ti_bandgap_readl(bgp, reg);
+}
+
+/**
  * ti_bandgap_read_temp() - helper function to read sensor temperature
  * @bgp: pointer to ti_bandgap structure
  * @id: bandgap sensor id
@@ -148,7 +179,11 @@ static u32 ti_bandgap_read_temp(struct ti_bandgap *bgp, int id)
 	}
 
 	/* read temperature */
-	temp = ti_bandgap_readl(bgp, reg);
+	if (TI_BANDGAP_HAS(bgp, ERRATA_814))
+		temp = ti_errata814_bandgap_read_temp(bgp, reg);
+	else
+		temp = ti_bandgap_readl(bgp, reg);
+
 	temp &= tsr->bgap_dtemp_mask;
 
 	if (TI_BANDGAP_HAS(bgp, FREEZE_BIT))
