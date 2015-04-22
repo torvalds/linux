@@ -668,8 +668,6 @@ static __always_inline void set_root(struct nameidata *nd)
 	get_fs_root(current->fs, &nd->root);
 }
 
-static int link_path_walk(const char *, struct nameidata *);
-
 static __always_inline unsigned set_root_rcu(struct nameidata *nd)
 {
 	struct fs_struct *fs = current->fs;
@@ -878,33 +876,6 @@ out:
 		}
 	}
 	return res;
-}
-
-static int follow_link(struct path *link, struct nameidata *nd, void **p)
-{
-	const char *s;
-	int error = may_follow_link(link, nd);
-	if (unlikely(error))
-		return error;
-	nd->flags |= LOOKUP_PARENT;
-	s = get_link(link, nd, p);
-	if (unlikely(IS_ERR(s)))
-		return PTR_ERR(s);
-	if (unlikely(!s))
-		return 0;
-	if (*s == '/') {
-		if (!nd->root.mnt)
-			set_root(nd);
-		path_put(&nd->path);
-		nd->path = nd->root;
-		path_get(&nd->root);
-		nd->flags |= LOOKUP_JUMPED;
-	}
-	nd->inode = nd->path.dentry->d_inode;
-	error = link_path_walk(s, nd);
-	if (unlikely(error))
-		put_link(nd, link, *p);
-	return error;
 }
 
 static int follow_up_rcu(struct path *path)
@@ -1970,6 +1941,33 @@ static void path_cleanup(struct nameidata *nd)
 		fput(nd->base);
 }
 
+static int trailing_symlink(struct path *link, struct nameidata *nd, void **p)
+{
+	const char *s;
+	int error = may_follow_link(link, nd);
+	if (unlikely(error))
+		return error;
+	nd->flags |= LOOKUP_PARENT;
+	s = get_link(link, nd, p);
+	if (unlikely(IS_ERR(s)))
+		return PTR_ERR(s);
+	if (unlikely(!s))
+		return 0;
+	if (*s == '/') {
+		if (!nd->root.mnt)
+			set_root(nd);
+		path_put(&nd->path);
+		nd->path = nd->root;
+		path_get(&nd->root);
+		nd->flags |= LOOKUP_JUMPED;
+	}
+	nd->inode = nd->path.dentry->d_inode;
+	error = link_path_walk(s, nd);
+	if (unlikely(error))
+		put_link(nd, link, *p);
+	return error;
+}
+
 static inline int lookup_last(struct nameidata *nd)
 {
 	if (nd->last_type == LAST_NORM && nd->last.name[nd->last.len])
@@ -2005,7 +2003,7 @@ static int path_lookupat(int dfd, const struct filename *name,
 		while (err > 0) {
 			void *cookie;
 			struct path link = nd->link;
-			err = follow_link(&link, nd, &cookie);
+			err = trailing_symlink(&link, nd, &cookie);
 			if (err)
 				break;
 			err = lookup_last(nd);
@@ -2351,7 +2349,7 @@ path_mountpoint(int dfd, const struct filename *name, struct path *path,
 	while (err > 0) {
 		void *cookie;
 		struct path link = *path;
-		err = follow_link(&link, nd, &cookie);
+		err = trailing_symlink(&link, nd, &cookie);
 		if (err)
 			break;
 		err = mountpoint_last(nd, path);
@@ -3235,7 +3233,7 @@ static struct file *path_openat(int dfd, struct filename *pathname,
 		struct path link = nd->link;
 		void *cookie;
 		nd->flags &= ~(LOOKUP_OPEN|LOOKUP_CREATE|LOOKUP_EXCL);
-		error = follow_link(&link, nd, &cookie);
+		error = trailing_symlink(&link, nd, &cookie);
 		if (unlikely(error))
 			break;
 		error = do_last(nd, file, op, &opened, pathname);
