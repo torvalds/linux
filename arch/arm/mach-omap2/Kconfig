@@ -176,12 +176,6 @@ config MACH_OMAP3_BEAGLE
 	default y
 	select OMAP_PACKAGE_CBB
 
-config MACH_DEVKIT8000
-	bool "DEVKIT8000 board"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CUS
-
 config MACH_OMAP_LDP
 	bool "OMAP3 LDP board"
 	depends on ARCH_OMAP3
@@ -226,12 +220,6 @@ config MACH_OMAP3_PANDORA
 	select OMAP_PACKAGE_CBB
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 
-config MACH_TOUCHBOOK
-	bool "OMAP3 Touch Book"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CBB
-
 config MACH_NOKIA_N810
        bool
 
@@ -260,12 +248,6 @@ config MACH_CM_T35
 
 config MACH_CM_T3730
        bool
-
-config MACH_SBC3530
-	bool "OMAP3 SBC STALKER board"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CUS
 
 config OMAP3_SDRC_AC_TIMING
 	bool "Enable SDRC AC timing register changes"

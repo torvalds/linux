@@ -184,7 +184,7 @@ static void __init mvebu_dt_init(void)
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
-static const char * const armada_370_xp_dt_compat[] = {
+static const char * const armada_370_xp_dt_compat[] __initconst = {
 	"marvell,armada-370-xp",
 	NULL,
 };
@@ -205,7 +205,7 @@ DT_MACHINE_START(ARMADA_370_XP_DT, "Marvell Armada 370/XP (Device Tree)")
 	.dt_compat	= armada_370_xp_dt_compat,
 MACHINE_END
 
-static const char * const armada_375_dt_compat[] = {
+static const char * const armada_375_dt_compat[] __initconst = {
 	"marvell,armada375",
 	NULL,
 };
@@ -219,7 +219,7 @@ DT_MACHINE_START(ARMADA_375_DT, "Marvell Armada 375 (Device Tree)")
 	.dt_compat	= armada_375_dt_compat,
 MACHINE_END
 
-static const char * const armada_38x_dt_compat[] = {
+static const char * const armada_38x_dt_compat[] __initconst = {
 	"marvell,armada380",
 	"marvell,armada385",
 	NULL,

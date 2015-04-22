@@ -448,25 +448,6 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  on MMP UART3.
 
-	config DEBUG_MSM_UART
-		bool "Kernel low-level debugging messages via MSM UART"
-		depends on ARCH_MSM
-		help
-		  Say Y here if you want the debug print routines to direct
-		  their output to the serial port on MSM devices.
-
-		  ARCH                DEBUG_UART_PHYS   DEBUG_UART_VIRT   #
-		  MSM7X00A, QSD8X50   0xa9a00000        0xe1000000        UART1
-		  MSM7X00A, QSD8X50   0xa9b00000        0xe1000000        UART2
-		  MSM7X00A, QSD8X50   0xa9c00000        0xe1000000        UART3
-
-		  MSM7X30             0xaca00000        0xe1000000        UART1
-		  MSM7X30             0xacb00000        0xe1000000        UART2
-		  MSM7X30             0xacc00000        0xe1000000        UART3
-
-		  Please adjust DEBUG_UART_PHYS and DEBUG_UART_BASE configuration
-		  options based on your needs.
-
 	config DEBUG_QCOM_UARTDM
 		bool "Kernel low-level debugging messages via QCOM UARTDM"
 		depends on ARCH_QCOM
@@ -806,7 +787,7 @@ choice
 		  via SCIF2 on Renesas R-Car H1 (R8A7779).
 
 	config DEBUG_RCAR_GEN2_SCIF0
-		bool "Kernel low-level debugging messages via SCIF0 on R8A7790/R8A7791/R8A7793)"
+		bool "Kernel low-level debugging messages via SCIF0 on R8A7790/R8A7791/R8A7793"
 		depends on ARCH_R8A7790 || ARCH_R8A7791 || ARCH_R8A7793
 		help
 		  Say Y here if you want kernel low-level debugging support
@@ -1295,7 +1276,7 @@ config DEBUG_LL_INCLUDE
 				 DEBUG_IMX6SL_UART || \
 				 DEBUG_IMX6SX_UART
 	default "debug/ks8695.S" if DEBUG_KS8695_UART
-	default "debug/msm.S" if DEBUG_MSM_UART || DEBUG_QCOM_UARTDM
+	default "debug/msm.S" if DEBUG_QCOM_UARTDM
 	default "debug/netx.S" if DEBUG_NETX_UART
 	default "debug/omap2plus.S" if DEBUG_OMAP2PLUS_UART
 	default "debug/renesas-scif.S" if DEBUG_R7S72100_SCIF2
@@ -1388,7 +1369,6 @@ config DEBUG_UART_PHYS
 	default 0x80230000 if DEBUG_PICOXCELL_UART
 	default 0x808c0000 if ARCH_EP93XX
 	default 0x90020000 if DEBUG_NSPIRE_CLASSIC_UART || DEBUG_NSPIRE_CX_UART
-	default 0xa9a00000 if DEBUG_MSM_UART
 	default 0xb0060000 if DEBUG_SIRFPRIMA2_UART1
 	default 0xb0090000 if DEBUG_VEXPRESS_UART0_CRX
 	default 0xc0013000 if DEBUG_U300_UART
@@ -1433,7 +1413,7 @@ config DEBUG_UART_PHYS
 	        DEBUG_LL_UART_8250 || DEBUG_LL_UART_PL01X || \
 		DEBUG_LL_UART_EFM32 || \
 		DEBUG_UART_8250 || DEBUG_UART_PL01X || DEBUG_MESON_UARTAO || \
-		DEBUG_MSM_UART || DEBUG_NETX_UART || \
+		DEBUG_NETX_UART || \
 		DEBUG_QCOM_UARTDM || DEBUG_R7S72100_SCIF2 || \
 		DEBUG_RCAR_GEN1_SCIF0 || DEBUG_RCAR_GEN1_SCIF2 || \
 		DEBUG_RCAR_GEN2_SCIF0 || DEBUG_RCAR_GEN2_SCIF2 || \
@@ -1446,7 +1426,6 @@ config DEBUG_UART_VIRT
 	hex "Virtual base address of debug UART"
 	default 0xe0000a00 if DEBUG_NETX_UART
 	default 0xe0010fe0 if ARCH_RPC
-	default 0xe1000000 if DEBUG_MSM_UART
 	default 0xf0000be0 if ARCH_EBSA110
 	default 0xf0010000 if DEBUG_ASM9260_UART
 	default 0xf01fb000 if DEBUG_NOMADIK_UART
@@ -1526,7 +1505,7 @@ config DEBUG_UART_VIRT
 	default DEBUG_UART_PHYS if !MMU
 	depends on DEBUG_LL_UART_8250 || DEBUG_LL_UART_PL01X || \
 		DEBUG_UART_8250 || DEBUG_UART_PL01X || DEBUG_MESON_UARTAO || \
-		DEBUG_MSM_UART || DEBUG_NETX_UART || \
+		DEBUG_NETX_UART || \
 		DEBUG_QCOM_UARTDM || DEBUG_S3C24XX_UART || \
 		DEBUG_UART_BCM63XX || DEBUG_ASM9260_UART || \
 		DEBUG_SIRFSOC_UART || DEBUG_DIGICOLOR_UA0
@@ -1556,7 +1535,7 @@ config DEBUG_UART_8250_FLOW_CONTROL
 
 config DEBUG_UNCOMPRESS
 	bool
-	depends on ARCH_MULTIPLATFORM || ARCH_MSM || PLAT_SAMSUNG
+	depends on ARCH_MULTIPLATFORM || PLAT_SAMSUNG
 	default y if DEBUG_LL && !DEBUG_OMAP2PLUS_UART && \
 		     (!DEBUG_TEGRA_UART || !ZBOOT_ROM)
 	help

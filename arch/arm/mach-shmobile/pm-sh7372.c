@@ -462,7 +462,7 @@ static struct cpuidle_driver sh7372_cpuidle_driver = {
 
 static void __init sh7372_cpuidle_init(void)
 {
-	shmobile_cpuidle_set_driver(&sh7372_cpuidle_driver);
+	return cpuidle_register(cpuidle_drv, NULL);
 }
 #else
 static void __init sh7372_cpuidle_init(void) {}

@@ -50,9 +50,7 @@ u32 rcar_gen2_read_mode_pins(void)
 
 void __init rcar_gen2_timer_init(void)
 {
-#if defined(CONFIG_ARM_ARCH_TIMER) || defined(CONFIG_COMMON_CLK)
 	u32 mode = rcar_gen2_read_mode_pins();
-#endif
 #ifdef CONFIG_ARM_ARCH_TIMER
 	void __iomem *base;
 	int extal_mhz = 0;
@@ -128,9 +126,7 @@ void __init rcar_gen2_timer_init(void)
 	iounmap(base);
 #endif /* CONFIG_ARM_ARCH_TIMER */
 
-#ifdef CONFIG_COMMON_CLK
 	rcar_gen2_clocks_init(mode);
-#endif
 #ifdef CONFIG_ARCH_SHMOBILE_MULTI
 	clocksource_of_init();
 #endif
