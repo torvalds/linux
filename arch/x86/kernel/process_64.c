@@ -298,7 +298,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	 * Leave lazy mode, flushing any hypercalls made here.  This
 	 * must be done after loading TLS entries in the GDT but before
 	 * loading segments that might reference them, and and it must
-	 * be done before math_state_restore, so the TS bit is up to
+	 * be done before fpu__restore(), so the TS bit is up to
 	 * date.
 	 */
 	arch_end_context_switch(next_p);

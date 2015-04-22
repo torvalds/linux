@@ -846,7 +846,7 @@ do_device_not_available(struct pt_regs *regs, long error_code)
 		return;
 	}
 #endif
-	math_state_restore(); /* interrupts still off */
+	fpu__restore(); /* interrupts still off */
 #ifdef CONFIG_X86_32
 	conditional_sti(regs);
 #endif

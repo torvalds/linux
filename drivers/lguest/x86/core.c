@@ -297,12 +297,12 @@ void lguest_arch_run_guest(struct lg_cpu *cpu)
 	/*
 	 * Similarly, if we took a trap because the Guest used the FPU,
 	 * we have to restore the FPU it expects to see.
-	 * math_state_restore() may sleep and we may even move off to
+	 * fpu__restore() may sleep and we may even move off to
 	 * a different CPU. So all the critical stuff should be done
 	 * before this.
 	 */
 	else if (cpu->regs->trapnum == 7 && !user_has_fpu())
-		math_state_restore();
+		fpu__restore();
 }
 
 /*H:130

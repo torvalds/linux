@@ -228,7 +228,7 @@ static int fpu__unlazy_stopped(struct task_struct *child)
 }
 
 /*
- * 'math_state_restore()' saves the current math information in the
+ * 'fpu__restore()' saves the current math information in the
  * old math state array, and gets the new ones from the current task
  *
  * Careful.. There are problems with IBM-designed IRQ13 behaviour.
@@ -237,7 +237,7 @@ static int fpu__unlazy_stopped(struct task_struct *child)
  * Must be called with kernel preemption disabled (eg with local
  * local interrupts as in the case of do_device_not_available).
  */
-void math_state_restore(void)
+void fpu__restore(void)
 {
 	struct task_struct *tsk = current;
 
@@ -267,7 +267,7 @@ void math_state_restore(void)
 	}
 	kernel_fpu_enable();
 }
-EXPORT_SYMBOL_GPL(math_state_restore);
+EXPORT_SYMBOL_GPL(fpu__restore);
 
 void fpu__flush_thread(struct task_struct *tsk)
 {

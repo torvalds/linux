@@ -404,7 +404,7 @@ int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 		set_used_math();
 		if (use_eager_fpu()) {
 			preempt_disable();
-			math_state_restore();
+			fpu__restore();
 			preempt_enable();
 		}
 
