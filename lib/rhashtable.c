@@ -410,8 +410,13 @@ int rhashtable_insert_rehash(struct rhashtable *ht)
 		return -EBUSY;
 
 	new_tbl = bucket_table_alloc(ht, size, GFP_ATOMIC);
-	if (new_tbl == NULL)
+	if (new_tbl == NULL) {
+		/* Schedule async resize/rehash to try allocation
+		 * non-atomic context.
+		 */
+		schedule_work(&ht->run_work);
 		return -ENOMEM;
+	}
 
 	err = rhashtable_rehash_attach(ht, tbl, new_tbl);
 	if (err) {
