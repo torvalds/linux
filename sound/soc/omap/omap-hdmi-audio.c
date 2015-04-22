@@ -217,7 +217,11 @@ static int hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 	else
 		cea->db4_ca = 0x13;
 
-	cea->db5_dminh_lsv = CEA861_AUDIO_INFOFRAME_DB5_DM_INH_PROHIBITED;
+	if (cea->db4_ca == 0x00)
+		cea->db5_dminh_lsv = CEA861_AUDIO_INFOFRAME_DB5_DM_INH_PERMITTED;
+	else
+		cea->db5_dminh_lsv = CEA861_AUDIO_INFOFRAME_DB5_DM_INH_PROHIBITED;
+
 	/* the expression is trivial but makes clear what we are doing */
 	cea->db5_dminh_lsv |= (0 & CEA861_AUDIO_INFOFRAME_DB5_LSV);
 
