@@ -452,7 +452,6 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 	DEBUGFS_ADD_COUNTER(rx_duplicates, num_duplicates);
 	DEBUGFS_ADD_COUNTER(rx_fragments, rx_fragments);
 	DEBUGFS_ADD_COUNTER(rx_dropped, rx_dropped);
-	DEBUGFS_ADD_COUNTER(tx_fragments, tx_fragments);
 	DEBUGFS_ADD_COUNTER(tx_filtered, tx_filtered_count);
 	DEBUGFS_ADD_COUNTER(tx_retry_failed, tx_retry_failed);
 	DEBUGFS_ADD_COUNTER(tx_retry_count, tx_retry_count);
