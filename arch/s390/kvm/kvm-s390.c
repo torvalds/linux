@@ -1077,6 +1077,15 @@ static int kvm_s390_crypto_init(struct kvm *kvm)
 	return 0;
 }
 
+static void sca_dispose(struct kvm *kvm)
+{
+	if (kvm->arch.use_esca)
+		BUG(); /* not implemented yet */
+	else
+		free_page((unsigned long)(kvm->arch.sca));
+	kvm->arch.sca = NULL;
+}
+
 int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 {
 	int i, rc;
@@ -1100,6 +1109,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 
 	rc = -ENOMEM;
 
+	kvm->arch.use_esca = 0; /* start with basic SCA */
 	kvm->arch.sca = (struct bsca_block *) get_zeroed_page(GFP_KERNEL);
 	if (!kvm->arch.sca)
 		goto out_err;
@@ -1180,7 +1190,7 @@ out_err:
 	kfree(kvm->arch.crypto.crycb);
 	free_page((unsigned long)kvm->arch.model.fac);
 	debug_unregister(kvm->arch.dbf);
-	free_page((unsigned long)(kvm->arch.sca));
+	sca_dispose(kvm);
 	KVM_EVENT(3, "creation of vm failed: %d", rc);
 	return rc;
 }
@@ -1226,7 +1236,7 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 {
 	kvm_free_vcpus(kvm);
 	free_page((unsigned long)kvm->arch.model.fac);
-	free_page((unsigned long)(kvm->arch.sca));
+	sca_dispose(kvm);
 	debug_unregister(kvm->arch.dbf);
 	kfree(kvm->arch.crypto.crycb);
 	if (!kvm_is_ucontrol(kvm))
@@ -1249,23 +1259,41 @@ static int __kvm_ucontrol_vcpu_init(struct kvm_vcpu *vcpu)
 
 static void sca_del_vcpu(struct kvm_vcpu *vcpu)
 {
-	struct bsca_block *sca = vcpu->kvm->arch.sca;
+	if (vcpu->kvm->arch.use_esca) {
+		struct esca_block *sca = vcpu->kvm->arch.sca;
 
-	clear_bit_inv(vcpu->vcpu_id, (unsigned long *) &sca->mcn);
-	if (sca->cpu[vcpu->vcpu_id].sda == (__u64) vcpu->arch.sie_block)
-		sca->cpu[vcpu->vcpu_id].sda = 0;
+		clear_bit_inv(vcpu->vcpu_id, (unsigned long *) sca->mcn);
+		if (sca->cpu[vcpu->vcpu_id].sda == (__u64) vcpu->arch.sie_block)
+			sca->cpu[vcpu->vcpu_id].sda = 0;
+	} else {
+		struct bsca_block *sca = vcpu->kvm->arch.sca;
+
+		clear_bit_inv(vcpu->vcpu_id, (unsigned long *) &sca->mcn);
+		if (sca->cpu[vcpu->vcpu_id].sda == (__u64) vcpu->arch.sie_block)
+			sca->cpu[vcpu->vcpu_id].sda = 0;
+	}
 }
 
 static void sca_add_vcpu(struct kvm_vcpu *vcpu, struct kvm *kvm,
 			unsigned int id)
 {
-	struct bsca_block *sca = kvm->arch.sca;
+	if (kvm->arch.use_esca) {
+		struct esca_block *sca = kvm->arch.sca;
 
-	if (!sca->cpu[id].sda)
-		sca->cpu[id].sda = (__u64) vcpu->arch.sie_block;
-	vcpu->arch.sie_block->scaoh = (__u32)(((__u64)sca) >> 32);
-	vcpu->arch.sie_block->scaol = (__u32)(__u64)sca;
-	set_bit_inv(id, (unsigned long *) &sca->mcn);
+		if (!sca->cpu[id].sda)
+			sca->cpu[id].sda = (__u64) vcpu->arch.sie_block;
+		vcpu->arch.sie_block->scaoh = (__u32)(((__u64)sca) >> 32);
+		vcpu->arch.sie_block->scaol = (__u32)(__u64)sca & ~0x3fU;
+		set_bit_inv(id, (unsigned long *) sca->mcn);
+	} else {
+		struct bsca_block *sca = kvm->arch.sca;
+
+		if (!sca->cpu[id].sda)
+			sca->cpu[id].sda = (__u64) vcpu->arch.sie_block;
+		vcpu->arch.sie_block->scaoh = (__u32)(((__u64)sca) >> 32);
+		vcpu->arch.sie_block->scaol = (__u32)(__u64)sca;
+		set_bit_inv(id, (unsigned long *) &sca->mcn);
+	}
 }
 
 static int sca_can_add_vcpu(struct kvm *kvm, unsigned int id)
@@ -1458,6 +1486,8 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 		vcpu->arch.sie_block->ecb |= 0x10;
 
 	vcpu->arch.sie_block->ecb2  = 8;
+	if (vcpu->kvm->arch.use_esca)
+		vcpu->arch.sie_block->ecb2 |= 4;
 	vcpu->arch.sie_block->eca   = 0xC1002000U;
 	if (sclp.has_siif)
 		vcpu->arch.sie_block->eca |= 1;
