@@ -436,8 +436,8 @@ bool v4l2_detect_cvt(unsigned frame_height, unsigned hfreq, unsigned vsync,
 		h_bp = h_blank / 2;
 		frame_width = image_width + h_blank;
 
-		hsync = (frame_width * 8 + 50) / 100;
-		hsync = hsync - hsync % CVT_CELL_GRAN;
+		hsync = frame_width * 8 / 100;
+		hsync = (hsync / CVT_CELL_GRAN) * CVT_CELL_GRAN;
 		h_fp = h_blank - hsync - h_bp;
 	}
 
@@ -552,14 +552,15 @@ bool v4l2_detect_gtf(unsigned frame_height,
 			(hfreq * (100 - GTF_S_C_PRIME) + GTF_S_M_PRIME * 1000) / 2) /
 			(hfreq * (100 - GTF_S_C_PRIME) + GTF_S_M_PRIME * 1000);
 
-	h_blank = h_blank - h_blank % (2 * GTF_CELL_GRAN);
+	h_blank = ((h_blank + GTF_CELL_GRAN) / (2 * GTF_CELL_GRAN)) *
+		  (2 * GTF_CELL_GRAN);
 	frame_width = image_width + h_blank;
 
 	pix_clk = (image_width + h_blank) * hfreq;
 	pix_clk = pix_clk / GTF_PXL_CLK_GRAN * GTF_PXL_CLK_GRAN;
 
 	hsync = (frame_width * 8 + 50) / 100;
-	hsync = hsync - hsync % GTF_CELL_GRAN;
+	hsync = ((hsync + GTF_CELL_GRAN / 2) / GTF_CELL_GRAN) * GTF_CELL_GRAN;
 
 	h_fp = h_blank / 2 - hsync;
 
