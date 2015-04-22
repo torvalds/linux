@@ -21,6 +21,7 @@ config MXC_AVIC
 
 config MXC_DEBUG_BOARD
 	bool "Enable MXC debug board(for 3-stack)"
+	depends on MACH_MX27_3DS || MACH_MX31_3DS || MACH_MX35_3DS
 	help
 	  The debug board is an integral part of the MXC 3-stack(PDK)
 	  platforms, it can be attached or removed from the peripheral
@@ -50,6 +51,7 @@ config HAVE_IMX_ANATOP
 
 config HAVE_IMX_GPC
 	bool
+	select PM_GENERIC_DOMAINS if PM
 
 config HAVE_IMX_MMDC
 	bool
@@ -586,6 +588,7 @@ config SOC_VF610
 	select ARM_GIC
 	select PINCTRL_VF610
 	select PL310_ERRATA_769419 if CACHE_L2X0
+	select SMP_ON_UP if SMP
 
 	help
 	  This enables support for Freescale Vybrid VF610 processor.

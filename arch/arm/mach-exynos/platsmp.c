@@ -126,6 +126,8 @@ static inline void platform_do_lowpower(unsigned int cpu, int *spurious)
  */
 void exynos_cpu_power_down(int cpu)
 {
+	u32 core_conf;
+
 	if (cpu == 0 && (soc_is_exynos5420() || soc_is_exynos5800())) {
 		/*
 		 * Bypass power down for CPU0 during suspend. Check for
@@ -137,7 +139,10 @@ void exynos_cpu_power_down(int cpu)
 		if (!(val & S5P_CORE_LOCAL_PWR_EN))
 			return;
 	}
-	pmu_raw_writel(0, EXYNOS_ARM_CORE_CONFIGURATION(cpu));
+
+	core_conf = pmu_raw_readl(EXYNOS_ARM_CORE_CONFIGURATION(cpu));
+	core_conf &= ~S5P_CORE_LOCAL_PWR_EN;
+	pmu_raw_writel(core_conf, EXYNOS_ARM_CORE_CONFIGURATION(cpu));
 }
 
 /**
@@ -148,7 +153,12 @@ void exynos_cpu_power_down(int cpu)
  */
 void exynos_cpu_power_up(int cpu)
 {
-	pmu_raw_writel(S5P_CORE_LOCAL_PWR_EN,
+	u32 core_conf = S5P_CORE_LOCAL_PWR_EN;
+
+	if (soc_is_exynos3250())
+		core_conf |= S5P_CORE_AUTOWAKEUP_EN;
+
+	pmu_raw_writel(core_conf,
 			EXYNOS_ARM_CORE_CONFIGURATION(cpu));
 }
 
@@ -225,6 +235,10 @@ static void exynos_core_restart(u32 core_id)
 
 	if (!of_machine_is_compatible("samsung,exynos3250"))
 		return;
+
+	while (!pmu_raw_readl(S5P_PMU_SPARE2))
+		udelay(10);
+	udelay(10);
 
 	val = pmu_raw_readl(EXYNOS_ARM_CORE_STATUS(core_id));
 	val |= S5P_CORE_WAKEUP_FROM_LOCAL_CFG;
@@ -346,7 +360,10 @@ static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 		call_firmware_op(cpu_boot, core_id);
 
-		arch_send_wakeup_ipi_mask(cpumask_of(cpu));
+		if (soc_is_exynos3250())
+			dsb_sev();
+		else
+			arch_send_wakeup_ipi_mask(cpumask_of(cpu));
 
 		if (pen_release == -1)
 			break;

@@ -96,6 +96,11 @@ EBU Armada family
 	88F6820
 	88F6828
 
+  Armada 390/398 Flavors:
+	88F6920
+	88F6928
+    Product infos: http://www.marvell.com/embedded-processors/armada-39x/
+
   Armada XP Flavors:
         MV78230
         MV78260
