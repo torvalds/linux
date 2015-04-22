@@ -7,6 +7,17 @@
  */
 #include <asm/fpu-internal.h>
 
+/*
+ * Track whether the kernel is using the FPU state
+ * currently.
+ *
+ * This flag is used:
+ *
+ *   - by IRQ context code to potentially use the FPU
+ *     if it's unused.
+ *
+ *   - to debug kernel_fpu_begin()/end() correctness
+ */
 static DEFINE_PER_CPU(bool, in_kernel_fpu);
 
 static void kernel_fpu_disable(void)
@@ -19,6 +30,11 @@ static void kernel_fpu_enable(void)
 {
 	WARN_ON_ONCE(!this_cpu_read(in_kernel_fpu));
 	this_cpu_write(in_kernel_fpu, false);
+}
+
+static bool kernel_fpu_disabled(void)
+{
+	return this_cpu_read(in_kernel_fpu);
 }
 
 /*
@@ -35,7 +51,7 @@ static void kernel_fpu_enable(void)
  */
 static bool interrupted_kernel_fpu_idle(void)
 {
-	if (this_cpu_read(in_kernel_fpu))
+	if (kernel_fpu_disabled())
 		return false;
 
 	if (use_eager_fpu())
