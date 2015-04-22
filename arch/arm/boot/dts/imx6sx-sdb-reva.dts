@@ -9,22 +9,7 @@
 #include "imx6sx-sdb.dtsi"
 
 / {
-	model = "Freescale i.MX6 SoloX SDB RevB Board";
-};
-
-&cpu0 {
-	operating-points = <
-		/* kHz    uV */
-		996000  1250000
-		792000  1175000
-		396000  1175000
-		>;
-	fsl,soc-operating-points = <
-		/* ARM kHz      SOC uV */
-		996000	1250000
-		792000	1175000
-		396000	1175000
-	>;
+	model = "Freescale i.MX6 SoloX SDB RevA Board";
 };
 
 &i2c1 {
@@ -34,11 +19,19 @@
 	status = "okay";
 
 	pmic: pfuze100@08 {
-		compatible = "fsl,pfuze200";
+		compatible = "fsl,pfuze100";
 		reg = <0x08>;
 
 		regulators {
 			sw1a_reg: sw1ab {
+				regulator-min-microvolt = <300000>;
+				regulator-max-microvolt = <1875000>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-ramp-delay = <6250>;
+			};
+
+			sw1c_reg: sw1c {
 				regulator-min-microvolt = <300000>;
 				regulator-max-microvolt = <1875000>;
 				regulator-boot-on;
@@ -65,6 +58,11 @@
 				regulator-max-microvolt = <1975000>;
 				regulator-boot-on;
 				regulator-always-on;
+			};
+
+			sw4_reg: sw4 {
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3300000>;
 			};
 
 			swbst_reg: swbst {
@@ -127,19 +125,19 @@
 	pinctrl-0 = <&pinctrl_qspi2>;
 	status = "okay";
 
-	flash0: n25q256a@0 {
+	flash0: s25fl128s@0 {
+		reg = <0>;
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "micron,n25q256a";
-		spi-max-frequency = <29000000>;
-		reg = <0>;
+		compatible = "spansion,s25fl128s";
+		spi-max-frequency = <66000000>;
 	};
 
-	flash1: n25q256a@1 {
+	flash1: s25fl128s@1 {
+		reg = <1>;
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "micron,n25q256a";
-		spi-max-frequency = <29000000>;
-		reg = <1>;
+		compatible = "spansion,s25fl128s";
+		spi-max-frequency = <66000000>;
 	};
 };

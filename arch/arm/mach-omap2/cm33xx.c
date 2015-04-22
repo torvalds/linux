@@ -352,7 +352,7 @@ static struct cm_ll_data am33xx_cm_ll_data = {
 	.module_disable		= &am33xx_cm_module_disable,
 };
 
-int __init am33xx_cm_init(void)
+int __init am33xx_cm_init(const struct omap_prcm_init_data *data)
 {
 	return cm_register(&am33xx_cm_ll_data);
 }

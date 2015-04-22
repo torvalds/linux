@@ -81,6 +81,7 @@ config ARCH_OMAP2PLUS
 	select GENERIC_IRQ_CHIP
 	select MACH_OMAP_GENERIC
 	select MEMORY
+	select MFD_SYSCON
 	select OMAP_DM_TIMER
 	select OMAP_GPMC
 	select PINCTRL

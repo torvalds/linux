@@ -36,6 +36,7 @@
 #define GPC_PGC_SW_SHIFT	0x0
 
 #define IMR_NUM			4
+#define GPC_MAX_IRQS		(IMR_NUM * 32)
 
 #define GPU_VPU_PUP_REQ		BIT(1)
 #define GPU_VPU_PDN_REQ		BIT(0)
@@ -99,17 +100,17 @@ void imx_gpc_post_resume(void)
 
 static int imx_gpc_irq_set_wake(struct irq_data *d, unsigned int on)
 {
-	unsigned int idx = d->hwirq / 32 - 1;
+	unsigned int idx = d->hwirq / 32;
 	u32 mask;
-
-	/* Sanity check for SPI irq */
-	if (d->hwirq < 32)
-		return -EINVAL;
 
 	mask = 1 << d->hwirq % 32;
 	gpc_wake_irqs[idx] = on ? gpc_wake_irqs[idx] | mask :
 				  gpc_wake_irqs[idx] & ~mask;
 
+	/*
+	 * Do *not* call into the parent, as the GIC doesn't have any
+	 * wake-up facility...
+	 */
 	return 0;
 }
 
@@ -139,7 +140,7 @@ void imx_gpc_hwirq_unmask(unsigned int hwirq)
 	void __iomem *reg;
 	u32 val;
 
-	reg = gpc_base + GPC_IMR1 + (hwirq / 32 - 1) * 4;
+	reg = gpc_base + GPC_IMR1 + hwirq / 32 * 4;
 	val = readl_relaxed(reg);
 	val &= ~(1 << hwirq % 32);
 	writel_relaxed(val, reg);
@@ -150,7 +151,7 @@ void imx_gpc_hwirq_mask(unsigned int hwirq)
 	void __iomem *reg;
 	u32 val;
 
-	reg = gpc_base + GPC_IMR1 + (hwirq / 32 - 1) * 4;
+	reg = gpc_base + GPC_IMR1 + hwirq / 32 * 4;
 	val = readl_relaxed(reg);
 	val |= 1 << (hwirq % 32);
 	writel_relaxed(val, reg);
@@ -158,39 +159,130 @@ void imx_gpc_hwirq_mask(unsigned int hwirq)
 
 static void imx_gpc_irq_unmask(struct irq_data *d)
 {
-	/* Sanity check for SPI irq */
-	if (d->hwirq < 32)
-		return;
-
 	imx_gpc_hwirq_unmask(d->hwirq);
+	irq_chip_unmask_parent(d);
 }
 
 static void imx_gpc_irq_mask(struct irq_data *d)
 {
-	/* Sanity check for SPI irq */
-	if (d->hwirq < 32)
-		return;
-
 	imx_gpc_hwirq_mask(d->hwirq);
+	irq_chip_mask_parent(d);
 }
 
-void __init imx_gpc_init(void)
+static struct irq_chip imx_gpc_chip = {
+	.name			= "GPC",
+	.irq_eoi		= irq_chip_eoi_parent,
+	.irq_mask		= imx_gpc_irq_mask,
+	.irq_unmask		= imx_gpc_irq_unmask,
+	.irq_retrigger		= irq_chip_retrigger_hierarchy,
+	.irq_set_wake		= imx_gpc_irq_set_wake,
+#ifdef CONFIG_SMP
+	.irq_set_affinity	= irq_chip_set_affinity_parent,
+#endif
+};
+
+static int imx_gpc_domain_xlate(struct irq_domain *domain,
+				struct device_node *controller,
+				const u32 *intspec,
+				unsigned int intsize,
+				unsigned long *out_hwirq,
+				unsigned int *out_type)
 {
-	struct device_node *np;
+	if (domain->of_node != controller)
+		return -EINVAL;	/* Shouldn't happen, really... */
+	if (intsize != 3)
+		return -EINVAL;	/* Not GIC compliant */
+	if (intspec[0] != 0)
+		return -EINVAL;	/* No PPI should point to this domain */
+
+	*out_hwirq = intspec[1];
+	*out_type = intspec[2];
+	return 0;
+}
+
+static int imx_gpc_domain_alloc(struct irq_domain *domain,
+				  unsigned int irq,
+				  unsigned int nr_irqs, void *data)
+{
+	struct of_phandle_args *args = data;
+	struct of_phandle_args parent_args;
+	irq_hw_number_t hwirq;
 	int i;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-gpc");
-	gpc_base = of_iomap(np, 0);
-	WARN_ON(!gpc_base);
+	if (args->args_count != 3)
+		return -EINVAL;	/* Not GIC compliant */
+	if (args->args[0] != 0)
+		return -EINVAL;	/* No PPI should point to this domain */
+
+	hwirq = args->args[1];
+	if (hwirq >= GPC_MAX_IRQS)
+		return -EINVAL;	/* Can't deal with this */
+
+	for (i = 0; i < nr_irqs; i++)
+		irq_domain_set_hwirq_and_chip(domain, irq + i, hwirq + i,
+					      &imx_gpc_chip, NULL);
+
+	parent_args = *args;
+	parent_args.np = domain->parent->of_node;
+	return irq_domain_alloc_irqs_parent(domain, irq, nr_irqs, &parent_args);
+}
+
+static struct irq_domain_ops imx_gpc_domain_ops = {
+	.xlate	= imx_gpc_domain_xlate,
+	.alloc	= imx_gpc_domain_alloc,
+	.free	= irq_domain_free_irqs_common,
+};
+
+static int __init imx_gpc_init(struct device_node *node,
+			       struct device_node *parent)
+{
+	struct irq_domain *parent_domain, *domain;
+	int i;
+
+	if (!parent) {
+		pr_err("%s: no parent, giving up\n", node->full_name);
+		return -ENODEV;
+	}
+
+	parent_domain = irq_find_host(parent);
+	if (!parent_domain) {
+		pr_err("%s: unable to obtain parent domain\n", node->full_name);
+		return -ENXIO;
+	}
+
+	gpc_base = of_iomap(node, 0);
+	if (WARN_ON(!gpc_base))
+	        return -ENOMEM;
+
+	domain = irq_domain_add_hierarchy(parent_domain, 0, GPC_MAX_IRQS,
+					  node, &imx_gpc_domain_ops,
+					  NULL);
+	if (!domain) {
+		iounmap(gpc_base);
+		return -ENOMEM;
+	}
 
 	/* Initially mask all interrupts */
 	for (i = 0; i < IMR_NUM; i++)
 		writel_relaxed(~0, gpc_base + GPC_IMR1 + i * 4);
 
-	/* Register GPC as the secondary interrupt controller behind GIC */
-	gic_arch_extn.irq_mask = imx_gpc_irq_mask;
-	gic_arch_extn.irq_unmask = imx_gpc_irq_unmask;
-	gic_arch_extn.irq_set_wake = imx_gpc_irq_set_wake;
+	return 0;
+}
+
+/*
+ * We cannot use the IRQCHIP_DECLARE macro that lives in
+ * drivers/irqchip, so we're forced to roll our own. Not very nice.
+ */
+OF_DECLARE_2(irqchip, imx_gpc, "fsl,imx6q-gpc", imx_gpc_init);
+
+void __init imx_gpc_check_dt(void)
+{
+	struct device_node *np;
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-gpc");
+	if (WARN_ON(!np ||
+		    !of_find_property(np, "interrupt-controller", NULL)))
+		pr_warn("Outdated DT detected, system is about to crash!!!\n");
 }
 
 #ifdef CONFIG_PM_GENERIC_DOMAINS

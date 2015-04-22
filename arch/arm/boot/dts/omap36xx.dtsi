@@ -78,7 +78,7 @@
 			       0x480bd800 0x0600>;
 			interrupts = <24>;
 			iommus = <&mmu_isp>;
-			syscon = <&omap3_scm_general 0x2f0>;
+			syscon = <&scm_conf 0x2f0>;
 			ti,phy-type = <OMAP3ISP_PHY_TYPE_CSIPHY>;
 			#clock-cells = <1>;
 			ports {
