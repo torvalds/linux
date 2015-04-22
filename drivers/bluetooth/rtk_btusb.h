@@ -83,6 +83,12 @@
 #define GET_DRV_DATA(x)		x->driver_data
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0)
+#define SCO_NUM    hdev->conn_hash.sco_num
+#else
+#define SCO_NUM     hci_conn_num(hdev, SCO_LINK)
+#endif
+
 #define BTUSB_RPM		(0 * USB_RPM) /* 1 SS enable; 0 SS disable */
 #define BTUSB_WAKEUP_HOST		0	/* 1  enable; 0  disable */
 #define BTUSB_MAX_ISOC_FRAMES	10

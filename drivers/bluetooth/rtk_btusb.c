@@ -31,7 +31,7 @@
 
 /*******************************/
 #include "rtk_btusb.h"
-#define VERSION "2.19"
+#define VERSION "2.21"
 
 #define DBG_FLAG 0
 #if DBG_FLAG
@@ -134,14 +134,13 @@ static patch_info fw_patch_table[] = {
 { 0xE085, 0x8723, 0, 0, "mp_rtl8723b_fw", "rtl8723b_fw", "rtl8723b_config", NULL, 0 }, /* RTL8723BE for Foxconn */
 { 0xE08B, 0x8723, 0, 0, "mp_rtl8723b_fw", "rtl8723b_fw", "rtl8723b_config", NULL, 0 }, /* RTL8723BE for Foxconn */
 
-{ 0x2850, 0x8761, 0, 0, "mp_rtl8761a_fw", "rtl8761au_fw", "rtl8761a_config", NULL, 0 }, /* RTL8761AU */
 { 0xA761, 0x8761, 0, 0, "mp_rtl8761a_fw", "rtl8761au_fw", "rtl8761a_config", NULL, 0 }, /* RTL8761AU only */
-{ 0x818B, 0x8761, 0, 0, "mp_rtl8761a_fw", "rtl8761au_fw", "rtl8761a_config", NULL, 0 }, /* RTL8761AW + 8192EU */
-{ 0x818C, 0x8761, 0, 0, "mp_rtl8761a_fw", "rtl8761au_fw", "rtl8761a_config", NULL, 0 }, /* RTL8761AW + 8192EU */
-{ 0x8760, 0x8761, 0, 0, "mp_rtl8761a_fw", "rtl8761au_fw", "rtl8761a_config", NULL, 0 }, /* RTL8761AU + 8192EE */
-{ 0xB761, 0x8761, 0, 0, "mp_rtl8761a_fw", "rtl8761au_fw", "rtl8761a_config", NULL, 0 }, /* RTL8761AU + 8192EE */
-{ 0x8761, 0x8761, 0, 0, "mp_rtl8761a_fw", "rtl8761au_fw", "rtl8761a_config", NULL, 0 }, /* RTL8761AU + 8192EE for LI */
-{ 0x8A60, 0x8761, 0, 0, "mp_rtl8761a_fw", "rtl8761au_fw", "rtl8761a_config", NULL, 0 }, /* RTL8761AU + 8812AE */
+{ 0x818B, 0x8761, 0, 0, "mp_rtl8761a_fw", "rtl8761aw8192eu_fw", "rtl8761aw8192eu_config", NULL, 0 }, /* RTL8761AW + 8192EU */
+{ 0x818C, 0x8761, 0, 0, "mp_rtl8761a_fw", "rtl8761aw8192eu_fw", "rtl8761aw8192eu_config", NULL, 0 }, /* RTL8761AW + 8192EU */
+{ 0x8760, 0x8761, 0, 0, "mp_rtl8761a_fw", "rtl8761au8192ee_fw", "rtl8761a_config", NULL, 0 }, /* RTL8761AU + 8192EE */
+{ 0xB761, 0x8761, 0, 0, "mp_rtl8761a_fw", "rtl8761au8192ee_fw", "rtl8761a_config", NULL, 0 }, /* RTL8761AU + 8192EE */
+{ 0x8761, 0x8761, 0, 0, "mp_rtl8761a_fw", "rtl8761au8192ee_fw", "rtl8761a_config", NULL, 0 }, /* RTL8761AU + 8192EE for LI */
+{ 0x8A60, 0x8761, 0, 0, "mp_rtl8761a_fw", "rtl8761au8812ae_fw", "rtl8761a_config", NULL, 0 }, /* RTL8761AU + 8812AE */
 
 { 0x8821, 0x8821, 0, 0, "mp_rtl8821a_fw", "rtl8821a_fw", "rtl8821a_config", NULL, 0 }, /* RTL8821AE */
 { 0x0821, 0x8821, 0, 0, "mp_rtl8821a_fw", "rtl8821a_fw", "rtl8821a_config", NULL, 0 }, /* RTL8821AE */
@@ -2434,7 +2433,7 @@ static int btusb_send_frame(struct sk_buff *skb)
 
 	case HCI_SCODATA_PKT:
 		print_sco(skb, 1);
-		if (!data->isoc_tx_ep || hdev->conn_hash.sco_num < 1) {
+		if (!data->isoc_tx_ep || SCO_NUM < 1) {
 			kfree(skb);
 			return -ENODEV;
 		}
@@ -2514,8 +2513,8 @@ static void btusb_notify(struct hci_dev *hdev, unsigned int evt)
 
 	RTKBT_DBG("%s: name %s, evt %d", __func__, hdev->name, evt);
 
-	if (hdev->conn_hash.sco_num != data->sco_num) {
-		data->sco_num = hdev->conn_hash.sco_num;
+	if (SCO_NUM != data->sco_num) {
+		data->sco_num = SCO_NUM;
 		schedule_work(&data->work);
 	}
 }
@@ -2570,8 +2569,7 @@ static void btusb_work(struct work_struct *work)
 	struct hci_dev *hdev = data->hdev;
 	int err;
 	int new_alts;
-
-	if (hdev->conn_hash.sco_num > 0) {
+	if (data->sco_num > 0) {
 		if (!test_bit(BTUSB_DID_ISO_RESUME, &data->flags)) {
 			err = usb_autopm_get_interface(data->isoc ? data->isoc : data->intf);
 			if (err < 0) {
@@ -2586,9 +2584,9 @@ static void btusb_work(struct work_struct *work)
 #if LINUX_VERSION_CODE > KERNEL_VERSION(3, 7, 1)
 		if (hdev->voice_setting & 0x0020) {
 			static const int alts[3] = { 2, 4, 5 };
-			new_alts = alts[hdev->conn_hash.sco_num - 1];
+			new_alts = alts[data->sco_num - 1];
 		} else{
-			new_alts = hdev->conn_hash.sco_num;
+			new_alts = data->sco_num;
 		}
 		if (data->isoc_altsetting != new_alts) {
 #else
@@ -2695,16 +2693,18 @@ int bt_pm_notify(struct notifier_block *notifier, ulong pm_event, void *unused)
 	switch (pm_event) {
 	case PM_SUSPEND_PREPARE:
 	case PM_HIBERNATION_PREPARE:
+#if 0
 		patch_entry->fw_len = load_firmware(fw_info, &patch_entry->fw_cache);
 		if (patch_entry->fw_len <= 0) {
 		/* We may encount failure in loading firmware, just give a warning */
 			RTKBT_WARN("%s: Failed to load firmware", __func__);
 		}
-
+#endif 
 		if (!device_may_wakeup(&udev->dev)) {
 #if (CONFIG_RESET_RESUME || CONFIG_BLUEDROID)
 			RTKBT_INFO("%s:remote wakeup not supported, reset resume supported", __func__);
 #else
+/*this will force usb driver to disconnect/probe*/
 			fw_info->intf->needs_binding = 1;
 			RTKBT_INFO("%s:remote wakeup not supported, binding needed", __func__);
 #endif
@@ -2714,12 +2714,15 @@ int bt_pm_notify(struct notifier_block *notifier, ulong pm_event, void *unused)
 	case PM_POST_SUSPEND:
 	case PM_POST_HIBERNATION:
 	case PM_POST_RESTORE:
+#if 0
 		/* Reclaim fw buffer when bt usb resumed */
 		if (patch_entry->fw_len > 0) {
 			kfree(patch_entry->fw_cache);
 			patch_entry->fw_cache = NULL;
 			patch_entry->fw_len = 0;
 		}
+#endif 
+
 #if BTUSB_RPM
 		usb_disable_autosuspend(udev);
 		usb_enable_autosuspend(udev);
@@ -2815,10 +2818,14 @@ static int btusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 #if CONFIG_BLUEDROID
 	mutex_lock(&btchr_mutex);
 #endif
-	// err = download_patch(fw_info, 0);
-	// /* If download failed, we just throw out a warning */
-	// if (err < 0)
-		// RTKBT_WARN("%s: Failed to download fw patch", __func__);
+
+#if 0
+	err = download_patch(fw_info, 0);
+	/* If download failed, we just throw out a warning */
+	if (err < 0)
+		RTKBT_WARN("%s: Failed to download fw patch", __func__);
+#endif
+
 #if CONFIG_BLUEDROID
 	mutex_unlock(&btchr_mutex);
 #endif
@@ -3035,7 +3042,7 @@ static int btusb_resume(struct usb_interface *intf)
 {
 	struct btusb_data *data = usb_get_intfdata(intf);
 	struct hci_dev *hdev = data->hdev;
-	firmware_info *fw_info = data->fw_info;
+	//firmware_info *fw_info = data->fw_info;
 	int err = 0;
 
 	RTKBT_INFO("%s: Suspend count %d", __func__, data->suspend_count);
@@ -3043,10 +3050,12 @@ static int btusb_resume(struct usb_interface *intf)
 	if (intf->cur_altsetting->desc.bInterfaceNumber != 0)
 		return 0;
 
+#if 0
 	if (!test_bit(HCI_RUNNING, &hdev->flags)) {
 		RTKBT_INFO("%s: Bt is off, download patch before bt is on", __func__);
 		download_patch(fw_info, 1);
 	}
+#endif 
 
 	if (--data->suspend_count)
 		return 0;
