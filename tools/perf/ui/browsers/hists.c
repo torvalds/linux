@@ -25,6 +25,7 @@ struct hist_browser {
 	struct hists	    *hists;
 	struct hist_entry   *he_selection;
 	struct map_symbol   *selection;
+	struct hist_browser_timer *hbt;
 	int		     print_seq;
 	bool		     show_dso;
 	bool		     show_headers;
@@ -406,11 +407,11 @@ static void ui_browser__warn_lost_events(struct ui_browser *browser)
 		"Or reduce the sampling frequency.");
 }
 
-static int hist_browser__run(struct hist_browser *browser,
-			     struct hist_browser_timer *hbt)
+static int hist_browser__run(struct hist_browser *browser)
 {
 	int key;
 	char title[160];
+	struct hist_browser_timer *hbt = browser->hbt;
 	int delay_secs = hbt ? hbt->refresh : 0;
 
 	browser->b.entries = &browser->hists->entries;
@@ -1195,7 +1196,8 @@ static int hist_browser__dump(struct hist_browser *browser)
 	return 0;
 }
 
-static struct hist_browser *hist_browser__new(struct hists *hists)
+static struct hist_browser *hist_browser__new(struct hists *hists,
+					      struct hist_browser_timer *hbt)
 {
 	struct hist_browser *browser = zalloc(sizeof(*browser));
 
@@ -1206,6 +1208,7 @@ static struct hist_browser *hist_browser__new(struct hists *hists)
 		browser->b.seek = ui_browser__hists_seek;
 		browser->b.use_navkeypressed = true;
 		browser->show_headers = symbol_conf.show_hist_headers;
+		browser->hbt = hbt;
 	}
 
 	return browser;
@@ -1421,7 +1424,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 				    struct perf_session_env *env)
 {
 	struct hists *hists = evsel__hists(evsel);
-	struct hist_browser *browser = hist_browser__new(hists);
+	struct hist_browser *browser = hist_browser__new(hists, hbt);
 	struct branch_info *bi;
 	struct pstack *fstack;
 #define MAX_OPTIONS  16
@@ -1499,7 +1502,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 
 		nr_options = 0;
 
-		key = hist_browser__run(browser, hbt);
+		key = hist_browser__run(browser);
 
 		if (browser->he_selection != NULL) {
 			thread = hist_browser__selected_thread(browser);
