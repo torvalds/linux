@@ -1080,7 +1080,7 @@ static int kvm_s390_crypto_init(struct kvm *kvm)
 static void sca_dispose(struct kvm *kvm)
 {
 	if (kvm->arch.use_esca)
-		BUG(); /* not implemented yet */
+		free_pages_exact(kvm->arch.sca, sizeof(struct esca_block));
 	else
 		free_page((unsigned long)(kvm->arch.sca));
 	kvm->arch.sca = NULL;
@@ -1110,6 +1110,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	rc = -ENOMEM;
 
 	kvm->arch.use_esca = 0; /* start with basic SCA */
+	rwlock_init(&kvm->arch.sca_lock);
 	kvm->arch.sca = (struct bsca_block *) get_zeroed_page(GFP_KERNEL);
 	if (!kvm->arch.sca)
 		goto out_err;
@@ -1259,6 +1260,7 @@ static int __kvm_ucontrol_vcpu_init(struct kvm_vcpu *vcpu)
 
 static void sca_del_vcpu(struct kvm_vcpu *vcpu)
 {
+	read_lock(&vcpu->kvm->arch.sca_lock);
 	if (vcpu->kvm->arch.use_esca) {
 		struct esca_block *sca = vcpu->kvm->arch.sca;
 
@@ -1272,11 +1274,13 @@ static void sca_del_vcpu(struct kvm_vcpu *vcpu)
 		if (sca->cpu[vcpu->vcpu_id].sda == (__u64) vcpu->arch.sie_block)
 			sca->cpu[vcpu->vcpu_id].sda = 0;
 	}
+	read_unlock(&vcpu->kvm->arch.sca_lock);
 }
 
 static void sca_add_vcpu(struct kvm_vcpu *vcpu, struct kvm *kvm,
 			unsigned int id)
 {
+	read_lock(&kvm->arch.sca_lock);
 	if (kvm->arch.use_esca) {
 		struct esca_block *sca = kvm->arch.sca;
 
@@ -1294,11 +1298,78 @@ static void sca_add_vcpu(struct kvm_vcpu *vcpu, struct kvm *kvm,
 		vcpu->arch.sie_block->scaol = (__u32)(__u64)sca;
 		set_bit_inv(id, (unsigned long *) &sca->mcn);
 	}
+	read_unlock(&kvm->arch.sca_lock);
+}
+
+/* Basic SCA to Extended SCA data copy routines */
+static inline void sca_copy_entry(struct esca_entry *d, struct bsca_entry *s)
+{
+	d->sda = s->sda;
+	d->sigp_ctrl.c = s->sigp_ctrl.c;
+	d->sigp_ctrl.scn = s->sigp_ctrl.scn;
+}
+
+static void sca_copy_b_to_e(struct esca_block *d, struct bsca_block *s)
+{
+	int i;
+
+	d->ipte_control = s->ipte_control;
+	d->mcn[0] = s->mcn;
+	for (i = 0; i < KVM_S390_BSCA_CPU_SLOTS; i++)
+		sca_copy_entry(&d->cpu[i], &s->cpu[i]);
+}
+
+static int sca_switch_to_extended(struct kvm *kvm)
+{
+	struct bsca_block *old_sca = kvm->arch.sca;
+	struct esca_block *new_sca;
+	struct kvm_vcpu *vcpu;
+	unsigned int vcpu_idx;
+	u32 scaol, scaoh;
+
+	new_sca = alloc_pages_exact(sizeof(*new_sca), GFP_KERNEL|__GFP_ZERO);
+	if (!new_sca)
+		return -ENOMEM;
+
+	scaoh = (u32)((u64)(new_sca) >> 32);
+	scaol = (u32)(u64)(new_sca) & ~0x3fU;
+
+	kvm_s390_vcpu_block_all(kvm);
+	write_lock(&kvm->arch.sca_lock);
+
+	sca_copy_b_to_e(new_sca, old_sca);
+
+	kvm_for_each_vcpu(vcpu_idx, vcpu, kvm) {
+		vcpu->arch.sie_block->scaoh = scaoh;
+		vcpu->arch.sie_block->scaol = scaol;
+		vcpu->arch.sie_block->ecb2 |= 0x04U;
+	}
+	kvm->arch.sca = new_sca;
+	kvm->arch.use_esca = 1;
+
+	write_unlock(&kvm->arch.sca_lock);
+	kvm_s390_vcpu_unblock_all(kvm);
+
+	free_page((unsigned long)old_sca);
+
+	VM_EVENT(kvm, 2, "Switched to ESCA (%p -> %p)", old_sca, kvm->arch.sca);
+	return 0;
 }
 
 static int sca_can_add_vcpu(struct kvm *kvm, unsigned int id)
 {
-	return id < KVM_MAX_VCPUS;
+	int rc;
+
+	if (id < KVM_S390_BSCA_CPU_SLOTS)
+		return true;
+	if (!sclp.has_esca)
+		return false;
+
+	mutex_lock(&kvm->lock);
+	rc = kvm->arch.use_esca ? 0 : sca_switch_to_extended(kvm);
+	mutex_unlock(&kvm->lock);
+
+	return rc == 0 && id < KVM_S390_ESCA_CPU_SLOTS;
 }
 
 int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)

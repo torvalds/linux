@@ -39,6 +39,7 @@ static int sca_ext_call_pending(struct kvm_vcpu *vcpu, int *src_id)
 {
 	int c, scn;
 
+	read_lock(&vcpu->kvm->arch.sca_lock);
 	if (vcpu->kvm->arch.use_esca) {
 		struct esca_block *sca = vcpu->kvm->arch.sca;
 		union esca_sigp_ctrl sigp_ctrl =
@@ -54,6 +55,7 @@ static int sca_ext_call_pending(struct kvm_vcpu *vcpu, int *src_id)
 		c = sigp_ctrl.c;
 		scn = sigp_ctrl.scn;
 	}
+	read_unlock(&vcpu->kvm->arch.sca_lock);
 
 	if (src_id)
 		*src_id = scn;
@@ -66,6 +68,7 @@ static int sca_inject_ext_call(struct kvm_vcpu *vcpu, int src_id)
 {
 	int expect, rc;
 
+	read_lock(&vcpu->kvm->arch.sca_lock);
 	if (vcpu->kvm->arch.use_esca) {
 		struct esca_block *sca = vcpu->kvm->arch.sca;
 		union esca_sigp_ctrl *sigp_ctrl =
@@ -91,6 +94,7 @@ static int sca_inject_ext_call(struct kvm_vcpu *vcpu, int src_id)
 		expect = old_val.value;
 		rc = cmpxchg(&sigp_ctrl->value, old_val.value, new_val.value);
 	}
+	read_unlock(&vcpu->kvm->arch.sca_lock);
 
 	if (rc != expect) {
 		/* another external call is pending */
@@ -106,6 +110,7 @@ static void sca_clear_ext_call(struct kvm_vcpu *vcpu)
 	int rc, expect;
 
 	atomic_andnot(CPUSTAT_ECALL_PEND, li->cpuflags);
+	read_lock(&vcpu->kvm->arch.sca_lock);
 	if (vcpu->kvm->arch.use_esca) {
 		struct esca_block *sca = vcpu->kvm->arch.sca;
 		union esca_sigp_ctrl *sigp_ctrl =
@@ -123,6 +128,7 @@ static void sca_clear_ext_call(struct kvm_vcpu *vcpu)
 		expect = old.value;
 		rc = cmpxchg(&sigp_ctrl->value, old.value, 0);
 	}
+	read_unlock(&vcpu->kvm->arch.sca_lock);
 	WARN_ON(rc != expect); /* cannot clear? */
 }
 

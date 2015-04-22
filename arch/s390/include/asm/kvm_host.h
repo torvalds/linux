@@ -622,6 +622,7 @@ struct kvm_s390_crypto_cb {
 struct kvm_arch{
 	void *sca;
 	int use_esca;
+	rwlock_t sca_lock;
 	debug_info_t *dbf;
 	struct kvm_s390_float_interrupt float_int;
 	struct kvm_device *flic;
