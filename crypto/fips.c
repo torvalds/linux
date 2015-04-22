@@ -10,7 +10,10 @@
  *
  */
 
-#include "internal.h"
+#include <linux/export.h>
+#include <linux/fips.h>
+#include <linux/init.h>
+#include <linux/kernel.h>
 
 int fips_enabled;
 EXPORT_SYMBOL_GPL(fips_enabled);
