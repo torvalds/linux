@@ -1402,8 +1402,16 @@ close_file_and_continue:
 	return ret;
 }
 
+struct popup_action {
+	struct thread 		*thread;
+	struct dso		*dso;
+	struct map_symbol 	ms;
+
+	int (*fn)(struct hist_browser *browser, struct popup_action *act);
+};
+
 static int
-do_annotate(struct hist_browser *browser, struct map_symbol *ms)
+do_annotate(struct hist_browser *browser, struct popup_action *act)
 {
 	struct perf_evsel *evsel;
 	struct annotation *notes;
@@ -1413,12 +1421,12 @@ do_annotate(struct hist_browser *browser, struct map_symbol *ms)
 	if (!objdump_path && perf_session_env__lookup_objdump(browser->env))
 		return 0;
 
-	notes = symbol__annotation(ms->sym);
+	notes = symbol__annotation(act->ms.sym);
 	if (!notes->src)
 		return 0;
 
 	evsel = hists_to_evsel(browser->hists);
-	err = map_symbol__tui_annotate(ms, evsel, browser->hbt);
+	err = map_symbol__tui_annotate(&act->ms, evsel, browser->hbt);
 	he = hist_browser__selected_entry(browser);
 	/*
 	 * offer option to annotate the other branch source or target
@@ -1434,8 +1442,27 @@ do_annotate(struct hist_browser *browser, struct map_symbol *ms)
 }
 
 static int
-do_zoom_thread(struct hist_browser *browser, struct thread *thread)
+add_annotate_opt(struct hist_browser *browser __maybe_unused,
+		 struct popup_action *act, char **optstr,
+		 struct map *map, struct symbol *sym)
 {
+	if (sym == NULL || map->dso->annotate_warned)
+		return 0;
+
+	if (asprintf(optstr, "Annotate %s", sym->name) < 0)
+		return 0;
+
+	act->ms.map = map;
+	act->ms.sym = sym;
+	act->fn = do_annotate;
+	return 1;
+}
+
+static int
+do_zoom_thread(struct hist_browser *browser, struct popup_action *act)
+{
+	struct thread *thread = act->thread;
+
 	if (browser->hists->thread_filter) {
 		pstack__remove(browser->pstack, &browser->hists->thread_filter);
 		perf_hpp__set_elide(HISTC_THREAD, false);
@@ -1456,8 +1483,28 @@ do_zoom_thread(struct hist_browser *browser, struct thread *thread)
 }
 
 static int
-do_zoom_dso(struct hist_browser *browser, struct dso *dso)
+add_thread_opt(struct hist_browser *browser, struct popup_action *act,
+	       char **optstr, struct thread *thread)
 {
+	if (thread == NULL)
+		return 0;
+
+	if (asprintf(optstr, "Zoom %s %s(%d) thread",
+		     browser->hists->thread_filter ? "out of" : "into",
+		     thread->comm_set ? thread__comm_str(thread) : "",
+		     thread->tid) < 0)
+		return 0;
+
+	act->thread = thread;
+	act->fn = do_zoom_thread;
+	return 1;
+}
+
+static int
+do_zoom_dso(struct hist_browser *browser, struct popup_action *act)
+{
+	struct dso *dso = act->dso;
+
 	if (browser->hists->dso_filter) {
 		pstack__remove(browser->pstack, &browser->hists->dso_filter);
 		perf_hpp__set_elide(HISTC_DSO, false);
@@ -1479,25 +1526,58 @@ do_zoom_dso(struct hist_browser *browser, struct dso *dso)
 }
 
 static int
-do_browse_map(struct hist_browser *browser __maybe_unused, struct map *map)
+add_dso_opt(struct hist_browser *browser, struct popup_action *act,
+	    char **optstr, struct dso *dso)
 {
-	map__browse(map);
+	if (dso == NULL)
+		return 0;
+
+	if (asprintf(optstr, "Zoom %s %s DSO",
+		     browser->hists->dso_filter ? "out of" : "into",
+		     dso->kernel ? "the Kernel" : dso->short_name) < 0)
+		return 0;
+
+	act->dso = dso;
+	act->fn = do_zoom_dso;
+	return 1;
+}
+
+static int
+do_browse_map(struct hist_browser *browser __maybe_unused,
+	      struct popup_action *act)
+{
+	map__browse(act->ms.map);
 	return 0;
 }
 
 static int
+add_map_opt(struct hist_browser *browser __maybe_unused,
+	    struct popup_action *act, char **optstr, struct map *map)
+{
+	if (map == NULL)
+		return 0;
+
+	if (asprintf(optstr, "Browse map details") < 0)
+		return 0;
+
+	act->ms.map = map;
+	act->fn = do_browse_map;
+	return 1;
+}
+
+static int
 do_run_script(struct hist_browser *browser __maybe_unused,
-	      struct thread *thread, struct symbol *sym)
+	      struct popup_action *act)
 {
 	char script_opt[64];
 	memset(script_opt, 0, sizeof(script_opt));
 
-	if (thread) {
+	if (act->thread) {
 		scnprintf(script_opt, sizeof(script_opt), " -c %s ",
-			  thread__comm_str(thread));
-	} else if (sym) {
+			  thread__comm_str(act->thread));
+	} else if (act->ms.sym) {
 		scnprintf(script_opt, sizeof(script_opt), " -S %s ",
-			  sym->name);
+			  act->ms.sym->name);
 	}
 
 	script_browse(script_opt);
@@ -1505,15 +1585,72 @@ do_run_script(struct hist_browser *browser __maybe_unused,
 }
 
 static int
-do_switch_data(struct hist_browser *browser __maybe_unused, int key)
+add_script_opt(struct hist_browser *browser __maybe_unused,
+	       struct popup_action *act, char **optstr,
+	       struct thread *thread, struct symbol *sym)
+{
+	if (thread) {
+		if (asprintf(optstr, "Run scripts for samples of thread [%s]",
+			     thread__comm_str(thread)) < 0)
+			return 0;
+	} else if (sym) {
+		if (asprintf(optstr, "Run scripts for samples of symbol [%s]",
+			     sym->name) < 0)
+			return 0;
+	} else {
+		if (asprintf(optstr, "Run scripts for all samples") < 0)
+			return 0;
+	}
+
+	act->thread = thread;
+	act->ms.sym = sym;
+	act->fn = do_run_script;
+	return 1;
+}
+
+static int
+do_switch_data(struct hist_browser *browser __maybe_unused,
+	       struct popup_action *act __maybe_unused)
 {
 	if (switch_data_file()) {
 		ui__warning("Won't switch the data files due to\n"
 			    "no valid data file get selected!\n");
-		return key;
+		return 0;
 	}
 
 	return K_SWITCH_INPUT_DATA;
+}
+
+static int
+add_switch_opt(struct hist_browser *browser,
+	       struct popup_action *act, char **optstr)
+{
+	if (!is_report_browser(browser->hbt))
+		return 0;
+
+	if (asprintf(optstr, "Switch to another data file in PWD") < 0)
+		return 0;
+
+	act->fn = do_switch_data;
+	return 1;
+}
+
+static int
+do_exit_browser(struct hist_browser *browser __maybe_unused,
+		struct popup_action *act __maybe_unused)
+{
+	return 0;
+}
+
+static int
+add_exit_opt(struct hist_browser *browser __maybe_unused,
+	     struct popup_action *act, char **optstr)
+{
+	if (asprintf(optstr, "Exit") < 0)
+		return 0;
+
+	act->fn = do_exit_browser;
+	return 1;
 }
 
 static void hist_browser__update_nr_entries(struct hist_browser *hb)
@@ -1546,6 +1683,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 	struct branch_info *bi;
 #define MAX_OPTIONS  16
 	char *options[MAX_OPTIONS];
+	struct popup_action actions[MAX_OPTIONS];
 	int nr_options = 0;
 	int key = -1;
 	char buf[64];
@@ -1600,6 +1738,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 	ui_helpline__push(helpline);
 
 	memset(options, 0, sizeof(options));
+	memset(actions, 0, sizeof(actions));
 
 	perf_hpp__for_each_format(fmt)
 		perf_hpp__reset_width(fmt, hists);
@@ -1610,12 +1749,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 	while (1) {
 		struct thread *thread = NULL;
 		struct dso *dso = NULL;
-		struct map_symbol ms;
-		int choice = 0,
-		    annotate = -2, zoom_dso = -2, zoom_thread = -2,
-		    annotate_f = -2, annotate_t = -2, browse_map = -2;
-		int scripts_comm = -2, scripts_symbol = -2,
-		    scripts_all = -2, switch_data = -2;
+		int choice = 0;
 
 		nr_options = 0;
 
@@ -1648,22 +1782,23 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			    browser->selection->map->dso->annotate_warned)
 				continue;
 
-			ms.map = browser->selection->map;
-			ms.sym = browser->selection->sym;
-
-			do_annotate(browser, &ms);
+			actions->ms.map = browser->selection->map;
+			actions->ms.sym = browser->selection->sym;
+			do_annotate(browser, actions);
 			continue;
 		case 'P':
 			hist_browser__dump(browser);
 			continue;
 		case 'd':
-			do_zoom_dso(browser, dso);
+			actions->dso = dso;
+			do_zoom_dso(browser, actions);
 			continue;
 		case 'V':
 			browser->show_dso = !browser->show_dso;
 			continue;
 		case 't':
-			do_zoom_thread(browser, thread);
+			actions->thread = thread;
+			do_zoom_thread(browser, actions);
 			continue;
 		case '/':
 			if (ui_browser__input_window("Symbol to show",
@@ -1676,12 +1811,15 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			}
 			continue;
 		case 'r':
-			if (is_report_browser(hbt))
-				do_run_script(browser, NULL, NULL);
+			if (is_report_browser(hbt)) {
+				actions->thread = NULL;
+				actions->ms.sym = NULL;
+				do_run_script(browser, actions);
+			}
 			continue;
 		case 's':
 			if (is_report_browser(hbt)) {
-				key = do_switch_data(browser, key);
+				key = do_switch_data(browser, actions);
 				if (key == K_SWITCH_INPUT_DATA)
 					goto out_free_stack;
 			}
@@ -1762,129 +1900,65 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			if (bi == NULL)
 				goto skip_annotation;
 
-			if (bi->from.sym != NULL &&
-			    !bi->from.map->dso->annotate_warned &&
-			    asprintf(&options[nr_options], "Annotate %s", bi->from.sym->name) > 0) {
-				annotate_f = nr_options++;
-			}
-
-			if (bi->to.sym != NULL &&
-			    !bi->to.map->dso->annotate_warned &&
-			    (bi->to.sym != bi->from.sym ||
-			     bi->to.map->dso != bi->from.map->dso) &&
-			    asprintf(&options[nr_options], "Annotate %s", bi->to.sym->name) > 0) {
-				annotate_t = nr_options++;
-			}
+			nr_options += add_annotate_opt(browser,
+						       &actions[nr_options],
+						       &options[nr_options],
+						       bi->from.map,
+						       bi->from.sym);
+			if (bi->to.sym != bi->from.sym)
+				nr_options += add_annotate_opt(browser,
+							&actions[nr_options],
+							&options[nr_options],
+							bi->to.map,
+							bi->to.sym);
 		} else {
-			if (browser->selection->sym != NULL &&
-			    !browser->selection->map->dso->annotate_warned) {
-				struct annotation *notes;
-
-				notes = symbol__annotation(browser->selection->sym);
-
-				if (notes->src &&
-				    asprintf(&options[nr_options], "Annotate %s",
-						 browser->selection->sym->name) > 0) {
-					annotate = nr_options++;
-				}
-			}
+			nr_options += add_annotate_opt(browser,
+						       &actions[nr_options],
+						       &options[nr_options],
+						       browser->selection->map,
+						       browser->selection->sym);
 		}
 skip_annotation:
-		if (thread != NULL &&
-		    asprintf(&options[nr_options], "Zoom %s %s(%d) thread",
-			     (browser->hists->thread_filter ? "out of" : "into"),
-			     (thread->comm_set ? thread__comm_str(thread) : ""),
-			     thread->tid) > 0)
-			zoom_thread = nr_options++;
-
-		if (dso != NULL &&
-		    asprintf(&options[nr_options], "Zoom %s %s DSO",
-			     (browser->hists->dso_filter ? "out of" : "into"),
-			     (dso->kernel ? "the Kernel" : dso->short_name)) > 0)
-			zoom_dso = nr_options++;
-
-		if (browser->selection != NULL &&
-		    browser->selection->map != NULL &&
-		    asprintf(&options[nr_options], "Browse map details") > 0)
-			browse_map = nr_options++;
+		nr_options += add_thread_opt(browser, &actions[nr_options],
+					     &options[nr_options], thread);
+		nr_options += add_dso_opt(browser, &actions[nr_options],
+					  &options[nr_options], dso);
+		nr_options += add_map_opt(browser, &actions[nr_options],
+					  &options[nr_options],
+					  browser->selection->map);
 
 		/* perf script support */
 		if (browser->he_selection) {
-			struct symbol *sym;
-
-			if (asprintf(&options[nr_options], "Run scripts for samples of thread [%s]",
-				     thread__comm_str(browser->he_selection->thread)) > 0)
-				scripts_comm = nr_options++;
-
-			sym = browser->he_selection->ms.sym;
-			if (sym && sym->namelen &&
-				asprintf(&options[nr_options], "Run scripts for samples of symbol [%s]",
-						sym->name) > 0)
-				scripts_symbol = nr_options++;
+			nr_options += add_script_opt(browser,
+						     &actions[nr_options],
+						     &options[nr_options],
+						     thread, NULL);
+			nr_options += add_script_opt(browser,
+						     &actions[nr_options],
+						     &options[nr_options],
+						     NULL, browser->selection->sym);
 		}
-
-		if (asprintf(&options[nr_options], "Run scripts for all samples") > 0)
-			scripts_all = nr_options++;
-
-		if (is_report_browser(hbt) && asprintf(&options[nr_options],
-				"Switch to another data file in PWD") > 0)
-			switch_data = nr_options++;
+		nr_options += add_script_opt(browser, &actions[nr_options],
+					     &options[nr_options], NULL, NULL);
+		nr_options += add_switch_opt(browser, &actions[nr_options],
+					     &options[nr_options]);
 add_exit_option:
-		if (asprintf(&options[nr_options], "Exit") > 0)
-			nr_options++;
-retry_popup_menu:
-		choice = ui__popup_menu(nr_options, options);
+		nr_options += add_exit_opt(browser, &actions[nr_options],
+					   &options[nr_options]);
 
-		if (choice == nr_options - 1)
-			break;
+		do {
+			struct popup_action *act;
 
-		if (choice == -1) {
-			free_popup_options(options, nr_options - 1);
-			continue;
-		}
-
-		if (choice == annotate || choice == annotate_t || choice == annotate_f) {
-			struct hist_entry *he;
-
-			he = hist_browser__selected_entry(browser);
-			if (he == NULL)
-				continue;
-
-			if (choice == annotate_f) {
-				ms.map = he->branch_info->from.map;
-				ms.sym = he->branch_info->from.sym;
-			} else if (choice == annotate_t) {
-				ms.map = he->branch_info->to.map;
-				ms.sym = he->branch_info->to.sym;
-			} else {
-				ms = *browser->selection;
-			}
-
-			if (do_annotate(browser, &ms) == 1)
-				goto retry_popup_menu;
-		} else if (choice == browse_map) {
-			do_browse_map(browser, browser->selection->map);
-		} else if (choice == zoom_dso) {
-			do_zoom_dso(browser, dso);
-		} else if (choice == zoom_thread) {
-			do_zoom_thread(browser, thread);
-		}
-		/* perf scripts support */
-		else if (choice == scripts_all || choice == scripts_comm ||
-				choice == scripts_symbol) {
-			if (choice == scripts_comm)
-				do_run_script(browser, browser->he_selection->thread, NULL);
-			if (choice == scripts_symbol)
-				do_run_script(browser, NULL, browser->he_selection->ms.sym);
-			if (choice == scripts_all)
-				do_run_script(browser, NULL, NULL);
-		}
-		/* Switch to another data file */
-		else if (choice == switch_data) {
-			key = do_switch_data(browser, key);
-			if (key == K_SWITCH_INPUT_DATA)
+			choice = ui__popup_menu(nr_options, options);
+			if (choice == -1 || choice >= nr_options)
 				break;
-		}
+
+			act = &actions[choice];
+			key = act->fn(browser, act);
+		} while (key == 1);
+
+		if (key == K_SWITCH_INPUT_DATA)
+			break;
 	}
 out_free_stack:
 	pstack__delete(browser->pstack);
