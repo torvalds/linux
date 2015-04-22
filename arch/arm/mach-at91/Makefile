@@ -1,6 +1,8 @@
 #
 # Makefile for the linux kernel.
 #
+ccflags-$(CONFIG_ARCH_MULTIPLATFORM) := -I$(srctree)/$(src)/include
+asflags-$(CONFIG_ARCH_MULTIPLATFORM) := -I$(srctree)/$(src)/include
 
 obj-y		:= soc.o
 
@@ -15,6 +17,9 @@ obj-$(CONFIG_SOC_SAMA5)		+= sama5.o
 obj-$(CONFIG_PM)		+= pm.o
 obj-$(CONFIG_PM)		+= pm_suspend.o
 
+ifeq ($(CONFIG_CPU_V7),y)
+AFLAGS_pm_suspend.o := -march=armv7-a
+endif
 ifeq ($(CONFIG_PM_DEBUG),y)
 CFLAGS_pm.o += -DDEBUG
 endif

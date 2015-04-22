@@ -62,6 +62,10 @@ config ARCH_R8A7740
 	select ARCH_RMOBILE
 	select RENESAS_INTC_IRQPIN
 
+config ARCH_R8A7778
+	bool "R-Car M1A (R8A77781)"
+	select ARCH_RCAR_GEN1
+
 config ARCH_R8A7779
 	bool "R-Car H1 (R8A77790)"
 	select ARCH_RCAR_GEN1
@@ -80,6 +84,11 @@ config ARCH_R8A7794
 	bool "R-Car E2 (R8A77940)"
 	select ARCH_RCAR_GEN2
 
+config ARCH_SH73A0
+	bool "SH-Mobile AG5 (R8A73A00)"
+	select ARCH_RMOBILE
+	select RENESAS_INTC_IRQPIN
+
 comment "Renesas ARM SoCs Board Type"
 
 config MACH_MARZEN
@@ -94,13 +103,6 @@ if ARCH_SHMOBILE_LEGACY
 
 comment "Renesas ARM SoCs System Type"
 
-config ARCH_SH7372
-	bool "SH-Mobile AP4 (SH7372)"
-	select ARCH_RMOBILE
-	select ARCH_WANT_OPTIONAL_GPIOLIB
-	select ARM_CPU_SUSPEND if PM || CPU_IDLE
-	select SH_INTC
-
 config ARCH_SH73A0
 	bool "SH-Mobile AG5 (R8A73A00)"
 	select ARCH_RMOBILE
@@ -109,13 +111,6 @@ config ARCH_SH73A0
 	select I2C
 	select SH_INTC
 	select RENESAS_INTC_IRQPIN
-
-config ARCH_R8A73A4
-	bool "R-Mobile APE6 (R8A73A40)"
-	select ARCH_RMOBILE
-	select ARCH_WANT_OPTIONAL_GPIOLIB
-	select ARM_GIC
-	select RENESAS_IRQC
 
 config ARCH_R8A7740
 	bool "R-Mobile A1 (R8A77400)"
@@ -137,33 +132,6 @@ config ARCH_R8A7779
 	select ARM_GIC
 
 comment "Renesas ARM SoCs Board Type"
-
-config MACH_APE6EVM
-	bool "APE6EVM board"
-	depends on ARCH_R8A73A4
-	select SMSC_PHY if SMSC911X
-	select USE_OF
-
-config MACH_APE6EVM_REFERENCE
-	bool "APE6EVM board - Reference Device Tree Implementation"
-	depends on ARCH_R8A73A4
-	select SMSC_PHY if SMSC911X
-	select USE_OF
-	---help---
-	   Use reference implementation of APE6EVM board support
-	   which makes a greater use of device tree at the expense
-	   of not supporting a number of devices.
-
-	   This is intended to aid developers
-
-config MACH_MACKEREL
-	bool "mackerel board"
-	depends on ARCH_SH7372
-	select ARCH_REQUIRE_GPIOLIB
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-	select SMSC_PHY if SMSC911X
-	select SND_SOC_AK4642 if SND_SIMPLE_CARD
-	select USE_OF
 
 config MACH_ARMADILLO800EVA
 	bool "Armadillo-800 EVA board"
@@ -210,20 +178,6 @@ config MACH_KZM9G
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 	select SND_SOC_AK4642 if SND_SIMPLE_CARD
 	select USE_OF
-
-config MACH_KZM9G_REFERENCE
-	bool "KZM-A9-GT board - Reference Device Tree Implementation"
-	depends on ARCH_SH73A0
-	select ARCH_REQUIRE_GPIOLIB
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-	select SND_SOC_AK4642 if SND_SIMPLE_CARD
-	select USE_OF
-	---help---
-	   Use reference implementation of KZM-A9-GT board support
-	   which makes as greater use of device tree at the expense
-	   of not supporting a number of devices.
-
-	   This is intended to aid developers
 
 comment "Renesas ARM SoCs System Configuration"
 

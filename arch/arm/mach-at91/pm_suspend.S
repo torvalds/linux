@@ -13,7 +13,6 @@
  */
 #include <linux/linkage.h>
 #include <linux/clk/at91_pmc.h>
-#include <mach/hardware.h>
 #include <mach/at91_ramc.h>
 #include "pm.h"
 

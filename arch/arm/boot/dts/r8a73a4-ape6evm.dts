@@ -22,7 +22,7 @@
 	};
 
 	chosen {
-		bootargs = "console=ttySC0,115200 ignore_loglevel root=/dev/nfs ip=dhcp rw";
+		bootargs = "ignore_loglevel root=/dev/nfs ip=dhcp rw";
 		stdout-path = &scifa0;
 	};
 
@@ -70,26 +70,6 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		regulator-always-on;
-	};
-
-	lbsc {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges = <0 0 0 0x20000000>;
-
-		ethernet@8000000 {
-			compatible = "smsc,lan9220", "smsc,lan9115";
-			reg = <0x08000000 0x1000>;
-			interrupt-parent = <&irqc1>;
-			interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
-			phy-mode = "mii";
-			reg-io-width = <4>;
-			smsc,irq-active-high;
-			smsc,irq-push-pull;
-			vdd33a-supply = <&ape6evm_fixed_3v3>;
-			vddvario-supply = <&ape6evm_fixed_1v8>;
-		};
 	};
 
 	leds {
@@ -186,6 +166,21 @@
 		1462500  995000
 	>;
 	voltage-tolerance = <1>; /* 1% */
+};
+
+&bsc {
+	ethernet@8000000 {
+		compatible = "smsc,lan9220", "smsc,lan9115";
+		reg = <0x08000000 0x1000>;
+		interrupt-parent = <&irqc1>;
+		interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
+		phy-mode = "mii";
+		reg-io-width = <4>;
+		smsc,irq-active-high;
+		smsc,irq-push-pull;
+		vdd33a-supply = <&ape6evm_fixed_3v3>;
+		vddvario-supply = <&ape6evm_fixed_1v8>;
+	};
 };
 
 &cmt1 {
