@@ -388,7 +388,13 @@ PE_NAME ':' PE_NAME
 	struct list_head *list;
 
 	ALLOC_LIST(list);
-	ABORT_ON(parse_events_add_tracepoint(list, &data->idx, $1, $3));
+	if (parse_events_add_tracepoint(list, &data->idx, $1, $3)) {
+		struct parse_events_error *error = data->error;
+
+		error->idx = @1.first_column;
+		error->str = strdup("unknown tracepoint");
+		return -1;
+	}
 	$$ = list;
 }
 
