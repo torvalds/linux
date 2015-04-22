@@ -1123,6 +1123,18 @@ static void i40e_update_pf_stats(struct i40e_pf *pf)
 			   pf->stat_offsets_loaded,
 			   &osd->rx_lpi_count, &nsd->rx_lpi_count);
 
+	if (pf->flags & I40E_FLAG_FD_SB_ENABLED &&
+	    !(pf->auto_disable_flags & I40E_FLAG_FD_SB_ENABLED))
+		nsd->fd_sb_status = true;
+	else
+		nsd->fd_sb_status = false;
+
+	if (pf->flags & I40E_FLAG_FD_ATR_ENABLED &&
+	    !(pf->auto_disable_flags & I40E_FLAG_FD_ATR_ENABLED))
+		nsd->fd_atr_status = true;
+	else
+		nsd->fd_atr_status = false;
+
 	pf->stat_offsets_loaded = true;
 }
 
