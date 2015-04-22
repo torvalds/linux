@@ -5687,7 +5687,7 @@ static int __init rbd_init(void)
 
 	/*
 	 * The number of active work items is limited by the number of
-	 * rbd devices, so leave @max_active at default.
+	 * rbd devices * queue depth, so leave @max_active at default.
 	 */
 	rbd_wq = alloc_workqueue(RBD_DRV_NAME, WQ_MEM_RECLAIM, 0);
 	if (!rbd_wq) {
