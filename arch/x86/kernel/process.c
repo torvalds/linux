@@ -99,14 +99,9 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 	return 0;
 }
 
-void free_thread_xstate(struct task_struct *tsk)
-{
-	fpstate_free(&tsk->thread.fpu);
-}
-
 void arch_release_task_struct(struct task_struct *tsk)
 {
-	free_thread_xstate(tsk);
+	fpstate_free(&tsk->thread.fpu);
 }
 
 void arch_task_cache_init(void)
@@ -154,7 +149,7 @@ void flush_thread(void)
 	if (!use_eager_fpu()) {
 		/* FPU state will be reallocated lazily at the first use. */
 		drop_fpu(tsk);
-		free_thread_xstate(tsk);
+		fpstate_free(&tsk->thread.fpu);
 	} else {
 		if (!tsk_used_math(tsk)) {
 			/* kthread execs. TODO: cleanup this horror. */
