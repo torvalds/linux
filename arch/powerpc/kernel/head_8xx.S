@@ -351,12 +351,15 @@ InstructionTLBMiss:
 	rlwimi	r11, r10, 32 - ((PAGE_SHIFT - 2) << 1), (PAGE_SHIFT - 2) << 1, 29
 	lwz	r11, (swapper_pg_dir-PAGE_OFFSET)@l(r11)	/* Get the level 1 entry */
 
-	/* Load the MI_TWC with the attributes for this "segment." */
-	MTSPR_CPU6(SPRN_MI_TWC, r11, r3)	/* Set segment attributes */
-	rlwinm	r11, r11,0,0,19	/* Extract page descriptor page address */
 	/* Extract level 2 index */
 	rlwinm	r10, r10, 32 - (PAGE_SHIFT - 2), 32 - PAGE_SHIFT, 29
-	lwzx	r10, r10, r11	/* Get the pte */
+	rlwimi	r10, r11, 0, 0, 32 - PAGE_SHIFT - 1	/* Add level 2 base */
+	lwz	r10, 0(r10)	/* Get the pte */
+
+	/* Insert the APG into the TWC from the Linux PTE. */
+	rlwimi	r11, r10, 0, 26, 26
+	/* Load the MI_TWC with the attributes for this "segment." */
+	MTSPR_CPU6(SPRN_MI_TWC, r11, r3)	/* Set segment attributes */
 
 #ifdef CONFIG_SWAP
 	rlwinm	r11, r10, 32-5, _PAGE_PRESENT
@@ -365,12 +368,12 @@ InstructionTLBMiss:
 #endif
 	li	r11, RPN_PATTERN
 	/* The Linux PTE won't go exactly into the MMU TLB.
-	 * Software indicator bits 21 and 28 must be clear.
+	 * Software indicator bits 20-23 and 28 must be clear.
 	 * Software indicator bits 24, 25, 26, and 27 must be
 	 * set.  All other Linux PTE bits control the behavior
 	 * of the MMU.
 	 */
-	rlwimi	r10, r11, 0, 0x07f8	/* Set 24-27, clear 21-23,28 */
+	rlwimi	r10, r11, 0, 0x0ff8	/* Set 24-27, clear 20-23,28 */
 	MTSPR_CPU6(SPRN_MI_RPN, r10, r3)	/* Update TLB entry */
 
 	/* Restore registers */
@@ -411,13 +414,13 @@ DataStoreTLBMiss:
 	rlwimi	r10, r11, 0, 0, 32 - PAGE_SHIFT - 1	/* Add level 2 base */
 	lwz	r10, 0(r10)	/* Get the pte */
 
-	/* Insert the Guarded flag into the TWC from the Linux PTE.
-	 * It is bit 27 of both the Linux PTE and the TWC (at least
+	/* Insert the Guarded flag and APG into the TWC from the Linux PTE.
+	 * It is bit 26-27 of both the Linux PTE and the TWC (at least
 	 * I got that right :-).  It will be better when we can put
 	 * this into the Linux pgd/pmd and load it in the operation
 	 * above.
 	 */
-	rlwimi	r11, r10, 0, 27, 27
+	rlwimi	r11, r10, 0, 26, 27
 	/* Insert the WriteThru flag into the TWC from the Linux PTE.
 	 * It is bit 25 in the Linux PTE and bit 30 in the TWC
 	 */
