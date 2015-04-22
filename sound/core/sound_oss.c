@@ -214,9 +214,6 @@ EXPORT_SYMBOL(snd_unregister_oss_device);
  */
 
 #ifdef CONFIG_PROC_FS
-
-static struct snd_info_entry *snd_minor_info_oss_entry;
-
 static const char *snd_oss_device_type_name(int type)
 {
 	switch (type) {
@@ -265,18 +262,9 @@ int __init snd_minor_info_oss_init(void)
 	entry = snd_info_create_module_entry(THIS_MODULE, "devices", snd_oss_root);
 	if (entry) {
 		entry->c.text.read = snd_minor_info_oss_read;
-		if (snd_info_register(entry) < 0) {
+		if (snd_info_register(entry) < 0)
 			snd_info_free_entry(entry);
-			entry = NULL;
-		}
 	}
-	snd_minor_info_oss_entry = entry;
-	return 0;
-}
-
-int __exit snd_minor_info_oss_done(void)
-{
-	snd_info_free_entry(snd_minor_info_oss_entry);
 	return 0;
 }
 #endif /* CONFIG_PROC_FS */

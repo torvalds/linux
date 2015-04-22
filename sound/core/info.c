@@ -495,9 +495,6 @@ int __init snd_info_init(void)
 
 int __exit snd_info_done(void)
 {
-	snd_card_info_done();
-	snd_minor_info_oss_done();
-	snd_minor_info_done();
 	snd_info_free_entry(snd_proc_root);
 	return 0;
 }
