@@ -22,6 +22,7 @@
  *
  */
 
+#include <crypto/aead.h>
 #include <crypto/hash.h>
 #include <linux/err.h>
 #include <linux/fips.h>
