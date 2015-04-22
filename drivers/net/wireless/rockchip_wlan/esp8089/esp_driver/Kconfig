@@ -1,4 +1,22 @@
 config ESP8089
-	tristate "Eagle WLAN driver"
-	depends on MMC && MAC80211
+      depends on WLAN_80211 && MMC
+      select WIRELESS_EXT
+      select WEXT_PRIV
+      select CFG80211
+      select MAC80211
+	  select NL80211_TESTMODE
+      bool "Espressif 8089 sdio Wi-Fi"
+      ---help---
+        Espressif 8089 sdio Wi-Fi support
+	
+  config BK3515A_COMBO
+	  depends on ESP8089
+	  select WIRELESS_EXT
+	  select WEXT_PRIV
+	  select CFG80211
+	  select MAC80211
+	  select NL80211_TESTMODE
+	  bool "Espressif 8089 sdio Wi-Fi combo with BK3515A bluetooth"
+	  ---help---
+	    RK Wi-Fi+BT+[GPS optional] Combo module support
 
