@@ -17,6 +17,7 @@
 #include "parse-events-flex.h"
 #include "pmu.h"
 #include "thread_map.h"
+#include "asm/bug.h"
 
 #define MAX_NAME_LEN 100
 
@@ -1019,11 +1020,13 @@ int parse_events_terms(struct list_head *terms, const char *str)
 	return ret;
 }
 
-int parse_events(struct perf_evlist *evlist, const char *str)
+int parse_events(struct perf_evlist *evlist, const char *str,
+		 struct parse_events_error *err)
 {
 	struct parse_events_evlist data = {
-		.list = LIST_HEAD_INIT(data.list),
-		.idx  = evlist->nr_entries,
+		.list  = LIST_HEAD_INIT(data.list),
+		.idx   = evlist->nr_entries,
+		.error = err,
 	};
 	int ret;
 
@@ -1044,16 +1047,87 @@ int parse_events(struct perf_evlist *evlist, const char *str)
 	return ret;
 }
 
+#define MAX_WIDTH 1000
+static int get_term_width(void)
+{
+	struct winsize ws;
+
+	get_term_dimensions(&ws);
+	return ws.ws_col > MAX_WIDTH ? MAX_WIDTH : ws.ws_col;
+}
+
+static void parse_events_print_error(struct parse_events_error *err,
+				     const char *event)
+{
+	const char *str = "invalid or unsupported event: ";
+	char _buf[MAX_WIDTH];
+	char *buf = (char *) event;
+	int idx = 0;
+
+	if (err->str) {
+		/* -2 for extra '' in the final fprintf */
+		int width       = get_term_width() - 2;
+		int len_event   = strlen(event);
+		int len_str, max_len, cut = 0;
+
+		/*
+		 * Maximum error index indent, we will cut
+		 * the event string if it's bigger.
+		 */
+		int max_err_idx = 10;
+
+		/*
+		 * Let's be specific with the message when
+		 * we have the precise error.
+		 */
+		str     = "event syntax error: ";
+		len_str = strlen(str);
+		max_len = width - len_str;
+
+		buf = _buf;
+
+		/* We're cutting from the beggining. */
+		if (err->idx > max_err_idx)
+			cut = err->idx - max_err_idx;
+
+		strncpy(buf, event + cut, max_len);
+
+		/* Mark cut parts with '..' on both sides. */
+		if (cut)
+			buf[0] = buf[1] = '.';
+
+		if ((len_event - cut) > max_len) {
+			buf[max_len - 1] = buf[max_len - 2] = '.';
+			buf[max_len] = 0;
+		}
+
+		idx = len_str + err->idx - cut;
+	}
+
+	fprintf(stderr, "%s'%s'\n", str, buf);
+	if (idx) {
+		fprintf(stderr, "%*s\\___ %s\n", idx + 1, "", err->str);
+		if (err->help)
+			fprintf(stderr, "\n%s\n", err->help);
+		free(err->str);
+		free(err->help);
+	}
+
+	fprintf(stderr, "Run 'perf list' for a list of valid events\n");
+}
+
+#undef MAX_WIDTH
+
 int parse_events_option(const struct option *opt, const char *str,
 			int unset __maybe_unused)
 {
 	struct perf_evlist *evlist = *(struct perf_evlist **)opt->value;
-	int ret = parse_events(evlist, str);
+	struct parse_events_error err = { .idx = 0, };
+	int ret = parse_events(evlist, str, &err);
 
-	if (ret) {
-		fprintf(stderr, "invalid or unsupported event: '%s'\n", str);
-		fprintf(stderr, "Run 'perf list' for a list of valid events\n");
-	}
+	if (ret)
+		parse_events_print_error(&err, str);
+
 	return ret;
 }
 
@@ -1534,4 +1608,14 @@ void parse_events__free_terms(struct list_head *terms)
 
 	list_for_each_entry_safe(term, h, terms, list)
 		free(term);
+}
+
+void parse_events_evlist_error(struct parse_events_evlist *data,
+			       int idx, const char *str)
+{
+	struct parse_events_error *err = data->error;
+
+	err->idx = idx;
+	err->str = strdup(str);
+	WARN_ONCE(!err->str, "WARNING: failed to allocate error string");
 }

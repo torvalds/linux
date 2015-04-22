@@ -78,8 +78,8 @@ int test__keep_tracking(void)
 
 	perf_evlist__set_maps(evlist, cpus, threads);
 
-	CHECK__(parse_events(evlist, "dummy:u"));
-	CHECK__(parse_events(evlist, "cycles:u"));
+	CHECK__(parse_events(evlist, "dummy:u", NULL));
+	CHECK__(parse_events(evlist, "cycles:u", NULL));
 
 	perf_evlist__config(evlist, &opts);
 

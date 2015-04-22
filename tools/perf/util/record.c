@@ -20,7 +20,7 @@ static int perf_do_probe_api(setup_probe_fn_t fn, int cpu, const char *str)
 	if (!evlist)
 		return -ENOMEM;
 
-	if (parse_events(evlist, str))
+	if (parse_events(evlist, str, NULL))
 		goto out_delete;
 
 	evsel = perf_evlist__first(evlist);
@@ -216,7 +216,7 @@ bool perf_evlist__can_select_event(struct perf_evlist *evlist, const char *str)
 	if (!temp_evlist)
 		return false;
 
-	err = parse_events(temp_evlist, str);
+	err = parse_events(temp_evlist, str, NULL);
 	if (err)
 		goto out_delete;
 

@@ -1541,7 +1541,7 @@ static int setup_events(const char * const *attrs, unsigned len)
 	unsigned i;
 
 	for (i = 0; i < len; i++) {
-		if (parse_events(evsel_list, attrs[i]))
+		if (parse_events(evsel_list, attrs[i], NULL))
 			return -1;
 	}
 	return 0;

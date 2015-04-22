@@ -282,10 +282,10 @@ int test__hists_link(void)
 	if (evlist == NULL)
                 return -ENOMEM;
 
-	err = parse_events(evlist, "cpu-clock");
+	err = parse_events(evlist, "cpu-clock", NULL);
 	if (err)
 		goto out;
-	err = parse_events(evlist, "task-clock");
+	err = parse_events(evlist, "task-clock", NULL);
 	if (err)
 		goto out;
 

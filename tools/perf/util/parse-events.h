@@ -12,6 +12,7 @@
 struct list_head;
 struct perf_evsel;
 struct perf_evlist;
+struct parse_events_error;
 
 struct option;
 
@@ -29,7 +30,8 @@ const char *event_type(int type);
 
 extern int parse_events_option(const struct option *opt, const char *str,
 			       int unset);
-extern int parse_events(struct perf_evlist *evlist, const char *str);
+extern int parse_events(struct perf_evlist *evlist, const char *str,
+			struct parse_events_error *error);
 extern int parse_events_terms(struct list_head *terms, const char *str);
 extern int parse_filter(const struct option *opt, const char *str, int unset);
 
@@ -74,10 +76,17 @@ struct parse_events_term {
 	bool used;
 };
 
+struct parse_events_error {
+	int   idx;	/* index in the parsed string */
+	char *str;      /* string to display at the index */
+	char *help;	/* optional help string */
+};
+
 struct parse_events_evlist {
-	struct list_head list;
-	int idx;
-	int nr_groups;
+	struct list_head	   list;
+	int			   idx;
+	int			   nr_groups;
+	struct parse_events_error *error;
 };
 
 struct parse_events_terms {
@@ -114,6 +123,8 @@ void parse_events__set_leader(char *name, struct list_head *list);
 void parse_events_update_lists(struct list_head *list_event,
 			       struct list_head *list_all);
 void parse_events_error(void *data, void *scanner, char const *msg);
+void parse_events_evlist_error(struct parse_events_evlist *data,
+			       int idx, const char *str);
 
 void print_events(const char *event_glob, bool name_only);
 

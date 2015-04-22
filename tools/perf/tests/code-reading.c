@@ -482,7 +482,7 @@ static int do_test_code_reading(bool try_kcore)
 		else
 			str = "cycles";
 		pr_debug("Parsing event '%s'\n", str);
-		ret = parse_events(evlist, str);
+		ret = parse_events(evlist, str, NULL);
 		if (ret < 0) {
 			pr_debug("parse_events failed\n");
 			goto out_err;
