@@ -9,13 +9,13 @@
 
 static DEFINE_PER_CPU(bool, in_kernel_fpu);
 
-void kernel_fpu_disable(void)
+static void kernel_fpu_disable(void)
 {
 	WARN_ON(this_cpu_read(in_kernel_fpu));
 	this_cpu_write(in_kernel_fpu, true);
 }
 
-void kernel_fpu_enable(void)
+static void kernel_fpu_enable(void)
 {
 	this_cpu_write(in_kernel_fpu, false);
 }
@@ -32,7 +32,7 @@ void kernel_fpu_enable(void)
  * Except for the eagerfpu case when we return true; in the likely case
  * the thread has FPU but we are not going to set/clear TS.
  */
-static inline bool interrupted_kernel_fpu_idle(void)
+static bool interrupted_kernel_fpu_idle(void)
 {
 	if (this_cpu_read(in_kernel_fpu))
 		return false;
@@ -52,7 +52,7 @@ static inline bool interrupted_kernel_fpu_idle(void)
  * in an interrupt context from user mode - we'll just
  * save the FPU state as required.
  */
-static inline bool interrupted_user_mode(void)
+static bool interrupted_user_mode(void)
 {
 	struct pt_regs *regs = get_irq_regs();
 	return regs && user_mode(regs);
