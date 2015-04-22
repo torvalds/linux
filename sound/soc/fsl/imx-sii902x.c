@@ -55,8 +55,10 @@ static int imx_sii902x_startup(struct snd_pcm_substream *substream)
 
 	support_rates[0] = 32000;
 	support_rates[1] = 48000;
+	support_rates[2] = 96000;
+	support_rates[3] = 192000;
 	constraint_rates.list = support_rates;
-	constraint_rates.count = 2;
+	constraint_rates.count = 4;
 
 	ret = snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
 						&constraint_rates);
