@@ -22,6 +22,9 @@ struct mpls_entry_decoded {
 	u8 bos;
 };
 
+struct mpls_dev {
+};
+
 struct sk_buff;
 
 static inline struct mpls_shim_hdr *mpls_hdr(const struct sk_buff *skb)
