@@ -201,6 +201,8 @@ struct dvb_tuner_ops {
 	int (*release)(struct dvb_frontend *fe);
 	int (*init)(struct dvb_frontend *fe);
 	int (*sleep)(struct dvb_frontend *fe);
+	int (*suspend)(struct dvb_frontend *fe);
+	int (*resume)(struct dvb_frontend *fe);
 
 	/** This is for simple PLLs - set all parameters in one go. */
 	int (*set_params)(struct dvb_frontend *fe);
@@ -405,6 +407,11 @@ struct dtv_frontend_properties {
 	struct dtv_fe_stats	block_count;
 };
 
+#define DVB_FE_NO_EXIT  0
+#define DVB_FE_NORMAL_EXIT      1
+#define DVB_FE_DEVICE_REMOVED   2
+#define DVB_FE_DEVICE_RESUME    3
+
 struct dvb_frontend {
 	struct dvb_frontend_ops ops;
 	struct dvb_adapter *dvb;
@@ -418,6 +425,7 @@ struct dvb_frontend {
 #define DVB_FRONTEND_COMPONENT_DEMOD 1
 	int (*callback)(void *adapter_priv, int component, int cmd, int arg);
 	int id;
+	unsigned int exit;
 };
 
 extern int dvb_register_frontend(struct dvb_adapter *dvb,
