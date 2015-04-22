@@ -1402,6 +1402,120 @@ close_file_and_continue:
 	return ret;
 }
 
+static int
+do_annotate(struct hist_browser *browser, struct map_symbol *ms)
+{
+	struct perf_evsel *evsel;
+	struct annotation *notes;
+	struct hist_entry *he;
+	int err;
+
+	if (!objdump_path && perf_session_env__lookup_objdump(browser->env))
+		return 0;
+
+	notes = symbol__annotation(ms->sym);
+	if (!notes->src)
+		return 0;
+
+	evsel = hists_to_evsel(browser->hists);
+	err = map_symbol__tui_annotate(ms, evsel, browser->hbt);
+	he = hist_browser__selected_entry(browser);
+	/*
+	 * offer option to annotate the other branch source or target
+	 * (if they exists) when returning from annotate
+	 */
+	if ((err == 'q' || err == CTRL('c')) && he->branch_info)
+		return 1;
+
+	ui_browser__update_nr_entries(&browser->b, browser->hists->nr_entries);
+	if (err)
+		ui_browser__handle_resize(&browser->b);
+	return 0;
+}
+
+static int
+do_zoom_thread(struct hist_browser *browser, struct thread *thread)
+{
+	if (browser->hists->thread_filter) {
+		pstack__remove(browser->pstack, &browser->hists->thread_filter);
+		perf_hpp__set_elide(HISTC_THREAD, false);
+		thread__zput(browser->hists->thread_filter);
+		ui_helpline__pop();
+	} else {
+		ui_helpline__fpush("To zoom out press <- or -> + \"Zoom out of %s(%d) thread\"",
+				   thread->comm_set ? thread__comm_str(thread) : "",
+				   thread->tid);
+		browser->hists->thread_filter = thread__get(thread);
+		perf_hpp__set_elide(HISTC_THREAD, false);
+		pstack__push(browser->pstack, &browser->hists->thread_filter);
+	}
+
+	hists__filter_by_thread(browser->hists);
+	hist_browser__reset(browser);
+	return 0;
+}
+
+static int
+do_zoom_dso(struct hist_browser *browser, struct dso *dso)
+{
+	if (browser->hists->dso_filter) {
+		pstack__remove(browser->pstack, &browser->hists->dso_filter);
+		perf_hpp__set_elide(HISTC_DSO, false);
+		browser->hists->dso_filter = NULL;
+		ui_helpline__pop();
+	} else {
+		if (dso == NULL)
+			return 0;
+		ui_helpline__fpush("To zoom out press <- or -> + \"Zoom out of %s DSO\"",
+				   dso->kernel ? "the Kernel" : dso->short_name);
+		browser->hists->dso_filter = dso;
+		perf_hpp__set_elide(HISTC_DSO, true);
+		pstack__push(browser->pstack, &browser->hists->dso_filter);
+	}
+
+	hists__filter_by_dso(browser->hists);
+	hist_browser__reset(browser);
+	return 0;
+}
+
+static int
+do_browse_map(struct hist_browser *browser __maybe_unused, struct map *map)
+{
+	map__browse(map);
+	return 0;
+}
+
+static int
+do_run_script(struct hist_browser *browser __maybe_unused,
+	      struct thread *thread, struct symbol *sym)
+{
+	char script_opt[64];
+	memset(script_opt, 0, sizeof(script_opt));
+
+	if (thread) {
+		scnprintf(script_opt, sizeof(script_opt), " -c %s ",
+			  thread__comm_str(thread));
+	} else if (sym) {
+		scnprintf(script_opt, sizeof(script_opt), " -S %s ",
+			  sym->name);
+	}
+
+	script_browse(script_opt);
+	return 0;
+}
+
+static int
+do_switch_data(struct hist_browser *browser __maybe_unused, int key)
+{
+	if (switch_data_file()) {
+		ui__warning("Won't switch the data files due to\n"
+			    "no valid data file get selected!\n");
+		return key;
+	}
+
+	return K_SWITCH_INPUT_DATA;
+}
+
 static void hist_browser__update_nr_entries(struct hist_browser *hb)
 {
 	u64 nr_entries = 0;
@@ -1435,7 +1549,6 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 	int nr_options = 0;
 	int key = -1;
 	char buf[64];
-	char script_opt[64];
 	int delay_secs = hbt ? hbt->refresh : 0;
 	struct perf_hpp_fmt *fmt;
 
@@ -1496,7 +1609,8 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 
 	while (1) {
 		struct thread *thread = NULL;
-		const struct dso *dso = NULL;
+		struct dso *dso = NULL;
+		struct map_symbol ms;
 		int choice = 0,
 		    annotate = -2, zoom_dso = -2, zoom_thread = -2,
 		    annotate_f = -2, annotate_t = -2, browse_map = -2;
@@ -1533,17 +1647,24 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			    browser->selection->sym == NULL ||
 			    browser->selection->map->dso->annotate_warned)
 				continue;
-			goto do_annotate;
+
+			ms.map = browser->selection->map;
+			ms.sym = browser->selection->sym;
+
+			do_annotate(browser, &ms);
+			continue;
 		case 'P':
 			hist_browser__dump(browser);
 			continue;
 		case 'd':
-			goto zoom_dso;
+			do_zoom_dso(browser, dso);
+			continue;
 		case 'V':
 			browser->show_dso = !browser->show_dso;
 			continue;
 		case 't':
-			goto zoom_thread;
+			do_zoom_thread(browser, thread);
+			continue;
 		case '/':
 			if (ui_browser__input_window("Symbol to show",
 					"Please enter the name of symbol you want to see",
@@ -1556,11 +1677,14 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			continue;
 		case 'r':
 			if (is_report_browser(hbt))
-				goto do_scripts;
+				do_run_script(browser, NULL, NULL);
 			continue;
 		case 's':
-			if (is_report_browser(hbt))
-				goto do_data_switch;
+			if (is_report_browser(hbt)) {
+				key = do_switch_data(browser, key);
+				if (key == K_SWITCH_INPUT_DATA)
+					goto out_free_stack;
+			}
 			continue;
 		case 'i':
 			/* env->arch is NULL for live-mode (i.e. perf top) */
@@ -1599,10 +1723,18 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 				continue;
 			}
 			top = pstack__pop(browser->pstack);
-			if (top == &browser->hists->dso_filter)
-				goto zoom_out_dso;
-			if (top == &browser->hists->thread_filter)
-				goto zoom_out_thread;
+			if (top == &browser->hists->dso_filter) {
+				perf_hpp__set_elide(HISTC_DSO, false);
+				browser->hists->dso_filter = NULL;
+				hists__filter_by_dso(browser->hists);
+			}
+			if (top == &browser->hists->thread_filter) {
+				perf_hpp__set_elide(HISTC_THREAD, false);
+				thread__zput(browser->hists->thread_filter);
+				hists__filter_by_thread(browser->hists);
+			}
+			ui_helpline__pop();
+			hist_browser__reset(browser);
 			continue;
 		}
 		case K_ESC:
@@ -1713,12 +1845,6 @@ retry_popup_menu:
 
 		if (choice == annotate || choice == annotate_t || choice == annotate_f) {
 			struct hist_entry *he;
-			struct annotation *notes;
-			struct map_symbol ms;
-			int err;
-do_annotate:
-			if (!objdump_path && perf_session_env__lookup_objdump(env))
-				continue;
 
 			he = hist_browser__selected_entry(browser);
 			if (he == NULL)
@@ -1734,86 +1860,30 @@ do_annotate:
 				ms = *browser->selection;
 			}
 
-			notes = symbol__annotation(ms.sym);
-			if (!notes->src)
-				continue;
-
-			err = map_symbol__tui_annotate(&ms, evsel, hbt);
-			/*
-			 * offer option to annotate the other branch source or target
-			 * (if they exists) when returning from annotate
-			 */
-			if ((err == 'q' || err == CTRL('c'))
-			    && annotate_t != -2 && annotate_f != -2)
+			if (do_annotate(browser, &ms) == 1)
 				goto retry_popup_menu;
-
-			ui_browser__update_nr_entries(&browser->b, browser->hists->nr_entries);
-			if (err)
-				ui_browser__handle_resize(&browser->b);
-
-		} else if (choice == browse_map)
-			map__browse(browser->selection->map);
-		else if (choice == zoom_dso) {
-zoom_dso:
-			if (browser->hists->dso_filter) {
-				pstack__remove(browser->pstack, &browser->hists->dso_filter);
-zoom_out_dso:
-				ui_helpline__pop();
-				browser->hists->dso_filter = NULL;
-				perf_hpp__set_elide(HISTC_DSO, false);
-			} else {
-				if (dso == NULL)
-					continue;
-				ui_helpline__fpush("To zoom out press <- or -> + \"Zoom out of %s DSO\"",
-						   dso->kernel ? "the Kernel" : dso->short_name);
-				browser->hists->dso_filter = dso;
-				perf_hpp__set_elide(HISTC_DSO, true);
-				pstack__push(browser->pstack, &browser->hists->dso_filter);
-			}
-			hists__filter_by_dso(hists);
-			hist_browser__reset(browser);
+		} else if (choice == browse_map) {
+			do_browse_map(browser, browser->selection->map);
+		} else if (choice == zoom_dso) {
+			do_zoom_dso(browser, dso);
 		} else if (choice == zoom_thread) {
-zoom_thread:
-			if (browser->hists->thread_filter) {
-				pstack__remove(browser->pstack, &browser->hists->thread_filter);
-zoom_out_thread:
-				ui_helpline__pop();
-				thread__zput(browser->hists->thread_filter);
-				perf_hpp__set_elide(HISTC_THREAD, false);
-			} else {
-				ui_helpline__fpush("To zoom out press <- or -> + \"Zoom out of %s(%d) thread\"",
-						   thread->comm_set ? thread__comm_str(thread) : "",
-						   thread->tid);
-				browser->hists->thread_filter = thread__get(thread);
-				perf_hpp__set_elide(HISTC_THREAD, false);
-				pstack__push(browser->pstack, &browser->hists->thread_filter);
-			}
-			hists__filter_by_thread(hists);
-			hist_browser__reset(browser);
+			do_zoom_thread(browser, thread);
 		}
 		/* perf scripts support */
 		else if (choice == scripts_all || choice == scripts_comm ||
 				choice == scripts_symbol) {
-do_scripts:
-			memset(script_opt, 0, 64);
-
 			if (choice == scripts_comm)
-				sprintf(script_opt, " -c %s ", thread__comm_str(browser->he_selection->thread));
-
+				do_run_script(browser, browser->he_selection->thread, NULL);
 			if (choice == scripts_symbol)
-				sprintf(script_opt, " -S %s ", browser->he_selection->ms.sym->name);
-
-			script_browse(script_opt);
+				do_run_script(browser, NULL, browser->he_selection->ms.sym);
+			if (choice == scripts_all)
+				do_run_script(browser, NULL, NULL);
 		}
 		/* Switch to another data file */
 		else if (choice == switch_data) {
-do_data_switch:
-			if (!switch_data_file()) {
-				key = K_SWITCH_INPUT_DATA;
+			key = do_switch_data(browser, key);
+			if (key == K_SWITCH_INPUT_DATA)
 				break;
-			} else
-				ui__warning("Won't switch the data files due to\n"
-					"no valid data file get selected!\n");
 		}
 	}
 out_free_stack:
