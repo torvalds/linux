@@ -171,9 +171,6 @@ static void mtd_blktrans_work(struct work_struct *work)
 		background_done = 0;
 	}
 
-	if (req)
-		__blk_end_request_all(req, -EIO);
-
 	spin_unlock_irq(rq->queue_lock);
 }
 
