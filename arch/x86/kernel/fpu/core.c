@@ -17,6 +17,7 @@ static void kernel_fpu_disable(void)
 
 static void kernel_fpu_enable(void)
 {
+	WARN_ON_ONCE(!this_cpu_read(in_kernel_fpu));
 	this_cpu_write(in_kernel_fpu, false);
 }
 
@@ -77,7 +78,7 @@ void __kernel_fpu_begin(void)
 {
 	struct task_struct *me = current;
 
-	this_cpu_write(in_kernel_fpu, true);
+	kernel_fpu_disable();
 
 	if (__thread_has_fpu(me)) {
 		__save_init_fpu(me);
@@ -100,7 +101,7 @@ void __kernel_fpu_end(void)
 		stts();
 	}
 
-	this_cpu_write(in_kernel_fpu, false);
+	kernel_fpu_enable();
 }
 EXPORT_SYMBOL(__kernel_fpu_end);
 
