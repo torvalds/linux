@@ -31,7 +31,6 @@
 #include <asm/setup.h>
 #include <asm/apic.h>
 #include <asm/desc.h>
-#include <asm/i387.h>
 #include <asm/fpu-internal.h>
 #include <asm/mtrr.h>
 #include <linux/numa.h>

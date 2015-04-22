@@ -10,18 +10,13 @@
 #ifndef _FPU_INTERNAL_H
 #define _FPU_INTERNAL_H
 
-#include <linux/kernel_stat.h>
 #include <linux/regset.h>
 #include <linux/compat.h>
 #include <linux/slab.h>
-#include <asm/asm.h>
-#include <asm/cpufeature.h>
-#include <asm/processor.h>
-#include <asm/sigcontext.h>
+
 #include <asm/user.h>
-#include <asm/uaccess.h>
+#include <asm/i387.h>
 #include <asm/xsave.h>
-#include <asm/smap.h>
 
 #ifdef CONFIG_X86_64
 # include <asm/sigcontext32.h>

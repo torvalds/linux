@@ -10,7 +10,6 @@
 #include <linux/syscalls.h>
 #include <linux/sched/sysctl.h>
 
-#include <asm/i387.h>
 #include <asm/insn.h>
 #include <asm/mman.h>
 #include <asm/mmu_context.h>

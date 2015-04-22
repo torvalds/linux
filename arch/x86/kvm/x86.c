@@ -59,7 +59,7 @@
 #include <asm/desc.h>
 #include <asm/mtrr.h>
 #include <asm/mce.h>
-#include <asm/i387.h>
+#include <linux/kernel_stat.h>
 #include <asm/fpu-internal.h> /* Ugh! */
 #include <asm/xcr.h>
 #include <asm/pvclock.h>
