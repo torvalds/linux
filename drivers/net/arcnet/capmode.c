@@ -238,9 +238,11 @@ static struct ArcProto capmode_proto = {
 	.ack_tx		= ack_tx
 };
 
-static void arcnet_cap_init(void)
+static int __init capmode_module_init(void)
 {
 	int count;
+
+	pr_info("cap mode (`c') encapsulation support loaded\n");
 
 	for (count = 1; count <= 8; count++)
 		if (arc_proto_map[count] == arc_proto_default)
@@ -252,12 +254,7 @@ static void arcnet_cap_init(void)
 
 	arc_proto_default = &capmode_proto;
 	arc_raw_proto = &capmode_proto;
-}
 
-static int __init capmode_module_init(void)
-{
-	pr_info("%s\n", "cap mode (`c') encapsulation support loaded");
-	arcnet_cap_init();
 	return 0;
 }
 
