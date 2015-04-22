@@ -25,7 +25,6 @@
 #include <linux/notifier.h>
 #include <linux/rwsem.h>
 #include <linux/slab.h>
-#include <linux/fips.h>
 
 /* Crypto notification events. */
 enum {
