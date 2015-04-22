@@ -5,20 +5,7 @@
  *  General FPU state handling cleanups
  *	Gareth Hughes <gareth@valinux.com>, May 2000
  */
-#include <linux/module.h>
-#include <linux/regset.h>
-#include <linux/sched.h>
-#include <linux/slab.h>
-
-#include <asm/sigcontext.h>
-#include <asm/processor.h>
-#include <asm/math_emu.h>
-#include <asm/tlbflush.h>
-#include <asm/uaccess.h>
-#include <asm/ptrace.h>
-#include <asm/i387.h>
 #include <asm/fpu-internal.h>
-#include <asm/user.h>
 
 static DEFINE_PER_CPU(bool, in_kernel_fpu);
 
