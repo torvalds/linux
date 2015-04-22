@@ -2396,10 +2396,6 @@ static int igb_get_ts_info(struct net_device *dev,
 			info->rx_filters |=
 				(1 << HWTSTAMP_FILTER_PTP_V1_L4_SYNC) |
 				(1 << HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ) |
-				(1 << HWTSTAMP_FILTER_PTP_V2_L2_SYNC) |
-				(1 << HWTSTAMP_FILTER_PTP_V2_L4_SYNC) |
-				(1 << HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ) |
-				(1 << HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ) |
 				(1 << HWTSTAMP_FILTER_PTP_V2_EVENT);
 
 		return 0;
