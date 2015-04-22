@@ -140,50 +140,6 @@ struct lib64_elfinfo
 };
 
 
-#ifdef __DEBUG
-static void dump_one_vdso_page(struct page *pg, struct page *upg)
-{
-	printk("kpg: %p (c:%d,f:%08lx)", __va(page_to_pfn(pg) << PAGE_SHIFT),
-	       page_count(pg),
-	       pg->flags);
-	if (upg && !IS_ERR(upg) /* && pg != upg*/) {
-		printk(" upg: %p (c:%d,f:%08lx)", __va(page_to_pfn(upg)
-						       << PAGE_SHIFT),
-		       page_count(upg),
-		       upg->flags);
-	}
-	printk("\n");
-}
-
-static void dump_vdso_pages(struct vm_area_struct * vma)
-{
-	int i;
-
-	if (!vma || is_32bit_task()) {
-		printk("vDSO32 @ %016lx:\n", (unsigned long)vdso32_kbase);
-		for (i=0; i<vdso32_pages; i++) {
-			struct page *pg = virt_to_page(vdso32_kbase +
-						       i*PAGE_SIZE);
-			struct page *upg = (vma && vma->vm_mm) ?
-				follow_page(vma, vma->vm_start + i*PAGE_SIZE, 0)
-				: NULL;
-			dump_one_vdso_page(pg, upg);
-		}
-	}
-	if (!vma || !is_32bit_task()) {
-		printk("vDSO64 @ %016lx:\n", (unsigned long)vdso64_kbase);
-		for (i=0; i<vdso64_pages; i++) {
-			struct page *pg = virt_to_page(vdso64_kbase +
-						       i*PAGE_SIZE);
-			struct page *upg = (vma && vma->vm_mm) ?
-				follow_page(vma, vma->vm_start + i*PAGE_SIZE, 0)
-				: NULL;
-			dump_one_vdso_page(pg, upg);
-		}
-	}
-}
-#endif /* DEBUG */
-
 /*
  * This is called from binfmt_elf, we create the special vma for the
  * vDSO and insert it into the mm struct tree
