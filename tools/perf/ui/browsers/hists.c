@@ -1424,7 +1424,8 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 	struct hist_browser *browser = hist_browser__new(hists);
 	struct branch_info *bi;
 	struct pstack *fstack;
-	char *options[16];
+#define MAX_OPTIONS  16
+	char *options[MAX_OPTIONS];
 	int nr_options = 0;
 	int key = -1;
 	char buf[64];
@@ -1691,7 +1692,8 @@ skip_annotation:
 				"Switch to another data file in PWD") > 0)
 			switch_data = nr_options++;
 add_exit_option:
-		options[nr_options++] = (char *)"Exit";
+		if (asprintf(&options[nr_options], "Exit") > 0)
+			nr_options++;
 retry_popup_menu:
 		choice = ui__popup_menu(nr_options, options);
 
@@ -1812,7 +1814,7 @@ out_free_stack:
 	pstack__delete(fstack);
 out:
 	hist_browser__delete(browser);
-	free_popup_options(options, nr_options - 1);
+	free_popup_options(options, MAX_OPTIONS);
 	return key;
 }
 
