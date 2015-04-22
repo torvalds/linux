@@ -7685,7 +7685,7 @@ static int i40e_sw_init(struct i40e_pf *pf)
 	}
 
 	/* MFP mode enabled */
-	if (pf->hw.func_caps.npar_enable || pf->hw.func_caps.mfp_mode_1) {
+	if (pf->hw.func_caps.npar_enable || pf->hw.func_caps.flex10_enable) {
 		pf->flags |= I40E_FLAG_MFP_ENABLED;
 		dev_info(&pf->pdev->dev, "MFP mode Enabled\n");
 		if (i40e_get_npar_bw_setting(pf))
