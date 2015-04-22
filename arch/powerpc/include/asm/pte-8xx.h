@@ -39,8 +39,9 @@
  */
 #define _PAGE_GUARDED	0x0010	/* Copied to L1 G entry in DTLB */
 #define _PAGE_USER	0x0020	/* Copied to L1 APG lsb */
-#define _PAGE_ACCESSED	0x0040	/* software: page referenced */
+#define _PAGE_EXEC	0x0040	/* Copied to L1 APG */
 #define _PAGE_WRITETHRU	0x0080	/* software: caching is write through */
+#define _PAGE_ACCESSED	0x0800	/* software: page referenced */
 
 #define _PAGE_RO	0x0600	/* Supervisor RO, User no access */
 

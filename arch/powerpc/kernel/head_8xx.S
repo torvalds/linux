@@ -357,7 +357,7 @@ InstructionTLBMiss:
 	lwz	r10, 0(r10)	/* Get the pte */
 
 	/* Insert the APG into the TWC from the Linux PTE. */
-	rlwimi	r11, r10, 0, 26, 26
+	rlwimi	r11, r10, 0, 25, 26
 	/* Load the MI_TWC with the attributes for this "segment." */
 	MTSPR_CPU6(SPRN_MI_TWC, r11, r3)	/* Set segment attributes */
 
@@ -449,6 +449,7 @@ DataStoreTLBMiss:
 	 */
 	li	r11, RPN_PATTERN
 	rlwimi	r10, r11, 0, 24, 28	/* Set 24-27, clear 28 */
+	rlwimi	r10, r11, 0, 20, 20	/* clear 20 */
 	MTSPR_CPU6(SPRN_MD_RPN, r10, r3)	/* Update TLB entry */
 
 	/* Restore registers */
@@ -769,15 +770,20 @@ initial_mmu:
 	ori	r8, r8, MI_EVALID	/* Mark it valid */
 	mtspr	SPRN_MI_EPN, r8
 	mtspr	SPRN_MD_EPN, r8
-	li	r8, MI_PS8MEG		/* Set 8M byte page */
+	li	r8, MI_PS8MEG | (2 << 5)	/* Set 8M byte page, APG 2 */
 	ori	r8, r8, MI_SVALID	/* Make it valid */
 	mtspr	SPRN_MI_TWC, r8
+	li	r8, MI_PS8MEG		/* Set 8M byte page, APG 0 */
+	ori	r8, r8, MI_SVALID	/* Make it valid */
 	mtspr	SPRN_MD_TWC, r8
 	li	r8, MI_BOOTINIT		/* Create RPN for address 0 */
 	mtspr	SPRN_MI_RPN, r8		/* Store TLB entry */
 	mtspr	SPRN_MD_RPN, r8
-	lis	r8, MI_Kp@h		/* Set the protection mode */
+	lis	r8, MI_APG_INIT@h	/* Set protection modes */
+	ori	r8, r8, MI_APG_INIT@l
 	mtspr	SPRN_MI_AP, r8
+	lis	r8, MD_APG_INIT@h
+	ori	r8, r8, MD_APG_INIT@l
 	mtspr	SPRN_MD_AP, r8
 
 	/* Map another 8 MByte at the IMMR to get the processor
