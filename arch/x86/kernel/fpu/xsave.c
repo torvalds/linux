@@ -558,11 +558,12 @@ static void __init setup_init_fpu_buf(void)
 	 * Init all the features state with header_bv being 0x0
 	 */
 	xrstor_state_booting(init_xstate_buf, -1);
+
 	/*
 	 * Dump the init state again. This is to identify the init state
 	 * of any feature which is not represented by all zero's.
 	 */
-	xsave_state_booting(init_xstate_buf, -1);
+	xsave_state_booting(init_xstate_buf);
 }
 
 static enum { AUTO, ENABLE, DISABLE } eagerfpu = AUTO;

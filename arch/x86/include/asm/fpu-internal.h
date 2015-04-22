@@ -527,9 +527,9 @@ static inline void __save_fpu(struct task_struct *tsk)
 {
 	if (use_xsave()) {
 		if (unlikely(system_state == SYSTEM_BOOTING))
-			xsave_state_booting(&tsk->thread.fpu.state->xsave, -1);
+			xsave_state_booting(&tsk->thread.fpu.state->xsave);
 		else
-			xsave_state(&tsk->thread.fpu.state->xsave, -1);
+			xsave_state(&tsk->thread.fpu.state->xsave);
 	} else
 		fpu_fxsave(&tsk->thread.fpu);
 }

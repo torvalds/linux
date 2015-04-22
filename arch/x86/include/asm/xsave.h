@@ -70,8 +70,9 @@ extern void update_regset_xstate_info(unsigned int size, u64 xstate_mask);
  * This function is called only during boot time when x86 caps are not set
  * up and alternative can not be used yet.
  */
-static inline int xsave_state_booting(struct xsave_struct *fx, u64 mask)
+static inline int xsave_state_booting(struct xsave_struct *fx)
 {
+	u64 mask = -1;
 	u32 lmask = mask;
 	u32 hmask = mask >> 32;
 	int err = 0;
@@ -123,8 +124,9 @@ static inline int xrstor_state_booting(struct xsave_struct *fx, u64 mask)
 /*
  * Save processor xstate to xsave area.
  */
-static inline int xsave_state(struct xsave_struct *fx, u64 mask)
+static inline int xsave_state(struct xsave_struct *fx)
 {
+	u64 mask = -1;
 	u32 lmask = mask;
 	u32 hmask = mask >> 32;
 	int err = 0;
@@ -189,7 +191,7 @@ static inline int xrstor_state(struct xsave_struct *fx, u64 mask)
  */
 static inline void fpu_xsave(struct fpu *fpu)
 {
-	xsave_state(&fpu->state->xsave, -1);
+	xsave_state(&fpu->state->xsave);
 }
 
 /*
