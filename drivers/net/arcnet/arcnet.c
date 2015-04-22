@@ -515,7 +515,7 @@ netdev_tx_t arcnet_send_packet(struct sk_buff *skb,
 	struct ArcProto *proto;
 	int txbuf;
 	unsigned long flags;
-	int freeskb, retval;
+	int retval;
 
 	arc_printk(D_DURING, dev,
 		   "transmit requested (status=%Xh, txbufs=%d/%d, len=%d, protocol %x)\n",
@@ -554,14 +554,12 @@ netdev_tx_t arcnet_send_packet(struct sk_buff *skb,
 			 *  the package later - forget about it now
 			 */
 			dev->stats.tx_bytes += skb->len;
-			freeskb = 1;
+			dev_kfree_skb(skb);
 		} else {
 			/* do it the 'split' way */
 			lp->outgoing.proto = proto;
 			lp->outgoing.skb = skb;
 			lp->outgoing.pkt = pkt;
-
-			freeskb = 0;
 
 			if (proto->continue_tx &&
 			    proto->continue_tx(dev, txbuf)) {
@@ -574,7 +572,6 @@ netdev_tx_t arcnet_send_packet(struct sk_buff *skb,
 		lp->next_tx = txbuf;
 	} else {
 		retval = NETDEV_TX_BUSY;
-		freeskb = 0;
 	}
 
 	arc_printk(D_DEBUG, dev, "%s: %d: %s, status: %x\n",
@@ -589,9 +586,6 @@ netdev_tx_t arcnet_send_packet(struct sk_buff *skb,
 		   __FILE__, __LINE__, __func__, lp->hw.status(dev));
 
 	spin_unlock_irqrestore(&lp->lock, flags);
-	if (freeskb)
-		dev_kfree_skb(skb);
-
 	return retval;		/* no need to try again */
 }
 EXPORT_SYMBOL(arcnet_send_packet);
