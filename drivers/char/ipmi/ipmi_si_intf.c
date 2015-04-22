@@ -2262,8 +2262,10 @@ static int ipmi_pnp_probe(struct pnp_dev *dev,
 
 	/* _IFT tells us the interface type: KCS, BT, etc */
 	status = acpi_evaluate_integer(handle, "_IFT", NULL, &tmp);
-	if (ACPI_FAILURE(status))
+	if (ACPI_FAILURE(status)) {
+		dev_err(&dev->dev, "Could not find ACPI IPMI interface type\n");
 		goto err_free;
+	}
 
 	switch (tmp) {
 	case 1:
