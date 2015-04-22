@@ -246,7 +246,8 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		break;
 	case KVM_CAP_NR_VCPUS:
 	case KVM_CAP_MAX_VCPUS:
-		r = KVM_MAX_VCPUS;
+		r = sclp.has_esca ? KVM_S390_ESCA_CPU_SLOTS
+				  : KVM_S390_BSCA_CPU_SLOTS;
 		break;
 	case KVM_CAP_NR_MEMSLOTS:
 		r = KVM_USER_MEM_SLOTS;
