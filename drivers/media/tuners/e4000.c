@@ -115,8 +115,8 @@ static int e4000_set_params(struct dvb_frontend *fe)
 {
 	struct e4000 *s = fe->tuner_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	int ret, i, sigma_delta;
-	unsigned int pll_n, pll_f;
+	int ret, i;
+	unsigned int div_n, k, k_cw, div_out;
 	u64 f_vco;
 	u8 buf[5], i_data[4], q_data[4];
 
@@ -129,7 +129,21 @@ static int e4000_set_params(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
-	/* PLL */
+	/*
+	 * Fractional-N synthesizer
+	 *
+	 *           +----------------------------+
+	 *           v                            |
+	 *  Fref   +----+     +-------+         +------+     +---+
+	 * ------> | PD | --> |  VCO  | ------> | /N.F | <-- | K |
+	 *         +----+     +-------+         +------+     +---+
+	 *                      |
+	 *                      |
+	 *                      v
+	 *                    +-------+  Fout
+	 *                    | /Rout | ------>
+	 *                    +-------+
+	 */
 	for (i = 0; i < ARRAY_SIZE(e4000_pll_lut); i++) {
 		if (c->frequency <= e4000_pll_lut[i].freq)
 			break;
@@ -140,18 +154,22 @@ static int e4000_set_params(struct dvb_frontend *fe)
 		goto err;
 	}
 
-	f_vco = 1ull * c->frequency * e4000_pll_lut[i].mul;
-	pll_n = div_u64_rem(f_vco, s->clock, &pll_f);
-	sigma_delta = div_u64(0x10000ULL * pll_f, s->clock);
-	buf[0] = pll_n;
-	buf[1] = (sigma_delta >> 0) & 0xff;
-	buf[2] = (sigma_delta >> 8) & 0xff;
+	#define F_REF s->clock
+	div_out = e4000_pll_lut[i].div_out;
+	f_vco = (u64) c->frequency * div_out;
+	/* calculate PLL integer and fractional control word */
+	div_n = div_u64_rem(f_vco, F_REF, &k);
+	k_cw = div_u64((u64) k * 0x10000, F_REF);
+
+	dev_dbg(&s->client->dev,
+		"frequency=%u f_vco=%llu F_REF=%u div_n=%u k=%u k_cw=%04x div_out=%u\n",
+		c->frequency, f_vco, F_REF, div_n, k, k_cw, div_out);
+
+	buf[0] = div_n;
+	buf[1] = (k_cw >> 0) & 0xff;
+	buf[2] = (k_cw >> 8) & 0xff;
 	buf[3] = 0x00;
-	buf[4] = e4000_pll_lut[i].div;
-
-	dev_dbg(&s->client->dev, "f_vco=%llu pll div=%d sigma_delta=%04x\n",
-			f_vco, buf[0], sigma_delta);
-
+	buf[4] = e4000_pll_lut[i].div_out_reg;
 	ret = regmap_bulk_write(s->regmap, 0x09, buf, 5);
 	if (ret)
 		goto err;

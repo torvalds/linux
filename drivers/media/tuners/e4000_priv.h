@@ -49,8 +49,8 @@ struct e4000 {
 
 struct e4000_pll {
 	u32 freq;
-	u8 div;
-	u8 mul;
+	u8 div_out_reg;
+	u8 div_out;
 };
 
 static const struct e4000_pll e4000_pll_lut[] = {
