@@ -13,6 +13,7 @@
  * any later version.
  */
 
+#include <crypto/aead.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/if_alg.h>
 #include <linux/init.h>
