@@ -795,7 +795,9 @@ int hdmi4_audio_config(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
 
 	/*
 	 * the HDMI IP needs to enable four stereo channels when transmitting
-	 * more than 2 audio channels
+	 * more than 2 audio channels.  Similarly, the channel count in the
+	 * Audio InfoFrame has to match the sample_present bits (some channels
+	 * are padded with zeroes)
 	 */
 	if (channel_count == 2) {
 		audio_format.stereo_channels = HDMI_AUDIO_STEREO_ONECHANNEL;
@@ -807,6 +809,7 @@ int hdmi4_audio_config(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
 				HDMI_AUDIO_I2S_SD1_EN | HDMI_AUDIO_I2S_SD2_EN |
 				HDMI_AUDIO_I2S_SD3_EN;
 		acore.layout = HDMI_AUDIO_LAYOUT_8CH;
+		audio->cea->db1_ct_cc = 7;
 	}
 
 	acore.en_spdif = false;
