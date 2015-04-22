@@ -1323,22 +1323,24 @@ static int mq_set_config_value(struct dm_cache_policy *p,
 	return 0;
 }
 
-static int mq_emit_config_values(struct dm_cache_policy *p, char *result, unsigned maxlen)
+static int mq_emit_config_values(struct dm_cache_policy *p, char *result,
+				 unsigned maxlen, ssize_t *sz_ptr)
 {
-	ssize_t sz = 0;
+	ssize_t sz = *sz_ptr;
 	struct mq_policy *mq = to_mq_policy(p);
 
 	DMEMIT("10 random_threshold %u "
 	       "sequential_threshold %u "
 	       "discard_promote_adjustment %u "
 	       "read_promote_adjustment %u "
-	       "write_promote_adjustment %u",
+	       "write_promote_adjustment %u ",
 	       mq->tracker.thresholds[PATTERN_RANDOM],
 	       mq->tracker.thresholds[PATTERN_SEQUENTIAL],
 	       mq->discard_promote_adjustment,
 	       mq->read_promote_adjustment,
 	       mq->write_promote_adjustment);
 
+	*sz_ptr = sz;
 	return 0;
 }
 

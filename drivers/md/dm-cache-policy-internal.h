@@ -89,13 +89,15 @@ static inline void policy_tick(struct dm_cache_policy *p)
 		return p->tick(p);
 }
 
-static inline int policy_emit_config_values(struct dm_cache_policy *p, char *result, unsigned maxlen)
+static inline int policy_emit_config_values(struct dm_cache_policy *p, char *result,
+					    unsigned maxlen, ssize_t *sz_ptr)
 {
-	ssize_t sz = 0;
+	ssize_t sz = *sz_ptr;
 	if (p->emit_config_values)
-		return p->emit_config_values(p, result, maxlen);
+		return p->emit_config_values(p, result, maxlen, sz_ptr);
 
-	DMEMIT("0");
+	DMEMIT("0 ");
+	*sz_ptr = sz;
 	return 0;
 }
 

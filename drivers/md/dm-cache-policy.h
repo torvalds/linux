@@ -208,8 +208,8 @@ struct dm_cache_policy {
 	/*
 	 * Configuration.
 	 */
-	int (*emit_config_values)(struct dm_cache_policy *p,
-				  char *result, unsigned maxlen);
+	int (*emit_config_values)(struct dm_cache_policy *p, char *result,
+				  unsigned maxlen, ssize_t *sz_ptr);
 	int (*set_config_value)(struct dm_cache_policy *p,
 				const char *key, const char *value);
 
