@@ -24,6 +24,7 @@
 
 #include <linux/poll.h>
 #include <linux/seq_file.h>
+#include <sound/core.h>
 
 /* buffer for information */
 struct snd_info_buffer {
@@ -146,8 +147,12 @@ void snd_info_card_id_change(struct snd_card *card);
 int snd_info_register(struct snd_info_entry *entry);
 
 /* for card drivers */
-int snd_card_proc_new(struct snd_card *card, const char *name,
-		      struct snd_info_entry **entryp);
+static inline int snd_card_proc_new(struct snd_card *card, const char *name,
+				    struct snd_info_entry **entryp)
+{
+	*entryp = snd_info_create_card_entry(card, name, card->proc_root);
+	return *entryp ? 0 : -ENOMEM;
+}
 
 static inline void snd_info_set_text_ops(struct snd_info_entry *entry, 
 	void *private_data,

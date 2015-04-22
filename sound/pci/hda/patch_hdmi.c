@@ -592,7 +592,7 @@ static int eld_proc_new(struct hdmi_spec_per_pin *per_pin, int index)
 static void eld_proc_free(struct hdmi_spec_per_pin *per_pin)
 {
 	if (!per_pin->codec->bus->shutdown && per_pin->proc_entry) {
-		snd_device_free(per_pin->codec->card, per_pin->proc_entry);
+		snd_info_free_entry(per_pin->proc_entry);
 		per_pin->proc_entry = NULL;
 	}
 }
