@@ -23,6 +23,9 @@ struct mpls_entry_decoded {
 };
 
 struct mpls_dev {
+	int			input_enabled;
+
+	struct ctl_table_header *sysctl;
 };
 
 struct sk_buff;

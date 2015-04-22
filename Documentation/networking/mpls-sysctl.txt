@@ -18,3 +18,12 @@ platform_labels - INTEGER
 
 	Possible values: 0 - 1048575
 	Default: 0
+
+conf/<interface>/input - BOOL
+	Control whether packets can be input on this interface.
+
+	If disabled, packets will be discarded without further
+	processing.
+
+	0 - disabled (default)
+	not 0 - enabled

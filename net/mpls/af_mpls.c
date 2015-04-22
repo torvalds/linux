@@ -150,7 +150,7 @@ static int mpls_forward(struct sk_buff *skb, struct net_device *dev,
 	/* Careful this entire function runs inside of an rcu critical section */
 
 	mdev = mpls_dev_get(dev);
-	if (!mdev)
+	if (!mdev || !mdev->input_enabled)
 		goto drop;
 
 	if (skb->pkt_type != PACKET_HOST)
@@ -438,6 +438,60 @@ errout:
 	return err;
 }
 
+#define MPLS_PERDEV_SYSCTL_OFFSET(field)	\
+	(&((struct mpls_dev *)0)->field)
+
+static const struct ctl_table mpls_dev_table[] = {
+	{
+		.procname	= "input",
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+		.data		= MPLS_PERDEV_SYSCTL_OFFSET(input_enabled),
+	},
+	{ }
+};
+
+static int mpls_dev_sysctl_register(struct net_device *dev,
+				    struct mpls_dev *mdev)
+{
+	char path[sizeof("net/mpls/conf/") + IFNAMSIZ];
+	struct ctl_table *table;
+	int i;
+
+	table = kmemdup(&mpls_dev_table, sizeof(mpls_dev_table), GFP_KERNEL);
+	if (!table)
+		goto out;
+
+	/* Table data contains only offsets relative to the base of
+	 * the mdev at this point, so make them absolute.
+	 */
+	for (i = 0; i < ARRAY_SIZE(mpls_dev_table); i++)
+		table[i].data = (char *)mdev + (uintptr_t)table[i].data;
+
+	snprintf(path, sizeof(path), "net/mpls/conf/%s", dev->name);
+
+	mdev->sysctl = register_net_sysctl(dev_net(dev), path, table);
+	if (!mdev->sysctl)
+		goto free;
+
+	return 0;
+
+free:
+	kfree(table);
+out:
+	return -ENOBUFS;
+}
+
+static void mpls_dev_sysctl_unregister(struct mpls_dev *mdev)
+{
+	struct ctl_table *table;
+
+	table = mdev->sysctl->ctl_table_arg;
+	unregister_net_sysctl_table(mdev->sysctl);
+	kfree(table);
+}
+
 static struct mpls_dev *mpls_add_dev(struct net_device *dev)
 {
 	struct mpls_dev *mdev;
@@ -449,9 +503,17 @@ static struct mpls_dev *mpls_add_dev(struct net_device *dev)
 	if (!mdev)
 		return ERR_PTR(err);
 
+	err = mpls_dev_sysctl_register(dev, mdev);
+	if (err)
+		goto free;
+
 	rcu_assign_pointer(dev->mpls_ptr, mdev);
 
 	return mdev;
+
+free:
+	kfree(mdev);
+	return ERR_PTR(err);
 }
 
 static void mpls_ifdown(struct net_device *dev)
@@ -474,6 +536,8 @@ static void mpls_ifdown(struct net_device *dev)
 	mdev = mpls_dev_get(dev);
 	if (!mdev)
 		return;
+
+	mpls_dev_sysctl_unregister(mdev);
 
 	RCU_INIT_POINTER(dev->mpls_ptr, NULL);
 
@@ -958,7 +1022,7 @@ static int mpls_platform_labels(struct ctl_table *table, int write,
 	return ret;
 }
 
-static struct ctl_table mpls_table[] = {
+static const struct ctl_table mpls_table[] = {
 	{
 		.procname	= "platform_labels",
 		.data		= NULL,
