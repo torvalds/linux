@@ -754,7 +754,7 @@ static inline void clear_soft_dirty(struct vm_area_struct *vma,
 
 	if (pte_present(ptent)) {
 		ptent = pte_wrprotect(ptent);
-		ptent = pte_clear_flags(ptent, _PAGE_SOFT_DIRTY);
+		ptent = pte_clear_soft_dirty(ptent);
 	} else if (is_swap_pte(ptent)) {
 		ptent = pte_swp_clear_soft_dirty(ptent);
 	}
@@ -768,7 +768,7 @@ static inline void clear_soft_dirty_pmd(struct vm_area_struct *vma,
 	pmd_t pmd = *pmdp;
 
 	pmd = pmd_wrprotect(pmd);
-	pmd = pmd_clear_flags(pmd, _PAGE_SOFT_DIRTY);
+	pmd = pmd_clear_soft_dirty(pmd);
 
 	if (vma->vm_flags & VM_SOFTDIRTY)
 		vma->vm_flags &= ~VM_SOFTDIRTY;
