@@ -567,15 +567,8 @@ static inline unsigned short get_fpu_mxcsr(struct task_struct *tsk)
 extern void fpstate_cache_init(void);
 
 extern int fpstate_alloc(struct fpu *fpu);
+extern void fpstate_free(struct fpu *fpu);
 extern int fpu__copy(struct task_struct *dst, struct task_struct *src);
-
-static inline void fpstate_free(struct fpu *fpu)
-{
-	if (fpu->state) {
-		kmem_cache_free(task_xstate_cachep, fpu->state);
-		fpu->state = NULL;
-	}
-}
 
 static inline void fpu_copy(struct task_struct *dst, struct task_struct *src)
 {

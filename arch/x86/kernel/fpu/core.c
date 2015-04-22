@@ -178,6 +178,15 @@ int fpstate_alloc(struct fpu *fpu)
 }
 EXPORT_SYMBOL_GPL(fpstate_alloc);
 
+void fpstate_free(struct fpu *fpu)
+{
+	if (fpu->state) {
+		kmem_cache_free(task_xstate_cachep, fpu->state);
+		fpu->state = NULL;
+	}
+}
+EXPORT_SYMBOL_GPL(fpstate_free);
+
 int fpu__copy(struct task_struct *dst, struct task_struct *src)
 {
 	dst->thread.fpu.counter = 0;
