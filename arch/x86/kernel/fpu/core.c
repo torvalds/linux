@@ -150,8 +150,7 @@ EXPORT_SYMBOL_GPL(fpstate_init);
 /*
  * FPU state allocation:
  */
-struct kmem_cache *task_xstate_cachep;
-EXPORT_SYMBOL_GPL(task_xstate_cachep);
+static struct kmem_cache *task_xstate_cachep;
 
 void fpstate_cache_init(void)
 {

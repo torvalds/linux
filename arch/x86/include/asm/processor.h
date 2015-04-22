@@ -362,7 +362,6 @@ DECLARE_PER_CPU(struct irq_stack *, softirq_stack);
 #endif	/* X86_64 */
 
 extern unsigned int xstate_size;
-extern struct kmem_cache *task_xstate_cachep;
 
 struct perf_event;
 
