@@ -549,6 +549,12 @@ do {								\
 } while (0)
 
 	switch (term->type_term) {
+	case PARSE_EVENTS__TERM_TYPE_USER:
+		/*
+		 * Always succeed for sysfs terms, as we dont know
+		 * at this point what type they need to have.
+		 */
+		return 0;
 	case PARSE_EVENTS__TERM_TYPE_CONFIG:
 		CHECK_TYPE_VAL(NUM);
 		attr->config = term->val.num;
@@ -583,12 +589,12 @@ do {								\
 }
 
 static int config_attr(struct perf_event_attr *attr,
-		       struct list_head *head, int fail)
+		       struct list_head *head)
 {
 	struct parse_events_term *term;
 
 	list_for_each_entry(term, head, list)
-		if (config_term(attr, term) && fail)
+		if (config_term(attr, term))
 			return -EINVAL;
 
 	return 0;
@@ -605,7 +611,7 @@ int parse_events_add_numeric(struct list_head *list, int *idx,
 	attr.config = config;
 
 	if (head_config &&
-	    config_attr(&attr, head_config, 1))
+	    config_attr(&attr, head_config))
 		return -EINVAL;
 
 	return add_event(list, idx, &attr, NULL);
@@ -659,7 +665,8 @@ int parse_events_add_pmu(struct list_head *list, int *idx,
 	 * Configure hardcoded terms first, no need to check
 	 * return value when called with fail == 0 ;)
 	 */
-	config_attr(&attr, head_config, 0);
+	if (config_attr(&attr, head_config))
+		return -EINVAL;
 
 	if (perf_pmu__config(pmu, &attr, head_config))
 		return -EINVAL;
