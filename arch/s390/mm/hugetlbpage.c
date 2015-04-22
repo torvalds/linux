@@ -70,8 +70,8 @@ static inline pte_t __pmd_to_pte(pmd_t pmd)
 		pte_val(pte) |= (pmd_val(pmd) & _SEGMENT_ENTRY_WRITE) << 4;
 		pte_val(pte) |= (pmd_val(pmd) & _SEGMENT_ENTRY_INVALID) << 5;
 		pte_val(pte) |= (pmd_val(pmd) & _SEGMENT_ENTRY_PROTECT);
-		pmd_val(pmd) |= (pte_val(pte) & _PAGE_DIRTY) << 10;
-		pmd_val(pmd) |= (pte_val(pte) & _PAGE_YOUNG) << 10;
+		pte_val(pte) |= (pmd_val(pmd) & _SEGMENT_ENTRY_DIRTY) >> 10;
+		pte_val(pte) |= (pmd_val(pmd) & _SEGMENT_ENTRY_YOUNG) >> 10;
 	} else
 		pte_val(pte) = _PAGE_INVALID;
 	return pte;
