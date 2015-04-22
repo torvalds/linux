@@ -169,7 +169,6 @@ config AT91SAM9X_WATCHDOG
 
 config CADENCE_WATCHDOG
 	tristate "Cadence Watchdog Timer"
-	depends on ARM
 	select WATCHDOG_CORE
 	help
 	  Say Y here if you want to include support for the watchdog
@@ -1190,6 +1189,7 @@ config OCTEON_WDT
 	tristate "Cavium OCTEON SOC family Watchdog Timer"
 	depends on CAVIUM_OCTEON_SOC
 	default y
+	select WATCHDOG_CORE
 	select EXPORT_UASM if OCTEON_WDT = m
 	help
 	  Hardware driver for OCTEON's on chip watchdog timer.
