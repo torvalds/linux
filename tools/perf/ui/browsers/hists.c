@@ -26,6 +26,7 @@ struct hist_browser {
 	struct hist_entry   *he_selection;
 	struct map_symbol   *selection;
 	struct hist_browser_timer *hbt;
+	struct pstack	    *pstack;
 	int		     print_seq;
 	bool		     show_dso;
 	bool		     show_headers;
@@ -1426,7 +1427,6 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 	struct hists *hists = evsel__hists(evsel);
 	struct hist_browser *browser = hist_browser__new(hists, hbt);
 	struct branch_info *bi;
-	struct pstack *fstack;
 #define MAX_OPTIONS  16
 	char *options[MAX_OPTIONS];
 	int nr_options = 0;
@@ -1477,8 +1477,8 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 		hist_browser__update_nr_entries(browser);
 	}
 
-	fstack = pstack__new(2);
-	if (fstack == NULL)
+	browser->pstack = pstack__new(2);
+	if (browser->pstack == NULL)
 		goto out;
 
 	ui_helpline__push(helpline);
@@ -1587,7 +1587,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 		case K_LEFT: {
 			const void *top;
 
-			if (pstack__empty(fstack)) {
+			if (pstack__empty(browser->pstack)) {
 				/*
 				 * Go back to the perf_evsel_menu__run or other user
 				 */
@@ -1595,7 +1595,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 					goto out_free_stack;
 				continue;
 			}
-			top = pstack__pop(fstack);
+			top = pstack__pop(browser->pstack);
 			if (top == &browser->hists->dso_filter)
 				goto zoom_out_dso;
 			if (top == &browser->hists->thread_filter)
@@ -1753,7 +1753,7 @@ do_annotate:
 		else if (choice == zoom_dso) {
 zoom_dso:
 			if (browser->hists->dso_filter) {
-				pstack__remove(fstack, &browser->hists->dso_filter);
+				pstack__remove(browser->pstack, &browser->hists->dso_filter);
 zoom_out_dso:
 				ui_helpline__pop();
 				browser->hists->dso_filter = NULL;
@@ -1765,14 +1765,14 @@ zoom_out_dso:
 						   dso->kernel ? "the Kernel" : dso->short_name);
 				browser->hists->dso_filter = dso;
 				perf_hpp__set_elide(HISTC_DSO, true);
-				pstack__push(fstack, &browser->hists->dso_filter);
+				pstack__push(browser->pstack, &browser->hists->dso_filter);
 			}
 			hists__filter_by_dso(hists);
 			hist_browser__reset(browser);
 		} else if (choice == zoom_thread) {
 zoom_thread:
 			if (browser->hists->thread_filter) {
-				pstack__remove(fstack, &browser->hists->thread_filter);
+				pstack__remove(browser->pstack, &browser->hists->thread_filter);
 zoom_out_thread:
 				ui_helpline__pop();
 				thread__zput(browser->hists->thread_filter);
@@ -1783,7 +1783,7 @@ zoom_out_thread:
 						   thread->tid);
 				browser->hists->thread_filter = thread__get(thread);
 				perf_hpp__set_elide(HISTC_THREAD, false);
-				pstack__push(fstack, &browser->hists->thread_filter);
+				pstack__push(browser->pstack, &browser->hists->thread_filter);
 			}
 			hists__filter_by_thread(hists);
 			hist_browser__reset(browser);
@@ -1814,7 +1814,7 @@ do_data_switch:
 		}
 	}
 out_free_stack:
-	pstack__delete(fstack);
+	pstack__delete(browser->pstack);
 out:
 	hist_browser__delete(browser);
 	free_popup_options(options, MAX_OPTIONS);
