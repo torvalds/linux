@@ -4809,6 +4809,23 @@ netdev_features_t bnx2x_fix_features(struct net_device *dev,
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
+	if (pci_num_vf(bp->pdev)) {
+		netdev_features_t changed = dev->features ^ features;
+
+		/* Revert the requested changes in features if they
+		 * would require internal reload of PF in bnx2x_set_features().
+		 */
+		if (!(features & NETIF_F_RXCSUM) && !bp->disable_tpa) {
+			features &= ~NETIF_F_RXCSUM;
+			features |= dev->features & NETIF_F_RXCSUM;
+		}
+
+		if (changed & NETIF_F_LOOPBACK) {
+			features &= ~NETIF_F_LOOPBACK;
+			features |= dev->features & NETIF_F_LOOPBACK;
+		}
+	}
+
 	/* TPA requires Rx CSUM offloading */
 	if (!(features & NETIF_F_RXCSUM)) {
 		features &= ~NETIF_F_LRO;
@@ -4839,15 +4856,18 @@ int bnx2x_set_features(struct net_device *dev, netdev_features_t features)
 	else
 		flags &= ~GRO_ENABLE_FLAG;
 
-	if (features & NETIF_F_LOOPBACK) {
-		if (bp->link_params.loopback_mode != LOOPBACK_BMAC) {
-			bp->link_params.loopback_mode = LOOPBACK_BMAC;
-			bnx2x_reload = true;
-		}
-	} else {
-		if (bp->link_params.loopback_mode != LOOPBACK_NONE) {
-			bp->link_params.loopback_mode = LOOPBACK_NONE;
-			bnx2x_reload = true;
+	/* VFs or non SRIOV PFs should be able to change loopback feature */
+	if (!pci_num_vf(bp->pdev)) {
+		if (features & NETIF_F_LOOPBACK) {
+			if (bp->link_params.loopback_mode != LOOPBACK_BMAC) {
+				bp->link_params.loopback_mode = LOOPBACK_BMAC;
+				bnx2x_reload = true;
+			}
+		} else {
+			if (bp->link_params.loopback_mode != LOOPBACK_NONE) {
+				bp->link_params.loopback_mode = LOOPBACK_NONE;
+				bnx2x_reload = true;
+			}
 		}
 	}
 
@@ -4930,6 +4950,11 @@ int bnx2x_resume(struct pci_dev *pdev)
 		return -ENODEV;
 	}
 	bp = netdev_priv(dev);
+
+	if (pci_num_vf(bp->pdev)) {
+		DP(BNX2X_MSG_IOV, "VFs are enabled, can not change MTU\n");
+		return -EPERM;
+	}
 
 	if (bp->recovery_state != BNX2X_RECOVERY_DONE) {
 		BNX2X_ERR("Handling parity error recovery. Try again later\n");
