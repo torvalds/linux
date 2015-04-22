@@ -565,20 +565,6 @@ extern int fpstate_alloc(struct fpu *fpu);
 extern void fpstate_free(struct fpu *fpu);
 extern int fpu__copy(struct task_struct *dst, struct task_struct *src);
 
-static inline void fpu_copy(struct task_struct *dst, struct task_struct *src)
-{
-	if (use_eager_fpu()) {
-		memset(&dst->thread.fpu.state->xsave, 0, xstate_size);
-		__save_fpu(dst);
-	} else {
-		struct fpu *dfpu = &dst->thread.fpu;
-		struct fpu *sfpu = &src->thread.fpu;
-
-		fpu__save(src);
-		memcpy(dfpu->state, sfpu->state, xstate_size);
-	}
-}
-
 static inline unsigned long
 alloc_mathframe(unsigned long sp, int ia32_frame, unsigned long *buf_fx,
 		unsigned long *size)

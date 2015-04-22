@@ -203,6 +203,20 @@ void fpstate_free(struct fpu *fpu)
 }
 EXPORT_SYMBOL_GPL(fpstate_free);
 
+static void fpu_copy(struct task_struct *dst, struct task_struct *src)
+{
+	if (use_eager_fpu()) {
+		memset(&dst->thread.fpu.state->xsave, 0, xstate_size);
+		__save_fpu(dst);
+	} else {
+		struct fpu *dfpu = &dst->thread.fpu;
+		struct fpu *sfpu = &src->thread.fpu;
+
+		fpu__save(src);
+		memcpy(dfpu->state, sfpu->state, xstate_size);
+	}
+}
+
 int fpu__copy(struct task_struct *dst, struct task_struct *src)
 {
 	dst->thread.fpu.counter = 0;
