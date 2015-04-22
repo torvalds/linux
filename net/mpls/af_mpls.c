@@ -646,6 +646,15 @@ int nla_get_labels(const struct nlattr *nla,
 		if ((dec.bos != bos) || dec.ttl || dec.tc)
 			return -EINVAL;
 
+		switch (dec.label) {
+		case LABEL_IMPLICIT_NULL:
+			/* RFC3032: This is a label that an LSR may
+			 * assign and distribute, but which never
+			 * actually appears in the encapsulation.
+			 */
+			return -EINVAL;
+		}
+
 		label[i] = dec.label;
 	}
 	*labels = nla_labels;
