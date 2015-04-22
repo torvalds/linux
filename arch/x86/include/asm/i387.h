@@ -24,6 +24,7 @@ extern void fpu__flush_thread(struct task_struct *tsk);
 
 extern int dump_fpu(struct pt_regs *, struct user_i387_struct *);
 extern void fpu__restore(void);
+extern void fpu__init_check_bugs(void);
 
 extern bool irq_fpu_usable(void);
 
