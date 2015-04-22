@@ -565,6 +565,7 @@ static int __ftrace_set_clr_event(struct trace_array *tr, const char *match,
 static int ftrace_set_clr_event(struct trace_array *tr, char *buf, int set)
 {
 	char *event = NULL, *sub = NULL, *match;
+	int ret;
 
 	/*
 	 * The buf format can be <subsystem>:<event-name>
@@ -590,7 +591,13 @@ static int ftrace_set_clr_event(struct trace_array *tr, char *buf, int set)
 			event = NULL;
 	}
 
-	return __ftrace_set_clr_event(tr, match, sub, event, set);
+	ret = __ftrace_set_clr_event(tr, match, sub, event, set);
+
+	/* Put back the colon to allow this to be called again */
+	if (buf)
+		*(buf - 1) = ':';
+
+	return ret;
 }
 
 /**
@@ -1753,6 +1760,8 @@ static void update_event_printk(struct ftrace_event_call *call,
 				ptr++;
 				/* Check for alpha chars like ULL */
 			} while (isalnum(*ptr));
+			if (!*ptr)
+				break;
 			/*
 			 * A number must have some kind of delimiter after
 			 * it, and we can ignore that too.
@@ -1779,12 +1788,16 @@ static void update_event_printk(struct ftrace_event_call *call,
 			do {
 				ptr++;
 			} while (isalnum(*ptr) || *ptr == '_');
+			if (!*ptr)
+				break;
 			/*
 			 * If what comes after this variable is a '.' or
 			 * '->' then we can continue to ignore that string.
 			 */
 			if (*ptr == '.' || (ptr[0] == '-' && ptr[1] == '>')) {
 				ptr += *ptr == '.' ? 1 : 2;
+				if (!*ptr)
+					break;
 				goto skip_more;
 			}
 			/*
