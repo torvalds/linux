@@ -446,6 +446,22 @@ static const struct file_operations snd_info_text_entry_ops =
 	.read =			seq_read,
 };
 
+static struct snd_info_entry *create_subdir(struct module *mod,
+					    const char *name)
+{
+	struct snd_info_entry *entry;
+
+	entry = snd_info_create_module_entry(mod, name, NULL);
+	if (!entry)
+		return NULL;
+	entry->mode = S_IFDIR | S_IRUGO | S_IXUGO;
+	if (snd_info_register(entry) < 0) {
+		snd_info_free_entry(entry);
+		return NULL;
+	}
+	return entry;
+}
+
 int __init snd_info_init(void)
 {
 	struct proc_dir_entry *p;
@@ -455,36 +471,27 @@ int __init snd_info_init(void)
 		return -ENOMEM;
 	snd_proc_root = p;
 #ifdef CONFIG_SND_OSSEMUL
-	{
-		struct snd_info_entry *entry;
-		if ((entry = snd_info_create_module_entry(THIS_MODULE, "oss", NULL)) == NULL)
-			return -ENOMEM;
-		entry->mode = S_IFDIR | S_IRUGO | S_IXUGO;
-		if (snd_info_register(entry) < 0) {
-			snd_info_free_entry(entry);
-			return -ENOMEM;
-		}
-		snd_oss_root = entry;
-	}
+	snd_oss_root = create_subdir(THIS_MODULE, "oss");
+	if (!snd_oss_root)
+		goto error;
 #endif
 #if IS_ENABLED(CONFIG_SND_SEQUENCER)
-	{
-		struct snd_info_entry *entry;
-		if ((entry = snd_info_create_module_entry(THIS_MODULE, "seq", NULL)) == NULL)
-			return -ENOMEM;
-		entry->mode = S_IFDIR | S_IRUGO | S_IXUGO;
-		if (snd_info_register(entry) < 0) {
-			snd_info_free_entry(entry);
-			return -ENOMEM;
-		}
-		snd_seq_root = entry;
-	}
+	snd_seq_root = create_subdir(THIS_MODULE, "seq");
+	if (!snd_seq_root)
+		goto error;
 #endif
 	snd_info_version_init();
 	snd_minor_info_init();
 	snd_minor_info_oss_init();
 	snd_card_info_init();
 	return 0;
+
+ error:
+#ifdef CONFIG_SND_OSSEMUL
+	snd_info_free_entry(snd_oss_root);
+#endif
+	proc_remove(snd_proc_root);
+	return -ENOMEM;
 }
 
 int __exit snd_info_done(void)
@@ -523,13 +530,9 @@ int snd_info_card_create(struct snd_card *card)
 		return -ENXIO;
 
 	sprintf(str, "card%i", card->number);
-	if ((entry = snd_info_create_module_entry(card->module, str, NULL)) == NULL)
+	entry = create_subdir(card->module, str);
+	if (!entry)
 		return -ENOMEM;
-	entry->mode = S_IFDIR | S_IRUGO | S_IXUGO;
-	if (snd_info_register(entry) < 0) {
-		snd_info_free_entry(entry);
-		return -ENOMEM;
-	}
 	card->proc_root = entry;
 	return 0;
 }
@@ -758,7 +761,6 @@ EXPORT_SYMBOL(snd_info_create_card_entry);
 static void snd_info_disconnect(struct snd_info_entry *entry)
 {
 	struct list_head *p, *n;
-	struct proc_dir_entry *root;
 
 	list_for_each_safe(p, n, &entry->children) {
 		snd_info_disconnect(list_entry(p, struct snd_info_entry, list));
@@ -767,8 +769,6 @@ static void snd_info_disconnect(struct snd_info_entry *entry)
 	if (! entry->p)
 		return;
 	list_del_init(&entry->list);
-	root = entry->parent == NULL ? snd_proc_root : entry->parent->p;
-	snd_BUG_ON(!root);
 	proc_remove(entry->p);
 	entry->p = NULL;
 }
