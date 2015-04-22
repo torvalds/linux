@@ -7533,7 +7533,6 @@ S:	Maintained
 F:	drivers/pci/host/pci-exynos.c
 
 PCI DRIVER FOR SYNOPSIS DESIGNWARE
-M:	Mohit Kumar <mohit.kumar@st.com>
 M:	Jingoo Han <jg1.han@samsung.com>
 L:	linux-pci@vger.kernel.org
 S:	Maintained
@@ -7548,9 +7547,8 @@ F:	Documentation/devicetree/bindings/pci/host-generic-pci.txt
 F:	drivers/pci/host/pci-host-generic.c
 
 PCIE DRIVER FOR ST SPEAR13XX
-M:	Mohit Kumar <mohit.kumar@st.com>
 L:	linux-pci@vger.kernel.org
-S:	Maintained
+S:	Orphan
 F:	drivers/pci/host/*spear*
 
 PCMCIA SUBSYSTEM
