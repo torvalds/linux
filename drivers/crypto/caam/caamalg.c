@@ -3380,10 +3380,6 @@ struct caam_alg_template {
 	union {
 		struct ablkcipher_alg ablkcipher;
 		struct aead_alg aead;
-		struct blkcipher_alg blkcipher;
-		struct cipher_alg cipher;
-		struct compress_alg compress;
-		struct rng_alg rng;
 	} template_u;
 	u32 class1_alg_type;
 	u32 class2_alg_type;
