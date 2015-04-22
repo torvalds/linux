@@ -912,6 +912,15 @@
 				clocks = <&pwm_clk>;
 				status = "disabled";
 			};
+
+			usb1: gadget@f803c000 {
+				compatible = "atmel,at91sam9260-udc";
+				reg = <0xf803c000 0x4000>;
+				interrupts = <23 IRQ_TYPE_LEVEL_HIGH 2>;
+				clocks = <&udphs_clk>, <&udpck>;
+				clock-names = "pclk", "hclk";
+				status = "disabled";
+			};
 		};
 
 		nand0: nand@40000000 {

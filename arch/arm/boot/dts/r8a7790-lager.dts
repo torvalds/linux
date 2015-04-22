@@ -222,6 +222,29 @@
 			};
 		};
 	};
+
+	hdmi-out {
+		compatible = "hdmi-connector";
+		type = "a";
+
+		port {
+			hdmi_con: endpoint {
+				remote-endpoint = <&adv7511_out>;
+			};
+		};
+	};
+
+	x2_clk: x2-clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <148500000>;
+	};
+
+	x13_clk: x13-clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <148500000>;
+	};
 };
 
 &du {
@@ -229,10 +252,24 @@
 	pinctrl-names = "default";
 	status = "okay";
 
+	clocks = <&mstp7_clks R8A7790_CLK_DU0>,
+		 <&mstp7_clks R8A7790_CLK_DU1>,
+		 <&mstp7_clks R8A7790_CLK_DU2>,
+		 <&mstp7_clks R8A7790_CLK_LVDS0>,
+		 <&mstp7_clks R8A7790_CLK_LVDS1>,
+		 <&x13_clk>, <&x2_clk>;
+	clock-names = "du.0", "du.1", "du.2", "lvds.0", "lvds.1",
+		      "dclkin.0", "dclkin.1";
+
 	ports {
 		port@0 {
 			endpoint {
 				remote-endpoint = <&adv7123_in>;
+			};
+		};
+		port@1 {
+			endpoint {
+				remote-endpoint = <&adv7511_in>;
 			};
 		};
 		port@2 {
@@ -503,6 +540,38 @@
 			adv7180: endpoint {
 				bus-width = <8>;
 				remote-endpoint = <&vin1ep0>;
+			};
+		};
+	};
+
+	hdmi@39 {
+		compatible = "adi,adv7511w";
+		reg = <0x39>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <15 IRQ_TYPE_EDGE_FALLING>;
+
+		adi,input-depth = <8>;
+		adi,input-colorspace = "rgb";
+		adi,input-clock = "1x";
+		adi,input-style = <1>;
+		adi,input-justification = "evenly";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				adv7511_in: endpoint {
+					remote-endpoint = <&du_out_lvds0>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				adv7511_out: endpoint {
+					remote-endpoint = <&hdmi_con>;
+				};
 			};
 		};
 	};

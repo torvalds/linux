@@ -91,6 +91,13 @@
 			reg = <0x900000 0x4000>;
 		};
 
+		lcc: clock-controller@28000000 {
+			compatible = "qcom,lcc-msm8960";
+			reg = <0x28000000 0x1000>;
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+		};
+
 		clock-controller@4000000 {
 			compatible = "qcom,mmcc-msm8960";
 			reg = <0x4000000 0x1000>;
@@ -122,12 +129,15 @@
 
 		gsbi5: gsbi@16400000 {
 			compatible = "qcom,gsbi-v1.0.0";
+			cell-index = <5>;
 			reg = <0x16400000 0x100>;
 			clocks = <&gcc GSBI5_H_CLK>;
 			clock-names = "iface";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
+
+			syscon-tcsr = <&tcsr>;
 
 			serial@16440000 {
 				compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
@@ -237,6 +247,11 @@
 				no-1-8-v;
 				vmmc-supply = <&vsdcc_fixed>;
 			};
+		};
+
+		tcsr: syscon@1a400000 {
+			compatible = "qcom,tcsr-msm8960", "syscon";
+			reg = <0x1a400000 0x100>;
 		};
 	};
 };

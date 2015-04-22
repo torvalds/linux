@@ -8,7 +8,6 @@
 /dts-v1/;
 
 #include "dra74x.dtsi"
-#include <dt-bindings/clk/ti-dra7-atl.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 
@@ -548,6 +547,14 @@
 	dr_mode = "host";
 	pinctrl-names = "default";
 	pinctrl-0 = <&usb1_pins>;
+};
+
+&omap_dwc3_1 {
+	extcon = <&extcon_usb1>;
+};
+
+&omap_dwc3_2 {
+	extcon = <&extcon_usb2>;
 };
 
 &usb2 {
