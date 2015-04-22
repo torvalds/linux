@@ -493,7 +493,6 @@ static u8 dm646x_default_priorities[DAVINCI_N_AINTC_IRQ] = {
 	[IRQ_DM646X_EMACMISCINT]        = 7,
 	[IRQ_DM646X_MCASP0TXINT]        = 7,
 	[IRQ_DM646X_MCASP0RXINT]        = 7,
-	[IRQ_AEMIFINT]                  = 7,
 	[IRQ_DM646X_RESERVED_3]         = 7,
 	[IRQ_DM646X_MCASP1TXINT]        = 7,    /* clockevent */
 	[IRQ_TINT0_TINT34]              = 7,    /* clocksource */
@@ -610,19 +609,31 @@ static struct resource dm646x_mcasp0_resources[] = {
 		.end 	= DAVINCI_DM646X_MCASP0_REG_BASE + (SZ_1K << 1) - 1,
 		.flags 	= IORESOURCE_MEM,
 	},
-	/* first TX, then RX */
 	{
+		.name	= "tx",
 		.start	= DAVINCI_DM646X_DMA_MCASP0_AXEVT0,
 		.end	= DAVINCI_DM646X_DMA_MCASP0_AXEVT0,
 		.flags	= IORESOURCE_DMA,
 	},
 	{
+		.name	= "rx",
 		.start	= DAVINCI_DM646X_DMA_MCASP0_AREVT0,
 		.end	= DAVINCI_DM646X_DMA_MCASP0_AREVT0,
 		.flags	= IORESOURCE_DMA,
 	},
+	{
+		.name	= "tx",
+		.start	= IRQ_DM646X_MCASP0TXINT,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.name	= "rx",
+		.start	= IRQ_DM646X_MCASP0RXINT,
+		.flags	= IORESOURCE_IRQ,
+	},
 };
 
+/* DIT mode only, rx is not supported */
 static struct resource dm646x_mcasp1_resources[] = {
 	{
 		.name	= "mpu",
@@ -630,17 +641,16 @@ static struct resource dm646x_mcasp1_resources[] = {
 		.end	= DAVINCI_DM646X_MCASP1_REG_BASE + (SZ_1K << 1) - 1,
 		.flags	= IORESOURCE_MEM,
 	},
-	/* DIT mode, only TX event */
 	{
+		.name	= "tx",
 		.start	= DAVINCI_DM646X_DMA_MCASP1_AXEVT1,
 		.end	= DAVINCI_DM646X_DMA_MCASP1_AXEVT1,
 		.flags	= IORESOURCE_DMA,
 	},
-	/* DIT mode, dummy entry */
 	{
-		.start	= -1,
-		.end	= -1,
-		.flags	= IORESOURCE_DMA,
+		.name	= "tx",
+		.start	= IRQ_DM646X_MCASP1TXINT,
+		.flags	= IORESOURCE_IRQ,
 	},
 };
 

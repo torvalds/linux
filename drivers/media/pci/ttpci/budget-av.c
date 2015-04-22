@@ -68,7 +68,7 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 struct budget_av {
 	struct budget budget;
-	struct video_device *vd;
+	struct video_device vd;
 	int cur_input;
 	int has_saa7113;
 	struct tasklet_struct ciintf_irq_tasklet;

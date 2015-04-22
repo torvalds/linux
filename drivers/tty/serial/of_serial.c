@@ -89,6 +89,7 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 
 	spin_lock_init(&port->lock);
 	port->mapbase = resource.start;
+	port->mapsize = resource_size(&resource);
 
 	/* Check for shifted address mapping */
 	if (of_property_read_u32(np, "reg-offset", &prop) == 0)
@@ -155,7 +156,7 @@ out:
 /*
  * Try to register a serial port
  */
-static struct of_device_id of_platform_serial_table[];
+static const struct of_device_id of_platform_serial_table[];
 static int of_platform_serial_probe(struct platform_device *ofdev)
 {
 	const struct of_device_id *match;
@@ -320,7 +321,7 @@ static SIMPLE_DEV_PM_OPS(of_serial_pm_ops, of_serial_suspend, of_serial_resume);
 /*
  * A few common types, add more as needed.
  */
-static struct of_device_id of_platform_serial_table[] = {
+static const struct of_device_id of_platform_serial_table[] = {
 	{ .compatible = "ns8250",   .data = (void *)PORT_8250, },
 	{ .compatible = "ns16450",  .data = (void *)PORT_16450, },
 	{ .compatible = "ns16550a", .data = (void *)PORT_16550A, },

@@ -649,7 +649,7 @@ static int ar933x_uart_probe(struct platform_device *pdev)
 			id = 0;
 	}
 
-	if (id > CONFIG_SERIAL_AR933X_NR_UARTS)
+	if (id >= CONFIG_SERIAL_AR933X_NR_UARTS)
 		return -EINVAL;
 
 	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);

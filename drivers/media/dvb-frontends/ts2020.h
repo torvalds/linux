@@ -27,11 +27,34 @@
 
 struct ts2020_config {
 	u8 tuner_address;
-	u8 clk_out_div;
 	u32 frequency_div;
+
+	/*
+	 * RF loop-through
+	 */
+	u8 loop_through:1;
+
+	/*
+	 * clock output
+	 */
+#define TS2020_CLK_OUT_DISABLED        0
+#define TS2020_CLK_OUT_ENABLED         1
+#define TS2020_CLK_OUT_ENABLED_XTALOUT 2
+	u8 clk_out:2;
+
+	/*
+	 * clock output divider
+	 * 1 - 31
+	 */
+	u8 clk_out_div:5;
+
+	/*
+	 * pointer to DVB frontend
+	 */
+	struct dvb_frontend *fe;
 };
 
-#if IS_ENABLED(CONFIG_DVB_TS2020)
+#if IS_REACHABLE(CONFIG_DVB_TS2020)
 
 extern struct dvb_frontend *ts2020_attach(
 	struct dvb_frontend *fe,

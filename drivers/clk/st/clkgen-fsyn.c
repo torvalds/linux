@@ -1057,7 +1057,7 @@ static struct clk * __init st_clk_register_quadfs_fsynth(
 	return clk;
 }
 
-static struct of_device_id quadfs_of_match[] = {
+static const struct of_device_id quadfs_of_match[] = {
 	{
 		.compatible = "st,stih416-quadfs216",
 		.data = &st_fs216c65_416

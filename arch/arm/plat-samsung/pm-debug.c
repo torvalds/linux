@@ -23,6 +23,7 @@
 #include <plat/pm-common.h>
 
 #ifdef CONFIG_SAMSUNG_ATAGS
+#include <plat/pm.h>
 #include <mach/pm-core.h>
 #else
 static inline void s3c_pm_debug_init_uart(void) {}

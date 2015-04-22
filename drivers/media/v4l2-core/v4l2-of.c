@@ -19,11 +19,10 @@
 
 #include <media/v4l2-of.h>
 
-static void v4l2_of_parse_csi_bus(const struct device_node *node,
-				  struct v4l2_of_endpoint *endpoint)
+static int v4l2_of_parse_csi_bus(const struct device_node *node,
+				 struct v4l2_of_endpoint *endpoint)
 {
 	struct v4l2_of_bus_mipi_csi2 *bus = &endpoint->bus.mipi_csi2;
-	u32 data_lanes[ARRAY_SIZE(bus->data_lanes)];
 	struct property *prop;
 	bool have_clk_lane = false;
 	unsigned int flags = 0;
@@ -32,16 +31,34 @@ static void v4l2_of_parse_csi_bus(const struct device_node *node,
 	prop = of_find_property(node, "data-lanes", NULL);
 	if (prop) {
 		const __be32 *lane = NULL;
-		int i;
+		unsigned int i;
 
-		for (i = 0; i < ARRAY_SIZE(data_lanes); i++) {
-			lane = of_prop_next_u32(prop, lane, &data_lanes[i]);
+		for (i = 0; i < ARRAY_SIZE(bus->data_lanes); i++) {
+			lane = of_prop_next_u32(prop, lane, &v);
 			if (!lane)
 				break;
+			bus->data_lanes[i] = v;
 		}
 		bus->num_data_lanes = i;
-		while (i--)
-			bus->data_lanes[i] = data_lanes[i];
+	}
+
+	prop = of_find_property(node, "lane-polarities", NULL);
+	if (prop) {
+		const __be32 *polarity = NULL;
+		unsigned int i;
+
+		for (i = 0; i < ARRAY_SIZE(bus->lane_polarities); i++) {
+			polarity = of_prop_next_u32(prop, polarity, &v);
+			if (!polarity)
+				break;
+			bus->lane_polarities[i] = v;
+		}
+
+		if (i < 1 + bus->num_data_lanes /* clock + data */) {
+			pr_warn("%s: too few lane-polarities entries (need %u, got %u)\n",
+				node->full_name, 1 + bus->num_data_lanes, i);
+			return -EINVAL;
+		}
 	}
 
 	if (!of_property_read_u32(node, "clock-lanes", &v)) {
@@ -56,6 +73,8 @@ static void v4l2_of_parse_csi_bus(const struct device_node *node,
 
 	bus->flags = flags;
 	endpoint->bus_type = V4L2_MBUS_CSI2;
+
+	return 0;
 }
 
 static void v4l2_of_parse_parallel_bus(const struct device_node *node,
@@ -127,11 +146,15 @@ static void v4l2_of_parse_parallel_bus(const struct device_node *node,
 int v4l2_of_parse_endpoint(const struct device_node *node,
 			   struct v4l2_of_endpoint *endpoint)
 {
+	int rval;
+
 	of_graph_parse_endpoint(node, &endpoint->base);
 	endpoint->bus_type = 0;
 	memset(&endpoint->bus, 0, sizeof(endpoint->bus));
 
-	v4l2_of_parse_csi_bus(node, endpoint);
+	rval = v4l2_of_parse_csi_bus(node, endpoint);
+	if (rval)
+		return rval;
 	/*
 	 * Parse the parallel video bus properties only if none
 	 * of the MIPI CSI-2 specific properties were found.
@@ -142,3 +165,64 @@ int v4l2_of_parse_endpoint(const struct device_node *node,
 	return 0;
 }
 EXPORT_SYMBOL(v4l2_of_parse_endpoint);
+
+/**
+ * v4l2_of_parse_link() - parse a link between two endpoints
+ * @node: pointer to the endpoint at the local end of the link
+ * @link: pointer to the V4L2 OF link data structure
+ *
+ * Fill the link structure with the local and remote nodes and port numbers.
+ * The local_node and remote_node fields are set to point to the local and
+ * remote port's parent nodes respectively (the port parent node being the
+ * parent node of the port node if that node isn't a 'ports' node, or the
+ * grand-parent node of the port node otherwise).
+ *
+ * A reference is taken to both the local and remote nodes, the caller must use
+ * v4l2_of_put_link() to drop the references when done with the link.
+ *
+ * Return: 0 on success, or -ENOLINK if the remote endpoint can't be found.
+ */
+int v4l2_of_parse_link(const struct device_node *node,
+		       struct v4l2_of_link *link)
+{
+	struct device_node *np;
+
+	memset(link, 0, sizeof(*link));
+
+	np = of_get_parent(node);
+	of_property_read_u32(np, "reg", &link->local_port);
+	np = of_get_next_parent(np);
+	if (of_node_cmp(np->name, "ports") == 0)
+		np = of_get_next_parent(np);
+	link->local_node = np;
+
+	np = of_parse_phandle(node, "remote-endpoint", 0);
+	if (!np) {
+		of_node_put(link->local_node);
+		return -ENOLINK;
+	}
+
+	np = of_get_parent(np);
+	of_property_read_u32(np, "reg", &link->remote_port);
+	np = of_get_next_parent(np);
+	if (of_node_cmp(np->name, "ports") == 0)
+		np = of_get_next_parent(np);
+	link->remote_node = np;
+
+	return 0;
+}
+EXPORT_SYMBOL(v4l2_of_parse_link);
+
+/**
+ * v4l2_of_put_link() - drop references to nodes in a link
+ * @link: pointer to the V4L2 OF link data structure
+ *
+ * Drop references to the local and remote nodes in the link. This function must
+ * be called on every link parsed with v4l2_of_parse_link().
+ */
+void v4l2_of_put_link(struct v4l2_of_link *link)
+{
+	of_node_put(link->local_node);
+	of_node_put(link->remote_node);
+}
+EXPORT_SYMBOL(v4l2_of_put_link);

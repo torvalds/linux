@@ -13,6 +13,7 @@
 #include <linux/swab.h>
 
 #include "coda.h"
+#include "trace.h"
 
 #define SOI_MARKER	0xffd8
 #define EOI_MARKER	0xffd9

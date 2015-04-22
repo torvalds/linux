@@ -1016,7 +1016,6 @@ static int mt9m111_remove(struct i2c_client *client)
 
 	v4l2_async_unregister_subdev(&mt9m111->subdev);
 	v4l2_clk_put(mt9m111->clk);
-	v4l2_device_unregister_subdev(&mt9m111->subdev);
 	v4l2_ctrl_handler_free(&mt9m111->hdl);
 
 	return 0;

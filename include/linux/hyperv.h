@@ -646,11 +646,12 @@ struct hv_input_signal_event_buffer {
 };
 
 struct vmbus_channel {
+	/* Unique channel id */
+	int id;
+
 	struct list_head listentry;
 
 	struct hv_device *device_obj;
-
-	struct work_struct work;
 
 	enum vmbus_channel_state state;
 
@@ -672,7 +673,6 @@ struct vmbus_channel {
 	struct hv_ring_buffer_info outbound;	/* send to parent */
 	struct hv_ring_buffer_info inbound;	/* receive from parent */
 	spinlock_t inbound_lock;
-	struct workqueue_struct *controlwq;
 
 	struct vmbus_close_msg close_msg;
 
@@ -758,6 +758,9 @@ struct vmbus_channel {
 	 * link up channels based on their CPU affinity.
 	 */
 	struct list_head percpu_list;
+
+	int num_sc;
+	int next_oc;
 };
 
 static inline void set_channel_read_state(struct vmbus_channel *c, bool state)
@@ -861,12 +864,29 @@ extern int vmbus_sendpacket(struct vmbus_channel *channel,
 				  enum vmbus_packet_type type,
 				  u32 flags);
 
+extern int vmbus_sendpacket_ctl(struct vmbus_channel *channel,
+				  void *buffer,
+				  u32 bufferLen,
+				  u64 requestid,
+				  enum vmbus_packet_type type,
+				  u32 flags,
+				  bool kick_q);
+
 extern int vmbus_sendpacket_pagebuffer(struct vmbus_channel *channel,
 					    struct hv_page_buffer pagebuffers[],
 					    u32 pagecount,
 					    void *buffer,
 					    u32 bufferlen,
 					    u64 requestid);
+
+extern int vmbus_sendpacket_pagebuffer_ctl(struct vmbus_channel *channel,
+					   struct hv_page_buffer pagebuffers[],
+					   u32 pagecount,
+					   void *buffer,
+					   u32 bufferlen,
+					   u64 requestid,
+					   u32 flags,
+					   bool kick_q);
 
 extern int vmbus_sendpacket_multipagebuffer(struct vmbus_channel *channel,
 					struct hv_multipage_buffer *mpb,
@@ -1107,6 +1127,16 @@ void vmbus_driver_unregister(struct hv_driver *hv_driver);
 		}
 
 /*
+ * NetworkDirect. This is the guest RDMA service.
+ * {8c2eaf3d-32a7-4b09-ab99-bd1f1c86b501}
+ */
+#define HV_ND_GUID \
+	.guid = { \
+			0x3d, 0xaf, 0x2e, 0x8c, 0xa7, 0x32, 0x09, 0x4b, \
+			0xab, 0x99, 0xbd, 0x1f, 0x1c, 0x86, 0xb5, 0x01 \
+		}
+
+/*
  * Common header for Hyper-V ICs
  */
 
@@ -1213,6 +1243,7 @@ void hv_kvp_onchannelcallback(void *);
 int hv_vss_init(struct hv_util_service *);
 void hv_vss_deinit(void);
 void hv_vss_onchannelcallback(void *);
+void hv_process_channel_removal(struct vmbus_channel *channel, u32 relid);
 
 extern struct resource hyperv_mmio;
 

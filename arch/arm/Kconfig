@@ -362,19 +362,6 @@ config ARCH_VERSATILE
 	help
 	  This enables support for ARM Ltd Versatile board.
 
-config ARCH_AT91
-	bool "Atmel AT91"
-	select ARCH_REQUIRE_GPIOLIB
-	select CLKDEV_LOOKUP
-	select IRQ_DOMAIN
-	select NEED_MACH_IO_H if PCCARD
-	select PINCTRL
-	select PINCTRL_AT91
-	select USE_OF
-	help
-	  This enables support for systems based on Atmel
-	  AT91RM9200, AT91SAM9 and SAMA5 processors.
-
 config ARCH_CLPS711X
 	bool "Cirrus Logic CLPS711x/EP721x/EP731x-based"
 	select ARCH_REQUIRE_GPIOLIB
@@ -632,18 +619,6 @@ config ARCH_PXA
 	help
 	  Support for Intel/Marvell's PXA2xx/PXA3xx processor line.
 
-config ARCH_MSM
-	bool "Qualcomm MSM (non-multiplatform)"
-	select ARCH_REQUIRE_GPIOLIB
-	select COMMON_CLK
-	select GENERIC_CLOCKEVENTS
-	help
-	  Support for Qualcomm MSM/QSD based systems.  This runs on the
-	  apps processor of the MSM/QSD and depends on a shared memory
-	  interface to the modem processor which runs the baseband
-	  stack and controls some vital subsystems
-	  (clock and power control, etc).
-
 config ARCH_SHMOBILE_LEGACY
 	bool "Renesas ARM SoCs (non-multiplatform)"
 	select ARCH_SHMOBILE
@@ -653,7 +628,6 @@ config ARCH_SHMOBILE_LEGACY
 	select GENERIC_CLOCKEVENTS
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
-	select HAVE_MACH_CLKDEV
 	select HAVE_SMP
 	select MIGHT_HAVE_CACHE_L2X0
 	select MULTI_IRQ_HANDLER
@@ -851,6 +825,8 @@ config ARCH_VIRT
 #
 source "arch/arm/mach-mvebu/Kconfig"
 
+source "arch/arm/mach-alpine/Kconfig"
+
 source "arch/arm/mach-asm9260/Kconfig"
 
 source "arch/arm/mach-at91/Kconfig"
@@ -896,8 +872,6 @@ source "arch/arm/mach-keystone/Kconfig"
 source "arch/arm/mach-ks8695/Kconfig"
 
 source "arch/arm/mach-meson/Kconfig"
-
-source "arch/arm/mach-msm/Kconfig"
 
 source "arch/arm/mach-moxart/Kconfig"
 
@@ -1523,7 +1497,7 @@ config HZ_FIXED
 	int
 	default 200 if ARCH_EBSA110 || ARCH_S3C24XX || \
 		ARCH_S5PV210 || ARCH_EXYNOS4
-	default AT91_TIMER_HZ if ARCH_AT91
+	default 128 if SOC_AT91RM9200
 	default SHMOBILE_TIMER_HZ if ARCH_SHMOBILE_LEGACY
 	default 0
 
@@ -1856,35 +1830,6 @@ config ZBOOT_ROM
 	  Say Y here if you intend to execute your compressed kernel image
 	  (zImage) directly from ROM or flash.  If unsure, say N.
 
-choice
-	prompt "Include SD/MMC loader in zImage (EXPERIMENTAL)"
-	depends on ZBOOT_ROM && ARCH_SH7372
-	default ZBOOT_ROM_NONE
-	help
-	  Include experimental SD/MMC loading code in the ROM-able zImage.
-	  With this enabled it is possible to write the ROM-able zImage
-	  kernel image to an MMC or SD card and boot the kernel straight
-	  from the reset vector. At reset the processor Mask ROM will load
-	  the first part of the ROM-able zImage which in turn loads the
-	  rest the kernel image to RAM.
-
-config ZBOOT_ROM_NONE
-	bool "No SD/MMC loader in zImage (EXPERIMENTAL)"
-	help
-	  Do not load image from SD or MMC
-
-config ZBOOT_ROM_MMCIF
-	bool "Include MMCIF loader in zImage (EXPERIMENTAL)"
-	help
-	  Load image from MMCIF hardware block.
-
-config ZBOOT_ROM_SH_MOBILE_SDHI
-	bool "Include SuperH Mobile SDHI loader in zImage (EXPERIMENTAL)"
-	help
-	  Load image from SDHI hardware block
-
-endchoice
-
 config ARM_APPENDED_DTB
 	bool "Use appended device tree blob to zImage (EXPERIMENTAL)"
 	depends on OF
@@ -2157,6 +2102,8 @@ endmenu
 source "net/Kconfig"
 
 source "drivers/Kconfig"
+
+source "drivers/firmware/Kconfig"
 
 source "fs/Kconfig"
 

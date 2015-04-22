@@ -1436,10 +1436,10 @@ static void saa7164_finidev(struct pci_dev *pci_dev)
 	saa7164_i2c_unregister(&dev->i2c_bus[1]);
 	saa7164_i2c_unregister(&dev->i2c_bus[2]);
 
-	pci_disable_device(pci_dev);
-
 	/* unregister stuff */
 	free_irq(pci_dev->irq, dev);
+
+	pci_disable_device(pci_dev);
 
 	mutex_lock(&devlist);
 	list_del(&dev->devlist);

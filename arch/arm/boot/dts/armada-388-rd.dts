@@ -55,7 +55,7 @@
 		"marvell,armada385","marvell,armada380";
 
 	chosen {
-		bootargs = "console=ttyS0,115200 earlyprintk";
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory {
@@ -83,6 +83,16 @@
 			i2c@11000 {
 				status = "okay";
 				clock-frequency = <100000>;
+			};
+
+			sdhci@d8000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&sdhci_pins>;
+				broken-cd;
+				no-1-8-v;
+				wp-inverted;
+				bus-width = <8>;
+				status = "okay";
 			};
 
 			serial@12000 {

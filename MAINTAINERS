@@ -886,6 +886,11 @@ S:	Maintained
 F:	drivers/media/rc/meson-ir.c
 N:	meson[x68]
 
+ARM/Annapurna Labs ALPINE ARCHITECTURE
+M:	Tsahee Zidenberg <tsahee@annapurnalabs.com>
+S:	Maintained
+F:	arch/arm/mach-alpine/
+
 ARM/ATMEL AT91RM9200 AND AT91SAM ARM ARCHITECTURES
 M:	Andrew Victor <linux@maxim.org.za>
 M:	Nicolas Ferre <nicolas.ferre@atmel.com>
@@ -958,7 +963,7 @@ ARM/CORESIGHT FRAMEWORK AND DRIVERS
 M:	Mathieu Poirier <mathieu.poirier@linaro.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
-F:	drivers/coresight/*
+F:	drivers/hwtracing/coresight/*
 F:	Documentation/trace/coresight.txt
 F:	Documentation/devicetree/bindings/arm/coresight.txt
 F:	Documentation/ABI/testing/sysfs-bus-coresight-devices-*
@@ -1261,22 +1266,6 @@ L:	openmoko-kernel@lists.openmoko.org (subscribers-only)
 W:	http://wiki.openmoko.org/wiki/Neo_FreeRunner
 S:	Supported
 
-ARM/QUALCOMM MSM MACHINE SUPPORT
-M:	David Brown <davidb@codeaurora.org>
-M:	Daniel Walker <dwalker@fifo99.com>
-M:	Bryan Huntsman <bryanh@codeaurora.org>
-L:	linux-arm-msm@vger.kernel.org
-F:	arch/arm/mach-msm/
-F:	drivers/video/fbdev/msm/
-F:	drivers/mmc/host/msm_sdcc.c
-F:	drivers/mmc/host/msm_sdcc.h
-F:	drivers/tty/serial/msm_serial.h
-F:	drivers/tty/serial/msm_serial.c
-F:	drivers/*/pm8???-*
-F:	drivers/mfd/ssbi.c
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davidb/linux-msm.git
-S:	Maintained
-
 ARM/TOSA MACHINE SUPPORT
 M:	Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
 M:	Dirk Opfer <dirk@opfer-online.de>
@@ -1334,6 +1323,11 @@ L:	linux-soc@vger.kernel.org
 S:	Maintained
 F:	arch/arm/mach-qcom/
 F:	drivers/soc/qcom/
+F:	drivers/tty/serial/msm_serial.h
+F:	drivers/tty/serial/msm_serial.c
+F:	drivers/*/pm8???-*
+F:	drivers/mfd/ssbi.c
+F:	drivers/firmware/qcom_scm.c
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/galak/linux-qcom.git
 
 ARM/RADISYS ENP2611 MACHINE SUPPORT
@@ -1432,11 +1426,9 @@ F:	arch/arm/boot/dts/emev2*
 F:	arch/arm/boot/dts/r7s*
 F:	arch/arm/boot/dts/r8a*
 F:	arch/arm/boot/dts/sh*
-F:	arch/arm/configs/ape6evm_defconfig
 F:	arch/arm/configs/armadillo800eva_defconfig
 F:	arch/arm/configs/bockw_defconfig
 F:	arch/arm/configs/kzm9g_defconfig
-F:	arch/arm/configs/mackerel_defconfig
 F:	arch/arm/configs/marzen_defconfig
 F:	arch/arm/configs/shmobile_defconfig
 F:	arch/arm/include/debug/renesas-scif.S
@@ -1828,7 +1820,7 @@ S:	Supported
 F:	drivers/spi/spi-atmel.*
 
 ATMEL SSC DRIVER
-M:	Bo Shen <voice.shen@atmel.com>
+M:	Nicolas Ferre <nicolas.ferre@atmel.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Supported
 F:	drivers/misc/atmel-ssc.c
@@ -2577,6 +2569,7 @@ F:	include/linux/cleancache.h
 
 CLK API
 M:	Russell King <linux@arm.linux.org.uk>
+L:	linux-clk@vger.kernel.org
 S:	Maintained
 F:	include/linux/clk.h
 
@@ -2637,7 +2630,7 @@ F:	drivers/media/platform/coda/
 COMMON CLK FRAMEWORK
 M:	Mike Turquette <mturquette@linaro.org>
 M:	Stephen Boyd <sboyd@codeaurora.org>
-L:	linux-kernel@vger.kernel.org
+L:	linux-clk@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/clk/linux.git
 S:	Maintained
 F:	drivers/clk/
@@ -4473,7 +4466,7 @@ S:	Maintained
 F:	block/partitions/efi.*
 
 STK1160 USB VIDEO CAPTURE DRIVER
-M:	Ezequiel Garcia <elezegarcia@gmail.com>
+M:	Ezequiel Garcia <ezequiel@vanguardiasur.com.ar>
 L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
@@ -6165,16 +6158,6 @@ Q:	http://patchwork.linuxtv.org/project/linux-media/list/
 S:	Maintained
 F:	drivers/media/dvb-frontends/m88rs2000*
 
-M88TS2022 MEDIA DRIVER
-M:	Antti Palosaari <crope@iki.fi>
-L:	linux-media@vger.kernel.org
-W:	http://linuxtv.org/
-W:	http://palosaari.fi/linux/
-Q:	http://patchwork.linuxtv.org/project/linux-media/list/
-T:	git git://linuxtv.org/anttip/media_tree.git
-S:	Maintained
-F:	drivers/media/tuners/m88ts2022*
-
 MA901 MASTERKIT USB FM RADIO DRIVER
 M:	Alexey Klimov <klimov.linux@gmail.com>
 L:	linux-media@vger.kernel.org
@@ -6598,6 +6581,7 @@ M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
+F:	Documentation/devicetree/bindings/media/i2c/mt9v032.txt
 F:	drivers/media/i2c/mt9v032.c
 F:	include/media/mt9v032.h
 
@@ -7015,6 +6999,8 @@ Q:	http://patchwork.kernel.org/project/linux-omap/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tmlind/linux-omap.git
 S:	Maintained
 F:	arch/arm/*omap*/
+F:	arch/arm/configs/omap1_defconfig
+F:	arch/arm/configs/omap2plus_defconfig
 F:	drivers/i2c/busses/i2c-omap.c
 F:	drivers/irqchip/irq-omap-intc.c
 F:	drivers/mfd/*omap*.c
@@ -7145,6 +7131,7 @@ OMAP IMAGING SUBSYSTEM (OMAP3 ISP and OMAP4 ISS)
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
+F:	Documentation/devicetree/bindings/media/ti,omap3isp.txt
 F:	drivers/media/platform/omap3isp/
 F:	drivers/staging/media/omap4iss/
 
@@ -7546,7 +7533,6 @@ S:	Maintained
 F:	drivers/pci/host/pci-exynos.c
 
 PCI DRIVER FOR SYNOPSIS DESIGNWARE
-M:	Mohit Kumar <mohit.kumar@st.com>
 M:	Jingoo Han <jg1.han@samsung.com>
 L:	linux-pci@vger.kernel.org
 S:	Maintained
@@ -7561,9 +7547,8 @@ F:	Documentation/devicetree/bindings/pci/host-generic-pci.txt
 F:	drivers/pci/host/pci-host-generic.c
 
 PCIE DRIVER FOR ST SPEAR13XX
-M:	Mohit Kumar <mohit.kumar@st.com>
 L:	linux-pci@vger.kernel.org
-S:	Maintained
+S:	Orphan
 F:	drivers/pci/host/*spear*
 
 PCMCIA SUBSYSTEM
@@ -8990,6 +8975,16 @@ Q:	http://patchwork.linuxtv.org/project/linux-media/list/
 T:	git git://linuxtv.org/mhadli/v4l-dvb-davinci_devices.git
 S:	Maintained
 F:	drivers/media/platform/am437x/
+
+OV2659 OMNIVISION SENSOR DRIVER
+M:	Lad, Prabhakar <prabhakar.csengg@gmail.com>
+L:	linux-media@vger.kernel.org
+W:	http://linuxtv.org/
+Q:	http://patchwork.linuxtv.org/project/linux-media/list/
+T:	git git://linuxtv.org/mhadli/v4l-dvb-davinci_devices.git
+S:	Maintained
+F:	drivers/media/i2c/ov2659.c
+F:	include/media/ov2659.h
 
 SIS 190 ETHERNET DRIVER
 M:	Francois Romieu <romieu@fr.zoreil.com>
@@ -10520,6 +10515,12 @@ S:	Maintained
 F:	drivers/vhost/
 F:	include/uapi/linux/vhost.h
 
+VIRTIO INPUT DRIVER
+M:	Gerd Hoffmann <kraxel@redhat.com>
+S:	Maintained
+F:	drivers/virtio/virtio_input.c
+F:	include/uapi/linux/virtio_input.h
+
 VIA RHINE NETWORK DRIVER
 M:	Roger Luethi <rl@hellgate.ch>
 S:	Maintained
@@ -10594,6 +10595,14 @@ M:	"VMware, Inc." <pv-drivers@vmware.com>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	drivers/misc/vmw_balloon.c
+
+VMWARE VMMOUSE SUBDRIVER
+M:	"VMware Graphics" <linux-graphics-maintainer@vmware.com>
+M:	"VMware, Inc." <pv-drivers@vmware.com>
+L:	linux-input@vger.kernel.org
+S:	Maintained
+F:	drivers/input/mouse/vmmouse.c
+F:	drivers/input/mouse/vmmouse.h
 
 VMWARE VMXNET3 ETHERNET DRIVER
 M:	Shreyas Bhatewara <sbhatewara@vmware.com>
@@ -10919,6 +10928,16 @@ M:	Peter Korsgaard <jacmet@sunsite.dk>
 L:	linux-serial@vger.kernel.org
 S:	Maintained
 F:	drivers/tty/serial/uartlite.c
+
+XILINX VIDEO IP CORES
+M:	Hyun Kwon <hyun.kwon@xilinx.com>
+M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Supported
+F:	Documentation/devicetree/bindings/media/xilinx/
+F:	drivers/media/platform/xilinx/
+F:	include/uapi/linux/xilinx-v4l2-controls.h
 
 XILLYBUS DRIVER
 M:	Eli Billauer <eli.billauer@gmail.com>

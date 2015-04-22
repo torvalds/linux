@@ -63,7 +63,7 @@ extern u32 omap2xxx_cm_get_core_pll_config(void);
 extern void omap2xxx_cm_set_mod_dividers(u32 mpu, u32 dsp, u32 gfx, u32 core,
 					 u32 mdm);
 
-extern int __init omap2xxx_cm_init(void);
+int __init omap2xxx_cm_init(const struct omap_prcm_init_data *data);
 
 #endif
 

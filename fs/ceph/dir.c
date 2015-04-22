@@ -281,6 +281,7 @@ static int ceph_readdir(struct file *file, struct dir_context *ctx)
 	/* can we use the dcache? */
 	spin_lock(&ci->i_ceph_lock);
 	if ((ctx->pos == 2 || fi->dentry) &&
+	    ceph_test_mount_opt(fsc, DCACHE) &&
 	    !ceph_test_mount_opt(fsc, NOASYNCREADDIR) &&
 	    ceph_snap(inode) != CEPH_SNAPDIR &&
 	    __ceph_dir_is_complete_ordered(ci) &&
@@ -336,16 +337,23 @@ more:
 			ceph_mdsc_put_request(req);
 			return err;
 		}
-		req->r_inode = inode;
-		ihold(inode);
-		req->r_dentry = dget(file->f_path.dentry);
 		/* hints to request -> mds selection code */
 		req->r_direct_mode = USE_AUTH_MDS;
 		req->r_direct_hash = ceph_frag_value(frag);
 		req->r_direct_is_hash = true;
-		req->r_path2 = kstrdup(fi->last_name, GFP_NOFS);
+		if (fi->last_name) {
+			req->r_path2 = kstrdup(fi->last_name, GFP_NOFS);
+			if (!req->r_path2) {
+				ceph_mdsc_put_request(req);
+				return -ENOMEM;
+			}
+		}
 		req->r_readdir_offset = fi->next_offset;
 		req->r_args.readdir.frag = cpu_to_le32(frag);
+
+		req->r_inode = inode;
+		ihold(inode);
+		req->r_dentry = dget(file->f_path.dentry);
 		err = ceph_mdsc_do_request(mdsc, NULL, req);
 		if (err < 0) {
 			ceph_mdsc_put_request(req);
@@ -629,6 +637,7 @@ static struct dentry *ceph_lookup(struct inode *dir, struct dentry *dentry,
 			    fsc->mount_options->snapdir_name,
 			    dentry->d_name.len) &&
 		    !is_root_ceph_dentry(dir, dentry) &&
+		    ceph_test_mount_opt(fsc, DCACHE) &&
 		    __ceph_dir_is_complete(ci) &&
 		    (__ceph_caps_issued_mask(ci, CEPH_CAP_FILE_SHARED, 1))) {
 			spin_unlock(&ci->i_ceph_lock);
@@ -755,10 +764,15 @@ static int ceph_symlink(struct inode *dir, struct dentry *dentry,
 		err = PTR_ERR(req);
 		goto out;
 	}
+	req->r_path2 = kstrdup(dest, GFP_NOFS);
+	if (!req->r_path2) {
+		err = -ENOMEM;
+		ceph_mdsc_put_request(req);
+		goto out;
+	}
+	req->r_locked_dir = dir;
 	req->r_dentry = dget(dentry);
 	req->r_num_caps = 2;
-	req->r_path2 = kstrdup(dest, GFP_NOFS);
-	req->r_locked_dir = dir;
 	req->r_dentry_drop = CEPH_CAP_FILE_SHARED;
 	req->r_dentry_unless = CEPH_CAP_FILE_EXCL;
 	err = ceph_mdsc_do_request(mdsc, dir, req);
@@ -933,16 +947,20 @@ static int ceph_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct ceph_fs_client *fsc = ceph_sb_to_client(old_dir->i_sb);
 	struct ceph_mds_client *mdsc = fsc->mdsc;
 	struct ceph_mds_request *req;
+	int op = CEPH_MDS_OP_RENAME;
 	int err;
 
 	if (ceph_snap(old_dir) != ceph_snap(new_dir))
 		return -EXDEV;
-	if (ceph_snap(old_dir) != CEPH_NOSNAP ||
-	    ceph_snap(new_dir) != CEPH_NOSNAP)
-		return -EROFS;
+	if (ceph_snap(old_dir) != CEPH_NOSNAP) {
+		if (old_dir == new_dir && ceph_snap(old_dir) == CEPH_SNAPDIR)
+			op = CEPH_MDS_OP_RENAMESNAP;
+		else
+			return -EROFS;
+	}
 	dout("rename dir %p dentry %p to dir %p dentry %p\n",
 	     old_dir, old_dentry, new_dir, new_dentry);
-	req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_RENAME, USE_AUTH_MDS);
+	req = ceph_mdsc_create_request(mdsc, op, USE_AUTH_MDS);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 	ihold(old_dir);
@@ -1240,11 +1258,12 @@ static int ceph_dir_fsync(struct file *file, loff_t start, loff_t end,
 		dout("dir_fsync %p wait on tid %llu (until %llu)\n",
 		     inode, req->r_tid, last_tid);
 		if (req->r_timeout) {
-			ret = wait_for_completion_timeout(
-				&req->r_safe_completion, req->r_timeout);
-			if (ret > 0)
+			unsigned long time_left = wait_for_completion_timeout(
+							&req->r_safe_completion,
+							req->r_timeout);
+			if (time_left > 0)
 				ret = 0;
-			else if (ret == 0)
+			else
 				ret = -EIO;  /* timed out */
 		} else {
 			wait_for_completion(&req->r_safe_completion);
@@ -1372,6 +1391,7 @@ const struct inode_operations ceph_snapdir_iops = {
 	.getattr = ceph_getattr,
 	.mkdir = ceph_mkdir,
 	.rmdir = ceph_unlink,
+	.rename = ceph_rename,
 };
 
 const struct dentry_operations ceph_dentry_ops = {

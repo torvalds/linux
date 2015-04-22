@@ -236,6 +236,7 @@ static int tifm_7xx1_resume(struct pci_dev *dev)
 {
 	struct tifm_adapter *fm = pci_get_drvdata(dev);
 	int rc;
+	unsigned long timeout;
 	unsigned int good_sockets = 0, bad_sockets = 0;
 	unsigned long flags;
 	unsigned char new_ids[fm->num_sockets];
@@ -272,8 +273,8 @@ static int tifm_7xx1_resume(struct pci_dev *dev)
 	if (good_sockets) {
 		fm->finish_me = &finish_resume;
 		spin_unlock_irqrestore(&fm->lock, flags);
-		rc = wait_for_completion_timeout(&finish_resume, HZ);
-		dev_dbg(&dev->dev, "wait returned %d\n", rc);
+		timeout = wait_for_completion_timeout(&finish_resume, HZ);
+		dev_dbg(&dev->dev, "wait returned %lu\n", timeout);
 		writel(TIFM_IRQ_FIFOMASK(good_sockets)
 		       | TIFM_IRQ_CARDMASK(good_sockets),
 		       fm->addr + FM_CLEAR_INTERRUPT_ENABLE);

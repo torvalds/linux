@@ -127,7 +127,7 @@ struct arizona {
 	struct regmap_irq_chip_data *aod_irq_chip;
 	struct regmap_irq_chip_data *irq_chip;
 
-	bool hpdet_magic;
+	bool hpdet_clamp;
 	unsigned int hp_ena;
 
 	struct mutex clk_lock;

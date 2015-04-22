@@ -143,86 +143,28 @@
 	  <row>
 	    <entry></entry>
 	    <entry>struct</entry>
-	    <entry><structfield>v4l</structfield></entry>
+	    <entry><structfield>dev</structfield></entry>
 	    <entry></entry>
-	    <entry>Valid for V4L sub-devices and nodes only.</entry>
+	    <entry>Valid for (sub-)devices that create a single device node.</entry>
 	  </row>
 	  <row>
 	    <entry></entry>
 	    <entry></entry>
 	    <entry>__u32</entry>
 	    <entry><structfield>major</structfield></entry>
-	    <entry>V4L device node major number. For V4L sub-devices with no
-	    device node, set by the driver to 0.</entry>
+	    <entry>Device node major number.</entry>
 	  </row>
 	  <row>
 	    <entry></entry>
 	    <entry></entry>
 	    <entry>__u32</entry>
 	    <entry><structfield>minor</structfield></entry>
-	    <entry>V4L device node minor number. For V4L sub-devices with no
-	    device node, set by the driver to 0.</entry>
-	  </row>
-	  <row>
-	    <entry></entry>
-	    <entry>struct</entry>
-	    <entry><structfield>fb</structfield></entry>
-	    <entry></entry>
-	    <entry>Valid for frame buffer nodes only.</entry>
-	  </row>
-	  <row>
-	    <entry></entry>
-	    <entry></entry>
-	    <entry>__u32</entry>
-	    <entry><structfield>major</structfield></entry>
-	    <entry>Frame buffer device node major number.</entry>
-	  </row>
-	  <row>
-	    <entry></entry>
-	    <entry></entry>
-	    <entry>__u32</entry>
-	    <entry><structfield>minor</structfield></entry>
-	    <entry>Frame buffer device node minor number.</entry>
-	  </row>
-	  <row>
-	    <entry></entry>
-	    <entry>struct</entry>
-	    <entry><structfield>alsa</structfield></entry>
-	    <entry></entry>
-	    <entry>Valid for ALSA devices only.</entry>
-	  </row>
-	  <row>
-	    <entry></entry>
-	    <entry></entry>
-	    <entry>__u32</entry>
-	    <entry><structfield>card</structfield></entry>
-	    <entry>ALSA card number</entry>
-	  </row>
-	  <row>
-	    <entry></entry>
-	    <entry></entry>
-	    <entry>__u32</entry>
-	    <entry><structfield>device</structfield></entry>
-	    <entry>ALSA device number</entry>
-	  </row>
-	  <row>
-	    <entry></entry>
-	    <entry></entry>
-	    <entry>__u32</entry>
-	    <entry><structfield>subdevice</structfield></entry>
-	    <entry>ALSA sub-device number</entry>
-	  </row>
-	  <row>
-	    <entry></entry>
-	    <entry>int</entry>
-	    <entry><structfield>dvb</structfield></entry>
-	    <entry></entry>
-	    <entry>DVB card number</entry>
+	    <entry>Device node minor number.</entry>
 	  </row>
 	  <row>
 	    <entry></entry>
 	    <entry>__u8</entry>
-	    <entry><structfield>raw</structfield>[180]</entry>
+	    <entry><structfield>raw</structfield>[184]</entry>
 	    <entry></entry>
 	    <entry></entry>
 	  </row>
@@ -253,8 +195,24 @@
 	    <entry>ALSA card</entry>
 	  </row>
 	  <row>
-	    <entry><constant>MEDIA_ENT_T_DEVNODE_DVB</constant></entry>
-	    <entry>DVB card</entry>
+	    <entry><constant>MEDIA_ENT_T_DEVNODE_DVB_FE</constant></entry>
+	    <entry>DVB frontend devnode</entry>
+	  </row>
+	  <row>
+	    <entry><constant>MEDIA_ENT_T_DEVNODE_DVB_DEMUX</constant></entry>
+	    <entry>DVB demux devnode</entry>
+	  </row>
+	  <row>
+	    <entry><constant>MEDIA_ENT_T_DEVNODE_DVB_DVR</constant></entry>
+	    <entry>DVB DVR devnode</entry>
+	  </row>
+	  <row>
+	    <entry><constant>MEDIA_ENT_T_DEVNODE_DVB_CA</constant></entry>
+	    <entry>DVB CAM devnode</entry>
+	  </row>
+	  <row>
+	    <entry><constant>MEDIA_ENT_T_DEVNODE_DVB_NET</constant></entry>
+	    <entry>DVB network devnode</entry>
 	  </row>
 	  <row>
 	    <entry><constant>MEDIA_ENT_T_V4L2_SUBDEV</constant></entry>
@@ -281,6 +239,10 @@
 	    it into its component parts, luminance and chrominance, and output
 	    it in some digital video standard, with appropriate embedded timing
 	    signals.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>MEDIA_ENT_T_V4L2_SUBDEV_TUNER</constant></entry>
+	    <entry>TV and/or radio tuner</entry>
 	  </row>
 	</tbody>
       </tgroup>

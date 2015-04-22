@@ -14,7 +14,6 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
 #include <linux/slab.h>
-#include <linux/device.h>
 
 #include <linux/scatterlist.h>
 #include <linux/swap.h>		/* For nr_free_buffer_pages() */
@@ -2996,9 +2995,8 @@ err:
 	return ret;
 }
 
-static int mmc_test_probe(struct device *dev)
+static int mmc_test_probe(struct mmc_card *card)
 {
-	struct mmc_card *card = mmc_dev_to_card(dev);
 	int ret;
 
 	if (!mmc_card_mmc(card) && !mmc_card_sd(card))
@@ -3013,22 +3011,20 @@ static int mmc_test_probe(struct device *dev)
 	return 0;
 }
 
-static int mmc_test_remove(struct device *dev)
+static void mmc_test_remove(struct mmc_card *card)
 {
-	struct mmc_card *card = mmc_dev_to_card(dev);
-
 	mmc_test_free_result(card);
 	mmc_test_free_dbgfs_file(card);
-
-	return 0;
 }
 
-static void mmc_test_shutdown(struct device *dev)
+static void mmc_test_shutdown(struct mmc_card *card)
 {
 }
 
-static struct device_driver mmc_driver = {
-	.name	= "mmc_test",
+static struct mmc_driver mmc_driver = {
+	.drv		= {
+		.name	= "mmc_test",
+	},
 	.probe		= mmc_test_probe,
 	.remove		= mmc_test_remove,
 	.shutdown	= mmc_test_shutdown,
