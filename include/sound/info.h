@@ -23,6 +23,7 @@
  */
 
 #include <linux/poll.h>
+#include <linux/seq_file.h>
 
 /* buffer for information */
 struct snd_info_buffer {
@@ -110,8 +111,18 @@ void snd_card_info_read_oss(struct snd_info_buffer *buffer);
 static inline void snd_card_info_read_oss(struct snd_info_buffer *buffer) {}
 #endif
 
-__printf(2, 3)
-int snd_iprintf(struct snd_info_buffer *buffer, const char *fmt, ...);
+/**
+ * snd_iprintf - printf on the procfs buffer
+ * @buf: the procfs buffer
+ * @fmt: the printf format
+ *
+ * Outputs the string on the procfs buffer just like printf().
+ *
+ * Return: zero for success, or a negative error code.
+ */
+#define snd_iprintf(buf, fmt, args...) \
+	seq_printf((struct seq_file *)(buf)->buffer, fmt, ##args)
+
 int snd_info_init(void);
 int snd_info_done(void);
 
@@ -175,7 +186,6 @@ static inline int snd_card_proc_new(struct snd_card *card, const char *name,
 static inline void snd_info_set_text_ops(struct snd_info_entry *entry __attribute__((unused)),
 					 void *private_data,
 					 void (*read)(struct snd_info_entry *, struct snd_info_buffer *)) {}
-
 static inline int snd_info_check_reserved_words(const char *str) { return 1; }
 
 #endif
