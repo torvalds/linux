@@ -528,7 +528,7 @@ static int max732x_irq_setup(struct max732x_chip *chip,
 		ret =  gpiochip_irqchip_add(&chip->gpio_chip,
 					    &max732x_irq_chip,
 					    irq_base,
-					    handle_edge_irq,
+					    handle_simple_irq,
 					    IRQ_TYPE_NONE);
 		if (ret) {
 			dev_err(&client->dev,
