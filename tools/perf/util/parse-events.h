@@ -122,7 +122,6 @@ perf_pmu__parse_check(const char *name);
 void parse_events__set_leader(char *name, struct list_head *list);
 void parse_events_update_lists(struct list_head *list_event,
 			       struct list_head *list_all);
-void parse_events_error(void *data, void *scanner, char const *msg);
 void parse_events_evlist_error(struct parse_events_evlist *data,
 			       int idx, const char *str);
 

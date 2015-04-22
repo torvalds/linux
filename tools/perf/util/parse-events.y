@@ -2,6 +2,7 @@
 %parse-param {void *_data}
 %parse-param {void *scanner}
 %lex-param {void* scanner}
+%locations
 
 %{
 
@@ -13,8 +14,6 @@
 #include "util.h"
 #include "parse-events.h"
 #include "parse-events-bison.h"
-
-extern int parse_events_lex (YYSTYPE* lvalp, void* scanner);
 
 #define ABORT_ON(val) \
 do { \
@@ -520,7 +519,9 @@ sep_slash_dc: '/' | ':' |
 
 %%
 
-void parse_events_error(void *data __maybe_unused, void *scanner __maybe_unused,
+void parse_events_error(YYLTYPE *loc, void *data,
+			void *scanner __maybe_unused,
 			char const *msg __maybe_unused)
 {
+	parse_events_evlist_error(data, loc->last_column, "parser error");
 }
