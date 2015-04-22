@@ -1,6 +1,6 @@
 # DMA engine configuration for hsu
 config HSU_DMA
-	tristate "High Speed UART DMA support"
+	tristate
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 
