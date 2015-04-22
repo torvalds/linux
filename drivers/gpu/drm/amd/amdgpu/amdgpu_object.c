@@ -189,12 +189,6 @@ void amdgpu_ttm_placement_from_domain(struct amdgpu_bo *rbo, u32 domain)
 		else
 			rbo->placements[i].lpfn = 0;
 	}
-
-	if (rbo->tbo.mem.size > 512 * 1024) {
-		for (i = 0; i < c; i++) {
-			rbo->placements[i].flags |= TTM_PL_FLAG_TOPDOWN;
-		}
-	}
 }
 
 int amdgpu_bo_create(struct amdgpu_device *adev,
