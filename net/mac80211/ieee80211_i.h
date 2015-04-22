@@ -1259,6 +1259,14 @@ struct ieee80211_local {
 	struct list_head chanctx_list;
 	struct mutex chanctx_mtx;
 
+#ifdef CONFIG_MAC80211_LEDS
+	struct led_trigger *tx_led, *rx_led, *assoc_led, *radio_led;
+	struct tpt_led_trigger *tpt_led_trigger;
+	char tx_led_name[32], rx_led_name[32],
+	     assoc_led_name[32], radio_led_name[32];
+#endif
+
+#ifdef CONFIG_MAC80211_DEBUG_COUNTERS
 	/* SNMP counters */
 	/* dot11CountersTable */
 	u32 dot11TransmittedFragmentCount;
@@ -1271,14 +1279,6 @@ struct ieee80211_local {
 	u32 dot11MulticastReceivedFrameCount;
 	u32 dot11TransmittedFrameCount;
 
-#ifdef CONFIG_MAC80211_LEDS
-	struct led_trigger *tx_led, *rx_led, *assoc_led, *radio_led;
-	struct tpt_led_trigger *tpt_led_trigger;
-	char tx_led_name[32], rx_led_name[32],
-	     assoc_led_name[32], radio_led_name[32];
-#endif
-
-#ifdef CONFIG_MAC80211_DEBUG_COUNTERS
 	/* TX/RX handler statistics */
 	unsigned int tx_handlers_drop;
 	unsigned int tx_handlers_queued;

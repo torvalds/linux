@@ -302,7 +302,11 @@ config MAC80211_DEBUG_COUNTERS
 	---help---
 	  Selecting this option causes mac80211 to keep additional
 	  and very verbose statistics about TX and RX handler use
-	  and show them in debugfs.
+	  as well as a few selected dot11 counters. These will be
+	  exposed in debugfs.
+
+	  Note that some of the counters are not concurrency safe
+	  and may thus not always be accurate.
 
 	  If unsure, say N.
 
