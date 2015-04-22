@@ -69,7 +69,7 @@
 #define BCM2835_SPI_CS_CS_01		0x00000001
 
 #define BCM2835_SPI_POLLING_LIMIT_US	30
-#define BCM2835_SPI_TIMEOUT_MS		30000
+#define BCM2835_SPI_POLLING_JIFFIES	2
 #define BCM2835_SPI_MODE_BITS	(SPI_CPOL | SPI_CPHA | SPI_CS_HIGH \
 				| SPI_NO_CS | SPI_3WIRE)
 
@@ -157,42 +157,6 @@ static irqreturn_t bcm2835_spi_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int bcm2835_spi_transfer_one_poll(struct spi_master *master,
-					 struct spi_device *spi,
-					 struct spi_transfer *tfr,
-					 u32 cs,
-					 unsigned long xfer_time_us)
-{
-	struct bcm2835_spi *bs = spi_master_get_devdata(master);
-	/* set timeout to 1 second of maximum polling */
-	unsigned long timeout = jiffies + HZ;
-
-	/* enable HW block without interrupts */
-	bcm2835_wr(bs, BCM2835_SPI_CS, cs | BCM2835_SPI_CS_TA);
-
-	/* loop until finished the transfer */
-	while (bs->rx_len) {
-		/* read from fifo as much as possible */
-		bcm2835_rd_fifo(bs);
-		/* fill in tx fifo as much as possible */
-		bcm2835_wr_fifo(bs);
-		/* if we still expect some data after the read,
-		 * check for a possible timeout
-		 */
-		if (bs->rx_len && time_after(jiffies, timeout)) {
-			/* Transfer complete - reset SPI HW */
-			bcm2835_spi_reset_hw(master);
-			/* and return timeout */
-			return -ETIMEDOUT;
-		}
-	}
-
-	/* Transfer complete - reset SPI HW */
-	bcm2835_spi_reset_hw(master);
-	/* and return without waiting for completion */
-	return 0;
-}
-
 static int bcm2835_spi_transfer_one_irq(struct spi_master *master,
 					struct spi_device *spi,
 					struct spi_transfer *tfr,
@@ -227,6 +191,55 @@ static int bcm2835_spi_transfer_one_irq(struct spi_master *master,
 
 	/* signal that we need to wait for completion */
 	return 1;
+}
+
+static int bcm2835_spi_transfer_one_poll(struct spi_master *master,
+					 struct spi_device *spi,
+					 struct spi_transfer *tfr,
+					 u32 cs,
+					 unsigned long xfer_time_us)
+{
+	struct bcm2835_spi *bs = spi_master_get_devdata(master);
+	unsigned long timeout;
+
+	/* enable HW block without interrupts */
+	bcm2835_wr(bs, BCM2835_SPI_CS, cs | BCM2835_SPI_CS_TA);
+
+	/* fill in the fifo before timeout calculations
+	 * if we are interrupted here, then the data is
+	 * getting transferred by the HW while we are interrupted
+	 */
+	bcm2835_wr_fifo(bs);
+
+	/* set the timeout */
+	timeout = jiffies + BCM2835_SPI_POLLING_JIFFIES;
+
+	/* loop until finished the transfer */
+	while (bs->rx_len) {
+		/* fill in tx fifo with remaining data */
+		bcm2835_wr_fifo(bs);
+
+		/* read from fifo as much as possible */
+		bcm2835_rd_fifo(bs);
+
+		/* if there is still data pending to read
+		 * then check the timeout
+		 */
+		if (bs->rx_len && time_after(jiffies, timeout)) {
+			dev_dbg_ratelimited(&spi->dev,
+					    "timeout period reached: jiffies: %lu remaining tx/rx: %d/%d - falling back to interrupt mode\n",
+					    jiffies - timeout,
+					    bs->tx_len, bs->rx_len);
+			/* fall back to interrupt mode */
+			return bcm2835_spi_transfer_one_irq(master, spi,
+							    tfr, cs);
+		}
+	}
+
+	/* Transfer complete - reset SPI HW */
+	bcm2835_spi_reset_hw(master);
+	/* and return without waiting for completion */
+	return 0;
 }
 
 static int bcm2835_spi_transfer_one(struct spi_master *master,
