@@ -207,7 +207,7 @@ PE_NAME '/' event_config '/'
 	struct list_head *list;
 
 	ALLOC_LIST(list);
-	ABORT_ON(parse_events_add_pmu(list, &data->idx, $1, $3));
+	ABORT_ON(parse_events_add_pmu(data, list, $1, $3));
 	parse_events__free_terms($3);
 	$$ = list;
 }
@@ -218,7 +218,7 @@ PE_NAME '/' '/'
 	struct list_head *list;
 
 	ALLOC_LIST(list);
-	ABORT_ON(parse_events_add_pmu(list, &data->idx, $1, NULL));
+	ABORT_ON(parse_events_add_pmu(data, list, $1, NULL));
 	$$ = list;
 }
 |
@@ -235,7 +235,7 @@ PE_KERNEL_PMU_EVENT sep_dc
 	list_add_tail(&term->list, head);
 
 	ALLOC_LIST(list);
-	ABORT_ON(parse_events_add_pmu(list, &data->idx, "cpu", head));
+	ABORT_ON(parse_events_add_pmu(data, list, "cpu", head));
 	parse_events__free_terms(head);
 	$$ = list;
 }

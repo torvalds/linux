@@ -633,8 +633,9 @@ static char *pmu_event_name(struct list_head *head_terms)
 	return NULL;
 }
 
-int parse_events_add_pmu(struct list_head *list, int *idx,
-			 char *name, struct list_head *head_config)
+int parse_events_add_pmu(struct parse_events_evlist *data,
+			 struct list_head *list, char *name,
+			 struct list_head *head_config)
 {
 	struct perf_event_attr attr;
 	struct perf_pmu_info info;
@@ -654,7 +655,7 @@ int parse_events_add_pmu(struct list_head *list, int *idx,
 
 	if (!head_config) {
 		attr.type = pmu->type;
-		evsel = __add_event(list, idx, &attr, NULL, pmu->cpus);
+		evsel = __add_event(list, &data->idx, &attr, NULL, pmu->cpus);
 		return evsel ? 0 : -ENOMEM;
 	}
 
@@ -671,8 +672,8 @@ int parse_events_add_pmu(struct list_head *list, int *idx,
 	if (perf_pmu__config(pmu, &attr, head_config))
 		return -EINVAL;
 
-	evsel = __add_event(list, idx, &attr, pmu_event_name(head_config),
-			    pmu->cpus);
+	evsel = __add_event(list, &data->idx, &attr,
+			    pmu_event_name(head_config), pmu->cpus);
 	if (evsel) {
 		evsel->unit = info.unit;
 		evsel->scale = info.scale;

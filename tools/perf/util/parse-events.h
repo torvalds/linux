@@ -115,8 +115,9 @@ int parse_events_add_cache(struct list_head *list, int *idx,
 			   char *type, char *op_result1, char *op_result2);
 int parse_events_add_breakpoint(struct list_head *list, int *idx,
 				void *ptr, char *type, u64 len);
-int parse_events_add_pmu(struct list_head *list, int *idx,
-			 char *pmu , struct list_head *head_config);
+int parse_events_add_pmu(struct parse_events_evlist *data,
+			 struct list_head *list, char *name,
+			 struct list_head *head_config);
 enum perf_pmu_event_symbol_type
 perf_pmu__parse_check(const char *name);
 void parse_events__set_leader(char *name, struct list_head *list);
