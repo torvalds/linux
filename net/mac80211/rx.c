@@ -2331,11 +2331,9 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 	IEEE80211_IFSTA_MESH_CTR_INC(ifmsh, fwded_frames);
 	ieee80211_add_pending_skb(local, fwd_skb);
  out:
-	if (is_multicast_ether_addr(hdr->addr1) ||
-	    sdata->dev->flags & IFF_PROMISC)
+	if (is_multicast_ether_addr(hdr->addr1))
 		return RX_CONTINUE;
-	else
-		return RX_DROP_MONITOR;
+	return RX_DROP_MONITOR;
 }
 #endif
 
@@ -3266,12 +3264,8 @@ static bool prepare_for_handlers(struct ieee80211_rx_data *rx,
 		if (!bssid && !sdata->u.mgd.use_4addr)
 			return false;
 		if (!multicast &&
-		    !ether_addr_equal(sdata->vif.addr, hdr->addr1)) {
-			if (!(sdata->dev->flags & IFF_PROMISC) ||
-			    sdata->u.mgd.use_4addr)
-				return false;
-			status->rx_flags &= ~IEEE80211_RX_RA_MATCH;
-		}
+		    !ether_addr_equal(sdata->vif.addr, hdr->addr1))
+			return false;
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		if (!bssid)
@@ -3285,9 +3279,7 @@ static bool prepare_for_handlers(struct ieee80211_rx_data *rx,
 			return false;
 		} else if (!multicast &&
 			   !ether_addr_equal(sdata->vif.addr, hdr->addr1)) {
-			if (!(sdata->dev->flags & IFF_PROMISC))
-				return false;
-			status->rx_flags &= ~IEEE80211_RX_RA_MATCH;
+			return false;
 		} else if (!rx->sta) {
 			int rate_idx;
 			if (status->flag & (RX_FLAG_HT | RX_FLAG_VHT))
@@ -3309,12 +3301,7 @@ static bool prepare_for_handlers(struct ieee80211_rx_data *rx,
 		} else if (!multicast &&
 			   !ether_addr_equal(sdata->dev->dev_addr,
 					     hdr->addr1)) {
-			/* if we are in promisc mode we also accept
-			 * packets not destined for us
-			 */
-			if (!(sdata->dev->flags & IFF_PROMISC))
-				return false;
-			rx->flags &= ~IEEE80211_RX_RA_MATCH;
+			return false;
 		} else if (!rx->sta) {
 			int rate_idx;
 			if (status->flag & RX_FLAG_HT)
@@ -3327,12 +3314,8 @@ static bool prepare_for_handlers(struct ieee80211_rx_data *rx,
 		break;
 	case NL80211_IFTYPE_MESH_POINT:
 		if (!multicast &&
-		    !ether_addr_equal(sdata->vif.addr, hdr->addr1)) {
-			if (!(sdata->dev->flags & IFF_PROMISC))
-				return false;
-
-			status->rx_flags &= ~IEEE80211_RX_RA_MATCH;
-		}
+		    !ether_addr_equal(sdata->vif.addr, hdr->addr1))
+			return false;
 		break;
 	case NL80211_IFTYPE_AP_VLAN:
 	case NL80211_IFTYPE_AP:

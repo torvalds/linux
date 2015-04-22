@@ -1554,8 +1554,6 @@ static void mac80211_hwsim_configure_filter(struct ieee80211_hw *hw,
 	wiphy_debug(hw->wiphy, "%s\n", __func__);
 
 	data->rx_filter = 0;
-	if (*total_flags & FIF_PROMISC_IN_BSS)
-		data->rx_filter |= FIF_PROMISC_IN_BSS;
 	if (*total_flags & FIF_ALLMULTI)
 		data->rx_filter |= FIF_ALLMULTI;
 

@@ -1230,7 +1230,7 @@ static u64 zd_op_prepare_multicast(struct ieee80211_hw *hw,
 }
 
 #define SUPPORTED_FIF_FLAGS \
-	(FIF_PROMISC_IN_BSS | FIF_ALLMULTI | FIF_FCSFAIL | FIF_CONTROL | \
+	(FIF_ALLMULTI | FIF_FCSFAIL | FIF_CONTROL | \
 	FIF_OTHER_BSS | FIF_BCN_PRBRESP_PROMISC)
 static void zd_op_configure_filter(struct ieee80211_hw *hw,
 			unsigned int changed_flags,
@@ -1256,7 +1256,7 @@ static void zd_op_configure_filter(struct ieee80211_hw *hw,
 	 * we will have some issue with IPv6 which uses multicast for link
 	 * layer address resolution.
 	 */
-	if (*new_flags & (FIF_PROMISC_IN_BSS | FIF_ALLMULTI))
+	if (*new_flags & FIF_ALLMULTI)
 		zd_mc_add_all(&hash);
 
 	spin_lock_irqsave(&mac->lock, flags);

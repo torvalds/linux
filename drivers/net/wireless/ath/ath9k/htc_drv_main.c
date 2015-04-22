@@ -1238,8 +1238,7 @@ out:
 }
 
 #define SUPPORTED_FILTERS			\
-	(FIF_PROMISC_IN_BSS |			\
-	FIF_ALLMULTI |				\
+	(FIF_ALLMULTI |				\
 	FIF_CONTROL |				\
 	FIF_PSPOLL |				\
 	FIF_OTHER_BSS |				\

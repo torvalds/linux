@@ -773,7 +773,6 @@ static int ath10k_monitor_recalc(struct ath10k *ar)
 	lockdep_assert_held(&ar->conf_mutex);
 
 	should_start = ar->monitor ||
-		       ar->filter_flags & FIF_PROMISC_IN_BSS ||
 		       test_bit(ATH10K_CAC_RUNNING, &ar->dev_flags);
 
 	ath10k_dbg(ar, ATH10K_DBG_MAC,
@@ -3493,8 +3492,7 @@ static void ath10k_remove_interface(struct ieee80211_hw *hw,
  * FIXME: Has to be verified.
  */
 #define SUPPORTED_FILTERS			\
-	(FIF_PROMISC_IN_BSS |			\
-	FIF_ALLMULTI |				\
+	(FIF_ALLMULTI |				\
 	FIF_CONTROL |				\
 	FIF_PSPOLL |				\
 	FIF_OTHER_BSS |				\

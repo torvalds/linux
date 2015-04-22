@@ -785,8 +785,7 @@ static void vnt_configure(struct ieee80211_hw *hw,
 	u8 rx_mode = 0;
 	int rc;
 
-	*total_flags &= FIF_ALLMULTI | FIF_OTHER_BSS | FIF_PROMISC_IN_BSS |
-		FIF_BCN_PRBRESP_PROMISC;
+	*total_flags &= FIF_ALLMULTI | FIF_OTHER_BSS | FIF_BCN_PRBRESP_PROMISC;
 
 	rc = vnt_control_in(priv, MESSAGE_TYPE_READ, MAC_REG_RCR,
 		MESSAGE_REQUEST_MACREG, sizeof(u8), &rx_mode);
@@ -795,14 +794,6 @@ static void vnt_configure(struct ieee80211_hw *hw,
 		rx_mode = RCR_MULTICAST | RCR_BROADCAST;
 
 	dev_dbg(&priv->usb->dev, "rx mode in = %x\n", rx_mode);
-
-	if (changed_flags & FIF_PROMISC_IN_BSS) {
-		/* unconditionally log net taps */
-		if (*total_flags & FIF_PROMISC_IN_BSS)
-			rx_mode |= RCR_UNICAST;
-		else
-			rx_mode &= ~RCR_UNICAST;
-	}
 
 	if (changed_flags & FIF_ALLMULTI) {
 		if (*total_flags & FIF_ALLMULTI) {

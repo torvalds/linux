@@ -2507,10 +2507,6 @@ void ieee80211_free_txskb(struct ieee80211_hw *hw, struct sk_buff *skb);
  * stack. It is always safe to pass more frames than requested,
  * but this has negative impact on power consumption.
  *
- * @FIF_PROMISC_IN_BSS: promiscuous mode within your BSS,
- *	think of the BSS as your network segment and then this corresponds
- *	to the regular ethernet device promiscuous mode.
- *
  * @FIF_ALLMULTI: pass all multicast frames, this is used if requested
  *	by the user or if the hardware is not capable of filtering by
  *	multicast address.
@@ -2527,8 +2523,8 @@ void ieee80211_free_txskb(struct ieee80211_hw *hw, struct sk_buff *skb);
  *	mac80211 needs to do and the amount of CPU wakeups, so you should
  *	honour this flag if possible.
  *
- * @FIF_CONTROL: pass control frames (except for PS Poll), if PROMISC_IN_BSS
- * 	is not set then only those addressed to this station.
+ * @FIF_CONTROL: pass control frames (except for PS Poll) addressed to this
+ *	station
  *
  * @FIF_OTHER_BSS: pass frames destined to other BSSes
  *
@@ -2538,7 +2534,6 @@ void ieee80211_free_txskb(struct ieee80211_hw *hw, struct sk_buff *skb);
  * @FIF_PROBE_REQ: pass probe request frames
  */
 enum ieee80211_filter_flags {
-	FIF_PROMISC_IN_BSS	= 1<<0,
 	FIF_ALLMULTI		= 1<<1,
 	FIF_FCSFAIL		= 1<<2,
 	FIF_PLCPFAIL		= 1<<3,

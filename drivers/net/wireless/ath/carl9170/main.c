@@ -1011,9 +1011,8 @@ static void carl9170_op_configure_filter(struct ieee80211_hw *hw,
 	if (multicast != ar->cur_mc_hash)
 		WARN_ON(carl9170_update_multicast(ar, multicast));
 
-	if (changed_flags & (FIF_OTHER_BSS | FIF_PROMISC_IN_BSS)) {
-		ar->sniffer_enabled = !!(*new_flags &
-			(FIF_OTHER_BSS | FIF_PROMISC_IN_BSS));
+	if (changed_flags & FIF_OTHER_BSS) {
+		ar->sniffer_enabled = !!(*new_flags & FIF_OTHER_BSS);
 
 		WARN_ON(carl9170_set_operating_mode(ar));
 	}
@@ -1033,7 +1032,7 @@ static void carl9170_op_configure_filter(struct ieee80211_hw *hw,
 		if (!(*new_flags & FIF_PSPOLL))
 			rx_filter |= CARL9170_RX_FILTER_CTL_PSPOLL;
 
-		if (!(*new_flags & (FIF_OTHER_BSS | FIF_PROMISC_IN_BSS))) {
+		if (!(*new_flags & FIF_OTHER_BSS)) {
 			rx_filter |= CARL9170_RX_FILTER_OTHER_RA;
 			rx_filter |= CARL9170_RX_FILTER_DECRY_FAIL;
 		}

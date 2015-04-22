@@ -725,7 +725,6 @@ struct ieee80211_if_mesh {
  * enum ieee80211_sub_if_data_flags - virtual interface flags
  *
  * @IEEE80211_SDATA_ALLMULTI: interface wants all multicast packets
- * @IEEE80211_SDATA_PROMISC: interface is promisc
  * @IEEE80211_SDATA_OPERATING_GMODE: operating in G-only mode
  * @IEEE80211_SDATA_DONT_BRIDGE_PACKETS: bridge packets between
  *	associated stations and deliver multicast frames both
@@ -735,7 +734,6 @@ struct ieee80211_if_mesh {
  */
 enum ieee80211_sub_if_data_flags {
 	IEEE80211_SDATA_ALLMULTI		= BIT(0),
-	IEEE80211_SDATA_PROMISC			= BIT(1),
 	IEEE80211_SDATA_OPERATING_GMODE		= BIT(2),
 	IEEE80211_SDATA_DONT_BRIDGE_PACKETS	= BIT(3),
 	IEEE80211_SDATA_DISCONNECT_RESUME	= BIT(4),
@@ -1211,8 +1209,8 @@ struct ieee80211_local {
 
 	atomic_t agg_queue_stop[IEEE80211_MAX_QUEUES];
 
-	/* number of interfaces with corresponding IFF_ flags */
-	atomic_t iff_allmultis, iff_promiscs;
+	/* number of interfaces with allmulti RX */
+	atomic_t iff_allmultis;
 
 	struct rate_control_ref *rate_ctrl;
 

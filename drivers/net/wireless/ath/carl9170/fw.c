@@ -310,8 +310,7 @@ static int carl9170_fw(struct ar9170 *ar, const __u8 *data, size_t len)
 	if (SUPP(CARL9170FW_RX_FILTER)) {
 		ar->fw.rx_filter = true;
 		ar->rx_filter_caps = FIF_FCSFAIL | FIF_PLCPFAIL |
-			FIF_CONTROL | FIF_PSPOLL | FIF_OTHER_BSS |
-			FIF_PROMISC_IN_BSS;
+			FIF_CONTROL | FIF_PSPOLL | FIF_OTHER_BSS;
 	}
 
 	if (SUPP(CARL9170FW_HW_COUNTERS))

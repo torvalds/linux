@@ -5192,7 +5192,7 @@ mwl8k_configure_filter_sniffer(struct ieee80211_hw *hw,
 		priv->sniffer_enabled = true;
 	}
 
-	*total_flags &=	FIF_PROMISC_IN_BSS | FIF_ALLMULTI |
+	*total_flags &=	FIF_ALLMULTI |
 			FIF_BCN_PRBRESP_PROMISC | FIF_CONTROL |
 			FIF_OTHER_BSS;
 

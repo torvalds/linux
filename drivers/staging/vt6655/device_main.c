@@ -1516,20 +1516,11 @@ static void vnt_configure(struct ieee80211_hw *hw,
 	struct vnt_private *priv = hw->priv;
 	u8 rx_mode = 0;
 
-	*total_flags &= FIF_ALLMULTI | FIF_OTHER_BSS | FIF_PROMISC_IN_BSS |
-		FIF_BCN_PRBRESP_PROMISC;
+	*total_flags &= FIF_ALLMULTI | FIF_OTHER_BSS | FIF_BCN_PRBRESP_PROMISC;
 
 	VNSvInPortB(priv->PortOffset + MAC_REG_RCR, &rx_mode);
 
 	dev_dbg(&priv->pcid->dev, "rx mode in = %x\n", rx_mode);
-
-	if (changed_flags & FIF_PROMISC_IN_BSS) {
-		/* unconditionally log net taps */
-		if (*total_flags & FIF_PROMISC_IN_BSS)
-			rx_mode |= RCR_UNICAST;
-		else
-			rx_mode &= ~RCR_UNICAST;
-	}
 
 	if (changed_flags & FIF_ALLMULTI) {
 		if (*total_flags & FIF_ALLMULTI) {
