@@ -2911,7 +2911,7 @@ out_dput:
 /*
  * Handle the last step of open()
  */
-static int do_last(struct nameidata *nd, struct path *path,
+static int do_last(struct nameidata *nd,
 		   struct file *file, const struct open_flags *op,
 		   int *opened, struct filename *name)
 {
@@ -2922,6 +2922,7 @@ static int do_last(struct nameidata *nd, struct path *path,
 	int acc_mode = op->acc_mode;
 	struct inode *inode;
 	struct path save_parent = { .dentry = NULL, .mnt = NULL };
+	struct path path;
 	bool retried = false;
 	int error;
 
@@ -2939,7 +2940,7 @@ static int do_last(struct nameidata *nd, struct path *path,
 		if (nd->last.name[nd->last.len])
 			nd->flags |= LOOKUP_FOLLOW | LOOKUP_DIRECTORY;
 		/* we _can_ be in RCU mode here */
-		error = lookup_fast(nd, path, &inode);
+		error = lookup_fast(nd, &path, &inode);
 		if (likely(!error))
 			goto finish_lookup;
 
@@ -2977,7 +2978,7 @@ retry_lookup:
 		 */
 	}
 	mutex_lock(&dir->d_inode->i_mutex);
-	error = lookup_open(nd, path, file, op, got_write, opened);
+	error = lookup_open(nd, &path, file, op, got_write, opened);
 	mutex_unlock(&dir->d_inode->i_mutex);
 
 	if (error <= 0) {
@@ -2997,15 +2998,15 @@ retry_lookup:
 		open_flag &= ~O_TRUNC;
 		will_truncate = false;
 		acc_mode = MAY_OPEN;
-		path_to_nameidata(path, nd);
+		path_to_nameidata(&path, nd);
 		goto finish_open_created;
 	}
 
 	/*
 	 * create/update audit record if it already exists.
 	 */
-	if (d_is_positive(path->dentry))
-		audit_inode(name, path->dentry, 0);
+	if (d_is_positive(path.dentry))
+		audit_inode(name, path.dentry, 0);
 
 	/*
 	 * If atomic_open() acquired write access it is dropped now due to
@@ -3021,7 +3022,7 @@ retry_lookup:
 	if ((open_flag & (O_EXCL | O_CREAT)) == (O_EXCL | O_CREAT))
 		goto exit_dput;
 
-	error = follow_managed(path, nd->flags);
+	error = follow_managed(&path, nd->flags);
 	if (error < 0)
 		goto exit_dput;
 
@@ -3029,38 +3030,38 @@ retry_lookup:
 		nd->flags |= LOOKUP_JUMPED;
 
 	BUG_ON(nd->flags & LOOKUP_RCU);
-	inode = path->dentry->d_inode;
+	inode = path.dentry->d_inode;
 	error = -ENOENT;
-	if (d_is_negative(path->dentry)) {
-		path_to_nameidata(path, nd);
+	if (d_is_negative(path.dentry)) {
+		path_to_nameidata(&path, nd);
 		goto out;
 	}
 finish_lookup:
-	if (should_follow_link(path->dentry, nd->flags & LOOKUP_FOLLOW)) {
+	if (should_follow_link(path.dentry, nd->flags & LOOKUP_FOLLOW)) {
 		if (nd->flags & LOOKUP_RCU) {
-			if (unlikely(nd->path.mnt != path->mnt ||
-				     unlazy_walk(nd, path->dentry))) {
+			if (unlikely(nd->path.mnt != path.mnt ||
+				     unlazy_walk(nd, path.dentry))) {
 				error = -ECHILD;
 				goto out;
 			}
 		}
-		BUG_ON(inode != path->dentry->d_inode);
-		nd->link = *path;
+		BUG_ON(inode != path.dentry->d_inode);
+		nd->link = path;
 		return 1;
 	}
 
-	if (unlikely(d_is_symlink(path->dentry)) && !(open_flag & O_PATH)) {
-		path_to_nameidata(path, nd);
+	if (unlikely(d_is_symlink(path.dentry)) && !(open_flag & O_PATH)) {
+		path_to_nameidata(&path, nd);
 		error = -ELOOP;
 		goto out;
 	}
 
-	if ((nd->flags & LOOKUP_RCU) || nd->path.mnt != path->mnt) {
-		path_to_nameidata(path, nd);
+	if ((nd->flags & LOOKUP_RCU) || nd->path.mnt != path.mnt) {
+		path_to_nameidata(&path, nd);
 	} else {
 		save_parent.dentry = nd->path.dentry;
-		save_parent.mnt = mntget(path->mnt);
-		nd->path.dentry = path->dentry;
+		save_parent.mnt = mntget(path.mnt);
+		nd->path.dentry = path.dentry;
 
 	}
 	nd->inode = inode;
@@ -3122,7 +3123,7 @@ out:
 	return error;
 
 exit_dput:
-	path_put_conditional(path, nd);
+	path_put_conditional(&path, nd);
 	goto out;
 exit_fput:
 	fput(file);
@@ -3213,7 +3214,6 @@ static struct file *path_openat(int dfd, struct filename *pathname,
 		struct nameidata *nd, const struct open_flags *op, int flags)
 {
 	struct file *file;
-	struct path path;
 	int opened = 0;
 	int error;
 
@@ -3232,7 +3232,7 @@ static struct file *path_openat(int dfd, struct filename *pathname,
 	if (unlikely(error))
 		goto out;
 
-	error = do_last(nd, &path, file, op, &opened, pathname);
+	error = do_last(nd, file, op, &opened, pathname);
 	while (unlikely(error > 0)) { /* trailing symlink */
 		struct path link = nd->link;
 		void *cookie;
@@ -3244,7 +3244,7 @@ static struct file *path_openat(int dfd, struct filename *pathname,
 		error = follow_link(&link, nd, &cookie);
 		if (unlikely(error))
 			break;
-		error = do_last(nd, &path, file, op, &opened, pathname);
+		error = do_last(nd, file, op, &opened, pathname);
 		put_link(nd, &link, cookie);
 	}
 out:
