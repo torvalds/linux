@@ -431,6 +431,7 @@ config CPU_BIG_ENDIAN
 
 config CPU_LITTLE_ENDIAN
 	bool "Build little endian kernel"
+	depends on PPC_BOOK3S_64
 	select PPC64_BOOT_WRAPPER
 	help
 	  Build a little endian kernel.
