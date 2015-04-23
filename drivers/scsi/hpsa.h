@@ -69,6 +69,7 @@ struct hpsa_scsi_dev_t {
 	 * devices in order to honor physical device queue depth limits.
 	 */
 	struct hpsa_scsi_dev_t *phys_disk[RAID_MAP_MAX_ENTRIES];
+	int supports_aborts;
 #define HPSA_DO_NOT_EXPOSE	0x0
 #define HPSA_SG_ATTACH		0x1
 #define HPSA_ULD_ATTACH		0x2
@@ -257,8 +258,11 @@ struct ctlr_info {
 	struct list_head offline_device_list;
 	int	acciopath_status;
 	int	raid_offload_debug;
+	int	needs_abort_tags_swizzled;
 	struct workqueue_struct *resubmit_wq;
 	struct workqueue_struct *rescan_ctlr_wq;
+	atomic_t abort_cmds_available;
+	wait_queue_head_t abort_cmd_wait_queue;
 };
 
 struct offline_device_entry {
