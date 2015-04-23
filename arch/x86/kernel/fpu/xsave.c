@@ -392,7 +392,7 @@ int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 		 * We will be ready to restore/save the state only after
 		 * fpu->fpstate_active is again set.
 		 */
-		drop_fpu(tsk);
+		drop_fpu(fpu);
 
 		if (__copy_from_user(&fpu->state->xsave, buf_fx, state_size) ||
 		    __copy_from_user(&env, buf, sizeof(env))) {

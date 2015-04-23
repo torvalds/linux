@@ -104,6 +104,7 @@ void exit_thread(void)
 	struct task_struct *me = current;
 	struct thread_struct *t = &me->thread;
 	unsigned long *bp = t->io_bitmap_ptr;
+	struct fpu *fpu = &t->fpu;
 
 	if (bp) {
 		struct tss_struct *tss = &per_cpu(cpu_tss, get_cpu());
@@ -119,7 +120,7 @@ void exit_thread(void)
 		kfree(bp);
 	}
 
-	drop_fpu(me);
+	drop_fpu(fpu);
 }
 
 void flush_thread(void)

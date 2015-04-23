@@ -358,14 +358,13 @@ static inline void __thread_fpu_begin(struct fpu *fpu)
 	__thread_set_has_fpu(fpu);
 }
 
-static inline void drop_fpu(struct task_struct *tsk)
+static inline void drop_fpu(struct fpu *fpu)
 {
-	struct fpu *fpu = &tsk->thread.fpu;
 	/*
 	 * Forget coprocessor state..
 	 */
 	preempt_disable();
-	tsk->thread.fpu.counter = 0;
+	fpu->counter = 0;
 
 	if (fpu->has_fpu) {
 		/* Ignore delayed exceptions from user space */
@@ -394,8 +393,10 @@ static inline void restore_init_xstate(void)
  */
 static inline void fpu_reset_state(struct task_struct *tsk)
 {
+	struct fpu *fpu = &tsk->thread.fpu;
+
 	if (!use_eager_fpu())
-		drop_fpu(tsk);
+		drop_fpu(fpu);
 	else
 		restore_init_xstate();
 }

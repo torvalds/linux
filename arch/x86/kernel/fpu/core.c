@@ -389,7 +389,7 @@ void fpu__flush_thread(struct task_struct *tsk)
 
 	if (!use_eager_fpu()) {
 		/* FPU state will be reallocated lazily at the first use. */
-		drop_fpu(tsk);
+		drop_fpu(fpu);
 		fpstate_free(&tsk->thread.fpu);
 	} else {
 		if (!fpu->fpstate_active) {
