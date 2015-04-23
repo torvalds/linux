@@ -31,10 +31,6 @@
 #define PM_RSTC_WRCFG_FULL_RESET	0x00000020
 #define PM_RSTS_HADWRH_SET		0x00000040
 
-#define BCM2835_PERIPH_PHYS	0x20000000
-#define BCM2835_PERIPH_VIRT	0xf0000000
-#define BCM2835_PERIPH_SIZE	SZ_16M
-
 static void __iomem *wdt_regs;
 
 /*
@@ -93,18 +89,6 @@ static void bcm2835_power_off(void)
 	bcm2835_restart(REBOOT_HARD, "");
 }
 
-static struct map_desc io_map __initdata = {
-	.virtual = BCM2835_PERIPH_VIRT,
-	.pfn = __phys_to_pfn(BCM2835_PERIPH_PHYS),
-	.length = BCM2835_PERIPH_SIZE,
-	.type = MT_DEVICE
-};
-
-static void __init bcm2835_map_io(void)
-{
-	iotable_init(&io_map, 1);
-}
-
 static void __init bcm2835_init(void)
 {
 	int ret;
@@ -129,7 +113,6 @@ static const char * const bcm2835_compat[] = {
 };
 
 DT_MACHINE_START(BCM2835, "BCM2835")
-	.map_io = bcm2835_map_io,
 	.init_irq = irqchip_init,
 	.init_machine = bcm2835_init,
 	.restart = bcm2835_restart,
