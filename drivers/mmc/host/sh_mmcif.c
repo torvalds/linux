@@ -228,8 +228,7 @@ struct sh_mmcif_host {
 	struct mmc_host *mmc;
 	struct mmc_request *mrq;
 	struct platform_device *pd;
-	struct clk *hclk;
-	unsigned int clk;
+	struct clk *clk;
 	int bus_width;
 	unsigned char timing;
 	bool sd_error;
@@ -484,17 +483,18 @@ static void sh_mmcif_clock_control(struct sh_mmcif_host *host, unsigned int clk)
 {
 	struct sh_mmcif_plat_data *p = host->pd->dev.platform_data;
 	bool sup_pclk = p ? p->sup_pclk : false;
+	unsigned int current_clk = clk_get_rate(host->clk);
 
 	sh_mmcif_bitclr(host, MMCIF_CE_CLK_CTRL, CLK_ENABLE);
 	sh_mmcif_bitclr(host, MMCIF_CE_CLK_CTRL, CLK_CLEAR);
 
 	if (!clk)
 		return;
-	if (sup_pclk && clk == host->clk)
+	if (sup_pclk && clk == current_clk)
 		sh_mmcif_bitset(host, MMCIF_CE_CLK_CTRL, CLK_SUP_PCLK);
 	else
 		sh_mmcif_bitset(host, MMCIF_CE_CLK_CTRL, CLK_CLEAR &
-				((fls(DIV_ROUND_UP(host->clk,
+				((fls(DIV_ROUND_UP(current_clk,
 						   clk) - 1) - 1) << 16));
 
 	sh_mmcif_bitset(host, MMCIF_CE_CLK_CTRL, CLK_ENABLE);
@@ -980,12 +980,13 @@ static void sh_mmcif_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 static int sh_mmcif_clk_update(struct sh_mmcif_host *host)
 {
-	int ret = clk_prepare_enable(host->hclk);
+	int ret = clk_prepare_enable(host->clk);
 
 	if (!ret) {
-		host->clk = clk_get_rate(host->hclk);
-		host->mmc->f_max = host->clk / 2;
-		host->mmc->f_min = host->clk / 512;
+		unsigned int clk = clk_get_rate(host->clk);
+
+		host->mmc->f_max = clk / 2;
+		host->mmc->f_min = clk / 512;
 	}
 
 	return ret;
@@ -1034,7 +1035,7 @@ static void sh_mmcif_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		}
 		if (host->power) {
 			pm_runtime_put_sync(&host->pd->dev);
-			clk_disable_unprepare(host->hclk);
+			clk_disable_unprepare(host->clk);
 			host->power = false;
 			if (ios->power_mode == MMC_POWER_OFF)
 				sh_mmcif_set_power(host, ios);
@@ -1440,9 +1441,9 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 	host->power = false;
 
-	host->hclk = devm_clk_get(dev, NULL);
-	if (IS_ERR(host->hclk)) {
-		ret = PTR_ERR(host->hclk);
+	host->clk = devm_clk_get(dev, NULL);
+	if (IS_ERR(host->clk)) {
+		ret = PTR_ERR(host->clk);
 		dev_err(dev, "cannot get clock: %d\n", ret);
 		goto err_pm;
 	}
@@ -1492,13 +1493,13 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 
 	dev_info(dev, "Chip version 0x%04x, clock rate %luMHz\n",
 		 sh_mmcif_readl(host->addr, MMCIF_CE_VERSION) & 0xffff,
-		 clk_get_rate(host->hclk) / 1000000UL);
+		 clk_get_rate(host->clk) / 1000000UL);
 
-	clk_disable_unprepare(host->hclk);
+	clk_disable_unprepare(host->clk);
 	return ret;
 
 err_clk:
-	clk_disable_unprepare(host->hclk);
+	clk_disable_unprepare(host->clk);
 err_pm:
 	pm_runtime_disable(dev);
 err_host:
@@ -1511,7 +1512,7 @@ static int sh_mmcif_remove(struct platform_device *pdev)
 	struct sh_mmcif_host *host = platform_get_drvdata(pdev);
 
 	host->dying = true;
-	clk_prepare_enable(host->hclk);
+	clk_prepare_enable(host->clk);
 	pm_runtime_get_sync(&pdev->dev);
 
 	dev_pm_qos_hide_latency_limit(&pdev->dev);
@@ -1526,7 +1527,7 @@ static int sh_mmcif_remove(struct platform_device *pdev)
 	 */
 	cancel_delayed_work_sync(&host->timeout_work);
 
-	clk_disable_unprepare(host->hclk);
+	clk_disable_unprepare(host->clk);
 	mmc_free_host(host->mmc);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
