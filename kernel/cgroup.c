@@ -261,7 +261,7 @@ static struct cgroup_subsys_state *cgroup_css(struct cgroup *cgrp,
  * @cgrp: the cgroup of interest
  * @ss: the subsystem of interest (%NULL returns @cgrp->self)
  *
- * Similar to cgroup_css() but returns the effctive css, which is defined
+ * Similar to cgroup_css() but returns the effective css, which is defined
  * as the matching css of the nearest ancestor including self which has @ss
  * enabled.  If @ss is associated with the hierarchy @cgrp is on, this
  * function is guaranteed to return non-NULL css.
@@ -882,7 +882,7 @@ static void cgroup_exit_root_id(struct cgroup_root *root)
 static void cgroup_free_root(struct cgroup_root *root)
 {
 	if (root) {
-		/* hierarhcy ID shoulid already have been released */
+		/* hierarchy ID should already have been released */
 		WARN_ON_ONCE(root->hierarchy_id);
 
 		idr_destroy(&root->cgroup_idr);
