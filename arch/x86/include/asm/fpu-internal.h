@@ -344,9 +344,9 @@ static inline void __thread_set_has_fpu(struct fpu *fpu)
  * These generally need preemption protection to work,
  * do try to avoid using these on their own.
  */
-static inline void __thread_fpu_end(struct task_struct *tsk)
+static inline void __thread_fpu_end(struct fpu *fpu)
 {
-	__thread_clear_has_fpu(&tsk->thread.fpu);
+	__thread_clear_has_fpu(fpu);
 	if (!use_eager_fpu())
 		stts();
 }
@@ -372,7 +372,7 @@ static inline void drop_fpu(struct task_struct *tsk)
 		asm volatile("1: fwait\n"
 			     "2:\n"
 			     _ASM_EXTABLE(1b, 2b));
-		__thread_fpu_end(tsk);
+		__thread_fpu_end(fpu);
 	}
 
 	clear_stopped_child_used_math(tsk);
