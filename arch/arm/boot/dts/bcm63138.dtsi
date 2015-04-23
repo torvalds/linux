@@ -140,6 +140,11 @@
 		#size-cells = <1>;
 		ranges = <0 0xfffe8000 0x8100>;
 
+		timer: timer@80 {
+			compatible = "brcm,bcm6328-timer", "syscon";
+			reg = <0x80 0x3c>;
+		};
+
 		serial0: serial@600 {
 			compatible = "brcm,bcm6345-uart";
 			reg = <0x600 0x1b>;
@@ -161,6 +166,13 @@
 		bootlut: bootlut@8000 {
 			compatible = "brcm,bcm63138-bootlut";
 			reg = <0x8000 0x50>;
+		};
+
+		reboot {
+			compatible = "syscon-reboot";
+			regmap = <&timer>;
+			offset = <0x34>;
+			mask = <1>;
 		};
 	};
 };
