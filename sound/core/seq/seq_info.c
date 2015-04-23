@@ -27,7 +27,6 @@
 #include "seq_clientmgr.h"
 #include "seq_timer.h"
 
-#ifdef CONFIG_PROC_FS
 static struct snd_info_entry *queues_entry;
 static struct snd_info_entry *clients_entry;
 static struct snd_info_entry *timer_entry;
@@ -80,4 +79,3 @@ int __exit snd_seq_info_done(void)
 	free_info_entries();
 	return 0;
 }
-#endif

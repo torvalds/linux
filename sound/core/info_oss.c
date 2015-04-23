@@ -29,8 +29,6 @@
 #include <linux/utsname.h>
 #include <linux/mutex.h>
 
-#if defined(CONFIG_SND_OSSEMUL) && defined(CONFIG_PROC_FS)
-
 /*
  *  OSS compatible part
  */
@@ -134,5 +132,3 @@ int snd_info_minor_unregister(void)
 	snd_sndstat_proc_entry = NULL;
 	return 0;
 }
-
-#endif /* CONFIG_SND_OSSEMUL */

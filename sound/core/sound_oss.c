@@ -19,12 +19,6 @@
  *
  */
 
-#ifdef CONFIG_SND_OSSEMUL
-
-#if !IS_ENABLED(CONFIG_SOUND)
-#error "Enable the OSS soundcore multiplexer (CONFIG_SOUND) in the kernel."
-#endif
-
 #include <linux/init.h>
 #include <linux/export.h>
 #include <linux/slab.h>
@@ -266,5 +260,3 @@ int __init snd_minor_info_oss_init(void)
 	return snd_info_register(entry); /* freed in error path */
 }
 #endif /* CONFIG_PROC_FS */
-
-#endif /* CONFIG_SND_OSSEMUL */
