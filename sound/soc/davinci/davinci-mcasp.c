@@ -107,6 +107,7 @@ struct davinci_mcasp {
 #endif
 
 	struct davinci_mcasp_ruledata ruledata[2];
+	struct snd_pcm_hw_constraint_list chconstr[2];
 };
 
 static inline void mcasp_set_bits(struct davinci_mcasp *mcasp, u32 offset,
@@ -1119,6 +1120,11 @@ static int davinci_mcasp_startup(struct snd_pcm_substream *substream,
 				     SNDRV_PCM_HW_PARAM_CHANNELS,
 				     2, max_channels);
 
+	if (mcasp->chconstr[substream->stream].count)
+		snd_pcm_hw_constraint_list(substream->runtime,
+					   0, SNDRV_PCM_HW_PARAM_CHANNELS,
+					   &mcasp->chconstr[substream->stream]);
+
 	/*
 	 * If we rely on implicit BCLK divider setting we should
 	 * set constraints based on what we can provide.
@@ -1498,6 +1504,59 @@ nodata:
 	return  pdata;
 }
 
+/* All serializers must have equal number of channels */
+static int davinci_mcasp_ch_constraint(struct davinci_mcasp *mcasp,
+				       struct snd_pcm_hw_constraint_list *cl,
+				       int serializers)
+{
+	unsigned int *list;
+	int i, count = 0;
+
+	if (serializers <= 1)
+		return 0;
+
+	list = devm_kzalloc(mcasp->dev, sizeof(unsigned int) *
+			    (mcasp->tdm_slots + serializers - 2),
+			    GFP_KERNEL);
+	if (!list)
+		return -ENOMEM;
+
+	for (i = 2; i <= mcasp->tdm_slots; i++)
+		list[count++] = i;
+
+	for (i = 2; i <= serializers; i++)
+		list[count++] = i*mcasp->tdm_slots;
+
+	cl->count = count;
+	cl->list = list;
+
+	return 0;
+}
+
+
+static int davinci_mcasp_init_ch_constraints(struct davinci_mcasp *mcasp)
+{
+	int rx_serializers = 0, tx_serializers = 0, ret, i;
+
+	for (i = 0; i < mcasp->num_serializer; i++)
+		if (mcasp->serial_dir[i] == TX_MODE)
+			tx_serializers++;
+		else if (mcasp->serial_dir[i] == RX_MODE)
+			rx_serializers++;
+
+	ret = davinci_mcasp_ch_constraint(mcasp, &mcasp->chconstr[
+						  SNDRV_PCM_STREAM_PLAYBACK],
+					  tx_serializers);
+	if (ret)
+		return ret;
+
+	ret = davinci_mcasp_ch_constraint(mcasp, &mcasp->chconstr[
+						  SNDRV_PCM_STREAM_CAPTURE],
+					  rx_serializers);
+
+	return ret;
+}
+
 static int davinci_mcasp_probe(struct platform_device *pdev)
 {
 	struct snd_dmaengine_dai_dma_data *dma_data;
@@ -1680,6 +1739,10 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	} else {
 		mcasp->fifo_base = DAVINCI_MCASP_V3_AFIFO_BASE;
 	}
+
+	ret = davinci_mcasp_init_ch_constraints(mcasp);
+	if (ret)
+		goto err;
 
 	dev_set_drvdata(&pdev->dev, mcasp);
 
