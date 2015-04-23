@@ -230,6 +230,7 @@ struct kvm_vcpu {
 
 	int fpu_active;
 	int guest_fpu_loaded, guest_xcr0_loaded;
+	unsigned char fpu_counter;
 	wait_queue_head_t wq;
 	struct pid *pid;
 	int sigset_active;
