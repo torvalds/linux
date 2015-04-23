@@ -402,10 +402,9 @@ static inline void fpu_reset_state(struct fpu *fpu)
  */
 typedef struct { int preload; } fpu_switch_t;
 
-static inline fpu_switch_t switch_fpu_prepare(struct task_struct *old, struct task_struct *new, int cpu)
+static inline fpu_switch_t
+switch_fpu_prepare(struct fpu *old_fpu, struct fpu *new_fpu, int cpu)
 {
-	struct fpu *old_fpu = &old->thread.fpu;
-	struct fpu *new_fpu = &new->thread.fpu;
 	fpu_switch_t fpu;
 
 	/*
@@ -413,33 +412,33 @@ static inline fpu_switch_t switch_fpu_prepare(struct task_struct *old, struct ta
 	 * or if the past 5 consecutive context-switches used math.
 	 */
 	fpu.preload = new_fpu->fpstate_active &&
-		      (use_eager_fpu() || new->thread.fpu.counter > 5);
+		      (use_eager_fpu() || new_fpu->counter > 5);
 
 	if (old_fpu->has_fpu) {
-		if (!fpu_save_init(&old->thread.fpu))
-			old->thread.fpu.last_cpu = -1;
+		if (!fpu_save_init(old_fpu))
+			old_fpu->last_cpu = -1;
 		else
-			old->thread.fpu.last_cpu = cpu;
+			old_fpu->last_cpu = cpu;
 
 		/* But leave fpu_fpregs_owner_ctx! */
-		old->thread.fpu.has_fpu = 0;
+		old_fpu->has_fpu = 0;
 
 		/* Don't change CR0.TS if we just switch! */
 		if (fpu.preload) {
-			new->thread.fpu.counter++;
+			new_fpu->counter++;
 			__thread_set_has_fpu(new_fpu);
-			prefetch(new->thread.fpu.state);
+			prefetch(new_fpu->state);
 		} else if (!use_eager_fpu())
 			stts();
 	} else {
-		old->thread.fpu.counter = 0;
-		old->thread.fpu.last_cpu = -1;
+		old_fpu->counter = 0;
+		old_fpu->last_cpu = -1;
 		if (fpu.preload) {
-			new->thread.fpu.counter++;
+			new_fpu->counter++;
 			if (fpu_want_lazy_restore(new_fpu, cpu))
 				fpu.preload = 0;
 			else
-				prefetch(new->thread.fpu.state);
+				prefetch(new_fpu->state);
 			__thread_fpu_begin(new_fpu);
 		}
 	}

@@ -248,7 +248,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 
 	/* never put a printk in __switch_to... printk() calls wake_up*() indirectly */
 
-	fpu = switch_fpu_prepare(prev_p, next_p, cpu);
+	fpu = switch_fpu_prepare(&prev_p->thread.fpu, &next_p->thread.fpu, cpu);
 
 	/*
 	 * Save away %gs. No need to save %fs, as it was saved on the
