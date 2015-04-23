@@ -381,7 +381,7 @@ static void disable_sync_clock(void *dummy)
 	 * increase the "sequence" counter to avoid the race of an
 	 * etr event and the complete recovery against get_sync_clock.
 	 */
-	atomic_clear_mask(0x80000000, sw_ptr);
+	atomic_andnot(0x80000000, sw_ptr);
 	atomic_inc(sw_ptr);
 }
 
@@ -392,7 +392,7 @@ static void disable_sync_clock(void *dummy)
 static void enable_sync_clock(void)
 {
 	atomic_t *sw_ptr = this_cpu_ptr(&clock_sync_word);
-	atomic_set_mask(0x80000000, sw_ptr);
+	atomic_or(0x80000000, sw_ptr);
 }
 
 /*
