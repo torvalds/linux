@@ -417,13 +417,11 @@ phys_addr_t slow_virt_to_phys(void *__virt_addr)
 	phys_addr_t phys_addr;
 	unsigned long offset;
 	enum pg_level level;
-	unsigned long psize;
 	unsigned long pmask;
 	pte_t *pte;
 
 	pte = lookup_address(virt_addr, &level);
 	BUG_ON(!pte);
-	psize = page_level_size(level);
 	pmask = page_level_mask(level);
 	offset = virt_addr & ~pmask;
 	phys_addr = (phys_addr_t)pte_pfn(*pte) << PAGE_SHIFT;
