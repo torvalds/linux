@@ -4222,7 +4222,7 @@ int megasas_set_crash_dump_params(struct megasas_instance *instance,
 static int
 megasas_issue_init_mfi(struct megasas_instance *instance)
 {
-	u32 context;
+	__le32 context;
 
 	struct megasas_cmd *cmd;
 

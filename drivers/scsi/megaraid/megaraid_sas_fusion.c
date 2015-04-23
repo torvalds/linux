@@ -1637,7 +1637,7 @@ static void megasas_build_ld_nonrw_fusion(struct megasas_instance *instance,
 	struct MR_DRV_RAID_MAP_ALL *local_map_ptr;
 	struct fusion_context *fusion = instance->ctrl_context;
 	u8                          span, physArm;
-	u16                         devHandle;
+	__le16                      devHandle;
 	u32                         ld, arRef, pd;
 	struct MR_LD_RAID                  *raid;
 	struct RAID_CONTEXT                *pRAID_Context;

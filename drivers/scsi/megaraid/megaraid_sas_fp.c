@@ -142,7 +142,7 @@ u16 MR_LdSpanArrayGet(u32 ld, u32 span, struct MR_DRV_RAID_MAP_ALL *map)
 	return le16_to_cpu(map->raidMap.ldSpanMap[ld].spanBlock[span].span.arrayRef);
 }
 
-u16 MR_PdDevHandleGet(u32 pd, struct MR_DRV_RAID_MAP_ALL *map)
+__le16 MR_PdDevHandleGet(u32 pd, struct MR_DRV_RAID_MAP_ALL *map)
 {
 	return map->raidMap.devHndlInfo[pd].curDevHdl;
 }
@@ -735,7 +735,7 @@ static u8 mr_spanset_get_phy_params(struct megasas_instance *instance, u32 ld,
 	u8	retval = TRUE;
 	u8	do_invader = 0;
 	u64	*pdBlock = &io_info->pdBlock;
-	u16	*pDevHandle = &io_info->devHandle;
+	__le16	*pDevHandle = &io_info->devHandle;
 	u32	logArm, rowMod, armQ, arm;
 
 	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER ||
@@ -817,7 +817,7 @@ u8 MR_GetPhyParams(struct megasas_instance *instance, u32 ld, u64 stripRow,
 	u8	    retval = TRUE;
 	u8          do_invader = 0;
 	u64	    *pdBlock = &io_info->pdBlock;
-	u16	    *pDevHandle = &io_info->devHandle;
+	__le16	    *pDevHandle = &io_info->devHandle;
 
 	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER ||
 		instance->pdev->device == PCI_DEVICE_ID_LSI_FURY))
@@ -1341,11 +1341,11 @@ u8 megasas_get_best_arm_pd(struct megasas_instance *instance,
 	return io_info->pd_after_lb;
 }
 
-u16 get_updated_dev_handle(struct megasas_instance *instance,
+__le16 get_updated_dev_handle(struct megasas_instance *instance,
 	struct LD_LOAD_BALANCE_INFO *lbInfo, struct IO_REQUEST_INFO *io_info)
 {
 	u8 arm_pd;
-	u16 devHandle;
+	__le16 devHandle;
 	struct fusion_context *fusion;
 	struct MR_DRV_RAID_MAP_ALL *drv_map;
 
