@@ -4284,7 +4284,6 @@ static int hpsa_ciss_submit(struct ctlr_info *h,
 	/* Fill in the request block... */
 
 	c->Request.Timeout = 0;
-	memset(c->Request.CDB, 0, sizeof(c->Request.CDB));
 	BUG_ON(cmd->cmd_len > sizeof(c->Request.CDB));
 	c->Request.CDBLen = cmd->cmd_len;
 	memcpy(c->Request.CDB, cmd->cmnd, cmd->cmd_len);
@@ -4335,6 +4334,48 @@ static int hpsa_ciss_submit(struct ctlr_info *h,
 	return 0;
 }
 
+static void hpsa_cmd_init(struct ctlr_info *h, int index,
+				struct CommandList *c)
+{
+	dma_addr_t cmd_dma_handle, err_dma_handle;
+
+	/* Zero out all of commandlist except the last field, refcount */
+	memset(c, 0, offsetof(struct CommandList, refcount));
+	c->Header.tag = cpu_to_le64((u64) (index << DIRECT_LOOKUP_SHIFT));
+	cmd_dma_handle = h->cmd_pool_dhandle + index * sizeof(*c);
+	c->err_info = h->errinfo_pool + index;
+	memset(c->err_info, 0, sizeof(*c->err_info));
+	err_dma_handle = h->errinfo_pool_dhandle
+	    + index * sizeof(*c->err_info);
+	c->cmdindex = index;
+	c->busaddr = (u32) cmd_dma_handle;
+	c->ErrDesc.Addr = cpu_to_le64((u64) err_dma_handle);
+	c->ErrDesc.Len = cpu_to_le32((u32) sizeof(*c->err_info));
+	c->h = h;
+}
+
+static void hpsa_preinitialize_commands(struct ctlr_info *h)
+{
+	int i;
+
+	for (i = 0; i < h->nr_cmds; i++) {
+		struct CommandList *c = h->cmd_pool + i;
+
+		hpsa_cmd_init(h, i, c);
+		atomic_set(&c->refcount, 0);
+	}
+}
+
+static inline void hpsa_cmd_partial_init(struct ctlr_info *h, int index,
+				struct CommandList *c)
+{
+	dma_addr_t cmd_dma_handle = h->cmd_pool_dhandle + index * sizeof(*c);
+
+	memset(c->Request.CDB, 0, sizeof(c->Request.CDB));
+	memset(c->err_info, 0, sizeof(*c->err_info));
+	c->busaddr = (u32) cmd_dma_handle;
+}
+
 static void hpsa_command_resubmit_worker(struct work_struct *work)
 {
 	struct scsi_cmnd *cmd;
@@ -4349,6 +4390,7 @@ static void hpsa_command_resubmit_worker(struct work_struct *work)
 		cmd->scsi_done(cmd);
 		return;
 	}
+	hpsa_cmd_partial_init(c->h, c->cmdindex, c);
 	if (hpsa_ciss_submit(c->h, c, cmd, dev->scsi3addr)) {
 		/*
 		 * If we get here, it means dma mapping failed. Try
@@ -4405,10 +4447,11 @@ static int hpsa_scsi_queue_command(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 		h->acciopath_status)) {
 
 		cmd->host_scribble = (unsigned char *) c;
-		c->cmd_type = CMD_SCSI;
-		c->scsi_cmd = cmd;
 
 		if (dev->offload_enabled) {
+			hpsa_cmd_init(h, c->cmdindex, c);
+			c->cmd_type = CMD_SCSI;
+			c->scsi_cmd = cmd;
 			rc = hpsa_scsi_ioaccel_raid_map(h, c);
 			if (rc == 0)
 				return 0; /* Sent on ioaccel path */
@@ -4417,6 +4460,9 @@ static int hpsa_scsi_queue_command(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 				return SCSI_MLQUEUE_HOST_BUSY;
 			}
 		} else if (dev->ioaccel_handle) {
+			hpsa_cmd_init(h, c->cmdindex, c);
+			c->cmd_type = CMD_SCSI;
+			c->scsi_cmd = cmd;
 			rc = hpsa_scsi_ioaccel_direct_map(h, c);
 			if (rc == 0)
 				return 0; /* Sent on direct map path */
@@ -5013,10 +5059,7 @@ static int hpsa_eh_abort_handler(struct scsi_cmnd *sc)
 static struct CommandList *cmd_alloc(struct ctlr_info *h)
 {
 	struct CommandList *c;
-	int i;
-	union u64bit temp64;
-	dma_addr_t cmd_dma_handle, err_dma_handle;
-	int refcount;
+	int refcount, i;
 	unsigned long offset;
 
 	/*
@@ -5050,24 +5093,7 @@ static struct CommandList *cmd_alloc(struct ctlr_info *h)
 		break; /* it's ours now. */
 	}
 	h->last_allocation = i; /* benignly racy */
-
-	/* Zero out all of commandlist except the last field, refcount */
-	memset(c, 0, offsetof(struct CommandList, refcount));
-	c->Header.tag = cpu_to_le64((u64) (i << DIRECT_LOOKUP_SHIFT));
-	cmd_dma_handle = h->cmd_pool_dhandle + i * sizeof(*c);
-	c->err_info = h->errinfo_pool + i;
-	memset(c->err_info, 0, sizeof(*c->err_info));
-	err_dma_handle = h->errinfo_pool_dhandle
-	    + i * sizeof(*c->err_info);
-
-	c->cmdindex = i;
-
-	c->busaddr = (u32) cmd_dma_handle;
-	temp64.val = (u64) err_dma_handle;
-	c->ErrDesc.Addr = cpu_to_le64((u64) err_dma_handle);
-	c->ErrDesc.Len = cpu_to_le32((u32) sizeof(*c->err_info));
-
-	c->h = h;
+	hpsa_cmd_partial_init(h, i, c);
 	return c;
 }
 
@@ -6783,6 +6809,7 @@ static int hpsa_alloc_cmd_pool(struct ctlr_info *h)
 		dev_err(&h->pdev->dev, "out of memory in %s", __func__);
 		goto clean_up;
 	}
+	hpsa_preinitialize_commands(h);
 	return 0;
 clean_up:
 	hpsa_free_cmd_pool(h);
