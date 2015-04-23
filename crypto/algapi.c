@@ -46,7 +46,7 @@ static inline void crypto_check_module_sig(struct module *mod)
 {
 	if (fips_enabled && mod && !module_sig_ok(mod))
 		panic("Module %s signature verification failed in FIPS mode\n",
-		      mod->name);
+		      module_name(mod));
 }
 
 static int crypto_check_alg(struct crypto_alg *alg)
