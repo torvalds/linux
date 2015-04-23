@@ -49,3 +49,37 @@ Example:
 		compatible = "brcm,bcm63138-bootlut";
 		reg = <0x8000 0x50>;
 	};
+
+=======
+reboot
+------
+Two nodes are required for software reboot: a timer node and a syscon-reboot node.
+
+Timer node:
+
+- compatible: Must be "brcm,bcm6328-timer", "syscon"
+- reg: Register base address and length
+
+Syscon reboot node:
+
+See Documentation/devicetree/bindings/power/reset/syscon-reboot.txt for the
+detailed list of properties, the two values defined below are specific to the
+BCM6328-style timer:
+
+- offset: Should be 0x34 to denote the offset of the TIMER_WD_TIMER_RESET register
+  from the beginning of the TIMER block
+- mask: Should be 1 for the SoftRst bit.
+
+Example:
+
+	timer: timer@80 {
+		compatible = "brcm,bcm6328-timer", "syscon";
+		reg = <0x80 0x3c>;
+	};
+
+	reboot {
+		compatible = "syscon-reboot";
+		regmap = <&timer>;
+		offset = <0x34>;
+		mask = <0x1>;
+	};
