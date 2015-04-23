@@ -944,7 +944,8 @@ static int nvme_trans_ext_inq_page(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 static int nvme_trans_bdev_limits_page(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 					u8 *inq_response, int alloc_len)
 {
-	__be32 max_sectors = cpu_to_be32(queue_max_hw_sectors(ns->queue));
+	__be32 max_sectors = cpu_to_be32(
+		nvme_block_nr(ns, queue_max_hw_sectors(ns->queue)));
 	__be32 max_discard = cpu_to_be32(ns->queue->limits.max_discard_sectors);
 	__be32 discard_desc_count = cpu_to_be32(0x100);
 
