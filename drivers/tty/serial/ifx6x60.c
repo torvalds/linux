@@ -1175,7 +1175,7 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 	ret = request_irq(gpio_to_irq(ifx_dev->gpio.reset_out),
 			  ifx_spi_reset_interrupt,
 			  IRQF_TRIGGER_RISING|IRQF_TRIGGER_FALLING, DRVNAME,
-		(void *)ifx_dev);
+			  ifx_dev);
 	if (ret) {
 		dev_err(&spi->dev, "Unable to get irq %x\n",
 			gpio_to_irq(ifx_dev->gpio.reset_out));
@@ -1185,9 +1185,8 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 	ret = ifx_spi_reset(ifx_dev);
 
 	ret = request_irq(gpio_to_irq(ifx_dev->gpio.srdy),
-			  ifx_spi_srdy_interrupt,
-			  IRQF_TRIGGER_RISING, DRVNAME,
-			  (void *)ifx_dev);
+			  ifx_spi_srdy_interrupt, IRQF_TRIGGER_RISING, DRVNAME,
+			  ifx_dev);
 	if (ret) {
 		dev_err(&spi->dev, "Unable to get irq %x",
 			gpio_to_irq(ifx_dev->gpio.srdy));
@@ -1212,7 +1211,7 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 	return 0;
 
 error_ret7:
-	free_irq(gpio_to_irq(ifx_dev->gpio.reset_out), (void *)ifx_dev);
+	free_irq(gpio_to_irq(ifx_dev->gpio.reset_out), ifx_dev);
 error_ret6:
 	gpio_free(ifx_dev->gpio.srdy);
 error_ret5:
@@ -1243,8 +1242,8 @@ static int ifx_spi_spi_remove(struct spi_device *spi)
 	/* stop activity */
 	tasklet_kill(&ifx_dev->io_work_tasklet);
 	/* free irq */
-	free_irq(gpio_to_irq(ifx_dev->gpio.reset_out), (void *)ifx_dev);
-	free_irq(gpio_to_irq(ifx_dev->gpio.srdy), (void *)ifx_dev);
+	free_irq(gpio_to_irq(ifx_dev->gpio.reset_out), ifx_dev);
+	free_irq(gpio_to_irq(ifx_dev->gpio.srdy), ifx_dev);
 
 	gpio_free(ifx_dev->gpio.srdy);
 	gpio_free(ifx_dev->gpio.mrdy);
