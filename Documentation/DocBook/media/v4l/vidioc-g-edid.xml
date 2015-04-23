@@ -82,6 +82,13 @@
     <para>If blocks have to be retrieved from the sink, then this call will block until they
     have been read.</para>
 
+    <para>If <structfield>start_block</structfield> and <structfield>blocks</structfield> are
+    both set to 0 when <constant>VIDIOC_G_EDID</constant> is called, then the driver will
+    set <structfield>blocks</structfield> to the total number of available EDID blocks
+    and it will return 0 without copying any data. This is an easy way to discover how many
+    EDID blocks there are. Note that if there are no EDID blocks available at all, then
+    the driver will set <structfield>blocks</structfield> to 0 and it returns 0.</para>
+
     <para>To set the EDID blocks of a receiver the application has to fill in the <structfield>pad</structfield>,
     <structfield>blocks</structfield> and <structfield>edid</structfield> fields and set
     <structfield>start_block</structfield> to 0. It is not possible to set part of an EDID,
