@@ -1471,7 +1471,7 @@ int kvm_mips_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		if (cause & CAUSEF_BD)
 			opc += 1;
 		inst = 0;
-		kvm_get_inst(opc, vcpu, &inst);
+		kvm_get_badinstr(opc, vcpu, &inst);
 		kvm_err("Exception Code: %d, not yet handled, @ PC: %p, inst: 0x%08x  BadVaddr: %#lx Status: %#lx\n",
 			exccode, opc, inst, badvaddr,
 			kvm_read_c0_guest_status(vcpu->arch.cop0));

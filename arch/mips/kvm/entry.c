@@ -53,6 +53,8 @@
 /* Some CP0 registers */
 #define C0_HWRENA	7, 0
 #define C0_BADVADDR	8, 0
+#define C0_BADINSTR	8, 1
+#define C0_BADINSTRP	8, 2
 #define C0_ENTRYHI	10, 0
 #define C0_STATUS	12, 0
 #define C0_CAUSE	13, 0
@@ -578,6 +580,18 @@ void *kvm_mips_build_exit(void *addr)
 
 	uasm_i_mfc0(&p, K0, C0_CAUSE);
 	uasm_i_sw(&p, K0, offsetof(struct kvm_vcpu_arch, host_cp0_cause), K1);
+
+	if (cpu_has_badinstr) {
+		uasm_i_mfc0(&p, K0, C0_BADINSTR);
+		uasm_i_sw(&p, K0, offsetof(struct kvm_vcpu_arch,
+					   host_cp0_badinstr), K1);
+	}
+
+	if (cpu_has_badinstrp) {
+		uasm_i_mfc0(&p, K0, C0_BADINSTRP);
+		uasm_i_sw(&p, K0, offsetof(struct kvm_vcpu_arch,
+					   host_cp0_badinstrp), K1);
+	}
 
 	/* Now restore the host state just enough to run the handlers */
 

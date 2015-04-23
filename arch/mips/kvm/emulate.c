@@ -54,7 +54,7 @@ static int kvm_compute_return_epc(struct kvm_vcpu *vcpu, unsigned long instpc,
 	}
 
 	/* Read the instruction */
-	err = kvm_get_inst((u32 *)epc, vcpu, &insn.word);
+	err = kvm_get_badinstrp((u32 *)epc, vcpu, &insn.word);
 	if (err)
 		return err;
 
@@ -256,6 +256,48 @@ enum emulation_result update_pc(struct kvm_vcpu *vcpu, u32 cause)
 	kvm_debug("update_pc(): New PC: %#lx\n", vcpu->arch.pc);
 
 	return EMULATE_DONE;
+}
+
+/**
+ * kvm_get_badinstr() - Get bad instruction encoding.
+ * @opc:	Guest pointer to faulting instruction.
+ * @vcpu:	KVM VCPU information.
+ *
+ * Gets the instruction encoding of the faulting instruction, using the saved
+ * BadInstr register value if it exists, otherwise falling back to reading guest
+ * memory at @opc.
+ *
+ * Returns:	The instruction encoding of the faulting instruction.
+ */
+int kvm_get_badinstr(u32 *opc, struct kvm_vcpu *vcpu, u32 *out)
+{
+	if (cpu_has_badinstr) {
+		*out = vcpu->arch.host_cp0_badinstr;
+		return 0;
+	} else {
+		return kvm_get_inst(opc, vcpu, out);
+	}
+}
+
+/**
+ * kvm_get_badinstrp() - Get bad prior instruction encoding.
+ * @opc:	Guest pointer to prior faulting instruction.
+ * @vcpu:	KVM VCPU information.
+ *
+ * Gets the instruction encoding of the prior faulting instruction (the branch
+ * containing the delay slot which faulted), using the saved BadInstrP register
+ * value if it exists, otherwise falling back to reading guest memory at @opc.
+ *
+ * Returns:	The instruction encoding of the prior faulting instruction.
+ */
+int kvm_get_badinstrp(u32 *opc, struct kvm_vcpu *vcpu, u32 *out)
+{
+	if (cpu_has_badinstrp) {
+		*out = vcpu->arch.host_cp0_badinstrp;
+		return 0;
+	} else {
+		return kvm_get_inst(opc, vcpu, out);
+	}
 }
 
 /**
@@ -1839,7 +1881,7 @@ enum emulation_result kvm_mips_emulate_inst(u32 cause, u32 *opc,
 	/* Fetch the instruction. */
 	if (cause & CAUSEF_BD)
 		opc += 1;
-	err = kvm_get_inst(opc, vcpu, &inst.word);
+	err = kvm_get_badinstr(opc, vcpu, &inst.word);
 	if (err)
 		return EMULATE_FAIL;
 
@@ -2434,7 +2476,7 @@ enum emulation_result kvm_mips_handle_ri(u32 cause, u32 *opc,
 	/* Fetch the instruction. */
 	if (cause & CAUSEF_BD)
 		opc += 1;
-	err = kvm_get_inst(opc, vcpu, &inst.word);
+	err = kvm_get_badinstr(opc, vcpu, &inst.word);
 	if (err) {
 		kvm_err("%s: Cannot get inst @ %p (%d)\n", __func__, opc, err);
 		return EMULATE_FAIL;

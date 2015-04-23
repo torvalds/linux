@@ -280,6 +280,8 @@ struct kvm_vcpu_arch {
 	unsigned long host_cp0_badvaddr;
 	unsigned long host_cp0_epc;
 	u32 host_cp0_cause;
+	u32 host_cp0_badinstr;
+	u32 host_cp0_badinstrp;
 
 	/* GPRS */
 	unsigned long gprs[32];
@@ -641,6 +643,8 @@ void kvm_trap_emul_invalidate_gva(struct kvm_vcpu *vcpu, unsigned long addr,
 /* Emulation */
 int kvm_get_inst(u32 *opc, struct kvm_vcpu *vcpu, u32 *out);
 enum emulation_result update_pc(struct kvm_vcpu *vcpu, u32 cause);
+int kvm_get_badinstr(u32 *opc, struct kvm_vcpu *vcpu, u32 *out);
+int kvm_get_badinstrp(u32 *opc, struct kvm_vcpu *vcpu, u32 *out);
 
 /**
  * kvm_is_ifetch_fault() - Find whether a TLBL exception is due to ifetch fault.
