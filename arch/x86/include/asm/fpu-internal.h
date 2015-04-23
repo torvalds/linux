@@ -74,10 +74,9 @@ static inline void __cpu_disable_lazy_restore(unsigned int cpu)
 	per_cpu(fpu_fpregs_owner_ctx, cpu) = NULL;
 }
 
-static inline int fpu_lazy_restore(struct task_struct *new, unsigned int cpu)
+static inline int fpu_want_lazy_restore(struct fpu *fpu, unsigned int cpu)
 {
-	return &new->thread.fpu == this_cpu_read_stable(fpu_fpregs_owner_ctx) &&
-		cpu == new->thread.fpu.last_cpu;
+	return fpu == this_cpu_read_stable(fpu_fpregs_owner_ctx) && cpu == fpu->last_cpu;
 }
 
 static inline int is_ia32_compat_frame(void)
@@ -439,7 +438,7 @@ static inline fpu_switch_t switch_fpu_prepare(struct task_struct *old, struct ta
 		old->thread.fpu.last_cpu = -1;
 		if (fpu.preload) {
 			new->thread.fpu.counter++;
-			if (fpu_lazy_restore(new, cpu))
+			if (fpu_want_lazy_restore(new_fpu, cpu))
 				fpu.preload = 0;
 			else
 				prefetch(new->thread.fpu.state);
