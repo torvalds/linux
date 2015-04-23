@@ -2347,7 +2347,7 @@ static int _nbu2ss_enable_controller(struct nbu2ss_udc *udc)
 			dev_err(udc->dev, "*** Reset Cancel failed\n");
 			return -EINVAL;
 		}
-	};
+	}
 
 #if 0
 	if ((system_rev & EMXX_REV_MASK) < EMXX_REV_ES3)
