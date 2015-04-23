@@ -978,18 +978,12 @@ static void sh_mmcif_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	sh_mmcif_start_cmd(host, mrq);
 }
 
-static int sh_mmcif_clk_update(struct sh_mmcif_host *host)
+static void sh_mmcif_clk_setup(struct sh_mmcif_host *host)
 {
-	int ret = clk_prepare_enable(host->clk);
+	unsigned int clk = clk_get_rate(host->clk);
 
-	if (!ret) {
-		unsigned int clk = clk_get_rate(host->clk);
-
-		host->mmc->f_max = clk / 2;
-		host->mmc->f_min = clk / 512;
-	}
-
-	return ret;
+	host->mmc->f_max = clk / 2;
+	host->mmc->f_min = clk / 512;
 }
 
 static void sh_mmcif_set_power(struct sh_mmcif_host *host, struct mmc_ios *ios)
@@ -1046,7 +1040,8 @@ static void sh_mmcif_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	if (ios->clock) {
 		if (!host->power) {
-			sh_mmcif_clk_update(host);
+			clk_prepare_enable(host->clk);
+
 			pm_runtime_get_sync(&host->pd->dev);
 			host->power = true;
 			sh_mmcif_sync_reset(host);
@@ -1447,9 +1442,12 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 		dev_err(dev, "cannot get clock: %d\n", ret);
 		goto err_pm;
 	}
-	ret = sh_mmcif_clk_update(host);
+
+	ret = clk_prepare_enable(host->clk);
 	if (ret < 0)
 		goto err_pm;
+
+	sh_mmcif_clk_setup(host);
 
 	ret = pm_runtime_resume(dev);
 	if (ret < 0)
