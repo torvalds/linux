@@ -942,8 +942,7 @@ static void sender(void                *send_info,
 		 * If we are running to completion, start it and run
 		 * transactions until everything is clear.
 		 */
-		smi_info->curr_msg = msg;
-		smi_info->waiting_msg = NULL;
+		smi_info->waiting_msg = msg;
 
 		/*
 		 * Run to completion means we are single-threaded, no
