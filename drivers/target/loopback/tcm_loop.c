@@ -409,7 +409,7 @@ static int tcm_loop_driver_probe(struct device *dev)
 	sh->max_id = 2;
 	sh->max_lun = 0;
 	sh->max_channel = 0;
-	sh->max_cmd_len = TL_SCSI_MAX_CMD_LEN;
+	sh->max_cmd_len = SCSI_MAX_VARLEN_CDB_SIZE;
 
 	host_prot = SHOST_DIF_TYPE1_PROTECTION | SHOST_DIF_TYPE2_PROTECTION |
 		    SHOST_DIF_TYPE3_PROTECTION | SHOST_DIX_TYPE1_PROTECTION |
