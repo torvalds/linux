@@ -1655,6 +1655,10 @@ void sock_rfree(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(sock_rfree);
 
+/*
+ * Buffer destructor for skbs that are not used directly in read or write
+ * path, e.g. for error handler skbs. Automatically called from kfree_skb.
+ */
 void sock_efree(struct sk_buff *skb)
 {
 	sock_put(skb->sk);

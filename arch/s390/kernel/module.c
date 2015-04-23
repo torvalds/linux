@@ -436,6 +436,7 @@ int module_finalize(const Elf_Ehdr *hdr,
 		    const Elf_Shdr *sechdrs,
 		    struct module *me)
 {
+	jump_label_apply_nops(me);
 	vfree(me->arch.syminfo);
 	me->arch.syminfo = NULL;
 	return 0;

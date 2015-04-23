@@ -306,8 +306,10 @@ tcp_friendliness:
 		}
 	}
 
-	if (ca->cnt == 0)			/* cannot be zero */
-		ca->cnt = 1;
+	/* The maximum rate of cwnd increase CUBIC allows is 1 packet per
+	 * 2 packets ACKed, meaning cwnd grows at 1.5x per RTT.
+	 */
+	ca->cnt = max(ca->cnt, 2U);
 }
 
 static void bictcp_cong_avoid(struct sock *sk, u32 ack, u32 acked)

@@ -1729,7 +1729,7 @@ static void xhci_cleanup_halted_endpoint(struct xhci_hcd *xhci,
 	if (!command)
 		return;
 
-	ep->ep_state |= EP_HALTED | EP_RECENTLY_HALTED;
+	ep->ep_state |= EP_HALTED;
 	ep->stopped_stream = stream_id;
 
 	xhci_queue_reset_ep(xhci, command, slot_id, ep_index);

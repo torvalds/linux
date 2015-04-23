@@ -2033,23 +2033,17 @@ int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 	int i;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 
-	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
-	if (unlikely(ret != 0))
-		return ret;
-
 	if (!arg->num_outputs) {
 		struct drm_vmw_rect def_rect = {0, 0, 800, 600};
 		vmw_du_update_layout(dev_priv, 1, &def_rect);
-		goto out_unlock;
+		return 0;
 	}
 
 	rects_size = arg->num_outputs * sizeof(struct drm_vmw_rect);
 	rects = kcalloc(arg->num_outputs, sizeof(struct drm_vmw_rect),
 			GFP_KERNEL);
-	if (unlikely(!rects)) {
-		ret = -ENOMEM;
-		goto out_unlock;
-	}
+	if (unlikely(!rects))
+		return -ENOMEM;
 
 	user_rects = (void __user *)(unsigned long)arg->rects;
 	ret = copy_from_user(rects, user_rects, rects_size);
@@ -2074,7 +2068,5 @@ int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 
 out_free:
 	kfree(rects);
-out_unlock:
-	ttm_read_unlock(&dev_priv->reservation_sem);
 	return ret;
 }

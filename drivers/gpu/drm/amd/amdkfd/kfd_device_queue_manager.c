@@ -645,6 +645,7 @@ static int create_sdma_queue_nocpsch(struct device_queue_manager *dqm,
 	pr_debug("     sdma queue id: %d\n", q->properties.sdma_queue_id);
 	pr_debug("     sdma engine id: %d\n", q->properties.sdma_engine_id);
 
+	init_sdma_vm(dqm, q, qpd);
 	retval = mqd->init_mqd(mqd, &q->mqd, &q->mqd_mem_obj,
 				&q->gart_mqd_addr, &q->properties);
 	if (retval != 0) {
@@ -652,7 +653,14 @@ static int create_sdma_queue_nocpsch(struct device_queue_manager *dqm,
 		return retval;
 	}
 
-	init_sdma_vm(dqm, q, qpd);
+	retval = mqd->load_mqd(mqd, q->mqd, 0,
+				0, NULL);
+	if (retval != 0) {
+		deallocate_sdma_queue(dqm, q->sdma_id);
+		mqd->uninit_mqd(mqd, q->mqd, q->mqd_mem_obj);
+		return retval;
+	}
+
 	return 0;
 }
 

@@ -953,11 +953,8 @@ static int tcm_loop_make_nexus(
 		transport_free_session(tl_nexus->se_sess);
 		goto out;
 	}
-	/*
-	 * Now, register the SAS I_T Nexus as active with the call to
-	 * transport_register_session()
-	 */
-	__transport_register_session(se_tpg, tl_nexus->se_sess->se_node_acl,
+	/* Now, register the SAS I_T Nexus as active. */
+	transport_register_session(se_tpg, tl_nexus->se_sess->se_node_acl,
 			tl_nexus->se_sess, tl_nexus);
 	tl_tpg->tl_nexus = tl_nexus;
 	pr_debug("TCM_Loop_ConfigFS: Established I_T Nexus to emulated"

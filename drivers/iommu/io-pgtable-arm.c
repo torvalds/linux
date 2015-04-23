@@ -56,7 +56,8 @@
 	((((d)->levels - ((l) - ARM_LPAE_START_LVL(d) + 1))		\
 	  * (d)->bits_per_level) + (d)->pg_shift)
 
-#define ARM_LPAE_PAGES_PER_PGD(d)	((d)->pgd_size >> (d)->pg_shift)
+#define ARM_LPAE_PAGES_PER_PGD(d)					\
+	DIV_ROUND_UP((d)->pgd_size, 1UL << (d)->pg_shift)
 
 /*
  * Calculate the index at level l used to map virtual address a using the
@@ -66,7 +67,7 @@
 	((l) == ARM_LPAE_START_LVL(d) ? ilog2(ARM_LPAE_PAGES_PER_PGD(d)) : 0)
 
 #define ARM_LPAE_LVL_IDX(a,l,d)						\
-	(((a) >> ARM_LPAE_LVL_SHIFT(l,d)) &				\
+	(((u64)(a) >> ARM_LPAE_LVL_SHIFT(l,d)) &			\
 	 ((1 << ((d)->bits_per_level + ARM_LPAE_PGD_IDX(l,d))) - 1))
 
 /* Calculate the block/page mapping size at level l for pagetable in d. */

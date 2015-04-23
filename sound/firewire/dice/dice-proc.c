@@ -99,9 +99,9 @@ static void dice_proc_read(struct snd_info_entry *entry,
 		} tx;
 		struct {
 			u32 iso;
+			u32 seq_start;
 			u32 number_audio;
 			u32 number_midi;
-			u32 seq_start;
 			char names[RX_NAMES_SIZE];
 			u32 ac3_caps;
 			u32 ac3_enable;
@@ -204,10 +204,10 @@ static void dice_proc_read(struct snd_info_entry *entry,
 			break;
 		snd_iprintf(buffer, "rx %u:\n", stream);
 		snd_iprintf(buffer, "  iso channel: %d\n", (int)buf.rx.iso);
+		snd_iprintf(buffer, "  sequence start: %u\n", buf.rx.seq_start);
 		snd_iprintf(buffer, "  audio channels: %u\n",
 			    buf.rx.number_audio);
 		snd_iprintf(buffer, "  midi ports: %u\n", buf.rx.number_midi);
-		snd_iprintf(buffer, "  sequence start: %u\n", buf.rx.seq_start);
 		if (quadlets >= 68) {
 			dice_proc_fixup_string(buf.rx.names, RX_NAMES_SIZE);
 			snd_iprintf(buffer, "  names: %s\n", buf.rx.names);

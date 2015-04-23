@@ -929,6 +929,13 @@ __acquires(hwep->lock)
 	return retval;
 }
 
+static int otg_a_alt_hnp_support(struct ci_hdrc *ci)
+{
+	dev_warn(&ci->gadget.dev,
+		"connect the device to an alternate port if you want HNP\n");
+	return isr_setup_status_phase(ci);
+}
+
 /**
  * isr_setup_packet_handler: setup packet handler
  * @ci: UDC descriptor
@@ -1060,6 +1067,10 @@ __acquires(ci->lock)
 					err = isr_setup_status_phase(
 							ci);
 				}
+				break;
+			case USB_DEVICE_A_ALT_HNP_SUPPORT:
+				if (ci_otg_is_fsm_mode(ci))
+					err = otg_a_alt_hnp_support(ci);
 				break;
 			default:
 				goto delegate;

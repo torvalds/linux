@@ -340,11 +340,13 @@ nvkm_devobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 
 		/* switch mmio to cpu's native endianness */
 #ifndef __BIG_ENDIAN
-		if (ioread32_native(map + 0x000004) != 0x00000000)
+		if (ioread32_native(map + 0x000004) != 0x00000000) {
 #else
-		if (ioread32_native(map + 0x000004) == 0x00000000)
+		if (ioread32_native(map + 0x000004) == 0x00000000) {
 #endif
 			iowrite32_native(0x01000001, map + 0x000004);
+			ioread32_native(map);
+		}
 
 		/* read boot0 and strapping information */
 		boot0 = ioread32_native(map + 0x000000);

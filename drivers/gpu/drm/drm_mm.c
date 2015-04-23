@@ -403,7 +403,7 @@ static int check_free_hole(u64 start, u64 end, u64 size, unsigned alignment)
 		unsigned rem;
 
 		rem = do_div(tmp, alignment);
-		if (tmp)
+		if (rem)
 			start += alignment - rem;
 	}
 

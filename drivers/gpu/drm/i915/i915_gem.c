@@ -2737,24 +2737,11 @@ i915_gem_retire_requests_ring(struct intel_engine_cs *ring)
 
 	WARN_ON(i915_verify_lists(ring->dev));
 
-	/* Move any buffers on the active list that are no longer referenced
-	 * by the ringbuffer to the flushing/inactive lists as appropriate,
-	 * before we free the context associated with the requests.
+	/* Retire requests first as we use it above for the early return.
+	 * If we retire requests last, we may use a later seqno and so clear
+	 * the requests lists without clearing the active list, leading to
+	 * confusion.
 	 */
-	while (!list_empty(&ring->active_list)) {
-		struct drm_i915_gem_object *obj;
-
-		obj = list_first_entry(&ring->active_list,
-				      struct drm_i915_gem_object,
-				      ring_list);
-
-		if (!i915_gem_request_completed(obj->last_read_req, true))
-			break;
-
-		i915_gem_object_move_to_inactive(obj);
-	}
-
-
 	while (!list_empty(&ring->request_list)) {
 		struct drm_i915_gem_request *request;
 		struct intel_ringbuffer *ringbuf;
@@ -2787,6 +2774,23 @@ i915_gem_retire_requests_ring(struct intel_engine_cs *ring)
 		ringbuf->last_retired_head = request->postfix;
 
 		i915_gem_free_request(request);
+	}
+
+	/* Move any buffers on the active list that are no longer referenced
+	 * by the ringbuffer to the flushing/inactive lists as appropriate,
+	 * before we free the context associated with the requests.
+	 */
+	while (!list_empty(&ring->active_list)) {
+		struct drm_i915_gem_object *obj;
+
+		obj = list_first_entry(&ring->active_list,
+				      struct drm_i915_gem_object,
+				      ring_list);
+
+		if (!i915_gem_request_completed(obj->last_read_req, true))
+			break;
+
+		i915_gem_object_move_to_inactive(obj);
 	}
 
 	if (unlikely(ring->trace_irq_req &&
@@ -2936,9 +2940,9 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	req = obj->last_read_req;
 
 	/* Do this after OLR check to make sure we make forward progress polling
-	 * on this IOCTL with a timeout <=0 (like busy ioctl)
+	 * on this IOCTL with a timeout == 0 (like busy ioctl)
 	 */
-	if (args->timeout_ns <= 0) {
+	if (args->timeout_ns == 0) {
 		ret = -ETIME;
 		goto out;
 	}
@@ -2948,7 +2952,8 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	i915_gem_request_reference(req);
 	mutex_unlock(&dev->struct_mutex);
 
-	ret = __i915_wait_request(req, reset_counter, true, &args->timeout_ns,
+	ret = __i915_wait_request(req, reset_counter, true,
+				  args->timeout_ns > 0 ? &args->timeout_ns : NULL,
 				  file->driver_priv);
 	mutex_lock(&dev->struct_mutex);
 	i915_gem_request_unreference(req);
@@ -4792,6 +4797,9 @@ i915_gem_init_hw(struct drm_device *dev)
 	if (INTEL_INFO(dev)->gen < 6 && !intel_enable_gtt())
 		return -EIO;
 
+	/* Double layer security blanket, see i915_gem_init() */
+	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+
 	if (dev_priv->ellc_size)
 		I915_WRITE(HSW_IDICR, I915_READ(HSW_IDICR) | IDIHASHMSK(0xf));
 
@@ -4824,7 +4832,7 @@ i915_gem_init_hw(struct drm_device *dev)
 	for_each_ring(ring, dev_priv, i) {
 		ret = ring->init_hw(ring);
 		if (ret)
-			return ret;
+			goto out;
 	}
 
 	for (i = 0; i < NUM_L3_SLICES(dev); i++)
@@ -4841,9 +4849,11 @@ i915_gem_init_hw(struct drm_device *dev)
 		DRM_ERROR("Context enable failed %d\n", ret);
 		i915_gem_cleanup_ringbuffer(dev);
 
-		return ret;
+		goto out;
 	}
 
+out:
+	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 	return ret;
 }
 
@@ -4877,6 +4887,14 @@ int i915_gem_init(struct drm_device *dev)
 		dev_priv->gt.stop_ring = intel_logical_ring_stop;
 	}
 
+	/* This is just a security blanket to placate dragons.
+	 * On some systems, we very sporadically observe that the first TLBs
+	 * used by the CS may be stale, despite us poking the TLB reset. If
+	 * we hold the forcewake during initialisation these problems
+	 * just magically go away.
+	 */
+	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+
 	ret = i915_gem_init_userptr(dev);
 	if (ret)
 		goto out_unlock;
@@ -4903,6 +4921,7 @@ int i915_gem_init(struct drm_device *dev)
 	}
 
 out_unlock:
+	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 	mutex_unlock(&dev->struct_mutex);
 
 	return ret;

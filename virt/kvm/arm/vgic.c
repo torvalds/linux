@@ -883,6 +883,11 @@ static inline u64 vgic_get_eisr(struct kvm_vcpu *vcpu)
 	return vgic_ops->get_eisr(vcpu);
 }
 
+static inline void vgic_clear_eisr(struct kvm_vcpu *vcpu)
+{
+	vgic_ops->clear_eisr(vcpu);
+}
+
 static inline u32 vgic_get_interrupt_status(struct kvm_vcpu *vcpu)
 {
 	return vgic_ops->get_interrupt_status(vcpu);
@@ -922,6 +927,7 @@ static void vgic_retire_lr(int lr_nr, int irq, struct kvm_vcpu *vcpu)
 	vgic_set_lr(vcpu, lr_nr, vlr);
 	clear_bit(lr_nr, vgic_cpu->lr_used);
 	vgic_cpu->vgic_irq_lr_map[irq] = LR_EMPTY;
+	vgic_sync_lr_elrsr(vcpu, lr_nr, vlr);
 }
 
 /*
@@ -978,6 +984,7 @@ bool vgic_queue_irq(struct kvm_vcpu *vcpu, u8 sgi_source_id, int irq)
 			BUG_ON(!test_bit(lr, vgic_cpu->lr_used));
 			vlr.state |= LR_STATE_PENDING;
 			vgic_set_lr(vcpu, lr, vlr);
+			vgic_sync_lr_elrsr(vcpu, lr, vlr);
 			return true;
 		}
 	}
@@ -999,6 +1006,7 @@ bool vgic_queue_irq(struct kvm_vcpu *vcpu, u8 sgi_source_id, int irq)
 		vlr.state |= LR_EOI_INT;
 
 	vgic_set_lr(vcpu, lr, vlr);
+	vgic_sync_lr_elrsr(vcpu, lr, vlr);
 
 	return true;
 }
@@ -1135,6 +1143,14 @@ static bool vgic_process_maintenance(struct kvm_vcpu *vcpu)
 
 	if (status & INT_STATUS_UNDERFLOW)
 		vgic_disable_underflow(vcpu);
+
+	/*
+	 * In the next iterations of the vcpu loop, if we sync the vgic state
+	 * after flushing it, but before entering the guest (this happens for
+	 * pending signals and vmid rollovers), then make sure we don't pick
+	 * up any old maintenance interrupts here.
+	 */
+	vgic_clear_eisr(vcpu);
 
 	return level_pending;
 }
@@ -1583,8 +1599,10 @@ int kvm_vgic_create(struct kvm *kvm, u32 type)
 	 * emulation. So check this here again. KVM_CREATE_DEVICE does
 	 * the proper checks already.
 	 */
-	if (type == KVM_DEV_TYPE_ARM_VGIC_V2 && !vgic->can_emulate_gicv2)
-		return -ENODEV;
+	if (type == KVM_DEV_TYPE_ARM_VGIC_V2 && !vgic->can_emulate_gicv2) {
+		ret = -ENODEV;
+		goto out;
+	}
 
 	/*
 	 * Any time a vcpu is run, vcpu_load is called which tries to grab the

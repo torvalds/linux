@@ -3123,11 +3123,18 @@ static int packet_dev_mc(struct net_device *dev, struct packet_mclist *i,
 	return 0;
 }
 
-static void packet_dev_mclist(struct net_device *dev, struct packet_mclist *i, int what)
+static void packet_dev_mclist_delete(struct net_device *dev,
+				     struct packet_mclist **mlp)
 {
-	for ( ; i; i = i->next) {
-		if (i->ifindex == dev->ifindex)
-			packet_dev_mc(dev, i, what);
+	struct packet_mclist *ml;
+
+	while ((ml = *mlp) != NULL) {
+		if (ml->ifindex == dev->ifindex) {
+			packet_dev_mc(dev, ml, -1);
+			*mlp = ml->next;
+			kfree(ml);
+		} else
+			mlp = &ml->next;
 	}
 }
 
@@ -3204,12 +3211,11 @@ static int packet_mc_drop(struct sock *sk, struct packet_mreq_max *mreq)
 					packet_dev_mc(dev, ml, -1);
 				kfree(ml);
 			}
-			rtnl_unlock();
-			return 0;
+			break;
 		}
 	}
 	rtnl_unlock();
-	return -EADDRNOTAVAIL;
+	return 0;
 }
 
 static void packet_flush_mclist(struct sock *sk)
@@ -3559,7 +3565,7 @@ static int packet_notifier(struct notifier_block *this,
 		switch (msg) {
 		case NETDEV_UNREGISTER:
 			if (po->mclist)
-				packet_dev_mclist(dev, po->mclist, -1);
+				packet_dev_mclist_delete(dev, &po->mclist);
 			/* fallthrough */
 
 		case NETDEV_DOWN:

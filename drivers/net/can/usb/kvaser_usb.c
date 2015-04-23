@@ -14,6 +14,8 @@
  * Copyright (C) 2015 Valeo S.A.
  */
 
+#include <linux/spinlock.h>
+#include <linux/kernel.h>
 #include <linux/completion.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
@@ -466,10 +468,11 @@ struct kvaser_usb {
 struct kvaser_usb_net_priv {
 	struct can_priv can;
 
-	atomic_t active_tx_urbs;
-	struct usb_anchor tx_submitted;
+	spinlock_t tx_contexts_lock;
+	int active_tx_contexts;
 	struct kvaser_usb_tx_urb_context tx_contexts[MAX_TX_URBS];
 
+	struct usb_anchor tx_submitted;
 	struct completion start_comp, stop_comp;
 
 	struct kvaser_usb *dev;
@@ -584,8 +587,15 @@ static int kvaser_usb_wait_msg(const struct kvaser_usb *dev, u8 id,
 		while (pos <= actual_len - MSG_HEADER_LEN) {
 			tmp = buf + pos;
 
-			if (!tmp->len)
-				break;
+			/* Handle messages crossing the USB endpoint max packet
+			 * size boundary. Check kvaser_usb_read_bulk_callback()
+			 * for further details.
+			 */
+			if (tmp->len == 0) {
+				pos = round_up(pos,
+					       dev->bulk_in->wMaxPacketSize);
+				continue;
+			}
 
 			if (pos + tmp->len > actual_len) {
 				dev_err(dev->udev->dev.parent,
@@ -686,6 +696,7 @@ static void kvaser_usb_tx_acknowledge(const struct kvaser_usb *dev,
 	struct kvaser_usb_net_priv *priv;
 	struct sk_buff *skb;
 	struct can_frame *cf;
+	unsigned long flags;
 	u8 channel, tid;
 
 	channel = msg->u.tx_acknowledge_header.channel;
@@ -729,12 +740,15 @@ static void kvaser_usb_tx_acknowledge(const struct kvaser_usb *dev,
 
 	stats->tx_packets++;
 	stats->tx_bytes += context->dlc;
+
+	spin_lock_irqsave(&priv->tx_contexts_lock, flags);
+
 	can_get_echo_skb(priv->netdev, context->echo_index);
-
 	context->echo_index = MAX_TX_URBS;
-	atomic_dec(&priv->active_tx_urbs);
-
+	--priv->active_tx_contexts;
 	netif_wake_queue(priv->netdev);
+
+	spin_unlock_irqrestore(&priv->tx_contexts_lock, flags);
 }
 
 static void kvaser_usb_simple_msg_callback(struct urb *urb)
@@ -787,24 +801,12 @@ static int kvaser_usb_simple_msg_async(struct kvaser_usb_net_priv *priv,
 		netdev_err(netdev, "Error transmitting URB\n");
 		usb_unanchor_urb(urb);
 		usb_free_urb(urb);
-		kfree(buf);
 		return err;
 	}
 
 	usb_free_urb(urb);
 
 	return 0;
-}
-
-static void kvaser_usb_unlink_tx_urbs(struct kvaser_usb_net_priv *priv)
-{
-	int i;
-
-	usb_kill_anchored_urbs(&priv->tx_submitted);
-	atomic_set(&priv->active_tx_urbs, 0);
-
-	for (i = 0; i < MAX_TX_URBS; i++)
-		priv->tx_contexts[i].echo_index = MAX_TX_URBS;
 }
 
 static void kvaser_usb_rx_error_update_can_state(struct kvaser_usb_net_priv *priv,
@@ -1317,8 +1319,19 @@ static void kvaser_usb_read_bulk_callback(struct urb *urb)
 	while (pos <= urb->actual_length - MSG_HEADER_LEN) {
 		msg = urb->transfer_buffer + pos;
 
-		if (!msg->len)
-			break;
+		/* The Kvaser firmware can only read and write messages that
+		 * does not cross the USB's endpoint wMaxPacketSize boundary.
+		 * If a follow-up command crosses such boundary, firmware puts
+		 * a placeholder zero-length command in its place then aligns
+		 * the real command to the next max packet size.
+		 *
+		 * Handle such cases or we're going to miss a significant
+		 * number of events in case of a heavy rx load on the bus.
+		 */
+		if (msg->len == 0) {
+			pos = round_up(pos, dev->bulk_in->wMaxPacketSize);
+			continue;
+		}
 
 		if (pos + msg->len > urb->actual_length) {
 			dev_err(dev->udev->dev.parent, "Format error\n");
@@ -1326,7 +1339,6 @@ static void kvaser_usb_read_bulk_callback(struct urb *urb)
 		}
 
 		kvaser_usb_handle_message(dev, msg);
-
 		pos += msg->len;
 	}
 
@@ -1498,6 +1510,24 @@ error:
 	return err;
 }
 
+static void kvaser_usb_reset_tx_urb_contexts(struct kvaser_usb_net_priv *priv)
+{
+	int i;
+
+	priv->active_tx_contexts = 0;
+	for (i = 0; i < MAX_TX_URBS; i++)
+		priv->tx_contexts[i].echo_index = MAX_TX_URBS;
+}
+
+/* This method might sleep. Do not call it in the atomic context
+ * of URB completions.
+ */
+static void kvaser_usb_unlink_tx_urbs(struct kvaser_usb_net_priv *priv)
+{
+	usb_kill_anchored_urbs(&priv->tx_submitted);
+	kvaser_usb_reset_tx_urb_contexts(priv);
+}
+
 static void kvaser_usb_unlink_all_urbs(struct kvaser_usb *dev)
 {
 	int i;
@@ -1615,9 +1645,9 @@ static netdev_tx_t kvaser_usb_start_xmit(struct sk_buff *skb,
 	struct urb *urb;
 	void *buf;
 	struct kvaser_msg *msg;
-	int i, err;
-	int ret = NETDEV_TX_OK;
+	int i, err, ret = NETDEV_TX_OK;
 	u8 *msg_tx_can_flags = NULL;		/* GCC */
+	unsigned long flags;
 
 	if (can_dropped_invalid_skb(netdev, skb))
 		return NETDEV_TX_OK;
@@ -1634,7 +1664,7 @@ static netdev_tx_t kvaser_usb_start_xmit(struct sk_buff *skb,
 	if (!buf) {
 		stats->tx_dropped++;
 		dev_kfree_skb(skb);
-		goto nobufmem;
+		goto freeurb;
 	}
 
 	msg = buf;
@@ -1671,22 +1701,32 @@ static netdev_tx_t kvaser_usb_start_xmit(struct sk_buff *skb,
 	if (cf->can_id & CAN_RTR_FLAG)
 		*msg_tx_can_flags |= MSG_FLAG_REMOTE_FRAME;
 
+	spin_lock_irqsave(&priv->tx_contexts_lock, flags);
 	for (i = 0; i < ARRAY_SIZE(priv->tx_contexts); i++) {
 		if (priv->tx_contexts[i].echo_index == MAX_TX_URBS) {
 			context = &priv->tx_contexts[i];
+
+			context->echo_index = i;
+			can_put_echo_skb(skb, netdev, context->echo_index);
+			++priv->active_tx_contexts;
+			if (priv->active_tx_contexts >= MAX_TX_URBS)
+				netif_stop_queue(netdev);
+
 			break;
 		}
 	}
+	spin_unlock_irqrestore(&priv->tx_contexts_lock, flags);
 
 	/* This should never happen; it implies a flow control bug */
 	if (!context) {
 		netdev_warn(netdev, "cannot find free context\n");
+
+		kfree(buf);
 		ret =  NETDEV_TX_BUSY;
-		goto releasebuf;
+		goto freeurb;
 	}
 
 	context->priv = priv;
-	context->echo_index = i;
 	context->dlc = cf->can_dlc;
 
 	msg->u.tx_can.tid = context->echo_index;
@@ -1698,18 +1738,17 @@ static netdev_tx_t kvaser_usb_start_xmit(struct sk_buff *skb,
 			  kvaser_usb_write_bulk_callback, context);
 	usb_anchor_urb(urb, &priv->tx_submitted);
 
-	can_put_echo_skb(skb, netdev, context->echo_index);
-
-	atomic_inc(&priv->active_tx_urbs);
-
-	if (atomic_read(&priv->active_tx_urbs) >= MAX_TX_URBS)
-		netif_stop_queue(netdev);
-
 	err = usb_submit_urb(urb, GFP_ATOMIC);
 	if (unlikely(err)) {
-		can_free_echo_skb(netdev, context->echo_index);
+		spin_lock_irqsave(&priv->tx_contexts_lock, flags);
 
-		atomic_dec(&priv->active_tx_urbs);
+		can_free_echo_skb(netdev, context->echo_index);
+		context->echo_index = MAX_TX_URBS;
+		--priv->active_tx_contexts;
+		netif_wake_queue(netdev);
+
+		spin_unlock_irqrestore(&priv->tx_contexts_lock, flags);
+
 		usb_unanchor_urb(urb);
 
 		stats->tx_dropped++;
@@ -1719,16 +1758,12 @@ static netdev_tx_t kvaser_usb_start_xmit(struct sk_buff *skb,
 		else
 			netdev_warn(netdev, "Failed tx_urb %d\n", err);
 
-		goto releasebuf;
+		goto freeurb;
 	}
 
-	usb_free_urb(urb);
+	ret = NETDEV_TX_OK;
 
-	return NETDEV_TX_OK;
-
-releasebuf:
-	kfree(buf);
-nobufmem:
+freeurb:
 	usb_free_urb(urb);
 	return ret;
 }
@@ -1840,7 +1875,7 @@ static int kvaser_usb_init_one(struct usb_interface *intf,
 	struct kvaser_usb *dev = usb_get_intfdata(intf);
 	struct net_device *netdev;
 	struct kvaser_usb_net_priv *priv;
-	int i, err;
+	int err;
 
 	err = kvaser_usb_send_simple_msg(dev, CMD_RESET_CHIP, channel);
 	if (err)
@@ -1854,18 +1889,16 @@ static int kvaser_usb_init_one(struct usb_interface *intf,
 
 	priv = netdev_priv(netdev);
 
+	init_usb_anchor(&priv->tx_submitted);
 	init_completion(&priv->start_comp);
 	init_completion(&priv->stop_comp);
-
-	init_usb_anchor(&priv->tx_submitted);
-	atomic_set(&priv->active_tx_urbs, 0);
-
-	for (i = 0; i < ARRAY_SIZE(priv->tx_contexts); i++)
-		priv->tx_contexts[i].echo_index = MAX_TX_URBS;
 
 	priv->dev = dev;
 	priv->netdev = netdev;
 	priv->channel = channel;
+
+	spin_lock_init(&priv->tx_contexts_lock);
+	kvaser_usb_reset_tx_urb_contexts(priv);
 
 	priv->can.state = CAN_STATE_STOPPED;
 	priv->can.clock.freq = CAN_USB_CLOCK;

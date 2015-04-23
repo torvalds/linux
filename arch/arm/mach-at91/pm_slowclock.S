@@ -25,11 +25,6 @@
  */
 #undef SLOWDOWN_MASTER_CLOCK
 
-#define MCKRDY_TIMEOUT		1000
-#define MOSCRDY_TIMEOUT 	1000
-#define PLLALOCK_TIMEOUT	1000
-#define PLLBLOCK_TIMEOUT	1000
-
 pmc	.req	r0
 sdramc	.req	r1
 ramc1	.req	r2
@@ -41,59 +36,41 @@ tmp2	.req	r5
  * Wait until master clock is ready (after switching master clock source)
  */
 	.macro wait_mckrdy
-	mov	tmp2, #MCKRDY_TIMEOUT
-1:	sub	tmp2, tmp2, #1
-	cmp	tmp2, #0
-	beq	2f
-	ldr	tmp1, [pmc, #AT91_PMC_SR]
+1:	ldr	tmp1, [pmc, #AT91_PMC_SR]
 	tst	tmp1, #AT91_PMC_MCKRDY
 	beq	1b
-2:
 	.endm
 
 /*
  * Wait until master oscillator has stabilized.
  */
 	.macro wait_moscrdy
-	mov	tmp2, #MOSCRDY_TIMEOUT
-1:	sub	tmp2, tmp2, #1
-	cmp	tmp2, #0
-	beq	2f
-	ldr	tmp1, [pmc, #AT91_PMC_SR]
+1:	ldr	tmp1, [pmc, #AT91_PMC_SR]
 	tst	tmp1, #AT91_PMC_MOSCS
 	beq	1b
-2:
 	.endm
 
 /*
  * Wait until PLLA has locked.
  */
 	.macro wait_pllalock
-	mov	tmp2, #PLLALOCK_TIMEOUT
-1:	sub	tmp2, tmp2, #1
-	cmp	tmp2, #0
-	beq	2f
-	ldr	tmp1, [pmc, #AT91_PMC_SR]
+1:	ldr	tmp1, [pmc, #AT91_PMC_SR]
 	tst	tmp1, #AT91_PMC_LOCKA
 	beq	1b
-2:
 	.endm
 
 /*
  * Wait until PLLB has locked.
  */
 	.macro wait_pllblock
-	mov	tmp2, #PLLBLOCK_TIMEOUT
-1:	sub	tmp2, tmp2, #1
-	cmp	tmp2, #0
-	beq	2f
-	ldr	tmp1, [pmc, #AT91_PMC_SR]
+1:	ldr	tmp1, [pmc, #AT91_PMC_SR]
 	tst	tmp1, #AT91_PMC_LOCKB
 	beq	1b
-2:
 	.endm
 
 	.text
+
+	.arm
 
 /* void at91_slow_clock(void __iomem *pmc, void __iomem *sdramc,
  *			void __iomem *ramc1, int memctrl)
@@ -134,6 +111,16 @@ ddr_sr_enable:
 	cmp	memctrl, #AT91_MEMCTRL_DDRSDR
 	bne	sdr_sr_enable
 
+	/* LPDDR1 --> force DDR2 mode during self-refresh */
+	ldr	tmp1, [sdramc, #AT91_DDRSDRC_MDR]
+	str	tmp1, .saved_sam9_mdr
+	bic	tmp1, tmp1, #~AT91_DDRSDRC_MD
+	cmp	tmp1, #AT91_DDRSDRC_MD_LOW_POWER_DDR
+	ldreq	tmp1, [sdramc, #AT91_DDRSDRC_MDR]
+	biceq	tmp1, tmp1, #AT91_DDRSDRC_MD
+	orreq	tmp1, tmp1, #AT91_DDRSDRC_MD_DDR2
+	streq	tmp1, [sdramc, #AT91_DDRSDRC_MDR]
+
 	/* prepare for DDRAM self-refresh mode */
 	ldr	tmp1, [sdramc, #AT91_DDRSDRC_LPR]
 	str	tmp1, .saved_sam9_lpr
@@ -142,14 +129,26 @@ ddr_sr_enable:
 
 	/* figure out if we use the second ram controller */
 	cmp	ramc1, #0
-	ldrne	tmp2, [ramc1, #AT91_DDRSDRC_LPR]
-	strne	tmp2, .saved_sam9_lpr1
-	bicne	tmp2, #AT91_DDRSDRC_LPCB
-	orrne	tmp2, #AT91_DDRSDRC_LPCB_SELF_REFRESH
+	beq	ddr_no_2nd_ctrl
+
+	ldr	tmp2, [ramc1, #AT91_DDRSDRC_MDR]
+	str	tmp2, .saved_sam9_mdr1
+	bic	tmp2, tmp2, #~AT91_DDRSDRC_MD
+	cmp	tmp2, #AT91_DDRSDRC_MD_LOW_POWER_DDR
+	ldreq	tmp2, [ramc1, #AT91_DDRSDRC_MDR]
+	biceq	tmp2, tmp2, #AT91_DDRSDRC_MD
+	orreq	tmp2, tmp2, #AT91_DDRSDRC_MD_DDR2
+	streq	tmp2, [ramc1, #AT91_DDRSDRC_MDR]
+
+	ldr	tmp2, [ramc1, #AT91_DDRSDRC_LPR]
+	str	tmp2, .saved_sam9_lpr1
+	bic	tmp2, #AT91_DDRSDRC_LPCB
+	orr	tmp2, #AT91_DDRSDRC_LPCB_SELF_REFRESH
 
 	/* Enable DDRAM self-refresh mode */
+	str	tmp2, [ramc1, #AT91_DDRSDRC_LPR]
+ddr_no_2nd_ctrl:
 	str	tmp1, [sdramc, #AT91_DDRSDRC_LPR]
-	strne	tmp2, [ramc1, #AT91_DDRSDRC_LPR]
 
 	b	sdr_sr_done
 
@@ -208,6 +207,7 @@ sdr_sr_done:
 	/* Turn off the main oscillator */
 	ldr	tmp1, [pmc, #AT91_CKGR_MOR]
 	bic	tmp1, tmp1, #AT91_PMC_MOSCEN
+	orr	tmp1, tmp1, #AT91_PMC_KEY
 	str	tmp1, [pmc, #AT91_CKGR_MOR]
 
 	/* Wait for interrupt */
@@ -216,6 +216,7 @@ sdr_sr_done:
 	/* Turn on the main oscillator */
 	ldr	tmp1, [pmc, #AT91_CKGR_MOR]
 	orr	tmp1, tmp1, #AT91_PMC_MOSCEN
+	orr	tmp1, tmp1, #AT91_PMC_KEY
 	str	tmp1, [pmc, #AT91_CKGR_MOR]
 
 	wait_moscrdy
@@ -280,12 +281,17 @@ sdr_sr_done:
 	 */
 	cmp	memctrl, #AT91_MEMCTRL_DDRSDR
 	bne	sdr_en_restore
+	/* Restore MDR in case of LPDDR1 */
+	ldr	tmp1, .saved_sam9_mdr
+	str	tmp1, [sdramc, #AT91_DDRSDRC_MDR]
 	/* Restore LPR on AT91 with DDRAM */
 	ldr	tmp1, .saved_sam9_lpr
 	str	tmp1, [sdramc, #AT91_DDRSDRC_LPR]
 
 	/* if we use the second ram controller */
 	cmp	ramc1, #0
+	ldrne	tmp2, .saved_sam9_mdr1
+	strne	tmp2, [ramc1, #AT91_DDRSDRC_MDR]
 	ldrne	tmp2, .saved_sam9_lpr1
 	strne	tmp2, [ramc1, #AT91_DDRSDRC_LPR]
 
@@ -317,6 +323,12 @@ ram_restored:
 	.word 0
 
 .saved_sam9_lpr1:
+	.word 0
+
+.saved_sam9_mdr:
+	.word 0
+
+.saved_sam9_mdr1:
 	.word 0
 
 ENTRY(at91_slow_clock_sz)

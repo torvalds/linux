@@ -1030,6 +1030,16 @@ F:	arch/arm/mach-mxs/
 F:	arch/arm/boot/dts/imx*
 F:	arch/arm/configs/imx*_defconfig
 
+ARM/FREESCALE VYBRID ARM ARCHITECTURE
+M:	Shawn Guo <shawn.guo@linaro.org>
+M:	Sascha Hauer <kernel@pengutronix.de>
+R:	Stefan Agner <stefan@agner.ch>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux.git
+F:	arch/arm/mach-imx/*vf610*
+F:	arch/arm/boot/dts/vf*
+
 ARM/GLOMATION GESBC9312SX MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -1176,7 +1186,7 @@ M:	Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-mvebu/
-F:	drivers/rtc/armada38x-rtc
+F:	drivers/rtc/rtc-armada38x.c
 
 ARM/Marvell Berlin SoC support
 M:	Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
@@ -1188,6 +1198,7 @@ ARM/Marvell Dove/MV78xx0/Orion SOC support
 M:	Jason Cooper <jason@lakedaemon.net>
 M:	Andrew Lunn <andrew@lunn.ch>
 M:	Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
+M:	Gregory Clement <gregory.clement@free-electrons.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-dove/
@@ -1351,6 +1362,7 @@ F:	drivers/i2c/busses/i2c-rk3x.c
 F:	drivers/*/*rockchip*
 F:	drivers/*/*/*rockchip*
 F:	sound/soc/rockchip/
+N:	rockchip
 
 ARM/SAMSUNG EXYNOS ARM ARCHITECTURES
 M:	Kukjin Kim <kgene@kernel.org>
@@ -1664,8 +1676,8 @@ F:	drivers/misc/eeprom/at24.c
 F:	include/linux/platform_data/at24.h
 
 ATA OVER ETHERNET (AOE) DRIVER
-M:	"Ed L. Cashin" <ecashin@coraid.com>
-W:	http://support.coraid.com/support/linux
+M:	"Ed L. Cashin" <ed.cashin@acm.org>
+W:	http://www.openaoe.org/
 S:	Supported
 F:	Documentation/aoe/
 F:	drivers/block/aoe/
@@ -1730,7 +1742,7 @@ S:	Maintained
 F:	drivers/net/ethernet/atheros/
 
 ATM
-M:	Chas Williams <chas@cmf.nrl.navy.mil>
+M:	Chas Williams <3chas3@gmail.com>
 L:	linux-atm-general@lists.sourceforge.net (moderated for non-subscribers)
 L:	netdev@vger.kernel.org
 W:	http://linux-atm.sourceforge.net
@@ -2107,7 +2119,6 @@ F:	drivers/net/ethernet/broadcom/bnx2x/
 
 BROADCOM BCM281XX/BCM11XXX/BCM216XX ARM ARCHITECTURE
 M:	Christian Daudt <bcm@fixthebug.org>
-M:	Matt Porter <mporter@linaro.org>
 M:	Florian Fainelli <f.fainelli@gmail.com>
 L:	bcm-kernel-feedback-list@broadcom.com
 T:	git git://github.com/broadcom/mach-bcm
@@ -2369,8 +2380,9 @@ F:	arch/x86/include/asm/tce.h
 
 CAN NETWORK LAYER
 M:	Oliver Hartkopp <socketcan@hartkopp.net>
+M:	Marc Kleine-Budde <mkl@pengutronix.de>
 L:	linux-can@vger.kernel.org
-W:	http://gitorious.org/linux-can
+W:	https://github.com/linux-can
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mkl/linux-can.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mkl/linux-can-next.git
 S:	Maintained
@@ -2386,7 +2398,7 @@ CAN NETWORK DRIVERS
 M:	Wolfgang Grandegger <wg@grandegger.com>
 M:	Marc Kleine-Budde <mkl@pengutronix.de>
 L:	linux-can@vger.kernel.org
-W:	http://gitorious.org/linux-can
+W:	https://github.com/linux-can
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mkl/linux-can.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mkl/linux-can-next.git
 S:	Maintained
@@ -3240,6 +3252,13 @@ L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/dme1737
 F:	drivers/hwmon/dme1737.c
+
+DMI/SMBIOS SUPPORT
+M:	Jean Delvare <jdelvare@suse.de>
+S:	Maintained
+F:	drivers/firmware/dmi-id.c
+F:	drivers/firmware/dmi_scan.c
+F:	include/linux/dmi.h
 
 DOCKING STATION DRIVER
 M:	Shaohua Li <shaohua.li@intel.com>
@@ -10195,6 +10214,13 @@ L:	linux-usb@vger.kernel.org
 S:	Maintained
 F:	Documentation/usb/ohci.txt
 F:	drivers/usb/host/ohci*
+
+USB OTG FSM (Finite State Machine)
+M:	Peter Chen <Peter.Chen@freescale.com>
+T:	git git://github.com/hzpeterchen/linux-usb.git
+L:	linux-usb@vger.kernel.org
+S:	Maintained
+F:	drivers/usb/common/usb-otg-fsm.c
 
 USB OVER IP DRIVER
 M:	Valentina Manea <valentina.manea.m@gmail.com>
