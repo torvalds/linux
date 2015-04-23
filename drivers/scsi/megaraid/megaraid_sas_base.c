@@ -4354,6 +4354,21 @@ megasas_init_adapter_mfi(struct megasas_instance *instance)
 	instance->max_num_sge = (instance->instancet->read_fw_status_reg(reg_set) & 0xFF0000) >>
 					0x10;
 	/*
+	 * For MFI skinny adapters, MEGASAS_SKINNY_INT_CMDS commands
+	 * are reserved for IOCTL + driver's internal DCMDs.
+	 */
+	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0073SKINNY) ||
+		(instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0071SKINNY)) {
+		instance->max_scsi_cmds = (instance->max_fw_cmds -
+			MEGASAS_SKINNY_INT_CMDS);
+		sema_init(&instance->ioctl_sem, MEGASAS_SKINNY_INT_CMDS);
+	} else {
+		instance->max_scsi_cmds = (instance->max_fw_cmds -
+			MEGASAS_INT_CMDS);
+		sema_init(&instance->ioctl_sem, (MEGASAS_MFI_IOCTL_CMDS));
+	}
+
+	/*
 	 * Create a pool of commands
 	 */
 	if (megasas_alloc_cmds(instance))
@@ -4787,30 +4802,6 @@ static int megasas_init_fw(struct megasas_instance *instance)
 						PAGE_SIZE / 512;
 	if (tmp_sectors && (instance->max_sectors_per_req > tmp_sectors))
 		instance->max_sectors_per_req = tmp_sectors;
-
-	/*
-	 * 1. For fusion adapters, 3 commands for IOCTL and 5 commands
-	 *    for driver's internal DCMDs.
-	 * 2. For MFI skinny adapters, 5 commands for IOCTL + driver's
-	 *    internal DCMDs.
-	 * 3. For rest of MFI adapters, 27 commands reserved for IOCTLs
-	 *    and 5 commands for drivers's internal DCMD.
-	 */
-	if (instance->ctrl_context) {
-		instance->max_scsi_cmds = instance->max_fw_cmds -
-					(MEGASAS_FUSION_INTERNAL_CMDS +
-					MEGASAS_FUSION_IOCTL_CMDS);
-		sema_init(&instance->ioctl_sem, MEGASAS_FUSION_IOCTL_CMDS);
-	} else if ((instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0073SKINNY) ||
-		(instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0071SKINNY)) {
-		instance->max_scsi_cmds = instance->max_fw_cmds -
-						MEGASAS_SKINNY_INT_CMDS;
-		sema_init(&instance->ioctl_sem, MEGASAS_SKINNY_INT_CMDS);
-	} else {
-		instance->max_scsi_cmds = instance->max_fw_cmds -
-						MEGASAS_INT_CMDS;
-		sema_init(&instance->ioctl_sem, (MEGASAS_INT_CMDS - 5));
-	}
 
 	/* Check for valid throttlequeuedepth module parameter */
 	if (throttlequeuedepth &&

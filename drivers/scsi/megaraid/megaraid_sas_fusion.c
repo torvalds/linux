@@ -1061,6 +1061,15 @@ megasas_init_adapter_fusion(struct megasas_instance *instance)
 		fusion->last_reply_idx[i] = 0;
 
 	/*
+	 * For fusion adapters, 3 commands for IOCTL and 5 commands
+	 * for driver's internal DCMDs.
+	 */
+	instance->max_scsi_cmds = instance->max_fw_cmds -
+				(MEGASAS_FUSION_INTERNAL_CMDS +
+				MEGASAS_FUSION_IOCTL_CMDS);
+	sema_init(&instance->ioctl_sem, MEGASAS_FUSION_IOCTL_CMDS);
+
+	/*
 	 * Allocate memory for descriptors
 	 * Create a pool of commands
 	 */
