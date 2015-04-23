@@ -640,9 +640,9 @@ static void print_page_summary(void)
 	       nr_page_frees, total_page_free_bytes / 1024);
 	printf("\n");
 
-	printf("%-30s: %'16lu   [ %'16"PRIu64" KB ]\n", "Total alloc+freed requests",
+	printf("%-30s: %'16"PRIu64"   [ %'16"PRIu64" KB ]\n", "Total alloc+freed requests",
 	       nr_alloc_freed, (total_alloc_freed_bytes) / 1024);
-	printf("%-30s: %'16lu   [ %'16"PRIu64" KB ]\n", "Total alloc-only requests",
+	printf("%-30s: %'16"PRIu64"   [ %'16"PRIu64" KB ]\n", "Total alloc-only requests",
 	       nr_page_allocs - nr_alloc_freed,
 	       (total_page_alloc_bytes - total_alloc_freed_bytes) / 1024);
 	printf("%-30s: %'16lu   [ %'16"PRIu64" KB ]\n", "Total free-only requests",
