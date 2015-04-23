@@ -1003,6 +1003,7 @@ static int read_node_page(struct page *page, int rw)
 		.type = NODE,
 		.rw = rw,
 		.page = page,
+		.encrypted_page = NULL,
 	};
 
 	get_node_info(sbi, page->index, &ni);
@@ -1299,6 +1300,7 @@ static int f2fs_write_node_page(struct page *page,
 		.type = NODE,
 		.rw = (wbc->sync_mode == WB_SYNC_ALL) ? WRITE_SYNC : WRITE,
 		.page = page,
+		.encrypted_page = NULL,
 	};
 
 	trace_f2fs_writepage(page, NODE);

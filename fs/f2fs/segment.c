@@ -219,6 +219,7 @@ void commit_inmem_pages(struct inode *inode, bool abort)
 		.sbi = sbi,
 		.type = DATA,
 		.rw = WRITE_SYNC | REQ_PRIO,
+		.encrypted_page = NULL,
 	};
 
 	/*
@@ -1231,6 +1232,7 @@ void write_meta_page(struct f2fs_sb_info *sbi, struct page *page)
 		.rw = WRITE_SYNC | REQ_META | REQ_PRIO,
 		.blk_addr = page->index,
 		.page = page,
+		.encrypted_page = NULL,
 	};
 
 	set_page_writeback(page);
@@ -1330,20 +1332,34 @@ static inline bool is_merged_page(struct f2fs_sb_info *sbi,
 	enum page_type btype = PAGE_TYPE_OF_BIO(type);
 	struct f2fs_bio_info *io = &sbi->write_io[btype];
 	struct bio_vec *bvec;
+	struct page *target;
 	int i;
 
 	down_read(&io->io_rwsem);
-	if (!io->bio)
-		goto out;
+	if (!io->bio) {
+		up_read(&io->io_rwsem);
+		return false;
+	}
 
 	bio_for_each_segment_all(bvec, io->bio, i) {
-		if (page == bvec->bv_page) {
+
+		if (bvec->bv_page->mapping) {
+			target = bvec->bv_page;
+		} else {
+			struct f2fs_crypto_ctx *ctx;
+
+			/* encrypted page */
+			ctx = (struct f2fs_crypto_ctx *)page_private(
+								bvec->bv_page);
+			target = ctx->control_page;
+		}
+
+		if (page == target) {
 			up_read(&io->io_rwsem);
 			return true;
 		}
 	}
 
-out:
 	up_read(&io->io_rwsem);
 	return false;
 }

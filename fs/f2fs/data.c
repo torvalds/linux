@@ -57,6 +57,15 @@ static void mpage_end_io(struct bio *bio, int err)
 	struct bio_vec *bv;
 	int i;
 
+	if (f2fs_bio_encrypted(bio)) {
+		if (err) {
+			f2fs_release_crypto_ctx(bio->bi_private);
+		} else {
+			f2fs_end_io_crypto_work(bio->bi_private, bio);
+			return;
+		}
+	}
+
 	bio_for_each_segment_all(bv, bio, i) {
 		struct page *page = bv->bv_page;
 
@@ -80,6 +89,8 @@ static void f2fs_write_end_io(struct bio *bio, int err)
 
 	bio_for_each_segment_all(bvec, bio, i) {
 		struct page *page = bvec->bv_page;
+
+		f2fs_restore_and_release_control_page(&page);
 
 		if (unlikely(err)) {
 			set_page_dirty(page);
@@ -161,7 +172,7 @@ void f2fs_submit_merged_bio(struct f2fs_sb_info *sbi,
 int f2fs_submit_page_bio(struct f2fs_io_info *fio)
 {
 	struct bio *bio;
-	struct page *page = fio->page;
+	struct page *page = fio->encrypted_page ? fio->encrypted_page : fio->page;
 
 	trace_f2fs_submit_page_bio(page, fio);
 	f2fs_trace_ios(fio, 0);
@@ -185,6 +196,7 @@ void f2fs_submit_page_mbio(struct f2fs_io_info *fio)
 	enum page_type btype = PAGE_TYPE_OF_BIO(fio->type);
 	struct f2fs_bio_info *io;
 	bool is_read = is_read_io(fio->rw);
+	struct page *bio_page;
 
 	io = is_read ? &sbi->read_io : &sbi->write_io[btype];
 
@@ -206,7 +218,9 @@ alloc_new:
 		io->fio = *fio;
 	}
 
-	if (bio_add_page(io->bio, fio->page, PAGE_CACHE_SIZE, 0) <
+	bio_page = fio->encrypted_page ? fio->encrypted_page : fio->page;
+
+	if (bio_add_page(io->bio, bio_page, PAGE_CACHE_SIZE, 0) <
 							PAGE_CACHE_SIZE) {
 		__submit_merged_bio(io);
 		goto alloc_new;
@@ -928,7 +942,11 @@ struct page *get_read_data_page(struct inode *inode, pgoff_t index, int rw)
 		.sbi = F2FS_I_SB(inode),
 		.type = DATA,
 		.rw = rw,
+		.encrypted_page = NULL,
 	};
+
+	if (f2fs_encrypted_inode(inode) && S_ISREG(inode->i_mode))
+		return read_mapping_page(mapping, index, NULL);
 
 	page = grab_cache_page(mapping, index);
 	if (!page)
@@ -1066,26 +1084,14 @@ repeat:
 		zero_user_segment(page, 0, PAGE_CACHE_SIZE);
 		SetPageUptodate(page);
 	} else {
-		struct f2fs_io_info fio = {
-			.sbi = F2FS_I_SB(inode),
-			.type = DATA,
-			.rw = READ_SYNC,
-			.blk_addr = dn.data_blkaddr,
-			.page = page,
-		};
-		err = f2fs_submit_page_bio(&fio);
-		if (err)
-			return ERR_PTR(err);
+		f2fs_put_page(page, 1);
 
-		lock_page(page);
-		if (unlikely(!PageUptodate(page))) {
-			f2fs_put_page(page, 1);
-			return ERR_PTR(-EIO);
-		}
-		if (unlikely(page->mapping != mapping)) {
-			f2fs_put_page(page, 1);
+		page = get_read_data_page(inode, index, READ_SYNC);
+		if (IS_ERR(page))
 			goto repeat;
-		}
+
+		/* wait for read completion */
+		lock_page(page);
 	}
 got_it:
 	if (new_i_size &&
@@ -1548,14 +1554,38 @@ submit_and_realloc:
 			bio = NULL;
 		}
 		if (bio == NULL) {
+			struct f2fs_crypto_ctx *ctx = NULL;
+
+			if (f2fs_encrypted_inode(inode) &&
+					S_ISREG(inode->i_mode)) {
+				struct page *cpage;
+
+				ctx = f2fs_get_crypto_ctx(inode);
+				if (IS_ERR(ctx))
+					goto set_error_page;
+
+				/* wait the page to be moved by cleaning */
+				cpage = find_lock_page(
+						META_MAPPING(F2FS_I_SB(inode)),
+						block_nr);
+				if (cpage) {
+					f2fs_wait_on_page_writeback(cpage,
+									DATA);
+					f2fs_put_page(cpage, 1);
+				}
+			}
+
 			bio = bio_alloc(GFP_KERNEL,
 				min_t(int, nr_pages, bio_get_nr_vecs(bdev)));
-			if (!bio)
+			if (!bio) {
+				if (ctx)
+					f2fs_release_crypto_ctx(ctx);
 				goto set_error_page;
+			}
 			bio->bi_bdev = bdev;
 			bio->bi_iter.bi_sector = SECTOR_FROM_BLOCK(block_nr);
 			bio->bi_end_io = mpage_end_io;
-			bio->bi_private = NULL;
+			bio->bi_private = ctx;
 		}
 
 		if (bio_add_page(bio, page, blocksize, 0) < blocksize)
@@ -1632,6 +1662,14 @@ int do_write_data_page(struct f2fs_io_info *fio)
 		goto out_writepage;
 	}
 
+	if (f2fs_encrypted_inode(inode) && S_ISREG(inode->i_mode)) {
+		fio->encrypted_page = f2fs_encrypt(inode, fio->page);
+		if (IS_ERR(fio->encrypted_page)) {
+			err = PTR_ERR(fio->encrypted_page);
+			goto out_writepage;
+		}
+	}
+
 	set_page_writeback(page);
 
 	/*
@@ -1674,6 +1712,7 @@ static int f2fs_write_data_page(struct page *page,
 		.type = DATA,
 		.rw = (wbc->sync_mode == WB_SYNC_ALL) ? WRITE_SYNC : WRITE,
 		.page = page,
+		.encrypted_page = NULL,
 	};
 
 	trace_f2fs_writepage(page, DATA);
@@ -1897,6 +1936,7 @@ put_next:
 			.rw = READ_SYNC,
 			.blk_addr = dn.data_blkaddr,
 			.page = page,
+			.encrypted_page = NULL,
 		};
 		err = f2fs_submit_page_bio(&fio);
 		if (err)
@@ -1911,6 +1951,15 @@ put_next:
 		if (unlikely(page->mapping != mapping)) {
 			f2fs_put_page(page, 1);
 			goto repeat;
+		}
+
+		/* avoid symlink page */
+		if (f2fs_encrypted_inode(inode) && S_ISREG(inode->i_mode)) {
+			err = f2fs_decrypt_one(inode, page);
+			if (err) {
+				f2fs_put_page(page, 1);
+				goto fail;
+			}
 		}
 	}
 out:
