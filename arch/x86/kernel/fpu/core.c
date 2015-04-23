@@ -112,12 +112,11 @@ EXPORT_SYMBOL(__kernel_fpu_begin);
 
 void __kernel_fpu_end(void)
 {
-	struct task_struct *me = current;
-	struct fpu *fpu = &me->thread.fpu;
+	struct fpu *fpu = &current->thread.fpu;
 
 	if (fpu->has_fpu) {
 		if (WARN_ON(restore_fpu_checking(fpu)))
-			fpu_reset_state(me);
+			fpu_reset_state(fpu);
 	} else if (!use_eager_fpu()) {
 		stts();
 	}
@@ -371,7 +370,7 @@ void fpu__restore(void)
 	kernel_fpu_disable();
 	__thread_fpu_begin(fpu);
 	if (unlikely(restore_fpu_checking(fpu))) {
-		fpu_reset_state(tsk);
+		fpu_reset_state(fpu);
 		force_sig_info(SIGSEGV, SEND_SIG_PRIV, tsk);
 	} else {
 		tsk->thread.fpu.counter++;
