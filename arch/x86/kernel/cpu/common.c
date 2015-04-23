@@ -1182,8 +1182,6 @@ DEFINE_PER_CPU(unsigned int, irq_count) __visible = -1;
 DEFINE_PER_CPU(int, __preempt_count) = INIT_PREEMPT_COUNT;
 EXPORT_PER_CPU_SYMBOL(__preempt_count);
 
-DEFINE_PER_CPU(struct task_struct *, fpu_owner_task);
-
 /*
  * Special IST stacks which the CPU switches to when it calls
  * an IST-marked descriptor entry. Up to 7 stacks (hardware
@@ -1274,7 +1272,6 @@ DEFINE_PER_CPU(struct task_struct *, current_task) = &init_task;
 EXPORT_PER_CPU_SYMBOL(current_task);
 DEFINE_PER_CPU(int, __preempt_count) = INIT_PREEMPT_COUNT;
 EXPORT_PER_CPU_SYMBOL(__preempt_count);
-DEFINE_PER_CPU(struct task_struct *, fpu_owner_task);
 
 /*
  * On x86_32, vm86 modifies tss.sp0, so sp0 isn't a reliable way to find

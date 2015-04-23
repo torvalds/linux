@@ -20,6 +20,11 @@
  */
 static DEFINE_PER_CPU(bool, in_kernel_fpu);
 
+/*
+ * Track which task is using the FPU on the CPU:
+ */
+DEFINE_PER_CPU(struct task_struct *, fpu_owner_task);
+
 static void kernel_fpu_disable(void)
 {
 	WARN_ON(this_cpu_read(in_kernel_fpu));
