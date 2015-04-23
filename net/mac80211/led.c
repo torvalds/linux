@@ -133,7 +133,7 @@ void ieee80211_led_exit(struct ieee80211_local *local)
 	}
 }
 
-char *__ieee80211_get_radio_led_name(struct ieee80211_hw *hw)
+const char *__ieee80211_get_radio_led_name(struct ieee80211_hw *hw)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 
@@ -141,7 +141,7 @@ char *__ieee80211_get_radio_led_name(struct ieee80211_hw *hw)
 }
 EXPORT_SYMBOL(__ieee80211_get_radio_led_name);
 
-char *__ieee80211_get_assoc_led_name(struct ieee80211_hw *hw)
+const char *__ieee80211_get_assoc_led_name(struct ieee80211_hw *hw)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 
@@ -149,7 +149,7 @@ char *__ieee80211_get_assoc_led_name(struct ieee80211_hw *hw)
 }
 EXPORT_SYMBOL(__ieee80211_get_assoc_led_name);
 
-char *__ieee80211_get_tx_led_name(struct ieee80211_hw *hw)
+const char *__ieee80211_get_tx_led_name(struct ieee80211_hw *hw)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 
@@ -157,7 +157,7 @@ char *__ieee80211_get_tx_led_name(struct ieee80211_hw *hw)
 }
 EXPORT_SYMBOL(__ieee80211_get_tx_led_name);
 
-char *__ieee80211_get_rx_led_name(struct ieee80211_hw *hw)
+const char *__ieee80211_get_rx_led_name(struct ieee80211_hw *hw)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 
@@ -211,10 +211,11 @@ static void tpt_trig_timer(unsigned long data)
 	read_unlock(&tpt_trig->trig.leddev_list_lock);
 }
 
-char *__ieee80211_create_tpt_led_trigger(struct ieee80211_hw *hw,
-				unsigned int flags,
-				const struct ieee80211_tpt_blink *blink_table,
-				unsigned int blink_table_len)
+const char *
+__ieee80211_create_tpt_led_trigger(struct ieee80211_hw *hw,
+				   unsigned int flags,
+				   const struct ieee80211_tpt_blink *blink_table,
+				   unsigned int blink_table_len)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct tpt_led_trigger *tpt_trig;

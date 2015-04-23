@@ -3486,14 +3486,15 @@ enum ieee80211_tpt_led_trigger_flags {
 };
 
 #ifdef CONFIG_MAC80211_LEDS
-char *__ieee80211_get_tx_led_name(struct ieee80211_hw *hw);
-char *__ieee80211_get_rx_led_name(struct ieee80211_hw *hw);
-char *__ieee80211_get_assoc_led_name(struct ieee80211_hw *hw);
-char *__ieee80211_get_radio_led_name(struct ieee80211_hw *hw);
-char *__ieee80211_create_tpt_led_trigger(struct ieee80211_hw *hw,
-					 unsigned int flags,
-					 const struct ieee80211_tpt_blink *blink_table,
-					 unsigned int blink_table_len);
+const char *__ieee80211_get_tx_led_name(struct ieee80211_hw *hw);
+const char *__ieee80211_get_rx_led_name(struct ieee80211_hw *hw);
+const char *__ieee80211_get_assoc_led_name(struct ieee80211_hw *hw);
+const char *__ieee80211_get_radio_led_name(struct ieee80211_hw *hw);
+const char *
+__ieee80211_create_tpt_led_trigger(struct ieee80211_hw *hw,
+				   unsigned int flags,
+				   const struct ieee80211_tpt_blink *blink_table,
+				   unsigned int blink_table_len);
 #endif
 /**
  * ieee80211_get_tx_led_name - get name of TX LED
@@ -3507,7 +3508,7 @@ char *__ieee80211_create_tpt_led_trigger(struct ieee80211_hw *hw,
  *
  * Return: The name of the LED trigger. %NULL if not configured for LEDs.
  */
-static inline char *ieee80211_get_tx_led_name(struct ieee80211_hw *hw)
+static inline const char *ieee80211_get_tx_led_name(struct ieee80211_hw *hw)
 {
 #ifdef CONFIG_MAC80211_LEDS
 	return __ieee80211_get_tx_led_name(hw);
@@ -3528,7 +3529,7 @@ static inline char *ieee80211_get_tx_led_name(struct ieee80211_hw *hw)
  *
  * Return: The name of the LED trigger. %NULL if not configured for LEDs.
  */
-static inline char *ieee80211_get_rx_led_name(struct ieee80211_hw *hw)
+static inline const char *ieee80211_get_rx_led_name(struct ieee80211_hw *hw)
 {
 #ifdef CONFIG_MAC80211_LEDS
 	return __ieee80211_get_rx_led_name(hw);
@@ -3549,7 +3550,7 @@ static inline char *ieee80211_get_rx_led_name(struct ieee80211_hw *hw)
  *
  * Return: The name of the LED trigger. %NULL if not configured for LEDs.
  */
-static inline char *ieee80211_get_assoc_led_name(struct ieee80211_hw *hw)
+static inline const char *ieee80211_get_assoc_led_name(struct ieee80211_hw *hw)
 {
 #ifdef CONFIG_MAC80211_LEDS
 	return __ieee80211_get_assoc_led_name(hw);
@@ -3570,7 +3571,7 @@ static inline char *ieee80211_get_assoc_led_name(struct ieee80211_hw *hw)
  *
  * Return: The name of the LED trigger. %NULL if not configured for LEDs.
  */
-static inline char *ieee80211_get_radio_led_name(struct ieee80211_hw *hw)
+static inline const char *ieee80211_get_radio_led_name(struct ieee80211_hw *hw)
 {
 #ifdef CONFIG_MAC80211_LEDS
 	return __ieee80211_get_radio_led_name(hw);
@@ -3591,7 +3592,7 @@ static inline char *ieee80211_get_radio_led_name(struct ieee80211_hw *hw)
  *
  * Note: This function must be called before ieee80211_register_hw().
  */
-static inline char *
+static inline const char *
 ieee80211_create_tpt_led_trigger(struct ieee80211_hw *hw, unsigned int flags,
 				 const struct ieee80211_tpt_blink *blink_table,
 				 unsigned int blink_table_len)
