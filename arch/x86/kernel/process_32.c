@@ -241,14 +241,16 @@ __visible __notrace_funcgraph struct task_struct *
 __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 {
 	struct thread_struct *prev = &prev_p->thread,
-				 *next = &next_p->thread;
+			     *next = &next_p->thread;
+	struct fpu *prev_fpu = &prev->fpu;
+	struct fpu *next_fpu = &next->fpu;
 	int cpu = smp_processor_id();
 	struct tss_struct *tss = &per_cpu(cpu_tss, cpu);
-	fpu_switch_t fpu;
+	fpu_switch_t fpu_switch;
 
 	/* never put a printk in __switch_to... printk() calls wake_up*() indirectly */
 
-	fpu = switch_fpu_prepare(&prev_p->thread.fpu, &next_p->thread.fpu, cpu);
+	fpu_switch = switch_fpu_prepare(prev_fpu, next_fpu, cpu);
 
 	/*
 	 * Save away %gs. No need to save %fs, as it was saved on the
@@ -318,7 +320,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	if (prev->gs | next->gs)
 		lazy_load_gs(next->gs);
 
-	switch_fpu_finish(next_p, fpu);
+	switch_fpu_finish(next_fpu, fpu_switch);
 
 	this_cpu_write(current_task, next_p);
 

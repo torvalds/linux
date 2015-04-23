@@ -273,12 +273,14 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 {
 	struct thread_struct *prev = &prev_p->thread;
 	struct thread_struct *next = &next_p->thread;
+	struct fpu *prev_fpu = &prev->fpu;
+	struct fpu *next_fpu = &next->fpu;
 	int cpu = smp_processor_id();
 	struct tss_struct *tss = &per_cpu(cpu_tss, cpu);
 	unsigned fsindex, gsindex;
-	fpu_switch_t fpu;
+	fpu_switch_t fpu_switch;
 
-	fpu = switch_fpu_prepare(&prev_p->thread.fpu, &next_p->thread.fpu, cpu);
+	fpu_switch = switch_fpu_prepare(prev_fpu, next_fpu, cpu);
 
 	/* We must save %fs and %gs before load_TLS() because
 	 * %fs and %gs may be cleared by load_TLS().
@@ -390,7 +392,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 		wrmsrl(MSR_KERNEL_GS_BASE, next->gs);
 	prev->gsindex = gsindex;
 
-	switch_fpu_finish(next_p, fpu);
+	switch_fpu_finish(next_fpu, fpu_switch);
 
 	/*
 	 * Switch the PDA and FPU contexts.

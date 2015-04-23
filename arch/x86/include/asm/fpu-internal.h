@@ -451,11 +451,9 @@ switch_fpu_prepare(struct fpu *old_fpu, struct fpu *new_fpu, int cpu)
  * state - all we need to do is to conditionally restore the register
  * state itself.
  */
-static inline void switch_fpu_finish(struct task_struct *new, fpu_switch_t fpu)
+static inline void switch_fpu_finish(struct fpu *new_fpu, fpu_switch_t fpu_switch)
 {
-	struct fpu *new_fpu = &new->thread.fpu;
-
-	if (fpu.preload) {
+	if (fpu_switch.preload) {
 		if (unlikely(restore_fpu_checking(new_fpu)))
 			fpu_reset_state(new_fpu);
 	}
