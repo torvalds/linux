@@ -489,7 +489,7 @@ struct crypto_alg *crypto_lookup_aead(const char *name, u32 type, u32 mask)
 		return alg;
 
 	if (alg->cra_type == &crypto_aead_type) {
-		if ((alg->cra_flags ^ type ^ ~mask) & CRYPTO_ALG_TESTED) {
+		if (~alg->cra_flags & (type ^ ~mask) & CRYPTO_ALG_TESTED) {
 			crypto_mod_put(alg);
 			alg = ERR_PTR(-ENOENT);
 		}
