@@ -108,7 +108,7 @@ static void of_get_regulation_constraints(struct device_node *np,
 		case PM_SUSPEND_STANDBY:
 		default:
 			continue;
-		};
+		}
 
 		suspend_np = of_get_child_by_name(np, regulator_states[i]);
 		if (!suspend_np || !suspend_state)
