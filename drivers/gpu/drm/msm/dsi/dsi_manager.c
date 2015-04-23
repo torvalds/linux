@@ -462,7 +462,7 @@ struct drm_connector *msm_dsi_manager_connector_init(u8 id)
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
 	struct drm_connector *connector = NULL;
 	struct dsi_connector *dsi_connector;
-	int ret;
+	int ret, i;
 
 	dsi_connector = devm_kzalloc(msm_dsi->dev->dev,
 				sizeof(*dsi_connector), GFP_KERNEL);
@@ -494,6 +494,10 @@ struct drm_connector *msm_dsi_manager_connector_init(u8 id)
 	ret = drm_connector_register(connector);
 	if (ret)
 		goto fail;
+
+	for (i = 0; i < MSM_DSI_ENCODER_NUM; i++)
+		drm_mode_connector_attach_encoder(connector,
+						msm_dsi->encoders[i]);
 
 	return connector;
 
