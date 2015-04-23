@@ -203,8 +203,18 @@ void fpstate_free(struct fpu *fpu)
 }
 EXPORT_SYMBOL_GPL(fpstate_free);
 
+/*
+ * Copy the current task's FPU state to a new task's FPU context.
+ *
+ * In the 'eager' case we just save to the destination context.
+ *
+ * In the 'lazy' case we save to the source context, mark the FPU lazy
+ * via stts() and copy the source context into the destination context.
+ */
 static void fpu_copy(struct task_struct *dst, struct task_struct *src)
 {
+	WARN_ON(src != current);
+
 	if (use_eager_fpu()) {
 		memset(&dst->thread.fpu.state->xsave, 0, xstate_size);
 		__save_fpu(dst);
