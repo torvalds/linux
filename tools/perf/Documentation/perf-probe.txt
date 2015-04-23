@@ -19,6 +19,8 @@ or
 'perf probe' [options] --line='LINE'
 or
 'perf probe' [options] --vars='PROBEPOINT'
+or
+'perf probe' [options] --funcs
 
 DESCRIPTION
 -----------

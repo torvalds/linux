@@ -321,6 +321,7 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 		"perf probe [<options>] --line 'LINEDESC'",
 		"perf probe [<options>] --vars 'PROBEPOINT'",
 #endif
+		"perf probe [<options>] --funcs",
 		NULL
 };
 	struct option options[] = {
@@ -402,6 +403,7 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 	set_option_flag(options, 'L', "line", PARSE_OPT_EXCLUSIVE);
 	set_option_flag(options, 'V', "vars", PARSE_OPT_EXCLUSIVE);
 #endif
+	set_option_flag(options, 'F', "funcs", PARSE_OPT_EXCLUSIVE);
 
 	argc = parse_options(argc, argv, options, probe_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
