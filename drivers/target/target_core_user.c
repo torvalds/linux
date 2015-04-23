@@ -167,6 +167,11 @@ static struct tcmu_cmd *tcmu_alloc_cmd(struct se_cmd *se_cmd)
 	tcmu_cmd->tcmu_dev = udev;
 	tcmu_cmd->data_length = se_cmd->data_length;
 
+	if (se_cmd->se_cmd_flags & SCF_BIDI) {
+		BUG_ON(!(se_cmd->t_bidi_data_sg && se_cmd->t_bidi_data_nents));
+		tcmu_cmd->data_length += se_cmd->t_bidi_data_sg->length;
+	}
+
 	tcmu_cmd->deadline = jiffies + msecs_to_jiffies(TCMU_TIME_OUT);
 
 	idr_preload(GFP_KERNEL);
@@ -387,7 +392,8 @@ static int tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 	 * b/c size == offsetof one-past-element.
 	*/
 	base_command_size = max(offsetof(struct tcmu_cmd_entry,
-					 req.iov[se_cmd->t_data_nents + 2]),
+					 req.iov[se_cmd->t_bidi_data_nents +
+						 se_cmd->t_data_nents + 2]),
 				sizeof(struct tcmu_cmd_entry));
 	command_size = base_command_size
 		+ round_up(scsi_command_size(se_cmd->t_task_cdb), TCMU_OP_ALIGN_SIZE);
@@ -456,12 +462,18 @@ static int tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 	 */
 	iov = &entry->req.iov[0];
 	iov_cnt = 0;
-	copy_to_data_area = (se_cmd->data_direction == DMA_TO_DEVICE);
+	copy_to_data_area = (se_cmd->data_direction == DMA_TO_DEVICE
+		|| se_cmd->se_cmd_flags & SCF_BIDI);
 	alloc_and_scatter_data_area(udev, se_cmd->t_data_sg,
 		se_cmd->t_data_nents, &iov, &iov_cnt, copy_to_data_area);
 	entry->req.iov_cnt = iov_cnt;
-	entry->req.iov_bidi_cnt = 0;
 	entry->req.iov_dif_cnt = 0;
+
+	/* Handle BIDI commands */
+	iov_cnt = 0;
+	alloc_and_scatter_data_area(udev, se_cmd->t_bidi_data_sg,
+		se_cmd->t_bidi_data_nents, &iov, &iov_cnt, false);
+	entry->req.iov_bidi_cnt = iov_cnt;
 
 	/* All offsets relative to mb_addr, not start of entry! */
 	cdb_off = CMDR_OFF + cmd_head + base_command_size;
@@ -535,8 +547,15 @@ static void tcmu_handle_completion(struct tcmu_cmd *cmd, struct tcmu_cmd_entry *
 			       se_cmd->scsi_sense_length);
 
 		UPDATE_HEAD(udev->data_tail, cmd->data_length, udev->data_size);
-	}
-	else if (se_cmd->data_direction == DMA_FROM_DEVICE) {
+	} else if (se_cmd->se_cmd_flags & SCF_BIDI) {
+		/* Discard data_out buffer */
+		UPDATE_HEAD(udev->data_tail,
+			(size_t)se_cmd->t_data_sg->length, udev->data_size);
+
+		/* Get Data-In buffer */
+		gather_and_free_data_area(udev,
+			se_cmd->t_bidi_data_sg, se_cmd->t_bidi_data_nents);
+	} else if (se_cmd->data_direction == DMA_FROM_DEVICE) {
 		gather_and_free_data_area(udev,
 			se_cmd->t_data_sg, se_cmd->t_data_nents);
 	} else if (se_cmd->data_direction == DMA_TO_DEVICE) {
