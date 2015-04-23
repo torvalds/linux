@@ -3674,7 +3674,7 @@ static int hpsa_scatter_gather(struct ctlr_info *h,
 		struct scsi_cmnd *cmd)
 {
 	struct scatterlist *sg;
-	int use_sg, i, sg_index, chained;
+	int use_sg, i, sg_limit, chained, last_sg;
 	struct SGDescriptor *curr_sg;
 
 	BUG_ON(scsi_sg_count(cmd) > h->maxsgentries);
@@ -3686,22 +3686,39 @@ static int hpsa_scatter_gather(struct ctlr_info *h,
 	if (!use_sg)
 		goto sglist_finished;
 
+	/*
+	 * If the number of entries is greater than the max for a single list,
+	 * then we have a chained list; we will set up all but one entry in the
+	 * first list (the last entry is saved for link information);
+	 * otherwise, we don't have a chained list and we'll set up at each of
+	 * the entries in the one list.
+	 */
 	curr_sg = cp->SG;
-	chained = 0;
-	sg_index = 0;
-	scsi_for_each_sg(cmd, sg, use_sg, i) {
-		if (i == h->max_cmd_sg_entries - 1 &&
-			use_sg > h->max_cmd_sg_entries) {
-			chained = 1;
-			curr_sg = h->cmd_sg_list[cp->cmdindex];
-			sg_index = 0;
-		}
+	chained = use_sg > h->max_cmd_sg_entries;
+	sg_limit = chained ? h->max_cmd_sg_entries - 1 : use_sg;
+	last_sg = scsi_sg_count(cmd) - 1;
+	scsi_for_each_sg(cmd, sg, sg_limit, i) {
 		hpsa_set_sg_descriptor(curr_sg, sg);
 		curr_sg++;
 	}
 
+	if (chained) {
+		/*
+		 * Continue with the chained list.  Set curr_sg to the chained
+		 * list.  Modify the limit to the total count less the entries
+		 * we've already set up.  Resume the scan at the list entry
+		 * where the previous loop left off.
+		 */
+		curr_sg = h->cmd_sg_list[cp->cmdindex];
+		sg_limit = use_sg - sg_limit;
+		for_each_sg(sg, sg, sg_limit, i) {
+			hpsa_set_sg_descriptor(curr_sg, sg);
+			curr_sg++;
+		}
+	}
+
 	/* Back the pointer up to the last entry and mark it as "last". */
-	(--curr_sg)->Ext = cpu_to_le32(HPSA_SG_LAST);
+	(curr_sg - 1)->Ext = cpu_to_le32(HPSA_SG_LAST);
 
 	if (use_sg + chained > h->maxSG)
 		h->maxSG = use_sg + chained;
