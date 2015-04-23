@@ -1100,14 +1100,15 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 
 	rc = -ENOMEM;
 
-	kvm->arch.sca = (struct sca_block *) get_zeroed_page(GFP_KERNEL);
+	kvm->arch.sca = (struct bsca_block *) get_zeroed_page(GFP_KERNEL);
 	if (!kvm->arch.sca)
 		goto out_err;
 	spin_lock(&kvm_lock);
 	sca_offset += 16;
-	if (sca_offset + sizeof(struct sca_block) > PAGE_SIZE)
+	if (sca_offset + sizeof(struct bsca_block) > PAGE_SIZE)
 		sca_offset = 0;
-	kvm->arch.sca = (struct sca_block *) ((char *) kvm->arch.sca + sca_offset);
+	kvm->arch.sca = (struct bsca_block *)
+			((char *) kvm->arch.sca + sca_offset);
 	spin_unlock(&kvm_lock);
 
 	sprintf(debug_name, "kvm-%u", current->pid);
@@ -1190,9 +1191,8 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 	trace_kvm_s390_destroy_vcpu(vcpu->vcpu_id);
 	kvm_s390_clear_local_irqs(vcpu);
 	kvm_clear_async_pf_completion_queue(vcpu);
-	if (!kvm_is_ucontrol(vcpu->kvm)) {
+	if (!kvm_is_ucontrol(vcpu->kvm))
 		sca_del_vcpu(vcpu);
-	}
 	smp_mb();
 
 	if (kvm_is_ucontrol(vcpu->kvm))
@@ -1249,7 +1249,7 @@ static int __kvm_ucontrol_vcpu_init(struct kvm_vcpu *vcpu)
 
 static void sca_del_vcpu(struct kvm_vcpu *vcpu)
 {
-	struct sca_block *sca = vcpu->kvm->arch.sca;
+	struct bsca_block *sca = vcpu->kvm->arch.sca;
 
 	clear_bit_inv(vcpu->vcpu_id, (unsigned long *) &sca->mcn);
 	if (sca->cpu[vcpu->vcpu_id].sda == (__u64) vcpu->arch.sie_block)
@@ -1259,7 +1259,7 @@ static void sca_del_vcpu(struct kvm_vcpu *vcpu)
 static void sca_add_vcpu(struct kvm_vcpu *vcpu, struct kvm *kvm,
 			unsigned int id)
 {
-	struct sca_block *sca = kvm->arch.sca;
+	struct bsca_block *sca = kvm->arch.sca;
 
 	if (!sca->cpu[id].sda)
 		sca->cpu[id].sda = (__u64) vcpu->arch.sie_block;

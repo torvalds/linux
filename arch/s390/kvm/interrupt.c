@@ -37,25 +37,32 @@
 /* handle external calls via sigp interpretation facility */
 static int sca_ext_call_pending(struct kvm_vcpu *vcpu, int *src_id)
 {
-	struct sca_block *sca = vcpu->kvm->arch.sca;
-	uint8_t sigp_ctrl = sca->cpu[vcpu->vcpu_id].sigp_ctrl;
+	struct bsca_block *sca = vcpu->kvm->arch.sca;
+	union bsca_sigp_ctrl sigp_ctrl = sca->cpu[vcpu->vcpu_id].sigp_ctrl;
 
 	if (src_id)
-		*src_id = sigp_ctrl & SIGP_CTRL_SCN_MASK;
+		*src_id = sigp_ctrl.scn;
 
-	return sigp_ctrl & SIGP_CTRL_C &&
+	return sigp_ctrl.c &&
 		atomic_read(&vcpu->arch.sie_block->cpuflags) &
 			CPUSTAT_ECALL_PEND;
 }
 
 static int sca_inject_ext_call(struct kvm_vcpu *vcpu, int src_id)
 {
-	struct sca_block *sca = vcpu->kvm->arch.sca;
-	uint8_t *sigp_ctrl = &(sca->cpu[vcpu->vcpu_id].sigp_ctrl);
-	uint8_t new_val = SIGP_CTRL_C | (src_id & SIGP_CTRL_SCN_MASK);
-	uint8_t old_val = *sigp_ctrl & ~SIGP_CTRL_C;
+	int expect, rc;
+	struct bsca_block *sca = vcpu->kvm->arch.sca;
+	union bsca_sigp_ctrl *sigp_ctrl = &(sca->cpu[vcpu->vcpu_id].sigp_ctrl);
+	union bsca_sigp_ctrl new_val = {0}, old_val = *sigp_ctrl;
 
-	if (cmpxchg(sigp_ctrl, old_val, new_val) != old_val) {
+	new_val.scn = src_id;
+	new_val.c = 1;
+	old_val.c = 0;
+
+	expect = old_val.value;
+	rc = cmpxchg(&sigp_ctrl->value, old_val.value, new_val.value);
+
+	if (rc != expect) {
 		/* another external call is pending */
 		return -EBUSY;
 	}
@@ -65,12 +72,12 @@ static int sca_inject_ext_call(struct kvm_vcpu *vcpu, int src_id)
 
 static void sca_clear_ext_call(struct kvm_vcpu *vcpu)
 {
-	struct sca_block *sca = vcpu->kvm->arch.sca;
+	struct bsca_block *sca = vcpu->kvm->arch.sca;
 	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
-	uint8_t *sigp_ctrl = &(sca->cpu[vcpu->vcpu_id].sigp_ctrl);
+	union bsca_sigp_ctrl *sigp_ctrl = &(sca->cpu[vcpu->vcpu_id].sigp_ctrl);
 
 	atomic_andnot(CPUSTAT_ECALL_PEND, li->cpuflags);
-	*sigp_ctrl = 0;
+	sigp_ctrl->value = 0;
 }
 
 int psw_extint_disabled(struct kvm_vcpu *vcpu)
