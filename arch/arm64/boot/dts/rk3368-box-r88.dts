@@ -202,7 +202,13 @@
 			};
 		};
 	};
-
+	power-led {
+		compatible = "gpio-leds";
+		green {
+			gpios = <&gpio3 GPIO_D5 GPIO_ACTIVE_LOW>;
+			default-state = "on";
+		};
+	};
 	io-domains {
 		compatible = "rockchip,rk3368-io-voltage-domain";
 		rockchip,grf = <&grf>;
