@@ -54,6 +54,7 @@ struct hpsa_scsi_dev_t {
 	u32 ioaccel_handle;
 	int offload_config;		/* I/O accel RAID offload configured */
 	int offload_enabled;		/* I/O accel RAID offload enabled */
+	int offload_to_be_enabled;
 	int offload_to_mirror;		/* Send next I/O accelerator RAID
 					 * offload request to mirror drive
 					 */
@@ -68,6 +69,11 @@ struct hpsa_scsi_dev_t {
 	 * devices in order to honor physical device queue depth limits.
 	 */
 	struct hpsa_scsi_dev_t *phys_disk[RAID_MAP_MAX_ENTRIES];
+#define HPSA_DO_NOT_EXPOSE	0x0
+#define HPSA_SG_ATTACH		0x1
+#define HPSA_ULD_ATTACH		0x2
+#define HPSA_SCSI_ADD		(HPSA_SG_ATTACH | HPSA_ULD_ATTACH)
+	u8 expose_state;
 };
 
 struct reply_queue_buffer {

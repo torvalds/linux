@@ -222,6 +222,7 @@ static int hpsa_change_queue_depth(struct scsi_device *sdev, int qdepth);
 static int hpsa_eh_device_reset_handler(struct scsi_cmnd *scsicmd);
 static int hpsa_eh_abort_handler(struct scsi_cmnd *scsicmd);
 static int hpsa_slave_alloc(struct scsi_device *sdev);
+static int hpsa_slave_configure(struct scsi_device *sdev);
 static void hpsa_slave_destroy(struct scsi_device *sdev);
 
 static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno);
@@ -667,6 +668,9 @@ static struct device_attribute *hpsa_shost_attrs[] = {
 	NULL,
 };
 
+#define HPSA_NRESERVED_CMDS	(HPSA_CMDS_RESERVED_FOR_ABORTS + \
+		HPSA_CMDS_RESERVED_FOR_DRIVER + HPSA_MAX_CONCURRENT_PASSTHRUS)
+
 static struct scsi_host_template hpsa_driver_template = {
 	.module			= THIS_MODULE,
 	.name			= HPSA,
@@ -681,6 +685,7 @@ static struct scsi_host_template hpsa_driver_template = {
 	.eh_device_reset_handler = hpsa_eh_device_reset_handler,
 	.ioctl			= hpsa_ioctl,
 	.slave_alloc		= hpsa_slave_alloc,
+	.slave_configure	= hpsa_slave_configure,
 	.slave_destroy		= hpsa_slave_destroy,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl		= hpsa_compat_ioctl,
@@ -946,6 +951,8 @@ lun_assigned:
 
 	h->dev[n] = device;
 	h->ndevices++;
+	device->offload_to_be_enabled = device->offload_enabled;
+	device->offload_enabled = 0;
 	added[*nadded] = device;
 	(*nadded)++;
 
@@ -982,16 +989,20 @@ static void hpsa_scsi_update_entry(struct ctlr_info *h, int hostno,
 		 */
 		h->dev[entry]->raid_map = new_entry->raid_map;
 		h->dev[entry]->ioaccel_handle = new_entry->ioaccel_handle;
-		wmb(); /* ensure raid map updated prior to ->offload_enabled */
 	}
 	h->dev[entry]->offload_config = new_entry->offload_config;
 	h->dev[entry]->offload_to_mirror = new_entry->offload_to_mirror;
-	h->dev[entry]->offload_enabled = new_entry->offload_enabled;
 	h->dev[entry]->queue_depth = new_entry->queue_depth;
 
-	dev_info(&h->pdev->dev, "%s device c%db%dt%dl%d updated.\n",
-		scsi_device_type(new_entry->devtype), hostno, new_entry->bus,
-		new_entry->target, new_entry->lun);
+	/*
+	 * We can turn off ioaccel offload now, but need to delay turning
+	 * it on until we can update h->dev[entry]->phys_disk[], but we
+	 * can't do that until all the devices are updated.
+	 */
+	h->dev[entry]->offload_to_be_enabled = new_entry->offload_enabled;
+	if (!new_entry->offload_enabled)
+		h->dev[entry]->offload_enabled = 0;
+
 }
 
 /* Replace an entry from h->dev[] array. */
@@ -1014,6 +1025,8 @@ static void hpsa_scsi_replace_entry(struct ctlr_info *h, int hostno,
 		new_entry->lun = h->dev[entry]->lun;
 	}
 
+	new_entry->offload_to_be_enabled = new_entry->offload_enabled;
+	new_entry->offload_enabled = 0;
 	h->dev[entry] = new_entry;
 	added[*nadded] = new_entry;
 	(*nadded)++;
@@ -1312,7 +1325,8 @@ static void hpsa_figure_phys_disk_ptrs(struct ctlr_info *h,
 		 */
 		if (!logical_drive->phys_disk[i]) {
 			logical_drive->offload_enabled = 0;
-			logical_drive->queue_depth = h->nr_cmds;
+			logical_drive->offload_to_be_enabled = 0;
+			logical_drive->queue_depth = 8;
 		}
 	}
 	if (nraid_map_entries)
@@ -1335,6 +1349,16 @@ static void hpsa_update_log_drive_phys_drive_ptrs(struct ctlr_info *h,
 			continue;
 		if (!is_logical_dev_addr_mode(dev[i]->scsi3addr))
 			continue;
+
+		/*
+		 * If offload is currently enabled, the RAID map and
+		 * phys_disk[] assignment *better* not be changing
+		 * and since it isn't changing, we do not need to
+		 * update it.
+		 */
+		if (dev[i]->offload_enabled)
+			continue;
+
 		hpsa_figure_phys_disk_ptrs(h, dev, ndevices, dev[i]);
 	}
 }
@@ -1433,6 +1457,14 @@ static void adjust_hpsa_scsi_table(struct ctlr_info *h, int hostno,
 			/* but if it does happen, we just ignore that device */
 		}
 	}
+	hpsa_update_log_drive_phys_drive_ptrs(h, h->dev, h->ndevices);
+
+	/* Now that h->dev[]->phys_disk[] is coherent, we can enable
+	 * any logical drives that need it enabled.
+	 */
+	for (i = 0; i < h->ndevices; i++)
+		h->dev[i]->offload_enabled = h->dev[i]->offload_to_be_enabled;
+
 	spin_unlock_irqrestore(&h->devlock, flags);
 
 	/* Monitor devices which are in one of several NOT READY states to be
@@ -1456,20 +1488,24 @@ static void adjust_hpsa_scsi_table(struct ctlr_info *h, int hostno,
 	sh = h->scsi_host;
 	/* Notify scsi mid layer of any removed devices */
 	for (i = 0; i < nremoved; i++) {
-		struct scsi_device *sdev =
-			scsi_device_lookup(sh, removed[i]->bus,
-				removed[i]->target, removed[i]->lun);
-		if (sdev != NULL) {
-			scsi_remove_device(sdev);
-			scsi_device_put(sdev);
-		} else {
-			/* We don't expect to get here.
-			 * future cmds to this device will get selection
-			 * timeout as if the device was gone.
-			 */
-			dev_warn(&h->pdev->dev, "didn't find c%db%dt%dl%d "
-				" for removal.", hostno, removed[i]->bus,
-				removed[i]->target, removed[i]->lun);
+		if (removed[i]->expose_state & HPSA_SCSI_ADD) {
+			struct scsi_device *sdev =
+				scsi_device_lookup(sh, removed[i]->bus,
+					removed[i]->target, removed[i]->lun);
+			if (sdev != NULL) {
+				scsi_remove_device(sdev);
+				scsi_device_put(sdev);
+			} else {
+				/*
+				 * We don't expect to get here.
+				 * future cmds to this device will get selection
+				 * timeout as if the device was gone.
+				 */
+				dev_warn(&h->pdev->dev,
+					"didn't find c%db%dt%dl%d for removal.\n",
+					hostno, removed[i]->bus,
+					removed[i]->target, removed[i]->lun);
+			}
 		}
 		kfree(removed[i]);
 		removed[i] = NULL;
@@ -1477,6 +1513,8 @@ static void adjust_hpsa_scsi_table(struct ctlr_info *h, int hostno,
 
 	/* Notify scsi mid layer of any added devices */
 	for (i = 0; i < nadded; i++) {
+		if (!(added[i]->expose_state & HPSA_SCSI_ADD))
+			continue;
 		if (scsi_add_device(sh, added[i]->bus,
 			added[i]->target, added[i]->lun) == 0)
 			continue;
@@ -1512,7 +1550,6 @@ static struct hpsa_scsi_dev_t *lookup_hpsa_scsi_dev(struct ctlr_info *h,
 	return NULL;
 }
 
-/* link sdev->hostdata to our per-device structure. */
 static int hpsa_slave_alloc(struct scsi_device *sdev)
 {
 	struct hpsa_scsi_dev_t *sd;
@@ -1523,13 +1560,32 @@ static int hpsa_slave_alloc(struct scsi_device *sdev)
 	spin_lock_irqsave(&h->devlock, flags);
 	sd = lookup_hpsa_scsi_dev(h, sdev_channel(sdev),
 		sdev_id(sdev), sdev->lun);
-	if (sd != NULL) {
-		sdev->hostdata = sd;
-		if (sd->queue_depth)
-			scsi_change_queue_depth(sdev, sd->queue_depth);
+	if (likely(sd)) {
 		atomic_set(&sd->ioaccel_cmds_out, 0);
-	}
+		sdev->hostdata = (sd->expose_state & HPSA_SCSI_ADD) ? sd : NULL;
+	} else
+		sdev->hostdata = NULL;
 	spin_unlock_irqrestore(&h->devlock, flags);
+	return 0;
+}
+
+/* configure scsi device based on internal per-device structure */
+static int hpsa_slave_configure(struct scsi_device *sdev)
+{
+	struct hpsa_scsi_dev_t *sd;
+	int queue_depth;
+
+	sd = sdev->hostdata;
+	sdev->no_uld_attach = !sd || !(sd->expose_state & HPSA_ULD_ATTACH);
+
+	if (sd)
+		queue_depth = sd->queue_depth != 0 ?
+			sd->queue_depth : sdev->host->can_queue;
+	else
+		queue_depth = sdev->host->can_queue;
+
+	scsi_change_queue_depth(sdev, queue_depth);
+
 	return 0;
 }
 
@@ -2438,6 +2494,7 @@ static void hpsa_get_ioaccel_status(struct ctlr_info *h,
 
 	this_device->offload_config = 0;
 	this_device->offload_enabled = 0;
+	this_device->offload_to_be_enabled = 0;
 
 	buf = kzalloc(64, GFP_KERNEL);
 	if (!buf)
@@ -2461,6 +2518,7 @@ static void hpsa_get_ioaccel_status(struct ctlr_info *h,
 		if (hpsa_get_raid_map(h, scsi3addr, this_device))
 			this_device->offload_enabled = 0;
 	}
+	this_device->offload_to_be_enabled = this_device->offload_enabled;
 out:
 	kfree(buf);
 	return;
@@ -2708,6 +2766,7 @@ static int hpsa_update_device_info(struct ctlr_info *h,
 		this_device->raid_level = RAID_UNKNOWN;
 		this_device->offload_config = 0;
 		this_device->offload_enabled = 0;
+		this_device->offload_to_be_enabled = 0;
 		this_device->volume_offline = 0;
 		this_device->queue_depth = h->nr_cmds;
 	}
@@ -2850,88 +2909,23 @@ static int add_ext_target_dev(struct ctlr_info *h,
 static int hpsa_get_pdisk_of_ioaccel2(struct ctlr_info *h,
 	struct CommandList *ioaccel2_cmd_to_abort, unsigned char *scsi3addr)
 {
-	struct ReportExtendedLUNdata *physicals = NULL;
-	int responsesize = 24;	/* size of physical extended response */
-	int reportsize = sizeof(*physicals) + HPSA_MAX_PHYS_LUN * responsesize;
-	u32 nphysicals = 0;	/* number of reported physical devs */
-	int found = 0;		/* found match (1) or not (0) */
-	u32 find;		/* handle we need to match */
+	struct io_accel2_cmd *c2 =
+			&h->ioaccel2_cmd_pool[ioaccel2_cmd_to_abort->cmdindex];
+	unsigned long flags;
 	int i;
-	struct scsi_cmnd *scmd;	/* scsi command within request being aborted */
-	struct hpsa_scsi_dev_t *d; /* device of request being aborted */
-	struct io_accel2_cmd *c2a; /* ioaccel2 command to abort */
-	__le32 it_nexus;	/* 4 byte device handle for the ioaccel2 cmd */
-	__le32 scsi_nexus;	/* 4 byte device handle for the ioaccel2 cmd */
 
-	if (ioaccel2_cmd_to_abort->cmd_type != CMD_IOACCEL2)
-		return 0; /* no match */
-
-	/* point to the ioaccel2 device handle */
-	c2a = &h->ioaccel2_cmd_pool[ioaccel2_cmd_to_abort->cmdindex];
-	if (c2a == NULL)
-		return 0; /* no match */
-
-	scmd = (struct scsi_cmnd *) ioaccel2_cmd_to_abort->scsi_cmd;
-	if (scmd == NULL)
-		return 0; /* no match */
-
-	d = scmd->device->hostdata;
-	if (d == NULL)
-		return 0; /* no match */
-
-	it_nexus = cpu_to_le32(d->ioaccel_handle);
-	scsi_nexus = c2a->scsi_nexus;
-	find = le32_to_cpu(c2a->scsi_nexus);
-
-	if (h->raid_offload_debug > 0)
-		dev_info(&h->pdev->dev,
-			"%s: scsi_nexus:0x%08x device id: 0x%02x%02x%02x%02x %02x%02x%02x%02x %02x%02x%02x%02x %02x%02x%02x%02x\n",
-			__func__, scsi_nexus,
-			d->device_id[0], d->device_id[1], d->device_id[2],
-			d->device_id[3], d->device_id[4], d->device_id[5],
-			d->device_id[6], d->device_id[7], d->device_id[8],
-			d->device_id[9], d->device_id[10], d->device_id[11],
-			d->device_id[12], d->device_id[13], d->device_id[14],
-			d->device_id[15]);
-
-	/* Get the list of physical devices */
-	physicals = kzalloc(reportsize, GFP_KERNEL);
-	if (physicals == NULL)
-		return 0;
-	if (hpsa_scsi_do_report_phys_luns(h, physicals, reportsize)) {
-		dev_err(&h->pdev->dev,
-			"Can't lookup %s device handle: report physical LUNs failed.\n",
-			"HP SSD Smart Path");
-		kfree(physicals);
-		return 0;
-	}
-	nphysicals = be32_to_cpu(*((__be32 *)physicals->LUNListLength)) /
-							responsesize;
-
-	/* find ioaccel2 handle in list of physicals: */
-	for (i = 0; i < nphysicals; i++) {
-		struct ext_report_lun_entry *entry = &physicals->LUN[i];
-
-		/* handle is in bytes 28-31 of each lun */
-		if (entry->ioaccel_handle != find)
-			continue; /* didn't match */
-		found = 1;
-		memcpy(scsi3addr, entry->lunid, 8);
-		if (h->raid_offload_debug > 0)
-			dev_info(&h->pdev->dev,
-				"%s: Searched h=0x%08x, Found h=0x%08x, scsiaddr 0x%8phN\n",
-				__func__, find,
-				entry->ioaccel_handle, scsi3addr);
-		break; /* found it */
-	}
-
-	kfree(physicals);
-	if (found)
-		return 1;
-	else
-		return 0;
-
+	spin_lock_irqsave(&h->devlock, flags);
+	for (i = 0; i < h->ndevices; i++)
+		if (h->dev[i]->ioaccel_handle == le32_to_cpu(c2->scsi_nexus)) {
+			memcpy(scsi3addr, h->dev[i]->scsi3addr,
+				sizeof(h->dev[i]->scsi3addr));
+			spin_unlock_irqrestore(&h->devlock, flags);
+			return 1;
+		}
+	spin_unlock_irqrestore(&h->devlock, flags);
+	return 0;
 }
+
 /*
  * Do CISS_REPORT_PHYS and CISS_REPORT_LOG.  Data is returned in physdev,
  * logdev.  The number of luns in physdev and logdev are returned in
@@ -3142,10 +3136,12 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 		/* Figure out where the LUN ID info is coming from */
 		lunaddrbytes = figure_lunaddrbytes(h, raid_ctlr_position,
 			i, nphysicals, nlogicals, physdev_list, logdev_list);
-		/* skip masked physical devices. */
-		if (lunaddrbytes[3] & 0xC0 &&
-			i < nphysicals + (raid_ctlr_position == 0))
-			continue;
+
+		/* skip masked non-disk devices */
+		if (MASKED_DEVICE(lunaddrbytes))
+			if (i < nphysicals + (raid_ctlr_position == 0) &&
+				NON_DISK_PHYS_DEV(lunaddrbytes))
+				continue;
 
 		/* Get device type, vendor, model, device id */
 		if (hpsa_update_device_info(h, lunaddrbytes, tmpdevice,
@@ -3169,6 +3165,18 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 		}
 
 		*this_device = *tmpdevice;
+
+		/* do not expose masked devices */
+		if (MASKED_DEVICE(lunaddrbytes) &&
+			i < nphysicals + (raid_ctlr_position == 0)) {
+			if (h->hba_mode_enabled)
+				dev_warn(&h->pdev->dev,
+					"Masked physical device detected\n");
+			this_device->expose_state = HPSA_DO_NOT_EXPOSE;
+		} else {
+			this_device->expose_state =
+					HPSA_SG_ATTACH | HPSA_ULD_ATTACH;
+		}
 
 		switch (this_device->devtype) {
 		case TYPE_ROM:
@@ -3211,6 +3219,10 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 		case TYPE_MEDIUM_CHANGER:
 			ncurrent++;
 			break;
+		case TYPE_ENCLOSURE:
+			if (h->hba_mode_enabled)
+				ncurrent++;
+			break;
 		case TYPE_RAID:
 			/* Only present the Smartarray HBA as a RAID controller.
 			 * If it's a RAID controller other than the HBA itself
@@ -3227,7 +3239,6 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 		if (ncurrent >= HPSA_MAX_DEVICES)
 			break;
 	}
-	hpsa_update_log_drive_phys_drive_ptrs(h, currentsd, ncurrent);
 	adjust_hpsa_scsi_table(h, hostno, currentsd, ncurrent);
 out:
 	kfree(tmpdevice);
@@ -4252,10 +4263,7 @@ static int hpsa_register_scsi(struct ctlr_info *h)
 	sh->max_cmd_len = MAX_COMMAND_SIZE;
 	sh->max_lun = HPSA_MAX_LUN;
 	sh->max_id = HPSA_MAX_LUN;
-	sh->can_queue = h->nr_cmds -
-			HPSA_CMDS_RESERVED_FOR_ABORTS -
-			HPSA_CMDS_RESERVED_FOR_DRIVER -
-			HPSA_MAX_CONCURRENT_PASSTHRUS;
+	sh->can_queue = h->nr_cmds - HPSA_NRESERVED_CMDS;
 	sh->cmd_per_lun = sh->can_queue;
 	sh->sg_tablesize = h->maxsgentries;
 	h->scsi_host = sh;
@@ -6091,18 +6099,21 @@ static int hpsa_find_cfgtables(struct ctlr_info *h)
 
 static void hpsa_get_max_perf_mode_cmds(struct ctlr_info *h)
 {
-	h->max_commands = readl(&(h->cfgtable->MaxPerformantModeCommands));
+#define MIN_MAX_COMMANDS 16
+	BUILD_BUG_ON(MIN_MAX_COMMANDS <= HPSA_NRESERVED_CMDS);
+
+	h->max_commands = readl(&h->cfgtable->MaxPerformantModeCommands);
 
 	/* Limit commands in memory limited kdump scenario. */
 	if (reset_devices && h->max_commands > 32)
 		h->max_commands = 32;
 
-	if (h->max_commands < 16) {
-		dev_warn(&h->pdev->dev, "Controller reports "
-			"max supported commands of %d, an obvious lie. "
-			"Using 16.  Ensure that firmware is up to date.\n",
-			h->max_commands);
-		h->max_commands = 16;
+	if (h->max_commands < MIN_MAX_COMMANDS) {
+		dev_warn(&h->pdev->dev,
+			"Controller reports max supported commands of %d Using %d instead. Ensure that firmware is up to date.\n",
+			h->max_commands,
+			MIN_MAX_COMMANDS);
+		h->max_commands = MIN_MAX_COMMANDS;
 	}
 }
 

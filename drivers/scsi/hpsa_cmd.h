@@ -240,6 +240,7 @@ struct ReportLUNdata {
 
 struct ext_report_lun_entry {
 	u8 lunid[8];
+#define MASKED_DEVICE(x) ((x)[3] & 0xC0)
 #define GET_BMIC_BUS(lunid) ((lunid)[7] & 0x3F)
 #define GET_BMIC_LEVEL_TWO_TARGET(lunid) ((lunid)[6])
 #define GET_BMIC_DRIVE_NUMBER(lunid) (((GET_BMIC_BUS((lunid)) - 1) << 8) + \
@@ -247,6 +248,8 @@ struct ext_report_lun_entry {
 	u8 wwid[8];
 	u8 device_type;
 	u8 device_flags;
+#define NON_DISK_PHYS_DEV(x) ((x)[17] & 0x01)
+#define PHYS_IOACCEL(x) ((x)[17] & 0x08)
 	u8 lun_count; /* multi-lun device, how many luns */
 	u8 redundant_paths;
 	u32 ioaccel_handle; /* ioaccel1 only uses lower 16 bits */
