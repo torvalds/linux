@@ -8,6 +8,20 @@ Required properties:
 Any standard regulator properties can be used to configure the single max8973
 DCDC.
 
+Optional properties:
+
+-maxim,externally-enable: boolean, externally control the regulator output
+		enable/disable.
+-maxim,dvs-gpio: GPIO which is connected to DVS pin of device.
+-maxim,dvs-default-state: Default state of GPIO during initialisation.
+		1 for HIGH and 0 for LOW.
+-maxim,enable-remote-sense: boolean, enable reote sense.
+-maxim,enable-falling-slew-rate: boolean, enable falling slew rate.
+-maxim,enable-active-discharge: boolean: enable active discharge.
+-maxim,enable-frequency-shift: boolean, enable 9% frequency shift.
+-maxim,enable-bias-control: boolean, enable bias control. By enabling this
+		startup delay can be reduce to 20us from 220us.
+
 Example:
 
 	max8973@1b {
