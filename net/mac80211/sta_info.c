@@ -70,6 +70,7 @@ static const struct rhashtable_params sta_rht_params = {
 	.key_offset = offsetof(struct sta_info, sta.addr),
 	.key_len = ETH_ALEN,
 	.hashfn = sta_addr_hash,
+	.max_size = CONFIG_MAC80211_STA_HASH_MAX_SIZE,
 };
 
 /* Caller must hold local->sta_mtx */
