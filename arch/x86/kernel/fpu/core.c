@@ -284,10 +284,27 @@ int fpstate_alloc_init(struct task_struct *curr)
 EXPORT_SYMBOL_GPL(fpstate_alloc_init);
 
 /*
- * The _current_ task is using the FPU for the first time
- * so initialize it and set the mxcsr to its default
- * value at reset if we support XMM instructions and then
- * remember the current task has used the FPU.
+ * This function is called before we modify a stopped child's
+ * FPU state context.
+ *
+ * If the child has not used the FPU before then initialize its
+ * FPU context.
+ *
+ * If the child has used the FPU before then unlazy it.
+ *
+ * [ After this function call, after the context is modified and
+ *   the child task is woken up, the child task will restore
+ *   the modified FPU state from the modified context. If we
+ *   didn't clear its lazy status here then the lazy in-registers
+ *   state pending on its former CPU could be restored, losing
+ *   the modifications. ]
+ *
+ * This function is also called before we read a stopped child's
+ * FPU state - to make sure it's modified.
+ *
+ * TODO: A future optimization would be to skip the unlazying in
+ *       the read-only case, it's not strictly necessary for
+ *       read-only access to the context.
  */
 static int fpu__unlazy_stopped(struct task_struct *child)
 {
