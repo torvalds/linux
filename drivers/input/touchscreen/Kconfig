@@ -979,8 +979,7 @@ config TOUCHSCREEN_SUN4I
 
 config TOUCHSCREEN_SUR40
 	tristate "Samsung SUR40 (Surface 2.0/PixelSense) touchscreen"
-	depends on USB
-	depends on MEDIA_USB_SUPPORT
+	depends on USB && MEDIA_USB_SUPPORT && HAS_DMA
 	select INPUT_POLLDEV
 	select VIDEOBUF2_DMA_SG
 	help
