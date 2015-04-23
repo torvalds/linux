@@ -157,7 +157,7 @@ struct elevator_queue *elevator_alloc(struct request_queue *q,
 
 	eq = kzalloc_node(sizeof(*eq), GFP_KERNEL, q->node);
 	if (unlikely(!eq))
-		goto err;
+		return NULL;
 
 	eq->type = e;
 	kobject_init(&eq->kobj, &elv_ktype);
@@ -165,10 +165,6 @@ struct elevator_queue *elevator_alloc(struct request_queue *q,
 	hash_init(eq->hash);
 
 	return eq;
-err:
-	kfree(eq);
-	elevator_put(e);
-	return NULL;
 }
 EXPORT_SYMBOL(elevator_alloc);
 
