@@ -43,6 +43,11 @@
 #define CMD_TIMEOUT             0x000B
 #define CMD_UNABORTABLE		0x000C
 #define CMD_IOACCEL_DISABLED	0x000E
+#define CMD_CTLR_LOCKUP		0xffff
+/* Note: CMD_CTLR_LOCKUP is not a value defined by the CISS spec
+ * it is a value defined by the driver that commands can be marked
+ * with when a controller lockup has been detected by the driver
+ */
 
 
 /* Unit Attentions ASC's as defined for the MSA2012sa */
