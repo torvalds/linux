@@ -2199,18 +2199,6 @@ static void _nbu2ss_ep0_enable(struct nbu2ss_udc *udc)
 	_nbu2ss_writel(&udc->p_regs->EP0_INT_ENA, EP0_INT_EN_BIT);
 }
 
-#if 0
-/*-------------------------------------------------------------------------*/
-static void _nbu2ss_ep0_disable(struct nbu2ss_udc *udc)
-{
-	_nbu2ss_bitclr(&udc->p_regs->EP0_INT_ENA, EP0_INT_EN_BIT);
-
-	_nbu2ss_bitset(&udc->p_regs->EP0_CONTROL
-			, (EP0_BCLR | EP0_INAK | EP0_ONAK | EP0_BCLR));
-
-	_nbu2ss_bitclr(&udc->p_regs->EP0_CONTROL, EP0_AUTO);
-}
-#endif
 
 /*-------------------------------------------------------------------------*/
 static int _nbu2ss_nuke(struct nbu2ss_udc *udc,
@@ -2311,12 +2299,6 @@ static int _nbu2ss_enable_controller(struct nbu2ss_udc *udc)
 	if (udc->udc_enabled)
 		return 0;
 
-#if 0
-	emxx_open_clockgate(EMXX_CLK_USB1);
-	/* emxx_clkctrl_off(EMXX_CLKCTRL_USB1); */
-	/* emxx_clkctrl_on(EMXX_CLKCTRL_USB1); */
-	emxx_unreset_device(EMXX_RST_USB1);
-#endif
 	/*
 		Reset
 	*/
@@ -2330,13 +2312,6 @@ static int _nbu2ss_enable_controller(struct nbu2ss_udc *udc)
 
 	_nbu2ss_writel(&udc->p_regs->AHBSCTR, WAIT_MODE);
 
-#if 0
-	/* DMA Mode Setting */
-	if ((system_rev & EMXX_REV_MASK) == EMXX_REV_ES1) {
-		_nbu2ss_bitset(&udc->p_regs->AHBMCTR, BURST_TYPE);
-		_nbu2ss_bitclr(&udc->p_regs->AHBMCTR, HTRANS_MODE);
-	} else
-#endif
 		_nbu2ss_writel(&udc->p_regs->AHBMCTR,
 			HBUSREQ_MODE | HTRANS_MODE | WBURST_TYPE);
 
@@ -2349,9 +2324,6 @@ static int _nbu2ss_enable_controller(struct nbu2ss_udc *udc)
 		}
 	}
 
-#if 0
-	if ((system_rev & EMXX_REV_MASK) < EMXX_REV_ES3)
-#endif
 		_nbu2ss_bitset(&udc->p_regs->UTMI_CHARACTER_1, USB_SQUSET);
 
 	_nbu2ss_bitset(&udc->p_regs->USB_CONTROL, (INT_SEL | SOF_RCV));
@@ -2383,11 +2355,6 @@ static void _nbu2ss_disable_controller(struct nbu2ss_udc *udc)
 		_nbu2ss_reset_controller(udc);
 		_nbu2ss_bitset(&udc->p_regs->EPCTR, (DIRPD | EPC_RST));
 	}
-#if 0
-	emxx_reset_device(EMXX_RST_USB1);
-	/* emxx_clkctrl_on(EMXX_CLKCTRL_USB1); */
-	emxx_close_clockgate(EMXX_CLK_USB1);
-#endif
 }
 
 /*-------------------------------------------------------------------------*/
