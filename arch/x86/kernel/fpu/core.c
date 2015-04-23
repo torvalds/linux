@@ -21,9 +21,9 @@
 static DEFINE_PER_CPU(bool, in_kernel_fpu);
 
 /*
- * Track which task is using the FPU on the CPU:
+ * Track which context is using the FPU on the CPU:
  */
-DEFINE_PER_CPU(struct task_struct *, fpu_owner_task);
+DEFINE_PER_CPU(struct fpu *, fpu_fpregs_owner_ctx);
 
 static void kernel_fpu_disable(void)
 {
@@ -96,15 +96,14 @@ EXPORT_SYMBOL(irq_fpu_usable);
 
 void __kernel_fpu_begin(void)
 {
-	struct task_struct *me = current;
-	struct fpu *fpu = &me->thread.fpu;
+	struct fpu *fpu = &current->thread.fpu;
 
 	kernel_fpu_disable();
 
 	if (fpu->has_fpu) {
 		fpu_save_init(fpu);
 	} else {
-		this_cpu_write(fpu_owner_task, NULL);
+		this_cpu_write(fpu_fpregs_owner_ctx, NULL);
 		if (!use_eager_fpu())
 			clts();
 	}

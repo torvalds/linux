@@ -37,7 +37,7 @@ extern unsigned int mxcsr_feature_mask;
 extern void fpu__cpu_init(void);
 extern void eager_fpu_init(void);
 
-DECLARE_PER_CPU(struct task_struct *, fpu_owner_task);
+DECLARE_PER_CPU(struct fpu *, fpu_fpregs_owner_ctx);
 
 extern void convert_from_fxsr(struct user_i387_ia32_struct *env,
 			      struct task_struct *tsk);
@@ -63,7 +63,7 @@ static inline void finit_soft_fpu(struct i387_soft_struct *soft) {}
 #endif
 
 /*
- * Must be run with preemption disabled: this clears the fpu_owner_task,
+ * Must be run with preemption disabled: this clears the fpu_fpregs_owner_ctx,
  * on this CPU.
  *
  * This will disable any lazy FPU state restore of the current FPU state,
@@ -71,7 +71,7 @@ static inline void finit_soft_fpu(struct i387_soft_struct *soft) {}
  */
 static inline void __cpu_disable_lazy_restore(unsigned int cpu)
 {
-	per_cpu(fpu_owner_task, cpu) = NULL;
+	per_cpu(fpu_fpregs_owner_ctx, cpu) = NULL;
 }
 
 /*
@@ -86,7 +86,7 @@ static inline void task_disable_lazy_fpu_restore(struct task_struct *tsk)
 
 static inline int fpu_lazy_restore(struct task_struct *new, unsigned int cpu)
 {
-	return new == this_cpu_read_stable(fpu_owner_task) &&
+	return &new->thread.fpu == this_cpu_read_stable(fpu_fpregs_owner_ctx) &&
 		cpu == new->thread.fpu.last_cpu;
 }
 
@@ -327,14 +327,14 @@ static inline int restore_fpu_checking(struct task_struct *tsk)
 static inline void __thread_clear_has_fpu(struct fpu *fpu)
 {
 	fpu->has_fpu = 0;
-	this_cpu_write(fpu_owner_task, NULL);
+	this_cpu_write(fpu_fpregs_owner_ctx, NULL);
 }
 
 /* Must be paired with a 'clts' before! */
 static inline void __thread_set_has_fpu(struct task_struct *tsk)
 {
 	tsk->thread.fpu.has_fpu = 1;
-	this_cpu_write(fpu_owner_task, tsk);
+	this_cpu_write(fpu_fpregs_owner_ctx, &tsk->thread.fpu);
 }
 
 /*
@@ -431,7 +431,7 @@ static inline fpu_switch_t switch_fpu_prepare(struct task_struct *old, struct ta
 		else
 			old->thread.fpu.last_cpu = cpu;
 
-		/* But leave fpu_owner_task! */
+		/* But leave fpu_fpregs_owner_ctx! */
 		old->thread.fpu.has_fpu = 0;
 
 		/* Don't change CR0.TS if we just switch! */
