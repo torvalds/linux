@@ -215,8 +215,15 @@ struct nx_sg *nx_walk_and_build(struct nx_sg       *nx_dst,
  * @delta:  is the amount we need to crop in order to bound the list.
  *
  */
-static long int trim_sg_list(struct nx_sg *sg, struct nx_sg *end, unsigned int delta)
+static long int trim_sg_list(struct nx_sg *sg,
+			     struct nx_sg *end,
+			     unsigned int delta,
+			     unsigned int *nbytes)
 {
+	long int oplen;
+	long int data_back;
+	unsigned int is_delta = delta;
+
 	while (delta && end > sg) {
 		struct nx_sg *last = end - 1;
 
@@ -228,7 +235,20 @@ static long int trim_sg_list(struct nx_sg *sg, struct nx_sg *end, unsigned int d
 			delta -= last->len;
 		}
 	}
-	return (sg - end) * sizeof(struct nx_sg);
+
+	/* There are cases where we need to crop list in order to make it
+	 * a block size multiple, but we also need to align data. In order to
+	 * that we need to calculate how much we need to put back to be
+	 * processed
+	 */
+	oplen = (sg - end) * sizeof(struct nx_sg);
+	if (is_delta) {
+		data_back = (abs(oplen) / AES_BLOCK_SIZE) *  sg->len;
+		data_back = *nbytes - (data_back & ~(AES_BLOCK_SIZE - 1));
+		*nbytes -= data_back;
+	}
+
+	return oplen;
 }
 
 /**
@@ -330,8 +350,8 @@ int nx_build_sg_lists(struct nx_crypto_ctx  *nx_ctx,
 	/* these lengths should be negative, which will indicate to phyp that
 	 * the input and output parameters are scatterlists, not linear
 	 * buffers */
-	nx_ctx->op.inlen = trim_sg_list(nx_ctx->in_sg, nx_insg, delta);
-	nx_ctx->op.outlen = trim_sg_list(nx_ctx->out_sg, nx_outsg, delta);
+	nx_ctx->op.inlen = trim_sg_list(nx_ctx->in_sg, nx_insg, delta, nbytes);
+	nx_ctx->op.outlen = trim_sg_list(nx_ctx->out_sg, nx_outsg, delta, nbytes);
 
 	return 0;
 }
