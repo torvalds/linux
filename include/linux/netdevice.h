@@ -2025,10 +2025,10 @@ struct pcpu_sw_netstats {
 ({								\
 	typeof(type) __percpu *pcpu_stats = alloc_percpu(type); \
 	if (pcpu_stats)	{					\
-		int i;						\
-		for_each_possible_cpu(i) {			\
+		int __cpu;					\
+		for_each_possible_cpu(__cpu) {			\
 			typeof(type) *stat;			\
-			stat = per_cpu_ptr(pcpu_stats, i);	\
+			stat = per_cpu_ptr(pcpu_stats, __cpu);	\
 			u64_stats_init(&stat->syncp);		\
 		}						\
 	}							\
