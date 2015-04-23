@@ -1863,6 +1863,7 @@ static int handle_ioaccel_mode2_error(struct ctlr_info *h,
 {
 	int data_len;
 	int retry = 0;
+	u32 ioaccel2_resid = 0;
 
 	switch (c2->error_data.serv_response) {
 	case IOACCEL2_SERV_RESPONSE_COMPLETE:
@@ -1921,11 +1922,31 @@ static int handle_ioaccel_mode2_error(struct ctlr_info *h,
 		}
 		break;
 	case IOACCEL2_SERV_RESPONSE_FAILURE:
-		/* don't expect to get here. */
-		dev_warn(&h->pdev->dev,
-			"unexpected delivery or target failure, status = 0x%02x\n",
-			c2->error_data.status);
-		retry = 1;
+		switch (c2->error_data.status) {
+		case IOACCEL2_STATUS_SR_IO_ERROR:
+		case IOACCEL2_STATUS_SR_IO_ABORTED:
+		case IOACCEL2_STATUS_SR_OVERRUN:
+			retry = 1;
+			break;
+		case IOACCEL2_STATUS_SR_UNDERRUN:
+			cmd->result = (DID_OK << 16);		/* host byte */
+			cmd->result |= (COMMAND_COMPLETE << 8);	/* msg byte */
+			ioaccel2_resid = get_unaligned_le32(
+						&c2->error_data.resid_cnt[0]);
+			scsi_set_resid(cmd, ioaccel2_resid);
+			break;
+		case IOACCEL2_STATUS_SR_NO_PATH_TO_DEVICE:
+		case IOACCEL2_STATUS_SR_INVALID_DEVICE:
+		case IOACCEL2_STATUS_SR_IOACCEL_DISABLED:
+			/* We will get an event from ctlr to trigger rescan */
+			retry = 1;
+			break;
+		default:
+			retry = 1;
+			dev_warn(&h->pdev->dev,
+				"unexpected delivery or target failure, status = 0x%02x\n",
+				c2->error_data.status);
+		}
 		break;
 	case IOACCEL2_SERV_RESPONSE_TMF_COMPLETE:
 		break;
