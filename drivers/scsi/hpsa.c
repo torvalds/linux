@@ -4787,51 +4787,108 @@ static int hpsa_register_scsi(struct ctlr_info *h)
 	return -ENOMEM;
 }
 
-static int wait_for_device_to_become_ready(struct ctlr_info *h,
-	unsigned char lunaddr[])
+/*
+ * Send a TEST_UNIT_READY command to the specified LUN using the specified
+ * reply queue; returns zero if the unit is ready, and non-zero otherwise.
+ */
+static int hpsa_send_test_unit_ready(struct ctlr_info *h,
+				struct CommandList *c, unsigned char lunaddr[],
+				int reply_queue)
+{
+	int rc;
+
+	/* Send the Test Unit Ready, fill_cmd can't fail, no mapping */
+	(void) fill_cmd(c, TEST_UNIT_READY, h,
+			NULL, 0, 0, lunaddr, TYPE_CMD);
+	rc = hpsa_scsi_do_simple_cmd(h, c, reply_queue, NO_TIMEOUT);
+	if (rc)
+		return rc;
+	/* no unmap needed here because no data xfer. */
+
+	/* Check if the unit is already ready. */
+	if (c->err_info->CommandStatus == CMD_SUCCESS)
+		return 0;
+
+	/*
+	 * The first command sent after reset will receive "unit attention" to
+	 * indicate that the LUN has been reset...this is actually what we're
+	 * looking for (but, success is good too).
+	 */
+	if (c->err_info->CommandStatus == CMD_TARGET_STATUS &&
+		c->err_info->ScsiStatus == SAM_STAT_CHECK_CONDITION &&
+			(c->err_info->SenseInfo[2] == NO_SENSE ||
+			 c->err_info->SenseInfo[2] == UNIT_ATTENTION))
+		return 0;
+
+	return 1;
+}
+
+/*
+ * Wait for a TEST_UNIT_READY command to complete, retrying as necessary;
+ * returns zero when the unit is ready, and non-zero when giving up.
+ */
+static int hpsa_wait_for_test_unit_ready(struct ctlr_info *h,
+				struct CommandList *c,
+				unsigned char lunaddr[], int reply_queue)
 {
 	int rc;
 	int count = 0;
 	int waittime = 1; /* seconds */
+
+	/* Send test unit ready until device ready, or give up. */
+	for (count = 0; count < HPSA_TUR_RETRY_LIMIT; count++) {
+
+		/*
+		 * Wait for a bit.  do this first, because if we send
+		 * the TUR right away, the reset will just abort it.
+		 */
+		msleep(1000 * waittime);
+
+		rc = hpsa_send_test_unit_ready(h, c, lunaddr, reply_queue);
+		if (!rc)
+			break;
+
+		/* Increase wait time with each try, up to a point. */
+		if (waittime < HPSA_MAX_WAIT_INTERVAL_SECS)
+			waittime *= 2;
+
+		dev_warn(&h->pdev->dev,
+			 "waiting %d secs for device to become ready.\n",
+			 waittime);
+	}
+
+	return rc;
+}
+
+static int wait_for_device_to_become_ready(struct ctlr_info *h,
+					   unsigned char lunaddr[],
+					   int reply_queue)
+{
+	int first_queue;
+	int last_queue;
+	int rq;
+	int rc = 0;
 	struct CommandList *c;
 
 	c = cmd_alloc(h);
 
-	/* Send test unit ready until device ready, or give up. */
-	while (count < HPSA_TUR_RETRY_LIMIT) {
+	/*
+	 * If no specific reply queue was requested, then send the TUR
+	 * repeatedly, requesting a reply on each reply queue; otherwise execute
+	 * the loop exactly once using only the specified queue.
+	 */
+	if (reply_queue == DEFAULT_REPLY_QUEUE) {
+		first_queue = 0;
+		last_queue = h->nreply_queues - 1;
+	} else {
+		first_queue = reply_queue;
+		last_queue = reply_queue;
+	}
 
-		/* Wait for a bit.  do this first, because if we send
-		 * the TUR right away, the reset will just abort it.
-		 */
-		msleep(1000 * waittime);
-		count++;
-		rc = 0; /* Device ready. */
-
-		/* Increase wait time with each try, up to a point. */
-		if (waittime < HPSA_MAX_WAIT_INTERVAL_SECS)
-			waittime = waittime * 2;
-
-		/* Send the Test Unit Ready, fill_cmd can't fail, no mapping */
-		(void) fill_cmd(c, TEST_UNIT_READY, h,
-				NULL, 0, 0, lunaddr, TYPE_CMD);
-		rc = hpsa_scsi_do_simple_cmd(h, c, DEFAULT_REPLY_QUEUE,
-						NO_TIMEOUT);
+	for (rq = first_queue; rq <= last_queue; rq++) {
+		rc = hpsa_wait_for_test_unit_ready(h, c, lunaddr, rq);
 		if (rc)
-			goto do_it_again;
-		/* no unmap needed here because no data xfer. */
-
-		if (c->err_info->CommandStatus == CMD_SUCCESS)
 			break;
-
-		if (c->err_info->CommandStatus == CMD_TARGET_STATUS &&
-			c->err_info->ScsiStatus == SAM_STAT_CHECK_CONDITION &&
-			(c->err_info->SenseInfo[2] == NO_SENSE ||
-			c->err_info->SenseInfo[2] == UNIT_ATTENTION))
-			break;
-do_it_again:
-		dev_warn(&h->pdev->dev, "waiting %d secs "
-			"for device to become ready.\n", waittime);
-		rc = 1; /* device not ready. */
 	}
 
 	if (rc)
@@ -4890,7 +4947,7 @@ static int hpsa_eh_device_reset_handler(struct scsi_cmnd *scsicmd)
 	/* send a reset to the SCSI LUN which the command was sent to */
 	rc = hpsa_send_reset(h, dev->scsi3addr, HPSA_RESET_TYPE_LUN,
 			     DEFAULT_REPLY_QUEUE);
-	if (rc == 0 && wait_for_device_to_become_ready(h, dev->scsi3addr) == 0)
+	if (rc == 0)
 		return SUCCESS;
 
 	dev_warn(&h->pdev->dev,
@@ -5086,7 +5143,7 @@ static int hpsa_send_reset_as_abort_ioaccel2(struct ctlr_info *h,
 	}
 
 	/* wait for device to recover */
-	if (wait_for_device_to_become_ready(h, psa) != 0) {
+	if (wait_for_device_to_become_ready(h, psa, reply_queue) != 0) {
 		dev_warn(&h->pdev->dev,
 			"Reset as abort: Failed: Device never recovered from reset: 0x%02x%02x%02x%02x%02x%02x%02x%02x\n",
 			psa[0], psa[1], psa[2], psa[3],
