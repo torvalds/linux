@@ -153,6 +153,9 @@
 #define MFI_FRAME_DIR_BOTH			0x0018
 #define MFI_FRAME_IEEE                          0x0020
 
+/* Driver internal */
+#define DRV_DCMD_POLLED_MODE		0x1
+
 /*
  * Definition for cmd_status
  */
@@ -1042,11 +1045,6 @@ struct megasas_ctrl_info {
 
 #define VD_EXT_DEBUG 0
 
-enum MR_MFI_MPT_PTHR_FLAGS {
-	MFI_MPT_DETACHED = 0,
-	MFI_LIST_ADDED = 1,
-	MFI_MPT_ATTACHED = 2,
-};
 
 enum MR_SCSI_CMD_TYPE {
 	READ_WRITE_LDIO = 0,
@@ -1889,10 +1887,7 @@ struct megasas_cmd {
 
 	struct list_head list;
 	struct scsi_cmnd *scmd;
-
-	void *mpt_pthr_cmd_blocked;
-	atomic_t mfi_mpt_pthr;
-	u8 is_wait_event;
+	u8 flags;
 
 	struct megasas_instance *instance;
 	union {

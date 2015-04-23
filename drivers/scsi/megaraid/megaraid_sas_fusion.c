@@ -57,6 +57,7 @@
 #include "megaraid_sas_fusion.h"
 #include "megaraid_sas.h"
 
+
 extern void megasas_free_cmds(struct megasas_instance *instance);
 extern struct megasas_cmd *megasas_get_cmd(struct megasas_instance
 					   *instance);
@@ -156,28 +157,15 @@ megasas_clear_intr_fusion(struct megasas_register_set __iomem *regs)
  * megasas_get_cmd_fusion -	Get a command from the free pool
  * @instance:		Adapter soft state
  *
- * Returns a free command from the pool
+ * Returns a blk_tag indexed mpt frame
  */
-struct megasas_cmd_fusion *megasas_get_cmd_fusion(struct megasas_instance
-						  *instance)
+inline struct megasas_cmd_fusion *megasas_get_cmd_fusion(struct megasas_instance
+						  *instance, u32 blk_tag)
 {
-	unsigned long flags;
-	struct fusion_context *fusion =
-		(struct fusion_context *)instance->ctrl_context;
-	struct megasas_cmd_fusion *cmd = NULL;
+	struct fusion_context *fusion;
 
-	spin_lock_irqsave(&fusion->mpt_pool_lock, flags);
-
-	if (!list_empty(&fusion->cmd_pool)) {
-		cmd = list_entry((&fusion->cmd_pool)->next,
-				 struct megasas_cmd_fusion, list);
-		list_del_init(&cmd->list);
-	} else {
-		printk(KERN_ERR "megasas: Command pool (fusion) empty!\n");
-	}
-
-	spin_unlock_irqrestore(&fusion->mpt_pool_lock, flags);
-	return cmd;
+	fusion = instance->ctrl_context;
+	return fusion->cmd_list[blk_tag];
 }
 
 /**
@@ -188,45 +176,8 @@ struct megasas_cmd_fusion *megasas_get_cmd_fusion(struct megasas_instance
 inline void megasas_return_cmd_fusion(struct megasas_instance *instance,
 	struct megasas_cmd_fusion *cmd)
 {
-	unsigned long flags;
-	struct fusion_context *fusion =
-		(struct fusion_context *)instance->ctrl_context;
-
-	spin_lock_irqsave(&fusion->mpt_pool_lock, flags);
-
 	cmd->scmd = NULL;
-	cmd->sync_cmd_idx = (u32)ULONG_MAX;
 	memset(cmd->io_request, 0, sizeof(struct MPI2_RAID_SCSI_IO_REQUEST));
-	list_add(&cmd->list, (&fusion->cmd_pool)->next);
-
-	spin_unlock_irqrestore(&fusion->mpt_pool_lock, flags);
-}
-
-/**
- * megasas_return_mfi_mpt_pthr - Return a mfi and mpt to free command pool
- * @instance:		Adapter soft state
- * @cmd_mfi:		MFI Command packet to be returned to free command pool
- * @cmd_mpt:		MPT Command packet to be returned to free command pool
- */
-inline void megasas_return_mfi_mpt_pthr(struct megasas_instance *instance,
-		struct megasas_cmd *cmd_mfi,
-		struct megasas_cmd_fusion *cmd_fusion)
-{
-	unsigned long flags;
-
-	/*
-	 * TO DO: optimize this code and use only one lock instead of two
-	 * locks being used currently- mpt_pool_lock is acquired
-	 * inside mfi_pool_lock
-	 */
-	spin_lock_irqsave(&instance->mfi_pool_lock, flags);
-	megasas_return_cmd_fusion(instance, cmd_fusion);
-	if (atomic_read(&cmd_mfi->mfi_mpt_pthr) != MFI_MPT_ATTACHED)
-		dev_err(&instance->pdev->dev, "Possible bug from %s %d\n",
-			__func__, __LINE__);
-	atomic_set(&cmd_mfi->mfi_mpt_pthr, MFI_MPT_DETACHED);
-	__megasas_return_cmd(instance, cmd_mfi);
-	spin_unlock_irqrestore(&instance->mfi_pool_lock, flags);
 }
 
 /**
@@ -326,7 +277,6 @@ megasas_free_cmds_fusion(struct megasas_instance *instance)
 	kfree(fusion->cmd_list);
 	fusion->cmd_list = NULL;
 
-	INIT_LIST_HEAD(&fusion->cmd_pool);
 }
 
 /**
@@ -535,7 +485,9 @@ megasas_alloc_cmds_fusion(struct megasas_instance *instance)
 		memset(cmd, 0, sizeof(struct megasas_cmd_fusion));
 		cmd->index = i + 1;
 		cmd->scmd = NULL;
-		cmd->sync_cmd_idx = (u32)ULONG_MAX; /* Set to Invalid */
+		cmd->sync_cmd_idx = (i >= instance->max_scsi_cmds) ?
+				(i - instance->max_scsi_cmds) :
+				(u32)ULONG_MAX; /* Set to Invalid */
 		cmd->instance = instance;
 		cmd->io_request =
 			(struct MPI2_RAID_SCSI_IO_REQUEST *)
@@ -543,8 +495,6 @@ megasas_alloc_cmds_fusion(struct megasas_instance *instance)
 		memset(cmd->io_request, 0,
 		       sizeof(struct MPI2_RAID_SCSI_IO_REQUEST));
 		cmd->io_request_phys_addr = io_req_base_phys + offset;
-
-		list_add_tail(&cmd->list, &fusion->cmd_pool);
 	}
 
 	/*
@@ -605,12 +555,8 @@ wait_and_poll(struct megasas_instance *instance, struct megasas_cmd *cmd,
 		msleep(20);
 	}
 
-	if (frame_hdr->cmd_status == 0xff) {
-		if (fusion)
-			megasas_return_mfi_mpt_pthr(instance, cmd,
-				cmd->mpt_pthr_cmd_blocked);
+	if (frame_hdr->cmd_status == 0xff)
 		return -ETIME;
-	}
 
 	return 0;
 }
@@ -820,11 +766,7 @@ megasas_get_ld_map_info(struct megasas_instance *instance)
 	else
 		ret = megasas_issue_polled(instance, cmd);
 
-	if (instance->ctrl_context && cmd->mpt_pthr_cmd_blocked)
-		megasas_return_mfi_mpt_pthr(instance, cmd,
-			cmd->mpt_pthr_cmd_blocked);
-	else
-		megasas_return_cmd(instance, cmd);
+	megasas_return_cmd(instance, cmd);
 
 	return ret;
 }
@@ -1953,9 +1895,7 @@ megasas_build_and_issue_cmd_fusion(struct megasas_instance *instance,
 
 	fusion = instance->ctrl_context;
 
-	cmd = megasas_get_cmd_fusion(instance);
-	if (!cmd)
-		return SCSI_MLQUEUE_HOST_BUSY;
+	cmd = megasas_get_cmd_fusion(instance, scmd->request->tag);
 
 	index = cmd->index;
 
@@ -2013,6 +1953,7 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex)
 	union desc_value d_val;
 	struct LD_LOAD_BALANCE_INFO *lbinfo;
 	int threshold_reply_count = 0;
+	struct scsi_cmnd *scmd_local = NULL;
 
 	fusion = instance->ctrl_context;
 
@@ -2048,13 +1989,14 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex)
 		if (cmd_fusion->scmd)
 			cmd_fusion->scmd->SCp.ptr = NULL;
 
+		scmd_local = cmd_fusion->scmd;
 		status = scsi_io_req->RaidContext.status;
 		extStatus = scsi_io_req->RaidContext.exStatus;
 
 		switch (scsi_io_req->Function) {
 		case MPI2_FUNCTION_SCSI_IO_REQUEST:  /*Fast Path IO.*/
 			/* Update load balancing info */
-			device_id = MEGASAS_DEV_INDEX(cmd_fusion->scmd);
+			device_id = MEGASAS_DEV_INDEX(scmd_local);
 			lbinfo = &fusion->load_balance_info[device_id];
 			if (cmd_fusion->scmd->SCp.Status &
 			    MEGASAS_LOAD_BALANCE_FLAG) {
@@ -2072,29 +2014,25 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex)
 		case MEGASAS_MPI2_FUNCTION_LD_IO_REQUEST: /* LD-IO Path */
 			/* Map the FW Cmd Status */
 			map_cmd_status(cmd_fusion, status, extStatus);
-			scsi_dma_unmap(cmd_fusion->scmd);
-			cmd_fusion->scmd->scsi_done(cmd_fusion->scmd);
 			scsi_io_req->RaidContext.status = 0;
 			scsi_io_req->RaidContext.exStatus = 0;
 			megasas_return_cmd_fusion(instance, cmd_fusion);
+			scsi_dma_unmap(scmd_local);
+			scmd_local->scsi_done(scmd_local);
 			atomic_dec(&instance->fw_outstanding);
 
 			break;
 		case MEGASAS_MPI2_FUNCTION_PASSTHRU_IO_REQUEST: /*MFI command */
 			cmd_mfi = instance->cmd_list[cmd_fusion->sync_cmd_idx];
 
-			if (!cmd_mfi->mpt_pthr_cmd_blocked) {
-				if (megasas_dbg_lvl == 5)
-					dev_info(&instance->pdev->dev,
-						"freeing mfi/mpt pass-through "
-						"from %s %d\n",
-						 __func__, __LINE__);
-				megasas_return_mfi_mpt_pthr(instance, cmd_mfi,
-					cmd_fusion);
-			}
-
-			megasas_complete_cmd(instance, cmd_mfi, DID_OK);
-			cmd_fusion->flags = 0;
+			/* Poll mode. Dummy free.
+			 * In case of Interrupt mode, caller has reverse check.
+			 */
+			if (cmd_mfi->flags & DRV_DCMD_POLLED_MODE) {
+				cmd_mfi->flags &= ~DRV_DCMD_POLLED_MODE;
+				megasas_return_cmd(instance, cmd_mfi);
+			} else
+				megasas_complete_cmd(instance, cmd_mfi, DID_OK);
 			break;
 		}
 
@@ -2254,27 +2192,14 @@ build_mpt_mfi_pass_thru(struct megasas_instance *instance,
 	struct megasas_cmd_fusion *cmd;
 	struct fusion_context *fusion;
 	struct megasas_header *frame_hdr = &mfi_cmd->frame->hdr;
-	u32 opcode;
 
-	cmd = megasas_get_cmd_fusion(instance);
-	if (!cmd)
-		return 1;
+	fusion = instance->ctrl_context;
+
+	cmd = megasas_get_cmd_fusion(instance,
+			instance->max_scsi_cmds + mfi_cmd->index);
 
 	/*  Save the smid. To be used for returning the cmd */
 	mfi_cmd->context.smid = cmd->index;
-	cmd->sync_cmd_idx = mfi_cmd->index;
-
-	/* Set this only for Blocked commands */
-	opcode = le32_to_cpu(mfi_cmd->frame->dcmd.opcode);
-	if ((opcode == MR_DCMD_LD_MAP_GET_INFO)
-		&& (mfi_cmd->frame->dcmd.mbox.b[1] == 1))
-		mfi_cmd->is_wait_event = 1;
-
-	if (opcode == MR_DCMD_CTRL_EVENT_WAIT)
-		mfi_cmd->is_wait_event = 1;
-
-	if (mfi_cmd->is_wait_event)
-		mfi_cmd->mpt_pthr_cmd_blocked = cmd;
 
 	/*
 	 * For cmds where the flag is set, store the flag and check
@@ -2283,9 +2208,8 @@ build_mpt_mfi_pass_thru(struct megasas_instance *instance,
 	 */
 
 	if (frame_hdr->flags & cpu_to_le16(MFI_FRAME_DONT_POST_IN_REPLY_QUEUE))
-		cmd->flags = MFI_FRAME_DONT_POST_IN_REPLY_QUEUE;
+		mfi_cmd->flags |= DRV_DCMD_POLLED_MODE;
 
-	fusion = instance->ctrl_context;
 	io_req = cmd->io_request;
 
 	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER) ||
@@ -2364,7 +2288,6 @@ megasas_issue_dcmd_fusion(struct megasas_instance *instance,
 		printk(KERN_ERR "Couldn't issue MFI pass thru cmd\n");
 		return;
 	}
-	atomic_set(&cmd->mfi_mpt_pthr, MFI_MPT_ATTACHED);
 	instance->instancet->fire_cmd(instance, req_desc->u.low,
 				      req_desc->u.high, instance->reg_set);
 }
@@ -2618,6 +2541,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int iotimeout)
 	struct fusion_context *fusion;
 	u32 host_diag, abs_state, status_reg, reset_adapter;
 	u32 io_timeout_in_crash_mode = 0;
+	struct scsi_cmnd *scmd_local = NULL;
 
 	instance = (struct megasas_instance *)shost->hostdata;
 	fusion = instance->ctrl_context;
@@ -2685,15 +2609,16 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int iotimeout)
 			iotimeout = 0;
 
 		/* Now return commands back to the OS */
-		for (i = 0 ; i < instance->max_fw_cmds; i++) {
+		for (i = 0 ; i < instance->max_scsi_cmds; i++) {
 			cmd_fusion = fusion->cmd_list[i];
+			scmd_local = cmd_fusion->scmd;
 			if (cmd_fusion->scmd) {
-				scsi_dma_unmap(cmd_fusion->scmd);
-				cmd_fusion->scmd->result =
+				scmd_local->result =
 					megasas_check_mpio_paths(instance,
-								 cmd_fusion->scmd);
-				cmd_fusion->scmd->scsi_done(cmd_fusion->scmd);
+							scmd_local);
 				megasas_return_cmd_fusion(instance, cmd_fusion);
+				scsi_dma_unmap(scmd_local);
+				scmd_local->scsi_done(scmd_local);
 				atomic_dec(&instance->fw_outstanding);
 			}
 		}
