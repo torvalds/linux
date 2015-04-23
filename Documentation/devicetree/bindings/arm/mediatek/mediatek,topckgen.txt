@@ -1,0 +1,23 @@
+Mediatek topckgen controller
+============================
+
+The Mediatek topckgen controller provides various clocks to the system.
+
+Required Properties:
+
+- compatible: Should be:
+	- "mediatek,mt8135-topckgen"
+	- "mediatek,mt8173-topckgen"
+- #clock-cells: Must be 1
+
+The topckgen controller uses the common clk binding from
+Documentation/devicetree/bindings/clock/clock-bindings.txt
+The available clocks are defined in dt-bindings/clock/mt*-clk.h.
+
+Example:
+
+topckgen: topckgen@10000000 {
+	compatible = "mediatek,mt8173-topckgen";
+	reg = <0 0x10000000 0 0x1000>;
+	#clock-cells = <1>;
+};
