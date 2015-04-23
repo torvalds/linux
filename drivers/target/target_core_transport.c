@@ -1353,11 +1353,9 @@ transport_generic_map_mem_to_cmd(struct se_cmd *cmd, struct scatterlist *sgl,
 
 	cmd->t_data_sg = sgl;
 	cmd->t_data_nents = sgl_count;
+	cmd->t_bidi_data_sg = sgl_bidi;
+	cmd->t_bidi_data_nents = sgl_bidi_count;
 
-	if (sgl_bidi && sgl_bidi_count) {
-		cmd->t_bidi_data_sg = sgl_bidi;
-		cmd->t_bidi_data_nents = sgl_bidi_count;
-	}
 	cmd->se_cmd_flags |= SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC;
 	return 0;
 }
