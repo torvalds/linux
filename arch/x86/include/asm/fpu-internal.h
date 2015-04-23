@@ -324,9 +324,9 @@ static inline int restore_fpu_checking(struct task_struct *tsk)
 }
 
 /* Must be paired with an 'stts' after! */
-static inline void __thread_clear_has_fpu(struct task_struct *tsk)
+static inline void __thread_clear_has_fpu(struct fpu *fpu)
 {
-	tsk->thread.fpu.has_fpu = 0;
+	fpu->has_fpu = 0;
 	this_cpu_write(fpu_owner_task, NULL);
 }
 
@@ -346,7 +346,7 @@ static inline void __thread_set_has_fpu(struct task_struct *tsk)
  */
 static inline void __thread_fpu_end(struct task_struct *tsk)
 {
-	__thread_clear_has_fpu(tsk);
+	__thread_clear_has_fpu(&tsk->thread.fpu);
 	if (!use_eager_fpu())
 		stts();
 }
