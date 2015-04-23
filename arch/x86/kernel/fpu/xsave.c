@@ -349,7 +349,7 @@ int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 	if (!access_ok(VERIFY_READ, buf, size))
 		return -EACCES;
 
-	if (!used_math() && fpstate_alloc_init(tsk))
+	if (!(tsk->flags & PF_USED_MATH) && fpstate_alloc_init(tsk))
 		return -1;
 
 	if (!static_cpu_has(X86_FEATURE_FPU))
@@ -384,12 +384,12 @@ int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 		int err = 0;
 
 		/*
-		 * Drop the current fpu which clears used_math(). This ensures
+		 * Drop the current fpu which clears PF_USED_MATH. This ensures
 		 * that any context-switch during the copy of the new state,
 		 * avoids the intermediate state from getting restored/saved.
 		 * Thus avoiding the new restored state from getting corrupted.
 		 * We will be ready to restore/save the state only after
-		 * set_used_math() is again set.
+		 * PF_USED_MATH is again set.
 		 */
 		drop_fpu(tsk);
 
@@ -401,7 +401,7 @@ int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 			sanitize_restored_xstate(tsk, &env, xstate_bv, fx_only);
 		}
 
-		set_used_math();
+		tsk->flags |= PF_USED_MATH;
 		if (use_eager_fpu()) {
 			preempt_disable();
 			fpu__restore();
@@ -685,7 +685,7 @@ void xsave_init(void)
  */
 void __init_refok eager_fpu_init(void)
 {
-	WARN_ON(used_math());
+	WARN_ON(current->flags & PF_USED_MATH);
 	current_thread_info()->status = 0;
 
 	if (eagerfpu == ENABLE)

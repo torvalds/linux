@@ -242,7 +242,7 @@ int fpu__copy(struct task_struct *dst, struct task_struct *src)
 
 	task_disable_lazy_fpu_restore(dst);
 
-	if (tsk_used_math(src)) {
+	if (src->flags & PF_USED_MATH) {
 		int err = fpstate_alloc(&dst->thread.fpu);
 
 		if (err)
@@ -331,7 +331,7 @@ void fpu__restore(void)
 	struct task_struct *tsk = current;
 	struct fpu *fpu = &tsk->thread.fpu;
 
-	if (!tsk_used_math(tsk)) {
+	if (!(tsk->flags & PF_USED_MATH)) {
 		local_irq_enable();
 		/*
 		 * does a slab alloc which can sleep
@@ -361,12 +361,14 @@ EXPORT_SYMBOL_GPL(fpu__restore);
 
 void fpu__flush_thread(struct task_struct *tsk)
 {
+	WARN_ON(tsk != current);
+
 	if (!use_eager_fpu()) {
 		/* FPU state will be reallocated lazily at the first use. */
 		drop_fpu(tsk);
 		fpstate_free(&tsk->thread.fpu);
 	} else {
-		if (!tsk_used_math(tsk)) {
+		if (!(tsk->flags & PF_USED_MATH)) {
 			/* kthread execs. TODO: cleanup this horror. */
 		if (WARN_ON(fpstate_alloc_init(tsk)))
 				force_sig(SIGKILL, tsk);
@@ -383,12 +385,12 @@ void fpu__flush_thread(struct task_struct *tsk)
  */
 int fpregs_active(struct task_struct *target, const struct user_regset *regset)
 {
-	return tsk_used_math(target) ? regset->n : 0;
+	return (target->flags & PF_USED_MATH) ? regset->n : 0;
 }
 
 int xfpregs_active(struct task_struct *target, const struct user_regset *regset)
 {
-	return (cpu_has_fxsr && tsk_used_math(target)) ? regset->n : 0;
+	return (cpu_has_fxsr && (target->flags & PF_USED_MATH)) ? regset->n : 0;
 }
 
 int xfpregs_get(struct task_struct *target, const struct user_regset *regset,
@@ -719,7 +721,7 @@ int dump_fpu(struct pt_regs *regs, struct user_i387_struct *fpu)
 	struct task_struct *tsk = current;
 	int fpvalid;
 
-	fpvalid = !!used_math();
+	fpvalid = !!(tsk->flags & PF_USED_MATH);
 	if (fpvalid)
 		fpvalid = !fpregs_get(tsk, NULL,
 				      0, sizeof(struct user_i387_ia32_struct),

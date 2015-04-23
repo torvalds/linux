@@ -217,7 +217,7 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
 		}
 	}
 
-	if (used_math()) {
+	if (current->flags & PF_USED_MATH) {
 		sp = alloc_mathframe(sp, config_enabled(CONFIG_X86_32),
 				     &buf_fx, &math_size);
 		*fpstate = (void __user *)sp;
@@ -233,7 +233,7 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
 		return (void __user *)-1L;
 
 	/* save i387 and extended state */
-	if (used_math() &&
+	if ((current->flags & PF_USED_MATH) &&
 	    save_xstate_sig(*fpstate, (void __user *)buf_fx, math_size) < 0)
 		return (void __user *)-1L;
 
@@ -664,7 +664,7 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 		/*
 		 * Ensure the signal handler starts with the new fpu state.
 		 */
-		if (used_math())
+		if (current->flags & PF_USED_MATH)
 			fpu_reset_state(current);
 	}
 	signal_setup_done(failed, ksig, stepping);

@@ -321,7 +321,7 @@ static void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
 		 ksig->ka.sa.sa_restorer)
 		sp = (unsigned long) ksig->ka.sa.sa_restorer;
 
-	if (used_math()) {
+	if (current->flags & PF_USED_MATH) {
 		unsigned long fx_aligned, math_size;
 
 		sp = alloc_mathframe(sp, 1, &fx_aligned, &math_size);
