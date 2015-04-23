@@ -242,7 +242,7 @@ config MTD_L440GX
 
 config MTD_CFI_FLAGADM
 	tristate "CFI Flash device mapping on FlagaDM"
-	depends on 8xx && MTD_CFI
+	depends on PPC_8xx && MTD_CFI
 	help
 	  Mapping for the Flaga digital module. If you don't have one, ignore
 	  this setting.

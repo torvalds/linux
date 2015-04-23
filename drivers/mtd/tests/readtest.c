@@ -190,7 +190,10 @@ static int __init mtd_readtest_init(void)
 			if (!err)
 				err = ret;
 		}
-		cond_resched();
+
+		err = mtdtest_relax();
+		if (err)
+			goto out;
 	}
 
 	if (err)

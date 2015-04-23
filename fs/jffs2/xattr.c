@@ -1266,7 +1266,6 @@ int jffs2_garbage_collect_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_
 	if (rc) {
 		JFFS2_WARNING("%s: jffs2_reserve_space_gc() = %d, request = %u\n",
 			      __func__, rc, totlen);
-		rc = rc ? rc : -EBADFD;
 		goto out;
 	}
 	rc = save_xattr_ref(c, ref);
