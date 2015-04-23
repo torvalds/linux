@@ -32,16 +32,6 @@ asmlinkage int __raw_atomic_test_asm(const volatile int *ptr, int value);
 #define atomic_and(i, v) (void)__raw_atomic_and_asm(&(v)->counter, i)
 #define atomic_xor(i, v) (void)__raw_atomic_xor_asm(&(v)->counter, i)
 
-static inline __deprecated void atomic_clear_mask(unsigned int mask, atomic_t *v)
-{
-	atomic_and(~mask, v);
-}
-
-static inline __deprecated void atomic_set_mask(unsigned int mask, atomic_t *v)
-{
-	atomic_or(mask, v);
-}
-
 #endif
 
 #include <asm-generic/atomic.h>

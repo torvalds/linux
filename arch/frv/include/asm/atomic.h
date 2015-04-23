@@ -198,14 +198,4 @@ ATOMIC_OP(xor)
 
 #undef ATOMIC_OP
 
-static inline __deprecated void atomic_clear_mask(unsigned int mask, atomic_t *v)
-{
-	atomic_and(~mask, v);
-}
-
-static inline __deprecated void atomic_set_mask(unsigned int mask, atomic_t *v)
-{
-	atomic_or(mask, v);
-}
-
 #endif /* _ASM_ATOMIC_H */

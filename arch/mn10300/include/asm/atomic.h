@@ -131,30 +131,6 @@ static inline void atomic_dec(atomic_t *v)
 #define atomic_xchg(ptr, v)		(xchg(&(ptr)->counter, (v)))
 #define atomic_cmpxchg(v, old, new)	(cmpxchg(&((v)->counter), (old), (new)))
 
-/**
- * atomic_clear_mask - Atomically clear bits in memory
- * @mask: Mask of the bits to be cleared
- * @v: pointer to word in memory
- *
- * Atomically clears the bits set in mask from the memory word specified.
- */
-static inline __deprecated void atomic_clear_mask(unsigned int mask, atomic_t *v)
-{
-	atomic_and(~mask, v);
-}
-
-/**
- * atomic_set_mask - Atomically set bits in memory
- * @mask: Mask of the bits to be set
- * @v: pointer to word in memory
- *
- * Atomically sets the bits set in mask from the memory word specified.
- */
-static inline __deprecated void atomic_set_mask(unsigned int mask, atomic_t *v)
-{
-	atomic_or(mask, v);
-}
-
 #endif /* __KERNEL__ */
 #endif /* CONFIG_SMP */
 #endif /* _ASM_ATOMIC_H */

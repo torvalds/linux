@@ -234,16 +234,6 @@ static __always_inline short int atomic_inc_short(short int *v)
 	return *v;
 }
 
-static inline __deprecated void atomic_clear_mask(unsigned int mask, atomic_t *v)
-{
-	atomic_and(~mask, v);
-}
-
-static inline __deprecated void atomic_set_mask(unsigned int mask, atomic_t *v)
-{
-	atomic_or(mask, v);
-}
-
 #ifdef CONFIG_X86_32
 # include <asm/atomic64_32.h>
 #else

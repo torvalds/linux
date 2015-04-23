@@ -89,14 +89,4 @@ static inline int __atomic_add_unless(atomic_t *v, int a, int u)
 	return ret;
 }
 
-static inline __deprecated void atomic_clear_mask(unsigned int mask, atomic_t *v)
-{
-	atomic_and(~mask, v);
-}
-
-static inline __deprecated void atomic_set_mask(unsigned int mask, atomic_t *v)
-{
-	atomic_or(mask, v);
-}
-
 #endif /* __ARCH_H8300_ATOMIC __ */

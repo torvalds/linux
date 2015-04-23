@@ -174,16 +174,6 @@ static inline int atomic_add_negative(int i, atomic_t *v)
 	return c != 0;
 }
 
-static inline __deprecated void atomic_clear_mask(unsigned int mask, atomic_t *v)
-{
-	atomic_and(~mask, v);
-}
-
-static inline __deprecated void atomic_set_mask(unsigned int mask, atomic_t *v)
-{
-	atomic_or(mask, v);
-}
-
 static __inline__ int __atomic_add_unless(atomic_t *v, int a, int u)
 {
 	int c, old;
