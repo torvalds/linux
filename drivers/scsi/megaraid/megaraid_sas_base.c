@@ -94,8 +94,8 @@ MODULE_PARM_DESC(smp_affinity_enable, "SMP affinity feature enable/disbale Defau
 
 MODULE_LICENSE("GPL");
 MODULE_VERSION(MEGASAS_VERSION);
-MODULE_AUTHOR("megaraidlinux@lsi.com");
-MODULE_DESCRIPTION("LSI MegaRAID SAS Driver");
+MODULE_AUTHOR("megaraidlinux.pdl@avagotech.com");
+MODULE_DESCRIPTION("Avago MegaRAID SAS Driver");
 
 int megasas_transition_to_ready(struct megasas_instance *instance, int ocr);
 static int megasas_get_pd_list(struct megasas_instance *instance);
@@ -2765,7 +2765,7 @@ struct device_attribute *megaraid_host_attrs[] = {
 static struct scsi_host_template megasas_template = {
 
 	.module = THIS_MODULE,
-	.name = "LSI SAS based MegaRAID driver",
+	.name = "Avago SAS based MegaRAID driver",
 	.proc_name = "megaraid_sas",
 	.slave_configure = megasas_slave_configure,
 	.slave_alloc = megasas_slave_alloc,
