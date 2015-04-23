@@ -514,7 +514,7 @@ void nfs_inode_return_delegation_noreclaim(struct inode *inode)
 
 	delegation = nfs_inode_detach_delegation(inode);
 	if (delegation != NULL)
-		nfs_do_return_delegation(inode, delegation, 0);
+		nfs_do_return_delegation(inode, delegation, 1);
 }
 
 /**
