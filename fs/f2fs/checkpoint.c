@@ -52,6 +52,7 @@ struct page *get_meta_page(struct f2fs_sb_info *sbi, pgoff_t index)
 	struct address_space *mapping = META_MAPPING(sbi);
 	struct page *page;
 	struct f2fs_io_info fio = {
+		.sbi = sbi,
 		.type = META,
 		.rw = READ_SYNC | REQ_META | REQ_PRIO,
 		.blk_addr = index,
@@ -65,7 +66,9 @@ repeat:
 	if (PageUptodate(page))
 		goto out;
 
-	if (f2fs_submit_page_bio(sbi, page, &fio))
+	fio.page = page;
+
+	if (f2fs_submit_page_bio(&fio))
 		goto repeat;
 
 	lock_page(page);
@@ -117,6 +120,7 @@ int ra_meta_pages(struct f2fs_sb_info *sbi, block_t start, int nrpages, int type
 	struct page *page;
 	block_t blkno = start;
 	struct f2fs_io_info fio = {
+		.sbi = sbi,
 		.type = META,
 		.rw = READ_SYNC | REQ_META | REQ_PRIO
 	};
@@ -160,7 +164,8 @@ int ra_meta_pages(struct f2fs_sb_info *sbi, block_t start, int nrpages, int type
 			continue;
 		}
 
-		f2fs_submit_page_mbio(sbi, page, &fio);
+		fio.page = page;
+		f2fs_submit_page_mbio(&fio);
 		f2fs_put_page(page, 0);
 	}
 out:

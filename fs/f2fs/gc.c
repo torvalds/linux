@@ -521,8 +521,10 @@ static int check_dnode(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
 static void move_data_page(struct inode *inode, struct page *page, int gc_type)
 {
 	struct f2fs_io_info fio = {
+		.sbi = F2FS_I_SB(inode),
 		.type = DATA,
 		.rw = WRITE_SYNC,
+		.page = page,
 	};
 
 	if (gc_type == BG_GC) {
@@ -536,7 +538,7 @@ static void move_data_page(struct inode *inode, struct page *page, int gc_type)
 		if (clear_page_dirty_for_io(page))
 			inode_dec_dirty_pages(inode);
 		set_cold_data(page);
-		do_write_data_page(page, &fio);
+		do_write_data_page(&fio);
 		clear_cold_data(page);
 	}
 out:
