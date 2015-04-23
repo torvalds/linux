@@ -4887,11 +4887,11 @@ megasas_get_seq_num(struct megasas_instance *instance,
 		/*
 		 * Copy the data back into callers buffer
 		 */
-		eli->newest_seq_num = le32_to_cpu(el_info->newest_seq_num);
-		eli->oldest_seq_num = le32_to_cpu(el_info->oldest_seq_num);
-		eli->clear_seq_num = le32_to_cpu(el_info->clear_seq_num);
-		eli->shutdown_seq_num = le32_to_cpu(el_info->shutdown_seq_num);
-		eli->boot_seq_num = le32_to_cpu(el_info->boot_seq_num);
+		eli->newest_seq_num = el_info->newest_seq_num;
+		eli->oldest_seq_num = el_info->oldest_seq_num;
+		eli->clear_seq_num = el_info->clear_seq_num;
+		eli->shutdown_seq_num = el_info->shutdown_seq_num;
+		eli->boot_seq_num = el_info->boot_seq_num;
 	}
 
 	pci_free_consistent(instance->pdev, sizeof(struct megasas_evt_log_info),
@@ -5051,7 +5051,7 @@ static int megasas_start_aen(struct megasas_instance *instance)
 	class_locale.members.class = MR_EVT_CLASS_DEBUG;
 
 	return megasas_register_aen(instance,
-			eli.newest_seq_num + 1,
+			le32_to_cpu(eli.newest_seq_num) + 1,
 			class_locale.word);
 }
 
