@@ -331,10 +331,10 @@ static inline void __thread_clear_has_fpu(struct fpu *fpu)
 }
 
 /* Must be paired with a 'clts' before! */
-static inline void __thread_set_has_fpu(struct task_struct *tsk)
+static inline void __thread_set_has_fpu(struct fpu *fpu)
 {
-	tsk->thread.fpu.has_fpu = 1;
-	this_cpu_write(fpu_fpregs_owner_ctx, &tsk->thread.fpu);
+	fpu->has_fpu = 1;
+	this_cpu_write(fpu_fpregs_owner_ctx, fpu);
 }
 
 /*
@@ -355,7 +355,7 @@ static inline void __thread_fpu_begin(struct task_struct *tsk)
 {
 	if (!use_eager_fpu())
 		clts();
-	__thread_set_has_fpu(tsk);
+	__thread_set_has_fpu(&tsk->thread.fpu);
 }
 
 static inline void drop_fpu(struct task_struct *tsk)
@@ -416,6 +416,7 @@ typedef struct { int preload; } fpu_switch_t;
 static inline fpu_switch_t switch_fpu_prepare(struct task_struct *old, struct task_struct *new, int cpu)
 {
 	struct fpu *old_fpu = &old->thread.fpu;
+	struct fpu *new_fpu = &new->thread.fpu;
 	fpu_switch_t fpu;
 
 	/*
@@ -437,7 +438,7 @@ static inline fpu_switch_t switch_fpu_prepare(struct task_struct *old, struct ta
 		/* Don't change CR0.TS if we just switch! */
 		if (fpu.preload) {
 			new->thread.fpu.counter++;
-			__thread_set_has_fpu(new);
+			__thread_set_has_fpu(new_fpu);
 			prefetch(new->thread.fpu.state);
 		} else if (!use_eager_fpu())
 			stts();
