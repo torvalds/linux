@@ -7376,6 +7376,16 @@ static void hpsa_undo_allocations_after_kdump_soft_reset(struct ctlr_info *h)
 	hpsa_free_cmd_pool(h);			/* init_one 5 */
 	hpsa_free_irqs(h);			/* init_one 4 */
 	hpsa_free_pci_init(h);			/* init_one 3 */
+	free_percpu(h->lockup_detected);	/* init_one 2 */
+	h->lockup_detected = NULL;		/* init_one 2 */
+	if (h->resubmit_wq) {
+		destroy_workqueue(h->resubmit_wq);	/* init_one 1 */
+		h->resubmit_wq = NULL;
+	}
+	if (h->rescan_ctlr_wq) {
+		destroy_workqueue(h->rescan_ctlr_wq);
+		h->rescan_ctlr_wq = NULL;
+	}
 	kfree(h);				/* init_one 1 */
 }
 
