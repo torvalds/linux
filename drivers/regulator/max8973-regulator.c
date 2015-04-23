@@ -266,8 +266,12 @@ static int max8973_init_dcdc(struct max8973_chip *max,
 	if (pdata->control_flags & MAX8973_CONTROL_OUTPUT_ACTIVE_DISCH_ENABLE)
 		control1 |= MAX8973_AD_ENABLE;
 
-	if (pdata->control_flags & MAX8973_CONTROL_BIAS_ENABLE)
+	if (pdata->control_flags & MAX8973_CONTROL_BIAS_ENABLE) {
 		control1 |= MAX8973_BIAS_ENABLE;
+		max->desc.enable_time = 20;
+	} else {
+		max->desc.enable_time = 240;
+	}
 
 	if (pdata->control_flags & MAX8973_CONTROL_FREQ_SHIFT_9PER_ENABLE)
 		control1 |= MAX8973_FREQSHIFT_9PER;
