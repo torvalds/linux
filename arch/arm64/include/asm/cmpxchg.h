@@ -21,6 +21,7 @@
 #include <linux/bug.h>
 #include <linux/mmdebug.h>
 
+#include <asm/atomic.h>
 #include <asm/barrier.h>
 #include <asm/lse.h>
 
@@ -111,74 +112,20 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 				      unsigned long new, int size)
 {
-	unsigned long oldval = 0, res;
-
 	switch (size) {
 	case 1:
-		do {
-			asm volatile("// __cmpxchg1\n"
-			"	ldxrb	%w1, %2\n"
-			"	mov	%w0, #0\n"
-			"	cmp	%w1, %w3\n"
-			"	b.ne	1f\n"
-			"	stxrb	%w0, %w4, %2\n"
-			"1:\n"
-				: "=&r" (res), "=&r" (oldval), "+Q" (*(u8 *)ptr)
-				: "Ir" (old), "r" (new)
-				: "cc");
-		} while (res);
-		break;
-
+		return __cmpxchg_case_1(ptr, old, new);
 	case 2:
-		do {
-			asm volatile("// __cmpxchg2\n"
-			"	ldxrh	%w1, %2\n"
-			"	mov	%w0, #0\n"
-			"	cmp	%w1, %w3\n"
-			"	b.ne	1f\n"
-			"	stxrh	%w0, %w4, %2\n"
-			"1:\n"
-				: "=&r" (res), "=&r" (oldval), "+Q" (*(u16 *)ptr)
-				: "Ir" (old), "r" (new)
-				: "cc");
-		} while (res);
-		break;
-
+		return __cmpxchg_case_2(ptr, old, new);
 	case 4:
-		do {
-			asm volatile("// __cmpxchg4\n"
-			"	ldxr	%w1, %2\n"
-			"	mov	%w0, #0\n"
-			"	cmp	%w1, %w3\n"
-			"	b.ne	1f\n"
-			"	stxr	%w0, %w4, %2\n"
-			"1:\n"
-				: "=&r" (res), "=&r" (oldval), "+Q" (*(u32 *)ptr)
-				: "Ir" (old), "r" (new)
-				: "cc");
-		} while (res);
-		break;
-
+		return __cmpxchg_case_4(ptr, old, new);
 	case 8:
-		do {
-			asm volatile("// __cmpxchg8\n"
-			"	ldxr	%1, %2\n"
-			"	mov	%w0, #0\n"
-			"	cmp	%1, %3\n"
-			"	b.ne	1f\n"
-			"	stxr	%w0, %4, %2\n"
-			"1:\n"
-				: "=&r" (res), "=&r" (oldval), "+Q" (*(u64 *)ptr)
-				: "Ir" (old), "r" (new)
-				: "cc");
-		} while (res);
-		break;
-
+		return __cmpxchg_case_8(ptr, old, new);
 	default:
 		BUILD_BUG();
 	}
 
-	return oldval;
+	unreachable();
 }
 
 #define system_has_cmpxchg_double()     1
@@ -229,13 +176,20 @@ static inline int __cmpxchg_double_mb(volatile void *ptr1, volatile void *ptr2,
 static inline unsigned long __cmpxchg_mb(volatile void *ptr, unsigned long old,
 					 unsigned long new, int size)
 {
-	unsigned long ret;
+	switch (size) {
+	case 1:
+		return __cmpxchg_case_mb_1(ptr, old, new);
+	case 2:
+		return __cmpxchg_case_mb_2(ptr, old, new);
+	case 4:
+		return __cmpxchg_case_mb_4(ptr, old, new);
+	case 8:
+		return __cmpxchg_case_mb_8(ptr, old, new);
+	default:
+		BUILD_BUG();
+	}
 
-	smp_mb();
-	ret = __cmpxchg(ptr, old, new, size);
-	smp_mb();
-
-	return ret;
+	unreachable();
 }
 
 #define cmpxchg(ptr, o, n) \

@@ -349,4 +349,43 @@ static inline long atomic64_dec_if_positive(atomic64_t *v)
 
 #undef __LL_SC_ATOMIC64
 
+#define __LL_SC_CMPXCHG(op)	__LL_SC_CALL(__cmpxchg_case_##op)
+
+#define __CMPXCHG_CASE(w, sz, name, mb, cl...)				\
+static inline unsigned long __cmpxchg_case_##name(volatile void *ptr,	\
+						  unsigned long old,	\
+						  unsigned long new)	\
+{									\
+	register unsigned long x0 asm ("x0") = (unsigned long)ptr;	\
+	register unsigned long x1 asm ("x1") = old;			\
+	register unsigned long x2 asm ("x2") = new;			\
+									\
+	asm volatile(ARM64_LSE_ATOMIC_INSN(				\
+	/* LL/SC */							\
+	"nop\n"								\
+	__LL_SC_CMPXCHG(name)						\
+	"nop",								\
+	/* LSE atomics */						\
+	"	mov	" #w "30, %" #w "[old]\n"			\
+	"	cas" #mb #sz "\t" #w "30, %" #w "[new], %[v]\n"		\
+	"	mov	%" #w "[ret], " #w "30")			\
+	: [ret] "+r" (x0), [v] "+Q" (*(unsigned long *)ptr)		\
+	: [old] "r" (x1), [new] "r" (x2)				\
+	: "x30" , ##cl);						\
+									\
+	return x0;							\
+}
+
+__CMPXCHG_CASE(w, b,    1,   )
+__CMPXCHG_CASE(w, h,    2,   )
+__CMPXCHG_CASE(w,  ,    4,   )
+__CMPXCHG_CASE(x,  ,    8,   )
+__CMPXCHG_CASE(w, b, mb_1, al, "memory")
+__CMPXCHG_CASE(w, h, mb_2, al, "memory")
+__CMPXCHG_CASE(w,  , mb_4, al, "memory")
+__CMPXCHG_CASE(x,  , mb_8, al, "memory")
+
+#undef __LL_SC_CMPXCHG
+#undef __CMPXCHG_CASE
+
 #endif	/* __ASM_ATOMIC_LSE_H */

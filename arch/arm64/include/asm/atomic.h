@@ -24,7 +24,6 @@
 #include <linux/types.h>
 
 #include <asm/barrier.h>
-#include <asm/cmpxchg.h>
 #include <asm/lse.h>
 
 #define ATOMIC_INIT(i)	{ (i) }
@@ -40,6 +39,8 @@
 #endif
 
 #undef __ARM64_IN_ATOMIC_IMPL
+
+#include <asm/cmpxchg.h>
 
 /*
  * On ARM, ordinary assignment (str instruction) doesn't clear the local

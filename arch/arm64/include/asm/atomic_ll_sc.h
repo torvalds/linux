@@ -215,4 +215,42 @@ __LL_SC_PREFIX(atomic64_dec_if_positive(atomic64_t *v))
 }
 __LL_SC_EXPORT(atomic64_dec_if_positive);
 
+#define __CMPXCHG_CASE(w, sz, name, mb, cl)				\
+__LL_SC_INLINE unsigned long						\
+__LL_SC_PREFIX(__cmpxchg_case_##name(volatile void *ptr,		\
+				     unsigned long old,			\
+				     unsigned long new))		\
+{									\
+	unsigned long tmp, oldval;					\
+									\
+	asm volatile(							\
+	"	" #mb "\n"						\
+	"1:	ldxr" #sz "\t%" #w "[oldval], %[v]\n"			\
+	"	eor	%" #w "[tmp], %" #w "[oldval], %" #w "[old]\n"	\
+	"	cbnz	%" #w "[tmp], 2f\n"				\
+	"	stxr" #sz "\t%w[tmp], %" #w "[new], %[v]\n"		\
+	"	cbnz	%w[tmp], 1b\n"					\
+	"	" #mb "\n"						\
+	"	mov	%" #w "[oldval], %" #w "[old]\n"		\
+	"2:"								\
+	: [tmp] "=&r" (tmp), [oldval] "=&r" (oldval),			\
+	  [v] "+Q" (*(unsigned long *)ptr)				\
+	: [old] "Lr" (old), [new] "r" (new)				\
+	: cl);								\
+									\
+	return oldval;							\
+}									\
+__LL_SC_EXPORT(__cmpxchg_case_##name);
+
+__CMPXCHG_CASE(w, b,    1,        ,         )
+__CMPXCHG_CASE(w, h,    2,        ,         )
+__CMPXCHG_CASE(w,  ,    4,        ,         )
+__CMPXCHG_CASE( ,  ,    8,        ,         )
+__CMPXCHG_CASE(w, b, mb_1, dmb ish, "memory")
+__CMPXCHG_CASE(w, h, mb_2, dmb ish, "memory")
+__CMPXCHG_CASE(w,  , mb_4, dmb ish, "memory")
+__CMPXCHG_CASE( ,  , mb_8, dmb ish, "memory")
+
+#undef __CMPXCHG_CASE
+
 #endif	/* __ASM_ATOMIC_LL_SC_H */
