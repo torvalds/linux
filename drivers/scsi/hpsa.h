@@ -47,6 +47,7 @@ struct hpsa_scsi_dev_t {
 	unsigned char raid_level;	/* from inquiry page 0xC1 */
 	unsigned char volume_offline;	/* discovered via TUR or VPD */
 	u16 queue_depth;		/* max queue_depth for this device */
+	atomic_t reset_cmds_out;	/* Count of commands to-be affected */
 	atomic_t ioaccel_cmds_out;	/* Only used for physical devices
 					 * counts commands sent to physical
 					 * device via "ioaccel" path.
@@ -70,6 +71,7 @@ struct hpsa_scsi_dev_t {
 	 * devices in order to honor physical device queue depth limits.
 	 */
 	struct hpsa_scsi_dev_t *phys_disk[RAID_MAP_MAX_ENTRIES];
+	int nphysical_disks;
 	int supports_aborts;
 #define HPSA_DO_NOT_EXPOSE	0x0
 #define HPSA_SG_ATTACH		0x1
@@ -266,7 +268,8 @@ struct ctlr_info {
 	struct workqueue_struct *rescan_ctlr_wq;
 	atomic_t abort_cmds_available;
 	wait_queue_head_t abort_cmd_wait_queue;
-	wait_queue_head_t abort_sync_wait_queue;
+	wait_queue_head_t event_sync_wait_queue;
+	struct mutex reset_mutex;
 };
 
 struct offline_device_entry {

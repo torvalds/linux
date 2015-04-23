@@ -283,6 +283,11 @@ static inline bool hpsa_is_cmd_idle(struct CommandList *c)
 	return c->scsi_cmd == SCSI_CMD_IDLE;
 }
 
+static inline bool hpsa_is_pending_event(struct CommandList *c)
+{
+	return c->abort_pending || c->reset_pending;
+}
+
 /* extract sense key, asc, and ascq from sense data.  -1 means invalid. */
 static void decode_sense_data(const u8 *sense_data, int sense_data_len,
 			u8 *sense_key, u8 *asc, u8 *ascq)
@@ -977,7 +982,7 @@ static void __enqueue_cmd_and_start_io(struct ctlr_info *h,
 
 static void enqueue_cmd_and_start_io(struct ctlr_info *h, struct CommandList *c)
 {
-	if (unlikely(c->abort_pending))
+	if (unlikely(hpsa_is_pending_event(c)))
 		return finish_cmd(c);
 
 	__enqueue_cmd_and_start_io(h, c, DEFAULT_REPLY_QUEUE);
@@ -1448,6 +1453,8 @@ static void hpsa_figure_phys_disk_ptrs(struct ctlr_info *h,
 
 	if (nraid_map_entries > RAID_MAP_MAX_ENTRIES)
 		nraid_map_entries = RAID_MAP_MAX_ENTRIES;
+
+	logical_drive->nphysical_disks = nraid_map_entries;
 
 	qdepth = 0;
 	for (i = 0; i < nraid_map_entries; i++) {
@@ -1994,6 +2001,8 @@ static int handle_ioaccel_mode2_error(struct ctlr_info *h,
 static void hpsa_cmd_resolve_events(struct ctlr_info *h,
 		struct CommandList *c)
 {
+	bool do_wake = false;
+
 	/*
 	 * Prevent the following race in the abort handler:
 	 *
@@ -2005,16 +2014,35 @@ static void hpsa_cmd_resolve_events(struct ctlr_info *h,
 	 *    finds struct CommandList and tries to aborts it
 	 * Now we have aborted the wrong command.
 	 *
-	 * Clear c->scsi_cmd here so that the abort handler will know this
-	 * command has completed.  Then, check to see if the abort handler is
+	 * Reset c->scsi_cmd here so that the abort or reset handler will know
+	 * this command has completed.  Then, check to see if the handler is
 	 * waiting for this command, and, if so, wake it.
 	 */
 	c->scsi_cmd = SCSI_CMD_IDLE;
-	mb(); /* Ensure c->scsi_cmd is set to SCSI_CMD_IDLE */
+	mb();	/* Declare command idle before checking for pending events. */
 	if (c->abort_pending) {
+		do_wake = true;
 		c->abort_pending = false;
-		wake_up_all(&h->abort_sync_wait_queue);
 	}
+	if (c->reset_pending) {
+		unsigned long flags;
+		struct hpsa_scsi_dev_t *dev;
+
+		/*
+		 * There appears to be a reset pending; lock the lock and
+		 * reconfirm.  If so, then decrement the count of outstanding
+		 * commands and wake the reset command if this is the last one.
+		 */
+		spin_lock_irqsave(&h->lock, flags);
+		dev = c->reset_pending;		/* Re-fetch under the lock. */
+		if (dev && atomic_dec_and_test(&dev->reset_cmds_out))
+			do_wake = true;
+		c->reset_pending = NULL;
+		spin_unlock_irqrestore(&h->lock, flags);
+	}
+
+	if (do_wake)
+		wake_up_all(&h->event_sync_wait_queue);
 }
 
 static void hpsa_cmd_resolve_and_free(struct ctlr_info *h,
@@ -2061,10 +2089,6 @@ static void process_ioaccel2_completion(struct ctlr_info *h,
 	if (likely(c2->error_data.serv_response == 0 &&
 			c2->error_data.status == 0))
 		return hpsa_cmd_free_and_done(h, c, cmd);
-
-	/* don't requeue a command which is being aborted */
-	if (unlikely(c->abort_pending))
-		return hpsa_cmd_abort_and_free(h, c, cmd);
 
 	/*
 	 * Any RAID offload error results in retry which will use
@@ -2160,6 +2184,13 @@ static void complete_scsi_command(struct CommandList *cp)
 		return hpsa_cmd_free_and_done(h, cp, cmd);
 	}
 
+	if ((unlikely(hpsa_is_pending_event(cp)))) {
+		if (cp->reset_pending)
+			return hpsa_cmd_resolve_and_free(h, cp);
+		if (cp->abort_pending)
+			return hpsa_cmd_abort_and_free(h, cp, cmd);
+	}
+
 	if (cp->cmd_type == CMD_IOACCEL2)
 		return process_ioaccel2_completion(h, cp, cmd, dev);
 
@@ -2187,13 +2218,9 @@ static void complete_scsi_command(struct CommandList *cp)
 		if (is_logical_dev_addr_mode(dev->scsi3addr)) {
 			if (ei->CommandStatus == CMD_IOACCEL_DISABLED)
 				dev->offload_enabled = 0;
-			if (!cp->abort_pending)
-				return hpsa_retry_cmd(h, cp);
+			return hpsa_retry_cmd(h, cp);
 		}
 	}
-
-	if (cp->abort_pending)
-		ei->CommandStatus = CMD_ABORTED;
 
 	/* an error has occurred */
 	switch (ei->CommandStatus) {
@@ -2612,6 +2639,124 @@ static int hpsa_send_reset(struct ctlr_info *h, unsigned char *scsi3addr,
 	}
 out:
 	cmd_free(h, c);
+	return rc;
+}
+
+static bool hpsa_cmd_dev_match(struct ctlr_info *h, struct CommandList *c,
+			       struct hpsa_scsi_dev_t *dev,
+			       unsigned char *scsi3addr)
+{
+	int i;
+	bool match = false;
+	struct io_accel2_cmd *c2 = &h->ioaccel2_cmd_pool[c->cmdindex];
+	struct hpsa_tmf_struct *ac = (struct hpsa_tmf_struct *) c2;
+
+	if (hpsa_is_cmd_idle(c))
+		return false;
+
+	switch (c->cmd_type) {
+	case CMD_SCSI:
+	case CMD_IOCTL_PEND:
+		match = !memcmp(scsi3addr, &c->Header.LUN.LunAddrBytes,
+				sizeof(c->Header.LUN.LunAddrBytes));
+		break;
+
+	case CMD_IOACCEL1:
+	case CMD_IOACCEL2:
+		if (c->phys_disk == dev) {
+			/* HBA mode match */
+			match = true;
+		} else {
+			/* Possible RAID mode -- check each phys dev. */
+			/* FIXME:  Do we need to take out a lock here?  If
+			 * so, we could just call hpsa_get_pdisk_of_ioaccel2()
+			 * instead. */
+			for (i = 0; i < dev->nphysical_disks && !match; i++) {
+				/* FIXME: an alternate test might be
+				 *
+				 * match = dev->phys_disk[i]->ioaccel_handle
+				 *              == c2->scsi_nexus;      */
+				match = dev->phys_disk[i] == c->phys_disk;
+			}
+		}
+		break;
+
+	case IOACCEL2_TMF:
+		for (i = 0; i < dev->nphysical_disks && !match; i++) {
+			match = dev->phys_disk[i]->ioaccel_handle ==
+					le32_to_cpu(ac->it_nexus);
+		}
+		break;
+
+	case 0:		/* The command is in the middle of being initialized. */
+		match = false;
+		break;
+
+	default:
+		dev_err(&h->pdev->dev, "unexpected cmd_type: %d\n",
+			c->cmd_type);
+		BUG();
+	}
+
+	return match;
+}
+
+static int hpsa_do_reset(struct ctlr_info *h, struct hpsa_scsi_dev_t *dev,
+	unsigned char *scsi3addr, u8 reset_type, int reply_queue)
+{
+	int i;
+	int rc = 0;
+
+	/* We can really only handle one reset at a time */
+	if (mutex_lock_interruptible(&h->reset_mutex) == -EINTR) {
+		dev_warn(&h->pdev->dev, "concurrent reset wait interrupted.\n");
+		return -EINTR;
+	}
+
+	BUG_ON(atomic_read(&dev->reset_cmds_out) != 0);
+
+	for (i = 0; i < h->nr_cmds; i++) {
+		struct CommandList *c = h->cmd_pool + i;
+		int refcount = atomic_inc_return(&c->refcount);
+
+		if (refcount > 1 && hpsa_cmd_dev_match(h, c, dev, scsi3addr)) {
+			unsigned long flags;
+
+			/*
+			 * Mark the target command as having a reset pending,
+			 * then lock a lock so that the command cannot complete
+			 * while we're considering it.  If the command is not
+			 * idle then count it; otherwise revoke the event.
+			 */
+			c->reset_pending = dev;
+			spin_lock_irqsave(&h->lock, flags);	/* Implied MB */
+			if (!hpsa_is_cmd_idle(c))
+				atomic_inc(&dev->reset_cmds_out);
+			else
+				c->reset_pending = NULL;
+			spin_unlock_irqrestore(&h->lock, flags);
+		}
+
+		cmd_free(h, c);
+	}
+
+	rc = hpsa_send_reset(h, scsi3addr, reset_type, reply_queue);
+	if (!rc)
+		wait_event(h->event_sync_wait_queue,
+			atomic_read(&dev->reset_cmds_out) == 0 ||
+			lockup_detected(h));
+
+	if (unlikely(lockup_detected(h))) {
+			dev_warn(&h->pdev->dev,
+				 "Controller lockup detected during reset wait\n");
+			mutex_unlock(&h->reset_mutex);
+			rc = -ENODEV;
+		}
+
+	if (unlikely(rc))
+		atomic_set(&dev->reset_cmds_out, 0);
+
+	mutex_unlock(&h->reset_mutex);
 	return rc;
 }
 
@@ -3465,6 +3610,7 @@ static void hpsa_get_ioaccel_drive_info(struct ctlr_info *h,
 	else
 		dev->queue_depth = DRIVE_QUEUE_DEPTH; /* conservative */
 	atomic_set(&dev->ioaccel_cmds_out, 0);
+	atomic_set(&dev->reset_cmds_out, 0);
 }
 
 static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
@@ -4604,6 +4750,8 @@ static void hpsa_command_resubmit_worker(struct work_struct *work)
 		cmd->result = DID_NO_CONNECT << 16;
 		return hpsa_cmd_free_and_done(c->h, c, cmd);
 	}
+	if (c->reset_pending)
+		return hpsa_cmd_resolve_and_free(c->h, c);
 	if (c->abort_pending)
 		return hpsa_cmd_abort_and_free(c->h, c, cmd);
 	if (c->cmd_type == CMD_IOACCEL2) {
@@ -4966,8 +5114,7 @@ static int hpsa_eh_device_reset_handler(struct scsi_cmnd *scsicmd)
 
 	dev = scsicmd->device->hostdata;
 	if (!dev) {
-		dev_err(&h->pdev->dev, "hpsa_eh_device_reset_handler: "
-			"device lookup failed.\n");
+		dev_err(&h->pdev->dev, "%s: device lookup failed\n", __func__);
 		return FAILED;
 	}
 
@@ -4987,18 +5134,18 @@ static int hpsa_eh_device_reset_handler(struct scsi_cmnd *scsicmd)
 		return FAILED;
 	}
 
+	/* Do not attempt on controller */
+	if (is_hba_lunid(dev->scsi3addr))
+		return SUCCESS;
+
 	hpsa_show_dev_msg(KERN_WARNING, h, dev, "resetting");
 
 	/* send a reset to the SCSI LUN which the command was sent to */
-	rc = hpsa_send_reset(h, dev->scsi3addr, HPSA_RESET_TYPE_LUN,
-			     DEFAULT_REPLY_QUEUE);
-	if (rc == 0)
-		return SUCCESS;
-
-	dev_warn(&h->pdev->dev,
-		"scsi %d:%d:%d:%d reset failed\n",
-		h->scsi_host->host_no, dev->bus, dev->target, dev->lun);
-	return FAILED;
+	rc = hpsa_do_reset(h, dev, dev->scsi3addr, HPSA_RESET_TYPE_LUN,
+			   DEFAULT_REPLY_QUEUE);
+	sprintf(msg, "reset %s", rc == 0 ? "completed successfully" : "failed");
+	hpsa_show_dev_msg(KERN_WARNING, h, dev, msg);
+	return rc == 0 ? SUCCESS : FAILED;
 }
 
 static void swizzle_abort_tag(u8 *tag)
@@ -5178,7 +5325,7 @@ static int hpsa_send_reset_as_abort_ioaccel2(struct ctlr_info *h,
 			"Reset as abort: Resetting physical device at scsi3addr 0x%02x%02x%02x%02x%02x%02x%02x%02x\n",
 			psa[0], psa[1], psa[2], psa[3],
 			psa[4], psa[5], psa[6], psa[7]);
-	rc = hpsa_send_reset(h, psa, HPSA_RESET_TYPE_TARGET, reply_queue);
+	rc = hpsa_do_reset(h, dev, psa, HPSA_RESET_TYPE_TARGET, reply_queue);
 	if (rc != 0) {
 		dev_warn(&h->pdev->dev,
 			"Reset as abort: Failed on physical device at scsi3addr 0x%02x%02x%02x%02x%02x%02x%02x%02x\n",
@@ -5420,7 +5567,7 @@ static int hpsa_eh_abort_handler(struct scsi_cmnd *sc)
 		return FAILED;
 	}
 	dev_info(&h->pdev->dev, "%s SENT, SUCCESS\n", msg);
-	wait_event(h->abort_sync_wait_queue,
+	wait_event(h->event_sync_wait_queue,
 		   abort->scsi_cmd != sc || lockup_detected(h));
 	cmd_free(h, abort);
 	return !lockup_detected(h) ? SUCCESS : FAILED;
@@ -7834,7 +7981,8 @@ reinit_after_soft_reset:
 		goto clean5;	/* cmd, irq, shost, pci, lu, aer/h */
 	init_waitqueue_head(&h->scan_wait_queue);
 	init_waitqueue_head(&h->abort_cmd_wait_queue);
-	init_waitqueue_head(&h->abort_sync_wait_queue);
+	init_waitqueue_head(&h->event_sync_wait_queue);
+	mutex_init(&h->reset_mutex);
 	h->scan_finished = 1; /* no scan currently in progress */
 
 	pci_set_drvdata(pdev, h);
