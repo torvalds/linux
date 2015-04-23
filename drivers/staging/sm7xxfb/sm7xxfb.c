@@ -675,38 +675,6 @@ static struct fb_ops smtcfb_ops = {
 };
 
 /*
- * alloc struct smtcfb_info and assign default values
- */
-static struct smtcfb_info *smtc_alloc_fb_info(struct pci_dev *pdev)
-{
-	struct smtcfb_info *sfb;
-
-	sfb = kzalloc(sizeof(*sfb), GFP_KERNEL);
-
-	if (!sfb)
-		return NULL;
-
-	sfb->pdev = pdev;
-
-	sfb->fb->flags          = FBINFO_FLAG_DEFAULT;
-	sfb->fb->fbops          = &smtcfb_ops;
-	sfb->fb->fix            = smtcfb_fix;
-	sfb->fb->var            = smtcfb_var;
-	sfb->fb->pseudo_palette = sfb->colreg;
-	sfb->fb->par            = sfb;
-
-	return sfb;
-}
-
-/*
- * free struct smtcfb_info
- */
-static void smtc_free_fb_info(struct smtcfb_info *sfb)
-{
-	kfree(sfb);
-}
-
-/*
  * Unmap in the memory mapped IO registers
  */
 
