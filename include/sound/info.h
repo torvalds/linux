@@ -94,10 +94,8 @@ struct snd_info_entry {
 
 #if defined(CONFIG_SND_OSSEMUL) && defined(CONFIG_PROC_FS)
 int snd_info_minor_register(void);
-int snd_info_minor_unregister(void);
 #else
-#define snd_info_minor_register() /* NOP */
-#define snd_info_minor_unregister() /* NOP */
+#define snd_info_minor_register()	0
 #endif
 
 

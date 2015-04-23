@@ -479,7 +479,8 @@ int __init snd_info_init(void)
 	if (snd_info_version_init() < 0 ||
 	    snd_minor_info_init() < 0 ||
 	    snd_minor_info_oss_init() < 0 ||
-	    snd_card_info_init() < 0)
+	    snd_card_info_init() < 0 ||
+	    snd_info_minor_register() < 0)
 		goto error;
 	return 0;
 
