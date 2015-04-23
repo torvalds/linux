@@ -44,6 +44,7 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsi_eh.h>
+#include <scsi/scsi_dbg.h>
 #include <linux/cciss_ioctl.h>
 #include <linux/string.h>
 #include <linux/bitmap.h>
@@ -212,6 +213,9 @@ static int hpsa_compat_ioctl(struct scsi_device *dev, int cmd,
 
 static void cmd_free(struct ctlr_info *h, struct CommandList *c);
 static struct CommandList *cmd_alloc(struct ctlr_info *h);
+static void cmd_tagged_free(struct ctlr_info *h, struct CommandList *c);
+static struct CommandList *cmd_tagged_alloc(struct ctlr_info *h,
+					    struct scsi_cmnd *scmd);
 static int fill_cmd(struct CommandList *c, u8 cmd, struct ctlr_info *h,
 	void *buff, size_t size, u16 page_code, unsigned char *scsi3addr,
 	int cmd_type);
@@ -2010,11 +2014,17 @@ static void hpsa_cmd_resolve_events(struct ctlr_info *h,
 	}
 }
 
+static void hpsa_cmd_resolve_and_free(struct ctlr_info *h,
+				      struct CommandList *c)
+{
+	hpsa_cmd_resolve_events(h, c);
+	cmd_tagged_free(h, c);
+}
+
 static void hpsa_cmd_free_and_done(struct ctlr_info *h,
 		struct CommandList *c, struct scsi_cmnd *cmd)
 {
-	hpsa_cmd_resolve_events(h, c);
-	cmd_free(h, c);
+	hpsa_cmd_resolve_and_free(h, c);
 	cmd->scsi_done(cmd);
 }
 
@@ -2035,8 +2045,7 @@ static void hpsa_cmd_abort_and_free(struct ctlr_info *h, struct CommandList *c,
 	hpsa_set_scsi_cmd_aborted(cmd);
 	dev_warn(&h->pdev->dev, "CDB %16phN was aborted with status 0x%x\n",
 			 c->Request.CDB, c->err_info->ScsiStatus);
-	hpsa_cmd_resolve_events(h, c);
-	cmd_free(h, c);		/* FIX-ME:  change to cmd_tagged_free(h, c) */
+	hpsa_cmd_resolve_and_free(h, c);
 }
 
 static void process_ioaccel2_completion(struct ctlr_info *h,
@@ -4500,7 +4509,7 @@ static int hpsa_ciss_submit(struct ctlr_info *h,
 	}
 
 	if (hpsa_scatter_gather(h, c, cmd) < 0) { /* Fill SG list */
-		cmd_free(h, c);
+		hpsa_cmd_resolve_and_free(h, c);
 		return SCSI_MLQUEUE_HOST_BUSY;
 	}
 	enqueue_cmd_and_start_io(h, c);
@@ -4545,6 +4554,8 @@ static inline void hpsa_cmd_partial_init(struct ctlr_info *h, int index,
 				struct CommandList *c)
 {
 	dma_addr_t cmd_dma_handle = h->cmd_pool_dhandle + index * sizeof(*c);
+
+	BUG_ON(c->cmdindex != index);
 
 	memset(c->Request.CDB, 0, sizeof(c->Request.CDB));
 	memset(c->err_info, 0, sizeof(*c->err_info));
@@ -4640,12 +4651,16 @@ static int hpsa_scsi_queue_command(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 
 	/* Get the ptr to our adapter structure out of cmd->host. */
 	h = sdev_to_hba(cmd->device);
+
+	BUG_ON(cmd->request->tag < 0);
+
 	dev = cmd->device->hostdata;
 	if (!dev) {
 		cmd->result = DID_NO_CONNECT << 16;
 		cmd->scsi_done(cmd);
 		return 0;
 	}
+
 	memcpy(scsi3addr, dev->scsi3addr, sizeof(scsi3addr));
 
 	if (unlikely(lockup_detected(h))) {
@@ -4653,14 +4668,7 @@ static int hpsa_scsi_queue_command(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 		cmd->scsi_done(cmd);
 		return 0;
 	}
-	c = cmd_alloc(h);
-
-	if (unlikely(lockup_detected(h))) {
-		cmd->result = DID_NO_CONNECT << 16;
-		cmd_free(h, c);
-		cmd->scsi_done(cmd);
-		return 0;
-	}
+	c = cmd_tagged_alloc(h, cmd);
 
 	/*
 	 * Call alternate submit routine for I/O accelerated commands.
@@ -4673,7 +4681,7 @@ static int hpsa_scsi_queue_command(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 		if (rc == 0)
 			return 0;
 		if (rc == SCSI_MLQUEUE_HOST_BUSY) {
-			cmd_free(h, c);
+			hpsa_cmd_resolve_and_free(h, c);
 			return SCSI_MLQUEUE_HOST_BUSY;
 		}
 	}
@@ -4787,21 +4795,46 @@ static int hpsa_register_scsi(struct ctlr_info *h)
 	sh->hostdata[0] = (unsigned long) h;
 	sh->irq = h->intr[h->intr_mode];
 	sh->unique_id = sh->irq;
-	error = scsi_add_host(sh, &h->pdev->dev);
-	if (error)
+	error = scsi_init_shared_tag_map(sh, sh->can_queue);
+	if (error) {
+		dev_err(&h->pdev->dev,
+			"%s: scsi_init_shared_tag_map failed for controller %d\n",
+			__func__, h->ctlr);
 		goto fail_host_put;
+	}
+	error = scsi_add_host(sh, &h->pdev->dev);
+	if (error) {
+		dev_err(&h->pdev->dev, "%s: scsi_add_host failed for controller %d\n",
+			__func__, h->ctlr);
+		goto fail_host_put;
+	}
 	scsi_scan_host(sh);
 	return 0;
 
  fail_host_put:
-	dev_err(&h->pdev->dev, "%s: scsi_add_host"
-		" failed for controller %d\n", __func__, h->ctlr);
 	scsi_host_put(sh);
 	return error;
  fail:
 	dev_err(&h->pdev->dev, "%s: scsi_host_alloc"
 		" failed for controller %d\n", __func__, h->ctlr);
 	return -ENOMEM;
+}
+
+/*
+ * The block layer has already gone to the trouble of picking out a unique,
+ * small-integer tag for this request.  We use an offset from that value as
+ * an index to select our command block.  (The offset allows us to reserve the
+ * low-numbered entries for our own uses.)
+ */
+static int hpsa_get_cmd_index(struct scsi_cmnd *scmd)
+{
+	int idx = scmd->request->tag;
+
+	if (idx < 0)
+		return idx;
+
+	/* Offset to leave space for internal cmds. */
+	return idx += HPSA_NRESERVED_CMDS;
 }
 
 /*
@@ -4925,6 +4958,7 @@ static int hpsa_eh_device_reset_handler(struct scsi_cmnd *scsicmd)
 	int rc;
 	struct ctlr_info *h;
 	struct hpsa_scsi_dev_t *dev;
+	char msg[40];
 
 	/* find the controller to which the command to be aborted was sent */
 	h = sdev_to_hba(scsicmd->device);
@@ -4943,19 +4977,17 @@ static int hpsa_eh_device_reset_handler(struct scsi_cmnd *scsicmd)
 
 	/* if controller locked up, we can guarantee command won't complete */
 	if (lockup_detected(h)) {
-		dev_warn(&h->pdev->dev,
-			"scsi %d:%d:%d:%d RESET FAILED, lockup detected\n",
-			h->scsi_host->host_no, dev->bus, dev->target,
-			dev->lun);
+		sprintf(msg, "cmd %d RESET FAILED, lockup detected",
+				hpsa_get_cmd_index(scsicmd));
+		hpsa_show_dev_msg(KERN_WARNING, h, dev, msg);
 		return FAILED;
 	}
 
 	/* this reset request might be the result of a lockup; check */
 	if (detect_controller_lockup(h)) {
-		dev_warn(&h->pdev->dev,
-			 "scsi %d:%d:%d:%d RESET FAILED, new lockup detected\n",
-			 h->scsi_host->host_no, dev->bus, dev->target,
-			 dev->lun);
+		sprintf(msg, "cmd %d RESET FAILED, new lockup detected",
+				hpsa_get_cmd_index(scsicmd));
+		hpsa_show_dev_msg(KERN_WARNING, h, dev, msg);
 		return FAILED;
 	}
 
@@ -5399,6 +5431,58 @@ static int hpsa_eh_abort_handler(struct scsi_cmnd *sc)
 }
 
 /*
+ * For operations with an associated SCSI command, a command block is allocated
+ * at init, and managed by cmd_tagged_alloc() and cmd_tagged_free() using the
+ * block request tag as an index into a table of entries.  cmd_tagged_free() is
+ * the complement, although cmd_free() may be called instead.
+ */
+static struct CommandList *cmd_tagged_alloc(struct ctlr_info *h,
+					    struct scsi_cmnd *scmd)
+{
+	int idx = hpsa_get_cmd_index(scmd);
+	struct CommandList *c = h->cmd_pool + idx;
+
+	if (idx < HPSA_NRESERVED_CMDS || idx >= h->nr_cmds) {
+		dev_err(&h->pdev->dev, "Bad block tag: %d not in [%d..%d]\n",
+			idx, HPSA_NRESERVED_CMDS, h->nr_cmds - 1);
+		/* The index value comes from the block layer, so if it's out of
+		 * bounds, it's probably not our bug.
+		 */
+		BUG();
+	}
+
+	atomic_inc(&c->refcount);
+	if (unlikely(!hpsa_is_cmd_idle(c))) {
+		/*
+		 * We expect that the SCSI layer will hand us a unique tag
+		 * value.  Thus, there should never be a collision here between
+		 * two requests...because if the selected command isn't idle
+		 * then someone is going to be very disappointed.
+		 */
+		dev_err(&h->pdev->dev,
+			"tag collision (tag=%d) in cmd_tagged_alloc().\n",
+			idx);
+		if (c->scsi_cmd != NULL)
+			scsi_print_command(c->scsi_cmd);
+		scsi_print_command(scmd);
+	}
+
+	hpsa_cmd_partial_init(h, idx, c);
+	return c;
+}
+
+static void cmd_tagged_free(struct ctlr_info *h, struct CommandList *c)
+{
+	/*
+	 * Release our reference to the block.  We don't need to do anything
+	 * else to free it, because it is accessed by index.  (There's no point
+	 * in checking the result of the decrement, since we cannot guarantee
+	 * that there isn't a concurrent abort which is also accessing it.)
+	 */
+	(void)atomic_dec(&c->refcount);
+}
+
+/*
  * For operations that cannot sleep, a command block is allocated at init,
  * and managed by cmd_alloc() and cmd_free() using a simple bitmap to track
  * which ones are free or in use.  Lock must be held when calling this.
@@ -5411,7 +5495,7 @@ static struct CommandList *cmd_alloc(struct ctlr_info *h)
 {
 	struct CommandList *c;
 	int refcount, i;
-	unsigned long offset;
+	int offset = 0;
 
 	/*
 	 * There is some *extremely* small but non-zero chance that that
@@ -5423,12 +5507,20 @@ static struct CommandList *cmd_alloc(struct ctlr_info *h)
 	 * very unlucky thread might be starved anyway, never able to
 	 * beat the other threads.  In reality, this happens so
 	 * infrequently as to be indistinguishable from never.
+	 *
+	 * Note that we start allocating commands before the SCSI host structure
+	 * is initialized.  Since the search starts at bit zero, this
+	 * all works, since we have at least one command structure available;
+	 * however, it means that the structures with the low indexes have to be
+	 * reserved for driver-initiated requests, while requests from the block
+	 * layer will use the higher indexes.
 	 */
 
-	offset = h->last_allocation; /* benignly racy */
 	for (;;) {
-		i = find_next_zero_bit(h->cmd_pool_bits, h->nr_cmds, offset);
-		if (unlikely(i == h->nr_cmds)) {
+		i = find_next_zero_bit(h->cmd_pool_bits,
+					HPSA_NRESERVED_CMDS,
+					offset);
+		if (unlikely(i >= HPSA_NRESERVED_CMDS)) {
 			offset = 0;
 			continue;
 		}
@@ -5436,18 +5528,23 @@ static struct CommandList *cmd_alloc(struct ctlr_info *h)
 		refcount = atomic_inc_return(&c->refcount);
 		if (unlikely(refcount > 1)) {
 			cmd_free(h, c); /* already in use */
-			offset = (i + 1) % h->nr_cmds;
+			offset = (i + 1) % HPSA_NRESERVED_CMDS;
 			continue;
 		}
 		set_bit(i & (BITS_PER_LONG - 1),
 			h->cmd_pool_bits + (i / BITS_PER_LONG));
 		break; /* it's ours now. */
 	}
-	h->last_allocation = i; /* benignly racy */
 	hpsa_cmd_partial_init(h, i, c);
 	return c;
 }
 
+/*
+ * This is the complementary operation to cmd_alloc().  Note, however, in some
+ * corner cases it may also be used to free blocks allocated by
+ * cmd_tagged_alloc() in which case the ref-count decrement does the trick and
+ * the clear-bit is harmless.
+ */
 static void cmd_free(struct ctlr_info *h, struct CommandList *c)
 {
 	if (atomic_dec_and_test(&c->refcount)) {
