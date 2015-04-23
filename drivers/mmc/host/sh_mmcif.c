@@ -257,6 +257,12 @@ struct sh_mmcif_host {
 	bool			dma_active;
 };
 
+static const struct of_device_id mmcif_of_match[] = {
+	{ .compatible = "renesas,sh-mmcif" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, mmcif_of_match);
+
 static inline void sh_mmcif_bitset(struct sh_mmcif_host *host,
 					unsigned int reg, u32 val)
 {
@@ -1542,12 +1548,6 @@ static int sh_mmcif_resume(struct device *dev)
 	return 0;
 }
 #endif
-
-static const struct of_device_id mmcif_of_match[] = {
-	{ .compatible = "renesas,sh-mmcif" },
-	{ }
-};
-MODULE_DEVICE_TABLE(of, mmcif_of_match);
 
 static const struct dev_pm_ops sh_mmcif_dev_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(sh_mmcif_suspend, sh_mmcif_resume)
