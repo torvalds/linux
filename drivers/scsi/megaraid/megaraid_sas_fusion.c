@@ -2511,6 +2511,43 @@ void  megasas_reset_reply_desc(struct megasas_instance *instance)
 		reply_desc->Words = ULLONG_MAX;
 }
 
+/*
+ * megasas_refire_mgmt_cmd :	Re-fire management commands
+ * @instance:				Controller's soft instance
+*/
+void megasas_refire_mgmt_cmd(struct megasas_instance *instance)
+{
+	int j;
+	struct megasas_cmd_fusion *cmd_fusion;
+	struct fusion_context *fusion;
+	struct megasas_cmd *cmd_mfi;
+	union MEGASAS_REQUEST_DESCRIPTOR_UNION *req_desc;
+	u16 smid;
+
+	fusion = instance->ctrl_context;
+
+	/* Re-fire management commands.
+	 * Do not traverse complet MPT frame pool. Start from max_scsi_cmds.
+	 */
+	for (j = instance->max_scsi_cmds ; j < instance->max_fw_cmds; j++) {
+		cmd_fusion = fusion->cmd_list[j];
+		cmd_mfi = instance->cmd_list[cmd_fusion->sync_cmd_idx];
+		smid = le16_to_cpu(cmd_mfi->context.smid);
+
+		if (!smid)
+			continue;
+		req_desc = megasas_get_request_descriptor
+					(instance, smid - 1);
+		if (req_desc && (cmd_mfi->frame->dcmd.opcode !=
+				cpu_to_le32(MR_DCMD_LD_MAP_GET_INFO))) {
+			instance->instancet->fire_cmd(instance,
+				req_desc->u.low, req_desc->u.high,
+				instance->reg_set);
+		} else
+			megasas_return_cmd(instance, cmd_mfi);
+	}
+}
+
 /* Check for a second path that is currently UP */
 int megasas_check_mpio_paths(struct megasas_instance *instance,
 	struct scsi_cmnd *scmd)
@@ -2538,12 +2575,10 @@ out:
 /* Core fusion reset function */
 int megasas_reset_fusion(struct Scsi_Host *shost, int iotimeout)
 {
-	int retval = SUCCESS, i, j, retry = 0, convert = 0;
+	int retval = SUCCESS, i, retry = 0, convert = 0;
 	struct megasas_instance *instance;
 	struct megasas_cmd_fusion *cmd_fusion;
 	struct fusion_context *fusion;
-	struct megasas_cmd *cmd_mfi;
-	union MEGASAS_REQUEST_DESCRIPTOR_UNION *req_desc;
 	u32 host_diag, abs_state, status_reg, reset_adapter;
 	u32 io_timeout_in_crash_mode = 0;
 
@@ -2790,44 +2825,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int iotimeout)
 				continue;
 			}
 
-			/* Re-fire management commands */
-			for (j = 0 ; j < instance->max_fw_cmds; j++) {
-				cmd_fusion = fusion->cmd_list[j];
-				if (cmd_fusion->sync_cmd_idx !=
-				    (u32)ULONG_MAX) {
-					cmd_mfi =
-					instance->
-					cmd_list[cmd_fusion->sync_cmd_idx];
-					if (cmd_mfi->frame->dcmd.opcode ==
-					    cpu_to_le32(MR_DCMD_LD_MAP_GET_INFO)) {
-						megasas_return_mfi_mpt_pthr(instance, cmd_mfi, cmd_fusion);
-					} else  {
-						req_desc =
-						megasas_get_request_descriptor(
-							instance,
-							cmd_mfi->context.smid
-							-1);
-						if (!req_desc) {
-							printk(KERN_WARNING
-							       "req_desc NULL"
-							       " for scsi%d\n",
-								instance->host->host_no);
-							/* Return leaked MPT
-							   frame */
-							megasas_return_cmd_fusion(instance, cmd_fusion);
-						} else {
-							instance->instancet->
-							fire_cmd(instance,
-								 req_desc->
-								 u.low,
-								 req_desc->
-								 u.high,
-								 instance->
-								 reg_set);
-						}
-					}
-				}
-			}
+			megasas_refire_mgmt_cmd(instance);
 
 			if (megasas_get_ctrl_info(instance)) {
 				dev_info(&instance->pdev->dev,
