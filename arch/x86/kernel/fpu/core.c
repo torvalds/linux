@@ -116,7 +116,7 @@ void __kernel_fpu_end(void)
 	struct fpu *fpu = &me->thread.fpu;
 
 	if (fpu->has_fpu) {
-		if (WARN_ON(restore_fpu_checking(me)))
+		if (WARN_ON(restore_fpu_checking(fpu)))
 			fpu_reset_state(me);
 	} else if (!use_eager_fpu()) {
 		stts();
@@ -370,7 +370,7 @@ void fpu__restore(void)
 	/* Avoid __kernel_fpu_begin() right after __thread_fpu_begin() */
 	kernel_fpu_disable();
 	__thread_fpu_begin(fpu);
-	if (unlikely(restore_fpu_checking(tsk))) {
+	if (unlikely(restore_fpu_checking(fpu))) {
 		fpu_reset_state(tsk);
 		force_sig_info(SIGSEGV, SEND_SIG_PRIV, tsk);
 	} else {

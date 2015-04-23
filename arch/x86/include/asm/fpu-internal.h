@@ -294,7 +294,7 @@ static inline int fpu_restore_checking(struct fpu *fpu)
 		return frstor_checking(&fpu->state->fsave);
 }
 
-static inline int restore_fpu_checking(struct task_struct *tsk)
+static inline int restore_fpu_checking(struct fpu *fpu)
 {
 	/*
 	 * AMD K7/K8 CPUs don't save/restore FDP/FIP/FOP unless an exception is
@@ -306,10 +306,10 @@ static inline int restore_fpu_checking(struct task_struct *tsk)
 			"fnclex\n\t"
 			"emms\n\t"
 			"fildl %P[addr]"	/* set F?P to defined value */
-			: : [addr] "m" (tsk->thread.fpu.has_fpu));
+			: : [addr] "m" (fpu->has_fpu));
 	}
 
-	return fpu_restore_checking(&tsk->thread.fpu);
+	return fpu_restore_checking(fpu);
 }
 
 /* Must be paired with an 'stts' after! */
@@ -456,8 +456,10 @@ static inline fpu_switch_t switch_fpu_prepare(struct task_struct *old, struct ta
  */
 static inline void switch_fpu_finish(struct task_struct *new, fpu_switch_t fpu)
 {
+	struct fpu *new_fpu = &new->thread.fpu;
+
 	if (fpu.preload) {
-		if (unlikely(restore_fpu_checking(new)))
+		if (unlikely(restore_fpu_checking(new_fpu)))
 			fpu_reset_state(new);
 	}
 }
