@@ -1149,7 +1149,8 @@ int btrfs_wait_cache_io(struct btrfs_root *root,
 	if (!inode)
 		return 0;
 
-	root = root->fs_info->tree_root;
+	if (block_group)
+		root = root->fs_info->tree_root;
 
 	/* Flush the dirty pages in the cache file. */
 	ret = flush_dirty_cache(inode);
@@ -3463,9 +3464,12 @@ int btrfs_write_out_ino_cache(struct btrfs_root *root,
 	if (!btrfs_test_opt(root, INODE_MAP_CACHE))
 		return 0;
 
+	memset(&io_ctl, 0, sizeof(io_ctl));
 	ret = __btrfs_write_out_cache(root, inode, ctl, NULL, &io_ctl,
-				      trans, path, 0) ||
-		btrfs_wait_cache_io(root, trans, NULL, &io_ctl, path, 0);
+				      trans, path, 0);
+	if (!ret)
+		ret = btrfs_wait_cache_io(root, trans, NULL, &io_ctl, path, 0);
+
 	if (ret) {
 		btrfs_delalloc_release_metadata(inode, inode->i_size);
 #ifdef DEBUG
