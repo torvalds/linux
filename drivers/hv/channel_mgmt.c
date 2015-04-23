@@ -212,11 +212,16 @@ void hv_process_channel_removal(struct vmbus_channel *channel, u32 relid)
 
 void vmbus_free_channels(void)
 {
-	struct vmbus_channel *channel;
+	struct vmbus_channel *channel, *tmp;
 
-	list_for_each_entry(channel, &vmbus_connection.chn_list, listentry) {
+	list_for_each_entry_safe(channel, tmp, &vmbus_connection.chn_list,
+		listentry) {
+		/* if we don't set rescind to true, vmbus_close_internal()
+		 * won't invoke hv_process_channel_removal().
+		 */
+		channel->rescind = true;
+
 		vmbus_device_unregister(channel->device_obj);
-		free_channel(channel);
 	}
 }
 
