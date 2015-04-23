@@ -518,8 +518,9 @@ static void tcmu_handle_completion(struct tcmu_cmd *cmd, struct tcmu_cmd_entry *
 
 	} else if (se_cmd->data_direction == DMA_TO_DEVICE) {
 		UPDATE_HEAD(udev->data_tail, cmd->data_length, udev->data_size);
-	} else {
-		pr_warn("TCMU: data direction was %d!\n", se_cmd->data_direction);
+	} else if (se_cmd->data_direction != DMA_NONE) {
+		pr_warn("TCMU: data direction was %d!\n",
+			se_cmd->data_direction);
 	}
 
 	target_complete_cmd(cmd->se_cmd, entry->rsp.scsi_status);
