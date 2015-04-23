@@ -7291,8 +7291,9 @@ static int hpsa_request_irqs(struct ctlr_info *h,
 	if (h->intr_mode == PERF_MODE_INT && h->msix_vector > 0) {
 		/* If performant mode and MSI-X, use multiple reply queues */
 		for (i = 0; i < h->msix_vector; i++) {
+			sprintf(h->intrname[i], "%s-msix%d", h->devname, i);
 			rc = request_irq(h->intr[i], msixhandler,
-					0, h->devname,
+					0, h->intrname[i],
 					&h->q[i]);
 			if (rc) {
 				int j;
@@ -7313,12 +7314,22 @@ static int hpsa_request_irqs(struct ctlr_info *h,
 	} else {
 		/* Use single reply pool */
 		if (h->msix_vector > 0 || h->msi_vector) {
+			if (h->msix_vector)
+				sprintf(h->intrname[h->intr_mode],
+					"%s-msix", h->devname);
+			else
+				sprintf(h->intrname[h->intr_mode],
+					"%s-msi", h->devname);
 			rc = request_irq(h->intr[h->intr_mode],
-				msixhandler, 0, h->devname,
+				msixhandler, 0,
+				h->intrname[h->intr_mode],
 				&h->q[h->intr_mode]);
 		} else {
+			sprintf(h->intrname[h->intr_mode],
+				"%s-intx", h->devname);
 			rc = request_irq(h->intr[h->intr_mode],
-				intxhandler, IRQF_SHARED, h->devname,
+				intxhandler, IRQF_SHARED,
+				h->intrname[h->intr_mode],
 				&h->q[h->intr_mode]);
 		}
 		irq_set_affinity_hint(h->intr[h->intr_mode], NULL);
@@ -7711,9 +7722,6 @@ reinit_after_soft_reset:
 	rc = hpsa_request_irqs(h, do_hpsa_intr_msi, do_hpsa_intr_intx);
 	if (rc)
 		goto clean3;	/* pci, lockup, aer/h */
-	dev_info(&pdev->dev, "%s: <0x%x> at IRQ %d%s using DAC\n",
-	       h->devname, pdev->device,
-	       h->intr[h->intr_mode], dac ? "" : " not");
 	rc = hpsa_alloc_cmd_pool(h);
 	if (rc)
 		goto clean4;	/* irq, pci, lockup, aer/h */
