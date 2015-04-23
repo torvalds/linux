@@ -75,7 +75,7 @@ struct i2o_message *i2o_msg_get_wait(struct i2o_controller *c, int wait)
 	}
 
 	return msg;
-};
+}
 
 #if BITS_PER_LONG == 64
 /**
@@ -123,7 +123,7 @@ u32 i2o_cntxt_list_add(struct i2o_controller * c, void *ptr)
 	osm_debug("%s: Add context to list %p -> %d\n", c->name, ptr, context);
 
 	return entry->context;
-};
+}
 
 /**
  *      i2o_cntxt_list_remove - Remove a pointer from the context list
@@ -159,7 +159,7 @@ u32 i2o_cntxt_list_remove(struct i2o_controller * c, void *ptr)
 		  context, ptr);
 
 	return context;
-};
+}
 
 /**
  *      i2o_cntxt_list_get - Get a pointer from the context list and remove it
@@ -192,7 +192,7 @@ void *i2o_cntxt_list_get(struct i2o_controller *c, u32 context)
 		  ptr);
 
 	return ptr;
-};
+}
 
 /**
  *      i2o_cntxt_list_get_ptr - Get a context id from the context list
@@ -224,7 +224,7 @@ u32 i2o_cntxt_list_get_ptr(struct i2o_controller * c, void *ptr)
 		  ptr, context);
 
 	return context;
-};
+}
 #endif
 
 /**
@@ -245,7 +245,7 @@ struct i2o_controller *i2o_find_iop(int unit)
 	}
 
 	return NULL;
-};
+}
 
 /**
  *	i2o_iop_find_device - Find a I2O device on an I2O controller
@@ -266,7 +266,7 @@ struct i2o_device *i2o_iop_find_device(struct i2o_controller *c, u16 tid)
 		return dev;
 
 	return NULL;
-};
+}
 
 /**
  *	i2o_quiesce_controller - quiesce controller
@@ -309,7 +309,7 @@ static int i2o_iop_quiesce(struct i2o_controller *c)
 	i2o_status_get(c);	// Entered READY state
 
 	return rc;
-};
+}
 
 /**
  *	i2o_iop_enable - move controller from ready to OPERATIONAL
@@ -350,7 +350,7 @@ static int i2o_iop_enable(struct i2o_controller *c)
 	i2o_status_get(c);	// entered OPERATIONAL state
 
 	return rc;
-};
+}
 
 /**
  *	i2o_iop_quiesce_all - Quiesce all I2O controllers on the system
@@ -365,7 +365,7 @@ static inline void i2o_iop_quiesce_all(void)
 		if (!c->no_quiesce)
 			i2o_iop_quiesce(c);
 	}
-};
+}
 
 /**
  *	i2o_iop_enable_all - Enables all controllers on the system
@@ -378,7 +378,7 @@ static inline void i2o_iop_enable_all(void)
 
 	list_for_each_entry_safe(c, tmp, &i2o_controllers, list)
 	    i2o_iop_enable(c);
-};
+}
 
 /**
  *	i2o_clear_controller - Bring I2O controller into HOLD state
@@ -584,7 +584,7 @@ static int i2o_iop_reset(struct i2o_controller *c)
 	i2o_iop_enable_all();
 
 	return rc;
-};
+}
 
 /**
  *	i2o_iop_activate - Bring controller up to HOLD
@@ -653,7 +653,7 @@ static int i2o_iop_activate(struct i2o_controller *c)
 	}
 
 	return i2o_hrt_get(c);
-};
+}
 
 static void i2o_res_alloc(struct i2o_controller *c, unsigned long flags)
 {
@@ -782,7 +782,7 @@ static int i2o_iop_online(struct i2o_controller *c)
 		return rc;
 
 	return 0;
-};
+}
 
 /**
  *	i2o_iop_remove - Remove the I2O controller from the I2O core
@@ -894,7 +894,7 @@ static int i2o_systab_build(void)
 	systab->num_entries = count;
 
 	return 0;
-};
+}
 
 /**
  *	i2o_parse_hrt - Parse the hardware resource table.
@@ -908,7 +908,7 @@ static int i2o_parse_hrt(struct i2o_controller *c)
 {
 	i2o_dump_hrt(c);
 	return 0;
-};
+}
 
 /**
  *	i2o_status_get - Get the status block from the I2O controller
@@ -1032,7 +1032,7 @@ static void i2o_iop_release(struct device *dev)
 	struct i2o_controller *c = to_i2o_controller(dev);
 
 	i2o_iop_free(c);
-};
+}
 
 /**
  *	i2o_iop_alloc - Allocate and initialize a i2o_controller struct
@@ -1065,7 +1065,7 @@ struct i2o_controller *i2o_iop_alloc(void)
 	     I2O_MSG_INPOOL_MIN)) {
 		kfree(c);
 		return ERR_PTR(-ENOMEM);
-	};
+	}
 
 	INIT_LIST_HEAD(&c->devices);
 	spin_lock_init(&c->lock);
@@ -1084,7 +1084,7 @@ struct i2o_controller *i2o_iop_alloc(void)
 #endif
 
 	return c;
-};
+}
 
 /**
  *	i2o_iop_add - Initialize the I2O controller and add him to the I2O core
@@ -1148,7 +1148,7 @@ int i2o_iop_add(struct i2o_controller *c)
 	i2o_iop_reset(c);
 
 	return rc;
-};
+}
 
 /**
  *	i2o_event_register - Turn on/off event notification for a I2O device
@@ -1184,7 +1184,7 @@ int i2o_event_register(struct i2o_device *dev, struct i2o_driver *drv,
 	i2o_msg_post(c, msg);
 
 	return 0;
-};
+}
 
 /**
  *	i2o_iop_init - I2O main initialization function
@@ -1234,7 +1234,7 @@ static void __exit i2o_iop_exit(void)
 	i2o_pci_exit();
 	i2o_exec_exit();
 	i2o_driver_exit();
-};
+}
 
 module_init(i2o_iop_init);
 module_exit(i2o_iop_exit);
