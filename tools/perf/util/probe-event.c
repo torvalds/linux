@@ -2686,7 +2686,7 @@ static int del_trace_probe_event(int fd, const char *buf,
 						  struct strlist *namelist)
 {
 	struct str_node *ent, *n;
-	int ret = -1;
+	int ret = -ENOENT;
 
 	if (strpbrk(buf, "*?")) { /* Glob-exp */
 		strlist__for_each_safe(ent, n, namelist)
@@ -2710,7 +2710,7 @@ static int del_trace_probe_event(int fd, const char *buf,
 
 int del_perf_probe_events(struct strlist *dellist)
 {
-	int ret = -1, ufd = -1, kfd = -1;
+	int ret = -1, ret2, ufd = -1, kfd = -1;
 	char buf[128];
 	const char *group, *event;
 	char *p, *str;
@@ -2731,8 +2731,10 @@ int del_perf_probe_events(struct strlist *dellist)
 		goto error;
 	}
 
-	if (namelist == NULL && unamelist == NULL)
+	if (namelist == NULL && unamelist == NULL) {
+		ret = -ENOENT;
 		goto error;
+	}
 
 	strlist__for_each(ent, dellist) {
 		str = strdup(ent->s);
@@ -2759,17 +2761,23 @@ int del_perf_probe_events(struct strlist *dellist)
 		}
 
 		pr_debug("Group: %s, Event: %s\n", group, event);
+		free(str);
 
+		ret = ret2 = -ENOENT;
 		if (namelist)
 			ret = del_trace_probe_event(kfd, buf, namelist);
 
-		if (unamelist && ret != 0)
-			ret = del_trace_probe_event(ufd, buf, unamelist);
+		if ((ret >= 0 || ret == -ENOENT) && unamelist)
+			ret2 = del_trace_probe_event(ufd, buf, unamelist);
 
-		if (ret != 0)
-			pr_info("Info: Event \"%s\" does not exist.\n", buf);
-
-		free(str);
+		/* Since we can remove probes which already removed, don't check it */
+		if (ret == -ENOENT && ret2 == -ENOENT)
+			pr_debug("Event \"%s\" does not exist.\n", buf);
+		else if (ret < 0 || ret2 < 0) {
+			if (ret >= 0)
+				ret = ret2;
+			break;
+		}
 	}
 
 error:
