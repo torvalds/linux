@@ -351,11 +351,11 @@ static inline void __thread_fpu_end(struct fpu *fpu)
 		stts();
 }
 
-static inline void __thread_fpu_begin(struct task_struct *tsk)
+static inline void __thread_fpu_begin(struct fpu *fpu)
 {
 	if (!use_eager_fpu())
 		clts();
-	__thread_set_has_fpu(&tsk->thread.fpu);
+	__thread_set_has_fpu(fpu);
 }
 
 static inline void drop_fpu(struct task_struct *tsk)
@@ -451,7 +451,7 @@ static inline fpu_switch_t switch_fpu_prepare(struct task_struct *old, struct ta
 				fpu.preload = 0;
 			else
 				prefetch(new->thread.fpu.state);
-			__thread_fpu_begin(new);
+			__thread_fpu_begin(new_fpu);
 		}
 	}
 	return fpu;
@@ -505,9 +505,11 @@ static inline int restore_xstate_sig(void __user *buf, int ia32_frame)
  */
 static inline void user_fpu_begin(void)
 {
+	struct fpu *fpu = &current->thread.fpu;
+
 	preempt_disable();
 	if (!user_has_fpu())
-		__thread_fpu_begin(current);
+		__thread_fpu_begin(fpu);
 	preempt_enable();
 }
 

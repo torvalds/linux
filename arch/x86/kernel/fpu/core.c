@@ -329,6 +329,7 @@ static int fpu__unlazy_stopped(struct task_struct *child)
 void fpu__restore(void)
 {
 	struct task_struct *tsk = current;
+	struct fpu *fpu = &tsk->thread.fpu;
 
 	if (!tsk_used_math(tsk)) {
 		local_irq_enable();
@@ -347,7 +348,7 @@ void fpu__restore(void)
 
 	/* Avoid __kernel_fpu_begin() right after __thread_fpu_begin() */
 	kernel_fpu_disable();
-	__thread_fpu_begin(tsk);
+	__thread_fpu_begin(fpu);
 	if (unlikely(restore_fpu_checking(tsk))) {
 		fpu_reset_state(tsk);
 		force_sig_info(SIGSEGV, SEND_SIG_PRIV, tsk);
