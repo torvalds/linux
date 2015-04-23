@@ -56,9 +56,9 @@ static struct inode *f2fs_new_inode(struct inode *dir, umode_t mode)
 		goto out;
 	}
 
-	if (f2fs_may_inline(inode))
+	if (f2fs_may_inline_data(inode))
 		set_inode_flag(F2FS_I(inode), FI_INLINE_DATA);
-	if (test_opt(sbi, INLINE_DENTRY) && S_ISDIR(inode->i_mode))
+	if (f2fs_may_inline_dentry(inode))
 		set_inode_flag(F2FS_I(inode), FI_INLINE_DENTRY);
 
 	trace_f2fs_new_inode(inode, 0);

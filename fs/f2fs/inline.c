@@ -13,7 +13,7 @@
 
 #include "f2fs.h"
 
-bool f2fs_may_inline(struct inode *inode)
+bool f2fs_may_inline_data(struct inode *inode)
 {
 	if (!test_opt(F2FS_I_SB(inode), INLINE_DATA))
 		return false;
@@ -25,6 +25,17 @@ bool f2fs_may_inline(struct inode *inode)
 		return false;
 
 	if (i_size_read(inode) > MAX_INLINE_DATA)
+		return false;
+
+	return true;
+}
+
+bool f2fs_may_inline_dentry(struct inode *inode)
+{
+	if (!test_opt(F2FS_I_SB(inode), INLINE_DENTRY))
+		return false;
+
+	if (!S_ISDIR(inode->i_mode))
 		return false;
 
 	return true;
