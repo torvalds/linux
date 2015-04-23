@@ -252,53 +252,6 @@ static long int trim_sg_list(struct nx_sg *sg,
 }
 
 /**
- * nx_sha_build_sg_list - walk and build sg list to sha modes
- *			  using right bounds and limits.
- * @nx_ctx: NX crypto context for the lists we're building
- * @nx_sg: current sg list in or out list
- * @op_len: current op_len to be used in order to build a sg list
- * @nbytes:  number or bytes to be processed
- * @offset: buf offset
- * @mode: SHA256 or SHA512
- */
-int nx_sha_build_sg_list(struct nx_crypto_ctx *nx_ctx,
-			  struct nx_sg 	      *nx_in_outsg,
-			  s64		      *op_len,
-			  unsigned int        *nbytes,
-			  u8 		      *offset,
-			  u32		      mode)
-{
-	unsigned int delta = 0;
-	unsigned int total = *nbytes;
-	struct nx_sg *nx_insg = nx_in_outsg;
-	unsigned int max_sg_len;
-
-	max_sg_len = min_t(u64, nx_ctx->ap->sglen,
-			nx_driver.of.max_sg_len/sizeof(struct nx_sg));
-	max_sg_len = min_t(u64, max_sg_len,
-			nx_ctx->ap->databytelen/NX_PAGE_SIZE);
-
-	*nbytes = min_t(u64, *nbytes, nx_ctx->ap->databytelen);
-	nx_insg = nx_build_sg_list(nx_insg, offset, nbytes, max_sg_len);
-
-	switch (mode) {
-	case NX_DS_SHA256:
-		if (*nbytes < total)
-			delta = *nbytes - (*nbytes & ~(SHA256_BLOCK_SIZE - 1));
-		break;
-	case NX_DS_SHA512:
-		if (*nbytes < total)
-			delta = *nbytes - (*nbytes & ~(SHA512_BLOCK_SIZE - 1));
-		break;
-	default:
-		return -EINVAL;
-	}
-	*op_len = trim_sg_list(nx_in_outsg, nx_insg, delta);
-
-	return 0;
-}
-
-/**
  * nx_build_sg_lists - walk the input scatterlists and build arrays of NX
  *                     scatterlists based on them.
  *
