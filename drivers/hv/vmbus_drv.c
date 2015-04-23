@@ -1035,6 +1035,15 @@ acpi_walk_err:
 	return ret_val;
 }
 
+static int vmbus_acpi_remove(struct acpi_device *device)
+{
+	int ret = 0;
+
+	if (hyperv_mmio.start && hyperv_mmio.end)
+		ret = release_resource(&hyperv_mmio);
+	return ret;
+}
+
 static const struct acpi_device_id vmbus_acpi_device_ids[] = {
 	{"VMBUS", 0},
 	{"VMBus", 0},
@@ -1047,6 +1056,7 @@ static struct acpi_driver vmbus_acpi_driver = {
 	.ids = vmbus_acpi_device_ids,
 	.ops = {
 		.add = vmbus_acpi_add,
+		.remove = vmbus_acpi_remove,
 	},
 };
 
