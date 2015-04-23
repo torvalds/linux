@@ -915,15 +915,12 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 	 * the machine driver, we need to calculate the ratio.
 	 */
 	if (mcasp->bclk_master && mcasp->bclk_div == 0 && mcasp->sysclk_freq) {
-		int channels = params_channels(params);
+		int slots = mcasp->tdm_slots;
 		int rate = params_rate(params);
 		int sbits = params_width(params);
 		int ppm, div;
 
-		if (channels > mcasp->tdm_slots)
-			channels = mcasp->tdm_slots;
-
-		div = davinci_mcasp_calc_clk_div(mcasp, rate*sbits*channels,
+		div = davinci_mcasp_calc_clk_div(mcasp, rate*sbits*slots,
 						 &ppm);
 		if (ppm)
 			dev_info(mcasp->dev, "Sample-rate is off by %d PPM\n",
@@ -1024,17 +1021,14 @@ static int davinci_mcasp_hw_rule_rate(struct snd_pcm_hw_params *params,
 	struct snd_interval *ri =
 		hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
 	int sbits = params_width(params);
-	int channels = params_channels(params);
+	int slots = rd->mcasp->tdm_slots;
 	unsigned int list[ARRAY_SIZE(davinci_mcasp_dai_rates)];
 	int i, count = 0;
-
-	if (channels > rd->mcasp->tdm_slots)
-		channels = rd->mcasp->tdm_slots;
 
 	for (i = 0; i < ARRAY_SIZE(davinci_mcasp_dai_rates); i++) {
 		if (ri->min <= davinci_mcasp_dai_rates[i] &&
 		    ri->max >= davinci_mcasp_dai_rates[i]) {
-			uint bclk_freq = sbits*channels*
+			uint bclk_freq = sbits*slots*
 				davinci_mcasp_dai_rates[i];
 			int ppm;
 
@@ -1044,8 +1038,8 @@ static int davinci_mcasp_hw_rule_rate(struct snd_pcm_hw_params *params,
 		}
 	}
 	dev_dbg(rd->mcasp->dev,
-		"%d frequencies (%d-%d) for %d sbits and %d channels\n",
-		count, ri->min, ri->max, sbits, channels);
+		"%d frequencies (%d-%d) for %d sbits and %d tdm slots\n",
+		count, ri->min, ri->max, sbits, slots);
 
 	return snd_interval_list(hw_param_interval(params, rule->var),
 				 count, list, 0);
@@ -1058,17 +1052,14 @@ static int davinci_mcasp_hw_rule_format(struct snd_pcm_hw_params *params,
 	struct snd_mask *fmt = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
 	struct snd_mask nfmt;
 	int rate = params_rate(params);
-	int channels = params_channels(params);
+	int slots = rd->mcasp->tdm_slots;
 	int i, count = 0;
 
 	snd_mask_none(&nfmt);
 
-	if (channels > rd->mcasp->tdm_slots)
-		channels = rd->mcasp->tdm_slots;
-
 	for (i = 0; i < SNDRV_PCM_FORMAT_LAST; i++) {
 		if (snd_mask_test(fmt, i)) {
-			uint bclk_freq = snd_pcm_format_width(i)*channels*rate;
+			uint bclk_freq = snd_pcm_format_width(i)*slots*rate;
 			int ppm;
 
 			davinci_mcasp_calc_clk_div(rd->mcasp, bclk_freq, &ppm);
@@ -1079,49 +1070,10 @@ static int davinci_mcasp_hw_rule_format(struct snd_pcm_hw_params *params,
 		}
 	}
 	dev_dbg(rd->mcasp->dev,
-		"%d possible sample format for %d Hz and %d channels\n",
-		count, rate, channels);
+		"%d possible sample format for %d Hz and %d tdm slots\n",
+		count, rate, slots);
 
 	return snd_mask_refine(fmt, &nfmt);
-}
-
-static int davinci_mcasp_hw_rule_channels(struct snd_pcm_hw_params *params,
-					  struct snd_pcm_hw_rule *rule)
-{
-	struct davinci_mcasp_ruledata *rd = rule->private;
-	struct snd_interval *ci =
-		hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
-	int sbits = params_width(params);
-	int rate = params_rate(params);
-	int max_chan_per_wire = rd->mcasp->tdm_slots < ci->max ?
-		rd->mcasp->tdm_slots : ci->max;
-	unsigned int list[ci->max - ci->min + 1];
-	int c1, c, count = 0;
-
-	for (c1 = ci->min; c1 <= max_chan_per_wire; c1++) {
-		uint bclk_freq = c1*sbits*rate;
-		int ppm;
-
-		davinci_mcasp_calc_clk_div(rd->mcasp, bclk_freq, &ppm);
-		if (abs(ppm) < DAVINCI_MAX_RATE_ERROR_PPM) {
-			/* If we can use all tdm_slots, we can put any
-			   amount of channels to remaining wires as
-			   long as they fit in. */
-			if (c1 == rd->mcasp->tdm_slots) {
-				for (c = c1; c <= rd->serializers*c1 &&
-					     c <= ci->max; c++)
-					list[count++] = c;
-			} else {
-				list[count++] = c1;
-			}
-		}
-	}
-	dev_dbg(rd->mcasp->dev,
-		"%d possible channel counts (%d-%d) for %d Hz and %d sbits\n",
-		count, ci->min, ci->max, rate, sbits);
-
-	return snd_interval_list(hw_param_interval(params, rule->var),
-				 count, list, 0);
 }
 
 static int davinci_mcasp_startup(struct snd_pcm_substream *substream,
@@ -1180,24 +1132,14 @@ static int davinci_mcasp_startup(struct snd_pcm_substream *substream,
 					  SNDRV_PCM_HW_PARAM_RATE,
 					  davinci_mcasp_hw_rule_rate,
 					  ruledata,
-					  SNDRV_PCM_HW_PARAM_FORMAT,
-					  SNDRV_PCM_HW_PARAM_CHANNELS, -1);
+					  SNDRV_PCM_HW_PARAM_FORMAT, -1);
 		if (ret)
 			return ret;
 		ret = snd_pcm_hw_rule_add(substream->runtime, 0,
 					  SNDRV_PCM_HW_PARAM_FORMAT,
 					  davinci_mcasp_hw_rule_format,
 					  ruledata,
-					  SNDRV_PCM_HW_PARAM_RATE,
-					  SNDRV_PCM_HW_PARAM_CHANNELS, -1);
-		if (ret)
-			return ret;
-		ret = snd_pcm_hw_rule_add(substream->runtime, 0,
-					  SNDRV_PCM_HW_PARAM_CHANNELS,
-					  davinci_mcasp_hw_rule_channels,
-					  ruledata,
-					  SNDRV_PCM_HW_PARAM_RATE,
-					  SNDRV_PCM_HW_PARAM_FORMAT, -1);
+					  SNDRV_PCM_HW_PARAM_RATE, -1);
 		if (ret)
 			return ret;
 	}
