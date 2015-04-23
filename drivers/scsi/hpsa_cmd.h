@@ -396,6 +396,7 @@ struct ErrorInfo {
 #define CMD_SCSI	0x03
 #define CMD_IOACCEL1	0x04
 #define CMD_IOACCEL2	0x05
+#define IOACCEL2_TMF	0x06
 
 #define DIRECT_LOOKUP_SHIFT 4
 #define DIRECT_LOOKUP_MASK (~((1 << DIRECT_LOOKUP_SHIFT) - 1))
@@ -590,6 +591,7 @@ struct io_accel2_cmd {
 #define IOACCEL2_DIR_NO_DATA	0x00
 #define IOACCEL2_DIR_DATA_IN	0x01
 #define IOACCEL2_DIR_DATA_OUT	0x02
+#define IOACCEL2_TMF_ABORT	0x01
 /*
  * SCSI Task Management Request format for Accelerator Mode 2
  */
@@ -598,13 +600,13 @@ struct hpsa_tmf_struct {
 	u8 reply_queue;		/* Reply Queue ID */
 	u8 tmf;			/* Task Management Function */
 	u8 reserved1;		/* byte 3 Reserved */
-	u32 it_nexus;		/* SCSI I-T Nexus */
+	__le32 it_nexus;	/* SCSI I-T Nexus */
 	u8 lun_id[8];		/* LUN ID for TMF request */
 	__le64 tag;		/* cciss tag associated w/ request */
 	__le64 abort_tag;	/* cciss tag of SCSI cmd or TMF to abort */
 	__le64 error_ptr;		/* Error Pointer */
 	__le32 error_len;		/* Error Length */
-};
+} __aligned(IOACCEL2_COMMANDLIST_ALIGNMENT);
 
 /* Configuration Table Structure */
 struct HostWrite {

@@ -231,6 +231,7 @@ struct ctlr_info {
 #define HPSATMF_PHYS_QRY_TASK   (1 << 7)
 #define HPSATMF_PHYS_QRY_TSET   (1 << 8)
 #define HPSATMF_PHYS_QRY_ASYNC  (1 << 9)
+#define HPSATMF_IOACCEL_ENABLED (1 << 15)
 #define HPSATMF_MASK_SUPPORTED  (1 << 16)
 #define HPSATMF_LOG_LUN_RESET   (1 << 17)
 #define HPSATMF_LOG_NEX_RESET   (1 << 18)

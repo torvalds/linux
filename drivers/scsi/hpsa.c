@@ -861,6 +861,28 @@ static void set_ioaccel1_performant_mode(struct ctlr_info *h,
 					IOACCEL1_BUSADDR_CMDTYPE;
 }
 
+static void set_ioaccel2_tmf_performant_mode(struct ctlr_info *h,
+						struct CommandList *c,
+						int reply_queue)
+{
+	struct hpsa_tmf_struct *cp = (struct hpsa_tmf_struct *)
+		&h->ioaccel2_cmd_pool[c->cmdindex];
+
+	/* Tell the controller to post the reply to the queue for this
+	 * processor.  This seems to give the best I/O throughput.
+	 */
+	if (likely(reply_queue == DEFAULT_REPLY_QUEUE))
+		cp->reply_queue = smp_processor_id() % h->nreply_queues;
+	else
+		cp->reply_queue = reply_queue % h->nreply_queues;
+	/* Set the bits in the address sent down to include:
+	 *  - performant mode bit not used in ioaccel mode 2
+	 *  - pull count (bits 0-3)
+	 *  - command type isn't needed for ioaccel2
+	 */
+	c->busaddr |= h->ioaccel2_blockFetchTable[0];
+}
+
 static void set_ioaccel2_performant_mode(struct ctlr_info *h,
 						struct CommandList *c,
 						int reply_queue)
@@ -925,6 +947,10 @@ static void __enqueue_cmd_and_start_io(struct ctlr_info *h,
 		break;
 	case CMD_IOACCEL2:
 		set_ioaccel2_performant_mode(h, c, reply_queue);
+		writel(c->busaddr, h->vaddr + IOACCEL2_INBOUND_POSTQ_32);
+		break;
+	case IOACCEL2_TMF:
+		set_ioaccel2_tmf_performant_mode(h, c, reply_queue);
 		writel(c->busaddr, h->vaddr + IOACCEL2_INBOUND_POSTQ_32);
 		break;
 	default:
@@ -4909,6 +4935,47 @@ static int hpsa_send_abort(struct ctlr_info *h, unsigned char *scsi3addr,
 	return rc;
 }
 
+static void setup_ioaccel2_abort_cmd(struct CommandList *c, struct ctlr_info *h,
+	struct CommandList *command_to_abort, int reply_queue)
+{
+	struct io_accel2_cmd *c2 = &h->ioaccel2_cmd_pool[c->cmdindex];
+	struct hpsa_tmf_struct *ac = (struct hpsa_tmf_struct *) c2;
+	struct io_accel2_cmd *c2a =
+		&h->ioaccel2_cmd_pool[command_to_abort->cmdindex];
+	struct scsi_cmnd *scmd =
+		(struct scsi_cmnd *) command_to_abort->scsi_cmd;
+	struct hpsa_scsi_dev_t *dev = scmd->device->hostdata;
+
+	/*
+	 * We're overlaying struct hpsa_tmf_struct on top of something which
+	 * was allocated as a struct io_accel2_cmd, so we better be sure it
+	 * actually fits, and doesn't overrun the error info space.
+	 */
+	BUILD_BUG_ON(sizeof(struct hpsa_tmf_struct) >
+			sizeof(struct io_accel2_cmd));
+	BUG_ON(offsetof(struct io_accel2_cmd, error_data) <
+			offsetof(struct hpsa_tmf_struct, error_len) +
+				sizeof(ac->error_len));
+
+	c->cmd_type = IOACCEL2_TMF;
+	/* Adjust the DMA address to point to the accelerated command buffer */
+	c->busaddr = (u32) h->ioaccel2_cmd_pool_dhandle +
+				(c->cmdindex * sizeof(struct io_accel2_cmd));
+	BUG_ON(c->busaddr & 0x0000007F);
+
+	memset(ac, 0, sizeof(*c2)); /* yes this is correct */
+	ac->iu_type = IOACCEL2_IU_TMF_TYPE;
+	ac->reply_queue = reply_queue;
+	ac->tmf = IOACCEL2_TMF_ABORT;
+	ac->it_nexus = cpu_to_le32(dev->ioaccel_handle);
+	memset(ac->lun_id, 0, sizeof(ac->lun_id));
+	ac->tag = cpu_to_le64(c->cmdindex << DIRECT_LOOKUP_SHIFT);
+	ac->abort_tag = cpu_to_le64(le32_to_cpu(c2a->Tag));
+	ac->error_ptr = cpu_to_le64(c->busaddr +
+			offsetof(struct io_accel2_cmd, error_data));
+	ac->error_len = cpu_to_le32(sizeof(c2->error_data));
+}
+
 /* ioaccel2 path firmware cannot handle abort task requests.
  * Change abort requests to physical target reset, and send to the
  * address of the physical disk used for the ioaccel 2 command.
@@ -4987,17 +5054,72 @@ static int hpsa_send_reset_as_abort_ioaccel2(struct ctlr_info *h,
 	return rc; /* success */
 }
 
+static int hpsa_send_abort_ioaccel2(struct ctlr_info *h,
+	struct CommandList *abort, int reply_queue)
+{
+	int rc = IO_OK;
+	struct CommandList *c;
+	__le32 taglower, tagupper;
+	struct hpsa_scsi_dev_t *dev;
+	struct io_accel2_cmd *c2;
+
+	dev = abort->scsi_cmd->device->hostdata;
+	if (!dev->offload_enabled && !dev->hba_ioaccel_enabled)
+		return -1;
+
+	c = cmd_alloc(h);
+	setup_ioaccel2_abort_cmd(c, h, abort, reply_queue);
+	c2 = &h->ioaccel2_cmd_pool[c->cmdindex];
+	(void) hpsa_scsi_do_simple_cmd(h, c, reply_queue, NO_TIMEOUT);
+	hpsa_get_tag(h, abort, &taglower, &tagupper);
+	dev_dbg(&h->pdev->dev,
+		"%s: Tag:0x%08x:%08x: do_simple_cmd(ioaccel2 abort) completed.\n",
+		__func__, tagupper, taglower);
+	/* no unmap needed here because no data xfer. */
+
+	dev_dbg(&h->pdev->dev,
+		"%s: Tag:0x%08x:%08x: abort service response = 0x%02x.\n",
+		__func__, tagupper, taglower, c2->error_data.serv_response);
+	switch (c2->error_data.serv_response) {
+	case IOACCEL2_SERV_RESPONSE_TMF_COMPLETE:
+	case IOACCEL2_SERV_RESPONSE_TMF_SUCCESS:
+		rc = 0;
+		break;
+	case IOACCEL2_SERV_RESPONSE_TMF_REJECTED:
+	case IOACCEL2_SERV_RESPONSE_FAILURE:
+	case IOACCEL2_SERV_RESPONSE_TMF_WRONG_LUN:
+		rc = -1;
+		break;
+	default:
+		dev_warn(&h->pdev->dev,
+			"%s: Tag:0x%08x:%08x: unknown abort service response 0x%02x\n",
+			__func__, tagupper, taglower,
+			c2->error_data.serv_response);
+		rc = -1;
+	}
+	cmd_free(h, c);
+	dev_dbg(&h->pdev->dev, "%s: Tag:0x%08x:%08x: Finished.\n", __func__,
+		tagupper, taglower);
+	return rc;
+}
+
 static int hpsa_send_abort_both_ways(struct ctlr_info *h,
 	unsigned char *scsi3addr, struct CommandList *abort, int reply_queue)
 {
-	/* ioccelerator mode 2 commands should be aborted via the
+	/*
+	 * ioccelerator mode 2 commands should be aborted via the
 	 * accelerated path, since RAID path is unaware of these commands,
-	 * but underlying firmware can't handle abort TMF.
-	 * Change abort to physical device reset.
+	 * but not all underlying firmware can handle abort TMF.
+	 * Change abort to physical device reset when abort TMF is unsupported.
 	 */
-	if (abort->cmd_type == CMD_IOACCEL2)
-		return hpsa_send_reset_as_abort_ioaccel2(h, scsi3addr,
+	if (abort->cmd_type == CMD_IOACCEL2) {
+		if (HPSATMF_IOACCEL_ENABLED & h->TMFSupportFlags)
+			return hpsa_send_abort_ioaccel2(h, abort,
+						reply_queue);
+		else
+			return hpsa_send_reset_as_abort_ioaccel2(h, scsi3addr,
 							abort, reply_queue);
+	}
 	return hpsa_send_abort(h, scsi3addr, abort, reply_queue);
 }
 
@@ -5887,7 +6009,7 @@ static inline void finish_cmd(struct CommandList *c)
 	if (likely(c->cmd_type == CMD_IOACCEL1 || c->cmd_type == CMD_SCSI
 			|| c->cmd_type == CMD_IOACCEL2))
 		complete_scsi_command(c);
-	else if (c->cmd_type == CMD_IOCTL_PEND)
+	else if (c->cmd_type == CMD_IOCTL_PEND || c->cmd_type == IOACCEL2_TMF)
 		complete(c->waiting);
 }
 
@@ -6668,6 +6790,8 @@ static void hpsa_find_board_params(struct ctlr_info *h)
 		dev_warn(&h->pdev->dev, "Physical aborts not supported\n");
 	if (!(HPSATMF_LOG_TASK_ABORT & h->TMFSupportFlags))
 		dev_warn(&h->pdev->dev, "Logical aborts not supported\n");
+	if (!(HPSATMF_IOACCEL_ENABLED & h->TMFSupportFlags))
+		dev_warn(&h->pdev->dev, "HP SSD Smart Path aborts not supported\n");
 }
 
 static inline bool hpsa_CISS_signature_present(struct ctlr_info *h)
