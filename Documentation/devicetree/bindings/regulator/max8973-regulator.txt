@@ -12,6 +12,8 @@ Optional properties:
 
 -maxim,externally-enable: boolean, externally control the regulator output
 		enable/disable.
+-maxim,enable-gpio: GPIO for enable control. If the valid GPIO is provided
+		then externally enable control will be considered.
 -maxim,dvs-gpio: GPIO which is connected to DVS pin of device.
 -maxim,dvs-default-state: Default state of GPIO during initialisation.
 		1 for HIGH and 0 for LOW.
