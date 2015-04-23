@@ -57,8 +57,7 @@ static bool interrupted_kernel_fpu_idle(void)
 	if (use_eager_fpu())
 		return true;
 
-	return !__thread_has_fpu(current) &&
-		(read_cr0() & X86_CR0_TS);
+	return !current->thread.fpu.has_fpu && (read_cr0() & X86_CR0_TS);
 }
 
 /*
@@ -93,11 +92,12 @@ EXPORT_SYMBOL(irq_fpu_usable);
 void __kernel_fpu_begin(void)
 {
 	struct task_struct *me = current;
+	struct fpu *fpu = &me->thread.fpu;
 
 	kernel_fpu_disable();
 
-	if (__thread_has_fpu(me)) {
-		fpu_save_init(&me->thread.fpu);
+	if (fpu->has_fpu) {
+		fpu_save_init(fpu);
 	} else {
 		this_cpu_write(fpu_owner_task, NULL);
 		if (!use_eager_fpu())
@@ -109,8 +109,9 @@ EXPORT_SYMBOL(__kernel_fpu_begin);
 void __kernel_fpu_end(void)
 {
 	struct task_struct *me = current;
+	struct fpu *fpu = &me->thread.fpu;
 
-	if (__thread_has_fpu(me)) {
+	if (fpu->has_fpu) {
 		if (WARN_ON(restore_fpu_checking(me)))
 			fpu_reset_state(me);
 	} else if (!use_eager_fpu()) {
@@ -128,14 +129,16 @@ EXPORT_SYMBOL(__kernel_fpu_end);
  */
 void fpu__save(struct task_struct *tsk)
 {
+	struct fpu *fpu = &tsk->thread.fpu;
+
 	WARN_ON(tsk != current);
 
 	preempt_disable();
-	if (__thread_has_fpu(tsk)) {
+	if (fpu->has_fpu) {
 		if (use_eager_fpu()) {
 			__save_fpu(tsk);
 		} else {
-			fpu_save_init(&tsk->thread.fpu);
+			fpu_save_init(fpu);
 			__thread_fpu_end(tsk);
 		}
 	}

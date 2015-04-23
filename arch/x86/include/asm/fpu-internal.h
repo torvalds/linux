@@ -323,16 +323,6 @@ static inline int restore_fpu_checking(struct task_struct *tsk)
 	return fpu_restore_checking(&tsk->thread.fpu);
 }
 
-/*
- * Software FPU state helpers. Careful: these need to
- * be preemption protection *and* they need to be
- * properly paired with the CR0.TS changes!
- */
-static inline int __thread_has_fpu(struct task_struct *tsk)
-{
-	return tsk->thread.fpu.has_fpu;
-}
-
 /* Must be paired with an 'stts' after! */
 static inline void __thread_clear_has_fpu(struct task_struct *tsk)
 {
@@ -370,13 +360,14 @@ static inline void __thread_fpu_begin(struct task_struct *tsk)
 
 static inline void drop_fpu(struct task_struct *tsk)
 {
+	struct fpu *fpu = &tsk->thread.fpu;
 	/*
 	 * Forget coprocessor state..
 	 */
 	preempt_disable();
 	tsk->thread.fpu.counter = 0;
 
-	if (__thread_has_fpu(tsk)) {
+	if (fpu->has_fpu) {
 		/* Ignore delayed exceptions from user space */
 		asm volatile("1: fwait\n"
 			     "2:\n"
@@ -424,6 +415,7 @@ typedef struct { int preload; } fpu_switch_t;
 
 static inline fpu_switch_t switch_fpu_prepare(struct task_struct *old, struct task_struct *new, int cpu)
 {
+	struct fpu *old_fpu = &old->thread.fpu;
 	fpu_switch_t fpu;
 
 	/*
@@ -433,7 +425,7 @@ static inline fpu_switch_t switch_fpu_prepare(struct task_struct *old, struct ta
 	fpu.preload = tsk_used_math(new) &&
 		      (use_eager_fpu() || new->thread.fpu.counter > 5);
 
-	if (__thread_has_fpu(old)) {
+	if (old_fpu->has_fpu) {
 		if (!fpu_save_init(&old->thread.fpu))
 			task_disable_lazy_fpu_restore(old);
 		else
