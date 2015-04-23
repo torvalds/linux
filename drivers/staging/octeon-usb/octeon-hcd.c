@@ -499,15 +499,21 @@ static int octeon_alloc_temp_buffer(struct urb *urb, gfp_t mem_flags)
 static void octeon_free_temp_buffer(struct urb *urb)
 {
 	struct octeon_temp_buffer *temp;
+	size_t length;
 
 	if (!(urb->transfer_flags & URB_ALIGNED_TEMP_BUFFER))
 		return;
 
 	temp = container_of(urb->transfer_buffer, struct octeon_temp_buffer,
 			    data);
-	if (usb_urb_dir_in(urb))
-		memcpy(temp->orig_buffer, urb->transfer_buffer,
-		       urb->actual_length);
+	if (usb_urb_dir_in(urb)) {
+		if (usb_pipeisoc(urb->pipe))
+			length = urb->transfer_buffer_length;
+		else
+			length = urb->actual_length;
+
+		memcpy(temp->orig_buffer, urb->transfer_buffer, length);
+	}
 	urb->transfer_buffer = temp->orig_buffer;
 	urb->transfer_flags &= ~URB_ALIGNED_TEMP_BUFFER;
 	kfree(temp);
