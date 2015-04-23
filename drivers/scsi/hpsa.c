@@ -4375,6 +4375,33 @@ static inline void hpsa_cmd_partial_init(struct ctlr_info *h, int index,
 	c->busaddr = (u32) cmd_dma_handle;
 }
 
+static int hpsa_ioaccel_submit(struct ctlr_info *h,
+		struct CommandList *c, struct scsi_cmnd *cmd,
+		unsigned char *scsi3addr)
+{
+	struct hpsa_scsi_dev_t *dev = cmd->device->hostdata;
+	int rc = IO_ACCEL_INELIGIBLE;
+
+	cmd->host_scribble = (unsigned char *) c;
+
+	if (dev->offload_enabled) {
+		hpsa_cmd_init(h, c->cmdindex, c);
+		c->cmd_type = CMD_SCSI;
+		c->scsi_cmd = cmd;
+		rc = hpsa_scsi_ioaccel_raid_map(h, c);
+		if (rc < 0)     /* scsi_dma_map failed. */
+			rc = SCSI_MLQUEUE_HOST_BUSY;
+	} else if (dev->ioaccel_handle) {
+		hpsa_cmd_init(h, c->cmdindex, c);
+		c->cmd_type = CMD_SCSI;
+		c->scsi_cmd = cmd;
+		rc = hpsa_scsi_ioaccel_direct_map(h, c);
+		if (rc < 0)     /* scsi_dma_map failed. */
+			rc = SCSI_MLQUEUE_HOST_BUSY;
+	}
+	return rc;
+}
+
 static void hpsa_command_resubmit_worker(struct work_struct *work)
 {
 	struct scsi_cmnd *cmd;
@@ -4386,8 +4413,36 @@ static void hpsa_command_resubmit_worker(struct work_struct *work)
 	dev = cmd->device->hostdata;
 	if (!dev) {
 		cmd->result = DID_NO_CONNECT << 16;
+		cmd_free(c->h, c);
 		cmd->scsi_done(cmd);
 		return;
+	}
+	if (c->cmd_type == CMD_IOACCEL2) {
+		struct ctlr_info *h = c->h;
+		struct io_accel2_cmd *c2 = &h->ioaccel2_cmd_pool[c->cmdindex];
+		int rc;
+
+		if (c2->error_data.serv_response ==
+				IOACCEL2_STATUS_SR_TASK_COMP_SET_FULL) {
+			rc = hpsa_ioaccel_submit(h, c, cmd, dev->scsi3addr);
+			if (rc == 0)
+				return;
+			if (rc == SCSI_MLQUEUE_HOST_BUSY) {
+				/*
+				 * If we get here, it means dma mapping failed.
+				 * Try again via scsi mid layer, which will
+				 * then get SCSI_MLQUEUE_HOST_BUSY.
+				 */
+				cmd->result = DID_IMM_RETRY << 16;
+				cmd->scsi_done(cmd);
+				cmd_free(h, c);	/* FIX-ME:  on merge, change
+						 * to cmd_tagged_free() and
+						 * ultimately to
+						 * hpsa_cmd_free_and_done(). */
+				return;
+			}
+			/* else, fall thru and resubmit down CISS path */
+		}
 	}
 	hpsa_cmd_partial_init(c->h, c->cmdindex, c);
 	if (hpsa_ciss_submit(c->h, c, cmd, dev->scsi3addr)) {
@@ -4395,6 +4450,9 @@ static void hpsa_command_resubmit_worker(struct work_struct *work)
 		 * If we get here, it means dma mapping failed. Try
 		 * again via scsi mid layer, which will then get
 		 * SCSI_MLQUEUE_HOST_BUSY.
+		 *
+		 * hpsa_ciss_submit will have already freed c
+		 * if it encountered a dma mapping failure.
 		 */
 		cmd->result = DID_IMM_RETRY << 16;
 		cmd->scsi_done(cmd);
@@ -4444,31 +4502,14 @@ static int hpsa_scsi_queue_command(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 	if (likely(cmd->retries == 0 &&
 		cmd->request->cmd_type == REQ_TYPE_FS &&
 		h->acciopath_status)) {
-
-		cmd->host_scribble = (unsigned char *) c;
-
-		if (dev->offload_enabled) {
-			hpsa_cmd_init(h, c->cmdindex, c);
-			c->cmd_type = CMD_SCSI;
-			c->scsi_cmd = cmd;
-			rc = hpsa_scsi_ioaccel_raid_map(h, c);
-			if (rc == 0)
-				return 0; /* Sent on ioaccel path */
-			if (rc < 0) {   /* scsi_dma_map failed. */
-				cmd_free(h, c);
-				return SCSI_MLQUEUE_HOST_BUSY;
-			}
-		} else if (dev->ioaccel_handle) {
-			hpsa_cmd_init(h, c->cmdindex, c);
-			c->cmd_type = CMD_SCSI;
-			c->scsi_cmd = cmd;
-			rc = hpsa_scsi_ioaccel_direct_map(h, c);
-			if (rc == 0)
-				return 0; /* Sent on direct map path */
-			if (rc < 0) {   /* scsi_dma_map failed. */
-				cmd_free(h, c);
-				return SCSI_MLQUEUE_HOST_BUSY;
-			}
+		rc = hpsa_ioaccel_submit(h, c, cmd, scsi3addr);
+		if (rc == 0)
+			return 0;
+		if (rc == SCSI_MLQUEUE_HOST_BUSY) {
+			cmd_free(h, c);	/* FIX-ME:  on merge, change to
+					 * cmd_tagged_free(), and ultimately
+					 * to hpsa_cmd_resolve_and_free(). */
+			return SCSI_MLQUEUE_HOST_BUSY;
 		}
 	}
 	return hpsa_ciss_submit(h, c, cmd, scsi3addr);
