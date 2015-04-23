@@ -389,10 +389,6 @@ enum vmbus_channel_message_type {
 	CHANNELMSG_INITIATE_CONTACT		= 14,
 	CHANNELMSG_VERSION_RESPONSE		= 15,
 	CHANNELMSG_UNLOAD			= 16,
-#ifdef VMBUS_FEATURE_PARENT_OR_PEER_MEMORY_MAPPED_INTO_A_CHILD
-	CHANNELMSG_VIEWRANGE_ADD		= 17,
-	CHANNELMSG_VIEWRANGE_REMOVE		= 18,
-#endif
 	CHANNELMSG_COUNT
 };
 
@@ -548,21 +544,6 @@ struct vmbus_channel_gpadl_torndown {
 	struct vmbus_channel_message_header header;
 	u32 gpadl;
 } __packed;
-
-#ifdef VMBUS_FEATURE_PARENT_OR_PEER_MEMORY_MAPPED_INTO_A_CHILD
-struct vmbus_channel_view_range_add {
-	struct vmbus_channel_message_header header;
-	PHYSICAL_ADDRESS viewrange_base;
-	u64 viewrange_length;
-	u32 child_relid;
-} __packed;
-
-struct vmbus_channel_view_range_remove {
-	struct vmbus_channel_message_header header;
-	PHYSICAL_ADDRESS viewrange_base;
-	u32 child_relid;
-} __packed;
-#endif
 
 struct vmbus_channel_relid_released {
 	struct vmbus_channel_message_header header;
