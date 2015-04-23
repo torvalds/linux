@@ -34,6 +34,8 @@
 #include <linux/of_gpio.h>
 #include <linux/gpio.h>
 #include <linux/slab.h>
+#include "../tp_suspend.h"
+
 
 //#include <mach/gpio.h>
 //#include <linux/earlysuspend.h>
@@ -108,6 +110,8 @@ struct goodix_ts_data {
     u8  fixed_cfg;
     u8  fw_error;
     u8  pnl_init_error;
+//add struct tp_device by Sam
+    struct  tp_device  tp;
 
     //add by Daniel(yc)
     int irq;

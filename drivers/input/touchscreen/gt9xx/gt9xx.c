@@ -86,11 +86,6 @@ static const struct file_operations config_proc_ops = {
     .write = gt91xx_config_write_proc,
 };
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-static void goodix_ts_early_suspend(struct early_suspend *h);
-static void goodix_ts_late_resume(struct early_suspend *h);
-#endif
- 
 #if GTP_CREATE_WR_NODE
 extern s32 init_wr_node(struct i2c_client*);
 extern void uninit_wr_node(void);
@@ -1177,7 +1172,6 @@ static s8 gtp_enter_sleep(struct goodix_ts_data * ts)
     s8 ret = -1;
     s8 retry = 0;
     u8 i2c_control_buf[3] = {(u8)(GTP_REG_SLEEP >> 8), (u8)GTP_REG_SLEEP, 5};
-
 #if GTP_COMPATIBLE_MODE
     u8 status_buf[3] = {0x80, 0x44};
 #endif
@@ -1896,6 +1890,103 @@ test_pit:
 
 /*******************************************************
 Function:
+    Early suspend function.
+Input:
+    h: early_suspend struct.
+Output:
+    None.
+*******************************************************/
+static void goodix_ts_early_suspend(struct tp_device *tp_d)
+{
+    struct goodix_ts_data *ts;
+    s8 ret = -1;
+    ts = container_of(tp_d, struct goodix_ts_data, tp);
+    GTP_DEBUG_FUNC();
+
+    GTP_INFO("System suspend.");
+
+    ts->gtp_is_suspend = 1;
+#if GTP_ESD_PROTECT
+    gtp_esd_switch(ts->client, SWITCH_OFF);
+#endif
+
+#if GTP_GESTURE_WAKEUP
+    ret = gtp_enter_doze(ts);
+#else
+    if (ts->use_irq)
+    {
+        gtp_irq_disable(ts);
+    }
+    else
+    {
+        hrtimer_cancel(&ts->timer);
+    }
+    ret = gtp_enter_sleep(ts);
+#endif
+    if (ret < 0)
+    {
+        printk("GTP early suspend failed.");
+    }
+    // to avoid waking up while not sleeping
+    //  delay 48 + 10ms to ensure reliability
+    msleep(58);
+}
+
+/*******************************************************
+Function:
+    Late resume function.
+Input:
+    h: early_suspend struct.
+Output:
+    None.
+*******************************************************/
+static void goodix_ts_early_resume(struct tp_device *tp_d)
+{
+    struct goodix_ts_data *ts;
+    s8 ret = -1;
+    ts = container_of(tp_d, struct goodix_ts_data, tp);
+    GTP_DEBUG_FUNC();
+
+    GTP_INFO("System resume.");
+
+    ret = gtp_wakeup_sleep(ts);
+
+#if GTP_GESTURE_WAKEUP
+    doze_status = DOZE_DISABLED;
+#endif
+
+    if (ret < 0)
+    {
+        GTP_ERROR("GTP later resume failed.");
+    }
+#if (GTP_COMPATIBLE_MODE)
+    if (CHIP_TYPE_GT9F == ts->chip_type)
+    {
+        // do nothing
+    }
+    else
+#endif
+    {
+        gtp_send_cfg(ts->client);
+    }
+
+    if (ts->use_irq)
+    {
+        gtp_irq_enable(ts);
+    }
+    else
+    {
+        hrtimer_start(&ts->timer, ktime_set(1, 0), HRTIMER_MODE_REL);
+    }
+
+    ts->gtp_is_suspend = 0;
+#if GTP_ESD_PROTECT
+    gtp_esd_switch(ts->client, SWITCH_ON);
+#endif
+}
+
+/*******************************************************
+Function:
     Request input device Function.
 Input:
     ts:private data.
@@ -1910,7 +2001,6 @@ static s8 gtp_request_input_dev(struct goodix_ts_data *ts)
 #if GTP_HAVE_TOUCH_KEY
     u8 index = 0;
 #endif
-  
     GTP_DEBUG_FUNC();
   
     ts->input_dev = input_allocate_device();
@@ -1964,12 +2054,9 @@ static s8 gtp_request_input_dev(struct goodix_ts_data *ts)
         return -ENODEV;
     }
     
-#ifdef CONFIG_HAS_EARLYSUSPEND
-    ts->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
-    ts->early_suspend.suspend = goodix_ts_early_suspend;
-    ts->early_suspend.resume = goodix_ts_late_resume;
-    register_early_suspend(&ts->early_suspend);
-#endif
+    ts->tp.tp_resume = goodix_ts_early_resume;
+    ts->tp.tp_suspend = goodix_ts_early_suspend;
+    tp_register_fb(&ts->tp);
 
 #if GTP_WITH_PEN
     gtp_pen_init(ts);
@@ -2509,6 +2596,7 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
     spin_lock_init(&ts->esd_lock);
     // ts->esd_lock = SPIN_LOCK_UNLOCKED;
 #endif
+
     i2c_set_clientdata(client, ts);
     
     ts->gtp_rawdiff_mode = 0;
@@ -2619,9 +2707,11 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 
 probe_init_error:
     printk("   <%s>_%d  prob error !!!!!!!!!!!!!!!\n", __func__, __LINE__);    
+    tp_unregister_fb(&ts->tp);
     GTP_GPIO_FREE(ts->rst_pin);
     GTP_GPIO_FREE(ts->irq_pin);
-probe_init_error_requireio:    
+probe_init_error_requireio:
+    tp_unregister_fb(&ts->tp); 
     kfree(ts);
     return ret;
 }
@@ -2639,11 +2729,9 @@ static int goodix_ts_remove(struct i2c_client *client)
 {
     struct goodix_ts_data *ts = i2c_get_clientdata(client);
     
+    tp_unregister_fb(&ts->tp);
+
     GTP_DEBUG_FUNC();
-    
-#ifdef CONFIG_HAS_EARLYSUSPEND
-    unregister_early_suspend(&ts->early_suspend);
-#endif
 
 #if GTP_CREATE_WR_NODE
     uninit_wr_node();
@@ -2679,106 +2767,9 @@ static int goodix_ts_remove(struct i2c_client *client)
     return 0;
 }
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-/*******************************************************
-Function:
-    Early suspend function.
-Input:
-    h: early_suspend struct.
-Output:
-    None.
-*******************************************************/
-static void goodix_ts_early_suspend(struct early_suspend *h)
-{
-    struct goodix_ts_data *ts;
-    s8 ret = -1;    
-    ts = container_of(h, struct goodix_ts_data, early_suspend);
-    
-    GTP_DEBUG_FUNC();
-    
-    GTP_INFO("System suspend.");
 
-    ts->gtp_is_suspend = 1;
-#if GTP_ESD_PROTECT
-    gtp_esd_switch(ts->client, SWITCH_OFF);
-#endif
 
-#if GTP_GESTURE_WAKEUP
-    ret = gtp_enter_doze(ts);
-#else
-    if (ts->use_irq)
-    {
-        gtp_irq_disable(ts);
-    }
-    else
-    {
-        hrtimer_cancel(&ts->timer);
-    }
-    ret = gtp_enter_sleep(ts);
-#endif 
-    if (ret < 0)
-    {
-        GTP_ERROR("GTP early suspend failed.");
-    }
-    // to avoid waking up while not sleeping
-    //  delay 48 + 10ms to ensure reliability    
-    msleep(58);   
-}
 
-/*******************************************************
-Function:
-    Late resume function.
-Input:
-    h: early_suspend struct.
-Output:
-    None.
-*******************************************************/
-static void goodix_ts_late_resume(struct early_suspend *h)
-{
-    struct goodix_ts_data *ts;
-    s8 ret = -1;
-    ts = container_of(h, struct goodix_ts_data, early_suspend);
-    
-    GTP_DEBUG_FUNC();
-    
-    GTP_INFO("System resume.");
-    
-    ret = gtp_wakeup_sleep(ts);
-
-#if GTP_GESTURE_WAKEUP
-    doze_status = DOZE_DISABLED;
-#endif
-
-    if (ret < 0)
-    {
-        GTP_ERROR("GTP later resume failed.");
-    }
-#if (GTP_COMPATIBLE_MODE)
-    if (CHIP_TYPE_GT9F == ts->chip_type)
-    {
-        // do nothing
-    }
-    else
-#endif
-    {
-        gtp_send_cfg(ts->client);
-    }
-
-    if (ts->use_irq)
-    {
-        gtp_irq_enable(ts);
-    }
-    else
-    {
-        hrtimer_start(&ts->timer, ktime_set(1, 0), HRTIMER_MODE_REL);
-    }
-
-    ts->gtp_is_suspend = 0;
-#if GTP_ESD_PROTECT
-    gtp_esd_switch(ts->client, SWITCH_ON);
-#endif
-}
-#endif
 
 #if GTP_ESD_PROTECT
 s32 gtp_i2c_read_no_rst(struct i2c_client *client, u8 *buf, s32 len)
@@ -3032,11 +3023,6 @@ static struct of_device_id goodix_ts_dt_ids[] = {
 static struct i2c_driver goodix_ts_driver = {
     .probe      = goodix_ts_probe,
     .remove     = goodix_ts_remove,
-//#ifndef CONFIG_HAS_EARLYSUSPEND
-#ifdef CONFIG_HAS_EARLYSUSPEND
-    .suspend    = goodix_ts_early_suspend,
-    .resume     = goodix_ts_late_resume,
-#endif
     .id_table   = goodix_ts_id,
     .driver = {
         .name     = GTP_I2C_NAME,
