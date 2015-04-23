@@ -643,7 +643,7 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 	skb_queue_head_init(&local->skb_queue);
 	skb_queue_head_init(&local->skb_queue_unreliable);
 
-	ieee80211_led_names(local);
+	ieee80211_alloc_led_names(local);
 
 	ieee80211_roc_setup(local);
 
@@ -1206,6 +1206,8 @@ void ieee80211_free_hw(struct ieee80211_hw *hw)
 	idr_destroy(&local->ack_status_frames);
 
 	sta_info_stop(local);
+
+	ieee80211_free_led_names(local);
 
 	wiphy_free(local->hw.wiphy);
 }

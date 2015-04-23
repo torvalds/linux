@@ -1260,10 +1260,11 @@ struct ieee80211_local {
 	struct mutex chanctx_mtx;
 
 #ifdef CONFIG_MAC80211_LEDS
-	struct led_trigger *tx_led, *rx_led, *assoc_led, *radio_led;
+	struct led_trigger tx_led, rx_led, assoc_led, radio_led;
+	struct led_trigger tpt_led;
+	atomic_t tx_led_active, rx_led_active, assoc_led_active;
+	atomic_t radio_led_active, tpt_led_active;
 	struct tpt_led_trigger *tpt_led_trigger;
-	char tx_led_name[32], rx_led_name[32],
-	     assoc_led_name[32], radio_led_name[32];
 #endif
 
 #ifdef CONFIG_MAC80211_DEBUG_COUNTERS
