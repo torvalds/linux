@@ -153,8 +153,6 @@ void nx_crypto_ctx_exit(struct crypto_tfm *tfm);
 void nx_ctx_init(struct nx_crypto_ctx *nx_ctx, unsigned int function);
 int nx_hcall_sync(struct nx_crypto_ctx *ctx, struct vio_pfo_op *op,
 		  u32 may_sleep);
-int nx_sha_build_sg_list(struct nx_crypto_ctx *, struct nx_sg *,
-			 s64 *, unsigned int *, u8 *, u32);
 struct nx_sg *nx_build_sg_list(struct nx_sg *, u8 *, unsigned int *, u32);
 int nx_build_sg_lists(struct nx_crypto_ctx *, struct blkcipher_desc *,
 		      struct scatterlist *, struct scatterlist *, unsigned int *,
