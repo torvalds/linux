@@ -125,15 +125,15 @@ void __kernel_fpu_end(void)
 }
 EXPORT_SYMBOL(__kernel_fpu_end);
 
-static void __save_fpu(struct task_struct *tsk)
+static void __save_fpu(struct fpu *fpu)
 {
 	if (use_xsave()) {
 		if (unlikely(system_state == SYSTEM_BOOTING))
-			xsave_state_booting(&tsk->thread.fpu.state->xsave);
+			xsave_state_booting(&fpu->state->xsave);
 		else
-			xsave_state(&tsk->thread.fpu.state->xsave);
+			xsave_state(&fpu->state->xsave);
 	} else {
-		fpu_fxsave(&tsk->thread.fpu);
+		fpu_fxsave(fpu);
 	}
 }
 
@@ -151,7 +151,7 @@ void fpu__save(struct task_struct *tsk)
 	preempt_disable();
 	if (fpu->has_fpu) {
 		if (use_eager_fpu()) {
-			__save_fpu(tsk);
+			__save_fpu(fpu);
 		} else {
 			fpu_save_init(fpu);
 			__thread_fpu_end(fpu);
@@ -231,17 +231,17 @@ EXPORT_SYMBOL_GPL(fpstate_free);
  */
 static void fpu_copy(struct task_struct *dst, struct task_struct *src)
 {
+	struct fpu *dst_fpu = &dst->thread.fpu;
+	struct fpu *src_fpu = &src->thread.fpu;
+
 	WARN_ON(src != current);
 
 	if (use_eager_fpu()) {
 		memset(&dst->thread.fpu.state->xsave, 0, xstate_size);
-		__save_fpu(dst);
+		__save_fpu(dst_fpu);
 	} else {
-		struct fpu *dfpu = &dst->thread.fpu;
-		struct fpu *sfpu = &src->thread.fpu;
-
 		fpu__save(src);
-		memcpy(dfpu->state, sfpu->state, xstate_size);
+		memcpy(dst_fpu->state, src_fpu->state, xstate_size);
 	}
 }
 
