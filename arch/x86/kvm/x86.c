@@ -6597,10 +6597,11 @@ static int complete_emulated_mmio(struct kvm_vcpu *vcpu)
 
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
+	struct fpu *fpu = &current->thread.fpu;
 	int r;
 	sigset_t sigsaved;
 
-	if (!(current->flags & PF_USED_MATH) && fpstate_alloc_init(current))
+	if (!fpu->fpstate_active && fpstate_alloc_init(current))
 		return -ENOMEM;
 
 	if (vcpu->sigset_active)

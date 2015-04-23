@@ -236,14 +236,17 @@ static void fpu_copy(struct task_struct *dst, struct task_struct *src)
 
 int fpu__copy(struct task_struct *dst, struct task_struct *src)
 {
+	struct fpu *dst_fpu = &dst->thread.fpu;
+	struct fpu *src_fpu = &src->thread.fpu;
+
 	dst->thread.fpu.counter = 0;
 	dst->thread.fpu.has_fpu = 0;
 	dst->thread.fpu.state = NULL;
 
 	task_disable_lazy_fpu_restore(dst);
 
-	if (src->flags & PF_USED_MATH) {
-		int err = fpstate_alloc(&dst->thread.fpu);
+	if (src_fpu->fpstate_active) {
+		int err = fpstate_alloc(dst_fpu);
 
 		if (err)
 			return err;
@@ -260,11 +263,12 @@ int fpu__copy(struct task_struct *dst, struct task_struct *src)
  */
 int fpstate_alloc_init(struct task_struct *curr)
 {
+	struct fpu *fpu = &curr->thread.fpu;
 	int ret;
 
 	if (WARN_ON_ONCE(curr != current))
 		return -EINVAL;
-	if (WARN_ON_ONCE(curr->flags & PF_USED_MATH))
+	if (WARN_ON_ONCE(fpu->fpstate_active))
 		return -EINVAL;
 
 	/*
@@ -277,7 +281,7 @@ int fpstate_alloc_init(struct task_struct *curr)
 	fpstate_init(&curr->thread.fpu);
 
 	/* Safe to do for the current task: */
-	curr->flags |= PF_USED_MATH;
+	fpu->fpstate_active = 1;
 
 	return 0;
 }
@@ -308,12 +312,13 @@ EXPORT_SYMBOL_GPL(fpstate_alloc_init);
  */
 static int fpu__unlazy_stopped(struct task_struct *child)
 {
+	struct fpu *child_fpu = &child->thread.fpu;
 	int ret;
 
 	if (WARN_ON_ONCE(child == current))
 		return -EINVAL;
 
-	if (child->flags & PF_USED_MATH) {
+	if (child_fpu->fpstate_active) {
 		task_disable_lazy_fpu_restore(child);
 		return 0;
 	}
@@ -328,7 +333,7 @@ static int fpu__unlazy_stopped(struct task_struct *child)
 	fpstate_init(&child->thread.fpu);
 
 	/* Safe to do for stopped child tasks: */
-	child->flags |= PF_USED_MATH;
+	child_fpu->fpstate_active = 1;
 
 	return 0;
 }
@@ -348,7 +353,7 @@ void fpu__restore(void)
 	struct task_struct *tsk = current;
 	struct fpu *fpu = &tsk->thread.fpu;
 
-	if (!(tsk->flags & PF_USED_MATH)) {
+	if (!fpu->fpstate_active) {
 		local_irq_enable();
 		/*
 		 * does a slab alloc which can sleep
@@ -378,6 +383,8 @@ EXPORT_SYMBOL_GPL(fpu__restore);
 
 void fpu__flush_thread(struct task_struct *tsk)
 {
+	struct fpu *fpu = &tsk->thread.fpu;
+
 	WARN_ON(tsk != current);
 
 	if (!use_eager_fpu()) {
@@ -385,7 +392,7 @@ void fpu__flush_thread(struct task_struct *tsk)
 		drop_fpu(tsk);
 		fpstate_free(&tsk->thread.fpu);
 	} else {
-		if (!(tsk->flags & PF_USED_MATH)) {
+		if (!fpu->fpstate_active) {
 			/* kthread execs. TODO: cleanup this horror. */
 		if (WARN_ON(fpstate_alloc_init(tsk)))
 				force_sig(SIGKILL, tsk);
@@ -402,12 +409,16 @@ void fpu__flush_thread(struct task_struct *tsk)
  */
 int fpregs_active(struct task_struct *target, const struct user_regset *regset)
 {
-	return (target->flags & PF_USED_MATH) ? regset->n : 0;
+	struct fpu *target_fpu = &target->thread.fpu;
+
+	return target_fpu->fpstate_active ? regset->n : 0;
 }
 
 int xfpregs_active(struct task_struct *target, const struct user_regset *regset)
 {
-	return (cpu_has_fxsr && (target->flags & PF_USED_MATH)) ? regset->n : 0;
+	struct fpu *target_fpu = &target->thread.fpu;
+
+	return (cpu_has_fxsr && target_fpu->fpstate_active) ? regset->n : 0;
 }
 
 int xfpregs_get(struct task_struct *target, const struct user_regset *regset,
@@ -733,16 +744,17 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
  * struct user_i387_struct) but is in fact only used for 32-bit
  * dumps, so on 64-bit it is really struct user_i387_ia32_struct.
  */
-int dump_fpu(struct pt_regs *regs, struct user_i387_struct *fpu)
+int dump_fpu(struct pt_regs *regs, struct user_i387_struct *ufpu)
 {
 	struct task_struct *tsk = current;
+	struct fpu *fpu = &tsk->thread.fpu;
 	int fpvalid;
 
-	fpvalid = !!(tsk->flags & PF_USED_MATH);
+	fpvalid = fpu->fpstate_active;
 	if (fpvalid)
 		fpvalid = !fpregs_get(tsk, NULL,
 				      0, sizeof(struct user_i387_ia32_struct),
-				      fpu, NULL);
+				      ufpu, NULL);
 
 	return fpvalid;
 }

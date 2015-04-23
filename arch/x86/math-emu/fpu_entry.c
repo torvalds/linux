@@ -147,8 +147,9 @@ void math_emulate(struct math_emu_info *info)
 	unsigned long code_base = 0;
 	unsigned long code_limit = 0;	/* Initialized to stop compiler warnings */
 	struct desc_struct code_descriptor;
+	struct fpu *fpu = &current->thread.fpu;
 
-	if (!(current->flags & PF_USED_MATH)) {
+	if (!fpu->fpstate_active) {
 		if (fpstate_alloc_init(current)) {
 			do_group_exit(SIGKILL);
 			return;

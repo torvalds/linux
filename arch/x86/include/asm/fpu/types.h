@@ -137,6 +137,12 @@ struct fpu {
 	 * deal with bursty apps that only use the FPU for a short time:
 	 */
 	unsigned char			counter;
+	/*
+	 * This flag indicates whether this context is fpstate_active: if the task is
+	 * not running then we can restore from this context, if the task
+	 * is running then we should save into this context.
+	 */
+	unsigned char			fpstate_active;
 };
 
 #endif /* _ASM_X86_FPU_H */

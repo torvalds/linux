@@ -307,6 +307,7 @@ static void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
 				 size_t frame_size,
 				 void __user **fpstate)
 {
+	struct fpu *fpu = &current->thread.fpu;
 	unsigned long sp;
 
 	/* Default to using normal stack */
@@ -321,7 +322,7 @@ static void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
 		 ksig->ka.sa.sa_restorer)
 		sp = (unsigned long) ksig->ka.sa.sa_restorer;
 
-	if (current->flags & PF_USED_MATH) {
+	if (fpu->fpstate_active) {
 		unsigned long fx_aligned, math_size;
 
 		sp = alloc_mathframe(sp, 1, &fx_aligned, &math_size);

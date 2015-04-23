@@ -198,6 +198,7 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
 	unsigned long sp = regs->sp;
 	unsigned long buf_fx = 0;
 	int onsigstack = on_sig_stack(sp);
+	struct fpu *fpu = &current->thread.fpu;
 
 	/* redzone */
 	if (config_enabled(CONFIG_X86_64))
@@ -217,7 +218,7 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
 		}
 	}
 
-	if (current->flags & PF_USED_MATH) {
+	if (fpu->fpstate_active) {
 		sp = alloc_mathframe(sp, config_enabled(CONFIG_X86_32),
 				     &buf_fx, &math_size);
 		*fpstate = (void __user *)sp;
@@ -233,7 +234,7 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
 		return (void __user *)-1L;
 
 	/* save i387 and extended state */
-	if ((current->flags & PF_USED_MATH) &&
+	if (fpu->fpstate_active &&
 	    save_xstate_sig(*fpstate, (void __user *)buf_fx, math_size) < 0)
 		return (void __user *)-1L;
 
@@ -616,6 +617,7 @@ static void
 handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 {
 	bool stepping, failed;
+	struct fpu *fpu = &current->thread.fpu;
 
 	/* Are we from a system call? */
 	if (syscall_get_nr(current, regs) >= 0) {
@@ -664,7 +666,7 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 		/*
 		 * Ensure the signal handler starts with the new fpu state.
 		 */
-		if (current->flags & PF_USED_MATH)
+		if (fpu->fpstate_active)
 			fpu_reset_state(current);
 	}
 	signal_setup_done(failed, ksig, stepping);

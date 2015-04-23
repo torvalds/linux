@@ -375,7 +375,7 @@ static inline void drop_fpu(struct task_struct *tsk)
 		__thread_fpu_end(fpu);
 	}
 
-	tsk->flags &= ~PF_USED_MATH;
+	fpu->fpstate_active = 0;
 
 	preempt_enable();
 }
@@ -424,7 +424,7 @@ static inline fpu_switch_t switch_fpu_prepare(struct task_struct *old, struct ta
 	 * If the task has used the math, pre-load the FPU on xsave processors
 	 * or if the past 5 consecutive context-switches used math.
 	 */
-	fpu.preload = (new->flags & PF_USED_MATH) &&
+	fpu.preload = new_fpu->fpstate_active &&
 		      (use_eager_fpu() || new->thread.fpu.counter > 5);
 
 	if (old_fpu->has_fpu) {

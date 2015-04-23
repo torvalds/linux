@@ -385,6 +385,10 @@ struct thread_struct {
 	unsigned long		fs;
 #endif
 	unsigned long		gs;
+
+	/* Floating point and extended processor state */
+	struct fpu		fpu;
+
 	/* Save middle states of ptrace breakpoints */
 	struct perf_event	*ptrace_bps[HBP_NUM];
 	/* Debug status used for traps, single steps, etc... */
@@ -395,8 +399,6 @@ struct thread_struct {
 	unsigned long		cr2;
 	unsigned long		trap_nr;
 	unsigned long		error_code;
-	/* floating point and extended processor state */
-	struct fpu		fpu;
 #ifdef CONFIG_X86_32
 	/* Virtual 86 mode info */
 	struct vm86_struct __user *vm86_info;

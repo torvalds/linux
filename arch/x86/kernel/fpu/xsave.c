@@ -334,6 +334,7 @@ int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 {
 	int ia32_fxstate = (buf != buf_fx);
 	struct task_struct *tsk = current;
+	struct fpu *fpu = &tsk->thread.fpu;
 	int state_size = xstate_size;
 	u64 xstate_bv = 0;
 	int fx_only = 0;
@@ -349,7 +350,7 @@ int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 	if (!access_ok(VERIFY_READ, buf, size))
 		return -EACCES;
 
-	if (!(tsk->flags & PF_USED_MATH) && fpstate_alloc_init(tsk))
+	if (!fpu->fpstate_active && fpstate_alloc_init(tsk))
 		return -1;
 
 	if (!static_cpu_has(X86_FEATURE_FPU))
@@ -384,12 +385,12 @@ int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 		int err = 0;
 
 		/*
-		 * Drop the current fpu which clears PF_USED_MATH. This ensures
+		 * Drop the current fpu which clears fpu->fpstate_active. This ensures
 		 * that any context-switch during the copy of the new state,
 		 * avoids the intermediate state from getting restored/saved.
 		 * Thus avoiding the new restored state from getting corrupted.
 		 * We will be ready to restore/save the state only after
-		 * PF_USED_MATH is again set.
+		 * fpu->fpstate_active is again set.
 		 */
 		drop_fpu(tsk);
 
@@ -401,7 +402,7 @@ int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 			sanitize_restored_xstate(tsk, &env, xstate_bv, fx_only);
 		}
 
-		tsk->flags |= PF_USED_MATH;
+		fpu->fpstate_active = 1;
 		if (use_eager_fpu()) {
 			preempt_disable();
 			fpu__restore();
@@ -685,7 +686,7 @@ void xsave_init(void)
  */
 void __init_refok eager_fpu_init(void)
 {
-	WARN_ON(current->flags & PF_USED_MATH);
+	WARN_ON(current->thread.fpu.fpstate_active);
 	current_thread_info()->status = 0;
 
 	if (eagerfpu == ENABLE)
