@@ -125,7 +125,18 @@ union thread_xstate {
 };
 
 struct fpu {
+	/*
+	 * Records the last CPU on which this context was loaded into
+	 * FPU registers. (In the lazy-switching case we might be
+	 * able to reuse FPU registers across multiple context switches
+	 * this way, if no intermediate task used the FPU.)
+	 *
+	 * A value of -1 is used to indicate that the FPU state in context
+	 * memory is newer than the FPU state in registers, and that the
+	 * FPU state should be reloaded next time the task is run.
+	 */
 	unsigned int			last_cpu;
+
 	unsigned int			has_fpu;
 	union thread_xstate		*state;
 	/*

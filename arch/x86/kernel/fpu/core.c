@@ -242,8 +242,7 @@ int fpu__copy(struct task_struct *dst, struct task_struct *src)
 	dst->thread.fpu.counter = 0;
 	dst->thread.fpu.has_fpu = 0;
 	dst->thread.fpu.state = NULL;
-
-	task_disable_lazy_fpu_restore(dst);
+	dst->thread.fpu.last_cpu = -1;
 
 	if (src_fpu->fpstate_active) {
 		int err = fpstate_alloc(dst_fpu);
@@ -319,7 +318,7 @@ static int fpu__unlazy_stopped(struct task_struct *child)
 		return -EINVAL;
 
 	if (child_fpu->fpstate_active) {
-		task_disable_lazy_fpu_restore(child);
+		child->thread.fpu.last_cpu = -1;
 		return 0;
 	}
 

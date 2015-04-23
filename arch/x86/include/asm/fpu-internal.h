@@ -74,16 +74,6 @@ static inline void __cpu_disable_lazy_restore(unsigned int cpu)
 	per_cpu(fpu_fpregs_owner_ctx, cpu) = NULL;
 }
 
-/*
- * Used to indicate that the FPU state in memory is newer than the FPU
- * state in registers, and the FPU state should be reloaded next time the
- * task is run. Only safe on the current task, or non-running tasks.
- */
-static inline void task_disable_lazy_fpu_restore(struct task_struct *tsk)
-{
-	tsk->thread.fpu.last_cpu = ~0;
-}
-
 static inline int fpu_lazy_restore(struct task_struct *new, unsigned int cpu)
 {
 	return &new->thread.fpu == this_cpu_read_stable(fpu_fpregs_owner_ctx) &&
@@ -430,7 +420,7 @@ static inline fpu_switch_t switch_fpu_prepare(struct task_struct *old, struct ta
 
 	if (old_fpu->has_fpu) {
 		if (!fpu_save_init(&old->thread.fpu))
-			task_disable_lazy_fpu_restore(old);
+			old->thread.fpu.last_cpu = -1;
 		else
 			old->thread.fpu.last_cpu = cpu;
 
@@ -446,7 +436,7 @@ static inline fpu_switch_t switch_fpu_prepare(struct task_struct *old, struct ta
 			stts();
 	} else {
 		old->thread.fpu.counter = 0;
-		task_disable_lazy_fpu_restore(old);
+		old->thread.fpu.last_cpu = -1;
 		if (fpu.preload) {
 			new->thread.fpu.counter++;
 			if (fpu_lazy_restore(new, cpu))
