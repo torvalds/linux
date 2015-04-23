@@ -4942,8 +4942,8 @@ megasas_register_aen(struct megasas_instance *instance, u32 seq_num,
 
 	if (instance->aen_cmd) {
 
-		prev_aen.word = instance->aen_cmd->frame->dcmd.mbox.w[1];
-		prev_aen.members.locale = le16_to_cpu(prev_aen.members.locale);
+		prev_aen.word =
+			le32_to_cpu(instance->aen_cmd->frame->dcmd.mbox.w[1]);
 
 		/*
 		 * A class whose enum value is smaller is inclusive of all
