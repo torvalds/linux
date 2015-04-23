@@ -182,7 +182,7 @@ struct batadv_ogm_packet;
 struct seq_file;
 struct sk_buff;
 
-#define BATADV_PRINT_VID(vid) (vid & BATADV_VLAN_HAS_TAG ? \
+#define BATADV_PRINT_VID(vid) ((vid & BATADV_VLAN_HAS_TAG) ? \
 			       (int)(vid & VLAN_VID_MASK) : -1)
 
 extern char batadv_routing_algo[];

@@ -479,7 +479,7 @@ static void batadv_iv_ogm_send_to_if(struct batadv_forw_packet *forw_packet,
 			   batadv_ogm_packet->orig,
 			   ntohl(batadv_ogm_packet->seqno),
 			   batadv_ogm_packet->tq, batadv_ogm_packet->ttl,
-			   (batadv_ogm_packet->flags & BATADV_DIRECTLINK ?
+			   ((batadv_ogm_packet->flags & BATADV_DIRECTLINK) ?
 			    "on" : "off"),
 			   hard_iface->net_dev->name,
 			   hard_iface->net_dev->dev_addr);

@@ -973,17 +973,17 @@ int batadv_tt_local_seq_print_text(struct seq_file *seq, void *offset)
 				   " * %pM %4i [%c%c%c%c%c%c] %3u.%03u   (%#.8x)\n",
 				   tt_common_entry->addr,
 				   BATADV_PRINT_VID(tt_common_entry->vid),
-				   (tt_common_entry->flags &
-				    BATADV_TT_CLIENT_ROAM ? 'R' : '.'),
+				   ((tt_common_entry->flags &
+				     BATADV_TT_CLIENT_ROAM) ? 'R' : '.'),
 				   no_purge ? 'P' : '.',
-				   (tt_common_entry->flags &
-				    BATADV_TT_CLIENT_NEW ? 'N' : '.'),
-				   (tt_common_entry->flags &
-				    BATADV_TT_CLIENT_PENDING ? 'X' : '.'),
-				   (tt_common_entry->flags &
-				    BATADV_TT_CLIENT_WIFI ? 'W' : '.'),
-				   (tt_common_entry->flags &
-				    BATADV_TT_CLIENT_ISOLA ? 'I' : '.'),
+				   ((tt_common_entry->flags &
+				     BATADV_TT_CLIENT_NEW) ? 'N' : '.'),
+				   ((tt_common_entry->flags &
+				     BATADV_TT_CLIENT_PENDING) ? 'X' : '.'),
+				   ((tt_common_entry->flags &
+				     BATADV_TT_CLIENT_WIFI) ? 'W' : '.'),
+				   ((tt_common_entry->flags &
+				     BATADV_TT_CLIENT_ISOLA) ? 'I' : '.'),
 				   no_purge ? 0 : last_seen_secs,
 				   no_purge ? 0 : last_seen_msecs,
 				   vlan->tt.crc);
@@ -1547,10 +1547,10 @@ batadv_tt_global_print_entry(struct batadv_priv *bat_priv,
 			   BATADV_PRINT_VID(tt_global_entry->common.vid),
 			   best_entry->ttvn, best_entry->orig_node->orig,
 			   last_ttvn, vlan->tt.crc,
-			   (flags & BATADV_TT_CLIENT_ROAM ? 'R' : '.'),
-			   (flags & BATADV_TT_CLIENT_WIFI ? 'W' : '.'),
-			   (flags & BATADV_TT_CLIENT_ISOLA ? 'I' : '.'),
-			   (flags & BATADV_TT_CLIENT_TEMP ? 'T' : '.'));
+			   ((flags & BATADV_TT_CLIENT_ROAM) ? 'R' : '.'),
+			   ((flags & BATADV_TT_CLIENT_WIFI) ? 'W' : '.'),
+			   ((flags & BATADV_TT_CLIENT_ISOLA) ? 'I' : '.'),
+			   ((flags & BATADV_TT_CLIENT_TEMP) ? 'T' : '.'));
 
 		batadv_orig_node_vlan_free_ref(vlan);
 	}
@@ -1579,10 +1579,10 @@ print_list:
 			   BATADV_PRINT_VID(tt_global_entry->common.vid),
 			   orig_entry->ttvn, orig_entry->orig_node->orig,
 			   last_ttvn, vlan->tt.crc,
-			   (flags & BATADV_TT_CLIENT_ROAM ? 'R' : '.'),
-			   (flags & BATADV_TT_CLIENT_WIFI ? 'W' : '.'),
-			   (flags & BATADV_TT_CLIENT_ISOLA ? 'I' : '.'),
-			   (flags & BATADV_TT_CLIENT_TEMP ? 'T' : '.'));
+			   ((flags & BATADV_TT_CLIENT_ROAM) ? 'R' : '.'),
+			   ((flags & BATADV_TT_CLIENT_WIFI) ? 'W' : '.'),
+			   ((flags & BATADV_TT_CLIENT_ISOLA) ? 'I' : '.'),
+			   ((flags & BATADV_TT_CLIENT_TEMP) ? 'T' : '.'));
 
 		batadv_orig_node_vlan_free_ref(vlan);
 	}
@@ -2548,7 +2548,7 @@ static bool batadv_send_other_tt_response(struct batadv_priv *bat_priv,
 	batadv_dbg(BATADV_DBG_TT, bat_priv,
 		   "Received TT_REQUEST from %pM for ttvn: %u (%pM) [%c]\n",
 		   req_src, tt_data->ttvn, req_dst,
-		   (tt_data->flags & BATADV_TT_FULL_TABLE ? 'F' : '.'));
+		   ((tt_data->flags & BATADV_TT_FULL_TABLE) ? 'F' : '.'));
 
 	/* Let's get the orig node of the REAL destination */
 	req_dst_orig_node = batadv_orig_hash_find(bat_priv, req_dst);
@@ -2679,7 +2679,7 @@ static bool batadv_send_my_tt_response(struct batadv_priv *bat_priv,
 	batadv_dbg(BATADV_DBG_TT, bat_priv,
 		   "Received TT_REQUEST from %pM for ttvn: %u (me) [%c]\n",
 		   req_src, tt_data->ttvn,
-		   (tt_data->flags & BATADV_TT_FULL_TABLE ? 'F' : '.'));
+		   ((tt_data->flags & BATADV_TT_FULL_TABLE) ? 'F' : '.'));
 
 	spin_lock_bh(&bat_priv->tt.commit_lock);
 
@@ -2918,7 +2918,7 @@ static void batadv_handle_tt_response(struct batadv_priv *bat_priv,
 	batadv_dbg(BATADV_DBG_TT, bat_priv,
 		   "Received TT_RESPONSE from %pM for ttvn %d t_size: %d [%c]\n",
 		   resp_src, tt_data->ttvn, num_entries,
-		   (tt_data->flags & BATADV_TT_FULL_TABLE ? 'F' : '.'));
+		   ((tt_data->flags & BATADV_TT_FULL_TABLE) ? 'F' : '.'));
 
 	orig_node = batadv_orig_hash_find(bat_priv, resp_src);
 	if (!orig_node)
