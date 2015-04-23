@@ -53,6 +53,7 @@
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_dbg.h>
+#include <linux/dmi.h>
 
 #include "megaraid_sas_fusion.h"
 #include "megaraid_sas.h"
@@ -579,6 +580,7 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 	union MEGASAS_REQUEST_DESCRIPTOR_UNION req_desc;
 	int i;
 	struct megasas_header *frame_hdr;
+	const char *sys_info;
 
 	fusion = instance->ctrl_context;
 
@@ -640,6 +642,16 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 		= 1;
 	/* Convert capability to LE32 */
 	cpu_to_le32s((u32 *)&init_frame->driver_operations.mfi_capabilities);
+
+	sys_info = dmi_get_system_info(DMI_PRODUCT_UUID);
+	if (instance->system_info_buf && sys_info) {
+		memcpy(instance->system_info_buf->systemId, sys_info,
+			strlen(sys_info) > 64 ? 64 : strlen(sys_info));
+		instance->system_info_buf->systemIdLength =
+			strlen(sys_info) > 64 ? 64 : strlen(sys_info);
+		init_frame->system_info_lo = instance->system_info_h;
+		init_frame->system_info_hi = 0;
+	}
 
 	init_frame->queue_info_new_phys_addr_hi =
 		cpu_to_le32(upper_32_bits(ioc_init_handle));
@@ -1572,6 +1584,14 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 			cmd->pd_r1_lb = io_info.pd_after_lb;
 		} else
 			scp->SCp.Status &= ~MEGASAS_LOAD_BALANCE_FLAG;
+
+		if ((raidLUN[0] == 1) &&
+			(local_map_ptr->raidMap.devHndlInfo[io_info.pd_after_lb].validHandles > 2)) {
+			instance->dev_handle = !(instance->dev_handle);
+			io_info.devHandle =
+				local_map_ptr->raidMap.devHndlInfo[io_info.pd_after_lb].devHandle[instance->dev_handle];
+		}
+
 		cmd->request_desc->SCSIIO.DevHandle = io_info.devHandle;
 		io_request->DevHandle = io_info.devHandle;
 		/* populate the LUN field */

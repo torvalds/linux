@@ -1271,8 +1271,10 @@ struct megasas_init_frame {
 	u32 queue_info_new_phys_addr_hi;	/*1Ch */
 	u32 queue_info_old_phys_addr_lo;	/*20h */
 	u32 queue_info_old_phys_addr_hi;	/*24h */
-
-	u32 reserved_4[6];	/*28h */
+	u32 reserved_4[2];	/*28h */
+	u32 system_info_lo;      /*30h */
+	u32 system_info_hi;      /*34h */
+	u32 reserved_5[2];	/*38h */
 
 } __attribute__ ((packed));
 
@@ -1649,12 +1651,22 @@ struct megasas_irq_context {
 	u32 MSIxIndex;
 };
 
+struct MR_DRV_SYSTEM_INFO {
+	u8	infoVersion;
+	u8	systemIdLength;
+	u16	reserved0;
+	u8	systemId[64];
+	u8	reserved[1980];
+};
+
 struct megasas_instance {
 
 	u32 *producer;
 	dma_addr_t producer_h;
 	u32 *consumer;
 	dma_addr_t consumer_h;
+	struct MR_DRV_SYSTEM_INFO *system_info_buf;
+	dma_addr_t system_info_h;
 	struct MR_LD_VF_AFFILIATION *vf_affiliation;
 	dma_addr_t vf_affiliation_h;
 	struct MR_LD_VF_AFFILIATION_111 *vf_affiliation_111;
@@ -1769,6 +1781,7 @@ struct megasas_instance {
 	u16 throttlequeuedepth;
 	u8 mask_interrupts;
 	u8 is_imr;
+	bool dev_handle;
 };
 struct MR_LD_VF_MAP {
 	u32 size;

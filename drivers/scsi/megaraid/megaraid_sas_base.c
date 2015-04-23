@@ -5265,6 +5265,13 @@ static int megasas_probe_one(struct pci_dev *pdev,
 		break;
 	}
 
+	instance->system_info_buf = pci_zalloc_consistent(pdev,
+					sizeof(struct MR_DRV_SYSTEM_INFO),
+					&instance->system_info_h);
+
+	if (!instance->system_info_buf)
+		dev_info(&instance->pdev->dev, "Can't allocate system info buffer\n");
+
 	/* Crash dump feature related initialisation*/
 	instance->drv_buf_index = 0;
 	instance->drv_buf_alloc = 0;
@@ -5676,8 +5683,10 @@ megasas_resume(struct pci_dev *pdev)
 					    &instance->sriov_heartbeat_timer,
 					    megasas_sriov_heartbeat_handler,
 					    MEGASAS_SRIOV_HEARTBEAT_INTERVAL_VF);
-		else
+		else {
 			instance->skip_heartbeat_timer_del = 1;
+			goto fail_init_mfi;
+		}
 	}
 
 	instance->instancet->enable_intr(instance);
@@ -5832,6 +5841,10 @@ static void megasas_detach_one(struct pci_dev *pdev)
 	if (instance->crash_dump_buf)
 		pci_free_consistent(pdev, CRASH_DMA_BUF_SIZE,
 			    instance->crash_dump_buf, instance->crash_dump_h);
+
+	if (instance->system_info_buf)
+		pci_free_consistent(pdev, sizeof(struct MR_DRV_SYSTEM_INFO),
+				    instance->system_info_buf, instance->system_info_h);
 
 	scsi_host_put(host);
 
