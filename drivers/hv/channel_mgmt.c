@@ -422,6 +422,30 @@ static void init_vp_index(struct vmbus_channel *channel, const uuid_le *type_gui
 }
 
 /*
+ * vmbus_unload_response - Handler for the unload response.
+ */
+static void vmbus_unload_response(struct vmbus_channel_message_header *hdr)
+{
+	/*
+	 * This is a global event; just wakeup the waiting thread.
+	 * Once we successfully unload, we can cleanup the monitor state.
+	 */
+	complete(&vmbus_connection.unload_event);
+}
+
+void vmbus_initiate_unload(void)
+{
+	struct vmbus_channel_message_header hdr;
+
+	init_completion(&vmbus_connection.unload_event);
+	memset(&hdr, 0, sizeof(struct vmbus_channel_message_header));
+	hdr.msgtype = CHANNELMSG_UNLOAD;
+	vmbus_post_msg(&hdr, sizeof(struct vmbus_channel_message_header));
+
+	wait_for_completion(&vmbus_connection.unload_event);
+}
+
+/*
  * vmbus_onoffer - Handler for channel offers from vmbus in parent partition.
  *
  */
@@ -717,6 +741,7 @@ struct vmbus_channel_message_table_entry
 	{CHANNELMSG_INITIATE_CONTACT,		0, NULL},
 	{CHANNELMSG_VERSION_RESPONSE,		1, vmbus_onversion_response},
 	{CHANNELMSG_UNLOAD,			0, NULL},
+	{CHANNELMSG_UNLOAD_RESPONSE,		1, vmbus_unload_response},
 };
 
 /*
