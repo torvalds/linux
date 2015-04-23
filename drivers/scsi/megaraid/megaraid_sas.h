@@ -1864,9 +1864,13 @@ struct megasas_instance_template {
 #define MEGASAS_IS_LOGICAL(scp)						\
 	(scp->device->channel < MEGASAS_MAX_PD_CHANNELS) ? 0 : 1
 
-#define MEGASAS_DEV_INDEX(inst, scp)					\
-	((scp->device->channel % 2) * MEGASAS_MAX_DEV_PER_CHANNEL) + 	\
-	scp->device->id
+#define MEGASAS_DEV_INDEX(scp)						\
+	(((scp->device->channel % 2) * MEGASAS_MAX_DEV_PER_CHANNEL) +	\
+	scp->device->id)
+
+#define MEGASAS_PD_INDEX(scp)						\
+	((scp->device->channel * MEGASAS_MAX_DEV_PER_CHANNEL) +		\
+	scp->device->id)
 
 struct megasas_cmd {
 

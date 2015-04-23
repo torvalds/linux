@@ -1196,7 +1196,7 @@ megasas_build_dcdb(struct megasas_instance *instance, struct scsi_cmnd *scp,
 	struct megasas_pthru_frame *pthru;
 
 	is_logical = MEGASAS_IS_LOGICAL(scp);
-	device_id = MEGASAS_DEV_INDEX(instance, scp);
+	device_id = MEGASAS_DEV_INDEX(scp);
 	pthru = (struct megasas_pthru_frame *)cmd->frame;
 
 	if (scp->sc_data_direction == PCI_DMA_TODEVICE)
@@ -1294,7 +1294,7 @@ megasas_build_ldio(struct megasas_instance *instance, struct scsi_cmnd *scp,
 	u16 flags = 0;
 	struct megasas_io_frame *ldio;
 
-	device_id = MEGASAS_DEV_INDEX(instance, scp);
+	device_id = MEGASAS_DEV_INDEX(scp);
 	ldio = (struct megasas_io_frame *)cmd->frame;
 
 	if (scp->sc_data_direction == PCI_DMA_TODEVICE)
