@@ -2808,7 +2808,7 @@ int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo)
 		return -EAFNOSUPPORT;
 	spin_lock(&xfrm_policy_afinfo_lock);
 	if (unlikely(xfrm_policy_afinfo[afinfo->family] != NULL))
-		err = -ENOBUFS;
+		err = -EEXIST;
 	else {
 		struct dst_ops *dst_ops = afinfo->dst_ops;
 		if (likely(dst_ops->kmem_cachep == NULL))

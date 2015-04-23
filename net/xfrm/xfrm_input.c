@@ -29,7 +29,7 @@ int xfrm_input_register_afinfo(struct xfrm_input_afinfo *afinfo)
 		return -EAFNOSUPPORT;
 	spin_lock_bh(&xfrm_input_afinfo_lock);
 	if (unlikely(xfrm_input_afinfo[afinfo->family] != NULL))
-		err = -ENOBUFS;
+		err = -EEXIST;
 	else
 		rcu_assign_pointer(xfrm_input_afinfo[afinfo->family], afinfo);
 	spin_unlock_bh(&xfrm_input_afinfo_lock);
