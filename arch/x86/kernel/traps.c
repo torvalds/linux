@@ -730,7 +730,7 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
 	/*
 	 * Save the info for the exception handler and clear the error.
 	 */
-	fpu__save(task);
+	fpu__save(&task->thread.fpu);
 	task->thread.trap_nr = trapnr;
 	task->thread.error_code = error_code;
 	info.si_signo = SIGFPE;

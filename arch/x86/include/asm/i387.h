@@ -100,7 +100,7 @@ static inline int user_has_fpu(void)
 	return current->thread.fpu.has_fpu;
 }
 
-extern void fpu__save(struct task_struct *tsk);
+extern void fpu__save(struct fpu *fpu);
 
 #endif /* __ASSEMBLY__ */
 

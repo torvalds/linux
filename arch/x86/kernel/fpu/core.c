@@ -142,11 +142,9 @@ static void __save_fpu(struct fpu *fpu)
  *
  * This only ever gets called for the current task.
  */
-void fpu__save(struct task_struct *tsk)
+void fpu__save(struct fpu *fpu)
 {
-	struct fpu *fpu = &tsk->thread.fpu;
-
-	WARN_ON(tsk != current);
+	WARN_ON(fpu != &current->thread.fpu);
 
 	preempt_disable();
 	if (fpu->has_fpu) {
@@ -240,7 +238,7 @@ static void fpu_copy(struct task_struct *dst, struct task_struct *src)
 		memset(&dst->thread.fpu.state->xsave, 0, xstate_size);
 		__save_fpu(dst_fpu);
 	} else {
-		fpu__save(src);
+		fpu__save(src_fpu);
 		memcpy(dst_fpu->state, src_fpu->state, xstate_size);
 	}
 }
