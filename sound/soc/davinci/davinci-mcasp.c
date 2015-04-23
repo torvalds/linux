@@ -1023,27 +1023,35 @@ static int davinci_mcasp_hw_rule_rate(struct snd_pcm_hw_params *params,
 		hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
 	int sbits = params_width(params);
 	int slots = rd->mcasp->tdm_slots;
-	unsigned int list[ARRAY_SIZE(davinci_mcasp_dai_rates)];
-	int i, count = 0;
+	struct snd_interval range;
+	int i;
+
+	snd_interval_any(&range);
+	range.empty = 1;
 
 	for (i = 0; i < ARRAY_SIZE(davinci_mcasp_dai_rates); i++) {
-		if (ri->min <= davinci_mcasp_dai_rates[i] &&
-		    ri->max >= davinci_mcasp_dai_rates[i]) {
+		if (snd_interval_test(ri, davinci_mcasp_dai_rates[i])) {
 			uint bclk_freq = sbits*slots*
 				davinci_mcasp_dai_rates[i];
 			int ppm;
 
 			davinci_mcasp_calc_clk_div(rd->mcasp, bclk_freq, &ppm);
-			if (abs(ppm) < DAVINCI_MAX_RATE_ERROR_PPM)
-				list[count++] = davinci_mcasp_dai_rates[i];
+			if (abs(ppm) < DAVINCI_MAX_RATE_ERROR_PPM) {
+				if (range.empty) {
+					range.min = davinci_mcasp_dai_rates[i];
+					range.empty = 0;
+				}
+				range.max = davinci_mcasp_dai_rates[i];
+			}
 		}
 	}
-	dev_dbg(rd->mcasp->dev,
-		"%d frequencies (%d-%d) for %d sbits and %d tdm slots\n",
-		count, ri->min, ri->max, sbits, slots);
 
-	return snd_interval_list(hw_param_interval(params, rule->var),
-				 count, list, 0);
+	dev_dbg(rd->mcasp->dev,
+		"Frequencies %d-%d -> %d-%d for %d sbits and %d tdm slots\n",
+		ri->min, ri->max, range.min, range.max, sbits, slots);
+
+	return snd_interval_refine(hw_param_interval(params, rule->var),
+				   &range);
 }
 
 static int davinci_mcasp_hw_rule_format(struct snd_pcm_hw_params *params,
