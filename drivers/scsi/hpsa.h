@@ -162,6 +162,7 @@ struct ctlr_info {
 	u8 max_cmd_sg_entries;
 	int chainsize;
 	struct SGDescriptor **cmd_sg_list;
+	struct ioaccel2_sg_element **ioaccel2_cmd_sg_list;
 
 	/* pointers to command and error info pool */
 	struct CommandList 	*cmd_pool;
