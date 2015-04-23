@@ -636,7 +636,7 @@ struct crypto_alg *crypto_lookup_skcipher(const char *name, u32 type, u32 mask)
 
 	if ((alg->cra_flags & CRYPTO_ALG_TYPE_MASK) ==
 	    CRYPTO_ALG_TYPE_GIVCIPHER) {
-		if ((alg->cra_flags ^ type ^ ~mask) & CRYPTO_ALG_TESTED) {
+		if (~alg->cra_flags & (type ^ ~mask) & CRYPTO_ALG_TESTED) {
 			crypto_mod_put(alg);
 			alg = ERR_PTR(-ENOENT);
 		}
