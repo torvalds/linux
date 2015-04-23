@@ -1263,6 +1263,17 @@ static int omap_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int omap_gpio_remove(struct platform_device *pdev)
+{
+	struct gpio_bank *bank = platform_get_drvdata(pdev);
+
+	list_del(&bank->node);
+	gpiochip_remove(&bank->chip);
+	pm_runtime_disable(bank->dev);
+
+	return 0;
+}
+
 #ifdef CONFIG_ARCH_OMAP2PLUS
 
 #if defined(CONFIG_PM)
@@ -1448,6 +1459,7 @@ static int omap_gpio_runtime_resume(struct device *dev)
 }
 #endif /* CONFIG_PM */
 
+#if IS_BUILTIN(CONFIG_GPIO_OMAP)
 void omap2_gpio_prepare_for_idle(int pwr_mode)
 {
 	struct gpio_bank *bank;
@@ -1473,6 +1485,7 @@ void omap2_gpio_resume_after_idle(void)
 		pm_runtime_get_sync(bank->dev);
 	}
 }
+#endif
 
 #if defined(CONFIG_PM)
 static void omap_gpio_init_context(struct gpio_bank *p)
@@ -1628,6 +1641,7 @@ MODULE_DEVICE_TABLE(of, omap_gpio_match);
 
 static struct platform_driver omap_gpio_driver = {
 	.probe		= omap_gpio_probe,
+	.remove		= omap_gpio_remove,
 	.driver		= {
 		.name	= "omap_gpio",
 		.pm	= &gpio_pm_ops,
@@ -1645,3 +1659,13 @@ static int __init omap_gpio_drv_reg(void)
 	return platform_driver_register(&omap_gpio_driver);
 }
 postcore_initcall(omap_gpio_drv_reg);
+
+static void __exit omap_gpio_exit(void)
+{
+	platform_driver_unregister(&omap_gpio_driver);
+}
+module_exit(omap_gpio_exit);
+
+MODULE_DESCRIPTION("omap gpio driver");
+MODULE_ALIAS("platform:gpio-omap");
+MODULE_LICENSE("GPL v2");
