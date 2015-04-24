@@ -459,7 +459,7 @@ static inline struct btrfs_fs_info *to_fs_info(struct kobject *kobj)
 static char btrfs_unknown_feature_names[3][NUM_FEATURE_BITS][13];
 static struct btrfs_feature_attr btrfs_feature_attrs[3][NUM_FEATURE_BITS];
 
-static u64 supported_feature_masks[3] = {
+static const u64 supported_feature_masks[3] = {
 	[FEAT_COMPAT]    = BTRFS_FEATURE_COMPAT_SUPP,
 	[FEAT_COMPAT_RO] = BTRFS_FEATURE_COMPAT_RO_SUPP,
 	[FEAT_INCOMPAT]  = BTRFS_FEATURE_INCOMPAT_SUPP,

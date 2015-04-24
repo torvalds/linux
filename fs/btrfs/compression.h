@@ -77,7 +77,7 @@ struct btrfs_compress_op {
 			  size_t srclen, size_t destlen);
 };
 
-extern struct btrfs_compress_op btrfs_zlib_compress;
-extern struct btrfs_compress_op btrfs_lzo_compress;
+extern const struct btrfs_compress_op btrfs_zlib_compress;
+extern const struct btrfs_compress_op btrfs_lzo_compress;
 
 #endif

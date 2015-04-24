@@ -456,6 +456,13 @@ static noinline int create_subvol(struct inode *dir,
 	if (ret)
 		return ret;
 
+	/*
+	 * Don't create subvolume whose level is not zero. Or qgroup will be
+	 * screwed up since it assume subvolme qgroup's level to be 0.
+	 */
+	if (btrfs_qgroup_level(objectid))
+		return -ENOSPC;
+
 	btrfs_init_block_rsv(&block_rsv, BTRFS_BLOCK_RSV_TEMP);
 	/*
 	 * The same as the snapshot creation, please see the comment
@@ -1564,7 +1571,7 @@ static noinline int btrfs_ioctl_resize(struct file *file,
 		goto out_free;
 	}
 
-	do_div(new_size, root->sectorsize);
+	new_size = div_u64(new_size, root->sectorsize);
 	new_size *= root->sectorsize;
 
 	printk_in_rcu(KERN_INFO "BTRFS: new size for %s is %llu\n",
@@ -2897,6 +2904,9 @@ static int btrfs_extent_same(struct inode *src, u64 loff, u64 len,
 	if (src == dst)
 		return -EINVAL;
 
+	if (len == 0)
+		return 0;
+
 	btrfs_double_lock(src, loff, dst, dst_loff, len);
 
 	ret = extent_same_check_offsets(src, loff, len);
@@ -3039,7 +3049,7 @@ out:
 static int check_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		     u64 disko)
 {
-	struct seq_list tree_mod_seq_elem = {};
+	struct seq_list tree_mod_seq_elem = SEQ_LIST_INIT(tree_mod_seq_elem);
 	struct ulist *roots;
 	struct ulist_iterator uiter;
 	struct ulist_node *root_node = NULL;
@@ -3202,6 +3212,8 @@ static int btrfs_clone(struct inode *src, struct inode *inode,
 	key.offset = off;
 
 	while (1) {
+		u64 next_key_min_offset = key.offset + 1;
+
 		/*
 		 * note the key will change type as we walk through the
 		 * tree.
@@ -3282,7 +3294,7 @@ process_slot:
 			} else if (key.offset >= off + len) {
 				break;
 			}
-
+			next_key_min_offset = key.offset + datal;
 			size = btrfs_item_size_nr(leaf, slot);
 			read_extent_buffer(leaf, buf,
 					   btrfs_item_ptr_offset(leaf, slot),
@@ -3497,7 +3509,7 @@ process_slot:
 				break;
 		}
 		btrfs_release_path(path);
-		key.offset++;
+		key.offset = next_key_min_offset;
 	}
 	ret = 0;
 
@@ -3625,6 +3637,11 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 	/* if we extend to eof, continue to block boundary */
 	if (off + len == src->i_size)
 		len = ALIGN(src->i_size, bs) - off;
+
+	if (len == 0) {
+		ret = 0;
+		goto out_unlock;
+	}
 
 	/* verify the end result is block aligned */
 	if (!IS_ALIGNED(off, bs) || !IS_ALIGNED(off + len, bs) ||
@@ -4624,6 +4641,11 @@ static long btrfs_ioctl_qgroup_assign(struct file *file, void __user *arg)
 						sa->src, sa->dst);
 	}
 
+	/* update qgroup status and info */
+	err = btrfs_run_qgroups(trans, root->fs_info);
+	if (err < 0)
+		btrfs_error(root->fs_info, ret,
+			    "failed to update qgroup status and info\n");
 	err = btrfs_end_transaction(trans, root);
 	if (err && !ret)
 		ret = err;
@@ -4669,8 +4691,7 @@ static long btrfs_ioctl_qgroup_create(struct file *file, void __user *arg)
 
 	/* FIXME: check if the IDs really exist */
 	if (sa->create) {
-		ret = btrfs_create_qgroup(trans, root->fs_info, sa->qgroupid,
-					  NULL);
+		ret = btrfs_create_qgroup(trans, root->fs_info, sa->qgroupid);
 	} else {
 		ret = btrfs_remove_qgroup(trans, root->fs_info, sa->qgroupid);
 	}
