@@ -33,6 +33,16 @@ struct sd {
 	struct gspca_dev gspca_dev;  /* !! must be the first item */
 	u8 sof_read;
 	u16 model;
+
+#define MIN_AVG_LUM 8500
+#define MAX_AVG_LUM 10000
+	int avg_lum;
+	u8 avg_lum_l;
+
+	struct { /* autogain and gain control cluster */
+		struct v4l2_ctrl *autogain;
+		struct v4l2_ctrl *gain;
+	};
 };
 
 struct init_command {
@@ -251,6 +261,78 @@ static int run_start_commands(struct gspca_dev *gspca_dev,
 	return 0;
 }
 
+static void set_gain(struct gspca_dev *gspca_dev, s32 g)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	struct init_command genius_vcam_live_gain_cmds[] = {
+		{{0x1d, 0x25, 0x10 /* This byte is gain */,
+		  0x20, 0xab, 0x00}, 0},
+	};
+	if (!gspca_dev->streaming)
+		return;
+
+	switch (sd->model) {
+	case 0x7003:
+		genius_vcam_live_gain_cmds[0].instruction[2] = g;
+		run_start_commands(gspca_dev, genius_vcam_live_gain_cmds,
+				   ARRAY_SIZE(genius_vcam_live_gain_cmds));
+		break;
+	default:
+		break;
+	}
+}
+
+static int sd_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct gspca_dev *gspca_dev =
+		container_of(ctrl->handler, struct gspca_dev, ctrl_handler);
+	struct sd *sd = (struct sd *)gspca_dev;
+
+	gspca_dev->usb_err = 0;
+
+	if (!gspca_dev->streaming)
+		return 0;
+
+	switch (ctrl->id) {
+	/* standalone gain control */
+	case V4L2_CID_GAIN:
+		set_gain(gspca_dev, ctrl->val);
+		break;
+	/* autogain */
+	case V4L2_CID_AUTOGAIN:
+		set_gain(gspca_dev, sd->gain->val);
+		break;
+	}
+	return gspca_dev->usb_err;
+}
+
+static const struct v4l2_ctrl_ops sd_ctrl_ops = {
+	.s_ctrl = sd_s_ctrl,
+};
+
+
+static int sd_init_controls(struct gspca_dev *gspca_dev)
+{
+	struct v4l2_ctrl_handler *hdl = &gspca_dev->ctrl_handler;
+	struct sd *sd = (struct sd *)gspca_dev;
+
+	gspca_dev->vdev.ctrl_handler = hdl;
+	v4l2_ctrl_handler_init(hdl, 2);
+
+	switch (sd->model) {
+	case 0x7003:
+		sd->gain = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_GAIN, 0, 20, 1, 0);
+		sd->autogain = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_AUTOGAIN, 0, 1, 1, 1);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
 static int start_spy_cam(struct gspca_dev *gspca_dev)
 {
 	struct init_command spy_start_commands[] = {
@@ -640,6 +722,9 @@ static int start_genius_videocam_live(struct gspca_dev *gspca_dev)
 	if (r < 0)
 		return r;
 
+	if (sd->gain)
+		set_gain(gspca_dev, v4l2_ctrl_g_ctrl(sd->gain));
+
 	return r;
 }
 
@@ -756,6 +841,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		return -ENXIO;
 	}
 
+	sd->avg_lum = -1;
+
 	return err_code;
 }
 
@@ -773,6 +860,39 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	result = sn9c2028_command(gspca_dev, data);
 	if (result < 0)
 		PERR("Camera Stop command failed");
+}
+
+static void do_autogain(struct gspca_dev *gspca_dev, int avg_lum)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	s32 cur_gain = v4l2_ctrl_g_ctrl(sd->gain);
+
+	if (avg_lum == -1)
+		return;
+
+	if (avg_lum < MIN_AVG_LUM) {
+		if (cur_gain == sd->gain->maximum)
+			return;
+		cur_gain++;
+		v4l2_ctrl_s_ctrl(sd->gain, cur_gain);
+	}
+	if (avg_lum > MAX_AVG_LUM) {
+		if (cur_gain == sd->gain->minimum)
+			return;
+		cur_gain--;
+		v4l2_ctrl_s_ctrl(sd->gain, cur_gain);
+	}
+
+}
+
+static void sd_dqcallback(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (sd->autogain == NULL || !v4l2_ctrl_g_ctrl(sd->autogain))
+		return;
+
+	do_autogain(gspca_dev, sd->avg_lum);
 }
 
 /* Include sn9c2028 sof detection functions */
@@ -809,8 +929,10 @@ static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
 	.config = sd_config,
 	.init = sd_init,
+	.init_controls = sd_init_controls,
 	.start = sd_start,
 	.stopN = sd_stopN,
+	.dq_callback = sd_dqcallback,
 	.pkt_scan = sd_pkt_scan,
 };
 
