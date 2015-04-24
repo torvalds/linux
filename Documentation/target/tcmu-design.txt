@@ -138,26 +138,39 @@ signals the kernel via a 4-byte write(). When cmd_head equals
 cmd_tail, the ring is empty -- no commands are currently waiting to be
 processed by userspace.
 
-TCMU commands start with a common header containing "len_op", a 32-bit
-value that stores the length, as well as the opcode in the lowest
-unused bits. Currently only two opcodes are defined, TCMU_OP_PAD and
-TCMU_OP_CMD. When userspace encounters a command with PAD opcode, it
-should skip ahead by the bytes in "length". (The kernel inserts PAD
-entries to ensure each CMD entry fits contigously into the circular
-buffer.)
+TCMU commands are 8-byte aligned. They start with a common header
+containing "len_op", a 32-bit value that stores the length, as well as
+the opcode in the lowest unused bits. It also contains cmd_id and
+flags fields for setting by the kernel (kflags) and userspace
+(uflags).
 
-When userspace handles a CMD, it finds the SCSI CDB (Command Data
-Block) via tcmu_cmd_entry.req.cdb_off. This is an offset from the
-start of the overall shared memory region, not the entry. The data
-in/out buffers are accessible via tht req.iov[] array. Note that
-each iov.iov_base is also an offset from the start of the region.
+Currently only two opcodes are defined, TCMU_OP_CMD and TCMU_OP_PAD.
 
-TCMU currently does not support BIDI operations.
+When the opcode is CMD, the entry in the command ring is a struct
+tcmu_cmd_entry. Userspace finds the SCSI CDB (Command Data Block) via
+tcmu_cmd_entry.req.cdb_off. This is an offset from the start of the
+overall shared memory region, not the entry. The data in/out buffers
+are accessible via tht req.iov[] array. iov_cnt contains the number of
+entries in iov[] needed to describe either the Data-In or Data-Out
+buffers. For bidirectional commands, iov_cnt specifies how many iovec
+entries cover the Data-Out area, and iov_bidi_count specifies how many
+iovec entries immediately after that in iov[] cover the Data-In
+area. Just like other fields, iov.iov_base is an offset from the start
+of the region.
 
 When completing a command, userspace sets rsp.scsi_status, and
 rsp.sense_buffer if necessary. Userspace then increments
 mailbox.cmd_tail by entry.hdr.length (mod cmdr_size) and signals the
 kernel via the UIO method, a 4-byte write to the file descriptor.
+
+When the opcode is PAD, userspace only updates cmd_tail as above --
+it's a no-op. (The kernel inserts PAD entries to ensure each CMD entry
+is contiguous within the command ring.)
+
+More opcodes may be added in the future. If userspace encounters an
+opcode it does not handle, it must set UNKNOWN_OP bit (bit 0) in
+hdr.uflags, update cmd_tail, and proceed with processing additional
+commands, if any.
 
 The Data Area:
 

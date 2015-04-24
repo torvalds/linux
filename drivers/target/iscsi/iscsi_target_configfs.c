@@ -37,9 +37,6 @@
 #include "iscsi_target_util.h"
 #include "iscsi_target.h"
 #include <target/iscsi/iscsi_target_stat.h>
-#include "iscsi_target_configfs.h"
-
-struct target_fabric_configfs *lio_target_fabric_configfs;
 
 struct lio_target_configfs_attribute {
 	struct configfs_attribute attr;
@@ -1052,6 +1049,11 @@ TPG_ATTR(default_erl, S_IRUGO | S_IWUSR);
  */
 DEF_TPG_ATTRIB(t10_pi);
 TPG_ATTR(t10_pi, S_IRUGO | S_IWUSR);
+/*
+ * Define iscsi_tpg_attrib_s_fabric_prot_type
+ */
+DEF_TPG_ATTRIB(fabric_prot_type);
+TPG_ATTR(fabric_prot_type, S_IRUGO | S_IWUSR);
 
 static struct configfs_attribute *lio_target_tpg_attrib_attrs[] = {
 	&iscsi_tpg_attrib_authentication.attr,
@@ -1065,6 +1067,7 @@ static struct configfs_attribute *lio_target_tpg_attrib_attrs[] = {
 	&iscsi_tpg_attrib_demo_mode_discovery.attr,
 	&iscsi_tpg_attrib_default_erl.attr,
 	&iscsi_tpg_attrib_t10_pi.attr,
+	&iscsi_tpg_attrib_fabric_prot_type.attr,
 	NULL,
 };
 
@@ -1410,8 +1413,18 @@ out:
 
 TF_TPG_BASE_ATTR(lio_target, enable, S_IRUGO | S_IWUSR);
 
+static ssize_t lio_target_tpg_show_dynamic_sessions(
+	struct se_portal_group *se_tpg,
+	char *page)
+{
+	return target_show_dynamic_sessions(se_tpg, page);
+}
+
+TF_TPG_BASE_ATTR_RO(lio_target, dynamic_sessions);
+
 static struct configfs_attribute *lio_target_tpg_attrs[] = {
 	&lio_target_tpg_enable.attr,
+	&lio_target_tpg_dynamic_sessions.attr,
 	NULL,
 };
 
@@ -1450,10 +1463,8 @@ static struct se_portal_group *lio_target_tiqn_addtpg(
 	if (!tpg)
 		return NULL;
 
-	ret = core_tpg_register(
-			&lio_target_fabric_configfs->tf_ops,
-			wwn, &tpg->tpg_se_tpg, tpg,
-			TRANSPORT_TPG_TYPE_NORMAL);
+	ret = core_tpg_register(&iscsi_ops, wwn, &tpg->tpg_se_tpg,
+				tpg, TRANSPORT_TPG_TYPE_NORMAL);
 	if (ret < 0)
 		return NULL;
 
@@ -1872,6 +1883,20 @@ static int lio_tpg_check_prod_mode_write_protect(
 	return tpg->tpg_attrib.prod_mode_write_protect;
 }
 
+static int lio_tpg_check_prot_fabric_only(
+	struct se_portal_group *se_tpg)
+{
+	struct iscsi_portal_group *tpg = se_tpg->se_tpg_fabric_ptr;
+	/*
+	 * Only report fabric_prot_type if t10_pi has also been enabled
+	 * for incoming ib_isert sessions.
+	 */
+	if (!tpg->tpg_attrib.t10_pi)
+		return 0;
+
+	return tpg->tpg_attrib.fabric_prot_type;
+}
+
 static void lio_tpg_release_fabric_acl(
 	struct se_portal_group *se_tpg,
 	struct se_node_acl *se_acl)
@@ -1953,115 +1978,60 @@ static void lio_release_cmd(struct se_cmd *se_cmd)
 	iscsit_release_cmd(cmd);
 }
 
-/* End functions for target_core_fabric_ops */
+const struct target_core_fabric_ops iscsi_ops = {
+	.module				= THIS_MODULE,
+	.name				= "iscsi",
+	.get_fabric_name		= iscsi_get_fabric_name,
+	.get_fabric_proto_ident		= iscsi_get_fabric_proto_ident,
+	.tpg_get_wwn			= lio_tpg_get_endpoint_wwn,
+	.tpg_get_tag			= lio_tpg_get_tag,
+	.tpg_get_default_depth		= lio_tpg_get_default_depth,
+	.tpg_get_pr_transport_id	= iscsi_get_pr_transport_id,
+	.tpg_get_pr_transport_id_len	= iscsi_get_pr_transport_id_len,
+	.tpg_parse_pr_out_transport_id	= iscsi_parse_pr_out_transport_id,
+	.tpg_check_demo_mode		= lio_tpg_check_demo_mode,
+	.tpg_check_demo_mode_cache	= lio_tpg_check_demo_mode_cache,
+	.tpg_check_demo_mode_write_protect =
+			lio_tpg_check_demo_mode_write_protect,
+	.tpg_check_prod_mode_write_protect =
+			lio_tpg_check_prod_mode_write_protect,
+	.tpg_check_prot_fabric_only	= &lio_tpg_check_prot_fabric_only,
+	.tpg_alloc_fabric_acl		= lio_tpg_alloc_fabric_acl,
+	.tpg_release_fabric_acl		= lio_tpg_release_fabric_acl,
+	.tpg_get_inst_index		= lio_tpg_get_inst_index,
+	.check_stop_free		= lio_check_stop_free,
+	.release_cmd			= lio_release_cmd,
+	.shutdown_session		= lio_tpg_shutdown_session,
+	.close_session			= lio_tpg_close_session,
+	.sess_get_index			= lio_sess_get_index,
+	.sess_get_initiator_sid		= lio_sess_get_initiator_sid,
+	.write_pending			= lio_write_pending,
+	.write_pending_status		= lio_write_pending_status,
+	.set_default_node_attributes	= lio_set_default_node_attributes,
+	.get_task_tag			= iscsi_get_task_tag,
+	.get_cmd_state			= iscsi_get_cmd_state,
+	.queue_data_in			= lio_queue_data_in,
+	.queue_status			= lio_queue_status,
+	.queue_tm_rsp			= lio_queue_tm_rsp,
+	.aborted_task			= lio_aborted_task,
+	.fabric_make_wwn		= lio_target_call_coreaddtiqn,
+	.fabric_drop_wwn		= lio_target_call_coredeltiqn,
+	.fabric_make_tpg		= lio_target_tiqn_addtpg,
+	.fabric_drop_tpg		= lio_target_tiqn_deltpg,
+	.fabric_make_np			= lio_target_call_addnptotpg,
+	.fabric_drop_np			= lio_target_call_delnpfromtpg,
+	.fabric_make_nodeacl		= lio_target_make_nodeacl,
+	.fabric_drop_nodeacl		= lio_target_drop_nodeacl,
 
-int iscsi_target_register_configfs(void)
-{
-	struct target_fabric_configfs *fabric;
-	int ret;
-
-	lio_target_fabric_configfs = NULL;
-	fabric = target_fabric_configfs_init(THIS_MODULE, "iscsi");
-	if (IS_ERR(fabric)) {
-		pr_err("target_fabric_configfs_init() for"
-				" LIO-Target failed!\n");
-		return PTR_ERR(fabric);
-	}
-	/*
-	 * Setup the fabric API of function pointers used by target_core_mod..
-	 */
-	fabric->tf_ops.get_fabric_name = &iscsi_get_fabric_name;
-	fabric->tf_ops.get_fabric_proto_ident = &iscsi_get_fabric_proto_ident;
-	fabric->tf_ops.tpg_get_wwn = &lio_tpg_get_endpoint_wwn;
-	fabric->tf_ops.tpg_get_tag = &lio_tpg_get_tag;
-	fabric->tf_ops.tpg_get_default_depth = &lio_tpg_get_default_depth;
-	fabric->tf_ops.tpg_get_pr_transport_id = &iscsi_get_pr_transport_id;
-	fabric->tf_ops.tpg_get_pr_transport_id_len =
-				&iscsi_get_pr_transport_id_len;
-	fabric->tf_ops.tpg_parse_pr_out_transport_id =
-				&iscsi_parse_pr_out_transport_id;
-	fabric->tf_ops.tpg_check_demo_mode = &lio_tpg_check_demo_mode;
-	fabric->tf_ops.tpg_check_demo_mode_cache =
-				&lio_tpg_check_demo_mode_cache;
-	fabric->tf_ops.tpg_check_demo_mode_write_protect =
-				&lio_tpg_check_demo_mode_write_protect;
-	fabric->tf_ops.tpg_check_prod_mode_write_protect =
-				&lio_tpg_check_prod_mode_write_protect;
-	fabric->tf_ops.tpg_alloc_fabric_acl = &lio_tpg_alloc_fabric_acl;
-	fabric->tf_ops.tpg_release_fabric_acl = &lio_tpg_release_fabric_acl;
-	fabric->tf_ops.tpg_get_inst_index = &lio_tpg_get_inst_index;
-	fabric->tf_ops.check_stop_free = &lio_check_stop_free,
-	fabric->tf_ops.release_cmd = &lio_release_cmd;
-	fabric->tf_ops.shutdown_session = &lio_tpg_shutdown_session;
-	fabric->tf_ops.close_session = &lio_tpg_close_session;
-	fabric->tf_ops.sess_get_index = &lio_sess_get_index;
-	fabric->tf_ops.sess_get_initiator_sid = &lio_sess_get_initiator_sid;
-	fabric->tf_ops.write_pending = &lio_write_pending;
-	fabric->tf_ops.write_pending_status = &lio_write_pending_status;
-	fabric->tf_ops.set_default_node_attributes =
-				&lio_set_default_node_attributes;
-	fabric->tf_ops.get_task_tag = &iscsi_get_task_tag;
-	fabric->tf_ops.get_cmd_state = &iscsi_get_cmd_state;
-	fabric->tf_ops.queue_data_in = &lio_queue_data_in;
-	fabric->tf_ops.queue_status = &lio_queue_status;
-	fabric->tf_ops.queue_tm_rsp = &lio_queue_tm_rsp;
-	fabric->tf_ops.aborted_task = &lio_aborted_task;
-	/*
-	 * Setup function pointers for generic logic in target_core_fabric_configfs.c
-	 */
-	fabric->tf_ops.fabric_make_wwn = &lio_target_call_coreaddtiqn;
-	fabric->tf_ops.fabric_drop_wwn = &lio_target_call_coredeltiqn;
-	fabric->tf_ops.fabric_make_tpg = &lio_target_tiqn_addtpg;
-	fabric->tf_ops.fabric_drop_tpg = &lio_target_tiqn_deltpg;
-	fabric->tf_ops.fabric_post_link	= NULL;
-	fabric->tf_ops.fabric_pre_unlink = NULL;
-	fabric->tf_ops.fabric_make_np = &lio_target_call_addnptotpg;
-	fabric->tf_ops.fabric_drop_np = &lio_target_call_delnpfromtpg;
-	fabric->tf_ops.fabric_make_nodeacl = &lio_target_make_nodeacl;
-	fabric->tf_ops.fabric_drop_nodeacl = &lio_target_drop_nodeacl;
-	/*
-	 * Setup default attribute lists for various fabric->tf_cit_tmpl
-	 * sturct config_item_type's
-	 */
-	fabric->tf_cit_tmpl.tfc_discovery_cit.ct_attrs = lio_target_discovery_auth_attrs;
-	fabric->tf_cit_tmpl.tfc_wwn_cit.ct_attrs = lio_target_wwn_attrs;
-	fabric->tf_cit_tmpl.tfc_tpg_base_cit.ct_attrs = lio_target_tpg_attrs;
-	fabric->tf_cit_tmpl.tfc_tpg_attrib_cit.ct_attrs = lio_target_tpg_attrib_attrs;
-	fabric->tf_cit_tmpl.tfc_tpg_auth_cit.ct_attrs = lio_target_tpg_auth_attrs;
-	fabric->tf_cit_tmpl.tfc_tpg_param_cit.ct_attrs = lio_target_tpg_param_attrs;
-	fabric->tf_cit_tmpl.tfc_tpg_np_base_cit.ct_attrs = lio_target_portal_attrs;
-	fabric->tf_cit_tmpl.tfc_tpg_nacl_base_cit.ct_attrs = lio_target_initiator_attrs;
-	fabric->tf_cit_tmpl.tfc_tpg_nacl_attrib_cit.ct_attrs = lio_target_nacl_attrib_attrs;
-	fabric->tf_cit_tmpl.tfc_tpg_nacl_auth_cit.ct_attrs = lio_target_nacl_auth_attrs;
-	fabric->tf_cit_tmpl.tfc_tpg_nacl_param_cit.ct_attrs = lio_target_nacl_param_attrs;
-
-	ret = target_fabric_configfs_register(fabric);
-	if (ret < 0) {
-		pr_err("target_fabric_configfs_register() for"
-				" LIO-Target failed!\n");
-		target_fabric_configfs_free(fabric);
-		return ret;
-	}
-
-	lio_target_fabric_configfs = fabric;
-	pr_debug("LIO_TARGET[0] - Set fabric ->"
-			" lio_target_fabric_configfs\n");
-	return 0;
-}
-
-
-void iscsi_target_deregister_configfs(void)
-{
-	if (!lio_target_fabric_configfs)
-		return;
-	/*
-	 * Shutdown discovery sessions and disable discovery TPG
-	 */
-	if (iscsit_global->discovery_tpg)
-		iscsit_tpg_disable_portal_group(iscsit_global->discovery_tpg, 1);
-
-	target_fabric_configfs_deregister(lio_target_fabric_configfs);
-	lio_target_fabric_configfs = NULL;
-	pr_debug("LIO_TARGET[0] - Cleared"
-				" lio_target_fabric_configfs\n");
-}
+	.tfc_discovery_attrs		= lio_target_discovery_auth_attrs,
+	.tfc_wwn_attrs			= lio_target_wwn_attrs,
+	.tfc_tpg_base_attrs		= lio_target_tpg_attrs,
+	.tfc_tpg_attrib_attrs		= lio_target_tpg_attrib_attrs,
+	.tfc_tpg_auth_attrs		= lio_target_tpg_auth_attrs,
+	.tfc_tpg_param_attrs		= lio_target_tpg_param_attrs,
+	.tfc_tpg_np_base_attrs		= lio_target_portal_attrs,
+	.tfc_tpg_nacl_base_attrs	= lio_target_initiator_attrs,
+	.tfc_tpg_nacl_attrib_attrs	= lio_target_nacl_attrib_attrs,
+	.tfc_tpg_nacl_auth_attrs	= lio_target_nacl_auth_attrs,
+	.tfc_tpg_nacl_param_attrs	= lio_target_nacl_param_attrs,
+};
