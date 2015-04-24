@@ -78,9 +78,16 @@ struct i387_soft_struct {
 	u32			entry_eip;
 };
 
+/*
+ * There are 16x 256-bit AVX registers named YMM0-YMM15.
+ * The low 128 bits are aliased to the 16 SSE registers (XMM0-XMM15)
+ * and are stored in 'struct i387_fxsave_struct::xmm_space[]'.
+ *
+ * The high 128 bits are stored here:
+ *    16x 128 bits == 256 bytes.
+ */
 struct ymmh_struct {
-	/* 16 * 16 bytes for each YMMH-reg = 256 bytes */
-	u32				ymmh_space[64];
+	u8				ymmh_space[256];
 };
 
 /* We don't support LWP yet: */
