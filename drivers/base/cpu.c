@@ -16,6 +16,7 @@
 #include <linux/acpi.h>
 #include <linux/of.h>
 #include <linux/cpufeature.h>
+#include <linux/tick.h>
 
 #include "base.h"
 
@@ -276,6 +277,19 @@ static ssize_t print_cpus_isolated(struct device *dev,
 }
 static DEVICE_ATTR(isolated, 0444, print_cpus_isolated, NULL);
 
+#ifdef CONFIG_NO_HZ_FULL
+static ssize_t print_cpus_nohz_full(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	int n = 0, len = PAGE_SIZE-2;
+
+	n = scnprintf(buf, len, "%*pbl\n", cpumask_pr_args(tick_nohz_full_mask));
+
+	return n;
+}
+static DEVICE_ATTR(nohz_full, 0444, print_cpus_nohz_full, NULL);
+#endif
+
 static void cpu_device_release(struct device *dev)
 {
 	/*
@@ -443,6 +457,9 @@ static struct attribute *cpu_root_attrs[] = {
 	&dev_attr_kernel_max.attr,
 	&dev_attr_offline.attr,
 	&dev_attr_isolated.attr,
+#ifdef CONFIG_NO_HZ_FULL
+	&dev_attr_nohz_full.attr,
+#endif
 #ifdef CONFIG_GENERIC_CPU_AUTOPROBE
 	&dev_attr_modalias.attr,
 #endif
