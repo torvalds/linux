@@ -25,7 +25,9 @@ struct xsave_struct *init_xstate_buf;
 static struct _fpx_sw_bytes fx_sw_reserved, fx_sw_reserved_ia32;
 static unsigned int *xstate_offsets, *xstate_sizes;
 static unsigned int xstate_comp_offsets[sizeof(xfeatures_mask)*8];
-static unsigned int xstate_features;
+
+/* The number of supported xfeatures in xfeatures_mask: */
+static unsigned int xfeatures_nr;
 
 /*
  * If a processor implementation discern that a processor state component is
@@ -465,9 +467,9 @@ static void __init setup_xstate_features(void)
 {
 	int eax, ebx, ecx, edx, leaf = 0x2;
 
-	xstate_features = fls64(xfeatures_mask);
-	xstate_offsets = alloc_bootmem(xstate_features * sizeof(int));
-	xstate_sizes = alloc_bootmem(xstate_features * sizeof(int));
+	xfeatures_nr = fls64(xfeatures_mask);
+	xstate_offsets = alloc_bootmem(xfeatures_nr * sizeof(int));
+	xstate_sizes = alloc_bootmem(xfeatures_nr * sizeof(int));
 
 	do {
 		cpuid_count(XSTATE_CPUID, leaf, &eax, &ebx, &ecx, &edx);
@@ -528,7 +530,7 @@ void setup_xstate_comp(void)
 	xstate_comp_offsets[1] = offsetof(struct i387_fxsave_struct, xmm_space);
 
 	if (!cpu_has_xsaves) {
-		for (i = 2; i < xstate_features; i++) {
+		for (i = 2; i < xfeatures_nr; i++) {
 			if (test_bit(i, (unsigned long *)&xfeatures_mask)) {
 				xstate_comp_offsets[i] = xstate_offsets[i];
 				xstate_comp_sizes[i] = xstate_sizes[i];
@@ -539,7 +541,7 @@ void setup_xstate_comp(void)
 
 	xstate_comp_offsets[2] = FXSAVE_SIZE + XSAVE_HDR_SIZE;
 
-	for (i = 2; i < xstate_features; i++) {
+	for (i = 2; i < xfeatures_nr; i++) {
 		if (test_bit(i, (unsigned long *)&xfeatures_mask))
 			xstate_comp_sizes[i] = xstate_sizes[i];
 		else
