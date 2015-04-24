@@ -261,7 +261,7 @@ static inline int fpu_save_init(struct fpu *fpu)
 		/*
 		 * xsave header may indicate the init state of the FP.
 		 */
-		if (!(fpu->state->xsave.header.xstate_bv & XSTATE_FP))
+		if (!(fpu->state->xsave.header.xfeatures & XSTATE_FP))
 			return 1;
 	} else if (use_fxsr()) {
 		fpu_fxsave(fpu);

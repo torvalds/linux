@@ -32,7 +32,7 @@ static unsigned int xfeatures_nr;
 /*
  * If a processor implementation discern that a processor state component is
  * in its initialized state it may modify the corresponding bit in the
- * header.xstate_bv as '0', with out modifying the corresponding memory
+ * header.xfeatures as '0', with out modifying the corresponding memory
  * layout in the case of xsaveopt. While presenting the xstate information to
  * the user, we always ensure that the memory layout of a feature will be in
  * the init state if the corresponding header bit is zero. This is to ensure
@@ -43,24 +43,24 @@ void __sanitize_i387_state(struct task_struct *tsk)
 {
 	struct i387_fxsave_struct *fx = &tsk->thread.fpu.state->fxsave;
 	int feature_bit = 0x2;
-	u64 xstate_bv;
+	u64 xfeatures;
 
 	if (!fx)
 		return;
 
-	xstate_bv = tsk->thread.fpu.state->xsave.header.xstate_bv;
+	xfeatures = tsk->thread.fpu.state->xsave.header.xfeatures;
 
 	/*
 	 * None of the feature bits are in init state. So nothing else
 	 * to do for us, as the memory layout is up to date.
 	 */
-	if ((xstate_bv & xfeatures_mask) == xfeatures_mask)
+	if ((xfeatures & xfeatures_mask) == xfeatures_mask)
 		return;
 
 	/*
 	 * FP is in init state
 	 */
-	if (!(xstate_bv & XSTATE_FP)) {
+	if (!(xfeatures & XSTATE_FP)) {
 		fx->cwd = 0x37f;
 		fx->swd = 0;
 		fx->twd = 0;
@@ -73,17 +73,17 @@ void __sanitize_i387_state(struct task_struct *tsk)
 	/*
 	 * SSE is in init state
 	 */
-	if (!(xstate_bv & XSTATE_SSE))
+	if (!(xfeatures & XSTATE_SSE))
 		memset(&fx->xmm_space[0], 0, 256);
 
-	xstate_bv = (xfeatures_mask & ~xstate_bv) >> 2;
+	xfeatures = (xfeatures_mask & ~xfeatures) >> 2;
 
 	/*
 	 * Update all the other memory layouts for which the corresponding
 	 * header bit is in the init state.
 	 */
-	while (xstate_bv) {
-		if (xstate_bv & 0x1) {
+	while (xfeatures) {
+		if (xfeatures & 0x1) {
 			int offset = xstate_offsets[feature_bit];
 			int size = xstate_sizes[feature_bit];
 
@@ -92,7 +92,7 @@ void __sanitize_i387_state(struct task_struct *tsk)
 			       size);
 		}
 
-		xstate_bv >>= 1;
+		xfeatures >>= 1;
 		feature_bit++;
 	}
 }
@@ -162,7 +162,7 @@ static inline int save_xstate_epilog(void __user *buf, int ia32_frame)
 {
 	struct xsave_struct __user *x = buf;
 	struct _fpx_sw_bytes *sw_bytes;
-	u32 xstate_bv;
+	u32 xfeatures;
 	int err;
 
 	/* Setup the bytes not touched by the [f]xsave and reserved for SW. */
@@ -175,25 +175,25 @@ static inline int save_xstate_epilog(void __user *buf, int ia32_frame)
 	err |= __put_user(FP_XSTATE_MAGIC2, (__u32 *)(buf + xstate_size));
 
 	/*
-	 * Read the xstate_bv which we copied (directly from the cpu or
+	 * Read the xfeatures which we copied (directly from the cpu or
 	 * from the state in task struct) to the user buffers.
 	 */
-	err |= __get_user(xstate_bv, (__u32 *)&x->header.xstate_bv);
+	err |= __get_user(xfeatures, (__u32 *)&x->header.xfeatures);
 
 	/*
 	 * For legacy compatible, we always set FP/SSE bits in the bit
 	 * vector while saving the state to the user context. This will
 	 * enable us capturing any changes(during sigreturn) to
 	 * the FP/SSE bits by the legacy applications which don't touch
-	 * xstate_bv in the xsave header.
+	 * xfeatures in the xsave header.
 	 *
-	 * xsave aware apps can change the xstate_bv in the xsave
+	 * xsave aware apps can change the xfeatures in the xsave
 	 * header as well as change any contents in the memory layout.
 	 * xrestore as part of sigreturn will capture all the changes.
 	 */
-	xstate_bv |= XSTATE_FPSSE;
+	xfeatures |= XSTATE_FPSSE;
 
-	err |= __put_user(xstate_bv, (__u32 *)&x->header.xstate_bv);
+	err |= __put_user(xfeatures, (__u32 *)&x->header.xfeatures);
 
 	return err;
 }
@@ -277,7 +277,7 @@ int save_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 static inline void
 sanitize_restored_xstate(struct task_struct *tsk,
 			 struct user_i387_ia32_struct *ia32_env,
-			 u64 xstate_bv, int fx_only)
+			 u64 xfeatures, int fx_only)
 {
 	struct xsave_struct *xsave = &tsk->thread.fpu.state->xsave;
 	struct xstate_header *header = &xsave->header;
@@ -291,9 +291,9 @@ sanitize_restored_xstate(struct task_struct *tsk,
 		 * layout and not enabled by the OS.
 		 */
 		if (fx_only)
-			header->xstate_bv = XSTATE_FPSSE;
+			header->xfeatures = XSTATE_FPSSE;
 		else
-			header->xstate_bv &= (xfeatures_mask & xstate_bv);
+			header->xfeatures &= (xfeatures_mask & xfeatures);
 	}
 
 	if (use_fxsr()) {
@@ -335,7 +335,7 @@ int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 	struct task_struct *tsk = current;
 	struct fpu *fpu = &tsk->thread.fpu;
 	int state_size = xstate_size;
-	u64 xstate_bv = 0;
+	u64 xfeatures = 0;
 	int fx_only = 0;
 
 	ia32_fxstate &= (config_enabled(CONFIG_X86_32) ||
@@ -369,7 +369,7 @@ int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 			fx_only = 1;
 		} else {
 			state_size = fx_sw_user.xstate_size;
-			xstate_bv = fx_sw_user.xstate_bv;
+			xfeatures = fx_sw_user.xfeatures;
 		}
 	}
 
@@ -398,7 +398,7 @@ int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 			fpstate_init(fpu);
 			err = -1;
 		} else {
-			sanitize_restored_xstate(tsk, &env, xstate_bv, fx_only);
+			sanitize_restored_xstate(tsk, &env, xfeatures, fx_only);
 		}
 
 		fpu->fpstate_active = 1;
@@ -415,7 +415,7 @@ int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 		 * state to the registers directly (with exceptions handled).
 		 */
 		user_fpu_begin();
-		if (restore_user_xstate(buf_fx, xstate_bv, fx_only)) {
+		if (restore_user_xstate(buf_fx, xfeatures, fx_only)) {
 			fpu_reset_state(fpu);
 			return -1;
 		}
@@ -441,7 +441,7 @@ static void prepare_fx_sw_frame(void)
 
 	fx_sw_reserved.magic1 = FP_XSTATE_MAGIC1;
 	fx_sw_reserved.extended_size = size;
-	fx_sw_reserved.xstate_bv = xfeatures_mask;
+	fx_sw_reserved.xfeatures = xfeatures_mask;
 	fx_sw_reserved.xstate_size = xstate_size;
 
 	if (config_enabled(CONFIG_IA32_EMULATION)) {
@@ -576,7 +576,7 @@ static void __init setup_init_fpu_buf(void)
 	if (cpu_has_xsaves) {
 		init_xstate_buf->header.xcomp_bv =
 						(u64)1 << 63 | xfeatures_mask;
-		init_xstate_buf->header.xstate_bv = xfeatures_mask;
+		init_xstate_buf->header.xfeatures = xfeatures_mask;
 	}
 
 	/*

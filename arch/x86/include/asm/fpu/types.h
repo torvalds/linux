@@ -100,7 +100,7 @@ struct bndcsr {
 } __packed;
 
 struct xstate_header {
-	u64				xstate_bv;
+	u64				xfeatures;
 	u64				xcomp_bv;
 	u64				reserved[6];
 } __attribute__((packed));

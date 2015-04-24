@@ -3197,7 +3197,7 @@ static int kvm_vcpu_ioctl_x86_set_debugregs(struct kvm_vcpu *vcpu,
 static void fill_xsave(u8 *dest, struct kvm_vcpu *vcpu)
 {
 	struct xsave_struct *xsave = &vcpu->arch.guest_fpu.state->xsave;
-	u64 xstate_bv = xsave->header.xstate_bv;
+	u64 xstate_bv = xsave->header.xfeatures;
 	u64 valid;
 
 	/*
@@ -3243,7 +3243,7 @@ static void load_xsave(struct kvm_vcpu *vcpu, u8 *src)
 	memcpy(xsave, src, XSAVE_HDR_OFFSET);
 
 	/* Set XSTATE_BV and possibly XCOMP_BV.  */
-	xsave->header.xstate_bv = xstate_bv;
+	xsave->header.xfeatures = xstate_bv;
 	if (cpu_has_xsaves)
 		xsave->header.xcomp_bv = host_xcr0 | XSTATE_COMPACTION_ENABLED;
 
