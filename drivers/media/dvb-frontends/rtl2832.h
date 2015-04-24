@@ -41,6 +41,7 @@ struct rtl2832_platform_data {
 	/*
 	 * XXX: This list must be kept sync with dvb_usb_rtl28xxu USB IF driver.
 	 */
+#define RTL2832_TUNER_FC2580    0x21
 #define RTL2832_TUNER_TUA9001   0x24
 #define RTL2832_TUNER_FC0012    0x26
 #define RTL2832_TUNER_E4000     0x27
