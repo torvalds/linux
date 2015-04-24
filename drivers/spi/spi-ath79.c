@@ -249,7 +249,7 @@ static int ath79_spi_probe(struct platform_device *pdev)
 		goto err_put_master;
 	}
 
-	ret = clk_enable(sp->clk);
+	ret = clk_prepare_enable(sp->clk);
 	if (ret)
 		goto err_put_master;
 
@@ -273,7 +273,7 @@ static int ath79_spi_probe(struct platform_device *pdev)
 err_disable:
 	ath79_spi_disable(sp);
 err_clk_disable:
-	clk_disable(sp->clk);
+	clk_disable_unprepare(sp->clk);
 err_put_master:
 	spi_master_put(sp->bitbang.master);
 
@@ -286,7 +286,7 @@ static int ath79_spi_remove(struct platform_device *pdev)
 
 	spi_bitbang_stop(&sp->bitbang);
 	ath79_spi_disable(sp);
-	clk_disable(sp->clk);
+	clk_disable_unprepare(sp->clk);
 	spi_master_put(sp->bitbang.master);
 
 	return 0;
