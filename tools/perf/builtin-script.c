@@ -148,9 +148,10 @@ static const char *output_field2str(enum perf_output_field field)
 
 #define PRINT_FIELD(x)  (output[attr->type].fields & PERF_OUTPUT_##x)
 
-static int perf_evsel__check_stype(struct perf_evsel *evsel,
-				   u64 sample_type, const char *sample_msg,
-				   enum perf_output_field field)
+static int perf_evsel__do_check_stype(struct perf_evsel *evsel,
+				      u64 sample_type, const char *sample_msg,
+				      enum perf_output_field field,
+				      bool allow_user_set)
 {
 	struct perf_event_attr *attr = &evsel->attr;
 	int type = attr->type;
@@ -160,6 +161,8 @@ static int perf_evsel__check_stype(struct perf_evsel *evsel,
 		return 0;
 
 	if (output[type].user_set) {
+		if (allow_user_set)
+			return 0;
 		evname = perf_evsel__name(evsel);
 		pr_err("Samples for '%s' event do not have %s attribute set. "
 		       "Cannot print '%s' field.\n",
@@ -177,10 +180,22 @@ static int perf_evsel__check_stype(struct perf_evsel *evsel,
 	return 0;
 }
 
+static int perf_evsel__check_stype(struct perf_evsel *evsel,
+				   u64 sample_type, const char *sample_msg,
+				   enum perf_output_field field)
+{
+	return perf_evsel__do_check_stype(evsel, sample_type, sample_msg, field,
+					  false);
+}
+
 static int perf_evsel__check_attr(struct perf_evsel *evsel,
 				  struct perf_session *session)
 {
 	struct perf_event_attr *attr = &evsel->attr;
+	bool allow_user_set;
+
+	allow_user_set = perf_header__has_feat(&session->header,
+					       HEADER_AUXTRACE);
 
 	if (PRINT_FIELD(TRACE) &&
 		!perf_session__has_traces(session, "record -R"))
@@ -193,8 +208,8 @@ static int perf_evsel__check_attr(struct perf_evsel *evsel,
 	}
 
 	if (PRINT_FIELD(ADDR) &&
-		perf_evsel__check_stype(evsel, PERF_SAMPLE_ADDR, "ADDR",
-					PERF_OUTPUT_ADDR))
+		perf_evsel__do_check_stype(evsel, PERF_SAMPLE_ADDR, "ADDR",
+					   PERF_OUTPUT_ADDR, allow_user_set))
 		return -EINVAL;
 
 	if (PRINT_FIELD(SYM) && !PRINT_FIELD(IP) && !PRINT_FIELD(ADDR)) {
@@ -231,8 +246,8 @@ static int perf_evsel__check_attr(struct perf_evsel *evsel,
 		return -EINVAL;
 
 	if (PRINT_FIELD(CPU) &&
-		perf_evsel__check_stype(evsel, PERF_SAMPLE_CPU, "CPU",
-					PERF_OUTPUT_CPU))
+		perf_evsel__do_check_stype(evsel, PERF_SAMPLE_CPU, "CPU",
+					   PERF_OUTPUT_CPU, allow_user_set))
 		return -EINVAL;
 
 	if (PRINT_FIELD(PERIOD) &&
