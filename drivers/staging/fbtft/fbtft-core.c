@@ -47,9 +47,11 @@ static unsigned long debug;
 module_param(debug, ulong, 0);
 MODULE_PARM_DESC(debug, "override device debug level");
 
+#ifdef CONFIG_HAS_DMA
 static bool dma = true;
 module_param(dma, bool, 0);
 MODULE_PARM_DESC(dma, "Use DMA buffer");
+#endif
 
 
 void fbtft_dbg_hex(const struct device *dev, int groupsize,
@@ -856,10 +858,13 @@ struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,
 #endif
 
 	if (txbuflen > 0) {
+#ifdef CONFIG_HAS_DMA
 		if (dma) {
 			dev->coherent_dma_mask = ~0;
 			txbuf = dmam_alloc_coherent(dev, txbuflen, &par->txbuf.dma, GFP_DMA);
-		} else {
+		} else
+#endif
+		{
 			txbuf = devm_kzalloc(par->info->device, txbuflen, GFP_KERNEL);
 		}
 		if (!txbuf)
