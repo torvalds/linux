@@ -11212,24 +11212,6 @@ static int advansys_board_found(struct Scsi_Host *shost, unsigned int iop,
 	}
 
 	/*
-	 * Following v1.3.89, 'cmd_per_lun' is no longer needed
-	 * and should be set to zero.
-	 *
-	 * But because of a bug introduced in v1.3.89 if the driver is
-	 * compiled as a module and 'cmd_per_lun' is zero, the Mid-Level
-	 * SCSI function 'allocate_device' will panic. To allow the driver
-	 * to work as a module in these kernels set 'cmd_per_lun' to 1.
-	 *
-	 * Note: This is wrong.  cmd_per_lun should be set to the depth
-	 * you want on untagged devices always.
-	 #ifdef MODULE
-	 */
-	shost->cmd_per_lun = 1;
-/* #else
-            shost->cmd_per_lun = 0;
-#endif */
-
-	/*
 	 * Set the maximum number of scatter-gather elements the
 	 * adapter can handle.
 	 */
