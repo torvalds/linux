@@ -8230,8 +8230,8 @@ AscPutReadySgListQueue(ASC_DVC_VAR *asc_dvc, ASC_SCSI_Q *scsiq, uchar q_no)
 	sg_head = scsiq->sg_head;
 	saved_data_addr = scsiq->q1.data_addr;
 	saved_data_cnt = scsiq->q1.data_cnt;
-	scsiq->q1.data_addr = sg_head->sg_list[0].addr;
-	scsiq->q1.data_cnt = sg_head->sg_list[0].bytes;
+	scsiq->q1.data_addr = cpu_to_le32(sg_head->sg_list[0].addr);
+	scsiq->q1.data_cnt = cpu_to_le32(sg_head->sg_list[0].bytes);
 #if CC_VERY_LONG_SG_LIST
 	/*
 	 * If sg_head->entry_cnt is greater than ASC_MAX_SG_LIST
@@ -8467,8 +8467,8 @@ static int AscExeScsiQueue(ASC_DVC_VAR *asc_dvc, ASC_SCSI_Q *scsiq)
 		}
 #endif /* !CC_VERY_LONG_SG_LIST */
 		if (sg_entry_cnt == 1) {
-			scsiq->q1.data_addr = sg_head->sg_list[0].addr;
-			scsiq->q1.data_cnt = sg_head->sg_list[0].bytes;
+			scsiq->q1.data_addr = cpu_to_le32(sg_head->sg_list[0].addr);
+			scsiq->q1.data_cnt = cpu_to_le32(sg_head->sg_list[0].bytes);
 			scsiq->q1.cntl &= ~(QC_SG_HEAD | QC_SG_SWAP_QUEUE);
 		}
 		sg_entry_cnt_minus_one = sg_entry_cnt - 1;
