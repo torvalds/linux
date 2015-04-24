@@ -1,12 +1,10 @@
-#define DRV_NAME "advansys"
-#define ASC_VERSION "3.4"	/* AdvanSys Driver Version */
-
 /*
  * advansys.c - Linux Host Driver for AdvanSys SCSI Adapters
  *
  * Copyright (c) 1995-2000 Advanced System Products, Inc.
  * Copyright (c) 2000-2001 ConnectCom Solutions, Inc.
  * Copyright (c) 2007 Matthew Wilcox <matthew@wil.cx>
+ * Copyright (c) 2014 Hannes Reinecke <hare@suse.de>
  * All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -49,26 +47,15 @@
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
 
+#define DRV_NAME "advansys"
+#define ASC_VERSION "3.5"	/* AdvanSys Driver Version */
+
 /* FIXME:
  *
- *  1. Although all of the necessary command mapping places have the
- *     appropriate dma_map.. APIs, the driver still processes its internal
- *     queue using bus_to_virt() and virt_to_bus() which are illegal under
- *     the API.  The entire queue processing structure will need to be
- *     altered to fix this.
- *  2. Need to add memory mapping workaround. Test the memory mapping.
- *     If it doesn't work revert to I/O port access. Can a test be done
- *     safely?
- *  3. Handle an interrupt not working. Keep an interrupt counter in
- *     the interrupt handler. In the timeout function if the interrupt
- *     has not occurred then print a message and run in polled mode.
- *  4. Need to add support for target mode commands, cf. CAM XPT.
- *  5. check DMA mapping functions for failure
- *  6. Use scsi_transport_spi
- *  7. advansys_info is not safe against multiple simultaneous callers
- *  8. Add module_param to override ISA/VLB ioport array
+ *  1. Use scsi_transport_spi
+ *  2. advansys_info is not safe against multiple simultaneous callers
+ *  3. Add module_param to override ISA/VLB ioport array
  */
-#warning this driver is still not properly converted to the DMA API
 
 /* Enable driver /proc statistics. */
 #define ADVANSYS_STATS
