@@ -239,7 +239,6 @@ void fpu__init_system(void)
 	fpu__init_system_xstate();
 
 	fpu__init_system_ctx_switch();
-	fpu__init_cpu_ctx_switch();
 }
 
 void fpu__cpu_init(void)
