@@ -52,10 +52,6 @@
 #define NFS4_ANYONE_MODE (NFS4_ACE_READ_ATTRIBUTES | NFS4_ACE_READ_ACL | NFS4_ACE_SYNCHRONIZE)
 #define NFS4_OWNER_MODE (NFS4_ACE_WRITE_ATTRIBUTES | NFS4_ACE_WRITE_ACL)
 
-/* We don't support these bits; insist they be neither allowed nor denied */
-#define NFS4_MASK_UNSUPP (NFS4_ACE_DELETE | NFS4_ACE_WRITE_OWNER \
-		| NFS4_ACE_READ_NAMED_ATTRS | NFS4_ACE_WRITE_NAMED_ATTRS)
-
 /* flags used to simulate posix default ACLs */
 #define NFS4_INHERITANCE_FLAGS (NFS4_ACE_FILE_INHERIT_ACE \
 		| NFS4_ACE_DIRECTORY_INHERIT_ACE)
@@ -63,9 +59,6 @@
 #define NFS4_SUPPORTED_FLAGS (NFS4_INHERITANCE_FLAGS \
 		| NFS4_ACE_INHERIT_ONLY_ACE \
 		| NFS4_ACE_IDENTIFIER_GROUP)
-
-#define MASK_EQUAL(mask1, mask2) \
-	( ((mask1) & NFS4_ACE_MASK_ALL) == ((mask2) & NFS4_ACE_MASK_ALL) )
 
 static u32
 mask_from_posix(unsigned short perm, unsigned int flags)
@@ -125,11 +118,6 @@ low_mode_from_nfs4(u32 perm, unsigned short *mode, unsigned int flags)
 	if ((perm & NFS4_EXECUTE_MODE) == NFS4_EXECUTE_MODE)
 		*mode |= ACL_EXECUTE;
 }
-
-struct ace_container {
-	struct nfs4_ace  *ace;
-	struct list_head  ace_l;
-};
 
 static short ace2type(struct nfs4_ace *);
 static void _posix_to_nfsv4_one(struct posix_acl *, struct nfs4_acl *,
