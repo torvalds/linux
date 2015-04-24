@@ -36,7 +36,7 @@
 #include <crypto/ctr.h>
 #include <crypto/lrw.h>
 #include <crypto/xts.h>
-#include <asm/i387.h>
+#include <asm/fpu/api.h>
 #include <asm/xcr.h>
 #include <asm/xsave.h>
 #include <asm/crypto/twofish.h>

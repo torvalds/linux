@@ -31,7 +31,7 @@
 #include <asm/traps.h>
 #include <asm/desc.h>
 #include <asm/user.h>
-#include <asm/i387.h>
+#include <asm/fpu/api.h>
 
 #include "fpu_system.h"
 #include "fpu_emu.h"

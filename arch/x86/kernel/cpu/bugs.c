@@ -12,7 +12,7 @@
 #include <asm/bugs.h>
 #include <asm/processor.h>
 #include <asm/processor-flags.h>
-#include <asm/i387.h>
+#include <asm/fpu/api.h>
 #include <asm/msr.h>
 #include <asm/paravirt.h>
 #include <asm/alternative.h>

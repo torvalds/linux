@@ -37,7 +37,7 @@
 #include <linux/types.h>
 #include <crypto/sha.h>
 #include <crypto/sha256_base.h>
-#include <asm/i387.h>
+#include <asm/fpu/api.h>
 #include <asm/xcr.h>
 #include <asm/xsave.h>
 #include <linux/string.h>

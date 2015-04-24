@@ -7,8 +7,8 @@
  * x86-64 work by Andi Kleen 2002
  */
 
-#ifndef _ASM_X86_I387_H
-#define _ASM_X86_I387_H
+#ifndef _ASM_X86_FPU_API_H
+#define _ASM_X86_FPU_API_H
 
 #ifndef __ASSEMBLY__
 
@@ -104,4 +104,4 @@ extern void fpu__save(struct fpu *fpu);
 
 #endif /* __ASSEMBLY__ */
 
-#endif /* _ASM_X86_I387_H */
+#endif /* _ASM_X86_FPU_API_H */

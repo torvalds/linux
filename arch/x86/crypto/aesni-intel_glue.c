@@ -32,7 +32,7 @@
 #include <crypto/lrw.h>
 #include <crypto/xts.h>
 #include <asm/cpu_device_id.h>
-#include <asm/i387.h>
+#include <asm/fpu/api.h>
 #include <asm/crypto/aes.h>
 #include <crypto/ablk_helper.h>
 #include <crypto/scatterwalk.h>
