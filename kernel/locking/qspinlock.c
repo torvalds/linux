@@ -105,24 +105,37 @@ static inline struct mcs_spinlock *decode_tail(u32 tail)
  * By using the whole 2nd least significant byte for the pending bit, we
  * can allow better optimization of the lock acquisition for the pending
  * bit holder.
+ *
+ * This internal structure is also used by the set_locked function which
+ * is not restricted to _Q_PENDING_BITS == 8.
  */
-#if _Q_PENDING_BITS == 8
-
 struct __qspinlock {
 	union {
 		atomic_t val;
-		struct {
 #ifdef __LITTLE_ENDIAN
-			u16	locked_pending;
-			u16	tail;
-#else
-			u16	tail;
-			u16	locked_pending;
-#endif
+		struct {
+			u8	locked;
+			u8	pending;
 		};
+		struct {
+			u16	locked_pending;
+			u16	tail;
+		};
+#else
+		struct {
+			u16	tail;
+			u16	locked_pending;
+		};
+		struct {
+			u8	reserved[2];
+			u8	pending;
+			u8	locked;
+		};
+#endif
 	};
 };
 
+#if _Q_PENDING_BITS == 8
 /**
  * clear_pending_set_locked - take ownership and clear the pending bit.
  * @lock: Pointer to queued spinlock structure
@@ -193,6 +206,19 @@ static __always_inline u32 xchg_tail(struct qspinlock *lock, u32 tail)
 	return old;
 }
 #endif /* _Q_PENDING_BITS == 8 */
+
+/**
+ * set_locked - Set the lock bit and own the lock
+ * @lock: Pointer to queued spinlock structure
+ *
+ * *,*,0 -> *,0,1
+ */
+static __always_inline void set_locked(struct qspinlock *lock)
+{
+	struct __qspinlock *l = (void *)lock;
+
+	WRITE_ONCE(l->locked, _Q_LOCKED_VAL);
+}
 
 /**
  * queued_spin_lock_slowpath - acquire the queued spinlock
@@ -329,8 +355,14 @@ queue:
 	 * go away.
 	 *
 	 * *,x,y -> *,0,0
+	 *
+	 * this wait loop must use a load-acquire such that we match the
+	 * store-release that clears the locked bit and create lock
+	 * sequentiality; this is because the set_locked() function below
+	 * does not imply a full barrier.
+	 *
 	 */
-	while ((val = atomic_read(&lock->val)) & _Q_LOCKED_PENDING_MASK)
+	while ((val = smp_load_acquire(&lock->val.counter)) & _Q_LOCKED_PENDING_MASK)
 		cpu_relax();
 
 	/*
@@ -338,15 +370,19 @@ queue:
 	 *
 	 * n,0,0 -> 0,0,1 : lock, uncontended
 	 * *,0,0 -> *,0,1 : lock, contended
+	 *
+	 * If the queue head is the only one in the queue (lock value == tail),
+	 * clear the tail code and grab the lock. Otherwise, we only need
+	 * to grab the lock.
 	 */
 	for (;;) {
-		new = _Q_LOCKED_VAL;
-		if (val != tail)
-			new |= val;
-
-		old = atomic_cmpxchg(&lock->val, val, new);
-		if (old == val)
+		if (val != tail) {
+			set_locked(lock);
 			break;
+		}
+		old = atomic_cmpxchg(&lock->val, val, _Q_LOCKED_VAL);
+		if (old == val)
+			goto release;	/* No contention */
 
 		val = old;
 	}
@@ -354,12 +390,10 @@ queue:
 	/*
 	 * contended path; wait for next, release.
 	 */
-	if (new != _Q_LOCKED_VAL) {
-		while (!(next = READ_ONCE(node->next)))
-			cpu_relax();
+	while (!(next = READ_ONCE(node->next)))
+		cpu_relax();
 
-		arch_mcs_spin_unlock_contended(&next->locked);
-	}
+	arch_mcs_spin_unlock_contended(&next->locked);
 
 release:
 	/*
