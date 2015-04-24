@@ -30,19 +30,23 @@ static unsigned int xstate_comp_offsets[sizeof(xfeatures_mask)*8];
 static unsigned int xfeatures_nr;
 
 /*
- * If a processor implementation discern that a processor state component is
- * in its initialized state it may modify the corresponding bit in the
- * header.xfeatures as '0', with out modifying the corresponding memory
- * layout in the case of xsaveopt. While presenting the xstate information to
- * the user, we always ensure that the memory layout of a feature will be in
- * the init state if the corresponding header bit is zero. This is to ensure
- * that the user doesn't see some stale state in the memory layout during
- * signal handling, debugging etc.
+ * When executing XSAVEOPT (optimized XSAVE), if a processor implementation
+ * detects that an FPU state component is still (or is again) in its
+ * initialized state, it may clear the corresponding bit in the header.xfeatures
+ * field, and can skip the writeout of registers to the corresponding memory layout.
+ *
+ * This means that when the bit is zero, the state component might still contain
+ * some previous - non-initialized register state.
+ *
+ * Before writing xstate information to user-space we sanitize those components,
+ * to always ensure that the memory layout of a feature will be in the init state
+ * if the corresponding header bit is zero. This is to ensure that user-space doesn't
+ * see some stale state in the memory layout during signal handling, debugging etc.
  */
 void __sanitize_i387_state(struct task_struct *tsk)
 {
 	struct i387_fxsave_struct *fx = &tsk->thread.fpu.state->fxsave;
-	int feature_bit = 0x2;
+	int feature_bit;
 	u64 xfeatures;
 
 	if (!fx)
@@ -76,19 +80,25 @@ void __sanitize_i387_state(struct task_struct *tsk)
 	if (!(xfeatures & XSTATE_SSE))
 		memset(&fx->xmm_space[0], 0, 256);
 
+	/*
+	 * First two features are FPU and SSE, which above we handled
+	 * in a special way already:
+	 */
+	feature_bit = 0x2;
 	xfeatures = (xfeatures_mask & ~xfeatures) >> 2;
 
 	/*
-	 * Update all the other memory layouts for which the corresponding
-	 * header bit is in the init state.
+	 * Update all the remaining memory layouts according to their
+	 * standard xstate layout, if their header bit is in the init
+	 * state:
 	 */
 	while (xfeatures) {
 		if (xfeatures & 0x1) {
 			int offset = xstate_offsets[feature_bit];
 			int size = xstate_sizes[feature_bit];
 
-			memcpy(((void *) fx) + offset,
-			       ((void *) init_xstate_buf) + offset,
+			memcpy((void *)fx + offset,
+			       (void *)init_xstate_buf + offset,
 			       size);
 		}
 
