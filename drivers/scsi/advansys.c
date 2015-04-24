@@ -1815,15 +1815,15 @@ typedef struct adv_dvc_cfg {
 struct adv_dvc_var;
 struct adv_scsi_req_q;
 
-typedef struct asc_sg_block {
+typedef struct adv_sg_block {
 	uchar reserved1;
 	uchar reserved2;
 	uchar reserved3;
 	uchar sg_cnt;		/* Valid entries in block. */
-	ADV_PADDR sg_ptr;	/* Pointer to next sg block. */
+	__le32 sg_ptr;	/* Pointer to next sg block. */
 	struct {
-		ADV_PADDR sg_addr;	/* SG element address. */
-		ADV_DCNT sg_count;	/* SG element count. */
+		__le32 sg_addr;	/* SG element address. */
+		__le32 sg_count;	/* SG element count. */
 	} sg_list[NO_OF_SG_PER_BLOCK];
 } ADV_SG_BLOCK;
 
@@ -1888,7 +1888,7 @@ typedef struct adv_scsi_req_q {
  */
 typedef struct adv_sgblk {
 	ADV_SG_BLOCK sg_block;	/* Sgblock structure. */
-	uchar align[32];	/* Sgblock structure padding. */
+	dma_addr_t sg_addr;	/* Physical address */
 	struct adv_sgblk *next_sgblkp;	/* Next scatter-gather structure. */
 } adv_sgblk_t;
 
@@ -2381,7 +2381,7 @@ struct asc_board {
 	adv_req_t *adv_reqp;	/* Request structures. */
 	dma_addr_t adv_reqp_addr;
 	size_t adv_reqp_size;
-	adv_sgblk_t *adv_sgblkp;	/* Scatter-gather structures. */
+	struct dma_pool *adv_sgblk_pool;	/* Scatter-gather structures. */
 	ushort bios_signature;	/* BIOS Signature. */
 	ushort bios_version;	/* BIOS Version. */
 	ushort bios_codeseg;	/* BIOS Code Segment. */
@@ -2650,7 +2650,7 @@ static void asc_prt_adv_sgblock(int sgblockno, ADV_SG_BLOCK *b)
 {
 	int i;
 
-	printk(" ASC_SG_BLOCK at addr 0x%lx (sgblockno %d)\n",
+	printk(" ADV_SG_BLOCK at addr 0x%lx (sgblockno %d)\n",
 	       (ulong)b, sgblockno);
 	printk("  sg_cnt %u, sg_ptr 0x%lx\n",
 	       b->sg_cnt, (ulong)le32_to_cpu(b->sg_ptr));
@@ -2672,7 +2672,8 @@ static void asc_prt_adv_sgblock(int sgblockno, ADV_SG_BLOCK *b)
 static void asc_prt_adv_scsi_req_q(ADV_SCSI_REQ_Q *q)
 {
 	int sg_blk_cnt;
-	struct asc_sg_block *sg_ptr;
+	struct adv_sg_block *sg_ptr;
+	adv_sgblk_t *sgblkp;
 
 	printk("ADV_SCSI_REQ_Q at addr 0x%lx\n", (ulong)q);
 
@@ -2699,21 +2700,15 @@ static void asc_prt_adv_scsi_req_q(ADV_SCSI_REQ_Q *q)
 
 	/* Display the request's ADV_SG_BLOCK structures. */
 	if (q->sg_list_ptr != NULL) {
+		sgblkp = container_of(q->sg_list_ptr, adv_sgblk_t, sg_block);
 		sg_blk_cnt = 0;
-		while (1) {
-			/*
-			 * 'sg_ptr' is a physical address. Convert it to a virtual
-			 * address by indexing 'sg_blk_cnt' into the virtual address
-			 * array 'sg_list_ptr'.
-			 *
-			 * XXX - Assumes all SG physical blocks are virtually contiguous.
-			 */
-			sg_ptr =
-			    &(((ADV_SG_BLOCK *)(q->sg_list_ptr))[sg_blk_cnt]);
+		while (sgblkp) {
+			sg_ptr = &sgblkp->sg_block;
 			asc_prt_adv_sgblock(sg_blk_cnt, sg_ptr);
 			if (sg_ptr->sg_ptr == 0) {
 				break;
 			}
+			sgblkp = sgblkp->next_sgblkp;
 			sg_blk_cnt++;
 		}
 	}
@@ -6207,9 +6202,8 @@ static void adv_isr_callback(ADV_DVC_VAR *adv_dvc_varp, ADV_SCSI_REQ_Q *scsiqp)
 		/* Remove 'sgblkp' from the request list. */
 		reqp->sgblkp = sgblkp->next_sgblkp;
 
-		/* Add 'sgblkp' to the board free list. */
-		sgblkp->next_sgblkp = boardp->adv_sgblkp;
-		boardp->adv_sgblkp = sgblkp;
+		dma_pool_free(boardp->adv_sgblk_pool, sgblkp,
+			      sgblkp->sg_addr);
 	}
 
 	ASC_DBG(1, "done\n");
@@ -7903,15 +7897,16 @@ static int
 adv_get_sglist(struct asc_board *boardp, adv_req_t *reqp,
 	       ADV_SCSI_REQ_Q *scsiqp, struct scsi_cmnd *scp, int use_sg)
 {
-	adv_sgblk_t *sgblkp;
+	adv_sgblk_t *sgblkp, *prev_sgblkp;
 	struct scatterlist *slp;
 	int sg_elem_cnt;
 	ADV_SG_BLOCK *sg_block, *prev_sg_block;
-	ADV_PADDR sg_block_paddr;
+	dma_addr_t sgblk_paddr;
 	int i;
 
 	slp = scsi_sglist(scp);
 	sg_elem_cnt = use_sg;
+	prev_sgblkp = NULL;
 	prev_sg_block = NULL;
 	reqp->sgblkp = NULL;
 
@@ -7921,7 +7916,9 @@ adv_get_sglist(struct asc_board *boardp, adv_req_t *reqp,
 		 * list. One 'adv_sgblk_t' structure holds NO_OF_SG_PER_BLOCK
 		 * (15) scatter-gather elements.
 		 */
-		if ((sgblkp = boardp->adv_sgblkp) == NULL) {
+		sgblkp = dma_pool_alloc(boardp->adv_sgblk_pool, GFP_ATOMIC,
+					&sgblk_paddr);
+		if (!sgblkp) {
 			ASC_DBG(1, "no free adv_sgblk_t\n");
 			ASC_STATS(scp->device->host, adv_build_nosg);
 
@@ -7932,24 +7929,16 @@ adv_get_sglist(struct asc_board *boardp, adv_req_t *reqp,
 			while ((sgblkp = reqp->sgblkp) != NULL) {
 				/* Remove 'sgblkp' from the request list. */
 				reqp->sgblkp = sgblkp->next_sgblkp;
-
-				/* Add 'sgblkp' to the board free list. */
-				sgblkp->next_sgblkp = boardp->adv_sgblkp;
-				boardp->adv_sgblkp = sgblkp;
+				sgblkp->next_sgblkp = NULL;
+				dma_pool_free(boardp->adv_sgblk_pool, sgblkp,
+					      sgblkp->sg_addr);
 			}
 			return ASC_BUSY;
 		}
-
 		/* Complete 'adv_sgblk_t' board allocation. */
-		boardp->adv_sgblkp = sgblkp->next_sgblkp;
+		sgblkp->sg_addr = sgblk_paddr;
 		sgblkp->next_sgblkp = NULL;
-
-		/*
-		 * Get 8 byte aligned virtual and physical addresses
-		 * for the allocated ADV_SG_BLOCK structure.
-		 */
-		sg_block = (ADV_SG_BLOCK *)ADV_8BALIGN(&sgblkp->sg_block);
-		sg_block_paddr = virt_to_bus(sg_block);
+		sg_block = &sgblkp->sg_block;
 
 		/*
 		 * Check if this is the first 'adv_sgblk_t' for the
@@ -7964,17 +7953,16 @@ adv_get_sglist(struct asc_board *boardp, adv_req_t *reqp,
 			 * address pointers.
 			 */
 			scsiqp->sg_list_ptr = sg_block;
-			scsiqp->sg_real_addr = cpu_to_le32(sg_block_paddr);
+			scsiqp->sg_real_addr = cpu_to_le32(sgblk_paddr);
 		} else {
 			/* Request's second or later scatter-gather block. */
-			sgblkp->next_sgblkp = reqp->sgblkp;
-			reqp->sgblkp = sgblkp;
+			prev_sgblkp->next_sgblkp = sgblkp;
 
 			/*
 			 * Point the previous ADV_SG_BLOCK structure to
 			 * the newly allocated ADV_SG_BLOCK structure.
 			 */
-			prev_sg_block->sg_ptr = cpu_to_le32(sg_block_paddr);
+			prev_sg_block->sg_ptr = cpu_to_le32(sgblk_paddr);
 		}
 
 		for (i = 0; i < NO_OF_SG_PER_BLOCK; i++) {
@@ -7985,15 +7973,19 @@ adv_get_sglist(struct asc_board *boardp, adv_req_t *reqp,
 			ASC_STATS_ADD(scp->device->host, xfer_sect,
 				      DIV_ROUND_UP(sg_dma_len(slp), 512));
 
-			if (--sg_elem_cnt == 0) {	/* Last ADV_SG_BLOCK and scatter-gather entry. */
+			if (--sg_elem_cnt == 0) {
+				/*
+				 * Last ADV_SG_BLOCK and scatter-gather entry.
+				 */
 				sg_block->sg_cnt = i + 1;
-				sg_block->sg_ptr = 0L;	/* Last ADV_SG_BLOCK in list. */
+				sg_block->sg_ptr = 0L; /* Last ADV_SG_BLOCK in list. */
 				return ADV_SUCCESS;
 			}
 			slp++;
 		}
 		sg_block->sg_cnt = NO_OF_SG_PER_BLOCK;
 		prev_sg_block = sg_block;
+		prev_sgblkp = sgblkp;
 	}
 }
 
@@ -11157,8 +11149,7 @@ static int advansys_wide_init_chip(struct Scsi_Host *shost)
 {
 	struct asc_board *board = shost_priv(shost);
 	struct adv_dvc_var *adv_dvc = &board->dvc_var.adv_dvc_var;
-	int sg_cnt = 0;
-	adv_sgblk_t *sgp;
+	size_t sgblk_pool_size;
 	int warn_code, err_code;
 
 	/*
@@ -11195,22 +11186,14 @@ static int advansys_wide_init_chip(struct Scsi_Host *shost)
 	 * Allocate up to ADV_TOT_SG_BLOCK request structures for
 	 * the Wide board. Each structure is about 136 bytes.
 	 */
-	board->adv_sgblkp = NULL;
-	for (sg_cnt = 0; sg_cnt < ADV_TOT_SG_BLOCK; sg_cnt++) {
-		sgp = kmalloc(sizeof(adv_sgblk_t), GFP_KERNEL);
+	sgblk_pool_size = sizeof(adv_sgblk_t) * ADV_TOT_SG_BLOCK;
+	board->adv_sgblk_pool = dma_pool_create("adv_sgblk", board->dev,
+						sgblk_pool_size, 32, 0);
 
-		if (!sgp)
-			break;
+	ASC_DBG(1, "sg_cnt %d * %lu = %lu bytes\n", ADV_TOT_SG_BLOCK,
+		sizeof(adv_sgblk_t), sgblk_pool_size);
 
-		sgp->next_sgblkp = board->adv_sgblkp;
-		board->adv_sgblkp = sgp;
-
-	}
-
-	ASC_DBG(1, "sg_cnt %d * %lu = %lu bytes\n", sg_cnt, sizeof(adv_sgblk_t),
-		 sizeof(adv_sgblk_t) * sg_cnt);
-
-	if (!board->adv_sgblkp)
+	if (!board->adv_sgblk_pool)
 		goto kmalloc_failed;
 
 	if (adv_dvc->chip_type == ADV_CHIP_ASC3550) {
@@ -11253,10 +11236,9 @@ static void advansys_wide_free_mem(struct asc_board *board)
 				  board->adv_reqp, board->adv_reqp_addr);
 		board->adv_reqp = NULL;
 	}
-	while (board->adv_sgblkp) {
-		adv_sgblk_t *sgp = board->adv_sgblkp;
-		board->adv_sgblkp = sgp->next_sgblkp;
-		kfree(sgp);
+	if (board->adv_sgblk_pool) {
+		dma_pool_destroy(board->adv_sgblk_pool);
+		board->adv_sgblk_pool = NULL;
 	}
 }
 
