@@ -206,14 +206,19 @@ struct tun_struct {
 	u32 flow_count;
 };
 
+static inline bool tun_is_little_endian(struct tun_struct *tun)
+{
+	return tun->flags & TUN_VNET_LE;
+}
+
 static inline u16 tun16_to_cpu(struct tun_struct *tun, __virtio16 val)
 {
-	return __virtio16_to_cpu(tun->flags & TUN_VNET_LE, val);
+	return __virtio16_to_cpu(tun_is_little_endian(tun), val);
 }
 
 static inline __virtio16 cpu_to_tun16(struct tun_struct *tun, u16 val)
 {
-	return __cpu_to_virtio16(tun->flags & TUN_VNET_LE, val);
+	return __cpu_to_virtio16(tun_is_little_endian(tun), val);
 }
 
 static inline u32 tun_hashfn(u32 rxhash)
