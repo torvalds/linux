@@ -1860,19 +1860,17 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 					goto out_free_stack;
 				continue;
 			}
-			top = pstack__pop(browser->pstack);
+			top = pstack__peek(browser->pstack);
 			if (top == &browser->hists->dso_filter) {
-				perf_hpp__set_elide(HISTC_DSO, false);
-				browser->hists->dso_filter = NULL;
-				hists__filter_by_dso(browser->hists);
+				/*
+				 * No need to set actions->dso here since
+				 * it's just to remove the current filter.
+				 * Ditto for thread below.
+				 */
+				do_zoom_dso(browser, actions);
 			}
-			if (top == &browser->hists->thread_filter) {
-				perf_hpp__set_elide(HISTC_THREAD, false);
-				thread__zput(browser->hists->thread_filter);
-				hists__filter_by_thread(browser->hists);
-			}
-			ui_helpline__pop();
-			hist_browser__reset(browser);
+			if (top == &browser->hists->thread_filter)
+				do_zoom_thread(browser, actions);
 			continue;
 		}
 		case K_ESC:
