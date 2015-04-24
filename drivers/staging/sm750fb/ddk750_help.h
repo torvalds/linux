@@ -14,7 +14,7 @@
 #warning "big endian on target cpu and enable nature big endian support of 718 capability !"
 #define PEEK32(addr)  			__raw_readl(mmio750 + addr)
 #define POKE32(addr,data) 		__raw_writel(data, mmio750 + addr)
-#else /* software control endianess */
+#else /* software control endianness */
 #define PEEK32(addr) readl(addr + mmio750)
 #define POKE32(addr,data) writel(data, addr + mmio750)
 #endif

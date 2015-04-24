@@ -207,7 +207,7 @@ static void lynxfb_ops_fillrect(struct fb_info *info,
 
 	/*
 	 * If not use spin_lock,system will die if user load driver
-	 * and immediatly unload driver frequently (dual)
+	 * and immediately unload driver frequently (dual)
 	 */
 	if (share->dual)
 		spin_lock(&share->slock);
@@ -239,7 +239,7 @@ static void lynxfb_ops_copyarea(struct fb_info *info,
 
 	/*
 	 * If not use spin_lock, system will die if user load driver
-	 * and immediatly unload driver frequently (dual)
+	 * and immediately unload driver frequently (dual)
 	 */
 	if (share->dual)
 		spin_lock(&share->slock);
@@ -283,7 +283,7 @@ static void lynxfb_ops_imageblit(struct fb_info *info,
 _do_work:
 	/*
 	 * If not use spin_lock, system will die if user load driver
-	 * and immediatly unload driver frequently (dual)
+	 * and immediately unload driver frequently (dual)
 	 */
 	if (share->dual)
 		spin_lock(&share->slock);
@@ -479,7 +479,7 @@ static int lynxfb_resume(struct pci_dev *pdev)
 
 	ret = pci_set_power_state(pdev, PCI_D0);
 	if (ret) {
-		pr_err("error:%d occured in pci_set_power_state\n", ret);
+		pr_err("error:%d occurred in pci_set_power_state\n", ret);
 		return ret;
 	}
 
@@ -488,7 +488,7 @@ static int lynxfb_resume(struct pci_dev *pdev)
 		pci_restore_state(pdev);
 		ret = pci_enable_device(pdev);
 		if (ret) {
-			pr_err("error:%d occured in pci_enable_device\n", ret);
+			pr_err("error:%d occurred in pci_enable_device\n", ret);
 			return ret;
 		}
 		pci_set_master(pdev);
@@ -1170,7 +1170,7 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 			pr_err("Unable to setup MTRR.\n");
 		} else {
 			share->mtrr.vram_added = 1;
-			pr_info("MTRR added succesfully\n");
+			pr_info("MTRR added successfully\n");
 		}
 	}
 #endif

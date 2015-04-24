@@ -246,7 +246,7 @@ unsigned int rop2)   /* ROP value */
 #if 0
     /* Program pitch (distance between the 1st points of two adjacent lines).
        Note that input pitch is BYTE value, but the 2D Pitch register uses
-       pixel values. Need Byte to pixel convertion.
+       pixel values. Need Byte to pixel conversion.
     */
 	if(Bpp == 3){
 			sx *= 3;
@@ -362,7 +362,7 @@ int hw_imageblit(struct lynx_accel *accel,
 #if 0
     /* Program pitch (distance between the 1st points of two adjacent lines).
        Note that input pitch is BYTE value, but the 2D Pitch register uses
-       pixel values. Need Byte to pixel convertion.
+       pixel values. Need Byte to pixel conversion.
     */
 	if(bytePerPixel == 3 ){
 		dx *= 3;

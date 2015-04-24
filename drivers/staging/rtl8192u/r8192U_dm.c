@@ -120,7 +120,7 @@ static	void	dm_ctstoself(struct net_device *dev);
  *		Prepare SW resource for HW dynamic mechanism.
  *
  *	Assumption:
- *		This function is only invoked at driver intialization once.
+ *		This function is only invoked at driver initialization once.
  */
 void init_hal_dm(struct net_device *dev)
 {

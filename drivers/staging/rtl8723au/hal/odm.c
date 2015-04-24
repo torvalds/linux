@@ -40,7 +40,7 @@ static u32 EDCAParam[HT_IOT_PEER_MAX][3] = {          /*  UL			DL */
 	{0x5ea42b, 0xa630, 0x5e431c}, /*  11:airgocap AP */
 };
 
-/*  EDCA Paramter for AP/ADSL   by Mingzhi 2011-11-22 */
+/*  EDCA Parameter for AP/ADSL   by Mingzhi 2011-11-22 */
 
 /*  Global var */
 u32 OFDMSwingTable23A[OFDM_TABLE_SIZE_92D] = {

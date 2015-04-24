@@ -1396,7 +1396,7 @@ static void _DisableAnalog(struct rtw_adapter *padapter, bool bWithoutHWSM)
 		/* value16 |= (APDM_HOST | FSM_HSUS |/PFM_ALDN); */
 		/*  2010/08/31 According to Filen description, we need to
 		    use HW to shut down 8051 automatically. */
-		/*  Becasue suspend operatione need the asistance of 8051
+		/*  Because suspend operation need the asistance of 8051
 		    to wait for 3ms. */
 		value16 = APDM_HOST | AFSM_HSUS | PFM_ALDN;
 	} else {

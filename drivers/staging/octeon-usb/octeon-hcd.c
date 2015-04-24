@@ -1239,7 +1239,7 @@ static int cvmx_usb_fill_tx_hw(struct cvmx_usb_state *usb,
 							usb->index) ^ 4;
 		int words = available;
 
-		/* Limit the amount of data to waht the SW fifo has */
+		/* Limit the amount of data to what the SW fifo has */
 		if (fifo->entry[i].size <= available) {
 			words = fifo->entry[i].size;
 			fifo->tail++;
@@ -1849,7 +1849,7 @@ static void cvmx_usb_start_channel(struct cvmx_usb_state *usb, int channel,
 		transaction->xfersize = usbc_hctsiz.s.xfersize;
 		transaction->pktcnt = usbc_hctsiz.s.pktcnt;
 	}
-	/* Remeber when we start a split transaction */
+	/* Remember when we start a split transaction */
 	if (cvmx_usb_pipe_needs_split(usb, pipe))
 		usb->active_split = transaction;
 	USB_SET_FIELD32(CVMX_USBCX_HCCHARX(channel, usb->index),

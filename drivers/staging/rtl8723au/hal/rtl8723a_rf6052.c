@@ -138,7 +138,7 @@ void rtl823a_phy_rf6052setccktxpower(struct rtw_adapter *Adapter,
 /*  Currently, we cannot fully disable driver dynamic tx power
  *  mechanism because it is referenced by BT coexist mechanism. */
 /*  In the future, two mechanism shall be separated from each other
- *  and maintained independantly. Thanks for Lanhsin's reminder. */
+ *  and maintained independently. Thanks for Lanhsin's reminder. */
 		if (pdmpriv->DynamicTxHighPowerLvl == TxHighPwrLevel_Level1) {
 			TxAGC[RF_PATH_A] = 0x10101010;
 			TxAGC[RF_PATH_B] = 0x10101010;
@@ -300,7 +300,7 @@ getTxPowerWriteValByRegulatory(struct rtw_adapter *Adapter, u8 Channel,
 /*  Currently, we cannot fully disable driver dynamic tx power mechanism
     because it is referenced by BT coexist mechanism. */
 /*  In the future, two mechanism shall be separated from each other and
-    maintained independantly. Thanks for Lanhsin's reminder. */
+    maintained independently. Thanks for Lanhsin's reminder. */
 
 		if (pdmpriv->DynamicTxHighPowerLvl == TxHighPwrLevel_Level1)
 			writeVal = 0x14141414;

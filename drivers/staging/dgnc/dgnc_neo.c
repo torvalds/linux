@@ -1203,7 +1203,7 @@ static void neo_copy_data_from_uart_to_queue(struct channel_t *ch)
 		memcpy_fromio(ch->ch_rqueue + head, &ch->ch_neo_uart->txrxburst, n);
 
 		/*
-		 * Since RX_FIFO_DATA_ERROR was 0, we are guarenteed
+		 * Since RX_FIFO_DATA_ERROR was 0, we are guaranteed
 		 * that all the data currently in the FIFO is free of
 		 * breaks and parity/frame/orun errors.
 		 */

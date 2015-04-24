@@ -162,7 +162,7 @@ static int programModeRegisters(mode_parameter_t * pModeParam,pll_value_t * pll)
 
 		/* May a hardware bug or just my test chip (not confirmed).
 		* PANEL_DISPLAY_CTRL register seems requiring few writes
-		* before a value can be succesfully written in.
+		* before a value can be successfully written in.
 		* Added some masks to mask out the reserved bits.
 		* Note: This problem happens by design. The hardware will wait for the
 		*       next vertical sync to turn on/off the plane.

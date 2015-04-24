@@ -256,7 +256,7 @@ long sii164InitChip(
 
 
 
-/* below sii164 function is not neccessary */
+/* below sii164 function is not necessary */
 
 #ifdef SII164_FULL_FUNCTIONS
 
@@ -388,7 +388,7 @@ unsigned char sii164IsConnected(void)
 
 /*
  *  sii164CheckInterrupt
- *      Checks if interrupt has occured.
+ *      Checks if interrupt has occurred.
  *
  *  Output:
  *      0   - No interrupt

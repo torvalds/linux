@@ -193,7 +193,7 @@ enum ChannelPlan
 /*  |         |            Reserved(14bytes)	      | */
 /*  */
 
-/*  PG data exclude header, dummy 6 bytes frome CP test and reserved 1byte. */
+/*  PG data exclude header, dummy 6 bytes from CP test and reserved 1byte. */
 #define EFUSE_OOB_PROTECT_BYTES			15
 
 #define EFUSE_REAL_CONTENT_LEN_8723A	512

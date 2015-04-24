@@ -65,7 +65,7 @@ struct sm750_state{
 };
 
 /* 	sm750_share stands for a presentation of two frame buffer
-	that use one sm750 adaptor, it is similiar to the super class of lynx_share
+	that use one sm750 adaptor, it is similar to the super class of lynx_share
 	in C++
 */
 

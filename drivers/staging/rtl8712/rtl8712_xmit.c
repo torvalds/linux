@@ -340,7 +340,7 @@ u8 r8712_append_mpdu_unit(struct xmit_buf *pxmitbuf,
 u8 r8712_xmitframe_aggr_1st(struct xmit_buf *pxmitbuf,
 			struct xmit_frame *pxmitframe)
 {
-	/* linux complete context doesnt need to protect */
+	/* linux complete context doesn't need to protect */
 	pxmitframe->pxmitbuf = pxmitbuf;
 	pxmitbuf->priv_data = pxmitframe;
 	pxmitframe->pxmit_urb[0] = pxmitbuf->pxmit_urb[0];

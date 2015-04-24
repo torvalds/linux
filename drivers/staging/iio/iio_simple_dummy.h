@@ -25,7 +25,7 @@ struct iio_dummy_regs;
  * @accel_calibscale:		cache for acceleration calibscale
  * @lock:			lock to ensure state is consistent
  * @event_irq:			irq number for event line (faked)
- * @event_val:			cache for event theshold value
+ * @event_val:			cache for event threshold value
  * @event_en:			cache of whether event is enabled
  */
 struct iio_dummy_state {

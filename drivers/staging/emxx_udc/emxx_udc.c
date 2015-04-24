@@ -1223,7 +1223,7 @@ static int _nbu2ss_epn_in_transfer(
 	}
 
 	/*-------------------------------------------------------------*/
-	/* Start tranfer */
+	/* Start transfer */
 	iBufSize = req->req.length - req->req.actual;
 	if (iBufSize > 0)
 		result = _nbu2ss_epn_in_data(udc, ep, req, iBufSize);
