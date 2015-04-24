@@ -335,18 +335,18 @@ static inline void __fpregs_activate(struct fpu *fpu)
  * These generally need preemption protection to work,
  * do try to avoid using these on their own.
  */
-static inline void __thread_fpu_end(struct fpu *fpu)
-{
-	__fpregs_deactivate(fpu);
-	if (!use_eager_fpu())
-		stts();
-}
-
 static inline void fpregs_activate(struct fpu *fpu)
 {
 	if (!use_eager_fpu())
 		clts();
 	__fpregs_activate(fpu);
+}
+
+static inline void fpregs_deactivate(struct fpu *fpu)
+{
+	__fpregs_deactivate(fpu);
+	if (!use_eager_fpu())
+		stts();
 }
 
 static inline void drop_fpu(struct fpu *fpu)
@@ -362,7 +362,7 @@ static inline void drop_fpu(struct fpu *fpu)
 		asm volatile("1: fwait\n"
 			     "2:\n"
 			     _ASM_EXTABLE(1b, 2b));
-		__thread_fpu_end(fpu);
+		fpregs_deactivate(fpu);
 	}
 
 	fpu->fpstate_active = 0;

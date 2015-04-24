@@ -152,7 +152,7 @@ void fpu__save(struct fpu *fpu)
 			__save_fpu(fpu);
 		} else {
 			fpu_save_init(fpu);
-			__thread_fpu_end(fpu);
+			fpregs_deactivate(fpu);
 		}
 	}
 	preempt_enable();
