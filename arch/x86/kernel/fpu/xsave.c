@@ -735,6 +735,18 @@ void __init_refok eager_fpu_init(void)
 }
 
 /*
+ * Restore minimal FPU state after suspend:
+ */
+void fpu__resume_cpu(void)
+{
+	/*
+	 * Restore XCR0 on xsave capable CPUs:
+	 */
+	if (cpu_has_xsave)
+		xsetbv(XCR_XFEATURE_ENABLED_MASK, xfeatures_mask);
+}
+
+/*
  * Given the xsave area and a state inside, this function returns the
  * address of the state.
  *

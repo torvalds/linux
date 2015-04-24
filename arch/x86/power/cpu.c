@@ -18,10 +18,8 @@
 #include <asm/mtrr.h>
 #include <asm/page.h>
 #include <asm/mce.h>
-#include <asm/xcr.h>
 #include <asm/suspend.h>
 #include <asm/debugreg.h>
-#include <asm/fpu/internal.h> /* xfeatures_mask */
 #include <asm/cpu.h>
 
 #ifdef CONFIG_X86_32
@@ -155,6 +153,8 @@ static void fix_processor_context(void)
 #endif
 	load_TR_desc();				/* This does ltr */
 	load_LDT(&current->active_mm->context);	/* This does lldt */
+
+	fpu__resume_cpu();
 }
 
 /**
@@ -220,12 +220,6 @@ static void notrace __restore_processor_state(struct saved_context *ctxt)
 	wrmsrl(MSR_GS_BASE, ctxt->gs_base);
 	wrmsrl(MSR_KERNEL_GS_BASE, ctxt->gs_kernel_base);
 #endif
-
-	/*
-	 * restore XCR0 for xsave capable cpu's.
-	 */
-	if (cpu_has_xsave)
-		xsetbv(XCR_XFEATURE_ENABLED_MASK, xfeatures_mask);
 
 	fix_processor_context();
 
