@@ -1945,19 +1945,23 @@ static void ggtt_unbind_vma(struct i915_vma *vma)
 	struct drm_device *dev = vma->vm->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj = vma->obj;
+	const uint64_t size = min_t(uint64_t,
+				    obj->base.size,
+				    vma->node.size);
 
 	if (vma->bound & GLOBAL_BIND) {
 		vma->vm->clear_range(vma->vm,
 				     vma->node.start,
-				     obj->base.size,
+				     size,
 				     true);
 	}
 
 	if (dev_priv->mm.aliasing_ppgtt && vma->bound & LOCAL_BIND) {
 		struct i915_hw_ppgtt *appgtt = dev_priv->mm.aliasing_ppgtt;
+
 		appgtt->base.clear_range(&appgtt->base,
 					 vma->node.start,
-					 obj->base.size,
+					 size,
 					 true);
 	}
 }
