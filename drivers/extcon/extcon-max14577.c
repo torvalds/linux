@@ -155,10 +155,7 @@ enum {
 	EXTCON_CABLE_FAST_CHARGER,
 	EXTCON_CABLE_SLOW_CHARGER,
 	EXTCON_CABLE_CHARGE_DOWNSTREAM,
-	EXTCON_CABLE_JIG_USB_ON,
-	EXTCON_CABLE_JIG_USB_OFF,
-	EXTCON_CABLE_JIG_UART_OFF,
-	EXTCON_CABLE_JIG_UART_ON,
+	EXTCON_CABLE_JIG,
 
 	_EXTCON_CABLE_NUM,
 };
@@ -169,10 +166,7 @@ static const char *max14577_extcon_cable[] = {
 	[EXTCON_CABLE_FAST_CHARGER]		= "Fast-charger",
 	[EXTCON_CABLE_SLOW_CHARGER]		= "Slow-charger",
 	[EXTCON_CABLE_CHARGE_DOWNSTREAM]	= "Charge-downstream",
-	[EXTCON_CABLE_JIG_USB_ON]		= "JIG-USB-ON",
-	[EXTCON_CABLE_JIG_USB_OFF]		= "JIG-USB-OFF",
-	[EXTCON_CABLE_JIG_UART_OFF]		= "JIG-UART-OFF",
-	[EXTCON_CABLE_JIG_UART_ON]		= "JIG-UART-ON",
+	[EXTCON_CABLE_JIG]			= "JIG",
 
 	NULL,
 };
@@ -348,7 +342,6 @@ static int max14577_muic_get_cable_type(struct max14577_muic_info *info,
 static int max14577_muic_jig_handler(struct max14577_muic_info *info,
 		int cable_type, bool attached)
 {
-	char cable_name[32];
 	int ret = 0;
 	u8 path = CTRL1_SW_OPEN;
 
@@ -358,18 +351,12 @@ static int max14577_muic_jig_handler(struct max14577_muic_info *info,
 
 	switch (cable_type) {
 	case MAX14577_MUIC_ADC_FACTORY_MODE_USB_OFF:	/* ADC_JIG_USB_OFF */
-		/* PATH:AP_USB */
-		strcpy(cable_name, "JIG-USB-OFF");
-		path = CTRL1_SW_USB;
-		break;
 	case MAX14577_MUIC_ADC_FACTORY_MODE_USB_ON:	/* ADC_JIG_USB_ON */
 		/* PATH:AP_USB */
-		strcpy(cable_name, "JIG-USB-ON");
 		path = CTRL1_SW_USB;
 		break;
 	case MAX14577_MUIC_ADC_FACTORY_MODE_UART_OFF:	/* ADC_JIG_UART_OFF */
 		/* PATH:AP_UART */
-		strcpy(cable_name, "JIG-UART-OFF");
 		path = CTRL1_SW_UART;
 		break;
 	default:
@@ -382,7 +369,7 @@ static int max14577_muic_jig_handler(struct max14577_muic_info *info,
 	if (ret < 0)
 		return ret;
 
-	extcon_set_cable_state(info->edev, cable_name, attached);
+	extcon_set_cable_state(info->edev, "JIG", attached);
 
 	return 0;
 }

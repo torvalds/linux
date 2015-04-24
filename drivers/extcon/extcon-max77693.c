@@ -209,10 +209,7 @@ enum {
 	EXTCON_CABLE_CHARGE_DOWNSTREAM,
 	EXTCON_CABLE_MHL,
 	EXTCON_CABLE_MHL_TA,
-	EXTCON_CABLE_JIG_USB_ON,
-	EXTCON_CABLE_JIG_USB_OFF,
-	EXTCON_CABLE_JIG_UART_OFF,
-	EXTCON_CABLE_JIG_UART_ON,
+	EXTCON_CABLE_JIG,
 	EXTCON_CABLE_DOCK_SMART,
 	EXTCON_CABLE_DOCK_DESK,
 	EXTCON_CABLE_DOCK_AUDIO,
@@ -229,10 +226,7 @@ static const char *max77693_extcon_cable[] = {
 	[EXTCON_CABLE_CHARGE_DOWNSTREAM]	= "Charge-downstream",
 	[EXTCON_CABLE_MHL]			= "MHL",
 	[EXTCON_CABLE_MHL_TA]			= "MHL-TA",
-	[EXTCON_CABLE_JIG_USB_ON]		= "JIG-USB-ON",
-	[EXTCON_CABLE_JIG_USB_OFF]		= "JIG-USB-OFF",
-	[EXTCON_CABLE_JIG_UART_OFF]		= "JIG-UART-OFF",
-	[EXTCON_CABLE_JIG_UART_ON]		= "JIG-UART-ON",
+	[EXTCON_CABLE_JIG]			= "JIG",
 	[EXTCON_CABLE_DOCK_SMART]		= "Dock-Smart",
 	[EXTCON_CABLE_DOCK_DESK]		= "Dock-Desk",
 	[EXTCON_CABLE_DOCK_AUDIO]		= "Dock-Audio",
@@ -642,7 +636,6 @@ static int max77693_muic_adc_ground_handler(struct max77693_muic_info *info)
 static int max77693_muic_jig_handler(struct max77693_muic_info *info,
 		int cable_type, bool attached)
 {
-	char cable_name[32];
 	int ret = 0;
 	u8 path = CONTROL1_SW_OPEN;
 
@@ -652,23 +645,13 @@ static int max77693_muic_jig_handler(struct max77693_muic_info *info,
 
 	switch (cable_type) {
 	case MAX77693_MUIC_ADC_FACTORY_MODE_USB_OFF:	/* ADC_JIG_USB_OFF */
-		/* PATH:AP_USB */
-		strcpy(cable_name, "JIG-USB-OFF");
-		path = CONTROL1_SW_USB;
-		break;
 	case MAX77693_MUIC_ADC_FACTORY_MODE_USB_ON:	/* ADC_JIG_USB_ON */
 		/* PATH:AP_USB */
-		strcpy(cable_name, "JIG-USB-ON");
 		path = CONTROL1_SW_USB;
 		break;
 	case MAX77693_MUIC_ADC_FACTORY_MODE_UART_OFF:	/* ADC_JIG_UART_OFF */
-		/* PATH:AP_UART */
-		strcpy(cable_name, "JIG-UART-OFF");
-		path = CONTROL1_SW_UART;
-		break;
 	case MAX77693_MUIC_ADC_FACTORY_MODE_UART_ON:	/* ADC_JIG_UART_ON */
 		/* PATH:AP_UART */
-		strcpy(cable_name, "JIG-UART-ON");
 		path = CONTROL1_SW_UART;
 		break;
 	default:
@@ -681,7 +664,7 @@ static int max77693_muic_jig_handler(struct max77693_muic_info *info,
 	if (ret < 0)
 		return ret;
 
-	extcon_set_cable_state(info->edev, cable_name, attached);
+	extcon_set_cable_state(info->edev, "JIG", attached);
 
 	return 0;
 }
