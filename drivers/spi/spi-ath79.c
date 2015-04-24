@@ -115,6 +115,7 @@ static void ath79_spi_disable(struct ath79_spi *sp)
 
 static int ath79_spi_setup_cs(struct spi_device *spi)
 {
+	struct ath79_spi *sp = ath79_spidev_to_sp(spi);
 	int status;
 
 	if (spi->chip_select && !gpio_is_valid(spi->cs_gpio))
@@ -132,6 +133,13 @@ static int ath79_spi_setup_cs(struct spi_device *spi)
 
 		status = gpio_request_one(spi->cs_gpio, flags,
 					  dev_name(&spi->dev));
+	} else {
+		if (spi->mode & SPI_CS_HIGH)
+			sp->ioc_base &= ~AR71XX_SPI_IOC_CS0;
+		else
+			sp->ioc_base |= AR71XX_SPI_IOC_CS0;
+
+		ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, sp->ioc_base);
 	}
 
 	return status;
