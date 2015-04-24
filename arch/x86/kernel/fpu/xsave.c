@@ -3,9 +3,6 @@
  *
  * Author: Suresh Siddha <suresh.b.siddha@intel.com>
  */
-
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/bootmem.h>
 #include <linux/compat.h>
 #include <linux/cpu.h>
@@ -615,7 +612,7 @@ static void /* __init */ xstate_enable_boot_cpu(void)
 	unsigned int eax, ebx, ecx, edx;
 
 	if (boot_cpu_data.cpuid_level < XSTATE_CPUID) {
-		WARN(1, KERN_ERR "XSTATE_CPUID missing\n");
+		WARN(1, "x86/fpu: XSTATE_CPUID missing!\n");
 		return;
 	}
 
@@ -623,8 +620,7 @@ static void /* __init */ xstate_enable_boot_cpu(void)
 	pcntxt_mask = eax + ((u64)edx << 32);
 
 	if ((pcntxt_mask & XSTATE_FPSSE) != XSTATE_FPSSE) {
-		pr_err("FP/SSE not shown under xsave features 0x%llx\n",
-		       pcntxt_mask);
+		pr_err("x86/fpu: FP/SSE not present amongst the CPU's xstate features: 0x%llx.\n", pcntxt_mask);
 		BUG();
 	}
 
@@ -650,17 +646,18 @@ static void /* __init */ xstate_enable_boot_cpu(void)
 
 	if (pcntxt_mask & XSTATE_EAGER) {
 		if (eagerfpu == DISABLE) {
-			pr_err("eagerfpu not present, disabling some xstate features: 0x%llx\n",
-					pcntxt_mask & XSTATE_EAGER);
+			pr_err("x86/fpu: eagerfpu switching disabled, disabling the following xstate features: 0x%llx.\n",
+			       pcntxt_mask & XSTATE_EAGER);
 			pcntxt_mask &= ~XSTATE_EAGER;
 		} else {
 			eagerfpu = ENABLE;
 		}
 	}
 
-	pr_info("enabled xstate_bv 0x%llx, cntxt size 0x%x using %s\n",
-		pcntxt_mask, xstate_size,
-		cpu_has_xsaves ? "compacted form" : "standard form");
+	pr_info("x86/fpu: Enabled xstate features 0x%llx, context size is 0x%x bytes, using '%s' format.\n",
+		pcntxt_mask,
+		xstate_size,
+		cpu_has_xsaves ? "compacted" : "standard");
 }
 
 /*
@@ -671,8 +668,13 @@ void xsave_init(void)
 {
 	static char on_boot_cpu = 1;
 
-	if (!cpu_has_xsave)
+	if (!cpu_has_xsave) {
+		if (on_boot_cpu) {
+			on_boot_cpu = 0;
+			pr_info("x86/fpu: Legacy x87 FPU detected.\n");
+		}
 		return;
+	}
 
 	if (on_boot_cpu) {
 		on_boot_cpu = 0;
