@@ -4050,6 +4050,7 @@ void btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...)
 
 #ifdef CONFIG_BTRFS_ASSERT
 
+__cold
 static inline void assfail(char *expr, char *file, int line)
 {
 	pr_err("BTRFS: assertion failed: %s, file: %s, line: %d",
@@ -4065,10 +4066,12 @@ static inline void assfail(char *expr, char *file, int line)
 
 #define btrfs_assert()
 __printf(5, 6)
+__cold
 void __btrfs_std_error(struct btrfs_fs_info *fs_info, const char *function,
 		     unsigned int line, int errno, const char *fmt, ...);
 
 
+__cold
 void __btrfs_abort_transaction(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root, const char *function,
 			       unsigned int line, int errno);
@@ -4138,6 +4141,7 @@ do {								\
 } while (0)
 
 __printf(5, 6)
+__cold
 void __btrfs_panic(struct btrfs_fs_info *fs_info, const char *function,
 		   unsigned int line, int errno, const char *fmt, ...);
 

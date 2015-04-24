@@ -135,6 +135,7 @@ static void btrfs_handle_error(struct btrfs_fs_info *fs_info)
  * __btrfs_std_error decodes expected errors from the caller and
  * invokes the approciate error response.
  */
+__cold
 void __btrfs_std_error(struct btrfs_fs_info *fs_info, const char *function,
 		       unsigned int line, int errno, const char *fmt, ...)
 {
@@ -247,6 +248,7 @@ void __btrfs_std_error(struct btrfs_fs_info *fs_info, const char *function,
  * We'll complete the cleanup in btrfs_end_transaction and
  * btrfs_commit_transaction.
  */
+__cold
 void __btrfs_abort_transaction(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root, const char *function,
 			       unsigned int line, int errno)
@@ -273,6 +275,7 @@ void __btrfs_abort_transaction(struct btrfs_trans_handle *trans,
  * __btrfs_panic decodes unexpected, fatal errors from the caller,
  * issues an alert, and either panics or BUGs, depending on mount options.
  */
+__cold
 void __btrfs_panic(struct btrfs_fs_info *fs_info, const char *function,
 		   unsigned int line, int errno, const char *fmt, ...)
 {
