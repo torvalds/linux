@@ -7510,17 +7510,17 @@ static int advansys_slave_configure(struct scsi_device *sdev)
 	return 0;
 }
 
-static __le32 advansys_get_sense_buffer_dma(struct scsi_cmnd *scp)
+static __le32 asc_get_sense_buffer_dma(struct scsi_cmnd *scp)
 {
 	struct asc_board *board = shost_priv(scp->device->host);
+
 	scp->SCp.dma_handle = dma_map_single(board->dev, scp->sense_buffer,
-					     SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
+					     SCSI_SENSE_BUFFERSIZE,
+					     DMA_FROM_DEVICE);
 	if (dma_mapping_error(board->dev, scp->SCp.dma_handle)) {
 		ASC_DBG(1, "failed to map sense buffer\n");
 		return 0;
 	}
-	dma_cache_sync(board->dev, scp->sense_buffer,
-		       SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
 	return cpu_to_le32(scp->SCp.dma_handle);
 }
 
@@ -7549,7 +7549,7 @@ static int asc_build_req(struct asc_board *boardp, struct scsi_cmnd *scp,
 	asc_scsi_q->q1.target_lun = scp->device->lun;
 	asc_scsi_q->q2.target_ix =
 	    ASC_TIDLUN_TO_IX(scp->device->id, scp->device->lun);
-	asc_scsi_q->q1.sense_addr = advansys_get_sense_buffer_dma(scp);
+	asc_scsi_q->q1.sense_addr = asc_get_sense_buffer_dma(scp);
 	asc_scsi_q->q1.sense_len = SCSI_SENSE_BUFFERSIZE;
 	if (!asc_scsi_q->q1.sense_addr)
 		return ASC_BUSY;
