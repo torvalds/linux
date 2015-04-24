@@ -2687,7 +2687,7 @@ static struct resource * __init ioapic_setup_resources(void)
 	return res;
 }
 
-void __init native_io_apic_init_mappings(void)
+void __init io_apic_init_mappings(void)
 {
 	unsigned long ioapic_phys, idx = FIX_IO_APIC_BASE_0;
 	struct resource *ioapic_res;

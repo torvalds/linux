@@ -139,7 +139,6 @@ void arch_restore_msi_irqs(struct pci_dev *dev)
 #endif
 
 struct x86_io_apic_ops x86_io_apic_ops = {
-	.init			= native_io_apic_init_mappings,
 	.read			= native_io_apic_read,
 	.disable		= native_disable_io_apic,
 };

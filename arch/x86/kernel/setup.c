@@ -1222,8 +1222,7 @@ void __init setup_arch(char **cmdline_p)
 	init_cpu_to_node();
 
 	init_apic_mappings();
-	if (x86_io_apic_ops.init)
-		x86_io_apic_ops.init();
+	io_apic_init_mappings();
 
 	kvm_guest_init();
 

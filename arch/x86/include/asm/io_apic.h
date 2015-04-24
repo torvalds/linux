@@ -206,7 +206,7 @@ extern void mp_save_irq(struct mpc_intsrc *m);
 
 extern void disable_ioapic_support(void);
 
-extern void __init native_io_apic_init_mappings(void);
+extern void __init io_apic_init_mappings(void);
 extern unsigned int native_io_apic_read(unsigned int apic, unsigned int reg);
 extern void native_disable_io_apic(void);
 
@@ -251,9 +251,9 @@ static inline int restore_ioapic_entries(void)
 	return -ENOMEM;
 }
 
-static inline void mp_save_irq(struct mpc_intsrc *m) { };
+static inline void mp_save_irq(struct mpc_intsrc *m) { }
 static inline void disable_ioapic_support(void) { }
-#define native_io_apic_init_mappings	NULL
+static inline void io_apic_init_mappings(void) { }
 #define native_io_apic_read		NULL
 #define native_disable_io_apic		NULL
 
