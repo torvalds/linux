@@ -50,7 +50,7 @@ config OF_ADDRESS_PCI
 
 config OF_IRQ
 	def_bool y
-	depends on !SPARC
+	depends on !SPARC && IRQ_DOMAIN
 
 config OF_NET
 	depends on NETDEVICES

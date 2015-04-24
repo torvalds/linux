@@ -175,6 +175,22 @@ config MD_FAULTY
 
 	  In unsure, say N.
 
+
+config MD_CLUSTER
+	tristate "Cluster Support for MD (EXPERIMENTAL)"
+	depends on BLK_DEV_MD
+	depends on DLM
+	default n
+	---help---
+	Clustering support for MD devices. This enables locking and
+	synchronization across multiple systems on the cluster, so all
+	nodes in the cluster can access the MD devices simultaneously.
+
+	This brings the redundancy (and uptime) of RAID levels across the
+	nodes of the cluster.
+
+	If unsure, say N.
+
 source "drivers/md/bcache/Kconfig"
 
 config BLK_DEV_DM_BUILTIN

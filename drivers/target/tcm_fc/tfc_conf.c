@@ -48,7 +48,7 @@
 
 #include "tcm_fc.h"
 
-struct target_fabric_configfs *ft_configfs;
+static const struct target_core_fabric_ops ft_fabric_ops;
 
 static LIST_HEAD(ft_wwn_list);
 DEFINE_MUTEX(ft_lport_lock);
@@ -337,7 +337,7 @@ static struct se_portal_group *ft_add_tpg(
 		return NULL;
 	}
 
-	ret = core_tpg_register(&ft_configfs->tf_ops, wwn, &tpg->se_tpg,
+	ret = core_tpg_register(&ft_fabric_ops, wwn, &tpg->se_tpg,
 				tpg, TRANSPORT_TPG_TYPE_NORMAL);
 	if (ret < 0) {
 		destroy_workqueue(wq);
@@ -507,7 +507,9 @@ static u32 ft_tpg_get_inst_index(struct se_portal_group *se_tpg)
 	return tpg->index;
 }
 
-static struct target_core_fabric_ops ft_fabric_ops = {
+static const struct target_core_fabric_ops ft_fabric_ops = {
+	.module =			THIS_MODULE,
+	.name =				"fc",
 	.get_fabric_name =		ft_get_fabric_name,
 	.get_fabric_proto_ident =	fc_get_fabric_proto_ident,
 	.tpg_get_wwn =			ft_get_fabric_wwn,
@@ -552,62 +554,10 @@ static struct target_core_fabric_ops ft_fabric_ops = {
 	.fabric_drop_np =		NULL,
 	.fabric_make_nodeacl =		&ft_add_acl,
 	.fabric_drop_nodeacl =		&ft_del_acl,
+
+	.tfc_wwn_attrs			= ft_wwn_attrs,
+	.tfc_tpg_nacl_base_attrs	= ft_nacl_base_attrs,
 };
-
-static int ft_register_configfs(void)
-{
-	struct target_fabric_configfs *fabric;
-	int ret;
-
-	/*
-	 * Register the top level struct config_item_type with TCM core
-	 */
-	fabric = target_fabric_configfs_init(THIS_MODULE, "fc");
-	if (IS_ERR(fabric)) {
-		pr_err("%s: target_fabric_configfs_init() failed!\n",
-		       __func__);
-		return PTR_ERR(fabric);
-	}
-	fabric->tf_ops = ft_fabric_ops;
-
-	/*
-	 * Setup default attribute lists for various fabric->tf_cit_tmpl
-	 */
-	fabric->tf_cit_tmpl.tfc_wwn_cit.ct_attrs = ft_wwn_attrs;
-	fabric->tf_cit_tmpl.tfc_tpg_base_cit.ct_attrs = NULL;
-	fabric->tf_cit_tmpl.tfc_tpg_attrib_cit.ct_attrs = NULL;
-	fabric->tf_cit_tmpl.tfc_tpg_param_cit.ct_attrs = NULL;
-	fabric->tf_cit_tmpl.tfc_tpg_np_base_cit.ct_attrs = NULL;
-	fabric->tf_cit_tmpl.tfc_tpg_nacl_base_cit.ct_attrs =
-						    ft_nacl_base_attrs;
-	fabric->tf_cit_tmpl.tfc_tpg_nacl_attrib_cit.ct_attrs = NULL;
-	fabric->tf_cit_tmpl.tfc_tpg_nacl_auth_cit.ct_attrs = NULL;
-	fabric->tf_cit_tmpl.tfc_tpg_nacl_param_cit.ct_attrs = NULL;
-	/*
-	 * register the fabric for use within TCM
-	 */
-	ret = target_fabric_configfs_register(fabric);
-	if (ret < 0) {
-		pr_debug("target_fabric_configfs_register() for"
-			    " FC Target failed!\n");
-		target_fabric_configfs_free(fabric);
-		return -1;
-	}
-
-	/*
-	 * Setup our local pointer to *fabric.
-	 */
-	ft_configfs = fabric;
-	return 0;
-}
-
-static void ft_deregister_configfs(void)
-{
-	if (!ft_configfs)
-		return;
-	target_fabric_configfs_deregister(ft_configfs);
-	ft_configfs = NULL;
-}
 
 static struct notifier_block ft_notifier = {
 	.notifier_call = ft_lport_notify
@@ -615,15 +565,24 @@ static struct notifier_block ft_notifier = {
 
 static int __init ft_init(void)
 {
-	if (ft_register_configfs())
-		return -1;
-	if (fc_fc4_register_provider(FC_TYPE_FCP, &ft_prov)) {
-		ft_deregister_configfs();
-		return -1;
-	}
+	int ret;
+
+	ret = target_register_template(&ft_fabric_ops);
+	if (ret)
+		goto out;
+
+	ret = fc_fc4_register_provider(FC_TYPE_FCP, &ft_prov);
+	if (ret)
+		goto out_unregister_template;
+
 	blocking_notifier_chain_register(&fc_lport_notifier_head, &ft_notifier);
 	fc_lport_iterate(ft_lport_add, NULL);
 	return 0;
+
+out_unregister_template:
+	target_unregister_template(&ft_fabric_ops);
+out:
+	return ret;
 }
 
 static void __exit ft_exit(void)
@@ -632,7 +591,7 @@ static void __exit ft_exit(void)
 					   &ft_notifier);
 	fc_fc4_deregister_provider(FC_TYPE_FCP, &ft_prov);
 	fc_lport_iterate(ft_lport_del, NULL);
-	ft_deregister_configfs();
+	target_unregister_template(&ft_fabric_ops);
 	synchronize_rcu();
 }
 

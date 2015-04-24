@@ -276,4 +276,8 @@ config XEN_AUTO_XLATE
 	help
 	  Support for auto-translated physmap guests.
 
+config XEN_ACPI
+	def_bool y
+	depends on X86 && ACPI
+
 endmenu

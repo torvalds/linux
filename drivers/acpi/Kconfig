@@ -5,7 +5,7 @@
 menuconfig ACPI
 	bool "ACPI (Advanced Configuration and Power Interface) Support"
 	depends on !IA64_HP_SIM
-	depends on IA64 || X86
+	depends on IA64 || X86 || (ARM64 && EXPERT)
 	depends on PCI
 	select PNP
 	default y
@@ -48,9 +48,16 @@ config ACPI_LEGACY_TABLES_LOOKUP
 config ARCH_MIGHT_HAVE_ACPI_PDC
 	bool
 
+config ACPI_GENERIC_GSI
+	bool
+
+config ACPI_SYSTEM_POWER_STATES_SUPPORT
+	bool
+
 config ACPI_SLEEP
 	bool
 	depends on SUSPEND || HIBERNATION
+	depends on ACPI_SYSTEM_POWER_STATES_SUPPORT
 	default y
 
 config ACPI_PROCFS_POWER
@@ -163,6 +170,7 @@ config ACPI_PROCESSOR
 	tristate "Processor"
 	select THERMAL
 	select CPU_IDLE
+	depends on X86 || IA64
 	default y
 	help
 	  This driver installs ACPI as the idle handler for Linux and uses
