@@ -16,6 +16,7 @@
 #include <asm/processor-flags.h>
 #include <asm/segment.h>
 #include <asm/asm-offsets.h>
+#include <asm/thread_info.h>
 
 #include <xen/interface/xen.h>
 
@@ -54,7 +55,7 @@ ENTRY(xen_sysret64)
 	 * still with the kernel gs, so we can easily switch back
 	 */
 	movq %rsp, PER_CPU_VAR(rsp_scratch)
-	movq PER_CPU_VAR(cpu_tss + TSS_sp0), %rsp
+	movq PER_CPU_VAR(cpu_current_top_of_stack), %rsp
 
 	pushq $__USER_DS
 	pushq PER_CPU_VAR(rsp_scratch)
@@ -73,7 +74,7 @@ ENTRY(xen_sysret32)
 	 * still with the kernel gs, so we can easily switch back
 	 */
 	movq %rsp, PER_CPU_VAR(rsp_scratch)
-	movq PER_CPU_VAR(cpu_tss + TSS_sp0), %rsp
+	movq PER_CPU_VAR(cpu_current_top_of_stack), %rsp
 
 	pushq $__USER32_DS
 	pushq PER_CPU_VAR(rsp_scratch)
