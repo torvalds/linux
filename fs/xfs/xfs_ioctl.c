@@ -631,7 +631,7 @@ xfs_ioc_space(
 
 	if (filp->f_flags & O_DSYNC)
 		flags |= XFS_PREALLOC_SYNC;
-	if (ioflags & XFS_IO_INVIS)	
+	if (ioflags & XFS_IO_INVIS)
 		flags |= XFS_PREALLOC_INVISIBLE;
 
 	error = mnt_want_write_file(filp);
@@ -639,9 +639,12 @@ xfs_ioc_space(
 		return error;
 
 	xfs_ilock(ip, iolock);
-	error = xfs_break_layouts(inode, &iolock);
+	error = xfs_break_layouts(inode, &iolock, false);
 	if (error)
 		goto out_unlock;
+
+	xfs_ilock(ip, XFS_MMAPLOCK_EXCL);
+	iolock |= XFS_MMAPLOCK_EXCL;
 
 	switch (bf->l_whence) {
 	case 0: /*SEEK_SET*/

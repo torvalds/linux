@@ -187,6 +187,8 @@ xfs_generic_create(
 	else
 		d_instantiate(dentry, inode);
 
+	xfs_finish_inode_setup(ip);
+
  out_free_acl:
 	if (default_acl)
 		posix_acl_release(default_acl);
@@ -195,6 +197,7 @@ xfs_generic_create(
 	return error;
 
  out_cleanup_inode:
+	xfs_finish_inode_setup(ip);
 	if (!tmpfile)
 		xfs_cleanup_inode(dir, inode, dentry);
 	iput(inode);
@@ -367,9 +370,11 @@ xfs_vn_symlink(
 		goto out_cleanup_inode;
 
 	d_instantiate(dentry, inode);
+	xfs_finish_inode_setup(cip);
 	return 0;
 
  out_cleanup_inode:
+	xfs_finish_inode_setup(cip);
 	xfs_cleanup_inode(dir, inode, dentry);
 	iput(inode);
  out:
@@ -389,7 +394,7 @@ xfs_vn_rename(
 	struct xfs_name	oname;
 	struct xfs_name	nname;
 
-	if (flags & ~(RENAME_NOREPLACE | RENAME_EXCHANGE))
+	if (flags & ~(RENAME_NOREPLACE | RENAME_EXCHANGE | RENAME_WHITEOUT))
 		return -EINVAL;
 
 	/* if we are exchanging files, we need to set i_mode of both files */
@@ -766,6 +771,7 @@ xfs_setattr_size(
 		return error;
 
 	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL));
+	ASSERT(xfs_isilocked(ip, XFS_MMAPLOCK_EXCL));
 	ASSERT(S_ISREG(ip->i_d.di_mode));
 	ASSERT((iattr->ia_valid & (ATTR_UID|ATTR_GID|ATTR_ATIME|ATTR_ATIME_SET|
 		ATTR_MTIME_SET|ATTR_KILL_PRIV|ATTR_TIMES_SET)) == 0);
@@ -829,54 +835,26 @@ xfs_setattr_size(
 	inode_dio_wait(inode);
 
 	/*
-	 * Do all the page cache truncate work outside the transaction context
-	 * as the "lock" order is page lock->log space reservation.  i.e.
-	 * locking pages inside the transaction can ABBA deadlock with
-	 * writeback. We have to do the VFS inode size update before we truncate
-	 * the pagecache, however, to avoid racing with page faults beyond the
-	 * new EOF they are not serialised against truncate operations except by
-	 * page locks and size updates.
+	 * We've already locked out new page faults, so now we can safely remove
+	 * pages from the page cache knowing they won't get refaulted until we
+	 * drop the XFS_MMAP_EXCL lock after the extent manipulations are
+	 * complete. The truncate_setsize() call also cleans partial EOF page
+	 * PTEs on extending truncates and hence ensures sub-page block size
+	 * filesystems are correctly handled, too.
 	 *
-	 * Hence we are in a situation where a truncate can fail with ENOMEM
-	 * from xfs_trans_reserve(), but having already truncated the in-memory
-	 * version of the file (i.e. made user visible changes). There's not
-	 * much we can do about this, except to hope that the caller sees ENOMEM
-	 * and retries the truncate operation.
+	 * We have to do all the page cache truncate work outside the
+	 * transaction context as the "lock" order is page lock->log space
+	 * reservation as defined by extent allocation in the writeback path.
+	 * Hence a truncate can fail with ENOMEM from xfs_trans_reserve(), but
+	 * having already truncated the in-memory version of the file (i.e. made
+	 * user visible changes). There's not much we can do about this, except
+	 * to hope that the caller sees ENOMEM and retries the truncate
+	 * operation.
 	 */
 	error = block_truncate_page(inode->i_mapping, newsize, xfs_get_blocks);
 	if (error)
 		return error;
 	truncate_setsize(inode, newsize);
-
-	/*
-	 * The "we can't serialise against page faults" pain gets worse.
-	 *
-	 * If the file is mapped then we have to clean the page at the old EOF
-	 * when extending the file. Extending the file can expose changes the
-	 * underlying page mapping (e.g. from beyond EOF to a hole or
-	 * unwritten), and so on the next attempt to write to that page we need
-	 * to remap it for write. i.e. we need .page_mkwrite() to be called.
-	 * Hence we need to clean the page to clean the pte and so a new write
-	 * fault will be triggered appropriately.
-	 *
-	 * If we do it before we change the inode size, then we can race with a
-	 * page fault that maps the page with exactly the same problem. If we do
-	 * it after we change the file size, then a new page fault can come in
-	 * and allocate space before we've run the rest of the truncate
-	 * transaction. That's kinda grotesque, but it's better than have data
-	 * over a hole, and so that's the lesser evil that has been chosen here.
-	 *
-	 * The real solution, however, is to have some mechanism for locking out
-	 * page faults while a truncate is in progress.
-	 */
-	if (newsize > oldsize && mapping_mapped(VFS_I(ip)->i_mapping)) {
-		error = filemap_write_and_wait_range(
-				VFS_I(ip)->i_mapping,
-				round_down(oldsize, PAGE_CACHE_SIZE),
-				round_up(oldsize, PAGE_CACHE_SIZE) - 1);
-		if (error)
-			return error;
-	}
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_SETATTR_SIZE);
 	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_itruncate, 0, 0);
@@ -975,9 +953,13 @@ xfs_vn_setattr(
 		uint		iolock = XFS_IOLOCK_EXCL;
 
 		xfs_ilock(ip, iolock);
-		error = xfs_break_layouts(dentry->d_inode, &iolock);
-		if (!error)
+		error = xfs_break_layouts(dentry->d_inode, &iolock, true);
+		if (!error) {
+			xfs_ilock(ip, XFS_MMAPLOCK_EXCL);
+			iolock |= XFS_MMAPLOCK_EXCL;
+
 			error = xfs_setattr_size(ip, iattr);
+		}
 		xfs_iunlock(ip, iolock);
 	} else {
 		error = xfs_setattr_nonsize(ip, iattr, 0);
@@ -1228,16 +1210,12 @@ xfs_diflags_to_iflags(
 }
 
 /*
- * Initialize the Linux inode, set up the operation vectors and
- * unlock the inode.
+ * Initialize the Linux inode and set up the operation vectors.
  *
- * When reading existing inodes from disk this is called directly
- * from xfs_iget, when creating a new inode it is called from
- * xfs_ialloc after setting up the inode.
- *
- * We are always called with an uninitialised linux inode here.
- * We need to initialise the necessary fields and take a reference
- * on it.
+ * When reading existing inodes from disk this is called directly from xfs_iget,
+ * when creating a new inode it is called from xfs_ialloc after setting up the
+ * inode. These callers have different criteria for clearing XFS_INEW, so leave
+ * it up to the caller to deal with unlocking the inode appropriately.
  */
 void
 xfs_setup_inode(
@@ -1324,9 +1302,4 @@ xfs_setup_inode(
 		inode_has_no_xattr(inode);
 		cache_no_acl(inode);
 	}
-
-	xfs_iflags_clear(ip, XFS_INEW);
-	barrier();
-
-	unlock_new_inode(inode);
 }
