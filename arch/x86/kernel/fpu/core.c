@@ -227,15 +227,12 @@ EXPORT_SYMBOL_GPL(fpstate_free);
  * In the 'lazy' case we save to the source context, mark the FPU lazy
  * via stts() and copy the source context into the destination context.
  */
-static void fpu_copy(struct task_struct *dst, struct task_struct *src)
+static void fpu_copy(struct fpu *dst_fpu, struct fpu *src_fpu)
 {
-	struct fpu *dst_fpu = &dst->thread.fpu;
-	struct fpu *src_fpu = &src->thread.fpu;
-
-	WARN_ON(src != current);
+	WARN_ON(src_fpu != &current->thread.fpu);
 
 	if (use_eager_fpu()) {
-		memset(&dst->thread.fpu.state->xsave, 0, xstate_size);
+		memset(&dst_fpu->state->xsave, 0, xstate_size);
 		__save_fpu(dst_fpu);
 	} else {
 		fpu__save(src_fpu);
@@ -258,7 +255,7 @@ int fpu__copy(struct task_struct *dst, struct task_struct *src)
 
 		if (err)
 			return err;
-		fpu_copy(dst, src);
+		fpu_copy(dst_fpu, src_fpu);
 	}
 	return 0;
 }
