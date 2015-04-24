@@ -235,6 +235,13 @@ config LOCK_SPIN_ON_OWNER
        def_bool y
        depends on MUTEX_SPIN_ON_OWNER || RWSEM_SPIN_ON_OWNER
 
+config ARCH_USE_QUEUED_SPINLOCK
+	bool
+
+config QUEUED_SPINLOCK
+	def_bool y if ARCH_USE_QUEUED_SPINLOCK
+	depends on SMP && !PARAVIRT_SPINLOCKS
+
 config ARCH_USE_QUEUE_RWLOCK
 	bool
 
