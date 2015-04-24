@@ -32,7 +32,7 @@ static unsigned int xfeatures_nr;
 /*
  * If a processor implementation discern that a processor state component is
  * in its initialized state it may modify the corresponding bit in the
- * xsave_hdr.xstate_bv as '0', with out modifying the corresponding memory
+ * header.xstate_bv as '0', with out modifying the corresponding memory
  * layout in the case of xsaveopt. While presenting the xstate information to
  * the user, we always ensure that the memory layout of a feature will be in
  * the init state if the corresponding header bit is zero. This is to ensure
@@ -48,7 +48,7 @@ void __sanitize_i387_state(struct task_struct *tsk)
 	if (!fx)
 		return;
 
-	xstate_bv = tsk->thread.fpu.state->xsave.xsave_hdr.xstate_bv;
+	xstate_bv = tsk->thread.fpu.state->xsave.header.xstate_bv;
 
 	/*
 	 * None of the feature bits are in init state. So nothing else
@@ -106,7 +106,7 @@ static inline int check_for_xstate(struct i387_fxsave_struct __user *buf,
 				   struct _fpx_sw_bytes *fx_sw)
 {
 	int min_xstate_size = sizeof(struct i387_fxsave_struct) +
-			      sizeof(struct xsave_hdr_struct);
+			      sizeof(struct xstate_header);
 	unsigned int magic2;
 
 	if (__copy_from_user(fx_sw, &buf->sw_reserved[0], sizeof(*fx_sw)))
@@ -178,7 +178,7 @@ static inline int save_xstate_epilog(void __user *buf, int ia32_frame)
 	 * Read the xstate_bv which we copied (directly from the cpu or
 	 * from the state in task struct) to the user buffers.
 	 */
-	err |= __get_user(xstate_bv, (__u32 *)&x->xsave_hdr.xstate_bv);
+	err |= __get_user(xstate_bv, (__u32 *)&x->header.xstate_bv);
 
 	/*
 	 * For legacy compatible, we always set FP/SSE bits in the bit
@@ -193,7 +193,7 @@ static inline int save_xstate_epilog(void __user *buf, int ia32_frame)
 	 */
 	xstate_bv |= XSTATE_FPSSE;
 
-	err |= __put_user(xstate_bv, (__u32 *)&x->xsave_hdr.xstate_bv);
+	err |= __put_user(xstate_bv, (__u32 *)&x->header.xstate_bv);
 
 	return err;
 }
@@ -280,20 +280,20 @@ sanitize_restored_xstate(struct task_struct *tsk,
 			 u64 xstate_bv, int fx_only)
 {
 	struct xsave_struct *xsave = &tsk->thread.fpu.state->xsave;
-	struct xsave_hdr_struct *xsave_hdr = &xsave->xsave_hdr;
+	struct xstate_header *header = &xsave->header;
 
 	if (use_xsave()) {
 		/* These bits must be zero. */
-		memset(xsave_hdr->reserved, 0, 48);
+		memset(header->reserved, 0, 48);
 
 		/*
 		 * Init the state that is not present in the memory
 		 * layout and not enabled by the OS.
 		 */
 		if (fx_only)
-			xsave_hdr->xstate_bv = XSTATE_FPSSE;
+			header->xstate_bv = XSTATE_FPSSE;
 		else
-			xsave_hdr->xstate_bv &= (xfeatures_mask & xstate_bv);
+			header->xstate_bv &= (xfeatures_mask & xstate_bv);
 	}
 
 	if (use_fxsr()) {
@@ -574,9 +574,9 @@ static void __init setup_init_fpu_buf(void)
 	print_xstate_features();
 
 	if (cpu_has_xsaves) {
-		init_xstate_buf->xsave_hdr.xcomp_bv =
+		init_xstate_buf->header.xcomp_bv =
 						(u64)1 << 63 | xfeatures_mask;
-		init_xstate_buf->xsave_hdr.xstate_bv = xfeatures_mask;
+		init_xstate_buf->header.xstate_bv = xfeatures_mask;
 	}
 
 	/*

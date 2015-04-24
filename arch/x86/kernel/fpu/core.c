@@ -470,7 +470,7 @@ int xfpregs_set(struct task_struct *target, const struct user_regset *regset,
 	 * presence of FP and SSE state.
 	 */
 	if (cpu_has_xsave)
-		fpu->state->xsave.xsave_hdr.xstate_bv |= XSTATE_FPSSE;
+		fpu->state->xsave.header.xstate_bv |= XSTATE_FPSSE;
 
 	return ret;
 }
@@ -528,11 +528,11 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
 	 * mxcsr reserved bits must be masked to zero for security reasons.
 	 */
 	xsave->i387.mxcsr &= mxcsr_feature_mask;
-	xsave->xsave_hdr.xstate_bv &= xfeatures_mask;
+	xsave->header.xstate_bv &= xfeatures_mask;
 	/*
 	 * These bits must be zero.
 	 */
-	memset(&xsave->xsave_hdr.reserved, 0, 48);
+	memset(&xsave->header.reserved, 0, 48);
 
 	return ret;
 }
@@ -740,7 +740,7 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 	 * presence of FP.
 	 */
 	if (cpu_has_xsave)
-		fpu->state->xsave.xsave_hdr.xstate_bv |= XSTATE_FP;
+		fpu->state->xsave.header.xstate_bv |= XSTATE_FP;
 	return ret;
 }
 

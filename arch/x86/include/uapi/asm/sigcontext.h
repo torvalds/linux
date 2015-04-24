@@ -209,7 +209,7 @@ struct sigcontext {
 
 #endif /* !__i386__ */
 
-struct _xsave_hdr {
+struct _header {
 	__u64 xstate_bv;
 	__u64 reserved1[2];
 	__u64 reserved2[5];
@@ -228,7 +228,7 @@ struct _ymmh_state {
  */
 struct _xstate {
 	struct _fpstate fpstate;
-	struct _xsave_hdr xstate_hdr;
+	struct _header xstate_hdr;
 	struct _ymmh_state ymmh;
 	/* new processor state extensions go here */
 };

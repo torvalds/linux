@@ -212,7 +212,7 @@ static inline int xsave_user(struct xsave_struct __user *buf)
 	 * Clear the xsave header first, so that reserved fields are
 	 * initialized to zero.
 	 */
-	err = __clear_user(&buf->xsave_hdr, sizeof(buf->xsave_hdr));
+	err = __clear_user(&buf->header, sizeof(buf->header));
 	if (unlikely(err))
 		return -EFAULT;
 

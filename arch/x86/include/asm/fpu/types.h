@@ -99,7 +99,7 @@ struct bndcsr {
 	u64				bndstatus;
 } __packed;
 
-struct xsave_hdr_struct {
+struct xstate_header {
 	u64				xstate_bv;
 	u64				xcomp_bv;
 	u64				reserved[6];
@@ -107,7 +107,7 @@ struct xsave_hdr_struct {
 
 struct xsave_struct {
 	struct i387_fxsave_struct	i387;
-	struct xsave_hdr_struct		xsave_hdr;
+	struct xstate_header		header;
 	struct ymmh_struct		ymmh;
 	struct lwp_struct		lwp;
 	struct bndreg			bndreg[4];
