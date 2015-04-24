@@ -10,8 +10,8 @@ ccflags-y := -shared -fPIC -fno-common -fno-builtin -fno-stack-protector
 ccflags-y += -nostdlib -Wl,-soname=linux-vdso.so.1 -DDISABLE_BRANCH_PROFILING
 ccflags-y += -Wl,--no-undefined $(call cc-ldoption, -Wl$(comma)--hash-style=sysv)
 
-obj-y += vdso.o
-extra-y += vdso.lds
+obj-$(CONFIG_VDSO) += vdso.o
+extra-$(CONFIG_VDSO) += vdso.lds
 CPPFLAGS_vdso.lds += -P -C -U$(ARCH)
 
 CFLAGS_REMOVE_vdso.o = -pg
