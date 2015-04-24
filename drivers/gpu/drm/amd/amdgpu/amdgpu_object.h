@@ -130,13 +130,20 @@ int amdgpu_bo_create(struct amdgpu_device *adev,
 			    bool kernel, u32 domain, u64 flags,
 			    struct sg_table *sg,
 			    struct amdgpu_bo **bo_ptr);
+int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
+				unsigned long size, int byte_align,
+				bool kernel, u32 domain, u64 flags,
+				struct sg_table *sg,
+				struct ttm_placement *placement,
+				struct amdgpu_bo **bo_ptr);
 int amdgpu_bo_kmap(struct amdgpu_bo *bo, void **ptr);
 void amdgpu_bo_kunmap(struct amdgpu_bo *bo);
 struct amdgpu_bo *amdgpu_bo_ref(struct amdgpu_bo *bo);
 void amdgpu_bo_unref(struct amdgpu_bo **bo);
 int amdgpu_bo_pin(struct amdgpu_bo *bo, u32 domain, u64 *gpu_addr);
 int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
-				    u64 max_offset, u64 *gpu_addr);
+			     u64 min_offset, u64 max_offset,
+			     u64 *gpu_addr);
 int amdgpu_bo_unpin(struct amdgpu_bo *bo);
 int amdgpu_bo_evict_vram(struct amdgpu_device *adev);
 void amdgpu_bo_force_delete(struct amdgpu_device *adev);

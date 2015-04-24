@@ -159,7 +159,7 @@ int amdgpu_crtc_page_flip(struct drm_crtc *crtc,
 		goto cleanup;
 	}
 
-	r = amdgpu_bo_pin_restricted(new_rbo, AMDGPU_GEM_DOMAIN_VRAM, 0, &base);
+	r = amdgpu_bo_pin_restricted(new_rbo, AMDGPU_GEM_DOMAIN_VRAM, 0, 0, &base);
 	if (unlikely(r != 0)) {
 		amdgpu_bo_unreserve(new_rbo);
 		r = -EINVAL;

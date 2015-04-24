@@ -43,6 +43,7 @@
 #include <ttm/ttm_execbuf_util.h>
 
 #include <drm/drm_gem.h>
+#include <drm/amdgpu_drm.h>
 
 #include "amd_shared.h"
 #include "amdgpu_family.h"
@@ -542,12 +543,14 @@ struct amdgpu_bo_va {
 	struct amdgpu_bo		*bo;
 };
 
+#define AMDGPU_GEM_DOMAIN_MAX		0x3
+
 struct amdgpu_bo {
 	/* Protected by gem.mutex */
 	struct list_head		list;
 	/* Protected by tbo.reserved */
 	u32				initial_domain;
-	struct ttm_place		placements[4];
+	struct ttm_place		placements[AMDGPU_GEM_DOMAIN_MAX + 1];
 	struct ttm_placement		placement;
 	struct ttm_buffer_object	tbo;
 	struct ttm_bo_kmap_obj		kmap;

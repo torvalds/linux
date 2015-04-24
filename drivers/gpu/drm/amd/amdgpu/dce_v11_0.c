@@ -2552,7 +2552,7 @@ static int dce_v11_0_crtc_cursor_set(struct drm_crtc *crtc,
 	if (unlikely(ret != 0))
 		goto fail;
 	ret = amdgpu_bo_pin_restricted(robj, AMDGPU_GEM_DOMAIN_VRAM,
-				       0, &gpu_addr);
+				       0, 0, &gpu_addr);
 	amdgpu_bo_unreserve(robj);
 	if (ret)
 		goto fail;
