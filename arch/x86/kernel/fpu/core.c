@@ -403,18 +403,18 @@ void fpu__clear(struct task_struct *tsk)
 }
 
 /*
- * The xstateregs_active() routine is the same as the fpregs_active() routine,
+ * The xstateregs_active() routine is the same as the regset_fpregs_active() routine,
  * as the "regset->n" for the xstate regset will be updated based on the feature
  * capabilites supported by the xsave.
  */
-int fpregs_active(struct task_struct *target, const struct user_regset *regset)
+int regset_fpregs_active(struct task_struct *target, const struct user_regset *regset)
 {
 	struct fpu *target_fpu = &target->thread.fpu;
 
 	return target_fpu->fpstate_active ? regset->n : 0;
 }
 
-int xfpregs_active(struct task_struct *target, const struct user_regset *regset)
+int regset_xregset_fpregs_active(struct task_struct *target, const struct user_regset *regset)
 {
 	struct fpu *target_fpu = &target->thread.fpu;
 

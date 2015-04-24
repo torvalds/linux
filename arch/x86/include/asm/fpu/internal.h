@@ -46,17 +46,17 @@ extern void convert_from_fxsr(struct user_i387_ia32_struct *env,
 extern void convert_to_fxsr(struct task_struct *tsk,
 			    const struct user_i387_ia32_struct *env);
 
-extern user_regset_active_fn fpregs_active, xfpregs_active;
+extern user_regset_active_fn regset_fpregs_active, regset_xregset_fpregs_active;
 extern user_regset_get_fn fpregs_get, xfpregs_get, fpregs_soft_get,
 				xstateregs_get;
 extern user_regset_set_fn fpregs_set, xfpregs_set, fpregs_soft_set,
 				 xstateregs_set;
 
 /*
- * xstateregs_active == fpregs_active. Please refer to the comment
- * at the definition of fpregs_active.
+ * xstateregs_active == regset_fpregs_active. Please refer to the comment
+ * at the definition of regset_fpregs_active.
  */
-#define xstateregs_active	fpregs_active
+#define xstateregs_active	regset_fpregs_active
 
 #ifdef CONFIG_MATH_EMULATION
 extern void finit_soft_fpu(struct i387_soft_struct *soft);
