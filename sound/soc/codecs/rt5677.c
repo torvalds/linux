@@ -62,6 +62,9 @@ static const struct reg_default init_list[] = {
 	{RT5677_PR_BASE + 0x1e,	0x0000},
 	{RT5677_PR_BASE + 0x12,	0x0eaa},
 	{RT5677_PR_BASE + 0x14,	0x018a},
+	{RT5677_PR_BASE + 0x15,	0x0490},
+	{RT5677_PR_BASE + 0x38,	0x0f71},
+	{RT5677_PR_BASE + 0x39,	0x0f71},
 };
 #define RT5677_INIT_REG_LEN ARRAY_SIZE(init_list)
 
