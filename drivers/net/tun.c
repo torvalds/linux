@@ -111,6 +111,7 @@ do {								\
 #define TUN_FASYNC	IFF_ATTACH_QUEUE
 /* High bits in flags field are unused. */
 #define TUN_VNET_LE     0x80000000
+#define TUN_VNET_BE     0x40000000
 
 #define TUN_FEATURES (IFF_NO_PI | IFF_ONE_QUEUE | IFF_VNET_HDR | \
 		      IFF_MULTI_QUEUE)
@@ -206,10 +207,58 @@ struct tun_struct {
 	u32 flow_count;
 };
 
+#ifdef CONFIG_TUN_VNET_CROSS_LE
+static inline bool tun_legacy_is_little_endian(struct tun_struct *tun)
+{
+	return tun->flags & TUN_VNET_BE ? false :
+		virtio_legacy_is_little_endian();
+}
+
+static long tun_get_vnet_be(struct tun_struct *tun, int __user *argp)
+{
+	int be = !!(tun->flags & TUN_VNET_BE);
+
+	if (put_user(be, argp))
+		return -EFAULT;
+
+	return 0;
+}
+
+static long tun_set_vnet_be(struct tun_struct *tun, int __user *argp)
+{
+	int be;
+
+	if (get_user(be, argp))
+		return -EFAULT;
+
+	if (be)
+		tun->flags |= TUN_VNET_BE;
+	else
+		tun->flags &= ~TUN_VNET_BE;
+
+	return 0;
+}
+#else
+static inline bool tun_legacy_is_little_endian(struct tun_struct *tun)
+{
+	return virtio_legacy_is_little_endian();
+}
+
+static long tun_get_vnet_be(struct tun_struct *tun, int __user *argp)
+{
+	return -EINVAL;
+}
+
+static long tun_set_vnet_be(struct tun_struct *tun, int __user *argp)
+{
+	return -EINVAL;
+}
+#endif /* CONFIG_TUN_VNET_CROSS_LE */
+
 static inline bool tun_is_little_endian(struct tun_struct *tun)
 {
 	return tun->flags & TUN_VNET_LE ||
-		virtio_legacy_is_little_endian();
+		tun_legacy_is_little_endian(tun);
 }
 
 static inline u16 tun16_to_cpu(struct tun_struct *tun, __virtio16 val)
@@ -2060,6 +2109,14 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 			tun->flags |= TUN_VNET_LE;
 		else
 			tun->flags &= ~TUN_VNET_LE;
+		break;
+
+	case TUNGETVNETBE:
+		ret = tun_get_vnet_be(tun, argp);
+		break;
+
+	case TUNSETVNETBE:
+		ret = tun_set_vnet_be(tun, argp);
 		break;
 
 	case TUNATTACHFILTER:
